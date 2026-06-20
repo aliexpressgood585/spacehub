@@ -25,6 +25,7 @@ import ShareCard from './components/ShareCard'
 import BlogPage from './pages/BlogPage'
 import CityPage from './pages/CityPage'
 import PrivacyPage from './pages/PrivacyPage'
+import SuccessPage from './pages/SuccessPage'
 
 type Tab = 'dashboard' | 'starmap' | 'tracker' | 'solar' | 'weather' | 'events' | 'news' | 'quiz' | 'blog'
 
@@ -198,6 +199,7 @@ export default function App() {
         } />
         <Route path="/iss/:city" element={<CityPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/success" element={<SuccessPage />} />
       </Routes>
     </BrowserRouter>
   )
