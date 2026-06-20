@@ -14,26 +14,26 @@ export default function SpaceWeather() {
   useEffect(() => {
     const mockWeather: WeatherData[] = [
       {
-        label: 'סערת שמש',
-        value: 'מתונה',
+        label: 'Solar Storm',
+        value: 'Moderate',
         icon: '☀️',
         level: 'moderate',
       },
       {
-        label: 'קרינה קוסמית',
-        value: 'נמוכה',
+        label: 'Cosmic Radiation',
+        value: 'Low',
         icon: '☢️',
         level: 'low',
       },
       {
-        label: 'זוהרים אורוראליים',
-        value: 'צפויים הלילה',
+        label: 'Auroral Activity',
+        value: 'Expected Tonight',
         icon: '🌌',
         level: 'high',
       },
       {
-        label: 'שדה מגנטי',
-        value: 'יציב',
+        label: 'Magnetic Field',
+        value: 'Stable',
         icon: '🧲',
         level: 'low',
       },
@@ -60,13 +60,13 @@ export default function SpaceWeather() {
     <div className="space-y-6">
       {/* 3D Solar Wind Visualization */}
       <div className="neon-border glass rounded-lg p-6">
-        <h3 className="text-xl font-bold text-white mb-4">☀️ רוח שמשית — הדמיה תלת מימד</h3>
+        <h3 className="text-xl font-bold text-white mb-4">☀️ Solar Wind — 3D Simulation</h3>
         <SolarWind3D />
-        <p className="text-xs text-gray-500 mt-2 text-center">שמש → כדור הארץ | חלקיקי רוח שמשית בזמן אמת</p>
+        <p className="text-xs text-gray-500 mt-2 text-center">Sun → Earth | Live solar wind particles</p>
       </div>
 
       <div className="neon-border glass rounded-lg p-8">
-        <h3 className="text-2xl font-bold text-white mb-6">⛈️ מזג אוויר חלל</h3>
+        <h3 className="text-2xl font-bold text-white mb-6">⛈️ Space Weather</h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {weather.map((item, idx) => (
             <div key={idx} className={`rounded-lg p-6 border ${getLevelColor(item.level)}`}>
@@ -83,22 +83,22 @@ export default function SpaceWeather() {
       </div>
 
       <div className="neon-border glass rounded-lg p-8">
-        <h4 className="text-xl font-bold text-white mb-4">📊 ניתוח מפורט</h4>
+        <h4 className="text-xl font-bold text-white mb-4">📊 Detailed Analysis</h4>
         <div className="space-y-3">
           <div className="flex justify-between items-center py-2">
-            <span className="text-gray-400">רמת סערה מגנטית</span>
+            <span className="text-gray-400">Geomagnetic Storm Level</span>
             <div className="w-32 h-2 bg-space-700 rounded-full overflow-hidden">
               <div className="w-1/3 h-full bg-indigo-500 rounded-full"></div>
             </div>
           </div>
           <div className="flex justify-between items-center py-2">
-            <span className="text-gray-400">קרינה קוסמית</span>
+            <span className="text-gray-400">Cosmic Radiation</span>
             <div className="w-32 h-2 bg-space-700 rounded-full overflow-hidden">
               <div className="w-1/12 h-full bg-green-500 rounded-full"></div>
             </div>
           </div>
           <div className="flex justify-between items-center py-2">
-            <span className="text-gray-400">סיכוי לזוהרים</span>
+            <span className="text-gray-400">Aurora Probability</span>
             <div className="w-32 h-2 bg-space-700 rounded-full overflow-hidden">
               <div className="w-2/3 h-full bg-indigo-400 rounded-full"></div>
             </div>

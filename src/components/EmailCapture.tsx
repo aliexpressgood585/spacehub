@@ -22,8 +22,8 @@ export default function EmailCapture() {
     return (
       <div className="relative overflow-hidden rounded-2xl p-8 text-center bg-gradient-to-r from-indigo-900/60 via-purple-900/60 to-indigo-900/60 border border-indigo-500/30">
         <div className="text-5xl mb-4">🚀</div>
-        <h3 className="text-xl font-bold text-white mb-2">נרשמת בהצלחה!</h3>
-        <p className="text-gray-400">תקבל/י התראות על ISS, גשמי מטאורים ואירועים אסטרונומיים נדירים.</p>
+        <h3 className="text-xl font-bold text-white mb-2">You're in!</h3>
+        <p className="text-gray-400">You'll receive alerts about ISS passes, meteor showers, and rare astronomical events.</p>
       </div>
     )
   }
@@ -44,33 +44,32 @@ export default function EmailCapture() {
       <div className="relative text-center max-w-xl mx-auto">
         <div className="inline-flex items-center gap-2 bg-indigo-500/20 text-indigo-300 text-xs px-3 py-1 rounded-full border border-indigo-500/30 mb-4">
           <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-          התראות חינם — ללא כרטיס אשראי
+          Free alerts — no credit card required
         </div>
         <h3 className="text-2xl font-bold text-white mb-2">
-          קבל התראה כשה-ISS עובר מעליך 🛸
+          Get Notified When the ISS Passes Over You 🛸
         </h3>
         <p className="text-gray-400 mb-6 text-sm">
-          גשמי מטאורים • ליקויי חמה • אירועים נדירים • כל מה שקורה בחלל — ישר למייל שלך
+          Meteor showers • Solar eclipses • Rare events • Everything happening in space — straight to your inbox
         </p>
         <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
           <input
             type="email"
             value={email}
             onChange={e => setEmail(e.target.value)}
-            placeholder="האימייל שלך"
+            placeholder="your@email.com"
             required
             className="flex-1 px-4 py-3 rounded-lg bg-space-900/80 border border-space-700 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 text-sm"
-            dir="ltr"
           />
           <button
             type="submit"
             disabled={loading}
             className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-lg text-white font-medium transition whitespace-nowrap text-sm"
           >
-            {loading ? '...' : 'הצטרף חינם →'}
+            {loading ? '...' : 'Join Free →'}
           </button>
         </form>
-        <p className="text-gray-600 text-xs mt-3">מצטרפים כבר 2,400+ חובבי חלל • ללא ספאם • ביטול בכל עת</p>
+        <p className="text-gray-600 text-xs mt-3">2,400+ space fans already joined • No spam • Unsubscribe anytime</p>
       </div>
     </div>
   )

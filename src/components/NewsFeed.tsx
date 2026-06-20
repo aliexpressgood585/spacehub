@@ -14,30 +14,30 @@ export default function NewsFeed() {
   useEffect(() => {
     const mockNews: NewsItem[] = [
       {
-        date: '20 יוני 2026',
-        title: 'טלסקופ וויב מגלה כוכב לכת חדש',
-        summary: 'טלסקופ ג\'יימס וויב גילה כוכב לכת טרא-ארצי חדש באזור הגן עדן של הכוכב שלו.',
+        date: 'June 20, 2026',
+        title: 'James Webb Telescope Discovers New Exoplanet',
+        summary: 'The James Webb Space Telescope has discovered a new terrestrial exoplanet in its star\'s habitable zone.',
         source: 'NASA',
         icon: '🔭',
       },
       {
-        date: '19 יוני 2026',
-        title: 'SpaceX משגרת 60 לוויינים Starlink נוספים',
-        summary: 'SpaceX השגירה 60 לוויינים נוספים של Starlink, הקרובים לשלמות הרשת.',
+        date: 'June 19, 2026',
+        title: 'SpaceX Launches 60 More Starlink Satellites',
+        summary: 'SpaceX launched 60 additional Starlink satellites, bringing the network closer to completion.',
         source: 'SpaceX',
         icon: '🛰️',
       },
       {
-        date: '18 יוני 2026',
-        title: 'ISS מתקבלת קצין חדש',
-        summary: 'תחנת החלל הבינלאומית קיבלה קצין חלל חדש במשימה Soyuz MS-27.',
+        date: 'June 18, 2026',
+        title: 'ISS Welcomes New Crew Member',
+        summary: 'The International Space Station received a new crew member on the Soyuz MS-27 mission.',
         source: 'Roscosmos',
         icon: '👨‍🚀',
       },
       {
-        date: '17 יוני 2026',
-        title: 'גילוי של גל כבידה חדש',
-        summary: 'מרכז LIGO גילה גל כבידה חדש מהתנגשות של שני כוכבי ניוטרון.',
+        date: 'June 17, 2026',
+        title: 'New Gravitational Wave Detected',
+        summary: 'LIGO has detected a new gravitational wave from the collision of two neutron stars.',
         source: 'LIGO',
         icon: '📡',
       },
@@ -71,7 +71,7 @@ export default function NewsFeed() {
 
       <div className="mt-8 text-center">
         <button className="px-6 py-3 border border-indigo-500 text-indigo-400 hover:bg-indigo-500 hover:bg-opacity-10 rounded-lg font-medium transition">
-          עוד חדשות
+          More News
         </button>
       </div>
     </div>

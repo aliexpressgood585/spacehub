@@ -21,7 +21,7 @@ export default function AdBanner({ slot = 'leaderboard' }: AdBannerProps) {
       className="mx-auto flex items-center justify-center rounded-lg border border-dashed border-space-700/50 bg-space-900/30"
     >
       <div className="text-center">
-        <p className="text-gray-700 text-xs">פרסום</p>
+        <p className="text-gray-700 text-xs">Ad</p>
         <p className="text-gray-800 text-xs">{s.label}</p>
         {/* ↓ Paste your AdSense <ins> tag here ↓ */}
       </div>

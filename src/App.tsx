@@ -28,16 +28,16 @@ import PrivacyPage from './pages/PrivacyPage'
 
 type Tab = 'dashboard' | 'starmap' | 'tracker' | 'solar' | 'weather' | 'events' | 'news' | 'quiz' | 'blog'
 
-const TABS: { id: Tab; icon: string; he: string; en: string }[] = [
-  { id: 'dashboard', icon: '🛸', he: 'ISS חי',        en: 'ISS Live' },
-  { id: 'starmap',   icon: '🌌', he: 'מפת שמיים',    en: 'Star Map' },
-  { id: 'tracker',   icon: '🛰️', he: 'לוויינים',     en: 'Satellites' },
-  { id: 'solar',     icon: '🪐', he: 'מערכת השמש',   en: 'Solar System' },
-  { id: 'weather',   icon: '⛈️', he: 'מזג חלל',      en: 'Space Weather' },
-  { id: 'events',    icon: '🌠', he: 'אירועים',       en: 'Events' },
-  { id: 'news',      icon: '📰', he: 'חדשות',         en: 'News' },
-  { id: 'quiz',      icon: '🧠', he: 'קוויז',         en: 'Quiz' },
-  { id: 'blog',      icon: '📝', he: 'בלוג',          en: 'Blog' },
+const TABS: { id: Tab; icon: string; label: string }[] = [
+  { id: 'dashboard', icon: '🛸', label: 'ISS Live' },
+  { id: 'starmap',   icon: '🌌', label: 'Star Map' },
+  { id: 'tracker',   icon: '🛰️', label: 'Satellites' },
+  { id: 'solar',     icon: '🪐', label: 'Solar System' },
+  { id: 'weather',   icon: '⛈️', label: 'Space Weather' },
+  { id: 'events',    icon: '🌠', label: 'Events' },
+  { id: 'news',      icon: '📰', label: 'News' },
+  { id: 'quiz',      icon: '🧠', label: 'Quiz' },
+  { id: 'blog',      icon: '📝', label: 'Blog' },
 ]
 
 function MainApp() {
@@ -46,7 +46,6 @@ function MainApp() {
   const [premiumOpen, setPremiumOpen] = useState(false)
   const [issData, setIssData] = useState<{ lat: number; lng: number; alt: number } | null>(null)
   const issRef = useRef<HTMLDivElement>(null)
-  const he = lang === 'he'
 
   useEffect(() => {
     document.documentElement.lang = lang
@@ -69,7 +68,7 @@ function MainApp() {
   return (
     <div className="min-h-screen relative" style={{ background: '#050816' }}>
       <SpaceBackground />
-      <PremiumModal open={premiumOpen} onClose={() => setPremiumOpen(false)} lang={lang} />
+      <PremiumModal open={premiumOpen} onClose={() => setPremiumOpen(false)} />
 
       <div className="relative" style={{ zIndex: 1 }}>
         <Header
@@ -95,7 +94,7 @@ function MainApp() {
                 className={`tab-pill flex-shrink-0 flex items-center gap-1.5 ${activeTab === tab.id ? 'active' : ''}`}
               >
                 <span>{tab.icon}</span>
-                <span>{he ? tab.he : tab.en}</span>
+                <span>{tab.label}</span>
               </button>
             ))}
           </div>
@@ -119,10 +118,10 @@ function MainApp() {
             <div className="space-y-5">
               <StarMap />
               <div className="space-card p-5">
-                <h3 className="text-white font-semibold mb-2">💡 ISS בשמיים הלילה</h3>
-                <p className="text-gray-400 text-sm">עבור לטאב ISS חי כדי לדעת בדיוק מתי ISS עובר מעליך ובאיזה כיוון.</p>
+                <h3 className="text-white font-semibold mb-2">💡 ISS in Tonight's Sky</h3>
+                <p className="text-gray-400 text-sm">Switch to the ISS Live tab to know exactly when the ISS passes over you and in which direction.</p>
                 <button onClick={() => setActiveTab('dashboard')} className="mt-3 btn-shimmer px-4 py-2 text-sm">
-                  🛸 עבור ל-ISS Live
+                  🛸 Go to ISS Live
                 </button>
               </div>
             </div>
@@ -134,7 +133,7 @@ function MainApp() {
             <div className="space-card p-6">
               <div className="flex items-center gap-3 mb-4">
                 <span className="text-2xl">🪐</span>
-                <h3 className="text-xl font-bold text-white">{he ? 'מערכת השמש — תלת מימד' : 'Solar System — 3D'}</h3>
+                <h3 className="text-xl font-bold text-white">Solar System — 3D</h3>
               </div>
               <SolarSystem3D />
             </div>
@@ -164,7 +163,7 @@ function MainApp() {
         <footer className="border-t border-white/[0.04] py-10 text-center">
           <p className="text-2xl mb-3">🚀</p>
           <p className="text-white font-bold mb-1">SpaceHub</p>
-          <p className="text-gray-600 text-xs mb-4">{he ? 'מידע חלל בזמן אמת' : 'Real-time Space Data'}</p>
+          <p className="text-gray-600 text-xs mb-4">Real-time Space Data</p>
           <div className="flex flex-wrap gap-3 justify-center text-gray-700 text-xs mb-4">
             <Link to="/blog" className="hover:text-gray-400 transition">Blog</Link>
             <Link to="/iss/new-york" className="hover:text-gray-400 transition">ISS New York</Link>

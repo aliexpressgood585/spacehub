@@ -32,8 +32,8 @@ export default function AstronautsInSpace() {
       <div className="flex items-center gap-3 mb-5">
         <span className="text-2xl">👨‍🚀</span>
         <div>
-          <h3 className="text-white font-bold text-lg">מי בחלל עכשיו?</h3>
-          <p className="text-gray-500 text-xs">אסטרונאוטים בחלל בזמן אמת</p>
+          <h3 className="text-white font-bold text-lg">Who's in Space Now?</h3>
+          <p className="text-gray-500 text-xs">Astronauts currently aboard spacecraft</p>
         </div>
         {!loading && (
           <div className="ml-auto">
@@ -55,7 +55,7 @@ export default function AstronautsInSpace() {
               <div className="flex items-center gap-2 mb-2">
                 <span>{CRAFT_EMOJI[craft] ?? '🚀'}</span>
                 <span className="text-xs font-bold text-indigo-300 uppercase tracking-widest">{craft}</span>
-                <span className="text-xs text-gray-600">— {people.filter(p => p.craft === craft).length} אנשים</span>
+                <span className="text-xs text-gray-600">— {people.filter(p => p.craft === craft).length} people</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {people.filter(p => p.craft === craft).map(p => (
@@ -69,7 +69,7 @@ export default function AstronautsInSpace() {
               </div>
             </div>
           ))}
-          <p className="text-xs text-gray-700 text-center pt-2">סה"כ {people.length} בני אדם בחלל כרגע</p>
+          <p className="text-xs text-gray-700 text-center pt-2">{people.length} humans in space right now</p>
         </div>
       )}
     </div>

@@ -346,7 +346,7 @@ export default function EarthGlobe3D() {
       <div ref={containerRef} className="w-full h-full" />
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-4 left-4 glass px-3 py-2 rounded-lg text-xs text-gray-300">
-          🖱️ גרור לסיבוב · גלגל להתקרב
+          🖱️ Drag to rotate · Scroll to zoom
         </div>
         <div className="absolute bottom-4 right-4 flex flex-col gap-1.5">
           {[

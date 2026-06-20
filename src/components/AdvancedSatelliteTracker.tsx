@@ -93,13 +93,13 @@ export default function AdvancedSatelliteTracker() {
   const getVisibilityLabel = (visibility: string) => {
     switch (visibility) {
       case 'visible':
-        return '🟢 נראה'
+        return '🟢 Visible'
       case 'daylight':
-        return '🟡 אור יום'
+        return '🟡 Daylight'
       case 'eclipsed':
-        return '🔴 בצל'
+        return '🔴 Eclipsed'
       default:
-        return '⚪ לא ידוע'
+        return '⚪ Unknown'
     }
   }
 
@@ -107,7 +107,7 @@ export default function AdvancedSatelliteTracker() {
     <div className="space-y-6">
       {/* 3D Globe */}
       <div className="neon-border glass rounded-lg p-6">
-        <h3 className="text-xl font-bold text-white mb-4">🌍 מפה 3D אינטראקטיבית</h3>
+        <h3 className="text-xl font-bold text-white mb-4">🌍 Interactive 3D Map</h3>
         <Globe3D />
       </div>
 
@@ -121,7 +121,7 @@ export default function AdvancedSatelliteTracker() {
               : 'bg-space-700 text-gray-300 hover:bg-space-600'
           }`}
         >
-          {autoRefresh ? '⏸ עצור עדכון' : '▶️ התחל עדכון'}
+          {autoRefresh ? '⏸ Pause Updates' : '▶️ Start Updates'}
         </button>
       </div>
 
@@ -140,22 +140,22 @@ export default function AdvancedSatelliteTracker() {
             <h4 className="font-bold text-indigo-400 mb-3">{sat.name}</h4>
             <div className="space-y-2 text-sm text-gray-300">
               <p className="flex justify-between">
-                <span>סטטוס:</span>
+                <span>Status:</span>
                 <span className={getVisibilityColor(sat.visibility)}>
                   {getVisibilityLabel(sat.visibility)}
                 </span>
               </p>
               <p className="flex justify-between">
-                <span>קו רוחב:</span>
+                <span>Latitude:</span>
                 <span>{sat.latitude.toFixed(2)}°</span>
               </p>
               <p className="flex justify-between">
-                <span>קו אורך:</span>
+                <span>Longitude:</span>
                 <span>{sat.longitude.toFixed(2)}°</span>
               </p>
               <p className="flex justify-between">
-                <span>גובה:</span>
-                <span>{sat.altitude.toFixed(0)} ק״מ</span>
+                <span>Altitude:</span>
+                <span>{sat.altitude.toFixed(0)} km</span>
               </p>
             </div>
           </div>
@@ -168,39 +168,39 @@ export default function AdvancedSatelliteTracker() {
           <h3 className="text-xl font-bold text-white mb-4">📡 {selectedSat.name}</h3>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="space-y-3">
-              <h4 className="font-semibold text-indigo-300">מיקום נוכחי</h4>
+              <h4 className="font-semibold text-indigo-300">Current Position</h4>
               <div className="space-y-2 text-gray-300">
                 <p>
-                  <span className="text-gray-400">קו רוחב:</span>{' '}
+                  <span className="text-gray-400">Latitude:</span>{' '}
                   <span className="text-white">{selectedSat.latitude.toFixed(4)}°</span>
                 </p>
                 <p>
-                  <span className="text-gray-400">קו אורך:</span>{' '}
+                  <span className="text-gray-400">Longitude:</span>{' '}
                   <span className="text-white">{selectedSat.longitude.toFixed(4)}°</span>
                 </p>
                 <p>
-                  <span className="text-gray-400">גובה:</span>{' '}
-                  <span className="text-white">{selectedSat.altitude.toFixed(1)} ק״מ</span>
+                  <span className="text-gray-400">Altitude:</span>{' '}
+                  <span className="text-white">{selectedSat.altitude.toFixed(1)} km</span>
                 </p>
               </div>
             </div>
             <div className="space-y-3">
-              <h4 className="font-semibold text-indigo-300">נתונים מסלולים</h4>
+              <h4 className="font-semibold text-indigo-300">Orbital Data</h4>
               <div className="space-y-2 text-gray-300">
                 <p>
-                  <span className="text-gray-400">מהירות:</span>{' '}
-                  <span className="text-white">{selectedSat.velocity.toFixed(2)} ק״מ/שנ</span>
+                  <span className="text-gray-400">Speed:</span>{' '}
+                  <span className="text-white">{selectedSat.velocity.toFixed(2)} km/s</span>
                 </p>
                 <p>
-                  <span className="text-gray-400">טביעת רגל:</span>{' '}
-                  <span className="text-white">{selectedSat.footprint} ק״מ</span>
+                  <span className="text-gray-400">Footprint:</span>{' '}
+                  <span className="text-white">{selectedSat.footprint} km</span>
                 </p>
                 <p>
-                  <span className="text-gray-400">עלייה הבאה:</span>{' '}
+                  <span className="text-gray-400">Next Rise:</span>{' '}
                   <span className="text-white">{selectedSat.next_rise}</span>
                 </p>
                 <p>
-                  <span className="text-gray-400">שקיעה הבאה:</span>{' '}
+                  <span className="text-gray-400">Next Set:</span>{' '}
                   <span className="text-white">{selectedSat.next_set}</span>
                 </p>
               </div>

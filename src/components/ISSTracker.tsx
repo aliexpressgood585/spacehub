@@ -173,7 +173,7 @@ export default function ISSTracker() {
     <div className="neon-border glass rounded-lg overflow-hidden">
       <div className="p-6 border-b border-space-700 flex items-center gap-3">
         <span className="text-2xl">🛸</span>
-        <h3 className="text-xl font-bold text-white">עקיבת ISS בזמן אמת</h3>
+        <h3 className="text-xl font-bold text-white">ISS Real-Time Tracker</h3>
         <span className="ml-auto flex items-center gap-2 text-xs text-green-400">
           <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block" />
           LIVE
@@ -183,31 +183,31 @@ export default function ISSTracker() {
       <div className="grid grid-cols-1 lg:grid-cols-3">
         <div className="lg:col-span-2" ref={containerRef} style={{ height: 320 }} />
         <div className="p-6 border-l border-space-700 flex flex-col justify-center gap-4">
-          <h4 className="text-indigo-300 font-bold text-lg">ISS - תחנת החלל הבינלאומית</h4>
+          <h4 className="text-indigo-300 font-bold text-lg">ISS — International Space Station</h4>
           {issPos ? (
             <div className="space-y-3">
               <div className="glass rounded p-3">
-                <p className="text-xs text-gray-500 mb-1">קו רוחב</p>
+                <p className="text-xs text-gray-500 mb-1">Latitude</p>
                 <p className="text-white font-mono text-lg">{issPos.latitude.toFixed(4)}°</p>
               </div>
               <div className="glass rounded p-3">
-                <p className="text-xs text-gray-500 mb-1">קו אורך</p>
+                <p className="text-xs text-gray-500 mb-1">Longitude</p>
                 <p className="text-white font-mono text-lg">{issPos.longitude.toFixed(4)}°</p>
               </div>
               <div className="glass rounded p-3">
-                <p className="text-xs text-gray-500 mb-1">גובה</p>
-                <p className="text-white font-mono text-lg">{issPos.altitude.toFixed(1)} ק"מ</p>
+                <p className="text-xs text-gray-500 mb-1">Altitude</p>
+                <p className="text-white font-mono text-lg">{issPos.altitude.toFixed(1)} km</p>
               </div>
               <div className="glass rounded p-3">
-                <p className="text-xs text-gray-500 mb-1">מהירות</p>
-                <p className="text-white font-mono text-lg">{(issPos.velocity / 3.6).toFixed(2)} ק"מ/שנ</p>
+                <p className="text-xs text-gray-500 mb-1">Speed</p>
+                <p className="text-white font-mono text-lg">{(issPos.velocity / 3.6).toFixed(2)} km/s</p>
               </div>
-              <p className="text-xs text-gray-600">מתעדכן כל 5 שניות</p>
+              <p className="text-xs text-gray-600">Updates every 5 seconds</p>
             </div>
           ) : (
             <div className="text-center text-gray-400">
               <div className="text-3xl animate-spin mb-2">⚙️</div>
-              <p className="text-sm">טוען מיקום ISS...</p>
+              <p className="text-sm">Loading ISS position...</p>
             </div>
           )}
         </div>

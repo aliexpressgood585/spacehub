@@ -30,13 +30,13 @@ export default function NasaAPOD() {
   if (loading) return (
     <div className="neon-border glass rounded-lg p-8 text-center">
       <div className="text-4xl mb-4 animate-pulse">🔭</div>
-      <p className="text-gray-400">טוען תמונת היום של נאס"א...</p>
+      <p className="text-gray-400">Loading NASA Astronomy Picture of the Day...</p>
     </div>
   )
 
   if (error || !apod) return (
     <div className="neon-border glass rounded-lg p-8 text-center">
-      <p className="text-gray-400">⚠️ לא ניתן לטעון תמונת נאס"א כרגע</p>
+      <p className="text-gray-400">⚠️ Unable to load NASA image right now</p>
     </div>
   )
 
@@ -45,7 +45,7 @@ export default function NasaAPOD() {
       <div className="p-6 border-b border-space-700">
         <div className="flex items-center gap-3 mb-1">
           <span className="text-2xl">🔭</span>
-          <h3 className="text-xl font-bold text-white">תמונת היום — נאס&quot;א APOD</h3>
+          <h3 className="text-xl font-bold text-white">Astronomy Picture of the Day — NASA APOD</h3>
           <span className="ml-auto text-xs text-gray-500 bg-space-800 px-2 py-1 rounded">{apod.date}</span>
         </div>
       </div>
@@ -83,7 +83,7 @@ export default function NasaAPOD() {
           )}
           <div className="mt-4 flex gap-2">
             <span className="text-xs bg-indigo-900/50 text-indigo-300 px-3 py-1 rounded-full border border-indigo-700/50">NASA APOD</span>
-            <span className="text-xs bg-space-800 text-gray-400 px-3 py-1 rounded-full border border-space-700">מתעדכן יומית</span>
+            <span className="text-xs bg-space-800 text-gray-400 px-3 py-1 rounded-full border border-space-700">Updated Daily</span>
           </div>
         </div>
       </div>

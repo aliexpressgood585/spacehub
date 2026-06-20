@@ -3,93 +3,94 @@ import { useState } from 'react'
 const ARTICLES = [
   {
     slug: 'how-to-see-iss',
-    title: 'איך לראות את תחנת החלל ISS בעין ערומה?',
-    date: '15 יוני 2026',
-    readTime: '4 דקות',
+    title: 'How to See the ISS With the Naked Eye',
+    date: 'June 15, 2026',
+    readTime: '4 min read',
     icon: '🛸',
-    preview: 'תחנת החלל הבינלאומית היא אחד הדברים היפים ביותר שניתן לראות בשמיים בלילה — אבל איך יודעים מתי ואיפה להסתכל?',
-    content: `תחנת החלל הבינלאומית (ISS) מקיפה את כדור הארץ בגובה של כ-400 ק"מ, במהירות של 28,000 ק"מ לשעה. היא ממשיכה לסבוב 16 פעמים ביום!
+    preview: 'The International Space Station is one of the most beautiful things you can see in the night sky — but how do you know when and where to look?',
+    content: `The International Space Station (ISS) orbits Earth at about 400 km altitude, traveling at 28,000 km/h. It completes 16 orbits per day!
 
-**מתי לראות את ISS?**
+**When to Look for the ISS?**
 
-ISS נראית לעין ערומה בשמיים כנקודת אור לבנה נעה — בדומה לכוכב, רק שהיא נעה מהר יותר. היא נראית בתנאים הבאים:
-- **30-45 דקות לפני שקיעה** — השמש כבר שקעה אבל עדיין מאירה את תחנת החלל
-- **30-45 דקות אחרי שקיעה** — באותו עיקרון
-- **מזג אוויר בהיר** — ללא עננים
+The ISS appears to the naked eye as a bright white moving dot — similar to a star, but moving much faster. You can see it when:
+- **30–45 minutes before sunrise** — the sky is still dark but sunlight catches the station
+- **30–45 minutes after sunset** — the same principle applies
+- **Clear skies** — no cloud cover
 
-**כמה זמן נמשכת העברה?**
+**How Long Does a Pass Last?**
 
-עברה טיפוסית נמשכת 3-6 דקות. ISS נעה ממערב למזרח.
+A typical ISS pass lasts 3–6 minutes. It moves from west to east across the sky.
 
-**איך לדעת מתי?**
+**How Do You Know When to Look?**
 
-השתמש ב-SpaceHub! הזן את העיר שלך ותקבל התראה מדויקת.
+Use SpaceHub! Enter your city and you'll get a precise alert when the ISS is overhead.
 
-**עובדות מדהימות על ISS:**
-- גודלה כגודל מגרש כדורגל
-- עלות הבנייה: $150 מיליארד דולר
-- 15 מדינות שותפות בניהולה
-- תמיד יש בה אסטרונאוטים מאז שנת 2000`
+**Amazing ISS Facts:**
+- It's as large as a football field
+- Construction cost: $150 billion
+- 15 countries collaborate to operate it
+- Astronauts have lived aboard continuously since the year 2000`
   },
   {
     slug: 'perseid-meteor-shower-2026',
-    title: 'גשם המטאורים הפרסאי 2026 — כל מה שצריך לדעת',
-    date: '20 יוני 2026',
-    readTime: '3 דקות',
+    title: 'Perseid Meteor Shower 2026 — Everything You Need to Know',
+    date: 'June 20, 2026',
+    readTime: '3 min read',
     icon: '☄️',
-    preview: 'גשם המטאורים הפרסאי הוא אחד האירועים האסטרונומיים המרהיבים ביותר בשנה — עד 100 מטאורים בשעה!',
-    content: `גשם המטאורים הפרסאי מגיע מדי שנה באוגוסט, כאשר כדור הארץ עובר דרך שובל הפסולת שהשאיר השביט 109P/Swift-Tuttle.
+    preview: 'The Perseid meteor shower is one of the most spectacular astronomical events of the year — up to 100 meteors per hour!',
+    content: `The Perseid meteor shower arrives every August when Earth passes through the debris trail left by Comet 109P/Swift-Tuttle.
 
-**מתי לצפות?**
+**When to Watch?**
 
-**2026:** שיא הגשם צפוי בלילות 11-13 באוגוסט.
-המקסימום: לילה של 12-13 באוגוסט, בין חצות לשחר.
+**2026:** Peak activity is expected on the nights of August 11–13.
+Maximum: the night of August 12–13, between midnight and dawn.
 
-**כמה מטאורים?**
+**How Many Meteors?**
 
-בשנה רגילה: 50-100 מטאורים בשעה. בשנה מוצלחת (כמו 2026): עד 150!
+In a typical year: 50–100 meteors per hour. In a strong year (like 2026): up to 150!
 
-**איך לצפות?**
+**How to Watch?**
 
-1. לך למקום חשוך מחוץ לעיר
-2. שכב על גב ותסתכל לכיוון צפון-מזרח
-3. המתן 20 דקות עד שהעיניים יסתגלו לחושך
-4. אל תשתמש בטלפון — הוא מקלקל את ראיית הלילה
+1. Go somewhere dark, away from city lights
+2. Lie on your back and look toward the northeast
+3. Wait 20 minutes for your eyes to adjust to the dark
+4. Avoid your phone screen — it ruins your night vision
 
-**מיקומים מומלצים בישראל:**
-- מדבר יהודה (ליד ים המלח)
-- רמת הנגב
-- הר מירון`
+**Best Viewing Tips:**
+- Face away from the Moon if it's up
+- A sleeping bag or reclining chair makes it comfortable
+- No telescope needed — your eyes are the best tool
+- Bring a friend — it's more fun to share the experience`
   },
   {
     slug: 'space-weather-explained',
-    title: 'מה זה מזג אוויר חלל ולמה זה חשוב?',
-    date: '10 יוני 2026',
-    readTime: '5 דקות',
+    title: 'What Is Space Weather and Why Does It Matter?',
+    date: 'June 10, 2026',
+    readTime: '5 min read',
     icon: '⛈️',
-    preview: 'סערות שמש יכולות להשפיע על לוויינים, GPS, ואפילו על רשת החשמל. הנה כל מה שצריך לדעת.',
-    content: `מזג אוויר חלל הוא תופעות שמקורן בשמש שיכולות להשפיע על כדור הארץ ועל הטכנולוגיה שלנו.
+    preview: 'Solar storms can affect satellites, GPS, and even power grids. Here is everything you need to know about space weather.',
+    content: `Space weather refers to phenomena originating from the Sun that can affect Earth and our technology.
 
-**מה גורם למזג אוויר חלל?**
+**What Causes Space Weather?**
 
-השמש פולטת כל הזמן חלקיקים ואנרגיה — "רוח שמש". לפעמים יש פליטות חזקות יותר הנקראות:
-- **CME** (פליטת מסה קורונלית) — ענן של חלקיקים שיכול לפגוע בכדור הארץ
-- **Solar Flare** — פליטת קרינה עוצמתית
+The Sun constantly emits particles and energy — the "solar wind." Sometimes there are stronger bursts called:
+- **CME** (Coronal Mass Ejection) — a cloud of charged particles that can strike Earth
+- **Solar Flare** — an intense burst of radiation
 
-**מה הן יכולות לעשות?**
+**What Can They Do?**
 
-- לגרום לזוהרים (Aurora) גם בקווי רוחב נמוכים
-- לשבש תקשורת GPS ורדיו
-- לגרום נזק ללוויינים
-- במקרים קיצוניים — לפגוע ברשת החשמל
+- Trigger auroras (Northern/Southern Lights) at lower latitudes than usual
+- Disrupt GPS and radio communications
+- Damage satellites in orbit
+- In extreme cases — knock out power grids on the ground
 
-**סולם Kp**
+**The Kp Index**
 
-עוצמת הסערה המגנטית נמדדת בסולם Kp מ-0 עד 9:
-- Kp 0-2: שקט
-- Kp 3-5: סערה קלה
-- Kp 6-7: סערה בינונית — זוהרים בישראל אפשריים!
-- Kp 8-9: סערה חזקה — תופעות קיצוניות`
+Geomagnetic storm strength is measured on the Kp scale from 0 to 9:
+- Kp 0–2: Quiet
+- Kp 3–5: Minor storm
+- Kp 6–7: Moderate storm — auroras possible at mid-latitudes!
+- Kp 8–9: Severe storm — extreme effects possible`
   },
 ]
 
@@ -100,13 +101,13 @@ export default function BlogPage() {
   if (article) return (
     <div className="max-w-2xl mx-auto px-4 py-12">
       <button onClick={() => setActive(null)} className="text-indigo-400 text-sm mb-6 hover:text-indigo-300 flex items-center gap-1">
-        → חזרה לבלוג
+        ← Back to Blog
       </button>
       <div className="space-card p-8">
         <div className="flex items-center gap-3 mb-2">
           <span className="text-3xl">{article.icon}</span>
           <div>
-            <p className="text-xs text-gray-600">{article.date} • {article.readTime} קריאה</p>
+            <p className="text-xs text-gray-600">{article.date} • {article.readTime}</p>
           </div>
         </div>
         <h1 className="text-2xl font-black text-white mb-6 leading-snug">{article.title}</h1>
@@ -132,13 +133,13 @@ export default function BlogPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
       <div className="text-center mb-10">
-        <span className="section-label mb-4 inline-flex">📝 בלוג חלל</span>
-        <h2 className="text-3xl font-black text-white mt-3">מאמרים על חלל ואסטרונומיה</h2>
-        <p className="text-gray-500 text-sm mt-2">מדריכים, עובדות ואירועים — בעברית</p>
+        <span className="section-label mb-4 inline-flex">📝 Space Blog</span>
+        <h2 className="text-3xl font-black text-white mt-3">Articles on Space & Astronomy</h2>
+        <p className="text-gray-500 text-sm mt-2">Guides, facts, and upcoming events</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {ARTICLES.map(a => (
-          <button key={a.slug} onClick={() => setActive(a.slug)} className="space-card p-5 text-right hover:border-indigo-500/40 transition">
+          <button key={a.slug} onClick={() => setActive(a.slug)} className="space-card p-5 text-left hover:border-indigo-500/40 transition">
             <div className="text-3xl mb-3">{a.icon}</div>
             <h3 className="text-white font-bold text-sm mb-2 leading-snug">{a.title}</h3>
             <p className="text-gray-500 text-xs mb-3 line-clamp-2">{a.preview}</p>

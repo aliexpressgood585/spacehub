@@ -3,14 +3,16 @@ import { useState, useEffect } from 'react'
 interface TickItem { icon: string; text: string }
 
 const STATIC: TickItem[] = [
-  { icon: '🛸', text: 'ISS מקיפה את כדור הארץ כל 92 דקות' },
-  { icon: '🌍', text: 'כדור הארץ נע במהירות 107,000 ק"מ/שעה סביב השמש' },
-  { icon: '🌙', text: 'הירח מתרחק מכדור הארץ 3.8 ס"מ בכל שנה' },
-  { icon: '⭐', text: 'הכוכב הקרוב ביותר — פרוקסימה קנטאורי — נמצא 4.24 שנות אור מאיתנו' },
-  { icon: '🚀', text: 'SpaceX בצעה יותר מ-300 שיגורי Falcon 9 מוצלחים' },
-  { icon: '☀️', text: 'אור השמש לוקח 8 דקות ו-20 שניות להגיע לכדור הארץ' },
-  { icon: '🪐', text: 'שבתאי קל מספיק שהוא יצוף על גבי אוקיינוס מים' },
-  { icon: '👨‍🚀', text: 'מאז 2000 תמיד יש בני אדם בחלל על ה-ISS' },
+  { icon: '🛸', text: 'The ISS orbits Earth every 92 minutes at 28,000 km/h' },
+  { icon: '🌍', text: 'Earth travels around the Sun at 107,000 km/h' },
+  { icon: '🌙', text: 'The Moon moves 3.8 cm away from Earth every year' },
+  { icon: '⭐', text: 'The nearest star — Proxima Centauri — is 4.24 light-years away' },
+  { icon: '🚀', text: 'SpaceX has completed over 300 successful Falcon 9 launches' },
+  { icon: '☀️', text: 'Sunlight takes 8 minutes and 20 seconds to reach Earth' },
+  { icon: '🪐', text: 'Saturn is so light it would float on water' },
+  { icon: '👨‍🚀', text: 'Humans have lived continuously aboard the ISS since November 2000' },
+  { icon: '🔭', text: 'The James Webb Space Telescope can see galaxies 13.6 billion light-years away' },
+  { icon: '🌌', text: 'There are more stars in the universe than grains of sand on Earth' },
 ]
 
 export default function LiveTicker() {
@@ -19,7 +21,7 @@ export default function LiveTicker() {
   useEffect(() => {
     fetch('https://api.wheretheiss.at/v1/satellites/25544')
       .then(r => r.json())
-      .then(d => setIssData(`ISS: ${d.latitude.toFixed(2)}°N, ${d.longitude.toFixed(2)}°E — גובה ${d.altitude.toFixed(0)} ק"מ — ${(d.velocity / 3.6).toFixed(1)} ק"מ/שנ`))
+      .then(d => setIssData(`ISS LIVE: ${d.latitude.toFixed(2)}°N, ${d.longitude.toFixed(2)}°E — Alt ${d.altitude.toFixed(0)} km — ${(d.velocity / 3.6).toFixed(1)} km/s`))
       .catch(() => {})
   }, [])
 

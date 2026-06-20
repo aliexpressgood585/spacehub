@@ -2,14 +2,14 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 
 const PLANETS = [
-  { name: 'כוכב חמה', r: 0.08, dist: 1.2, speed: 0.047, color: 0x888888, tilt: 0 },
-  { name: 'נוגה', r: 0.12, dist: 1.7, speed: 0.035, color: 0xddaa44, tilt: 0.05 },
-  { name: 'כדור הארץ', r: 0.13, dist: 2.4, speed: 0.030, color: 0x2244aa, tilt: 0.41, moon: true },
-  { name: 'מאדים', r: 0.10, dist: 3.2, speed: 0.024, color: 0xcc4422, tilt: 0.44 },
-  { name: 'צדק', r: 0.30, dist: 4.8, speed: 0.013, color: 0xddbb88, tilt: 0.05 },
-  { name: 'שבתאי', r: 0.25, dist: 6.2, speed: 0.009, color: 0xeecc88, tilt: 0.47, rings: true },
-  { name: 'אורנוס', r: 0.18, dist: 7.4, speed: 0.006, color: 0x88ccdd, tilt: 1.71 },
-  { name: 'נפטון', r: 0.17, dist: 8.4, speed: 0.005, color: 0x4466cc, tilt: 0.49 },
+  { name: 'Mercury', r: 0.08, dist: 1.2, speed: 0.047, color: 0x888888, tilt: 0 },
+  { name: 'Venus', r: 0.12, dist: 1.7, speed: 0.035, color: 0xddaa44, tilt: 0.05 },
+  { name: 'Earth', r: 0.13, dist: 2.4, speed: 0.030, color: 0x2244aa, tilt: 0.41, moon: true },
+  { name: 'Mars', r: 0.10, dist: 3.2, speed: 0.024, color: 0xcc4422, tilt: 0.44 },
+  { name: 'Jupiter', r: 0.30, dist: 4.8, speed: 0.013, color: 0xddbb88, tilt: 0.05 },
+  { name: 'Saturn', r: 0.25, dist: 6.2, speed: 0.009, color: 0xeecc88, tilt: 0.47, rings: true },
+  { name: 'Uranus', r: 0.18, dist: 7.4, speed: 0.006, color: 0x88ccdd, tilt: 1.71 },
+  { name: 'Neptune', r: 0.17, dist: 8.4, speed: 0.005, color: 0x4466cc, tilt: 0.49 },
 ]
 
 export default function SolarSystem3D() {
@@ -163,7 +163,7 @@ export default function SolarSystem3D() {
     <div className="relative w-full rounded-2xl overflow-hidden border border-indigo-500/20" style={{ height: 480 }}>
       <div ref={containerRef} className="w-full h-full" />
       <div className="absolute bottom-4 left-4 glass px-3 py-2 rounded-lg">
-        <p className="text-xs text-gray-300 mb-1">🪐 מערכת השמש</p>
+        <p className="text-xs text-gray-300 mb-1">🪐 Solar System</p>
         <div className="flex gap-2 flex-wrap">
           {PLANETS.map(p => (
             <span key={p.name} className="text-xs text-gray-400">{p.name}</span>

@@ -28,14 +28,14 @@ export default function SpaceNewsFeed() {
 
   const formatDate = (iso: string) => {
     const d = new Date(iso)
-    return d.toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })
+    return d.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })
   }
 
   return (
     <div className="neon-border glass rounded-lg p-6">
       <div className="flex items-center gap-3 mb-6">
         <span className="text-2xl">📰</span>
-        <h3 className="text-xl font-bold text-white">חדשות חלל — בזמן אמת</h3>
+        <h3 className="text-xl font-bold text-white">Space News — Live</h3>
         <span className="ml-auto flex items-center gap-2 text-xs text-blue-400">
           <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse inline-block" />
           Spaceflight News API
@@ -99,14 +99,14 @@ export default function SpaceNewsFeed() {
               disabled={page === 0}
               className="px-4 py-2 text-sm glass rounded-lg border border-space-700 text-gray-300 hover:border-indigo-500 disabled:opacity-30 transition"
             >
-              ← קודם
+              ← Previous
             </button>
-            <span className="px-4 py-2 text-sm text-gray-500">עמוד {page + 1}</span>
+            <span className="px-4 py-2 text-sm text-gray-500">Page {page + 1}</span>
             <button
               onClick={() => setPage(p => p + 1)}
               className="px-4 py-2 text-sm glass rounded-lg border border-space-700 text-gray-300 hover:border-indigo-500 transition"
             >
-              הבא →
+              Next →
             </button>
           </div>
         </>

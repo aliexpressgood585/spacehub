@@ -1,16 +1,16 @@
 import { useState } from 'react'
 
 const QUESTIONS = [
-  { q: 'כמה זמן לוקח לאור מהשמש להגיע לכדור הארץ?', opts: ['8 שניות', '8 דקות', '8 שעות', '8 ימים'], a: 1 },
-  { q: 'כמה כוכבי לכת יש במערכת השמש?', opts: ['6', '7', '8', '9'], a: 2 },
-  { q: 'מהי תחנת ISS?', opts: ['לוויין ריגול', 'תחנת חלל בינלאומית', 'גשושית מאדים', 'טלסקופ חלל'], a: 1 },
-  { q: 'איזה כוכב לכת יש לו הטבעות היפות ביותר?', opts: ['צדק', 'אורנוס', 'שבתאי', 'נפטון'], a: 2 },
-  { q: 'מה המהירות של ISS?', opts: ['7 ק"מ/שנ', '17 ק"מ/שנ', '28 ק"מ/שנ', '50 ק"מ/שנ'], a: 2 },
-  { q: 'מי היה האדם הראשון בחלל?', opts: ['ניל ארמסטרונג', 'יורי גגארין', 'אלן שפרד', 'ג׳ון גלן'], a: 1 },
-  { q: 'כמה זמן לוקח ל-ISS להקיף את כדור הארץ?', opts: ['45 דקות', '92 דקות', '3 שעות', '24 שעות'], a: 1 },
-  { q: 'מה הכוכב הקרוב ביותר אלינו (אחרי השמש)?', opts: ['סיריוס', 'אלפא קנטאורי', 'פרוקסימה קנטאורי', 'וגה'], a: 2 },
-  { q: 'כמה אנשים חיו בחלל עד היום (בערך)?', opts: ['100', '250', '600', '1000'], a: 2 },
-  { q: 'מה NASA?', opts: ['סוכנות חלל אירופאית', 'סוכנות חלל ישראלית', 'סוכנות החלל האמריקאית', 'חברת חלל פרטית'], a: 2 },
+  { q: 'How long does sunlight take to reach Earth?', opts: ['8 seconds', '8 minutes', '8 hours', '8 days'], a: 1 },
+  { q: 'How many planets are in our Solar System?', opts: ['6', '7', '8', '9'], a: 2 },
+  { q: 'What is the ISS?', opts: ['Spy satellite', 'International Space Station', 'Mars probe', 'Space telescope'], a: 1 },
+  { q: 'Which planet has the most beautiful rings?', opts: ['Jupiter', 'Uranus', 'Saturn', 'Neptune'], a: 2 },
+  { q: 'How fast does the ISS travel?', opts: ['7 km/s', '17 km/s', '7.7 km/s', '50 km/s'], a: 2 },
+  { q: 'Who was the first human in space?', opts: ['Neil Armstrong', 'Yuri Gagarin', 'Alan Shepard', 'John Glenn'], a: 1 },
+  { q: 'How long does the ISS take to orbit Earth?', opts: ['45 minutes', '92 minutes', '3 hours', '24 hours'], a: 1 },
+  { q: 'What is the nearest star to us (besides the Sun)?', opts: ['Sirius', 'Alpha Centauri', 'Proxima Centauri', 'Vega'], a: 2 },
+  { q: 'Approximately how many people have been to space?', opts: ['100', '250', '600', '1000'], a: 2 },
+  { q: 'What does NASA stand for?', opts: ['European Space Agency', 'National Aerospace Study Agency', 'National Aeronautics and Space Administration', 'Private space company'], a: 2 },
 ]
 
 export default function SpaceQuiz() {
@@ -37,16 +37,16 @@ export default function SpaceQuiz() {
   const restart = () => { setCurrent(0); setSelected(null); setScore(0); setDone(false); setAnswers([]) }
 
   const pct = Math.round(score / QUESTIONS.length * 100)
-  const grade = pct >= 90 ? '🏆 מומחה חלל!' : pct >= 70 ? '🚀 אסטרונאוט!' : pct >= 50 ? '🌙 חובב חלל' : '👶 מתחיל'
+  const grade = pct >= 90 ? '🏆 Space Expert!' : pct >= 70 ? '🚀 Astronaut!' : pct >= 50 ? '🌙 Space Fan' : '👶 Beginner'
 
   if (done) return (
     <div className="space-card p-6 text-center">
       <div className="text-5xl mb-4">{grade.split(' ')[0]}</div>
       <h3 className="text-xl font-bold text-white mb-1">{grade.split(' ').slice(1).join(' ')}</h3>
-      <p className="text-gray-400 mb-6">ענית נכון על {score} מתוך {QUESTIONS.length} שאלות</p>
+      <p className="text-gray-400 mb-6">You answered {score} out of {QUESTIONS.length} questions correctly</p>
 
       <div className="relative h-3 bg-white/5 rounded-full mb-6 overflow-hidden">
-        <div className="absolute inset-y-0 right-0 rounded-full bg-gradient-to-l from-indigo-500 to-purple-500 transition-all" style={{ width: `${pct}%` }} />
+        <div className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all" style={{ width: `${pct}%` }} />
       </div>
 
       <div className="grid grid-cols-10 gap-1 mb-6">
@@ -56,13 +56,13 @@ export default function SpaceQuiz() {
       </div>
 
       <div className="flex gap-3 justify-center">
-        <button onClick={restart} className="btn-shimmer px-6 py-2.5 text-sm">נסה שוב</button>
+        <button onClick={restart} className="btn-shimmer px-6 py-2.5 text-sm">Try Again</button>
         <a
-          href={`https://wa.me/?text=${encodeURIComponent(`ענيתי על ${score}/${QUESTIONS.length} שאלות בקוויז החלל של SpaceHub! 🚀 https://spacehub-nu.vercel.app`)}`}
+          href={`https://wa.me/?text=${encodeURIComponent(`I scored ${score}/${QUESTIONS.length} on the SpaceHub Space Quiz! 🚀 https://spacehub-nu.vercel.app`)}`}
           target="_blank" rel="noopener noreferrer"
           className="px-6 py-2.5 text-sm border border-white/10 text-gray-400 hover:text-white rounded-xl transition bg-white/[0.03]"
         >
-          📲 שתף תוצאה
+          📲 Share Result
         </a>
       </div>
     </div>
@@ -73,13 +73,12 @@ export default function SpaceQuiz() {
       <div className="flex items-center gap-3 mb-5">
         <span className="text-2xl">🧠</span>
         <div>
-          <h3 className="text-white font-bold text-lg">קוויז חלל</h3>
-          <p className="text-gray-500 text-xs">שאלה {current + 1} מתוך {QUESTIONS.length}</p>
+          <h3 className="text-white font-bold text-lg">Space Quiz</h3>
+          <p className="text-gray-500 text-xs">Question {current + 1} of {QUESTIONS.length}</p>
         </div>
         <div className="ml-auto text-sm font-bold text-indigo-300">{score} ✓</div>
       </div>
 
-      {/* Progress */}
       <div className="h-1 bg-white/5 rounded-full mb-5 overflow-hidden">
         <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-300" style={{ width: `${(current / QUESTIONS.length) * 100}%` }} />
       </div>
@@ -99,7 +98,7 @@ export default function SpaceQuiz() {
               key={i}
               onClick={() => choose(i)}
               disabled={selected !== null}
-              className={`w-full text-right px-4 py-3 rounded-xl border text-sm transition ${cls} disabled:cursor-default`}
+              className={`w-full text-left px-4 py-3 rounded-xl border text-sm transition ${cls} disabled:cursor-default`}
             >
               {opt}
             </button>

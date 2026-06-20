@@ -15,30 +15,30 @@ export default function EventsCalendar() {
   useEffect(() => {
     const mockEvents: Event[] = [
       {
-        date: '22 יוני 2026',
-        title: 'מטאור קפלי',
-        description: 'מטאור shower עם ~100 מטאורים בשעה',
+        date: 'June 22, 2026',
+        title: 'Capillid Meteor Shower',
+        description: 'Meteor shower with ~100 meteors per hour',
         icon: '☄️',
         type: 'meteor',
       },
       {
-        date: '2 ספטמבר 2026',
-        title: 'ליקוי חמה חלקי',
-        description: 'ליקוי חמה חלקי נראה בחלקים של בעולם',
+        date: 'September 2, 2026',
+        title: 'Partial Solar Eclipse',
+        description: 'Partial solar eclipse visible from parts of the world',
         icon: '🌑',
         type: 'eclipse',
       },
       {
-        date: '15 יוני 2026',
+        date: 'June 15, 2026',
         title: 'SpaceX Starship STS-5',
-        description: 'שיגור משימת ניסיון SpaceX',
+        description: 'SpaceX experimental mission launch',
         icon: '🚀',
         type: 'launch',
       },
       {
-        date: '28 יוני 2026',
-        title: 'צפיפות ונוס-יופיטר',
-        description: 'שני כוכבי הלכת יהיו קרובים בשמיים',
+        date: 'June 28, 2026',
+        title: 'Venus-Jupiter Conjunction',
+        description: 'Two planets will appear close together in the sky',
         icon: '⭐',
         type: 'conjunction',
       },
@@ -65,12 +65,12 @@ export default function EventsCalendar() {
     <>
       {/* Meteor Shower 3D */}
       <div className="neon-border glass rounded-lg p-6 mb-6">
-        <h3 className="text-xl font-bold text-white mb-4">☄️ גשם מטאורים — הדמיה תלת מימד</h3>
+        <h3 className="text-xl font-bold text-white mb-4">☄️ Meteor Shower — 3D Simulation</h3>
         <MeteorShower3D />
       </div>
 
     <div className="neon-border glass rounded-lg p-8">
-      <h3 className="text-2xl font-bold text-white mb-6">🌠 אירועים אסטרונומיים</h3>
+      <h3 className="text-2xl font-bold text-white mb-6">🌠 Astronomical Events</h3>
 
       <div className="space-y-4">
         {events.map((event, idx) => (
@@ -91,7 +91,7 @@ export default function EventsCalendar() {
 
       <div className="mt-8 p-6 bg-space-900 rounded-lg border border-space-700">
         <p className="text-gray-400">
-          💡 עצה: הורד את הטלסקופ שלך וחכה ל-meteor showers בליל צלול!
+          💡 Tip: Set up your telescope and wait for meteor showers on a clear night!
         </p>
       </div>
     </div>

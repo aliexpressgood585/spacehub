@@ -33,8 +33,8 @@ export default function CityPage() {
   if (!data) return (
     <div className="max-w-2xl mx-auto px-4 py-16 text-center">
       <p className="text-4xl mb-4">🌍</p>
-      <h2 className="text-2xl font-bold text-white mb-4">עיר לא נמצאה</h2>
-      <Link to="/" className="text-indigo-400 hover:text-indigo-300">חזרה לעמוד הראשי</Link>
+      <h2 className="text-2xl font-bold text-white mb-4">City Not Found</h2>
+      <Link to="/" className="text-indigo-400 hover:text-indigo-300">Back to SpaceHub</Link>
     </div>
   )
 
@@ -49,7 +49,7 @@ export default function CityPage() {
   return (
     <div className="min-h-screen" style={{ background: '#050816' }}>
       <div className="max-w-4xl mx-auto px-4 py-12">
-        <Link to="/" className="text-indigo-400 text-sm mb-8 hover:text-indigo-300 flex items-center gap-1">→ חזרה ל-SpaceHub</Link>
+        <Link to="/" className="text-indigo-400 text-sm mb-8 hover:text-indigo-300 flex items-center gap-1">← Back to SpaceHub</Link>
 
         <div className="text-center mb-10">
           <span className="section-label mb-4 inline-flex">🛸 ISS</span>
@@ -64,15 +64,15 @@ export default function CityPage() {
           <div className="grid grid-cols-3 gap-3 mb-8">
             <div className="stat-card">
               <p className="text-2xl font-black gradient-text">{dist.toLocaleString()}</p>
-              <p className="text-xs text-gray-600">ק"מ מ-ISS</p>
+              <p className="text-xs text-gray-600">km from ISS</p>
             </div>
             <div className="stat-card">
               <p className="text-2xl font-black gradient-text">{issPos.alt.toFixed(0)}</p>
-              <p className="text-xs text-gray-600">גובה ISS (ק"מ)</p>
+              <p className="text-xs text-gray-600">ISS Altitude (km)</p>
             </div>
             <div className="stat-card">
               <p className="text-2xl font-black gradient-text">92</p>
-              <p className="text-xs text-gray-600">דקות להקפה</p>
+              <p className="text-xs text-gray-600">mins per orbit</p>
             </div>
           </div>
         )}
@@ -81,19 +81,19 @@ export default function CityPage() {
 
         {/* SEO content */}
         <div className="space-card p-6 mt-6">
-          <h2 className="text-lg font-bold text-white mb-3">מתי לראות ISS מ{data.name}?</h2>
+          <h2 className="text-lg font-bold text-white mb-3">When to See the ISS from {data.name}?</h2>
           <p className="text-gray-400 text-sm leading-relaxed mb-3">
-            תחנת החלל הבינלאומית (ISS) עוברת מעל {data.name} (קו רוחב {data.lat.toFixed(1)}°, קו אורך {data.lng.toFixed(1)}°) מספר פעמים ביום.
-            היא נראית לעין ערומה כנקודת אור לבנה נעה בשמיים, בדרך כלל 30-45 דקות לפני זריחה או אחרי שקיעה.
+            The International Space Station (ISS) passes over {data.name} (lat {data.lat.toFixed(1)}°, lon {data.lng.toFixed(1)}°) several times each day.
+            It is visible to the naked eye as a bright moving white dot in the sky, typically 30–45 minutes before sunrise or after sunset.
           </p>
           <p className="text-gray-400 text-sm leading-relaxed">
-            השתמש במערכת ה-ISS Live של SpaceHub כדי לדעת בדיוק מתי ה-ISS עובר מעל {data.name} ולקבל התראה מראש.
+            Use SpaceHub's ISS Live system to know exactly when the ISS passes over {data.name} and get an alert in advance.
           </p>
         </div>
 
         {/* Other cities */}
         <div className="mt-8">
-          <h3 className="text-sm font-bold text-gray-500 mb-3 uppercase tracking-widest">ערים נוספות</h3>
+          <h3 className="text-sm font-bold text-gray-500 mb-3 uppercase tracking-widest">More Cities</h3>
           <div className="flex flex-wrap gap-2">
             {Object.entries(CITY_DATA).filter(([slug]) => slug !== city).map(([slug, c]) => (
               <Link key={slug} to={`/iss/${slug}`} className="text-xs px-3 py-1.5 glass rounded-lg border border-white/5 text-gray-500 hover:text-indigo-400 hover:border-indigo-500/30 transition">

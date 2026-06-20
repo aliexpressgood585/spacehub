@@ -49,17 +49,17 @@ export default function SatelliteTracker() {
     <div className="space-y-6">
       {/* 3D Globe */}
       <div className="neon-border glass rounded-lg p-6">
-        <h3 className="text-xl font-bold text-white mb-4">🌍 כדור הארץ תלת מימד — לוויינים בזמן אמת</h3>
+        <h3 className="text-xl font-bold text-white mb-4">🌍 3D Earth — Real-Time Satellites</h3>
         <EarthGlobe3D />
       </div>
 
       <div className="neon-border glass rounded-lg p-8">
-        <h3 className="text-2xl font-bold text-white mb-6">🛰️ מעקב לוויינים בזמן אמת</h3>
+        <h3 className="text-2xl font-bold text-white mb-6">🛰️ Satellite Tracker — Live</h3>
 
         {loading ? (
           <div className="text-center py-8">
             <div className="inline-block animate-spin">⚙️</div>
-            <p className="text-gray-400">טוען נתונים...</p>
+            <p className="text-gray-400">Loading data...</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -67,10 +67,10 @@ export default function SatelliteTracker() {
               <div key={sat.id} className="glass rounded-lg p-4 border border-space-700">
                 <h4 className="font-bold text-indigo-400 mb-3">{sat.name}</h4>
                 <div className="space-y-2 text-sm text-gray-300">
-                  <p>📍 רוחב: {sat.latitude.toFixed(2)}°</p>
-                  <p>📍 אורך: {sat.longitude.toFixed(2)}°</p>
-                  <p>📏 גובה: {sat.altitude.toFixed(1)} ק"מ</p>
-                  <p>⚡ מהירות: {sat.velocity.toFixed(2)} ק"מ/שנ</p>
+                  <p>📍 Lat: {sat.latitude.toFixed(2)}°</p>
+                  <p>📍 Lon: {sat.longitude.toFixed(2)}°</p>
+                  <p>📏 Alt: {sat.altitude.toFixed(1)} km</p>
+                  <p>⚡ Speed: {sat.velocity.toFixed(2)} km/s</p>
                 </div>
               </div>
             ))}

@@ -18,16 +18,16 @@ export const POPULAR_SATELLITES = [
 
 // Hebrew Translations
 export const TRANSLATIONS = {
-  TRACKING: 'עקיבה',
-  WEATHER: 'מזג אוויר',
-  EVENTS: 'אירועים',
-  NEWS: 'חדשות',
-  SATELLITES: 'לוויינים',
-  SPACE_WEATHER: 'מזג אוויר חלל',
-  AURORA: 'זוהר',
-  SOLAR_STORM: 'סערת שמש',
-  METEOR_SHOWER: 'מטאור shower',
-  ECLIPSE: 'ליקוי',
+  TRACKING: 'Tracking',
+  WEATHER: 'Weather',
+  EVENTS: 'Events',
+  NEWS: 'News',
+  SATELLITES: 'Satellites',
+  SPACE_WEATHER: 'Space Weather',
+  AURORA: 'Aurora',
+  SOLAR_STORM: 'Solar Storm',
+  METEOR_SHOWER: 'Meteor Shower',
+  ECLIPSE: 'Eclipse',
 } as const
 
 // Units

@@ -54,8 +54,8 @@ export default function ISSAlertSystem() {
   const sendNotification = useCallback((elevAngle: number) => {
     if (!notifGranted || notified) return
     setNotified(true)
-    new Notification('🚀 ISS עובר מעליך!', {
-      body: `תחנת החלל הבינלאומית נמצאת ${Math.round(elevAngle)}° מעל האופק. צא החוצה ותסתכל צפון!`,
+    new Notification('🚀 ISS is passing over you!', {
+      body: `The International Space Station is ${Math.round(elevAngle)}° above the horizon. Go outside and look up!`,
       icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🚀</text></svg>',
     })
     setTimeout(() => setNotified(false), 6 * 60 * 1000)
@@ -78,7 +78,7 @@ export default function ISSAlertSystem() {
           const nextPassMinutes = visible ? 0 : Math.max(1, Math.round((groundDist - 2000) / (data.velocity / 60)))
           const mins = Math.floor(nextPassMinutes)
           const secs = Math.floor((nextPassMinutes - mins) * 60)
-          const countdown = visible ? 'עובר עכשיו!' : nextPassMinutes < 90 ? `~${mins}:${secs.toString().padStart(2, '0')} דקות` : `~${Math.round(nextPassMinutes / 60 * 10) / 10} שעות`
+          const countdown = visible ? 'Passing now!' : nextPassMinutes < 90 ? `~${mins}:${secs.toString().padStart(2, '0')} min` : `~${Math.round(nextPassMinutes / 60 * 10) / 10} hrs`
 
           setPass({ elevAngle: elev, distance: Math.round(groundDist), visible, countdown })
         })
@@ -96,13 +96,13 @@ export default function ISSAlertSystem() {
     setLocError('')
     navigator.geolocation.getCurrentPosition(
       pos => {
-        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude, city: 'מיקומך' }
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude, city: 'Your Location' }
         setUserLoc(loc)
         startTracking(loc)
         setLoading(false)
       },
       () => {
-        setLocError('לא ניתן לקבל מיקום — נסה לבחור עיר ידנית')
+        setLocError('Could not get your location — please choose a city below')
         setLoading(false)
       }
     )
@@ -121,22 +121,22 @@ export default function ISSAlertSystem() {
     <div className="neon-border glass rounded-lg overflow-hidden">
       <div className="p-6 border-b border-space-700 flex flex-wrap items-center gap-3">
         <span className="text-2xl">🛸</span>
-        <h3 className="text-xl font-bold text-white">ISS עובר מעליך — התראה בזמן אמת</h3>
+        <h3 className="text-xl font-bold text-white">ISS Overhead Alert — Real-Time</h3>
         {!notifGranted && (
           <button
             onClick={requestNotifications}
             className="ml-auto text-xs px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-white transition"
           >
-            🔔 הפעל התראות
+            🔔 Enable Alerts
           </button>
         )}
-        {notifGranted && <span className="ml-auto text-xs text-green-400">🔔 התראות פעילות</span>}
+        {notifGranted && <span className="ml-auto text-xs text-green-400">🔔 Alerts Active</span>}
       </div>
 
       <div className="p-6">
         {!userLoc ? (
           <div className="space-y-4">
-            <p className="text-gray-300 text-center mb-6">בחר מיקום כדי לדעת מתי ISS עובר מעליך</p>
+            <p className="text-gray-300 text-center mb-6">Choose your location to track when the ISS passes over you</p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
                 onClick={useGeolocation}
@@ -144,12 +144,12 @@ export default function ISSAlertSystem() {
                 className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-white font-medium transition flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {loading ? <span className="animate-spin">⚙️</span> : '📍'}
-                {loading ? 'מאתר...' : 'השתמש במיקום שלי'}
+                {loading ? 'Locating...' : 'Use My Location'}
               </button>
             </div>
             {locError && <p className="text-red-400 text-sm text-center">{locError}</p>}
             <div className="mt-4">
-              <p className="text-gray-500 text-sm text-center mb-3">או בחר עיר:</p>
+              <p className="text-gray-500 text-sm text-center mb-3">Or choose a city:</p>
               <div className="flex flex-wrap gap-2 justify-center">
                 {ISRAEL_CITIES.map(city => (
                   <button
@@ -166,31 +166,31 @@ export default function ISSAlertSystem() {
         ) : (
           <div className="space-y-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-400">📍 מיקום: <span className="text-white">{userLoc.city}</span></span>
-              <button onClick={() => { setUserLoc(null); setPass(null); setIss(null); if (intervalRef.current) clearInterval(intervalRef.current) }} className="text-xs text-gray-600 hover:text-gray-400 transition">שנה מיקום</button>
+              <span className="text-sm text-gray-400">📍 Location: <span className="text-white">{userLoc.city}</span></span>
+              <button onClick={() => { setUserLoc(null); setPass(null); setIss(null); if (intervalRef.current) clearInterval(intervalRef.current) }} className="text-xs text-gray-600 hover:text-gray-400 transition">Change Location</button>
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <div className={`glass rounded-xl p-4 text-center border ${pass?.visible ? 'border-green-500/50 bg-green-900/10' : 'border-space-700'}`}>
-                <p className="text-xs text-gray-500 mb-1">מצב ISS</p>
+                <p className="text-xs text-gray-500 mb-1">ISS Status</p>
                 <p className={`text-lg font-bold ${pass?.visible ? 'text-green-400' : 'text-gray-400'}`}>
-                  {pass?.visible ? '👁️ גלוי!' : '🌍 מתחת לאופק'}
+                  {pass?.visible ? '👁️ Visible!' : '🌍 Below Horizon'}
                 </p>
               </div>
               <div className="glass rounded-xl p-4 text-center border border-space-700">
-                <p className="text-xs text-gray-500 mb-1">זווית גובה</p>
+                <p className="text-xs text-gray-500 mb-1">Elevation</p>
                 <p className={`text-2xl font-bold font-mono ${elevColor}`}>
                   {pass ? `${pass.elevAngle.toFixed(1)}°` : '---'}
                 </p>
               </div>
               <div className="glass rounded-xl p-4 text-center border border-space-700">
-                <p className="text-xs text-gray-500 mb-1">מרחק ממך</p>
+                <p className="text-xs text-gray-500 mb-1">Distance</p>
                 <p className="text-xl font-bold font-mono text-indigo-300">
-                  {pass ? `${pass.distance.toLocaleString()} ק"מ` : '---'}
+                  {pass ? `${pass.distance.toLocaleString()} km` : '---'}
                 </p>
               </div>
               <div className={`glass rounded-xl p-4 text-center border ${pass?.visible ? 'border-green-500/50' : 'border-yellow-500/30'}`}>
-                <p className="text-xs text-gray-500 mb-1">{pass?.visible ? 'עכשיו!' : 'העברה הבאה (משוער)'}</p>
+                <p className="text-xs text-gray-500 mb-1">{pass?.visible ? 'Now!' : 'Next Pass (est.)'}</p>
                 <p className={`text-lg font-bold ${pass?.visible ? 'text-green-400 animate-pulse' : 'text-yellow-400'}`}>
                   {pass?.countdown ?? '...'}
                 </p>
@@ -199,19 +199,19 @@ export default function ISSAlertSystem() {
 
             {iss && (
               <div className="glass rounded-lg p-4 border border-space-700 mt-2">
-                <p className="text-xs text-gray-500 mb-2">מיקום ISS עכשיו</p>
+                <p className="text-xs text-gray-500 mb-2">ISS Current Position</p>
                 <div className="flex flex-wrap gap-4 text-sm">
-                  <span className="text-gray-300">רוחב: <span className="text-white font-mono">{iss.latitude.toFixed(3)}°</span></span>
-                  <span className="text-gray-300">אורך: <span className="text-white font-mono">{iss.longitude.toFixed(3)}°</span></span>
-                  <span className="text-gray-300">גובה: <span className="text-white font-mono">{iss.altitude.toFixed(1)} ק"מ</span></span>
-                  <span className="text-gray-300">מהירות: <span className="text-white font-mono">{(iss.velocity / 3.6).toFixed(1)} ק"מ/שנ</span></span>
+                  <span className="text-gray-300">Lat: <span className="text-white font-mono">{iss.latitude.toFixed(3)}°</span></span>
+                  <span className="text-gray-300">Lon: <span className="text-white font-mono">{iss.longitude.toFixed(3)}°</span></span>
+                  <span className="text-gray-300">Alt: <span className="text-white font-mono">{iss.altitude.toFixed(1)} km</span></span>
+                  <span className="text-gray-300">Speed: <span className="text-white font-mono">{(iss.velocity / 3.6).toFixed(1)} km/s</span></span>
                 </div>
               </div>
             )}
 
             <div className="bg-space-900/60 rounded-lg p-4 border border-space-700/50 text-xs text-gray-500">
-              💡 <strong className="text-gray-400">טיפ:</strong> ISS נראה לעין ערומה בלילה כשזווית הגובה מעל 10°. יש לו מהירות של 28,000 ק"מ/שעה ועוטף את כדור הארץ כל 92 דקות.
-              <br />מתעדכן כל 10 שניות.
+              💡 <strong className="text-gray-400">Tip:</strong> The ISS is visible to the naked eye at night when elevation is above 10°. It travels at 28,000 km/h and orbits Earth every 92 minutes.
+              <br />Updates every 10 seconds.
             </div>
           </div>
         )}

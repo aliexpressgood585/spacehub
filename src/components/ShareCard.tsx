@@ -54,13 +54,13 @@ export default function ShareCard({ issLat, issLng, issAlt, city }: Props) {
     // Title
     ctx.font = 'bold 36px system-ui'
     ctx.fillStyle = '#ffffff'
-    ctx.fillText('ISS עכשיו — בזמן אמת', 60, 210)
+    ctx.fillText('ISS Now — Real-Time', 60, 210)
 
     // Data
     const data = [
-      { icon: '📍', label: 'מיקום', val: issLat !== undefined ? `${issLat?.toFixed(2)}°, ${issLng?.toFixed(2)}°` : 'N/A' },
-      { icon: '📏', label: 'גובה',  val: issAlt !== undefined ? `${issAlt?.toFixed(0)} ק"מ` : 'N/A' },
-      { icon: '🌍', label: 'מיקומי', val: city ?? 'ישראל' },
+      { icon: '📍', label: 'Position', val: issLat !== undefined ? `${issLat?.toFixed(2)}°, ${issLng?.toFixed(2)}°` : 'N/A' },
+      { icon: '📏', label: 'Altitude',  val: issAlt !== undefined ? `${issAlt?.toFixed(0)} km` : 'N/A' },
+      { icon: '🌍', label: 'Location', val: city ?? 'Earth' },
     ]
     ctx.font = '18px system-ui'
     data.forEach((d, i) => {
@@ -80,7 +80,7 @@ export default function ShareCard({ issLat, issLng, issAlt, city }: Props) {
 
     // Date
     ctx.textAlign = 'right'
-    ctx.fillText(new Date().toLocaleDateString('he-IL'), W - 60, H - 25)
+    ctx.fillText(new Date().toLocaleDateString('en-US'), W - 60, H - 25)
     ctx.textAlign = 'left'
 
     // Border frame
@@ -99,7 +99,7 @@ export default function ShareCard({ issLat, issLng, issAlt, city }: Props) {
   }, [issLat, issLng, issAlt, city])
 
   const shareWA = useCallback(() => {
-    const text = `🛸 ISS נמצא עכשיו ב-${issLat?.toFixed(1)}°N, ${issLng?.toFixed(1)}°E בגובה ${issAlt?.toFixed(0)} ק"מ!\nעקוב בזמן אמת: https://spacehub-nu.vercel.app`
+    const text = `🛸 ISS is now at ${issLat?.toFixed(1)}°N, ${issLng?.toFixed(1)}°E at altitude ${issAlt?.toFixed(0)} km!\nTrack live: https://spacehub-nu.vercel.app`
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
   }, [issLat, issLng, issAlt])
 
@@ -107,21 +107,21 @@ export default function ShareCard({ issLat, issLng, issAlt, city }: Props) {
     <div className="space-card p-5">
       <div className="flex items-center gap-3 mb-4">
         <span className="text-xl">📸</span>
-        <h3 className="text-white font-semibold">שתף את מיקום ISS</h3>
+        <h3 className="text-white font-semibold">Share ISS Position</h3>
       </div>
       <canvas ref={canvasRef} className="hidden" />
       <div className="flex gap-2 flex-wrap">
         <button onClick={generate} className="btn-shimmer px-4 py-2.5 text-sm flex items-center gap-2">
-          <span>⬇️</span> הורד תמונה
+          <span>⬇️</span> Download Image
         </button>
         <button onClick={shareWA} className="px-4 py-2.5 text-sm border border-green-700/40 text-green-400 hover:bg-green-900/20 rounded-xl transition flex items-center gap-2">
-          <span>📲</span> שתף ב-WhatsApp
+          <span>📲</span> Share on WhatsApp
         </button>
         <button
           onClick={() => navigator.share?.({ title: 'SpaceHub ISS', url: 'https://spacehub-nu.vercel.app' }).catch(() => {})}
           className="px-4 py-2.5 text-sm border border-white/10 text-gray-400 hover:text-white rounded-xl transition bg-white/[0.03]"
         >
-          ↗ שתף
+          ↗ Share
         </button>
       </div>
     </div>

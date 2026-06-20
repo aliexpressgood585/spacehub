@@ -39,7 +39,7 @@ function CountdownBig({ targetISO }: { targetISO: string }) {
   const pad = (n: number) => n.toString().padStart(2, '0')
   return (
     <div className="flex gap-2 justify-center my-3">
-      {[{ v: t.d, l: 'ימים' }, { v: t.h, l: 'שעות' }, { v: t.m, l: 'דקות' }, { v: t.s, l: 'שניות' }].map(({ v, l }) => (
+      {[{ v: t.d, l: 'Days' }, { v: t.h, l: 'Hours' }, { v: t.m, l: 'Mins' }, { v: t.s, l: 'Secs' }].map(({ v, l }) => (
         <div key={l} className="countdown-digit">
           <div className="text-2xl font-bold font-mono text-white tabular-nums">{pad(v)}</div>
           <div className="text-xs text-gray-600 mt-0.5">{l}</div>
@@ -65,8 +65,8 @@ export default function LaunchCountdown() {
       <div className="flex items-center gap-3 mb-5">
         <span className="text-2xl">🚀</span>
         <div>
-          <h3 className="text-white font-bold text-lg">השיגור הבא</h3>
-          <p className="text-gray-500 text-xs">ספירה לאחור לשיגורי חלל</p>
+          <h3 className="text-white font-bold text-lg">Next Launch</h3>
+          <p className="text-gray-500 text-xs">Countdown to upcoming rocket launches</p>
         </div>
       </div>
 
@@ -89,7 +89,7 @@ export default function LaunchCountdown() {
             <p className="text-base font-bold text-white">{next.name}</p>
             <div className="flex items-center justify-center gap-2 mt-1">
               <span className={`text-xs px-2 py-0.5 rounded-full border ${STATUS_COLOR[next.status] ?? STATUS_COLOR.TBD}`}>
-                {next.status === 'Go' ? '✓ ירוק לשיגור' : next.status === 'TBD' ? '⏳ לא מאושר' : '⏸ עצור'}
+                {next.status === 'Go' ? '✓ Go for Launch' : next.status === 'TBD' ? '⏳ TBD' : '⏸ Hold'}
               </span>
               <span className="text-xs text-gray-600">{next.location}</span>
             </div>
@@ -98,7 +98,7 @@ export default function LaunchCountdown() {
           <CountdownBig targetISO={next.net} />
 
           <p className="text-xs text-gray-700 text-center">
-            {new Date(next.net).toLocaleString('he-IL', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            {new Date(next.net).toLocaleString('en-US', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })} UTC
           </p>
         </div>
       )}

@@ -62,7 +62,7 @@ export default function Hero({ lang, onPremium, onScrollToISS }: Props) {
             {he ? 'שדרג לפרמיום' : 'Go Premium'}
           </button>
           <a
-            href={`https://wa.me/?text=${encodeURIComponent('SpaceHub - מידע חלל בזמן אמת 🚀 https://spacehub-nu.vercel.app')}`}
+            href={`https://wa.me/?text=${encodeURIComponent('SpaceHub - Real-time Space Data 🚀 https://spacehub-nu.vercel.app')}`}
             target="_blank" rel="noopener noreferrer"
             className="px-7 py-3.5 text-sm border border-white/10 text-gray-400 hover:text-white hover:border-white/20 rounded-xl transition bg-white/[0.03] flex items-center gap-2"
           >

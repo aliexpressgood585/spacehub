@@ -2,35 +2,35 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 
 // Bright stars: [name_he, RA_hours, Dec_deg, magnitude, color]
 const STARS: [string, number, number, number, string][] = [
-  ['סיריוס',     6.752, -16.72, -1.46, '#a8d8ff'],
-  ['קנופוס',     6.399, -52.70, -0.74, '#fffbe0'],
-  ['ארקטורוס',  14.261,  19.18, -0.05, '#ffcc88'],
-  ['וגה',       18.615,  38.78,  0.03, '#cce0ff'],
-  ['קפלה',       5.278,  45.98,  0.08, '#ffe8a0'],
-  ['ריגל',       5.243,  -8.20,  0.18, '#cce8ff'],
-  ['פרוקיון',    7.655,   5.22,  0.40, '#fff8e0'],
-  ['בטלגיוז',    5.919,   7.41,  0.45, '#ffaa66'],
-  ['אכרנר',      1.629, -57.24,  0.45, '#cce0ff'],
-  ['בלקרוס',    14.066, -60.37,  0.61, '#aaccff'],
-  ['אלטאיר',    19.846,   8.87,  0.77, '#fffbe0'],
-  ['דנב',       20.690,  45.28,  1.25, '#cce0ff'],
-  ['אנטארס',    16.490, -26.43,  1.06, '#ff6644'],
-  ['ספיקה',     13.420, -11.16,  0.98, '#cce0ff'],
-  ['פומאלהאוט',  22.961, -29.62,  1.16, '#fffbe0'],
-  ['פולוקס',     7.755,  28.03,  1.16, '#ffcc88'],
-  ['פומלהאוט',  22.961, -29.62,  1.17, '#fff8e0'],
-  ['דנב קעין',    0.655, -17.99,  2.04, '#cce0ff'],
-  ['מירפק',      1.220,  49.86,  1.80, '#fffbe0'],
-  ['אלדברן',     4.599,  16.51,  0.87, '#ff9944'],
-  ['קסטור',      7.577,  31.89,  1.58, '#cce0ff'],
-  ['בלהם',      12.444, -63.10,  1.33, '#aaccff'],
-  ['מימוסה',    12.796, -59.69,  1.25, '#cce0ff'],
-  ['אקרוקס',    12.443, -63.10,  0.77, '#cce0ff'],
-  ['רגולוס',    10.140,  11.97,  1.36, '#cce0ff'],
-  ['אדהרה',      6.977, -28.97,  1.50, '#cce0ff'],
-  ['שאולה',     17.621, -37.10,  1.63, '#cce0ff'],
-  ['גאקרוקס',   12.519, -57.11,  1.59, '#ff8866'],
-  ['נאוס',       8.060, -40.00,  2.21, '#88aaff'],
+  ['Sirius',     6.752, -16.72, -1.46, '#a8d8ff'],
+  ['Canopus',     6.399, -52.70, -0.74, '#fffbe0'],
+  ['Arcturus',  14.261,  19.18, -0.05, '#ffcc88'],
+  ['Vega',       18.615,  38.78,  0.03, '#cce0ff'],
+  ['Capella',       5.278,  45.98,  0.08, '#ffe8a0'],
+  ['Rigel',       5.243,  -8.20,  0.18, '#cce8ff'],
+  ['Procyon',    7.655,   5.22,  0.40, '#fff8e0'],
+  ['Betelgeuse',    5.919,   7.41,  0.45, '#ffaa66'],
+  ['Achernar',      1.629, -57.24,  0.45, '#cce0ff'],
+  ['Hadar',    14.066, -60.37,  0.61, '#aaccff'],
+  ['Altair',    19.846,   8.87,  0.77, '#fffbe0'],
+  ['Deneb',       20.690,  45.28,  1.25, '#cce0ff'],
+  ['Antares',    16.490, -26.43,  1.06, '#ff6644'],
+  ['Spica',     13.420, -11.16,  0.98, '#cce0ff'],
+  ['Fomalhaut',  22.961, -29.62,  1.16, '#fffbe0'],
+  ['Pollux',     7.755,  28.03,  1.16, '#ffcc88'],
+  ['Fomalhaut B',  22.961, -29.62,  1.17, '#fff8e0'],
+  ['Diphda',    0.655, -17.99,  2.04, '#cce0ff'],
+  ['Mirfak',      1.220,  49.86,  1.80, '#fffbe0'],
+  ['Aldebaran',     4.599,  16.51,  0.87, '#ff9944'],
+  ['Castor',      7.577,  31.89,  1.58, '#cce0ff'],
+  ['Mimosa',      12.444, -63.10,  1.33, '#aaccff'],
+  ['Mim B',    12.796, -59.69,  1.25, '#cce0ff'],
+  ['Acrux',    12.443, -63.10,  0.77, '#cce0ff'],
+  ['Regulus',    10.140,  11.97,  1.36, '#cce0ff'],
+  ['Adhara',      6.977, -28.97,  1.50, '#cce0ff'],
+  ['Shaula',     17.621, -37.10,  1.63, '#cce0ff'],
+  ['Gacrux',   12.519, -57.11,  1.59, '#ff8866'],
+  ['Naos',       8.060, -40.00,  2.21, '#88aaff'],
 ]
 
 // Constellation lines: pairs of star indices
@@ -77,19 +77,19 @@ function altAzToXY(alt: number, az: number, cx: number, cy: number, r: number) {
 export default function StarMap() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [userLoc, setUserLoc] = useState({ lat: 31.77, lng: 35.21 }) // Default Jerusalem
-  const [city, setCity] = useState('ירושלים')
+  const [city, setCity] = useState('Jerusalem')
   const [time, setTime] = useState(new Date())
   const [rotation, setRotation] = useState(0)
   const [dragging, setDragging] = useState(false)
   const [prevX, setPrevX] = useState(0)
 
   const CITIES = [
-    { name: 'ירושלים', lat: 31.77, lng: 35.21 },
-    { name: 'תל אביב', lat: 32.08, lng: 34.78 },
-    { name: 'ניו יורק', lat: 40.71, lng: -74.00 },
-    { name: 'לונדון',   lat: 51.51, lng: -0.13 },
-    { name: 'טוקיו',    lat: 35.68, lng: 139.69 },
-    { name: 'סידני',    lat: -33.87, lng: 151.21 },
+    { name: 'Jerusalem',   lat: 31.77, lng: 35.21 },
+    { name: 'Tel Aviv',    lat: 32.08, lng: 34.78 },
+    { name: 'New York',    lat: 40.71, lng: -74.00 },
+    { name: 'London',      lat: 51.51, lng: -0.13 },
+    { name: 'Tokyo',       lat: 35.68, lng: 139.69 },
+    { name: 'Sydney',      lat: -33.87, lng: 151.21 },
   ]
 
   const draw = useCallback(() => {
@@ -126,8 +126,8 @@ export default function StarMap() {
 
     // Cardinal directions
     const cardinals = [
-      { label: 'צ', az: 0 }, { label: 'מ', az: 90 },
-      { label: 'ד', az: 180 }, { label: 'מע', az: 270 },
+      { label: 'N', az: 0 }, { label: 'E', az: 90 },
+      { label: 'S', az: 180 }, { label: 'W', az: 270 },
     ]
     ctx.font = 'bold 11px system-ui'
     ctx.textAlign = 'center'
@@ -226,10 +226,10 @@ export default function StarMap() {
       <div className="flex items-center gap-3 mb-4">
         <span className="text-2xl">🌌</span>
         <div>
-          <h3 className="text-white font-bold text-lg">מפת שמיים — הלילה</h3>
-          <p className="text-gray-500 text-xs">{visibleCount} כוכבים גלויים מעל האופק • גרור לסובב</p>
+          <h3 className="text-white font-bold text-lg">Star Map — Tonight</h3>
+          <p className="text-gray-500 text-xs">{visibleCount} stars visible above horizon • drag to rotate</p>
         </div>
-        <div className="ml-auto live-badge"><span className="live-dot" />חי</div>
+        <div className="ml-auto live-badge"><span className="live-dot" />LIVE</div>
       </div>
 
       {/* City selector */}
@@ -262,7 +262,7 @@ export default function StarMap() {
         />
         <div className="flex flex-wrap gap-3 text-xs text-gray-600 justify-center">
           <span>📍 {city} — {userLoc.lat.toFixed(1)}°N</span>
-          <span>🕐 {time.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
+          <span>🕐 {time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
         </div>
       </div>
     </div>
