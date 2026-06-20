@@ -1,10 +1,59 @@
 <!doctype html>
-<html lang="en">
+<html lang="he" dir="rtl">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>spacehub</title>
+
+    <!-- SEO Primary -->
+    <title>SpaceHub | מידע חלל בזמן אמת — לוויינים, ISS, מזג אוויר חלל</title>
+    <meta name="description" content="עקוב אחר תחנת החלל הבינלאומית ISS בזמן אמת, לוויינים, מזג אוויר חלל, גשמי מטאורים ואירועים אסטרונומיים. מידע חלל בעברית." />
+    <meta name="keywords" content="ISS, לוויינים, חלל, אסטרונומיה, מזג אוויר חלל, גשם מטאורים, נאסא, תחנת חלל, SpaceHub" />
+    <meta name="author" content="SpaceHub" />
+    <link rel="canonical" href="https://spacehub-nu.vercel.app" />
+
+    <!-- Open Graph (Social sharing) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://spacehub-nu.vercel.app" />
+    <meta property="og:title" content="SpaceHub — מידע חלל בזמן אמת" />
+    <meta property="og:description" content="עקוב אחר ISS, לוויינים ואירועי חלל בזמן אמת. קבל התראה כשה-ISS עובר מעליך!" />
+    <meta property="og:image" content="https://spacehub-nu.vercel.app/og-image.png" />
+    <meta property="og:locale" content="he_IL" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="SpaceHub — מידע חלל בזמן אמת" />
+    <meta name="twitter:description" content="עקוב אחר ISS, לוויינים ואירועי חלל בזמן אמת" />
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "SpaceHub",
+      "description": "Real-time space data platform — ISS tracking, satellites, space weather",
+      "url": "https://spacehub-nu.vercel.app",
+      "applicationCategory": "Science",
+      "inLanguage": ["he", "en"],
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    }
+    </script>
+
+    <!-- Google AdSense (replace ca-pub-XXXXXXXXXX with your publisher ID) -->
+    <!-- <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXX" crossorigin="anonymous"></script> -->
+
+    <!-- Google Analytics (replace G-XXXXXXXXXX with your tracking ID) -->
+    <!-- <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-XXXXXXXXXX');
+    </script> -->
   </head>
   <body>
     <div id="root"></div>
