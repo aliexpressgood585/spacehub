@@ -41,7 +41,7 @@ export const useSatellites = () => {
 }
 
 export const useSpaceWeather = () => {
-  const [data, setData] = useState(null)
+  const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {

@@ -71,15 +71,6 @@ export default function SatelliteTracker() {
         )}
       </div>
 
-      <div className="neon-border glass rounded-lg p-8">
-        <h4 className="text-xl font-bold text-white mb-4">מפת 3D (בקרוב)</h4>
-        <div className="w-full h-96 bg-space-700 rounded-lg flex items-center justify-center border border-space-700">
-          <div className="text-center">
-            <div className="text-6xl mb-4">🌍</div>
-            <p className="text-gray-400">מפת 3D אינטראקטיבית עם לוויינים</p>
-          </div>
-        </div>
-      </div>
     </div>
   )
 }

@@ -17,7 +17,6 @@ interface SatelliteData {
 export default function AdvancedSatelliteTracker() {
   const [satellites, setSatellites] = useState<SatelliteData[]>([])
   const [selectedSat, setSelectedSat] = useState<SatelliteData | null>(null)
-  const [loading, setLoading] = useState(true)
   const [autoRefresh, setAutoRefresh] = useState(true)
 
   useEffect(() => {
@@ -61,7 +60,6 @@ export default function AdvancedSatelliteTracker() {
     ]
     setSatellites(mockSatellites)
     setSelectedSat(mockSatellites[0])
-    setLoading(false)
   }, [])
 
   useEffect(() => {
