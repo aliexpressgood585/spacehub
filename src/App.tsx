@@ -24,6 +24,7 @@ import SpaceQuiz from './components/SpaceQuiz'
 import ShareCard from './components/ShareCard'
 import BlogPage from './pages/BlogPage'
 import CityPage from './pages/CityPage'
+import PrivacyPage from './pages/PrivacyPage'
 
 type Tab = 'dashboard' | 'starmap' | 'tracker' | 'solar' | 'weather' | 'events' | 'news' | 'quiz' | 'blog'
 
@@ -41,7 +42,7 @@ const TABS: { id: Tab; icon: string; he: string; en: string }[] = [
 
 function MainApp() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard')
-  const [lang, setLang] = useState<'he' | 'en'>('he')
+  const [lang, setLang] = useState<'he' | 'en'>('en')
   const [premiumOpen, setPremiumOpen] = useState(false)
   const [issData, setIssData] = useState<{ lat: number; lng: number; alt: number } | null>(null)
   const issRef = useRef<HTMLDivElement>(null)
@@ -165,11 +166,13 @@ function MainApp() {
           <p className="text-white font-bold mb-1">SpaceHub</p>
           <p className="text-gray-600 text-xs mb-4">{he ? 'מידע חלל בזמן אמת' : 'Real-time Space Data'}</p>
           <div className="flex flex-wrap gap-3 justify-center text-gray-700 text-xs mb-4">
-            <Link to="/blog" className="hover:text-gray-400 transition">בלוג</Link>
-            <Link to="/iss/tel-aviv" className="hover:text-gray-400 transition">ISS תל אביב</Link>
-            <Link to="/iss/jerusalem" className="hover:text-gray-400 transition">ISS ירושלים</Link>
-            <Link to="/iss/eilat" className="hover:text-gray-400 transition">ISS אילת</Link>
-            <button onClick={() => setPremiumOpen(true)} className="text-yellow-700 hover:text-yellow-500 transition font-semibold">⭐ פרמיום</button>
+            <Link to="/blog" className="hover:text-gray-400 transition">Blog</Link>
+            <Link to="/iss/new-york" className="hover:text-gray-400 transition">ISS New York</Link>
+            <Link to="/iss/london" className="hover:text-gray-400 transition">ISS London</Link>
+            <Link to="/iss/los-angeles" className="hover:text-gray-400 transition">ISS Los Angeles</Link>
+            <Link to="/iss/tel-aviv" className="hover:text-gray-400 transition">ISS Tel Aviv</Link>
+            <Link to="/privacy" className="hover:text-gray-400 transition">Privacy Policy</Link>
+            <button onClick={() => setPremiumOpen(true)} className="text-yellow-700 hover:text-yellow-500 transition font-semibold">⭐ Premium</button>
           </div>
           <p className="text-gray-800 text-xs">Data: NASA • Spaceflight News API • wheretheiss.at • open-notify</p>
           <p className="text-gray-800 text-xs mt-1">© 2026 SpaceHub</p>
@@ -195,6 +198,7 @@ export default function App() {
           </div>
         } />
         <Route path="/iss/:city" element={<CityPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
       </Routes>
     </BrowserRouter>
   )

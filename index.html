@@ -1,29 +1,39 @@
 <!doctype html>
-<html lang="he" dir="rtl">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%234f46e5'/><text y='.9em' font-size='70' x='15'>🚀</text></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!-- SEO Primary -->
-    <title>SpaceHub | מידע חלל בזמן אמת — לוויינים, ISS, מזג אוויר חלל</title>
-    <meta name="description" content="עקוב אחר תחנת החלל הבינלאומית ISS בזמן אמת, לוויינים, מזג אוויר חלל, גשמי מטאורים ואירועים אסטרונומיים. מידע חלל בעברית." />
-    <meta name="keywords" content="ISS, לוויינים, חלל, אסטרונומיה, מזג אוויר חלל, גשם מטאורים, נאסא, תחנת חלל, SpaceHub" />
+    <title>SpaceHub | Real-Time Space Tracker — ISS, Satellites, Space Weather</title>
+    <meta name="description" content="Track the International Space Station ISS in real time. Get alerts when ISS passes over your city. Live satellites, space weather, moon phase, launch countdowns. Free space data platform." />
+    <meta name="keywords" content="ISS tracker, international space station, satellite tracker, space weather, moon phase, launch countdown, ISS pass times, real-time space data, astronauts in space, NASA APOD" />
     <meta name="author" content="SpaceHub" />
     <link rel="canonical" href="https://spacehub-nu.vercel.app" />
 
-    <!-- Open Graph (Social sharing) -->
+    <!-- Geo / International -->
+    <meta name="geo.region" content="US" />
+    <meta name="language" content="English" />
+    <meta name="revisit-after" content="1 day" />
+    <meta name="robots" content="index, follow" />
+
+    <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://spacehub-nu.vercel.app" />
-    <meta property="og:title" content="SpaceHub — מידע חלל בזמן אמת" />
-    <meta property="og:description" content="עקוב אחר ISS, לוויינים ואירועי חלל בזמן אמת. קבל התראה כשה-ISS עובר מעליך!" />
+    <meta property="og:title" content="SpaceHub — Real-Time Space Tracker" />
+    <meta property="og:description" content="Track ISS live, get pass-over alerts, monitor space weather, moon phases & rocket launches. Free for everyone." />
     <meta property="og:image" content="https://spacehub-nu.vercel.app/og-image.png" />
-    <meta property="og:locale" content="he_IL" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="he_IL" />
+    <meta property="og:site_name" content="SpaceHub" />
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="SpaceHub — מידע חלל בזמן אמת" />
-    <meta name="twitter:description" content="עקוב אחר ISS, לוויינים ואירועי חלל בזמן אמת" />
+    <meta name="twitter:site" content="@SpaceHubApp" />
+    <meta name="twitter:title" content="SpaceHub — Real-Time ISS & Space Tracker" />
+    <meta name="twitter:description" content="Track the ISS live. Get notified when it passes over your city. Free space data for everyone." />
+    <meta name="twitter:image" content="https://spacehub-nu.vercel.app/og-image.png" />
 
     <!-- Structured Data -->
     <script type="application/ld+json">
@@ -31,22 +41,31 @@
       "@context": "https://schema.org",
       "@type": "WebApplication",
       "name": "SpaceHub",
-      "description": "Real-time space data platform — ISS tracking, satellites, space weather",
       "url": "https://spacehub-nu.vercel.app",
+      "description": "Real-time space data platform — ISS tracking, satellite tracker, space weather, moon phases, launch countdowns",
       "applicationCategory": "Science",
-      "inLanguage": ["he", "en"],
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "USD"
-      }
+      "operatingSystem": "Web, iOS, Android",
+      "inLanguage": ["en", "he"],
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "featureList": [
+        "Real-time ISS tracking",
+        "ISS pass-over alerts by city",
+        "Live satellite tracker",
+        "Space weather monitoring",
+        "Moon phase calculator",
+        "Rocket launch countdown",
+        "3D Solar System viewer",
+        "Interactive star map",
+        "Space quiz",
+        "NASA APOD daily image"
+      ]
     }
     </script>
 
-    <!-- Google AdSense (replace ca-pub-XXXXXXXXXX with your publisher ID) -->
-    <!-- <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXX" crossorigin="anonymous"></script> -->
+    <!-- Google AdSense — paste your publisher ID below when approved -->
+    <!-- <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXXX" crossorigin="anonymous"></script> -->
 
-    <!-- Google Analytics (replace G-XXXXXXXXXX with your tracking ID) -->
+    <!-- Google Analytics — paste your tracking ID below -->
     <!-- <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
     <script>
       window.dataLayer = window.dataLayer || [];

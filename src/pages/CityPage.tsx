@@ -3,14 +3,18 @@ import { useState, useEffect } from 'react'
 import ISSAlertSystem from '../components/ISSAlertSystem'
 
 const CITY_DATA: Record<string, { name: string; nameEn: string; lat: number; lng: number; desc: string }> = {
-  'tel-aviv':    { name: 'תל אביב',    nameEn: 'Tel Aviv',    lat: 32.08, lng: 34.78, desc: 'מרכז ישראל — ISS עובר מעל תל אביב כ-4-5 פעמים ביום' },
-  'jerusalem':   { name: 'ירושלים',    nameEn: 'Jerusalem',   lat: 31.77, lng: 35.21, desc: 'עיר הבירה — עקוב אחרי ISS מגגות העיר העתיקה' },
-  'haifa':       { name: 'חיפה',       nameEn: 'Haifa',       lat: 32.79, lng: 34.99, desc: 'עיר הכרמל — נוף מרהיב לשמיים מהכרמל' },
-  'beer-sheva':  { name: 'באר שבע',    nameEn: 'Be\'er Sheva', lat: 31.25, lng: 34.79, desc: 'שער הנגב — שמיים חשוכים ונוחים לצפייה' },
-  'eilat':       { name: 'אילת',       nameEn: 'Eilat',       lat: 29.56, lng: 34.95, desc: 'ים סוף — אחת הנקודות הטובות ביותר לצפייה בישראל' },
-  'new-york':    { name: 'ניו יורק',   nameEn: 'New York',    lat: 40.71, lng: -74.00, desc: 'עיר ניו יורק — ISS נראה אפילו מעל הסקייליין' },
-  'london':      { name: 'לונדון',     nameEn: 'London',      lat: 51.51, lng: -0.13,  desc: 'לונדון — קו רוחב גבוה, העברות ארוכות יותר' },
-  'paris':       { name: 'פריז',       nameEn: 'Paris',       lat: 48.86, lng: 2.35,   desc: 'פריז — ISS נראה לעיתים ממגדל אייפל' },
+  'new-york':      { name: 'New York',      nameEn: 'New York',      lat: 40.71,  lng: -74.00,  desc: 'NYC — ISS is visible even above the iconic skyline, up to 5 times per day' },
+  'london':        { name: 'London',        nameEn: 'London',        lat: 51.51,  lng: -0.13,   desc: 'London — High latitude means longer, more frequent ISS passes' },
+  'los-angeles':   { name: 'Los Angeles',   nameEn: 'Los Angeles',   lat: 34.05,  lng: -118.24, desc: 'LA — Clear skies make ISS passes spectacular from the hills' },
+  'paris':         { name: 'Paris',         nameEn: 'Paris',         lat: 48.86,  lng: 2.35,    desc: 'Paris — ISS can sometimes be seen passing near the Eiffel Tower' },
+  'tokyo':         { name: 'Tokyo',         nameEn: 'Tokyo',         lat: 35.68,  lng: 139.65,  desc: 'Tokyo — ISS passes are a popular sight for Japanese astronomy fans' },
+  'sydney':        { name: 'Sydney',        nameEn: 'Sydney',        lat: -33.87, lng: 151.21,  desc: 'Sydney — Southern hemisphere offers unique views of the night sky' },
+  'toronto':       { name: 'Toronto',       nameEn: 'Toronto',       lat: 43.65,  lng: -79.38,  desc: 'Toronto — ISS passes are clearly visible from Lake Ontario shores' },
+  'berlin':        { name: 'Berlin',        nameEn: 'Berlin',        lat: 52.52,  lng: 13.41,   desc: 'Berlin — High latitude city with excellent ISS visibility' },
+  'dubai':         { name: 'Dubai',         nameEn: 'Dubai',         lat: 25.20,  lng: 55.27,   desc: 'Dubai — Clear desert skies make ISS very bright when passing overhead' },
+  'chicago':       { name: 'Chicago',       nameEn: 'Chicago',       lat: 41.88,  lng: -87.63,  desc: 'Chicago — Lake Michigan provides a clear western horizon for ISS rises' },
+  'tel-aviv':      { name: 'Tel Aviv',      nameEn: 'Tel Aviv',      lat: 32.08,  lng: 34.78,   desc: 'Tel Aviv — ISS passes over Israel 4-5 times daily' },
+  'jerusalem':     { name: 'Jerusalem',     nameEn: 'Jerusalem',     lat: 31.77,  lng: 35.21,   desc: 'Jerusalem — Track ISS from the rooftops of the Old City' },
 }
 
 export default function CityPage() {
@@ -50,7 +54,7 @@ export default function CityPage() {
         <div className="text-center mb-10">
           <span className="section-label mb-4 inline-flex">🛸 ISS</span>
           <h1 className="text-4xl font-black text-white mt-3">
-            ISS מעל <span className="gradient-text">{data.name}</span>
+            ISS over <span className="gradient-text">{data.name}</span>
           </h1>
           <p className="text-gray-500 mt-2">{data.desc}</p>
         </div>

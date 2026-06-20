@@ -20,14 +20,18 @@ function calcElevation(groundDist: number, issAlt: number): number {
 }
 
 const ISRAEL_CITIES = [
-  { name: 'תל אביב', lat: 32.0853, lng: 34.7818 },
-  { name: 'ירושלים', lat: 31.7683, lng: 35.2137 },
-  { name: 'חיפה', lat: 32.7940, lng: 34.9896 },
-  { name: 'באר שבע', lat: 31.2518, lng: 34.7913 },
-  { name: 'אילת', lat: 29.5577, lng: 34.9519 },
-  { name: 'ניו יורק', lat: 40.7128, lng: -74.0060 },
-  { name: 'לונדון', lat: 51.5074, lng: -0.1278 },
-  { name: 'פריז', lat: 48.8566, lng: 2.3522 },
+  { name: 'New York',    lat: 40.7128, lng: -74.0060 },
+  { name: 'London',      lat: 51.5074, lng: -0.1278 },
+  { name: 'Los Angeles', lat: 34.0522, lng: -118.2437 },
+  { name: 'Paris',       lat: 48.8566, lng: 2.3522 },
+  { name: 'Tokyo',       lat: 35.6762, lng: 139.6503 },
+  { name: 'Sydney',      lat: -33.8688, lng: 151.2093 },
+  { name: 'Toronto',     lat: 43.6532, lng: -79.3832 },
+  { name: 'Berlin',      lat: 52.5200, lng: 13.4050 },
+  { name: 'Dubai',       lat: 25.2048, lng: 55.2708 },
+  { name: 'São Paulo',   lat: -23.5505, lng: -46.6333 },
+  { name: 'Tel Aviv',    lat: 32.0853, lng: 34.7818 },
+  { name: 'Jerusalem',   lat: 31.7683, lng: 35.2137 },
 ]
 
 export default function ISSAlertSystem() {
