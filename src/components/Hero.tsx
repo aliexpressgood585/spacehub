@@ -8,62 +8,82 @@ export default function Hero({ lang, onPremium, onScrollToISS }: Props) {
   const he = lang === 'he'
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-12 text-center">
-      <div className="inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border border-green-500/30 bg-green-900/20 text-green-400 mb-6">
-        <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-        {he ? 'ISS בזמן אמת • נאס"א • לוויינים' : 'ISS Live • NASA • Satellites'}
-      </div>
+    <div className="hero-bg relative overflow-hidden">
+      {/* Decorative orbs */}
+      <div className="absolute top-10 left-1/4 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-48 h-48 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
 
-      <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight">
-        {he ? (
-          <>עקוב אחרי <span className="gradient-text">תחנת החלל</span><br />בזמן אמת</>
-        ) : (
-          <>Track the <span className="gradient-text">Space Station</span><br />in Real Time</>
-        )}
-      </h2>
+      <div className="max-w-5xl mx-auto px-4 pt-16 pb-12 text-center relative">
+        {/* Eyebrow */}
+        <div className="inline-flex items-center gap-2 mb-6">
+          <span className="section-label">
+            <span className="live-dot" />
+            {he ? 'נתונים חיים מהחלל' : 'Live data from space'}
+          </span>
+        </div>
 
-      <p className="text-lg text-gray-400 mb-8 max-w-xl mx-auto">
-        {he
-          ? 'קבל התראה כשה-ISS עובר מעליך, עקוב אחרי לוויינים, אירועי חלל ומזג אוויר חלל — הכל בחינם'
-          : 'Get notified when the ISS passes overhead, track satellites, space events & weather — all free'}
-      </p>
+        {/* Title */}
+        <h2 className="text-5xl sm:text-6xl font-black text-white mb-5 leading-[1.1] tracking-tight">
+          {he ? (
+            <>
+              עקוב אחרי{' '}
+              <span className="gradient-text">תחנת החלל</span>
+              <br />בזמן אמת
+            </>
+          ) : (
+            <>
+              Track the{' '}
+              <span className="gradient-text">Space Station</span>
+              <br />in Real Time
+            </>
+          )}
+        </h2>
 
-      <div className="flex flex-wrap gap-3 justify-center">
-        <button
-          onClick={onScrollToISS}
-          className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-semibold text-white transition shadow-lg shadow-indigo-900/40 text-sm"
-        >
-          🛸 {he ? 'איפה ISS עכשיו?' : 'Where is ISS now?'}
-        </button>
-        <button
-          onClick={onPremium}
-          className="px-6 py-3 bg-gradient-to-r from-yellow-700 to-orange-700 hover:from-yellow-600 hover:to-orange-600 rounded-xl font-semibold text-white transition shadow-lg shadow-orange-900/30 text-sm"
-        >
-          ⭐ {he ? 'שדרג לפרמיום' : 'Go Premium'}
-        </button>
-        <a
-          href="https://wa.me/?text=SpaceHub%20-%20מידע%20חלל%20בזמן%20אמת%20https://spacehub-nu.vercel.app"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="px-6 py-3 border border-space-700 hover:border-green-500/50 text-gray-400 hover:text-green-400 rounded-xl font-medium transition text-sm"
-        >
-          📲 {he ? 'שתף לחברים' : 'Share'}
-        </a>
-      </div>
+        <p className="text-base text-gray-400 mb-8 max-w-lg mx-auto leading-relaxed">
+          {he
+            ? 'קבל התראה כשה-ISS עובר מעליך, ראה מי בחלל עכשיו, עקוב אחרי ירח, שיגורים ומזג אוויר חלל — הכל חינם'
+            : 'Get notified when ISS passes overhead, see who\'s in space now, track moon phases, launches & space weather — all free'}
+        </p>
 
-      {/* Stats bar */}
-      <div className="flex flex-wrap gap-6 justify-center mt-10 text-center">
-        {[
-          { n: '2,400+', label: he ? 'משתמשים' : 'Users' },
-          { n: '8', label: he ? 'כוכבי לכת' : 'Planets' },
-          { n: '4', label: he ? 'לוויינים חיים' : 'Live Satellites' },
-          { n: '24/7', label: he ? 'בזמן אמת' : 'Real-time' },
-        ].map(s => (
-          <div key={s.n}>
-            <p className="text-2xl font-bold gradient-text">{s.n}</p>
-            <p className="text-xs text-gray-500">{s.label}</p>
-          </div>
-        ))}
+        {/* CTAs */}
+        <div className="flex flex-wrap gap-3 justify-center mb-12">
+          <button
+            onClick={onScrollToISS}
+            className="btn-shimmer px-7 py-3.5 text-sm flex items-center gap-2"
+          >
+            <span>🛸</span>
+            {he ? 'איפה ISS עכשיו?' : 'Where is ISS?'}
+          </button>
+          <button
+            onClick={onPremium}
+            className="btn-gold px-7 py-3.5 text-sm flex items-center gap-2"
+          >
+            <span>⭐</span>
+            {he ? 'שדרג לפרמיום' : 'Go Premium'}
+          </button>
+          <a
+            href={`https://wa.me/?text=${encodeURIComponent('SpaceHub - מידע חלל בזמן אמת 🚀 https://spacehub-nu.vercel.app')}`}
+            target="_blank" rel="noopener noreferrer"
+            className="px-7 py-3.5 text-sm border border-white/10 text-gray-400 hover:text-white hover:border-white/20 rounded-xl transition bg-white/[0.03] flex items-center gap-2"
+          >
+            📲 {he ? 'שתף' : 'Share'}
+          </a>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-xl mx-auto">
+          {[
+            { n: '7+',    sub: he ? 'אסטרונאוטים בחלל' : 'Astronauts in space' },
+            { n: '8',     sub: he ? 'כוכבי לכת חיים'   : 'Live planets' },
+            { n: '92',    sub: he ? 'דקות להקפה'        : 'Mins per orbit' },
+            { n: '24/7',  sub: he ? 'בזמן אמת'          : 'Real-time' },
+          ].map(s => (
+            <div key={s.n} className="stat-card">
+              <p className="text-2xl font-black gradient-text mb-0.5">{s.n}</p>
+              <p className="text-xs text-gray-600 leading-tight">{s.sub}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )
