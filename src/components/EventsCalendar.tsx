@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import MeteorShower3D from './MeteorShower3D'
 
 interface Event {
   date: string
@@ -61,6 +62,13 @@ export default function EventsCalendar() {
   }
 
   return (
+    <>
+      {/* Meteor Shower 3D */}
+      <div className="neon-border glass rounded-lg p-6 mb-6">
+        <h3 className="text-xl font-bold text-white mb-4">☄️ גשם מטאורים — הדמיה תלת מימד</h3>
+        <MeteorShower3D />
+      </div>
+
     <div className="neon-border glass rounded-lg p-8">
       <h3 className="text-2xl font-bold text-white mb-6">🌠 אירועים אסטרונומיים</h3>
 
@@ -87,5 +95,6 @@ export default function EventsCalendar() {
         </p>
       </div>
     </div>
+    </>
   )
 }

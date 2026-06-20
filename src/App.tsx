@@ -6,6 +6,7 @@ import SatelliteTracker from './components/SatelliteTracker'
 import SpaceWeather from './components/SpaceWeather'
 import EventsCalendar from './components/EventsCalendar'
 import NewsFeed from './components/NewsFeed'
+import SpaceBackground from './components/SpaceBackground'
 
 function App() {
   const [activeTab, setActiveTab] = useState<'tracker' | 'weather' | 'events' | 'news'>('tracker')
@@ -16,7 +17,9 @@ function App() {
   }, [isDark])
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-space-900 via-space-800 to-space-900">
+    <div className="min-h-screen bg-gradient-to-b from-space-900 via-space-800 to-space-900 relative">
+      <SpaceBackground />
+      <div className="relative" style={{ zIndex: 1 }}>
       <Header onThemeToggle={() => setIsDark(!isDark)} />
       <Hero />
 
@@ -54,6 +57,7 @@ function App() {
       <footer className="border-t border-space-700 mt-16 py-8 text-center text-gray-500">
         <p>SpaceHub © 2026 | מידע חלל בזמן אמת</p>
       </footer>
+      </div>
     </div>
   )
 }
