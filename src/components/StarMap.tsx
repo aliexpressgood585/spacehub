@@ -238,7 +238,16 @@ export default function StarMap() {
           <button
             key={c.name}
             onClick={() => { setUserLoc({ lat: c.lat, lng: c.lng }); setCity(c.name) }}
-            className={`text-xs px-2.5 py-1 rounded-lg transition border ${city === c.name ? 'bg-indigo-600/30 border-indigo-500/50 text-white' : 'glass border-white/5 text-gray-500 hover:text-gray-300'}`}
+            style={city === c.name ? {
+              background: 'rgba(99,102,241,0.2)',
+              border: '1px solid rgba(99,102,241,0.45)',
+              color: '#c4b5fd',
+            } : {
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.07)',
+              color: '#6b7280',
+            }}
+            className="text-xs px-2.5 py-1 rounded-lg transition"
           >
             {c.name}
           </button>

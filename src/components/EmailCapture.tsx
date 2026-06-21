@@ -32,57 +32,74 @@ export default function EmailCapture() {
 
   if (submitted) {
     return (
-      <div className="relative overflow-hidden rounded-2xl p-8 text-center bg-gradient-to-r from-indigo-900/60 via-purple-900/60 to-indigo-900/60 border border-indigo-500/30">
-        <div className="text-5xl mb-4">🚀</div>
-        <h3 className="text-xl font-bold text-white mb-2">You're in!</h3>
-        <p className="text-gray-400">You'll receive alerts about ISS passes, meteor showers, and rare astronomical events.</p>
+      <div
+        className="relative overflow-hidden rounded-3xl p-10 text-center"
+        style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.15))', border: '1px solid rgba(99,102,241,0.3)' }}
+      >
+        <div className="text-6xl mb-5">🚀</div>
+        <h3 className="text-2xl font-black text-white mb-2">You're in!</h3>
+        <p className="text-gray-400 text-sm max-w-xs mx-auto">You'll receive alerts about ISS passes, meteor showers, and rare astronomical events.</p>
       </div>
     )
   }
 
   return (
-    <div className="relative overflow-hidden rounded-2xl p-8 bg-gradient-to-r from-indigo-900/40 via-purple-900/40 to-indigo-900/40 border border-indigo-500/20">
-      {/* Background stars effect */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(20)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-1 h-1 bg-white rounded-full opacity-30"
-            style={{ left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%` }}
-          />
-        ))}
-      </div>
+    <div
+      className="relative overflow-hidden rounded-3xl"
+      style={{ background: 'linear-gradient(135deg, rgba(30,27,75,0.9), rgba(49,46,129,0.6), rgba(30,27,75,0.9))', border: '1px solid rgba(99,102,241,0.25)' }}
+    >
+      {/* Decorative glow */}
+      <div
+        className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-32 pointer-events-none"
+        style={{ background: 'radial-gradient(ellipse, rgba(99,102,241,0.2) 0%, transparent 70%)' }}
+        aria-hidden="true"
+      />
 
-      <div className="relative text-center max-w-xl mx-auto">
-        <div className="inline-flex items-center gap-2 bg-indigo-500/20 text-indigo-300 text-xs px-3 py-1 rounded-full border border-indigo-500/30 mb-4">
-          <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-          Free alerts — no credit card required
-        </div>
-        <h3 className="text-2xl font-bold text-white mb-2">
-          Get Notified When the ISS Passes Over You 🛸
-        </h3>
-        <p className="text-gray-400 mb-6 text-sm">
-          Meteor showers • Solar eclipses • Rare events • Everything happening in space — straight to your inbox
-        </p>
-        <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-          <input
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            placeholder="your@email.com"
-            required
-            className="flex-1 px-4 py-3 rounded-lg bg-space-900/80 border border-space-700 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 text-sm"
-          />
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-lg text-white font-medium transition whitespace-nowrap text-sm"
+      <div className="relative p-10">
+        <div className="text-center max-w-xl mx-auto">
+          {/* Badge */}
+          <div
+            className="inline-flex items-center gap-2 text-xs px-4 py-1.5 rounded-full mb-5 font-semibold"
+            style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', color: '#a5b4fc' }}
           >
-            {loading ? '...' : 'Join Free →'}
-          </button>
-        </form>
-        {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
-        <p className="text-gray-600 text-xs mt-3">2,400+ space fans already joined • No spam • Unsubscribe anytime</p>
+            <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse inline-block" />
+            Free alerts — no credit card required
+          </div>
+
+          <h3 className="text-3xl font-black text-white mb-3">
+            Get Notified When the ISS<br />Passes Over You 🛸
+          </h3>
+          <p className="text-gray-400 mb-8 text-sm leading-relaxed">
+            Meteor showers · Solar eclipses · Rare events<br />Everything happening in space — straight to your inbox
+          </p>
+
+          <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto mb-4">
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="your@email.com"
+              required
+              className="flex-1 px-5 py-3.5 rounded-xl text-white placeholder-gray-600 focus:outline-none text-sm"
+              style={{
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.1)',
+              }}
+              onFocus={e => { (e.target as HTMLInputElement).style.borderColor = 'rgba(99,102,241,0.5)' }}
+              onBlur={e => { (e.target as HTMLInputElement).style.borderColor = 'rgba(255,255,255,0.1)' }}
+            />
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-shimmer px-7 py-3.5 disabled:opacity-50 whitespace-nowrap"
+            >
+              {loading ? '...' : 'Join Free →'}
+            </button>
+          </form>
+
+          {error && <p className="text-red-400 text-xs mb-3">{error}</p>}
+          <p className="text-gray-600 text-xs">2,400+ space fans already joined · No spam · Unsubscribe anytime</p>
+        </div>
       </div>
     </div>
   )

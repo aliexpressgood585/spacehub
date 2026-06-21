@@ -170,42 +170,43 @@ export default function ISSTracker() {
   }, [])
 
   return (
-    <div className="neon-border glass rounded-lg overflow-hidden">
-      <div className="p-6 border-b border-space-700 flex items-center gap-3">
-        <span className="text-2xl">🛸</span>
-        <h3 className="text-xl font-bold text-white">ISS Real-Time Tracker</h3>
-        <span className="ml-auto flex items-center gap-2 text-xs text-green-400">
-          <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block" />
-          LIVE
-        </span>
+    <div className="space-card overflow-hidden">
+      <div className="p-5 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="icon-box">🛸</div>
+        <div className="flex-1">
+          <h3 className="text-white font-bold text-base">ISS Real-Time Tracker</h3>
+          <p className="text-gray-500 text-xs">3D globe with live position</p>
+        </div>
+        <div className="live-badge">
+          <span className="live-dot" /> LIVE
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3">
         <div className="lg:col-span-2" ref={containerRef} style={{ height: 320 }} />
-        <div className="p-6 border-l border-space-700 flex flex-col justify-center gap-4">
-          <h4 className="text-indigo-300 font-bold text-lg">ISS — International Space Station</h4>
+        <div className="p-5 flex flex-col justify-center gap-3" style={{ borderLeft: '1px solid rgba(255,255,255,0.05)' }}>
+          <p className="text-indigo-300 font-bold text-sm mb-1">International Space Station</p>
           {issPos ? (
-            <div className="space-y-3">
-              <div className="glass rounded p-3">
-                <p className="text-xs text-gray-500 mb-1">Latitude</p>
-                <p className="text-white font-mono text-lg">{issPos.latitude.toFixed(4)}°</p>
-              </div>
-              <div className="glass rounded p-3">
-                <p className="text-xs text-gray-500 mb-1">Longitude</p>
-                <p className="text-white font-mono text-lg">{issPos.longitude.toFixed(4)}°</p>
-              </div>
-              <div className="glass rounded p-3">
-                <p className="text-xs text-gray-500 mb-1">Altitude</p>
-                <p className="text-white font-mono text-lg">{issPos.altitude.toFixed(1)} km</p>
-              </div>
-              <div className="glass rounded p-3">
-                <p className="text-xs text-gray-500 mb-1">Speed</p>
-                <p className="text-white font-mono text-lg">{(issPos.velocity / 3.6).toFixed(2)} km/s</p>
-              </div>
-              <p className="text-xs text-gray-600">Updates every 5 seconds</p>
+            <div className="space-y-2.5">
+              {[
+                { label: 'Latitude',  val: `${issPos.latitude.toFixed(4)}°` },
+                { label: 'Longitude', val: `${issPos.longitude.toFixed(4)}°` },
+                { label: 'Altitude',  val: `${issPos.altitude.toFixed(1)} km` },
+                { label: 'Speed',     val: `${(issPos.velocity / 3.6).toFixed(2)} km/s` },
+              ].map(item => (
+                <div
+                  key={item.label}
+                  className="rounded-xl p-3"
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+                >
+                  <p className="text-xs text-gray-600 mb-0.5">{item.label}</p>
+                  <p className="text-white font-mono font-bold">{item.val}</p>
+                </div>
+              ))}
+              <p className="text-xs text-gray-700 pt-1">Updates every 5 seconds</p>
             </div>
           ) : (
-            <div className="text-center text-gray-400">
+            <div className="text-center text-gray-400 py-4">
               <div className="text-3xl animate-spin mb-2">⚙️</div>
               <p className="text-sm">Loading ISS position...</p>
             </div>

@@ -19,7 +19,7 @@ function calcElevation(groundDist: number, issAlt: number): number {
   return elev
 }
 
-const ISRAEL_CITIES = [
+const CITIES = [
   { name: 'New York',    lat: 40.7128, lng: -74.0060 },
   { name: 'London',      lat: 51.5074, lng: -0.1278 },
   { name: 'Los Angeles', lat: 34.0522, lng: -118.2437 },
@@ -108,54 +108,73 @@ export default function ISSAlertSystem() {
     )
   }
 
-  const useCity = (city: (typeof ISRAEL_CITIES)[0]) => {
+  const useCity = (city: typeof CITIES[0]) => {
     const loc = { lat: city.lat, lng: city.lng, city: city.name }
     setSelectedCity(city.name)
     setUserLoc(loc)
     startTracking(loc)
   }
 
-  const elevColor = !pass ? '' : pass.visible ? 'text-green-400' : pass.elevAngle > -10 ? 'text-yellow-400' : 'text-gray-400'
-
   return (
-    <div className="neon-border glass rounded-lg overflow-hidden">
-      <div className="p-6 border-b border-space-700 flex flex-wrap items-center gap-3">
-        <span className="text-2xl">🛸</span>
-        <h3 className="text-xl font-bold text-white">ISS Overhead Alert — Real-Time</h3>
-        {!notifGranted && (
+    <div className="space-card overflow-hidden">
+      {/* Header */}
+      <div className="p-5 flex flex-wrap items-center gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="icon-box">🛸</div>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-white font-bold text-base">ISS Overhead Alert</h3>
+          <p className="text-gray-500 text-xs">Real-time pass tracking from your location</p>
+        </div>
+        {!notifGranted ? (
           <button
             onClick={requestNotifications}
-            className="ml-auto text-xs px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-white transition"
+            className="text-xs px-3 py-1.5 rounded-xl font-semibold transition"
+            style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', color: '#a5b4fc' }}
           >
             🔔 Enable Alerts
           </button>
+        ) : (
+          <span className="flex items-center gap-1.5 text-xs text-green-400 font-semibold">
+            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block" />
+            Alerts Active
+          </span>
         )}
-        {notifGranted && <span className="ml-auto text-xs text-green-400">🔔 Alerts Active</span>}
       </div>
 
-      <div className="p-6">
+      <div className="p-5">
         {!userLoc ? (
           <div className="space-y-4">
-            <p className="text-gray-300 text-center mb-6">Choose your location to track when the ISS passes over you</p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <p className="text-gray-400 text-sm text-center">Choose your location to track when the ISS passes over you</p>
+
+            <div className="flex justify-center">
               <button
                 onClick={useGeolocation}
                 disabled={loading}
-                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-white font-medium transition flex items-center justify-center gap-2 disabled:opacity-50"
+                className="btn-shimmer px-6 py-3 flex items-center gap-2 disabled:opacity-50"
               >
                 {loading ? <span className="animate-spin">⚙️</span> : '📍'}
                 {loading ? 'Locating...' : 'Use My Location'}
               </button>
             </div>
+
             {locError && <p className="text-red-400 text-sm text-center">{locError}</p>}
-            <div className="mt-4">
-              <p className="text-gray-500 text-sm text-center mb-3">Or choose a city:</p>
+
+            <div>
+              <p className="text-gray-600 text-xs text-center mb-3">Or choose a city:</p>
               <div className="flex flex-wrap gap-2 justify-center">
-                {ISRAEL_CITIES.map(city => (
+                {CITIES.map(city => (
                   <button
                     key={city.name}
                     onClick={() => useCity(city)}
-                    className={`px-3 py-1.5 rounded-lg text-sm transition border ${selectedCity === city.name ? 'bg-indigo-600 border-indigo-500 text-white' : 'border-space-700 text-gray-400 hover:border-indigo-500 hover:text-white glass'}`}
+                    className="px-3 py-1.5 rounded-xl text-sm transition"
+                    style={selectedCity === city.name ? {
+                      background: 'rgba(99,102,241,0.2)',
+                      border: '1px solid rgba(99,102,241,0.45)',
+                      color: '#c4b5fd',
+                    } : {
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      color: '#6b7280',
+                    }}
                   >
                     {city.name}
                   </button>
@@ -165,53 +184,81 @@ export default function ISSAlertSystem() {
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-400">📍 Location: <span className="text-white">{userLoc.city}</span></span>
-              <button onClick={() => { setUserLoc(null); setPass(null); setIss(null); if (intervalRef.current) clearInterval(intervalRef.current) }} className="text-xs text-gray-600 hover:text-gray-400 transition">Change Location</button>
+            {/* Location row */}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-500">
+                📍 <span className="text-white font-semibold">{userLoc.city}</span>
+              </span>
+              <button
+                onClick={() => { setUserLoc(null); setPass(null); setIss(null); if (intervalRef.current) clearInterval(intervalRef.current) }}
+                className="text-xs text-gray-600 hover:text-gray-400 transition"
+              >
+                Change ↺
+              </button>
             </div>
 
+            {/* Stats grid */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <div className={`glass rounded-xl p-4 text-center border ${pass?.visible ? 'border-green-500/50 bg-green-900/10' : 'border-space-700'}`}>
-                <p className="text-xs text-gray-500 mb-1">ISS Status</p>
-                <p className={`text-lg font-bold ${pass?.visible ? 'text-green-400' : 'text-gray-400'}`}>
+              <div
+                className="rounded-2xl p-4 text-center"
+                style={pass?.visible
+                  ? { background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.3)' }
+                  : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }
+                }
+              >
+                <p className="text-xs text-gray-500 mb-1.5">ISS Status</p>
+                <p className={`text-base font-bold ${pass?.visible ? 'text-green-400' : 'text-gray-400'}`}>
                   {pass?.visible ? '👁️ Visible!' : '🌍 Below Horizon'}
                 </p>
               </div>
-              <div className="glass rounded-xl p-4 text-center border border-space-700">
-                <p className="text-xs text-gray-500 mb-1">Elevation</p>
-                <p className={`text-2xl font-bold font-mono ${elevColor}`}>
-                  {pass ? `${pass.elevAngle.toFixed(1)}°` : '---'}
+
+              <div className="rounded-2xl p-4 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                <p className="text-xs text-gray-500 mb-1.5">Elevation</p>
+                <p className={`text-2xl font-black font-mono ${!pass ? 'text-gray-600' : pass.visible ? 'text-green-400' : pass.elevAngle > -10 ? 'text-yellow-400' : 'text-gray-400'}`}>
+                  {pass ? `${pass.elevAngle.toFixed(1)}°` : '—'}
                 </p>
               </div>
-              <div className="glass rounded-xl p-4 text-center border border-space-700">
-                <p className="text-xs text-gray-500 mb-1">Distance</p>
-                <p className="text-xl font-bold font-mono text-indigo-300">
-                  {pass ? `${pass.distance.toLocaleString()} km` : '---'}
+
+              <div className="rounded-2xl p-4 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                <p className="text-xs text-gray-500 mb-1.5">Distance</p>
+                <p className="text-xl font-black font-mono text-indigo-300">
+                  {pass ? `${pass.distance.toLocaleString()} km` : '—'}
                 </p>
               </div>
-              <div className={`glass rounded-xl p-4 text-center border ${pass?.visible ? 'border-green-500/50' : 'border-yellow-500/30'}`}>
-                <p className="text-xs text-gray-500 mb-1">{pass?.visible ? 'Now!' : 'Next Pass (est.)'}</p>
-                <p className={`text-lg font-bold ${pass?.visible ? 'text-green-400 animate-pulse' : 'text-yellow-400'}`}>
+
+              <div
+                className="rounded-2xl p-4 text-center"
+                style={pass?.visible
+                  ? { background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.3)' }
+                  : { background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.2)' }
+                }
+              >
+                <p className="text-xs text-gray-500 mb-1.5">{pass?.visible ? 'Overhead Now!' : 'Next Pass (est.)'}</p>
+                <p className={`text-base font-bold ${pass?.visible ? 'text-green-400 animate-pulse' : 'text-yellow-400'}`}>
                   {pass?.countdown ?? '...'}
                 </p>
               </div>
             </div>
 
+            {/* ISS position detail */}
             {iss && (
-              <div className="glass rounded-lg p-4 border border-space-700 mt-2">
-                <p className="text-xs text-gray-500 mb-2">ISS Current Position</p>
+              <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <p className="text-xs text-gray-600 mb-2 uppercase tracking-wider font-semibold">ISS Current Position</p>
                 <div className="flex flex-wrap gap-4 text-sm">
-                  <span className="text-gray-300">Lat: <span className="text-white font-mono">{iss.latitude.toFixed(3)}°</span></span>
-                  <span className="text-gray-300">Lon: <span className="text-white font-mono">{iss.longitude.toFixed(3)}°</span></span>
-                  <span className="text-gray-300">Alt: <span className="text-white font-mono">{iss.altitude.toFixed(1)} km</span></span>
-                  <span className="text-gray-300">Speed: <span className="text-white font-mono">{(iss.velocity / 3.6).toFixed(1)} km/s</span></span>
+                  <span className="text-gray-500">Lat: <span className="text-white font-mono">{iss.latitude.toFixed(3)}°</span></span>
+                  <span className="text-gray-500">Lon: <span className="text-white font-mono">{iss.longitude.toFixed(3)}°</span></span>
+                  <span className="text-gray-500">Alt: <span className="text-white font-mono">{iss.altitude.toFixed(1)} km</span></span>
+                  <span className="text-gray-500">Speed: <span className="text-white font-mono">{(iss.velocity / 3.6).toFixed(1)} km/s</span></span>
                 </div>
               </div>
             )}
 
-            <div className="bg-space-900/60 rounded-lg p-4 border border-space-700/50 text-xs text-gray-500">
-              💡 <strong className="text-gray-400">Tip:</strong> The ISS is visible to the naked eye at night when elevation is above 10°. It travels at 28,000 km/h and orbits Earth every 92 minutes.
-              <br />Updates every 10 seconds.
+            <div
+              className="rounded-2xl p-4 text-xs text-gray-600 leading-relaxed"
+              style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}
+            >
+              💡 The ISS is visible to the naked eye when elevation is above 10°. It orbits Earth every 92 minutes at 28,000 km/h.
+              Updates every 10 seconds.
             </div>
           </div>
         )}

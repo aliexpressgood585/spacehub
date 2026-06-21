@@ -28,29 +28,31 @@ export default function SpaceNewsFeed() {
 
   const formatDate = (iso: string) => {
     const d = new Date(iso)
-    return d.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })
+    return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
   }
 
   return (
-    <div className="neon-border glass rounded-lg p-6">
+    <div className="space-card p-6">
       <div className="flex items-center gap-3 mb-6">
-        <span className="text-2xl">📰</span>
-        <h3 className="text-xl font-bold text-white">Space News — Live</h3>
-        <span className="ml-auto flex items-center gap-2 text-xs text-blue-400">
-          <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse inline-block" />
-          Spaceflight News API
-        </span>
+        <div className="icon-box">📰</div>
+        <div className="flex-1">
+          <h3 className="text-white font-bold text-base">Space News — Live</h3>
+          <p className="text-gray-500 text-xs">Spaceflight News API · Latest articles</p>
+        </div>
+        <div className="live-badge">
+          <span className="live-dot" /> LIVE
+        </div>
       </div>
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="glass rounded-lg overflow-hidden animate-pulse">
-              <div className="bg-space-700 h-40" />
+            <div key={i} className="rounded-2xl overflow-hidden animate-pulse" style={{ background: 'rgba(255,255,255,0.03)' }}>
+              <div className="h-40" style={{ background: 'rgba(255,255,255,0.05)' }} />
               <div className="p-4 space-y-2">
-                <div className="bg-space-700 h-4 rounded w-3/4" />
-                <div className="bg-space-700 h-3 rounded w-full" />
-                <div className="bg-space-700 h-3 rounded w-2/3" />
+                <div className="h-4 rounded-full" style={{ background: 'rgba(255,255,255,0.05)', width: '75%' }} />
+                <div className="h-3 rounded-full" style={{ background: 'rgba(255,255,255,0.04)' }} />
+                <div className="h-3 rounded-full" style={{ background: 'rgba(255,255,255,0.03)', width: '60%' }} />
               </div>
             </div>
           ))}
@@ -64,47 +66,68 @@ export default function SpaceNewsFeed() {
                 href={article.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="glass rounded-lg overflow-hidden border border-space-700 hover:border-indigo-500/50 transition-all hover:-translate-y-1 block"
+                className="rounded-2xl overflow-hidden transition-all hover:-translate-y-1 block group"
+                style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(99,102,241,0.4)' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)' }}
               >
                 <div className="relative overflow-hidden" style={{ height: 160 }}>
                   {article.image_url ? (
                     <img
                       src={article.image_url}
                       alt={article.title}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
                     />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-space-800 to-indigo-900 flex items-center justify-center">
-                      <span className="text-4xl">🚀</span>
+                    <div
+                      className="w-full h-full flex items-center justify-center"
+                      style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.15))' }}
+                    >
+                      <span className="text-5xl">🚀</span>
                     </div>
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-                  <span className="absolute bottom-2 left-2 text-xs bg-black/60 text-gray-300 px-2 py-0.5 rounded">
+                  <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(2,5,16,0.85) 0%, transparent 50%)' }} />
+                  <span
+                    className="absolute bottom-2 left-2 text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                    style={{ background: 'rgba(0,0,0,0.6)', color: '#9ca3af', backdropFilter: 'blur(4px)' }}
+                  >
                     {article.news_site}
                   </span>
                 </div>
                 <div className="p-4">
-                  <h4 className="text-sm font-semibold text-white mb-2 line-clamp-2 leading-snug">{article.title}</h4>
-                  <p className="text-xs text-gray-400 line-clamp-2 mb-3">{article.summary}</p>
-                  <p className="text-xs text-gray-600">{formatDate(article.published_at)}</p>
+                  <h4 className="text-sm font-bold text-white mb-2 line-clamp-2 leading-snug group-hover:text-indigo-300 transition-colors">
+                    {article.title}
+                  </h4>
+                  <p className="text-xs text-gray-500 line-clamp-2 mb-3 leading-relaxed">{article.summary}</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-gray-700">{formatDate(article.published_at)}</p>
+                    <span className="text-xs text-indigo-500 group-hover:text-indigo-400 transition-colors">Read →</span>
+                  </div>
                 </div>
               </a>
             ))}
           </div>
 
-          <div className="flex justify-center gap-4 mt-6">
+          <div className="flex justify-center items-center gap-4 mt-6">
             <button
               onClick={() => setPage(p => Math.max(0, p - 1))}
               disabled={page === 0}
-              className="px-4 py-2 text-sm glass rounded-lg border border-space-700 text-gray-300 hover:border-indigo-500 disabled:opacity-30 transition"
+              className="px-4 py-2 text-sm rounded-xl transition disabled:opacity-30"
+              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: '#9ca3af' }}
             >
               ← Previous
             </button>
-            <span className="px-4 py-2 text-sm text-gray-500">Page {page + 1}</span>
+            <span
+              className="px-4 py-2 text-sm rounded-xl font-semibold"
+              style={{ background: 'rgba(99,102,241,0.12)', color: '#a5b4fc' }}
+            >
+              Page {page + 1}
+            </span>
             <button
               onClick={() => setPage(p => p + 1)}
-              className="px-4 py-2 text-sm glass rounded-lg border border-space-700 text-gray-300 hover:border-indigo-500 transition"
+              className="px-4 py-2 text-sm rounded-xl transition"
+              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: '#9ca3af' }}
             >
               Next →
             </button>

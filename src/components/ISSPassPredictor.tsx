@@ -254,13 +254,13 @@ export default function ISSPassPredictor() {
   })
 
   return (
-    <div className="neon-border glass rounded-2xl overflow-hidden">
+    <div className="space-card overflow-hidden">
       {/* Header */}
-      <div className="p-6 border-b border-white/[0.06]">
-        <div className="flex items-center gap-3 mb-1">
-          <span className="text-2xl">🔭</span>
+      <div className="p-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="flex items-center gap-3">
+          <div className="icon-box">🔭</div>
           <div>
-            <h3 className="text-xl font-bold text-white">ISS Pass Times — 7-Day Forecast</h3>
+            <h3 className="text-white font-bold text-base">ISS Pass Times — 7-Day Forecast</h3>
             <p className="text-xs text-gray-500">Exact times the ISS will be visible from your location</p>
           </div>
           {nextPass && (
@@ -294,7 +294,16 @@ export default function ISSPassPredictor() {
                 <button
                   key={c.name}
                   onClick={() => useCity(c)}
-                  className={`px-3 py-1.5 rounded-lg text-sm transition border ${selectedCity === c.name ? 'bg-indigo-600 border-indigo-500 text-white' : 'border-white/10 text-gray-400 hover:border-indigo-500 hover:text-white glass'}`}
+                  className="px-3 py-1.5 rounded-xl text-sm transition"
+                  style={selectedCity === c.name ? {
+                    background: 'rgba(99,102,241,0.2)',
+                    border: '1px solid rgba(99,102,241,0.45)',
+                    color: '#c4b5fd',
+                  } : {
+                    background: 'rgba(255,255,255,0.03)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    color: '#6b7280',
+                  }}
                 >
                   {c.name}
                 </button>
@@ -329,16 +338,16 @@ export default function ISSPassPredictor() {
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-3 mt-4">
-                  <div className="glass rounded-xl p-3 text-center">
+                  <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
                     <p className="text-xs text-gray-500 mb-1">Max Elevation</p>
                     <p className={`text-xl font-bold ${elColor(nextPass.maxEl)}`}>{Math.round(nextPass.maxEl)}°</p>
                     <p className={`text-xs ${elColor(nextPass.maxEl)}`}>{elLabel(nextPass.maxEl)}</p>
                   </div>
-                  <div className="glass rounded-xl p-3 text-center">
+                  <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
                     <p className="text-xs text-gray-500 mb-1">Duration</p>
                     <p className="text-xl font-bold text-white">{nextPass.duration}m</p>
                   </div>
-                  <div className="glass rounded-xl p-3 text-center">
+                  <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
                     <p className="text-xs text-gray-500 mb-1">Direction</p>
                     <p className="text-lg font-bold text-indigo-300">{azToCompass(nextPass.startAz)}→{azToCompass(nextPass.endAz)}</p>
                   </div>
@@ -372,8 +381,8 @@ export default function ISSPassPredictor() {
                   {dayPasses.map((p, i) => (
                     <div
                       key={i}
-                      className="glass rounded-xl px-4 py-3 flex items-center gap-4 border transition hover:border-indigo-500/40"
-                      style={{ border: '1px solid rgba(255,255,255,0.06)' }}
+                      className="rounded-xl px-4 py-3 flex items-center gap-4 transition"
+                      style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)' }}
                     >
                       <div className="min-w-[56px] text-center">
                         <p className="text-white font-bold font-mono">{formatTime(p.start)}</p>
