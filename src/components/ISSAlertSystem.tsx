@@ -48,7 +48,27 @@ export default function ISSAlertSystem() {
   const requestNotifications = async () => {
     if (!('Notification' in window)) return
     const perm = await Notification.requestPermission()
-    setNotifGranted(perm === 'granted')
+    const granted = perm === 'granted'
+    setNotifGranted(granted)
+    if (granted) registerPeriodicSync()
+  }
+
+  const sendLocationToSW = (loc: UserLocation) => {
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: 'SET_LOCATION', location: loc })
+    }
+  }
+
+  const registerPeriodicSync = async () => {
+    if (!('serviceWorker' in navigator)) return
+    try {
+      const reg = await navigator.serviceWorker.ready
+      // @ts-ignore — periodicSync is not yet in TS types
+      if ('periodicSync' in reg) {
+        // @ts-ignore
+        await reg.periodicSync.register('iss-check', { minInterval: 15 * 60 * 1000 })
+      }
+    } catch (_) {}
   }
 
   const sendNotification = useCallback((elevAngle: number) => {
@@ -99,6 +119,7 @@ export default function ISSAlertSystem() {
         const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude, city: 'Your Location' }
         setUserLoc(loc)
         startTracking(loc)
+        sendLocationToSW(loc)
         setLoading(false)
       },
       () => {
@@ -113,6 +134,7 @@ export default function ISSAlertSystem() {
     setSelectedCity(city.name)
     setUserLoc(loc)
     startTracking(loc)
+    sendLocationToSW(loc)
   }
 
   const elevColor = !pass ? '' : pass.visible ? 'text-green-400' : pass.elevAngle > -10 ? 'text-yellow-400' : 'text-gray-400'
@@ -125,12 +147,13 @@ export default function ISSAlertSystem() {
         {!notifGranted && (
           <button
             onClick={requestNotifications}
-            className="ml-auto text-xs px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-white transition"
+            className="ml-auto animate-glow-pulse text-xs px-4 py-2 rounded-lg text-white font-semibold transition flex items-center gap-1.5"
+            style={{ background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', boxShadow: '0 0 16px rgba(99,102,241,0.5)' }}
           >
-            🔔 Enable Alerts
+            🔔 Get ISS Alerts
           </button>
         )}
-        {notifGranted && <span className="ml-auto text-xs text-green-400">🔔 Alerts Active</span>}
+        {notifGranted && <span className="ml-auto text-xs text-green-400 flex items-center gap-1">✅ Alerts Active — even when browser is closed</span>}
       </div>
 
       <div className="p-6">
