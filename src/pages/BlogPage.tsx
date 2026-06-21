@@ -1693,6 +1693,342 @@ Geomagnetic storm strength is measured on the Kp scale from 0 to 9:
 
 [🛒 Ham Radio Transceiver — Communicate When GPS & Cell Fail](https://www.amazon.com/s?k=ham+radio+transceiver+beginner)`
   },
+  {
+    slug: 'best-red-flashlight-astronomy-2026',
+    title: 'Best Red Flashlights for Astronomy 2026 — Protect Your Night Vision',
+    date: 'June 23, 2026',
+    readTime: '4 min read',
+    icon: '🔦',
+    preview: 'White light destroys your dark adaptation in seconds. A good red flashlight keeps your eyes adjusted for hours. Here are the best options for stargazers.',
+    content: `Every astronomer needs a red flashlight. White light resets your dark adaptation — your eyes need 20–30 minutes to fully adjust to darkness. Red light at low intensity preserves it completely.
+
+**Why Red Light Works**
+
+Rod cells in your eyes handle night vision. They are less sensitive to red wavelengths (wavelengths above ~650nm), so a proper red light lets you read star charts without destroying your dark-adapted vision.
+
+**What to Look For**
+
+- **True red LED** — not white LED with a red filter (filters leak white light)
+- **Adjustable brightness** — minimum brightness matters most
+- **Headband option** — keeps hands free while using equipment
+- **Long battery life** — you want it to last a full night session
+
+**Top Picks for 2026**
+
+[🛒 Orion Red LED Flashlight — Purpose-Built for Astronomy](https://www.amazon.com/s?k=Orion+red+LED+flashlight+astronomy)
+
+[🛒 Celestron Night Vision Flashlight — Adjustable Brightness](https://www.amazon.com/s?k=Celestron+night+vision+red+flashlight)
+
+[🛒 Energizer Red Headlamp — Hands-Free Stargazing](https://www.amazon.com/s?k=red+headlamp+astronomy+night+vision)
+
+[🛒 Coast HL7 Headlamp — Best Dimming Control](https://www.amazon.com/s?k=Coast+headlamp+red+mode)
+
+**Using Your Red Flashlight**
+
+Keep brightness at the minimum needed to read your charts. Even red light at high brightness can affect adaptation. For phones, use a red-screen app instead of the flashlight — or better yet, print your star charts in advance.
+
+**Protect Your Charts Too**
+
+[🛒 Philip's Planisphere — Classic Paper Star Chart](https://www.amazon.com/s?k=planisphere+star+chart+astronomy)
+
+[🛒 Sky & Telescope Pocket Sky Atlas — Best Detailed Field Guide](https://www.amazon.com/s?k=Sky+Telescope+Pocket+Sky+Atlas)
+
+A red flashlight is the cheapest upgrade you can make to your astronomy kit. Even a $10 headlamp makes a night of stargazing dramatically more comfortable.`
+  },
+  {
+    slug: 'how-to-see-milky-way-2026',
+    title: 'How to See the Milky Way in 2026 — Complete Guide',
+    date: 'June 23, 2026',
+    readTime: '5 min read',
+    icon: '🌌',
+    preview: 'The Milky Way is visible with the naked eye — but only if you know when, where, and how to look. This guide covers everything you need for your first view of our galaxy.',
+    content: `Seeing the Milky Way for the first time is one of the most powerful experiences in all of stargazing. Our galaxy stretches across the sky as a glowing river of stars — but light pollution hides it from most people.
+
+**When Is the Milky Way Visible?**
+
+The galactic core (the brightest, most photogenic part) is best seen:
+- **Northern Hemisphere**: Late April through September
+- **Peak months**: June, July, August
+- **Best time of night**: 10pm–3am when the core is highest
+
+**Where to Go**
+
+You need truly dark skies — Bortle Class 4 or darker:
+- Use Light Pollution Map (lightpollutionmap.info) to find dark sites near you
+- National parks, rural farmland, mountain tops
+- At least 1–2 hours drive from a major city
+
+**Best Conditions**
+
+- No moon (new moon ±5 days is ideal)
+- Clear skies with low humidity
+- No forest fires (smoke ruins transparency)
+
+**What Equipment Do You Need?**
+
+None! The Milky Way is visible with naked eyes from dark skies. But photography takes it to another level.
+
+[🛒 Sony a7 III — Best Full-Frame Camera for Milky Way Photography](https://www.amazon.com/s?k=Sony+a7+III+mirrorless+camera)
+
+[🛒 Rokinon 14mm f/2.8 — Ultra-Wide Lens for Galaxy Shots](https://www.amazon.com/s?k=Rokinon+14mm+f2.8+wide+angle+lens)
+
+[🛒 iOptron SkyGuider Pro — Star Tracker for Long Exposures](https://www.amazon.com/s?k=iOptron+SkyGuider+Pro+star+tracker)
+
+[🛒 K&F Concept Tripod — Stable Platform for Night Photography](https://www.amazon.com/s?k=camera+tripod+night+photography+sturdy)
+
+**Camera Settings to Start**
+
+- Aperture: f/2.8 or widest available
+- ISO: 3200–6400
+- Shutter: 15–25 seconds (use the 500 rule: 500 ÷ focal length)
+- Focus: Manual, focus on a bright star
+
+**Make Your Trip Comfortable**
+
+[🛒 Therm-a-Rest Z Lite Sleeping Pad — Lie Back and Watch the Stars](https://www.amazon.com/s?k=Therm+a+Rest+Z+Lite+sleeping+pad)
+
+[🛒 NEMO Forte Sleeping Bag — Stay Warm on Cold Dark-Sky Nights](https://www.amazon.com/s?k=NEMO+Forte+sleeping+bag)
+
+The Milky Way can be seen even without a camera. Simply driving away from city lights and lying on your back on a summer night is an experience worth every effort to get there.`
+  },
+  {
+    slug: 'venus-planet-guide-2026',
+    title: 'Venus in 2026 — When to See It, What to Look For, and Why It\'s So Bright',
+    date: 'June 23, 2026',
+    readTime: '4 min read',
+    icon: '♀️',
+    preview: 'Venus is often the brightest object in the night sky after the Moon. Here\'s how to spot it, when it\'s best visible in 2026, and what a telescope reveals.',
+    content: `Venus is impossible to miss when it's in the sky. At magnitude −4.7 at peak, it outshines every star and planet by a huge margin — it can even cast shadows on a dark night.
+
+**Why Is Venus So Bright?**
+
+Three reasons:
+- It's close to Earth (sometimes just 40 million km away)
+- It's completely covered in white, highly reflective clouds
+- Its clouds reflect about 70% of sunlight — the highest reflectivity of any planet
+
+**Venus in 2026 — Key Dates**
+
+- Venus reaches greatest elongation (furthest from the Sun in our sky) in early 2026
+- It's visible as the "Evening Star" in the west after sunset
+- Later in the year it transitions to "Morning Star" before sunrise
+- At inferior conjunction it passes between Earth and Sun — briefly invisible
+
+**What a Telescope Shows**
+
+Venus goes through phases just like the Moon! Through a telescope you'll see:
+- **Crescent Venus** — when it's close to us and large
+- **Gibbous Venus** — when it's far and on the other side of the Sun
+- You can never see surface detail — clouds cover everything
+
+[🛒 Celestron NexStar 5SE — Perfect for Planetary Viewing](https://www.amazon.com/s?k=Celestron+NexStar+5SE+telescope)
+
+[🛒 Meade LX90 8-Inch — Serious Planetary Detail on Venus](https://www.amazon.com/s?k=Meade+LX90+8+inch+telescope)
+
+[🛒 Baader Solar Filter Sheet — Safe Venus Transit Observation](https://www.amazon.com/s?k=Baader+solar+filter+sheet)
+
+**Photographing Venus**
+
+Venus is so bright you need to photograph it at twilight — not full dark. The contrast between the blue twilight sky and Venus creates beautiful images.
+
+[🛒 Canon EF 70-300mm Telephoto Lens — Great for Venus Phases](https://www.amazon.com/s?k=Canon+EF+70-300mm+telephoto+lens)
+
+Venus is the most dramatic planet to observe as a beginner because its phases are visible even in a small telescope, making the phases of Venus one of the best "Galileo moments" in all of amateur astronomy.`
+  },
+  {
+    slug: 'how-to-collimate-telescope-2026',
+    title: 'How to Collimate Your Telescope — Step-by-Step Guide 2026',
+    date: 'June 23, 2026',
+    readTime: '5 min read',
+    icon: '🔧',
+    preview: 'A misaligned telescope gives blurry, disappointing views even under perfect skies. Learn how to collimate your reflector or Newtonian in under 10 minutes.',
+    content: `Collimation is the process of aligning a telescope's optics so light focuses to a perfect point. Reflector telescopes (Newtonian, Dobsonian) need regular collimation — especially after transport.
+
+**How Do You Know You Need It?**
+
+Test at medium-high magnification on a bright star:
+- Stars should show a perfect Airy disk (small central dot with diffraction rings)
+- If the rings are off-center or asymmetric — you need collimation
+- If everything looks blurry even in good seeing — check collimation first
+
+**Tools You'll Need**
+
+[🛒 Cheshire Collimating Eyepiece — Most Accurate Collimation Tool](https://www.amazon.com/s?k=Cheshire+collimating+eyepiece+telescope)
+
+[🛒 Laser Collimator — Fast and Easy Alternative to Cheshire](https://www.amazon.com/s?k=laser+collimator+telescope+2+inch)
+
+[🛒 Sight Tube Collimator — Great for Secondary Mirror Centering](https://www.amazon.com/s?k=sight+tube+collimator+telescope)
+
+**Collimating a Newtonian/Dobsonian (Step by Step)**
+
+Step 1: Center the secondary mirror under the focuser (use the sight tube)
+Step 2: Center the reflection of the primary in the secondary (adjust secondary tilt screws)
+Step 3: Center the reflection of the secondary in the primary (adjust primary mirror clips)
+Step 4: Confirm with star test at high magnification
+
+**Tips**
+
+- Do it in daylight before your session
+- Small adjustments only — go slowly
+- After moving the scope, always check collimation
+- Truss Dobsonians need collimation every single time they're assembled
+
+**Protect Your Mirrors While Collimating**
+
+[🛒 Orion Mirror Cleaning Kit — Keep Optics in Perfect Shape](https://www.amazon.com/s?k=Orion+telescope+mirror+cleaning+kit)
+
+[🛒 Kendrick Dew Heater — Prevent Dew During Collimation Sessions](https://www.amazon.com/s?k=Kendrick+dew+heater+telescope)
+
+Well-collimated optics are the single biggest performance improvement you can make to an existing telescope — and it costs nothing if you already have the right tools.`
+  },
+  {
+    slug: 'best-goto-telescopes-2026',
+    title: 'Best GoTo Telescopes 2026 — Computerized Scopes for Beginners and Experts',
+    date: 'June 23, 2026',
+    readTime: '5 min read',
+    icon: '🤖',
+    preview: 'GoTo telescopes automatically find and track thousands of celestial objects. Here are the best computerized telescopes at every price point in 2026.',
+    content: `GoTo telescopes have a motorized mount and a computer that knows the position of thousands of stars, planets, nebulae, and galaxies. You tell it what you want to see — it finds it and tracks it automatically.
+
+**Why Get a GoTo Scope?**
+
+- Instantly find any of 40,000+ objects in the database
+- Automatically tracks objects as Earth rotates
+- Perfect for urban observers — no need to learn star-hopping
+- Great for astrophotography (tracking = longer exposures)
+
+**The Tradeoff**
+
+GoTo scopes cost more than manual equivalents and require alignment (pointing at 2–3 known stars to initialize). Some astronomers feel you learn the sky better with a manual scope first.
+
+**Best GoTo Scopes by Budget**
+
+**Under $500:**
+
+[🛒 Celestron NexStar 130SLT — Best Entry GoTo, 130mm Reflector](https://www.amazon.com/s?k=Celestron+NexStar+130SLT+telescope)
+
+**$500–$1000:**
+
+[🛒 Celestron NexStar 5SE — 5-Inch Schmidt-Cassegrain, Excellent Views](https://www.amazon.com/s?k=Celestron+NexStar+5SE+telescope)
+
+[🛒 Sky-Watcher Evostar 80ED — Refractor GoTo for Astrophotography](https://www.amazon.com/s?k=Sky-Watcher+Evostar+80ED+telescope)
+
+**$1000–$2000:**
+
+[🛒 Celestron NexStar 8SE — 8-Inch for Serious Deep Sky Viewing](https://www.amazon.com/s?k=Celestron+NexStar+8SE+telescope)
+
+[🛒 Meade LX90 8-Inch ACF — Advanced Coma-Free Optics](https://www.amazon.com/s?k=Meade+LX90+8+inch+ACF+telescope)
+
+**Essential GoTo Accessories**
+
+[🛒 Celestron StarSense Explorer App Module — Upgrade Any Scope with GoTo](https://www.amazon.com/s?k=Celestron+StarSense+Explorer+module)
+
+[🛒 Telrad Finder — Helps With Initial GoTo Alignment](https://www.amazon.com/s?k=Telrad+finder+telescope)
+
+**Tips for First-Time GoTo Users**
+
+- Always align on at least 3 stars for best accuracy
+- Use Polaris for polar alignment if you have an EQ mount
+- Keep the hand controller firmware updated
+- A red dot finder makes initial star selection much easier
+
+GoTo technology has transformed amateur astronomy — you spend the night observing instead of searching, which means you see far more in every session.`
+  },
+  {
+    slug: 'how-to-see-nebulae-telescope-2026',
+    title: 'How to See Nebulae Through a Telescope — Complete Guide 2026',
+    date: 'June 24, 2026',
+    readTime: '5 min read',
+    icon: '🌫️',
+    preview: 'Nebulae look spectacular in photos but what do they actually look like through a telescope? Here\'s how to see them at their best — and what to expect.',
+    content: `Nebulae are clouds of gas and dust in space — the birthplaces and graveyards of stars. They're some of the most beautiful objects in amateur astronomy, though the experience through a telescope is very different from Hubble photos.
+
+**What Nebulae Actually Look Like Through a Telescope**
+
+- Most emission and reflection nebulae appear as faint gray-green patches
+- They show little color because the human eye's color sensors need more light than nebulae produce
+- But the shapes — a ring, a dumbell, a crescent — are unmistakable and stunning
+- Dark nebulae appear as voids where no stars exist
+
+**The Best Nebulae to See**
+
+- **Orion Nebula (M42)** — visible even from cities, shows the Trapezium cluster
+- **Ring Nebula (M57)** — tiny but unmistakable smoke ring in Lyra
+- **Dumbbell Nebula (M27)** — largest and brightest planetary nebula
+- **Lagoon Nebula (M8)** — large emission nebula visible in binoculars from dark skies
+- **Eagle Nebula (M16)** — home of the "Pillars of Creation"
+
+**Equipment Recommendations**
+
+For visual nebula viewing, aperture is everything:
+
+[🛒 Orion SkyQuest XT8 Dobsonian — Best Value 8-Inch for Nebulae](https://www.amazon.com/s?k=Orion+SkyQuest+XT8+Dobsonian)
+
+[🛒 Sky-Watcher 10-Inch Dobsonian — Big Jump in Light Gathering](https://www.amazon.com/s?k=Sky-Watcher+10+inch+Dobsonian+telescope)
+
+**The Best Upgrade: Nebula Filters**
+
+Narrowband filters block light pollution and artificial sky glow, dramatically improving contrast:
+
+[🛒 Orion UltraBlock Narrowband Filter — Best All-Around Nebula Filter](https://www.amazon.com/s?k=Orion+UltraBlock+narrowband+filter)
+
+[🛒 Astronomik OIII Filter — Amazing for Planetary Nebulae](https://www.amazon.com/s?k=Astronomik+OIII+filter+telescope)
+
+[🛒 Lumicon UHC Filter — Classic Light Pollution Reducer](https://www.amazon.com/s?k=Lumicon+UHC+filter+telescope)
+
+**For Astrophotography of Nebulae**
+
+[🛒 ZWO ASI294MC Pro — Best Color CMOS for Nebula Photography](https://www.amazon.com/s?k=ZWO+ASI294MC+Pro+camera)
+
+[🛒 Sky-Watcher EQ6-R Pro Mount — Tracks Accurately for Long Exposures](https://www.amazon.com/s?k=Sky-Watcher+EQ6-R+Pro+mount)
+
+The Orion Nebula on a cold, clear winter night through a 6-inch telescope is something that photos cannot capture. The three-dimensional quality of seeing it live is worth every cloudy night you had to wait through.`
+  },
+  {
+    slug: 'how-to-observe-sun-safely-2026',
+    title: 'How to Observe the Sun Safely — Solar Astronomy Guide 2026',
+    date: 'June 24, 2026',
+    readTime: '4 min read',
+    icon: '☀️',
+    preview: 'The Sun is the only star you can observe in detail — if you do it safely. Solar astronomy reveals sunspots, solar flares, and prominences that change day by day.',
+    content: `The Sun is the most dynamic and accessible object in all of astronomy. You can observe it at any time of day, in any season, and it's always showing something new. But safe observation requires proper equipment — never look at the Sun without certified solar filters.
+
+**NEVER Do This**
+
+- Never look at the Sun through a telescope without a solar filter
+- Never use homemade filters (foil, CDs, smoked glass)
+- Never use camera lens solar filters — they can crack under heat
+- Even a fraction of a second of unfiltered sunlight causes permanent blindness
+
+**Safe Solar Observation Methods**
+
+**Method 1: White-Light Solar Filter (Sunspots)**
+
+[🛒 Baader AstroSolar Film — The Gold Standard Solar Filter Material](https://www.amazon.com/s?k=Baader+AstroSolar+film+solar+filter)
+
+[🛒 Celestron EclipSmart Solar Filter Set — Ready-Made Filters](https://www.amazon.com/s?k=Celestron+EclipSmart+solar+filter)
+
+White-light filters show sunspots — dark areas of intense magnetic activity. Track them day to day and watch them evolve over weeks.
+
+**Method 2: Hydrogen-Alpha Telescope (Prominences + Flares)**
+
+H-alpha scopes use a very narrow filter centered on hydrogen emission wavelength (656nm). They reveal prominences, filaments, and solar flares invisible in white light.
+
+[🛒 Lunt Solar Systems LS50THa — Best Entry H-Alpha Solar Scope](https://www.amazon.com/s?k=Lunt+Solar+Systems+LS50THa+telescope)
+
+[🛒 Coronado PST — Personal Solar Telescope, H-Alpha Hydrogen Alpha](https://www.amazon.com/s?k=Coronado+PST+Personal+Solar+Telescope)
+
+**Solar Eclipse Viewing**
+
+[🛒 American Paper Optics Eclipse Glasses — ISO Certified Solar Viewers](https://www.amazon.com/s?k=ISO+certified+solar+eclipse+glasses)
+
+**What You'll See**
+
+With white light: sunspots (dark cores + lighter penumbra), granulation on good seeing days
+With H-alpha: prominences looping off the limb, filaments on the disk, bright flares during active periods
+
+Solar activity follows an 11-year cycle — we're currently in Solar Cycle 25, near maximum in 2025–2026, making this one of the best times in a decade to observe the Sun.`
+  },
 ]
 
 export default function BlogPage() {
