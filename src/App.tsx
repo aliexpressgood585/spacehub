@@ -14,7 +14,6 @@ import SpaceNewsFeed from './components/SpaceNewsFeed'
 import ISSAlertSystem from './components/ISSAlertSystem'
 import EmailCapture from './components/EmailCapture'
 import AdBanner from './components/AdBanner'
-import PremiumModal from './components/PremiumModal'
 import AstronautsInSpace from './components/AstronautsInSpace'
 import MoonPhase from './components/MoonPhase'
 import LaunchCountdown from './components/LaunchCountdown'
@@ -44,8 +43,7 @@ const TABS: { id: Tab; icon: string; label: string }[] = [
 function MainApp() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard')
   const [lang, setLang] = useState<'he' | 'en'>('en')
-  const [premiumOpen, setPremiumOpen] = useState(false)
-  const [issData, setIssData] = useState<{ lat: number; lng: number; alt: number } | null>(null)
+const [issData, setIssData] = useState<{ lat: number; lng: number; alt: number } | null>(null)
   const issRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -69,17 +67,17 @@ function MainApp() {
   return (
     <div className="min-h-screen relative" style={{ background: '#050816' }}>
       <SpaceBackground />
-      <PremiumModal open={premiumOpen} onClose={() => setPremiumOpen(false)} />
+      {/* <PremiumModal open={premiumOpen} onClose={() => setPremiumOpen(false)} /> */}
 
       <div className="relative" style={{ zIndex: 1 }}>
         <Header
           onThemeToggle={() => {}}
           lang={lang}
           onLangToggle={() => setLang(l => l === 'he' ? 'en' : 'he')}
-          onPremium={() => setPremiumOpen(true)}
+          onPremium={() => {}}
         />
         <LiveTicker />
-        <Hero lang={lang} onPremium={() => setPremiumOpen(true)} onScrollToISS={scrollToISS} />
+        <Hero lang={lang} onPremium={() => {}} onScrollToISS={scrollToISS} />
 
         <div className="max-w-7xl mx-auto px-4 mb-6">
           <AdBanner slot="leaderboard" />
@@ -172,7 +170,7 @@ function MainApp() {
             <Link to="/iss/los-angeles" className="hover:text-gray-400 transition">ISS Los Angeles</Link>
             <Link to="/iss/tel-aviv" className="hover:text-gray-400 transition">ISS Tel Aviv</Link>
             <Link to="/privacy" className="hover:text-gray-400 transition">Privacy Policy</Link>
-            <button onClick={() => setPremiumOpen(true)} className="text-yellow-700 hover:text-yellow-500 transition font-semibold">⭐ Premium</button>
+            {/* Premium button hidden temporarily */}
           </div>
           <p className="text-gray-800 text-xs">Data: NASA • Spaceflight News API • wheretheiss.at • open-notify</p>
           <p className="text-gray-800 text-xs mt-1">© 2026 SpaceHub</p>

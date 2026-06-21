@@ -4,7 +4,7 @@ interface Props {
   onScrollToISS: () => void
 }
 
-export default function Hero({ lang, onPremium, onScrollToISS }: Props) {
+export default function Hero({ lang, onScrollToISS }: Props) {
   const he = lang === 'he'
 
   return (
@@ -54,13 +54,7 @@ export default function Hero({ lang, onPremium, onScrollToISS }: Props) {
             <span>🛸</span>
             {he ? 'איפה ISS עכשיו?' : 'Where is ISS?'}
           </button>
-          <button
-            onClick={onPremium}
-            className="btn-gold px-7 py-3.5 text-sm flex items-center gap-2"
-          >
-            <span>⭐</span>
-            {he ? 'שדרג לפרמיום' : 'Go Premium'}
-          </button>
+          {/* Premium button hidden temporarily */}
           <a
             href={`https://wa.me/?text=${encodeURIComponent('SpaceHub - Real-time Space Data 🚀 https://spacehub-nu.vercel.app')}`}
             target="_blank" rel="noopener noreferrer"

@@ -5,7 +5,7 @@ interface Props {
   onPremium: () => void
 }
 
-export default function Header({ lang, onLangToggle, onPremium }: Props) {
+export default function Header({ lang, onLangToggle }: Props) {
   const he = lang === 'he'
 
   return (
@@ -37,13 +37,7 @@ export default function Header({ lang, onLangToggle, onPremium }: Props) {
             {lang === 'he' ? '🌐 EN' : '🌐 HE'}
           </button>
 
-          <button
-            onClick={onPremium}
-            className="btn-gold text-xs px-4 py-2 flex items-center gap-1.5 shadow-lg shadow-yellow-900/20"
-          >
-            <span>⭐</span>
-            <span>{he ? 'פרמיום' : 'Premium'}</span>
-          </button>
+          {/* Premium button hidden temporarily */}
         </div>
       </div>
     </header>
