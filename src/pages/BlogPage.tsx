@@ -100,6 +100,16 @@ Just like the ISS, they need to be in sunlight while you're in darkness — whic
 - **Focus:** Manual, set to infinity
 - Use a tripod for a sharp, streak-free image
 
+**Gear We Recommend for Photographing Starlink**
+
+[🛒 Canon EOS R50 Mirrorless Camera — Great for Satellite Trails](https://www.amazon.com/s?k=Canon+EOS+R50+mirrorless+camera)
+
+[🛒 Rokinon 14mm f/2.8 Ultra Wide Lens — Perfect for Night Sky](https://www.amazon.com/s?k=Rokinon+14mm+f2.8+ultra+wide+lens)
+
+[🛒 Carbon Fiber Tripod — Lightweight & Stable for Long Exposures](https://www.amazon.com/s?k=carbon+fiber+tripod+photography)
+
+[🛒 Intervalometer Remote Shutter — Shoot Without Touching the Camera](https://www.amazon.com/s?k=intervalometer+remote+shutter+release+camera)
+
 **Why Are They So Bright After Launch?**
 
 Freshly launched satellites are at a lower orbit (approximately 250–350 km) before raising to their operational orbit of 550 km. At the lower altitude, they're much closer to Earth and reflect more sunlight — making them spectacular to see. After a few weeks, they become much dimmer.
