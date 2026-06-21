@@ -242,6 +242,16 @@ You don't need expensive gear:
 - Use a tripod — any movement will blur the shot
 - Take RAW photos for better editing
 
+**Our Recommended Aurora Photography Gear**
+
+[🛒 Sony Alpha a6400 Mirrorless Camera — Best for Northern Lights](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera)
+
+[🛒 Sturdy Lightweight Tripod for Night Photography](https://www.amazon.com/s?k=lightweight+travel+tripod+night+photography)
+
+[🛒 Sony 16–50mm f/3.5 Wide Angle Lens](https://www.amazon.com/s?k=Sony+16-50mm+wide+angle+lens+mirrorless)
+
+[🛒 Thermal Base Layer Set — Stay Warm While Shooting](https://www.amazon.com/s?k=thermal+base+layer+set+cold+weather)
+
 **Aurora Myths Debunked**
 
 ❌ "You need to go to the Arctic" — Not during solar maximum!
