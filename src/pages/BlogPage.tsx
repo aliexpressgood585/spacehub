@@ -60,7 +60,17 @@ In a typical year: 50–100 meteors per hour. In a strong year (like 2026): up t
 - Face away from the Moon if it's up
 - A sleeping bag or reclining chair makes it comfortable
 - No telescope needed — your eyes are the best tool
-- Bring a friend — it's more fun to share the experience`
+- Bring a friend — it's more fun to share the experience
+
+**What to Bring for Meteor Shower Night**
+
+[🛒 Double Self-Inflating Sleeping Pad — Lie Back & Watch in Comfort](https://www.amazon.com/s?k=self+inflating+sleeping+pad+camping)
+
+[🛒 Red Flashlight — Preserve Your Night Vision](https://www.amazon.com/s?k=red+flashlight+astronomy+night+vision)
+
+[🛒 Warm Sleeping Bag — Stay Cozy on Cold Summer Nights](https://www.amazon.com/s?k=lightweight+sleeping+bag+summer+camping)
+
+[🛒 Canon EOS R50 + Wide Lens — Capture Meteor Streaks on Camera](https://www.amazon.com/s?k=Canon+EOS+R50+mirrorless+camera)`
   },
   {
     slug: 'starlink-satellites-how-to-see',
