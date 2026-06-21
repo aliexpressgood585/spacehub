@@ -55,6 +55,7 @@ function MainApp() {
   const [lang, setLang] = useState<'he' | 'en'>('en')
   const [issData, setIssData] = useState<{ lat: number; lng: number; alt: number } | null>(null)
   const issRef = useRef<HTMLDivElement>(null)
+  const tabContentRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     document.documentElement.lang = lang
@@ -67,6 +68,13 @@ function MainApp() {
       .then(d => setIssData({ lat: d.latitude, lng: d.longitude, alt: d.altitude }))
       .catch(() => {})
   }, [])
+
+  const switchTab = (tab: Tab) => {
+    setActiveTab(tab)
+    setTimeout(() => {
+      tabContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 50)
+  }
 
   const scrollToISS = () => {
     setActiveTab('dashboard')
@@ -97,20 +105,22 @@ function MainApp() {
         <div className="max-w-7xl mx-auto px-4 pb-20">
 
           {/* Tab navigation */}
-          <div
-            className="flex gap-1.5 mb-8 overflow-x-auto pb-2"
-            style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
-          >
-            {TABS.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`tab-pill flex-shrink-0 flex items-center gap-1.5 ${activeTab === tab.id ? 'active' : ''}`}
-              >
-                <span>{tab.icon}</span>
-                <span>{tab.label}</span>
-              </button>
-            ))}
+          <div ref={tabContentRef} style={{ scrollMarginTop: 80 }}>
+            <div
+              className="flex gap-1.5 mb-8 overflow-x-auto pb-2"
+              style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
+            >
+              {TABS.map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => switchTab(tab.id)}
+                  className={`tab-pill flex-shrink-0 flex items-center gap-1.5 ${activeTab === tab.id ? 'active' : ''}`}
+                >
+                  <span>{tab.icon}</span>
+                  <span>{tab.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Tab content */}

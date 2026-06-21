@@ -18,65 +18,115 @@ function getMoonPhase(date: Date) {
   else if (pct < 0.883)  { name = 'Waning Crescent'; emoji = '🌘'; illumination = Math.round(25 - (pct - 0.733) / 0.15 * 24) }
   else                   { name = 'New Moon';         emoji = '🌑'; illumination = 0 }
 
-  const daysToFull = pct < 0.5 ? Math.round((0.5 - pct) * synodic) : Math.round((1.5 - pct) * synodic)
-  const age = Math.round(phase)
-  return { name, emoji, illumination, age, daysToFull, pct }
+  const daysToFull = pct < 0.5
+    ? Math.round((0.5 - pct) * synodic)
+    : Math.round((1.5 - pct) * synodic)
+
+  return { name, emoji, illumination, age: Math.round(phase), daysToFull, pct }
 }
 
 export default function MoonPhase() {
   const moon = useMemo(() => getMoonPhase(new Date()), [])
-  const circumference = 2 * Math.PI * 40
+  const today = new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })
+  const C = 2 * Math.PI * 44
 
   return (
     <div className="space-card p-6">
+      {/* Header */}
       <div className="flex items-center gap-3 mb-5">
-        <span className="text-2xl">🌙</span>
+        <div className="icon-box">🌙</div>
         <div>
-          <h3 className="text-white font-bold text-lg">Moon Phase</h3>
-          <p className="text-gray-500 text-xs">Today — {new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+          <h3 className="text-white font-bold text-base">Moon Phase</h3>
+          <p className="text-gray-500 text-xs">{today}</p>
         </div>
       </div>
 
-      <div className="flex items-center gap-6">
-        <div className="flex-shrink-0 relative">
-          <div className="text-7xl moon-glow select-none">{moon.emoji}</div>
-          <div className="absolute -bottom-1 -right-1 bg-space-900 text-xs text-yellow-400 font-bold px-1.5 py-0.5 rounded-full border border-yellow-600/30">
+      {/* Main content */}
+      <div className="flex items-center gap-5 mb-5">
+        {/* Moon emoji + glow */}
+        <div className="relative flex-shrink-0">
+          <div className="text-6xl moon-glow select-none" style={{ lineHeight: 1 }}>{moon.emoji}</div>
+          <div
+            className="absolute -bottom-1 -right-1 text-[10px] font-black px-1.5 py-0.5 rounded-full"
+            style={{ background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.3)', color: '#fbbf24' }}
+          >
             {moon.illumination}%
           </div>
         </div>
 
-        <div className="flex-1 space-y-3">
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <p className="text-white font-black text-lg mb-0.5">{moon.name}</p>
+          <p className="text-gray-500 text-xs mb-3">Age: {moon.age} days · Full moon in {moon.daysToFull}d</p>
+
+          {/* Illumination bar */}
           <div>
-            <p className="text-xl font-bold text-white">{moon.name}</p>
-            <p className="text-gray-500 text-xs">Moon age: {moon.age} days</p>
-          </div>
-          <div>
-            <div className="flex justify-between text-xs text-gray-600 mb-1">
-              <span>Illumination</span>
-              <span className="text-yellow-400 font-mono">{moon.illumination}%</span>
+            <div className="flex justify-between text-[10px] mb-1.5">
+              <span className="text-gray-600">Illumination</span>
+              <span style={{ color: '#fbbf24' }} className="font-bold">{moon.illumination}%</span>
             </div>
-            <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-              <div className="h-full rounded-full bg-gradient-to-r from-yellow-600 to-yellow-300 transition-all" style={{ width: `${moon.illumination}%` }} />
+            <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${moon.illumination}%`,
+                  background: 'linear-gradient(90deg, #92400e, #d97706, #fbbf24)',
+                  boxShadow: '0 0 12px rgba(251,191,36,0.4)',
+                }}
+              />
             </div>
           </div>
-          <p className="text-xs text-gray-500">Full moon in {moon.daysToFull} days</p>
         </div>
 
-        <div className="flex-shrink-0 hidden sm:block">
-          <svg width="90" height="90" viewBox="0 0 90 90">
-            <circle cx="45" cy="45" r="40" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="6" />
-            <circle cx="45" cy="45" r="40" fill="none" stroke="url(#moonGrad)" strokeWidth="6" strokeLinecap="round"
-              strokeDasharray={circumference} strokeDashoffset={circumference * (1 - moon.pct)} transform="rotate(-90 45 45)" />
+        {/* Cycle ring */}
+        <div className="hidden sm:flex flex-col items-center flex-shrink-0">
+          <svg width="96" height="96" viewBox="0 0 96 96">
+            <circle cx="48" cy="48" r="44" fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="7" />
+            <circle
+              cx="48" cy="48" r="44" fill="none"
+              stroke="url(#moonRingGrad)" strokeWidth="7"
+              strokeLinecap="round"
+              strokeDasharray={C}
+              strokeDashoffset={C * (1 - moon.pct)}
+              transform="rotate(-90 48 48)"
+            />
             <defs>
-              <linearGradient id="moonGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#d97706" />
+              <linearGradient id="moonRingGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#92400e" />
                 <stop offset="100%" stopColor="#fbbf24" />
               </linearGradient>
             </defs>
-            <text x="45" y="49" textAnchor="middle" fill="#fbbf24" fontSize="11" fontWeight="bold">{Math.round(moon.pct * 100)}%</text>
+            <text x="48" y="44" textAnchor="middle" fill="#fbbf24" fontSize="13" fontWeight="900">
+              {Math.round(moon.pct * 100)}%
+            </text>
+            <text x="48" y="58" textAnchor="middle" fill="#6b7280" fontSize="9">Cycle</text>
           </svg>
-          <p className="text-xs text-gray-600 text-center mt-1">Cycle</p>
         </div>
+      </div>
+
+      {/* Phase timeline */}
+      <div
+        className="grid grid-cols-4 gap-1 p-3 rounded-2xl"
+        style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}
+      >
+        {[
+          { e: '🌑', n: 'New', active: moon.pct < 0.1 || moon.pct > 0.9 },
+          { e: '🌓', n: 'First Qtr', active: moon.pct >= 0.1 && moon.pct < 0.4 },
+          { e: '🌕', n: 'Full', active: moon.pct >= 0.4 && moon.pct < 0.6 },
+          { e: '🌗', n: 'Last Qtr', active: moon.pct >= 0.6 && moon.pct < 0.9 },
+        ].map(p => (
+          <div
+            key={p.n}
+            className="text-center py-1.5 rounded-xl transition-all"
+            style={p.active ? {
+              background: 'rgba(251,191,36,0.1)',
+              border: '1px solid rgba(251,191,36,0.25)',
+            } : {}}
+          >
+            <div className="text-base mb-0.5">{p.e}</div>
+            <div className="text-[9px] font-semibold" style={{ color: p.active ? '#fbbf24' : '#4b5563' }}>{p.n}</div>
+          </div>
+        ))}
       </div>
     </div>
   )

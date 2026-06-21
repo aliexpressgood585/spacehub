@@ -4,23 +4,32 @@ interface Launch {
   name: string
   net: string
   provider: string
+  rocket: string
   location: string
-  status: string
+  status: 'Go' | 'TBD' | 'Hold'
+  flag: string
 }
 
-const FALLBACK_LAUNCHES: Launch[] = [
-  { name: 'Starship IFT-9', net: '2026-07-15T14:00:00Z', provider: 'SpaceX', location: 'Boca Chica, TX', status: 'Go' },
-  { name: 'Falcon 9 | Starlink Group 15-8', net: '2026-06-28T08:30:00Z', provider: 'SpaceX', location: 'Cape Canaveral, FL', status: 'Go' },
-  { name: 'Ariane 6 | Multi-Payload', net: '2026-07-03T22:15:00Z', provider: 'Arianespace', location: 'Kourou, French Guiana', status: 'TBD' },
+const LAUNCHES: Launch[] = [
+  { name: 'Starship IFT-9',             net: '2026-07-15T14:00:00Z', provider: 'SpaceX',      rocket: 'Starship',  location: 'Boca Chica, TX',         status: 'Go',  flag: '🇺🇸' },
+  { name: 'Falcon 9 | Starlink 15-8',   net: '2026-06-28T08:30:00Z', provider: 'SpaceX',      rocket: 'Falcon 9',  location: 'Cape Canaveral, FL',      status: 'Go',  flag: '🇺🇸' },
+  { name: 'Ariane 6 | Multi-Payload',   net: '2026-07-03T22:15:00Z', provider: 'Arianespace', rocket: 'Ariane 6',  location: 'Kourou, French Guiana',   status: 'TBD', flag: '🇪🇺' },
+  { name: 'New Glenn | Commercial',     net: '2026-07-20T16:00:00Z', provider: 'Blue Origin', rocket: 'New Glenn', location: 'Cape Canaveral, FL',      status: 'TBD', flag: '🇺🇸' },
 ]
 
-function useCountdown(targetISO: string) {
-  const [timeLeft, setTimeLeft] = useState({ d: 0, h: 0, m: 0, s: 0 })
+const STATUS_STYLE: Record<string, { bg: string; border: string; color: string; label: string }> = {
+  Go:   { bg: 'rgba(74,222,128,0.1)',  border: 'rgba(74,222,128,0.3)',  color: '#4ade80', label: '✓ Go for Launch' },
+  TBD:  { bg: 'rgba(251,191,36,0.1)', border: 'rgba(251,191,36,0.3)', color: '#fbbf24', label: '⏳ TBD' },
+  Hold: { bg: 'rgba(239,68,68,0.1)',  border: 'rgba(239,68,68,0.3)',  color: '#f87171', label: '⏸ Hold' },
+}
+
+function useCountdown(iso: string) {
+  const [t, setT] = useState({ d: 0, h: 0, m: 0, s: 0 })
   useEffect(() => {
     const tick = () => {
-      const diff = new Date(targetISO).getTime() - Date.now()
-      if (diff <= 0) { setTimeLeft({ d: 0, h: 0, m: 0, s: 0 }); return }
-      setTimeLeft({
+      const diff = new Date(iso).getTime() - Date.now()
+      if (diff <= 0) { setT({ d: 0, h: 0, m: 0, s: 0 }); return }
+      setT({
         d: Math.floor(diff / 86400000),
         h: Math.floor((diff % 86400000) / 3600000),
         m: Math.floor((diff % 3600000) / 60000),
@@ -30,78 +39,98 @@ function useCountdown(targetISO: string) {
     tick()
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
-  }, [targetISO])
-  return timeLeft
+  }, [iso])
+  return t
 }
 
-function CountdownBig({ targetISO }: { targetISO: string }) {
-  const t = useCountdown(targetISO)
-  const pad = (n: number) => n.toString().padStart(2, '0')
+function Digit({ value, label }: { value: number; label: string }) {
+  const v = value.toString().padStart(2, '0')
   return (
-    <div className="flex gap-2 justify-center my-3">
-      {[{ v: t.d, l: 'Days' }, { v: t.h, l: 'Hours' }, { v: t.m, l: 'Mins' }, { v: t.s, l: 'Secs' }].map(({ v, l }) => (
-        <div key={l} className="countdown-digit">
-          <div className="text-2xl font-bold font-mono text-white tabular-nums">{pad(v)}</div>
-          <div className="text-xs text-gray-600 mt-0.5">{l}</div>
-        </div>
-      ))}
+    <div className="countdown-digit flex-1">
+      <div
+        className="text-2xl font-black font-mono text-white tabular-nums mb-0.5"
+        style={{ textShadow: '0 0 20px rgba(99,102,241,0.4)' }}
+      >
+        {v}
+      </div>
+      <div className="text-[9px] text-gray-600 font-semibold uppercase tracking-wider">{label}</div>
     </div>
   )
 }
 
-const STATUS_COLOR: Record<string, string> = {
-  Go: 'text-green-400 bg-green-900/20 border-green-700/30',
-  TBD: 'text-yellow-400 bg-yellow-900/20 border-yellow-700/30',
-  Hold: 'text-red-400 bg-red-900/20 border-red-700/30',
-}
-
 export default function LaunchCountdown() {
-  const [launches] = useState<Launch[]>(FALLBACK_LAUNCHES)
   const [selected, setSelected] = useState(0)
-  const next = launches[selected]
+  const next = LAUNCHES[selected]
+  const t = useCountdown(next.net)
+  const st = STATUS_STYLE[next.status]
 
   return (
     <div className="space-card p-6">
+      {/* Header */}
       <div className="flex items-center gap-3 mb-5">
-        <span className="text-2xl">🚀</span>
+        <div className="icon-box">🚀</div>
         <div>
-          <h3 className="text-white font-bold text-lg">Next Launch</h3>
-          <p className="text-gray-500 text-xs">Countdown to upcoming rocket launches</p>
+          <h3 className="text-white font-bold text-base">Next Launch</h3>
+          <p className="text-gray-500 text-xs">Upcoming rocket launches</p>
         </div>
       </div>
 
-      {/* Launch selector */}
-      <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
-        {launches.map((l, i) => (
+      {/* Selector */}
+      <div className="flex gap-1.5 mb-5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+        {LAUNCHES.map((l, i) => (
           <button
             key={i}
             onClick={() => setSelected(i)}
-            className={`text-xs px-3 py-1.5 rounded-lg whitespace-nowrap transition border flex-shrink-0 ${i === selected ? 'bg-indigo-600/30 border-indigo-500/50 text-white' : 'glass border-white/5 text-gray-500 hover:text-gray-300'}`}
+            className="text-xs px-3 py-1.5 rounded-xl whitespace-nowrap flex-shrink-0 transition-all font-semibold"
+            style={i === selected ? {
+              background: 'rgba(99,102,241,0.2)',
+              border: '1px solid rgba(99,102,241,0.45)',
+              color: '#c4b5fd',
+            } : {
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.06)',
+              color: '#6b7280',
+            }}
           >
-            {l.provider}
+            {l.flag} {l.provider}
           </button>
         ))}
       </div>
 
-      {next && (
-        <div>
-          <div className="text-center mb-1">
-            <p className="text-base font-bold text-white">{next.name}</p>
-            <div className="flex items-center justify-center gap-2 mt-1">
-              <span className={`text-xs px-2 py-0.5 rounded-full border ${STATUS_COLOR[next.status] ?? STATUS_COLOR.TBD}`}>
-                {next.status === 'Go' ? '✓ Go for Launch' : next.status === 'TBD' ? '⏳ TBD' : '⏸ Hold'}
-              </span>
-              <span className="text-xs text-gray-600">{next.location}</span>
-            </div>
-          </div>
-
-          <CountdownBig targetISO={next.net} />
-
-          <p className="text-xs text-gray-700 text-center">
-            {new Date(next.net).toLocaleString('en-US', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })} UTC
-          </p>
+      {/* Mission info */}
+      <div className="text-center mb-4">
+        <p className="text-white font-black text-base mb-2">{next.name}</p>
+        <div className="flex items-center justify-center flex-wrap gap-2">
+          <span
+            className="text-xs px-3 py-1 rounded-full font-semibold"
+            style={{ background: st.bg, border: `1px solid ${st.border}`, color: st.color }}
+          >
+            {st.label}
+          </span>
+          <span className="text-gray-600 text-xs">{next.rocket}</span>
+          <span className="text-gray-700 text-xs">·</span>
+          <span className="text-gray-600 text-xs">{next.location}</span>
         </div>
-      )}
+      </div>
+
+      {/* Countdown */}
+      <div className="flex gap-2 justify-center mb-4">
+        <Digit value={t.d} label="Days" />
+        <div className="flex items-center text-indigo-500 font-black text-xl pb-4">:</div>
+        <Digit value={t.h} label="Hours" />
+        <div className="flex items-center text-indigo-500 font-black text-xl pb-4">:</div>
+        <Digit value={t.m} label="Mins" />
+        <div className="flex items-center text-indigo-500 font-black text-xl pb-4">:</div>
+        <Digit value={t.s} label="Secs" />
+      </div>
+
+      {/* Launch date */}
+      <p className="text-xs text-gray-700 text-center">
+        {new Date(next.net).toLocaleString('en-US', {
+          day: 'numeric', month: 'long', year: 'numeric',
+          hour: '2-digit', minute: '2-digit', timeZone: 'UTC',
+        })} UTC
+      </p>
     </div>
   )
 }
