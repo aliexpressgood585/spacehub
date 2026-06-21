@@ -53,9 +53,10 @@ function sunElevationDeg(date: Date, lat: number, lng: number): number {
 }
 
 async function calculatePasses(lat: number, lng: number, days = 7): Promise<Pass[]> {
-  // Dynamic import to prevent module-level crashes
+  // Use satellite.js loaded via CDN script tag (window.satellite)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const satellite: any = await import('satellite.js')
+  const satellite: any = (window as any).satellite
+  if (!satellite) throw new Error('satellite.js not loaded')
 
   const res = await fetch('https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE')
   const text = await res.text()
