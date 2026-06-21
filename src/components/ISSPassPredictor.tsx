@@ -1,6 +1,4 @@
 import { useState, useEffect, useCallback } from 'react'
-// @ts-ignore
-import * as satellite from 'satellite.js'
 
 interface Pass {
   start: Date
@@ -55,12 +53,13 @@ function sunElevationDeg(date: Date, lat: number, lng: number): number {
 }
 
 async function calculatePasses(lat: number, lng: number, days = 7): Promise<Pass[]> {
-  const res = await fetch(
-    'https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE',
-    { cache: 'force-cache' }
-  )
+  // Dynamic import to prevent module-level crashes
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const satellite: any = await import('satellite.js')
+
+  const res = await fetch('https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE')
   const text = await res.text()
-  const lines = text.trim().split('\n').map(l => l.trim()).filter(Boolean)
+  const lines = text.trim().split('\n').map((l: string) => l.trim()).filter(Boolean)
 
   let tle1 = '', tle2 = ''
   for (let i = 0; i < lines.length; i++) {
@@ -91,11 +90,11 @@ async function calculatePasses(lat: number, lng: number, days = 7): Promise<Pass
 
   for (let t = now; t < endMs; t += STEP_MS) {
     const date = new Date(t)
-    const pv: any = satellite.propagate(satrec, date)
+    const pv = satellite.propagate(satrec, date)
     if (!pv || !pv.position || typeof pv.position === 'boolean') continue
 
     const gmst = satellite.gstime(date)
-    const ecf = satellite.eciToEcf(pv.position, gmst) as any
+    const ecf = satellite.eciToEcf(pv.position, gmst)
     const look = satellite.ecfToLookAngles(observerGd, ecf)
     const el = look.elevation * 180 / Math.PI
     const az = ((look.azimuth * 180 / Math.PI) + 360) % 360
