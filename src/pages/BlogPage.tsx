@@ -2,6 +2,357 @@ import { useState } from 'react'
 
 const ARTICLES = [
   {
+    slug: 'best-telescope-for-kids-2026',
+    title: 'Best Telescopes for Kids 2026 — Age-by-Age Guide for Parents',
+    date: 'June 22, 2026',
+    readTime: '4 min read',
+    icon: '👦',
+    preview: 'The right telescope will spark a lifelong love of science. The wrong one will collect dust. Here\'s exactly what to buy for your child\'s age and interest level.',
+    content: `A telescope is one of the best gifts you can give a child — but most "kids telescopes" sold in toy stores are garbage that kill enthusiasm fast. This guide helps you choose a telescope that will actually get used.
+
+**What Age Is Right for a Telescope?**
+
+- **Ages 5–7:** Too young for telescopes. Get a pair of 8x21 binoculars instead.
+- **Ages 8–10:** Ready for a simple tabletop reflector. Keep it small and easy.
+- **Ages 11–14:** Can handle a full equatorial mount telescope.
+- **Ages 15+:** Treat them like an adult buyer — get something serious.
+
+**Best Telescopes by Age**
+
+**Ages 8–10: Orion StarBlast 4.5 Tabletop**
+Simple Dobsonian design, no tripod needed — just set on a table and look. Easy enough for a child to set up alone. Shows the Moon, Jupiter's moons, and Saturn's rings.
+
+[🛒 Orion StarBlast 4.5 Tabletop Telescope](https://www.amazon.com/s?k=Orion+StarBlast+4.5+tabletop+telescope)
+
+**Ages 10–13: Celestron AstroMaster 70AZ**
+Refractor telescope on an easy alt-az mount. No alignment needed. Great for the Moon and planets. Comes with two eyepieces and StarPointer finder scope.
+
+[🛒 Celestron AstroMaster 70AZ Refractor Telescope](https://www.amazon.com/s?k=Celestron+AstroMaster+70AZ+telescope)
+
+**Ages 13+: Celestron PowerSeeker 127EQ**
+A real equatorial mount telescope that teaches kids how real astronomy works. Shows Saturn's rings clearly and Jupiter's cloud bands.
+
+[🛒 Celestron PowerSeeker 127EQ — Best Teen Telescope](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ)
+
+**Ages 15+: Sky-Watcher 8" Dobsonian**
+If they're serious, this is the telescope that will last into adulthood. Massive light gathering, incredible views of deep-sky objects.
+
+[🛒 Sky-Watcher 8" Dobsonian — For the Serious Young Astronomer](https://www.amazon.com/s?k=Sky-Watcher+8+inch+Dobsonian+telescope)
+
+**Must-Have Accessories for Kids**
+
+[🛒 Children's Red Flashlight — Safe for Night Vision](https://www.amazon.com/s?k=red+flashlight+kids+astronomy)
+
+[🛒 "National Audubon Society Field Guide to the Night Sky"](https://www.amazon.com/s?k=Audubon+Society+Field+Guide+Night+Sky)
+
+[🛒 Glow-in-the-Dark Solar System Model — Keep the Excitement Going](https://www.amazon.com/s?k=glow+dark+solar+system+model+kids)
+
+**What to Avoid**
+
+Never buy a telescope from a toy store or department store. Never buy a telescope advertised by magnification ("450× power!") — it's always a scam. Stick to Celestron, Orion, Sky-Watcher, or Meade.
+
+The best telescope is the one that gets used. Start simple. Use SpaceHub together to find tonight's targets — shared discovery is what keeps kids engaged.
+
+Clear skies! 👦`
+  },
+  {
+    slug: 'lunar-eclipse-guide-2026',
+    title: 'Lunar Eclipse 2026 — Dates, Viewing Guide & Photography Tips',
+    date: 'June 22, 2026',
+    readTime: '4 min read',
+    icon: '🌘',
+    preview: 'A total lunar eclipse turns the Moon blood red — one of the most dramatic astronomical events you can see without any equipment. Here are the 2026 dates and how to watch.',
+    content: `A total lunar eclipse — the "Blood Moon" — happens when Earth's shadow falls completely across the Moon, turning it a dramatic deep red. Unlike solar eclipses, you need no special equipment, no filters, and no precise location. Everyone on the night side of Earth sees it at once.
+
+**Why Does the Moon Turn Red?**
+
+During totality, the only light reaching the Moon is sunlight filtered through Earth's atmosphere at sunset and sunrise — the same reddish glow that colors our sunsets. The Moon absorbs this light and glows a deep copper-red.
+
+**Lunar Eclipse Dates 2026**
+
+**March 3, 2026 — Total Lunar Eclipse**
+Visible from: Americas, Europe, Africa, West Asia
+Totality begins: 23:57 UTC — Duration of totality: 61 minutes
+
+**August 28, 2026 — Partial Lunar Eclipse**
+Visible from: Asia, Australia, Pacific, Americas
+Maximum eclipse: 04:13 UTC — 93% of Moon covered
+
+**How to Watch — No Equipment Needed**
+
+Simply go outside and look up. The Moon turns red gradually over about an hour. The best experience:
+- Find a spot with an unobstructed view of the sky
+- Bring a blanket or reclining chair
+- Watch the shadow creep across the Moon for 1–2 hours before totality
+- During totality, look for stars near the Moon — they become visible as the Moon dims
+
+**Best Gear for Watching and Photographing**
+
+[🛒 Celestron SkyMaster 10x50 Binoculars — Beautiful Close-Up Views During Totality](https://www.amazon.com/s?k=Celestron+SkyMaster+10x50+binoculars)
+
+[🛒 Zero Gravity Reclining Chair — Watch in Total Comfort](https://www.amazon.com/s?k=zero+gravity+reclining+chair+stargazing)
+
+[🛒 Canon EOS R50 — Capture the Blood Moon](https://www.amazon.com/s?k=Canon+EOS+R50+mirrorless+camera)
+
+[🛒 500mm Telephoto Lens — Fill the Frame With the Red Moon](https://www.amazon.com/s?k=500mm+mirror+telephoto+lens+camera)
+
+[🛒 Carbon Fiber Tripod — Sharp Photos Throughout the Eclipse](https://www.amazon.com/s?k=carbon+fiber+tripod+photography)
+
+**Photography Settings for the Blood Moon**
+
+The Moon's brightness changes dramatically during eclipse — you need to adjust throughout:
+- **Partial phases:** ISO 100, f/8, 1/500 sec
+- **Early totality:** ISO 400, f/5.6, 1/30 sec
+- **Mid-totality (darkest):** ISO 1600, f/4, 2 sec
+- Always bracket exposures and shoot RAW
+
+**The Bottom Line**
+
+Set a reminder in SpaceHub for March 3 and August 28, 2026. Go outside, look up, and watch our Moon turn red. It's free, it's stunning, and it never gets old.
+
+Clear skies! 🌘`
+  },
+  {
+    slug: 'how-to-find-north-star-polaris',
+    title: 'How to Find the North Star (Polaris) — Navigation Guide 2026',
+    date: 'June 22, 2026',
+    readTime: '3 min read',
+    icon: '⭐',
+    preview: 'Polaris — the North Star — is the most important star in the sky for navigators and astronomers alike. Here\'s exactly how to find it in under 2 minutes.',
+    content: `Polaris, the North Star, sits almost exactly above Earth's North Pole. While all other stars appear to rotate across the sky as Earth spins, Polaris stays fixed — making it the perfect navigation reference and the center of all star trail photos.
+
+**Is Polaris the Brightest Star?**
+
+No — that's a common myth. Polaris is only the 48th brightest star. It's special not because of its brightness, but because of its position directly above the North Pole. It's easily visible to the naked eye but not particularly impressive on its own.
+
+**How to Find Polaris in 3 Steps**
+
+1. **Find the Big Dipper** — seven bright stars forming a ladle shape. Easy to spot in the northern sky.
+2. **Look at the two stars at the front of the "cup"** — Dubhe and Merak. These are called the Pointer Stars.
+3. **Draw an imaginary line from Merak through Dubhe and extend it 5× the distance** — you'll land on Polaris.
+
+Polaris is always due north. Its altitude above the horizon equals your latitude. At 50°N, Polaris is 50° above the horizon.
+
+**Why Astronomers Care About Polaris**
+
+Polar alignment: All equatorial telescope mounts must be pointed at Polaris to track stars correctly. Without polar alignment, stars drift across the eyepiece.
+Star trails: Point your camera at Polaris for circular star trails.
+
+**Gear for Polar Alignment and Star Trails**
+
+[🛒 Celestron PowerSeeker 127EQ — Equatorial Mount Requires Polar Alignment](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ)
+
+[🛒 Sky-Watcher Star Adventurer Mini — Polar Aligned Star Tracker](https://www.amazon.com/s?k=Sky-Watcher+Star+Adventurer+Mini+tracker)
+
+[🛒 iOptron iPolar Electronic Polar Scope — Precise Alignment Made Easy](https://www.amazon.com/s?k=iOptron+iPolar+electronic+polar+scope)
+
+[🛒 Sony Alpha a6400 — Capture Perfect Circular Star Trails Around Polaris](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera)
+
+[🛒 Carbon Fiber Tripod — Stable Base for Star Trail Photography](https://www.amazon.com/s?k=carbon+fiber+tripod+photography)
+
+**Can You Navigate by Polaris?**
+
+Yes — ancient sailors used Polaris to navigate for thousands of years. If you can see Polaris, you know which direction is north exactly. Your latitude equals the angle of Polaris above the horizon.
+
+Use SpaceHub's Star Map to locate Polaris from your position tonight.
+
+Clear skies! ⭐`
+  },
+  {
+    slug: 'messier-objects-guide-2026',
+    title: 'Messier Objects — 110 Deep Sky Wonders to Find With Your Telescope',
+    date: 'June 22, 2026',
+    readTime: '5 min read',
+    icon: '🔭',
+    preview: 'Charles Messier catalogued 110 of the most spectacular deep sky objects in the 1700s. They\'re still the ultimate observing list for any amateur astronomer. Here\'s how to find them.',
+    content: `In the 1770s, French astronomer Charles Messier catalogued fuzzy objects in the sky so he wouldn't mistake them for comets (which he was hunting). What he accidentally created was the greatest observing list in amateur astronomy — 110 of the most spectacular galaxies, nebulae, and star clusters visible from Earth.
+
+**What Are the Messier Objects?**
+
+The Messier Catalogue includes:
+- **29 galaxies** — including Andromeda (M31), the Triangulum Galaxy (M33), and the Whirlpool Galaxy (M51)
+- **27 globular clusters** — tight spherical balls of 100,000+ stars
+- **27 open clusters** — loose groups of young stars, like the Pleiades (M45)
+- **4 planetary nebulae** — shells of gas blown off by dying stars
+- **1 supernova remnant** — the Crab Nebula (M1)
+- **Various diffuse nebulae** — including the Orion Nebula (M42) and the Lagoon Nebula (M8)
+
+**The 10 Most Spectacular Messier Objects**
+
+**M42 — Orion Nebula:** The most breathtaking nebula in the sky. Visible to the naked eye as the fuzzy "star" in Orion's sword. Stunning in any telescope.
+
+**M45 — Pleiades:** The famous "Seven Sisters" star cluster. Spectacular in binoculars.
+
+**M31 — Andromeda Galaxy:** Our nearest large galactic neighbor, 2.5 million light-years away.
+
+**M13 — Hercules Globular Cluster:** 300,000 stars packed into a sphere. Mesmerizing at 100×.
+
+**M57 — Ring Nebula:** A tiny smoke ring in Lyra — the remnant of a dead star.
+
+**M1 — Crab Nebula:** The expanding debris cloud from a supernova seen in 1054 AD.
+
+**M51 — Whirlpool Galaxy:** Two galaxies interacting — spiral arms visible in large telescopes.
+
+**M104 — Sombrero Galaxy:** An edge-on galaxy with a dramatic dust lane.
+
+**M27 — Dumbbell Nebula:** The easiest planetary nebula to find and one of the most impressive.
+
+**M44 — Beehive Cluster:** A beautiful open cluster, perfect for binoculars.
+
+**Best Telescopes for Messier Hunting**
+
+[🛒 Orion StarBlast 4.5 — Great Entry Telescope for Messier Objects](https://www.amazon.com/s?k=Orion+StarBlast+4.5+tabletop+telescope)
+
+[🛒 Sky-Watcher 8" Dobsonian — The Best Telescope for Deep Sky Objects](https://www.amazon.com/s?k=Sky-Watcher+8+inch+Dobsonian+telescope)
+
+[🛒 Celestron NexStar 6SE — GoTo Mount Finds All 110 Messier Objects Automatically](https://www.amazon.com/s?k=Celestron+NexStar+6SE+telescope)
+
+**Best Eyepieces for Deep Sky**
+
+[🛒 Explore Scientific 82° 14mm — Wide-Field for Large Nebulae and Clusters](https://www.amazon.com/s?k=Explore+Scientific+82+degree+14mm+eyepiece)
+
+[🛒 Celestron X-Cel LX 25mm — Maximum Field of View for Star Clusters](https://www.amazon.com/s?k=Celestron+X-Cel+LX+25mm+eyepiece)
+
+**The Messier Marathon**
+
+Every March, amateur astronomers around the world attempt a "Messier Marathon" — observing all 110 objects in a single night. Near the new moon in mid-March, all 110 can be seen between sunset and sunrise. It requires preparation, a dark sky, and an organized star chart — but checking off all 110 in one night is one of the most satisfying achievements in amateur astronomy.
+
+Use SpaceHub's Star Map to plan your Messier sessions — and track which ones you've found.
+
+Clear skies! 🔭`
+  },
+  {
+    slug: 'astrophotography-software-guide-2026',
+    title: 'Best Astrophotography Software 2026 — Free and Paid Tools',
+    date: 'June 22, 2026',
+    readTime: '5 min read',
+    icon: '💻',
+    preview: 'The right software turns a stack of blurry night sky photos into a stunning final image. Here\'s every tool you need — from free stacking apps to professional editors.',
+    content: `Astrophotography is half hardware, half software. The camera captures raw photons — the software reveals hidden detail, color, and depth that your eyes could never see. Here's every piece of software you need at every stage of the workflow.
+
+**The Astrophotography Software Workflow**
+
+1. **Capture** — at the telescope/camera (PHD2, Sharpcap, BackyardEOS)
+2. **Calibrate** — subtract sensor noise with calibration frames
+3. **Stack** — combine many frames to reduce noise and reveal detail
+4. **Process** — stretch, enhance, and color-balance the final image
+5. **Finish** — final touches in Lightroom or Photoshop
+
+**Free Software**
+
+**DeepSkyStacker (Free, Windows)** — The most popular free stacking tool. Import your lights, darks, flats, and bias frames — it handles everything automatically. Essential for beginners.
+
+**GIMP (Free)** — Free alternative to Photoshop. Powerful enough for astrophotography processing with the right plugins.
+
+**Stellarium (Free)** — Planetarium software for planning sessions and identifying objects in your images.
+
+**StarNet++ (Free)** — AI-powered star removal tool. Remove stars from your image for better nebula processing, then add them back.
+
+**StarStax (Free)** — Best tool for star trail stacking. Dead simple and effective.
+
+**Paid Software Worth Buying**
+
+**PixInsight ($230)** — The professional standard for deep-sky processing. Steep learning curve but unmatched results. Used by observatory professionals and serious amateurs worldwide.
+
+[🛒 "Inside PixInsight" — The Essential Book for Learning PixInsight](https://www.amazon.com/s?k=Inside+PixInsight+book+astrophotography)
+
+**Adobe Lightroom ($10/month)** — Excellent for final processing, color grading, and organizing your image library. Works great after stacking in DeepSkyStacker.
+
+**Sequence Generator Pro ($130)** — Automates your imaging sessions. Plate solves, slews, focuses, and captures sequences automatically while you sleep.
+
+**Essential Hardware for Serious Processing**
+
+[🛒 External Hard Drive 4TB — Your Image Archive Will Grow Fast](https://www.amazon.com/s?k=external+hard+drive+4TB+portable)
+
+[🛒 Color-Calibrated Monitor — Crucial for Accurate Astrophoto Color](https://www.amazon.com/s?k=color+calibrated+monitor+photography)
+
+[🛒 USB Hub for Telescope Control — Connect Guide Camera, Mount, Focuser](https://www.amazon.com/s?k=powered+USB+hub+telescope+astrophotography)
+
+**Cameras for Astrophotography**
+
+[🛒 Sony Alpha a6400 — Best Entry Mirrorless for Astrophotography](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera)
+
+[🛒 ZWO ASI294MC Pro — Dedicated One-Shot Color Astronomy Camera](https://www.amazon.com/s?k=ZWO+ASI294MC+Pro+astronomy+camera)
+
+[🛒 ZWO ASI120MM-S — Guide Camera for Autoguiding](https://www.amazon.com/s?k=ZWO+ASI120MM+guide+camera)
+
+**The Recommended Beginner Workflow**
+
+1. Shoot RAW with your camera on a star tracker
+2. Import into **DeepSkyStacker** — stack 30+ frames
+3. Export the result as a 16-bit TIFF
+4. Open in **Adobe Lightroom** — stretch the histogram, reduce noise, boost saturation
+5. Final crop and export
+
+This workflow is free (except Lightroom) and produces stunning results within your first month of imaging.
+
+Use SpaceHub to plan your next imaging night — check moon phase, upcoming events, and ISS passes to avoid interference.
+
+Clear skies! 💻`
+  },
+  {
+    slug: 'saturn-rings-viewing-guide-2026',
+    title: 'How to See Saturn\'s Rings — Complete Viewing Guide 2026',
+    date: 'June 22, 2026',
+    readTime: '4 min read',
+    icon: '🪐',
+    preview: 'Saturn\'s rings are visible through even a small beginner telescope. The first time you see them, you\'ll never forget it. Here\'s when and how to look in 2026.',
+    content: `The first time you see Saturn through a telescope, your brain struggles to accept what your eyes are showing you. The rings look too perfect, too alien — like a painting. It is the most common reaction in amateur astronomy. This is how to make it happen.
+
+**Can You Really See Saturn's Rings With a Small Telescope?**
+
+Yes. Saturn's rings are visible through a 60mm refractor at just 30× magnification. With a 127mm telescope at 100×, the rings are breathtaking — clearly separated from the planet, showing the Cassini Division (the gap between ring groups), and surrounded by the bright moon Titan.
+
+**Saturn 2026 — Key Dates**
+
+**Saturn Opposition 2026:** September 21, 2026
+This is the best night of 2026 to observe Saturn. It's closest to Earth, highest in the sky, and visible all night.
+
+**Ring Tilt in 2026:** 7° — the rings are nearly edge-on this year, appearing narrower than in previous years. By 2028 they'll be completely edge-on. By 2031 they'll be fully open again.
+
+**What You'll See at Different Magnifications**
+
+- **30×:** Planet visible, rings clearly separated from it
+- **60×:** Rings detailed, Titan visible as a point of light
+- **100×:** Cassini Division visible (the dark gap in the rings)
+- **150×:** Ring structure, globe banding, shadow of rings on planet
+- **200×+:** Additional moons, ring detail, atmospheric bands
+
+**Best Telescopes for Saturn**
+
+[🛒 Celestron PowerSeeker 127EQ — Perfect Beginner Saturn Telescope](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ)
+
+[🛒 Sky-Watcher 8" Dobsonian — Stunning Ring Detail and Multiple Moons](https://www.amazon.com/s?k=Sky-Watcher+8+inch+Dobsonian+telescope)
+
+[🛒 Celestron NexStar 6SE — GoTo Mount Finds Saturn Automatically](https://www.amazon.com/s?k=Celestron+NexStar+6SE+telescope)
+
+**Best Eyepieces for Saturn**
+
+[🛒 Celestron X-Cel LX 7mm — Sharp Planetary Eyepiece for Saturn](https://www.amazon.com/s?k=Celestron+X-Cel+LX+7mm+eyepiece)
+
+[🛒 Baader Hyperion 5mm — Maximum Detail on Saturn's Rings](https://www.amazon.com/s?k=Baader+Hyperion+5mm+eyepiece)
+
+[🛒 2× Barlow Lens — Double Your Power Without Buying a New Eyepiece](https://www.amazon.com/s?k=2x+Barlow+lens+telescope+eyepiece)
+
+**Tips for the Best Saturn Views**
+
+- Observe when Saturn is highest in the sky — less atmosphere to look through
+- Allow your telescope to cool outside for 45 minutes (thermal equilibration)
+- Wait for steady air — turbulence is your biggest enemy
+- Use your highest magnification and increase slowly until the image degrades
+- The best views come in brief 2–3 second windows of still air — be patient
+
+**Photographing Saturn**
+
+[🛒 ZWO ASI120MC-S Planetary Camera — Best for Saturn Imaging](https://www.amazon.com/s?k=ZWO+ASI120+planetary+camera)
+
+[🛒 Sony Alpha a6400 + Telescope Adapter — Beginner Saturn Photos](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera)
+
+Use SpaceHub's Live Planets tracker to see exactly where Saturn is tonight and when it's highest in the sky.
+
+Clear skies! 🪐`
+  },
+  {
     slug: 'best-telescope-eyepieces-2026',
     title: 'Best Telescope Eyepieces 2026 — Upgrade Your Views Tonight',
     date: 'June 22, 2026',
