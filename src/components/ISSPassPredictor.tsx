@@ -185,13 +185,13 @@ function formatCountdown(ms: number) {
 }
 
 export default function ISSPassPredictor() {
-  const [loc, setLoc] = useState<Location | null>(null)
+  const [loc, setLoc] = useState<Location | null>({ lat: 32.0853, lng: 34.7818, city: 'Tel Aviv' })
   const [passes, setPasses] = useState<Pass[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [geoError, setGeoError] = useState('')
   const [countdown, setCountdown] = useState('')
-  const [selectedCity, setSelectedCity] = useState('')
+  const [selectedCity, setSelectedCity] = useState('Tel Aviv')
   const [copied, setCopied] = useState(false)
 
   const load = useCallback(async (l: Location) => {
@@ -204,6 +204,12 @@ export default function ISSPassPredictor() {
       setError('Could not calculate passes. Try again.')
     }
     setLoading(false)
+  }, [])
+
+  // Auto-load Tel Aviv on mount
+  useEffect(() => {
+    load({ lat: 32.0853, lng: 34.7818, city: 'Tel Aviv' })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const useGeo = () => {

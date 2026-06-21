@@ -1,4 +1,37 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+
+const CURATED = [
+  {
+    title: 'Pillars of Creation — Eagle Nebula',
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/68/Pillars_of_creation_2014_HST_WFC3-UVIS_full-res_denoised.jpg/800px-Pillars_of_creation_2014_HST_WFC3-UVIS_full-res_denoised.jpg',
+    explanation: 'The iconic Pillars of Creation, captured by the Hubble Space Telescope in 2014. These towering columns of gas and dust in the Eagle Nebula (M16) are stellar nurseries where new stars are being born from collapsing clouds of hydrogen.',
+    date: 'Hubble Space Telescope · M16 Eagle Nebula',
+  },
+  {
+    title: 'Saturn During Equinox — Cassini',
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Saturn_during_Equinox.jpg/800px-Saturn_during_Equinox.jpg',
+    explanation: 'Saturn photographed by NASA\'s Cassini spacecraft during equinox, when the Sun illuminates the rings edge-on, revealing their true razor-thin profile. The rings are up to 282,000 km wide but only about 10 metres thick.',
+    date: 'NASA Cassini · Saturn System',
+  },
+  {
+    title: 'Andromeda Galaxy — M31',
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Andromeda_Galaxy_560mm_FL.jpg/800px-Andromeda_Galaxy_560mm_FL.jpg',
+    explanation: 'The Andromeda Galaxy (M31), our nearest major galactic neighbor, photographed from Earth. Located 2.5 million light-years away, it contains over a trillion stars. In about 4.5 billion years it will collide and merge with our Milky Way.',
+    date: 'Ground-based Astrophotography · M31',
+  },
+  {
+    title: 'Jupiter — Great Red Spot',
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/Jupiter_and_its_shrunken_Great_Red_Spot.jpg/800px-Jupiter_and_its_shrunken_Great_Red_Spot.jpg',
+    explanation: 'Jupiter and its Great Red Spot — a storm larger than Earth that has raged for at least 350 years. Jupiter is the largest planet in our solar system, with a mass 318 times that of Earth and 67 known moons.',
+    date: 'Hubble Space Telescope · Jupiter',
+  },
+  {
+    title: 'Aurora Borealis — Northern Lights',
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/Polarlicht_2.jpg/800px-Polarlicht_2.jpg',
+    explanation: 'The Northern Lights (Aurora Borealis) paint the sky in shades of green, blue, and red. Auroras are caused by solar wind particles exciting oxygen and nitrogen atoms in Earth\'s upper atmosphere, creating light at altitudes of 100–300 km.',
+    date: 'High-latitude Observation · Earth Atmosphere',
+  },
+]
 
 interface APODData {
   title: string
@@ -13,6 +46,7 @@ export default function NasaAPOD() {
   const [apod, setApod] = useState<APODData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const fallback = useMemo(() => CURATED[Math.floor(Date.now() / 86400000) % CURATED.length], [])
 
   useEffect(() => {
     const key = import.meta.env.VITE_NASA_API_KEY || 'DEMO_KEY'
@@ -43,26 +77,44 @@ export default function NasaAPOD() {
     <div className="space-card overflow-hidden">
       <div className="p-5 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
         <div className="icon-box">🔭</div>
-        <div>
+        <div className="flex-1 min-w-0">
           <h3 className="text-white font-bold text-base">NASA — Astronomy Picture of the Day</h3>
-          <p className="text-gray-500 text-xs">Updated daily by NASA</p>
+          <p className="text-gray-500 text-xs">Curated space imagery</p>
         </div>
-      </div>
-      <div className="relative overflow-hidden" style={{ minHeight: 280 }}>
-        <div
-          className="absolute inset-0 flex flex-col items-center justify-center text-center p-8"
-          style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.08), rgba(139,92,246,0.08))' }}
+        <span
+          className="flex-shrink-0 text-xs px-3 py-1 rounded-full font-semibold"
+          style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', color: '#a5b4fc' }}
         >
-          <span className="text-6xl mb-4">🌌</span>
-          <p className="text-white font-bold text-lg mb-2">NASA APOD</p>
-          <p className="text-gray-500 text-sm mb-4">Today's astronomy image is loading from NASA.</p>
+          Space Gallery
+        </span>
+      </div>
+      <div className="relative overflow-hidden" style={{ maxHeight: 400 }}>
+        <img
+          src={fallback.url}
+          alt={fallback.title}
+          className="w-full object-cover"
+          style={{ maxHeight: 400 }}
+          onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+        />
+        <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(2,5,16,0.8) 0%, transparent 50%)' }} />
+      </div>
+      <div className="p-5">
+        <h4 className="text-indigo-300 font-black text-lg mb-3">{fallback.title}</h4>
+        <p className="text-gray-400 text-sm leading-relaxed line-clamp-4 mb-4">{fallback.explanation}</p>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span
+            className="text-xs px-3 py-1 rounded-full font-semibold"
+            style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.25)', color: '#818cf8' }}
+          >
+            NASA APOD
+          </span>
           <a
             href="https://apod.nasa.gov"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-indigo-400 text-sm hover:text-indigo-300 transition"
+            className="text-xs text-gray-600 hover:text-indigo-400 transition ml-auto"
           >
-            View on NASA website →
+            View full archive →
           </a>
         </div>
       </div>

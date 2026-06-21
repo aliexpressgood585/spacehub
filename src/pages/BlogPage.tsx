@@ -2031,6 +2031,43 @@ Solar activity follows an 11-year cycle — we're currently in Solar Cycle 25, n
   },
 ]
 
+const BLOG_IMAGES: Record<string, string> = {
+  'best-telescope-for-kids-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/8inchreflector.jpg/800px-8inchreflector.jpg',
+  'lunar-eclipse-guide-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/The_Blood_Moon_October_8_2014.jpg/800px-The_Blood_Moon_October_8_2014.jpg',
+  'how-to-find-north-star-polaris': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Circumpolar_star_trails.jpg/800px-Circumpolar_star_trails.jpg',
+  'messier-objects-guide-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/68/Pillars_of_creation_2014_HST_WFC3-UVIS_full-res_denoised.jpg/800px-Pillars_of_creation_2014_HST_WFC3-UVIS_full-res_denoised.jpg',
+  'astrophotography-software-guide-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Orion_Nebula_-_Hubble_2006_mosaic_18000.jpg/800px-Orion_Nebula_-_Hubble_2006_mosaic_18000.jpg',
+  'saturn-rings-viewing-guide-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Saturn_during_Equinox.jpg/800px-Saturn_during_Equinox.jpg',
+  'best-telescope-eyepieces-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/8inchreflector.jpg/800px-8inchreflector.jpg',
+  'best-astronomy-gifts-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Binoculars_with_red_dot_finder.jpg/800px-Binoculars_with_red_dot_finder.jpg',
+  'how-to-see-andromeda-galaxy': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Andromeda_Galaxy_560mm_FL.jpg/800px-Andromeda_Galaxy_560mm_FL.jpg',
+  'how-to-photograph-iss-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/International_Space_Station_after_undocking_of_STS-132.jpg/800px-International_Space_Station_after_undocking_of_STS-132.jpg',
+  'best-space-books-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/68/Pillars_of_creation_2014_HST_WFC3-UVIS_full-res_denoised.jpg/800px-Pillars_of_creation_2014_HST_WFC3-UVIS_full-res_denoised.jpg',
+  'jupiter-opposition-2026-guide': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/Jupiter_and_its_shrunken_Great_Red_Spot.jpg/800px-Jupiter_and_its_shrunken_Great_Red_Spot.jpg',
+  'best-stargazing-camping-gear-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/Milky_Way_Night_Sky_Black_Rock_Desert_Nevada.jpg/800px-Milky_Way_Night_Sky_Black_Rock_Desert_Nevada.jpg',
+  'how-to-see-planets-telescope-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Saturn_during_Equinox.jpg/800px-Saturn_during_Equinox.jpg',
+  'solar-eclipse-photography-guide-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Annular_solar_eclipse_October_14_2023.jpg/800px-Annular_solar_eclipse_October_14_2023.jpg',
+  'how-to-see-iss': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/International_Space_Station_after_undocking_of_STS-132.jpg/800px-International_Space_Station_after_undocking_of_STS-132.jpg',
+  'perseid-meteor-shower-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Perseid_Meteor.jpg/800px-Perseid_Meteor.jpg',
+  'starlink-satellites-how-to-see': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Circumpolar_star_trails.jpg/800px-Circumpolar_star_trails.jpg',
+  'best-telescopes-beginners-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/8inchreflector.jpg/800px-8inchreflector.jpg',
+  'northern-lights-2026-guide': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/Polarlicht_2.jpg/800px-Polarlicht_2.jpg',
+  'moon-photography-guide-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/FullMoon2010.jpg/800px-FullMoon2010.jpg',
+  'star-trails-photography-guide-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Circumpolar_star_trails.jpg/800px-Circumpolar_star_trails.jpg',
+  'best-dark-sky-locations-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/Milky_Way_Night_Sky_Black_Rock_Desert_Nevada.jpg/800px-Milky_Way_Night_Sky_Black_Rock_Desert_Nevada.jpg',
+  'best-astronomy-apps-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Andromeda_Galaxy_560mm_FL.jpg/800px-Andromeda_Galaxy_560mm_FL.jpg',
+  'best-binoculars-astronomy-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Binoculars_with_red_dot_finder.jpg/800px-Binoculars_with_red_dot_finder.jpg',
+  'astrophotography-beginners-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Orion_Nebula_-_Hubble_2006_mosaic_18000.jpg/800px-Orion_Nebula_-_Hubble_2006_mosaic_18000.jpg',
+  'space-weather-explained': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg/800px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg',
+  'best-red-flashlight-astronomy-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/Milky_Way_Night_Sky_Black_Rock_Desert_Nevada.jpg/800px-Milky_Way_Night_Sky_Black_Rock_Desert_Nevada.jpg',
+  'how-to-see-milky-way-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/Milky_Way_Night_Sky_Black_Rock_Desert_Nevada.jpg/800px-Milky_Way_Night_Sky_Black_Rock_Desert_Nevada.jpg',
+  'venus-planet-guide-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Venus-real_color.jpg/800px-Venus-real_color.jpg',
+  'how-to-collimate-telescope-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/8inchreflector.jpg/800px-8inchreflector.jpg',
+  'best-goto-telescopes-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/8inchreflector.jpg/800px-8inchreflector.jpg',
+  'how-to-see-nebulae-telescope-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Orion_Nebula_-_Hubble_2006_mosaic_18000.jpg/800px-Orion_Nebula_-_Hubble_2006_mosaic_18000.jpg',
+  'how-to-observe-sun-safely-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg/800px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg',
+}
+
 export default function BlogPage() {
   const [active, setActive] = useState<string | null>(null)
   const article = ARTICLES.find(a => a.slug === active)
@@ -2150,22 +2187,41 @@ export default function BlogPage() {
       {/* Featured post (first article) */}
       <button
         onClick={() => setActive(ARTICLES[0].slug)}
-        className="w-full mb-6 text-left blog-card p-7 group"
+        className="w-full mb-6 text-left blog-card overflow-hidden group"
         style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(139,92,246,0.08) 40%, rgba(8,11,34,0.98) 100%)' }}
       >
-        <div className="flex items-start gap-5">
-          <div className="text-5xl">{ARTICLES[0].icon}</div>
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <span className="tag-chip tag-chip-gold">⭐ Featured</span>
-              <span className="text-gray-600 text-xs">{ARTICLES[0].date} · {ARTICLES[0].readTime}</span>
-            </div>
-            <h3 className="text-white font-black text-lg sm:text-xl mb-2 leading-snug group-hover:text-indigo-200 transition-colors">
-              {ARTICLES[0].title}
-            </h3>
-            <p className="text-gray-500 text-sm leading-relaxed line-clamp-2">{ARTICLES[0].preview}</p>
+        {BLOG_IMAGES[ARTICLES[0].slug] && (
+          <div className="relative overflow-hidden" style={{ height: 180 }}>
+            <img
+              src={BLOG_IMAGES[ARTICLES[0].slug]}
+              alt={ARTICLES[0].title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+            />
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(8,11,34,0.85) 0%, rgba(8,11,34,0.2) 60%, transparent 100%)' }} />
+            <span className="absolute top-3 left-3 tag-chip tag-chip-gold">⭐ Featured</span>
           </div>
-          <div className="hidden sm:block text-indigo-500 text-xl group-hover:translate-x-1 transition-transform flex-shrink-0">→</div>
+        )}
+        <div className="p-7">
+          <div className="flex items-start gap-5">
+            <div className="text-4xl">{ARTICLES[0].icon}</div>
+            <div className="flex-1 min-w-0">
+              {!BLOG_IMAGES[ARTICLES[0].slug] && (
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <span className="tag-chip tag-chip-gold">⭐ Featured</span>
+                  <span className="text-gray-600 text-xs">{ARTICLES[0].date} · {ARTICLES[0].readTime}</span>
+                </div>
+              )}
+              {BLOG_IMAGES[ARTICLES[0].slug] && (
+                <span className="text-gray-600 text-xs block mb-2">{ARTICLES[0].date} · {ARTICLES[0].readTime}</span>
+              )}
+              <h3 className="text-white font-black text-lg sm:text-xl mb-2 leading-snug group-hover:text-indigo-200 transition-colors">
+                {ARTICLES[0].title}
+              </h3>
+              <p className="text-gray-500 text-sm leading-relaxed line-clamp-2">{ARTICLES[0].preview}</p>
+            </div>
+            <div className="hidden sm:block text-indigo-500 text-xl group-hover:translate-x-1 transition-transform flex-shrink-0">→</div>
+          </div>
         </div>
       </button>
 
@@ -2175,26 +2231,39 @@ export default function BlogPage() {
           <button
             key={a.slug}
             onClick={() => setActive(a.slug)}
-            className="blog-card p-5 text-left group"
+            className="blog-card text-left group overflow-hidden flex flex-col"
           >
-            <div className="flex items-start gap-3 mb-3">
-              <div
-                className="w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
-                style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.18), rgba(139,92,246,0.12))', border: '1px solid rgba(99,102,241,0.2)' }}
-              >
-                {a.icon}
+            {BLOG_IMAGES[a.slug] && (
+              <div className="relative overflow-hidden flex-shrink-0" style={{ height: 120 }}>
+                <img
+                  src={BLOG_IMAGES[a.slug]}
+                  alt={a.title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  onError={e => { (e.target as HTMLImageElement).parentElement!.style.display = 'none' }}
+                />
+                <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(8,11,34,0.6) 0%, transparent 60%)' }} />
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[10px] text-gray-700 font-medium mb-1">{a.readTime}</div>
-                <h3 className="text-white font-bold text-sm leading-snug group-hover:text-indigo-200 transition-colors line-clamp-2">
-                  {a.title}
-                </h3>
+            )}
+            <div className="p-5 flex-1 flex flex-col">
+              <div className="flex items-start gap-3 mb-3">
+                <div
+                  className="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+                  style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.18), rgba(139,92,246,0.12))', border: '1px solid rgba(99,102,241,0.2)' }}
+                >
+                  {a.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[10px] text-gray-700 font-medium mb-1">{a.readTime}</div>
+                  <h3 className="text-white font-bold text-sm leading-snug group-hover:text-indigo-200 transition-colors line-clamp-2">
+                    {a.title}
+                  </h3>
+                </div>
               </div>
-            </div>
-            <p className="text-gray-600 text-xs leading-relaxed line-clamp-2 mb-3">{a.preview}</p>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] text-gray-700">{a.date}</span>
-              <span className="text-indigo-600 text-xs font-semibold group-hover:text-indigo-400 transition-colors">Read →</span>
+              <p className="text-gray-600 text-xs leading-relaxed line-clamp-2 mb-3 flex-1">{a.preview}</p>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-gray-700">{a.date}</span>
+                <span className="text-indigo-600 text-xs font-semibold group-hover:text-indigo-400 transition-colors">Read →</span>
+              </div>
             </div>
           </button>
         ))}

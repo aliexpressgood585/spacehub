@@ -35,13 +35,14 @@ const CITIES = [
 ]
 
 export default function ISSAlertSystem() {
-  const [userLoc, setUserLoc] = useState<UserLocation | null>(null)
+  const DEFAULT = { lat: 32.0853, lng: 34.7818, city: 'Tel Aviv' }
+  const [userLoc, setUserLoc] = useState<UserLocation | null>(DEFAULT)
   const [iss, setIss] = useState<ISSData | null>(null)
   const [pass, setPass] = useState<PassInfo | null>(null)
   const [notifGranted, setNotifGranted] = useState(false)
   const [locError, setLocError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [selectedCity, setSelectedCity] = useState('')
+  const [selectedCity, setSelectedCity] = useState('Tel Aviv')
   const [notified, setNotified] = useState(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -90,6 +91,10 @@ export default function ISSAlertSystem() {
   }, [sendNotification])
 
   useEffect(() => () => { if (intervalRef.current) clearInterval(intervalRef.current) }, [])
+
+  // Auto-start tracking for default city on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { startTracking(DEFAULT) }, [])
 
   const useGeolocation = () => {
     setLoading(true)
