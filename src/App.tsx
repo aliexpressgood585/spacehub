@@ -80,7 +80,7 @@ const [issData, setIssData] = useState<{ lat: number; lng: number; alt: number }
         <Hero lang={lang} onPremium={() => {}} onScrollToISS={scrollToISS} />
 
         <div className="max-w-7xl mx-auto px-4 mb-6">
-          <AdBanner slot="leaderboard" />
+          <AdBanner />
         </div>
 
         <div className="max-w-7xl mx-auto px-4 pb-16">
@@ -109,7 +109,7 @@ const [issData, setIssData] = useState<{ lat: number; lng: number; alt: number }
               <ISSTracker />
               <ShareCard issLat={issData?.lat} issLng={issData?.lng} issAlt={issData?.alt} />
               <NasaAPOD />
-              <AdBanner slot="rectangle" />
+              <AdBanner />
             </div>
           )}
 
@@ -144,7 +144,7 @@ const [issData, setIssData] = useState<{ lat: number; lng: number; alt: number }
           {activeTab === 'news' && (
             <div className="space-y-5">
               <SpaceNewsFeed />
-              <AdBanner slot="rectangle" />
+              <AdBanner />
             </div>
           )}
 
