@@ -294,6 +294,98 @@ You don't need expensive gear:
 2026 is one of the best years in a decade to see the Northern Lights. Monitor the Kp index on SpaceHub's Space Weather section, plan a trip to a dark location when Kp is forecast above 5, and prepare to be amazed.`
   },
   {
+    slug: 'moon-photography-guide-2026',
+    title: 'How to Photograph the Moon 2026 — Sharp, Detailed Lunar Photos on Any Camera',
+    date: 'June 21, 2026',
+    readTime: '5 min read',
+    icon: '🌕',
+    preview: 'The Moon is the easiest celestial object to photograph — but most people get blurry, overexposed shots. Here\'s exactly how to nail it every time, even with a beginner camera.',
+    content: `The Moon is the most photographed object in the night sky — and the most commonly botched. Most beginner moon photos come out as a bright white blob with no detail. This guide will show you exactly how to fix that and capture stunning crater detail every time.
+
+**Why Moon Photos Usually Fail**
+
+The Moon is far brighter than people expect. Your camera's auto mode exposes for the dark sky around it — massively overexposing the Moon itself and blowing out all detail. The fix is simple: **expose for the Moon, not the sky.**
+
+**The Looney 11 Rule**
+
+The classic starting point for moon exposure:
+- **Aperture:** f/11
+- **Shutter speed:** 1 / (ISO value) — e.g. at ISO 100, use 1/100 sec
+- **ISO:** 100
+
+This gives you a sharp, well-exposed Moon in most conditions. Adjust from there based on your results.
+
+**What Camera Do You Need?**
+
+Any camera with manual mode works. Even a smartphone with a telephoto mode can produce impressive moon shots. For serious detail, you want:
+- **Manual exposure control** — essential
+- **RAW format** — far more editing latitude than JPEG
+- **Fast continuous shooting** — take 10+ shots and keep the sharpest
+
+[🛒 Canon EOS R50 — Excellent Beginner Camera for Moon Photography](https://www.amazon.com/s?k=Canon+EOS+R50+mirrorless+camera)
+
+[🛒 Sony Alpha a6400 — Superior Detail and Dynamic Range](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera)
+
+**What Lens or Telescope to Use?**
+
+This is where moon photography gets exciting. The longer the focal length, the more detail you capture:
+
+- **50–135mm:** Moon is small but recognizable. Good for creative compositions with landscapes.
+- **200–400mm:** Moon fills more of the frame, craters start to appear
+- **500mm+:** Dramatic close-ups showing mountain ranges and crater rims
+- **Telescope:** The ultimate moon photography tool — like having a 1000mm+ lens
+
+[🛒 500mm Mirror Telephoto Lens — Affordable Long-Reach Moon Lens](https://www.amazon.com/s?k=500mm+mirror+telephoto+lens+camera)
+
+[🛒 Sigma 100-400mm f/5-6.3 — Versatile Zoom for Moon and Wildlife](https://www.amazon.com/s?k=Sigma+100-400mm+contemporary+lens)
+
+[🛒 Celestron PowerSeeker 127EQ + Phone Adapter — Telescope Moon Photography](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ)
+
+[🛒 Universal Smartphone Telescope Adapter — Use Your Phone Through Any Telescope](https://www.amazon.com/s?k=smartphone+telescope+adapter+mount)
+
+**Essential Accessories**
+
+[🛒 Sturdy Tripod — Absolutely Required for Sharp Moon Shots](https://www.amazon.com/s?k=heavy+duty+tripod+telephoto+lens)
+
+[🛒 Remote Shutter Release — Eliminate Camera Shake at the Moment of Exposure](https://www.amazon.com/s?k=remote+shutter+release+camera)
+
+**Best Moon Phases for Photography**
+
+- **Full Moon:** Bright and dramatic, but flat lighting — no shadows, less crater detail
+- **First/Last Quarter:** The terminator line (shadow boundary) creates dramatic shadow relief — craters pop in 3D
+- **Crescent Moon:** Beautiful for wide-angle compositions with landscape
+- **Gibbous Moon:** Great compromise — lots of surface illuminated with strong shadows
+
+**Pro Tip:** The best crater detail appears along the **terminator** — the line between light and dark on the Moon's surface. Craters here are lit from the side, showing their depth and height dramatically.
+
+Use SpaceHub's Moon Phase tracker to know exactly which phase is tonight.
+
+**Step-by-Step Shooting Guide**
+
+1. **Check SpaceHub** — find tonight's moon phase and rise time
+2. **Set up your tripod** and attach your longest lens or telescope
+3. **Set camera to Manual mode**
+4. **Starting settings:** ISO 100, f/11, 1/100 sec
+5. **Take a test shot** — if the Moon is too bright, increase shutter speed. Too dark, lower it.
+6. **Fine-tune:** aim for a histogram that peaks in the middle-right
+7. **Use live view** — zoom in to 10x magnification to focus precisely on crater edges
+8. **Shoot a burst** — take 10–20 frames, keep the sharpest
+9. **Shoot RAW** — then boost contrast and clarity in Lightroom or free software like RawTherapee
+
+**Creative Moon Photography Ideas**
+
+- **Moon + landscape** — shoot the rising moon just above the horizon next to a tree, building, or mountain
+- **Moon + silhouette** — position a person or object against the full moon
+- **Lunar eclipse** — the Moon turns blood red during a total eclipse (check SpaceHub for dates)
+- **Moonrise time-lapse** — set up your camera and let it shoot every 30 seconds as the Moon rises
+
+**The Bottom Line**
+
+The Moon is the perfect subject to learn night photography — it's always there, it's predictable, and the results are immediately stunning. Use SpaceHub to track the phase and rise time, get your exposure right with the Looney 11 rule, and you'll have jaw-dropping lunar photos by the end of your first session.
+
+Clear skies! 🌕`
+  },
+  {
     slug: 'star-trails-photography-guide-2026',
     title: 'How to Photograph Star Trails 2026 — Complete Beginner Guide',
     date: 'June 21, 2026',
