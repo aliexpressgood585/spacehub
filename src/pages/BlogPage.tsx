@@ -294,6 +294,106 @@ You don't need expensive gear:
 2026 is one of the best years in a decade to see the Northern Lights. Monitor the Kp index on SpaceHub's Space Weather section, plan a trip to a dark location when Kp is forecast above 5, and prepare to be amazed.`
   },
   {
+    slug: 'star-trails-photography-guide-2026',
+    title: 'How to Photograph Star Trails 2026 — Complete Beginner Guide',
+    date: 'June 21, 2026',
+    readTime: '6 min read',
+    icon: '⭐',
+    preview: 'Star trails are one of the most dramatic photos you can take — and they\'re surprisingly easy. All you need is a camera, a tripod, and a dark sky. Here\'s exactly how to do it.',
+    content: `Star trail photos — those breathtaking images of concentric circles of light carved across the night sky — are one of the most stunning results in all of photography. And they're far easier to create than they look.
+
+**What Are Star Trails?**
+
+As Earth rotates, stars appear to move across the sky. A long camera exposure — or a series of stacked images — records this movement as long arcs or circles of light. Near Polaris (the North Star), the trails form perfect circles. Near the horizon, they appear as curved streaks.
+
+**Two Methods for Star Trails**
+
+**Method 1 — Single Long Exposure**
+Leave your shutter open for 30–90 minutes. Simple, but camera noise and battery drain are issues.
+
+**Method 2 — Image Stacking (Recommended)**
+Take hundreds of 20–30 second exposures and blend them in software. You get:
+- Less noise than a single long exposure
+- More control over the final image
+- Ability to remove planes and satellites
+- Can stop shooting at any time
+
+**What Camera Do You Need?**
+
+Any DSLR or mirrorless camera with manual controls works. Key requirements:
+- **Bulb mode** — for exposures longer than 30 seconds
+- **RAW shooting** — essential for post-processing
+- **Good high-ISO performance** — you'll shoot at ISO 800–3200
+- **Intervalometer support** — built-in or via remote
+
+[🛒 Canon EOS R50 — Excellent Beginner Camera for Star Trails](https://www.amazon.com/s?k=Canon+EOS+R50+mirrorless+camera)
+
+[🛒 Sony Alpha a6400 — Superior High-ISO Performance for Night Sky](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera)
+
+[🛒 Nikon Z30 — Great Entry-Level Mirrorless for Astrophotography](https://www.amazon.com/s?k=Nikon+Z30+mirrorless+camera)
+
+**What Lens to Use?**
+
+- **Wide-angle (14mm–24mm):** captures more sky, shorter individual exposures needed
+- **Fast aperture (f/2.8 or wider):** gathers more light per frame
+- **The wider and faster, the better**
+
+[🛒 Rokinon 14mm f/2.8 — The Best Budget Lens for Star Trails](https://www.amazon.com/s?k=Rokinon+14mm+f2.8+ultra+wide+lens)
+
+[🛒 Sigma 18-35mm f/1.8 Art — Exceptional Low-Light Performance](https://www.amazon.com/s?k=Sigma+18-35mm+f1.8+art+lens)
+
+**Essential Accessories**
+
+[🛒 Intervalometer Remote — Automate Hundreds of Exposures Hands-Free](https://www.amazon.com/s?k=intervalometer+remote+shutter+release+camera)
+
+[🛒 Sturdy Carbon Fiber Tripod — Must Not Move a Single Millimeter](https://www.amazon.com/s?k=carbon+fiber+tripod+photography)
+
+[🛒 Extra Camera Battery Pack — Long Sessions Drain Power Fast](https://www.amazon.com/s?k=camera+battery+pack+extended+DSLR)
+
+**Step-by-Step Guide**
+
+1. **Choose your night** — new moon, clear skies, low humidity. Use SpaceHub for moon phase.
+2. **Find your composition** — include a foreground element (tree, rock, building) for depth
+3. **Point toward Polaris** — for circular trails. Or face east/west for diagonal streaks.
+4. **Set your camera:**
+   - Mode: Manual
+   - ISO: 800–1600
+   - Aperture: f/2.8
+   - Shutter: 20–25 seconds
+   - Format: RAW
+5. **Connect your intervalometer** — set: 25 sec exposure, 1 sec gap, 200+ frames
+6. **Press start and wait** — 200 frames × 25 sec = ~90 minutes of trails
+7. **Stack in software** — StarStax (free) or Lightroom
+
+**Camera Settings Summary**
+
+- **ISO:** 800–1600 (lower = cleaner, more frames needed)
+- **Aperture:** f/2.8 or wider
+- **Shutter speed:** 20–30 seconds per frame
+- **White balance:** 3800K–4200K (tungsten or custom)
+- **Focus:** manual, infinity, verified on a bright star
+
+**Free Stacking Software**
+
+- **StarStax** (free, Mac/Windows/Linux) — the most popular star trail stacker
+- **Lightroom** — great for individual frame editing before stacking
+- **Sequator** (free, Windows) — also removes satellites and planes automatically
+
+**Pro Tips**
+
+- Include a compelling foreground — trails alone can look empty
+- Shoot during astronomical twilight for a subtle blue sky gradient
+- Avoid shooting toward city lights — the glow will overpower the trails
+- Use SpaceHub to check ISS pass times — an ISS trail through your image is spectacular
+- Shoot on a weekend when fewer planes are flying (fewer streaks to remove)
+
+**The Bottom Line**
+
+Star trail photography is the perfect next step after learning basic night sky shooting. With a camera, a wide lens, a tripod, and an intervalometer, you can create images that stop people in their tracks. Pick a dark location, use SpaceHub to find a moonless night, and let your camera do the work while you sleep.
+
+Clear skies! ⭐`
+  },
+  {
     slug: 'best-dark-sky-locations-2026',
     title: 'Best Dark Sky Locations in the World 2026 — Where to See the Milky Way',
     date: 'June 21, 2026',
