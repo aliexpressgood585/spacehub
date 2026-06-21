@@ -321,7 +321,17 @@ Geomagnetic storm strength is measured on the Kp scale from 0 to 9:
 - Kp 0–2: Quiet
 - Kp 3–5: Minor storm
 - Kp 6–7: Moderate storm — auroras possible at mid-latitudes!
-- Kp 8–9: Severe storm — extreme effects possible`
+- Kp 8–9: Severe storm — extreme effects possible
+
+**Be Ready When the Next Solar Storm Hits**
+
+[🛒 Portable Power Station — Backup Power During Grid Outages](https://www.amazon.com/s?k=portable+power+station+solar+storm+backup)
+
+[🛒 Hand-Crank Emergency Radio — Works When Cell Networks Go Down](https://www.amazon.com/s?k=hand+crank+emergency+weather+radio)
+
+[🛒 Sony Alpha a6400 — Capture the Aurora When Kp Spikes](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera)
+
+[🛒 Ham Radio Transceiver — Communicate When GPS & Cell Fail](https://www.amazon.com/s?k=ham+radio+transceiver+beginner)`
   },
 ]
 
