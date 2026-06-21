@@ -294,6 +294,73 @@ You don't need expensive gear:
 2026 is one of the best years in a decade to see the Northern Lights. Monitor the Kp index on SpaceHub's Space Weather section, plan a trip to a dark location when Kp is forecast above 5, and prepare to be amazed.`
   },
   {
+    slug: 'best-astronomy-apps-2026',
+    title: 'Best Astronomy Apps 2026 — Free Star Maps, ISS Tracker & Planet Finder',
+    date: 'June 21, 2026',
+    readTime: '5 min read',
+    icon: '📱',
+    preview: 'The best astronomy apps turn your phone into a real-time star map, ISS tracker, and planet finder. Here are the top free and paid apps for iOS and Android in 2026.',
+    content: `Your smartphone is one of the most powerful astronomy tools ever created. With the right apps, you can identify any star, track the ISS to the second, get aurora alerts, and even control your telescope — all from your pocket.
+
+**The Best Free Astronomy Apps in 2026**
+
+**1. SpaceHub (Web App)**
+Real-time ISS tracking, satellite passes, space weather, moon phases, and launch countdowns — all in one place. No download needed. Works on any device.
+Use SpaceHub to know exactly when the ISS passes over your city and get alerts 10 minutes before.
+
+**2. Stellarium Mobile (Free / $2.99 Pro)**
+The gold standard of star map apps. Point your phone at the sky and it shows exactly what you're looking at — stars, planets, constellations, nebulae. Available on iOS and Android.
+- Real-time sky simulation
+- Tracks 600,000+ stars
+- Shows deep-sky objects and satellites
+- Works offline
+
+**3. NASA App (Free)**
+Official NASA app with live ISS feeds, daily Astronomy Picture of the Day, launch schedules, and breaking space news. A must-have.
+
+**4. SkySafari 7 ($14.99)**
+The most powerful astronomy app available. Used by professional astronomers and serious amateurs. Can connect directly to your telescope via Bluetooth and point it automatically.
+- 100+ million stars in the database
+- Telescope control via WiFi/Bluetooth
+- Detailed object descriptions and observing tips
+- Excellent for planning sessions
+
+**5. ISS Detector (Free)**
+Simple, focused app just for tracking the ISS and other satellites. Sends push notifications before passes. Great companion to SpaceHub.
+
+**6. Clear Outside (Free)**
+The best weather app for astronomers. Shows cloud cover, transparency, seeing conditions, and wind — all the factors that matter for a night of observing. Essential before any session.
+
+**7. PhotoPills ($9.99)**
+Indispensable for astrophotography planning. Shows exactly where the Milky Way will be at any time and location, Milky Way rise/set times, and moon position. Used by professional night photographers worldwide.
+
+**How to Use Apps + Gear Together**
+
+The best astronomy experience combines apps with the right equipment:
+- Use **SpaceHub** to know when ISS passes → step outside with **binoculars**
+- Use **Stellarium** to find Jupiter → point your **telescope** at it
+- Use **PhotoPills** to plan the Milky Way shot → set up your **camera and tripod**
+- Use **Clear Outside** to check seeing conditions → decide whether to go out
+
+**Recommended Gear to Go With Your Apps**
+
+[🛒 Celestron SkyMaster 10x50 — See What Your App Is Pointing At](https://www.amazon.com/s?k=Celestron+SkyMaster+10x50+binoculars)
+
+[🛒 Celestron PowerSeeker 127EQ — App-Compatible Beginner Telescope](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ)
+
+[🛒 Red Flashlight — Use Your App Without Ruining Night Vision](https://www.amazon.com/s?k=red+flashlight+astronomy+night+vision)
+
+[🛒 Sky & Telescope's Pocket Sky Atlas — Physical Backup When Battery Dies](https://www.amazon.com/s?k=Sky+Telescope+Pocket+Sky+Atlas)
+
+[🛒 Planisphere Star Finder — Classic Analog Star Map That Never Runs Out of Battery](https://www.amazon.com/s?k=planisphere+star+finder+astronomy)
+
+**The Bottom Line**
+
+Download SpaceHub as your first stop every night — it tells you what's happening in space right now, tonight, from your exact location. Pair it with Stellarium for star identification and Clear Outside for weather, and you have a complete astronomy toolkit that fits in your pocket.
+
+Clear skies! 🌌`
+  },
+  {
     slug: 'best-binoculars-astronomy-2026',
     title: 'Best Binoculars for Astronomy 2026 — See Jupiter\'s Moons Tonight',
     date: 'June 21, 2026',
