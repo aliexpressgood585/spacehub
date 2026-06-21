@@ -856,19 +856,29 @@ export default function BlogPage() {
             if (para.startsWith('**') && para.endsWith('**')) {
               return <h3 key={i} className="text-indigo-300 font-bold text-base mt-6 mb-2">{para.replace(/\*\*/g, '')}</h3>
             }
-            const buyMatch = para.match(/^\[([^\]]+)\]\((https?:\/\/[^)]+)\)$/)
-            if (buyMatch) {
-              return <a key={i} href={buyMatch[2]} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm rounded-lg font-semibold transition mb-5 mt-1">{buyMatch[1]} ↗</a>
+            if (para.startsWith('[') && para.includes('amazon.com')) {
+              const urlMatch = para.match(/\((https:\/\/[^)]+)\)/)
+              const textMatch = para.match(/\[([^\]]+)\]/)
+              if (urlMatch && textMatch) {
+                return (
+                  <div key={i} className="mb-4 mt-2">
+                    <a href={urlMatch[1]} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm rounded-lg font-semibold transition">
+                      {textMatch[1]} ↗
+                    </a>
+                  </div>
+                )
+              }
             }
-            if (para.includes('**') || para.includes('[')) {
-              const html = para
-                .replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>')
-                .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-indigo-400 hover:text-indigo-300 underline">$1</a>')
+            if (para.includes('**')) {
+              const html = para.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>')
               return <p key={i} className="text-gray-300 text-sm leading-relaxed mb-3" dangerouslySetInnerHTML={{ __html: html }} />
             }
             if (para.startsWith('-')) {
               const items = para.split('\n').filter(l => l.startsWith('-'))
-              return <ul key={i} className="space-y-1 mb-4">{items.map((item, j) => <li key={j} className="text-gray-400 text-sm flex gap-2"><span className="text-indigo-500">•</span>{item.slice(2)}</li>)}</ul>
+              return <ul key={i} className="space-y-1 mb-4">{items.map((item, j) => {
+                const itemHtml = item.slice(2).replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>')
+                return <li key={j} className="text-gray-400 text-sm flex gap-2"><span className="text-indigo-500">•</span><span dangerouslySetInnerHTML={{ __html: itemHtml }} /></li>
+              })}</ul>
             }
             return <p key={i} className="text-gray-300 text-sm leading-relaxed mb-3">{para}</p>
           })}
