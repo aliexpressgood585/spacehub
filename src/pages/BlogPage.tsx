@@ -294,6 +294,87 @@ You don't need expensive gear:
 2026 is one of the best years in a decade to see the Northern Lights. Monitor the Kp index on SpaceHub's Space Weather section, plan a trip to a dark location when Kp is forecast above 5, and prepare to be amazed.`
   },
   {
+    slug: 'astrophotography-beginners-2026',
+    title: 'Astrophotography for Beginners 2026 — How to Photograph the Milky Way',
+    date: 'June 21, 2026',
+    readTime: '7 min read',
+    icon: '📸',
+    preview: 'You don\'t need a $5,000 setup to photograph the Milky Way. Here\'s exactly what gear to buy and what settings to use to get stunning night sky photos in 2026.',
+    content: `Astrophotography is one of the most rewarding hobbies you can start — and in 2026, it's more accessible than ever. Modern cameras and affordable star trackers mean you can capture the Milky Way, nebulae, and even distant galaxies without breaking the bank.
+
+**What Is Astrophotography?**
+
+Astrophotography is the art of photographing the night sky — from simple Milky Way landscapes to deep-sky objects like galaxies and nebulae. There are two main types:
+- **Wide-field photography** — Milky Way arches, star trails, meteor showers. Easiest to start with.
+- **Deep-sky imaging** — galaxies, nebulae, star clusters. Requires a telescope and tracking mount.
+
+This guide focuses on wide-field photography — the best starting point for beginners.
+
+**What Camera Do You Need?**
+
+Any interchangeable-lens camera will work. The key specs to look for:
+- **Full-frame or APS-C sensor** — larger sensors capture more light
+- **Good high-ISO performance** — you'll shoot at ISO 1600–6400
+- **Mirrorless or DSLR** — both work great; mirrorless is newer and lighter
+
+[🛒 Sony Alpha a6400 — Best APS-C Camera for Night Sky Photography](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera)
+
+[🛒 Canon EOS R50 — Beginner-Friendly Mirrorless for Astrophotography](https://www.amazon.com/s?k=Canon+EOS+R50+mirrorless+camera)
+
+**What Lens Do You Need?**
+
+For Milky Way photography, you want a wide, fast lens:
+- **Focal length:** 14mm–24mm (full-frame) or 10mm–16mm (APS-C)
+- **Aperture:** f/2.8 or wider — this is the most important spec
+- **The wider the aperture, the more light reaches the sensor**
+
+[🛒 Rokinon 14mm f/2.8 — The Best Budget Ultra-Wide for Astrophotography](https://www.amazon.com/s?k=Rokinon+14mm+f2.8+ultra+wide+lens)
+
+[🛒 Sigma 18-35mm f/1.8 — Incredible Low-Light Performance](https://www.amazon.com/s?k=Sigma+18-35mm+f1.8+art+lens)
+
+**Do You Need a Star Tracker?**
+
+Without a tracker, you're limited to 15–25 second exposures before stars start trailing. A star tracker rotates to compensate for Earth's rotation — allowing exposures of several minutes and revealing far more detail.
+
+- **Without tracker:** 20-second exposures, wide-field Milky Way shots
+- **With tracker:** 3-minute exposures, galaxies and nebulae visible
+
+[🛒 Sky-Watcher Star Adventurer Mini — Best Beginner Star Tracker](https://www.amazon.com/s?k=Sky-Watcher+Star+Adventurer+Mini+tracker)
+
+[🛒 iOptron SkyGuider Pro — Step Up for Serious Deep-Sky Work](https://www.amazon.com/s?k=iOptron+SkyGuider+Pro+star+tracker)
+
+**Essential Accessories**
+
+[🛒 Carbon Fiber Tripod — Stable Platform for Long Exposures](https://www.amazon.com/s?k=carbon+fiber+tripod+photography)
+
+[🛒 Intervalometer Remote Shutter — Shoot Without Camera Shake](https://www.amazon.com/s?k=intervalometer+remote+shutter+release+camera)
+
+[🛒 Red Flashlight — Essential for Any Night Sky Session](https://www.amazon.com/s?k=red+flashlight+astronomy)
+
+**Camera Settings for the Milky Way**
+
+The "500 Rule" for sharp stars without a tracker:
+- **Shutter speed:** 500 ÷ focal length = max seconds (e.g. 500 ÷ 14mm = 35 sec)
+- **Aperture:** as wide as possible (f/2.8 or f/1.8)
+- **ISO:** start at 3200, adjust based on your camera's noise performance
+- **Focus:** manual, zoom to a bright star and focus until sharp
+- **File format:** always shoot RAW for maximum editing flexibility
+
+**Best Locations for Astrophotography**
+
+Light pollution is your biggest enemy. Use SpaceHub's Star Map to check your area, then:
+1. Drive at least 1 hour from a major city
+2. Check the Bortle scale — aim for Bortle 4 or lower
+3. Shoot during new moon phase for the darkest skies
+4. Check weather: humidity and clouds are deal-breakers
+
+**The Bottom Line**
+
+A basic astrophotography setup — camera, wide lens, tripod — costs $500–$800 and will last years. Your first Milky Way photo will be one of the most rewarding things you've ever created. Use SpaceHub to track moon phases and find the perfect night to shoot.
+
+Clear skies! 🌌`
+  },
+  {
     slug: 'space-weather-explained',
     title: 'What Is Space Weather and Why Does It Matter?',
     date: 'June 10, 2026',
