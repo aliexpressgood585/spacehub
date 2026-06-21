@@ -149,17 +149,23 @@ A good beginner telescope will show you:
 - Comes with 2 eyepieces and a 3× Barlow lens
 - Perfect first telescope for ages 10+
 
+[🛒 Buy Celestron PowerSeeker 127EQ on Amazon](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ)
+
 **Mid-Range ($200–$400): Orion StarBlast 6i IntelliScope**
 - 150mm aperture, superb views of deep-sky objects
 - IntelliScope computer helps you find 14,000 objects
 - Compact tabletop design — easy to use anywhere
 - Highly rated by astronomy communities worldwide
 
+[🛒 Buy Orion StarBlast 6i IntelliScope on Amazon](https://www.amazon.com/s?k=Orion+StarBlast+6i+IntelliScope)
+
 **Best Value ($400–$700): Sky-Watcher 8" Dobsonian**
 - Massive 200mm aperture at a surprisingly low price
 - "Light bucket" — collects more light than any telescope in this price range
 - You'll see spiral arms of galaxies at dark sky sites
 - Manual tracking — you push the telescope by hand
+
+[🛒 Buy Sky-Watcher 8" Dobsonian on Amazon](https://www.amazon.com/s?k=Sky-Watcher+8+inch+Dobsonian)
 
 **What to Avoid**
 
@@ -301,8 +307,15 @@ export default function BlogPage() {
             if (para.startsWith('**') && para.endsWith('**')) {
               return <h3 key={i} className="text-indigo-300 font-bold text-base mt-6 mb-2">{para.replace(/\*\*/g, '')}</h3>
             }
-            if (para.includes('**')) {
-              return <p key={i} className="text-gray-300 text-sm leading-relaxed mb-3" dangerouslySetInnerHTML={{ __html: para.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>') }} />
+            const buyMatch = para.match(/^\[([^\]]+)\]\((https?:\/\/[^)]+)\)$/)
+            if (buyMatch) {
+              return <a key={i} href={buyMatch[2]} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm rounded-lg font-semibold transition mb-5 mt-1">{buyMatch[1]} ↗</a>
+            }
+            if (para.includes('**') || para.includes('[')) {
+              const html = para
+                .replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>')
+                .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-indigo-400 hover:text-indigo-300 underline">$1</a>')
+              return <p key={i} className="text-gray-300 text-sm leading-relaxed mb-3" dangerouslySetInnerHTML={{ __html: html }} />
             }
             if (para.startsWith('-')) {
               const items = para.split('\n').filter(l => l.startsWith('-'))
