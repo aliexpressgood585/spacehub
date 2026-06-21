@@ -22,7 +22,7 @@ import StarMap from './components/StarMap'
 import SpaceQuiz from './components/SpaceQuiz'
 import ShareCard from './components/ShareCard'
 import BlogPage from './pages/BlogPage'
-import CityPage from './pages/CityPage'
+import CityPage, { CITY_DATA } from './pages/CityPage'
 import PrivacyPage from './pages/PrivacyPage'
 import SuccessPage from './pages/SuccessPage'
 
@@ -163,14 +163,14 @@ const [issData, setIssData] = useState<{ lat: number; lng: number; alt: number }
           <p className="text-2xl mb-3">🚀</p>
           <p className="text-white font-bold mb-1">SpaceHub</p>
           <p className="text-gray-600 text-xs mb-4">Real-time Space Data</p>
-          <div className="flex flex-wrap gap-3 justify-center text-gray-700 text-xs mb-4">
+          <div className="flex flex-wrap gap-2 justify-center text-gray-700 text-xs mb-4">
             <Link to="/blog" className="hover:text-gray-400 transition">Blog</Link>
-            <Link to="/iss/new-york" className="hover:text-gray-400 transition">ISS New York</Link>
-            <Link to="/iss/london" className="hover:text-gray-400 transition">ISS London</Link>
-            <Link to="/iss/los-angeles" className="hover:text-gray-400 transition">ISS Los Angeles</Link>
-            <Link to="/iss/tel-aviv" className="hover:text-gray-400 transition">ISS Tel Aviv</Link>
             <Link to="/privacy" className="hover:text-gray-400 transition">Privacy Policy</Link>
-            {/* Premium button hidden temporarily */}
+            {Object.entries(CITY_DATA).map(([slug, c]) => (
+              <Link key={slug} to={`/iss/${slug}`} className="hover:text-gray-400 transition">
+                ISS {c.name}
+              </Link>
+            ))}
           </div>
           <p className="text-gray-800 text-xs">Data: NASA • Spaceflight News API • wheretheiss.at • open-notify</p>
           <p className="text-gray-800 text-xs mt-1">© 2026 SpaceHub</p>
