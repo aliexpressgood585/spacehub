@@ -41,10 +41,19 @@ const TABS: { id: Tab; icon: string; label: string }[] = [
   { id: 'blog',      icon: '📝', label: 'Blog' },
 ]
 
+const FOOTER_FEATURES = [
+  { icon: '🛸', label: 'ISS Tracker' },
+  { icon: '🌌', label: 'Star Map' },
+  { icon: '🛰️', label: 'Satellites' },
+  { icon: '🌙', label: 'Moon Phase' },
+  { icon: '🚀', label: 'Launches' },
+  { icon: '⛈️', label: 'Space Weather' },
+]
+
 function MainApp() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard')
   const [lang, setLang] = useState<'he' | 'en'>('en')
-const [issData, setIssData] = useState<{ lat: number; lng: number; alt: number } | null>(null)
+  const [issData, setIssData] = useState<{ lat: number; lng: number; alt: number } | null>(null)
   const issRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -52,7 +61,6 @@ const [issData, setIssData] = useState<{ lat: number; lng: number; alt: number }
     document.documentElement.dir = lang === 'he' ? 'rtl' : 'ltr'
   }, [lang])
 
-  // Fetch ISS for ShareCard
   useEffect(() => {
     fetch('https://api.wheretheiss.at/v1/satellites/25544')
       .then(r => r.json())
@@ -66,9 +74,8 @@ const [issData, setIssData] = useState<{ lat: number; lng: number; alt: number }
   }
 
   return (
-    <div className="min-h-screen relative" style={{ background: '#050816' }}>
+    <div className="min-h-screen relative" style={{ background: '#020510' }}>
       <SpaceBackground />
-      {/* <PremiumModal open={premiumOpen} onClose={() => setPremiumOpen(false)} /> */}
 
       <div className="relative" style={{ zIndex: 1 }}>
         <Header
@@ -80,13 +87,20 @@ const [issData, setIssData] = useState<{ lat: number; lng: number; alt: number }
         <LiveTicker />
         <Hero lang={lang} onPremium={() => {}} onScrollToISS={scrollToISS} />
 
-        <div className="max-w-7xl mx-auto px-4 mb-6">
+        {/* Divider */}
+        <div className="divider-glow my-0" />
+
+        <div className="max-w-7xl mx-auto px-4 py-6 mb-2">
           <AdBanner />
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 pb-16">
-          {/* Tab bar */}
-          <div className="flex gap-1.5 mb-8 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+        <div className="max-w-7xl mx-auto px-4 pb-20">
+
+          {/* Tab navigation */}
+          <div
+            className="flex gap-1.5 mb-8 overflow-x-auto pb-2"
+            style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
+          >
             {TABS.map(tab => (
               <button
                 key={tab.id}
@@ -99,83 +113,135 @@ const [issData, setIssData] = useState<{ lat: number; lng: number; alt: number }
             ))}
           </div>
 
-          {activeTab === 'dashboard' && (
-            <div className="space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <AstronautsInSpace />
-                <MoonPhase />
-                <LaunchCountdown />
+          {/* Tab content */}
+          <div key={activeTab} className="animate-fade-up" style={{ animationDuration: '0.4s' }}>
+
+            {activeTab === 'dashboard' && (
+              <div className="space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <AstronautsInSpace />
+                  <MoonPhase />
+                  <LaunchCountdown />
+                </div>
+                <div ref={issRef}><ISSAlertSystem /></div>
+                <ISSPassPredictor />
+                <ISSTracker />
+                <ShareCard issLat={issData?.lat} issLng={issData?.lng} issAlt={issData?.alt} />
+                <NasaAPOD />
+                <AdBanner />
               </div>
-              <div ref={issRef}><ISSAlertSystem /></div>
-              <ISSPassPredictor />
-              <ISSTracker />
-              <ShareCard issLat={issData?.lat} issLng={issData?.lng} issAlt={issData?.alt} />
-              <NasaAPOD />
-              <AdBanner />
-            </div>
-          )}
+            )}
 
-          {activeTab === 'starmap' && (
-            <div className="space-y-5">
-              <StarMap />
-              <div className="space-card p-5">
-                <h3 className="text-white font-semibold mb-2">💡 ISS in Tonight's Sky</h3>
-                <p className="text-gray-400 text-sm">Switch to the ISS Live tab to know exactly when the ISS passes over you and in which direction.</p>
-                <button onClick={() => setActiveTab('dashboard')} className="mt-3 btn-shimmer px-4 py-2 text-sm">
-                  🛸 Go to ISS Live
-                </button>
+            {activeTab === 'starmap' && (
+              <div className="space-y-5">
+                <StarMap />
+                <div className="space-card p-6">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="icon-box text-xl">🛸</div>
+                    <div>
+                      <h3 className="text-white font-bold text-base">See ISS in Tonight's Sky</h3>
+                      <p className="text-gray-500 text-xs">Switch to ISS Live for exact pass times</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setActiveTab('dashboard')} className="btn-shimmer px-5 py-2.5 text-sm">
+                    🛸 Go to ISS Live
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {activeTab === 'tracker' && <SatelliteTracker />}
+            {activeTab === 'tracker' && <SatelliteTracker />}
 
-          {activeTab === 'solar' && (
-            <div className="space-card p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <span className="text-2xl">🪐</span>
-                <h3 className="text-xl font-bold text-white">Solar System — 3D</h3>
+            {activeTab === 'solar' && (
+              <div className="space-card p-6">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="icon-box">🪐</div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">Solar System — 3D</h3>
+                    <p className="text-gray-500 text-sm">Interactive real-time planet positions</p>
+                  </div>
+                </div>
+                <SolarSystem3D />
               </div>
-              <SolarSystem3D />
-            </div>
-          )}
+            )}
 
-          {activeTab === 'weather' && <SpaceWeather />}
-          {activeTab === 'events'  && <EventsCalendar />}
+            {activeTab === 'weather' && <SpaceWeather />}
+            {activeTab === 'events'  && <EventsCalendar />}
 
-          {activeTab === 'news' && (
-            <div className="space-y-5">
-              <SpaceNewsFeed />
-              <AdBanner />
-            </div>
-          )}
+            {activeTab === 'news' && (
+              <div className="space-y-5">
+                <SpaceNewsFeed />
+                <AdBanner />
+              </div>
+            )}
 
-          {activeTab === 'quiz' && (
-            <div className="max-w-lg mx-auto">
-              <SpaceQuiz />
-            </div>
-          )}
+            {activeTab === 'quiz' && (
+              <div className="max-w-lg mx-auto">
+                <SpaceQuiz />
+              </div>
+            )}
 
-          {activeTab === 'blog' && <BlogPage />}
+            {activeTab === 'blog' && <BlogPage />}
 
-          <div className="mt-12"><EmailCapture /></div>
+          </div>
+
+          <div className="mt-14 mb-4">
+            <div className="divider-glow mb-12" />
+            <EmailCapture />
+          </div>
         </div>
 
-        <footer className="border-t border-white/[0.04] py-10 text-center">
-          <p className="text-2xl mb-3">🚀</p>
-          <p className="text-white font-bold mb-1">SpaceHub</p>
-          <p className="text-gray-600 text-xs mb-4">Real-time Space Data</p>
-          <div className="flex flex-wrap gap-2 justify-center text-gray-700 text-xs mb-4">
-            <Link to="/blog" className="hover:text-gray-400 transition">Blog</Link>
-            <Link to="/privacy" className="hover:text-gray-400 transition">Privacy Policy</Link>
-            {Object.entries(CITY_DATA).map(([slug, c]) => (
-              <Link key={slug} to={`/iss/${slug}`} className="hover:text-gray-400 transition">
-                ISS {c.name}
-              </Link>
-            ))}
+        {/* FOOTER */}
+        <footer style={{ background: 'linear-gradient(180deg, rgba(2,5,16,0) 0%, rgba(2,5,16,0.8) 30%, #020510 100%)', borderTop: '1px solid rgba(99,102,241,0.1)' }}>
+          <div className="max-w-5xl mx-auto px-4 py-16">
+
+            {/* Top row */}
+            <div className="flex flex-col md:flex-row items-center md:items-start gap-10 mb-12">
+              {/* Brand */}
+              <div className="text-center md:text-left flex-shrink-0">
+                <div className="flex items-center gap-3 justify-center md:justify-start mb-3">
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-600 to-purple-700 flex items-center justify-center text-xl shadow-lg shadow-indigo-900/60">
+                    🚀
+                  </div>
+                  <div className="font-black text-2xl text-white">Space<span className="gradient-text">Hub</span></div>
+                </div>
+                <p className="text-gray-500 text-sm max-w-xs leading-relaxed">
+                  The world's most complete free space data platform. Track the ISS live, monitor space weather, explore the solar system.
+                </p>
+              </div>
+
+              {/* Features grid */}
+              <div className="flex-1 grid grid-cols-3 sm:grid-cols-6 gap-3">
+                {FOOTER_FEATURES.map(f => (
+                  <div key={f.label} className="text-center p-3 rounded-xl border border-white/[0.05] bg-white/[0.02] hover:border-indigo-500/30 hover:bg-indigo-500/[0.05] transition-all cursor-default">
+                    <div className="text-xl mb-1">{f.icon}</div>
+                    <div className="text-gray-600 text-[10px] font-medium">{f.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="divider-glow mb-8" />
+
+            {/* Links */}
+            <div className="flex flex-wrap gap-x-6 gap-y-2 justify-center mb-6">
+              <Link to="/blog" className="text-gray-600 hover:text-indigo-400 text-xs font-medium transition-colors">📝 Blog</Link>
+              <Link to="/privacy" className="text-gray-600 hover:text-indigo-400 text-xs font-medium transition-colors">Privacy Policy</Link>
+              {Object.entries(CITY_DATA).map(([slug, c]) => (
+                <Link key={slug} to={`/iss/${slug}`} className="text-gray-700 hover:text-gray-400 text-xs transition-colors">
+                  ISS {c.name}
+                </Link>
+              ))}
+            </div>
+
+            {/* Data sources */}
+            <div className="text-center">
+              <p className="text-gray-700 text-xs mb-2">
+                Data: NASA Open APIs • Spaceflight News API • wheretheiss.at • open-notify.org
+              </p>
+              <p className="text-gray-800 text-xs">© 2026 SpaceHub · Made with ❤️ for space enthusiasts everywhere</p>
+            </div>
           </div>
-          <p className="text-gray-800 text-xs">Data: NASA • Spaceflight News API • wheretheiss.at • open-notify</p>
-          <p className="text-gray-800 text-xs mt-1">© 2026 SpaceHub</p>
         </footer>
       </div>
     </div>
@@ -188,9 +254,9 @@ export default function App() {
       <Routes>
         <Route path="/" element={<MainApp />} />
         <Route path="/blog" element={
-          <div style={{ background: '#050816', minHeight: '100vh' }}>
+          <div style={{ background: '#020510', minHeight: '100vh' }}>
             <div style={{ zIndex: 1, position: 'relative' }}>
-              <Link to="/" className="fixed top-4 right-4 z-50 text-indigo-400 text-sm glass px-3 py-2 rounded-lg border border-white/10">
+              <Link to="/" className="fixed top-4 right-4 z-50 text-indigo-400 text-xs glass px-4 py-2 rounded-xl border border-white/[0.08] hover:border-indigo-500/40 transition-all font-semibold">
                 ← SpaceHub
               </Link>
               <BlogPage />

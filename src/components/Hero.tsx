@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react'
+
 interface Props {
   lang: 'he' | 'en'
   onPremium: () => void
@@ -6,77 +8,139 @@ interface Props {
 
 export default function Hero({ lang, onScrollToISS }: Props) {
   const he = lang === 'he'
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    const resize = () => {
+      canvas.width = canvas.offsetWidth
+      canvas.height = canvas.offsetHeight
+    }
+    resize()
+    window.addEventListener('resize', resize)
+
+    const stars: { x: number; y: number; r: number; o: number; speed: number }[] = []
+    for (let i = 0; i < 180; i++) {
+      stars.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        r: Math.random() * 1.4 + 0.3,
+        o: Math.random(),
+        speed: Math.random() * 0.008 + 0.003,
+      })
+    }
+
+    let raf: number
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      stars.forEach(s => {
+        s.o += s.speed
+        if (s.o > 1) s.speed = -s.speed
+        if (s.o < 0) s.speed = -s.speed
+        ctx.beginPath()
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2)
+        ctx.fillStyle = `rgba(${s.r > 1 ? '200,190,255' : '255,255,255'},${Math.abs(s.o).toFixed(2)})`
+        ctx.fill()
+      })
+      raf = requestAnimationFrame(draw)
+    }
+    draw()
+
+    return () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener('resize', resize)
+    }
+  }, [])
 
   return (
-    <div className="hero-bg relative overflow-hidden">
-      {/* Decorative orbs */}
-      <div className="absolute top-10 left-1/4 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-48 h-48 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
+    <div className="hero-bg relative overflow-hidden" style={{ minHeight: '520px' }}>
+      {/* Animated star canvas */}
+      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full opacity-60 pointer-events-none" />
 
-      <div className="max-w-5xl mx-auto px-4 pt-16 pb-12 text-center relative">
-        {/* Eyebrow */}
-        <div className="inline-flex items-center gap-2 mb-6">
-          <span className="section-label">
+      {/* Nebula orbs */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%)', filter: 'blur(60px)', animation: 'nebula-drift 12s ease-in-out infinite' }} />
+      <div className="absolute bottom-0 right-1/4 w-72 h-72 rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 70%)', filter: 'blur(60px)', animation: 'nebula-drift 16s ease-in-out infinite reverse' }} />
+      <div className="absolute top-1/2 left-10 w-48 h-48 rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(56,189,248,0.08) 0%, transparent 70%)', filter: 'blur(40px)' }} />
+
+      <div className="max-w-5xl mx-auto px-4 pt-20 pb-16 text-center relative" style={{ zIndex: 1 }}>
+
+        {/* Eyebrow badge */}
+        <div className="inline-flex items-center gap-3 mb-8">
+          <div className="live-badge">
             <span className="live-dot" />
             {he ? 'נתונים חיים מהחלל' : 'Live data from space'}
-          </span>
+          </div>
         </div>
 
-        {/* Title */}
-        <h2 className="text-5xl sm:text-6xl font-black text-white mb-5 leading-[1.1] tracking-tight">
+        {/* Main title */}
+        <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white mb-6 leading-[1.05] tracking-tight">
           {he ? (
             <>
               עקוב אחרי{' '}
               <span className="gradient-text">תחנת החלל</span>
-              <br />בזמן אמת
+              <br />
+              <span style={{ color: 'rgba(255,255,255,0.55)' }}>בזמן אמת</span>
             </>
           ) : (
             <>
               Track the{' '}
-              <span className="gradient-text">Space Station</span>
-              <br />in Real Time
+              <span className="gradient-text">ISS Live</span>
+              <br />
+              <span style={{ color: 'rgba(255,255,255,0.55)' }}>from Anywhere on Earth</span>
             </>
           )}
-        </h2>
+        </h1>
 
-        <p className="text-base text-gray-400 mb-8 max-w-lg mx-auto leading-relaxed">
+        {/* Subtitle */}
+        <p className="text-base sm:text-lg text-gray-400 mb-10 max-w-xl mx-auto leading-relaxed font-light">
           {he
             ? 'קבל התראה כשה-ISS עובר מעליך, ראה מי בחלל עכשיו, עקוב אחרי ירח, שיגורים ומזג אוויר חלל — הכל חינם'
-            : 'Get notified when ISS passes overhead, see who\'s in space now, track moon phases, launches & space weather — all free'}
+            : "Get notified when ISS passes overhead. Track moon phases, solar storms, rocket launches, and 40,000+ satellites — all free."}
         </p>
 
         {/* CTAs */}
-        <div className="flex flex-wrap gap-3 justify-center mb-12">
+        <div className="flex flex-wrap gap-3 justify-center mb-14">
           <button
             onClick={onScrollToISS}
-            className="btn-shimmer px-7 py-3.5 text-sm flex items-center gap-2"
+            className="btn-shimmer px-8 py-4 text-sm flex items-center gap-2.5"
           >
-            <span>🛸</span>
-            {he ? 'איפה ISS עכשיו?' : 'Where is ISS?'}
+            <span className="text-lg">🛸</span>
+            <span>{he ? 'איפה ISS עכשיו?' : 'Where is ISS now?'}</span>
           </button>
-          {/* Premium button hidden temporarily */}
           <a
-            href={`https://wa.me/?text=${encodeURIComponent('SpaceHub - Real-time Space Data 🚀 https://spacehub-nu.vercel.app')}`}
+            href={`https://wa.me/?text=${encodeURIComponent('SpaceHub — Real-time Space Tracker 🚀 https://spacehub-nu.vercel.app')}`}
             target="_blank" rel="noopener noreferrer"
-            className="px-7 py-3.5 text-sm border border-white/10 text-gray-400 hover:text-white hover:border-white/20 rounded-xl transition bg-white/[0.03] flex items-center gap-2"
+            className="btn-ghost flex items-center gap-2.5 px-8 py-4 text-sm"
           >
-            📲 {he ? 'שתף' : 'Share'}
+            <span className="text-lg">📲</span>
+            <span>{he ? 'שתף עם חבר' : 'Share with a friend'}</span>
           </a>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-xl mx-auto">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto">
           {[
-            { n: '7+',    sub: he ? 'אסטרונאוטים בחלל' : 'Astronauts in space' },
-            { n: '8',     sub: he ? 'כוכבי לכת חיים'   : 'Live planets' },
-            { n: '92',    sub: he ? 'דקות להקפה'        : 'Mins per orbit' },
-            { n: '24/7',  sub: he ? 'בזמן אמת'          : 'Real-time' },
+            { n: '7+',    label: he ? 'אסטרונאוטים בחלל' : 'Astronauts in space', icon: '👨‍🚀' },
+            { n: '408',   label: he ? 'ק"מ מעל כדור הארץ' : 'km above Earth',      icon: '🌍' },
+            { n: '92',    label: he ? 'דקות להקפה'         : 'Minutes per orbit',    icon: '⏱️' },
+            { n: '24/7',  label: he ? 'בזמן אמת'           : 'Real-time tracking',   icon: '📡' },
           ].map(s => (
             <div key={s.n} className="stat-card">
-              <p className="text-2xl font-black gradient-text mb-0.5">{s.n}</p>
-              <p className="text-xs text-gray-600 leading-tight">{s.sub}</p>
+              <div className="text-xl mb-1">{s.icon}</div>
+              <p className="text-2xl sm:text-3xl font-black gradient-text mb-1">{s.n}</p>
+              <p className="text-xs text-gray-600 leading-tight">{s.label}</p>
             </div>
           ))}
+        </div>
+
+        {/* Scroll hint */}
+        <div className="mt-10 flex flex-col items-center gap-2 opacity-40">
+          <div className="text-xs text-gray-500 tracking-widest uppercase">Scroll to explore</div>
+          <div style={{ width: 1, height: 32, background: 'linear-gradient(180deg, rgba(99,102,241,0.6), transparent)' }} />
         </div>
       </div>
     </div>

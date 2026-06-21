@@ -2037,73 +2037,175 @@ export default function BlogPage() {
 
   if (article) return (
     <div className="max-w-2xl mx-auto px-4 py-12">
-      <button onClick={() => setActive(null)} className="text-indigo-400 text-sm mb-6 hover:text-indigo-300 flex items-center gap-1">
-        ← Back to Blog
+      <button
+        onClick={() => setActive(null)}
+        className="flex items-center gap-2 text-indigo-400 hover:text-indigo-300 text-sm font-semibold mb-8 group transition-all"
+      >
+        <span className="group-hover:-translate-x-1 transition-transform">←</span>
+        Back to Blog
       </button>
+
       <div className="space-card p-8">
-        <div className="flex items-center gap-3 mb-2">
-          <span className="text-3xl">{article.icon}</span>
-          <div>
-            <p className="text-xs text-gray-600">{article.date} • {article.readTime}</p>
+        {/* Article header */}
+        <div className="flex items-start gap-4 mb-6">
+          <div className="icon-box text-2xl flex-shrink-0">{article.icon}</div>
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <span className="tag-chip tag-chip-blue">Astronomy</span>
+              <span className="text-gray-700 text-xs">{article.date}</span>
+              <span className="text-gray-700 text-xs">·</span>
+              <span className="text-gray-700 text-xs">{article.readTime}</span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-white leading-snug">{article.title}</h1>
           </div>
         </div>
-        <h1 className="text-2xl font-black text-white mb-6 leading-snug">{article.title}</h1>
+
+        {/* Divider */}
+        <div className="divider-glow mb-6" />
+
+        {/* Article body */}
         <div className="prose prose-invert max-w-none">
           {article.content.split('\n\n').map((para, i) => {
             if (para.startsWith('**') && para.endsWith('**')) {
-              return <h3 key={i} className="text-indigo-300 font-bold text-base mt-6 mb-2">{para.replace(/\*\*/g, '')}</h3>
+              return (
+                <h3 key={i} className="text-indigo-300 font-bold text-base mt-8 mb-3 flex items-center gap-2">
+                  <span style={{ width: 3, height: 16, background: 'linear-gradient(180deg,#6366f1,#8b5cf6)', borderRadius: 2, display: 'inline-block', flexShrink: 0 }} />
+                  {para.replace(/\*\*/g, '')}
+                </h3>
+              )
             }
             if (para.startsWith('[') && para.includes('amazon.com')) {
               const urlMatch = para.match(/\((https:\/\/[^)]+)\)/)
               const textMatch = para.match(/\[([^\]]+)\]/)
               if (urlMatch && textMatch) {
                 return (
-                  <div key={i} className="mb-4 mt-2">
-                    <a href={urlMatch[1]} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm rounded-lg font-semibold transition">
-                      {textMatch[1]} ↗
+                  <div key={i} className="mb-3 mt-2">
+                    <a href={urlMatch[1]} target="_blank" rel="noopener noreferrer" className="buy-btn">
+                      <span>🛒</span>
+                      <span>{textMatch[1].replace(/^🛒\s*/, '')}</span>
+                      <span style={{ marginLeft: 'auto', opacity: 0.6 }}>↗</span>
                     </a>
                   </div>
                 )
               }
             }
             if (para.includes('**')) {
-              const html = para.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>')
-              return <p key={i} className="text-gray-300 text-sm leading-relaxed mb-3" dangerouslySetInnerHTML={{ __html: html }} />
+              const html = para.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#e5e7eb;font-weight:600">$1</strong>')
+              return <p key={i} className="text-gray-400 text-sm leading-relaxed mb-4" dangerouslySetInnerHTML={{ __html: html }} />
             }
             if (para.startsWith('-')) {
               const items = para.split('\n').filter(l => l.startsWith('-'))
-              return <ul key={i} className="space-y-1 mb-4">{items.map((item, j) => {
-                const itemHtml = item.slice(2).replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>')
-                return <li key={j} className="text-gray-400 text-sm flex gap-2"><span className="text-indigo-500">•</span><span dangerouslySetInnerHTML={{ __html: itemHtml }} /></li>
-              })}</ul>
+              return (
+                <ul key={i} className="space-y-2 mb-5">
+                  {items.map((item, j) => {
+                    const itemHtml = item.slice(2).replace(/\*\*(.*?)\*\*/g, '<strong style="color:#e5e7eb;font-weight:600">$1</strong>')
+                    return (
+                      <li key={j} className="text-gray-400 text-sm flex gap-3 leading-relaxed">
+                        <span className="text-indigo-500 mt-0.5 flex-shrink-0">▸</span>
+                        <span dangerouslySetInnerHTML={{ __html: itemHtml }} />
+                      </li>
+                    )
+                  })}
+                </ul>
+              )
             }
-            return <p key={i} className="text-gray-300 text-sm leading-relaxed mb-3">{para}</p>
+            if (para.startsWith('Step ')) {
+              return <p key={i} className="text-gray-300 text-sm leading-relaxed mb-3 pl-4 border-l-2 border-indigo-500/40">{para}</p>
+            }
+            return <p key={i} className="text-gray-400 text-sm leading-relaxed mb-4">{para}</p>
           })}
+        </div>
+
+        {/* Footer */}
+        <div className="divider-glow mt-8 mb-6" />
+        <div className="flex items-center justify-between">
+          <button onClick={() => setActive(null)} className="text-indigo-400 hover:text-indigo-300 text-sm font-semibold transition-colors">
+            ← More Articles
+          </button>
+          <a
+            href={`https://wa.me/?text=${encodeURIComponent(`${article.title} — SpaceHub https://spacehub-nu.vercel.app`)}`}
+            target="_blank" rel="noopener noreferrer"
+            className="text-xs text-gray-600 hover:text-gray-400 transition-colors font-medium"
+          >
+            📲 Share Article
+          </a>
         </div>
       </div>
     </div>
   )
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-12">
-      <div className="text-center mb-10">
-        <span className="section-label mb-4 inline-flex">📝 Space Blog</span>
-        <h2 className="text-3xl font-black text-white mt-3">Articles on Space & Astronomy</h2>
-        <p className="text-gray-500 text-sm mt-2">Guides, facts, and upcoming events</p>
+    <div className="max-w-5xl mx-auto px-4 py-12">
+      {/* Header */}
+      <div className="text-center mb-12">
+        <span className="section-label mb-5 inline-flex">📝 Space Blog</span>
+        <h2 className="text-3xl sm:text-4xl font-black text-white mt-4 mb-3 leading-tight">
+          Articles on Space & <span className="gradient-text">Astronomy</span>
+        </h2>
+        <p className="text-gray-500 text-sm max-w-md mx-auto">
+          {ARTICLES.length} guides, gear reviews, and sky event alerts — all free
+        </p>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {ARTICLES.map(a => (
-          <button key={a.slug} onClick={() => setActive(a.slug)} className="space-card p-5 text-left hover:border-indigo-500/40 transition">
-            <div className="text-3xl mb-3">{a.icon}</div>
-            <h3 className="text-white font-bold text-sm mb-2 leading-snug">{a.title}</h3>
-            <p className="text-gray-500 text-xs mb-3 line-clamp-2">{a.preview}</p>
-            <div className="flex items-center gap-2 text-xs text-gray-700">
-              <span>{a.date}</span>
-              <span>•</span>
-              <span>{a.readTime}</span>
+
+      {/* Featured post (first article) */}
+      <button
+        onClick={() => setActive(ARTICLES[0].slug)}
+        className="w-full mb-6 text-left blog-card p-7 group"
+        style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(139,92,246,0.08) 40%, rgba(8,11,34,0.98) 100%)' }}
+      >
+        <div className="flex items-start gap-5">
+          <div className="text-5xl">{ARTICLES[0].icon}</div>
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <span className="tag-chip tag-chip-gold">⭐ Featured</span>
+              <span className="text-gray-600 text-xs">{ARTICLES[0].date} · {ARTICLES[0].readTime}</span>
+            </div>
+            <h3 className="text-white font-black text-lg sm:text-xl mb-2 leading-snug group-hover:text-indigo-200 transition-colors">
+              {ARTICLES[0].title}
+            </h3>
+            <p className="text-gray-500 text-sm leading-relaxed line-clamp-2">{ARTICLES[0].preview}</p>
+          </div>
+          <div className="hidden sm:block text-indigo-500 text-xl group-hover:translate-x-1 transition-transform flex-shrink-0">→</div>
+        </div>
+      </button>
+
+      {/* Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        {ARTICLES.slice(1).map(a => (
+          <button
+            key={a.slug}
+            onClick={() => setActive(a.slug)}
+            className="blog-card p-5 text-left group"
+          >
+            <div className="flex items-start gap-3 mb-3">
+              <div
+                className="w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.18), rgba(139,92,246,0.12))', border: '1px solid rgba(99,102,241,0.2)' }}
+              >
+                {a.icon}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[10px] text-gray-700 font-medium mb-1">{a.readTime}</div>
+                <h3 className="text-white font-bold text-sm leading-snug group-hover:text-indigo-200 transition-colors line-clamp-2">
+                  {a.title}
+                </h3>
+              </div>
+            </div>
+            <p className="text-gray-600 text-xs leading-relaxed line-clamp-2 mb-3">{a.preview}</p>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-gray-700">{a.date}</span>
+              <span className="text-indigo-600 text-xs font-semibold group-hover:text-indigo-400 transition-colors">Read →</span>
             </div>
           </button>
         ))}
+      </div>
+
+      {/* Bottom CTA */}
+      <div className="mt-12 text-center">
+        <div className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] text-gray-600 text-xs">
+          <span className="live-dot" style={{ background: '#6366f1', boxShadow: '0 0 8px rgba(99,102,241,0.8)' }} />
+          New articles added every week · {ARTICLES.length} total articles
+        </div>
       </div>
     </div>
   )
