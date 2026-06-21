@@ -29,7 +29,17 @@ Use SpaceHub! Enter your city and you'll get a precise alert when the ISS is ove
 - It's as large as a football field
 - Construction cost: $150 billion
 - 15 countries collaborate to operate it
-- Astronauts have lived aboard continuously since the year 2000`
+- Astronauts have lived aboard continuously since the year 2000
+
+**Gear to Enhance Your ISS Viewing Experience**
+
+[🛒 10x50 Binoculars — See the ISS Shape as It Passes Over](https://www.amazon.com/s?k=10x50+binoculars+astronomy+stargazing)
+
+[🛒 Red Flashlight — Read Star Charts Without Ruining Night Vision](https://www.amazon.com/s?k=red+flashlight+astronomy)
+
+[🛒 Reclining Camping Chair — Comfortable ISS Watching Position](https://www.amazon.com/s?k=reclining+camping+chair+stargazing)
+
+[🛒 Celestron PowerSeeker 127EQ — For When You Want More Than the Naked Eye](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ)`
   },
   {
     slug: 'perseid-meteor-shower-2026',
