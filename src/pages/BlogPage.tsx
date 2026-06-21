@@ -294,6 +294,83 @@ You don't need expensive gear:
 2026 is one of the best years in a decade to see the Northern Lights. Monitor the Kp index on SpaceHub's Space Weather section, plan a trip to a dark location when Kp is forecast above 5, and prepare to be amazed.`
   },
   {
+    slug: 'best-dark-sky-locations-2026',
+    title: 'Best Dark Sky Locations in the World 2026 — Where to See the Milky Way',
+    date: 'June 21, 2026',
+    readTime: '6 min read',
+    icon: '🌌',
+    preview: 'Light pollution blocks 80% of the world\'s population from seeing the Milky Way. These are the darkest, most breathtaking places on Earth to stargaze in 2026.',
+    content: `Light pollution has stolen the night sky from most of humanity. If you live in or near a city, you've probably never seen the true Milky Way — a river of hundreds of millions of stars stretching across the entire sky. These locations will change that forever.
+
+**Understanding the Bortle Scale**
+
+The Bortle scale measures sky darkness from 1 (perfectly dark) to 9 (inner city):
+- **Bortle 1–2:** Truly dark sky — the Milky Way casts a shadow on the ground
+- **Bortle 3–4:** Rural sky — excellent for visual observing and photography
+- **Bortle 5–6:** Suburban sky — Milky Way visible but washed out
+- **Bortle 7–9:** Urban sky — only the brightest stars visible
+
+Most cities are Bortle 8–9. You need to travel to Bortle 4 or lower for a real dark sky experience.
+
+**The World's Best Dark Sky Destinations**
+
+**1. Atacama Desert, Chile — Bortle 1**
+The driest place on Earth, with 300+ clear nights per year and altitude above 2,400m. Home to the world's most powerful telescopes (ALMA, VLT). The night sky here is indescribable — the Milky Way is so bright it illuminates the desert floor.
+
+**2. NamibRand Nature Reserve, Namibia — Bortle 1**
+Africa's first International Dark Sky Reserve. The combination of pitch-black skies and dramatic desert landscapes makes this one of the most photogenic stargazing destinations on Earth.
+
+**3. Mauna Kea, Hawaii, USA — Bortle 1–2**
+At 4,200m altitude, above 40% of Earth's atmosphere. Home to 13 world-class observatories. Visitors can use public stargazing programs at the Visitor Information Station (2,800m).
+
+**4. Aoraki Mackenzie Dark Sky Reserve, New Zealand — Bortle 1**
+The largest Dark Sky Reserve in the world. From New Zealand you see the southern Milky Way — the galactic center directly overhead — which is far more dramatic than the northern hemisphere view.
+
+**5. Kerry International Dark Sky Reserve, Ireland — Bortle 2**
+Europe's only Gold-tier Dark Sky Reserve. Wild Atlantic landscapes meet pristine dark skies — a surprising gem right in Western Europe.
+
+**6. Cherry Springs State Park, Pennsylvania, USA — Bortle 2**
+The darkest easily accessible spot on the US East Coast. Just a 5-hour drive from New York City. A favorite among East Coast amateur astronomers.
+
+**7. Pic du Midi, French Pyrenees — Bortle 2**
+A mountain observatory at 2,877m with public night access. Stunning views of the Milky Way above the Alps. Accessible by cable car.
+
+**How to Find Dark Skies Near You**
+
+1. Open **SpaceHub's Star Map** to see your current sky conditions
+2. Check **lightpollutionmap.info** for a global Bortle map
+3. Drive in the direction away from city glow — usually 1–2 hours is enough to reach Bortle 4
+4. Aim for new moon nights — a full moon washes out the Milky Way completely
+5. Check weather: dry, stable air gives the best transparency
+
+**When to Go**
+
+- **Milky Way core visible:** March–October (northern hemisphere)
+- **Best months:** June–August — the galactic center is highest in the sky
+- **Peak time:** 10pm–2am local time
+- **Avoid:** full moon (±5 days), humid nights, and summer haze
+
+**What to Bring to a Dark Sky Site**
+
+[🛒 Celestron SkyMaster 15x70 Binoculars — See the Milky Way in Detail](https://www.amazon.com/s?k=Celestron+SkyMaster+15x70+binoculars)
+
+[🛒 Sky-Watcher 8" Dobsonian Telescope — The Ultimate Dark Sky Companion](https://www.amazon.com/s?k=Sky-Watcher+8+inch+Dobsonian+telescope)
+
+[🛒 Self-Inflating Sleeping Pad — Lie Back and Watch for Hours](https://www.amazon.com/s?k=self+inflating+sleeping+pad+camping)
+
+[🛒 Red Headlamp — Hands-Free Night Vision Preservation](https://www.amazon.com/s?k=red+headlamp+astronomy+night+vision)
+
+[🛒 Warm Sleeping Bag — Mountains Get Cold Even in Summer](https://www.amazon.com/s?k=lightweight+sleeping+bag+cold+weather+camping)
+
+[🛒 Sony Alpha a6400 + Wide Lens Kit — Capture the Milky Way](https://www.amazon.com/s?k=Sony+Alpha+a6400+camera+kit)
+
+**The Bottom Line**
+
+A single night under truly dark skies will permanently change how you see the universe. You'll understand why ancient civilizations built entire religions around the stars — because when you see it properly, the night sky is overwhelming. Use SpaceHub to pick the perfect night, then drive until the city lights disappear behind you.
+
+Clear skies! 🌌`
+  },
+  {
     slug: 'best-astronomy-apps-2026',
     title: 'Best Astronomy Apps 2026 — Free Star Maps, ISS Tracker & Planet Finder',
     date: 'June 21, 2026',
