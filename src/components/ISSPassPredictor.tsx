@@ -52,10 +52,21 @@ function sunElevationDeg(date: Date, lat: number, lng: number): number {
   return Math.asin(Math.sin(latR) * sinDec + Math.cos(latR) * Math.cos(dec) * Math.cos(ha)) * 180 / Math.PI
 }
 
-async function calculatePasses(lat: number, lng: number, days = 7): Promise<Pass[]> {
-  // Use satellite.js loaded via CDN script tag (window.satellite)
+async function loadSatellite(): Promise<any> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const satellite: any = (window as any).satellite
+  if ((window as any).satellite) return (window as any).satellite
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script')
+    s.src = 'https://cdn.jsdelivr.net/npm/satellite.js@4.1.4/dist/satellite.min.js'
+    s.onload = () => resolve((window as any).satellite)
+    s.onerror = () => reject(new Error('Failed to load satellite.js'))
+    document.head.appendChild(s)
+  })
+}
+
+async function calculatePasses(lat: number, lng: number, days = 7): Promise<Pass[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const satellite: any = await loadSatellite()
   if (!satellite) throw new Error('satellite.js not loaded')
 
   const res = await fetch('https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE')
