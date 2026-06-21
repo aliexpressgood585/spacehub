@@ -2,6 +2,197 @@ import { useState } from 'react'
 
 const ARTICLES = [
   {
+    slug: 'best-stargazing-camping-gear-2026',
+    title: 'Best Camping Gear for Stargazing Trips 2026 — Everything You Need',
+    date: 'June 21, 2026',
+    readTime: '6 min read',
+    icon: '⛺',
+    preview: 'A great stargazing night starts with the right gear. From reclining chairs to dew heaters, here\'s exactly what to pack for a perfect night under the stars.',
+    content: `The best stargazing happens far from city lights — which usually means camping. Whether you're driving to a dark sky reserve or spending a night at a national park, the right gear makes the difference between a miserable cold night and an unforgettable experience.
+
+**The Essential Stargazing Camp Setup**
+
+You need four things: a way to stay warm, a way to see in the dark without ruining your night vision, a comfortable way to look up, and a way to find your targets. Everything else is a bonus.
+
+**Comfort & Viewing**
+
+[🛒 Zero Gravity Reclining Chair — The Perfect Stargazing Chair](https://www.amazon.com/s?k=zero+gravity+reclining+chair+stargazing)
+
+[🛒 Self-Inflating Sleeping Pad — Lie Flat and Watch the Sky for Hours](https://www.amazon.com/s?k=self+inflating+sleeping+pad+camping)
+
+[🛒 Double Camping Hammock — String Between Two Trees and Watch Meteors](https://www.amazon.com/s?k=double+camping+hammock+lightweight)
+
+**Staying Warm**
+
+Temperatures drop sharply after midnight, even in summer. Dress for 10°C colder than the forecast.
+
+[🛒 Sleeping Bag Rated to -5°C — For Cold Mountain Dark Sky Sites](https://www.amazon.com/s?k=sleeping+bag+cold+weather+-5+degrees)
+
+[🛒 Thermal Base Layer Set — Essential Under-Layer for Cold Nights](https://www.amazon.com/s?k=thermal+base+layer+set+cold+weather)
+
+[🛒 Packable Down Jacket — Lightweight Warmth for Stargazing Sessions](https://www.amazon.com/s?k=packable+down+jacket+lightweight+camping)
+
+**Lighting (Night Vision Safe)**
+
+Never use a white flashlight while stargazing — it destroys your dark adaptation for 20+ minutes.
+
+[🛒 Petzl Tactikka Red Headlamp — Hands-Free Astronomy Lighting](https://www.amazon.com/s?k=Petzl+Tactikka+red+headlamp)
+
+[🛒 Orion Red LED Flashlight — The Classic Astronomy Flashlight](https://www.amazon.com/s?k=Orion+red+LED+astronomy+flashlight)
+
+**Navigation & Finding Objects**
+
+[🛒 Sky & Telescope's Pocket Sky Atlas — Best Field Star Chart](https://www.amazon.com/s?k=Sky+Telescope+Pocket+Sky+Atlas)
+
+[🛒 Planisphere — Classic Rotating Star Map for Your Latitude](https://www.amazon.com/s?k=planisphere+star+finder+astronomy)
+
+**Power & Tech**
+
+[🛒 Portable Power Station — Charge Devices and Run Dew Heaters All Night](https://www.amazon.com/s?k=portable+power+station+camping+solar)
+
+[🛒 Jackery Solar Generator — Sustainable Power for Remote Dark Sky Sites](https://www.amazon.com/s?k=Jackery+solar+generator+camping)
+
+**The Bottom Line**
+
+A well-prepared stargazing camp trip is one of the most rewarding experiences you can have. Use SpaceHub to plan your night — pick a new moon date, check the forecast, and drive to the darkest sky you can reach.
+
+Clear skies! ⭐`
+  },
+  {
+    slug: 'how-to-see-planets-telescope-2026',
+    title: 'How to See Planets With a Telescope — Saturn, Jupiter & Mars Guide 2026',
+    date: 'June 21, 2026',
+    readTime: '5 min read',
+    icon: '🪐',
+    preview: 'Saturn\'s rings, Jupiter\'s moons, Mars\'s ice cap — all visible from your backyard with a beginner telescope. Here\'s exactly what you\'ll see and when to look in 2026.',
+    content: `The moment you first see Saturn's rings through a telescope is something you never forget. This guide tells you exactly what planets are visible tonight, what you'll see through different telescopes, and which eyepieces to use.
+
+**What Can You See on Each Planet?**
+
+**Saturn** — The showstopper. Even at 50× magnification, the rings are unmistakable. At 100×+ you'll see the Cassini Division (the gap between rings) and the largest moon Titan as a tiny dot.
+
+**Jupiter** — The most rewarding planet. You'll see the four Galilean moons (Io, Europa, Ganymede, Callisto) and two dark equatorial cloud bands. The Great Red Spot (a storm larger than Earth) is visible at 100×+.
+
+**Mars** — Best seen during opposition (closest approach). Look for the polar ice cap and dark surface markings. Next opposition: January 2027.
+
+**Venus** — Shows phases like the Moon, but no surface detail (covered in clouds). Brilliant and easy to find.
+
+**Uranus & Neptune** — Appear as tiny blue-green dots, even in large telescopes. Worth finding just to say you've seen them.
+
+**What Magnification Do You Need?**
+
+- **Saturn rings visible:** 50×
+- **Jupiter's moons:** 30×
+- **Jupiter's cloud bands:** 70×
+- **Saturn's Cassini Division:** 100×
+- **Mars surface detail:** 150×+
+
+**Best Telescopes for Planets**
+
+[🛒 Celestron PowerSeeker 127EQ — Best Budget Planet Telescope](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ)
+
+[🛒 Sky-Watcher 8" Dobsonian — Best Value for Planetary Detail](https://www.amazon.com/s?k=Sky-Watcher+8+inch+Dobsonian+telescope)
+
+[🛒 Celestron NexStar 6SE — GoTo Mount Finds Planets Automatically](https://www.amazon.com/s?k=Celestron+NexStar+6SE+telescope)
+
+**Best Eyepieces for Planets**
+
+The eyepiece is as important as the telescope. A cheap eyepiece ruins an expensive telescope.
+
+[🛒 Celestron X-Cel LX 7mm Eyepiece — Sharp Planetary Views](https://www.amazon.com/s?k=Celestron+X-Cel+LX+7mm+eyepiece)
+
+[🛒 Baader Hyperion 8mm Eyepiece — Premium Sharpness for Planets](https://www.amazon.com/s?k=Baader+Hyperion+8mm+eyepiece)
+
+[🛒 2× Barlow Lens — Doubles Any Eyepiece Magnification](https://www.amazon.com/s?k=2x+Barlow+lens+telescope+eyepiece)
+
+**When to Look in 2026**
+
+Use SpaceHub's Live Planets tracker to see exactly which planets are up tonight and at what altitude. Generally:
+- **High altitude = better views** — less atmosphere to look through
+- **Steady air (good seeing)** = sharper detail than any telescope upgrade
+- **Avoid nights with strong wind** — causes atmospheric turbulence
+
+**Tips for Sharp Views**
+
+- Let your telescope cool to outdoor temperature for 30–60 minutes before observing
+- Start at low magnification, then increase slowly
+- The sharpest views come in 2–3 second bursts — be patient and keep watching
+- Sketch what you see — it trains your eye to notice detail
+
+Clear skies! 🪐`
+  },
+  {
+    slug: 'solar-eclipse-photography-guide-2026',
+    title: 'Solar Eclipse Photography Guide — How to Photograph a Total Eclipse',
+    date: 'June 21, 2026',
+    readTime: '5 min read',
+    icon: '🌑',
+    preview: 'A total solar eclipse is the most dramatic event in all of astronomy. Here\'s exactly how to photograph it safely — from first contact to totality.',
+    content: `A total solar eclipse is unlike anything else in nature. For a few minutes, the Moon completely blocks the Sun — stars appear in the daytime sky, the temperature drops, and the Sun's corona blazes around the dark disk. And with the right gear, you can photograph it in stunning detail.
+
+**Safety First — This Cannot Be Skipped**
+
+Looking at the Sun without proper protection causes permanent eye damage in seconds. You need certified solar filters (ISO 12312-2) for every phase EXCEPT totality. During the 2–4 minutes of totality, it is safe to look and shoot without filters.
+
+[🛒 Celestron EclipSmart Solar Glasses — Certified ISO 12312-2](https://www.amazon.com/s?k=Celestron+EclipSmart+solar+eclipse+glasses)
+
+[🛒 Thousand Oaks Solar Filter Sheet — Make Filters for Any Lens](https://www.amazon.com/s?k=Thousand+Oaks+solar+filter+sheet)
+
+[🛒 Baader AstroSolar Film — Premium Solar Filter Material](https://www.amazon.com/s?k=Baader+AstroSolar+film+solar+filter)
+
+**Camera & Lens Setup**
+
+For the partial phases (before/after totality), you need a solar filter on your lens. For totality, remove the filter and shoot fast.
+
+- **Wide angle (14–24mm):** Captures the eclipsed Sun + landscape + corona + stars
+- **200–400mm telephoto:** Fills the frame with the Sun and corona detail
+- **Telescope:** Maximum corona and prominence detail
+
+[🛒 Canon EOS R50 — Excellent Camera for Eclipse Photography](https://www.amazon.com/s?k=Canon+EOS+R50+mirrorless+camera)
+
+[🛒 Sigma 100-400mm f/5-6.3 — Perfect Eclipse Telephoto](https://www.amazon.com/s?k=Sigma+100-400mm+contemporary+lens)
+
+[🛒 Rokinon 14mm f/2.8 — Wide Angle for Eclipse Landscape Shots](https://www.amazon.com/s?k=Rokinon+14mm+f2.8+ultra+wide+lens)
+
+**Accessories**
+
+[🛒 Heavy Duty Tripod — Essential for Sharp Eclipse Photos](https://www.amazon.com/s?k=heavy+duty+tripod+telephoto+lens)
+
+[🛒 Intervalometer — Program Automatic Exposure Bracketing](https://www.amazon.com/s?k=intervalometer+remote+shutter+release+camera)
+
+[🛒 Extra Camera Batteries — Cold temperatures drain batteries fast](https://www.amazon.com/s?k=camera+battery+pack+extended+DSLR)
+
+**Eclipse Photography Settings**
+
+**Partial phases (solar filter on):**
+- ISO 100, f/8, 1/1000 sec — starting point
+- Adjust to center the histogram
+
+**Totality (remove ALL filters immediately):**
+- ISO 400, f/5.6, bracket from 1/1000 to 1 second
+- Shoot fast — totality ends without warning
+- Take a wide shot of the landscape + corona
+
+**Planning Your Shot**
+
+1. **Know the path of totality** — only inside the path do you get totality. One mile outside = only a partial eclipse. Use NASA's eclipse maps.
+2. **Practice your gear in advance** — not the time to learn your camera
+3. **Set up 1 hour early** — crowds, traffic, and equipment issues happen
+4. **Use SpaceHub** to check local viewing times and conditions
+
+**Next Total Solar Eclipses**
+
+- **August 12, 2026** — Spain, Iceland, Greenland, Russia
+- **August 2, 2027** — North Africa, Middle East, Saudi Arabia
+- **July 22, 2028** — Australia, New Zealand
+
+**The Bottom Line**
+
+No amount of preparation fully prepares you for totality. When it happens, many people forget to shoot and just stare. That's fine — your memory is the most important souvenir. But with the right setup running on auto-bracket, you'll have incredible images too.
+
+Clear skies! 🌑`
+  },
+  {
     slug: 'how-to-see-iss',
     title: 'How to See the ISS With the Naked Eye',
     date: 'June 15, 2026',
