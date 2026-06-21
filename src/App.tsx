@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Component, type ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
 import './App.css'
 import Header from './components/Header'
@@ -50,6 +50,12 @@ const FOOTER_FEATURES = [
   { icon: '⛈️', label: 'Space Weather' },
 ]
 
+class SafeWrap extends Component<{ children: ReactNode }, { ok: boolean }> {
+  state = { ok: true }
+  static getDerivedStateFromError() { return { ok: false } }
+  render() { return this.state.ok ? this.props.children : null }
+}
+
 function MainApp() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard')
   const [lang, setLang] = useState<'he' | 'en'>('en')
@@ -83,7 +89,7 @@ function MainApp() {
 
   return (
     <div className="min-h-screen relative" style={{ background: '#020510' }}>
-      <SpaceBackground />
+      <SafeWrap><SpaceBackground /></SafeWrap>
 
       <div className="relative" style={{ zIndex: 1 }}>
         <Header
@@ -262,11 +268,11 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<MainApp />} />
+        <Route path="/" element={<SafeWrap><MainApp /></SafeWrap>} />
         <Route path="/blog" element={
           <div style={{ background: '#020510', minHeight: '100vh' }}>
             <div style={{ zIndex: 1, position: 'relative' }}>
-              <Link to="/" className="fixed top-4 right-4 z-50 text-indigo-400 text-xs glass px-4 py-2 rounded-xl border border-white/[0.08] hover:border-indigo-500/40 transition-all font-semibold">
+              <Link to="/" className="fixed top-4 right-4 z-50 text-indigo-400 text-xs px-4 py-2 rounded-xl transition-all font-semibold" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(12px)' }}>
                 ← SpaceHub
               </Link>
               <BlogPage />

@@ -53,6 +53,10 @@ export default function ISSTracker() {
 
   useEffect(() => {
     if (!containerRef.current) return
+    let animId: number
+    let rendererRef: THREE.WebGLRenderer | null = null
+
+    try {
     const W = containerRef.current.clientWidth
     const H = 320
 
@@ -61,10 +65,12 @@ export default function ISSTracker() {
     camera.position.set(0, 0, 3)
     camera.lookAt(0, 0, 0)
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+    const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: 'low-power', failIfMajorPerformanceCaveat: false })
+    rendererRef = renderer
     renderer.setSize(W, H)
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5))
     renderer.setClearColor(0x000000, 0)
+    if (!containerRef.current) return
     containerRef.current.appendChild(renderer.domElement)
 
     // Earth canvas texture
@@ -133,7 +139,6 @@ export default function ISSTracker() {
     scene.add(new THREE.DirectionalLight(0xffffff, 1.5))
     scene.add(new THREE.AmbientLight(0x334466, 0.5))
 
-    let animId: number
     let angle = 0
     let isDragging = false, prevX = 0, prevY = 0
     let rotX = 0, rotY = 0
@@ -160,12 +165,18 @@ export default function ISSTracker() {
     }
     animate()
 
+    } catch {
+      // WebGL not available — show placeholder
+    }
+
     return () => {
-      cancelAnimationFrame(animId)
-      renderer.dispose()
-      if (containerRef.current?.contains(renderer.domElement)) {
-        containerRef.current.removeChild(renderer.domElement)
-      }
+      if (animId) cancelAnimationFrame(animId)
+      try { rendererRef?.dispose() } catch {}
+      try {
+        if (containerRef.current && rendererRef && containerRef.current.contains(rendererRef.domElement)) {
+          containerRef.current.removeChild(rendererRef.domElement)
+        }
+      } catch {}
     }
   }, [])
 
