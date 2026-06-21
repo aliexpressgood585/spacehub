@@ -2,6 +2,325 @@ import { useState } from 'react'
 
 const ARTICLES = [
   {
+    slug: 'best-telescope-eyepieces-2026',
+    title: 'Best Telescope Eyepieces 2026 — Upgrade Your Views Tonight',
+    date: 'June 22, 2026',
+    readTime: '5 min read',
+    icon: '🔬',
+    preview: 'The eyepiece is the most important upgrade you can make to any telescope. A $100 eyepiece on a cheap telescope beats a cheap eyepiece on an expensive one. Here\'s what to buy.',
+    content: `Most telescopes come with terrible eyepieces. The plastic 25mm and 10mm that come in the box are good enough to get started — but once you're hooked on astronomy, upgrading your eyepieces delivers a bigger improvement than buying a new telescope.
+
+**Understanding Eyepiece Specs**
+
+**Focal length (mm):** Lower = more magnification. A 5mm eyepiece magnifies more than a 25mm.
+**Apparent field of view (AFOV):** How wide the view looks in degrees. 50° is narrow, 82° is wide and immersive.
+**Eye relief:** Distance your eye needs to be from the lens. Important for glasses wearers — aim for 15mm+.
+
+**What Magnification Do You Get?**
+
+Magnification = Telescope focal length ÷ Eyepiece focal length.
+Example: 1000mm telescope + 10mm eyepiece = 100×.
+
+**Best Eyepieces for Beginners**
+
+[🛒 Celestron X-Cel LX 25mm — Wide, Comfortable, Crystal Clear](https://www.amazon.com/s?k=Celestron+X-Cel+LX+25mm+eyepiece)
+
+[🛒 Celestron X-Cel LX 7mm — Sharp Planetary Detail](https://www.amazon.com/s?k=Celestron+X-Cel+LX+7mm+eyepiece)
+
+[🛒 Orion 8-24mm Zoom Eyepiece — One Eyepiece That Does Everything](https://www.amazon.com/s?k=Orion+8-24mm+zoom+eyepiece+telescope)
+
+**Best Mid-Range Eyepieces**
+
+[🛒 Baader Hyperion 8mm — Premium Views of Planets](https://www.amazon.com/s?k=Baader+Hyperion+8mm+eyepiece)
+
+[🛒 Explore Scientific 82° 11mm — Wide-Field Immersive Views](https://www.amazon.com/s?k=Explore+Scientific+82+degree+11mm+eyepiece)
+
+[🛒 Televue Nagler 13mm — The Gold Standard of Wide-Field Eyepieces](https://www.amazon.com/s?k=Televue+Nagler+13mm+eyepiece)
+
+**Essential Accessories**
+
+[🛒 2× Barlow Lens — Doubles the Power of Every Eyepiece You Own](https://www.amazon.com/s?k=2x+Barlow+lens+telescope+eyepiece)
+
+[🛒 Eyepiece and Filter Case — Protect Your Investment](https://www.amazon.com/s?k=telescope+eyepiece+case+storage)
+
+**Which Eyepieces Should You Buy First?**
+
+Start with two: a low-power wide-field (24–32mm) for finding objects and appreciating star clusters, and a medium-power (9–12mm) for planets and the Moon. Add a Barlow to double both. That gives you 4 effective focal lengths for the price of 3 eyepieces.
+
+Use SpaceHub's Live Planets to know what's up tonight — then choose your eyepiece accordingly.
+
+Clear skies! 🔬`
+  },
+  {
+    slug: 'best-astronomy-gifts-2026',
+    title: 'Best Astronomy Gifts 2026 — For Space Lovers of Every Budget',
+    date: 'June 22, 2026',
+    readTime: '5 min read',
+    icon: '🎁',
+    preview: 'Looking for the perfect gift for a space enthusiast? From $15 star charts to $500 telescopes, here are the best astronomy gifts for every budget in 2026.',
+    content: `Whether you're shopping for a birthday, holiday, or just because — astronomy gifts are some of the most magical presents you can give. Here's the definitive 2026 gift guide organized by budget.
+
+**Under $30 — Stocking Stuffers**
+
+[🛒 Planisphere Star Finder — Classic Gift for Any Stargazer](https://www.amazon.com/s?k=planisphere+star+finder+astronomy)
+
+[🛒 Red LED Flashlight — Essential Tool Every Astronomer Needs](https://www.amazon.com/s?k=red+LED+flashlight+astronomy)
+
+[🛒 "The Backyard Astronomer's Guide" Book — Best Beginner Astronomy Book](https://www.amazon.com/s?k=Backyard+Astronomer+Guide+book)
+
+[🛒 Glow-in-the-Dark Star Map Poster — Beautiful Wall Art](https://www.amazon.com/s?k=glow+in+dark+star+map+poster+astronomy)
+
+**$30–$100 — Great Mid-Range Gifts**
+
+[🛒 Sky & Telescope Pocket Sky Atlas — The Atlas Every Amateur Uses](https://www.amazon.com/s?k=Sky+Telescope+Pocket+Sky+Atlas)
+
+[🛒 Celestron SkyMaster 10x50 Binoculars — Perfect First Astronomy Binoculars](https://www.amazon.com/s?k=Celestron+SkyMaster+10x50+binoculars)
+
+[🛒 Orion 9mm Telescope Eyepiece — Upgrade Any Existing Telescope](https://www.amazon.com/s?k=Orion+9mm+telescope+eyepiece)
+
+[🛒 Moon Globe — Beautiful 3D Map of the Lunar Surface](https://www.amazon.com/s?k=moon+globe+3D+lunar+surface+map)
+
+**$100–$300 — Impressive Gifts**
+
+[🛒 Celestron SkyMaster 15x70 Giant Binoculars — Serious Astronomy Tool](https://www.amazon.com/s?k=Celestron+SkyMaster+15x70+binoculars)
+
+[🛒 Orion StarBlast 4.5 Tabletop Telescope — Grab-and-Go Telescope](https://www.amazon.com/s?k=Orion+StarBlast+4.5+tabletop+telescope)
+
+[🛒 Canon EOS R50 — Start Their Astrophotography Journey](https://www.amazon.com/s?k=Canon+EOS+R50+mirrorless+camera)
+
+**$300–$600 — Premium Gifts**
+
+[🛒 Celestron PowerSeeker 127EQ — Complete Telescope Setup](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ)
+
+[🛒 Sky-Watcher 8" Dobsonian — The Ultimate Visual Astronomy Telescope](https://www.amazon.com/s?k=Sky-Watcher+8+inch+Dobsonian+telescope)
+
+[🛒 Sky-Watcher Star Adventurer Mini — Star Tracker for Astrophotography](https://www.amazon.com/s?k=Sky-Watcher+Star+Adventurer+Mini+tracker)
+
+**The Best Gift of All**
+
+A subscription to SpaceHub — free forever — so they always know when the ISS passes, when the next meteor shower peaks, and what's in the sky tonight. Share the link: spacehub-nu.vercel.app.
+
+Clear skies! 🎁`
+  },
+  {
+    slug: 'how-to-see-andromeda-galaxy',
+    title: 'How to Find the Andromeda Galaxy With the Naked Eye Tonight',
+    date: 'June 22, 2026',
+    readTime: '4 min read',
+    icon: '🌌',
+    preview: 'The Andromeda Galaxy is 2.5 million light-years away — and you can see it without a telescope. Here\'s exactly how to find it tonight.',
+    content: `The Andromeda Galaxy (M31) is the farthest object visible to the naked eye — a fuzzy patch of light that has been traveling toward you for 2.5 million years. On a dark night, it is unmistakable. Here's how to find it.
+
+**When Can You See Andromeda?**
+
+Andromeda is best seen from August through November in the northern hemisphere, when it's highest in the sky. In 2026, peak visibility is September–October. You need a dark sky — Bortle 4 or better. Use SpaceHub to check tonight's conditions.
+
+**How to Find It — Step by Step**
+
+1. Go somewhere dark, away from city lights
+2. Let your eyes dark-adapt for 20 minutes
+3. Find the Great Square of Pegasus — four bright stars forming a square
+4. From the top-left star of the square (Alpheratz), move two stars up and to the left
+5. Look slightly off-center with your eye (averted vision) — you'll see a faint oval smudge
+6. That smudge is a galaxy with one trillion stars
+
+**What You'll See**
+
+- **Naked eye:** A faint fuzzy oval, about 3× the width of the full Moon
+- **Binoculars:** The core brightens dramatically, the galaxy extends across the field of view
+- **Small telescope:** The core is very bright, dust lanes begin to appear
+- **Large telescope:** Two satellite galaxies (M32 and M110) are visible nearby
+
+**Best Gear for Viewing Andromeda**
+
+[🛒 Celestron SkyMaster 10x50 Binoculars — Best Way to See Andromeda](https://www.amazon.com/s?k=Celestron+SkyMaster+10x50+binoculars)
+
+[🛒 Celestron SkyMaster 15x70 — Even More Detail of the Galaxy](https://www.amazon.com/s?k=Celestron+SkyMaster+15x70+binoculars)
+
+[🛒 Orion StarBlast 4.5 — Wide-Field Telescope Perfect for Galaxies](https://www.amazon.com/s?k=Orion+StarBlast+4.5+tabletop+telescope)
+
+[🛒 Red Flashlight — For Reading Star Charts Without Losing Night Vision](https://www.amazon.com/s?k=red+flashlight+astronomy+night+vision)
+
+**Photographing Andromeda**
+
+With a camera on a tripod, a 30-second exposure at ISO 3200 and f/2.8 will capture the galaxy beautifully. With a star tracker, you can expose for minutes and reveal stunning detail and color.
+
+[🛒 Sony Alpha a6400 — Great Camera for Galaxy Photography](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera)
+
+[🛒 Sky-Watcher Star Adventurer Mini — Track Andromeda for Long Exposures](https://www.amazon.com/s?k=Sky-Watcher+Star+Adventurer+Mini+tracker)
+
+**A Thought to Carry With You**
+
+When you see Andromeda, the light entering your eyes left that galaxy 2.5 million years ago — before modern humans existed. You are looking 2.5 million years into the past. That is not a metaphor. That is physics.
+
+Clear skies! 🌌`
+  },
+  {
+    slug: 'how-to-photograph-iss-2026',
+    title: 'How to Photograph the ISS — Capture the Space Station in Your Photos',
+    date: 'June 22, 2026',
+    readTime: '5 min read',
+    icon: '📡',
+    preview: 'Photographing the ISS is one of the most satisfying things you can do with a camera. Here\'s exactly how to capture it as a bright streak — or even resolve its shape.',
+    content: `The ISS crosses the sky in 3–6 minutes, traveling at 28,000 km/h. It appears as a brilliant moving star — brighter than any planet. With the right settings and timing, you can capture it as a glowing trail of light, or even photograph its shape with a telescope. Here's how.
+
+**Method 1 — Light Trail (Easiest)**
+
+Set up your camera on a tripod, point at a beautiful foreground (city skyline, mountain, tree), and open the shutter just before the ISS enters frame. You'll capture a long bright line of light cutting across the sky.
+
+Settings:
+- **ISO:** 400–800
+- **Aperture:** f/4–5.6
+- **Shutter speed:** 10–30 seconds (or use Bulb mode for the full pass)
+- **Lens:** Wide angle (14–24mm) to capture more sky
+
+[🛒 Canon EOS R50 — Perfect for ISS Light Trail Photography](https://www.amazon.com/s?k=Canon+EOS+R50+mirrorless+camera)
+
+[🛒 Rokinon 14mm f/2.8 — Ultra-Wide Lens to Capture the Full Pass](https://www.amazon.com/s?k=Rokinon+14mm+f2.8+ultra+wide+lens)
+
+[🛒 Carbon Fiber Tripod — Essential for Long Exposure ISS Shots](https://www.amazon.com/s?k=carbon+fiber+tripod+photography)
+
+[🛒 Remote Shutter Release — Start Exposure Without Camera Shake](https://www.amazon.com/s?k=remote+shutter+release+camera)
+
+**Method 2 — ISS Transit Across the Moon or Sun**
+
+When the ISS passes in front of the Moon or Sun (a "transit"), it takes less than 1 second — but you can capture it as a silhouette. Requires precise timing and a telephoto lens or telescope.
+
+The ISS appears as its actual shape — the solar panels are identifiable — in a single frame.
+
+[🛒 Sigma 100-400mm f/5-6.3 — Telephoto for Moon Transits](https://www.amazon.com/s?k=Sigma+100-400mm+contemporary+lens)
+
+[🛒 Celestron PowerSeeker 127EQ + Smartphone Adapter](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ)
+
+[🛒 Universal Smartphone Telescope Adapter](https://www.amazon.com/s?k=smartphone+telescope+adapter+mount)
+
+**Method 3 — Resolve the ISS Shape (Advanced)**
+
+With a 8"+ telescope and a high-speed video camera, you can actually photograph the ISS as a recognizable object — solar panels, modules, and all — as it drifts through your field of view in under a second.
+
+[🛒 Sky-Watcher 8" Dobsonian — The Minimum Aperture for ISS Imaging](https://www.amazon.com/s?k=Sky-Watcher+8+inch+Dobsonian+telescope)
+
+**Timing Is Everything**
+
+Use SpaceHub to find tonight's ISS pass time, direction, and maximum elevation for your exact city. The higher the pass (elevation above 60°), the brighter and longer it lasts. That's your best photo opportunity.
+
+**Pro Tips**
+
+- Set up 10 minutes early — rushing causes mistakes
+- Use a wide lens and a beautiful foreground for a stunning composition
+- Take multiple exposures in case of clouds or missed timing
+- The ISS is brightest at maximum elevation — that's mid-pass
+
+Clear skies! 📡`
+  },
+  {
+    slug: 'best-space-books-2026',
+    title: 'Best Space & Astronomy Books 2026 — For Beginners and Experts',
+    date: 'June 22, 2026',
+    readTime: '4 min read',
+    icon: '📚',
+    preview: 'The best astronomy books will change how you see the night sky forever. Here are the essential reads for beginners, observers, and astrophotographers in 2026.',
+    content: `Books are the most underrated astronomy tool. The right book can teach you more in a weekend than months of random YouTube videos. Here are the ones every space enthusiast should own.
+
+**For Absolute Beginners**
+
+[🛒 "Astronomy: A Self-Teaching Guide" — Dinah Moche — Best First Book](https://www.amazon.com/s?k=Astronomy+Self-Teaching+Guide+Dinah+Moche)
+
+[🛒 "Turn Left at Orion" — Best Observing Guide for Small Telescopes](https://www.amazon.com/s?k=Turn+Left+at+Orion+astronomy+book)
+
+[🛒 "NightWatch: A Practical Guide to Viewing the Universe" — Terence Dickinson](https://www.amazon.com/s?k=NightWatch+Practical+Guide+Viewing+Universe+Dickinson)
+
+**Star Atlases & Field Guides**
+
+[🛒 Sky & Telescope Pocket Sky Atlas — The Best Field Star Chart](https://www.amazon.com/s?k=Sky+Telescope+Pocket+Sky+Atlas)
+
+[🛒 "Uranometria 2000.0" — The Professional Deep Sky Atlas](https://www.amazon.com/s?k=Uranometria+2000+deep+sky+atlas)
+
+[🛒 "Norton's Star Atlas" — Classic Reference Used Since 1910](https://www.amazon.com/s?k=Norton+Star+Atlas+astronomy)
+
+**For Visual Observers**
+
+[🛒 "The Backyard Astronomer's Guide" — Dickinson & Dyer — The Complete Reference](https://www.amazon.com/s?k=Backyard+Astronomer+Guide+Dickinson+Dyer)
+
+[🛒 "Deep Sky Wonders" — Sue French — Best Object-by-Object Observing Book](https://www.amazon.com/s?k=Deep+Sky+Wonders+Sue+French+astronomy)
+
+**For Astrophotographers**
+
+[🛒 "The Astrophotography Manual" — Chris Woodhouse — Complete Technical Guide](https://www.amazon.com/s?k=Astrophotography+Manual+Chris+Woodhouse)
+
+[🛒 "Deep-Sky Imaging" — Stefan Seip — Stunning Techniques for Deep Sky](https://www.amazon.com/s?k=Deep+Sky+Imaging+astrophotography+book)
+
+**Popular Science (Non-Technical)**
+
+[🛒 "A Brief History of Time" — Stephen Hawking — The Classic](https://www.amazon.com/s?k=Brief+History+of+Time+Hawking)
+
+[🛒 "Astrophysics for People in a Hurry" — Neil deGrasse Tyson](https://www.amazon.com/s?k=Astrophysics+for+People+in+a+Hurry+Tyson)
+
+[🛒 "The Martian" — Andy Weir — The Best Space Fiction Novel](https://www.amazon.com/s?k=The+Martian+Andy+Weir+book)
+
+**The Bottom Line**
+
+Start with "Turn Left at Orion" if you have a telescope, or "NightWatch" if you're just beginning. Add a Pocket Sky Atlas for the field, and "The Astrophotography Manual" when you're ready to start imaging.
+
+Clear skies! 📚`
+  },
+  {
+    slug: 'jupiter-opposition-2026-guide',
+    title: 'Jupiter Opposition 2026 — When and How to See Jupiter at Its Best',
+    date: 'June 22, 2026',
+    readTime: '4 min read',
+    icon: '🪐',
+    preview: 'Jupiter opposition in 2026 means the largest planet in our solar system is bigger and brighter than at any other time. Here\'s when to look and what you\'ll see.',
+    content: `Jupiter opposition happens once every 13 months — when Earth passes directly between Jupiter and the Sun. On that night, Jupiter is at its closest to Earth, its brightest, and rises at sunset to set at sunrise. It is the best night of the year to observe the king of planets.
+
+**Jupiter Opposition 2026**
+
+**Date:** September 26, 2026
+**Brightness:** Magnitude -2.9 (brighter than any star)
+**Distance from Earth:** 591 million km (unusually close!)
+**Best viewing window:** September–November 2026
+
+**What Will You See?**
+
+- **Naked eye:** Jupiter is the brightest "star" in the sky — unmissable
+- **10x50 Binoculars:** All four Galilean moons visible as tiny dots in a line
+- **Small telescope (60–80mm):** Two cloud bands clearly visible
+- **Medium telescope (100–150mm):** Four or more cloud bands, Great Red Spot
+- **Large telescope (200mm+):** Festoons, ovals, and extraordinary storm detail
+
+**The Four Galilean Moons**
+
+Io, Europa, Ganymede, and Callisto were discovered by Galileo in 1610. They orbit Jupiter in days, so their positions change nightly — sometimes hourly. Watch them shift positions over the course of a single night.
+
+**Best Gear for Jupiter**
+
+[🛒 Celestron SkyMaster 10x50 Binoculars — See All 4 Moons](https://www.amazon.com/s?k=Celestron+SkyMaster+10x50+binoculars)
+
+[🛒 Celestron PowerSeeker 127EQ — See Cloud Bands and Moons](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ)
+
+[🛒 Celestron NexStar 6SE — GoTo Telescope for Maximum Jupiter Detail](https://www.amazon.com/s?k=Celestron+NexStar+6SE+telescope)
+
+[🛒 Baader Hyperion 8mm Eyepiece — Sharp Planetary Detail at High Power](https://www.amazon.com/s?k=Baader+Hyperion+8mm+eyepiece)
+
+[🛒 2× Barlow Lens — Double Your Magnification for Planet Detail](https://www.amazon.com/s?k=2x+Barlow+lens+telescope+eyepiece)
+
+**Photographing Jupiter at Opposition**
+
+[🛒 Sony Alpha a6400 — Excellent Camera for Planetary Imaging](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera)
+
+[🛒 ZWO ASI120MC-S Planetary Camera — Dedicated Camera for Jupiter](https://www.amazon.com/s?k=ZWO+ASI120+planetary+camera)
+
+**Tips for the Best Views**
+
+- Observe when Jupiter is highest — less atmosphere to look through
+- Let your telescope cool outside for 45 minutes before observing
+- Use the highest magnification your seeing allows — start at 100× and push higher
+- Use SpaceHub's Live Planets tracker to follow Jupiter's position every night
+- The Great Red Spot transits the central meridian every ~10 hours — look up transit times for the best view
+
+Clear skies! 🪐`
+  },
+  {
     slug: 'best-stargazing-camping-gear-2026',
     title: 'Best Camping Gear for Stargazing Trips 2026 — Everything You Need',
     date: 'June 21, 2026',
