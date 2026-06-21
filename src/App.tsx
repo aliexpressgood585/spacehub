@@ -19,6 +19,7 @@ import MoonPhase from './components/MoonPhase'
 import LaunchCountdown from './components/LaunchCountdown'
 import LiveTicker from './components/LiveTicker'
 import StarMap from './components/StarMap'
+import ISSPassPredictor from './components/ISSPassPredictor'
 import SpaceQuiz from './components/SpaceQuiz'
 import ShareCard from './components/ShareCard'
 import BlogPage from './pages/BlogPage'
@@ -106,6 +107,7 @@ const [issData, setIssData] = useState<{ lat: number; lng: number; alt: number }
                 <LaunchCountdown />
               </div>
               <div ref={issRef}><ISSAlertSystem /></div>
+              <ISSPassPredictor />
               <ISSTracker />
               <ShareCard issLat={issData?.lat} issLng={issData?.lng} issAlt={issData?.alt} />
               <NasaAPOD />
