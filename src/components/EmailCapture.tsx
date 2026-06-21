@@ -4,18 +4,30 @@ export default function EmailCapture() {
   const [email, setEmail] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email) return
     setLoading(true)
-    // Store in localStorage for now — replace with Mailchimp/ConvertKit API
-    const existing = JSON.parse(localStorage.getItem('spacehub_emails') || '[]')
-    existing.push({ email, date: new Date().toISOString() })
-    localStorage.setItem('spacehub_emails', JSON.stringify(existing))
-    await new Promise(r => setTimeout(r, 800))
-    setLoading(false)
-    setSubmitted(true)
+    setError('')
+    try {
+      const res = await fetch('/api/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setSubmitted(true)
+      } else {
+        setError(data.error || 'Something went wrong. Please try again.')
+      }
+    } catch {
+      setError('Connection error. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (submitted) {
@@ -69,6 +81,7 @@ export default function EmailCapture() {
             {loading ? '...' : 'Join Free →'}
           </button>
         </form>
+        {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
         <p className="text-gray-600 text-xs mt-3">2,400+ space fans already joined • No spam • Unsubscribe anytime</p>
       </div>
     </div>
