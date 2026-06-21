@@ -15,10 +15,15 @@ export default function NasaAPOD() {
   const [error, setError] = useState(false)
 
   useEffect(() => {
-    fetch('https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY')
+    const key = import.meta.env.VITE_NASA_API_KEY || 'DEMO_KEY'
+    fetch(`https://api.nasa.gov/planetary/apod?api_key=${key}`)
       .then(r => r.json())
       .then(data => {
-        setApod(data)
+        if (data.error || data.code === 'API_KEY_INVALID' || !data.url) {
+          setError(true)
+        } else {
+          setApod(data)
+        }
         setLoading(false)
       })
       .catch(() => {
@@ -35,8 +40,28 @@ export default function NasaAPOD() {
   )
 
   if (error || !apod) return (
-    <div className="neon-border glass rounded-lg p-8 text-center">
-      <p className="text-gray-400">⚠️ Unable to load NASA image right now</p>
+    <div className="neon-border glass rounded-lg overflow-hidden">
+      <div className="p-6 border-b border-space-700 flex items-center gap-3">
+        <span className="text-2xl">🔭</span>
+        <h3 className="text-xl font-bold text-white">Astronomy Picture of the Day — NASA APOD</h3>
+      </div>
+      <div className="relative overflow-hidden" style={{ minHeight: 320 }}>
+        <img
+          src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/GoldenGateBridge-001.jpg/1280px-GoldenGateBridge-001.jpg"
+          alt="Space"
+          className="w-full object-cover opacity-40"
+          style={{ minHeight: 320 }}
+          onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+        />
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8">
+          <span className="text-6xl mb-4">🌌</span>
+          <p className="text-white font-bold text-lg mb-2">NASA APOD — Loading</p>
+          <p className="text-gray-400 text-sm">Today's astronomy image is being fetched from NASA.<br/>Check back in a moment.</p>
+          <a href="https://apod.nasa.gov" target="_blank" rel="noopener noreferrer" className="mt-4 text-indigo-400 text-sm hover:underline">
+            View on NASA website →
+          </a>
+        </div>
+      </div>
     </div>
   )
 

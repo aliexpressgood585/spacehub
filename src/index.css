@@ -110,7 +110,7 @@ html { scroll-behavior: smooth; }
 .animate-scan     { animation: scan 2s ease-in-out infinite; }
 
 /* ── Live ticker ── */
-.ticker-wrap { overflow: hidden; white-space: nowrap; }
+.ticker-wrap { overflow: hidden; white-space: nowrap; position: relative; z-index: 0; }
 .ticker-inner { display: inline-block; animation: ticker 30s linear infinite; }
 
 /* ── Hero gradient bg ── */
