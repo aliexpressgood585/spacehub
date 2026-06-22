@@ -3,104 +3,64 @@ import { useLang } from '../i18n/LangContext'
 
 const CURATED = [
   {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Earth_from_Space.jpg/1280px-Earth_from_Space.jpg',
-    title: 'Earth from the ISS',
-    author: 'NASA',
-  },
-  {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/00/Pillars_of_creation_2014_HST_WFC3-UVIS_full-res_denoised.jpg/800px-Pillars_of_creation_2014_HST_WFC3-UVIS_full-res_denoised.jpg',
-    title: 'Pillars of Creation',
-    author: 'NASA/ESA/Hubble',
-  },
-  {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e2/The_Milky_Way_galaxy_-_GPN-2000-000983.jpg/1280px-The_Milky_Way_galaxy_-_GPN-2000-000983.jpg',
-    title: 'Milky Way Galaxy',
-    author: 'NASA',
-  },
-  {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Hubble_ultra_deep_field.jpg/800px-Hubble_ultra_deep_field.jpg',
-    title: 'Hubble Ultra Deep Field',
-    author: 'NASA/ESA/Hubble',
-  },
-  {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Saturn_from_Cassini_Orbiter_%282004-10-06%29.jpg/1280px-Saturn_from_Cassini_Orbiter_%282004-10-06%29.jpg',
-    title: 'Saturn from Cassini',
-    author: 'NASA/JPL/Cassini',
-  },
-  {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Aurore_Bor%C3%A9ale_1.jpg/1280px-Aurore_Bor%C3%A9ale_1.jpg',
-    title: 'Aurora Borealis',
-    author: 'Olivier Staiger',
-  },
-  {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/NASA_Mars_Rover.jpg/1280px-NASA_Mars_Rover.jpg',
-    title: 'Mars Perseverance Rover',
-    author: 'NASA/JPL-Caltech',
-  },
-  {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/The_Earth_seen_from_Apollo_17.jpg/1280px-The_Earth_seen_from_Apollo_17.jpg',
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/The_Earth_seen_from_Apollo_17.jpg/1024px-The_Earth_seen_from_Apollo_17.jpg',
     title: 'Blue Marble — Apollo 17',
     author: 'NASA',
   },
   {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/NASA-HS201427a-HubbleUltraDeepField2014-20140603.jpg/800px-NASA-HS201427a-HubbleUltraDeepField2014-20140603.jpg',
-    title: 'Hubble eXtreme Deep Field',
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Saturn_from_Cassini_Orbiter_%282004-10-06%29.jpg/1024px-Saturn_from_Cassini_Orbiter_%282004-10-06%29.jpg',
+    title: 'Saturn from Cassini',
+    author: 'NASA/JPL',
+  },
+  {
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/00/Pillars_of_creation_2014_HST_WFC3-UVIS_full-res_denoised.jpg/600px-Pillars_of_creation_2014_HST_WFC3-UVIS_full-res_denoised.jpg',
+    title: 'Pillars of Creation',
     author: 'NASA/ESA/Hubble',
   },
   {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Crab_Nebula.jpg/800px-Crab_Nebula.jpg',
-    title: 'Crab Nebula',
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Hubble_ultra_deep_field.jpg/600px-Hubble_ultra_deep_field.jpg',
+    title: 'Hubble Ultra Deep Field',
     author: 'NASA/ESA/Hubble',
   },
   {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/FullMoon2010.jpg/1280px-FullMoon2010.jpg',
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/FullMoon2010.jpg/1024px-FullMoon2010.jpg',
     title: 'Full Moon',
     author: 'Gregory H. Revera',
   },
   {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Above_Gotland.jpg/1280px-Above_Gotland.jpg',
-    title: 'Earth from Low Orbit',
-    author: 'NASA/ISS',
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Aurore_Bor%C3%A9ale_1.jpg/1024px-Aurore_Bor%C3%A9ale_1.jpg',
+    title: 'Aurora Borealis',
+    author: 'Olivier Staiger',
   },
   {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Double_Helix_Nebula.jpg/800px-Double_Helix_Nebula.jpg',
-    title: 'Double Helix Nebula',
-    author: 'NASA/JPL-Caltech',
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/Jupiter_and_its_shrunken_Great_Red_Spot.jpg/1024px-Jupiter_and_its_shrunken_Great_Red_Spot.jpg',
+    title: 'Jupiter — Great Red Spot',
+    author: 'NASA/ESA/Hubble',
   },
   {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/ISS_above_Earth.jpg/1280px-ISS_above_Earth.jpg',
-    title: 'ISS Above Earth',
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/OSIRIS_Mars_true_color.jpg/800px-OSIRIS_Mars_true_color.jpg',
+    title: 'Mars — True Color',
+    author: 'ESA/OSIRIS',
+  },
+  {
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Orion_Nebula_-_Hubble_2006_mosaic_18000.jpg/1024px-Orion_Nebula_-_Hubble_2006_mosaic_18000.jpg',
+    title: 'Orion Nebula',
+    author: 'NASA/ESA/Hubble',
+  },
+  {
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/International_Space_Station_after_undocking_of_STS-132.jpg/1024px-International_Space_Station_after_undocking_of_STS-132.jpg',
+    title: 'International Space Station',
     author: 'NASA',
   },
   {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/PIA23122-Jupiter-NewHorizons-20070228.jpg/1280px-PIA23122-Jupiter-NewHorizons-20070228.jpg',
-    title: 'Jupiter — New Horizons',
-    author: 'NASA/Johns Hopkins APL',
-  },
-  {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/10/Solarsystemscope_texture_8k_stars_milky_way.jpg/1280px-Solarsystemscope_texture_8k_stars_milky_way.jpg',
-    title: 'Night Sky Panorama',
-    author: 'Solar System Scope',
-  },
-  {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png',
-    title: 'Comet Approaching Sun',
-    author: 'ESA',
-  },
-  {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f9/Perseid_meteor_shower_%28August_2009%29.jpg/1280px-Perseid_meteor_shower_%28August_2009%29.jpg',
-    title: 'Perseid Meteor Shower',
-    author: 'NASA/JPL',
-  },
-  {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Eagle_Nebula_from_ESO.jpg/800px-Eagle_Nebula_from_ESO.jpg',
-    title: 'Eagle Nebula',
-    author: 'ESO',
-  },
-  {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/GPN-2000-001444.jpg/800px-GPN-2000-001444.jpg',
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/dc/As11-40-5931.jpg/800px-As11-40-5931.jpg',
     title: 'Buzz Aldrin on the Moon',
     author: 'NASA/Neil Armstrong',
+  },
+  {
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/M31_09-01-2011_%28cropped%29.jpg/1024px-M31_09-01-2011_%28cropped%29.jpg',
+    title: 'Andromeda Galaxy',
+    author: 'Wikimedia / Adam Evans',
   },
 ]
 
