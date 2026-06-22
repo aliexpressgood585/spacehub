@@ -35,6 +35,11 @@ import SpaceCostChart from './components/SpaceCostChart'
 import RocketReusability from './components/RocketReusability'
 import ArtemisMoonMap from './components/ArtemisMoonMap'
 import SpaceXNewsFeed from './components/SpaceXNewsFeed'
+import PlanetExplorer from './components/PlanetExplorer'
+import ExoplanetExplorer from './components/ExoplanetExplorer'
+import GalaxyExplorer from './components/GalaxyExplorer'
+import SpaceMissions from './components/SpaceMissions'
+import ARSkyView from './components/ARSkyView'
 import BlogPage from './pages/BlogPage'
 import BlogArticlePage from './pages/BlogArticlePage'
 import PremiumPage from './pages/PremiumPage'
@@ -42,13 +47,14 @@ import CityPage, { CITY_DATA } from './pages/CityPage'
 import PrivacyPage from './pages/PrivacyPage'
 import SuccessPage from './pages/SuccessPage'
 
-type Tab = 'dashboard' | 'starmap' | 'tracker' | 'solar' | 'weather' | 'events' | 'news' | 'quiz' | 'blog' | 'gallery' | 'spacex'
+type Tab = 'dashboard' | 'starmap' | 'tracker' | 'solar' | 'weather' | 'events' | 'news' | 'quiz' | 'blog' | 'gallery' | 'spacex' | 'explore'
 
 const TAB_HASH: Record<Tab, string> = {
   dashboard: '#iss', starmap: '#starmap', tracker: '#tracker',
   solar: '#solar', weather: '#weather', events: '#events',
   news: '#news', quiz: '#quiz', blog: '#blog', gallery: '#gallery',
   spacex: '#spacex',
+  explore: '#explore',
 }
 const HASH_TAB: Record<string, Tab> = Object.fromEntries(
   Object.entries(TAB_HASH).map(([k, v]) => [v, k as Tab])
@@ -66,6 +72,7 @@ const TAB_DEFS: { id: Tab; icon: string; tKey: string }[] = [
   { id: 'blog',      icon: '📝', tKey: 'tab.blog' },
   { id: 'gallery',   icon: '🔭', tKey: 'tab.gallery' },
   { id: 'spacex',    icon: '🚀', tKey: 'tab.spacex' },
+  { id: 'explore',   icon: '🔬', tKey: 'tab.explore' },
 ]
 
 const FOOTER_FEATURES = [
@@ -230,23 +237,29 @@ function MainApp() {
             )}
 
             {activeTab === 'tracker' && (
-              <Suspense fallback={<SkeletonCard />}>
-                <SatelliteTracker />
-              </Suspense>
+              <div className="space-y-5">
+                <ARSkyView />
+                <Suspense fallback={<SkeletonCard />}>
+                  <SatelliteTracker />
+                </Suspense>
+              </div>
             )}
 
             {activeTab === 'solar' && (
-              <div className="space-card p-6">
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="icon-box">🪐</div>
-                  <div>
-                    <h3 className="text-xl font-bold text-white">Solar System — 3D</h3>
-                    <p className="text-gray-500 text-sm">Interactive real-time planet positions</p>
+              <div className="space-y-5">
+                <div className="space-card p-6">
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="icon-box">🪐</div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">Solar System — 3D</h3>
+                      <p className="text-gray-500 text-sm">Interactive real-time planet positions</p>
+                    </div>
                   </div>
+                  <Suspense fallback={<SkeletonCard />}>
+                    <SolarSystem3D />
+                  </Suspense>
                 </div>
-                <Suspense fallback={<SkeletonCard />}>
-                  <SolarSystem3D />
-                </Suspense>
+                <PlanetExplorer />
               </div>
             )}
 
@@ -280,8 +293,19 @@ function MainApp() {
                 </div>
                 <SpaceCostChart />
                 <AdBanner />
+                <SpaceMissions />
                 <ArtemisMoonMap />
                 <SpaceXNewsFeed />
+              </div>
+            )}
+
+            {activeTab === 'explore' && (
+              <div className="space-y-5">
+                <PlanetExplorer />
+                <AdBanner />
+                <ExoplanetExplorer />
+                <AdBanner />
+                <GalaxyExplorer />
               </div>
             )}
 
