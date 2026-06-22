@@ -12,10 +12,10 @@ const EventsCalendar = lazy(() => import('./components/EventsCalendar'))
 const SpaceNewsFeed = lazy(() => import('./components/SpaceNewsFeed'))
 const SpaceQuiz = lazy(() => import('./components/SpaceQuiz'))
 const AstroGallery = lazy(() => import('./components/AstroGallery'))
+const ISSTracker = lazy(() => import('./components/ISSTracker'))
 import SpaceBackground from './components/SpaceBackground'
 const SolarSystem3D = lazy(() => import('./components/SolarSystem3D'))
 import NasaAPOD from './components/NasaAPOD'
-import ISSTracker from './components/ISSTracker'
 import ISSAlertSystem from './components/ISSAlertSystem'
 import EmailCapture from './components/EmailCapture'
 import AdBanner from './components/AdBanner'
@@ -72,6 +72,26 @@ class SafeWrap extends Component<{ children: ReactNode }, { ok: boolean }> {
   render() { return this.state.ok ? this.props.children : null }
 }
 
+function ScrollToTop() {
+  const [visible, setVisible] = useState(false)
+  useEffect(() => {
+    const onScroll = () => setVisible(window.scrollY > 600)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+  if (!visible) return null
+  return (
+    <button
+      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      aria-label="Scroll to top"
+      className="fixed bottom-6 right-5 z-50 w-11 h-11 rounded-2xl flex items-center justify-center text-lg shadow-xl transition-all hover:scale-110"
+      style={{ background: 'rgba(99,102,241,0.85)', backdropFilter: 'blur(12px)', border: '1px solid rgba(99,102,241,0.6)' }}
+    >
+      ↑
+    </button>
+  )
+}
+
 function SkeletonCard() {
   return (
     <div className="space-card p-8 animate-pulse">
@@ -126,10 +146,7 @@ function MainApp() {
       <SafeWrap><SpaceBackground /></SafeWrap>
 
       <div className="relative" style={{ zIndex: 1 }}>
-        <Header
-          onThemeToggle={() => {}}
-          onPremium={goToPremium}
-        />
+        <Header onPremium={goToPremium} />
         <LiveTicker />
         <Hero onPremium={() => {}} onScrollToISS={scrollToISS} />
 
@@ -173,7 +190,7 @@ function MainApp() {
                 </div>
                 <div ref={issRef}><ISSAlertSystem /></div>
                 <ISSPassPredictor />
-                <ISSTracker />
+                <Suspense fallback={<SkeletonCard />}><ISSTracker /></Suspense>
                 <ShareCard issLat={issData?.lat} issLng={issData?.lng} issAlt={issData?.alt} />
                 <NasaAPOD />
                 <AdBanner />
@@ -248,6 +265,7 @@ function MainApp() {
         </div>
 
         <Onboarding />
+        <ScrollToTop />
 
         {/* FOOTER */}
         <footer style={{ background: 'linear-gradient(180deg, rgba(2,5,16,0) 0%, rgba(2,5,16,0.8) 30%, #020510 100%)', borderTop: '1px solid rgba(99,102,241,0.1)' }}>

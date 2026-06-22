@@ -1,8 +1,13 @@
+import { useState, useEffect } from 'react'
 import { useLang } from '../i18n/LangContext'
 import type { Lang } from '../i18n/translations'
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
+}
+
 interface Props {
-  onThemeToggle: () => void
   onPremium: () => void
 }
 
@@ -17,6 +22,30 @@ const LANGS: { code: Lang; label: string }[] = [
 
 export default function Header({ onPremium }: Props) {
   const { lang, setLang, t } = useLang()
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
+  const [installed, setInstalled] = useState(false)
+
+  useEffect(() => {
+    const onPrompt = (e: Event) => {
+      e.preventDefault()
+      setInstallPrompt(e as BeforeInstallPromptEvent)
+    }
+    const onInstalled = () => { setInstalled(true); setInstallPrompt(null) }
+    window.addEventListener('beforeinstallprompt', onPrompt)
+    window.addEventListener('appinstalled', onInstalled)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onPrompt)
+      window.removeEventListener('appinstalled', onInstalled)
+    }
+  }, [])
+
+  const handleInstall = async () => {
+    if (!installPrompt) return
+    await installPrompt.prompt()
+    const { outcome } = await installPrompt.userChoice
+    if (outcome === 'accepted') setInstalled(true)
+    setInstallPrompt(null)
+  }
 
   return (
     <header className="sticky top-0 z-50 header-blur">
@@ -78,6 +107,18 @@ export default function Header({ onPremium }: Props) {
               </option>
             ))}
           </select>
+
+          {installPrompt && !installed && (
+            <button
+              onClick={handleInstall}
+              aria-label="Install SpaceHub app"
+              className="hidden sm:flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-bold transition-all"
+              style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.4)', color: '#34d399' }}
+            >
+              <span>📲</span>
+              <span>Install App</span>
+            </button>
+          )}
 
           <button
             onClick={onPremium}

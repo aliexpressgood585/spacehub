@@ -206,7 +206,14 @@ export default function AstroGallery() {
                 alt={photo.title}
                 loading="lazy"
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                onError={e => { (e.target as HTMLImageElement).parentElement!.style.display = 'none' }}
+                onError={e => {
+                  const img = e.target as HTMLImageElement
+                  img.style.display = 'none'
+                  const ph = document.createElement('div')
+                  ph.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:linear-gradient(135deg,rgba(99,102,241,0.15),rgba(139,92,246,0.1))'
+                  ph.textContent = '🔭'
+                  img.parentElement?.appendChild(ph)
+                }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="absolute bottom-0 left-0 right-0 p-2 translate-y-full group-hover:translate-y-0 transition-transform">
