@@ -1,7 +1,14 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 export default function SpaceBackground() {
   const containerRef = useRef<HTMLDivElement>(null)
+  const [galaxyOn, setGalaxyOn] = useState(() => localStorage.getItem('spacehub_galaxy') === '1')
+
+  useEffect(() => {
+    const handler = () => setGalaxyOn(localStorage.getItem('spacehub_galaxy') === '1')
+    window.addEventListener('spacehub-galaxy', handler)
+    return () => window.removeEventListener('spacehub-galaxy', handler)
+  }, [])
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -43,6 +50,10 @@ export default function SpaceBackground() {
         r.setPixelRatio(Math.min(window.devicePixelRatio, 1.5))
 
         if (!containerRef.current) return
+        r.domElement.style.position = 'absolute'
+        r.domElement.style.top = '0'
+        r.domElement.style.left = '0'
+        r.domElement.style.zIndex = '1'
         containerRef.current.appendChild(r.domElement)
 
         const createStars = (count: number, size: number, spread: number, color: number) => {
@@ -102,6 +113,24 @@ export default function SpaceBackground() {
       ref={containerRef}
       className="fixed inset-0 pointer-events-none"
       style={{ zIndex: 0 }}
-    />
+    >
+      {galaxyOn && (
+        <div
+          className="absolute inset-0"
+          style={{
+            zIndex: 0,
+            background: `
+              radial-gradient(ellipse 80% 55% at 15% 25%, rgba(130,40,220,0.42) 0%, transparent 58%),
+              radial-gradient(ellipse 65% 70% at 80% 65%, rgba(20,70,200,0.36) 0%, transparent 55%),
+              radial-gradient(ellipse 55% 45% at 88% 12%, rgba(210,30,90,0.26) 0%, transparent 52%),
+              radial-gradient(ellipse 75% 50% at 42% 88%, rgba(20,150,80,0.22) 0%, transparent 58%),
+              radial-gradient(ellipse 45% 45% at 55% 48%, rgba(80,20,160,0.3) 0%, transparent 48%)
+            `,
+            animation: 'nebula-drift 30s ease-in-out infinite',
+            mixBlendMode: 'screen',
+          }}
+        />
+      )}
+    </div>
   )
 }

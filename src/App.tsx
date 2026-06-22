@@ -40,6 +40,7 @@ import ExoplanetExplorer from './components/ExoplanetExplorer'
 import GalaxyExplorer from './components/GalaxyExplorer'
 import SpaceMissions from './components/SpaceMissions'
 import ARSkyView from './components/ARSkyView'
+import WeeklyUpdates from './components/WeeklyUpdates'
 import BlogPage from './pages/BlogPage'
 import BlogArticlePage from './pages/BlogArticlePage'
 import PremiumPage from './pages/PremiumPage'
@@ -201,6 +202,7 @@ function MainApp() {
 
             {activeTab === 'dashboard' && (
               <div className="space-y-5">
+                <WeeklyUpdates />
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <AstronautsInSpace />
                   <MoonPhase />

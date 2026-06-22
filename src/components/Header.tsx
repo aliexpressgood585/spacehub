@@ -28,6 +28,7 @@ export default function Header({ onPremium }: Props) {
   const [issSpeed, setIssSpeed] = useState<number | null>(null)
   const [crewCount, setCrewCount] = useState<number | null>(null)
   const [lightMode, setLightMode] = useState(() => localStorage.getItem('spacehub_theme') === 'light')
+  const [galaxyBg, setGalaxyBg] = useState(() => localStorage.getItem('spacehub_galaxy') === '1')
 
   useEffect(() => {
     const fetchISS = () => {
@@ -65,6 +66,13 @@ export default function Header({ onPremium }: Props) {
     setLightMode(next)
     localStorage.setItem('spacehub_theme', next ? 'light' : 'dark')
     document.documentElement.classList.toggle('light-mode', next)
+  }
+
+  const toggleGalaxy = () => {
+    const next = !galaxyBg
+    setGalaxyBg(next)
+    localStorage.setItem('spacehub_galaxy', next ? '1' : '0')
+    window.dispatchEvent(new Event('spacehub-galaxy'))
   }
 
   const handleInstall = async () => {
@@ -121,6 +129,17 @@ export default function Header({ onPremium }: Props) {
 
         {/* Right */}
         <div className="flex items-center gap-2 ml-auto">
+          <button
+            onClick={toggleGalaxy}
+            title={galaxyBg ? 'Galaxy Background: ON — click to disable' : 'Enable Galaxy Background'}
+            className="w-8 h-8 rounded-xl flex items-center justify-center text-base transition-all"
+            style={galaxyBg
+              ? { background: 'rgba(139,92,246,0.22)', border: '1px solid rgba(139,92,246,0.5)' }
+              : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+          >
+            🌌
+          </button>
+
           <button
             onClick={toggleTheme}
             title={lightMode ? 'Switch to Dark Mode' : 'Switch to Light Mode'}

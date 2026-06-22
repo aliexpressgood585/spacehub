@@ -439,6 +439,84 @@ html.light-mode .space-bg-canvas {
   box-shadow: 0 1px 40px rgba(0,0,0,0.5), 0 0 60px rgba(99,102,241,0.04);
 }
 
+/* ── SPACE CARD HOVER SHEEN ── */
+.space-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(99,102,241,0.55) 35%, rgba(139,92,246,0.7) 65%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  border-radius: 22px 22px 0 0;
+}
+.space-card:hover::before { opacity: 1; }
+
+/* ── ICON BOX HOVER ── */
+.icon-box {
+  transition: transform 0.25s cubic-bezier(0.4,0,0.2,1), box-shadow 0.25s ease;
+}
+
+/* ── FEATURE CARD (prominent variant) ── */
+.feature-card {
+  background: linear-gradient(135deg, rgba(12,15,42,0.98) 0%, rgba(8,11,34,0.98) 100%);
+  border: 1px solid rgba(99,102,241,0.22);
+  border-radius: 22px;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+  position: relative;
+}
+.feature-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #6366f1, #8b5cf6, #a78bfa, #8b5cf6, #6366f1);
+  background-size: 200% auto;
+  animation: shimmer 3s linear infinite;
+  border-radius: 22px 22px 0 0;
+}
+.feature-card:hover {
+  border-color: rgba(99,102,241,0.45);
+  box-shadow: 0 28px 80px rgba(99,102,241,0.2);
+  transform: translateY(-3px);
+}
+
+/* ── GALAXY NEBULA TRANSITION ── */
+@keyframes galaxy-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── STAT NUMBER ── */
+.stat-number {
+  font-size: 2rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.75) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── PROGRESS GLOW BAR ── */
+.progress-glow {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #6366f1, #8b5cf6, #a78bfa);
+  position: relative;
+  overflow: visible;
+}
+.progress-glow::after {
+  content: '';
+  position: absolute;
+  right: -2px; top: -3px;
+  width: 10px; height: 10px;
+  background: #a78bfa;
+  border-radius: 50%;
+  box-shadow: 0 0 8px 2px rgba(167,139,250,0.6);
+}
+
 /* ── MOBILE RESPONSIVE ── */
 @media (max-width: 640px) {
   .icon-box {
