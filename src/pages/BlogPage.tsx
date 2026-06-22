@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import AdBanner from '../components/AdBanner'
 
 export const ARTICLES = [
   {
@@ -2210,7 +2211,8 @@ export function ArticleView({ article, onBack }: { article: typeof ARTICLES[0]; 
             })}
           </div>
 
-          <div className="divider-glow mt-8 mb-5" />
+          <AdBanner style={{ marginTop: 32, marginBottom: 4 }} />
+          <div className="divider-glow mt-6 mb-5" />
           <div className="flex flex-wrap items-center gap-2 justify-between">
             <button onClick={onBack} className="text-indigo-400 hover:text-indigo-300 text-sm font-semibold transition-colors">
               ← More Articles
@@ -2307,6 +2309,8 @@ export default function BlogPage() {
         </div>
       </button>
 
+      <AdBanner style={{ marginBottom: 24 }} />
+
       {/* Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         {ARTICLES.slice(1).map(a => (
@@ -2351,6 +2355,8 @@ export default function BlogPage() {
           </button>
         ))}
       </div>
+
+      <AdBanner style={{ marginTop: 32, marginBottom: 8 }} />
 
       {/* Bottom CTA */}
       <div className="mt-12 text-center">
