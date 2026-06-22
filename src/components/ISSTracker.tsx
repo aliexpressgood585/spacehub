@@ -203,7 +203,7 @@ export default function ISSTracker() {
                 { label: 'Latitude',  val: `${issPos.latitude.toFixed(4)}°` },
                 { label: 'Longitude', val: `${issPos.longitude.toFixed(4)}°` },
                 { label: 'Altitude',  val: `${issPos.altitude.toFixed(1)} km` },
-                { label: 'Speed',     val: `${(issPos.velocity / 3.6).toFixed(2)} km/s` },
+                { label: 'Speed',     val: `${(issPos.velocity / 3600).toFixed(2)} km/s` },
               ].map(item => (
                 <div
                   key={item.label}
