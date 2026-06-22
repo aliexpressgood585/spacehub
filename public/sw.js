@@ -1,4 +1,16 @@
-const CACHE = 'spacehub-v5'
+const CACHE = 'spacehub-v6'
+const API_CACHE = 'spacehub-api-v1'
+
+// APIs that should be cached with stale-while-revalidate (good for offline)
+const API_HOSTS = [
+  'wheretheiss.at',
+  'open-notify.org',
+  'api.spaceflightnewsapi.net',
+  'api.spacexdata.com',
+  'api.nasa.gov',
+  'll.thespacedevs.com',
+  'celestrak.org',
+]
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(['/', '/offline.html'])))
@@ -7,7 +19,7 @@ self.addEventListener('install', e => {
 
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(keys =>
-    Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+    Promise.all(keys.filter(k => k !== CACHE && k !== API_CACHE).map(k => caches.delete(k)))
   ))
   self.clients.claim()
 })
@@ -17,9 +29,20 @@ self.addEventListener('fetch', e => {
 
   const url = new URL(e.request.url)
 
-  // External APIs — network only with cache fallback
-  if (!url.hostname.includes('vercel.app') && !url.hostname.includes('localhost')) {
-    e.respondWith(fetch(e.request).catch(() => caches.match(e.request)))
+  // Space data APIs — stale-while-revalidate (show cached, update in background)
+  if (API_HOSTS.some(h => url.hostname.includes(h))) {
+    e.respondWith(
+      caches.open(API_CACHE).then(async cache => {
+        const cached = await cache.match(e.request)
+        const fetchPromise = fetch(e.request).then(res => {
+          if (res.ok) cache.put(e.request, res.clone())
+          return res
+        }).catch(() => null)
+        return cached || fetchPromise || new Response(JSON.stringify({ error: 'offline' }), {
+          headers: { 'Content-Type': 'application/json' }
+        })
+      })
+    )
     return
   }
 
@@ -35,11 +58,13 @@ self.addEventListener('fetch', e => {
     return
   }
 
-  // Hashed JS/CSS assets — cache first (filenames change with each build so this is safe)
+  // Hashed JS/CSS assets — cache first
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
-      const clone = res.clone()
-      caches.open(CACHE).then(c => c.put(e.request, clone))
+      if (res.ok) {
+        const clone = res.clone()
+        caches.open(CACHE).then(c => c.put(e.request, clone))
+      }
       return res
     }))
   )

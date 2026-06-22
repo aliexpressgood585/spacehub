@@ -25,7 +25,7 @@ export default function ArtemisMoonMap() {
         </span>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-4">
+      <div className="flex flex-col md:flex-row gap-4">
         {/* SVG Map */}
         <div className="flex-shrink-0 flex justify-center">
           <svg width="380" height="380" viewBox="0 0 380 380" style={{ maxWidth: '100%' }}>

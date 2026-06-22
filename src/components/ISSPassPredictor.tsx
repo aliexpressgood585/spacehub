@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useLang } from '../i18n/LangContext'
 
 interface Pass {
@@ -196,6 +196,23 @@ export default function ISSPassPredictor() {
   const [countdown, setCountdown] = useState('')
   const [selectedCity, setSelectedCity] = useState('Tel Aviv')
   const [copied, setCopied] = useState(false)
+  const [notifEnabled, setNotifEnabled] = useState(false)
+  const notifSentRef = useRef<number>(0)
+
+  const requestNotifPermission = async () => {
+    if (!('Notification' in window)) return
+    const perm = await Notification.requestPermission()
+    if (perm === 'granted') setNotifEnabled(true)
+  }
+
+  const toggleNotif = () => {
+    if (notifEnabled) {
+      setNotifEnabled(false)
+      notifSentRef.current = 0
+    } else {
+      requestNotifPermission()
+    }
+  }
 
   const load = useCallback(async (l: Location) => {
     setLoading(true)
@@ -246,14 +263,31 @@ export default function ISSPassPredictor() {
     load(l)
   }
 
-  // Live countdown to next pass
+  // Live countdown to next pass + push notification at 15 min
   useEffect(() => {
     if (!passes.length) return
     const next = passes.find(p => p.start > new Date())
     if (!next) return
-    const iv = setInterval(() => setCountdown(formatCountdown(msUntil(next.start))), 1000)
+    const iv = setInterval(() => {
+      const ms = msUntil(next.start)
+      setCountdown(formatCountdown(ms))
+      if (
+        notifEnabled &&
+        Notification.permission === 'granted' &&
+        ms > 0 && ms <= 900000 &&
+        notifSentRef.current !== next.start.getTime()
+      ) {
+        notifSentRef.current = next.start.getTime()
+        const city = loc?.city ?? 'your location'
+        new Notification('🚀 ISS Pass in ~15 minutes!', {
+          body: `The ISS will fly over ${city} at ${formatTime(next.start)} — ${Math.round(next.maxEl)}° max elevation`,
+          icon: '/favicon.svg',
+          tag: 'iss-pass',
+        })
+      }
+    }, 1000)
     return () => clearInterval(iv)
-  }, [passes])
+  }, [passes, notifEnabled, loc])
 
   const nextPass = passes.find(p => p.start > new Date())
 
@@ -278,21 +312,35 @@ export default function ISSPassPredictor() {
     <div className="space-card overflow-hidden">
       {/* Header */}
       <div className="p-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="icon-box">🔭</div>
-          <div>
+          <div className="flex-1 min-w-0">
             <h3 className="text-white font-bold text-base">{t('predictor.title')}</h3>
             <p className="text-xs text-gray-500">{t('predictor.subtitle')}</p>
           </div>
-          {nextPass && (
-            <button
-              onClick={shareNextPass}
-              className="ml-auto text-xs px-3 py-1.5 rounded-lg transition font-medium"
-              style={{ background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.4)', color: '#a5b4fc' }}
-            >
-              {copied ? t('predictor.linkCopied') : t('common.share')}
-            </button>
-          )}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {'Notification' in window && (
+              <button
+                onClick={toggleNotif}
+                title={notifEnabled ? 'Disable ISS pass alerts' : 'Enable ISS pass alerts'}
+                className="text-xs px-3 py-1.5 rounded-lg transition font-medium"
+                style={notifEnabled
+                  ? { background: 'rgba(251,191,36,0.2)', border: '1px solid rgba(251,191,36,0.4)', color: '#fbbf24' }
+                  : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#6b7280' }}
+              >
+                {notifEnabled ? '🔔 ON' : '🔕'}
+              </button>
+            )}
+            {nextPass && (
+              <button
+                onClick={shareNextPass}
+                className="text-xs px-3 py-1.5 rounded-lg transition font-medium"
+                style={{ background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.4)', color: '#a5b4fc' }}
+              >
+                {copied ? '✓' : t('common.share')}
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -402,26 +450,31 @@ export default function ISSPassPredictor() {
                   {dayPasses.map((p, i) => (
                     <div
                       key={i}
-                      className="rounded-xl px-4 py-3 flex items-center gap-4 transition"
+                      className="rounded-xl px-3 py-3 flex items-start gap-3 transition"
                       style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)' }}
                     >
-                      <div className="min-w-[56px] text-center">
-                        <p className="text-white font-bold font-mono">{formatTime(p.start)}</p>
-                        <p className="text-xs text-gray-600">{t('predictor.start')}</p>
+                      <div className="min-w-[50px] text-center flex-shrink-0">
+                        <p className="text-white font-bold font-mono text-sm">{formatTime(p.start)}</p>
+                        <p className="text-[10px] text-gray-600">{t('predictor.start')}</p>
                       </div>
-                      <div className="flex-1 flex items-center gap-3 flex-wrap">
-                        <span className={`text-sm font-semibold ${elColor(p.maxEl)}`}>
-                          ▲ {Math.round(p.maxEl)}° {elLabel(p.maxEl)}
-                        </span>
-                        <span className="text-xs text-gray-500">{p.duration} min</span>
-                        <span className="text-xs text-gray-600">{azToCompass(p.startAz)} → {azToCompass(p.endAz)}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <span className={`text-sm font-semibold ${elColor(p.maxEl)}`}>
+                            ▲ {Math.round(p.maxEl)}° {elLabel(p.maxEl)}
+                          </span>
+                          <span className="text-xs text-gray-500">{p.duration} min</span>
+                          <span className="text-xs text-gray-600">{azToCompass(p.startAz)}→{azToCompass(p.endAz)}</span>
+                        </div>
+                        <div className="mt-0.5">
+                          {p.isVisible
+                            ? <span className="text-[10px] text-green-400">{t('predictor.visibleNight')}</span>
+                            : <span className="text-[10px] text-gray-600">{t('predictor.daylight')}</span>
+                          }
+                        </div>
                       </div>
-                      <div className="text-right min-w-[56px]">
-                        <p className="text-gray-500 text-xs font-mono">{formatTime(p.end)}</p>
-                        {p.isVisible
-                          ? <span className="text-xs text-green-400">{t('predictor.visibleNight')}</span>
-                          : <span className="text-xs text-gray-600">{t('predictor.daylight')}</span>
-                        }
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-gray-500 text-[10px] font-mono">{formatTime(p.end)}</p>
+                        <p className="text-[10px] text-gray-700">end</p>
                       </div>
                     </div>
                   ))}

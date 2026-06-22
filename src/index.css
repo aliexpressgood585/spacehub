@@ -438,3 +438,39 @@ html.light-mode .space-bg-canvas {
   border-bottom: 1px solid rgba(99,102,241,0.1);
   box-shadow: 0 1px 40px rgba(0,0,0,0.5), 0 0 60px rgba(99,102,241,0.04);
 }
+
+/* ── MOBILE RESPONSIVE ── */
+@media (max-width: 640px) {
+  .icon-box {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+    border-radius: 11px;
+  }
+
+  .space-card {
+    border-radius: 16px;
+  }
+
+  .tab-pill {
+    padding: 7px 13px;
+    font-size: 11px;
+  }
+
+  .countdown-digit {
+    min-width: 54px;
+    padding: 10px 12px;
+    border-radius: 11px;
+  }
+
+  /* Prevent horizontal scroll from fixed-width SVGs */
+  svg {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Stack grids on mobile */
+  .mobile-stack {
+    grid-template-columns: 1fr !important;
+  }
+}
