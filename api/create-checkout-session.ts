@@ -1,38 +1,33 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import Stripe from 'stripe'
+import { rateLimit } from './_rateLimit'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-05-28.basil',
-})
-
+// Price IDs — user sets these in Vercel env vars
 const PRICES = {
-  monthly: process.env.STRIPE_MONTHLY_PRICE_ID!,
-  yearly:  process.env.STRIPE_YEARLY_PRICE_ID!,
+  monthly:            process.env.STRIPE_PRICE_PRO_MONTHLY!,
+  yearly:             process.env.STRIPE_PRICE_PRO_YEARLY!,
+  'starter-monthly':  process.env.STRIPE_PRICE_STARTER_MONTHLY!,
+  'starter-yearly':   process.env.STRIPE_PRICE_STARTER_YEARLY!,
 }
 
-const BASE_URL = process.env.VITE_BASE_URL || 'https://spacehub-nu.vercel.app'
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  if (req.method !== 'POST') return res.status(405).end()
 
-  const { plan } = req.body as { plan: 'monthly' | 'yearly' }
-  if (!plan || !PRICES[plan]) return res.status(400).json({ error: 'Invalid plan' })
+  const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || '127.0.0.1'
+  if (!rateLimit(ip, 10, 60_000)) return res.status(429).json({ error: 'Too many requests' })
 
-  try {
-    const session = await stripe.checkout.sessions.create({
-      mode: 'subscription',
-      payment_method_types: ['card'],
-      line_items: [{ price: PRICES[plan], quantity: 1 }],
-      success_url: `${BASE_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url:  `${BASE_URL}/?canceled=1`,
-      allow_promotion_codes: true,
-      subscription_data: {
-        metadata: { plan },
-      },
-    })
-    res.json({ url: session.url })
-  } catch (err: any) {
-    console.error('Stripe error:', err.message)
-    res.status(500).json({ error: err.message })
+  const { plan } = req.body as { plan: string }
+  const priceId = PRICES[plan as keyof typeof PRICES]
+  if (!priceId || !process.env.STRIPE_SECRET_KEY) {
+    return res.status(200).json({ error: 'Payment coming soon — enter your email to be notified at launch!' })
   }
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
+  const session = await stripe.checkout.sessions.create({
+    mode: 'subscription',
+    payment_method_types: ['card'],
+    line_items: [{ price: priceId, quantity: 1 }],
+    success_url: `${process.env.APP_URL || 'https://spacehub-nu.vercel.app'}/success`,
+    cancel_url: `${process.env.APP_URL || 'https://spacehub-nu.vercel.app'}/premium`,
+  })
+  res.json({ url: session.url })
 }

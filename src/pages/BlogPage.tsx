@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import AdBanner from '../components/AdBanner'
 
 export const ARTICLES = [
@@ -2209,6 +2210,22 @@ export function ArticleView({ article, onBack }: { article: typeof ARTICLES[0]; 
               }
               return <p key={i} className="text-gray-400 text-sm leading-relaxed mb-4">{para}</p>
             })}
+          </div>
+
+          <div className="space-card p-6 mt-6">
+            <h3 className="text-white font-bold mb-4">🌍 Track ISS From Your City</h3>
+            <div className="flex flex-wrap gap-2">
+              {['New York', 'London', 'Tokyo', 'Tel Aviv', 'Paris', 'Sydney', 'Berlin', 'Dubai'].map(city => (
+                <Link
+                  key={city}
+                  to={`/iss/${city.toLowerCase().replace(/ /g, '-')}`}
+                  className="text-xs px-3 py-1.5 rounded-xl font-semibold transition"
+                  style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', color: '#a5b4fc' }}
+                >
+                  ISS over {city}
+                </Link>
+              ))}
+            </div>
           </div>
 
           <AdBanner style={{ marginTop: 32, marginBottom: 4 }} />

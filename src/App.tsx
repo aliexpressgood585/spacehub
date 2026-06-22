@@ -1,15 +1,15 @@
-import { useState, useEffect, useRef, Component, type ReactNode } from 'react'
+import { useState, useEffect, useRef, Component, lazy, Suspense, type ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
 import './App.css'
 import { LangProvider } from './i18n/LangContext'
 import { useLang } from './i18n/LangContext'
 import Header from './components/Header'
 import Hero from './components/Hero'
-import SatelliteTracker from './components/SatelliteTracker'
+const SatelliteTracker = lazy(() => import('./components/SatelliteTracker'))
 import SpaceWeather from './components/SpaceWeather'
 import EventsCalendar from './components/EventsCalendar'
 import SpaceBackground from './components/SpaceBackground'
-import SolarSystem3D from './components/SolarSystem3D'
+const SolarSystem3D = lazy(() => import('./components/SolarSystem3D'))
 import NasaAPOD from './components/NasaAPOD'
 import ISSTracker from './components/ISSTracker'
 import SpaceNewsFeed from './components/SpaceNewsFeed'
@@ -60,6 +60,16 @@ class SafeWrap extends Component<{ children: ReactNode }, { ok: boolean }> {
   state = { ok: true }
   static getDerivedStateFromError() { return { ok: false } }
   render() { return this.state.ok ? this.props.children : null }
+}
+
+function SkeletonCard() {
+  return (
+    <div className="space-card p-8 animate-pulse">
+      <div className="h-4 bg-white/10 rounded-full w-48 mb-4" />
+      <div className="h-3 bg-white/05 rounded-full w-64 mb-8" />
+      <div className="h-64 bg-white/05 rounded-2xl" />
+    </div>
+  )
 }
 
 function MainApp() {
@@ -167,7 +177,11 @@ function MainApp() {
               </div>
             )}
 
-            {activeTab === 'tracker' && <SatelliteTracker />}
+            {activeTab === 'tracker' && (
+              <Suspense fallback={<SkeletonCard />}>
+                <SatelliteTracker />
+              </Suspense>
+            )}
 
             {activeTab === 'solar' && (
               <div className="space-card p-6">
@@ -178,7 +192,9 @@ function MainApp() {
                     <p className="text-gray-500 text-sm">Interactive real-time planet positions</p>
                   </div>
                 </div>
-                <SolarSystem3D />
+                <Suspense fallback={<SkeletonCard />}>
+                  <SolarSystem3D />
+                </Suspense>
               </div>
             )}
 

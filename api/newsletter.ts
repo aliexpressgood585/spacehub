@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { rateLimit } from './_rateLimit'
 
 const RESEND_KEY = process.env.RESEND_API_KEY!
 const AUDIENCE_ID = process.env.RESEND_AUDIENCE_ID!
@@ -59,7 +60,7 @@ function buildHtml(apod: { title: string; explanation: string; url: string } | n
 
     <p style="text-align:center;color:#374151;font-size:11px">
       You're receiving this because you subscribed at spacehub-nu.vercel.app<br>
-      <a href="https://spacehub-nu.vercel.app" style="color:#4b5563">Unsubscribe</a>
+      <a href="{{{RESEND_UNSUBSCRIBE_URL}}}" style="color:#4b5563">Unsubscribe</a>
     </p>
   </div>
 </body>
@@ -67,6 +68,9 @@ function buildHtml(apod: { title: string; explanation: string; url: string } | n
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || '127.0.0.1'
+  if (!rateLimit(ip, 5, 60_000)) return res.status(429).json({ error: 'Too many requests' })
+
   const auth = req.headers.authorization
   if (auth !== `Bearer ${CRON_SECRET}`) {
     return res.status(401).json({ error: 'Unauthorized' })

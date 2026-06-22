@@ -15,16 +15,18 @@ const Ctx = createContext<LangCtx>({
 export function LangProvider({ children }: { children: ReactNode }) {
   const [lang, setLang] = useState<Lang>('en')
 
+  const isRtl = lang === 'he' || lang === 'ar'
+
   useEffect(() => {
     document.documentElement.lang = lang
-    document.documentElement.dir = lang === 'he' ? 'rtl' : 'ltr'
-  }, [lang])
+    document.documentElement.dir = isRtl ? 'rtl' : 'ltr'
+  }, [lang, isRtl])
 
   const t = (key: string) =>
     translations[lang][key] ?? translations['en'][key] ?? key
 
   return (
-    <Ctx.Provider value={{ lang, setLang, t, dir: lang === 'he' ? 'rtl' : 'ltr' }}>
+    <Ctx.Provider value={{ lang, setLang, t, dir: isRtl ? 'rtl' : 'ltr' }}>
       {children}
     </Ctx.Provider>
   )

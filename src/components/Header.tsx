@@ -7,9 +7,12 @@ interface Props {
 }
 
 const LANGS: { code: Lang; label: string }[] = [
-  { code: 'en', label: 'EN' },
-  { code: 'he', label: 'HE' },
-  { code: 'es', label: 'ES' },
+  { code: 'en', label: '🇺🇸 EN' },
+  { code: 'he', label: '🇮🇱 HE' },
+  { code: 'es', label: '🇪🇸 ES' },
+  { code: 'fr', label: '🇫🇷 FR' },
+  { code: 'de', label: '🇩🇪 DE' },
+  { code: 'ar', label: '🇸🇦 AR' },
 ]
 
 export default function Header({ onPremium }: Props) {
@@ -55,20 +58,26 @@ export default function Header({ onPremium }: Props) {
 
         {/* Right */}
         <div className="flex items-center gap-2 ml-auto">
-          <div className="flex items-center gap-0.5 p-0.5 rounded-xl border border-white/[0.08] bg-white/[0.02]">
+          <select
+            value={lang}
+            onChange={e => setLang(e.target.value as Lang)}
+            style={{
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              color: '#c4b5fd',
+              borderRadius: 10,
+              padding: '6px 10px',
+              fontSize: 12,
+              outline: 'none',
+              cursor: 'pointer',
+            }}
+          >
             {LANGS.map(l => (
-              <button
-                key={l.code}
-                onClick={() => setLang(l.code)}
-                className="text-[11px] px-2.5 py-1.5 rounded-lg font-bold transition-all"
-                style={lang === l.code
-                  ? { background: 'rgba(99,102,241,0.3)', color: '#c4b5fd' }
-                  : { color: '#4b5563' }}
-              >
+              <option key={l.code} value={l.code} style={{ background: '#0d1117', color: '#c4b5fd' }}>
                 {l.label}
-              </button>
+              </option>
             ))}
-          </div>
+          </select>
 
           <button
             onClick={onPremium}
