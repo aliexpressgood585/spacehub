@@ -19,11 +19,24 @@ export default function AstroGallery() {
   const [error, setError] = useState(false)
 
   useEffect(() => {
-    fetch('/api/gallery')
+    const queries = ['nebula hubble', 'earth orbit iss', 'galaxy deep space', 'saturn cassini', 'moon apollo', 'mars surface']
+    const q = queries[Math.floor(Math.random() * queries.length)]
+    fetch(`https://images-api.nasa.gov/search?q=${encodeURIComponent(q)}&media_type=image&page_size=20`)
       .then(r => { if (!r.ok) throw new Error(''); return r.json() })
-      .then((data: GalleryItem[]) => {
-        if (!Array.isArray(data) || data.length === 0) throw new Error('empty')
-        setPhotos(data)
+      .then((json: { collection: { items: { data: { title: string; date_created: string; nasa_id: string }[]; links?: { href: string }[] }[] } }) => {
+        const items = json.collection.items
+        const photos = items
+          .filter(i => i.links?.[0]?.href)
+          .slice(0, 12)
+          .map(i => ({
+            title: i.data[0]?.title ?? 'NASA Image',
+            date: i.data[0]?.date_created?.slice(0, 10) ?? '',
+            url: i.links![0].href,
+            thumb: i.links![0].href,
+            nasa_id: i.data[0]?.nasa_id ?? '',
+          }))
+        if (photos.length === 0) throw new Error('empty')
+        setPhotos(photos)
         setLoading(false)
       })
       .catch(() => { setError(true); setLoading(false) })
