@@ -23,6 +23,8 @@ import ISSPassPredictor from './components/ISSPassPredictor'
 import SpaceQuiz from './components/SpaceQuiz'
 import ShareCard from './components/ShareCard'
 import BlogPage from './pages/BlogPage'
+import BlogArticlePage from './pages/BlogArticlePage'
+import PremiumPage from './pages/PremiumPage'
 import CityPage, { CITY_DATA } from './pages/CityPage'
 import PrivacyPage from './pages/PrivacyPage'
 import SuccessPage from './pages/SuccessPage'
@@ -87,6 +89,8 @@ function MainApp() {
     setTimeout(() => issRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
   }
 
+  const goToPremium = () => { window.location.href = '/premium' }
+
   return (
     <div className="min-h-screen relative" style={{ background: '#020510' }}>
       <SafeWrap><SpaceBackground /></SafeWrap>
@@ -96,7 +100,7 @@ function MainApp() {
           onThemeToggle={() => {}}
           lang={lang}
           onLangToggle={() => setLang(l => l === 'he' ? 'en' : 'he')}
-          onPremium={() => {}}
+          onPremium={goToPremium}
         />
         <LiveTicker />
         <Hero lang={lang} onPremium={() => {}} onScrollToISS={scrollToISS} />
@@ -279,6 +283,8 @@ export default function App() {
             </div>
           </div>
         } />
+        <Route path="/blog/:slug" element={<BlogArticlePage />} />
+        <Route path="/premium" element={<PremiumPage />} />
         <Route path="/iss/:city" element={<CityPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/success" element={<SuccessPage />} />

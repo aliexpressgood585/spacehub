@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
-const ARTICLES = [
+export const ARTICLES = [
   {
     slug: 'best-telescope-for-kids-2026',
     title: 'Best Telescopes for Kids 2026 — Age-by-Age Guide for Parents',
@@ -2031,7 +2031,7 @@ Solar activity follows an 11-year cycle — we're currently in Solar Cycle 25, n
   },
 ]
 
-const BLOG_IMAGES: Record<string, string> = {
+export const BLOG_IMAGES: Record<string, string> = {
   'best-telescope-for-kids-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/8inchreflector.jpg/800px-8inchreflector.jpg',
   'lunar-eclipse-guide-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/The_Blood_Moon_October_8_2014.jpg/800px-The_Blood_Moon_October_8_2014.jpg',
   'how-to-find-north-star-polaris': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Circumpolar_star_trails.jpg/800px-Circumpolar_star_trails.jpg',
@@ -2068,14 +2068,17 @@ const BLOG_IMAGES: Record<string, string> = {
   'how-to-observe-sun-safely-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg/800px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg',
 }
 
-export default function BlogPage() {
-  const [active, setActive] = useState<string | null>(null)
-  const article = ARTICLES.find(a => a.slug === active)
+export function ArticleView({ article, onBack }: { article: typeof ARTICLES[0]; onBack: () => void }) {
+  useEffect(() => {
+    const prev = document.title
+    document.title = `${article.title} | SpaceHub`
+    return () => { document.title = prev }
+  }, [article.title])
 
-  if (article) return (
+  return (
     <div className="max-w-2xl mx-auto px-4 py-12">
       <button
-        onClick={() => setActive(null)}
+        onClick={onBack}
         className="flex items-center gap-2 text-indigo-400 hover:text-indigo-300 text-sm font-semibold mb-8 group transition-all"
       >
         <span className="group-hover:-translate-x-1 transition-transform">←</span>
@@ -2083,7 +2086,6 @@ export default function BlogPage() {
       </button>
 
       <div className="space-card overflow-hidden">
-        {/* Hero image */}
         {BLOG_IMAGES[article.slug] && (
           <div className="relative overflow-hidden" style={{ height: 240 }}>
             <img
@@ -2100,116 +2102,119 @@ export default function BlogPage() {
         )}
 
         <div className="p-8">
-        {/* Article header */}
-        <div className="flex items-start gap-4 mb-6">
-          <div className="icon-box text-2xl flex-shrink-0">{article.icon}</div>
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <span className="tag-chip tag-chip-blue">Astronomy</span>
-              <span className="text-gray-700 text-xs">{article.date}</span>
-              <span className="text-gray-700 text-xs">·</span>
-              <span className="text-gray-700 text-xs">{article.readTime}</span>
+          <div className="flex items-start gap-4 mb-6">
+            <div className="icon-box text-2xl flex-shrink-0">{article.icon}</div>
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <span className="tag-chip tag-chip-blue">Astronomy</span>
+                <span className="text-gray-700 text-xs">{article.date}</span>
+                <span className="text-gray-700 text-xs">·</span>
+                <span className="text-gray-700 text-xs">{article.readTime}</span>
+              </div>
+              {!BLOG_IMAGES[article.slug] && (
+                <h1 className="text-xl sm:text-2xl font-black text-white leading-snug">{article.title}</h1>
+              )}
             </div>
-            {!BLOG_IMAGES[article.slug] && (
-              <h1 className="text-xl sm:text-2xl font-black text-white leading-snug">{article.title}</h1>
-            )}
           </div>
-        </div>
 
-        {/* Divider */}
-        <div className="divider-glow mb-6" />
+          <div className="divider-glow mb-6" />
 
-        {/* Article body */}
-        <div className="prose prose-invert max-w-none">
-          {article.content.split('\n\n').map((para, i) => {
-            if (para.startsWith('**') && para.endsWith('**')) {
-              return (
-                <h3 key={i} className="text-indigo-300 font-bold text-base mt-8 mb-3 flex items-center gap-2">
-                  <span style={{ width: 3, height: 16, background: 'linear-gradient(180deg,#6366f1,#8b5cf6)', borderRadius: 2, display: 'inline-block', flexShrink: 0 }} />
-                  {para.replace(/\*\*/g, '')}
-                </h3>
-              )
-            }
-            if (para.startsWith('[') && para.includes('amazon.com')) {
-              const urlMatch = para.match(/\((https:\/\/[^)]+)\)/)
-              const textMatch = para.match(/\[([^\]]+)\]/)
-              if (urlMatch && textMatch) {
+          <div className="prose prose-invert max-w-none">
+            {article.content.split('\n\n').map((para, i) => {
+              if (para.startsWith('**') && para.endsWith('**')) {
                 return (
-                  <div key={i} className="mb-3 mt-2">
-                    <a href={urlMatch[1]} target="_blank" rel="noopener noreferrer" className="buy-btn">
-                      <span>🛒</span>
-                      <span>{textMatch[1].replace(/^🛒\s*/, '')}</span>
-                      <span style={{ marginLeft: 'auto', opacity: 0.6 }}>↗</span>
-                    </a>
-                  </div>
+                  <h3 key={i} className="text-indigo-300 font-bold text-base mt-8 mb-3 flex items-center gap-2">
+                    <span style={{ width: 3, height: 16, background: 'linear-gradient(180deg,#6366f1,#8b5cf6)', borderRadius: 2, display: 'inline-block', flexShrink: 0 }} />
+                    {para.replace(/\*\*/g, '')}
+                  </h3>
                 )
               }
-            }
-            if (para.includes('**')) {
-              const html = para.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#e5e7eb;font-weight:600">$1</strong>')
-              return <p key={i} className="text-gray-400 text-sm leading-relaxed mb-4" dangerouslySetInnerHTML={{ __html: html }} />
-            }
-            if (para.startsWith('-')) {
-              const items = para.split('\n').filter(l => l.startsWith('-'))
-              return (
-                <ul key={i} className="space-y-2 mb-5">
-                  {items.map((item, j) => {
-                    const itemHtml = item.slice(2).replace(/\*\*(.*?)\*\*/g, '<strong style="color:#e5e7eb;font-weight:600">$1</strong>')
-                    return (
-                      <li key={j} className="text-gray-400 text-sm flex gap-3 leading-relaxed">
-                        <span className="text-indigo-500 mt-0.5 flex-shrink-0">▸</span>
-                        <span dangerouslySetInnerHTML={{ __html: itemHtml }} />
-                      </li>
-                    )
-                  })}
-                </ul>
-              )
-            }
-            if (para.startsWith('Step ')) {
-              return <p key={i} className="text-gray-300 text-sm leading-relaxed mb-3 pl-4 border-l-2 border-indigo-500/40">{para}</p>
-            }
-            if (/^\d+\./.test(para)) {
-              const items = para.split('\n').filter(l => /^\d+\./.test(l))
-              if (items.length > 1) {
+              if (para.startsWith('[') && para.includes('amazon.com')) {
+                const urlMatch = para.match(/\((https:\/\/[^)]+)\)/)
+                const textMatch = para.match(/\[([^\]]+)\]/)
+                if (urlMatch && textMatch) {
+                  return (
+                    <div key={i} className="mb-3 mt-2">
+                      <a href={urlMatch[1]} target="_blank" rel="noopener noreferrer" className="buy-btn">
+                        <span>🛒</span>
+                        <span>{textMatch[1].replace(/^🛒\s*/, '')}</span>
+                        <span style={{ marginLeft: 'auto', opacity: 0.6 }}>↗</span>
+                      </a>
+                    </div>
+                  )
+                }
+              }
+              if (para.includes('**')) {
+                const html = para.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#e5e7eb;font-weight:600">$1</strong>')
+                return <p key={i} className="text-gray-400 text-sm leading-relaxed mb-4" dangerouslySetInnerHTML={{ __html: html }} />
+              }
+              if (para.startsWith('-')) {
+                const items = para.split('\n').filter(l => l.startsWith('-'))
                 return (
-                  <ol key={i} className="space-y-2 mb-5 list-none">
+                  <ul key={i} className="space-y-2 mb-5">
                     {items.map((item, j) => {
-                      const num = item.match(/^(\d+)\./)?.[1] ?? String(j + 1)
-                      const text = item.replace(/^\d+\.\s*/, '')
-                      const html = text.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#e5e7eb;font-weight:600">$1</strong>')
+                      const itemHtml = item.slice(2).replace(/\*\*(.*?)\*\*/g, '<strong style="color:#e5e7eb;font-weight:600">$1</strong>')
                       return (
                         <li key={j} className="text-gray-400 text-sm flex gap-3 leading-relaxed">
-                          <span className="font-black text-indigo-500 flex-shrink-0 w-5 text-right">{num}.</span>
-                          <span dangerouslySetInnerHTML={{ __html: html }} />
+                          <span className="text-indigo-500 mt-0.5 flex-shrink-0">▸</span>
+                          <span dangerouslySetInnerHTML={{ __html: itemHtml }} />
                         </li>
                       )
                     })}
-                  </ol>
+                  </ul>
                 )
               }
-            }
-            return <p key={i} className="text-gray-400 text-sm leading-relaxed mb-4">{para}</p>
-          })}
-        </div>
+              if (para.startsWith('Step ')) {
+                return <p key={i} className="text-gray-300 text-sm leading-relaxed mb-3 pl-4 border-l-2 border-indigo-500/40">{para}</p>
+              }
+              if (/^\d+\./.test(para)) {
+                const items = para.split('\n').filter(l => /^\d+\./.test(l))
+                if (items.length > 1) {
+                  return (
+                    <ol key={i} className="space-y-2 mb-5 list-none">
+                      {items.map((item, j) => {
+                        const num = item.match(/^(\d+)\./)?.[1] ?? String(j + 1)
+                        const text = item.replace(/^\d+\.\s*/, '')
+                        const html = text.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#e5e7eb;font-weight:600">$1</strong>')
+                        return (
+                          <li key={j} className="text-gray-400 text-sm flex gap-3 leading-relaxed">
+                            <span className="font-black text-indigo-500 flex-shrink-0 w-5 text-right">{num}.</span>
+                            <span dangerouslySetInnerHTML={{ __html: html }} />
+                          </li>
+                        )
+                      })}
+                    </ol>
+                  )
+                }
+              }
+              return <p key={i} className="text-gray-400 text-sm leading-relaxed mb-4">{para}</p>
+            })}
+          </div>
 
-        {/* Footer */}
-        <div className="divider-glow mt-8 mb-6" />
-        <div className="flex items-center justify-between">
-          <button onClick={() => setActive(null)} className="text-indigo-400 hover:text-indigo-300 text-sm font-semibold transition-colors">
-            ← More Articles
-          </button>
-          <a
-            href={`https://wa.me/?text=${encodeURIComponent(`${article.title} — SpaceHub https://spacehub-nu.vercel.app`)}`}
-            target="_blank" rel="noopener noreferrer"
-            className="text-xs text-gray-600 hover:text-gray-400 transition-colors font-medium"
-          >
-            📲 Share Article
-          </a>
+          <div className="divider-glow mt-8 mb-6" />
+          <div className="flex items-center justify-between">
+            <button onClick={onBack} className="text-indigo-400 hover:text-indigo-300 text-sm font-semibold transition-colors">
+              ← More Articles
+            </button>
+            <a
+              href={`https://wa.me/?text=${encodeURIComponent(`${article.title} — SpaceHub https://spacehub-nu.vercel.app`)}`}
+              target="_blank" rel="noopener noreferrer"
+              className="text-xs text-gray-600 hover:text-gray-400 transition-colors font-medium"
+            >
+              📲 Share Article
+            </a>
+          </div>
         </div>
-        </div>{/* end p-8 */}
       </div>
     </div>
   )
+}
+
+export default function BlogPage() {
+  const [active, setActive] = useState<string | null>(null)
+  const article = ARTICLES.find(a => a.slug === active)
+
+  if (article) return <ArticleView article={article} onBack={() => setActive(null)} />
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-12">

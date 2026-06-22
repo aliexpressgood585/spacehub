@@ -5,7 +5,7 @@ interface Props {
   onPremium: () => void
 }
 
-export default function Header({ lang, onLangToggle }: Props) {
+export default function Header({ lang, onLangToggle, onPremium }: Props) {
   const he = lang === 'he'
 
   return (
@@ -54,13 +54,14 @@ export default function Header({ lang, onLangToggle }: Props) {
           >
             {lang === 'he' ? '🌐 EN' : '🌐 HE'}
           </button>
-          <a
-            href="https://spacehub-nu.vercel.app"
-            className="hidden sm:flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/20 hover:text-indigo-300 transition-all font-semibold"
+          <button
+            onClick={onPremium}
+            className="hidden sm:flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-bold transition-all"
+            style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.3), rgba(139,92,246,0.25))', border: '1px solid rgba(99,102,241,0.5)', color: '#c4b5fd' }}
           >
             <span>⭐</span>
-            <span>{he ? 'שתף' : 'Share'}</span>
-          </a>
+            <span>{he ? 'Pro' : 'Go Pro'}</span>
+          </button>
         </div>
       </div>
     </header>
