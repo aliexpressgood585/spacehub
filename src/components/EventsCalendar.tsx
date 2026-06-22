@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import MeteorShower3D from './MeteorShower3D'
 
 interface Event {
@@ -16,94 +17,99 @@ const TYPE_CONFIG: Record<string, { color: string; bg: string; border: string; l
   conjunction: { color: '#c4b5fd', bg: 'rgba(196,181,253,0.08)', border: 'rgba(196,181,253,0.25)', label: 'Conjunction' },
 }
 
-const EVENTS: Event[] = [
-  {
-    date: 'June 22, 2026',
-    daysUntil: 1,
-    title: 'Capillid Meteor Shower',
-    description: 'Up to 100 meteors per hour visible from dark skies. Best viewing after midnight.',
-    icon: '☄️',
-    type: 'meteor',
-  },
-  {
-    date: 'June 28, 2026',
-    daysUntil: 7,
-    title: 'Venus–Jupiter Conjunction',
-    description: 'The two brightest planets will appear within 0.5° of each other in the evening sky.',
-    icon: '⭐',
-    type: 'conjunction',
-  },
-  {
-    date: 'July 3, 2026',
-    daysUntil: 12,
-    title: 'Ariane 6 | Multi-Payload',
-    description: 'European Space Agency launches multiple commercial satellites from Kourou, French Guiana.',
-    icon: '🚀',
-    type: 'launch',
-  },
-  {
-    date: 'September 2, 2026',
-    daysUntil: 73,
-    title: 'Partial Solar Eclipse',
-    description: 'Partial solar eclipse visible from North America, Europe, and northern Africa.',
-    icon: '🌑',
-    type: 'eclipse',
-  },
+function daysFrom(dateStr: string) {
+  const diff = new Date(dateStr).getTime() - Date.now()
+  return Math.max(0, Math.ceil(diff / 86400000))
+}
+
+const ASTRO_EVENTS = [
+  { dateStr: '2026-06-22', title: 'Capillid Meteor Shower', description: 'Up to 100 meteors per hour visible from dark skies. Best viewing after midnight.', icon: '☄️', type: 'meteor' as const },
+  { dateStr: '2026-06-28', title: 'Venus–Jupiter Conjunction', description: 'The two brightest planets will appear within 0.5° of each other in the evening sky.', icon: '⭐', type: 'conjunction' as const },
+  { dateStr: '2026-09-02', title: 'Partial Solar Eclipse', description: 'Partial solar eclipse visible from North America, Europe, and northern Africa.', icon: '🌑', type: 'eclipse' as const },
+  { dateStr: '2026-08-12', title: 'Perseid Meteor Shower Peak', description: 'One of the best meteor showers of the year — up to 150 meteors/hour from a dark site.', icon: '☄️', type: 'meteor' as const },
+  { dateStr: '2026-12-14', title: 'Geminid Meteor Shower', description: 'Prolific shower with up to 120 multicolored meteors per hour at peak.', icon: '☄️', type: 'meteor' as const },
 ]
 
 export default function EventsCalendar() {
+  const [launches, setLaunches] = useState<Event[]>([])
+  const [loadingLaunches, setLoadingLaunches] = useState(true)
+
+  useEffect(() => {
+    fetch('https://ll.thespacedevs.com/2.2.0/launch/upcoming/?limit=3&format=json')
+      .then(r => { if (!r.ok) throw new Error(''); return r.json() })
+      .then((data: { results: { name: string; net: string; launch_service_provider: { name: string }; pad: { location: { name: string } } }[] }) => {
+        const mapped: Event[] = data.results.map(r => {
+          const d = new Date(r.net)
+          return {
+            date: d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+            daysUntil: daysFrom(r.net),
+            title: r.name,
+            description: `${r.launch_service_provider?.name ?? 'Unknown'} · ${r.pad?.location?.name ?? 'Unknown location'}`,
+            icon: '🚀',
+            type: 'launch' as const,
+          }
+        })
+        setLaunches(mapped)
+        setLoadingLaunches(false)
+      })
+      .catch(() => setLoadingLaunches(false))
+  }, [])
+
+  const astroEvents: Event[] = ASTRO_EVENTS
+    .map(e => ({
+      date: new Date(e.dateStr).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+      daysUntil: daysFrom(e.dateStr),
+      title: e.title,
+      description: e.description,
+      icon: e.icon,
+      type: e.type,
+    }))
+    .filter(e => e.daysUntil >= 0)
+    .sort((a, b) => a.daysUntil - b.daysUntil)
+
+  const allEvents = [...launches, ...astroEvents].sort((a, b) => a.daysUntil - b.daysUntil)
+
   return (
     <div className="space-y-5">
-
-      {/* Events list */}
       <div className="space-card p-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="icon-box">🌠</div>
-          <div>
-            <h3 className="text-white font-bold text-xl">Astronomical Events</h3>
-            <p className="text-gray-500 text-xs">Upcoming sky events — don't miss them</p>
+          <div className="flex-1">
+            <h3 className="text-white font-bold text-xl">Space Events</h3>
+            <p className="text-gray-500 text-xs">Upcoming launches & sky events — live data</p>
           </div>
+          <div className="live-badge"><span className="live-dot" /> LIVE</div>
         </div>
 
-        <div className="space-y-3">
-          {EVENTS.map((ev, i) => {
-            const cfg = TYPE_CONFIG[ev.type]
-            return (
-              <div
-                key={i}
-                className="flex items-start gap-4 p-4 rounded-2xl transition-all"
-                style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}
-              >
-                {/* Date column */}
-                <div
-                  className="flex-shrink-0 w-14 text-center py-2 px-1 rounded-xl"
-                  style={{ background: 'rgba(0,0,0,0.2)', border: `1px solid ${cfg.border}` }}
-                >
-                  <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: cfg.color }}>
-                    {ev.date.split(' ')[0]}
-                  </p>
-                  <p className="text-white font-black text-xl leading-none">
-                    {ev.date.split(' ')[1]?.replace(',', '')}
-                  </p>
-                  <p className="text-[9px] text-gray-600 mt-0.5">{ev.date.split(' ')[2]}</p>
-                </div>
+        {loadingLaunches && launches.length === 0 && (
+          <div className="space-y-3 mb-3">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-20 rounded-2xl animate-pulse" style={{ background: 'rgba(255,255,255,0.03)' }} />
+            ))}
+          </div>
+        )}
 
-                {/* Content */}
+        <div className="space-y-3">
+          {allEvents.map((ev, i) => {
+            const cfg = TYPE_CONFIG[ev.type]
+            const dateParts = ev.date.split(' ')
+            return (
+              <div key={i} className="flex items-start gap-4 p-4 rounded-2xl transition-all" style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}>
+                <div className="flex-shrink-0 w-14 text-center py-2 px-1 rounded-xl" style={{ background: 'rgba(0,0,0,0.2)', border: `1px solid ${cfg.border}` }}>
+                  <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: cfg.color }}>{dateParts[0]}</p>
+                  <p className="text-white font-black text-xl leading-none">{dateParts[1]?.replace(',', '')}</p>
+                  <p className="text-[9px] text-gray-600 mt-0.5">{dateParts[2]}</p>
+                </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                     <span className="text-xl">{ev.icon}</span>
                     <h4 className="text-white font-bold text-sm">{ev.title}</h4>
-                    <span
-                      className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
-                      style={{ background: 'rgba(0,0,0,0.3)', color: cfg.color, border: `1px solid ${cfg.border}` }}
-                    >
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: 'rgba(0,0,0,0.3)', color: cfg.color, border: `1px solid ${cfg.border}` }}>
                       {cfg.label}
                     </span>
                   </div>
                   <p className="text-gray-400 text-xs leading-relaxed">{ev.description}</p>
                 </div>
-
-                {/* Countdown */}
                 <div className="flex-shrink-0 text-right">
                   <p className="text-white font-black text-lg leading-none">{ev.daysUntil}</p>
                   <p className="text-gray-600 text-[10px] font-semibold">days</p>
@@ -113,15 +119,11 @@ export default function EventsCalendar() {
           })}
         </div>
 
-        <div
-          className="mt-4 p-4 rounded-2xl text-xs text-gray-500 leading-relaxed"
-          style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}
-        >
+        <div className="mt-4 p-4 rounded-2xl text-xs text-gray-500 leading-relaxed" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
           💡 <span className="text-gray-400 font-semibold">Stargazing tip:</span> Set up at least 20 minutes before the event starts to let your eyes adjust to the dark.
         </div>
       </div>
 
-      {/* Meteor Shower 3D */}
       <div className="space-card p-6">
         <div className="flex items-center gap-3 mb-5">
           <div className="icon-box">☄️</div>

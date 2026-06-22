@@ -15,6 +15,7 @@ const FACTS = [
 
 export default function LiveTicker() {
   const [issLive, setIssLive] = useState('')
+  const [kpLive, setKpLive] = useState('')
 
   useEffect(() => {
     fetch('https://api.wheretheiss.at/v1/satellites/25544')
@@ -23,10 +24,23 @@ export default function LiveTicker() {
         `ISS LIVE: ${Math.abs(d.latitude).toFixed(1)}°${d.latitude >= 0 ? 'N' : 'S'} ${Math.abs(d.longitude).toFixed(1)}°${d.longitude >= 0 ? 'E' : 'W'} · Alt ${d.altitude.toFixed(0)} km · ${d.velocity.toFixed(0)} km/h`
       ))
       .catch(() => {})
+
+    fetch('https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json')
+      .then(r => r.json())
+      .then((data: string[][]) => {
+        const last = data[data.length - 1]
+        const kp = parseFloat(last[1])
+        if (!isNaN(kp)) {
+          const label = kp >= 5 ? '⚡ Storm' : kp >= 4 ? 'Active' : 'Quiet'
+          setKpLive(`SPACE WEATHER: Kp-index ${kp.toFixed(1)} — ${label}`)
+        }
+      })
+      .catch(() => {})
   }, [])
 
   const items = [
     ...(issLive ? [{ icon: '📡', text: issLive }] : []),
+    ...(kpLive ? [{ icon: '🌌', text: kpLive }] : []),
     ...FACTS,
   ]
 
