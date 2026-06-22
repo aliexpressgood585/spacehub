@@ -76,7 +76,7 @@ function altAzToXY(alt: number, az: number, cx: number, cy: number, r: number) {
 
 export default function StarMap() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [userLoc, setUserLoc] = useState({ lat: 31.77, lng: 35.21 }) // Default Jerusalem
+  const [userLoc, setUserLoc] = useState({ lat: 31.77, lng: 35.21 })
   const [city, setCity] = useState('Jerusalem')
   const [time, setTime] = useState(new Date())
   const [rotation, setRotation] = useState(0)
@@ -227,6 +227,19 @@ export default function StarMap() {
   useEffect(() => {
     const id = setInterval(() => setTime(new Date()), 60000)
     return () => clearInterval(id)
+  }, [])
+
+  // Auto-detect location on mount; fall back to Jerusalem silently
+  useEffect(() => {
+    if (!('geolocation' in navigator)) return
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+        setCity('Your Location')
+      },
+      () => {},
+      { timeout: 5000 }
+    )
   }, [])
 
   const visibleCount = (() => {
