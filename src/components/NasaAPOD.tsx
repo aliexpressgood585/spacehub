@@ -49,15 +49,11 @@ export default function NasaAPOD() {
   const fallback = useMemo(() => CURATED[Math.floor(Date.now() / 86400000) % CURATED.length], [])
 
   useEffect(() => {
-    const key = import.meta.env.VITE_NASA_API_KEY || 'DEMO_KEY'
-    fetch(`https://api.nasa.gov/planetary/apod?api_key=${key}`)
-      .then(r => r.json())
+    fetch('/api/apod')
+      .then(r => { if (!r.ok) throw new Error(''); return r.json() })
       .then(data => {
-        if (data.error || data.code === 'API_KEY_INVALID' || !data.url) {
-          setError(true)
-        } else {
-          setApod(data)
-        }
+        if (data.error || !data.url) throw new Error('')
+        setApod(data)
         setLoading(false)
       })
       .catch(() => {
