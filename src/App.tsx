@@ -26,6 +26,15 @@ import LiveTicker from './components/LiveTicker'
 import StarMap from './components/StarMap'
 import ISSPassPredictor from './components/ISSPassPredictor'
 import ShareCard from './components/ShareCard'
+import AsteroidTracker from './components/AsteroidTracker'
+import SpaceHistory from './components/SpaceHistory'
+import JWSTGallery from './components/JWSTGallery'
+import MarsWeather from './components/MarsWeather'
+import MarsCountdown from './components/MarsCountdown'
+import SpaceCostChart from './components/SpaceCostChart'
+import RocketReusability from './components/RocketReusability'
+import ArtemisMoonMap from './components/ArtemisMoonMap'
+import SpaceXNewsFeed from './components/SpaceXNewsFeed'
 import BlogPage from './pages/BlogPage'
 import BlogArticlePage from './pages/BlogArticlePage'
 import PremiumPage from './pages/PremiumPage'
@@ -33,12 +42,13 @@ import CityPage, { CITY_DATA } from './pages/CityPage'
 import PrivacyPage from './pages/PrivacyPage'
 import SuccessPage from './pages/SuccessPage'
 
-type Tab = 'dashboard' | 'starmap' | 'tracker' | 'solar' | 'weather' | 'events' | 'news' | 'quiz' | 'blog' | 'gallery'
+type Tab = 'dashboard' | 'starmap' | 'tracker' | 'solar' | 'weather' | 'events' | 'news' | 'quiz' | 'blog' | 'gallery' | 'spacex'
 
 const TAB_HASH: Record<Tab, string> = {
   dashboard: '#iss', starmap: '#starmap', tracker: '#tracker',
   solar: '#solar', weather: '#weather', events: '#events',
   news: '#news', quiz: '#quiz', blog: '#blog', gallery: '#gallery',
+  spacex: '#spacex',
 }
 const HASH_TAB: Record<string, Tab> = Object.fromEntries(
   Object.entries(TAB_HASH).map(([k, v]) => [v, k as Tab])
@@ -55,6 +65,7 @@ const TAB_DEFS: { id: Tab; icon: string; tKey: string }[] = [
   { id: 'quiz',      icon: '🧠', tKey: 'tab.quiz' },
   { id: 'blog',      icon: '📝', tKey: 'tab.blog' },
   { id: 'gallery',   icon: '🔭', tKey: 'tab.gallery' },
+  { id: 'spacex',    icon: '🚀', tKey: 'tab.spacex' },
 ]
 
 const FOOTER_FEATURES = [
@@ -188,11 +199,14 @@ function MainApp() {
                   <MoonPhase />
                   <LaunchCountdown />
                 </div>
+                <SpaceHistory />
                 <div ref={issRef}><ISSAlertSystem /></div>
                 <ISSPassPredictor />
                 <Suspense fallback={<SkeletonCard />}><ISSTracker /></Suspense>
                 <ShareCard issLat={issData?.lat} issLng={issData?.lng} issAlt={issData?.alt} />
+                <AdBanner />
                 <NasaAPOD />
+                <AsteroidTracker />
                 <AdBanner />
               </div>
             )}
@@ -236,7 +250,13 @@ function MainApp() {
               </div>
             )}
 
-            {activeTab === 'weather' && <Suspense fallback={<SkeletonCard />}><SpaceWeather /></Suspense>}
+            {activeTab === 'weather' && (
+              <div className="space-y-5">
+                <MarsWeather />
+                <AdBanner />
+                <Suspense fallback={<SkeletonCard />}><SpaceWeather /></Suspense>
+              </div>
+            )}
             {activeTab === 'events'  && <Suspense fallback={<SkeletonCard />}><EventsCalendar /></Suspense>}
 
             {activeTab === 'news' && (
@@ -252,9 +272,28 @@ function MainApp() {
               </div>
             )}
 
+            {activeTab === 'spacex' && (
+              <div className="space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <MarsCountdown />
+                  <RocketReusability />
+                </div>
+                <SpaceCostChart />
+                <AdBanner />
+                <ArtemisMoonMap />
+                <SpaceXNewsFeed />
+              </div>
+            )}
+
             {activeTab === 'blog' && <BlogPage />}
 
-            {activeTab === 'gallery' && <Suspense fallback={<SkeletonCard />}><AstroGallery /></Suspense>}
+            {activeTab === 'gallery' && (
+              <div className="space-y-5">
+                <JWSTGallery />
+                <AdBanner />
+                <Suspense fallback={<SkeletonCard />}><AstroGallery /></Suspense>
+              </div>
+            )}
 
           </div>
 

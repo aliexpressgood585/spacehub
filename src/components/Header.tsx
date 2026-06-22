@@ -27,6 +27,7 @@ export default function Header({ onPremium }: Props) {
   const [issAlt, setIssAlt] = useState<number | null>(null)
   const [issSpeed, setIssSpeed] = useState<number | null>(null)
   const [crewCount, setCrewCount] = useState<number | null>(null)
+  const [lightMode, setLightMode] = useState(() => localStorage.getItem('spacehub_theme') === 'light')
 
   useEffect(() => {
     const fetchISS = () => {
@@ -43,6 +44,8 @@ export default function Header({ onPremium }: Props) {
       .then(d => setCrewCount(d.number))
       .catch(() => {})
 
+    document.documentElement.classList.toggle('light-mode', lightMode)
+
     const onPrompt = (e: Event) => {
       e.preventDefault()
       setInstallPrompt(e as BeforeInstallPromptEvent)
@@ -56,6 +59,13 @@ export default function Header({ onPremium }: Props) {
       window.removeEventListener('appinstalled', onInstalled)
     }
   }, [])
+
+  const toggleTheme = () => {
+    const next = !lightMode
+    setLightMode(next)
+    localStorage.setItem('spacehub_theme', next ? 'light' : 'dark')
+    document.documentElement.classList.toggle('light-mode', next)
+  }
 
   const handleInstall = async () => {
     if (!installPrompt) return
@@ -111,6 +121,15 @@ export default function Header({ onPremium }: Props) {
 
         {/* Right */}
         <div className="flex items-center gap-2 ml-auto">
+          <button
+            onClick={toggleTheme}
+            title={lightMode ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+            className="w-8 h-8 rounded-xl flex items-center justify-center text-base transition-all"
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+          >
+            {lightMode ? '🌙' : '☀️'}
+          </button>
+
           <select
             value={lang}
             onChange={e => setLang(e.target.value as Lang)}

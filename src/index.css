@@ -418,6 +418,18 @@ input[type="email"]:focus, input[type="text"]:focus {
   background: rgba(255,255,255,0.06);
 }
 
+/* ── LIGHT MODE ── */
+html.light-mode {
+  filter: invert(0.92) hue-rotate(180deg) contrast(0.95) brightness(1.05);
+}
+html.light-mode img,
+html.light-mode video,
+html.light-mode canvas,
+html.light-mode iframe,
+html.light-mode .space-bg-canvas {
+  filter: invert(1) hue-rotate(180deg);
+}
+
 /* ── HEADER ── */
 .header-blur {
   background: linear-gradient(180deg, rgba(2,5,16,0.95) 0%, rgba(2,5,16,0.85) 100%);
