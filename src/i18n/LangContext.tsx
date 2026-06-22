@@ -12,8 +12,22 @@ const Ctx = createContext<LangCtx>({
   lang: 'en', setLang: () => {}, t: k => k, dir: 'ltr',
 })
 
+const SUPPORTED: Lang[] = ['en', 'he', 'es', 'fr', 'de', 'ar']
+
+function detectLang(): Lang {
+  const stored = localStorage.getItem('spacehub_lang') as Lang | null
+  if (stored && SUPPORTED.includes(stored)) return stored
+  const nav = navigator.language.slice(0, 2).toLowerCase()
+  return (SUPPORTED.includes(nav as Lang) ? nav : 'en') as Lang
+}
+
 export function LangProvider({ children }: { children: ReactNode }) {
-  const [lang, setLang] = useState<Lang>('en')
+  const [lang, setLangState] = useState<Lang>(detectLang)
+
+  const setLang = (l: Lang) => {
+    localStorage.setItem('spacehub_lang', l)
+    setLangState(l)
+  }
 
   const isRtl = lang === 'he' || lang === 'ar'
 

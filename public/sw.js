@@ -1,7 +1,7 @@
 const CACHE = 'spacehub-v5'
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['/'])))
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['/', '/offline.html'])))
   self.skipWaiting()
 })
 
@@ -30,7 +30,7 @@ self.addEventListener('fetch', e => {
         const clone = res.clone()
         caches.open(CACHE).then(c => c.put(e.request, clone))
         return res
-      }).catch(() => caches.match(e.request))
+      }).catch(() => caches.match('/offline.html') || caches.match(e.request))
     )
     return
   }

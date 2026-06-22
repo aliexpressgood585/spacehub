@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SpaceHub — Offline</title>
+  <style>
+    body { margin: 0; background: #020510; color: #e2e8f0; font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .card { text-align: center; padding: 40px 24px; }
+    .icon { font-size: 64px; margin-bottom: 16px; }
+    h1 { font-size: 24px; font-weight: 900; color: #fff; margin: 0 0 8px; }
+    p { color: #6b7280; font-size: 15px; margin: 0 0 24px; }
+    button { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #fff; border: none; padding: 12px 28px; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">🛸</div>
+    <h1>You're offline</h1>
+    <p>SpaceHub needs a connection to fetch live space data.<br>Check your internet and try again.</p>
+    <button onclick="location.reload()">🔄 Try Again</button>
+  </div>
+</body>
+</html>

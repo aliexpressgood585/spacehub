@@ -1,8 +1,12 @@
 import { Component, type ReactNode } from 'react'
+import * as Sentry from '@sentry/react'
 
 export default class ErrorBoundary extends Component<{ children: ReactNode }, { error: boolean }> {
   state = { error: false }
   static getDerivedStateFromError() { return { error: true } }
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    Sentry.captureException(error, { extra: { componentStack: info.componentStack } })
+  }
   render() {
     if (this.state.error) return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#050816' }}>

@@ -2,6 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- DNS prefetch & preconnect for APIs used at startup -->
+    <link rel="preconnect" href="https://api.wheretheiss.at" crossorigin />
+    <link rel="preconnect" href="https://api.nasa.gov" crossorigin />
+    <link rel="dns-prefetch" href="https://api.wheretheiss.at" />
+    <link rel="dns-prefetch" href="https://api.nasa.gov" />
+    <link rel="dns-prefetch" href="https://celestrak.org" />
+    <link rel="dns-prefetch" href="https://api.open-meteo.com" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%234f46e5'/><text y='.9em' font-size='70' x='15'>🚀</text></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
@@ -63,10 +70,10 @@
     </script>
 
     <!-- Google AdSense -->
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7392124652698131" crossorigin="anonymous"></script>
+    <script async fetchpriority="high" src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7392124652698131" crossorigin="anonymous"></script>
 
     <!-- Google Analytics -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-YVDZCEHZGZ"></script>
+    <script async fetchpriority="high" src="https://www.googletagmanager.com/gtag/js?id=G-YVDZCEHZGZ"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}

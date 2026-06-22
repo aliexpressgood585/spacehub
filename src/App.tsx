@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
 import './App.css'
 import { LangProvider } from './i18n/LangContext'
 import { useLang } from './i18n/LangContext'
+import Onboarding from './components/Onboarding'
 import Header from './components/Header'
 import Hero from './components/Hero'
 const SatelliteTracker = lazy(() => import('./components/SatelliteTracker'))
@@ -225,6 +226,8 @@ function MainApp() {
             <EmailCapture />
           </div>
         </div>
+
+        <Onboarding />
 
         {/* FOOTER */}
         <footer style={{ background: 'linear-gradient(180deg, rgba(2,5,16,0) 0%, rgba(2,5,16,0.8) 30%, #020510 100%)', borderTop: '1px solid rgba(99,102,241,0.1)' }}>
