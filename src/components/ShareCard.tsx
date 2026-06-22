@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react'
+import { useRef, useCallback, useState } from 'react'
 
 interface Props {
   issLat?: number
@@ -9,6 +9,7 @@ interface Props {
 
 export default function ShareCard({ issLat, issLng, issAlt, city }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [copied, setCopied] = useState(false)
 
   const generate = useCallback(() => {
     const canvas = canvasRef.current
@@ -103,6 +104,17 @@ export default function ShareCard({ issLat, issLng, issAlt, city }: Props) {
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
   }, [issLat, issLng, issAlt])
 
+  const shareX = useCallback(() => {
+    const text = `🛸 ISS is now at ${issLat?.toFixed(1)}°N, ${issLng?.toFixed(1)}°E — altitude ${issAlt?.toFixed(0)} km! Track live:`
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent('https://spacehub-nu.vercel.app')}`, '_blank')
+  }, [issLat, issLng, issAlt])
+
+  const copyLink = useCallback(() => {
+    navigator.clipboard.writeText('https://spacehub-nu.vercel.app').then(() => {
+      setCopied(true); setTimeout(() => setCopied(false), 2000)
+    })
+  }, [])
+
   return (
     <div className="space-card p-5">
       <div className="flex items-center gap-3 mb-4">
@@ -112,16 +124,19 @@ export default function ShareCard({ issLat, issLng, issAlt, city }: Props) {
       <canvas ref={canvasRef} className="hidden" />
       <div className="flex gap-2 flex-wrap">
         <button onClick={generate} className="btn-shimmer px-4 py-2.5 text-sm flex items-center gap-2">
-          <span>⬇️</span> Download Image
+          <span>⬇️</span> Download
         </button>
-        <button onClick={shareWA} className="px-4 py-2.5 text-sm border border-green-700/40 text-green-400 hover:bg-green-900/20 rounded-xl transition flex items-center gap-2">
-          <span>📲</span> Share on WhatsApp
+        <button onClick={shareWA} className="px-4 py-2.5 text-sm rounded-xl transition flex items-center gap-2 font-semibold"
+          style={{ background: 'rgba(37,211,102,0.12)', border: '1px solid rgba(37,211,102,0.3)', color: '#4ade80' }}>
+          📲 WhatsApp
         </button>
-        <button
-          onClick={() => navigator.share?.({ title: 'SpaceHub ISS', url: 'https://spacehub-nu.vercel.app' }).catch(() => {})}
-          className="px-4 py-2.5 text-sm border border-white/10 text-gray-400 hover:text-white rounded-xl transition bg-white/[0.03]"
-        >
-          ↗ Share
+        <button onClick={shareX} className="px-4 py-2.5 text-sm rounded-xl transition flex items-center gap-2 font-semibold"
+          style={{ background: 'rgba(29,161,242,0.12)', border: '1px solid rgba(29,161,242,0.3)', color: '#60a5fa' }}>
+          𝕏 Tweet
+        </button>
+        <button onClick={copyLink} className="px-4 py-2.5 text-sm rounded-xl transition flex items-center gap-2 font-semibold"
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: copied ? '#4ade80' : '#9ca3af' }}>
+          {copied ? '✓ Copied!' : '🔗 Copy link'}
         </button>
       </div>
     </div>

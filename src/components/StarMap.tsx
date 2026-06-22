@@ -138,6 +138,18 @@ export default function StarMap() {
       ctx.fillText(label, x, y)
     })
 
+    // Background micro-stars
+    for (let i = 0; i < 120; i++) {
+      const angle = (i * 137.508) * Math.PI / 180
+      const radius = r * Math.sqrt((i * 0.618) % 1)
+      const sx = cx + radius * Math.cos(angle)
+      const sy = cy + radius * Math.sin(angle)
+      ctx.beginPath()
+      ctx.arc(sx, sy, 0.4 + (i % 3) * 0.3, 0, Math.PI * 2)
+      ctx.fillStyle = `rgba(180,190,255,${0.12 + (i % 5) * 0.04})`
+      ctx.fill()
+    }
+
     const lst = localSiderealTime(time, userLoc.lng)
 
     // Constellation lines
@@ -150,8 +162,8 @@ export default function StarMap() {
       ctx.beginPath()
       ctx.moveTo(pa.x, pa.y)
       ctx.lineTo(pb.x, pb.y)
-      ctx.strokeStyle = 'rgba(99,102,241,0.15)'
-      ctx.lineWidth = 0.8
+      ctx.strokeStyle = 'rgba(99,102,241,0.35)'
+      ctx.lineWidth = 1
       ctx.stroke()
     })
 
@@ -162,22 +174,23 @@ export default function StarMap() {
       const { x, y } = altAzToXY(alt, (az + rotation + 360) % 360, cx, cy, r)
       if (x < 0 || x > W || y < 0 || y > H) return
 
-      const starR = Math.max(0.8, (4 - mag) * 0.9)
-      const alpha = alt < 0 ? 0.2 : 1
+      const starR = Math.max(1.8, (5.5 - mag) * 1.2)
+      const alpha = alt < 0 ? 0.25 : 1
 
-      // Glow
-      if (mag < 1.5) {
-        const glow = ctx.createRadialGradient(x, y, 0, x, y, starR * 4)
-        glow.addColorStop(0, color + 'aa')
-        glow.addColorStop(1, 'transparent')
-        ctx.beginPath()
-        ctx.arc(x, y, starR * 4, 0, Math.PI * 2)
-        ctx.fillStyle = glow
-        ctx.globalAlpha = alpha * 0.5
-        ctx.fill()
-        ctx.globalAlpha = 1
-      }
+      // Outer glow for all stars
+      const glowR = starR * (mag < 0 ? 9 : mag < 1 ? 7 : 5)
+      const glow = ctx.createRadialGradient(x, y, 0, x, y, glowR)
+      glow.addColorStop(0, color + 'cc')
+      glow.addColorStop(0.4, color + '55')
+      glow.addColorStop(1, 'transparent')
+      ctx.beginPath()
+      ctx.arc(x, y, glowR, 0, Math.PI * 2)
+      ctx.fillStyle = glow
+      ctx.globalAlpha = alpha * 0.75
+      ctx.fill()
+      ctx.globalAlpha = 1
 
+      // Star core
       ctx.beginPath()
       ctx.arc(x, y, starR, 0, Math.PI * 2)
       ctx.fillStyle = color
@@ -185,12 +198,12 @@ export default function StarMap() {
       ctx.fill()
       ctx.globalAlpha = 1
 
-      // Label for bright stars
-      if (mag < 0.5) {
-        ctx.font = '9px system-ui'
-        ctx.fillStyle = 'rgba(200,200,255,0.6)'
+      // Labels for visible bright stars
+      if (mag < 2.0 && alt > 0) {
+        ctx.font = `bold ${mag < 0.5 ? 10 : 9}px system-ui`
+        ctx.fillStyle = 'rgba(200,210,255,0.75)'
         ctx.textAlign = 'left'
-        ctx.fillText(name, x + starR + 3, y)
+        ctx.fillText(name, x + starR + 4, y + 3)
       }
     })
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 export const ARTICLES = [
   {
@@ -2069,11 +2069,30 @@ export const BLOG_IMAGES: Record<string, string> = {
 }
 
 export function ArticleView({ article, onBack }: { article: typeof ARTICLES[0]; onBack: () => void }) {
+  const [copied, setCopied] = useState(false)
+  const articleUrl = `https://spacehub-nu.vercel.app/blog/${article.slug}`
+
   useEffect(() => {
     const prev = document.title
+    const ogImg = document.querySelector<HTMLMetaElement>('meta[property="og:image"]')
+    const ogDesc = document.querySelector<HTMLMetaElement>('meta[name="description"]')
+    const ogTitle = document.querySelector<HTMLMetaElement>('meta[property="og:title"]')
+    const prevImg = ogImg?.content ?? ''; const prevDesc = ogDesc?.content ?? ''; const prevTitle = ogTitle?.content ?? ''
     document.title = `${article.title} | SpaceHub`
-    return () => { document.title = prev }
-  }, [article.title])
+    if (ogImg && BLOG_IMAGES[article.slug]) ogImg.content = BLOG_IMAGES[article.slug]
+    if (ogDesc) ogDesc.content = article.preview
+    if (ogTitle) ogTitle.content = `${article.title} | SpaceHub`
+    return () => {
+      document.title = prev
+      if (ogImg) ogImg.content = prevImg
+      if (ogDesc) ogDesc.content = prevDesc
+      if (ogTitle) ogTitle.content = prevTitle
+    }
+  }, [article.title, article.slug, article.preview])
+
+  const copyLink = useCallback(() => {
+    navigator.clipboard.writeText(articleUrl).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
+  }, [articleUrl])
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
@@ -2191,18 +2210,36 @@ export function ArticleView({ article, onBack }: { article: typeof ARTICLES[0]; 
             })}
           </div>
 
-          <div className="divider-glow mt-8 mb-6" />
-          <div className="flex items-center justify-between">
+          <div className="divider-glow mt-8 mb-5" />
+          <div className="flex flex-wrap items-center gap-2 justify-between">
             <button onClick={onBack} className="text-indigo-400 hover:text-indigo-300 text-sm font-semibold transition-colors">
               ← More Articles
             </button>
-            <a
-              href={`https://wa.me/?text=${encodeURIComponent(`${article.title} — SpaceHub https://spacehub-nu.vercel.app`)}`}
-              target="_blank" rel="noopener noreferrer"
-              className="text-xs text-gray-600 hover:text-gray-400 transition-colors font-medium"
-            >
-              📲 Share Article
-            </a>
+            <div className="flex items-center gap-2 flex-wrap">
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(`${article.title}\n${articleUrl}`)}`}
+                target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl font-semibold transition"
+                style={{ background: 'rgba(37,211,102,0.12)', border: '1px solid rgba(37,211,102,0.3)', color: '#4ade80' }}
+              >
+                📲 WhatsApp
+              </a>
+              <a
+                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(article.title)}&url=${encodeURIComponent(articleUrl)}`}
+                target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl font-semibold transition"
+                style={{ background: 'rgba(29,161,242,0.12)', border: '1px solid rgba(29,161,242,0.3)', color: '#60a5fa' }}
+              >
+                𝕏 Tweet
+              </a>
+              <button
+                onClick={copyLink}
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl font-semibold transition"
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: copied ? '#4ade80' : '#9ca3af' }}
+              >
+                {copied ? '✓ Copied!' : '🔗 Copy link'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -2284,6 +2321,7 @@ export default function BlogPage() {
                   src={BLOG_IMAGES[a.slug]}
                   alt={a.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  loading="lazy"
                   onError={e => { (e.target as HTMLImageElement).parentElement!.style.display = 'none' }}
                 />
                 <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(8,11,34,0.6) 0%, transparent 60%)' }} />

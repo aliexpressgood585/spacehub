@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 const FEATURES_FREE = [
@@ -27,6 +28,27 @@ const FEATURES_PRO = [
 ]
 
 export default function PremiumPage() {
+  const [loading, setLoading] = useState<'monthly' | 'yearly' | null>(null)
+  const [plan, setPlan] = useState<'monthly' | 'yearly'>('yearly')
+
+  const checkout = async (p: 'monthly' | 'yearly') => {
+    setLoading(p)
+    try {
+      const res = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: p }),
+      })
+      const data = await res.json() as { url?: string; error?: string }
+      if (data.url) { window.location.href = data.url; return }
+      alert(data.error || 'Payment setup coming soon — enter your email on the main page to be notified!')
+    } catch {
+      alert('Payment coming soon — enter your email on the main page to be notified at launch!')
+    } finally {
+      setLoading(null)
+    }
+  }
+
   return (
     <div style={{ background: '#020510', minHeight: '100vh' }}>
       <div className="relative" style={{ zIndex: 1 }}>
@@ -106,7 +128,10 @@ export default function PremiumPage() {
                   <span className="text-5xl font-black text-white">$4.99</span>
                   <span className="text-gray-400 text-sm mb-2">/month</span>
                 </div>
-                <p className="text-gray-600 text-xs mt-1">or $39.99/year — save 33%</p>
+                <div className="flex gap-2 mt-3">
+                  <button onClick={() => setPlan('monthly')} className="text-xs px-3 py-1.5 rounded-xl font-semibold transition" style={plan === 'monthly' ? { background: 'rgba(99,102,241,0.3)', border: '1px solid rgba(99,102,241,0.6)', color: '#c4b5fd' } : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#6b7280' }}>Monthly $4.99</button>
+                  <button onClick={() => setPlan('yearly')} className="text-xs px-3 py-1.5 rounded-xl font-semibold transition" style={plan === 'yearly' ? { background: 'rgba(99,102,241,0.3)', border: '1px solid rgba(99,102,241,0.6)', color: '#c4b5fd' } : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#6b7280' }}>Yearly $39.99 <span style={{ color: '#fbbf24' }}>−33%</span></button>
+                </div>
               </div>
 
               <ul className="space-y-3 mb-8 relative">
@@ -121,12 +146,13 @@ export default function PremiumPage() {
               </ul>
 
               <button
-                onClick={() => alert('Payment coming soon — enter your email below and we\'ll notify you at launch!')}
-                className="btn-shimmer w-full py-3.5 text-sm font-bold relative"
+                onClick={() => checkout(plan)}
+                disabled={loading !== null}
+                className="btn-shimmer w-full py-3.5 text-sm font-bold relative disabled:opacity-60"
               >
-                🚀 Get Pro Access
+                {loading ? '⏳ Redirecting to checkout...' : `🚀 Get Pro — ${plan === 'yearly' ? '$39.99/yr' : '$4.99/mo'}`}
               </button>
-              <p className="text-center text-gray-700 text-xs mt-3">Cancel anytime · Secure payment</p>
+              <p className="text-center text-gray-700 text-xs mt-3">Cancel anytime · Secure payment via Stripe</p>
             </div>
           </div>
 
