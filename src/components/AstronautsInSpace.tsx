@@ -35,17 +35,26 @@ export default function AstronautsInSpace() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Fetch names from open-notify
-    const notifyP = fetch('https://api.open-notify.org/astros.json')
-      .then(r => r.json())
-      .then(d => d.people as { name: string; craft: string }[])
-      .catch(() => FALLBACK.map(p => ({ name: p.name, craft: p.craft })))
+    const withTimeout = <T,>(p: Promise<T>, ms: number, fallback: T): Promise<T> =>
+      Promise.race([p, new Promise<T>(res => setTimeout(() => res(fallback), ms))])
 
-    // Fetch photos from Space Devs
-    const photosP = fetch('https://ll.thespacedevs.com/2.2.0/astronaut/?in_space=true&limit=30&format=json')
-      .then(r => r.json())
-      .then((d: { results: { name: string; profile_image_thumbnail?: string; profile_image?: string; agency?: { name: string }; nationality?: string }[] }) => d.results)
-      .catch(() => [])
+    const notifyP = withTimeout(
+      fetch('https://api.open-notify.org/astros.json')
+        .then(r => r.json())
+        .then(d => d.people as { name: string; craft: string }[])
+        .catch(() => FALLBACK.map(p => ({ name: p.name, craft: p.craft }))),
+      4000,
+      FALLBACK.map(p => ({ name: p.name, craft: p.craft }))
+    )
+
+    const photosP = withTimeout(
+      fetch('https://ll.thespacedevs.com/2.2.0/astronaut/?in_space=true&limit=30&format=json')
+        .then(r => r.json())
+        .then((d: { results: { name: string; profile_image_thumbnail?: string; profile_image?: string; agency?: { name: string }; nationality?: string }[] }) => d.results)
+        .catch(() => []),
+      5000,
+      []
+    )
 
     Promise.all([notifyP, photosP]).then(([names, photos]) => {
       const merged: Astronaut[] = names.map(n => {
@@ -73,8 +82,8 @@ export default function AstronautsInSpace() {
       <div className="flex items-center gap-3 mb-5">
         <div className="icon-box">👨‍🚀</div>
         <div className="flex-1">
-          <h3 className="text-white font-bold text-base">Who's in Space Now?</h3>
-          <p className="text-gray-500 text-xs">Aboard spacecraft right now</p>
+          <h3 className="text-white font-bold text-base" dir="ltr">Who's in Space Now?</h3>
+          <p className="text-gray-500 text-xs" dir="ltr">Aboard spacecraft right now</p>
         </div>
         {!loading && <div className="live-badge"><span className="live-dot" /> LIVE</div>}
       </div>
