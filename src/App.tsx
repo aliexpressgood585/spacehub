@@ -167,7 +167,7 @@ function MainApp() {
       <div className="relative" style={{ zIndex: 1 }}>
         <Header onPremium={goToPremium} />
         <LiveTicker />
-        <Hero onPremium={() => {}} onScrollToISS={scrollToISS} />
+        {activeTab === 'dashboard' && <Hero onPremium={() => {}} onScrollToISS={scrollToISS} />}
 
         {/* Divider */}
         <div className="divider-glow my-0" />

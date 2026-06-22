@@ -13,17 +13,22 @@ interface Article {
 export default function SpaceNewsFeed() {
   const [articles, setArticles] = useState<Article[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
   const [page, setPage] = useState(0)
 
   useEffect(() => {
     setLoading(true)
+    setError(false)
     fetch(`https://api.spaceflightnewsapi.net/v4/articles/?limit=6&offset=${page * 6}&ordering=-published_at`)
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json() })
       .then(data => {
-        setArticles(data.results || [])
+        const results = data.results || []
+        setArticles(results)
+        setHasMore(results.length === 6)
         setLoading(false)
       })
-      .catch(() => setLoading(false))
+      .catch(() => { setError(true); setLoading(false) })
   }, [page])
 
   const formatDate = (iso: string) => {
@@ -39,9 +44,13 @@ export default function SpaceNewsFeed() {
           <h3 className="text-white font-bold text-base">Space News — Live</h3>
           <p className="text-gray-500 text-xs">Spaceflight News API · Latest articles</p>
         </div>
-        <div className="live-badge">
-          <span className="live-dot" /> LIVE
-        </div>
+        {error ? (
+          <span className="text-[10px] px-2.5 py-1 rounded-full font-bold" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}>
+            ⚠ OFFLINE
+          </span>
+        ) : (
+          <div className="live-badge"><span className="live-dot" /> LIVE</div>
+        )}
       </div>
 
       {loading ? (
@@ -56,6 +65,25 @@ export default function SpaceNewsFeed() {
               </div>
             </div>
           ))}
+        </div>
+      ) : error ? (
+        <div className="flex flex-col items-center justify-center py-16 gap-4">
+          <span className="text-5xl">📡</span>
+          <p className="text-gray-400 text-sm font-semibold">News feed temporarily unavailable</p>
+          <p className="text-gray-600 text-xs">The Spaceflight News API is unreachable right now</p>
+          <button
+            onClick={() => { setPage(0); setError(false); setLoading(true) }}
+            className="mt-2 px-5 py-2 text-xs rounded-xl font-bold transition-all"
+            style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.4)', color: '#a5b4fc' }}
+          >
+            ↺ Try Again
+          </button>
+        </div>
+      ) : articles.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 gap-3">
+          <span className="text-5xl">🚀</span>
+          <p className="text-gray-400 text-sm">No articles found on this page</p>
+          <button onClick={() => setPage(0)} className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">← Back to first page</button>
         </div>
       ) : (
         <>
@@ -126,7 +154,8 @@ export default function SpaceNewsFeed() {
             </span>
             <button
               onClick={() => setPage(p => p + 1)}
-              className="px-4 py-2 text-sm rounded-xl transition"
+              disabled={!hasMore}
+              className="px-4 py-2 text-sm rounded-xl transition disabled:opacity-30 disabled:cursor-not-allowed"
               style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: '#9ca3af' }}
             >
               Next →

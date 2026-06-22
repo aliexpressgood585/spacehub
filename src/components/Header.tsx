@@ -29,19 +29,20 @@ export default function Header({ onPremium }: Props) {
   const [crewCount, setCrewCount] = useState<number | null>(null)
   const [lightMode, setLightMode] = useState(() => localStorage.getItem('spacehub_theme') === 'light')
   const [galaxyBg, setGalaxyBg] = useState(() => localStorage.getItem('spacehub_galaxy') === '1')
+  const [liveOk, setLiveOk] = useState(false)
 
   useEffect(() => {
     const fetchISS = () => {
-      fetch('https://api.wheretheiss.at/v1/satellites/25544')
-        .then(r => r.json())
-        .then(d => { setIssAlt(Math.round(d.altitude)); setIssSpeed(Math.round(d.velocity)) })
-        .catch(() => {})
+      fetch('/api/iss')
+        .then(r => { if (!r.ok) throw new Error('iss'); return r.json() })
+        .then(d => { setIssAlt(Math.round(d.altitude)); setIssSpeed(Math.round(d.velocity)); setLiveOk(true) })
+        .catch(() => setLiveOk(false))
     }
     fetchISS()
     const id = setInterval(fetchISS, 30000)
 
-    fetch('https://api.open-notify.org/astros.json')
-      .then(r => r.json())
+    fetch('/api/astros')
+      .then(r => { if (!r.ok) throw new Error('astros'); return r.json() })
       .then(d => setCrewCount(d.number))
       .catch(() => {})
 
@@ -109,8 +110,11 @@ export default function Header({ onPremium }: Props) {
         <div className="hidden md:flex flex-1 justify-center">
           <div className="flex items-center gap-4 glass px-4 py-2 rounded-full border border-white/[0.06]">
             <div className="flex items-center gap-1.5">
-              <span className="live-dot" />
-              <span className="text-emerald-400 text-xs font-semibold">{t('common.live')}</span>
+              {liveOk ? (
+                <><span className="live-dot" /><span className="text-emerald-400 text-xs font-semibold">{t('common.live')}</span></>
+              ) : (
+                <span className="text-gray-600 text-xs font-semibold">CACHED</span>
+              )}
             </div>
             <div className="w-px h-3 bg-white/10" />
             <span className="text-gray-500 text-xs">
