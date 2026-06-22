@@ -1,11 +1,11 @@
 import { Component, type ReactNode } from 'react'
-import * as Sentry from '@sentry/react'
+import { captureException } from '../lib/sentry'
 
 export default class ErrorBoundary extends Component<{ children: ReactNode }, { error: boolean }> {
   state = { error: false }
   static getDerivedStateFromError() { return { error: true } }
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    Sentry.captureException(error, { extra: { componentStack: info.componentStack } })
+    captureException(error, { extra: { componentStack: info.componentStack } })
   }
   render() {
     if (this.state.error) return (
