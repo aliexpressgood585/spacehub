@@ -20,11 +20,11 @@ export default function AstroGallery() {
   const [error, setError] = useState(false)
 
   useEffect(() => {
-    const key = (import.meta.env.VITE_NASA_API_KEY as string | undefined) || 'DEMO_KEY'
-    fetch(`https://api.nasa.gov/planetary/apod?api_key=${key}&count=16`)
-      .then(r => r.json())
+    fetch('/api/gallery')
+      .then(r => { if (!r.ok) throw new Error(''); return r.json() })
       .then((data: ApodItem[]) => {
         const images = data.filter(d => d.media_type === 'image')
+        if (images.length === 0) throw new Error('no images')
         setPhotos(images)
         setLoading(false)
       })
