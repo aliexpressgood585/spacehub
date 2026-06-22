@@ -1,8 +1,7 @@
-const CACHE = 'spacehub-v3'
-const STATIC = ['/', '/index.html']
+const CACHE = 'spacehub-v5'
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(STATIC)))
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['/'])))
   self.skipWaiting()
 })
 
@@ -15,17 +14,35 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return
-  if (e.request.url.includes('api.')) {
+
+  const url = new URL(e.request.url)
+
+  // External APIs — network only with cache fallback
+  if (!url.hostname.includes('vercel.app') && !url.hostname.includes('localhost')) {
     e.respondWith(fetch(e.request).catch(() => caches.match(e.request)))
-  } else {
+    return
+  }
+
+  // HTML pages — network first so new deployments are always picked up
+  if (e.request.headers.get('accept')?.includes('text/html') || url.pathname === '/' || url.pathname.endsWith('.html')) {
     e.respondWith(
-      caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
+      fetch(e.request).then(res => {
         const clone = res.clone()
         caches.open(CACHE).then(c => c.put(e.request, clone))
         return res
-      }))
+      }).catch(() => caches.match(e.request))
     )
+    return
   }
+
+  // Hashed JS/CSS assets — cache first (filenames change with each build so this is safe)
+  e.respondWith(
+    caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
+      const clone = res.clone()
+      caches.open(CACHE).then(c => c.put(e.request, clone))
+      return res
+    }))
+  )
 })
 
 self.addEventListener('push', e => {
