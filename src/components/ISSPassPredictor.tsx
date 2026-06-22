@@ -206,9 +206,21 @@ export default function ISSPassPredictor() {
     setLoading(false)
   }, [])
 
-  // Auto-load Tel Aviv on mount
+  // Auto-detect location on mount; fall back to Tel Aviv silently
   useEffect(() => {
-    load({ lat: 32.0853, lng: 34.7818, city: 'Tel Aviv' })
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const l = { lat: pos.coords.latitude, lng: pos.coords.longitude, city: 'Your Location' }
+          setLoc(l)
+          load(l)
+        },
+        () => load({ lat: 32.0853, lng: 34.7818, city: 'Tel Aviv' }),
+        { timeout: 5000 }
+      )
+    } else {
+      load({ lat: 32.0853, lng: 34.7818, city: 'Tel Aviv' })
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

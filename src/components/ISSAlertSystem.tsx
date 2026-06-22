@@ -46,8 +46,10 @@ export default function ISSAlertSystem() {
   const [notified, setNotified] = useState(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  const notifSupported = 'Notification' in window
+
   const requestNotifications = async () => {
-    if (!('Notification' in window)) return
+    if (!notifSupported) return
     const perm = await Notification.requestPermission()
     setNotifGranted(perm === 'granted')
   }
@@ -92,9 +94,23 @@ export default function ISSAlertSystem() {
 
   useEffect(() => () => { if (intervalRef.current) clearInterval(intervalRef.current) }, [])
 
-  // Auto-start tracking for default city on mount
+  // Auto-detect location on mount; fall back to Tel Aviv silently
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { startTracking(DEFAULT) }, [])
+  useEffect(() => {
+    startTracking(DEFAULT)
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude, city: 'Your Location' }
+          setUserLoc(loc)
+          setSelectedCity('')
+          startTracking(loc)
+        },
+        () => {},
+        { timeout: 5000 }
+      )
+    }
+  }, [])
 
   const useGeolocation = () => {
     setLoading(true)
@@ -129,7 +145,12 @@ export default function ISSAlertSystem() {
           <h3 className="text-white font-bold text-base">ISS Overhead Alert</h3>
           <p className="text-gray-500 text-xs">Real-time pass tracking from your location</p>
         </div>
-        {!notifGranted ? (
+        {notifGranted ? (
+          <span className="flex items-center gap-1.5 text-xs text-green-400 font-semibold">
+            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block" />
+            Alerts Active
+          </span>
+        ) : notifSupported ? (
           <button
             onClick={requestNotifications}
             className="text-xs px-3 py-1.5 rounded-xl font-semibold transition"
@@ -138,9 +159,8 @@ export default function ISSAlertSystem() {
             🔔 Enable Alerts
           </button>
         ) : (
-          <span className="flex items-center gap-1.5 text-xs text-green-400 font-semibold">
-            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block" />
-            Alerts Active
+          <span className="text-xs text-gray-600 font-medium" title="Browser notifications are not supported here — open on Chrome desktop or Android for alerts">
+            🔔 Desktop alerts only
           </span>
         )}
       </div>
