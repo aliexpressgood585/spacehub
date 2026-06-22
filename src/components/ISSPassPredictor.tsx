@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useLang } from '../i18n/LangContext'
 
 interface Pass {
   start: Date
@@ -164,12 +165,6 @@ function elColor(el: number) {
   return 'text-orange-300'
 }
 
-function elLabel(el: number) {
-  if (el >= 60) return 'Excellent'
-  if (el >= 30) return 'Good'
-  return 'Fair'
-}
-
 function msUntil(d: Date) {
   return d.getTime() - Date.now()
 }
@@ -185,6 +180,14 @@ function formatCountdown(ms: number) {
 }
 
 export default function ISSPassPredictor() {
+  const { t } = useLang()
+
+  const elLabel = (el: number) => {
+    if (el >= 60) return t('predictor.excellent')
+    if (el >= 30) return t('predictor.good')
+    return t('predictor.fair')
+  }
+
   const [loc, setLoc] = useState<Location | null>({ lat: 32.0853, lng: 34.7818, city: 'Tel Aviv' })
   const [passes, setPasses] = useState<Pass[]>([])
   const [loading, setLoading] = useState(true)
@@ -278,8 +281,8 @@ export default function ISSPassPredictor() {
         <div className="flex items-center gap-3">
           <div className="icon-box">🔭</div>
           <div>
-            <h3 className="text-white font-bold text-base">ISS Pass Times — 7-Day Forecast</h3>
-            <p className="text-xs text-gray-500">Exact times the ISS will be visible from your location</p>
+            <h3 className="text-white font-bold text-base">{t('predictor.title')}</h3>
+            <p className="text-xs text-gray-500">{t('predictor.subtitle')}</p>
           </div>
           {nextPass && (
             <button
@@ -287,7 +290,7 @@ export default function ISSPassPredictor() {
               className="ml-auto text-xs px-3 py-1.5 rounded-lg transition font-medium"
               style={{ background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.4)', color: '#a5b4fc' }}
             >
-              {copied ? '✅ Copied!' : '📤 Share'}
+              {copied ? t('predictor.linkCopied') : t('common.share')}
             </button>
           )}
         </div>
@@ -296,14 +299,14 @@ export default function ISSPassPredictor() {
       <div className="p-6">
         {!loc ? (
           <div className="space-y-5">
-            <p className="text-gray-400 text-sm text-center">Choose your location to see when the ISS will fly over you</p>
+            <p className="text-gray-400 text-sm text-center">{t('predictor.chooseLocation')}</p>
             <div className="flex justify-center">
               <button
                 onClick={useGeo}
                 className="px-6 py-3 rounded-xl font-semibold text-white flex items-center gap-2 transition hover:opacity-90"
                 style={{ background: 'linear-gradient(135deg,#4f46e5,#7c3aed)' }}
               >
-                📍 Use My Location
+                {t('predictor.useMyLocation')}
               </button>
             </div>
             {geoError && <p className="text-red-400 text-sm text-center">{geoError}</p>}
@@ -331,8 +334,8 @@ export default function ISSPassPredictor() {
         ) : loading ? (
           <div className="text-center py-12">
             <div className="text-4xl mb-4 animate-bounce">🛸</div>
-            <p className="text-gray-400">Calculating ISS passes for {loc.city}...</p>
-            <p className="text-gray-600 text-xs mt-1">Using live TLE orbital data from CelesTrak</p>
+            <p className="text-gray-400">{t('predictor.calculating')} {loc.city}...</p>
+            <p className="text-gray-600 text-xs mt-1">{t('predictor.usingTLE')}</p>
           </div>
         ) : error ? (
           <div className="text-center py-8">
@@ -346,38 +349,38 @@ export default function ISSPassPredictor() {
               <div className="rounded-2xl p-5" style={{ background: 'linear-gradient(135deg,rgba(79,70,229,0.2),rgba(124,58,237,0.2))', border: '1px solid rgba(99,102,241,0.4)' }}>
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <p className="text-xs text-indigo-300 font-semibold uppercase tracking-wider mb-1">Next Pass — {loc.city}</p>
+                    <p className="text-xs text-indigo-300 font-semibold uppercase tracking-wider mb-1">{t('predictor.nextPass')} {loc.city}</p>
                     <p className="text-3xl font-bold text-white">{formatTime(nextPass.start)}</p>
                     <p className="text-indigo-300 text-sm">{formatDate(nextPass.start)}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-gray-400 mb-1">In</p>
+                    <p className="text-xs text-gray-400 mb-1">{t('predictor.in')}</p>
                     <p className="text-2xl font-bold font-mono text-yellow-300">{countdown}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-3 mt-4">
                   <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <p className="text-xs text-gray-500 mb-1">Max Elevation</p>
+                    <p className="text-xs text-gray-500 mb-1">{t('predictor.maxElevation')}</p>
                     <p className={`text-xl font-bold ${elColor(nextPass.maxEl)}`}>{Math.round(nextPass.maxEl)}°</p>
                     <p className={`text-xs ${elColor(nextPass.maxEl)}`}>{elLabel(nextPass.maxEl)}</p>
                   </div>
                   <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <p className="text-xs text-gray-500 mb-1">Duration</p>
+                    <p className="text-xs text-gray-500 mb-1">{t('predictor.duration')}</p>
                     <p className="text-xl font-bold text-white">{nextPass.duration}m</p>
                   </div>
                   <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <p className="text-xs text-gray-500 mb-1">Direction</p>
+                    <p className="text-xs text-gray-500 mb-1">{t('predictor.direction')}</p>
                     <p className="text-lg font-bold text-indigo-300">{azToCompass(nextPass.startAz)}→{azToCompass(nextPass.endAz)}</p>
                   </div>
                 </div>
                 {nextPass.isVisible && (
                   <div className="mt-3 flex items-center gap-2 text-green-400 text-xs font-semibold">
                     <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block" />
-                    Visible to naked eye! 🌙
+                    {t('predictor.visibleEye')}
                   </div>
                 )}
                 <button onClick={shareNextPass} className="mt-4 w-full py-2.5 rounded-xl font-semibold text-white text-sm transition hover:opacity-90" style={{ background: 'linear-gradient(90deg,#4f46e5,#7c3aed)' }}>
-                  {copied ? '✅ Link Copied!' : '📤 Share This Pass'}
+                  {copied ? t('predictor.linkCopied') : t('predictor.sharePass')}
                 </button>
               </div>
             )}
@@ -385,10 +388,10 @@ export default function ISSPassPredictor() {
             {/* 7-day list */}
             <div className="flex items-center justify-between">
               <p className="text-sm text-gray-400">
-                📍 {loc.city} — <span className="text-white font-medium">{passes.length} passes</span> in the next 7 days
+                📍 {loc.city} — <span className="text-white font-medium">{passes.length} {t('predictor.passes')}</span> {t('predictor.next7days')}
               </p>
               <button onClick={() => { setLoc(null); setPasses([]); setSelectedCity('') }} className="text-xs text-gray-600 hover:text-gray-400 transition">
-                Change City
+                {t('predictor.changeCity')}
               </button>
             </div>
 
@@ -404,7 +407,7 @@ export default function ISSPassPredictor() {
                     >
                       <div className="min-w-[56px] text-center">
                         <p className="text-white font-bold font-mono">{formatTime(p.start)}</p>
-                        <p className="text-xs text-gray-600">start</p>
+                        <p className="text-xs text-gray-600">{t('predictor.start')}</p>
                       </div>
                       <div className="flex-1 flex items-center gap-3 flex-wrap">
                         <span className={`text-sm font-semibold ${elColor(p.maxEl)}`}>
@@ -416,8 +419,8 @@ export default function ISSPassPredictor() {
                       <div className="text-right min-w-[56px]">
                         <p className="text-gray-500 text-xs font-mono">{formatTime(p.end)}</p>
                         {p.isVisible
-                          ? <span className="text-xs text-green-400">🌙 Visible</span>
-                          : <span className="text-xs text-gray-600">☀️ Daylight</span>
+                          ? <span className="text-xs text-green-400">{t('predictor.visibleNight')}</span>
+                          : <span className="text-xs text-gray-600">{t('predictor.daylight')}</span>
                         }
                       </div>
                     </div>
@@ -429,13 +432,13 @@ export default function ISSPassPredictor() {
             {passes.length === 0 && (
               <div className="text-center py-8 text-gray-500">
                 <p className="text-2xl mb-2">🌍</p>
-                <p>No passes above 10° in the next 7 days for this location.</p>
-                <p className="text-sm mt-1">Try a different city.</p>
+                <p>{t('predictor.noPasses')}</p>
+                <p className="text-sm mt-1">{t('predictor.tryDifferent')}</p>
               </div>
             )}
 
             <div className="text-xs text-gray-700 border-t border-white/[0.04] pt-4">
-              🛰️ Data: CelesTrak TLE orbital elements · Updated every 6 hours · Times in your local timezone
+              {t('predictor.dataSource')}
             </div>
           </div>
         )}

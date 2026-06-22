@@ -1,6 +1,15 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
+const FEATURES_STARTER = [
+  'Everything in Free',
+  'Ad-free experience',
+  'ISS overhead alerts (push notifications)',
+  'Pass predictor — 3 days ahead',
+  'Moon phase detailed view',
+  'Exclusive monthly space digest email',
+]
+
 const FEATURES_FREE = [
   'ISS live tracker & 3D globe',
   'Real-time ISS overhead alerts',
@@ -28,16 +37,17 @@ const FEATURES_PRO = [
 ]
 
 export default function PremiumPage() {
-  const [loading, setLoading] = useState<'monthly' | 'yearly' | null>(null)
-  const [plan, setPlan] = useState<'monthly' | 'yearly'>('yearly')
+  const [loading, setLoading] = useState<'monthly' | 'yearly' | 'starter-m' | 'starter-y' | null>(null)
+  const [plan, setPlan] = useState<'monthly' | 'yearly' | 'starter-m' | 'starter-y'>('yearly')
 
-  const checkout = async (p: 'monthly' | 'yearly') => {
+  const checkout = async (p: 'monthly' | 'yearly' | 'starter-m' | 'starter-y') => {
     setLoading(p)
+    const planName = p === 'starter-m' ? 'starter-monthly' : p === 'starter-y' ? 'starter-yearly' : p
     try {
       const res = await fetch('/api/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: p }),
+        body: JSON.stringify({ plan: planName }),
       })
       const data = await res.json() as { url?: string; error?: string }
       if (data.url) { window.location.href = data.url; return }
@@ -81,7 +91,7 @@ export default function PremiumPage() {
           </div>
 
           {/* Pricing cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-14">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-14">
 
             {/* Free */}
             <div className="space-card p-8">
@@ -107,6 +117,38 @@ export default function PremiumPage() {
               >
                 Current Plan
               </Link>
+            </div>
+
+            {/* Starter */}
+            <div className="space-card p-8 relative">
+              <div className="mb-6">
+                <p className="text-emerald-400 text-sm font-semibold uppercase tracking-wider mb-2">Starter</p>
+                <div className="flex items-end gap-2">
+                  <span className="text-5xl font-black text-white">{plan.startsWith('starter') && plan.endsWith('-y') ? '$14.99' : '$1.99'}</span>
+                  <span className="text-gray-400 text-sm mb-2">/month</span>
+                </div>
+                <div className="flex gap-2 mt-3">
+                  <button onClick={() => setPlan('starter-m')} className="text-xs px-3 py-1.5 rounded-xl font-semibold transition" style={plan === 'starter-m' ? { background: 'rgba(52,211,153,0.2)', border: '1px solid rgba(52,211,153,0.5)', color: '#6ee7b7' } : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#6b7280' }}>Monthly $1.99</button>
+                  <button onClick={() => setPlan('starter-y')} className="text-xs px-3 py-1.5 rounded-xl font-semibold transition" style={plan === 'starter-y' ? { background: 'rgba(52,211,153,0.2)', border: '1px solid rgba(52,211,153,0.5)', color: '#6ee7b7' } : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#6b7280' }}>Yearly $14.99 <span style={{ color: '#fbbf24' }}>−37%</span></button>
+                </div>
+              </div>
+              <ul className="space-y-3 mb-8">
+                {FEATURES_STARTER.map((f, i) => (
+                  <li key={f} className="flex items-start gap-3 text-sm">
+                    <span className={`mt-0.5 flex-shrink-0 ${i === 0 ? 'text-gray-500' : 'text-emerald-400'}`}>{i === 0 ? '✓' : '✨'}</span>
+                    <span className={i === 0 ? 'text-gray-500' : 'text-gray-300'}>{f}</span>
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={() => checkout(plan.startsWith('starter') ? plan as 'starter-m' | 'starter-y' : 'starter-m')}
+                disabled={loading !== null}
+                className="w-full py-3.5 text-sm font-bold rounded-2xl transition-all disabled:opacity-60"
+                style={{ background: 'linear-gradient(135deg, rgba(52,211,153,0.3), rgba(16,185,129,0.2))', border: '1px solid rgba(52,211,153,0.4)', color: '#6ee7b7' }}
+              >
+                {loading ? '⏳ Redirecting...' : `✨ Get Starter — ${plan === 'starter-y' ? '$14.99/yr' : '$1.99/mo'}`}
+              </button>
+              <p className="text-center text-gray-700 text-xs mt-3">Cancel anytime · Secure via Stripe</p>
             </div>
 
             {/* Pro */}
@@ -146,7 +188,7 @@ export default function PremiumPage() {
               </ul>
 
               <button
-                onClick={() => checkout(plan)}
+                onClick={() => checkout(plan === 'monthly' || plan === 'yearly' ? plan : 'monthly')}
                 disabled={loading !== null}
                 className="btn-shimmer w-full py-3.5 text-sm font-bold relative disabled:opacity-60"
               >

@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, Component, type ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
 import './App.css'
+import { LangProvider } from './i18n/LangContext'
+import { useLang } from './i18n/LangContext'
 import Header from './components/Header'
 import Hero from './components/Hero'
 import SatelliteTracker from './components/SatelliteTracker'
@@ -22,6 +24,7 @@ import StarMap from './components/StarMap'
 import ISSPassPredictor from './components/ISSPassPredictor'
 import SpaceQuiz from './components/SpaceQuiz'
 import ShareCard from './components/ShareCard'
+import AstroGallery from './components/AstroGallery'
 import BlogPage from './pages/BlogPage'
 import BlogArticlePage from './pages/BlogArticlePage'
 import PremiumPage from './pages/PremiumPage'
@@ -29,18 +32,19 @@ import CityPage, { CITY_DATA } from './pages/CityPage'
 import PrivacyPage from './pages/PrivacyPage'
 import SuccessPage from './pages/SuccessPage'
 
-type Tab = 'dashboard' | 'starmap' | 'tracker' | 'solar' | 'weather' | 'events' | 'news' | 'quiz' | 'blog'
+type Tab = 'dashboard' | 'starmap' | 'tracker' | 'solar' | 'weather' | 'events' | 'news' | 'quiz' | 'blog' | 'gallery'
 
-const TABS: { id: Tab; icon: string; label: string }[] = [
-  { id: 'dashboard', icon: '🛸', label: 'ISS Live' },
-  { id: 'starmap',   icon: '🌌', label: 'Star Map' },
-  { id: 'tracker',   icon: '🛰️', label: 'Satellites' },
-  { id: 'solar',     icon: '🪐', label: 'Solar System' },
-  { id: 'weather',   icon: '⛈️', label: 'Space Weather' },
-  { id: 'events',    icon: '🌠', label: 'Events' },
-  { id: 'news',      icon: '📰', label: 'News' },
-  { id: 'quiz',      icon: '🧠', label: 'Quiz' },
-  { id: 'blog',      icon: '📝', label: 'Blog' },
+const TAB_DEFS: { id: Tab; icon: string; tKey: string }[] = [
+  { id: 'dashboard', icon: '🛸', tKey: 'tab.dashboard' },
+  { id: 'starmap',   icon: '🌌', tKey: 'tab.starmap' },
+  { id: 'tracker',   icon: '🛰️', tKey: 'tab.tracker' },
+  { id: 'solar',     icon: '🪐', tKey: 'tab.solar' },
+  { id: 'weather',   icon: '⛈️', tKey: 'tab.weather' },
+  { id: 'events',    icon: '🌠', tKey: 'tab.events' },
+  { id: 'news',      icon: '📰', tKey: 'tab.news' },
+  { id: 'quiz',      icon: '🧠', tKey: 'tab.quiz' },
+  { id: 'blog',      icon: '📝', tKey: 'tab.blog' },
+  { id: 'gallery',   icon: '🔭', tKey: 'tab.gallery' },
 ]
 
 const FOOTER_FEATURES = [
@@ -59,16 +63,11 @@ class SafeWrap extends Component<{ children: ReactNode }, { ok: boolean }> {
 }
 
 function MainApp() {
+  const { t } = useLang()
   const [activeTab, setActiveTab] = useState<Tab>('dashboard')
-  const [lang, setLang] = useState<'he' | 'en'>('en')
   const [issData, setIssData] = useState<{ lat: number; lng: number; alt: number } | null>(null)
   const issRef = useRef<HTMLDivElement>(null)
   const tabContentRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    document.documentElement.lang = lang
-    document.documentElement.dir = lang === 'he' ? 'rtl' : 'ltr'
-  }, [lang])
 
   useEffect(() => {
     fetch('https://api.wheretheiss.at/v1/satellites/25544')
@@ -98,12 +97,10 @@ function MainApp() {
       <div className="relative" style={{ zIndex: 1 }}>
         <Header
           onThemeToggle={() => {}}
-          lang={lang}
-          onLangToggle={() => setLang(l => l === 'he' ? 'en' : 'he')}
           onPremium={goToPremium}
         />
         <LiveTicker />
-        <Hero lang={lang} onPremium={() => {}} onScrollToISS={scrollToISS} />
+        <Hero onPremium={() => {}} onScrollToISS={scrollToISS} />
 
         {/* Divider */}
         <div className="divider-glow my-0" />
@@ -120,14 +117,14 @@ function MainApp() {
               className="flex gap-1.5 mb-8 overflow-x-auto pb-2"
               style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
             >
-              {TABS.map(tab => (
+              {TAB_DEFS.map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => switchTab(tab.id)}
                   className={`tab-pill flex-shrink-0 flex items-center gap-1.5 ${activeTab === tab.id ? 'active' : ''}`}
                 >
                   <span>{tab.icon}</span>
-                  <span>{tab.label}</span>
+                  <span>{t(tab.tKey)}</span>
                 </button>
               ))}
             </div>
@@ -203,6 +200,8 @@ function MainApp() {
 
             {activeTab === 'blog' && <BlogPage />}
 
+            {activeTab === 'gallery' && <AstroGallery />}
+
           </div>
 
           <div className="mt-14 mb-4">
@@ -270,25 +269,27 @@ function MainApp() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<SafeWrap><MainApp /></SafeWrap>} />
-        <Route path="/blog" element={
-          <div style={{ background: '#020510', minHeight: '100vh' }}>
-            <div style={{ zIndex: 1, position: 'relative' }}>
-              <Link to="/" className="fixed top-4 right-4 z-50 text-indigo-400 text-xs px-4 py-2 rounded-xl transition-all font-semibold" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(12px)' }}>
-                ← SpaceHub
-              </Link>
-              <BlogPage />
+    <LangProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<SafeWrap><MainApp /></SafeWrap>} />
+          <Route path="/blog" element={
+            <div style={{ background: '#020510', minHeight: '100vh' }}>
+              <div style={{ zIndex: 1, position: 'relative' }}>
+                <Link to="/" className="fixed top-4 right-4 z-50 text-indigo-400 text-xs px-4 py-2 rounded-xl transition-all font-semibold" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(12px)' }}>
+                  ← SpaceHub
+                </Link>
+                <BlogPage />
+              </div>
             </div>
-          </div>
-        } />
-        <Route path="/blog/:slug" element={<BlogArticlePage />} />
-        <Route path="/premium" element={<PremiumPage />} />
-        <Route path="/iss/:city" element={<CityPage />} />
-        <Route path="/privacy" element={<PrivacyPage />} />
-        <Route path="/success" element={<SuccessPage />} />
-      </Routes>
-    </BrowserRouter>
+          } />
+          <Route path="/blog/:slug" element={<BlogArticlePage />} />
+          <Route path="/premium" element={<PremiumPage />} />
+          <Route path="/iss/:city" element={<CityPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/success" element={<SuccessPage />} />
+        </Routes>
+      </BrowserRouter>
+    </LangProvider>
   )
 }

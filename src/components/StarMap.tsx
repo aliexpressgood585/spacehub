@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { useLang } from '../i18n/LangContext'
 
 // Bright stars: [name_he, RA_hours, Dec_deg, magnitude, color]
 const STARS: [string, number, number, number, string][] = [
@@ -75,6 +76,7 @@ function altAzToXY(alt: number, az: number, cx: number, cy: number, r: number) {
 }
 
 export default function StarMap() {
+  const { t } = useLang()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [userLoc, setUserLoc] = useState({ lat: 31.77, lng: 35.21 })
   const [city, setCity] = useState('Jerusalem')
@@ -235,7 +237,7 @@ export default function StarMap() {
     navigator.geolocation.getCurrentPosition(
       pos => {
         setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-        setCity('Your Location')
+        setCity(t('starmap.yourLocation'))
       },
       () => {},
       { timeout: 5000 }
@@ -252,8 +254,8 @@ export default function StarMap() {
       <div className="flex items-center gap-3 mb-4">
         <span className="text-2xl">🌌</span>
         <div>
-          <h3 className="text-white font-bold text-lg">Star Map — Tonight</h3>
-          <p className="text-gray-500 text-xs">{visibleCount} stars visible above horizon • drag to rotate</p>
+          <h3 className="text-white font-bold text-lg">{t('starmap.title')}</h3>
+          <p className="text-gray-500 text-xs">{visibleCount} {t('starmap.subtitle')}</p>
         </div>
         <div className="ml-auto live-badge"><span className="live-dot" />LIVE</div>
       </div>

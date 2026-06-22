@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useLang } from '../i18n/LangContext'
 
 interface UserLocation { lat: number; lng: number; city: string }
 interface ISSData { latitude: number; longitude: number; altitude: number; velocity: number }
@@ -35,6 +36,7 @@ const CITIES = [
 ]
 
 export default function ISSAlertSystem() {
+  const { t } = useLang()
   const DEFAULT = { lat: 32.0853, lng: 34.7818, city: 'Tel Aviv' }
   const [userLoc, setUserLoc] = useState<UserLocation | null>(DEFAULT)
   const [iss, setIss] = useState<ISSData | null>(null)
@@ -57,8 +59,8 @@ export default function ISSAlertSystem() {
   const sendNotification = useCallback((elevAngle: number) => {
     if (!notifGranted || notified) return
     setNotified(true)
-    new Notification('🚀 ISS is passing over you!', {
-      body: `The International Space Station is ${Math.round(elevAngle)}° above the horizon. Go outside and look up!`,
+    new Notification(t('iss.notifTitle'), {
+      body: `${t('iss.notifBody').replace('above the horizon', `${Math.round(elevAngle)}° above the horizon`)}`,
       icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🚀</text></svg>',
     })
     setTimeout(() => setNotified(false), 6 * 60 * 1000)
@@ -81,7 +83,7 @@ export default function ISSAlertSystem() {
           const nextPassMinutes = visible ? 0 : Math.max(1, Math.round((groundDist - 2000) / (data.velocity / 60)))
           const mins = Math.floor(nextPassMinutes)
           const secs = Math.floor((nextPassMinutes - mins) * 60)
-          const countdown = visible ? 'Passing now!' : nextPassMinutes < 90 ? `~${mins}:${secs.toString().padStart(2, '0')} min` : `~${Math.round(nextPassMinutes / 60 * 10) / 10} hrs`
+          const countdown = visible ? t('iss.passingNow') : nextPassMinutes < 90 ? `~${mins}:${secs.toString().padStart(2, '0')} min` : `~${Math.round(nextPassMinutes / 60 * 10) / 10} hrs`
 
           setPass({ elevAngle: elev, distance: Math.round(groundDist), visible, countdown })
         })
@@ -123,7 +125,7 @@ export default function ISSAlertSystem() {
         setLoading(false)
       },
       () => {
-        setLocError('Could not get your location — please choose a city below')
+        setLocError(t('iss.locationError'))
         setLoading(false)
       }
     )
@@ -142,13 +144,13 @@ export default function ISSAlertSystem() {
       <div className="p-5 flex flex-wrap items-center gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
         <div className="icon-box">🛸</div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-white font-bold text-base">ISS Overhead Alert</h3>
-          <p className="text-gray-500 text-xs">Real-time pass tracking from your location</p>
+          <h3 className="text-white font-bold text-base">{t('iss.title')}</h3>
+          <p className="text-gray-500 text-xs">{t('iss.subtitle')}</p>
         </div>
         {notifGranted ? (
           <span className="flex items-center gap-1.5 text-xs text-green-400 font-semibold">
             <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block" />
-            Alerts Active
+            {t('iss.alertsActive')}
           </span>
         ) : notifSupported ? (
           <button
@@ -156,11 +158,11 @@ export default function ISSAlertSystem() {
             className="text-xs px-3 py-1.5 rounded-xl font-semibold transition"
             style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', color: '#a5b4fc' }}
           >
-            🔔 Enable Alerts
+            {t('iss.enableAlerts')}
           </button>
         ) : (
           <span className="text-xs text-gray-600 font-medium" title="Browser notifications are not supported here — open on Chrome desktop or Android for alerts">
-            🔔 Desktop alerts only
+            {t('iss.desktopOnly')}
           </span>
         )}
       </div>
@@ -168,7 +170,7 @@ export default function ISSAlertSystem() {
       <div className="p-5">
         {!userLoc ? (
           <div className="space-y-4">
-            <p className="text-gray-400 text-sm text-center">Choose your location to track when the ISS passes over you</p>
+            <p className="text-gray-400 text-sm text-center">{t('iss.chooseLocation')}</p>
 
             <div className="flex justify-center">
               <button
@@ -177,14 +179,14 @@ export default function ISSAlertSystem() {
                 className="btn-shimmer px-6 py-3 flex items-center gap-2 disabled:opacity-50"
               >
                 {loading ? <span className="animate-spin">⚙️</span> : '📍'}
-                {loading ? 'Locating...' : 'Use My Location'}
+                {loading ? t('iss.locating') : t('iss.useMyLocation')}
               </button>
             </div>
 
             {locError && <p className="text-red-400 text-sm text-center">{locError}</p>}
 
             <div>
-              <p className="text-gray-600 text-xs text-center mb-3">Or choose a city:</p>
+              <p className="text-gray-600 text-xs text-center mb-3">{t('iss.orChooseCity')}</p>
               <div className="flex flex-wrap gap-2 justify-center">
                 {CITIES.map(city => (
                   <button
@@ -218,7 +220,7 @@ export default function ISSAlertSystem() {
                 onClick={() => { setUserLoc(null); setPass(null); setIss(null); if (intervalRef.current) clearInterval(intervalRef.current) }}
                 className="text-xs text-gray-600 hover:text-gray-400 transition"
               >
-                Change ↺
+                {t('common.change')}
               </button>
             </div>
 
@@ -231,21 +233,21 @@ export default function ISSAlertSystem() {
                   : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }
                 }
               >
-                <p className="text-xs text-gray-500 mb-1.5">ISS Status</p>
+                <p className="text-xs text-gray-500 mb-1.5">{t('iss.status')}</p>
                 <p className={`text-base font-bold ${pass?.visible ? 'text-green-400' : 'text-gray-400'}`}>
-                  {pass?.visible ? '👁️ Visible!' : '🌍 Below Horizon'}
+                  {pass?.visible ? t('iss.visible') : t('iss.belowHorizon')}
                 </p>
               </div>
 
               <div className="rounded-2xl p-4 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                <p className="text-xs text-gray-500 mb-1.5">Elevation</p>
+                <p className="text-xs text-gray-500 mb-1.5">{t('iss.elevation')}</p>
                 <p className={`text-2xl font-black font-mono ${!pass ? 'text-gray-600' : pass.visible ? 'text-green-400' : pass.elevAngle > -10 ? 'text-yellow-400' : 'text-gray-400'}`}>
                   {pass ? `${pass.elevAngle.toFixed(1)}°` : '—'}
                 </p>
               </div>
 
               <div className="rounded-2xl p-4 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                <p className="text-xs text-gray-500 mb-1.5">Distance</p>
+                <p className="text-xs text-gray-500 mb-1.5">{t('iss.distance')}</p>
                 <p className="text-xl font-black font-mono text-indigo-300">
                   {pass ? `${pass.distance.toLocaleString()} km` : '—'}
                 </p>
@@ -258,7 +260,7 @@ export default function ISSAlertSystem() {
                   : { background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.2)' }
                 }
               >
-                <p className="text-xs text-gray-500 mb-1.5">{pass?.visible ? 'Overhead Now!' : 'Next Pass (est.)'}</p>
+                <p className="text-xs text-gray-500 mb-1.5">{pass?.visible ? t('iss.overhead') : t('iss.nextPass')}</p>
                 <p className={`text-base font-bold ${pass?.visible ? 'text-green-400 animate-pulse' : 'text-yellow-400'}`}>
                   {pass?.countdown ?? '...'}
                 </p>
@@ -268,7 +270,7 @@ export default function ISSAlertSystem() {
             {/* ISS position detail */}
             {iss && (
               <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <p className="text-xs text-gray-600 mb-2 uppercase tracking-wider font-semibold">ISS Current Position</p>
+                <p className="text-xs text-gray-600 mb-2 uppercase tracking-wider font-semibold">{t('iss.position')}</p>
                 <div className="flex flex-wrap gap-4 text-sm">
                   <span className="text-gray-500">Lat: <span className="text-white font-mono">{iss.latitude.toFixed(3)}°</span></span>
                   <span className="text-gray-500">Lon: <span className="text-white font-mono">{iss.longitude.toFixed(3)}°</span></span>
@@ -282,8 +284,7 @@ export default function ISSAlertSystem() {
               className="rounded-2xl p-4 text-xs text-gray-600 leading-relaxed"
               style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}
             >
-              💡 The ISS is visible to the naked eye when elevation is above 10°. It orbits Earth every 92 minutes at 28,000 km/h.
-              Updates every 10 seconds.
+              {t('iss.tip')}
             </div>
           </div>
         )}

@@ -1,12 +1,19 @@
+import { useLang } from '../i18n/LangContext'
+import type { Lang } from '../i18n/translations'
+
 interface Props {
   onThemeToggle: () => void
-  lang: 'he' | 'en'
-  onLangToggle: () => void
   onPremium: () => void
 }
 
-export default function Header({ lang, onLangToggle, onPremium }: Props) {
-  const he = lang === 'he'
+const LANGS: { code: Lang; label: string }[] = [
+  { code: 'en', label: 'EN' },
+  { code: 'he', label: 'HE' },
+  { code: 'es', label: 'ES' },
+]
+
+export default function Header({ onPremium }: Props) {
+  const { lang, setLang, t } = useLang()
 
   return (
     <header className="sticky top-0 z-50 header-blur">
@@ -25,7 +32,7 @@ export default function Header({ lang, onLangToggle, onPremium }: Props) {
               Space<span className="gradient-text">Hub</span>
             </div>
             <div className="text-[10px] text-gray-600 font-medium tracking-wide leading-none mt-0.5">
-              {he ? 'מידע חלל בזמן אמת' : 'Real-time Space Data'}
+              {t('header.tagline')}
             </div>
           </div>
         </div>
@@ -35,32 +42,41 @@ export default function Header({ lang, onLangToggle, onPremium }: Props) {
           <div className="flex items-center gap-4 glass px-4 py-2 rounded-full border border-white/[0.06]">
             <div className="flex items-center gap-1.5">
               <span className="live-dot" />
-              <span className="text-emerald-400 text-xs font-semibold">LIVE</span>
+              <span className="text-emerald-400 text-xs font-semibold">{t('common.live')}</span>
             </div>
             <div className="w-px h-3 bg-white/10" />
-            <span className="text-gray-500 text-xs">ISS: 408 km altitude</span>
+            <span className="text-gray-500 text-xs">{t('header.issAlt')}</span>
             <div className="w-px h-3 bg-white/10" />
-            <span className="text-gray-500 text-xs">7 astronauts in space</span>
+            <span className="text-gray-500 text-xs">{t('header.astronauts')}</span>
             <div className="w-px h-3 bg-white/10" />
-            <span className="text-gray-500 text-xs">28,000 km/h</span>
+            <span className="text-gray-500 text-xs">{t('header.speed')}</span>
           </div>
         </div>
 
         {/* Right */}
         <div className="flex items-center gap-2 ml-auto">
-          <button
-            onClick={onLangToggle}
-            className="text-xs px-3 py-2 rounded-xl border border-white/[0.08] text-gray-500 hover:text-white hover:border-indigo-500/40 transition-all bg-white/[0.02] hover:bg-indigo-500/10 font-semibold tracking-wide"
-          >
-            {lang === 'he' ? '🌐 EN' : '🌐 HE'}
-          </button>
+          <div className="flex items-center gap-0.5 p-0.5 rounded-xl border border-white/[0.08] bg-white/[0.02]">
+            {LANGS.map(l => (
+              <button
+                key={l.code}
+                onClick={() => setLang(l.code)}
+                className="text-[11px] px-2.5 py-1.5 rounded-lg font-bold transition-all"
+                style={lang === l.code
+                  ? { background: 'rgba(99,102,241,0.3)', color: '#c4b5fd' }
+                  : { color: '#4b5563' }}
+              >
+                {l.label}
+              </button>
+            ))}
+          </div>
+
           <button
             onClick={onPremium}
             className="hidden sm:flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-bold transition-all"
             style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.3), rgba(139,92,246,0.25))', border: '1px solid rgba(99,102,241,0.5)', color: '#c4b5fd' }}
           >
             <span>⭐</span>
-            <span>{he ? 'Pro' : 'Go Pro'}</span>
+            <span>{t('header.goPro')}</span>
           </button>
         </div>
       </div>

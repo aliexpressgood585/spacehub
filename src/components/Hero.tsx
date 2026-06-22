@@ -1,13 +1,13 @@
 import { useEffect, useRef } from 'react'
+import { useLang } from '../i18n/LangContext'
 
 interface Props {
-  lang: 'he' | 'en'
   onPremium: () => void
   onScrollToISS: () => void
 }
 
-export default function Hero({ lang, onScrollToISS }: Props) {
-  const he = lang === 'he'
+export default function Hero({ onScrollToISS }: Props) {
+  const { t } = useLang()
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -85,36 +85,23 @@ export default function Hero({ lang, onScrollToISS }: Props) {
         style={{ background: 'radial-gradient(circle, rgba(56,189,248,0.07) 0%, transparent 70%)', filter: 'blur(50px)' }} />
 
       <div className="max-w-5xl mx-auto px-4 pt-20 pb-16 text-center relative" style={{ zIndex: 1 }}>
-
-        {/* Live badge */}
         <div className="inline-flex items-center gap-3 mb-8">
           <div className="live-badge">
             <span className="live-dot" />
-            {he ? 'נתונים חיים מהחלל' : 'Live data from space'}
+            {t('hero.live')}
           </div>
         </div>
-
-        {/* Title */}
         <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white mb-6 leading-[1.05] tracking-tight">
-          {he ? (
-            <>עקוב אחרי <span className="gradient-text">תחנת החלל</span><br /><span style={{ color: 'rgba(255,255,255,0.5)' }}>בזמן אמת</span></>
-          ) : (
-            <>Track the <span className="gradient-text">ISS Live</span><br /><span style={{ color: 'rgba(255,255,255,0.5)' }}>from Anywhere on Earth</span></>
-          )}
+          {t('hero.title1')} <span className="gradient-text">{t('hero.title2')}</span><br />
+          <span style={{ color: 'rgba(255,255,255,0.5)' }}>{t('hero.title3')}</span>
         </h1>
-
-        {/* Subtitle */}
         <p className="text-base sm:text-lg text-gray-400 mb-10 max-w-xl mx-auto leading-relaxed font-light">
-          {he
-            ? 'קבל התראה כשה-ISS עובר מעליך, ראה מי בחלל, עקוב אחרי ירח, שיגורים ומזג אוויר חלל — חינם'
-            : 'Get notified when ISS passes overhead. Track moon phases, solar storms, launches & 40,000+ satellites — all free.'}
+          {t('hero.subtitle')}
         </p>
-
-        {/* CTAs */}
         <div className="flex flex-wrap gap-3 justify-center mb-14">
           <button onClick={onScrollToISS} className="btn-shimmer px-8 py-4 text-sm flex items-center gap-2.5">
             <span className="text-lg">🛸</span>
-            <span>{he ? 'איפה ISS עכשיו?' : 'Where is ISS now?'}</span>
+            <span>{t('hero.cta1')}</span>
           </button>
           <a
             href={`https://wa.me/?text=${encodeURIComponent('SpaceHub — Real-time Space Tracker 🚀 https://spacehub-nu.vercel.app')}`}
@@ -122,29 +109,25 @@ export default function Hero({ lang, onScrollToISS }: Props) {
             className="btn-ghost flex items-center gap-2.5 px-8 py-4 text-sm"
           >
             <span className="text-lg">📲</span>
-            <span>{he ? 'שתף עם חבר' : 'Share with a friend'}</span>
+            <span>{t('hero.cta2')}</span>
           </a>
         </div>
-
-        {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto">
           {[
-            { n: '7+',   label: he ? 'אסטרונאוטים בחלל' : 'Astronauts in space', icon: '👨‍🚀' },
-            { n: '408',  label: he ? 'ק"מ מעל כדור הארץ' : 'km above Earth',      icon: '🌍' },
-            { n: '92',   label: he ? 'דקות להקפה'        : 'Mins per orbit',       icon: '⏱️' },
-            { n: '24/7', label: he ? 'בזמן אמת'          : 'Real-time tracking',   icon: '📡' },
+            { n: '7+',   tKey: 'hero.stat.astronauts', icon: '👨‍🚀' },
+            { n: '408',  tKey: 'hero.stat.altitude',   icon: '🌍' },
+            { n: '92',   tKey: 'hero.stat.orbit',      icon: '⏱️' },
+            { n: '24/7', tKey: 'hero.stat.tracking',   icon: '📡' },
           ].map(s => (
             <div key={s.n} className="stat-card">
               <div className="text-xl mb-1">{s.icon}</div>
               <p className="text-2xl sm:text-3xl font-black gradient-text mb-1">{s.n}</p>
-              <p className="text-xs text-gray-600 leading-tight">{s.label}</p>
+              <p className="text-xs text-gray-600 leading-tight">{t(s.tKey)}</p>
             </div>
           ))}
         </div>
-
-        {/* Scroll hint */}
         <div className="mt-10 flex flex-col items-center gap-2" style={{ opacity: 0.35 }}>
-          <div className="text-[10px] text-gray-500 tracking-widest uppercase">Scroll to explore</div>
+          <div className="text-[10px] text-gray-500 tracking-widest uppercase">{t('hero.scroll')}</div>
           <div style={{ width: 1, height: 28, background: 'linear-gradient(180deg,rgba(99,102,241,0.7),transparent)' }} />
         </div>
       </div>
