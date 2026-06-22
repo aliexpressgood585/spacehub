@@ -1,74 +1,35 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useLang } from '../i18n/LangContext'
 
-const CURATED = [
-  {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/The_Earth_seen_from_Apollo_17.jpg/1024px-The_Earth_seen_from_Apollo_17.jpg',
-    title: 'Blue Marble — Apollo 17',
-    author: 'NASA',
-  },
-  {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Saturn_from_Cassini_Orbiter_%282004-10-06%29.jpg/1024px-Saturn_from_Cassini_Orbiter_%282004-10-06%29.jpg',
-    title: 'Saturn from Cassini',
-    author: 'NASA/JPL',
-  },
-  {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/00/Pillars_of_creation_2014_HST_WFC3-UVIS_full-res_denoised.jpg/600px-Pillars_of_creation_2014_HST_WFC3-UVIS_full-res_denoised.jpg',
-    title: 'Pillars of Creation',
-    author: 'NASA/ESA/Hubble',
-  },
-  {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Hubble_ultra_deep_field.jpg/600px-Hubble_ultra_deep_field.jpg',
-    title: 'Hubble Ultra Deep Field',
-    author: 'NASA/ESA/Hubble',
-  },
-  {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/FullMoon2010.jpg/1024px-FullMoon2010.jpg',
-    title: 'Full Moon',
-    author: 'Gregory H. Revera',
-  },
-  {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Aurore_Bor%C3%A9ale_1.jpg/1024px-Aurore_Bor%C3%A9ale_1.jpg',
-    title: 'Aurora Borealis',
-    author: 'Olivier Staiger',
-  },
-  {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/Jupiter_and_its_shrunken_Great_Red_Spot.jpg/1024px-Jupiter_and_its_shrunken_Great_Red_Spot.jpg',
-    title: 'Jupiter — Great Red Spot',
-    author: 'NASA/ESA/Hubble',
-  },
-  {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/OSIRIS_Mars_true_color.jpg/800px-OSIRIS_Mars_true_color.jpg',
-    title: 'Mars — True Color',
-    author: 'ESA/OSIRIS',
-  },
-  {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Orion_Nebula_-_Hubble_2006_mosaic_18000.jpg/1024px-Orion_Nebula_-_Hubble_2006_mosaic_18000.jpg',
-    title: 'Orion Nebula',
-    author: 'NASA/ESA/Hubble',
-  },
-  {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/International_Space_Station_after_undocking_of_STS-132.jpg/1024px-International_Space_Station_after_undocking_of_STS-132.jpg',
-    title: 'International Space Station',
-    author: 'NASA',
-  },
-  {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/dc/As11-40-5931.jpg/800px-As11-40-5931.jpg',
-    title: 'Buzz Aldrin on the Moon',
-    author: 'NASA/Neil Armstrong',
-  },
-  {
-    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/M31_09-01-2011_%28cropped%29.jpg/1024px-M31_09-01-2011_%28cropped%29.jpg',
-    title: 'Andromeda Galaxy',
-    author: 'Wikimedia / Adam Evans',
-  },
-]
+interface ApodItem {
+  title: string
+  url: string
+  hdurl?: string
+  copyright?: string
+  media_type: 'image' | 'video'
+  date: string
+}
 
 export default function AstroGallery() {
   const { t } = useLang()
   const inputRef = useRef<HTMLInputElement>(null)
   const [userPhoto, setUserPhoto] = useState<string | null>(null)
-  const [selected, setSelected] = useState<typeof CURATED[0] | null>(null)
+  const [selected, setSelected] = useState<ApodItem | null>(null)
+  const [photos, setPhotos] = useState<ApodItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+
+  useEffect(() => {
+    const key = (import.meta.env.VITE_NASA_API_KEY as string | undefined) || 'DEMO_KEY'
+    fetch(`https://api.nasa.gov/planetary/apod?api_key=${key}&count=16`)
+      .then(r => r.json())
+      .then((data: ApodItem[]) => {
+        const images = data.filter(d => d.media_type === 'image')
+        setPhotos(images)
+        setLoading(false)
+      })
+      .catch(() => { setError(true); setLoading(false) })
+  }, [])
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -151,43 +112,65 @@ export default function AstroGallery() {
           )}
         </div>
 
-        {/* Curated gallery */}
-        <p className="text-xs text-gray-600 uppercase tracking-widest font-semibold mb-4">{t('gallery.inspire')}</p>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {CURATED.map((photo, i) => (
-            <button
-              key={i}
-              onClick={() => setSelected(selected?.title === photo.title ? null : photo)}
-              className="relative rounded-xl overflow-hidden group text-left"
-              style={{ aspectRatio: '4/3' }}
-            >
-              <img
-                src={photo.url}
-                alt={photo.title}
-                loading="lazy"
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                onError={e => {
-                  const img = e.target as HTMLImageElement
-                  img.style.display = 'none'
-                  const ph = document.createElement('div')
-                  ph.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:linear-gradient(135deg,rgba(99,102,241,0.15),rgba(139,92,246,0.1))'
-                  ph.textContent = '🔭'
-                  img.parentElement?.appendChild(ph)
-                }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="absolute bottom-0 left-0 right-0 p-2 translate-y-full group-hover:translate-y-0 transition-transform">
-                <p className="text-white text-[10px] font-bold leading-tight">{photo.title}</p>
-                <p className="text-gray-400 text-[9px]">{photo.author}</p>
-              </div>
-            </button>
-          ))}
+        {/* NASA APOD gallery */}
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-xs text-gray-600 uppercase tracking-widest font-semibold">{t('gallery.inspire')}</p>
+          <span className="text-[10px] text-gray-700 flex items-center gap-1">
+            <span className="live-dot" style={{ background: '#6366f1', boxShadow: '0 0 6px rgba(99,102,241,0.8)' }} />
+            NASA APOD
+          </span>
         </div>
+
+        {loading && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className="rounded-xl animate-pulse"
+                style={{ aspectRatio: '4/3', background: 'rgba(99,102,241,0.08)' }}
+              />
+            ))}
+          </div>
+        )}
+
+        {error && (
+          <div className="text-center py-10">
+            <div className="text-4xl mb-3">🌌</div>
+            <p className="text-gray-500 text-sm font-semibold mb-1">Could not reach NASA servers</p>
+            <p className="text-gray-700 text-xs">Check your connection and try again</p>
+          </div>
+        )}
+
+        {!loading && !error && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {photos.map((photo, i) => (
+              <button
+                key={i}
+                onClick={() => setSelected(selected?.title === photo.title ? null : photo)}
+                className="relative rounded-xl overflow-hidden group text-left"
+                style={{ aspectRatio: '4/3' }}
+              >
+                <img
+                  src={photo.url}
+                  alt={photo.title}
+                  loading="lazy"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute bottom-0 left-0 right-0 p-2 translate-y-full group-hover:translate-y-0 transition-transform">
+                  <p className="text-white text-[10px] font-bold leading-tight line-clamp-2">{photo.title}</p>
+                  <p className="text-gray-400 text-[9px]">{photo.copyright ? `© ${photo.copyright}` : 'NASA'}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Selected photo actions */}
         {selected && (
-          <div className="mt-4 p-4 rounded-2xl flex items-center justify-between gap-3 flex-wrap" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}>
+          <div className="mt-4 p-4 rounded-2xl flex flex-col gap-3" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}>
             <p className="text-white text-sm font-semibold">{selected.title}</p>
+            <p className="text-gray-500 text-xs leading-relaxed line-clamp-3">{selected.date}</p>
             <div className="flex gap-2">
               <button
                 onClick={() => shareX(selected.title)}
@@ -203,6 +186,15 @@ export default function AstroGallery() {
               >
                 {t('gallery.shareWA')}
               </button>
+              <a
+                href={selected.hdurl || selected.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs px-3 py-1.5 rounded-xl font-semibold transition"
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#9ca3af' }}
+              >
+                HD ↗
+              </a>
             </div>
           </div>
         )}
