@@ -28,19 +28,19 @@ import ISSPassPredictor from './components/ISSPassPredictor'
 import ShareCard from './components/ShareCard'
 import AsteroidTracker from './components/AsteroidTracker'
 import SpaceHistory from './components/SpaceHistory'
-import JWSTGallery from './components/JWSTGallery'
-import MarsWeather from './components/MarsWeather'
-import MarsCountdown from './components/MarsCountdown'
-import SpaceCostChart from './components/SpaceCostChart'
-import RocketReusability from './components/RocketReusability'
-import ArtemisMoonMap from './components/ArtemisMoonMap'
-import SpaceXNewsFeed from './components/SpaceXNewsFeed'
-import PlanetExplorer from './components/PlanetExplorer'
-import ExoplanetExplorer from './components/ExoplanetExplorer'
-import GalaxyExplorer from './components/GalaxyExplorer'
-import SpaceMissions from './components/SpaceMissions'
-import ARSkyView from './components/ARSkyView'
 import WeeklyUpdates from './components/WeeklyUpdates'
+const JWSTGallery = lazy(() => import('./components/JWSTGallery'))
+const MarsWeather = lazy(() => import('./components/MarsWeather'))
+const MarsCountdown = lazy(() => import('./components/MarsCountdown'))
+const SpaceCostChart = lazy(() => import('./components/SpaceCostChart'))
+const RocketReusability = lazy(() => import('./components/RocketReusability'))
+const ArtemisMoonMap = lazy(() => import('./components/ArtemisMoonMap'))
+const SpaceXNewsFeed = lazy(() => import('./components/SpaceXNewsFeed'))
+const SpaceMissions = lazy(() => import('./components/SpaceMissions'))
+const PlanetExplorer = lazy(() => import('./components/PlanetExplorer'))
+const ExoplanetExplorer = lazy(() => import('./components/ExoplanetExplorer'))
+const GalaxyExplorer = lazy(() => import('./components/GalaxyExplorer'))
+const ARSkyView = lazy(() => import('./components/ARSkyView'))
 import BlogPage from './pages/BlogPage'
 import BlogArticlePage from './pages/BlogArticlePage'
 import PremiumPage from './pages/PremiumPage'
@@ -213,7 +213,6 @@ function MainApp() {
                 <ISSPassPredictor />
                 <Suspense fallback={<SkeletonCard />}><ISSTracker /></Suspense>
                 <ShareCard issLat={issData?.lat} issLng={issData?.lng} issAlt={issData?.alt} />
-                <AdBanner />
                 <NasaAPOD />
                 <AsteroidTracker />
                 <AdBanner />
@@ -240,10 +239,8 @@ function MainApp() {
 
             {activeTab === 'tracker' && (
               <div className="space-y-5">
-                <ARSkyView />
-                <Suspense fallback={<SkeletonCard />}>
-                  <SatelliteTracker />
-                </Suspense>
+                <Suspense fallback={<SkeletonCard />}><ARSkyView /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><SatelliteTracker /></Suspense>
               </div>
             )}
 
@@ -257,22 +254,19 @@ function MainApp() {
                       <p className="text-gray-500 text-sm">Interactive real-time planet positions</p>
                     </div>
                   </div>
-                  <Suspense fallback={<SkeletonCard />}>
-                    <SolarSystem3D />
-                  </Suspense>
+                  <Suspense fallback={<SkeletonCard />}><SolarSystem3D /></Suspense>
                 </div>
-                <PlanetExplorer />
+                <Suspense fallback={<SkeletonCard />}><PlanetExplorer /></Suspense>
               </div>
             )}
 
             {activeTab === 'weather' && (
               <div className="space-y-5">
-                <MarsWeather />
-                <AdBanner />
+                <Suspense fallback={<SkeletonCard />}><MarsWeather /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceWeather /></Suspense>
               </div>
             )}
-            {activeTab === 'events'  && <Suspense fallback={<SkeletonCard />}><EventsCalendar /></Suspense>}
+            {activeTab === 'events' && <Suspense fallback={<SkeletonCard />}><EventsCalendar /></Suspense>}
 
             {activeTab === 'news' && (
               <div className="space-y-5">
@@ -290,24 +284,22 @@ function MainApp() {
             {activeTab === 'spacex' && (
               <div className="space-y-5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <MarsCountdown />
-                  <RocketReusability />
+                  <Suspense fallback={<SkeletonCard />}><MarsCountdown /></Suspense>
+                  <Suspense fallback={<SkeletonCard />}><RocketReusability /></Suspense>
                 </div>
-                <SpaceCostChart />
-                <AdBanner />
-                <SpaceMissions />
-                <ArtemisMoonMap />
-                <SpaceXNewsFeed />
+                <Suspense fallback={<SkeletonCard />}><SpaceCostChart /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><SpaceMissions /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><ArtemisMoonMap /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><SpaceXNewsFeed /></Suspense>
               </div>
             )}
 
             {activeTab === 'explore' && (
               <div className="space-y-5">
-                <PlanetExplorer />
+                <Suspense fallback={<SkeletonCard />}><PlanetExplorer /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><ExoplanetExplorer /></Suspense>
                 <AdBanner />
-                <ExoplanetExplorer />
-                <AdBanner />
-                <GalaxyExplorer />
+                <Suspense fallback={<SkeletonCard />}><GalaxyExplorer /></Suspense>
               </div>
             )}
 
@@ -315,7 +307,7 @@ function MainApp() {
 
             {activeTab === 'gallery' && (
               <div className="space-y-5">
-                <JWSTGallery />
+                <Suspense fallback={<SkeletonCard />}><JWSTGallery /></Suspense>
                 <AdBanner />
                 <Suspense fallback={<SkeletonCard />}><AstroGallery /></Suspense>
               </div>

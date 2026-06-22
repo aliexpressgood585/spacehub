@@ -67,7 +67,7 @@ export default function NasaAPOD() {
         </div>
       </div>
       <div className="relative overflow-hidden" style={{ maxHeight: 400 }}>
-        <img src={fallback.url} alt={fallback.title} className="w-full object-cover" style={{ maxHeight: 400 }} />
+        <img src={fallback.url} alt={fallback.title} loading="lazy" className="w-full object-cover" style={{ maxHeight: 400 }} />
         <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(2,5,16,0.8) 0%, transparent 50%)' }} />
       </div>
       <div className="p-5">
@@ -115,7 +115,7 @@ export default function NasaAPOD() {
 
       <div className="relative overflow-hidden mt-4" style={{ maxHeight: 400 }}>
         {apod.media_type === 'image' ? (
-          <img src={apod.url} alt={apod.title} className="w-full object-cover" style={{ maxHeight: 400 }} />
+          <img src={apod.url} alt={apod.title} loading="lazy" decoding="async" className="w-full object-cover" style={{ maxHeight: 400 }} />
         ) : (
           <iframe src={apod.url} className="w-full" style={{ height: 360, border: 'none' }} allowFullScreen title={apod.title} />
         )}

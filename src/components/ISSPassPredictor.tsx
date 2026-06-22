@@ -256,7 +256,7 @@ export default function ISSPassPredictor() {
     )
   }
 
-  const useCity = (c: typeof CITIES[0]) => {
+  const selectCity = (c: typeof CITIES[0]) => {
     const l = { lat: c.lat, lng: c.lng, city: c.name }
     setSelectedCity(c.name)
     setLoc(l)
@@ -362,7 +362,7 @@ export default function ISSPassPredictor() {
               {CITIES.map(c => (
                 <button
                   key={c.name}
-                  onClick={() => useCity(c)}
+                  onClick={() => selectCity(c)}
                   className="px-3 py-1.5 rounded-xl text-sm transition"
                   style={selectedCity === c.name ? {
                     background: 'rgba(99,102,241,0.2)',

@@ -74,13 +74,26 @@ export default function SpaceBackground() {
         nebulaGeo.setAttribute('position', new THREE.BufferAttribute(np, 3))
         scene.add(new THREE.Points(nebulaGeo, new THREE.PointsMaterial({ color: 0x4433ff, size: 0.5, transparent: true, opacity: 0.12 })))
 
+        const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
         const animate = () => {
+          if (document.hidden) { animId = requestAnimationFrame(animate); return }
           animId = requestAnimationFrame(animate)
           scene.rotation.y += 0.0001
           scene.rotation.x += 0.00005
           r.render(scene, camera)
         }
-        animate()
+
+        if (prefersReduced) {
+          r.render(scene, camera)
+        } else {
+          animate()
+        }
+
+        const handleVisibility = () => {
+          if (!document.hidden && !prefersReduced) animate()
+        }
+        document.addEventListener('visibilitychange', handleVisibility)
 
         const handleResize = () => {
           camera.aspect = window.innerWidth / window.innerHeight
@@ -92,6 +105,7 @@ export default function SpaceBackground() {
         const origCleanup = cleanup
         return () => {
           window.removeEventListener('resize', handleResize)
+          document.removeEventListener('visibilitychange', handleVisibility)
           origCleanup()
         }
       } catch {

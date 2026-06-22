@@ -135,22 +135,24 @@ export default function Header({ onPremium }: Props) {
         <div className="flex items-center gap-2 ml-auto">
           <button
             onClick={toggleGalaxy}
-            title={galaxyBg ? 'Galaxy Background: ON — click to disable' : 'Enable Galaxy Background'}
+            aria-label={galaxyBg ? 'Galaxy background on — click to disable' : 'Enable galaxy background'}
+            title={galaxyBg ? 'Galaxy Background: ON' : 'Enable Galaxy Background'}
             className="w-8 h-8 rounded-xl flex items-center justify-center text-base transition-all"
             style={galaxyBg
               ? { background: 'rgba(139,92,246,0.22)', border: '1px solid rgba(139,92,246,0.5)' }
               : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
           >
-            🌌
+            <span aria-hidden="true">🌌</span>
           </button>
 
           <button
             onClick={toggleTheme}
+            aria-label={lightMode ? 'Switch to dark mode' : 'Switch to light mode'}
             title={lightMode ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
             className="w-8 h-8 rounded-xl flex items-center justify-center text-base transition-all"
             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
           >
-            {lightMode ? '🌙' : '☀️'}
+            <span aria-hidden="true">{lightMode ? '🌙' : '☀️'}</span>
           </button>
 
           <select
