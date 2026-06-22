@@ -2082,7 +2082,24 @@ export default function BlogPage() {
         Back to Blog
       </button>
 
-      <div className="space-card p-8">
+      <div className="space-card overflow-hidden">
+        {/* Hero image */}
+        {BLOG_IMAGES[article.slug] && (
+          <div className="relative overflow-hidden" style={{ height: 240 }}>
+            <img
+              src={BLOG_IMAGES[article.slug]}
+              alt={article.title}
+              className="w-full h-full object-cover"
+              onError={e => { (e.target as HTMLImageElement).parentElement!.style.display = 'none' }}
+            />
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(8,11,34,0.9) 0%, rgba(8,11,34,0.3) 50%, transparent 100%)' }} />
+            <div className="absolute bottom-5 left-6 right-6">
+              <h1 className="text-xl sm:text-2xl font-black text-white leading-snug drop-shadow-lg">{article.title}</h1>
+            </div>
+          </div>
+        )}
+
+        <div className="p-8">
         {/* Article header */}
         <div className="flex items-start gap-4 mb-6">
           <div className="icon-box text-2xl flex-shrink-0">{article.icon}</div>
@@ -2093,7 +2110,9 @@ export default function BlogPage() {
               <span className="text-gray-700 text-xs">·</span>
               <span className="text-gray-700 text-xs">{article.readTime}</span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-black text-white leading-snug">{article.title}</h1>
+            {!BLOG_IMAGES[article.slug] && (
+              <h1 className="text-xl sm:text-2xl font-black text-white leading-snug">{article.title}</h1>
+            )}
           </div>
         </div>
 
@@ -2149,6 +2168,26 @@ export default function BlogPage() {
             if (para.startsWith('Step ')) {
               return <p key={i} className="text-gray-300 text-sm leading-relaxed mb-3 pl-4 border-l-2 border-indigo-500/40">{para}</p>
             }
+            if (/^\d+\./.test(para)) {
+              const items = para.split('\n').filter(l => /^\d+\./.test(l))
+              if (items.length > 1) {
+                return (
+                  <ol key={i} className="space-y-2 mb-5 list-none">
+                    {items.map((item, j) => {
+                      const num = item.match(/^(\d+)\./)?.[1] ?? String(j + 1)
+                      const text = item.replace(/^\d+\.\s*/, '')
+                      const html = text.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#e5e7eb;font-weight:600">$1</strong>')
+                      return (
+                        <li key={j} className="text-gray-400 text-sm flex gap-3 leading-relaxed">
+                          <span className="font-black text-indigo-500 flex-shrink-0 w-5 text-right">{num}.</span>
+                          <span dangerouslySetInnerHTML={{ __html: html }} />
+                        </li>
+                      )
+                    })}
+                  </ol>
+                )
+              }
+            }
             return <p key={i} className="text-gray-400 text-sm leading-relaxed mb-4">{para}</p>
           })}
         </div>
@@ -2167,6 +2206,7 @@ export default function BlogPage() {
             📲 Share Article
           </a>
         </div>
+        </div>{/* end p-8 */}
       </div>
     </div>
   )
