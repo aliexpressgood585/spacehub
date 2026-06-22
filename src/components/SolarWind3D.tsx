@@ -77,10 +77,8 @@ export default function SolarWind3D() {
     }
 
     let animId: number
-    let t = 0
     const animate = () => {
       animId = requestAnimationFrame(animate)
-      t += 0.01
       sun.rotation.y += 0.005
 
       particles.forEach(p => {

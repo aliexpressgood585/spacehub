@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLang } from '../i18n/LangContext'
 
 interface Props {
@@ -9,6 +9,19 @@ interface Props {
 export default function Hero({ onScrollToISS }: Props) {
   const { t } = useLang()
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [issAlt, setIssAlt] = useState<number | null>(null)
+  const [crewCount, setCrewCount] = useState<number | null>(null)
+
+  useEffect(() => {
+    fetch('/api/iss')
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(d => setIssAlt(Math.round(d.altitude)))
+      .catch(() => {})
+    fetch('/api/astros')
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(d => setCrewCount(d.number))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -113,13 +126,17 @@ export default function Hero({ onScrollToISS }: Props) {
           </a>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto">
-          {[
-            { n: '7+',   tKey: 'hero.stat.astronauts', icon: '👨‍🚀' },
-            { n: '408',  tKey: 'hero.stat.altitude',   icon: '🌍' },
-            { n: '92',   tKey: 'hero.stat.orbit',      icon: '⏱️' },
-            { n: '24/7', tKey: 'hero.stat.tracking',   icon: '📡' },
-          ].map(s => (
-            <div key={s.n} className="stat-card">
+          {(() => {
+            const alt = issAlt ?? 408
+            const orbitMin = Math.round(2 * Math.PI * Math.sqrt(Math.pow(6371 + alt, 3) / 398600.4418) / 60)
+            return [
+              { n: crewCount !== null ? String(crewCount) : '7+', tKey: 'hero.stat.astronauts', icon: '👨‍🚀' },
+              { n: `${alt}`,                                        tKey: 'hero.stat.altitude',   icon: '🌍' },
+              { n: `${orbitMin}`,                                   tKey: 'hero.stat.orbit',      icon: '⏱️' },
+              { n: '24/7',                                          tKey: 'hero.stat.tracking',   icon: '📡' },
+            ]
+          })().map(s => (
+            <div key={s.tKey} className="stat-card">
               <div className="text-xl mb-1">{s.icon}</div>
               <p className="text-2xl sm:text-3xl font-black gradient-text mb-1">{s.n}</p>
               <p className="text-xs text-gray-600 leading-tight">{t(s.tKey)}</p>
