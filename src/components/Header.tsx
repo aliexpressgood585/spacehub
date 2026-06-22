@@ -24,8 +24,25 @@ export default function Header({ onPremium }: Props) {
   const { lang, setLang, t } = useLang()
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [installed, setInstalled] = useState(false)
+  const [issAlt, setIssAlt] = useState<number | null>(null)
+  const [issSpeed, setIssSpeed] = useState<number | null>(null)
+  const [crewCount, setCrewCount] = useState<number | null>(null)
 
   useEffect(() => {
+    const fetchISS = () => {
+      fetch('https://api.wheretheiss.at/v1/satellites/25544')
+        .then(r => r.json())
+        .then(d => { setIssAlt(Math.round(d.altitude)); setIssSpeed(Math.round(d.velocity)) })
+        .catch(() => {})
+    }
+    fetchISS()
+    const id = setInterval(fetchISS, 30000)
+
+    fetch('https://api.open-notify.org/astros.json')
+      .then(r => r.json())
+      .then(d => setCrewCount(d.number))
+      .catch(() => {})
+
     const onPrompt = (e: Event) => {
       e.preventDefault()
       setInstallPrompt(e as BeforeInstallPromptEvent)
@@ -34,6 +51,7 @@ export default function Header({ onPremium }: Props) {
     window.addEventListener('beforeinstallprompt', onPrompt)
     window.addEventListener('appinstalled', onInstalled)
     return () => {
+      clearInterval(id)
       window.removeEventListener('beforeinstallprompt', onPrompt)
       window.removeEventListener('appinstalled', onInstalled)
     }
@@ -77,11 +95,17 @@ export default function Header({ onPremium }: Props) {
               <span className="text-emerald-400 text-xs font-semibold">{t('common.live')}</span>
             </div>
             <div className="w-px h-3 bg-white/10" />
-            <span className="text-gray-500 text-xs">{t('header.issAlt')}</span>
+            <span className="text-gray-500 text-xs">
+              ISS: <span className="text-gray-400 font-semibold">{issAlt !== null ? `${issAlt} km` : '408 km'}</span>
+            </span>
             <div className="w-px h-3 bg-white/10" />
-            <span className="text-gray-500 text-xs">{t('header.astronauts')}</span>
+            <span className="text-gray-500 text-xs">
+              <span className="text-gray-400 font-semibold">{crewCount !== null ? crewCount : 7}</span> astronauts in space
+            </span>
             <div className="w-px h-3 bg-white/10" />
-            <span className="text-gray-500 text-xs">{t('header.speed')}</span>
+            <span className="text-gray-500 text-xs">
+              <span className="text-gray-400 font-semibold">{issSpeed !== null ? `${issSpeed.toLocaleString()}` : '28,000'}</span> km/h
+            </span>
           </div>
         </div>
 

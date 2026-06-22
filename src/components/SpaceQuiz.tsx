@@ -1,26 +1,32 @@
 import { useState, useMemo } from 'react'
 
-const ALL_QUESTIONS = [
-  { q: 'How long does sunlight take to reach Earth?', opts: ['8 seconds', '8 minutes', '8 hours', '8 days'], a: 1, fact: 'Light travels at 300,000 km/s — covering 150 million km in just 8 minutes.' },
-  { q: 'How many planets are in our Solar System?', opts: ['6', '7', '8', '9'], a: 2, fact: 'Pluto was reclassified as a dwarf planet in 2006, leaving us with 8 planets.' },
-  { q: 'What is the ISS?', opts: ['Spy satellite', 'International Space Station', 'Mars probe', 'Space telescope'], a: 1, fact: 'The ISS is the largest structure humans have ever placed in space — the size of a football field.' },
-  { q: 'Which planet has the most iconic ring system?', opts: ['Jupiter', 'Uranus', 'Saturn', 'Neptune'], a: 2, fact: "Saturn's rings are made of ice and rock, and are only about 10 metres thick despite being 282,000 km wide." },
-  { q: 'How fast does the ISS travel?', opts: ['3 km/s', '7.7 km/s', '17 km/s', '50 km/s'], a: 1, fact: 'At 7.7 km/s, the ISS completes an orbit every 92 minutes — seeing 16 sunrises per day.' },
-  { q: 'Who was the first human in space?', opts: ['Neil Armstrong', 'Yuri Gagarin', 'Alan Shepard', 'John Glenn'], a: 1, fact: 'Yuri Gagarin orbited Earth on April 12, 1961, in a flight lasting 108 minutes.' },
-  { q: 'How long does the ISS take to orbit Earth?', opts: ['45 minutes', '92 minutes', '3 hours', '24 hours'], a: 1, fact: 'The ISS orbits at ~408 km altitude, completing 15.5 orbits per day.' },
-  { q: 'What is the nearest star to us besides the Sun?', opts: ['Sirius', 'Alpha Centauri', 'Proxima Centauri', 'Vega'], a: 2, fact: 'Proxima Centauri is 4.24 light-years away — so close that light from it takes just 4 years to reach us.' },
-  { q: 'How many people have been to space?', opts: ['~100', '~300', '~600', '~1000'], a: 2, fact: 'As of 2026, approximately 600 people have reached space, with more going every year.' },
-  { q: 'What does NASA stand for?', opts: ['North American Space Agency', 'National Aerospace Study Agency', 'National Aeronautics and Space Administration', 'New Astronautics and Science Administration'], a: 2, fact: 'NASA was established in 1958 and has sent humans to the Moon 6 times.' },
-  { q: 'What is the largest planet in our Solar System?', opts: ['Saturn', 'Uranus', 'Jupiter', 'Neptune'], a: 2, fact: 'Jupiter is so massive that all other planets could fit inside it — over 1,300 Earths would fit within Jupiter.' },
-  { q: 'Which planet is known as the Red Planet?', opts: ['Venus', 'Mars', 'Mercury', 'Jupiter'], a: 1, fact: "Mars gets its reddish colour from iron oxide (rust) on its surface. Temperatures there range from -125°C to 20°C." },
-  { q: 'What is a light-year?', opts: ['One year of sunlight', 'Distance light travels in a year', 'Time for light to reach the Moon', 'A unit of time'], a: 1, fact: 'One light-year is about 9.46 trillion kilometres — the distance light covers in a full year at 300,000 km/s.' },
-  { q: 'Who was the first person to walk on the Moon?', opts: ['Buzz Aldrin', 'Michael Collins', 'Neil Armstrong', 'Alan Shepard'], a: 2, fact: 'Neil Armstrong stepped onto the Moon on July 20, 1969, saying "That\'s one small step for man, one giant leap for mankind."' },
-  { q: 'What keeps satellites in orbit around Earth?', opts: ['Rocket engines', 'Earth\'s magnetic field', 'Gravity balanced by orbital speed', 'Solar wind'], a: 2, fact: 'A satellite moves so fast horizontally (about 7.7 km/s for LEO) that as it falls, Earth curves away beneath it.' },
-  { q: 'How many moons does Mars have?', opts: ['0', '1', '2', '4'], a: 2, fact: "Mars has two moons — Phobos and Deimos — both tiny, irregularly shaped, and likely captured asteroids." },
-  { q: 'What causes a solar eclipse?', opts: ['Earth passes between the Moon and Sun', 'The Moon passes between Earth and the Sun', 'Mars blocks the Sun', 'Earth\'s shadow falls on the Sun'], a: 1, fact: 'A total solar eclipse occurs when the Moon perfectly covers the Sun — a rare coincidence since the Moon is 400× smaller but 400× closer.' },
-  { q: 'What is the name of NASA\'s most famous space telescope?', opts: ['James Webb', 'Kepler', 'Hubble', 'Chandra'], a: 2, fact: 'The Hubble Space Telescope, launched in 1990, has captured images of galaxies 13 billion light-years away.' },
-  { q: 'Which planet spins on its side (98° axial tilt)?', opts: ['Neptune', 'Saturn', 'Venus', 'Uranus'], a: 3, fact: 'Uranus rotates at a 98° tilt — possibly knocked over by a giant impact early in the Solar System\'s history.' },
-  { q: 'What is the hottest planet in our Solar System?', opts: ['Mercury', 'Venus', 'Mars', 'Jupiter'], a: 1, fact: 'Venus reaches 465°C — hotter than Mercury despite being farther from the Sun — due to its thick CO₂ greenhouse atmosphere.' },
+type Difficulty = 'easy' | 'medium' | 'hard'
+
+const ALL_QUESTIONS: { q: string; opts: string[]; a: number; fact: string; d: Difficulty }[] = [
+  { q: 'How many planets are in our Solar System?', opts: ['6', '7', '8', '9'], a: 2, fact: 'Pluto was reclassified as a dwarf planet in 2006, leaving us with 8 planets.', d: 'easy' },
+  { q: 'What is the ISS?', opts: ['Spy satellite', 'International Space Station', 'Mars probe', 'Space telescope'], a: 1, fact: 'The ISS is the largest structure humans have ever placed in space — the size of a football field.', d: 'easy' },
+  { q: 'Who was the first human in space?', opts: ['Neil Armstrong', 'Yuri Gagarin', 'Alan Shepard', 'John Glenn'], a: 1, fact: 'Yuri Gagarin orbited Earth on April 12, 1961, in a flight lasting 108 minutes.', d: 'easy' },
+  { q: 'What does NASA stand for?', opts: ['North American Space Agency', 'National Aerospace Study Agency', 'National Aeronautics and Space Administration', 'New Astronautics and Science Administration'], a: 2, fact: 'NASA was established in 1958 and has sent humans to the Moon 6 times.', d: 'easy' },
+  { q: 'What is the largest planet in our Solar System?', opts: ['Saturn', 'Uranus', 'Jupiter', 'Neptune'], a: 2, fact: 'Jupiter is so massive that all other planets could fit inside it — over 1,300 Earths would fit within Jupiter.', d: 'easy' },
+  { q: 'Which planet is known as the Red Planet?', opts: ['Venus', 'Mars', 'Mercury', 'Jupiter'], a: 1, fact: "Mars gets its reddish colour from iron oxide (rust) on its surface. Temperatures there range from -125°C to 20°C.", d: 'easy' },
+  { q: 'Who was the first person to walk on the Moon?', opts: ['Buzz Aldrin', 'Michael Collins', 'Neil Armstrong', 'Alan Shepard'], a: 2, fact: 'Neil Armstrong stepped onto the Moon on July 20, 1969, saying "That\'s one small step for man, one giant leap for mankind."', d: 'easy' },
+  { q: 'How long does sunlight take to reach Earth?', opts: ['8 seconds', '8 minutes', '8 hours', '8 days'], a: 1, fact: 'Light travels at 300,000 km/s — covering 150 million km in just 8 minutes.', d: 'medium' },
+  { q: 'Which planet has the most iconic ring system?', opts: ['Jupiter', 'Uranus', 'Saturn', 'Neptune'], a: 2, fact: "Saturn's rings are made of ice and rock, and are only about 10 metres thick despite being 282,000 km wide.", d: 'medium' },
+  { q: 'How fast does the ISS travel?', opts: ['3 km/s', '7.7 km/s', '17 km/s', '50 km/s'], a: 1, fact: 'At 7.7 km/s, the ISS completes an orbit every 92 minutes — seeing 16 sunrises per day.', d: 'medium' },
+  { q: 'How long does the ISS take to orbit Earth?', opts: ['45 minutes', '92 minutes', '3 hours', '24 hours'], a: 1, fact: 'The ISS orbits at ~408 km altitude, completing 15.5 orbits per day.', d: 'medium' },
+  { q: 'What is the nearest star to us besides the Sun?', opts: ['Sirius', 'Alpha Centauri', 'Proxima Centauri', 'Vega'], a: 2, fact: 'Proxima Centauri is 4.24 light-years away — so close that light from it takes just 4 years to reach us.', d: 'medium' },
+  { q: 'How many people have been to space?', opts: ['~100', '~300', '~600', '~1000'], a: 2, fact: 'As of 2026, approximately 600 people have reached space, with more going every year.', d: 'medium' },
+  { q: 'What is a light-year?', opts: ['One year of sunlight', 'Distance light travels in a year', 'Time for light to reach the Moon', 'A unit of time'], a: 1, fact: 'One light-year is about 9.46 trillion kilometres — the distance light covers in a full year at 300,000 km/s.', d: 'medium' },
+  { q: 'What keeps satellites in orbit around Earth?', opts: ['Rocket engines', 'Earth\'s magnetic field', 'Gravity balanced by orbital speed', 'Solar wind'], a: 2, fact: 'A satellite moves so fast horizontally (about 7.7 km/s for LEO) that as it falls, Earth curves away beneath it.', d: 'medium' },
+  { q: 'How many moons does Mars have?', opts: ['0', '1', '2', '4'], a: 2, fact: "Mars has two moons — Phobos and Deimos — both tiny, irregularly shaped, and likely captured asteroids.", d: 'medium' },
+  { q: 'What causes a solar eclipse?', opts: ['Earth passes between the Moon and Sun', 'The Moon passes between Earth and the Sun', 'Mars blocks the Sun', 'Earth\'s shadow falls on the Sun'], a: 1, fact: 'A total solar eclipse occurs when the Moon perfectly covers the Sun — a rare coincidence since the Moon is 400× smaller but 400× closer.', d: 'medium' },
+  { q: 'What is the name of NASA\'s most famous space telescope?', opts: ['James Webb', 'Kepler', 'Hubble', 'Chandra'], a: 2, fact: 'The Hubble Space Telescope, launched in 1990, has captured images of galaxies 13 billion light-years away.', d: 'medium' },
+  { q: 'Which planet spins on its side (98° axial tilt)?', opts: ['Neptune', 'Saturn', 'Venus', 'Uranus'], a: 3, fact: 'Uranus rotates at a 98° tilt — possibly knocked over by a giant impact early in the Solar System\'s history.', d: 'hard' },
+  { q: 'What is the hottest planet in our Solar System?', opts: ['Mercury', 'Venus', 'Mars', 'Jupiter'], a: 1, fact: 'Venus reaches 465°C — hotter than Mercury despite being farther from the Sun — due to its thick CO₂ greenhouse atmosphere.', d: 'hard' },
+  { q: 'What phenomenon causes black holes to slowly lose mass over time?', opts: ['Dark energy drain', 'Hawking Radiation', 'Neutron decay', 'Gravitational bleed'], a: 1, fact: 'Hawking Radiation, proposed by Stephen Hawking in 1974, predicts black holes emit thermal radiation due to quantum effects near the event horizon.', d: 'hard' },
+  { q: 'What is the Chandrasekhar limit?', opts: ['The speed of a neutron star', 'The edge of the solar system', 'The maximum mass of a stable white dwarf (~1.4 solar masses)', 'The radius of a black hole'], a: 2, fact: 'The Chandrasekhar limit (~1.4 solar masses) is the maximum mass a white dwarf can have before collapsing into a neutron star or triggering a supernova.', d: 'hard' },
+  { q: 'What boundary did Voyager 1 cross in August 2012, making it the first human-made object in interstellar space?', opts: ['The asteroid belt', 'The Kuiper Belt', 'The heliopause', 'The Oort Cloud'], a: 2, fact: "The heliopause is where the Sun's solar wind is stopped by the interstellar medium. Voyager 1, launched in 1977, reached it after 35 years of travel.", d: 'hard' },
+  { q: 'What is the approximate age of the observable universe?', opts: ['4.5 billion years', '9.2 billion years', '13.8 billion years', '26 billion years'], a: 2, fact: 'The universe is approximately 13.8 billion years old, determined by measuring the cosmic microwave background radiation and the Hubble constant.', d: 'hard' },
 ]
 
 function shuffle<T>(arr: T[]): T[] {
@@ -34,6 +40,13 @@ function shuffle<T>(arr: T[]): T[] {
 
 const QUESTION_COUNT = 10
 
+const DIFF_CONFIG: Record<'all' | Difficulty, { label: string; emoji: string; color: string; border: string; bg: string }> = {
+  all:    { label: 'All',    emoji: '🌌', color: '#c4b5fd', border: 'rgba(99,102,241,0.5)',  bg: 'rgba(99,102,241,0.15)' },
+  easy:   { label: 'Easy',   emoji: '🟢', color: '#4ade80', border: 'rgba(74,222,128,0.5)',  bg: 'rgba(74,222,128,0.1)'  },
+  medium: { label: 'Medium', emoji: '🟡', color: '#fbbf24', border: 'rgba(251,191,36,0.5)',  bg: 'rgba(251,191,36,0.1)'  },
+  hard:   { label: 'Hard',   emoji: '🔴', color: '#f87171', border: 'rgba(248,113,113,0.5)', bg: 'rgba(248,113,113,0.1)' },
+}
+
 const GRADE = (pct: number) =>
   pct >= 90 ? { emoji: '🏆', title: 'Space Expert!', color: '#fbbf24' }
   : pct >= 70 ? { emoji: '🚀', title: 'Astronaut Material!', color: '#818cf8' }
@@ -42,7 +55,11 @@ const GRADE = (pct: number) =>
 
 export default function SpaceQuiz() {
   const [key, setKey] = useState(0)
-  const QUESTIONS = useMemo(() => shuffle(ALL_QUESTIONS).slice(0, QUESTION_COUNT), [key]) // eslint-disable-line react-hooks/exhaustive-deps
+  const [difficulty, setDifficulty] = useState<'all' | Difficulty>('all')
+  const QUESTIONS = useMemo(() => {
+    const pool = difficulty === 'all' ? ALL_QUESTIONS : ALL_QUESTIONS.filter(q => q.d === difficulty)
+    return shuffle(pool).slice(0, QUESTION_COUNT)
+  }, [key, difficulty]) // eslint-disable-line react-hooks/exhaustive-deps
   const [current, setCurrent] = useState(0)
   const [selected, setSelected] = useState<number | null>(null)
   const [score, setScore] = useState(0)
@@ -69,6 +86,13 @@ export default function SpaceQuiz() {
   }
 
   const restart = () => {
+    setCurrent(0); setSelected(null); setScore(0)
+    setDone(false); setAnswers([]); setShowFact(false)
+    setKey(k => k + 1)
+  }
+
+  const changeDifficulty = (d: 'all' | Difficulty) => {
+    setDifficulty(d)
     setCurrent(0); setSelected(null); setScore(0)
     setDone(false); setAnswers([]); setShowFact(false)
     setKey(k => k + 1)
@@ -144,7 +168,7 @@ export default function SpaceQuiz() {
 
       <div className="p-7">
         {/* Header */}
-        <div className="flex items-center justify-between mb-7">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="icon-box">🧠</div>
             <div>
@@ -156,6 +180,26 @@ export default function SpaceQuiz() {
             <div className="text-green-400 font-bold text-sm">{score}</div>
             <div className="text-gray-600 text-xs">correct</div>
           </div>
+        </div>
+
+        {/* Difficulty filter */}
+        <div className="flex gap-1.5 mb-5 flex-wrap">
+          {(Object.keys(DIFF_CONFIG) as ('all' | Difficulty)[]).map(d => {
+            const cfg = DIFF_CONFIG[d]
+            const active = difficulty === d
+            return (
+              <button
+                key={d}
+                onClick={() => changeDifficulty(d)}
+                className="text-[10px] px-3 py-1 rounded-lg font-semibold transition-all"
+                style={active
+                  ? { background: cfg.bg, border: `1px solid ${cfg.border}`, color: cfg.color }
+                  : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', color: '#6b7280' }}
+              >
+                {cfg.emoji} {cfg.label}
+              </button>
+            )
+          })}
         </div>
 
         {/* Question dots */}

@@ -1,6 +1,10 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { useLang } from '../i18n/LangContext'
 
+const FAVS_KEY = 'spacehub_gallery_favs'
+function loadFavs(): Set<string> { try { return new Set(JSON.parse(localStorage.getItem(FAVS_KEY) || '[]')) } catch { return new Set() } }
+function saveFavs(s: Set<string>) { localStorage.setItem(FAVS_KEY, JSON.stringify([...s])) }
+
 interface GalleryItem {
   title: string
   url: string
@@ -44,6 +48,17 @@ export default function AstroGallery() {
   const [error, setError] = useState(false)
   const [searchInput, setSearchInput] = useState('')
   const [activeQuery, setActiveQuery] = useState('')
+  const [favs, setFavs] = useState<Set<string>>(() => loadFavs())
+  const [showFavs, setShowFavs] = useState(false)
+
+  const toggleFav = (id: string) => {
+    setFavs(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      saveFavs(next)
+      return next
+    })
+  }
 
   const loadImages = useCallback((query: string) => {
     setLoading(true)
@@ -132,6 +147,16 @@ export default function AstroGallery() {
           )}
         </div>
 
+        {/* Favs / Browse toggle */}
+        <div className="flex gap-2 mb-4">
+          <button onClick={() => setShowFavs(false)} className="text-xs px-4 py-2 rounded-xl font-semibold transition-all" style={!showFavs ? { background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.5)', color: '#c4b5fd' } : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#6b7280' }}>
+            🌌 Browse
+          </button>
+          <button onClick={() => setShowFavs(true)} className="text-xs px-4 py-2 rounded-xl font-semibold transition-all flex items-center gap-1.5" style={showFavs ? { background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.5)', color: '#c4b5fd' } : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#6b7280' }}>
+            ❤️ Saved {favs.size > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: 'rgba(99,102,241,0.3)' }}>{favs.size}</span>}
+          </button>
+        </div>
+
         {/* Search */}
         <form onSubmit={handleSearch} className="mb-4">
           <div className="flex gap-2">
@@ -182,17 +207,50 @@ export default function AstroGallery() {
           </div>
         )}
 
-        {!loading && !error && (
+        {showFavs && (
+          <div>
+            {favs.size === 0 ? (
+              <div className="text-center py-10">
+                <div className="text-4xl mb-3">❤️</div>
+                <p className="text-gray-500 text-sm font-semibold">No saved photos yet</p>
+                <p className="text-gray-700 text-xs">Click the heart on any photo to save it</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {photos.filter(p => favs.has(p.nasa_id)).map((photo, i) => (
+                  <div key={i} className="relative rounded-xl overflow-hidden group" style={{ aspectRatio: '4/3' }}>
+                    <img src={photo.thumb} alt={photo.title} loading="lazy" className="w-full h-full object-cover" />
+                    <button onClick={() => toggleFav(photo.nasa_id)} className="absolute top-2 right-2 text-sm w-7 h-7 rounded-full flex items-center justify-center transition-all" style={{ background: 'rgba(239,68,68,0.85)' }}>❤️</button>
+                    <div className="absolute bottom-0 left-0 right-0 p-2" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }}>
+                      <p className="text-white text-[10px] font-bold line-clamp-2">{photo.title}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {!showFavs && !loading && !error && (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {photos.map((photo, i) => (
-              <button key={i} onClick={() => setSelected(selected?.title === photo.title ? null : photo)} className="relative rounded-xl overflow-hidden group text-left" style={{ aspectRatio: '4/3' }}>
-                <img src={photo.thumb} alt={photo.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="absolute bottom-0 left-0 right-0 p-2 translate-y-full group-hover:translate-y-0 transition-transform">
-                  <p className="text-white text-[10px] font-bold leading-tight line-clamp-2">{photo.title}</p>
-                  <p className="text-gray-400 text-[9px]">NASA</p>
-                </div>
-              </button>
+              <div key={i} className="relative rounded-xl overflow-hidden group" style={{ aspectRatio: '4/3' }}>
+                <button onClick={() => setSelected(selected?.title === photo.title ? null : photo)} className="w-full h-full text-left">
+                  <img src={photo.thumb} alt={photo.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute bottom-0 left-0 right-0 p-2 translate-y-full group-hover:translate-y-0 transition-transform">
+                    <p className="text-white text-[10px] font-bold leading-tight line-clamp-2">{photo.title}</p>
+                    <p className="text-gray-400 text-[9px]">NASA</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => toggleFav(photo.nasa_id)}
+                  className="absolute top-2 right-2 text-sm w-7 h-7 rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
+                  style={{ background: favs.has(photo.nasa_id) ? 'rgba(239,68,68,0.85)' : 'rgba(0,0,0,0.5)' }}
+                >
+                  {favs.has(photo.nasa_id) ? '❤️' : '🤍'}
+                </button>
+              </div>
             ))}
           </div>
         )}

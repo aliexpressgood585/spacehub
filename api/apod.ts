@@ -1,15 +1,17 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
-export default async function handler(_req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   const key = process.env.NASA_API_KEY || process.env.VITE_NASA_API_KEY || 'DEMO_KEY'
+  const count = parseInt(req.query.count as string) || 1
 
   try {
-    const r = await fetch(`https://api.nasa.gov/planetary/apod?api_key=${key}`, {
-      headers: { 'Accept': 'application/json' },
-    })
+    const url = count > 1
+      ? `https://api.nasa.gov/planetary/apod?api_key=${key}&count=${count}`
+      : `https://api.nasa.gov/planetary/apod?api_key=${key}`
+
+    const r = await fetch(url, { headers: { 'Accept': 'application/json' } })
     if (!r.ok) throw new Error(`NASA APOD ${r.status}`)
-    const data = await r.json() as { url?: string; error?: string }
-    if (data.error || !data.url) throw new Error('invalid response')
+    const data = await r.json() as unknown
 
     res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400')
     res.json(data)
