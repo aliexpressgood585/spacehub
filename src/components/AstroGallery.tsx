@@ -1,31 +1,29 @@
 import { useRef, useState, useEffect } from 'react'
 import { useLang } from '../i18n/LangContext'
 
-interface ApodItem {
+interface GalleryItem {
   title: string
   url: string
-  hdurl?: string
-  copyright?: string
-  media_type: 'image' | 'video'
+  thumb: string
   date: string
+  nasa_id: string
 }
 
 export default function AstroGallery() {
   const { t } = useLang()
   const inputRef = useRef<HTMLInputElement>(null)
   const [userPhoto, setUserPhoto] = useState<string | null>(null)
-  const [selected, setSelected] = useState<ApodItem | null>(null)
-  const [photos, setPhotos] = useState<ApodItem[]>([])
+  const [selected, setSelected] = useState<GalleryItem | null>(null)
+  const [photos, setPhotos] = useState<GalleryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
 
   useEffect(() => {
     fetch('/api/gallery')
       .then(r => { if (!r.ok) throw new Error(''); return r.json() })
-      .then((data: ApodItem[]) => {
-        const images = data.filter(d => d.media_type === 'image')
-        if (images.length === 0) throw new Error('no images')
-        setPhotos(images)
+      .then((data: GalleryItem[]) => {
+        if (!Array.isArray(data) || data.length === 0) throw new Error('empty')
+        setPhotos(data)
         setLoading(false)
       })
       .catch(() => { setError(true); setLoading(false) })
@@ -117,7 +115,7 @@ export default function AstroGallery() {
           <p className="text-xs text-gray-600 uppercase tracking-widest font-semibold">{t('gallery.inspire')}</p>
           <span className="text-[10px] text-gray-700 flex items-center gap-1">
             <span className="live-dot" style={{ background: '#6366f1', boxShadow: '0 0 6px rgba(99,102,241,0.8)' }} />
-            NASA APOD
+            NASA
           </span>
         </div>
 
@@ -151,7 +149,7 @@ export default function AstroGallery() {
                 style={{ aspectRatio: '4/3' }}
               >
                 <img
-                  src={photo.url}
+                  src={photo.thumb}
                   alt={photo.title}
                   loading="lazy"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
@@ -159,7 +157,7 @@ export default function AstroGallery() {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                 <div className="absolute bottom-0 left-0 right-0 p-2 translate-y-full group-hover:translate-y-0 transition-transform">
                   <p className="text-white text-[10px] font-bold leading-tight line-clamp-2">{photo.title}</p>
-                  <p className="text-gray-400 text-[9px]">{photo.copyright ? `© ${photo.copyright}` : 'NASA'}</p>
+                  <p className="text-gray-400 text-[9px]">NASA</p>
                 </div>
               </button>
             ))}
@@ -187,7 +185,7 @@ export default function AstroGallery() {
                 {t('gallery.shareWA')}
               </button>
               <a
-                href={selected.hdurl || selected.url}
+                href={selected.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs px-3 py-1.5 rounded-xl font-semibold transition"
