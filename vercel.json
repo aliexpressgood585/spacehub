@@ -1,4 +1,19 @@
 {
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
-  "crons": [{ "path": "/api/newsletter", "schedule": "0 9 * * 1" }]
+  "crons": [{ "path": "/api/newsletter", "schedule": "0 9 * * 1" }],
+  "headers": [
+    {
+      "source": "/index.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+        { "key": "Pragma", "value": "no-cache" }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    }
+  ]
 }
