@@ -2268,14 +2268,22 @@ export function ArticleView({ article, onBack }: { article: typeof ARTICLES[0]; 
 
 export default function BlogPage() {
   const [active, setActive] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
   const article = ARTICLES.find(a => a.slug === active)
+
+  const filtered = query.trim()
+    ? ARTICLES.filter(a =>
+        a.title.toLowerCase().includes(query.toLowerCase()) ||
+        a.preview.toLowerCase().includes(query.toLowerCase())
+      )
+    : ARTICLES
 
   if (article) return <ArticleView article={article} onBack={() => setActive(null)} />
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-12">
       {/* Header */}
-      <div className="text-center mb-12">
+      <div className="text-center mb-8">
         <span className="section-label mb-5 inline-flex">📝 Space Blog</span>
         <h2 className="text-3xl sm:text-4xl font-black text-white mt-4 mb-3 leading-tight">
           Articles on Space & <span className="gradient-text">Astronomy</span>
@@ -2285,6 +2293,68 @@ export default function BlogPage() {
         </p>
       </div>
 
+      {/* Search */}
+      <div className="max-w-md mx-auto mb-10 relative">
+        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 text-sm pointer-events-none">🔍</span>
+        <input
+          type="search"
+          placeholder="Search articles…"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          className="w-full pl-10 pr-4 py-3 rounded-2xl text-sm text-white placeholder-gray-600 outline-none focus:ring-1 focus:ring-indigo-500/50 transition"
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+        />
+        {query && (
+          <button
+            onClick={() => setQuery('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-400 text-xs px-1"
+          >✕</button>
+        )}
+      </div>
+
+      {query.trim() ? (
+        /* Search results */
+        <div>
+          <p className="text-gray-600 text-xs mb-5">{filtered.length} result{filtered.length !== 1 ? 's' : ''} for "<span className="text-gray-400">{query}</span>"</p>
+          {filtered.length === 0 ? (
+            <div className="text-center py-16 text-gray-600">
+              <div className="text-4xl mb-3">🔭</div>
+              <p className="font-semibold text-gray-500 mb-1">No articles found</p>
+              <p className="text-xs">Try a different search term</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {filtered.map(a => (
+                <button
+                  key={a.slug}
+                  onClick={() => setActive(a.slug)}
+                  className="blog-card text-left group overflow-hidden flex flex-col"
+                >
+                  <div className="p-5 flex-1 flex flex-col">
+                    <div className="flex items-start gap-3 mb-3">
+                      <div
+                        className="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+                        style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.18), rgba(139,92,246,0.12))', border: '1px solid rgba(99,102,241,0.2)' }}
+                      >
+                        {a.icon}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[10px] text-gray-700 font-medium mb-1">{a.readTime}</div>
+                        <h3 className="text-white font-bold text-sm leading-snug group-hover:text-indigo-200 transition-colors line-clamp-2">
+                          {a.title}
+                        </h3>
+                      </div>
+                    </div>
+                    <p className="text-gray-600 text-xs leading-relaxed line-clamp-2 mb-3 flex-1">{a.preview}</p>
+                    <span className="text-indigo-600 text-xs font-semibold group-hover:text-indigo-400 transition-colors">Read →</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+      <>
       {/* Featured post (first article) */}
       <button
         onClick={() => setActive(ARTICLES[0].slug)}
@@ -2382,6 +2452,8 @@ export default function BlogPage() {
           New articles added every week · {ARTICLES.length} total articles
         </div>
       </div>
+      </>
+      )}
     </div>
   )
 }

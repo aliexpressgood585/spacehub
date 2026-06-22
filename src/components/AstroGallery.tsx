@@ -32,6 +32,76 @@ const CURATED = [
     title: 'Aurora Borealis',
     author: 'Olivier Staiger',
   },
+  {
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/NASA_Mars_Rover.jpg/1280px-NASA_Mars_Rover.jpg',
+    title: 'Mars Perseverance Rover',
+    author: 'NASA/JPL-Caltech',
+  },
+  {
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/The_Earth_seen_from_Apollo_17.jpg/1280px-The_Earth_seen_from_Apollo_17.jpg',
+    title: 'Blue Marble — Apollo 17',
+    author: 'NASA',
+  },
+  {
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/NASA-HS201427a-HubbleUltraDeepField2014-20140603.jpg/800px-NASA-HS201427a-HubbleUltraDeepField2014-20140603.jpg',
+    title: 'Hubble eXtreme Deep Field',
+    author: 'NASA/ESA/Hubble',
+  },
+  {
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Crab_Nebula.jpg/800px-Crab_Nebula.jpg',
+    title: 'Crab Nebula',
+    author: 'NASA/ESA/Hubble',
+  },
+  {
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/FullMoon2010.jpg/1280px-FullMoon2010.jpg',
+    title: 'Full Moon',
+    author: 'Gregory H. Revera',
+  },
+  {
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Above_Gotland.jpg/1280px-Above_Gotland.jpg',
+    title: 'Earth from Low Orbit',
+    author: 'NASA/ISS',
+  },
+  {
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Double_Helix_Nebula.jpg/800px-Double_Helix_Nebula.jpg',
+    title: 'Double Helix Nebula',
+    author: 'NASA/JPL-Caltech',
+  },
+  {
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/ISS_above_Earth.jpg/1280px-ISS_above_Earth.jpg',
+    title: 'ISS Above Earth',
+    author: 'NASA',
+  },
+  {
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/PIA23122-Jupiter-NewHorizons-20070228.jpg/1280px-PIA23122-Jupiter-NewHorizons-20070228.jpg',
+    title: 'Jupiter — New Horizons',
+    author: 'NASA/Johns Hopkins APL',
+  },
+  {
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/10/Solarsystemscope_texture_8k_stars_milky_way.jpg/1280px-Solarsystemscope_texture_8k_stars_milky_way.jpg',
+    title: 'Night Sky Panorama',
+    author: 'Solar System Scope',
+  },
+  {
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png',
+    title: 'Comet Approaching Sun',
+    author: 'ESA',
+  },
+  {
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f9/Perseid_meteor_shower_%28August_2009%29.jpg/1280px-Perseid_meteor_shower_%28August_2009%29.jpg',
+    title: 'Perseid Meteor Shower',
+    author: 'NASA/JPL',
+  },
+  {
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Eagle_Nebula_from_ESO.jpg/800px-Eagle_Nebula_from_ESO.jpg',
+    title: 'Eagle Nebula',
+    author: 'ESO',
+  },
+  {
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/GPN-2000-001444.jpg/800px-GPN-2000-001444.jpg',
+    title: 'Buzz Aldrin on the Moon',
+    author: 'NASA/Neil Armstrong',
+  },
 ]
 
 export default function AstroGallery() {

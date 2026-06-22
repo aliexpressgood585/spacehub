@@ -7,13 +7,15 @@ import Onboarding from './components/Onboarding'
 import Header from './components/Header'
 import Hero from './components/Hero'
 const SatelliteTracker = lazy(() => import('./components/SatelliteTracker'))
-import SpaceWeather from './components/SpaceWeather'
-import EventsCalendar from './components/EventsCalendar'
+const SpaceWeather = lazy(() => import('./components/SpaceWeather'))
+const EventsCalendar = lazy(() => import('./components/EventsCalendar'))
+const SpaceNewsFeed = lazy(() => import('./components/SpaceNewsFeed'))
+const SpaceQuiz = lazy(() => import('./components/SpaceQuiz'))
+const AstroGallery = lazy(() => import('./components/AstroGallery'))
 import SpaceBackground from './components/SpaceBackground'
 const SolarSystem3D = lazy(() => import('./components/SolarSystem3D'))
 import NasaAPOD from './components/NasaAPOD'
 import ISSTracker from './components/ISSTracker'
-import SpaceNewsFeed from './components/SpaceNewsFeed'
 import ISSAlertSystem from './components/ISSAlertSystem'
 import EmailCapture from './components/EmailCapture'
 import AdBanner from './components/AdBanner'
@@ -23,9 +25,7 @@ import LaunchCountdown from './components/LaunchCountdown'
 import LiveTicker from './components/LiveTicker'
 import StarMap from './components/StarMap'
 import ISSPassPredictor from './components/ISSPassPredictor'
-import SpaceQuiz from './components/SpaceQuiz'
 import ShareCard from './components/ShareCard'
-import AstroGallery from './components/AstroGallery'
 import BlogPage from './pages/BlogPage'
 import BlogArticlePage from './pages/BlogArticlePage'
 import PremiumPage from './pages/PremiumPage'
@@ -34,6 +34,15 @@ import PrivacyPage from './pages/PrivacyPage'
 import SuccessPage from './pages/SuccessPage'
 
 type Tab = 'dashboard' | 'starmap' | 'tracker' | 'solar' | 'weather' | 'events' | 'news' | 'quiz' | 'blog' | 'gallery'
+
+const TAB_HASH: Record<Tab, string> = {
+  dashboard: '#iss', starmap: '#starmap', tracker: '#tracker',
+  solar: '#solar', weather: '#weather', events: '#events',
+  news: '#news', quiz: '#quiz', blog: '#blog', gallery: '#gallery',
+}
+const HASH_TAB: Record<string, Tab> = Object.fromEntries(
+  Object.entries(TAB_HASH).map(([k, v]) => [v, k as Tab])
+)
 
 const TAB_DEFS: { id: Tab; icon: string; tKey: string }[] = [
   { id: 'dashboard', icon: '🛸', tKey: 'tab.dashboard' },
@@ -75,7 +84,8 @@ function SkeletonCard() {
 
 function MainApp() {
   const { t } = useLang()
-  const [activeTab, setActiveTab] = useState<Tab>('dashboard')
+  const initTab = (): Tab => HASH_TAB[window.location.hash] ?? 'dashboard'
+  const [activeTab, setActiveTab] = useState<Tab>(initTab)
   const [issData, setIssData] = useState<{ lat: number; lng: number; alt: number } | null>(null)
   const issRef = useRef<HTMLDivElement>(null)
   const tabContentRef = useRef<HTMLDivElement>(null)
@@ -87,8 +97,18 @@ function MainApp() {
       .catch(() => {})
   }, [])
 
+  useEffect(() => {
+    const onHash = () => {
+      const tab = HASH_TAB[window.location.hash]
+      if (tab) setActiveTab(tab)
+    }
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
+
   const switchTab = (tab: Tab) => {
     setActiveTab(tab)
+    window.history.replaceState(null, '', TAB_HASH[tab])
     setTimeout(() => {
       tabContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 50)
@@ -199,25 +219,25 @@ function MainApp() {
               </div>
             )}
 
-            {activeTab === 'weather' && <SpaceWeather />}
-            {activeTab === 'events'  && <EventsCalendar />}
+            {activeTab === 'weather' && <Suspense fallback={<SkeletonCard />}><SpaceWeather /></Suspense>}
+            {activeTab === 'events'  && <Suspense fallback={<SkeletonCard />}><EventsCalendar /></Suspense>}
 
             {activeTab === 'news' && (
               <div className="space-y-5">
-                <SpaceNewsFeed />
+                <Suspense fallback={<SkeletonCard />}><SpaceNewsFeed /></Suspense>
                 <AdBanner />
               </div>
             )}
 
             {activeTab === 'quiz' && (
               <div className="max-w-lg mx-auto">
-                <SpaceQuiz />
+                <Suspense fallback={<SkeletonCard />}><SpaceQuiz /></Suspense>
               </div>
             )}
 
             {activeTab === 'blog' && <BlogPage />}
 
-            {activeTab === 'gallery' && <AstroGallery />}
+            {activeTab === 'gallery' && <Suspense fallback={<SkeletonCard />}><AstroGallery /></Suspense>}
 
           </div>
 

@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 
-const QUESTIONS = [
+const ALL_QUESTIONS = [
   { q: 'How long does sunlight take to reach Earth?', opts: ['8 seconds', '8 minutes', '8 hours', '8 days'], a: 1, fact: 'Light travels at 300,000 km/s — covering 150 million km in just 8 minutes.' },
   { q: 'How many planets are in our Solar System?', opts: ['6', '7', '8', '9'], a: 2, fact: 'Pluto was reclassified as a dwarf planet in 2006, leaving us with 8 planets.' },
   { q: 'What is the ISS?', opts: ['Spy satellite', 'International Space Station', 'Mars probe', 'Space telescope'], a: 1, fact: 'The ISS is the largest structure humans have ever placed in space — the size of a football field.' },
@@ -11,7 +11,28 @@ const QUESTIONS = [
   { q: 'What is the nearest star to us besides the Sun?', opts: ['Sirius', 'Alpha Centauri', 'Proxima Centauri', 'Vega'], a: 2, fact: 'Proxima Centauri is 4.24 light-years away — so close that light from it takes just 4 years to reach us.' },
   { q: 'How many people have been to space?', opts: ['~100', '~300', '~600', '~1000'], a: 2, fact: 'As of 2026, approximately 600 people have reached space, with more going every year.' },
   { q: 'What does NASA stand for?', opts: ['North American Space Agency', 'National Aerospace Study Agency', 'National Aeronautics and Space Administration', 'New Astronautics and Science Administration'], a: 2, fact: 'NASA was established in 1958 and has sent humans to the Moon 6 times.' },
+  { q: 'What is the largest planet in our Solar System?', opts: ['Saturn', 'Uranus', 'Jupiter', 'Neptune'], a: 2, fact: 'Jupiter is so massive that all other planets could fit inside it — over 1,300 Earths would fit within Jupiter.' },
+  { q: 'Which planet is known as the Red Planet?', opts: ['Venus', 'Mars', 'Mercury', 'Jupiter'], a: 1, fact: "Mars gets its reddish colour from iron oxide (rust) on its surface. Temperatures there range from -125°C to 20°C." },
+  { q: 'What is a light-year?', opts: ['One year of sunlight', 'Distance light travels in a year', 'Time for light to reach the Moon', 'A unit of time'], a: 1, fact: 'One light-year is about 9.46 trillion kilometres — the distance light covers in a full year at 300,000 km/s.' },
+  { q: 'Who was the first person to walk on the Moon?', opts: ['Buzz Aldrin', 'Michael Collins', 'Neil Armstrong', 'Alan Shepard'], a: 2, fact: 'Neil Armstrong stepped onto the Moon on July 20, 1969, saying "That\'s one small step for man, one giant leap for mankind."' },
+  { q: 'What keeps satellites in orbit around Earth?', opts: ['Rocket engines', 'Earth\'s magnetic field', 'Gravity balanced by orbital speed', 'Solar wind'], a: 2, fact: 'A satellite moves so fast horizontally (about 7.7 km/s for LEO) that as it falls, Earth curves away beneath it.' },
+  { q: 'How many moons does Mars have?', opts: ['0', '1', '2', '4'], a: 2, fact: "Mars has two moons — Phobos and Deimos — both tiny, irregularly shaped, and likely captured asteroids." },
+  { q: 'What causes a solar eclipse?', opts: ['Earth passes between the Moon and Sun', 'The Moon passes between Earth and the Sun', 'Mars blocks the Sun', 'Earth\'s shadow falls on the Sun'], a: 1, fact: 'A total solar eclipse occurs when the Moon perfectly covers the Sun — a rare coincidence since the Moon is 400× smaller but 400× closer.' },
+  { q: 'What is the name of NASA\'s most famous space telescope?', opts: ['James Webb', 'Kepler', 'Hubble', 'Chandra'], a: 2, fact: 'The Hubble Space Telescope, launched in 1990, has captured images of galaxies 13 billion light-years away.' },
+  { q: 'Which planet spins on its side (98° axial tilt)?', opts: ['Neptune', 'Saturn', 'Venus', 'Uranus'], a: 3, fact: 'Uranus rotates at a 98° tilt — possibly knocked over by a giant impact early in the Solar System\'s history.' },
+  { q: 'What is the hottest planet in our Solar System?', opts: ['Mercury', 'Venus', 'Mars', 'Jupiter'], a: 1, fact: 'Venus reaches 465°C — hotter than Mercury despite being farther from the Sun — due to its thick CO₂ greenhouse atmosphere.' },
 ]
+
+function shuffle<T>(arr: T[]): T[] {
+  const out = [...arr]
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]]
+  }
+  return out
+}
+
+const QUESTION_COUNT = 10
 
 const GRADE = (pct: number) =>
   pct >= 90 ? { emoji: '🏆', title: 'Space Expert!', color: '#fbbf24' }
@@ -20,6 +41,8 @@ const GRADE = (pct: number) =>
   : { emoji: '🌱', title: 'Keep Exploring!', color: '#4ade80' }
 
 export default function SpaceQuiz() {
+  const [key, setKey] = useState(0)
+  const QUESTIONS = useMemo(() => shuffle(ALL_QUESTIONS).slice(0, QUESTION_COUNT), [key]) // eslint-disable-line react-hooks/exhaustive-deps
   const [current, setCurrent] = useState(0)
   const [selected, setSelected] = useState<number | null>(null)
   const [score, setScore] = useState(0)
@@ -48,6 +71,7 @@ export default function SpaceQuiz() {
   const restart = () => {
     setCurrent(0); setSelected(null); setScore(0)
     setDone(false); setAnswers([]); setShowFact(false)
+    setKey(k => k + 1)
   }
 
   if (done) return (
