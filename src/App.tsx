@@ -103,23 +103,26 @@ const FOOTER_FEATURES = [
   { icon: '⛈️', label: 'Space Weather' },
 ]
 
-class SafeWrap extends Component<{ children: ReactNode; label?: string }, { ok: boolean }> {
+class SafeWrap extends Component<{ children: ReactNode; label?: string; silent?: boolean }, { ok: boolean }> {
   state = { ok: true }
   static getDerivedStateFromError() { return { ok: false } }
   render() {
-    if (!this.state.ok) return (
-      <div className="space-card p-6 text-center">
-        <div className="text-4xl mb-3">⚠️</div>
-        <p className="text-gray-500 text-sm mb-3">{this.props.label ?? 'Widget'} couldn't load</p>
-        <button
-          onClick={() => this.setState({ ok: true })}
-          className="text-xs px-4 py-2 rounded-xl transition-all"
-          style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', color: '#a5b4fc' }}
-        >
-          ↺ Retry
-        </button>
-      </div>
-    )
+    if (!this.state.ok) {
+      if (this.props.silent || this.props.label === 'background') return null
+      return (
+        <div className="space-card p-6 text-center">
+          <div className="text-4xl mb-3">⚠️</div>
+          <p className="text-gray-500 text-sm mb-3">{this.props.label ?? 'Widget'} couldn't load</p>
+          <button
+            onClick={() => this.setState({ ok: true })}
+            className="text-xs px-4 py-2 rounded-xl transition-all"
+            style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', color: '#a5b4fc' }}
+          >
+            ↺ Retry
+          </button>
+        </div>
+      )
+    }
     return this.props.children
   }
 }
@@ -172,6 +175,15 @@ function MainApp() {
   const issRef = useRef<HTMLDivElement>(null)
   const tabContentRef = useRef<HTMLDivElement>(null)
   const issData = issCtx ? { lat: issCtx.latitude, lng: issCtx.longitude, alt: issCtx.altitude } : null
+
+  const switchTab = (tab: Tab) => {
+    setActiveTab(tab)
+    window.history.replaceState(null, '', TAB_HASH[tab])
+    document.title = TAB_TITLES[tab]
+    setTimeout(() => {
+      tabContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 50)
+  }
 
   /* Keyboard shortcuts: 1–9 switch tabs */
   useEffect(() => {
@@ -226,15 +238,6 @@ function MainApp() {
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
 
-  const switchTab = (tab: Tab) => {
-    setActiveTab(tab)
-    window.history.replaceState(null, '', TAB_HASH[tab])
-    document.title = TAB_TITLES[tab]
-    setTimeout(() => {
-      tabContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }, 50)
-  }
-
   const scrollToISS = () => {
     setActiveTab('dashboard')
     setTimeout(() => issRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
@@ -244,7 +247,7 @@ function MainApp() {
 
   return (
     <div className="min-h-screen relative" style={{ background: '#020510' }}>
-      <SafeWrap><SpaceBackground /></SafeWrap>
+      <SafeWrap label="background"><SpaceBackground /></SafeWrap>
 
       <div className="relative" style={{ zIndex: 1 }}>
         <Header onPremium={goToPremium} />
@@ -290,19 +293,19 @@ function MainApp() {
 
             {activeTab === 'dashboard' && (
               <div className="space-y-5">
-                <Reveal><WeeklyUpdates /></Reveal>
+                <Reveal><SafeWrap label="Updates"><WeeklyUpdates /></SafeWrap></Reveal>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Reveal delay={1}><AstronautsInSpace /></Reveal>
-                  <Reveal delay={2}><MoonPhase /></Reveal>
-                  <Reveal delay={3}><LaunchCountdown /></Reveal>
+                  <Reveal delay={1}><SafeWrap label="Astronauts"><AstronautsInSpace /></SafeWrap></Reveal>
+                  <Reveal delay={2}><SafeWrap label="Moon Phase"><MoonPhase /></SafeWrap></Reveal>
+                  <Reveal delay={3}><SafeWrap label="Launch Countdown"><LaunchCountdown /></SafeWrap></Reveal>
                 </div>
-                <Reveal><SpaceHistory /></Reveal>
-                <Reveal><div ref={issRef}><ISSAlertSystem /></div></Reveal>
-                <Reveal><ISSPassPredictor /></Reveal>
-                <Reveal><Suspense fallback={<SkeletonCard />}><ISSTracker /></Suspense></Reveal>
-                <Reveal><ShareCard issLat={issData?.lat} issLng={issData?.lng} issAlt={issData?.alt} /></Reveal>
-                <Reveal><NasaAPOD /></Reveal>
-                <Reveal><AsteroidTracker /></Reveal>
+                <Reveal><SafeWrap label="Space History"><SpaceHistory /></SafeWrap></Reveal>
+                <Reveal><SafeWrap label="ISS Alerts"><div ref={issRef}><ISSAlertSystem /></div></SafeWrap></Reveal>
+                <Reveal><SafeWrap label="ISS Pass Predictor"><ISSPassPredictor /></SafeWrap></Reveal>
+                <Reveal><SafeWrap label="ISS Tracker"><Suspense fallback={<SkeletonCard />}><ISSTracker /></Suspense></SafeWrap></Reveal>
+                <Reveal><SafeWrap label="Share Card"><ShareCard issLat={issData?.lat} issLng={issData?.lng} issAlt={issData?.alt} /></SafeWrap></Reveal>
+                <Reveal><SafeWrap label="NASA APOD"><NasaAPOD /></SafeWrap></Reveal>
+                <Reveal><SafeWrap label="Asteroid Tracker"><AsteroidTracker /></SafeWrap></Reveal>
                 <AdBanner />
               </div>
             )}
