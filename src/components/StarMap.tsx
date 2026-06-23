@@ -601,6 +601,13 @@ export default function StarMap() {
   const [searchQuery, setSearchQuery] = useState('')
   const [issPos, setIssPos] = useState<{ lat: number; lng: number; alt: number } | null>(null)
 
+  // Hipparcos catalog [ra, dec, mag, temp, name?]
+  type HipStar = [number, number, number, number, string?]
+  const [hipStars, setHipStars] = useState<HipStar[]>([])
+  // NGC/IC catalog [ra, dec, mag, type, name]
+  type NgcObj = [number, number, number, DSO['type'], string]
+  const [ngcObjs, setNgcObjs] = useState<NgcObj[]>([])
+
   // Effective time = now + user offset
   const effectiveTime = new Date(time.getTime() + timeOffsetMin * 60_000)
   const jd = julianDate(effectiveTime)
@@ -706,16 +713,20 @@ export default function StarMap() {
       }
     }
 
-    // ── Deep-Sky Objects ──
+    // ── Deep-Sky Objects (NGC/IC catalog + fallback built-in) ──
     if (showDSOs) {
-      DSOS.forEach(dso => {
+      const dsoSource = ngcObjs.length > 0
+        ? ngcObjs.map(([ra, dec, mag, type, name]) => ({ ra, dec, mag, type, name }))
+        : DSOS
+      dsoSource.forEach(dso => {
         const { alt, az } = toHorizon(dso.ra, dso.dec, lst, loc.lat)
         if (alt < -3) return
         const { x, y } = project(alt, (az + rotation) % 360, cx, cy, r, 0)
         if (x < -20 || x > W + 20 || y < -20 || y > H + 20) return
         const a = extinction(alt) * 0.85
         drawDSOSymbol(ctx, dso.type, x, y, dso.mag, a)
-        if (showLabels && alt > 4 && dso.mag < 7.5) {
+        const labelMagLimit = ngcObjs.length > 0 ? 9.5 : 7.5
+        if (showLabels && alt > 4 && dso.mag < labelMagLimit) {
           const col = DSO_COLOR[dso.type]
           ctx.font = '8px \'Space Grotesk\', system-ui'
           ctx.textAlign = 'left'
@@ -724,7 +735,9 @@ export default function StarMap() {
           ctx.fillStyle = col + 'cc'
           ctx.fillText(dso.name, x + 10, y + 3)
         }
-        hitRef.current.push({ name: dso.name, x, y, mag: dso.mag, alt, color: DSO_COLOR[dso.type], isDSO: true, dsoType: dso.type })
+        if (dso.mag < 11) {
+          hitRef.current.push({ name: dso.name, x, y, mag: dso.mag, alt, color: DSO_COLOR[dso.type], isDSO: true, dsoType: dso.type })
+        }
       })
     }
 
@@ -810,6 +823,40 @@ export default function StarMap() {
 
       if (alt > -5) hitRef.current.push({ name, x, y, temp, mag, alt, color })
     })
+
+    // ── Hipparcos catalog (faint stars up to mag 6) ──
+    if (hipStars.length > 0) {
+      hipStars.forEach(([ra, dec, mag, temp, name]) => {
+        // Skip stars already drawn by the bright STARS array (mag < 2.5)
+        if (mag < 2.5) return
+        const { alt, az } = toHorizon(ra, dec, lst, loc.lat)
+        if (alt < -3) return
+        const { x, y } = project(alt, (az + rotation) % 360, cx, cy, r, 0)
+        if (x < -8 || x > W + 8 || y < -8 || y > H + 8) return
+        const ext = extinction(alt)
+        const col = showTemp ? tempColor(temp) : tempColor(temp)
+        const starR = Math.max(0.6, (5.5 - mag) * 0.9)
+        if (mag < 4.5) {
+          const glowR = starR * 4
+          const glow = ctx.createRadialGradient(x, y, 0, x, y, glowR)
+          glow.addColorStop(0, col + '88'); glow.addColorStop(1, 'transparent')
+          ctx.globalAlpha = ext * 0.5
+          ctx.beginPath(); ctx.arc(x, y, glowR, 0, Math.PI * 2)
+          ctx.fillStyle = glow; ctx.fill()
+        }
+        ctx.globalAlpha = ext * Math.max(0.3, 1 - (mag - 2.5) / 4)
+        ctx.beginPath(); ctx.arc(x, y, starR, 0, Math.PI * 2)
+        ctx.fillStyle = col; ctx.fill()
+        ctx.globalAlpha = 1
+        if (name && showLabels && mag < 3.5 && alt > 3) {
+          ctx.font = '8px \'Space Grotesk\', system-ui'
+          ctx.textAlign = 'left'
+          ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillText(name, x + starR + 4, y + 3)
+          ctx.fillStyle = col + 'cc';         ctx.fillText(name, x + starR + 3, y + 2)
+        }
+        if (mag < 5) hitRef.current.push({ name: name ?? `HIP star (mag ${mag})`, x, y, temp, mag, alt, color: col })
+      })
+    }
 
     // ── Planets ──
     if (showPlanets) {
@@ -959,7 +1006,7 @@ export default function StarMap() {
     ctx.beginPath(); ctx.arc(cx, cy, 2.5, 0, Math.PI * 2)
     ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fill()
     ctx.restore()
-  }, [loc, time, timeOffsetMin, rotation, showPlanets, showConstellations, showMilkyWay, showDSOs, showLabels, showTemp, showGrid, d, effectiveTime, searchQuery, issPos])
+  }, [loc, time, timeOffsetMin, rotation, showPlanets, showConstellations, showMilkyWay, showDSOs, showLabels, showTemp, showGrid, d, effectiveTime, searchQuery, issPos, hipStars, ngcObjs])
 
   const rafRef = useRef<number>(0)
   useEffect(() => {
@@ -982,6 +1029,22 @@ export default function StarMap() {
       () => {},
       { timeout: 5000 }
     )
+  }, [])
+
+  // Load Hipparcos star catalog
+  useEffect(() => {
+    fetch('/data/hip_stars.json')
+      .then(r => r.json())
+      .then(d => setHipStars(d.data))
+      .catch(() => {})
+  }, [])
+
+  // Load NGC/IC catalog
+  useEffect(() => {
+    fetch('/data/ngc.json')
+      .then(r => r.json())
+      .then(d => setNgcObjs(d.data))
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -1074,7 +1137,9 @@ export default function StarMap() {
         <div>
           <h3 className="text-white font-bold text-lg">Tonight's Sky</h3>
           <p className="text-gray-500 text-xs">
-            {visibleStars} stars visible · {city} · {effectiveTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+            {hipStars.length > 0 ? `${(visibleStars + hipStars.length).toLocaleString()} stars` : `${visibleStars} stars`}
+            {ngcObjs.length > 0 && ` · ${ngcObjs.length.toLocaleString()} DSOs`}
+            {' · '}{city} · {effectiveTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
         <div className="ml-auto">
