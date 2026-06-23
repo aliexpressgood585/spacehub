@@ -187,7 +187,9 @@ function MainApp() {
     }, 50)
   }
 
-  /* Keyboard shortcuts: 1–9 switch tabs */
+  /* Keyboard shortcuts: 1–9 switch tabs, ←/→ navigate adjacent tabs */
+  const activeTabRef = useRef(activeTab)
+  activeTabRef.current = activeTab
   useEffect(() => {
     const KEYS: Record<string, Tab> = {
       '1': 'dashboard', '2': 'starmap', '3': 'tracker', '4': 'solar',
@@ -197,7 +199,14 @@ function MainApp() {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
       if (e.metaKey || e.ctrlKey || e.altKey) return
       const tab = KEYS[e.key]
-      if (tab) switchTab(tab)
+      if (tab) { switchTab(tab); return }
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        const idx = TAB_DEFS.findIndex(t => t.id === activeTabRef.current)
+        const next = e.key === 'ArrowRight'
+          ? TAB_DEFS[(idx + 1) % TAB_DEFS.length]
+          : TAB_DEFS[(idx - 1 + TAB_DEFS.length) % TAB_DEFS.length]
+        if (next) switchTab(next.id)
+      }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
