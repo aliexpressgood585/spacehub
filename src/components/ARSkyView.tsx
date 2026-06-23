@@ -10,12 +10,14 @@ const SAT_LIST = [
   { id: '37820', name: 'Suomi NPP',      color: '#a78bfa' },
 ]
 
+type WinWithSat = Window & typeof globalThis & { satellite?: unknown }
+
 async function loadSatelliteJs(): Promise<unknown> {
-  if ((window as Record<string,unknown>).satellite) return (window as Record<string,unknown>).satellite
+  if ((window as WinWithSat).satellite) return (window as WinWithSat).satellite
   return new Promise((res, rej) => {
     const s = document.createElement('script')
     s.src = 'https://cdn.jsdelivr.net/npm/satellite.js@4.1.4/dist/satellite.min.js'
-    s.onload = () => res((window as Record<string,unknown>).satellite)
+    s.onload = () => res((window as WinWithSat).satellite)
     s.onerror = rej
     document.head.appendChild(s)
   })
