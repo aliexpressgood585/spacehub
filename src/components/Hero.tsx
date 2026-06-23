@@ -80,38 +80,55 @@ export default function Hero({ onScrollToISS }: Props) {
   }, [])
 
   return (
-    <div className="hero-bg relative overflow-hidden" style={{ minHeight: 500 }}>
+    <div className="hero-bg relative overflow-hidden" style={{ minHeight: 520 }}>
+      {/* Aurora line */}
+      <div aria-hidden="true" className="hero-aurora" />
+      <div aria-hidden="true" className="hero-aurora-2" />
+
+      {/* Shooting stars */}
+      <div aria-hidden="true" className="shooting-star" style={{ top: '18%', left: '82%', animationDelay: '1.2s', animationDuration: '5s' }} />
+      <div aria-hidden="true" className="shooting-star" style={{ top: '42%', left: '65%', animationDelay: '3.8s', animationDuration: '4s' }} />
+      <div aria-hidden="true" className="shooting-star" style={{ top: '10%', left: '45%', animationDelay: '7s', animationDuration: '6s' }} />
+
       {/* Star canvas — decorative only */}
       <canvas
         ref={canvasRef}
         aria-hidden="true"
         className="absolute inset-0 w-full h-full pointer-events-none"
-        style={{ opacity: 0.55 }}
+        style={{ opacity: 0.6 }}
       />
 
-      {/* Nebula orbs */}
-      <div aria-hidden="true" className="absolute top-0 left-1/4 w-96 h-96 rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.13) 0%, transparent 70%)', filter: 'blur(70px)' }} />
-      <div aria-hidden="true" className="absolute bottom-0 right-1/4 w-72 h-72 rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.11) 0%, transparent 70%)', filter: 'blur(60px)' }} />
-      <div aria-hidden="true" className="absolute top-1/3 right-10 w-56 h-56 rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(56,189,248,0.07) 0%, transparent 70%)', filter: 'blur(50px)' }} />
+      {/* Nebula orbs — stronger */}
+      <div aria-hidden="true" className="absolute -top-10 left-1/4 w-[500px] h-[500px] rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 65%)', filter: 'blur(80px)' }} />
+      <div aria-hidden="true" className="absolute bottom-0 right-1/4 w-96 h-96 rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.16) 0%, transparent 65%)', filter: 'blur(70px)' }} />
+      <div aria-hidden="true" className="absolute top-1/3 right-8 w-64 h-64 rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(56,189,248,0.1) 0%, transparent 65%)', filter: 'blur(55px)' }} />
+      <div aria-hidden="true" className="absolute top-10 left-10 w-48 h-48 rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(168,85,247,0.1) 0%, transparent 65%)', filter: 'blur(50px)' }} />
 
       <div className="max-w-5xl mx-auto px-4 pt-20 pb-16 text-center relative" style={{ zIndex: 1 }}>
-        <div className="inline-flex items-center gap-3 mb-8">
+        <div className="inline-flex items-center gap-3 mb-8" style={{ animation: 'word-up 0.5s ease forwards' }}>
           <div className="live-badge">
             <span className="live-dot" />
             {t('hero.live')}
           </div>
         </div>
+
         <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white mb-6 leading-[1.05] tracking-tight">
-          {t('hero.title1')} <span className="gradient-text">{t('hero.title2')}</span><br />
-          <span style={{ color: 'rgba(255,255,255,0.5)' }}>{t('hero.title3')}</span>
+          <span className="word-anim word-anim-1">{t('hero.title1')}</span>{' '}
+          <span className="gradient-text word-anim word-anim-2">{t('hero.title2')}</span><br />
+          <span className="word-anim word-anim-3" style={{ color: 'rgba(255,255,255,0.45)' }}>{t('hero.title3')}</span>
         </h1>
-        <p className="text-base sm:text-lg text-gray-400 mb-10 max-w-xl mx-auto leading-relaxed font-light">
+
+        <p className="text-base sm:text-lg text-gray-400 mb-10 max-w-xl mx-auto leading-relaxed"
+          style={{ animation: 'word-up 0.7s 0.4s cubic-bezier(0.22,1,0.36,1) both' }}>
           {t('hero.subtitle')}
         </p>
-        <div className="flex flex-wrap gap-3 justify-center mb-14">
+
+        <div className="flex flex-wrap gap-3 justify-center mb-14"
+          style={{ animation: 'word-up 0.7s 0.55s cubic-bezier(0.22,1,0.36,1) both' }}>
           <button onClick={onScrollToISS} className="btn-shimmer px-8 py-4 text-sm flex items-center gap-2.5">
             <span className="text-lg">🛸</span>
             <span>{t('hero.cta1')}</span>
@@ -125,7 +142,9 @@ export default function Hero({ onScrollToISS }: Props) {
             <span>{t('hero.cta2')}</span>
           </a>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto">
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto"
+          style={{ animation: 'word-up 0.7s 0.7s cubic-bezier(0.22,1,0.36,1) both' }}>
           {(() => {
             const alt = issAlt ?? 408
             const orbitMin = Math.round(2 * Math.PI * Math.sqrt(Math.pow(6371 + alt, 3) / 398600.4418) / 60)
@@ -136,16 +155,17 @@ export default function Hero({ onScrollToISS }: Props) {
               { n: '24/7',                                          tKey: 'hero.stat.tracking',   icon: '📡' },
             ]
           })().map(s => (
-            <div key={s.tKey} className="stat-card">
-              <div className="text-xl mb-1">{s.icon}</div>
-              <p className="text-2xl sm:text-3xl font-black gradient-text mb-1">{s.n}</p>
-              <p className="text-xs text-gray-600 leading-tight">{t(s.tKey)}</p>
+            <div key={s.tKey} className="stat-card group">
+              <div className="text-xl mb-1.5 transition-transform duration-300 group-hover:scale-110">{s.icon}</div>
+              <p key={s.n} className="text-2xl sm:text-3xl font-black gradient-text mb-1 count-reveal">{s.n}</p>
+              <p className="text-xs text-gray-500 leading-tight tracking-wide">{t(s.tKey)}</p>
             </div>
           ))}
         </div>
-        <div className="mt-10 flex flex-col items-center gap-2" style={{ opacity: 0.35 }}>
+
+        <div className="mt-10 flex flex-col items-center gap-2" style={{ opacity: 0.3 }}>
           <div className="text-[10px] text-gray-500 tracking-widest uppercase">{t('hero.scroll')}</div>
-          <div style={{ width: 1, height: 28, background: 'linear-gradient(180deg,rgba(99,102,241,0.7),transparent)' }} />
+          <div style={{ width: 1, height: 32, background: 'linear-gradient(180deg,rgba(99,102,241,0.8),transparent)' }} />
         </div>
       </div>
     </div>

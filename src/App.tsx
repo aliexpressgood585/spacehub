@@ -41,6 +41,7 @@ const PlanetExplorer = lazy(() => import('./components/PlanetExplorer'))
 const ExoplanetExplorer = lazy(() => import('./components/ExoplanetExplorer'))
 const GalaxyExplorer = lazy(() => import('./components/GalaxyExplorer'))
 const ARSkyView = lazy(() => import('./components/ARSkyView'))
+import Reveal from './components/Reveal'
 import BlogPage from './pages/BlogPage'
 import BlogArticlePage from './pages/BlogArticlePage'
 import PremiumPage from './pages/PremiumPage'
@@ -113,10 +114,20 @@ function ScrollToTop() {
 
 function SkeletonCard() {
   return (
-    <div className="space-card p-8 animate-pulse">
-      <div className="h-4 bg-white/10 rounded-full w-48 mb-4" />
-      <div className="h-3 bg-white/05 rounded-full w-64 mb-8" />
-      <div className="h-64 bg-white/05 rounded-2xl" />
+    <div className="space-card p-6 overflow-hidden">
+      <div className="flex items-center gap-3 mb-5">
+        <div className="skeleton-line w-12 h-12 rounded-2xl flex-shrink-0" />
+        <div className="flex-1 space-y-2">
+          <div className="skeleton-line h-4 w-40" />
+          <div className="skeleton-line h-3 w-24" />
+        </div>
+      </div>
+      <div className="skeleton-line h-52 rounded-2xl mb-4" />
+      <div className="space-y-2.5">
+        <div className="skeleton-line h-3 w-full" />
+        <div className="skeleton-line h-3 w-4/5" />
+        <div className="skeleton-line h-3 w-3/5" />
+      </div>
     </div>
   )
 }
@@ -128,6 +139,33 @@ function MainApp() {
   const [issData, setIssData] = useState<{ lat: number; lng: number; alt: number } | null>(null)
   const issRef = useRef<HTMLDivElement>(null)
   const tabContentRef = useRef<HTMLDivElement>(null)
+
+  /* 3-D card tilt on mouse move */
+  useEffect(() => {
+    const SELECTORS = '.space-card, .stat-card'
+    const onMove = (e: MouseEvent) => {
+      const card = (e.target as Element).closest(SELECTORS) as HTMLElement | null
+      if (!card) return
+      const rect = card.getBoundingClientRect()
+      const x = ((e.clientX - rect.left) / rect.width - 0.5) * 2
+      const y = ((e.clientY - rect.top) / rect.height - 0.5) * 2
+      card.style.transform = `perspective(900px) rotateY(${x * 4}deg) rotateX(${-y * 4}deg) translateY(-3px)`
+      card.style.transition = 'transform 0.08s linear'
+    }
+    const onLeave = (e: MouseEvent) => {
+      const card = (e.target as Element).closest(SELECTORS) as HTMLElement | null
+      if (card) {
+        card.style.transition = 'transform 0.45s cubic-bezier(0.22,1,0.36,1), border-color 0.3s ease, box-shadow 0.3s ease'
+        card.style.transform = ''
+      }
+    }
+    document.addEventListener('mousemove', onMove, { passive: true })
+    document.addEventListener('mouseleave', onLeave, true)
+    return () => {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseleave', onLeave, true)
+    }
+  }, [])
 
   useEffect(() => {
     fetch('https://api.wheretheiss.at/v1/satellites/25544')
@@ -202,19 +240,19 @@ function MainApp() {
 
             {activeTab === 'dashboard' && (
               <div className="space-y-5">
-                <WeeklyUpdates />
+                <Reveal><WeeklyUpdates /></Reveal>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <AstronautsInSpace />
-                  <MoonPhase />
-                  <LaunchCountdown />
+                  <Reveal delay={1}><AstronautsInSpace /></Reveal>
+                  <Reveal delay={2}><MoonPhase /></Reveal>
+                  <Reveal delay={3}><LaunchCountdown /></Reveal>
                 </div>
-                <SpaceHistory />
-                <div ref={issRef}><ISSAlertSystem /></div>
-                <ISSPassPredictor />
-                <Suspense fallback={<SkeletonCard />}><ISSTracker /></Suspense>
-                <ShareCard issLat={issData?.lat} issLng={issData?.lng} issAlt={issData?.alt} />
-                <NasaAPOD />
-                <AsteroidTracker />
+                <Reveal><SpaceHistory /></Reveal>
+                <Reveal><div ref={issRef}><ISSAlertSystem /></div></Reveal>
+                <Reveal><ISSPassPredictor /></Reveal>
+                <Reveal><Suspense fallback={<SkeletonCard />}><ISSTracker /></Suspense></Reveal>
+                <Reveal><ShareCard issLat={issData?.lat} issLng={issData?.lng} issAlt={issData?.alt} /></Reveal>
+                <Reveal><NasaAPOD /></Reveal>
+                <Reveal><AsteroidTracker /></Reveal>
                 <AdBanner />
               </div>
             )}
@@ -325,30 +363,38 @@ function MainApp() {
         <ScrollToTop />
 
         {/* FOOTER */}
-        <footer style={{ background: 'linear-gradient(180deg, rgba(2,5,16,0) 0%, rgba(2,5,16,0.8) 30%, #020510 100%)', borderTop: '1px solid rgba(99,102,241,0.1)' }}>
+        <footer style={{ background: 'linear-gradient(180deg, transparent 0%, rgba(2,5,16,0.7) 20%, #020510 60%)', borderTop: '1px solid rgba(99,102,241,0.12)', position: 'relative' }}>
+          {/* Footer aurora line */}
+          <div aria-hidden="true" style={{ position: 'absolute', top: -1, left: '10%', right: '10%', height: 1, background: 'linear-gradient(90deg, transparent, rgba(99,102,241,0.5), rgba(139,92,246,0.6), transparent)' }} />
+
           <div className="max-w-5xl mx-auto px-4 py-16">
 
             {/* Top row */}
-            <div className="flex flex-col md:flex-row items-center md:items-start gap-10 mb-12">
+            <div className="flex flex-col md:flex-row items-center md:items-start gap-12 mb-14">
               {/* Brand */}
-              <div className="text-center md:text-left flex-shrink-0">
-                <div className="flex items-center gap-3 justify-center md:justify-start mb-3">
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-600 to-purple-700 flex items-center justify-center text-xl shadow-lg shadow-indigo-900/60">
+              <div className="text-center md:text-left flex-shrink-0 max-w-xs">
+                <div className="flex items-center gap-3 justify-center md:justify-start mb-4">
+                  <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-600 to-purple-700 flex items-center justify-center text-xl shadow-lg shadow-indigo-900/60 animate-glow-pulse">
                     🚀
                   </div>
-                  <div className="font-black text-2xl text-white">Space<span className="gradient-text">Hub</span></div>
+                  <div className="font-black text-2xl text-white tracking-tight">Space<span className="gradient-text">Hub</span></div>
                 </div>
-                <p className="text-gray-500 text-sm max-w-xs leading-relaxed">
-                  The world's most complete free space data platform. Track the ISS live, monitor space weather, explore the solar system.
+                <p className="text-gray-500 text-sm leading-relaxed mb-4">
+                  The world's most complete free space data platform.
                 </p>
+                <div className="flex items-center gap-2 justify-center md:justify-start">
+                  <span className="live-dot" />
+                  <span className="text-xs text-emerald-400 font-semibold">Live 24/7</span>
+                  <span className="text-gray-700 text-xs">• Free forever</span>
+                </div>
               </div>
 
               {/* Features grid */}
-              <div className="flex-1 grid grid-cols-3 sm:grid-cols-6 gap-3">
+              <div className="flex-1 grid grid-cols-3 sm:grid-cols-6 gap-2.5">
                 {FOOTER_FEATURES.map(f => (
-                  <div key={f.label} className="text-center p-3 rounded-xl border border-white/[0.05] bg-white/[0.02] hover:border-indigo-500/30 hover:bg-indigo-500/[0.05] transition-all cursor-default">
-                    <div className="text-xl mb-1">{f.icon}</div>
-                    <div className="text-gray-600 text-[10px] font-medium">{f.label}</div>
+                  <div key={f.label} className="footer-feature-pill">
+                    <div className="text-2xl">{f.icon}</div>
+                    <div className="text-gray-500 text-[10px] font-semibold tracking-wide">{f.label}</div>
                   </div>
                 ))}
               </div>
@@ -358,8 +404,8 @@ function MainApp() {
 
             {/* Links */}
             <div className="flex flex-wrap gap-x-6 gap-y-2 justify-center mb-6">
-              <Link to="/blog" className="text-gray-600 hover:text-indigo-400 text-xs font-medium transition-colors">📝 Blog</Link>
-              <Link to="/privacy" className="text-gray-600 hover:text-indigo-400 text-xs font-medium transition-colors">Privacy Policy</Link>
+              <Link to="/blog" className="text-gray-500 hover:text-indigo-400 text-xs font-semibold transition-colors">📝 Blog</Link>
+              <Link to="/privacy" className="text-gray-500 hover:text-indigo-400 text-xs font-semibold transition-colors">Privacy Policy</Link>
               {Object.entries(CITY_DATA).map(([slug, c]) => (
                 <Link key={slug} to={`/iss/${slug}`} className="text-gray-700 hover:text-gray-400 text-xs transition-colors">
                   ISS {c.name}
