@@ -34,6 +34,13 @@ function project(alt: number, az: number, cx: number, cy: number, r: number, rot
   return { x: cx + rho * Math.cos(theta), y: cy + rho * Math.sin(theta) }
 }
 
+// ── ATMOSPHERIC EXTINCTION ─────────────────────────────────────
+function extinction(alt: number): number {
+  if (alt >= 18) return 1
+  if (alt < 0)   return 0.12
+  return 0.12 + (alt / 18) * 0.88
+}
+
 // ── GALACTIC → EQUATORIAL (IAU rotation matrix) ──────────────
 function galToEquatorial(l: number, b: number) {
   const lR = l * DEG, bR = b * DEG
@@ -154,102 +161,80 @@ function fmtTempFull(t: number) {
 
 // ── STAR CATALOG: [name, RA_h, Dec_°, mag, color, temp_K] ─────
 const STARS: [string, number, number, number, string, number][] = [
-  // ── Brightest / most prominent ─────────────────────────────
-  ['Sirius',       6.752, -16.72, -1.46, '#a8d8ff',  9940],  // 0  A1V
-  ['Canopus',      6.399, -52.70, -0.74, '#fffbe0',  7350],  // 1  A9II
-  ['Arcturus',    14.261,  19.18, -0.05, '#ffcc88',  4290],  // 2  K1.5III
-  ['Vega',        18.615,  38.78,  0.03, '#cce0ff',  9602],  // 3  A0V
-  ['Capella',      5.278,  45.99,  0.08, '#ffe8a0',  5000],  // 4  G5III
-  ['Rigel',        5.243,  -8.20,  0.18, '#cce8ff', 12100],  // 5  B8Ia
-  ['Procyon',      7.655,   5.22,  0.40, '#fff8e0',  6530],  // 6  F5IV
-  ['Betelgeuse',   5.919,   7.41,  0.45, '#ffaa66',  3500],  // 7  M1-M2Ia
-  ['Achernar',     1.629, -57.24,  0.45, '#cce0ff', 15000],  // 8  B6V
-  ['Hadar',       14.066, -60.37,  0.61, '#aaccff', 25000],  // 9  B1III
-  ['Altair',      19.846,   8.87,  0.77, '#fffbe0',  7550],  // 10 A7V
-  ['Deneb',       20.690,  45.28,  1.25, '#cce0ff',  8525],  // 11 A2Ia
-  ['Antares',     16.490, -26.43,  1.06, '#ff6644',  3400],  // 12 M1.5Iab
-  ['Spica',       13.420, -11.16,  0.98, '#cce0ff', 25300],  // 13 B1V
-  ['Fomalhaut',   22.961, -29.62,  1.16, '#fffbe0',  8590],  // 14 A3V
-  ['Pollux',       7.755,  28.03,  1.16, '#ffcc88',  4586],  // 15 K0III
-  ['Castor',       7.577,  31.89,  1.58, '#cce0ff',  8842],  // 16 A1V
-  ['Aldebaran',    4.599,  16.51,  0.87, '#ff9944',  3910],  // 17 K5III
-  ['Regulus',     10.140,  11.97,  1.36, '#cce0ff', 12460],  // 18 B7V
-  ['Adhara',       6.977, -28.97,  1.50, '#cce0ff', 22900],  // 19 B2Ia
-  ['Acrux',       12.443, -63.10,  0.77, '#cce0ff', 28000],  // 20 B0.5IV
-  ['Gacrux',      12.519, -57.11,  1.59, '#ff8866',  3600],  // 21 M3.5III
-  ['Shaula',      17.560, -37.10,  1.63, '#cce0ff', 22000],  // 22 B1.5IV
-  ['Mirfak',       3.405,  49.86,  1.80, '#fffbe0',  6350],  // 23 F5Ib
-  ['Diphda',       0.655, -17.99,  2.04, '#ffcc88',  4797],  // 24 K0III
-  // ── Orion ─────────────────────────────────────────────────
-  ['Bellatrix',    5.419,   6.35,  1.64, '#aaccff', 22000],  // 25 B2III
-  ['Mintaka',      5.533,  -0.30,  2.23, '#aaccff', 29500],  // 26 O9.5II
-  ['Alnilam',      5.604,  -1.20,  1.69, '#aaccff', 27000],  // 27 B0Ia
-  ['Alnitak',      5.679,  -1.94,  1.72, '#aaccff', 29900],  // 28 O9.7Ib
-  ['Saiph',        5.796,  -9.67,  2.07, '#aaccff', 26500],  // 29 B0.5Ia
-  // ── Big Dipper / Ursa Major ────────────────────────────────
-  ['Dubhe',       11.062,  61.75,  1.81, '#ffcc88',  4660],  // 30 K0III
-  ['Merak',       11.031,  56.38,  2.37, '#fffbe0',  9377],  // 31 A1V
-  ['Phecda',      11.897,  53.69,  2.44, '#fffbe0',  9355],  // 32 A0Ve
-  ['Megrez',      12.257,  57.03,  3.32, '#d0d8ff',  9480],  // 33 A3V
-  ['Alioth',      12.900,  55.96,  1.76, '#fffbe0',  9020],  // 34 A0p
-  ['Mizar',       13.399,  54.93,  2.23, '#fffbe0',  9000],  // 35 A1V
-  ['Alkaid',      13.792,  49.31,  1.85, '#aaccff', 18700],  // 36 B3V
-  // ── Cassiopeia ────────────────────────────────────────────
-  ['Schedar',      0.675,  56.54,  2.24, '#ffcc88',  4552],  // 37 K0IIIa
-  ['Caph',         0.153,  59.15,  2.28, '#fffbe0',  7079],  // 38 F2IV
-  ['Cih',          0.945,  60.72,  2.47, '#aaccff', 25000],  // 39 B0.5IVe
-  ['Ruchbah',      1.430,  60.24,  2.68, '#fffbe0',  8000],  // 40 A5III
-  ['Segin',        1.907,  63.67,  3.38, '#c0c8ff', 16000],  // 41 B3III
-  // ── Leo ───────────────────────────────────────────────────
-  ['Algieba',     10.332,  19.84,  2.61, '#ffcc88',  4470],  // 42 K1III
-  ['Zosma',       11.235,  20.52,  2.56, '#fffbe0',  8296],  // 43 A4V
-  ['Denebola',    11.817,  14.57,  2.14, '#aaccff',  8500],  // 44 A3V
-  // ── Gemini / Taurus ───────────────────────────────────────
-  ['Elnath',       5.438,  28.61,  1.68, '#aaccff', 13824],  // 45 B7III
-  ['Alhena',       6.629,  16.40,  1.93, '#aaccff',  9260],  // 46 A0IV
-  // ── Scorpius tail ─────────────────────────────────────────
-  ['Lesath',      17.513, -37.30,  2.70, '#aaccff', 22000],  // 47 B2IV
-  ['Sargas',      17.622, -43.00,  1.87, '#fffbe0',  7268],  // 48 F0II
-  // ── Hydra ─────────────────────────────────────────────────
-  ['Alphard',      9.460,  -8.66,  1.99, '#ff9944',  4050],  // 49 K3II
-  // ── Aries ─────────────────────────────────────────────────
-  ['Hamal',        2.119,  23.46,  2.01, '#ff9944',  4480],  // 50 K2III
-  // ── Ophiuchus ─────────────────────────────────────────────
-  ['Rasalhague',  17.583,  12.56,  2.08, '#fff8e0',  8500],  // 51 A5III
-  // ── Perseus (eclipsing binary) ─────────────────────────────
-  ['Algol',        3.136,  40.96,  2.12, '#c8e0ff', 13000],  // 52 B8V
-  // ── Cygnus ────────────────────────────────────────────────
-  ['Sadr',        20.370,  40.26,  2.23, '#fff8e0',  6900],  // 53 F8Ib
-  // ── Libra ─────────────────────────────────────────────────
-  ['Zubenelgenubi',14.849,-16.04,  2.75, '#c8e0ff',  8500],  // 54 A3
-  // ── Boötes ────────────────────────────────────────────────
-  ['Izar',        14.750,  27.07,  2.40, '#ffa050',  4550],  // 55 K0II
-  // ── Pegasus ───────────────────────────────────────────────
-  ['Enif',        21.736,   9.88,  2.38, '#ffa050',  4460],  // 56 K2Ib
-  // ── Andromeda ─────────────────────────────────────────────
-  ['Alpheratz',    0.140,  29.09,  2.07, '#c0d0ff', 13800],  // 57 B8IV
-  ['Mirach',       1.162,  35.62,  2.07, '#ff8844',  3840],  // 58 M0III
-  ['Almach',       2.065,  42.33,  2.10, '#ff8060',  4250],  // 59 K3IIb
-  // ── Pegasus (Great Square) ────────────────────────────────
-  ['Markab',      23.079,  15.21,  2.49, '#c8d8ff', 10100],  // 60 B9III
-  ['Scheat',      23.063,  28.08,  2.44, '#ff8844',  3700],  // 61 M2II-III
-  // ── Sagittarius (Teapot) ──────────────────────────────────
-  ['Kaus Australis',18.403,-34.38,1.79, '#c0d0ff',  9960],  // 62 B9.5III
-  ['Nunki',       18.922, -26.30,  2.02, '#aaccff', 20700],  // 63 B2.5V
-  ['Kaus Media',  18.350, -29.83,  2.70, '#c8d8ff',  8000],  // 64 B8III
-  ['Kaus Borealis',18.466,-21.06,  2.81, '#fff8e0',  6590],  // 65 K0III
-  // ── Aquila ────────────────────────────────────────────────
-  ['Tarazed',     19.771,  10.61,  2.72, '#ff8844',  4210],  // 66 K3II
-  // ── Cygnus (double star) ──────────────────────────────────
-  ['Albireo',     19.512,  27.96,  3.08, '#ffaa44',  4270],  // 67 K2II
-  // ── Virgo ─────────────────────────────────────────────────
-  ['Porrima',     12.694,  -1.45,  2.74, '#f0f4ff',  7100],  // 68 F0V
+  ['Sirius',       6.752, -16.72, -1.46, '#a8d8ff',  9940],
+  ['Canopus',      6.399, -52.70, -0.74, '#fffbe0',  7350],
+  ['Arcturus',    14.261,  19.18, -0.05, '#ffcc88',  4290],
+  ['Vega',        18.615,  38.78,  0.03, '#cce0ff',  9602],
+  ['Capella',      5.278,  45.99,  0.08, '#ffe8a0',  5000],
+  ['Rigel',        5.243,  -8.20,  0.18, '#cce8ff', 12100],
+  ['Procyon',      7.655,   5.22,  0.40, '#fff8e0',  6530],
+  ['Betelgeuse',   5.919,   7.41,  0.45, '#ffaa66',  3500],
+  ['Achernar',     1.629, -57.24,  0.45, '#cce0ff', 15000],
+  ['Hadar',       14.066, -60.37,  0.61, '#aaccff', 25000],
+  ['Altair',      19.846,   8.87,  0.77, '#fffbe0',  7550],
+  ['Deneb',       20.690,  45.28,  1.25, '#cce0ff',  8525],
+  ['Antares',     16.490, -26.43,  1.06, '#ff6644',  3400],
+  ['Spica',       13.420, -11.16,  0.98, '#cce0ff', 25300],
+  ['Fomalhaut',   22.961, -29.62,  1.16, '#fffbe0',  8590],
+  ['Pollux',       7.755,  28.03,  1.16, '#ffcc88',  4586],
+  ['Castor',       7.577,  31.89,  1.58, '#cce0ff',  8842],
+  ['Aldebaran',    4.599,  16.51,  0.87, '#ff9944',  3910],
+  ['Regulus',     10.140,  11.97,  1.36, '#cce0ff', 12460],
+  ['Adhara',       6.977, -28.97,  1.50, '#cce0ff', 22900],
+  ['Acrux',       12.443, -63.10,  0.77, '#cce0ff', 28000],
+  ['Gacrux',      12.519, -57.11,  1.59, '#ff8866',  3600],
+  ['Shaula',      17.560, -37.10,  1.63, '#cce0ff', 22000],
+  ['Mirfak',       3.405,  49.86,  1.80, '#fffbe0',  6350],
+  ['Diphda',       0.655, -17.99,  2.04, '#ffcc88',  4797],
+  ['Bellatrix',    5.419,   6.35,  1.64, '#aaccff', 22000],
+  ['Mintaka',      5.533,  -0.30,  2.23, '#aaccff', 29500],
+  ['Alnilam',      5.604,  -1.20,  1.69, '#aaccff', 27000],
+  ['Alnitak',      5.679,  -1.94,  1.72, '#aaccff', 29900],
+  ['Saiph',        5.796,  -9.67,  2.07, '#aaccff', 26500],
+  ['Dubhe',       11.062,  61.75,  1.81, '#ffcc88',  4660],
+  ['Merak',       11.031,  56.38,  2.37, '#fffbe0',  9377],
+  ['Phecda',      11.897,  53.69,  2.44, '#fffbe0',  9355],
+  ['Megrez',      12.257,  57.03,  3.32, '#d0d8ff',  9480],
+  ['Alioth',      12.900,  55.96,  1.76, '#fffbe0',  9020],
+  ['Mizar',       13.399,  54.93,  2.23, '#fffbe0',  9000],
+  ['Alkaid',      13.792,  49.31,  1.85, '#aaccff', 18700],
+  ['Schedar',      0.675,  56.54,  2.24, '#ffcc88',  4552],
+  ['Caph',         0.153,  59.15,  2.28, '#fffbe0',  7079],
+  ['Cih',          0.945,  60.72,  2.47, '#aaccff', 25000],
+  ['Ruchbah',      1.430,  60.24,  2.68, '#fffbe0',  8000],
+  ['Segin',        1.907,  63.67,  3.38, '#c0c8ff', 16000],
+  ['Algieba',     10.332,  19.84,  2.61, '#ffcc88',  4470],
+  ['Zosma',       11.235,  20.52,  2.56, '#fffbe0',  8296],
+  ['Denebola',    11.817,  14.57,  2.14, '#aaccff',  8500],
+  ['Elnath',       5.438,  28.61,  1.68, '#aaccff', 13824],
+  ['Alhena',       6.629,  16.40,  1.93, '#aaccff',  9260],
+  ['Lesath',      17.513, -37.30,  2.70, '#aaccff', 22000],
+  ['Sargas',      17.622, -43.00,  1.87, '#fffbe0',  7268],
+  ['Alphard',      9.460,  -8.66,  1.99, '#ff9944',  4050],
+  ['Hamal',        2.119,  23.46,  2.01, '#ff9944',  4480],
+  ['Rasalhague',  17.583,  12.56,  2.08, '#fff8e0',  8500],
+  ['Algol',        3.136,  40.96,  2.12, '#c8e0ff', 13000],
+  ['Sadr',        20.370,  40.26,  2.23, '#fff8e0',  6900],
+  ['Zubenelgenubi',14.849,-16.04,  2.75, '#c8e0ff',  8500],
+  ['Izar',        14.750,  27.07,  2.40, '#ffa050',  4550],
+  ['Enif',        21.736,   9.88,  2.38, '#ffa050',  4460],
+  ['Alpheratz',    0.140,  29.09,  2.07, '#c0d0ff', 13800],
+  ['Mirach',       1.162,  35.62,  2.07, '#ff8844',  3840],
+  ['Almach',       2.065,  42.33,  2.10, '#ff8060',  4250],
+  ['Markab',      23.079,  15.21,  2.49, '#c8d8ff', 10100],
+  ['Scheat',      23.063,  28.08,  2.44, '#ff8844',  3700],
+  ['Kaus Australis',18.403,-34.38,1.79, '#c0d0ff',  9960],
+  ['Nunki',       18.922, -26.30,  2.02, '#aaccff', 20700],
+  ['Kaus Media',  18.350, -29.83,  2.70, '#c8d8ff',  8000],
+  ['Kaus Borealis',18.466,-21.06,  2.81, '#fff8e0',  6590],
+  ['Tarazed',     19.771,  10.61,  2.72, '#ff8844',  4210],
+  ['Albireo',     19.512,  27.96,  3.08, '#ffaa44',  4270],
+  ['Porrima',     12.694,  -1.45,  2.74, '#f0f4ff',  7100],
 ]
 
 // ── CONSTELLATION LINES ────────────────────────────────────────
 type ConLine = { a: number; b: number; name: string }
 const CONSTELLATION_LINES: ConLine[] = [
-  // Orion
   { a: 7,  b: 25, name: 'Orion' },
   { a: 7,  b: 28, name: 'Orion' },
   { a: 25, b: 26, name: 'Orion' },
@@ -257,7 +242,6 @@ const CONSTELLATION_LINES: ConLine[] = [
   { a: 27, b: 28, name: 'Orion' },
   { a: 26, b: 5,  name: 'Orion' },
   { a: 28, b: 29, name: 'Orion' },
-  // Big Dipper
   { a: 30, b: 31, name: 'Ursa Major' },
   { a: 31, b: 32, name: 'Ursa Major' },
   { a: 32, b: 33, name: 'Ursa Major' },
@@ -265,43 +249,160 @@ const CONSTELLATION_LINES: ConLine[] = [
   { a: 33, b: 34, name: 'Ursa Major' },
   { a: 34, b: 35, name: 'Ursa Major' },
   { a: 35, b: 36, name: 'Ursa Major' },
-  // Cassiopeia
   { a: 38, b: 37, name: 'Cassiopeia' },
   { a: 37, b: 39, name: 'Cassiopeia' },
   { a: 39, b: 40, name: 'Cassiopeia' },
   { a: 40, b: 41, name: 'Cassiopeia' },
-  // Summer Triangle
   { a: 3,  b: 10, name: 'Summer △' },
   { a: 3,  b: 11, name: 'Summer △' },
   { a: 10, b: 11, name: 'Summer △' },
-  // Leo
   { a: 18, b: 42, name: 'Leo' },
   { a: 42, b: 43, name: 'Leo' },
   { a: 43, b: 44, name: 'Leo' },
-  // Gemini
   { a: 15, b: 16, name: 'Gemini' },
   { a: 15, b: 45, name: 'Gemini' },
   { a: 16, b: 46, name: 'Gemini' },
-  // Taurus
   { a: 17, b: 45, name: 'Taurus' },
-  // Scorpius tail
   { a: 22, b: 47, name: 'Scorpius' },
   { a: 22, b: 48, name: 'Scorpius' },
-  // Andromeda chain
   { a: 57, b: 58, name: 'Andromeda' },
   { a: 58, b: 59, name: 'Andromeda' },
-  // Cygnus cross
   { a: 11, b: 53, name: 'Cygnus' },
   { a: 53, b: 67, name: 'Cygnus' },
-  // Sagittarius teapot
   { a: 62, b: 64, name: 'Sagittarius' },
   { a: 64, b: 63, name: 'Sagittarius' },
   { a: 64, b: 65, name: 'Sagittarius' },
   { a: 62, b: 63, name: 'Sagittarius' },
-  // Pegasus (partial Great Square)
   { a: 57, b: 60, name: 'Pegasus' },
   { a: 60, b: 61, name: 'Pegasus' },
 ]
+
+// ── DEEP-SKY OBJECTS ──────────────────────────────────────────
+interface DSO {
+  name: string
+  ra: number
+  dec: number
+  mag: number
+  type: 'galaxy' | 'nebula' | 'cluster' | 'globular'
+}
+
+const DSOS: DSO[] = [
+  { name: 'M31 Andromeda',    ra: 0.712,  dec:  41.27, mag: 3.4, type: 'galaxy'   },
+  { name: 'M42 Orion Nebula', ra: 5.588,  dec:  -5.39, mag: 4.0, type: 'nebula'   },
+  { name: 'M45 Pleiades',     ra: 3.783,  dec:  24.12, mag: 1.2, type: 'cluster'  },
+  { name: 'M13 Hercules',     ra: 16.694, dec:  36.46, mag: 5.8, type: 'globular' },
+  { name: 'M44 Beehive',      ra: 8.667,  dec:  19.67, mag: 3.7, type: 'cluster'  },
+  { name: 'M22',              ra: 18.606, dec: -23.90, mag: 5.1, type: 'globular' },
+  { name: 'M8 Lagoon',        ra: 18.060, dec: -24.38, mag: 5.8, type: 'nebula'   },
+  { name: 'M7',               ra: 17.900, dec: -34.82, mag: 3.3, type: 'cluster'  },
+  { name: 'M57 Ring',         ra: 18.893, dec:  33.03, mag: 8.8, type: 'nebula'   },
+  { name: 'M27 Dumbbell',     ra: 19.993, dec:  22.72, mag: 7.4, type: 'nebula'   },
+  { name: 'M35',              ra: 6.150,  dec:  24.33, mag: 5.1, type: 'cluster'  },
+  { name: 'M41',              ra: 6.767,  dec: -20.75, mag: 4.5, type: 'cluster'  },
+]
+
+const DSO_COLOR: Record<DSO['type'], string> = {
+  galaxy:   '#ff99cc',
+  nebula:   '#55ccff',
+  cluster:  '#88ff66',
+  globular: '#ffcc44',
+}
+
+const DSO_LABEL: Record<DSO['type'], string> = {
+  galaxy:   'Galaxy',
+  nebula:   'Nebula',
+  cluster:  'Open Cluster',
+  globular: 'Globular Cluster',
+}
+
+function drawDSOSymbol(
+  ctx: CanvasRenderingContext2D,
+  type: DSO['type'],
+  x: number, y: number,
+  mag: number,
+  alpha: number,
+) {
+  const baseR = Math.max(3, Math.min(9, (10 - mag) * 0.9))
+  const col = DSO_COLOR[type]
+  ctx.globalAlpha = alpha
+
+  switch (type) {
+    case 'galaxy': {
+      const grad = ctx.createRadialGradient(x, y, 0, x, y, baseR * 2.4)
+      grad.addColorStop(0, col + 'bb')
+      grad.addColorStop(0.4, col + '44')
+      grad.addColorStop(1, 'transparent')
+      ctx.fillStyle = grad
+      ctx.beginPath()
+      ctx.ellipse(x, y, baseR * 2.4, baseR * 0.75, 0.5, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.beginPath()
+      ctx.ellipse(x, y, baseR * 2.4, baseR * 0.75, 0.5, 0, Math.PI * 2)
+      ctx.strokeStyle = col + '77'
+      ctx.lineWidth = 0.8
+      ctx.stroke()
+      break
+    }
+    case 'nebula': {
+      const grad = ctx.createRadialGradient(x, y, 0, x, y, baseR * 2.2)
+      grad.addColorStop(0, col + 'aa')
+      grad.addColorStop(0.5, col + '33')
+      grad.addColorStop(1, 'transparent')
+      ctx.fillStyle = grad
+      ctx.beginPath()
+      ctx.arc(x, y, baseR * 2.2, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.strokeStyle = col + '99'
+      ctx.lineWidth = 0.8
+      const cr = baseR * 0.9
+      ctx.beginPath()
+      ctx.moveTo(x - cr, y); ctx.lineTo(x + cr, y)
+      ctx.moveTo(x, y - cr); ctx.lineTo(x, y + cr)
+      ctx.stroke()
+      break
+    }
+    case 'cluster': {
+      ctx.strokeStyle = col + 'aa'
+      ctx.lineWidth = 0.8
+      ctx.setLineDash([2, 2])
+      ctx.beginPath()
+      ctx.arc(x, y, baseR, 0, Math.PI * 2)
+      ctx.stroke()
+      ctx.setLineDash([])
+      for (let i = 0; i < 6; i++) {
+        const angle = i * 60 * DEG
+        ctx.beginPath()
+        ctx.arc(x + baseR * 0.5 * Math.cos(angle), y + baseR * 0.5 * Math.sin(angle), 0.9, 0, Math.PI * 2)
+        ctx.fillStyle = col + 'cc'
+        ctx.fill()
+      }
+      break
+    }
+    case 'globular': {
+      const grad = ctx.createRadialGradient(x, y, 0, x, y, baseR * 1.7)
+      grad.addColorStop(0, col + 'cc')
+      grad.addColorStop(0.4, col + '55')
+      grad.addColorStop(1, 'transparent')
+      ctx.fillStyle = grad
+      ctx.beginPath()
+      ctx.arc(x, y, baseR * 1.7, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.strokeStyle = col + '99'
+      ctx.lineWidth = 0.8
+      ctx.beginPath()
+      ctx.arc(x, y, baseR, 0, Math.PI * 2)
+      ctx.stroke()
+      const cr = baseR
+      ctx.beginPath()
+      ctx.moveTo(x - cr, y); ctx.lineTo(x + cr, y)
+      ctx.moveTo(x, y - cr); ctx.lineTo(x, y + cr)
+      ctx.stroke()
+      break
+    }
+  }
+  ctx.globalAlpha = 1
+  ctx.setLineDash([])
+}
 
 // ── PLANETS ────────────────────────────────────────────────────
 const PLANETS = [
@@ -339,6 +440,8 @@ interface HitItem {
   color: string
   isPlanet?: boolean
   symbol?: string
+  isDSO?: boolean
+  dsoType?: DSO['type']
 }
 
 interface Tooltip extends HitItem {
@@ -346,7 +449,6 @@ interface Tooltip extends HitItem {
   flipLeft: boolean
 }
 
-// Milky Way spectral template layers: [galactic_b, lineWidth, opacity]
 const MW_LAYERS: [number, number, number][] = [
   [0,    11, 0.17],
   [6,    7,  0.10],
@@ -357,7 +459,6 @@ const MW_LAYERS: [number, number, number][] = [
   [-24,  2,  0.025],
 ]
 
-// Spectral class legend
 const SPECTRAL_LEGEND = [
   { cls: 'O', range: '>25k K',    color: '#a0b8ff' },
   { cls: 'B', range: '10–25k K',  color: '#c8d8ff' },
@@ -377,6 +478,7 @@ export default function StarMap() {
   const [loc, setLoc]         = useState({ lat: 31.77, lng: 35.21 })
   const [city, setCity]       = useState('Jerusalem')
   const [time, setTime]       = useState(new Date())
+  const [timeOffsetMin, setTimeOffsetMin] = useState(0)
   const [rotation, setRotation] = useState(0)
   const [dragging, setDragging] = useState(false)
   const [prevX, setPrevX]     = useState(0)
@@ -384,19 +486,22 @@ export default function StarMap() {
   const [showPlanets, setShowPlanets]               = useState(true)
   const [showConstellations, setShowConstellations] = useState(true)
   const [showMilkyWay, setShowMilkyWay]             = useState(true)
+  const [showDSOs, setShowDSOs]                     = useState(true)
   const [showLabels, setShowLabels]                 = useState(true)
   const [showTemp, setShowTemp]                     = useState(false)
   const [showGrid, setShowGrid]                     = useState(false)
 
   const [tooltip, setTooltip] = useState<Tooltip | null>(null)
 
-  const jd = julianDate(time)
+  // Effective time = now + user offset
+  const effectiveTime = new Date(time.getTime() + timeOffsetMin * 60_000)
+  const jd = julianDate(effectiveTime)
   const d  = jd - 2451543.5
 
   const planetPositions = PLANETS.map(p => {
     const radec = computeRADec(p.name, d)
     if (!radec) return null
-    const lst = localSiderealTime(time, loc.lng)
+    const lst = localSiderealTime(effectiveTime, loc.lng)
     const hz  = toHorizon(radec.ra, radec.dec, lst, loc.lat)
     return { ...p, ...hz }
   }).filter(Boolean) as (typeof PLANETS[0] & { alt: number; az: number })[]
@@ -460,7 +565,7 @@ export default function StarMap() {
       ctx.fillStyle = `rgba(180,190,255,${0.06 + (i % 7) * 0.025})`; ctx.fill()
     }
 
-    const lst = localSiderealTime(time, loc.lng)
+    const lst = localSiderealTime(effectiveTime, loc.lng)
 
     // ── Milky Way band ──
     if (showMilkyWay) {
@@ -472,7 +577,6 @@ export default function StarMap() {
           const { ra, dec } = galToEquatorial(l, b)
           const hz = toHorizon(ra, dec, lst, loc.lat)
           const pt = project(hz.alt, (hz.az + rotation) % 360, cx, cy, r, 0)
-          // Density peaks at galactic center (l≈0) and in Cygnus arm (l≈80)
           const density = 0.55 + 0.35 * Math.cos(l * DEG) + 0.10 * Math.cos(2 * l * DEG)
           const alpha = baseAlpha * Math.max(0.3, density)
           if (!started) {
@@ -480,7 +584,6 @@ export default function StarMap() {
           } else {
             ctx.lineTo(pt.x, pt.y)
           }
-          // Segment-level color change: re-stroke every 10 points for density gradient
           if (li % 10 === 0 && li > 0 && started) {
             ctx.strokeStyle = `rgba(170,190,235,${alpha})`
             ctx.lineWidth = lw
@@ -493,6 +596,28 @@ export default function StarMap() {
         ctx.lineWidth = lw
         ctx.stroke()
       }
+    }
+
+    // ── Deep-Sky Objects ──
+    if (showDSOs) {
+      DSOS.forEach(dso => {
+        const { alt, az } = toHorizon(dso.ra, dso.dec, lst, loc.lat)
+        if (alt < -3) return
+        const { x, y } = project(alt, (az + rotation) % 360, cx, cy, r, 0)
+        if (x < -20 || x > W + 20 || y < -20 || y > H + 20) return
+        const a = extinction(alt) * 0.85
+        drawDSOSymbol(ctx, dso.type, x, y, dso.mag, a)
+        if (showLabels && alt > 4 && dso.mag < 7.5) {
+          const col = DSO_COLOR[dso.type]
+          ctx.font = '8px \'Space Grotesk\', system-ui'
+          ctx.textAlign = 'left'
+          ctx.fillStyle = 'rgba(0,0,0,0.5)'
+          ctx.fillText(dso.name, x + 11, y + 4)
+          ctx.fillStyle = col + 'cc'
+          ctx.fillText(dso.name, x + 10, y + 3)
+        }
+        hitRef.current.push({ name: dso.name, x, y, mag: dso.mag, alt, color: DSO_COLOR[dso.type], isDSO: true, dsoType: dso.type })
+      })
     }
 
     // ── Constellation lines ──
@@ -517,22 +642,21 @@ export default function StarMap() {
       const { x, y } = project(alt, (az + rotation) % 360, cx, cy, r, 0)
       if (x < -12 || x > W + 12 || y < -12 || y > H + 12) return
 
-      const starR = Math.max(1.8, (6.2 - mag) * 1.2)
-      const glowR = starR * (mag < 0 ? 11 : mag < 1 ? 8 : 5.5)
-      const alpha = alt < 0 ? 0.22 : 1
+      const ext    = extinction(alt)
+      const starR  = Math.max(1.8, (6.2 - mag) * 1.2)
+      const glowR  = starR * (mag < 0 ? 11 : mag < 1 ? 8 : 5.5)
 
       const glow = ctx.createRadialGradient(x, y, 0, x, y, glowR)
       glow.addColorStop(0, color + 'cc'); glow.addColorStop(0.4, color + '44'); glow.addColorStop(1, 'transparent')
-      ctx.globalAlpha = alpha * 0.75
+      ctx.globalAlpha = ext * 0.75
       ctx.beginPath(); ctx.arc(x, y, glowR, 0, Math.PI * 2)
       ctx.fillStyle = glow; ctx.fill()
 
-      ctx.globalAlpha = alpha
+      ctx.globalAlpha = ext
       ctx.beginPath(); ctx.arc(x, y, starR, 0, Math.PI * 2)
       ctx.fillStyle = color; ctx.fill()
       ctx.globalAlpha = 1
 
-      // Label / temperature
       const wantLabel = showLabels && mag < 1.7 && alt > 2
       const wantTemp  = showTemp  && mag < 2.0 && alt > 2
 
@@ -563,30 +687,26 @@ export default function StarMap() {
         const { x, y } = project(alt, (az + rotation) % 360, cx, cy, r, 0)
         if (x < -12 || x > W + 12 || y < -12 || y > H + 12) return
 
-        ctx.globalAlpha = alt < 0 ? 0.28 : 1
+        const ext = extinction(alt)
+        ctx.globalAlpha = ext < 0.3 ? 0.28 : ext
 
-        // Outer ID ring
         ctx.beginPath(); ctx.arc(x, y, planet.size + 3.5, 0, Math.PI * 2)
         ctx.strokeStyle = planet.color + '55'; ctx.lineWidth = 1.5; ctx.stroke()
 
-        // Glow
         const glowR = planet.name === 'Sun' ? planet.size * 5.5 : planet.size * 4
         const glow  = ctx.createRadialGradient(x, y, 0, x, y, glowR)
         glow.addColorStop(0, planet.glow + 'dd'); glow.addColorStop(0.5, planet.glow + '55'); glow.addColorStop(1, 'transparent')
         ctx.beginPath(); ctx.arc(x, y, glowR, 0, Math.PI * 2); ctx.fillStyle = glow; ctx.fill()
 
-        // Disc
         ctx.beginPath(); ctx.arc(x, y, planet.size, 0, Math.PI * 2)
         ctx.fillStyle = planet.color; ctx.fill()
 
-        // Saturn ring
         if (planet.name === 'Saturn') {
           ctx.beginPath()
           ctx.ellipse(x, y, planet.size * 2.0, planet.size * 0.6, 0.35, 0, Math.PI * 2)
           ctx.strokeStyle = planet.color + 'bb'; ctx.lineWidth = 2; ctx.stroke()
         }
 
-        // Label
         ctx.font = 'bold 10px \'Space Grotesk\', system-ui'; ctx.textAlign = 'left'
         const lx = x + planet.size + 6, ly = y + 4
         ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillText(`${planet.symbol} ${planet.name}`, lx + 1, ly + 1)
@@ -607,11 +727,10 @@ export default function StarMap() {
       ctx.fillText(label, x, y)
     })
 
-    // Zenith dot
     ctx.beginPath(); ctx.arc(cx, cy, 2.5, 0, Math.PI * 2)
     ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fill()
     ctx.restore()
-  }, [loc, time, rotation, showPlanets, showConstellations, showMilkyWay, showLabels, showTemp, showGrid, d])
+  }, [loc, time, timeOffsetMin, rotation, showPlanets, showConstellations, showMilkyWay, showDSOs, showLabels, showTemp, showGrid, d, effectiveTime])
 
   useEffect(() => { draw() }, [draw])
   useEffect(() => {
@@ -627,7 +746,6 @@ export default function StarMap() {
     )
   }, [])
 
-  // Mouse hover → tooltip
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (dragging) {
       setRotation(r => r + (e.clientX - prevX) * 0.5)
@@ -656,7 +774,6 @@ export default function StarMap() {
     }
   }, [dragging, prevX])
 
-  // Touch tap → tooltip (short tap without significant movement)
   const handleTouchEnd = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
     setDragging(false)
     const ts = touchStartRef.current
@@ -689,11 +806,16 @@ export default function StarMap() {
     touchStartRef.current = null
   }, [])
 
-  const visibleStars   = (() => {
-    const lst = localSiderealTime(time, loc.lng)
-    return STARS.filter(s => toHorizon(s[1], s[2], lst, loc.lat).alt > 0).length
-  })()
+  const lst0 = localSiderealTime(effectiveTime, loc.lng)
+  const visibleStars   = STARS.filter(s => toHorizon(s[1], s[2], lst0, loc.lat).alt > 0).length
   const visiblePlanets = planetPositions.filter(p => p.alt > 0)
+
+  const fmtOffset = () => {
+    if (timeOffsetMin === 0) return null
+    const sign = timeOffsetMin > 0 ? '+' : ''
+    const hrs  = Math.abs(timeOffsetMin) >= 60 ? `${sign}${(timeOffsetMin / 60).toFixed(1)}h` : `${sign}${timeOffsetMin}m`
+    return hrs
+  }
 
   return (
     <div className="space-card p-5">
@@ -703,10 +825,17 @@ export default function StarMap() {
         <div>
           <h3 className="text-white font-bold text-lg">Tonight's Sky</h3>
           <p className="text-gray-500 text-xs">
-            {visibleStars} stars visible · {city} · {time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+            {visibleStars} stars visible · {city} · {effectiveTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
-        <div className="ml-auto live-badge"><span className="live-dot" />LIVE</div>
+        <div className="ml-auto">
+          {timeOffsetMin === 0
+            ? <div className="live-badge"><span className="live-dot" />LIVE</div>
+            : <span style={{ fontSize: 11, color: '#c4b5fd', fontWeight: 700, background: 'rgba(99,102,241,0.18)', border: '1px solid rgba(99,102,241,0.35)', borderRadius: 8, padding: '2px 8px' }}>
+                {fmtOffset()}
+              </span>
+          }
+        </div>
       </div>
 
       {/* City selector */}
@@ -725,12 +854,41 @@ export default function StarMap() {
         ))}
       </div>
 
+      {/* Time slider */}
+      <div className="flex items-center gap-2 mb-3">
+        <button
+          onClick={() => setTimeOffsetMin(0)}
+          style={timeOffsetMin === 0
+            ? { background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.4)', color: '#34d399' }
+            : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#6b7280' }}
+          className="text-xs px-2.5 py-1 rounded-lg font-semibold transition shrink-0"
+        >
+          ⏱ Now
+        </button>
+        <input
+          type="range"
+          min={-720}
+          max={720}
+          step={30}
+          value={timeOffsetMin}
+          onChange={e => setTimeOffsetMin(Number(e.target.value))}
+          className="flex-1 min-w-0"
+          style={{ accentColor: '#6366f1' }}
+          aria-label="Time offset from now"
+        />
+        <span className="text-xs font-semibold shrink-0 w-20 text-right" style={{ color: timeOffsetMin === 0 ? '#34d399' : '#c4b5fd' }}>
+          {effectiveTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+          {timeOffsetMin !== 0 && <span className="text-indigo-400 ml-1">({fmtOffset()})</span>}
+        </span>
+      </div>
+
       {/* Toggle controls */}
       <div className="flex flex-wrap gap-1.5 mb-4" role="group" aria-label="Map display options">
         {([
           { key: 'planets',        label: '🪐 Planets',       val: showPlanets,        set: setShowPlanets },
           { key: 'constellations', label: '✦ Constellations', val: showConstellations,  set: setShowConstellations },
           { key: 'milkyway',       label: '🌠 Milky Way',     val: showMilkyWay,        set: setShowMilkyWay },
+          { key: 'dsos',           label: '🔭 Deep Sky',      val: showDSOs,            set: setShowDSOs },
           { key: 'labels',         label: '🏷 Labels',         val: showLabels,         set: setShowLabels },
           { key: 'temp',           label: '🌡 Temperature',    val: showTemp,           set: setShowTemp },
           { key: 'grid',           label: '⊕ Grid',            val: showGrid,           set: setShowGrid },
@@ -766,13 +924,37 @@ export default function StarMap() {
         </div>
       )}
 
+      {/* DSO legend */}
+      {showDSOs && (
+        <div
+          className="flex flex-wrap gap-x-4 gap-y-1 justify-center mb-3 px-3 py-2 rounded-xl"
+          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+          aria-label="Deep-sky object type legend"
+        >
+          {(Object.entries(DSO_LABEL) as [DSO['type'], string][]).map(([type, label]) => (
+            <div key={type} className="flex items-center gap-1.5">
+              <div style={{
+                width: type === 'galaxy' ? 14 : 9,
+                height: type === 'galaxy' ? 6 : 9,
+                borderRadius: type === 'galaxy' ? '50%' : '50%',
+                background: DSO_COLOR[type] + '44',
+                border: `1px solid ${DSO_COLOR[type]}99`,
+                transform: type === 'galaxy' ? 'rotate(-20deg) scaleX(2)' : undefined,
+                borderStyle: type === 'cluster' ? 'dashed' : 'solid',
+              }} />
+              <span style={{ color: '#4b5563', fontSize: 10 }}>{label}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Canvas + tooltip overlay */}
       <div className="flex justify-center mb-4 relative">
         <canvas
           ref={canvasRef}
           width={480}
           height={480}
-          aria-label="Interactive star map — hover or tap stars/planets for details"
+          aria-label="Interactive star map — hover or tap stars/planets/DSOs for details"
           className="rounded-full cursor-crosshair touch-none"
           style={{ maxWidth: '100%', maxHeight: '66vw' }}
           onMouseDown={e => { setDragging(true); setPrevX(e.clientX) }}
@@ -797,7 +979,7 @@ export default function StarMap() {
           <div
             style={{
               position: 'absolute',
-              left: tooltip.flipLeft ? tooltip.sx - 162 : tooltip.sx + 12,
+              left: tooltip.flipLeft ? tooltip.sx - 166 : tooltip.sx + 12,
               top:  Math.max(4, tooltip.sy - 10),
               background: 'rgba(7,9,22,0.97)',
               border: `1px solid ${tooltip.color}55`,
@@ -805,7 +987,7 @@ export default function StarMap() {
               padding: '9px 13px',
               pointerEvents: 'none',
               zIndex: 20,
-              minWidth: 148,
+              minWidth: 152,
               boxShadow: `0 4px 20px rgba(0,0,0,0.7), 0 0 10px ${tooltip.color}22`,
             }}
           >
@@ -813,6 +995,11 @@ export default function StarMap() {
               {tooltip.symbol && <span style={{ color: tooltip.color, fontSize: 16, lineHeight: 1 }}>{tooltip.symbol}</span>}
               <span style={{ color: '#e2e8f0', fontWeight: 700, fontSize: 13 }}>{tooltip.name}</span>
             </div>
+            {tooltip.isDSO && tooltip.dsoType && (
+              <div style={{ color: tooltip.color, fontSize: 11, fontWeight: 600, marginBottom: 2 }}>
+                {DSO_LABEL[tooltip.dsoType]}
+              </div>
+            )}
             {tooltip.temp !== undefined && (
               <div style={{ color: tempColor(tooltip.temp), fontSize: 12, fontWeight: 600, marginBottom: 2 }}>
                 {spectralClass(tooltip.temp)}-type · {fmtTempFull(tooltip.temp)}
@@ -831,7 +1018,7 @@ export default function StarMap() {
       {/* Planet visibility panel */}
       {showPlanets && (
         <div style={{ background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.18)', borderRadius: 14, padding: '12px 16px' }}>
-          <p className="text-xs font-bold text-indigo-300 mb-2 tracking-wide uppercase">Planet Positions Now</p>
+          <p className="text-xs font-bold text-indigo-300 mb-2 tracking-wide uppercase">Planet Positions</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {planetPositions.map(p => (
               <div key={p.name} className="flex items-center gap-2">
@@ -848,15 +1035,16 @@ export default function StarMap() {
           {visiblePlanets.length > 0 && (
             <p className="text-xs text-indigo-400 mt-2">
               {visiblePlanets.length === 1
-                ? `${visiblePlanets[0].symbol} ${visiblePlanets[0].name} is visible tonight`
-                : `${visiblePlanets.map(p => `${p.symbol} ${p.name}`).join(', ')} are visible tonight`}
+                ? `${visiblePlanets[0].symbol} ${visiblePlanets[0].name} is visible`
+                : `${visiblePlanets.map(p => `${p.symbol} ${p.name}`).join(', ')} are visible`}
+              {timeOffsetMin !== 0 ? ` at ${effectiveTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}` : ' tonight'}
             </p>
           )}
         </div>
       )}
 
       <p className="text-gray-700 text-xs text-center mt-3">
-        Drag to rotate · Hover or tap stars for details · Zenith at center
+        Drag to rotate · Hover/tap for details · Slider to travel in time · Zenith at center
       </p>
     </div>
   )
