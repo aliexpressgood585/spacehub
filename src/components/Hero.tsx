@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { useLang } from '../i18n/LangContext'
+import { useISS } from '../contexts/ISSContext'
 
 interface Props {
   onPremium: () => void
@@ -8,20 +9,10 @@ interface Props {
 
 export default function Hero({ onScrollToISS }: Props) {
   const { t } = useLang()
+  const { iss, astros } = useISS()
+  const issAlt = iss ? Math.round(iss.altitude) : null
+  const crewCount = astros
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [issAlt, setIssAlt] = useState<number | null>(null)
-  const [crewCount, setCrewCount] = useState<number | null>(null)
-
-  useEffect(() => {
-    fetch('/api/iss')
-      .then(r => r.ok ? r.json() : Promise.reject())
-      .then(d => setIssAlt(Math.round(d.altitude)))
-      .catch(() => {})
-    fetch('/api/astros')
-      .then(r => r.ok ? r.json() : Promise.reject())
-      .then(d => setCrewCount(d.number))
-      .catch(() => {})
-  }, [])
 
   useEffect(() => {
     const canvas = canvasRef.current

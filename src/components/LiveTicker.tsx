@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { useISS } from '../contexts/ISSContext'
 
 const FACTS = [
   { icon: '🛸', text: 'The ISS orbits Earth every 92 minutes at 28,000 km/h' },
@@ -14,17 +15,13 @@ const FACTS = [
 ]
 
 export default function LiveTicker() {
-  const [issLive, setIssLive] = useState('')
+  const { iss } = useISS()
+  const issLive = iss
+    ? `ISS LIVE: ${Math.abs(iss.latitude).toFixed(1)}°${iss.latitude >= 0 ? 'N' : 'S'} ${Math.abs(iss.longitude).toFixed(1)}°${iss.longitude >= 0 ? 'E' : 'W'} · Alt ${iss.altitude.toFixed(0)} km · ${iss.velocity.toFixed(0)} km/h`
+    : ''
   const [kpLive, setKpLive] = useState('')
 
   useEffect(() => {
-    fetch('/api/iss')
-      .then(r => r.json())
-      .then(d => setIssLive(
-        `ISS LIVE: ${Math.abs(d.latitude).toFixed(1)}°${d.latitude >= 0 ? 'N' : 'S'} ${Math.abs(d.longitude).toFixed(1)}°${d.longitude >= 0 ? 'E' : 'W'} · Alt ${d.altitude.toFixed(0)} km · ${d.velocity.toFixed(0)} km/h`
-      ))
-      .catch(() => {})
-
     fetch('https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json')
       .then(r => r.json())
       .then((data: string[][]) => {

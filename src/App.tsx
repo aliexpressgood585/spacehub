@@ -42,6 +42,7 @@ const ExoplanetExplorer = lazy(() => import('./components/ExoplanetExplorer'))
 const GalaxyExplorer = lazy(() => import('./components/GalaxyExplorer'))
 const ARSkyView = lazy(() => import('./components/ARSkyView'))
 import Reveal from './components/Reveal'
+import { ISSProvider, useISS } from './contexts/ISSContext'
 import BlogPage from './pages/BlogPage'
 import BlogArticlePage from './pages/BlogArticlePage'
 import PremiumPage from './pages/PremiumPage'
@@ -55,8 +56,22 @@ const TAB_HASH: Record<Tab, string> = {
   dashboard: '#iss', starmap: '#starmap', tracker: '#tracker',
   solar: '#solar', weather: '#weather', events: '#events',
   news: '#news', quiz: '#quiz', blog: '#blog', gallery: '#gallery',
-  spacex: '#spacex',
-  explore: '#explore',
+  spacex: '#spacex', explore: '#explore',
+}
+
+const TAB_TITLES: Record<Tab, string> = {
+  dashboard: 'SpaceHub — Live ISS Tracker & Space Data',
+  starmap:   'Star Map — SpaceHub',
+  tracker:   'Satellite Tracker — SpaceHub',
+  solar:     'Solar System 3D — SpaceHub',
+  weather:   'Space Weather — SpaceHub',
+  events:    'Space Events Calendar — SpaceHub',
+  news:      'Space News — SpaceHub',
+  quiz:      'Space Quiz — SpaceHub',
+  blog:      'Space Blog — SpaceHub',
+  gallery:   'JWST Gallery — SpaceHub',
+  spacex:    'SpaceX & Mars — SpaceHub',
+  explore:   'Explore the Universe — SpaceHub',
 }
 const HASH_TAB: Record<string, Tab> = Object.fromEntries(
   Object.entries(TAB_HASH).map(([k, v]) => [v, k as Tab])
@@ -86,10 +101,25 @@ const FOOTER_FEATURES = [
   { icon: '⛈️', label: 'Space Weather' },
 ]
 
-class SafeWrap extends Component<{ children: ReactNode }, { ok: boolean }> {
+class SafeWrap extends Component<{ children: ReactNode; label?: string }, { ok: boolean }> {
   state = { ok: true }
   static getDerivedStateFromError() { return { ok: false } }
-  render() { return this.state.ok ? this.props.children : null }
+  render() {
+    if (!this.state.ok) return (
+      <div className="space-card p-6 text-center">
+        <div className="text-4xl mb-3">⚠️</div>
+        <p className="text-gray-500 text-sm mb-3">{this.props.label ?? 'Widget'} couldn't load</p>
+        <button
+          onClick={() => this.setState({ ok: true })}
+          className="text-xs px-4 py-2 rounded-xl transition-all"
+          style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', color: '#a5b4fc' }}
+        >
+          ↺ Retry
+        </button>
+      </div>
+    )
+    return this.props.children
+  }
 }
 
 function ScrollToTop() {
@@ -134,11 +164,12 @@ function SkeletonCard() {
 
 function MainApp() {
   const { t } = useLang()
+  const { iss: issCtx } = useISS()
   const initTab = (): Tab => HASH_TAB[window.location.hash] ?? 'dashboard'
   const [activeTab, setActiveTab] = useState<Tab>(initTab)
-  const [issData, setIssData] = useState<{ lat: number; lng: number; alt: number } | null>(null)
   const issRef = useRef<HTMLDivElement>(null)
   const tabContentRef = useRef<HTMLDivElement>(null)
+  const issData = issCtx ? { lat: issCtx.latitude, lng: issCtx.longitude, alt: issCtx.altitude } : null
 
   /* 3-D card tilt on mouse move */
   useEffect(() => {
@@ -168,13 +199,6 @@ function MainApp() {
   }, [])
 
   useEffect(() => {
-    fetch('/api/iss')
-      .then(r => r.json())
-      .then(d => setIssData({ lat: d.latitude, lng: d.longitude, alt: d.altitude }))
-      .catch(() => {})
-  }, [])
-
-  useEffect(() => {
     const onHash = () => {
       const tab = HASH_TAB[window.location.hash]
       if (tab) setActiveTab(tab)
@@ -186,6 +210,7 @@ function MainApp() {
   const switchTab = (tab: Tab) => {
     setActiveTab(tab)
     window.history.replaceState(null, '', TAB_HASH[tab])
+    document.title = TAB_TITLES[tab]
     setTimeout(() => {
       tabContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 50)
@@ -431,6 +456,7 @@ export default function App() {
   return (
     <LangProvider>
       <BrowserRouter>
+        <ISSProvider>
         <Routes>
           <Route path="/" element={<SafeWrap><MainApp /></SafeWrap>} />
           <Route path="/blog" element={
@@ -449,6 +475,7 @@ export default function App() {
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/success" element={<SuccessPage />} />
         </Routes>
+        </ISSProvider>
       </BrowserRouter>
     </LangProvider>
   )

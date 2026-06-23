@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useLang } from '../i18n/LangContext'
+import { useISS } from '../contexts/ISSContext'
 import type { Lang } from '../i18n/translations'
 
 interface BeforeInstallPromptEvent extends Event {
@@ -22,29 +23,16 @@ const LANGS: { code: Lang; label: string }[] = [
 
 export default function Header({ onPremium }: Props) {
   const { lang, setLang, t } = useLang()
+  const { iss, astros, liveOk } = useISS()
+  const issAlt = iss ? Math.round(iss.altitude) : null
+  const issSpeed = iss ? Math.round(iss.velocity) : null
+  const crewCount = astros
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [installed, setInstalled] = useState(false)
-  const [issAlt, setIssAlt] = useState<number | null>(null)
-  const [issSpeed, setIssSpeed] = useState<number | null>(null)
-  const [crewCount, setCrewCount] = useState<number | null>(null)
   const [lightMode, setLightMode] = useState(() => localStorage.getItem('spacehub_theme') === 'light')
   const [galaxyBg, setGalaxyBg] = useState(() => localStorage.getItem('spacehub_galaxy') === '1')
-  const [liveOk, setLiveOk] = useState(false)
 
   useEffect(() => {
-    const fetchISS = () => {
-      fetch('/api/iss')
-        .then(r => { if (!r.ok) throw new Error('iss'); return r.json() })
-        .then(d => { setIssAlt(Math.round(d.altitude)); setIssSpeed(Math.round(d.velocity)); setLiveOk(true) })
-        .catch(() => setLiveOk(false))
-    }
-    fetchISS()
-    const id = setInterval(fetchISS, 30000)
-
-    fetch('/api/astros')
-      .then(r => { if (!r.ok) throw new Error('astros'); return r.json() })
-      .then(d => setCrewCount(d.number))
-      .catch(() => {})
 
     document.documentElement.classList.toggle('light-mode', lightMode)
 
@@ -56,7 +44,6 @@ export default function Header({ onPremium }: Props) {
     window.addEventListener('beforeinstallprompt', onPrompt)
     window.addEventListener('appinstalled', onInstalled)
     return () => {
-      clearInterval(id)
       window.removeEventListener('beforeinstallprompt', onPrompt)
       window.removeEventListener('appinstalled', onInstalled)
     }

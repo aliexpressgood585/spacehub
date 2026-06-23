@@ -1,15 +1,16 @@
-const CACHE = 'spacehub-v6'
-const API_CACHE = 'spacehub-api-v1'
+const CACHE = 'spacehub-v8'
+const API_CACHE = 'spacehub-api-v3'
 
-// APIs that should be cached with stale-while-revalidate (good for offline)
-const API_HOSTS = [
-  'wheretheiss.at',
-  'open-notify.org',
+// Own proxy routes — stale-while-revalidate for offline resilience
+const OWN_API_PATHS = ['/api/iss', '/api/astros', '/api/apod', '/api/neo']
+
+// External APIs still called directly from components
+const EXT_API_HOSTS = [
   'api.spaceflightnewsapi.net',
   'api.spacexdata.com',
-  'api.nasa.gov',
   'll.thespacedevs.com',
   'celestrak.org',
+  'services.swpc.noaa.gov',
 ]
 
 self.addEventListener('install', e => {
@@ -24,25 +25,31 @@ self.addEventListener('activate', e => {
   self.clients.claim()
 })
 
+const swrResponse = (cache, request) =>
+  cache.match(request).then(cached => {
+    const fetchPromise = fetch(request).then(res => {
+      if (res.ok) cache.put(request, res.clone())
+      return res
+    }).catch(() => null)
+    return cached || fetchPromise || new Response(JSON.stringify({ error: 'offline' }), {
+      headers: { 'Content-Type': 'application/json' }
+    })
+  })
+
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return
 
   const url = new URL(e.request.url)
 
-  // Space data APIs — stale-while-revalidate (show cached, update in background)
-  if (API_HOSTS.some(h => url.hostname.includes(h))) {
-    e.respondWith(
-      caches.open(API_CACHE).then(async cache => {
-        const cached = await cache.match(e.request)
-        const fetchPromise = fetch(e.request).then(res => {
-          if (res.ok) cache.put(e.request, res.clone())
-          return res
-        }).catch(() => null)
-        return cached || fetchPromise || new Response(JSON.stringify({ error: 'offline' }), {
-          headers: { 'Content-Type': 'application/json' }
-        })
-      })
-    )
+  // Own API proxy routes — stale-while-revalidate
+  if (OWN_API_PATHS.some(p => url.pathname.startsWith(p))) {
+    e.respondWith(caches.open(API_CACHE).then(cache => swrResponse(cache, e.request)))
+    return
+  }
+
+  // External space data APIs — stale-while-revalidate
+  if (EXT_API_HOSTS.some(h => url.hostname.includes(h))) {
+    e.respondWith(caches.open(API_CACHE).then(cache => swrResponse(cache, e.request)))
     return
   }
 
