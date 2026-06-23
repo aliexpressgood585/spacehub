@@ -101,6 +101,8 @@ function getOrbElems(d: number, name: string): OrbElem | null {
     case 'Mars':    return { N: rev(49.5574+2.11081e-5*d), i: rev(1.8497-1.78e-8*d), w: rev(286.5016+2.92961e-5*d), a: 1.523688, e: 0.093405+2.516e-9*d, M: rev(18.6021+0.5240207766*d) }
     case 'Jupiter': return { N: rev(100.4542+2.76854e-5*d),i: rev(1.303-1.557e-7*d), w: rev(273.8777+1.64505e-5*d), a: 5.20256, e: 0.048498+4.469e-9*d, M: rev(19.895+0.0830853001*d) }
     case 'Saturn':  return { N: rev(113.6634+2.3898e-5*d), i: rev(2.4886-1.081e-7*d),w: rev(339.3939+2.97661e-5*d), a: 9.55475, e: 0.055546-9.499e-9*d, M: rev(316.967+0.0334442282*d) }
+    case 'Uranus':  return { N: rev(74.0005+1.3978e-5*d),  i: rev(0.7733+1.9e-8*d),   w: rev(96.6612+3.0565e-5*d), a: 19.18171, e: 0.047318+7.45e-9*d, M: rev(142.5905+0.011725806*d) }
+    case 'Neptune': return { N: rev(131.7806+3.0173e-5*d), i: rev(1.7700-2.55e-7*d),  w: rev(272.8461-6.027e-6*d), a: 30.05826, e: 0.008606+2.15e-9*d, M: rev(260.2471+0.005995147*d) }
     default: return null
   }
 }
@@ -163,6 +165,31 @@ function computeMoon(d: number): { ra: number; dec: number; phase: number } {
     phase = (1 - Math.cos(rev(mLon - sLon) * DEG)) / 2
   }
   return { ra, dec, phase }
+}
+
+// ── ISS ALT/AZ FROM GEODETIC ──────────────────────────────────
+function issToAltAz(issLat: number, issLng: number, issAlt: number, obsLat: number, obsLng: number): { alt: number; az: number } {
+  const R = 6371000
+  const toRad = (d: number) => d * Math.PI / 180
+  const oLat = toRad(obsLat), oLng = toRad(obsLng)
+  const iLat = toRad(issLat), iLng = toRad(issLng)
+  const iR = R + issAlt * 1000
+  const ix = iR * Math.cos(iLat) * Math.cos(iLng)
+  const iy = iR * Math.cos(iLat) * Math.sin(iLng)
+  const iz = iR * Math.sin(iLat)
+  const ox = R * Math.cos(oLat) * Math.cos(oLng)
+  const oy = R * Math.cos(oLat) * Math.sin(oLng)
+  const oz = R * Math.sin(oLat)
+  const dx = ix - ox, dy = iy - oy, dz = iz - oz
+  const sLat = Math.sin(oLat), cLat = Math.cos(oLat)
+  const sLng = Math.sin(oLng), cLng = Math.cos(oLng)
+  const e = -sLng * dx + cLng * dy
+  const n = -sLat * cLng * dx - sLat * sLng * dy + cLat * dz
+  const u =  cLat * cLng * dx + cLat * sLng * dy + sLat * dz
+  const rng = Math.sqrt(e*e + n*n + u*u)
+  const alt = Math.asin(u / rng) * 180 / Math.PI
+  const az  = rev(Math.atan2(e, n) * 180 / Math.PI)
+  return { alt, az }
 }
 
 // ── TEMPERATURE HELPERS ────────────────────────────────────────
@@ -262,6 +289,20 @@ const STARS: [string, number, number, number, string, number][] = [
   ['Tarazed',     19.771,  10.61,  2.72, '#ff8844',  4210],
   ['Albireo',     19.512,  27.96,  3.08, '#ffaa44',  4270],
   ['Porrima',     12.694,  -1.45,  2.74, '#f0f4ff',  7100],
+  ['Dschubba',   15.993, -22.62,  2.29, '#c8d8ff', 28000],
+  ['Graffias',   15.934, -19.80,  2.62, '#c0d0ff', 26000],
+  ['Wezen',       7.140, -26.39,  1.84, '#ffee88',  5818],
+  ['Mirzam',      6.378, -17.96,  1.98, '#aac0ff', 23000],
+  ['Muphrid',    13.912,  18.40,  2.68, '#ffe080',  6100],
+  ['Sabik',      17.173, -15.72,  2.43, '#f0f4ff',  8900],
+  ['Yed Prior',  16.235,  -4.69,  2.73, '#ff8844',  4220],
+  ['Gienah',     12.267, -17.54,  2.59, '#c8d8ff', 10400],
+  ['Eltanin',    17.944,  51.49,  2.24, '#ff8844',  3930],
+  ['Atik',        3.859,  31.88,  2.84, '#c0d0ff', 26000],
+  ['Gomeisa',     7.452,   8.29,  2.89, '#c8d8ff', 11500],
+  ['Alphecca',   15.578,  26.71,  2.23, '#f0f4ff',  9700],
+  ['Zubeneschamali',15.070, -9.38,2.61, '#a8c0ff', 11500],
+  ['Nusakan',    15.549,  29.11,  3.66, '#fff0c0',  7500],
 ]
 
 // ── CONSTELLATION LINES ────────────────────────────────────────
@@ -307,6 +348,37 @@ const CONSTELLATION_LINES: ConLine[] = [
   { a: 62, b: 63, name: 'Sagittarius' },
   { a: 57, b: 60, name: 'Pegasus' },
   { a: 60, b: 61, name: 'Pegasus' },
+  // Boötes
+  { a: 1,  b: 75, name: 'Boötes' },
+  { a: 75, b: 77, name: 'Boötes' },
+  { a: 77, b: 74, name: 'Boötes' },
+  { a: 74, b: 76, name: 'Boötes' },
+  { a: 76, b: 1,  name: 'Boötes' },
+  // Canis Major
+  { a: 8,  b: 70, name: 'Canis Major' },
+  { a: 70, b: 72, name: 'Canis Major' },
+  { a: 72, b: 71, name: 'Canis Major' },
+  // Canis Minor
+  { a: 73, b: 14, name: 'Canis Minor' },
+  // Scorpius (extended)
+  { a: 69, b: 70, name: 'Scorpius' },
+  { a: 47, b: 48, name: 'Scorpius' },
+  { a: 48, b: 22, name: 'Scorpius' },
+  // Ophiuchus
+  { a: 76, b: 79, name: 'Ophiuchus' },
+  { a: 79, b: 78, name: 'Ophiuchus' },
+  // Corona Borealis
+  { a: 80, b: 81, name: 'Corona Borealis' },
+  { a: 81, b: 82, name: 'Corona Borealis' },
+  // Auriga
+  { a: 4,  b: 78, name: 'Auriga' },
+  { a: 78, b: 17, name: 'Auriga' },
+  // Virgo
+  { a: 68, b: 75, name: 'Virgo' },
+  { a: 75, b: 82, name: 'Virgo' },
+  // Libra
+  { a: 81, b: 80, name: 'Libra' },
+  { a: 80, b: 82, name: 'Libra' },
 ]
 
 // ── DEEP-SKY OBJECTS ──────────────────────────────────────────
@@ -444,6 +516,8 @@ const PLANETS = [
   { name: 'Mars',    symbol: '♂',  color: '#ff5533', glow: '#ff2200', size: 6 },
   { name: 'Jupiter', symbol: '♃',  color: '#f5c88a', glow: '#e8a060', size: 9 },
   { name: 'Saturn',  symbol: '♄',  color: '#f0d880', glow: '#d4b840', size: 7 },
+  { name: 'Uranus',  symbol: '⛢',  color: '#7de8e8', glow: '#40c0c0', size: 5 },
+  { name: 'Neptune', symbol: '♆',  color: '#6680ff', glow: '#4455ff', size: 5 },
 ]
 
 const DIRECTION_LABELS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
@@ -525,6 +599,7 @@ export default function StarMap() {
 
   const [tooltip, setTooltip] = useState<Tooltip | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [issPos, setIssPos] = useState<{ lat: number; lng: number; alt: number } | null>(null)
 
   // Effective time = now + user offset
   const effectiveTime = new Date(time.getTime() + timeOffsetMin * 60_000)
@@ -832,6 +907,29 @@ export default function StarMap() {
       }
     }
 
+    // ── ISS ──
+    if (issPos) {
+      const { alt, az } = issToAltAz(issPos.lat, issPos.lng, issPos.alt, loc.lat, loc.lng)
+      if (alt > 0) {
+        const { x, y } = project(alt, (az + rotation) % 360, cx, cy, r, 0)
+        const issGrad = ctx.createRadialGradient(x, y, 0, x, y, 12)
+        issGrad.addColorStop(0, 'rgba(0,255,180,0.6)')
+        issGrad.addColorStop(1, 'transparent')
+        ctx.beginPath(); ctx.arc(x, y, 12, 0, Math.PI * 2)
+        ctx.fillStyle = issGrad; ctx.fill()
+        ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2)
+        ctx.fillStyle = '#00ffb4'; ctx.fill()
+        if (showLabels) {
+          ctx.font = 'bold 9px \'Space Grotesk\', system-ui'
+          ctx.textAlign = 'left'
+          ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillText('🛸 ISS', x + 7, y + 4)
+          ctx.fillStyle = '#00ffb4'; ctx.fillText('🛸 ISS', x + 6, y + 3)
+        }
+        ctx.globalAlpha = 1
+        hitRef.current.push({ name: 'ISS', x, y, alt, color: '#00ffb4', isPlanet: true, symbol: '🛸' })
+      }
+    }
+
     // ── Search highlight ──
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
@@ -861,7 +959,7 @@ export default function StarMap() {
     ctx.beginPath(); ctx.arc(cx, cy, 2.5, 0, Math.PI * 2)
     ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fill()
     ctx.restore()
-  }, [loc, time, timeOffsetMin, rotation, showPlanets, showConstellations, showMilkyWay, showDSOs, showLabels, showTemp, showGrid, d, effectiveTime, searchQuery])
+  }, [loc, time, timeOffsetMin, rotation, showPlanets, showConstellations, showMilkyWay, showDSOs, showLabels, showTemp, showGrid, d, effectiveTime, searchQuery, issPos])
 
   const rafRef = useRef<number>(0)
   useEffect(() => {
@@ -884,6 +982,17 @@ export default function StarMap() {
       () => {},
       { timeout: 5000 }
     )
+  }, [])
+
+  useEffect(() => {
+    const fetchISS = () => {
+      fetch('/api/iss').then(r => r.json()).then(d => {
+        if (d?.latitude != null) setIssPos({ lat: +d.latitude, lng: +d.longitude, alt: +(d.altitude ?? 420) })
+      }).catch(() => {})
+    }
+    fetchISS()
+    const id = setInterval(fetchISS, 5000)
+    return () => clearInterval(id)
   }, [])
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
