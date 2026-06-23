@@ -106,7 +106,11 @@ export default function Header({ onPremium }: Props) {
 
         {/* Center — live stats bar (desktop only) */}
         <div className="hidden md:flex flex-1 justify-center">
-          <div className="flex items-center gap-4 glass px-4 py-2 rounded-full border border-white/[0.06]">
+          <div
+            className="flex items-center gap-4 glass px-4 py-2 rounded-full border border-white/[0.06]"
+            aria-live="polite"
+            aria-label="Live ISS statistics"
+          >
             <div className="flex items-center gap-1.5">
               {liveOk ? (
                 <><span className="live-dot" /><span className="text-emerald-400 text-xs font-semibold">{t('common.live')}</span></>
@@ -156,6 +160,7 @@ export default function Header({ onPremium }: Props) {
           <select
             value={lang}
             onChange={e => setLang(e.target.value as Lang)}
+            aria-label="Language"
             style={{
               background: 'rgba(255,255,255,0.04)',
               border: '1px solid rgba(255,255,255,0.1)',

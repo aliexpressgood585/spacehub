@@ -51,6 +51,7 @@ import PremiumPage from './pages/PremiumPage'
 import CityPage, { CITY_DATA } from './pages/CityPage'
 import PrivacyPage from './pages/PrivacyPage'
 import SuccessPage from './pages/SuccessPage'
+import NotFoundPage from './pages/NotFoundPage'
 
 type Tab = 'dashboard' | 'starmap' | 'tracker' | 'solar' | 'weather' | 'events' | 'news' | 'quiz' | 'blog' | 'gallery' | 'spacex' | 'explore'
 
@@ -247,6 +248,7 @@ function MainApp() {
 
   return (
     <div className="min-h-screen relative" style={{ background: '#020510' }}>
+      <a href="#main-content" className="skip-nav">Skip to main content</a>
       <SafeWrap label="background"><SpaceBackground /></SafeWrap>
 
       <div className="relative" style={{ zIndex: 1 }}>
@@ -262,7 +264,7 @@ function MainApp() {
           <AdBanner />
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 pb-20 md:pb-20" style={{ paddingBottom: 'max(80px, calc(60px + env(safe-area-inset-bottom)))' }}>
+        <main id="main-content" className="max-w-7xl mx-auto px-4 pb-20 md:pb-20" style={{ paddingBottom: 'max(80px, calc(60px + env(safe-area-inset-bottom)))' }}>
 
           {/* Tab navigation */}
           <div ref={tabContentRef} style={{ scrollMarginTop: 80 }}>
@@ -271,16 +273,22 @@ function MainApp() {
               <div className="pointer-events-none absolute right-0 top-0 bottom-2 w-16 z-10 md:hidden"
                 style={{ background: 'linear-gradient(270deg, rgba(2,5,16,0.9), transparent)' }} />
             <div
+              role="tablist"
+              aria-label="Space sections"
               className="flex gap-1.5 overflow-x-auto pb-2"
               style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
             >
               {TAB_DEFS.map(tab => (
                 <button
                   key={tab.id}
+                  role="tab"
+                  aria-selected={activeTab === tab.id}
+                  aria-controls={`tabpanel-${tab.id}`}
+                  id={`tab-${tab.id}`}
                   onClick={() => switchTab(tab.id)}
                   className={`tab-pill flex-shrink-0 flex items-center gap-1.5 ${activeTab === tab.id ? 'active' : ''}`}
                 >
-                  <span>{tab.icon}</span>
+                  <span aria-hidden="true">{tab.icon}</span>
                   <span>{t(tab.tKey)}</span>
                 </button>
               ))}
@@ -289,7 +297,15 @@ function MainApp() {
           </div>
 
           {/* Tab content */}
-          <div key={activeTab} className="animate-fade-up" style={{ animationDuration: '0.4s' }}>
+          <div
+            id={`tabpanel-${activeTab}`}
+            role="tabpanel"
+            aria-labelledby={`tab-${activeTab}`}
+            tabIndex={-1}
+            key={activeTab}
+            className="animate-fade-up"
+            style={{ animationDuration: '0.4s' }}
+          >
 
             {activeTab === 'dashboard' && (
               <div className="space-y-5">
@@ -321,7 +337,7 @@ function MainApp() {
                       <p className="text-gray-500 text-xs">Switch to ISS Live for exact pass times</p>
                     </div>
                   </div>
-                  <button onClick={() => setActiveTab('dashboard')} className="btn-shimmer px-5 py-2.5 text-sm">
+                  <button onClick={() => setActiveTab('dashboard')} aria-label="Switch to ISS Live tab" className="btn-shimmer px-5 py-2.5 text-sm">
                     🛸 Go to ISS Live
                   </button>
                 </div>
@@ -410,7 +426,7 @@ function MainApp() {
             <div className="divider-glow mb-12" />
             <EmailCapture />
           </div>
-        </div>
+        </main>
 
         <Onboarding />
         <ScrollToTop />
@@ -457,15 +473,16 @@ function MainApp() {
             <div className="divider-glow mb-8" />
 
             {/* Links */}
-            <div className="flex flex-wrap gap-x-6 gap-y-2 justify-center mb-6">
+            <nav aria-label="Footer navigation" className="flex flex-wrap gap-x-6 gap-y-2 justify-center mb-6">
               <Link to="/blog" className="text-gray-500 hover:text-indigo-400 text-xs font-semibold transition-colors">📝 Blog</Link>
+              <Link to="/premium" className="text-gray-500 hover:text-indigo-400 text-xs font-semibold transition-colors">⭐ Premium</Link>
               <Link to="/privacy" className="text-gray-500 hover:text-indigo-400 text-xs font-semibold transition-colors">Privacy Policy</Link>
               {Object.entries(CITY_DATA).map(([slug, c]) => (
                 <Link key={slug} to={`/iss/${slug}`} className="text-gray-700 hover:text-gray-400 text-xs transition-colors">
                   ISS {c.name}
                 </Link>
               ))}
-            </div>
+            </nav>
 
             {/* Data sources */}
             <div className="text-center">
@@ -503,6 +520,7 @@ export default function App() {
           <Route path="/iss/:city" element={<CityPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/success" element={<SuccessPage />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
         </ISSProvider>
       </BrowserRouter>

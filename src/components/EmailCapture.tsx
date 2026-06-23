@@ -73,13 +73,17 @@ export default function EmailCapture() {
             Meteor showers · Solar eclipses · Rare events<br />Everything happening in space — straight to your inbox
           </p>
 
-          <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto mb-4">
+          <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto mb-4" aria-label="Subscribe to space alerts">
+            <label htmlFor="email-subscribe" className="sr-only">Your email address</label>
             <input
+              id="email-subscribe"
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder="your@email.com"
               required
+              aria-required="true"
+              aria-describedby={error ? 'email-error' : undefined}
               className="flex-1 px-5 py-3.5 rounded-xl text-white placeholder-gray-600 focus:outline-none text-sm"
               style={{
                 background: 'rgba(255,255,255,0.05)',
@@ -91,13 +95,14 @@ export default function EmailCapture() {
             <button
               type="submit"
               disabled={loading}
+              aria-busy={loading}
               className="btn-shimmer px-7 py-3.5 disabled:opacity-50 whitespace-nowrap"
             >
-              {loading ? '...' : 'Join Free →'}
+              {loading ? 'Joining...' : 'Join Free →'}
             </button>
           </form>
 
-          {error && <p className="text-red-400 text-xs mb-3">{error}</p>}
+          {error && <p id="email-error" role="alert" className="text-red-400 text-xs mb-3">{error}</p>}
           <p className="text-gray-600 text-xs">2,400+ space fans already joined · No spam · Unsubscribe anytime</p>
         </div>
       </div>

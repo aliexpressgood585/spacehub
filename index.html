@@ -19,7 +19,10 @@
     <link rel="dns-prefetch" href="https://ll.thespacedevs.com" />
     <link rel="dns-prefetch" href="https://api.spaceflightnewsapi.net" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%234f46e5'/><text y='.9em' font-size='70' x='15'>🚀</text></svg>" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
 
     <!-- SEO Primary -->
     <title>SpaceHub | Real-Time Space Tracker — ISS, Satellites, Space Weather</title>
@@ -81,6 +84,41 @@
     }
     </script>
 
+    <!-- FAQ Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Where is the International Space Station right now?",
+          "acceptedAnswer": { "@type": "Answer", "text": "You can track the ISS live on SpaceHub. The ISS orbits Earth at ~408 km altitude at 27,600 km/h, completing one orbit every 90 minutes." }
+        },
+        {
+          "@type": "Question",
+          "name": "When will the ISS pass over my city?",
+          "acceptedAnswer": { "@type": "Answer", "text": "SpaceHub's ISS Pass Predictor shows the next 5 ISS passes for dozens of cities worldwide. Enter your city to get exact times and visibility duration." }
+        },
+        {
+          "@type": "Question",
+          "name": "How many astronauts are in space right now?",
+          "acceptedAnswer": { "@type": "Answer", "text": "SpaceHub shows the live count of astronauts currently in space, including ISS crew members and any other missions in orbit." }
+        },
+        {
+          "@type": "Question",
+          "name": "What is space weather and why does it matter?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Space weather refers to solar wind, geomagnetic storms, and radiation events caused by the Sun. SpaceHub tracks real-time solar wind speed, Kp index, and aurora forecasts." }
+        },
+        {
+          "@type": "Question",
+          "name": "What is NASA APOD?",
+          "acceptedAnswer": { "@type": "Answer", "text": "NASA's Astronomy Picture of the Day (APOD) is a daily image or video of the universe, explained by a professional astronomer. SpaceHub shows the latest APOD every day." }
+        }
+      ]
+    }
+    </script>
+
     <!-- Google AdSense -->
     <script async fetchpriority="high" src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7392124652698131" crossorigin="anonymous"></script>
 
@@ -107,6 +145,20 @@
     </script>
   </head>
   <body style="background:#020510">
+    <noscript>
+      <div style="padding:40px 24px;text-align:center;font-family:system-ui,sans-serif;background:#020510;color:#e0e0e0;min-height:100vh">
+        <h1 style="font-size:2rem;font-weight:900;margin-bottom:12px">SpaceHub — Real-Time Space Tracker</h1>
+        <p style="color:#9ca3af;margin-bottom:24px;max-width:560px;margin-left:auto;margin-right:auto">Track the ISS live, get pass-over alerts, monitor space weather, explore the universe. Enable JavaScript to use the full interactive app.</p>
+        <ul style="list-style:none;display:inline-flex;flex-wrap:wrap;gap:12px;justify-content:center;padding:0">
+          <li style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);border-radius:12px;padding:8px 16px;color:#c4b5fd">🛸 Live ISS Tracker</li>
+          <li style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);border-radius:12px;padding:8px 16px;color:#c4b5fd">🛰️ Satellite Tracker</li>
+          <li style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);border-radius:12px;padding:8px 16px;color:#c4b5fd">⛈️ Space Weather</li>
+          <li style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);border-radius:12px;padding:8px 16px;color:#c4b5fd">🌙 Moon Phase</li>
+          <li style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);border-radius:12px;padding:8px 16px;color:#c4b5fd">🚀 Launch Countdowns</li>
+          <li style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);border-radius:12px;padding:8px 16px;color:#c4b5fd">📰 Space News</li>
+        </ul>
+      </div>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <!-- SkimLinks Affiliate -->
