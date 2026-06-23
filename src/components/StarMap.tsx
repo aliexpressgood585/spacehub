@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import * as THREE from 'three'
 
 // ── MATH HELPERS ──────────────────────────────────────────────
 const DEG = Math.PI / 180
@@ -419,6 +420,192 @@ const DSO_LABEL: Record<DSO['type'], string> = {
   globular: 'Globular Cluster',
 }
 
+// ── SHARED CATALOG TYPE ────────────────────────────────────────
+type HipStar = [number, number, number, number, string?]
+
+// ── 3D CELESTIAL GLOBE ────────────────────────────────────────
+interface StarGlobeProps { hipStars: HipStar[]; showConstellations: boolean }
+function StarGlobe({ hipStars, showConstellations }: StarGlobeProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const rafRef = useRef<number>(0)
+  const dragRef = useRef({ active: false, lastX: 0, lastY: 0 })
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    const W = Math.max(container.clientWidth, 300)
+    const H = 480
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
+    renderer.setSize(W, H)
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    renderer.setClearColor(0x020408, 1)
+    container.appendChild(renderer.domElement)
+    const scene = new THREE.Scene()
+    const camera = new THREE.PerspectiveCamera(55, W / H, 0.01, 100)
+    camera.position.z = 2.6
+    const group = new THREE.Group()
+    scene.add(group)
+
+    // Faint sphere fill
+    group.add(new THREE.Mesh(
+      new THREE.SphereGeometry(1, 32, 16),
+      new THREE.MeshBasicMaterial({ color: 0x040c20, transparent: true, opacity: 0.85 })
+    ))
+
+    // Grid lines helper
+    const mkLine = (pts: THREE.Vector3[], col: number, op: number) => {
+      const g = new THREE.BufferGeometry().setFromPoints(pts)
+      return new THREE.Line(g, new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: op }))
+    }
+
+    // Equatorial ring
+    const eqPts: THREE.Vector3[] = []
+    for (let i = 0; i <= 128; i++) {
+      const a = (i / 128) * Math.PI * 2
+      eqPts.push(new THREE.Vector3(Math.cos(a), 0, Math.sin(a)))
+    }
+    group.add(mkLine(eqPts, 0x3355aa, 0.4))
+
+    // Dec rings ±30° ±60°
+    for (const dec of [30, 60, -30, -60]) {
+      const pts: THREE.Vector3[] = [], y = Math.sin(dec * DEG), rr = Math.cos(dec * DEG)
+      for (let i = 0; i <= 128; i++) {
+        const a = (i / 128) * Math.PI * 2
+        pts.push(new THREE.Vector3(rr * Math.cos(a), y, rr * Math.sin(a)))
+      }
+      group.add(mkLine(pts, 0x223366, 0.22))
+    }
+
+    // RA meridians every 3 hours
+    for (let ra = 0; ra < 24; ra += 3) {
+      const pts: THREE.Vector3[] = [], theta = ra * Math.PI / 12
+      for (let i = 0; i <= 64; i++) {
+        const phi = (-90 + (i / 64) * 180) * DEG
+        pts.push(new THREE.Vector3(Math.cos(phi) * Math.cos(theta), Math.sin(phi), -Math.cos(phi) * Math.sin(theta)))
+      }
+      group.add(mkLine(pts, 0x1a2855, 0.18))
+    }
+
+    // Stars — tiered by magnitude for varied sizes
+    const allStars: { ra: number; dec: number; color: string; mag: number }[] = []
+    STARS.forEach(([, ra, dec, mag, color]) => allStars.push({ ra, dec, color, mag }))
+    hipStars.forEach(([ra, dec, mag, temp]) => {
+      if (mag >= 2.5) allStars.push({ ra, dec, color: tempColor(temp), mag })
+    })
+
+    const tiers = [
+      { min: -5,  max: 0,   size: 6,   op: 1.0  },
+      { min: 0,   max: 1.5, size: 4.5, op: 0.95 },
+      { min: 1.5, max: 3,   size: 3,   op: 0.9  },
+      { min: 3,   max: 4.5, size: 2,   op: 0.8  },
+      { min: 4.5, max: 7,   size: 1.2, op: 0.55 },
+    ]
+
+    for (const { min, max, size, op } of tiers) {
+      const pos: number[] = [], cols: number[] = []
+      allStars.forEach(({ ra, dec, color, mag }) => {
+        if (mag < min || mag >= max) return
+        const theta = ra * Math.PI / 12, phi = dec * DEG
+        pos.push(Math.cos(phi) * Math.cos(theta), Math.sin(phi), -Math.cos(phi) * Math.sin(theta))
+        const c = new THREE.Color(color); cols.push(c.r, c.g, c.b)
+      })
+      if (!pos.length) continue
+      const geo = new THREE.BufferGeometry()
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+      geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3))
+      group.add(new THREE.Points(geo, new THREE.PointsMaterial({ size, vertexColors: true, sizeAttenuation: false, transparent: true, opacity: op })))
+    }
+
+    // Constellation lines
+    if (showConstellations) {
+      const linePos: number[] = []
+      CONSTELLATION_LINES.forEach(({ a, b }) => {
+        const sa = STARS[a], sb = STARS[b]; if (!sa || !sb) return
+        const tA = sa[1] * Math.PI / 12, pA = sa[2] * DEG
+        const tB = sb[1] * Math.PI / 12, pB = sb[2] * DEG
+        linePos.push(Math.cos(pA) * Math.cos(tA), Math.sin(pA), -Math.cos(pA) * Math.sin(tA))
+        linePos.push(Math.cos(pB) * Math.cos(tB), Math.sin(pB), -Math.cos(pB) * Math.sin(tB))
+      })
+      if (linePos.length) {
+        const lgeo = new THREE.BufferGeometry()
+        lgeo.setAttribute('position', new THREE.Float32BufferAttribute(linePos, 3))
+        group.add(new THREE.LineSegments(lgeo, new THREE.LineBasicMaterial({ color: 0x5566cc, transparent: true, opacity: 0.55 })))
+      }
+    }
+
+    // Animation + auto-rotate
+    let autoRotate = true
+    let arTimer: ReturnType<typeof setTimeout> | null = null
+    const animate = () => {
+      rafRef.current = requestAnimationFrame(animate)
+      if (autoRotate && !dragRef.current.active) group.rotation.y += 0.0008
+      renderer.render(scene, camera)
+    }
+    animate()
+
+    const el = renderer.domElement
+    const onMD = (e: MouseEvent) => {
+      dragRef.current = { active: true, lastX: e.clientX, lastY: e.clientY }
+      autoRotate = false
+      if (arTimer) { clearTimeout(arTimer); arTimer = null }
+    }
+    const onMM = (e: MouseEvent) => {
+      if (!dragRef.current.active) return
+      group.rotation.y += (e.clientX - dragRef.current.lastX) * 0.004
+      group.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, group.rotation.x + (e.clientY - dragRef.current.lastY) * 0.004))
+      dragRef.current.lastX = e.clientX; dragRef.current.lastY = e.clientY
+    }
+    const onMU = () => { dragRef.current.active = false; arTimer = setTimeout(() => { autoRotate = true }, 2500) }
+    const onTS = (e: TouchEvent) => {
+      e.preventDefault()
+      dragRef.current = { active: true, lastX: e.touches[0].clientX, lastY: e.touches[0].clientY }
+      autoRotate = false
+      if (arTimer) { clearTimeout(arTimer); arTimer = null }
+    }
+    const onTM = (e: TouchEvent) => {
+      e.preventDefault(); if (!dragRef.current.active) return
+      group.rotation.y += (e.touches[0].clientX - dragRef.current.lastX) * 0.004
+      group.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, group.rotation.x + (e.touches[0].clientY - dragRef.current.lastY) * 0.004))
+      dragRef.current.lastX = e.touches[0].clientX; dragRef.current.lastY = e.touches[0].clientY
+    }
+    const onTE = () => { dragRef.current.active = false; arTimer = setTimeout(() => { autoRotate = true }, 2500) }
+    const onResize = () => {
+      const w = Math.max(container.clientWidth, 300)
+      renderer.setSize(w, 480); camera.aspect = w / 480; camera.updateProjectionMatrix()
+    }
+
+    el.addEventListener('mousedown', onMD)
+    window.addEventListener('mousemove', onMM)
+    window.addEventListener('mouseup', onMU)
+    el.addEventListener('touchstart', onTS, { passive: false })
+    el.addEventListener('touchmove', onTM, { passive: false })
+    el.addEventListener('touchend', onTE)
+    window.addEventListener('resize', onResize)
+
+    return () => {
+      if (arTimer) clearTimeout(arTimer)
+      cancelAnimationFrame(rafRef.current)
+      el.removeEventListener('mousedown', onMD)
+      window.removeEventListener('mousemove', onMM)
+      window.removeEventListener('mouseup', onMU)
+      el.removeEventListener('touchstart', onTS)
+      el.removeEventListener('touchmove', onTM)
+      el.removeEventListener('touchend', onTE)
+      window.removeEventListener('resize', onResize)
+      renderer.dispose()
+      if (container.contains(el)) container.removeChild(el)
+    }
+  }, [hipStars, showConstellations])
+
+  return (
+    <div
+      ref={containerRef}
+      className="w-full rounded-2xl overflow-hidden"
+      style={{ height: 480, background: '#020408', cursor: 'grab', border: '1px solid rgba(99,102,241,0.2)' }}
+    />
+  )
+}
+
 function drawDSOSymbol(
   ctx: CanvasRenderingContext2D,
   type: DSO['type'],
@@ -596,13 +783,12 @@ export default function StarMap() {
   const [showLabels, setShowLabels]                 = useState(true)
   const [showTemp, setShowTemp]                     = useState(false)
   const [showGrid, setShowGrid]                     = useState(false)
+  const [globeMode, setGlobeMode]                   = useState(false)
 
   const [tooltip, setTooltip] = useState<Tooltip | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [issPos, setIssPos] = useState<{ lat: number; lng: number; alt: number } | null>(null)
 
-  // Hipparcos catalog [ra, dec, mag, temp, name?]
-  type HipStar = [number, number, number, number, string?]
   const [hipStars, setHipStars] = useState<HipStar[]>([])
   // NGC/IC catalog [ra, dec, mag, type, name]
   type NgcObj = [number, number, number, DSO['type'], string]
@@ -1219,6 +1405,16 @@ export default function StarMap() {
             {label}
           </button>
         ))}
+        <button
+          onClick={() => setGlobeMode(g => !g)}
+          aria-pressed={globeMode}
+          style={globeMode
+            ? { background: 'rgba(139,92,246,0.25)', border: '1px solid rgba(139,92,246,0.6)', color: '#c4b5fd' }
+            : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#6b7280' }}
+          className="text-xs px-3 py-1.5 rounded-lg font-semibold transition"
+        >
+          🌐 Globe
+        </button>
       </div>
 
       {/* Temperature legend */}
@@ -1293,70 +1489,76 @@ export default function StarMap() {
         )}
       </div>
 
-      {/* Canvas + tooltip overlay */}
+      {/* Canvas / Globe */}
       <div className="flex justify-center mb-4 relative">
-        <canvas
-          ref={canvasRef}
-          width={700}
-          height={700}
-          aria-label="Interactive star map — hover or tap stars/planets/DSOs for details"
-          className="rounded-full cursor-crosshair touch-none"
-          style={{ width: '100%', maxWidth: 660, aspectRatio: '1/1' }}
-          onMouseDown={e => { setDragging(true); setPrevX(e.clientX) }}
-          onMouseMove={handleMouseMove}
-          onMouseUp={() => setDragging(false)}
-          onMouseLeave={() => { setDragging(false); setTooltip(null) }}
-          onTouchStart={e => {
-            setDragging(true)
-            setPrevX(e.touches[0].clientX)
-            touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() }
-          }}
-          onTouchMove={e => {
-            if (!dragging) return
-            e.preventDefault()
-            setRotation(r => r + (e.touches[0].clientX - prevX) * 0.5)
-            setPrevX(e.touches[0].clientX)
-          }}
-          onTouchEnd={handleTouchEnd}
-        />
+        {globeMode ? (
+          <StarGlobe hipStars={hipStars} showConstellations={showConstellations} />
+        ) : (
+          <>
+            <canvas
+              ref={canvasRef}
+              width={700}
+              height={700}
+              aria-label="Interactive star map — hover or tap stars/planets/DSOs for details"
+              className="rounded-full cursor-crosshair touch-none"
+              style={{ width: '100%', maxWidth: 660, aspectRatio: '1/1' }}
+              onMouseDown={e => { setDragging(true); setPrevX(e.clientX) }}
+              onMouseMove={handleMouseMove}
+              onMouseUp={() => setDragging(false)}
+              onMouseLeave={() => { setDragging(false); setTooltip(null) }}
+              onTouchStart={e => {
+                setDragging(true)
+                setPrevX(e.touches[0].clientX)
+                touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() }
+              }}
+              onTouchMove={e => {
+                if (!dragging) return
+                e.preventDefault()
+                setRotation(r => r + (e.touches[0].clientX - prevX) * 0.5)
+                setPrevX(e.touches[0].clientX)
+              }}
+              onTouchEnd={handleTouchEnd}
+            />
 
-        {tooltip && (
-          <div
-            style={{
-              position: 'absolute',
-              left: tooltip.flipLeft ? tooltip.sx - 166 : tooltip.sx + 12,
-              top:  Math.max(4, tooltip.sy - 10),
-              background: 'rgba(7,9,22,0.97)',
-              border: `1px solid ${tooltip.color}55`,
-              borderRadius: 10,
-              padding: '9px 13px',
-              pointerEvents: 'none',
-              zIndex: 20,
-              minWidth: 152,
-              boxShadow: `0 4px 20px rgba(0,0,0,0.7), 0 0 10px ${tooltip.color}22`,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-              {tooltip.symbol && <span style={{ color: tooltip.color, fontSize: 16, lineHeight: 1 }}>{tooltip.symbol}</span>}
-              <span style={{ color: '#e2e8f0', fontWeight: 700, fontSize: 13 }}>{tooltip.name}</span>
-            </div>
-            {tooltip.isDSO && tooltip.dsoType && (
-              <div style={{ color: tooltip.color, fontSize: 11, fontWeight: 600, marginBottom: 2 }}>
-                {DSO_LABEL[tooltip.dsoType]}
+            {tooltip && (
+              <div
+                style={{
+                  position: 'absolute',
+                  left: tooltip.flipLeft ? tooltip.sx - 166 : tooltip.sx + 12,
+                  top:  Math.max(4, tooltip.sy - 10),
+                  background: 'rgba(7,9,22,0.97)',
+                  border: `1px solid ${tooltip.color}55`,
+                  borderRadius: 10,
+                  padding: '9px 13px',
+                  pointerEvents: 'none',
+                  zIndex: 20,
+                  minWidth: 152,
+                  boxShadow: `0 4px 20px rgba(0,0,0,0.7), 0 0 10px ${tooltip.color}22`,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  {tooltip.symbol && <span style={{ color: tooltip.color, fontSize: 16, lineHeight: 1 }}>{tooltip.symbol}</span>}
+                  <span style={{ color: '#e2e8f0', fontWeight: 700, fontSize: 13 }}>{tooltip.name}</span>
+                </div>
+                {tooltip.isDSO && tooltip.dsoType && (
+                  <div style={{ color: tooltip.color, fontSize: 11, fontWeight: 600, marginBottom: 2 }}>
+                    {DSO_LABEL[tooltip.dsoType]}
+                  </div>
+                )}
+                {tooltip.temp !== undefined && (
+                  <div style={{ color: tempColor(tooltip.temp), fontSize: 12, fontWeight: 600, marginBottom: 2 }}>
+                    {spectralClass(tooltip.temp)}-type · {fmtTempFull(tooltip.temp)}
+                  </div>
+                )}
+                {tooltip.mag !== undefined && (
+                  <div style={{ color: '#6b7280', fontSize: 10 }}>Magnitude {tooltip.mag.toFixed(2)}</div>
+                )}
+                <div style={{ color: tooltip.alt > 0 ? '#34d399' : '#6b7280', fontSize: 10, marginTop: 1 }}>
+                  {tooltip.alt > 0 ? `${Math.round(tooltip.alt)}° above horizon` : 'Below horizon'}
+                </div>
               </div>
             )}
-            {tooltip.temp !== undefined && (
-              <div style={{ color: tempColor(tooltip.temp), fontSize: 12, fontWeight: 600, marginBottom: 2 }}>
-                {spectralClass(tooltip.temp)}-type · {fmtTempFull(tooltip.temp)}
-              </div>
-            )}
-            {tooltip.mag !== undefined && (
-              <div style={{ color: '#6b7280', fontSize: 10 }}>Magnitude {tooltip.mag.toFixed(2)}</div>
-            )}
-            <div style={{ color: tooltip.alt > 0 ? '#34d399' : '#6b7280', fontSize: 10, marginTop: 1 }}>
-              {tooltip.alt > 0 ? `${Math.round(tooltip.alt)}° above horizon` : 'Below horizon'}
-            </div>
-          </div>
+          </>
         )}
       </div>
 
@@ -1389,7 +1591,9 @@ export default function StarMap() {
       )}
 
       <p className="text-gray-700 text-xs text-center mt-3">
-        Drag to rotate · Hover/tap for details · Slider to travel in time · Zenith at center
+        {globeMode
+          ? 'Drag to rotate the celestial sphere · Auto-rotates · 5,000+ stars on all-sky view'
+          : 'Drag to rotate · Hover/tap for details · Slider to travel in time · Zenith at center'}
       </p>
     </div>
   )
