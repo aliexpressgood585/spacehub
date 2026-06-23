@@ -1,4 +1,31 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
+
+function ImageWithSkeleton({ src, alt }: { src: string; alt: string }) {
+  const [loaded, setLoaded] = useState(false)
+  const [errored, setErrored] = useState(false)
+  const fallbackSrc = 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Andromeda_Galaxy_560mm_FL.jpg/800px-Andromeda_Galaxy_560mm_FL.jpg'
+
+  const handleError = useCallback(() => {
+    if (!errored) { setErrored(true); setLoaded(true) }
+  }, [errored])
+
+  return (
+    <>
+      {!loaded && (
+        <div className="skeleton-line w-full" style={{ height: 400 }} />
+      )}
+      <img
+        src={errored ? fallbackSrc : src}
+        alt={alt}
+        decoding="async"
+        onLoad={() => setLoaded(true)}
+        onError={handleError}
+        className="w-full object-cover transition-opacity duration-500"
+        style={{ maxHeight: 400, opacity: loaded ? 1 : 0, position: loaded ? 'relative' : 'absolute' }}
+      />
+    </>
+  )
+}
 
 const CURATED = [
   { title: 'Pillars of Creation — Eagle Nebula', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/68/Pillars_of_creation_2014_HST_WFC3-UVIS_full-res_denoised.jpg/800px-Pillars_of_creation_2014_HST_WFC3-UVIS_full-res_denoised.jpg', explanation: 'The iconic Pillars of Creation, captured by the Hubble Space Telescope in 2014. These towering columns of gas and dust in the Eagle Nebula are stellar nurseries where new stars are being born.', date: 'Hubble Space Telescope · M16 Eagle Nebula' },
@@ -113,9 +140,9 @@ export default function NasaAPOD() {
         </div>
       )}
 
-      <div className="relative overflow-hidden mt-4" style={{ maxHeight: 400 }}>
+      <div className="relative overflow-hidden mt-4" style={{ maxHeight: 400, background: 'rgba(8,11,34,0.8)' }}>
         {apod.media_type === 'image' ? (
-          <img src={apod.url} alt={apod.title} loading="lazy" decoding="async" className="w-full object-cover" style={{ maxHeight: 400 }} />
+          <ImageWithSkeleton src={apod.url} alt={apod.title} />
         ) : (
           <iframe src={apod.url} className="w-full" style={{ height: 360, border: 'none' }} allowFullScreen title={apod.title} />
         )}

@@ -87,13 +87,24 @@ export default function Header({ onPremium }: Props) {
             <div className="font-black text-lg text-white tracking-tight leading-none">
               Space<span className="gradient-text">Hub</span>
             </div>
-            <div className="text-[10px] text-gray-600 font-medium tracking-wide leading-none mt-0.5">
+            {/* Mobile: compact ISS stat under logo */}
+            <div className="flex items-center gap-1.5 md:hidden mt-0.5">
+              {liveOk
+                ? <><span className="live-dot" style={{ width: 5, height: 5 }} /><span className="text-[10px] text-emerald-400 font-semibold">LIVE</span></>
+                : <span className="text-[10px] text-gray-600 font-semibold">CACHED</span>
+              }
+              {issAlt !== null && (
+                <span className="text-[10px] text-gray-600">· ISS <span className="text-gray-400 font-bold">{issAlt} km</span></span>
+              )}
+            </div>
+            {/* Desktop tagline */}
+            <div className="hidden md:block text-[10px] text-gray-600 font-medium tracking-wide leading-none mt-0.5">
               {t('header.tagline')}
             </div>
           </div>
         </div>
 
-        {/* Center — live stats bar */}
+        {/* Center — live stats bar (desktop only) */}
         <div className="hidden md:flex flex-1 justify-center">
           <div className="flex items-center gap-4 glass px-4 py-2 rounded-full border border-white/[0.06]">
             <div className="flex items-center gap-1.5">

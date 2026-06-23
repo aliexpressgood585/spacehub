@@ -245,8 +245,12 @@ function MainApp() {
 
           {/* Tab navigation */}
           <div ref={tabContentRef} style={{ scrollMarginTop: 80 }}>
+            <div className="relative mb-8">
+              {/* Right fade hint — signals more tabs to scroll */}
+              <div className="pointer-events-none absolute right-0 top-0 bottom-2 w-16 z-10 md:hidden"
+                style={{ background: 'linear-gradient(270deg, rgba(2,5,16,0.9), transparent)' }} />
             <div
-              className="flex gap-1.5 mb-8 overflow-x-auto pb-2"
+              className="flex gap-1.5 overflow-x-auto pb-2"
               style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
             >
               {TAB_DEFS.map(tab => (
@@ -259,6 +263,7 @@ function MainApp() {
                   <span>{t(tab.tKey)}</span>
                 </button>
               ))}
+            </div>
             </div>
           </div>
 
