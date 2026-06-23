@@ -43,6 +43,7 @@ const GalaxyExplorer = lazy(() => import('./components/GalaxyExplorer'))
 const ARSkyView = lazy(() => import('./components/ARSkyView'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
+import MobileNav from './components/MobileNav'
 import { ISSProvider, useISS } from './contexts/ISSContext'
 import BlogPage from './pages/BlogPage'
 import BlogArticlePage from './pages/BlogArticlePage'
@@ -172,6 +173,23 @@ function MainApp() {
   const tabContentRef = useRef<HTMLDivElement>(null)
   const issData = issCtx ? { lat: issCtx.latitude, lng: issCtx.longitude, alt: issCtx.altitude } : null
 
+  /* Keyboard shortcuts: 1–9 switch tabs */
+  useEffect(() => {
+    const KEYS: Record<string, Tab> = {
+      '1': 'dashboard', '2': 'starmap', '3': 'tracker', '4': 'solar',
+      '5': 'weather',   '6': 'events',  '7': 'news',    '8': 'quiz', '9': 'gallery',
+    }
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      const tab = KEYS[e.key]
+      if (tab) switchTab(tab)
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   /* 3-D card tilt on mouse move */
   useEffect(() => {
     const SELECTORS = '.space-card, .stat-card'
@@ -241,7 +259,7 @@ function MainApp() {
           <AdBanner />
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 pb-20">
+        <div className="max-w-7xl mx-auto px-4 pb-20 md:pb-20" style={{ paddingBottom: 'max(80px, calc(60px + env(safe-area-inset-bottom)))' }}>
 
           {/* Tab navigation */}
           <div ref={tabContentRef} style={{ scrollMarginTop: 80 }}>
@@ -393,6 +411,7 @@ function MainApp() {
 
         <Onboarding />
         <ScrollToTop />
+        <MobileNav active={activeTab} onSwitch={(t) => switchTab(t as Tab)} />
 
         {/* FOOTER */}
         <footer style={{ background: 'linear-gradient(180deg, transparent 0%, rgba(2,5,16,0.7) 20%, #020510 60%)', borderTop: '1px solid rgba(99,102,241,0.12)', position: 'relative' }}>
@@ -448,7 +467,7 @@ function MainApp() {
             {/* Data sources */}
             <div className="text-center">
               <p className="text-gray-700 text-xs mb-2">
-                Data: NASA Open APIs • Spaceflight News API • wheretheiss.at • open-notify.org
+                Data: NASA Open APIs • Spaceflight News API • wheretheiss.at (proxy) • open-notify.org (proxy) • NOAA SWPC
               </p>
               <p className="text-gray-800 text-xs">© 2026 SpaceHub · Made with ❤️ for space enthusiasts everywhere</p>
             </div>
