@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, MutableRefObject } from 'react'
 
 interface SatRecord { name: string; id: string; color: string; satrec: unknown }
 
@@ -43,6 +43,85 @@ function smoothAngle(current: number, target: number, factor: number) {
   return (current + diff * factor + 360) % 360
 }
 
+function CompassRadar({ heading, satRecsRef, satLibRef, locRef }: {
+  heading: number
+  satRecsRef: MutableRefObject<SatRecord[]>
+  satLibRef: MutableRefObject<unknown>
+  locRef: MutableRefObject<{ lat: number; lng: number }>
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')!
+    const W = canvas.width = canvas.offsetWidth * devicePixelRatio
+    const H = canvas.height = canvas.offsetHeight * devicePixelRatio
+    const cx = W / 2, cy = H / 2, R = Math.min(cx, cy) - 12 * devicePixelRatio
+    ctx.clearRect(0, 0, W, H)
+    // Outer circle
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2)
+    ctx.strokeStyle = 'rgba(99,102,241,0.5)'; ctx.lineWidth = 1.5; ctx.stroke()
+    // Inner rings
+    for (const f of [0.33, 0.66]) {
+      ctx.beginPath(); ctx.arc(cx, cy, R * f, 0, Math.PI * 2)
+      ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1; ctx.stroke()
+    }
+    // Cardinal labels
+    const DIRS = ['N','E','S','W']
+    DIRS.forEach((d, i) => {
+      const a = (i * 90 - heading + 360) % 360
+      const rad = a * Math.PI / 180
+      const tx = cx + (R + 10 * devicePixelRatio) * Math.sin(rad)
+      const ty = cy - (R + 10 * devicePixelRatio) * Math.cos(rad)
+      ctx.fillStyle = d === 'N' ? '#818cf8' : 'rgba(255,255,255,0.4)'
+      ctx.font = `bold ${11 * devicePixelRatio}px system-ui`
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+      ctx.fillText(d, tx, ty)
+    })
+    // Satellites
+    const satLib = satLibRef.current as Record<string, (...a: unknown[]) => unknown> | null
+    if (satLib && satRecsRef.current.length > 0) {
+      const { lat, lng } = locRef.current
+      const now = new Date()
+      for (const sd of satRecsRef.current) {
+        const pv = satLib.propagate(sd.satrec, now) as { position?: { x:number; y:number; z:number } | boolean }
+        if (!pv?.position || typeof pv.position === 'boolean') continue
+        const gmst = satLib.gstime(now) as number
+        const ecf = satLib.eciToEcf(pv.position, gmst) as { x:number; y:number; z:number }
+        const obs = { longitude: (satLib.degreesToRadians as (n:number)=>number)(lng), latitude: (satLib.degreesToRadians as (n:number)=>number)(lat), height: 0 }
+        const look = satLib.ecfToLookAngles(obs, ecf) as { azimuth:number; elevation:number }
+        const az = ((look.azimuth * 180 / Math.PI) + 360) % 360
+        const el = look.elevation * 180 / Math.PI
+        // Map el 0-90 → R..0
+        const dist = R * (1 - Math.max(0, el) / 90)
+        const relAz = (az - heading + 360) % 360
+        const rad = relAz * Math.PI / 180
+        const sx = cx + dist * Math.sin(rad)
+        const sy = cy - dist * Math.cos(rad)
+        // Glow
+        const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, 10 * devicePixelRatio)
+        g.addColorStop(0, sd.color + 'aa'); g.addColorStop(1, 'transparent')
+        ctx.beginPath(); ctx.arc(sx, sy, 10 * devicePixelRatio, 0, Math.PI * 2)
+        ctx.fillStyle = g; ctx.fill()
+        ctx.beginPath(); ctx.arc(sx, sy, 4 * devicePixelRatio, 0, Math.PI * 2)
+        ctx.fillStyle = sd.color; ctx.fill()
+        ctx.fillStyle = 'rgba(255,255,255,0.8)'
+        ctx.font = `bold ${9 * devicePixelRatio}px system-ui`
+        ctx.textAlign = 'left'; ctx.textBaseline = 'middle'
+        ctx.fillText(sd.name, sx + 7 * devicePixelRatio, sy)
+      }
+    }
+    // Centre dot (you)
+    ctx.beginPath(); ctx.arc(cx, cy, 5 * devicePixelRatio, 0, Math.PI * 2)
+    ctx.fillStyle = '#818cf8'; ctx.fill()
+    ctx.fillStyle = 'rgba(255,255,255,0.5)'
+    ctx.font = `${9 * devicePixelRatio}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'top'
+    ctx.fillText('YOU', cx, cy + 7 * devicePixelRatio)
+  }, [heading, satRecsRef, satLibRef, locRef])
+
+  return <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />
+}
+
 export default function ARSkyView() {
   const videoRef   = useRef<HTMLVideoElement>(null)
   const canvasRef  = useRef<HTMLCanvasElement>(null)
@@ -60,7 +139,7 @@ export default function ARSkyView() {
   const rawHeadingRef    = useRef(0)
   const isAbsoluteRef    = useRef(false)  // true = compass is calibrated
 
-  const [phase, setPhase]         = useState<'idle'|'starting'|'active'|'error'>('idle')
+  const [phase, setPhase]         = useState<'idle'|'starting'|'active'|'error'|'compass'>('idle')
   const [errorMsg, setErrorMsg]   = useState('')
   const [permDenied, setPermDenied] = useState(false)
   const [satLoading, setSatLoading] = useState(false)
@@ -415,17 +494,75 @@ export default function ARSkyView() {
           <div className="text-center py-8 space-y-4">
             <div className="text-5xl">⚠️</div>
             <p className="text-red-400 font-semibold">{errorMsg}</p>
-            {permDenied && (
-              <p className="text-gray-500 text-sm max-w-xs mx-auto">
-                Go to browser Settings → Site Settings → Camera → Allow for this site.
-              </p>
+            {permDenied ? (
+              <>
+                <div className="rounded-2xl p-4 mx-auto max-w-xs text-left space-y-2"
+                  style={{ background: 'rgba(251,191,36,0.07)', border: '1px solid rgba(251,191,36,0.2)' }}>
+                  <p className="text-yellow-400 text-xs font-semibold">How to allow camera:</p>
+                  <p className="text-gray-400 text-xs">🍎 <b>iOS Safari:</b> Settings → Safari → Camera → Allow</p>
+                  <p className="text-gray-400 text-xs">🤖 <b>Android Chrome:</b> Tap 🔒 in address bar → Permissions → Camera → Allow</p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                  <button
+                    onClick={async () => {
+                      setPhase('starting')
+                      setErrorMsg('')
+                      setPermDenied(false)
+                      let userLat = locRef.current.lat, userLng = locRef.current.lng
+                      if (typeof (DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> }).requestPermission === 'function') {
+                        try { await (DeviceOrientationEvent as unknown as { requestPermission: () => Promise<string> }).requestPermission() } catch {}
+                      }
+                      window.addEventListener('deviceorientationabsolute', handleOrientation as EventListener, true)
+                      window.addEventListener('deviceorientation', handleOrientation as EventListener, true)
+                      await loadSats(userLat, userLng)
+                      setPhase('compass')
+                    }}
+                    className="text-sm px-5 py-2.5 rounded-xl font-semibold"
+                    style={{ background: 'rgba(74,222,128,0.15)', border: '1px solid rgba(74,222,128,0.4)', color: '#4ade80' }}
+                  >
+                    🧭 Use Compass Mode (no camera)
+                  </button>
+                  <button
+                    onClick={() => { setPhase('idle'); setPermDenied(false) }}
+                    className="text-sm px-4 py-2 rounded-xl"
+                    style={{ background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.4)', color: '#a5b4fc' }}
+                  >
+                    ↺ Try Again
+                  </button>
+                </div>
+              </>
+            ) : (
+              <button
+                onClick={() => { setPhase('idle'); setPermDenied(false) }}
+                className="text-sm px-4 py-2 rounded-xl"
+                style={{ background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.4)', color: '#a5b4fc' }}
+              >
+                Try Again
+              </button>
             )}
-            <button
-              onClick={() => { setPhase('idle'); setPermDenied(false) }}
-              className="text-sm px-4 py-2 rounded-xl"
-              style={{ background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.4)', color: '#a5b4fc' }}
-            >
-              Try Again
+          </div>
+        )}
+
+        {/* ── COMPASS MODE (no camera) ── */}
+        {phase === 'compass' && (
+          <div className="space-y-3">
+            <div className="rounded-2xl overflow-hidden relative" style={{ background: 'rgba(0,0,0,0.6)', aspectRatio: '1/1', maxWidth: 320, margin: '0 auto' }}>
+              <CompassRadar heading={heading} satRecsRef={satRecsRef} satLibRef={satLibRef} locRef={locRef} />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-xl p-2.5 text-center" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                <p className="text-white font-bold text-base">{heading}°</p>
+                <p className="text-gray-600 text-[9px] uppercase">Your Heading</p>
+              </div>
+              <div className="rounded-xl p-2.5 text-center" style={{ background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)' }}>
+                <p className="text-green-300 font-bold text-base">{satCount}</p>
+                <p className="text-gray-600 text-[9px] uppercase">Tracked</p>
+              </div>
+            </div>
+            <p className="text-gray-600 text-xs text-center">Compass mode — rotate your phone to find satellites</p>
+            <button onClick={stop} className="w-full text-sm py-2 rounded-xl text-gray-500"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              ✕ Stop
             </button>
           </div>
         )}
