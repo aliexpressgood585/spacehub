@@ -24,7 +24,7 @@ async function loadSatelliteJs(): Promise<unknown> {
 }
 
 async function fetchTLE(id: string): Promise<[string, string]> {
-  const url = `https://celestrak.org/NORAD/elements/gp.php?CATNR=${id}&FORMAT=TLE`
+  const url = `/api/tle?id=${id}`
   const text = await fetch(url).then(r => r.text())
   const lines = text.trim().split('\n').map(l => l.trim()).filter(Boolean)
   for (let i = 0; i < lines.length; i++) {
