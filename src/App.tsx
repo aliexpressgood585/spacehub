@@ -483,11 +483,13 @@ function MainApp() {
               <Link to="/blog" className="text-gray-500 hover:text-indigo-400 text-xs font-semibold transition-colors">📝 Blog</Link>
               <Link to="/premium" className="text-gray-500 hover:text-indigo-400 text-xs font-semibold transition-colors">⭐ Premium</Link>
               <Link to="/privacy" className="text-gray-500 hover:text-indigo-400 text-xs font-semibold transition-colors">Privacy Policy</Link>
-              {Object.entries(CITY_DATA).map(([slug, c]) => (
-                <Link key={slug} to={`/iss/${slug}`} className="text-gray-700 hover:text-gray-400 text-xs transition-colors">
-                  ISS {c.name}
-                </Link>
-              ))}
+              <span className="hidden md:contents">
+                {Object.entries(CITY_DATA).map(([slug, c]) => (
+                  <Link key={slug} to={`/iss/${slug}`} className="text-gray-700 hover:text-gray-400 text-xs transition-colors">
+                    ISS {c.name}
+                  </Link>
+                ))}
+              </span>
             </nav>
 
             {/* Data sources */}
