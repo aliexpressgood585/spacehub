@@ -49,11 +49,16 @@ export default function AdBanner({ slot = ENV_SLOT, format = 'auto', style }: Pr
       </p>
       <ins
         className="adsbygoogle"
-        style={{ display: 'block' }}
+        style={{ display: 'block', colorScheme: 'dark' } as React.CSSProperties}
         data-ad-client={PUB}
         data-ad-slot={slot}
         data-ad-format={format}
         data-full-width-responsive="true"
+        data-color-background="020510"
+        data-color-border="1e2040"
+        data-color-link="6366f1"
+        data-color-text="9ca3af"
+        data-color-url="4f46e5"
       />
     </div>
   )
