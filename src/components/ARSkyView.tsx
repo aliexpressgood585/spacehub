@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, MutableRefObject } from 'react'
+import { useState, useEffect, useRef, useCallback, type MutableRefObject } from 'react'
 
 interface SatRecord { name: string; id: string; color: string; satrec: unknown }
 
