@@ -27,7 +27,7 @@ export default function ISSTracker() {
 
   useEffect(() => {
     const fetchISS = () => {
-      fetch('https://api.wheretheiss.at/v1/satellites/25544')
+      fetch('/api/iss')
         .then(r => r.json())
         .then(data => {
           const pos: ISSPosition = {

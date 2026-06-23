@@ -18,31 +18,12 @@ const CURIOSITY_FALLBACK: MarsSol[] = [
 ]
 
 export default function MarsWeather() {
-  const [sols, setSols] = useState<MarsSol[]>(CURIOSITY_FALLBACK)
+  const [sols] = useState<MarsSol[]>(CURIOSITY_FALLBACK)
   const [live, setLive] = useState(false)
   const [current, setCurrent] = useState(0)
 
-  useEffect(() => {
-    fetch('https://api.nasa.gov/insight_weather/?api_key=DEMO_KEY&feedtype=json&ver=1.0')
-      .then(r => r.json())
-      .then(data => {
-        const solKeys: string[] = data.sol_keys || []
-        if (solKeys.length === 0) return
-        const parsed: MarsSol[] = solKeys.slice(-5).reverse().map(sol => {
-          const d = data[sol]
-          return {
-            sol,
-            min_temp: d.AT?.mn ?? -73,
-            max_temp: d.AT?.mx ?? -7,
-            avg_temp: d.AT?.av ?? -40,
-            pressure: d.PRE?.av ?? 845,
-            wind_speed: d.HWS?.av ?? null,
-          }
-        })
-        if (parsed.length > 0) { setSols(parsed); setLive(true) }
-      })
-      .catch(() => {})
-  }, [])
+  // InSight mission ended Dec 2022 — use Curiosity REMS fallback data
+  useEffect(() => { setLive(false) }, [])
 
   const sol = sols[current]
 

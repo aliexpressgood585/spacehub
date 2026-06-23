@@ -36,6 +36,7 @@ export default function SpaceWeather() {
   const [kp, setKp] = useState<number | null>(null)
   const [windSpeed, setWindSpeed] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState(false)
   const [updated, setUpdated] = useState('')
 
   useEffect(() => {
@@ -51,7 +52,7 @@ export default function SpaceWeather() {
       if (!isNaN(speedVal)) setWindSpeed(speedVal)
       setUpdated(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }))
       setLoading(false)
-    }).catch(() => setLoading(false))
+    }).catch(() => { setFetchError(true); setLoading(false) })
   }, [])
 
   const kpC = kp !== null ? kpColor(kp) : '#6b7280'
@@ -61,7 +62,7 @@ export default function SpaceWeather() {
     {
       label: 'Solar Wind',
       value: windSpeed !== null ? `${Math.round(windSpeed)} km/s` : '—',
-      sub: windSpeed !== null ? windLabel(windSpeed) : 'Fetching...',
+      sub: windSpeed !== null ? windLabel(windSpeed) : fetchError ? 'Data unavailable' : 'Fetching...',
       icon: '☀️',
       bar: windSpeed !== null ? Math.min(100, Math.round((windSpeed / 800) * 100)) : 0,
       color: windC,
@@ -77,7 +78,7 @@ export default function SpaceWeather() {
     {
       label: 'Aurora Activity',
       value: kp !== null ? `Kp ${kp.toFixed(1)}` : '—',
-      sub: kp !== null ? kpLabel(kp) : 'Fetching...',
+      sub: kp !== null ? kpLabel(kp) : fetchError ? 'Data unavailable' : 'Fetching...',
       icon: '🌌',
       bar: kp !== null ? Math.round((kp / 9) * 100) : 0,
       color: kpC,

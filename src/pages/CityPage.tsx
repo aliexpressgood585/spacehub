@@ -73,7 +73,7 @@ export default function CityPage() {
 
   useEffect(() => {
     if (!data) return
-    fetch('https://api.wheretheiss.at/v1/satellites/25544')
+    fetch('/api/iss')
       .then(r => r.json())
       .then(d => setIssPos({ lat: d.latitude, lng: d.longitude, alt: d.altitude }))
       .catch(() => {})

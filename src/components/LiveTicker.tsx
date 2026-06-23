@@ -18,7 +18,7 @@ export default function LiveTicker() {
   const [kpLive, setKpLive] = useState('')
 
   useEffect(() => {
-    fetch('https://api.wheretheiss.at/v1/satellites/25544')
+    fetch('/api/iss')
       .then(r => r.json())
       .then(d => setIssLive(
         `ISS LIVE: ${Math.abs(d.latitude).toFixed(1)}°${d.latitude >= 0 ? 'N' : 'S'} ${Math.abs(d.longitude).toFixed(1)}°${d.longitude >= 0 ? 'E' : 'W'} · Alt ${d.altitude.toFixed(0)} km · ${d.velocity.toFixed(0)} km/h`

@@ -274,6 +274,25 @@ export default function ARSkyView() {
                 Uses your camera + compass to show the ISS, Hubble, and other satellites exactly where they are in the sky above you.
               </p>
             </div>
+
+            {/* Desktop hint */}
+            {typeof window !== 'undefined' && !('ontouchstart' in window) && (
+              <div className="inline-flex flex-col items-center gap-3 px-5 py-4 rounded-2xl mx-auto"
+                style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)' }}>
+                <p className="text-yellow-400 text-sm font-semibold">📱 Best on smartphone</p>
+                <p className="text-gray-500 text-xs max-w-[200px] leading-relaxed">
+                  Scan to open on your phone — AR needs a camera + compass
+                </p>
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent('https://spacehub-nu.vercel.app/#tracker')}&bgcolor=020510&color=818cf8&qzone=2`}
+                  alt="QR code to open on mobile"
+                  width={100} height={100}
+                  className="rounded-xl"
+                  loading="lazy"
+                />
+              </div>
+            )}
+
             <div className="flex flex-col sm:flex-row gap-2 justify-center text-xs text-gray-500">
               <div className="flex items-center gap-1.5"><span className="text-green-400">✓</span> Camera access</div>
               <div className="flex items-center gap-1.5"><span className="text-green-400">✓</span> Compass/gyroscope</div>

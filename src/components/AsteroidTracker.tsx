@@ -18,7 +18,7 @@ export default function AsteroidTracker() {
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10)
     const end = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10)
-    fetch(`https://api.nasa.gov/neo/rest/v1/feed?start_date=${today}&end_date=${end}&api_key=DEMO_KEY`)
+    fetch(`/api/neo?start_date=${today}&end_date=${end}`)
       .then(r => { if (!r.ok) throw new Error(''); return r.json() })
       .then(data => {
         const all: Asteroid[] = []
@@ -72,7 +72,7 @@ export default function AsteroidTracker() {
         <div className="text-center py-8">
           <div className="text-4xl mb-2">☄️</div>
           <p className="text-gray-500 text-sm">Could not load asteroid data</p>
-          <p className="text-gray-700 text-xs mt-1">DEMO_KEY rate limit may apply — try again in an hour</p>
+          <p className="text-gray-700 text-xs mt-1">NASA NEO API temporarily unavailable</p>
         </div>
       )}
 

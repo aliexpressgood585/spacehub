@@ -168,7 +168,7 @@ function MainApp() {
   }, [])
 
   useEffect(() => {
-    fetch('https://api.wheretheiss.at/v1/satellites/25544')
+    fetch('/api/iss')
       .then(r => r.json())
       .then(d => setIssData({ lat: d.latitude, lng: d.longitude, alt: d.altitude }))
       .catch(() => {})

@@ -39,7 +39,7 @@ export default function AstronautsInSpace() {
       Promise.race([p, new Promise<T>(res => setTimeout(() => res(fallback), ms))])
 
     const notifyP = withTimeout(
-      fetch('https://api.open-notify.org/astros.json')
+      fetch('/api/astros')
         .then(r => r.json())
         .then(d => d.people as { name: string; craft: string }[])
         .catch(() => FALLBACK.map(p => ({ name: p.name, craft: p.craft }))),

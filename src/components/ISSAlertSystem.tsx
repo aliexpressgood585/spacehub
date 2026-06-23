@@ -70,7 +70,7 @@ export default function ISSAlertSystem() {
     if (intervalRef.current) clearInterval(intervalRef.current)
 
     const fetchAndCalc = () => {
-      fetch('https://api.wheretheiss.at/v1/satellites/25544')
+      fetch('/api/iss')
         .then(r => r.json())
         .then((data: ISSData) => {
           setIss(data)
