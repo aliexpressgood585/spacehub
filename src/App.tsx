@@ -443,7 +443,7 @@ function MainApp() {
           {/* Footer aurora line */}
           <div aria-hidden="true" style={{ position: 'absolute', top: -1, left: '10%', right: '10%', height: 1, background: 'linear-gradient(90deg, transparent, rgba(99,102,241,0.5), rgba(139,92,246,0.6), transparent)' }} />
 
-          <div className="max-w-5xl mx-auto px-4 py-16">
+          <div className="max-w-5xl mx-auto px-4 pt-16 md:py-16" style={{ paddingBottom: 'max(80px, calc(64px + env(safe-area-inset-bottom)))' }}>
 
             {/* Top row */}
             <div className="flex flex-col md:flex-row items-center md:items-start gap-12 mb-14">
