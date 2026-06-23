@@ -32,11 +32,15 @@ function windColor(speed: number) {
   return '#4ade80'
 }
 
+const SW_CACHE_KEY = 'sw_cache_v1'
+const SW_CACHE_TTL = 60 * 60 * 1000 // 1 hour
+
 export default function SpaceWeather() {
   const [kp, setKp] = useState<number | null>(null)
   const [windSpeed, setWindSpeed] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState(false)
+  const [fromCache, setFromCache] = useState(false)
   const [updated, setUpdated] = useState('')
 
   useEffect(() => {
@@ -50,9 +54,28 @@ export default function SpaceWeather() {
       const speedVal = parseFloat(lastWind[2])
       if (!isNaN(kpVal)) setKp(kpVal)
       if (!isNaN(speedVal)) setWindSpeed(speedVal)
-      setUpdated(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }))
+      const ts = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      setUpdated(ts)
+      try { localStorage.setItem(SW_CACHE_KEY, JSON.stringify({ ts: Date.now(), kp: kpVal, wind: speedVal, label: ts })) } catch {}
       setLoading(false)
-    }).catch(() => { setFetchError(true); setLoading(false) })
+    }).catch(() => {
+      try {
+        const raw = localStorage.getItem(SW_CACHE_KEY)
+        if (raw) {
+          const c = JSON.parse(raw)
+          if (Date.now() - c.ts < SW_CACHE_TTL) {
+            if (!isNaN(c.kp)) setKp(c.kp)
+            if (!isNaN(c.wind)) setWindSpeed(c.wind)
+            setUpdated(c.label)
+            setFromCache(true)
+            setLoading(false)
+            return
+          }
+        }
+      } catch {}
+      setFetchError(true)
+      setLoading(false)
+    })
   }, [])
 
   const kpC = kp !== null ? kpColor(kp) : '#6b7280'
@@ -110,9 +133,15 @@ export default function SpaceWeather() {
             <h3 className="text-white font-bold text-xl">Space Weather</h3>
             <p className="text-gray-500 text-xs">Real-time solar & geomagnetic conditions · NOAA SWPC{updated ? ` · Updated ${updated}` : ''}</p>
           </div>
-          <div className="live-badge">
-            <span className="live-dot" /> LIVE
-          </div>
+          {fromCache ? (
+            <span className="text-[10px] px-2.5 py-1 rounded-full font-bold" style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', color: '#fbbf24' }}>
+              📦 CACHED
+            </span>
+          ) : (
+            <div className="live-badge">
+              <span className="live-dot" /> LIVE
+            </div>
+          )}
         </div>
 
         <div className="space-y-2 mb-6">
