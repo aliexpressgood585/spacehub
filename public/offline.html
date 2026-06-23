@@ -4,21 +4,132 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SpaceHub — Offline</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700;900&display=swap" rel="stylesheet">
   <style>
-    body { margin: 0; background: #020510; color: #e2e8f0; font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-    .card { text-align: center; padding: 40px 24px; }
-    .icon { font-size: 64px; margin-bottom: 16px; }
-    h1 { font-size: 24px; font-weight: 900; color: #fff; margin: 0 0 8px; }
-    p { color: #6b7280; font-size: 15px; margin: 0 0 24px; }
-    button { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #fff; border: none; padding: 12px 28px; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #020510;
+      color: #e2e8f0;
+      font-family: 'Space Grotesk', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+    .stars { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+    .star {
+      position: absolute;
+      border-radius: 50%;
+      background: #fff;
+      animation: twinkle var(--d, 3s) ease-in-out infinite var(--delay, 0s);
+    }
+    @keyframes twinkle {
+      0%, 100% { opacity: var(--min-op, 0.2); transform: scale(1); }
+      50%       { opacity: var(--max-op, 0.9); transform: scale(1.4); }
+    }
+    .aurora {
+      position: fixed; top: 0; left: -10%; right: -10%; height: 3px;
+      background: linear-gradient(90deg, transparent, rgba(99,102,241,0.7) 25%, rgba(139,92,246,1) 50%, rgba(56,189,248,0.7) 75%, transparent);
+      animation: aurora-pulse 5s ease-in-out infinite;
+      filter: blur(1px); z-index: 0;
+    }
+    .aurora-glow {
+      position: fixed; top: 0; left: 0; right: 0; height: 120px;
+      background: linear-gradient(180deg, rgba(99,102,241,0.1) 0%, transparent 100%);
+      animation: aurora-pulse 5s ease-in-out infinite; z-index: 0;
+    }
+    @keyframes aurora-pulse {
+      0%, 100% { opacity: 0.5; } 50% { opacity: 1; }
+    }
+    .orb {
+      position: fixed; border-radius: 50%; pointer-events: none;
+      filter: blur(80px); z-index: 0;
+      animation: orb-drift 8s ease-in-out infinite;
+    }
+    @keyframes orb-drift {
+      0%, 100% { transform: translate(0,0) scale(1); }
+      50%       { transform: translate(20px,-15px) scale(1.05); }
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0) rotate(-5deg); }
+      50%       { transform: translateY(-18px) rotate(5deg); }
+    }
+    .rocket {
+      font-size: 72px;
+      animation: float 4s ease-in-out infinite;
+      display: block; text-align: center; margin-bottom: 24px;
+      filter: drop-shadow(0 0 24px rgba(99,102,241,0.6));
+    }
+    .card {
+      position: relative; z-index: 1; text-align: center;
+      padding: 48px 40px; max-width: 440px;
+      width: calc(100% - 32px);
+      background: linear-gradient(145deg, rgba(13,16,45,0.96), rgba(8,11,34,0.96));
+      border: 1px solid rgba(99,102,241,0.25); border-radius: 28px;
+      backdrop-filter: blur(24px);
+      box-shadow: 0 40px 120px rgba(0,0,0,0.6), 0 0 0 1px rgba(99,102,241,0.08) inset;
+    }
+    h1 { font-size: 28px; font-weight: 900; color: #fff; margin-bottom: 10px; letter-spacing: -0.02em; }
+    .gradient-text {
+      background: linear-gradient(135deg, #818cf8, #a78bfa, #c4b5fd);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    p { color: #6b7280; font-size: 15px; line-height: 1.65; margin-bottom: 28px; }
+    .pills { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 24px; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.2);
+      border-radius: 999px; padding: 6px 14px; font-size: 12px; color: #818cf8; font-weight: 600;
+    }
+    button {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: linear-gradient(90deg, #4338ca, #6366f1, #8b5cf6, #6366f1, #4338ca);
+      background-size: 200% auto; animation: shimmer 4s linear infinite;
+      color: #fff; border: none; padding: 14px 32px; border-radius: 14px;
+      font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit;
+      box-shadow: 0 4px 24px rgba(99,102,241,0.4);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    button:hover { transform: translateY(-2px); box-shadow: 0 8px 36px rgba(99,102,241,0.55); }
+    @keyframes shimmer { 0% { background-position: 0% center; } 100% { background-position: 200% center; } }
+    .time { margin-top: 20px; font-size: 12px; color: #374151; letter-spacing: 0.05em; }
   </style>
 </head>
 <body>
+  <div class="stars" id="stars"></div>
+  <div class="aurora"></div>
+  <div class="aurora-glow"></div>
+  <div class="orb" style="width:500px;height:500px;top:-150px;left:-100px;background:radial-gradient(circle,rgba(99,102,241,0.15) 0%,transparent 70%);"></div>
+  <div class="orb" style="width:400px;height:400px;bottom:-100px;right:-80px;background:radial-gradient(circle,rgba(139,92,246,0.12) 0%,transparent 70%);animation-delay:-4s;"></div>
+
   <div class="card">
-    <div class="icon">🛸</div>
-    <h1>You're offline</h1>
-    <p>SpaceHub needs a connection to fetch live space data.<br>Check your internet and try again.</p>
-    <button onclick="location.reload()">🔄 Try Again</button>
+    <div class="rocket">🛸</div>
+    <h1>You're in <span class="gradient-text">deep space</span></h1>
+    <p>SpaceHub needs a connection to stream live space data.<br>Check your internet and re-launch.</p>
+    <div class="pills">
+      <span class="pill">🌍 Cached data available</span>
+      <span class="pill">📡 Live updates paused</span>
+    </div>
+    <button onclick="location.reload()"><span>🔄</span> Re-launch</button>
+    <p class="time" id="clock"></p>
   </div>
+
+  <script>
+    const container = document.getElementById('stars')
+    for (let i = 0; i < 140; i++) {
+      const s = document.createElement('div')
+      s.className = 'star'
+      const size = Math.random() * 2 + 0.5
+      s.style.cssText = `width:${size}px;height:${size}px;top:${Math.random()*100}%;left:${Math.random()*100}%;--d:${(Math.random()*4+2).toFixed(1)}s;--delay:-${(Math.random()*5).toFixed(1)}s;--min-op:${(Math.random()*0.2+0.05).toFixed(2)};--max-op:${(Math.random()*0.5+0.5).toFixed(2)};`
+      container.appendChild(s)
+    }
+    const clock = document.getElementById('clock')
+    const tick = () => clock.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    tick(); setInterval(tick, 1000)
+  </script>
 </body>
 </html>

@@ -115,6 +115,19 @@ export default function ShareCard({ issLat, issLng, issAlt, city }: Props) {
     })
   }, [])
 
+  const nativeShare = useCallback(async () => {
+    const text = `🛸 ISS is now at ${issLat?.toFixed(1)}°, ${issLng?.toFixed(1)}° — altitude ${issAlt?.toFixed(0)} km!\nTrack live:`
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'SpaceHub — ISS Live', text, url: 'https://spacehub-nu.vercel.app' })
+      } catch { /* user cancelled */ }
+    } else {
+      copyLink()
+    }
+  }, [issLat, issLng, issAlt, copyLink])
+
+  const canNativeShare = typeof navigator !== 'undefined' && 'share' in navigator
+
   return (
     <div className="space-card p-5">
       <div className="flex items-center gap-3 mb-4">
@@ -123,7 +136,13 @@ export default function ShareCard({ issLat, issLng, issAlt, city }: Props) {
       </div>
       <canvas ref={canvasRef} className="hidden" />
       <div className="flex gap-2 flex-wrap">
-        <button onClick={generate} className="btn-shimmer px-4 py-2.5 text-sm flex items-center gap-2">
+        {canNativeShare && (
+          <button onClick={nativeShare} className="btn-shimmer px-4 py-2.5 text-sm flex items-center gap-2">
+            <span>🔗</span> Share
+          </button>
+        )}
+        <button onClick={generate} className={`px-4 py-2.5 text-sm rounded-xl transition flex items-center gap-2 font-semibold ${!canNativeShare ? 'btn-shimmer' : ''}`}
+          style={canNativeShare ? { background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.3)', color: '#a5b4fc' } : {}}>
           <span>⬇️</span> Download
         </button>
         <button onClick={shareWA} className="px-4 py-2.5 text-sm rounded-xl transition flex items-center gap-2 font-semibold"
@@ -134,10 +153,12 @@ export default function ShareCard({ issLat, issLng, issAlt, city }: Props) {
           style={{ background: 'rgba(29,161,242,0.12)', border: '1px solid rgba(29,161,242,0.3)', color: '#60a5fa' }}>
           𝕏 Tweet
         </button>
-        <button onClick={copyLink} className="px-4 py-2.5 text-sm rounded-xl transition flex items-center gap-2 font-semibold"
-          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: copied ? '#4ade80' : '#9ca3af' }}>
-          {copied ? '✓ Copied!' : '🔗 Copy link'}
-        </button>
+        {!canNativeShare && (
+          <button onClick={copyLink} className="px-4 py-2.5 text-sm rounded-xl transition flex items-center gap-2 font-semibold"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: copied ? '#4ade80' : '#9ca3af' }}>
+            {copied ? '✓ Copied!' : '🔗 Copy link'}
+          </button>
+        )}
       </div>
     </div>
   )

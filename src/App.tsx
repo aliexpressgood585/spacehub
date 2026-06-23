@@ -42,6 +42,7 @@ const ExoplanetExplorer = lazy(() => import('./components/ExoplanetExplorer'))
 const GalaxyExplorer = lazy(() => import('./components/GalaxyExplorer'))
 const ARSkyView = lazy(() => import('./components/ARSkyView'))
 import Reveal from './components/Reveal'
+import NotificationBanner from './components/NotificationBanner'
 import { ISSProvider, useISS } from './contexts/ISSContext'
 import BlogPage from './pages/BlogPage'
 import BlogArticlePage from './pages/BlogArticlePage'
@@ -230,6 +231,7 @@ function MainApp() {
       <div className="relative" style={{ zIndex: 1 }}>
         <Header onPremium={goToPremium} />
         <LiveTicker />
+        <NotificationBanner />
         {activeTab === 'dashboard' && <Hero onPremium={() => {}} onScrollToISS={scrollToISS} />}
 
         {/* Divider */}

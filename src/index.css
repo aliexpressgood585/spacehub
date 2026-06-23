@@ -673,36 +673,70 @@ html.light-mode .space-bg-canvas {
 
 /* ── MOBILE RESPONSIVE ── */
 @media (max-width: 640px) {
-  .icon-box {
-    width: 40px;
-    height: 40px;
-    font-size: 18px;
-    border-radius: 11px;
+  /* Touch targets — WCAG 2.5.5: at least 44×44px */
+  button, a[role="button"], .tab-pill, select {
+    min-height: 44px;
   }
 
-  .space-card {
-    border-radius: 16px;
+  .icon-box {
+    width: 40px; height: 40px;
+    font-size: 18px; border-radius: 11px;
   }
+
+  .space-card { border-radius: 16px; }
+  .stat-card  { border-radius: 14px; padding: 16px 12px; }
 
   .tab-pill {
-    padding: 7px 13px;
+    padding: 8px 13px;
     font-size: 11px;
+    min-height: 36px; /* tabs can be a bit smaller */
   }
 
   .countdown-digit {
-    min-width: 54px;
-    padding: 10px 12px;
-    border-radius: 11px;
+    min-width: 54px; padding: 10px 12px; border-radius: 11px;
   }
 
-  /* Prevent horizontal scroll from fixed-width SVGs */
-  svg {
-    max-width: 100%;
-    height: auto;
-  }
+  /* Hero tweaks */
+  .hero-bg { min-height: 480px; }
+
+  /* Prevent horizontal overflow from fixed-width SVGs / canvases */
+  svg, canvas { max-width: 100%; height: auto; }
 
   /* Stack grids on mobile */
-  .mobile-stack {
-    grid-template-columns: 1fr !important;
+  .mobile-stack { grid-template-columns: 1fr !important; }
+
+  /* Better body padding for thumb zones */
+  .max-w-7xl { padding-left: 12px; padding-right: 12px; }
+
+  /* Smaller section headings */
+  h2.text-2xl { font-size: 1.2rem; }
+  h3.text-xl  { font-size: 1rem; }
+
+  /* Ticker slower on mobile so it's readable */
+  @keyframes ticker-mobile {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  /* Full-width share buttons on mobile */
+  .share-row { flex-direction: column; }
+  .share-row button { width: 100%; justify-content: center; }
+
+  /* Ad banners: hide on very small screens to avoid layout break */
+  .ad-mobile-hide { display: none; }
+}
+
+/* Landscape phones */
+@media (max-width: 812px) and (orientation: landscape) {
+  .hero-bg { min-height: 340px; }
+}
+
+/* ── SAFE AREA (iPhone notch / home bar) ── */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .sticky-bottom {
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+  body {
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }
