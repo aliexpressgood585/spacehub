@@ -1068,8 +1068,8 @@ export default function StarMap() {
     const canvas = canvasRef.current
     if (!canvas) return
     const rect = canvas.getBoundingClientRect()
-    const cx = (e.clientX - rect.left) * 480 / rect.width
-    const cy = (e.clientY - rect.top)  * 480 / rect.height
+    const cx = (e.clientX - rect.left) * 700 / rect.width
+    const cy = (e.clientY - rect.top)  * 700 / rect.height
 
     let best: HitItem | null = null, bestDist = 22
     for (const item of hitRef.current) {
@@ -1078,8 +1078,8 @@ export default function StarMap() {
       if (d < bestDist) { bestDist = d; best = item }
     }
     if (best) {
-      const sx = best.x * rect.width / 480
-      const sy = best.y * rect.height / 480
+      const sx = best.x * rect.width / 700
+      const sy = best.y * rect.height / 700
       setTooltip({ ...best, sx, sy, flipLeft: sx > rect.width - 165 })
     } else {
       setTooltip(null)
@@ -1107,8 +1107,8 @@ export default function StarMap() {
       if (dd < bestDist) { bestDist = dd; best = item }
     }
     if (best) {
-      const sx = best.x * rect.width / 480
-      const sy = best.y * rect.height / 480
+      const sx = best.x * rect.width / 700
+      const sy = best.y * rect.height / 700
       setTooltip({ ...best, sx, sy, flipLeft: sx > rect.width - 165 })
       if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current)
       tooltipTimerRef.current = setTimeout(() => setTooltip(null), 3000)
@@ -1297,11 +1297,11 @@ export default function StarMap() {
       <div className="flex justify-center mb-4 relative">
         <canvas
           ref={canvasRef}
-          width={480}
-          height={480}
+          width={700}
+          height={700}
           aria-label="Interactive star map — hover or tap stars/planets/DSOs for details"
           className="rounded-full cursor-crosshair touch-none"
-          style={{ maxWidth: '100%', maxHeight: '66vw' }}
+          style={{ width: '100%', maxWidth: 660, aspectRatio: '1/1' }}
           onMouseDown={e => { setDragging(true); setPrevX(e.clientX) }}
           onMouseMove={handleMouseMove}
           onMouseUp={() => setDragging(false)}
