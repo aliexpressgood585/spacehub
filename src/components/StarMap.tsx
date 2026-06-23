@@ -133,6 +133,38 @@ function computeRADec(name: string, d: number): { ra: number; dec: number } | nu
   }
 }
 
+// ── MOON EPHEMERIS (Paul Schlyter simplified) ─────────────────
+function computeMoon(d: number): { ra: number; dec: number; phase: number } {
+  const N = rev(125.1228 - 0.0529538083 * d)
+  const w = rev(318.0634 + 0.1643573223 * d)
+  const e = 0.054900
+  const M = rev(115.3654 + 13.0649929509 * d)
+  const E = solveKepler(M * DEG, e)
+  const xv = 60.2666 * (Math.cos(E) - e)
+  const yv = 60.2666 * Math.sqrt(1 - e * e) * Math.sin(E)
+  const v   = Math.atan2(yv, xv)
+  const rr  = Math.sqrt(xv * xv + yv * yv)
+  const lonR = v + (w - N) * DEG
+  const Nr   = N * DEG, iR = 5.1454 * DEG
+  const xe = rr * (Math.cos(Nr) * Math.cos(lonR) - Math.sin(Nr) * Math.sin(lonR) * Math.cos(iR))
+  const ye = rr * (Math.sin(Nr) * Math.cos(lonR) + Math.cos(Nr) * Math.sin(lonR) * Math.cos(iR))
+  const ze = rr * Math.sin(lonR) * Math.sin(iR)
+  const ecl = (23.4393 - 3.563e-7 * d) * DEG
+  const yeq = ye * Math.cos(ecl) - ze * Math.sin(ecl)
+  const zeq = ye * Math.sin(ecl) + ze * Math.cos(ecl)
+  const ra  = rev(Math.atan2(yeq, xe) * 180 / Math.PI) / 15
+  const dec = Math.asin(Math.max(-1, Math.min(1, zeq / rr))) * 180 / Math.PI
+  // Phase from elongation vs Sun
+  const sunR = computeRADec('Sun', d)
+  let phase = 0.5
+  if (sunR) {
+    const mLon = Math.atan2(yeq, xe) * 180 / Math.PI
+    const sLon = sunR.ra * 15
+    phase = (1 - Math.cos(rev(mLon - sLon) * DEG)) / 2
+  }
+  return { ra, dec, phase }
+}
+
 // ── TEMPERATURE HELPERS ────────────────────────────────────────
 function tempColor(t: number) {
   if (t >= 25000) return '#a0b8ff'
@@ -492,6 +524,7 @@ export default function StarMap() {
   const [showGrid, setShowGrid]                     = useState(false)
 
   const [tooltip, setTooltip] = useState<Tooltip | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
 
   // Effective time = now + user offset
   const effectiveTime = new Date(time.getTime() + timeOffsetMin * 60_000)
@@ -620,7 +653,7 @@ export default function StarMap() {
       })
     }
 
-    // ── Constellation lines ──
+    // ── Constellation lines + labels ──
     if (showConstellations) {
       CONSTELLATION_LINES.forEach(({ a, b }) => {
         const sa = STARS[a], sb = STARS[b]
@@ -633,6 +666,32 @@ export default function StarMap() {
         ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y)
         ctx.strokeStyle = 'rgba(120,135,255,0.45)'; ctx.lineWidth = 1.2; ctx.stroke()
       })
+
+      if (showLabels) {
+        // Compute centroid per constellation name
+        const conMap = new Map<string, { sx: number; sy: number; n: number; minAlt: number }>()
+        CONSTELLATION_LINES.forEach(({ a, b, name }) => {
+          for (const idx of [a, b]) {
+            const s = STARS[idx]; if (!s) continue
+            const hz = toHorizon(s[1], s[2], lst, loc.lat)
+            if (hz.alt < 3) continue
+            const pt = project(hz.alt, (hz.az + rotation) % 360, cx, cy, r, 0)
+            const cur = conMap.get(name) ?? { sx: 0, sy: 0, n: 0, minAlt: 90 }
+            conMap.set(name, { sx: cur.sx + pt.x, sy: cur.sy + pt.y, n: cur.n + 1, minAlt: Math.min(cur.minAlt, hz.alt) })
+          }
+        })
+        ctx.font = 'italic 9px \'Space Grotesk\', system-ui'
+        ctx.textAlign = 'center'
+        conMap.forEach(({ sx, sy, n }, name) => {
+          if (n < 2) return
+          const lx = sx / n, ly = sy / n
+          ctx.fillStyle = 'rgba(0,0,0,0.5)'
+          ctx.fillText(name, lx + 0.5, ly + 0.5)
+          ctx.fillStyle = 'rgba(140,150,255,0.65)'
+          ctx.fillText(name, lx, ly)
+        })
+        ctx.textAlign = 'left'
+      }
     }
 
     // ── Stars ──
@@ -717,6 +776,78 @@ export default function StarMap() {
       })
     }
 
+    // ── Moon ──
+    {
+      const moon = computeMoon(d)
+      const { alt, az } = toHorizon(moon.ra, moon.dec, lst, loc.lat)
+      if (alt > -5) {
+        const { x, y } = project(alt, (az + rotation) % 360, cx, cy, r, 0)
+        const ext  = extinction(alt)
+        const mR   = 7
+        const alpha = ext < 0.3 ? 0.28 : ext
+
+        // Moon disc
+        ctx.globalAlpha = alpha
+        const moonGrad = ctx.createRadialGradient(x - mR * 0.3, y - mR * 0.3, 0, x, y, mR * 1.8)
+        moonGrad.addColorStop(0, 'rgba(230,235,255,0.3)')
+        moonGrad.addColorStop(1, 'transparent')
+        ctx.beginPath(); ctx.arc(x, y, mR * 1.8, 0, Math.PI * 2)
+        ctx.fillStyle = moonGrad; ctx.fill()
+
+        // Base disc
+        ctx.beginPath(); ctx.arc(x, y, mR, 0, Math.PI * 2)
+        ctx.fillStyle = 'rgba(210,218,255,0.92)'; ctx.fill()
+
+        // Phase shadow overlay
+        const phase = moon.phase // 0=new, 0.5=full, 1=new
+        const waning = phase > 0.5
+        const illum  = waning ? 2 * (1 - phase) : 2 * phase
+        ctx.save()
+        ctx.beginPath(); ctx.arc(x, y, mR, 0, Math.PI * 2); ctx.clip()
+        // Dark half
+        ctx.fillStyle = 'rgba(5,8,28,0.88)'
+        ctx.beginPath()
+        if (phase < 0.5) {
+          // Waxing: right side lit
+          ctx.arc(x, y, mR, Math.PI / 2, -Math.PI / 2)
+          ctx.ellipse(x, y, mR * (1 - illum), mR, 0, -Math.PI / 2, Math.PI / 2)
+        } else {
+          // Waning: left side lit
+          ctx.arc(x, y, mR, -Math.PI / 2, Math.PI / 2)
+          ctx.ellipse(x, y, mR * (1 - illum), mR, 0, Math.PI / 2, -Math.PI / 2)
+        }
+        ctx.fill()
+        ctx.restore()
+
+        if (showLabels && alt > 2) {
+          ctx.globalAlpha = alpha
+          ctx.font = 'bold 9px \'Space Grotesk\', system-ui'
+          ctx.textAlign = 'left'
+          const pct = Math.round(moon.phase <= 0.5 ? moon.phase * 200 : (1 - moon.phase) * 200)
+          ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillText(`🌙 Moon ${pct}%`, x + mR + 5, y + 4)
+          ctx.fillStyle = 'rgba(200,210,255,0.9)'; ctx.fillText(`🌙 Moon ${pct}%`, x + mR + 4, y + 3)
+        }
+        ctx.globalAlpha = 1
+        hitRef.current.push({ name: `Moon (${Math.round(moon.phase <= 0.5 ? moon.phase * 200 : (1 - moon.phase) * 200)}% lit)`, x, y, alt, color: '#c8d2ff', isPlanet: true, symbol: '🌙' })
+      }
+    }
+
+    // ── Search highlight ──
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase()
+      const match = hitRef.current.find(h => h.name.toLowerCase().includes(q))
+      if (match) {
+        const pulse = 0.55 + 0.45 * Math.sin(Date.now() / 400)
+        ctx.globalAlpha = pulse
+        ctx.beginPath(); ctx.arc(match.x, match.y, 18, 0, Math.PI * 2)
+        ctx.strokeStyle = '#facc15'; ctx.lineWidth = 2.5; ctx.stroke()
+        ctx.globalAlpha = pulse * 0.3
+        ctx.beginPath(); ctx.arc(match.x, match.y, 24, 0, Math.PI * 2)
+        ctx.strokeStyle = '#facc15'; ctx.lineWidth = 1; ctx.stroke()
+        ctx.globalAlpha = 1
+      }
+    }
+
     // Cardinal direction labels
     DIRECTION_LABELS.forEach((label, idx) => {
       const az = idx * 45
@@ -730,9 +861,18 @@ export default function StarMap() {
     ctx.beginPath(); ctx.arc(cx, cy, 2.5, 0, Math.PI * 2)
     ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fill()
     ctx.restore()
-  }, [loc, time, timeOffsetMin, rotation, showPlanets, showConstellations, showMilkyWay, showDSOs, showLabels, showTemp, showGrid, d, effectiveTime])
+  }, [loc, time, timeOffsetMin, rotation, showPlanets, showConstellations, showMilkyWay, showDSOs, showLabels, showTemp, showGrid, d, effectiveTime, searchQuery])
 
-  useEffect(() => { draw() }, [draw])
+  const rafRef = useRef<number>(0)
+  useEffect(() => {
+    if (searchQuery) {
+      const loop = () => { draw(); rafRef.current = requestAnimationFrame(loop) }
+      rafRef.current = requestAnimationFrame(loop)
+      return () => cancelAnimationFrame(rafRef.current)
+    } else {
+      draw()
+    }
+  }, [draw, searchQuery])
   useEffect(() => {
     const id = setInterval(() => setTime(new Date()), 60_000)
     return () => clearInterval(id)
@@ -947,6 +1087,37 @@ export default function StarMap() {
           ))}
         </div>
       )}
+
+      {/* Search */}
+      <div className="flex items-center gap-2 mb-3">
+        <div className="relative flex-1">
+          <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#6b7280', pointerEvents: 'none' }}>🔍</span>
+          <input
+            type="text"
+            placeholder="Search star, planet or DSO…"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            style={{
+              width: '100%',
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 10,
+              padding: '6px 10px 6px 30px',
+              color: '#e2e8f0',
+              fontSize: 12,
+              outline: 'none',
+            }}
+            aria-label="Search star map"
+          />
+        </div>
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery('')}
+            style={{ color: '#6b7280', fontSize: 18, lineHeight: 1, background: 'none', border: 'none', cursor: 'pointer' }}
+            aria-label="Clear search"
+          >×</button>
+        )}
+      </div>
 
       {/* Canvas + tooltip overlay */}
       <div className="flex justify-center mb-4 relative">
