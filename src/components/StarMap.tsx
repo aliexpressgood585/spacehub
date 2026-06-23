@@ -111,117 +111,145 @@ function computeRADec(name: string, d: number): { ra: number; dec: number } | nu
   }
 }
 
-// ── STAR CATALOG: [name, RA_h, Dec_deg, magnitude, color] ─────
-// index numbers used in CONSTELLATION_LINES below
-const STARS: [string, number, number, number, string][] = [
-  ['Sirius',     6.752,  -16.72, -1.46, '#a8d8ff'],  // 0
-  ['Canopus',    6.399,  -52.70, -0.74, '#fffbe0'],  // 1
-  ['Arcturus',  14.261,   19.18, -0.05, '#ffcc88'],  // 2
-  ['Vega',      18.615,   38.78,  0.03, '#cce0ff'],  // 3
-  ['Capella',    5.278,   45.99,  0.08, '#ffe8a0'],  // 4
-  ['Rigel',      5.243,   -8.20,  0.18, '#cce8ff'],  // 5
-  ['Procyon',    7.655,    5.22,  0.40, '#fff8e0'],  // 6
-  ['Betelgeuse', 5.919,    7.41,  0.45, '#ffaa66'],  // 7
-  ['Achernar',   1.629,  -57.24,  0.45, '#cce0ff'],  // 8
-  ['Hadar',     14.066,  -60.37,  0.61, '#aaccff'],  // 9
-  ['Altair',    19.846,    8.87,  0.77, '#fffbe0'],  // 10
-  ['Deneb',     20.690,   45.28,  1.25, '#cce0ff'],  // 11
-  ['Antares',   16.490,  -26.43,  1.06, '#ff6644'],  // 12
-  ['Spica',     13.420,  -11.16,  0.98, '#cce0ff'],  // 13
-  ['Fomalhaut', 22.961,  -29.62,  1.16, '#fffbe0'],  // 14
-  ['Pollux',     7.755,   28.03,  1.16, '#ffcc88'],  // 15
-  ['Castor',     7.577,   31.89,  1.58, '#cce0ff'],  // 16
-  ['Aldebaran',  4.599,   16.51,  0.87, '#ff9944'],  // 17
-  ['Regulus',   10.140,   11.97,  1.36, '#cce0ff'],  // 18
-  ['Adhara',     6.977,  -28.97,  1.50, '#cce0ff'],  // 19
-  ['Acrux',     12.443,  -63.10,  0.77, '#cce0ff'],  // 20
-  ['Gacrux',    12.519,  -57.11,  1.59, '#ff8866'],  // 21
-  ['Shaula',    17.560,  -37.10,  1.63, '#cce0ff'],  // 22
-  ['Mirfak',     3.405,   49.86,  1.80, '#fffbe0'],  // 23
-  ['Diphda',     0.655,  -17.99,  2.04, '#cce0ff'],  // 24
-  // Orion constellation stars
-  ['Bellatrix',  5.419,    6.35,  1.64, '#aaccff'],  // 25
-  ['Mintaka',    5.533,   -0.30,  2.23, '#aaccff'],  // 26
-  ['Alnilam',    5.604,   -1.20,  1.69, '#aaccff'],  // 27
-  ['Alnitak',    5.679,   -1.94,  1.72, '#aaccff'],  // 28
-  ['Saiph',      5.796,   -9.67,  2.07, '#aaccff'],  // 29
+// ── TEMPERATURE HELPERS ────────────────────────────────────────
+function tempColor(t: number) {
+  if (t >= 25000) return '#a0b8ff'  // O: hot blue
+  if (t >= 10000) return '#c8d8ff'  // B: blue-white
+  if (t >= 7500)  return '#f0f4ff'  // A: white
+  if (t >= 6000)  return '#fff4c0'  // F: yellow-white
+  if (t >= 5200)  return '#ffe080'  // G: yellow (Sun-like)
+  if (t >= 3700)  return '#ffa040'  // K: orange
+  return '#ff6020'                   // M: cool red
+}
+
+function spectralClass(t: number) {
+  if (t >= 25000) return 'O'
+  if (t >= 10000) return 'B'
+  if (t >= 7500)  return 'A'
+  if (t >= 6000)  return 'F'
+  if (t >= 5200)  return 'G'
+  if (t >= 3700)  return 'K'
+  return 'M'
+}
+
+function fmtTempShort(t: number) {
+  return t >= 10000 ? `${Math.round(t / 1000)}kK` : `${Math.round(t / 100) * 100}K`
+}
+
+function fmtTempFull(t: number) {
+  return t >= 10000 ? `${(t / 1000).toFixed(1)}k K` : `${t.toLocaleString()} K`
+}
+
+// ── STAR CATALOG: [name, RA_h, Dec_deg, magnitude, color, temp_K] ─────
+const STARS: [string, number, number, number, string, number][] = [
+  ['Sirius',      6.752, -16.72, -1.46, '#a8d8ff',  9940],  // 0  A1V
+  ['Canopus',     6.399, -52.70, -0.74, '#fffbe0',  7350],  // 1  A9II
+  ['Arcturus',   14.261,  19.18, -0.05, '#ffcc88',  4290],  // 2  K1.5III
+  ['Vega',       18.615,  38.78,  0.03, '#cce0ff',  9602],  // 3  A0V
+  ['Capella',     5.278,  45.99,  0.08, '#ffe8a0',  5000],  // 4  G5III
+  ['Rigel',       5.243,  -8.20,  0.18, '#cce8ff', 12100],  // 5  B8Ia
+  ['Procyon',     7.655,   5.22,  0.40, '#fff8e0',  6530],  // 6  F5IV
+  ['Betelgeuse',  5.919,   7.41,  0.45, '#ffaa66',  3500],  // 7  M1-M2Ia
+  ['Achernar',    1.629, -57.24,  0.45, '#cce0ff', 15000],  // 8  B6V
+  ['Hadar',      14.066, -60.37,  0.61, '#aaccff', 25000],  // 9  B1III
+  ['Altair',     19.846,   8.87,  0.77, '#fffbe0',  7550],  // 10 A7V
+  ['Deneb',      20.690,  45.28,  1.25, '#cce0ff',  8525],  // 11 A2Ia
+  ['Antares',    16.490, -26.43,  1.06, '#ff6644',  3400],  // 12 M1.5Iab
+  ['Spica',      13.420, -11.16,  0.98, '#cce0ff', 25300],  // 13 B1V
+  ['Fomalhaut',  22.961, -29.62,  1.16, '#fffbe0',  8590],  // 14 A3V
+  ['Pollux',      7.755,  28.03,  1.16, '#ffcc88',  4586],  // 15 K0III
+  ['Castor',      7.577,  31.89,  1.58, '#cce0ff',  8842],  // 16 A1V
+  ['Aldebaran',   4.599,  16.51,  0.87, '#ff9944',  3910],  // 17 K5III
+  ['Regulus',    10.140,  11.97,  1.36, '#cce0ff', 12460],  // 18 B7V
+  ['Adhara',      6.977, -28.97,  1.50, '#cce0ff', 22900],  // 19 B2Ia
+  ['Acrux',      12.443, -63.10,  0.77, '#cce0ff', 28000],  // 20 B0.5IV
+  ['Gacrux',     12.519, -57.11,  1.59, '#ff8866',  3600],  // 21 M3.5III
+  ['Shaula',     17.560, -37.10,  1.63, '#cce0ff', 22000],  // 22 B1.5IV
+  ['Mirfak',      3.405,  49.86,  1.80, '#fffbe0',  6350],  // 23 F5Ib
+  ['Diphda',      0.655, -17.99,  2.04, '#ffcc88',  4797],  // 24 K0III
+  // Orion
+  ['Bellatrix',   5.419,   6.35,  1.64, '#aaccff', 22000],  // 25 B2III
+  ['Mintaka',     5.533,  -0.30,  2.23, '#aaccff', 29500],  // 26 O9.5II
+  ['Alnilam',     5.604,  -1.20,  1.69, '#aaccff', 27000],  // 27 B0Ia
+  ['Alnitak',     5.679,  -1.94,  1.72, '#aaccff', 29900],  // 28 O9.7Ib
+  ['Saiph',       5.796,  -9.67,  2.07, '#aaccff', 26500],  // 29 B0.5Ia
   // Big Dipper / Ursa Major
-  ['Dubhe',     11.062,   61.75,  1.81, '#ffcc88'],  // 30
-  ['Merak',     11.031,   56.38,  2.37, '#fffbe0'],  // 31
-  ['Phecda',    11.897,   53.69,  2.44, '#fffbe0'],  // 32
-  ['Megrez',    12.257,   57.03,  3.32, '#d0d8ff'],  // 33
-  ['Alioth',    12.900,   55.96,  1.76, '#fffbe0'],  // 34
-  ['Mizar',     13.399,   54.93,  2.23, '#fffbe0'],  // 35
-  ['Alkaid',    13.792,   49.31,  1.85, '#aaccff'],  // 36
+  ['Dubhe',      11.062,  61.75,  1.81, '#ffcc88',  4660],  // 30 K0III
+  ['Merak',      11.031,  56.38,  2.37, '#fffbe0',  9377],  // 31 A1V
+  ['Phecda',     11.897,  53.69,  2.44, '#fffbe0',  9355],  // 32 A0Ve
+  ['Megrez',     12.257,  57.03,  3.32, '#d0d8ff',  9480],  // 33 A3V
+  ['Alioth',     12.900,  55.96,  1.76, '#fffbe0',  9020],  // 34 A0p
+  ['Mizar',      13.399,  54.93,  2.23, '#fffbe0',  9000],  // 35 A1V
+  ['Alkaid',     13.792,  49.31,  1.85, '#aaccff', 18700],  // 36 B3V
   // Cassiopeia
-  ['Schedar',    0.675,   56.54,  2.24, '#ffcc88'],  // 37
-  ['Caph',       0.153,   59.15,  2.28, '#fffbe0'],  // 38
-  ['Cih',        0.945,   60.72,  2.47, '#aaccff'],  // 39
-  ['Ruchbah',    1.430,   60.24,  2.68, '#fffbe0'],  // 40
-  ['Segin',      1.907,   63.67,  3.38, '#c0c8ff'],  // 41
+  ['Schedar',     0.675,  56.54,  2.24, '#ffcc88',  4552],  // 37 K0IIIa
+  ['Caph',        0.153,  59.15,  2.28, '#fffbe0',  7079],  // 38 F2IV
+  ['Cih',         0.945,  60.72,  2.47, '#aaccff', 25000],  // 39 B0.5IVe
+  ['Ruchbah',     1.430,  60.24,  2.68, '#fffbe0',  8000],  // 40 A5III
+  ['Segin',       1.907,  63.67,  3.38, '#c0c8ff', 16000],  // 41 B3III
   // Leo
-  ['Algieba',   10.332,   19.84,  2.61, '#ffcc88'],  // 42
-  ['Zosma',     11.235,   20.52,  2.56, '#fffbe0'],  // 43
-  ['Denebola',  11.817,   14.57,  2.14, '#aaccff'],  // 44
+  ['Algieba',    10.332,  19.84,  2.61, '#ffcc88',  4470],  // 42 K1III
+  ['Zosma',      11.235,  20.52,  2.56, '#fffbe0',  8296],  // 43 A4V
+  ['Denebola',   11.817,  14.57,  2.14, '#aaccff',  8500],  // 44 A3V
   // Gemini / Taurus
-  ['Elnath',     5.438,   28.61,  1.68, '#aaccff'],  // 45
-  ['Alhena',     6.629,   16.40,  1.93, '#aaccff'],  // 46
+  ['Elnath',      5.438,  28.61,  1.68, '#aaccff', 13824],  // 45 B7III
+  ['Alhena',      6.629,  16.40,  1.93, '#aaccff',  9260],  // 46 A0IV
   // Scorpius tail
-  ['Lesath',    17.513,  -37.30,  2.70, '#aaccff'],  // 47
-  ['Sargas',    17.622,  -43.00,  1.87, '#fffbe0'],  // 48
+  ['Lesath',     17.513, -37.30,  2.70, '#aaccff', 22000],  // 47 B2IV
+  ['Sargas',     17.622, -43.00,  1.87, '#fffbe0',  7268],  // 48 F0II
 ]
 
-// ── CONSTELLATION LINES: [idxA, idxB] ─────────────────────────
+// ── CONSTELLATION LINES ────────────────────────────────────────
 type ConLine = { a: number; b: number; name: string }
 const CONSTELLATION_LINES: ConLine[] = [
   // Orion
-  { a: 7,  b: 25, name: 'Orion' }, // Betelgeuse - Bellatrix
-  { a: 7,  b: 28, name: 'Orion' }, // Betelgeuse - Alnitak
-  { a: 25, b: 26, name: 'Orion' }, // Bellatrix - Mintaka
-  { a: 26, b: 27, name: 'Orion' }, // Mintaka - Alnilam (belt)
-  { a: 27, b: 28, name: 'Orion' }, // Alnilam - Alnitak (belt)
-  { a: 26, b: 5,  name: 'Orion' }, // Mintaka - Rigel
-  { a: 28, b: 29, name: 'Orion' }, // Alnitak - Saiph
+  { a: 7,  b: 25, name: 'Orion' },
+  { a: 7,  b: 28, name: 'Orion' },
+  { a: 25, b: 26, name: 'Orion' },
+  { a: 26, b: 27, name: 'Orion' },
+  { a: 27, b: 28, name: 'Orion' },
+  { a: 26, b: 5,  name: 'Orion' },
+  { a: 28, b: 29, name: 'Orion' },
   // Big Dipper
-  { a: 30, b: 31, name: 'Ursa Major' }, // Dubhe - Merak
-  { a: 31, b: 32, name: 'Ursa Major' }, // Merak - Phecda
-  { a: 32, b: 33, name: 'Ursa Major' }, // Phecda - Megrez
-  { a: 33, b: 30, name: 'Ursa Major' }, // Megrez - Dubhe (bowl)
-  { a: 33, b: 34, name: 'Ursa Major' }, // Megrez - Alioth
-  { a: 34, b: 35, name: 'Ursa Major' }, // Alioth - Mizar
-  { a: 35, b: 36, name: 'Ursa Major' }, // Mizar - Alkaid
+  { a: 30, b: 31, name: 'Ursa Major' },
+  { a: 31, b: 32, name: 'Ursa Major' },
+  { a: 32, b: 33, name: 'Ursa Major' },
+  { a: 33, b: 30, name: 'Ursa Major' },
+  { a: 33, b: 34, name: 'Ursa Major' },
+  { a: 34, b: 35, name: 'Ursa Major' },
+  { a: 35, b: 36, name: 'Ursa Major' },
   // Cassiopeia
-  { a: 38, b: 37, name: 'Cassiopeia' }, // Caph - Schedar
-  { a: 37, b: 39, name: 'Cassiopeia' }, // Schedar - Cih
-  { a: 39, b: 40, name: 'Cassiopeia' }, // Cih - Ruchbah
-  { a: 40, b: 41, name: 'Cassiopeia' }, // Ruchbah - Segin
+  { a: 38, b: 37, name: 'Cassiopeia' },
+  { a: 37, b: 39, name: 'Cassiopeia' },
+  { a: 39, b: 40, name: 'Cassiopeia' },
+  { a: 40, b: 41, name: 'Cassiopeia' },
   // Summer Triangle
   { a: 3,  b: 10, name: 'Summer △' },
   { a: 3,  b: 11, name: 'Summer △' },
   { a: 10, b: 11, name: 'Summer △' },
   // Leo
-  { a: 18, b: 42, name: 'Leo' }, // Regulus - Algieba (sickle)
-  { a: 42, b: 43, name: 'Leo' }, // Algieba - Zosma
-  { a: 43, b: 44, name: 'Leo' }, // Zosma - Denebola (spine)
+  { a: 18, b: 42, name: 'Leo' },
+  { a: 42, b: 43, name: 'Leo' },
+  { a: 43, b: 44, name: 'Leo' },
   // Gemini
-  { a: 15, b: 16, name: 'Gemini' }, // Pollux - Castor
-  { a: 15, b: 45, name: 'Gemini' }, // Pollux - Elnath (foot area)
-  { a: 16, b: 46, name: 'Gemini' }, // Castor - Alhena
+  { a: 15, b: 16, name: 'Gemini' },
+  { a: 15, b: 45, name: 'Gemini' },
+  { a: 16, b: 46, name: 'Gemini' },
   // Taurus
-  { a: 17, b: 45, name: 'Taurus' }, // Aldebaran - Elnath (horns)
+  { a: 17, b: 45, name: 'Taurus' },
   // Scorpius tail
-  { a: 22, b: 47, name: 'Scorpius' }, // Shaula - Lesath
-  { a: 22, b: 48, name: 'Scorpius' }, // Shaula - Sargas
+  { a: 22, b: 47, name: 'Scorpius' },
+  { a: 22, b: 48, name: 'Scorpius' },
 ]
 
 // ── PLANETS ────────────────────────────────────────────────────
 const PLANETS = [
-  { name: 'Sun',     symbol: '☀',  color: '#ffee44', glow: '#ffcc00', size: 7 },
-  { name: 'Mercury', symbol: '☿',  color: '#b0b0b0', glow: '#888888', size: 4 },
-  { name: 'Venus',   symbol: '♀',  color: '#fff4c2', glow: '#ffee88', size: 5 },
-  { name: 'Mars',    symbol: '♂',  color: '#ff5533', glow: '#ff2200', size: 5 },
-  { name: 'Jupiter', symbol: '♃',  color: '#f5c88a', glow: '#e8a060', size: 6 },
-  { name: 'Saturn',  symbol: '♄',  color: '#f0d880', glow: '#d4b840', size: 5 },
+  { name: 'Sun',     symbol: '☀',  color: '#ffee44', glow: '#ffcc00', size: 9 },
+  { name: 'Mercury', symbol: '☿',  color: '#c0c0c0', glow: '#909090', size: 5 },
+  { name: 'Venus',   symbol: '♀',  color: '#fff4c2', glow: '#ffee88', size: 7 },
+  { name: 'Mars',    symbol: '♂',  color: '#ff5533', glow: '#ff2200', size: 6 },
+  { name: 'Jupiter', symbol: '♃',  color: '#f5c88a', glow: '#e8a060', size: 9 },
+  { name: 'Saturn',  symbol: '♄',  color: '#f0d880', glow: '#d4b840', size: 7 },
 ]
 
 const DIRECTION_LABELS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
@@ -236,12 +264,31 @@ const CITIES = [
 ]
 
 function azDir(az: number) {
-  const dirs = ['N','NE','E','SE','S','SW','W','NW']
+  const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
   return dirs[Math.round(az / 45) % 8]
 }
 
+// ── HIT-TEST TARGET (for hover tooltip) ───────────────────────
+interface HitItem {
+  name: string
+  x: number; y: number       // canvas coords
+  temp?: number
+  mag?: number
+  alt: number
+  color: string
+  isPlanet?: boolean
+  symbol?: string
+}
+
+interface Tooltip extends HitItem {
+  sx: number; sy: number     // CSS display coords
+  flipLeft: boolean
+}
+
 export default function StarMap() {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const canvasRef  = useRef<HTMLCanvasElement>(null)
+  const hitRef     = useRef<HitItem[]>([])
+
   const [loc, setLoc]         = useState({ lat: 31.77, lng: 35.21 })
   const [city, setCity]       = useState('Jerusalem')
   const [time, setTime]       = useState(new Date())
@@ -249,13 +296,16 @@ export default function StarMap() {
   const [dragging, setDragging] = useState(false)
   const [prevX, setPrevX]     = useState(0)
 
-  const [showPlanets, setShowPlanets]         = useState(true)
+  const [showPlanets, setShowPlanets]             = useState(true)
   const [showConstellations, setShowConstellations] = useState(true)
-  const [showLabels, setShowLabels]           = useState(true)
-  const [showGrid, setShowGrid]               = useState(false)
+  const [showLabels, setShowLabels]               = useState(true)
+  const [showTemp, setShowTemp]                   = useState(false)
+  const [showGrid, setShowGrid]                   = useState(false)
+
+  const [tooltip, setTooltip] = useState<Tooltip | null>(null)
 
   const jd = julianDate(time)
-  const d  = jd - 2451543.5  // Schlyter epoch
+  const d  = jd - 2451543.5
 
   const planetPositions = PLANETS.map(p => {
     const radec = computeRADec(p.name, d)
@@ -271,11 +321,12 @@ export default function StarMap() {
     const ctx = canvas.getContext('2d')!
     const W = canvas.width, H = canvas.height
     const cx = W / 2, cy = H / 2
-    const r  = Math.min(W, H) / 2 - 22
+    const r  = Math.min(W, H) / 2 - 24
 
+    hitRef.current = []
     ctx.clearRect(0, 0, W, H)
 
-    // ── Sky background ──
+    // Sky background
     const skyGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r)
     skyGrad.addColorStop(0,   '#0d1235')
     skyGrad.addColorStop(0.6, '#07091a')
@@ -283,33 +334,29 @@ export default function StarMap() {
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2)
     ctx.fillStyle = skyGrad; ctx.fill()
 
-    // ── Clip to circle for all subsequent drawing ──
     ctx.save()
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip()
 
-    // ── Altitude grid ──
+    // Grid / altitude rings
     if (showGrid) {
       for (const alt of [15, 30, 45, 60, 75]) {
         ctx.beginPath()
         ctx.arc(cx, cy, r * (90 - alt) / 90, 0, Math.PI * 2)
-        ctx.strokeStyle = alt % 30 === 0 ? 'rgba(99,102,241,0.18)' : 'rgba(255,255,255,0.05)'
-        ctx.lineWidth = 1
-        ctx.stroke()
+        ctx.strokeStyle = alt % 30 === 0 ? 'rgba(99,102,241,0.22)' : 'rgba(255,255,255,0.06)'
+        ctx.lineWidth = 1; ctx.stroke()
         if (alt % 30 === 0) {
           ctx.font = '9px system-ui'
-          ctx.fillStyle = 'rgba(99,102,241,0.45)'
+          ctx.fillStyle = 'rgba(99,102,241,0.5)'
           ctx.textAlign = 'left'
           ctx.fillText(`${alt}°`, cx + r * (90 - alt) / 90 + 3, cy - 2)
         }
       }
-      // Azimuth lines every 45°
       for (let az = 0; az < 360; az += 45) {
         const { x, y } = project(0, (az + rotation + 360) % 360, cx, cy, r, 0)
         ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(x, y)
         ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 1; ctx.stroke()
       }
     } else {
-      // Always draw the horizon ring
       for (const alt of [30, 60]) {
         ctx.beginPath()
         ctx.arc(cx, cy, r * (90 - alt) / 90, 0, Math.PI * 2)
@@ -317,23 +364,23 @@ export default function StarMap() {
       }
     }
 
-    // ── Horizon edge ──
+    // Horizon ring
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2)
-    ctx.strokeStyle = 'rgba(99,102,241,0.35)'; ctx.lineWidth = 1.5; ctx.stroke()
+    ctx.strokeStyle = 'rgba(99,102,241,0.4)'; ctx.lineWidth = 1.5; ctx.stroke()
 
-    // ── Background micro-stars ──
-    for (let i = 0; i < 160; i++) {
+    // Background micro-stars
+    for (let i = 0; i < 200; i++) {
       const angle  = i * 137.508 * DEG
-      const radius = r * Math.sqrt((i * 0.618) % 1) * 0.98
+      const radius = r * Math.sqrt((i * 0.618) % 1) * 0.97
       const sx = cx + radius * Math.cos(angle), sy = cy + radius * Math.sin(angle)
-      const op = 0.08 + (i % 7) * 0.03
-      ctx.beginPath(); ctx.arc(sx, sy, 0.35 + (i % 3) * 0.25, 0, Math.PI * 2)
+      const op = 0.06 + (i % 7) * 0.025
+      ctx.beginPath(); ctx.arc(sx, sy, 0.3 + (i % 3) * 0.2, 0, Math.PI * 2)
       ctx.fillStyle = `rgba(180,190,255,${op})`; ctx.fill()
     }
 
     const lst = localSiderealTime(time, loc.lng)
 
-    // ── Constellation lines ──
+    // Constellation lines
     if (showConstellations) {
       CONSTELLATION_LINES.forEach(({ a, b }) => {
         const sa = STARS[a], sb = STARS[b]
@@ -343,26 +390,26 @@ export default function StarMap() {
         const pa = project(ha.alt, (ha.az + rotation) % 360, cx, cy, r, 0)
         const pb = project(hb.alt, (hb.az + rotation) % 360, cx, cy, r, 0)
         ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y)
-        ctx.strokeStyle = 'rgba(130,140,255,0.38)'; ctx.lineWidth = 1; ctx.stroke()
+        ctx.strokeStyle = 'rgba(120,135,255,0.45)'; ctx.lineWidth = 1.2; ctx.stroke()
       })
     }
 
-    // ── Stars ──
-    STARS.forEach(([name, ra, dec, mag, color]) => {
+    // Stars
+    STARS.forEach(([name, ra, dec, mag, color, temp]) => {
       const { alt, az } = toHorizon(ra, dec, lst, loc.lat)
-      if (alt < -4) return
+      if (alt < -5) return
       const { x, y } = project(alt, (az + rotation) % 360, cx, cy, r, 0)
-      if (x < -10 || x > W + 10 || y < -10 || y > H + 10) return
+      if (x < -12 || x > W + 12 || y < -12 || y > H + 12) return
 
-      const starR  = Math.max(1.5, (5.8 - mag) * 1.15)
-      const glowR  = starR * (mag < 0 ? 10 : mag < 1 ? 7 : 5)
-      const alpha  = alt < 0 ? 0.22 : 1
+      const starR = Math.max(1.8, (6.2 - mag) * 1.2)
+      const glowR = starR * (mag < 0 ? 11 : mag < 1 ? 8 : 5.5)
+      const alpha = alt < 0 ? 0.22 : 1
 
       const glow = ctx.createRadialGradient(x, y, 0, x, y, glowR)
       glow.addColorStop(0, color + 'cc')
       glow.addColorStop(0.4, color + '44')
       glow.addColorStop(1, 'transparent')
-      ctx.globalAlpha = alpha * 0.7
+      ctx.globalAlpha = alpha * 0.75
       ctx.beginPath(); ctx.arc(x, y, glowR, 0, Math.PI * 2)
       ctx.fillStyle = glow; ctx.fill()
 
@@ -371,35 +418,51 @@ export default function StarMap() {
       ctx.fillStyle = color; ctx.fill()
       ctx.globalAlpha = 1
 
-      // Labels for bright stars
-      if (showLabels && mag < 1.7 && alt > 2) {
-        ctx.font = `${mag < 0.5 ? 10 : 9}px 'Space Grotesk', system-ui`
+      // Label / temperature
+      const wantLabel = showLabels && mag < 1.7 && alt > 2
+      const wantTemp  = showTemp && mag < 2.0 && alt > 2
+
+      if (wantLabel || wantTemp) {
+        let label = ''
+        if (wantLabel && wantTemp) label = `${name} · ${spectralClass(temp)} ${fmtTempShort(temp)}`
+        else if (wantLabel)        label = name
+        else                       label = `${spectralClass(temp)} ${fmtTempShort(temp)}`
+
+        const tc = wantTemp ? tempColor(temp) : 'rgba(200,212,255,0.9)'
+        ctx.font = `${mag < 0.5 ? 11 : 9}px 'Space Grotesk', system-ui`
         ctx.textAlign = 'left'
         const lx = x + starR + 4, ly = y + 3
-        ctx.fillStyle = 'rgba(0,0,0,0.55)'
-        ctx.fillText(name, lx + 1, ly + 1)
-        ctx.fillStyle = 'rgba(200,212,255,0.85)'
-        ctx.fillText(name, lx, ly)
+        ctx.fillStyle = 'rgba(0,0,0,0.6)'
+        ctx.fillText(label, lx + 1, ly + 1)
+        ctx.fillStyle = tc
+        ctx.fillText(label, lx, ly)
       }
+
+      // Push to hit-test register (for all visible catalog stars)
+      if (alt > -5) hitRef.current.push({ name, x, y, temp, mag, alt, color })
     })
 
-    // ── Planets ──
+    // Planets
     if (showPlanets) {
       PLANETS.forEach(planet => {
         const radec = computeRADec(planet.name, d)
         if (!radec) return
         const { alt, az } = toHorizon(radec.ra, radec.dec, lst, loc.lat)
-        if (alt < -4) return
+        if (alt < -5) return
         const { x, y } = project(alt, (az + rotation) % 360, cx, cy, r, 0)
-        if (x < -10 || x > W + 10 || y < -10 || y > H + 10) return
+        if (x < -12 || x > W + 12 || y < -12 || y > H + 12) return
 
-        const alpha = alt < 0 ? 0.25 : 1
+        const alpha = alt < 0 ? 0.28 : 1
         ctx.globalAlpha = alpha
 
+        // Outer identification ring (distinguishes planets from stars)
+        ctx.beginPath(); ctx.arc(x, y, planet.size + 3.5, 0, Math.PI * 2)
+        ctx.strokeStyle = planet.color + '55'; ctx.lineWidth = 1.5; ctx.stroke()
+
         // Glow
-        const glowR = planet.name === 'Sun' ? planet.size * 6 : planet.size * 4.5
+        const glowR = planet.name === 'Sun' ? planet.size * 5.5 : planet.size * 4
         const glow  = ctx.createRadialGradient(x, y, 0, x, y, glowR)
-        glow.addColorStop(0, planet.glow + 'cc')
+        glow.addColorStop(0, planet.glow + 'dd')
         glow.addColorStop(0.5, planet.glow + '55')
         glow.addColorStop(1, 'transparent')
         ctx.beginPath(); ctx.arc(x, y, glowR, 0, Math.PI * 2)
@@ -409,47 +472,54 @@ export default function StarMap() {
         ctx.beginPath(); ctx.arc(x, y, planet.size, 0, Math.PI * 2)
         ctx.fillStyle = planet.color; ctx.fill()
 
-        // Saturn ring hint
+        // Saturn ring
         if (planet.name === 'Saturn') {
           ctx.beginPath()
-          ctx.ellipse(x, y, planet.size * 1.8, planet.size * 0.55, 0.35, 0, Math.PI * 2)
-          ctx.strokeStyle = planet.color + 'aa'; ctx.lineWidth = 1.5; ctx.stroke()
+          ctx.ellipse(x, y, planet.size * 2.0, planet.size * 0.6, 0.35, 0, Math.PI * 2)
+          ctx.strokeStyle = planet.color + 'bb'; ctx.lineWidth = 2; ctx.stroke()
         }
 
-        // Label
-        ctx.font = 'bold 9px \'Space Grotesk\', system-ui'
+        // Planet label
+        ctx.font = 'bold 10px \'Space Grotesk\', system-ui'
         ctx.textAlign = 'left'
-        const lx = x + planet.size + 4, ly = y + 3
-        ctx.fillStyle = 'rgba(0,0,0,0.6)'
+        const lx = x + planet.size + 6, ly = y + 4
+        ctx.fillStyle = 'rgba(0,0,0,0.7)'
         ctx.fillText(`${planet.symbol} ${planet.name}`, lx + 1, ly + 1)
         ctx.fillStyle = planet.color
         ctx.fillText(`${planet.symbol} ${planet.name}`, lx, ly)
 
         ctx.globalAlpha = 1
+
+        hitRef.current.push({
+          name: planet.name, x, y, alt, color: planet.color,
+          isPlanet: true, symbol: planet.symbol,
+        })
       })
     }
 
-    // ── Cardinal direction labels ──
+    // Cardinal direction labels
     DIRECTION_LABELS.forEach((label, idx) => {
       const az = idx * 45
-      const { x, y } = project(-1, (az + rotation + 360) % 360, cx, cy, r + 14, 0)
-      ctx.font = `bold ${idx % 2 === 0 ? 12 : 9}px system-ui`
+      const { x, y } = project(-1, (az + rotation + 360) % 360, cx, cy, r + 16, 0)
+      ctx.font = `bold ${idx % 2 === 0 ? 13 : 10}px system-ui`
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-      ctx.fillStyle = idx % 2 === 0 ? 'rgba(130,140,255,0.85)' : 'rgba(99,102,241,0.45)'
+      ctx.fillStyle = idx % 2 === 0 ? 'rgba(130,140,255,0.9)' : 'rgba(99,102,241,0.5)'
       ctx.fillText(label, x, y)
     })
 
-    // ── Zenith dot ──
+    // Zenith dot
     ctx.beginPath(); ctx.arc(cx, cy, 2.5, 0, Math.PI * 2)
-    ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fill()
+    ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fill()
     ctx.restore()
-  }, [loc, time, rotation, showPlanets, showConstellations, showLabels, showGrid, d])
+  }, [loc, time, rotation, showPlanets, showConstellations, showLabels, showTemp, showGrid, d])
 
   useEffect(() => { draw() }, [draw])
+
   useEffect(() => {
     const id = setInterval(() => setTime(new Date()), 60_000)
     return () => clearInterval(id)
   }, [])
+
   useEffect(() => {
     if (!('geolocation' in navigator)) return
     navigator.geolocation.getCurrentPosition(
@@ -459,12 +529,52 @@ export default function StarMap() {
     )
   }, [])
 
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (dragging) {
+      setRotation(r => r + (e.clientX - prevX) * 0.5)
+      setPrevX(e.clientX)
+      setTooltip(null)
+      return
+    }
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const rect  = canvas.getBoundingClientRect()
+    const cx    = (e.clientX - rect.left) * 480 / rect.width
+    const cy    = (e.clientY - rect.top)  * 480 / rect.height
+
+    let best: HitItem | null = null
+    let bestDist = 22
+    for (const item of hitRef.current) {
+      const dx = item.x - cx, dy = item.y - cy
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      if (dist < bestDist) { bestDist = dist; best = item }
+    }
+
+    if (best) {
+      const sx = best.x * rect.width / 480
+      const sy = best.y * rect.height / 480
+      setTooltip({ ...best, sx, sy, flipLeft: sx > rect.width - 165 })
+    } else {
+      setTooltip(null)
+    }
+  }, [dragging, prevX])
+
   const visibleStars = (() => {
     const lst = localSiderealTime(time, loc.lng)
     return STARS.filter(s => toHorizon(s[1], s[2], lst, loc.lat).alt > 0).length
   })()
 
   const visiblePlanets = planetPositions.filter(p => p.alt > 0)
+
+  const SPECTRAL_LEGEND = [
+    { cls: 'O', range: '>25k K',    color: '#a0b8ff' },
+    { cls: 'B', range: '10–25k K',  color: '#c8d8ff' },
+    { cls: 'A', range: '7.5–10k K', color: '#f0f4ff' },
+    { cls: 'F', range: '6–7.5k K',  color: '#fff4c0' },
+    { cls: 'G', range: '5.2–6k K',  color: '#ffe080' },
+    { cls: 'K', range: '3.7–5.2k K',color: '#ffa040' },
+    { cls: 'M', range: '<3.7k K',   color: '#ff6020' },
+  ]
 
   return (
     <div className="space-card p-5">
@@ -473,7 +583,9 @@ export default function StarMap() {
         <div className="icon-box text-2xl">🌌</div>
         <div>
           <h3 className="text-white font-bold text-lg">Tonight's Sky</h3>
-          <p className="text-gray-500 text-xs">{visibleStars} stars visible · {city} · {time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
+          <p className="text-gray-500 text-xs">
+            {visibleStars} stars visible · {city} · {time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+          </p>
         </div>
         <div className="ml-auto live-badge"><span className="live-dot" />LIVE</div>
       </div>
@@ -497,10 +609,11 @@ export default function StarMap() {
       {/* Toggle controls */}
       <div className="flex flex-wrap gap-1.5 mb-4" role="group" aria-label="Map display options">
         {([
-          { key: 'planets',       label: '🪐 Planets',       val: showPlanets,       set: setShowPlanets },
-          { key: 'constellations',label: '✦ Constellations', val: showConstellations, set: setShowConstellations },
-          { key: 'labels',        label: '🏷 Labels',        val: showLabels,        set: setShowLabels },
-          { key: 'grid',          label: '⊕ Grid',           val: showGrid,          set: setShowGrid },
+          { key: 'planets',        label: '🪐 Planets',       val: showPlanets,        set: setShowPlanets },
+          { key: 'constellations', label: '✦ Constellations', val: showConstellations,  set: setShowConstellations },
+          { key: 'labels',         label: '🏷 Labels',         val: showLabels,         set: setShowLabels },
+          { key: 'temp',           label: '🌡 Temperature',    val: showTemp,           set: setShowTemp },
+          { key: 'grid',           label: '⊕ Grid',            val: showGrid,           set: setShowGrid },
         ] as const).map(({ key, label, val, set }) => (
           <button
             key={key}
@@ -516,23 +629,79 @@ export default function StarMap() {
         ))}
       </div>
 
-      {/* Canvas */}
-      <div className="flex justify-center mb-4">
+      {/* Temperature legend (shown when temp toggle is on) */}
+      {showTemp && (
+        <div
+          className="flex flex-wrap gap-x-3 gap-y-1 justify-center mb-3 px-3 py-2 rounded-xl"
+          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+          aria-label="Stellar spectral class temperature legend"
+        >
+          {SPECTRAL_LEGEND.map(({ cls, range, color }) => (
+            <div key={cls} className="flex items-center gap-1.5">
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, boxShadow: `0 0 5px ${color}` }} />
+              <span style={{ color, fontSize: 11, fontWeight: 700 }}>{cls}</span>
+              <span style={{ color: '#4b5563', fontSize: 10 }}>{range}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Canvas with hover tooltip */}
+      <div className="flex justify-center mb-4 relative">
         <canvas
           ref={canvasRef}
           width={480}
           height={480}
-          aria-label="Interactive star map showing the current night sky"
-          className="rounded-full cursor-grab active:cursor-grabbing touch-none"
+          aria-label="Interactive star map — hover stars for details"
+          className="rounded-full cursor-crosshair touch-none"
           style={{ maxWidth: '100%', maxHeight: '66vw' }}
           onMouseDown={e => { setDragging(true); setPrevX(e.clientX) }}
-          onMouseMove={e => { if (!dragging) return; setRotation(r => r + (e.clientX - prevX) * 0.5); setPrevX(e.clientX) }}
+          onMouseMove={handleMouseMove}
           onMouseUp={() => setDragging(false)}
-          onMouseLeave={() => setDragging(false)}
+          onMouseLeave={() => { setDragging(false); setTooltip(null) }}
           onTouchStart={e => { setDragging(true); setPrevX(e.touches[0].clientX) }}
           onTouchMove={e => { if (!dragging) return; e.preventDefault(); setRotation(r => r + (e.touches[0].clientX - prevX) * 0.5); setPrevX(e.touches[0].clientX) }}
           onTouchEnd={() => setDragging(false)}
         />
+
+        {/* Hover tooltip */}
+        {tooltip && (
+          <div
+            style={{
+              position: 'absolute',
+              left: tooltip.flipLeft ? tooltip.sx - 160 : tooltip.sx + 12,
+              top:  Math.max(4, tooltip.sy - 10),
+              background: 'rgba(7,9,22,0.97)',
+              border: `1px solid ${tooltip.color}55`,
+              borderRadius: 10,
+              padding: '9px 13px',
+              pointerEvents: 'none',
+              zIndex: 20,
+              minWidth: 145,
+              boxShadow: `0 4px 20px rgba(0,0,0,0.7), 0 0 10px ${tooltip.color}22`,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              {tooltip.symbol && (
+                <span style={{ color: tooltip.color, fontSize: 16, lineHeight: 1 }}>{tooltip.symbol}</span>
+              )}
+              <span style={{ color: '#e2e8f0', fontWeight: 700, fontSize: 13 }}>{tooltip.name}</span>
+            </div>
+            {tooltip.temp !== undefined && (
+              <div style={{ color: tempColor(tooltip.temp), fontSize: 12, fontWeight: 600, marginBottom: 2 }}>
+                {spectralClass(tooltip.temp)}-type · {fmtTempFull(tooltip.temp)}
+              </div>
+            )}
+            {tooltip.mag !== undefined && (
+              <div style={{ color: '#6b7280', fontSize: 10 }}>Magnitude {tooltip.mag.toFixed(2)}</div>
+            )}
+            <div style={{ color: tooltip.alt > 0 ? '#34d399' : '#6b7280', fontSize: 10, marginTop: 1 }}>
+              {tooltip.alt > 0
+                ? `${Math.round(tooltip.alt)}° above horizon · ${azDir(0)}`
+                : 'Below horizon'}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Planet visibility panel */}
@@ -542,7 +711,7 @@ export default function StarMap() {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {planetPositions.map(p => (
               <div key={p.name} className="flex items-center gap-2">
-                <span style={{ color: p.color, fontSize: 14, lineHeight: 1 }}>{p.symbol}</span>
+                <span style={{ color: p.color, fontSize: 15, lineHeight: 1 }}>{p.symbol}</span>
                 <div>
                   <span className="text-xs font-semibold" style={{ color: p.alt > 0 ? '#e2e8f0' : '#4b5563' }}>
                     {p.name}
@@ -558,13 +727,15 @@ export default function StarMap() {
             <p className="text-xs text-indigo-400 mt-2">
               {visiblePlanets.length === 1
                 ? `${visiblePlanets[0].symbol} ${visiblePlanets[0].name} is visible tonight`
-                : `${visiblePlanets.map(p => p.symbol + ' ' + p.name).join(', ')} are visible tonight`}
+                : `${visiblePlanets.map(p => `${p.symbol} ${p.name}`).join(', ')} are visible tonight`}
             </p>
           )}
         </div>
       )}
 
-      <p className="text-gray-700 text-xs text-center mt-3">Drag to rotate view · Zenith at center · N/E/S/W on horizon</p>
+      <p className="text-gray-700 text-xs text-center mt-3">
+        Drag to rotate · Hover stars for details · Zenith at center
+      </p>
     </div>
   )
 }
