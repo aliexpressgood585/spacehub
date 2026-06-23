@@ -10,25 +10,50 @@ interface Article {
   published_at: string
 }
 
+const CACHE_KEY = 'snf_p0_v1'
+const CACHE_TTL = 8 * 60 * 60 * 1000 // 8 hours
+
 export default function SpaceNewsFeed() {
   const [articles, setArticles] = useState<Article[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [fromCache, setFromCache] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const [page, setPage] = useState(0)
 
   useEffect(() => {
     setLoading(true)
     setError(false)
+    setFromCache(false)
     fetch(`https://api.spaceflightnewsapi.net/v4/articles/?limit=6&offset=${page * 6}&ordering=-published_at`)
       .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json() })
       .then(data => {
         const results = data.results || []
+        if (page === 0) {
+          try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: results })) } catch {}
+        }
         setArticles(results)
         setHasMore(results.length === 6)
         setLoading(false)
       })
-      .catch(() => { setError(true); setLoading(false) })
+      .catch(() => {
+        if (page === 0) {
+          try {
+            const raw = localStorage.getItem(CACHE_KEY)
+            if (raw) {
+              const { ts, data } = JSON.parse(raw)
+              if (Date.now() - ts < CACHE_TTL && Array.isArray(data) && data.length) {
+                setArticles(data)
+                setFromCache(true)
+                setLoading(false)
+                return
+              }
+            }
+          } catch {}
+        }
+        setError(true)
+        setLoading(false)
+      })
   }, [page])
 
   const formatDate = (iso: string) => {
@@ -47,6 +72,10 @@ export default function SpaceNewsFeed() {
         {error ? (
           <span className="text-[10px] px-2.5 py-1 rounded-full font-bold" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}>
             ⚠ OFFLINE
+          </span>
+        ) : fromCache ? (
+          <span className="text-[10px] px-2.5 py-1 rounded-full font-bold" style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', color: '#fbbf24' }}>
+            📦 CACHED
           </span>
         ) : (
           <div className="live-badge"><span className="live-dot" /> LIVE</div>
