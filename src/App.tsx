@@ -15,20 +15,21 @@ const AstroGallery = lazy(() => import('./components/AstroGallery'))
 const ISSTracker = lazy(() => import('./components/ISSTracker'))
 import SpaceBackground from './components/SpaceBackground'
 const SolarSystem3D = lazy(() => import('./components/SolarSystem3D'))
-import NasaAPOD from './components/NasaAPOD'
-import ISSAlertSystem from './components/ISSAlertSystem'
-import EmailCapture from './components/EmailCapture'
+const NasaAPOD = lazy(() => import('./components/NasaAPOD'))
+const ISSAlertSystem = lazy(() => import('./components/ISSAlertSystem'))
+const EmailCapture = lazy(() => import('./components/EmailCapture'))
 import AdBanner from './components/AdBanner'
-import AstronautsInSpace from './components/AstronautsInSpace'
-import MoonPhase from './components/MoonPhase'
-import LaunchCountdown from './components/LaunchCountdown'
+const AstronautsInSpace = lazy(() => import('./components/AstronautsInSpace'))
+const MoonPhase = lazy(() => import('./components/MoonPhase'))
+const LaunchCountdown = lazy(() => import('./components/LaunchCountdown'))
 import LiveTicker from './components/LiveTicker'
-import StarMap from './components/StarMap'
-import ISSPassPredictor from './components/ISSPassPredictor'
-import ShareCard from './components/ShareCard'
-import AsteroidTracker from './components/AsteroidTracker'
-import SpaceHistory from './components/SpaceHistory'
-import WeeklyUpdates from './components/WeeklyUpdates'
+const StarMap = lazy(() => import('./components/StarMap'))
+const ISSPassPredictor = lazy(() => import('./components/ISSPassPredictor'))
+const ShareCard = lazy(() => import('./components/ShareCard'))
+const AsteroidTracker = lazy(() => import('./components/AsteroidTracker'))
+const SpaceHistory = lazy(() => import('./components/SpaceHistory'))
+const WeeklyUpdates = lazy(() => import('./components/WeeklyUpdates'))
+const MeteorShower3D = lazy(() => import('./components/MeteorShower3D'))
 const JWSTGallery = lazy(() => import('./components/JWSTGallery'))
 const MarsWeather = lazy(() => import('./components/MarsWeather'))
 const MarsCountdown = lazy(() => import('./components/MarsCountdown'))
@@ -309,26 +310,26 @@ function MainApp() {
 
             {activeTab === 'dashboard' && (
               <div className="space-y-5">
-                <Reveal><SafeWrap label="Updates"><WeeklyUpdates /></SafeWrap></Reveal>
+                <Reveal><SafeWrap label="Updates"><Suspense fallback={<SkeletonCard />}><WeeklyUpdates /></Suspense></SafeWrap></Reveal>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Reveal delay={1}><SafeWrap label="Astronauts"><AstronautsInSpace /></SafeWrap></Reveal>
-                  <Reveal delay={2}><SafeWrap label="Moon Phase"><MoonPhase /></SafeWrap></Reveal>
-                  <Reveal delay={3}><SafeWrap label="Launch Countdown"><LaunchCountdown /></SafeWrap></Reveal>
+                  <Reveal delay={1}><SafeWrap label="Astronauts"><Suspense fallback={<SkeletonCard />}><AstronautsInSpace /></Suspense></SafeWrap></Reveal>
+                  <Reveal delay={2}><SafeWrap label="Moon Phase"><Suspense fallback={<SkeletonCard />}><MoonPhase /></Suspense></SafeWrap></Reveal>
+                  <Reveal delay={3}><SafeWrap label="Launch Countdown"><Suspense fallback={<SkeletonCard />}><LaunchCountdown /></Suspense></SafeWrap></Reveal>
                 </div>
-                <Reveal><SafeWrap label="Space History"><SpaceHistory /></SafeWrap></Reveal>
-                <Reveal><SafeWrap label="ISS Alerts"><div ref={issRef}><ISSAlertSystem /></div></SafeWrap></Reveal>
-                <Reveal><SafeWrap label="ISS Pass Predictor"><ISSPassPredictor /></SafeWrap></Reveal>
+                <Reveal><SafeWrap label="Space History"><Suspense fallback={<SkeletonCard />}><SpaceHistory /></Suspense></SafeWrap></Reveal>
+                <Reveal><SafeWrap label="ISS Alerts"><div ref={issRef}><Suspense fallback={null}><ISSAlertSystem /></Suspense></div></SafeWrap></Reveal>
+                <Reveal><SafeWrap label="ISS Pass Predictor"><Suspense fallback={<SkeletonCard />}><ISSPassPredictor /></Suspense></SafeWrap></Reveal>
                 <Reveal><SafeWrap label="ISS Tracker"><Suspense fallback={<SkeletonCard />}><ISSTracker /></Suspense></SafeWrap></Reveal>
-                <Reveal><SafeWrap label="Share Card"><ShareCard issLat={issData?.lat} issLng={issData?.lng} issAlt={issData?.alt} /></SafeWrap></Reveal>
-                <Reveal><SafeWrap label="NASA APOD"><NasaAPOD /></SafeWrap></Reveal>
-                <Reveal><SafeWrap label="Asteroid Tracker"><AsteroidTracker /></SafeWrap></Reveal>
+                <Reveal><SafeWrap label="Share Card"><Suspense fallback={null}><ShareCard issLat={issData?.lat} issLng={issData?.lng} issAlt={issData?.alt} /></Suspense></SafeWrap></Reveal>
+                <Reveal><SafeWrap label="NASA APOD"><Suspense fallback={<SkeletonCard />}><NasaAPOD /></Suspense></SafeWrap></Reveal>
+                <Reveal><SafeWrap label="Asteroid Tracker"><Suspense fallback={<SkeletonCard />}><AsteroidTracker /></Suspense></SafeWrap></Reveal>
                 <AdBanner />
               </div>
             )}
 
             {activeTab === 'starmap' && (
               <div className="space-y-5">
-                <StarMap />
+                <Suspense fallback={<SkeletonCard />}><StarMap /></Suspense>
                 <div className="space-card p-6">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="icon-box text-xl">🛸</div>
@@ -373,7 +374,12 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><SpaceWeather /></Suspense>
               </div>
             )}
-            {activeTab === 'events' && <Suspense fallback={<SkeletonCard />}><EventsCalendar /></Suspense>}
+            {activeTab === 'events' && (
+              <div className="space-y-5">
+                <Suspense fallback={<SkeletonCard />}><MeteorShower3D /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><EventsCalendar /></Suspense>
+              </div>
+            )}
 
             {activeTab === 'news' && (
               <div className="space-y-5">
@@ -424,7 +430,7 @@ function MainApp() {
 
           <div className="mt-14 mb-4">
             <div className="divider-glow mb-12" />
-            <EmailCapture />
+            <Suspense fallback={null}><EmailCapture /></Suspense>
           </div>
         </main>
 
