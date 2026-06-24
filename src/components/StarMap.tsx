@@ -907,11 +907,41 @@ export default function StarMap() {
     hitRef.current = []
     ctx.clearRect(0, 0, W, H)
 
-    // Sky background
+    // ── Atmosphere sky gradient (depends on Sun altitude) ──
+    const sunRaDec = computeRADec('Sun', d)
+    const lstNow = localSiderealTime(effectiveTime, loc.lng)
+    const sunAlt = sunRaDec ? toHorizon(sunRaDec.ra, sunRaDec.dec, lstNow, loc.lat).alt : -90
+
+    let skyInner: string, skyMid: string, skyOuter: string, skyMidStop: number
+    if (sunAlt > 10) {
+      // Full daylight
+      skyInner = '#1a4a8a'; skyMid = '#0d2d5e'; skyOuter = '#081a38'; skyMidStop = 0.5
+    } else if (sunAlt > 0) {
+      // Sunset/sunrise — orange horizon glow
+      const t = sunAlt / 10
+      skyInner = `rgb(${Math.round(80+120*t)},${Math.round(40+80*t)},${Math.round(120+50*(1-t))})`
+      skyMid = '#1a1048'; skyOuter = '#060510'; skyMidStop = 0.55
+    } else if (sunAlt > -6) {
+      // Civil twilight
+      const t = (sunAlt + 6) / 6
+      skyInner = `rgb(${Math.round(50+80*t)},${Math.round(20+40*t)},${Math.round(90+50*t)})`
+      skyMid = '#0e0a22'; skyOuter = '#040310'; skyMidStop = 0.6
+    } else if (sunAlt > -12) {
+      // Nautical twilight — deep indigo
+      const t = (sunAlt + 12) / 6
+      skyInner = `rgb(${Math.round(20+30*t)},${Math.round(10+20*t)},${Math.round(55+35*t)})`
+      skyMid = '#080618'; skyOuter = '#020408'; skyMidStop = 0.6
+    } else if (sunAlt > -18) {
+      // Astronomical twilight — almost dark
+      skyInner = '#0d1235'; skyMid = '#07091a'; skyOuter = '#020408'; skyMidStop = 0.6
+    } else {
+      // Full night
+      skyInner = '#0d1235'; skyMid = '#07091a'; skyOuter = '#020408'; skyMidStop = 0.6
+    }
     const skyGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r)
-    skyGrad.addColorStop(0,   '#0d1235')
-    skyGrad.addColorStop(0.6, '#07091a')
-    skyGrad.addColorStop(1,   '#020408')
+    skyGrad.addColorStop(0, skyInner)
+    skyGrad.addColorStop(skyMidStop, skyMid)
+    skyGrad.addColorStop(1, skyOuter)
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2)
     ctx.fillStyle = skyGrad; ctx.fill()
 
@@ -955,7 +985,7 @@ export default function StarMap() {
       ctx.fillStyle = `rgba(180,190,255,${0.06 + (i % 7) * 0.025})`; ctx.fill()
     }
 
-    const lst = localSiderealTime(effectiveTime, loc.lng)
+    const lst = lstNow
 
     // ── Milky Way band ──
     if (showMilkyWay) {
@@ -1647,7 +1677,7 @@ export default function StarMap() {
       <div className="flex items-center gap-2 mb-3">
         <span className="text-xs text-gray-500 font-semibold shrink-0">✦ Mag limit</span>
         <input
-          type="range" min={1} max={8.0} step={0.5}
+          type="range" min={1} max={9.5} step={0.5}
           value={magLimit}
           onChange={e => setMagLimit(Number(e.target.value))}
           className="flex-1 min-w-0"
@@ -1656,7 +1686,7 @@ export default function StarMap() {
         />
         <span className="text-xs font-bold shrink-0 w-8 text-right" style={{ color: '#c4b5fd' }}>{magLimit.toFixed(1)}</span>
         <span className="text-xs text-gray-600 shrink-0">
-          ({magLimit <= 2 ? 'Bright stars' : magLimit <= 4 ? 'Naked eye' : magLimit <= 6 ? 'Dark sky' : magLimit <= 7 ? 'Binoculars' : 'Telescope'})
+          ({magLimit <= 2 ? 'Bright stars' : magLimit <= 4 ? 'Naked eye' : magLimit <= 6 ? 'Dark sky' : magLimit <= 7 ? 'Binoculars' : magLimit <= 8.5 ? 'Telescope' : 'Deep telescope'})
         </span>
       </div>
 
@@ -1900,6 +1930,18 @@ export default function StarMap() {
                 <div style={{ color: tooltip.alt > 0 ? '#34d399' : '#6b7280', fontSize: 10, marginTop: 1 }}>
                   {tooltip.alt > 0 ? `${Math.round(tooltip.alt)}° above horizon` : 'Below horizon'}
                 </div>
+                {tooltip.isPlanet && tooltip.ra !== undefined && (() => {
+                  const sunRD = computeRADec('Sun', d)
+                  if (!sunRD) return null
+                  const angDeg = angSep(tooltip.ra!, tooltip.dec ?? 0, sunRD.ra, sunRD.dec)
+                  const illum = Math.round((1 + Math.cos(angDeg * DEG)) / 2 * 100)
+                  const phaseIcon = illum < 10 ? '🌑' : illum < 35 ? '🌒' : illum < 65 ? '🌓' : illum < 90 ? '🌔' : '🌕'
+                  return (
+                    <div style={{ color: '#c8d2ff', fontSize: 10, marginTop: 2 }}>
+                      {phaseIcon} Illuminated {illum}% · {angDeg.toFixed(1)}° from Sun
+                    </div>
+                  )
+                })()}
                 {(() => {
                   const inList = obsList.some(o => o.name === tooltip.name)
                   return (
@@ -2201,7 +2243,7 @@ export default function StarMap() {
 
       <p className="text-gray-700 text-xs text-center mt-3">
         {globeMode
-          ? 'Drag to rotate the celestial sphere · Auto-rotates · 38,000+ stars on all-sky view'
+          ? 'Drag to rotate the celestial sphere · Auto-rotates · 122,000+ stars on all-sky view'
           : 'Drag to rotate · Hover/tap for details · Slider to travel in time · Zenith at center'}
       </p>
     </div>
