@@ -1,6 +1,11 @@
 const CACHE = 'spacehub-v10'
 const API_CACHE = 'spacehub-api-v5'
 
+// Allow page to force-activate this SW immediately
+self.addEventListener('message', e => {
+  if (e.data?.type === 'SKIP_WAITING') self.skipWaiting()
+})
+
 const OWN_API_PATHS = ['/api/iss', '/api/astros', '/api/apod', '/api/neo']
 
 const EXT_API_HOSTS = [
