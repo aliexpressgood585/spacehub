@@ -213,7 +213,7 @@ function MainApp() {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [])
 
   /* Mobile swipe between tabs */
@@ -244,7 +244,7 @@ function MainApp() {
       window.removeEventListener('touchstart', onStart)
       window.removeEventListener('touchend', onEnd)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [])
 
   /* 3-D card tilt on mouse move */
