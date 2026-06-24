@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 
 export default function SpaceBackground() {
   const containerRef = useRef<HTMLDivElement>(null)
-  const [galaxyOn, setGalaxyOn] = useState(() => localStorage.getItem('spacehub_galaxy') === '1')
+  const [galaxyOn, setGalaxyOn] = useState(() => { try { return localStorage.getItem('spacehub_galaxy') === '1' } catch { return false } })
 
   useEffect(() => {
     const handler = () => setGalaxyOn(localStorage.getItem('spacehub_galaxy') === '1')
