@@ -111,7 +111,9 @@ export default function MeteorShower3D() {
         {next && (
           <div className="ml-auto text-right">
             <div className="text-xs font-bold" style={{ color: '#a78bfa' }}>Next: {next.name}</div>
-            <div className="text-xs text-gray-500">Peak {next.peak}</div>
+            <div className="text-xs" style={{ color: next.diff <= 1 ? '#34d399' : '#6b7280' }}>
+              {next.diff <= 0 ? '⚡ Peaking now!' : next.diff === 1 ? '⚡ Tomorrow!' : `in ${Math.round(next.diff)} days`}
+            </div>
           </div>
         )}
       </div>
@@ -137,6 +139,9 @@ export default function MeteorShower3D() {
                 {i === 0 && <span style={{ fontSize: 9, background: 'rgba(139,92,246,0.3)', color: '#c4b5fd', borderRadius: 4, padding: '1px 5px', fontWeight: 700 }}>NEXT</span>}
               </div>
               <div className="text-xs text-gray-500">Peak {s.peak} · from {s.radiant}</div>
+              <div className="text-xs" style={{ color: s.diff <= 3 ? '#34d399' : '#4b5563' }}>
+                {s.diff <= 0 ? 'Active now' : `${Math.round(s.diff)}d away`}
+              </div>
             </div>
             <div className="text-right shrink-0">
               <div className="text-sm font-bold" style={{ color: s.zhr >= 100 ? '#34d399' : s.zhr >= 50 ? '#fbbf24' : '#94a3b8' }}>{s.zhr}/hr</div>
