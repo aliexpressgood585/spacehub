@@ -27,15 +27,18 @@ async function fetchNasaImages(query: string): Promise<GalleryItem[]> {
   const json = await r.json() as { collection: { items: NasaApiItem[] } }
   const items = json.collection.items
   return items
-    .filter(i => i.links?.[0]?.href)
+    .filter(i => i.data[0]?.nasa_id)
     .slice(0, 12)
-    .map(i => ({
-      title: i.data[0]?.title ?? 'NASA Image',
-      date: i.data[0]?.date_created?.slice(0, 10) ?? '',
-      url: i.links![0].href,
-      thumb: i.links![0].href,
-      nasa_id: i.data[0]?.nasa_id ?? '',
-    }))
+    .map(i => {
+      const id = encodeURIComponent(i.data[0].nasa_id)
+      return {
+        title: i.data[0]?.title ?? 'NASA Image',
+        date: i.data[0]?.date_created?.slice(0, 10) ?? '',
+        url:   `https://images-assets.nasa.gov/image/${id}/${id}~orig.jpg`,
+        thumb: `https://images-assets.nasa.gov/image/${id}/${id}~thumb.jpg`,
+        nasa_id: i.data[0].nasa_id,
+      }
+    })
 }
 
 export default function AstroGallery() {
