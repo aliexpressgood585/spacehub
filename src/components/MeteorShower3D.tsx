@@ -92,8 +92,7 @@ export default function MeteorShower3D() {
     return () => {
       cancelAnimationFrame(animId)
       renderer.dispose()
-      if (containerRef.current?.contains(renderer.domElement))
-        containerRef.current.removeChild(renderer.domElement)
+      renderer.domElement.remove()
     }
   }, [])
 
