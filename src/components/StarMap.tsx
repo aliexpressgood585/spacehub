@@ -136,6 +136,20 @@ function computeRADec(name: string, d: number): { ra: number; dec: number } | nu
   }
 }
 
+// ── PLANET PHASE (illuminated fraction 0-1) ───────────────────
+function computePlanetPhase(name: string, d: number): number {
+  const el = getOrbElems(d, name)
+  if (!el) return 1
+  const pv = helioXYZ(el)
+  const ev = earthXYZ(d)
+  const ex = pv.x - ev.x, ey = pv.y - ev.y, ez = pv.z - ev.z
+  const dEP = Math.sqrt(ex*ex + ey*ey + ez*ez)
+  const dSP = Math.sqrt(pv.x*pv.x + pv.y*pv.y + pv.z*pv.z)
+  const dES = Math.sqrt(ev.x*ev.x + ev.y*ev.y + ev.z*ev.z)
+  const cosA = (dEP*dEP + dSP*dSP - dES*dES) / (2 * dEP * dSP)
+  return (1 + Math.cos(Math.acos(Math.max(-1, Math.min(1, cosA))))) / 2
+}
+
 // ── MOON EPHEMERIS (Paul Schlyter simplified) ─────────────────
 function computeMoon(d: number): { ra: number; dec: number; phase: number } {
   const N = rev(125.1228 - 0.0529538083 * d)
@@ -1163,6 +1177,10 @@ export default function StarMap() {
   const [messierFilter, setMessierFilter]           = useState<string>('All')
   const [nvMode, setNvMode]                         = useState(false)
   const [showConArt, setShowConArt]                 = useState(true)
+  const [showFOV, setShowFOV]                       = useState(false)
+  const [fovScope, setFovScope]                     = useState(1000)
+  const [fovEP, setFovEP]                           = useState(25)
+  const [fovAFOV, setFovAFOV]                       = useState(52)
 
   // Time Machine — travel to any date
   const todayStr = () => {
@@ -1542,6 +1560,56 @@ export default function StarMap() {
         ctx.beginPath(); ctx.arc(x, y, planet.size, 0, Math.PI * 2)
         ctx.fillStyle = planet.color; ctx.fill()
 
+        // Phase shadow for Venus and Mercury (inner planets with visible phases)
+        if (planet.name === 'Venus' || planet.name === 'Mercury') {
+          const k = computePlanetPhase(planet.name, d)
+          const illum = k
+          ctx.save()
+          ctx.beginPath(); ctx.arc(x, y, planet.size, 0, Math.PI * 2); ctx.clip()
+          ctx.fillStyle = 'rgba(5,8,30,0.88)'
+          ctx.beginPath()
+          if (illum < 0.5) {
+            ctx.arc(x, y, planet.size, Math.PI / 2, -Math.PI / 2)
+            ctx.ellipse(x, y, planet.size * (1 - illum * 2), planet.size, 0, -Math.PI / 2, Math.PI / 2)
+          } else {
+            ctx.arc(x, y, planet.size, -Math.PI / 2, Math.PI / 2)
+            ctx.ellipse(x, y, planet.size * (illum * 2 - 1), planet.size, 0, Math.PI / 2, -Math.PI / 2)
+          }
+          ctx.fill()
+          ctx.restore()
+        }
+
+        // Jupiter equatorial bands
+        if (planet.name === 'Jupiter') {
+          ctx.save()
+          ctx.beginPath(); ctx.arc(x, y, planet.size, 0, Math.PI * 2); ctx.clip()
+          const bands = [
+            { y: -0.6, h: 0.25, color: 'rgba(180,130,90,0.35)' },
+            { y:  0.1, h: 0.2,  color: 'rgba(160,110,70,0.30)' },
+            { y:  0.45, h: 0.18, color: 'rgba(170,120,80,0.28)' },
+          ]
+          bands.forEach(b => {
+            ctx.fillStyle = b.color
+            ctx.fillRect(x - planet.size, y + b.y * planet.size, planet.size * 2, b.h * planet.size)
+          })
+          ctx.restore()
+        }
+
+        // Mars slight phase
+        if (planet.name === 'Mars') {
+          const k = computePlanetPhase('Mars', d)
+          if (k < 0.88) {
+            ctx.save()
+            ctx.beginPath(); ctx.arc(x, y, planet.size, 0, Math.PI * 2); ctx.clip()
+            ctx.fillStyle = 'rgba(5,8,30,0.55)'
+            ctx.beginPath()
+            ctx.arc(x, y, planet.size, Math.PI / 2, -Math.PI / 2)
+            ctx.ellipse(x, y, planet.size * (1 - k * 1.5), planet.size, 0, -Math.PI / 2, Math.PI / 2)
+            ctx.fill()
+            ctx.restore()
+          }
+        }
+
         if (planet.name === 'Saturn') {
           ctx.beginPath()
           ctx.ellipse(x, y, planet.size * 2.0, planet.size * 0.6, 0.35, 0, Math.PI * 2)
@@ -1665,8 +1733,23 @@ export default function StarMap() {
 
     ctx.beginPath(); ctx.arc(cx, cy, 2.5, 0, Math.PI * 2)
     ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fill()
+
+    // ── Eyepiece FOV circle ──
+    if (showFOV && fovScope > 0 && fovEP > 0 && fovAFOV > 0) {
+      const mag = fovScope / fovEP
+      const trueFOV = fovAFOV / mag
+      const fovR = (trueFOV / 2) / 90 * r
+      ctx.beginPath(); ctx.arc(cx, cy, fovR, 0, Math.PI * 2)
+      ctx.strokeStyle = 'rgba(255,210,0,0.75)'; ctx.lineWidth = 1.5
+      ctx.setLineDash([5, 4]); ctx.stroke(); ctx.setLineDash([])
+      ctx.font = 'bold 9px \'Space Grotesk\', system-ui'; ctx.textAlign = 'center'
+      ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillText(`FOV ${trueFOV.toFixed(2)}° · ${Math.round(mag)}×`, cx, cy - fovR - 7)
+      ctx.fillStyle = 'rgba(255,210,0,0.9)'; ctx.fillText(`FOV ${trueFOV.toFixed(2)}° · ${Math.round(mag)}×`, cx, cy - fovR - 8)
+      ctx.textAlign = 'left'
+    }
+
     ctx.restore()
-  }, [loc, time, timeOffsetMin, rotation, showPlanets, showConstellations, showMilkyWay, showDSOs, showLabels, showTemp, showGrid, d, effectiveTime, searchQuery, issPos, hipStars, ngcObjs, magLimit, showConArt])
+  }, [loc, time, timeOffsetMin, rotation, showPlanets, showConstellations, showMilkyWay, showDSOs, showLabels, showTemp, showGrid, d, effectiveTime, searchQuery, issPos, hipStars, ngcObjs, magLimit, showConArt, showFOV, fovScope, fovEP, fovAFOV])
 
   const rafRef = useRef<number>(0)
   useEffect(() => {
@@ -2146,6 +2229,7 @@ export default function StarMap() {
           { key: 'labels',         label: '🏷 Labels',         val: showLabels,         set: setShowLabels },
           { key: 'temp',           label: '🌡 Temperature',    val: showTemp,           set: setShowTemp },
           { key: 'grid',           label: '⊕ Grid',            val: showGrid,           set: setShowGrid },
+          { key: 'fov',            label: '⊙ FOV Circle',       val: showFOV,            set: setShowFOV },
         ] as const).map(({ key, label, val, set }) => (
           <button
             key={key}
@@ -2246,6 +2330,38 @@ export default function StarMap() {
           🔴 Night Vision
         </button>
       </div>
+
+      {/* FOV circle controls */}
+      {showFOV && (
+        <div className="flex flex-wrap items-center gap-3 mb-3 px-3 py-2.5 rounded-xl text-xs"
+          style={{ background: 'rgba(255,210,0,0.06)', border: '1px solid rgba(255,210,0,0.2)' }}>
+          <span className="text-yellow-400 font-bold shrink-0">⊙ Eyepiece FOV</span>
+          <label className="flex items-center gap-1 text-gray-400">
+            Scope
+            <input type="number" min={200} max={4000} value={fovScope}
+              onChange={e => setFovScope(Math.max(1, +e.target.value))}
+              className="w-16 px-1.5 py-0.5 rounded bg-slate-800 text-white border border-slate-600 focus:outline-none"
+            />mm
+          </label>
+          <label className="flex items-center gap-1 text-gray-400">
+            Eyepiece
+            <input type="number" min={2} max={55} value={fovEP}
+              onChange={e => setFovEP(Math.max(1, +e.target.value))}
+              className="w-12 px-1.5 py-0.5 rounded bg-slate-800 text-white border border-slate-600 focus:outline-none"
+            />mm
+          </label>
+          <label className="flex items-center gap-1 text-gray-400">
+            AFOV
+            <input type="number" min={20} max={120} value={fovAFOV}
+              onChange={e => setFovAFOV(Math.max(1, +e.target.value))}
+              className="w-12 px-1.5 py-0.5 rounded bg-slate-800 text-white border border-slate-600 focus:outline-none"
+            />°
+          </label>
+          <span className="font-bold text-yellow-300 ml-auto shrink-0">
+            = {(fovAFOV / (fovScope / fovEP)).toFixed(2)}° · {Math.round(fovScope / fovEP)}×
+          </span>
+        </div>
+      )}
 
       {/* Temperature legend */}
       {showTemp && (
