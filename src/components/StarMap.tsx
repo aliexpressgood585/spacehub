@@ -1181,6 +1181,7 @@ export default function StarMap() {
   const [fovScope, setFovScope]                     = useState(1000)
   const [fovEP, setFovEP]                           = useState(25)
   const [fovAFOV, setFovAFOV]                       = useState(52)
+  const [zoomLevel, setZoomLevel]                   = useState(1)
 
   // Time Machine — travel to any date
   const todayStr = () => {
@@ -1226,6 +1227,7 @@ export default function StarMap() {
     const W = canvas.width, H = canvas.height
     const cx = W / 2, cy = H / 2
     const r  = Math.min(W, H) / 2 - 24
+    const rz = r * zoomLevel  // zoomed radius for projection
 
     hitRef.current = []
     ctx.clearRect(0, 0, W, H)
@@ -1274,23 +1276,27 @@ export default function StarMap() {
     // Grid / altitude rings
     if (showGrid) {
       for (const alt of [15, 30, 45, 60, 75]) {
+        const ringR = rz * (90 - alt) / 90
+        if (ringR > r) continue
         ctx.beginPath()
-        ctx.arc(cx, cy, r * (90 - alt) / 90, 0, Math.PI * 2)
+        ctx.arc(cx, cy, ringR, 0, Math.PI * 2)
         ctx.strokeStyle = alt % 30 === 0 ? 'rgba(99,102,241,0.22)' : 'rgba(255,255,255,0.06)'
         ctx.lineWidth = 1; ctx.stroke()
         if (alt % 30 === 0) {
           ctx.font = '9px system-ui'; ctx.fillStyle = 'rgba(99,102,241,0.5)'; ctx.textAlign = 'left'
-          ctx.fillText(`${alt}°`, cx + r * (90 - alt) / 90 + 3, cy - 2)
+          ctx.fillText(`${alt}°`, cx + ringR + 3, cy - 2)
         }
       }
       for (let az = 0; az < 360; az += 45) {
-        const { x, y } = project(0, (az + rotation + 360) % 360, cx, cy, r, 0)
+        const { x, y } = project(0, (az + rotation + 360) % 360, cx, cy, rz, 0)
         ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(x, y)
         ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 1; ctx.stroke()
       }
     } else {
       for (const alt of [30, 60]) {
-        ctx.beginPath(); ctx.arc(cx, cy, r * (90 - alt) / 90, 0, Math.PI * 2)
+        const ringR = rz * (90 - alt) / 90
+        if (ringR > r) continue
+        ctx.beginPath(); ctx.arc(cx, cy, ringR, 0, Math.PI * 2)
         ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 1; ctx.stroke()
       }
     }
@@ -1319,7 +1325,7 @@ export default function StarMap() {
           const l = (li / 108) * 360
           const { ra, dec } = galToEquatorial(l, b)
           const hz = toHorizon(ra, dec, lst, loc.lat)
-          const pt = project(hz.alt, (hz.az + rotation) % 360, cx, cy, r, 0)
+          const pt = project(hz.alt, (hz.az + rotation) % 360, cx, cy, rz, 0)
           const density = 0.55 + 0.35 * Math.cos(l * DEG) + 0.10 * Math.cos(2 * l * DEG)
           const alpha = baseAlpha * Math.max(0.3, density)
           if (!started) {
@@ -1349,7 +1355,7 @@ export default function StarMap() {
       dsoSource.forEach(dso => {
         const { alt, az } = toHorizon(dso.ra, dso.dec, lst, loc.lat)
         if (alt < -3) return
-        const { x, y } = project(alt, (az + rotation) % 360, cx, cy, r, 0)
+        const { x, y } = project(alt, (az + rotation) % 360, cx, cy, rz, 0)
         if (x < -20 || x > W + 20 || y < -20 || y > H + 20) return
         const a = extinction(alt) * 0.85
         drawDSOSymbol(ctx, dso.type, x, y, dso.mag, a)
@@ -1391,7 +1397,7 @@ export default function StarMap() {
         const projected = pts.map(([ra, dec]) => {
           const hz = toHorizon(ra, dec, lst, loc.lat)
           if (hz.alt < -10) return null
-          return project(hz.alt, (hz.az + rotation) % 360, cx, cy, r, 0)
+          return project(hz.alt, (hz.az + rotation) % 360, cx, cy, rz, 0)
         }).filter(Boolean) as { x: number; y: number }[]
         if (projected.length < 3) return
         ctx.beginPath()
@@ -1416,8 +1422,8 @@ export default function StarMap() {
         const ha = toHorizon(ra1, dec1, lst, loc.lat)
         const hb = toHorizon(ra2, dec2, lst, loc.lat)
         if (ha.alt < -3 || hb.alt < -3) return
-        const pa = project(ha.alt, (ha.az + rotation) % 360, cx, cy, r, 0)
-        const pb = project(hb.alt, (hb.az + rotation) % 360, cx, cy, r, 0)
+        const pa = project(ha.alt, (ha.az + rotation) % 360, cx, cy, rz, 0)
+        const pb = project(hb.alt, (hb.az + rotation) % 360, cx, cy, rz, 0)
         ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y)
         ctx.strokeStyle = 'rgba(120,135,255,0.45)'; ctx.lineWidth = 1.2; ctx.stroke()
       }
@@ -1433,7 +1439,7 @@ export default function StarMap() {
         const accumulatePt = (ra: number, dec: number, name: string) => {
           const hz = toHorizon(ra, dec, lst, loc.lat)
           if (hz.alt < 3) return
-          const pt = project(hz.alt, (hz.az + rotation) % 360, cx, cy, r, 0)
+          const pt = project(hz.alt, (hz.az + rotation) % 360, cx, cy, rz, 0)
           const cur = conMap.get(name) ?? { sx: 0, sy: 0, n: 0 }
           conMap.set(name, { sx: cur.sx + pt.x, sy: cur.sy + pt.y, n: cur.n + 1 })
         }
@@ -1465,7 +1471,7 @@ export default function StarMap() {
       if (mag > magLimit) return
       const { alt, az } = toHorizon(ra, dec, lst, loc.lat)
       if (alt < -5) return
-      const { x, y } = project(alt, (az + rotation) % 360, cx, cy, r, 0)
+      const { x, y } = project(alt, (az + rotation) % 360, cx, cy, rz, 0)
       if (x < -12 || x > W + 12 || y < -12 || y > H + 12) return
 
       const ext    = extinction(alt)
@@ -1509,7 +1515,7 @@ export default function StarMap() {
         if (mag < 2.5 || mag > magLimit) return
         const { alt, az } = toHorizon(ra, dec, lst, loc.lat)
         if (alt < -3) return
-        const { x, y } = project(alt, (az + rotation) % 360, cx, cy, r, 0)
+        const { x, y } = project(alt, (az + rotation) % 360, cx, cy, rz, 0)
         if (x < -8 || x > W + 8 || y < -8 || y > H + 8) return
         const ext = extinction(alt)
         const col = showTemp ? tempColor(temp) : tempColor(temp)
@@ -1543,7 +1549,7 @@ export default function StarMap() {
         if (!radec) return
         const { alt, az } = toHorizon(radec.ra, radec.dec, lst, loc.lat)
         if (alt < -5) return
-        const { x, y } = project(alt, (az + rotation) % 360, cx, cy, r, 0)
+        const { x, y } = project(alt, (az + rotation) % 360, cx, cy, rz, 0)
         if (x < -12 || x > W + 12 || y < -12 || y > H + 12) return
 
         const ext = extinction(alt)
@@ -1631,7 +1637,7 @@ export default function StarMap() {
       const moon = computeMoon(d)
       const { alt, az } = toHorizon(moon.ra, moon.dec, lst, loc.lat)
       if (alt > -5) {
-        const { x, y } = project(alt, (az + rotation) % 360, cx, cy, r, 0)
+        const { x, y } = project(alt, (az + rotation) % 360, cx, cy, rz, 0)
         const ext  = extinction(alt)
         const mR   = 7
         const alpha = ext < 0.3 ? 0.28 : ext
@@ -1686,7 +1692,7 @@ export default function StarMap() {
     if (issPos) {
       const { alt, az } = issToAltAz(issPos.lat, issPos.lng, issPos.alt, loc.lat, loc.lng)
       if (alt > 0) {
-        const { x, y } = project(alt, (az + rotation) % 360, cx, cy, r, 0)
+        const { x, y } = project(alt, (az + rotation) % 360, cx, cy, rz, 0)
         const issGrad = ctx.createRadialGradient(x, y, 0, x, y, 12)
         issGrad.addColorStop(0, 'rgba(0,255,180,0.6)')
         issGrad.addColorStop(1, 'transparent')
@@ -1748,8 +1754,17 @@ export default function StarMap() {
       ctx.textAlign = 'left'
     }
 
+    // Zoom level indicator
+    if (zoomLevel > 1) {
+      const edgeAlt = Math.round(90 - 90 / zoomLevel)
+      ctx.font = 'bold 9px system-ui'; ctx.textAlign = 'center'
+      ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillText(`≥${edgeAlt}° · ${zoomLevel}×`, cx + 1, cy - r + 13)
+      ctx.fillStyle = 'rgba(99,200,255,0.85)'; ctx.fillText(`≥${edgeAlt}° · ${zoomLevel}×`, cx, cy - r + 12)
+      ctx.textAlign = 'left'
+    }
+
     ctx.restore()
-  }, [loc, time, timeOffsetMin, rotation, showPlanets, showConstellations, showMilkyWay, showDSOs, showLabels, showTemp, showGrid, d, effectiveTime, searchQuery, issPos, hipStars, ngcObjs, magLimit, showConArt, showFOV, fovScope, fovEP, fovAFOV])
+  }, [loc, time, timeOffsetMin, rotation, showPlanets, showConstellations, showMilkyWay, showDSOs, showLabels, showTemp, showGrid, d, effectiveTime, searchQuery, issPos, hipStars, ngcObjs, magLimit, showConArt, showFOV, fovScope, fovEP, fovAFOV, zoomLevel])
 
   const rafRef = useRef<number>(0)
   useEffect(() => {
@@ -2435,6 +2450,22 @@ export default function StarMap() {
         )}
       </div>
 
+      {/* Zoom controls */}
+      {!globeMode && (
+        <div className="flex items-center gap-2 mb-3 justify-center">
+          <span className="text-xs text-slate-500">🔍 Zoom</span>
+          {[1, 1.5, 2, 3, 4, 6].map(z => (
+            <button key={z} onClick={() => setZoomLevel(z)}
+              className="px-2.5 py-1 rounded-lg text-xs font-bold transition-all border"
+              style={zoomLevel === z
+                ? { background: 'rgba(99,200,255,0.18)', borderColor: 'rgba(99,200,255,0.5)', color: '#93c5fd' }
+                : { background: 'transparent', borderColor: '#374151', color: '#6b7280' }}>
+              {z === 1 ? 'All sky' : z === 1.5 ? '60°' : z === 2 ? '45°' : z === 3 ? '30°' : z === 4 ? '22°' : '15°'}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Canvas / Globe */}
       <div className="flex justify-center mb-4 relative">
         {globeMode ? (
@@ -2460,6 +2491,18 @@ export default function StarMap() {
               onTouchMove={e => {
                 if (!dragging) return
                 e.preventDefault()
+                // Pinch-to-zoom: two fingers
+                if (e.touches.length === 2) {
+                  const dx = e.touches[0].clientX - e.touches[1].clientX
+                  const dy = e.touches[0].clientY - e.touches[1].clientY
+                  const dist = Math.sqrt(dx*dx + dy*dy)
+                  if ((touchStartRef.current as {pinchDist?: number}).pinchDist) {
+                    const ratio = dist / ((touchStartRef.current as {pinchDist?: number}).pinchDist!)
+                    setZoomLevel(z => Math.max(1, Math.min(6, z * ratio)))
+                  }
+                  ;(touchStartRef.current as {pinchDist?: number}).pinchDist = dist
+                  return
+                }
                 setRotation(r => r + (e.touches[0].clientX - prevX) * 0.5)
                 setPrevX(e.touches[0].clientX)
               }}
