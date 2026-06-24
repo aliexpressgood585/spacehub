@@ -64,6 +64,7 @@ export default function ISSAlertSystem() {
       icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🚀</text></svg>',
     })
     setTimeout(() => setNotified(false), 6 * 60 * 1000)
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- t() translation fn is stable
   }, [notifGranted, notified])
 
   const startTracking = useCallback((loc: UserLocation) => {
@@ -92,12 +93,13 @@ export default function ISSAlertSystem() {
 
     fetchAndCalc()
     intervalRef.current = setInterval(fetchAndCalc, 10000)
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchAndCalc is recreated per render but only needs sendNotification
   }, [sendNotification])
 
   useEffect(() => () => { if (intervalRef.current) clearInterval(intervalRef.current) }, [])
 
   // Auto-detect location on mount; fall back to Tel Aviv silently
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   useEffect(() => {
     startTracking(DEFAULT)
     if ('geolocation' in navigator) {
@@ -112,6 +114,7 @@ export default function ISSAlertSystem() {
         { timeout: 5000 }
       )
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only geolocation request
   }, [])
 
   const useGeolocation = () => {
@@ -131,7 +134,7 @@ export default function ISSAlertSystem() {
     )
   }
 
-  const useCity = (city: typeof CITIES[0]) => {
+  const selectCity = (city: typeof CITIES[0]) => {
     const loc = { lat: city.lat, lng: city.lng, city: city.name }
     setSelectedCity(city.name)
     setUserLoc(loc)
@@ -191,7 +194,7 @@ export default function ISSAlertSystem() {
                 {CITIES.map(city => (
                   <button
                     key={city.name}
-                    onClick={() => useCity(city)}
+                    onClick={() => selectCity(city)}
                     className="px-3 py-1.5 rounded-xl text-sm transition"
                     style={selectedCity === city.name ? {
                       background: 'rgba(99,102,241,0.2)',
