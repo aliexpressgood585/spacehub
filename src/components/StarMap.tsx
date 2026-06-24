@@ -1162,6 +1162,16 @@ export default function StarMap() {
   const [showMessier, setShowMessier]               = useState(false)
   const [messierFilter, setMessierFilter]           = useState<string>('All')
   const [nvMode, setNvMode]                         = useState(false)
+  const [showConArt, setShowConArt]                 = useState(true)
+
+  // Time Machine — travel to any date
+  const todayStr = () => {
+    const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`
+  }
+  const [tmDate, setTmDate] = useState<string>(todayStr())
+  const [tmHour, setTmHour] = useState<number>(new Date().getHours())
+  const [showTimeMachine, setShowTimeMachine] = useState(false)
+  const [tmLocked, setTmLocked] = useState(false) // false = track realtime, true = frozen to tmDate
 
   const [tooltip, setTooltip] = useState<Tooltip | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -1172,8 +1182,14 @@ export default function StarMap() {
   type NgcObj = [number, number, number, DSO['type'], string]
   const [ngcObjs, setNgcObjs] = useState<NgcObj[]>([])
 
-  // Effective time = now + user offset
-  const effectiveTime = new Date(time.getTime() + timeOffsetMin * 60_000)
+  // Effective time: locked = custom date, else now + offset
+  const effectiveTime = useMemo(() => {
+    if (tmLocked) {
+      const [y, m, day] = tmDate.split('-').map(Number)
+      return new Date(y, m - 1, day, tmHour, 0, 0)
+    }
+    return new Date(time.getTime() + timeOffsetMin * 60_000)
+  }, [tmLocked, tmDate, tmHour, time, timeOffsetMin])
   const jd = julianDate(effectiveTime)
   const d  = jd - 2451543.5
 
@@ -1332,6 +1348,47 @@ export default function StarMap() {
         if (dso.mag < 11) {
           hitRef.current.push({ name: dso.name, x, y, mag: dso.mag, alt, color: DSO_COLOR[dso.type], isDSO: true, dsoType: dso.type })
         }
+      })
+    }
+
+    // ── Constellation artwork (mythological figure halos) ──
+    if (showConstellations && showConArt) {
+      // For each major constellation, draw a glowing halo blob over its area
+      const CON_ART: { name: string; pts: [number, number][]; color: string }[] = [
+        { name: 'Orion', color: '#6688ff', pts: [[5.24,-8.2],[5.40,-0.3],[5.60,-1.2],[5.90,7.4],[5.42,6.3],[5.80,-1.9],[5.79,-9.7]] },
+        { name: 'Ursa Major', color: '#4488cc', pts: [[11.06,61.8],[11.03,56.4],[11.90,53.7],[12.26,57.0],[13.40,55.0],[13.79,49.3],[14.0,48],[13.5,50],[12.1,50],[10.9,57]] },
+        { name: 'Leo', color: '#ffaa44', pts: [[9.88,26.0],[10.28,23.4],[10.33,19.8],[10.14,12.0],[11.24,20.5],[11.82,14.6],[11.24,15.4]] },
+        { name: 'Scorpius', color: '#ff4422', pts: [[15.93,-19.8],[15.99,-22.6],[16.49,-26.4],[16.86,-34.3],[17.17,-37.1],[17.56,-37.1],[17.51,-37.3],[17.62,-43.0],[17.7,-40],[17.3,-35],[17.0,-30],[16.5,-24],[15.8,-19]] },
+        { name: 'Cassiopeia', color: '#cc88ff', pts: [[0.15,59.1],[0.68,56.5],[0.95,60.7],[1.43,60.2],[1.91,63.7],[1.6,65],[1.0,62],[0.5,61],[0.0,60]] },
+        { name: 'Cygnus', color: '#44ccff', pts: [[19.49,27.96],[20.37,40.26],[20.69,45.28],[21.22,36.7],[22.47,49.2],[21.5,52],[20.5,47],[20.0,42],[19.8,30]] },
+        { name: 'Gemini', color: '#44ee88', pts: [[6.62,16.4],[7.06,20.6],[7.58,31.9],[7.75,28.0],[7.07,22.5],[6.90,18]] },
+        { name: 'Taurus', color: '#ffcc44', pts: [[3.78,24.1],[4.60,16.5],[5.44,28.6],[5.63,21.1],[4.5,22],[4.0,24]] },
+        { name: 'Sagittarius', color: '#ff8844', pts: [[18.10,-21.1],[18.35,-29.8],[18.40,-34.4],[18.92,-26.3],[19.0,-25],[18.7,-22],[18.2,-20]] },
+        { name: 'Aquila', color: '#88ffcc', pts: [[19.10,13.9],[19.77,10.6],[19.85,8.9],[19.92,6.4],[20.19,-0.8],[19.7,4],[19.3,10]] },
+        { name: 'Perseus', color: '#cc99ff', pts: [[3.08,53.5],[3.40,49.9],[3.14,41.0],[3.72,47.8],[3.96,40.0],[3.86,31.9],[3.7,38],[3.1,45]] },
+        { name: 'Boötes', color: '#ffee88', pts: [[13.91,18.4],[14.26,19.2],[14.75,27.1],[15.03,40.4],[14.53,30.4],[14.3,24],[14.0,19]] },
+      ]
+
+      CON_ART.forEach(({ pts, color }) => {
+        const projected = pts.map(([ra, dec]) => {
+          const hz = toHorizon(ra, dec, lst, loc.lat)
+          if (hz.alt < -10) return null
+          return project(hz.alt, (hz.az + rotation) % 360, cx, cy, r, 0)
+        }).filter(Boolean) as { x: number; y: number }[]
+        if (projected.length < 3) return
+        ctx.beginPath()
+        ctx.moveTo(projected[0].x, projected[0].y)
+        projected.slice(1).forEach(p => ctx.lineTo(p.x, p.y))
+        ctx.closePath()
+        ctx.fillStyle = color + '0c'
+        ctx.fill()
+        ctx.strokeStyle = color + '25'
+        ctx.lineWidth = 12
+        ctx.lineJoin = 'round'
+        ctx.filter = 'blur(8px)'
+        ctx.stroke()
+        ctx.filter = 'none'
+        ctx.lineWidth = 1
       })
     }
 
@@ -1609,7 +1666,7 @@ export default function StarMap() {
     ctx.beginPath(); ctx.arc(cx, cy, 2.5, 0, Math.PI * 2)
     ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fill()
     ctx.restore()
-  }, [loc, time, timeOffsetMin, rotation, showPlanets, showConstellations, showMilkyWay, showDSOs, showLabels, showTemp, showGrid, d, effectiveTime, searchQuery, issPos, hipStars, ngcObjs, magLimit])
+  }, [loc, time, timeOffsetMin, rotation, showPlanets, showConstellations, showMilkyWay, showDSOs, showLabels, showTemp, showGrid, d, effectiveTime, searchQuery, issPos, hipStars, ngcObjs, magLimit, showConArt])
 
   const rafRef = useRef<number>(0)
   useEffect(() => {
@@ -1928,19 +1985,25 @@ export default function StarMap() {
       <div className="flex items-center gap-3 mb-4">
         <div className="icon-box text-2xl">🌌</div>
         <div>
-          <h3 className="text-white font-bold text-lg">Tonight's Sky</h3>
+          <h3 className="text-white font-bold text-lg">
+            {tmLocked ? '⏳ Time Machine' : "Tonight's Sky"}
+          </h3>
           <p className="text-gray-500 text-xs">
             {hipStars.length > 0 ? `${(visibleStars + hipStars.length).toLocaleString()} stars` : `${visibleStars} stars`}
             {ngcObjs.length > 0 && ` · ${ngcObjs.length.toLocaleString()} DSOs`}
-            {' · '}{city} · {effectiveTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+            {' · '}{city} · {effectiveTime.toLocaleDateString('en-US',{month:'short',day:'numeric',year:tmLocked?'numeric':undefined})} {effectiveTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
         <div className="ml-auto">
-          {timeOffsetMin === 0
-            ? <div className="live-badge"><span className="live-dot" />LIVE</div>
-            : <span style={{ fontSize: 11, color: '#c4b5fd', fontWeight: 700, background: 'rgba(99,102,241,0.18)', border: '1px solid rgba(99,102,241,0.35)', borderRadius: 8, padding: '2px 8px' }}>
-                {fmtOffset()}
+          {tmLocked
+            ? <span style={{ fontSize: 11, color: '#c4b5fd', fontWeight: 700, background: 'rgba(167,139,250,0.18)', border: '1px solid rgba(167,139,250,0.4)', borderRadius: 8, padding: '2px 8px' }}>
+                🔒 {effectiveTime.getFullYear()}
               </span>
+            : timeOffsetMin === 0
+              ? <div className="live-badge"><span className="live-dot" />LIVE</div>
+              : <span style={{ fontSize: 11, color: '#c4b5fd', fontWeight: 700, background: 'rgba(99,102,241,0.18)', border: '1px solid rgba(99,102,241,0.35)', borderRadius: 8, padding: '2px 8px' }}>
+                  {fmtOffset()}
+                </span>
           }
         </div>
       </div>
@@ -1961,32 +2024,98 @@ export default function StarMap() {
         ))}
       </div>
 
-      {/* Time slider */}
-      <div className="flex items-center gap-2 mb-3">
-        <button
-          onClick={() => setTimeOffsetMin(0)}
-          style={timeOffsetMin === 0
-            ? { background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.4)', color: '#34d399' }
-            : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#6b7280' }}
-          className="text-xs px-2.5 py-1 rounded-lg font-semibold transition shrink-0"
-        >
-          ⏱ Now
-        </button>
-        <input
-          type="range"
-          min={-720}
-          max={720}
-          step={30}
-          value={timeOffsetMin}
-          onChange={e => setTimeOffsetMin(Number(e.target.value))}
-          className="flex-1 min-w-0"
-          style={{ accentColor: '#6366f1' }}
-          aria-label="Time offset from now"
-        />
-        <span className="text-xs font-semibold shrink-0 w-20 text-right" style={{ color: timeOffsetMin === 0 ? '#34d399' : '#c4b5fd' }}>
-          {effectiveTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-          {timeOffsetMin !== 0 && <span className="text-indigo-400 ml-1">({fmtOffset()})</span>}
-        </span>
+      {/* Time Machine */}
+      <div className="mb-3">
+        <div className="flex items-center gap-2 mb-2">
+          <button onClick={() => setShowTimeMachine(v => !v)}
+            className="text-xs px-2.5 py-1 rounded-lg font-semibold transition shrink-0 flex items-center gap-1"
+            style={showTimeMachine
+              ? { background: 'rgba(167,139,250,0.2)', border: '1px solid rgba(167,139,250,0.5)', color: '#c4b5fd' }
+              : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#6b7280' }}>
+            ⏳ Time Machine
+          </button>
+          {!showTimeMachine && (
+            <>
+              <button onClick={() => { setTmLocked(false); setTimeOffsetMin(0) }}
+                className="text-xs px-2.5 py-1 rounded-lg font-semibold transition shrink-0"
+                style={!tmLocked && timeOffsetMin === 0
+                  ? { background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.4)', color: '#34d399' }
+                  : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#6b7280' }}>
+                ⏱ Now
+              </button>
+              <input type="range" min={-720} max={720} step={30}
+                value={tmLocked ? 0 : timeOffsetMin}
+                onChange={e => { setTmLocked(false); setTimeOffsetMin(Number(e.target.value)) }}
+                className="flex-1 min-w-0" style={{ accentColor: '#6366f1' }}
+                aria-label="Time offset" />
+              <span className="text-xs font-semibold shrink-0 w-16 text-right"
+                style={{ color: !tmLocked && timeOffsetMin === 0 ? '#34d399' : '#c4b5fd' }}>
+                {effectiveTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </>
+          )}
+        </div>
+
+        {showTimeMachine && (
+          <div className="rounded-xl p-3 mb-2" style={{ background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.25)' }}>
+            <p className="text-[10px] text-purple-400 font-semibold uppercase tracking-widest mb-2">Travel to any date · 1900 – 2100</p>
+            <div className="flex gap-2 mb-2">
+              <input type="date" value={tmDate} min="1900-01-01" max="2100-12-31"
+                onChange={e => { setTmDate(e.target.value); setTmLocked(true) }}
+                className="flex-1 rounded-lg px-2 py-1.5 text-xs text-white outline-none"
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(167,139,250,0.4)', colorScheme: 'dark' }} />
+              <select value={tmHour} onChange={e => { setTmHour(Number(e.target.value)); setTmLocked(true) }}
+                className="w-24 rounded-lg px-2 py-1.5 text-xs text-white outline-none"
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(167,139,250,0.4)' }}>
+                {Array.from({length:24},(_,i)=>(
+                  <option key={i} value={i} style={{background:'#0d1235'}}>{String(i).padStart(2,'0')}:00</option>
+                ))}
+              </select>
+            </div>
+            {/* Year jump buttons */}
+            <div className="flex flex-wrap gap-1 mb-2">
+              {[-100,-50,-10,-1,1,10,50,100].map(dy => (
+                <button key={dy} onClick={() => {
+                  const [y,m,d2] = tmDate.split('-')
+                  const ny = Number(y) + dy
+                  if (ny < 1900 || ny > 2100) return
+                  setTmDate(`${ny}-${m}-${d2}`)
+                  setTmLocked(true)
+                }} className="text-[10px] px-2 py-1 rounded-lg font-bold transition"
+                  style={{ background: 'rgba(167,139,250,0.12)', border: '1px solid rgba(167,139,250,0.25)', color: dy < 0 ? '#f87171' : '#4ade80' }}>
+                  {dy > 0 ? `+${dy}yr` : `${dy}yr`}
+                </button>
+              ))}
+            </div>
+            {/* Event presets */}
+            <div className="flex flex-wrap gap-1 mb-2">
+              {[
+                { label: '☀️ Eclipse 2026', date: '2026-08-12', h: 17 },
+                { label: '☀️ Eclipse 2027', date: '2027-08-02', h: 10 },
+                { label: '🌠 Leonids 2026', date: '2026-11-17', h: 3 },
+                { label: '🌠 Perseids 2026', date: '2026-08-12', h: 23 },
+                { label: '♀ Venus Conj', date: '2026-11-02', h: 5 },
+                { label: '🌕 Full Moon', date: tmDate, h: 0 },
+              ].map(preset => (
+                <button key={preset.label} onClick={() => { setTmDate(preset.date); setTmHour(preset.h); setTmLocked(true) }}
+                  className="text-[9px] px-2 py-1 rounded-lg transition"
+                  style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.25)', color: '#a5b4fc' }}>
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="text-[10px]" style={{ color: '#a78bfa' }}>
+                {tmLocked ? `🔒 ${effectiveTime.toLocaleDateString('en-US',{weekday:'short',year:'numeric',month:'short',day:'numeric'})} ${String(tmHour).padStart(2,'0')}:00` : '🔴 Live'}
+              </div>
+              <button onClick={() => { setTmLocked(false); setTimeOffsetMin(0); setTmDate(todayStr()); setTmHour(new Date().getHours()) }}
+                className="text-[10px] px-2.5 py-1 rounded-lg font-semibold transition"
+                style={{ background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.35)', color: '#34d399' }}>
+                ⏱ Return to Now
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Magnitude limit slider */}
@@ -2011,6 +2140,7 @@ export default function StarMap() {
         {([
           { key: 'planets',        label: '🪐 Planets',       val: showPlanets,        set: setShowPlanets },
           { key: 'constellations', label: '✦ Constellations', val: showConstellations,  set: setShowConstellations },
+          { key: 'conart',         label: '🎨 Con. Art',       val: showConArt,          set: setShowConArt },
           { key: 'milkyway',       label: '🌠 Milky Way',     val: showMilkyWay,        set: setShowMilkyWay },
           { key: 'dsos',           label: '🔭 Deep Sky',      val: showDSOs,            set: setShowDSOs },
           { key: 'labels',         label: '🏷 Labels',         val: showLabels,         set: setShowLabels },
