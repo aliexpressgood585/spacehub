@@ -762,6 +762,27 @@ const SPECTRAL_LEGEND = [
   { cls: 'M', range: '<3.7k K',   color: '#ff6020' },
 ]
 
+// ── EPHEMERIS: rise / transit / set ───────────────────────────
+function calcRiseSetTransit(ra: number, dec: number, date: Date, lat: number, lng: number) {
+  const midnight = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  let prevAlt = -999, maxAlt = -90
+  let riseTime = '', setTime = '', transitTime = ''
+  for (let m = 0; m <= 1442; m += 2) {
+    const t = new Date(midnight.getTime() + m * 60000)
+    const lst = localSiderealTime(t, lng)
+    const { alt } = toHorizon(ra, dec, lst, lat)
+    if (prevAlt !== -999) {
+      if (prevAlt < 0 && alt >= 0 && !riseTime)
+        riseTime = t.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      if (prevAlt >= 0 && alt < 0 && !setTime)
+        setTime  = t.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+    }
+    if (alt > maxAlt) { maxAlt = alt; transitTime = t.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) }
+    prevAlt = alt
+  }
+  return { rise: riseTime || '—', transit: maxAlt > 0 ? transitTime : '—', set: setTime || '—', maxAlt: Math.round(maxAlt) }
+}
+
 export default function StarMap() {
   const canvasRef   = useRef<HTMLCanvasElement>(null)
   const hitRef      = useRef<HitItem[]>([])
@@ -784,6 +805,9 @@ export default function StarMap() {
   const [showTemp, setShowTemp]                     = useState(false)
   const [showGrid, setShowGrid]                     = useState(false)
   const [globeMode, setGlobeMode]                   = useState(false)
+  const [magLimit, setMagLimit]                     = useState(6.5)
+  const [showEphemeris, setShowEphemeris]           = useState(false)
+  const [notifPerm, setNotifPerm]                   = useState<NotificationPermission>('default')
 
   const [tooltip, setTooltip] = useState<Tooltip | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -970,6 +994,7 @@ export default function StarMap() {
 
     // ── Stars ──
     STARS.forEach(([name, ra, dec, mag, color, temp]) => {
+      if (mag > magLimit) return
       const { alt, az } = toHorizon(ra, dec, lst, loc.lat)
       if (alt < -5) return
       const { x, y } = project(alt, (az + rotation) % 360, cx, cy, r, 0)
@@ -1013,8 +1038,7 @@ export default function StarMap() {
     // ── Hipparcos catalog (faint stars up to mag 6) ──
     if (hipStars.length > 0) {
       hipStars.forEach(([ra, dec, mag, temp, name]) => {
-        // Skip stars already drawn by the bright STARS array (mag < 2.5)
-        if (mag < 2.5) return
+        if (mag < 2.5 || mag > magLimit) return
         const { alt, az } = toHorizon(ra, dec, lst, loc.lat)
         if (alt < -3) return
         const { x, y } = project(alt, (az + rotation) % 360, cx, cy, r, 0)
@@ -1192,7 +1216,7 @@ export default function StarMap() {
     ctx.beginPath(); ctx.arc(cx, cy, 2.5, 0, Math.PI * 2)
     ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fill()
     ctx.restore()
-  }, [loc, time, timeOffsetMin, rotation, showPlanets, showConstellations, showMilkyWay, showDSOs, showLabels, showTemp, showGrid, d, effectiveTime, searchQuery, issPos, hipStars, ngcObjs])
+  }, [loc, time, timeOffsetMin, rotation, showPlanets, showConstellations, showMilkyWay, showDSOs, showLabels, showTemp, showGrid, d, effectiveTime, searchQuery, issPos, hipStars, ngcObjs, magLimit])
 
   const rafRef = useRef<number>(0)
   useEffect(() => {
@@ -1233,10 +1257,30 @@ export default function StarMap() {
       .catch(() => {})
   }, [])
 
+  const lastISSAltRef = useRef<number | null>(null)
+  const locRef = useRef(loc)
+  locRef.current = loc
+
+  useEffect(() => {
+    if ('Notification' in window) setNotifPerm(Notification.permission)
+  }, [])
+
   useEffect(() => {
     const fetchISS = () => {
       fetch('/api/iss').then(r => r.json()).then(d => {
-        if (d?.latitude != null) setIssPos({ lat: +d.latitude, lng: +d.longitude, alt: +(d.altitude ?? 420) })
+        if (d?.latitude != null) {
+          const pos = { lat: +d.latitude, lng: +d.longitude, alt: +(d.altitude ?? 420) }
+          setIssPos(pos)
+          const { alt } = issToAltAz(pos.lat, pos.lng, pos.alt, locRef.current.lat, locRef.current.lng)
+          if (lastISSAltRef.current !== null && lastISSAltRef.current <= 0 && alt > 0 && Notification.permission === 'granted') {
+            new Notification('🛸 ISS is now visible!', {
+              body: `The ISS just rose above your horizon — look up! Altitude: ${Math.round(alt)}°`,
+              icon: '/favicon.svg',
+              tag: 'iss-rise',
+            })
+          }
+          lastISSAltRef.current = alt
+        }
       }).catch(() => {})
     }
     fetchISS()
@@ -1382,6 +1426,23 @@ export default function StarMap() {
         </span>
       </div>
 
+      {/* Magnitude limit slider */}
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-xs text-gray-500 font-semibold shrink-0">✦ Mag limit</span>
+        <input
+          type="range" min={1} max={6.5} step={0.5}
+          value={magLimit}
+          onChange={e => setMagLimit(Number(e.target.value))}
+          className="flex-1 min-w-0"
+          style={{ accentColor: '#c4b5fd' }}
+          aria-label="Magnitude limit"
+        />
+        <span className="text-xs font-bold shrink-0 w-8 text-right" style={{ color: '#c4b5fd' }}>{magLimit.toFixed(1)}</span>
+        <span className="text-xs text-gray-600 shrink-0">
+          ({magLimit <= 2 ? 'Naked eye bright' : magLimit <= 4 ? 'Naked eye' : magLimit <= 5 ? 'Good sky' : 'Dark sky'})
+        </span>
+      </div>
+
       {/* Toggle controls */}
       <div className="flex flex-wrap gap-1.5 mb-4" role="group" aria-label="Map display options">
         {([
@@ -1415,6 +1476,31 @@ export default function StarMap() {
         >
           🌐 Globe
         </button>
+        <button
+          onClick={() => setShowEphemeris(e => !e)}
+          aria-pressed={showEphemeris}
+          style={showEphemeris
+            ? { background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.4)', color: '#34d399' }
+            : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#6b7280' }}
+          className="text-xs px-3 py-1.5 rounded-lg font-semibold transition"
+        >
+          📅 Ephemeris
+        </button>
+        {'Notification' in window && (
+          <button
+            onClick={() => {
+              if (notifPerm === 'granted') return
+              Notification.requestPermission().then(p => setNotifPerm(p))
+            }}
+            style={notifPerm === 'granted'
+              ? { background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.4)', color: '#34d399' }
+              : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#6b7280' }}
+            className="text-xs px-3 py-1.5 rounded-lg font-semibold transition"
+            title={notifPerm === 'granted' ? 'ISS alerts enabled' : 'Enable ISS rise alerts'}
+          >
+            {notifPerm === 'granted' ? '🔔 Alerts ON' : '🔕 ISS Alerts'}
+          </button>
+        )}
       </div>
 
       {/* Temperature legend */}
@@ -1587,6 +1673,50 @@ export default function StarMap() {
               {timeOffsetMin !== 0 ? ` at ${effectiveTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}` : ' tonight'}
             </p>
           )}
+        </div>
+      )}
+
+      {/* Ephemeris table */}
+      {showEphemeris && (
+        <div className="mt-3" style={{ background: 'rgba(52,211,153,0.04)', border: '1px solid rgba(52,211,153,0.18)', borderRadius: 14, padding: '12px 16px' }}>
+          <p className="text-xs font-bold mb-3 tracking-wide uppercase" style={{ color: '#34d399' }}>📅 Today's Ephemeris — Rise · Transit · Set</p>
+          <div className="overflow-x-auto">
+            <table style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ color: '#4b5563', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                  <th style={{ textAlign: 'left', padding: '4px 8px', fontWeight: 600 }}>Object</th>
+                  <th style={{ textAlign: 'center', padding: '4px 8px', fontWeight: 600 }}>Rise</th>
+                  <th style={{ textAlign: 'center', padding: '4px 8px', fontWeight: 600 }}>Transit</th>
+                  <th style={{ textAlign: 'center', padding: '4px 8px', fontWeight: 600 }}>Set</th>
+                  <th style={{ textAlign: 'center', padding: '4px 8px', fontWeight: 600 }}>Max°</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { name: 'Sun',     symbol: '☀',  color: '#ffee44', radec: computeRADec('Sun',     d) },
+                  { name: 'Moon',    symbol: '🌙', color: '#c8d2ff', radec: computeMoon(d) },
+                  ...PLANETS.filter(p => p.name !== 'Sun').map(p => ({ name: p.name, symbol: p.symbol, color: p.color, radec: computeRADec(p.name, d) })),
+                ].map(({ name, symbol, color, radec }) => {
+                  if (!radec) return null
+                  const eph = calcRiseSetTransit(radec.ra, radec.dec, effectiveTime, loc.lat, loc.lng)
+                  return (
+                    <tr key={name} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      <td style={{ padding: '5px 8px', color: '#e2e8f0', fontWeight: 600 }}>
+                        <span style={{ marginRight: 5 }}>{symbol}</span>{name}
+                      </td>
+                      <td style={{ padding: '5px 8px', textAlign: 'center', color: eph.rise !== '—' ? '#34d399' : '#374151' }}>{eph.rise}</td>
+                      <td style={{ padding: '5px 8px', textAlign: 'center', color: color }}>{eph.transit}</td>
+                      <td style={{ padding: '5px 8px', textAlign: 'center', color: eph.set !== '—' ? '#f87171' : '#374151' }}>{eph.set}</td>
+                      <td style={{ padding: '5px 8px', textAlign: 'center', color: eph.maxAlt > 0 ? '#9ca3af' : '#374151', fontWeight: 600 }}>
+                        {eph.maxAlt > 0 ? `${eph.maxAlt}°` : '—'}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-gray-600 mt-2">Times are local · Based on your selected location · Computed for today</p>
         </div>
       )}
 
