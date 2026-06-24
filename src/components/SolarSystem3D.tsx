@@ -276,8 +276,7 @@ export default function SolarSystem3D() {
       window.removeEventListener('touchmove', onMove)
       window.removeEventListener('resize', onResize)
       renderer.dispose()
-      if (containerRef.current?.contains(renderer.domElement))
-        containerRef.current.removeChild(renderer.domElement)
+      renderer.domElement.remove()
     }
   }, [])
 
