@@ -842,6 +842,17 @@ function loadObs(): ObsItem[] {
   try { return JSON.parse(localStorage.getItem(OBS_KEY) ?? '[]') } catch { return [] }
 }
 
+// DSS thumbnail from STScI — 48×48 px real survey image of each Messier object
+function DssThumbnail({ ra, dec, name, color }: { ra: number; dec: number; name: string; color: string }) {
+  const [err, setErr] = useState(false)
+  const url = `https://archive.stsci.edu/cgi-bin/dss_search?v=poss2ukstu_red&r=${ra.toFixed(4)}&d=${dec.toFixed(4)}&e=J2000&h=4&w=4&f=gif`
+  if (err) return <div style={{ width: 48, height: 48, borderRadius: 6, background: `${color}22`, border: `1px solid ${color}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>🌌</div>
+  return (
+    <img src={url} alt={name} width={48} height={48} referrerPolicy="no-referrer" onError={() => setErr(true)}
+      style={{ borderRadius: 6, objectFit: 'cover', border: `1px solid ${color}44` }} />
+  )
+}
+
 export default function StarMap() {
   const canvasRef   = useRef<HTMLCanvasElement>(null)
   const hitRef      = useRef<HitItem[]>([])
@@ -873,6 +884,7 @@ export default function StarMap() {
   const [showPlanner, setShowPlanner]               = useState(false)
   const [showMessier, setShowMessier]               = useState(false)
   const [messierFilter, setMessierFilter]           = useState<string>('All')
+  const [nvMode, setNvMode]                         = useState(false)
 
   const [tooltip, setTooltip] = useState<Tooltip | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -1480,10 +1492,28 @@ export default function StarMap() {
     targets.sort((a, b) => b.alt - a.alt)
     const top8 = targets.slice(0, 8)
 
+    // Variable star events — next minimum / maximum
+    const VAR_STARS = [
+      { name: 'Algol β Per',   T0_jd: 2445641.5,  period: 2.8673043, ra: 3.136,  dec: 40.96, type: 'Eclipsing binary', color: '#f87171', event: 'minimum' },
+      { name: 'Delta Cephei',  T0_jd: 2443143.5,  period: 5.36634,   ra: 22.497, dec: 58.41, type: 'Cepheid',          color: '#fbbf24', event: 'maximum' },
+      { name: 'Mira ο Cet',    T0_jd: 2443484.5,  period: 331.96,    ra: 2.322,  dec: -2.97, type: 'Mira variable',    color: '#c084fc', event: 'maximum' },
+      { name: 'RR Lyrae',      T0_jd: 2446998.5,  period: 0.566867,  ra: 19.384, dec: 42.78, type: 'RR Lyrae',         color: '#38bdf8', event: 'maximum' },
+    ]
+    const jdPeak = julianDate(peakT)
+    const varEvents = VAR_STARS.map(v => {
+      const phase = ((jdPeak - v.T0_jd) % v.period + v.period) % v.period
+      const daysToNext = v.period - phase
+      const hoursToNext = daysToNext * 24
+      const { alt } = toHorizon(v.ra, v.dec, lst, loc.lat)
+      const hh = Math.floor(hoursToNext)
+      const mm = Math.round((hoursToNext - hh) * 60)
+      return { ...v, daysToNext, hoursToNext, label: `${hh}h ${mm}m`, alt: Math.round(alt) }
+    }).sort((a, b) => a.hoursToNext - b.hoursToNext)
+
     const fmtTime = (d: Date) => d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
     const moonPhaseIcon = moonPct < 10 ? '🌑' : moonPct < 35 ? '🌒' : moonPct < 65 ? '🌓' : moonPct < 90 ? '🌔' : '🌕'
 
-    return { darkWindow, hasDark, moon, moonPct, moonPhaseIcon, moonEph, moonUp, skyScore, top8, peakTime: fmtTime(peakT), darkStart: darkWindow ? fmtTime(darkWindow.start) : '—', darkEnd: darkWindow ? fmtTime(darkWindow.end) : '—' }
+    return { darkWindow, hasDark, moon, moonPct, moonPhaseIcon, moonEph, moonUp, skyScore, top8, varEvents, peakTime: fmtTime(peakT), darkStart: darkWindow ? fmtTime(darkWindow.start) : '—', darkEnd: darkWindow ? fmtTime(darkWindow.end) : '—' }
   }, [time, loc, ngcObjs])
 
   const saveToObs = useCallback((item: HitItem) => {
@@ -1787,6 +1817,17 @@ export default function StarMap() {
           className="text-xs px-3 py-1.5 rounded-lg font-semibold transition"
         >
           🌌 Messier ({MESSIER.length})
+        </button>
+        <button
+          onClick={() => setNvMode(n => !n)}
+          aria-pressed={nvMode}
+          style={nvMode
+            ? { background: 'rgba(220,38,38,0.25)', border: '1px solid rgba(220,38,38,0.6)', color: '#fca5a5' }
+            : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#6b7280' }}
+          className="text-xs px-3 py-1.5 rounded-lg font-semibold transition"
+          title="Red night-vision mode — preserves dark adaptation"
+        >
+          🔴 Night Vision
         </button>
       </div>
 
@@ -2184,6 +2225,25 @@ export default function StarMap() {
             </div>
           )}
           <p className="text-xs text-gray-700 mt-2">Alt = altitude above horizon · Az = compass bearing (0°=N, 90°=E, 180°=S, 270°=W)</p>
+
+          {/* Variable Stars */}
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 mt-4">Variable Star Events</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {plannerData.varEvents.map((v, i) => (
+              <div key={i} className="flex items-center gap-3 px-3 py-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: v.color, boxShadow: `0 0 6px ${v.color}`, flexShrink: 0 }} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-bold text-white">{v.name}</div>
+                  <div className="text-xs text-gray-600">{v.type} · next {v.event}</div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-xs font-bold" style={{ color: v.color }}>{v.label}</div>
+                  <div className="text-xs text-gray-600">{v.alt > 0 ? `${v.alt}° alt` : 'below hz'}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-gray-700 mt-2">Variable stars · countdown to next predicted event</p>
         </div>
       )}
 
@@ -2213,9 +2273,9 @@ export default function StarMap() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {filtered.map(m => (
                 <div key={m.id} className="rounded-xl px-3 py-2.5 flex items-start gap-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                  <div className="shrink-0 text-center" style={{ width: 36 }}>
-                    <div className="text-xs font-bold" style={{ color: m.color }}>{m.id}</div>
-                    <div className="text-xs text-gray-600">m{m.mag.toFixed(1)}</div>
+                  <div className="shrink-0 text-center" style={{ width: 48 }}>
+                    <DssThumbnail ra={m.ra * 15} dec={m.dec} name={m.id} color={m.color} />
+                    <div className="text-xs font-bold mt-0.5" style={{ color: m.color, fontSize: 9 }}>{m.id}</div>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -2246,6 +2306,11 @@ export default function StarMap() {
           ? 'Drag to rotate the celestial sphere · Auto-rotates · 122,000+ stars on all-sky view'
           : 'Drag to rotate · Hover/tap for details · Slider to travel in time · Zenith at center'}
       </p>
+
+      {/* Night Vision red overlay — pointer-events: none so it doesn't block interaction */}
+      {nvMode && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(180,0,0,0.32)', pointerEvents: 'none', zIndex: 9998, mixBlendMode: 'multiply' }} aria-hidden="true" />
+      )}
     </div>
   )
 }
