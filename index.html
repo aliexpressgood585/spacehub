@@ -124,7 +124,7 @@
 
     <!-- Google Analytics -->
     <script async fetchpriority="high" src="https://www.googletagmanager.com/gtag/js?id=G-YVDZCEHZGZ"></script>
-    <script src="/init.js"></script>
+    <script src="/init.js?v=3"></script>
 
     <!-- PWA -->
     <link rel="manifest" href="/manifest.json" />
@@ -134,6 +134,21 @@
     <meta name="apple-mobile-web-app-title" content="SpaceHub" />
     <meta name="theme-color" content="#050816" />
   </head>
+  <script>
+    // Bust stale SW caches — runs inline so SW cannot intercept it
+    if ('caches' in window) {
+      caches.keys().then(function(keys) {
+        keys.forEach(function(k) {
+          if (k !== 'spacehub-v10' && k !== 'spacehub-api-v5') caches.delete(k)
+        })
+      })
+    }
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(regs) {
+        regs.forEach(function(r) { r.update() })
+      })
+    }
+  </script>
   <body style="background:#020510">
     <noscript>
       <div style="padding:40px 24px;text-align:center;font-family:system-ui,sans-serif;background:#020510;color:#e0e0e0;min-height:100vh">
