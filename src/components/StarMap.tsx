@@ -836,6 +836,7 @@ export default function StarMap() {
   const [obsList, setObsList]                       = useState<ObsItem[]>([])
   const [showObsList, setShowObsList]               = useState(false)
   const [showEvents, setShowEvents]                 = useState(false)
+  const [showPlanner, setShowPlanner]               = useState(false)
 
   const [tooltip, setTooltip] = useState<Tooltip | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -1323,6 +1324,77 @@ export default function StarMap() {
     return results
   }, [time])
 
+  // Tonight's Sky Planner
+  const plannerData = useMemo(() => {
+    // Scan tonight in 15-min steps to find dark window (Sun < -18°)
+    const tonight = new Date(time)
+    tonight.setHours(20, 0, 0, 0)
+    const darkWindow: { start: Date; end: Date; peak: Date } | null = (() => {
+      let s: Date | null = null, e: Date | null = null, peakT = tonight, peakDark = 0
+      for (let m = 0; m < 720; m += 15) {
+        const t = new Date(tonight.getTime() + m * 60000)
+        const dd = julianDate(t) - 2451543.5
+        const sunPos = computeRADec('Sun', dd)
+        if (!sunPos) continue
+        const lst = localSiderealTime(t, loc.lng)
+        const { alt } = toHorizon(sunPos.ra, sunPos.dec, lst, loc.lat)
+        if (alt < -18) {
+          if (!s) s = t
+          e = t
+          const darkness = -alt
+          if (darkness > peakDark) { peakDark = darkness; peakT = t }
+        }
+      }
+      return s && e ? { start: s, end: e, peak: peakT } : null
+    })()
+
+    // Moon at peak dark time
+    const peakT = darkWindow?.peak ?? tonight
+    const peakDD = julianDate(peakT) - 2451543.5
+    const moon = computeMoon(peakDD)
+    const moonEph = calcRiseSetTransit(moon.ra, moon.dec, peakT, loc.lat, loc.lng)
+    const moonPct = Math.round(moon.phase * 100)
+
+    // Sky quality score (0-10)
+    const moonUp = moonEph.maxAlt > 0
+    const moonScore = moonUp ? Math.max(0, 10 - moonPct / 10 - moonEph.maxAlt / 18) : 10
+    const hasDark = !!darkWindow
+    const skyScore = hasDark ? Math.min(10, Math.round(moonScore)) : 0
+
+    // Collect target objects for the peak dark time
+    type PlanTarget = { name: string; type: string; mag: number; alt: number; az: number; color: string; desc: string }
+    const targets: PlanTarget[] = []
+    const lst = localSiderealTime(peakT, loc.lng)
+
+    // Named stars (only bright ones, mag < 2)
+    for (const [name, ra, dec, mag, color] of STARS) {
+      if (mag > 2) continue
+      const { alt, az } = toHorizon(ra, dec, lst, loc.lat)
+      if (alt > 15) targets.push({ name, type: 'Star', mag, alt, az, color, desc: `Mag ${mag.toFixed(1)} bright star` })
+    }
+
+    // Planets
+    for (const p of PLANETS) {
+      const radec = computeRADec(p.name, peakDD)
+      if (!radec) continue
+      const { alt, az } = toHorizon(radec.ra, radec.dec, lst, loc.lat)
+      if (alt > 10) targets.push({ name: p.name, type: 'Planet', mag: 0, alt, az, color: p.color, desc: `${p.symbol} Planet` })
+    }
+
+    // Moon itself
+    { const { alt, az } = toHorizon(moon.ra, moon.dec, lst, loc.lat)
+      if (alt > 10) targets.push({ name: 'Moon', type: 'Moon', mag: -12.7, alt, az, color: '#c8d2ff', desc: `${moonPct}% illuminated` }) }
+
+    // Sort by altitude (higher = better) then by brightness
+    targets.sort((a, b) => b.alt - a.alt)
+    const top6 = targets.slice(0, 6)
+
+    const fmtTime = (d: Date) => d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+    const moonPhaseIcon = moonPct < 10 ? '🌑' : moonPct < 35 ? '🌒' : moonPct < 65 ? '🌓' : moonPct < 90 ? '🌔' : '🌕'
+
+    return { darkWindow, hasDark, moon, moonPct, moonPhaseIcon, moonEph, moonUp, skyScore, top6, peakTime: fmtTime(peakT), darkStart: darkWindow ? fmtTime(darkWindow.start) : '—', darkEnd: darkWindow ? fmtTime(darkWindow.end) : '—' }
+  }, [time, loc])
+
   const saveToObs = useCallback((item: HitItem) => {
     const obs: ObsItem = {
       name: item.name,
@@ -1604,6 +1676,16 @@ export default function StarMap() {
           className="text-xs px-3 py-1.5 rounded-lg font-semibold transition"
         >
           🌠 Events{conjunctions.length > 0 ? ` (${conjunctions.length})` : ''}
+        </button>
+        <button
+          onClick={() => setShowPlanner(p => !p)}
+          aria-pressed={showPlanner}
+          style={showPlanner
+            ? { background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.4)', color: '#34d399' }
+            : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#6b7280' }}
+          className="text-xs px-3 py-1.5 rounded-lg font-semibold transition"
+        >
+          🌙 Tonight
         </button>
       </div>
 
@@ -1920,6 +2002,67 @@ export default function StarMap() {
             </div>
           )}
           <p className="text-xs text-gray-600 mt-2">Angular separation at midnight · Red = very close (&lt;1°) · Yellow = close (&lt;2°)</p>
+        </div>
+      )}
+
+      {/* Tonight's Sky Planner */}
+      {showPlanner && (
+        <div className="mt-3" style={{ background: 'rgba(52,211,153,0.04)', border: '1px solid rgba(52,211,153,0.18)', borderRadius: 14, padding: '14px 16px' }}>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-xs font-bold tracking-wide uppercase" style={{ color: '#34d399' }}>🌙 Tonight's Sky Planner</span>
+            <span className="ml-auto text-xs text-gray-500">{plannerData.hasDark ? `Dark: ${plannerData.darkStart} – ${plannerData.darkEnd}` : 'No astronomical darkness tonight'}</span>
+          </div>
+
+          {/* Sky summary strip */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+            {[
+              { label: 'Sky Quality', val: `${plannerData.skyScore}/10`, color: plannerData.skyScore >= 7 ? '#34d399' : plannerData.skyScore >= 4 ? '#fbbf24' : '#f87171' },
+              { label: 'Moon', val: `${plannerData.moonPhaseIcon} ${plannerData.moonPct}%`, color: '#c8d2ff' },
+              { label: 'Moon Sets', val: plannerData.moonEph.set, color: '#94a3b8' },
+              { label: 'Peak Darkness', val: plannerData.peakTime, color: '#34d399' },
+            ].map(({ label, val, color }) => (
+              <div key={label} className="rounded-xl px-3 py-2 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                <div className="text-xs text-gray-600">{label}</div>
+                <div className="text-sm font-bold mt-0.5" style={{ color }}>{val}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Sky quality bar */}
+          <div className="mb-3">
+            <div className="flex justify-between text-xs text-gray-600 mb-1">
+              <span>Sky quality</span>
+              <span style={{ color: plannerData.skyScore >= 7 ? '#34d399' : plannerData.skyScore >= 4 ? '#fbbf24' : '#f87171' }}>
+                {plannerData.skyScore >= 8 ? 'Excellent — dark sky' : plannerData.skyScore >= 6 ? 'Good — some moonlight' : plannerData.skyScore >= 4 ? 'Fair — bright moon' : 'Poor — full moon / no dark'}
+              </span>
+            </div>
+            <div className="h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.07)' }}>
+              <div className="h-1.5 rounded-full transition-all" style={{ width: `${plannerData.skyScore * 10}%`, background: plannerData.skyScore >= 7 ? '#34d399' : plannerData.skyScore >= 4 ? '#fbbf24' : '#f87171' }} />
+            </div>
+          </div>
+
+          {/* Top targets */}
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Best Objects at Peak Darkness</p>
+          {plannerData.top6.length === 0 ? (
+            <p className="text-xs text-gray-600">No bright objects above 10° during dark hours from your location.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {plannerData.top6.map((t, i) => (
+                <div key={i} className="flex items-center gap-3 px-3 py-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: t.color, boxShadow: `0 0 6px ${t.color}`, flexShrink: 0 }} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-bold text-white">{t.name}</div>
+                    <div className="text-xs text-gray-600">{t.type} · {t.desc}</div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-xs font-bold" style={{ color: '#34d399' }}>{Math.round(t.alt)}° alt</div>
+                    <div className="text-xs text-gray-600">{Math.round(t.az)}° az</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="text-xs text-gray-700 mt-2">Alt = altitude above horizon · Az = compass bearing (0°=N, 90°=E, 180°=S, 270°=W)</p>
         </div>
       )}
 
