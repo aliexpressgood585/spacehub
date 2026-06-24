@@ -29,8 +29,8 @@ export default function Header({ onPremium }: Props) {
   const crewCount = astros
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [installed, setInstalled] = useState(false)
-  const [lightMode, setLightMode] = useState(() => localStorage.getItem('spacehub_theme') === 'light')
-  const [galaxyBg, setGalaxyBg] = useState(() => localStorage.getItem('spacehub_galaxy') === '1')
+  const [lightMode, setLightMode] = useState(() => { try { return localStorage.getItem('spacehub_theme') === 'light' } catch { return false } })
+  const [galaxyBg, setGalaxyBg] = useState(() => { try { return localStorage.getItem('spacehub_galaxy') === '1' } catch { return false } })
 
   useEffect(() => {
 
@@ -53,14 +53,14 @@ export default function Header({ onPremium }: Props) {
   const toggleTheme = () => {
     const next = !lightMode
     setLightMode(next)
-    localStorage.setItem('spacehub_theme', next ? 'light' : 'dark')
+    try { localStorage.setItem('spacehub_theme', next ? 'light' : 'dark') } catch {}
     document.documentElement.classList.toggle('light-mode', next)
   }
 
   const toggleGalaxy = () => {
     const next = !galaxyBg
     setGalaxyBg(next)
-    localStorage.setItem('spacehub_galaxy', next ? '1' : '0')
+    try { localStorage.setItem('spacehub_galaxy', next ? '1' : '0') } catch {}
     window.dispatchEvent(new Event('spacehub-galaxy'))
   }
 
