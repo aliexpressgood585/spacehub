@@ -123,11 +123,26 @@ const FOOTER_FEATURES = [
   { icon: '⛈️', label: 'Space Weather' },
 ]
 
-class SafeWrap extends Component<{ children: ReactNode; label?: string; silent?: boolean }, { ok: boolean }> {
-  state = { ok: true }
-  static getDerivedStateFromError() { return { ok: false } }
+class SafeWrap extends Component<{ children: ReactNode; label?: string; root?: boolean }, { ok: boolean; err?: string }> {
+  state: { ok: boolean; err?: string } = { ok: true }
+  static getDerivedStateFromError(e: Error) { return { ok: false, err: e?.message } }
+  componentDidCatch(e: Error) { console.error('[SafeWrap]', this.props.label ?? 'unknown', e) }
   render() {
-    if (!this.state.ok) return null
+    if (!this.state.ok) {
+      if (this.props.root) {
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#020510', color: '#6b7280', fontFamily: 'system-ui, sans-serif', gap: 16, padding: 24, textAlign: 'center' }}>
+            <div style={{ fontSize: 48 }}>🚀</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#e2e8f0' }}>SpaceHub</div>
+            <div style={{ fontSize: 14, color: '#6b7280', maxWidth: 300 }}>Something went wrong. Please refresh to continue.</div>
+            <button onClick={() => window.location.reload()} style={{ marginTop: 8, padding: '10px 24px', borderRadius: 12, border: '1px solid rgba(99,102,241,0.5)', background: 'rgba(99,102,241,0.2)', color: '#c4b5fd', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+              ↺ Refresh
+            </button>
+          </div>
+        )
+      }
+      return null
+    }
     return this.props.children
   }
 }
@@ -296,10 +311,10 @@ function MainApp() {
       <SafeWrap label="background"><SpaceBackground /></SafeWrap>
 
       <div className="relative" style={{ zIndex: 1 }}>
-        <Header onPremium={goToPremium} />
-        <LiveTicker />
-        <NotificationBanner />
-        {activeTab === 'dashboard' && <Hero onPremium={() => {}} onScrollToISS={scrollToISS} />}
+        <SafeWrap label="Header"><Header onPremium={goToPremium} /></SafeWrap>
+        <SafeWrap label="LiveTicker"><LiveTicker /></SafeWrap>
+        <SafeWrap label="NotificationBanner"><NotificationBanner /></SafeWrap>
+        {activeTab === 'dashboard' && <SafeWrap label="Hero"><Hero onPremium={() => {}} onScrollToISS={scrollToISS} /></SafeWrap>}
 
         {/* Divider */}
         <div className="divider-glow my-0" />
@@ -502,9 +517,9 @@ function MainApp() {
           </div>
         </main>
 
-        <Onboarding />
+        <SafeWrap label="Onboarding"><Onboarding /></SafeWrap>
         <ScrollToTop />
-        <MobileNav active={activeTab} onSwitch={(t) => switchTab(t as Tab)} />
+        <SafeWrap label="MobileNav"><MobileNav active={activeTab} onSwitch={(t) => switchTab(t as Tab)} /></SafeWrap>
 
         {/* FOOTER */}
         <footer style={{ background: 'linear-gradient(180deg, transparent 0%, rgba(2,5,16,0.7) 20%, #020510 60%)', borderTop: '1px solid rgba(99,102,241,0.12)', position: 'relative' }}>
@@ -580,7 +595,7 @@ export default function App() {
       <BrowserRouter>
         <ISSProvider>
         <Routes>
-          <Route path="/" element={<SafeWrap><MainApp /></SafeWrap>} />
+          <Route path="/" element={<SafeWrap root label="MainApp"><MainApp /></SafeWrap>} />
           <Route path="/blog" element={
             <div style={{ background: '#020510', minHeight: '100vh' }}>
               <div style={{ zIndex: 1, position: 'relative' }}>
