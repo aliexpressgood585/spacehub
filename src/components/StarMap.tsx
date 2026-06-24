@@ -1647,7 +1647,7 @@ export default function StarMap() {
       <div className="flex items-center gap-2 mb-3">
         <span className="text-xs text-gray-500 font-semibold shrink-0">✦ Mag limit</span>
         <input
-          type="range" min={1} max={6.5} step={0.5}
+          type="range" min={1} max={8.0} step={0.5}
           value={magLimit}
           onChange={e => setMagLimit(Number(e.target.value))}
           className="flex-1 min-w-0"
@@ -1656,7 +1656,7 @@ export default function StarMap() {
         />
         <span className="text-xs font-bold shrink-0 w-8 text-right" style={{ color: '#c4b5fd' }}>{magLimit.toFixed(1)}</span>
         <span className="text-xs text-gray-600 shrink-0">
-          ({magLimit <= 2 ? 'Naked eye bright' : magLimit <= 4 ? 'Naked eye' : magLimit <= 5 ? 'Good sky' : 'Dark sky'})
+          ({magLimit <= 2 ? 'Bright stars' : magLimit <= 4 ? 'Naked eye' : magLimit <= 6 ? 'Dark sky' : magLimit <= 7 ? 'Binoculars' : 'Telescope'})
         </span>
       </div>
 
@@ -2201,7 +2201,7 @@ export default function StarMap() {
 
       <p className="text-gray-700 text-xs text-center mt-3">
         {globeMode
-          ? 'Drag to rotate the celestial sphere · Auto-rotates · 5,000+ stars on all-sky view'
+          ? 'Drag to rotate the celestial sphere · Auto-rotates · 38,000+ stars on all-sky view'
           : 'Drag to rotate · Hover/tap for details · Slider to travel in time · Zenith at center'}
       </p>
     </div>
