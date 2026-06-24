@@ -70,7 +70,8 @@ async function calculatePasses(lat: number, lng: number, days = 7): Promise<Pass
   const satellite: any = await loadSatellite()
   if (!satellite) throw new Error('satellite.js not loaded')
 
-  const res = await fetch('https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE')
+  // Use /api/tle proxy to avoid CORS/rate-limit on celestrak.org directly
+  const res = await fetch('/api/tle?id=25544')
   const text = await res.text()
   const lines = text.trim().split('\n').map((l: string) => l.trim()).filter(Boolean)
 
