@@ -65,6 +65,20 @@ self.addEventListener('fetch', e => {
     return
   }
 
+  // Star catalog data files — cache first, offline-safe
+  if (url.pathname.startsWith('/data/')) {
+    e.respondWith(
+      caches.match(e.request).then(cached => {
+        if (cached) return cached
+        return fetch(e.request).then(res => {
+          if (res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()))
+          return res
+        }).catch(() => new Response('{}', { headers: { 'Content-Type': 'application/json' } }))
+      })
+    )
+    return
+  }
+
   // Hashed JS/CSS assets — cache first
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
