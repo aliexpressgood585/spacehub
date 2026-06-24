@@ -1493,10 +1493,9 @@ export default function StarMap() {
       const wantTemp  = showTemp  && mag < 2.0 && alt > 2
 
       if (wantLabel || wantTemp) {
-        let label = ''
-        if (wantLabel && wantTemp) label = `${name} · ${spectralClass(temp)} ${fmtTempShort(temp)}`
-        else if (wantLabel)        label = name
-        else                       label = `${spectralClass(temp)} ${fmtTempShort(temp)}`
+        const label = wantLabel && wantTemp ? `${name} · ${spectralClass(temp)} ${fmtTempShort(temp)}`
+          : wantLabel ? name
+          : `${spectralClass(temp)} ${fmtTempShort(temp)}`
 
         const tc = wantTemp ? tempColor(temp) : 'rgba(200,212,255,0.9)'
         ctx.font = `${mag < 0.5 ? 11 : 9}px 'Space Grotesk', system-ui`
@@ -1764,6 +1763,7 @@ export default function StarMap() {
     }
 
     ctx.restore()
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- draw deps listed explicitly; helper fns are module-scope stable
   }, [loc, time, timeOffsetMin, rotation, showPlanets, showConstellations, showMilkyWay, showDSOs, showLabels, showTemp, showGrid, d, effectiveTime, searchQuery, issPos, hipStars, ngcObjs, magLimit, showConArt, showFOV, fovScope, fovEP, fovAFOV, zoomLevel])
 
   const rafRef = useRef<number>(0)
