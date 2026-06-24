@@ -42,6 +42,8 @@ const PlanetExplorer = lazy(() => import('./components/PlanetExplorer'))
 const ExoplanetExplorer = lazy(() => import('./components/ExoplanetExplorer'))
 const GalaxyExplorer = lazy(() => import('./components/GalaxyExplorer'))
 const ARSkyView = lazy(() => import('./components/ARSkyView'))
+const ExoplanetTransitPlanner = lazy(() => import('./components/ExoplanetTransitPlanner'))
+const AstroPhotoPlanner = lazy(() => import('./components/AstroPhotoPlanner'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -54,13 +56,13 @@ import PrivacyPage from './pages/PrivacyPage'
 import SuccessPage from './pages/SuccessPage'
 import NotFoundPage from './pages/NotFoundPage'
 
-type Tab = 'dashboard' | 'starmap' | 'tracker' | 'solar' | 'weather' | 'events' | 'news' | 'quiz' | 'blog' | 'gallery' | 'spacex' | 'explore'
+type Tab = 'dashboard' | 'starmap' | 'tracker' | 'solar' | 'weather' | 'events' | 'news' | 'quiz' | 'blog' | 'gallery' | 'spacex' | 'explore' | 'observe'
 
 const TAB_HASH: Record<Tab, string> = {
   dashboard: '#iss', starmap: '#starmap', tracker: '#tracker',
   solar: '#solar', weather: '#weather', events: '#events',
   news: '#news', quiz: '#quiz', blog: '#blog', gallery: '#gallery',
-  spacex: '#spacex', explore: '#explore',
+  spacex: '#spacex', explore: '#explore', observe: '#observe',
 }
 
 const TAB_TITLES: Record<Tab, string> = {
@@ -76,6 +78,7 @@ const TAB_TITLES: Record<Tab, string> = {
   gallery:   'JWST Gallery — SpaceHub',
   spacex:    'SpaceX & Mars — SpaceHub',
   explore:   'Explore the Universe — SpaceHub',
+  observe:   'Observer Tools — SpaceHub',
 }
 const HASH_TAB: Record<string, Tab> = Object.fromEntries(
   Object.entries(TAB_HASH).map(([k, v]) => [v, k as Tab])
@@ -88,10 +91,11 @@ const TAB_DEFS: { id: Tab; icon: string; tKey: string }[] = [
   { id: 'solar',     icon: '🪐', tKey: 'tab.solar' },
   { id: 'weather',   icon: '⛈️', tKey: 'tab.weather' },
   { id: 'events',    icon: '🌠', tKey: 'tab.events' },
+  { id: 'observe',   icon: '🔭', tKey: 'tab.observe' },
   { id: 'news',      icon: '📰', tKey: 'tab.news' },
   { id: 'quiz',      icon: '🧠', tKey: 'tab.quiz' },
   { id: 'blog',      icon: '📝', tKey: 'tab.blog' },
-  { id: 'gallery',   icon: '🔭', tKey: 'tab.gallery' },
+  { id: 'gallery',   icon: '🖼️', tKey: 'tab.gallery' },
   { id: 'spacex',    icon: '🚀', tKey: 'tab.spacex' },
   { id: 'explore',   icon: '🔬', tKey: 'tab.explore' },
 ]
@@ -422,6 +426,13 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><ExoplanetExplorer /></Suspense>
                 <AdBanner />
                 <Suspense fallback={<SkeletonCard />}><GalaxyExplorer /></Suspense>
+              </div>
+            )}
+
+            {activeTab === 'observe' && (
+              <div className="space-y-5">
+                <Suspense fallback={<SkeletonCard />}><AstroPhotoPlanner /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><ExoplanetTransitPlanner /></Suspense>
               </div>
             )}
 
