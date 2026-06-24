@@ -60,27 +60,31 @@ function getOrbElems(d: number, name: string): OrbElem | null {
 }
 
 function maxAltAtNight(date: Date, planetName: string, lat: number, lng: number): number {
-  let maxAlt = -90
-  for (let h = 20; h <= 28; h++) {
-    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h % 24)
-    const jd = julianDate(d), day = jd - 2451543.5
-    const el = getOrbElems(day, planetName)
-    if (!el) return -90
-    const pv = helioXYZ(el), ev = earthXYZ(day)
-    const dx = pv.x - ev.x, dy = pv.y - ev.y, dz = pv.z - ev.z
-    const ecl = (23.4393 - 3.563e-7 * day) * DEG
-    const yeq = dy * Math.cos(ecl) - dz * Math.sin(ecl)
-    const zeq = dy * Math.sin(ecl) + dz * Math.cos(ecl)
-    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
-    const ra = rev(Math.atan2(yeq, dx) * 180 / Math.PI) / 15
-    const dec = Math.asin(Math.max(-1, Math.min(1, zeq / dist))) * 180 / Math.PI
-    const lst = localSiderealTime(d, lng)
-    const ha = (lst - ra) * 15 * DEG
-    const decR = dec * DEG, latR = lat * DEG
-    const alt = Math.asin(Math.sin(decR) * Math.sin(latR) + Math.cos(decR) * Math.cos(latR) * Math.cos(ha)) * 180 / Math.PI
-    if (alt > maxAlt) maxAlt = alt
+  try {
+    let maxAlt = -90
+    for (let h = 20; h <= 28; h += 3) {
+      const d = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h % 24)
+      const jd = julianDate(d), day = jd - 2451543.5
+      const el = getOrbElems(day, planetName)
+      if (!el) return -90
+      const pv = helioXYZ(el), ev = earthXYZ(day)
+      const dx = pv.x - ev.x, dy = pv.y - ev.y, dz = pv.z - ev.z
+      const ecl = (23.4393 - 3.563e-7 * day) * DEG
+      const yeq = dy * Math.cos(ecl) - dz * Math.sin(ecl)
+      const zeq = dy * Math.sin(ecl) + dz * Math.cos(ecl)
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
+      const ra = rev(Math.atan2(yeq, dx) * 180 / Math.PI) / 15
+      const dec = Math.asin(Math.max(-1, Math.min(1, zeq / dist))) * 180 / Math.PI
+      const lst = localSiderealTime(d, lng)
+      const ha = (lst - ra) * 15 * DEG
+      const decR = dec * DEG, latR = lat * DEG
+      const alt = Math.asin(Math.sin(decR) * Math.sin(latR) + Math.cos(decR) * Math.cos(latR) * Math.cos(ha)) * 180 / Math.PI
+      if (alt > maxAlt) maxAlt = alt
+    }
+    return maxAlt
+  } catch {
+    return -90
   }
-  return maxAlt
 }
 
 const PLANETS = [
@@ -115,13 +119,17 @@ export default function PlanetVisibilityCalendar() {
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
 
   const matrix = useMemo(() => {
-    return PLANETS.map(planet => ({
-      ...planet,
-      days: Array.from({ length: daysInMonth }, (_, i) => {
-        const d = new Date(viewYear, viewMonth, i + 1)
-        return maxAltAtNight(d, planet.name, loc.lat, loc.lng)
-      }),
-    }))
+    try {
+      return PLANETS.map(planet => ({
+        ...planet,
+        days: Array.from({ length: daysInMonth }, (_, i) => {
+          const d = new Date(viewYear, viewMonth, i + 1)
+          return maxAltAtNight(d, planet.name, loc.lat, loc.lng)
+        }),
+      }))
+    } catch {
+      return PLANETS.map(planet => ({ ...planet, days: Array.from({ length: daysInMonth }, () => -90) }))
+    }
   }, [viewMonth, viewYear, daysInMonth, loc.lat, loc.lng])
 
   const monthName = new Date(viewYear, viewMonth, 1).toLocaleString('en-US', { month: 'long' })
