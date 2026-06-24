@@ -57,6 +57,7 @@ const SpaceTimeline = lazy(() => import('./components/SpaceTimeline'))
 const NightSessionPlanner = lazy(() => import('./components/NightSessionPlanner'))
 const AstroCalculator = lazy(() => import('./components/AstroCalculator'))
 const PlanetVisibilityCalendar = lazy(() => import('./components/PlanetVisibilityCalendar'))
+const ARStarFinder = lazy(() => import('./components/ARStarFinder'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -126,22 +127,7 @@ class SafeWrap extends Component<{ children: ReactNode; label?: string; silent?:
   state = { ok: true }
   static getDerivedStateFromError() { return { ok: false } }
   render() {
-    if (!this.state.ok) {
-      if (this.props.silent || this.props.label === 'background') return null
-      return (
-        <div className="space-card p-6 text-center">
-          <div className="text-4xl mb-3">⚠️</div>
-          <p className="text-gray-500 text-sm mb-3">{this.props.label ?? 'Widget'} couldn't load</p>
-          <button
-            onClick={() => this.setState({ ok: true })}
-            className="text-xs px-4 py-2 rounded-xl transition-all"
-            style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', color: '#a5b4fc' }}
-          >
-            ↺ Retry
-          </button>
-        </div>
-      )
-    }
+    if (!this.state.ok) return null
     return this.props.children
   }
 }
@@ -387,6 +373,7 @@ function MainApp() {
             {activeTab === 'starmap' && (
               <div className="space-y-5">
                 <Suspense fallback={<SkeletonCard />}><StarMap /></Suspense>
+                <SafeWrap><Suspense fallback={<SkeletonCard />}><ARStarFinder /></Suspense></SafeWrap>
                 <div className="space-card p-6">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="icon-box text-xl">🛸</div>
