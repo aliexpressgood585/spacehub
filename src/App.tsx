@@ -51,6 +51,8 @@ const CometTracker = lazy(() => import('./components/CometTracker'))
 const SpaceSounds = lazy(() => import('./components/SpaceSounds'))
 const DeepSkyBrowser = lazy(() => import('./components/DeepSkyBrowser'))
 const PersonalSkyReport = lazy(() => import('./components/PersonalSkyReport'))
+const SeeingForecast = lazy(() => import('./components/SeeingForecast'))
+const LightPollutionMeter = lazy(() => import('./components/LightPollutionMeter'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -446,6 +448,10 @@ function MainApp() {
             {activeTab === 'observe' && (
               <div className="space-y-5">
                 <Suspense fallback={<SkeletonCard />}><PersonalSkyReport /></Suspense>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <Suspense fallback={<SkeletonCard />}><SeeingForecast /></Suspense>
+                  <Suspense fallback={<SkeletonCard />}><LightPollutionMeter /></Suspense>
+                </div>
                 <Suspense fallback={<SkeletonCard />}><AstroPhotoPlanner /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><ExoplanetTransitPlanner /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceSounds /></Suspense>
