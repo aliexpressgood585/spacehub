@@ -53,13 +53,14 @@ function sunElevationDeg(date: Date, lat: number, lng: number): number {
   return Math.asin(Math.sin(latR) * sinDec + Math.cos(latR) * Math.cos(dec) * Math.cos(ha)) * 180 / Math.PI
 }
 
-async function loadSatellite(): Promise<any> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if ((window as any).satellite) return (window as any).satellite
+type WinSat = Window & typeof globalThis & { satellite?: unknown }
+
+async function loadSatellite(): Promise<unknown> {
+  if ((window as WinSat).satellite) return (window as WinSat).satellite
   return new Promise((resolve, reject) => {
     const s = document.createElement('script')
     s.src = 'https://cdn.jsdelivr.net/npm/satellite.js@4.1.4/dist/satellite.min.js'
-    s.onload = () => resolve((window as any).satellite)
+    s.onload = () => resolve((window as WinSat).satellite)
     s.onerror = () => reject(new Error('Failed to load satellite.js'))
     document.head.appendChild(s)
   })
