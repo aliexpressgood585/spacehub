@@ -172,11 +172,7 @@ export default function ISSTracker() {
     return () => {
       if (animId) cancelAnimationFrame(animId)
       try { rendererRef?.dispose() } catch {}
-      try {
-        if (containerRef.current && rendererRef && containerRef.current.contains(rendererRef.domElement)) {
-          containerRef.current.removeChild(rendererRef.domElement)
-        }
-      } catch {}
+      try { rendererRef?.domElement.remove() } catch {}
     }
   }, [])
 
