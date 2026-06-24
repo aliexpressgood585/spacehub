@@ -335,9 +335,7 @@ export default function EarthGlobe3D() {
       window.removeEventListener('touchmove', e => onMove(e.touches[0].clientX, e.touches[0].clientY))
       window.removeEventListener('resize', handleResize)
       renderer.dispose()
-      if (containerRef.current?.contains(renderer.domElement)) {
-        containerRef.current.removeChild(renderer.domElement)
-      }
+      renderer.domElement.remove()
     }
   }, [])
 
