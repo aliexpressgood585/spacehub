@@ -117,7 +117,7 @@ const H_FOV = 68
 export default function ARStarFinder() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const rafRef = useRef<number>()
+  const rafRef = useRef<number | undefined>(undefined)
   const orientRef = useRef({ az: 0, alt: 45 })
   const locRef = useRef({ lat: 32.0, lng: 34.78 })
   const smoothRef = useRef({ az: 0, alt: 45 })
@@ -237,8 +237,9 @@ export default function ARStarFinder() {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } })
       if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play() }
 
-      if (typeof (DeviceOrientationEvent as { requestPermission?: () => Promise<string> }).requestPermission === 'function') {
-        const p = await (DeviceOrientationEvent as { requestPermission: () => Promise<string> }).requestPermission()
+      const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> }
+      if (typeof DOE.requestPermission === 'function') {
+        const p = await DOE.requestPermission()
         if (p !== 'granted') { setErr('Orientation permission denied — needed for AR'); setPhase('error'); return }
       }
 
