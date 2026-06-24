@@ -229,6 +229,37 @@ function MainApp() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  /* Mobile swipe between tabs */
+  useEffect(() => {
+    let startX = 0, startY = 0
+    const onStart = (e: TouchEvent) => {
+      startX = e.touches[0].clientX
+      startY = e.touches[0].clientY
+    }
+    const onEnd = (e: TouchEvent) => {
+      const dx = e.changedTouches[0].clientX - startX
+      const dy = e.changedTouches[0].clientY - startY
+      if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.8) return
+      const target = e.target as Element
+      if (target.closest('canvas') || target.closest('[data-noswipe]')) return
+      const idx = TAB_DEFS.findIndex(t => t.id === activeTabRef.current)
+      if (dx < 0) {
+        const next = TAB_DEFS[(idx + 1) % TAB_DEFS.length]
+        if (next) switchTab(next.id)
+      } else {
+        const prev = TAB_DEFS[(idx - 1 + TAB_DEFS.length) % TAB_DEFS.length]
+        if (prev) switchTab(prev.id)
+      }
+    }
+    window.addEventListener('touchstart', onStart, { passive: true })
+    window.addEventListener('touchend', onEnd, { passive: true })
+    return () => {
+      window.removeEventListener('touchstart', onStart)
+      window.removeEventListener('touchend', onEnd)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   /* 3-D card tilt on mouse move */
   useEffect(() => {
     const SELECTORS = '.space-card, .stat-card'
