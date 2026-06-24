@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import * as THREE from 'three'
 
 // ── MATH HELPERS ──────────────────────────────────────────────
@@ -731,6 +731,8 @@ interface HitItem {
   mag?: number
   alt: number
   color: string
+  ra?: number
+  dec?: number
   isPlanet?: boolean
   symbol?: string
   isDSO?: boolean
@@ -783,6 +785,29 @@ function calcRiseSetTransit(ra: number, dec: number, date: Date, lat: number, ln
   return { rise: riseTime || '—', transit: maxAlt > 0 ? transitTime : '—', set: setTime || '—', maxAlt: Math.round(maxAlt) }
 }
 
+// Angular separation between two equatorial positions (degrees)
+function angSep(ra1: number, dec1: number, ra2: number, dec2: number): number {
+  const r1 = ra1 * 15 * DEG, d1 = dec1 * DEG
+  const r2 = ra2 * 15 * DEG, d2 = dec2 * DEG
+  const cos = Math.sin(d1) * Math.sin(d2) + Math.cos(d1) * Math.cos(d2) * Math.cos(r1 - r2)
+  return Math.acos(Math.max(-1, Math.min(1, cos))) * 180 / Math.PI
+}
+
+// ── OBSERVING LIST ────────────────────────────────────────────
+interface ObsItem {
+  name: string
+  type: string
+  color: string
+  mag?: number
+  ra?: number
+  dec?: number
+  savedAt: number
+}
+const OBS_KEY = 'sh_obs_v1'
+function loadObs(): ObsItem[] {
+  try { return JSON.parse(localStorage.getItem(OBS_KEY) ?? '[]') } catch { return [] }
+}
+
 export default function StarMap() {
   const canvasRef   = useRef<HTMLCanvasElement>(null)
   const hitRef      = useRef<HitItem[]>([])
@@ -808,6 +833,9 @@ export default function StarMap() {
   const [magLimit, setMagLimit]                     = useState(6.5)
   const [showEphemeris, setShowEphemeris]           = useState(false)
   const [notifPerm, setNotifPerm]                   = useState<NotificationPermission>('default')
+  const [obsList, setObsList]                       = useState<ObsItem[]>([])
+  const [showObsList, setShowObsList]               = useState(false)
+  const [showEvents, setShowEvents]                 = useState(false)
 
   const [tooltip, setTooltip] = useState<Tooltip | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -1032,7 +1060,7 @@ export default function StarMap() {
         ctx.fillStyle = tc;               ctx.fillText(label, lx, ly)
       }
 
-      if (alt > -5) hitRef.current.push({ name, x, y, temp, mag, alt, color })
+      if (alt > -5) hitRef.current.push({ name, x, y, temp, mag, alt, color, ra, dec })
     })
 
     // ── Hipparcos catalog (faint stars up to mag 6) ──
@@ -1064,7 +1092,7 @@ export default function StarMap() {
           ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillText(name, x + starR + 4, y + 3)
           ctx.fillStyle = col + 'cc';         ctx.fillText(name, x + starR + 3, y + 2)
         }
-        if (mag < 5) hitRef.current.push({ name: name ?? `HIP star (mag ${mag})`, x, y, temp, mag, alt, color: col })
+        if (mag < 5) hitRef.current.push({ name: name ?? `HIP star (mag ${mag})`, x, y, temp, mag, alt, color: col, ra, dec })
       })
     }
 
@@ -1104,7 +1132,7 @@ export default function StarMap() {
         ctx.fillStyle = planet.color;       ctx.fillText(`${planet.symbol} ${planet.name}`, lx, ly)
 
         ctx.globalAlpha = 1
-        hitRef.current.push({ name: planet.name, x, y, alt, color: planet.color, isPlanet: true, symbol: planet.symbol })
+        hitRef.current.push({ name: planet.name, x, y, alt, color: planet.color, isPlanet: true, symbol: planet.symbol, ra: radec.ra, dec: radec.dec })
       })
     }
 
@@ -1160,7 +1188,7 @@ export default function StarMap() {
           ctx.fillStyle = 'rgba(200,210,255,0.9)'; ctx.fillText(`🌙 Moon ${pct}%`, x + mR + 4, y + 3)
         }
         ctx.globalAlpha = 1
-        hitRef.current.push({ name: `Moon (${Math.round(moon.phase <= 0.5 ? moon.phase * 200 : (1 - moon.phase) * 200)}% lit)`, x, y, alt, color: '#c8d2ff', isPlanet: true, symbol: '🌙' })
+        hitRef.current.push({ name: `Moon (${Math.round(moon.phase <= 0.5 ? moon.phase * 200 : (1 - moon.phase) * 200)}% lit)`, x, y, alt, color: '#c8d2ff', isPlanet: true, symbol: '🌙', ra: moon.ra, dec: moon.dec })
       }
     }
 
@@ -1255,6 +1283,62 @@ export default function StarMap() {
       .then(r => r.json())
       .then(d => setNgcObjs(d.data))
       .catch(() => {})
+  }, [])
+
+  // Load observing list from localStorage
+  useEffect(() => { setObsList(loadObs()) }, [])
+
+  // Conjunctions & occultations — next 10 days, pairs within 4°
+  const conjunctions = useMemo(() => {
+    type ConjResult = { date: string; obj1: string; sym1: string; color1: string; obj2: string; sym2: string; color2: string; sep: number }
+    const results: ConjResult[] = []
+    for (let day = 0; day <= 10; day++) {
+      const t = new Date(time.getTime() + day * 86400000)
+      const dd = julianDate(t) - 2451543.5
+      const bodies: { name: string; sym: string; ra: number; dec: number; color: string }[] = []
+      const moonPos = computeMoon(dd)
+      bodies.push({ name: 'Moon', sym: '🌙', ra: moonPos.ra, dec: moonPos.dec, color: '#c8d2ff' })
+      for (const p of PLANETS) {
+        const radec = computeRADec(p.name, dd)
+        if (radec) bodies.push({ name: p.name, sym: p.symbol, ra: radec.ra, dec: radec.dec, color: p.color })
+      }
+      for (let i = 0; i < bodies.length; i++) {
+        for (let j = i + 1; j < bodies.length; j++) {
+          const sep = angSep(bodies[i].ra, bodies[i].dec, bodies[j].ra, bodies[j].dec)
+          if (sep < 4) {
+            const dateStr = t.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+            const pairKey = [bodies[i].name, bodies[j].name].sort().join('|')
+            if (!results.find(r => r.date === dateStr && [r.obj1, r.obj2].sort().join('|') === pairKey)) {
+              results.push({
+                date: dateStr,
+                obj1: bodies[i].name, sym1: bodies[i].sym, color1: bodies[i].color,
+                obj2: bodies[j].name, sym2: bodies[j].sym, color2: bodies[j].color,
+                sep: Math.round(sep * 10) / 10,
+              })
+            }
+          }
+        }
+      }
+    }
+    return results
+  }, [time])
+
+  const saveToObs = useCallback((item: HitItem) => {
+    const obs: ObsItem = {
+      name: item.name,
+      type: item.isPlanet ? 'planet' : item.isDSO ? 'dso' : 'star',
+      color: item.color,
+      mag: item.mag,
+      ra: item.ra,
+      dec: item.dec,
+      savedAt: Date.now(),
+    }
+    const list = loadObs()
+    if (!list.find(o => o.name === obs.name)) {
+      const next = [...list, obs]
+      localStorage.setItem(OBS_KEY, JSON.stringify(next))
+      setObsList(next)
+    }
   }, [])
 
   const lastISSAltRef = useRef<number | null>(null)
@@ -1501,6 +1585,26 @@ export default function StarMap() {
             {notifPerm === 'granted' ? '🔔 Alerts ON' : '🔕 ISS Alerts'}
           </button>
         )}
+        <button
+          onClick={() => setShowObsList(o => !o)}
+          aria-pressed={showObsList}
+          style={showObsList
+            ? { background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.4)', color: '#fbbf24' }
+            : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#6b7280' }}
+          className="text-xs px-3 py-1.5 rounded-lg font-semibold transition"
+        >
+          🔭 List{obsList.length > 0 ? ` (${obsList.length})` : ''}
+        </button>
+        <button
+          onClick={() => setShowEvents(ev => !ev)}
+          aria-pressed={showEvents}
+          style={showEvents
+            ? { background: 'rgba(139,92,246,0.2)', border: '1px solid rgba(139,92,246,0.5)', color: '#a78bfa' }
+            : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#6b7280' }}
+          className="text-xs px-3 py-1.5 rounded-lg font-semibold transition"
+        >
+          🌠 Events{conjunctions.length > 0 ? ` (${conjunctions.length})` : ''}
+        </button>
       </div>
 
       {/* Temperature legend */}
@@ -1591,7 +1695,7 @@ export default function StarMap() {
               onMouseDown={e => { setDragging(true); setPrevX(e.clientX) }}
               onMouseMove={handleMouseMove}
               onMouseUp={() => setDragging(false)}
-              onMouseLeave={() => { setDragging(false); setTooltip(null) }}
+              onMouseLeave={() => setDragging(false)}
               onTouchStart={e => {
                 setDragging(true)
                 setPrevX(e.touches[0].clientX)
@@ -1608,17 +1712,18 @@ export default function StarMap() {
 
             {tooltip && (
               <div
+                onMouseLeave={() => setTooltip(null)}
                 style={{
                   position: 'absolute',
-                  left: tooltip.flipLeft ? tooltip.sx - 166 : tooltip.sx + 12,
+                  left: tooltip.flipLeft ? tooltip.sx - 172 : tooltip.sx + 12,
                   top:  Math.max(4, tooltip.sy - 10),
                   background: 'rgba(7,9,22,0.97)',
                   border: `1px solid ${tooltip.color}55`,
                   borderRadius: 10,
                   padding: '9px 13px',
-                  pointerEvents: 'none',
+                  pointerEvents: 'auto',
                   zIndex: 20,
-                  minWidth: 152,
+                  minWidth: 158,
                   boxShadow: `0 4px 20px rgba(0,0,0,0.7), 0 0 10px ${tooltip.color}22`,
                 }}
               >
@@ -1642,6 +1747,28 @@ export default function StarMap() {
                 <div style={{ color: tooltip.alt > 0 ? '#34d399' : '#6b7280', fontSize: 10, marginTop: 1 }}>
                   {tooltip.alt > 0 ? `${Math.round(tooltip.alt)}° above horizon` : 'Below horizon'}
                 </div>
+                {(() => {
+                  const inList = obsList.some(o => o.name === tooltip.name)
+                  return (
+                    <button
+                      onClick={() => { if (!inList) saveToObs(tooltip); }}
+                      style={{
+                        marginTop: 7,
+                        width: '100%',
+                        background: inList ? 'rgba(52,211,153,0.12)' : 'rgba(99,102,241,0.15)',
+                        border: `1px solid ${inList ? 'rgba(52,211,153,0.35)' : 'rgba(99,102,241,0.3)'}`,
+                        borderRadius: 6,
+                        color: inList ? '#34d399' : '#a5b4fc',
+                        fontSize: 10,
+                        fontWeight: 700,
+                        padding: '4px 8px',
+                        cursor: inList ? 'default' : 'pointer',
+                      }}
+                    >
+                      {inList ? '✓ Saved to list' : '+ Add to observing list'}
+                    </button>
+                  )
+                })()}
               </div>
             )}
           </>
@@ -1717,6 +1844,82 @@ export default function StarMap() {
             </table>
           </div>
           <p className="text-xs text-gray-600 mt-2">Times are local · Based on your selected location · Computed for today</p>
+        </div>
+      )}
+
+      {/* Observing list panel */}
+      {showObsList && (
+        <div className="mt-3" style={{ background: 'rgba(251,191,36,0.04)', border: '1px solid rgba(251,191,36,0.18)', borderRadius: 14, padding: '12px 16px' }}>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-bold tracking-wide uppercase" style={{ color: '#fbbf24' }}>🔭 My Observing List</p>
+            {obsList.length > 0 && (
+              <button
+                onClick={() => { localStorage.removeItem(OBS_KEY); setObsList([]); }}
+                style={{ fontSize: 10, color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer' }}
+              >
+                Clear all
+              </button>
+            )}
+          </div>
+          {obsList.length === 0 ? (
+            <p className="text-xs text-gray-600">Hover over any star, planet, or DSO and click "Add to observing list" to save it here.</p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {obsList.map((item, idx) => (
+                <div key={idx} className="flex items-center gap-3" style={{ padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: item.color, boxShadow: `0 0 6px ${item.color}`, flexShrink: 0 }} />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-xs font-semibold" style={{ color: '#e2e8f0' }}>{item.name}</span>
+                    <span className="text-xs ml-2" style={{ color: '#4b5563' }}>
+                      {item.type}{item.mag !== undefined ? ` · mag ${item.mag.toFixed(1)}` : ''}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const next = obsList.filter((_, i) => i !== idx)
+                      localStorage.setItem(OBS_KEY, JSON.stringify(next))
+                      setObsList(next)
+                    }}
+                    style={{ fontSize: 14, color: '#4b5563', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}
+                    aria-label={`Remove ${item.name}`}
+                  >×</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Sky events / conjunctions panel */}
+      {showEvents && (
+        <div className="mt-3" style={{ background: 'rgba(139,92,246,0.04)', border: '1px solid rgba(139,92,246,0.18)', borderRadius: 14, padding: '12px 16px' }}>
+          <p className="text-xs font-bold mb-3 tracking-wide uppercase" style={{ color: '#a78bfa' }}>🌠 Upcoming Conjunctions — Next 10 Days</p>
+          {conjunctions.length === 0 ? (
+            <p className="text-xs text-gray-600">No close planetary conjunctions (within 4°) in the next 10 days.</p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {conjunctions.map((c, idx) => (
+                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', background: 'rgba(139,92,246,0.07)', borderRadius: 10, border: '1px solid rgba(139,92,246,0.12)' }}>
+                  <div style={{ flexShrink: 0, textAlign: 'center', minWidth: 52 }}>
+                    <div style={{ fontSize: 9, color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{c.date.split(',')[0]}</div>
+                    <div style={{ fontSize: 11, color: '#c4b5fd', fontWeight: 700 }}>{c.date.split(',').slice(1).join(',').trim()}</div>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <span style={{ color: c.color1, fontWeight: 700, fontSize: 13 }}>{c.sym1}</span>
+                    <span style={{ color: '#e2e8f0', fontWeight: 600, fontSize: 12 }}> {c.obj1}</span>
+                    <span style={{ color: '#4b5563', fontSize: 11 }}> + </span>
+                    <span style={{ color: c.color2, fontWeight: 700, fontSize: 13 }}>{c.sym2}</span>
+                    <span style={{ color: '#e2e8f0', fontWeight: 600, fontSize: 12 }}> {c.obj2}</span>
+                  </div>
+                  <div style={{ flexShrink: 0, textAlign: 'right' }}>
+                    <div style={{ fontSize: 11, color: c.sep < 1 ? '#f87171' : c.sep < 2 ? '#fbbf24' : '#a78bfa', fontWeight: 700 }}>{c.sep}°</div>
+                    <div style={{ fontSize: 9, color: '#4b5563' }}>apart</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="text-xs text-gray-600 mt-2">Angular separation at midnight · Red = very close (&lt;1°) · Yellow = close (&lt;2°)</p>
         </div>
       )}
 
