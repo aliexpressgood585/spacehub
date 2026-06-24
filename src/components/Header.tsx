@@ -47,6 +47,7 @@ export default function Header({ onPremium }: Props) {
       window.removeEventListener('beforeinstallprompt', onPrompt)
       window.removeEventListener('appinstalled', onInstalled)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only PWA install listener
   }, [])
 
   const toggleTheme = () => {
