@@ -40,8 +40,14 @@ export const useSatellites = () => {
   return { satellites, loading, error, refetch: fetchSatellites }
 }
 
+interface SpaceWeatherData {
+  solarWind: { speed: number; density: number }
+  magneticIndex: { kp: number; ap: number }
+  auroraAlert: string
+}
+
 export const useSpaceWeather = () => {
-  const [data, setData] = useState<any>(null)
+  const [data, setData] = useState<SpaceWeatherData | null>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
