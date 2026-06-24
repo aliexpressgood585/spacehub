@@ -23,13 +23,11 @@ export default function Onboarding() {
   const [step, setStep] = useState(0)
 
   useEffect(() => {
-    if (!localStorage.getItem('spacehub_onboarded')) {
-      setVisible(true)
-    }
+    try { if (!localStorage.getItem('spacehub_onboarded')) setVisible(true) } catch {}
   }, [])
 
   const dismiss = () => {
-    localStorage.setItem('spacehub_onboarded', '1')
+    try { localStorage.setItem('spacehub_onboarded', '1') } catch {}
     setVisible(false)
   }
 
