@@ -420,6 +420,40 @@ const DSO_LABEL: Record<DSO['type'], string> = {
   globular: 'Globular Cluster',
 }
 
+// ── MESSIER CATALOG ────────────────────────────────────────────
+interface MessierObj { id: string; name: string; type: string; ra: number; dec: number; mag: number; dist: string; size: string; desc: string; color: string }
+const MESSIER: MessierObj[] = [
+  { id:'M1',  name:'Crab Nebula',        type:'Supernova Remnant', ra:5.575,  dec:22.01,  mag:8.4,  dist:'6,500 ly',   size:"7'×5'",    color:'#55ccff', desc:'Remnant of a 1054 supernova; powered by a pulsar spinning 30× per second' },
+  { id:'M3',  name:'Great Globular',     type:'Globular Cluster',  ra:13.703, dec:28.38,  mag:6.2,  dist:'33,900 ly',  size:"18'",      color:'#ffcc44', desc:'One of the largest and finest globulars in the sky; 500,000 stars' },
+  { id:'M5',  name:'Rose Cluster',       type:'Globular Cluster',  ra:15.310, dec:2.08,   mag:5.6,  dist:'24,500 ly',  size:"23'",      color:'#ffcc44', desc:'One of the oldest globulars at 13 billion years' },
+  { id:'M7',  name:'Ptolemy Cluster',    type:'Open Cluster',      ra:17.900, dec:-34.82, mag:3.3,  dist:'980 ly',     size:"80'",      color:'#88ff66', desc:'Known since antiquity; over 80 bright stars in Scorpius' },
+  { id:'M8',  name:'Lagoon Nebula',      type:'Nebula',            ra:18.060, dec:-24.38, mag:5.8,  dist:'4,100 ly',   size:"90'×40'",  color:'#55ccff', desc:'Active star-forming region; newborn stars ionize surrounding gas' },
+  { id:'M11', name:'Wild Duck Cluster',  type:'Open Cluster',      ra:18.851, dec:-6.27,  mag:5.8,  dist:'6,200 ly',   size:"14'",      color:'#88ff66', desc:'2,900 stars shaped like a wedge of flying ducks' },
+  { id:'M13', name:'Hercules Cluster',   type:'Globular Cluster',  ra:16.694, dec:36.46,  mag:5.8,  dist:'25,100 ly',  size:"20'",      color:'#ffcc44', desc:'Great Hercules Cluster; 1974 Arecibo message was aimed here' },
+  { id:'M15', name:'Pegasus Cluster',    type:'Globular Cluster',  ra:21.500, dec:12.17,  mag:6.2,  dist:'33,600 ly',  size:"18'",      color:'#ffcc44', desc:'One of the densest globulars; harbors a planetary nebula' },
+  { id:'M20', name:'Trifid Nebula',      type:'Nebula',            ra:18.030, dec:-23.02, mag:6.3,  dist:'5,200 ly',   size:"28'",      color:'#55ccff', desc:'Three-lobed nebula separated by dark dust lanes; gorgeous in colour' },
+  { id:'M22', name:'Sagittarius Cluster',type:'Globular Cluster',  ra:18.606, dec:-23.90, mag:5.1,  dist:'10,600 ly',  size:"32'",      color:'#ffcc44', desc:'One of the brightest globulars; visible to naked eye in dark skies' },
+  { id:'M27', name:'Dumbbell Nebula',    type:'Planetary Nebula',  ra:19.993, dec:22.72,  mag:7.4,  dist:'1,360 ly',   size:"8'×5.7'",  color:'#55ccff', desc:'First planetary nebula discovered by Messier in 1764' },
+  { id:'M31', name:'Andromeda Galaxy',   type:'Galaxy',            ra:0.712,  dec:41.27,  mag:3.44, dist:'2.5 M ly',   size:"3°×1°",    color:'#ff99cc', desc:'Nearest major galaxy; contains ~1 trillion stars; will merge with Milky Way in 4.5 Gyr' },
+  { id:'M32', name:'Le Gentil',          type:'Galaxy',            ra:0.712,  dec:40.87,  mag:8.7,  dist:'2.5 M ly',   size:"9'×7'",    color:'#ff99cc', desc:'Compact elliptical companion to the Andromeda Galaxy' },
+  { id:'M33', name:'Triangulum Galaxy',  type:'Galaxy',            ra:1.565,  dec:30.66,  mag:5.7,  dist:'2.7 M ly',   size:"71'×42'",  color:'#ff99cc', desc:'Third largest galaxy in the Local Group; 40 billion stars' },
+  { id:'M35', name:'Shoe-Buckle Cluster',type:'Open Cluster',      ra:6.150,  dec:24.33,  mag:5.1,  dist:'2,800 ly',   size:"28'",      color:'#88ff66', desc:'Rich cluster of ~500 stars; background cluster NGC 2158 also visible' },
+  { id:'M42', name:'Orion Nebula',       type:'Nebula',            ra:5.588,  dec:-5.39,  mag:4.0,  dist:'1,344 ly',   size:"65'×60'",  color:'#55ccff', desc:"Nearest and brightest star-forming region; winter's showpiece object" },
+  { id:'M44', name:'Beehive Cluster',    type:'Open Cluster',      ra:8.667,  dec:19.67,  mag:3.7,  dist:'610 ly',     size:"95'",      color:'#88ff66', desc:'One of the nearest open clusters; first observed by Galileo in 1609' },
+  { id:'M45', name:'Pleiades',           type:'Open Cluster',      ra:3.783,  dec:24.12,  mag:1.2,  dist:'444 ly',     size:"110'",     color:'#88ff66', desc:'The Seven Sisters; 100 My old hot blue stars, surrounded by nebulosity' },
+  { id:'M51', name:'Whirlpool Galaxy',   type:'Galaxy',            ra:13.498, dec:47.20,  mag:8.4,  dist:'23 M ly',    size:"11'×7'",   color:'#ff99cc', desc:'First galaxy recognized as a spiral; interacting with NGC 5195' },
+  { id:'M57', name:'Ring Nebula',        type:'Planetary Nebula',  ra:18.893, dec:33.03,  mag:8.8,  dist:'2,300 ly',   size:"1.4'×1'",  color:'#55ccff', desc:"Classic smoke-ring; a sun-like star's expelled outer layers" },
+  { id:'M63', name:'Sunflower Galaxy',   type:'Galaxy',            ra:13.265, dec:42.03,  mag:8.6,  dist:'29 M ly',    size:"12'×7'",   color:'#ff99cc', desc:'Patchy spiral arms resemble a sunflower petal pattern' },
+  { id:'M64', name:'Black Eye Galaxy',   type:'Galaxy',            ra:12.946, dec:21.68,  mag:8.5,  dist:'24 M ly',    size:"10'×5'",   color:'#ff99cc', desc:'Dark dust band in front of bright nucleus gives the black-eye look' },
+  { id:'M78', name:'Casper Nebula',      type:'Nebula',            ra:5.780,  dec:0.05,   mag:8.3,  dist:'1,350 ly',   size:"8'×6'",    color:'#55ccff', desc:'Brightest reflection nebula in Orion; near the hunter\'s belt' },
+  { id:'M81', name:"Bode's Galaxy",      type:'Galaxy',            ra:9.926,  dec:69.07,  mag:6.9,  dist:'11.8 M ly',  size:"26'×14'",  color:'#ff99cc', desc:'Grand spiral galaxy; interacting gravitationally with cigar galaxy M82' },
+  { id:'M82', name:'Cigar Galaxy',       type:'Galaxy',            ra:9.926,  dec:69.68,  mag:8.4,  dist:'12.7 M ly',  size:"11'×5'",   color:'#ff99cc', desc:'Starburst galaxy erupting with superwind from its core, visible in IR' },
+  { id:'M92', name:'Hercules Cluster 2', type:'Globular Cluster',  ra:17.285, dec:43.13,  mag:6.4,  dist:'26,700 ly',  size:"14'",      color:'#ffcc44', desc:'One of the oldest globulars at ~14 Gyr; often overlooked next to M13' },
+  { id:'M97', name:'Owl Nebula',         type:'Planetary Nebula',  ra:11.247, dec:55.02,  mag:9.9,  dist:'2,030 ly',   size:"3.4'",     color:'#55ccff', desc:'Two dark eyes give an owl-face appearance; central star visible' },
+  { id:'M101',name:'Pinwheel Galaxy',    type:'Galaxy',            ra:14.053, dec:54.35,  mag:7.9,  dist:'21 M ly',    size:"29'×27'",  color:'#ff99cc', desc:'Face-on spiral; hosted supernova SN 2023ixf, brightest in 40 years' },
+  { id:'M104',name:'Sombrero Galaxy',    type:'Galaxy',            ra:12.666, dec:-11.62, mag:8.0,  dist:'28 M ly',    size:"9'×4'",    color:'#ff99cc', desc:'Prominent dark dust lane and bright nucleus give the sombrero silhouette' },
+]
+
 // ── SHARED CATALOG TYPE ────────────────────────────────────────
 type HipStar = [number, number, number, number, string?]
 
@@ -837,6 +871,8 @@ export default function StarMap() {
   const [showObsList, setShowObsList]               = useState(false)
   const [showEvents, setShowEvents]                 = useState(false)
   const [showPlanner, setShowPlanner]               = useState(false)
+  const [showMessier, setShowMessier]               = useState(false)
+  const [messierFilter, setMessierFilter]           = useState<string>('All')
 
   const [tooltip, setTooltip] = useState<Tooltip | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -1385,15 +1421,40 @@ export default function StarMap() {
     { const { alt, az } = toHorizon(moon.ra, moon.dec, lst, loc.lat)
       if (alt > 10) targets.push({ name: 'Moon', type: 'Moon', mag: -12.7, alt, az, color: '#c8d2ff', desc: `${moonPct}% illuminated` }) }
 
-    // Sort by altitude (higher = better) then by brightness
+    // Built-in DSOs
+    for (const dso of DSOS) {
+      const { alt, az } = toHorizon(dso.ra, dso.dec, lst, loc.lat)
+      if (alt > 15) targets.push({ name: dso.name, type: DSO_LABEL[dso.type], mag: dso.mag, alt, az, color: DSO_COLOR[dso.type], desc: `${DSO_LABEL[dso.type]} · mag ${dso.mag.toFixed(1)}` })
+    }
+
+    // Messier catalog objects (bright enough for binoculars)
+    for (const m of MESSIER) {
+      if (m.mag > 9.5) continue
+      const { alt, az } = toHorizon(m.ra, m.dec, lst, loc.lat)
+      if (alt > 15 && !targets.find(t => t.name === m.name)) {
+        targets.push({ name: `${m.id} ${m.name}`, type: m.type, mag: m.mag, alt, az, color: m.color, desc: `${m.type} · mag ${m.mag.toFixed(1)} · ${m.dist}` })
+      }
+    }
+
+    // NGC catalog (brightest objects only, mag < 9)
+    for (const [ra, dec, mag, type, name] of ngcObjs) {
+      if (mag > 8.5) continue
+      const { alt, az } = toHorizon(ra, dec, lst, loc.lat)
+      if (alt > 20 && !targets.find(t => t.name === name)) {
+        const color = DSO_COLOR[type as keyof typeof DSO_COLOR] ?? '#aaaaff'
+        targets.push({ name, type: DSO_LABEL[type as keyof typeof DSO_LABEL] ?? type, mag, alt, az, color, desc: `${type} · mag ${mag.toFixed(1)}` })
+      }
+    }
+
+    // Sort by altitude
     targets.sort((a, b) => b.alt - a.alt)
-    const top6 = targets.slice(0, 6)
+    const top8 = targets.slice(0, 8)
 
     const fmtTime = (d: Date) => d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
     const moonPhaseIcon = moonPct < 10 ? '🌑' : moonPct < 35 ? '🌒' : moonPct < 65 ? '🌓' : moonPct < 90 ? '🌔' : '🌕'
 
-    return { darkWindow, hasDark, moon, moonPct, moonPhaseIcon, moonEph, moonUp, skyScore, top6, peakTime: fmtTime(peakT), darkStart: darkWindow ? fmtTime(darkWindow.start) : '—', darkEnd: darkWindow ? fmtTime(darkWindow.end) : '—' }
-  }, [time, loc])
+    return { darkWindow, hasDark, moon, moonPct, moonPhaseIcon, moonEph, moonUp, skyScore, top8, peakTime: fmtTime(peakT), darkStart: darkWindow ? fmtTime(darkWindow.start) : '—', darkEnd: darkWindow ? fmtTime(darkWindow.end) : '—' }
+  }, [time, loc, ngcObjs])
 
   const saveToObs = useCallback((item: HitItem) => {
     const obs: ObsItem = {
@@ -1687,6 +1748,16 @@ export default function StarMap() {
         >
           🌙 Tonight
         </button>
+        <button
+          onClick={() => setShowMessier(m => !m)}
+          aria-pressed={showMessier}
+          style={showMessier
+            ? { background: 'rgba(255,153,204,0.15)', border: '1px solid rgba(255,153,204,0.4)', color: '#ff99cc' }
+            : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#6b7280' }}
+          className="text-xs px-3 py-1.5 rounded-lg font-semibold transition"
+        >
+          🌌 Messier ({MESSIER.length})
+        </button>
       </div>
 
       {/* Temperature legend */}
@@ -1935,12 +2006,20 @@ export default function StarMap() {
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs font-bold tracking-wide uppercase" style={{ color: '#fbbf24' }}>🔭 My Observing List</p>
             {obsList.length > 0 && (
-              <button
-                onClick={() => { localStorage.removeItem(OBS_KEY); setObsList([]); }}
-                style={{ fontSize: 10, color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer' }}
-              >
-                Clear all
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const txt = `My SpaceHub Observing List\n${'─'.repeat(30)}\n` +
+                      obsList.map(o => `• ${o.name} (${o.type}${o.mag !== undefined ? `, mag ${o.mag.toFixed(1)}` : ''})`).join('\n')
+                    navigator.clipboard.writeText(txt).catch(() => {})
+                  }}
+                  style={{ fontSize: 10, color: '#a78bfa', background: 'none', border: 'none', cursor: 'pointer' }}
+                >📋 Copy</button>
+                <button
+                  onClick={() => { localStorage.removeItem(OBS_KEY); setObsList([]) }}
+                  style={{ fontSize: 10, color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer' }}
+                >Clear all</button>
+              </div>
             )}
           </div>
           {obsList.length === 0 ? (
@@ -2043,11 +2122,11 @@ export default function StarMap() {
 
           {/* Top targets */}
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Best Objects at Peak Darkness</p>
-          {plannerData.top6.length === 0 ? (
+          {plannerData.top8.length === 0 ? (
             <p className="text-xs text-gray-600">No bright objects above 10° during dark hours from your location.</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {plannerData.top6.map((t, i) => (
+              {plannerData.top8.map((t, i) => (
                 <div key={i} className="flex items-center gap-3 px-3 py-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: t.color, boxShadow: `0 0 6px ${t.color}`, flexShrink: 0 }} />
                   <div className="flex-1 min-w-0">
@@ -2065,6 +2144,60 @@ export default function StarMap() {
           <p className="text-xs text-gray-700 mt-2">Alt = altitude above horizon · Az = compass bearing (0°=N, 90°=E, 180°=S, 270°=W)</p>
         </div>
       )}
+
+      {/* Messier Catalog Panel */}
+      {showMessier && (() => {
+        const lst = localSiderealTime(effectiveTime, loc.lng)
+        const types = ['All', 'Galaxy', 'Nebula', 'Open Cluster', 'Globular Cluster', 'Planetary Nebula']
+        const filtered = MESSIER
+          .filter(m => messierFilter === 'All' || m.type === messierFilter)
+          .map(m => ({ ...m, alt: toHorizon(m.ra, m.dec, lst, loc.lat).alt }))
+          .sort((a, b) => b.alt - a.alt)
+        return (
+          <div className="mt-3" style={{ background: 'rgba(255,153,204,0.04)', border: '1px solid rgba(255,153,204,0.18)', borderRadius: 14, padding: '14px 16px' }}>
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
+              <span className="text-xs font-bold tracking-wide uppercase" style={{ color: '#ff99cc' }}>🌌 Messier Catalog</span>
+              <span className="text-gray-600 text-xs">{MESSIER.length} objects · sorted by tonight's altitude</span>
+              <div className="flex gap-1 flex-wrap ml-auto">
+                {types.map(t => (
+                  <button key={t} onClick={() => setMessierFilter(t)}
+                    className="text-xs px-2 py-0.5 rounded-md transition"
+                    style={{ background: messierFilter === t ? 'rgba(255,153,204,0.2)' : 'rgba(255,255,255,0.04)', color: messierFilter === t ? '#ff99cc' : '#6b7280', border: `1px solid ${messierFilter === t ? 'rgba(255,153,204,0.4)' : 'rgba(255,255,255,0.07)'}` }}>
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {filtered.map(m => (
+                <div key={m.id} className="rounded-xl px-3 py-2.5 flex items-start gap-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                  <div className="shrink-0 text-center" style={{ width: 36 }}>
+                    <div className="text-xs font-bold" style={{ color: m.color }}>{m.id}</div>
+                    <div className="text-xs text-gray-600">m{m.mag.toFixed(1)}</div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-sm font-bold text-white">{m.name}</span>
+                      <span className="text-xs px-1.5 py-0.5 rounded-md font-semibold" style={{ background: `${m.color}18`, color: m.color, fontSize: 9 }}>{m.type}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{m.desc}</p>
+                    <div className="flex gap-2 mt-1 text-xs text-gray-600">
+                      <span>📏 {m.size}</span><span>📡 {m.dist}</span>
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <div className="text-xs font-bold" style={{ color: m.alt > 30 ? '#34d399' : m.alt > 10 ? '#fbbf24' : '#374151' }}>
+                      {m.alt > 0 ? `${Math.round(m.alt)}°` : 'below'}
+                    </div>
+                    <div className="text-xs text-gray-600">alt</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-gray-700 mt-2">Alt = tonight's altitude at your location · Green = excellent (&gt;30°) · Yellow = visible (&gt;10°) · Dark = below horizon</p>
+          </div>
+        )
+      })()}
 
       <p className="text-gray-700 text-xs text-center mt-3">
         {globeMode
