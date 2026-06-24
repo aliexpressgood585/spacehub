@@ -15,7 +15,7 @@ interface GalleryItem {
 
 type NasaApiItem = {
   data: { title: string; date_created: string; nasa_id: string }[]
-  links?: { href: string }[]
+  links?: { href: string; rel?: string }[]
 }
 
 const DEFAULT_QUERIES = ['nebula hubble', 'earth orbit iss', 'galaxy deep space', 'saturn cassini', 'moon apollo', 'mars surface']
@@ -30,13 +30,18 @@ async function fetchNasaImages(query: string): Promise<GalleryItem[]> {
     .filter(i => i.data[0]?.nasa_id)
     .slice(0, 12)
     .map(i => {
-      const id = encodeURIComponent(i.data[0].nasa_id)
+      const nid = i.data[0].nasa_id
+      const id = encodeURIComponent(nid)
+      const previewLink = i.links?.find(l => l.rel === 'preview')?.href
+      const firstLink = i.links?.[0]?.href
+      const thumb = previewLink || firstLink || `https://images-assets.nasa.gov/image/${id}/${id}~thumb.jpg`
+      const url = `https://images-assets.nasa.gov/image/${id}/${id}~orig.jpg`
       return {
         title: i.data[0]?.title ?? 'NASA Image',
         date: i.data[0]?.date_created?.slice(0, 10) ?? '',
-        url:   `https://images-assets.nasa.gov/image/${id}/${id}~orig.jpg`,
-        thumb: `https://images-assets.nasa.gov/image/${id}/${id}~thumb.jpg`,
-        nasa_id: i.data[0].nasa_id,
+        url,
+        thumb,
+        nasa_id: nid,
       }
     })
 }
@@ -239,7 +244,8 @@ export default function AstroGallery() {
             {photos.map((photo, i) => (
               <div key={i} className="relative rounded-xl overflow-hidden group" style={{ aspectRatio: '4/3' }}>
                 <button onClick={() => setSelected(selected?.title === photo.title ? null : photo)} className="w-full h-full text-left">
-                  <img src={photo.thumb} alt={photo.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <img src={photo.thumb} alt={photo.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    onError={e => { const img = e.target as HTMLImageElement; img.src = `https://images-assets.nasa.gov/image/${encodeURIComponent(photo.nasa_id)}/${encodeURIComponent(photo.nasa_id)}~small.jpg` }} />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                   <div className="absolute bottom-0 left-0 right-0 p-2 translate-y-full group-hover:translate-y-0 transition-transform">
                     <p className="text-white text-[10px] font-bold leading-tight line-clamp-2">{photo.title}</p>
