@@ -1,10 +1,8 @@
-const CACHE = 'spacehub-v8'
-const API_CACHE = 'spacehub-api-v3'
+const CACHE = 'spacehub-v9'
+const API_CACHE = 'spacehub-api-v4'
 
-// Own proxy routes — stale-while-revalidate for offline resilience
 const OWN_API_PATHS = ['/api/iss', '/api/astros', '/api/apod', '/api/neo']
 
-// External APIs still called directly from components
 const EXT_API_HOSTS = [
   'api.spaceflightnewsapi.net',
   'api.spacexdata.com',
@@ -40,6 +38,14 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return
 
   const url = new URL(e.request.url)
+
+  // Only intercept same-origin requests and known external APIs
+  // Let the browser handle all other cross-origin requests (images, fonts, etc.) natively
+  if (url.origin !== self.location.origin &&
+      !OWN_API_PATHS.some(p => url.pathname.startsWith(p)) &&
+      !EXT_API_HOSTS.some(h => url.hostname.includes(h))) {
+    return
+  }
 
   // Own API proxy routes — stale-while-revalidate
   if (OWN_API_PATHS.some(p => url.pathname.startsWith(p))) {
@@ -79,7 +85,7 @@ self.addEventListener('fetch', e => {
     return
   }
 
-  // Hashed JS/CSS assets — cache first
+  // Same-origin JS/CSS/assets — cache first
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
       if (res.ok) {
