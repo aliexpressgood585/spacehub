@@ -54,6 +54,7 @@ const PersonalSkyReport = lazy(() => import('./components/PersonalSkyReport'))
 const SeeingForecast = lazy(() => import('./components/SeeingForecast'))
 const LightPollutionMeter = lazy(() => import('./components/LightPollutionMeter'))
 const SpaceTimeline = lazy(() => import('./components/SpaceTimeline'))
+const NightSessionPlanner = lazy(() => import('./components/NightSessionPlanner'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -449,6 +450,7 @@ function MainApp() {
 
             {activeTab === 'observe' && (
               <div className="space-y-5">
+                <Suspense fallback={<SkeletonCard />}><NightSessionPlanner /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><PersonalSkyReport /></Suspense>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <Suspense fallback={<SkeletonCard />}><SeeingForecast /></Suspense>
