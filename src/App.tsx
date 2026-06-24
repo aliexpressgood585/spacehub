@@ -50,6 +50,7 @@ const ConjunctionAlert = lazy(() => import('./components/ConjunctionAlert'))
 const CometTracker = lazy(() => import('./components/CometTracker'))
 const SpaceSounds = lazy(() => import('./components/SpaceSounds'))
 const DeepSkyBrowser = lazy(() => import('./components/DeepSkyBrowser'))
+const PersonalSkyReport = lazy(() => import('./components/PersonalSkyReport'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -444,6 +445,7 @@ function MainApp() {
 
             {activeTab === 'observe' && (
               <div className="space-y-5">
+                <Suspense fallback={<SkeletonCard />}><PersonalSkyReport /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><AstroPhotoPlanner /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><ExoplanetTransitPlanner /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceSounds /></Suspense>
