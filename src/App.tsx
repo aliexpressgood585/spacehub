@@ -134,7 +134,7 @@ class SafeWrap extends Component<{ children: ReactNode; label?: string; root?: b
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#020510', color: '#6b7280', fontFamily: 'system-ui, sans-serif', gap: 16, padding: 24, textAlign: 'center' }}>
             <div style={{ fontSize: 48 }}>🚀</div>
             <div style={{ fontSize: 20, fontWeight: 700, color: '#e2e8f0' }}>SpaceHub</div>
-            <div style={{ fontSize: 14, color: '#6b7280', maxWidth: 300 }}>Something went wrong. Please refresh to continue.</div>
+            <div style={{ fontSize: 13, color: '#f87171', maxWidth: 340, wordBreak: 'break-word', background: 'rgba(255,0,0,0.06)', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,50,50,0.2)', fontFamily: 'monospace' }}>{this.state.err ?? 'Unknown error'}</div>
             <button onClick={() => window.location.reload()} style={{ marginTop: 8, padding: '10px 24px', borderRadius: 12, border: '1px solid rgba(99,102,241,0.5)', background: 'rgba(99,102,241,0.2)', color: '#c4b5fd', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
               ↺ Refresh
             </button>
