@@ -382,6 +382,283 @@ const CONSTELLATION_LINES: ConLine[] = [
   { a: 80, b: 82, name: 'Libra' },
 ]
 
+// ── EXTENDED CONSTELLATION LINES (RA/Dec coords — all 88 IAU) ─
+type ConLineCoord = { ra1: number; dec1: number; ra2: number; dec2: number; name: string }
+const EXTRA_CON_LINES: ConLineCoord[] = [
+  // Ursa Minor
+  { ra1: 2.530, dec1: 89.26, ra2: 17.536, dec2: 86.59, name:'Ursa Minor' },
+  { ra1: 17.536, dec1: 86.59, ra2: 16.766, dec2: 82.04, name:'Ursa Minor' },
+  { ra1: 16.766, dec1: 82.04, ra2: 15.734, dec2: 77.79, name:'Ursa Minor' },
+  { ra1: 15.734, dec1: 77.79, ra2: 14.845, dec2: 74.16, name:'Ursa Minor' },
+  { ra1: 15.734, dec1: 77.79, ra2: 16.292, dec2: 75.75, name:'Ursa Minor' },
+  { ra1: 16.292, dec1: 75.75, ra2: 15.345, dec2: 71.83, name:'Ursa Minor' },
+  // Cepheus
+  { ra1: 21.310, dec1: 62.59, ra2: 21.478, dec2: 70.56, name:'Cepheus' },
+  { ra1: 21.478, dec1: 70.56, ra2: 23.655, dec2: 77.63, name:'Cepheus' },
+  { ra1: 21.310, dec1: 62.59, ra2: 22.493, dec2: 58.41, name:'Cepheus' },
+  { ra1: 22.493, dec1: 58.41, ra2: 22.828, dec2: 66.20, name:'Cepheus' },
+  { ra1: 22.828, dec1: 66.20, ra2: 23.655, dec2: 77.63, name:'Cepheus' },
+  { ra1: 22.828, dec1: 66.20, ra2: 21.478, dec2: 70.56, name:'Cepheus' },
+  // Draco
+  { ra1: 17.507, dec1: 52.30, ra2: 17.944, dec2: 51.49, name:'Draco' },
+  { ra1: 17.944, dec1: 51.49, ra2: 17.892, dec2: 56.87, name:'Draco' },
+  { ra1: 17.892, dec1: 56.87, ra2: 17.507, dec2: 52.30, name:'Draco' },
+  { ra1: 17.507, dec1: 52.30, ra2: 17.144, dec2: 65.71, name:'Draco' },
+  { ra1: 17.144, dec1: 65.71, ra2: 16.400, dec2: 61.51, name:'Draco' },
+  { ra1: 16.400, dec1: 61.51, ra2: 14.073, dec2: 64.38, name:'Draco' },
+  { ra1: 14.073, dec1: 64.38, ra2: 12.558, dec2: 69.79, name:'Draco' },
+  { ra1: 12.558, dec1: 69.79, ra2: 11.523, dec2: 69.33, name:'Draco' },
+  // Lyra
+  { ra1: 18.615, dec1: 38.78, ra2: 18.834, dec2: 33.36, name:'Lyra' },
+  { ra1: 18.615, dec1: 38.78, ra2: 18.982, dec2: 32.69, name:'Lyra' },
+  { ra1: 18.834, dec1: 33.36, ra2: 18.982, dec2: 32.69, name:'Lyra' },
+  // Cygnus (Northern Cross)
+  { ra1: 20.370, dec1: 40.26, ra2: 20.690, dec2: 45.28, name:'Cygnus' },
+  { ra1: 20.690, dec1: 45.28, ra2: 21.217, dec2: 36.74, name:'Cygnus' },
+  { ra1: 21.217, dec1: 36.74, ra2: 21.736, dec2: 28.95, name:'Cygnus' },
+  { ra1: 19.495, dec1: 27.96, ra2: 21.217, dec2: 36.74, name:'Cygnus' },
+  { ra1: 21.217, dec1: 36.74, ra2: 22.467, dec2: 49.17, name:'Cygnus' },
+  // Aquila
+  { ra1: 19.846, dec1: 8.87, ra2: 19.771, dec2: 10.61, name:'Aquila' },
+  { ra1: 19.846, dec1: 8.87, ra2: 19.922, dec2: 6.41, name:'Aquila' },
+  { ra1: 19.771, dec1: 10.61, ra2: 19.104, dec2: 13.86, name:'Aquila' },
+  { ra1: 19.922, dec1: 6.41, ra2: 20.188, dec2: -0.82, name:'Aquila' },
+  // Delphinus
+  { ra1: 20.660, dec1: 15.91, ra2: 20.626, dec2: 14.60, name:'Delphinus' },
+  { ra1: 20.626, dec1: 14.60, ra2: 20.724, dec2: 15.07, name:'Delphinus' },
+  { ra1: 20.724, dec1: 15.07, ra2: 20.778, dec2: 16.12, name:'Delphinus' },
+  { ra1: 20.778, dec1: 16.12, ra2: 20.660, dec2: 15.91, name:'Delphinus' },
+  { ra1: 20.626, dec1: 14.60, ra2: 20.553, dec2: 11.30, name:'Delphinus' },
+  // Sagitta
+  { ra1: 19.979, dec1: 18.01, ra2: 19.684, dec2: 18.01, name:'Sagitta' },
+  { ra1: 19.684, dec1: 18.01, ra2: 19.539, dec2: 17.48, name:'Sagitta' },
+  { ra1: 19.684, dec1: 18.01, ra2: 19.548, dec2: 16.08, name:'Sagitta' },
+  // Hercules
+  { ra1: 17.244, dec1: 14.39, ra2: 16.503, dec2: 21.49, name:'Hercules' },
+  { ra1: 16.503, dec1: 21.49, ra2: 16.688, dec2: 31.60, name:'Hercules' },
+  { ra1: 16.688, dec1: 31.60, ra2: 17.005, dec2: 30.93, name:'Hercules' },
+  { ra1: 17.005, dec1: 30.93, ra2: 17.250, dec2: 36.81, name:'Hercules' },
+  { ra1: 17.250, dec1: 36.81, ra2: 16.715, dec2: 38.92, name:'Hercules' },
+  { ra1: 16.715, dec1: 38.92, ra2: 16.568, dec2: 42.44, name:'Hercules' },
+  { ra1: 16.688, dec1: 31.60, ra2: 16.715, dec2: 38.92, name:'Hercules' },
+  // Serpens
+  { ra1: 15.578, dec1: 26.71, ra2: 15.737, dec2: 15.42, name:'Serpens' },
+  { ra1: 15.737, dec1: 15.42, ra2: 15.812, dec2: 6.43, name:'Serpens' },
+  { ra1: 15.812, dec1: 6.43, ra2: 15.940, dec2: 4.48, name:'Serpens' },
+  { ra1: 17.626, dec1: -12.88, ra2: 18.355, dec2: -2.90, name:'Serpens' },
+  // Ophiuchus
+  { ra1: 17.172, dec1: 4.57, ra2: 17.583, dec2: 12.56, name:'Ophiuchus' },
+  { ra1: 17.583, dec1: 12.56, ra2: 17.724, dec2: 4.57, name:'Ophiuchus' },
+  { ra1: 17.724, dec1: 4.57, ra2: 17.172, dec2: -15.72, name:'Ophiuchus' },
+  { ra1: 17.172, dec1: -15.72, ra2: 16.617, dec2: -10.57, name:'Ophiuchus' },
+  { ra1: 16.617, dec1: -10.57, ra2: 17.172, dec2: 4.57, name:'Ophiuchus' },
+  { ra1: 17.172, dec1: 4.57, ra2: 16.235, dec2: -4.69, name:'Ophiuchus' },
+  // Perseus
+  { ra1: 3.405, dec1: 49.86, ra2: 3.136, dec2: 40.96, name:'Perseus' },
+  { ra1: 3.405, dec1: 49.86, ra2: 3.716, dec2: 47.79, name:'Perseus' },
+  { ra1: 3.716, dec1: 47.79, ra2: 3.964, dec2: 40.01, name:'Perseus' },
+  { ra1: 3.964, dec1: 40.01, ra2: 3.859, dec2: 31.88, name:'Perseus' },
+  { ra1: 3.405, dec1: 49.86, ra2: 3.080, dec2: 53.51, name:'Perseus' },
+  // Auriga
+  { ra1: 5.278, dec1: 45.99, ra2: 5.438, dec2: 28.61, name:'Auriga' },
+  { ra1: 5.438, dec1: 28.61, ra2: 5.994, dec2: 37.21, name:'Auriga' },
+  { ra1: 5.994, dec1: 37.21, ra2: 5.992, dec2: 44.95, name:'Auriga' },
+  { ra1: 5.992, dec1: 44.95, ra2: 5.278, dec2: 45.99, name:'Auriga' },
+  { ra1: 5.278, dec1: 45.99, ra2: 4.950, dec2: 33.17, name:'Auriga' },
+  // Aries
+  { ra1: 2.119, dec1: 23.46, ra2: 1.911, dec2: 20.81, name:'Aries' },
+  { ra1: 1.911, dec1: 20.81, ra2: 1.894, dec2: 19.29, name:'Aries' },
+  // Triangulum
+  { ra1: 1.886, dec1: 29.58, ra2: 2.159, dec2: 34.99, name:'Triangulum' },
+  { ra1: 2.159, dec1: 34.99, ra2: 2.289, dec2: 33.85, name:'Triangulum' },
+  { ra1: 2.289, dec1: 33.85, ra2: 1.886, dec2: 29.58, name:'Triangulum' },
+  // Pisces
+  { ra1: 2.034, dec1: 2.76, ra2: 1.691, dec2: 5.49, name:'Pisces' },
+  { ra1: 1.691, dec1: 5.49, ra2: 1.477, dec2: 6.14, name:'Pisces' },
+  { ra1: 1.477, dec1: 6.14, ra2: 1.525, dec2: 15.35, name:'Pisces' },
+  { ra1: 23.064, dec1: 3.82, ra2: 23.285, dec2: 1.78, name:'Pisces' },
+  { ra1: 23.285, dec1: 1.78, ra2: 23.450, dec2: 1.26, name:'Pisces' },
+  { ra1: 23.450, dec1: 1.26, ra2: 23.465, dec2: 6.38, name:'Pisces' },
+  { ra1: 23.465, dec1: 6.38, ra2: 23.988, dec2: 6.86, name:'Pisces' },
+  { ra1: 23.064, dec1: 3.82, ra2: 2.034, dec2: 2.76, name:'Pisces' },
+  // Aquarius
+  { ra1: 22.096, dec1: -0.32, ra2: 21.526, dec2: -5.57, name:'Aquarius' },
+  { ra1: 22.096, dec1: -0.32, ra2: 22.362, dec2: -1.39, name:'Aquarius' },
+  { ra1: 22.362, dec1: -1.39, ra2: 22.491, dec2: -0.02, name:'Aquarius' },
+  { ra1: 22.362, dec1: -1.39, ra2: 22.589, dec2: -0.12, name:'Aquarius' },
+  { ra1: 22.589, dec1: -0.12, ra2: 22.877, dec2: -7.58, name:'Aquarius' },
+  { ra1: 22.877, dec1: -7.58, ra2: 22.910, dec2: -15.82, name:'Aquarius' },
+  { ra1: 21.526, dec1: -5.57, ra2: 20.794, dec2: -9.50, name:'Aquarius' },
+  // Capricornus
+  { ra1: 20.302, dec1: -12.51, ra2: 20.350, dec2: -14.78, name:'Capricornus' },
+  { ra1: 20.350, dec1: -14.78, ra2: 21.099, dec2: -17.23, name:'Capricornus' },
+  { ra1: 21.099, dec1: -17.23, ra2: 21.444, dec2: -22.41, name:'Capricornus' },
+  { ra1: 21.444, dec1: -22.41, ra2: 21.667, dec2: -16.66, name:'Capricornus' },
+  { ra1: 21.667, dec1: -16.66, ra2: 21.784, dec2: -16.13, name:'Capricornus' },
+  { ra1: 21.099, dec1: -17.23, ra2: 20.864, dec2: -26.92, name:'Capricornus' },
+  { ra1: 20.864, dec1: -26.92, ra2: 21.444, dec2: -22.41, name:'Capricornus' },
+  // Piscis Austrinus
+  { ra1: 22.961, dec1: -29.62, ra2: 22.677, dec2: -27.04, name:'Piscis Austrinus' },
+  { ra1: 22.677, dec1: -27.04, ra2: 22.140, dec2: -32.99, name:'Piscis Austrinus' },
+  { ra1: 22.140, dec1: -32.99, ra2: 22.961, dec2: -29.62, name:'Piscis Austrinus' },
+  // Cetus
+  { ra1: 0.655, dec1: -17.99, ra2: 1.858, dec2: -10.34, name:'Cetus' },
+  { ra1: 1.858, dec1: -10.34, ra2: 2.322, dec2: -2.97, name:'Cetus' },
+  { ra1: 2.322, dec1: -2.97, ra2: 2.721, dec2: 3.24, name:'Cetus' },
+  { ra1: 2.721, dec1: 3.24, ra2: 3.038, dec2: 4.09, name:'Cetus' },
+  { ra1: 3.038, dec1: 4.09, ra2: 2.658, dec2: 0.33, name:'Cetus' },
+  { ra1: 2.658, dec1: 0.33, ra2: 2.721, dec2: 3.24, name:'Cetus' },
+  // Eridanus
+  { ra1: 5.130, dec1: -5.09, ra2: 4.297, dec2: -8.90, name:'Eridanus' },
+  { ra1: 4.297, dec1: -8.90, ra2: 3.967, dec2: -13.51, name:'Eridanus' },
+  { ra1: 3.967, dec1: -13.51, ra2: 3.720, dec2: -9.76, name:'Eridanus' },
+  { ra1: 3.720, dec1: -9.76, ra2: 2.971, dec2: -40.31, name:'Eridanus' },
+  { ra1: 2.971, dec1: -40.31, ra2: 1.629, dec2: -57.24, name:'Eridanus' },
+  // Lepus
+  { ra1: 5.543, dec1: -17.82, ra2: 5.471, dec2: -20.76, name:'Lepus' },
+  { ra1: 5.471, dec1: -20.76, ra2: 5.741, dec2: -22.45, name:'Lepus' },
+  { ra1: 5.741, dec1: -22.45, ra2: 5.852, dec2: -20.88, name:'Lepus' },
+  { ra1: 5.852, dec1: -20.88, ra2: 5.543, dec2: -17.82, name:'Lepus' },
+  { ra1: 5.090, dec1: -22.37, ra2: 5.471, dec2: -20.76, name:'Lepus' },
+  // Monoceros
+  { ra1: 6.480, dec1: -7.03, ra2: 7.197, dec2: -0.49, name:'Monoceros' },
+  { ra1: 7.197, dec1: -0.49, ra2: 7.688, dec2: -9.55, name:'Monoceros' },
+  { ra1: 6.247, dec1: -6.27, ra2: 6.480, dec2: -7.03, name:'Monoceros' },
+  // Cancer
+  { ra1: 8.974, dec1: 11.86, ra2: 8.745, dec2: 18.15, name:'Cancer' },
+  { ra1: 8.745, dec1: 18.15, ra2: 8.721, dec2: 21.47, name:'Cancer' },
+  { ra1: 8.745, dec1: 18.15, ra2: 8.275, dec2: 9.19, name:'Cancer' },
+  { ra1: 8.974, dec1: 11.86, ra2: 8.275, dec2: 9.19, name:'Cancer' },
+  // Hydra
+  { ra1: 8.924, dec1: 5.95, ra2: 9.460, dec2: -8.66, name:'Hydra' },
+  { ra1: 9.460, dec1: -8.66, ra2: 10.435, dec2: -16.84, name:'Hydra' },
+  { ra1: 10.435, dec1: -16.84, ra2: 10.828, dec2: -16.20, name:'Hydra' },
+  { ra1: 10.828, dec1: -16.20, ra2: 13.315, dec2: -23.17, name:'Hydra' },
+  // Leo (extended)
+  { ra1: 10.140, dec1: 11.97, ra2: 10.123, dec2: 16.76, name:'Leo' },
+  { ra1: 10.123, dec1: 16.76, ra2: 9.879, dec2: 26.01, name:'Leo' },
+  { ra1: 9.879, dec1: 26.01, ra2: 10.278, dec2: 23.42, name:'Leo' },
+  { ra1: 10.278, dec1: 23.42, ra2: 10.332, dec2: 19.84, name:'Leo' },
+  { ra1: 11.817, dec1: 14.57, ra2: 11.237, dec2: 15.43, name:'Leo' },
+  { ra1: 11.237, dec1: 15.43, ra2: 10.140, dec2: 11.97, name:'Leo' },
+  // Corvus
+  { ra1: 12.140, dec1: -24.73, ra2: 12.168, dec2: -22.62, name:'Corvus' },
+  { ra1: 12.168, dec1: -22.62, ra2: 12.267, dec2: -17.54, name:'Corvus' },
+  { ra1: 12.267, dec1: -17.54, ra2: 12.498, dec2: -16.52, name:'Corvus' },
+  { ra1: 12.498, dec1: -16.52, ra2: 12.573, dec2: -23.40, name:'Corvus' },
+  { ra1: 12.573, dec1: -23.40, ra2: 12.140, dec2: -24.73, name:'Corvus' },
+  // Crater
+  { ra1: 10.996, dec1: -18.30, ra2: 11.411, dec2: -22.83, name:'Crater' },
+  { ra1: 11.411, dec1: -22.83, ra2: 11.322, dec2: -17.68, name:'Crater' },
+  { ra1: 11.322, dec1: -17.68, ra2: 10.996, dec2: -18.30, name:'Crater' },
+  // Virgo (complete)
+  { ra1: 13.420, dec1: -11.16, ra2: 12.694, dec2: -1.45, name:'Virgo' },
+  { ra1: 12.694, dec1: -1.45, ra2: 12.332, dec2: -0.67, name:'Virgo' },
+  { ra1: 12.694, dec1: -1.45, ra2: 13.036, dec2: 10.96, name:'Virgo' },
+  { ra1: 13.420, dec1: -11.16, ra2: 14.175, dec2: -6.00, name:'Virgo' },
+  { ra1: 14.175, dec1: -6.00, ra2: 14.849, dec2: -16.04, name:'Virgo' },
+  // Scorpius (complete)
+  { ra1: 15.993, dec1: -22.62, ra2: 16.490, dec2: -26.43, name:'Scorpius' },
+  { ra1: 16.490, dec1: -26.43, ra2: 17.560, dec2: -37.10, name:'Scorpius' },
+  { ra1: 17.560, dec1: -37.10, ra2: 17.513, dec2: -37.30, name:'Scorpius' },
+  { ra1: 17.513, dec1: -37.30, ra2: 17.622, dec2: -43.00, name:'Scorpius' },
+  { ra1: 15.993, dec1: -22.62, ra2: 15.934, dec2: -19.80, name:'Scorpius' },
+  // Sagittarius (Teapot — complete)
+  { ra1: 18.403, dec1: -34.38, ra2: 18.350, dec2: -29.83, name:'Sagittarius' },
+  { ra1: 18.350, dec1: -29.83, ra2: 18.466, dec2: -21.06, name:'Sagittarius' },
+  { ra1: 18.466, dec1: -21.06, ra2: 18.922, dec2: -26.30, name:'Sagittarius' },
+  { ra1: 18.922, dec1: -26.30, ra2: 18.403, dec2: -34.38, name:'Sagittarius' },
+  { ra1: 18.350, dec1: -29.83, ra2: 18.097, dec2: -21.06, name:'Sagittarius' },
+  { ra1: 18.097, dec1: -21.06, ra2: 18.466, dec2: -21.06, name:'Sagittarius' },
+  // Centaurus
+  { ra1: 14.066, dec1: -60.37, ra2: 14.660, dec2: -60.83, name:'Centaurus' },
+  { ra1: 14.066, dec1: -60.37, ra2: 13.664, dec2: -53.47, name:'Centaurus' },
+  { ra1: 13.664, dec1: -53.47, ra2: 13.826, dec2: -42.47, name:'Centaurus' },
+  { ra1: 13.826, dec1: -42.47, ra2: 14.592, dec2: -42.16, name:'Centaurus' },
+  { ra1: 14.592, dec1: -42.16, ra2: 14.066, dec2: -60.37, name:'Centaurus' },
+  { ra1: 12.692, dec1: -48.96, ra2: 13.664, dec2: -53.47, name:'Centaurus' },
+  // Crux (Southern Cross)
+  { ra1: 12.443, dec1: -63.10, ra2: 12.519, dec2: -57.11, name:'Crux' },
+  { ra1: 12.519, dec1: -57.11, ra2: 12.795, dec2: -59.69, name:'Crux' },
+  { ra1: 12.795, dec1: -59.69, ra2: 12.253, dec2: -58.75, name:'Crux' },
+  { ra1: 12.253, dec1: -58.75, ra2: 12.443, dec2: -63.10, name:'Crux' },
+  // Lupus
+  { ra1: 15.005, dec1: -41.17, ra2: 15.378, dec2: -44.69, name:'Lupus' },
+  { ra1: 15.378, dec1: -44.69, ra2: 15.585, dec2: -41.17, name:'Lupus' },
+  { ra1: 15.585, dec1: -41.17, ra2: 15.005, dec2: -41.17, name:'Lupus' },
+  // Corona Australis
+  { ra1: 18.806, dec1: -43.68, ra2: 18.978, dec2: -37.10, name:'Corona Australis' },
+  { ra1: 18.978, dec1: -37.10, ra2: 19.058, dec2: -37.91, name:'Corona Australis' },
+  { ra1: 19.058, dec1: -37.91, ra2: 19.167, dec2: -39.34, name:'Corona Australis' },
+  // Canis Major (extended)
+  { ra1: 6.752, dec1: -16.72, ra2: 6.378, dec2: -17.96, name:'Canis Major' },
+  { ra1: 6.378, dec1: -17.96, ra2: 6.977, dec2: -28.97, name:'Canis Major' },
+  { ra1: 6.977, dec1: -28.97, ra2: 7.140, dec2: -26.39, name:'Canis Major' },
+  { ra1: 7.140, dec1: -26.39, ra2: 7.401, dec2: -29.30, name:'Canis Major' },
+  { ra1: 7.401, dec1: -29.30, ra2: 6.977, dec2: -28.97, name:'Canis Major' },
+  { ra1: 6.752, dec1: -16.72, ra2: 7.140, dec2: -26.39, name:'Canis Major' },
+  // Columba
+  { ra1: 5.661, dec1: -34.07, ra2: 5.849, dec2: -35.77, name:'Columba' },
+  { ra1: 5.849, dec1: -35.77, ra2: 6.368, dec2: -33.44, name:'Columba' },
+  { ra1: 5.661, dec1: -34.07, ra2: 5.520, dec2: -35.47, name:'Columba' },
+  // Puppis
+  { ra1: 7.286, dec1: -37.10, ra2: 7.822, dec2: -24.86, name:'Puppis' },
+  { ra1: 7.822, dec1: -24.86, ra2: 8.060, dec2: -40.00, name:'Puppis' },
+  { ra1: 8.060, dec1: -40.00, ra2: 8.125, dec2: -24.30, name:'Puppis' },
+  // Vela
+  { ra1: 8.158, dec1: -47.34, ra2: 8.745, dec2: -54.71, name:'Vela' },
+  { ra1: 8.745, dec1: -54.71, ra2: 9.133, dec2: -43.43, name:'Vela' },
+  { ra1: 9.133, dec1: -43.43, ra2: 9.369, dec2: -55.01, name:'Vela' },
+  { ra1: 9.369, dec1: -55.01, ra2: 8.158, dec2: -47.34, name:'Vela' },
+  // Carina
+  { ra1: 6.399, dec1: -52.70, ra2: 7.946, dec2: -52.98, name:'Carina' },
+  { ra1: 7.946, dec1: -52.98, ra2: 8.375, dec2: -59.51, name:'Carina' },
+  { ra1: 8.375, dec1: -59.51, ra2: 9.220, dec2: -69.72, name:'Carina' },
+  { ra1: 9.220, dec1: -69.72, ra2: 9.784, dec2: -65.07, name:'Carina' },
+  { ra1: 9.784, dec1: -65.07, ra2: 10.229, dec2: -70.04, name:'Carina' },
+  // Canes Venatici
+  { ra1: 12.934, dec1: 38.32, ra2: 12.562, dec2: 41.35, name:'Canes Venatici' },
+  // Boötes (extended kite)
+  { ra1: 14.261, dec1: 19.18, ra2: 14.750, dec2: 27.07, name:'Boötes' },
+  { ra1: 14.750, dec1: 27.07, ra2: 15.032, dec2: 40.39, name:'Boötes' },
+  { ra1: 15.032, dec1: 40.39, ra2: 14.534, dec2: 30.37, name:'Boötes' },
+  { ra1: 14.534, dec1: 30.37, ra2: 14.261, dec2: 19.18, name:'Boötes' },
+  { ra1: 14.534, dec1: 30.37, ra2: 13.912, dec2: 18.40, name:'Boötes' },
+  { ra1: 14.261, dec1: 19.18, ra2: 13.912, dec2: 18.40, name:'Boötes' },
+  // Pegasus (Great Square complete)
+  { ra1: 23.079, dec1: 15.21, ra2: 22.691, dec2: 10.83, name:'Pegasus' },
+  { ra1: 22.691, dec1: 10.83, ra2: 21.736, dec2: 9.88, name:'Pegasus' },
+  { ra1: 23.079, dec1: 15.21, ra2: 23.063, dec2: 28.08, name:'Pegasus' },
+  { ra1: 23.063, dec1: 28.08, ra2: 0.140, dec2: 29.09, name:'Pegasus' },
+  { ra1: 0.140, dec1: 29.09, ra2: 0.221, dec2: 15.18, name:'Pegasus' },
+  { ra1: 0.221, dec1: 15.18, ra2: 23.079, dec2: 15.21, name:'Pegasus' },
+  // Phoenix
+  { ra1: 0.438, dec1: -42.31, ra2: 1.101, dec2: -46.72, name:'Phoenix' },
+  { ra1: 1.101, dec1: -46.72, ra2: 1.472, dec2: -43.32, name:'Phoenix' },
+  { ra1: 1.472, dec1: -43.32, ra2: 0.438, dec2: -42.31, name:'Phoenix' },
+  // Grus
+  { ra1: 22.137, dec1: -46.96, ra2: 22.711, dec2: -46.88, name:'Grus' },
+  { ra1: 22.711, dec1: -46.88, ra2: 23.175, dec2: -45.25, name:'Grus' },
+  { ra1: 22.711, dec1: -46.88, ra2: 22.488, dec2: -50.91, name:'Grus' },
+  // Lacerta
+  { ra1: 22.492, dec1: 47.70, ra2: 22.350, dec2: 50.28, name:'Lacerta' },
+  { ra1: 22.350, dec1: 50.28, ra2: 22.521, dec2: 50.21, name:'Lacerta' },
+  { ra1: 22.521, dec1: 50.21, ra2: 22.408, dec2: 52.23, name:'Lacerta' },
+  // Andromeda (extended)
+  { ra1: 0.140, dec1: 29.09, ra2: 0.655, dec2: 30.86, name:'Andromeda' },
+  { ra1: 0.655, dec1: 30.86, ra2: 1.162, dec2: 35.62, name:'Andromeda' },
+  { ra1: 1.162, dec1: 35.62, ra2: 2.065, dec2: 42.33, name:'Andromeda' },
+  // Taurus (extended horns)
+  { ra1: 4.599, dec1: 16.51, ra2: 5.438, dec2: 28.61, name:'Taurus' },
+  { ra1: 4.599, dec1: 16.51, ra2: 5.627, dec2: 21.14, name:'Taurus' },
+  { ra1: 3.783, dec1: 24.12, ra2: 4.599, dec2: 16.51, name:'Taurus' },
+  // Gemini (extended)
+  { ra1: 7.577, dec1: 31.89, ra2: 7.755, dec2: 28.03, name:'Gemini' },
+  { ra1: 7.755, dec1: 28.03, ra2: 7.068, dec2: 20.57, name:'Gemini' },
+  { ra1: 7.068, dec1: 20.57, ra2: 6.629, dec2: 16.40, name:'Gemini' },
+  { ra1: 7.577, dec1: 31.89, ra2: 6.628, dec2: 25.13, name:'Gemini' },
+]
+
 // ── DEEP-SKY OBJECTS ──────────────────────────────────────────
 interface DSO {
   name: string
@@ -1060,30 +1337,39 @@ export default function StarMap() {
 
     // ── Constellation lines + labels ──
     if (showConstellations) {
-      CONSTELLATION_LINES.forEach(({ a, b }) => {
-        const sa = STARS[a], sb = STARS[b]
-        if (!sa || !sb) return
-        const ha = toHorizon(sa[1], sa[2], lst, loc.lat)
-        const hb = toHorizon(sb[1], sb[2], lst, loc.lat)
+      const drawConLine = (ra1: number, dec1: number, ra2: number, dec2: number) => {
+        const ha = toHorizon(ra1, dec1, lst, loc.lat)
+        const hb = toHorizon(ra2, dec2, lst, loc.lat)
         if (ha.alt < -3 || hb.alt < -3) return
         const pa = project(ha.alt, (ha.az + rotation) % 360, cx, cy, r, 0)
         const pb = project(hb.alt, (hb.az + rotation) % 360, cx, cy, r, 0)
         ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y)
         ctx.strokeStyle = 'rgba(120,135,255,0.45)'; ctx.lineWidth = 1.2; ctx.stroke()
+      }
+
+      CONSTELLATION_LINES.forEach(({ a, b }) => {
+        const sa = STARS[a], sb = STARS[b]; if (!sa || !sb) return
+        drawConLine(sa[1], sa[2], sb[1], sb[2])
       })
+      EXTRA_CON_LINES.forEach(({ ra1, dec1, ra2, dec2 }) => drawConLine(ra1, dec1, ra2, dec2))
 
       if (showLabels) {
-        // Compute centroid per constellation name
-        const conMap = new Map<string, { sx: number; sy: number; n: number; minAlt: number }>()
+        const conMap = new Map<string, { sx: number; sy: number; n: number }>()
+        const accumulatePt = (ra: number, dec: number, name: string) => {
+          const hz = toHorizon(ra, dec, lst, loc.lat)
+          if (hz.alt < 3) return
+          const pt = project(hz.alt, (hz.az + rotation) % 360, cx, cy, r, 0)
+          const cur = conMap.get(name) ?? { sx: 0, sy: 0, n: 0 }
+          conMap.set(name, { sx: cur.sx + pt.x, sy: cur.sy + pt.y, n: cur.n + 1 })
+        }
         CONSTELLATION_LINES.forEach(({ a, b, name }) => {
-          for (const idx of [a, b]) {
-            const s = STARS[idx]; if (!s) continue
-            const hz = toHorizon(s[1], s[2], lst, loc.lat)
-            if (hz.alt < 3) continue
-            const pt = project(hz.alt, (hz.az + rotation) % 360, cx, cy, r, 0)
-            const cur = conMap.get(name) ?? { sx: 0, sy: 0, n: 0, minAlt: 90 }
-            conMap.set(name, { sx: cur.sx + pt.x, sy: cur.sy + pt.y, n: cur.n + 1, minAlt: Math.min(cur.minAlt, hz.alt) })
-          }
+          const sa = STARS[a], sb = STARS[b]
+          if (sa) accumulatePt(sa[1], sa[2], name)
+          if (sb) accumulatePt(sb[1], sb[2], name)
+        })
+        EXTRA_CON_LINES.forEach(({ ra1, dec1, ra2, dec2, name }) => {
+          accumulatePt(ra1, dec1, name)
+          accumulatePt(ra2, dec2, name)
         })
         ctx.font = 'italic 9px \'Space Grotesk\', system-ui'
         ctx.textAlign = 'center'
