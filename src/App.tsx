@@ -387,8 +387,8 @@ function MainApp() {
 
             {activeTab === 'starmap' && (
               <div className="space-y-5">
-                <Suspense fallback={<SkeletonCard />}><StarMap /></Suspense>
-                <SafeWrap><Suspense fallback={<SkeletonCard />}><ARStarFinder /></Suspense></SafeWrap>
+                <SafeWrap label="StarMap"><Suspense fallback={<SkeletonCard />}><StarMap /></Suspense></SafeWrap>
+                <SafeWrap label="ARStarFinder"><Suspense fallback={<SkeletonCard />}><ARStarFinder /></Suspense></SafeWrap>
                 <div className="space-card p-6">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="icon-box text-xl">🛸</div>
@@ -406,8 +406,8 @@ function MainApp() {
 
             {activeTab === 'tracker' && (
               <div className="space-y-5">
-                <Suspense fallback={<SkeletonCard />}><ARSkyView /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SatelliteTracker /></Suspense>
+                <SafeWrap label="ARSkyView"><Suspense fallback={<SkeletonCard />}><ARSkyView /></Suspense></SafeWrap>
+                <SafeWrap label="SatelliteTracker"><Suspense fallback={<SkeletonCard />}><SatelliteTracker /></Suspense></SafeWrap>
               </div>
             )}
 
@@ -499,7 +499,7 @@ function MainApp() {
               </div>
             )}
 
-            {activeTab === 'blog' && <BlogPage />}
+            {activeTab === 'blog' && <SafeWrap label="BlogPage"><BlogPage /></SafeWrap>}
 
             {activeTab === 'gallery' && (
               <div className="space-y-5">
@@ -513,12 +513,12 @@ function MainApp() {
 
           <div className="mt-14 mb-4">
             <div className="divider-glow mb-12" />
-            <Suspense fallback={null}><EmailCapture /></Suspense>
+            <SafeWrap label="EmailCapture"><Suspense fallback={null}><EmailCapture /></Suspense></SafeWrap>
           </div>
         </main>
 
         <SafeWrap label="Onboarding"><Onboarding /></SafeWrap>
-        <ScrollToTop />
+        <SafeWrap label="ScrollToTop"><ScrollToTop /></SafeWrap>
         <SafeWrap label="MobileNav"><MobileNav active={activeTab} onSwitch={(t) => switchTab(t as Tab)} /></SafeWrap>
 
         {/* FOOTER */}
