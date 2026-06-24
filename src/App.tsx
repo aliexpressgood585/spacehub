@@ -55,6 +55,7 @@ const SeeingForecast = lazy(() => import('./components/SeeingForecast'))
 const LightPollutionMeter = lazy(() => import('./components/LightPollutionMeter'))
 const SpaceTimeline = lazy(() => import('./components/SpaceTimeline'))
 const NightSessionPlanner = lazy(() => import('./components/NightSessionPlanner'))
+const AstroCalculator = lazy(() => import('./components/AstroCalculator'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -459,6 +460,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><AstroPhotoPlanner /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><ExoplanetTransitPlanner /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceSounds /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><AstroCalculator /></Suspense>
               </div>
             )}
 
