@@ -44,6 +44,12 @@ const GalaxyExplorer = lazy(() => import('./components/GalaxyExplorer'))
 const ARSkyView = lazy(() => import('./components/ARSkyView'))
 const ExoplanetTransitPlanner = lazy(() => import('./components/ExoplanetTransitPlanner'))
 const AstroPhotoPlanner = lazy(() => import('./components/AstroPhotoPlanner'))
+const EclipseCountdown = lazy(() => import('./components/EclipseCountdown'))
+const AuroraForecast = lazy(() => import('./components/AuroraForecast'))
+const ConjunctionAlert = lazy(() => import('./components/ConjunctionAlert'))
+const CometTracker = lazy(() => import('./components/CometTracker'))
+const SpaceSounds = lazy(() => import('./components/SpaceSounds'))
+const DeepSkyBrowser = lazy(() => import('./components/DeepSkyBrowser'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -383,6 +389,7 @@ function MainApp() {
 
             {activeTab === 'weather' && (
               <div className="space-y-5">
+                <Suspense fallback={<SkeletonCard />}><AuroraForecast /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><MarsWeather /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceWeather /></Suspense>
               </div>
@@ -390,6 +397,11 @@ function MainApp() {
             {activeTab === 'events' && (
               <div className="space-y-5">
                 <Suspense fallback={<SkeletonCard />}><MeteorShower3D /></Suspense>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <Suspense fallback={<SkeletonCard />}><EclipseCountdown /></Suspense>
+                  <Suspense fallback={<SkeletonCard />}><ConjunctionAlert /></Suspense>
+                </div>
+                <Suspense fallback={<SkeletonCard />}><CometTracker /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><EventsCalendar /></Suspense>
               </div>
             )}
@@ -426,6 +438,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><ExoplanetExplorer /></Suspense>
                 <AdBanner />
                 <Suspense fallback={<SkeletonCard />}><GalaxyExplorer /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><DeepSkyBrowser /></Suspense>
               </div>
             )}
 
@@ -433,6 +446,7 @@ function MainApp() {
               <div className="space-y-5">
                 <Suspense fallback={<SkeletonCard />}><AstroPhotoPlanner /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><ExoplanetTransitPlanner /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><SpaceSounds /></Suspense>
               </div>
             )}
 
