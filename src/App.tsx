@@ -53,6 +53,7 @@ const DeepSkyBrowser = lazy(() => import('./components/DeepSkyBrowser'))
 const PersonalSkyReport = lazy(() => import('./components/PersonalSkyReport'))
 const SeeingForecast = lazy(() => import('./components/SeeingForecast'))
 const LightPollutionMeter = lazy(() => import('./components/LightPollutionMeter'))
+const SpaceTimeline = lazy(() => import('./components/SpaceTimeline'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -442,6 +443,7 @@ function MainApp() {
                 <AdBanner />
                 <Suspense fallback={<SkeletonCard />}><GalaxyExplorer /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><DeepSkyBrowser /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><SpaceTimeline /></Suspense>
               </div>
             )}
 
