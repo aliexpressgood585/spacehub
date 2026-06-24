@@ -510,7 +510,7 @@ export default function ARSkyView() {
                       setPhase('starting')
                       setErrorMsg('')
                       setPermDenied(false)
-                      let userLat = locRef.current.lat, userLng = locRef.current.lng
+                      const userLat = locRef.current.lat, userLng = locRef.current.lng
                       if (typeof (DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> }).requestPermission === 'function') {
                         try { await (DeviceOrientationEvent as unknown as { requestPermission: () => Promise<string> }).requestPermission() } catch {}
                       }
