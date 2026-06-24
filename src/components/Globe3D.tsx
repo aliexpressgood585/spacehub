@@ -96,6 +96,7 @@ export default function Globe3D() {
       renderer.dispose()
       geometry.dispose()
       material.dispose()
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- container ref is stable for the component's life
       containerRef.current?.removeChild(renderer.domElement)
     }
   }, [])
