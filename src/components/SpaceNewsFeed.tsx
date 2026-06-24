@@ -13,6 +13,21 @@ interface Article {
 const CACHE_KEY = 'snf_p0_v1'
 const CACHE_TTL = 8 * 60 * 60 * 1000 // 8 hours
 
+function NewsImage({ src, alt }: { src: string; alt: string }) {
+  const [failed, setFailed] = useState(false)
+  if (!src || failed) return (
+    <div className="w-full h-full flex items-center justify-center"
+      style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.15))' }}>
+      <span className="text-5xl">🚀</span>
+    </div>
+  )
+  return (
+    <img src={src} alt={alt}
+      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+      onError={() => setFailed(true)} />
+  )
+}
+
 export default function SpaceNewsFeed() {
   const [articles, setArticles] = useState<Article[]>([])
   const [loading, setLoading] = useState(true)
@@ -129,21 +144,7 @@ export default function SpaceNewsFeed() {
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)' }}
               >
                 <div className="relative overflow-hidden" style={{ height: 160 }}>
-                  {article.image_url ? (
-                    <img
-                      src={article.image_url}
-                      alt={article.title}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-                    />
-                  ) : (
-                    <div
-                      className="w-full h-full flex items-center justify-center"
-                      style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.15))' }}
-                    >
-                      <span className="text-5xl">🚀</span>
-                    </div>
-                  )}
+                  <NewsImage src={article.image_url} alt={article.title} />
                   <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(2,5,16,0.85) 0%, transparent 50%)' }} />
                   <span
                     className="absolute bottom-2 left-2 text-[10px] px-2 py-0.5 rounded-full font-semibold"
