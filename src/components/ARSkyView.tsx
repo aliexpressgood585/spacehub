@@ -192,13 +192,15 @@ export default function ARSkyView() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    canvas.width  = video.videoWidth  || canvas.offsetWidth
-    canvas.height = video.videoHeight || canvas.offsetHeight
-
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-
-    const W   = canvas.width
-    const H   = canvas.height
+    // Size canvas to match display — don't resize every frame (clears content)
+    const W = Math.round(canvas.offsetWidth * devicePixelRatio)
+    const H = Math.round(canvas.offsetHeight * devicePixelRatio)
+    if (canvas.width !== W || canvas.height !== H) {
+      canvas.width = W
+      canvas.height = H
+    }
+    // Transparent canvas — video element shows through underneath
+    ctx.clearRect(0, 0, W, H)
     const fovV = fovHRef.current * (H / W)
     const curH = smoothHeadingRef.current
     const curT = smoothTiltRef.current
