@@ -1,5 +1,5 @@
-const CACHE = 'spacehub-v9'
-const API_CACHE = 'spacehub-api-v4'
+const CACHE = 'spacehub-v10'
+const API_CACHE = 'spacehub-api-v5'
 
 const OWN_API_PATHS = ['/api/iss', '/api/astros', '/api/apod', '/api/neo']
 
