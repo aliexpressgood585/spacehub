@@ -24,6 +24,8 @@ export default function ISSTracker() {
   const [issPos, setIssPos] = useState<ISSPosition | null>(null)
   const issPosRef = useRef<ISSPosition | null>(null)
   const issMarkerRef = useRef<THREE.Mesh | null>(null)
+  const [secondsAgo, setSecondsAgo] = useState(0)
+  const lastFetchRef = useRef<number>(Date.now())
 
   useEffect(() => {
     const fetchISS = () => {
@@ -39,6 +41,8 @@ export default function ISSTracker() {
           }
           setIssPos(pos)
           issPosRef.current = pos
+          lastFetchRef.current = Date.now()
+          setSecondsAgo(0)
           if (issMarkerRef.current) {
             const v = latLngToVec3(pos.latitude, pos.longitude, 1.12)
             issMarkerRef.current.position.set(v.x, v.y, v.z)
@@ -49,6 +53,13 @@ export default function ISSTracker() {
     fetchISS()
     const interval = setInterval(fetchISS, 5000)
     return () => clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    const ticker = setInterval(() => {
+      setSecondsAgo(Math.floor((Date.now() - lastFetchRef.current) / 1000))
+    }, 1000)
+    return () => clearInterval(ticker)
   }, [])
 
   useEffect(() => {
@@ -210,7 +221,10 @@ export default function ISSTracker() {
                   <p className="text-white font-mono font-bold">{item.val}</p>
                 </div>
               ))}
-              <p className="text-xs text-gray-700 pt-1">Updates every 5 seconds</p>
+              <div className="flex items-center gap-1.5 pt-1">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                <p className="text-xs text-gray-500">Live · updated {secondsAgo}s ago</p>
+              </div>
             </div>
           ) : (
             <div className="text-center text-gray-400 py-4">
