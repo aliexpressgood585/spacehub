@@ -73,6 +73,10 @@ const SolarFlareAlerts = lazy(() => import('./components/SolarFlareAlerts'))
 const DwarfPlanets = lazy(() => import('./components/DwarfPlanets'))
 const MarsColonyPlanner = lazy(() => import('./components/MarsColonyPlanner'))
 const RadiationCalculator = lazy(() => import('./components/RadiationCalculator'))
+const GravitationalWaveExplorer = lazy(() => import('./components/GravitationalWaveExplorer'))
+const TimeDilationCalculator = lazy(() => import('./components/TimeDilationCalculator'))
+const RocketEngineComparison = lazy(() => import('./components/RocketEngineComparison'))
+const StellarEvolutionSimulator = lazy(() => import('./components/StellarEvolutionSimulator'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -511,12 +515,16 @@ function MainApp() {
 
             {activeTab === 'science' && (
               <div className="space-y-5">
+                <Suspense fallback={<SkeletonCard />}><StellarEvolutionSimulator /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><HRDiagram /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><BlackHoleVisualizer /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><GravitationalWaveExplorer /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><TimeDilationCalculator /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><CosmicScale /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpacecraftSpeed /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><VariableStarTracker /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><RadiationCalculator /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><RocketEngineComparison /></Suspense>
               </div>
             )}
 
