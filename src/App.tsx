@@ -123,6 +123,7 @@ const SpaceNavigationHistory = lazy(() => import('./components/SpaceNavigationHi
 const SupernovaExplosions = lazy(() => import('./components/SupernovaExplosions'))
 const CometExplorer = lazy(() => import('./components/CometExplorer'))
 const MeteorShowers = lazy(() => import('./components/MeteorShowers'))
+const DarkMatterDetectors = lazy(() => import('./components/DarkMatterDetectors'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -617,6 +618,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><SpaceTelescopes /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><QuantumCosmology /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SupernovaExplosions /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><DarkMatterDetectors /></Suspense>
               </div>
             )}
 
