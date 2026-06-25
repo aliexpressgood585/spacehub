@@ -42,6 +42,8 @@ export default function SpaceWeather() {
   const [fetchError, setFetchError] = useState(false)
   const [fromCache, setFromCache] = useState(false)
   const [updated, setUpdated] = useState('')
+  const [lastFetchTime, setLastFetchTime] = useState<number | null>(null)
+  const [minsAgo, setMinsAgo] = useState(0)
 
   useEffect(() => {
     Promise.all([
@@ -56,7 +58,10 @@ export default function SpaceWeather() {
       if (!isNaN(speedVal)) setWindSpeed(speedVal)
       const ts = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
       setUpdated(ts)
-      try { localStorage.setItem(SW_CACHE_KEY, JSON.stringify({ ts: Date.now(), kp: kpVal, wind: speedVal, label: ts })) } catch {}
+      const now = Date.now()
+      setLastFetchTime(now)
+      setMinsAgo(0)
+      try { localStorage.setItem(SW_CACHE_KEY, JSON.stringify({ ts: now, kp: kpVal, wind: speedVal, label: ts })) } catch {}
       setLoading(false)
     }).catch(() => {
       try {
@@ -67,6 +72,7 @@ export default function SpaceWeather() {
             if (!isNaN(c.kp)) setKp(c.kp)
             if (!isNaN(c.wind)) setWindSpeed(c.wind)
             setUpdated(c.label)
+            setLastFetchTime(c.ts)
             setFromCache(true)
             setLoading(false)
             return
@@ -77,6 +83,14 @@ export default function SpaceWeather() {
       setLoading(false)
     })
   }, [])
+
+  useEffect(() => {
+    if (lastFetchTime === null) return
+    const ticker = setInterval(() => {
+      setMinsAgo(Math.floor((Date.now() - lastFetchTime) / 60000))
+    }, 60000)
+    return () => clearInterval(ticker)
+  }, [lastFetchTime])
 
   const kpC = kp !== null ? kpColor(kp) : '#6b7280'
   const windC = windSpeed !== null ? windColor(windSpeed) : '#6b7280'
@@ -131,7 +145,15 @@ export default function SpaceWeather() {
           <div className="icon-box">⛈️</div>
           <div className="flex-1">
             <h3 className="text-white font-bold text-xl">Space Weather</h3>
-            <p className="text-gray-500 text-xs">Real-time solar & geomagnetic conditions · NOAA SWPC{updated ? ` · Updated ${updated}` : ''}</p>
+            <p className="text-gray-500 text-xs">
+              Real-time solar &amp; geomagnetic conditions · NOAA SWPC
+              {lastFetchTime !== null && (
+                <span className="ml-1 text-gray-600">
+                  · Updated {minsAgo === 0 ? 'just now' : `${minsAgo} min ago`}
+                  {updated ? ` at ${updated}` : ''}
+                </span>
+              )}
+            </p>
           </div>
           {fromCache ? (
             <span className="text-[10px] px-2.5 py-1 rounded-full font-bold" style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', color: '#fbbf24' }}>
