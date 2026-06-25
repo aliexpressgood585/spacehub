@@ -119,6 +119,7 @@ const NuclearFusionInSpace = lazy(() => import('./components/NuclearFusionInSpac
 const GalacticArchitecture = lazy(() => import('./components/GalacticArchitecture'))
 const PlanetaryAtmospheres = lazy(() => import('./components/PlanetaryAtmospheres'))
 const QuantumCosmology = lazy(() => import('./components/QuantumCosmology'))
+const SpaceNavigationHistory = lazy(() => import('./components/SpaceNavigationHistory'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -568,6 +569,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><SpaceColonization /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><ArtemisProgram /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceEconomics /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><SpaceNavigationHistory /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceRaceHistory /></Suspense>
               </div>
             )}
