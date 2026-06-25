@@ -154,11 +154,11 @@ async function calculatePasses(lat: number, lng: number, days = 7): Promise<Pass
 }
 
 function formatTime(d: Date) {
-  return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+  try { return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false }) } catch { return '--:--' }
 }
 
 function formatDate(d: Date) {
-  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+  try { return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) } catch { return '--' }
 }
 
 function elColor(el: number) {
