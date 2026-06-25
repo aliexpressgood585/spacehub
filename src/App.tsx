@@ -117,6 +117,7 @@ const SolarSystemFormation = lazy(() => import('./components/SolarSystemFormatio
 const SpaceEconomics = lazy(() => import('./components/SpaceEconomics'))
 const NuclearFusionInSpace = lazy(() => import('./components/NuclearFusionInSpace'))
 const GalacticArchitecture = lazy(() => import('./components/GalacticArchitecture'))
+const PlanetaryAtmospheres = lazy(() => import('./components/PlanetaryAtmospheres'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -495,6 +496,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><PlanetaryMoons /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><PlanetaryRings /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><IceGiants /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><PlanetaryAtmospheres /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><LunarGeology /></Suspense>
               </div>
             )}
