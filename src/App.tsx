@@ -106,6 +106,7 @@ const CosmicEvents = lazy(() => import('./components/CosmicEvents'))
 const NightSkyCalendar = lazy(() => import('./components/NightSkyCalendar'))
 const SpaceRaceHistory = lazy(() => import('./components/SpaceRaceHistory'))
 const SpectroscopyExplorer = lazy(() => import('./components/SpectroscopyExplorer'))
+const ExoplanetAtmospheres = lazy(() => import('./components/ExoplanetAtmospheres'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -540,6 +541,7 @@ function MainApp() {
               <div className="space-y-5">
                 <Suspense fallback={<SkeletonCard />}><PlanetExplorer /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><ExoplanetExplorer /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><ExoplanetAtmospheres /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><MarsRoverDashboard /></Suspense>
                 <AdBanner />
                 <Suspense fallback={<SkeletonCard />}><GalaxyExplorer /></Suspense>
