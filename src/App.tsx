@@ -152,6 +152,8 @@ const CosmicCalendar = lazy(() => import('./components/CosmicCalendar'))
 const PlanetaryDefense = lazy(() => import('./components/PlanetaryDefense'))
 const StarlightCalculator = lazy(() => import('./components/StarlightCalculator'))
 const ConstellationMythology = lazy(() => import('./components/ConstellationMythology'))
+const CosmicDistanceLadder = lazy(() => import('./components/CosmicDistanceLadder'))
+const SpaceHazards = lazy(() => import('./components/SpaceHazards'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -672,6 +674,8 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><SpaceDebrisTracker /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><PlanetaryDefense /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><ConstellationMythology /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><CosmicDistanceLadder /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><SpaceHazards /></Suspense>
               </div>
             )}
 
