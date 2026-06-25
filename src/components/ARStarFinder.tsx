@@ -1,5 +1,79 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 
+function drawCompass(canvas: HTMLCanvasElement, heading: number) {
+  const W = canvas.width, H = canvas.height
+  const cx = W / 2, cy = H / 2, r = W / 2 - 4
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+  ctx.clearRect(0, 0, W, H)
+
+  // Background circle
+  ctx.beginPath()
+  ctx.arc(cx, cy, r, 0, Math.PI * 2)
+  ctx.fillStyle = 'rgba(0,0,0,0.6)'
+  ctx.fill()
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)'
+  ctx.lineWidth = 1
+  ctx.stroke()
+
+  const dirs = ['N','NE','E','SE','S','SW','W','NW']
+  dirs.forEach((label, i) => {
+    const angle = (i * 45 - heading) * Math.PI / 180
+    const isMajor = i % 2 === 0
+    const tickOuter = r - 2
+    const tickInner = isMajor ? r - 10 : r - 7
+    ctx.strokeStyle = label === 'N' ? '#ef4444' : 'rgba(255,255,255,0.7)'
+    ctx.lineWidth = label === 'N' ? 2 : 1
+    ctx.beginPath()
+    ctx.moveTo(cx + Math.sin(angle) * tickInner, cy - Math.cos(angle) * tickInner)
+    ctx.lineTo(cx + Math.sin(angle) * tickOuter, cy - Math.cos(angle) * tickOuter)
+    ctx.stroke()
+    if (isMajor) {
+      ctx.fillStyle = label === 'N' ? '#ef4444' : 'rgba(255,255,255,0.85)'
+      ctx.font = `bold ${label === 'N' ? 10 : 8}px sans-serif`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      const lx = cx + Math.sin(angle) * (r - 16)
+      const ly = cy - Math.cos(angle) * (r - 16)
+      ctx.fillText(label, lx, ly)
+    }
+  })
+
+  // Needle: red tip points North (opposite of heading rotation)
+  const needleAngle = -heading * Math.PI / 180
+  const tipLen = r - 18
+  const tailLen = r - 30
+
+  // Red north tip
+  ctx.beginPath()
+  ctx.moveTo(cx, cy)
+  ctx.lineTo(cx + Math.sin(needleAngle) * tipLen, cy - Math.cos(needleAngle) * tipLen)
+  ctx.strokeStyle = '#ef4444'
+  ctx.lineWidth = 2.5
+  ctx.stroke()
+  // White south tail
+  ctx.beginPath()
+  ctx.moveTo(cx, cy)
+  ctx.lineTo(cx - Math.sin(needleAngle) * tailLen, cy + Math.cos(needleAngle) * tailLen)
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)'
+  ctx.lineWidth = 2
+  ctx.stroke()
+  // Center dot
+  ctx.beginPath()
+  ctx.arc(cx, cy, 3, 0, Math.PI * 2)
+  ctx.fillStyle = '#fff'
+  ctx.fill()
+
+  // Heading text
+  const dirs8 = ['N','NE','E','SE','S','SW','W','NW']
+  const dirLabel = dirs8[Math.round(heading / 45) % 8]
+  ctx.fillStyle = 'rgba(255,255,255,0.9)'
+  ctx.font = 'bold 8px monospace'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(`${Math.round(heading)}° ${dirLabel}`, cx, cy + r - 8)
+}
+
 const DEG = Math.PI / 180
 const rev = (x: number) => ((x % 360) + 360) % 360
 
@@ -117,10 +191,12 @@ const H_FOV = 68
 export default function ARStarFinder() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const compassRef = useRef<HTMLCanvasElement>(null)
   const rafRef = useRef<number | undefined>(undefined)
   const orientRef = useRef({ az: 0, alt: 45 })
   const locRef = useRef({ lat: 32.0, lng: 34.78 })
   const smoothRef = useRef({ az: 0, alt: 45 })
+  const headingRef = useRef(0)
   const [phase, setPhase] = useState<'idle' | 'active' | 'error'>('idle')
   const [err, setErr] = useState('')
   const [identified, setIdentified] = useState<string | null>(null)
@@ -227,6 +303,8 @@ export default function ARStarFinder() {
   useEffect(() => {
     if (phase !== 'active') return
     rafRef.current = requestAnimationFrame(draw)
+    // Draw initial compass at current heading
+    if (compassRef.current) drawCompass(compassRef.current, headingRef.current)
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
   }, [phase, draw])
 
@@ -256,6 +334,9 @@ export default function ARStarFinder() {
         if (dAz > 180) dAz -= 360; if (dAz < -180) dAz += 360
         smoothRef.current = { az: (smoothRef.current.az + dAz * 0.15 + 360) % 360, alt: smoothRef.current.alt + (alt - smoothRef.current.alt) * 0.15 }
         orientRef.current = smoothRef.current
+        headingRef.current = smoothRef.current.az
+        // Redraw compass rose
+        if (compassRef.current) drawCompass(compassRef.current, smoothRef.current.az)
       }
 
       window.addEventListener('deviceorientationabsolute', onOrient as EventListener, true)
@@ -340,6 +421,14 @@ export default function ARStarFinder() {
             ✦ {identified}
           </div>
         )}
+        {/* Compass rose overlay */}
+        <canvas
+          ref={compassRef}
+          width={100}
+          height={100}
+          className="absolute top-16 right-3"
+          style={{ width: 80, height: 80, pointerEvents: 'none' }}
+        />
         <button onClick={stop} className="absolute top-10 right-3 px-3 py-1.5 rounded-lg text-white text-xs"
           style={{ background: 'rgba(0,0,0,0.65)' }}>
           ✕ Exit
