@@ -99,6 +99,7 @@ const SpaceWeatherHistory = lazy(() => import('./components/SpaceWeatherHistory'
 const InterstellarTravel = lazy(() => import('./components/InterstellarTravel'))
 const PlanetaryRings = lazy(() => import('./components/PlanetaryRings'))
 const ConstellationGuide = lazy(() => import('./components/ConstellationGuide'))
+const DarkEnergyExplorer = lazy(() => import('./components/DarkEnergyExplorer'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -569,6 +570,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><RadiationCalculator /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><RocketEngineComparison /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><InterstellarTravel /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><DarkEnergyExplorer /></Suspense>
               </div>
             )}
 
