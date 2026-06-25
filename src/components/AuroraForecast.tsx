@@ -35,19 +35,55 @@ function kpLabel(kp: number): string {
   return 'Quiet'
 }
 
+const KP_BAR_COLOR = (kp: number) => {
+  if (kp > 7) return '#ef4444'
+  if (kp >= 5) return '#f97316'
+  if (kp >= 4) return '#eab308'
+  return '#22c55e'
+}
+
 function AuroraBars({ data }: { data: KpEntry[] }) {
   const max = 9
+  // Show up to 24 bars; label every ~4 entries
+  const step = Math.max(1, Math.floor(data.length / 24))
+  const displayData = data.slice(-24)
+  const labelEvery = Math.max(1, Math.floor(displayData.length / 6))
   return (
-    <div className="flex items-end gap-0.5 h-20 mt-2">
-      {data.map((d, i) => {
-        const h = Math.max(4, (d.kp / max) * 80)
-        return (
-          <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
-            <div className="w-full rounded-sm transition-all" style={{ height: h, background: `linear-gradient(to top, ${kpColor(d.kp)}, ${kpColor(d.kp)}88)` }} />
-            {i % 4 === 0 && <span className="text-[7px] text-gray-700 rotate-0">{new Date(d.time).getHours()}h</span>}
-          </div>
-        )
-      })}
+    <div>
+      <div className="flex items-end gap-px h-20">
+        {displayData.map((d, i) => {
+          const h = Math.max(3, (d.kp / max) * 80)
+          return (
+            <div key={i} title={`${new Date(d.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} — Kp ${d.kp}`}
+              className="flex-1 rounded-sm transition-all cursor-default"
+              style={{ height: h, alignSelf: 'flex-end', background: `linear-gradient(to top, ${KP_BAR_COLOR(d.kp)}, ${KP_BAR_COLOR(d.kp)}88)` }} />
+          )
+        })}
+      </div>
+      {/* X-axis labels */}
+      <div className="flex mt-1" style={{ position: 'relative' }}>
+        {displayData.map((d, i) => (
+          i % labelEvery === 0 ? (
+            <span key={i} className="text-[7px] text-gray-700 flex-1 text-center">
+              {new Date(d.time).getHours()}h
+            </span>
+          ) : <span key={i} className="flex-1" />
+        ))}
+      </div>
+      {/* Y-axis scale hint */}
+      <div className="flex justify-between mt-1">
+        <div className="flex gap-2 flex-wrap">
+          {[['<4','#22c55e'],['4-5','#eab308'],['5-7','#f97316'],['>7','#ef4444']].map(([label, color]) => (
+            <span key={label} className="flex items-center gap-1 text-[8px] text-gray-600">
+              <span className="inline-block w-2 h-2 rounded-sm" style={{ background: color }} />
+              Kp{label}
+            </span>
+          ))}
+        </div>
+        <span className="text-[8px] text-gray-700">0–9 scale</span>
+      </div>
+      {/* suppress lint for unused step */}
+      {step > 0 && null}
     </div>
   )
 }
@@ -108,6 +144,14 @@ function AuroraCanvas({ kp }: { kp: number }) {
   return <canvas ref={canvasRef} width={320} height={120} className="w-full rounded-xl" style={{ display: 'block' }} />
 }
 
+const BEST_LOCATIONS = [
+  { city: 'Tromsø',     country: 'Norway',  lat: 69.6, flag: '🇳🇴' },
+  { city: 'Reykjavik', country: 'Iceland', lat: 64.1, flag: '🇮🇸' },
+  { city: 'Fairbanks', country: 'Alaska',  lat: 64.8, flag: '🇺🇸' },
+  { city: 'Yellowknife',country: 'Canada', lat: 62.5, flag: '🇨🇦' },
+  { city: 'Rovaniemi', country: 'Finland', lat: 66.5, flag: '🇫🇮' },
+]
+
 export default function AuroraForecast() {
   const [kpData, setKpData] = useState<KpEntry[]>([])
   const [currentKp, setCurrentKp] = useState(0)
@@ -116,18 +160,41 @@ export default function AuroraForecast() {
   const [error, setError] = useState(false)
 
   useEffect(() => {
-    fetch('https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json')
+    // Prefer 1-minute data for a richer 24-hour trend; fall back to 3-hourly
+    fetch('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json')
       .then(r => r.json())
-      .then((raw: (string | number)[][]) => {
-        const entries: KpEntry[] = raw.slice(1).map(row => ({
-          time: row[0] as string,
-          kp: parseFloat(row[1] as string),
-        })).filter(e => !isNaN(e.kp))
-        setKpData(entries.slice(-24))
+      .then((raw: { time_tag: string; Kp: number }[]) => {
+        const entries: KpEntry[] = raw
+          .map(row => ({ time: row.time_tag, kp: row.Kp }))
+          .filter(e => !isNaN(e.kp))
+        // Keep last 24 data points (24 hours = 1440 minutes, but show up to 24 bars)
+        // Sample evenly: take 1 per hour by filtering to the top of each hour
+        const hourly: KpEntry[] = []
+        let lastHour = -1
+        for (const e of entries) {
+          const h = new Date(e.time).getHours()
+          if (h !== lastHour) { hourly.push(e); lastHour = h }
+        }
+        const display = hourly.slice(-24)
+        setKpData(display)
         setCurrentKp(entries[entries.length - 1]?.kp ?? 0)
         setLoading(false)
       })
-      .catch(() => { setError(true); setLoading(false) })
+      .catch(() => {
+        // Fallback to 3-hourly endpoint
+        fetch('https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json')
+          .then(r => r.json())
+          .then((raw: (string | number)[][]) => {
+            const entries: KpEntry[] = raw.slice(1).map(row => ({
+              time: row[0] as string,
+              kp: parseFloat(row[1] as string),
+            })).filter(e => !isNaN(e.kp))
+            setKpData(entries.slice(-24))
+            setCurrentKp(entries[entries.length - 1]?.kp ?? 0)
+            setLoading(false)
+          })
+          .catch(() => { setError(true); setLoading(false) })
+      })
   }, [])
 
   useEffect(() => {
@@ -179,10 +246,40 @@ export default function AuroraForecast() {
 
           {kpData.length > 0 && (
             <div className="mt-4">
-              <p className="text-[10px] text-gray-600 uppercase tracking-widest font-semibold mb-2">24-Hour Kp History</p>
+              <p className="text-[10px] text-gray-600 uppercase tracking-widest font-semibold mb-2">24-Hour Kp Trend</p>
               <AuroraBars data={kpData} />
             </div>
           )}
+
+          {/* Best viewing locations */}
+          <div className="mt-5">
+            <p className="text-[10px] text-gray-600 uppercase tracking-widest font-semibold mb-3">Best Viewing Locations</p>
+            <div className="space-y-1.5">
+              {BEST_LOCATIONS.map(loc => {
+                // Visible if Kp > (90 - lat) / 10
+                const threshold = (90 - loc.lat) / 10
+                const visible = currentKp > threshold
+                return (
+                  <div key={loc.city} className="flex items-center gap-2 rounded-lg px-3 py-2"
+                    style={{ background: visible ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.02)', border: `1px solid ${visible ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.05)'}` }}>
+                    <span className="text-base">{loc.flag}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-white">{loc.city}, {loc.country}</p>
+                      <p className="text-[9px] text-gray-600">{loc.lat}°N · Kp≥{threshold.toFixed(1)} needed</p>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0"
+                      style={{
+                        background: visible ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+                        color: visible ? '#4ade80' : '#f87171',
+                        border: `1px solid ${visible ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                      }}>
+                      {visible ? '🟢 Visible' : '🔴 No'}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
 
           <div className="mt-5">
             <p className="text-[10px] text-gray-600 uppercase tracking-widest font-semibold mb-3">Visibility by Latitude</p>
