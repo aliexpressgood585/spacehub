@@ -111,6 +111,7 @@ const SpaceColonization = lazy(() => import('./components/SpaceColonization'))
 const RadioAstronomy = lazy(() => import('./components/RadioAstronomy'))
 const CosmicWebExplorer = lazy(() => import('./components/CosmicWebExplorer'))
 const SpaceTelescopes = lazy(() => import('./components/SpaceTelescopes'))
+const ArtemisProgram = lazy(() => import('./components/ArtemisProgram'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -557,6 +558,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><SpaceFoodGuide /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><AsteroidTypes /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceColonization /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><ArtemisProgram /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceRaceHistory /></Suspense>
               </div>
             )}
