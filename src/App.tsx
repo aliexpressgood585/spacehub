@@ -82,6 +82,7 @@ const NeutronStarVisualizer = lazy(() => import('./components/NeutronStarVisuali
 const OrbitalMechanicsLab = lazy(() => import('./components/OrbitalMechanicsLab'))
 const TelescopeHistory = lazy(() => import('./components/TelescopeHistory'))
 const SpaceFoodGuide = lazy(() => import('./components/SpaceFoodGuide'))
+const CosmicDistanceCalculator = lazy(() => import('./components/CosmicDistanceCalculator'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -530,6 +531,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><TimeDilationCalculator /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><OrbitalMechanicsLab /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><TelescopeHistory /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><CosmicDistanceCalculator /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><CosmicScale /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpacecraftSpeed /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><VariableStarTracker /></Suspense>
