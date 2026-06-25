@@ -31,6 +31,11 @@ export default function Header({ onPremium }: Props) {
   const [installed, setInstalled] = useState(false)
   const [lightMode, setLightMode] = useState(() => { try { return localStorage.getItem('spacehub_theme') === 'light' } catch { return false } })
   const [galaxyBg, setGalaxyBg] = useState(() => { try { return localStorage.getItem('spacehub_galaxy') === '1' } catch { return false } })
+  const [nightVision, setNightVision] = useState(() => { try { return localStorage.getItem('spacehub_nightvision') === '1' } catch { return false } })
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('night-vision', nightVision)
+  }, [nightVision])
 
   useEffect(() => {
 
@@ -55,6 +60,13 @@ export default function Header({ onPremium }: Props) {
     setLightMode(next)
     try { localStorage.setItem('spacehub_theme', next ? 'light' : 'dark') } catch {}
     document.documentElement.classList.toggle('light-mode', next)
+  }
+
+  const toggleNightVision = () => {
+    const next = !nightVision
+    setNightVision(next)
+    try { localStorage.setItem('spacehub_nightvision', next ? '1' : '0') } catch {}
+    document.documentElement.classList.toggle('night-vision', next)
   }
 
   const toggleGalaxy = () => {
@@ -136,6 +148,18 @@ export default function Header({ onPremium }: Props) {
 
         {/* Right */}
         <div className="flex items-center gap-2 ml-auto">
+          <button
+            onClick={toggleNightVision}
+            aria-label={nightVision ? 'Night vision ON — click to disable' : 'Enable night vision mode'}
+            title={nightVision ? 'Night Vision: ON' : 'Night Vision Mode'}
+            className="w-8 h-8 rounded-xl flex items-center justify-center text-base transition-all"
+            style={nightVision
+              ? { background: 'rgba(220,38,38,0.3)', border: '1px solid rgba(220,38,38,0.6)' }
+              : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+          >
+            <span aria-hidden="true">{nightVision ? '💡' : '🔴'}</span>
+          </button>
+
           <button
             onClick={toggleGalaxy}
             aria-label={galaxyBg ? 'Galaxy background on — click to disable' : 'Enable galaxy background'}
