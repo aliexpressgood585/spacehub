@@ -92,6 +92,7 @@ const SpaceHealthEffects = lazy(() => import('./components/SpaceHealthEffects'))
 const DrakeEquation = lazy(() => import('./components/DrakeEquation'))
 const SpacePropulsion = lazy(() => import('./components/SpacePropulsion'))
 const StellarNucleosynthesis = lazy(() => import('./components/StellarNucleosynthesis'))
+const SunLayers = lazy(() => import('./components/SunLayers'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -551,6 +552,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><SpacePropulsion /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><StellarNucleosynthesis /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><CosmicScale /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><SunLayers /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpacecraftSpeed /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><VariableStarTracker /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><RadiationCalculator /></Suspense>
