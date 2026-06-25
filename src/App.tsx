@@ -170,6 +170,7 @@ const SpaceInNumbers = lazy(() => import('./components/SpaceInNumbers'))
 const AstronomyMilestones = lazy(() => import('./components/AstronomyMilestones'))
 const SpaceAnimalExplorers = lazy(() => import('./components/SpaceAnimalExplorers'))
 const StellarClassification = lazy(() => import('./components/StellarClassification'))
+const SpaceSurvivalGuide = lazy(() => import('./components/SpaceSurvivalGuide'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -708,6 +709,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><AstronomyMilestones /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceAnimalExplorers /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><StellarClassification /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><SpaceSurvivalGuide /></Suspense>
               </div>
             )}
 
