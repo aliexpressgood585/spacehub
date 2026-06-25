@@ -120,6 +120,7 @@ const GalacticArchitecture = lazy(() => import('./components/GalacticArchitectur
 const PlanetaryAtmospheres = lazy(() => import('./components/PlanetaryAtmospheres'))
 const QuantumCosmology = lazy(() => import('./components/QuantumCosmology'))
 const SpaceNavigationHistory = lazy(() => import('./components/SpaceNavigationHistory'))
+const SupernovaExplosions = lazy(() => import('./components/SupernovaExplosions'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -611,6 +612,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><CosmicWebExplorer /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceTelescopes /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><QuantumCosmology /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><SupernovaExplosions /></Suspense>
               </div>
             )}
 
