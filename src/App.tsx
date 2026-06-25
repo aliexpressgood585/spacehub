@@ -80,6 +80,8 @@ const StellarEvolutionSimulator = lazy(() => import('./components/StellarEvoluti
 const SpaceAgencyTracker = lazy(() => import('./components/SpaceAgencyTracker'))
 const NeutronStarVisualizer = lazy(() => import('./components/NeutronStarVisualizer'))
 const OrbitalMechanicsLab = lazy(() => import('./components/OrbitalMechanicsLab'))
+const TelescopeHistory = lazy(() => import('./components/TelescopeHistory'))
+const SpaceFoodGuide = lazy(() => import('./components/SpaceFoodGuide'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -514,6 +516,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><DwarfPlanets /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><MarsColonyPlanner /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceAgencyTracker /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><SpaceFoodGuide /></Suspense>
               </div>
             )}
 
@@ -526,6 +529,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><NeutronStarVisualizer /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><TimeDilationCalculator /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><OrbitalMechanicsLab /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><TelescopeHistory /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><CosmicScale /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpacecraftSpeed /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><VariableStarTracker /></Suspense>
