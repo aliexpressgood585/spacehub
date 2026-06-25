@@ -77,6 +77,9 @@ const GravitationalWaveExplorer = lazy(() => import('./components/GravitationalW
 const TimeDilationCalculator = lazy(() => import('./components/TimeDilationCalculator'))
 const RocketEngineComparison = lazy(() => import('./components/RocketEngineComparison'))
 const StellarEvolutionSimulator = lazy(() => import('./components/StellarEvolutionSimulator'))
+const SpaceAgencyTracker = lazy(() => import('./components/SpaceAgencyTracker'))
+const NeutronStarVisualizer = lazy(() => import('./components/NeutronStarVisualizer'))
+const OrbitalMechanicsLab = lazy(() => import('./components/OrbitalMechanicsLab'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -510,6 +513,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><SpaceTimeline /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><DwarfPlanets /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><MarsColonyPlanner /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><SpaceAgencyTracker /></Suspense>
               </div>
             )}
 
@@ -519,7 +523,9 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><HRDiagram /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><BlackHoleVisualizer /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><GravitationalWaveExplorer /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><NeutronStarVisualizer /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><TimeDilationCalculator /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><OrbitalMechanicsLab /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><CosmicScale /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpacecraftSpeed /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><VariableStarTracker /></Suspense>
