@@ -114,6 +114,7 @@ const SpaceTelescopes = lazy(() => import('./components/SpaceTelescopes'))
 const ArtemisProgram = lazy(() => import('./components/ArtemisProgram'))
 const AstrobiologyTimeline = lazy(() => import('./components/AstrobiologyTimeline'))
 const SolarSystemFormation = lazy(() => import('./components/SolarSystemFormation'))
+const SpaceEconomics = lazy(() => import('./components/SpaceEconomics'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -561,6 +562,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><AsteroidTypes /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceColonization /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><ArtemisProgram /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><SpaceEconomics /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceRaceHistory /></Suspense>
               </div>
             )}
