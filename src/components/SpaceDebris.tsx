@@ -358,6 +358,11 @@ export default function SpaceDebris() {
       }
 
       // Orbital bands
+      const bandDefs = [
+        { label: 'LEO', innerF: 0.30, outerF: 0.55, color: 'rgba(99,102,241,0.10)' },
+        { label: 'MEO', innerF: 0.55, outerF: 0.73, color: 'rgba(59,130,246,0.07)' },
+        { label: 'GEO', innerF: 0.80, outerF: 0.92, color: 'rgba(16,185,129,0.07)' },
+      ]
       for (const band of bandDefs) {
         const innerR = earthR + band.innerF * (maxR - earthR)
         const outerR = earthR + band.outerF * (maxR - earthR)
