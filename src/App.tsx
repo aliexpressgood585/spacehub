@@ -125,6 +125,7 @@ const CometExplorer = lazy(() => import('./components/CometExplorer'))
 const MeteorShowers = lazy(() => import('./components/MeteorShowers'))
 const DarkMatterDetectors = lazy(() => import('./components/DarkMatterDetectors'))
 const GravitationalWaves = lazy(() => import('./components/GravitationalWaves'))
+const SpaceLaw = lazy(() => import('./components/SpaceLaw'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -578,6 +579,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><SpaceEconomics /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceNavigationHistory /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceRaceHistory /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><SpaceLaw /></Suspense>
               </div>
             )}
 
