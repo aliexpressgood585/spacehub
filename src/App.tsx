@@ -56,9 +56,12 @@ const SeeingForecast = lazy(() => import('./components/SeeingForecast'))
 const LightPollutionMeter = lazy(() => import('./components/LightPollutionMeter'))
 const SpaceTimeline = lazy(() => import('./components/SpaceTimeline'))
 const NightSessionPlanner = lazy(() => import('./components/NightSessionPlanner'))
+const ObservationLog = lazy(() => import('./components/ObservationLog'))
 const AstroCalculator = lazy(() => import('./components/AstroCalculator'))
 const PlanetVisibilityCalendar = lazy(() => import('./components/PlanetVisibilityCalendar'))
 const ARStarFinder = lazy(() => import('./components/ARStarFinder'))
+const TelescopeAdvisor = lazy(() => import('./components/TelescopeAdvisor'))
+const TonightsSky = lazy(() => import('./components/TonightsSky'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -370,6 +373,7 @@ function MainApp() {
 
             {activeTab === 'dashboard' && (
               <div className="space-y-5">
+                <Reveal><SafeWrap label="TonightsSky"><Suspense fallback={<SkeletonCard />}><TonightsSky /></Suspense></SafeWrap></Reveal>
                 <Reveal><SafeWrap label="Updates"><Suspense fallback={<SkeletonCard />}><WeeklyUpdates /></Suspense></SafeWrap></Reveal>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <Reveal delay={1}><SafeWrap label="Astronauts"><Suspense fallback={<SkeletonCard />}><AstronautsInSpace /></Suspense></SafeWrap></Reveal>
@@ -489,6 +493,7 @@ function MainApp() {
 
             {activeTab === 'observe' && (
               <div className="space-y-5">
+                <Suspense fallback={<SkeletonCard />}><ObservationLog /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><NightSessionPlanner /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><PersonalSkyReport /></Suspense>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -496,6 +501,7 @@ function MainApp() {
                   <Suspense fallback={<SkeletonCard />}><LightPollutionMeter /></Suspense>
                 </div>
                 <Suspense fallback={<SkeletonCard />}><AstroPhotoPlanner /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><TelescopeAdvisor /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><ExoplanetTransitPlanner /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceSounds /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><AstroCalculator /></Suspense>
