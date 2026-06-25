@@ -95,6 +95,7 @@ const StellarNucleosynthesis = lazy(() => import('./components/StellarNucleosynt
 const SunLayers = lazy(() => import('./components/SunLayers'))
 const LunarGeology = lazy(() => import('./components/LunarGeology'))
 const AsteroidTypes = lazy(() => import('./components/AsteroidTypes'))
+const SpaceWeatherHistory = lazy(() => import('./components/SpaceWeatherHistory'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -477,6 +478,7 @@ function MainApp() {
               <div className="space-y-5">
                 <Suspense fallback={<SkeletonCard />}><SolarFlareAlerts /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><AuroraForecast /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><SpaceWeatherHistory /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><MarsWeather /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceWeather /></Suspense>
               </div>
