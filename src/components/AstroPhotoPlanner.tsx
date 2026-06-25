@@ -203,7 +203,7 @@ export default function AstroPhotoPlanner() {
       {/* Latitude */}
       <div className="mb-4 flex items-center gap-3">
         <label className="text-xs text-gray-400 font-semibold shrink-0">🌍 Your Latitude</label>
-        <input type="range" min={-80} max={80} value={lat} onChange={e => setLat(+e.target.value)} className="flex-1" style={{ accentColor:'#6366f1' }} />
+        <input type="range" min={-80} max={80} value={lat} onChange={e => setLat(+e.target.value)} data-noswipe className="flex-1" style={{ accentColor:'#6366f1', touchAction: 'none' }} />
         <span className="text-xs font-bold text-violet-300 w-12 text-right">{lat > 0 ? `${lat}°N` : `${-lat}°S`}</span>
       </div>
 
