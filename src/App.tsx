@@ -130,6 +130,7 @@ const NeutronStars = lazy(() => import('./components/NeutronStars'))
 const EarthFromSpace = lazy(() => import('./components/EarthFromSpace'))
 const InterstellarMedium = lazy(() => import('./components/InterstellarMedium'))
 const CelestialMechanics = lazy(() => import('./components/CelestialMechanics'))
+const SpaceProbes = lazy(() => import('./components/SpaceProbes'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -630,6 +631,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><NeutronStars /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><InterstellarMedium /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><CelestialMechanics /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><SpaceProbes /></Suspense>
               </div>
             )}
 
