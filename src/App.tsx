@@ -86,6 +86,7 @@ const CosmicDistanceCalculator = lazy(() => import('./components/CosmicDistanceC
 const MilkyWayMap = lazy(() => import('./components/MilkyWayMap'))
 const CosmologyTimeline = lazy(() => import('./components/CosmologyTimeline'))
 const AstrobioExplorer = lazy(() => import('./components/AstrobioExplorer'))
+const AtmosphereComparison = lazy(() => import('./components/AtmosphereComparison'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -538,6 +539,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><CosmicDistanceCalculator /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><CosmologyTimeline /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><AstrobioExplorer /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><AtmosphereComparison /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><CosmicScale /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpacecraftSpeed /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><VariableStarTracker /></Suspense>
