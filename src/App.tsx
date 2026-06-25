@@ -159,6 +159,7 @@ const BigBangTimeline = lazy(() => import('./components/BigBangTimeline'))
 const ExtremeUniverse = lazy(() => import('./components/ExtremeUniverse'))
 const SpaceMythsDebunked = lazy(() => import('./components/SpaceMythsDebunked'))
 const QuantumInSpace = lazy(() => import('./components/QuantumInSpace'))
+const CosmicNeighborhood = lazy(() => import('./components/CosmicNeighborhood'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -686,6 +687,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><ExtremeUniverse /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceMythsDebunked /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><QuantumInSpace /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><CosmicNeighborhood /></Suspense>
               </div>
             )}
 
