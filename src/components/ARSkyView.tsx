@@ -605,8 +605,9 @@ export default function ARSkyView() {
               <input
                 type="range" min={45} max={100} step={1} value={fovH}
                 onChange={e => { const v = Number(e.target.value); setFovH(v); fovHRef.current = v }}
+                data-noswipe
                 className="w-full"
-                style={{ accentColor: '#6366f1' }}
+                style={{ accentColor: '#6366f1', touchAction: 'none' }}
               />
               <div className="flex justify-between text-[9px] text-gray-700 mt-0.5">
                 <span>Narrow (45°)</span><span>Typical (70°)</span><span>Wide (100°)</span>
