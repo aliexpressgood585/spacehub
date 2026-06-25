@@ -173,6 +173,7 @@ const StellarClassification = lazy(() => import('./components/StellarClassificat
 const SpaceSurvivalGuide = lazy(() => import('./components/SpaceSurvivalGuide'))
 const CosmicRays = lazy(() => import('./components/CosmicRays'))
 const PlanetaryGeology = lazy(() => import('./components/PlanetaryGeology'))
+const SpaceDebrisTimeline = lazy(() => import('./components/SpaceDebrisTimeline'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -714,6 +715,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><SpaceSurvivalGuide /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><CosmicRays /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><PlanetaryGeology /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><SpaceDebrisTimeline /></Suspense>
               </div>
             )}
 
