@@ -134,6 +134,7 @@ const SpaceProbes = lazy(() => import('./components/SpaceProbes'))
 const CosmicExplosions = lazy(() => import('./components/CosmicExplosions'))
 const TidesAndGravity = lazy(() => import('./components/TidesAndGravity'))
 const PlanetaryScience = lazy(() => import('./components/PlanetaryScience'))
+const AstronomyGlossary = lazy(() => import('./components/AstronomyGlossary'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -656,6 +657,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><SpaceSounds /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><AstroCalculator /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><EarthFromSpace /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><AstronomyGlossary /></Suspense>
               </div>
             )}
 
