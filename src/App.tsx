@@ -132,6 +132,7 @@ const InterstellarMedium = lazy(() => import('./components/InterstellarMedium'))
 const CelestialMechanics = lazy(() => import('./components/CelestialMechanics'))
 const SpaceProbes = lazy(() => import('./components/SpaceProbes'))
 const CosmicExplosions = lazy(() => import('./components/CosmicExplosions'))
+const TidesAndGravity = lazy(() => import('./components/TidesAndGravity'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -634,6 +635,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><CelestialMechanics /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceProbes /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><CosmicExplosions /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><TidesAndGravity /></Suspense>
               </div>
             )}
 
