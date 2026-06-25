@@ -70,6 +70,9 @@ const VariableStarTracker = lazy(() => import('./components/VariableStarTracker'
 const CosmicScale = lazy(() => import('./components/CosmicScale'))
 const SpacecraftSpeed = lazy(() => import('./components/SpacecraftSpeed'))
 const SolarFlareAlerts = lazy(() => import('./components/SolarFlareAlerts'))
+const DwarfPlanets = lazy(() => import('./components/DwarfPlanets'))
+const MarsColonyPlanner = lazy(() => import('./components/MarsColonyPlanner'))
+const RadiationCalculator = lazy(() => import('./components/RadiationCalculator'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -82,13 +85,13 @@ import PrivacyPage from './pages/PrivacyPage'
 import SuccessPage from './pages/SuccessPage'
 import NotFoundPage from './pages/NotFoundPage'
 
-type Tab = 'dashboard' | 'starmap' | 'tracker' | 'solar' | 'weather' | 'events' | 'news' | 'quiz' | 'blog' | 'gallery' | 'spacex' | 'explore' | 'observe'
+type Tab = 'dashboard' | 'starmap' | 'tracker' | 'solar' | 'weather' | 'events' | 'news' | 'quiz' | 'blog' | 'gallery' | 'spacex' | 'explore' | 'observe' | 'science'
 
 const TAB_HASH: Record<Tab, string> = {
   dashboard: '#iss', starmap: '#starmap', tracker: '#tracker',
   solar: '#solar', weather: '#weather', events: '#events',
   news: '#news', quiz: '#quiz', blog: '#blog', gallery: '#gallery',
-  spacex: '#spacex', explore: '#explore', observe: '#observe',
+  spacex: '#spacex', explore: '#explore', observe: '#observe', science: '#science',
 }
 
 const TAB_TITLES: Record<Tab, string> = {
@@ -105,6 +108,7 @@ const TAB_TITLES: Record<Tab, string> = {
   spacex:    'SpaceX & Mars — SpaceHub',
   explore:   'Explore the Universe — SpaceHub',
   observe:   'Observer Tools — SpaceHub',
+  science:   'Space Science Lab — SpaceHub',
 }
 const HASH_TAB: Record<string, Tab> = Object.fromEntries(
   Object.entries(TAB_HASH).map(([k, v]) => [v, k as Tab])
@@ -118,6 +122,7 @@ const TAB_DEFS: { id: Tab; icon: string; tKey: string }[] = [
   { id: 'weather',   icon: '⛈️', tKey: 'tab.weather' },
   { id: 'events',    icon: '🌠', tKey: 'tab.events' },
   { id: 'observe',   icon: '🔭', tKey: 'tab.observe' },
+  { id: 'science',   icon: '🔬', tKey: 'tab.science' },
   { id: 'news',      icon: '📰', tKey: 'tab.news' },
   { id: 'quiz',      icon: '🧠', tKey: 'tab.quiz' },
   { id: 'blog',      icon: '📝', tKey: 'tab.blog' },
@@ -499,10 +504,19 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><GalaxyExplorer /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><DeepSkyBrowser /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceTimeline /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><DwarfPlanets /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><MarsColonyPlanner /></Suspense>
+              </div>
+            )}
+
+            {activeTab === 'science' && (
+              <div className="space-y-5">
                 <Suspense fallback={<SkeletonCard />}><HRDiagram /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><BlackHoleVisualizer /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><CosmicScale /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpacecraftSpeed /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><VariableStarTracker /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><RadiationCalculator /></Suspense>
               </div>
             )}
 
@@ -520,7 +534,6 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><ExoplanetTransitPlanner /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceSounds /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><AstroCalculator /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><VariableStarTracker /></Suspense>
               </div>
             )}
 
