@@ -20,11 +20,6 @@ interface TooltipState {
   pinned: boolean
 }
 
-interface CanvasPos {
-  cx: number
-  cy: number
-}
-
 // ── Star catalogue ───────────────────────────────────────────────────────────
 
 const STARS: StarData[] = [
@@ -390,15 +385,7 @@ function drawStars(
   }
 }
 
-// ── Compute canvas positions for all stars ───────────────────────────────────
 
-function getStarPositions(w: number, h: number): Map<string, CanvasPos> {
-  const map = new Map<string, CanvasPos>()
-  for (const star of STARS) {
-    map.set(star.name, { cx: tempToX(star.temp, w), cy: lumToY(star.luminosity, h) })
-  }
-  return map
-}
 
 // ── Tooltip component ────────────────────────────────────────────────────────
 
