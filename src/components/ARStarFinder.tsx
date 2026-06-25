@@ -232,16 +232,18 @@ export default function ARStarFinder() {
 
   const start = async () => {
     try {
-      navigator.geolocation?.getCurrentPosition(p => { locRef.current = { lat: p.coords.latitude, lng: p.coords.longitude } })
-
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } })
-      if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play() }
-
+      // iOS 13+ requires DeviceOrientationEvent.requestPermission() to be called
+      // synchronously within the user gesture — before any await, or it throws.
       const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> }
       if (typeof DOE.requestPermission === 'function') {
         const p = await DOE.requestPermission()
         if (p !== 'granted') { setErr('Orientation permission denied — needed for AR'); setPhase('error'); return }
       }
+
+      navigator.geolocation?.getCurrentPosition(p => { locRef.current = { lat: p.coords.latitude, lng: p.coords.longitude } })
+
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } })
+      if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play() }
 
       const onOrient = (e: DeviceOrientationEvent) => {
         let az: number
