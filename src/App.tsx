@@ -148,6 +148,8 @@ const GalacticCivilizations = lazy(() => import('./components/GalacticCivilizati
 const NuclearAstrophysics = lazy(() => import('./components/NuclearAstrophysics'))
 const SpaceDebrisTracker = lazy(() => import('./components/SpaceDebrisTracker'))
 const AstroAI = lazy(() => import('./components/AstroAI'))
+const CosmicCalendar = lazy(() => import('./components/CosmicCalendar'))
+const PlanetaryDefense = lazy(() => import('./components/PlanetaryDefense'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -666,6 +668,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><GalacticCivilizations /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><NuclearAstrophysics /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceDebrisTracker /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><PlanetaryDefense /></Suspense>
               </div>
             )}
 
@@ -689,8 +692,9 @@ function MainApp() {
             )}
 
             {activeTab === 'ai' && (
-              <div className="max-w-3xl mx-auto">
+              <div className="max-w-3xl mx-auto space-y-5">
                 <Suspense fallback={<SkeletonCard />}><AstroAI /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><CosmicCalendar /></Suspense>
               </div>
             )}
 
