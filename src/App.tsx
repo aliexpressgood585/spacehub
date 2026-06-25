@@ -89,6 +89,7 @@ const AstrobioExplorer = lazy(() => import('./components/AstrobioExplorer'))
 const AtmosphereComparison = lazy(() => import('./components/AtmosphereComparison'))
 const CosmicSizeComparison = lazy(() => import('./components/CosmicSizeComparison'))
 const SpaceHealthEffects = lazy(() => import('./components/SpaceHealthEffects'))
+const DrakeEquation = lazy(() => import('./components/DrakeEquation'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -544,6 +545,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><AtmosphereComparison /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><CosmicSizeComparison /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceHealthEffects /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><DrakeEquation /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><CosmicScale /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpacecraftSpeed /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><VariableStarTracker /></Suspense>
