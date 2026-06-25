@@ -136,6 +136,13 @@ const TidesAndGravity = lazy(() => import('./components/TidesAndGravity'))
 const PlanetaryScience = lazy(() => import('./components/PlanetaryScience'))
 const AstronomyGlossary = lazy(() => import('./components/AstronomyGlossary'))
 const MultiverseTheory = lazy(() => import('./components/MultiverseTheory'))
+const LiveSpaceWeather = lazy(() => import('./components/LiveSpaceWeather'))
+const RocketScienceCalculator = lazy(() => import('./components/RocketScienceCalculator'))
+const BinaryStars = lazy(() => import('./components/BinaryStars'))
+const CosmicElements = lazy(() => import('./components/CosmicElements'))
+const SpaceHabitation = lazy(() => import('./components/SpaceHabitation'))
+const DeepSpaceNetwork = lazy(() => import('./components/DeepSpaceNetwork'))
+const AsteroidMining = lazy(() => import('./components/AsteroidMining'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -524,6 +531,7 @@ function MainApp() {
 
             {activeTab === 'weather' && (
               <div className="space-y-5">
+                <Suspense fallback={<SkeletonCard />}><LiveSpaceWeather /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SolarFlareAlerts /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><AuroraForecast /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceWeatherHistory /></Suspense>
@@ -591,6 +599,8 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><SpaceNavigationHistory /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceRaceHistory /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceLaw /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><SpaceHabitation /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><DeepSpaceNetwork /></Suspense>
               </div>
             )}
 
@@ -641,6 +651,10 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><CosmicExplosions /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><TidesAndGravity /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><MultiverseTheory /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><BinaryStars /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><CosmicElements /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><RocketScienceCalculator /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><AsteroidMining /></Suspense>
               </div>
             )}
 
