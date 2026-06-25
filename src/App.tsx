@@ -105,6 +105,7 @@ const SpaceDebrisDashboard = lazy(() => import('./components/SpaceDebrisDashboar
 const CosmicEvents = lazy(() => import('./components/CosmicEvents'))
 const NightSkyCalendar = lazy(() => import('./components/NightSkyCalendar'))
 const SpaceRaceHistory = lazy(() => import('./components/SpaceRaceHistory'))
+const SpectroscopyExplorer = lazy(() => import('./components/SpectroscopyExplorer'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -581,6 +582,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><InterstellarTravel /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><DarkEnergyExplorer /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><CosmicEvents /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><SpectroscopyExplorer /></Suspense>
               </div>
             )}
 
