@@ -35,6 +35,8 @@ export default function SpaceNewsFeed() {
   const [fromCache, setFromCache] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const [page, setPage] = useState(0)
+  const [lastFetchTime, setLastFetchTime] = useState<number | null>(null)
+  const [minsAgo, setMinsAgo] = useState(0)
 
   useEffect(() => {
     setLoading(true)
@@ -44,11 +46,14 @@ export default function SpaceNewsFeed() {
       .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json() })
       .then(data => {
         const results = data.results || []
+        const now = Date.now()
         if (page === 0) {
-          try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: results })) } catch {}
+          try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: now, data: results })) } catch {}
         }
         setArticles(results)
         setHasMore(results.length === 6)
+        setLastFetchTime(now)
+        setMinsAgo(0)
         setLoading(false)
       })
       .catch(() => {
@@ -60,6 +65,8 @@ export default function SpaceNewsFeed() {
               if (Date.now() - ts < CACHE_TTL && Array.isArray(data) && data.length) {
                 setArticles(data)
                 setFromCache(true)
+                setLastFetchTime(ts)
+                setMinsAgo(Math.floor((Date.now() - ts) / 60000))
                 setLoading(false)
                 return
               }
@@ -70,6 +77,14 @@ export default function SpaceNewsFeed() {
         setLoading(false)
       })
   }, [page])
+
+  useEffect(() => {
+    if (lastFetchTime === null) return
+    const ticker = setInterval(() => {
+      setMinsAgo(Math.floor((Date.now() - lastFetchTime) / 60000))
+    }, 60000)
+    return () => clearInterval(ticker)
+  }, [lastFetchTime])
 
   const formatDate = (iso: string) => {
     const d = new Date(iso)
@@ -96,6 +111,11 @@ export default function SpaceNewsFeed() {
           <div className="live-badge"><span className="live-dot" /> LIVE</div>
         )}
       </div>
+      {!loading && !error && articles.length > 0 && lastFetchTime !== null && (
+        <p className="text-xs text-gray-600 mb-4 -mt-2">
+          {articles.length} articles · fetched {minsAgo === 0 ? 'just now' : `${minsAgo} min ago`}
+        </p>
+      )}
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
