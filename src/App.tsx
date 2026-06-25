@@ -41,6 +41,7 @@ const SpaceMissions = lazy(() => import('./components/SpaceMissions'))
 const PlanetExplorer = lazy(() => import('./components/PlanetExplorer'))
 const ExoplanetExplorer = lazy(() => import('./components/ExoplanetExplorer'))
 const GalaxyExplorer = lazy(() => import('./components/GalaxyExplorer'))
+const MarsRoverDashboard = lazy(() => import('./components/MarsRoverDashboard'))
 const ARSkyView = lazy(() => import('./components/ARSkyView'))
 const ExoplanetTransitPlanner = lazy(() => import('./components/ExoplanetTransitPlanner'))
 const AstroPhotoPlanner = lazy(() => import('./components/AstroPhotoPlanner'))
@@ -478,6 +479,7 @@ function MainApp() {
               <div className="space-y-5">
                 <Suspense fallback={<SkeletonCard />}><PlanetExplorer /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><ExoplanetExplorer /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><MarsRoverDashboard /></Suspense>
                 <AdBanner />
                 <Suspense fallback={<SkeletonCard />}><GalaxyExplorer /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><DeepSkyBrowser /></Suspense>
