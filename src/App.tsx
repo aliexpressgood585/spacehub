@@ -122,6 +122,7 @@ const QuantumCosmology = lazy(() => import('./components/QuantumCosmology'))
 const SpaceNavigationHistory = lazy(() => import('./components/SpaceNavigationHistory'))
 const SupernovaExplosions = lazy(() => import('./components/SupernovaExplosions'))
 const CometExplorer = lazy(() => import('./components/CometExplorer'))
+const MeteorShowers = lazy(() => import('./components/MeteorShowers'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -503,6 +504,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><PlanetaryAtmospheres /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><LunarGeology /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><CometExplorer /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><MeteorShowers /></Suspense>
               </div>
             )}
 
