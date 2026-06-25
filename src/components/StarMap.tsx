@@ -1090,6 +1090,10 @@ const SPECTRAL_LEGEND = [
 ]
 
 // ── EPHEMERIS: rise / transit / set ───────────────────────────
+function fmtHHMM(d: Date) {
+  try { return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) } catch { return '--:--' }
+}
+
 function calcRiseSetTransit(ra: number, dec: number, date: Date, lat: number, lng: number) {
   const midnight = new Date(date.getFullYear(), date.getMonth(), date.getDate())
   let prevAlt = -999, maxAlt = -90
@@ -1099,12 +1103,10 @@ function calcRiseSetTransit(ra: number, dec: number, date: Date, lat: number, ln
     const lst = localSiderealTime(t, lng)
     const { alt } = toHorizon(ra, dec, lst, lat)
     if (prevAlt !== -999) {
-      if (prevAlt < 0 && alt >= 0 && !riseTime)
-        riseTime = t.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-      if (prevAlt >= 0 && alt < 0 && !setTime)
-        setTime  = t.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      if (prevAlt < 0 && alt >= 0 && !riseTime) riseTime = fmtHHMM(t)
+      if (prevAlt >= 0 && alt < 0 && !setTime)  setTime  = fmtHHMM(t)
     }
-    if (alt > maxAlt) { maxAlt = alt; transitTime = t.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) }
+    if (alt > maxAlt) { maxAlt = alt; transitTime = fmtHHMM(t) }
     prevAlt = alt
   }
   return { rise: riseTime || '—', transit: maxAlt > 0 ? transitTime : '—', set: setTime || '—', maxAlt: Math.round(maxAlt) }
@@ -1810,41 +1812,45 @@ export default function StarMap() {
 
   // Conjunctions & occultations — next 10 days, pairs within 4°
   const conjunctions = useMemo(() => {
-    type ConjResult = { date: string; obj1: string; sym1: string; color1: string; obj2: string; sym2: string; color2: string; sep: number }
-    const results: ConjResult[] = []
-    for (let day = 0; day <= 10; day++) {
-      const t = new Date(time.getTime() + day * 86400000)
-      const dd = julianDate(t) - 2451543.5
-      const bodies: { name: string; sym: string; ra: number; dec: number; color: string }[] = []
-      const moonPos = computeMoon(dd)
-      bodies.push({ name: 'Moon', sym: '🌙', ra: moonPos.ra, dec: moonPos.dec, color: '#c8d2ff' })
-      for (const p of PLANETS) {
-        const radec = computeRADec(p.name, dd)
-        if (radec) bodies.push({ name: p.name, sym: p.symbol, ra: radec.ra, dec: radec.dec, color: p.color })
-      }
-      for (let i = 0; i < bodies.length; i++) {
-        for (let j = i + 1; j < bodies.length; j++) {
-          const sep = angSep(bodies[i].ra, bodies[i].dec, bodies[j].ra, bodies[j].dec)
-          if (sep < 4) {
-            const dateStr = t.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-            const pairKey = [bodies[i].name, bodies[j].name].sort().join('|')
-            if (!results.find(r => r.date === dateStr && [r.obj1, r.obj2].sort().join('|') === pairKey)) {
-              results.push({
-                date: dateStr,
-                obj1: bodies[i].name, sym1: bodies[i].sym, color1: bodies[i].color,
-                obj2: bodies[j].name, sym2: bodies[j].sym, color2: bodies[j].color,
-                sep: Math.round(sep * 10) / 10,
-              })
+    try {
+      type ConjResult = { date: string; obj1: string; sym1: string; color1: string; obj2: string; sym2: string; color2: string; sep: number }
+      const results: ConjResult[] = []
+      for (let day = 0; day <= 10; day++) {
+        const t = new Date(time.getTime() + day * 86400000)
+        const dd = julianDate(t) - 2451543.5
+        const bodies: { name: string; sym: string; ra: number; dec: number; color: string }[] = []
+        const moonPos = computeMoon(dd)
+        bodies.push({ name: 'Moon', sym: '🌙', ra: moonPos.ra, dec: moonPos.dec, color: '#c8d2ff' })
+        for (const p of PLANETS) {
+          const radec = computeRADec(p.name, dd)
+          if (radec) bodies.push({ name: p.name, sym: p.symbol, ra: radec.ra, dec: radec.dec, color: p.color })
+        }
+        for (let i = 0; i < bodies.length; i++) {
+          for (let j = i + 1; j < bodies.length; j++) {
+            const sep = angSep(bodies[i].ra, bodies[i].dec, bodies[j].ra, bodies[j].dec)
+            if (sep < 4) {
+              const dateStr = t.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+              const pairKey = [bodies[i].name, bodies[j].name].sort().join('|')
+              if (!results.find(r => r.date === dateStr && [r.obj1, r.obj2].sort().join('|') === pairKey)) {
+                results.push({
+                  date: dateStr,
+                  obj1: bodies[i].name, sym1: bodies[i].sym, color1: bodies[i].color,
+                  obj2: bodies[j].name, sym2: bodies[j].sym, color2: bodies[j].color,
+                  sep: Math.round(sep * 10) / 10,
+                })
+              }
             }
           }
         }
       }
+      return results
+    } catch {
+      return []
     }
-    return results
   }, [time])
 
   // Tonight's Sky Planner
-  const plannerData = useMemo(() => {
+  const plannerData = useMemo(() => { try {
     // Scan tonight in 15-min steps to find dark window (Sun < -18°)
     const tonight = new Date(time)
     tonight.setHours(20, 0, 0, 0)
@@ -1951,10 +1957,10 @@ export default function StarMap() {
       return { ...v, daysToNext, hoursToNext, label: `${hh}h ${mm}m`, alt: Math.round(alt) }
     }).sort((a, b) => a.hoursToNext - b.hoursToNext)
 
-    const fmtTime = (d: Date) => d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
     const moonPhaseIcon = moonPct < 10 ? '🌑' : moonPct < 35 ? '🌒' : moonPct < 65 ? '🌓' : moonPct < 90 ? '🌔' : '🌕'
 
-    return { darkWindow, hasDark, moon, moonPct, moonPhaseIcon, moonEph, moonUp, skyScore, top8, varEvents, peakTime: fmtTime(peakT), darkStart: darkWindow ? fmtTime(darkWindow.start) : '—', darkEnd: darkWindow ? fmtTime(darkWindow.end) : '—' }
+    return { darkWindow, hasDark, moon, moonPct, moonPhaseIcon, moonEph, moonUp, skyScore, top8, varEvents, peakTime: fmtHHMM(peakT), darkStart: darkWindow ? fmtHHMM(darkWindow.start) : '—', darkEnd: darkWindow ? fmtHHMM(darkWindow.end) : '—' }
+  } catch { return { darkWindow: null, hasDark: false, moon: { ra: 0, dec: 0, phase: 0 }, moonPct: 0, moonPhaseIcon: '🌙', moonEph: { rise: '—', transit: '—', set: '—', maxAlt: 0 }, moonUp: false, skyScore: 0, top8: [], varEvents: [], peakTime: '—', darkStart: '—', darkEnd: '—' } }
   }, [time, loc, ngcObjs])
 
   const saveToObs = useCallback((item: HitItem) => {
@@ -1970,7 +1976,7 @@ export default function StarMap() {
     const list = loadObs()
     if (!list.find(o => o.name === obs.name)) {
       const next = [...list, obs]
-      localStorage.setItem(OBS_KEY, JSON.stringify(next))
+      try { localStorage.setItem(OBS_KEY, JSON.stringify(next)) } catch {}
       setObsList(next)
     }
   }, [])
@@ -2674,7 +2680,7 @@ export default function StarMap() {
                   style={{ fontSize: 10, color: '#a78bfa', background: 'none', border: 'none', cursor: 'pointer' }}
                 >📋 Copy</button>
                 <button
-                  onClick={() => { localStorage.removeItem(OBS_KEY); setObsList([]) }}
+                  onClick={() => { try { localStorage.removeItem(OBS_KEY) } catch {}; setObsList([]) }}
                   style={{ fontSize: 10, color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer' }}
                 >Clear all</button>
               </div>
@@ -2696,7 +2702,7 @@ export default function StarMap() {
                   <button
                     onClick={() => {
                       const next = obsList.filter((_, i) => i !== idx)
-                      localStorage.setItem(OBS_KEY, JSON.stringify(next))
+                      try { localStorage.setItem(OBS_KEY, JSON.stringify(next)) } catch {}
                       setObsList(next)
                     }}
                     style={{ fontSize: 14, color: '#4b5563', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}
