@@ -98,6 +98,7 @@ const AsteroidTypes = lazy(() => import('./components/AsteroidTypes'))
 const SpaceWeatherHistory = lazy(() => import('./components/SpaceWeatherHistory'))
 const InterstellarTravel = lazy(() => import('./components/InterstellarTravel'))
 const PlanetaryRings = lazy(() => import('./components/PlanetaryRings'))
+const ConstellationGuide = lazy(() => import('./components/ConstellationGuide'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -434,6 +435,7 @@ function MainApp() {
                 <SafeWrap label="StarMap"><Suspense fallback={<SkeletonCard />}><StarMap /></Suspense></SafeWrap>
                 <Suspense fallback={<SkeletonCard />}><MilkyWayMap /></Suspense>
                 <SafeWrap label="ARStarFinder"><Suspense fallback={<SkeletonCard />}><ARStarFinder /></Suspense></SafeWrap>
+                <Suspense fallback={<SkeletonCard />}><ConstellationGuide /></Suspense>
                 <div className="space-card p-6">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="icon-box text-xl">🛸</div>
