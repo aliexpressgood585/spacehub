@@ -304,11 +304,13 @@ export default function SolarSystem3D() {
       {/* Controls */}
       <div className="px-5 py-3 flex flex-wrap items-center gap-3 border-t border-white/5">
         {/* Date slider */}
-        <div className="flex-1 min-w-[180px]">
+        <div className="flex-1 min-w-[180px]" data-noswipe>
           <input
             type="range" min={-1825} max={1825} value={dateOff}
             onChange={e => { const v = Number(e.target.value); setDateOff(v); dateOffRef.current = v }}
+            data-noswipe
             className="w-full accent-violet-500"
+            style={{ touchAction: 'none' }}
           />
           <div className="flex justify-between text-xs text-gray-600 mt-0.5">
             <span>−5 yr</span><span>Today</span><span>+5 yr</span>
