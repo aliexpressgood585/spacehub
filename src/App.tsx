@@ -147,6 +147,7 @@ const ExoplanetWeather = lazy(() => import('./components/ExoplanetWeather'))
 const GalacticCivilizations = lazy(() => import('./components/GalacticCivilizations'))
 const NuclearAstrophysics = lazy(() => import('./components/NuclearAstrophysics'))
 const SpaceDebrisTracker = lazy(() => import('./components/SpaceDebrisTracker'))
+const AstroAI = lazy(() => import('./components/AstroAI'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -159,13 +160,13 @@ import PrivacyPage from './pages/PrivacyPage'
 import SuccessPage from './pages/SuccessPage'
 import NotFoundPage from './pages/NotFoundPage'
 
-type Tab = 'dashboard' | 'starmap' | 'tracker' | 'solar' | 'weather' | 'events' | 'news' | 'quiz' | 'blog' | 'gallery' | 'spacex' | 'explore' | 'observe' | 'science'
+type Tab = 'dashboard' | 'starmap' | 'tracker' | 'solar' | 'weather' | 'events' | 'news' | 'quiz' | 'blog' | 'gallery' | 'spacex' | 'explore' | 'observe' | 'science' | 'ai'
 
 const TAB_HASH: Record<Tab, string> = {
   dashboard: '#iss', starmap: '#starmap', tracker: '#tracker',
   solar: '#solar', weather: '#weather', events: '#events',
   news: '#news', quiz: '#quiz', blog: '#blog', gallery: '#gallery',
-  spacex: '#spacex', explore: '#explore', observe: '#observe', science: '#science',
+  spacex: '#spacex', explore: '#explore', observe: '#observe', science: '#science', ai: '#ai',
 }
 
 const TAB_TITLES: Record<Tab, string> = {
@@ -183,6 +184,7 @@ const TAB_TITLES: Record<Tab, string> = {
   explore:   'Explore the Universe — SpaceHub',
   observe:   'Observer Tools — SpaceHub',
   science:   'Space Science Lab — SpaceHub',
+  ai:        'AstroAI — Space Intelligence — SpaceHub',
 }
 const HASH_TAB: Record<string, Tab> = Object.fromEntries(
   Object.entries(TAB_HASH).map(([k, v]) => [v, k as Tab])
@@ -203,6 +205,7 @@ const TAB_DEFS: { id: Tab; icon: string; tKey: string }[] = [
   { id: 'gallery',   icon: '🖼️', tKey: 'tab.gallery' },
   { id: 'spacex',    icon: '🚀', tKey: 'tab.spacex' },
   { id: 'explore',   icon: '🔬', tKey: 'tab.explore' },
+  { id: 'ai',        icon: '🤖', tKey: 'tab.ai' },
 ]
 
 const FOOTER_FEATURES = [
@@ -682,6 +685,12 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><AstroCalculator /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><EarthFromSpace /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><AstronomyGlossary /></Suspense>
+              </div>
+            )}
+
+            {activeTab === 'ai' && (
+              <div className="max-w-3xl mx-auto">
+                <Suspense fallback={<SkeletonCard />}><AstroAI /></Suspense>
               </div>
             )}
 
