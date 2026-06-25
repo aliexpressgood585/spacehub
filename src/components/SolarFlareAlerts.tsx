@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-interface XRayEntry { time_tag: string; flux: number; energy: string }
-interface WindEntry  { time_tag: string; density: number; speed: number; temperature: number }
-interface KpEntry    { time_tag: string; kp: number }
+interface XRayEntry  { time_tag: string; flux: number; energy: string }
 interface FlareEntry { beginTime: string; peekTime: string; classType: string; sourceLocation: string; activeRegionNum: number }
 
 type FlareClass = 'A' | 'B' | 'C' | 'M' | 'X' | '?'
