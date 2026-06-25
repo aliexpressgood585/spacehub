@@ -100,6 +100,7 @@ const InterstellarTravel = lazy(() => import('./components/InterstellarTravel'))
 const PlanetaryRings = lazy(() => import('./components/PlanetaryRings'))
 const ConstellationGuide = lazy(() => import('./components/ConstellationGuide'))
 const DarkEnergyExplorer = lazy(() => import('./components/DarkEnergyExplorer'))
+const IceGiants = lazy(() => import('./components/IceGiants'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -476,6 +477,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><PlanetVisibilityCalendar /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><PlanetaryMoons /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><PlanetaryRings /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><IceGiants /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><LunarGeology /></Suspense>
               </div>
             )}
