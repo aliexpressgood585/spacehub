@@ -732,12 +732,15 @@ html.light-mode .space-bg-canvas {
 }
 
 /* ── SAFE AREA (iPhone notch / home bar) ── */
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
   .sticky-bottom {
     padding-bottom: calc(12px + env(safe-area-inset-bottom));
-  }
-  body {
-    padding-bottom: env(safe-area-inset-bottom);
   }
 }
 
