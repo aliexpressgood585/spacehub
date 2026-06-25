@@ -128,6 +128,7 @@ const GravitationalWaves = lazy(() => import('./components/GravitationalWaves'))
 const SpaceLaw = lazy(() => import('./components/SpaceLaw'))
 const NeutronStars = lazy(() => import('./components/NeutronStars'))
 const EarthFromSpace = lazy(() => import('./components/EarthFromSpace'))
+const InterstellarMedium = lazy(() => import('./components/InterstellarMedium'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -626,6 +627,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><DarkMatterDetectors /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><GravitationalWaves /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><NeutronStars /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><InterstellarMedium /></Suspense>
               </div>
             )}
 
