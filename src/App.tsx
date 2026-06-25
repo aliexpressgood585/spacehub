@@ -83,6 +83,8 @@ const OrbitalMechanicsLab = lazy(() => import('./components/OrbitalMechanicsLab'
 const TelescopeHistory = lazy(() => import('./components/TelescopeHistory'))
 const SpaceFoodGuide = lazy(() => import('./components/SpaceFoodGuide'))
 const CosmicDistanceCalculator = lazy(() => import('./components/CosmicDistanceCalculator'))
+const MilkyWayMap = lazy(() => import('./components/MilkyWayMap'))
+const CosmologyTimeline = lazy(() => import('./components/CosmologyTimeline'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -417,6 +419,7 @@ function MainApp() {
             {activeTab === 'starmap' && (
               <div className="space-y-5">
                 <SafeWrap label="StarMap"><Suspense fallback={<SkeletonCard />}><StarMap /></Suspense></SafeWrap>
+                <Suspense fallback={<SkeletonCard />}><MilkyWayMap /></Suspense>
                 <SafeWrap label="ARStarFinder"><Suspense fallback={<SkeletonCard />}><ARStarFinder /></Suspense></SafeWrap>
                 <div className="space-card p-6">
                   <div className="flex items-center gap-3 mb-3">
@@ -532,6 +535,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><OrbitalMechanicsLab /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><TelescopeHistory /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><CosmicDistanceCalculator /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><CosmologyTimeline /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><CosmicScale /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpacecraftSpeed /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><VariableStarTracker /></Suspense>
