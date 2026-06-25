@@ -113,6 +113,7 @@ const CosmicWebExplorer = lazy(() => import('./components/CosmicWebExplorer'))
 const SpaceTelescopes = lazy(() => import('./components/SpaceTelescopes'))
 const ArtemisProgram = lazy(() => import('./components/ArtemisProgram'))
 const AstrobiologyTimeline = lazy(() => import('./components/AstrobiologyTimeline'))
+const SolarSystemFormation = lazy(() => import('./components/SolarSystemFormation'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -595,6 +596,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><SpectroscopyExplorer /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><RadioAstronomy /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><AstrobiologyTimeline /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><SolarSystemFormation /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><CosmicWebExplorer /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceTelescopes /></Suspense>
               </div>
