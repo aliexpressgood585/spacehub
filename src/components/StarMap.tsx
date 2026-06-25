@@ -1167,7 +1167,7 @@ export default function StarMap() {
   const [showLabels, setShowLabels]                 = useState(true)
   const [showTemp, setShowTemp]                     = useState(false)
   const [showGrid, setShowGrid]                     = useState(false)
-  const [globeMode, setGlobeMode]                   = useState(false)
+  const [globeMode, setGlobeMode]                   = useState(true)
   const [magLimit, setMagLimit]                     = useState(6.5)
   const [showEphemeris, setShowEphemeris]           = useState(false)
   const [notifPerm, setNotifPerm]                   = useState<NotificationPermission>('default')
