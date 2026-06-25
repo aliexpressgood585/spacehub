@@ -145,6 +145,8 @@ const DeepSpaceNetwork = lazy(() => import('./components/DeepSpaceNetwork'))
 const AsteroidMining = lazy(() => import('./components/AsteroidMining'))
 const ExoplanetWeather = lazy(() => import('./components/ExoplanetWeather'))
 const GalacticCivilizations = lazy(() => import('./components/GalacticCivilizations'))
+const NuclearAstrophysics = lazy(() => import('./components/NuclearAstrophysics'))
+const SpaceDebrisTracker = lazy(() => import('./components/SpaceDebrisTracker'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -659,6 +661,8 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><AsteroidMining /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><ExoplanetWeather /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><GalacticCivilizations /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><NuclearAstrophysics /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><SpaceDebrisTracker /></Suspense>
               </div>
             )}
 
