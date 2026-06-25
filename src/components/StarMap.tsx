@@ -1241,6 +1241,9 @@ export default function StarMap() {
 
   const [tooltip, setTooltip] = useState<Tooltip | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [suggestionIdx, setSuggestionIdx] = useState(-1)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const [issPos, setIssPos] = useState<{ lat: number; lng: number; alt: number } | null>(null)
 
   const [hipStars, setHipStars] = useState<HipStar[]>([])
@@ -2121,6 +2124,35 @@ export default function StarMap() {
   const visibleStars   = STARS.filter(s => toHorizon(s[1], s[2], lst0, loc.lat).alt > 0).length
   const visiblePlanets = planetPositions.filter(p => p.alt > 0)
 
+  // ── Search autocomplete suggestions ──
+  const searchSuggestions = useMemo(() => {
+    if (!searchQuery || searchQuery.length < 1) return []
+    const q = searchQuery.toLowerCase()
+    const starNames  = STARS.map(s => s[0])
+    const planetNames = PLANETS.map(p => p.name)
+    const all = [...starNames, ...planetNames]
+    return all.filter(name => name.toLowerCase().includes(q)).slice(0, 6)
+  }, [searchQuery])
+
+  // ── Goto: rotate map so named object is at top ──
+  const gotoObject = useCallback((name: string) => {
+    setSearchQuery(name)
+    setShowSuggestions(false)
+    setSuggestionIdx(-1)
+    // Look up by star first
+    const star = STARS.find(s => s[0].toLowerCase() === name.toLowerCase())
+    if (star) {
+      const hz = toHorizon(star[1], star[2], lst0, loc.lat)
+      setRotation(-hz.az)
+      return
+    }
+    // Try planet positions (already have az computed)
+    const pPos = planetPositions.find(p => p.name.toLowerCase() === name.toLowerCase())
+    if (pPos) {
+      setRotation(-pPos.az)
+    }
+  }, [lst0, loc.lat, planetPositions])
+
   const fmtOffset = () => {
     if (timeOffsetMin === 0) return null
     const sign = timeOffsetMin > 0 ? '+' : ''
@@ -2473,33 +2505,125 @@ export default function StarMap() {
       )}
 
       {/* Search */}
-      <div className="flex items-center gap-2 mb-3">
-        <div className="relative flex-1">
-          <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#6b7280', pointerEvents: 'none' }}>🔍</span>
+      <div className="relative mb-3">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 0, position: 'relative' }}>
+          <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#6b7280', pointerEvents: 'none', zIndex: 1 }}>🔍</span>
           <input
+            ref={searchInputRef}
             type="text"
             placeholder="Search star, planet or DSO…"
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={e => {
+              setSearchQuery(e.target.value)
+              setShowSuggestions(true)
+              setSuggestionIdx(-1)
+            }}
+            onFocus={() => { if (searchQuery) setShowSuggestions(true) }}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+            onKeyDown={e => {
+              if (e.key === 'Escape') {
+                setSearchQuery('')
+                setShowSuggestions(false)
+                setSuggestionIdx(-1)
+              } else if (e.key === 'ArrowDown') {
+                e.preventDefault()
+                setSuggestionIdx(i => Math.min(i + 1, searchSuggestions.length - 1))
+              } else if (e.key === 'ArrowUp') {
+                e.preventDefault()
+                setSuggestionIdx(i => Math.max(i - 1, -1))
+              } else if (e.key === 'Enter') {
+                const target = suggestionIdx >= 0 ? searchSuggestions[suggestionIdx] : searchSuggestions[0]
+                if (target) gotoObject(target)
+              }
+            }}
             style={{
               width: '100%',
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.1)',
+              background: 'rgba(255,255,255,0.06)',
+              border: `1px solid ${searchQuery ? 'rgba(99,102,241,0.45)' : 'rgba(255,255,255,0.12)'}`,
               borderRadius: 10,
-              padding: '6px 10px 6px 30px',
+              padding: '7px 34px 7px 30px',
               color: '#e2e8f0',
-              fontSize: 12,
+              fontSize: 13,
               outline: 'none',
+              transition: 'border-color 0.2s',
             }}
             aria-label="Search star map"
+            aria-autocomplete="list"
+            aria-expanded={showSuggestions && searchSuggestions.length > 0}
           />
+          {searchQuery && (
+            <button
+              onMouseDown={e => { e.preventDefault(); setSearchQuery(''); setShowSuggestions(false); setSuggestionIdx(-1) }}
+              style={{
+                position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+                color: '#9ca3af', fontSize: 16, lineHeight: 1, background: 'none', border: 'none',
+                cursor: 'pointer', padding: '2px 4px', borderRadius: 4,
+              }}
+              aria-label="Clear search"
+            >✕</button>
+          )}
         </div>
-        {searchQuery && (
-          <button
-            onClick={() => setSearchQuery('')}
-            style={{ color: '#6b7280', fontSize: 18, lineHeight: 1, background: 'none', border: 'none', cursor: 'pointer' }}
-            aria-label="Clear search"
-          >×</button>
+
+        {/* Autocomplete dropdown */}
+        {showSuggestions && searchSuggestions.length > 0 && (
+          <div
+            role="listbox"
+            style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              right: 0,
+              zIndex: 50,
+              marginTop: 4,
+              background: 'rgba(2,5,16,0.95)',
+              border: '1px solid rgba(99,102,241,0.3)',
+              borderRadius: 10,
+              overflow: 'hidden',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+            }}
+          >
+            {searchSuggestions.map((name, idx) => {
+              const isPlanet = PLANETS.some(p => p.name === name)
+              const planet   = isPlanet ? PLANETS.find(p => p.name === name) : null
+              const star     = !isPlanet ? STARS.find(s => s[0] === name) : null
+              return (
+                <button
+                  key={name}
+                  role="option"
+                  aria-selected={idx === suggestionIdx}
+                  onMouseDown={e => { e.preventDefault(); gotoObject(name) }}
+                  onMouseEnter={() => setSuggestionIdx(idx)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    width: '100%',
+                    padding: '8px 12px',
+                    background: idx === suggestionIdx ? 'rgba(99,102,241,0.18)' : 'transparent',
+                    border: 'none',
+                    borderBottom: idx < searchSuggestions.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'background 0.12s',
+                  }}
+                >
+                  <span style={{ fontSize: 14, width: 18, textAlign: 'center', flexShrink: 0 }}>
+                    {isPlanet ? (planet?.symbol ?? '🪐') : '✦'}
+                  </span>
+                  <span style={{ color: '#e2e8f0', fontSize: 13, fontWeight: 600 }}>{name}</span>
+                  {star && (
+                    <span style={{ color: '#4b5563', fontSize: 11, marginLeft: 'auto' }}>
+                      mag {(star[3] as number).toFixed(1)}
+                    </span>
+                  )}
+                  {isPlanet && (
+                    <span style={{ color: '#4b5563', fontSize: 11, marginLeft: 'auto' }}>planet</span>
+                  )}
+                  <span style={{ color: '#6366f1', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>→ goto</span>
+                </button>
+              )
+            })}
+          </div>
         )}
       </div>
 
