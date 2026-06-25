@@ -62,6 +62,14 @@ const PlanetVisibilityCalendar = lazy(() => import('./components/PlanetVisibilit
 const ARStarFinder = lazy(() => import('./components/ARStarFinder'))
 const TelescopeAdvisor = lazy(() => import('./components/TelescopeAdvisor'))
 const TonightsSky = lazy(() => import('./components/TonightsSky'))
+const PlanetaryMoons = lazy(() => import('./components/PlanetaryMoons'))
+const HRDiagram = lazy(() => import('./components/HRDiagram'))
+const SpaceDebris = lazy(() => import('./components/SpaceDebris'))
+const BlackHoleVisualizer = lazy(() => import('./components/BlackHoleVisualizer'))
+const VariableStarTracker = lazy(() => import('./components/VariableStarTracker'))
+const CosmicScale = lazy(() => import('./components/CosmicScale'))
+const SpacecraftSpeed = lazy(() => import('./components/SpacecraftSpeed'))
+const SolarFlareAlerts = lazy(() => import('./components/SolarFlareAlerts'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -414,6 +422,7 @@ function MainApp() {
               <div className="space-y-5">
                 <SafeWrap label="ARSkyView"><Suspense fallback={<SkeletonCard />}><ARSkyView /></Suspense></SafeWrap>
                 <SafeWrap label="SatelliteTracker"><Suspense fallback={<SkeletonCard />}><SatelliteTracker /></Suspense></SafeWrap>
+                <SafeWrap label="SpaceDebris"><Suspense fallback={<SkeletonCard />}><SpaceDebris /></Suspense></SafeWrap>
               </div>
             )}
 
@@ -431,11 +440,13 @@ function MainApp() {
                 </div>
                 <Suspense fallback={<SkeletonCard />}><PlanetExplorer /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><PlanetVisibilityCalendar /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><PlanetaryMoons /></Suspense>
               </div>
             )}
 
             {activeTab === 'weather' && (
               <div className="space-y-5">
+                <Suspense fallback={<SkeletonCard />}><SolarFlareAlerts /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><AuroraForecast /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><MarsWeather /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceWeather /></Suspense>
@@ -488,6 +499,10 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><GalaxyExplorer /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><DeepSkyBrowser /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceTimeline /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><HRDiagram /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><BlackHoleVisualizer /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><CosmicScale /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><SpacecraftSpeed /></Suspense>
               </div>
             )}
 
@@ -505,6 +520,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><ExoplanetTransitPlanner /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceSounds /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><AstroCalculator /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><VariableStarTracker /></Suspense>
               </div>
             )}
 
