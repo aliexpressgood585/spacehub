@@ -160,6 +160,7 @@ const ExtremeUniverse = lazy(() => import('./components/ExtremeUniverse'))
 const SpaceMythsDebunked = lazy(() => import('./components/SpaceMythsDebunked'))
 const QuantumInSpace = lazy(() => import('./components/QuantumInSpace'))
 const CosmicNeighborhood = lazy(() => import('./components/CosmicNeighborhood'))
+const SpaceWeirdObjects = lazy(() => import('./components/SpaceWeirdObjects'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -688,6 +689,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><SpaceMythsDebunked /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><QuantumInSpace /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><CosmicNeighborhood /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><SpaceWeirdObjects /></Suspense>
               </div>
             )}
 
