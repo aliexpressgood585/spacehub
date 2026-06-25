@@ -334,6 +334,7 @@ function MainApp() {
             <div
               role="tablist"
               aria-label="Space sections"
+              data-noswipe
               className="flex gap-1.5 overflow-x-auto pb-2"
               style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
             >
