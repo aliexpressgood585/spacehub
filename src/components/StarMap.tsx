@@ -749,11 +749,13 @@ const MESSIER: MessierObj[] = [
 type HipStar = [number, number, number, number, string?]
 
 // ── 3D CELESTIAL GLOBE ────────────────────────────────────────
-interface StarGlobeProps { hipStars: HipStar[]; showConstellations: boolean }
-function StarGlobe({ hipStars, showConstellations }: StarGlobeProps) {
+interface StarGlobeProps { hipStars: HipStar[]; showConstellations: boolean; time: Date }
+function StarGlobe({ hipStars, showConstellations, time }: StarGlobeProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const rafRef = useRef<number>(0)
   const dragRef = useRef({ active: false, lastX: 0, lastY: 0 })
+  const timeRef = useRef(time)
+  useEffect(() => { timeRef.current = time }, [time])
 
   useEffect(() => {
     const container = containerRef.current
@@ -858,12 +860,55 @@ function StarGlobe({ hipStars, showConstellations }: StarGlobeProps) {
       }
     }
 
+    // Planets on the celestial sphere
+    const PLANET_DEF = [
+      { name: 'Sun',     hex: 0xffee44, r: 0.052, glow: 0xffcc00 },
+      { name: 'Mercury', hex: 0xd0d0d0, r: 0.016, glow: 0x909090 },
+      { name: 'Venus',   hex: 0xfff4c2, r: 0.025, glow: 0xffee88 },
+      { name: 'Mars',    hex: 0xff5533, r: 0.022, glow: 0xff3311 },
+      { name: 'Jupiter', hex: 0xf5c88a, r: 0.042, glow: 0xe8a060 },
+      { name: 'Saturn',  hex: 0xf0d880, r: 0.034, glow: 0xd4b840 },
+      { name: 'Uranus',  hex: 0x7de8e8, r: 0.018, glow: 0x40c0c0 },
+      { name: 'Neptune', hex: 0x6680ff, r: 0.016, glow: 0x4455ff },
+    ]
+    const planetMeshes: { inner: THREE.Mesh; name: string }[] = []
+    for (const pd of PLANET_DEF) {
+      const inner = new THREE.Mesh(
+        new THREE.SphereGeometry(pd.r, 12, 12),
+        new THREE.MeshBasicMaterial({ color: pd.hex })
+      )
+      const outer = new THREE.Mesh(
+        new THREE.SphereGeometry(pd.r * 2.6, 8, 8),
+        new THREE.MeshBasicMaterial({ color: pd.glow, transparent: true, opacity: 0.22 })
+      )
+      inner.add(outer)
+      group.add(inner)
+      planetMeshes.push({ inner, name: pd.name })
+    }
+    const updatePlanets = () => {
+      const dd = julianDate(timeRef.current) - 2451543.5
+      for (const pm of planetMeshes) {
+        const radec = computeRADec(pm.name, dd)
+        if (!radec) { pm.inner.visible = false; continue }
+        pm.inner.visible = true
+        const theta = radec.ra * Math.PI / 12
+        const phi = radec.dec * DEG
+        const rr = 1.015
+        pm.inner.position.set(
+          rr * Math.cos(phi) * Math.cos(theta),
+          rr * Math.sin(phi),
+          -rr * Math.cos(phi) * Math.sin(theta)
+        )
+      }
+    }
+
     // Animation + auto-rotate
     let autoRotate = true
     let arTimer: ReturnType<typeof setTimeout> | null = null
     const animate = () => {
       rafRef.current = requestAnimationFrame(animate)
       if (autoRotate && !dragRef.current.active) group.rotation.y += 0.0008
+      updatePlanets()
       renderer.render(scene, camera)
     }
     animate()
@@ -2150,11 +2195,12 @@ export default function StarMap() {
               <input type="range" min={-720} max={720} step={30}
                 value={tmLocked ? 0 : timeOffsetMin}
                 onChange={e => { setTmLocked(false); setTimeOffsetMin(Number(e.target.value)) }}
-                className="flex-1 min-w-0" style={{ accentColor: '#6366f1' }}
+                data-noswipe
+                className="flex-1 min-w-0" style={{ accentColor: '#6366f1', touchAction: 'none' }}
                 aria-label="Time offset" />
               <span className="text-xs font-semibold shrink-0 w-16 text-right"
                 style={{ color: !tmLocked && timeOffsetMin === 0 ? '#34d399' : '#c4b5fd' }}>
-                {effectiveTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                {fmtHHMM(effectiveTime)}
               </span>
             </>
           )}
@@ -2223,14 +2269,15 @@ export default function StarMap() {
       </div>
 
       {/* Magnitude limit slider */}
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-2 mb-3" data-noswipe>
         <span className="text-xs text-gray-500 font-semibold shrink-0">✦ Mag limit</span>
         <input
           type="range" min={1} max={9.5} step={0.5}
           value={magLimit}
           onChange={e => setMagLimit(Number(e.target.value))}
+          data-noswipe
           className="flex-1 min-w-0"
-          style={{ accentColor: '#c4b5fd' }}
+          style={{ accentColor: '#c4b5fd', touchAction: 'none' }}
           aria-label="Magnitude limit"
         />
         <span className="text-xs font-bold shrink-0 w-8 text-right" style={{ color: '#c4b5fd' }}>{magLimit.toFixed(1)}</span>
@@ -2475,7 +2522,7 @@ export default function StarMap() {
       {/* Canvas / Globe */}
       <div className="flex justify-center mb-4 relative">
         {globeMode ? (
-          <StarGlobe hipStars={hipStars} showConstellations={showConstellations} />
+          <StarGlobe hipStars={hipStars} showConstellations={showConstellations} time={effectiveTime} />
         ) : (
           <>
             <canvas
