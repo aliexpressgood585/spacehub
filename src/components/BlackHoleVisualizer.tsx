@@ -71,7 +71,7 @@ function hawkingTemp(massM: number): number {
   return (HBAR * C * C * C) / (8 * Math.PI * G * massM * SOLAR_MASS_KG * KB)
 }
 
-function timeDilationFactor(massM: number): number {
+function timeDilationFactor(_massM: number): number {
   // Gravitational redshift at r = 3r_s: sqrt(1 - r_s/r) = sqrt(1 - 1/3) = sqrt(2/3)
   // More precisely: sqrt(1 - 2GM/(rc²)) at r=3r_s => sqrt(1-1/3)
   return Math.sqrt(1 - 1 / 3)
