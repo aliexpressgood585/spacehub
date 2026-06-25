@@ -101,6 +101,7 @@ const PlanetaryRings = lazy(() => import('./components/PlanetaryRings'))
 const ConstellationGuide = lazy(() => import('./components/ConstellationGuide'))
 const DarkEnergyExplorer = lazy(() => import('./components/DarkEnergyExplorer'))
 const IceGiants = lazy(() => import('./components/IceGiants'))
+const SpaceDebrisDashboard = lazy(() => import('./components/SpaceDebrisDashboard'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -458,6 +459,7 @@ function MainApp() {
                 <SafeWrap label="ARSkyView"><Suspense fallback={<SkeletonCard />}><ARSkyView /></Suspense></SafeWrap>
                 <SafeWrap label="SatelliteTracker"><Suspense fallback={<SkeletonCard />}><SatelliteTracker /></Suspense></SafeWrap>
                 <SafeWrap label="SpaceDebris"><Suspense fallback={<SkeletonCard />}><SpaceDebris /></Suspense></SafeWrap>
+                <Suspense fallback={<SkeletonCard />}><SpaceDebrisDashboard /></Suspense>
               </div>
             )}
 
