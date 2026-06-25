@@ -825,3 +825,15 @@ select:focus-visible,
   clip: auto;
   white-space: normal;
 }
+
+/* ── Night Vision Mode ──────────────────────────────────────── */
+html.night-vision {
+  filter: brightness(0.85) sepia(1) hue-rotate(295deg) saturate(6);
+}
+html.night-vision canvas {
+  filter: brightness(0.85) sepia(1) hue-rotate(295deg) saturate(6);
+}
+html.night-vision .live-dot {
+  background: #ff0000 !important;
+  box-shadow: 0 0 6px #ff0000 !important;
+}
