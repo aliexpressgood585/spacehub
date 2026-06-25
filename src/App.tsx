@@ -94,6 +94,7 @@ const SpacePropulsion = lazy(() => import('./components/SpacePropulsion'))
 const StellarNucleosynthesis = lazy(() => import('./components/StellarNucleosynthesis'))
 const SunLayers = lazy(() => import('./components/SunLayers'))
 const LunarGeology = lazy(() => import('./components/LunarGeology'))
+const AsteroidTypes = lazy(() => import('./components/AsteroidTypes'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -531,6 +532,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><MarsColonyPlanner /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceAgencyTracker /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceFoodGuide /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><AsteroidTypes /></Suspense>
               </div>
             )}
 
