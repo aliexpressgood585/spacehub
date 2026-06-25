@@ -172,6 +172,7 @@ const SpaceAnimalExplorers = lazy(() => import('./components/SpaceAnimalExplorer
 const StellarClassification = lazy(() => import('./components/StellarClassification'))
 const SpaceSurvivalGuide = lazy(() => import('./components/SpaceSurvivalGuide'))
 const CosmicRays = lazy(() => import('./components/CosmicRays'))
+const PlanetaryGeology = lazy(() => import('./components/PlanetaryGeology'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -712,6 +713,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><StellarClassification /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceSurvivalGuide /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><CosmicRays /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><PlanetaryGeology /></Suspense>
               </div>
             )}
 
