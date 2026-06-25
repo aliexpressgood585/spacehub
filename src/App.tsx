@@ -127,6 +127,7 @@ const DarkMatterDetectors = lazy(() => import('./components/DarkMatterDetectors'
 const GravitationalWaves = lazy(() => import('./components/GravitationalWaves'))
 const SpaceLaw = lazy(() => import('./components/SpaceLaw'))
 const NeutronStars = lazy(() => import('./components/NeutronStars'))
+const EarthFromSpace = lazy(() => import('./components/EarthFromSpace'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -642,6 +643,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><ExoplanetTransitPlanner /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceSounds /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><AstroCalculator /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><EarthFromSpace /></Suspense>
               </div>
             )}
 
