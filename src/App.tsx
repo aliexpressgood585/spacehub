@@ -97,6 +97,7 @@ const LunarGeology = lazy(() => import('./components/LunarGeology'))
 const AsteroidTypes = lazy(() => import('./components/AsteroidTypes'))
 const SpaceWeatherHistory = lazy(() => import('./components/SpaceWeatherHistory'))
 const InterstellarTravel = lazy(() => import('./components/InterstellarTravel'))
+const PlanetaryRings = lazy(() => import('./components/PlanetaryRings'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -471,6 +472,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><PlanetExplorer /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><PlanetVisibilityCalendar /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><PlanetaryMoons /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><PlanetaryRings /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><LunarGeology /></Suspense>
               </div>
             )}
