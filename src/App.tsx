@@ -163,6 +163,7 @@ const CosmicNeighborhood = lazy(() => import('./components/CosmicNeighborhood'))
 const SpaceWeirdObjects = lazy(() => import('./components/SpaceWeirdObjects'))
 const OceanWorldsGuide = lazy(() => import('./components/OceanWorldsGuide'))
 const CosmicClocks = lazy(() => import('./components/CosmicClocks'))
+const NebulaeTypes = lazy(() => import('./components/NebulaeTypes'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -694,6 +695,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><SpaceWeirdObjects /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><OceanWorldsGuide /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><CosmicClocks /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><NebulaeTypes /></Suspense>
               </div>
             )}
 
