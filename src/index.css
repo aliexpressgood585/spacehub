@@ -1291,11 +1291,11 @@ body.cursor-active * { cursor: none !important; }
 
 /* ── TAB-SWITCH ENTRANCE ANIMATION ── */
 @keyframes tab-enter {
-  0%   { opacity: 0; transform: translateY(20px) scale(0.983); filter: blur(4px); }
-  100% { opacity: 1; transform: translateY(0)   scale(1);     filter: blur(0px); }
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 .animate-tab-enter {
-  animation: tab-enter 0.45s cubic-bezier(0.16,1,0.3,1) both;
+  animation: tab-enter 0.22s ease-out both;
 }
 
 /* ── BUTTON SHIMMER 3D ── */
