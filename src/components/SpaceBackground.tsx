@@ -54,6 +54,7 @@ export default function SpaceBackground() {
         r.domElement.style.top = '0'
         r.domElement.style.left = '0'
         r.domElement.style.zIndex = '1'
+        r.domElement.style.pointerEvents = 'none'
         containerRef.current.appendChild(r.domElement)
 
         const createStars = (count: number, size: number, spread: number, color: number) => {
