@@ -1,4 +1,4 @@
-const CACHE = 'spacehub-v11'
+const CACHE = 'spacehub-v12'
 const API_CACHE = 'spacehub-api-v6'
 
 // Allow page to force-activate this SW immediately
@@ -17,15 +17,22 @@ const EXT_API_HOSTS = [
 ]
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['/', '/offline.html'])))
+  // Never pre-cache HTML — always serve fresh from network
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['/offline.html'])))
   self.skipWaiting()
 })
 
 self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(keys =>
-    Promise.all(keys.filter(k => k !== CACHE && k !== API_CACHE).map(k => caches.delete(k)))
-  ))
-  self.clients.claim()
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE && k !== API_CACHE).map(k => caches.delete(k)))
+    ).then(() => self.clients.claim()).then(() =>
+      self.clients.matchAll({ type: 'window' })
+    ).then(clients => {
+      // Notify all open pages to reload so they pick up fresh JS immediately
+      clients.forEach(c => { try { c.postMessage({ type: 'SW_UPDATED' }) } catch {} })
+    })
+  )
 })
 
 const swrResponse = (cache, request) =>
