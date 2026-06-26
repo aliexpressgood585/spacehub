@@ -2,6 +2,13 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* Eliminate 300ms tap delay on iOS and Android */
+html { touch-action: manipulation; }
+a, button, [role="button"], input[type="button"], input[type="submit"], label {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   background: #020510;
   color: #e0e0e0;
