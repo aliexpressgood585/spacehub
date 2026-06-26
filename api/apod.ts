@@ -13,7 +13,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const r = await fetch(url, {
       headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(7000),
     })
 
     if (r.status === 429) {
