@@ -496,9 +496,8 @@ function MainApp() {
               className="flex gap-1.5 overflow-x-auto pb-2 px-2 pt-2 rounded-2xl"
               style={{
                 scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch',
-                background: 'rgba(8,10,30,0.6)',
+                background: 'rgba(8,10,30,0.92)',
                 border: '1px solid rgba(99,102,241,0.10)',
-                backdropFilter: 'blur(16px)',
                 boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 4px 20px rgba(0,0,0,0.4)',
               }}
             >
