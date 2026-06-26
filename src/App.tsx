@@ -285,7 +285,7 @@ class SafeWrap extends Component<{ children: ReactNode; label?: string; root?: b
             <div style={{ fontSize: 48 }}>🚀</div>
             <div style={{ fontSize: 20, fontWeight: 700, color: '#e2e8f0' }}>SpaceHub</div>
             <div style={{ fontSize: 13, color: '#f87171', maxWidth: 340, wordBreak: 'break-word', background: 'rgba(255,0,0,0.06)', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,50,50,0.2)', fontFamily: 'monospace' }}>{this.state.err ?? 'Unknown error'}</div>
-            <button onClick={() => window.location.reload()} style={{ marginTop: 8, padding: '10px 24px', borderRadius: 12, border: '1px solid rgba(99,102,241,0.5)', background: 'rgba(99,102,241,0.2)', color: '#c4b5fd', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+            <button onClick={() => { try { sessionStorage.setItem('_sw_fail', '1') } catch {} window.location.reload() }} style={{ marginTop: 8, padding: '10px 24px', borderRadius: 12, border: '1px solid rgba(99,102,241,0.5)', background: 'rgba(99,102,241,0.2)', color: '#c4b5fd', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
               ↺ Refresh
             </button>
           </div>
