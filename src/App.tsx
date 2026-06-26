@@ -180,6 +180,7 @@ const UniverseScaleExplorer = lazy(() => import('./components/UniverseScaleExplo
 const CosmicHistoryTimeline = lazy(() => import('./components/CosmicHistoryTimeline'))
 const LightTravelTime = lazy(() => import('./components/LightTravelTime'))
 const SpaceTelescopeComparison = lazy(() => import('./components/SpaceTelescopeComparison'))
+const PlanetaryFates = lazy(() => import('./components/PlanetaryFates'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -728,6 +729,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><CosmicHistoryTimeline /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><LightTravelTime /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceTelescopeComparison /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><PlanetaryFates /></Suspense>
               </div>
             )}
 
