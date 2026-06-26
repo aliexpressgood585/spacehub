@@ -128,12 +128,19 @@ export default function Hero({ onScrollToISS }: Props) {
           <span className="gradient-text-aurora word-anim word-anim-2">{t('hero.title2')}</span><br />
           <span
             className="word-anim word-anim-3"
-            style={{ color: 'rgba(255,255,255,0.65)', fontWeight: 700, filter: 'drop-shadow(0 0 12px rgba(99,102,241,0.3))' }}
+            style={{
+              fontWeight: 700,
+              background: 'linear-gradient(90deg, rgba(255,255,255,0.55) 0%, rgba(167,139,250,0.85) 50%, rgba(255,255,255,0.55) 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              filter: 'drop-shadow(0 0 18px rgba(139,92,246,0.4))',
+            }}
           >{t('hero.title3')}</span>
         </h1>
 
         {/* Glow line under title */}
-        <div aria-hidden="true" className="mx-auto mb-8" style={{ width: 180, height: 1, background: 'linear-gradient(90deg, transparent, rgba(167,139,250,0.8), transparent)', boxShadow: '0 0 12px rgba(139,92,246,0.5)', animation: 'hero-glow-sweep 4s ease-in-out infinite', borderRadius: 999 }} />
+        <div aria-hidden="true" className="mx-auto mb-8" style={{ width: 220, height: 1.5, background: 'linear-gradient(90deg, transparent, rgba(99,102,241,0.6), rgba(167,139,250,1), rgba(34,211,238,0.6), transparent)', boxShadow: '0 0 16px rgba(139,92,246,0.7), 0 0 32px rgba(99,102,241,0.3)', animation: 'hero-glow-sweep 4s ease-in-out infinite', borderRadius: 999 }} />
 
         <p className="text-base sm:text-lg text-gray-400 mb-10 max-w-xl mx-auto leading-relaxed"
           style={{ animation: 'word-up 0.7s 0.4s cubic-bezier(0.22,1,0.36,1) both', textShadow: '0 2px 12px rgba(0,0,0,0.5)' }}>
