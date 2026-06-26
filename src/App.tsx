@@ -177,6 +177,7 @@ const SpaceDebrisTimeline = lazy(() => import('./components/SpaceDebrisTimeline'
 const FermiParadox = lazy(() => import('./components/FermiParadox'))
 const AsteroidImpactSimulator = lazy(() => import('./components/AsteroidImpactSimulator'))
 const UniverseScaleExplorer = lazy(() => import('./components/UniverseScaleExplorer'))
+const CosmicHistoryTimeline = lazy(() => import('./components/CosmicHistoryTimeline'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -722,6 +723,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><FermiParadox /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><AsteroidImpactSimulator /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><UniverseScaleExplorer /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><CosmicHistoryTimeline /></Suspense>
               </div>
             )}
 
