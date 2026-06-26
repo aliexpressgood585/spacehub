@@ -192,6 +192,8 @@ const WarpDriveCalculator = lazy(() => import('./components/WarpDriveCalculator'
 const SpaceAgeCalculator = lazy(() => import('./components/SpaceAgeCalculator'))
 const StellarLifecycle = lazy(() => import('./components/StellarLifecycle'))
 const BlackHoleJourney = lazy(() => import('./components/BlackHoleJourney'))
+const CosmicAddress = lazy(() => import('./components/CosmicAddress'))
+const DarkMatterDetective = lazy(() => import('./components/DarkMatterDetective'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -752,6 +754,8 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><SpaceAgeCalculator /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><StellarLifecycle /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><BlackHoleJourney /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><CosmicAddress /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><DarkMatterDetective /></Suspense>
               </div>
             )}
 
