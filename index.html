@@ -141,15 +141,27 @@
     <meta name="theme-color" content="#050816" />
   </head>
   <script>
-    // Auto-recover from stale SW cache (MIME type errors after deploy)
-    // This runs inline — SW cannot intercept it
     (function() {
-      var KEEP = { 'spacehub-v11': 1, 'spacehub-api-v6': 1 };
+      var KEEP = { 'spacehub-v12': 1, 'spacehub-api-v6': 1 };
+      var _reloading = false;
+
+      function safeReload() {
+        if (_reloading) return;
+        _reloading = true;
+        window.location.reload();
+      }
+
+      // Auto-reload when a new SW takes control (gets users onto fresh code immediately)
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('controllerchange', safeReload);
+        navigator.serviceWorker.addEventListener('message', function(e) {
+          if (e.data && e.data.type === 'SW_UPDATED') safeReload();
+        });
+      }
 
       // If last load failed due to stale SW: nuke everything and reload clean
       if (sessionStorage.getItem('_sw_fail')) {
         sessionStorage.removeItem('_sw_fail');
-        var nuked = false;
         if ('serviceWorker' in navigator) {
           navigator.serviceWorker.getRegistrations().then(function(regs) {
             return Promise.all(regs.map(function(r) { return r.unregister(); }));
@@ -157,19 +169,19 @@
             return 'caches' in window ? caches.keys().then(function(ks) {
               return Promise.all(ks.map(function(k) { return caches.delete(k); }));
             }) : Promise.resolve();
-          }).then(function() { if (!nuked) { nuked = true; window.location.reload(); } });
+          }).then(function() { safeReload(); });
         }
         return;
       }
 
-      // Normal load: clear any outdated cache versions
+      // Clear any outdated cache versions
       if ('caches' in window) {
         caches.keys().then(function(keys) {
           keys.forEach(function(k) { if (!KEEP[k]) caches.delete(k); });
         });
       }
 
-      // Force SW to check for updates
+      // Force SW to check for updates on every page load
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs) {
           regs.forEach(function(r) { r.update(); });
