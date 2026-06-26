@@ -31,6 +31,8 @@ export default function LoadingScreen() {
         zIndex: 999999,
         background: 'radial-gradient(ellipse 80% 80% at 50% 50%, rgba(20,8,55,1) 0%, #020510 70%)',
         animation: phase === 'exiting' ? 'loading-exit 0.62s ease-in both' : undefined,
+        // Pass clicks through immediately once the exit animation begins — CSS can't animate pointer-events
+        pointerEvents: phase === 'exiting' ? 'none' : undefined,
       }}
     >
       {/* Warp speed lines — radiate from center */}
