@@ -185,8 +185,8 @@ export default function PlanetWeightCalculator() {
                 value: selected.type === 'neutron' ? '~0mm' : selected.type === 'star' ? '~0mm' : jumpHeight(selected.gravity),
                 icon: '⬆️',
               },
-            ].map(s => (
-              <div key={s.label} className="bg-gray-800/60 rounded-xl p-3 text-center">
+            ].map((s, i) => (
+              <div key={i} className="bg-gray-800/60 rounded-xl p-3 text-center">
                 <div className="text-lg mb-1">{s.icon}</div>
                 <div className="text-lg font-black text-white mb-1">{s.value}</div>
                 <div className="text-[10px] text-gray-500">{s.label}</div>
