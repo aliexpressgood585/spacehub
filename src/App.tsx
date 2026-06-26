@@ -196,6 +196,8 @@ const CosmicAddress = lazy(() => import('./components/CosmicAddress'))
 const DarkMatterDetective = lazy(() => import('./components/DarkMatterDetective'))
 const FutureOfUniverse = lazy(() => import('./components/FutureOfUniverse'))
 const AtomicOrigins = lazy(() => import('./components/AtomicOrigins'))
+const GalacticMerger = lazy(() => import('./components/GalacticMerger'))
+const SpacePsychology = lazy(() => import('./components/SpacePsychology'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -760,6 +762,8 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><DarkMatterDetective /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><FutureOfUniverse /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><AtomicOrigins /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><GalacticMerger /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><SpacePsychology /></Suspense>
               </div>
             )}
 
