@@ -175,6 +175,7 @@ const CosmicRays = lazy(() => import('./components/CosmicRays'))
 const PlanetaryGeology = lazy(() => import('./components/PlanetaryGeology'))
 const SpaceDebrisTimeline = lazy(() => import('./components/SpaceDebrisTimeline'))
 const FermiParadox = lazy(() => import('./components/FermiParadox'))
+const AsteroidImpactSimulator = lazy(() => import('./components/AsteroidImpactSimulator'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -718,6 +719,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><PlanetaryGeology /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><SpaceDebrisTimeline /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><FermiParadox /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><AsteroidImpactSimulator /></Suspense>
               </div>
             )}
 
