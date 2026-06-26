@@ -10,7 +10,7 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
     try {
       const r = await fetch(url, {
         headers: { Accept: 'application/json' },
-        signal: AbortSignal.timeout(7000),
+        signal: AbortSignal.timeout(3500),
       })
       if (!r.ok) continue
       const data = await r.json() as unknown
