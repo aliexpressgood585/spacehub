@@ -45,11 +45,11 @@ export default function Onboarding() {
 
   return (
     <div
+      onClick={dismiss}
       style={{
         position: 'fixed',
         inset: 0,
         background: 'rgba(2,5,16,0.85)',
-        backdropFilter: 'blur(8px)',
         zIndex: 200,
         display: 'flex',
         alignItems: 'center',
@@ -57,6 +57,7 @@ export default function Onboarding() {
       }}
     >
       <div
+        onClick={e => e.stopPropagation()}
         style={{
           background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.1))',
           border: '1px solid rgba(99,102,241,0.3)',
@@ -68,19 +69,21 @@ export default function Onboarding() {
           position: 'relative',
         }}
       >
-        {/* Skip link */}
+        {/* Skip button — large tap target for mobile */}
         <button
           onClick={dismiss}
           style={{
             position: 'absolute',
-            top: 16,
-            right: 20,
+            top: 8,
+            right: 8,
             background: 'none',
             border: 'none',
             color: 'rgba(156,163,175,0.7)',
             fontSize: 13,
             cursor: 'pointer',
-            padding: '4px 8px',
+            padding: '12px 16px',
+            touchAction: 'manipulation',
+            WebkitTapHighlightColor: 'transparent',
           }}
         >
           Skip
@@ -128,6 +131,8 @@ export default function Onboarding() {
             cursor: 'pointer',
             width: '100%',
             marginBottom: 24,
+            touchAction: 'manipulation',
+            WebkitTapHighlightColor: 'transparent',
           }}
         >
           {step < STEPS.length - 1 ? 'Next →' : 'Get Started 🚀'}
