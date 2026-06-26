@@ -202,6 +202,8 @@ const SpaceMegastructures = lazy(() => import('./components/SpaceMegastructures'
 const CosmicMysteries = lazy(() => import('./components/CosmicMysteries'))
 const CosmicOdds = lazy(() => import('./components/CosmicOdds'))
 const CosmicCounters = lazy(() => import('./components/CosmicCounters'))
+import LoadingScreen from './components/LoadingScreen'
+import CursorGlow from './components/CursorGlow'
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -455,6 +457,8 @@ function MainApp() {
 
   return (
     <div className="min-h-screen relative" style={{ background: '#020510' }}>
+      <SafeWrap label="LoadingScreen"><LoadingScreen /></SafeWrap>
+      <SafeWrap label="CursorGlow"><CursorGlow /></SafeWrap>
       <a href="#main-content" className="skip-nav">Skip to main content</a>
       <SafeWrap label="background"><SpaceBackground /></SafeWrap>
 
