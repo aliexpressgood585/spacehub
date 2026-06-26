@@ -154,14 +154,18 @@ export default function ISSTracker() {
     let isDragging = false, prevX = 0, prevY = 0
     let rotX = 0, rotY = 0
 
-    renderer.domElement.addEventListener('mousedown', e => { isDragging = true; prevX = e.clientX; prevY = e.clientY })
-    window.addEventListener('mouseup', () => { isDragging = false })
-    window.addEventListener('mousemove', e => {
+    const onMouseDown = (e: MouseEvent) => { isDragging = true; prevX = e.clientX; prevY = e.clientY }
+    const onMouseUp = () => { isDragging = false }
+    const onMouseMove = (e: MouseEvent) => {
       if (!isDragging) return
       rotY += (e.clientX - prevX) * 0.01
       rotX += (e.clientY - prevY) * 0.01
       prevX = e.clientX; prevY = e.clientY
-    })
+    }
+
+    renderer.domElement.addEventListener('mousedown', onMouseDown)
+    window.addEventListener('mouseup', onMouseUp)
+    window.addEventListener('mousemove', onMouseMove, { passive: true })
 
     const animate = () => {
       animId = requestAnimationFrame(animate)
@@ -182,6 +186,8 @@ export default function ISSTracker() {
 
     return () => {
       if (animId) cancelAnimationFrame(animId)
+      window.removeEventListener('mouseup', onMouseUp)
+      window.removeEventListener('mousemove', onMouseMove)
       try { rendererRef?.dispose() } catch {}
       try { rendererRef?.domElement.remove() } catch {}
     }
