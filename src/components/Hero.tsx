@@ -97,20 +97,15 @@ export default function Hero({ onScrollToISS }: Props) {
         </svg>
       </div>
 
-      {/* Nebula orbs — deep, multi-color */}
-      <div aria-hidden="true" className="absolute -top-20 left-1/4 w-[600px] h-[600px] rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.22) 0%, transparent 65%)', filter: 'blur(90px)', animation: 'nebula-drift 20s ease-in-out infinite' }} />
-      <div aria-hidden="true" className="absolute bottom-0 right-1/4 w-[420px] h-[420px] rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.20) 0%, transparent 65%)', filter: 'blur(75px)', animation: 'nebula-drift 25s ease-in-out infinite reverse' }} />
-      <div aria-hidden="true" className="absolute top-1/3 right-4 w-72 h-72 rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(56,189,248,0.15) 0%, transparent 65%)', filter: 'blur(60px)' }} />
-      <div aria-hidden="true" className="absolute top-10 left-8 w-56 h-56 rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(168,85,247,0.14) 0%, transparent 65%)', filter: 'blur(55px)' }} />
-      {/* New: pink + cyan accents */}
-      <div aria-hidden="true" className="absolute bottom-10 left-10 w-64 h-64 rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(244,114,182,0.12) 0%, transparent 65%)', filter: 'blur(65px)', animation: 'nebula-drift 30s ease-in-out infinite' }} />
-      <div aria-hidden="true" className="absolute top-5 right-1/3 w-48 h-48 rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(34,211,238,0.10) 0%, transparent 65%)', filter: 'blur(50px)' }} />
+      {/* Nebula — CSS gradients, no filter:blur (performance) */}
+      <div aria-hidden="true" className="absolute inset-0 pointer-events-none" style={{
+        background: `
+          radial-gradient(ellipse 65% 60% at 30% 20%, rgba(99,102,241,0.18) 0%, transparent 70%),
+          radial-gradient(ellipse 50% 55% at 75% 80%, rgba(139,92,246,0.15) 0%, transparent 65%),
+          radial-gradient(ellipse 35% 40% at 85% 15%, rgba(56,189,248,0.10) 0%, transparent 60%),
+          radial-gradient(ellipse 30% 35% at 10% 70%, rgba(244,114,182,0.09) 0%, transparent 60%)
+        `
+      }} />
 
       <div className="max-w-5xl mx-auto px-4 pt-20 pb-16 text-center relative" style={{ zIndex: 1 }}>
         <div className="inline-flex items-center gap-3 mb-8" style={{ animation: 'word-up 0.5s ease forwards' }}>
