@@ -176,6 +176,7 @@ const PlanetaryGeology = lazy(() => import('./components/PlanetaryGeology'))
 const SpaceDebrisTimeline = lazy(() => import('./components/SpaceDebrisTimeline'))
 const FermiParadox = lazy(() => import('./components/FermiParadox'))
 const AsteroidImpactSimulator = lazy(() => import('./components/AsteroidImpactSimulator'))
+const UniverseScaleExplorer = lazy(() => import('./components/UniverseScaleExplorer'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -720,6 +721,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><SpaceDebrisTimeline /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><FermiParadox /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><AsteroidImpactSimulator /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><UniverseScaleExplorer /></Suspense>
               </div>
             )}
 
