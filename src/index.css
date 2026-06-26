@@ -931,7 +931,7 @@ html.night-vision .live-dot {
     inset 0 -1px 0  rgba(0,0,0,0.55);
   transform: translateY(-4px);
 }
-/* Sci-fi scanline texture — subtle grid lines across card surface */
+/* Sci-fi scanline texture — subtle, no mix-blend-mode (performance) */
 .space-card::after {
   content: '';
   position: absolute;
@@ -940,17 +940,20 @@ html.night-vision .live-dot {
     0deg,
     transparent,
     transparent 3px,
-    rgba(99,102,241,0.016) 3px,
-    rgba(99,102,241,0.016) 4px
+    rgba(99,102,241,0.012) 3px,
+    rgba(99,102,241,0.012) 4px
   );
   pointer-events: none;
-  mix-blend-mode: screen;
   border-radius: inherit;
 }
 
 /* ── HOLOGRAPHIC SPINNING BORDER ── */
 /* Apply alongside space-card: class="space-card holo-border" */
+/* Static by default, animates only on hover (performance) */
 .holo-border {
+  border: 1px solid rgba(139,92,246,0.35) !important;
+}
+.holo-border:hover {
   border: 1px solid transparent !important;
   background:
     linear-gradient(148deg, rgba(14,17,50,0.99), rgba(5,7,22,0.99)) padding-box,
@@ -976,16 +979,16 @@ html.night-vision .live-dot {
 
 /* ── NEON PULSING GLOW ── */
 .neon-card {
-  animation: neon-pulse-3d 3s ease-in-out infinite;
+  box-shadow: 0 0 18px rgba(99,102,241,0.4), 0 0 6px rgba(139,92,246,0.3);
   border-color: rgba(99,102,241,0.35) !important;
 }
 
 /* ── CHROMATIC ABERRATION TEXT ── */
 .chroma-text {
-  animation: chroma-drift 5s ease-in-out infinite;
+  text-shadow: -1px 0 rgba(255,30,80,0.3), 1px 0 rgba(0,200,255,0.3);
 }
 
-/* ── MOVING SURFACE SHEEN (light sweep across card) ── */
+/* ── MOVING SURFACE SHEEN (light sweep, hover only) ── */
 .sheen {
   position: relative;
   overflow: hidden;
@@ -1001,14 +1004,16 @@ html.night-vision .live-dot {
     105deg,
     transparent 0%,
     rgba(255,255,255,0.04) 30%,
-    rgba(167,139,250,0.10) 50%,
+    rgba(167,139,250,0.08) 50%,
     rgba(255,255,255,0.04) 70%,
     transparent 100%
   );
-  animation: surface-sheen 7s ease-in-out infinite;
   pointer-events: none;
   transform: skewX(-15deg);
-  mix-blend-mode: screen;
+  transition: left 0.6s ease;
+}
+.sheen:hover::after {
+  animation: surface-sheen 0.7s ease forwards;
 }
 
 /* ── INNER COSMIC GLOW ── */
