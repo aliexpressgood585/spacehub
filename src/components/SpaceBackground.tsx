@@ -64,15 +64,25 @@ export default function SpaceBackground() {
           return new THREE.Points(geo, new THREE.PointsMaterial({ color, size, sizeAttenuation: true, transparent: true, opacity: 0.8 }))
         }
 
-        scene.add(createStars(1500, 0.08, 400, 0xffffff))
-        scene.add(createStars(400, 0.15, 300, 0xaaccff))
-        scene.add(createStars(150, 0.2, 200, 0xffddaa))
+        scene.add(createStars(2000, 0.06, 500, 0xffffff))
+        scene.add(createStars(600,  0.14, 350, 0xaaccff))
+        scene.add(createStars(200,  0.20, 250, 0xffddaa))
+        scene.add(createStars(80,   0.38, 160, 0xffffff))
+        scene.add(createStars(50,   0.32, 120, 0xaaeeff))
 
-        const nebulaGeo = new THREE.BufferGeometry()
-        const np = new Float32Array(200 * 3)
-        for (let i = 0; i < np.length; i++) np[i] = (Math.random() - 0.5) * 100
-        nebulaGeo.setAttribute('position', new THREE.BufferAttribute(np, 3))
-        scene.add(new THREE.Points(nebulaGeo, new THREE.PointsMaterial({ color: 0x4433ff, size: 0.5, transparent: true, opacity: 0.12 })))
+        // Multi-color nebula clusters for cosmic depth
+        const addNebula = (count: number, spread: number, color: number, size: number, opacity: number) => {
+          const geo = new THREE.BufferGeometry()
+          const pos = new Float32Array(count * 3)
+          for (let i = 0; i < pos.length; i++) pos[i] = (Math.random() - 0.5) * spread
+          geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+          scene.add(new THREE.Points(geo, new THREE.PointsMaterial({ color, size, sizeAttenuation: true, transparent: true, opacity })))
+        }
+        addNebula(320, 130, 0x4433ff, 0.80, 0.14) // deep blue
+        addNebula(200, 95,  0x8833dd, 0.90, 0.10) // purple
+        addNebula(130, 72,  0xdd2266, 0.70, 0.08) // pink/magenta
+        addNebula(160, 85,  0x0055ff, 0.60, 0.09) // bright blue
+        addNebula(90,  52,  0x00ccdd, 0.50, 0.07) // cyan accent
 
         const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -126,7 +136,16 @@ export default function SpaceBackground() {
     <div
       ref={containerRef}
       className="fixed inset-0 pointer-events-none"
-      style={{ zIndex: 0 }}
+      style={{
+        zIndex: 0,
+        background: `
+          radial-gradient(ellipse 70% 55% at 18% 18%, rgba(90,30,180,0.20) 0%, transparent 60%),
+          radial-gradient(ellipse 55% 65% at 78% 72%, rgba(20,80,200,0.16) 0%, transparent 55%),
+          radial-gradient(ellipse 42% 42% at 88% 12%, rgba(180,25,70,0.11) 0%, transparent 50%),
+          radial-gradient(ellipse 38% 50% at 45% 88%, rgba(20,140,80,0.08) 0%, transparent 55%),
+          radial-gradient(ellipse 30% 38% at 60% 42%, rgba(0,160,200,0.08) 0%, transparent 48%)
+        `,
+      }}
     >
       {galaxyOn && (
         <div
