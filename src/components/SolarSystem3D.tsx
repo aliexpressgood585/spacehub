@@ -205,11 +205,11 @@ export default function SolarSystem3D() {
     }
 
     renderer.domElement.addEventListener('mousedown', onDown)
-    renderer.domElement.addEventListener('touchstart', onDown)
+    renderer.domElement.addEventListener('touchstart', onDown, { passive: true })
     window.addEventListener('mouseup', onUp)
-    window.addEventListener('touchend', onUp)
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('touchmove', onMove)
+    window.addEventListener('touchend', onUp, { passive: true })
+    window.addEventListener('mousemove', onMove, { passive: true })
+    window.addEventListener('touchmove', onMove, { passive: true })
     renderer.domElement.addEventListener('wheel', onWheel, { passive: false })
     renderer.domElement.addEventListener('click', onClick)
 
