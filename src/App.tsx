@@ -185,6 +185,7 @@ const ExoplanetHabitability = lazy(() => import('./components/ExoplanetHabitabil
 const SpaceSurvivalCalculator = lazy(() => import('./components/SpaceSurvivalCalculator'))
 const CosmicRecipeBook = lazy(() => import('./components/CosmicRecipeBook'))
 const StellarSizeComparison = lazy(() => import('./components/StellarSizeComparison'))
+const SpaceMissionTimeline = lazy(() => import('./components/SpaceMissionTimeline'))
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
@@ -738,6 +739,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><SpaceSurvivalCalculator /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><CosmicRecipeBook /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><StellarSizeComparison /></Suspense>
+                <Suspense fallback={<SkeletonCard />}><SpaceMissionTimeline /></Suspense>
               </div>
             )}
 
