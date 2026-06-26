@@ -350,8 +350,14 @@ function MainApp() {
     setActiveTab(tab)
     window.history.replaceState(null, '', TAB_HASH[tab])
     document.title = TAB_TITLES[tab]
+    // Only scroll to tab nav if it's above the viewport (user is in the hero section)
     setTimeout(() => {
-      tabContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      const el = tabContentRef.current
+      if (!el) return
+      const rect = el.getBoundingClientRect()
+      if (rect.top > window.innerHeight) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
     }, 50)
   }
 
@@ -522,7 +528,6 @@ function MainApp() {
             tabIndex={-1}
             key={activeTab}
             className="animate-tab-enter"
-            style={{ animationDuration: '0.45s' }}
           >
 
             {activeTab === 'dashboard' && (
