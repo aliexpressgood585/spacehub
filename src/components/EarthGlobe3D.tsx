@@ -266,12 +266,17 @@ export default function EarthGlobe3D() {
       prevX = x; prevY = y
     }
 
-    renderer.domElement.addEventListener('mousedown', e => onDown(e.clientX, e.clientY))
+    const onMouseDown = (e: MouseEvent) => onDown(e.clientX, e.clientY)
+    const onMouseMove = (e: MouseEvent) => onMove(e.clientX, e.clientY)
+    const onTouchStart = (e: TouchEvent) => { if (e.touches[0]) onDown(e.touches[0].clientX, e.touches[0].clientY) }
+    const onTouchMove = (e: TouchEvent) => { if (e.touches[0]) onMove(e.touches[0].clientX, e.touches[0].clientY) }
+
+    renderer.domElement.addEventListener('mousedown', onMouseDown)
     window.addEventListener('mouseup', onUp)
-    window.addEventListener('mousemove', e => onMove(e.clientX, e.clientY))
-    renderer.domElement.addEventListener('touchstart', e => onDown(e.touches[0].clientX, e.touches[0].clientY))
-    window.addEventListener('touchend', onUp)
-    window.addEventListener('touchmove', e => onMove(e.touches[0].clientX, e.touches[0].clientY))
+    window.addEventListener('mousemove', onMouseMove, { passive: true })
+    renderer.domElement.addEventListener('touchstart', onTouchStart, { passive: true })
+    window.addEventListener('touchend', onUp, { passive: true })
+    window.addEventListener('touchmove', onTouchMove, { passive: true })
 
     // Zoom
     let zoom = 4
@@ -330,9 +335,9 @@ export default function EarthGlobe3D() {
     return () => {
       cancelAnimationFrame(animId)
       window.removeEventListener('mouseup', onUp)
-      window.removeEventListener('mousemove', e => onMove(e.clientX, e.clientY))
+      window.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('touchend', onUp)
-      window.removeEventListener('touchmove', e => onMove(e.touches[0].clientX, e.touches[0].clientY))
+      window.removeEventListener('touchmove', onTouchMove)
       window.removeEventListener('resize', handleResize)
       renderer.dispose()
       renderer.domElement.remove()
