@@ -308,7 +308,7 @@ function ScrollToTop() {
       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
       aria-label="Scroll to top"
       className="fixed bottom-6 right-5 z-50 w-11 h-11 rounded-2xl flex items-center justify-center text-lg shadow-xl transition-all hover:scale-110"
-      style={{ background: 'rgba(99,102,241,0.85)', backdropFilter: 'blur(12px)', border: '1px solid rgba(99,102,241,0.6)' }}
+      style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.9), rgba(139,92,246,0.9))', backdropFilter: 'blur(16px)', border: '1px solid rgba(167,139,250,0.6)', boxShadow: '0 0 20px rgba(99,102,241,0.5), 0 8px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.15)' }}
     >
       ↑
     </button>
@@ -419,13 +419,13 @@ function MainApp() {
       const rect = card.getBoundingClientRect()
       const x = ((e.clientX - rect.left) / rect.width - 0.5) * 2
       const y = ((e.clientY - rect.top) / rect.height - 0.5) * 2
-      card.style.transform = `perspective(900px) rotateY(${x * 4}deg) rotateX(${-y * 4}deg) translateY(-3px)`
-      card.style.transition = 'transform 0.08s linear'
+      card.style.transform = `perspective(600px) rotateY(${x * 8}deg) rotateX(${-y * 8}deg) translateY(-6px) scale(1.018)`
+      card.style.transition = 'transform 0.06s linear'
     }
     const onLeave = (e: MouseEvent) => {
       const card = (e.target as Element).closest(SELECTORS) as HTMLElement | null
       if (card) {
-        card.style.transition = 'transform 0.45s cubic-bezier(0.22,1,0.36,1), border-color 0.3s ease, box-shadow 0.3s ease'
+        card.style.transition = 'transform 0.5s cubic-bezier(0.22,1,0.36,1), border-color 0.4s ease, box-shadow 0.4s ease'
         card.style.transform = ''
       }
     }
@@ -465,7 +465,7 @@ function MainApp() {
         {activeTab === 'dashboard' && <SafeWrap label="Hero"><Hero onPremium={() => {}} onScrollToISS={scrollToISS} /></SafeWrap>}
 
         {/* Divider */}
-        <div className="divider-glow my-0" />
+        <div className="divider-3d my-0" />
 
         <div className="max-w-7xl mx-auto px-4 py-6 mb-2">
           <AdBanner />
@@ -483,8 +483,14 @@ function MainApp() {
               role="tablist"
               aria-label="Space sections"
               data-noswipe
-              className="flex gap-1.5 overflow-x-auto pb-2"
-              style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
+              className="flex gap-1.5 overflow-x-auto pb-2 px-2 pt-2 rounded-2xl"
+              style={{
+                scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch',
+                background: 'rgba(8,10,30,0.6)',
+                border: '1px solid rgba(99,102,241,0.10)',
+                backdropFilter: 'blur(16px)',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 4px 20px rgba(0,0,0,0.4)',
+              }}
             >
               {TAB_DEFS.map(tab => (
                 <button
@@ -511,8 +517,8 @@ function MainApp() {
             aria-labelledby={`tab-${activeTab}`}
             tabIndex={-1}
             key={activeTab}
-            className="animate-fade-up"
-            style={{ animationDuration: '0.4s' }}
+            className="animate-tab-enter"
+            style={{ animationDuration: '0.45s' }}
           >
 
             {activeTab === 'dashboard' && (
@@ -541,7 +547,7 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><MilkyWayMap /></Suspense>
                 <SafeWrap label="ARStarFinder"><Suspense fallback={<SkeletonCard />}><ARStarFinder /></Suspense></SafeWrap>
                 <Suspense fallback={<SkeletonCard />}><ConstellationGuide /></Suspense>
-                <div className="space-card p-6">
+                <div className="space-card holo-border p-6">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="icon-box text-xl">🛸</div>
                     <div>
@@ -567,7 +573,7 @@ function MainApp() {
 
             {activeTab === 'solar' && (
               <div className="space-y-5">
-                <div className="space-card p-6">
+                <div className="space-card holo-border sheen p-6">
                   <div className="flex items-center gap-3 mb-5">
                     <div className="icon-box">🪐</div>
                     <div>
@@ -815,7 +821,7 @@ function MainApp() {
           </div>
 
           <div className="mt-14 mb-4">
-            <div className="divider-glow mb-12" />
+            <div className="divider-3d mb-12" />
             <SafeWrap label="EmailCapture"><Suspense fallback={null}><EmailCapture /></Suspense></SafeWrap>
           </div>
         </main>
@@ -827,7 +833,7 @@ function MainApp() {
         {/* FOOTER */}
         <footer style={{ background: 'linear-gradient(180deg, transparent 0%, rgba(2,5,16,0.7) 20%, #020510 60%)', borderTop: '1px solid rgba(99,102,241,0.12)', position: 'relative' }}>
           {/* Footer aurora line */}
-          <div aria-hidden="true" style={{ position: 'absolute', top: -1, left: '10%', right: '10%', height: 1, background: 'linear-gradient(90deg, transparent, rgba(99,102,241,0.5), rgba(139,92,246,0.6), transparent)' }} />
+          <div aria-hidden="true" style={{ position: 'absolute', top: -1, left: '5%', right: '5%', height: 1, background: 'linear-gradient(90deg, transparent, rgba(99,102,241,0.6), rgba(167,139,250,0.9), rgba(139,92,246,0.6), transparent)', boxShadow: '0 0 16px rgba(139,92,246,0.4), 0 0 40px rgba(99,102,241,0.2)' }} />
 
           <div className="max-w-5xl mx-auto px-4 pt-16 md:py-16" style={{ paddingBottom: 'max(80px, calc(64px + env(safe-area-inset-bottom)))' }}>
 
@@ -836,10 +842,10 @@ function MainApp() {
               {/* Brand */}
               <div className="text-center md:text-left flex-shrink-0 max-w-xs">
                 <div className="flex items-center gap-3 justify-center md:justify-start mb-4">
-                  <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-600 to-purple-700 flex items-center justify-center text-xl shadow-lg shadow-indigo-900/60 animate-glow-pulse">
+                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl neon-card" style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed, #a855f7)', border: '1px solid rgba(167,139,250,0.5)', boxShadow: '0 0 20px rgba(99,102,241,0.5), inset 0 1px 0 rgba(255,255,255,0.2)' }}>
                     🚀
                   </div>
-                  <div className="font-black text-2xl text-white tracking-tight">Space<span className="gradient-text">Hub</span></div>
+                  <div className="font-black text-2xl tracking-tight chroma-text" style={{ color: '#fff' }}>Space<span className="gradient-text-aurora">Hub</span></div>
                 </div>
                 <p className="text-gray-500 text-sm leading-relaxed mb-4">
                   The world's most complete free space data platform.
@@ -862,7 +868,7 @@ function MainApp() {
               </div>
             </div>
 
-            <div className="divider-glow mb-8" />
+            <div className="divider-3d mb-8" />
 
             {/* Links */}
             <nav aria-label="Footer navigation" className="flex flex-wrap gap-x-6 gap-y-2 justify-center mb-6">
