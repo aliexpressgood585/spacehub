@@ -1,5 +1,5 @@
-const CACHE = 'spacehub-v10'
-const API_CACHE = 'spacehub-api-v5'
+const CACHE = 'spacehub-v11'
+const API_CACHE = 'spacehub-api-v6'
 
 // Allow page to force-activate this SW immediately
 self.addEventListener('message', e => {
@@ -64,14 +64,10 @@ self.addEventListener('fetch', e => {
     return
   }
 
-  // HTML pages — network first so new deployments are always picked up
+  // HTML pages — always network, never cache (prevents stale chunk hash errors after deploys)
   if (e.request.headers.get('accept')?.includes('text/html') || url.pathname === '/' || url.pathname.endsWith('.html')) {
     e.respondWith(
-      fetch(e.request).then(res => {
-        const clone = res.clone()
-        caches.open(CACHE).then(c => c.put(e.request, clone))
-        return res
-      }).catch(() => caches.match('/offline.html') || caches.match(e.request))
+      fetch(e.request).catch(() => caches.match('/offline.html'))
     )
     return
   }
