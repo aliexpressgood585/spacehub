@@ -66,6 +66,8 @@ export default function ISSTracker() {
     if (!containerRef.current) return
     let animId: number
     let rendererRef: THREE.WebGLRenderer | null = null
+    let onMouseUp: () => void = () => {}
+    let onMouseMove: (e: MouseEvent) => void = () => {}
 
     try {
     const W = containerRef.current.clientWidth
@@ -155,8 +157,8 @@ export default function ISSTracker() {
     let rotX = 0, rotY = 0
 
     const onMouseDown = (e: MouseEvent) => { isDragging = true; prevX = e.clientX; prevY = e.clientY }
-    const onMouseUp = () => { isDragging = false }
-    const onMouseMove = (e: MouseEvent) => {
+    onMouseUp = () => { isDragging = false }
+    onMouseMove = (e: MouseEvent) => {
       if (!isDragging) return
       rotY += (e.clientX - prevX) * 0.01
       rotX += (e.clientY - prevY) * 0.01
