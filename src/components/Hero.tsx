@@ -71,7 +71,7 @@ export default function Hero({ onScrollToISS }: Props) {
   }, [])
 
   return (
-    <div className="hero-bg relative overflow-hidden" style={{ minHeight: 520 }}>
+    <div className="hero-bg relative overflow-hidden" style={{ minHeight: 580 }}>
       {/* Aurora line */}
       <div aria-hidden="true" className="hero-aurora" />
       <div aria-hidden="true" className="hero-aurora-2" />
@@ -89,15 +89,28 @@ export default function Hero({ onScrollToISS }: Props) {
         style={{ opacity: 0.6 }}
       />
 
-      {/* Nebula orbs — stronger */}
-      <div aria-hidden="true" className="absolute -top-10 left-1/4 w-[500px] h-[500px] rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 65%)', filter: 'blur(80px)' }} />
-      <div aria-hidden="true" className="absolute bottom-0 right-1/4 w-96 h-96 rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.16) 0%, transparent 65%)', filter: 'blur(70px)' }} />
-      <div aria-hidden="true" className="absolute top-1/3 right-8 w-64 h-64 rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(56,189,248,0.1) 0%, transparent 65%)', filter: 'blur(55px)' }} />
-      <div aria-hidden="true" className="absolute top-10 left-10 w-48 h-48 rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(168,85,247,0.1) 0%, transparent 65%)', filter: 'blur(50px)' }} />
+      {/* Decorative orbit rings — purely visual */}
+      <div aria-hidden="true" className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ top: '-10%' }}>
+        <svg width="720" height="300" viewBox="0 0 720 300" style={{ opacity: 0.07 }}>
+          <ellipse cx="360" cy="150" rx="340" ry="110" fill="none" stroke="#a78bfa" strokeWidth="1" strokeDasharray="3 9" style={{ animation: 'orbit 60s linear infinite' }} />
+          <ellipse cx="360" cy="150" rx="240" ry="76" fill="none" stroke="#6366f1" strokeWidth="0.5" strokeDasharray="2 7" style={{ animation: 'orbit 40s linear infinite reverse' }} />
+        </svg>
+      </div>
+
+      {/* Nebula orbs — deep, multi-color */}
+      <div aria-hidden="true" className="absolute -top-20 left-1/4 w-[600px] h-[600px] rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.22) 0%, transparent 65%)', filter: 'blur(90px)', animation: 'nebula-drift 20s ease-in-out infinite' }} />
+      <div aria-hidden="true" className="absolute bottom-0 right-1/4 w-[420px] h-[420px] rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.20) 0%, transparent 65%)', filter: 'blur(75px)', animation: 'nebula-drift 25s ease-in-out infinite reverse' }} />
+      <div aria-hidden="true" className="absolute top-1/3 right-4 w-72 h-72 rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(56,189,248,0.15) 0%, transparent 65%)', filter: 'blur(60px)' }} />
+      <div aria-hidden="true" className="absolute top-10 left-8 w-56 h-56 rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(168,85,247,0.14) 0%, transparent 65%)', filter: 'blur(55px)' }} />
+      {/* New: pink + cyan accents */}
+      <div aria-hidden="true" className="absolute bottom-10 left-10 w-64 h-64 rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(244,114,182,0.12) 0%, transparent 65%)', filter: 'blur(65px)', animation: 'nebula-drift 30s ease-in-out infinite' }} />
+      <div aria-hidden="true" className="absolute top-5 right-1/3 w-48 h-48 rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(34,211,238,0.10) 0%, transparent 65%)', filter: 'blur(50px)' }} />
 
       <div className="max-w-5xl mx-auto px-4 pt-20 pb-16 text-center relative" style={{ zIndex: 1 }}>
         <div className="inline-flex items-center gap-3 mb-8" style={{ animation: 'word-up 0.5s ease forwards' }}>
@@ -107,14 +120,23 @@ export default function Hero({ onScrollToISS }: Props) {
           </div>
         </div>
 
-        <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white mb-6 leading-[1.05] tracking-tight">
-          <span className="word-anim word-anim-1">{t('hero.title1')}</span>{' '}
-          <span className="gradient-text word-anim word-anim-2">{t('hero.title2')}</span><br />
-          <span className="word-anim word-anim-3" style={{ color: 'rgba(255,255,255,0.45)' }}>{t('hero.title3')}</span>
+        <h1
+          className="text-5xl sm:text-6xl lg:text-7xl font-black mb-6 leading-[1.08]"
+          style={{ fontFamily: "'Orbitron', 'Space Grotesk', sans-serif", letterSpacing: '-0.01em' }}
+        >
+          <span className="word-anim word-anim-1 text-white">{t('hero.title1')}</span>{' '}
+          <span className="gradient-text-aurora word-anim word-anim-2">{t('hero.title2')}</span><br />
+          <span
+            className="word-anim word-anim-3"
+            style={{ color: 'rgba(255,255,255,0.65)', fontWeight: 700, filter: 'drop-shadow(0 0 12px rgba(99,102,241,0.3))' }}
+          >{t('hero.title3')}</span>
         </h1>
 
+        {/* Glow line under title */}
+        <div aria-hidden="true" className="mx-auto mb-8" style={{ width: 180, height: 1, background: 'linear-gradient(90deg, transparent, rgba(167,139,250,0.8), transparent)', boxShadow: '0 0 12px rgba(139,92,246,0.5)', animation: 'hero-glow-sweep 4s ease-in-out infinite', borderRadius: 999 }} />
+
         <p className="text-base sm:text-lg text-gray-400 mb-10 max-w-xl mx-auto leading-relaxed"
-          style={{ animation: 'word-up 0.7s 0.4s cubic-bezier(0.22,1,0.36,1) both' }}>
+          style={{ animation: 'word-up 0.7s 0.4s cubic-bezier(0.22,1,0.36,1) both', textShadow: '0 2px 12px rgba(0,0,0,0.5)' }}>
           {t('hero.subtitle')}
         </p>
 
@@ -146,9 +168,9 @@ export default function Hero({ onScrollToISS }: Props) {
               { n: '24/7',                                          tKey: 'hero.stat.tracking',   icon: '📡' },
             ]
           })().map(s => (
-            <div key={s.tKey} className="stat-card group">
-              <div className="text-xl mb-1.5 transition-transform duration-300 group-hover:scale-110">{s.icon}</div>
-              <p key={s.n} className="text-2xl sm:text-3xl font-black gradient-text mb-1 count-reveal">{s.n}</p>
+            <div key={s.tKey} className="stat-card group elevation-2">
+              <div className="text-2xl mb-2 transition-transform duration-300 group-hover:scale-115 group-hover:drop-shadow-lg">{s.icon}</div>
+              <p key={s.n} className="text-2xl sm:text-3xl font-black gradient-text-aurora mb-1 count-reveal">{s.n}</p>
               <p className="text-xs text-gray-500 leading-tight tracking-wide">{t(s.tKey)}</p>
             </div>
           ))}
