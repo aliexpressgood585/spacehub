@@ -78,7 +78,7 @@ export default function LaunchCountdown() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('https://ll.thespacedevs.com/2.2.0/launch/upcoming/?limit=5&format=json')
+    fetch('/api/launches')
       .then(r => { if (!r.ok) throw new Error(''); return r.json() })
       .then((data: { results: { name: string; net: string; rocket: { configuration: { name: string } }; launch_service_provider: { name: string }; pad: { location: { name: string; country_code: string } }; status: { name: string } }[] }) => {
         const mapped: Launch[] = data.results.map(r => ({
