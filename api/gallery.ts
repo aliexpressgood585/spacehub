@@ -12,7 +12,7 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
   try {
     const r = await fetch(
       `https://images-api.nasa.gov/search?q=${encodeURIComponent(q)}&media_type=image&page_size=20`,
-      { headers: { 'Accept': 'application/json' } }
+      { headers: { 'Accept': 'application/json' }, signal: AbortSignal.timeout(7000) }
     )
     if (!r.ok) throw new Error(`NASA search ${r.status}`)
     const json = await r.json() as { collection: { items: NasaItem[] } }
@@ -31,7 +31,8 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
 
     res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400')
     res.json(photos)
-  } catch (err: unknown) {
-    res.status(502).json({ error: err instanceof Error ? err.message : 'error' })
+  } catch {
+    res.setHeader('Cache-Control', 'no-store')
+    res.status(200).json([])
   }
 }
