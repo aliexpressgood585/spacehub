@@ -51,30 +51,21 @@ export default function NasaAPOD() {
   const fallback = useMemo(() => CURATED[Math.floor(Date.now() / 86400000) % CURATED.length], [])
 
   useEffect(() => {
-    const parseApods = (data: unknown) => {
-      const arr: APODData[] = Array.isArray(data) ? data : [data as APODData]
-      return arr.filter(d => d.url && d.media_type === 'image').reverse()
+    const parseApods = (data: unknown): APODData[] => {
+      if (!data || typeof data !== 'object' || 'error' in data) return []
+      const arr = Array.isArray(data) ? data : [data as APODData]
+      return (arr as APODData[]).filter(d => d.url && d.media_type === 'image').reverse()
     }
 
     fetch('/api/apod?count=7')
-      .then(r => { if (!r.ok) throw new Error(''); return r.json() })
+      .then(r => r.json())
       .then(data => {
         const images = parseApods(data)
         if (images.length === 0) throw new Error('')
         setApods(images)
         setLoading(false)
       })
-      .catch(() =>
-        fetch('https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY&count=7')
-          .then(r => { if (!r.ok) throw new Error(''); return r.json() })
-          .then(data => {
-            const images = parseApods(data)
-            if (images.length === 0) throw new Error('')
-            setApods(images)
-            setLoading(false)
-          })
-          .catch(() => { setError(true); setLoading(false) })
-      )
+      .catch(() => { setError(true); setLoading(false) })
   }, [])
 
   if (loading) return (
