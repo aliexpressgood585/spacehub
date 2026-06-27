@@ -3,7 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 export default async function handler(_req: VercelRequest, res: VercelResponse) {
   try {
     const [posRes, tleRes] = await Promise.all([
-      fetch('http://api.open-notify.org/iss-now.json', { signal: AbortSignal.timeout(8000) }),
+      fetch('https://api.open-notify.org/iss-now.json', { signal: AbortSignal.timeout(8000) }),
       fetch('https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE', { signal: AbortSignal.timeout(8000) }),
     ])
 
