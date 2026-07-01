@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { rateLimit } from './_rateLimit'
+import { rateLimit } from './_rateLimit.js'
 
 const RESEND_KEY = process.env.RESEND_API_KEY!
 const AUDIENCE_ID = process.env.RESEND_AUDIENCE_ID!

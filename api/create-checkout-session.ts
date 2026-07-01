@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import Stripe from 'stripe'
-import { rateLimit } from './_rateLimit'
+import { rateLimit } from './_rateLimit.js'
 
 // Price IDs — user sets these in Vercel env vars
 const PRICES = {

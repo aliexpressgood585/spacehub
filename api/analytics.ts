@@ -1,5 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { SUPABASE_URL, SUPABASE_ANON_KEY, analyticsConfigured } from './_analyticsConfig'
+
+// Supabase project used only for the private visit-analytics dashboard.
+// The publishable key is safe to ship: RLS allows insert-only on
+// page_views, and reads go through an RPC that requires the dashboard key.
+const SUPABASE_URL = process.env.ANALYTICS_SUPABASE_URL || 'https://sxlofntrumabnbxrjzsw.supabase.co'
+const SUPABASE_ANON_KEY = process.env.ANALYTICS_SUPABASE_ANON_KEY || 'sb_publishable_SdTxyYa4Pt0SHP2cbeu40Q_6fApVE06'
+const analyticsConfigured = () => SUPABASE_URL.startsWith('https://')
 
 const BOT_RE = /bot|crawl|spider|slurp|bingpreview|facebookexternalhit|whatsapp|telegram|preview|lighthouse|pingdom|uptime/i
 
