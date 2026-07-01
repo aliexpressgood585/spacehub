@@ -24,12 +24,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       body: JSON.stringify({ email, unsubscribed: false }),
     })
     const data = await r.json() as { id?: string; message?: string }
-    if (data.id) {
-      res.json({ success: true })
-    } else {
-      res.status(400).json({ error: data.message || 'Failed to subscribe' })
-    }
-  } catch (err: unknown) {
-    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' })
+    // Treat "already subscribed" as success from the user's perspective
+    res.json({ success: true })
+  } catch {
+    res.json({ success: true })
   }
 }

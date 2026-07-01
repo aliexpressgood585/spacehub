@@ -208,11 +208,11 @@ export default function Header({ onPremium }: Props) {
             <button
               onClick={handleInstall}
               aria-label="Install SpaceHub app"
-              className="hidden sm:flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-bold transition-all"
+              className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-bold transition-all"
               style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.4)', color: '#34d399' }}
             >
               <span>📲</span>
-              <span>Install App</span>
+              <span className="hidden sm:inline">Install App</span>
             </button>
           )}
 

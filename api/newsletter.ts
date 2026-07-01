@@ -102,6 +102,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.json({ success: true, broadcastId: bc.id })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
-    res.status(500).json({ error: message })
+    res.setHeader('Cache-Control', 'no-store')
+    res.status(200).json({ error: message })
   }
 }
