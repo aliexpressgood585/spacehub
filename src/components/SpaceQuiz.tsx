@@ -143,7 +143,7 @@ export default function SpaceQuiz() {
           🔄 Try Again
         </button>
         <a
-          href={`https://wa.me/?text=${encodeURIComponent(`I scored ${score}/${QUESTIONS.length} (${pct}%) on the SpaceHub Space Quiz! 🚀 https://spacehubapp.com`)}`}
+          href={`https://wa.me/?text=${encodeURIComponent(`I scored ${score}/${QUESTIONS.length} (${pct}%) on the SpaceHub Space Quiz! 🚀 https://www.spacehubapp.com`)}`}
           target="_blank" rel="noopener noreferrer"
           className="btn-ghost px-7 py-3 text-sm"
         >

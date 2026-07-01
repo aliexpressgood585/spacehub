@@ -295,9 +295,9 @@ export default function ISSPassPredictor() {
 
   const shareNextPass = () => {
     if (!nextPass || !loc) return
-    const text = `🚀 The ISS will fly over ${loc.city} on ${formatDate(nextPass.start)} at ${formatTime(nextPass.start)} — ${Math.round(nextPass.maxEl)}° max elevation! Track it live: https://spacehubapp.com`
+    const text = `🚀 The ISS will fly over ${loc.city} on ${formatDate(nextPass.start)} at ${formatTime(nextPass.start)} — ${Math.round(nextPass.maxEl)}° max elevation! Track it live: https://www.spacehubapp.com`
     if (navigator.share) {
-      navigator.share({ title: 'ISS Pass Alert', text, url: 'https://spacehubapp.com' })
+      navigator.share({ title: 'ISS Pass Alert', text, url: 'https://www.spacehubapp.com' })
     } else {
       navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
     }

@@ -100,17 +100,17 @@ export default function ShareCard({ issLat, issLng, issAlt, city }: Props) {
   }, [issLat, issLng, issAlt, city])
 
   const shareWA = useCallback(() => {
-    const text = `🛸 ISS is now at ${issLat?.toFixed(1)}°N, ${issLng?.toFixed(1)}°E at altitude ${issAlt?.toFixed(0)} km!\nTrack live: https://spacehubapp.com`
+    const text = `🛸 ISS is now at ${issLat?.toFixed(1)}°N, ${issLng?.toFixed(1)}°E at altitude ${issAlt?.toFixed(0)} km!\nTrack live: https://www.spacehubapp.com`
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
   }, [issLat, issLng, issAlt])
 
   const shareX = useCallback(() => {
     const text = `🛸 ISS is now at ${issLat?.toFixed(1)}°N, ${issLng?.toFixed(1)}°E — altitude ${issAlt?.toFixed(0)} km! Track live:`
-    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent('https://spacehubapp.com')}`, '_blank')
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent('https://www.spacehubapp.com')}`, '_blank')
   }, [issLat, issLng, issAlt])
 
   const copyLink = useCallback(() => {
-    navigator.clipboard.writeText('https://spacehubapp.com').then(() => {
+    navigator.clipboard.writeText('https://www.spacehubapp.com').then(() => {
       setCopied(true); setTimeout(() => setCopied(false), 2000)
     })
   }, [])
@@ -119,7 +119,7 @@ export default function ShareCard({ issLat, issLng, issAlt, city }: Props) {
     const text = `🛸 ISS is now at ${issLat?.toFixed(1)}°, ${issLng?.toFixed(1)}° — altitude ${issAlt?.toFixed(0)} km!\nTrack live:`
     if (navigator.share) {
       try {
-        await navigator.share({ title: 'SpaceHub — ISS Live', text, url: 'https://spacehubapp.com' })
+        await navigator.share({ title: 'SpaceHub — ISS Live', text, url: 'https://www.spacehubapp.com' })
       } catch { /* user cancelled */ }
     } else {
       copyLink()

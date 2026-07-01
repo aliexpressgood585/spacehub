@@ -26,8 +26,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     mode: 'subscription',
     payment_method_types: ['card'],
     line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${process.env.APP_URL || 'https://spacehubapp.com'}/success`,
-    cancel_url: `${process.env.APP_URL || 'https://spacehubapp.com'}/premium`,
+    success_url: `${process.env.APP_URL || 'https://www.spacehubapp.com'}/success`,
+    cancel_url: `${process.env.APP_URL || 'https://www.spacehubapp.com'}/premium`,
   })
   res.json({ url: session.url })
 }

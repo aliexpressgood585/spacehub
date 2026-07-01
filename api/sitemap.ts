@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
-const BASE = 'https://spacehubapp.com'
+const BASE = 'https://www.spacehubapp.com'
 
 const CITIES = [
   'new-york', 'london', 'los-angeles', 'paris', 'tokyo', 'sydney', 'toronto',

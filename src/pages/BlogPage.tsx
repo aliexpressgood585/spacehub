@@ -2072,7 +2072,7 @@ export const BLOG_IMAGES: Record<string, string> = {
 
 export function ArticleView({ article, onBack }: { article: typeof ARTICLES[0]; onBack: () => void }) {
   const [copied, setCopied] = useState(false)
-  const articleUrl = `https://spacehubapp.com/blog/${article.slug}`
+  const articleUrl = `https://www.spacehubapp.com/blog/${article.slug}`
 
   useEffect(() => {
     const prev = document.title

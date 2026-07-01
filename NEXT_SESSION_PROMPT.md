@@ -7,7 +7,7 @@ Copy everything below this line into a new Claude Code session.
 ## Project Overview
 
 **SpaceHub** is a React 19 + TypeScript + Vite space-exploration web app deployed on Vercel.
-- **Live URL:** https://spacehubapp.com/
+- **Live URL:** https://www.spacehubapp.com/
 - **GitHub:** `aliexpressgood585/spacehub`, branch: `main`
 - **Stack:** React 19, TypeScript, Vite, Tailwind CSS v4, React Router v7
 - **Backend:** Vercel serverless functions in `api/*.ts` (compiled by esbuild via `@vercel/node`, NOT by tsc)
@@ -65,7 +65,7 @@ All serverless functions must:
 ## Current State (as of 2026-06-30)
 
 ### What is working
-- Site deploys and loads: https://spacehubapp.com/ → 200 OK
+- Site deploys and loads: https://www.spacehubapp.com/ → 200 OK
 - `/api/neo` → returns real asteroid data ✓
 - `/api/gallery` → returns 12 NASA images ✓
 - `/api/iss` → upstream (open-notify.org) intermittently down; component shows fallback ✓

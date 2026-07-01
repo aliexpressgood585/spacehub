@@ -53,7 +53,7 @@ function buildHtml(apod: { title: string; explanation: string; url: string } | n
     </div>
 
     <div style="text-align:center;margin-bottom:24px">
-      <a href="https://spacehubapp.com" style="display:inline-block;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;text-decoration:none;padding:14px 32px;border-radius:12px;font-weight:700;font-size:14px">
+      <a href="https://www.spacehubapp.com" style="display:inline-block;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;text-decoration:none;padding:14px 32px;border-radius:12px;font-weight:700;font-size:14px">
         🚀 Open SpaceHub →
       </a>
     </div>
