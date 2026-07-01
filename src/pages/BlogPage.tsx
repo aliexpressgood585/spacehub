@@ -2070,7 +2070,7 @@ export const BLOG_IMAGES: Record<string, string> = {
   'how-to-observe-sun-safely-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg/800px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg',
 }
 
-export function ArticleView({ article, onBack }: { article: typeof ARTICLES[0]; onBack: () => void }) {
+export function ArticleView({ article, onBack, onSelect }: { article: typeof ARTICLES[0]; onBack: () => void; onSelect?: (slug: string) => void }) {
   const [copied, setCopied] = useState(false)
   const articleUrl = `https://spacehub-nu.vercel.app/blog/${article.slug}`
 
@@ -2228,6 +2228,38 @@ export function ArticleView({ article, onBack }: { article: typeof ARTICLES[0]; 
             </div>
           </div>
 
+          {/* Related Articles */}
+          {(() => {
+            const words = new Set(article.slug.split('-').filter(w => w.length > 3))
+            const related = ARTICLES
+              .filter(a => a.slug !== article.slug)
+              .map(a => ({ ...a, score: a.slug.split('-').filter(w => words.has(w)).length }))
+              .sort((a, b) => b.score - a.score)
+              .slice(0, 3)
+            if (!related.length) return null
+            return (
+              <div className="mt-8 mb-2">
+                <h3 className="text-white font-bold text-sm mb-4 flex items-center gap-2">
+                  <span style={{ width: 3, height: 14, background: 'linear-gradient(180deg,#6366f1,#8b5cf6)', borderRadius: 2, display: 'inline-block' }} />
+                  Related Articles
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {related.map(a => (
+                    <button
+                      key={a.slug}
+                      onClick={() => onSelect ? onSelect(a.slug) : onBack()}
+                      className="blog-card text-left p-4 group"
+                    >
+                      <div className="text-xl mb-2">{a.icon}</div>
+                      <h4 className="text-white text-xs font-bold leading-snug group-hover:text-indigo-200 transition-colors line-clamp-3 mb-1">{a.title}</h4>
+                      <p className="text-gray-600 text-[11px]">{a.readTime}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
+
           <AdBanner style={{ marginTop: 32, marginBottom: 4 }} />
           <div className="divider-glow mt-6 mb-5" />
           <div className="flex flex-wrap items-center gap-2 justify-between">
@@ -2278,7 +2310,7 @@ export default function BlogPage() {
       )
     : ARTICLES
 
-  if (article) return <ArticleView article={article} onBack={() => setActive(null)} />
+  if (article) return <ArticleView article={article} onBack={() => setActive(null)} onSelect={setActive} />
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-12">
