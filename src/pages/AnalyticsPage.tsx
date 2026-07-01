@@ -111,7 +111,7 @@ export default function AnalyticsPage() {
     if (!k) return
     setLoading(true); setError('')
     try {
-      const r = await fetch(`/api/stats?key=${encodeURIComponent(k)}&days=${d}`)
+      const r = await fetch(`/api/analytics?key=${encodeURIComponent(k)}&days=${d}`)
       if (r.status === 401) { setError('מפתח שגוי'); localStorage.removeItem('spacehub_dash_key'); setKey(''); return }
       if (r.status === 503) { setError('המערכת עוד לא חוברה לבסיס הנתונים'); return }
       if (!r.ok) { setError('שגיאה בטעינת נתונים'); return }

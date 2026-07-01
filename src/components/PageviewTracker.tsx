@@ -15,9 +15,9 @@ export default function PageviewTracker() {
     const payload = JSON.stringify({ path: pathname, ref: isFirst ? document.referrer : '' })
     try {
       if (navigator.sendBeacon) {
-        navigator.sendBeacon('/api/track', new Blob([payload], { type: 'application/json' }))
+        navigator.sendBeacon('/api/analytics', new Blob([payload], { type: 'application/json' }))
       } else {
-        fetch('/api/track', { method: 'POST', body: payload, keepalive: true, headers: { 'Content-Type': 'application/json' } }).catch(() => {})
+        fetch('/api/analytics', { method: 'POST', body: payload, keepalive: true, headers: { 'Content-Type': 'application/json' } }).catch(() => {})
       }
     } catch { /* tracking must never break the app */ }
   }, [pathname])
