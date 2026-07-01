@@ -207,6 +207,8 @@ import CursorGlow from './components/CursorGlow'
 import Reveal from './components/Reveal'
 import NotificationBanner from './components/NotificationBanner'
 import MobileNav from './components/MobileNav'
+import PageviewTracker from './components/PageviewTracker'
+const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'))
 import { ISSProvider, useISS } from './contexts/ISSContext'
 import BlogPage from './pages/BlogPage'
 import BlogArticlePage from './pages/BlogArticlePage'
@@ -1003,6 +1005,7 @@ export default function App() {
   return (
     <LangProvider>
       <BrowserRouter>
+        <PageviewTracker />
         <ISSProvider>
         <Routes>
           <Route path="/" element={<SafeWrap root label="MainApp"><MainApp /></SafeWrap>} />
@@ -1021,6 +1024,7 @@ export default function App() {
           <Route path="/iss/:city" element={<CityPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/success" element={<SuccessPage />} />
+          <Route path="/analytics" element={<Suspense fallback={null}><AnalyticsPage /></Suspense>} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
         </ISSProvider>
