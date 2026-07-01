@@ -2031,6 +2031,839 @@ With H-alpha: prominences looping off the limb, filaments on the disk, bright fl
 
 Solar activity follows an 11-year cycle — we're currently in Solar Cycle 25, near maximum in 2025–2026, making this one of the best times in a decade to observe the Sun.`
   },
+  {
+    slug: 'meteor-shower-calendar-2026',
+    title: 'Meteor Shower Calendar 2026 — Every Major Shower, Dates & Peak Times',
+    date: 'June 25, 2026',
+    readTime: '5 min read',
+    icon: '🌠',
+    preview: 'Every major meteor shower of 2026 in one calendar — peak nights, expected rates, Moon conditions, and exactly where to look. Bookmark this page.',
+    content: `Meteor showers are the most democratic events in astronomy — no telescope, no experience, no equipment needed. Just a dark sky and patience. Here is every major shower of 2026, ranked by how good it will actually be.
+
+**Quadrantids — January 3-4**
+Rate: up to 110/hour. Sharp 6-hour peak. Radiant: northern sky near Boötes. Best for: Northern Hemisphere, after midnight.
+
+**Lyrids — April 21-22**
+Rate: 18/hour. Reliable spring shower with occasional bright fireballs. Radiant: near Vega.
+
+**Eta Aquariids — May 5-6**
+Rate: 50/hour in the south, 20/hour in the north. Debris from Halley's Comet. Best before dawn.
+
+**Perseids — August 12-13**
+Rate: 100/hour. The most popular shower of the year — warm nights, bright fast meteors, frequent fireballs. In 2026 the Moon is new — perfect conditions. Do not miss this one.
+
+**Orionids — October 21-22**
+Rate: 20/hour. Halley's Comet debris again, fast meteors with persistent trains.
+
+**Leonids — November 17-18**
+Rate: 15/hour normally, but the Leonids have produced meteor storms of thousands per hour in the past.
+
+**Geminids — December 13-14**
+Rate: 150/hour. The strongest shower of the year, period. Slow, bright, multicolored meteors from asteroid 3200 Phaethon. Cold but absolutely worth it.
+
+**Ursids — December 22-23**
+Rate: 10/hour. Quiet closer to the year, radiant near the Little Dipper.
+
+**How to Watch Any Meteor Shower**
+
+1. Go out after midnight (Earth rotates into the debris stream)
+2. Get away from city lights — every level of darkness doubles your count
+3. Let your eyes adapt for 20-30 minutes — no phone screens
+4. Look 45° away from the radiant, not directly at it
+5. Bring comfort: you will be looking up for an hour or more
+
+**Recommended Comfort Gear**
+
+[🛒 Zero Gravity Reclining Chair — The Meteor Watcher's Best Friend](https://www.amazon.com/s?k=zero+gravity+reclining+chair+outdoor)
+
+[🛒 Sleeping Bag Rated for Cold Nights](https://www.amazon.com/s?k=cold+weather+sleeping+bag)
+
+[🛒 Insulated Thermos for Hot Drinks](https://www.amazon.com/s?k=insulated+thermos+stainless)
+
+[🛒 Red LED Headlamp — Preserve Your Night Vision](https://www.amazon.com/s?k=red+led+headlamp+astronomy)
+
+Use SpaceHub's Star Map to find each radiant, and check the space weather module for aurora bonuses during shower nights.
+
+Clear skies! 🌠`
+  },
+  {
+    slug: 'geminid-meteor-shower-2026',
+    title: 'Geminid Meteor Shower 2026 — The Year\'s Strongest Shower Explained',
+    date: 'June 25, 2026',
+    readTime: '4 min read',
+    icon: '💫',
+    preview: 'The Geminids deliver up to 150 meteors per hour — more than any other shower. Here is exactly how to watch the December 13-14 peak.',
+    content: `The Geminids are the king of meteor showers. While the Perseids get the fame (warm August nights), the Geminids consistently deliver more meteors, brighter meteors, and more color — up to 150 per hour under dark skies.
+
+**What Makes the Geminids Special**
+
+Most showers come from comets. The Geminids come from 3200 Phaethon, a rocky asteroid — which makes Geminid meteors denser, slower (35 km/s vs 59 km/s for Perseids), and brighter. They often glow yellow, green, or blue.
+
+**2026 Peak: Night of December 13-14**
+
+- Radiant: constellation Gemini, near the bright star Castor
+- Rising around 8 PM, highest at 2 AM local time
+- Unlike most showers, Geminids are good BEFORE midnight too
+- Expected rate: 120-150/hour under dark skies, 30-60/hour in suburbs
+
+**Hour-by-Hour Plan**
+
+- **8-10 PM:** Radiant is low — fewer meteors but long "earthgrazers" that streak across the whole sky
+- **10 PM-1 AM:** Rates climb steadily
+- **1-3 AM:** Peak rates — this is the prime window
+- **3 AM-dawn:** Still strong if you can stay awake
+
+**December Cold: Gear Up or Give Up**
+
+The number one reason people quit a Geminid watch early is cold, not clouds:
+
+[🛒 Insulated Winter Sleeping Bag — Watch From Inside It](https://www.amazon.com/s?k=winter+sleeping+bag+-20)
+
+[🛒 Hand Warmers 40-Pack](https://www.amazon.com/s?k=hand+warmers+bulk+pack)
+
+[🛒 Thermal Base Layer Set](https://www.amazon.com/s?k=thermal+base+layer+set)
+
+[🛒 Reclining Camp Chair — Zero Neck Strain](https://www.amazon.com/s?k=reclining+camp+chair+padded)
+
+**Photography Quick Settings**
+
+Wide lens (14-24mm), ISO 3200, f/2.8, 15-second exposures, continuous shooting all night. Point the camera 45° from Gemini and let it run — you'll catch dozens.
+
+Set a SpaceHub reminder for December 13. The Geminids reward everyone who shows up.
+
+Clear skies! 💫`
+  },
+  {
+    slug: 'best-smart-telescopes-2026',
+    title: 'Best Smart Telescopes 2026 — Seestar, Dwarf & Vespera Compared',
+    date: 'June 26, 2026',
+    readTime: '5 min read',
+    icon: '🤖',
+    preview: 'Smart telescopes find, track, and photograph deep-sky objects automatically from your phone. Here are the best models of 2026 compared honestly.',
+    content: `Smart telescopes are the biggest revolution in amateur astronomy in decades. No polar alignment, no eyepieces, no experience needed — tap a galaxy on your phone and the telescope finds it, tracks it, and stacks a live image that improves minute by minute.
+
+**How Smart Telescopes Work**
+
+They combine a small apochromatic lens or mirror, a tracking mount, a cooled camera sensor, and plate-solving software. Instead of looking through an eyepiece, you watch the image build up on your phone — and the results beat what visual observers see in telescopes five times the size.
+
+**ZWO Seestar S50 — Best Value**
+
+The telescope that broke the market. Full go-to, live stacking, solar/lunar/deep-sky modes.
+- Aperture: 50mm apo triplet
+- Weight: 3kg — fits in a backpack
+- Battery: 6 hours
+
+[🛒 ZWO Seestar S50 Smart Telescope](https://www.amazon.com/s?k=ZWO+Seestar+S50+smart+telescope)
+
+**Dwarf 3 — Most Portable**
+
+Smaller than a shoebox, does wide-field deep sky AND daytime wildlife photography. Two lenses (wide + tele).
+
+[🛒 Dwarf 3 Smart Telescope](https://www.amazon.com/s?k=Dwarf+3+smart+telescope)
+
+**Vaonis Vespera II — Best Design**
+
+French-made, beautiful, higher resolution sensor and mosaic mode for large targets like Andromeda.
+
+[🛒 Vaonis Vespera II Observation Station](https://www.amazon.com/s?k=Vaonis+Vespera+II+smart+telescope)
+
+**Celestron Origin — Premium Pick**
+
+6-inch RASA optics — gathers far more light than any other smart scope. For serious users with a serious budget.
+
+[🛒 Celestron Origin Intelligent Home Observatory](https://www.amazon.com/s?k=Celestron+Origin+smart+telescope)
+
+**Smart vs Traditional Telescope — Which Should You Buy?**
+
+Choose a smart telescope if: you want deep-sky images, you live in a city (they cut through light pollution with stacking), or you value setup time under 2 minutes.
+
+Choose a traditional telescope if: you want to see planets in real time (smart scopes are weak on planets), you love the craft of manual observing, or budget is under $400.
+
+**Accessories Worth Adding**
+
+[🛒 Light Pollution Filter for Seestar](https://www.amazon.com/s?k=Seestar+S50+light+pollution+filter)
+
+[🛒 Rugged Carry Case](https://www.amazon.com/s?k=smart+telescope+carry+case)
+
+Pair any smart telescope with SpaceHub's Star Map to plan targets before you shoot.
+
+Clear skies! 🤖`
+  },
+  {
+    slug: 'mars-viewing-guide-2026',
+    title: 'Mars Viewing Guide 2026 — When and How to See the Red Planet',
+    date: 'June 26, 2026',
+    readTime: '4 min read',
+    icon: '🔴',
+    preview: 'Mars is the most rewarding and most frustrating planet to observe. Here is when Mars is worth watching in 2026 and what you can realistically see.',
+    content: `Mars is unique: the only planet whose surface we can see from Earth. Polar ice caps, dark surface markings, dust storms, clouds — all visible in amateur telescopes. But timing is everything.
+
+**Why Timing Matters More for Mars Than Any Planet**
+
+Mars is small — half Earth's diameter. Most of the time it appears as a tiny featureless dot. But every 26 months, Earth catches up to Mars at "opposition," and its apparent size triples. The weeks around opposition are when Mars observing happens.
+
+**Mars in 2026**
+
+After the February 2027 opposition approach begins, Mars spends 2026 slowly brightening in the morning sky. By late 2026, Mars rises before midnight and grows from 6 to 12 arcseconds — already enough to see the polar cap and major dark features in a 6-inch telescope on steady nights.
+
+**What You Can See, By Telescope Size**
+
+- **60-80mm refractor:** Orange disk, polar ice cap at high power
+- **6-inch reflector:** Syrtis Major (the dark "shark fin"), polar cap, seasonal changes
+- **8-10 inch:** Multiple dark features, clouds at the limb, dust storm alerts
+- **Any size:** Mars's color — no other object is that shade of rust-orange
+
+**Recommended Equipment**
+
+[🛒 Sky-Watcher 8" Dobsonian — Ideal Mars Telescope](https://www.amazon.com/s?k=Sky-Watcher+8+inch+Dobsonian)
+
+[🛒 6mm Planetary Eyepiece for High Magnification](https://www.amazon.com/s?k=6mm+planetary+eyepiece+telescope)
+
+[🛒 2x Barlow Lens — Double Your Power on Steady Nights](https://www.amazon.com/s?k=2x+barlow+lens+telescope)
+
+[🛒 Mars Color Filter Set (Orange + Red) — Boost Surface Contrast](https://www.amazon.com/s?k=telescope+color+filter+set+planetary)
+
+**Observing Tips**
+
+1. Wait for Mars to rise at least 30° above the horizon
+2. Use high magnification: 150-250x on steady nights
+3. Observe repeatedly — Mars rotates in 24h 37m, so you see a different face each night at the same hour
+4. An orange filter darkens the sky and sharpens dark features
+
+Track Mars's current position and rise times with SpaceHub's Star Map, and set a reminder for the 2027 opposition — the best Mars views until 2029.
+
+Clear skies! 🔴`
+  },
+  {
+    slug: 'comet-viewing-guide-2026',
+    title: 'How to See Comets in 2026 — Finding and Observing Guide',
+    date: 'June 27, 2026',
+    readTime: '4 min read',
+    icon: '☄️',
+    preview: 'A bright comet is the most dramatic thing in the night sky. Learn how comets work, how to find them, and how to observe the next great one.',
+    content: `Nothing in astronomy creates excitement like a bright comet. These ancient icy visitors from the outer solar system can grow tails millions of kilometers long — and every year, several comets come within reach of binoculars.
+
+**What Is a Comet, Really?**
+
+A comet is a "dirty snowball" of ice, dust, and rock, usually a few kilometers across. When it approaches the Sun, the ice sublimates, releasing gas and dust that form the coma (the fuzzy head) and the tail — which always points away from the Sun, regardless of travel direction.
+
+**How Comet Brightness Works**
+
+Comet brightness is notoriously unpredictable. Astronomers rate comets by magnitude:
+- **Magnitude 6 or brighter:** visible in binoculars
+- **Magnitude 4:** visible to the naked eye from dark skies
+- **Magnitude 1 or brighter:** a "Great Comet" — visible even from cities
+
+Several comets each year reach binocular range. Great Comets appear roughly once a decade — and they are usually discovered only months in advance, so staying informed matters.
+
+**How to Find a Comet**
+
+1. Check SpaceHub's news feed — new bright comets make headlines fast
+2. Find the comet's position for tonight (it moves night to night against the stars)
+3. Scan with binoculars first — look for a fuzzy "star" that won't focus
+4. Once found, try a telescope at low power
+
+**Best Equipment for Comet Hunting**
+
+Binoculars beat telescopes for most comets — comets are big and diffuse, and wide fields show the full tail:
+
+[🛒 Celestron SkyMaster 15x70 — Classic Comet Binoculars](https://www.amazon.com/s?k=Celestron+SkyMaster+15x70+binoculars)
+
+[🛒 Binocular Tripod Adapter — Essential for 15x70s](https://www.amazon.com/s?k=binocular+tripod+adapter)
+
+[🛒 Wide-Field 2" 32mm Eyepiece for Telescope Comet Views](https://www.amazon.com/s?k=32mm+2+inch+wide+field+eyepiece)
+
+**Photographing a Comet**
+
+A camera on a tripod captures more than your eye: 135mm lens, ISO 1600, f/2.8, 8-second exposures. Stack 50 frames and the tail structure appears.
+
+[🛒 135mm f/2 Lens — The Comet Photographer's Favorite](https://www.amazon.com/s?k=135mm+f2+lens)
+
+**The Bottom Line**
+
+The next Great Comet may be discovered next month or next year. Follow SpaceHub's space news module and you'll know the moment a new visitor is found.
+
+Clear skies! ☄️`
+  },
+  {
+    slug: 'best-telescope-filters-2026',
+    title: 'Best Telescope Filters 2026 — Moon, Planets & Nebulae Guide',
+    date: 'June 27, 2026',
+    readTime: '4 min read',
+    icon: '🔭',
+    preview: 'The right filter transforms what your telescope shows: crisp lunar detail, planetary features, and nebulae that pop out of light-polluted skies.',
+    content: `Filters are the cheapest meaningful upgrade in astronomy. A $30 filter can reveal detail your telescope was always capable of showing but couldn't deliver — especially from light-polluted skies.
+
+**Moon Filters — Start Here**
+
+The full Moon through a telescope is painfully bright. A neutral density Moon filter cuts glare and reveals subtle detail.
+
+[🛒 Neutral Density Moon Filter 1.25"](https://www.amazon.com/s?k=moon+filter+1.25+neutral+density)
+
+[🛒 Variable Polarizing Filter — Adjustable Brightness](https://www.amazon.com/s?k=variable+polarizing+moon+filter)
+
+**Planetary Color Filters**
+
+Simple colored filters boost contrast on planetary features:
+- **#21 Orange:** darkens Mars's sky, sharpens surface markings
+- **#80A Blue:** enhances Jupiter's cloud belts and the Great Red Spot
+- **#58 Green:** brings out detail in Venus's clouds
+
+[🛒 Planetary Color Filter Set (4 filters)](https://www.amazon.com/s?k=telescope+color+filter+set+1.25)
+
+**UHC Filters — The Nebula Multiplier**
+
+Ultra High Contrast filters pass only the wavelengths nebulae emit (hydrogen and oxygen lines) and block streetlight glow. The Orion Nebula, Lagoon, and Swan visibly jump in contrast — even from suburbs. If you buy one deep-sky filter, buy this.
+
+[🛒 UHC Ultra High Contrast Filter 1.25"](https://www.amazon.com/s?k=UHC+filter+1.25+telescope)
+
+**OIII Filters — For Specific Targets**
+
+Oxygen-III filters are stricter than UHC — dimmer overall but dramatic on the Veil Nebula, Ring Nebula, and Dumbbell. Best in 8-inch and larger telescopes.
+
+[🛒 OIII Filter 1.25"](https://www.amazon.com/s?k=OIII+filter+1.25+telescope)
+
+**Light Pollution Filters for Astrophotography**
+
+Broadband LP filters help cameras cut sodium/LED streetlight glow:
+
+[🛒 Optolong L-Pro Light Pollution Filter](https://www.amazon.com/s?k=Optolong+L-Pro+filter)
+
+[🛒 Optolong L-eXtreme Dual-Band Filter — City Astrophotography](https://www.amazon.com/s?k=Optolong+L-eXtreme+filter)
+
+**What NOT to Buy**
+
+Skip "skyglow" broadband visual filters (weak effect) and never buy eyepiece-end solar filters — they are dangerous. Solar filters belong on the front of the telescope only.
+
+**Priority Order for Most Observers**
+
+1. Moon filter ($15) 2. UHC filter ($60-120) 3. Orange + blue planetary filters ($25) 4. OIII when your aperture reaches 8 inches
+
+Check SpaceHub's Star Map to see which nebulae are up tonight, then screw in that UHC and compare views — the difference sells itself.
+
+Clear skies! 🔭`
+  },
+  {
+    slug: 'deep-sky-astrophotography-guide-2026',
+    title: 'Deep-Sky Astrophotography 2026 — From First Light to Galaxies',
+    date: 'June 28, 2026',
+    readTime: '5 min read',
+    icon: '🌌',
+    preview: 'Capturing galaxies and nebulae is the summit of amateur astronomy. This roadmap takes you from camera-on-tripod to guided deep-sky imaging.',
+    content: `Deep-sky astrophotography — galaxies, nebulae, star clusters — produces the images that make people fall in love with space. It is also a hobby with a learning curve. This roadmap breaks it into stages so each step builds on the last.
+
+**Stage 1: Camera + Tripod (Budget: what you have)**
+
+Wide-field Milky Way shots need no tracking: 20-second exposures at 14-24mm, ISO 3200, f/2.8. Master focusing on stars and basic stacking here before spending money.
+
+**Stage 2: Star Tracker (Budget: ~$300-500)**
+
+A tracking mount counteracts Earth's rotation, unlocking 2-4 minute exposures with camera lenses. This is the biggest single jump in image quality per dollar in all of astrophotography.
+
+[🛒 Sky-Watcher Star Adventurer GTi Tracker](https://www.amazon.com/s?k=Sky-Watcher+Star+Adventurer+GTi)
+
+[🛒 Move Shoot Move Star Tracker — Ultralight Option](https://www.amazon.com/s?k=Move+Shoot+Move+star+tracker)
+
+With a 135mm lens and a tracker you can capture Andromeda, Orion, the North America Nebula, and the Pleiades — seriously well.
+
+[🛒 Rokinon 135mm f/2 — Legendary Astro Lens](https://www.amazon.com/s?k=Rokinon+135mm+f2+lens)
+
+**Stage 3: Small Telescope + EQ Mount (Budget: ~$1500-2500)**
+
+A small apochromatic refractor (60-80mm) on a computerized equatorial mount is the classic deep-sky setup — forgiving, sharp, portable.
+
+[🛒 80mm ED Apochromatic Refractor](https://www.amazon.com/s?k=80mm+ED+apo+refractor+telescope)
+
+[🛒 Sky-Watcher HEQ5 Pro Equatorial Mount](https://www.amazon.com/s?k=Sky-Watcher+HEQ5+Pro+mount)
+
+**Stage 4: Guiding + Dedicated Astro Camera**
+
+Autoguiding uses a small second camera to correct mount errors in real time, unlocking 5-10 minute exposures. Cooled astronomy cameras eliminate thermal noise.
+
+[🛒 ZWO ASI120MM Mini Guide Camera + 30mm Scope](https://www.amazon.com/s?k=ZWO+ASI120MM+mini+guide+camera)
+
+[🛒 ZWO ASI533MC Pro Cooled Color Camera](https://www.amazon.com/s?k=ZWO+ASI533MC+Pro+camera)
+
+**The Rules That Save You Years**
+
+1. Total integration time beats everything — 4 hours of 2-min subs beats 1 hour of anything
+2. Buy the mount first, the camera last
+3. Shoot from the darkest site you can reach; a filter helps but darkness wins
+4. Learn one target deeply rather than ten shallowly
+
+Plan targets with SpaceHub's Star Map — check what transits highest at midnight and shoot that.
+
+Clear skies! 🌌`
+  },
+  {
+    slug: 'light-pollution-bortle-scale-guide',
+    title: 'Light Pollution & the Bortle Scale — What Can You See From Your Sky?',
+    date: 'June 28, 2026',
+    readTime: '4 min read',
+    icon: '🌃',
+    preview: 'The Bortle scale rates sky darkness from 1 (pristine) to 9 (inner city). Learn your number, what it means, and how to fight back against light pollution.',
+    content: `Light pollution determines what you can see more than any telescope purchase. Understanding the Bortle scale — astronomy's darkness rating — helps you know what's possible from home and when a drive is worth it.
+
+**The Bortle Scale Explained**
+
+- **Bortle 1-2 (Pristine/Excellent):** Milky Way casts shadows. Zodiacal light obvious. Remote deserts and oceans.
+- **Bortle 3-4 (Rural):** Milky Way detailed and bright. Andromeda obvious to naked eye. Most dark-sky parks.
+- **Bortle 5 (Suburban):** Milky Way visible but washed out overhead only. Where most amateur astronomers live.
+- **Bortle 6-7 (Bright Suburban/Urban Transition):** Milky Way invisible. Moon, planets, bright clusters still fine.
+- **Bortle 8-9 (City/Inner City):** Only the Moon, planets, and a handful of stars survive.
+
+**What You Can Still See From a City**
+
+Don't quit because you're in Bortle 8. These targets shrug off light pollution:
+- The Moon — spectacular everywhere and always
+- Jupiter, Saturn, Mars, Venus — planets are bright
+- Double stars — Albireo's gold-blue pair works downtown
+- Bright clusters — Pleiades, Hercules Cluster with a telescope
+- The ISS — brighter than everything but the Moon (track it live on SpaceHub)
+
+**How to Fight Light Pollution**
+
+1. **Shield your eyes:** observe from shadow, block direct streetlights
+2. **Filters:** a UHC filter restores nebulae contrast from suburbs
+
+[🛒 UHC Light Pollution Filter 1.25"](https://www.amazon.com/s?k=UHC+filter+telescope+1.25)
+
+3. **Drive smart:** even 45 minutes usually drops you 2-3 Bortle classes
+4. **Go up:** elevation beats haze — hills clear the worst layer
+
+**Measuring Your Sky**
+
+[🛒 Sky Quality Meter — Measure Your Actual Darkness](https://www.amazon.com/s?k=sky+quality+meter+astronomy)
+
+Or use the naked-eye method: count stars inside the Great Square of Pegasus. 0-1 stars = Bortle 8-9. 4-6 = Bortle 5. 13+ = Bortle 3 or better.
+
+**The Dark-Sky Movement**
+
+Light pollution grows 10% yearly, but it is instantly reversible — shielded fixtures and warm LEDs restore the sky overnight. Support the International Dark-Sky Association, and see our Best Dark Sky Locations guide for destinations worth the trip.
+
+Whatever your Bortle number, SpaceHub's Star Map shows what's visible from YOUR sky tonight.
+
+Clear skies! 🌃`
+  },
+  {
+    slug: 'best-budget-telescopes-under-200-2026',
+    title: 'Best Telescopes Under $200 in 2026 — Real Scopes, Real Reviews',
+    date: 'June 29, 2026',
+    readTime: '4 min read',
+    icon: '💰',
+    preview: 'You don\'t need $1000 to start astronomy. These telescopes under $200 show Saturn\'s rings, Jupiter\'s moons, and the Orion Nebula — no junk on this list.',
+    content: `The $100-200 telescope range is a minefield of junk — but hidden in it are a few genuinely excellent instruments. Every telescope on this list shows Saturn's rings, Jupiter's cloud belts and moons, lunar craters by the hundred, and the brightest nebulae.
+
+**The Golden Rule Under $200**
+
+Spend your money on aperture and mount stability, not magnification claims or computerized features. A simple 4.5-inch scope on a solid mount beats a wobbly 60mm "600x power!" scope every single time.
+
+**Best Overall: Zhumell Z114 / Orion StarBlast 4.5**
+
+A 114mm tabletop Dobsonian — the largest aperture you can get at this price. Set it on any table, point, look. Shows Saturn's rings clearly, Orion Nebula with structure, Andromeda's glow.
+
+[🛒 Zhumell Z114 Tabletop Dobsonian](https://www.amazon.com/s?k=Zhumell+Z114+tabletop+dobsonian)
+
+[🛒 Orion StarBlast 4.5 Astro Reflector](https://www.amazon.com/s?k=Orion+StarBlast+4.5+telescope)
+
+**Best Refractor: Celestron AstroMaster 70AZ**
+
+Crisp lunar and planetary views, zero maintenance, intuitive up-down-left-right mount. The right choice if you value simplicity over maximum light gathering.
+
+[🛒 Celestron AstroMaster 70AZ](https://www.amazon.com/s?k=Celestron+AstroMaster+70AZ)
+
+**Best Ultra-Portable: Celestron FirstScope 76**
+
+Fits in a backpack, weighs nothing, costs little. Genuinely useful for the Moon and bright targets.
+
+[🛒 Celestron FirstScope 76 Tabletop](https://www.amazon.com/s?k=Celestron+FirstScope+76)
+
+**Strong Alternative: Sky-Watcher Heritage 130**
+
+When it dips near $200, grab it — 130mm of aperture with a clever collapsible design.
+
+[🛒 Sky-Watcher Heritage 130 FlexTube](https://www.amazon.com/s?k=Sky-Watcher+Heritage+130)
+
+**What to AVOID Under $200**
+
+- Anything advertising magnification ("525x!") as the headline
+- Equatorial mounts at this price — they're always too flimsy
+- Department store and toy brands
+- Computerized GoTo under $200 — the motors eat the budget that should buy optics
+
+**Spend the Change on These**
+
+[🛒 6mm Budget Planetary Eyepiece — More Power for Saturn](https://www.amazon.com/s?k=6mm+plossl+eyepiece)
+
+[🛒 Red Flashlight for Night Vision](https://www.amazon.com/s?k=red+flashlight+astronomy)
+
+A $180 telescope used weekly beats a $2000 telescope in a closet. Pick one, then open SpaceHub's Star Map and point it at Saturn tonight.
+
+Clear skies! 💰`
+  },
+  {
+    slug: 'james-webb-telescope-discoveries-2026',
+    title: 'James Webb Space Telescope — Greatest Discoveries So Far (2026)',
+    date: 'June 29, 2026',
+    readTime: '5 min read',
+    icon: '🛰️',
+    preview: 'Four years into its mission, JWST has rewritten textbooks: impossible early galaxies, exoplanet atmospheres, and images that stunned the world.',
+    content: `Since its first images in July 2022, the James Webb Space Telescope has been rewriting astronomy textbooks at a pace nobody predicted. Here are the discoveries that matter most — and what's coming next.
+
+**The Early Universe Problem**
+
+JWST's deepest images revealed galaxies that formed far earlier and grew far faster than models allowed — massive, mature galaxies just 300-400 million years after the Big Bang. Cosmologists are still arguing about what this means: faster star formation, different early physics, or something stranger. This is JWST's most important discovery, and it's an open wound in cosmology.
+
+**Exoplanet Atmospheres, Decoded**
+
+JWST doesn't photograph exoplanets as worlds — it does something better. When a planet crosses its star, JWST reads the starlight filtered through the planet's atmosphere:
+- Carbon dioxide and sulfur dioxide detected on gas giant WASP-39b
+- Methane and CO2 on K2-18b, a possible ocean world — plus a tentative, hotly debated biosignature molecule
+- Atmosphere studies of the seven rocky TRAPPIST-1 planets, the best Earth-analogs we know
+
+**Solar System Surprises**
+
+- Enceladus's water plume traced 6,000 km into space — 20x the moon's own size
+- New details in Jupiter's auroras and rings
+- Neptune's rings imaged clearly for the first time since Voyager 2 in 1989
+
+**The Images That Became Icons**
+
+The Pillars of Creation in infrared. The Carina "Cosmic Cliffs." The Phantom Galaxy's perfect spiral. Cassiopeia A's supernova wreckage. Each image peeled back dust that blocked Hubble's view, revealing newborn stars inside.
+
+**How JWST Actually Works**
+
+- A 6.5-meter gold-coated segmented mirror — 6x Hubble's collecting area
+- Operates at -233°C, parked 1.5 million km from Earth at L2
+- Sees infrared light: through dust clouds, and from the redshifted early universe
+
+**What's Next**
+
+Fuel projections now suggest JWST can operate into the 2040s. Priorities ahead: deeper TRAPPIST-1 atmosphere data, hunting the universe's very first stars, and follow-ups on that K2-18b biosignature question.
+
+**Explore It Yourself**
+
+Read JWST discoveries as they break in SpaceHub's space news feed, and explore the exoplanet archive module to see the worlds JWST is targeting.
+
+The golden age of astronomy is happening right now.
+
+Clear skies! 🛰️`
+  },
+  {
+    slug: 'artemis-moon-missions-guide-2026',
+    title: 'Artemis Moon Missions Explained — Humanity\'s Return to the Moon',
+    date: 'June 30, 2026',
+    readTime: '5 min read',
+    icon: '🚀',
+    preview: 'NASA\'s Artemis program is returning humans to the Moon for the first time since 1972 — this time to stay. Here\'s the full roadmap explained simply.',
+    content: `For the first time since Apollo 17 left the Moon in December 1972, humans are going back — and this time the goal is permanence: a lunar space station, a south pole base camp, and a stepping stone to Mars.
+
+**Why the Moon Again?**
+
+Three reasons: water ice at the lunar south pole (drinkable water, breathable oxygen, rocket fuel), a proving ground for Mars technology, and science — the Moon preserves 4.5 billion years of solar system history.
+
+**The Missions**
+
+**Artemis I (completed 2022):** Uncrewed test flight. Orion capsule flew around the Moon and returned — total success.
+
+**Artemis II:** The first crewed mission — four astronauts flying around the Moon aboard Orion, including the first woman and first Canadian to leave Earth orbit. A 10-day free-return trajectory around the far side.
+
+**Artemis III:** The landing. Two astronauts descend to the lunar south pole aboard a SpaceX Starship HLS — a region no human or robot has ever explored, where permanently shadowed craters hold water ice.
+
+**Artemis IV and beyond:** Assembly of Gateway — a small space station in lunar orbit — plus longer surface stays, pressurized rovers, and the foundations of a permanent base camp.
+
+**The Hardware**
+
+- **SLS (Space Launch System):** the most powerful operational rocket NASA has ever flown
+- **Orion:** the deep-space crew capsule with European-built service module
+- **Starship HLS:** SpaceX's giant lander, refueled in orbit
+- **Gateway:** lunar-orbit station built with international partners
+
+**Why the South Pole?**
+
+Apollo landed near the equator. Artemis targets the south pole because crater floors there haven't seen sunlight in billions of years — and hold frozen water. Ridges nearby get near-constant solar power. Ice + sunlight = a place you can actually live.
+
+**Watch It Happen**
+
+Every Artemis launch is streamed live and covered in SpaceHub's news feed. And here's the beautiful part: after watching a launch, walk outside and look at the Moon through any telescope — you can see the south polar region where humans will walk.
+
+[🛒 Celestron StarSense Explorer DX 130 — See the Artemis Landing Zones](https://www.amazon.com/s?k=Celestron+StarSense+Explorer+DX+130)
+
+[🛒 Moon Map & Lunar Atlas](https://www.amazon.com/s?k=moon+map+lunar+atlas)
+
+We are the generation that watches humanity become a multi-world species. Don't sleep through it.
+
+Clear skies! 🚀`
+  },
+  {
+    slug: 'iss-facts-guide-2026',
+    title: '25 Incredible ISS Facts — Life Aboard the Space Station (2026)',
+    date: 'June 30, 2026',
+    readTime: '4 min read',
+    icon: '🛸',
+    preview: 'The International Space Station is the most expensive object ever built and humanity\'s only permanent home off Earth. These 25 facts will amaze you.',
+    content: `The International Space Station has been continuously inhabited for over 25 years — the longest unbroken human presence off Earth. Here are the facts worth knowing about our outpost in the sky.
+
+**The Basics**
+
+1. The ISS orbits at ~420 km altitude, traveling 27,600 km/h — 16 sunrises and sunsets every day
+2. One orbit takes 92 minutes
+3. It's the size of a football field (109m) and weighs ~420 tons
+4. Total cost: over $150 billion — the most expensive single object humans have ever built
+5. It's been continuously occupied since November 2, 2000
+
+**Life Aboard**
+
+6. Astronauts exercise 2 hours daily — without it, they'd lose 1-2% of bone mass per month
+7. Sleep happens in phone-booth-sized cabins, strapped into sleeping bags on the wall
+8. Water is recycled — including urine and sweat — at ~93% efficiency
+9. The crew sees the Sun rise 16 times a day but follows GMT to keep a normal schedule
+10. Food is mostly rehydrated; tortillas replace bread (no crumbs to float into equipment)
+11. Astronauts grow 3-5 cm taller in orbit as their spines decompress
+12. Calling family works via an IP phone; internet exists but is slow
+
+**Engineering Marvels**
+
+13. Solar arrays generate 120 kW — and get punctured by micrometeoroids regularly, by design tolerance
+14. The station's shielding can absorb impacts from debris up to 1 cm
+15. It fires thrusters several times a year to dodge tracked debris
+16. Assembly took 42 flights over 13 years by 5 space agencies
+17. The Cupola — the famous 7-window dome — was almost cancelled for budget; astronauts call it the best room ever built
+
+**Seeing It Yourself**
+
+18. The ISS is the third brightest object in the sky after the Sun and Moon
+19. It looks like a brilliant white star crossing the sky in 3-6 minutes
+20. It's visible only near dawn/dusk, when you're in darkness but the station reflects sunlight
+21. No telescope needed — naked eye works from any city on Earth
+22. With SpaceHub's live ISS tracker you can see exactly where it is right now and get pass alerts for your city
+
+**The Future**
+
+23. The ISS is scheduled for retirement around 2030 — deorbited into the Pacific's "spacecraft cemetery"
+24. Commercial stations (Axiom, Orbital Reef) are being built to replace it
+25. When it deorbits, its fireball will be one of the most-watched events in history
+
+Track the ISS live right now on SpaceHub — it's passing over someone's head this very second.
+
+Clear skies! 🛸`
+  },
+  {
+    slug: 'how-to-stargaze-with-kids-2026',
+    title: 'Stargazing With Kids — The Complete Family Guide 2026',
+    date: 'July 1, 2026',
+    readTime: '4 min read',
+    icon: '👨‍👩‍👧',
+    preview: 'Stargazing is one of the best family activities that exists — free, screen-free, and unforgettable. Here\'s how to make it magical instead of boring.',
+    content: `A child who sees Saturn's rings with their own eyes never forgets it. Stargazing is free, works from any backyard, and creates the kind of wonder no screen can. But a badly planned session — cold, boring, too late — can kill the magic. Here's how to do it right.
+
+**Rule #1: Short and Spectacular**
+
+Kids don't want a 3-hour observing marathon. Plan 30-45 minutes hitting only showstoppers:
+- The Moon (always the best first target — craters blow minds)
+- Saturn's rings (the single greatest "WOW" in astronomy)
+- Jupiter and its 4 moons (they shift positions night to night)
+- The ISS flying over (use SpaceHub's tracker to time it — kids LOVE knowing people are aboard)
+- A meteor shower (August Perseids = warm night + shooting stars)
+
+**Make It a Mission, Not a Lesson**
+
+Don't lecture — hunt. "Can you find three moons of Jupiter?" beats "Jupiter is a gas giant." Give kids the star map and let THEM navigate. Let them move the telescope themselves, even if aiming takes longer.
+
+**The Right Gear for Families**
+
+Start with binoculars — kids find telescope eyepieces genuinely hard to use:
+
+[🛒 Kids Binoculars 8x21 — Fits Small Hands](https://www.amazon.com/s?k=kids+binoculars+8x21)
+
+[🛒 Celestron SkyMaster 10x50 for Parents](https://www.amazon.com/s?k=Celestron+SkyMaster+10x50)
+
+For a first family telescope, tabletop Dobsonians are unbeatable — kids operate them alone:
+
+[🛒 Orion StarBlast 4.5 Tabletop Telescope](https://www.amazon.com/s?k=Orion+StarBlast+4.5+tabletop)
+
+**Comfort Wins the Night**
+
+[🛒 Kids Sleeping Bag for Meteor Watching](https://www.amazon.com/s?k=kids+sleeping+bag)
+
+[🛒 Red Flashlight — Kids Feel Like Real Astronomers](https://www.amazon.com/s?k=red+flashlight+astronomy)
+
+[🛒 Hot Chocolate Thermos — Non-Negotiable](https://www.amazon.com/s?k=insulated+thermos+kids)
+
+**Age-by-Age Expectations**
+
+- **4-6:** The Moon, ISS passes, "which star is brightest" games. 20 minutes max.
+- **7-10:** Saturn, Jupiter, constellations with stories (Orion the hunter, the Big Bear). 45 minutes.
+- **11+:** Meteor showers, phone astrophotography, finding targets themselves.
+
+**The Secret Weapon: Stories**
+
+Every constellation is a 3,000-year-old story. Learn two or three myths — Orion, Cassiopeia, the Pleiades sisters — and tell them in the dark while everyone looks up. That's the moment kids remember at forty.
+
+Use SpaceHub's Star Map to plan tonight's family session — and check when the ISS passes over your city this week.
+
+Clear skies! 👨‍👩‍👧`
+  },
+  {
+    slug: 'how-to-see-mercury-2026',
+    title: 'How to See Mercury in 2026 — The Elusive Planet Guide',
+    date: 'July 1, 2026',
+    readTime: '4 min read',
+    icon: '🌅',
+    preview: 'Most people have never seen Mercury — even Copernicus reportedly never did. But with the right timing, it\'s surprisingly easy. Here\'s how.',
+    content: `Mercury is the closest planet to the Sun — and that's exactly why most people have never seen it. It never strays far from the Sun's glare, visible only in brief windows at dusk or dawn. Legend says even Copernicus never saw it. You can do better than Copernicus this year.
+
+**Why Mercury Is Hard**
+
+Mercury orbits the Sun in just 88 days, never appearing more than 28° from the Sun in our sky. That means it's only visible in twilight — low on the horizon, for 30-60 minutes, a handful of weeks per year. Miss the window, wait months.
+
+**The Key Concept: Greatest Elongation**
+
+Mercury is observable around its "greatest elongations" — the moments it appears farthest from the Sun:
+- **Evening elongations:** look WEST 30-45 minutes after sunset
+- **Morning elongations:** look EAST 30-45 minutes before sunrise
+
+Evening apparitions in spring and morning apparitions in autumn are best for Northern Hemisphere observers — the ecliptic angle stands Mercury higher above the horizon.
+
+**How to Find It**
+
+1. Check SpaceHub's Star Map for Mercury's current position and whether it's in an elongation window
+2. Find a location with a completely flat, unobstructed western (or eastern) horizon — rooftops, hills, coastlines
+3. Start scanning 30 minutes after sunset, about 10° above the horizon (one fist at arm's length)
+4. Mercury looks like a moderately bright star with a slightly pinkish tint — often the only "star" visible in bright twilight
+5. Binoculars make the initial find 10x easier — then drop them and see it naked-eye
+
+[🛒 Celestron Nature DX 8x42 — Perfect Twilight Scanning Binoculars](https://www.amazon.com/s?k=Celestron+Nature+DX+8x42+binoculars)
+
+**Mercury in a Telescope**
+
+Even small telescopes show Mercury's phases — like a tiny Moon, it goes from crescent to gibbous through each apparition. Catch it early in twilight while it's higher; the view degrades fast as it sinks.
+
+[🛒 Celestron AstroMaster 90AZ — Great Twilight Planet Scope](https://www.amazon.com/s?k=Celestron+AstroMaster+90AZ)
+
+**Fun Mercury Facts While You Wait**
+
+- A Mercury day (176 Earth days, sunrise to sunrise) is longer than its year (88 days)
+- Surface temperature swings 600°C between day and night — the most extreme in the solar system
+- Despite being closest to the Sun, Venus is hotter
+
+Seeing Mercury puts you in a surprisingly exclusive club. Check SpaceHub for the next elongation window and claim your membership.
+
+Clear skies! 🌅`
+  },
+  {
+    slug: 'star-chart-planisphere-guide-2026',
+    title: 'How to Use a Star Chart & Planisphere — Old-School Navigation 2026',
+    date: 'July 1, 2026',
+    readTime: '4 min read',
+    icon: '🗺️',
+    preview: 'Apps die with your battery. A planisphere works forever, costs $15, and teaches you the sky in a way no screen can. Here\'s how to actually use one.',
+    content: `Every serious stargazer eventually learns the paper sky. A planisphere — a rotating star wheel — never runs out of battery, never ruins your night vision, and forces your brain to actually learn the constellations instead of outsourcing them to an app.
+
+**What Is a Planisphere?**
+
+Two rotating disks: a star map and a masked overlay with a window. Dial your date against your time, and the window shows exactly the sky above you right now. It works for any night, any year, forever.
+
+[🛒 David H. Levy Guide to the Stars Planisphere (Large 16")](https://www.amazon.com/s?k=David+Levy+planisphere+guide+stars)
+
+[🛒 Miller Planisphere — Classic Compact Model](https://www.amazon.com/s?k=Miller+planisphere+star+wheel)
+
+Important: buy the version for your latitude — a "40° North" planisphere works across the US, Europe, and most of the Northern Hemisphere.
+
+**How to Use It (5 Steps)**
+
+1. Rotate the wheel until today's date lines up with the current time
+2. Face the direction printed on the edge you're holding down (e.g., "Southern Horizon")
+3. Hold the planisphere overhead — the window's center is your zenith (straight up)
+4. Match the biggest patterns first: the Big Dipper, Orion, Cassiopeia's W
+5. Star-hop from those anchors to fainter constellations
+
+**The Star-Hopping Method**
+
+Old-school astronomers navigate like sailors — from known stars to unknown:
+- Big Dipper's pointer stars → Polaris (north)
+- Follow the Dipper's handle arc → "Arc to Arcturus, spike to Spica"
+- Orion's belt points down-left → Sirius, up-right → Aldebaran
+
+Do this ten nights and you'll never need a chart for the major constellations again — the sky becomes a neighborhood you know.
+
+**Paper Atlases for Telescope Users**
+
+When you graduate to hunting deep-sky objects, a proper star atlas plots thousands of targets:
+
+[🛒 Sky & Telescope's Pocket Sky Atlas — The Field Standard](https://www.amazon.com/s?k=Pocket+Sky+Atlas+Sky+Telescope)
+
+[🛒 Turn Left at Orion — The Best Beginner's Observing Book Ever](https://www.amazon.com/s?k=Turn+Left+at+Orion+book)
+
+**Reading Charts Red**
+
+White light destroys 30 minutes of dark adaptation in seconds. Read charts only under red light:
+
+[🛒 Red LED Astronomy Flashlight](https://www.amazon.com/s?k=red+led+flashlight+astronomy)
+
+**Paper + Digital = Best of Both**
+
+Use SpaceHub's Star Map to check what's up and plan the night; use the planisphere in the field to keep your eyes dark-adapted. The astronomers who know the sky best use both.
+
+Clear skies! 🗺️`
+  },
+  {
+    slug: 'best-dew-heaters-telescope-2026',
+    title: 'Dew Heaters & Telescope Care 2026 — Stop Dew From Ending Your Night',
+    date: 'July 1, 2026',
+    readTime: '4 min read',
+    icon: '💧',
+    preview: 'Dew shuts down more observing sessions than clouds. Here\'s how dew heaters, shields, and smart care keep your optics clear all night — and for decades.',
+    content: `It's the classic heartbreak: perfect forecast, telescope set up, Saturn looking glorious — and 90 minutes in, everything goes soft and blurry. Not clouds. Dew. Your lens is fogged, and without the right gear your night is over.
+
+**Why Telescopes Attract Dew**
+
+Glass radiates heat into the night sky and cools BELOW air temperature. When it drops below the dew point, moisture condenses — on corrector plates, lenses, eyepieces, and finder scopes. Schmidt-Cassegrains and refractors are the worst affected; Newtonians' mirrors sit protected deep in the tube.
+
+**Solution 1: Dew Shield (Passive, Start Here)**
+
+A simple tube extension that slows radiative cooling and blocks stray light too. Doubles or triples your dew-free time for $20-40.
+
+[🛒 Flexible Dew Shield — Sized for Your Telescope](https://www.amazon.com/s?k=telescope+flexible+dew+shield)
+
+**Solution 2: Dew Heater Straps (Active, The Real Fix)**
+
+A gentle heating band wraps around the optics, keeping glass 1-2°C above the dew point — invisible to image quality, fatal to dew. This is the setup that lets you observe until dawn:
+
+[🛒 Dew Heater Strip for Telescope](https://www.amazon.com/s?k=telescope+dew+heater+strip)
+
+[🛒 Dew Heater Controller — Adjust Power to Conditions](https://www.amazon.com/s?k=dew+heater+controller+telescope)
+
+[🛒 USB Dew Heater Strips — Run From a Power Bank](https://www.amazon.com/s?k=USB+dew+heater+strip+telescope)
+
+[🛒 20000mAh Power Bank for Field Use](https://www.amazon.com/s?k=20000mah+power+bank)
+
+Don't forget small heater strips for eyepieces and finder scopes — they fog first.
+
+**Emergency Field Fixes**
+
+- A hair dryer on LOW from 30cm clears dew in seconds (12V versions exist for the field)
+- NEVER wipe a dewed lens — you'll grind dust into the coatings
+- Point the telescope downward during breaks
+
+**After the Session: The Rules of Telescope Care**
+
+1. Never pack away a wet telescope — let it dry fully indoors, caps OFF, overnight
+2. Store with desiccant packs to kill humidity
+
+[🛒 Rechargeable Silica Gel Desiccant Packs](https://www.amazon.com/s?k=rechargeable+silica+gel+desiccant)
+
+3. Clean optics rarely — a little dust affects nothing; clumsy cleaning ruins coatings
+4. When you must clean: blower first, then optics-grade solution and lint-free wipes
+
+[🛒 Camera Lens Cleaning Kit with Air Blower](https://www.amazon.com/s?k=lens+cleaning+kit+air+blower)
+
+**Know Your Enemy**
+
+Dew risk soars when humidity is high and skies are clear and still. Check conditions before setup — and check SpaceHub's space weather module while you're at it. A $40 heater strap saves a hundred ruined nights.
+
+Clear skies! 💧`
+  },
 ]
 
 export const BLOG_IMAGES: Record<string, string> = {
@@ -2068,6 +2901,22 @@ export const BLOG_IMAGES: Record<string, string> = {
   'best-goto-telescopes-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/8inchreflector.jpg/800px-8inchreflector.jpg',
   'how-to-see-nebulae-telescope-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Orion_Nebula_-_Hubble_2006_mosaic_18000.jpg/800px-Orion_Nebula_-_Hubble_2006_mosaic_18000.jpg',
   'how-to-observe-sun-safely-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg/800px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg',
+  'meteor-shower-calendar-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Perseid_Meteor.jpg/800px-Perseid_Meteor.jpg',
+  'geminid-meteor-shower-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Perseid_Meteor.jpg/800px-Perseid_Meteor.jpg',
+  'best-smart-telescopes-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/8inchreflector.jpg/800px-8inchreflector.jpg',
+  'mars-viewing-guide-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/OSIRIS_Mars_true_color.jpg/800px-OSIRIS_Mars_true_color.jpg',
+  'comet-viewing-guide-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Circumpolar_star_trails.jpg/800px-Circumpolar_star_trails.jpg',
+  'best-telescope-filters-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Orion_Nebula_-_Hubble_2006_mosaic_18000.jpg/800px-Orion_Nebula_-_Hubble_2006_mosaic_18000.jpg',
+  'deep-sky-astrophotography-guide-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Andromeda_Galaxy_560mm_FL.jpg/800px-Andromeda_Galaxy_560mm_FL.jpg',
+  'light-pollution-bortle-scale-guide': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/Milky_Way_Night_Sky_Black_Rock_Desert_Nevada.jpg/800px-Milky_Way_Night_Sky_Black_Rock_Desert_Nevada.jpg',
+  'best-budget-telescopes-under-200-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/8inchreflector.jpg/800px-8inchreflector.jpg',
+  'james-webb-telescope-discoveries-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/68/Pillars_of_creation_2014_HST_WFC3-UVIS_full-res_denoised.jpg/800px-Pillars_of_creation_2014_HST_WFC3-UVIS_full-res_denoised.jpg',
+  'artemis-moon-missions-guide-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/FullMoon2010.jpg/800px-FullMoon2010.jpg',
+  'iss-facts-guide-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/International_Space_Station_after_undocking_of_STS-132.jpg/800px-International_Space_Station_after_undocking_of_STS-132.jpg',
+  'how-to-stargaze-with-kids-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/Milky_Way_Night_Sky_Black_Rock_Desert_Nevada.jpg/800px-Milky_Way_Night_Sky_Black_Rock_Desert_Nevada.jpg',
+  'how-to-see-mercury-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Venus-real_color.jpg/800px-Venus-real_color.jpg',
+  'star-chart-planisphere-guide-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Circumpolar_star_trails.jpg/800px-Circumpolar_star_trails.jpg',
+  'best-dew-heaters-telescope-2026': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/8inchreflector.jpg/800px-8inchreflector.jpg',
 }
 
 export function ArticleView({ article, onBack, onSelect }: { article: typeof ARTICLES[0]; onBack: () => void; onSelect?: (slug: string) => void }) {
