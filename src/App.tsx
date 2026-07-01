@@ -474,6 +474,41 @@ function MainApp() {
         <SafeWrap label="NotificationBanner"><NotificationBanner /></SafeWrap>
         {activeTab === 'dashboard' && <SafeWrap label="Hero"><Hero onPremium={() => {}} onScrollToISS={scrollToISS} /></SafeWrap>}
 
+        {/* PayPal support banner */}
+        {activeTab === 'dashboard' && (
+          <form action="https://www.paypal.com/donate" method="post" target="_blank" style={{ display: 'block' }}>
+            <input type="hidden" name="business" value="Yakov104@gmail.com" />
+            <input type="hidden" name="currency_code" value="USD" />
+            <button
+              type="submit"
+              style={{
+                width: '100%',
+                padding: '14px 24px',
+                background: 'linear-gradient(90deg, #003087 0%, #009cde 50%, #003087 100%)',
+                backgroundSize: '200% 100%',
+                color: '#fff',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10,
+                fontSize: 14,
+                fontWeight: 700,
+                letterSpacing: '0.02em',
+                transition: 'background-position 0.4s ease',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundPosition = '100% 0' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.backgroundPosition = '0% 0' }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
+                <path d="M20.067 8.478c.492.315.844.825.983 1.39C21.6 12.258 20.38 14 18.04 14H16.5l-.5 3H13l2-11h4.067c.844 0 1.508.478 1.508 1.478h-.508zM7.5 6h5.567c2.34 0 3.56 1.742 3.01 4.132-.14.565-.49 1.075-.983 1.39C14.602 12.522 13.938 13 13.094 13H10.5L9.5 17H7L9 6H7.5zM10.5 11h2.594c.468 0 .844-.34.938-.8.094-.46-.188-.8-.656-.8H10.5l-.438 1.6z"/>
+              </svg>
+              Love SpaceHub? Support us with a donation via PayPal ❤️
+            </button>
+          </form>
+        )}
+
         {/* Divider */}
         <div className="divider-3d my-0" />
 
