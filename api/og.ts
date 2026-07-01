@@ -85,7 +85,7 @@ export default function handler(_req: VercelRequest, res: VercelResponse) {
   <text x="468" y="478" font-family="system-ui,sans-serif" font-size="15" fill="#818cf8" text-anchor="middle" font-weight="600">40K+ Satellites</text>
 
   <!-- URL -->
-  <text x="80" y="565" font-family="system-ui,sans-serif" font-size="18" fill="#374151" letter-spacing="0.5">spacehub-nu.vercel.app</text>
+  <text x="80" y="565" font-family="system-ui,sans-serif" font-size="18" fill="#374151" letter-spacing="0.5">spacehubapp.com</text>
 
   <!-- Bottom border -->
   <rect x="0" y="620" width="1200" height="10" fill="#4f46e5" fill-opacity="0.5"/>

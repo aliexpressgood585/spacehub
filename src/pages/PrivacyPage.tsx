@@ -13,7 +13,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-lg font-bold text-indigo-300 mb-3">1. Introduction</h2>
             <p className="text-gray-400 text-sm leading-relaxed">
-              SpaceHub ("we", "our", or "us") operates the website spacehub-nu.vercel.app (the "Service").
+              SpaceHub ("we", "our", or "us") operates the website spacehubapp.com (the "Service").
               This page informs you of our policies regarding the collection, use, and disclosure of personal data
               when you use our Service and the choices you have associated with that data.
             </p>

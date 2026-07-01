@@ -53,13 +53,13 @@ function buildHtml(apod: { title: string; explanation: string; url: string } | n
     </div>
 
     <div style="text-align:center;margin-bottom:24px">
-      <a href="https://spacehub-nu.vercel.app" style="display:inline-block;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;text-decoration:none;padding:14px 32px;border-radius:12px;font-weight:700;font-size:14px">
+      <a href="https://spacehubapp.com" style="display:inline-block;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;text-decoration:none;padding:14px 32px;border-radius:12px;font-weight:700;font-size:14px">
         🚀 Open SpaceHub →
       </a>
     </div>
 
     <p style="text-align:center;color:#374151;font-size:11px">
-      You're receiving this because you subscribed at spacehub-nu.vercel.app<br>
+      You're receiving this because you subscribed at spacehubapp.com<br>
       <a href="{{{RESEND_UNSUBSCRIBE_URL}}}" style="color:#4b5563">Unsubscribe</a>
     </p>
   </div>
@@ -85,7 +85,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       headers: { 'Authorization': `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         audience_id: AUDIENCE_ID,
-        from: 'SpaceHub <weekly@spacehub-nu.vercel.app>',
+        from: 'SpaceHub <weekly@spacehubapp.com>',
         subject: `🚀 SpaceHub Weekly — ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}`,
         html,
         name: `Weekly ${new Date().toISOString().slice(0, 10)}`,

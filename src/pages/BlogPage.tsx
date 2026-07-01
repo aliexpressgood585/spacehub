@@ -451,7 +451,7 @@ Clear skies! 🔬`
 
 **The Best Gift of All**
 
-A subscription to SpaceHub — free forever — so they always know when the ISS passes, when the next meteor shower peaks, and what's in the sky tonight. Share the link: spacehub-nu.vercel.app.
+A subscription to SpaceHub — free forever — so they always know when the ISS passes, when the next meteor shower peaks, and what's in the sky tonight. Share the link: spacehubapp.com.
 
 Clear skies! 🎁`
   },
@@ -2072,7 +2072,7 @@ export const BLOG_IMAGES: Record<string, string> = {
 
 export function ArticleView({ article, onBack }: { article: typeof ARTICLES[0]; onBack: () => void }) {
   const [copied, setCopied] = useState(false)
-  const articleUrl = `https://spacehub-nu.vercel.app/blog/${article.slug}`
+  const articleUrl = `https://spacehubapp.com/blog/${article.slug}`
 
   useEffect(() => {
     const prev = document.title

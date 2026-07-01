@@ -77,7 +77,7 @@ export default function ShareCard({ issLat, issLng, issAlt, city }: Props) {
     // URL
     ctx.font = '14px system-ui'
     ctx.fillStyle = 'rgba(255,255,255,0.2)'
-    ctx.fillText('spacehub-nu.vercel.app', 60, H - 25)
+    ctx.fillText('spacehubapp.com', 60, H - 25)
 
     // Date
     ctx.textAlign = 'right'
@@ -100,17 +100,17 @@ export default function ShareCard({ issLat, issLng, issAlt, city }: Props) {
   }, [issLat, issLng, issAlt, city])
 
   const shareWA = useCallback(() => {
-    const text = `🛸 ISS is now at ${issLat?.toFixed(1)}°N, ${issLng?.toFixed(1)}°E at altitude ${issAlt?.toFixed(0)} km!\nTrack live: https://spacehub-nu.vercel.app`
+    const text = `🛸 ISS is now at ${issLat?.toFixed(1)}°N, ${issLng?.toFixed(1)}°E at altitude ${issAlt?.toFixed(0)} km!\nTrack live: https://spacehubapp.com`
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
   }, [issLat, issLng, issAlt])
 
   const shareX = useCallback(() => {
     const text = `🛸 ISS is now at ${issLat?.toFixed(1)}°N, ${issLng?.toFixed(1)}°E — altitude ${issAlt?.toFixed(0)} km! Track live:`
-    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent('https://spacehub-nu.vercel.app')}`, '_blank')
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent('https://spacehubapp.com')}`, '_blank')
   }, [issLat, issLng, issAlt])
 
   const copyLink = useCallback(() => {
-    navigator.clipboard.writeText('https://spacehub-nu.vercel.app').then(() => {
+    navigator.clipboard.writeText('https://spacehubapp.com').then(() => {
       setCopied(true); setTimeout(() => setCopied(false), 2000)
     })
   }, [])
@@ -119,7 +119,7 @@ export default function ShareCard({ issLat, issLng, issAlt, city }: Props) {
     const text = `🛸 ISS is now at ${issLat?.toFixed(1)}°, ${issLng?.toFixed(1)}° — altitude ${issAlt?.toFixed(0)} km!\nTrack live:`
     if (navigator.share) {
       try {
-        await navigator.share({ title: 'SpaceHub — ISS Live', text, url: 'https://spacehub-nu.vercel.app' })
+        await navigator.share({ title: 'SpaceHub — ISS Live', text, url: 'https://spacehubapp.com' })
       } catch { /* user cancelled */ }
     } else {
       copyLink()

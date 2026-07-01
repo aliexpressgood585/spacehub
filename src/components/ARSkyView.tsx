@@ -461,7 +461,7 @@ export default function ARSkyView() {
                   Scan to open on your phone — AR needs a camera + compass
                 </p>
                 <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent('https://spacehub-nu.vercel.app/#tracker')}&bgcolor=020510&color=818cf8&qzone=2`}
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent('https://spacehubapp.com/#tracker')}&bgcolor=020510&color=818cf8&qzone=2`}
                   alt="QR code to open on mobile"
                   width={100} height={100}
                   className="rounded-xl"

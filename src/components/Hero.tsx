@@ -149,7 +149,7 @@ export default function Hero({ onScrollToISS }: Props) {
             <span>{t('hero.cta1')}</span>
           </button>
           <a
-            href={`https://wa.me/?text=${encodeURIComponent('SpaceHub — Real-time Space Tracker 🚀 https://spacehub-nu.vercel.app')}`}
+            href={`https://wa.me/?text=${encodeURIComponent('SpaceHub — Real-time Space Tracker 🚀 https://spacehubapp.com')}`}
             target="_blank" rel="noopener noreferrer"
             className="btn-ghost flex items-center gap-2.5 px-8 py-4 text-sm"
           >

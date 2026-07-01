@@ -111,11 +111,11 @@ export default function AstroGallery() {
 
   const shareX = (title: string) => {
     const text = `🔭 ${title} — via SpaceHub`
-    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent('https://spacehub-nu.vercel.app')}`, '_blank')
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent('https://spacehubapp.com')}`, '_blank')
   }
 
   const shareWA = (title: string) => {
-    const text = `🔭 ${title} — SpaceHub https://spacehub-nu.vercel.app`
+    const text = `🔭 ${title} — SpaceHub https://spacehubapp.com`
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
   }
 
