@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
+@layer base {
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+}
 
 /* Eliminate 300ms tap delay on iOS and Android */
 html { touch-action: manipulation; }
