@@ -15,6 +15,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Content-Type', 'text/plain')
     res.send(text)
   } catch (err) {
-    res.status(502).json({ error: err instanceof Error ? err.message : 'upstream error' })
+    res.setHeader('Cache-Control', 'no-store')
+    res.status(200).setHeader('Content-Type', 'application/json').json({ error: err instanceof Error ? err.message : 'upstream error' })
   }
 }
