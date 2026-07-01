@@ -14,10 +14,40 @@ const CITIES = [
 ]
 
 const BLOG_SLUGS = [
-  'best-telescopes-2025', 'how-to-see-iss', 'space-weather-guide',
-  'astrophotography-beginners', 'james-webb-discoveries', 'moon-phases-explained',
-  'meteor-showers-2025', 'stargazing-guide', 'solar-system-facts',
-  'astronaut-life-iss',
+  'best-telescope-for-kids-2026',
+  'lunar-eclipse-guide-2026',
+  'how-to-find-north-star-polaris',
+  'messier-objects-guide-2026',
+  'astrophotography-software-guide-2026',
+  'saturn-rings-viewing-guide-2026',
+  'best-telescope-eyepieces-2026',
+  'best-astronomy-gifts-2026',
+  'how-to-see-andromeda-galaxy',
+  'how-to-photograph-iss-2026',
+  'best-space-books-2026',
+  'jupiter-opposition-2026-guide',
+  'best-stargazing-camping-gear-2026',
+  'how-to-see-planets-telescope-2026',
+  'solar-eclipse-photography-guide-2026',
+  'how-to-see-iss',
+  'perseid-meteor-shower-2026',
+  'starlink-satellites-how-to-see',
+  'best-telescopes-beginners-2026',
+  'northern-lights-2026-guide',
+  'moon-photography-guide-2026',
+  'star-trails-photography-guide-2026',
+  'best-dark-sky-locations-2026',
+  'best-astronomy-apps-2026',
+  'best-binoculars-astronomy-2026',
+  'astrophotography-beginners-2026',
+  'space-weather-explained',
+  'best-red-flashlight-astronomy-2026',
+  'how-to-see-milky-way-2026',
+  'venus-planet-guide-2026',
+  'how-to-collimate-telescope-2026',
+  'best-goto-telescopes-2026',
+  'how-to-see-nebulae-telescope-2026',
+  'how-to-observe-sun-safely-2026',
 ]
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
@@ -44,7 +74,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     <loc>${BASE}/blog/${slug}</loc>
     <lastmod>${today}</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <priority>0.8</priority>
   </url>`).join('')
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
