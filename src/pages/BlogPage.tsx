@@ -24,30 +24,30 @@ export const ARTICLES = [
 **Ages 8–10: Orion StarBlast 4.5 Tabletop**
 Simple Dobsonian design, no tripod needed — just set on a table and look. Easy enough for a child to set up alone. Shows the Moon, Jupiter's moons, and Saturn's rings.
 
-[🛒 Orion StarBlast 4.5 Tabletop Telescope](https://www.amazon.com/s?k=Orion+StarBlast+4.5+tabletop+telescope)
+[🛒 Orion StarBlast 4.5 Tabletop Telescope](https://www.amazon.com/s?k=Orion+StarBlast+4.5+tabletop+telescope&tag=spacehub03-20)
 
 **Ages 10–13: Celestron AstroMaster 70AZ**
 Refractor telescope on an easy alt-az mount. No alignment needed. Great for the Moon and planets. Comes with two eyepieces and StarPointer finder scope.
 
-[🛒 Celestron AstroMaster 70AZ Refractor Telescope](https://www.amazon.com/s?k=Celestron+AstroMaster+70AZ+telescope)
+[🛒 Celestron AstroMaster 70AZ Refractor Telescope](https://www.amazon.com/s?k=Celestron+AstroMaster+70AZ+telescope&tag=spacehub03-20)
 
 **Ages 13+: Celestron PowerSeeker 127EQ**
 A real equatorial mount telescope that teaches kids how real astronomy works. Shows Saturn's rings clearly and Jupiter's cloud bands.
 
-[🛒 Celestron PowerSeeker 127EQ — Best Teen Telescope](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ)
+[🛒 Celestron PowerSeeker 127EQ — Best Teen Telescope](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ&tag=spacehub03-20)
 
 **Ages 15+: Sky-Watcher 8" Dobsonian**
 If they're serious, this is the telescope that will last into adulthood. Massive light gathering, incredible views of deep-sky objects.
 
-[🛒 Sky-Watcher 8" Dobsonian — For the Serious Young Astronomer](https://www.amazon.com/s?k=Sky-Watcher+8+inch+Dobsonian+telescope)
+[🛒 Sky-Watcher 8" Dobsonian — For the Serious Young Astronomer](https://www.amazon.com/s?k=Sky-Watcher+8+inch+Dobsonian+telescope&tag=spacehub03-20)
 
 **Must-Have Accessories for Kids**
 
-[🛒 Children's Red Flashlight — Safe for Night Vision](https://www.amazon.com/s?k=red+flashlight+kids+astronomy)
+[🛒 Children's Red Flashlight — Safe for Night Vision](https://www.amazon.com/s?k=red+flashlight+kids+astronomy&tag=spacehub03-20)
 
-[🛒 "National Audubon Society Field Guide to the Night Sky"](https://www.amazon.com/s?k=Audubon+Society+Field+Guide+Night+Sky)
+[🛒 "National Audubon Society Field Guide to the Night Sky"](https://www.amazon.com/s?k=Audubon+Society+Field+Guide+Night+Sky&tag=spacehub03-20)
 
-[🛒 Glow-in-the-Dark Solar System Model — Keep the Excitement Going](https://www.amazon.com/s?k=glow+dark+solar+system+model+kids)
+[🛒 Glow-in-the-Dark Solar System Model — Keep the Excitement Going](https://www.amazon.com/s?k=glow+dark+solar+system+model+kids&tag=spacehub03-20)
 
 **What to Avoid**
 
@@ -90,15 +90,15 @@ Simply go outside and look up. The Moon turns red gradually over about an hour. 
 
 **Best Gear for Watching and Photographing**
 
-[🛒 Celestron SkyMaster 10x50 Binoculars — Beautiful Close-Up Views During Totality](https://www.amazon.com/s?k=Celestron+SkyMaster+10x50+binoculars)
+[🛒 Celestron SkyMaster 10x50 Binoculars — Beautiful Close-Up Views During Totality](https://www.amazon.com/s?k=Celestron+SkyMaster+10x50+binoculars&tag=spacehub03-20)
 
-[🛒 Zero Gravity Reclining Chair — Watch in Total Comfort](https://www.amazon.com/s?k=zero+gravity+reclining+chair+stargazing)
+[🛒 Zero Gravity Reclining Chair — Watch in Total Comfort](https://www.amazon.com/s?k=zero+gravity+reclining+chair+stargazing&tag=spacehub03-20)
 
-[🛒 Canon EOS R50 — Capture the Blood Moon](https://www.amazon.com/s?k=Canon+EOS+R50+mirrorless+camera)
+[🛒 Canon EOS R50 — Capture the Blood Moon](https://www.amazon.com/s?k=Canon+EOS+R50+mirrorless+camera&tag=spacehub03-20)
 
-[🛒 500mm Telephoto Lens — Fill the Frame With the Red Moon](https://www.amazon.com/s?k=500mm+mirror+telephoto+lens+camera)
+[🛒 500mm Telephoto Lens — Fill the Frame With the Red Moon](https://www.amazon.com/s?k=500mm+mirror+telephoto+lens+camera&tag=spacehub03-20)
 
-[🛒 Carbon Fiber Tripod — Sharp Photos Throughout the Eclipse](https://www.amazon.com/s?k=carbon+fiber+tripod+photography)
+[🛒 Carbon Fiber Tripod — Sharp Photos Throughout the Eclipse](https://www.amazon.com/s?k=carbon+fiber+tripod+photography&tag=spacehub03-20)
 
 **Photography Settings for the Blood Moon**
 
@@ -142,15 +142,15 @@ Star trails: Point your camera at Polaris for circular star trails.
 
 **Gear for Polar Alignment and Star Trails**
 
-[🛒 Celestron PowerSeeker 127EQ — Equatorial Mount Requires Polar Alignment](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ)
+[🛒 Celestron PowerSeeker 127EQ — Equatorial Mount Requires Polar Alignment](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ&tag=spacehub03-20)
 
-[🛒 Sky-Watcher Star Adventurer Mini — Polar Aligned Star Tracker](https://www.amazon.com/s?k=Sky-Watcher+Star+Adventurer+Mini+tracker)
+[🛒 Sky-Watcher Star Adventurer Mini — Polar Aligned Star Tracker](https://www.amazon.com/s?k=Sky-Watcher+Star+Adventurer+Mini+tracker&tag=spacehub03-20)
 
-[🛒 iOptron iPolar Electronic Polar Scope — Precise Alignment Made Easy](https://www.amazon.com/s?k=iOptron+iPolar+electronic+polar+scope)
+[🛒 iOptron iPolar Electronic Polar Scope — Precise Alignment Made Easy](https://www.amazon.com/s?k=iOptron+iPolar+electronic+polar+scope&tag=spacehub03-20)
 
-[🛒 Sony Alpha a6400 — Capture Perfect Circular Star Trails Around Polaris](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera)
+[🛒 Sony Alpha a6400 — Capture Perfect Circular Star Trails Around Polaris](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera&tag=spacehub03-20)
 
-[🛒 Carbon Fiber Tripod — Stable Base for Star Trail Photography](https://www.amazon.com/s?k=carbon+fiber+tripod+photography)
+[🛒 Carbon Fiber Tripod — Stable Base for Star Trail Photography](https://www.amazon.com/s?k=carbon+fiber+tripod+photography&tag=spacehub03-20)
 
 **Can You Navigate by Polaris?**
 
@@ -203,17 +203,17 @@ The Messier Catalogue includes:
 
 **Best Telescopes for Messier Hunting**
 
-[🛒 Orion StarBlast 4.5 — Great Entry Telescope for Messier Objects](https://www.amazon.com/s?k=Orion+StarBlast+4.5+tabletop+telescope)
+[🛒 Orion StarBlast 4.5 — Great Entry Telescope for Messier Objects](https://www.amazon.com/s?k=Orion+StarBlast+4.5+tabletop+telescope&tag=spacehub03-20)
 
-[🛒 Sky-Watcher 8" Dobsonian — The Best Telescope for Deep Sky Objects](https://www.amazon.com/s?k=Sky-Watcher+8+inch+Dobsonian+telescope)
+[🛒 Sky-Watcher 8" Dobsonian — The Best Telescope for Deep Sky Objects](https://www.amazon.com/s?k=Sky-Watcher+8+inch+Dobsonian+telescope&tag=spacehub03-20)
 
-[🛒 Celestron NexStar 6SE — GoTo Mount Finds All 110 Messier Objects Automatically](https://www.amazon.com/s?k=Celestron+NexStar+6SE+telescope)
+[🛒 Celestron NexStar 6SE — GoTo Mount Finds All 110 Messier Objects Automatically](https://www.amazon.com/s?k=Celestron+NexStar+6SE+telescope&tag=spacehub03-20)
 
 **Best Eyepieces for Deep Sky**
 
-[🛒 Explore Scientific 82° 14mm — Wide-Field for Large Nebulae and Clusters](https://www.amazon.com/s?k=Explore+Scientific+82+degree+14mm+eyepiece)
+[🛒 Explore Scientific 82° 14mm — Wide-Field for Large Nebulae and Clusters](https://www.amazon.com/s?k=Explore+Scientific+82+degree+14mm+eyepiece&tag=spacehub03-20)
 
-[🛒 Celestron X-Cel LX 25mm — Maximum Field of View for Star Clusters](https://www.amazon.com/s?k=Celestron+X-Cel+LX+25mm+eyepiece)
+[🛒 Celestron X-Cel LX 25mm — Maximum Field of View for Star Clusters](https://www.amazon.com/s?k=Celestron+X-Cel+LX+25mm+eyepiece&tag=spacehub03-20)
 
 **The Messier Marathon**
 
@@ -256,7 +256,7 @@ Clear skies! 🔭`
 
 **PixInsight ($230)** — The professional standard for deep-sky processing. Steep learning curve but unmatched results. Used by observatory professionals and serious amateurs worldwide.
 
-[🛒 "Inside PixInsight" — The Essential Book for Learning PixInsight](https://www.amazon.com/s?k=Inside+PixInsight+book+astrophotography)
+[🛒 "Inside PixInsight" — The Essential Book for Learning PixInsight](https://www.amazon.com/s?k=Inside+PixInsight+book+astrophotography&tag=spacehub03-20)
 
 **Adobe Lightroom ($10/month)** — Excellent for final processing, color grading, and organizing your image library. Works great after stacking in DeepSkyStacker.
 
@@ -264,19 +264,19 @@ Clear skies! 🔭`
 
 **Essential Hardware for Serious Processing**
 
-[🛒 External Hard Drive 4TB — Your Image Archive Will Grow Fast](https://www.amazon.com/s?k=external+hard+drive+4TB+portable)
+[🛒 External Hard Drive 4TB — Your Image Archive Will Grow Fast](https://www.amazon.com/s?k=external+hard+drive+4TB+portable&tag=spacehub03-20)
 
-[🛒 Color-Calibrated Monitor — Crucial for Accurate Astrophoto Color](https://www.amazon.com/s?k=color+calibrated+monitor+photography)
+[🛒 Color-Calibrated Monitor — Crucial for Accurate Astrophoto Color](https://www.amazon.com/s?k=color+calibrated+monitor+photography&tag=spacehub03-20)
 
-[🛒 USB Hub for Telescope Control — Connect Guide Camera, Mount, Focuser](https://www.amazon.com/s?k=powered+USB+hub+telescope+astrophotography)
+[🛒 USB Hub for Telescope Control — Connect Guide Camera, Mount, Focuser](https://www.amazon.com/s?k=powered+USB+hub+telescope+astrophotography&tag=spacehub03-20)
 
 **Cameras for Astrophotography**
 
-[🛒 Sony Alpha a6400 — Best Entry Mirrorless for Astrophotography](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera)
+[🛒 Sony Alpha a6400 — Best Entry Mirrorless for Astrophotography](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera&tag=spacehub03-20)
 
-[🛒 ZWO ASI294MC Pro — Dedicated One-Shot Color Astronomy Camera](https://www.amazon.com/s?k=ZWO+ASI294MC+Pro+astronomy+camera)
+[🛒 ZWO ASI294MC Pro — Dedicated One-Shot Color Astronomy Camera](https://www.amazon.com/s?k=ZWO+ASI294MC+Pro+astronomy+camera&tag=spacehub03-20)
 
-[🛒 ZWO ASI120MM-S — Guide Camera for Autoguiding](https://www.amazon.com/s?k=ZWO+ASI120MM+guide+camera)
+[🛒 ZWO ASI120MM-S — Guide Camera for Autoguiding](https://www.amazon.com/s?k=ZWO+ASI120MM+guide+camera&tag=spacehub03-20)
 
 **The Recommended Beginner Workflow**
 
@@ -322,19 +322,19 @@ This is the best night of 2026 to observe Saturn. It's closest to Earth, highest
 
 **Best Telescopes for Saturn**
 
-[🛒 Celestron PowerSeeker 127EQ — Perfect Beginner Saturn Telescope](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ)
+[🛒 Celestron PowerSeeker 127EQ — Perfect Beginner Saturn Telescope](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ&tag=spacehub03-20)
 
-[🛒 Sky-Watcher 8" Dobsonian — Stunning Ring Detail and Multiple Moons](https://www.amazon.com/s?k=Sky-Watcher+8+inch+Dobsonian+telescope)
+[🛒 Sky-Watcher 8" Dobsonian — Stunning Ring Detail and Multiple Moons](https://www.amazon.com/s?k=Sky-Watcher+8+inch+Dobsonian+telescope&tag=spacehub03-20)
 
-[🛒 Celestron NexStar 6SE — GoTo Mount Finds Saturn Automatically](https://www.amazon.com/s?k=Celestron+NexStar+6SE+telescope)
+[🛒 Celestron NexStar 6SE — GoTo Mount Finds Saturn Automatically](https://www.amazon.com/s?k=Celestron+NexStar+6SE+telescope&tag=spacehub03-20)
 
 **Best Eyepieces for Saturn**
 
-[🛒 Celestron X-Cel LX 7mm — Sharp Planetary Eyepiece for Saturn](https://www.amazon.com/s?k=Celestron+X-Cel+LX+7mm+eyepiece)
+[🛒 Celestron X-Cel LX 7mm — Sharp Planetary Eyepiece for Saturn](https://www.amazon.com/s?k=Celestron+X-Cel+LX+7mm+eyepiece&tag=spacehub03-20)
 
-[🛒 Baader Hyperion 5mm — Maximum Detail on Saturn's Rings](https://www.amazon.com/s?k=Baader+Hyperion+5mm+eyepiece)
+[🛒 Baader Hyperion 5mm — Maximum Detail on Saturn's Rings](https://www.amazon.com/s?k=Baader+Hyperion+5mm+eyepiece&tag=spacehub03-20)
 
-[🛒 2× Barlow Lens — Double Your Power Without Buying a New Eyepiece](https://www.amazon.com/s?k=2x+Barlow+lens+telescope+eyepiece)
+[🛒 2× Barlow Lens — Double Your Power Without Buying a New Eyepiece](https://www.amazon.com/s?k=2x+Barlow+lens+telescope+eyepiece&tag=spacehub03-20)
 
 **Tips for the Best Saturn Views**
 
@@ -346,9 +346,9 @@ This is the best night of 2026 to observe Saturn. It's closest to Earth, highest
 
 **Photographing Saturn**
 
-[🛒 ZWO ASI120MC-S Planetary Camera — Best for Saturn Imaging](https://www.amazon.com/s?k=ZWO+ASI120+planetary+camera)
+[🛒 ZWO ASI120MC-S Planetary Camera — Best for Saturn Imaging](https://www.amazon.com/s?k=ZWO+ASI120+planetary+camera&tag=spacehub03-20)
 
-[🛒 Sony Alpha a6400 + Telescope Adapter — Beginner Saturn Photos](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera)
+[🛒 Sony Alpha a6400 + Telescope Adapter — Beginner Saturn Photos](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera&tag=spacehub03-20)
 
 Use SpaceHub's Live Planets tracker to see exactly where Saturn is tonight and when it's highest in the sky.
 
@@ -376,25 +376,25 @@ Example: 1000mm telescope + 10mm eyepiece = 100×.
 
 **Best Eyepieces for Beginners**
 
-[🛒 Celestron X-Cel LX 25mm — Wide, Comfortable, Crystal Clear](https://www.amazon.com/s?k=Celestron+X-Cel+LX+25mm+eyepiece)
+[🛒 Celestron X-Cel LX 25mm — Wide, Comfortable, Crystal Clear](https://www.amazon.com/s?k=Celestron+X-Cel+LX+25mm+eyepiece&tag=spacehub03-20)
 
-[🛒 Celestron X-Cel LX 7mm — Sharp Planetary Detail](https://www.amazon.com/s?k=Celestron+X-Cel+LX+7mm+eyepiece)
+[🛒 Celestron X-Cel LX 7mm — Sharp Planetary Detail](https://www.amazon.com/s?k=Celestron+X-Cel+LX+7mm+eyepiece&tag=spacehub03-20)
 
-[🛒 Orion 8-24mm Zoom Eyepiece — One Eyepiece That Does Everything](https://www.amazon.com/s?k=Orion+8-24mm+zoom+eyepiece+telescope)
+[🛒 Orion 8-24mm Zoom Eyepiece — One Eyepiece That Does Everything](https://www.amazon.com/s?k=Orion+8-24mm+zoom+eyepiece+telescope&tag=spacehub03-20)
 
 **Best Mid-Range Eyepieces**
 
-[🛒 Baader Hyperion 8mm — Premium Views of Planets](https://www.amazon.com/s?k=Baader+Hyperion+8mm+eyepiece)
+[🛒 Baader Hyperion 8mm — Premium Views of Planets](https://www.amazon.com/s?k=Baader+Hyperion+8mm+eyepiece&tag=spacehub03-20)
 
-[🛒 Explore Scientific 82° 11mm — Wide-Field Immersive Views](https://www.amazon.com/s?k=Explore+Scientific+82+degree+11mm+eyepiece)
+[🛒 Explore Scientific 82° 11mm — Wide-Field Immersive Views](https://www.amazon.com/s?k=Explore+Scientific+82+degree+11mm+eyepiece&tag=spacehub03-20)
 
-[🛒 Televue Nagler 13mm — The Gold Standard of Wide-Field Eyepieces](https://www.amazon.com/s?k=Televue+Nagler+13mm+eyepiece)
+[🛒 Televue Nagler 13mm — The Gold Standard of Wide-Field Eyepieces](https://www.amazon.com/s?k=Televue+Nagler+13mm+eyepiece&tag=spacehub03-20)
 
 **Essential Accessories**
 
-[🛒 2× Barlow Lens — Doubles the Power of Every Eyepiece You Own](https://www.amazon.com/s?k=2x+Barlow+lens+telescope+eyepiece)
+[🛒 2× Barlow Lens — Doubles the Power of Every Eyepiece You Own](https://www.amazon.com/s?k=2x+Barlow+lens+telescope+eyepiece&tag=spacehub03-20)
 
-[🛒 Eyepiece and Filter Case — Protect Your Investment](https://www.amazon.com/s?k=telescope+eyepiece+case+storage)
+[🛒 Eyepiece and Filter Case — Protect Your Investment](https://www.amazon.com/s?k=telescope+eyepiece+case+storage&tag=spacehub03-20)
 
 **Which Eyepieces Should You Buy First?**
 
@@ -415,39 +415,39 @@ Clear skies! 🔬`
 
 **Under $30 — Stocking Stuffers**
 
-[🛒 Planisphere Star Finder — Classic Gift for Any Stargazer](https://www.amazon.com/s?k=planisphere+star+finder+astronomy)
+[🛒 Planisphere Star Finder — Classic Gift for Any Stargazer](https://www.amazon.com/s?k=planisphere+star+finder+astronomy&tag=spacehub03-20)
 
-[🛒 Red LED Flashlight — Essential Tool Every Astronomer Needs](https://www.amazon.com/s?k=red+LED+flashlight+astronomy)
+[🛒 Red LED Flashlight — Essential Tool Every Astronomer Needs](https://www.amazon.com/s?k=red+LED+flashlight+astronomy&tag=spacehub03-20)
 
-[🛒 "The Backyard Astronomer's Guide" Book — Best Beginner Astronomy Book](https://www.amazon.com/s?k=Backyard+Astronomer+Guide+book)
+[🛒 "The Backyard Astronomer's Guide" Book — Best Beginner Astronomy Book](https://www.amazon.com/s?k=Backyard+Astronomer+Guide+book&tag=spacehub03-20)
 
-[🛒 Glow-in-the-Dark Star Map Poster — Beautiful Wall Art](https://www.amazon.com/s?k=glow+in+dark+star+map+poster+astronomy)
+[🛒 Glow-in-the-Dark Star Map Poster — Beautiful Wall Art](https://www.amazon.com/s?k=glow+in+dark+star+map+poster+astronomy&tag=spacehub03-20)
 
 **$30–$100 — Great Mid-Range Gifts**
 
-[🛒 Sky & Telescope Pocket Sky Atlas — The Atlas Every Amateur Uses](https://www.amazon.com/s?k=Sky+Telescope+Pocket+Sky+Atlas)
+[🛒 Sky & Telescope Pocket Sky Atlas — The Atlas Every Amateur Uses](https://www.amazon.com/s?k=Sky+Telescope+Pocket+Sky+Atlas&tag=spacehub03-20)
 
-[🛒 Celestron SkyMaster 10x50 Binoculars — Perfect First Astronomy Binoculars](https://www.amazon.com/s?k=Celestron+SkyMaster+10x50+binoculars)
+[🛒 Celestron SkyMaster 10x50 Binoculars — Perfect First Astronomy Binoculars](https://www.amazon.com/s?k=Celestron+SkyMaster+10x50+binoculars&tag=spacehub03-20)
 
-[🛒 Orion 9mm Telescope Eyepiece — Upgrade Any Existing Telescope](https://www.amazon.com/s?k=Orion+9mm+telescope+eyepiece)
+[🛒 Orion 9mm Telescope Eyepiece — Upgrade Any Existing Telescope](https://www.amazon.com/s?k=Orion+9mm+telescope+eyepiece&tag=spacehub03-20)
 
-[🛒 Moon Globe — Beautiful 3D Map of the Lunar Surface](https://www.amazon.com/s?k=moon+globe+3D+lunar+surface+map)
+[🛒 Moon Globe — Beautiful 3D Map of the Lunar Surface](https://www.amazon.com/s?k=moon+globe+3D+lunar+surface+map&tag=spacehub03-20)
 
 **$100–$300 — Impressive Gifts**
 
-[🛒 Celestron SkyMaster 15x70 Giant Binoculars — Serious Astronomy Tool](https://www.amazon.com/s?k=Celestron+SkyMaster+15x70+binoculars)
+[🛒 Celestron SkyMaster 15x70 Giant Binoculars — Serious Astronomy Tool](https://www.amazon.com/s?k=Celestron+SkyMaster+15x70+binoculars&tag=spacehub03-20)
 
-[🛒 Orion StarBlast 4.5 Tabletop Telescope — Grab-and-Go Telescope](https://www.amazon.com/s?k=Orion+StarBlast+4.5+tabletop+telescope)
+[🛒 Orion StarBlast 4.5 Tabletop Telescope — Grab-and-Go Telescope](https://www.amazon.com/s?k=Orion+StarBlast+4.5+tabletop+telescope&tag=spacehub03-20)
 
-[🛒 Canon EOS R50 — Start Their Astrophotography Journey](https://www.amazon.com/s?k=Canon+EOS+R50+mirrorless+camera)
+[🛒 Canon EOS R50 — Start Their Astrophotography Journey](https://www.amazon.com/s?k=Canon+EOS+R50+mirrorless+camera&tag=spacehub03-20)
 
 **$300–$600 — Premium Gifts**
 
-[🛒 Celestron PowerSeeker 127EQ — Complete Telescope Setup](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ)
+[🛒 Celestron PowerSeeker 127EQ — Complete Telescope Setup](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ&tag=spacehub03-20)
 
-[🛒 Sky-Watcher 8" Dobsonian — The Ultimate Visual Astronomy Telescope](https://www.amazon.com/s?k=Sky-Watcher+8+inch+Dobsonian+telescope)
+[🛒 Sky-Watcher 8" Dobsonian — The Ultimate Visual Astronomy Telescope](https://www.amazon.com/s?k=Sky-Watcher+8+inch+Dobsonian+telescope&tag=spacehub03-20)
 
-[🛒 Sky-Watcher Star Adventurer Mini — Star Tracker for Astrophotography](https://www.amazon.com/s?k=Sky-Watcher+Star+Adventurer+Mini+tracker)
+[🛒 Sky-Watcher Star Adventurer Mini — Star Tracker for Astrophotography](https://www.amazon.com/s?k=Sky-Watcher+Star+Adventurer+Mini+tracker&tag=spacehub03-20)
 
 **The Best Gift of All**
 
@@ -486,21 +486,21 @@ Andromeda is best seen from August through November in the northern hemisphere, 
 
 **Best Gear for Viewing Andromeda**
 
-[🛒 Celestron SkyMaster 10x50 Binoculars — Best Way to See Andromeda](https://www.amazon.com/s?k=Celestron+SkyMaster+10x50+binoculars)
+[🛒 Celestron SkyMaster 10x50 Binoculars — Best Way to See Andromeda](https://www.amazon.com/s?k=Celestron+SkyMaster+10x50+binoculars&tag=spacehub03-20)
 
-[🛒 Celestron SkyMaster 15x70 — Even More Detail of the Galaxy](https://www.amazon.com/s?k=Celestron+SkyMaster+15x70+binoculars)
+[🛒 Celestron SkyMaster 15x70 — Even More Detail of the Galaxy](https://www.amazon.com/s?k=Celestron+SkyMaster+15x70+binoculars&tag=spacehub03-20)
 
-[🛒 Orion StarBlast 4.5 — Wide-Field Telescope Perfect for Galaxies](https://www.amazon.com/s?k=Orion+StarBlast+4.5+tabletop+telescope)
+[🛒 Orion StarBlast 4.5 — Wide-Field Telescope Perfect for Galaxies](https://www.amazon.com/s?k=Orion+StarBlast+4.5+tabletop+telescope&tag=spacehub03-20)
 
-[🛒 Red Flashlight — For Reading Star Charts Without Losing Night Vision](https://www.amazon.com/s?k=red+flashlight+astronomy+night+vision)
+[🛒 Red Flashlight — For Reading Star Charts Without Losing Night Vision](https://www.amazon.com/s?k=red+flashlight+astronomy+night+vision&tag=spacehub03-20)
 
 **Photographing Andromeda**
 
 With a camera on a tripod, a 30-second exposure at ISO 3200 and f/2.8 will capture the galaxy beautifully. With a star tracker, you can expose for minutes and reveal stunning detail and color.
 
-[🛒 Sony Alpha a6400 — Great Camera for Galaxy Photography](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera)
+[🛒 Sony Alpha a6400 — Great Camera for Galaxy Photography](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera&tag=spacehub03-20)
 
-[🛒 Sky-Watcher Star Adventurer Mini — Track Andromeda for Long Exposures](https://www.amazon.com/s?k=Sky-Watcher+Star+Adventurer+Mini+tracker)
+[🛒 Sky-Watcher Star Adventurer Mini — Track Andromeda for Long Exposures](https://www.amazon.com/s?k=Sky-Watcher+Star+Adventurer+Mini+tracker&tag=spacehub03-20)
 
 **A Thought to Carry With You**
 
@@ -527,13 +527,13 @@ Settings:
 - **Shutter speed:** 10–30 seconds (or use Bulb mode for the full pass)
 - **Lens:** Wide angle (14–24mm) to capture more sky
 
-[🛒 Canon EOS R50 — Perfect for ISS Light Trail Photography](https://www.amazon.com/s?k=Canon+EOS+R50+mirrorless+camera)
+[🛒 Canon EOS R50 — Perfect for ISS Light Trail Photography](https://www.amazon.com/s?k=Canon+EOS+R50+mirrorless+camera&tag=spacehub03-20)
 
-[🛒 Rokinon 14mm f/2.8 — Ultra-Wide Lens to Capture the Full Pass](https://www.amazon.com/s?k=Rokinon+14mm+f2.8+ultra+wide+lens)
+[🛒 Rokinon 14mm f/2.8 — Ultra-Wide Lens to Capture the Full Pass](https://www.amazon.com/s?k=Rokinon+14mm+f2.8+ultra+wide+lens&tag=spacehub03-20)
 
-[🛒 Carbon Fiber Tripod — Essential for Long Exposure ISS Shots](https://www.amazon.com/s?k=carbon+fiber+tripod+photography)
+[🛒 Carbon Fiber Tripod — Essential for Long Exposure ISS Shots](https://www.amazon.com/s?k=carbon+fiber+tripod+photography&tag=spacehub03-20)
 
-[🛒 Remote Shutter Release — Start Exposure Without Camera Shake](https://www.amazon.com/s?k=remote+shutter+release+camera)
+[🛒 Remote Shutter Release — Start Exposure Without Camera Shake](https://www.amazon.com/s?k=remote+shutter+release+camera&tag=spacehub03-20)
 
 **Method 2 — ISS Transit Across the Moon or Sun**
 
@@ -541,17 +541,17 @@ When the ISS passes in front of the Moon or Sun (a "transit"), it takes less tha
 
 The ISS appears as its actual shape — the solar panels are identifiable — in a single frame.
 
-[🛒 Sigma 100-400mm f/5-6.3 — Telephoto for Moon Transits](https://www.amazon.com/s?k=Sigma+100-400mm+contemporary+lens)
+[🛒 Sigma 100-400mm f/5-6.3 — Telephoto for Moon Transits](https://www.amazon.com/s?k=Sigma+100-400mm+contemporary+lens&tag=spacehub03-20)
 
-[🛒 Celestron PowerSeeker 127EQ + Smartphone Adapter](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ)
+[🛒 Celestron PowerSeeker 127EQ + Smartphone Adapter](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ&tag=spacehub03-20)
 
-[🛒 Universal Smartphone Telescope Adapter](https://www.amazon.com/s?k=smartphone+telescope+adapter+mount)
+[🛒 Universal Smartphone Telescope Adapter](https://www.amazon.com/s?k=smartphone+telescope+adapter+mount&tag=spacehub03-20)
 
 **Method 3 — Resolve the ISS Shape (Advanced)**
 
 With a 8"+ telescope and a high-speed video camera, you can actually photograph the ISS as a recognizable object — solar panels, modules, and all — as it drifts through your field of view in under a second.
 
-[🛒 Sky-Watcher 8" Dobsonian — The Minimum Aperture for ISS Imaging](https://www.amazon.com/s?k=Sky-Watcher+8+inch+Dobsonian+telescope)
+[🛒 Sky-Watcher 8" Dobsonian — The Minimum Aperture for ISS Imaging](https://www.amazon.com/s?k=Sky-Watcher+8+inch+Dobsonian+telescope&tag=spacehub03-20)
 
 **Timing Is Everything**
 
@@ -577,39 +577,39 @@ Clear skies! 📡`
 
 **For Absolute Beginners**
 
-[🛒 "Astronomy: A Self-Teaching Guide" — Dinah Moche — Best First Book](https://www.amazon.com/s?k=Astronomy+Self-Teaching+Guide+Dinah+Moche)
+[🛒 "Astronomy: A Self-Teaching Guide" — Dinah Moche — Best First Book](https://www.amazon.com/s?k=Astronomy+Self-Teaching+Guide+Dinah+Moche&tag=spacehub03-20)
 
-[🛒 "Turn Left at Orion" — Best Observing Guide for Small Telescopes](https://www.amazon.com/s?k=Turn+Left+at+Orion+astronomy+book)
+[🛒 "Turn Left at Orion" — Best Observing Guide for Small Telescopes](https://www.amazon.com/s?k=Turn+Left+at+Orion+astronomy+book&tag=spacehub03-20)
 
-[🛒 "NightWatch: A Practical Guide to Viewing the Universe" — Terence Dickinson](https://www.amazon.com/s?k=NightWatch+Practical+Guide+Viewing+Universe+Dickinson)
+[🛒 "NightWatch: A Practical Guide to Viewing the Universe" — Terence Dickinson](https://www.amazon.com/s?k=NightWatch+Practical+Guide+Viewing+Universe+Dickinson&tag=spacehub03-20)
 
 **Star Atlases & Field Guides**
 
-[🛒 Sky & Telescope Pocket Sky Atlas — The Best Field Star Chart](https://www.amazon.com/s?k=Sky+Telescope+Pocket+Sky+Atlas)
+[🛒 Sky & Telescope Pocket Sky Atlas — The Best Field Star Chart](https://www.amazon.com/s?k=Sky+Telescope+Pocket+Sky+Atlas&tag=spacehub03-20)
 
-[🛒 "Uranometria 2000.0" — The Professional Deep Sky Atlas](https://www.amazon.com/s?k=Uranometria+2000+deep+sky+atlas)
+[🛒 "Uranometria 2000.0" — The Professional Deep Sky Atlas](https://www.amazon.com/s?k=Uranometria+2000+deep+sky+atlas&tag=spacehub03-20)
 
-[🛒 "Norton's Star Atlas" — Classic Reference Used Since 1910](https://www.amazon.com/s?k=Norton+Star+Atlas+astronomy)
+[🛒 "Norton's Star Atlas" — Classic Reference Used Since 1910](https://www.amazon.com/s?k=Norton+Star+Atlas+astronomy&tag=spacehub03-20)
 
 **For Visual Observers**
 
-[🛒 "The Backyard Astronomer's Guide" — Dickinson & Dyer — The Complete Reference](https://www.amazon.com/s?k=Backyard+Astronomer+Guide+Dickinson+Dyer)
+[🛒 "The Backyard Astronomer's Guide" — Dickinson & Dyer — The Complete Reference](https://www.amazon.com/s?k=Backyard+Astronomer+Guide+Dickinson+Dyer&tag=spacehub03-20)
 
-[🛒 "Deep Sky Wonders" — Sue French — Best Object-by-Object Observing Book](https://www.amazon.com/s?k=Deep+Sky+Wonders+Sue+French+astronomy)
+[🛒 "Deep Sky Wonders" — Sue French — Best Object-by-Object Observing Book](https://www.amazon.com/s?k=Deep+Sky+Wonders+Sue+French+astronomy&tag=spacehub03-20)
 
 **For Astrophotographers**
 
-[🛒 "The Astrophotography Manual" — Chris Woodhouse — Complete Technical Guide](https://www.amazon.com/s?k=Astrophotography+Manual+Chris+Woodhouse)
+[🛒 "The Astrophotography Manual" — Chris Woodhouse — Complete Technical Guide](https://www.amazon.com/s?k=Astrophotography+Manual+Chris+Woodhouse&tag=spacehub03-20)
 
-[🛒 "Deep-Sky Imaging" — Stefan Seip — Stunning Techniques for Deep Sky](https://www.amazon.com/s?k=Deep+Sky+Imaging+astrophotography+book)
+[🛒 "Deep-Sky Imaging" — Stefan Seip — Stunning Techniques for Deep Sky](https://www.amazon.com/s?k=Deep+Sky+Imaging+astrophotography+book&tag=spacehub03-20)
 
 **Popular Science (Non-Technical)**
 
-[🛒 "A Brief History of Time" — Stephen Hawking — The Classic](https://www.amazon.com/s?k=Brief+History+of+Time+Hawking)
+[🛒 "A Brief History of Time" — Stephen Hawking — The Classic](https://www.amazon.com/s?k=Brief+History+of+Time+Hawking&tag=spacehub03-20)
 
-[🛒 "Astrophysics for People in a Hurry" — Neil deGrasse Tyson](https://www.amazon.com/s?k=Astrophysics+for+People+in+a+Hurry+Tyson)
+[🛒 "Astrophysics for People in a Hurry" — Neil deGrasse Tyson](https://www.amazon.com/s?k=Astrophysics+for+People+in+a+Hurry+Tyson&tag=spacehub03-20)
 
-[🛒 "The Martian" — Andy Weir — The Best Space Fiction Novel](https://www.amazon.com/s?k=The+Martian+Andy+Weir+book)
+[🛒 "The Martian" — Andy Weir — The Best Space Fiction Novel](https://www.amazon.com/s?k=The+Martian+Andy+Weir+book&tag=spacehub03-20)
 
 **The Bottom Line**
 
@@ -647,21 +647,21 @@ Io, Europa, Ganymede, and Callisto were discovered by Galileo in 1610. They orbi
 
 **Best Gear for Jupiter**
 
-[🛒 Celestron SkyMaster 10x50 Binoculars — See All 4 Moons](https://www.amazon.com/s?k=Celestron+SkyMaster+10x50+binoculars)
+[🛒 Celestron SkyMaster 10x50 Binoculars — See All 4 Moons](https://www.amazon.com/s?k=Celestron+SkyMaster+10x50+binoculars&tag=spacehub03-20)
 
-[🛒 Celestron PowerSeeker 127EQ — See Cloud Bands and Moons](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ)
+[🛒 Celestron PowerSeeker 127EQ — See Cloud Bands and Moons](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ&tag=spacehub03-20)
 
-[🛒 Celestron NexStar 6SE — GoTo Telescope for Maximum Jupiter Detail](https://www.amazon.com/s?k=Celestron+NexStar+6SE+telescope)
+[🛒 Celestron NexStar 6SE — GoTo Telescope for Maximum Jupiter Detail](https://www.amazon.com/s?k=Celestron+NexStar+6SE+telescope&tag=spacehub03-20)
 
-[🛒 Baader Hyperion 8mm Eyepiece — Sharp Planetary Detail at High Power](https://www.amazon.com/s?k=Baader+Hyperion+8mm+eyepiece)
+[🛒 Baader Hyperion 8mm Eyepiece — Sharp Planetary Detail at High Power](https://www.amazon.com/s?k=Baader+Hyperion+8mm+eyepiece&tag=spacehub03-20)
 
-[🛒 2× Barlow Lens — Double Your Magnification for Planet Detail](https://www.amazon.com/s?k=2x+Barlow+lens+telescope+eyepiece)
+[🛒 2× Barlow Lens — Double Your Magnification for Planet Detail](https://www.amazon.com/s?k=2x+Barlow+lens+telescope+eyepiece&tag=spacehub03-20)
 
 **Photographing Jupiter at Opposition**
 
-[🛒 Sony Alpha a6400 — Excellent Camera for Planetary Imaging](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera)
+[🛒 Sony Alpha a6400 — Excellent Camera for Planetary Imaging](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera&tag=spacehub03-20)
 
-[🛒 ZWO ASI120MC-S Planetary Camera — Dedicated Camera for Jupiter](https://www.amazon.com/s?k=ZWO+ASI120+planetary+camera)
+[🛒 ZWO ASI120MC-S Planetary Camera — Dedicated Camera for Jupiter](https://www.amazon.com/s?k=ZWO+ASI120+planetary+camera&tag=spacehub03-20)
 
 **Tips for the Best Views**
 
@@ -688,41 +688,41 @@ You need four things: a way to stay warm, a way to see in the dark without ruini
 
 **Comfort & Viewing**
 
-[🛒 Zero Gravity Reclining Chair — The Perfect Stargazing Chair](https://www.amazon.com/s?k=zero+gravity+reclining+chair+stargazing)
+[🛒 Zero Gravity Reclining Chair — The Perfect Stargazing Chair](https://www.amazon.com/s?k=zero+gravity+reclining+chair+stargazing&tag=spacehub03-20)
 
-[🛒 Self-Inflating Sleeping Pad — Lie Flat and Watch the Sky for Hours](https://www.amazon.com/s?k=self+inflating+sleeping+pad+camping)
+[🛒 Self-Inflating Sleeping Pad — Lie Flat and Watch the Sky for Hours](https://www.amazon.com/s?k=self+inflating+sleeping+pad+camping&tag=spacehub03-20)
 
-[🛒 Double Camping Hammock — String Between Two Trees and Watch Meteors](https://www.amazon.com/s?k=double+camping+hammock+lightweight)
+[🛒 Double Camping Hammock — String Between Two Trees and Watch Meteors](https://www.amazon.com/s?k=double+camping+hammock+lightweight&tag=spacehub03-20)
 
 **Staying Warm**
 
 Temperatures drop sharply after midnight, even in summer. Dress for 10°C colder than the forecast.
 
-[🛒 Sleeping Bag Rated to -5°C — For Cold Mountain Dark Sky Sites](https://www.amazon.com/s?k=sleeping+bag+cold+weather+-5+degrees)
+[🛒 Sleeping Bag Rated to -5°C — For Cold Mountain Dark Sky Sites](https://www.amazon.com/s?k=sleeping+bag+cold+weather+-5+degrees&tag=spacehub03-20)
 
-[🛒 Thermal Base Layer Set — Essential Under-Layer for Cold Nights](https://www.amazon.com/s?k=thermal+base+layer+set+cold+weather)
+[🛒 Thermal Base Layer Set — Essential Under-Layer for Cold Nights](https://www.amazon.com/s?k=thermal+base+layer+set+cold+weather&tag=spacehub03-20)
 
-[🛒 Packable Down Jacket — Lightweight Warmth for Stargazing Sessions](https://www.amazon.com/s?k=packable+down+jacket+lightweight+camping)
+[🛒 Packable Down Jacket — Lightweight Warmth for Stargazing Sessions](https://www.amazon.com/s?k=packable+down+jacket+lightweight+camping&tag=spacehub03-20)
 
 **Lighting (Night Vision Safe)**
 
 Never use a white flashlight while stargazing — it destroys your dark adaptation for 20+ minutes.
 
-[🛒 Petzl Tactikka Red Headlamp — Hands-Free Astronomy Lighting](https://www.amazon.com/s?k=Petzl+Tactikka+red+headlamp)
+[🛒 Petzl Tactikka Red Headlamp — Hands-Free Astronomy Lighting](https://www.amazon.com/s?k=Petzl+Tactikka+red+headlamp&tag=spacehub03-20)
 
-[🛒 Orion Red LED Flashlight — The Classic Astronomy Flashlight](https://www.amazon.com/s?k=Orion+red+LED+astronomy+flashlight)
+[🛒 Orion Red LED Flashlight — The Classic Astronomy Flashlight](https://www.amazon.com/s?k=Orion+red+LED+astronomy+flashlight&tag=spacehub03-20)
 
 **Navigation & Finding Objects**
 
-[🛒 Sky & Telescope's Pocket Sky Atlas — Best Field Star Chart](https://www.amazon.com/s?k=Sky+Telescope+Pocket+Sky+Atlas)
+[🛒 Sky & Telescope's Pocket Sky Atlas — Best Field Star Chart](https://www.amazon.com/s?k=Sky+Telescope+Pocket+Sky+Atlas&tag=spacehub03-20)
 
-[🛒 Planisphere — Classic Rotating Star Map for Your Latitude](https://www.amazon.com/s?k=planisphere+star+finder+astronomy)
+[🛒 Planisphere — Classic Rotating Star Map for Your Latitude](https://www.amazon.com/s?k=planisphere+star+finder+astronomy&tag=spacehub03-20)
 
 **Power & Tech**
 
-[🛒 Portable Power Station — Charge Devices and Run Dew Heaters All Night](https://www.amazon.com/s?k=portable+power+station+camping+solar)
+[🛒 Portable Power Station — Charge Devices and Run Dew Heaters All Night](https://www.amazon.com/s?k=portable+power+station+camping+solar&tag=spacehub03-20)
 
-[🛒 Jackery Solar Generator — Sustainable Power for Remote Dark Sky Sites](https://www.amazon.com/s?k=Jackery+solar+generator+camping)
+[🛒 Jackery Solar Generator — Sustainable Power for Remote Dark Sky Sites](https://www.amazon.com/s?k=Jackery+solar+generator+camping&tag=spacehub03-20)
 
 **The Bottom Line**
 
@@ -761,21 +761,21 @@ Clear skies! ⭐`
 
 **Best Telescopes for Planets**
 
-[🛒 Celestron PowerSeeker 127EQ — Best Budget Planet Telescope](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ)
+[🛒 Celestron PowerSeeker 127EQ — Best Budget Planet Telescope](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ&tag=spacehub03-20)
 
-[🛒 Sky-Watcher 8" Dobsonian — Best Value for Planetary Detail](https://www.amazon.com/s?k=Sky-Watcher+8+inch+Dobsonian+telescope)
+[🛒 Sky-Watcher 8" Dobsonian — Best Value for Planetary Detail](https://www.amazon.com/s?k=Sky-Watcher+8+inch+Dobsonian+telescope&tag=spacehub03-20)
 
-[🛒 Celestron NexStar 6SE — GoTo Mount Finds Planets Automatically](https://www.amazon.com/s?k=Celestron+NexStar+6SE+telescope)
+[🛒 Celestron NexStar 6SE — GoTo Mount Finds Planets Automatically](https://www.amazon.com/s?k=Celestron+NexStar+6SE+telescope&tag=spacehub03-20)
 
 **Best Eyepieces for Planets**
 
 The eyepiece is as important as the telescope. A cheap eyepiece ruins an expensive telescope.
 
-[🛒 Celestron X-Cel LX 7mm Eyepiece — Sharp Planetary Views](https://www.amazon.com/s?k=Celestron+X-Cel+LX+7mm+eyepiece)
+[🛒 Celestron X-Cel LX 7mm Eyepiece — Sharp Planetary Views](https://www.amazon.com/s?k=Celestron+X-Cel+LX+7mm+eyepiece&tag=spacehub03-20)
 
-[🛒 Baader Hyperion 8mm Eyepiece — Premium Sharpness for Planets](https://www.amazon.com/s?k=Baader+Hyperion+8mm+eyepiece)
+[🛒 Baader Hyperion 8mm Eyepiece — Premium Sharpness for Planets](https://www.amazon.com/s?k=Baader+Hyperion+8mm+eyepiece&tag=spacehub03-20)
 
-[🛒 2× Barlow Lens — Doubles Any Eyepiece Magnification](https://www.amazon.com/s?k=2x+Barlow+lens+telescope+eyepiece)
+[🛒 2× Barlow Lens — Doubles Any Eyepiece Magnification](https://www.amazon.com/s?k=2x+Barlow+lens+telescope+eyepiece&tag=spacehub03-20)
 
 **When to Look in 2026**
 
@@ -806,11 +806,11 @@ Clear skies! 🪐`
 
 Looking at the Sun without proper protection causes permanent eye damage in seconds. You need certified solar filters (ISO 12312-2) for every phase EXCEPT totality. During the 2–4 minutes of totality, it is safe to look and shoot without filters.
 
-[🛒 Celestron EclipSmart Solar Glasses — Certified ISO 12312-2](https://www.amazon.com/s?k=Celestron+EclipSmart+solar+eclipse+glasses)
+[🛒 Celestron EclipSmart Solar Glasses — Certified ISO 12312-2](https://www.amazon.com/s?k=Celestron+EclipSmart+solar+eclipse+glasses&tag=spacehub03-20)
 
-[🛒 Thousand Oaks Solar Filter Sheet — Make Filters for Any Lens](https://www.amazon.com/s?k=Thousand+Oaks+solar+filter+sheet)
+[🛒 Thousand Oaks Solar Filter Sheet — Make Filters for Any Lens](https://www.amazon.com/s?k=Thousand+Oaks+solar+filter+sheet&tag=spacehub03-20)
 
-[🛒 Baader AstroSolar Film — Premium Solar Filter Material](https://www.amazon.com/s?k=Baader+AstroSolar+film+solar+filter)
+[🛒 Baader AstroSolar Film — Premium Solar Filter Material](https://www.amazon.com/s?k=Baader+AstroSolar+film+solar+filter&tag=spacehub03-20)
 
 **Camera & Lens Setup**
 
@@ -820,19 +820,19 @@ For the partial phases (before/after totality), you need a solar filter on your 
 - **200–400mm telephoto:** Fills the frame with the Sun and corona detail
 - **Telescope:** Maximum corona and prominence detail
 
-[🛒 Canon EOS R50 — Excellent Camera for Eclipse Photography](https://www.amazon.com/s?k=Canon+EOS+R50+mirrorless+camera)
+[🛒 Canon EOS R50 — Excellent Camera for Eclipse Photography](https://www.amazon.com/s?k=Canon+EOS+R50+mirrorless+camera&tag=spacehub03-20)
 
-[🛒 Sigma 100-400mm f/5-6.3 — Perfect Eclipse Telephoto](https://www.amazon.com/s?k=Sigma+100-400mm+contemporary+lens)
+[🛒 Sigma 100-400mm f/5-6.3 — Perfect Eclipse Telephoto](https://www.amazon.com/s?k=Sigma+100-400mm+contemporary+lens&tag=spacehub03-20)
 
-[🛒 Rokinon 14mm f/2.8 — Wide Angle for Eclipse Landscape Shots](https://www.amazon.com/s?k=Rokinon+14mm+f2.8+ultra+wide+lens)
+[🛒 Rokinon 14mm f/2.8 — Wide Angle for Eclipse Landscape Shots](https://www.amazon.com/s?k=Rokinon+14mm+f2.8+ultra+wide+lens&tag=spacehub03-20)
 
 **Accessories**
 
-[🛒 Heavy Duty Tripod — Essential for Sharp Eclipse Photos](https://www.amazon.com/s?k=heavy+duty+tripod+telephoto+lens)
+[🛒 Heavy Duty Tripod — Essential for Sharp Eclipse Photos](https://www.amazon.com/s?k=heavy+duty+tripod+telephoto+lens&tag=spacehub03-20)
 
-[🛒 Intervalometer — Program Automatic Exposure Bracketing](https://www.amazon.com/s?k=intervalometer+remote+shutter+release+camera)
+[🛒 Intervalometer — Program Automatic Exposure Bracketing](https://www.amazon.com/s?k=intervalometer+remote+shutter+release+camera&tag=spacehub03-20)
 
-[🛒 Extra Camera Batteries — Cold temperatures drain batteries fast](https://www.amazon.com/s?k=camera+battery+pack+extended+DSLR)
+[🛒 Extra Camera Batteries — Cold temperatures drain batteries fast](https://www.amazon.com/s?k=camera+battery+pack+extended+DSLR&tag=spacehub03-20)
 
 **Eclipse Photography Settings**
 
@@ -896,13 +896,13 @@ Use SpaceHub! Enter your city and you'll get a precise alert when the ISS is ove
 
 **Gear to Enhance Your ISS Viewing Experience**
 
-[🛒 10x50 Binoculars — See the ISS Shape as It Passes Over](https://www.amazon.com/s?k=10x50+binoculars+astronomy+stargazing)
+[🛒 10x50 Binoculars — See the ISS Shape as It Passes Over](https://www.amazon.com/s?k=10x50+binoculars+astronomy+stargazing&tag=spacehub03-20)
 
-[🛒 Red Flashlight — Read Star Charts Without Ruining Night Vision](https://www.amazon.com/s?k=red+flashlight+astronomy)
+[🛒 Red Flashlight — Read Star Charts Without Ruining Night Vision](https://www.amazon.com/s?k=red+flashlight+astronomy&tag=spacehub03-20)
 
-[🛒 Reclining Camping Chair — Comfortable ISS Watching Position](https://www.amazon.com/s?k=reclining+camping+chair+stargazing)
+[🛒 Reclining Camping Chair — Comfortable ISS Watching Position](https://www.amazon.com/s?k=reclining+camping+chair+stargazing&tag=spacehub03-20)
 
-[🛒 Celestron PowerSeeker 127EQ — For When You Want More Than the Naked Eye](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ)`
+[🛒 Celestron PowerSeeker 127EQ — For When You Want More Than the Naked Eye](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ&tag=spacehub03-20)`
   },
   {
     slug: 'perseid-meteor-shower-2026',
@@ -937,13 +937,13 @@ In a typical year: 50–100 meteors per hour. In a strong year (like 2026): up t
 
 **What to Bring for Meteor Shower Night**
 
-[🛒 Double Self-Inflating Sleeping Pad — Lie Back & Watch in Comfort](https://www.amazon.com/s?k=self+inflating+sleeping+pad+camping)
+[🛒 Double Self-Inflating Sleeping Pad — Lie Back & Watch in Comfort](https://www.amazon.com/s?k=self+inflating+sleeping+pad+camping&tag=spacehub03-20)
 
-[🛒 Red Flashlight — Preserve Your Night Vision](https://www.amazon.com/s?k=red+flashlight+astronomy+night+vision)
+[🛒 Red Flashlight — Preserve Your Night Vision](https://www.amazon.com/s?k=red+flashlight+astronomy+night+vision&tag=spacehub03-20)
 
-[🛒 Warm Sleeping Bag — Stay Cozy on Cold Summer Nights](https://www.amazon.com/s?k=lightweight+sleeping+bag+summer+camping)
+[🛒 Warm Sleeping Bag — Stay Cozy on Cold Summer Nights](https://www.amazon.com/s?k=lightweight+sleeping+bag+summer+camping&tag=spacehub03-20)
 
-[🛒 Canon EOS R50 + Wide Lens — Capture Meteor Streaks on Camera](https://www.amazon.com/s?k=Canon+EOS+R50+mirrorless+camera)`
+[🛒 Canon EOS R50 + Wide Lens — Capture Meteor Streaks on Camera](https://www.amazon.com/s?k=Canon+EOS+R50+mirrorless+camera&tag=spacehub03-20)`
   },
   {
     slug: 'starlink-satellites-how-to-see',
@@ -985,13 +985,13 @@ Just like the ISS, they need to be in sunlight while you're in darkness — whic
 
 **Gear We Recommend for Photographing Starlink**
 
-[🛒 Canon EOS R50 Mirrorless Camera — Great for Satellite Trails](https://www.amazon.com/s?k=Canon+EOS+R50+mirrorless+camera)
+[🛒 Canon EOS R50 Mirrorless Camera — Great for Satellite Trails](https://www.amazon.com/s?k=Canon+EOS+R50+mirrorless+camera&tag=spacehub03-20)
 
-[🛒 Rokinon 14mm f/2.8 Ultra Wide Lens — Perfect for Night Sky](https://www.amazon.com/s?k=Rokinon+14mm+f2.8+ultra+wide+lens)
+[🛒 Rokinon 14mm f/2.8 Ultra Wide Lens — Perfect for Night Sky](https://www.amazon.com/s?k=Rokinon+14mm+f2.8+ultra+wide+lens&tag=spacehub03-20)
 
-[🛒 Carbon Fiber Tripod — Lightweight & Stable for Long Exposures](https://www.amazon.com/s?k=carbon+fiber+tripod+photography)
+[🛒 Carbon Fiber Tripod — Lightweight & Stable for Long Exposures](https://www.amazon.com/s?k=carbon+fiber+tripod+photography&tag=spacehub03-20)
 
-[🛒 Intervalometer Remote Shutter — Shoot Without Touching the Camera](https://www.amazon.com/s?k=intervalometer+remote+shutter+release+camera)
+[🛒 Intervalometer Remote Shutter — Shoot Without Touching the Camera](https://www.amazon.com/s?k=intervalometer+remote+shutter+release+camera&tag=spacehub03-20)
 
 **Why Are They So Bright After Launch?**
 
@@ -1042,7 +1042,7 @@ A good beginner telescope will show you:
 - Comes with 2 eyepieces and a 3× Barlow lens
 - Perfect first telescope for ages 10+
 
-[🛒 Buy Celestron PowerSeeker 127EQ on Amazon](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ)
+[🛒 Buy Celestron PowerSeeker 127EQ on Amazon](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ&tag=spacehub03-20)
 
 **Mid-Range ($200–$400): Orion StarBlast 6i IntelliScope**
 - 150mm aperture, superb views of deep-sky objects
@@ -1050,7 +1050,7 @@ A good beginner telescope will show you:
 - Compact tabletop design — easy to use anywhere
 - Highly rated by astronomy communities worldwide
 
-[🛒 Buy Orion StarBlast 6i IntelliScope on Amazon](https://www.amazon.com/s?k=Orion+StarBlast+6i+IntelliScope)
+[🛒 Buy Orion StarBlast 6i IntelliScope on Amazon](https://www.amazon.com/s?k=Orion+StarBlast+6i+IntelliScope&tag=spacehub03-20)
 
 **Best Value ($400–$700): Sky-Watcher 8" Dobsonian**
 - Massive 200mm aperture at a surprisingly low price
@@ -1058,7 +1058,7 @@ A good beginner telescope will show you:
 - You'll see spiral arms of galaxies at dark sky sites
 - Manual tracking — you push the telescope by hand
 
-[🛒 Buy Sky-Watcher 8" Dobsonian on Amazon](https://www.amazon.com/s?k=Sky-Watcher+8+inch+Dobsonian)
+[🛒 Buy Sky-Watcher 8" Dobsonian on Amazon](https://www.amazon.com/s?k=Sky-Watcher+8+inch+Dobsonian&tag=spacehub03-20)
 
 **What to Avoid**
 
@@ -1137,13 +1137,13 @@ You don't need expensive gear:
 
 **Our Recommended Aurora Photography Gear**
 
-[🛒 Sony Alpha a6400 Mirrorless Camera — Best for Northern Lights](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera)
+[🛒 Sony Alpha a6400 Mirrorless Camera — Best for Northern Lights](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera&tag=spacehub03-20)
 
-[🛒 Sturdy Lightweight Tripod for Night Photography](https://www.amazon.com/s?k=lightweight+travel+tripod+night+photography)
+[🛒 Sturdy Lightweight Tripod for Night Photography](https://www.amazon.com/s?k=lightweight+travel+tripod+night+photography&tag=spacehub03-20)
 
-[🛒 Sony 16–50mm f/3.5 Wide Angle Lens](https://www.amazon.com/s?k=Sony+16-50mm+wide+angle+lens+mirrorless)
+[🛒 Sony 16–50mm f/3.5 Wide Angle Lens](https://www.amazon.com/s?k=Sony+16-50mm+wide+angle+lens+mirrorless&tag=spacehub03-20)
 
-[🛒 Thermal Base Layer Set — Stay Warm While Shooting](https://www.amazon.com/s?k=thermal+base+layer+set+cold+weather)
+[🛒 Thermal Base Layer Set — Stay Warm While Shooting](https://www.amazon.com/s?k=thermal+base+layer+set+cold+weather&tag=spacehub03-20)
 
 **Aurora Myths Debunked**
 
@@ -1185,9 +1185,9 @@ Any camera with manual mode works. Even a smartphone with a telephoto mode can p
 - **RAW format** — far more editing latitude than JPEG
 - **Fast continuous shooting** — take 10+ shots and keep the sharpest
 
-[🛒 Canon EOS R50 — Excellent Beginner Camera for Moon Photography](https://www.amazon.com/s?k=Canon+EOS+R50+mirrorless+camera)
+[🛒 Canon EOS R50 — Excellent Beginner Camera for Moon Photography](https://www.amazon.com/s?k=Canon+EOS+R50+mirrorless+camera&tag=spacehub03-20)
 
-[🛒 Sony Alpha a6400 — Superior Detail and Dynamic Range](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera)
+[🛒 Sony Alpha a6400 — Superior Detail and Dynamic Range](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera&tag=spacehub03-20)
 
 **What Lens or Telescope to Use?**
 
@@ -1198,19 +1198,19 @@ This is where moon photography gets exciting. The longer the focal length, the m
 - **500mm+:** Dramatic close-ups showing mountain ranges and crater rims
 - **Telescope:** The ultimate moon photography tool — like having a 1000mm+ lens
 
-[🛒 500mm Mirror Telephoto Lens — Affordable Long-Reach Moon Lens](https://www.amazon.com/s?k=500mm+mirror+telephoto+lens+camera)
+[🛒 500mm Mirror Telephoto Lens — Affordable Long-Reach Moon Lens](https://www.amazon.com/s?k=500mm+mirror+telephoto+lens+camera&tag=spacehub03-20)
 
-[🛒 Sigma 100-400mm f/5-6.3 — Versatile Zoom for Moon and Wildlife](https://www.amazon.com/s?k=Sigma+100-400mm+contemporary+lens)
+[🛒 Sigma 100-400mm f/5-6.3 — Versatile Zoom for Moon and Wildlife](https://www.amazon.com/s?k=Sigma+100-400mm+contemporary+lens&tag=spacehub03-20)
 
-[🛒 Celestron PowerSeeker 127EQ + Phone Adapter — Telescope Moon Photography](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ)
+[🛒 Celestron PowerSeeker 127EQ + Phone Adapter — Telescope Moon Photography](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ&tag=spacehub03-20)
 
-[🛒 Universal Smartphone Telescope Adapter — Use Your Phone Through Any Telescope](https://www.amazon.com/s?k=smartphone+telescope+adapter+mount)
+[🛒 Universal Smartphone Telescope Adapter — Use Your Phone Through Any Telescope](https://www.amazon.com/s?k=smartphone+telescope+adapter+mount&tag=spacehub03-20)
 
 **Essential Accessories**
 
-[🛒 Sturdy Tripod — Absolutely Required for Sharp Moon Shots](https://www.amazon.com/s?k=heavy+duty+tripod+telephoto+lens)
+[🛒 Sturdy Tripod — Absolutely Required for Sharp Moon Shots](https://www.amazon.com/s?k=heavy+duty+tripod+telephoto+lens&tag=spacehub03-20)
 
-[🛒 Remote Shutter Release — Eliminate Camera Shake at the Moment of Exposure](https://www.amazon.com/s?k=remote+shutter+release+camera)
+[🛒 Remote Shutter Release — Eliminate Camera Shake at the Moment of Exposure](https://www.amazon.com/s?k=remote+shutter+release+camera&tag=spacehub03-20)
 
 **Best Moon Phases for Photography**
 
@@ -1281,11 +1281,11 @@ Any DSLR or mirrorless camera with manual controls works. Key requirements:
 - **Good high-ISO performance** — you'll shoot at ISO 800–3200
 - **Intervalometer support** — built-in or via remote
 
-[🛒 Canon EOS R50 — Excellent Beginner Camera for Star Trails](https://www.amazon.com/s?k=Canon+EOS+R50+mirrorless+camera)
+[🛒 Canon EOS R50 — Excellent Beginner Camera for Star Trails](https://www.amazon.com/s?k=Canon+EOS+R50+mirrorless+camera&tag=spacehub03-20)
 
-[🛒 Sony Alpha a6400 — Superior High-ISO Performance for Night Sky](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera)
+[🛒 Sony Alpha a6400 — Superior High-ISO Performance for Night Sky](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera&tag=spacehub03-20)
 
-[🛒 Nikon Z30 — Great Entry-Level Mirrorless for Astrophotography](https://www.amazon.com/s?k=Nikon+Z30+mirrorless+camera)
+[🛒 Nikon Z30 — Great Entry-Level Mirrorless for Astrophotography](https://www.amazon.com/s?k=Nikon+Z30+mirrorless+camera&tag=spacehub03-20)
 
 **What Lens to Use?**
 
@@ -1293,17 +1293,17 @@ Any DSLR or mirrorless camera with manual controls works. Key requirements:
 - **Fast aperture (f/2.8 or wider):** gathers more light per frame
 - **The wider and faster, the better**
 
-[🛒 Rokinon 14mm f/2.8 — The Best Budget Lens for Star Trails](https://www.amazon.com/s?k=Rokinon+14mm+f2.8+ultra+wide+lens)
+[🛒 Rokinon 14mm f/2.8 — The Best Budget Lens for Star Trails](https://www.amazon.com/s?k=Rokinon+14mm+f2.8+ultra+wide+lens&tag=spacehub03-20)
 
-[🛒 Sigma 18-35mm f/1.8 Art — Exceptional Low-Light Performance](https://www.amazon.com/s?k=Sigma+18-35mm+f1.8+art+lens)
+[🛒 Sigma 18-35mm f/1.8 Art — Exceptional Low-Light Performance](https://www.amazon.com/s?k=Sigma+18-35mm+f1.8+art+lens&tag=spacehub03-20)
 
 **Essential Accessories**
 
-[🛒 Intervalometer Remote — Automate Hundreds of Exposures Hands-Free](https://www.amazon.com/s?k=intervalometer+remote+shutter+release+camera)
+[🛒 Intervalometer Remote — Automate Hundreds of Exposures Hands-Free](https://www.amazon.com/s?k=intervalometer+remote+shutter+release+camera&tag=spacehub03-20)
 
-[🛒 Sturdy Carbon Fiber Tripod — Must Not Move a Single Millimeter](https://www.amazon.com/s?k=carbon+fiber+tripod+photography)
+[🛒 Sturdy Carbon Fiber Tripod — Must Not Move a Single Millimeter](https://www.amazon.com/s?k=carbon+fiber+tripod+photography&tag=spacehub03-20)
 
-[🛒 Extra Camera Battery Pack — Long Sessions Drain Power Fast](https://www.amazon.com/s?k=camera+battery+pack+extended+DSLR)
+[🛒 Extra Camera Battery Pack — Long Sessions Drain Power Fast](https://www.amazon.com/s?k=camera+battery+pack+extended+DSLR&tag=spacehub03-20)
 
 **Step-by-Step Guide**
 
@@ -1407,17 +1407,17 @@ A mountain observatory at 2,877m with public night access. Stunning views of the
 
 **What to Bring to a Dark Sky Site**
 
-[🛒 Celestron SkyMaster 15x70 Binoculars — See the Milky Way in Detail](https://www.amazon.com/s?k=Celestron+SkyMaster+15x70+binoculars)
+[🛒 Celestron SkyMaster 15x70 Binoculars — See the Milky Way in Detail](https://www.amazon.com/s?k=Celestron+SkyMaster+15x70+binoculars&tag=spacehub03-20)
 
-[🛒 Sky-Watcher 8" Dobsonian Telescope — The Ultimate Dark Sky Companion](https://www.amazon.com/s?k=Sky-Watcher+8+inch+Dobsonian+telescope)
+[🛒 Sky-Watcher 8" Dobsonian Telescope — The Ultimate Dark Sky Companion](https://www.amazon.com/s?k=Sky-Watcher+8+inch+Dobsonian+telescope&tag=spacehub03-20)
 
-[🛒 Self-Inflating Sleeping Pad — Lie Back and Watch for Hours](https://www.amazon.com/s?k=self+inflating+sleeping+pad+camping)
+[🛒 Self-Inflating Sleeping Pad — Lie Back and Watch for Hours](https://www.amazon.com/s?k=self+inflating+sleeping+pad+camping&tag=spacehub03-20)
 
-[🛒 Red Headlamp — Hands-Free Night Vision Preservation](https://www.amazon.com/s?k=red+headlamp+astronomy+night+vision)
+[🛒 Red Headlamp — Hands-Free Night Vision Preservation](https://www.amazon.com/s?k=red+headlamp+astronomy+night+vision&tag=spacehub03-20)
 
-[🛒 Warm Sleeping Bag — Mountains Get Cold Even in Summer](https://www.amazon.com/s?k=lightweight+sleeping+bag+cold+weather+camping)
+[🛒 Warm Sleeping Bag — Mountains Get Cold Even in Summer](https://www.amazon.com/s?k=lightweight+sleeping+bag+cold+weather+camping&tag=spacehub03-20)
 
-[🛒 Sony Alpha a6400 + Wide Lens Kit — Capture the Milky Way](https://www.amazon.com/s?k=Sony+Alpha+a6400+camera+kit)
+[🛒 Sony Alpha a6400 + Wide Lens Kit — Capture the Milky Way](https://www.amazon.com/s?k=Sony+Alpha+a6400+camera+kit&tag=spacehub03-20)
 
 **The Bottom Line**
 
@@ -1476,15 +1476,15 @@ The best astronomy experience combines apps with the right equipment:
 
 **Recommended Gear to Go With Your Apps**
 
-[🛒 Celestron SkyMaster 10x50 — See What Your App Is Pointing At](https://www.amazon.com/s?k=Celestron+SkyMaster+10x50+binoculars)
+[🛒 Celestron SkyMaster 10x50 — See What Your App Is Pointing At](https://www.amazon.com/s?k=Celestron+SkyMaster+10x50+binoculars&tag=spacehub03-20)
 
-[🛒 Celestron PowerSeeker 127EQ — App-Compatible Beginner Telescope](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ)
+[🛒 Celestron PowerSeeker 127EQ — App-Compatible Beginner Telescope](https://www.amazon.com/s?k=Celestron+PowerSeeker+127EQ&tag=spacehub03-20)
 
-[🛒 Red Flashlight — Use Your App Without Ruining Night Vision](https://www.amazon.com/s?k=red+flashlight+astronomy+night+vision)
+[🛒 Red Flashlight — Use Your App Without Ruining Night Vision](https://www.amazon.com/s?k=red+flashlight+astronomy+night+vision&tag=spacehub03-20)
 
-[🛒 Sky & Telescope's Pocket Sky Atlas — Physical Backup When Battery Dies](https://www.amazon.com/s?k=Sky+Telescope+Pocket+Sky+Atlas)
+[🛒 Sky & Telescope's Pocket Sky Atlas — Physical Backup When Battery Dies](https://www.amazon.com/s?k=Sky+Telescope+Pocket+Sky+Atlas&tag=spacehub03-20)
 
-[🛒 Planisphere Star Finder — Classic Analog Star Map That Never Runs Out of Battery](https://www.amazon.com/s?k=planisphere+star+finder+astronomy)
+[🛒 Planisphere Star Finder — Classic Analog Star Map That Never Runs Out of Battery](https://www.amazon.com/s?k=planisphere+star+finder+astronomy&tag=spacehub03-20)
 
 **The Bottom Line**
 
@@ -1537,28 +1537,28 @@ Every binocular has two numbers — e.g. **10x50**:
 **Best Budget Pick: Celestron SkyMaster 10x50**
 The most popular astronomy binoculars under $60. Excellent optics for the price, BaK-4 prisms, and fully coated lenses. Perfect first pair.
 
-[🛒 Buy Celestron SkyMaster 10x50 on Amazon](https://www.amazon.com/s?k=Celestron+SkyMaster+10x50+binoculars)
+[🛒 Buy Celestron SkyMaster 10x50 on Amazon](https://www.amazon.com/s?k=Celestron+SkyMaster+10x50+binoculars&tag=spacehub03-20)
 
 **Best Mid-Range: Orion 9x63 Resolux Waterproof**
 Larger 63mm objective lenses gather significantly more light than standard 50mm models. Superb for deep-sky objects and the Milky Way.
 
-[🛒 Buy Orion 9x63 Resolux Binoculars on Amazon](https://www.amazon.com/s?k=Orion+9x63+astronomy+binoculars)
+[🛒 Buy Orion 9x63 Resolux Binoculars on Amazon](https://www.amazon.com/s?k=Orion+9x63+astronomy+binoculars&tag=spacehub03-20)
 
 **Best Premium: Nikon 7x50 ProStaff 7S**
 Nikon's legendary optics. Rubber-armored, waterproof, and fog-proof. You'll have these for 20 years.
 
-[🛒 Buy Nikon 7x50 ProStaff Binoculars on Amazon](https://www.amazon.com/s?k=Nikon+7x50+ProStaff+7S+binoculars)
+[🛒 Buy Nikon 7x50 ProStaff Binoculars on Amazon](https://www.amazon.com/s?k=Nikon+7x50+ProStaff+7S+binoculars&tag=spacehub03-20)
 
 **Best Giant Binoculars: Celestron SkyMaster 15x70**
 When you want serious light-gathering power. Shows star clusters and nebulae that 10x50 binoculars can't resolve. Requires a tripod.
 
-[🛒 Buy Celestron SkyMaster 15x70 on Amazon](https://www.amazon.com/s?k=Celestron+SkyMaster+15x70+binoculars)
+[🛒 Buy Celestron SkyMaster 15x70 on Amazon](https://www.amazon.com/s?k=Celestron+SkyMaster+15x70+binoculars&tag=spacehub03-20)
 
 **Essential Accessories**
 
-[🛒 Binocular Tripod Adapter — Steady Views at High Magnification](https://www.amazon.com/s?k=binocular+tripod+adapter+astronomy)
+[🛒 Binocular Tripod Adapter — Steady Views at High Magnification](https://www.amazon.com/s?k=binocular+tripod+adapter+astronomy&tag=spacehub03-20)
 
-[🛒 Portable Tripod for Binoculars](https://www.amazon.com/s?k=lightweight+tripod+binoculars+stargazing)
+[🛒 Portable Tripod for Binoculars](https://www.amazon.com/s?k=lightweight+tripod+binoculars+stargazing&tag=spacehub03-20)
 
 **Tips for Binocular Astronomy**
 
@@ -1598,9 +1598,9 @@ Any interchangeable-lens camera will work. The key specs to look for:
 - **Good high-ISO performance** — you'll shoot at ISO 1600–6400
 - **Mirrorless or DSLR** — both work great; mirrorless is newer and lighter
 
-[🛒 Sony Alpha a6400 — Best APS-C Camera for Night Sky Photography](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera)
+[🛒 Sony Alpha a6400 — Best APS-C Camera for Night Sky Photography](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera&tag=spacehub03-20)
 
-[🛒 Canon EOS R50 — Beginner-Friendly Mirrorless for Astrophotography](https://www.amazon.com/s?k=Canon+EOS+R50+mirrorless+camera)
+[🛒 Canon EOS R50 — Beginner-Friendly Mirrorless for Astrophotography](https://www.amazon.com/s?k=Canon+EOS+R50+mirrorless+camera&tag=spacehub03-20)
 
 **What Lens Do You Need?**
 
@@ -1609,9 +1609,9 @@ For Milky Way photography, you want a wide, fast lens:
 - **Aperture:** f/2.8 or wider — this is the most important spec
 - **The wider the aperture, the more light reaches the sensor**
 
-[🛒 Rokinon 14mm f/2.8 — The Best Budget Ultra-Wide for Astrophotography](https://www.amazon.com/s?k=Rokinon+14mm+f2.8+ultra+wide+lens)
+[🛒 Rokinon 14mm f/2.8 — The Best Budget Ultra-Wide for Astrophotography](https://www.amazon.com/s?k=Rokinon+14mm+f2.8+ultra+wide+lens&tag=spacehub03-20)
 
-[🛒 Sigma 18-35mm f/1.8 — Incredible Low-Light Performance](https://www.amazon.com/s?k=Sigma+18-35mm+f1.8+art+lens)
+[🛒 Sigma 18-35mm f/1.8 — Incredible Low-Light Performance](https://www.amazon.com/s?k=Sigma+18-35mm+f1.8+art+lens&tag=spacehub03-20)
 
 **Do You Need a Star Tracker?**
 
@@ -1620,17 +1620,17 @@ Without a tracker, you're limited to 15–25 second exposures before stars start
 - **Without tracker:** 20-second exposures, wide-field Milky Way shots
 - **With tracker:** 3-minute exposures, galaxies and nebulae visible
 
-[🛒 Sky-Watcher Star Adventurer Mini — Best Beginner Star Tracker](https://www.amazon.com/s?k=Sky-Watcher+Star+Adventurer+Mini+tracker)
+[🛒 Sky-Watcher Star Adventurer Mini — Best Beginner Star Tracker](https://www.amazon.com/s?k=Sky-Watcher+Star+Adventurer+Mini+tracker&tag=spacehub03-20)
 
-[🛒 iOptron SkyGuider Pro — Step Up for Serious Deep-Sky Work](https://www.amazon.com/s?k=iOptron+SkyGuider+Pro+star+tracker)
+[🛒 iOptron SkyGuider Pro — Step Up for Serious Deep-Sky Work](https://www.amazon.com/s?k=iOptron+SkyGuider+Pro+star+tracker&tag=spacehub03-20)
 
 **Essential Accessories**
 
-[🛒 Carbon Fiber Tripod — Stable Platform for Long Exposures](https://www.amazon.com/s?k=carbon+fiber+tripod+photography)
+[🛒 Carbon Fiber Tripod — Stable Platform for Long Exposures](https://www.amazon.com/s?k=carbon+fiber+tripod+photography&tag=spacehub03-20)
 
-[🛒 Intervalometer Remote Shutter — Shoot Without Camera Shake](https://www.amazon.com/s?k=intervalometer+remote+shutter+release+camera)
+[🛒 Intervalometer Remote Shutter — Shoot Without Camera Shake](https://www.amazon.com/s?k=intervalometer+remote+shutter+release+camera&tag=spacehub03-20)
 
-[🛒 Red Flashlight — Essential for Any Night Sky Session](https://www.amazon.com/s?k=red+flashlight+astronomy)
+[🛒 Red Flashlight — Essential for Any Night Sky Session](https://www.amazon.com/s?k=red+flashlight+astronomy&tag=spacehub03-20)
 
 **Camera Settings for the Milky Way**
 
@@ -1687,13 +1687,13 @@ Geomagnetic storm strength is measured on the Kp scale from 0 to 9:
 
 **Be Ready When the Next Solar Storm Hits**
 
-[🛒 Portable Power Station — Backup Power During Grid Outages](https://www.amazon.com/s?k=portable+power+station+solar+storm+backup)
+[🛒 Portable Power Station — Backup Power During Grid Outages](https://www.amazon.com/s?k=portable+power+station+solar+storm+backup&tag=spacehub03-20)
 
-[🛒 Hand-Crank Emergency Radio — Works When Cell Networks Go Down](https://www.amazon.com/s?k=hand+crank+emergency+weather+radio)
+[🛒 Hand-Crank Emergency Radio — Works When Cell Networks Go Down](https://www.amazon.com/s?k=hand+crank+emergency+weather+radio&tag=spacehub03-20)
 
-[🛒 Sony Alpha a6400 — Capture the Aurora When Kp Spikes](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera)
+[🛒 Sony Alpha a6400 — Capture the Aurora When Kp Spikes](https://www.amazon.com/s?k=Sony+Alpha+a6400+mirrorless+camera&tag=spacehub03-20)
 
-[🛒 Ham Radio Transceiver — Communicate When GPS & Cell Fail](https://www.amazon.com/s?k=ham+radio+transceiver+beginner)`
+[🛒 Ham Radio Transceiver — Communicate When GPS & Cell Fail](https://www.amazon.com/s?k=ham+radio+transceiver+beginner&tag=spacehub03-20)`
   },
   {
     slug: 'best-red-flashlight-astronomy-2026',
@@ -1717,13 +1717,13 @@ Rod cells in your eyes handle night vision. They are less sensitive to red wavel
 
 **Top Picks for 2026**
 
-[🛒 Orion Red LED Flashlight — Purpose-Built for Astronomy](https://www.amazon.com/s?k=Orion+red+LED+flashlight+astronomy)
+[🛒 Orion Red LED Flashlight — Purpose-Built for Astronomy](https://www.amazon.com/s?k=Orion+red+LED+flashlight+astronomy&tag=spacehub03-20)
 
-[🛒 Celestron Night Vision Flashlight — Adjustable Brightness](https://www.amazon.com/s?k=Celestron+night+vision+red+flashlight)
+[🛒 Celestron Night Vision Flashlight — Adjustable Brightness](https://www.amazon.com/s?k=Celestron+night+vision+red+flashlight&tag=spacehub03-20)
 
-[🛒 Energizer Red Headlamp — Hands-Free Stargazing](https://www.amazon.com/s?k=red+headlamp+astronomy+night+vision)
+[🛒 Energizer Red Headlamp — Hands-Free Stargazing](https://www.amazon.com/s?k=red+headlamp+astronomy+night+vision&tag=spacehub03-20)
 
-[🛒 Coast HL7 Headlamp — Best Dimming Control](https://www.amazon.com/s?k=Coast+headlamp+red+mode)
+[🛒 Coast HL7 Headlamp — Best Dimming Control](https://www.amazon.com/s?k=Coast+headlamp+red+mode&tag=spacehub03-20)
 
 **Using Your Red Flashlight**
 
@@ -1731,9 +1731,9 @@ Keep brightness at the minimum needed to read your charts. Even red light at hig
 
 **Protect Your Charts Too**
 
-[🛒 Philip's Planisphere — Classic Paper Star Chart](https://www.amazon.com/s?k=planisphere+star+chart+astronomy)
+[🛒 Philip's Planisphere — Classic Paper Star Chart](https://www.amazon.com/s?k=planisphere+star+chart+astronomy&tag=spacehub03-20)
 
-[🛒 Sky & Telescope Pocket Sky Atlas — Best Detailed Field Guide](https://www.amazon.com/s?k=Sky+Telescope+Pocket+Sky+Atlas)
+[🛒 Sky & Telescope Pocket Sky Atlas — Best Detailed Field Guide](https://www.amazon.com/s?k=Sky+Telescope+Pocket+Sky+Atlas&tag=spacehub03-20)
 
 A red flashlight is the cheapest upgrade you can make to your astronomy kit. Even a $10 headlamp makes a night of stargazing dramatically more comfortable.`
   },
@@ -1770,13 +1770,13 @@ You need truly dark skies — Bortle Class 4 or darker:
 
 None! The Milky Way is visible with naked eyes from dark skies. But photography takes it to another level.
 
-[🛒 Sony a7 III — Best Full-Frame Camera for Milky Way Photography](https://www.amazon.com/s?k=Sony+a7+III+mirrorless+camera)
+[🛒 Sony a7 III — Best Full-Frame Camera for Milky Way Photography](https://www.amazon.com/s?k=Sony+a7+III+mirrorless+camera&tag=spacehub03-20)
 
-[🛒 Rokinon 14mm f/2.8 — Ultra-Wide Lens for Galaxy Shots](https://www.amazon.com/s?k=Rokinon+14mm+f2.8+wide+angle+lens)
+[🛒 Rokinon 14mm f/2.8 — Ultra-Wide Lens for Galaxy Shots](https://www.amazon.com/s?k=Rokinon+14mm+f2.8+wide+angle+lens&tag=spacehub03-20)
 
-[🛒 iOptron SkyGuider Pro — Star Tracker for Long Exposures](https://www.amazon.com/s?k=iOptron+SkyGuider+Pro+star+tracker)
+[🛒 iOptron SkyGuider Pro — Star Tracker for Long Exposures](https://www.amazon.com/s?k=iOptron+SkyGuider+Pro+star+tracker&tag=spacehub03-20)
 
-[🛒 K&F Concept Tripod — Stable Platform for Night Photography](https://www.amazon.com/s?k=camera+tripod+night+photography+sturdy)
+[🛒 K&F Concept Tripod — Stable Platform for Night Photography](https://www.amazon.com/s?k=camera+tripod+night+photography+sturdy&tag=spacehub03-20)
 
 **Camera Settings to Start**
 
@@ -1787,9 +1787,9 @@ None! The Milky Way is visible with naked eyes from dark skies. But photography 
 
 **Make Your Trip Comfortable**
 
-[🛒 Therm-a-Rest Z Lite Sleeping Pad — Lie Back and Watch the Stars](https://www.amazon.com/s?k=Therm+a+Rest+Z+Lite+sleeping+pad)
+[🛒 Therm-a-Rest Z Lite Sleeping Pad — Lie Back and Watch the Stars](https://www.amazon.com/s?k=Therm+a+Rest+Z+Lite+sleeping+pad&tag=spacehub03-20)
 
-[🛒 NEMO Forte Sleeping Bag — Stay Warm on Cold Dark-Sky Nights](https://www.amazon.com/s?k=NEMO+Forte+sleeping+bag)
+[🛒 NEMO Forte Sleeping Bag — Stay Warm on Cold Dark-Sky Nights](https://www.amazon.com/s?k=NEMO+Forte+sleeping+bag&tag=spacehub03-20)
 
 The Milky Way can be seen even without a camera. Simply driving away from city lights and lying on your back on a summer night is an experience worth every effort to get there.`
   },
@@ -1823,17 +1823,17 @@ Venus goes through phases just like the Moon! Through a telescope you'll see:
 - **Gibbous Venus** — when it's far and on the other side of the Sun
 - You can never see surface detail — clouds cover everything
 
-[🛒 Celestron NexStar 5SE — Perfect for Planetary Viewing](https://www.amazon.com/s?k=Celestron+NexStar+5SE+telescope)
+[🛒 Celestron NexStar 5SE — Perfect for Planetary Viewing](https://www.amazon.com/s?k=Celestron+NexStar+5SE+telescope&tag=spacehub03-20)
 
-[🛒 Meade LX90 8-Inch — Serious Planetary Detail on Venus](https://www.amazon.com/s?k=Meade+LX90+8+inch+telescope)
+[🛒 Meade LX90 8-Inch — Serious Planetary Detail on Venus](https://www.amazon.com/s?k=Meade+LX90+8+inch+telescope&tag=spacehub03-20)
 
-[🛒 Baader Solar Filter Sheet — Safe Venus Transit Observation](https://www.amazon.com/s?k=Baader+solar+filter+sheet)
+[🛒 Baader Solar Filter Sheet — Safe Venus Transit Observation](https://www.amazon.com/s?k=Baader+solar+filter+sheet&tag=spacehub03-20)
 
 **Photographing Venus**
 
 Venus is so bright you need to photograph it at twilight — not full dark. The contrast between the blue twilight sky and Venus creates beautiful images.
 
-[🛒 Canon EF 70-300mm Telephoto Lens — Great for Venus Phases](https://www.amazon.com/s?k=Canon+EF+70-300mm+telephoto+lens)
+[🛒 Canon EF 70-300mm Telephoto Lens — Great for Venus Phases](https://www.amazon.com/s?k=Canon+EF+70-300mm+telephoto+lens&tag=spacehub03-20)
 
 Venus is the most dramatic planet to observe as a beginner because its phases are visible even in a small telescope, making the phases of Venus one of the best "Galileo moments" in all of amateur astronomy.`
   },
@@ -1855,11 +1855,11 @@ Test at medium-high magnification on a bright star:
 
 **Tools You'll Need**
 
-[🛒 Cheshire Collimating Eyepiece — Most Accurate Collimation Tool](https://www.amazon.com/s?k=Cheshire+collimating+eyepiece+telescope)
+[🛒 Cheshire Collimating Eyepiece — Most Accurate Collimation Tool](https://www.amazon.com/s?k=Cheshire+collimating+eyepiece+telescope&tag=spacehub03-20)
 
-[🛒 Laser Collimator — Fast and Easy Alternative to Cheshire](https://www.amazon.com/s?k=laser+collimator+telescope+2+inch)
+[🛒 Laser Collimator — Fast and Easy Alternative to Cheshire](https://www.amazon.com/s?k=laser+collimator+telescope+2+inch&tag=spacehub03-20)
 
-[🛒 Sight Tube Collimator — Great for Secondary Mirror Centering](https://www.amazon.com/s?k=sight+tube+collimator+telescope)
+[🛒 Sight Tube Collimator — Great for Secondary Mirror Centering](https://www.amazon.com/s?k=sight+tube+collimator+telescope&tag=spacehub03-20)
 
 **Collimating a Newtonian/Dobsonian (Step by Step)**
 
@@ -1877,9 +1877,9 @@ Step 4: Confirm with star test at high magnification
 
 **Protect Your Mirrors While Collimating**
 
-[🛒 Orion Mirror Cleaning Kit — Keep Optics in Perfect Shape](https://www.amazon.com/s?k=Orion+telescope+mirror+cleaning+kit)
+[🛒 Orion Mirror Cleaning Kit — Keep Optics in Perfect Shape](https://www.amazon.com/s?k=Orion+telescope+mirror+cleaning+kit&tag=spacehub03-20)
 
-[🛒 Kendrick Dew Heater — Prevent Dew During Collimation Sessions](https://www.amazon.com/s?k=Kendrick+dew+heater+telescope)
+[🛒 Kendrick Dew Heater — Prevent Dew During Collimation Sessions](https://www.amazon.com/s?k=Kendrick+dew+heater+telescope&tag=spacehub03-20)
 
 Well-collimated optics are the single biggest performance improvement you can make to an existing telescope — and it costs nothing if you already have the right tools.`
   },
@@ -1907,25 +1907,25 @@ GoTo scopes cost more than manual equivalents and require alignment (pointing at
 
 **Under $500:**
 
-[🛒 Celestron NexStar 130SLT — Best Entry GoTo, 130mm Reflector](https://www.amazon.com/s?k=Celestron+NexStar+130SLT+telescope)
+[🛒 Celestron NexStar 130SLT — Best Entry GoTo, 130mm Reflector](https://www.amazon.com/s?k=Celestron+NexStar+130SLT+telescope&tag=spacehub03-20)
 
 **$500–$1000:**
 
-[🛒 Celestron NexStar 5SE — 5-Inch Schmidt-Cassegrain, Excellent Views](https://www.amazon.com/s?k=Celestron+NexStar+5SE+telescope)
+[🛒 Celestron NexStar 5SE — 5-Inch Schmidt-Cassegrain, Excellent Views](https://www.amazon.com/s?k=Celestron+NexStar+5SE+telescope&tag=spacehub03-20)
 
-[🛒 Sky-Watcher Evostar 80ED — Refractor GoTo for Astrophotography](https://www.amazon.com/s?k=Sky-Watcher+Evostar+80ED+telescope)
+[🛒 Sky-Watcher Evostar 80ED — Refractor GoTo for Astrophotography](https://www.amazon.com/s?k=Sky-Watcher+Evostar+80ED+telescope&tag=spacehub03-20)
 
 **$1000–$2000:**
 
-[🛒 Celestron NexStar 8SE — 8-Inch for Serious Deep Sky Viewing](https://www.amazon.com/s?k=Celestron+NexStar+8SE+telescope)
+[🛒 Celestron NexStar 8SE — 8-Inch for Serious Deep Sky Viewing](https://www.amazon.com/s?k=Celestron+NexStar+8SE+telescope&tag=spacehub03-20)
 
-[🛒 Meade LX90 8-Inch ACF — Advanced Coma-Free Optics](https://www.amazon.com/s?k=Meade+LX90+8+inch+ACF+telescope)
+[🛒 Meade LX90 8-Inch ACF — Advanced Coma-Free Optics](https://www.amazon.com/s?k=Meade+LX90+8+inch+ACF+telescope&tag=spacehub03-20)
 
 **Essential GoTo Accessories**
 
-[🛒 Celestron StarSense Explorer App Module — Upgrade Any Scope with GoTo](https://www.amazon.com/s?k=Celestron+StarSense+Explorer+module)
+[🛒 Celestron StarSense Explorer App Module — Upgrade Any Scope with GoTo](https://www.amazon.com/s?k=Celestron+StarSense+Explorer+module&tag=spacehub03-20)
 
-[🛒 Telrad Finder — Helps With Initial GoTo Alignment](https://www.amazon.com/s?k=Telrad+finder+telescope)
+[🛒 Telrad Finder — Helps With Initial GoTo Alignment](https://www.amazon.com/s?k=Telrad+finder+telescope&tag=spacehub03-20)
 
 **Tips for First-Time GoTo Users**
 
@@ -1964,25 +1964,25 @@ GoTo technology has transformed amateur astronomy — you spend the night observ
 
 For visual nebula viewing, aperture is everything:
 
-[🛒 Orion SkyQuest XT8 Dobsonian — Best Value 8-Inch for Nebulae](https://www.amazon.com/s?k=Orion+SkyQuest+XT8+Dobsonian)
+[🛒 Orion SkyQuest XT8 Dobsonian — Best Value 8-Inch for Nebulae](https://www.amazon.com/s?k=Orion+SkyQuest+XT8+Dobsonian&tag=spacehub03-20)
 
-[🛒 Sky-Watcher 10-Inch Dobsonian — Big Jump in Light Gathering](https://www.amazon.com/s?k=Sky-Watcher+10+inch+Dobsonian+telescope)
+[🛒 Sky-Watcher 10-Inch Dobsonian — Big Jump in Light Gathering](https://www.amazon.com/s?k=Sky-Watcher+10+inch+Dobsonian+telescope&tag=spacehub03-20)
 
 **The Best Upgrade: Nebula Filters**
 
 Narrowband filters block light pollution and artificial sky glow, dramatically improving contrast:
 
-[🛒 Orion UltraBlock Narrowband Filter — Best All-Around Nebula Filter](https://www.amazon.com/s?k=Orion+UltraBlock+narrowband+filter)
+[🛒 Orion UltraBlock Narrowband Filter — Best All-Around Nebula Filter](https://www.amazon.com/s?k=Orion+UltraBlock+narrowband+filter&tag=spacehub03-20)
 
-[🛒 Astronomik OIII Filter — Amazing for Planetary Nebulae](https://www.amazon.com/s?k=Astronomik+OIII+filter+telescope)
+[🛒 Astronomik OIII Filter — Amazing for Planetary Nebulae](https://www.amazon.com/s?k=Astronomik+OIII+filter+telescope&tag=spacehub03-20)
 
-[🛒 Lumicon UHC Filter — Classic Light Pollution Reducer](https://www.amazon.com/s?k=Lumicon+UHC+filter+telescope)
+[🛒 Lumicon UHC Filter — Classic Light Pollution Reducer](https://www.amazon.com/s?k=Lumicon+UHC+filter+telescope&tag=spacehub03-20)
 
 **For Astrophotography of Nebulae**
 
-[🛒 ZWO ASI294MC Pro — Best Color CMOS for Nebula Photography](https://www.amazon.com/s?k=ZWO+ASI294MC+Pro+camera)
+[🛒 ZWO ASI294MC Pro — Best Color CMOS for Nebula Photography](https://www.amazon.com/s?k=ZWO+ASI294MC+Pro+camera&tag=spacehub03-20)
 
-[🛒 Sky-Watcher EQ6-R Pro Mount — Tracks Accurately for Long Exposures](https://www.amazon.com/s?k=Sky-Watcher+EQ6-R+Pro+mount)
+[🛒 Sky-Watcher EQ6-R Pro Mount — Tracks Accurately for Long Exposures](https://www.amazon.com/s?k=Sky-Watcher+EQ6-R+Pro+mount&tag=spacehub03-20)
 
 The Orion Nebula on a cold, clear winter night through a 6-inch telescope is something that photos cannot capture. The three-dimensional quality of seeing it live is worth every cloudy night you had to wait through.`
   },
@@ -2006,9 +2006,9 @@ The Orion Nebula on a cold, clear winter night through a 6-inch telescope is som
 
 **Method 1: White-Light Solar Filter (Sunspots)**
 
-[🛒 Baader AstroSolar Film — The Gold Standard Solar Filter Material](https://www.amazon.com/s?k=Baader+AstroSolar+film+solar+filter)
+[🛒 Baader AstroSolar Film — The Gold Standard Solar Filter Material](https://www.amazon.com/s?k=Baader+AstroSolar+film+solar+filter&tag=spacehub03-20)
 
-[🛒 Celestron EclipSmart Solar Filter Set — Ready-Made Filters](https://www.amazon.com/s?k=Celestron+EclipSmart+solar+filter)
+[🛒 Celestron EclipSmart Solar Filter Set — Ready-Made Filters](https://www.amazon.com/s?k=Celestron+EclipSmart+solar+filter&tag=spacehub03-20)
 
 White-light filters show sunspots — dark areas of intense magnetic activity. Track them day to day and watch them evolve over weeks.
 
@@ -2016,13 +2016,13 @@ White-light filters show sunspots — dark areas of intense magnetic activity. T
 
 H-alpha scopes use a very narrow filter centered on hydrogen emission wavelength (656nm). They reveal prominences, filaments, and solar flares invisible in white light.
 
-[🛒 Lunt Solar Systems LS50THa — Best Entry H-Alpha Solar Scope](https://www.amazon.com/s?k=Lunt+Solar+Systems+LS50THa+telescope)
+[🛒 Lunt Solar Systems LS50THa — Best Entry H-Alpha Solar Scope](https://www.amazon.com/s?k=Lunt+Solar+Systems+LS50THa+telescope&tag=spacehub03-20)
 
-[🛒 Coronado PST — Personal Solar Telescope, H-Alpha Hydrogen Alpha](https://www.amazon.com/s?k=Coronado+PST+Personal+Solar+Telescope)
+[🛒 Coronado PST — Personal Solar Telescope, H-Alpha Hydrogen Alpha](https://www.amazon.com/s?k=Coronado+PST+Personal+Solar+Telescope&tag=spacehub03-20)
 
 **Solar Eclipse Viewing**
 
-[🛒 American Paper Optics Eclipse Glasses — ISO Certified Solar Viewers](https://www.amazon.com/s?k=ISO+certified+solar+eclipse+glasses)
+[🛒 American Paper Optics Eclipse Glasses — ISO Certified Solar Viewers](https://www.amazon.com/s?k=ISO+certified+solar+eclipse+glasses&tag=spacehub03-20)
 
 **What You'll See**
 
@@ -2074,13 +2074,13 @@ Rate: 10/hour. Quiet closer to the year, radiant near the Little Dipper.
 
 **Recommended Comfort Gear**
 
-[🛒 Zero Gravity Reclining Chair — The Meteor Watcher's Best Friend](https://www.amazon.com/s?k=zero+gravity+reclining+chair+outdoor)
+[🛒 Zero Gravity Reclining Chair — The Meteor Watcher's Best Friend](https://www.amazon.com/s?k=zero+gravity+reclining+chair+outdoor&tag=spacehub03-20)
 
-[🛒 Sleeping Bag Rated for Cold Nights](https://www.amazon.com/s?k=cold+weather+sleeping+bag)
+[🛒 Sleeping Bag Rated for Cold Nights](https://www.amazon.com/s?k=cold+weather+sleeping+bag&tag=spacehub03-20)
 
-[🛒 Insulated Thermos for Hot Drinks](https://www.amazon.com/s?k=insulated+thermos+stainless)
+[🛒 Insulated Thermos for Hot Drinks](https://www.amazon.com/s?k=insulated+thermos+stainless&tag=spacehub03-20)
 
-[🛒 Red LED Headlamp — Preserve Your Night Vision](https://www.amazon.com/s?k=red+led+headlamp+astronomy)
+[🛒 Red LED Headlamp — Preserve Your Night Vision](https://www.amazon.com/s?k=red+led+headlamp+astronomy&tag=spacehub03-20)
 
 Use SpaceHub's Star Map to find each radiant, and check the space weather module for aurora bonuses during shower nights.
 
@@ -2117,13 +2117,13 @@ Most showers come from comets. The Geminids come from 3200 Phaethon, a rocky ast
 
 The number one reason people quit a Geminid watch early is cold, not clouds:
 
-[🛒 Insulated Winter Sleeping Bag — Watch From Inside It](https://www.amazon.com/s?k=winter+sleeping+bag+-20)
+[🛒 Insulated Winter Sleeping Bag — Watch From Inside It](https://www.amazon.com/s?k=winter+sleeping+bag+-20&tag=spacehub03-20)
 
-[🛒 Hand Warmers 40-Pack](https://www.amazon.com/s?k=hand+warmers+bulk+pack)
+[🛒 Hand Warmers 40-Pack](https://www.amazon.com/s?k=hand+warmers+bulk+pack&tag=spacehub03-20)
 
-[🛒 Thermal Base Layer Set](https://www.amazon.com/s?k=thermal+base+layer+set)
+[🛒 Thermal Base Layer Set](https://www.amazon.com/s?k=thermal+base+layer+set&tag=spacehub03-20)
 
-[🛒 Reclining Camp Chair — Zero Neck Strain](https://www.amazon.com/s?k=reclining+camp+chair+padded)
+[🛒 Reclining Camp Chair — Zero Neck Strain](https://www.amazon.com/s?k=reclining+camp+chair+padded&tag=spacehub03-20)
 
 **Photography Quick Settings**
 
@@ -2153,25 +2153,25 @@ The telescope that broke the market. Full go-to, live stacking, solar/lunar/deep
 - Weight: 3kg — fits in a backpack
 - Battery: 6 hours
 
-[🛒 ZWO Seestar S50 Smart Telescope](https://www.amazon.com/s?k=ZWO+Seestar+S50+smart+telescope)
+[🛒 ZWO Seestar S50 Smart Telescope](https://www.amazon.com/s?k=ZWO+Seestar+S50+smart+telescope&tag=spacehub03-20)
 
 **Dwarf 3 — Most Portable**
 
 Smaller than a shoebox, does wide-field deep sky AND daytime wildlife photography. Two lenses (wide + tele).
 
-[🛒 Dwarf 3 Smart Telescope](https://www.amazon.com/s?k=Dwarf+3+smart+telescope)
+[🛒 Dwarf 3 Smart Telescope](https://www.amazon.com/s?k=Dwarf+3+smart+telescope&tag=spacehub03-20)
 
 **Vaonis Vespera II — Best Design**
 
 French-made, beautiful, higher resolution sensor and mosaic mode for large targets like Andromeda.
 
-[🛒 Vaonis Vespera II Observation Station](https://www.amazon.com/s?k=Vaonis+Vespera+II+smart+telescope)
+[🛒 Vaonis Vespera II Observation Station](https://www.amazon.com/s?k=Vaonis+Vespera+II+smart+telescope&tag=spacehub03-20)
 
 **Celestron Origin — Premium Pick**
 
 6-inch RASA optics — gathers far more light than any other smart scope. For serious users with a serious budget.
 
-[🛒 Celestron Origin Intelligent Home Observatory](https://www.amazon.com/s?k=Celestron+Origin+smart+telescope)
+[🛒 Celestron Origin Intelligent Home Observatory](https://www.amazon.com/s?k=Celestron+Origin+smart+telescope&tag=spacehub03-20)
 
 **Smart vs Traditional Telescope — Which Should You Buy?**
 
@@ -2181,9 +2181,9 @@ Choose a traditional telescope if: you want to see planets in real time (smart s
 
 **Accessories Worth Adding**
 
-[🛒 Light Pollution Filter for Seestar](https://www.amazon.com/s?k=Seestar+S50+light+pollution+filter)
+[🛒 Light Pollution Filter for Seestar](https://www.amazon.com/s?k=Seestar+S50+light+pollution+filter&tag=spacehub03-20)
 
-[🛒 Rugged Carry Case](https://www.amazon.com/s?k=smart+telescope+carry+case)
+[🛒 Rugged Carry Case](https://www.amazon.com/s?k=smart+telescope+carry+case&tag=spacehub03-20)
 
 Pair any smart telescope with SpaceHub's Star Map to plan targets before you shoot.
 
@@ -2215,13 +2215,13 @@ After the February 2027 opposition approach begins, Mars spends 2026 slowly brig
 
 **Recommended Equipment**
 
-[🛒 Sky-Watcher 8" Dobsonian — Ideal Mars Telescope](https://www.amazon.com/s?k=Sky-Watcher+8+inch+Dobsonian)
+[🛒 Sky-Watcher 8" Dobsonian — Ideal Mars Telescope](https://www.amazon.com/s?k=Sky-Watcher+8+inch+Dobsonian&tag=spacehub03-20)
 
-[🛒 6mm Planetary Eyepiece for High Magnification](https://www.amazon.com/s?k=6mm+planetary+eyepiece+telescope)
+[🛒 6mm Planetary Eyepiece for High Magnification](https://www.amazon.com/s?k=6mm+planetary+eyepiece+telescope&tag=spacehub03-20)
 
-[🛒 2x Barlow Lens — Double Your Power on Steady Nights](https://www.amazon.com/s?k=2x+barlow+lens+telescope)
+[🛒 2x Barlow Lens — Double Your Power on Steady Nights](https://www.amazon.com/s?k=2x+barlow+lens+telescope&tag=spacehub03-20)
 
-[🛒 Mars Color Filter Set (Orange + Red) — Boost Surface Contrast](https://www.amazon.com/s?k=telescope+color+filter+set+planetary)
+[🛒 Mars Color Filter Set (Orange + Red) — Boost Surface Contrast](https://www.amazon.com/s?k=telescope+color+filter+set+planetary&tag=spacehub03-20)
 
 **Observing Tips**
 
@@ -2267,17 +2267,17 @@ Several comets each year reach binocular range. Great Comets appear roughly once
 
 Binoculars beat telescopes for most comets — comets are big and diffuse, and wide fields show the full tail:
 
-[🛒 Celestron SkyMaster 15x70 — Classic Comet Binoculars](https://www.amazon.com/s?k=Celestron+SkyMaster+15x70+binoculars)
+[🛒 Celestron SkyMaster 15x70 — Classic Comet Binoculars](https://www.amazon.com/s?k=Celestron+SkyMaster+15x70+binoculars&tag=spacehub03-20)
 
-[🛒 Binocular Tripod Adapter — Essential for 15x70s](https://www.amazon.com/s?k=binocular+tripod+adapter)
+[🛒 Binocular Tripod Adapter — Essential for 15x70s](https://www.amazon.com/s?k=binocular+tripod+adapter&tag=spacehub03-20)
 
-[🛒 Wide-Field 2" 32mm Eyepiece for Telescope Comet Views](https://www.amazon.com/s?k=32mm+2+inch+wide+field+eyepiece)
+[🛒 Wide-Field 2" 32mm Eyepiece for Telescope Comet Views](https://www.amazon.com/s?k=32mm+2+inch+wide+field+eyepiece&tag=spacehub03-20)
 
 **Photographing a Comet**
 
 A camera on a tripod captures more than your eye: 135mm lens, ISO 1600, f/2.8, 8-second exposures. Stack 50 frames and the tail structure appears.
 
-[🛒 135mm f/2 Lens — The Comet Photographer's Favorite](https://www.amazon.com/s?k=135mm+f2+lens)
+[🛒 135mm f/2 Lens — The Comet Photographer's Favorite](https://www.amazon.com/s?k=135mm+f2+lens&tag=spacehub03-20)
 
 **The Bottom Line**
 
@@ -2298,9 +2298,9 @@ Clear skies! ☄️`
 
 The full Moon through a telescope is painfully bright. A neutral density Moon filter cuts glare and reveals subtle detail.
 
-[🛒 Neutral Density Moon Filter 1.25"](https://www.amazon.com/s?k=moon+filter+1.25+neutral+density)
+[🛒 Neutral Density Moon Filter 1.25"](https://www.amazon.com/s?k=moon+filter+1.25+neutral+density&tag=spacehub03-20)
 
-[🛒 Variable Polarizing Filter — Adjustable Brightness](https://www.amazon.com/s?k=variable+polarizing+moon+filter)
+[🛒 Variable Polarizing Filter — Adjustable Brightness](https://www.amazon.com/s?k=variable+polarizing+moon+filter&tag=spacehub03-20)
 
 **Planetary Color Filters**
 
@@ -2309,27 +2309,27 @@ Simple colored filters boost contrast on planetary features:
 - **#80A Blue:** enhances Jupiter's cloud belts and the Great Red Spot
 - **#58 Green:** brings out detail in Venus's clouds
 
-[🛒 Planetary Color Filter Set (4 filters)](https://www.amazon.com/s?k=telescope+color+filter+set+1.25)
+[🛒 Planetary Color Filter Set (4 filters)](https://www.amazon.com/s?k=telescope+color+filter+set+1.25&tag=spacehub03-20)
 
 **UHC Filters — The Nebula Multiplier**
 
 Ultra High Contrast filters pass only the wavelengths nebulae emit (hydrogen and oxygen lines) and block streetlight glow. The Orion Nebula, Lagoon, and Swan visibly jump in contrast — even from suburbs. If you buy one deep-sky filter, buy this.
 
-[🛒 UHC Ultra High Contrast Filter 1.25"](https://www.amazon.com/s?k=UHC+filter+1.25+telescope)
+[🛒 UHC Ultra High Contrast Filter 1.25"](https://www.amazon.com/s?k=UHC+filter+1.25+telescope&tag=spacehub03-20)
 
 **OIII Filters — For Specific Targets**
 
 Oxygen-III filters are stricter than UHC — dimmer overall but dramatic on the Veil Nebula, Ring Nebula, and Dumbbell. Best in 8-inch and larger telescopes.
 
-[🛒 OIII Filter 1.25"](https://www.amazon.com/s?k=OIII+filter+1.25+telescope)
+[🛒 OIII Filter 1.25"](https://www.amazon.com/s?k=OIII+filter+1.25+telescope&tag=spacehub03-20)
 
 **Light Pollution Filters for Astrophotography**
 
 Broadband LP filters help cameras cut sodium/LED streetlight glow:
 
-[🛒 Optolong L-Pro Light Pollution Filter](https://www.amazon.com/s?k=Optolong+L-Pro+filter)
+[🛒 Optolong L-Pro Light Pollution Filter](https://www.amazon.com/s?k=Optolong+L-Pro+filter&tag=spacehub03-20)
 
-[🛒 Optolong L-eXtreme Dual-Band Filter — City Astrophotography](https://www.amazon.com/s?k=Optolong+L-eXtreme+filter)
+[🛒 Optolong L-eXtreme Dual-Band Filter — City Astrophotography](https://www.amazon.com/s?k=Optolong+L-eXtreme+filter&tag=spacehub03-20)
 
 **What NOT to Buy**
 
@@ -2360,29 +2360,29 @@ Wide-field Milky Way shots need no tracking: 20-second exposures at 14-24mm, ISO
 
 A tracking mount counteracts Earth's rotation, unlocking 2-4 minute exposures with camera lenses. This is the biggest single jump in image quality per dollar in all of astrophotography.
 
-[🛒 Sky-Watcher Star Adventurer GTi Tracker](https://www.amazon.com/s?k=Sky-Watcher+Star+Adventurer+GTi)
+[🛒 Sky-Watcher Star Adventurer GTi Tracker](https://www.amazon.com/s?k=Sky-Watcher+Star+Adventurer+GTi&tag=spacehub03-20)
 
-[🛒 Move Shoot Move Star Tracker — Ultralight Option](https://www.amazon.com/s?k=Move+Shoot+Move+star+tracker)
+[🛒 Move Shoot Move Star Tracker — Ultralight Option](https://www.amazon.com/s?k=Move+Shoot+Move+star+tracker&tag=spacehub03-20)
 
 With a 135mm lens and a tracker you can capture Andromeda, Orion, the North America Nebula, and the Pleiades — seriously well.
 
-[🛒 Rokinon 135mm f/2 — Legendary Astro Lens](https://www.amazon.com/s?k=Rokinon+135mm+f2+lens)
+[🛒 Rokinon 135mm f/2 — Legendary Astro Lens](https://www.amazon.com/s?k=Rokinon+135mm+f2+lens&tag=spacehub03-20)
 
 **Stage 3: Small Telescope + EQ Mount (Budget: ~$1500-2500)**
 
 A small apochromatic refractor (60-80mm) on a computerized equatorial mount is the classic deep-sky setup — forgiving, sharp, portable.
 
-[🛒 80mm ED Apochromatic Refractor](https://www.amazon.com/s?k=80mm+ED+apo+refractor+telescope)
+[🛒 80mm ED Apochromatic Refractor](https://www.amazon.com/s?k=80mm+ED+apo+refractor+telescope&tag=spacehub03-20)
 
-[🛒 Sky-Watcher HEQ5 Pro Equatorial Mount](https://www.amazon.com/s?k=Sky-Watcher+HEQ5+Pro+mount)
+[🛒 Sky-Watcher HEQ5 Pro Equatorial Mount](https://www.amazon.com/s?k=Sky-Watcher+HEQ5+Pro+mount&tag=spacehub03-20)
 
 **Stage 4: Guiding + Dedicated Astro Camera**
 
 Autoguiding uses a small second camera to correct mount errors in real time, unlocking 5-10 minute exposures. Cooled astronomy cameras eliminate thermal noise.
 
-[🛒 ZWO ASI120MM Mini Guide Camera + 30mm Scope](https://www.amazon.com/s?k=ZWO+ASI120MM+mini+guide+camera)
+[🛒 ZWO ASI120MM Mini Guide Camera + 30mm Scope](https://www.amazon.com/s?k=ZWO+ASI120MM+mini+guide+camera&tag=spacehub03-20)
 
-[🛒 ZWO ASI533MC Pro Cooled Color Camera](https://www.amazon.com/s?k=ZWO+ASI533MC+Pro+camera)
+[🛒 ZWO ASI533MC Pro Cooled Color Camera](https://www.amazon.com/s?k=ZWO+ASI533MC+Pro+camera&tag=spacehub03-20)
 
 **The Rules That Save You Years**
 
@@ -2426,14 +2426,14 @@ Don't quit because you're in Bortle 8. These targets shrug off light pollution:
 1. **Shield your eyes:** observe from shadow, block direct streetlights
 2. **Filters:** a UHC filter restores nebulae contrast from suburbs
 
-[🛒 UHC Light Pollution Filter 1.25"](https://www.amazon.com/s?k=UHC+filter+telescope+1.25)
+[🛒 UHC Light Pollution Filter 1.25"](https://www.amazon.com/s?k=UHC+filter+telescope+1.25&tag=spacehub03-20)
 
 3. **Drive smart:** even 45 minutes usually drops you 2-3 Bortle classes
 4. **Go up:** elevation beats haze — hills clear the worst layer
 
 **Measuring Your Sky**
 
-[🛒 Sky Quality Meter — Measure Your Actual Darkness](https://www.amazon.com/s?k=sky+quality+meter+astronomy)
+[🛒 Sky Quality Meter — Measure Your Actual Darkness](https://www.amazon.com/s?k=sky+quality+meter+astronomy&tag=spacehub03-20)
 
 Or use the naked-eye method: count stars inside the Great Square of Pegasus. 0-1 stars = Bortle 8-9. 4-6 = Bortle 5. 13+ = Bortle 3 or better.
 
@@ -2462,27 +2462,27 @@ Spend your money on aperture and mount stability, not magnification claims or co
 
 A 114mm tabletop Dobsonian — the largest aperture you can get at this price. Set it on any table, point, look. Shows Saturn's rings clearly, Orion Nebula with structure, Andromeda's glow.
 
-[🛒 Zhumell Z114 Tabletop Dobsonian](https://www.amazon.com/s?k=Zhumell+Z114+tabletop+dobsonian)
+[🛒 Zhumell Z114 Tabletop Dobsonian](https://www.amazon.com/s?k=Zhumell+Z114+tabletop+dobsonian&tag=spacehub03-20)
 
-[🛒 Orion StarBlast 4.5 Astro Reflector](https://www.amazon.com/s?k=Orion+StarBlast+4.5+telescope)
+[🛒 Orion StarBlast 4.5 Astro Reflector](https://www.amazon.com/s?k=Orion+StarBlast+4.5+telescope&tag=spacehub03-20)
 
 **Best Refractor: Celestron AstroMaster 70AZ**
 
 Crisp lunar and planetary views, zero maintenance, intuitive up-down-left-right mount. The right choice if you value simplicity over maximum light gathering.
 
-[🛒 Celestron AstroMaster 70AZ](https://www.amazon.com/s?k=Celestron+AstroMaster+70AZ)
+[🛒 Celestron AstroMaster 70AZ](https://www.amazon.com/s?k=Celestron+AstroMaster+70AZ&tag=spacehub03-20)
 
 **Best Ultra-Portable: Celestron FirstScope 76**
 
 Fits in a backpack, weighs nothing, costs little. Genuinely useful for the Moon and bright targets.
 
-[🛒 Celestron FirstScope 76 Tabletop](https://www.amazon.com/s?k=Celestron+FirstScope+76)
+[🛒 Celestron FirstScope 76 Tabletop](https://www.amazon.com/s?k=Celestron+FirstScope+76&tag=spacehub03-20)
 
 **Strong Alternative: Sky-Watcher Heritage 130**
 
 When it dips near $200, grab it — 130mm of aperture with a clever collapsible design.
 
-[🛒 Sky-Watcher Heritage 130 FlexTube](https://www.amazon.com/s?k=Sky-Watcher+Heritage+130)
+[🛒 Sky-Watcher Heritage 130 FlexTube](https://www.amazon.com/s?k=Sky-Watcher+Heritage+130&tag=spacehub03-20)
 
 **What to AVOID Under $200**
 
@@ -2493,9 +2493,9 @@ When it dips near $200, grab it — 130mm of aperture with a clever collapsible 
 
 **Spend the Change on These**
 
-[🛒 6mm Budget Planetary Eyepiece — More Power for Saturn](https://www.amazon.com/s?k=6mm+plossl+eyepiece)
+[🛒 6mm Budget Planetary Eyepiece — More Power for Saturn](https://www.amazon.com/s?k=6mm+plossl+eyepiece&tag=spacehub03-20)
 
-[🛒 Red Flashlight for Night Vision](https://www.amazon.com/s?k=red+flashlight+astronomy)
+[🛒 Red Flashlight for Night Vision](https://www.amazon.com/s?k=red+flashlight+astronomy&tag=spacehub03-20)
 
 A $180 telescope used weekly beats a $2000 telescope in a closet. Pick one, then open SpaceHub's Star Map and point it at Saturn tonight.
 
@@ -2587,9 +2587,9 @@ Apollo landed near the equator. Artemis targets the south pole because crater fl
 
 Every Artemis launch is streamed live and covered in SpaceHub's news feed. And here's the beautiful part: after watching a launch, walk outside and look at the Moon through any telescope — you can see the south polar region where humans will walk.
 
-[🛒 Celestron StarSense Explorer DX 130 — See the Artemis Landing Zones](https://www.amazon.com/s?k=Celestron+StarSense+Explorer+DX+130)
+[🛒 Celestron StarSense Explorer DX 130 — See the Artemis Landing Zones](https://www.amazon.com/s?k=Celestron+StarSense+Explorer+DX+130&tag=spacehub03-20)
 
-[🛒 Moon Map & Lunar Atlas](https://www.amazon.com/s?k=moon+map+lunar+atlas)
+[🛒 Moon Map & Lunar Atlas](https://www.amazon.com/s?k=moon+map+lunar+atlas&tag=spacehub03-20)
 
 We are the generation that watches humanity become a multi-world species. Don't sleep through it.
 
@@ -2674,21 +2674,21 @@ Don't lecture — hunt. "Can you find three moons of Jupiter?" beats "Jupiter is
 
 Start with binoculars — kids find telescope eyepieces genuinely hard to use:
 
-[🛒 Kids Binoculars 8x21 — Fits Small Hands](https://www.amazon.com/s?k=kids+binoculars+8x21)
+[🛒 Kids Binoculars 8x21 — Fits Small Hands](https://www.amazon.com/s?k=kids+binoculars+8x21&tag=spacehub03-20)
 
-[🛒 Celestron SkyMaster 10x50 for Parents](https://www.amazon.com/s?k=Celestron+SkyMaster+10x50)
+[🛒 Celestron SkyMaster 10x50 for Parents](https://www.amazon.com/s?k=Celestron+SkyMaster+10x50&tag=spacehub03-20)
 
 For a first family telescope, tabletop Dobsonians are unbeatable — kids operate them alone:
 
-[🛒 Orion StarBlast 4.5 Tabletop Telescope](https://www.amazon.com/s?k=Orion+StarBlast+4.5+tabletop)
+[🛒 Orion StarBlast 4.5 Tabletop Telescope](https://www.amazon.com/s?k=Orion+StarBlast+4.5+tabletop&tag=spacehub03-20)
 
 **Comfort Wins the Night**
 
-[🛒 Kids Sleeping Bag for Meteor Watching](https://www.amazon.com/s?k=kids+sleeping+bag)
+[🛒 Kids Sleeping Bag for Meteor Watching](https://www.amazon.com/s?k=kids+sleeping+bag&tag=spacehub03-20)
 
-[🛒 Red Flashlight — Kids Feel Like Real Astronomers](https://www.amazon.com/s?k=red+flashlight+astronomy)
+[🛒 Red Flashlight — Kids Feel Like Real Astronomers](https://www.amazon.com/s?k=red+flashlight+astronomy&tag=spacehub03-20)
 
-[🛒 Hot Chocolate Thermos — Non-Negotiable](https://www.amazon.com/s?k=insulated+thermos+kids)
+[🛒 Hot Chocolate Thermos — Non-Negotiable](https://www.amazon.com/s?k=insulated+thermos+kids&tag=spacehub03-20)
 
 **Age-by-Age Expectations**
 
@@ -2733,13 +2733,13 @@ Evening apparitions in spring and morning apparitions in autumn are best for Nor
 4. Mercury looks like a moderately bright star with a slightly pinkish tint — often the only "star" visible in bright twilight
 5. Binoculars make the initial find 10x easier — then drop them and see it naked-eye
 
-[🛒 Celestron Nature DX 8x42 — Perfect Twilight Scanning Binoculars](https://www.amazon.com/s?k=Celestron+Nature+DX+8x42+binoculars)
+[🛒 Celestron Nature DX 8x42 — Perfect Twilight Scanning Binoculars](https://www.amazon.com/s?k=Celestron+Nature+DX+8x42+binoculars&tag=spacehub03-20)
 
 **Mercury in a Telescope**
 
 Even small telescopes show Mercury's phases — like a tiny Moon, it goes from crescent to gibbous through each apparition. Catch it early in twilight while it's higher; the view degrades fast as it sinks.
 
-[🛒 Celestron AstroMaster 90AZ — Great Twilight Planet Scope](https://www.amazon.com/s?k=Celestron+AstroMaster+90AZ)
+[🛒 Celestron AstroMaster 90AZ — Great Twilight Planet Scope](https://www.amazon.com/s?k=Celestron+AstroMaster+90AZ&tag=spacehub03-20)
 
 **Fun Mercury Facts While You Wait**
 
@@ -2764,9 +2764,9 @@ Clear skies! 🌅`
 
 Two rotating disks: a star map and a masked overlay with a window. Dial your date against your time, and the window shows exactly the sky above you right now. It works for any night, any year, forever.
 
-[🛒 David H. Levy Guide to the Stars Planisphere (Large 16")](https://www.amazon.com/s?k=David+Levy+planisphere+guide+stars)
+[🛒 David H. Levy Guide to the Stars Planisphere (Large 16")](https://www.amazon.com/s?k=David+Levy+planisphere+guide+stars&tag=spacehub03-20)
 
-[🛒 Miller Planisphere — Classic Compact Model](https://www.amazon.com/s?k=Miller+planisphere+star+wheel)
+[🛒 Miller Planisphere — Classic Compact Model](https://www.amazon.com/s?k=Miller+planisphere+star+wheel&tag=spacehub03-20)
 
 Important: buy the version for your latitude — a "40° North" planisphere works across the US, Europe, and most of the Northern Hemisphere.
 
@@ -2791,15 +2791,15 @@ Do this ten nights and you'll never need a chart for the major constellations ag
 
 When you graduate to hunting deep-sky objects, a proper star atlas plots thousands of targets:
 
-[🛒 Sky & Telescope's Pocket Sky Atlas — The Field Standard](https://www.amazon.com/s?k=Pocket+Sky+Atlas+Sky+Telescope)
+[🛒 Sky & Telescope's Pocket Sky Atlas — The Field Standard](https://www.amazon.com/s?k=Pocket+Sky+Atlas+Sky+Telescope&tag=spacehub03-20)
 
-[🛒 Turn Left at Orion — The Best Beginner's Observing Book Ever](https://www.amazon.com/s?k=Turn+Left+at+Orion+book)
+[🛒 Turn Left at Orion — The Best Beginner's Observing Book Ever](https://www.amazon.com/s?k=Turn+Left+at+Orion+book&tag=spacehub03-20)
 
 **Reading Charts Red**
 
 White light destroys 30 minutes of dark adaptation in seconds. Read charts only under red light:
 
-[🛒 Red LED Astronomy Flashlight](https://www.amazon.com/s?k=red+led+flashlight+astronomy)
+[🛒 Red LED Astronomy Flashlight](https://www.amazon.com/s?k=red+led+flashlight+astronomy&tag=spacehub03-20)
 
 **Paper + Digital = Best of Both**
 
@@ -2824,19 +2824,19 @@ Glass radiates heat into the night sky and cools BELOW air temperature. When it 
 
 A simple tube extension that slows radiative cooling and blocks stray light too. Doubles or triples your dew-free time for $20-40.
 
-[🛒 Flexible Dew Shield — Sized for Your Telescope](https://www.amazon.com/s?k=telescope+flexible+dew+shield)
+[🛒 Flexible Dew Shield — Sized for Your Telescope](https://www.amazon.com/s?k=telescope+flexible+dew+shield&tag=spacehub03-20)
 
 **Solution 2: Dew Heater Straps (Active, The Real Fix)**
 
 A gentle heating band wraps around the optics, keeping glass 1-2°C above the dew point — invisible to image quality, fatal to dew. This is the setup that lets you observe until dawn:
 
-[🛒 Dew Heater Strip for Telescope](https://www.amazon.com/s?k=telescope+dew+heater+strip)
+[🛒 Dew Heater Strip for Telescope](https://www.amazon.com/s?k=telescope+dew+heater+strip&tag=spacehub03-20)
 
-[🛒 Dew Heater Controller — Adjust Power to Conditions](https://www.amazon.com/s?k=dew+heater+controller+telescope)
+[🛒 Dew Heater Controller — Adjust Power to Conditions](https://www.amazon.com/s?k=dew+heater+controller+telescope&tag=spacehub03-20)
 
-[🛒 USB Dew Heater Strips — Run From a Power Bank](https://www.amazon.com/s?k=USB+dew+heater+strip+telescope)
+[🛒 USB Dew Heater Strips — Run From a Power Bank](https://www.amazon.com/s?k=USB+dew+heater+strip+telescope&tag=spacehub03-20)
 
-[🛒 20000mAh Power Bank for Field Use](https://www.amazon.com/s?k=20000mah+power+bank)
+[🛒 20000mAh Power Bank for Field Use](https://www.amazon.com/s?k=20000mah+power+bank&tag=spacehub03-20)
 
 Don't forget small heater strips for eyepieces and finder scopes — they fog first.
 
@@ -2851,12 +2851,12 @@ Don't forget small heater strips for eyepieces and finder scopes — they fog fi
 1. Never pack away a wet telescope — let it dry fully indoors, caps OFF, overnight
 2. Store with desiccant packs to kill humidity
 
-[🛒 Rechargeable Silica Gel Desiccant Packs](https://www.amazon.com/s?k=rechargeable+silica+gel+desiccant)
+[🛒 Rechargeable Silica Gel Desiccant Packs](https://www.amazon.com/s?k=rechargeable+silica+gel+desiccant&tag=spacehub03-20)
 
 3. Clean optics rarely — a little dust affects nothing; clumsy cleaning ruins coatings
 4. When you must clean: blower first, then optics-grade solution and lint-free wipes
 
-[🛒 Camera Lens Cleaning Kit with Air Blower](https://www.amazon.com/s?k=lens+cleaning+kit+air+blower)
+[🛒 Camera Lens Cleaning Kit with Air Blower](https://www.amazon.com/s?k=lens+cleaning+kit+air+blower&tag=spacehub03-20)
 
 **Know Your Enemy**
 
