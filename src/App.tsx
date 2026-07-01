@@ -834,6 +834,41 @@ function MainApp() {
           </div>
         </main>
 
+        {/* Floating PayPal donate button */}
+        <form
+          action="https://www.paypal.com/donate"
+          method="post"
+          target="_blank"
+          style={{ position: 'fixed', bottom: 90, right: 18, zIndex: 9999 }}
+        >
+          <input type="hidden" name="business" value="Yakov104@gmail.com" />
+          <input type="hidden" name="currency_code" value="USD" />
+          <button
+            type="submit"
+            title="Support SpaceHub via PayPal"
+            style={{
+              background: 'linear-gradient(135deg, #003087, #009cde)',
+              color: '#fff',
+              border: '1px solid rgba(0,156,222,0.5)',
+              boxShadow: '0 4px 24px rgba(0,156,222,0.45)',
+              borderRadius: '50%',
+              width: 52,
+              height: 52,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.12)' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)' }}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20.067 8.478c.492.315.844.825.983 1.39C21.6 12.258 20.38 14 18.04 14H16.5l-.5 3H13l2-11h4.067c.844 0 1.508.478 1.508 1.478h-.508zM7.5 6h5.567c2.34 0 3.56 1.742 3.01 4.132-.14.565-.49 1.075-.983 1.39C14.602 12.522 13.938 13 13.094 13H10.5L9.5 17H7L9 6H7.5zM10.5 11h2.594c.468 0 .844-.34.938-.8.094-.46-.188-.8-.656-.8H10.5l-.438 1.6z"/>
+            </svg>
+          </button>
+        </form>
+
         <SafeWrap label="Onboarding"><Onboarding /></SafeWrap>
         <SafeWrap label="ScrollToTop"><ScrollToTop /></SafeWrap>
         <SafeWrap label="MobileNav"><MobileNav active={activeTab} onSwitch={(t) => switchTab(t as Tab)} /></SafeWrap>

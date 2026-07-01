@@ -158,6 +158,28 @@ export default function Hero({ onScrollToISS }: Props) {
           </a>
         </div>
 
+        <div className="flex justify-center mb-10">
+          <form action="https://www.paypal.com/donate" method="post" target="_blank">
+            <input type="hidden" name="business" value="Yakov104@gmail.com" />
+            <input type="hidden" name="currency_code" value="USD" />
+            <button
+              type="submit"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-2xl font-semibold text-sm transition-all duration-200 hover:scale-105 active:scale-95"
+              style={{
+                background: 'linear-gradient(135deg, #003087, #009cde)',
+                color: '#fff',
+                border: '1px solid rgba(0,156,222,0.5)',
+                boxShadow: '0 0 18px rgba(0,156,222,0.35)',
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20.067 8.478c.492.315.844.825.983 1.39C21.6 12.258 20.38 14 18.04 14H16.5l-.5 3H13l2-11h4.067c.844 0 1.508.478 1.508 1.478h-.508zM7.5 6h5.567c2.34 0 3.56 1.742 3.01 4.132-.14.565-.49 1.075-.983 1.39C14.602 12.522 13.938 13 13.094 13H10.5L9.5 17H7L9 6H7.5zM10.5 11h2.594c.468 0 .844-.34.938-.8.094-.46-.188-.8-.656-.8H10.5l-.438 1.6z"/>
+              </svg>
+              Support SpaceHub via PayPal
+            </button>
+          </form>
+        </div>
+
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto"
           style={{ animation: 'word-up 0.7s 0.7s cubic-bezier(0.22,1,0.36,1) both' }}>
           {(() => {
