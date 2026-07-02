@@ -825,14 +825,25 @@ select:focus-visible,
 
 /* ── Night Vision Mode ──────────────────────────────────────── */
 html.night-vision {
-  filter: brightness(0.85) sepia(1) hue-rotate(295deg) saturate(6);
+  filter: brightness(0.65) sepia(1) hue-rotate(310deg) saturate(10) contrast(1.15);
+}
+html.night-vision body > * {
+  filter: none;
 }
 html.night-vision canvas {
-  filter: brightness(0.85) sepia(1) hue-rotate(295deg) saturate(6);
+  filter: brightness(0.65) sepia(1) hue-rotate(310deg) saturate(10) contrast(1.15);
+}
+html.night-vision img,
+html.night-vision video,
+html.night-vision iframe {
+  filter: brightness(0.5) sepia(1) hue-rotate(310deg) saturate(8);
 }
 html.night-vision .live-dot {
   background: #ff0000 !important;
   box-shadow: 0 0 6px #ff0000 !important;
+}
+html.night-vision * {
+  transition: filter 0s !important;
 }
 
 /* ══════════════════════════════════════════════════════════════════

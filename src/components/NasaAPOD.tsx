@@ -28,9 +28,9 @@ function ImageWithSkeleton({ src, alt }: { src: string; alt: string }) {
 }
 
 const CURATED = [
-  { title: 'Pillars of Creation — Eagle Nebula', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/68/Pillars_of_creation_2014_HST_WFC3-UVIS_full-res_denoised.jpg/800px-Pillars_of_creation_2014_HST_WFC3-UVIS_full-res_denoised.jpg', explanation: 'The iconic Pillars of Creation, captured by the Hubble Space Telescope in 2014. These towering columns of gas and dust in the Eagle Nebula are stellar nurseries where new stars are being born.', date: 'Hubble Space Telescope · M16 Eagle Nebula' },
-  { title: 'Saturn During Equinox — Cassini', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Saturn_during_Equinox.jpg/800px-Saturn_during_Equinox.jpg', explanation: "Saturn photographed by NASA's Cassini spacecraft during equinox. The rings are up to 282,000 km wide but only about 10 metres thick.", date: 'NASA Cassini · Saturn System' },
-  { title: 'Andromeda Galaxy — M31', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Andromeda_Galaxy_560mm_FL.jpg/800px-Andromeda_Galaxy_560mm_FL.jpg', explanation: 'The Andromeda Galaxy, our nearest major galactic neighbor at 2.5 million light-years away. In about 4.5 billion years it will collide with the Milky Way.', date: 'Ground-based Astrophotography · M31' },
+  { title: 'Pillars of Creation — Eagle Nebula', url: 'https://images-assets.nasa.gov/image/hubble-pillars-of-creation/hubble-pillars-of-creation~thumb.jpg', explanation: 'The iconic Pillars of Creation, captured by the Hubble Space Telescope in 2014. These towering columns of gas and dust in the Eagle Nebula are stellar nurseries where new stars are being born.', date: 'Hubble Space Telescope · M16 Eagle Nebula' },
+  { title: 'Saturn During Equinox — Cassini', url: 'https://images-assets.nasa.gov/image/PIA11141/PIA11141~thumb.jpg', explanation: "Saturn photographed by NASA's Cassini spacecraft during equinox. The rings are up to 282,000 km wide but only about 10 metres thick.", date: 'NASA Cassini · Saturn System' },
+  { title: 'Andromeda Galaxy — M31', url: 'https://images-assets.nasa.gov/image/PIA04921/PIA04921~thumb.jpg', explanation: 'The Andromeda Galaxy, our nearest major galactic neighbor at 2.5 million light-years away. In about 4.5 billion years it will collide with the Milky Way.', date: 'Ground-based Astrophotography · M31' },
 ]
 
 interface APODData {
