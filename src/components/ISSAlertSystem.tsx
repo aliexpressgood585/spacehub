@@ -156,13 +156,16 @@ export default function ISSAlertSystem() {
             {t('iss.alertsActive')}
           </span>
         ) : notifSupported ? (
-          <button
-            onClick={requestNotifications}
-            className="text-xs px-3 py-1.5 rounded-xl font-semibold transition"
-            style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', color: '#a5b4fc' }}
-          >
-            {t('iss.enableAlerts')}
-          </button>
+          <div className="flex flex-col items-end gap-0.5">
+            <button
+              onClick={requestNotifications}
+              className="text-xs px-3 py-1.5 rounded-xl font-semibold transition"
+              style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', color: '#a5b4fc' }}
+            >
+              🔔 {t('iss.enableAlerts')}
+            </button>
+            <span className="text-[10px] text-gray-600">Get notified when ISS passes your city</span>
+          </div>
         ) : (
           <span className="text-xs text-gray-600 font-medium" title="Browser notifications are not supported here — open on Chrome desktop or Android for alerts">
             {t('iss.desktopOnly')}
