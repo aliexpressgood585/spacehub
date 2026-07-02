@@ -462,6 +462,11 @@ function MainApp() {
   }
 
   const goToPremium = () => { window.location.href = '/premium' }
+  const [showDonate, setShowDonate] = useState(false)
+  useEffect(() => {
+    const timer = setTimeout(() => setShowDonate(true), 90000)
+    return () => clearTimeout(timer)
+  }, [])
 
   return (
     <div className="min-h-screen relative" style={{ background: '#020510' }}>
@@ -475,41 +480,6 @@ function MainApp() {
         <SafeWrap label="LiveTicker"><LiveTicker /></SafeWrap>
         <SafeWrap label="NotificationBanner"><NotificationBanner /></SafeWrap>
         {activeTab === 'dashboard' && <SafeWrap label="Hero"><Hero onPremium={() => {}} onScrollToISS={scrollToISS} /></SafeWrap>}
-
-        {/* PayPal support banner */}
-        {activeTab === 'dashboard' && (
-          <form action="https://www.paypal.com/donate" method="post" target="_blank" style={{ display: 'block' }}>
-            <input type="hidden" name="business" value="Yakov104@gmail.com" />
-            <input type="hidden" name="currency_code" value="USD" />
-            <button
-              type="submit"
-              style={{
-                width: '100%',
-                padding: '14px 24px',
-                background: 'linear-gradient(90deg, #003087 0%, #009cde 50%, #003087 100%)',
-                backgroundSize: '200% 100%',
-                color: '#fff',
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 10,
-                fontSize: 14,
-                fontWeight: 700,
-                letterSpacing: '0.02em',
-                transition: 'background-position 0.4s ease',
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundPosition = '100% 0' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.backgroundPosition = '0% 0' }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
-                <path d="M20.067 8.478c.492.315.844.825.983 1.39C21.6 12.258 20.38 14 18.04 14H16.5l-.5 3H13l2-11h4.067c.844 0 1.508.478 1.508 1.478h-.508zM7.5 6h5.567c2.34 0 3.56 1.742 3.01 4.132-.14.565-.49 1.075-.983 1.39C14.602 12.522 13.938 13 13.094 13H10.5L9.5 17H7L9 6H7.5zM10.5 11h2.594c.468 0 .844-.34.938-.8.094-.46-.188-.8-.656-.8H10.5l-.438 1.6z"/>
-              </svg>
-              Love SpaceHub? Support us with a donation via PayPal ❤️
-            </button>
-          </form>
-        )}
 
         {/* Divider */}
         <div className="divider-3d my-0" />
@@ -871,8 +841,8 @@ function MainApp() {
           </div>
         </main>
 
-        {/* Floating donate button */}
-        <form
+        {/* Floating donate button — shown after 90s so user has seen the value first */}
+        {showDonate && <form
           action="https://www.paypal.com/donate"
           method="post"
           target="_blank"
@@ -904,7 +874,7 @@ function MainApp() {
           >
             ❤️
           </button>
-        </form>
+        </form>}
 
         <SafeWrap label="Onboarding"><Onboarding /></SafeWrap>
         <SafeWrap label="ScrollToTop"><ScrollToTop /></SafeWrap>
@@ -928,7 +898,7 @@ function MainApp() {
                   <div className="font-black text-2xl tracking-tight chroma-text" style={{ color: '#fff' }}>Space<span className="gradient-text-aurora">Hub</span></div>
                 </div>
                 <p className="text-gray-500 text-sm leading-relaxed mb-4">
-                  The world's most complete free space data platform.
+                  Real-time ISS tracking, NASA imagery, and space data — free forever.
                 </p>
                 <div className="flex items-center gap-2 justify-center md:justify-start">
                   <span className="live-dot" />
@@ -952,8 +922,8 @@ function MainApp() {
 
             {/* Links */}
             <nav aria-label="Footer navigation" className="flex flex-wrap gap-x-6 gap-y-2 justify-center mb-6">
-              <Link to="/blog" className="text-gray-500 hover:text-indigo-400 text-xs font-semibold transition-colors">📝 Blog</Link>
-              <Link to="/premium" className="text-gray-500 hover:text-indigo-400 text-xs font-semibold transition-colors">⭐ Premium</Link>
+              <Link to="/blog" className="text-gray-500 hover:text-indigo-400 text-xs font-semibold transition-colors">Blog</Link>
+              <Link to="/premium" className="text-gray-500 hover:text-indigo-400 text-xs font-semibold transition-colors">Premium</Link>
               <Link to="/privacy" className="text-gray-500 hover:text-indigo-400 text-xs font-semibold transition-colors">Privacy Policy</Link>
               <span className="hidden md:contents">
                 {Object.entries(CITY_DATA).map(([slug, c]) => (
