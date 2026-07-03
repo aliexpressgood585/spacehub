@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, type CSSProperties } from 'react'
 
 interface Trade {
   id: number
@@ -222,7 +222,7 @@ export default function CryptoTradingDashboard() {
     : null
   const reset = () => { setActive(false); activeRef.current=false; setTrades([]); setOpen(null); openRef.current=null; setBalance(10000); balanceRef.current=10000 }
 
-  const M: React.CSSProperties = { fontFamily: 'monospace' }
+  const M: CSSProperties = { fontFamily: 'monospace' }
   const R = '#ef4444', R2 = 'rgba(239,68,68,0.5)', R3 = 'rgba(239,68,68,0.15)'
 
   return (
