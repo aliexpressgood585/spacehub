@@ -10,9 +10,9 @@ const COINS = [
   'MATIC','UNI','ATOM','LTC','BCH','NEAR','ALGO','FIL','VET','ICP'
 ]
 const RISK = {
-  low:    { pct:0.05, sl:0.008, tp:0.022, trail:0.005, maxPos:4 },
-  medium: { pct:0.09, sl:0.012, tp:0.032, trail:0.008, maxPos:8 },
-  high:   { pct:0.14, sl:0.017, tp:0.046, trail:0.012, maxPos:12 },
+  low:    { pct:0.04, sl:0.007, tp:0.020, trail:0.004, maxPos:6 },
+  medium: { pct:0.06, sl:0.010, tp:0.028, trail:0.007, maxPos:12 },
+  high:   { pct:0.08, sl:0.013, tp:0.036, trail:0.009, maxPos:18 },
 } as const
 type RiskKey = keyof typeof RISK
 const FEE = 0.001
@@ -127,7 +127,6 @@ function multiTF(bars:Bar[]): Signal {
   const s5=signal(bars5)
   if(s1.dir==='HOLD') return s1
   if(s5.dir===s1.dir) return {...s1,score:Math.min(5,s1.score+1),mtf:true}
-  if(s5.dir!=='HOLD'&&s5.dir!==s1.dir) return {...s1,dir:'HOLD',mtf:false}
   return s1
 }
 
@@ -219,7 +218,7 @@ Deno.serve(async () => {
       const canOpenMore  = (openCount||0) < R.maxPos
       if(noOpenForSym && canOpenMore) {
         const sig = multiTF(bars)
-        if(sig.dir!=='HOLD' && sig.adxVal>16 && sig.volGood) {
+        if(sig.dir!=='HOLD' && sig.adxVal>14 && sig.volGood) {
           // BTC bias filter
           if(sym!=='BTC'){
             if(sig.dir==='BUY'  && bias==='BEAR') continue

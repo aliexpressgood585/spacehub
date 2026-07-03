@@ -34,9 +34,9 @@ const COINS = [
 
 const RISK_LABELS: Record<RiskType,string> = {low:'נמוך',medium:'בינוני',high:'גבוה'}
 const RISK = {
-  low:    {pct:0.05, sl:0.008, tp:0.022, trail:0.005, maxPos:4},
-  medium: {pct:0.09, sl:0.012, tp:0.032, trail:0.008, maxPos:8},
-  high:   {pct:0.14, sl:0.017, tp:0.046, trail:0.012, maxPos:12},
+  low:    {pct:0.04, sl:0.007, tp:0.020, trail:0.004, maxPos:6},
+  medium: {pct:0.06, sl:0.010, tp:0.028, trail:0.007, maxPos:12},
+  high:   {pct:0.08, sl:0.013, tp:0.036, trail:0.009, maxPos:18},
 }
 
 const INIT_BAL = 10_000
@@ -178,8 +178,8 @@ function getMultiTFSig(bars1m:Bar[]): Sig {
   if(bars5m.length<25) return s1
   const s5=computeSig(bars5m)
   if(s1.dir==='HOLD') return s1
+  // MTF agreement → bonus point; disagreement → no bonus but still trade
   if(s5.dir===s1.dir) return {...s1,score:Math.min(5,s1.score+1),mtf:true}
-  if(s5.dir!=='HOLD'&&s5.dir!==s1.dir) return {...s1,dir:'HOLD',mtf:false}
   return s1
 }
 
@@ -299,8 +299,8 @@ export default function CryptoTradingDashboard() {
   const openTrade = useCallback((sym:string, side:'LONG'|'SHORT', price:number, s:Sig)=>{
     if(supaModeRef.current) return   // server-side bot handles trading in Supabase mode
     const now=Date.now()
-    if((cooldown.current[sym]||0)+60_000>now) return
-    if(s.adx<16) return
+    if((cooldown.current[sym]||0)+30_000>now) return
+    if(s.adx<14) return
     if(!s.volOk) return
     const btcBars=barsMap.current.get('BTC')||[]
     const bias=getBtcBias(btcBars)
