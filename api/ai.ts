@@ -27,6 +27,56 @@ const CATEGORY_DESC: Record<string, string> = {
   bio: 'מודל ייעודי למחקר ביולוגי/כימי - חיזוי מבנה חלבונים, מולקולות וגנום.',
 }
 
+const STATIC_MODELS: NvidiaModel[] = [
+  { id: 'meta/llama-3.3-70b-instruct' },
+  { id: 'meta/llama-3.1-8b-instruct' },
+  { id: 'meta/llama-3.1-70b-instruct' },
+  { id: 'meta/llama-3.1-405b-instruct' },
+  { id: 'meta/llama-3.2-1b-instruct' },
+  { id: 'meta/llama-3.2-3b-instruct' },
+  { id: 'mistralai/mistral-7b-instruct-v0.3' },
+  { id: 'mistralai/mixtral-8x7b-instruct-v0.1' },
+  { id: 'mistralai/mixtral-8x22b-instruct-v0.1' },
+  { id: 'mistralai/mistral-large' },
+  { id: 'google/gemma-2-9b-it' },
+  { id: 'google/gemma-2-27b-it' },
+  { id: 'microsoft/phi-3-mini-128k-instruct' },
+  { id: 'microsoft/phi-3-small-128k-instruct' },
+  { id: 'microsoft/phi-3-medium-128k-instruct' },
+  { id: 'microsoft/phi-3.5-mini-instruct' },
+  { id: 'qwen/qwen2-7b-instruct' },
+  { id: 'qwen/qwen2.5-7b-instruct' },
+  { id: 'qwen/qwen2.5-72b-instruct' },
+  { id: 'deepseek-ai/deepseek-r1' },
+  { id: 'deepseek-ai/deepseek-r1-distill-llama-70b' },
+  { id: 'nvidia/llama-3.1-nemotron-70b-instruct' },
+  { id: 'nvidia/llama-3.3-nemotron-super-49b-v1' },
+  { id: 'nvidia/mistral-nemo-minitron-8b-8k-instruct' },
+  { id: 'ibm/granite-3.0-8b-instruct' },
+  { id: 'ibm/granite-3.0-2b-instruct' },
+  { id: '01-ai/yi-large' },
+  { id: 'nv-mistralai/mistral-nemo-12b-instruct' },
+  { id: 'nvidia/vila' },
+  { id: 'microsoft/phi-3-vision-128k-instruct' },
+  { id: 'meta/llama-3.2-11b-vision-instruct' },
+  { id: 'meta/llama-3.2-90b-vision-instruct' },
+  { id: 'adept/fuyu-8b' },
+  { id: 'nvidia/stable-diffusion-xl' },
+  { id: 'stabilityai/stable-diffusion-3-medium' },
+  { id: 'black-forest-labs/flux.1-dev' },
+  { id: 'black-forest-labs/flux.1-schnell' },
+  { id: 'nvidia/nv-embedqa-e5-v5' },
+  { id: 'nvidia/nv-embedqa-mistral-7b-v2' },
+  { id: 'nvidia/rerank-qa-mistral-4b' },
+  { id: 'snowflake/arctic-embed-l' },
+  { id: 'nvidia/parakeet-ctc-0.6b-asr' },
+  { id: 'nvidia/canary-1b' },
+  { id: 'nvidia/riva-tts' },
+  { id: 'nvidia/bionemo-esm2-650m' },
+  { id: 'nvidia/bionemo-geneformer-10m' },
+  { id: 'nvidia/molmim-generate' },
+]
+
 async function listModels(res: VercelResponse) {
   const apiKey = process.env.NVIDIA_API_KEY
   if (!apiKey) {
@@ -34,25 +84,14 @@ async function listModels(res: VercelResponse) {
     res.status(200).json({ error: 'missing_key', models: [] })
     return
   }
-  try {
-    const r = await fetch(`${NVIDIA_BASE}/models`, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-      signal: AbortSignal.timeout(8000),
+  const models = STATIC_MODELS
+    .map(m => {
+      const { category, label } = categorize(m.id)
+      return { id: m.id, ownedBy: m.owned_by || '', category, categoryLabel: label, description: CATEGORY_DESC[category] }
     })
-    if (!r.ok) throw new Error(`NVIDIA models ${r.status}`)
-    const data = await r.json() as { data: NvidiaModel[] }
-    const models = (data.data || [])
-      .map(m => {
-        const { category, label } = categorize(m.id)
-        return { id: m.id, ownedBy: m.owned_by || '', category, categoryLabel: label, description: CATEGORY_DESC[category] }
-      })
-      .sort((a, b) => a.id.localeCompare(b.id))
-    res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400')
-    res.status(200).json({ models })
-  } catch (err: unknown) {
-    res.setHeader('Cache-Control', 'no-store')
-    res.status(200).json({ error: err instanceof Error ? err.message : 'error', models: [] })
-  }
+    .sort((a, b) => a.id.localeCompare(b.id))
+  res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400')
+  res.status(200).json({ models })
 }
 
 async function chat(req: VercelRequest, res: VercelResponse) {

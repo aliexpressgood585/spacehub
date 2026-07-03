@@ -39,7 +39,7 @@ export default function AIModelsPage() {
       .then(r => r.json())
       .then((d: { models: AIModel[]; error?: string }) => {
         if (d.error === 'missing_key') { setLoadError('מפתח ה-API של NVIDIA עדיין לא הוגדר בשרת.'); return }
-        if (d.error) { setLoadError(`שגיאה: ${d.error}`); return }
+        if (d.error) { setLoadError('לא הצלחנו לטעון את רשימת המודלים כרגע.'); return }
         setModels(d.models || [])
       })
       .catch(() => setLoadError('לא הצלחנו לטעון את רשימת המודלים כרגע.'))
