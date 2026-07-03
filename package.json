@@ -3,7 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -12,15 +14,16 @@
   },
   "dependencies": {
     "@stripe/stripe-js": "^9.8.0",
+    "@supabase/supabase-js": "^2.110.0",
     "@tailwindcss/postcss": "^4.3.1",
     "@types/react-router-dom": "^5.3.3",
     "axios": "^1.7.2",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.18.0",
+    "satellite.js": "^4.1.4",
     "stripe": "^22.2.2",
     "tailwindcss": "^4.3.1",
-    "satellite.js": "^4.1.4",
     "three": "^0.128.0"
   },
   "devDependencies": {
