@@ -22,6 +22,20 @@ interface Sig {
 }
 interface PriceInfo { price:number; change:number }
 
+// ─── palette ──────────────────────────────────────────────────────────────────
+const C = {
+  bg:    '#06070f', panel: '#09101f', panel2: '#0c1428',
+  pink:  '#ff2070', green: '#00e87a', red: '#ff3350',
+  yellow:'#ffb700', blue:  '#3ab8ff', dim: '#1a2840',
+  muted: '#304060', text:  '#b8d0ee', bright: '#e8f4ff',
+  border:'rgba(255,32,112,0.4)',
+  glow:  '0 0 16px rgba(255,32,112,0.15), inset 0 0 16px rgba(255,32,112,0.04)',
+}
+const panel = {
+  background:C.panel, border:`1px solid ${C.border}`,
+  borderRadius:'8px', boxShadow:C.glow,
+} as CSSProperties
+
 const COINS = [
   {sym:'BTC',ws:'btcusdt'},{sym:'ETH',ws:'ethusdt'},{sym:'SOL',ws:'solusdt'},
   {sym:'BNB',ws:'bnbusdt'},{sym:'XRP',ws:'xrpusdt'},{sym:'ADA',ws:'adausdt'},
@@ -31,237 +45,149 @@ const COINS = [
   {sym:'NEAR',ws:'nearusdt'},{sym:'ALGO',ws:'algousdt'},{sym:'FIL',ws:'filusdt'},
   {sym:'VET',ws:'vetusdt'},{sym:'ICP',ws:'icpusdt'},
 ]
-
 const RISK_LABELS: Record<RiskType,string> = {low:'נמוך',medium:'בינוני',high:'גבוה'}
 const RISK = {
   low:    {pct:0.04, sl:0.007, tp:0.020, trail:0.004, maxPos:6},
   medium: {pct:0.06, sl:0.010, tp:0.028, trail:0.007, maxPos:12},
   high:   {pct:0.08, sl:0.013, tp:0.036, trail:0.009, maxPos:18},
 }
-
-const INIT_BAL = 10_000
-const MAX_BARS  = 300
-const BAR_MS    = 60_000
-const FEE_PCT   = 0.001
+const INIT_BAL=10_000, MAX_BARS=300, BAR_MS=60_000, FEE_PCT=0.001
 
 // ─── math ─────────────────────────────────────────────────────────────────────
-function calcEma(src:number[], p:number): number[] {
-  const k=2/(p+1); const out=[src[0]]
-  for(let i=1;i<src.length;i++) out.push(src[i]*k+out[i-1]*(1-k))
-  return out
-}
+function calcEma(src:number[],p:number):number[]{const k=2/(p+1);const out=[src[0]];for(let i=1;i<src.length;i++)out.push(src[i]*k+out[i-1]*(1-k));return out}
+function calcRsi(src:number[],p=14):number{if(src.length<p+1)return 50;let g=0,l=0;for(let i=src.length-p;i<src.length;i++){const d=src[i]-src[i-1];if(d>0)g+=d;else l-=d}return 100-100/(1+(g/p)/((l/p)||1e-9))}
+function calcMacd(src:number[]):number{if(src.length<26)return 0;const e12=calcEma(src,12),e26=calcEma(src,26);const ml=e12.map((v,i)=>v-e26[i]);const sig=calcEma(ml,9);const n=ml.length-1;return ml[n]-sig[n]}
+function calcBB(src:number[],p=20,m=2):{upper:number;mid:number;lower:number}{const sl=src.length>=p?src.slice(-p):src;const mid=sl.reduce((a,b)=>a+b,0)/sl.length;const std=Math.sqrt(sl.reduce((a,b)=>a+(b-mid)**2,0)/sl.length);return{upper:mid+m*std,mid,lower:mid-m*std}}
+function calcStochRsi(src:number[],p=14):{k:number;d:number}{if(src.length<p*2)return{k:50,d:50};const rsiArr:number[]=[];for(let i=p;i<src.length;i++)rsiArr.push(calcRsi(src.slice(0,i+1),p));if(rsiArr.length<p)return{k:50,d:50};const rec=rsiArr.slice(-p);const lo=Math.min(...rec),hi=Math.max(...rec);const k=hi===lo?50:((rsiArr[rsiArr.length-1]-lo)/(hi-lo))*100;const ks=rsiArr.slice(-3).map((_v,i2,a)=>{const sl2=rsiArr.slice(0,rsiArr.length-a.length+1+i2);const rr=sl2.slice(-p);const l2=Math.min(...rr),h2=Math.max(...rr);return h2===l2?50:((sl2[sl2.length-1]-l2)/(h2-l2))*100});return{k,d:ks.reduce((a,b)=>a+b,0)/ks.length}}
+function calcAdx(bars:Bar[],p=14):number{if(bars.length<p+2)return 20;const sl=bars.slice(-(p+1));let trS=0,plusS=0,minS=0;for(let i=1;i<sl.length;i++){const c=sl[i],pv=sl[i-1];const tr=Math.max(c.high-c.low,Math.abs(c.high-pv.close),Math.abs(c.low-pv.close));const up=c.high-pv.high,dn=pv.low-c.low;trS+=tr;plusS+=(up>dn&&up>0)?up:0;minS+=(dn>up&&dn>0)?dn:0}if(!trS)return 20;const pDI=plusS/trS*100,mDI=minS/trS*100;return Math.abs(pDI-mDI)/((pDI+mDI)||1)*100}
+function calcAtr(bars:Bar[],p=14):number{if(bars.length<2)return bars[0]?(bars[0].high-bars[0].low):1;const trs=bars.slice(-(p+1)).map((b,i,a)=>{if(i===0)return b.high-b.low;return Math.max(b.high-b.low,Math.abs(b.high-a[i-1].close),Math.abs(b.low-a[i-1].close))});return trs.reduce((a,b)=>a+b,0)/trs.length}
+function build5mBars(bars1m:Bar[]):Bar[]{const out:Bar[]=[];for(let i=0;i+4<bars1m.length;i+=5){const sl=bars1m.slice(i,i+5);out.push({time:sl[0].time,open:sl[0].open,high:Math.max(...sl.map(b=>b.high)),low:Math.min(...sl.map(b=>b.low)),close:sl[4].close,vol:sl.reduce((a,b)=>a+b.vol,0)})}return out}
+function isVolOk(bars:Bar[]):boolean{if(bars.length<20)return true;const avg=bars.slice(-20).reduce((a,b)=>a+b.vol,0)/20;return bars[bars.length-1].vol>=avg*0.7}
+function getBtcBias(btcBars:Bar[]):'BULL'|'BEAR'|'NEUTRAL'{if(btcBars.length<20)return 'NEUTRAL';const cl=btcBars.map(b=>b.close);const rsi=calcRsi(cl,14);const e9=calcEma(cl,9),e21=calcEma(cl,21),n=cl.length-1;if(rsi>55&&e9[n]>e21[n])return 'BULL';if(rsi<45&&e9[n]<e21[n])return 'BEAR';return 'NEUTRAL'}
+function emptySig():Sig{return{dir:'HOLD',score:0,f:[false,false,false,false,false],rsi:50,adx:20,volOk:true,mtf:false,bb:{upper:0,mid:0,lower:0}}}
+function computeSig(bars:Bar[]):Sig{if(bars.length<35)return emptySig();const cl=bars.map(b=>b.close),n=cl.length-1;const e9=calcEma(cl,9),e21=calcEma(cl,21);const emaBull=e9[n]>e21[n];const rsi=calcRsi(cl,14);const rsiBull=rsi>52&&rsi<76,rsiBear=rsi<48&&rsi>24;const hist=calcMacd(cl);const macdBull=hist>0;const bb=calcBB(cl);const p=cl[n];const bbBull=p>bb.mid&&p<bb.upper,bbBear=p<bb.mid&&p>bb.lower;const{k,d}=calcStochRsi(cl);const stochBull=k>d&&k<80,stochBear=k<d&&k>20;const adx=calcAdx(bars);const vok=isVolOk(bars);const bF=[emaBull,rsiBull,macdBull,bbBull,stochBull];const sF=[!emaBull,rsiBear,!macdBull,bbBear,stochBear];const bS=bF.filter(Boolean).length,sS=sF.filter(Boolean).length;if(bS>=3)return{dir:'BUY',score:bS,f:bF,rsi,adx,volOk:vok,mtf:false,bb};if(sS>=3)return{dir:'SELL',score:sS,f:sF,rsi,adx,volOk:vok,mtf:false,bb};return{dir:'HOLD',score:Math.max(bS,sS),f:bF,rsi,adx,volOk:vok,mtf:false,bb}}
+function getMultiTFSig(bars1m:Bar[]):Sig{const s1=computeSig(bars1m);const bars5m=build5mBars(bars1m);if(bars5m.length<25)return s1;const s5=computeSig(bars5m);if(s1.dir==='HOLD')return s1;if(s5.dir===s1.dir)return{...s1,score:Math.min(5,s1.score+1),mtf:true};return s1}
+function calcSharpe(trades:Trade[]):number{const cl=trades.filter(t=>t.pnlPct!==undefined);if(cl.length<3)return 0;const r=cl.map(t=>t.pnlPct!);const m=r.reduce((a,b)=>a+b,0)/r.length;const s=Math.sqrt(r.reduce((a,b)=>a+(b-m)**2,0)/r.length)||1e-9;return(m/s)*Math.sqrt(252)}
+function calcMaxDD(trades:Trade[]):number{let bal=INIT_BAL,peak=INIT_BAL,mx=0;for(const t of trades){if(t.pnl){bal+=t.pnl;if(bal>peak)peak=bal;mx=Math.max(mx,(peak-bal)/peak)}}return mx*100}
+function mapDbTrade(t:Record<string,unknown>):Trade{return{id:t.id as number,sym:t.sym as string,side:t.side as 'LONG'|'SHORT',entry:Number(t.entry_price),exit:t.exit_price!=null?Number(t.exit_price):undefined,size:Number(t.size),pnl:t.pnl!=null?Number(t.pnl):undefined,pnlPct:t.pnl_pct!=null?Number(t.pnl_pct):undefined,ts:new Date(t.opened_at as string).getTime(),status:t.status as 'OPEN'|'TP'|'SL'|'TRAIL',hi:Number(t.hi),lo:Number(t.lo),trailSL:Number(t.trail_sl),fee:Number(t.fee)}}
 
-function calcRsi(src:number[], p=14): number {
-  if(src.length<p+1) return 50
-  let g=0,l=0
-  for(let i=src.length-p;i<src.length;i++){
-    const d=src[i]-src[i-1]; if(d>0) g+=d; else l-=d
-  }
-  return 100-100/(1+(g/p)/((l/p)||1e-9))
-}
-
-function calcMacd(src:number[]): number {
-  if(src.length<26) return 0
-  const e12=calcEma(src,12), e26=calcEma(src,26)
-  const ml=e12.map((v,i)=>v-e26[i])
-  const sig=calcEma(ml,9); const n=ml.length-1
-  return ml[n]-sig[n]
-}
-
-function calcBB(src:number[], p=20, m=2): {upper:number;mid:number;lower:number} {
-  const sl=src.length>=p?src.slice(-p):src
-  const mid=sl.reduce((a,b)=>a+b,0)/sl.length
-  const std=Math.sqrt(sl.reduce((a,b)=>a+(b-mid)**2,0)/sl.length)
-  return {upper:mid+m*std, mid, lower:mid-m*std}
-}
-
-function calcStochRsi(src:number[], p=14): {k:number;d:number} {
-  if(src.length<p*2) return {k:50,d:50}
-  const rsiArr:number[]=[]
-  for(let i=p;i<src.length;i++) rsiArr.push(calcRsi(src.slice(0,i+1),p))
-  if(rsiArr.length<p) return {k:50,d:50}
-  const rec=rsiArr.slice(-p)
-  const lo=Math.min(...rec), hi=Math.max(...rec)
-  const k=hi===lo?50:((rsiArr[rsiArr.length-1]-lo)/(hi-lo))*100
-  const kSlice=rsiArr.slice(-3).map((_v,i2,a)=>{
-    const sl2=rsiArr.slice(0,rsiArr.length-a.length+1+i2)
-    const rr=sl2.slice(-p); const l2=Math.min(...rr),h2=Math.max(...rr)
-    return h2===l2?50:((sl2[sl2.length-1]-l2)/(h2-l2))*100
-  })
-  return {k, d:kSlice.reduce((a,b)=>a+b,0)/kSlice.length}
-}
-
-function calcAdx(bars:Bar[], p=14): number {
-  if(bars.length<p+2) return 20
-  const sl=bars.slice(-(p+1))
-  let trS=0, plusS=0, minS=0
-  for(let i=1;i<sl.length;i++){
-    const c=sl[i], pv=sl[i-1]
-    const tr=Math.max(c.high-c.low,Math.abs(c.high-pv.close),Math.abs(c.low-pv.close))
-    const up=c.high-pv.high, dn=pv.low-c.low
-    trS+=tr; plusS+=(up>dn&&up>0)?up:0; minS+=(dn>up&&dn>0)?dn:0
-  }
-  if(!trS) return 20
-  const pDI=plusS/trS*100, mDI=minS/trS*100
-  return Math.abs(pDI-mDI)/((pDI+mDI)||1)*100
-}
-
-function calcAtr(bars:Bar[], p=14): number {
-  if(bars.length<2) return bars[0]?(bars[0].high-bars[0].low):1
-  const trs=bars.slice(-(p+1)).map((b,i,a)=>{
-    if(i===0) return b.high-b.low
-    return Math.max(b.high-b.low,Math.abs(b.high-a[i-1].close),Math.abs(b.low-a[i-1].close))
-  })
-  return trs.reduce((a,b)=>a+b,0)/trs.length
-}
-
-function build5mBars(bars1m:Bar[]): Bar[] {
-  const out:Bar[]=[]
-  for(let i=0;i+4<bars1m.length;i+=5){
-    const sl=bars1m.slice(i,i+5)
-    out.push({
-      time:sl[0].time, open:sl[0].open,
-      high:Math.max(...sl.map(b=>b.high)), low:Math.min(...sl.map(b=>b.low)),
-      close:sl[4].close, vol:sl.reduce((a,b)=>a+b.vol,0)
-    })
-  }
-  return out
-}
-
-function isVolOk(bars:Bar[]): boolean {
-  if(bars.length<20) return true
-  const avg=bars.slice(-20).reduce((a,b)=>a+b.vol,0)/20
-  return bars[bars.length-1].vol>=avg*0.7
-}
-
-function getBtcBias(btcBars:Bar[]): 'BULL'|'BEAR'|'NEUTRAL' {
-  if(btcBars.length<20) return 'NEUTRAL'
-  const cl=btcBars.map(b=>b.close)
-  const rsi=calcRsi(cl,14)
-  const e9=calcEma(cl,9), e21=calcEma(cl,21), n=cl.length-1
-  if(rsi>55&&e9[n]>e21[n]) return 'BULL'
-  if(rsi<45&&e9[n]<e21[n]) return 'BEAR'
-  return 'NEUTRAL'
-}
-
-function emptySig(): Sig {
-  return {dir:'HOLD',score:0,f:[false,false,false,false,false],rsi:50,adx:20,volOk:true,mtf:false,bb:{upper:0,mid:0,lower:0}}
-}
-
-function computeSig(bars:Bar[]): Sig {
-  if(bars.length<35) return emptySig()
-  const cl=bars.map(b=>b.close), n=cl.length-1
-  const e9=calcEma(cl,9), e21=calcEma(cl,21)
-  const emaBull=e9[n]>e21[n]
-  const rsi=calcRsi(cl,14)
-  const rsiBull=rsi>52&&rsi<76, rsiBear=rsi<48&&rsi>24
-  const hist=calcMacd(cl)
-  const macdBull=hist>0
-  const bb=calcBB(cl)
-  const p=cl[n]
-  const bbBull=p>bb.mid&&p<bb.upper, bbBear=p<bb.mid&&p>bb.lower
-  const {k,d}=calcStochRsi(cl)
-  const stochBull=k>d&&k<80, stochBear=k<d&&k>20
-  const adx=calcAdx(bars)
-  const vok=isVolOk(bars)
-  const bF=[emaBull,rsiBull,macdBull,bbBull,stochBull]
-  const sF=[!emaBull,rsiBear,!macdBull,bbBear,stochBear]
-  const bS=bF.filter(Boolean).length, sS=sF.filter(Boolean).length
-  if(bS>=3) return {dir:'BUY',score:bS,f:bF,rsi,adx,volOk:vok,mtf:false,bb}
-  if(sS>=3) return {dir:'SELL',score:sS,f:sF,rsi,adx,volOk:vok,mtf:false,bb}
-  return {dir:'HOLD',score:Math.max(bS,sS),f:bF,rsi,adx,volOk:vok,mtf:false,bb}
-}
-
-function getMultiTFSig(bars1m:Bar[]): Sig {
-  const s1=computeSig(bars1m)
-  const bars5m=build5mBars(bars1m)
-  if(bars5m.length<25) return s1
-  const s5=computeSig(bars5m)
-  if(s1.dir==='HOLD') return s1
-  // MTF agreement → bonus point; disagreement → no bonus but still trade
-  if(s5.dir===s1.dir) return {...s1,score:Math.min(5,s1.score+1),mtf:true}
-  return s1
-}
-
-function calcSharpe(trades:Trade[]): number {
-  const cl=trades.filter(t=>t.pnlPct!==undefined)
-  if(cl.length<3) return 0
-  const r=cl.map(t=>t.pnlPct!)
-  const m=r.reduce((a,b)=>a+b,0)/r.length
-  const s=Math.sqrt(r.reduce((a,b)=>a+(b-m)**2,0)/r.length)||1e-9
-  return (m/s)*Math.sqrt(252)
-}
-
-function calcMaxDD(trades:Trade[]): number {
-  let bal=INIT_BAL, peak=INIT_BAL, mx=0
-  for(const t of trades){ if(t.pnl){bal+=t.pnl;if(bal>peak)peak=bal;mx=Math.max(mx,(peak-bal)/peak)} }
-  return mx*100
-}
-
-// ─── db mapping ───────────────────────────────────────────────────────────────
-function mapDbTrade(t: Record<string,unknown>): Trade {
-  return {
-    id: t.id as number,
-    sym: t.sym as string,
-    side: t.side as 'LONG'|'SHORT',
-    entry: Number(t.entry_price),
-    exit: t.exit_price != null ? Number(t.exit_price) : undefined,
-    size: Number(t.size),
-    pnl: t.pnl != null ? Number(t.pnl) : undefined,
-    pnlPct: t.pnl_pct != null ? Number(t.pnl_pct) : undefined,
-    ts: new Date(t.opened_at as string).getTime(),
-    status: t.status as 'OPEN'|'TP'|'SL'|'TRAIL',
-    hi: Number(t.hi),
-    lo: Number(t.lo),
-    trailSL: Number(t.trail_sl),
-    fee: Number(t.fee),
-  }
-}
-
-// ─── chart ─────────────────────────────────────────────────────────────────────
-function drawChart(canvas:HTMLCanvasElement, bars:Bar[], sig:Sig) {
+// ─── canvas renderers ─────────────────────────────────────────────────────────
+function drawCandles(canvas:HTMLCanvasElement, bars:Bar[], sig:Sig) {
   const ctx=canvas.getContext('2d'); if(!ctx||bars.length<3) return
   const W=canvas.width, H=canvas.height
   ctx.clearRect(0,0,W,H)
-  const sl=bars.slice(-80), cl=sl.map(b=>b.close)
+  const sl=bars.slice(-70)
+  const lo=Math.min(...sl.map(b=>b.low))*0.9988
+  const hi=Math.max(...sl.map(b=>b.high))*1.0012
+  const toY=(v:number)=>H-2-((v-lo)/(hi-lo))*(H-4)
+  const cw=(W-4)/sl.length
+
+  // Grid
+  ctx.strokeStyle='rgba(255,32,112,0.07)'; ctx.lineWidth=0.5
+  for(let i=1;i<5;i++){ctx.beginPath();ctx.moveTo(0,H*i/5);ctx.lineTo(W,H*i/5);ctx.stroke()}
+
+  // EMA lines
+  const cl=sl.map(b=>b.close)
+  const e9=calcEma(cl,9), e21=calcEma(cl,21)
+  ctx.beginPath(); e9.forEach((v,i)=>{i===0?ctx.moveTo(i*cw+cw/2+2,toY(v)):ctx.lineTo(i*cw+cw/2+2,toY(v))})
+  ctx.strokeStyle='rgba(255,183,0,0.55)'; ctx.lineWidth=1; ctx.stroke()
+  ctx.beginPath(); e21.forEach((v,i)=>{i===0?ctx.moveTo(i*cw+cw/2+2,toY(v)):ctx.lineTo(i*cw+cw/2+2,toY(v))})
+  ctx.strokeStyle='rgba(255,32,112,0.55)'; ctx.lineWidth=1; ctx.stroke()
+
+  // BB bands
   const bbArr=cl.map((_,i)=>calcBB(cl.slice(0,i+1)))
-  const ema9=calcEma(cl,9), ema21=calcEma(cl,21)
-  const lo=Math.min(...sl.map(b=>b.low))*0.9985
-  const hi=Math.max(...sl.map(b=>b.high))*1.0015
-  const toY=(v:number)=>H-4-((v-lo)/(hi-lo))*(H-8)
-  const toX=(i:number)=>(i/(sl.length-1))*(W-2)+1
-  ctx.beginPath()
-  bbArr.forEach((bb,i)=>{ i===0?ctx.moveTo(toX(i),toY(bb.upper)):ctx.lineTo(toX(i),toY(bb.upper)) })
-  for(let i=bbArr.length-1;i>=0;i--) ctx.lineTo(toX(i),toY(bbArr[i].lower))
-  ctx.closePath(); ctx.fillStyle='rgba(80,160,255,0.06)'; ctx.fill()
-  const bbLines=[bbArr.map(b=>b.upper),bbArr.map(b=>b.lower),bbArr.map(b=>b.mid)]
-  const bbCols=['rgba(80,160,255,0.3)','rgba(80,160,255,0.3)','rgba(80,160,255,0.18)']
-  bbLines.forEach((arr,li)=>{
-    ctx.beginPath(); arr.forEach((v,i)=>{ i===0?ctx.moveTo(toX(i),toY(v)):ctx.lineTo(toX(i),toY(v)) })
-    ctx.strokeStyle=bbCols[li]; ctx.lineWidth=0.8
-    if(li===2) ctx.setLineDash([3,3]); else ctx.setLineDash([])
-    ctx.stroke(); ctx.setLineDash([])
+  ctx.beginPath(); bbArr.forEach((bb,i)=>{i===0?ctx.moveTo(i*cw+cw/2+2,toY(bb.upper)):ctx.lineTo(i*cw+cw/2+2,toY(bb.upper))})
+  for(let i=bbArr.length-1;i>=0;i--) ctx.lineTo(i*cw+cw/2+2,toY(bbArr[i].lower))
+  ctx.closePath(); ctx.fillStyle='rgba(58,184,255,0.05)'; ctx.fill()
+
+  // Candles
+  sl.forEach((b,i)=>{
+    const x=i*cw+2
+    const isUp=b.close>=b.open
+    const col=isUp?C.green:C.red
+    ctx.strokeStyle=col; ctx.lineWidth=0.8
+    ctx.beginPath(); ctx.moveTo(x+cw/2,toY(b.high)); ctx.lineTo(x+cw/2,toY(b.low)); ctx.stroke()
+    const bTop=toY(Math.max(b.open,b.close))
+    const bBot=toY(Math.min(b.open,b.close))
+    ctx.fillStyle=isUp?'rgba(0,232,122,0.85)':'rgba(255,51,80,0.85)'
+    ctx.fillRect(x+1,bTop,Math.max(1,cw-2),Math.max(1,bBot-bTop))
   })
-  ctx.beginPath(); cl.forEach((v,i)=>{ i===0?ctx.moveTo(toX(i),toY(v)):ctx.lineTo(toX(i),toY(v)) })
-  ctx.strokeStyle='#4af'; ctx.lineWidth=1.5; ctx.stroke()
-  ctx.beginPath(); ema9.forEach((v,i)=>{ i===0?ctx.moveTo(toX(i),toY(v)):ctx.lineTo(toX(i),toY(v)) })
-  ctx.strokeStyle='#fa6'; ctx.lineWidth=1; ctx.stroke()
-  ctx.beginPath(); ema21.forEach((v,i)=>{ i===0?ctx.moveTo(toX(i),toY(v)):ctx.lineTo(toX(i),toY(v)) })
-  ctx.strokeStyle='#f4a'; ctx.lineWidth=1; ctx.stroke()
-  const lp=cl[cl.length-1]
-  ctx.fillStyle='rgba(0,0,0,0.65)'; ctx.fillRect(2,toY(lp)-13,62,13)
-  ctx.fillStyle='#4af'; ctx.font='bold 10px monospace'
-  ctx.fillText(lp>=100?lp.toFixed(1):lp.toFixed(5),4,toY(lp)-2)
-  const adxW=Math.min(sig.adx/50,1)*28
-  ctx.fillStyle=sig.adx>25?'rgba(80,255,100,0.35)':'rgba(255,200,80,0.3)'
-  ctx.fillRect(W-32,H-7,adxW,5)
-  ctx.beginPath(); ctx.arc(W-8,8,5,0,Math.PI*2)
-  ctx.fillStyle=sig.dir==='BUY'?'#4f8':sig.dir==='SELL'?'#f55':'#555'; ctx.fill()
+
+  // Price label
+  const lp=sl[sl.length-1].close
+  ctx.fillStyle='rgba(6,7,15,0.8)'; ctx.fillRect(2,toY(lp)-12,64,13)
+  ctx.fillStyle=C.green; ctx.font='bold 10px monospace'
+  ctx.fillText(lp>=100?lp.toFixed(2):lp.toFixed(5),4,toY(lp)-1)
+
+  // Signal dot
+  ctx.beginPath(); ctx.arc(W-9,9,6,0,Math.PI*2)
+  ctx.fillStyle=sig.dir==='BUY'?C.green:sig.dir==='SELL'?C.red:C.dim; ctx.fill()
+  if(sig.dir!=='HOLD'){
+    ctx.strokeStyle='rgba(255,255,255,0.3)'; ctx.lineWidth=1; ctx.stroke()
+  }
+}
+
+function drawEquity(canvas:HTMLCanvasElement, trades:Trade[]) {
+  const ctx=canvas.getContext('2d'); if(!ctx) return
+  const W=canvas.width, H=canvas.height
+  ctx.clearRect(0,0,W,H)
+  const pts=[INIT_BAL]; let bal=INIT_BAL
+  for(const t of trades){if(t.pnl!==undefined){bal+=t.pnl;pts.push(bal)}}
+  if(pts.length<2){
+    ctx.fillStyle='rgba(0,232,122,0.05)'; ctx.fillRect(0,0,W,H); return
+  }
+  const lo=Math.min(...pts)*0.995, hi=Math.max(...pts)*1.005
+  const toY=(v:number)=>H-1-((v-lo)/(hi-lo))*(H-2)
+  const toX=(i:number)=>(i/(pts.length-1))*(W-1)
+  ctx.beginPath(); pts.forEach((v,i)=>{i===0?ctx.moveTo(toX(i),toY(v)):ctx.lineTo(toX(i),toY(v))})
+  ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath()
+  const g=ctx.createLinearGradient(0,0,0,H)
+  g.addColorStop(0,'rgba(0,232,122,0.4)'); g.addColorStop(1,'rgba(0,232,122,0.02)')
+  ctx.fillStyle=g; ctx.fill()
+  ctx.beginPath(); pts.forEach((v,i)=>{i===0?ctx.moveTo(toX(i),toY(v)):ctx.lineTo(toX(i),toY(v))})
+  ctx.strokeStyle=C.green; ctx.lineWidth=1.5; ctx.stroke()
+}
+
+function drawBubbles(canvas:HTMLCanvasElement, allSigs:Record<string,Sig>, prices:Record<string,PriceInfo>) {
+  const ctx=canvas.getContext('2d'); if(!ctx) return
+  const W=canvas.width, H=canvas.height
+  ctx.clearRect(0,0,W,H)
+  const cols=5, rows=4
+  const cw=W/cols, ch=H/rows
+  COINS.forEach((coin,i)=>{
+    const col=i%cols, row=Math.floor(i/cols)
+    const cx=col*cw+cw/2, cy=row*ch+ch/2
+    const s=allSigs[coin.sym]
+    const chg=prices[coin.sym]?.change||0
+    const r=Math.min(cw,ch)*0.38
+    const dir=s?.dir||'HOLD'
+    const fill=dir==='BUY'?'rgba(0,232,122,0.18)':dir==='SELL'?'rgba(255,51,80,0.18)':'rgba(26,40,64,0.5)'
+    const stroke=dir==='BUY'?C.green:dir==='SELL'?C.red:C.muted
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2)
+    ctx.fillStyle=fill; ctx.fill()
+    ctx.strokeStyle=stroke; ctx.lineWidth=dir==='HOLD'?0.5:1.5; ctx.stroke()
+    if(dir!=='HOLD'){
+      ctx.shadowColor=stroke; ctx.shadowBlur=8
+      ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2)
+      ctx.strokeStyle=stroke; ctx.lineWidth=1.5; ctx.stroke()
+      ctx.shadowBlur=0
+    }
+    ctx.fillStyle=dir==='BUY'?C.green:dir==='SELL'?C.red:C.muted
+    ctx.font=`bold ${Math.max(8,r*0.45)}px monospace`; ctx.textAlign='center'; ctx.textBaseline='middle'
+    ctx.fillText(coin.sym,cx,cy-3)
+    ctx.font=`${Math.max(7,r*0.32)}px monospace`
+    ctx.fillStyle=chg>0?C.green:chg<0?C.red:C.muted
+    ctx.fillText(`${chg>=0?'+':''}${chg.toFixed(1)}%`,cx,cy+r*0.55)
+    if(s&&s.score>0){
+      ctx.font=`${Math.max(6,r*0.28)}px monospace`; ctx.fillStyle=C.blue
+      ctx.fillText(`${s.score}/5`,cx,cy+r*0.88)
+    }
+  })
+  ctx.textAlign='start'; ctx.textBaseline='alphabetic'
 }
 
 // ─── component ─────────────────────────────────────────────────────────────────
 export default function CryptoTradingDashboard() {
-  const M: CSSProperties = {fontFamily:'monospace'}
   const [prices,setPrices]       = useState<Record<string,PriceInfo>>({})
   const [selected,setSelected]   = useState('BTC')
   const [risk,setRisk]           = useState<RiskType>('medium')
@@ -274,6 +200,7 @@ export default function CryptoTradingDashboard() {
   const [wsStatus,setWsStatus]   = useState<'connecting'|'live'|'error'>('connecting')
   const [supaStatus,setSupaStatus] = useState<'off'|'connecting'|'live'|'error'>(SUPA_URL&&SUPA_KEY?'connecting':'off')
   const [tab,setTab]             = useState<TabType>('scanner')
+  const [execLog,setExecLog]     = useState<string[]>([])
 
   const barsMap    = useRef(new Map<string,Bar[]>())
   const curBar     = useRef(new Map<string,Bar>())
@@ -284,20 +211,26 @@ export default function CryptoTradingDashboard() {
   const riskRef    = useRef<RiskType>('medium')
   const idRef      = useRef(1)
   const canvasRef  = useRef<HTMLCanvasElement>(null)
+  const eqRef      = useRef<HTMLCanvasElement>(null)
+  const bubRef     = useRef<HTMLCanvasElement>(null)
   const cooldown   = useRef<Record<string,number>>({})
   const allSigsRef = useRef<Record<string,Sig>>({})
-  const sigUpdateTimer = useRef(0)
+  const sigTimer   = useRef(0)
   const supaRef    = useRef<ReturnType<typeof createClient>|null>(null)
-  const supaModeRef = useRef(false)
+  const supaModeRef= useRef(false)
+  const logRef     = useRef<string[]>([])
 
-  tradeRef.current = trades
-  botRef.current   = botOn
-  selRef.current   = selected
-  riskRef.current  = risk
-  balRef.current   = balance
+  tradeRef.current=trades; botRef.current=botOn
+  selRef.current=selected; riskRef.current=risk; balRef.current=balance
 
-  const openTrade = useCallback((sym:string, side:'LONG'|'SHORT', price:number, s:Sig)=>{
-    if(supaModeRef.current) return   // server-side bot handles trading in Supabase mode
+  const addLog=useCallback((msg:string)=>{
+    const entry=`${new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit',second:'2-digit'})} ${msg}`
+    logRef.current=[entry,...logRef.current].slice(0,40)
+    setExecLog([...logRef.current])
+  },[])
+
+  const openTrade=useCallback((sym:string,side:'LONG'|'SHORT',price:number,s:Sig)=>{
+    if(supaModeRef.current) return
     const now=Date.now()
     if((cooldown.current[sym]||0)+30_000>now) return
     if(s.adx<14) return
@@ -311,22 +244,20 @@ export default function CryptoTradingDashboard() {
     if(openCount>=R.maxPos) return
     const useBal=balRef.current*R.pct
     if(useBal<5) return
-    const bars=barsMap.current.get(sym)||[]
-    void calcAtr(bars)
+    void calcAtr(barsMap.current.get(sym)||[])
     const size=useBal/price
     const fee=price*size*FEE_PCT
     const trailSL=side==='LONG'?price*(1-R.trail):price*(1+R.trail)
     const t:Trade={id:idRef.current++,sym,side,entry:price,size,ts:now,status:'OPEN',hi:price,lo:price,trailSL,fee}
     cooldown.current[sym]=now
-    const next=[...tradeRef.current,t]
-    tradeRef.current=next; setTrades([...next])
-    setBalance(b=>{ const nb=b-useBal-fee; balRef.current=nb; return nb })
-  },[])
+    const next=[...tradeRef.current,t]; tradeRef.current=next; setTrades([...next])
+    setBalance(b=>{const nb=b-useBal-fee;balRef.current=nb;return nb})
+    addLog(`▲ OPEN ${sym} ${side} @ ${price>=100?price.toFixed(2):price.toFixed(5)} [${s.score}/5] ADX:${s.adx.toFixed(0)}`)
+  },[addLog])
 
-  const checkTrades=useCallback((sym:string, price:number)=>{
-    if(supaModeRef.current) return   // server-side bot manages positions
-    const R=RISK[riskRef.current]
-    let dirty=false
+  const checkTrades=useCallback((sym:string,price:number)=>{
+    if(supaModeRef.current) return
+    const R=RISK[riskRef.current]; let dirty=false
     const updated=tradeRef.current.map(t=>{
       if(t.sym!==sym||t.status!=='OPEN') return t
       const nt={...t}
@@ -350,17 +281,17 @@ export default function CryptoTradingDashboard() {
         const exitFee=nt.exit*nt.size*FEE_PCT
         nt.pnl=raw-nt.fee-exitFee
         nt.pnlPct=(nt.exit-nt.entry)/nt.entry*(nt.side==='LONG'?1:-1)
-        setBalance(b=>{ const nb=b+nt.entry*nt.size+(nt.pnl as number); balRef.current=nb; return nb })
+        setBalance(b=>{const nb=b+nt.entry*nt.size+(nt.pnl as number);balRef.current=nb;return nb})
+        addLog(`${nt.status==='TP'?'✓ TP':'✗ '+nt.status} ${sym} @ ${price>=100?price.toFixed(2):price.toFixed(5)} P&L: ${(nt.pnl>=0?'+':'')}${nt.pnl.toFixed(2)}`)
         dirty=true
       }
       return nt
     })
     if(dirty){tradeRef.current=updated;setTrades([...updated])}
-  },[])
+  },[addLog])
 
-  const processTick=useCallback((sym:string, price:number, vol:number)=>{
-    const now=Date.now()
-    const barStart=Math.floor(now/BAR_MS)*BAR_MS
+  const processTick=useCallback((sym:string,price:number,vol:number)=>{
+    const now=Date.now(), barStart=Math.floor(now/BAR_MS)*BAR_MS
     let cb=curBar.current.get(sym)
     if(!cb||cb.time!==barStart){
       if(cb){const arr=barsMap.current.get(sym)||[];arr.push(cb);if(arr.length>MAX_BARS)arr.shift();barsMap.current.set(sym,arr)}
@@ -374,19 +305,16 @@ export default function CryptoTradingDashboard() {
     const s=getMultiTFSig(bars)
     allSigsRef.current[sym]=s
     const isSel=sym===selRef.current
-    if(isSel){ setSig(s); setTick(n=>n+1) }
+    if(isSel){setSig(s);setTick(n=>n+1)}
     if(botRef.current&&s.dir!=='HOLD'&&!supaModeRef.current){
       const openForSym=tradeRef.current.filter(t=>t.sym===sym&&t.status==='OPEN')
       if(openForSym.length===0) openTrade(sym,s.dir==='BUY'?'LONG':'SHORT',price,s)
     }
-    const elapsed=now-sigUpdateTimer.current
-    if(elapsed>500||isSel){
-      sigUpdateTimer.current=now
-      setAllSigs({...allSigsRef.current})
-    }
+    const elapsed=now-sigTimer.current
+    if(elapsed>500||isSel){sigTimer.current=now;setAllSigs({...allSigsRef.current})}
   },[checkTrades,openTrade])
 
-  // Preload historical bars so signals are ready immediately (no 35-minute wait)
+  // Preload historical bars
   useEffect(()=>{
     const load=async()=>{
       for(const coin of COINS){
@@ -395,7 +323,6 @@ export default function CryptoTradingDashboard() {
           if(!res.ok) continue
           const data:number[][]=await res.json()
           const bars:Bar[]=data.map(k=>({time:k[0] as number,open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
-          // all but the last bar (still forming; WebSocket owns it)
           barsMap.current.set(coin.sym,bars.slice(0,-1))
           const s=getMultiTFSig(bars)
           allSigsRef.current[coin.sym]=s
@@ -421,13 +348,10 @@ export default function CryptoTradingDashboard() {
       ws.onclose=()=>{if(!dead){setWsStatus('error');setTimeout(connect,3000)}}
       ws.onmessage=(e)=>{
         try{
-          const msg=JSON.parse(e.data)
-          const d=msg.data||msg
+          const msg=JSON.parse(e.data); const d=msg.data||msg
           const wsName=(d.s||'').toLowerCase()
-          const coin=COINS.find(c=>c.ws===wsName)
-          if(!coin) return
-          const price=parseFloat(d.c)
-          const open24=parseFloat(d.o)
+          const coin=COINS.find(c=>c.ws===wsName); if(!coin) return
+          const price=parseFloat(d.c), open24=parseFloat(d.o)
           setPrices(p=>({...p,[coin.sym]:{price,change:((price-open24)/open24)*100}}))
           processTick(coin.sym,price,parseFloat(d.v||'0'))
         }catch{}
@@ -438,259 +362,249 @@ export default function CryptoTradingDashboard() {
     return ()=>{dead=true;ws?.close()}
   },[processTick])
 
-  // Supabase Realtime (24/7 server-bot integration)
+  // Supabase
   useEffect(()=>{
     if(!SUPA_URL||!SUPA_KEY) return
-    const supa=createClient(SUPA_URL,SUPA_KEY)
-    supaRef.current=supa
-
-    // Load initial state from DB
+    const supa=createClient(SUPA_URL,SUPA_KEY); supaRef.current=supa
     supa.from('bot_state').select('*').eq('id',1).single().then(({data})=>{
       if(!data) return
-      setBalance(data.balance); balRef.current=data.balance
-      setRisk(data.risk as RiskType); riskRef.current=data.risk as RiskType
-      setBotOn(data.active); botRef.current=data.active
+      setBalance(data.balance);balRef.current=data.balance
+      setRisk(data.risk as RiskType);riskRef.current=data.risk as RiskType
+      setBotOn(data.active);botRef.current=data.active
     })
-
-    // Load recent trades
     supa.from('bot_trades').select('*').order('opened_at',{ascending:true}).limit(200).then(({data})=>{
       if(!data) return
       const mapped=data.map(t=>mapDbTrade(t as Record<string,unknown>))
-      tradeRef.current=mapped; setTrades(mapped)
+      tradeRef.current=mapped;setTrades(mapped)
     })
-
-    // Realtime subscription
     const ch=supa.channel('bot-realtime')
       .on('postgres_changes',{event:'INSERT',schema:'public',table:'bot_trades'},(p)=>{
         const t=mapDbTrade(p.new as Record<string,unknown>)
         setTrades(prev=>{const next=[...prev,t];tradeRef.current=next;return next})
+        addLog(`▲ OPEN ${t.sym} ${t.side} @ ${t.entry>=100?t.entry.toFixed(2):t.entry.toFixed(5)}`)
       })
       .on('postgres_changes',{event:'UPDATE',schema:'public',table:'bot_trades'},(p)=>{
         const t=mapDbTrade(p.new as Record<string,unknown>)
         setTrades(prev=>{const next=prev.map(x=>x.id===t.id?t:x);tradeRef.current=next;return next})
+        if(t.status!=='OPEN') addLog(`${t.status==='TP'?'✓ TP':'✗ '+t.status} ${t.sym} P&L: ${(t.pnl||0)>=0?'+':''}${(t.pnl||0).toFixed(2)}`)
       })
       .on('postgres_changes',{event:'UPDATE',schema:'public',table:'bot_state'},(p)=>{
         const d=p.new as {balance:number;risk:string;active:boolean}
-        setBalance(d.balance); balRef.current=d.balance
-        setRisk(d.risk as RiskType); riskRef.current=d.risk as RiskType
-        setBotOn(d.active); botRef.current=d.active
+        setBalance(d.balance);balRef.current=d.balance
+        setRisk(d.risk as RiskType);riskRef.current=d.risk as RiskType
+        setBotOn(d.active);botRef.current=d.active
       })
       .subscribe((status)=>{
         const live=status==='SUBSCRIBED'
-        setSupaStatus(live?'live':'error')
-        supaModeRef.current=live
+        setSupaStatus(live?'live':'error');supaModeRef.current=live
       })
+    return ()=>{supa.removeChannel(ch);supaModeRef.current=false}
+  },[addLog])
 
-    return ()=>{ supa.removeChannel(ch); supaModeRef.current=false }
-  },[])
-
+  // Draw charts
   useEffect(()=>{
     if(!canvasRef.current) return
     const bars=[...(barsMap.current.get(selected)||[])]
-    const cb=curBar.current.get(selected)
-    if(cb) bars.push(cb)
-    if(bars.length>0) drawChart(canvasRef.current,bars,sig)
+    const cb=curBar.current.get(selected); if(cb) bars.push(cb)
+    if(bars.length>0) drawCandles(canvasRef.current,bars,sig)
   },[tick,selected,sig])
 
-  const handleBotToggle=()=>{
-    const next=!botOn
-    setBotOn(next); botRef.current=next
-    supaRef.current?.from('bot_state').update({active:next,updated_at:new Date().toISOString()}).eq('id',1)
-  }
+  useEffect(()=>{
+    if(eqRef.current) drawEquity(eqRef.current,trades)
+  },[trades])
 
+  useEffect(()=>{
+    if(bubRef.current) drawBubbles(bubRef.current,allSigs,prices)
+  },[allSigs,prices])
+
+  const handleBotToggle=()=>{
+    const next=!botOn; setBotOn(next); botRef.current=next
+    supaRef.current?.from('bot_state').update({active:next,updated_at:new Date().toISOString()}).eq('id',1)
+    addLog(next?'🤖 בוט הופעל':'🤖 בוט כובה')
+  }
   const handleRiskChange=(r:RiskType)=>{
-    setRisk(r); riskRef.current=r
+    setRisk(r);riskRef.current=r
     supaRef.current?.from('bot_state').update({risk:r,updated_at:new Date().toISOString()}).eq('id',1)
   }
 
-  const openTrades=trades.filter(t=>t.status==='OPEN')
-  const closed    =trades.filter(t=>t.status!=='OPEN')
-  const wins      =closed.filter(t=>(t.pnl||0)>0).length
-  const winRate   =closed.length>0?(wins/closed.length*100):0
-  const totalPnl  =closed.reduce((a,t)=>a+(t.pnl||0),0)
-  const sharpe    =calcSharpe(trades)
-  const maxDD     =calcMaxDD(trades)
-  const selInfo   =prices[selected]
-  const R         =RISK[risk]
-  const totalFees =trades.reduce((a,t)=>{
-    const ef=t.exit?t.exit*t.size*FEE_PCT:0
-    return a+t.fee+ef
-  },0)
-  const fmtP=(p:number)=>p>=1000?p.toFixed(2):p>=1?p.toFixed(4):p.toFixed(6)
-  const supaLive=supaStatus==='live'
+  const openTrades =trades.filter(t=>t.status==='OPEN')
+  const closed     =trades.filter(t=>t.status!=='OPEN')
+  const wins       =closed.filter(t=>(t.pnl||0)>0).length
+  const winRate    =closed.length>0?(wins/closed.length*100):0
+  const totalPnl   =closed.reduce((a,t)=>a+(t.pnl||0),0)
+  const sharpe     =calcSharpe(trades)
+  const maxDD      =calcMaxDD(trades)
+  const selInfo    =prices[selected]
+  const R          =RISK[risk]
+  const totalFees  =trades.reduce((a,t)=>{const ef=t.exit?t.exit*t.size*FEE_PCT:0;return a+t.fee+ef},0)
+  const fmtP       =(p:number)=>p>=1000?p.toFixed(2):p>=1?p.toFixed(4):p.toFixed(6)
+  const supaLive   =supaStatus==='live'
 
-  const S={
-    root:{...M,background:'#070c18',minHeight:'100vh',color:'#bdd0ec',padding:'8px',fontSize:'12px',direction:'rtl'} as CSSProperties,
-    hdr:{display:'flex',flexWrap:'wrap' as const,gap:'6px',alignItems:'center',marginBottom:'8px',background:'#0b1222',borderRadius:'8px',padding:'8px 12px'} as CSSProperties,
-    bdg:(bg:string,c?:string)=>({background:bg,borderRadius:'4px',padding:'2px 8px',fontSize:'11px',fontWeight:700,color:c||'#c8d8f0'}) as CSSProperties,
-    cbar:{display:'flex',gap:'3px',overflowX:'auto' as const,padding:'4px 0',marginBottom:'8px',scrollbarWidth:'none' as const} as CSSProperties,
-    cbtn:(active:boolean,sigDir:string)=>({
-      cursor:'pointer',border:`1px solid ${active?'#2a5090':sigDir==='BUY'?'#1a4a28':sigDir==='SELL'?'#4a1a1a':'#131e33'}`,
-      borderRadius:'6px',padding:'4px 6px',fontSize:'11px',fontWeight:700,
-      background:active?'#1a3a70':'#0b1222',flexShrink:0,minWidth:'56px',textAlign:'center' as const,color:'#c8d8f0'
-    }) as CSSProperties,
-    grid:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px',marginBottom:'8px'} as CSSProperties,
-    panel:{background:'#0b1222',borderRadius:'8px',padding:'10px'} as CSSProperties,
-    row:{display:'flex',justifyContent:'space-between',padding:'3px 0',borderBottom:'1px solid #111d35'} as CSSProperties,
-    btn:(bg:string,active:boolean)=>({cursor:'pointer',border:'none',borderRadius:'5px',padding:'5px 11px',fontSize:'11px',fontWeight:700,background:active?bg:'#131e33',color:active?'#000':'#7a9abc'}) as CSSProperties,
-    tbl:{width:'100%',borderCollapse:'collapse' as const,fontSize:'11px'} as CSSProperties,
-    th:{padding:'4px 6px',textAlign:'right' as const,color:'#3a5a88',borderBottom:'1px solid #111d35'} as CSSProperties,
-    td:(c?:string)=>({padding:'3px 6px',color:c||'inherit',borderBottom:'1px solid #0c1828'}) as CSSProperties,
-  }
-
-  const TABS: Array<[TabType,string]> = [['scanner','🔍 סורק שוק'],['history','היסטוריה'],['stats','סטטיסטיקה']]
+  const M:CSSProperties={fontFamily:"'Courier New',monospace",userSelect:'none' as const}
 
   return (
-    <div style={S.root}>
-      {/* HEADER */}
-      <div style={S.hdr}>
-        <span style={{fontWeight:800,fontSize:'14px',color:'#4af'}}>⚡ בוט קריפטו פרו</span>
-        <span style={S.bdg(wsStatus==='live'?'#0b3a18':'#3a0b0b',wsStatus==='live'?'#4f8':'#f64')}>
-          {wsStatus==='live'?'● חי':wsStatus==='connecting'?'● מתחבר...':'● שגיאה'}
+    <div style={{...M,background:C.bg,minHeight:'100vh',color:C.text,padding:'6px',fontSize:'11px',direction:'rtl',overflowX:'hidden'}}>
+
+      {/* ══ TOP BAR ══ */}
+      <div style={{display:'flex',flexWrap:'wrap' as const,gap:'5px',alignItems:'center',marginBottom:'6px',...panel,padding:'7px 10px'}}>
+        <span style={{fontWeight:900,fontSize:'13px',color:C.pink,letterSpacing:'1px'}}>⚡ CRYPTO BOT PRO</span>
+        <span style={{padding:'1px 7px',borderRadius:'3px',fontSize:'10px',fontWeight:700,
+          background:wsStatus==='live'?'rgba(0,232,122,0.15)':'rgba(255,51,80,0.15)',
+          color:wsStatus==='live'?C.green:C.red,border:`1px solid ${wsStatus==='live'?C.green:C.red}`}}>
+          ● {wsStatus==='live'?'LIVE':'...'}
         </span>
         {supaStatus!=='off'&&(
-          <span style={S.bdg(supaLive?'#0b2a3a':'#2a1800',supaLive?'#4af':'#fa4')}>
-            {supaLive?'☁ ענן פעיל':supaStatus==='connecting'?'☁ מתחבר לענן...':'☁ שגיאת ענן'}
+          <span style={{padding:'1px 7px',borderRadius:'3px',fontSize:'10px',fontWeight:700,
+            background:supaLive?'rgba(58,184,255,0.12)':'rgba(255,183,0,0.12)',
+            color:supaLive?C.blue:C.yellow,border:`1px solid ${supaLive?C.blue:C.yellow}`}}>
+            ☁ {supaLive?'CLOUD 24/7':'CONNECTING'}
           </span>
         )}
-        <span style={S.bdg('#101828')}>💰 ${balance.toFixed(0)}</span>
-        <span style={S.bdg(totalPnl>=0?'#0b3a18':'#3a0b0b',totalPnl>=0?'#4f8':'#f64')}>
-          ר/ה {totalPnl>=0?'+':''}{totalPnl.toFixed(2)}
+        <span style={{color:C.bright,fontWeight:800,fontSize:'13px'}}>💰 ${balance.toFixed(0)}</span>
+        <span style={{color:totalPnl>=0?C.green:C.red,fontWeight:700}}>
+          {totalPnl>=0?'+':''}{totalPnl.toFixed(2)} P&L
         </span>
-        <span style={S.bdg('#101828')}>שארפ {sharpe.toFixed(2)}</span>
-        <span style={S.bdg('#101828')}>MaxDD {maxDD.toFixed(1)}%</span>
-        <span style={S.bdg('#101828')}>ניצחון {winRate.toFixed(0)}% ({closed.length})</span>
-        <span style={S.bdg('#0f1a08',totalFees>0?'#fa4':undefined)}>עמלות ${totalFees.toFixed(2)}</span>
-        <span style={{marginRight:'auto',display:'flex',gap:'5px',flexWrap:'wrap' as const}}>
+        <span style={{color:C.muted}}>שארפ <strong style={{color:C.blue}}>{sharpe.toFixed(2)}</strong></span>
+        <span style={{color:C.muted}}>DD <strong style={{color:maxDD>15?C.red:C.yellow}}>{maxDD.toFixed(1)}%</strong></span>
+        <span style={{color:C.muted}}>WIN <strong style={{color:winRate>50?C.green:C.red}}>{winRate.toFixed(0)}%</strong> ({closed.length})</span>
+        <span style={{marginRight:'auto',display:'flex',gap:'4px',flexWrap:'wrap' as const,alignItems:'center'}}>
           {(['low','medium','high'] as const).map(r=>(
-            <button key={r} style={S.btn(r==='low'?'#4af':r==='medium'?'#fa4':'#f64',risk===r)} onClick={()=>handleRiskChange(r)}>{RISK_LABELS[r]}</button>
+            <button key={r} onClick={()=>handleRiskChange(r)} style={{cursor:'pointer',border:`1px solid ${risk===r?C.pink:C.dim}`,borderRadius:'4px',padding:'3px 9px',fontSize:'10px',fontWeight:700,background:risk===r?'rgba(255,32,112,0.2)':C.panel2,color:risk===r?C.pink:C.muted}}>{RISK_LABELS[r]}</button>
           ))}
-          <button style={{...S.btn('#4f8',botOn),background:botOn?'#1a5a30':'#131e33',color:botOn?'#4f8':'#7a9abc'}}
-            onClick={handleBotToggle}>{botOn?'🤖 בוט פעיל':'🤖 בוט כבוי'}</button>
+          <button onClick={handleBotToggle} style={{cursor:'pointer',border:`1px solid ${botOn?C.green:C.muted}`,borderRadius:'4px',padding:'3px 10px',fontSize:'10px',fontWeight:700,background:botOn?'rgba(0,232,122,0.15)':C.panel2,color:botOn?C.green:C.muted}}>
+            {botOn?'🤖 ON':'🤖 OFF'}
+          </button>
         </span>
       </div>
 
-      {/* COIN BAR */}
-      <div style={S.cbar}>
+      {/* ══ COIN STRIP ══ */}
+      <div style={{display:'flex',gap:'3px',overflowX:'auto' as const,marginBottom:'6px',paddingBottom:'3px',scrollbarWidth:'none' as const}}>
         {COINS.map(c=>{
-          const info=prices[c.sym]; const chg=info?.change||0
-          const cs=allSigs[c.sym]
+          const info=prices[c.sym]; const chg=info?.change||0; const cs=allSigs[c.sym]
+          const active=selected===c.sym
           return (
-            <button key={c.sym} style={S.cbtn(selected===c.sym,cs?.dir||'HOLD')} onClick={()=>setSelected(c.sym)}>
-              <div>{c.sym}</div>
-              <div style={{fontSize:'9px',color:chg>0.5?'#4f8':chg<-0.5?'#f64':'#7a9abc'}}>{chg>=0?'+':''}{chg.toFixed(1)}%</div>
-              {cs?.dir!=='HOLD'&&<div style={{fontSize:'8px',fontWeight:900,color:cs?.dir==='BUY'?'#4f8':'#f64'}}>{cs?.dir==='BUY'?'▲':'▼'}</div>}
+            <button key={c.sym} onClick={()=>setSelected(c.sym)} style={{cursor:'pointer',flexShrink:0,minWidth:'58px',padding:'4px 5px',borderRadius:'5px',textAlign:'center' as const,border:`1px solid ${active?C.pink:cs?.dir==='BUY'?'rgba(0,232,122,0.4)':cs?.dir==='SELL'?'rgba(255,51,80,0.4)':C.dim}`,background:active?'rgba(255,32,112,0.12)':C.panel,color:C.text,boxShadow:active?`0 0 8px rgba(255,32,112,0.3)`:undefined}}>
+              <div style={{fontWeight:700,fontSize:'10px',color:active?C.pink:C.text}}>{c.sym}</div>
+              <div style={{fontSize:'8px',color:chg>0.5?C.green:chg<-0.5?C.red:C.muted}}>{chg>=0?'+':''}{chg.toFixed(1)}%</div>
+              {cs?.dir!=='HOLD'&&<div style={{fontSize:'8px',fontWeight:900,color:cs?.dir==='BUY'?C.green:C.red}}>{cs?.dir==='BUY'?'▲':'▼'}</div>}
             </button>
           )
         })}
       </div>
 
-      {/* MAIN GRID */}
-      <div style={S.grid}>
-        {/* LEFT */}
-        <div style={S.panel}>
-          <div style={{display:'flex',justifyContent:'space-between',marginBottom:'6px',alignItems:'center'}}>
-            <span style={{fontWeight:800,color:'#4af',fontSize:'13px'}}>{selected}/USDT</span>
-            <span style={{fontSize:'13px',fontWeight:700,color:selInfo?.change>0?'#4f8':'#f64'}}>
-              {selInfo?fmtP(selInfo.price):'—'}
-              <span style={{fontSize:'10px',marginLeft:'4px'}}>{selInfo?`${selInfo.change>=0?'+':''}${selInfo.change.toFixed(2)}%`:''}</span>
-            </span>
-          </div>
-          <canvas ref={canvasRef} width={460} height={130}
-            style={{width:'100%',height:'130px',borderRadius:'6px',background:'#060b18',display:'block',marginBottom:'8px'}}/>
-          <div style={{display:'flex',gap:'4px',flexWrap:'wrap' as const,marginBottom:'6px'}}>
-            {['EMA','RSI','MACD','BB','StochRSI'].map((lbl,i)=>(
-              <span key={lbl} style={{padding:'2px 7px',borderRadius:'4px',fontSize:'10px',fontWeight:700,
-                background:sig.f[i]?'#0b3a18':'#3a0b0b',color:sig.f[i]?'#4f8':'#f64'}}>{lbl}</span>
-            ))}
-          </div>
-          <div style={{display:'flex',gap:'10px',fontSize:'10px',color:'#7a9abc',marginBottom:'6px',flexWrap:'wrap' as const}}>
-            <span>RSI <strong style={{color:sig.rsi>70?'#f64':sig.rsi<30?'#4f8':'#fa4'}}>{sig.rsi.toFixed(0)}</strong></span>
-            <span>ADX <strong style={{color:sig.adx>25?'#4f8':sig.adx>18?'#fa4':'#f64'}}>{sig.adx.toFixed(0)}</strong></span>
-            <span>נפח <strong style={{color:sig.volOk?'#4f8':'#f64'}}>{sig.volOk?'✓':'✗'}</strong></span>
-            <span>5D <strong style={{color:sig.mtf?'#4f8':'#555'}}>{sig.mtf?'✓':'—'}</strong></span>
-          </div>
-          <div style={{padding:'6px',borderRadius:'6px',textAlign:'center' as const,fontWeight:800,fontSize:'13px',marginBottom:'8px',
-            background:sig.dir==='BUY'?'#0b3a18':sig.dir==='SELL'?'#3a0b0b':'#101828',
-            color:sig.dir==='BUY'?'#4f8':sig.dir==='SELL'?'#f64':'#7a9abc'}}>
-            {sig.dir==='BUY'?'▲ איתות קנייה':sig.dir==='SELL'?'▼ איתות מכירה':'— המתנה'} {sig.score}/5
-            {sig.mtf&&<span style={{fontSize:'10px',marginRight:'6px'}}> ✓ 5D</span>}
-          </div>
-          <div style={{padding:'6px',borderRadius:'6px',fontSize:'10px',textAlign:'center' as const,
-            background:supaLive?'#0a1f2e':'#0d1828',color:supaLive?'#2a7ab8':'#3a5a88'}}>
-            {supaLive
-              ?'☁ בוט פועל בשרת 24/7 — גם ללא דפדפן פתוח'
-              :'הבוט פועל אוטומטית — אין צורך בפקודות ידניות'
-            }
+      {/* ══ MAIN GRID ══ */}
+      <div style={{display:'grid',gridTemplateColumns:'140px 1fr',gap:'6px',marginBottom:'6px'}}>
+
+        {/* LEFT STATS */}
+        <div style={{...panel,padding:'8px',display:'flex',flexDirection:'column' as const,gap:'4px'}}>
+          <div style={{color:C.pink,fontWeight:700,fontSize:'10px',borderBottom:`1px solid ${C.border}`,paddingBottom:'4px',marginBottom:'2px'}}>STATS</div>
+          {[
+            ['יתרה',`$${balance.toFixed(0)}`,balance>=INIT_BAL?C.green:C.red],
+            ['P&L',(totalPnl>=0?'+':'')+totalPnl.toFixed(2),totalPnl>=0?C.green:C.red],
+            ['WIN',winRate.toFixed(0)+'%',winRate>50?C.green:C.red],
+            ['עסקאות',trades.length.toString(),C.blue],
+            ['פתוחות',openTrades.length.toString(),C.yellow],
+            ['שארפ',sharpe.toFixed(2),sharpe>1?C.green:sharpe>0?C.yellow:C.red],
+            ['MaxDD',maxDD.toFixed(1)+'%',maxDD<10?C.green:maxDD<25?C.yellow:C.red],
+            ['עמלות','$'+totalFees.toFixed(1),C.muted],
+          ].map(([k,v,col])=>(
+            <div key={k} style={{display:'flex',justifyContent:'space-between',fontSize:'10px'}}>
+              <span style={{color:C.muted}}>{k}</span>
+              <span style={{color:col as string,fontWeight:700}}>{v}</span>
+            </div>
+          ))}
+          <div style={{borderTop:`1px solid ${C.dim}`,marginTop:'4px',paddingTop:'4px',fontSize:'10px',color:C.muted}}>
+            <div>SL {(R.sl*100).toFixed(1)}% / TP {(R.tp*100).toFixed(1)}%</div>
+            <div>מקס {R.maxPos} פוז׳</div>
           </div>
         </div>
 
-        {/* RIGHT */}
-        <div style={S.panel}>
-          <div style={{fontWeight:700,marginBottom:'8px',color:'#7a9abc',fontSize:'11px'}}>רמת סיכון: {RISK_LABELS[risk]}</div>
-          {([
-            ['גודל פוזיציה',(R.pct*100).toFixed(0)+'%'],
-            ['סטופ לוס',(R.sl*100).toFixed(1)+'%'],
-            ['טייק פרופיט',(R.tp*100).toFixed(1)+'%'],
-            ['סטופ גרור',(R.trail*100).toFixed(1)+'%'],
-            ['יחס סיכוי/סיכון',(R.tp/R.sl).toFixed(1)+'x'],
-            ['מקס פוזיציות בו-זמנית',R.maxPos.toString()],
-            ['פוזיציות פתוחות',openTrades.length.toString()],
-            ['סה"כ עסקאות',trades.length.toString()],
-          ] as [string,string][]).map(([k,v])=>(
-            <div key={k} style={S.row}><span style={{color:'#3a5a88'}}>{k}</span><span style={{color:'#4af',fontWeight:700}}>{v}</span></div>
-          ))}
-          <div style={{fontWeight:700,margin:'8px 0 5px',color:'#7a9abc',fontSize:'11px'}}>פוזיציות פתוחות</div>
-          {openTrades.length===0&&<div style={{color:'#1e3050',textAlign:'center' as const,padding:'8px',fontSize:'11px'}}>אין פוזיציות פתוחות</div>}
-          {openTrades.slice(-4).map(t=>{
-            const cur=prices[t.sym]?.price||t.entry
-            const pnl=(t.side==='LONG'?(cur-t.entry):(t.entry-cur))*t.size-t.fee
-            const pct=(cur-t.entry)/t.entry*(t.side==='LONG'?1:-1)*100
-            return (
-              <div key={t.id} style={{background:'#0d1828',borderRadius:'5px',padding:'5px 7px',marginBottom:'4px'}}>
-                <div style={{display:'flex',justifyContent:'space-between'}}>
-                  <span style={{color:t.side==='LONG'?'#4f8':'#f64',fontWeight:700}}>{t.side==='LONG'?'לונג':'שורט'} {t.sym}</span>
-                  <span style={{color:pnl>=0?'#4f8':'#f64',fontWeight:700}}>{pnl>=0?'+':''}{pnl.toFixed(2)} ({pct.toFixed(1)}%)</span>
-                </div>
-                <div style={{fontSize:'10px',color:'#3a5a88',marginTop:'2px'}}>כניסה:{fmtP(t.entry)} | Trail:{fmtP(t.trailSL)}</div>
-              </div>
-            )
-          })}
+        {/* CENTER CHART */}
+        <div style={{...panel,padding:'8px'}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'5px'}}>
+            <span style={{fontWeight:800,color:C.pink,fontSize:'12px',letterSpacing:'0.5px'}}>{selected}/USDT</span>
+            <span style={{fontWeight:700,fontSize:'13px',color:selInfo?.change>0?C.green:C.red}}>
+              {selInfo?fmtP(selInfo.price):'—'}
+              <span style={{fontSize:'10px',marginLeft:'4px',color:selInfo?.change>0?C.green:C.red}}>{selInfo?`${selInfo.change>=0?'+':''}${selInfo.change.toFixed(2)}%`:''}</span>
+            </span>
+          </div>
+          <canvas ref={canvasRef} width={600} height={160}
+            style={{width:'100%',height:'160px',borderRadius:'4px',background:'#04050c',display:'block',border:`1px solid ${C.dim}`,marginBottom:'6px'}}/>
+          <div style={{display:'flex',gap:'3px',flexWrap:'wrap' as const,marginBottom:'5px'}}>
+            {['EMA','RSI','MACD','BB','StochRSI'].map((lbl,i)=>(
+              <span key={lbl} style={{padding:'2px 6px',borderRadius:'3px',fontSize:'9px',fontWeight:700,
+                background:sig.f[i]?'rgba(0,232,122,0.15)':'rgba(255,51,80,0.12)',
+                color:sig.f[i]?C.green:C.red,
+                border:`1px solid ${sig.f[i]?'rgba(0,232,122,0.3)':'rgba(255,51,80,0.25)'}`}}>{lbl}</span>
+            ))}
+            <span style={{padding:'2px 6px',borderRadius:'3px',fontSize:'9px',color:C.muted}}>RSI <strong style={{color:sig.rsi>70?C.red:sig.rsi<30?C.green:C.yellow}}>{sig.rsi.toFixed(0)}</strong></span>
+            <span style={{padding:'2px 6px',borderRadius:'3px',fontSize:'9px',color:C.muted}}>ADX <strong style={{color:sig.adx>25?C.green:sig.adx>14?C.yellow:C.red}}>{sig.adx.toFixed(0)}</strong></span>
+          </div>
+          <div style={{padding:'6px 10px',borderRadius:'5px',textAlign:'center' as const,fontWeight:900,fontSize:'14px',letterSpacing:'1px',
+            background:sig.dir==='BUY'?'rgba(0,232,122,0.1)':sig.dir==='SELL'?'rgba(255,51,80,0.1)':'rgba(26,40,64,0.5)',
+            border:`1px solid ${sig.dir==='BUY'?'rgba(0,232,122,0.4)':sig.dir==='SELL'?'rgba(255,51,80,0.4)':C.dim}`,
+            color:sig.dir==='BUY'?C.green:sig.dir==='SELL'?C.red:C.muted,
+            boxShadow:sig.dir!=='HOLD'?`0 0 12px ${sig.dir==='BUY'?'rgba(0,232,122,0.2)':'rgba(255,51,80,0.2)'}`:undefined}}>
+            {sig.dir==='BUY'?'▲ BUY SIGNAL':sig.dir==='SELL'?'▼ SELL SIGNAL':'— WAITING'} {sig.score}/5
+            {sig.mtf&&<span style={{fontSize:'10px',marginRight:'8px',color:C.blue}}> ✓ 5M</span>}
+          </div>
         </div>
       </div>
 
-      {/* TABS */}
-      <div style={S.panel}>
-        <div style={{display:'flex',gap:'6px',marginBottom:'8px',flexWrap:'wrap' as const}}>
-          {TABS.map(([t,label])=>(
-            <button key={t} style={S.btn('#4af',tab===t)} onClick={()=>setTab(t)}>{label}</button>
+      {/* ══ OPEN POSITIONS ══ */}
+      {openTrades.length>0&&(
+        <div style={{...panel,padding:'8px',marginBottom:'6px'}}>
+          <div style={{color:C.pink,fontWeight:700,fontSize:'10px',marginBottom:'5px',letterSpacing:'0.5px'}}>▶ פוזיציות פתוחות ({openTrades.length})</div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))',gap:'5px'}}>
+            {openTrades.map(t=>{
+              const cur=prices[t.sym]?.price||t.entry
+              const pnl=(t.side==='LONG'?(cur-t.entry):(t.entry-cur))*t.size-t.fee
+              const pct=(cur-t.entry)/t.entry*(t.side==='LONG'?1:-1)*100
+              return (
+                <div key={t.id} style={{background:C.panel2,borderRadius:'5px',padding:'5px 7px',border:`1px solid ${pnl>=0?'rgba(0,232,122,0.25)':'rgba(255,51,80,0.25)'}`,boxShadow:pnl>=0?'0 0 6px rgba(0,232,122,0.1)':'0 0 6px rgba(255,51,80,0.1)'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:'2px'}}>
+                    <span style={{color:t.side==='LONG'?C.green:C.red,fontWeight:800,fontSize:'10px'}}>{t.side==='LONG'?'▲':'▼'} {t.sym}</span>
+                    <span style={{color:pnl>=0?C.green:C.red,fontWeight:700,fontSize:'10px'}}>{pnl>=0?'+':''}{pnl.toFixed(2)}</span>
+                  </div>
+                  <div style={{fontSize:'9px',color:C.muted}}>{fmtP(t.entry)} → {fmtP(cur)} <span style={{color:pct>=0?C.green:C.red}}>{pct>=0?'+':''}{pct.toFixed(2)}%</span></div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ══ TABS ══ */}
+      <div style={{...panel,padding:'8px',marginBottom:'6px'}}>
+        <div style={{display:'flex',gap:'5px',marginBottom:'8px'}}>
+          {([['scanner','🔍 SCANNER'],['history','📋 HISTORY'],['stats','📊 STATS']] as [TabType,string][]).map(([t,label])=>(
+            <button key={t} onClick={()=>setTab(t)} style={{cursor:'pointer',border:`1px solid ${tab===t?C.pink:C.dim}`,borderRadius:'4px',padding:'4px 10px',fontSize:'10px',fontWeight:700,background:tab===t?'rgba(255,32,112,0.15)':C.panel2,color:tab===t?C.pink:C.muted,boxShadow:tab===t?`0 0 8px rgba(255,32,112,0.2)`:undefined}}>{label}</button>
           ))}
-          <span style={{marginRight:'auto',color:'#3a5a88',fontSize:'11px',alignSelf:'center'}}>
-            {closed.length} סגורות | {wins}נ {closed.length-wins}ה
-          </span>
+          <span style={{marginRight:'auto',color:C.muted,fontSize:'10px',alignSelf:'center'}}>{closed.length} סגורות | {wins}נ {closed.length-wins}ה</span>
         </div>
 
         {tab==='scanner'&&(
-          <div style={{overflowX:'auto'}}>
-            <table style={S.tbl}>
-              <thead><tr>{['מטבע','מחיר','24ש%','ציון','5D','RSI','ADX','נפח','איתות'].map(h=><th key={h} style={S.th}>{h}</th>)}</tr></thead>
+          <div style={{overflowX:'auto' as const}}>
+            <table style={{width:'100%',borderCollapse:'collapse' as const,fontSize:'10px'}}>
+              <thead>
+                <tr>{['מטבע','מחיר','24%','ציון','RSI','ADX','נפח','סיגנל'].map(h=>(
+                  <th key={h} style={{padding:'3px 6px',textAlign:'right' as const,color:C.muted,borderBottom:`1px solid ${C.dim}`,fontWeight:700}}>{h}</th>
+                ))}</tr>
+              </thead>
               <tbody>
                 {COINS.map(c=>{
-                  const info=prices[c.sym]; const s=allSigs[c.sym]
-                  if(!info) return null
+                  const info=prices[c.sym]; const s=allSigs[c.sym]; if(!info) return null
                   return (
-                    <tr key={c.sym} style={{cursor:'pointer',background:s?.dir==='BUY'?'rgba(0,60,20,0.3)':s?.dir==='SELL'?'rgba(60,0,0,0.3)':'transparent'}}
-                      onClick={()=>setSelected(c.sym)}>
-                      <td style={S.td('#4af')}><strong>{c.sym}</strong></td>
-                      <td style={S.td()}>{fmtP(info.price)}</td>
-                      <td style={S.td(info.change>0?'#4f8':info.change<0?'#f64':'#888')}>{info.change>=0?'+':''}{info.change.toFixed(2)}%</td>
-                      <td style={S.td(s?.dir!=='HOLD'?'#4af':'#444')}>{s?.score||0}/5</td>
-                      <td style={S.td(s?.mtf?'#4f8':'#444')}>{s?.mtf?'✓':'—'}</td>
-                      <td style={S.td(s?.rsi>70?'#f64':s?.rsi<30?'#4f8':'#fa4')}>{s?.rsi.toFixed(0)||'—'}</td>
-                      <td style={S.td(s?.adx>25?'#4f8':s?.adx>18?'#fa4':'#f64')}>{s?.adx.toFixed(0)||'—'}</td>
-                      <td style={S.td(s?.volOk?'#4f8':'#f64')}>{s?.volOk?'✓':'✗'}</td>
-                      <td style={S.td(s?.dir==='BUY'?'#4f8':s?.dir==='SELL'?'#f64':'#444')}>
-                        <strong>{s?.dir==='BUY'?'▲ קנייה':s?.dir==='SELL'?'▼ מכירה':'—'}</strong>
+                    <tr key={c.sym} onClick={()=>setSelected(c.sym)} style={{cursor:'pointer',background:s?.dir==='BUY'?'rgba(0,232,122,0.05)':s?.dir==='SELL'?'rgba(255,51,80,0.05)':'transparent',borderBottom:`1px solid ${C.dim}`}}>
+                      <td style={{padding:'3px 6px',color:s?.dir==='BUY'?C.green:s?.dir==='SELL'?C.red:C.blue,fontWeight:700}}>{c.sym}</td>
+                      <td style={{padding:'3px 6px',color:C.text}}>{fmtP(info.price)}</td>
+                      <td style={{padding:'3px 6px',color:info.change>0?C.green:info.change<0?C.red:C.muted}}>{info.change>=0?'+':''}{info.change.toFixed(2)}%</td>
+                      <td style={{padding:'3px 6px',color:s?.dir!=='HOLD'?C.blue:C.dim,fontWeight:700}}>{s?.score||0}/5</td>
+                      <td style={{padding:'3px 6px',color:s?.rsi>70?C.red:s?.rsi<30?C.green:C.yellow}}>{s?.rsi.toFixed(0)||'—'}</td>
+                      <td style={{padding:'3px 6px',color:s?.adx>25?C.green:s?.adx>14?C.yellow:C.red}}>{s?.adx.toFixed(0)||'—'}</td>
+                      <td style={{padding:'3px 6px',color:s?.volOk?C.green:C.red}}>{s?.volOk?'✓':'✗'}</td>
+                      <td style={{padding:'3px 6px',fontWeight:900,color:s?.dir==='BUY'?C.green:s?.dir==='SELL'?C.red:C.dim}}>
+                        {s?.dir==='BUY'?'▲ BUY':s?.dir==='SELL'?'▼ SELL':'—'}
                       </td>
                     </tr>
                   )
@@ -702,22 +616,20 @@ export default function CryptoTradingDashboard() {
 
         {tab==='history'&&(
           closed.length===0
-            ?<div style={{color:'#1e3050',textAlign:'center' as const,padding:'16px',fontSize:'12px'}}>אין עסקאות סגורות עדיין — הבוט עוקב אחרי השוק</div>
-            :<div style={{overflowX:'auto'}}>
-              <table style={S.tbl}>
-                <thead><tr>{['מטבע','כיוון','כניסה','יציאה','ר/ה','%','עמלה','סטטוס','שעה'].map(h=><th key={h} style={S.th}>{h}</th>)}</tr></thead>
+            ?<div style={{color:C.dim,textAlign:'center' as const,padding:'20px',fontSize:'12px'}}>אין עסקאות סגורות — הבוט עוקב אחרי השוק</div>
+            :<div style={{overflowX:'auto' as const}}>
+              <table style={{width:'100%',borderCollapse:'collapse' as const,fontSize:'10px'}}>
+                <thead><tr>{['מטבע','כיוון','כניסה','יציאה','P&L','%','סטטוס'].map(h=><th key={h} style={{padding:'3px 6px',textAlign:'right' as const,color:C.muted,borderBottom:`1px solid ${C.dim}`,fontWeight:700}}>{h}</th>)}</tr></thead>
                 <tbody>
                   {[...closed].reverse().slice(0,20).map(t=>(
-                    <tr key={t.id}>
-                      <td style={S.td('#4af')}>{t.sym}</td>
-                      <td style={S.td(t.side==='LONG'?'#4f8':'#f64')}>{t.side==='LONG'?'לונג':'שורט'}</td>
-                      <td style={S.td()}>{fmtP(t.entry)}</td>
-                      <td style={S.td()}>{t.exit?fmtP(t.exit):'—'}</td>
-                      <td style={S.td((t.pnl||0)>=0?'#4f8':'#f64')}>{(t.pnl||0)>=0?'+':''}{(t.pnl||0).toFixed(2)}</td>
-                      <td style={S.td((t.pnlPct||0)>=0?'#4f8':'#f64')}>{((t.pnlPct||0)*100).toFixed(2)}%</td>
-                      <td style={S.td('#fa4')}>${t.fee.toFixed(2)}</td>
-                      <td style={S.td(t.status==='TP'?'#4f8':t.status==='SL'?'#f64':'#fa4')}>{t.status==='TP'?'TP ✓':t.status==='SL'?'SL ✗':'Trail'}</td>
-                      <td style={S.td('#3a5a88')}>{new Date(t.ts).toLocaleTimeString()}</td>
+                    <tr key={t.id} style={{borderBottom:`1px solid ${C.dim}`}}>
+                      <td style={{padding:'3px 6px',color:C.blue,fontWeight:700}}>{t.sym}</td>
+                      <td style={{padding:'3px 6px',color:t.side==='LONG'?C.green:C.red,fontWeight:700}}>{t.side==='LONG'?'▲':'▼'} {t.side}</td>
+                      <td style={{padding:'3px 6px',color:C.muted}}>{fmtP(t.entry)}</td>
+                      <td style={{padding:'3px 6px',color:C.muted}}>{t.exit?fmtP(t.exit):'—'}</td>
+                      <td style={{padding:'3px 6px',color:(t.pnl||0)>=0?C.green:C.red,fontWeight:700}}>{(t.pnl||0)>=0?'+':''}{(t.pnl||0).toFixed(2)}</td>
+                      <td style={{padding:'3px 6px',color:(t.pnlPct||0)>=0?C.green:C.red}}>{((t.pnlPct||0)*100).toFixed(2)}%</td>
+                      <td style={{padding:'3px 6px',fontWeight:700,color:t.status==='TP'?C.green:t.status==='SL'?C.red:C.yellow}}>{t.status==='TP'?'✓ TP':t.status==='SL'?'✗ SL':'~ TRAIL'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -726,32 +638,61 @@ export default function CryptoTradingDashboard() {
         )}
 
         {tab==='stats'&&(
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'8px'}}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px'}}>
             {([
-              ['אחוז ניצחון',winRate.toFixed(1)+'%',winRate>55?'#4f8':winRate>45?'#fa4':'#f64'],
-              ['מדד שארפ',sharpe.toFixed(2),sharpe>1?'#4f8':sharpe>0?'#fa4':'#f64'],
-              ['ירידה מקסימלית',maxDD.toFixed(1)+'%',maxDD<10?'#4f8':maxDD<25?'#fa4':'#f64'],
-              ['רווח/הפסד סה"כ',(totalPnl>=0?'+':'')+totalPnl.toFixed(2),totalPnl>=0?'#4f8':'#f64'],
-              ['סה"כ עסקאות',trades.length.toString(),'#4af'],
-              ['יתרה','$'+balance.toFixed(0),balance>=INIT_BAL?'#4f8':'#f64'],
-              ['פוזיציות פתוחות',openTrades.length.toString(),'#fa4'],
-              ['סה"כ עמלות','$'+totalFees.toFixed(2),'#fa4'],
-              ['ממוצע ניצחון',wins>0?'+'+(closed.filter(t=>(t.pnl||0)>0).reduce((a,t)=>a+(t.pnl||0),0)/wins).toFixed(2):'—','#4f8'],
+              ['WIN RATE',winRate.toFixed(1)+'%',winRate>55?C.green:winRate>45?C.yellow:C.red],
+              ['SHARPE',sharpe.toFixed(2),sharpe>1?C.green:sharpe>0?C.yellow:C.red],
+              ['MAX DD',maxDD.toFixed(1)+'%',maxDD<10?C.green:maxDD<25?C.yellow:C.red],
+              ['TOTAL P&L',(totalPnl>=0?'+':'')+totalPnl.toFixed(2),totalPnl>=0?C.green:C.red],
+              ['TRADES',trades.length.toString(),C.blue],
+              ['BALANCE','$'+balance.toFixed(0),balance>=INIT_BAL?C.green:C.red],
+              ['OPEN',openTrades.length.toString(),C.yellow],
+              ['FEES','$'+totalFees.toFixed(2),C.muted],
+              ['AVG WIN',wins>0?'+'+(closed.filter(t=>(t.pnl||0)>0).reduce((a,t)=>a+(t.pnl||0),0)/wins).toFixed(2):'—',C.green],
             ] as [string,string,string][]).map(([label,value,color])=>(
-              <div key={label} style={{background:'#0d1828',borderRadius:'6px',padding:'10px',textAlign:'center' as const}}>
-                <div style={{color:'#3a5a88',fontSize:'10px',marginBottom:'4px'}}>{label}</div>
-                <div style={{color,fontWeight:800,fontSize:'15px'}}>{value}</div>
+              <div key={label} style={{background:C.panel2,borderRadius:'6px',padding:'8px',textAlign:'center' as const,border:`1px solid ${C.dim}`}}>
+                <div style={{color:C.muted,fontSize:'9px',marginBottom:'3px',letterSpacing:'0.5px'}}>{label}</div>
+                <div style={{color,fontWeight:900,fontSize:'14px'}}>{value}</div>
               </div>
             ))}
           </div>
         )}
       </div>
 
-      <div style={{textAlign:'center' as const,color:'#1e3050',fontSize:'10px',marginTop:'8px'}}>
-        {supaLive
-          ? '☁ בוט שרת פעיל 24/7 — מחירים אמיתיים מ-Binance | ✓ מחובר ל-Supabase'
-          : 'מסחר וירטואלי בלבד — מחירים אמיתיים מ-Binance בזמן אמת'
-        }
+      {/* ══ BUBBLE MAP + EQUITY ══ */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'6px',marginBottom:'6px'}}>
+        <div style={{...panel,padding:'8px'}}>
+          <div style={{color:C.pink,fontWeight:700,fontSize:'10px',marginBottom:'5px',letterSpacing:'0.5px'}}>◉ MARKET MAP</div>
+          <canvas ref={bubRef} width={400} height={200}
+            style={{width:'100%',height:'200px',display:'block',borderRadius:'4px',background:'#04050c'}}/>
+        </div>
+        <div style={{...panel,padding:'8px'}}>
+          <div style={{display:'flex',justifyContent:'space-between',marginBottom:'5px'}}>
+            <span style={{color:C.green,fontWeight:700,fontSize:'10px',letterSpacing:'0.5px'}}>📈 EQUITY CURVE</span>
+            <span style={{color:totalPnl>=0?C.green:C.red,fontWeight:700,fontSize:'10px'}}>{totalPnl>=0?'+':''}{totalPnl.toFixed(2)}</span>
+          </div>
+          <canvas ref={eqRef} width={400} height={200}
+            style={{width:'100%',height:'200px',display:'block',borderRadius:'4px',background:'#04050c',border:`1px solid ${C.dim}`}}/>
+        </div>
+      </div>
+
+      {/* ══ EXECUTION LOG ══ */}
+      <div style={{...panel,padding:'8px'}}>
+        <div style={{color:C.pink,fontWeight:700,fontSize:'10px',marginBottom:'5px',letterSpacing:'0.5px'}}>▶ EXECUTION LOG — LIVE</div>
+        <div style={{height:'100px',overflowY:'auto' as const,scrollbarWidth:'thin' as const,scrollbarColor:`${C.dim} transparent`}}>
+          {execLog.length===0
+            ?<div style={{color:C.dim,fontSize:'10px',padding:'4px'}}>ממתין לאיתותים...</div>
+            :execLog.map((entry,i)=>(
+              <div key={i} style={{fontSize:'10px',padding:'1px 4px',color:entry.includes('OPEN')?C.green:entry.includes('TP')?C.green:entry.includes('SL')||entry.includes('✗')?C.red:entry.includes('TRAIL')?C.yellow:C.muted,fontFamily:'monospace',borderBottom:`1px solid ${C.dim}`,lineHeight:'1.6'}}>
+                {entry}
+              </div>
+            ))
+          }
+        </div>
+      </div>
+
+      <div style={{textAlign:'center' as const,color:C.dim,fontSize:'9px',marginTop:'6px',letterSpacing:'0.5px'}}>
+        {supaLive?'☁ SERVER BOT ACTIVE 24/7 | BINANCE REAL-TIME':'VIRTUAL TRADING | BINANCE REAL-TIME PRICES'}
       </div>
     </div>
   )
