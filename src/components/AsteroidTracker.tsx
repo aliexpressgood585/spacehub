@@ -18,7 +18,7 @@ export default function AsteroidTracker() {
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10)
     const end = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10)
-    fetch(`/api/neo?start_date=${today}&end_date=${end}`)
+    fetch(`/api/space-extra?type=neo&start_date=${today}&end_date=${end}`)
       .then(r => { if (!r.ok) throw new Error(''); return r.json() })
       .then(data => {
         const all: Asteroid[] = []

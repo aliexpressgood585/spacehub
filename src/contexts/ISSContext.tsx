@@ -33,7 +33,7 @@ export function ISSProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    fetch('/api/astros')
+    fetch('/api/space-extra?type=astros')
       .then(r => r.ok ? r.json() : Promise.reject())
       .then((d: { number: number }) => setAstros(d.number))
       .catch(() => {})

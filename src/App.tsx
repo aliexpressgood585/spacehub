@@ -213,6 +213,7 @@ import { ISSProvider, useISS } from './contexts/ISSContext'
 import BlogPage from './pages/BlogPage'
 import BlogArticlePage from './pages/BlogArticlePage'
 import PremiumPage from './pages/PremiumPage'
+const AIModelsPage = lazy(() => import('./pages/AIModelsPage'))
 import CityPage, { CITY_DATA } from './pages/CityPage'
 import PrivacyPage from './pages/PrivacyPage'
 import SuccessPage from './pages/SuccessPage'
@@ -924,6 +925,7 @@ function MainApp() {
             <nav aria-label="Footer navigation" className="flex flex-wrap gap-x-6 gap-y-2 justify-center mb-6">
               <Link to="/blog" className="text-gray-500 hover:text-indigo-400 text-xs font-semibold transition-colors">Blog</Link>
               <Link to="/premium" className="text-gray-500 hover:text-indigo-400 text-xs font-semibold transition-colors">Premium</Link>
+              <Link to="/ai-models" className="text-gray-500 hover:text-indigo-400 text-xs font-semibold transition-colors">AI Models</Link>
               <Link to="/privacy" className="text-gray-500 hover:text-indigo-400 text-xs font-semibold transition-colors">Privacy Policy</Link>
               <span className="hidden md:contents">
                 {Object.entries(CITY_DATA).map(([slug, c]) => (
@@ -991,6 +993,7 @@ export default function App() {
           } />
           <Route path="/blog/:slug" element={<BlogArticlePage />} />
           <Route path="/premium" element={<PremiumPage />} />
+          <Route path="/ai-models" element={<Suspense fallback={null}><AIModelsPage /></Suspense>} />
           <Route path="/iss/:city" element={<CityPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/success" element={<SuccessPage />} />
