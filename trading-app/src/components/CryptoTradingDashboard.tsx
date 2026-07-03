@@ -367,7 +367,7 @@ export default function CryptoTradingDashboard() {
 
   // ─── styles ────────────────────────────────────────────────────────────────
   const S={
-    root:{...M,background:'#070c18',minHeight:'100vh',color:'#bdd0ec',padding:'8px',fontSize:'12px'} as CSSProperties,
+    root:{...M,background:'#070c18',minHeight:'100vh',color:'#bdd0ec',padding:'8px',fontSize:'12px',direction:'rtl'} as CSSProperties,
     header:{display:'flex',flexWrap:'wrap' as const,gap:'6px',alignItems:'center',marginBottom:'8px',background:'#0b1222',borderRadius:'8px',padding:'8px 12px'} as CSSProperties,
     badge:(bg:string,col?:string)=>({background:bg,borderRadius:'4px',padding:'2px 8px',fontSize:'11px',fontWeight:700,color:col||'#c8d8f0'}) as CSSProperties,
     coinBar:{display:'flex',gap:'3px',overflowX:'auto' as const,padding:'4px 0',marginBottom:'8px',scrollbarWidth:'none' as const} as CSSProperties,
@@ -384,7 +384,7 @@ export default function CryptoTradingDashboard() {
       background:active?bg:'#131e33',color:active?'#000':'#7a9abc',transition:'all 0.15s'
     }) as CSSProperties,
     tbl:{width:'100%',borderCollapse:'collapse' as const,fontSize:'11px'} as CSSProperties,
-    th:{padding:'4px 6px',textAlign:'left' as const,color:'#3a5a88',borderBottom:'1px solid #111d35'} as CSSProperties,
+    th:{padding:'4px 6px',textAlign:'right' as const,color:'#3a5a88',borderBottom:'1px solid #111d35'} as CSSProperties,
     td:(c?:string)=>({padding:'3px 6px',color:c||'inherit',borderBottom:'1px solid #0c1828'}) as CSSProperties,
   }
 
@@ -392,23 +392,23 @@ export default function CryptoTradingDashboard() {
     <div style={S.root}>
       {/* ── HEADER ── */}
       <div style={S.header}>
-        <span style={{fontWeight:800,fontSize:'14px',color:'#4af'}}>⚡ CryptoBot Pro</span>
+        <span style={{fontWeight:800,fontSize:'14px',color:'#4af'}}>⚡ בוט קריפטו פרו</span>
         <span style={S.badge(wsStatus==='live'?'#0b3a18':'#3a0b0b',wsStatus==='live'?'#4f8':'#f64')}>
-          {wsStatus==='live'?'● LIVE':'● '+wsStatus.toUpperCase()}
+          {wsStatus==='live'?'● חי':wsStatus==='connecting'?'● מתחבר...':'● שגיאה'}
         </span>
         <span style={S.badge('#101828')}>💰 ${balance.toFixed(0)}</span>
         <span style={S.badge(totalPnl>=0?'#0b3a18':'#3a0b0b',totalPnl>=0?'#4f8':'#f64')}>
-          PnL {totalPnl>=0?'+':''}{totalPnl.toFixed(2)}
+          ר/ה {totalPnl>=0?'+':''}{totalPnl.toFixed(2)}
         </span>
-        <span style={S.badge('#101828')}>Sharpe {sharpe.toFixed(2)}</span>
-        <span style={S.badge('#101828')}>MaxDD {maxDD.toFixed(1)}%</span>
-        <span style={S.badge('#101828')}>WR {winRate.toFixed(0)}% ({closed.length}T)</span>
-        <span style={{marginLeft:'auto',display:'flex',gap:'5px',flexWrap:'wrap' as const}}>
-          {(['low','medium','high'] as const).map(r=>(
-            <button key={r} style={S.btn(r==='low'?'#4af':r==='medium'?'#fa4':'#f64',risk===r)} onClick={()=>setRisk(r)}>{r}</button>
+        <span style={S.badge('#101828')}>שארפ {sharpe.toFixed(2)}</span>
+        <span style={S.badge('#101828')}>ירידה מקס {maxDD.toFixed(1)}%</span>
+        <span style={S.badge('#101828')}>ניצחון {winRate.toFixed(0)}% ({closed.length})</span>
+        <span style={{marginRight:'auto',display:'flex',gap:'5px',flexWrap:'wrap' as const}}>
+          {([['low','נמוך'],['medium','בינוני'],['high','גבוה']] as const).map(([r,label])=>(
+            <button key={r} style={S.btn(r==='low'?'#4af':r==='medium'?'#fa4':'#f64',risk===r)} onClick={()=>setRisk(r as 'low'|'medium'|'high')}>{label}</button>
           ))}
           <button style={{...S.btn('#4f8',botOn),background:botOn?'#1a5a30':'#131e33',color:botOn?'#4f8':'#7a9abc'}}
-            onClick={()=>setBotOn(v=>!v)}>{botOn?'🤖 BOT ON':'🤖 BOT OFF'}</button>
+            onClick={()=>setBotOn(v=>!v)}>{botOn?'🤖 בוט פעיל':'🤖 בוט כבוי'}</button>
         </span>
       </div>
 
@@ -448,7 +448,7 @@ export default function CryptoTradingDashboard() {
                 background:sig.f[i]?'#0b3a18':'#3a0b0b',color:sig.f[i]?'#4f8':'#f64'
               }}>{lbl}</span>
             ))}
-            <span style={{marginLeft:'auto',fontSize:'11px',color:'#7a9abc'}}>
+            <span style={{marginRight:'auto',fontSize:'11px',color:'#7a9abc'}}>
               RSI: <strong style={{color:sig.rsi>70?'#f64':sig.rsi<30?'#4f8':'#fa4'}}>{sig.rsi.toFixed(0)}</strong>
             </span>
           </div>
@@ -458,33 +458,33 @@ export default function CryptoTradingDashboard() {
               background:sig.dir==='BUY'?'#0b3a18':sig.dir==='SELL'?'#3a0b0b':'#101828',
               color:sig.dir==='BUY'?'#4f8':sig.dir==='SELL'?'#f64':'#7a9abc'
             }}>
-              {sig.dir==='BUY'?'▲ BUY SIGNAL':sig.dir==='SELL'?'▼ SELL SIGNAL':'— HOLD'} {sig.score}/5
+              {sig.dir==='BUY'?'▲ איתות קנייה':sig.dir==='SELL'?'▼ איתות מכירה':'— המתנה'} {sig.score}/5
             </div>
           </div>
           <div style={{display:'flex',gap:'6px'}}>
             <button style={{flex:1,cursor:'pointer',border:'none',borderRadius:'6px',padding:'7px',fontSize:'12px',fontWeight:800,background:'#0b3a18',color:'#4f8'}}
-              onClick={()=>{ if(selInfo) openTrade(selected,'LONG',selInfo.price) }}>▲ LONG</button>
+              onClick={()=>{ if(selInfo) openTrade(selected,'LONG',selInfo.price) }}>▲ לונג (קנייה)</button>
             <button style={{flex:1,cursor:'pointer',border:'none',borderRadius:'6px',padding:'7px',fontSize:'12px',fontWeight:800,background:'#3a0b0b',color:'#f64'}}
-              onClick={()=>{ if(selInfo) openTrade(selected,'SHORT',selInfo.price) }}>▼ SHORT</button>
+              onClick={()=>{ if(selInfo) openTrade(selected,'SHORT',selInfo.price) }}>▼ שורט (מכירה)</button>
           </div>
         </div>
 
         {/* RIGHT PANEL */}
         <div style={S.panel}>
-          <div style={{fontWeight:700,marginBottom:'8px',color:'#7a9abc',fontSize:'11px'}}>RISK: {risk.toUpperCase()}</div>
+          <div style={{fontWeight:700,marginBottom:'8px',color:'#7a9abc',fontSize:'11px'}}>רמת סיכון: {risk==='low'?'נמוך':risk==='medium'?'בינוני':'גבוה'}</div>
           {[
-            ['Position Size',(R.pct*100).toFixed(0)+'%'],
-            ['Stop Loss',(R.sl*100).toFixed(1)+'%'],
-            ['Take Profit',(R.tp*100).toFixed(1)+'%'],
-            ['Trail Stop',(R.trail*100).toFixed(1)+'%'],
-            ['R:R Ratio',(R.tp/R.sl).toFixed(1)+'x'],
-            ['Open Trades',openTrades.length.toString()],
-            ['Total Trades',trades.length.toString()],
+            ['גודל פוזיציה',(R.pct*100).toFixed(0)+'%'],
+            ['סטופ לוס',(R.sl*100).toFixed(1)+'%'],
+            ['טייק פרופיט',(R.tp*100).toFixed(1)+'%'],
+            ['סטופ גרור',(R.trail*100).toFixed(1)+'%'],
+            ['יחס סיכוי/סיכון',(R.tp/R.sl).toFixed(1)+'x'],
+            ['עסקאות פתוחות',openTrades.length.toString()],
+            ['סה"כ עסקאות',trades.length.toString()],
           ].map(([k,v])=>(
             <div key={k} style={S.row}><span style={{color:'#3a5a88'}}>{k}</span><span style={{color:'#4af',fontWeight:700}}>{v}</span></div>
           ))}
-          <div style={{fontWeight:700,margin:'10px 0 6px',color:'#7a9abc',fontSize:'11px'}}>OPEN POSITIONS</div>
-          {openTrades.length===0 && <div style={{color:'#1e3050',textAlign:'center',padding:'10px',fontSize:'11px'}}>No open positions</div>}
+          <div style={{fontWeight:700,margin:'10px 0 6px',color:'#7a9abc',fontSize:'11px'}}>פוזיציות פתוחות</div>
+          {openTrades.length===0 && <div style={{color:'#1e3050',textAlign:'center',padding:'10px',fontSize:'11px'}}>אין פוזיציות פתוחות</div>}
           {openTrades.slice(-5).map(t=>{
             const cur=prices[t.sym]?.price||t.entry
             const pnl=(t.side==='LONG'?(cur-t.entry):(t.entry-cur))*t.size
@@ -492,11 +492,11 @@ export default function CryptoTradingDashboard() {
             return (
               <div key={t.id} style={{background:'#0d1828',borderRadius:'5px',padding:'5px 7px',marginBottom:'4px'}}>
                 <div style={{display:'flex',justifyContent:'space-between'}}>
-                  <span style={{color:t.side==='LONG'?'#4f8':'#f64',fontWeight:700}}>{t.side} {t.sym}</span>
+                  <span style={{color:t.side==='LONG'?'#4f8':'#f64',fontWeight:700}}>{t.side==='LONG'?'לונג':'שורט'} {t.sym}</span>
                   <span style={{color:pnl>=0?'#4f8':'#f64',fontWeight:700}}>{pnl>=0?'+':''}{pnl.toFixed(2)} ({pct.toFixed(1)}%)</span>
                 </div>
                 <div style={{fontSize:'10px',color:'#3a5a88',marginTop:'2px'}}>
-                  Entry:{fmtPrice(t.entry)} | Trail SL:{fmtPrice(t.trailSL)}
+                  כניסה:{fmtPrice(t.entry)} | סטופ גרור:{fmtPrice(t.trailSL)}
                 </div>
               </div>
             )
@@ -507,32 +507,32 @@ export default function CryptoTradingDashboard() {
       {/* ── TABS ── */}
       <div style={{...S.panel}}>
         <div style={{display:'flex',gap:'6px',marginBottom:'8px'}}>
-          {(['history','stats'] as const).map(t=>(
-            <button key={t} style={S.btn('#4af',tab===t)} onClick={()=>setTab(t)}>{t.toUpperCase()}</button>
+          {([['history','היסטוריה'],['stats','סטטיסטיקה']] as const).map(([t,label])=>(
+            <button key={t} style={S.btn('#4af',tab===t)} onClick={()=>setTab(t as 'history'|'stats')}>{label}</button>
           ))}
-          <span style={{marginLeft:'auto',color:'#3a5a88',fontSize:'11px',alignSelf:'center'}}>
-            {closed.length} closed | {wins}W {closed.length-wins}L
+          <span style={{marginRight:'auto',color:'#3a5a88',fontSize:'11px',alignSelf:'center'}}>
+            {closed.length} סגורות | {wins} נ׳ {closed.length-wins} ה׳
           </span>
         </div>
 
         {tab==='history' && (
           closed.length===0
-            ? <div style={{color:'#1e3050',textAlign:'center',padding:'16px',fontSize:'12px'}}>No closed trades yet — bot is watching the market</div>
+            ? <div style={{color:'#1e3050',textAlign:'center',padding:'16px',fontSize:'12px'}}>אין עסקאות סגורות עדיין — הבוט עוקב אחרי השוק</div>
             : <div style={{overflowX:'auto'}}>
                 <table style={S.tbl}>
                   <thead><tr>
-                    {['Sym','Side','Entry','Exit','PnL','%','Status','Time'].map(h=><th key={h} style={S.th}>{h}</th>)}
+                    {['מטבע','כיוון','כניסה','יציאה','ר/ה','%','סטטוס','שעה'].map(h=><th key={h} style={S.th}>{h}</th>)}
                   </tr></thead>
                   <tbody>
                     {[...closed].reverse().slice(0,20).map(t=>(
                       <tr key={t.id}>
                         <td style={S.td('#4af')}>{t.sym}</td>
-                        <td style={S.td(t.side==='LONG'?'#4f8':'#f64')}>{t.side}</td>
+                        <td style={S.td(t.side==='LONG'?'#4f8':'#f64')}>{t.side==='LONG'?'לונג':'שורט'}</td>
                         <td style={S.td()}>{fmtPrice(t.entry)}</td>
                         <td style={S.td()}>{t.exit?fmtPrice(t.exit):'—'}</td>
                         <td style={S.td((t.pnl||0)>=0?'#4f8':'#f64')}>{(t.pnl||0)>=0?'+':''}{(t.pnl||0).toFixed(2)}</td>
                         <td style={S.td((t.pnlPct||0)>=0?'#4f8':'#f64')}>{((t.pnlPct||0)*100).toFixed(2)}%</td>
-                        <td style={S.td(t.status==='TP'?'#4f8':t.status==='SL'?'#f64':'#fa4')}>{t.status}</td>
+                        <td style={S.td(t.status==='TP'?'#4f8':t.status==='SL'?'#f64':'#fa4')}>{t.status==='TP'?'TP ✓':t.status==='SL'?'SL ✗':t.status==='TRAIL'?'Trail':'סגור'}</td>
                         <td style={S.td('#3a5a88')}>{new Date(t.ts).toLocaleTimeString()}</td>
                       </tr>
                     ))}
@@ -544,15 +544,15 @@ export default function CryptoTradingDashboard() {
         {tab==='stats' && (
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'8px'}}>
             {[
-              {label:'Win Rate',value:winRate.toFixed(1)+'%',color:winRate>55?'#4f8':winRate>45?'#fa4':'#f64'},
-              {label:'Sharpe Ratio',value:sharpe.toFixed(2),color:sharpe>1?'#4f8':sharpe>0?'#fa4':'#f64'},
-              {label:'Max Drawdown',value:maxDD.toFixed(1)+'%',color:maxDD<10?'#4f8':maxDD<25?'#fa4':'#f64'},
-              {label:'Total PnL',value:(totalPnl>=0?'+':'')+totalPnl.toFixed(2),color:totalPnl>=0?'#4f8':'#f64'},
-              {label:'Total Trades',value:trades.length.toString(),color:'#4af'},
-              {label:'Balance',value:'$'+balance.toFixed(0),color:balance>=INIT_BAL?'#4f8':'#f64'},
-              {label:'Open Pos',value:openTrades.length.toString(),color:'#fa4'},
-              {label:'Avg Win',value:wins>0?'+'+(closed.filter(t=>(t.pnl||0)>0).reduce((a,t)=>a+(t.pnl||0),0)/wins).toFixed(2):'—',color:'#4f8'},
-              {label:'Avg Loss',value:(closed.length-wins)>0?(closed.filter(t=>(t.pnl||0)<=0).reduce((a,t)=>a+(t.pnl||0),0)/(closed.length-wins)).toFixed(2):'—',color:'#f64'},
+              {label:'אחוז ניצחון',value:winRate.toFixed(1)+'%',color:winRate>55?'#4f8':winRate>45?'#fa4':'#f64'},
+              {label:'מדד שארפ',value:sharpe.toFixed(2),color:sharpe>1?'#4f8':sharpe>0?'#fa4':'#f64'},
+              {label:'ירידה מקסימלית',value:maxDD.toFixed(1)+'%',color:maxDD<10?'#4f8':maxDD<25?'#fa4':'#f64'},
+              {label:'רווח/הפסד סה"כ',value:(totalPnl>=0?'+':'')+totalPnl.toFixed(2),color:totalPnl>=0?'#4f8':'#f64'},
+              {label:'סה"כ עסקאות',value:trades.length.toString(),color:'#4af'},
+              {label:'יתרה',value:'$'+balance.toFixed(0),color:balance>=INIT_BAL?'#4f8':'#f64'},
+              {label:'פוזיציות פתוחות',value:openTrades.length.toString(),color:'#fa4'},
+              {label:'ממוצע ניצחון',value:wins>0?'+'+(closed.filter(t=>(t.pnl||0)>0).reduce((a,t)=>a+(t.pnl||0),0)/wins).toFixed(2):'—',color:'#4f8'},
+              {label:'ממוצע הפסד',value:(closed.length-wins)>0?(closed.filter(t=>(t.pnl||0)<=0).reduce((a,t)=>a+(t.pnl||0),0)/(closed.length-wins)).toFixed(2):'—',color:'#f64'},
             ].map(({label,value,color})=>(
               <div key={label} style={{background:'#0d1828',borderRadius:'6px',padding:'10px',textAlign:'center' as const}}>
                 <div style={{color:'#3a5a88',fontSize:'10px',marginBottom:'4px'}}>{label}</div>
@@ -564,7 +564,7 @@ export default function CryptoTradingDashboard() {
       </div>
 
       <div style={{textAlign:'center' as const,color:'#1e3050',fontSize:'10px',marginTop:'8px'}}>
-        Paper Trading Only — Simulated with real Binance prices
+        מסחר וירטואלי בלבד — מחירים אמיתיים מ-Binance בזמן אמת
       </div>
     </div>
   )
