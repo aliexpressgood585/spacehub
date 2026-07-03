@@ -34,9 +34,9 @@ const COINS = [
 
 const RISK_LABELS: Record<RiskType,string> = {low:'נמוך',medium:'בינוני',high:'גבוה'}
 const RISK = {
-  low:    {pct:0.05, sl:0.009, tp:0.022, trail:0.006, maxPos:3},
-  medium: {pct:0.10, sl:0.014, tp:0.035, trail:0.010, maxPos:6},
-  high:   {pct:0.16, sl:0.020, tp:0.052, trail:0.014, maxPos:10},
+  low:    {pct:0.05, sl:0.008, tp:0.022, trail:0.005, maxPos:4},
+  medium: {pct:0.09, sl:0.012, tp:0.032, trail:0.008, maxPos:8},
+  high:   {pct:0.14, sl:0.017, tp:0.046, trail:0.012, maxPos:12},
 }
 
 const INIT_BAL = 10_000
@@ -167,8 +167,8 @@ function computeSig(bars:Bar[]): Sig {
   const bF=[emaBull,rsiBull,macdBull,bbBull,stochBull]
   const sF=[!emaBull,rsiBear,!macdBull,bbBear,stochBear]
   const bS=bF.filter(Boolean).length, sS=sF.filter(Boolean).length
-  if(bS>=4) return {dir:'BUY',score:bS,f:bF,rsi,adx,volOk:vok,mtf:false,bb}
-  if(sS>=4) return {dir:'SELL',score:sS,f:sF,rsi,adx,volOk:vok,mtf:false,bb}
+  if(bS>=3) return {dir:'BUY',score:bS,f:bF,rsi,adx,volOk:vok,mtf:false,bb}
+  if(sS>=3) return {dir:'SELL',score:sS,f:sF,rsi,adx,volOk:vok,mtf:false,bb}
   return {dir:'HOLD',score:Math.max(bS,sS),f:bF,rsi,adx,volOk:vok,mtf:false,bb}
 }
 
@@ -299,8 +299,8 @@ export default function CryptoTradingDashboard() {
   const openTrade = useCallback((sym:string, side:'LONG'|'SHORT', price:number, s:Sig)=>{
     if(supaModeRef.current) return   // server-side bot handles trading in Supabase mode
     const now=Date.now()
-    if((cooldown.current[sym]||0)+120_000>now) return
-    if(s.adx<18) return
+    if((cooldown.current[sym]||0)+60_000>now) return
+    if(s.adx<16) return
     if(!s.volOk) return
     const btcBars=barsMap.current.get('BTC')||[]
     const bias=getBtcBias(btcBars)
