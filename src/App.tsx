@@ -202,6 +202,7 @@ const SpaceMegastructures = lazy(() => import('./components/SpaceMegastructures'
 const CosmicMysteries = lazy(() => import('./components/CosmicMysteries'))
 const CosmicOdds = lazy(() => import('./components/CosmicOdds'))
 const CosmicCounters = lazy(() => import('./components/CosmicCounters'))
+const CryptoTradingDashboard = lazy(() => import('./components/CryptoTradingDashboard'))
 import LoadingScreen from './components/LoadingScreen'
 import CursorGlow from './components/CursorGlow'
 import Reveal from './components/Reveal'
@@ -219,13 +220,14 @@ import PrivacyPage from './pages/PrivacyPage'
 import SuccessPage from './pages/SuccessPage'
 import NotFoundPage from './pages/NotFoundPage'
 
-type Tab = 'dashboard' | 'starmap' | 'tracker' | 'solar' | 'weather' | 'events' | 'news' | 'quiz' | 'blog' | 'gallery' | 'spacex' | 'explore' | 'observe' | 'science' | 'ai'
+type Tab = 'dashboard' | 'starmap' | 'tracker' | 'solar' | 'weather' | 'events' | 'news' | 'quiz' | 'blog' | 'gallery' | 'spacex' | 'explore' | 'observe' | 'science' | 'ai' | 'trading'
 
 const TAB_HASH: Record<Tab, string> = {
   dashboard: '#iss', starmap: '#starmap', tracker: '#tracker',
   solar: '#solar', weather: '#weather', events: '#events',
   news: '#news', quiz: '#quiz', blog: '#blog', gallery: '#gallery',
   spacex: '#spacex', explore: '#explore', observe: '#observe', science: '#science', ai: '#ai',
+  trading: '#trading',
 }
 
 const TAB_TITLES: Record<Tab, string> = {
@@ -244,6 +246,7 @@ const TAB_TITLES: Record<Tab, string> = {
   observe:   'Observer Tools — SpaceHub',
   science:   'Space Science Lab — SpaceHub',
   ai:        'AstroAI — Space Intelligence — SpaceHub',
+  trading:   'Crypto Trading Terminal — SpaceHub',
 }
 const HASH_TAB: Record<string, Tab> = Object.fromEntries(
   Object.entries(TAB_HASH).map(([k, v]) => [v, k as Tab])
@@ -265,6 +268,7 @@ const TAB_DEFS: { id: Tab; icon: string; tKey: string }[] = [
   { id: 'spacex',    icon: '🚀', tKey: 'tab.spacex' },
   { id: 'explore',   icon: '🔬', tKey: 'tab.explore' },
   { id: 'ai',        icon: '🤖', tKey: 'tab.ai' },
+  { id: 'trading',   icon: '📊', tKey: 'tab.trading' },
 ]
 
 const FOOTER_FEATURES = [
@@ -821,6 +825,12 @@ function MainApp() {
                 <Suspense fallback={<SkeletonCard />}><AstroAI /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><CosmicCalendar /></Suspense>
                 <Suspense fallback={<SkeletonCard />}><StarlightCalculator /></Suspense>
+              </div>
+            )}
+
+            {activeTab === 'trading' && (
+              <div className="max-w-4xl mx-auto">
+                <SafeWrap label="CryptoTrading"><Suspense fallback={<SkeletonCard />}><CryptoTradingDashboard /></Suspense></SafeWrap>
               </div>
             )}
 
