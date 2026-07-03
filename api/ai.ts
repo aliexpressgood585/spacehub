@@ -84,6 +84,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (req.method === 'GET') {
+    try {
+      const r = await fetch(`${NVIDIA_BASE}/models`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        signal: AbortSignal.timeout(8000),
+      })
+      if (r.ok) {
+        const data = await r.json() as { data: { id: string; owned_by?: string }[] }
+        const models = (data.data || []).map(m => {
+          const { category, label } = categorize(m.id)
+          return { id: m.id, ownedBy: m.owned_by || 'nvidia', category, categoryLabel: label, description: CATEGORY_DESC[category] || '' }
+        }).sort((a, b) => a.id.localeCompare(b.id))
+        res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400')
+        return res.status(200).json({ models })
+      }
+    } catch { /* fall through to static list */ }
+
     const models = MODELS.map(id => {
       const { category, label } = categorize(id)
       return { id, ownedBy: 'nvidia', category, categoryLabel: label, description: CATEGORY_DESC[category] || '' }

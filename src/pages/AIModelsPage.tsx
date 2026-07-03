@@ -79,7 +79,8 @@ export default function AIModelsPage() {
         body: JSON.stringify({ model, message: chatInput.trim() }),
       })
       const data = await r.json() as { reply?: string; error?: string }
-      if (data.error) { setChatError('שגיאה בקבלת תשובה מהמודל. נסה שוב.'); return }
+      if (data.error === 'rate_limited') { setChatError('שלחת יותר מדי הודעות. המתן דקה ונסה שוב.'); return }
+      if (data.error) { setChatError('מודל זה אינו זמין עם המפתח הנוכחי, נסה מודל אחר.'); return }
       setChatReply(data.reply || '')
     } catch {
       setChatError('שגיאת רשת - נסה שוב.')
