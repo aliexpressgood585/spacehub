@@ -1,4 +1,8 @@
 import { useState, useEffect, useRef, useCallback, type CSSProperties } from 'react'
+import { createClient } from '@supabase/supabase-js'
+
+const SUPA_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined
+const SUPA_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 
 type RiskType = 'low'|'medium'|'high'
 type TabType  = 'scanner'|'history'|'stats'
@@ -38,7 +42,7 @@ const RISK = {
 const INIT_BAL = 10_000
 const MAX_BARS  = 300
 const BAR_MS    = 60_000
-const FEE_PCT   = 0.001   // 0.1% per side
+const FEE_PCT   = 0.001
 
 // ─── math ─────────────────────────────────────────────────────────────────────
 function calcEma(src:number[], p:number): number[] {
@@ -194,6 +198,26 @@ function calcMaxDD(trades:Trade[]): number {
   return mx*100
 }
 
+// ─── db mapping ───────────────────────────────────────────────────────────────
+function mapDbTrade(t: Record<string,unknown>): Trade {
+  return {
+    id: t.id as number,
+    sym: t.sym as string,
+    side: t.side as 'LONG'|'SHORT',
+    entry: Number(t.entry_price),
+    exit: t.exit_price != null ? Number(t.exit_price) : undefined,
+    size: Number(t.size),
+    pnl: t.pnl != null ? Number(t.pnl) : undefined,
+    pnlPct: t.pnl_pct != null ? Number(t.pnl_pct) : undefined,
+    ts: new Date(t.opened_at as string).getTime(),
+    status: t.status as 'OPEN'|'TP'|'SL'|'TRAIL',
+    hi: Number(t.hi),
+    lo: Number(t.lo),
+    trailSL: Number(t.trail_sl),
+    fee: Number(t.fee),
+  }
+}
+
 // ─── chart ─────────────────────────────────────────────────────────────────────
 function drawChart(canvas:HTMLCanvasElement, bars:Bar[], sig:Sig) {
   const ctx=canvas.getContext('2d'); if(!ctx||bars.length<3) return
@@ -214,7 +238,9 @@ function drawChart(canvas:HTMLCanvasElement, bars:Bar[], sig:Sig) {
   const bbCols=['rgba(80,160,255,0.3)','rgba(80,160,255,0.3)','rgba(80,160,255,0.18)']
   bbLines.forEach((arr,li)=>{
     ctx.beginPath(); arr.forEach((v,i)=>{ i===0?ctx.moveTo(toX(i),toY(v)):ctx.lineTo(toX(i),toY(v)) })
-    ctx.strokeStyle=bbCols[li]; ctx.lineWidth=0.8; if(li===2)ctx.setLineDash([3,3]); ctx.stroke(); ctx.setLineDash([])
+    ctx.strokeStyle=bbCols[li]; ctx.lineWidth=0.8
+    if(li===2) ctx.setLineDash([3,3]); else ctx.setLineDash([])
+    ctx.stroke(); ctx.setLineDash([])
   })
   ctx.beginPath(); cl.forEach((v,i)=>{ i===0?ctx.moveTo(toX(i),toY(v)):ctx.lineTo(toX(i),toY(v)) })
   ctx.strokeStyle='#4af'; ctx.lineWidth=1.5; ctx.stroke()
@@ -236,17 +262,18 @@ function drawChart(canvas:HTMLCanvasElement, bars:Bar[], sig:Sig) {
 // ─── component ─────────────────────────────────────────────────────────────────
 export default function CryptoTradingDashboard() {
   const M: CSSProperties = {fontFamily:'monospace'}
-  const [prices,setPrices]     = useState<Record<string,PriceInfo>>({})
-  const [selected,setSelected] = useState('BTC')
-  const [risk,setRisk]         = useState<RiskType>('medium')
-  const [balance,setBalance]   = useState(INIT_BAL)
-  const [botOn,setBotOn]       = useState(true)
-  const [trades,setTrades]     = useState<Trade[]>([])
-  const [sig,setSig]           = useState<Sig>(emptySig())
-  const [allSigs,setAllSigs]   = useState<Record<string,Sig>>({})
-  const [tick,setTick]         = useState(0)
-  const [wsStatus,setWsStatus] = useState<'connecting'|'live'|'error'>('connecting')
-  const [tab,setTab]           = useState<TabType>('scanner')
+  const [prices,setPrices]       = useState<Record<string,PriceInfo>>({})
+  const [selected,setSelected]   = useState('BTC')
+  const [risk,setRisk]           = useState<RiskType>('medium')
+  const [balance,setBalance]     = useState(INIT_BAL)
+  const [botOn,setBotOn]         = useState(true)
+  const [trades,setTrades]       = useState<Trade[]>([])
+  const [sig,setSig]             = useState<Sig>(emptySig())
+  const [allSigs,setAllSigs]     = useState<Record<string,Sig>>({})
+  const [tick,setTick]           = useState(0)
+  const [wsStatus,setWsStatus]   = useState<'connecting'|'live'|'error'>('connecting')
+  const [supaStatus,setSupaStatus] = useState<'off'|'connecting'|'live'|'error'>(SUPA_URL&&SUPA_KEY?'connecting':'off')
+  const [tab,setTab]             = useState<TabType>('scanner')
 
   const barsMap    = useRef(new Map<string,Bar[]>())
   const curBar     = useRef(new Map<string,Bar>())
@@ -260,6 +287,8 @@ export default function CryptoTradingDashboard() {
   const cooldown   = useRef<Record<string,number>>({})
   const allSigsRef = useRef<Record<string,Sig>>({})
   const sigUpdateTimer = useRef(0)
+  const supaRef    = useRef<ReturnType<typeof createClient>|null>(null)
+  const supaModeRef = useRef(false)
 
   tradeRef.current = trades
   botRef.current   = botOn
@@ -268,6 +297,7 @@ export default function CryptoTradingDashboard() {
   balRef.current   = balance
 
   const openTrade = useCallback((sym:string, side:'LONG'|'SHORT', price:number, s:Sig)=>{
+    if(supaModeRef.current) return   // server-side bot handles trading in Supabase mode
     const now=Date.now()
     if((cooldown.current[sym]||0)+120_000>now) return
     if(s.adx<18) return
@@ -294,6 +324,7 @@ export default function CryptoTradingDashboard() {
   },[])
 
   const checkTrades=useCallback((sym:string, price:number)=>{
+    if(supaModeRef.current) return   // server-side bot manages positions
     const R=RISK[riskRef.current]
     let dirty=false
     const updated=tradeRef.current.map(t=>{
@@ -344,11 +375,10 @@ export default function CryptoTradingDashboard() {
     allSigsRef.current[sym]=s
     const isSel=sym===selRef.current
     if(isSel){ setSig(s); setTick(n=>n+1) }
-    if(botRef.current&&s.dir!=='HOLD'){
+    if(botRef.current&&s.dir!=='HOLD'&&!supaModeRef.current){
       const openForSym=tradeRef.current.filter(t=>t.sym===sym&&t.status==='OPEN')
       if(openForSym.length===0) openTrade(sym,s.dir==='BUY'?'LONG':'SHORT',price,s)
     }
-    // throttle full allSigs re-render to ~2/sec
     const elapsed=now-sigUpdateTimer.current
     if(elapsed>500||isSel){
       sigUpdateTimer.current=now
@@ -356,6 +386,29 @@ export default function CryptoTradingDashboard() {
     }
   },[checkTrades,openTrade])
 
+  // Preload historical bars so signals are ready immediately (no 35-minute wait)
+  useEffect(()=>{
+    const load=async()=>{
+      for(const coin of COINS){
+        try{
+          const res=await fetch(`https://api.binance.com/api/v3/klines?symbol=${coin.sym}USDT&interval=1m&limit=150`)
+          if(!res.ok) continue
+          const data:number[][]=await res.json()
+          const bars:Bar[]=data.map(k=>({time:k[0] as number,open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
+          // all but the last bar (still forming; WebSocket owns it)
+          barsMap.current.set(coin.sym,bars.slice(0,-1))
+          const s=getMultiTFSig(bars)
+          allSigsRef.current[coin.sym]=s
+          if(coin.sym===selRef.current) setSig(s)
+        }catch{}
+        await new Promise(r=>setTimeout(r,120))
+      }
+      setAllSigs({...allSigsRef.current})
+    }
+    load()
+  },[])
+
+  // Binance WebSocket
   useEffect(()=>{
     let dead=false
     function connect(){
@@ -385,6 +438,52 @@ export default function CryptoTradingDashboard() {
     return ()=>{dead=true;ws?.close()}
   },[processTick])
 
+  // Supabase Realtime (24/7 server-bot integration)
+  useEffect(()=>{
+    if(!SUPA_URL||!SUPA_KEY) return
+    const supa=createClient(SUPA_URL,SUPA_KEY)
+    supaRef.current=supa
+
+    // Load initial state from DB
+    supa.from('bot_state').select('*').eq('id',1).single().then(({data})=>{
+      if(!data) return
+      setBalance(data.balance); balRef.current=data.balance
+      setRisk(data.risk as RiskType); riskRef.current=data.risk as RiskType
+      setBotOn(data.active); botRef.current=data.active
+    })
+
+    // Load recent trades
+    supa.from('bot_trades').select('*').order('opened_at',{ascending:true}).limit(200).then(({data})=>{
+      if(!data) return
+      const mapped=data.map(t=>mapDbTrade(t as Record<string,unknown>))
+      tradeRef.current=mapped; setTrades(mapped)
+    })
+
+    // Realtime subscription
+    const ch=supa.channel('bot-realtime')
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'bot_trades'},(p)=>{
+        const t=mapDbTrade(p.new as Record<string,unknown>)
+        setTrades(prev=>{const next=[...prev,t];tradeRef.current=next;return next})
+      })
+      .on('postgres_changes',{event:'UPDATE',schema:'public',table:'bot_trades'},(p)=>{
+        const t=mapDbTrade(p.new as Record<string,unknown>)
+        setTrades(prev=>{const next=prev.map(x=>x.id===t.id?t:x);tradeRef.current=next;return next})
+      })
+      .on('postgres_changes',{event:'UPDATE',schema:'public',table:'bot_state'},(p)=>{
+        const d=p.new as {balance:number;risk:string;active:boolean}
+        setBalance(d.balance); balRef.current=d.balance
+        setRisk(d.risk as RiskType); riskRef.current=d.risk as RiskType
+        setBotOn(d.active); botRef.current=d.active
+      })
+      .subscribe((status)=>{
+        const live=status==='SUBSCRIBED'
+        setSupaStatus(live?'live':'error')
+        supaModeRef.current=live
+      })
+
+    return ()=>{ supa.removeChannel(ch); supaModeRef.current=false }
+  },[])
+
   useEffect(()=>{
     if(!canvasRef.current) return
     const bars=[...(barsMap.current.get(selected)||[])]
@@ -392,6 +491,17 @@ export default function CryptoTradingDashboard() {
     if(cb) bars.push(cb)
     if(bars.length>0) drawChart(canvasRef.current,bars,sig)
   },[tick,selected,sig])
+
+  const handleBotToggle=()=>{
+    const next=!botOn
+    setBotOn(next); botRef.current=next
+    supaRef.current?.from('bot_state').update({active:next,updated_at:new Date().toISOString()}).eq('id',1)
+  }
+
+  const handleRiskChange=(r:RiskType)=>{
+    setRisk(r); riskRef.current=r
+    supaRef.current?.from('bot_state').update({risk:r,updated_at:new Date().toISOString()}).eq('id',1)
+  }
 
   const openTrades=trades.filter(t=>t.status==='OPEN')
   const closed    =trades.filter(t=>t.status!=='OPEN')
@@ -407,6 +517,7 @@ export default function CryptoTradingDashboard() {
     return a+t.fee+ef
   },0)
   const fmtP=(p:number)=>p>=1000?p.toFixed(2):p>=1?p.toFixed(4):p.toFixed(6)
+  const supaLive=supaStatus==='live'
 
   const S={
     root:{...M,background:'#070c18',minHeight:'100vh',color:'#bdd0ec',padding:'8px',fontSize:'12px',direction:'rtl'} as CSSProperties,
@@ -437,6 +548,11 @@ export default function CryptoTradingDashboard() {
         <span style={S.bdg(wsStatus==='live'?'#0b3a18':'#3a0b0b',wsStatus==='live'?'#4f8':'#f64')}>
           {wsStatus==='live'?'● חי':wsStatus==='connecting'?'● מתחבר...':'● שגיאה'}
         </span>
+        {supaStatus!=='off'&&(
+          <span style={S.bdg(supaLive?'#0b2a3a':'#2a1800',supaLive?'#4af':'#fa4')}>
+            {supaLive?'☁ ענן פעיל':supaStatus==='connecting'?'☁ מתחבר לענן...':'☁ שגיאת ענן'}
+          </span>
+        )}
         <span style={S.bdg('#101828')}>💰 ${balance.toFixed(0)}</span>
         <span style={S.bdg(totalPnl>=0?'#0b3a18':'#3a0b0b',totalPnl>=0?'#4f8':'#f64')}>
           ר/ה {totalPnl>=0?'+':''}{totalPnl.toFixed(2)}
@@ -447,10 +563,10 @@ export default function CryptoTradingDashboard() {
         <span style={S.bdg('#0f1a08',totalFees>0?'#fa4':undefined)}>עמלות ${totalFees.toFixed(2)}</span>
         <span style={{marginRight:'auto',display:'flex',gap:'5px',flexWrap:'wrap' as const}}>
           {(['low','medium','high'] as const).map(r=>(
-            <button key={r} style={S.btn(r==='low'?'#4af':r==='medium'?'#fa4':'#f64',risk===r)} onClick={()=>setRisk(r)}>{RISK_LABELS[r]}</button>
+            <button key={r} style={S.btn(r==='low'?'#4af':r==='medium'?'#fa4':'#f64',risk===r)} onClick={()=>handleRiskChange(r)}>{RISK_LABELS[r]}</button>
           ))}
           <button style={{...S.btn('#4f8',botOn),background:botOn?'#1a5a30':'#131e33',color:botOn?'#4f8':'#7a9abc'}}
-            onClick={()=>setBotOn(v=>!v)}>{botOn?'🤖 בוט פעיל':'🤖 בוט כבוי'}</button>
+            onClick={handleBotToggle}>{botOn?'🤖 בוט פעיל':'🤖 בוט כבוי'}</button>
         </span>
       </div>
 
@@ -500,8 +616,12 @@ export default function CryptoTradingDashboard() {
             {sig.dir==='BUY'?'▲ איתות קנייה':sig.dir==='SELL'?'▼ איתות מכירה':'— המתנה'} {sig.score}/5
             {sig.mtf&&<span style={{fontSize:'10px',marginRight:'6px'}}> ✓ 5D</span>}
           </div>
-          <div style={{padding:'6px',borderRadius:'6px',background:'#0d1828',fontSize:'10px',color:'#3a5a88',textAlign:'center' as const}}>
-            הבוט פועל אוטומטית — אין צורך בפקודות ידניות
+          <div style={{padding:'6px',borderRadius:'6px',fontSize:'10px',textAlign:'center' as const,
+            background:supaLive?'#0a1f2e':'#0d1828',color:supaLive?'#2a7ab8':'#3a5a88'}}>
+            {supaLive
+              ?'☁ בוט פועל בשרת 24/7 — גם ללא דפדפן פתוח'
+              :'הבוט פועל אוטומטית — אין צורך בפקודות ידניות'
+            }
           </div>
         </div>
 
@@ -628,7 +748,10 @@ export default function CryptoTradingDashboard() {
       </div>
 
       <div style={{textAlign:'center' as const,color:'#1e3050',fontSize:'10px',marginTop:'8px'}}>
-        מסחר וירטואלי בלבד — מחירים אמיתיים מ-Binance בזמן אמת
+        {supaLive
+          ? '☁ בוט שרת פעיל 24/7 — מחירים אמיתיים מ-Binance | ✓ מחובר ל-Supabase'
+          : 'מסחר וירטואלי בלבד — מחירים אמיתיים מ-Binance בזמן אמת'
+        }
       </div>
     </div>
   )
