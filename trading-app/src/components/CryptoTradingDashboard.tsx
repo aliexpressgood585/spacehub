@@ -224,7 +224,8 @@ export default function CryptoTradingDashboard() {
   const sigTimer   = useRef(0)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supaRef    = useRef<any>(null)
-  const supaModeRef= useRef(false)
+  // Disable local bot immediately if Supabase credentials exist — prevents race condition
+  const supaModeRef= useRef(!!SUPA_URL&&!!SUPA_KEY)
   const logRef     = useRef<string[]>([])
   const dayRef     = useRef<{date:string,start:number}>({date:'',start:INIT_BAL})
 
