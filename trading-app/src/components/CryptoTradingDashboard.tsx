@@ -14,6 +14,7 @@ interface Trade {
   pnl?:number; pnlPct?:number; ts:number
   status:'OPEN'|'TP'|'SL'|'TRAIL'
   hi:number; lo:number; trailSL:number; fee:number
+  slPct?:number; tpPct?:number
 }
 interface Sig {
   dir:'BUY'|'SELL'|'HOLD'; score:number; f:boolean[]
@@ -47,10 +48,11 @@ const COINS = [
 ]
 const RISK_LABELS: Record<RiskType,string> = {low:'נמוך',medium:'בינוני',high:'גבוה'}
 const RISK = {
-  low:    {pct:0.04, sl:0.007, tp:0.020, trail:0.004, maxPos:6},
-  medium: {pct:0.06, sl:0.010, tp:0.028, trail:0.007, maxPos:12},
-  high:   {pct:0.08, sl:0.013, tp:0.036, trail:0.009, maxPos:18},
+  low:    {pct:0.05, sl:0.008, tp:0.020, trail:0.005, maxPos:4},
+  medium: {pct:0.07, sl:0.010, tp:0.025, trail:0.006, maxPos:6},
+  high:   {pct:0.10, sl:0.013, tp:0.032, trail:0.008, maxPos:8},
 }
+const MIN_SCORE=4, MIN_ADX=18, COOLDOWN_MS=90_000, STALE_MS=45*60_000, STALE_BAND=0.0015
 const INIT_BAL=10_000, MAX_BARS=300, BAR_MS=60_000, FEE_PCT=0.001
 
 // ─── math ─────────────────────────────────────────────────────────────────────
@@ -62,7 +64,7 @@ function calcStochRsi(src:number[],p=14):{k:number;d:number}{if(src.length<p*2)r
 function calcAdx(bars:Bar[],p=14):number{if(bars.length<p+2)return 20;const sl=bars.slice(-(p+1));let trS=0,plusS=0,minS=0;for(let i=1;i<sl.length;i++){const c=sl[i],pv=sl[i-1];const tr=Math.max(c.high-c.low,Math.abs(c.high-pv.close),Math.abs(c.low-pv.close));const up=c.high-pv.high,dn=pv.low-c.low;trS+=tr;plusS+=(up>dn&&up>0)?up:0;minS+=(dn>up&&dn>0)?dn:0}if(!trS)return 20;const pDI=plusS/trS*100,mDI=minS/trS*100;return Math.abs(pDI-mDI)/((pDI+mDI)||1)*100}
 function calcAtr(bars:Bar[],p=14):number{if(bars.length<2)return bars[0]?(bars[0].high-bars[0].low):1;const trs=bars.slice(-(p+1)).map((b,i,a)=>{if(i===0)return b.high-b.low;return Math.max(b.high-b.low,Math.abs(b.high-a[i-1].close),Math.abs(b.low-a[i-1].close))});return trs.reduce((a,b)=>a+b,0)/trs.length}
 function build5mBars(bars1m:Bar[]):Bar[]{const out:Bar[]=[];for(let i=0;i+4<bars1m.length;i+=5){const sl=bars1m.slice(i,i+5);out.push({time:sl[0].time,open:sl[0].open,high:Math.max(...sl.map(b=>b.high)),low:Math.min(...sl.map(b=>b.low)),close:sl[4].close,vol:sl.reduce((a,b)=>a+b.vol,0)})}return out}
-function isVolOk(bars:Bar[]):boolean{if(bars.length<20)return true;const avg=bars.slice(-20).reduce((a,b)=>a+b.vol,0)/20;return bars[bars.length-1].vol>=avg*0.7}
+function isVolOk(bars:Bar[]):boolean{if(bars.length<20)return true;const avg=bars.slice(-20).reduce((a,b)=>a+b.vol,0)/20;return bars[bars.length-1].vol>=avg*1.0}
 function getBtcBias(btcBars:Bar[]):'BULL'|'BEAR'|'NEUTRAL'{if(btcBars.length<20)return 'NEUTRAL';const cl=btcBars.map(b=>b.close);const rsi=calcRsi(cl,14);const e9=calcEma(cl,9),e21=calcEma(cl,21),n=cl.length-1;if(rsi>55&&e9[n]>e21[n])return 'BULL';if(rsi<45&&e9[n]<e21[n])return 'BEAR';return 'NEUTRAL'}
 function emptySig():Sig{return{dir:'HOLD',score:0,f:[false,false,false,false,false],rsi:50,adx:20,volOk:true,mtf:false,bb:{upper:0,mid:0,lower:0}}}
 function computeSig(bars:Bar[]):Sig{if(bars.length<35)return emptySig();const cl=bars.map(b=>b.close),n=cl.length-1;const e9=calcEma(cl,9),e21=calcEma(cl,21);const emaBull=e9[n]>e21[n];const rsi=calcRsi(cl,14);const rsiBull=rsi>52&&rsi<76,rsiBear=rsi<48&&rsi>24;const hist=calcMacd(cl);const macdBull=hist>0;const bb=calcBB(cl);const p=cl[n];const bbBull=p>bb.mid&&p<bb.upper,bbBear=p<bb.mid&&p>bb.lower;const{k,d}=calcStochRsi(cl);const stochBull=k>d&&k<80,stochBear=k<d&&k>20;const adx=calcAdx(bars);const vok=isVolOk(bars);const bF=[emaBull,rsiBull,macdBull,bbBull,stochBull];const sF=[!emaBull,rsiBear,!macdBull,bbBear,stochBear];const bS=bF.filter(Boolean).length,sS=sF.filter(Boolean).length;if(bS>=3)return{dir:'BUY',score:bS,f:bF,rsi,adx,volOk:vok,mtf:false,bb};if(sS>=3)return{dir:'SELL',score:sS,f:sF,rsi,adx,volOk:vok,mtf:false,bb};return{dir:'HOLD',score:Math.max(bS,sS),f:bF,rsi,adx,volOk:vok,mtf:false,bb}}
@@ -216,7 +218,8 @@ export default function CryptoTradingDashboard() {
   const cooldown   = useRef<Record<string,number>>({})
   const allSigsRef = useRef<Record<string,Sig>>({})
   const sigTimer   = useRef(0)
-  const supaRef    = useRef<ReturnType<typeof createClient>|null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supaRef    = useRef<any>(null)
   const supaModeRef= useRef(false)
   const logRef     = useRef<string[]>([])
 
@@ -232,8 +235,9 @@ export default function CryptoTradingDashboard() {
   const openTrade=useCallback((sym:string,side:'LONG'|'SHORT',price:number,s:Sig)=>{
     if(supaModeRef.current) return
     const now=Date.now()
-    if((cooldown.current[sym]||0)+30_000>now) return
-    if(s.adx<14) return
+    if((cooldown.current[sym]||0)+COOLDOWN_MS>now) return
+    if(s.score<MIN_SCORE) return
+    if(s.adx<MIN_ADX) return
     if(!s.volOk) return
     const btcBars=barsMap.current.get('BTC')||[]
     const bias=getBtcBias(btcBars)
@@ -244,37 +248,57 @@ export default function CryptoTradingDashboard() {
     if(openCount>=R.maxPos) return
     const useBal=balRef.current*R.pct
     if(useBal<5) return
-    void calcAtr(barsMap.current.get(sym)||[])
+    const atrPct=calcAtr(barsMap.current.get(sym)||[])/price
+    const slPct=Math.min(Math.max(atrPct*1.3,R.sl*0.6),R.sl*1.8)
+    const tpPct=slPct*2.4
     const size=useBal/price
     const fee=price*size*FEE_PCT
-    const trailSL=side==='LONG'?price*(1-R.trail):price*(1+R.trail)
-    const t:Trade={id:idRef.current++,sym,side,entry:price,size,ts:now,status:'OPEN',hi:price,lo:price,trailSL,fee}
+    const trailSL=side==='LONG'?price*(1-slPct):price*(1+slPct)
+    const t:Trade={id:idRef.current++,sym,side,entry:price,size,ts:now,status:'OPEN',hi:price,lo:price,trailSL,fee,slPct,tpPct}
     cooldown.current[sym]=now
     const next=[...tradeRef.current,t]; tradeRef.current=next; setTrades([...next])
     setBalance(b=>{const nb=b-useBal-fee;balRef.current=nb;return nb})
-    addLog(`▲ OPEN ${sym} ${side} @ ${price>=100?price.toFixed(2):price.toFixed(5)} [${s.score}/5] ADX:${s.adx.toFixed(0)}`)
+    addLog(`▲ OPEN ${sym} ${side} @ ${price>=100?price.toFixed(2):price.toFixed(5)} [${s.score}/5] SL:${(slPct*100).toFixed(2)}% TP:${(tpPct*100).toFixed(2)}%`)
   },[addLog])
 
   const checkTrades=useCallback((sym:string,price:number)=>{
     if(supaModeRef.current) return
     const R=RISK[riskRef.current]; let dirty=false
+    const now=Date.now()
     const updated=tradeRef.current.map(t=>{
       if(t.sym!==sym||t.status!=='OPEN') return t
       const nt={...t}
+      const slPct=nt.slPct??R.sl, tpPct=nt.tpPct??R.tp
       if(price>nt.hi) nt.hi=price
       if(price<nt.lo) nt.lo=price
       if(nt.side==='LONG'){
-        const newTrail=price*(1-R.trail)
-        if(newTrail>nt.trailSL){nt.trailSL=newTrail;dirty=true}
-        const sl=Math.max(nt.trailSL,nt.entry*(1-R.sl))
-        if(price>=nt.entry*(1+R.tp)){nt.status='TP';nt.exit=price;dirty=true}
-        else if(price<=sl){nt.status=price<=nt.entry*(1-R.sl)?'SL':'TRAIL';nt.exit=price;dirty=true}
+        if(price>=nt.entry*(1+0.5*slPct)){
+          const cand=price*(1-0.6*slPct)
+          if(cand>nt.trailSL){nt.trailSL=cand;dirty=true}
+        }
+        if(price>=nt.entry*(1+slPct)){
+          const be=nt.entry*(1+2*FEE_PCT)
+          if(be>nt.trailSL){nt.trailSL=be;dirty=true}
+        }
+        const sl=Math.max(nt.trailSL,nt.entry*(1-slPct))
+        if(price>=nt.entry*(1+tpPct)){nt.status='TP';nt.exit=price;dirty=true}
+        else if(price<=sl){nt.status=price<=nt.entry*(1-slPct)?'SL':'TRAIL';nt.exit=price;dirty=true}
       } else {
-        const newTrail=price*(1+R.trail)
-        if(newTrail<nt.trailSL){nt.trailSL=newTrail;dirty=true}
-        const sl=Math.min(nt.trailSL,nt.entry*(1+R.sl))
-        if(price<=nt.entry*(1-R.tp)){nt.status='TP';nt.exit=price;dirty=true}
-        else if(price>=sl){nt.status=price>=nt.entry*(1+R.sl)?'SL':'TRAIL';nt.exit=price;dirty=true}
+        if(price<=nt.entry*(1-0.5*slPct)){
+          const cand=price*(1+0.6*slPct)
+          if(cand<nt.trailSL){nt.trailSL=cand;dirty=true}
+        }
+        if(price<=nt.entry*(1-slPct)){
+          const be=nt.entry*(1-2*FEE_PCT)
+          if(be<nt.trailSL){nt.trailSL=be;dirty=true}
+        }
+        const sl=Math.min(nt.trailSL,nt.entry*(1+slPct))
+        if(price<=nt.entry*(1-tpPct)){nt.status='TP';nt.exit=price;dirty=true}
+        else if(price>=sl){nt.status=price>=nt.entry*(1+slPct)?'SL':'TRAIL';nt.exit=price;dirty=true}
+      }
+      if(nt.status==='OPEN'&&now-nt.ts>STALE_MS){
+        const uPct=(price-nt.entry)/nt.entry*(nt.side==='LONG'?1:-1)
+        if(Math.abs(uPct)<STALE_BAND){nt.status='TRAIL';nt.exit=price;dirty=true}
       }
       if(nt.exit!==undefined&&nt.pnl===undefined){
         const raw=nt.side==='LONG'?(nt.exit-nt.entry)*nt.size:(nt.entry-nt.exit)*nt.size
@@ -361,6 +385,28 @@ export default function CryptoTradingDashboard() {
     const ws=connect()
     return ()=>{dead=true;ws?.close()}
   },[processTick])
+
+  // Local persistence (fallback when Supabase is off)
+  useEffect(()=>{
+    try{
+      const raw=localStorage.getItem('cbot_state_v2')
+      if(raw){
+        const s=JSON.parse(raw)
+        if(typeof s.balance==='number'){setBalance(s.balance);balRef.current=s.balance}
+        if(Array.isArray(s.trades)&&s.trades.length){tradeRef.current=s.trades;setTrades(s.trades)}
+        if(s.risk&&RISK[s.risk as RiskType]){setRisk(s.risk);riskRef.current=s.risk}
+        if(typeof s.botOn==='boolean'){setBotOn(s.botOn);botRef.current=s.botOn}
+        if(typeof s.nextId==='number') idRef.current=s.nextId
+      }
+    }catch{/* corrupt state — start fresh */}
+  },[])
+  useEffect(()=>{
+    if(supaModeRef.current) return
+    const id=setTimeout(()=>{
+      try{localStorage.setItem('cbot_state_v2',JSON.stringify({balance,trades:trades.slice(-200),risk,botOn,nextId:idRef.current}))}catch{/* storage full */}
+    },500)
+    return ()=>clearTimeout(id)
+  },[balance,trades,risk,botOn])
 
   // Supabase
   useEffect(()=>{
