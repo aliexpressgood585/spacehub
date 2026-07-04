@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback, type CSSProperties } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
-const SUPA_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined
-const SUPA_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
+const SUPA_URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || 'https://mdvheizhciuvqychtwxr.supabase.co'
+const SUPA_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kdmhlaXpoY2l1dnF5Y2h0d3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwODc0NjQsImV4cCI6MjA5ODY2MzQ2NH0.JHJ0lCVhSfH3XA92Iyb-TKdx7vd-C2sZzdRwNVutMzI'
 
 type RiskType = 'low'|'medium'|'high'
 type TabType  = 'scanner'|'history'|'stats'
