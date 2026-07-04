@@ -281,14 +281,11 @@ Deno.serve(async () => {
           continue
         }
 
-        // אישור 2 נרות: הנר הקודם-לקודם גם מחוץ לטווח
+        // אישור 1 נר: הנר האחרון הסגור חייב לאשר את הפריצה
         const prevBar = bars[bars.length-2]
-        const prevPrevBar = bars[bars.length-3]
-        const confirmed2 = side==='LONG'
-          ? prevBar.close>hh && prevPrevBar.close>hh
-          : prevBar.close<ll && prevPrevBar.close<ll
-        if(!confirmed2){
-          log.push(`SKIP ${sym} ${side} — no 2-bar confirmation`)
+        const confirmed1 = side==='LONG' ? prevBar.close>hh : prevBar.close<ll
+        if(!confirmed1){
+          log.push(`SKIP ${sym} ${side} — no 1-bar confirmation`)
           continue
         }
 
