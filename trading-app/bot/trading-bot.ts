@@ -6,13 +6,43 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const BINANCE = 'https://api.binance.com/api/v3'
-const COINS = [
+const MAX_COINS = 150   // top 150 לפי נפח יומי מBinance
+
+// מטבעות לדלג (סטייבלקוין, ממונף, wrapped)
+const SKIP_SYMS = new Set([
+  'BUSD','USDC','TUSD','FDUSD','USDP','DAI','FRAX','GUSD','SUSD',
+  'WBTC','WETH','STETH','WBETH','BETH','LDOUSDT'
+])
+const SKIP_PATTERNS = ['UP','DOWN','BULL','BEAR','3L','3S','2L','2S']
+
+// fallback אם Binance API נכשל
+const FALLBACK_COINS = [
   'BTC','ETH','SOL','BNB','XRP','ADA','DOGE','AVAX','LINK','DOT',
   'POL','UNI','ATOM','LTC','BCH','NEAR','ALGO','ICP','VET','FIL',
   'INJ','SUI','OP','ARB','APT','TRX','HBAR','TON','WIF','PEPE',
-  'RUNE','FTM','SAND','AXS','LDO','RNDR','FET','ENS','BLUR','GMX',
-  'CAKE','BAND','THETA','CHZ','ZIL','STORJ','SKL','RLC','OGN','ANKR'
+  'RUNE','FTM','SAND','AXS','LDO','RNDR','FET','ENS','BLUR','GMX'
 ]
+
+async function getTopCoins(): Promise<string[]> {
+  try {
+    const res = await fetch(`${BINANCE}/ticker/24hr`)
+    if (!res.ok) return FALLBACK_COINS
+    const tickers: any[] = await res.json()
+    const coins = tickers
+      .filter(t =>
+        t.symbol.endsWith('USDT') &&
+        !SKIP_SYMS.has(t.symbol.replace('USDT','')) &&
+        !SKIP_PATTERNS.some(p => t.symbol.includes(p)) &&
+        Number(t.quoteVolume) > 1_000_000  // מינימום $1M נפח יומי
+      )
+      .sort((a,b) => Number(b.quoteVolume) - Number(a.quoteVolume))
+      .slice(0, MAX_COINS)
+      .map(t => t.symbol.replace('USDT',''))
+    return coins.length > 10 ? coins : FALLBACK_COINS
+  } catch(_) {
+    return FALLBACK_COINS
+  }
+}
 
 // ─── פרמטרים ─────────────────────────────────────────────
 const RSI_P            = 2
@@ -149,6 +179,10 @@ Deno.serve(async () => {
     const log: string[] = [`UTC=${hourUTC}h ${inTradingHours?'✅TRADING':'💤OFF-HOURS'}`]
     if (breakerOn)    log.push('DAILY BREAKER ON')
     if (streakPaused) log.push(`STREAK PAUSE ${streak}`)
+
+    // טעינת רשימת מטבעות דינמית מBinance
+    const COINS = await getTopCoins()
+    log.push(`COINS=${COINS.length} (top by 24h vol)`)
 
     // Portfolio Stop
     const { data: allOpen } = await supabase.from('bot_trades').select('*').eq('status','OPEN')
