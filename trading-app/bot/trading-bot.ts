@@ -6,7 +6,7 @@
 //  3. Trail אדפטיבי: אחרי 1.5×ATR רווח — מהדקים ל-2.0×ATR
 //     (נועל רווחים מהר יותר מבלי לחסום עסקאות מוצלחות)
 // ════════════════════════════════════════════════════════
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const BINANCE = 'https://api.binance.com/api/v3'
 const COINS = [
