@@ -227,8 +227,13 @@ Deno.serve(async () => {
           if(!newStatus && t.opened_at && now-new Date(t.opened_at).getTime()>MAX_HOLD_MS){
             newStatus='TRAIL'
           }
-          // Portfolio stop: סגור הכל אם הפסד כולל גדול מדי
-          if(!newStatus && portfolioStopHit) newStatus='SL'
+          // Portfolio stop: סגור רק פוזיציות מפסידות (לא את הרווחיות!)
+          if(!newStatus && portfolioStopHit){
+            const px=priceCache[sym]??price
+            const dirM=t.side==='LONG'?1:-1
+            const unrealized=(px-Number(t.entry_price))/Number(t.entry_price)*dirM
+            if(unrealized<0) newStatus='SL'  // רק הפסדים — רווחים ממשיכים לרוץ
+          }
 
           if(newStatus){
             const size = Number(t.size)
