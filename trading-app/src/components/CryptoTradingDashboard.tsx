@@ -274,6 +274,8 @@ export default function CryptoTradingDashboard() {
   const [wsStatus,setWsStatus]   = useState<'connecting'|'live'|'error'>('connecting')
   const [supaStatus,setSupaStatus] = useState<'off'|'connecting'|'live'|'error'>(SUPA_URL&&SUPA_KEY?'connecting':'off')
   const [tab,setTab]             = useState<TabType>('scanner')
+  const [marketRegime,setMarketRegime] = useState<string>('NEUTRAL')
+  const [streak,setStreak]       = useState(0)
 
   const barsMap    = useRef(new Map<string,Bar[]>())
   const curBar     = useRef(new Map<string,Bar>())
@@ -450,6 +452,8 @@ export default function CryptoTradingDashboard() {
       setBalance(data.balance); balRef.current=data.balance
       setRisk(data.risk as RiskType); riskRef.current=data.risk as RiskType
       setBotOn(data.active); botRef.current=data.active
+      if(data.market_regime) setMarketRegime(data.market_regime)
+      if(data.streak!==undefined) setStreak(data.streak)
     })
 
     // Load recent trades
@@ -470,10 +474,12 @@ export default function CryptoTradingDashboard() {
         setTrades(prev=>{const next=prev.map(x=>x.id===t.id?t:x);tradeRef.current=next;return next})
       })
       .on('postgres_changes',{event:'UPDATE',schema:'public',table:'bot_state'},(p)=>{
-        const d=p.new as {balance:number;risk:string;active:boolean}
+        const d=p.new as {balance:number;risk:string;active:boolean;market_regime?:string;streak?:number}
         setBalance(d.balance); balRef.current=d.balance
         setRisk(d.risk as RiskType); riskRef.current=d.risk as RiskType
         setBotOn(d.active); botRef.current=d.active
+        if(d.market_regime) setMarketRegime(d.market_regime)
+        if(d.streak!==undefined) setStreak(d.streak)
       })
       .subscribe((status)=>{
         const live=status==='SUBSCRIBED'
@@ -553,6 +559,13 @@ export default function CryptoTradingDashboard() {
             {supaLive?'☁ ענן פעיל':supaStatus==='connecting'?'☁ מתחבר לענן...':'☁ שגיאת ענן'}
           </span>
         )}
+        <span style={S.bdg(
+          marketRegime==='BULL'?'#0b3a18':marketRegime==='BEAR'?'#3a0b0b':'#1a1a2e',
+          marketRegime==='BULL'?'#4f8':marketRegime==='BEAR'?'#f64':'#7a9abc'
+        )}>
+          {marketRegime==='BULL'?'📈 שוק עולה':marketRegime==='BEAR'?'📉 שוק יורד':'➡ שוק נייטרל'}
+          {streak>0&&` | רצף הפסד ${streak}`}
+        </span>
         <span style={S.bdg('#101828')}>💰 ${balance.toFixed(0)}</span>
         <span style={S.bdg(totalPnl>=0?'#0b3a18':'#3a0b0b',totalPnl>=0?'#4f8':'#f64')}>
           ר/ה {totalPnl>=0?'+':''}{totalPnl.toFixed(2)}

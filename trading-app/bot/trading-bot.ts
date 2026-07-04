@@ -279,9 +279,11 @@ Deno.serve(async () => {
         const slDist = HARD_K*atr
         const slPct = slDist/price
         if(slPct<=0 || slPct>0.15) continue
-        const riskAmt = currentBalance*R.riskPct
+        // ב-NEUTRAL regime נשתמש ב-70% מגודל הפוזיציה הרגיל (פחות סיכון בשוק לא ברור)
+        const regimeMult = marketRegime==='NEUTRAL' ? 0.70 : 1.0
+        const riskAmt = currentBalance*R.riskPct*regimeMult
         let notional = riskAmt/slPct
-        notional = Math.min(notional, currentBalance*MAX_NOTIONAL_PCT, currentBalance*0.95)
+        notional = Math.min(notional, currentBalance*MAX_NOTIONAL_PCT*regimeMult, currentBalance*0.95)
         if(notional<5) continue
         const size = notional/price
         const fee = price*size*FEE
@@ -302,7 +304,9 @@ Deno.serve(async () => {
 
     await supabase.from('bot_state').update({
       balance: currentBalance,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      market_regime: marketRegime,
+      streak: streak
     }).eq('id',1)
 
     return new Response(JSON.stringify({ok:true, v:6, processed:COINS.length, breaker:breakerOn, streakPaused, streak, marketRegime, disabled:[...disabled], log}), {
