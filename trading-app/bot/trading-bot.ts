@@ -35,7 +35,7 @@ const RSI_EXIT_SHORT   = 30
 const ATR_P            = 14   // ATR period (1m bars)
 const ATR_TP_MULT      = 2.0  // TP = 2 × ATR
 const ATR_SL_MULT      = 1.0  // SL = 1 × ATR
-const ATR_MIN_PCT      = 0.0005 // אם ATR < 0.05%: שוק שקט מדי (היה 0.1%)
+const ATR_MIN_PCT      = 0.0002 // אם ATR < 0.02%: שוק שקט מדי
 const ATR_MAX_PCT      = 0.020  // אם ATR > 2%: סוער מדי (היה 1.5%)
 const BE_MULT          = 0.5   // BE trigger = SL/2 לתוך הרווח
 const MAX_HOLD_MIN     = 25
@@ -43,13 +43,13 @@ const BASE_SIZE_PCT    = 0.035
 const MAX_POS          = 40
 const MAX_PER_COIN     = 2
 const FEE              = 0.001
-const MAX_DAY_LOSS     = 0.06
+const MAX_DAY_LOSS     = 0.15
 const STREAK_LIMIT     = 8
 const STREAK_PAUSE_MS  = 1 * 3600_000
 const PORTFOLIO_STOP   = 0.05
-// שעות מסחר (UTC) — נפח גבוה בלבד
-const TRADE_HOUR_START = 6   // 6am UTC = 8am ישראל (קיץ)
-const TRADE_HOUR_END   = 22  // 10pm UTC = midnight ישראל
+// 24/7 מסחר — mean-reversion עובד בכל שעה
+const TRADE_HOUR_START = 0
+const TRADE_HOUR_END   = 24
 
 interface Bar { open:number; high:number; low:number; close:number; vol:number }
 
