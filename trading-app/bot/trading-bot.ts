@@ -16,18 +16,18 @@ const COINS = [
 
 // ─── פרמטרים ─────────────────────────────────────────────
 const RSI_P            = 2
-const RSI_LONG         = 10
-const RSI_SHORT        = 90
-const RSI_STRONG_LONG  = 4    // קיצוני מאוד: עוקף פילטרים
-const RSI_STRONG_SHORT = 96
+const RSI_LONG         = 13    // יותר סיגנלים (היה 10)
+const RSI_SHORT        = 87    // יותר סיגנלים (היה 90)
+const RSI_STRONG_LONG  = 5    // קיצוני מאוד: עוקף פילטרים
+const RSI_STRONG_SHORT = 95
 const RSI_EXIT_LONG    = 70
 const RSI_EXIT_SHORT   = 30
 // ATR-based TP/SL multipliers
 const ATR_P            = 14   // ATR period (1m bars)
 const ATR_TP_MULT      = 2.0  // TP = 2 × ATR
 const ATR_SL_MULT      = 1.0  // SL = 1 × ATR
-const ATR_MIN_PCT      = 0.001 // אם ATR < 0.1%: שוק שקט מדי → דלג
-const ATR_MAX_PCT      = 0.015 // אם ATR > 1.5%: סוער מדי → דלג
+const ATR_MIN_PCT      = 0.0005 // אם ATR < 0.05%: שוק שקט מדי (היה 0.1%)
+const ATR_MAX_PCT      = 0.020  // אם ATR > 2%: סוער מדי (היה 1.5%)
 const BE_MULT          = 0.5   // BE trigger = SL/2 לתוך הרווח
 const MAX_HOLD_MIN     = 25
 const BASE_SIZE_PCT    = 0.035
@@ -274,11 +274,13 @@ Deno.serve(async () => {
         else if (rsi > RSI_SHORT) side = 'SHORT'
         if (!side) continue
 
-        // אישור נר: נר ירוק לLONG, אדום לSHORT (היפוך מתחיל)
-        const candleConfirm = side === 'LONG'
-          ? lastBar.close > lastBar.open   // נר ירוק = bounce מתחיל
-          : lastBar.close < lastBar.open   // נר אדום = ירידה מתחילה
-        if (!candleConfirm && !isStrong) continue  // קיצוני → עוקף
+        // אישור נר: רק לאותות חלשים (לא קיצוניים)
+        if (!isStrong) {
+          const candleOk = side === 'LONG'
+            ? lastBar.close >= lastBar.open  // נר ירוק/doji = bounce
+            : lastBar.close <= lastBar.open  // נר אדום/doji = נפילה
+          if (!candleOk) continue
+        }
 
         // פילטר טרנד 5m
         if (!isStrong) {
