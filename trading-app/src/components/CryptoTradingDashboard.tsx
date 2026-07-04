@@ -15,6 +15,7 @@ interface Trade {
   status:'OPEN'|'TP'|'SL'|'TRAIL'
   hi:number; lo:number; trailSL:number; fee:number
   slPct?:number; tpPct?:number
+  partialDone?:boolean; closedTs?:number
 }
 interface Sig {
   dir:'BUY'|'SELL'|'HOLD'; score:number; f:boolean[]
@@ -48,12 +49,13 @@ const COINS = [
 ]
 const RISK_LABELS: Record<RiskType,string> = {low:'נמוך',medium:'בינוני',high:'גבוה'}
 const RISK = {
-  low:    {pct:0.05, sl:0.008, tp:0.020, trail:0.005, maxPos:4},
-  medium: {pct:0.07, sl:0.010, tp:0.025, trail:0.006, maxPos:6},
-  high:   {pct:0.10, sl:0.013, tp:0.032, trail:0.008, maxPos:8},
+  low:    {riskPct:0.006, sl:0.008, maxPos:4, maxDayLoss:0.02},
+  medium: {riskPct:0.010, sl:0.010, maxPos:6, maxDayLoss:0.03},
+  high:   {riskPct:0.016, sl:0.013, maxPos:8, maxDayLoss:0.04},
 }
 const MIN_SCORE=4, MIN_ADX=18, COOLDOWN_MS=90_000, STALE_MS=45*60_000, STALE_BAND=0.0015
-const INIT_BAL=10_000, MAX_BARS=300, BAR_MS=60_000, FEE_PCT=0.001
+const TP_MULT=2.4, PARTIAL_AT=1.2, MAX_NOTIONAL_PCT=0.15, CLOSE_COOLDOWN_MS=180_000, COIN_DISABLE_LOSSES=7
+const INIT_BAL=10_000, MAX_BARS=600, BAR_MS=60_000, FEE_PCT=0.001
 
 // ─── math ─────────────────────────────────────────────────────────────────────
 function calcEma(src:number[],p:number):number[]{const k=2/(p+1);const out=[src[0]];for(let i=1;i<src.length;i++)out.push(src[i]*k+out[i-1]*(1-k));return out}
@@ -63,7 +65,9 @@ function calcBB(src:number[],p=20,m=2):{upper:number;mid:number;lower:number}{co
 function calcStochRsi(src:number[],p=14):{k:number;d:number}{if(src.length<p*2)return{k:50,d:50};const rsiArr:number[]=[];for(let i=p;i<src.length;i++)rsiArr.push(calcRsi(src.slice(0,i+1),p));if(rsiArr.length<p)return{k:50,d:50};const rec=rsiArr.slice(-p);const lo=Math.min(...rec),hi=Math.max(...rec);const k=hi===lo?50:((rsiArr[rsiArr.length-1]-lo)/(hi-lo))*100;const ks=rsiArr.slice(-3).map((_v,i2,a)=>{const sl2=rsiArr.slice(0,rsiArr.length-a.length+1+i2);const rr=sl2.slice(-p);const l2=Math.min(...rr),h2=Math.max(...rr);return h2===l2?50:((sl2[sl2.length-1]-l2)/(h2-l2))*100});return{k,d:ks.reduce((a,b)=>a+b,0)/ks.length}}
 function calcAdx(bars:Bar[],p=14):number{if(bars.length<p+2)return 20;const sl=bars.slice(-(p+1));let trS=0,plusS=0,minS=0;for(let i=1;i<sl.length;i++){const c=sl[i],pv=sl[i-1];const tr=Math.max(c.high-c.low,Math.abs(c.high-pv.close),Math.abs(c.low-pv.close));const up=c.high-pv.high,dn=pv.low-c.low;trS+=tr;plusS+=(up>dn&&up>0)?up:0;minS+=(dn>up&&dn>0)?dn:0}if(!trS)return 20;const pDI=plusS/trS*100,mDI=minS/trS*100;return Math.abs(pDI-mDI)/((pDI+mDI)||1)*100}
 function calcAtr(bars:Bar[],p=14):number{if(bars.length<2)return bars[0]?(bars[0].high-bars[0].low):1;const trs=bars.slice(-(p+1)).map((b,i,a)=>{if(i===0)return b.high-b.low;return Math.max(b.high-b.low,Math.abs(b.high-a[i-1].close),Math.abs(b.low-a[i-1].close))});return trs.reduce((a,b)=>a+b,0)/trs.length}
-function build5mBars(bars1m:Bar[]):Bar[]{const out:Bar[]=[];for(let i=0;i+4<bars1m.length;i+=5){const sl=bars1m.slice(i,i+5);out.push({time:sl[0].time,open:sl[0].open,high:Math.max(...sl.map(b=>b.high)),low:Math.min(...sl.map(b=>b.low)),close:sl[4].close,vol:sl.reduce((a,b)=>a+b.vol,0)})}return out}
+function buildNBars(bars1m:Bar[],n:number):Bar[]{const out:Bar[]=[];for(let i=0;i+n-1<bars1m.length;i+=n){const sl=bars1m.slice(i,i+n);out.push({time:sl[0].time,open:sl[0].open,high:Math.max(...sl.map(b=>b.high)),low:Math.min(...sl.map(b=>b.low)),close:sl[n-1].close,vol:sl.reduce((a,b)=>a+b.vol,0)})}return out}
+function build5mBars(bars1m:Bar[]):Bar[]{return buildNBars(bars1m,5)}
+function trend15m(bars1m:Bar[]):'UP'|'DOWN'|'NEUTRAL'{const b15=buildNBars(bars1m,15);if(b15.length<25)return 'NEUTRAL';const cl=b15.map(b=>b.close),n=cl.length-1;const e9=calcEma(cl,9),e21=calcEma(cl,21);return e9[n]>e21[n]?'UP':'DOWN'}
 function isVolOk(bars:Bar[]):boolean{if(bars.length<20)return true;const avg=bars.slice(-20).reduce((a,b)=>a+b.vol,0)/20;return bars[bars.length-1].vol>=avg*1.0}
 function getBtcBias(btcBars:Bar[]):'BULL'|'BEAR'|'NEUTRAL'{if(btcBars.length<20)return 'NEUTRAL';const cl=btcBars.map(b=>b.close);const rsi=calcRsi(cl,14);const e9=calcEma(cl,9),e21=calcEma(cl,21),n=cl.length-1;if(rsi>55&&e9[n]>e21[n])return 'BULL';if(rsi<45&&e9[n]<e21[n])return 'BEAR';return 'NEUTRAL'}
 function emptySig():Sig{return{dir:'HOLD',score:0,f:[false,false,false,false,false],rsi:50,adx:20,volOk:true,mtf:false,bb:{upper:0,mid:0,lower:0}}}
@@ -222,6 +226,7 @@ export default function CryptoTradingDashboard() {
   const supaRef    = useRef<any>(null)
   const supaModeRef= useRef(false)
   const logRef     = useRef<string[]>([])
+  const dayRef     = useRef<{date:string,start:number}>({date:'',start:INIT_BAL})
 
   tradeRef.current=trades; botRef.current=botOn
   selRef.current=selected; riskRef.current=risk; balRef.current=balance
@@ -239,38 +244,76 @@ export default function CryptoTradingDashboard() {
     if(s.score<MIN_SCORE) return
     if(s.adx<MIN_ADX) return
     if(!s.volOk) return
+    const R=RISK[riskRef.current]
+    // בלם יומי: עצירת כניסות אחרי הפסד יומי מקסימלי
+    const today=new Date().toISOString().slice(0,10)
+    if(dayRef.current.date!==today) dayRef.current={date:today,start:balRef.current}
+    if((dayRef.current.start-balRef.current)/dayRef.current.start>=R.maxDayLoss) return
+    // השבתת מטבע אחרי רצף הפסדים + קירור אחרי סגירה
+    const closedForSym=tradeRef.current.filter(t=>t.sym===sym&&t.status!=='OPEN')
+    const last10=closedForSym.slice(-10)
+    if(last10.length>=10&&last10.filter(t=>(t.pnl||0)<0).length>=COIN_DISABLE_LOSSES) return
+    const lastClosedTs=closedForSym.reduce((m,t)=>Math.max(m,t.closedTs||0),0)
+    if(lastClosedTs+CLOSE_COOLDOWN_MS>now) return
     const btcBars=barsMap.current.get('BTC')||[]
     const bias=getBtcBias(btcBars)
     if(sym!=='BTC'&&side==='LONG'&&bias==='BEAR') return
     if(sym!=='BTC'&&side==='SHORT'&&bias==='BULL') return
-    const R=RISK[riskRef.current]
+    // מסנן טרנד 15 דקות
+    const bars=barsMap.current.get(sym)||[]
+    const t15=trend15m(bars)
+    if(t15==='NEUTRAL') return
+    if(side==='LONG'&&t15!=='UP') return
+    if(side==='SHORT'&&t15!=='DOWN') return
     const openCount=tradeRef.current.filter(t=>t.status==='OPEN').length
     if(openCount>=R.maxPos) return
-    const useBal=balRef.current*R.pct
-    if(useBal<5) return
-    const atrPct=calcAtr(barsMap.current.get(sym)||[])/price
+    // sizing לפי סיכון: מסכנים אחוז קבוע, הפוזיציה נגזרת מרוחב הסטופ
+    const atrPct=calcAtr(bars)/price
     const slPct=Math.min(Math.max(atrPct*1.3,R.sl*0.6),R.sl*1.8)
-    const tpPct=slPct*2.4
-    const size=useBal/price
+    const tpPct=slPct*TP_MULT
+    const riskAmt=balRef.current*R.riskPct
+    let notional=riskAmt/slPct
+    notional=Math.min(notional,balRef.current*MAX_NOTIONAL_PCT,balRef.current*0.95)
+    if(notional<5) return
+    const size=notional/price
     const fee=price*size*FEE_PCT
     const trailSL=side==='LONG'?price*(1-slPct):price*(1+slPct)
     const t:Trade={id:idRef.current++,sym,side,entry:price,size,ts:now,status:'OPEN',hi:price,lo:price,trailSL,fee,slPct,tpPct}
     cooldown.current[sym]=now
     const next=[...tradeRef.current,t]; tradeRef.current=next; setTrades([...next])
-    setBalance(b=>{const nb=b-useBal-fee;balRef.current=nb;return nb})
-    addLog(`▲ OPEN ${sym} ${side} @ ${price>=100?price.toFixed(2):price.toFixed(5)} [${s.score}/5] SL:${(slPct*100).toFixed(2)}% TP:${(tpPct*100).toFixed(2)}%`)
+    setBalance(b=>{const nb=b-notional-fee;balRef.current=nb;return nb})
+    addLog(`▲ OPEN ${sym} ${side} @ ${price>=100?price.toFixed(2):price.toFixed(5)} [${s.score}/5] SL:${(slPct*100).toFixed(2)}% $${notional.toFixed(0)}`)
   },[addLog])
 
   const checkTrades=useCallback((sym:string,price:number)=>{
     if(supaModeRef.current) return
     const R=RISK[riskRef.current]; let dirty=false
     const now=Date.now()
+    const partials:Trade[]=[]
     const updated=tradeRef.current.map(t=>{
       if(t.sym!==sym||t.status!=='OPEN') return t
       const nt={...t}
-      const slPct=nt.slPct??R.sl, tpPct=nt.tpPct??R.tp
+      const slPct=nt.slPct??R.sl, tpPct=nt.tpPct??R.sl*TP_MULT
+      const dirM=nt.side==='LONG'?1:-1
+      const fav=(price-nt.entry)/nt.entry*dirM
       if(price>nt.hi) nt.hi=price
       if(price<nt.lo) nt.lo=price
+      // רווח חלקי: סגור חצי ב-1.2×SL ונעל ברייק-איבן
+      if(!nt.partialDone&&fav>=PARTIAL_AT*slPct){
+        const half=nt.size/2
+        const raw=fav*nt.entry*half
+        const exitFee=price*half*FEE_PCT
+        const halfEntryFee=nt.fee/2
+        const pnl=raw-halfEntryFee-exitFee
+        partials.push({id:idRef.current++,sym,side:nt.side,entry:nt.entry,exit:price,size:half,pnl,pnlPct:fav,ts:nt.ts,closedTs:now,status:'TP',hi:price,lo:price,trailSL:nt.trailSL,fee:halfEntryFee,partialDone:true,slPct,tpPct})
+        nt.size=half;nt.fee=halfEntryFee;nt.partialDone=true
+        const be=nt.entry*(1+dirM*2*FEE_PCT)
+        if(dirM===1&&be>nt.trailSL)nt.trailSL=be
+        if(dirM===-1&&be<nt.trailSL)nt.trailSL=be
+        setBalance(b=>{const nb=b+nt.entry*half+pnl;balRef.current=nb;return nb})
+        addLog(`◐ PARTIAL ${sym} @ ${price>=100?price.toFixed(2):price.toFixed(5)} P&L: +${pnl.toFixed(2)}`)
+        dirty=true
+      }
       if(nt.side==='LONG'){
         if(price>=nt.entry*(1+0.5*slPct)){
           const cand=price*(1-0.6*slPct)
@@ -305,13 +348,14 @@ export default function CryptoTradingDashboard() {
         const exitFee=nt.exit*nt.size*FEE_PCT
         nt.pnl=raw-nt.fee-exitFee
         nt.pnlPct=(nt.exit-nt.entry)/nt.entry*(nt.side==='LONG'?1:-1)
+        nt.closedTs=now
         setBalance(b=>{const nb=b+nt.entry*nt.size+(nt.pnl as number);balRef.current=nb;return nb})
         addLog(`${nt.status==='TP'?'✓ TP':'✗ '+nt.status} ${sym} @ ${price>=100?price.toFixed(2):price.toFixed(5)} P&L: ${(nt.pnl>=0?'+':'')}${nt.pnl.toFixed(2)}`)
         dirty=true
       }
       return nt
     })
-    if(dirty){tradeRef.current=updated;setTrades([...updated])}
+    if(dirty){const next=[...updated,...partials];tradeRef.current=next;setTrades(next)}
   },[addLog])
 
   const processTick=useCallback((sym:string,price:number,vol:number)=>{
@@ -343,7 +387,7 @@ export default function CryptoTradingDashboard() {
     const load=async()=>{
       for(const coin of COINS){
         try{
-          const res=await fetch(`https://api.binance.com/api/v3/klines?symbol=${coin.sym}USDT&interval=1m&limit=150`)
+          const res=await fetch(`https://api.binance.com/api/v3/klines?symbol=${coin.sym}USDT&interval=1m&limit=600`)
           if(!res.ok) continue
           const data:number[][]=await res.json()
           const bars:Bar[]=data.map(k=>({time:k[0] as number,open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
@@ -397,13 +441,14 @@ export default function CryptoTradingDashboard() {
         if(s.risk&&RISK[s.risk as RiskType]){setRisk(s.risk);riskRef.current=s.risk}
         if(typeof s.botOn==='boolean'){setBotOn(s.botOn);botRef.current=s.botOn}
         if(typeof s.nextId==='number') idRef.current=s.nextId
+        if(s.day&&typeof s.day.start==='number') dayRef.current=s.day
       }
     }catch{/* corrupt state — start fresh */}
   },[])
   useEffect(()=>{
     if(supaModeRef.current) return
     const id=setTimeout(()=>{
-      try{localStorage.setItem('cbot_state_v2',JSON.stringify({balance,trades:trades.slice(-200),risk,botOn,nextId:idRef.current}))}catch{/* storage full */}
+      try{localStorage.setItem('cbot_state_v2',JSON.stringify({balance,trades:trades.slice(-200),risk,botOn,nextId:idRef.current,day:dayRef.current}))}catch{/* storage full */}
     },500)
     return ()=>clearTimeout(id)
   },[balance,trades,risk,botOn])
@@ -560,7 +605,7 @@ export default function CryptoTradingDashboard() {
             </div>
           ))}
           <div style={{borderTop:`1px solid ${C.dim}`,marginTop:'4px',paddingTop:'4px',fontSize:'10px',color:C.muted}}>
-            <div>SL {(R.sl*100).toFixed(1)}% / TP {(R.tp*100).toFixed(1)}%</div>
+            <div>SL {(R.sl*100).toFixed(1)}% / TP {(R.sl*TP_MULT*100).toFixed(1)}%</div>
             <div>מקס {R.maxPos} פוז׳</div>
           </div>
         </div>

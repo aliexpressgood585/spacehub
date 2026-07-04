@@ -1,8 +1,8 @@
-// ════════════════════════════════════════════
-// CryptoBot Pro v2 — Supabase Edge Function
-// אסטרטגיה: כניסות 4/5 + ADX18 + נפח, ATR-SL/TP,
-// ברייק-איבן, טריילינג מאוחר, יציאת עסקה תקועה
-// ════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+// CryptoBot Pro v3 — Supabase Edge Function
+// כולל: sizing לפי סיכון, בלם יומי, מסנן טרנד 15ד',
+// השבתת מטבעות מפסידים, רווח חלקי, ATR SL/TP, ברייק-איבן
+// ════════════════════════════════════════════════════════
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const BINANCE = 'https://api.binance.com/api/v3'
@@ -11,14 +11,17 @@ const COINS = [
   'MATIC','UNI','ATOM','LTC','BCH','NEAR','ALGO','FIL','VET','ICP'
 ]
 const RISK = {
-  low:    { pct:0.05, sl:0.008, tp:0.020, maxPos:4 },
-  medium: { pct:0.07, sl:0.010, tp:0.025, maxPos:6 },
-  high:   { pct:0.10, sl:0.013, tp:0.032, maxPos:8 },
+  low:    { riskPct:0.006, sl:0.008, maxPos:4, maxDayLoss:0.02 },
+  medium: { riskPct:0.010, sl:0.010, maxPos:6, maxDayLoss:0.03 },
+  high:   { riskPct:0.016, sl:0.013, maxPos:8, maxDayLoss:0.04 },
 } as const
 type RiskKey = keyof typeof RISK
 const FEE = 0.001
-const MIN_SCORE = 4, MIN_ADX = 18
+const MIN_SCORE = 4, MIN_ADX = 18, TP_MULT = 2.4
+const PARTIAL_AT = 1.2            // חצי פוזיציה נסגרת ברווח של 1.2×SL
+const MAX_NOTIONAL_PCT = 0.15     // תקרה: 15% מהיתרה לעסקה
 const STALE_MS = 45*60_000, STALE_BAND = 0.0015, COOLDOWN_MS = 180_000
+const COIN_DISABLE_LOSSES = 7     // מטבע מושבת אם 7+ הפסדים ב-10 עסקאות אחרונות
 
 interface Bar { open:number; high:number; low:number; close:number; vol:number }
 
@@ -104,6 +107,12 @@ function btcBias(bars:Bar[]): 'BULL'|'BEAR'|'NEUTRAL' {
   if(r<45&&e9[n]<e21[n]) return 'BEAR'
   return 'NEUTRAL'
 }
+function trend15(bars15:Bar[]): 'UP'|'DOWN'|'NEUTRAL' {
+  if(bars15.length<25) return 'NEUTRAL'
+  const cl=bars15.map(b=>b.close),n=cl.length-1
+  const e9=ema(cl,9),e21=ema(cl,21)
+  return e9[n]>e21[n]?'UP':'DOWN'
+}
 
 interface Signal { dir:'BUY'|'SELL'|'HOLD'; score:number; adxVal:number; volGood:boolean; mtf:boolean }
 
@@ -140,6 +149,13 @@ function multiTF(bars:Bar[]): Signal {
   return s1
 }
 
+async function klines(sym:string, interval:string, limit:number): Promise<Bar[]> {
+  const res = await fetch(`${BINANCE}/klines?symbol=${sym}USDT&interval=${interval}&limit=${limit}`)
+  if(!res.ok) return []
+  const data: number[][] = await res.json()
+  return data.map(k=>({open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
+}
+
 Deno.serve(async () => {
   try {
     const supabase = createClient(
@@ -155,31 +171,52 @@ Deno.serve(async () => {
     const R = RISK[state.risk as RiskKey] || RISK.medium
     let currentBalance = state.balance
     const now = Date.now()
+    const today = new Date().toISOString().slice(0,10)
+
+    // ── בלם יומי ──
+    let dayStart = Number(state.day_start_balance ?? state.balance)
+    if(state.day_date !== today){
+      dayStart = currentBalance
+      await supabase.from('bot_state').update({day_start_balance:dayStart, day_date:today}).eq('id',1)
+    }
+    const dailyLoss = (dayStart-currentBalance)/dayStart
+    const breakerOn = dailyLoss >= R.maxDayLoss
 
     const { count } = await supabase
       .from('bot_trades').select('*',{count:'exact',head:true}).eq('status','OPEN')
     let openCount = count || 0
 
-    let btcBars:Bar[]=[]
-    try {
-      const btcRes = await fetch(`${BINANCE}/klines?symbol=BTCUSDT&interval=1m&limit=60`)
-      const btcData: number[][] = await btcRes.json()
-      btcBars = btcData.map(k=>({open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
-    } catch(_){ /* bias stays NEUTRAL */ }
+    // ── סטטיסטיקת מטבעות: השבתת מפסידים סדרתיים ──
+    const disabled = new Set<string>()
+    const cooldownUntil: Record<string,number> = {}
+    const { data: recent } = await supabase
+      .from('bot_trades').select('sym,pnl,closed_at').neq('status','OPEN')
+      .gte('closed_at', new Date(now-3*86400_000).toISOString())
+      .order('closed_at',{ascending:false}).limit(600)
+    const bySym: Record<string,{pnl:number}[]> = {}
+    for(const t of (recent||[])){
+      if(!bySym[t.sym]) bySym[t.sym]=[]
+      if(bySym[t.sym].length<10) bySym[t.sym].push({pnl:Number(t.pnl)||0})
+      if(cooldownUntil[t.sym]===undefined) cooldownUntil[t.sym]=new Date(t.closed_at).getTime()+COOLDOWN_MS
+    }
+    for(const [sym,arr] of Object.entries(bySym)){
+      if(arr.length>=10 && arr.filter(t=>t.pnl<0).length>=COIN_DISABLE_LOSSES) disabled.add(sym)
+    }
 
+    let btcBars:Bar[]=[]
+    try { btcBars = await klines('BTC','1m',60) } catch(_){ /* NEUTRAL */ }
     const bias = btcBias(btcBars)
     const log: string[] = []
+    if(breakerOn) log.push(`DAILY BREAKER ON (loss ${(dailyLoss*100).toFixed(2)}%) — no new entries today`)
 
     for(const sym of COINS) {
       try {
-        const res = await fetch(`${BINANCE}/klines?symbol=${sym}USDT&interval=1m&limit=100`)
-        if(!res.ok) continue
-        const klines: number[][] = await res.json()
-        const bars: Bar[] = klines.map(k=>({open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
+        const bars = await klines(sym,'1m',100)
+        if(!bars.length) continue
         const price = bars[bars.length-1].close
         const atrPct = atr(bars)/price
         const slPct = Math.min(Math.max(atrPct*1.3, R.sl*0.6), R.sl*1.8)
-        const tpPct = slPct*2.4
+        const tpPct = slPct*TP_MULT
 
         const { data: openTrades } = await supabase
           .from('bot_trades').select('*').eq('sym',sym).eq('status','OPEN')
@@ -188,6 +225,32 @@ Deno.serve(async () => {
           let newStatus: string|null = null
           let newTrail = Number(t.trail_sl)
           const entry = Number(t.entry_price)
+          const dirM = t.side==='LONG'?1:-1
+          const fav = (price-entry)/entry*dirM
+
+          // רווח חלקי: סגור חצי ב-1.2×SL ונעל ברייק-איבן
+          if(!t.partial_done && fav>=PARTIAL_AT*slPct && Number(t.size)>0){
+            const half = Number(t.size)/2
+            const raw = fav*entry*half
+            const exitFee = price*half*FEE
+            const halfEntryFee = Number(t.fee)/2
+            const pnl = raw - halfEntryFee - exitFee
+            currentBalance += entry*half + pnl
+            await supabase.from('bot_trades').insert({
+              sym, side:t.side, entry_price:entry, exit_price:price, size:half,
+              pnl, pnl_pct:fav, status:'TP', trail_sl:newTrail, fee:halfEntryFee,
+              hi:price, lo:price, score:t.score, mtf:t.mtf, partial_done:true,
+              opened_at:t.opened_at, closed_at:new Date().toISOString()
+            })
+            const be = entry*(1+dirM*2*FEE)
+            if(dirM===1&&be>newTrail) newTrail=be
+            if(dirM===-1&&be<newTrail) newTrail=be
+            await supabase.from('bot_trades').update({
+              size:half, fee:halfEntryFee, partial_done:true, trail_sl:newTrail
+            }).eq('id',t.id)
+            t.size=half; t.fee=halfEntryFee; t.partial_done=true; t.trail_sl=newTrail
+            log.push(`PARTIAL ${sym} ${t.side} @ ${price} pnl=${pnl.toFixed(2)}`)
+          }
 
           if(t.side==='LONG'){
             if(price>=entry*(1+0.5*slPct)){
@@ -215,24 +278,21 @@ Deno.serve(async () => {
             else if(price>=sl) newStatus=price>=entry*(1+slPct)?'SL':'TRAIL'
           }
 
-          // עסקה תקועה: פתוחה 45 דק' בלי כיוון — שחרר את המקום
           if(!newStatus && t.opened_at){
             const age = now - new Date(t.opened_at).getTime()
-            const uPct = (price-entry)/entry*(t.side==='LONG'?1:-1)
-            if(age>STALE_MS && Math.abs(uPct)<STALE_BAND) newStatus='TRAIL'
+            if(age>STALE_MS && Math.abs(fav)<STALE_BAND) newStatus='TRAIL'
           }
 
           if(newStatus){
             const size = Number(t.size)
-            const raw = t.side==='LONG' ? (price-entry)*size : (entry-price)*size
+            const raw = fav*entry*size
             const exitFee = price*size*FEE
             const pnl = raw - Number(t.fee) - exitFee
             currentBalance += entry*size + pnl
             openCount--
             await supabase.from('bot_trades').update({
               status:newStatus, exit_price:price, pnl, trail_sl:newTrail,
-              pnl_pct:(price-entry)/entry*(t.side==='LONG'?1:-1),
-              closed_at: new Date().toISOString()
+              pnl_pct:fav, closed_at: new Date().toISOString()
             }).eq('id',t.id)
             log.push(`CLOSE ${sym} ${t.side} @ ${price} -> ${newStatus} pnl=${pnl.toFixed(2)}`)
           } else if(newTrail !== Number(t.trail_sl)) {
@@ -240,7 +300,10 @@ Deno.serve(async () => {
           }
         }
 
-        // כניסה חדשה
+        // ── כניסה חדשה ──
+        if(breakerOn) continue
+        if(disabled.has(sym)) continue
+        if((cooldownUntil[sym]||0) > now) continue
         const hasOpen = (openTrades||[]).length>0
         if(!hasOpen && openCount < R.maxPos) {
           const sig = multiTF(bars)
@@ -249,29 +312,33 @@ Deno.serve(async () => {
               if(sig.dir==='BUY'  && bias==='BEAR') continue
               if(sig.dir==='SELL' && bias==='BULL') continue
             }
-            // קירור: 3 דק' אחרי סגירה אחרונה באותו מטבע
-            const { data: lastClosed } = await supabase
-              .from('bot_trades').select('closed_at').eq('sym',sym).neq('status','OPEN')
-              .order('closed_at',{ascending:false}).limit(1)
-            if(lastClosed?.[0]?.closed_at && now - new Date(lastClosed[0].closed_at).getTime() < COOLDOWN_MS) continue
+            // מסנן טרנד 15 דקות
+            const bars15 = await klines(sym,'15m',40)
+            const t15 = trend15(bars15)
+            if(t15==='NEUTRAL') continue
+            if(sig.dir==='BUY' && t15!=='UP') continue
+            if(sig.dir==='SELL' && t15!=='DOWN') continue
 
-            const useBal = currentBalance*R.pct
-            if(useBal<5) continue
-            const size = useBal/price
+            // sizing לפי סיכון: מסכנים riskPct מהיתרה, הפוזיציה נגזרת מרוחב הסטופ
+            const riskAmt = currentBalance*R.riskPct
+            let notional = riskAmt/slPct
+            notional = Math.min(notional, currentBalance*MAX_NOTIONAL_PCT, currentBalance*0.95)
+            if(notional<5) continue
+            const size = notional/price
             const fee  = price*size*FEE
             const trailSL = sig.dir==='BUY' ? price*(1-slPct) : price*(1+slPct)
-            currentBalance -= (useBal+fee)
+            currentBalance -= (notional+fee)
             openCount++
             await supabase.from('bot_trades').insert({
               sym, side: sig.dir==='BUY'?'LONG':'SHORT',
               entry_price:price, size, trail_sl:trailSL, fee,
               hi:price, lo:price, status:'OPEN', score:sig.score, mtf:sig.mtf
             })
-            log.push(`OPEN ${sym} ${sig.dir} @ ${price} score=${sig.score} sl=${(slPct*100).toFixed(2)}% tp=${(tpPct*100).toFixed(2)}%`)
+            log.push(`OPEN ${sym} ${sig.dir} @ ${price} score=${sig.score} sl=${(slPct*100).toFixed(2)}% notional=${notional.toFixed(0)}`)
           }
         }
 
-        await new Promise(r=>setTimeout(r,60))
+        await new Promise(r=>setTimeout(r,50))
       } catch(e) {
         log.push(`ERROR ${sym}: ${e}`)
       }
@@ -282,7 +349,7 @@ Deno.serve(async () => {
       updated_at: new Date().toISOString()
     }).eq('id',1)
 
-    return new Response(JSON.stringify({ok:true, processed:COINS.length, log}), {
+    return new Response(JSON.stringify({ok:true, processed:COINS.length, breaker:breakerOn, disabled:[...disabled], log}), {
       headers: {'Content-Type':'application/json'}
     })
   } catch(e) {
