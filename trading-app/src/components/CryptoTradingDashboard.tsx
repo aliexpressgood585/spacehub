@@ -462,9 +462,13 @@ export default function CryptoTradingDashboard() {
       setRisk(data.risk as RiskType);riskRef.current=data.risk as RiskType
       setBotOn(data.active);botRef.current=data.active
     })
-    supa.from('bot_trades').select('*').order('opened_at',{ascending:true}).limit(200).then(({data})=>{
-      if(!data) return
-      const mapped=data.map(t=>mapDbTrade(t as Record<string,unknown>))
+    // Load open positions first, then recent closed trades
+    Promise.all([
+      supa.from('bot_trades').select('*').eq('status','OPEN'),
+      supa.from('bot_trades').select('*').neq('status','OPEN').order('opened_at',{ascending:false}).limit(150)
+    ]).then(([open,closed])=>{
+      const all=[...(open.data||[]),...(closed.data||[])]
+      const mapped=all.map(t=>mapDbTrade(t as Record<string,unknown>))
       tradeRef.current=mapped;setTrades(mapped)
     })
     const ch=supa.channel('bot-realtime')
@@ -488,7 +492,17 @@ export default function CryptoTradingDashboard() {
         const live=status==='SUBSCRIBED'
         setSupaStatus(live?'live':'error');supaModeRef.current=live
       })
-    return ()=>{supa.removeChannel(ch);supaModeRef.current=false}
+    // Auto-trigger Edge Function every 60s while bot is active
+    const funcUrl=`${SUPA_URL}/functions/v1/trading-bot`
+    const poll=setInterval(async()=>{
+      if(!botRef.current) return
+      try{
+        const r=await fetch(funcUrl,{headers:{'Authorization':`Bearer ${SUPA_KEY}`}})
+        const d=await r.json()
+        if(d.log?.length) addLog(`⚡ ${d.log.filter((l:string)=>l.startsWith('OPEN')||l.startsWith('CLOSE')).join(' | ')||'scan ok'}`)
+      }catch{}
+    },60_000)
+    return ()=>{clearInterval(poll);supa.removeChannel(ch);supaModeRef.current=false}
   },[addLog])
 
   // Draw charts
