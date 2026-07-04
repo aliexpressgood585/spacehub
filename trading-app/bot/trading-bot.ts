@@ -14,9 +14,9 @@ const COINS = [
   'POL','UNI','ATOM','LTC','BCH','NEAR','ALGO','FIL','VET','ICP'
 ]
 const RISK = {
-  low:    { riskPct:0.006, maxPos:3, maxDayLoss:0.02 },
-  medium: { riskPct:0.010, maxPos:5, maxDayLoss:0.03 },
-  high:   { riskPct:0.016, maxPos:8, maxDayLoss:0.04 },
+  low:    { riskPct:0.006, maxPos:5,  maxDayLoss:0.02 },
+  medium: { riskPct:0.010, maxPos:20, maxDayLoss:0.03 },
+  high:   { riskPct:0.016, maxPos:20, maxDayLoss:0.04 },
 } as const
 type RiskKey = keyof typeof RISK
 const FEE = 0.001

@@ -49,9 +49,9 @@ const COINS = [
 ]
 const RISK_LABELS: Record<RiskType,string> = {low:'נמוך',medium:'בינוני',high:'גבוה'}
 const RISK = {
-  low:    {riskPct:0.006, sl:0.008, maxPos:4, maxDayLoss:0.02},
-  medium: {riskPct:0.010, sl:0.010, maxPos:6, maxDayLoss:0.03},
-  high:   {riskPct:0.016, sl:0.013, maxPos:8, maxDayLoss:0.04},
+  low:    {riskPct:0.006, sl:0.008, maxPos:5,  maxDayLoss:0.02},
+  medium: {riskPct:0.010, sl:0.010, maxPos:20, maxDayLoss:0.03},
+  high:   {riskPct:0.016, sl:0.013, maxPos:20, maxDayLoss:0.04},
 }
 const MIN_SCORE=4, MIN_ADX=18, COOLDOWN_MS=90_000, STALE_MS=45*60_000, STALE_BAND=0.0015
 const TP_MULT=2.4, PARTIAL_AT=1.2, MAX_NOTIONAL_PCT=0.15, CLOSE_COOLDOWN_MS=180_000, COIN_DISABLE_LOSSES=7
