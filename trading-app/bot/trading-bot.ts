@@ -1,10 +1,11 @@
 // ════════════════════════════════════════════════════════
-// CryptoBot Pro v5 — Supabase Edge Function
-// שיפורים על v4:
-//  1. פילטר נפח: פריצה חייבת להיות עם נפח > 1.4× ממוצע 20 שעות
-//  2. פילטר RSI: אין כניסה LONG אם RSI>72 (מוגזם), SHORT אם RSI<28
-//  3. Trail אדפטיבי: אחרי 1.5×ATR רווח — מהדקים ל-2.0×ATR
-//     (נועל רווחים מהר יותר מבלי לחסום עסקאות מוצלחות)
+// CryptoBot Pro v6 — Supabase Edge Function
+// שיפורים על v5:
+//  1. מסנן משטר שוק (BTC): אם BTC < EMA200 → רק SHORT
+//     אם BTC > EMA200 → רק LONG. מונע כניסות נגד הטרנד הגלובלי
+//  2. אישור 2 נרות: פריצה חייבת להיות גם בנר הקודם-לקודם
+//     (מניעת whipsaw בפריצות מזויפות)
+//  3. בלם רצף הפסדים: 3 הפסדים ברצף = עצירה 12 שעות
 // ════════════════════════════════════════════════════════
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
@@ -20,21 +21,23 @@ const RISK = {
 } as const
 type RiskKey = keyof typeof RISK
 const FEE = 0.001
-const BREAK_N = 48          // פריצת Donchian 48 שעות
-const TRAIL_K = 3.5         // Chandelier trail רגיל: שיא - 3.5×ATR
-const TRAIL_K_TIGHT = 2.0   // Trail מהוקן אחרי 1.5×ATR רווח
-const PROFIT_TIGHTEN = 1.5  // מכפיל ATR לסף מעבר לtrail מהוקן
-const HARD_K  = 2.0         // סטופ התחלתי: 2×ATR מהכניסה
-const EMA_TREND = 200       // מסנן EMA200
-const VOL_MA_N = 20         // ממוצע נפח לפילטר
-const VOL_MIN_MULT = 1.4    // נפח הפריצה חייב להיות 1.4× הממוצע
+const BREAK_N = 48
+const TRAIL_K = 3.5
+const TRAIL_K_TIGHT = 2.0
+const PROFIT_TIGHTEN = 1.5
+const HARD_K  = 2.0
+const EMA_TREND = 200
+const VOL_MA_N = 20
+const VOL_MIN_MULT = 1.4
 const RSI_PERIOD = 14
-const RSI_OB = 72           // RSI overbought — לא נכנס LONG מעל
-const RSI_OS = 28           // RSI oversold — לא נכנס SHORT מתחת
+const RSI_OB = 72
+const RSI_OS = 28
 const MAX_HOLD_MS = 7*86400_000
 const COOLDOWN_MS = 6*3600_000
 const COIN_DISABLE_LOSSES = 7
 const MAX_NOTIONAL_PCT = 0.20
+const STREAK_PAUSE_MS = 12*3600_000  // 12h עצירה אחרי 3 הפסדים ברצף
+const STREAK_LIMIT = 3
 
 interface Bar { open:number; high:number; low:number; close:number; vol:number }
 
@@ -95,7 +98,7 @@ Deno.serve(async () => {
     const now = Date.now()
     const today = new Date().toISOString().slice(0,10)
 
-    // בלם יומי
+    // ─── בלם יומי ───────────────────────────────────────────
     let dayStart = Number(state.day_start_balance ?? state.balance)
     if(state.day_date !== today){
       dayStart = currentBalance
@@ -107,7 +110,7 @@ Deno.serve(async () => {
       .from('bot_trades').select('*',{count:'exact',head:true}).eq('status','OPEN')
     let openCount = count || 0
 
-    // השבתת מטבעות מפסידים + קירור
+    // ─── השבתת מטבעות + קירור ────────────────────────────────
     const disabled = new Set<string>()
     const cooldownUntil: Record<string,number> = {}
     const { data: recent } = await supabase
@@ -124,16 +127,47 @@ Deno.serve(async () => {
       if(arr.length>=10 && arr.filter(p=>p<0).length>=COIN_DISABLE_LOSSES) disabled.add(sym)
     }
 
+    // ─── בלם רצף הפסדים (global) ─────────────────────────────
+    const allRecent = (recent||[]).slice(0, 10)
+    let streak = 0
+    for(const t of allRecent){
+      if(Number(t.pnl) < 0) streak++; else break
+    }
+    let streakPauseUntil = 0
+    if(streak >= STREAK_LIMIT){
+      const lastClosedAt = allRecent[0]?.closed_at
+      if(lastClosedAt) streakPauseUntil = new Date(lastClosedAt).getTime() + STREAK_PAUSE_MS
+    }
+    const streakPaused = now < streakPauseUntil
+
+    // ─── מסנן משטר שוק: BTC כמדד ─────────────────────────────
+    let marketRegime: 'BULL'|'BEAR'|'NEUTRAL' = 'NEUTRAL'
+    try {
+      const btcBars = await klines('BTC','1h',220)
+      if(btcBars.length >= 210){
+        const btcClosed = btcBars.slice(0,-1)
+        const btcCl = btcClosed.map(b=>b.close)
+        const btcE200 = ema(btcCl, 200)
+        const btcPrice = btcBars[btcBars.length-1].close
+        const btcEmaLast = btcE200[btcE200.length-1]
+        const gap = (btcPrice - btcEmaLast) / btcEmaLast
+        if(gap > 0.005) marketRegime = 'BULL'       // BTC מעל EMA200 ב-0.5%+
+        else if(gap < -0.005) marketRegime = 'BEAR'  // BTC מתחת EMA200 ב-0.5%+
+      }
+    } catch(_){}
+
     const log: string[] = []
     if(breakerOn) log.push('DAILY BREAKER ON — no new entries today')
+    if(streakPaused) log.push(`STREAK PAUSE — ${streak} consecutive losses, resuming at ${new Date(streakPauseUntil).toISOString()}`)
+    log.push(`MARKET REGIME: ${marketRegime} (BTC vs EMA200)`)
 
     for(const sym of COINS) {
       try {
         const raw = await klines(sym,'1h',250)
         if(raw.length<EMA_TREND+10) continue
-        const bars = raw.slice(0,-1)          // נר אחרון = לא סגור
-        const price = raw[raw.length-1].close // מחיר נוכחי
-        const lastVol = bars[bars.length-1].vol // נפח הנר האחרון הסגור
+        const bars = raw.slice(0,-1)
+        const price = raw[raw.length-1].close
+        const lastVol = bars[bars.length-1].vol
         const cl = bars.map(b=>b.close)
         const n = cl.length-1
         const e200 = ema(cl,EMA_TREND)[n]
@@ -144,6 +178,7 @@ Deno.serve(async () => {
         const { data: openTrades } = await supabase
           .from('bot_trades').select('*').eq('sym',sym).eq('status','OPEN')
 
+        // ─── ניהול עסקאות פתוחות ─────────────────────────────
         for(const t of (openTrades||[])) {
           const entry = Number(t.entry_price)
           let trailSL = Number(t.trail_sl)
@@ -152,7 +187,6 @@ Deno.serve(async () => {
           let newStatus: string|null = null
 
           if(t.side==='LONG'){
-            // trail מהוקן אחרי רווח של PROFIT_TIGHTEN×ATR
             const profitAtr = (price-entry)/atr
             const kUse = profitAtr >= PROFIT_TIGHTEN ? TRAIL_K_TIGHT : TRAIL_K
             const cand = hi - kUse*atr
@@ -189,13 +223,14 @@ Deno.serve(async () => {
           }
         }
 
-        // כניסה
-        if(breakerOn) continue
+        // ─── בדיקת כניסה ─────────────────────────────────────
+        if(breakerOn || streakPaused) continue
         if(disabled.has(sym)) continue
         if((cooldownUntil[sym]||0) > now) continue
         if((openTrades||[]).length>0) continue
         if(openCount >= R.maxPos) continue
 
+        // פריצת Donchian
         const win = bars.slice(-BREAK_N)
         const hh = Math.max(...win.map(b=>b.high))
         const ll = Math.min(...win.map(b=>b.low))
@@ -204,13 +239,34 @@ Deno.serve(async () => {
         else if(price<ll && price<e200) side='SHORT'
         if(!side) continue
 
-        // פילטר נפח: פריצה חייבת להיות על נפח גבוה
-        if(avgVol>0 && lastVol < avgVol*VOL_MIN_MULT){
-          log.push(`SKIP ${sym} ${side} — low volume ${lastVol.toFixed(0)} < ${(avgVol*VOL_MIN_MULT).toFixed(0)}`)
+        // מסנן משטר שוק: רק בכיוון הגלובלי
+        if(marketRegime==='BEAR' && side==='LONG'){
+          log.push(`SKIP ${sym} LONG — market regime BEAR`)
+          continue
+        }
+        if(marketRegime==='BULL' && side==='SHORT'){
+          log.push(`SKIP ${sym} SHORT — market regime BULL`)
           continue
         }
 
-        // פילטר RSI: לא נכנסים לעסקה מוגזמת
+        // אישור 2 נרות: הנר הקודם-לקודם גם מחוץ לטווח
+        const prevBar = bars[bars.length-2]
+        const prevPrevBar = bars[bars.length-3]
+        const confirmed2 = side==='LONG'
+          ? prevBar.close>hh && prevPrevBar.close>hh
+          : prevBar.close<ll && prevPrevBar.close<ll
+        if(!confirmed2){
+          log.push(`SKIP ${sym} ${side} — no 2-bar confirmation`)
+          continue
+        }
+
+        // פילטר נפח
+        if(avgVol>0 && lastVol < avgVol*VOL_MIN_MULT){
+          log.push(`SKIP ${sym} ${side} — low volume ${(lastVol/avgVol).toFixed(1)}×`)
+          continue
+        }
+
+        // פילטר RSI
         if(side==='LONG' && rsi>RSI_OB){
           log.push(`SKIP ${sym} LONG — RSI overbought ${rsi.toFixed(1)}`)
           continue
@@ -236,7 +292,7 @@ Deno.serve(async () => {
           sym, side, entry_price:price, size, trail_sl:trailSL, fee,
           hi:price, lo:price, status:'OPEN', score:5, mtf:true
         })
-        log.push(`OPEN ${sym} ${side} @ ${price} breakout${side==='LONG'?'▲':'▼'} rsi=${rsi.toFixed(1)} vol=${(lastVol/avgVol).toFixed(1)}× sl=${(slPct*100).toFixed(2)}%`)
+        log.push(`OPEN ${sym} ${side} @ ${price} regime=${marketRegime} rsi=${rsi.toFixed(1)} vol=${(lastVol/avgVol).toFixed(1)}× sl=${(slPct*100).toFixed(2)}%`)
 
         await new Promise(r=>setTimeout(r,40))
       } catch(e) {
@@ -249,7 +305,7 @@ Deno.serve(async () => {
       updated_at: new Date().toISOString()
     }).eq('id',1)
 
-    return new Response(JSON.stringify({ok:true, v:5, processed:COINS.length, breaker:breakerOn, disabled:[...disabled], log}), {
+    return new Response(JSON.stringify({ok:true, v:6, processed:COINS.length, breaker:breakerOn, streakPaused, streak, marketRegime, disabled:[...disabled], log}), {
       headers: {'Content-Type':'application/json'}
     })
   } catch(e) {
