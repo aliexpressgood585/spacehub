@@ -517,6 +517,18 @@ export default function CryptoTradingDashboard() {
     setRisk(r);riskRef.current=r
     supaRef.current?.from('bot_state').update({risk:r,updated_at:new Date().toISOString()}).eq('id',1)
   }
+  const handleReset=()=>{
+    if(!window.confirm('לאפס חשבון ל-$10,000? ההיסטוריה תישמר בנפרד.')) return
+    const hist=trades.filter(t=>t.status!=='OPEN')
+    try{localStorage.setItem('cbot_history_backup',JSON.stringify(hist))}catch{}
+    localStorage.removeItem('cbot_state_v2')
+    setBalance(INIT_BAL); balRef.current=INIT_BAL
+    setTrades([]); tradeRef.current=[]
+    idRef.current=1
+    dayRef.current={date:new Date().toISOString().slice(0,10),start:INIT_BAL}
+    setBotOn(true); botRef.current=true
+    addLog(`♻ חשבון אופס ל-$${INIT_BAL.toLocaleString()} — ${hist.length} עסקאות נשמרו בגיבוי`)
+  }
 
   const openTrades =trades.filter(t=>t.status==='OPEN')
   const closed     =trades.filter(t=>t.status!=='OPEN')
@@ -564,6 +576,9 @@ export default function CryptoTradingDashboard() {
           ))}
           <button onClick={handleBotToggle} style={{cursor:'pointer',border:`1px solid ${botOn?C.green:C.muted}`,borderRadius:'4px',padding:'3px 10px',fontSize:'10px',fontWeight:700,background:botOn?'rgba(0,232,122,0.15)':C.panel2,color:botOn?C.green:C.muted}}>
             {botOn?'🤖 ON':'🤖 OFF'}
+          </button>
+          <button onClick={handleReset} style={{cursor:'pointer',border:`1px solid rgba(255,183,0,0.5)`,borderRadius:'4px',padding:'3px 10px',fontSize:'10px',fontWeight:700,background:'rgba(255,183,0,0.1)',color:C.yellow}}>
+            ♻ RESET
           </button>
         </span>
       </div>
