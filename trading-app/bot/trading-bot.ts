@@ -5,44 +5,23 @@
 // ═══════════════════════════════════════════════════════════
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
-const BINANCE = 'https://api.binance.com/api/v3'
-const MAX_COINS = 150   // top 150 לפי נפח יומי מBinance
-
-// מטבעות לדלג (סטייבלקוין, ממונף, wrapped)
-const SKIP_SYMS = new Set([
-  'BUSD','USDC','TUSD','FDUSD','USDP','DAI','FRAX','GUSD','SUSD',
-  'WBTC','WETH','STETH','WBETH','BETH','LDOUSDT'
-])
-const SKIP_PATTERNS = ['UP','DOWN','BULL','BEAR','3L','3S','2L','2S']
-
-// fallback אם Binance API נכשל
-const FALLBACK_COINS = [
-  'BTC','ETH','SOL','BNB','XRP','ADA','DOGE','AVAX','LINK','DOT',
-  'POL','UNI','ATOM','LTC','BCH','NEAR','ALGO','ICP','VET','FIL',
-  'INJ','SUI','OP','ARB','APT','TRX','HBAR','TON','WIF','PEPE',
-  'RUNE','FTM','SAND','AXS','LDO','RNDR','FET','ENS','BLUR','GMX'
+const BINANCE      = 'https://api.binance.com/api/v3'      // ticker/price — works
+const BINANCE_DATA = 'https://data-api.binance.vision/api/v3' // klines — public data CDN
+// 75 מטבעות מאומתים בBinance USDT spot — ממוינים לפי נפח
+const COINS = [
+  // Tier 1 — mega liquid
+  'BTC','ETH','BNB','SOL','XRP','DOGE','ADA','TRX','AVAX','LINK',
+  'TON','DOT','HBAR','SUI','POL','UNI','NEAR','PEPE','WIF','APT',
+  // Tier 2 — very liquid
+  'ATOM','LTC','BCH','ICP','FIL','VET','ALGO','AAVE','ARB','OP',
+  'MKR','INJ','FET','RNDR','LDO','RUNE','GRT','SAND','AXS','IMX',
+  'MANA','ENJ','GALA','FLOW','ROSE','THETA','CHZ','ZIL','KAVA','ONE',
+  // Tier 3 — liquid & verified on Binance
+  'FTM','BLUR','GMX','CAKE','ENS','BAND','STORJ','SKL','RLC','ANKR',
+  'BAT','ZRX','SNX','CRV','COMP','BAL','SUSHI','OCEAN','MASK','QNT',
+  'MINA','MAGIC','JASMY','KNC','XLM','XTZ','STX','SFP','TWT','RSR',
+  'MTL','NMR','ICX','HOT','WIN','COTI'
 ]
-
-async function getTopCoins(): Promise<string[]> {
-  try {
-    const res = await fetch(`${BINANCE}/ticker/24hr`)
-    if (!res.ok) return FALLBACK_COINS
-    const tickers: any[] = await res.json()
-    const coins = tickers
-      .filter(t =>
-        t.symbol.endsWith('USDT') &&
-        !SKIP_SYMS.has(t.symbol.replace('USDT','')) &&
-        !SKIP_PATTERNS.some(p => t.symbol.includes(p)) &&
-        Number(t.quoteVolume) > 1_000_000  // מינימום $1M נפח יומי
-      )
-      .sort((a,b) => Number(b.quoteVolume) - Number(a.quoteVolume))
-      .slice(0, MAX_COINS)
-      .map(t => t.symbol.replace('USDT',''))
-    return coins.length > 10 ? coins : FALLBACK_COINS
-  } catch(_) {
-    return FALLBACK_COINS
-  }
-}
 
 // ─── פרמטרים ─────────────────────────────────────────────
 const RSI_P            = 2
@@ -106,13 +85,25 @@ function calcEma(closes: number[], p: number): number {
   return e
 }
 
-async function fetchBars(sym: string, interval: string, limit: number): Promise<Bar[]> {
+async function fetchBars(sym: string, interval: string, limit: number): Promise<{bars:Bar[],err?:string}> {
   try {
-    const res = await fetch(`${BINANCE}/klines?symbol=${sym}USDT&interval=${interval}&limit=${limit}`)
-    if (!res.ok) return []
+    const res = await fetch(`${BINANCE_DATA}/klines?symbol=${sym}USDT&interval=${interval}&limit=${limit}`, {
+      headers: {'User-Agent':'Mozilla/5.0','Accept':'application/json'}
+    })
+    if (!res.ok) return {bars:[], err:`HTTP${res.status}`}
     const data: number[][] = await res.json()
-    return data.map(k => ({open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
-  } catch(_) { return [] }
+    return {bars: data.map(k => ({open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))}
+  } catch(e) { return {bars:[], err:String(e).slice(0,60)} }
+}
+
+// הרצת promises בbatches — מניעת חסימת proxy מ-200 בקשות בו-זמנית
+async function runBatched<T>(tasks: (() => Promise<T>)[], size = 20): Promise<T[]> {
+  const out: T[] = []
+  for (let i = 0; i < tasks.length; i += size) {
+    const batch = tasks.slice(i, i + size)
+    out.push(...await Promise.all(batch.map(f => f())))
+  }
+  return out
 }
 
 function trend5mFromBars(bars: Bar[]): 'UP'|'DOWN'|'FLAT' {
@@ -160,9 +151,11 @@ Deno.serve(async () => {
     }
     const breakerOn = (dayStart - balance) / dayStart >= MAX_DAY_LOSS
 
-    // רצף הפסדים
+    // רצף הפסדים — רק עסקאות מ-3 השעות האחרונות (לא ספירת ישנות)
+    const recentCutoff = new Date(now - 3*3600_000).toISOString()
     const { data: recent } = await supabase
       .from('bot_trades').select('pnl,closed_at').neq('status','OPEN')
+      .gte('closed_at', recentCutoff)
       .order('closed_at',{ascending:false}).limit(15)
     let streak = 0
     for (const t of (recent||[])) { if (Number(t.pnl) < 0) streak++; else break }
@@ -180,9 +173,7 @@ Deno.serve(async () => {
     if (breakerOn)    log.push('DAILY BREAKER ON')
     if (streakPaused) log.push(`STREAK PAUSE ${streak}`)
 
-    // טעינת רשימת מטבעות דינמית מBinance
-    const COINS = await getTopCoins()
-    log.push(`COINS=${COINS.length} (top by 24h vol)`)
+    log.push(`COINS=${COINS.length}`)
 
     // Portfolio Stop
     const { data: allOpen } = await supabase.from('bot_trades').select('*').eq('status','OPEN')
@@ -203,28 +194,28 @@ Deno.serve(async () => {
     const portfolioStop = totalLoss > balance * PORTFOLIO_STOP
     if (portfolioStop) log.push(`PORTFOLIO STOP $${totalLoss.toFixed(2)}`)
 
-    // Fetch כל הנתונים במקביל
-    const [bars1m, bars5m, openBySymbolArr] = await Promise.all([
-      Promise.all(COINS.map(sym => fetchBars(sym,'1m',60).then(b => ({sym,bars:b})))),
-      Promise.all(COINS.map(sym => fetchBars(sym,'5m',25).then(b => ({sym,bars:b})))),
-      Promise.all(COINS.map(sym =>
-        supabase.from('bot_trades').select('*').eq('sym',sym).eq('status','OPEN')
-          .then(r => ({sym, data:r.data||[]}))
-      ))
-    ])
-    const barsMap1m: Record<string,Bar[]> = {}
-    const barsMap5m: Record<string,Bar[]> = {}
+    // Pre-fetch רק פוזיציות פתוחות מDB (מקבילי — אותה infrastructure)
+    const openBySymbolArr = await Promise.all(COINS.map(sym =>
+      supabase.from('bot_trades').select('*').eq('sym',sym).eq('status','OPEN')
+        .then(r => ({sym, data:r.data||[]}))
+    ))
     const openBySymbol: Record<string,any[]> = {}
-    for (const {sym,bars} of bars1m) barsMap1m[sym] = bars
-    for (const {sym,bars} of bars5m) barsMap5m[sym] = bars
     for (const {sym,data} of openBySymbolArr) openBySymbol[sym] = data
 
-    // ─── לולאה ראשית ─────────────────────────────────────
+    // ─── לולאה ראשית — klines per-coin (2 parallel max) ─
     for (const sym of COINS) {
       try {
-        const raw   = barsMap1m[sym]
-        const raw5m = barsMap5m[sym]
-        if (!raw || raw.length < ATR_P + 2) continue
+        // fetch 1m ו-5m ביחד לכל מטבע — 2 בקשות מקביליות בלבד
+        const [r1m, r5m] = await Promise.all([
+          fetchBars(sym,'1m',60),
+          fetchBars(sym,'5m',25)
+        ])
+        const raw   = r1m.bars
+        const raw5m = r5m.bars
+        if (!raw || raw.length < ATR_P + 2) {
+          if (sym === 'BTC' || sym === 'ETH') log.push(`${sym} KLINES FAIL len=${raw?.length??0} err=${r1m.err??'none'}`)
+          continue
+        }
 
         const completedBars = raw.slice(0,-1)       // נרות סגורים
         const price         = raw[raw.length-1].close
@@ -240,6 +231,7 @@ Deno.serve(async () => {
         const slPct = atr * ATR_SL_MULT / price
         const bePct = slPct * BE_MULT     // breakeven trigger = חצי מהSL
 
+        if (sym === 'BTC') log.push(`BTC: rsi=${rsi.toFixed(1)} atr=${(atrPct*100).toFixed(3)}% tr=${tr}`)
         const openTrades = openBySymbol[sym]
 
         // ── ניהול פוזיציות קיימות ──────────────────────
