@@ -534,7 +534,13 @@ export default function CryptoTradingDashboard() {
   const closed     =trades.filter(t=>t.status!=='OPEN')
   const wins       =closed.filter(t=>(t.pnl||0)>0).length
   const winRate    =closed.length>0?(wins/closed.length*100):0
-  const totalPnl   =closed.reduce((a,t)=>a+(t.pnl||0),0)
+  const realizedPnl=closed.reduce((a,t)=>a+(t.pnl||0),0)
+  const unrealizedPnl=openTrades.reduce((a,t)=>{
+    const cur=prices[t.sym]?.price||t.entry
+    const pnl=(t.side==='LONG'?(cur-t.entry):(t.entry-cur))*t.size-t.fee
+    return a+pnl
+  },0)
+  const totalPnl   =realizedPnl+unrealizedPnl
   const sharpe     =calcSharpe(trades)
   const maxDD      =calcMaxDD(trades)
   const selInfo    =prices[selected]
@@ -567,6 +573,11 @@ export default function CryptoTradingDashboard() {
         <span style={{color:totalPnl>=0?C.green:C.red,fontWeight:700}}>
           {totalPnl>=0?'+':''}{totalPnl.toFixed(2)} P&L
         </span>
+        {openTrades.length>0&&(
+          <span style={{fontSize:'10px',color:unrealizedPnl>=0?C.green:C.red,opacity:0.85}}>
+            ({unrealizedPnl>=0?'+':''}{unrealizedPnl.toFixed(2)} open)
+          </span>
+        )}
         <span style={{color:C.muted}}>שארפ <strong style={{color:C.blue}}>{sharpe.toFixed(2)}</strong></span>
         <span style={{color:C.muted}}>DD <strong style={{color:maxDD>15?C.red:C.yellow}}>{maxDD.toFixed(1)}%</strong></span>
         <span style={{color:C.muted}}>WIN <strong style={{color:winRate>50?C.green:C.red}}>{winRate.toFixed(0)}%</strong> ({closed.length})</span>
@@ -606,13 +617,13 @@ export default function CryptoTradingDashboard() {
           <div style={{color:C.pink,fontWeight:700,fontSize:'10px',borderBottom:`1px solid ${C.border}`,paddingBottom:'4px',marginBottom:'2px'}}>STATS</div>
           {[
             ['יתרה',`$${balance.toFixed(0)}`,balance>=INIT_BAL?C.green:C.red],
-            ['P&L',(totalPnl>=0?'+':'')+totalPnl.toFixed(2),totalPnl>=0?C.green:C.red],
+            ['סה״כ P&L',(totalPnl>=0?'+':'')+totalPnl.toFixed(2),totalPnl>=0?C.green:C.red],
+            ['סגורות',(realizedPnl>=0?'+':'')+realizedPnl.toFixed(2),realizedPnl>=0?C.green:C.red],
+            ['פתוחות',(unrealizedPnl>=0?'+':'')+unrealizedPnl.toFixed(2),unrealizedPnl>=0?C.green:C.red],
             ['WIN',winRate.toFixed(0)+'%',winRate>50?C.green:C.red],
             ['עסקאות',trades.length.toString(),C.blue],
-            ['פתוחות',openTrades.length.toString(),C.yellow],
             ['שארפ',sharpe.toFixed(2),sharpe>1?C.green:sharpe>0?C.yellow:C.red],
             ['MaxDD',maxDD.toFixed(1)+'%',maxDD<10?C.green:maxDD<25?C.yellow:C.red],
-            ['עמלות','$'+totalFees.toFixed(1),C.muted],
           ].map(([k,v,col])=>(
             <div key={k} style={{display:'flex',justifyContent:'space-between',fontSize:'10px'}}>
               <span style={{color:C.muted}}>{k}</span>
