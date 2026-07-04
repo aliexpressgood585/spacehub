@@ -161,12 +161,37 @@ Deno.serve(async () => {
     if(streakPaused) log.push(`STREAK PAUSE — ${streak} consecutive losses, resuming at ${new Date(streakPauseUntil).toISOString()}`)
     log.push(`MARKET REGIME: ${marketRegime} (BTC vs EMA200)`)
 
+    // ─── בדיקת Portfolio Stop: סך הפסד פתוח > 3% מהיתרה ────────────────
+    const PORTFOLIO_STOP_PCT = 0.03
+    const { data: allOpen } = await supabase
+      .from('bot_trades').select('*').eq('status','OPEN')
+    // חישוב P&L לא-ממומש: כדי לא לקרוא מחירים שוב, משתמשים ב-trail_sl כאומדן גרוע ביותר
+    // אם הפסד משוקלל גלובלי > PORTFOLIO_STOP_PCT — נסגור הכל בהמשך הלולאה
+    let totalUnrealizedLoss = 0
+    const priceCache: Record<string,number> = {}
+    for(const t of (allOpen||[])){
+      if(!priceCache[t.sym]){
+        try {
+          const r=await fetch(`${BINANCE}/ticker/price?symbol=${t.sym}USDT`)
+          if(r.ok){ const j=await r.json(); priceCache[t.sym]=+j.price }
+        } catch(_){}
+      }
+      const px=priceCache[t.sym]
+      if(!px) continue
+      const entry=Number(t.entry_price), size=Number(t.size)
+      const dirM=t.side==='LONG'?1:-1
+      const unrealized=(px-entry)/entry*dirM*entry*size
+      if(unrealized<0) totalUnrealizedLoss+=Math.abs(unrealized)
+    }
+    const portfolioStopHit = totalUnrealizedLoss > currentBalance*PORTFOLIO_STOP_PCT
+    if(portfolioStopHit) log.push(`PORTFOLIO STOP HIT — unrealized loss $${totalUnrealizedLoss.toFixed(2)} > ${(PORTFOLIO_STOP_PCT*100)}% of balance`)
+
     for(const sym of COINS) {
       try {
         const raw = await klines(sym,'1h',250)
         if(raw.length<EMA_TREND+10) continue
         const bars = raw.slice(0,-1)
-        const price = raw[raw.length-1].close
+        const price = priceCache[sym] ?? raw[raw.length-1].close
         const lastVol = bars[bars.length-1].vol
         const cl = bars.map(b=>b.close)
         const n = cl.length-1
@@ -202,6 +227,8 @@ Deno.serve(async () => {
           if(!newStatus && t.opened_at && now-new Date(t.opened_at).getTime()>MAX_HOLD_MS){
             newStatus='TRAIL'
           }
+          // Portfolio stop: סגור הכל אם הפסד כולל גדול מדי
+          if(!newStatus && portfolioStopHit) newStatus='SL'
 
           if(newStatus){
             const size = Number(t.size)
