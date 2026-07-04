@@ -42,7 +42,7 @@ const COINS = [
   {sym:'BTC',ws:'btcusdt'},{sym:'ETH',ws:'ethusdt'},{sym:'SOL',ws:'solusdt'},
   {sym:'BNB',ws:'bnbusdt'},{sym:'XRP',ws:'xrpusdt'},{sym:'ADA',ws:'adausdt'},
   {sym:'DOGE',ws:'dogeusdt'},{sym:'AVAX',ws:'avaxusdt'},{sym:'LINK',ws:'linkusdt'},
-  {sym:'DOT',ws:'dotusdt'},{sym:'MATIC',ws:'maticusdt'},{sym:'UNI',ws:'uniusdt'},
+  {sym:'DOT',ws:'dotusdt'},{sym:'POL',ws:'polusdt'},{sym:'UNI',ws:'uniusdt'},
   {sym:'ATOM',ws:'atomusdt'},{sym:'LTC',ws:'ltcusdt'},{sym:'BCH',ws:'bchusdt'},
   {sym:'NEAR',ws:'nearusdt'},{sym:'ALGO',ws:'algousdt'},{sym:'FIL',ws:'filusdt'},
   {sym:'VET',ws:'vetusdt'},{sym:'ICP',ws:'icpusdt'},
