@@ -202,10 +202,10 @@ function drawBubbles(canvas:HTMLCanvasElement,allSigs:Record<string,Sig>,prices:
 }
 
 // ─── live position card ───────────────────────────────────────────────────────
-function LivePosition({t,prices,fmtP}:{t:Trade;prices:Record<string,PriceInfo>;fmtP:(p:number)=>string}){
-  const cur  = prices[t.sym]?.price || t.entry
-  const pnl  = (t.side==='LONG'?(cur-t.entry):(t.entry-cur))*t.size - t.fee
-  const pct  = (cur-t.entry)/t.entry*(t.side==='LONG'?1:-1)*100
+function LivePosition({t,live,fmtP}:{t:Trade;live?:{cur:number;pnl:number;pct:number};fmtP:(p:number)=>string}){
+  const cur  = live?.cur ?? t.entry
+  const pnl  = live?.pnl ?? ((t.side==='LONG'?(cur-t.entry):(t.entry-cur))*t.size - t.fee)
+  const pct  = live?.pct ?? 0
   const col  = pnl>=0?C.green:C.red
 
   const prevPnl = useRef(pnl)
@@ -214,7 +214,7 @@ function LivePosition({t,prices,fmtP}:{t:Trade;prices:Record<string,PriceInfo>;f
 
   useEffect(()=>{
     const diff = pnl - prevPnl.current
-    if(Math.abs(diff) > 0.001){
+    if(Math.abs(diff) > 0.0001){
       if(flashTimer.current) clearTimeout(flashTimer.current)
       setFlash(diff>0?'up':'dn')
       flashTimer.current=setTimeout(()=>setFlash(null),400)
@@ -384,6 +384,7 @@ export default function CryptoTradingDashboard() {
   const [regimeHistory,setRegimeHistory] = useState<RegimeRow[]>([])
   const [coinWeights,setCoinWeights]    = useState<Record<string,number>>({})
   const [rebalancedAt,setRebalancedAt]  = useState<string|null>(null)
+  const [livePositions,setLivePositions]= useState<Record<number,{cur:number;pnl:number;pct:number}>>({})
 
   const barsMap    = useRef(new Map<string,Bar[]>())
   const curBar     = useRef(new Map<string,Bar>())
@@ -518,6 +519,19 @@ export default function CryptoTradingDashboard() {
       curBar.current.set(sym,cb)
     } else {cb.close=price;if(price>cb.high)cb.high=price;if(price<cb.low)cb.low=price;cb.vol+=vol}
     checkTrades(sym,price)
+    // push live PnL for any open positions on this symbol
+    const openForSym=tradeRef.current.filter(t=>t.sym===sym&&t.status==='OPEN')
+    if(openForSym.length>0){
+      setLivePositions(prev=>{
+        const next={...prev}
+        for(const ot of openForSym){
+          const pnl=(ot.side==='LONG'?(price-ot.entry):(ot.entry-price))*ot.size-ot.fee
+          const pct=(price-ot.entry)/ot.entry*(ot.side==='LONG'?1:-1)*100
+          next[ot.id]={cur:price,pnl,pct}
+        }
+        return next
+      })
+    }
     const bars=[...(barsMap.current.get(sym)||[]),cb]
     const s=getMultiTFSig(bars)
     allSigsRef.current[sym]=s
@@ -928,7 +942,7 @@ export default function CryptoTradingDashboard() {
           </div>
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(170px,1fr))',gap:'6px'}}>
             {openTrades.map(t=>(
-              <LivePosition key={t.id} t={t} prices={prices} fmtP={fmtP}/>
+              <LivePosition key={t.id} t={t} live={livePositions[t.id]} fmtP={fmtP}/>
             ))}
           </div>
         </div>
