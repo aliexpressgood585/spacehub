@@ -583,9 +583,13 @@ export default function CryptoTradingDashboard() {
   const handlePaperModeToggle=()=>{
     const next=!serverPaperMode
     setServerPaperMode(next)
-    supaRef.current?.from('bot_state').update({paper_mode:next,updated_at:new Date().toISOString()}).eq('id',1)
+    supaRef.current?.from('bot_state').update({paper_mode:next,updated_at:new Date().toISOString()}).eq('id',1).catch(e=>console.error('paper_mode update error:',e))
     addLog(next?'📋 מצב נייר הופעל (דמו)':'💵 מצב חי הופעל (כסף אמיתי)')
   }
+
+  // Debug: log when component mounts
+  useEffect(()=>{console.log('Dashboard mounted. serverPaperMode:', serverPaperMode)},[])
+
 
   const runPaperBacktest=()=>{
     if(trades.length<10){addLog('✗ צריך לפחות 10 עסקאות');return}
