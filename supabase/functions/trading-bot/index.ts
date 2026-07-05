@@ -145,6 +145,12 @@ function calcEma(closes:number[], p:number): number {
   return e
 }
 
+function calcEmaArr(closes:number[], p:number): number[] {
+  const k=2/(p+1); const out=[closes[0]]
+  for (let i=1; i<closes.length; i++) out.push(closes[i]*k+out[i-1]*(1-k))
+  return out
+}
+
 function calcRsi(closes:number[], p=14): number {
   if (closes.length < p+1) return 50
   let g=0, l=0
@@ -178,50 +184,40 @@ function detectRegime(bars: Bar[]): 'TRENDING'|'RANGING'|'SQUEEZE' {
   return 'TRENDING'
 }
 
-function findRangeEntry(
-  bars: Bar[], price: number, vpoc: number
-): {side:'LONG'|'SHORT'; tpPrice:number; slDist:number}|null {
-  if (bars.length < 20) return null
-  const closes = bars.slice(-20).map(b=>b.close)
-  const bb  = calcBB(closes,20,2)
-  const rsi = calcRsi(closes)
-  if (!bb.mid) return null
-  const atr = calcATR(bars.slice(-20))
+// Simple 3-signal entry: RSI + BB + EMA crossover — fires frequently
+function findSimpleEntry(bars: Bar[], price: number): {side:'LONG'|'SHORT'; slDist:number}|null {
+  if (bars.length < 30) return null
+  const closes = bars.map(b=>b.close)
+  const atr    = calcATR(bars.slice(-20))
+  const rsi    = calcRsi(closes.slice(-15))
+  const bb     = calcBB(closes, 20, 2)
+  if (!bb.mid || !atr) return null
 
-  // Range: price at BB extreme
-  if (price<=bb.lower*1.005 && rsi<45) {
-    const tpPrice=vpoc>price?Math.min(vpoc,bb.mid):bb.mid
-    const slDist=atr*1.2
-    const rr=slDist>0?(tpPrice-price)/slDist:0
-    if (rr>=1.2 && tpPrice>price) return {side:'LONG',tpPrice,slDist}
-  }
-  if (price>=bb.upper*0.995 && rsi>55) {
-    const tpPrice=vpoc<price?Math.max(vpoc,bb.mid):bb.mid
-    const slDist=atr*1.2
-    const rr=slDist>0?(price-tpPrice)/slDist:0
-    if (rr>=1.2 && tpPrice<price) return {side:'SHORT',tpPrice,slDist}
-  }
+  const e9arr  = calcEmaArr(closes, 9)
+  const e21arr = calcEmaArr(closes, 21)
+  const curE9  = e9arr.at(-1)!,  curE21  = e21arr.at(-1)!
+  const prevE9 = e9arr.at(-2)!,  prevE21 = e21arr.at(-2)!
 
-  // Momentum breakout: price breaks N-bar high/low with volume
-  const n=10
-  if (bars.length>=n+1) {
-    const lookback=bars.slice(-(n+1),-1)
-    const hiN=Math.max(...lookback.map(b=>b.high))
-    const loN=Math.min(...lookback.map(b=>b.low))
-    const avgVol=lookback.reduce((a,b)=>a+b.vol,0)/lookback.length
-    const lastBar=bars[bars.length-2]
-    const volSpike=lastBar.vol>avgVol*1.3
-    if (price>hiN && rsi>50 && rsi<75 && volSpike) {
-      const slDist=atr*1.5
-      const tpPrice=price+slDist*2
-      return {side:'LONG',tpPrice,slDist}
-    }
-    if (price<loN && rsi<50 && rsi>25 && volSpike) {
-      const slDist=atr*1.5
-      const tpPrice=price-slDist*2
-      return {side:'SHORT',tpPrice,slDist}
-    }
-  }
+  let longSig=0, shortSig=0
+
+  // RSI oversold/overbought
+  if (rsi < 38) longSig++
+  else if (rsi > 62) shortSig++
+
+  // Price at BB extreme
+  if (price <= bb.lower * 1.01) longSig++
+  else if (price >= bb.upper * 0.99) shortSig++
+
+  // EMA position
+  if (curE9 > curE21) longSig++
+  else shortSig++
+
+  // EMA crossover bonus (+1 extra)
+  if (prevE9 <= prevE21 && curE9 > curE21) longSig++
+  if (prevE9 >= prevE21 && curE9 < curE21) shortSig++
+
+  if (longSig >= 2)  return { side:'LONG',  slDist: atr * 1.5 }
+  if (shortSig >= 2) return { side:'SHORT', slDist: atr * 1.5 }
   return null
 }
 
@@ -656,9 +652,8 @@ Deno.serve(async (req) => {
     for (let b=0; b<activeCoins.length; b+=BATCH) {
       await Promise.all(activeCoins.slice(b,b+BATCH).map(async (sym)=>{
       try {
-        const [bars5m,bars15m,priceRes]=await Promise.all([
+        const [bars5m,priceRes]=await Promise.all([
           fetchBars(sym,'5m',200),
-          fetchBars(sym,'15m',60),
           fetch(`${BINANCE_DATA}/ticker/price?symbol=${sym}USDT`).then(r=>r.json()).catch(()=>null)
         ])
         if (!bars5m||bars5m.length<30) return
@@ -670,11 +665,6 @@ Deno.serve(async (req) => {
         const volRegime=getVolRegime(atrPct)
         const vp       =dynVol[volRegime]
         const openTrades=openBySymbol[sym]||[]
-
-        // v21: 5m price change for OI divergence
-        const priceChange=completed.length>=2
-          ?(completed[completed.length-1].close-completed[completed.length-2].close)/completed[completed.length-2].close
-          :0
 
         // ── Manage open positions ─────────────────────────
         for (const t of openTrades) {
@@ -766,163 +756,48 @@ Deno.serve(async (req) => {
         // ── New entry ──────────────────────────────────────
         if (circuitBreakerActive) return
         if (streakPaused) return
-        if (openTrades.length>0) return
+        if (openTrades.length > 0) return
         if (symCooldown.has(sym)) return
         if (dynamicBlacklist.has(sym)) return
-        if (atrPct>0.02||atrPct<0.00003) return
-        if (balance<10) return
+        if (atrPct > 0.02 || atrPct < 0.00003) return
+        if (balance < 10) return
 
-        const regime=detectRegime(completed)
-        const vpoc=calcVPOC(completed.slice(-80))
+        const simpleEntry = findSimpleEntry(completed, price)
+        if (!simpleEntry) return
 
-        type EntryResult=
-          |{mode:'SWEEP';side:'LONG'|'SHORT';sweepExtreme:number}
-          |{mode:'RANGE';side:'LONG'|'SHORT';tpPrice:number;slDist:number}
+        const { side, slDist: rawSlDist } = simpleEntry
+        const slDist = Math.max(rawSlDist, price * MIN_SL_PCT)
 
-        let entry:EntryResult|null=null
+        if (adaptSideFilter === 'LONG'  && side === 'SHORT') return
+        if (adaptSideFilter === 'SHORT' && side === 'LONG')  return
 
-        if (regime==='TRENDING'||regime==='SQUEEZE') {
-          const lookback=completed.slice(-SWING_LOOKBACK)
-          const {highs,lows}=findSwings(lookback,SWING_N)
-          if (highs.length||lows.length) {
-            const sweep=detectSweep(completed,price,highs,lows,atr)
-            if (sweep) entry={mode:'SWEEP',...sweep}
-          }
-          if (!entry) {
-            const rangeEntry=findRangeEntry(completed,price,vpoc)
-            if (rangeEntry) entry={mode:'RANGE',...rangeEntry}
-          }
-        } else {
-          const rangeEntry=findRangeEntry(completed,price,vpoc)
-          if (rangeEntry) entry={mode:'RANGE',...rangeEntry}
-        }
+        const gid = getCorrGroup(sym)
+        if (gid >= 0 && (corrGroupCount[gid] || 0) >= MAX_PER_GROUP) return
 
-        if (!entry) return
+        const slPrice = side === 'LONG' ? price - slDist : price + slDist
+        const slPct   = slDist / price
+        if (slPct < MIN_SL_PCT || slPct > 0.04) return
 
-        if (adaptSideFilter==='LONG' &&entry.side==='SHORT') return
-        if (adaptSideFilter==='SHORT'&&entry.side==='LONG')  return
+        const tpPrice = side === 'LONG' ? price + slDist * 2.0 : price - slDist * 2.0
+        const hiVal   = side === 'LONG' ? tpPrice : price
+        const loVal   = side === 'SHORT' ? tpPrice : price
 
-        if (entry.mode==='SWEEP'&&sym!=='BTC'&&sym!=='ETH') {
-          if (entry.side==='LONG' &&btcBias==='BEAR') return
-          if (entry.side==='SHORT'&&btcBias==='BULL') return
-        }
+        const riskAmt  = balance * R.riskPct * kellyMult
+        const notional = Math.min(riskAmt / slPct, balance * MAX_NOTIONAL_PCT, balance * 0.95)
+        if (notional < 5) return
 
-        // 1H trend — score only, no hard gate in ultra mode
-        let h1bias:'BULL'|'BEAR'|'NEUTRAL'='NEUTRAL'
-        if (sym!=='BTC'&&sym!=='ETH') {
-          h1bias=await fetch1hBias(sym)
-        }
-
-        let smScore=0, isMtf=false
-
-        if (entry.mode==='SWEEP') {
-          const vpocDist=Math.abs(vpoc-price)/price
-          const vpocAligned=entry.side==='LONG'?vpoc>price:vpoc<price
-          if (!vpocAligned||vpocDist>adaptVpocDist) return
-
-          const funding=allFunding[sym]||0
-          const fundingOk=
-            (entry.side==='SHORT'&&funding>FUNDING_EXTREME)||
-            (entry.side==='LONG' &&funding<-FUNDING_EXTREME)||
-            Math.abs(funding)<=FUNDING_EXTREME
-          if (!fundingOk) return
-
-          if (bars15m&&bars15m.length>=20) {
-            const comp15m=bars15m.slice(0,-1)
-            const {highs:h15,lows:l15}=findSwings(comp15m.slice(-40),SWING_N)
-            const sweep15m=detectSweep(comp15m,price,h15,l15,calcATR(comp15m))
-            if (sweep15m?.side===entry.side) smScore+=2
-          }
-
-          if (Math.abs(vpoc-price)/price<0.008)  smScore+=2
-          else if (Math.abs(vpoc-price)/price<0.015) smScore++
-
-          const [liqSignal,oiTrend]=await Promise.all([
-            fetchLiqSignal(sym),
-            fetchOISignal(sym,priceChange)
-          ])
-
-          if (Math.abs(allFunding[sym]||0)>FUNDING_EXTREME) smScore+=2
-          if (liqSignal==='LONG_LIQ' &&entry.side==='SHORT') smScore+=2
-          if (liqSignal==='SHORT_LIQ'&&entry.side==='LONG')  smScore+=2
-
-          // v21: OI divergence scoring
-          if (oiTrend==='BULL_DIV'&&entry.side==='LONG')  smScore++
-          if (oiTrend==='BEAR_DIV'&&entry.side==='SHORT') smScore++
-          if (oiTrend==='BULL_DIV'&&entry.side==='SHORT') smScore=Math.max(0,smScore-1)
-          if (oiTrend==='BEAR_DIV'&&entry.side==='LONG')  smScore=Math.max(0,smScore-1)
-          if (oiTrend==='UP')   smScore++
-          if (oiTrend==='DOWN') smScore=Math.max(0,smScore-1)
-
-          if (fearGreed<20&&entry.side==='LONG')  smScore+=2
-          if (fearGreed>80&&entry.side==='SHORT') smScore+=2
-          if (fearGreed>80&&entry.side==='LONG')  smScore=Math.max(0,smScore-1)
-          if (fearGreed<20&&entry.side==='SHORT') smScore=Math.max(0,smScore-1)
-
-          // v21: 1H alignment bonus
-          if (sym!=='BTC'&&sym!=='ETH'&&h1bias!=='NEUTRAL') smScore++
-
-          // v21: Session-adjusted min score
-          const effectiveMinScore=adaptMinScore+sp.minScoreBonus
-          if (smScore<effectiveMinScore) {
-            log.push(`SKIP ${sym} sc=${smScore}<${effectiveMinScore} [${session}]`)
-            return
-          }
-          isMtf=true
-        }
-
-        const gid=getCorrGroup(sym)
-        if (gid>=0&&(corrGroupCount[gid]||0)>=MAX_PER_GROUP) return
-
-        let slPrice:number, slPct:number
-        let hiVal=price, loVal=price
-
-        if (entry.mode==='SWEEP') {
-          const slDist=atr*vp.slMult
-          slPrice=entry.side==='LONG'
-            ?Math.min(entry.sweepExtreme,price)-slDist
-            :Math.max(entry.sweepExtreme,price)+slDist
-          slPct=Math.abs(price-slPrice)/price
-          if (slPct<MIN_SL_PCT||slPct>0.05) return
-          const actualSlDist=Math.abs(price-slPrice)
-          if (entry.side==='LONG') hiVal=price+actualSlDist*vp.tpR
-          else                     loVal=price-actualSlDist*vp.tpR
-        } else {
-          slPrice=entry.side==='LONG'?price-entry.slDist:price+entry.slDist
-          slPct=entry.slDist/price
-          if (slPct<0.002||slPct>0.03) return
-          if (entry.side==='LONG') hiVal=entry.tpPrice
-          else                     loVal=entry.tpPrice
-        }
-
-        // v21: Per-coin Kelly boost from ML score
-        const coinML=coinScores[sym]
-        const coinKellyBoost=coinML
-          ?Math.max(0.7,Math.min(1.3,coinML.score/50))
-          :(hasEnoughCoinHistory?0.8:1.0)
-
-        const riskAmt=balance*R.riskPct*kellyMult*coinKellyBoost
-        let notional=Math.min(riskAmt/slPct,balance*MAX_NOTIONAL_PCT,balance*0.95)
-
-        // v21: Session size multiplier
-        notional*=sp.sizeMult
-
-        if (notional<5) return
-
-        const size=notional/price, fee=price*size*FEE
-        balance-=(notional+fee); openCount++
-        if (gid>=0) corrGroupCount[gid]=(corrGroupCount[gid]||0)+1
+        const size = notional / price, fee = price * size * FEE
+        balance -= (notional + fee); openCount++
+        if (gid >= 0) corrGroupCount[gid] = (corrGroupCount[gid] || 0) + 1
 
         await supabase.from('bot_trades').insert({
-          sym,side:entry.side,entry_price:price,size,fee,
-          trail_sl:slPrice,hi:hiVal,lo:loVal,
-          status:'OPEN',score:smScore,mtf:isMtf,partial_done:false,
-          paper_mode:paperMode
+          sym, side, entry_price: price, size, fee,
+          trail_sl: slPrice, hi: hiVal, lo: loVal,
+          status: 'OPEN', score: 0, mtf: true, partial_done: false,
+          paper_mode: paperMode
         })
 
-        const modeLabel=entry.mode==='SWEEP'?'📊 SWEEP':'🔄 RANGE'
-        const coinStr=coinML?` coin×${coinKellyBoost.toFixed(2)}(${coinML.score.toFixed(0)})`:'(new)'
-        log.push(`OPEN ${sym} ${entry.side} [${entry.mode}] @${price.toFixed(6)} sl=${(slPct*100).toFixed(3)}% $${notional.toFixed(0)} SC=${smScore} ${volRegime} ${session} 1H=${h1bias}${coinStr}`)
+        log.push(`OPEN ${sym} ${side} [SIMPLE] @${price.toFixed(6)} sl=${(slPct*100).toFixed(3)}% $${notional.toFixed(0)} ${session}`)
 
       } catch(e) {
         log.push(`ERR ${sym}: ${String(e).slice(0,40)}`)
