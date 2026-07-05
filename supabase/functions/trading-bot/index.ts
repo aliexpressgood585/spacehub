@@ -93,7 +93,7 @@ const RISK = {
 type RiskKey = keyof typeof RISK
 
 const FEE             = 0.001
-const LEVERAGE        = 10
+const LEVERAGE        = 20
 const SWING_N         = 5
 const SWING_LOOKBACK  = 60
 const SWEEP_LOOKBACK  = 5
