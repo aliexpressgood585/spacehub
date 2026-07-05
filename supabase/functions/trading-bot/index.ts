@@ -18,25 +18,21 @@ const BINANCE      = 'https://api.binance.com/api/v3'
 const FAPI         = 'https://fapi.binance.com/fapi/v1'
 const FAPI_DATA    = 'https://fapi.binance.com/futures/data'
 
-const FALLBACK_COINS = [
-  'BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','DOT',
-  'NEAR','UNI','ATOM','LTC','BCH','ARB','OP','INJ','SUI','TON',
-  'PEPE','WIF','APT','FET','RNDR','TRX','HBAR','ICP','AAVE','GRT',
+const FIXED_COINS = [
+  'BTC','ETH','SOL','BNB','XRP','ADA','DOGE','AVAX','LINK','DOT',
+  'POL','UNI','ATOM','LTC','BCH','NEAR','ALGO','FIL','VET','ICP',
 ]
 const MIN_COIN_WIN_RATE = 0.42
 const MIN_COIN_TRADES   = 8
 
 const CORR_GROUPS: string[][] = [
-  ['SOL','AVAX','NEAR','ATOM','APT','SUI','DOT','ONE','EGLD','FTM','KAVA','ALGO'],
-  ['ARB','OP','MATIC','METIS','MANTA','SCROLL','ZK','STRK'],
-  ['UNI','AAVE','CRV','SNX','COMP','BAL','YFI','1INCH','PENDLE','MKR'],
-  ['LINK','BAND','API3'],
-  ['FET','RNDR','WLD','AGIX','GRT','THETA','TAO','OCEAN'],
-  ['DOGE','PEPE','WIF','SHIB','FLOKI','BONK','MEME','BRETT','NEIRO'],
-  ['INJ','SEI','TIA','OSMO'],
-  ['LTC','BCH','ZEC','DASH'],
-  ['XRP','XLM','HBAR'],
-  ['BNB'],['BTC'],['ETH'],
+  ['SOL','AVAX','NEAR','ATOM','DOT','ALGO'],
+  ['UNI','AAVE'],
+  ['LINK'],
+  ['DOGE','ADA'],
+  ['LTC','BCH'],
+  ['XRP'],
+  ['BNB'],['BTC'],['ETH'],['FIL'],['VET'],['ICP'],['POL'],
 ]
 const MAX_PER_GROUP  = 6
 const MIN_SCORE      = 2
@@ -597,7 +593,7 @@ Deno.serve(async (req) => {
     const [btcBars,allFunding,COINS,fearGreed,trades100,dayTradesRaw]=await Promise.all([
       fetchBars('BTC','5m',60),
       fetchAllFundingRates(),
-      fetchAllLiquidCoins(),
+      Promise.resolve(FIXED_COINS),
       fetchFearGreed(),
       supabase.from('bot_trades').select('pnl,side,sym').neq('status','OPEN')
         .order('closed_at',{ascending:false}).limit(100).then(r=>r.data||[]),
