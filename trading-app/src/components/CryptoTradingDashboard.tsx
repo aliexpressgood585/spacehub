@@ -387,7 +387,7 @@ export default function CryptoTradingDashboard() {
     const load=async()=>{
       for(const coin of COINS){
         try{
-          const res=await fetch(`https://api.binance.com/api/v3/klines?symbol=${coin.sym}USDT&interval=1m&limit=600`)
+          const res=await fetch(`https://api.binance.com/api/v3/klines?symbol=${coin.sym}USDT&interval=5m&limit=300`)
           if(!res.ok) continue
           const data:number[][]=await res.json()
           const bars:Bar[]=data.map(k=>({time:k[0] as number,open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
@@ -603,7 +603,7 @@ export default function CryptoTradingDashboard() {
 
       {/* ══ TOP BAR ══ */}
       <div style={{display:'flex',flexWrap:'wrap' as const,gap:'5px',alignItems:'center',marginBottom:'6px',...panel,padding:'7px 10px'}}>
-        <span style={{fontWeight:900,fontSize:'13px',color:C.pink,letterSpacing:'1px'}}>⚡ CRYPTO BOT PRO <span style={{fontSize:'8px',color:C.muted}}>v2.8.1</span></span>
+        <span style={{fontWeight:900,fontSize:'13px',color:C.pink,letterSpacing:'1px'}}>⚡ CRYPTO BOT PRO <span style={{fontSize:'8px',color:C.muted}}>v3.0 [5m]</span></span>
         <span style={{padding:'1px 7px',borderRadius:'3px',fontSize:'10px',fontWeight:700,
           background:wsStatus==='live'?'rgba(0,232,122,0.15)':'rgba(255,51,80,0.15)',
           color:wsStatus==='live'?C.green:C.red,border:`1px solid ${wsStatus==='live'?C.green:C.red}`}}>
@@ -876,7 +876,7 @@ export default function CryptoTradingDashboard() {
       </div>
 
       <div style={{textAlign:'center' as const,color:C.dim,fontSize:'9px',marginTop:'6px',letterSpacing:'0.5px'}}>
-        {supaLive?'☁ SERVER BOT ACTIVE 24/7 | BINANCE REAL-TIME':'VIRTUAL TRADING | BINANCE REAL-TIME PRICES'}
+        {supaLive?'☁ SERVER BOT v20 ACTIVE 24/7 | 5M TIMEFRAME | BINANCE REAL-TIME':'VIRTUAL TRADING | 5M BARS | BINANCE REAL-TIME PRICES'}
       </div>
     </div>
   )

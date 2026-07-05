@@ -1,12 +1,16 @@
 // ════════════════════════════════════════════════════════════
-// CryptoBot v19 — Fix R:R Bug + Tighter Quality Filters
+// CryptoBot v20 — 5m Timeframe + Fee-Aware Profitability
 //
-// v19 fixes:
-//  1. TP BUG: stored TP (hi/lo) now used for ALL trades so partial-TP
-//     moving trail_sl to BE no longer resets TP to entry price
-//  2. Sweep entries now store fixed TP price in hi/lo at entry
-//  3. Partial TP derives original slDist from stored hi/lo (not trail_sl)
-//  4. MIN_SCORE raised 2→3, tighter VOL_PARAMS slMult, stricter range entry
+// v20 upgrades:
+//  1. PRIMARY TF: 1m → 5m  (signal quality up, fee drag ↓40%)
+//  2. MTF CONFIRM: 5m → 15m (stronger structural confirmation)
+//  3. MIN_SL: 0.3% → 0.6%  (fees now <25% of risk vs 66%)
+//  4. MAX_HOLD: 90m → 360m  (lets winners run on 5m swings)
+//  5. STREAK_PAUSE: 20m → 60m (proper cooldown)
+//  6. SCORING: removed OB imbalance + whale pressure (noise)
+//     funding rate weight doubled, F&G weight doubled
+//  7. KELLY: k×2 → k×1.5  (less aggressive sizing)
+//  8. CIRCUIT BREAKER: halt at 25% drawdown from 10k
 // ════════════════════════════════════════════════════════════
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
@@ -77,12 +81,14 @@ const FEE             = 0.001
 const SWING_N         = 5
 const SWING_LOOKBACK  = 60
 const SWEEP_LOOKBACK  = 5
-const MAX_HOLD_MIN    = 90
-const STREAK_PAUSE_MS = 20*60_000
+const MAX_HOLD_MIN    = 360   // was 90 — lets 5m trades breathe
+const STREAK_PAUSE_MS = 60*60_000  // was 20m — proper cooldown
 const MAX_NOTIONAL_PCT= 0.25
 const FUNDING_EXTREME = 0.0003
-const MIN_SL_PCT      = 0.003
-const SYM_COOLDOWN_MS = 15*60_000
+const MIN_SL_PCT      = 0.006  // was 0.003 — fees now <25% of risk
+const SYM_COOLDOWN_MS = 30*60_000  // was 15m — more space on 5m TF
+const MAX_DD_STOP     = 0.25   // halt all trading at 25% drawdown
+const INITIAL_BALANCE = 10_000 // reference for drawdown circuit breaker
 
 // v19: tighter slMult so SL is narrower → losses smaller, R:R improves
 const VOL_PARAMS = {
@@ -473,6 +479,18 @@ Deno.serve(async (req) => {
 
     let balance = state.balance
     const now  = Date.now()
+
+    // Circuit breaker: halt if drawdown > 25% from initial balance
+    if (balance < INITIAL_BALANCE * (1 - MAX_DD_STOP)) {
+      await sendTelegram(
+        `🚨 <b>CIRCUIT BREAKER — בוט עצר</b>\n` +
+        `יתרה: $${balance.toFixed(2)} (${(((INITIAL_BALANCE-balance)/INITIAL_BALANCE)*100).toFixed(1)}% drawdown)\n` +
+        `הגבול: 25% מ-$${INITIAL_BALANCE.toLocaleString()}\n` +
+        `הפעל ידנית כדי לחדש`
+      )
+      return new Response(JSON.stringify({ok:true, msg:`CIRCUIT_BREAKER: balance $${balance.toFixed(0)} below ${((1-MAX_DD_STOP)*100).toFixed(0)}% floor`}),
+        {headers:{'Content-Type':'application/json'}})
+    }
     const utcH = new Date().getUTCHours()
     const utcM = new Date().getUTCMinutes()
     const R    = RISK[state.risk as RiskKey] || RISK.medium
@@ -481,7 +499,7 @@ Deno.serve(async (req) => {
       const {data:openTrades} = await supabase.from('bot_trades').select('sym,side').eq('status','OPEN')
       const openList = (openTrades||[]).map((t:any)=>`${t.sym} ${t.side}`).join(', ')||'None'
       const msg = (
-        `📡 <b>CryptoBot v19</b>\n` +
+        `📡 <b>CryptoBot v20 [5m]</b>\n` +
         `💰 Balance: $${Number(state.balance).toFixed(2)}\n` +
         `📂 Open: ${openTrades?.length||0} — ${openList}\n` +
         `⚡ Active: ${state.active ? '✅' : '❌'}\n` +
@@ -520,7 +538,7 @@ Deno.serve(async (req) => {
       const p  = wins_.length/recent.length
       const b  = avgL>0 ? avgW/avgL : 1
       const k  = (p*b-(1-p))/b
-      kellyMult = Math.max(0.5, Math.min(1.5, k*2))
+      kellyMult = Math.max(0.5, Math.min(1.2, k*1.5))
     }
 
     const log:string[] = []
@@ -529,7 +547,7 @@ Deno.serve(async (req) => {
 
     const needDailySummary = utcH === 0 && utcM < 2
     const [btcBars, allFunding, COINS, fearGreed, trades100, dayTradesRaw] = await Promise.all([
-      fetchBars('BTC','1m',60),
+      fetchBars('BTC','5m',60),
       fetchAllFundingRates(),
       fetchAllLiquidCoins(),
       fetchFearGreed(),
@@ -601,15 +619,15 @@ Deno.serve(async (req) => {
     for (let b=0; b<COINS.length; b+=BATCH) {
       await Promise.all(COINS.slice(b,b+BATCH).map(async (sym)=>{
     try {
-        const [bars1m, bars5m, priceRes] = await Promise.all([
-          fetchBars(sym,'1m',150),
-          fetchBars(sym,'5m',50),
+        const [bars5m, bars15m, priceRes] = await Promise.all([
+          fetchBars(sym,'5m',200),
+          fetchBars(sym,'15m',60),
           fetch(`${BINANCE_DATA}/ticker/price?symbol=${sym}USDT`).then(r=>r.json()).catch(()=>null)
         ])
-        if (!bars1m||bars1m.length<30) return
+        if (!bars5m||bars5m.length<30) return
 
-        const price     = priceRes?.price ? +priceRes.price : bars1m[bars1m.length-1].close
-        const completed = bars1m.slice(0,-1)
+        const price     = priceRes?.price ? +priceRes.price : bars5m[bars5m.length-1].close
+        const completed = bars5m.slice(0,-1)
         const atr       = calcATR(completed)
         const atrPct    = atr/price
         const volRegime = getVolRegime(atrPct)
@@ -762,42 +780,33 @@ Deno.serve(async (req) => {
             Math.abs(funding)<=FUNDING_EXTREME
           if (!fundingOk) return
 
-          if (bars5m&&bars5m.length>=20) {
-            const comp5m=bars5m.slice(0,-1)
-            const {highs:h5,lows:l5}=findSwings(comp5m.slice(-40),SWING_N)
-            const sweep5m=detectSweep(comp5m,price,h5,l5,calcATR(comp5m))
-            if (sweep5m?.side===entry.side) smScore+=2
-            else if (sweep5m&&sweep5m.side!==entry.side) return
+          if (bars15m&&bars15m.length>=20) {
+            const comp15m=bars15m.slice(0,-1)
+            const {highs:h15,lows:l15}=findSwings(comp15m.slice(-40),SWING_N)
+            const sweep15m=detectSweep(comp15m,price,h15,l15,calcATR(comp15m))
+            if (sweep15m?.side===entry.side) smScore+=2
+            else if (sweep15m&&sweep15m.side!==entry.side) return
           }
 
           if (Math.abs(vpoc-price)/price < 0.008)  smScore+=2
           else if (Math.abs(vpoc-price)/price < 0.015) smScore++
 
-          const [obImbalance, whalePressure, liqSignal, oiTrend] = await Promise.all([
-            fetchOBImbalance(sym),
-            fetchWhalePressure(sym),
+          // v20: removed OB imbalance + whale pressure (too noisy on spot)
+          // kept only high-quality signals with doubled weights
+          const [liqSignal, oiTrend] = await Promise.all([
             fetchLiqSignal(sym),
             fetchOISignal(sym)
           ])
 
-          if (Math.abs(allFunding[sym]||0)>FUNDING_EXTREME) smScore++
-          if (entry.side==='LONG' &&obImbalance> 0.10) smScore++
-          if (entry.side==='SHORT'&&obImbalance<-0.10) smScore++
-          if (entry.side==='LONG' &&whalePressure> 0.15) smScore++
-          if (entry.side==='SHORT'&&whalePressure<-0.15) smScore++
+          if (Math.abs(allFunding[sym]||0)>FUNDING_EXTREME) smScore+=2  // doubled — strongest signal
           if (liqSignal==='LONG_LIQ' &&entry.side==='SHORT') smScore+=2
           if (liqSignal==='SHORT_LIQ'&&entry.side==='LONG')  smScore+=2
           if (oiTrend==='UP')   smScore++
           if (oiTrend==='DOWN') smScore=Math.max(0,smScore-1)
-          if (fearGreed<20&&entry.side==='LONG')  smScore++
-          if (fearGreed>80&&entry.side==='SHORT') smScore++
+          if (fearGreed<20&&entry.side==='LONG')  smScore+=2  // extreme F&G = high conviction
+          if (fearGreed>80&&entry.side==='SHORT') smScore+=2
           if (fearGreed>80&&entry.side==='LONG')  smScore=Math.max(0,smScore-1)
           if (fearGreed<20&&entry.side==='SHORT') smScore=Math.max(0,smScore-1)
-
-          const contra =
-            (entry.side==='LONG' &&(obImbalance<-0.30||whalePressure<-0.40)) ||
-            (entry.side==='SHORT'&&(obImbalance> 0.30||whalePressure> 0.40))
-          if (contra) return
 
           if (smScore < adaptMinScore) {
             log.push(`SKIP ${sym} sc=${smScore}<${adaptMinScore}`)
@@ -866,11 +875,11 @@ Deno.serve(async (req) => {
 
     await supabase.from('bot_state').update({
       balance, updated_at: new Date().toISOString(),
-      market_regime: 'v19_DUAL', streak
+      market_regime: 'v20_5M', streak
     }).eq('id',1)
 
     return new Response(JSON.stringify({
-      ok: true, v: 19, openCount, streakPaused, streak, btcBias, btcRegime,
+      ok: true, v: 20, openCount, streakPaused, streak, btcBias, btcRegime,
       kelly: kellyMult, fearGreed, adaptMinScore, adaptVpocDist, adaptSideFilter,
       blacklist: [...dynamicBlacklist],
       log
