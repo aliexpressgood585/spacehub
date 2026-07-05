@@ -444,6 +444,41 @@ function calcVPOC(bars:Bar[]): number {
   return min+(hist.indexOf(Math.max(...hist))+0.5)*step
 }
 
+// ── STAGE 2: Volatility Percentile Calculation ──
+function calcVolatilityPercentile(bars:Bar[]): {pct:number; atrPct:number} {
+  if (bars.length < 100) return {pct: 50, atrPct: 0}
+  const last100 = bars.slice(-100)
+  const atrValues:number[] = []
+  for (let i=1; i<last100.length; i++) {
+    const tr = Math.max(
+      last100[i].high - last100[i].low,
+      Math.abs(last100[i].high - last100[i-1].close),
+      Math.abs(last100[i].low - last100[i-1].close)
+    )
+    const price = last100[i].close
+    atrValues.push(tr / price)
+  }
+  atrValues.sort((a,b)=>a-b)
+  const current = last100[last100.length-1].close
+  const atr = bars.length > 14 ? calcATR(bars.slice(-14)) : 0
+  const curAtrPct = atr / current
+  const pct = Math.round((atrValues.indexOf(curAtrPct) / atrValues.length) * 100)
+  return {pct: Math.max(0, Math.min(100, pct)), atrPct: curAtrPct}
+}
+
+// ── STAGE 2: Dynamic Stop Loss by ADX ──
+function calcDynamicSL(atr:number, adx:number, baseMult:number = 1.2): number {
+  if (adx > 25) return atr * 1.0
+  if (adx < 15) return atr * 1.5
+  return atr * baseMult
+}
+
+// ── STAGE 2: Dynamic TP by Volatility ──
+function calcDynamicTP(baseR:number, volPct:number): number {
+  const volPctNorm = Math.min(volPct, 100) / 100
+  return baseR + (volPctNorm * 0.5)
+}
+
 function findSwings(bars:Bar[], n:number): {highs:number[],lows:number[]} {
   const highs:number[]=[], lows:number[]=[]
   for (let i=n; i<bars.length-n; i++) {
@@ -541,6 +576,20 @@ async function fetchLiqSignal(sym:string): Promise<'LONG_LIQ'|'SHORT_LIQ'|'NEUTR
 async function fetch1hBias(sym: string): Promise<'BULL'|'BEAR'|'NEUTRAL'> {
   try {
     const bars = await fetchBars(sym, '1h', 30)
+    if (bars.length < 22) return 'NEUTRAL'
+    const closes = bars.slice(0,-1).map(b=>b.close)
+    const e9  = calcEma(closes, 9)
+    const e21 = calcEma(closes, 21)
+    if (e9>e21*1.001) return 'BULL'
+    if (e9<e21*0.999) return 'BEAR'
+    return 'NEUTRAL'
+  } catch { return 'NEUTRAL' }
+}
+
+// ── STAGE 2: Multi-timeframe confirmation (15m) ──
+async function fetch15mBias(sym: string): Promise<'BULL'|'BEAR'|'NEUTRAL'> {
+  try {
+    const bars = await fetchBars(sym, '15m', 30)
     if (bars.length < 22) return 'NEUTRAL'
     const closes = bars.slice(0,-1).map(b=>b.close)
     const e9  = calcEma(closes, 9)
@@ -1051,10 +1100,11 @@ Deno.serve(async (req) => {
     for (let b=0; b<allManagedCoins.length; b+=BATCH) {
       await Promise.all(allManagedCoins.slice(b,b+BATCH).map(async (sym)=>{
       try {
-        const [bars5m,priceRes,bars1h,oiSig]=await Promise.all([
+        const [bars5m,priceRes,bars1h,bars15m,oiSig]=await Promise.all([
           fetchBars(sym,'5m',200),
           fetch(`${BINANCE_DATA}/ticker/price?symbol=${sym}USDT`).then(r=>r.json()).catch(()=>null),
           fetchBars(sym,'1h',30),
+          fetchBars(sym,'15m',30),
           fetchOISignal(sym)
         ])
         if (!bars5m||bars5m.length<30) return
@@ -1077,7 +1127,23 @@ Deno.serve(async (req) => {
           if (e9_1h>e21_1h*1.001) ema1hBias = 'BULL'
           else if (e9_1h<e21_1h*0.999) ema1hBias = 'BEAR'
         }
+
+        // ── STAGE 2: Multi-timeframe confirmation (15m) ──
+        let ema15mBias: 'BULL'|'BEAR'|'NEUTRAL' = 'NEUTRAL'
+        if (bars15m && bars15m.length >= 22) {
+          const closes15m = bars15m.slice(0,-1).map(b=>b.close)
+          const e9_15m = calcEma(closes15m, 9)
+          const e21_15m = calcEma(closes15m, 21)
+          if (e9_15m>e21_15m*1.001) ema15mBias = 'BULL'
+          else if (e9_15m<e21_15m*0.999) ema15mBias = 'BEAR'
+        }
+
         const vpoc = calcVPOC(completed.slice(-80))
+
+        // ── STAGE 2: Calculate volatility percentile and dynamic SL/TP ──
+        const {pct: volPctile, atrPct: curAtrPct} = calcVolatilityPercentile(completed)
+        const dynamicSLMult = adx > 25 ? 1.0 : adx < 15 ? 1.5 : 1.2
+        const dynamicTPBase = calcDynamicTP(2.5, volPctile)
 
         // v22: Get last 5m price change for OI divergence context
         const last5min = completed.length >= 2 ? (price - completed[completed.length-2].close) / completed[completed.length-2].close : 0
@@ -1102,6 +1168,57 @@ Deno.serve(async (req) => {
           const dirM  =t.side==='LONG'?1:-1
           const ageMs =t.opened_at?now-new Date(t.opened_at).getTime():0
 
+          // ── TASK 1: Retroactive snapshot if not already created ──
+          if (t.id && !t.snapshot_recorded) {
+            const cls5m = completed.map((b:Bar) => b.close)
+            const rsiSnap = calcRsi(cls5m.slice(-15))
+            const vols20Snap = completed.slice(-20).map((b:Bar) => b.vol)
+            const volAvgSnap = vols20Snap.reduce((a:number,v:number)=>a+v,0)/vols20Snap.length
+            const curVolSnap = completed[completed.length-1].vol
+            const volRatioSnap = volAvgSnap > 0 ? curVolSnap/volAvgSnap : 1.0
+            const {pct: volPct} = calcVolatilityPercentile(completed)
+            try {
+              await supabase.from('bot_trade_snapshots').insert({
+                trade_id: t.id, coin: sym, side: t.side,
+                confluence_score: Math.round(t.score || 50),
+                adx: +(adx.toFixed(2)),
+                rsi: +(rsiSnap.toFixed(2)),
+                volume_ratio: +(volRatioSnap.toFixed(3)),
+                hour_utc: utcH,
+                market_regime: btcRegime+'_v23_5M',
+                session: session,
+                oi_signal: oiSig,
+                fear_greed: fearGreed,
+                vpoc: +(vpoc.toFixed(6)),
+                volatility_pct: volPct,
+                result: 'snapshot_current'
+              }).catch(()=>{})
+              await supabase.from('bot_trades').update({snapshot_recorded: true}).eq('id',t.id).catch(()=>{})
+            } catch { /* non-fatal */ }
+          }
+
+          // ── TASK 1: Equity Guard — if 30% drawdown, close ALL positions immediately ──
+          if (equityGuardPaused) {
+            const fav = (price-entry)/entry*dirM
+            const pnl = fav*entry*size*LEVERAGE - Number(t.fee) - price*size*FEE*LEVERAGE
+            balance += entry*size+pnl; openCount--
+            await supabase.from('bot_trades').update({
+              status:'TP', exit_price:price, pnl, pnl_pct:fav,
+              closed_at:new Date().toISOString()
+            }).eq('id',t.id)
+            await supabase.from('bot_trade_snapshots').update({ result:'equity_guard_forced_close', pnl }).eq('trade_id',t.id).catch(()=>{})
+            await updateMarketMemory(supabase, t.id, 'TP', pnl, log)
+            log.push(`EQUITY_GUARD_CLOSE ${sym} ${t.side} @${price.toFixed(4)} pnl=${pnl.toFixed(2)}`)
+            continue
+          }
+
+          // ── TASK 1: Equity Guard — if 15% drawdown, tighten SL by 50% ──
+          let adjustedSl = sl
+          if (equityGuardMult === 0.5) {
+            const slDistTightened = slDist * 0.5
+            adjustedSl = t.side === 'LONG' ? entry + slDistTightened : entry - slDistTightened
+          }
+
           // ── Phase 3: Smart Early Exit — EMA9 cross against direction + low vol ──
           const emaCrossedAgainst =
             (t.side==='LONG'  && prevE9Exit >= prevE21Exit && curE9Exit < curE21Exit) ||
@@ -1117,8 +1234,8 @@ Deno.serve(async (req) => {
             }).eq('id',t.id)
             await supabase.from('bot_trade_snapshots').update({ result:'early_exit_ema_reversal', pnl }).eq('trade_id',t.id).catch(()=>{})
             await updateMarketMemory(supabase, t.id, finalSt, pnl, log)
-            log.push(`EARLY_EXIT ${sym} ${t.side} ema_reversal+low_vol pnl=${pnl.toFixed(2)} [early_exit_ema_reversal]`)
-            return
+            log.push(`RETROACTIVE_EARLY_EXIT ${sym} ${t.side} @${price.toFixed(4)} vs entry ${entry.toFixed(4)} pnl=${pnl.toFixed(2)}`)
+            continue
           }
 
           const storedTP_LONG =Number(t.hi)>entry*1.001
@@ -1141,21 +1258,27 @@ Deno.serve(async (req) => {
               const halfSize  =size/2
               const partialPnl=(price-entry)*halfSize*dirM*LEVERAGE-price*halfSize*FEE*LEVERAGE
               balance+=entry*halfSize+partialPnl
+              // ── STAGE 2: Adjust SL to breakeven + 0.2R when partial TP hits ──
+              const bePoint = entry*(1+FEE*2.5*dirM)
+              const adjPoint = origSlDist > 0 ? bePoint + origSlDist*0.2*dirM : bePoint
               await supabase.from('bot_trades').update({
-                size:halfSize,trail_sl:entry,partial_done:true
+                size:halfSize,trail_sl:adjPoint,partial_done:true
               }).eq('id',t.id)
-              log.push(`PARTIAL ${sym} ${t.side} @${price.toFixed(4)} ${dynamicPartialR}R pnl=${partialPnl.toFixed(2)}`)
+              log.push(`PARTIAL ${sym} ${t.side} @${price.toFixed(4)} ${dynamicPartialR}R pnl=${partialPnl.toFixed(2)} sl_adj_be+0.2R`)
               return
             }
           }
 
+          // ── Use adjusted SL if equity guard is active ──
+          const slToUse = equityGuardMult === 0.5 ? adjustedSl : sl
+
           let newStatus:string|null=null
           if (t.side==='LONG') {
             if(price>=tp)  newStatus='TP'
-            else if(price<=sl) newStatus=price>=entry?'TRAIL':'SL'
+            else if(price<=slToUse) newStatus=price>=entry?'TRAIL':'SL'
           } else {
             if(price<=tp)  newStatus='TP'
-            else if(price>=sl) newStatus=price<=entry?'TRAIL':'SL'
+            else if(price>=slToUse) newStatus=price<=entry?'TRAIL':'SL'
           }
           if (!newStatus&&ageMs>dynMaxHold*60_000) newStatus='TRAIL'
 
@@ -1175,15 +1298,16 @@ Deno.serve(async (req) => {
             const modeTag=t.mtf?'SWEEP':'RANGE'
             log.push(`CLOSE ${sym} ${t.side} ${final} [${modeTag}] pnl=${pnl.toFixed(2)} ${Math.round(ageMs/60000)}m`)
           } else if (t.mtf) {
-            // v21: Step trailing — tighter as profit grows
+            // ── TASK 1: Enhanced trailing — start from 0.5R instead of 3R ──
             const profitR=origSlDist>0?(price-entry)*dirM/origSlDist:0
-            let newSL=sl
+            let newSL=slToUse
 
-            if (profitR>=vp.trailBeR) {
+            // TASK 1: Start trailing much earlier at 0.5R profit
+            if (profitR>=0.5) {
               const beLevel=entry*(1+FEE*2.5*dirM)
-              newSL=dirM===1?Math.max(sl,beLevel):Math.min(sl,beLevel)
+              newSL=dirM===1?Math.max(slToUse,beLevel):Math.min(slToUse,beLevel)
             }
-            if (profitR>=vp.trailBeR+0.5) {
+            if (profitR>=1.0) {
               const trailLevel=price-atr*vp.trailAtr*dirM
               newSL=dirM===1?Math.max(newSL,trailLevel):Math.min(newSL,trailLevel)
             }
@@ -1198,7 +1322,7 @@ Deno.serve(async (req) => {
               newSL=dirM===1?Math.max(newSL,trail5R):Math.min(newSL,trail5R)
             }
 
-            if (newSL!==sl)
+            if (newSL!==slToUse)
               await supabase.from('bot_trades').update({trail_sl:newSL}).eq('id',t.id)
           }
         }
@@ -1259,8 +1383,23 @@ Deno.serve(async (req) => {
           return
         }
 
+        // ── STAGE 2: Multi-timeframe confirmation — require BOTH 15m AND 1H alignment ──
+        const requireMultiTF = true
+        if (requireMultiTF) {
+          if (entryScore.side === 'LONG' && (ema15mBias !== 'BULL' || ema1hBias !== 'BULL')) {
+            log.push(`SKIP ${sym}: multi-TF LONG requires 15m(${ema15mBias})+1h(${ema1hBias}) both BULL`)
+            return
+          }
+          if (entryScore.side === 'SHORT' && (ema15mBias !== 'BEAR' || ema1hBias !== 'BEAR')) {
+            log.push(`SKIP ${sym}: multi-TF SHORT requires 15m(${ema15mBias})+1h(${ema1hBias}) both BEAR`)
+            return
+          }
+        }
+
         const { side, slDist: rawSlDist } = entryScore
-        const slDist = Math.max(rawSlDist, price * MIN_SL_PCT)
+        // ── STAGE 2: Dynamic SL based on ADX ──
+        const dynamicSL = calcDynamicSL(rawSlDist, adx, dynamicSLMult)
+        const slDist = Math.max(dynamicSL, price * MIN_SL_PCT)
 
         if (adaptSideFilter === 'LONG'  && side === 'SHORT') return
         if (adaptSideFilter === 'SHORT' && side === 'LONG')  return
@@ -1272,13 +1411,23 @@ Deno.serve(async (req) => {
         const slPct   = slDist / price
         if (slPct < MIN_SL_PCT || slPct > 0.04) return
 
-        const tpPrice = side === 'LONG' ? price + slDist * dynTpR : price - slDist * dynTpR
+        // ── STAGE 2: Dynamic TP based on volatility percentile ──
+        const tpR = dynamicTPBase
+        const tpPrice = side === 'LONG' ? price + slDist * tpR : price - slDist * tpR
         const hiVal   = side === 'LONG' ? tpPrice : price
         const loVal   = side === 'SHORT' ? tpPrice : price
 
         // v22: Apply Kelly scaling by confluence score
         const kellyByScore    = getKellyScaleByScore(entryScore.score)
         const sizeAdjByRegime = regimeCheck.sizeAdj
+
+        // ── STAGE 2: Volatility-adjusted position sizing ──
+        let volSizeMult = 1.0
+        if (volPctile < 5) {
+          volSizeMult = 0.8  // Low vol — boring, reduce size
+        } else if (volPctile > 95) {
+          volSizeMult = 1.2  // High vol — risky but good for trending, increase size
+        }
 
         // Phase 6: Session size filter applied to riskAmt
         let sessionSizeAdj = sp.sizeMult
@@ -1295,7 +1444,7 @@ Deno.serve(async (req) => {
           log.push(`coin_reduce: ${sym} 0.7x`)
         }
 
-        const riskAmt = balance * R.riskPct * kellyMult * kellyByScore * sizeAdjByRegime * sessionSizeAdj * coinSizeMult * equityGuardMult
+        const riskAmt = balance * R.riskPct * kellyMult * kellyByScore * sizeAdjByRegime * sessionSizeAdj * coinSizeMult * volSizeMult * equityGuardMult
         const notional = Math.min(riskAmt / slPct, balance * MAX_NOTIONAL_PCT, balance * 0.95)
         if (notional < 5) return
 
@@ -1310,7 +1459,7 @@ Deno.serve(async (req) => {
           paper_mode: paperMode
         }).select('id').single()
 
-        // Phase 1: Save trade snapshot with all indicator values at entry
+        // Phase 1: Save trade snapshot with all indicator values at entry + STAGE 2 fields
         if (insertedTrade?.id) {
           const cls5m       = completed.map((b:Bar) => b.close)
           const rsiSnap     = calcRsi(cls5m.slice(-15))
@@ -1318,19 +1467,36 @@ Deno.serve(async (req) => {
           const volAvgSnap  = vols20Snap.reduce((a:number,v:number)=>a+v,0)/vols20Snap.length
           const curVolSnap  = completed[completed.length-1].vol
           const volRatioSnap = volAvgSnap > 0 ? curVolSnap/volAvgSnap : 1.0
-          await saveTradeSnapshot(
-            supabase, insertedTrade.id, sym, side,
-            entryScore.score, adx, rsiSnap, volRatioSnap,
-            utcH, btcRegime+'_v23_5M', session, oiSig, fearGreed
-          )
+
+          try {
+            await supabase.from('bot_trade_snapshots').insert({
+              trade_id: insertedTrade.id, coin: sym, side: side,
+              confluence_score: Math.round(entryScore.score),
+              adx: +(adx.toFixed(2)),
+              rsi: +(rsiSnap.toFixed(2)),
+              volume_ratio: +(volRatioSnap.toFixed(3)),
+              hour_utc: utcH,
+              market_regime: btcRegime+'_v23_5M',
+              session: session,
+              oi_signal: oiSig,
+              fear_greed: fearGreed,
+              vpoc: +(vpoc.toFixed(6)),
+              volatility_pct: volPctile,
+              adjusted_sl: +(slPrice.toFixed(6)),
+              adjusted_tp: +(tpPrice.toFixed(6))
+            })
+          } catch { /* non-fatal */ }
         }
 
-        // v23: Log confluence score breakdown
+        // v23: Log confluence score breakdown + STAGE 2 enhancements
         const breakdownStr = Object.entries(entryScore.breakdown)
           .filter(([_,v]) => v > 0)
           .map(([k,v]) => `${k}=${v}`)
           .join(' ')
-        log.push(`OPEN ${sym} ${side} [CONF] score=${Math.round(entryScore.score)} (${breakdownStr}) adx=${adx.toFixed(0)} sess_adj=${sessionSizeAdj.toFixed(2)} @${price.toFixed(6)} sl=${(slPct*100).toFixed(3)}% $${notional.toFixed(0)} ${session}`)
+        const volSizeStr = volSizeMult !== 1.0 ? ` vol_sz=${volSizeMult.toFixed(1)}x` : ''
+        const tpStr = dynamicTPBase !== 2.5 ? ` dyn_tp=${dynamicTPBase.toFixed(2)}R` : ''
+        const mtfStr = ema15mBias !== 'NEUTRAL' ? ` 15m=${ema15mBias}` : ''
+        log.push(`OPEN ${sym} ${side} [CONF] score=${Math.round(entryScore.score)} (${breakdownStr})${mtfStr} adx=${adx.toFixed(0)}${tpStr} vol_pct=${volPctile}${volSizeStr} sess_adj=${sessionSizeAdj.toFixed(2)} @${price.toFixed(6)} sl=${(slPct*100).toFixed(3)}% $${notional.toFixed(0)} ${session}`)
 
       } catch(e) {
         log.push(`ERR ${sym}: ${String(e).slice(0,40)}`)
