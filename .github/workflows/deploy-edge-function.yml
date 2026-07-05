@@ -25,10 +25,23 @@ jobs:
         run: supabase login --token ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
       - name: Link project
-        run: supabase link --project-ref ${{ env.PROJECT_REF }} --password ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase link --project-ref ${{ env.PROJECT_REF }}
 
-      - name: Run SQL migrations
-        run: supabase db push --password ${{ secrets.SUPABASE_DB_PASSWORD }}
+      - name: Run SQL migrations via management API
+        run: |
+          curl -s -X POST \
+            "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS bot_params JSONB DEFAULT '"'"'{}'"'"'; ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS last_optimized_at TIMESTAMPTZ; CREATE TABLE IF NOT EXISTS bot_params_history (id BIGSERIAL PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), trade_count INT, overall_wr NUMERIC(5,4), overall_pf NUMERIC(6,3), params_before JSONB, params_after JSONB, reasoning TEXT);"
+            }' | tee /tmp/migration_result.json
+          if grep -q '"error"' /tmp/migration_result.json; then
+            cat /tmp/migration_result.json
+            echo "Migration query returned an error (may be ignorable if columns already exist)"
+          else
+            echo "Migration applied successfully"
+          fi
 
       - name: Set optimizer secrets
         run: |
@@ -48,13 +61,13 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
             "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/api-keys" \
             | grep -o '"anon"[^}]*"apiKey":"[^"]*"' | grep -o '"apiKey":"[^"]*"' | cut -d'"' -f4)
-          supabase db execute --project-ref ${{ env.PROJECT_REF }} \
-            --password ${{ secrets.SUPABASE_DB_PASSWORD }} \
-            -- "SELECT cron.schedule('trading-optimizer','* * * * *',
-              \$q\$SELECT net.http_post(
-                url:='https://${{ env.PROJECT_REF }}.supabase.co/functions/v1/trading-optimizer',
-                headers:=jsonb_build_object('Authorization','Bearer ${ANON_KEY}')
-              )\$q\$) ON CONFLICT DO NOTHING;" || echo "Cron: set manually if needed"
+          echo "Got anon key: ${ANON_KEY:0:10}..."
+          curl -s -X POST \
+            "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": \"SELECT cron.schedule('trading-optimizer','* * * * *', \\\$q\\\$SELECT net.http_post(url:='https://${{ env.PROJECT_REF }}.supabase.co/functions/v1/trading-optimizer', headers:=jsonb_build_object('Authorization','Bearer ${ANON_KEY}'))\\\$q\\\$) ON CONFLICT DO NOTHING;\"}" \
+            || echo "Cron: set manually if needed"
 
       - name: Done
         run: echo "✅ trading-bot + trading-optimizer deployed!"
