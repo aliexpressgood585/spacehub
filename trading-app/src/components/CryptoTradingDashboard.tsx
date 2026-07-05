@@ -430,8 +430,9 @@ export default function CryptoTradingDashboard() {
     return ()=>{dead=true;ws?.close()}
   },[processTick])
 
-  // Local persistence (fallback when Supabase is off)
+  // Local persistence (fallback when Supabase is off — skip entirely in cloud mode)
   useEffect(()=>{
+    if(SUPA_URL&&SUPA_KEY) return   // cloud mode: always use Supabase, ignore localStorage
     try{
       const raw=localStorage.getItem('cbot_state_v2')
       if(raw){
@@ -504,7 +505,8 @@ export default function CryptoTradingDashboard() {
           if(status==='SUBSCRIBED'){
             setSupaStatus('live');supaModeRef.current=true
           } else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){
-            setSupaStatus('error');supaModeRef.current=false
+            setSupaStatus('error')
+            if(!SUPA_URL||!SUPA_KEY) supaModeRef.current=false
             // Retry realtime connection after 10s
             retryTimeout=setTimeout(()=>{ supa.removeChannel(ch); subscribe() },10_000)
           }
@@ -526,7 +528,8 @@ export default function CryptoTradingDashboard() {
     return ()=>{
       clearInterval(poll);clearInterval(syncPoll)
       if(retryTimeout) clearTimeout(retryTimeout)
-      supa.removeChannel(ch);supaModeRef.current=false
+      supa.removeChannel(ch)
+      if(!SUPA_URL||!SUPA_KEY) supaModeRef.current=false
     }
   },[addLog])
 
@@ -596,7 +599,7 @@ export default function CryptoTradingDashboard() {
 
       {/* ══ TOP BAR ══ */}
       <div style={{display:'flex',flexWrap:'wrap' as const,gap:'5px',alignItems:'center',marginBottom:'6px',...panel,padding:'7px 10px'}}>
-        <span style={{fontWeight:900,fontSize:'13px',color:C.pink,letterSpacing:'1px'}}>⚡ CRYPTO BOT PRO <span style={{fontSize:'8px',color:C.muted}}>v2.1</span></span>
+        <span style={{fontWeight:900,fontSize:'13px',color:C.pink,letterSpacing:'1px'}}>⚡ CRYPTO BOT PRO <span style={{fontSize:'8px',color:C.muted}}>v2.2</span></span>
         <span style={{padding:'1px 7px',borderRadius:'3px',fontSize:'10px',fontWeight:700,
           background:wsStatus==='live'?'rgba(0,232,122,0.15)':'rgba(255,51,80,0.15)',
           color:wsStatus==='live'?C.green:C.red,border:`1px solid ${wsStatus==='live'?C.green:C.red}`}}>
