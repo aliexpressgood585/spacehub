@@ -188,11 +188,6 @@ function detectSweep(
   return null
 }
 
-function isActiveSession(): boolean {
-  const h = new Date().getUTCHours()
-  return !(h >= 1 && h < 7)
-}
-
 function getCorrGroup(sym:string): number {
   for (let i=0; i<CORR_GROUPS.length; i++) {
     if (CORR_GROUPS[i].includes(sym)) return i
@@ -355,9 +350,6 @@ Deno.serve(async (req) => {
     const now = Date.now()
     const R = RISK[state.risk as RiskKey] || RISK.medium
 
-    // Off-session (01-07 UTC) blocks NEW entries only — open positions
-    // must still be managed so SL/TP execute around the clock
-    const inSession = isActiveSession()
 
     const {data:recent} = await supabase
       .from('bot_trades').select('sym,pnl,closed_at,status').neq('status','OPEN')
@@ -503,7 +495,6 @@ Deno.serve(async (req) => {
         }
 
         // ── New entry ──────────────────────────────────────
-        if (!inSession) return  // 01-07 UTC: manage positions only, no new entries
         if (streakPaused) return
         if (openTrades.length>0) return
         if (symCooldown.has(sym)) return  // just closed here — avoid churn re-entry
