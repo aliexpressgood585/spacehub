@@ -72,19 +72,6 @@ function sessionFromHour(h: number): 'ASIAN' | 'EU' | 'US' | 'DEAD' {
   return 'DEAD'
 }
 
-// ─── Telegram ─────────────────────────────────────────────────────────────────
-async function sendTelegram(msg: string) {
-  const token  = Deno.env.get('TELEGRAM_BOT_TOKEN')
-  const chatId = Deno.env.get('TELEGRAM_CHAT_ID')
-  if (!token || !chatId) return
-  try {
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text: msg, parse_mode: 'HTML' }),
-    })
-  } catch {}
-}
 
 // ─── stats ────────────────────────────────────────────────────────────────────
 interface Seg { count: number; wins: number; totalPnl: number; winPnl: number; lossPnl: number }
@@ -352,16 +339,6 @@ Rules:
       reasoning,
     }),
   ])
-
-  const msg = (
-    `🤖 <b>Optimizer — ${tradeCount} trades | ${newTradesSinceLast} new</b>\n` +
-    `📊 WR: ${(ov.wr * 100).toFixed(0)}% | PF: ${ov.pf} | avgPnl: $${ov.avgPnl}\n` +
-    `🕐 Sessions ×: AS=${safe.session_params.ASIAN.sizeMult} EU=${safe.session_params.EU.sizeMult} US=${safe.session_params.US.sizeMult}\n` +
-    `📈 tpR: L=${safe.vol_params.LOW.tpR} M=${safe.vol_params.MEDIUM.tpR} H=${safe.vol_params.HIGH.tpR}\n` +
-    `⏱ maxHold: ${safe.max_hold_min}m\n` +
-    `💡 ${reasoning}`
-  )
-  await sendTelegram(msg)
 
   return new Response(JSON.stringify({ ok: true, claudeCalled: true, reasoning, params: safe }), {
     headers: { 'Content-Type': 'application/json' },

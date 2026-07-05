@@ -325,17 +325,7 @@ async function fetch1hBias(sym: string): Promise<'BULL'|'BEAR'|'NEUTRAL'> {
   } catch { return 'NEUTRAL' }
 }
 
-async function sendTelegram(msg: string): Promise<void> {
-  const token  = Deno.env.get('TELEGRAM_BOT_TOKEN')
-  const chatId = Deno.env.get('TELEGRAM_CHAT_ID')
-  if (!token || !chatId) return
-  try {
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({chat_id:chatId, text:msg, parse_mode:'HTML'})
-    })
-  } catch {}
-}
+
 
 function computeAdaptive(trades: any[]): {
   minScore:number; vpocDist:number; sideFilter:'LONG'|'SHORT'|'BOTH'
@@ -507,12 +497,6 @@ Deno.serve(async (req) => {
         market_regime: 'v21_5M',
         updated_at: new Date().toISOString()
       }).eq('id',1)
-      await sendTelegram(
-        `🔄 <b>HARD RESET</b>\n`+
-        `יתרה חדשה: $${newBalance}\n`+
-        `כל הטריידים נמחקו\n`+
-        `v21 מתחיל מחדש 🚀`
-      )
       return new Response(JSON.stringify({ok:true,msg:'RESET DONE',balance:newBalance,trades_deleted:true}),
         {headers:{'Content-Type':'application/json'}})
     }
@@ -546,15 +530,11 @@ Deno.serve(async (req) => {
       const openList=(openTrades||[]).map((t:any)=>`${t.sym} ${t.side}`).join(', ')||'None'
       const modeTag=paperMode?'📋 PAPER':'💵 LIVE'
       const msg=(
-        `📡 <b>CryptoBot v21 [5m] ${modeTag}</b>\n`+
-        `💰 Balance: $${Number(state.balance).toFixed(2)}\n`+
-        `📂 Open: ${openTrades?.length||0} — ${openList}\n`+
-        `⚡ Active: ${state.active?'✅':'❌'}\n`+
-        `📈 Streak: ${state.streak||0}\n`+
-        `🕐 Session: ${session} (size×${sp.sizeMult})\n`+
-        `⏱ ${new Date().toUTCString()}`
+        `CryptoBot v21 [5m] ${modeTag} | `+
+        `Balance: $${Number(state.balance).toFixed(2)} | `+
+        `Open: ${openTrades?.length||0} — ${openList} | `+
+        `Session: ${session} | ${new Date().toUTCString()}`
       )
-      await sendTelegram(msg)
       return new Response(JSON.stringify({ok:true,msg}),{headers:{'Content-Type':'application/json'}})
     }
 
@@ -631,38 +611,8 @@ Deno.serve(async (req) => {
 
     if (circuitBreakerActive) {
       log.push(`CIRCUIT_BREAKER active — managing open positions only`)
-      await sendTelegram(
-        `🚨 <b>CIRCUIT BREAKER</b>\n`+
-        `יתרה: $${balance.toFixed(2)} (${(((INITIAL_BALANCE-balance)/INITIAL_BALANCE)*100).toFixed(1)}% drawdown)\n`+
-        `כניסות חדשות חסומות — ניהול פוזיציות פתוחות ממשיך`
-      )
     }
 
-    if (streak===R.streakLimit) {
-      await sendTelegram(
-        `⚠️ <b>STREAK PAUSE</b>\n`+
-        `${streak} הפסדים ברצף (מגבלה: ${R.streakLimit})\n`+
-        `מחכה ${STREAK_PAUSE_MS/60000} דקות לפני כניסות חדשות\n`+
-        `💰 יתרה: $${balance.toFixed(2)}`
-      )
-    }
-
-    if (needDailySummary && dayTradesRaw && (dayTradesRaw as any[]).length>0) {
-      const dt=dayTradesRaw as any[]
-      const dWins=dt.filter(t=>Number(t.pnl)>0).length
-      const dPnl =dt.reduce((a,t)=>a+Number(t.pnl),0)
-      await sendTelegram(
-        `📊 <b>סיכום יומי — CryptoBot v21</b>\n`+
-        `עסקאות: ${dt.length} | ✅ ${dWins} ❌ ${dt.length-dWins}\n`+
-        `WIN rate: ${((dWins/dt.length)*100).toFixed(0)}%\n`+
-        `P&L: ${dPnl>=0?'+':''}$${dPnl.toFixed(2)}\n`+
-        `💰 יתרה: $${balance.toFixed(2)}\n`+
-        `BTC: ${btcBias} (${btcRegime}) | F&G: ${fearGreed}\n`+
-        `ADAPT sc>=${adaptMinScore} vpoc<=${(adaptVpocDist*100).toFixed(1)}% side=${adaptSideFilter}\n`+
-        `🚫 Blacklist: ${dynamicBlacklist.size>0?[...dynamicBlacklist].join(', '):'none'}\n`+
-        `🎯 Top: ${topCoins.slice(0,3).map(([s,v])=>`${s}(${v.score.toFixed(0)})`).join(', ')||'none'}`
-      )
-    }
 
     const {data:allOpen}=await supabase.from('bot_trades').select('*').eq('status','OPEN')
     const openBySymbol:Record<string,any[]>={}
@@ -733,11 +683,6 @@ Deno.serve(async (req) => {
                 size:halfSize,trail_sl:entry,partial_done:true
               }).eq('id',t.id)
               log.push(`PARTIAL ${sym} ${t.side} @${price.toFixed(4)} ${dynamicPartialR}R pnl=${partialPnl.toFixed(2)}`)
-              await sendTelegram(
-                `🎯 <b>PARTIAL TP ${sym} ${t.side}</b>\n`+
-                `@$${price.toFixed(4)} (${dynamicPartialR}R)\n`+
-                `+$${partialPnl.toFixed(2)}`
-              )
               return
             }
           }
@@ -763,12 +708,6 @@ Deno.serve(async (req) => {
             }).eq('id',t.id)
             const modeTag=t.mtf?'SWEEP':'RANGE'
             log.push(`CLOSE ${sym} ${t.side} ${final} [${modeTag}] pnl=${pnl.toFixed(2)} ${Math.round(ageMs/60000)}m`)
-            await sendTelegram(
-              `${pnl>0?'✅':'❌'} <b>CLOSE ${sym} ${t.side} ${final}</b>\n`+
-              `@$${price.toFixed(4)} | ${Math.round(ageMs/60000)}m | ${modeTag}\n`+
-              `P&L: ${pnl>=0?'+':''}$${pnl.toFixed(2)}\n`+
-              `💰 יתרה: $${balance.toFixed(2)}`
-            )
           } else if (t.mtf) {
             // v21: Step trailing — tighter as profit grows
             const profitR=origSlDist>0?(price-entry)*dirM/origSlDist:0
@@ -958,13 +897,6 @@ Deno.serve(async (req) => {
         const modeLabel=entry.mode==='SWEEP'?'📊 SWEEP':'🔄 RANGE'
         const coinStr=coinML?` coin×${coinKellyBoost.toFixed(2)}(${coinML.score.toFixed(0)})`:'(new)'
         log.push(`OPEN ${sym} ${entry.side} [${entry.mode}] @${price.toFixed(6)} sl=${(slPct*100).toFixed(3)}% $${notional.toFixed(0)} SC=${smScore} ${volRegime} ${session} 1H=${h1bias}${coinStr}`)
-        await sendTelegram(
-          `🟢 <b>OPEN ${sym} ${entry.side} ${modeLabel}</b>\n`+
-          `@$${price.toFixed(6)} | SL ${(slPct*100).toFixed(3)}%\n`+
-          `$${notional.toFixed(0)} | Score: ${smScore} | ${volRegime} | ${session}\n`+
-          `1H: ${h1bias} | CoinScore: ${coinML?coinML.score.toFixed(0):'new'} | kelly×${(kellyMult*coinKellyBoost).toFixed(2)}\n`+
-          `💰 יתרה: $${balance.toFixed(2)}`
-        )
 
       } catch(e) {
         log.push(`ERR ${sym}: ${String(e).slice(0,40)}`)
