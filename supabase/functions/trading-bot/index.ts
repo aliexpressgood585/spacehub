@@ -38,19 +38,19 @@ const CORR_GROUPS: string[][] = [
   ['XRP','XLM','HBAR'],
   ['BNB'],['BTC'],['ETH'],
 ]
-const MAX_PER_GROUP  = 3
-const MIN_SCORE      = 3
-const VPOC_MAX_DIST  = 0.018
+const MAX_PER_GROUP  = 5
+const MIN_SCORE      = 2
+const VPOC_MAX_DIST  = 0.030
 
 // v21: Dynamic partial TP by vol regime
 const PARTIAL_TP_BY_VOL = { LOW: 0.8, MEDIUM: 1.2, HIGH: 1.5 }
 
 // v21: Session-based sizing + strictness
 const SESSION_PARAMS = {
-  ASIAN: { sizeMult: 0.7, minScoreBonus: 1 },
-  EU:    { sizeMult: 1.0, minScoreBonus: 0 },
-  US:    { sizeMult: 1.0, minScoreBonus: 0 },
-  DEAD:  { sizeMult: 0.8, minScoreBonus: 0 },
+  ASIAN: { sizeMult: 1.0, minScoreBonus: 0 },
+  EU:    { sizeMult: 1.2, minScoreBonus: 0 },
+  US:    { sizeMult: 1.2, minScoreBonus: 0 },
+  DEAD:  { sizeMult: 1.0, minScoreBonus: 0 },
 }
 function getSession(h: number): 'ASIAN'|'EU'|'US'|'DEAD' {
   if (h >= 0  && h < 8)  return 'ASIAN'
@@ -91,6 +91,7 @@ const RISK = {
   low:    { riskPct:0.010, streakLimit:5 },
   medium: { riskPct:0.018, streakLimit:6 },
   high:   { riskPct:0.030, streakLimit:8 },
+  ultra:  { riskPct:0.080, streakLimit:12 },
 } as const
 type RiskKey = keyof typeof RISK
 
@@ -98,14 +99,14 @@ const FEE             = 0.001
 const SWING_N         = 5
 const SWING_LOOKBACK  = 60
 const SWEEP_LOOKBACK  = 5
-const MAX_HOLD_MIN    = 360
-const STREAK_PAUSE_MS = 60*60_000
-const MAX_NOTIONAL_PCT= 0.25
+const MAX_HOLD_MIN    = 240
+const STREAK_PAUSE_MS = 15*60_000
+const MAX_NOTIONAL_PCT= 0.50
 const FUNDING_EXTREME = 0.0003
 const MIN_SL_PCT      = 0.006
-const SYM_COOLDOWN_MS = 30*60_000
-const MAX_DD_STOP     = 0.25
-const INITIAL_BALANCE = 5_000
+const SYM_COOLDOWN_MS = 10*60_000
+const MAX_DD_STOP     = 0.80
+const INITIAL_BALANCE = 50
 
 const VOL_PARAMS = {
   LOW:    { slMult:2.0, tpR:2.2, trailBeR:0.8, trailAtr:0.6 },
@@ -337,11 +338,10 @@ function computeAdaptive(trades: any[]): {
   const wr  =wins/trades.length
 
   let minScore=MIN_SCORE, vpocDist=VPOC_MAX_DIST
-  if      (wr<0.20) { minScore=5; vpocDist=0.008 }
-  else if (wr<0.30) { minScore=4; vpocDist=0.012 }
-  else if (wr<0.40) { minScore=3; vpocDist=0.015 }
-  else if (wr>0.60) { minScore=2; vpocDist=0.022 }
-  else              { minScore=3; vpocDist=VPOC_MAX_DIST }
+  if      (wr<0.20) { minScore=3; vpocDist=0.015 }
+  else if (wr<0.30) { minScore=2; vpocDist=0.020 }
+  else if (wr>0.55) { minScore=1; vpocDist=0.035 }
+  else              { minScore=MIN_SCORE; vpocDist=VPOC_MAX_DIST }
 
   const longs  = trades.filter(t=>t.side==='LONG')
   const shorts = trades.filter(t=>t.side==='SHORT')
