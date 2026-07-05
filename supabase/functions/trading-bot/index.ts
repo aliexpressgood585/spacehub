@@ -523,6 +523,13 @@ Deno.serve(async (req) => {
 
     const paperMode = url.searchParams.get('paper')==='1' || state.paper_mode===true
 
+    // dynamic params from optimizer agent (falls back to hardcoded defaults)
+    const _bp   = (state.bot_params ?? {}) as Record<string,any>
+    const dynVol       = { ...VOL_PARAMS,         ...(_bp.vol_params         ?? {}) } as typeof VOL_PARAMS
+    const dynSession   = { ...SESSION_PARAMS,     ...(_bp.session_params     ?? {}) } as typeof SESSION_PARAMS
+    const dynPartialTP = { ...PARTIAL_TP_BY_VOL,  ...(_bp.partial_tp_by_vol  ?? {}) } as typeof PARTIAL_TP_BY_VOL
+    const dynMaxHold   = Number(_bp.max_hold_min  ?? MAX_HOLD_MIN)
+
     let balance = state.balance
     const now   = Date.now()
     const circuitBreakerActive = balance < INITIAL_BALANCE*(1-MAX_DD_STOP)
@@ -532,7 +539,7 @@ Deno.serve(async (req) => {
 
     // v21: Session detection
     const session = getSession(utcH)
-    const sp      = SESSION_PARAMS[session]
+    const sp      = dynSession[session]
 
     if (url.searchParams.get('status')==='1') {
       const {data:openTrades}=await supabase.from('bot_trades').select('sym,side').eq('status','OPEN')
@@ -685,7 +692,7 @@ Deno.serve(async (req) => {
         const atr      =calcATR(completed)
         const atrPct   =atr/price
         const volRegime=getVolRegime(atrPct)
-        const vp       =VOL_PARAMS[volRegime]
+        const vp       =dynVol[volRegime]
         const openTrades=openBySymbol[sym]||[]
 
         // v21: 5m price change for OI divergence
@@ -713,7 +720,7 @@ Deno.serve(async (req) => {
                           :slDist
 
           // v21: Dynamic partial TP R by current vol regime
-          const dynamicPartialR=PARTIAL_TP_BY_VOL[volRegime]
+          const dynamicPartialR=dynPartialTP[volRegime]
 
           if (!t.partial_done && origSlDist>0 && t.mtf) {
             const partialTPPrice=entry+origSlDist*dynamicPartialR*dirM
@@ -743,7 +750,7 @@ Deno.serve(async (req) => {
             if(price<=tp)  newStatus='TP'
             else if(price>=sl) newStatus=price<=entry?'TRAIL':'SL'
           }
-          if (!newStatus&&ageMs>MAX_HOLD_MIN*60_000) newStatus='TRAIL'
+          if (!newStatus&&ageMs>dynMaxHold*60_000) newStatus='TRAIL'
 
           if (newStatus) {
             const fav=(price-entry)/entry*dirM

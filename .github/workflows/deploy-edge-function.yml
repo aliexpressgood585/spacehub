@@ -6,11 +6,10 @@ on:
     paths:
       - 'supabase/functions/**'
   workflow_dispatch:
-    inputs:
-      supabase_token:
-        description: 'Supabase Access Token'
-        required: false
-        type: string
+
+env:
+  SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+  PROJECT_REF: mdvheizhciuvqychtwxr
 
 jobs:
   deploy:
@@ -22,7 +21,40 @@ jobs:
         with:
           version: latest
 
+      - name: Login to Supabase
+        run: supabase login --token ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Link project
+        run: supabase link --project-ref ${{ env.PROJECT_REF }} --password ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+      - name: Run SQL migrations
+        run: supabase db push --password ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+      - name: Set optimizer secrets
+        run: |
+          supabase secrets set \
+            ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }} \
+            --project-ref ${{ env.PROJECT_REF }}
+
       - name: Deploy trading-bot function
-        run: supabase functions deploy trading-bot --project-ref mdvheizhciuvqychtwxr
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ inputs.supabase_token || secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase functions deploy trading-bot --project-ref ${{ env.PROJECT_REF }}
+
+      - name: Deploy trading-optimizer function
+        run: supabase functions deploy trading-optimizer --project-ref ${{ env.PROJECT_REF }} --no-verify-jwt
+
+      - name: Setup cron job
+        run: |
+          ANON_KEY=$(curl -s \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/api-keys" \
+            | grep -o '"anon"[^}]*"apiKey":"[^"]*"' | grep -o '"apiKey":"[^"]*"' | cut -d'"' -f4)
+          supabase db execute --project-ref ${{ env.PROJECT_REF }} \
+            --password ${{ secrets.SUPABASE_DB_PASSWORD }} \
+            -- "SELECT cron.schedule('trading-optimizer','* * * * *',
+              \$q\$SELECT net.http_post(
+                url:='https://${{ env.PROJECT_REF }}.supabase.co/functions/v1/trading-optimizer',
+                headers:=jsonb_build_object('Authorization','Bearer ${ANON_KEY}')
+              )\$q\$) ON CONFLICT DO NOTHING;" || echo "Cron: set manually if needed"
+
+      - name: Done
+        run: echo "✅ trading-bot + trading-optimizer deployed!"
