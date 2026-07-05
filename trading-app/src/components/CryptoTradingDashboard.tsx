@@ -75,7 +75,7 @@ const RISK = {
 }
 const MIN_SCORE=3, MIN_ADX=12, COOLDOWN_MS=60_000, STALE_MS=45*60_000, STALE_BAND=0.0015
 const TP_MULT=2.4, PARTIAL_AT=1.2, MAX_NOTIONAL_PCT=0.15, CLOSE_COOLDOWN_MS=60_000, COIN_DISABLE_LOSSES=7
-const INIT_BAL=500, MAX_BARS=600, BAR_MS=60_000, FEE_PCT=0.001
+const INIT_BAL=500, MAX_BARS=600, BAR_MS=60_000, FEE_PCT=0.001, LEVERAGE=10
 
 const COINS = [
   {sym:'BTC',ws:'btcusdt'},{sym:'ETH',ws:'ethusdt'},{sym:'SOL',ws:'solusdt'},
@@ -203,9 +203,10 @@ function drawBubbles(canvas:HTMLCanvasElement,allSigs:Record<string,Sig>,prices:
 }
 
 // ─── live position card ───────────────────────────────────────────────────────
-function LivePosition({t,live,fmtP}:{t:Trade;live?:{cur:number;pnl:number;pct:number};fmtP:(p:number)=>string}){
+function LivePosition({t,live,fmtP,onClose}:{t:Trade;live?:{cur:number;pnl:number;pct:number};fmtP:(p:number)=>string;onClose?:()=>void}){
   const cur  = live?.cur ?? t.entry
-  const pnl  = live?.pnl ?? ((t.side==='LONG'?(cur-t.entry):(t.entry-cur))*t.size - t.fee)
+  const dirM = t.side==='LONG'?1:-1
+  const pnl  = live?.pnl ?? ((cur-t.entry)*dirM*t.size*LEVERAGE-t.fee-cur*t.size*FEE_PCT*LEVERAGE)
   const pct  = live?.pct ?? 0
   const col  = pnl>=0?C.green:C.red
 
@@ -231,14 +232,23 @@ function LivePosition({t,live,fmtP}:{t:Trade;live?:{cur:number;pnl:number;pct:nu
       boxShadow:`0 4px 20px ${col}${flash?'18':'08'}`,
       transition:'border-color 0.2s,box-shadow 0.2s',
     }}>
-      {/* top row: symbol + side + live price */}
+      {/* top row: symbol + side + live price + close button */}
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'5px'}}>
         <span style={{color:t.side==='LONG'?C.green:C.red,fontWeight:900,fontSize:'12px'}}>
           {t.side==='LONG'?'▲':'▼'} {t.sym}
         </span>
-        <span style={{fontFamily:'monospace',fontSize:'11px',color:C.text,fontWeight:700}}>
-          {fmtP(cur)}
-        </span>
+        <div style={{display:'flex',alignItems:'center',gap:'5px'}}>
+          <span style={{fontFamily:'monospace',fontSize:'11px',color:C.text,fontWeight:700}}>
+            {fmtP(cur)}
+          </span>
+          {onClose&&(
+            <button onClick={onClose} className="nx-btn" style={{
+              background:'rgba(255,58,94,0.12)',border:'1px solid rgba(255,58,94,0.35)',
+              borderRadius:'4px',color:'#ff3a5e',fontSize:'9px',fontWeight:700,
+              padding:'2px 5px',lineHeight:1,
+            }}>✕</button>
+          )}
+        </div>
       </div>
       {/* pnl row */}
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:'4px'}}>
@@ -417,6 +427,21 @@ export default function CryptoTradingDashboard() {
     setExecLog([...logRef.current])
   },[])
 
+  const handleManualClose=useCallback(async(t:Trade,livePnl?:number)=>{
+    const supa=supaRef.current
+    if(!supa)return
+    const live=livePositions[t.id]
+    const exitPrice=live?.cur??t.entry
+    const dirM=t.side==='LONG'?1:-1
+    const pnl=livePnl??(( exitPrice-t.entry)*dirM*t.size*LEVERAGE-t.fee-exitPrice*t.size*FEE_PCT*LEVERAGE)
+    const pnlPct=(exitPrice-t.entry)/t.entry*dirM*100
+    await supa.from('bot_trades').update({
+      status:'MANUAL',exit_price:exitPrice,pnl,pnl_pct:pnlPct,
+      closed_at:new Date().toISOString(),
+    }).eq('id',t.id).eq('status','OPEN')
+    addLog(`✕ סגור ידני ${t.sym} @ ${exitPrice>=100?exitPrice.toFixed(2):exitPrice.toFixed(5)} ${pnl>=0?'+':''}${pnl.toFixed(2)}$`)
+  },[livePositions,addLog])
+
   const openTrade=useCallback((sym:string,side:'LONG'|'SHORT',price:number,s:Sig)=>{
     if(supaModeRef.current)return
     const now=Date.now()
@@ -527,8 +552,9 @@ export default function CryptoTradingDashboard() {
       setLivePositions(prev=>{
         const next={...prev}
         for(const ot of openForSym){
-          const pnl=(ot.side==='LONG'?(price-ot.entry):(ot.entry-price))*ot.size-ot.fee
-          const pct=(price-ot.entry)/ot.entry*(ot.side==='LONG'?1:-1)*100
+          const dirM=ot.side==='LONG'?1:-1
+          const pnl=(price-ot.entry)*dirM*ot.size*LEVERAGE-ot.fee-price*ot.size*FEE_PCT*LEVERAGE
+          const pct=(price-ot.entry)/ot.entry*dirM*100
           next[ot.id]={cur:price,pnl,pct}
         }
         return next
@@ -955,7 +981,8 @@ export default function CryptoTradingDashboard() {
           </div>
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(170px,1fr))',gap:'6px'}}>
             {openTrades.map(t=>(
-              <LivePosition key={t.id} t={t} live={livePositions[t.id]} fmtP={fmtP}/>
+              <LivePosition key={t.id} t={t} live={livePositions[t.id]} fmtP={fmtP}
+                onClose={supaModeRef.current?()=>handleManualClose(t):undefined}/>
             ))}
           </div>
         </div>

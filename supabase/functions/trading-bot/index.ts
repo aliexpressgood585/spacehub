@@ -99,7 +99,7 @@ const SWING_LOOKBACK  = 60
 const SWEEP_LOOKBACK  = 5
 const MAX_HOLD_MIN    = 180
 const STREAK_PAUSE_MS = 10*60_000
-const MAX_NOTIONAL_PCT= 0.60
+const MAX_NOTIONAL_PCT= 0.12
 const FUNDING_EXTREME = 0.0003
 const MIN_SL_PCT      = 0.005
 const SYM_COOLDOWN_MS = 5*60_000
@@ -185,7 +185,7 @@ function detectRegime(bars: Bar[]): 'TRENDING'|'RANGING'|'SQUEEZE' {
 // Params tuned live by trading-optimizer agent
 function findSimpleEntry(
   bars: Bar[], price: number,
-  rsiOversold=38, rsiOverbought=62, bbProx=1.01
+  rsiOversold=42, rsiOverbought=58, bbProx=1.02
 ): {side:'LONG'|'SHORT'; slDist:number}|null {
   if (bars.length < 30) return null
   const closes = bars.map(b=>b.close)
@@ -213,8 +213,8 @@ function findSimpleEntry(
   if (prevE9 <= prevE21 && curE9 > curE21) longSig++
   if (prevE9 >= prevE21 && curE9 < curE21) shortSig++
 
-  if (longSig >= 2)  return { side:'LONG',  slDist: atr * 1.5 }
-  if (shortSig >= 2) return { side:'SHORT', slDist: atr * 1.5 }
+  if (longSig >= 2)  return { side:'LONG',  slDist: atr * 1.2 }
+  if (shortSig >= 2) return { side:'SHORT', slDist: atr * 1.2 }
   return null
 }
 
@@ -764,10 +764,10 @@ Deno.serve(async (req) => {
         if (atrPct > 0.02 || atrPct < 0.00003) return
         if (balance < 10) return
 
-        const dynRsiOversold   = Number(_bp.rsi_oversold   ?? 38)
-        const dynRsiOverbought = Number(_bp.rsi_overbought ?? 62)
-        const dynBbProx        = Number(_bp.bb_proximity   ?? 1.01)
-        const dynTpR           = Number(_bp.tp_r           ?? 2.0)
+        const dynRsiOversold   = Number(_bp.rsi_oversold   ?? 42)
+        const dynRsiOverbought = Number(_bp.rsi_overbought ?? 58)
+        const dynBbProx        = Number(_bp.bb_proximity   ?? 1.02)
+        const dynTpR           = Number(_bp.tp_r           ?? 2.5)
 
         const simpleEntry = findSimpleEntry(completed, price, dynRsiOversold, dynRsiOverbought, dynBbProx)
         if (!simpleEntry) return
