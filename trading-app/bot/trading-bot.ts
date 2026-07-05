@@ -11,9 +11,24 @@ const FAPI         = 'https://fapi.binance.com/fapi/v1'
 const FAPI_DATA    = 'https://fapi.binance.com/futures/data'
 
 const COINS = [
-  'BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','DOT',
-  'NEAR','UNI','ATOM','LTC','BCH','ARB','OP','INJ','SUI','TON',
-  'PEPE','WIF','APT','FET','RNDR'
+  // Layer 1 & Major
+  'BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LTC','BCH',
+  'DOT','ATOM','NEAR','TRX','HBAR','ICP','FIL','VET','XLM','EOS',
+  // DeFi
+  'LINK','UNI','AAVE','GRT','SNX','CRV','MKR','COMP','SUSHI','1INCH',
+  'YFI','BAL','UMA','LDO','DYDX','PERP','RUNE','BAND','API3','KAVA',
+  // L2 & Ecosystem
+  'ARB','OP','INJ','SUI','TON','APT','SEI','TIA','STRK','IMX',
+  'METIS','BLUR','MAGIC','ZK','MANTA',
+  // AI & Data
+  'FET','RNDR','OCEAN','GTC','RLC','NMR','CTSI',
+  // Gaming & Metaverse
+  'SAND','MANA','AXS','GALA','ENJ','CHZ','FLOW','ALICE','TLM',
+  // Meme & New
+  'PEPE','WIF','BONK','FLOKI','NFID','MEME',
+  // Other liquid
+  'FTM','EGLD','THETA','ALGO','ZIL','JASMY','RSR','BAT','ZRX',
+  'JUP','PYTH','JTO','ORDI','ACE','XAI',
 ]
 
 const RISK = {
