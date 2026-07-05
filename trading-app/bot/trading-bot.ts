@@ -1,7 +1,9 @@
 // ════════════════════════════════════════════════════════
-// CryptoBot v16 — 1M Scalper (fee-aware)
+// CryptoBot v17 — 1M Scalper + Telegram + Self-Optimization
 // Liquidity sweeps on 1-minute candles, 5M MTF confirm
 // Fast entries, tight SL, partial TP at 1.2×R
+// Telegram alerts on every trade event + daily summary
+// Adaptive MIN_SCORE + VPOC_DIST from last 100 trades
 // ════════════════════════════════════════════════════════
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
@@ -29,9 +31,9 @@ const CORR_GROUPS: string[][] = [
   ['BNB'],['BTC'],['ETH'],
 ]
 const MAX_PER_GROUP  = 3
-const MIN_SCORE      = 2     // low threshold for 1M scalping
+const MIN_SCORE      = 2     // base threshold — overridden by adaptMinScore
 const PARTIAL_TP_R   = 1.2
-const VPOC_MAX_DIST  = 0.020 // 2% max distance for 1M
+const VPOC_MAX_DIST  = 0.020 // base 2% — overridden by adaptVpocDist
 
 async function fetchAllLiquidCoins(minVolUSD = 5_000_000): Promise<string[]> {
   try {
@@ -330,6 +332,33 @@ async function runBacktest(): Promise<object> {
   return results
 }
 
+// ── Telegram ───────────────────────────────────────────────
+async function sendTelegram(msg: string): Promise<void> {
+  const token  = Deno.env.get('TELEGRAM_BOT_TOKEN')
+  const chatId = Deno.env.get('TELEGRAM_CHAT_ID')
+  if (!token || !chatId) return
+  try {
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: msg, parse_mode: 'HTML' })
+    })
+  } catch {}
+}
+
+// ── Self-optimization: adapt thresholds from last 100 trades ──
+function computeAdaptive(trades: any[]): { minScore: number; vpocDist: number } {
+  if (!trades || trades.length < 30) return { minScore: MIN_SCORE, vpocDist: VPOC_MAX_DIST }
+  const wins = trades.filter(t => Number(t.pnl) > 0).length
+  const wr   = wins / trades.length
+  // Tighten when WIN rate is poor, loosen when WIN rate is strong
+  if (wr < 0.20) return { minScore: 4, vpocDist: 0.010 }
+  if (wr < 0.28) return { minScore: 3, vpocDist: 0.015 }
+  if (wr > 0.55) return { minScore: 1, vpocDist: 0.025 }
+  if (wr > 0.45) return { minScore: 2, vpocDist: 0.022 }
+  return { minScore: MIN_SCORE, vpocDist: VPOC_MAX_DIST }
+}
+
 Deno.serve(async (req) => {
   try {
     const url = new URL(req.url)
@@ -348,9 +377,26 @@ Deno.serve(async (req) => {
       {headers:{'Content-Type':'application/json'}})
 
     let balance = state.balance
-    const now = Date.now()
-    const R = RISK[state.risk as RiskKey] || RISK.medium
+    const now  = Date.now()
+    const utcH = new Date().getUTCHours()
+    const utcM = new Date().getUTCMinutes()
+    const R    = RISK[state.risk as RiskKey] || RISK.medium
 
+    // Manual status push to Telegram
+    if (url.searchParams.get('status') === '1') {
+      const {data:openTrades} = await supabase.from('bot_trades').select('sym,side').eq('status','OPEN')
+      const openList = (openTrades||[]).map((t:any)=>`${t.sym} ${t.side}`).join(', ')||'None'
+      const msg = (
+        `📡 <b>CryptoBot v17</b>\n` +
+        `💰 Balance: $${Number(state.balance).toFixed(2)}\n` +
+        `📂 Open: ${openTrades?.length||0} — ${openList}\n` +
+        `⚡ Active: ${state.active ? '✅' : '❌'}\n` +
+        `📈 Streak: ${state.streak||0}\n` +
+        `⏱ ${new Date().toUTCString()}`
+      )
+      await sendTelegram(msg)
+      return new Response(JSON.stringify({ok:true,msg}),{headers:{'Content-Type':'application/json'}})
+    }
 
     const {data:recent} = await supabase
       .from('bot_trades').select('sym,pnl,closed_at,status').neq('status','OPEN')
@@ -383,13 +429,29 @@ Deno.serve(async (req) => {
     const log:string[] = []
     if (streakPaused) log.push(`STREAK PAUSE ${streak}`)
 
-    const [btcBars, allFunding, COINS, fearGreed] = await Promise.all([
+    const needDailySummary = utcH === 0 && utcM < 2
+    const [btcBars, allFunding, COINS, fearGreed, trades100, dayTradesRaw] = await Promise.all([
       fetchBars('BTC','1m',30),
       fetchAllFundingRates(),
       fetchAllLiquidCoins(),
-      fetchFearGreed()
+      fetchFearGreed(),
+      // last 100 closed trades for self-optimization
+      supabase.from('bot_trades').select('pnl').neq('status','OPEN')
+        .order('closed_at',{ascending:false}).limit(100)
+        .then(r => r.data || []),
+      // last 24h trades for daily summary (only at midnight UTC)
+      needDailySummary
+        ? supabase.from('bot_trades').select('pnl').neq('status','OPEN')
+            .gte('closed_at', new Date(now - 86400_000).toISOString())
+            .then(r => r.data || [])
+        : Promise.resolve(null)
     ])
-    log.push(`COINS=${COINS.length} FG=${fearGreed} v16-1M`)
+
+    const { minScore: adaptMinScore, vpocDist: adaptVpocDist } =
+      computeAdaptive(trades100 as any[])
+
+    log.push(`COINS=${COINS.length} FG=${fearGreed} v17`)
+    log.push(`ADAPT sc>=${adaptMinScore} vpoc<=${(adaptVpocDist*100).toFixed(1)}% kelly=${kellyMult.toFixed(2)}`)
 
     let btcBias:'BULL'|'BEAR'|'NEUTRAL'='NEUTRAL'
     if (btcBars.length>=20) {
@@ -398,7 +460,33 @@ Deno.serve(async (req) => {
       if(rsi>55&&e9>e21) btcBias='BULL'
       else if(rsi<45&&e9<e21) btcBias='BEAR'
     }
-    log.push(`BTC=${btcBias} kelly=${kellyMult.toFixed(2)}`)
+    log.push(`BTC=${btcBias}`)
+
+    // Streak pause Telegram alert (fires once when streak hits the limit)
+    if (streak === R.streakLimit) {
+      await sendTelegram(
+        `⚠️ <b>STREAK PAUSE</b>\n` +
+        `${streak} הפסדים ברצף (מגבלה: ${R.streakLimit})\n` +
+        `מחכה ${STREAK_PAUSE_MS/60000} דקות לפני כניסות חדשות\n` +
+        `💰 יתרה: $${balance.toFixed(2)}`
+      )
+    }
+
+    // Daily summary at 00:00–00:01 UTC
+    if (needDailySummary && dayTradesRaw && (dayTradesRaw as any[]).length > 0) {
+      const dt   = dayTradesRaw as any[]
+      const dWins = dt.filter(t => Number(t.pnl) > 0).length
+      const dPnl  = dt.reduce((a,t) => a + Number(t.pnl), 0)
+      await sendTelegram(
+        `📊 <b>סיכום יומי — CryptoBot v17</b>\n` +
+        `עסקאות: ${dt.length} | ✅ ${dWins} ❌ ${dt.length - dWins}\n` +
+        `WIN rate: ${((dWins/dt.length)*100).toFixed(0)}%\n` +
+        `P&L: ${dPnl>=0?'+':''}$${dPnl.toFixed(2)}\n` +
+        `💰 יתרה: $${balance.toFixed(2)}\n` +
+        `BTC: ${btcBias} | F&G: ${fearGreed}\n` +
+        `ADAPT sc>=${adaptMinScore} vpoc<=${(adaptVpocDist*100).toFixed(1)}%`
+      )
+    }
 
     const {data:allOpen} = await supabase.from('bot_trades').select('*').eq('status','OPEN')
     const openBySymbol:Record<string,any[]>={}
@@ -453,6 +541,11 @@ Deno.serve(async (req) => {
                 size:halfSize, trail_sl:entry, partial_done:true
               }).eq('id',t.id)
               log.push(`PARTIAL ${sym} ${t.side} @${price.toFixed(4)} pnl=${partialPnl.toFixed(2)}`)
+              await sendTelegram(
+                `🎯 <b>PARTIAL TP ${sym} ${t.side}</b>\n` +
+                `@$${price.toFixed(4)}\n` +
+                `+$${partialPnl.toFixed(2)}`
+              )
               return
             }
           }
@@ -477,6 +570,12 @@ Deno.serve(async (req) => {
               pnl_pct:fav, closed_at:new Date().toISOString()
             }).eq('id',t.id)
             log.push(`CLOSE ${sym} ${t.side} ${final} pnl=${pnl.toFixed(2)} ${Math.round(ageMs/60000)}m`)
+            await sendTelegram(
+              `${pnl>0?'✅':'❌'} <b>CLOSE ${sym} ${t.side} ${final}</b>\n` +
+              `@$${price.toFixed(4)} | ${Math.round(ageMs/60000)}m\n` +
+              `P&L: ${pnl>=0?'+':''}$${pnl.toFixed(2)}\n` +
+              `💰 יתרה: $${balance.toFixed(2)}`
+            )
           } else {
             const profitR = slDist>0 ? (price-entry)*dirM/slDist : 0
             let newSL = sl
@@ -514,11 +613,11 @@ Deno.serve(async (req) => {
           if (sweep.side==='SHORT'&&btcBias==='BULL') return
         }
 
-        // VPOC on last 80 minutes
+        // VPOC on last 80 minutes — use adaptive distance
         const vpoc     = calcVPOC(completed.slice(-80))
         const vpocDist = Math.abs(vpoc-price)/price
         const vpocAligned = sweep.side==='LONG' ? vpoc>price : vpoc<price
-        if (!vpocAligned || vpocDist > VPOC_MAX_DIST) return
+        if (!vpocAligned || vpocDist > adaptVpocDist) return
 
         const funding = allFunding[sym]||0
         const fundingOk =
@@ -569,8 +668,9 @@ Deno.serve(async (req) => {
           (sweep.side==='SHORT'&&(obImbalance> 0.30||whalePressure> 0.40))
         if (contra) return
 
-        if (smScore < MIN_SCORE) {
-          log.push(`SKIP ${sym} sc=${smScore}`)
+        // Use adaptive MIN_SCORE
+        if (smScore < adaptMinScore) {
+          log.push(`SKIP ${sym} sc=${smScore}<${adaptMinScore}`)
           return
         }
 
@@ -600,6 +700,12 @@ Deno.serve(async (req) => {
           status:'OPEN', score:smScore, mtf:true, partial_done:false
         })
         log.push(`OPEN ${sym} ${sweep.side} @${price.toFixed(6)} sl=${(slPct*100).toFixed(3)}% $${notional.toFixed(0)} SC=${smScore} vol=${volRegime}`)
+        await sendTelegram(
+          `🟢 <b>OPEN ${sym} ${sweep.side}</b>\n` +
+          `@$${price.toFixed(6)} | SL ${(slPct*100).toFixed(3)}%\n` +
+          `$${notional.toFixed(0)} | Score: ${smScore}/${adaptMinScore} | ${volRegime}\n` +
+          `💰 יתרה: $${balance.toFixed(2)}`
+        )
 
       } catch(e) {
         log.push(`ERR ${sym}: ${String(e).slice(0,40)}`)
@@ -609,12 +715,12 @@ Deno.serve(async (req) => {
 
     await supabase.from('bot_state').update({
       balance, updated_at:new Date().toISOString(),
-      market_regime:'v16_1M_FEE', streak
+      market_regime:'v17_1M_ADAPT', streak
     }).eq('id',1)
 
     return new Response(JSON.stringify({
-      ok:true, v:16, openCount, streakPaused, streak, btcBias,
-      kelly:kellyMult, fearGreed, log
+      ok:true, v:17, openCount, streakPaused, streak, btcBias,
+      kelly:kellyMult, fearGreed, adaptMinScore, adaptVpocDist, log
     }), {headers:{'Content-Type':'application/json'}})
 
   } catch(e) {
