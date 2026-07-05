@@ -666,7 +666,7 @@ export default function CryptoTradingDashboard() {
         })
     }
     subscribe()
-    const funcUrl=`${SUPA_URL}/functions/v1/22a4b470-a2bc-4ed8-afe8-6b403cc46d66`
+    const funcUrl=`${SUPA_URL}/functions/v1/trading-bot`
     ;(window as unknown as Record<string,unknown>).__botFuncUrl=funcUrl
     const poll=setInterval(async()=>{
       if(!botRef.current)return

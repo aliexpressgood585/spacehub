@@ -45,7 +45,7 @@ jobs:
             --project-ref ${{ env.PROJECT_REF }}
 
       - name: Deploy trading-bot function
-        run: supabase functions deploy trading-bot --project-ref ${{ env.PROJECT_REF }}
+        run: supabase functions deploy trading-bot --project-ref ${{ env.PROJECT_REF }} --no-verify-jwt
 
       - name: Deploy trading-optimizer function
         run: supabase functions deploy trading-optimizer --project-ref ${{ env.PROJECT_REF }} --no-verify-jwt
@@ -70,10 +70,11 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d "{\"query\": \"
+              SELECT cron.schedule('trading-bot','* * * * *',\\\$q\\\$SELECT net.http_post(url:='${BASE}/trading-bot',headers:=${HEADERS})\\\$q\\\$) ON CONFLICT DO NOTHING;
               SELECT cron.schedule('trading-optimizer','* * * * *',\\\$q\\\$SELECT net.http_post(url:='${BASE}/trading-optimizer',headers:=${HEADERS})\\\$q\\\$) ON CONFLICT DO NOTHING;
               SELECT cron.schedule('market-regime','*/5 * * * *',\\\$q\\\$SELECT net.http_post(url:='${BASE}/market-regime-detector',headers:=${HEADERS})\\\$q\\\$) ON CONFLICT DO NOTHING;
               SELECT cron.schedule('portfolio-rebalancer','0 * * * *',\\\$q\\\$SELECT net.http_post(url:='${BASE}/portfolio-rebalancer',headers:=${HEADERS})\\\$q\\\$) ON CONFLICT DO NOTHING;
             \"}" || echo "Cron: set manually if needed"
 
       - name: Done
-        run: echo "✅ All 4 functions deployed! Crons: optimizer(1m) regime(5m) rebalancer(1h)"
+        run: echo "✅ All 4 functions deployed! Crons: bot(1m) optimizer(1m) regime(5m) rebalancer(1h)"
