@@ -1,0 +1,63 @@
+name: Reset Trading Bot Account
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "YES_RESET_ACCOUNT" to confirm complete account reset'
+        required: true
+        default: ''
+
+env:
+  PROJECT_REF: mdvheizhciuvqychtwxr
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "YES_RESET_ACCOUNT" ]; then
+            echo "❌ Reset cancelled: confirmation string does not match"
+            echo "Expected: YES_RESET_ACCOUNT"
+            echo "Got: ${{ github.event.inputs.confirm }}"
+            exit 1
+          fi
+          echo "✓ Confirmation verified"
+
+      - name: Call reset-account Edge Function
+        run: |
+          echo "🔄 Starting complete trading bot account reset..."
+
+          RESPONSE=$(curl -s -X POST \
+            "https://mdvheizhciuvqychtwxr.supabase.co/functions/v1/reset-account" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{}')
+
+          echo "Response: $RESPONSE"
+
+          # Check if response contains "ok": true
+          if echo "$RESPONSE" | grep -q '"ok":true'; then
+            echo "✓ Reset completed successfully"
+            exit 0
+          else
+            echo "❌ Reset failed"
+            exit 1
+          fi
+
+      - name: Log reset completion
+        if: success()
+        run: |
+          echo "=========================================="
+          echo "Trading Bot Account Reset Complete"
+          echo "=========================================="
+          echo "Timestamp: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          echo "Starting Balance: $1000"
+          echo "Peak Balance: $1000"
+          echo "Trade Count: 0"
+          echo "Win Rate: 0%"
+          echo "Profit Factor: 1.0"
+          echo "All learning data cleared"
+          echo "All trades deleted"
+          echo "=========================================="
