@@ -10,26 +10,30 @@ const BINANCE      = 'https://api.binance.com/api/v3'
 const FAPI         = 'https://fapi.binance.com/fapi/v1'
 const FAPI_DATA    = 'https://fapi.binance.com/futures/data'
 
-const COINS = [
-  // Layer 1 & Major
-  'BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LTC','BCH',
-  'DOT','ATOM','NEAR','TRX','HBAR','ICP','FIL','VET','XLM','EOS',
-  // DeFi
-  'LINK','UNI','AAVE','GRT','SNX','CRV','MKR','COMP','SUSHI','1INCH',
-  'YFI','BAL','UMA','LDO','DYDX','PERP','RUNE','BAND','API3','KAVA',
-  // L2 & Ecosystem
-  'ARB','OP','INJ','SUI','TON','APT','SEI','TIA','STRK','IMX',
-  'METIS','BLUR','MAGIC','ZK','MANTA',
-  // AI & Data
-  'FET','RNDR','OCEAN','GTC','RLC','NMR','CTSI',
-  // Gaming & Metaverse
-  'SAND','MANA','AXS','GALA','ENJ','CHZ','FLOW','ALICE','TLM',
-  // Meme & New
-  'PEPE','WIF','BONK','FLOKI','NFID','MEME',
-  // Other liquid
-  'FTM','EGLD','THETA','ALGO','ZIL','JASMY','RSR','BAT','ZRX',
-  'JUP','PYTH','JTO','ORDI','ACE','XAI',
+// FALLBACK אם Binance API נכשל
+const FALLBACK_COINS = [
+  'BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','DOT',
+  'NEAR','UNI','ATOM','LTC','BCH','ARB','OP','INJ','SUI','TON',
+  'PEPE','WIF','APT','FET','RNDR','TRX','HBAR','ICP','AAVE','GRT',
 ]
+
+// טוען דינמית את כל המטבעות הנזילים מ-Binance (מינ׳ $3M נפח יומי)
+async function fetchAllLiquidCoins(minVolUSD = 3_000_000): Promise<string[]> {
+  try {
+    const res = await fetch(`${BINANCE}/ticker/24hr`, {headers:{'User-Agent':'Mozilla/5.0'}})
+    if (!res.ok) return FALLBACK_COINS
+    const tickers: any[] = await res.json()
+    const EXCLUDE = /^(.*)(UP|DOWN|BULL|BEAR|HEDGE|3L|3S|5L|5S)USDT$/
+    return tickers
+      .filter(t =>
+        t.symbol.endsWith('USDT') &&
+        !EXCLUDE.test(t.symbol) &&
+        parseFloat(t.quoteVolume) >= minVolUSD
+      )
+      .sort((a,b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
+      .map(t => t.symbol.replace('USDT',''))
+  } catch { return FALLBACK_COINS }
+}
 
 const RISK = {
   low:    { riskPct:0.015, streakLimit:4 },
@@ -352,10 +356,12 @@ Deno.serve(async (req) => {
     const log:string[] = []
     if (streakPaused) log.push(`STREAK PAUSE ${streak}`)
 
-    const [btcBars, allFunding] = await Promise.all([
+    const [btcBars, allFunding, COINS] = await Promise.all([
       fetchBars('BTC','1h',30),
-      fetchAllFundingRates()
+      fetchAllFundingRates(),
+      fetchAllLiquidCoins()
     ])
+    log.push(`COINS=${COINS.length}`)
 
     let btcBias:'BULL'|'BEAR'|'NEUTRAL'='NEUTRAL'
     if (btcBars.length>=20) {
@@ -373,8 +379,11 @@ Deno.serve(async (req) => {
       openBySymbol[t.sym].push(t)
     }
 
-    for (const sym of COINS) {
-      try {
+    // עיבוד מקבילי: 15 מטבעות בו-זמנית לכיסוי כל השוק במהירות
+    const BATCH = 15
+    for (let b=0; b<COINS.length; b+=BATCH) {
+      await Promise.all(COINS.slice(b,b+BATCH).map(async (sym)=>{
+    try {
         const [bars1h, bars4h, priceRes] = await Promise.all([
           fetchBars(sym,'1h',65),
           fetchBars(sym,'4h',55),
@@ -561,11 +570,11 @@ Deno.serve(async (req) => {
         })
         log.push(`OPEN ${sym} ${sweep.side} @${price.toFixed(4)} sl=${(slPct*100).toFixed(2)}% $${notional.toFixed(0)} SM=${smScore} K=${kellyMult.toFixed(2)} vol=${volRegime}`)
 
-        await new Promise(r=>setTimeout(r,30))
       } catch(e) {
         log.push(`ERR ${sym}: ${String(e).slice(0,50)}`)
       }
-    }
+    })) // end Promise.all batch
+    } // end for batches
 
     await supabase.from('bot_state').update({
       balance, updated_at:new Date().toISOString(),
