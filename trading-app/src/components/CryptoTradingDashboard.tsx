@@ -620,7 +620,7 @@ export default function CryptoTradingDashboard() {
   },0)
   const totalPnl       = realizedPnl+unrealizedPnl
   const lockedNotional = openTrades.reduce((a,t)=>a+t.entry*t.size,0)
-  const totalValue     = balance+lockedNotional
+  const totalValue     = balance+lockedNotional+unrealizedPnl
   const sharpe         = calcSharpe(trades)
   const maxDD          = calcMaxDD(trades)
   const selInfo        = prices[selected]
