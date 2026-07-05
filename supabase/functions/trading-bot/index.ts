@@ -97,6 +97,7 @@ const RISK = {
 type RiskKey = keyof typeof RISK
 
 const FEE             = 0.001
+const LEVERAGE        = 10
 const SWING_N         = 5
 const SWING_LOOKBACK  = 60
 const SWEEP_LOOKBACK  = 5
@@ -693,7 +694,7 @@ Deno.serve(async (req) => {
             const partialHit=t.side==='LONG'?price>=partialTPPrice:price<=partialTPPrice
             if (partialHit) {
               const halfSize  =size/2
-              const partialPnl=(price-entry)*halfSize*dirM-price*halfSize*FEE
+              const partialPnl=(price-entry)*halfSize*dirM*LEVERAGE-price*halfSize*FEE*LEVERAGE
               balance+=entry*halfSize+partialPnl
               await supabase.from('bot_trades').update({
                 size:halfSize,trail_sl:entry,partial_done:true
@@ -715,7 +716,7 @@ Deno.serve(async (req) => {
 
           if (newStatus) {
             const fav=(price-entry)/entry*dirM
-            const pnl=fav*entry*size-Number(t.fee)-price*size*FEE
+            const pnl=fav*entry*size*LEVERAGE-Number(t.fee)-price*size*FEE*LEVERAGE
             const final=pnl>0&&newStatus==='SL'?'TP':newStatus
             balance+=entry*size+pnl; openCount--
             await supabase.from('bot_trades').update({
@@ -786,7 +787,7 @@ Deno.serve(async (req) => {
         const notional = Math.min(riskAmt / slPct, balance * MAX_NOTIONAL_PCT, balance * 0.95)
         if (notional < 5) return
 
-        const size = notional / price, fee = price * size * FEE
+        const size = notional / price, fee = price * size * FEE * LEVERAGE
         balance -= (notional + fee); openCount++
         if (gid >= 0) corrGroupCount[gid] = (corrGroupCount[gid] || 0) + 1
 
