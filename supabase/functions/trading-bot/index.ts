@@ -181,21 +181,46 @@ function detectRegime(bars: Bar[]): 'TRENDING'|'RANGING'|'SQUEEZE' {
 function findRangeEntry(
   bars: Bar[], price: number, vpoc: number
 ): {side:'LONG'|'SHORT'; tpPrice:number; slDist:number}|null {
-  if (bars.length < 30) return null
-  const closes = bars.slice(-30).map(b=>b.close)
+  if (bars.length < 20) return null
+  const closes = bars.slice(-20).map(b=>b.close)
   const bb  = calcBB(closes,20,2)
   const rsi = calcRsi(closes)
-  if (!bb.mid || bb.width>0.010) return null
+  if (!bb.mid) return null
   const atr = calcATR(bars.slice(-20))
-  if (price<=bb.lower*1.003 && rsi<38 && vpoc>price*1.001) {
-    const tpPrice=Math.min(vpoc,bb.mid), slDist=atr*1.2
-    const rr = slDist>0?(tpPrice-price)/slDist:0
-    if (rr>=1.6 && tpPrice>price) return {side:'LONG',tpPrice,slDist}
+
+  // Range: price at BB extreme
+  if (price<=bb.lower*1.005 && rsi<45) {
+    const tpPrice=vpoc>price?Math.min(vpoc,bb.mid):bb.mid
+    const slDist=atr*1.2
+    const rr=slDist>0?(tpPrice-price)/slDist:0
+    if (rr>=1.2 && tpPrice>price) return {side:'LONG',tpPrice,slDist}
   }
-  if (price>=bb.upper*0.997 && rsi>62 && vpoc<price*0.999) {
-    const tpPrice=Math.max(vpoc,bb.mid), slDist=atr*1.2
-    const rr = slDist>0?(price-tpPrice)/slDist:0
-    if (rr>=1.6 && tpPrice<price) return {side:'SHORT',tpPrice,slDist}
+  if (price>=bb.upper*0.995 && rsi>55) {
+    const tpPrice=vpoc<price?Math.max(vpoc,bb.mid):bb.mid
+    const slDist=atr*1.2
+    const rr=slDist>0?(price-tpPrice)/slDist:0
+    if (rr>=1.2 && tpPrice<price) return {side:'SHORT',tpPrice,slDist}
+  }
+
+  // Momentum breakout: price breaks N-bar high/low with volume
+  const n=10
+  if (bars.length>=n+1) {
+    const lookback=bars.slice(-(n+1),-1)
+    const hiN=Math.max(...lookback.map(b=>b.high))
+    const loN=Math.min(...lookback.map(b=>b.low))
+    const avgVol=lookback.reduce((a,b)=>a+b.vol,0)/lookback.length
+    const lastBar=bars[bars.length-2]
+    const volSpike=lastBar.vol>avgVol*1.3
+    if (price>hiN && rsi>50 && rsi<75 && volSpike) {
+      const slDist=atr*1.5
+      const tpPrice=price+slDist*2
+      return {side:'LONG',tpPrice,slDist}
+    }
+    if (price<loN && rsi<50 && rsi>25 && volSpike) {
+      const slDist=atr*1.5
+      const tpPrice=price-slDist*2
+      return {side:'SHORT',tpPrice,slDist}
+    }
   }
   return null
 }
