@@ -71,6 +71,7 @@ const RISK = {
   low:    { riskPct:0.006, sl:0.008, maxPos:5,  maxDayLoss:0.02 },
   medium: { riskPct:0.010, sl:0.010, maxPos:20, maxDayLoss:0.03 },
   high:   { riskPct:0.016, sl:0.013, maxPos:20, maxDayLoss:0.04 },
+  ultra:  { riskPct:0.080, sl:0.013, maxPos:20, maxDayLoss:0.15 },
 }
 const MIN_SCORE=3, MIN_ADX=12, COOLDOWN_MS=60_000, STALE_MS=45*60_000, STALE_BAND=0.0015
 const TP_MULT=2.4, PARTIAL_AT=1.2, MAX_NOTIONAL_PCT=0.15, CLOSE_COOLDOWN_MS=60_000, COIN_DISABLE_LOSSES=7
@@ -803,7 +804,7 @@ export default function CryptoTradingDashboard() {
             </div>
           ))}
           <div style={{marginRight:'auto'}}/>
-          {(['low','medium','high'] as const).map(r=>(
+          {(['low','medium','high','ultra'] as const).map(r=>(
             <button key={r} className="nx-btn" onClick={()=>handleRiskChange(r)} style={{
               border:`1px solid ${risk===r?C.pink:'rgba(255,255,255,0.08)'}`,borderRadius:'8px',
               padding:'5px 12px',fontSize:'10px',fontWeight:700,
