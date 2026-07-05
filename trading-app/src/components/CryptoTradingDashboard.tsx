@@ -523,7 +523,9 @@ export default function CryptoTradingDashboard() {
         const r=await fetch(funcUrl,{headers:{'Authorization':`Bearer ${SUPA_KEY}`}})
         const d=await r.json()
         if(d.log?.length) addLog(`⚡ ${d.log.filter((l:string)=>l.startsWith('OPEN')||l.startsWith('CLOSE')||l.startsWith('PARTIAL')).join(' | ')||'scan ok'}`)
-        if(d.adaptMinScore!=null) addLog(`🧠 ADAPT sc>=${d.adaptMinScore} vpoc<=${(d.adaptVpocDist*100).toFixed(1)}%`)
+        if(d.adaptMinScore!=null) addLog(`🧠 ADAPT sc>=${d.adaptMinScore} vpoc<=${(d.adaptVpocDist*100).toFixed(1)}% side=${d.adaptSideFilter||'BOTH'}`)
+        if(d.btcRegime) addLog(`📊 BTC ${d.btcBias||'?'} [${d.btcRegime}] FG=${d.fearGreed}`)
+        if(d.blacklist?.length) addLog(`🚫 Blacklist: ${d.blacklist.join(', ')}`)
       }catch{}
     },60_000)
 
@@ -601,7 +603,7 @@ export default function CryptoTradingDashboard() {
 
       {/* ══ TOP BAR ══ */}
       <div style={{display:'flex',flexWrap:'wrap' as const,gap:'5px',alignItems:'center',marginBottom:'6px',...panel,padding:'7px 10px'}}>
-        <span style={{fontWeight:900,fontSize:'13px',color:C.pink,letterSpacing:'1px'}}>⚡ CRYPTO BOT PRO <span style={{fontSize:'8px',color:C.muted}}>v2.7</span></span>
+        <span style={{fontWeight:900,fontSize:'13px',color:C.pink,letterSpacing:'1px'}}>⚡ CRYPTO BOT PRO <span style={{fontSize:'8px',color:C.muted}}>v2.8</span></span>
         <span style={{padding:'1px 7px',borderRadius:'3px',fontSize:'10px',fontWeight:700,
           background:wsStatus==='live'?'rgba(0,232,122,0.15)':'rgba(255,51,80,0.15)',
           color:wsStatus==='live'?C.green:C.red,border:`1px solid ${wsStatus==='live'?C.green:C.red}`}}>
