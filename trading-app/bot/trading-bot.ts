@@ -17,9 +17,9 @@ const COINS = [
 ]
 
 const RISK = {
-  low:    { riskPct:0.015, maxPos:8,  streakLimit:4 },
-  medium: { riskPct:0.025, maxPos:20, streakLimit:5 },
-  high:   { riskPct:0.040, maxPos:30, streakLimit:6 },
+  low:    { riskPct:0.015, streakLimit:4 },
+  medium: { riskPct:0.025, streakLimit:5 },
+  high:   { riskPct:0.040, streakLimit:6 },
 } as const
 type RiskKey = keyof typeof RISK
 
@@ -432,8 +432,8 @@ Deno.serve(async (req) => {
         // ── כניסה חדשה ─────────────────────────────────────
         if (streakPaused) continue
         if (openTrades.length>0) continue
-        if (openCount>=R.maxPos) continue
         if (atrPct>0.05||atrPct<0.0003) continue
+        if (balance < 10) continue   // גבול יחיד: כסף בחשבון
 
         const lookback = completed.slice(-SWING_LOOKBACK)
         const {highs,lows} = findSwings(lookback,SWING_N)
