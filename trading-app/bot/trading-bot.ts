@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════
-// CryptoBot v15 — 1M Scalper
+// CryptoBot v16 — 1M Scalper (fee-aware)
 // Liquidity sweeps on 1-minute candles, 5M MTF confirm
 // Fast entries, tight SL, partial TP at 1.2×R
 // ════════════════════════════════════════════════════════
@@ -71,10 +71,14 @@ const FEE             = 0.001
 const SWING_N         = 5     // 5 bars each side = 11-minute pivot on 1M
 const SWING_LOOKBACK  = 60    // last 60 minutes of swing data
 const SWEEP_LOOKBACK  = 5     // look 5 bars back for sweep
-const MAX_HOLD_MIN    = 60    // force close after 60 minutes
+const MAX_HOLD_MIN    = 90    // force close after 90 minutes
 const STREAK_PAUSE_MS = 20*60_000
 const MAX_NOTIONAL_PCT= 0.25
 const FUNDING_EXTREME = 0.0003
+// Fee-aware gates: round trip costs 2×FEE (0.2%).
+// TP gross must be ≥3× round-trip fees, so slPct×tpR ≥ 0.006 → MIN_SL_PCT with tpR 2.0
+const MIN_SL_PCT      = 0.0035  // skip trades whose SL is under 0.35% — fees eat them
+const SYM_COOLDOWN_MS = 15*60_000 // no re-entry on same symbol for 15 min after close
 
 // Tuned for 1M candles (much smaller ATR than 1H)
 const VOL_PARAMS = {
@@ -294,7 +298,7 @@ async function runBacktest(): Promise<object> {
       const vpocDist = Math.abs(vpoc-price)/price
       if (!vpocAligned||vpocDist>VPOC_MAX_DIST) continue
       const slDist=atr*vp.slMult, slPct=slDist/price
-      if (slPct<=0||slPct>0.05) continue
+      if (slPct<MIN_SL_PCT||slPct>0.05) continue
       const notional=Math.min(bal*0.018/slPct, bal*MAX_NOTIONAL_PCT)
       if (notional<5) continue
       const partialTP=sweep.side==='LONG'?price+slDist*PARTIAL_TP_R:price-slDist*PARTIAL_TP_R
@@ -357,9 +361,16 @@ Deno.serve(async (req) => {
     }
 
     const {data:recent} = await supabase
-      .from('bot_trades').select('pnl,closed_at,status').neq('status','OPEN')
+      .from('bot_trades').select('sym,pnl,closed_at,status').neq('status','OPEN')
       .gte('closed_at',new Date(now-2*3600_000).toISOString())
-      .order('closed_at',{ascending:false}).limit(30)
+      .order('closed_at',{ascending:false}).limit(60)
+
+    // Per-symbol cooldown: block re-entry for 15 min after any close
+    const symCooldown = new Set<string>()
+    for (const t of (recent||[])) {
+      if (t.closed_at && now - new Date(t.closed_at).getTime() < SYM_COOLDOWN_MS)
+        symCooldown.add(t.sym)
+    }
     let streak=0
     for (const t of (recent||[])) { if(Number(t.pnl)<0) streak++; else break }
     const streakPaused = streak>=R.streakLimit &&
@@ -386,7 +397,7 @@ Deno.serve(async (req) => {
       fetchAllLiquidCoins(),
       fetchFearGreed()
     ])
-    log.push(`COINS=${COINS.length} FG=${fearGreed} v15-1M`)
+    log.push(`COINS=${COINS.length} FG=${fearGreed} v16-1M`)
 
     let btcBias:'BULL'|'BEAR'|'NEUTRAL'='NEUTRAL'
     if (btcBars.length>=20) {
@@ -478,7 +489,8 @@ Deno.serve(async (req) => {
             const profitR = slDist>0 ? (price-entry)*dirM/slDist : 0
             let newSL = sl
             if (profitR >= vp.trailBeR) {
-              const beLevel = entry + slDist*0.05*dirM
+              // True breakeven covers round-trip fees, not just entry price
+              const beLevel = entry*(1 + FEE*2.5*dirM)
               newSL = dirM===1 ? Math.max(sl,beLevel) : Math.min(sl,beLevel)
             }
             if (profitR >= vp.trailBeR+0.5) {
@@ -494,6 +506,7 @@ Deno.serve(async (req) => {
         // ── New entry ──────────────────────────────────────
         if (streakPaused) return
         if (openTrades.length>0) return
+        if (symCooldown.has(sym)) return  // just closed here — avoid churn re-entry
         if (atrPct>0.02||atrPct<0.00003) return
         if (balance < 10) return
 
@@ -577,7 +590,8 @@ Deno.serve(async (req) => {
           ? Math.min(sweep.sweepExtreme,price)-slDist
           : Math.max(sweep.sweepExtreme,price)+slDist
         const slPct = Math.abs(price-slPrice)/price
-        if (slPct<=0||slPct>0.05) return
+        // MIN_SL_PCT: below this, the TP gain doesn't clear round-trip fees
+        if (slPct<MIN_SL_PCT||slPct>0.05) return
 
         const riskAmt = balance*R.riskPct*kellyMult
         let notional  = riskAmt/slPct
@@ -603,11 +617,11 @@ Deno.serve(async (req) => {
 
     await supabase.from('bot_state').update({
       balance, updated_at:new Date().toISOString(),
-      market_regime:'v15_1M', streak
+      market_regime:'v16_1M_FEE', streak
     }).eq('id',1)
 
     return new Response(JSON.stringify({
-      ok:true, v:15, openCount, streakPaused, streak, btcBias,
+      ok:true, v:16, openCount, streakPaused, streak, btcBias,
       kelly:kellyMult, fearGreed, log
     }), {headers:{'Content-Type':'application/json'}})
 
