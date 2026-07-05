@@ -311,7 +311,16 @@ Rules:
     proposed  = JSON.parse(match[0])
     reasoning = proposed.reasoning ?? ''
   } catch (e) {
-    return new Response(JSON.stringify({ ok: false, error: String(e) }), {
+    const errMsg = String(e)
+    await supabase.from('bot_params_history').insert({
+      trade_count: tradeCount,
+      overall_wr:  segStats_wr(stats.overall),
+      overall_pf:  0,
+      params_before: {},
+      params_after:  {},
+      reasoning: `ERROR: ${errMsg}`,
+    }).catch(() => {})
+    return new Response(JSON.stringify({ ok: false, error: errMsg }), {
       headers: { 'Content-Type': 'application/json' },
     })
   }
@@ -359,11 +368,4 @@ Rules:
   })
 })
 
-// ─── helper needed outside buildStats ─────────────────────────────────────────
 function segStats_wr(s: Seg) { return s.count ? s.wins / s.count : 0 }
-function segResult(s: Seg) {
-  const wr   = s.count ? s.wins / s.count : 0
-  const avgW = s.wins             ? s.winPnl / s.wins             : 0
-  const avgL = s.count - s.wins   ? Math.abs(s.lossPnl) / (s.count - s.wins) : 1
-  return { count: s.count, wr: round2(wr), avgPnl: round2(s.count ? s.totalPnl / s.count : 0), pf: round2(avgL > 0 ? avgW / avgL : 1) }
-}
