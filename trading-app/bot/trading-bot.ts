@@ -35,7 +35,7 @@ const VPOC_MAX_DIST  = 0.020 // 2% max distance for 1M
 
 async function fetchAllLiquidCoins(minVolUSD = 5_000_000): Promise<string[]> {
   try {
-    const res = await fetch(`${BINANCE}/ticker/24hr`, {headers:{'User-Agent':'Mozilla/5.0'}})
+    const res = await fetch(`${BINANCE_DATA}/ticker/24hr`, {headers:{'User-Agent':'Mozilla/5.0'}})
     if (!res.ok) return FALLBACK_COINS
     const tickers: any[] = await res.json()
     const EXCLUDE = /^(.*)(UP|DOWN|BULL|BEAR|HEDGE|3L|3S|5L|5S)USDT$/
@@ -418,7 +418,7 @@ Deno.serve(async (req) => {
         const [bars1m, bars5m, priceRes] = await Promise.all([
           fetchBars(sym,'1m',150),
           fetchBars(sym,'5m',50),
-          fetch(`${BINANCE}/ticker/price?symbol=${sym}USDT`).then(r=>r.json()).catch(()=>null)
+          fetch(`${BINANCE_DATA}/ticker/price?symbol=${sym}USDT`).then(r=>r.json()).catch(()=>null)
         ])
         if (!bars1m||bars1m.length<30) return
 
