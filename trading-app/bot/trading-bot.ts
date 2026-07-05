@@ -1,7 +1,6 @@
 // ════════════════════════════════════════════════════════
-// CryptoBot v13 — Maximum Edge
-// VPOC + OI Divergence + Adaptive Vol + Kelly Sizing + Session Filter
-// כל השינויים מוחלים מיד על פוזיציות קיימות
+// CryptoBot v14 — Profitable Focus
+// Min Score 4 + Partial TP + Correlation Filter + Fear & Greed
 // ════════════════════════════════════════════════════════
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
@@ -10,14 +9,32 @@ const BINANCE      = 'https://api.binance.com/api/v3'
 const FAPI         = 'https://fapi.binance.com/fapi/v1'
 const FAPI_DATA    = 'https://fapi.binance.com/futures/data'
 
-// FALLBACK אם Binance API נכשל
 const FALLBACK_COINS = [
   'BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','DOT',
   'NEAR','UNI','ATOM','LTC','BCH','ARB','OP','INJ','SUI','TON',
   'PEPE','WIF','APT','FET','RNDR','TRX','HBAR','ICP','AAVE','GRT',
 ]
 
-// טוען דינמית את כל המטבעות הנזילים מ-Binance (מינ׳ $3M נפח יומי)
+// Correlation groups — max MAX_PER_GROUP open simultaneously per group
+const CORR_GROUPS: string[][] = [
+  ['SOL','AVAX','NEAR','ATOM','APT','SUI','DOT','ONE','EGLD','FTM','KAVA','ALGO'],
+  ['ARB','OP','MATIC','METIS','MANTA','SCROLL','ZK','STRK'],
+  ['UNI','AAVE','CRV','SNX','COMP','BAL','YFI','1INCH','PENDLE','MKR'],
+  ['LINK','BAND','API3'],
+  ['FET','RNDR','WLD','AGIX','GRT','THETA','TAO','OCEAN'],
+  ['DOGE','PEPE','WIF','SHIB','FLOKI','BONK','MEME','BRETT','NEIRO'],
+  ['INJ','SEI','TIA','OSMO'],
+  ['LTC','BCH','ZEC','DASH'],
+  ['XRP','XLM','HBAR'],
+  ['BNB'],
+  ['BTC'],
+  ['ETH'],
+]
+const MAX_PER_GROUP  = 2
+const MIN_SCORE      = 4    // requires real confluence — was effectively 1
+const PARTIAL_TP_R   = 1.2  // close 50% at 1.2×R, move SL to entry
+const VPOC_MAX_DIST  = 0.035 // VPOC must be within 3.5% of price to count
+
 async function fetchAllLiquidCoins(minVolUSD = 3_000_000): Promise<string[]> {
   try {
     const res = await fetch(`${BINANCE}/ticker/24hr`, {headers:{'User-Agent':'Mozilla/5.0'}})
@@ -33,6 +50,16 @@ async function fetchAllLiquidCoins(minVolUSD = 3_000_000): Promise<string[]> {
       .sort((a,b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
       .map(t => t.symbol.replace('USDT',''))
   } catch { return FALLBACK_COINS }
+}
+
+async function fetchFearGreed(): Promise<number> {
+  try {
+    const res = await fetch('https://api.alternative.me/fng/?limit=1',
+      {headers:{'User-Agent':'Mozilla/5.0'}})
+    if (!res.ok) return 50
+    const data = await res.json()
+    return parseInt(data.data?.[0]?.value ?? '50', 10)
+  } catch { return 50 }
 }
 
 const RISK = {
@@ -51,7 +78,6 @@ const STREAK_PAUSE_MS = 45*60_000
 const MAX_NOTIONAL_PCT= 0.15
 const FUNDING_EXTREME = 0.0002
 
-// Adaptive volatility params per regime
 const VOL_PARAMS = {
   LOW:    { slMult:1.1, tpR:2.2, trailBeR:0.8, trailAtr:0.4 },
   MEDIUM: { slMult:0.8, tpR:2.5, trailBeR:1.0, trailAtr:0.5 },
@@ -105,7 +131,6 @@ function getVolRegime(atrPct:number): 'LOW'|'MEDIUM'|'HIGH' {
   return 'HIGH'
 }
 
-// VPOC — מחיר עם הנפח הגבוה ביותר = מגנט נזילות
 function calcVPOC(bars:Bar[]): number {
   if (!bars.length) return 0
   const min = Math.min(...bars.map(b=>b.low))
@@ -138,26 +163,41 @@ function findSwings(bars:Bar[], n:number): {highs:number[], lows:number[]} {
 
 function detectSweep(
   bars:Bar[], price:number,
-  highs:number[], lows:number[]
+  highs:number[], lows:number[],
+  atr:number
 ): {side:'LONG'|'SHORT', sweepExtreme:number} | null {
   const n=bars.length
   if (n < SWEEP_LOOKBACK+1) return null
+  // Quality check: close-back must be > 0.2×ATR from swept level (decisive rejection)
+  const minCloseback = atr * 0.2
   for (let k=1; k<=SWEEP_LOOKBACK; k++) {
     const bar=bars[n-k]
-    for (const lvl of highs)
-      if (bar.high>lvl && bar.close<lvl && price<=bar.close*1.002)
-        return {side:'SHORT', sweepExtreme:bar.high}
-    for (const lvl of lows)
-      if (bar.low<lvl && bar.close>lvl && price>=bar.close*0.998)
-        return {side:'LONG', sweepExtreme:bar.low}
+    for (const lvl of highs) {
+      if (bar.high>lvl && bar.close<lvl && price<=bar.close*1.002) {
+        if (lvl - bar.close >= minCloseback)
+          return {side:'SHORT', sweepExtreme:bar.high}
+      }
+    }
+    for (const lvl of lows) {
+      if (bar.low<lvl && bar.close>lvl && price>=bar.close*0.998) {
+        if (bar.close - lvl >= minCloseback)
+          return {side:'LONG', sweepExtreme:bar.low}
+      }
+    }
   }
   return null
 }
 
-// Session filter: הימנע מ-01:00-07:00 UTC (נזילות נמוכה)
 function isActiveSession(): boolean {
   const h = new Date().getUTCHours()
   return !(h >= 1 && h < 7)
+}
+
+function getCorrGroup(sym:string): number {
+  for (let i=0; i<CORR_GROUPS.length; i++) {
+    if (CORR_GROUPS[i].includes(sym)) return i
+  }
+  return -1 // no group = uncorrelated, always allowed
 }
 
 // ── Smart Money Signals ────────────────────────────────────────────────────────
@@ -176,7 +216,6 @@ async function fetchAllFundingRates(): Promise<Record<string,number>> {
   } catch { return {} }
 }
 
-// Open Interest: כיוון OI מול מחיר = מי בונה פוזיציה
 async function fetchOISignal(sym:string): Promise<'UP'|'DOWN'|'FLAT'> {
   try {
     const res = await fetch(
@@ -193,7 +232,6 @@ async function fetchOISignal(sym:string): Promise<'UP'|'DOWN'|'FLAT'> {
   } catch { return 'FLAT' }
 }
 
-// פירוקים: שינוי יחס Long/Short
 async function fetchLiqSignal(sym:string): Promise<'LONG_LIQ'|'SHORT_LIQ'|'NEUTRAL'> {
   try {
     const res = await fetch(
@@ -248,7 +286,7 @@ async function runBacktest(): Promise<object> {
   for (const sym of testCoins) {
     const bars = await fetchBars(sym,'1h',500)
     if (bars.length<100) continue
-    let bal=10_000, wins=0, losses=0
+    let bal=10_000, wins=0, losses=0, partials=0
     const pnls:number[]=[]
     for (let i=55; i<bars.length-1; i++) {
       const slice=bars.slice(0,i+1), price=slice[i].close
@@ -257,27 +295,36 @@ async function runBacktest(): Promise<object> {
       const vp=VOL_PARAMS[getVolRegime(atrPct)]
       const {highs,lows}=findSwings(slice.slice(-SWING_LOOKBACK),SWING_N)
       if (!highs.length&&!lows.length) continue
-      const sweep=detectSweep(slice,price,highs,lows)
+      const sweep=detectSweep(slice,price,highs,lows,atr)
       if (!sweep) continue
       const vpoc=calcVPOC(slice.slice(-60))
-      // VPOC must be in trade direction
-      const vpocOk = sweep.side==='LONG' ? vpoc>price : vpoc<price
-      if (!vpocOk) continue
+      const vpocAligned = sweep.side==='LONG' ? vpoc>price : vpoc<price
+      const vpocDist = Math.abs(vpoc-price)/price
+      if (!vpocAligned||vpocDist>VPOC_MAX_DIST) continue
       const slDist=atr*vp.slMult, slPct=slDist/price
       if (slPct<=0||slPct>0.10) continue
       const notional=Math.min(bal*0.025/slPct, bal*MAX_NOTIONAL_PCT)
       if (notional<5) continue
-      const tpPrice=sweep.side==='LONG'?price+slDist*vp.tpR:price-slDist*vp.tpR
-      const slPrice=sweep.side==='LONG'?price-slDist:price+slDist
-      let pnl=0
+      const partialTP = sweep.side==='LONG' ? price+slDist*PARTIAL_TP_R : price-slDist*PARTIAL_TP_R
+      const tpPrice   = sweep.side==='LONG' ? price+slDist*vp.tpR       : price-slDist*vp.tpR
+      const slPrice   = sweep.side==='LONG' ? price-slDist               : price+slDist
+      let pnl=0, halfDone=false
       for (let j=i+1; j<Math.min(i+MAX_HOLD_H+1,bars.length); j++) {
         const b=bars[j]
         if (sweep.side==='LONG') {
-          if (b.high>=tpPrice){pnl=notional*slPct*vp.tpR;break}
-          if (b.low<=slPrice){pnl=-notional*slPct;break}
+          if (!halfDone && b.high>=partialTP) {
+            pnl += (notional/2)*slPct*PARTIAL_TP_R
+            halfDone=true; partials++
+          }
+          if (b.high>=tpPrice){pnl+=(halfDone?notional/2:notional)*slPct*vp.tpR;break}
+          if (b.low<=slPrice){pnl+=halfDone?0:-(notional*slPct);break}
         } else {
-          if (b.low<=tpPrice){pnl=notional*slPct*vp.tpR;break}
-          if (b.high>=slPrice){pnl=-notional*slPct;break}
+          if (!halfDone && b.low<=partialTP) {
+            pnl += (notional/2)*slPct*PARTIAL_TP_R
+            halfDone=true; partials++
+          }
+          if (b.low<=tpPrice){pnl+=(halfDone?notional/2:notional)*slPct*vp.tpR;break}
+          if (b.high>=slPrice){pnl+=halfDone?0:-(notional*slPct);break}
         }
       }
       const net=pnl-notional*FEE*2
@@ -288,7 +335,7 @@ async function runBacktest(): Promise<object> {
     const avgPnl=pnls.length?pnls.reduce((a,b)=>a+b,0)/pnls.length:0
     const std=pnls.length>1?Math.sqrt(pnls.reduce((a,b)=>a+(b-avgPnl)**2,0)/pnls.length):1
     results.push({
-      sym, trades:total, wins, losses,
+      sym, trades:total, wins, losses, partials,
       winRate:((wins/(total||1))*100).toFixed(1)+'%',
       roi:((bal/10000-1)*100).toFixed(2)+'%',
       sharpe:(avgPnl/(std||1)*Math.sqrt(365*24)).toFixed(2)
@@ -321,13 +368,11 @@ Deno.serve(async (req) => {
     const now = Date.now()
     const R = RISK[state.risk as RiskKey] || RISK.medium
 
-    // Session filter
     if (!isActiveSession()) {
       return new Response(JSON.stringify({ok:true,msg:'off-session 01-07 UTC'}),
         {headers:{'Content-Type':'application/json'}})
     }
 
-    // רצף הפסדים
     const {data:recent} = await supabase
       .from('bot_trades').select('pnl,closed_at,status').neq('status','OPEN')
       .gte('closed_at',new Date(now-3*3600_000).toISOString())
@@ -337,14 +382,14 @@ Deno.serve(async (req) => {
     const streakPaused = streak>=R.streakLimit &&
       new Date((recent?.[0]?.closed_at??0)).getTime()+STREAK_PAUSE_MS > now
 
-    // Kelly sizing — מבוסס 30 עסקאות אחרונות
+    // Kelly sizing from last 30 trades
     let kellyMult = 1.0
     if (recent && recent.length >= 10) {
-      const wins   = recent.filter(t=>Number(t.pnl)>0)
+      const wins_   = recent.filter(t=>Number(t.pnl)>0)
       const losses_ = recent.filter(t=>Number(t.pnl)<=0)
-      const avgW   = wins.length   ? wins.reduce((a,t)=>a+Number(t.pnl),0)/wins.length : 0
-      const avgL   = losses_.length ? Math.abs(losses_.reduce((a,t)=>a+Number(t.pnl),0)/losses_.length) : 1
-      const p  = wins.length/recent.length
+      const avgW    = wins_.length   ? wins_.reduce((a,t)=>a+Number(t.pnl),0)/wins_.length : 0
+      const avgL    = losses_.length ? Math.abs(losses_.reduce((a,t)=>a+Number(t.pnl),0)/losses_.length) : 1
+      const p  = wins_.length/recent.length
       const b  = avgL>0 ? avgW/avgL : 1
       const k  = (p*b-(1-p))/b
       kellyMult = Math.max(0.4, Math.min(1.5, k*2))
@@ -356,12 +401,13 @@ Deno.serve(async (req) => {
     const log:string[] = []
     if (streakPaused) log.push(`STREAK PAUSE ${streak}`)
 
-    const [btcBars, allFunding, COINS] = await Promise.all([
+    const [btcBars, allFunding, COINS, fearGreed] = await Promise.all([
       fetchBars('BTC','1h',30),
       fetchAllFundingRates(),
-      fetchAllLiquidCoins()
+      fetchAllLiquidCoins(),
+      fetchFearGreed()
     ])
-    log.push(`COINS=${COINS.length}`)
+    log.push(`COINS=${COINS.length} FG=${fearGreed}`)
 
     let btcBias:'BULL'|'BEAR'|'NEUTRAL'='NEUTRAL'
     if (btcBars.length>=20) {
@@ -370,16 +416,19 @@ Deno.serve(async (req) => {
       if(rsi>55&&e9>e21) btcBias='BULL'
       else if(rsi<45&&e9<e21) btcBias='BEAR'
     }
-    log.push(`BTC=${btcBias} v13 kelly=${kellyMult.toFixed(2)}`)
+    log.push(`BTC=${btcBias} v14 kelly=${kellyMult.toFixed(2)} FG=${fearGreed}`)
 
     const {data:allOpen} = await supabase.from('bot_trades').select('*').eq('status','OPEN')
     const openBySymbol:Record<string,any[]>={}
+    // Build correlation group counts from open positions
+    const corrGroupCount: Record<number,number> = {}
     for (const t of (allOpen||[])) {
       if(!openBySymbol[t.sym]) openBySymbol[t.sym]=[]
       openBySymbol[t.sym].push(t)
+      const gid = getCorrGroup(t.sym)
+      if (gid >= 0) corrGroupCount[gid] = (corrGroupCount[gid]||0)+1
     }
 
-    // עיבוד מקבילי: 15 מטבעות בו-זמנית לכיסוי כל השוק במהירות
     const BATCH = 15
     for (let b=0; b<COINS.length; b+=BATCH) {
       await Promise.all(COINS.slice(b,b+BATCH).map(async (sym)=>{
@@ -389,7 +438,7 @@ Deno.serve(async (req) => {
           fetchBars(sym,'4h',55),
           fetch(`${BINANCE}/ticker/price?symbol=${sym}USDT`).then(r=>r.json()).catch(()=>null)
         ])
-        if (!bars1h||bars1h.length<25) continue
+        if (!bars1h||bars1h.length<25) return
 
         const price     = priceRes?.price ? +priceRes.price : bars1h[bars1h.length-1].close
         const completed = bars1h.slice(0,-1)
@@ -399,8 +448,7 @@ Deno.serve(async (req) => {
         const vp        = VOL_PARAMS[volRegime]
         const openTrades = openBySymbol[sym]||[]
 
-        // ── ניהול פוזיציות קיימות + Trailing דינמי ─────────
-        // מוחל מיד על כל הפוזיציות הפתוחות עם הפרמטרים החדשים
+        // ── Position management + Partial TP ───────────────
         for (const t of openTrades) {
           const entry  = Number(t.entry_price)
           const size   = Number(t.size)
@@ -408,6 +456,25 @@ Deno.serve(async (req) => {
           const slDist = Math.abs(entry-sl)
           const tp     = t.side==='LONG' ? entry+slDist*vp.tpR : entry-slDist*vp.tpR
           const dirM   = t.side==='LONG' ? 1 : -1
+          const partialDone = !!t.partial_done
+
+          // Partial TP — close 50% at 1.2×R, move SL to entry
+          if (!partialDone && slDist > 0) {
+            const partialTPPrice = entry + slDist*PARTIAL_TP_R*dirM
+            const partialHit = t.side==='LONG' ? price>=partialTPPrice : price<=partialTPPrice
+            if (partialHit) {
+              const halfSize  = size/2
+              const partialPnl = (price-entry)*halfSize*dirM - price*halfSize*FEE
+              balance += entry*halfSize + partialPnl
+              await supabase.from('bot_trades').update({
+                size: halfSize,
+                trail_sl: entry,      // SL to breakeven after partial TP
+                partial_done: true
+              }).eq('id', t.id)
+              log.push(`PARTIAL ${sym} ${t.side} @${price.toFixed(4)} pnl=${partialPnl.toFixed(2)}`)
+              continue // skip further management this cycle
+            }
+          }
 
           let newStatus:string|null=null
           if (t.side==='LONG') {
@@ -431,21 +498,17 @@ Deno.serve(async (req) => {
             }).eq('id',t.id)
             log.push(`CLOSE ${sym} ${t.side} ${final} pnl=${pnl.toFixed(2)}`)
           } else {
-            // Adaptive trailing stop — מחיל את הפרמטרים לפי תנודתיות נוכחית
+            // Adaptive trailing stop
             const profitR = slDist>0 ? (price-entry)*dirM/slDist : 0
             let newSL = sl
-
             if (profitR >= vp.trailBeR) {
-              // שלב 1: breakeven
               const beLevel = entry + slDist*0.05*dirM
               newSL = dirM===1 ? Math.max(sl,beLevel) : Math.min(sl,beLevel)
             }
             if (profitR >= vp.trailBeR+0.5) {
-              // שלב 2: trailing דינמי לפי volatility regime
               const trailLevel = price - atr*vp.trailAtr*dirM
               newSL = dirM===1 ? Math.max(newSL,trailLevel) : Math.min(newSL,trailLevel)
             }
-
             if (newSL !== sl) {
               await supabase.from('bot_trades').update({trail_sl:newSL}).eq('id',t.id)
               log.push(`TRAIL ${sym} ${t.side} R=${profitR.toFixed(1)} vol=${volRegime} sl→${newSL.toFixed(4)}`)
@@ -453,34 +516,35 @@ Deno.serve(async (req) => {
           }
         }
 
-        // ── כניסה חדשה ─────────────────────────────────────
-        if (streakPaused) continue
-        if (openTrades.length>0) continue
-        if (atrPct>0.05||atrPct<0.0003) continue
-        if (balance < 10) continue   // גבול יחיד: כסף בחשבון
+        // ── New entry ──────────────────────────────────────
+        if (streakPaused) return
+        if (openTrades.length>0) return
+        if (atrPct>0.05||atrPct<0.0003) return
+        if (balance < 10) return
 
         const lookback = completed.slice(-SWING_LOOKBACK)
         const {highs,lows} = findSwings(lookback,SWING_N)
-        if (!highs.length&&!lows.length) continue
+        if (!highs.length&&!lows.length) return
 
-        const sweep = detectSweep(completed,price,highs,lows)
-        if (!sweep) continue
+        const sweep = detectSweep(completed,price,highs,lows,atr)
+        if (!sweep) return
 
-        // פילטר BTC
+        // BTC bias filter
         if (sym!=='BTC'&&sym!=='ETH') {
-          if (sweep.side==='LONG' &&btcBias==='BEAR') continue
-          if (sweep.side==='SHORT'&&btcBias==='BULL') continue
+          if (sweep.side==='LONG' &&btcBias==='BEAR') return
+          if (sweep.side==='SHORT'&&btcBias==='BULL') return
         }
 
-        // VPOC — המגנט חייב להיות בכיוון הסחר
-        const vpoc = calcVPOC(completed.slice(-60))
+        // VPOC — directional AND within proximity
+        const vpoc     = calcVPOC(completed.slice(-60))
+        const vpocDist = Math.abs(vpoc-price)/price
         const vpocAligned = sweep.side==='LONG' ? vpoc>price : vpoc<price
-        if (!vpocAligned) {
-          log.push(`SKIP ${sym} VPOC=${vpoc.toFixed(4)} contra`)
-          continue
+        if (!vpocAligned || vpocDist > VPOC_MAX_DIST) {
+          log.push(`SKIP ${sym} VPOC dist=${(vpocDist*100).toFixed(1)}% aligned=${vpocAligned}`)
+          return
         }
 
-        // Funding Rate
+        // Funding filter
         const funding = allFunding[sym]||0
         const fundingAligned =
           (sweep.side==='SHORT'&&funding> FUNDING_EXTREME) ||
@@ -488,7 +552,7 @@ Deno.serve(async (req) => {
           Math.abs(funding)<=FUNDING_EXTREME
         if (!fundingAligned) {
           log.push(`SKIP ${sym} funding-contra ${(funding*100).toFixed(4)}%`)
-          continue
+          return
         }
 
         // MTF 4H
@@ -496,17 +560,17 @@ Deno.serve(async (req) => {
         if (bars4h&&bars4h.length>=25) {
           const comp4h=bars4h.slice(0,-1)
           const {highs:h4,lows:l4}=findSwings(comp4h.slice(-SWING_LOOKBACK),SWING_N)
-          const sweep4h=detectSweep(comp4h,price,h4,l4)
+          const sweep4h=detectSweep(comp4h,price,h4,l4,calcATR(comp4h))
           if (sweep4h?.side===sweep.side) {
             smScore+=2
             log.push(`MTF4H ${sym} ✓`)
           } else if (sweep4h&&sweep4h.side!==sweep.side) {
             log.push(`SKIP ${sym} MTF4H contra`)
-            continue
+            return
           }
         }
 
-        // SM signals בקריאה מקבילה
+        // SM signals
         const [obImbalance, whalePressure, liqSignal, oiTrend] = await Promise.all([
           fetchOBImbalance(sym),
           fetchWhalePressure(sym),
@@ -514,61 +578,78 @@ Deno.serve(async (req) => {
           fetchOISignal(sym)
         ])
 
-        // Funding aligned bonus
         if (Math.abs(funding)>FUNDING_EXTREME) smScore++
-
-        // Order Book
         if (sweep.side==='LONG' &&obImbalance> 0.10) smScore++
         if (sweep.side==='SHORT'&&obImbalance<-0.10) smScore++
-
-        // Whale
         if (sweep.side==='LONG' &&whalePressure> 0.20) smScore++
         if (sweep.side==='SHORT'&&whalePressure<-0.20) smScore++
-
-        // Liquidations (strongest signal)
         if (liqSignal==='LONG_LIQ' &&sweep.side==='SHORT') smScore+=2
         if (liqSignal==='SHORT_LIQ'&&sweep.side==='LONG')  smScore+=2
-
-        // Open Interest — OI עולה = צד מסוים בונה → sweep אמיתי יותר
         if (oiTrend==='UP')   smScore++
         if (oiTrend==='DOWN') smScore = Math.max(0, smScore-1)
 
-        // VPOC מיושר = bonus נוסף
-        smScore++
+        // VPOC proximity bonus
+        if (vpocDist < 0.015) smScore += 2
+        else if (vpocDist < VPOC_MAX_DIST) smScore++
 
-        // סתירה חזקה = דלג
+        // Fear & Greed macro filter
+        if (fearGreed < 20) {
+          // Extreme fear: bonus for LONG, penalty for SHORT
+          if (sweep.side==='LONG') smScore++
+          else smScore = Math.max(0, smScore-2)
+        } else if (fearGreed > 80) {
+          // Extreme greed: bonus for SHORT, penalty for LONG
+          if (sweep.side==='SHORT') smScore++
+          else smScore = Math.max(0, smScore-2)
+        }
+
+        // Strong contradiction = hard skip
         const hasContradiction =
           (sweep.side==='LONG' &&(obImbalance<-0.25||whalePressure<-0.35)) ||
           (sweep.side==='SHORT'&&(obImbalance> 0.25||whalePressure> 0.35))
-        if (smScore<=1&&hasContradiction) {
+        if (hasContradiction) {
           log.push(`SKIP ${sym} SM-contra sc=${smScore}`)
-          continue
+          return
         }
 
-        log.push(`SM ${sym} f=${(funding*100).toFixed(3)}% ob=${obImbalance.toFixed(2)} wh=${whalePressure.toFixed(2)} liq=${liqSignal} oi=${oiTrend} sc=${smScore} vol=${volRegime}`)
+        // Minimum score gate — the key filter
+        if (smScore < MIN_SCORE) {
+          log.push(`SKIP ${sym} low-score sc=${smScore}<${MIN_SCORE}`)
+          return
+        }
 
-        // ── SL / TP / כניסה (Adaptive + Kelly) ─────────────
+        // Correlation filter — max MAX_PER_GROUP open per group
+        const gid = getCorrGroup(sym)
+        if (gid >= 0 && (corrGroupCount[gid]||0) >= MAX_PER_GROUP) {
+          log.push(`SKIP ${sym} corr-group ${gid} full (${corrGroupCount[gid]})`)
+          return
+        }
+
+        log.push(`SM ${sym} f=${(funding*100).toFixed(3)}% ob=${obImbalance.toFixed(2)} wh=${whalePressure.toFixed(2)} liq=${liqSignal} oi=${oiTrend} sc=${smScore} vol=${volRegime} FG=${fearGreed}`)
+
+        // SL / TP (Adaptive + Kelly)
         const slDist  = atr*vp.slMult
         const slPrice = sweep.side==='LONG'
           ? Math.min(sweep.sweepExtreme,price)-slDist
           : Math.max(sweep.sweepExtreme,price)+slDist
         const slPct = Math.abs(price-slPrice)/price
-        if (slPct<=0||slPct>0.10) continue
+        if (slPct<=0||slPct>0.10) return
 
         const riskAmt = balance*R.riskPct*kellyMult
         let notional  = riskAmt/slPct
         notional = Math.min(notional, balance*MAX_NOTIONAL_PCT, balance*0.95)
-        if (notional<5) continue
+        if (notional<5) return
 
         const size=notional/price, fee=price*size*FEE
         balance-=(notional+fee); openCount++
+        if (gid >= 0) corrGroupCount[gid] = (corrGroupCount[gid]||0)+1
 
         await supabase.from('bot_trades').insert({
           sym, side:sweep.side, entry_price:price, size, fee,
           trail_sl:slPrice, hi:price, lo:price,
-          status:'OPEN', score:smScore, mtf:true
+          status:'OPEN', score:smScore, mtf:true, partial_done:false
         })
-        log.push(`OPEN ${sym} ${sweep.side} @${price.toFixed(4)} sl=${(slPct*100).toFixed(2)}% $${notional.toFixed(0)} SM=${smScore} K=${kellyMult.toFixed(2)} vol=${volRegime}`)
+        log.push(`OPEN ${sym} ${sweep.side} @${price.toFixed(4)} sl=${(slPct*100).toFixed(2)}% $${notional.toFixed(0)} SC=${smScore} K=${kellyMult.toFixed(2)} vol=${volRegime}`)
 
       } catch(e) {
         log.push(`ERR ${sym}: ${String(e).slice(0,50)}`)
@@ -578,12 +659,12 @@ Deno.serve(async (req) => {
 
     await supabase.from('bot_state').update({
       balance, updated_at:new Date().toISOString(),
-      market_regime:'v13_MAX', streak
+      market_regime:'v14_PROFIT', streak
     }).eq('id',1)
 
     return new Response(JSON.stringify({
-      ok:true, v:13, openCount, streakPaused, streak, btcBias,
-      kelly:kellyMult, log
+      ok:true, v:14, openCount, streakPaused, streak, btcBias,
+      kelly:kellyMult, fearGreed, log
     }), {headers:{'Content-Type':'application/json'}})
 
   } catch(e) {

@@ -515,7 +515,7 @@ export default function CryptoTradingDashboard() {
     subscribe()
 
     // Auto-trigger Edge Function every 60s while bot is active
-    const funcUrl=`${SUPA_URL}/functions/v1/c36a5e66-9da3-447f-a9cd-bb523cd6ce22`
+    const funcUrl=`${SUPA_URL}/functions/v1/db9d947a-66b4-4858-aadd-df77531bf5b4`
     const poll=setInterval(async()=>{
       if(!botRef.current) return
       try{
@@ -599,7 +599,7 @@ export default function CryptoTradingDashboard() {
 
       {/* ══ TOP BAR ══ */}
       <div style={{display:'flex',flexWrap:'wrap' as const,gap:'5px',alignItems:'center',marginBottom:'6px',...panel,padding:'7px 10px'}}>
-        <span style={{fontWeight:900,fontSize:'13px',color:C.pink,letterSpacing:'1px'}}>⚡ CRYPTO BOT PRO <span style={{fontSize:'8px',color:C.muted}}>v2.2</span></span>
+        <span style={{fontWeight:900,fontSize:'13px',color:C.pink,letterSpacing:'1px'}}>⚡ CRYPTO BOT PRO <span style={{fontSize:'8px',color:C.muted}}>v2.3</span></span>
         <span style={{padding:'1px 7px',borderRadius:'3px',fontSize:'10px',fontWeight:700,
           background:wsStatus==='live'?'rgba(0,232,122,0.15)':'rgba(255,51,80,0.15)',
           color:wsStatus==='live'?C.green:C.red,border:`1px solid ${wsStatus==='live'?C.green:C.red}`}}>
