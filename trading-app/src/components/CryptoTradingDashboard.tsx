@@ -457,42 +457,61 @@ export default function CryptoTradingDashboard() {
   useEffect(()=>{
     if(!SUPA_URL||!SUPA_KEY) return
     const supa=createClient(SUPA_URL,SUPA_KEY); supaRef.current=supa
-    supa.from('bot_state').select('*').eq('id',1).single().then(({data})=>{
-      if(!data) return
-      setBalance(data.balance);balRef.current=data.balance
-      setRisk(data.risk as RiskType);riskRef.current=data.risk as RiskType
-      setBotOn(data.active);botRef.current=data.active
-    })
-    // Load open positions first, then recent closed trades
-    Promise.all([
+
+    const loadData=()=>Promise.all([
+      supa.from('bot_state').select('*').eq('id',1).single(),
       supa.from('bot_trades').select('*').eq('status','OPEN'),
       supa.from('bot_trades').select('*').neq('status','OPEN').order('opened_at',{ascending:false}).limit(150)
-    ]).then(([open,closed])=>{
+    ]).then(([state,open,closed])=>{
+      if(state.data){
+        const d=state.data
+        setBalance(d.balance);balRef.current=d.balance
+        setRisk(d.risk as RiskType);riskRef.current=d.risk as RiskType
+        setBotOn(d.active);botRef.current=d.active
+      }
       const all=[...(open.data||[]),...(closed.data||[])]
       const mapped=all.map(t=>mapDbTrade(t as Record<string,unknown>))
       tradeRef.current=mapped;setTrades(mapped)
     })
-    const ch=supa.channel('bot-realtime')
-      .on('postgres_changes',{event:'INSERT',schema:'public',table:'bot_trades'},(p)=>{
-        const t=mapDbTrade(p.new as Record<string,unknown>)
-        setTrades(prev=>{const next=[...prev,t];tradeRef.current=next;return next})
-        addLog(`▲ OPEN ${t.sym} ${t.side} @ ${t.entry>=100?t.entry.toFixed(2):t.entry.toFixed(5)}`)
-      })
-      .on('postgres_changes',{event:'UPDATE',schema:'public',table:'bot_trades'},(p)=>{
-        const t=mapDbTrade(p.new as Record<string,unknown>)
-        setTrades(prev=>{const next=prev.map(x=>x.id===t.id?t:x);tradeRef.current=next;return next})
-        if(t.status!=='OPEN') addLog(`${t.status==='TP'?'✓ TP':'✗ '+t.status} ${t.sym} P&L: ${(t.pnl||0)>=0?'+':''}${(t.pnl||0).toFixed(2)}`)
-      })
-      .on('postgres_changes',{event:'UPDATE',schema:'public',table:'bot_state'},(p)=>{
-        const d=p.new as {balance:number;risk:string;active:boolean}
-        setBalance(d.balance);balRef.current=d.balance
-        setRisk(d.risk as RiskType);riskRef.current=d.risk as RiskType
-        setBotOn(d.active);botRef.current=d.active
-      })
-      .subscribe((status)=>{
-        const live=status==='SUBSCRIBED'
-        setSupaStatus(live?'live':'error');supaModeRef.current=live
-      })
+
+    loadData()
+
+    // Poll every 30s to keep positions in sync regardless of realtime status
+    const syncPoll=setInterval(loadData, 30_000)
+
+    let ch=supa.channel('bot-realtime')
+    let retryTimeout:ReturnType<typeof setTimeout>|null=null
+
+    const subscribe=()=>{
+      ch=supa.channel('bot-realtime-'+Date.now())
+        .on('postgres_changes',{event:'INSERT',schema:'public',table:'bot_trades'},(p)=>{
+          const t=mapDbTrade(p.new as Record<string,unknown>)
+          setTrades(prev=>{const next=[...prev,t];tradeRef.current=next;return next})
+          addLog(`▲ OPEN ${t.sym} ${t.side} @ ${t.entry>=100?t.entry.toFixed(2):t.entry.toFixed(5)}`)
+        })
+        .on('postgres_changes',{event:'UPDATE',schema:'public',table:'bot_trades'},(p)=>{
+          const t=mapDbTrade(p.new as Record<string,unknown>)
+          setTrades(prev=>{const next=prev.map(x=>x.id===t.id?t:x);tradeRef.current=next;return next})
+          if(t.status!=='OPEN') addLog(`${t.status==='TP'?'✓ TP':'✗ '+t.status} ${t.sym} P&L: ${(t.pnl||0)>=0?'+':''}${(t.pnl||0).toFixed(2)}`)
+        })
+        .on('postgres_changes',{event:'UPDATE',schema:'public',table:'bot_state'},(p)=>{
+          const d=p.new as {balance:number;risk:string;active:boolean}
+          setBalance(d.balance);balRef.current=d.balance
+          setRisk(d.risk as RiskType);riskRef.current=d.risk as RiskType
+          setBotOn(d.active);botRef.current=d.active
+        })
+        .subscribe((status)=>{
+          if(status==='SUBSCRIBED'){
+            setSupaStatus('live');supaModeRef.current=true
+          } else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){
+            setSupaStatus('error');supaModeRef.current=false
+            // Retry realtime connection after 10s
+            retryTimeout=setTimeout(()=>{ supa.removeChannel(ch); subscribe() },10_000)
+          }
+        })
+    }
+    subscribe()
+
     // Auto-trigger Edge Function every 60s while bot is active
     const funcUrl=`${SUPA_URL}/functions/v1/bc26c3f7-94ce-4726-8143-bfde91a8ebf6`
     const poll=setInterval(async()=>{
@@ -503,7 +522,12 @@ export default function CryptoTradingDashboard() {
         if(d.log?.length) addLog(`⚡ ${d.log.filter((l:string)=>l.startsWith('OPEN')||l.startsWith('CLOSE')).join(' | ')||'scan ok'}`)
       }catch{}
     },60_000)
-    return ()=>{clearInterval(poll);supa.removeChannel(ch);supaModeRef.current=false}
+
+    return ()=>{
+      clearInterval(poll);clearInterval(syncPoll)
+      if(retryTimeout) clearTimeout(retryTimeout)
+      supa.removeChannel(ch);supaModeRef.current=false
+    }
   },[addLog])
 
   // Draw charts
