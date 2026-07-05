@@ -242,10 +242,10 @@ function LivePosition({t,live,fmtP,onClose}:{t:Trade;live?:{cur:number;pnl:numbe
             {fmtP(cur)}
           </span>
           {onClose&&(
-            <button onClick={onClose} className="nx-btn" style={{
-              background:'rgba(255,58,94,0.12)',border:'1px solid rgba(255,58,94,0.35)',
+            <button type="button" onClick={(e)=>{e.stopPropagation();onClose()}} style={{
+              background:'rgba(255,58,94,0.15)',border:'1px solid rgba(255,58,94,0.5)',
               borderRadius:'4px',color:'#ff3a5e',fontSize:'9px',fontWeight:700,
-              padding:'2px 5px',lineHeight:1,
+              padding:'2px 6px',lineHeight:1,cursor:'pointer',
             }}>✕</button>
           )}
         </div>
@@ -427,19 +427,22 @@ export default function CryptoTradingDashboard() {
     setExecLog([...logRef.current])
   },[])
 
-  const handleManualClose=useCallback(async(t:Trade,livePnl?:number)=>{
+  const handleManualClose=useCallback(async(t:Trade)=>{
     const supa=supaRef.current
-    if(!supa)return
+    if(!supa){addLog('⚠ Supabase לא מחובר');return}
     const live=livePositions[t.id]
     const exitPrice=live?.cur??t.entry
     const dirM=t.side==='LONG'?1:-1
-    const pnl=livePnl??(( exitPrice-t.entry)*dirM*t.size*LEVERAGE-t.fee-exitPrice*t.size*FEE_PCT*LEVERAGE)
+    const pnl=(exitPrice-t.entry)*dirM*t.size*LEVERAGE-t.fee-exitPrice*t.size*FEE_PCT*LEVERAGE
     const pnlPct=(exitPrice-t.entry)/t.entry*dirM*100
-    await supa.from('bot_trades').update({
-      status:'MANUAL',exit_price:exitPrice,pnl,pnl_pct:pnlPct,
-      closed_at:new Date().toISOString(),
-    }).eq('id',t.id).eq('status','OPEN')
-    addLog(`✕ סגור ידני ${t.sym} @ ${exitPrice>=100?exitPrice.toFixed(2):exitPrice.toFixed(5)} ${pnl>=0?'+':''}${pnl.toFixed(2)}$`)
+    try {
+      const {error}=await supa.from('bot_trades').update({
+        status:'MANUAL',exit_price:exitPrice,pnl,pnl_pct:pnlPct,
+        closed_at:new Date().toISOString(),
+      }).eq('id',t.id).eq('status','OPEN')
+      if(error)addLog(`⚠ שגיאה: ${error.message}`)
+      else addLog(`✕ סגור ידני ${t.sym} @ ${exitPrice>=100?exitPrice.toFixed(2):exitPrice.toFixed(5)} ${pnl>=0?'+':''}${pnl.toFixed(2)}$`)
+    } catch(e:unknown){addLog(`⚠ שגיאה: ${e instanceof Error?e.message:String(e)}`)}
   },[livePositions,addLog])
 
   const openTrade=useCallback((sym:string,side:'LONG'|'SHORT',price:number,s:Sig)=>{
