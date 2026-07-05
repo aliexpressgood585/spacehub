@@ -35,7 +35,12 @@ const DEFAULTS = {
     DEAD:  { sizeMult: 0.8, minScoreBonus: 0 },
   },
   partial_tp_by_vol: { LOW: 0.8, MEDIUM: 1.2, HIGH: 1.5 },
-  max_hold_min: 360,
+  max_hold_min: 180,
+  // simple entry params — tuned by optimizer
+  rsi_oversold:   38,
+  rsi_overbought: 62,
+  bb_proximity:   1.01,
+  tp_r:           2.0,
   // optimizer state (not sent to trading bot)
   _meta: {
     trade_count_at_last_claude: 0,
@@ -46,14 +51,18 @@ const DEFAULTS = {
 
 // ─── bounds ───────────────────────────────────────────────────────────────────
 const BOUNDS = {
-  slMult:        { min: 0.8, max: 3.5 },
-  tpR:           { min: 1.5, max: 4.5 },
-  trailBeR:      { min: 0.4, max: 1.8 },
-  trailAtr:      { min: 0.3, max: 1.5 },
-  sizeMult:      { min: 0.3, max: 1.5 },
-  minScoreBonus: { min: 0,   max: 2   },
-  partial_r:     { min: 0.4, max: 2.5 },
-  max_hold_min:  { min: 60,  max: 720 },
+  slMult:         { min: 0.8, max: 3.5 },
+  tpR:            { min: 1.5, max: 4.5 },
+  trailBeR:       { min: 0.4, max: 1.8 },
+  trailAtr:       { min: 0.3, max: 1.5 },
+  sizeMult:       { min: 0.3, max: 1.5 },
+  minScoreBonus:  { min: 0,   max: 2   },
+  partial_r:      { min: 0.4, max: 2.5 },
+  max_hold_min:   { min: 60,  max: 720 },
+  rsi_oversold:   { min: 25,  max: 45  },
+  rsi_overbought: { min: 55,  max: 75  },
+  bb_proximity:   { min: 1.002, max: 1.03 },
+  tp_r:           { min: 1.5, max: 4.0 },
 }
 
 function clamp(v: number, min: number, max: number) { return Math.max(min, Math.min(max, v)) }
@@ -169,6 +178,18 @@ function applyProposed(proposed: any, current: any): any {
   if (proposed.max_hold_min) {
     safe.max_hold_min = Math.round(clamp(limitChange(+proposed.max_hold_min, current.max_hold_min, MAX_CHANGE), BOUNDS.max_hold_min.min, BOUNDS.max_hold_min.max))
   }
+  if (proposed.rsi_oversold != null) {
+    safe.rsi_oversold = round2(clamp(+proposed.rsi_oversold, BOUNDS.rsi_oversold.min, BOUNDS.rsi_oversold.max))
+  }
+  if (proposed.rsi_overbought != null) {
+    safe.rsi_overbought = round2(clamp(+proposed.rsi_overbought, BOUNDS.rsi_overbought.min, BOUNDS.rsi_overbought.max))
+  }
+  if (proposed.bb_proximity != null) {
+    safe.bb_proximity = round2(clamp(+proposed.bb_proximity, BOUNDS.bb_proximity.min, BOUNDS.bb_proximity.max))
+  }
+  if (proposed.tp_r != null) {
+    safe.tp_r = round2(clamp(limitChange(+proposed.tp_r, current.tp_r ?? 2.0, MAX_CHANGE), BOUNDS.tp_r.min, BOUNDS.tp_r.max))
+  }
   return safe
 }
 
@@ -264,27 +285,24 @@ CURRENT PARAMS (excluding _meta):
 ${JSON.stringify({ vol_params: params.vol_params, session_params: params.session_params, partial_tp_by_vol: params.partial_tp_by_vol, max_hold_min: params.max_hold_min }, null, 2)}`
 
   const systemPrompt = `You are an expert crypto trading parameter optimizer.
-Analyze the performance data and return ONLY a JSON object with optimized parameters.
+The bot uses a simple RSI+BB+EMA entry system with 10x leverage.
+Analyze performance data and return ONLY a JSON object with optimized parameters.
 Rules:
-- Make small conservative adjustments (max 25% per param)
-- Sessions with WR < 0.35: reduce sizeMult, raise minScoreBonus
-- If winners hold much shorter than losers, reduce max_hold_min
-- Bounds: slMult[0.8-3.5], tpR[1.5-4.5], trailBeR[0.4-1.8], trailAtr[0.3-1.5], sizeMult[0.3-1.5], minScoreBonus[0-2 int], partial_r[0.4-2.5], max_hold_min[60-720]
-- Return ONLY valid JSON, reasoning inside the JSON.
+- Make small conservative adjustments (max 25% per param per call)
+- If LONG WR >> SHORT WR: raise rsi_overbought to reduce short signals
+- If SHORT WR >> LONG WR: lower rsi_oversold to reduce long signals
+- If overall WR < 0.40: tighten bb_proximity (closer to band) e.g. 1.005
+- If overall WR > 0.55: loosen bb_proximity e.g. 1.02 to get more signals
+- If winners hold shorter than losers: reduce max_hold_min
+- tp_r should reward winners: raise if WR > 0.5, lower if WR < 0.4
+- Bounds: rsi_oversold[25-45], rsi_overbought[55-75], bb_proximity[1.002-1.03], tp_r[1.5-4.0], max_hold_min[60-360]
+- Return ONLY valid JSON.
 
 {
-  "vol_params": {
-    "LOW":    {"slMult":X,"tpR":X,"trailBeR":X,"trailAtr":X},
-    "MEDIUM": {"slMult":X,"tpR":X,"trailBeR":X,"trailAtr":X},
-    "HIGH":   {"slMult":X,"tpR":X,"trailBeR":X,"trailAtr":X}
-  },
-  "session_params": {
-    "ASIAN": {"sizeMult":X,"minScoreBonus":X},
-    "EU":    {"sizeMult":X,"minScoreBonus":X},
-    "US":    {"sizeMult":X,"minScoreBonus":X},
-    "DEAD":  {"sizeMult":X,"minScoreBonus":X}
-  },
-  "partial_tp_by_vol": {"LOW":X,"MEDIUM":X,"HIGH":X},
+  "rsi_oversold": X,
+  "rsi_overbought": X,
+  "bb_proximity": X,
+  "tp_r": X,
   "max_hold_min": X,
   "reasoning": "one line"
 }`
