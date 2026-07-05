@@ -1,4 +1,4 @@
-name: Deploy Trading App to Vercel
+name: Deploy Trading App
 
 on:
   push:
@@ -6,9 +6,21 @@ on:
     paths:
       - 'trading-app/**'
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -26,13 +38,14 @@ jobs:
         run: npm run build
         working-directory: trading-app
 
-      - name: Deploy to Vercel
-        run: |
-          npx vercel deploy --prebuilt --prod \
-            --token ${{ secrets.VERCEL_TOKEN }} \
-            --yes
-        working-directory: trading-app
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: trading-app/dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
