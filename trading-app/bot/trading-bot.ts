@@ -134,13 +134,8 @@ Deno.serve(async () => {
     const today = new Date().toISOString().slice(0,10)
     const R = RISK[state.risk as RiskKey] || RISK.medium
 
-    // בלם יומי
-    let dayStart = Number(state.day_start_balance ?? balance)
-    if (state.day_date !== today) {
-      dayStart = balance
-      await supabase.from('bot_state').update({day_start_balance:dayStart, day_date:today}).eq('id',1)
-    }
-    const breakerOn = (dayStart-balance)/dayStart >= R.maxDayLoss
+    // בלם יומי מושבת — הבלם נגד רצף הפסדים מספיק להגנה
+    const breakerOn = false
 
     // רצף הפסדים (3 שעות אחרונות)
     const {data:recent} = await supabase
