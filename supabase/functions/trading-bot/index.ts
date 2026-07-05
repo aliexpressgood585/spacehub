@@ -38,9 +38,9 @@ const CORR_GROUPS: string[][] = [
   ['XRP','XLM','HBAR'],
   ['BNB'],['BTC'],['ETH'],
 ]
-const MAX_PER_GROUP  = 5
+const MAX_PER_GROUP  = 6
 const MIN_SCORE      = 2
-const VPOC_MAX_DIST  = 0.030
+const VPOC_MAX_DIST  = 0.035
 
 // v21: Dynamic partial TP by vol regime
 const PARTIAL_TP_BY_VOL = { LOW: 0.8, MEDIUM: 1.2, HIGH: 1.5 }
@@ -92,7 +92,7 @@ const RISK = {
   low:    { riskPct:0.010, streakLimit:5 },
   medium: { riskPct:0.018, streakLimit:6 },
   high:   { riskPct:0.030, streakLimit:8 },
-  ultra:  { riskPct:0.080, streakLimit:12 },
+  ultra:  { riskPct:0.100, streakLimit:15 },
 } as const
 type RiskKey = keyof typeof RISK
 
@@ -100,14 +100,14 @@ const FEE             = 0.001
 const SWING_N         = 5
 const SWING_LOOKBACK  = 60
 const SWEEP_LOOKBACK  = 5
-const MAX_HOLD_MIN    = 240
-const STREAK_PAUSE_MS = 15*60_000
-const MAX_NOTIONAL_PCT= 0.50
+const MAX_HOLD_MIN    = 180
+const STREAK_PAUSE_MS = 10*60_000
+const MAX_NOTIONAL_PCT= 0.60
 const FUNDING_EXTREME = 0.0003
-const MIN_SL_PCT      = 0.006
-const SYM_COOLDOWN_MS = 10*60_000
+const MIN_SL_PCT      = 0.005
+const SYM_COOLDOWN_MS = 5*60_000
 const MAX_DD_STOP     = 0.80
-const INITIAL_BALANCE = 50
+const INITIAL_BALANCE = 500
 
 const VOL_PARAMS = {
   LOW:    { slMult:2.0, tpR:2.2, trailBeR:0.8, trailAtr:0.6 },
