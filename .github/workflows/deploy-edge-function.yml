@@ -6,6 +6,11 @@ on:
     paths:
       - 'supabase/functions/**'
   workflow_dispatch:
+    inputs:
+      supabase_token:
+        description: 'Supabase Access Token'
+        required: false
+        type: string
 
 jobs:
   deploy:
@@ -20,4 +25,4 @@ jobs:
       - name: Deploy trading-bot function
         run: supabase functions deploy trading-bot --project-ref mdvheizhciuvqychtwxr
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ inputs.supabase_token || secrets.SUPABASE_ACCESS_TOKEN }}
