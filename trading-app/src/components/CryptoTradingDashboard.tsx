@@ -386,6 +386,7 @@ export default function CryptoTradingDashboard() {
   const [coinWeights,setCoinWeights]    = useState<Record<string,number>>({})
   const [rebalancedAt,setRebalancedAt]  = useState<string|null>(null)
   const [livePositions,setLivePositions]= useState<Record<number,{cur:number;pnl:number;pct:number}>>({})
+  const [extraWsSyms,setExtraWsSyms]   = useState<string[]>([])
 
   const barsMap    = useRef(new Map<string,Bar[]>())
   const curBar     = useRef(new Map<string,Bar>())
@@ -570,7 +571,9 @@ export default function CryptoTradingDashboard() {
     function connect(){
       if(dead)return
       setWsStatus('connecting')
-      const streams=COINS.map(c=>c.ws+'@miniTicker').join('/')
+      const knownSet=new Set(COINS.map(c=>c.sym))
+      const extraStreams=extraWsSyms.filter(s=>!knownSet.has(s)).map(s=>s.toLowerCase()+'usdt@miniTicker')
+      const streams=[...COINS.map(c=>c.ws+'@miniTicker'),...extraStreams].join('/')
       const ws=new WebSocket(`wss://stream.binance.com:9443/stream?streams=${streams}`)
       ws.onopen=()=>setWsStatus('live')
       ws.onerror=()=>setWsStatus('error')
@@ -579,17 +582,22 @@ export default function CryptoTradingDashboard() {
         try{
           const msg=JSON.parse(e.data);const d=msg.data||msg
           const wsName=(d.s||'').toLowerCase()
-          const coin=COINS.find(c=>c.ws===wsName);if(!coin)return
           const price=parseFloat(d.c),open24=parseFloat(d.o)
-          setPrices(p=>({...p,[coin.sym]:{price,change:((price-open24)/open24)*100}}))
-          processTick(coin.sym,price,parseFloat(d.v||'0'))
+          const coin=COINS.find(c=>c.ws===wsName)
+          if(coin){
+            setPrices(p=>({...p,[coin.sym]:{price,change:((price-open24)/open24)*100}}))
+            processTick(coin.sym,price,parseFloat(d.v||'0'))
+          } else {
+            const sym=(d.s||'').replace('USDT','')
+            if(sym) processTick(sym,price,0)
+          }
         }catch{}
       }
       return ws
     }
     const ws=connect()
     return ()=>{dead=true;ws?.close()}
-  },[processTick])
+  },[processTick,extraWsSyms])
 
   useEffect(()=>{
     if(!SUPA_URL||!SUPA_KEY)return
@@ -617,6 +625,10 @@ export default function CryptoTradingDashboard() {
       const all=[...(open.data||[]),...(closed.data||[])]
       tradeRef.current=all.map(t=>mapDbTrade(t as Record<string,unknown>))
       setTrades([...tradeRef.current])
+      const knownSyms=new Set(COINS.map(c=>c.sym))
+      const openSyms=[...(open.data||[])].map((t:any)=>t.sym as string)
+      const extra=[...new Set(openSyms.filter(s=>!knownSyms.has(s)))]
+      setExtraWsSyms(extra)
       if(optHist.data)setOptimizerHistory(optHist.data as OptimizerRun[])
       if(regHist.data)setRegimeHistory(regHist.data as RegimeRow[])
     })

@@ -59,7 +59,7 @@ function getSession(h: number): 'ASIAN'|'EU'|'US'|'DEAD' {
   return 'DEAD'
 }
 
-async function fetchAllLiquidCoins(minVolUSD = 5_000_000): Promise<string[]> {
+async function fetchAllLiquidCoins(minVolUSD = 25_000_000): Promise<string[]> {
   try {
     const res = await fetch(`${BINANCE_DATA}/ticker/24hr`, {headers:{'User-Agent':'Mozilla/5.0'}})
     if (!res.ok) return FALLBACK_COINS
@@ -73,6 +73,7 @@ async function fetchAllLiquidCoins(minVolUSD = 5_000_000): Promise<string[]> {
         parseFloat(t.quoteVolume) >= minVolUSD
       )
       .sort((a,b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
+      .slice(0, 60)
       .map(t => t.symbol.replace('USDT',''))
   } catch { return FALLBACK_COINS }
 }
