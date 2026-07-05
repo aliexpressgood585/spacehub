@@ -748,8 +748,6 @@ Deno.serve(async (req) => {
         if (balance<10) return
 
         const regime=detectRegime(completed)
-        if (regime==='SQUEEZE') return
-
         const vpoc=calcVPOC(completed.slice(-80))
 
         type EntryResult=
@@ -758,12 +756,17 @@ Deno.serve(async (req) => {
 
         let entry:EntryResult|null=null
 
-        if (regime==='TRENDING') {
+        if (regime==='TRENDING'||regime==='SQUEEZE') {
           const lookback=completed.slice(-SWING_LOOKBACK)
           const {highs,lows}=findSwings(lookback,SWING_N)
-          if (!highs.length&&!lows.length) return
-          const sweep=detectSweep(completed,price,highs,lows,atr)
-          if (sweep) entry={mode:'SWEEP',...sweep}
+          if (highs.length||lows.length) {
+            const sweep=detectSweep(completed,price,highs,lows,atr)
+            if (sweep) entry={mode:'SWEEP',...sweep}
+          }
+          if (!entry) {
+            const rangeEntry=findRangeEntry(completed,price,vpoc)
+            if (rangeEntry) entry={mode:'RANGE',...rangeEntry}
+          }
         } else {
           const rangeEntry=findRangeEntry(completed,price,vpoc)
           if (rangeEntry) entry={mode:'RANGE',...rangeEntry}
@@ -779,12 +782,10 @@ Deno.serve(async (req) => {
           if (entry.side==='SHORT'&&btcBias==='BULL') return
         }
 
-        // v21: 1H trend alignment filter — fetch once, use for gate + score
+        // 1H trend — score only, no hard gate in ultra mode
         let h1bias:'BULL'|'BEAR'|'NEUTRAL'='NEUTRAL'
         if (sym!=='BTC'&&sym!=='ETH') {
           h1bias=await fetch1hBias(sym)
-          if (entry.side==='LONG' &&h1bias==='BEAR') { log.push(`SKIP_1H ${sym} L`); return }
-          if (entry.side==='SHORT'&&h1bias==='BULL') { log.push(`SKIP_1H ${sym} S`); return }
         }
 
         let smScore=0, isMtf=false
@@ -806,7 +807,6 @@ Deno.serve(async (req) => {
             const {highs:h15,lows:l15}=findSwings(comp15m.slice(-40),SWING_N)
             const sweep15m=detectSweep(comp15m,price,h15,l15,calcATR(comp15m))
             if (sweep15m?.side===entry.side) smScore+=2
-            else if (sweep15m&&sweep15m.side!==entry.side) return
           }
 
           if (Math.abs(vpoc-price)/price<0.008)  smScore+=2
