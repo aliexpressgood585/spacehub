@@ -182,7 +182,11 @@ function detectRegime(bars: Bar[]): 'TRENDING'|'RANGING'|'SQUEEZE' {
 }
 
 // Simple 3-signal entry: RSI + BB + EMA crossover — fires frequently
-function findSimpleEntry(bars: Bar[], price: number): {side:'LONG'|'SHORT'; slDist:number}|null {
+// Params tuned live by trading-optimizer agent
+function findSimpleEntry(
+  bars: Bar[], price: number,
+  rsiOversold=38, rsiOverbought=62, bbProx=1.01
+): {side:'LONG'|'SHORT'; slDist:number}|null {
   if (bars.length < 30) return null
   const closes = bars.map(b=>b.close)
   const atr    = calcATR(bars.slice(-20))
@@ -197,19 +201,15 @@ function findSimpleEntry(bars: Bar[], price: number): {side:'LONG'|'SHORT'; slDi
 
   let longSig=0, shortSig=0
 
-  // RSI oversold/overbought
-  if (rsi < 38) longSig++
-  else if (rsi > 62) shortSig++
+  if (rsi < rsiOversold)  longSig++
+  else if (rsi > rsiOverbought) shortSig++
 
-  // Price at BB extreme
-  if (price <= bb.lower * 1.01) longSig++
-  else if (price >= bb.upper * 0.99) shortSig++
+  if (price <= bb.lower * bbProx)        longSig++
+  else if (price >= bb.upper * (2 - bbProx)) shortSig++
 
-  // EMA position
   if (curE9 > curE21) longSig++
   else shortSig++
 
-  // EMA crossover bonus (+1 extra)
   if (prevE9 <= prevE21 && curE9 > curE21) longSig++
   if (prevE9 >= prevE21 && curE9 < curE21) shortSig++
 
@@ -759,7 +759,12 @@ Deno.serve(async (req) => {
         if (atrPct > 0.02 || atrPct < 0.00003) return
         if (balance < 10) return
 
-        const simpleEntry = findSimpleEntry(completed, price)
+        const dynRsiOversold   = Number(_bp.rsi_oversold   ?? 38)
+        const dynRsiOverbought = Number(_bp.rsi_overbought ?? 62)
+        const dynBbProx        = Number(_bp.bb_proximity   ?? 1.01)
+        const dynTpR           = Number(_bp.tp_r           ?? 2.0)
+
+        const simpleEntry = findSimpleEntry(completed, price, dynRsiOversold, dynRsiOverbought, dynBbProx)
         if (!simpleEntry) return
 
         const { side, slDist: rawSlDist } = simpleEntry
@@ -775,7 +780,7 @@ Deno.serve(async (req) => {
         const slPct   = slDist / price
         if (slPct < MIN_SL_PCT || slPct > 0.04) return
 
-        const tpPrice = side === 'LONG' ? price + slDist * 2.0 : price - slDist * 2.0
+        const tpPrice = side === 'LONG' ? price + slDist * dynTpR : price - slDist * dynTpR
         const hiVal   = side === 'LONG' ? tpPrice : price
         const loVal   = side === 'SHORT' ? tpPrice : price
 
