@@ -30,6 +30,7 @@ const C = {
   pink:  '#ff2070', green: '#00e87a', red: '#ff3350',
   yellow:'#ffb700', blue:  '#3ab8ff', dim: '#1a2840',
   muted: '#304060', text:  '#b8d0ee', bright: '#e8f4ff',
+  teal:  '#00d9a3', ice: '#7b9cc0',
   border:'rgba(255,32,112,0.4)',
   glow:  '0 0 16px rgba(255,32,112,0.15), inset 0 0 16px rgba(255,32,112,0.04)',
 }
@@ -207,6 +208,8 @@ export default function CryptoTradingDashboard() {
   const [supaStatus,setSupaStatus] = useState<'off'|'connecting'|'live'|'error'>(SUPA_URL&&SUPA_KEY?'connecting':'off')
   const [tab,setTab]             = useState<TabType>('scanner')
   const [execLog,setExecLog]     = useState<string[]>([])
+  const [paperMode,setPaperMode] = useState(false)
+  const [paperStats,setPaperStats] = useState<{trades:number,wins:number,pnl:number,wr:string}|null>(null)
 
   const barsMap    = useRef(new Map<string,Bar[]>())
   const curBar     = useRef(new Map<string,Bar>())
@@ -575,6 +578,17 @@ export default function CryptoTradingDashboard() {
     addLog(`♻ חשבון אופס ל-$${INIT_BAL.toLocaleString()} — ${hist.length} עסקאות נשמרו בגיבוי`)
   }
 
+  const runPaperBacktest=()=>{
+    if(trades.length<10){addLog('✗ צריך לפחות 10 עסקאות');return}
+    const closed=trades.filter(t=>t.status!=='OPEN')
+    const wins=closed.filter(t=>(t.pnl||0)>0).length
+    const wr=closed.length>0?wins/closed.length:0
+    const pnl=closed.reduce((a,t)=>a+(t.pnl||0),0)
+    setPaperStats({trades:closed.length,wins,pnl,wr:(wr*100).toFixed(1)})
+    setPaperMode(true)
+    addLog(`📊 PAPER BACKTEST: ${closed.length} trades | ${wr.toFixed(0)}% WR | P&L $${pnl.toFixed(2)}`)
+  }
+
   const openTrades =trades.filter(t=>t.status==='OPEN')
   const closed     =trades.filter(t=>t.status!=='OPEN')
   const wins       =closed.filter(t=>(t.pnl||0)>0).length
@@ -650,6 +664,9 @@ export default function CryptoTradingDashboard() {
             }catch{addLog('✗ שגיאה בשליחה לטלגרם')}
           }} style={{cursor:'pointer',border:`1px solid rgba(58,184,255,0.5)`,borderRadius:'4px',padding:'3px 10px',fontSize:'10px',fontWeight:700,background:'rgba(58,184,255,0.1)',color:C.blue}}>
             📱 טלגרם
+          </button>
+          <button onClick={runPaperBacktest} style={{cursor:'pointer',border:`1px solid rgba(123,156,192,0.5)`,borderRadius:'4px',padding:'3px 10px',fontSize:'10px',fontWeight:700,background:'rgba(123,156,192,0.1)',color:C.ice}}>
+            📈 PAPER
           </button>
           <button onClick={handleReset} style={{cursor:'pointer',border:`1px solid rgba(255,183,0,0.5)`,borderRadius:'4px',padding:'3px 10px',fontSize:'10px',fontWeight:700,background:'rgba(255,183,0,0.1)',color:C.yellow}}>
             ♻ RESET
@@ -859,6 +876,37 @@ export default function CryptoTradingDashboard() {
             style={{width:'100%',height:'200px',display:'block',borderRadius:'4px',background:'#04050c',border:`1px solid ${C.dim}`}}/>
         </div>
       </div>
+
+      {/* ══ PAPER MODE RESULTS ══ */}
+      {paperMode&&paperStats&&(
+        <div style={{...panel,padding:'12px',marginBottom:'6px',background:'rgba(123,156,192,0.1)',border:`2px solid ${C.ice}`}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'8px'}}>
+            <span style={{fontWeight:800,color:C.ice,fontSize:'11px',letterSpacing:'1px'}}>📊 PAPER TRADING RESULTS</span>
+            <button onClick={()=>setPaperMode(false)} style={{cursor:'pointer',background:'none',border:'none',color:C.text,fontSize:'14px'}}>✕</button>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'8px'}}>
+            <div style={{textAlign:'center'}}>
+              <div style={{color:C.muted,fontSize:'9px',marginBottom:'2px'}}>Trades</div>
+              <div style={{color:C.ice,fontWeight:700,fontSize:'14px'}}>{paperStats.trades}</div>
+            </div>
+            <div style={{textAlign:'center'}}>
+              <div style={{color:C.muted,fontSize:'9px',marginBottom:'2px'}}>Wins</div>
+              <div style={{color:C.teal,fontWeight:700,fontSize:'14px'}}>{paperStats.wins}</div>
+            </div>
+            <div style={{textAlign:'center'}}>
+              <div style={{color:C.muted,fontSize:'9px',marginBottom:'2px'}}>Win Rate</div>
+              <div style={{color:parseFloat(paperStats.wr)>=45?C.teal:parseFloat(paperStats.wr)>=40?C.yellow:C.red,fontWeight:700,fontSize:'14px'}}>{paperStats.wr}%</div>
+            </div>
+            <div style={{textAlign:'center'}}>
+              <div style={{color:C.muted,fontSize:'9px',marginBottom:'2px'}}>P&L</div>
+              <div style={{color:paperStats.pnl>=0?C.teal:C.red,fontWeight:700,fontSize:'14px'}}>${paperStats.pnl.toFixed(2)}</div>
+            </div>
+          </div>
+          <div style={{marginTop:'8px',padding:'6px',background:C.panel,borderRadius:'3px',fontSize:'10px',color:C.muted,textAlign:'center'}}>
+            {parseFloat(paperStats.wr)>=45?'✅ READY FOR LIVE':'⚠️ NEED MORE DATA (target: 45%+ WR)'}
+          </div>
+        </div>
+      )}
 
       {/* ══ EXECUTION LOG ══ */}
       <div style={{...panel,padding:'8px'}}>
