@@ -19,11 +19,14 @@ const BINANCE      = 'https://api.binance.com/api/v3'
 const FAPI         = 'https://fapi.binance.com/fapi/v1'
 const FAPI_DATA    = 'https://fapi.binance.com/futures/data'
 
+// v20: Whitelist starts with all liquid coins, gets pruned dynamically
+// Only symbols with >42% win rate in last 100 trades are kept
 const FALLBACK_COINS = [
   'BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','DOT',
   'NEAR','UNI','ATOM','LTC','BCH','ARB','OP','INJ','SUI','TON',
   'PEPE','WIF','APT','FET','RNDR','TRX','HBAR','ICP','AAVE','GRT',
 ]
+const MIN_COIN_WIN_RATE = 0.42  // Minimum 42% to stay on whitelist
 
 const CORR_GROUPS: string[][] = [
   ['SOL','AVAX','NEAR','ATOM','APT','SUI','DOT','ONE','EGLD','FTM','KAVA','ALGO'],
@@ -382,6 +385,32 @@ function computeAdaptive(trades: any[]): {
   return { minScore, vpocDist, sideFilter }
 }
 
+// v20: Compute coin whitelist — only symbols with >42% win rate stay active
+function computeCoinWhitelist(trades: any[]): Set<string> {
+  const whitelist = new Set<string>()
+  const bySym: Record<string, any[]> = {}
+
+  // Group by symbol
+  for (const t of (trades || [])) {
+    if (!bySym[t.sym]) bySym[t.sym] = []
+    bySym[t.sym].push(t)
+  }
+
+  // Keep symbols with ≥42% win rate
+  for (const [sym, symTrades] of Object.entries(bySym)) {
+    if (symTrades.length >= 10) {
+      const wins = symTrades.filter(t => Number(t.pnl) > 0).length
+      const wr = wins / symTrades.length
+      if (wr >= MIN_COIN_WIN_RATE) {
+        whitelist.add(sym)
+      }
+    }
+  }
+
+  // Fallback: if whitelist is empty, use all symbols
+  return whitelist.size > 0 ? whitelist : new Set(FALLBACK_COINS)
+}
+
 // ── Dynamic blacklist: block symbols with 2+ consecutive SL in recent window ──
 function buildBlacklist(recent: any[]): Set<string> {
   const blacklist = new Set<string>()
@@ -555,7 +584,14 @@ Deno.serve(async (req) => {
     const { minScore: adaptMinScore, vpocDist: adaptVpocDist, sideFilter: adaptSideFilter } =
       computeAdaptive(trades100 as any[])
 
-    log.push(`COINS=${COINS.length} FG=${fearGreed} v19`)
+    // v20: Filter coins to whitelist (only those with >42% WR)
+    const coinWhitelist = computeCoinWhitelist(recent || [])
+    const activeCoins = COINS.filter(c => coinWhitelist.has(c))
+
+    log.push(`COINS=${activeCoins.length}/${COINS.length} (whitelist) FG=${fearGreed} v20`)
+    if (coinWhitelist.size > 0 && coinWhitelist.size < COINS.length) {
+      log.push(`WHITELIST ${[...coinWhitelist].slice(0,10).join(',')}${coinWhitelist.size > 10 ? '...' : ''}`)
+    }
     log.push(`ADAPT sc>=${adaptMinScore} vpoc<=${(adaptVpocDist*100).toFixed(1)}% side=${adaptSideFilter} kelly=${kellyMult.toFixed(2)}`)
 
     let btcBias:'BULL'|'BEAR'|'NEUTRAL'='NEUTRAL'
@@ -616,8 +652,8 @@ Deno.serve(async (req) => {
     }
 
     const BATCH = 12
-    for (let b=0; b<COINS.length; b+=BATCH) {
-      await Promise.all(COINS.slice(b,b+BATCH).map(async (sym)=>{
+    for (let b=0; b<activeCoins.length; b+=BATCH) {
+      await Promise.all(activeCoins.slice(b,b+BATCH).map(async (sym)=>{
     try {
         const [bars5m, bars15m, priceRes] = await Promise.all([
           fetchBars(sym,'5m',200),
