@@ -428,19 +428,20 @@ export default function CryptoTradingDashboard() {
   },[])
 
   const handleManualClose=useCallback(async(t:Trade)=>{
-    const supa=supaRef.current
-    if(!supa){addLog('⚠ Supabase לא מחובר');return}
+    if(!SUPA_URL){addLog('⚠ Supabase לא מחובר');return}
     const live=livePositions[t.id]
     const exitPrice=live?.cur??t.entry
     const dirM=t.side==='LONG'?1:-1
     const pnl=(exitPrice-t.entry)*dirM*t.size*LEVERAGE-t.fee-exitPrice*t.size*FEE_PCT*LEVERAGE
     const pnlPct=(exitPrice-t.entry)/t.entry*dirM*100
     try {
-      const {error}=await supa.from('bot_trades').update({
-        status:'MANUAL',exit_price:exitPrice,pnl,pnl_pct:pnlPct,
-        closed_at:new Date().toISOString(),
-      }).eq('id',t.id).eq('status','OPEN')
-      if(error)addLog(`⚠ שגיאה: ${error.message}`)
+      const resp=await fetch(`${SUPA_URL}/functions/v1/close-trade`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':`Bearer ${SUPA_KEY}`},
+        body:JSON.stringify({trade_id:t.id,exit_price:exitPrice,pnl,pnl_pct:pnlPct}),
+      })
+      const json=await resp.json()
+      if(json.error)addLog(`⚠ שגיאה: ${json.error}`)
       else addLog(`✕ סגור ידני ${t.sym} @ ${exitPrice>=100?exitPrice.toFixed(2):exitPrice.toFixed(5)} ${pnl>=0?'+':''}${pnl.toFixed(2)}$`)
     } catch(e:unknown){addLog(`⚠ שגיאה: ${e instanceof Error?e.message:String(e)}`)}
   },[livePositions,addLog])
