@@ -34,14 +34,9 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d '{
-              "query": "ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS bot_params JSONB DEFAULT '"'"'{}'"'"'; ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS last_optimized_at TIMESTAMPTZ; CREATE TABLE IF NOT EXISTS bot_params_history (id BIGSERIAL PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), trade_count INT, overall_wr NUMERIC(5,4), overall_pf NUMERIC(6,3), params_before JSONB, params_after JSONB, reasoning TEXT);"
+              "query": "ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS bot_params JSONB DEFAULT '"'"'{}'"'"'; ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS last_optimized_at TIMESTAMPTZ; CREATE TABLE IF NOT EXISTS bot_params_history (id BIGSERIAL PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), trade_count INT, overall_wr NUMERIC(5,4), overall_pf NUMERIC(6,3), params_before JSONB, params_after JSONB, reasoning TEXT); ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS market_regime TEXT DEFAULT '"'"'RANGING'"'"'; ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS regime_confidence NUMERIC(4,2) DEFAULT 0.5; ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS regime_updated_at TIMESTAMPTZ; ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS coin_weights JSONB DEFAULT '"'"'{}'"'"'; ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS rebalanced_at TIMESTAMPTZ; CREATE TABLE IF NOT EXISTS market_regime (id BIGSERIAL PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), regime TEXT NOT NULL, confidence NUMERIC(4,2), btc_adx NUMERIC(6,2), btc_atr_pct NUMERIC(8,5), btc_ema_slope NUMERIC(10,6), bb_width_pct NUMERIC(8,5), notes TEXT); CREATE TABLE IF NOT EXISTS rebalance_history (id BIGSERIAL PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), trade_count INT, weights_after JSONB, scores JSONB);"
             }' | tee /tmp/migration_result.json
-          if grep -q '"error"' /tmp/migration_result.json; then
-            cat /tmp/migration_result.json
-            echo "Migration query returned an error (may be ignorable if columns already exist)"
-          else
-            echo "Migration applied successfully"
-          fi
+          grep -q '"error"' /tmp/migration_result.json && echo "Migration warning (columns may already exist)" || echo "Migration applied successfully"
 
       - name: Set optimizer secrets
         run: |
@@ -55,19 +50,30 @@ jobs:
       - name: Deploy trading-optimizer function
         run: supabase functions deploy trading-optimizer --project-ref ${{ env.PROJECT_REF }} --no-verify-jwt
 
-      - name: Setup cron job
+      - name: Deploy market-regime-detector function
+        run: supabase functions deploy market-regime-detector --project-ref ${{ env.PROJECT_REF }} --no-verify-jwt
+
+      - name: Deploy portfolio-rebalancer function
+        run: supabase functions deploy portfolio-rebalancer --project-ref ${{ env.PROJECT_REF }} --no-verify-jwt
+
+      - name: Setup cron jobs
         run: |
           ANON_KEY=$(curl -s \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
             "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/api-keys" \
             | grep -o '"anon"[^}]*"apiKey":"[^"]*"' | grep -o '"apiKey":"[^"]*"' | cut -d'"' -f4)
           echo "Got anon key: ${ANON_KEY:0:10}..."
+          BASE="https://${{ env.PROJECT_REF }}.supabase.co/functions/v1"
+          HEADERS="jsonb_build_object('Authorization','Bearer ${ANON_KEY}')"
           curl -s -X POST \
             "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d "{\"query\": \"SELECT cron.schedule('trading-optimizer','* * * * *', \\\$q\\\$SELECT net.http_post(url:='https://${{ env.PROJECT_REF }}.supabase.co/functions/v1/trading-optimizer', headers:=jsonb_build_object('Authorization','Bearer ${ANON_KEY}'))\\\$q\\\$) ON CONFLICT DO NOTHING;\"}" \
-            || echo "Cron: set manually if needed"
+            -d "{\"query\": \"
+              SELECT cron.schedule('trading-optimizer','* * * * *',\\\$q\\\$SELECT net.http_post(url:='${BASE}/trading-optimizer',headers:=${HEADERS})\\\$q\\\$) ON CONFLICT DO NOTHING;
+              SELECT cron.schedule('market-regime','*/5 * * * *',\\\$q\\\$SELECT net.http_post(url:='${BASE}/market-regime-detector',headers:=${HEADERS})\\\$q\\\$) ON CONFLICT DO NOTHING;
+              SELECT cron.schedule('portfolio-rebalancer','0 * * * *',\\\$q\\\$SELECT net.http_post(url:='${BASE}/portfolio-rebalancer',headers:=${HEADERS})\\\$q\\\$) ON CONFLICT DO NOTHING;
+            \"}" || echo "Cron: set manually if needed"
 
       - name: Done
-        run: echo "✅ trading-bot + trading-optimizer deployed!"
+        run: echo "✅ All 4 functions deployed! Crons: optimizer(1m) regime(5m) rebalancer(1h)"
