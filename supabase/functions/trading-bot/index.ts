@@ -662,6 +662,110 @@ async function logDailySummary(supabase: any, dayTrades: any[], marketRegime: st
   }
 }
 
+// ── Phase 11: Macro event filter ─────────────────────────────────────────────
+function isMacroEventWindow(nowDate: Date): { skip: boolean; reason: string } {
+  const utcH   = nowDate.getUTCHours()
+  const utcM   = nowDate.getUTCMinutes()
+  const utcD   = nowDate.getUTCDate()
+  const utcDay = nowDate.getUTCDay() // 0=Sun … 6=Sat
+  const totalMin = utcH * 60 + utcM
+
+  // NFP — first Friday of each month at 12:30 UTC (±30 min)
+  if (utcDay === 5 && utcD <= 7 && Math.abs(totalMin - (12 * 60 + 30)) <= 30)
+    return { skip: true, reason: 'NFP' }
+
+  // FOMC — 2nd and 4th Wednesday at 18:00 UTC (±30 min)
+  const weekOfMonth = Math.floor((utcD - 1) / 7) // 0-indexed
+  if (utcDay === 3 && (weekOfMonth === 1 || weekOfMonth === 3) && Math.abs(totalMin - 18 * 60) <= 30)
+    return { skip: true, reason: 'FOMC' }
+
+  // CPI — mid-month (10th–20th) at 12:30 UTC (±30 min)
+  if (utcD >= 10 && utcD <= 20 && Math.abs(totalMin - (12 * 60 + 30)) <= 30)
+    return { skip: true, reason: 'CPI' }
+
+  return { skip: false, reason: '' }
+}
+
+// ── Phase 1: Save indicator snapshot at trade entry ───────────────────────────
+async function saveTradeSnapshot(
+  supabase: any,
+  tradeId: number,
+  coin: string,
+  side: string,
+  confluenceScore: number,
+  adx: number,
+  rsi: number,
+  volumeRatio: number,
+  hourUtc: number,
+  marketRegime: string,
+  session: string,
+  oiSignal: string,
+  fearGreed: number
+): Promise<void> {
+  try {
+    await supabase.from('bot_trade_snapshots').insert({
+      trade_id: tradeId, coin, side,
+      confluence_score: +confluenceScore.toFixed(1),
+      adx: +adx.toFixed(2),
+      rsi: +rsi.toFixed(2),
+      volume_ratio: +volumeRatio.toFixed(3),
+      hour_utc: hourUtc,
+      market_regime: marketRegime,
+      session, oi_signal: oiSignal, fear_greed: fearGreed,
+    })
+  } catch { /* non-fatal */ }
+}
+
+// ── Phase 9: Update market memory row after a trade closes ────────────────────
+async function updateMarketMemory(
+  supabase: any,
+  tradeId: number,
+  result: string,
+  pnl: number,
+  log: string[]
+): Promise<void> {
+  try {
+    const { data: snap } = await supabase
+      .from('bot_trade_snapshots')
+      .select('market_regime, session, adx')
+      .eq('trade_id', tradeId)
+      .maybeSingle()
+    if (!snap) return
+
+    const adxVal = snap.adx ?? 0
+    const adxRange = adxVal < 15 ? 'adx_low' : adxVal < 25 ? 'adx_med' : 'adx_high'
+    const conditionKey = `${adxRange}_${snap.market_regime ?? 'unknown'}_${snap.session ?? 'unknown'}`
+    const isWin = result === 'TP' || pnl > 0
+
+    const { data: existing } = await supabase
+      .from('bot_market_memory')
+      .select('win_rate, trade_count, avg_pnl')
+      .eq('condition_key', conditionKey)
+      .maybeSingle()
+
+    if (existing) {
+      const newCount  = (existing.trade_count ?? 0) + 1
+      const prevWins  = Math.round((existing.win_rate ?? 0) * (existing.trade_count ?? 0))
+      const prevTotal = (existing.avg_pnl ?? 0) * (existing.trade_count ?? 0)
+      await supabase.from('bot_market_memory').update({
+        win_rate:     (prevWins + (isWin ? 1 : 0)) / newCount,
+        trade_count:  newCount,
+        avg_pnl:      (prevTotal + pnl) / newCount,
+        last_updated: new Date().toISOString(),
+      }).eq('condition_key', conditionKey)
+    } else {
+      await supabase.from('bot_market_memory').insert({
+        condition_key: conditionKey,
+        win_rate:      isWin ? 1.0 : 0.0,
+        trade_count:   1,
+        avg_pnl:       pnl,
+      })
+    }
+  } catch (e) {
+    log.push(`MEM_ERR: ${String(e).slice(0, 50)}`)
+  }
+}
+
 async function runBacktest(): Promise<object> {
   const testCoins=['BTC','ETH','SOL']
   const results:any[]=[]
@@ -822,6 +926,21 @@ Deno.serve(async (req) => {
     if (streakPaused) log.push(`STREAK PAUSE ${streak}`)
     if (dynamicBlacklist.size>0) log.push(`BLACKLIST ${[...dynamicBlacklist].join(',')}`)
 
+    // ── Phase 10: Equity Curve Guard ──────────────────────────────────────────
+    const peakBalanceStored  = Number(state.peak_balance ?? INITIAL_BALANCE)
+    const currentPeakBalance = Math.max(peakBalanceStored, balance)
+    const newPeakBalance     = balance > peakBalanceStored ? balance : peakBalanceStored
+    const drawdownFromPeak   = currentPeakBalance > 0 ? (currentPeakBalance - balance) / currentPeakBalance : 0
+    let equityGuardMult   = 1.0
+    let equityGuardPaused = false
+    if (drawdownFromPeak >= 0.30) {
+      equityGuardPaused = true
+      log.push(`EQUITY GUARD: balance $${balance.toFixed(0)} is ${(drawdownFromPeak*100).toFixed(0)}% below peak $${currentPeakBalance.toFixed(0)} — PAUSED 2h`)
+    } else if (drawdownFromPeak >= 0.15) {
+      equityGuardMult = 0.5
+      log.push(`EQUITY GUARD: balance $${balance.toFixed(0)} is ${(drawdownFromPeak*100).toFixed(0)}% below peak $${currentPeakBalance.toFixed(0)} — half sizing`)
+    }
+
     const needDailySummary=utcH===0&&utcM<2
     const [btcBars,allFunding,COINS,fearGreed,trades100,dayTradesRaw,btcAdxForDaily]=await Promise.all([
       fetchBars('BTC','5m',60),
@@ -846,10 +965,54 @@ Deno.serve(async (req) => {
     const activeCoins=COINS.filter(c=>!hasEnoughCoinHistory||coinScores[c]!==undefined)
     const topCoins=Object.entries(coinScores).sort((a,b)=>b[1].score-a[1].score).slice(0,5)
 
-    log.push(`v21 COINS=${activeCoins.length}/${COINS.length} sess=${session}×${sp.sizeMult} FG=${fearGreed}`)
+    log.push(`v23 COINS=${activeCoins.length}/${COINS.length} sess=${session}×${sp.sizeMult} FG=${fearGreed}`)
     log.push(`ADAPT sc>=${adaptMinScore}+${sp.minScoreBonus} vpoc<=${(adaptVpocDist*100).toFixed(1)}% side=${adaptSideFilter} kelly=${kellyMult.toFixed(2)}`)
     if (topCoins.length>0)
       log.push(`TOP ${topCoins.map(([s,v])=>`${s}:${v.score.toFixed(0)}`).join(' ')}`)
+
+    // ── Phase 4: Coin suspension — auto-disable coins with ≥15 trades + WR<40% ──
+    const coinWeights = JSON.parse(JSON.stringify(state.coin_weights ?? {})) as Record<string,any>
+    const suspendedCoins = new Set<string>()
+
+    for (const [coin, wt] of Object.entries(coinWeights)) {
+      if ((wt as any)?.suspended_until && new Date((wt as any).suspended_until).getTime() > now) {
+        suspendedCoins.add(coin)
+      } else if ((wt as any)?.suspended_until) {
+        log.push(`RESUME ${coin}: suspension expired`)
+        delete (coinWeights[coin] as any).suspended_until
+      }
+    }
+
+    const coinTradesMap: Record<string,any[]> = {}
+    for (const t of (trades100 as any[])) {
+      if (!coinTradesMap[t.sym]) coinTradesMap[t.sym] = []
+      coinTradesMap[t.sym].push(t)
+    }
+    for (const [coin, cTrades] of Object.entries(coinTradesMap)) {
+      if (cTrades.length >= 15 && !suspendedCoins.has(coin)) {
+        const wr = cTrades.filter((t:any) => Number(t.pnl) > 0).length / cTrades.length
+        if (wr < 0.40) {
+          const suspendUntil = new Date(now + 7 * 86400_000).toISOString()
+          if (!coinWeights[coin]) coinWeights[coin] = {}
+          ;(coinWeights[coin] as any).suspended_until = suspendUntil
+          suspendedCoins.add(coin)
+          log.push(`SUSPEND ${coin}: wr=${(wr*100).toFixed(0)}% (${cTrades.length} trades) until ${suspendUntil.slice(0,10)}`)
+        }
+      }
+    }
+    if (suspendedCoins.size > 0) log.push(`SUSPENDED: ${[...suspendedCoins].join(',')}`)
+
+    // ── Phase 5: Coin boost/reduce by win-rate rank ────────────────────────────
+    const coinWrRankList: { coin:string; wr:number }[] = []
+    for (const [coin, cTrades] of Object.entries(coinTradesMap)) {
+      if (cTrades.length >= 15) {
+        const wr = cTrades.filter((t:any) => Number(t.pnl) > 0).length / cTrades.length
+        coinWrRankList.push({ coin, wr })
+      }
+    }
+    coinWrRankList.sort((a,b) => b.wr - a.wr)
+    const topBoostCoins    = new Set(coinWrRankList.slice(0, 3).map(c => c.coin))
+    const bottomReduceCoins = new Set(coinWrRankList.slice(-3).filter(c => !suspendedCoins.has(c.coin)).map(c => c.coin))
 
     let btcBias:'BULL'|'BEAR'|'NEUTRAL'='NEUTRAL'
     let btcRegime:'TRENDING'|'RANGING'|'SQUEEZE'='TRENDING'
@@ -919,6 +1082,17 @@ Deno.serve(async (req) => {
         // v22: Get last 5m price change for OI divergence context
         const last5min = completed.length >= 2 ? (price - completed[completed.length-2].close) / completed[completed.length-2].close : 0
 
+        // ── Phase 3: Pre-compute EMA exit arrays (once per coin, reused in loop) ──
+        const closesAll5m  = completed.map((b:Bar) => b.close)
+        const ema9ExitArr  = calcEmaArr(closesAll5m, 9)
+        const ema21ExitArr = calcEmaArr(closesAll5m, 21)
+        const curE9Exit    = ema9ExitArr.at(-1)!,  prevE9Exit  = ema9ExitArr.at(-2)!
+        const curE21Exit   = ema21ExitArr.at(-1)!, prevE21Exit = ema21ExitArr.at(-2)!
+        const vols20Exit   = completed.slice(-20).map((b:Bar) => b.vol)
+        const volAvg20Exit = vols20Exit.reduce((a:number,v:number) => a+v, 0) / vols20Exit.length
+        const curBarVol    = completed[completed.length-1].vol
+        const isLowVolExit = volAvg20Exit > 0 && curBarVol < volAvg20Exit * 0.8
+
         // ── Manage open positions ─────────────────────────
         for (const t of openTrades) {
           const entry =Number(t.entry_price)
@@ -927,6 +1101,25 @@ Deno.serve(async (req) => {
           const slDist=Math.abs(entry-sl)
           const dirM  =t.side==='LONG'?1:-1
           const ageMs =t.opened_at?now-new Date(t.opened_at).getTime():0
+
+          // ── Phase 3: Smart Early Exit — EMA9 cross against direction + low vol ──
+          const emaCrossedAgainst =
+            (t.side==='LONG'  && prevE9Exit >= prevE21Exit && curE9Exit < curE21Exit) ||
+            (t.side==='SHORT' && prevE9Exit <= prevE21Exit && curE9Exit > curE21Exit)
+          if (emaCrossedAgainst && isLowVolExit) {
+            const fav = (price-entry)/entry*dirM
+            const pnl = fav*entry*size*LEVERAGE - Number(t.fee) - price*size*FEE*LEVERAGE
+            const finalSt = pnl > 0 ? 'TP' : 'TRAIL'
+            balance += entry*size+pnl; openCount--
+            await supabase.from('bot_trades').update({
+              status:finalSt, exit_price:price, pnl, pnl_pct:fav,
+              closed_at:new Date().toISOString()
+            }).eq('id',t.id)
+            await supabase.from('bot_trade_snapshots').update({ result:'early_exit_ema_reversal', pnl }).eq('trade_id',t.id).catch(()=>{})
+            await updateMarketMemory(supabase, t.id, finalSt, pnl, log)
+            log.push(`EARLY_EXIT ${sym} ${t.side} ema_reversal+low_vol pnl=${pnl.toFixed(2)} [early_exit_ema_reversal]`)
+            return
+          }
 
           const storedTP_LONG =Number(t.hi)>entry*1.001
           const storedTP_SHORT=Number(t.lo) <entry*0.999
@@ -975,6 +1168,10 @@ Deno.serve(async (req) => {
               status:final,exit_price:price,pnl,
               pnl_pct:fav,closed_at:new Date().toISOString()
             }).eq('id',t.id)
+            // Phase 1: update snapshot with close result
+            await supabase.from('bot_trade_snapshots').update({ result:final, pnl }).eq('trade_id',t.id).catch(()=>{})
+            // Phase 9: update market memory
+            await updateMarketMemory(supabase, t.id, final, pnl, log)
             const modeTag=t.mtf?'SWEEP':'RANGE'
             log.push(`CLOSE ${sym} ${t.side} ${final} [${modeTag}] pnl=${pnl.toFixed(2)} ${Math.round(ageMs/60000)}m`)
           } else if (t.mtf) {
@@ -1008,17 +1205,25 @@ Deno.serve(async (req) => {
 
         // ── New entry ──────────────────────────────────────
         if (circuitBreakerActive) return
+        if (equityGuardPaused) return  // Phase 10: 30% drawdown pause
         if (streakPaused) return
         if (openTrades.length > 0) return
         if (symCooldown.has(sym)) return
         if (dynamicBlacklist.has(sym)) return
+        // Phase 4: Skip suspended coins
+        if (suspendedCoins.has(sym)) { log.push(`SKIP ${sym}: suspended`); return }
+        // Phase 11: Macro event filter
+        const macroChk = isMacroEventWindow(new Date())
+        if (macroChk.skip) { log.push(`SKIP ${sym}: macro ${macroChk.reason}`); return }
         if (atrPct > 0.02 || atrPct < 0.00003) return
         if (balance < 10) return
 
-        const dynRsiOversold   = Number(_bp.rsi_oversold   ?? 42)
-        const dynRsiOverbought = Number(_bp.rsi_overbought ?? 58)
-        const dynBbProx        = Number(_bp.bb_proximity   ?? 1.02)
-        const dynTpR           = Number(_bp.tp_r           ?? 2.5)
+        const dynRsiOversold    = Number(_bp.rsi_oversold        ?? 42)
+        const dynRsiOverbought  = Number(_bp.rsi_overbought       ?? 58)
+        const dynBbProx         = Number(_bp.bb_proximity         ?? 1.02)
+        const dynTpR            = Number(_bp.tp_r                 ?? 2.5)
+        const dynMinConfluence  = Number(_bp.min_confluence_score ?? 60)
+        const dynMinAdx         = Number(_bp.min_adx              ?? 0)
 
         // v22: Use confluence score instead of 2/4 signals
         const entryScore = calcConfluenceScore(
@@ -1031,10 +1236,14 @@ Deno.serve(async (req) => {
           return
         }
 
-        // v22: Gate threshold: confluence score >= 60
+        // v23: Gate threshold uses dynMinConfluence (default 60, tuned by optimizer)
         const regimeCheck = applyMarketRegimeFilter(entryScore.score, adx, 1.0)
-        if (regimeCheck.shouldSkip) {
-          log.push(`SKIP ${sym}: score=${entryScore.score} < 60 (${Object.entries(entryScore.breakdown).filter(([_,v])=>v>0).map(([k,v])=>`${k}=${v}`).join(' ')})`)
+        if (entryScore.score < dynMinConfluence) {
+          log.push(`SKIP ${sym}: score=${entryScore.score} < ${dynMinConfluence} (${Object.entries(entryScore.breakdown).filter(([_,v])=>v>0).map(([k,v])=>`${k}=${v}`).join(' ')})`)
+          return
+        }
+        if (dynMinAdx > 0 && adx < dynMinAdx) {
+          log.push(`SKIP ${sym}: adx=${adx.toFixed(0)} < min_adx=${dynMinAdx}`)
           return
         }
 
@@ -1068,10 +1277,25 @@ Deno.serve(async (req) => {
         const loVal   = side === 'SHORT' ? tpPrice : price
 
         // v22: Apply Kelly scaling by confluence score
-        const kellyByScore = getKellyScaleByScore(entryScore.score)
+        const kellyByScore    = getKellyScaleByScore(entryScore.score)
         const sizeAdjByRegime = regimeCheck.sizeAdj
 
-        const riskAmt  = balance * R.riskPct * kellyMult * kellyByScore * sizeAdjByRegime
+        // Phase 6: Session size filter applied to riskAmt
+        let sessionSizeAdj = sp.sizeMult
+        if (session === 'DEAD') sessionSizeAdj = 0.5
+        else if (session === 'ASIAN' && adx < 18) sessionSizeAdj = 0.7
+
+        // Phase 5: Coin boost/reduce
+        let coinSizeMult = 1.0
+        if (topBoostCoins.has(sym)) {
+          coinSizeMult = 1.3
+          log.push(`coin_boost: ${sym} 1.3x`)
+        } else if (bottomReduceCoins.has(sym)) {
+          coinSizeMult = 0.7
+          log.push(`coin_reduce: ${sym} 0.7x`)
+        }
+
+        const riskAmt = balance * R.riskPct * kellyMult * kellyByScore * sizeAdjByRegime * sessionSizeAdj * coinSizeMult * equityGuardMult
         const notional = Math.min(riskAmt / slPct, balance * MAX_NOTIONAL_PCT, balance * 0.95)
         if (notional < 5) return
 
@@ -1079,19 +1303,34 @@ Deno.serve(async (req) => {
         balance -= (notional + fee); openCount++
         if (gid >= 0) corrGroupCount[gid] = (corrGroupCount[gid] || 0) + 1
 
-        await supabase.from('bot_trades').insert({
+        const { data: insertedTrade } = await supabase.from('bot_trades').insert({
           sym, side, entry_price: price, size, fee,
           trail_sl: slPrice, hi: hiVal, lo: loVal,
           status: 'OPEN', score: Math.round(entryScore.score), mtf: true, partial_done: false,
           paper_mode: paperMode
-        })
+        }).select('id').single()
 
-        // v22: Log confluence score breakdown
+        // Phase 1: Save trade snapshot with all indicator values at entry
+        if (insertedTrade?.id) {
+          const cls5m       = completed.map((b:Bar) => b.close)
+          const rsiSnap     = calcRsi(cls5m.slice(-15))
+          const vols20Snap  = completed.slice(-20).map((b:Bar) => b.vol)
+          const volAvgSnap  = vols20Snap.reduce((a:number,v:number)=>a+v,0)/vols20Snap.length
+          const curVolSnap  = completed[completed.length-1].vol
+          const volRatioSnap = volAvgSnap > 0 ? curVolSnap/volAvgSnap : 1.0
+          await saveTradeSnapshot(
+            supabase, insertedTrade.id, sym, side,
+            entryScore.score, adx, rsiSnap, volRatioSnap,
+            utcH, btcRegime+'_v23_5M', session, oiSig, fearGreed
+          )
+        }
+
+        // v23: Log confluence score breakdown
         const breakdownStr = Object.entries(entryScore.breakdown)
           .filter(([_,v]) => v > 0)
           .map(([k,v]) => `${k}=${v}`)
           .join(' ')
-        log.push(`OPEN ${sym} ${side} [CONF] score=${Math.round(entryScore.score)} (${breakdownStr}) adx=${adx.toFixed(0)} @${price.toFixed(6)} sl=${(slPct*100).toFixed(3)}% $${notional.toFixed(0)} ${session}`)
+        log.push(`OPEN ${sym} ${side} [CONF] score=${Math.round(entryScore.score)} (${breakdownStr}) adx=${adx.toFixed(0)} sess_adj=${sessionSizeAdj.toFixed(2)} @${price.toFixed(6)} sl=${(slPct*100).toFixed(3)}% $${notional.toFixed(0)} ${session}`)
 
       } catch(e) {
         log.push(`ERR ${sym}: ${String(e).slice(0,40)}`)
@@ -1105,14 +1344,17 @@ Deno.serve(async (req) => {
     }
 
     await supabase.from('bot_state').update({
-      balance,updated_at:new Date().toISOString(),
-      market_regime:btcRegime+'_v22_5M',streak
+      balance, updated_at: new Date().toISOString(),
+      market_regime: btcRegime+'_v23_5M', streak,
+      peak_balance:  newPeakBalance,
+      coin_weights:  coinWeights,
     }).eq('id',1)
 
     return new Response(JSON.stringify({
-      ok:true,v:22,openCount,streakPaused,streak,btcBias,btcRegime,
+      ok:true,v:23,openCount,streakPaused,streak,btcBias,btcRegime,
       kelly:kellyMult,fearGreed,adaptMinScore,adaptVpocDist,adaptSideFilter,
-      session,sessionSizeMult:sp.sizeMult,
+      session,sessionSizeMult:sp.sizeMult,equityGuardMult,drawdownFromPeak:(drawdownFromPeak*100).toFixed(1)+'%',
+      suspended:[...suspendedCoins],
       blacklist:[...dynamicBlacklist],
       topCoins:topCoins.slice(0,5).map(([s,v])=>({
         sym:s,score:v.score.toFixed(0),wr:(v.wr*100).toFixed(0)+'%',pf:v.pf.toFixed(2)

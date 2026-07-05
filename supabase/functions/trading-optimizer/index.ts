@@ -37,10 +37,13 @@ const DEFAULTS = {
   partial_tp_by_vol: { LOW: 0.8, MEDIUM: 1.2, HIGH: 1.5 },
   max_hold_min: 180,
   // simple entry params — tuned by optimizer
-  rsi_oversold:   42,
-  rsi_overbought: 58,
-  bb_proximity:   1.02,
-  tp_r:           2.5,
+  rsi_oversold:        42,
+  rsi_overbought:      58,
+  bb_proximity:        1.02,
+  tp_r:                2.5,
+  // Phase 7: confluence/ADX gate thresholds — tuned by optimizer
+  min_confluence_score: 60,
+  min_adx:              0,
   // optimizer state (not sent to trading bot)
   _meta: {
     trade_count_at_last_claude: 0,
@@ -61,8 +64,10 @@ const BOUNDS = {
   max_hold_min:   { min: 60,  max: 720 },
   rsi_oversold:   { min: 25,  max: 45  },
   rsi_overbought: { min: 55,  max: 75  },
-  bb_proximity:   { min: 1.002, max: 1.03 },
-  tp_r:           { min: 1.5, max: 4.0 },
+  bb_proximity:         { min: 1.002, max: 1.03 },
+  tp_r:                 { min: 1.5, max: 4.0 },
+  min_confluence_score: { min: 50, max: 80 },
+  min_adx:              { min: 0,  max: 30 },
 }
 
 function clamp(v: number, min: number, max: number) { return Math.max(min, Math.min(max, v)) }
@@ -190,6 +195,13 @@ function applyProposed(proposed: any, current: any): any {
   if (proposed.tp_r != null) {
     safe.tp_r = round2(clamp(limitChange(+proposed.tp_r, current.tp_r ?? 2.0, MAX_CHANGE), BOUNDS.tp_r.min, BOUNDS.tp_r.max))
   }
+  // Phase 7: min_confluence_score and min_adx
+  if (proposed.min_confluence_score != null) {
+    safe.min_confluence_score = round2(clamp(+proposed.min_confluence_score, BOUNDS.min_confluence_score.min, BOUNDS.min_confluence_score.max))
+  }
+  if (proposed.min_adx != null) {
+    safe.min_adx = round2(clamp(+proposed.min_adx, BOUNDS.min_adx.min, BOUNDS.min_adx.max))
+  }
   return safe
 }
 
@@ -257,6 +269,69 @@ Deno.serve(async () => {
   // ── slow path: call Claude ─────────────────────────────────────────────────
   const { overall, bySession, byMode, bySide, byScore, avgHoldWin, avgHoldLoss } = stats
 
+  // ── Phase 7: Fetch last 200 bot_trade_snapshots + market memory ───────────
+  const [snapshotRes, marketMemoryRes] = await Promise.all([
+    supabase.from('bot_trade_snapshots')
+      .select('hour_utc, adx, confluence_score, result, pnl')
+      .not('result', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(200),
+    supabase.from('bot_market_memory')
+      .select('condition_key, win_rate, trade_count, avg_pnl')
+      .order('trade_count', { ascending: false })
+      .limit(20),
+  ])
+  const snapshots    = snapshotRes.data    ?? []
+  const marketMemory = marketMemoryRes.data ?? []
+
+  interface SnapSeg { wins: number; total: number }
+  const byHour:       Record<number, SnapSeg> = {}
+  const byAdxRange:   Record<string, SnapSeg> = {}
+  const byConfBucket: Record<string, SnapSeg> = {}
+
+  for (const s of snapshots) {
+    const isWin = s.result === 'TP' || Number(s.pnl ?? 0) > 0
+    const inc = (map: Record<string|number, SnapSeg>, key: string|number) => {
+      if (!map[key]) map[key] = { wins: 0, total: 0 }
+      map[key].total++
+      if (isWin) map[key].wins++
+    }
+    if (s.hour_utc != null) inc(byHour, s.hour_utc)
+    const adxV = s.adx ?? 0
+    inc(byAdxRange, adxV < 15 ? 'adx_0_15' : adxV < 25 ? 'adx_15_25' : adxV < 35 ? 'adx_25_35' : 'adx_35+')
+    const cs = s.confluence_score ?? 0
+    inc(byConfBucket, cs < 60 ? 'conf_50_60' : cs < 70 ? 'conf_60_70' : cs < 80 ? 'conf_70_80' : 'conf_80+')
+  }
+
+  const fmtSnap = (m: Record<string|number, SnapSeg>) =>
+    Object.entries(m).map(([k,v]) => `${k}:WR=${v.total?(v.wins/v.total).toFixed(2):'n/a'}(${v.total})`).join(' ')
+
+  const bestHours = Object.entries(byHour)
+    .filter(([,v]) => v.total >= 3)
+    .sort((a,b) => (b[1].wins/b[1].total)-(a[1].wins/a[1].total))
+    .slice(0,5).map(([h,v]) => `${h}h:${(v.wins/v.total).toFixed(2)}`).join(' ')
+
+  const marketMemorySummary = marketMemory.length
+    ? marketMemory.map((m:any) => `${m.condition_key}: WR=${Number(m.win_rate).toFixed(2)} n=${m.trade_count} avgPnl=$${Number(m.avg_pnl).toFixed(2)}`).join('\n  ')
+    : 'no data yet'
+
+  // ── Phase 8: Walk-forward replay ──────────────────────────────────────────
+  function replaySnapshots(snaps: any[], minConf: number, minAdxVal: number): number {
+    let wins = 0, total = 0
+    for (const s of snaps) {
+      if ((s.confluence_score ?? 0) >= minConf && (s.adx ?? 0) >= minAdxVal) {
+        total++
+        if (s.result === 'TP' || Number(s.pnl ?? 0) > 0) wins++
+      }
+    }
+    return total > 0 ? wins / total : 0
+  }
+
+  const last50Snaps    = snapshots.slice(0, 50)
+  const currentConfMin = params.min_confluence_score ?? 60
+  const currentAdxMin  = params.min_adx ?? 0
+  const baselineWRsnap = replaySnapshots(last50Snaps, currentConfMin, currentAdxMin)
+
   const analysisSummary = `
 OVERALL (${tradeCount} trades): WR=${segResult(overall).wr} avgPnl=$${segResult(overall).avgPnl} PF=${segResult(overall).pf}
 RECENT 20 WR: ${round2(recent20WR)} (baseline: ${round2(meta.baseline_wr)})
@@ -281,20 +356,32 @@ BY SCORE:
   3-4: ${JSON.stringify(segResult(byScore.med))}
   5+:  ${JSON.stringify(segResult(byScore.high))}
 
+SNAPSHOT ANALYSIS (last 200 closed trades with all indicator data):
+  BY HOUR (best): ${bestHours || 'insufficient data'}
+  BY ADX RANGE:   ${fmtSnap(byAdxRange)}
+  BY CONF BUCKET: ${fmtSnap(byConfBucket)}
+  Walk-forward WR on last 50 with current gates (conf>=${currentConfMin} adx>=${currentAdxMin}): ${baselineWRsnap.toFixed(3)}
+
+MARKET MEMORY (condition-based win rates):
+  ${marketMemorySummary}
+
 CURRENT PARAMS (excluding _meta):
-${JSON.stringify({ vol_params: params.vol_params, session_params: params.session_params, partial_tp_by_vol: params.partial_tp_by_vol, max_hold_min: params.max_hold_min }, null, 2)}`
+${JSON.stringify({ vol_params: params.vol_params, session_params: params.session_params, partial_tp_by_vol: params.partial_tp_by_vol, max_hold_min: params.max_hold_min, rsi_oversold: params.rsi_oversold, rsi_overbought: params.rsi_overbought, bb_proximity: params.bb_proximity, tp_r: params.tp_r, min_confluence_score: params.min_confluence_score, min_adx: params.min_adx }, null, 2)}`
 
   const systemPrompt = `You are an expert crypto trading parameter optimizer.
-The bot uses a simple RSI+BB+EMA entry system with 10x leverage.
+The bot uses RSI+BB+EMA+confluence entry system with 20x leverage.
 Analyze performance data and return ONLY a JSON object with optimized parameters.
 Rules:
 - Make small conservative adjustments (max 25% per param per call)
 - If LONG WR >> SHORT WR: raise rsi_overbought to reduce short signals
 - If SHORT WR >> LONG WR: lower rsi_oversold to reduce long signals
-- If overall WR < 0.40: tighten bb_proximity (closer to band) e.g. 1.005
-- If overall WR > 0.55: loosen bb_proximity e.g. 1.02 to get more signals
+- If overall WR < 0.40: tighten bb_proximity e.g. 1.005; raise min_confluence_score
+- If overall WR > 0.55: loosen bb_proximity e.g. 1.02; can lower min_confluence_score slightly
 - If winners hold shorter than losers: reduce max_hold_min
 - tp_r should reward winners: raise if WR > 0.5, lower if WR < 0.4
+- min_confluence_score: raise if conf_50_60 bucket has poor WR. Bounds [50-80]
+- min_adx: raise if adx_0_15 range has poor WR. Start conservative 0-10. Bounds [0-30]
+- Look at market memory: avoid conditions with chronic low WR
 - Bounds: rsi_oversold[25-45], rsi_overbought[55-75], bb_proximity[1.002-1.03], tp_r[1.5-4.0], max_hold_min[60-360]
 - Return ONLY valid JSON.
 
@@ -304,6 +391,8 @@ Rules:
   "bb_proximity": X,
   "tp_r": X,
   "max_hold_min": X,
+  "min_confluence_score": X,
+  "min_adx": X,
   "reasoning": "one line"
 }`
 
@@ -333,6 +422,23 @@ Rules:
   const paramsBefore = JSON.parse(JSON.stringify(params))
   const safe = applyProposed(proposed, params)
 
+  // ── Phase 8: Walk-Forward Validation — only adopt gate params if WR improves ≥2%
+  const newConfMin   = safe.min_confluence_score ?? 60
+  const newAdxMin    = safe.min_adx ?? 0
+  const newWRsnap    = replaySnapshots(last50Snaps, newConfMin, newAdxMin)
+  const wrImprovement = newWRsnap - baselineWRsnap
+  let paramsAdopted  = true
+
+  if (last50Snaps.length >= 10 && wrImprovement < 0.02) {
+    // Reject gate-param changes; keep other param adjustments
+    safe.min_confluence_score = currentConfMin
+    safe.min_adx              = currentAdxMin
+    paramsAdopted             = false
+    reasoning += ` | gate params REJECTED: no improvement (${(wrImprovement*100).toFixed(1)}%)`
+  } else if (last50Snaps.length >= 10) {
+    reasoning += ` | gate params ADOPTED: WR +${(wrImprovement*100).toFixed(1)}%`
+  }
+
   // update meta
   meta.trade_count_at_last_claude = tradeCount
   meta.last_claude_ts             = now
@@ -352,13 +458,13 @@ Rules:
       trade_count:   tradeCount,
       overall_wr:    ov.wr,
       overall_pf:    ov.pf,
-      params_before: { vol_params: paramsBefore.vol_params, session_params: paramsBefore.session_params, partial_tp_by_vol: paramsBefore.partial_tp_by_vol, max_hold_min: paramsBefore.max_hold_min },
-      params_after:  { vol_params: safe.vol_params,          session_params: safe.session_params,          partial_tp_by_vol: safe.partial_tp_by_vol,          max_hold_min: safe.max_hold_min },
+      params_before: { vol_params: paramsBefore.vol_params, session_params: paramsBefore.session_params, partial_tp_by_vol: paramsBefore.partial_tp_by_vol, max_hold_min: paramsBefore.max_hold_min, min_confluence_score: paramsBefore.min_confluence_score, min_adx: paramsBefore.min_adx },
+      params_after:  { vol_params: safe.vol_params, session_params: safe.session_params, partial_tp_by_vol: safe.partial_tp_by_vol, max_hold_min: safe.max_hold_min, min_confluence_score: safe.min_confluence_score, min_adx: safe.min_adx },
       reasoning,
     }),
   ])
 
-  return new Response(JSON.stringify({ ok: true, claudeCalled: true, reasoning, params: safe }), {
+  return new Response(JSON.stringify({ ok: true, claudeCalled: true, reasoning, paramsAdopted, wrImprovement: (wrImprovement*100).toFixed(1)+'%', params: safe }), {
     headers: { 'Content-Type': 'application/json' },
   })
 })
