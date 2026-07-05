@@ -515,7 +515,7 @@ export default function CryptoTradingDashboard() {
     subscribe()
 
     // Auto-trigger Edge Function every 60s while bot is active
-    const funcUrl=`${SUPA_URL}/functions/v1/bc26c3f7-94ce-4726-8143-bfde91a8ebf6`
+    const funcUrl=`${SUPA_URL}/functions/v1/c36a5e66-9da3-447f-a9cd-bb523cd6ce22`
     const poll=setInterval(async()=>{
       if(!botRef.current) return
       try{
