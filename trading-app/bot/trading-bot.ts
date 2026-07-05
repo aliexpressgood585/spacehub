@@ -42,6 +42,7 @@ async function fetchAllLiquidCoins(minVolUSD = 5_000_000): Promise<string[]> {
     return tickers
       .filter(t =>
         t.symbol.endsWith('USDT') &&
+        /^[A-Z0-9]+USDT$/.test(t.symbol) &&  // standard symbols only — no exotic/unicode memecoins
         !EXCLUDE.test(t.symbol) &&
         parseFloat(t.quoteVolume) >= minVolUSD
       )
