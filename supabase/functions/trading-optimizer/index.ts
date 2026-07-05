@@ -37,10 +37,10 @@ const DEFAULTS = {
   partial_tp_by_vol: { LOW: 0.8, MEDIUM: 1.2, HIGH: 1.5 },
   max_hold_min: 180,
   // simple entry params — tuned by optimizer
-  rsi_oversold:   38,
-  rsi_overbought: 62,
-  bb_proximity:   1.01,
-  tp_r:           2.0,
+  rsi_oversold:   42,
+  rsi_overbought: 58,
+  bb_proximity:   1.02,
+  tp_r:           2.5,
   // optimizer state (not sent to trading bot)
   _meta: {
     trade_count_at_last_claude: 0,
