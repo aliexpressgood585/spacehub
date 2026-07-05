@@ -210,6 +210,7 @@ export default function CryptoTradingDashboard() {
   const [execLog,setExecLog]     = useState<string[]>([])
   const [paperMode,setPaperMode] = useState(false)
   const [paperStats,setPaperStats] = useState<{trades:number,wins:number,pnl:number,wr:string}|null>(null)
+  const [serverPaperMode,setServerPaperMode] = useState(false)
 
   const barsMap    = useRef(new Map<string,Bar[]>())
   const curBar     = useRef(new Map<string,Bar>())
@@ -472,6 +473,7 @@ export default function CryptoTradingDashboard() {
         setBalance(d.balance);balRef.current=d.balance
         setRisk(d.risk as RiskType);riskRef.current=d.risk as RiskType
         setBotOn(d.active);botRef.current=d.active
+        setServerPaperMode(d.paper_mode||false)
       }
       const all=[...(open.data||[]),...(closed.data||[])]
       const mapped=all.map(t=>mapDbTrade(t as Record<string,unknown>))
@@ -499,10 +501,11 @@ export default function CryptoTradingDashboard() {
           if(t.status!=='OPEN') addLog(`${t.status==='TP'?'✓ TP':'✗ '+t.status} ${t.sym} P&L: ${(t.pnl||0)>=0?'+':''}${(t.pnl||0).toFixed(2)}`)
         })
         .on('postgres_changes',{event:'UPDATE',schema:'public',table:'bot_state'},(p)=>{
-          const d=p.new as {balance:number;risk:string;active:boolean}
+          const d=p.new as {balance:number;risk:string;active:boolean;paper_mode?:boolean}
           setBalance(d.balance);balRef.current=d.balance
           setRisk(d.risk as RiskType);riskRef.current=d.risk as RiskType
           setBotOn(d.active);botRef.current=d.active
+          if(d.paper_mode!=null) setServerPaperMode(d.paper_mode)
         })
         .subscribe((status)=>{
           if(status==='SUBSCRIBED'){
@@ -576,6 +579,12 @@ export default function CryptoTradingDashboard() {
     dayRef.current={date:new Date().toISOString().slice(0,10),start:INIT_BAL}
     setBotOn(true); botRef.current=true
     addLog(`♻ חשבון אופס ל-$${INIT_BAL.toLocaleString()} — ${hist.length} עסקאות נשמרו בגיבוי`)
+  }
+  const handlePaperModeToggle=()=>{
+    const next=!serverPaperMode
+    setServerPaperMode(next)
+    supaRef.current?.from('bot_state').update({paper_mode:next,updated_at:new Date().toISOString()}).eq('id',1)
+    addLog(next?'📋 מצב נייר הופעל (דמו)':'💵 מצב חי הופעל (כסף אמיתי)')
   }
 
   const runPaperBacktest=()=>{
@@ -668,6 +677,11 @@ export default function CryptoTradingDashboard() {
           <button onClick={runPaperBacktest} style={{cursor:'pointer',border:`1px solid rgba(123,156,192,0.5)`,borderRadius:'4px',padding:'3px 10px',fontSize:'10px',fontWeight:700,background:'rgba(123,156,192,0.1)',color:C.ice}}>
             📈 PAPER
           </button>
+          {supaStatus!=='off'&&(
+            <button onClick={handlePaperModeToggle} style={{cursor:'pointer',border:`1px solid ${serverPaperMode?'rgba(0,217,163,0.6)':'rgba(255,51,80,0.6)'}`,borderRadius:'4px',padding:'3px 10px',fontSize:'10px',fontWeight:700,background:serverPaperMode?'rgba(0,217,163,0.15)':'rgba(255,51,80,0.15)',color:serverPaperMode?C.teal:C.red}}>
+              {serverPaperMode?'📋 DEMO':'💵 LIVE'}
+            </button>
+          )}
           <button onClick={handleReset} style={{cursor:'pointer',border:`1px solid rgba(255,183,0,0.5)`,borderRadius:'4px',padding:'3px 10px',fontSize:'10px',fontWeight:700,background:'rgba(255,183,0,0.1)',color:C.yellow}}>
             ♻ RESET
           </button>

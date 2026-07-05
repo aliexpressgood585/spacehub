@@ -506,6 +506,9 @@ Deno.serve(async (req) => {
     if (!state?.active) return new Response(JSON.stringify({ok:true,msg:'inactive'}),
       {headers:{'Content-Type':'application/json'}})
 
+    // Paper mode flag: if true, trades are simulated (not live money)
+    const paperMode = url.searchParams.get('paper') === '1' || state.paper_mode === true
+
     let balance = state.balance
     const now  = Date.now()
 
@@ -518,8 +521,9 @@ Deno.serve(async (req) => {
     if (url.searchParams.get('status') === '1') {
       const {data:openTrades} = await supabase.from('bot_trades').select('sym,side').eq('status','OPEN')
       const openList = (openTrades||[]).map((t:any)=>`${t.sym} ${t.side}`).join(', ')||'None'
+      const modeTag = paperMode ? '📋 PAPER' : '💵 LIVE'
       const msg = (
-        `📡 <b>CryptoBot v20 [5m]</b>\n` +
+        `📡 <b>CryptoBot v20 [5m] ${modeTag}</b>\n` +
         `💰 Balance: $${Number(state.balance).toFixed(2)}\n` +
         `📂 Open: ${openTrades?.length||0} — ${openList}\n` +
         `⚡ Active: ${state.active ? '✅' : '❌'}\n` +
@@ -892,7 +896,8 @@ Deno.serve(async (req) => {
         await supabase.from('bot_trades').insert({
           sym, side: entry.side, entry_price: price, size, fee,
           trail_sl: slPrice, hi: hiVal, lo: loVal,
-          status: 'OPEN', score: smScore, mtf: isMtf, partial_done: false
+          status: 'OPEN', score: smScore, mtf: isMtf, partial_done: false,
+          paper_mode: paperMode
         })
 
         const modeLabel = entry.mode === 'SWEEP' ? '📊 SWEEP' : '🔄 RANGE'

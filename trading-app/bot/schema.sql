@@ -20,6 +20,8 @@ create table if not exists bot_trades (
   lo numeric not null,
   score int default 0,
   mtf boolean default false,
+  partial_done boolean default false,
+  paper_mode boolean default false,
   opened_at timestamptz not null default now(),
   closed_at timestamptz
 );
@@ -30,6 +32,9 @@ create table if not exists bot_state (
   balance numeric not null default 10000,
   risk text not null default 'medium',
   active boolean not null default true,
+  paper_mode boolean default false,
+  market_regime text default 'v20_5M',
+  streak int default 0,
   updated_at timestamptz not null default now()
 );
 
@@ -53,3 +58,14 @@ create index if not exists idx_bot_trades_opened on bot_trades(opened_at desc);
 -- Realtime (לעדכונים חיים בממשק)
 alter publication supabase_realtime add table bot_trades;
 alter publication supabase_realtime add table bot_state;
+
+-- ════════════════════════════════════════════
+-- MIGRATIONS (עבור טבלות קיימות)
+-- ════════════════════════════════════════════
+
+-- אם הטבלות קיימות, הוסף את העמודות החדשות (ignoring if already exists)
+alter table bot_trades add column if not exists partial_done boolean default false;
+alter table bot_trades add column if not exists paper_mode boolean default false;
+alter table bot_state add column if not exists paper_mode boolean default false;
+alter table bot_state add column if not exists market_regime text default 'v20_5M';
+alter table bot_state add column if not exists streak int default 0;
