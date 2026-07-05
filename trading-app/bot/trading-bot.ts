@@ -491,6 +491,13 @@ Deno.serve(async (req) => {
         {headers:{'Content-Type':'application/json'}})
     }
 
+    if (url.searchParams.get('trades')==='1') {
+      const {data:trades} = await supabase.from('bot_trades').select('*').neq('status','OPEN')
+        .order('closed_at',{ascending:false}).limit(10)
+      return new Response(JSON.stringify({ok:true,trades:trades||[]}),
+        {headers:{'Content-Type':'application/json'}})
+    }
+
     const {data:state} = await supabase.from('bot_state').select('*').eq('id',1).single()
     if (!state?.active) return new Response(JSON.stringify({ok:true,msg:'inactive'}),
       {headers:{'Content-Type':'application/json'}})
