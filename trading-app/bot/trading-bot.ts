@@ -1,12 +1,12 @@
 // ════════════════════════════════════════════════════════
-// CryptoBot v10 — Liquidity Hunter (Smart Money)
-// זיהוי ציד נזילות: sweep של swing H/L → כניסה נגד
-// Big Money בולע סטופים, אנחנו עוקבים אחריו
+// CryptoBot v11 — Liquidity Hunter + Smart Money Confirmation
+// Sweep זיהוי + Order Book walls + Funding Rate + Whale detection
 // ════════════════════════════════════════════════════════
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const BINANCE_DATA = 'https://data-api.binance.vision/api/v3'
 const BINANCE      = 'https://api.binance.com/api/v3'
+const FAPI         = 'https://fapi.binance.com/fapi/v1'
 
 const COINS = [
   'BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','DOT',
@@ -22,14 +22,15 @@ const RISK = {
 type RiskKey = keyof typeof RISK
 
 const FEE             = 0.001
-const SWING_N         = 3          // כמה נרות מכל צד לפיק swing
-const SWING_LOOKBACK  = 50         // כמה נרות אחורה לחפש swings
-const SWEEP_LOOKBACK  = 3          // כמה נרות אחרונים לבדוק ל-sweep
-const TP_R            = 2.5        // TP = 2.5× מרחק SL
-const SL_ATR_MULT     = 0.8        // SL = 0.8× ATR מעבר לנקודת ה-sweep
-const MAX_HOLD_H      = 6          // סגירה כפויה אחרי 6 שעות
-const STREAK_PAUSE_MS = 45*60_000  // 45 דקות השהייה אחרי רצף
-const MAX_NOTIONAL_PCT= 0.15       // מקסימום 15% מהיתרה לעסקה
+const SWING_N         = 3
+const SWING_LOOKBACK  = 50
+const SWEEP_LOOKBACK  = 3
+const TP_R            = 2.5
+const SL_ATR_MULT     = 0.8
+const MAX_HOLD_H      = 6
+const STREAK_PAUSE_MS = 45*60_000
+const MAX_NOTIONAL_PCT= 0.15
+const FUNDING_EXTREME = 0.0002   // 0.02% per funding = overleveraged
 
 interface Bar { open:number; high:number; low:number; close:number; vol:number }
 
@@ -100,7 +101,6 @@ function detectSweep(
     // Sweep של HIGH → Big Money בלע סטופים של לונגים → SHORT
     for (const lvl of highs) {
       if (bar.high > lvl && bar.close < lvl) {
-        // מחיר עדיין מתחת ל-close → ההיפוך בעיצומו
         if (price <= bar.close * 1.002) {
           return {side:'SHORT', sweepExtreme: bar.high}
         }
@@ -119,6 +119,57 @@ function detectSweep(
   return null
 }
 
+// ── Smart Money Signals ────────────────────────────────────────────────────────
+
+// Funding rates של כל המטבעות בקריאה אחת
+async function fetchAllFundingRates(): Promise<Record<string, number>> {
+  try {
+    const res = await fetch(`${FAPI}/premiumIndex`, { headers:{'User-Agent':'Mozilla/5.0'} })
+    if (!res.ok) return {}
+    const data: any[] = await res.json()
+    const result: Record<string, number> = {}
+    for (const d of data) {
+      const sym = d.symbol.replace('USDT','').replace('_PERP','')
+      result[sym] = parseFloat(d.lastFundingRate || '0')
+    }
+    return result
+  } catch { return {} }
+}
+
+// יחס bid/ask בספר הפקודות — חיובי = לחץ קנייה, שלילי = לחץ מכירה
+async function fetchOBImbalance(sym: string): Promise<number> {
+  try {
+    const res = await fetch(`${BINANCE_DATA}/depth?symbol=${sym}USDT&limit=20`)
+    if (!res.ok) return 0
+    const d = await res.json()
+    const bidVol = (d.bids as string[][]).reduce((a,b) => a + parseFloat(b[0])*parseFloat(b[1]), 0)
+    const askVol = (d.asks as string[][]).reduce((a,b) => a + parseFloat(b[0])*parseFloat(b[1]), 0)
+    return (bidVol - askVol) / ((bidVol + askVol) || 1)
+  } catch { return 0 }
+}
+
+// לחץ לווייתנים — חיובי = לווייתנים קונים, שלילי = מוכרים
+async function fetchWhalePressure(sym: string): Promise<number> {
+  try {
+    const res = await fetch(`${BINANCE_DATA}/aggTrades?symbol=${sym}USDT&limit=200`)
+    if (!res.ok) return 0
+    const trades: any[] = await res.json()
+    if (!trades.length) return 0
+    const avgQty = trades.reduce((a,t) => a + parseFloat(t.q), 0) / trades.length
+    const thresh = avgQty * 8
+    let buy=0, sell=0
+    for (const t of trades) {
+      const qty = parseFloat(t.q)
+      if (qty >= thresh) {
+        if (!t.m) buy += qty
+        else sell += qty
+      }
+    }
+    const total = buy + sell
+    return total > 0 ? (buy - sell) / total : 0
+  } catch { return 0 }
+}
+
 Deno.serve(async () => {
   try {
     const supabase = createClient(
@@ -131,10 +182,7 @@ Deno.serve(async () => {
 
     let balance = state.balance
     const now = Date.now()
-    const today = new Date().toISOString().slice(0,10)
     const R = RISK[state.risk as RiskKey] || RISK.medium
-
-    // בלם יומי מושבת — הבלם נגד רצף הפסדים מספיק להגנה
     const breakerOn = false
 
     // רצף הפסדים (3 שעות אחרונות)
@@ -154,18 +202,20 @@ Deno.serve(async () => {
     if(breakerOn)    log.push('DAILY BREAKER ON')
     if(streakPaused) log.push(`STREAK PAUSE ${streak}`)
 
-    // הטיית BTC
+    // BTC bias + Funding rates — בקריאות מקבילות
+    const [btcBars, allFunding] = await Promise.all([
+      fetchBars('BTC','1h',30),
+      fetchAllFundingRates()
+    ])
+
     let btcBias:'BULL'|'BEAR'|'NEUTRAL'='NEUTRAL'
-    try {
-      const btcBars = await fetchBars('BTC','1h',30)
-      if (btcBars.length>=20) {
-        const cl=btcBars.slice(0,-1).map(b=>b.close)
-        const rsi=calcRsi(cl,14), e9=calcEma(cl,9), e21=calcEma(cl,21)
-        if(rsi>55&&e9>e21) btcBias='BULL'
-        else if(rsi<45&&e9<e21) btcBias='BEAR'
-      }
-    } catch {}
-    log.push(`BTC=${btcBias} v10-LH`)
+    if (btcBars.length>=20) {
+      const cl=btcBars.slice(0,-1).map(b=>b.close)
+      const rsi=calcRsi(cl,14), e9=calcEma(cl,9), e21=calcEma(cl,21)
+      if(rsi>55&&e9>e21) btcBias='BULL'
+      else if(rsi<45&&e9<e21) btcBias='BEAR'
+    }
+    log.push(`BTC=${btcBias} v11-SM`)
 
     // שלוף כל פוזיציות פתוחות בבת אחת
     const {data:allOpen} = await supabase.from('bot_trades').select('*').eq('status','OPEN')
@@ -222,9 +272,9 @@ Deno.serve(async () => {
 
         // ── כניסה חדשה ─────────────────────────────────────
         if(breakerOn||streakPaused) continue
-        if(openTrades.length>0) continue     // פוזיציה אחת למטבע
+        if(openTrades.length>0) continue
         if(openCount>=R.maxPos) continue
-        if(atrPct>0.05||atrPct<0.0003) continue  // פילטר תנודתיות
+        if(atrPct>0.05||atrPct<0.0003) continue
 
         const lookback=completed.slice(-SWING_LOOKBACK)
         const {highs,lows}=findSwings(lookback, SWING_N)
@@ -239,7 +289,47 @@ Deno.serve(async () => {
           if(sweep.side==='SHORT'&&btcBias==='BULL') continue
         }
 
-        // SL מעבר לקצה ה-sweep + ATR buffer
+        // ── Smart Money Confirmation ─────────────────────────
+        const funding = allFunding[sym] || 0
+
+        // Funding: שוק ממונף חזק בכיוון אחד → לווייתנים יבצעו sweep לצד השני
+        const fundingAligned =
+          (sweep.side==='SHORT' && funding > FUNDING_EXTREME) ||  // לונגים ממונפים → sweep של הלונגים
+          (sweep.side==='LONG'  && funding < -FUNDING_EXTREME) ||  // שורטים ממונפים → sweep של השורטים
+          Math.abs(funding) <= FUNDING_EXTREME                      // ניטרלי = בסדר
+
+        if (!fundingAligned) {
+          log.push(`SKIP ${sym} funding-contra ${(funding*100).toFixed(4)}%`)
+          continue
+        }
+
+        // Order Book + Whale בקריאה מקבילה (רק כשיש sweep)
+        const [obImbalance, whalePressure] = await Promise.all([
+          fetchOBImbalance(sym),
+          fetchWhalePressure(sym)
+        ])
+
+        // ניקוד Smart Money: כמה אינדיקטורים מאשרים את הכיוון?
+        let smScore = 0
+        if (Math.abs(funding) > FUNDING_EXTREME) smScore++
+        if (sweep.side==='LONG'  && obImbalance > 0.10) smScore++
+        if (sweep.side==='SHORT' && obImbalance < -0.10) smScore++
+        if (sweep.side==='LONG'  && whalePressure > 0.20) smScore++
+        if (sweep.side==='SHORT' && whalePressure < -0.20) smScore++
+
+        // אם כל האינדיקטורים מנוגדים לכיוון — דלג
+        const hasContradiction =
+          (sweep.side==='LONG'  && (obImbalance < -0.20 || whalePressure < -0.30)) ||
+          (sweep.side==='SHORT' && (obImbalance > 0.20  || whalePressure > 0.30))
+
+        if (smScore===0 && hasContradiction) {
+          log.push(`SKIP ${sym} SM-contra ob=${obImbalance.toFixed(2)} whale=${whalePressure.toFixed(2)}`)
+          continue
+        }
+
+        log.push(`SM ${sym} f=${(funding*100).toFixed(4)}% ob=${obImbalance.toFixed(2)} wh=${whalePressure.toFixed(2)} sc=${smScore}`)
+
+        // ── חישוב SL/TP וכניסה ──────────────────────────────
         const slDist=atr*SL_ATR_MULT
         const slPrice=sweep.side==='LONG'
           ? Math.min(sweep.sweepExtreme, price)-slDist
@@ -259,9 +349,9 @@ Deno.serve(async () => {
         await supabase.from('bot_trades').insert({
           sym, side:sweep.side, entry_price:price, size, fee,
           trail_sl:slPrice, hi:price, lo:price,
-          status:'OPEN', score:Math.round(slPct*1000), mtf:true
+          status:'OPEN', score:smScore, mtf:true
         })
-        log.push(`OPEN ${sym} ${sweep.side} SWEEP@${price.toFixed(4)} sl=${(slPct*100).toFixed(2)}% $${notional.toFixed(0)}`)
+        log.push(`OPEN ${sym} ${sweep.side} SWEEP@${price.toFixed(4)} sl=${(slPct*100).toFixed(2)}% $${notional.toFixed(0)} SM=${smScore}`)
 
         await new Promise(r=>setTimeout(r,30))
       } catch(e) {
@@ -271,11 +361,11 @@ Deno.serve(async () => {
 
     await supabase.from('bot_state').update({
       balance, updated_at:new Date().toISOString(),
-      market_regime:'v10_LH', streak
+      market_regime:'v11_SM', streak
     }).eq('id',1)
 
     return new Response(JSON.stringify({
-      ok:true, v:10, openCount, breaker:breakerOn, streakPaused, streak, btcBias, log
+      ok:true, v:11, openCount, breaker:breakerOn, streakPaused, streak, btcBias, log
     }), {headers:{'Content-Type':'application/json'}})
 
   } catch(e) {
