@@ -201,18 +201,93 @@ function drawBubbles(canvas:HTMLCanvasElement,allSigs:Record<string,Sig>,prices:
   ctx.textAlign='start';ctx.textBaseline='alphabetic'
 }
 
+// ─── live position card ───────────────────────────────────────────────────────
+function LivePosition({t,prices,fmtP}:{t:Trade;prices:Record<string,PriceInfo>;fmtP:(p:number)=>string}){
+  const cur  = prices[t.sym]?.price || t.entry
+  const pnl  = (t.side==='LONG'?(cur-t.entry):(t.entry-cur))*t.size - t.fee
+  const pct  = (cur-t.entry)/t.entry*(t.side==='LONG'?1:-1)*100
+  const col  = pnl>=0?C.green:C.red
+
+  const prevPnl = useRef(pnl)
+  const [flash,setFlash] = useState<'up'|'dn'|null>(null)
+  const flashTimer = useRef<ReturnType<typeof setTimeout>|null>(null)
+
+  useEffect(()=>{
+    const diff = pnl - prevPnl.current
+    if(Math.abs(diff) > 0.001){
+      if(flashTimer.current) clearTimeout(flashTimer.current)
+      setFlash(diff>0?'up':'dn')
+      flashTimer.current=setTimeout(()=>setFlash(null),400)
+      prevPnl.current=pnl
+    }
+  },[pnl])
+
+  return (
+    <div className={flash?`flash-${flash}`:''} style={{
+      background:`linear-gradient(135deg,${col}08,rgba(3,8,26,0.92))`,
+      borderRadius:'10px',padding:'10px 12px',
+      border:`1px solid ${col}${flash?'60':'28'}`,
+      boxShadow:`0 4px 20px ${col}${flash?'18':'08'}`,
+      transition:'border-color 0.2s,box-shadow 0.2s',
+    }}>
+      {/* top row: symbol + side + live price */}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'5px'}}>
+        <span style={{color:t.side==='LONG'?C.green:C.red,fontWeight:900,fontSize:'12px'}}>
+          {t.side==='LONG'?'▲':'▼'} {t.sym}
+        </span>
+        <span style={{fontFamily:'monospace',fontSize:'11px',color:C.text,fontWeight:700}}>
+          {fmtP(cur)}
+        </span>
+      </div>
+      {/* pnl row */}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:'4px'}}>
+        <span style={{fontSize:'9px',color:C.muted}}>
+          כניסה {fmtP(t.entry)}
+        </span>
+        <span className={flash?`num-${flash}`:''} style={{
+          fontWeight:900,fontSize:'14px',color:col,
+          transition:'color 0.2s',
+        }}>
+          {pnl>=0?'+':''}{pnl.toFixed(2)}$
+        </span>
+      </div>
+      {/* pct + progress */}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:'6px'}}>
+        <span style={{fontSize:'9px',color:col,fontWeight:700}}>
+          {pct>=0?'+':''}{pct.toFixed(3)}%
+        </span>
+        <div style={{flex:1,height:'3px',background:C.dim,borderRadius:'2px',overflow:'hidden'}}>
+          <div style={{
+            height:'100%',
+            width:`${Math.min(Math.abs(pct)*10,100)}%`,
+            background:col,borderRadius:'2px',
+            boxShadow:`0 0 4px ${col}`,
+            transition:'width 0.15s ease',
+          }}/>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── injected animations ──────────────────────────────────────────────────────
 const STYLE_TAG = `
   @keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(0.85)}}
   @keyframes glow-beat{0%,100%{box-shadow:0 0 8px currentColor}50%{box-shadow:0 0 22px currentColor,0 0 40px currentColor}}
   @keyframes slide-up{from{transform:translateY(6px);opacity:0}to{transform:translateY(0);opacity:1}}
-  @keyframes scanline{0%{background-position:0 0}100%{background-position:0 100px}}
-  @keyframes border-spin{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
   @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+  @keyframes flash-up{0%{background:rgba(0,245,160,0.25);transform:scale(1.04)}100%{background:transparent;transform:scale(1)}}
+  @keyframes flash-dn{0%{background:rgba(255,58,94,0.25);transform:scale(1.04)}100%{background:transparent;transform:scale(1)}}
+  @keyframes num-up{0%{color:#00f5a0;transform:translateY(-3px)}100%{transform:translateY(0)}}
+  @keyframes num-dn{0%{color:#ff3a5e;transform:translateY(3px)}100%{transform:translateY(0)}}
   .live-dot{animation:pulse-dot 1.4s ease-in-out infinite}
   .glow-beat{animation:glow-beat 2s ease-in-out infinite}
   .slide-up{animation:slide-up 0.25s ease-out}
   .float{animation:float 3s ease-in-out infinite}
+  .flash-up{animation:flash-up 0.4s ease-out}
+  .flash-dn{animation:flash-dn 0.4s ease-out}
+  .num-up{animation:num-up 0.3s ease-out}
+  .num-dn{animation:num-dn 0.3s ease-out}
   .nx-btn{transition:all 0.18s ease;cursor:pointer}
   .nx-btn:hover{filter:brightness(1.25);transform:translateY(-1px)}
   .nx-row:hover{background:rgba(0,200,255,0.04)!important}
@@ -852,36 +927,9 @@ export default function CryptoTradingDashboard() {
             פוזיציות פתוחות ({openTrades.length})
           </div>
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(170px,1fr))',gap:'6px'}}>
-            {openTrades.map(t=>{
-              const cur=prices[t.sym]?.price||t.entry
-              const pnl=(t.side==='LONG'?(cur-t.entry):(t.entry-cur))*t.size-t.fee
-              const pct=(cur-t.entry)/t.entry*(t.side==='LONG'?1:-1)*100
-              const col=pnl>=0?C.green:C.red
-              return (
-                <div key={t.id} style={{
-                  background:`linear-gradient(135deg,${col}08,rgba(3,8,26,0.9))`,
-                  borderRadius:'10px',padding:'9px 11px',
-                  border:`1px solid ${col}28`,
-                  boxShadow:`0 4px 20px ${col}08`,
-                }}>
-                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:'4px'}}>
-                    <span style={{color:t.side==='LONG'?C.green:C.red,fontWeight:800,fontSize:'11px'}}>
-                      {t.side==='LONG'?'▲':'▼'} {t.sym}
-                    </span>
-                    <span style={{color:col,fontWeight:900,fontSize:'12px'}}>{pnl>=0?'+':''}{pnl.toFixed(2)}</span>
-                  </div>
-                  <div style={{fontSize:'9px',color:C.muted}}>
-                    {fmtP(t.entry)} → {fmtP(cur)}
-                    <span style={{color:pct>=0?C.green:C.red,fontWeight:700,marginRight:'4px'}}> {pct>=0?'+':''}{pct.toFixed(2)}%</span>
-                  </div>
-                  {/* mini progress bar */}
-                  <div style={{height:'2px',background:C.dim,borderRadius:'1px',marginTop:'5px'}}>
-                    <div style={{height:'100%',width:`${Math.min(Math.abs(pct)*10,100)}%`,
-                      background:col,borderRadius:'1px',transition:'width 0.3s'}}/>
-                  </div>
-                </div>
-              )
-            })}
+            {openTrades.map(t=>(
+              <LivePosition key={t.id} t={t} prices={prices} fmtP={fmtP}/>
+            ))}
           </div>
         </div>
       )}
