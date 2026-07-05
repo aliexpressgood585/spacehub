@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════
-// Trading Optimizer Agent v2
+// Trading Optimizer Agent v2 — deployed with trading-bot cron
 //
 // Runs every minute via Supabase cron.
 // Fast path (every tick): evaluates current performance,
