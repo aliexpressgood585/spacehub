@@ -1,10 +1,12 @@
-// ════════════════════════════════════════════════════════
-// CryptoBot v17 — 1M Scalper + Telegram + Self-Optimization
-// Liquidity sweeps on 1-minute candles, 5M MTF confirm
-// Fast entries, tight SL, partial TP at 1.2×R
-// Telegram alerts on every trade event + daily summary
-// Adaptive MIN_SCORE + VPOC_DIST from last 100 trades
-// ════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════
+// CryptoBot v18 — Dual Mode: Sweep (Trending) + BB Mean-Reversion (Ranging)
+//                  Dynamic Blacklist + Side-Bias Self-Optimization
+//
+// Root-cause fixes for recent losers:
+//  1. False sweeps in ranging markets → detectRegime() + findRangeEntry()
+//  2. SHORT bias losing in uptrend   → computeAdaptive() returns sideFilter
+//  3. Repeat losers (RE, OGN, SYN)   → buildBlacklist() from consecutive SLs
+// ════════════════════════════════════════════════════════════
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const BINANCE_DATA = 'https://data-api.binance.vision/api/v3'
@@ -31,9 +33,9 @@ const CORR_GROUPS: string[][] = [
   ['BNB'],['BTC'],['ETH'],
 ]
 const MAX_PER_GROUP  = 3
-const MIN_SCORE      = 2     // base threshold — overridden by adaptMinScore
+const MIN_SCORE      = 2
 const PARTIAL_TP_R   = 1.2
-const VPOC_MAX_DIST  = 0.020 // base 2% — overridden by adaptVpocDist
+const VPOC_MAX_DIST  = 0.020
 
 async function fetchAllLiquidCoins(minVolUSD = 5_000_000): Promise<string[]> {
   try {
@@ -44,7 +46,7 @@ async function fetchAllLiquidCoins(minVolUSD = 5_000_000): Promise<string[]> {
     return tickers
       .filter(t =>
         t.symbol.endsWith('USDT') &&
-        /^[A-Z0-9]+USDT$/.test(t.symbol) &&  // standard symbols only — no exotic/unicode memecoins
+        /^[A-Z0-9]+USDT$/.test(t.symbol) &&
         !EXCLUDE.test(t.symbol) &&
         parseFloat(t.quoteVolume) >= minVolUSD
       )
@@ -71,19 +73,16 @@ const RISK = {
 type RiskKey = keyof typeof RISK
 
 const FEE             = 0.001
-const SWING_N         = 5     // 5 bars each side = 11-minute pivot on 1M
-const SWING_LOOKBACK  = 60    // last 60 minutes of swing data
-const SWEEP_LOOKBACK  = 5     // look 5 bars back for sweep
-const MAX_HOLD_MIN    = 90    // force close after 90 minutes
+const SWING_N         = 5
+const SWING_LOOKBACK  = 60
+const SWEEP_LOOKBACK  = 5
+const MAX_HOLD_MIN    = 90
 const STREAK_PAUSE_MS = 20*60_000
 const MAX_NOTIONAL_PCT= 0.25
 const FUNDING_EXTREME = 0.0003
-// Fee-aware gates: round trip costs 2×FEE (0.2%).
-// TP gross must be ≥3× round-trip fees, so slPct×tpR ≥ 0.006 → MIN_SL_PCT with tpR 2.0
-const MIN_SL_PCT      = 0.0035  // skip trades whose SL is under 0.35% — fees eat them
-const SYM_COOLDOWN_MS = 15*60_000 // no re-entry on same symbol for 15 min after close
+const MIN_SL_PCT      = 0.0035
+const SYM_COOLDOWN_MS = 15*60_000
 
-// Tuned for 1M candles (much smaller ATR than 1H)
 const VOL_PARAMS = {
   LOW:    { slMult:2.5, tpR:1.8, trailBeR:0.7, trailAtr:0.6 },
   MEDIUM: { slMult:1.8, tpR:2.0, trailBeR:0.8, trailAtr:0.7 },
@@ -129,7 +128,62 @@ function calcRsi(closes:number[], p=14): number {
   g/=p; l/=p; return l===0?100:100-100/(1+g/l)
 }
 
-// Thresholds tuned for 1M ATR
+function calcBB(closes: number[], period = 20, mult = 2.0): {
+  upper: number; mid: number; lower: number; width: number
+} {
+  const slice = closes.slice(-period)
+  if (slice.length < period) return { upper: 0, mid: 0, lower: 0, width: 0 }
+  const mid = slice.reduce((a, b) => a + b, 0) / slice.length
+  const variance = slice.reduce((a, b) => a + (b - mid) ** 2, 0) / slice.length
+  const std = Math.sqrt(variance)
+  const upper = mid + mult * std
+  const lower = mid - mult * std
+  return { upper, mid, lower, width: mid > 0 ? (upper - lower) / mid : 0 }
+}
+
+// Market regime: TRENDING = sweep mode, RANGING = mean-reversion mode, SQUEEZE = skip
+function detectRegime(bars: Bar[]): 'TRENDING' | 'RANGING' | 'SQUEEZE' {
+  if (bars.length < 50) return 'TRENDING'
+  const closes  = bars.slice(-50).map(b => b.close)
+  const { width } = calcBB(closes, 20, 2)
+  const recentATR = calcATR(bars.slice(-15))
+  const baseATR   = calcATR(bars.slice(-50))
+  const atrRatio  = baseATR > 0 ? recentATR / baseATR : 1
+  if (width < 0.004 && atrRatio < 0.65) return 'SQUEEZE'  // breakout imminent, skip
+  if (width < 0.011 || atrRatio < 0.80) return 'RANGING'  // sideways market
+  return 'TRENDING'
+}
+
+// Range entry: mean-reversion from BB extreme toward VPOC
+// Stores static TP in returned tpPrice; slDist used to set trail_sl
+function findRangeEntry(
+  bars: Bar[], price: number, vpoc: number
+): { side: 'LONG'|'SHORT'; tpPrice: number; slDist: number } | null {
+  if (bars.length < 30) return null
+  const closes = bars.slice(-30).map(b => b.close)
+  const bb  = calcBB(closes, 20, 2)
+  const rsi = calcRsi(closes)
+  if (!bb.mid || bb.width > 0.013) return null  // too wide = not ranging
+
+  const atr = calcATR(bars.slice(-20))
+
+  // LONG at lower band: price exhausted at support, VPOC acts as magnet above
+  if (price <= bb.lower * 1.003 && rsi < 42 && vpoc > price * 1.001) {
+    const tpPrice = Math.min(vpoc, bb.mid)
+    const slDist  = atr * 1.2
+    const rr = slDist > 0 ? (tpPrice - price) / slDist : 0
+    if (rr >= 1.4 && tpPrice > price) return { side: 'LONG', tpPrice, slDist }
+  }
+  // SHORT at upper band: price exhausted at resistance, VPOC pulls back down
+  if (price >= bb.upper * 0.997 && rsi > 58 && vpoc < price * 0.999) {
+    const tpPrice = Math.max(vpoc, bb.mid)
+    const slDist  = atr * 1.2
+    const rr = slDist > 0 ? (price - tpPrice) / slDist : 0
+    if (rr >= 1.4 && tpPrice < price) return { side: 'SHORT', tpPrice, slDist }
+  }
+  return null
+}
+
 function getVolRegime(atrPct:number): 'LOW'|'MEDIUM'|'HIGH' {
   if (atrPct < 0.0008) return 'LOW'
   if (atrPct < 0.003)  return 'MEDIUM'
@@ -274,6 +328,72 @@ async function fetchWhalePressure(sym:string): Promise<number> {
   } catch { return 0 }
 }
 
+// ── Telegram ───────────────────────────────────────────────
+async function sendTelegram(msg: string): Promise<void> {
+  const token  = Deno.env.get('TELEGRAM_BOT_TOKEN')
+  const chatId = Deno.env.get('TELEGRAM_CHAT_ID')
+  if (!token || !chatId) return
+  try {
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: msg, parse_mode: 'HTML' })
+    })
+  } catch {}
+}
+
+// ── Self-optimization: adapt thresholds + side filter from last 100 trades ──
+function computeAdaptive(trades: any[]): {
+  minScore: number; vpocDist: number; sideFilter: 'LONG' | 'SHORT' | 'BOTH'
+} {
+  if (!trades || trades.length < 30) {
+    return { minScore: MIN_SCORE, vpocDist: VPOC_MAX_DIST, sideFilter: 'BOTH' }
+  }
+
+  const wins = trades.filter(t => Number(t.pnl) > 0).length
+  const wr   = wins / trades.length
+
+  let minScore = MIN_SCORE, vpocDist = VPOC_MAX_DIST
+  if (wr < 0.20) { minScore = 4; vpocDist = 0.010 }
+  else if (wr < 0.28) { minScore = 3; vpocDist = 0.015 }
+  else if (wr > 0.55) { minScore = 1; vpocDist = 0.025 }
+  else if (wr > 0.45) { minScore = 2; vpocDist = 0.022 }
+
+  // Side bias: if one direction dominates wins, focus on it
+  const longs  = trades.filter(t => t.side === 'LONG')
+  const shorts = trades.filter(t => t.side === 'SHORT')
+  const longWR  = longs.length  >= 15 ? longs.filter(t  => Number(t.pnl) > 0).length / longs.length  : 0.5
+  const shortWR = shorts.length >= 15 ? shorts.filter(t => Number(t.pnl) > 0).length / shorts.length : 0.5
+
+  let sideFilter: 'LONG' | 'SHORT' | 'BOTH' = 'BOTH'
+  if (longs.length >= 15 && shorts.length >= 15) {
+    if (longWR  > shortWR + 0.25) sideFilter = 'LONG'
+    else if (shortWR > longWR  + 0.25) sideFilter = 'SHORT'
+  }
+
+  return { minScore, vpocDist, sideFilter }
+}
+
+// ── Dynamic blacklist: block symbols with 2+ consecutive SL in recent window ──
+function buildBlacklist(recent: any[]): Set<string> {
+  const blacklist = new Set<string>()
+  const bySym: Record<string, any[]> = {}
+  for (const t of recent || []) {
+    if (!bySym[t.sym]) bySym[t.sym] = []
+    bySym[t.sym].push(t)
+  }
+  for (const [sym, trades] of Object.entries(bySym)) {
+    trades.sort((a, b) => new Date(b.closed_at).getTime() - new Date(a.closed_at).getTime())
+    let consecSL = 0
+    for (const t of trades) {
+      if (t.status === 'SL') consecSL++
+      else break
+    }
+    if (consecSL >= 2) blacklist.add(sym)
+  }
+  return blacklist
+}
+
 async function runBacktest(): Promise<object> {
   const testCoins = ['BTC','ETH','SOL']
   const results:any[] = []
@@ -332,33 +452,6 @@ async function runBacktest(): Promise<object> {
   return results
 }
 
-// ── Telegram ───────────────────────────────────────────────
-async function sendTelegram(msg: string): Promise<void> {
-  const token  = Deno.env.get('TELEGRAM_BOT_TOKEN')
-  const chatId = Deno.env.get('TELEGRAM_CHAT_ID')
-  if (!token || !chatId) return
-  try {
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text: msg, parse_mode: 'HTML' })
-    })
-  } catch {}
-}
-
-// ── Self-optimization: adapt thresholds from last 100 trades ──
-function computeAdaptive(trades: any[]): { minScore: number; vpocDist: number } {
-  if (!trades || trades.length < 30) return { minScore: MIN_SCORE, vpocDist: VPOC_MAX_DIST }
-  const wins = trades.filter(t => Number(t.pnl) > 0).length
-  const wr   = wins / trades.length
-  // Tighten when WIN rate is poor, loosen when WIN rate is strong
-  if (wr < 0.20) return { minScore: 4, vpocDist: 0.010 }
-  if (wr < 0.28) return { minScore: 3, vpocDist: 0.015 }
-  if (wr > 0.55) return { minScore: 1, vpocDist: 0.025 }
-  if (wr > 0.45) return { minScore: 2, vpocDist: 0.022 }
-  return { minScore: MIN_SCORE, vpocDist: VPOC_MAX_DIST }
-}
-
 Deno.serve(async (req) => {
   try {
     const url = new URL(req.url)
@@ -387,7 +480,7 @@ Deno.serve(async (req) => {
       const {data:openTrades} = await supabase.from('bot_trades').select('sym,side').eq('status','OPEN')
       const openList = (openTrades||[]).map((t:any)=>`${t.sym} ${t.side}`).join(', ')||'None'
       const msg = (
-        `📡 <b>CryptoBot v17</b>\n` +
+        `📡 <b>CryptoBot v18</b>\n` +
         `💰 Balance: $${Number(state.balance).toFixed(2)}\n` +
         `📂 Open: ${openTrades?.length||0} — ${openList}\n` +
         `⚡ Active: ${state.active ? '✅' : '❌'}\n` +
@@ -401,14 +494,18 @@ Deno.serve(async (req) => {
     const {data:recent} = await supabase
       .from('bot_trades').select('sym,pnl,closed_at,status').neq('status','OPEN')
       .gte('closed_at',new Date(now-2*3600_000).toISOString())
-      .order('closed_at',{ascending:false}).limit(60)
+      .order('closed_at',{ascending:false}).limit(100)
 
-    // Per-symbol cooldown: block re-entry for 15 min after any close
+    // Per-symbol cooldown
     const symCooldown = new Set<string>()
     for (const t of (recent||[])) {
       if (t.closed_at && now - new Date(t.closed_at).getTime() < SYM_COOLDOWN_MS)
         symCooldown.add(t.sym)
     }
+
+    // Dynamic blacklist: 2+ consecutive SL in recent window → block symbol
+    const dynamicBlacklist = buildBlacklist(recent || [])
+
     let streak=0
     for (const t of (recent||[])) { if(Number(t.pnl)<0) streak++; else break }
     const streakPaused = streak>=R.streakLimit &&
@@ -428,18 +525,18 @@ Deno.serve(async (req) => {
 
     const log:string[] = []
     if (streakPaused) log.push(`STREAK PAUSE ${streak}`)
+    if (dynamicBlacklist.size > 0) log.push(`BLACKLIST ${[...dynamicBlacklist].join(',')}`)
 
     const needDailySummary = utcH === 0 && utcM < 2
     const [btcBars, allFunding, COINS, fearGreed, trades100, dayTradesRaw] = await Promise.all([
-      fetchBars('BTC','1m',30),
+      fetchBars('BTC','1m',60),
       fetchAllFundingRates(),
       fetchAllLiquidCoins(),
       fetchFearGreed(),
-      // last 100 closed trades for self-optimization
-      supabase.from('bot_trades').select('pnl').neq('status','OPEN')
+      // last 100 closed trades for self-optimization (include side for bias calc)
+      supabase.from('bot_trades').select('pnl,side').neq('status','OPEN')
         .order('closed_at',{ascending:false}).limit(100)
         .then(r => r.data || []),
-      // last 24h trades for daily summary (only at midnight UTC)
       needDailySummary
         ? supabase.from('bot_trades').select('pnl').neq('status','OPEN')
             .gte('closed_at', new Date(now - 86400_000).toISOString())
@@ -447,22 +544,24 @@ Deno.serve(async (req) => {
         : Promise.resolve(null)
     ])
 
-    const { minScore: adaptMinScore, vpocDist: adaptVpocDist } =
+    const { minScore: adaptMinScore, vpocDist: adaptVpocDist, sideFilter: adaptSideFilter } =
       computeAdaptive(trades100 as any[])
 
-    log.push(`COINS=${COINS.length} FG=${fearGreed} v17`)
-    log.push(`ADAPT sc>=${adaptMinScore} vpoc<=${(adaptVpocDist*100).toFixed(1)}% kelly=${kellyMult.toFixed(2)}`)
+    log.push(`COINS=${COINS.length} FG=${fearGreed} v18`)
+    log.push(`ADAPT sc>=${adaptMinScore} vpoc<=${(adaptVpocDist*100).toFixed(1)}% side=${adaptSideFilter} kelly=${kellyMult.toFixed(2)}`)
 
+    // BTC global bias + regime
     let btcBias:'BULL'|'BEAR'|'NEUTRAL'='NEUTRAL'
+    let btcRegime: 'TRENDING'|'RANGING'|'SQUEEZE' = 'TRENDING'
     if (btcBars.length>=20) {
       const cl=btcBars.slice(0,-1).map(b=>b.close)
       const rsi=calcRsi(cl,14), e9=calcEma(cl,9), e21=calcEma(cl,21)
       if(rsi>55&&e9>e21) btcBias='BULL'
       else if(rsi<45&&e9<e21) btcBias='BEAR'
+      btcRegime = detectRegime(btcBars.slice(0,-1))
     }
-    log.push(`BTC=${btcBias}`)
+    log.push(`BTC=${btcBias} REGIME=${btcRegime}`)
 
-    // Streak pause Telegram alert (fires once when streak hits the limit)
     if (streak === R.streakLimit) {
       await sendTelegram(
         `⚠️ <b>STREAK PAUSE</b>\n` +
@@ -472,19 +571,19 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Daily summary at 00:00–00:01 UTC
     if (needDailySummary && dayTradesRaw && (dayTradesRaw as any[]).length > 0) {
       const dt   = dayTradesRaw as any[]
       const dWins = dt.filter(t => Number(t.pnl) > 0).length
       const dPnl  = dt.reduce((a,t) => a + Number(t.pnl), 0)
       await sendTelegram(
-        `📊 <b>סיכום יומי — CryptoBot v17</b>\n` +
+        `📊 <b>סיכום יומי — CryptoBot v18</b>\n` +
         `עסקאות: ${dt.length} | ✅ ${dWins} ❌ ${dt.length - dWins}\n` +
         `WIN rate: ${((dWins/dt.length)*100).toFixed(0)}%\n` +
         `P&L: ${dPnl>=0?'+':''}$${dPnl.toFixed(2)}\n` +
         `💰 יתרה: $${balance.toFixed(2)}\n` +
-        `BTC: ${btcBias} | F&G: ${fearGreed}\n` +
-        `ADAPT sc>=${adaptMinScore} vpoc<=${(adaptVpocDist*100).toFixed(1)}%`
+        `BTC: ${btcBias} (${btcRegime}) | F&G: ${fearGreed}\n` +
+        `ADAPT sc>=${adaptMinScore} vpoc<=${(adaptVpocDist*100).toFixed(1)}% side=${adaptSideFilter}\n` +
+        `🚫 Blacklist: ${dynamicBlacklist.size > 0 ? [...dynamicBlacklist].join(', ') : 'none'}`
       )
     }
 
@@ -525,12 +624,20 @@ Deno.serve(async (req) => {
           const size   = Number(t.size)
           const sl     = Number(t.trail_sl)
           const slDist = Math.abs(entry-sl)
-          const tp     = t.side==='LONG' ? entry+slDist*vp.tpR : entry-slDist*vp.tpR
           const dirM   = t.side==='LONG' ? 1 : -1
           const ageMs  = t.opened_at ? now - new Date(t.opened_at).getTime() : 0
 
-          // Partial TP at 1.2×R
-          if (!t.partial_done && slDist > 0) {
+          // Detect range trade: mtf=false AND hi/lo set beyond entry
+          const isRangeLong  = !t.mtf && t.side==='LONG'  && Number(t.hi) > entry * 1.001
+          const isRangeShort = !t.mtf && t.side==='SHORT' && Number(t.lo)  < entry * 0.999
+
+          // TP: static for range trades, R-based for sweep trades
+          const tp = isRangeLong  ? Number(t.hi)  :
+                     isRangeShort ? Number(t.lo)  :
+                     t.side==='LONG' ? entry+slDist*vp.tpR : entry-slDist*vp.tpR
+
+          // Partial TP only for sweep trades
+          if (!t.partial_done && slDist > 0 && t.mtf) {
             const partialTPPrice = entry + slDist*PARTIAL_TP_R*dirM
             const partialHit = t.side==='LONG' ? price>=partialTPPrice : price<=partialTPPrice
             if (partialHit) {
@@ -569,27 +676,30 @@ Deno.serve(async (req) => {
               status:final, exit_price:price, pnl,
               pnl_pct:fav, closed_at:new Date().toISOString()
             }).eq('id',t.id)
-            log.push(`CLOSE ${sym} ${t.side} ${final} pnl=${pnl.toFixed(2)} ${Math.round(ageMs/60000)}m`)
+            const modeTag = t.mtf ? 'SWEEP' : 'RANGE'
+            log.push(`CLOSE ${sym} ${t.side} ${final} [${modeTag}] pnl=${pnl.toFixed(2)} ${Math.round(ageMs/60000)}m`)
             await sendTelegram(
               `${pnl>0?'✅':'❌'} <b>CLOSE ${sym} ${t.side} ${final}</b>\n` +
-              `@$${price.toFixed(4)} | ${Math.round(ageMs/60000)}m\n` +
+              `@$${price.toFixed(4)} | ${Math.round(ageMs/60000)}m | ${modeTag}\n` +
               `P&L: ${pnl>=0?'+':''}$${pnl.toFixed(2)}\n` +
               `💰 יתרה: $${balance.toFixed(2)}`
             )
           } else {
-            const profitR = slDist>0 ? (price-entry)*dirM/slDist : 0
-            let newSL = sl
-            if (profitR >= vp.trailBeR) {
-              // True breakeven covers round-trip fees, not just entry price
-              const beLevel = entry*(1 + FEE*2.5*dirM)
-              newSL = dirM===1 ? Math.max(sl,beLevel) : Math.min(sl,beLevel)
-            }
-            if (profitR >= vp.trailBeR+0.5) {
-              const trailLevel = price - atr*vp.trailAtr*dirM
-              newSL = dirM===1 ? Math.max(newSL,trailLevel) : Math.min(newSL,trailLevel)
-            }
-            if (newSL !== sl) {
-              await supabase.from('bot_trades').update({trail_sl:newSL}).eq('id',t.id)
+            // Trail stop logic (only for sweep trades)
+            if (t.mtf) {
+              const profitR = slDist>0 ? (price-entry)*dirM/slDist : 0
+              let newSL = sl
+              if (profitR >= vp.trailBeR) {
+                const beLevel = entry*(1 + FEE*2.5*dirM)
+                newSL = dirM===1 ? Math.max(sl,beLevel) : Math.min(sl,beLevel)
+              }
+              if (profitR >= vp.trailBeR+0.5) {
+                const trailLevel = price - atr*vp.trailAtr*dirM
+                newSL = dirM===1 ? Math.max(newSL,trailLevel) : Math.min(newSL,trailLevel)
+              }
+              if (newSL !== sl) {
+                await supabase.from('bot_trades').update({trail_sl:newSL}).eq('id',t.id)
+              }
             }
           }
         }
@@ -597,113 +707,156 @@ Deno.serve(async (req) => {
         // ── New entry ──────────────────────────────────────
         if (streakPaused) return
         if (openTrades.length>0) return
-        if (symCooldown.has(sym)) return  // just closed here — avoid churn re-entry
+        if (symCooldown.has(sym)) return
+        if (dynamicBlacklist.has(sym)) return   // consecutive losses → skip
         if (atrPct>0.02||atrPct<0.00003) return
         if (balance < 10) return
 
-        const lookback = completed.slice(-SWING_LOOKBACK)
-        const {highs,lows} = findSwings(lookback,SWING_N)
-        if (!highs.length&&!lows.length) return
+        // Detect this symbol's regime
+        const regime = detectRegime(completed)
+        if (regime === 'SQUEEZE') return  // breakout imminent — don't fade or chase
 
-        const sweep = detectSweep(completed,price,highs,lows,atr)
-        if (!sweep) return
+        const vpoc = calcVPOC(completed.slice(-80))
 
-        if (sym!=='BTC'&&sym!=='ETH') {
-          if (sweep.side==='LONG' &&btcBias==='BEAR') return
-          if (sweep.side==='SHORT'&&btcBias==='BULL') return
+        // ── Choose strategy by regime ──────────────────────
+        type EntryResult =
+          | { mode: 'SWEEP'; side: 'LONG'|'SHORT'; sweepExtreme: number }
+          | { mode: 'RANGE'; side: 'LONG'|'SHORT'; tpPrice: number; slDist: number }
+
+        let entry: EntryResult | null = null
+
+        if (regime === 'TRENDING') {
+          const lookback = completed.slice(-SWING_LOOKBACK)
+          const {highs,lows} = findSwings(lookback, SWING_N)
+          if (!highs.length && !lows.length) return
+          const sweep = detectSweep(completed, price, highs, lows, atr)
+          if (sweep) entry = { mode: 'SWEEP', ...sweep }
+        } else {
+          // RANGING: mean-reversion toward VPOC at BB extreme
+          const rangeEntry = findRangeEntry(completed, price, vpoc)
+          if (rangeEntry) entry = { mode: 'RANGE', ...rangeEntry }
         }
 
-        // VPOC on last 80 minutes — use adaptive distance
-        const vpoc     = calcVPOC(completed.slice(-80))
-        const vpocDist = Math.abs(vpoc-price)/price
-        const vpocAligned = sweep.side==='LONG' ? vpoc>price : vpoc<price
-        if (!vpocAligned || vpocDist > adaptVpocDist) return
+        if (!entry) return
 
-        const funding = allFunding[sym]||0
-        const fundingOk =
-          (sweep.side==='SHORT'&&funding> FUNDING_EXTREME) ||
-          (sweep.side==='LONG' &&funding<-FUNDING_EXTREME) ||
-          Math.abs(funding)<=FUNDING_EXTREME
-        if (!fundingOk) return
+        // Side filter from self-optimization
+        if (adaptSideFilter === 'LONG'  && entry.side === 'SHORT') return
+        if (adaptSideFilter === 'SHORT' && entry.side === 'LONG')  return
 
+        // BTC bias filter (sweep mode only — range trades are market-neutral)
+        if (entry.mode === 'SWEEP' && sym !== 'BTC' && sym !== 'ETH') {
+          if (entry.side === 'LONG'  && btcBias === 'BEAR') return
+          if (entry.side === 'SHORT' && btcBias === 'BULL') return
+        }
+
+        // VPOC + score check (sweep mode only)
         let smScore = 0
+        let isMtf = false
 
-        // 5M MTF
-        if (bars5m&&bars5m.length>=20) {
-          const comp5m=bars5m.slice(0,-1)
-          const {highs:h5,lows:l5}=findSwings(comp5m.slice(-40),SWING_N)
-          const sweep5m=detectSweep(comp5m,price,h5,l5,calcATR(comp5m))
-          if (sweep5m?.side===sweep.side) smScore+=2
-          else if (sweep5m&&sweep5m.side!==sweep.side) return
+        if (entry.mode === 'SWEEP') {
+          const vpocDist = Math.abs(vpoc-price)/price
+          const vpocAligned = entry.side==='LONG' ? vpoc>price : vpoc<price
+          if (!vpocAligned || vpocDist > adaptVpocDist) return
+
+          const funding = allFunding[sym]||0
+          const fundingOk =
+            (entry.side==='SHORT'&&funding> FUNDING_EXTREME) ||
+            (entry.side==='LONG' &&funding<-FUNDING_EXTREME) ||
+            Math.abs(funding)<=FUNDING_EXTREME
+          if (!fundingOk) return
+
+          // 5M MTF confirmation
+          if (bars5m&&bars5m.length>=20) {
+            const comp5m=bars5m.slice(0,-1)
+            const {highs:h5,lows:l5}=findSwings(comp5m.slice(-40),SWING_N)
+            const sweep5m=detectSweep(comp5m,price,h5,l5,calcATR(comp5m))
+            if (sweep5m?.side===entry.side) smScore+=2
+            else if (sweep5m&&sweep5m.side!==entry.side) return
+          }
+
+          if (Math.abs(vpoc-price)/price < 0.008)  smScore+=2
+          else if (Math.abs(vpoc-price)/price < 0.015) smScore++
+
+          const [obImbalance, whalePressure, liqSignal, oiTrend] = await Promise.all([
+            fetchOBImbalance(sym),
+            fetchWhalePressure(sym),
+            fetchLiqSignal(sym),
+            fetchOISignal(sym)
+          ])
+
+          if (Math.abs(allFunding[sym]||0)>FUNDING_EXTREME) smScore++
+          if (entry.side==='LONG' &&obImbalance> 0.10) smScore++
+          if (entry.side==='SHORT'&&obImbalance<-0.10) smScore++
+          if (entry.side==='LONG' &&whalePressure> 0.15) smScore++
+          if (entry.side==='SHORT'&&whalePressure<-0.15) smScore++
+          if (liqSignal==='LONG_LIQ' &&entry.side==='SHORT') smScore+=2
+          if (liqSignal==='SHORT_LIQ'&&entry.side==='LONG')  smScore+=2
+          if (oiTrend==='UP')   smScore++
+          if (oiTrend==='DOWN') smScore=Math.max(0,smScore-1)
+          if (fearGreed<20&&entry.side==='LONG')  smScore++
+          if (fearGreed>80&&entry.side==='SHORT') smScore++
+          if (fearGreed>80&&entry.side==='LONG')  smScore=Math.max(0,smScore-1)
+          if (fearGreed<20&&entry.side==='SHORT') smScore=Math.max(0,smScore-1)
+
+          const contra =
+            (entry.side==='LONG' &&(obImbalance<-0.30||whalePressure<-0.40)) ||
+            (entry.side==='SHORT'&&(obImbalance> 0.30||whalePressure> 0.40))
+          if (contra) return
+
+          if (smScore < adaptMinScore) {
+            log.push(`SKIP ${sym} sc=${smScore}<${adaptMinScore}`)
+            return
+          }
+
+          isMtf = true
         }
-
-        // VPOC proximity bonus
-        if (vpocDist < 0.008)  smScore+=2
-        else if (vpocDist < 0.015) smScore++
-
-        // SM signals
-        const [obImbalance, whalePressure, liqSignal, oiTrend] = await Promise.all([
-          fetchOBImbalance(sym),
-          fetchWhalePressure(sym),
-          fetchLiqSignal(sym),
-          fetchOISignal(sym)
-        ])
-
-        if (Math.abs(funding)>FUNDING_EXTREME) smScore++
-        if (sweep.side==='LONG' &&obImbalance> 0.10) smScore++
-        if (sweep.side==='SHORT'&&obImbalance<-0.10) smScore++
-        if (sweep.side==='LONG' &&whalePressure> 0.15) smScore++
-        if (sweep.side==='SHORT'&&whalePressure<-0.15) smScore++
-        if (liqSignal==='LONG_LIQ' &&sweep.side==='SHORT') smScore+=2
-        if (liqSignal==='SHORT_LIQ'&&sweep.side==='LONG')  smScore+=2
-        if (oiTrend==='UP')   smScore++
-        if (oiTrend==='DOWN') smScore=Math.max(0,smScore-1)
-        if (fearGreed<20&&sweep.side==='LONG')  smScore++
-        if (fearGreed>80&&sweep.side==='SHORT') smScore++
-        if (fearGreed>80&&sweep.side==='LONG')  smScore=Math.max(0,smScore-1)
-        if (fearGreed<20&&sweep.side==='SHORT') smScore=Math.max(0,smScore-1)
-
-        const contra =
-          (sweep.side==='LONG' &&(obImbalance<-0.30||whalePressure<-0.40)) ||
-          (sweep.side==='SHORT'&&(obImbalance> 0.30||whalePressure> 0.40))
-        if (contra) return
-
-        // Use adaptive MIN_SCORE
-        if (smScore < adaptMinScore) {
-          log.push(`SKIP ${sym} sc=${smScore}<${adaptMinScore}`)
-          return
-        }
+        // Range trades skip score check — BB+RSI+VPOC alignment is the signal
 
         const gid = getCorrGroup(sym)
         if (gid >= 0 && (corrGroupCount[gid]||0) >= MAX_PER_GROUP) return
 
-        const slDist  = atr*vp.slMult
-        const slPrice = sweep.side==='LONG'
-          ? Math.min(sweep.sweepExtreme,price)-slDist
-          : Math.max(sweep.sweepExtreme,price)+slDist
-        const slPct = Math.abs(price-slPrice)/price
-        // MIN_SL_PCT: below this, the TP gain doesn't clear round-trip fees
-        if (slPct<MIN_SL_PCT||slPct>0.05) return
+        // ── Calculate position size ────────────────────────
+        let slPrice: number, slPct: number
+        let hiVal = price, loVal = price  // default: no static TP
 
-        const riskAmt = balance*R.riskPct*kellyMult
-        let notional  = riskAmt/slPct
-        notional = Math.min(notional, balance*MAX_NOTIONAL_PCT, balance*0.95)
-        if (notional<5) return
+        if (entry.mode === 'SWEEP') {
+          const slDist = atr * vp.slMult
+          slPrice = entry.side==='LONG'
+            ? Math.min(entry.sweepExtreme, price) - slDist
+            : Math.max(entry.sweepExtreme, price) + slDist
+          slPct = Math.abs(price - slPrice) / price
+          if (slPct < MIN_SL_PCT || slPct > 0.05) return
+        } else {
+          // Range trade: SL just beyond band, TP stored in hi/lo
+          slPrice = entry.side === 'LONG'
+            ? price - entry.slDist
+            : price + entry.slDist
+          slPct = entry.slDist / price
+          if (slPct < 0.002 || slPct > 0.03) return
+          if (entry.side === 'LONG') hiVal = entry.tpPrice   // static TP stored in hi
+          else                       loVal = entry.tpPrice   // static TP stored in lo
+        }
 
-        const size=notional/price, fee=price*size*FEE
-        balance-=(notional+fee); openCount++
-        if (gid>=0) corrGroupCount[gid]=(corrGroupCount[gid]||0)+1
+        const riskAmt  = balance * R.riskPct * kellyMult
+        let notional   = Math.min(riskAmt / slPct, balance * MAX_NOTIONAL_PCT, balance * 0.95)
+        if (notional < 5) return
+
+        const size = notional / price, fee = price * size * FEE
+        balance -= (notional + fee); openCount++
+        if (gid >= 0) corrGroupCount[gid] = (corrGroupCount[gid]||0) + 1
 
         await supabase.from('bot_trades').insert({
-          sym, side:sweep.side, entry_price:price, size, fee,
-          trail_sl:slPrice, hi:price, lo:price,
-          status:'OPEN', score:smScore, mtf:true, partial_done:false
+          sym, side: entry.side, entry_price: price, size, fee,
+          trail_sl: slPrice, hi: hiVal, lo: loVal,
+          status: 'OPEN', score: smScore, mtf: isMtf, partial_done: false
         })
-        log.push(`OPEN ${sym} ${sweep.side} @${price.toFixed(6)} sl=${(slPct*100).toFixed(3)}% $${notional.toFixed(0)} SC=${smScore} vol=${volRegime}`)
+
+        const modeLabel = entry.mode === 'SWEEP' ? '📊 SWEEP' : '🔄 RANGE'
+        log.push(`OPEN ${sym} ${entry.side} [${entry.mode}] @${price.toFixed(6)} sl=${(slPct*100).toFixed(3)}% $${notional.toFixed(0)} SC=${smScore} vol=${volRegime}`)
         await sendTelegram(
-          `🟢 <b>OPEN ${sym} ${sweep.side}</b>\n` +
+          `🟢 <b>OPEN ${sym} ${entry.side} ${modeLabel}</b>\n` +
           `@$${price.toFixed(6)} | SL ${(slPct*100).toFixed(3)}%\n` +
-          `$${notional.toFixed(0)} | Score: ${smScore}/${adaptMinScore} | ${volRegime}\n` +
+          `$${notional.toFixed(0)} | Score: ${smScore} | ${volRegime}\n` +
           `💰 יתרה: $${balance.toFixed(2)}`
         )
 
@@ -714,13 +867,15 @@ Deno.serve(async (req) => {
     }
 
     await supabase.from('bot_state').update({
-      balance, updated_at:new Date().toISOString(),
-      market_regime:'v17_1M_ADAPT', streak
+      balance, updated_at: new Date().toISOString(),
+      market_regime: 'v18_DUAL', streak
     }).eq('id',1)
 
     return new Response(JSON.stringify({
-      ok:true, v:17, openCount, streakPaused, streak, btcBias,
-      kelly:kellyMult, fearGreed, adaptMinScore, adaptVpocDist, log
+      ok: true, v: 18, openCount, streakPaused, streak, btcBias, btcRegime,
+      kelly: kellyMult, fearGreed, adaptMinScore, adaptVpocDist, adaptSideFilter,
+      blacklist: [...dynamicBlacklist],
+      log
     }), {headers:{'Content-Type':'application/json'}})
 
   } catch(e) {
