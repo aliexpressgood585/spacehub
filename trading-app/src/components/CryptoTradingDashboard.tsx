@@ -494,7 +494,7 @@ export default function CryptoTradingDashboard() {
         setSupaStatus(live?'live':'error');supaModeRef.current=live
       })
     // Auto-trigger Edge Function every 60s while bot is active
-    const funcUrl=`${SUPA_URL}/functions/v1/trading-bot`
+    const funcUrl=`${SUPA_URL}/functions/v1/bc26c3f7-94ce-4726-8143-bfde91a8ebf6`
     const poll=setInterval(async()=>{
       if(!botRef.current) return
       try{
