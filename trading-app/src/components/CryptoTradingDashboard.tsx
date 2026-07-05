@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 const SUPA_URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || 'https://mdvheizhciuvqychtwxr.supabase.co'
 const SUPA_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kdmhlaXpoY2l1dnF5Y2h0d3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwODc0NjQsImV4cCI6MjA5ODY2MzQ2NH0.JHJ0lCVhSfH3XA92Iyb-TKdx7vd-C2sZzdRwNVutMzI'
 
-type RiskType = 'low'|'medium'|'high'
+type RiskType = 'low'|'medium'|'high'|'ultra'
 type TabType  = 'scanner'|'history'|'stats'|'ai'|'regime'
 type Regime   = 'TREND_UP'|'TREND_DOWN'|'RANGING'|'VOLATILE'
 
@@ -66,7 +66,7 @@ const REGIME_HE: Record<string,string> = {
 const REGIME_COLOR: Record<string,string> = {
   TREND_UP: C.green, TREND_DOWN: C.red, RANGING: C.blue, VOLATILE: C.yellow,
 }
-const RISK_HE: Record<RiskType,string> = { low:'נמוך', medium:'בינוני', high:'גבוה' }
+const RISK_HE: Record<RiskType,string> = { low:'נמוך', medium:'בינוני', high:'גבוה', ultra:'ULTRA' }
 const RISK = {
   low:    { riskPct:0.006, sl:0.008, maxPos:5,  maxDayLoss:0.02 },
   medium: { riskPct:0.010, sl:0.010, maxPos:20, maxDayLoss:0.03 },
