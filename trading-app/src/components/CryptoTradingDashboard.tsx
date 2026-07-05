@@ -940,7 +940,7 @@ export default function CryptoTradingDashboard() {
       </div>
 
       <div style={{textAlign:'center' as const,color:C.dim,fontSize:'9px',marginTop:'6px',letterSpacing:'0.5px'}}>
-        {supaLive?'☁ SERVER BOT v20 ACTIVE 24/7 | 5M TIMEFRAME | BINANCE REAL-TIME':'VIRTUAL TRADING | 5M BARS | BINANCE REAL-TIME PRICES'}
+        {supaLive?'☁ SERVER BOT v21 ACTIVE 24/7 | 5M TIMEFRAME | BINANCE REAL-TIME':'VIRTUAL TRADING | 5M BARS | BINANCE REAL-TIME PRICES'}
       </div>
     </div>
   )
