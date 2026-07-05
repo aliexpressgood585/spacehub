@@ -645,9 +645,14 @@ Deno.serve(async (req) => {
       openCount++
     }
 
+    // Include any open-position coins not in FIXED_COINS so they get managed/closed
+    const fixedSet = new Set(activeCoins)
+    const extraOpenSyms = Object.keys(openBySymbol).filter(s => !fixedSet.has(s))
+    const allManagedCoins = [...activeCoins, ...extraOpenSyms]
+
     const BATCH=12
-    for (let b=0; b<activeCoins.length; b+=BATCH) {
-      await Promise.all(activeCoins.slice(b,b+BATCH).map(async (sym)=>{
+    for (let b=0; b<allManagedCoins.length; b+=BATCH) {
+      await Promise.all(allManagedCoins.slice(b,b+BATCH).map(async (sym)=>{
       try {
         const [bars5m,priceRes]=await Promise.all([
           fetchBars(sym,'5m',200),
