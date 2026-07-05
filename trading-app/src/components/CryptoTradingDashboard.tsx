@@ -36,44 +36,26 @@ interface RegimeRow {
 
 // ─── palette ─────────────────────────────────────────────────────────────────
 const C = {
-  bg:     '#03040d',
-  panel:  'rgba(8,12,30,0.85)',
-  panel2: 'rgba(12,18,40,0.9)',
-  pink:   '#ff2070',
-  green:  '#00e87a',
-  red:    '#ff3350',
-  yellow: '#ffb700',
-  blue:   '#3ab8ff',
+  bg:     '#020814',
+  panel:  'rgba(3,8,26,0.92)',
+  panel2: 'rgba(5,12,35,0.88)',
+  pink:   '#f0187a',
+  green:  '#00f5a0',
+  red:    '#ff3a5e',
+  yellow: '#ffb800',
+  blue:   '#00c8ff',
   purple: '#9b5de5',
-  teal:   '#00d9a3',
-  dim:    'rgba(255,255,255,0.06)',
-  muted:  '#4a6080',
-  text:   '#c8d8f0',
-  bright: '#eef4ff',
-  border: 'rgba(255,32,112,0.35)',
-  glow:   '0 4px 24px rgba(255,32,112,0.12), 0 1px 4px rgba(0,0,0,0.6)',
-  glowB:  '0 4px 24px rgba(58,184,255,0.15), 0 1px 4px rgba(0,0,0,0.6)',
-  glowG:  '0 4px 24px rgba(0,232,122,0.15), 0 1px 4px rgba(0,0,0,0.6)',
+  teal:   '#00e5cc',
+  cyan:   '#0af',
+  dim:    'rgba(255,255,255,0.05)',
+  muted:  '#3a5878',
+  text:   '#cde0ff',
+  bright: '#f0f8ff',
+  border: 'rgba(0,200,255,0.2)',
+  glow:   '0 4px 30px rgba(0,200,255,0.08), 0 1px 4px rgba(0,0,0,0.7)',
+  glowP:  '0 4px 30px rgba(240,24,122,0.12), 0 1px 4px rgba(0,0,0,0.7)',
+  glowG:  '0 4px 30px rgba(0,245,160,0.12), 0 1px 4px rgba(0,0,0,0.7)',
 }
-
-const glass = {
-  background:  C.panel,
-  backdropFilter: 'blur(16px)',
-  WebkitBackdropFilter: 'blur(16px)',
-  border: `1px solid ${C.border}`,
-  borderRadius: '12px',
-  boxShadow: C.glow,
-} as CSSProperties
-
-const COINS = [
-  {sym:'BTC',ws:'btcusdt'},{sym:'ETH',ws:'ethusdt'},{sym:'SOL',ws:'solusdt'},
-  {sym:'BNB',ws:'bnbusdt'},{sym:'XRP',ws:'xrpusdt'},{sym:'ADA',ws:'adausdt'},
-  {sym:'DOGE',ws:'dogeusdt'},{sym:'AVAX',ws:'avaxusdt'},{sym:'LINK',ws:'linkusdt'},
-  {sym:'DOT',ws:'dotusdt'},{sym:'POL',ws:'polusdt'},{sym:'UNI',ws:'uniusdt'},
-  {sym:'ATOM',ws:'atomusdt'},{sym:'LTC',ws:'ltcusdt'},{sym:'BCH',ws:'bchusdt'},
-  {sym:'NEAR',ws:'nearusdt'},{sym:'ALGO',ws:'algousdt'},{sym:'FIL',ws:'filusdt'},
-  {sym:'VET',ws:'vetusdt'},{sym:'ICP',ws:'icpusdt'},
-]
 
 const REGIME_HE: Record<string,string> = {
   TREND_UP:   '📈 טרנד עולה',
@@ -84,7 +66,6 @@ const REGIME_HE: Record<string,string> = {
 const REGIME_COLOR: Record<string,string> = {
   TREND_UP: C.green, TREND_DOWN: C.red, RANGING: C.blue, VOLATILE: C.yellow,
 }
-
 const RISK_HE: Record<RiskType,string> = { low:'נמוך', medium:'בינוני', high:'גבוה' }
 const RISK = {
   low:    { riskPct:0.006, sl:0.008, maxPos:5,  maxDayLoss:0.02 },
@@ -94,6 +75,16 @@ const RISK = {
 const MIN_SCORE=3, MIN_ADX=12, COOLDOWN_MS=60_000, STALE_MS=45*60_000, STALE_BAND=0.0015
 const TP_MULT=2.4, PARTIAL_AT=1.2, MAX_NOTIONAL_PCT=0.15, CLOSE_COOLDOWN_MS=60_000, COIN_DISABLE_LOSSES=7
 const INIT_BAL=10_000, MAX_BARS=600, BAR_MS=60_000, FEE_PCT=0.001
+
+const COINS = [
+  {sym:'BTC',ws:'btcusdt'},{sym:'ETH',ws:'ethusdt'},{sym:'SOL',ws:'solusdt'},
+  {sym:'BNB',ws:'bnbusdt'},{sym:'XRP',ws:'xrpusdt'},{sym:'ADA',ws:'adausdt'},
+  {sym:'DOGE',ws:'dogeusdt'},{sym:'AVAX',ws:'avaxusdt'},{sym:'LINK',ws:'linkusdt'},
+  {sym:'DOT',ws:'dotusdt'},{sym:'POL',ws:'polusdt'},{sym:'UNI',ws:'uniusdt'},
+  {sym:'ATOM',ws:'atomusdt'},{sym:'LTC',ws:'ltcusdt'},{sym:'BCH',ws:'bchusdt'},
+  {sym:'NEAR',ws:'nearusdt'},{sym:'ALGO',ws:'algousdt'},{sym:'FIL',ws:'filusdt'},
+  {sym:'VET',ws:'vetusdt'},{sym:'ICP',ws:'icpusdt'},
+]
 
 // ─── math ─────────────────────────────────────────────────────────────────────
 function calcEma(src:number[],p:number):number[]{const k=2/(p+1);const out=[src[0]];for(let i=1;i<src.length;i++)out.push(src[i]*k+out[i-1]*(1-k));return out}
@@ -120,38 +111,48 @@ function drawCandles(canvas:HTMLCanvasElement,bars:Bar[],sig:Sig){
   const ctx=canvas.getContext('2d');if(!ctx||bars.length<3)return
   const W=canvas.width,H=canvas.height
   ctx.clearRect(0,0,W,H)
+  // grid background
+  ctx.strokeStyle='rgba(0,200,255,0.04)';ctx.lineWidth=0.5
+  for(let i=1;i<6;i++){ctx.beginPath();ctx.moveTo(0,H*i/6);ctx.lineTo(W,H*i/6);ctx.stroke()}
+  for(let i=1;i<8;i++){ctx.beginPath();ctx.moveTo(W*i/8,0);ctx.lineTo(W*i/8,H);ctx.stroke()}
   const sl=bars.slice(-70)
   const lo=Math.min(...sl.map(b=>b.low))*0.9988
   const hi=Math.max(...sl.map(b=>b.high))*1.0012
   const toY=(v:number)=>H-2-((v-lo)/(hi-lo))*(H-4)
   const cw=(W-4)/sl.length
-  ctx.strokeStyle='rgba(255,32,112,0.06)';ctx.lineWidth=0.5
-  for(let i=1;i<5;i++){ctx.beginPath();ctx.moveTo(0,H*i/5);ctx.lineTo(W,H*i/5);ctx.stroke()}
   const cl=sl.map(b=>b.close)
   const e9=calcEma(cl,9),e21=calcEma(cl,21)
-  ctx.beginPath();e9.forEach((v,i)=>{i===0?ctx.moveTo(i*cw+cw/2+2,toY(v)):ctx.lineTo(i*cw+cw/2+2,toY(v))})
-  ctx.strokeStyle='rgba(255,183,0,0.6)';ctx.lineWidth=1.5;ctx.stroke()
-  ctx.beginPath();e21.forEach((v,i)=>{i===0?ctx.moveTo(i*cw+cw/2+2,toY(v)):ctx.lineTo(i*cw+cw/2+2,toY(v))})
-  ctx.strokeStyle='rgba(255,32,112,0.6)';ctx.lineWidth=1.5;ctx.stroke()
+  // BB band fill
   const bbArr=cl.map((_,i)=>calcBB(cl.slice(0,i+1)))
   ctx.beginPath();bbArr.forEach((bb,i)=>{i===0?ctx.moveTo(i*cw+cw/2+2,toY(bb.upper)):ctx.lineTo(i*cw+cw/2+2,toY(bb.upper))})
   for(let i=bbArr.length-1;i>=0;i--)ctx.lineTo(i*cw+cw/2+2,toY(bbArr[i].lower))
-  ctx.closePath();ctx.fillStyle='rgba(58,184,255,0.06)';ctx.fill()
+  ctx.closePath();ctx.fillStyle='rgba(0,200,255,0.05)';ctx.fill()
+  // EMA lines
+  ctx.beginPath();e21.forEach((v,i)=>{i===0?ctx.moveTo(i*cw+cw/2+2,toY(v)):ctx.lineTo(i*cw+cw/2+2,toY(v))})
+  ctx.strokeStyle='rgba(240,24,122,0.55)';ctx.lineWidth=1.2;ctx.stroke()
+  ctx.beginPath();e9.forEach((v,i)=>{i===0?ctx.moveTo(i*cw+cw/2+2,toY(v)):ctx.lineTo(i*cw+cw/2+2,toY(v))})
+  ctx.strokeStyle='rgba(0,200,255,0.7)';ctx.lineWidth=1.5;ctx.stroke()
+  // candles
   sl.forEach((b,i)=>{
-    const x=i*cw+2;const isUp=b.close>=b.open;const col=isUp?C.green:C.red
+    const x=i*cw+2;const isUp=b.close>=b.open
+    const col=isUp?C.green:C.red
     ctx.strokeStyle=col;ctx.lineWidth=0.8
     ctx.beginPath();ctx.moveTo(x+cw/2,toY(b.high));ctx.lineTo(x+cw/2,toY(b.low));ctx.stroke()
     const bTop=toY(Math.max(b.open,b.close));const bBot=toY(Math.min(b.open,b.close))
-    ctx.fillStyle=isUp?'rgba(0,232,122,0.85)':'rgba(255,51,80,0.85)'
+    ctx.fillStyle=isUp?'rgba(0,245,160,0.88)':'rgba(255,58,94,0.88)'
     ctx.fillRect(x+1,bTop,Math.max(1,cw-2),Math.max(1,bBot-bTop))
   })
+  // price label
   const lp=sl[sl.length-1].close
-  ctx.fillStyle='rgba(3,4,13,0.85)';ctx.fillRect(2,toY(lp)-13,70,14)
+  ctx.fillStyle='rgba(2,8,20,0.9)';ctx.fillRect(2,toY(lp)-13,72,14)
   ctx.fillStyle=C.green;ctx.font='bold 10px monospace'
   ctx.fillText(lp>=100?lp.toFixed(2):lp.toFixed(5),4,toY(lp)-1)
-  ctx.beginPath();ctx.arc(W-10,10,7,0,Math.PI*2)
-  ctx.fillStyle=sig.dir==='BUY'?C.green:sig.dir==='SELL'?C.red:C.muted;ctx.fill()
-  if(sig.dir!=='HOLD'){ctx.shadowColor=sig.dir==='BUY'?C.green:C.red;ctx.shadowBlur=10;ctx.stroke();ctx.shadowBlur=0}
+  // signal dot
+  ctx.beginPath();ctx.arc(W-10,10,6,0,Math.PI*2)
+  const dotCol=sig.dir==='BUY'?C.green:sig.dir==='SELL'?C.red:C.muted
+  ctx.fillStyle=dotCol
+  if(sig.dir!=='HOLD'){ctx.shadowColor=dotCol;ctx.shadowBlur=12}
+  ctx.fill();ctx.shadowBlur=0
 }
 
 function drawEquity(canvas:HTMLCanvasElement,trades:Trade[]){
@@ -160,17 +161,17 @@ function drawEquity(canvas:HTMLCanvasElement,trades:Trade[]){
   ctx.clearRect(0,0,W,H)
   const pts=[INIT_BAL];let bal=INIT_BAL
   for(const t of trades){if(t.pnl!==undefined){bal+=t.pnl;pts.push(bal)}}
-  if(pts.length<2){ctx.fillStyle='rgba(0,232,122,0.04)';ctx.fillRect(0,0,W,H);return}
+  if(pts.length<2){ctx.fillStyle='rgba(0,245,160,0.03)';ctx.fillRect(0,0,W,H);return}
   const lo=Math.min(...pts)*0.995,hi=Math.max(...pts)*1.005
   const toY=(v:number)=>H-1-((v-lo)/(hi-lo))*(H-2)
   const toX=(i:number)=>(i/(pts.length-1))*(W-1)
   ctx.beginPath();pts.forEach((v,i)=>{i===0?ctx.moveTo(toX(i),toY(v)):ctx.lineTo(toX(i),toY(v))})
   ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.closePath()
   const g=ctx.createLinearGradient(0,0,0,H)
-  g.addColorStop(0,'rgba(0,232,122,0.35)');g.addColorStop(1,'rgba(0,232,122,0.01)')
+  g.addColorStop(0,'rgba(0,245,160,0.3)');g.addColorStop(1,'rgba(0,245,160,0.01)')
   ctx.fillStyle=g;ctx.fill()
   ctx.beginPath();pts.forEach((v,i)=>{i===0?ctx.moveTo(toX(i),toY(v)):ctx.lineTo(toX(i),toY(v))})
-  ctx.strokeStyle=C.green;ctx.lineWidth=2;ctx.stroke()
+  ctx.strokeStyle=C.green;ctx.lineWidth=2;ctx.shadowColor=C.green;ctx.shadowBlur=6;ctx.stroke();ctx.shadowBlur=0
 }
 
 function drawBubbles(canvas:HTMLCanvasElement,allSigs:Record<string,Sig>,prices:Record<string,PriceInfo>){
@@ -183,14 +184,14 @@ function drawBubbles(canvas:HTMLCanvasElement,allSigs:Record<string,Sig>,prices:
     const cx=col*cw+cw/2,cy=row*ch+ch/2
     const s=allSigs[coin.sym];const chg=prices[coin.sym]?.change||0
     const r=Math.min(cw,ch)*0.38;const dir=s?.dir||'HOLD'
-    const fill=dir==='BUY'?'rgba(0,232,122,0.18)':dir==='SELL'?'rgba(255,51,80,0.18)':'rgba(18,28,55,0.5)'
+    const fill=dir==='BUY'?'rgba(0,245,160,0.15)':dir==='SELL'?'rgba(255,58,94,0.15)':'rgba(10,20,50,0.5)'
     const stroke=dir==='BUY'?C.green:dir==='SELL'?C.red:C.muted
     ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2)
     ctx.fillStyle=fill;ctx.fill()
-    if(dir!=='HOLD'){ctx.shadowColor=stroke;ctx.shadowBlur=10}
-    ctx.strokeStyle=stroke;ctx.lineWidth=dir==='HOLD'?0.5:1.5;ctx.stroke()
+    if(dir!=='HOLD'){ctx.shadowColor=stroke;ctx.shadowBlur=14}
+    ctx.strokeStyle=stroke;ctx.lineWidth=dir==='HOLD'?0.4:1.8;ctx.stroke()
     ctx.shadowBlur=0
-    ctx.fillStyle=dir==='BUY'?C.green:dir==='SELL'?C.red:C.muted
+    ctx.fillStyle=dir==='BUY'?C.green:dir==='SELL'?C.red:C.text
     ctx.font=`bold ${Math.max(8,r*0.44)}px monospace`;ctx.textAlign='center';ctx.textBaseline='middle'
     ctx.fillText(coin.sym,cx,cy-3)
     ctx.font=`${Math.max(7,r*0.3)}px monospace`
@@ -200,51 +201,87 @@ function drawBubbles(canvas:HTMLCanvasElement,allSigs:Record<string,Sig>,prices:
   ctx.textAlign='start';ctx.textBaseline='alphabetic'
 }
 
-// ─── 3D card component ────────────────────────────────────────────────────────
+// ─── injected animations ──────────────────────────────────────────────────────
+const STYLE_TAG = `
+  @keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(0.85)}}
+  @keyframes glow-beat{0%,100%{box-shadow:0 0 8px currentColor}50%{box-shadow:0 0 22px currentColor,0 0 40px currentColor}}
+  @keyframes slide-up{from{transform:translateY(6px);opacity:0}to{transform:translateY(0);opacity:1}}
+  @keyframes scanline{0%{background-position:0 0}100%{background-position:0 100px}}
+  @keyframes border-spin{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+  .live-dot{animation:pulse-dot 1.4s ease-in-out infinite}
+  .glow-beat{animation:glow-beat 2s ease-in-out infinite}
+  .slide-up{animation:slide-up 0.25s ease-out}
+  .float{animation:float 3s ease-in-out infinite}
+  .nx-btn{transition:all 0.18s ease;cursor:pointer}
+  .nx-btn:hover{filter:brightness(1.25);transform:translateY(-1px)}
+  .nx-row:hover{background:rgba(0,200,255,0.04)!important}
+  ::-webkit-scrollbar{width:3px;height:3px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:rgba(0,200,255,0.25);border-radius:2px}
+`
+
+// ─── 3D card ──────────────────────────────────────────────────────────────────
 function Card3D({children,style,color}:{children:React.ReactNode;style?:CSSProperties;color?:string}){
   const [tilt,setTilt]=useState({x:0,y:0})
   const ref=useRef<HTMLDivElement>(null)
   const onMove=(e:React.MouseEvent)=>{
     const el=ref.current;if(!el)return
     const r=el.getBoundingClientRect()
-    const x=((e.clientX-r.left)/r.width-0.5)*12
-    const y=-((e.clientY-r.top)/r.height-0.5)*8
+    const x=((e.clientX-r.left)/r.width-0.5)*14
+    const y=-((e.clientY-r.top)/r.height-0.5)*10
     setTilt({x,y})
   }
+  const col=color||C.blue
   return (
     <div ref={ref} onMouseMove={onMove} onMouseLeave={()=>setTilt({x:0,y:0})}
       style={{
-        ...glass,
-        transform:`perspective(600px) rotateX(${tilt.y}deg) rotateY(${tilt.x}deg) translateZ(2px)`,
-        transition:'transform 0.15s ease',
-        borderColor: color ? `${color}55` : C.border,
-        boxShadow: color
-          ? `0 8px 32px ${color}22, 0 2px 8px rgba(0,0,0,0.5), inset 0 1px 0 ${color}15`
-          : C.glow,
+        background:C.panel,
+        backdropFilter:'blur(20px)',
+        WebkitBackdropFilter:'blur(20px)',
+        border:`1px solid ${col}28`,
+        borderRadius:'14px',
+        boxShadow:`0 8px 40px ${col}14, 0 2px 8px rgba(0,0,0,0.6), inset 0 1px 0 ${col}12`,
+        transform:`perspective(700px) rotateX(${tilt.y}deg) rotateY(${tilt.x}deg) translateZ(4px)`,
+        transition:'transform 0.12s ease',
+        position:'relative',
+        overflow:'hidden',
         ...style,
       }}>
+      {/* top edge highlight */}
+      <div style={{position:'absolute',top:0,left:'10%',right:'10%',height:'1px',background:`linear-gradient(90deg,transparent,${col}60,transparent)`}}/>
       {children}
     </div>
   )
 }
 
 // ─── stat tile ────────────────────────────────────────────────────────────────
-function StatTile({label,value,color,big}:{label:string;value:string;color:string;big?:boolean}){
+function Tile({label,value,color,sub}:{label:string;value:string;color:string;sub?:string}){
   return (
     <div style={{
-      background:`linear-gradient(135deg, rgba(8,12,30,0.9) 0%, rgba(12,18,45,0.8) 100%)`,
-      border:`1px solid ${color}33`,
-      borderRadius:'10px',
-      padding:'10px 12px',
-      display:'flex',flexDirection:'column',gap:'3px',
-      boxShadow:`0 4px 16px ${color}11, inset 0 1px 0 ${color}15`,
+      background:`linear-gradient(135deg,rgba(3,8,26,0.95) 0%,rgba(6,14,40,0.85) 100%)`,
+      border:`1px solid ${color}22`,borderRadius:'12px',padding:'10px 14px',
       position:'relative',overflow:'hidden',
     }}>
-      <div style={{position:'absolute',top:0,right:0,width:'40px',height:'40px',
-        background:`radial-gradient(circle at top right, ${color}18, transparent 70%)`}}/>
-      <div style={{fontSize:'9px',color:C.muted,letterSpacing:'0.8px',fontWeight:600}}>{label}</div>
-      <div style={{fontSize:big?'18px':'14px',fontWeight:900,color,letterSpacing:'-0.5px'}}>{value}</div>
+      <div style={{position:'absolute',top:0,right:0,width:'50px',height:'50px',
+        background:`radial-gradient(circle at top right,${color}16,transparent 70%)`}}/>
+      <div style={{fontSize:'9px',color:C.muted,letterSpacing:'1px',fontWeight:600,marginBottom:'4px'}}>{label}</div>
+      <div style={{fontSize:'17px',fontWeight:900,color,letterSpacing:'-0.5px',lineHeight:1}}>{value}</div>
+      {sub&&<div style={{fontSize:'8px',color:C.muted,marginTop:'3px'}}>{sub}</div>}
     </div>
+  )
+}
+
+// ─── neon chip ────────────────────────────────────────────────────────────────
+function Chip({label,color,dot}:{label:string;color:string;dot?:boolean}){
+  return (
+    <span style={{display:'inline-flex',alignItems:'center',gap:'5px',
+      padding:'3px 10px',borderRadius:'20px',fontSize:'9px',fontWeight:700,
+      background:`${color}14`,color,border:`1px solid ${color}40`,
+      boxShadow:`0 0 12px ${color}18`}}>
+      {dot&&<span className="live-dot" style={{width:'5px',height:'5px',borderRadius:'50%',background:color,display:'inline-block'}}/>}
+      {label}
+    </span>
   )
 }
 
@@ -467,7 +504,6 @@ export default function CryptoTradingDashboard() {
   useEffect(()=>{
     if(!SUPA_URL||!SUPA_KEY)return
     const supa=createClient(SUPA_URL,SUPA_KEY);supaRef.current=supa
-
     const loadData=()=>Promise.all([
       supa.from('bot_state').select('*').eq('id',1).single(),
       supa.from('bot_trades').select('*').eq('status','OPEN'),
@@ -494,7 +530,6 @@ export default function CryptoTradingDashboard() {
       if(optHist.data)setOptimizerHistory(optHist.data as OptimizerRun[])
       if(regHist.data)setRegimeHistory(regHist.data as RegimeRow[])
     })
-
     loadData()
     const syncPoll=setInterval(loadData,30_000)
     let ch=supa.channel('bot-realtime')
@@ -593,120 +628,140 @@ export default function CryptoTradingDashboard() {
   const supaLive       = supaStatus==='live'
   const fmtP           = (p:number)=>p>=1000?p.toFixed(2):p>=1?p.toFixed(4):p.toFixed(6)
   const M:CSSProperties= {fontFamily:"'Courier New',monospace",userSelect:'none' as const,direction:'rtl'}
+  const regColor       = REGIME_COLOR[marketRegime]||C.blue
 
-  const regColor = REGIME_COLOR[marketRegime] || C.blue
+  const TABS:[TabType,string][]=[
+    ['scanner','🔍 סריקה'],['history','📋 היסטוריה'],
+    ['stats','📊 סטטיסטיקות'],['ai','🤖 AI OPT'],['regime','🌐 שוק'],
+  ]
 
   return (
-    <div style={{...M,background:`radial-gradient(ellipse at top, #0a0618 0%, #03040d 60%)`,minHeight:'100vh',color:C.text,padding:'8px',fontSize:'11px',overflowX:'hidden'}}>
+    <div style={{...M,
+      background:`radial-gradient(ellipse 80% 50% at 50% 0%,rgba(0,40,80,0.5) 0%,#020814 60%)`,
+      minHeight:'100vh',color:C.text,padding:'8px',fontSize:'11px',overflowX:'hidden',
+    }}>
+      <style dangerouslySetInnerHTML={{__html:STYLE_TAG}}/>
 
       {/* ══ HEADER ══ */}
-      <div style={{...glass,padding:'10px 14px',marginBottom:'8px',display:'flex',flexWrap:'wrap' as const,gap:'8px',alignItems:'center',background:'rgba(6,8,22,0.9)'}}>
+      <div style={{
+        background:'linear-gradient(180deg,rgba(0,30,60,0.7) 0%,rgba(2,8,26,0.92) 100%)',
+        border:`1px solid rgba(0,200,255,0.15)`,borderRadius:'16px',
+        padding:'12px 16px',marginBottom:'8px',
+        boxShadow:'0 8px 40px rgba(0,0,0,0.5),inset 0 1px 0 rgba(0,200,255,0.1)',
+        position:'relative',overflow:'hidden',
+      }}>
+        {/* diagonal accent line */}
+        <div style={{position:'absolute',top:0,left:0,right:0,height:'2px',
+          background:`linear-gradient(90deg,transparent,${C.blue}80,${C.pink}80,transparent)`}}/>
 
-        {/* Title */}
-        <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
-          <span style={{fontSize:'16px',fontWeight:900,color:C.pink,letterSpacing:'1px',textShadow:`0 0 20px ${C.pink}66`}}>
-            ⚡ בוט קריפטו PRO
-          </span>
-          <span style={{fontSize:'8px',color:C.muted,padding:'2px 5px',border:`1px solid ${C.dim}`,borderRadius:'3px'}}>v21</span>
-        </div>
-
-        {/* Status chips */}
-        <div style={{display:'flex',gap:'5px',flexWrap:'wrap' as const}}>
-          <span style={{padding:'3px 8px',borderRadius:'6px',fontSize:'9px',fontWeight:700,
-            background:wsStatus==='live'?'rgba(0,232,122,0.12)':'rgba(255,51,80,0.12)',
-            color:wsStatus==='live'?C.green:C.red,border:`1px solid ${wsStatus==='live'?C.green+'44':C.red+'44'}`}}>
-            ● {wsStatus==='live'?'חי':'...'}
-          </span>
-          {supaStatus!=='off'&&(
-            <span style={{padding:'3px 8px',borderRadius:'6px',fontSize:'9px',fontWeight:700,
-              background:supaLive?'rgba(58,184,255,0.12)':'rgba(255,183,0,0.12)',
-              color:supaLive?C.blue:C.yellow,border:`1px solid ${supaLive?C.blue+'44':C.yellow+'44'}`}}>
-              ☁ {supaLive?'ענן 24/7':'מתחבר'}
+        {/* row 1: title + status + regime */}
+        <div style={{display:'flex',flexWrap:'wrap' as const,gap:'8px',alignItems:'center',marginBottom:'10px'}}>
+          <div className="float" style={{display:'flex',alignItems:'center',gap:'6px'}}>
+            <span style={{fontSize:'18px',fontWeight:900,
+              background:`linear-gradient(135deg,${C.blue},${C.pink})`,
+              WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',
+              letterSpacing:'1px',filter:`drop-shadow(0 0 8px ${C.blue}80)`}}>
+              ⚡ NEXUS TRADE
             </span>
-          )}
-          {/* Market regime chip */}
-          <span style={{padding:'3px 10px',borderRadius:'6px',fontSize:'9px',fontWeight:700,
-            background:`${regColor}18`,color:regColor,border:`1px solid ${regColor}44`,
-            boxShadow:`0 0 10px ${regColor}22`}}>
-            {REGIME_HE[marketRegime]||marketRegime} {(regimeConf*100).toFixed(0)}%
-          </span>
-          <span style={{padding:'3px 8px',borderRadius:'6px',fontSize:'9px',fontWeight:700,
-            background:serverPaperMode?'rgba(0,217,163,0.12)':'rgba(255,51,80,0.12)',
-            color:serverPaperMode?C.teal:C.red,border:`1px solid ${serverPaperMode?C.teal+'44':C.red+'44'}`,
-            cursor:'pointer'}}
-            onClick={()=>{
+            <span style={{fontSize:'8px',color:C.muted,padding:'2px 5px',border:`1px solid ${C.dim}`,borderRadius:'4px'}}>v21</span>
+          </div>
+
+          <div style={{display:'flex',gap:'5px',flexWrap:'wrap' as const}}>
+            <Chip label={wsStatus==='live'?'חי':'מתחבר...'} color={wsStatus==='live'?C.green:C.yellow} dot={wsStatus==='live'}/>
+            {supaStatus!=='off'&&<Chip label={supaLive?'ענן 24/7':'מתחבר'} color={supaLive?C.blue:C.yellow} dot={supaLive}/>}
+            <span className="glow-beat" style={{
+              display:'inline-flex',alignItems:'center',gap:'5px',
+              padding:'3px 10px',borderRadius:'20px',fontSize:'9px',fontWeight:800,
+              background:`${regColor}18`,color:regColor,border:`1px solid ${regColor}50`,
+            }}>
+              {REGIME_HE[marketRegime]||marketRegime} · {(regimeConf*100).toFixed(0)}%
+            </span>
+            <button className="nx-btn" onClick={()=>{
               const next=!serverPaperMode;setServerPaperMode(next)
               supaRef.current?.from('bot_state').update({paper_mode:next}).eq('id',1)
-            }}>
-            {serverPaperMode?'📋 נייר':'💵 אמיתי'}
-          </span>
+            }} style={{
+              border:`1px solid ${serverPaperMode?C.teal:C.red}44`,borderRadius:'20px',
+              padding:'3px 10px',fontSize:'9px',fontWeight:700,
+              background:serverPaperMode?`${C.teal}12`:`${C.red}12`,
+              color:serverPaperMode?C.teal:C.red,
+            }}>{serverPaperMode?'📋 נייר':'💵 אמיתי'}</button>
+          </div>
+
+          {/* portfolio value */}
+          <div style={{marginRight:'auto',textAlign:'right' as const}}>
+            <div style={{fontWeight:900,fontSize:'28px',color:C.bright,letterSpacing:'-1px',lineHeight:1,
+              textShadow:`0 0 20px rgba(255,255,255,0.15)`}}>
+              ${totalValue.toFixed(0)}
+            </div>
+            <div style={{fontSize:'11px',color:totalPnl>=0?C.green:C.red,fontWeight:700}}>
+              {totalPnl>=0?'+':''}{totalPnl.toFixed(2)} כולל
+            </div>
+          </div>
         </div>
 
-        {/* Balance */}
-        <div style={{display:'flex',gap:'12px',alignItems:'baseline',marginRight:'auto'}}>
-          <span style={{fontWeight:900,fontSize:'20px',color:C.bright,textShadow:`0 0 30px rgba(255,255,255,0.2)`}}>
-            ${totalValue.toFixed(0)}
-          </span>
-          <span style={{fontSize:'11px',color:totalPnl>=0?C.green:C.red,fontWeight:700}}>
-            {totalPnl>=0?'+':''}{totalPnl.toFixed(2)}
-          </span>
-          <span style={{fontSize:'10px',color:C.muted}}>
-            WIN <strong style={{color:winRate>50?C.green:C.red}}>{winRate.toFixed(0)}%</strong>
-            {' · '}שארפ <strong style={{color:sharpe>1?C.green:C.yellow}}>{sharpe.toFixed(2)}</strong>
-            {' · '}DD <strong style={{color:maxDD>15?C.red:C.yellow}}>{maxDD.toFixed(1)}%</strong>
-          </span>
-        </div>
-
-        {/* Controls */}
-        <div style={{display:'flex',gap:'5px',flexWrap:'wrap' as const}}>
+        {/* row 2: quick stats + controls */}
+        <div style={{display:'flex',flexWrap:'wrap' as const,gap:'6px',alignItems:'center'}}>
+          {[
+            ['WIN',winRate.toFixed(0)+'%',winRate>50?C.green:C.red],
+            ['שארפ',sharpe.toFixed(2),sharpe>1?C.green:C.yellow],
+            ['DD',maxDD.toFixed(1)+'%',maxDD<10?C.green:maxDD<25?C.yellow:C.red],
+            ['עסקאות',trades.length.toString(),C.blue],
+            ['פתוחות',openTrades.length.toString(),C.yellow],
+          ].map(([k,v,col])=>(
+            <div key={k} style={{background:'rgba(255,255,255,0.03)',border:`1px solid ${C.dim}`,borderRadius:'8px',padding:'4px 10px',display:'flex',gap:'6px',alignItems:'baseline'}}>
+              <span style={{fontSize:'8px',color:C.muted}}>{k}</span>
+              <span style={{fontSize:'12px',fontWeight:900,color:col as string}}>{v}</span>
+            </div>
+          ))}
+          <div style={{marginRight:'auto'}}/>
           {(['low','medium','high'] as const).map(r=>(
-            <button key={r} onClick={()=>handleRiskChange(r)} style={{
-              cursor:'pointer',border:`1px solid ${risk===r?C.pink:C.dim}`,borderRadius:'6px',
-              padding:'4px 10px',fontSize:'10px',fontWeight:700,
-              background:risk===r?'rgba(255,32,112,0.18)':'rgba(255,255,255,0.03)',
+            <button key={r} className="nx-btn" onClick={()=>handleRiskChange(r)} style={{
+              border:`1px solid ${risk===r?C.pink:'rgba(255,255,255,0.08)'}`,borderRadius:'8px',
+              padding:'5px 12px',fontSize:'10px',fontWeight:700,
+              background:risk===r?`${C.pink}18`:'rgba(255,255,255,0.03)',
               color:risk===r?C.pink:C.muted,
-              boxShadow:risk===r?`0 0 12px ${C.pink}33`:undefined,
-              transition:'all 0.2s',
+              boxShadow:risk===r?`0 0 14px ${C.pink}30`:undefined,
             }}>{RISK_HE[r]}</button>
           ))}
-          <button onClick={handleBotToggle} style={{
-            cursor:'pointer',border:`1px solid ${botOn?C.green:C.muted}`,borderRadius:'6px',
-            padding:'4px 12px',fontSize:'10px',fontWeight:700,
-            background:botOn?'rgba(0,232,122,0.15)':'rgba(255,255,255,0.03)',
+          <button className="nx-btn" onClick={handleBotToggle} style={{
+            border:`1px solid ${botOn?C.green:C.muted}`,borderRadius:'8px',
+            padding:'5px 14px',fontSize:'10px',fontWeight:700,
+            background:botOn?`${C.green}15`:'rgba(255,255,255,0.03)',
             color:botOn?C.green:C.muted,
-            boxShadow:botOn?`0 0 12px ${C.green}33`:undefined,
+            boxShadow:botOn?`0 0 14px ${C.green}30`:undefined,
           }}>{botOn?'🤖 פעיל':'🤖 כבוי'}</button>
         </div>
       </div>
 
       {/* ══ COIN STRIP ══ */}
-      <div style={{display:'flex',gap:'4px',overflowX:'auto' as const,marginBottom:'8px',paddingBottom:'4px',scrollbarWidth:'none' as const}}>
+      <div style={{display:'flex',gap:'4px',overflowX:'auto' as const,marginBottom:'8px',paddingBottom:'2px',scrollbarWidth:'none' as const}}>
         {COINS.map(c=>{
           const info=prices[c.sym];const chg=info?.change||0;const cs=allSigs[c.sym]
           const active=selected===c.sym;const wt=coinWeights[c.sym]
+          const sigCol=cs?.dir==='BUY'?C.green:cs?.dir==='SELL'?C.red:undefined
           return (
-            <button key={c.sym} onClick={()=>setSelected(c.sym)} style={{
-              cursor:'pointer',flexShrink:0,minWidth:'62px',padding:'5px 6px',borderRadius:'8px',
+            <button key={c.sym} className="nx-btn" onClick={()=>setSelected(c.sym)} style={{
+              flexShrink:0,minWidth:'64px',padding:'6px 7px',borderRadius:'10px',
               textAlign:'center' as const,
-              border:`1px solid ${active?C.pink:cs?.dir==='BUY'?'rgba(0,232,122,0.35)':cs?.dir==='SELL'?'rgba(255,51,80,0.35)':C.dim}`,
-              background:active?'rgba(255,32,112,0.14)':'rgba(8,12,30,0.7)',
-              backdropFilter:'blur(8px)',color:C.text,
-              boxShadow:active?`0 0 16px ${C.pink}33, 0 2px 8px rgba(0,0,0,0.4)`:undefined,
-              transition:'all 0.15s',
+              border:`1px solid ${active?C.pink:sigCol?sigCol+'55':C.dim}`,
+              background:active?`linear-gradient(135deg,${C.pink}18,${C.purple}10)`:'rgba(3,8,26,0.75)',
+              backdropFilter:'blur(10px)',color:C.text,
+              boxShadow:active?`0 0 20px ${C.pink}28, 0 4px 12px rgba(0,0,0,0.5)`:
+                sigCol?`0 0 10px ${sigCol}18`:undefined,
             }}>
-              <div style={{fontWeight:800,fontSize:'10px',color:active?C.pink:C.text}}>{c.sym}</div>
+              <div style={{fontWeight:800,fontSize:'10px',color:active?C.pink:sigCol||C.text}}>{c.sym}</div>
               <div style={{fontSize:'8px',color:chg>0.5?C.green:chg<-0.5?C.red:C.muted}}>{chg>=0?'+':''}{chg.toFixed(1)}%</div>
-              {wt&&<div style={{fontSize:'7px',color:wt>1?C.green:wt<0.8?C.red:C.muted}}>{wt.toFixed(1)}×</div>}
-              {cs?.dir!=='HOLD'&&<div style={{fontSize:'8px',fontWeight:900,color:cs?.dir==='BUY'?C.green:C.red}}>{cs?.dir==='BUY'?'▲':'▼'}</div>}
+              {wt&&<div style={{fontSize:'7px',color:wt>1.2?C.green:wt<0.8?C.red:C.muted,fontWeight:700}}>{wt.toFixed(1)}×</div>}
+              {cs?.dir!=='HOLD'&&<div style={{fontSize:'9px',fontWeight:900,color:sigCol||C.dim}}>{cs?.dir==='BUY'?'▲':'▼'}</div>}
             </button>
           )
         })}
       </div>
 
       {/* ══ MAIN GRID ══ */}
-      <div style={{display:'grid',gridTemplateColumns:'150px 1fr',gap:'8px',marginBottom:'8px'}}>
+      <div style={{display:'grid',gridTemplateColumns:'160px 1fr',gap:'8px',marginBottom:'8px'}}>
 
-        {/* STATS PANEL */}
+        {/* STATS SIDEBAR */}
         <div style={{display:'flex',flexDirection:'column' as const,gap:'5px'}}>
           {[
             ['יתרה כוללת','$'+totalValue.toFixed(0),totalValue>=INIT_BAL?C.green:C.red],
@@ -718,78 +773,112 @@ export default function CryptoTradingDashboard() {
             ['שארפ',sharpe.toFixed(2),sharpe>1?C.green:sharpe>0?C.yellow:C.red],
             ['מקס ירידה',maxDD.toFixed(1)+'%',maxDD<10?C.green:maxDD<25?C.yellow:C.red],
           ].map(([k,v,col])=>(
-            <div key={k} style={{background:'rgba(8,12,30,0.8)',border:`1px solid ${C.dim}`,borderRadius:'8px',padding:'5px 8px',display:'flex',justifyContent:'space-between',backdropFilter:'blur(8px)'}}>
+            <div key={k} style={{
+              background:'rgba(3,8,26,0.85)',border:`1px solid ${C.dim}`,borderRadius:'9px',
+              padding:'6px 10px',display:'flex',justifyContent:'space-between',alignItems:'center',
+              backdropFilter:'blur(10px)',
+            }}>
               <span style={{color:C.muted,fontSize:'9px'}}>{k}</span>
-              <span style={{color:col as string,fontWeight:800,fontSize:'10px'}}>{v}</span>
+              <span style={{color:col as string,fontWeight:800,fontSize:'11px'}}>{v}</span>
             </div>
           ))}
-          <div style={{background:'rgba(8,12,30,0.8)',border:`1px solid ${C.dim}`,borderRadius:'8px',padding:'6px 8px',fontSize:'9px',color:C.muted,backdropFilter:'blur(8px)'}}>
-            <div>SL {(R.sl*100).toFixed(1)}% / TP {(R.sl*TP_MULT*100).toFixed(1)}%</div>
-            <div style={{marginTop:'2px'}}>מקס {R.maxPos} פוזיציות</div>
+          <div style={{background:'rgba(3,8,26,0.85)',border:`1px solid ${C.dim}`,borderRadius:'9px',padding:'7px 10px',fontSize:'9px',color:C.muted,backdropFilter:'blur(10px)'}}>
+            <div>SL <span style={{color:C.red}}>{(R.sl*100).toFixed(1)}%</span> · TP <span style={{color:C.green}}>{(R.sl*TP_MULT*100).toFixed(1)}%</span></div>
+            <div style={{marginTop:'2px'}}>מקס <span style={{color:C.yellow}}>{R.maxPos}</span> פוזיציות</div>
           </div>
         </div>
 
-        {/* CHART */}
-        <Card3D style={{padding:'10px'}} color={sig.dir==='BUY'?C.green:sig.dir==='SELL'?C.red:undefined}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'6px'}}>
-            <span style={{fontWeight:900,color:C.pink,fontSize:'13px',letterSpacing:'0.5px'}}>{selected}/USDT</span>
-            <span style={{fontWeight:800,fontSize:'14px',color:selInfo?.change>0?C.green:C.red}}>
-              {selInfo?fmtP(selInfo.price):'—'}
-              <span style={{fontSize:'10px',marginRight:'5px'}}>{selInfo?`${selInfo.change>=0?'+':''}${selInfo.change.toFixed(2)}%`:''}</span>
-            </span>
+        {/* CHART CARD */}
+        <Card3D style={{padding:'12px'}} color={sig.dir==='BUY'?C.green:sig.dir==='SELL'?C.red:C.blue}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'8px'}}>
+            <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+              <span style={{fontWeight:900,fontSize:'14px',color:C.bright}}>{selected}<span style={{color:C.muted,fontWeight:400}}>/USDT</span></span>
+              {sig.mtf&&<span style={{fontSize:'8px',padding:'2px 6px',borderRadius:'4px',background:`${C.blue}18`,color:C.blue,border:`1px solid ${C.blue}30`}}>✓ MTF</span>}
+            </div>
+            <div style={{textAlign:'right' as const}}>
+              <div style={{fontWeight:900,fontSize:'15px',color:selInfo?.change>0?C.green:selInfo?.change<0?C.red:C.text}}>
+                {selInfo?fmtP(selInfo.price):'—'}
+              </div>
+              <div style={{fontSize:'10px',color:selInfo?.change>0?C.green:selInfo?.change<0?C.red:C.muted}}>
+                {selInfo?`${selInfo.change>=0?'+':''}${selInfo.change.toFixed(2)}%`:''}
+              </div>
+            </div>
           </div>
+
           <canvas ref={canvasRef} width={600} height={155}
-            style={{width:'100%',height:'155px',borderRadius:'6px',background:'rgba(2,3,10,0.8)',display:'block',border:`1px solid ${C.dim}`,marginBottom:'6px'}}/>
-          <div style={{display:'flex',gap:'3px',flexWrap:'wrap' as const,marginBottom:'6px'}}>
+            style={{width:'100%',height:'155px',borderRadius:'8px',background:'rgba(1,4,16,0.9)',display:'block',
+              border:`1px solid ${C.dim}`,marginBottom:'8px'}}/>
+
+          {/* indicator pills */}
+          <div style={{display:'flex',gap:'3px',flexWrap:'wrap' as const,marginBottom:'8px'}}>
             {['EMA','RSI','MACD','BB','StochRSI'].map((lbl,i)=>(
-              <span key={lbl} style={{padding:'2px 6px',borderRadius:'4px',fontSize:'9px',fontWeight:700,
-                background:sig.f[i]?'rgba(0,232,122,0.12)':'rgba(255,51,80,0.1)',
+              <span key={lbl} style={{padding:'2px 7px',borderRadius:'5px',fontSize:'9px',fontWeight:700,
+                background:sig.f[i]?`${C.green}12`:`${C.red}10`,
                 color:sig.f[i]?C.green:C.red,
-                border:`1px solid ${sig.f[i]?'rgba(0,232,122,0.25)':'rgba(255,51,80,0.2)'}`}}>{lbl}</span>
+                border:`1px solid ${sig.f[i]?C.green+'30':C.red+'25'}`,
+              }}>{lbl}</span>
             ))}
-            <span style={{padding:'2px 6px',fontSize:'9px',color:C.muted}}>
+            <span style={{padding:'2px 7px',fontSize:'9px',color:C.muted}}>
               RSI <strong style={{color:sig.rsi>70?C.red:sig.rsi<30?C.green:C.yellow}}>{sig.rsi.toFixed(0)}</strong>
             </span>
-            <span style={{padding:'2px 6px',fontSize:'9px',color:C.muted}}>
+            <span style={{padding:'2px 7px',fontSize:'9px',color:C.muted}}>
               ADX <strong style={{color:sig.adx>25?C.green:C.yellow}}>{sig.adx.toFixed(0)}</strong>
             </span>
           </div>
+
+          {/* signal banner */}
           <div style={{
-            padding:'8px 12px',borderRadius:'8px',textAlign:'center' as const,fontWeight:900,fontSize:'15px',
-            background:sig.dir==='BUY'?'rgba(0,232,122,0.08)':sig.dir==='SELL'?'rgba(255,51,80,0.08)':'rgba(18,28,55,0.5)',
-            border:`1px solid ${sig.dir==='BUY'?'rgba(0,232,122,0.3)':sig.dir==='SELL'?'rgba(255,51,80,0.3)':C.dim}`,
+            padding:'10px 14px',borderRadius:'10px',textAlign:'center' as const,
+            fontWeight:900,fontSize:'16px',letterSpacing:'0.5px',
+            background:sig.dir==='BUY'?`linear-gradient(135deg,${C.green}10,${C.teal}05)`:
+              sig.dir==='SELL'?`linear-gradient(135deg,${C.red}10,${C.pink}05)`:'rgba(10,20,50,0.5)',
+            border:`1px solid ${sig.dir==='BUY'?C.green+'35':sig.dir==='SELL'?C.red+'35':C.dim}`,
             color:sig.dir==='BUY'?C.green:sig.dir==='SELL'?C.red:C.muted,
-            boxShadow:sig.dir!=='HOLD'?`0 0 20px ${sig.dir==='BUY'?'rgba(0,232,122,0.2)':'rgba(255,51,80,0.2)'}`:undefined,
+            boxShadow:sig.dir!=='HOLD'?`0 4px 24px ${sig.dir==='BUY'?C.green:C.red}18`:undefined,
           }}>
-            {sig.dir==='BUY'?'▲ קנייה':sig.dir==='SELL'?'▼ מכירה':'— ממתין'} {sig.score}/5
-            {sig.mtf&&<span style={{fontSize:'10px',marginRight:'8px',color:C.blue}}> ✓ 5M</span>}
+            {sig.dir==='BUY'?'▲ קנייה':sig.dir==='SELL'?'▼ מכירה':'— ממתין'} · {sig.score}/5
           </div>
         </Card3D>
       </div>
 
       {/* ══ OPEN POSITIONS ══ */}
       {openTrades.length>0&&(
-        <div style={{...glass,padding:'10px',marginBottom:'8px'}}>
-          <div style={{color:C.pink,fontWeight:700,fontSize:'10px',marginBottom:'6px',letterSpacing:'0.5px'}}>
-            ▶ פוזיציות פתוחות ({openTrades.length})
+        <div style={{
+          background:'rgba(3,8,26,0.88)',border:`1px solid rgba(0,200,255,0.12)`,borderRadius:'14px',
+          padding:'10px 12px',marginBottom:'8px',backdropFilter:'blur(16px)',
+        }}>
+          <div style={{color:C.blue,fontWeight:700,fontSize:'10px',marginBottom:'8px',display:'flex',alignItems:'center',gap:'6px'}}>
+            <span className="live-dot" style={{width:'6px',height:'6px',borderRadius:'50%',background:C.blue,display:'inline-block'}}/>
+            פוזיציות פתוחות ({openTrades.length})
           </div>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))',gap:'5px'}}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(170px,1fr))',gap:'6px'}}>
             {openTrades.map(t=>{
               const cur=prices[t.sym]?.price||t.entry
               const pnl=(t.side==='LONG'?(cur-t.entry):(t.entry-cur))*t.size-t.fee
               const pct=(cur-t.entry)/t.entry*(t.side==='LONG'?1:-1)*100
+              const col=pnl>=0?C.green:C.red
               return (
                 <div key={t.id} style={{
-                  background:'rgba(8,12,30,0.85)',borderRadius:'8px',padding:'7px 9px',
-                  border:`1px solid ${pnl>=0?'rgba(0,232,122,0.25)':'rgba(255,51,80,0.25)'}`,
-                  boxShadow:pnl>=0?`0 4px 16px rgba(0,232,122,0.08)`:` 0 4px 16px rgba(255,51,80,0.08)`,
-                  backdropFilter:'blur(8px)',
+                  background:`linear-gradient(135deg,${col}08,rgba(3,8,26,0.9))`,
+                  borderRadius:'10px',padding:'9px 11px',
+                  border:`1px solid ${col}28`,
+                  boxShadow:`0 4px 20px ${col}08`,
                 }}>
-                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:'3px'}}>
-                    <span style={{color:t.side==='LONG'?C.green:C.red,fontWeight:800,fontSize:'10px'}}>{t.side==='LONG'?'▲':'▼'} {t.sym}</span>
-                    <span style={{color:pnl>=0?C.green:C.red,fontWeight:800,fontSize:'10px'}}>{pnl>=0?'+':''}{pnl.toFixed(2)}</span>
+                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:'4px'}}>
+                    <span style={{color:t.side==='LONG'?C.green:C.red,fontWeight:800,fontSize:'11px'}}>
+                      {t.side==='LONG'?'▲':'▼'} {t.sym}
+                    </span>
+                    <span style={{color:col,fontWeight:900,fontSize:'12px'}}>{pnl>=0?'+':''}{pnl.toFixed(2)}</span>
                   </div>
-                  <div style={{fontSize:'9px',color:C.muted}}>{fmtP(t.entry)} → {fmtP(cur)} <span style={{color:pct>=0?C.green:C.red}}>{pct>=0?'+':''}{pct.toFixed(2)}%</span></div>
+                  <div style={{fontSize:'9px',color:C.muted}}>
+                    {fmtP(t.entry)} → {fmtP(cur)}
+                    <span style={{color:pct>=0?C.green:C.red,fontWeight:700,marginRight:'4px'}}> {pct>=0?'+':''}{pct.toFixed(2)}%</span>
+                  </div>
+                  {/* mini progress bar */}
+                  <div style={{height:'2px',background:C.dim,borderRadius:'1px',marginTop:'5px'}}>
+                    <div style={{height:'100%',width:`${Math.min(Math.abs(pct)*10,100)}%`,
+                      background:col,borderRadius:'1px',transition:'width 0.3s'}}/>
+                  </div>
                 </div>
               )
             })}
@@ -798,53 +887,55 @@ export default function CryptoTradingDashboard() {
       )}
 
       {/* ══ TABS ══ */}
-      <div style={{...glass,padding:'10px',marginBottom:'8px'}}>
-        <div style={{display:'flex',gap:'4px',marginBottom:'10px',flexWrap:'wrap' as const}}>
-          {([
-            ['scanner','🔍 סריקה'],['history','📋 היסטוריה'],['stats','📊 סטטיסטיקות'],
-            ['ai','🤖 AI'],['regime','🌐 שוק'],
-          ] as [TabType,string][]).map(([t,label])=>(
-            <button key={t} onClick={()=>setTab(t)} style={{
-              cursor:'pointer',
-              border:`1px solid ${tab===t?C.pink:C.dim}`,
-              borderRadius:'6px',padding:'5px 12px',fontSize:'10px',fontWeight:700,
-              background:tab===t?'rgba(255,32,112,0.15)':'rgba(255,255,255,0.02)',
+      <div style={{
+        background:'rgba(3,8,26,0.9)',border:`1px solid rgba(0,200,255,0.1)`,borderRadius:'14px',
+        padding:'12px',marginBottom:'8px',backdropFilter:'blur(16px)',
+      }}>
+        {/* tab nav */}
+        <div style={{display:'flex',gap:'4px',marginBottom:'12px',flexWrap:'wrap' as const,
+          background:'rgba(255,255,255,0.02)',borderRadius:'10px',padding:'4px'}}>
+          {TABS.map(([t,label])=>(
+            <button key={t} className="nx-btn" onClick={()=>setTab(t)} style={{
+              border:'none',borderRadius:'7px',padding:'6px 14px',fontSize:'10px',fontWeight:700,
+              background:tab===t?`linear-gradient(135deg,${C.pink}22,${C.purple}14)`:'transparent',
               color:tab===t?C.pink:C.muted,
-              boxShadow:tab===t?`0 0 12px ${C.pink}33`:undefined,
-              transition:'all 0.2s',
+              boxShadow:tab===t?`0 0 14px ${C.pink}28,inset 0 1px 0 ${C.pink}20`:undefined,
+              transition:'all 0.18s',
             }}>{label}</button>
           ))}
-          <span style={{marginRight:'auto',color:C.muted,fontSize:'9px',alignSelf:'center'}}>{closed.length} סגורות | {wins} זכיות</span>
+          <span style={{marginRight:'auto',color:C.muted,fontSize:'9px',alignSelf:'center',paddingRight:'8px'}}>
+            {closed.length} סגורות · {wins} זכיות
+          </span>
         </div>
 
-        {/* SCANNER */}
+        {/* ── SCANNER ── */}
         {tab==='scanner'&&(
           <div style={{overflowX:'auto' as const}}>
             <table style={{width:'100%',borderCollapse:'collapse' as const,fontSize:'10px'}}>
               <thead>
-                <tr>{['מטבע','מחיר','24%','ציון','RSI','ADX','משקל','סיגנל'].map(h=>(
-                  <th key={h} style={{padding:'4px 6px',textAlign:'right' as const,color:C.muted,borderBottom:`1px solid ${C.dim}`,fontWeight:700,fontSize:'9px'}}>{h}</th>
-                ))}</tr>
+                <tr style={{background:'rgba(0,200,255,0.04)'}}>
+                  {['מטבע','מחיר','24%','ציון','RSI','ADX','משקל','סיגנל'].map(h=>(
+                    <th key={h} style={{padding:'6px 8px',textAlign:'right' as const,color:C.muted,
+                      borderBottom:`1px solid ${C.dim}`,fontWeight:700,fontSize:'9px',letterSpacing:'0.5px'}}>{h}</th>
+                  ))}
+                </tr>
               </thead>
               <tbody>
                 {COINS.map(c=>{
                   const info=prices[c.sym];const s=allSigs[c.sym];if(!info)return null
-                  const wt=coinWeights[c.sym]
+                  const wt=coinWeights[c.sym];const sigCol=s?.dir==='BUY'?C.green:s?.dir==='SELL'?C.red:undefined
                   return (
-                    <tr key={c.sym} onClick={()=>setSelected(c.sym)} style={{
-                      cursor:'pointer',
-                      background:s?.dir==='BUY'?'rgba(0,232,122,0.04)':s?.dir==='SELL'?'rgba(255,51,80,0.04)':'transparent',
-                      borderBottom:`1px solid ${C.dim}`,
-                      transition:'background 0.15s',
+                    <tr key={c.sym} className="nx-row" onClick={()=>setSelected(c.sym)} style={{
+                      cursor:'pointer',borderBottom:`1px solid ${C.dim}`,transition:'background 0.1s',
                     }}>
-                      <td style={{padding:'4px 6px',color:s?.dir==='BUY'?C.green:s?.dir==='SELL'?C.red:C.blue,fontWeight:800}}>{c.sym}</td>
-                      <td style={{padding:'4px 6px',color:C.text}}>{fmtP(info.price)}</td>
-                      <td style={{padding:'4px 6px',color:info.change>0?C.green:info.change<0?C.red:C.muted}}>{info.change>=0?'+':''}{info.change.toFixed(2)}%</td>
-                      <td style={{padding:'4px 6px',color:s?.dir!=='HOLD'?C.blue:C.dim,fontWeight:700}}>{s?.score||0}/5</td>
-                      <td style={{padding:'4px 6px',color:s?.rsi>70?C.red:s?.rsi<30?C.green:C.yellow}}>{s?.rsi.toFixed(0)||'—'}</td>
-                      <td style={{padding:'4px 6px',color:s?.adx>25?C.green:s?.adx>14?C.yellow:C.red}}>{s?.adx.toFixed(0)||'—'}</td>
-                      <td style={{padding:'4px 6px',color:wt?(wt>1.2?C.green:wt<0.7?C.red:C.muted):C.dim,fontWeight:700}}>{wt?wt.toFixed(1)+'×':'—'}</td>
-                      <td style={{padding:'4px 6px',fontWeight:900,color:s?.dir==='BUY'?C.green:s?.dir==='SELL'?C.red:C.dim}}>
+                      <td style={{padding:'5px 8px',color:sigCol||C.blue,fontWeight:800}}>{c.sym}</td>
+                      <td style={{padding:'5px 8px',color:C.text,fontFamily:'monospace'}}>{fmtP(info.price)}</td>
+                      <td style={{padding:'5px 8px',color:info.change>0?C.green:info.change<0?C.red:C.muted,fontWeight:700}}>{info.change>=0?'+':''}{info.change.toFixed(2)}%</td>
+                      <td style={{padding:'5px 8px',color:s?.dir!=='HOLD'?C.cyan:C.dim,fontWeight:700}}>{s?.score||0}/5</td>
+                      <td style={{padding:'5px 8px',color:s?.rsi>70?C.red:s?.rsi<30?C.green:C.yellow}}>{s?.rsi.toFixed(0)||'—'}</td>
+                      <td style={{padding:'5px 8px',color:s?.adx>25?C.green:s?.adx>14?C.yellow:C.red}}>{s?.adx.toFixed(0)||'—'}</td>
+                      <td style={{padding:'5px 8px',color:wt?(wt>1.2?C.green:wt<0.7?C.red:C.muted):C.dim,fontWeight:700}}>{wt?wt.toFixed(1)+'×':'—'}</td>
+                      <td style={{padding:'5px 8px',fontWeight:900,color:sigCol||C.dim}}>
                         {s?.dir==='BUY'?'▲ קנייה':s?.dir==='SELL'?'▼ מכירה':'—'}
                       </td>
                     </tr>
@@ -855,23 +946,33 @@ export default function CryptoTradingDashboard() {
           </div>
         )}
 
-        {/* HISTORY */}
+        {/* ── HISTORY ── */}
         {tab==='history'&&(
           closed.length===0
-            ?<div style={{color:C.dim,textAlign:'center' as const,padding:'24px',fontSize:'12px'}}>אין עסקאות סגורות — הבוט עוקב</div>
+            ?<div style={{color:C.dim,textAlign:'center' as const,padding:'32px',fontSize:'12px'}}>אין עסקאות סגורות — הבוט עוקב</div>
             :<div style={{overflowX:'auto' as const}}>
               <table style={{width:'100%',borderCollapse:'collapse' as const,fontSize:'10px'}}>
-                <thead><tr>{['מטבע','כיוון','כניסה','יציאה','P&L','%','סטטוס'].map(h=><th key={h} style={{padding:'4px 6px',textAlign:'right' as const,color:C.muted,borderBottom:`1px solid ${C.dim}`,fontWeight:700,fontSize:'9px'}}>{h}</th>)}</tr></thead>
+                <thead>
+                  <tr style={{background:'rgba(0,200,255,0.04)'}}>
+                    {['מטבע','כיוון','כניסה','יציאה','P&L','%','סטטוס'].map(h=>(
+                      <th key={h} style={{padding:'6px 8px',textAlign:'right' as const,color:C.muted,
+                        borderBottom:`1px solid ${C.dim}`,fontWeight:700,fontSize:'9px'}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
                 <tbody>
-                  {[...closed].reverse().slice(0,20).map(t=>(
-                    <tr key={t.id} style={{borderBottom:`1px solid ${C.dim}`}}>
-                      <td style={{padding:'4px 6px',color:C.blue,fontWeight:700}}>{t.sym}</td>
-                      <td style={{padding:'4px 6px',color:t.side==='LONG'?C.green:C.red,fontWeight:700}}>{t.side==='LONG'?'▲ לונג':'▼ שורט'}</td>
-                      <td style={{padding:'4px 6px',color:C.muted}}>{fmtP(t.entry)}</td>
-                      <td style={{padding:'4px 6px',color:C.muted}}>{t.exit?fmtP(t.exit):'—'}</td>
-                      <td style={{padding:'4px 6px',color:(t.pnl||0)>=0?C.green:C.red,fontWeight:800}}>{(t.pnl||0)>=0?'+':''}{(t.pnl||0).toFixed(2)}</td>
-                      <td style={{padding:'4px 6px',color:(t.pnlPct||0)>=0?C.green:C.red}}>{((t.pnlPct||0)*100).toFixed(2)}%</td>
-                      <td style={{padding:'4px 6px',fontWeight:700,color:t.status==='TP'?C.green:t.status==='SL'?C.red:C.yellow}}>{t.status==='TP'?'✓ TP':t.status==='SL'?'✗ SL':'~ TRAIL'}</td>
+                  {[...closed].reverse().slice(0,25).map(t=>(
+                    <tr key={t.id} className="nx-row" style={{borderBottom:`1px solid ${C.dim}`}}>
+                      <td style={{padding:'5px 8px',color:C.cyan,fontWeight:700}}>{t.sym}</td>
+                      <td style={{padding:'5px 8px',color:t.side==='LONG'?C.green:C.red,fontWeight:700}}>{t.side==='LONG'?'▲ לונג':'▼ שורט'}</td>
+                      <td style={{padding:'5px 8px',color:C.muted,fontFamily:'monospace'}}>{fmtP(t.entry)}</td>
+                      <td style={{padding:'5px 8px',color:C.muted,fontFamily:'monospace'}}>{t.exit?fmtP(t.exit):'—'}</td>
+                      <td style={{padding:'5px 8px',color:(t.pnl||0)>=0?C.green:C.red,fontWeight:800}}>{(t.pnl||0)>=0?'+':''}{(t.pnl||0).toFixed(2)}</td>
+                      <td style={{padding:'5px 8px',color:(t.pnlPct||0)>=0?C.green:C.red}}>{((t.pnlPct||0)*100).toFixed(2)}%</td>
+                      <td style={{padding:'5px 8px',fontWeight:700,
+                        color:t.status==='TP'?C.green:t.status==='SL'?C.red:C.yellow}}>
+                        {t.status==='TP'?'✓ TP':t.status==='SL'?'✗ SL':'~ TRAIL'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -879,7 +980,7 @@ export default function CryptoTradingDashboard() {
             </div>
         )}
 
-        {/* STATS */}
+        {/* ── STATS ── */}
         {tab==='stats'&&(
           <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px'}}>
             {([
@@ -891,44 +992,44 @@ export default function CryptoTradingDashboard() {
               ['יתרה','$'+totalValue.toFixed(0),totalValue>=INIT_BAL?C.green:C.red],
               ['פתוחות',openTrades.length.toString(),C.yellow],
               ['ממוצע זכייה',wins>0?'+'+(closed.filter(t=>(t.pnl||0)>0).reduce((a,t)=>a+(t.pnl||0),0)/wins).toFixed(2):'—',C.green],
-              ['פנוי','$'+balance.toFixed(0),C.yellow],
+              ['יתרה פנויה','$'+balance.toFixed(0),C.yellow],
             ] as [string,string,string][]).map(([label,value,color])=>(
-              <StatTile key={label} label={label} value={value} color={color}/>
+              <Tile key={label} label={label} value={value} color={color}/>
             ))}
           </div>
         )}
 
-        {/* AI OPTIMIZER */}
+        {/* ── AI OPT ── */}
         {tab==='ai'&&(
           <div>
-            <div style={{background:'rgba(0,217,163,0.05)',border:`1px solid rgba(0,217,163,0.25)`,borderRadius:'10px',padding:'10px',marginBottom:'8px'}}>
-              <div style={{display:'flex',justifyContent:'space-between',marginBottom:'6px'}}>
-                <span style={{color:C.teal,fontWeight:700,fontSize:'10px'}}>🤖 מצב אופטימייזר AI</span>
+            <div style={{background:`${C.teal}08`,border:`1px solid ${C.teal}25`,borderRadius:'12px',padding:'12px',marginBottom:'10px'}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'8px'}}>
+                <span style={{color:C.teal,fontWeight:700,fontSize:'11px'}}>🤖 מצב אופטימייזר AI</span>
                 <span style={{fontSize:'9px',color:C.muted}}>
                   {lastOptimizedAt?`עדכון: ${new Date(lastOptimizedAt).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}`:'טרם הורץ'}
                 </span>
               </div>
               {Object.keys(currentBotParams).length===0
-                ?<div style={{color:C.dim,fontSize:'10px',textAlign:'center',padding:'8px'}}>פרמטרים ברירת מחדל — AI יתחיל אחרי 50 עסקאות</div>
-                :<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(110px,1fr))',gap:'4px'}}>
+                ?<div style={{color:C.dim,fontSize:'10px',textAlign:'center' as const,padding:'10px'}}>פרמטרים ברירת מחדל — AI יתחיל אחרי 50 עסקאות</div>
+                :<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(120px,1fr))',gap:'5px'}}>
                   {Object.entries(currentBotParams).map(([k,v])=>(
-                    <div key={k} style={{background:'rgba(8,12,30,0.8)',borderRadius:'6px',padding:'4px 7px',border:`1px solid ${C.dim}`}}>
-                      <div style={{color:C.muted,fontSize:'8px'}}>{k}</div>
-                      <div style={{color:C.teal,fontWeight:700,fontSize:'11px'}}>{JSON.stringify(v)}</div>
+                    <div key={k} style={{background:'rgba(3,8,26,0.9)',borderRadius:'8px',padding:'6px 9px',border:`1px solid ${C.dim}`}}>
+                      <div style={{color:C.muted,fontSize:'8px',marginBottom:'2px'}}>{k}</div>
+                      <div style={{color:C.teal,fontWeight:700,fontSize:'12px'}}>{JSON.stringify(v)}</div>
                     </div>
                   ))}
                 </div>
               }
             </div>
-            <div style={{color:C.pink,fontWeight:700,fontSize:'10px',marginBottom:'6px'}}>היסטוריית שינויים</div>
+            <div style={{color:C.pink,fontWeight:700,fontSize:'10px',marginBottom:'8px'}}>היסטוריית שינויים</div>
             {optimizerHistory.length===0
-              ?<div style={{color:C.dim,fontSize:'10px',textAlign:'center',padding:'20px'}}>אין שינויים עדיין</div>
+              ?<div style={{color:C.dim,fontSize:'10px',textAlign:'center' as const,padding:'24px'}}>אין שינויים עדיין</div>
               :<div style={{display:'flex',flexDirection:'column' as const,gap:'5px',maxHeight:'380px',overflowY:'auto' as const}}>
                 {optimizerHistory.map(run=>{
                   const changedKeys=Object.keys(run.params_after||{}).filter(k=>JSON.stringify((run.params_before||{})[k])!==JSON.stringify((run.params_after||{})[k]))
                   return (
-                    <div key={run.id} style={{background:'rgba(8,12,30,0.85)',borderRadius:'8px',padding:'8px 10px',border:`1px solid ${C.dim}`}}>
-                      <div style={{display:'flex',justifyContent:'space-between',marginBottom:'4px'}}>
+                    <div key={run.id} style={{background:'rgba(3,8,26,0.9)',borderRadius:'10px',padding:'10px 12px',border:`1px solid ${C.dim}`}}>
+                      <div style={{display:'flex',justifyContent:'space-between',marginBottom:'5px'}}>
                         <span style={{color:C.blue,fontWeight:700,fontSize:'10px'}}>
                           {new Date(run.created_at).toLocaleString('he-IL',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}
                         </span>
@@ -938,16 +1039,17 @@ export default function CryptoTradingDashboard() {
                         </span>
                       </div>
                       {changedKeys.length>0&&(
-                        <div style={{display:'flex',flexWrap:'wrap' as const,gap:'3px',marginBottom:'4px'}}>
+                        <div style={{display:'flex',flexWrap:'wrap' as const,gap:'3px',marginBottom:'5px'}}>
                           {changedKeys.map(k=>(
-                            <span key={k} style={{fontSize:'9px',padding:'2px 6px',borderRadius:'4px',background:'rgba(255,183,0,0.08)',border:`1px solid rgba(255,183,0,0.25)`,color:C.yellow}}>
+                            <span key={k} style={{fontSize:'9px',padding:'2px 7px',borderRadius:'5px',
+                              background:`${C.yellow}08`,border:`1px solid ${C.yellow}25`,color:C.yellow}}>
                               {k}: {JSON.stringify((run.params_before||{})[k])} → <strong style={{color:C.teal}}>{JSON.stringify((run.params_after||{})[k])}</strong>
                             </span>
                           ))}
                         </div>
                       )}
                       {run.reasoning&&(
-                        <div style={{fontSize:'9px',color:C.muted,lineHeight:'1.5',borderTop:`1px solid ${C.dim}`,paddingTop:'4px'}}>
+                        <div style={{fontSize:'9px',color:C.muted,lineHeight:'1.5',borderTop:`1px solid ${C.dim}`,paddingTop:'5px'}}>
                           💭 {run.reasoning.slice(0,200)}{run.reasoning.length>200?'...':''}
                         </div>
                       )}
@@ -959,66 +1061,89 @@ export default function CryptoTradingDashboard() {
           </div>
         )}
 
-        {/* MARKET REGIME */}
+        {/* ── REGIME ── */}
         {tab==='regime'&&(
           <div>
-            {/* Current regime big display */}
+            {/* big regime display */}
             <div style={{
-              background:`linear-gradient(135deg, ${regColor}10, rgba(8,12,30,0.9))`,
-              border:`1px solid ${regColor}44`,borderRadius:'12px',padding:'16px',marginBottom:'8px',
-              textAlign:'center' as const,
-              boxShadow:`0 8px 32px ${regColor}18`,
+              background:`linear-gradient(135deg,${regColor}12,rgba(3,8,26,0.95))`,
+              border:`1px solid ${regColor}40`,borderRadius:'14px',padding:'20px',marginBottom:'10px',
+              textAlign:'center' as const,position:'relative',overflow:'hidden',
+              boxShadow:`0 8px 40px ${regColor}15`,
             }}>
-              <div style={{fontSize:'28px',fontWeight:900,color:regColor,textShadow:`0 0 30px ${regColor}66`,marginBottom:'4px'}}>
+              <div style={{position:'absolute',top:0,left:0,right:0,bottom:0,
+                background:`radial-gradient(ellipse 80% 60% at 50% 0%,${regColor}10,transparent)`,pointerEvents:'none'}}/>
+              <div className="float" style={{fontSize:'32px',fontWeight:900,color:regColor,
+                textShadow:`0 0 30px ${regColor}80`,marginBottom:'6px'}}>
                 {REGIME_HE[marketRegime]||marketRegime}
               </div>
-              <div style={{fontSize:'12px',color:C.muted}}>
-                ביטחון: <strong style={{color:regColor}}>{(regimeConf*100).toFixed(0)}%</strong>
+              <div style={{display:'flex',justifyContent:'center',gap:'8px',marginBottom:'10px'}}>
+                <div style={{background:`${regColor}15`,border:`1px solid ${regColor}30`,borderRadius:'8px',padding:'4px 12px'}}>
+                  <span style={{color:C.muted,fontSize:'9px'}}>ביטחון </span>
+                  <span style={{color:regColor,fontWeight:800,fontSize:'13px'}}>{(regimeConf*100).toFixed(0)}%</span>
+                </div>
               </div>
-              <div style={{marginTop:'8px',fontSize:'10px',color:C.muted}}>
-                {marketRegime==='TREND_UP'&&'הבוט מעדיף פוזיציות לונג · SL מותאם'}
-                {marketRegime==='TREND_DOWN'&&'הבוט מעדיף פוזיציות שורט · SL מותאם'}
+              {/* confidence bar */}
+              <div style={{height:'4px',background:`${regColor}20`,borderRadius:'2px',maxWidth:'200px',margin:'0 auto 10px'}}>
+                <div style={{height:'100%',width:`${regimeConf*100}%`,background:regColor,borderRadius:'2px',
+                  boxShadow:`0 0 8px ${regColor}`,transition:'width 0.5s'}}/>
+              </div>
+              <div style={{fontSize:'11px',color:C.muted}}>
+                {marketRegime==='TREND_UP'&&'הבוט מעדיף לונג · SL מותאם'}
+                {marketRegime==='TREND_DOWN'&&'הבוט מעדיף שורט · SL מותאם'}
                 {marketRegime==='RANGING'&&'הבוט פועל בשני הכיוונים · TP מוקדם'}
                 {marketRegime==='VOLATILE'&&'הבוט מקטין פוזיציות · SL מורחב'}
               </div>
             </div>
 
-            {/* Coin weights */}
+            {/* coin weights */}
             {Object.keys(coinWeights).length>0&&(
-              <div style={{marginBottom:'8px'}}>
-                <div style={{color:C.yellow,fontWeight:700,fontSize:'10px',marginBottom:'6px'}}>
-                  ⚖️ משקלי מטבעות {rebalancedAt?`· עדכון: ${new Date(rebalancedAt).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}`:''}</div>
-                <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(100px,1fr))',gap:'4px'}}>
-                  {Object.entries(coinWeights).sort(([,a],[,b])=>b-a).map(([sym,wt])=>(
-                    <div key={sym} style={{background:'rgba(8,12,30,0.8)',border:`1px solid ${wt>1.2?C.green+'44':wt<0.7?C.red+'44':C.dim}`,borderRadius:'8px',padding:'6px 8px',textAlign:'center' as const}}>
-                      <div style={{fontWeight:800,fontSize:'11px',color:C.text}}>{sym}</div>
-                      <div style={{fontWeight:900,fontSize:'14px',color:wt>1.2?C.green:wt<0.7?C.red:C.yellow,marginTop:'2px'}}>{wt.toFixed(2)}×</div>
-                      <div style={{height:'4px',background:C.dim,borderRadius:'2px',marginTop:'4px',overflow:'hidden'}}>
-                        <div style={{height:'100%',width:`${Math.min(wt/2*100,100)}%`,background:wt>1.2?C.green:wt<0.7?C.red:C.yellow,borderRadius:'2px'}}/>
+              <div style={{marginBottom:'10px'}}>
+                <div style={{color:C.yellow,fontWeight:700,fontSize:'10px',marginBottom:'8px',display:'flex',alignItems:'center',gap:'6px'}}>
+                  ⚖️ משקלי מטבעות
+                  {rebalancedAt&&<span style={{color:C.muted,fontWeight:400}}>· עדכון: {new Date(rebalancedAt).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}</span>}
+                </div>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(90px,1fr))',gap:'5px'}}>
+                  {Object.entries(coinWeights).sort(([,a],[,b])=>b-a).map(([sym,wt])=>{
+                    const col=wt>1.2?C.green:wt<0.7?C.red:C.yellow
+                    return (
+                      <div key={sym} style={{background:'rgba(3,8,26,0.9)',border:`1px solid ${col}25`,
+                        borderRadius:'10px',padding:'8px',textAlign:'center' as const}}>
+                        <div style={{fontWeight:800,fontSize:'11px',color:C.text,marginBottom:'2px'}}>{sym}</div>
+                        <div style={{fontWeight:900,fontSize:'16px',color:col}}>{wt.toFixed(2)}×</div>
+                        <div style={{height:'3px',background:C.dim,borderRadius:'2px',marginTop:'5px',overflow:'hidden'}}>
+                          <div style={{height:'100%',width:`${Math.min(wt/2*100,100)}%`,background:col,borderRadius:'2px',
+                            boxShadow:`0 0 4px ${col}`,transition:'width 0.5s'}}/>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             )}
 
-            {/* Regime history */}
-            <div style={{color:C.pink,fontWeight:700,fontSize:'10px',marginBottom:'6px'}}>היסטוריית מצבי שוק</div>
+            {/* regime history */}
+            <div style={{color:C.pink,fontWeight:700,fontSize:'10px',marginBottom:'8px'}}>היסטוריית מצבי שוק</div>
             {regimeHistory.length===0
-              ?<div style={{color:C.dim,fontSize:'10px',textAlign:'center',padding:'16px'}}>אין נתונים — המנגנון יתחיל לרוץ בקרוב</div>
+              ?<div style={{color:C.dim,fontSize:'10px',textAlign:'center' as const,padding:'20px'}}>אין נתונים — המנגנון יתחיל לרוץ בקרוב</div>
               :<div style={{display:'flex',flexDirection:'column' as const,gap:'4px',maxHeight:'300px',overflowY:'auto' as const}}>
-                {regimeHistory.map(r=>(
-                  <div key={r.id} style={{display:'flex',gap:'8px',alignItems:'center',padding:'5px 8px',background:'rgba(8,12,30,0.7)',borderRadius:'6px',border:`1px solid ${C.dim}`}}>
-                    <span style={{fontSize:'9px',color:C.muted,minWidth:'70px'}}>{new Date(r.created_at).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}</span>
-                    <span style={{padding:'2px 8px',borderRadius:'4px',fontSize:'9px',fontWeight:700,
-                      background:`${REGIME_COLOR[r.regime]||C.blue}18`,color:REGIME_COLOR[r.regime]||C.blue,
-                      border:`1px solid ${REGIME_COLOR[r.regime]||C.blue}33`}}>
-                      {REGIME_HE[r.regime]||r.regime}
-                    </span>
-                    <span style={{fontSize:'9px',color:C.muted}}>ביטחון {(r.confidence*100).toFixed(0)}%</span>
-                    {r.notes&&<span style={{fontSize:'8px',color:C.dim,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' as const}}>{r.notes}</span>}
-                  </div>
-                ))}
+                {regimeHistory.map(r=>{
+                  const rc=REGIME_COLOR[r.regime]||C.blue
+                  return (
+                    <div key={r.id} style={{display:'flex',gap:'8px',alignItems:'center',
+                      padding:'6px 10px',background:'rgba(3,8,26,0.8)',borderRadius:'8px',border:`1px solid ${C.dim}`}}>
+                      <span style={{fontSize:'9px',color:C.muted,minWidth:'65px',flexShrink:0}}>
+                        {new Date(r.created_at).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}
+                      </span>
+                      <span style={{padding:'2px 8px',borderRadius:'5px',fontSize:'9px',fontWeight:700,
+                        background:`${rc}15`,color:rc,border:`1px solid ${rc}30`,flexShrink:0}}>
+                        {REGIME_HE[r.regime]||r.regime}
+                      </span>
+                      <span style={{fontSize:'9px',color:C.muted,flexShrink:0}}>{(r.confidence*100).toFixed(0)}%</span>
+                      {r.notes&&<span style={{fontSize:'8px',color:C.dim,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' as const}}>{r.notes}</span>}
+                    </div>
+                  )
+                })}
               </div>
             }
           </div>
@@ -1027,41 +1152,51 @@ export default function CryptoTradingDashboard() {
 
       {/* ══ CHARTS ROW ══ */}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px',marginBottom:'8px'}}>
-        <Card3D style={{padding:'10px'}} color={C.blue}>
-          <div style={{color:C.blue,fontWeight:700,fontSize:'10px',marginBottom:'6px'}}>◉ מפת שוק</div>
+        <Card3D style={{padding:'12px'}} color={C.blue}>
+          <div style={{color:C.blue,fontWeight:700,fontSize:'10px',marginBottom:'8px',letterSpacing:'0.5px'}}>◉ מפת שוק</div>
           <canvas ref={bubRef} width={400} height={200}
-            style={{width:'100%',height:'200px',display:'block',borderRadius:'6px',background:'rgba(2,3,10,0.8)'}}/>
+            style={{width:'100%',height:'200px',display:'block',borderRadius:'8px',background:'rgba(1,4,16,0.9)'}}/>
         </Card3D>
-        <Card3D style={{padding:'10px'}} color={C.green}>
-          <div style={{display:'flex',justifyContent:'space-between',marginBottom:'6px'}}>
+        <Card3D style={{padding:'12px'}} color={C.green}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'8px'}}>
             <span style={{color:C.green,fontWeight:700,fontSize:'10px'}}>📈 עקומת הון</span>
-            <span style={{color:totalPnl>=0?C.green:C.red,fontWeight:700,fontSize:'10px'}}>{totalPnl>=0?'+':''}{totalPnl.toFixed(2)}</span>
+            <span style={{color:totalPnl>=0?C.green:C.red,fontWeight:700,fontSize:'11px'}}>
+              {totalPnl>=0?'+':''}{totalPnl.toFixed(2)}
+            </span>
           </div>
           <canvas ref={eqRef} width={400} height={200}
-            style={{width:'100%',height:'200px',display:'block',borderRadius:'6px',background:'rgba(2,3,10,0.8)',border:`1px solid ${C.dim}`}}/>
+            style={{width:'100%',height:'200px',display:'block',borderRadius:'8px',
+              background:'rgba(1,4,16,0.9)',border:`1px solid ${C.dim}`}}/>
         </Card3D>
       </div>
 
       {/* ══ LOG ══ */}
-      <div style={{...glass,padding:'10px'}}>
-        <div style={{color:C.pink,fontWeight:700,fontSize:'10px',marginBottom:'6px',letterSpacing:'0.5px'}}>▶ יומן פעולות — חי</div>
-        <div style={{height:'90px',overflowY:'auto' as const,scrollbarWidth:'thin' as const,scrollbarColor:`${C.dim} transparent`}}>
+      <div style={{
+        background:'rgba(3,8,26,0.9)',border:`1px solid rgba(0,200,255,0.1)`,borderRadius:'12px',
+        padding:'10px 12px',backdropFilter:'blur(16px)',
+      }}>
+        <div style={{display:'flex',alignItems:'center',gap:'6px',marginBottom:'6px'}}>
+          <span className="live-dot" style={{width:'5px',height:'5px',borderRadius:'50%',background:C.pink,display:'inline-block'}}/>
+          <span style={{color:C.pink,fontWeight:700,fontSize:'10px',letterSpacing:'0.5px'}}>יומן פעולות — חי</span>
+        </div>
+        <div style={{height:'85px',overflowY:'auto' as const}}>
           {execLog.length===0
             ?<div style={{color:C.dim,fontSize:'10px',padding:'4px'}}>ממתין לאיתותים...</div>
             :execLog.map((entry,i)=>(
-              <div key={i} style={{fontSize:'10px',padding:'1px 4px',fontFamily:'monospace',borderBottom:`1px solid ${C.dim}`,lineHeight:'1.6',
-                color:entry.includes('פתיחה')||entry.includes('TP')||entry.includes('+')
-                  ?C.green:entry.includes('SL')||entry.includes('✗')?C.red
-                  :entry.includes('TRAIL')?C.yellow:C.muted}}>
-                {entry}
-              </div>
+              <div key={i} className={i===0?'slide-up':''} style={{
+                fontSize:'10px',padding:'2px 4px',fontFamily:'monospace',
+                borderBottom:`1px solid ${C.dim}`,lineHeight:'1.6',
+                color:entry.includes('פתיחה')||entry.includes('TP')||entry.includes('+')?C.green
+                  :entry.includes('SL')||entry.includes('✗')?C.red
+                  :entry.includes('TRAIL')?C.yellow:C.muted,
+              }}>{entry}</div>
             ))
           }
         </div>
       </div>
 
-      <div style={{textAlign:'center' as const,color:C.dim,fontSize:'9px',marginTop:'8px',letterSpacing:'0.5px'}}>
-        {supaLive?'☁ שרת בוט v21 פעיל 24/7 | מסגרת זמן 5 דקות | מחירים חיים מ-Binance':'מסחר וירטואלי | מחירים חיים מ-Binance'}
+      <div style={{textAlign:'center' as const,color:C.muted,fontSize:'9px',marginTop:'8px',letterSpacing:'0.5px',opacity:0.7}}>
+        {supaLive?'☁ שרת בוט v21 פעיל 24/7 · מסגרת זמן 5 דקות · מחירים חיים מ-Binance':'מסחר וירטואלי · מחירים חיים מ-Binance'}
       </div>
     </div>
   )
