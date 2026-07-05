@@ -480,17 +480,8 @@ Deno.serve(async (req) => {
     let balance = state.balance
     const now  = Date.now()
 
-    // Circuit breaker: halt if drawdown > 25% from initial balance
-    if (balance < INITIAL_BALANCE * (1 - MAX_DD_STOP)) {
-      await sendTelegram(
-        `🚨 <b>CIRCUIT BREAKER — בוט עצר</b>\n` +
-        `יתרה: $${balance.toFixed(2)} (${(((INITIAL_BALANCE-balance)/INITIAL_BALANCE)*100).toFixed(1)}% drawdown)\n` +
-        `הגבול: 25% מ-$${INITIAL_BALANCE.toLocaleString()}\n` +
-        `הפעל ידנית כדי לחדש`
-      )
-      return new Response(JSON.stringify({ok:true, msg:`CIRCUIT_BREAKER: balance $${balance.toFixed(0)} below ${((1-MAX_DD_STOP)*100).toFixed(0)}% floor`}),
-        {headers:{'Content-Type':'application/json'}})
-    }
+    // Circuit breaker flag — checked before new entries only, NOT before position management
+    const circuitBreakerActive = balance < INITIAL_BALANCE * (1 - MAX_DD_STOP)
     const utcH = new Date().getUTCHours()
     const utcM = new Date().getUTCMinutes()
     const R    = RISK[state.risk as RiskKey] || RISK.medium
@@ -577,6 +568,15 @@ Deno.serve(async (req) => {
       btcRegime = detectRegime(btcBars.slice(0,-1))
     }
     log.push(`BTC=${btcBias} REGIME=${btcRegime}`)
+
+    if (circuitBreakerActive) {
+      log.push(`CIRCUIT_BREAKER active — no new entries, managing open positions only`)
+      await sendTelegram(
+        `🚨 <b>CIRCUIT BREAKER</b>\n` +
+        `יתרה: $${balance.toFixed(2)} (${(((INITIAL_BALANCE-balance)/INITIAL_BALANCE)*100).toFixed(1)}% drawdown)\n` +
+        `כניסות חדשות חסומות — ניהול פוזיציות פתוחות ממשיך`
+      )
+    }
 
     if (streak === R.streakLimit) {
       await sendTelegram(
@@ -726,6 +726,7 @@ Deno.serve(async (req) => {
         }
 
         // ── New entry ──────────────────────────────────────
+        if (circuitBreakerActive) return  // halt new entries only; position mgmt ran above
         if (streakPaused) return
         if (openTrades.length>0) return
         if (symCooldown.has(sym)) return
