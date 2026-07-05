@@ -677,11 +677,9 @@ export default function CryptoTradingDashboard() {
           <button onClick={runPaperBacktest} style={{cursor:'pointer',border:`1px solid rgba(123,156,192,0.5)`,borderRadius:'4px',padding:'3px 10px',fontSize:'10px',fontWeight:700,background:'rgba(123,156,192,0.1)',color:C.ice}}>
             📈 PAPER
           </button>
-          {supaStatus!=='off'&&(
-            <button onClick={handlePaperModeToggle} style={{cursor:'pointer',border:`1px solid ${serverPaperMode?'rgba(0,217,163,0.6)':'rgba(255,51,80,0.6)'}`,borderRadius:'4px',padding:'3px 10px',fontSize:'10px',fontWeight:700,background:serverPaperMode?'rgba(0,217,163,0.15)':'rgba(255,51,80,0.15)',color:serverPaperMode?C.teal:C.red}}>
-              {serverPaperMode?'📋 DEMO':'💵 LIVE'}
-            </button>
-          )}
+          <button onClick={handlePaperModeToggle} style={{cursor:'pointer',border:`1px solid ${serverPaperMode?'rgba(0,217,163,0.6)':'rgba(255,51,80,0.6)'}`,borderRadius:'4px',padding:'3px 10px',fontSize:'10px',fontWeight:700,background:serverPaperMode?'rgba(0,217,163,0.15)':'rgba(255,51,80,0.15)',color:serverPaperMode?C.teal:C.red}}>
+            {serverPaperMode?'📋 DEMO':'💵 LIVE'}
+          </button>
           <button onClick={handleReset} style={{cursor:'pointer',border:`1px solid rgba(255,183,0,0.5)`,borderRadius:'4px',padding:'3px 10px',fontSize:'10px',fontWeight:700,background:'rgba(255,183,0,0.1)',color:C.yellow}}>
             ♻ RESET
           </button>
