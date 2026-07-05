@@ -105,7 +105,7 @@ const FUNDING_EXTREME = 0.0003
 const MIN_SL_PCT      = 0.006
 const SYM_COOLDOWN_MS = 30*60_000
 const MAX_DD_STOP     = 0.25
-const INITIAL_BALANCE = 10_000
+const INITIAL_BALANCE = 5_000
 
 const VOL_PARAMS = {
   LOW:    { slMult:2.0, tpR:2.2, trailBeR:0.8, trailAtr:0.6 },
@@ -495,6 +495,25 @@ Deno.serve(async (req) => {
       const {data:trades} = await supabase.from('bot_trades').select('*').neq('status','OPEN')
         .order('closed_at',{ascending:false}).limit(10)
       return new Response(JSON.stringify({ok:true,trades:trades||[]}),
+        {headers:{'Content-Type':'application/json'}})
+    }
+
+    if (url.searchParams.get('reset')==='1') {
+      const newBalance = 5000
+      await supabase.from('bot_trades').delete().neq('id',0)
+      await supabase.from('bot_state').update({
+        balance: newBalance,
+        streak: 0,
+        market_regime: 'v21_5M',
+        updated_at: new Date().toISOString()
+      }).eq('id',1)
+      await sendTelegram(
+        `🔄 <b>HARD RESET</b>\n`+
+        `יתרה חדשה: $${newBalance}\n`+
+        `כל הטריידים נמחקו\n`+
+        `v21 מתחיל מחדש 🚀`
+      )
+      return new Response(JSON.stringify({ok:true,msg:'RESET DONE',balance:newBalance,trades_deleted:true}),
         {headers:{'Content-Type':'application/json'}})
     }
 
