@@ -441,8 +441,12 @@ export default function CryptoTradingDashboard() {
         body:JSON.stringify({trade_id:t.id,exit_price:exitPrice,pnl,pnl_pct:pnlPct}),
       })
       const json=await resp.json()
-      if(json.error)addLog(`⚠ שגיאה: ${json.error}`)
-      else addLog(`✕ סגור ידני ${t.sym} @ ${exitPrice>=100?exitPrice.toFixed(2):exitPrice.toFixed(5)} ${pnl>=0?'+':''}${pnl.toFixed(2)}$`)
+      if(json.error){addLog(`⚠ שגיאה: ${json.error}`);return}
+      // update local state immediately — don't wait for realtime event
+      const closed:Trade={...t,status:'MANUAL' as Trade['status'],exit:exitPrice,pnl,pnlPct}
+      setTrades(prev=>{const next=prev.map(x=>x.id===t.id?closed:x);tradeRef.current=next;return next})
+      setLivePositions(prev=>{const next={...prev};delete next[t.id];return next})
+      addLog(`✕ סגור ידני ${t.sym} @ ${exitPrice>=100?exitPrice.toFixed(2):exitPrice.toFixed(5)} ${pnl>=0?'+':''}${pnl.toFixed(2)}$`)
     } catch(e:unknown){addLog(`⚠ שגיאה: ${e instanceof Error?e.message:String(e)}`)}
   },[livePositions,addLog])
 
