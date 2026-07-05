@@ -578,7 +578,9 @@ export default function CryptoTradingDashboard() {
     const pnl=(t.side==='LONG'?(cur-t.entry):(t.entry-cur))*t.size-t.fee
     return a+pnl
   },0)
-  const totalPnl   =realizedPnl+unrealizedPnl
+  const totalPnl      =realizedPnl+unrealizedPnl
+  const lockedNotional=openTrades.reduce((a,t)=>a+t.entry*t.size,0)
+  const totalValue    =balance+lockedNotional   // יתרה אמיתית = פנוי + בטחונות
   const sharpe     =calcSharpe(trades)
   const maxDD      =calcMaxDD(trades)
   const selInfo    =prices[selected]
@@ -607,7 +609,13 @@ export default function CryptoTradingDashboard() {
             ☁ {supaLive?'CLOUD 24/7':'CONNECTING'}
           </span>
         )}
-        <span style={{color:C.bright,fontWeight:800,fontSize:'13px'}}>💰 ${balance.toFixed(0)}</span>
+        <span style={{color:C.bright,fontWeight:800,fontSize:'13px'}}>💰 ${totalValue.toFixed(0)}</span>
+        {lockedNotional>0&&(
+          <span style={{fontSize:'9px',color:C.muted}}>
+            פנוי <strong style={{color:C.yellow}}>${balance.toFixed(0)}</strong>
+            {' | '}בטחונות <strong style={{color:C.blue}}>${lockedNotional.toFixed(0)}</strong>
+          </span>
+        )}
         <span style={{color:totalPnl>=0?C.green:C.red,fontWeight:700}}>
           {totalPnl>=0?'+':''}{totalPnl.toFixed(2)} P&L
         </span>
@@ -654,7 +662,9 @@ export default function CryptoTradingDashboard() {
         <div style={{...panel,padding:'8px',display:'flex',flexDirection:'column' as const,gap:'4px'}}>
           <div style={{color:C.pink,fontWeight:700,fontSize:'10px',borderBottom:`1px solid ${C.border}`,paddingBottom:'4px',marginBottom:'2px'}}>STATS</div>
           {[
-            ['יתרה',`$${balance.toFixed(0)}`,balance>=INIT_BAL?C.green:C.red],
+            ['יתרה','$'+totalValue.toFixed(0),totalValue>=INIT_BAL?C.green:C.red],
+            ['פנוי','$'+balance.toFixed(0),C.yellow],
+            ['בטחונות','$'+lockedNotional.toFixed(0),C.blue],
             ['סה״כ P&L',(totalPnl>=0?'+':'')+totalPnl.toFixed(2),totalPnl>=0?C.green:C.red],
             ['סגורות',(realizedPnl>=0?'+':'')+realizedPnl.toFixed(2),realizedPnl>=0?C.green:C.red],
             ['פתוחות',(unrealizedPnl>=0?'+':'')+unrealizedPnl.toFixed(2),unrealizedPnl>=0?C.green:C.red],
@@ -800,10 +810,12 @@ export default function CryptoTradingDashboard() {
               ['MAX DD',maxDD.toFixed(1)+'%',maxDD<10?C.green:maxDD<25?C.yellow:C.red],
               ['TOTAL P&L',(totalPnl>=0?'+':'')+totalPnl.toFixed(2),totalPnl>=0?C.green:C.red],
               ['TRADES',trades.length.toString(),C.blue],
-              ['BALANCE','$'+balance.toFixed(0),balance>=INIT_BAL?C.green:C.red],
+              ['BALANCE','$'+totalValue.toFixed(0),totalValue>=INIT_BAL?C.green:C.red],
               ['OPEN',openTrades.length.toString(),C.yellow],
               ['FEES','$'+totalFees.toFixed(2),C.muted],
               ['AVG WIN',wins>0?'+'+(closed.filter(t=>(t.pnl||0)>0).reduce((a,t)=>a+(t.pnl||0),0)/wins).toFixed(2):'—',C.green],
+              ['פנוי','$'+balance.toFixed(0),C.yellow],
+              ['בטחונות','$'+lockedNotional.toFixed(0),C.blue],
             ] as [string,string,string][]).map(([label,value,color])=>(
               <div key={label} style={{background:C.panel2,borderRadius:'6px',padding:'8px',textAlign:'center' as const,border:`1px solid ${C.dim}`}}>
                 <div style={{color:C.muted,fontSize:'9px',marginBottom:'3px',letterSpacing:'0.5px'}}>{label}</div>
