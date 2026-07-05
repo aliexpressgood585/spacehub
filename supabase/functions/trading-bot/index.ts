@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════
-// CryptoBot v21 — Institutional-Grade Strategy Upgrade
+// CryptoBot v21 — redeploy with no-verify-jwt + remove old cron
 //
 // v21 upgrades (on top of v20):
 //  1. 1H TREND FILTER: reject entries against 1H EMA9/21 bias

@@ -27,6 +27,15 @@ jobs:
       - name: Link project
         run: supabase link --project-ref ${{ env.PROJECT_REF }}
 
+      - name: Remove old bot cron
+        run: |
+          curl -s -X POST \
+            "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "SELECT cron.unschedule(jobid) FROM cron.job WHERE jobname = '"'"'bot-v18-every-minute'"'"';"}' \
+            && echo "Old cron removed" || echo "Cron not found (ok)"
+
       - name: Run SQL migrations via management API
         run: |
           curl -s -X POST \
