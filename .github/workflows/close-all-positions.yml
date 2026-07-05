@@ -10,12 +10,13 @@ jobs:
   close:
     runs-on: ubuntu-latest
     steps:
-      - name: Close all OPEN trades at entry price
+      - name: Add MANUAL to status constraint and close all OPEN trades
         run: |
           curl -s -X POST \
             "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d '{"query": "UPDATE bot_trades SET status='\''MANUAL'\'', exit_price=entry_price, pnl=0-(fee), pnl_pct=0, closed_at=NOW() WHERE status='\''OPEN'\'' RETURNING id, sym, side, entry_price;"}' \
+            -d '{"query": "ALTER TABLE bot_trades DROP CONSTRAINT IF EXISTS bot_trades_status_check; ALTER TABLE bot_trades ADD CONSTRAINT bot_trades_status_check CHECK (status IN ('"'"'OPEN'"'"','"'"'TP'"'"','"'"'SL'"'"','"'"'TRAIL'"'"','"'"'MANUAL'"'"')); UPDATE bot_trades SET status='"'"'MANUAL'"'"', exit_price=entry_price, pnl=0-(fee), pnl_pct=0, closed_at=NOW() WHERE status='"'"'OPEN'"'"' RETURNING id, sym;"}' \
             | tee /tmp/close_result.json
+          cat /tmp/close_result.json
           echo "Done"
