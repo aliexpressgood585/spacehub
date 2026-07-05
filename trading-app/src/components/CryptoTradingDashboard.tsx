@@ -5,7 +5,18 @@ const SUPA_URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || 'h
 const SUPA_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kdmhlaXpoY2l1dnF5Y2h0d3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwODc0NjQsImV4cCI6MjA5ODY2MzQ2NH0.JHJ0lCVhSfH3XA92Iyb-TKdx7vd-C2sZzdRwNVutMzI'
 
 type RiskType = 'low'|'medium'|'high'
-type TabType  = 'scanner'|'history'|'stats'
+type TabType  = 'scanner'|'history'|'stats'|'ai'
+
+interface OptimizerRun {
+  id: number
+  created_at: string
+  trade_count: number
+  overall_wr: number
+  overall_pf: number
+  params_before: Record<string,unknown>
+  params_after: Record<string,unknown>
+  reasoning: string
+}
 
 interface Bar { time:number; open:number; high:number; low:number; close:number; vol:number }
 interface Trade {
@@ -211,6 +222,9 @@ export default function CryptoTradingDashboard() {
   const [paperMode,setPaperMode] = useState(false)
   const [paperStats,setPaperStats] = useState<{trades:number,wins:number,pnl:number,wr:string}|null>(null)
   const [serverPaperMode,setServerPaperMode] = useState(false)
+  const [optimizerHistory,setOptimizerHistory] = useState<OptimizerRun[]>([])
+  const [currentBotParams,setCurrentBotParams] = useState<Record<string,unknown>>({})
+  const [lastOptimizedAt,setLastOptimizedAt] = useState<string|null>(null)
 
   const barsMap    = useRef(new Map<string,Bar[]>())
   const curBar     = useRef(new Map<string,Bar>())
@@ -466,18 +480,22 @@ export default function CryptoTradingDashboard() {
     const loadData=()=>Promise.all([
       supa.from('bot_state').select('*').eq('id',1).single(),
       supa.from('bot_trades').select('*').eq('status','OPEN'),
-      supa.from('bot_trades').select('*').neq('status','OPEN').order('opened_at',{ascending:false}).limit(150)
-    ]).then(([state,open,closed])=>{
+      supa.from('bot_trades').select('*').neq('status','OPEN').order('opened_at',{ascending:false}).limit(150),
+      supa.from('bot_params_history').select('*').order('created_at',{ascending:false}).limit(20),
+    ]).then(([state,open,closed,optHist])=>{
       if(state.data){
         const d=state.data
         setBalance(d.balance);balRef.current=d.balance
         setRisk(d.risk as RiskType);riskRef.current=d.risk as RiskType
         setBotOn(d.active);botRef.current=d.active
         setServerPaperMode(d.paper_mode||false)
+        if(d.bot_params) setCurrentBotParams(d.bot_params as Record<string,unknown>)
+        if(d.last_optimized_at) setLastOptimizedAt(d.last_optimized_at as string)
       }
       const all=[...(open.data||[]),...(closed.data||[])]
       const mapped=all.map(t=>mapDbTrade(t as Record<string,unknown>))
       tradeRef.current=mapped;setTrades(mapped)
+      if(optHist.data) setOptimizerHistory(optHist.data as OptimizerRun[])
     })
 
     loadData()
@@ -501,11 +519,16 @@ export default function CryptoTradingDashboard() {
           if(t.status!=='OPEN') addLog(`${t.status==='TP'?'✓ TP':'✗ '+t.status} ${t.sym} P&L: ${(t.pnl||0)>=0?'+':''}${(t.pnl||0).toFixed(2)}`)
         })
         .on('postgres_changes',{event:'UPDATE',schema:'public',table:'bot_state'},(p)=>{
-          const d=p.new as {balance:number;risk:string;active:boolean;paper_mode?:boolean}
+          const d=p.new as {balance:number;risk:string;active:boolean;paper_mode?:boolean;bot_params?:Record<string,unknown>;last_optimized_at?:string}
           setBalance(d.balance);balRef.current=d.balance
           setRisk(d.risk as RiskType);riskRef.current=d.risk as RiskType
           setBotOn(d.active);botRef.current=d.active
           if(d.paper_mode!=null) setServerPaperMode(d.paper_mode)
+          if(d.bot_params) setCurrentBotParams(d.bot_params)
+          if(d.last_optimized_at) setLastOptimizedAt(d.last_optimized_at)
+        })
+        .on('postgres_changes',{event:'INSERT',schema:'public',table:'bot_params_history'},(p)=>{
+          setOptimizerHistory(prev=>[p.new as OptimizerRun,...prev].slice(0,20))
         })
         .subscribe((status)=>{
           if(status==='SUBSCRIBED'){
@@ -792,7 +815,7 @@ export default function CryptoTradingDashboard() {
       {/* ══ TABS ══ */}
       <div style={{...panel,padding:'8px',marginBottom:'6px'}}>
         <div style={{display:'flex',gap:'5px',marginBottom:'8px'}}>
-          {([['scanner','🔍 SCANNER'],['history','📋 HISTORY'],['stats','📊 STATS']] as [TabType,string][]).map(([t,label])=>(
+          {([['scanner','🔍 SCANNER'],['history','📋 HISTORY'],['stats','📊 STATS'],['ai','🤖 AI OPT']] as [TabType,string][]).map(([t,label])=>(
             <button key={t} onClick={()=>setTab(t)} style={{cursor:'pointer',border:`1px solid ${tab===t?C.pink:C.dim}`,borderRadius:'4px',padding:'4px 10px',fontSize:'10px',fontWeight:700,background:tab===t?'rgba(255,32,112,0.15)':C.panel2,color:tab===t?C.pink:C.muted,boxShadow:tab===t?`0 0 8px rgba(255,32,112,0.2)`:undefined}}>{label}</button>
           ))}
           <span style={{marginRight:'auto',color:C.muted,fontSize:'10px',alignSelf:'center'}}>{closed.length} סגורות | {wins}נ {closed.length-wins}ה</span>
@@ -872,6 +895,75 @@ export default function CryptoTradingDashboard() {
                 <div style={{color,fontWeight:900,fontSize:'14px'}}>{value}</div>
               </div>
             ))}
+          </div>
+        )}
+        {tab==='ai'&&(
+          <div>
+            {/* Current params summary */}
+            <div style={{background:C.panel2,borderRadius:'6px',padding:'10px',marginBottom:'8px',border:`1px solid rgba(0,217,163,0.3)`}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'6px'}}>
+                <span style={{color:C.teal,fontWeight:700,fontSize:'10px',letterSpacing:'0.5px'}}>🤖 AI OPTIMIZER STATUS</span>
+                <span style={{fontSize:'9px',color:C.muted}}>
+                  {lastOptimizedAt
+                    ? `עדכון אחרון: ${new Date(lastOptimizedAt).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}`
+                    : 'טרם הורץ'}
+                </span>
+              </div>
+              {Object.keys(currentBotParams).length===0
+                ? <div style={{color:C.dim,fontSize:'10px',textAlign:'center',padding:'8px'}}>פרמטרים ברירת מחדל (AI טרם שינה)</div>
+                : <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(120px,1fr))',gap:'4px'}}>
+                    {Object.entries(currentBotParams).map(([k,v])=>(
+                      <div key={k} style={{background:C.panel,borderRadius:'4px',padding:'4px 6px',border:`1px solid ${C.dim}`}}>
+                        <div style={{color:C.muted,fontSize:'8px'}}>{k}</div>
+                        <div style={{color:C.teal,fontWeight:700,fontSize:'10px'}}>{JSON.stringify(v)}</div>
+                      </div>
+                    ))}
+                  </div>
+              }
+            </div>
+
+            {/* History */}
+            <div style={{color:C.pink,fontWeight:700,fontSize:'10px',marginBottom:'5px'}}>היסטוריית שינויים ({optimizerHistory.length})</div>
+            {optimizerHistory.length===0
+              ? <div style={{color:C.dim,fontSize:'10px',textAlign:'center',padding:'20px'}}>
+                  אין שינויים עדיין — AI מנתח עסקאות ויתחיל לכוון לאחר 50+ עסקאות
+                </div>
+              : <div style={{display:'flex',flexDirection:'column',gap:'6px',maxHeight:'400px',overflowY:'auto'}}>
+                  {optimizerHistory.map(run=>{
+                    const before=run.params_before||{}
+                    const after=run.params_after||{}
+                    const changedKeys=Object.keys(after).filter(k=>JSON.stringify(before[k])!==JSON.stringify(after[k]))
+                    return (
+                      <div key={run.id} style={{background:C.panel2,borderRadius:'6px',padding:'8px',border:`1px solid ${C.dim}`}}>
+                        <div style={{display:'flex',justifyContent:'space-between',marginBottom:'4px'}}>
+                          <span style={{color:C.blue,fontWeight:700,fontSize:'10px'}}>
+                            {new Date(run.created_at).toLocaleString('he-IL',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}
+                          </span>
+                          <span style={{fontSize:'9px',color:C.muted}}>
+                            WR: <strong style={{color:run.overall_wr>0.5?C.green:C.red}}>{(run.overall_wr*100).toFixed(1)}%</strong>
+                            {' · '}PF: <strong style={{color:run.overall_pf>1?C.green:C.red}}>{run.overall_pf?.toFixed(2)}</strong>
+                            {' · '}{run.trade_count} עסקאות
+                          </span>
+                        </div>
+                        {changedKeys.length>0&&(
+                          <div style={{display:'flex',flexWrap:'wrap',gap:'4px',marginBottom:'4px'}}>
+                            {changedKeys.map(k=>(
+                              <span key={k} style={{fontSize:'9px',padding:'2px 5px',borderRadius:'3px',background:'rgba(255,183,0,0.1)',border:'1px solid rgba(255,183,0,0.3)',color:C.yellow}}>
+                                {k}: {JSON.stringify(before[k])} → <strong style={{color:C.teal}}>{JSON.stringify(after[k])}</strong>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {run.reasoning&&(
+                          <div style={{fontSize:'9px',color:C.muted,lineHeight:'1.5',borderTop:`1px solid ${C.dim}`,paddingTop:'4px',marginTop:'2px'}}>
+                            💭 {run.reasoning.slice(0,200)}{run.reasoning.length>200?'...':''}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+            }
           </div>
         )}
       </div>
