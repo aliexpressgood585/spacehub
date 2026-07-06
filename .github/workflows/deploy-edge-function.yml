@@ -70,6 +70,9 @@ jobs:
       - name: Deploy close-trade function
         run: supabase functions deploy close-trade --project-ref ${{ env.PROJECT_REF }} --no-verify-jwt
 
+      - name: Deploy reset-account function
+        run: supabase functions deploy reset-account --project-ref ${{ env.PROJECT_REF }} --no-verify-jwt
+
       - name: Setup cron jobs
         run: |
           ANON_KEY=$(curl -s \
