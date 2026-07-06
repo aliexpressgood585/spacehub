@@ -1691,7 +1691,7 @@ Deno.serve(async (req) => {
         const dynRsiOverbought  = Number(_bp.rsi_overbought       ?? 58)
         const dynBbProx         = Number(_bp.bb_proximity         ?? 1.02)
         const dynTpR            = Number(_bp.tp_r                 ?? 2.5)
-        const dynMinConfluence  = Number(_bp.min_confluence_score ?? 60)
+        const dynMinConfluence  = Number(_bp.min_confluence_score ?? 55)
         const dynMinAdx         = Number(_bp.min_adx              ?? 0)
 
         // v22: Use confluence score instead of 2/4 signals
@@ -1708,40 +1708,33 @@ Deno.serve(async (req) => {
           return
         }
 
-        // v23: Gate threshold uses dynMinConfluence (default 60, tuned by optimizer)
         const regimeCheck = applyMarketRegimeFilter(entryScore.score, adx, 1.0)
-        if (entryScore.score < dynMinConfluence) {
-          log.push(`SKIP ${sym}: score=${entryScore.score} < ${dynMinConfluence} (${Object.entries(entryScore.breakdown).filter(([_,v])=>v>0).map(([k,v])=>`${k}=${v}`).join(' ')})`)
-          return
-        }
         if (dynMinAdx > 0 && adx < dynMinAdx) {
           log.push(`SKIP ${sym}: adx=${adx.toFixed(0)} < min_adx=${dynMinAdx}`)
           return
         }
 
-        // v22: Check strict 1H trend for LONG
+        // v24: Hard block only when 1H is STRONGLY against direction
         if (entryScore.side === 'LONG' && ema1hBias === 'BEAR') {
           log.push(`SKIP ${sym}: 1H trend against LONG (${ema1hBias})`)
           return
         }
-
-        // v22: Reject SHORT if 1H is strongly uptrending
         if (entryScore.side === 'SHORT' && ema1hBias === 'BULL') {
           log.push(`SKIP ${sym}: 1H trend against SHORT (${ema1hBias})`)
           return
         }
 
-        // ── STAGE 2: Multi-timeframe confirmation — require BOTH 15m AND 1H alignment ──
-        const requireMultiTF = true
-        if (requireMultiTF) {
-          if (entryScore.side === 'LONG' && (ema15mBias !== 'BULL' || ema1hBias !== 'BULL')) {
-            log.push(`SKIP ${sym}: multi-TF LONG requires 15m(${ema15mBias})+1h(${ema1hBias}) both BULL`)
-            return
-          }
-          if (entryScore.side === 'SHORT' && (ema15mBias !== 'BEAR' || ema1hBias !== 'BEAR')) {
-            log.push(`SKIP ${sym}: multi-TF SHORT requires 15m(${ema15mBias})+1h(${ema1hBias}) both BEAR`)
-            return
-          }
+        // v24: Multi-TF alignment as score bonus instead of hard gate
+        let mtfBonus = 0
+        const _1hAligned = (entryScore.side === 'LONG' && ema1hBias === 'BULL') || (entryScore.side === 'SHORT' && ema1hBias === 'BEAR')
+        const _15mAligned = (entryScore.side === 'LONG' && ema15mBias === 'BULL') || (entryScore.side === 'SHORT' && ema15mBias === 'BEAR')
+        if (_1hAligned && _15mAligned) mtfBonus = 10
+        else if (_1hAligned || _15mAligned) mtfBonus = 5
+
+        const finalScore = entryScore.score + mtfBonus
+        if (finalScore < dynMinConfluence) {
+          log.push(`SKIP ${sym}: finalScore=${finalScore} (base=${entryScore.score}+mtf=${mtfBonus}) < ${dynMinConfluence}`)
+          return
         }
 
         const { side, slDist: rawSlDist } = entryScore
@@ -1824,7 +1817,7 @@ Deno.serve(async (req) => {
         const { data: insertedTrade } = await supabase.from('bot_trades').insert({
           sym, side, entry_price: price, size, fee,
           trail_sl: slPrice, hi: hiVal, lo: loVal,
-          status: 'OPEN', score: Math.round(entryScore.score), mtf: true, partial_done: false,
+          status: 'OPEN', score: Math.round(finalScore), mtf: true, partial_done: false,
           paper_mode: paperMode,
           entry_macd_hist: +(macdEntry.histogram.toFixed(4))
         }).select('id').single()
@@ -1873,7 +1866,7 @@ Deno.serve(async (req) => {
         const tpStr = dynamicTPBase !== 2.5 ? ` dyn_tp=${dynamicTPBase.toFixed(2)}R` : ''
         const mtfStr = ema15mBias !== 'NEUTRAL' ? ` 15m=${ema15mBias}` : ''
         const hedgeStr = correlationHedgeMult !== 1.0 ? ` hedge=${(correlationHedgeMult*100).toFixed(0)}%` : ''
-        log.push(`OPEN ${sym} ${side} [CONF] score=${Math.round(entryScore.score)} (${breakdownStr})${mtfStr} adx=${adx.toFixed(0)}${tpStr}${hedgeStr} vol_pct=${volPctile}${volSizeStr} sess_adj=${sessionSizeAdj.toFixed(2)} @${price.toFixed(6)} sl=${(slPct*100).toFixed(3)}% $${notional.toFixed(0)} ${session}`)
+        log.push(`OPEN ${sym} ${side} [CONF] score=${finalScore}(base=${Math.round(entryScore.score)}+mtf=${mtfBonus}) (${breakdownStr})${mtfStr} adx=${adx.toFixed(0)}${tpStr}${hedgeStr} vol_pct=${volPctile}${volSizeStr} sess_adj=${sessionSizeAdj.toFixed(2)} @${price.toFixed(6)} sl=${(slPct*100).toFixed(3)}% $${notional.toFixed(0)} ${session}`)
 
       } catch(e) {
         log.push(`ERR ${sym}: ${String(e).slice(0,40)}`)
