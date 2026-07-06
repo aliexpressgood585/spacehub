@@ -1632,6 +1632,7 @@ Deno.serve(async (req) => {
     const openBySymbol:Record<string,any[]>={}
     const corrGroupCount:Record<number,number>={}
     let openCount=0
+    let newEntriesThisScan=0  // v27.2: stagger entries — max 2 new positions per scan
     for (const t of (allOpen||[])) {
       if(!openBySymbol[t.sym]) openBySymbol[t.sym]=[]
       openBySymbol[t.sym].push(t)
@@ -1944,6 +1945,8 @@ Deno.serve(async (req) => {
         if (macroChk.skip) { log.push(`SKIP ${sym}: macro ${macroChk.reason}`); return }
         if (atrPct > 0.02 || atrPct < 0.00003) return
         if (balance < 10) return
+        // v27.2: max 2 new entries per scan — don't build the whole basket in one minute
+        if (newEntriesThisScan >= 2) return
 
         const dynRsiOversold    = Number(_bp.rsi_oversold        ?? 35)
         const dynRsiOverbought  = Number(_bp.rsi_overbought       ?? 65)
@@ -1983,6 +1986,17 @@ Deno.serve(async (req) => {
         }
         if (entryScore.side === 'SHORT' && ema1hBias === 'BULL') {
           log.push(`SKIP ${sym}: 1H trend against SHORT (${ema1hBias})`)
+          return
+        }
+
+        // v27.2: BTC market bias gate — btcBias was computed but never enforced.
+        // Alts follow BTC: no counter-trend basket against the whole market.
+        if (entryScore.side === 'LONG' && btcBias === 'BEAR') {
+          log.push(`SKIP ${sym}: BTC bias BEAR blocks LONG`)
+          return
+        }
+        if (entryScore.side === 'SHORT' && btcBias === 'BULL') {
+          log.push(`SKIP ${sym}: BTC bias BULL blocks SHORT`)
           return
         }
 
@@ -2081,8 +2095,11 @@ Deno.serve(async (req) => {
         const notional = Math.min(riskAmt / slPct, balance * MAX_NOTIONAL_PCT, remainingExposure, balance * 0.95)
         if (notional < 5) return
 
+        // v27.2: authoritative per-scan entry cap — same sync block as the
+        // increment, so concurrent coin handlers can't slip past it
+        if (newEntriesThisScan >= 2) return
         const size = notional / price, fee = price * size * FEE
-        balance -= (notional + fee); openCount++
+        balance -= (notional + fee); openCount++; newEntriesThisScan++
         if (gid >= 0) corrGroupCount[gid] = (corrGroupCount[gid] || 0) + 1
 
         // Store MACD histogram at entry for advanced exit comparison
