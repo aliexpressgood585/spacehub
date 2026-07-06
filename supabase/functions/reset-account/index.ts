@@ -34,21 +34,21 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
-    // Step 1: Delete all trades
-    log('Step 1: Deleting all trades from bot_trades...')
-    const deleteTrades = await supabase.from('bot_trades').delete().neq('id', -1)
-    if (deleteTrades.error) {
-      throw new Error(`Failed to delete trades: ${deleteTrades.error.message}`)
-    }
-    log(`✓ Deleted all trades (${deleteTrades.count || 0} rows affected)`)
-
-    // Step 2: Delete trade snapshots
-    log('Step 2: Deleting all trade snapshots from bot_trade_snapshots...')
+    // Step 1: Delete trade snapshots FIRST (FK references bot_trades)
+    log('Step 1: Deleting all trade snapshots from bot_trade_snapshots...')
     const deleteSnapshots = await supabase.from('bot_trade_snapshots').delete().neq('id', -1)
     if (deleteSnapshots.error) {
       throw new Error(`Failed to delete snapshots: ${deleteSnapshots.error.message}`)
     }
     log(`✓ Deleted all snapshots (${deleteSnapshots.count || 0} rows affected)`)
+
+    // Step 2: Delete all trades (now safe, no FK references)
+    log('Step 2: Deleting all trades from bot_trades...')
+    const deleteTrades = await supabase.from('bot_trades').delete().neq('id', -1)
+    if (deleteTrades.error) {
+      throw new Error(`Failed to delete trades: ${deleteTrades.error.message}`)
+    }
+    log(`✓ Deleted all trades (${deleteTrades.count || 0} rows affected)`)
 
     // Step 3: Delete trades log
     log('Step 3: Deleting all trade logs from bot_trades_log...')
