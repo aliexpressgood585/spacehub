@@ -32,7 +32,7 @@ const CORR_GROUPS: string[][] = [
   ['XRP'],
   ['BNB'],['BTC'],['ETH'],['FIL'],['VET'],['ICP'],['POL'],
 ]
-const MAX_PER_GROUP  = 6
+const MAX_PER_GROUP  = 3
 const MIN_SCORE      = 2
 const VPOC_MAX_DIST  = 0.035
 
@@ -98,8 +98,8 @@ const SWEEP_LOOKBACK  = 5
 const MAX_HOLD_MIN    = 180
 const STREAK_PAUSE_MS = 10*60_000
 const MAX_NOTIONAL_PCT= 0.12
-const MAX_OPEN_TRADES = 3
-const MAX_TOTAL_EXPOSURE_PCT = 0.30
+const MAX_OPEN_TRADES = 8
+const MAX_TOTAL_EXPOSURE_PCT = 0.60
 const FUNDING_EXTREME = 0.0003
 const MIN_SL_PCT      = 0.005
 const SYM_COOLDOWN_MS = 15*60_000
