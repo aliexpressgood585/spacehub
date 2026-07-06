@@ -7,6 +7,9 @@
 //  3. EARLY EXIT ONLY ON LOSERS: EMA reversal exit no longer closes winners
 //  4. BIGGER POSITIONS: notional cap 8%→12%, total exposure 20%→30%
 //  5. OPTIMIZER FLOOR: min_confluence_score clamped to >= 60
+//  6. (v27.2) BTC BIAS GATE + max 2 new entries per scan
+//  7. (v27.3) TREND-CONTINUATION SETUP: short the bounce in downtrends,
+//     long the dip in uptrends — bot is no longer idle in bear markets
 // ════════════════════════════════════════════════════════════
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
@@ -551,6 +554,13 @@ function calcConfluenceScore(
 
   if (curE9 > curE21) longSig++
   else shortSig++
+
+  // v27.3: trend-continuation setup — the mean-reversion signals above almost
+  // never fire SHORT in a downtrend (market stays oversold), leaving the bot
+  // idle in bear markets. Trade WITH the 1H trend on pullbacks instead:
+  // short a weak bounce back to the mid-band, long a shallow dip in an uptrend.
+  if (ema1hBias === 'BEAR' && curE9 < curE21 && rsi >= 45 && rsi <= 60 && price >= bb.mid) shortSig++
+  if (ema1hBias === 'BULL' && curE9 > curE21 && rsi >= 40 && rsi <= 55 && price <= bb.mid) longSig++
 
   const side = longSig >= 2 ? 'LONG' : shortSig >= 2 ? 'SHORT' : null
   if (!side) return {side: null, slDist: 0, score: 0, breakdown: {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0}, adx, regime: 'UNCERTAIN'}
