@@ -7,11 +7,11 @@ const CORS = {
 }
 
 const DEFAULT_BOT_PARAMS = {
-  rsi_oversold: 42,
-  rsi_overbought: 58,
+  rsi_oversold: 35,
+  rsi_overbought: 65,
   bb_proximity: 1.02,
   tp_r: 2.5,
-  min_confluence_score: 55,
+  min_confluence_score: 65,
 }
 
 const RESET_LOG = []
@@ -93,6 +93,7 @@ Deno.serve(async (req) => {
       trade_count: 0,
       overall_wr: 0,
       overall_pf: 1.0,
+      risk: 'medium',
       bot_params: DEFAULT_BOT_PARAMS,
       coin_weights: {},
       market_regime: 'RANGING',

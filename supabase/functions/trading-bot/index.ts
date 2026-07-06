@@ -1,14 +1,12 @@
 // ════════════════════════════════════════════════════════════
-// CryptoBot v25 — Production-grade trading bot
+// CryptoBot v26 — Production-grade trading bot
 //
-// v25 upgrades:
-//  1. FUNDING RATE FILTER: skip entries where funding works against direction
-//  2. FUNDING RATE BONUS: +3 score when funding favors direction
-//  3. PROGRESSIVE DRAWDOWN SCALING: smooth 5%→100% → 30%→0% curve
-//  4. DAILY LOSS LIMIT: stop new entries if lost >3% of balance today
-//  5. DYNAMIC MAX HOLD: extend in profit (2x at 2R), shorten if losing (0.6x)
-//  6. API FALLBACK: CoinGecko backup when Binance price unavailable
-//  7. MULTI-TF SCORE BONUS: +10 both align, +5 one aligns (not hard gate)
+// v26 fixes (performance overhaul):
+//  1. RISK CAP: removed ultra risk, max is 'high' (2.5%), default medium (1.8%)
+//  2. REGIME FILTER FIX: actually use shouldSkip (was dead code since v22)
+//  3. CONFLUENCE THRESHOLD: raised from 55→65 for higher quality entries
+//  4. RSI TIGHTENED: 42/58 → 35/65 (require more extreme readings)
+//  5. COOLDOWN 3X: symbol cooldown 5→15 minutes to reduce overtrading
 // ════════════════════════════════════════════════════════════
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
@@ -87,10 +85,10 @@ async function fetchFearGreed(): Promise<number> {
 const RISK = {
   low:    { riskPct:0.010, streakLimit:5 },
   medium: { riskPct:0.018, streakLimit:6 },
-  high:   { riskPct:0.030, streakLimit:8 },
-  ultra:  { riskPct:0.100, streakLimit:15 },
+  high:   { riskPct:0.025, streakLimit:7 },
 } as const
 type RiskKey = keyof typeof RISK
+const MAX_RISK: RiskKey = 'high'
 
 const FEE             = 0.001
 const LEVERAGE        = 10
@@ -104,7 +102,7 @@ const MAX_OPEN_TRADES = 3
 const MAX_TOTAL_EXPOSURE_PCT = 0.20
 const FUNDING_EXTREME = 0.0003
 const MIN_SL_PCT      = 0.005
-const SYM_COOLDOWN_MS = 5*60_000
+const SYM_COOLDOWN_MS = 15*60_000
 const MAX_DD_STOP     = 0.80
 const INITIAL_BALANCE = 10000
 const DAILY_LOSS_LIMIT_PCT = 0.03
@@ -695,7 +693,7 @@ function getKellyScaleByScore(baseScore: number): number {
 // Params tuned live by trading-optimizer agent
 function findSimpleEntry(
   bars: Bar[], price: number,
-  rsiOversold=42, rsiOverbought=58, bbProx=1.02
+  rsiOversold=35, rsiOverbought=65, bbProx=1.02
 ): {side:'LONG'|'SHORT'; slDist:number}|null {
   if (bars.length < 30) return null
   const closes = bars.map(b=>b.close)
@@ -1323,7 +1321,7 @@ async function runBacktest(daysParam = 30): Promise<object> {
 
       const adx = calcADX(slice.slice(-30))
       const entryScore = calcConfluenceScore(
-        slice, price, vpoc, bias1h, adx, 50, 'FLAT', 42, 58, 1.02
+        slice, price, vpoc, bias1h, adx, 50, 'FLAT', 35, 65, 1.02
       )
 
       if (!entryScore.side || entryScore.score < 55) continue
@@ -1465,7 +1463,10 @@ Deno.serve(async (req) => {
     const circuitBreakerActive = balance < INITIAL_BALANCE*(1-MAX_DD_STOP)
     const utcH  = new Date().getUTCHours()
     const utcM  = new Date().getUTCMinutes()
-    const R     = RISK[state.risk as RiskKey] || RISK.medium
+    const rawRisk = state.risk as string
+    const safeRisk: RiskKey = (rawRisk in RISK) ? rawRisk as RiskKey : 'medium'
+    const cappedRisk: RiskKey = RISK[safeRisk].riskPct > RISK[MAX_RISK].riskPct ? MAX_RISK : safeRisk
+    const R     = RISK[cappedRisk]
 
     // v21: Session detection
     const session = getSession(utcH)
@@ -1943,11 +1944,11 @@ Deno.serve(async (req) => {
         if (atrPct > 0.02 || atrPct < 0.00003) return
         if (balance < 10) return
 
-        const dynRsiOversold    = Number(_bp.rsi_oversold        ?? 42)
-        const dynRsiOverbought  = Number(_bp.rsi_overbought       ?? 58)
+        const dynRsiOversold    = Number(_bp.rsi_oversold        ?? 35)
+        const dynRsiOverbought  = Number(_bp.rsi_overbought       ?? 65)
         const dynBbProx         = Number(_bp.bb_proximity         ?? 1.02)
         const dynTpR            = Number(_bp.tp_r                 ?? 2.5)
-        const dynMinConfluence  = Number(_bp.min_confluence_score ?? 55)
+        const dynMinConfluence  = Number(_bp.min_confluence_score ?? 65)
         const dynMinAdx         = Number(_bp.min_adx              ?? 0)
 
         // v22: Use confluence score instead of 2/4 signals
@@ -1965,6 +1966,10 @@ Deno.serve(async (req) => {
         }
 
         const regimeCheck = applyMarketRegimeFilter(entryScore.score, adx, 1.0)
+        if (regimeCheck.shouldSkip) {
+          log.push(`SKIP ${sym}: regime filter score=${entryScore.score} < 60`)
+          return
+        }
         if (dynMinAdx > 0 && adx < dynMinAdx) {
           log.push(`SKIP ${sym}: adx=${adx.toFixed(0)} < min_adx=${dynMinAdx}`)
           return
@@ -2156,7 +2161,7 @@ Deno.serve(async (req) => {
     }).eq('id',1)
 
     return new Response(JSON.stringify({
-      ok:true,v:25,openCount,maxOpen:MAX_OPEN_TRADES,streakPaused,streak,btcBias,btcRegime,
+      ok:true,v:26,openCount,maxOpen:MAX_OPEN_TRADES,streakPaused,streak,btcBias,btcRegime,
       kelly:kellyMult,fearGreed,adaptMinScore,adaptVpocDist,adaptSideFilter,
       session,sessionSizeMult:sp.sizeMult,equityGuardMult,
       drawdownFromPeak:(drawdownFromPeak*100).toFixed(1)+'%',

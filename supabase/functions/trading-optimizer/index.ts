@@ -37,12 +37,12 @@ const DEFAULTS = {
   partial_tp_by_vol: { LOW: 0.8, MEDIUM: 1.2, HIGH: 1.5 },
   max_hold_min: 180,
   // simple entry params — tuned by optimizer
-  rsi_oversold:        42,
-  rsi_overbought:      58,
+  rsi_oversold:        35,
+  rsi_overbought:      65,
   bb_proximity:        1.02,
   tp_r:                2.5,
   // Phase 7: confluence/ADX gate thresholds — tuned by optimizer
-  min_confluence_score: 60,
+  min_confluence_score: 65,
   min_adx:              0,
   // optimizer state (not sent to trading bot)
   _meta: {
