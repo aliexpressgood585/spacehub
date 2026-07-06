@@ -1995,11 +1995,10 @@ Deno.serve(async (req) => {
           return
         }
 
+        // v27.5: sizing only — the score gate moved to finalScore below, so
+        // MTF/funding alignment bonuses count before a trade is rejected.
+        // (Gating on base score killed with-trend setups the bonuses exist for.)
         const regimeCheck = applyMarketRegimeFilter(entryScore.score, adx, 1.0, entryScore.rangeFade)
-        if (regimeCheck.shouldSkip) {
-          log.push(`SKIP ${sym}: regime filter score=${entryScore.score} < 60`)
-          return
-        }
         if (dynMinAdx > 0 && adx < dynMinAdx) {
           log.push(`SKIP ${sym}: adx=${adx.toFixed(0)} < min_adx=${dynMinAdx}`)
           return
