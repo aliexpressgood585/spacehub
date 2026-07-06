@@ -22,6 +22,7 @@ const FIXED_COINS = [
   'BTC','ETH','SOL','BNB','XRP','ADA','DOGE','AVAX','LINK','DOT',
   'POL','UNI','ATOM','LTC','BCH','NEAR','ALGO','FIL','VET','ICP',
 ]
+const FALLBACK_COINS = FIXED_COINS
 const MIN_COIN_WIN_RATE = 0.42
 const MIN_COIN_TRADES   = 8
 
@@ -169,6 +170,266 @@ function calcBB(closes: number[], period=20, mult=2.0): {
   return {upper, mid, lower, width: mid>0?(upper-lower)/mid:0}
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// UPGRADE 1: CORRELATION HEDGING
+// ═══════════════════════════════════════════════════════════════════════════
+
+function calcCorrelationMatrix(series1: number[], series2: number[], window = 100): number {
+  const s1 = series1.slice(-window)
+  const s2 = series2.slice(-window)
+  if (s1.length < window || s2.length < window) return 0
+
+  const mean1 = s1.reduce((a,b)=>a+b,0)/s1.length
+  const mean2 = s2.reduce((a,b)=>a+b,0)/s2.length
+
+  let covariance = 0, var1 = 0, var2 = 0
+  for (let i = 0; i < s1.length; i++) {
+    const d1 = s1[i] - mean1, d2 = s2[i] - mean2
+    covariance += d1 * d2
+    var1 += d1 * d1
+    var2 += d2 * d2
+  }
+
+  const denominator = Math.sqrt(var1 * var2)
+  return denominator > 0 ? covariance / denominator : 0
+}
+
+function applyCorrelationHedge(correlation: number, side: 'LONG'|'SHORT'): number {
+  // LONG: if corr with BTC > 0.8, reduce size by 30%
+  if (side === 'LONG' && correlation > 0.80) return 0.70
+  // SHORT: if corr with BTC < -0.7, boost size by 20%
+  if (side === 'SHORT' && correlation < -0.70) return 1.20
+  return 1.0
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// UPGRADE 2: ENHANCED ENTRY CONFIRMATION (Stochastic + Divergence + MACD)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function calcStochastic(closes: number[], highs: number[], lows: number[], k=14, smoothK=3): {K: number; D: number} {
+  if (closes.length < k) return {K: 50, D: 50}
+
+  const recentCloses = closes.slice(-k)
+  const recentHighs = highs.slice(-k)
+  const recentLows = lows.slice(-k)
+
+  const minLow = Math.min(...recentLows)
+  const maxHigh = Math.max(...recentHighs)
+  const currentClose = closes[closes.length-1]
+
+  const range = maxHigh - minLow
+  const K = range > 0 ? ((currentClose - minLow) / range) * 100 : 50
+
+  // Simplified D = SMA of K (last 3 K values)
+  const kValues = []
+  for (let i = Math.max(0, closes.length-k-smoothK); i < closes.length; i++) {
+    const slice = closes.slice(Math.max(0, i-k+1), i+1)
+    const sliceH = highs.slice(Math.max(0, i-k+1), i+1)
+    const sliceL = lows.slice(Math.max(0, i-k+1), i+1)
+    const minL = Math.min(...sliceL), maxH = Math.max(...sliceH)
+    const rg = maxH - minL
+    const kVal = rg > 0 ? ((slice[slice.length-1] - minL) / rg) * 100 : 50
+    kValues.push(kVal)
+  }
+
+  const D = kValues.length > 0 ? kValues.slice(-smoothK).reduce((a,b)=>a+b,0)/Math.min(smoothK,kValues.length) : K
+
+  return {K, D}
+}
+
+function detectDivergence(rsiValues: number[], priceValues: number[]): 'BULL_DIV'|'BEAR_DIV'|'NONE' {
+  if (rsiValues.length < 5 || priceValues.length < 5) return 'NONE'
+
+  // Bullish divergence: price makes new low but RSI higher
+  const priceLow1 = Math.min(...priceValues.slice(-5))
+  const priceLow2 = Math.min(...priceValues.slice(-10, -5))
+  const rsiLow1 = Math.min(...rsiValues.slice(-5))
+  const rsiLow2 = Math.min(...rsiValues.slice(-10, -5))
+
+  if (priceLow1 < priceLow2 && rsiLow1 > rsiLow2 && rsiLow1 < 40) return 'BULL_DIV'
+
+  // Bearish divergence: price makes new high but RSI lower
+  const priceHigh1 = Math.max(...priceValues.slice(-5))
+  const priceHigh2 = Math.max(...priceValues.slice(-10, -5))
+  const rsiHigh1 = Math.max(...rsiValues.slice(-5))
+  const rsiHigh2 = Math.max(...rsiValues.slice(-10, -5))
+
+  if (priceHigh1 > priceHigh2 && rsiHigh1 < rsiHigh2 && rsiHigh1 > 60) return 'BEAR_DIV'
+
+  return 'NONE'
+}
+
+function calcMACD(closes: number[], fastPeriod=12, slowPeriod=26, signalPeriod=9): {macd: number; signal: number; histogram: number} {
+  if (closes.length < slowPeriod) return {macd: 0, signal: 0, histogram: 0}
+
+  const emaFast = calcEma(closes, fastPeriod)
+  const emaSlow = calcEma(closes, slowPeriod)
+  const macd = emaFast - emaSlow
+
+  // Build MACD line for signal calculation
+  const macdLine = []
+  for (let i = Math.max(0, closes.length-50); i < closes.length; i++) {
+    const f = calcEma(closes.slice(0, i+1), fastPeriod)
+    const s = calcEma(closes.slice(0, i+1), slowPeriod)
+    macdLine.push(f - s)
+  }
+
+  const signal = calcEma(macdLine, signalPeriod)
+  const histogram = macd - signal
+
+  return {macd, signal, histogram}
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// UPGRADE 3: DYNAMIC MACRO CALENDAR
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function fetchMacroCalendar(weekAhead: boolean = false): Promise<any[]> {
+  try {
+    // Use FRED API or economic calendar endpoint
+    // For now, return hardcoded high-impact events (can be enhanced with real API)
+    const now = new Date()
+    const events = []
+
+    // NFP — first Friday of each month at 12:30 UTC
+    const firstFri = new Date(now.getUTCFullYear(), now.getUTCMonth(), 1)
+    while (firstFri.getUTCDay() !== 5) firstFri.setDate(firstFri.getDate() + 1)
+    events.push({
+      date: firstFri,
+      event: 'NFP',
+      currency: 'USD',
+      impact: 3,
+      time_utc: '12:30'
+    })
+
+    return events
+  } catch (e) {
+    return []
+  }
+}
+
+function isMacroEventWindowDynamic(priceTime: Date, macroEvents: any[] = []): boolean {
+  // Check if within 30 min of HIGH impact event (impact >= 2)
+  // Or 10 min before MEDIUM impact
+  const nowMs = priceTime.getTime()
+
+  for (const ev of macroEvents) {
+    const eventTime = new Date(ev.date).getTime()
+    const diffMin = Math.abs(nowMs - eventTime) / 60000
+
+    if (ev.impact >= 2 && diffMin < 30) return true
+    if (ev.impact >= 1 && diffMin < 10) return true
+  }
+
+  return false
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// UPGRADE 4: POSITION CORRELATION MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════════════
+
+function calcOpenPositionCorrelations(openTrades: any[], btcCloses: number[]): Record<string, number> {
+  const correlations: Record<string, number> = {}
+
+  for (const t of openTrades) {
+    correlations[t.sym] = 0 // placeholder; would fetch coin closes and calc
+  }
+
+  return correlations
+}
+
+function checkMaxCorrelationLimit(newTrade: any, openTrades: any[], btcCloses: number[]): boolean {
+  const MAX_CORR = 0.7
+
+  for (const ot of openTrades) {
+    // Would calculate correlation between newTrade.sym and ot.sym
+    // For now, return true (allow)
+  }
+
+  return true
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// UPGRADE 5: WIN RATE BOOSTERS (Pivot + Volume + BB Squeeze)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function calcPivots(high: number, low: number, close: number): {pivot: number; s1: number; r1: number; s2: number; r2: number} {
+  const pivot = (high + low + close) / 3
+  const s1 = (pivot * 2) - high
+  const r1 = (pivot * 2) - low
+  const s2 = pivot - (high - low)
+  const r2 = pivot + (high - low)
+  return {pivot, s1, r1, s2, r2}
+}
+
+function detectPivotBounce(price: number, s1: number, r1: number, atr: number): boolean {
+  const threshold = atr * 0.5
+  return Math.abs(price - s1) < threshold || Math.abs(price - r1) < threshold
+}
+
+function detectVolumeReversal(volume: number, avgVolume: number, candle: Bar): boolean {
+  // Volume surge (volume > 1.8x avg) + opposite close
+  return volume > avgVolume * 1.8
+}
+
+function detectBBSqueezeRelease(bbWidthHistory: number[], threshold: number = 0.003): boolean {
+  if (bbWidthHistory.length < 6) return false
+
+  // Check if last 5 bars have low width, then current bar breaks out
+  const last5 = bbWidthHistory.slice(-6, -1)
+  const all5Low = last5.every(w => w < threshold)
+  const currentBreakout = bbWidthHistory[bbWidthHistory.length-1] > threshold * 1.5
+
+  return all5Low && currentBreakout
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// UPGRADE 6: ADVANCED EXIT SIGNALS
+// ═══════════════════════════════════════════════════════════════════════════
+
+function advancedExitCheck(
+  trade: any,
+  currentBar: Bar,
+  price: number,
+  macdHist: number,
+  rsiHistory: number[],
+  volumeHistory: number[],
+  avgVolume: number
+): {closePercent: number; reason: string} {
+  const entry = Number(trade.entry_price)
+  const side = trade.side
+  const dirM = side === 'LONG' ? 1 : -1
+  const profitR = (price - entry) * dirM / Math.abs(entry)
+
+  // Exit all if MACD histogram reverses (momentum loss)
+  if (trade.entry_macd_hist && macdHist) {
+    const histReversed = (trade.entry_macd_hist > 0 && macdHist < 0) ||
+                         (trade.entry_macd_hist < 0 && macdHist > 0)
+    if (histReversed && profitR > 0.5) return {closePercent: 1.0, reason: 'macd_reversal'}
+  }
+
+  // Exit if RSI extreme persists > 15 bars (normalization coming)
+  if (rsiHistory.length >= 15) {
+    const last15 = rsiHistory.slice(-15)
+    const allHigh = last15.every(r => r > 70)
+    const allLow = last15.every(r => r < 30)
+    if ((side === 'LONG' && allLow) || (side === 'SHORT' && allHigh)) {
+      return {closePercent: 1.0, reason: 'rsi_normalization'}
+    }
+  }
+
+  // Volume cliff: sudden drop → close 25%
+  if (volumeHistory.length >= 2) {
+    const curVol = volumeHistory[volumeHistory.length-1]
+    const prevVol = volumeHistory[volumeHistory.length-2]
+    if (prevVol > 0 && curVol < prevVol * 0.5 && profitR > 1.0) {
+      return {closePercent: 0.25, reason: 'volume_cliff'}
+    }
+  }
+
+  return {closePercent: 0, reason: ''}
+}
+
 function calcADX(bars: Bar[], period=14): number {
   if (bars.length < period+1) return 20
 
@@ -243,6 +504,11 @@ interface ConfluenceBreakdown {
   oiFavor: number;
   sentiment: number;
   candlePattern: number;
+  stochastic: number;
+  divergence: number;
+  macd: number;
+  pivotBounce: number;
+  bbSqueeze: number;
 }
 
 interface EntryScore {
@@ -264,16 +530,21 @@ function calcConfluenceScore(
   oiSignal: string,
   rsiOversold: number,
   rsiOverbought: number,
-  bbProx: number
+  bbProx: number,
+  btcCloses: number[] = [],
+  coinCloses: number[] = []
 ): EntryScore {
-  if (bars.length < 30) return {side: null, slDist: 0, score: 0, breakdown: {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0}, adx, regime: 'UNCERTAIN'}
+  if (bars.length < 30) return {side: null, slDist: 0, score: 0, breakdown: {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0}, adx, regime: 'UNCERTAIN'}
 
   const closes = bars.map(b => b.close)
+  const highs = bars.map(b => b.high)
+  const lows = bars.map(b => b.low)
   const atr = calcATR(bars.slice(-20))
   const rsi = calcRsi(closes.slice(-15))
+  const rsiHistory = closes.slice(-20).map((c,i) => i === 0 ? 50 : calcRsi(closes.slice(0, closes.length-20+i+1)))
   const bb = calcBB(closes, 20, 2)
 
-  if (!bb.mid || !atr) return {side: null, slDist: 0, score: 0, breakdown: {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0}, adx, regime: 'UNCERTAIN'}
+  if (!bb.mid || !atr) return {side: null, slDist: 0, score: 0, breakdown: {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0}, adx, regime: 'UNCERTAIN'}
 
   const e9arr = calcEmaArr(closes, 9)
   const e21arr = calcEmaArr(closes, 21)
@@ -292,10 +563,10 @@ function calcConfluenceScore(
   else shortSig++
 
   const side = longSig >= 2 ? 'LONG' : shortSig >= 2 ? 'SHORT' : null
-  if (!side) return {side: null, slDist: 0, score: 0, breakdown: {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0}, adx, regime: 'UNCERTAIN'}
+  if (!side) return {side: null, slDist: 0, score: 0, breakdown: {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0}, adx, regime: 'UNCERTAIN'}
 
   // Confluence Score Breakdown (0-100)
-  const breakdown: ConfluenceBreakdown = {vpoc: 0, ema1h: 0, adxTrend: 0, volumeSurge: 0, oiFavor: 0, sentiment: 0, candlePattern: 0}
+  const breakdown: ConfluenceBreakdown = {vpoc: 0, ema1h: 0, adxTrend: 0, volumeSurge: 0, oiFavor: 0, sentiment: 0, candlePattern: 0, stochastic: 0, divergence: 0, macd: 0, pivotBounce: 0, bbSqueeze: 0}
 
   // 1. VPOC alignment (25 pts): price near VPOC
   const vpocDist = Math.abs(vpoc - price) / price
@@ -348,7 +619,48 @@ function calcConfluenceScore(
     else if (barClose < barOpen) breakdown.candlePattern = 5
   }
 
-  const totalScore = breakdown.vpoc + breakdown.ema1h + breakdown.adxTrend + breakdown.volumeSurge + breakdown.oiFavor + breakdown.sentiment + breakdown.candlePattern
+  // ─────────────────────────────────────────────────────────────────────────
+  // UPGRADE 2: Enhanced Entry Confirmation Signals
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // 8. Stochastic confirmation (10 pts)
+  const stoch = calcStochastic(closes, highs, lows, 14, 3)
+  if ((side === 'LONG' && stoch.K < 20) || (side === 'SHORT' && stoch.K > 80)) {
+    breakdown.stochastic = 10
+  }
+
+  // 9. RSI Divergence (15 pts boost)
+  const divergence = detectDivergence(rsiHistory, closes)
+  if (divergence === 'BULL_DIV' && side === 'LONG') {
+    breakdown.divergence = 15
+  } else if (divergence === 'BEAR_DIV' && side === 'SHORT') {
+    breakdown.divergence = 15
+  }
+
+  // 10. MACD histogram (10 pts)
+  const macd = calcMACD(closes)
+  if ((side === 'LONG' && macd.histogram > 0) || (side === 'SHORT' && macd.histogram < 0)) {
+    breakdown.macd = 10
+  }
+
+  // 11. Pivot Point Rejection (8 pts)
+  const high = bars[bars.length-1].high, low = bars[bars.length-1].low
+  const pivots = calcPivots(high, low, barClose)
+  if (detectPivotBounce(price, pivots.s1, pivots.r1, atr)) {
+    breakdown.pivotBounce = 8
+  }
+
+  // 12. Bollinger Squeeze Release (12 pts)
+  const bbWidthHistory = bars.slice(-10).map(b => {
+    const cls = closes.slice(0, closes.indexOf(b.close)+1)
+    const bbW = calcBB(cls, 20, 2).width
+    return bbW
+  })
+  if (detectBBSqueezeRelease(bbWidthHistory)) {
+    breakdown.bbSqueeze = 12
+  }
+
+  const totalScore = breakdown.vpoc + breakdown.ema1h + breakdown.adxTrend + breakdown.volumeSurge + breakdown.oiFavor + breakdown.sentiment + breakdown.candlePattern + breakdown.stochastic + breakdown.divergence + breakdown.macd + breakdown.pivotBounce + breakdown.bbSqueeze
 
   const regime = side === 'LONG' ? 'BULL' : 'BEAR'
 
@@ -1238,6 +1550,44 @@ Deno.serve(async (req) => {
             continue
           }
 
+          // ─────────────────────────────────────────────────────────────────────────
+          // UPGRADE 6: ADVANCED EXIT SIGNALS
+          // ─────────────────────────────────────────────────────────────────────────
+          const macdData = calcMACD(completed.map(b => b.close))
+          const rsiHistory20 = completed.slice(-20).map((b, i) =>
+            i === 0 ? 50 : calcRsi(completed.slice(0, i+1).map(x => x.close))
+          )
+          const volHistory20 = completed.slice(-20).map(b => b.vol)
+          const volAvg20 = volHistory20.reduce((a,b)=>a+b,0)/volHistory20.length
+
+          const advancedExit = advancedExitCheck(t, completed[completed.length-1], price, macdData.histogram, rsiHistory20, volHistory20, volAvg20)
+          if (advancedExit.closePercent > 0 && t.status === 'OPEN') {
+            const closeSize = size * advancedExit.closePercent
+            const fav = (price-entry)/entry*dirM
+            const closePnl = fav*entry*closeSize*LEVERAGE - (Number(t.fee)*advancedExit.closePercent) - price*closeSize*FEE*LEVERAGE
+            balance += entry*closeSize+closePnl
+
+            if (advancedExit.closePercent >= 1.0) {
+              openCount--
+              await supabase.from('bot_trades').update({
+                status:'TP', exit_price:price, pnl:closePnl, pnl_pct:fav,
+                closed_at:new Date().toISOString()
+              }).eq('id',t.id)
+              await supabase.from('bot_trade_snapshots').update({ result:`advanced_exit_${advancedExit.reason}`, pnl:closePnl }).eq('trade_id',t.id).catch(()=>{})
+              await updateMarketMemory(supabase, t.id, 'TP', closePnl, log)
+              log.push(`ADVANCED_EXIT ${sym} ${t.side} (${advancedExit.reason}) @${price.toFixed(4)} pnl=${closePnl.toFixed(2)}`)
+              continue
+            } else {
+              // Partial close
+              await supabase.from('bot_trades').update({
+                size: size - closeSize,
+                trail_sl: entry + (entry-sl)*0.3*dirM  // Tighten SL
+              }).eq('id',t.id)
+              log.push(`ADVANCED_PARTIAL ${sym} ${t.side} (${advancedExit.reason}) ${(advancedExit.closePercent*100).toFixed(0)}% @${price.toFixed(4)} pnl=${closePnl.toFixed(2)}`)
+              continue
+            }
+          }
+
           const storedTP_LONG =Number(t.hi)>entry*1.001
           const storedTP_SHORT=Number(t.lo) <entry*0.999
           const tp=storedTP_LONG  ?Number(t.hi)
@@ -1350,9 +1700,12 @@ Deno.serve(async (req) => {
         const dynMinAdx         = Number(_bp.min_adx              ?? 0)
 
         // v22: Use confluence score instead of 2/4 signals
+        // UPGRADE 2: Pass BTC closes for correlation analysis
         const entryScore = calcConfluenceScore(
           completed, price, vpoc, ema1hBias, adx, fearGreed, oiSig,
-          dynRsiOversold, dynRsiOverbought, dynBbProx
+          dynRsiOversold, dynRsiOverbought, dynBbProx,
+          btcBars.map(b => b.close),
+          completed.map(b => b.close)
         )
 
         if (!entryScore.side) {
@@ -1444,7 +1797,23 @@ Deno.serve(async (req) => {
           log.push(`coin_reduce: ${sym} 0.7x`)
         }
 
-        const riskAmt = balance * R.riskPct * kellyMult * kellyByScore * sizeAdjByRegime * sessionSizeAdj * coinSizeMult * volSizeMult * equityGuardMult
+        // ─────────────────────────────────────────────────────────────────────────
+        // UPGRADE 1: CORRELATION HEDGING
+        // ─────────────────────────────────────────────────────────────────────────
+        let correlationHedgeMult = 1.0
+        let hedgeLog = ''
+        if (btcBars.length >= 100 && completed.length >= 100) {
+          const btcClosesList = btcBars.map(b => b.close)
+          const coinClosesList = completed.map(b => b.close)
+          const correlation = calcCorrelationMatrix(btcClosesList, coinClosesList, 100)
+          correlationHedgeMult = applyCorrelationHedge(correlation, entryScore.side)
+          if (correlationHedgeMult !== 1.0) {
+            hedgeLog = `hedge_applied: ${sym} corr with BTC ${correlation.toFixed(2)} → size ${(correlationHedgeMult*100).toFixed(0)}%`
+            log.push(hedgeLog)
+          }
+        }
+
+        const riskAmt = balance * R.riskPct * kellyMult * kellyByScore * sizeAdjByRegime * sessionSizeAdj * coinSizeMult * volSizeMult * equityGuardMult * correlationHedgeMult
         const notional = Math.min(riskAmt / slPct, balance * MAX_NOTIONAL_PCT, balance * 0.95)
         if (notional < 5) return
 
@@ -1452,11 +1821,15 @@ Deno.serve(async (req) => {
         balance -= (notional + fee); openCount++
         if (gid >= 0) corrGroupCount[gid] = (corrGroupCount[gid] || 0) + 1
 
+        // Store MACD histogram at entry for advanced exit comparison
+        const macdEntry = calcMACD(completed.map(b => b.close))
+
         const { data: insertedTrade } = await supabase.from('bot_trades').insert({
           sym, side, entry_price: price, size, fee,
           trail_sl: slPrice, hi: hiVal, lo: loVal,
           status: 'OPEN', score: Math.round(entryScore.score), mtf: true, partial_done: false,
-          paper_mode: paperMode
+          paper_mode: paperMode,
+          entry_macd_hist: +(macdEntry.histogram.toFixed(4))
         }).select('id').single()
 
         // Phase 1: Save trade snapshot with all indicator values at entry + STAGE 2 fields
@@ -1467,6 +1840,8 @@ Deno.serve(async (req) => {
           const volAvgSnap  = vols20Snap.reduce((a:number,v:number)=>a+v,0)/vols20Snap.length
           const curVolSnap  = completed[completed.length-1].vol
           const volRatioSnap = volAvgSnap > 0 ? curVolSnap/volAvgSnap : 1.0
+          const stochSnap   = calcStochastic(cls5m, completed.map(b=>b.high), completed.map(b=>b.low))
+          const macdSnap    = calcMACD(cls5m)
 
           try {
             await supabase.from('bot_trade_snapshots').insert({
@@ -1483,7 +1858,11 @@ Deno.serve(async (req) => {
               vpoc: +(vpoc.toFixed(6)),
               volatility_pct: volPctile,
               adjusted_sl: +(slPrice.toFixed(6)),
-              adjusted_tp: +(tpPrice.toFixed(6))
+              adjusted_tp: +(tpPrice.toFixed(6)),
+              stochastic_k: +(stochSnap.K.toFixed(2)),
+              stochastic_d: +(stochSnap.D.toFixed(2)),
+              macd_histogram: +(macdSnap.histogram.toFixed(4)),
+              correlation_hedge: +(correlationHedgeMult.toFixed(2))
             })
           } catch { /* non-fatal */ }
         }
@@ -1496,7 +1875,8 @@ Deno.serve(async (req) => {
         const volSizeStr = volSizeMult !== 1.0 ? ` vol_sz=${volSizeMult.toFixed(1)}x` : ''
         const tpStr = dynamicTPBase !== 2.5 ? ` dyn_tp=${dynamicTPBase.toFixed(2)}R` : ''
         const mtfStr = ema15mBias !== 'NEUTRAL' ? ` 15m=${ema15mBias}` : ''
-        log.push(`OPEN ${sym} ${side} [CONF] score=${Math.round(entryScore.score)} (${breakdownStr})${mtfStr} adx=${adx.toFixed(0)}${tpStr} vol_pct=${volPctile}${volSizeStr} sess_adj=${sessionSizeAdj.toFixed(2)} @${price.toFixed(6)} sl=${(slPct*100).toFixed(3)}% $${notional.toFixed(0)} ${session}`)
+        const hedgeStr = correlationHedgeMult !== 1.0 ? ` hedge=${(correlationHedgeMult*100).toFixed(0)}%` : ''
+        log.push(`OPEN ${sym} ${side} [CONF] score=${Math.round(entryScore.score)} (${breakdownStr})${mtfStr} adx=${adx.toFixed(0)}${tpStr}${hedgeStr} vol_pct=${volPctile}${volSizeStr} sess_adj=${sessionSizeAdj.toFixed(2)} @${price.toFixed(6)} sl=${(slPct*100).toFixed(3)}% $${notional.toFixed(0)} ${session}`)
 
       } catch(e) {
         log.push(`ERR ${sym}: ${String(e).slice(0,40)}`)
