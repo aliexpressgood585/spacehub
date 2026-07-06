@@ -34,7 +34,7 @@ const DEFAULTS = {
     US:    { sizeMult: 1.0, minScoreBonus: 0 },
     DEAD:  { sizeMult: 0.8, minScoreBonus: 0 },
   },
-  partial_tp_by_vol: { LOW: 0.8, MEDIUM: 1.2, HIGH: 1.5 },
+  partial_tp_by_vol: { LOW: 1.2, MEDIUM: 1.5, HIGH: 1.8 },
   max_hold_min: 180,
   // simple entry params — tuned by optimizer
   rsi_oversold:        35,
@@ -164,7 +164,8 @@ function applyProposed(proposed: any, current: any): any {
     safe.vol_params[r] = {
       slMult:   round2(clamp(limitChange(+p.slMult,   c.slMult,   MAX_CHANGE), BOUNDS.slMult.min,   BOUNDS.slMult.max)),
       tpR:      round2(clamp(limitChange(+p.tpR,      c.tpR,      MAX_CHANGE), BOUNDS.tpR.min,      BOUNDS.tpR.max)),
-      trailBeR: round2(clamp(limitChange(+p.trailBeR, c.trailBeR, MAX_CHANGE), BOUNDS.trailBeR.min, BOUNDS.trailBeR.max)),
+      // v27.6: bot trails at fixed 1R breakeven — knob retired, value preserved untouched
+      trailBeR: c.trailBeR,
       trailAtr: round2(clamp(limitChange(+p.trailAtr, c.trailAtr, MAX_CHANGE), BOUNDS.trailAtr.min, BOUNDS.trailAtr.max)),
     }
   }

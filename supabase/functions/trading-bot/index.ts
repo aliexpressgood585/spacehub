@@ -12,6 +12,9 @@
 //     long the dip in uptrends — bot is no longer idle in bear markets
 //  8. (v27.4) RANGE-FADE MODE: band-extreme fades in low-ADX chop get
 //     normal size, score credit, and a realistic mid-band TP
+//  9. (v27.6) REVIEW FIXES: coin-1H override for BTC gate, 0.6R half-risk
+//     lock, base-score floor 50, tp_r wired to live TP, backtest/live
+//     gate parity, dead code removed (findSimpleEntry, shouldSkip, ultra)
 // ════════════════════════════════════════════════════════════
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
@@ -93,7 +96,6 @@ const RISK = {
   high:   { riskPct:0.025, streakLimit:7 },
 } as const
 type RiskKey = keyof typeof RISK
-const MAX_RISK: RiskKey = 'high'
 
 const FEE             = 0.001
 const LEVERAGE        = 10
@@ -108,6 +110,7 @@ const MAX_TOTAL_EXPOSURE_PCT = 0.60
 const FUNDING_EXTREME = 0.0003
 const MIN_SL_PCT      = 0.005
 const SYM_COOLDOWN_MS = 15*60_000
+const MAX_NEW_ENTRIES_PER_SCAN = 2
 const MAX_DD_STOP     = 0.80
 const INITIAL_BALANCE = 10000
 const DAILY_LOSS_LIMIT_PCT = 0.03
@@ -666,7 +669,8 @@ function calcConfluenceScore(
   // 12. Bollinger Squeeze Release (12 pts)
   const bbWidthHistory = bars.slice(-10).map((_b, idx) => {
     const barIdx = bars.length - 10 + idx
-    const cls = closes.slice(0, barIdx + 1)
+    // BB(20) only needs the trailing 20 closes — avoid copying the full prefix
+    const cls = closes.slice(Math.max(0, barIdx - 19), barIdx + 1)
     return calcBB(cls, 20, 2).width
   })
   if (detectBBSqueezeRelease(bbWidthHistory)) {
@@ -689,9 +693,9 @@ function calcConfluenceScore(
   }
 }
 
-// v22: Market regime filter for ADX
-function applyMarketRegimeFilter(score: number, adx: number, sizeMult: number, rangeFade = false): {score: number; sizeAdj: number; shouldSkip: boolean} {
-  let sizeAdj = sizeMult
+// v22: ADX-based size adjustment (scoring gate lives at finalScore, v27.5)
+function calcAdxSizeAdj(adx: number, rangeFade = false): number {
+  let sizeAdj = 1.0
 
   // ADX > 25 → +10% size (strong trending)
   if (adx > 25) sizeAdj *= 1.10
@@ -700,10 +704,7 @@ function applyMarketRegimeFilter(score: number, adx: number, sizeMult: number, r
   // WANTS low ADX — only a mild haircut there (v27.4)
   if (adx < 15) sizeAdj *= rangeFade ? 0.75 : 0.30
 
-  // Gate threshold tuning: require score >= 60
-  const shouldSkip = score < 60
-
-  return {score, sizeAdj, shouldSkip}
+  return sizeAdj
 }
 
 // v22: Kelly Criterion scaling by confluence score
@@ -713,43 +714,6 @@ function getKellyScaleByScore(baseScore: number): number {
   if (baseScore < 70) return 1.0
   if (baseScore < 80) return 1.2
   return 1.5
-}
-
-// Simple 3-signal entry: RSI + BB + EMA crossover — fires frequently
-// Params tuned live by trading-optimizer agent
-function findSimpleEntry(
-  bars: Bar[], price: number,
-  rsiOversold=35, rsiOverbought=65, bbProx=1.02
-): {side:'LONG'|'SHORT'; slDist:number}|null {
-  if (bars.length < 30) return null
-  const closes = bars.map(b=>b.close)
-  const atr    = calcATR(bars.slice(-20))
-  const rsi    = calcRsi(closes.slice(-15))
-  const bb     = calcBB(closes, 20, 2)
-  if (!bb.mid || !atr) return null
-
-  const e9arr  = calcEmaArr(closes, 9)
-  const e21arr = calcEmaArr(closes, 21)
-  const curE9  = e9arr.at(-1)!,  curE21  = e21arr.at(-1)!
-  const prevE9 = e9arr.at(-2)!,  prevE21 = e21arr.at(-2)!
-
-  let longSig=0, shortSig=0
-
-  if (rsi < rsiOversold)  longSig++
-  else if (rsi > rsiOverbought) shortSig++
-
-  if (price <= bb.lower * bbProx)        longSig++
-  else if (price >= bb.upper * (2 - bbProx)) shortSig++
-
-  if (curE9 > curE21) longSig++
-  else shortSig++
-
-  if (prevE9 <= prevE21 && curE9 > curE21) longSig++
-  if (prevE9 >= prevE21 && curE9 < curE21) shortSig++
-
-  if (longSig >= 2)  return { side:'LONG',  slDist: atr * 1.2 }
-  if (shortSig >= 2) return { side:'SHORT', slDist: atr * 1.2 }
-  return null
 }
 
 function getVolRegime(atrPct:number): 'LOW'|'MEDIUM'|'HIGH' {
@@ -1350,7 +1314,10 @@ async function runBacktest(daysParam = 30): Promise<object> {
         slice, price, vpoc, bias1h, adx, 50, 'FLAT', 35, 65, 1.02
       )
 
-      if (!entryScore.side || entryScore.score < 55) continue
+      // v27.6: mirror the live gates — base floor 50, final threshold 65
+      // (1H alignment bonus approximates the live mtf bonus)
+      const btAlignBonus = (entryScore.side === 'LONG' && bias1h === 'BULL') || (entryScore.side === 'SHORT' && bias1h === 'BEAR') ? 10 : 0
+      if (!entryScore.side || entryScore.score < 50 || entryScore.score + btAlignBonus < 65) continue
 
       // 1H hard block
       if (entryScore.side === 'LONG' && bias1h === 'BEAR') continue
@@ -1365,7 +1332,13 @@ async function runBacktest(daysParam = 30): Promise<object> {
       if (ddScale <= 0) continue
 
       const vp = VOL_PARAMS[getVolRegime(atrPct)]
-      const tpR = calcDynamicTP(2.5, calcVolatilityPercentile(slice).pct)
+      let tpR = calcDynamicTP(2.5, calcVolatilityPercentile(slice).pct)
+      // v27.6: mirror live range-fade TP — mid-band target, skip tight ranges
+      if (entryScore.rangeFade && entryScore.bbMid) {
+        const midR = Math.abs(entryScore.bbMid - price) / slDist
+        if (midR < 1.0) continue
+        tpR = Math.min(tpR, midR)
+      }
       const notional = Math.min(bal * 0.018 * ddScale / slPct, bal * MAX_NOTIONAL_PCT)
       if (notional < 5 || notional > bal * 0.95) continue
 
@@ -1491,8 +1464,7 @@ Deno.serve(async (req) => {
     const utcM  = new Date().getUTCMinutes()
     const rawRisk = state.risk as string
     const safeRisk: RiskKey = (rawRisk in RISK) ? rawRisk as RiskKey : 'medium'
-    const cappedRisk: RiskKey = RISK[safeRisk].riskPct > RISK[MAX_RISK].riskPct ? MAX_RISK : safeRisk
-    const R     = RISK[cappedRisk]
+    const R     = RISK[safeRisk]
 
     // v21: Session detection
     const session = getSession(utcH)
@@ -1730,7 +1702,8 @@ Deno.serve(async (req) => {
         // ── STAGE 2: Calculate volatility percentile and dynamic SL/TP ──
         const {pct: volPctile, atrPct: curAtrPct} = calcVolatilityPercentile(completed)
         const dynamicSLMult = adx > 25 ? 1.0 : adx < 15 ? 1.5 : 1.2
-        const dynamicTPBase = calcDynamicTP(2.5, volPctile)
+        // v27.6: tp_r from bot_params actually drives the TP (was a dead read)
+        const dynamicTPBase = calcDynamicTP(Number(_bp.tp_r ?? 2.5), volPctile)
 
         // v22: Get last 5m price change for OI divergence context
         const last5min = completed.length >= 2 ? (price - completed[completed.length-2].close) / completed[completed.length-2].close : 0
@@ -1814,7 +1787,7 @@ Deno.serve(async (req) => {
           if (emaCrossedAgainst && isLowVolExit && (price-entry)*dirM < 0) {
             const fav = (price-entry)/entry*dirM
             const pnl = (price-entry)*size*dirM - price*size*FEE
-            const finalSt = pnl > 0 ? 'TP' : 'TRAIL'
+            const finalSt = 'TRAIL'  // gate above guarantees a losing exit
             balance += entry*size+pnl; openCount--
             await supabase.from('bot_trades').update({
               status:finalSt, exit_price:price, pnl, pnl_pct:fav,
@@ -1931,10 +1904,16 @@ Deno.serve(async (req) => {
             const profitR=origSlDist>0?(price-entry)*dirM/origSlDist:0
             let newSL=slToUse
 
+            // v27.6: at 0.6R cut the remaining risk in half — protects the
+            // 0.5-1R band without the wick-out-prone full breakeven lock
+            if (profitR>=0.6) {
+              const halfRiskLevel=entry-origSlDist*0.5*dirM
+              newSL=dirM===1?Math.max(newSL,halfRiskLevel):Math.min(newSL,halfRiskLevel)
+            }
             // v27: Breakeven trail starts at 1.0R — let winners breathe
             if (profitR>=1.0) {
               const beLevel=entry*(1+FEE*2.5*dirM)
-              newSL=dirM===1?Math.max(slToUse,beLevel):Math.min(slToUse,beLevel)
+              newSL=dirM===1?Math.max(newSL,beLevel):Math.min(newSL,beLevel)
             }
             if (profitR>=1.5) {
               const trailLevel=price-atr*vp.trailAtr*dirM
@@ -1971,13 +1950,12 @@ Deno.serve(async (req) => {
         if (macroChk.skip) { log.push(`SKIP ${sym}: macro ${macroChk.reason}`); return }
         if (atrPct > 0.02 || atrPct < 0.00003) return
         if (balance < 10) return
-        // v27.2: max 2 new entries per scan — don't build the whole basket in one minute
-        if (newEntriesThisScan >= 2) return
+        // v27.2: cap new entries per scan — don't build the whole basket in one minute
+        if (newEntriesThisScan >= MAX_NEW_ENTRIES_PER_SCAN) return
 
         const dynRsiOversold    = Number(_bp.rsi_oversold        ?? 35)
         const dynRsiOverbought  = Number(_bp.rsi_overbought       ?? 65)
         const dynBbProx         = Number(_bp.bb_proximity         ?? 1.02)
-        const dynTpR            = Number(_bp.tp_r                 ?? 2.5)
         const dynMinConfluence  = Math.max(60, Number(_bp.min_confluence_score ?? 65))
         const dynMinAdx         = Number(_bp.min_adx              ?? 0)
 
@@ -1997,8 +1975,7 @@ Deno.serve(async (req) => {
 
         // v27.5: sizing only — the score gate moved to finalScore below, so
         // MTF/funding alignment bonuses count before a trade is rejected.
-        // (Gating on base score killed with-trend setups the bonuses exist for.)
-        const regimeCheck = applyMarketRegimeFilter(entryScore.score, adx, 1.0, entryScore.rangeFade)
+        const adxSizeAdj = calcAdxSizeAdj(adx, entryScore.rangeFade)
         if (dynMinAdx > 0 && adx < dynMinAdx) {
           log.push(`SKIP ${sym}: adx=${adx.toFixed(0)} < min_adx=${dynMinAdx}`)
           return
@@ -2014,14 +1991,15 @@ Deno.serve(async (req) => {
           return
         }
 
-        // v27.2: BTC market bias gate — btcBias was computed but never enforced.
-        // Alts follow BTC: no counter-trend basket against the whole market.
-        if (entryScore.side === 'LONG' && btcBias === 'BEAR') {
-          log.push(`SKIP ${sym}: BTC bias BEAR blocks LONG`)
+        // v27.2: BTC market bias gate — no counter-trend basket against the market.
+        // v27.6: a coin whose OWN 1H trend agrees with the trade overrides the
+        // BTC veto (alt-rotation regimes: BTC red while a coin trends up cleanly).
+        if (entryScore.side === 'LONG' && btcBias === 'BEAR' && ema1hBias !== 'BULL') {
+          log.push(`SKIP ${sym}: BTC bias BEAR blocks LONG (coin 1H not BULL)`)
           return
         }
-        if (entryScore.side === 'SHORT' && btcBias === 'BULL') {
-          log.push(`SKIP ${sym}: BTC bias BULL blocks SHORT`)
+        if (entryScore.side === 'SHORT' && btcBias === 'BULL' && ema1hBias !== 'BEAR') {
+          log.push(`SKIP ${sym}: BTC bias BULL blocks SHORT (coin 1H not BEAR)`)
           return
         }
 
@@ -2045,8 +2023,10 @@ Deno.serve(async (req) => {
         if (entryScore.side === 'SHORT' && symFunding > 0.0002) fundingBonus = 3
 
         const finalScore = entryScore.score + mtfBonus + fundingBonus
-        if (finalScore < dynMinConfluence) {
-          log.push(`SKIP ${sym}: finalScore=${finalScore} (base=${entryScore.score}+mtf=${mtfBonus}+fr=${fundingBonus}) < ${dynMinConfluence}`)
+        // v27.6: base floor — bonuses add conviction to a decent setup, they
+        // don't rescue a weak one (base<50 can't enter no matter the bonuses)
+        if (entryScore.score < 50 || finalScore < dynMinConfluence) {
+          log.push(`SKIP ${sym}: score base=${entryScore.score} final=${finalScore} (mtf=${mtfBonus}+fr=${fundingBonus}) < ${dynMinConfluence}`)
           return
         }
 
@@ -2083,7 +2063,7 @@ Deno.serve(async (req) => {
 
         // v22: Apply Kelly scaling by confluence score
         const kellyByScore    = getKellyScaleByScore(entryScore.score)
-        const sizeAdjByRegime = regimeCheck.sizeAdj
+        const sizeAdjByRegime = adxSizeAdj
 
         // ── STAGE 2: Volatility-adjusted position sizing ──
         let volSizeMult = 1.0
@@ -2132,7 +2112,7 @@ Deno.serve(async (req) => {
 
         // v27.2: authoritative per-scan entry cap — same sync block as the
         // increment, so concurrent coin handlers can't slip past it
-        if (newEntriesThisScan >= 2) return
+        if (newEntriesThisScan >= MAX_NEW_ENTRIES_PER_SCAN) return
         const size = notional / price, fee = price * size * FEE
         balance -= (notional + fee); openCount++; newEntriesThisScan++
         if (gid >= 0) corrGroupCount[gid] = (corrGroupCount[gid] || 0) + 1

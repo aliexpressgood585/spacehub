@@ -2,6 +2,11 @@ name: Bot Status Report
 
 on:
   workflow_dispatch:
+    inputs:
+      invoke_bot:
+        description: 'Also invoke a live trading-bot run (CAN OPEN TRADES). Default: read-only.'
+        required: false
+        default: 'no'
 
 env:
   PROJECT_REF: mdvheizhciuvqychtwxr
@@ -21,6 +26,7 @@ jobs:
           echo ""
 
       - name: Invoke trading-bot and show decision log
+        if: ${{ github.event.inputs.invoke_bot == 'yes' }}
         run: |
           echo "=== LIVE BOT RUN (decision log) ==="
           ANON_KEY=$(curl -s \
