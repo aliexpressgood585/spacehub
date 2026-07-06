@@ -1512,7 +1512,7 @@ Deno.serve(async (req) => {
           // ── TASK 1: Equity Guard — if 30% drawdown, close ALL positions immediately ──
           if (equityGuardPaused) {
             const fav = (price-entry)/entry*dirM
-            const pnl = fav*entry*size*LEVERAGE - Number(t.fee) - price*size*FEE*LEVERAGE
+            const pnl = (price-entry)*size*dirM - Number(t.fee) - price*size*FEE
             balance += entry*size+pnl; openCount--
             await supabase.from('bot_trades').update({
               status:'TP', exit_price:price, pnl, pnl_pct:fav,
@@ -1537,7 +1537,7 @@ Deno.serve(async (req) => {
             (t.side==='SHORT' && prevE9Exit <= prevE21Exit && curE9Exit > curE21Exit)
           if (emaCrossedAgainst && isLowVolExit) {
             const fav = (price-entry)/entry*dirM
-            const pnl = fav*entry*size*LEVERAGE - Number(t.fee) - price*size*FEE*LEVERAGE
+            const pnl = (price-entry)*size*dirM - Number(t.fee) - price*size*FEE
             const finalSt = pnl > 0 ? 'TP' : 'TRAIL'
             balance += entry*size+pnl; openCount--
             await supabase.from('bot_trades').update({
@@ -1564,7 +1564,7 @@ Deno.serve(async (req) => {
           if (advancedExit.closePercent > 0 && t.status === 'OPEN') {
             const closeSize = size * advancedExit.closePercent
             const fav = (price-entry)/entry*dirM
-            const closePnl = fav*entry*closeSize*LEVERAGE - (Number(t.fee)*advancedExit.closePercent) - price*closeSize*FEE*LEVERAGE
+            const closePnl = (price-entry)*closeSize*dirM - (Number(t.fee)*advancedExit.closePercent) - price*closeSize*FEE
             balance += entry*closeSize+closePnl
 
             if (advancedExit.closePercent >= 1.0) {
@@ -1634,7 +1634,7 @@ Deno.serve(async (req) => {
 
           if (newStatus) {
             const fav=(price-entry)/entry*dirM
-            const pnl=fav*entry*size*LEVERAGE-Number(t.fee)-price*size*FEE*LEVERAGE
+            const pnl=(price-entry)*size*dirM-Number(t.fee)-price*size*FEE
             const final=pnl>0&&newStatus==='SL'?'TP':newStatus
             balance+=entry*size+pnl; openCount--
             await supabase.from('bot_trades').update({
