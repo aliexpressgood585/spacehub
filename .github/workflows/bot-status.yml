@@ -17,7 +17,20 @@ jobs:
             "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d '{"query": "SELECT balance, peak_balance, risk, streak, trade_count, market_regime, bot_params FROM bot_state WHERE id=1;"}'
+            -d '{"query": "SELECT balance, peak_balance, risk, streak, trade_count, market_regime, updated_at, bot_params FROM bot_state WHERE id=1;"}'
+          echo ""
+
+      - name: Invoke trading-bot and show decision log
+        run: |
+          echo "=== LIVE BOT RUN (decision log) ==="
+          ANON_KEY=$(curl -s \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/api-keys" \
+            | grep -o '"anon"[^}]*"apiKey":"[^"]*"' | grep -o '"apiKey":"[^"]*"' | cut -d'"' -f4)
+          curl -s -X POST \
+            "https://${{ env.PROJECT_REF }}.supabase.co/functions/v1/trading-bot" \
+            -H "Authorization: Bearer ${ANON_KEY}" \
+            -H "Content-Type: application/json" -d '{}'
           echo ""
 
       - name: Open positions
