@@ -87,9 +87,6 @@ Deno.serve(async (req) => {
     if (resetState.error) {
       throw new Error(`Failed to reset bot_state: ${resetState.error.message}`)
     }
-    if (!resetState.data || resetState.data.length === 0) {
-      throw new Error('bot_state record (id=1) not found - unable to reset')
-    }
 
     log('✓ Reset bot_state successfully')
     log(`  - Balance: $10000`)

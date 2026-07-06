@@ -75,7 +75,7 @@ const RISK = {
 }
 const MIN_SCORE=3, MIN_ADX=12, COOLDOWN_MS=60_000, STALE_MS=45*60_000, STALE_BAND=0.0015
 const TP_MULT=2.4, PARTIAL_AT=1.2, MAX_NOTIONAL_PCT=0.15, CLOSE_COOLDOWN_MS=60_000, COIN_DISABLE_LOSSES=7
-const INIT_BAL=500, MAX_BARS=600, BAR_MS=60_000, FEE_PCT=0.001, LEVERAGE=20
+const INIT_BAL=10000, MAX_BARS=600, BAR_MS=60_000, FEE_PCT=0.001, LEVERAGE=20
 
 const COINS = [
   {sym:'BTC',ws:'btcusdt'},{sym:'ETH',ws:'ethusdt'},{sym:'SOL',ws:'solusdt'},
@@ -206,7 +206,7 @@ function drawBubbles(canvas:HTMLCanvasElement,allSigs:Record<string,Sig>,prices:
 function LivePosition({t,live,fmtP,onClose}:{t:Trade;live?:{cur:number;pnl:number;pct:number};fmtP:(p:number)=>string;onClose?:()=>void}){
   const cur  = live?.cur ?? t.entry
   const dirM = t.side==='LONG'?1:-1
-  const pnl  = live?.pnl ?? ((cur-t.entry)*dirM*t.size*LEVERAGE-t.fee-cur*t.size*FEE_PCT*LEVERAGE)
+  const pnl  = live?.pnl ?? ((cur-t.entry)*dirM*t.size-cur*t.size*FEE_PCT)
   const pct  = live?.pct ?? 0
   const col  = pnl>=0?C.green:C.red
 
@@ -432,7 +432,7 @@ export default function CryptoTradingDashboard() {
     const live=livePositions[t.id]
     const exitPrice=live?.cur??t.entry
     const dirM=t.side==='LONG'?1:-1
-    const pnl=(exitPrice-t.entry)*dirM*t.size*LEVERAGE-t.fee-exitPrice*t.size*FEE_PCT*LEVERAGE
+    const pnl=(exitPrice-t.entry)*dirM*t.size-exitPrice*t.size*FEE_PCT
     const pnlPct=(exitPrice-t.entry)/t.entry*dirM*100
     try {
       const resp=await fetch(`${SUPA_URL}/functions/v1/close-trade`,{

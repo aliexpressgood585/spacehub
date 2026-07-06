@@ -105,7 +105,7 @@ const FUNDING_EXTREME = 0.0003
 const MIN_SL_PCT      = 0.005
 const SYM_COOLDOWN_MS = 5*60_000
 const MAX_DD_STOP     = 0.80
-const INITIAL_BALANCE = 500
+const INITIAL_BALANCE = 10000
 
 const VOL_PARAMS = {
   LOW:    { slMult:2.0, tpR:2.2, trailBeR:0.8, trailAtr:0.6 },
@@ -433,7 +433,6 @@ function advancedExitCheck(
 function calcADX(bars: Bar[], period=14): number {
   if (bars.length < period+1) return 20
 
-  // Calculate True Range and Directional Movement
   const trs:number[]=[], plusDMs:number[]=[], minusDMs:number[]=[]
 
   for (let i=1; i<bars.length; i++) {
@@ -446,39 +445,29 @@ function calcADX(bars: Bar[], period=14): number {
     minusDMs.push((ld>0 && ld>hd) ? ld : 0)
   }
 
-  // Smooth using Wilder's method
+  // Initial sums for first period (Wilder's method)
   let tr14=trs.slice(0,period).reduce((a,b)=>a+b,0)
   let pd14=plusDMs.slice(0,period).reduce((a,b)=>a+b,0)
   let md14=minusDMs.slice(0,period).reduce((a,b)=>a+b,0)
 
-  for (let i=period; i<trs.length; i++) {
-    tr14=(tr14*(period-1)+trs[i])/period
-    pd14=(pd14*(period-1)+plusDMs[i])/period
-    md14=(md14*(period-1)+minusDMs[i])/period
-  }
+  // Compute first DX from initial smoothed values
+  const plus_di0=tr14>0?(pd14/tr14)*100:0
+  const minus_di0=tr14>0?(md14/tr14)*100:0
+  const di_sum0=plus_di0+minus_di0
+  const dx0=di_sum0>0?(Math.abs(plus_di0-minus_di0)/di_sum0)*100:0
 
-  // Calculate DI lines
-  const plus_di=tr14>0?(pd14/tr14)*100:0
-  const minus_di=tr14>0?(md14/tr14)*100:0
-  const di_diff=Math.abs(plus_di-minus_di)
-  const di_sum=plus_di+minus_di
-  const dx=di_sum>0?(di_diff/di_sum)*100:0
+  let adx=dx0
 
-  // ADX is smoothed DX
-  let adx=dx
-  const dxArray=[dx]
-
+  // Single pass: smooth TR/DI, compute DX, smooth into ADX
   for (let i=period; i<trs.length; i++) {
     tr14=(tr14*(period-1)+trs[i])/period
     pd14=(pd14*(period-1)+plusDMs[i])/period
     md14=(md14*(period-1)+minusDMs[i])/period
     const new_plus_di=tr14>0?(pd14/tr14)*100:0
     const new_minus_di=tr14>0?(md14/tr14)*100:0
-    const new_dx=di_sum>0?((Math.abs(new_plus_di-new_minus_di))/(new_plus_di+new_minus_di))*100:0
-    dxArray.push(new_dx)
-    if (dxArray.length>=period) {
-      adx=(adx*(period-1)+new_dx)/period
-    }
+    const new_di_sum=new_plus_di+new_minus_di
+    const new_dx=new_di_sum>0?((Math.abs(new_plus_di-new_minus_di))/new_di_sum)*100:0
+    adx=(adx*(period-1)+new_dx)/period
   }
 
   return Math.min(100, Math.max(0, adx))
@@ -651,10 +640,10 @@ function calcConfluenceScore(
   }
 
   // 12. Bollinger Squeeze Release (12 pts)
-  const bbWidthHistory = bars.slice(-10).map(b => {
-    const cls = closes.slice(0, closes.indexOf(b.close)+1)
-    const bbW = calcBB(cls, 20, 2).width
-    return bbW
+  const bbWidthHistory = bars.slice(-10).map((_b, idx) => {
+    const barIdx = bars.length - 10 + idx
+    const cls = closes.slice(0, barIdx + 1)
+    return calcBB(cls, 20, 2).width
   })
   if (detectBBSqueezeRelease(bbWidthHistory)) {
     breakdown.bbSqueeze = 12
@@ -774,7 +763,8 @@ function calcVolatilityPercentile(bars:Bar[]): {pct:number; atrPct:number} {
   const current = last100[last100.length-1].close
   const atr = bars.length > 14 ? calcATR(bars.slice(-14)) : 0
   const curAtrPct = atr / current
-  const pct = Math.round((atrValues.indexOf(curAtrPct) / atrValues.length) * 100)
+  const rank = atrValues.filter(v => v <= curAtrPct).length
+  const pct = Math.round((rank / atrValues.length) * 100)
   return {pct: Math.max(0, Math.min(100, pct)), atrPct: curAtrPct}
 }
 
@@ -1040,8 +1030,8 @@ function isMacroEventWindow(nowDate: Date): { skip: boolean; reason: string } {
   if (utcDay === 3 && (weekOfMonth === 1 || weekOfMonth === 3) && Math.abs(totalMin - 18 * 60) <= 30)
     return { skip: true, reason: 'FOMC' }
 
-  // CPI — mid-month (10th–20th) at 12:30 UTC (±30 min)
-  if (utcD >= 10 && utcD <= 20 && Math.abs(totalMin - (12 * 60 + 30)) <= 30)
+  // CPI — typically released 10th–14th of each month at 12:30 UTC (±30 min)
+  if (utcD >= 10 && utcD <= 14 && Math.abs(totalMin - (12 * 60 + 30)) <= 30)
     return { skip: true, reason: 'CPI' }
 
   return { skip: false, reason: '' }
@@ -1206,7 +1196,7 @@ Deno.serve(async (req) => {
     }
 
     if (url.searchParams.get('reset')==='1') {
-      const newBalance = 5000
+      const newBalance = 10000
       await supabase.from('bot_trades').delete().neq('id',0)
       await supabase.from('bot_state').update({
         balance: newBalance,
@@ -1302,7 +1292,7 @@ Deno.serve(async (req) => {
       log.push(`EQUITY GUARD: balance $${balance.toFixed(0)} is ${(drawdownFromPeak*100).toFixed(0)}% below peak $${currentPeakBalance.toFixed(0)} — half sizing`)
     }
 
-    const needDailySummary=utcH===0&&utcM<2
+    const needDailySummary=utcH===0&&utcM===0
     const [btcBars,allFunding,COINS,fearGreed,trades100,dayTradesRaw,btcAdxForDaily]=await Promise.all([
       fetchBars('BTC','5m',60),
       fetchAllFundingRates(),
@@ -1412,13 +1402,15 @@ Deno.serve(async (req) => {
     for (let b=0; b<allManagedCoins.length; b+=BATCH) {
       await Promise.all(allManagedCoins.slice(b,b+BATCH).map(async (sym)=>{
       try {
-        const [bars5m,priceRes,bars1h,bars15m,oiSig]=await Promise.all([
+        const [bars5m,priceRes,bars1h,bars15m]=await Promise.all([
           fetchBars(sym,'5m',200),
           fetch(`${BINANCE_DATA}/ticker/price?symbol=${sym}USDT`).then(r=>r.json()).catch(()=>null),
           fetchBars(sym,'1h',30),
           fetchBars(sym,'15m',30),
-          fetchOISignal(sym)
         ])
+        const _price5m = priceRes?.price ? +priceRes.price : (bars5m[bars5m.length-1]?.close ?? 0)
+        const _priceChange5m = bars5m.length >= 2 ? (_price5m - bars5m[bars5m.length-2].close) / bars5m[bars5m.length-2].close : 0
+        const oiSig = await fetchOISignal(sym, _priceChange5m)
         if (!bars5m||bars5m.length<30) return
 
         const price    =priceRes?.price?+priceRes.price:bars5m[bars5m.length-1].close
@@ -1512,10 +1504,10 @@ Deno.serve(async (req) => {
           // ── TASK 1: Equity Guard — if 30% drawdown, close ALL positions immediately ──
           if (equityGuardPaused) {
             const fav = (price-entry)/entry*dirM
-            const pnl = (price-entry)*size*dirM - Number(t.fee) - price*size*FEE
+            const pnl = (price-entry)*size*dirM - price*size*FEE
             balance += entry*size+pnl; openCount--
             await supabase.from('bot_trades').update({
-              status:'TP', exit_price:price, pnl, pnl_pct:fav,
+              status: pnl >= 0 ? 'TP' : 'SL', exit_price:price, pnl, pnl_pct:fav,
               closed_at:new Date().toISOString()
             }).eq('id',t.id)
             await supabase.from('bot_trade_snapshots').update({ result:'equity_guard_forced_close', pnl }).eq('trade_id',t.id).catch(()=>{})
@@ -1528,7 +1520,7 @@ Deno.serve(async (req) => {
           let adjustedSl = sl
           if (equityGuardMult === 0.5) {
             const slDistTightened = slDist * 0.5
-            adjustedSl = t.side === 'LONG' ? entry + slDistTightened : entry - slDistTightened
+            adjustedSl = t.side === 'LONG' ? sl + slDistTightened : sl - slDistTightened
           }
 
           // ── Phase 3: Smart Early Exit — EMA9 cross against direction + low vol ──
@@ -1537,7 +1529,7 @@ Deno.serve(async (req) => {
             (t.side==='SHORT' && prevE9Exit <= prevE21Exit && curE9Exit > curE21Exit)
           if (emaCrossedAgainst && isLowVolExit) {
             const fav = (price-entry)/entry*dirM
-            const pnl = (price-entry)*size*dirM - Number(t.fee) - price*size*FEE
+            const pnl = (price-entry)*size*dirM - price*size*FEE
             const finalSt = pnl > 0 ? 'TP' : 'TRAIL'
             balance += entry*size+pnl; openCount--
             await supabase.from('bot_trades').update({
@@ -1564,7 +1556,7 @@ Deno.serve(async (req) => {
           if (advancedExit.closePercent > 0 && t.status === 'OPEN') {
             const closeSize = size * advancedExit.closePercent
             const fav = (price-entry)/entry*dirM
-            const closePnl = (price-entry)*closeSize*dirM - (Number(t.fee)*advancedExit.closePercent) - price*closeSize*FEE
+            const closePnl = (price-entry)*closeSize*dirM - price*closeSize*FEE
             balance += entry*closeSize+closePnl
 
             if (advancedExit.closePercent >= 1.0) {
@@ -1581,7 +1573,7 @@ Deno.serve(async (req) => {
               // Partial close
               await supabase.from('bot_trades').update({
                 size: size - closeSize,
-                trail_sl: entry + (entry-sl)*0.3*dirM  // Tighten SL
+                trail_sl: sl + (entry-sl)*0.3*dirM  // Tighten SL toward entry
               }).eq('id',t.id)
               log.push(`ADVANCED_PARTIAL ${sym} ${t.side} (${advancedExit.reason}) ${(advancedExit.closePercent*100).toFixed(0)}% @${price.toFixed(4)} pnl=${closePnl.toFixed(2)}`)
               continue
@@ -1606,7 +1598,7 @@ Deno.serve(async (req) => {
             const partialHit=t.side==='LONG'?price>=partialTPPrice:price<=partialTPPrice
             if (partialHit) {
               const halfSize  =size/2
-              const partialPnl=(price-entry)*halfSize*dirM*LEVERAGE-price*halfSize*FEE*LEVERAGE
+              const partialPnl=(price-entry)*halfSize*dirM - price*halfSize*FEE
               balance+=entry*halfSize+partialPnl
               // ── STAGE 2: Adjust SL to breakeven + 0.2R when partial TP hits ──
               const bePoint = entry*(1+FEE*2.5*dirM)
@@ -1615,7 +1607,7 @@ Deno.serve(async (req) => {
                 size:halfSize,trail_sl:adjPoint,partial_done:true
               }).eq('id',t.id)
               log.push(`PARTIAL ${sym} ${t.side} @${price.toFixed(4)} ${dynamicPartialR}R pnl=${partialPnl.toFixed(2)} sl_adj_be+0.2R`)
-              return
+              continue
             }
           }
 
@@ -1634,7 +1626,7 @@ Deno.serve(async (req) => {
 
           if (newStatus) {
             const fav=(price-entry)/entry*dirM
-            const pnl=(price-entry)*size*dirM-Number(t.fee)-price*size*FEE
+            const pnl=(price-entry)*size*dirM-price*size*FEE
             const final=pnl>0&&newStatus==='SL'?'TP':newStatus
             balance+=entry*size+pnl; openCount--
             await supabase.from('bot_trades').update({
@@ -1817,7 +1809,7 @@ Deno.serve(async (req) => {
         const notional = Math.min(riskAmt / slPct, balance * MAX_NOTIONAL_PCT, balance * 0.95)
         if (notional < 5) return
 
-        const size = notional / price, fee = price * size * FEE * LEVERAGE
+        const size = notional / price, fee = price * size * FEE
         balance -= (notional + fee); openCount++
         if (gid >= 0) corrGroupCount[gid] = (corrGroupCount[gid] || 0) + 1
 
