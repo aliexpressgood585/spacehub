@@ -66,7 +66,25 @@ Deno.serve(async (req) => {
     }
     log(`✓ Deleted all market memory (${deleteMemory.count || 0} rows affected)`)
 
-    // Step 5: Reset bot_state
+    // Step 5: Delete params history
+    log('Step 5: Deleting bot_params_history...')
+    const deleteParams = await supabase.from('bot_params_history').delete().neq('id', -1)
+    if (deleteParams.error) log(`⚠ bot_params_history: ${deleteParams.error.message}`)
+    else log(`✓ Deleted params history (${deleteParams.count || 0} rows)`)
+
+    // Step 6: Delete market regime history
+    log('Step 6: Deleting market_regime history...')
+    const deleteRegime = await supabase.from('market_regime').delete().neq('id', -1)
+    if (deleteRegime.error) log(`⚠ market_regime: ${deleteRegime.error.message}`)
+    else log(`✓ Deleted regime history (${deleteRegime.count || 0} rows)`)
+
+    // Step 7: Delete rebalance history
+    log('Step 7: Deleting rebalance_history...')
+    const deleteRebalance = await supabase.from('rebalance_history').delete().neq('id', -1)
+    if (deleteRebalance.error) log(`⚠ rebalance_history: ${deleteRebalance.error.message}`)
+    else log(`✓ Deleted rebalance history (${deleteRebalance.count || 0} rows)`)
+
+    // Step 8: Reset bot_state
     log('Step 5: Resetting bot_state to default values...')
     const resetState = await supabase.from('bot_state').update({
       balance: 10000,
@@ -112,6 +130,9 @@ Deno.serve(async (req) => {
           snapshots: deleteSnapshots.count || 0,
           logs: deleteLogs.count || 0,
           market_memory: deleteMemory.count || 0,
+          params_history: deleteParams.count || 0,
+          regime_history: deleteRegime.count || 0,
+          rebalance_history: deleteRebalance.count || 0,
         },
         bot_state_reset: {
           balance: 10000,
