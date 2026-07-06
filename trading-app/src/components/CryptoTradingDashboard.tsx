@@ -799,7 +799,7 @@ export default function CryptoTradingDashboard() {
               letterSpacing:'1px',filter:`drop-shadow(0 0 8px ${C.blue}80)`}}>
               ⚡ NEXUS TRADE
             </span>
-            <span style={{fontSize:'8px',color:C.muted,padding:'2px 5px',border:`1px solid ${C.dim}`,borderRadius:'4px'}}>v26</span>
+            <span style={{fontSize:'8px',color:C.muted,padding:'2px 5px',border:`1px solid ${C.dim}`,borderRadius:'4px'}}>v27</span>
           </div>
 
           <div style={{display:'flex',gap:'5px',flexWrap:'wrap' as const}}>
@@ -1306,7 +1306,7 @@ export default function CryptoTradingDashboard() {
       </div>
 
       <div style={{textAlign:'center' as const,color:C.muted,fontSize:'9px',marginTop:'8px',letterSpacing:'0.5px',opacity:0.7}}>
-        {supaLive?'☁ שרת בוט v26 פעיל 24/7 · מסגרת זמן 5 דקות · מחירים חיים מ-Binance':'מסחר וירטואלי · מחירים חיים מ-Binance'}
+        {supaLive?'☁ שרת בוט v27 פעיל 24/7 · מסגרת זמן 5 דקות · מחירים חיים מ-Binance':'מסחר וירטואלי · מחירים חיים מ-Binance'}
       </div>
     </div>
   )

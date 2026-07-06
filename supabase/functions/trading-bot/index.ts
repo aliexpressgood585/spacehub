@@ -1,12 +1,12 @@
 // ════════════════════════════════════════════════════════════
-// CryptoBot v26 — Production-grade trading bot
+// CryptoBot v27 — Production-grade trading bot
 //
-// v26 fixes (performance overhaul):
-//  1. RISK CAP: removed ultra risk, max is 'high' (2.5%), default medium (1.8%)
-//  2. REGIME FILTER FIX: actually use shouldSkip (was dead code since v22)
-//  3. CONFLUENCE THRESHOLD: raised from 55→65 for higher quality entries
-//  4. RSI TIGHTENED: 42/58 → 35/65 (require more extreme readings)
-//  5. COOLDOWN 3X: symbol cooldown 5→15 minutes to reduce overtrading
+// v27 upgrades (let winners run):
+//  1. TRAIL FROM 1R: breakeven trail starts at 1.0R (was 0.5R — cut winners)
+//  2. PARTIAL TP LATER: 1.2-1.8R by vol regime (was 0.8-1.5R)
+//  3. EARLY EXIT ONLY ON LOSERS: EMA reversal exit no longer closes winners
+//  4. BIGGER POSITIONS: notional cap 8%→12%, total exposure 20%→30%
+//  5. OPTIMIZER FLOOR: min_confluence_score clamped to >= 60
 // ════════════════════════════════════════════════════════════
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
@@ -37,7 +37,7 @@ const MIN_SCORE      = 2
 const VPOC_MAX_DIST  = 0.035
 
 // v21: Dynamic partial TP by vol regime
-const PARTIAL_TP_BY_VOL = { LOW: 0.8, MEDIUM: 1.2, HIGH: 1.5 }
+const PARTIAL_TP_BY_VOL = { LOW: 1.2, MEDIUM: 1.5, HIGH: 1.8 }
 
 // v21: Session-based sizing + strictness
 const SESSION_PARAMS = {
@@ -97,9 +97,9 @@ const SWING_LOOKBACK  = 60
 const SWEEP_LOOKBACK  = 5
 const MAX_HOLD_MIN    = 180
 const STREAK_PAUSE_MS = 10*60_000
-const MAX_NOTIONAL_PCT= 0.08
+const MAX_NOTIONAL_PCT= 0.12
 const MAX_OPEN_TRADES = 3
-const MAX_TOTAL_EXPOSURE_PCT = 0.20
+const MAX_TOTAL_EXPOSURE_PCT = 0.30
 const FUNDING_EXTREME = 0.0003
 const MIN_SL_PCT      = 0.005
 const SYM_COOLDOWN_MS = 15*60_000
@@ -1780,10 +1780,11 @@ Deno.serve(async (req) => {
           }
 
           // ── Phase 3: Smart Early Exit — EMA9 cross against direction + low vol ──
+          // v27: only cut LOSING trades early — winners get to run to trail/TP
           const emaCrossedAgainst =
             (t.side==='LONG'  && prevE9Exit >= prevE21Exit && curE9Exit < curE21Exit) ||
             (t.side==='SHORT' && prevE9Exit <= prevE21Exit && curE9Exit > curE21Exit)
-          if (emaCrossedAgainst && isLowVolExit) {
+          if (emaCrossedAgainst && isLowVolExit && (price-entry)*dirM < 0) {
             const fav = (price-entry)/entry*dirM
             const pnl = (price-entry)*size*dirM - price*size*FEE
             const finalSt = pnl > 0 ? 'TP' : 'TRAIL'
@@ -1903,12 +1904,12 @@ Deno.serve(async (req) => {
             const profitR=origSlDist>0?(price-entry)*dirM/origSlDist:0
             let newSL=slToUse
 
-            // TASK 1: Start trailing much earlier at 0.5R profit
-            if (profitR>=0.5) {
+            // v27: Breakeven trail starts at 1.0R — let winners breathe
+            if (profitR>=1.0) {
               const beLevel=entry*(1+FEE*2.5*dirM)
               newSL=dirM===1?Math.max(slToUse,beLevel):Math.min(slToUse,beLevel)
             }
-            if (profitR>=1.0) {
+            if (profitR>=1.5) {
               const trailLevel=price-atr*vp.trailAtr*dirM
               newSL=dirM===1?Math.max(newSL,trailLevel):Math.min(newSL,trailLevel)
             }
@@ -1948,7 +1949,7 @@ Deno.serve(async (req) => {
         const dynRsiOverbought  = Number(_bp.rsi_overbought       ?? 65)
         const dynBbProx         = Number(_bp.bb_proximity         ?? 1.02)
         const dynTpR            = Number(_bp.tp_r                 ?? 2.5)
-        const dynMinConfluence  = Number(_bp.min_confluence_score ?? 65)
+        const dynMinConfluence  = Math.max(60, Number(_bp.min_confluence_score ?? 65))
         const dynMinAdx         = Number(_bp.min_adx              ?? 0)
 
         // v22: Use confluence score instead of 2/4 signals
@@ -2161,7 +2162,7 @@ Deno.serve(async (req) => {
     }).eq('id',1)
 
     return new Response(JSON.stringify({
-      ok:true,v:26,openCount,maxOpen:MAX_OPEN_TRADES,streakPaused,streak,btcBias,btcRegime,
+      ok:true,v:27,openCount,maxOpen:MAX_OPEN_TRADES,streakPaused,streak,btcBias,btcRegime,
       kelly:kellyMult,fearGreed,adaptMinScore,adaptVpocDist,adaptSideFilter,
       session,sessionSizeMult:sp.sizeMult,equityGuardMult,
       drawdownFromPeak:(drawdownFromPeak*100).toFixed(1)+'%',
