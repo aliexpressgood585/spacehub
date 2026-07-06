@@ -10,6 +10,8 @@
 //  6. (v27.2) BTC BIAS GATE + max 2 new entries per scan
 //  7. (v27.3) TREND-CONTINUATION SETUP: short the bounce in downtrends,
 //     long the dip in uptrends — bot is no longer idle in bear markets
+//  8. (v27.4) RANGE-FADE MODE: band-extreme fades in low-ADX chop get
+//     normal size, score credit, and a realistic mid-band TP
 // ════════════════════════════════════════════════════════════
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
@@ -511,6 +513,8 @@ interface EntryScore {
   breakdown: ConfluenceBreakdown;
   adx: number;
   regime: 'BULL'|'BEAR'|'NEUTRAL'|'UNCERTAIN';
+  rangeFade?: boolean;   // v27.4: band-extreme fade in a low-ADX range
+  bbMid?: number;        // v27.4: mid-band, used as realistic range TP
 }
 
 function calcConfluenceScore(
@@ -565,6 +569,13 @@ function calcConfluenceScore(
   const side = longSig >= 2 ? 'LONG' : shortSig >= 2 ? 'SHORT' : null
   if (!side) return {side: null, slDist: 0, score: 0, breakdown: {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0}, adx, regime: 'UNCERTAIN'}
 
+  // v27.4: range-fade — band extreme + RSI extreme in low-ADX chop.
+  // This is the highest-probability trade a ranging market offers.
+  const rangeFade = adx < 18 && (
+    (side === 'LONG'  && price <= bb.lower * bbProx && rsi < rsiOversold + 5) ||
+    (side === 'SHORT' && price >= bb.upper * (2 - bbProx) && rsi > rsiOverbought - 5)
+  )
+
   // Confluence Score Breakdown (0-100)
   const breakdown: ConfluenceBreakdown = {vpoc: 0, ema1h: 0, adxTrend: 0, volumeSurge: 0, oiFavor: 0, sentiment: 0, candlePattern: 0, stochastic: 0, divergence: 0, macd: 0, pivotBounce: 0, bbSqueeze: 0}
 
@@ -582,8 +593,10 @@ function calcConfluenceScore(
   }
 
   // 3. ADX trending (10 pts): ADX > 22
+  // v27.4: a clean range-fade earns credit too — low ADX is a feature there
   if (adx > 22) breakdown.adxTrend = 10
   else if (adx > 15) breakdown.adxTrend = 5
+  else if (rangeFade) breakdown.adxTrend = 8
 
   // 4. Volume surge (10 pts): vol > 1.4× 20-bar average
   const vols = bars.slice(-20).map(b => b.vol)
@@ -670,19 +683,22 @@ function calcConfluenceScore(
     score: totalScore,
     breakdown,
     adx,
-    regime
+    regime,
+    rangeFade,
+    bbMid: bb.mid
   }
 }
 
 // v22: Market regime filter for ADX
-function applyMarketRegimeFilter(score: number, adx: number, sizeMult: number): {score: number; sizeAdj: number; shouldSkip: boolean} {
+function applyMarketRegimeFilter(score: number, adx: number, sizeMult: number, rangeFade = false): {score: number; sizeAdj: number; shouldSkip: boolean} {
   let sizeAdj = sizeMult
 
   // ADX > 25 → +10% size (strong trending)
   if (adx > 25) sizeAdj *= 1.10
 
-  // ADX < 15 → -70% size (reduce in weak conditions)
-  if (adx < 15) sizeAdj *= 0.30
+  // ADX < 15 → -70% size (weak trend), but a deliberate range-fade
+  // WANTS low ADX — only a mild haircut there (v27.4)
+  if (adx < 15) sizeAdj *= rangeFade ? 0.75 : 0.30
 
   // Gate threshold tuning: require score >= 60
   const shouldSkip = score < 60
@@ -1979,7 +1995,7 @@ Deno.serve(async (req) => {
           return
         }
 
-        const regimeCheck = applyMarketRegimeFilter(entryScore.score, adx, 1.0)
+        const regimeCheck = applyMarketRegimeFilter(entryScore.score, adx, 1.0, entryScore.rangeFade)
         if (regimeCheck.shouldSkip) {
           log.push(`SKIP ${sym}: regime filter score=${entryScore.score} < 60`)
           return
@@ -2051,7 +2067,17 @@ Deno.serve(async (req) => {
         if (slPct < MIN_SL_PCT || slPct > 0.04) return
 
         // ── STAGE 2: Dynamic TP based on volatility percentile ──
-        const tpR = dynamicTPBase
+        // v27.4: range-fade targets the mid-band — a 2.5R target never fills
+        // inside a range. If the range is too tight for >= 1R, skip: fees win.
+        let tpR = dynamicTPBase
+        if (entryScore.rangeFade && entryScore.bbMid) {
+          const midR = Math.abs(entryScore.bbMid - price) / slDist
+          if (midR < 1.0) {
+            log.push(`SKIP ${sym}: range too tight (mid-band ${midR.toFixed(2)}R)`)
+            return
+          }
+          tpR = Math.min(tpR, midR)
+        }
         const tpPrice = side === 'LONG' ? price + slDist * tpR : price - slDist * tpR
         const hiVal   = side === 'LONG' ? tpPrice : price
         const loVal   = side === 'SHORT' ? tpPrice : price
