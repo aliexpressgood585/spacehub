@@ -69,8 +69,8 @@ Deno.serve(async (req) => {
     // Step 5: Reset bot_state
     log('Step 5: Resetting bot_state to default values...')
     const resetState = await supabase.from('bot_state').update({
-      balance: 1000,
-      peak_balance: 1000,
+      balance: 10000,
+      peak_balance: 10000,
       streak: 0,
       trade_count: 0,
       overall_wr: 0,
@@ -92,8 +92,8 @@ Deno.serve(async (req) => {
     }
 
     log('✓ Reset bot_state successfully')
-    log(`  - Balance: $1000`)
-    log(`  - Peak Balance: $1000`)
+    log(`  - Balance: $10000`)
+    log(`  - Peak Balance: $10000`)
     log(`  - Streak: 0`)
     log(`  - Trade Count: 0`)
     log(`  - Win Rate: 0%`)
@@ -117,8 +117,8 @@ Deno.serve(async (req) => {
           market_memory: deleteMemory.count || 0,
         },
         bot_state_reset: {
-          balance: 1000,
-          peak_balance: 1000,
+          balance: 10000,
+          peak_balance: 10000,
           streak: 0,
           trade_count: 0,
           overall_wr: 0,
