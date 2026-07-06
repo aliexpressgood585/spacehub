@@ -94,13 +94,15 @@ const RISK = {
 type RiskKey = keyof typeof RISK
 
 const FEE             = 0.001
-const LEVERAGE        = 20
+const LEVERAGE        = 10
 const SWING_N         = 5
 const SWING_LOOKBACK  = 60
 const SWEEP_LOOKBACK  = 5
 const MAX_HOLD_MIN    = 180
 const STREAK_PAUSE_MS = 10*60_000
-const MAX_NOTIONAL_PCT= 0.12
+const MAX_NOTIONAL_PCT= 0.08
+const MAX_OPEN_TRADES = 3
+const MAX_TOTAL_EXPOSURE_PCT = 0.20
 const FUNDING_EXTREME = 0.0003
 const MIN_SL_PCT      = 0.005
 const SYM_COOLDOWN_MS = 5*60_000
@@ -1673,7 +1675,8 @@ Deno.serve(async (req) => {
         if (circuitBreakerActive) return
         if (equityGuardPaused) return  // Phase 10: 30% drawdown pause
         if (streakPaused) return
-        if (openTrades.length > 0) return
+        if (openCount >= MAX_OPEN_TRADES) return
+        if (openTrades.length > 0) return  // 1 trade per symbol
         if (symCooldown.has(sym)) return
         if (dynamicBlacklist.has(sym)) return
         // Phase 4: Skip suspended coins
@@ -1806,7 +1809,9 @@ Deno.serve(async (req) => {
         }
 
         const riskAmt = balance * R.riskPct * kellyMult * kellyByScore * sizeAdjByRegime * sessionSizeAdj * coinSizeMult * volSizeMult * equityGuardMult * correlationHedgeMult
-        const notional = Math.min(riskAmt / slPct, balance * MAX_NOTIONAL_PCT, balance * 0.95)
+        const currentExposure = (allOpen||[]).reduce((sum:number, t:any) => sum + Number(t.entry_price) * Number(t.size), 0)
+        const remainingExposure = Math.max(0, balance * MAX_TOTAL_EXPOSURE_PCT - currentExposure)
+        const notional = Math.min(riskAmt / slPct, balance * MAX_NOTIONAL_PCT, remainingExposure, balance * 0.95)
         if (notional < 5) return
 
         const size = notional / price, fee = price * size * FEE
@@ -1889,7 +1894,7 @@ Deno.serve(async (req) => {
     }).eq('id',1)
 
     return new Response(JSON.stringify({
-      ok:true,v:23,openCount,streakPaused,streak,btcBias,btcRegime,
+      ok:true,v:24,openCount,maxOpen:MAX_OPEN_TRADES,streakPaused,streak,btcBias,btcRegime,
       kelly:kellyMult,fearGreed,adaptMinScore,adaptVpocDist,adaptSideFilter,
       session,sessionSizeMult:sp.sizeMult,equityGuardMult,drawdownFromPeak:(drawdownFromPeak*100).toFixed(1)+'%',
       suspended:[...suspendedCoins],
