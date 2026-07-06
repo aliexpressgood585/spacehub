@@ -1,15 +1,14 @@
 // ════════════════════════════════════════════════════════════
-// CryptoBot v22 — Enhanced with ADX, Confluence Score, & Diary
+// CryptoBot v25 — Production-grade trading bot
 //
-// v22 upgrades (on top of v21):
-//  1. ADX CALCULATION: market regime filter (ADX > 22 = trending)
-//  2. CONFLUENCE GATE: score 0-100 (VPOC + 1H + ADX + Volume + OI + Sentiment + Candlestick)
-//     Only enter if score >= 60 (replaces 2/4 signals, reduces false entries ~95%)
-//  3. DYNAMIC POSITION SIZING: Kelly scaling by score (50→0.8×, 60→1.0×, 70→1.2×, 80→1.5×)
-//  4. MARKET REGIME FILTER: ADX > 25 → +10% size; ADX < 15 → -70% size
-//  5. STRICT 1H TREND: Require 1H EMA9 > EMA21 for longs (not just bias)
-//  6. TRADING DIARY: Log daily summaries + each entry decision
-//  7. SCORE BREAKDOWN: Log confluence components for each entry
+// v25 upgrades:
+//  1. FUNDING RATE FILTER: skip entries where funding works against direction
+//  2. FUNDING RATE BONUS: +3 score when funding favors direction
+//  3. PROGRESSIVE DRAWDOWN SCALING: smooth 5%→100% → 30%→0% curve
+//  4. DAILY LOSS LIMIT: stop new entries if lost >3% of balance today
+//  5. DYNAMIC MAX HOLD: extend in profit (2x at 2R), shorten if losing (0.6x)
+//  6. API FALLBACK: CoinGecko backup when Binance price unavailable
+//  7. MULTI-TF SCORE BONUS: +10 both align, +5 one aligns (not hard gate)
 // ════════════════════════════════════════════════════════════
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
@@ -108,6 +107,8 @@ const MIN_SL_PCT      = 0.005
 const SYM_COOLDOWN_MS = 5*60_000
 const MAX_DD_STOP     = 0.80
 const INITIAL_BALANCE = 10000
+const DAILY_LOSS_LIMIT_PCT = 0.03
+const FUNDING_AGAINST_THRESHOLD = 0.0005
 
 const VOL_PARAMS = {
   LOW:    { slMult:2.0, tpR:2.2, trailBeR:0.8, trailAtr:0.6 },
@@ -770,6 +771,61 @@ function calcVolatilityPercentile(bars:Bar[]): {pct:number; atrPct:number} {
   return {pct: Math.max(0, Math.min(100, pct)), atrPct: curAtrPct}
 }
 
+// v25: Progressive drawdown scaling — smooth curve instead of binary
+function calcDrawdownScale(drawdownPct: number): number {
+  if (drawdownPct <= 0.05) return 1.0
+  if (drawdownPct >= 0.30) return 0.0  // fully paused
+  // Linear interpolation: 5%→1.0, 10%→0.75, 15%→0.5, 20%→0.35, 25%→0.2, 30%→0
+  return Math.max(0, 1.0 - (drawdownPct - 0.05) * 4.0)
+}
+
+// v25: Dynamic max hold — extend if in profit, shorten if losing
+function calcDynamicMaxHold(baseMaxHold: number, profitR: number): number {
+  if (profitR >= 2.0) return baseMaxHold * 2.0   // winning big → let it run
+  if (profitR >= 1.0) return baseMaxHold * 1.5   // in profit → extend
+  if (profitR <= -0.5) return baseMaxHold * 0.6  // losing → cut sooner
+  return baseMaxHold
+}
+
+// v25: Funding rate filter — skip entries where funding works against us
+function isFundingAgainst(fundingRate: number, side: 'LONG'|'SHORT'): boolean {
+  if (side === 'LONG' && fundingRate > FUNDING_AGAINST_THRESHOLD) return true
+  if (side === 'SHORT' && fundingRate < -FUNDING_AGAINST_THRESHOLD) return true
+  return false
+}
+
+// v25: API fallback — fetch price from CoinGecko if Binance fails
+async function fetchPriceFallback(sym: string): Promise<number|null> {
+  try {
+    const geckoIds: Record<string,string> = {
+      BTC:'bitcoin',ETH:'ethereum',SOL:'solana',BNB:'binancecoin',
+      XRP:'ripple',ADA:'cardano',DOGE:'dogecoin',AVAX:'avalanche-2',
+      LINK:'chainlink',DOT:'polkadot',UNI:'uniswap',ATOM:'cosmos',
+      LTC:'litecoin',BCH:'bitcoin-cash',NEAR:'near',ALGO:'algorand',
+      FIL:'filecoin',VET:'vechain',ICP:'internet-computer',POL:'polygon-ecosystem-token'
+    }
+    const id = geckoIds[sym]
+    if (!id) return null
+    const res = await fetch(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd`,
+      {headers:{'User-Agent':'Mozilla/5.0'}}
+    )
+    if (!res.ok) return null
+    const data = await res.json()
+    return data[id]?.usd ?? null
+  } catch { return null }
+}
+
+// v25: Daily P&L calculation
+function calcDailyPnl(recentTrades: any[]): number {
+  const todayStart = new Date()
+  todayStart.setUTCHours(0, 0, 0, 0)
+  const todayMs = todayStart.getTime()
+  return (recentTrades || [])
+    .filter(t => t.closed_at && new Date(t.closed_at).getTime() >= todayMs)
+    .reduce((sum, t) => sum + Number(t.pnl || 0), 0)
+}
+
 // ── STAGE 2: Dynamic Stop Loss by ADX ──
 function calcDynamicSL(atr:number, adx:number, baseMult:number = 1.2): number {
   if (adx > 25) return atr * 1.0
@@ -1279,19 +1335,26 @@ Deno.serve(async (req) => {
     if (streakPaused) log.push(`STREAK PAUSE ${streak}`)
     if (dynamicBlacklist.size>0) log.push(`BLACKLIST ${[...dynamicBlacklist].join(',')}`)
 
-    // ── Phase 10: Equity Curve Guard ──────────────────────────────────────────
+    // ── Phase 10: Equity Curve Guard (v25: progressive scaling) ────────────────
     const peakBalanceStored  = Number(state.peak_balance ?? INITIAL_BALANCE)
     const currentPeakBalance = Math.max(peakBalanceStored, balance)
     const newPeakBalance     = balance > peakBalanceStored ? balance : peakBalanceStored
     const drawdownFromPeak   = currentPeakBalance > 0 ? (currentPeakBalance - balance) / currentPeakBalance : 0
-    let equityGuardMult   = 1.0
-    let equityGuardPaused = false
-    if (drawdownFromPeak >= 0.30) {
+    const drawdownScale      = calcDrawdownScale(drawdownFromPeak)
+    let equityGuardMult   = drawdownScale
+    let equityGuardPaused = drawdownScale <= 0
+    if (equityGuardPaused) {
+      log.push(`EQUITY GUARD: ${(drawdownFromPeak*100).toFixed(0)}% drawdown — PAUSED`)
+    } else if (drawdownScale < 1.0) {
+      log.push(`EQUITY GUARD: ${(drawdownFromPeak*100).toFixed(0)}% drawdown — sizing at ${(drawdownScale*100).toFixed(0)}%`)
+    }
+
+    // v25: Daily P&L circuit breaker — stop if lost more than 3% of balance today
+    const dailyPnl = calcDailyPnl(recent || [])
+    const dailyLossLimitActive = dailyPnl < -(balance * DAILY_LOSS_LIMIT_PCT)
+    if (dailyLossLimitActive) {
       equityGuardPaused = true
-      log.push(`EQUITY GUARD: balance $${balance.toFixed(0)} is ${(drawdownFromPeak*100).toFixed(0)}% below peak $${currentPeakBalance.toFixed(0)} — PAUSED 2h`)
-    } else if (drawdownFromPeak >= 0.15) {
-      equityGuardMult = 0.5
-      log.push(`EQUITY GUARD: balance $${balance.toFixed(0)} is ${(drawdownFromPeak*100).toFixed(0)}% below peak $${currentPeakBalance.toFixed(0)} — half sizing`)
+      log.push(`DAILY LOSS LIMIT: lost $${Math.abs(dailyPnl).toFixed(0)} today (>${(DAILY_LOSS_LIMIT_PCT*100).toFixed(0)}% of balance) — no new entries`)
     }
 
     const needDailySummary=utcH===0&&utcM===0
@@ -1415,7 +1478,16 @@ Deno.serve(async (req) => {
         const oiSig = await fetchOISignal(sym, _priceChange5m)
         if (!bars5m||bars5m.length<30) return
 
-        const price    =priceRes?.price?+priceRes.price:bars5m[bars5m.length-1].close
+        // v25: API fallback — try CoinGecko if Binance price unavailable
+        let price = priceRes?.price ? +priceRes.price : 0
+        if (!price && bars5m.length > 0) price = bars5m[bars5m.length-1].close
+        if (!price) {
+          const fallbackPrice = await fetchPriceFallback(sym)
+          if (fallbackPrice) {
+            price = fallbackPrice
+            log.push(`FALLBACK ${sym}: using CoinGecko price $${price}`)
+          } else return
+        }
         const completed=bars5m.slice(0,-1)
         const atr      =calcATR(completed)
         const atrPct   =atr/price
@@ -1624,7 +1696,10 @@ Deno.serve(async (req) => {
             if(price<=tp)  newStatus='TP'
             else if(price>=slToUse) newStatus=price<=entry?'TRAIL':'SL'
           }
-          if (!newStatus&&ageMs>dynMaxHold*60_000) newStatus='TRAIL'
+          // v25: Dynamic max hold — extend if in profit, shorten if losing
+          const profitRForHold = origSlDist > 0 ? (price-entry)*dirM/origSlDist : 0
+          const adjMaxHold = calcDynamicMaxHold(dynMaxHold, profitRForHold)
+          if (!newStatus&&ageMs>adjMaxHold*60_000) newStatus='TRAIL'
 
           if (newStatus) {
             const fav=(price-entry)/entry*dirM
@@ -1724,6 +1799,13 @@ Deno.serve(async (req) => {
           return
         }
 
+        // v25: Funding rate filter — skip if funding is strongly against direction
+        const symFunding = allFunding[sym] ?? 0
+        if (entryScore.side && isFundingAgainst(symFunding, entryScore.side)) {
+          log.push(`SKIP ${sym}: funding ${(symFunding*100).toFixed(3)}% against ${entryScore.side}`)
+          return
+        }
+
         // v24: Multi-TF alignment as score bonus instead of hard gate
         let mtfBonus = 0
         const _1hAligned = (entryScore.side === 'LONG' && ema1hBias === 'BULL') || (entryScore.side === 'SHORT' && ema1hBias === 'BEAR')
@@ -1731,9 +1813,14 @@ Deno.serve(async (req) => {
         if (_1hAligned && _15mAligned) mtfBonus = 10
         else if (_1hAligned || _15mAligned) mtfBonus = 5
 
-        const finalScore = entryScore.score + mtfBonus
+        // v25: Funding rate bonus — if funding FAVORS our direction, add +3
+        let fundingBonus = 0
+        if (entryScore.side === 'LONG' && symFunding < -0.0002) fundingBonus = 3
+        if (entryScore.side === 'SHORT' && symFunding > 0.0002) fundingBonus = 3
+
+        const finalScore = entryScore.score + mtfBonus + fundingBonus
         if (finalScore < dynMinConfluence) {
-          log.push(`SKIP ${sym}: finalScore=${finalScore} (base=${entryScore.score}+mtf=${mtfBonus}) < ${dynMinConfluence}`)
+          log.push(`SKIP ${sym}: finalScore=${finalScore} (base=${entryScore.score}+mtf=${mtfBonus}+fr=${fundingBonus}) < ${dynMinConfluence}`)
           return
         }
 
@@ -1866,7 +1953,8 @@ Deno.serve(async (req) => {
         const tpStr = dynamicTPBase !== 2.5 ? ` dyn_tp=${dynamicTPBase.toFixed(2)}R` : ''
         const mtfStr = ema15mBias !== 'NEUTRAL' ? ` 15m=${ema15mBias}` : ''
         const hedgeStr = correlationHedgeMult !== 1.0 ? ` hedge=${(correlationHedgeMult*100).toFixed(0)}%` : ''
-        log.push(`OPEN ${sym} ${side} [CONF] score=${finalScore}(base=${Math.round(entryScore.score)}+mtf=${mtfBonus}) (${breakdownStr})${mtfStr} adx=${adx.toFixed(0)}${tpStr}${hedgeStr} vol_pct=${volPctile}${volSizeStr} sess_adj=${sessionSizeAdj.toFixed(2)} @${price.toFixed(6)} sl=${(slPct*100).toFixed(3)}% $${notional.toFixed(0)} ${session}`)
+        const frStr = symFunding !== 0 ? ` fr=${(symFunding*100).toFixed(3)}%` : ''
+        log.push(`OPEN ${sym} ${side} [CONF] score=${finalScore}(base=${Math.round(entryScore.score)}+mtf=${mtfBonus}+fr=${fundingBonus}) (${breakdownStr})${mtfStr} adx=${adx.toFixed(0)}${tpStr}${hedgeStr}${frStr} vol_pct=${volPctile}${volSizeStr} sess_adj=${sessionSizeAdj.toFixed(2)} @${price.toFixed(6)} sl=${(slPct*100).toFixed(3)}% $${notional.toFixed(0)} ${session}`)
 
       } catch(e) {
         log.push(`ERR ${sym}: ${String(e).slice(0,40)}`)
@@ -1887,9 +1975,12 @@ Deno.serve(async (req) => {
     }).eq('id',1)
 
     return new Response(JSON.stringify({
-      ok:true,v:24,openCount,maxOpen:MAX_OPEN_TRADES,streakPaused,streak,btcBias,btcRegime,
+      ok:true,v:25,openCount,maxOpen:MAX_OPEN_TRADES,streakPaused,streak,btcBias,btcRegime,
       kelly:kellyMult,fearGreed,adaptMinScore,adaptVpocDist,adaptSideFilter,
-      session,sessionSizeMult:sp.sizeMult,equityGuardMult,drawdownFromPeak:(drawdownFromPeak*100).toFixed(1)+'%',
+      session,sessionSizeMult:sp.sizeMult,equityGuardMult,
+      drawdownFromPeak:(drawdownFromPeak*100).toFixed(1)+'%',
+      drawdownScale:(drawdownScale*100).toFixed(0)+'%',
+      dailyPnl:dailyPnl.toFixed(2),dailyLossLimitActive,
       suspended:[...suspendedCoins],
       blacklist:[...dynamicBlacklist],
       topCoins:topCoins.slice(0,5).map(([s,v])=>({
