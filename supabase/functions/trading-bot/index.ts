@@ -1,5 +1,7 @@
 // ════════════════════════════════════════════════════════════
-// CryptoBot v27 — Production-grade trading bot
+// CryptoBot v28 — Production-grade trading bot
+//
+// v28: FOCUS UNIVERSE — 10 most liquid majors only
 //
 // v27 upgrades (let winners run):
 //  1. TRAIL FROM 1R: breakeven trail starts at 1.0R (was 0.5R — cut winners)
@@ -23,22 +25,19 @@ const BINANCE      = 'https://api.binance.com/api/v3'
 const FAPI         = 'https://fapi.binance.com/fapi/v1'
 const FAPI_DATA    = 'https://fapi.binance.com/futures/data'
 
+// v28: focus on the 10 most liquid majors — cleaner charts, tighter
+// spreads, less small-cap noise in every scan
 const FIXED_COINS = [
-  'BTC','ETH','SOL','BNB','XRP','ADA','DOGE','AVAX','LINK','DOT',
-  'POL','UNI','ATOM','LTC','BCH','NEAR','ALGO','FIL','VET','ICP',
+  'BTC','ETH','SOL','BNB','XRP','DOGE','ADA','LINK','AVAX','LTC',
 ]
 const FALLBACK_COINS = FIXED_COINS
 const MIN_COIN_WIN_RATE = 0.42
 const MIN_COIN_TRADES   = 8
 
 const CORR_GROUPS: string[][] = [
-  ['SOL','AVAX','NEAR','ATOM','DOT','ALGO'],
-  ['UNI','AAVE'],
-  ['LINK'],
+  ['SOL','AVAX'],
   ['DOGE','ADA'],
-  ['LTC','BCH'],
-  ['XRP'],
-  ['BNB'],['BTC'],['ETH'],['FIL'],['VET'],['ICP'],['POL'],
+  ['LINK'],['LTC'],['XRP'],['BNB'],['BTC'],['ETH'],
 ]
 const MAX_PER_GROUP  = 3
 const MIN_SCORE      = 2
@@ -2194,7 +2193,7 @@ Deno.serve(async (req) => {
     }).eq('id',1)
 
     return new Response(JSON.stringify({
-      ok:true,v:27,openCount,maxOpen:MAX_OPEN_TRADES,streakPaused,streak,btcBias,btcRegime,
+      ok:true,v:28,openCount,maxOpen:MAX_OPEN_TRADES,streakPaused,streak,btcBias,btcRegime,
       kelly:kellyMult,fearGreed,adaptMinScore,adaptVpocDist,adaptSideFilter,
       session,sessionSizeMult:sp.sizeMult,equityGuardMult,
       drawdownFromPeak:(drawdownFromPeak*100).toFixed(1)+'%',
