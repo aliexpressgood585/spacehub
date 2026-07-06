@@ -1175,62 +1175,242 @@ async function updateMarketMemory(
   }
 }
 
-async function runBacktest(): Promise<object> {
-  const testCoins=['BTC','ETH','SOL']
-  const results:any[]=[]
+// v25: Fetch historical bars with pagination (up to 30 days of 5m data)
+async function fetchBarsHistorical(sym: string, interval: string, days: number): Promise<Bar[]> {
+  const allBars: Bar[] = []
+  const now = Date.now()
+  const msPerBar = interval === '5m' ? 5*60_000 : interval === '15m' ? 15*60_000 : interval === '1h' ? 3600_000 : 5*60_000
+  const totalBars = Math.floor(days * 86400_000 / msPerBar)
+  const batchSize = 1000
+
+  let endTime = now
+  let remaining = totalBars
+
+  while (remaining > 0) {
+    const limit = Math.min(batchSize, remaining)
+    const startTime = endTime - limit * msPerBar
+    try {
+      const res = await fetch(
+        `${BINANCE_DATA}/klines?symbol=${sym}USDT&interval=${interval}&startTime=${startTime}&endTime=${endTime}&limit=${limit}`,
+        {headers:{'User-Agent':'Mozilla/5.0'}}
+      )
+      if (!res.ok) break
+      const data: number[][] = await res.json()
+      if (!data.length) break
+      const bars = data.map(k => ({open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
+      allBars.unshift(...bars)
+      endTime = startTime - 1
+      remaining -= data.length
+      if (data.length < limit) break
+    } catch { break }
+  }
+  return allBars
+}
+
+async function runBacktest(daysParam = 30): Promise<object> {
+  const testCoins = ['BTC','ETH','SOL','BNB','XRP','DOGE','AVAX','LINK']
+  const days = Math.min(daysParam, 90)
+  const results: any[] = []
+  const equityCurve: {day: number; balance: number}[] = []
+  let totalBalance = 10_000
+  const startBalance = totalBalance
+  let totalWins = 0, totalLosses = 0
+  const allPnls: number[] = []
+
   for (const sym of testCoins) {
-    const bars=await fetchBars(sym,'5m',500)
-    if (bars.length<80) continue
-    let bal=10_000, wins=0, losses=0, partials=0
-    const pnls:number[]=[]
-    for (let i=SWING_N+20; i<bars.length-1; i++) {
-      const slice=bars.slice(0,i+1), price=slice[i].close
-      const atr=calcATR(slice.slice(-(14+1))), atrPct=atr/price
-      if (atrPct>0.02||atrPct<0.00003) continue
-      const vp=VOL_PARAMS[getVolRegime(atrPct)]
-      const {highs,lows}=findSwings(slice.slice(-SWING_LOOKBACK),SWING_N)
-      if (!highs.length&&!lows.length) continue
-      const sweep=detectSweep(slice,price,highs,lows,atr)
-      if (!sweep) continue
-      const vpoc=calcVPOC(slice.slice(-80))
-      const vpocAligned=sweep.side==='LONG'?vpoc>price:vpoc<price
-      if (!vpocAligned||Math.abs(vpoc-price)/price>VPOC_MAX_DIST) continue
-      const slDist=atr*vp.slMult, slPct=slDist/price
-      if (slPct<MIN_SL_PCT||slPct>0.05) continue
-      const notional=Math.min(bal*0.018/slPct,bal*MAX_NOTIONAL_PCT)
-      if (notional<5) continue
-      const partialR=PARTIAL_TP_BY_VOL[getVolRegime(atrPct)]
-      const partialTP=sweep.side==='LONG'?price+slDist*partialR:price-slDist*partialR
-      const tpPrice  =sweep.side==='LONG'?price+slDist*vp.tpR :price-slDist*vp.tpR
-      const slPrice  =sweep.side==='LONG'?price-slDist:price+slDist
-      let pnl=0, halfDone=false
-      for (let j=i+1; j<Math.min(i+MAX_HOLD_MIN+1,bars.length); j++) {
-        const b=bars[j]
-        if (sweep.side==='LONG') {
-          if (!halfDone&&b.high>=partialTP){pnl+=(notional/2)*slPct*partialR;halfDone=true;partials++}
-          if (b.high>=tpPrice){pnl+=(halfDone?notional/2:notional)*slPct*vp.tpR;break}
-          if (b.low <=slPrice){pnl+=halfDone?0:-(notional*slPct);break}
+    const bars = await fetchBarsHistorical(sym, '5m', days)
+    if (bars.length < 200) { results.push({sym, error: `only ${bars.length} bars`}); continue }
+
+    // Also fetch 1h bars for multi-TF context
+    const bars1h = await fetchBarsHistorical(sym, '1h', days)
+
+    let bal = totalBalance / testCoins.length + startBalance * 0.5
+    const symStart = bal
+    let wins = 0, losses = 0, partials = 0, maxDD = 0, peak = bal
+    const pnls: number[] = []
+    let openTrade: {side:'LONG'|'SHORT'; entry:number; sl:number; tp:number; size:number; partialTP:number; partialDone:boolean; bar:number; slDist:number} | null = null
+    let lastTradeBar = -20 // cooldown
+
+    for (let i = 100; i < bars.length - 1; i++) {
+      const price = bars[i].close
+      const slice = bars.slice(Math.max(0, i-200), i+1)
+      const atr = calcATR(slice.slice(-15))
+      const atrPct = atr / price
+      if (atrPct > 0.02 || atrPct < 0.00003) continue
+
+      // Manage open trade
+      if (openTrade) {
+        const dirM = openTrade.side === 'LONG' ? 1 : -1
+        const bar = bars[i]
+        const holdBars = i - openTrade.bar
+
+        // Partial TP
+        if (!openTrade.partialDone) {
+          const partialHit = openTrade.side === 'LONG' ? bar.high >= openTrade.partialTP : bar.low <= openTrade.partialTP
+          if (partialHit) {
+            const halfSize = openTrade.size / 2
+            const partialPnl = (openTrade.partialTP - openTrade.entry) * halfSize * dirM - openTrade.partialTP * halfSize * FEE
+            bal += openTrade.entry * halfSize + partialPnl
+            openTrade.size = halfSize
+            openTrade.partialDone = true
+            // Move SL to breakeven
+            openTrade.sl = openTrade.entry * (1 + FEE * 2.5 * dirM)
+            partials++
+          }
+        }
+
+        // Check TP/SL
+        let closed = false
+        if (openTrade.side === 'LONG') {
+          if (bar.high >= openTrade.tp) {
+            const pnl = (openTrade.tp - openTrade.entry) * openTrade.size * dirM - openTrade.tp * openTrade.size * FEE
+            bal += openTrade.entry * openTrade.size + pnl; pnls.push(pnl); wins++; closed = true
+          } else if (bar.low <= openTrade.sl) {
+            const exitP = openTrade.sl
+            const pnl = (exitP - openTrade.entry) * openTrade.size * dirM - exitP * openTrade.size * FEE
+            bal += openTrade.entry * openTrade.size + pnl; pnls.push(pnl); if(pnl>0) wins++; else losses++; closed = true
+          }
         } else {
-          if (!halfDone&&b.low<=partialTP){pnl+=(notional/2)*slPct*partialR;halfDone=true;partials++}
-          if (b.low <=tpPrice){pnl+=(halfDone?notional/2:notional)*slPct*vp.tpR;break}
-          if (b.high>=slPrice){pnl+=halfDone?0:-(notional*slPct);break}
+          if (bar.low <= openTrade.tp) {
+            const pnl = (openTrade.entry - openTrade.tp) * openTrade.size - openTrade.tp * openTrade.size * FEE
+            bal += openTrade.entry * openTrade.size + pnl; pnls.push(pnl); wins++; closed = true
+          } else if (bar.high >= openTrade.sl) {
+            const exitP = openTrade.sl
+            const pnl = (openTrade.entry - exitP) * openTrade.size - exitP * openTrade.size * FEE
+            bal += openTrade.entry * openTrade.size + pnl; pnls.push(pnl); if(pnl>0) wins++; else losses++; closed = true
+          }
+        }
+        // Max hold timeout
+        if (!closed && holdBars > 36) { // 36 bars = 3 hours
+          const pnl = (price - openTrade.entry) * openTrade.size * dirM - price * openTrade.size * FEE
+          bal += openTrade.entry * openTrade.size + pnl; pnls.push(pnl); if(pnl>0) wins++; else losses++; closed = true
+        }
+        // Trailing stop at 1R profit
+        if (!closed && openTrade.slDist > 0) {
+          const profitR = (price - openTrade.entry) * dirM / openTrade.slDist
+          if (profitR >= 1.0) {
+            const trail = price - atr * 0.7 * dirM
+            openTrade.sl = dirM === 1 ? Math.max(openTrade.sl, trail) : Math.min(openTrade.sl, trail)
+          }
+        }
+        if (closed) { openTrade = null; lastTradeBar = i }
+
+        peak = Math.max(peak, bal)
+        const dd = peak > 0 ? (peak - bal) / peak : 0
+        maxDD = Math.max(maxDD, dd)
+        continue
+      }
+
+      // Entry logic — use full confluence scoring
+      if (i - lastTradeBar < 12) continue // cooldown: 1 hour
+
+      const closes = slice.map(b => b.close)
+      const vpoc = calcVPOC(slice.slice(-80))
+
+      // Determine 1h bias at this bar
+      let bias1h: 'BULL'|'BEAR'|'NEUTRAL' = 'NEUTRAL'
+      if (bars1h.length > 22) {
+        const barTime = i * 5 * 60_000
+        const h1Index = Math.min(Math.floor(barTime / (3600_000)) , bars1h.length - 1)
+        const h1Slice = bars1h.slice(Math.max(0, h1Index - 22), h1Index + 1)
+        if (h1Slice.length >= 10) {
+          const h1c = h1Slice.map(b => b.close)
+          const e9h = calcEma(h1c, 9), e21h = calcEma(h1c, 21)
+          if (e9h > e21h * 1.001) bias1h = 'BULL'
+          else if (e9h < e21h * 0.999) bias1h = 'BEAR'
         }
       }
-      const net=pnl-notional*FEE*2
-      bal+=net; pnls.push(net)
-      if (net>0) wins++; else losses++
+
+      const adx = calcADX(slice.slice(-30))
+      const entryScore = calcConfluenceScore(
+        slice, price, vpoc, bias1h, adx, 50, 'FLAT', 42, 58, 1.02
+      )
+
+      if (!entryScore.side || entryScore.score < 55) continue
+
+      // 1H hard block
+      if (entryScore.side === 'LONG' && bias1h === 'BEAR') continue
+      if (entryScore.side === 'SHORT' && bias1h === 'BULL') continue
+
+      const slDist = Math.max(entryScore.slDist, price * MIN_SL_PCT)
+      const slPct = slDist / price
+      if (slPct < MIN_SL_PCT || slPct > 0.04) continue
+
+      // Drawdown scaling
+      const ddScale = calcDrawdownScale(peak > 0 ? (peak - bal) / peak : 0)
+      if (ddScale <= 0) continue
+
+      const vp = VOL_PARAMS[getVolRegime(atrPct)]
+      const tpR = calcDynamicTP(2.5, calcVolatilityPercentile(slice).pct)
+      const notional = Math.min(bal * 0.018 * ddScale / slPct, bal * MAX_NOTIONAL_PCT)
+      if (notional < 5 || notional > bal * 0.95) continue
+
+      const side = entryScore.side
+      const dirM = side === 'LONG' ? 1 : -1
+      const size = notional / price
+      const fee = price * size * FEE
+      bal -= (notional + fee)
+
+      const partialR = PARTIAL_TP_BY_VOL[getVolRegime(atrPct)]
+      openTrade = {
+        side, entry: price, size,
+        sl: side === 'LONG' ? price - slDist : price + slDist,
+        tp: side === 'LONG' ? price + slDist * tpR : price - slDist * tpR,
+        partialTP: price + slDist * partialR * dirM,
+        partialDone: false, bar: i, slDist,
+      }
     }
-    const total=wins+losses
-    const avgPnl=pnls.length?pnls.reduce((a,b)=>a+b,0)/pnls.length:0
-    const std=pnls.length>1?Math.sqrt(pnls.reduce((a,b)=>a+(b-avgPnl)**2,0)/pnls.length):1
+
+    // Close any remaining open trade at last bar
+    if (openTrade) {
+      const price = bars[bars.length-1].close
+      const dirM = openTrade.side === 'LONG' ? 1 : -1
+      const pnl = (price - openTrade.entry) * openTrade.size * dirM - price * openTrade.size * FEE
+      bal += openTrade.entry * openTrade.size + pnl; pnls.push(pnl)
+      if (pnl > 0) wins++; else losses++
+      openTrade = null
+    }
+
+    const total = wins + losses
+    totalWins += wins; totalLosses += losses
+    allPnls.push(...pnls)
+    const avgPnl = pnls.length ? pnls.reduce((a,b)=>a+b,0)/pnls.length : 0
+    const std = pnls.length > 1 ? Math.sqrt(pnls.reduce((a,b)=>a+(b-avgPnl)**2,0)/pnls.length) : 1
+    const avgWin = pnls.filter(p=>p>0).length ? pnls.filter(p=>p>0).reduce((a,b)=>a+b,0)/pnls.filter(p=>p>0).length : 0
+    const avgLoss = pnls.filter(p=>p<=0).length ? Math.abs(pnls.filter(p=>p<=0).reduce((a,b)=>a+b,0)/pnls.filter(p=>p<=0).length) : 1
+    const profitFactor = avgLoss > 0 ? (avgWin * wins) / (avgLoss * losses || 1) : 0
+
     results.push({
-      sym,trades:total,wins,losses,partials,
-      winRate:((wins/(total||1))*100).toFixed(1)+'%',
-      roi:((bal/10000-1)*100).toFixed(2)+'%',
-      sharpe:(avgPnl/(std||1)*Math.sqrt(365*24*60)).toFixed(2)
+      sym, bars: bars.length, days: (bars.length * 5 / 1440).toFixed(1),
+      trades: total, wins, losses, partials,
+      winRate: ((wins/(total||1))*100).toFixed(1)+'%',
+      profitFactor: profitFactor.toFixed(2),
+      roi: ((bal/symStart-1)*100).toFixed(2)+'%',
+      maxDrawdown: (maxDD*100).toFixed(1)+'%',
+      sharpe: (avgPnl/(std||1)*Math.sqrt(288)).toFixed(2),
+      finalBalance: bal.toFixed(2),
     })
   }
-  return results
+
+  // Aggregate
+  const totalTrades = totalWins + totalLosses
+  const totalAvg = allPnls.length ? allPnls.reduce((a,b)=>a+b,0)/allPnls.length : 0
+  const totalStd = allPnls.length > 1 ? Math.sqrt(allPnls.reduce((a,b)=>a+(b-totalAvg)**2,0)/allPnls.length) : 1
+  const totalProfit = allPnls.reduce((a,b)=>a+b,0)
+
+  return {
+    config: {days, coins: testCoins.length, confluenceThreshold: 55, leverage: LEVERAGE},
+    perCoin: results,
+    summary: {
+      totalTrades,
+      totalWins,
+      totalLosses,
+      overallWinRate: ((totalWins/(totalTrades||1))*100).toFixed(1)+'%',
+      totalProfit: totalProfit.toFixed(2),
+      overallSharpe: (totalAvg/(totalStd||1)*Math.sqrt(288)).toFixed(2),
+      avgPnlPerTrade: totalAvg.toFixed(2),
+    }
+  }
 }
 
 Deno.serve(async (req) => {
@@ -1242,7 +1422,8 @@ Deno.serve(async (req) => {
     )
 
     if (url.searchParams.get('backtest')==='1') {
-      return new Response(JSON.stringify({ok:true,backtest:await runBacktest()}),
+      const days = parseInt(url.searchParams.get('days') || '30', 10)
+      return new Response(JSON.stringify({ok:true,backtest:await runBacktest(days)}),
         {headers:{'Content-Type':'application/json'}})
     }
 
