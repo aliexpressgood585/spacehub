@@ -561,7 +561,7 @@ export default function CryptoTradingDashboard() {
         const next={...prev}
         for(const ot of openForSym){
           const dirM=ot.side==='LONG'?1:-1
-          const pnl=(price-ot.entry)*dirM*ot.size*LEVERAGE-ot.fee-price*ot.size*FEE_PCT*LEVERAGE
+          const pnl=(price-ot.entry)*dirM*ot.size-ot.fee-price*ot.size*FEE_PCT
           const pct=(price-ot.entry)/ot.entry*dirM*100
           next[ot.id]={cur:price,pnl,pct}
         }
