@@ -43,19 +43,30 @@ const BINANCE      = 'https://api.binance.com/api/v3'
 const FAPI         = 'https://fapi.binance.com/fapi/v1'
 const FAPI_DATA    = 'https://fapi.binance.com/futures/data'
 
-// v28: focus on the 10 most liquid majors — cleaner charts, tighter
-// spreads, less small-cap noise in every scan
+// v31: expanded to 30 coins — matches dashboard universe
 const FIXED_COINS = [
-  'BTC','ETH','SOL','BNB','XRP','DOGE','ADA','LINK','AVAX','LTC',
+  'BTC','ETH','SOL','BNB','XRP','ADA','DOGE','AVAX','LINK',
+  'DOT','POL','UNI','ATOM','LTC','BCH','NEAR','ALGO','FIL',
+  'VET','ICP','APT','ARB','OP','SUI','INJ','TRX','HBAR',
+  'AAVE','WLD','SEI',
 ]
 const FALLBACK_COINS = FIXED_COINS
 const MIN_COIN_WIN_RATE = 0.42
 const MIN_COIN_TRADES   = 8
 
 const CORR_GROUPS: string[][] = [
-  ['SOL','AVAX'],
-  ['DOGE','ADA'],
-  ['LINK'],['LTC'],['XRP'],['BNB'],['BTC'],['ETH'],
+  ['BTC'],
+  ['ETH','ARB','OP'],         // ETH ecosystem
+  ['SOL','AVAX','APT','SUI'], // high-beta L1s
+  ['DOGE','SHIB'],            // meme
+  ['ADA','DOT','ATOM','ALGO','VET','ICP'], // alt L1s
+  ['LINK','AAVE','UNI','CRV'],// DeFi
+  ['LTC','BCH'],              // BTC forks
+  ['XRP','HBAR','XLM'],       // payment layer
+  ['BNB'],
+  ['NEAR','FIL'],             // storage/infra
+  ['INJ','SEI','TRX'],        // misc
+  ['WLD'],
 ]
 const MAX_PER_GROUP  = 3
 const MIN_SCORE      = 2
