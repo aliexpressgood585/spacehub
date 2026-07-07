@@ -183,12 +183,12 @@ const SWEEP_LOOKBACK  = 5
 const MAX_HOLD_MIN    = 120  // v32: balanced — max 2h hold
 const STREAK_PAUSE_MS = 10*60_000
 const MAX_NOTIONAL_PCT= 0.20        // v34: raised 12%→20% — deploy more per trade
-const MAX_OPEN_TRADES = 30
+const MAX_OPEN_TRADES = 50          // v34: raised 30→50 — more slots when needed
 const MAX_TOTAL_EXPOSURE_PCT = 1.0  // 100% — no idle cash
 const FUNDING_EXTREME = 0.0003
 const MIN_SL_PCT      = 0.005
 const SYM_COOLDOWN_MS = 10*60_000  // v32: 10 min cooldown
-const MAX_NEW_ENTRIES_PER_SCAN = 6  // v34: raised 3→6 — fill portfolio faster
+const MAX_NEW_ENTRIES_PER_SCAN = 10 // v34: raised 3→10 — fill portfolio fast
 const MAX_DD_STOP     = 0.80
 const INITIAL_BALANCE = 10000
 const DAILY_LOSS_LIMIT_PCT = 0.03
@@ -2585,11 +2585,13 @@ Deno.serve(async (req) => {
         const riskAmt = balance * R.riskPct * kellyMult * kellyByScore * sizeAdjByRegime * sessionSizeAdj * coinSizeMult * volSizeMult * equityGuardMult * correlationHedgeMult
         const currentExposure = (allOpen||[]).reduce((sum:number, t:any) => sum + Number(t.entry_price) * Number(t.size), 0)
         const remainingExposure = Math.max(0, balance * MAX_TOTAL_EXPOSURE_PCT - currentExposure)
-        // v34: equal-weight floor — distribute idle cash evenly across remaining slots
-        // so free cash never sits idle while open slots exist
-        const slotsLeft = Math.max(1, MAX_OPEN_TRADES - openCount)
-        const equalWeightFloor = remainingExposure > balance * 0.15
-          ? remainingExposure / slotsLeft
+        // v34: guaranteed full deployment — when idle cash exists, each new position
+        // gets at least remainingExposure/min(slotsLeft,10) so the portfolio fills
+        // within a handful of scan cycles regardless of risk-formula output.
+        const slotsLeft  = Math.max(1, MAX_OPEN_TRADES - openCount)
+        const chunkSlots = Math.min(slotsLeft, 10)  // spread over at most 10 remaining slots
+        const equalWeightFloor = remainingExposure > balance * 0.10
+          ? remainingExposure / chunkSlots
           : 0
         const notional = Math.min(
           Math.max(riskAmt / slPct, equalWeightFloor),
