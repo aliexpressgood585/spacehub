@@ -211,7 +211,7 @@ function drawBubbles(canvas:HTMLCanvasElement,allSigs:Record<string,Sig>,prices:
 function LivePosition({t,live,fmtP,onClose}:{t:Trade;live?:{cur:number;pnl:number;pct:number};fmtP:(p:number)=>string;onClose?:()=>void}){
   const cur      = live?.cur ?? t.entry
   const dirM     = t.side==='LONG'?1:-1
-  const pnl      = live?.pnl ?? ((cur-t.entry)*dirM*t.size)
+  const pnl      = live?.pnl ?? ((cur-t.entry)*dirM*t.size - cur*t.size*FEE_PCT - t.fee)
   const pct      = live?.pct ?? 0
   const col      = pnl>=0?C.green:C.red
   const notional = +(t.entry*t.size).toFixed(2)
@@ -573,7 +573,7 @@ export default function CryptoTradingDashboard() {
         const next={...prev}
         for(const ot of openForSym){
           const dirM=ot.side==='LONG'?1:-1
-          const pnl=(price-ot.entry)*dirM*ot.size
+          const pnl=(price-ot.entry)*dirM*ot.size-ot.fee-price*ot.size*FEE_PCT
           const pct=(price-ot.entry)/ot.entry*dirM*100
           next[ot.id]={cur:price,pnl,pct}
         }
