@@ -1,5 +1,12 @@
 // ════════════════════════════════════════════════════════════
-// CryptoBot v32 — Production-grade trading bot
+// CryptoBot v33 — Production-grade trading bot
+//
+// v33: LIQUIDITY ZONE — Signal #17 (+15 pts)
+//  Fetches OI history from Binance Futures to validate liquidation clusters.
+//  LONG: swing low below price + OI elevated + price bounced from zone with wick.
+//  SHORT: swing high above price + OI elevated + price rejected from zone with wick.
+//  SL is tightened to just outside the zone when signal fires.
+//  Additive bonus — never a gate.
 //
 // v32: SCALPING MODE — fast in, fast out
 //  - MAX_HOLD_MIN 180→60 (max 1h hold per trade)
@@ -171,6 +178,92 @@ async function fetchBars(sym:string, interval:string, limit:number): Promise<Bar
     const data:number[][] = await res.json()
     return data.map(k=>({open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
   } catch { return [] }
+}
+
+// ── v33: OI history ──────────────────────────────────────────────────────────
+interface OIRecord { timestamp: number; oi: number }
+
+async function fetchOIHistory(sym: string, limit = 48): Promise<OIRecord[]> {
+  try {
+    const res = await fetch(
+      `${FAPI_DATA}/openInterestHist?symbol=${sym}USDT&period=5m&limit=${limit}`,
+      { headers: { 'User-Agent': 'Mozilla/5.0' } }
+    )
+    if (!res.ok) return []
+    const data: any[] = await res.json()
+    return data.map(d => ({ timestamp: +d.timestamp, oi: parseFloat(d.sumOpenInterest) }))
+  } catch { return [] }
+}
+
+// Signal #17: Liquidity Zone Detection
+// Uses swing levels as proxies for liquidation clusters (where stops pile up),
+// validated by OI elevation. Confirms entry only after price touches the zone
+// and rejects with a wick — classic liquidity sweep setup.
+//
+// Parameters (easy to tune):
+const LIQ_ZONE_WINDOW    = 40    // bars to scan for swing levels
+const LIQ_PROXIMITY_PCT  = 0.015 // zone must be within 1.5% of current price
+const LIQ_TOUCH_LOOKBACK = 6     // bars to check for recent touch
+const LIQ_OI_SURGE_MULT  = 1.08  // OI elevated = 8%+ above average
+const LIQ_WICK_RATIO     = 0.30  // rejection wick ≥ 30% of bar range
+
+function detectLiquidationZone(
+  bars: Bar[],
+  price: number,
+  oiHistory: OIRecord[],
+  side: 'LONG' | 'SHORT'
+): { hit: boolean; zoneLevel: number; confidence: number } {
+  const NULL_R = { hit: false, zoneLevel: 0, confidence: 0 }
+  if (bars.length < 30 || oiHistory.length < 10) return NULL_R
+
+  // OI elevation check — are there more positions at risk than usual?
+  const oiVals = oiHistory.map(o => o.oi)
+  const oiBase = oiVals.slice(0, -6).reduce((a, b) => a + b, 0) / Math.max(1, oiVals.length - 6)
+  const oiNow  = oiVals.slice(-6).reduce((a, b) => a + b, 0) / 6
+  const oiElevated = oiBase > 0 && oiNow > oiBase * LIQ_OI_SURGE_MULT
+
+  const recent = bars.slice(-LIQ_ZONE_WINDOW)
+
+  if (side === 'LONG') {
+    // Swing lows below price = where long stops cluster
+    const candidates = recent.map(b => b.low).filter(l => l < price * 0.998).sort((a, b) => b - a)
+    if (candidates.length === 0) return NULL_R
+    const zoneLevel = candidates[0]
+    const zoneDist  = (price - zoneLevel) / price
+    if (zoneDist > LIQ_PROXIMITY_PCT) return NULL_R
+
+    // Price must have touched the zone and bounced with a lower wick
+    const touched = bars.slice(-LIQ_TOUCH_LOOKBACK).some(b => {
+      const range = b.high - b.low
+      const lWick = Math.min(b.open, b.close) - b.low
+      return b.low <= zoneLevel * 1.002 && b.close > zoneLevel &&
+             range > 0 && lWick / range >= LIQ_WICK_RATIO
+    })
+    if (!touched) return NULL_R
+
+    const confidence = (oiElevated ? 1.5 : 1.0) * (1 - zoneDist / LIQ_PROXIMITY_PCT)
+    return { hit: true, zoneLevel, confidence }
+
+  } else {
+    // Swing highs above price = where short stops cluster
+    const candidates = recent.map(b => b.high).filter(h => h > price * 1.002).sort((a, b) => a - b)
+    if (candidates.length === 0) return NULL_R
+    const zoneLevel = candidates[0]
+    const zoneDist  = (zoneLevel - price) / price
+    if (zoneDist > LIQ_PROXIMITY_PCT) return NULL_R
+
+    // Price must have spiked into the zone and rejected with an upper wick
+    const touched = bars.slice(-LIQ_TOUCH_LOOKBACK).some(b => {
+      const range = b.high - b.low
+      const uWick = b.high - Math.max(b.open, b.close)
+      return b.high >= zoneLevel * 0.998 && b.close < zoneLevel &&
+             range > 0 && uWick / range >= LIQ_WICK_RATIO
+    })
+    if (!touched) return NULL_R
+
+    const confidence = (oiElevated ? 1.5 : 1.0) * (1 - zoneDist / LIQ_PROXIMITY_PCT)
+    return { hit: true, zoneLevel, confidence }
+  }
 }
 
 function calcATR(bars:Bar[], p=14): number {
@@ -626,6 +719,7 @@ interface ConfluenceBreakdown {
   vwap: number;
   bos: number;
   ema200: number;
+  liqZone: number;  // v33
 }
 
 interface EntryScore {
@@ -652,9 +746,11 @@ function calcConfluenceScore(
   bbProx: number,
   btcCloses: number[] = [],
   coinCloses: number[] = [],
-  ema200Bias: 'BULL'|'BEAR'|'NEUTRAL' = 'NEUTRAL'  // v30: EMA50/200 on 1H
+  ema200Bias: 'BULL'|'BEAR'|'NEUTRAL' = 'NEUTRAL',  // v30
+  oiHistory: OIRecord[] = []                          // v33: liquidation zone
 ): EntryScore {
-  if (bars.length < 30) return {side: null, slDist: 0, score: 0, breakdown: {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0,stopHunt:0,vwap:0,bos:0,ema200:0}, adx, regime: 'UNCERTAIN'}
+  const NULL_BD = {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0,stopHunt:0,vwap:0,bos:0,ema200:0,liqZone:0}
+  if (bars.length < 30) return {side: null, slDist: 0, score: 0, breakdown: NULL_BD, adx, regime: 'UNCERTAIN'}
 
   const closes = bars.map(b => b.close)
   const highs = bars.map(b => b.high)
@@ -664,7 +760,7 @@ function calcConfluenceScore(
   const rsiHistory = closes.slice(-20).map((c,i) => i === 0 ? 50 : calcRsi(closes.slice(0, closes.length-20+i+1)))
   const bb = calcBB(closes, 20, 2)
 
-  if (!bb.mid || !atr) return {side: null, slDist: 0, score: 0, breakdown: {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0,stopHunt:0,vwap:0,bos:0,ema200:0}, adx, regime: 'UNCERTAIN'}
+  if (!bb.mid || !atr) return {side: null, slDist: 0, score: 0, breakdown: NULL_BD, adx, regime: 'UNCERTAIN'}
 
   const e9arr = calcEmaArr(closes, 9)
   const e21arr = calcEmaArr(closes, 21)
@@ -690,7 +786,7 @@ function calcConfluenceScore(
   if (ema1hBias === 'BULL' && curE9 > curE21 && rsi >= 40 && rsi <= 55 && price <= bb.mid) longSig++
 
   const side = longSig >= 2 ? 'LONG' : shortSig >= 2 ? 'SHORT' : null
-  if (!side) return {side: null, slDist: 0, score: 0, breakdown: {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0,stopHunt:0,vwap:0,bos:0,ema200:0}, adx, regime: 'UNCERTAIN'}
+  if (!side) return {side: null, slDist: 0, score: 0, breakdown: NULL_BD, adx, regime: 'UNCERTAIN'}
 
   // v27.4: range-fade — band extreme + RSI extreme in low-ADX chop.
   // This is the highest-probability trade a ranging market offers.
@@ -700,7 +796,7 @@ function calcConfluenceScore(
   )
 
   // Confluence Score Breakdown (0-100)
-  const breakdown: ConfluenceBreakdown = {vpoc: 0, ema1h: 0, adxTrend: 0, volumeSurge: 0, oiFavor: 0, sentiment: 0, candlePattern: 0, stochastic: 0, divergence: 0, macd: 0, pivotBounce: 0, bbSqueeze: 0}
+  const breakdown: ConfluenceBreakdown = {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0,stopHunt:0,vwap:0,bos:0,ema200:0,liqZone:0}
 
   // 1. VPOC alignment (25 pts): price near VPOC
   const vpocDist = Math.abs(vpoc - price) / price
@@ -832,7 +928,14 @@ function calcConfluenceScore(
     breakdown.ema200 = 4  // undecided macro — partial credit
   }
 
-  const totalScore = breakdown.vpoc + breakdown.ema1h + breakdown.adxTrend + breakdown.volumeSurge + breakdown.oiFavor + breakdown.sentiment + breakdown.candlePattern + breakdown.stochastic + breakdown.divergence + breakdown.macd + breakdown.pivotBounce + breakdown.bbSqueeze + breakdown.stopHunt + breakdown.vwap + breakdown.bos + breakdown.ema200
+  // 17. Liquidity Zone (15 pts) — v33
+  // Swing level as liquidation cluster proxy, validated by OI elevation + wick rejection.
+  const liqResult = detectLiquidationZone(bars, price, oiHistory, side)
+  if (liqResult.hit) {
+    breakdown.liqZone = liqResult.confidence >= 1.0 ? 15 : 8
+  }
+
+  const totalScore = breakdown.vpoc + breakdown.ema1h + breakdown.adxTrend + breakdown.volumeSurge + breakdown.oiFavor + breakdown.sentiment + breakdown.candlePattern + breakdown.stochastic + breakdown.divergence + breakdown.macd + breakdown.pivotBounce + breakdown.bbSqueeze + breakdown.stopHunt + breakdown.vwap + breakdown.bos + breakdown.ema200 + breakdown.liqZone
 
   const regime = side === 'LONG' ? 'BULL' : 'BEAR'
 
@@ -1847,6 +1950,7 @@ Deno.serve(async (req) => {
         const _price5m = priceRes?.price ? +priceRes.price : (bars5m[bars5m.length-1]?.close ?? 0)
         const _priceChange5m = bars5m.length >= 2 ? (_price5m - bars5m[bars5m.length-2].close) / bars5m[bars5m.length-2].close : 0
         const oiSig = await fetchOISignal(sym, _priceChange5m)
+        const oiHistory = await fetchOIHistory(sym, 48)  // v33: for Signal #17
         if (!bars5m||bars5m.length<30) return
 
         // v25: API fallback — try CoinGecko if Binance price unavailable
@@ -2213,12 +2317,16 @@ Deno.serve(async (req) => {
           dynRsiOversold, dynRsiOverbought, dynBbProx,
           btcBars.map(b => b.close),
           completed.map(b => b.close),
-          ema200Bias
+          ema200Bias,
+          oiHistory  // v33: Signal #17 liquidity zone
         )
 
         if (!entryScore.side) {
           log.push(`SKIP ${sym}: no confluence (RSI/BB/EMA mismatch)`)
           return
+        }
+        if (entryScore.breakdown.liqZone > 0) {
+          log.push(`LIQ_ZONE ${sym}: +${entryScore.breakdown.liqZone}pts ${entryScore.side}`)
         }
 
         // v31-B: loss cooldown — now we know the side
