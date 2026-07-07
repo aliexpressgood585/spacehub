@@ -212,7 +212,7 @@ function LivePosition({t,live,fmtP,onClose}:{t:Trade;live?:{cur:number;pnl:numbe
   const cur      = live?.cur ?? t.entry
   const dirM     = t.side==='LONG'?1:-1
   const pnl      = live?.pnl ?? ((cur-t.entry)*dirM*t.size)
-  const pct      = live?.pct ?? 0
+  const pct      = live?.pct ?? ((cur-t.entry)/t.entry*dirM*100*LEVERAGE)
   const col      = pnl>=0?C.green:C.red
   const notional = +(t.entry*t.size).toFixed(2)
 
@@ -574,7 +574,7 @@ export default function CryptoTradingDashboard() {
         for(const ot of openForSym){
           const dirM=ot.side==='LONG'?1:-1
           const pnl=(price-ot.entry)*dirM*ot.size
-          const pct=(price-ot.entry)/ot.entry*dirM*100
+          const pct=(price-ot.entry)/ot.entry*dirM*100*LEVERAGE
           next[ot.id]={cur:price,pnl,pct}
         }
         return next
