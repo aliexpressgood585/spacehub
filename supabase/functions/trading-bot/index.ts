@@ -109,7 +109,7 @@ const RISK = {
 } as const
 type RiskKey = keyof typeof RISK
 
-const FEE             = 0.001
+const FEE             = 0.0005  // Binance USDT-M Futures taker fee (0.05%)
 const LEVERAGE        = 10
 const SWING_N         = 5
 const SWING_LOOKBACK  = 60
