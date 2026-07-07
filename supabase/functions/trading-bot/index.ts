@@ -1,6 +1,7 @@
 // ════════════════════════════════════════════════════════════
-// CryptoBot v34 — Production-grade trading bot
+// CryptoBot v35 — Production-grade trading bot
 //
+// v35: Futures-only prices — klines and ticker now from fapi.binance.com (not spot)
 // v34: DYNAMIC UNIVERSE + MOMENTUM PRE-BREAKOUT (Signal #18)
 //  Coin universe: replaced 30 fixed coins with ALL active Binance Futures
 //  USDT perps with ≥$5M 24h volume (up to 100 coins), fetched live each scan.
@@ -205,7 +206,7 @@ interface Bar { open:number; high:number; low:number; close:number; vol:number }
 async function fetchBars(sym:string, interval:string, limit:number): Promise<Bar[]> {
   try {
     const res = await fetch(
-      `${BINANCE_DATA}/klines?symbol=${sym}USDT&interval=${interval}&limit=${limit}`,
+      `${FAPI}/klines?symbol=${sym}USDT&interval=${interval}&limit=${limit}`,
       { headers:{'User-Agent':'Mozilla/5.0'} }
     )
     if (!res.ok) return []
@@ -1507,7 +1508,7 @@ async function fetchBarsHistorical(sym: string, interval: string, days: number):
     const startTime = endTime - limit * msPerBar
     try {
       const res = await fetch(
-        `${BINANCE_DATA}/klines?symbol=${sym}USDT&interval=${interval}&startTime=${startTime}&endTime=${endTime}&limit=${limit}`,
+        `${FAPI}/klines?symbol=${sym}USDT&interval=${interval}&startTime=${startTime}&endTime=${endTime}&limit=${limit}`,
         {headers:{'User-Agent':'Mozilla/5.0'}}
       )
       if (!res.ok) break
@@ -2017,7 +2018,7 @@ Deno.serve(async (req) => {
       try {
         const [bars5m,priceRes,bars1h,bars15m]=await Promise.all([
           fetchBars(sym,'5m',200),
-          fetch(`${BINANCE_DATA}/ticker/price?symbol=${sym}USDT`).then(r=>r.json()).catch(()=>null),
+          fetch(`${FAPI}/ticker/price?symbol=${sym}USDT`).then(r=>r.json()).catch(()=>null),
           fetchBars(sym,'1h',30),
           fetchBars(sym,'15m',30),
         ])
