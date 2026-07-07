@@ -398,6 +398,21 @@ function detectBBSqueezeRelease(bbWidthHistory: number[], threshold: number = 0.
   return all5Low && currentBreakout
 }
 
+// v29: Intraday VWAP — anchored to the oldest available bar (up to ~16h of 5m data)
+// typical_price = (H+L+C)/3; cumulative(TP×vol)/cumulative(vol)
+function calcVWAP(bars: Bar[]): number {
+  if (bars.length === 0) return 0
+  // Use last 96 bars (8h at 5m) — common session proxy for 24/7 crypto markets
+  const session = bars.slice(-96)
+  let cumTPV = 0, cumVol = 0
+  for (const b of session) {
+    const tp = (b.high + b.low + b.close) / 3
+    cumTPV += tp * b.vol
+    cumVol  += b.vol
+  }
+  return cumVol > 0 ? cumTPV / cumVol : session[session.length - 1].close
+}
+
 // v29: Stop-hunt / Spring / Upthrust — Signal #13
 // Looks back 3 bars for a candle that swept a 20-bar swing extreme and
 // reversed: long lower wick (Spring → LONG) or long upper wick (Upthrust → SHORT)
@@ -560,6 +575,7 @@ interface ConfluenceBreakdown {
   pivotBounce: number;
   bbSqueeze: number;
   stopHunt: number;
+  vwap: number;
 }
 
 interface EntryScore {
@@ -587,7 +603,7 @@ function calcConfluenceScore(
   btcCloses: number[] = [],
   coinCloses: number[] = []
 ): EntryScore {
-  if (bars.length < 30) return {side: null, slDist: 0, score: 0, breakdown: {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0,stopHunt:0}, adx, regime: 'UNCERTAIN'}
+  if (bars.length < 30) return {side: null, slDist: 0, score: 0, breakdown: {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0,stopHunt:0,vwap:0}, adx, regime: 'UNCERTAIN'}
 
   const closes = bars.map(b => b.close)
   const highs = bars.map(b => b.high)
@@ -597,7 +613,7 @@ function calcConfluenceScore(
   const rsiHistory = closes.slice(-20).map((c,i) => i === 0 ? 50 : calcRsi(closes.slice(0, closes.length-20+i+1)))
   const bb = calcBB(closes, 20, 2)
 
-  if (!bb.mid || !atr) return {side: null, slDist: 0, score: 0, breakdown: {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0,stopHunt:0}, adx, regime: 'UNCERTAIN'}
+  if (!bb.mid || !atr) return {side: null, slDist: 0, score: 0, breakdown: {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0,stopHunt:0,vwap:0}, adx, regime: 'UNCERTAIN'}
 
   const e9arr = calcEmaArr(closes, 9)
   const e21arr = calcEmaArr(closes, 21)
@@ -623,7 +639,7 @@ function calcConfluenceScore(
   if (ema1hBias === 'BULL' && curE9 > curE21 && rsi >= 40 && rsi <= 55 && price <= bb.mid) longSig++
 
   const side = longSig >= 2 ? 'LONG' : shortSig >= 2 ? 'SHORT' : null
-  if (!side) return {side: null, slDist: 0, score: 0, breakdown: {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0,stopHunt:0}, adx, regime: 'UNCERTAIN'}
+  if (!side) return {side: null, slDist: 0, score: 0, breakdown: {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0,stopHunt:0,vwap:0}, adx, regime: 'UNCERTAIN'}
 
   // v27.4: range-fade — band extreme + RSI extreme in low-ADX chop.
   // This is the highest-probability trade a ranging market offers.
@@ -737,7 +753,19 @@ function calcConfluenceScore(
     breakdown.stopHunt = 10
   }
 
-  const totalScore = breakdown.vpoc + breakdown.ema1h + breakdown.adxTrend + breakdown.volumeSurge + breakdown.oiFavor + breakdown.sentiment + breakdown.candlePattern + breakdown.stochastic + breakdown.divergence + breakdown.macd + breakdown.pivotBounce + breakdown.bbSqueeze + breakdown.stopHunt
+  // 14. VWAP alignment (12 pts) — v29
+  // Price on the correct side of the 8h session VWAP confirms institutional bias.
+  // Full credit when price is clearly beyond VWAP; half credit when right at it.
+  const vwap = calcVWAP(bars)
+  if (vwap > 0) {
+    const vwapDist = (price - vwap) / vwap
+    if (side === 'LONG'  && vwapDist >  0.001) breakdown.vwap = 12
+    else if (side === 'LONG'  && vwapDist >= -0.001) breakdown.vwap = 6
+    else if (side === 'SHORT' && vwapDist < -0.001) breakdown.vwap = 12
+    else if (side === 'SHORT' && vwapDist <=  0.001) breakdown.vwap = 6
+  }
+
+  const totalScore = breakdown.vpoc + breakdown.ema1h + breakdown.adxTrend + breakdown.volumeSurge + breakdown.oiFavor + breakdown.sentiment + breakdown.candlePattern + breakdown.stochastic + breakdown.divergence + breakdown.macd + breakdown.pivotBounce + breakdown.bbSqueeze + breakdown.stopHunt + breakdown.vwap
 
   const regime = side === 'LONG' ? 'BULL' : 'BEAR'
 
@@ -1917,6 +1945,30 @@ Deno.serve(async (req) => {
                 trail_sl: sl + (entry-sl)*0.3*dirM  // Tighten SL toward entry
               }).eq('id',t.id)
               log.push(`ADVANCED_PARTIAL ${sym} ${t.side} (${advancedExit.reason}) ${(advancedExit.closePercent*100).toFixed(0)}% @${price.toFixed(4)} pnl=${closePnl.toFixed(2)}`)
+              continue
+            }
+          }
+
+          // ── v29: VWAP Counter-Exit ──
+          // If price crosses to the WRONG side of VWAP while we're losing (< -0.3R),
+          // institutional bias has shifted against us — exit early.
+          const vwapNow = calcVWAP(completed)
+          const vwapProfitR = slDist > 0 ? (price - entry) * dirM / slDist : 0
+          if (vwapNow > 0 && vwapProfitR < -0.3) {
+            const vwapAgainst =
+              (t.side === 'LONG'  && price < vwapNow * 0.999) ||
+              (t.side === 'SHORT' && price > vwapNow * 1.001)
+            if (vwapAgainst) {
+              const fav = (price - entry) / entry * dirM
+              const pnl = (price - entry) * size * dirM - price * size * FEE
+              balance += entry * size + pnl; openCount--
+              await supabase.from('bot_trades').update({
+                status: 'SL', exit_price: price, pnl, pnl_pct: fav,
+                closed_at: new Date().toISOString()
+              }).eq('id', t.id)
+              await supabase.from('bot_trade_snapshots').update({ result: 'vwap_counter_exit', pnl }).eq('trade_id', t.id).catch(() => {})
+              await updateMarketMemory(supabase, t.id, 'SL', pnl, log)
+              log.push(`VWAP_COUNTER ${sym} ${t.side} @${price.toFixed(4)} vwap=${vwapNow.toFixed(4)} pnl=${pnl.toFixed(2)}`)
               continue
             }
           }
