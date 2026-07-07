@@ -110,7 +110,7 @@ function computeSig(bars:Bar[]):Sig{if(bars.length<35)return emptySig();const cl
 function getMultiTFSig(bars1m:Bar[]):Sig{const s1=computeSig(bars1m);const bars5m=build5mBars(bars1m);if(bars5m.length<25)return s1;const s5=computeSig(bars5m);if(s1.dir==='HOLD')return s1;if(s5.dir===s1.dir)return{...s1,score:Math.min(5,s1.score+1),mtf:true};return s1}
 function calcSharpe(trades:Trade[]):number{const cl=trades.filter(t=>t.pnlPct!==undefined);if(cl.length<3)return 0;const r=cl.map(t=>t.pnlPct!);const m=r.reduce((a,b)=>a+b,0)/r.length;const s=Math.sqrt(r.reduce((a,b)=>a+(b-m)**2,0)/r.length)||1e-9;return(m/s)*Math.sqrt(252)}
 function calcMaxDD(trades:Trade[]):number{let bal=INIT_BAL,peak=INIT_BAL,mx=0;for(const t of trades){if(t.pnl){bal+=t.pnl;if(bal>peak)peak=bal;mx=Math.max(mx,(peak-bal)/peak)}}return mx*100}
-function mapDbTrade(t:Record<string,unknown>):Trade{return{id:t.id as number,sym:t.sym as string,side:t.side as 'LONG'|'SHORT',entry:Number(t.entry_price),exit:t.exit_price!=null?Number(t.exit_price):undefined,size:Number(t.size),pnl:t.pnl!=null?Number(t.pnl):undefined,pnlPct:t.pnl_pct!=null?Number(t.pnl_pct):undefined,ts:new Date(t.opened_at as string).getTime(),status:t.status as 'OPEN'|'TP'|'SL'|'TRAIL',hi:Number(t.hi),lo:Number(t.lo),trailSL:Number(t.trail_sl),fee:Number(t.fee)}}
+function mapDbTrade(t:Record<string,unknown>):Trade{return{id:t.id as number,sym:t.sym as string,side:t.side as 'LONG'|'SHORT',entry:Number(t.entry_price),exit:t.exit_price!=null?Number(t.exit_price):undefined,size:Number(t.size),pnl:t.pnl!=null?Number(t.pnl):undefined,pnlPct:t.pnl_pct!=null?Number(t.pnl_pct):undefined,ts:new Date(t.opened_at as string).getTime(),closedTs:t.closed_at?new Date(t.closed_at as string).getTime():undefined,status:t.status as 'OPEN'|'TP'|'SL'|'TRAIL',hi:Number(t.hi),lo:Number(t.lo),trailSL:Number(t.trail_sl),fee:Number(t.fee)}}
 
 // ─── canvas renderers ─────────────────────────────────────────────────────────
 function drawCandles(canvas:HTMLCanvasElement,bars:Bar[],sig:Sig){
@@ -1101,14 +1101,22 @@ export default function CryptoTradingDashboard() {
               <table style={{width:'100%',borderCollapse:'collapse' as const,fontSize:'10px'}}>
                 <thead>
                   <tr style={{background:'rgba(0,200,255,0.04)'}}>
-                    {['מטבע','כיוון','כניסה','יציאה','P&L','%','סטטוס'].map(h=>(
+                    {['מטבע','כיוון','כניסה','יציאה','P&L','%','סטטוס','זמן סגירה'].map(h=>(
                       <th key={h} style={{padding:'6px 8px',textAlign:'right' as const,color:C.muted,
-                        borderBottom:`1px solid ${C.dim}`,fontWeight:700,fontSize:'9px'}}>{h}</th>
+                        borderBottom:`1px solid ${C.dim}`,fontWeight:700,fontSize:'9px',whiteSpace:'nowrap' as const}}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {[...closed].reverse().slice(0,25).map(t=>(
+                  {[...closed]
+                    .sort((a,b)=>(b.closedTs||b.ts)-(a.closedTs||a.ts))
+                    .slice(0,50)
+                    .map(t=>{
+                      const closeTime=t.closedTs||t.ts
+                      const d=new Date(closeTime)
+                      const dateStr=`${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}`
+                      const timeStr=`${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`
+                      return(
                     <tr key={t.id} className="nx-row" style={{borderBottom:`1px solid ${C.dim}`}}>
                       <td style={{padding:'5px 8px',color:C.cyan,fontWeight:700}}>{t.sym}</td>
                       <td style={{padding:'5px 8px',color:t.side==='LONG'?C.green:C.red,fontWeight:700}}>{t.side==='LONG'?'▲ לונג':'▼ שורט'}</td>
@@ -1120,8 +1128,13 @@ export default function CryptoTradingDashboard() {
                         color:t.status==='TP'?C.green:t.status==='SL'?C.red:C.yellow}}>
                         {t.status==='TP'?'✓ TP':t.status==='SL'?'✗ SL':'~ TRAIL'}
                       </td>
+                      <td style={{padding:'5px 8px',fontFamily:'monospace',whiteSpace:'nowrap' as const}}>
+                        <div style={{color:C.text,fontSize:'9px'}}>{timeStr}</div>
+                        <div style={{color:C.muted,fontSize:'8px'}}>{dateStr}</div>
+                      </td>
                     </tr>
-                  ))}
+                      )
+                    })}
                 </tbody>
               </table>
             </div>
