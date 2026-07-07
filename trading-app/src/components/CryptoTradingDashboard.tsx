@@ -612,14 +612,13 @@ export default function CryptoTradingDashboard() {
     load()
   },[])
 
+  // Spot WS — hardcoded COINS only
   useEffect(()=>{
     let dead=false
     function connect(){
       if(dead)return
       setWsStatus('connecting')
-      const knownSet=new Set(COINS.map(c=>c.sym))
-      const extraStreams=extraWsSyms.filter(s=>!knownSet.has(s)).map(s=>s.toLowerCase()+'usdt@miniTicker')
-      const streams=[...COINS.map(c=>c.ws+'@miniTicker'),...extraStreams].join('/')
+      const streams=COINS.map(c=>c.ws+'@miniTicker').join('/')
       const ws=new WebSocket(`wss://stream.binance.com:9443/stream?streams=${streams}`)
       ws.onopen=()=>setWsStatus('live')
       ws.onerror=()=>setWsStatus('error')
@@ -633,18 +632,37 @@ export default function CryptoTradingDashboard() {
           if(coin){
             setPrices(p=>({...p,[coin.sym]:{price,change:((price-open24)/open24)*100}}))
             processTick(coin.sym,price,parseFloat(d.v||'0'))
-          } else {
-            const sym=(d.s||'').replace('USDT','')
-            if(sym){
-              setPrices(p=>({...p,[sym]:{price,change:((price-open24)/open24)*100}}))
-              processTick(sym,price,parseFloat(d.v||'0'))
-            }
           }
         }catch{}
       }
       return ws
     }
     const ws=connect()
+    return ()=>{dead=true;ws?.close()}
+  },[processTick])
+
+  // Futures WS — dynamic coins not in COINS (uses fstream for accurate futures prices)
+  useEffect(()=>{
+    if(extraWsSyms.length===0)return
+    let dead=false
+    function connectFutures(){
+      if(dead)return
+      const streams=extraWsSyms.map(s=>s.toLowerCase()+'usdt@miniTicker').join('/')
+      const ws=new WebSocket(`wss://fstream.binance.com/stream?streams=${streams}`)
+      ws.onclose=()=>{if(!dead)setTimeout(connectFutures,3000)}
+      ws.onmessage=(e)=>{
+        try{
+          const msg=JSON.parse(e.data);const d=msg.data||msg
+          const sym=(d.s||'').replace('USDT','')
+          if(!sym)return
+          const price=parseFloat(d.c),open24=parseFloat(d.o)
+          setPrices(p=>({...p,[sym]:{price,change:open24>0?((price-open24)/open24)*100:0}}))
+          processTick(sym,price,parseFloat(d.v||'0'))
+        }catch{}
+      }
+      return ws
+    }
+    const ws=connectFutures()
     return ()=>{dead=true;ws?.close()}
   },[processTick,extraWsSyms])
 
@@ -690,6 +708,10 @@ export default function CryptoTradingDashboard() {
         .on('postgres_changes',{event:'INSERT',schema:'public',table:'bot_trades'},(p)=>{
           const t=mapDbTrade(p.new as Record<string,unknown>)
           setTrades(prev=>{const next=[...prev,t];tradeRef.current=next;return next})
+          // immediately subscribe futures WS for new dynamic coins
+          if(t.status==='OPEN'&&!new Set(COINS.map(c=>c.sym)).has(t.sym)){
+            setExtraWsSyms(prev=>[...new Set([...prev,t.sym])])
+          }
           addLog(`▲ פתיחה ${t.sym} ${t.side} @ ${t.entry>=100?t.entry.toFixed(2):t.entry.toFixed(5)}`)
         })
         .on('postgres_changes',{event:'UPDATE',schema:'public',table:'bot_trades'},(p)=>{
