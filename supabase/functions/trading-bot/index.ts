@@ -1,5 +1,11 @@
 // ════════════════════════════════════════════════════════════
-// CryptoBot v29 — Production-grade trading bot
+// CryptoBot v30 — Production-grade trading bot
+//
+// v30: BOS + EMA200 MACRO ALIGNMENT (Signals #15 & #16)
+//  Signal #15 BOS (+8 pts): Break of Structure — bar closed above 20-bar
+//  swing high (LONG) or below swing low (SHORT). Confirms momentum, not spike.
+//  Signal #16 EMA200 (+8 pts): EMA50 vs EMA200 on 1H (Golden/Death Cross).
+//  Partial credit (+4) when macro is neutral. Both are additive bonuses only.
 //
 // v29: STOP-HUNT / SPRING / UPTHRUST DETECTION
 //  Signal #13 (+10 pts): detects liquidity sweeps where price briefly
@@ -459,6 +465,23 @@ function detectStopHunt(bars: Bar[], side: 'LONG'|'SHORT'): boolean {
   return false
 }
 
+// v30: BOS — Break of Structure
+// LONG BOS: last closed bar closed above the highest high of the prior 20 bars
+// SHORT BOS: last closed bar closed below the lowest low of the prior 20 bars
+// Confirms momentum continuation rather than a one-candle spike.
+function detectBOS(bars: Bar[], side: 'LONG'|'SHORT'): boolean {
+  if (bars.length < 25) return false
+  const WIN = 20
+  const cur = bars[bars.length - 1]
+  if (side === 'LONG') {
+    const swingHigh = Math.max(...bars.slice(-WIN - 1, -1).map(b => b.high))
+    return cur.close > swingHigh
+  } else {
+    const swingLow = Math.min(...bars.slice(-WIN - 1, -1).map(b => b.low))
+    return cur.close < swingLow
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // UPGRADE 6: ADVANCED EXIT SIGNALS
 // ═══════════════════════════════════════════════════════════════════════════
@@ -576,6 +599,8 @@ interface ConfluenceBreakdown {
   bbSqueeze: number;
   stopHunt: number;
   vwap: number;
+  bos: number;
+  ema200: number;
 }
 
 interface EntryScore {
@@ -601,9 +626,10 @@ function calcConfluenceScore(
   rsiOverbought: number,
   bbProx: number,
   btcCloses: number[] = [],
-  coinCloses: number[] = []
+  coinCloses: number[] = [],
+  ema200Bias: 'BULL'|'BEAR'|'NEUTRAL' = 'NEUTRAL'  // v30: EMA50/200 on 1H
 ): EntryScore {
-  if (bars.length < 30) return {side: null, slDist: 0, score: 0, breakdown: {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0,stopHunt:0,vwap:0}, adx, regime: 'UNCERTAIN'}
+  if (bars.length < 30) return {side: null, slDist: 0, score: 0, breakdown: {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0,stopHunt:0,vwap:0,bos:0,ema200:0}, adx, regime: 'UNCERTAIN'}
 
   const closes = bars.map(b => b.close)
   const highs = bars.map(b => b.high)
@@ -613,7 +639,7 @@ function calcConfluenceScore(
   const rsiHistory = closes.slice(-20).map((c,i) => i === 0 ? 50 : calcRsi(closes.slice(0, closes.length-20+i+1)))
   const bb = calcBB(closes, 20, 2)
 
-  if (!bb.mid || !atr) return {side: null, slDist: 0, score: 0, breakdown: {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0,stopHunt:0,vwap:0}, adx, regime: 'UNCERTAIN'}
+  if (!bb.mid || !atr) return {side: null, slDist: 0, score: 0, breakdown: {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0,stopHunt:0,vwap:0,bos:0,ema200:0}, adx, regime: 'UNCERTAIN'}
 
   const e9arr = calcEmaArr(closes, 9)
   const e21arr = calcEmaArr(closes, 21)
@@ -639,7 +665,7 @@ function calcConfluenceScore(
   if (ema1hBias === 'BULL' && curE9 > curE21 && rsi >= 40 && rsi <= 55 && price <= bb.mid) longSig++
 
   const side = longSig >= 2 ? 'LONG' : shortSig >= 2 ? 'SHORT' : null
-  if (!side) return {side: null, slDist: 0, score: 0, breakdown: {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0,stopHunt:0,vwap:0}, adx, regime: 'UNCERTAIN'}
+  if (!side) return {side: null, slDist: 0, score: 0, breakdown: {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0,stopHunt:0,vwap:0,bos:0,ema200:0}, adx, regime: 'UNCERTAIN'}
 
   // v27.4: range-fade — band extreme + RSI extreme in low-ADX chop.
   // This is the highest-probability trade a ranging market offers.
@@ -765,7 +791,23 @@ function calcConfluenceScore(
     else if (side === 'SHORT' && vwapDist <=  0.001) breakdown.vwap = 6
   }
 
-  const totalScore = breakdown.vpoc + breakdown.ema1h + breakdown.adxTrend + breakdown.volumeSurge + breakdown.oiFavor + breakdown.sentiment + breakdown.candlePattern + breakdown.stochastic + breakdown.divergence + breakdown.macd + breakdown.pivotBounce + breakdown.bbSqueeze + breakdown.stopHunt + breakdown.vwap
+  // 15. BOS — Break of Structure (8 pts) — v30
+  // Closed above 20-bar swing high (LONG) or below swing low (SHORT):
+  // market structure confirms momentum, not just a wick spike.
+  if (detectBOS(bars, side)) {
+    breakdown.bos = 8
+  }
+
+  // 16. EMA200 macro alignment on 1H (8 pts) — v30
+  // Golden Cross (EMA50 > EMA200 on 1H) → bullish macro; Death Cross → bearish.
+  // Passed from the main loop where 1H bars are already available.
+  if ((side === 'LONG' && ema200Bias === 'BULL') || (side === 'SHORT' && ema200Bias === 'BEAR')) {
+    breakdown.ema200 = 8
+  } else if (ema200Bias === 'NEUTRAL') {
+    breakdown.ema200 = 4  // undecided macro — partial credit
+  }
+
+  const totalScore = breakdown.vpoc + breakdown.ema1h + breakdown.adxTrend + breakdown.volumeSurge + breakdown.oiFavor + breakdown.sentiment + breakdown.candlePattern + breakdown.stochastic + breakdown.divergence + breakdown.macd + breakdown.pivotBounce + breakdown.bbSqueeze + breakdown.stopHunt + breakdown.vwap + breakdown.bos + breakdown.ema200
 
   const regime = side === 'LONG' ? 'BULL' : 'BEAR'
 
@@ -1811,6 +1853,16 @@ Deno.serve(async (req) => {
 
         const vpoc = calcVPOC(completed.slice(-80))
 
+        // v30: EMA50/200 on 1H — Golden Cross / Death Cross macro bias
+        let ema200Bias: 'BULL'|'BEAR'|'NEUTRAL' = 'NEUTRAL'
+        if (bars1h && bars1h.length >= 52) {
+          const closes1hAll = bars1h.slice(0, -1).map(b => b.close)
+          const e50_1h  = calcEma(closes1hAll, 50)
+          const e200_1h = calcEma(closes1hAll, 200)
+          if (e50_1h > e200_1h * 1.001) ema200Bias = 'BULL'
+          else if (e50_1h < e200_1h * 0.999) ema200Bias = 'BEAR'
+        }
+
         // ── STAGE 2: Calculate volatility percentile and dynamic SL/TP ──
         const {pct: volPctile, atrPct: curAtrPct} = calcVolatilityPercentile(completed)
         const dynamicSLMult = adx > 25 ? 1.0 : adx < 15 ? 1.5 : 1.2
@@ -2121,7 +2173,8 @@ Deno.serve(async (req) => {
           completed, price, vpoc, ema1hBias, adx, fearGreed, oiSig,
           dynRsiOversold, dynRsiOverbought, dynBbProx,
           btcBars.map(b => b.close),
-          completed.map(b => b.close)
+          completed.map(b => b.close),
+          ema200Bias
         )
 
         if (!entryScore.side) {
