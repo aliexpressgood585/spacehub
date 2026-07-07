@@ -1447,6 +1447,21 @@ Deno.serve(async (req) => {
     if (!state?.active) return new Response(JSON.stringify({ok:true,msg:'inactive'}),
       {headers:{'Content-Type':'application/json'}})
 
+    // v28.2: single-runner lease — concurrent invocations (cron overlap, manual
+    // trigger, retries) raced on balance and the 1-per-symbol check, producing
+    // duplicate positions and corrupted peak_balance. Claim a 50s lease
+    // atomically; if another run holds it, exit.
+    const nowIso = new Date().toISOString()
+    const { data: lockRows } = await supabase.from('bot_state')
+      .update({ lock_until: new Date(Date.now() + 50_000).toISOString() })
+      .eq('id', 1)
+      .or(`lock_until.is.null,lock_until.lt.${nowIso}`)
+      .select('id')
+    if (!lockRows || lockRows.length === 0) {
+      return new Response(JSON.stringify({ok:true,msg:'another run in progress — skipped'}),
+        {headers:{'Content-Type':'application/json'}})
+    }
+
     const paperMode = url.searchParams.get('paper')==='1' || state.paper_mode===true
 
     // dynamic params from optimizer agent (falls back to hardcoded defaults)
@@ -2199,6 +2214,7 @@ Deno.serve(async (req) => {
       market_regime: btcRegime+'_v23_5M', streak,
       peak_balance:  newPeakBalance,
       coin_weights:  coinWeights,
+      lock_until:    new Date().toISOString(),  // v28.2: release run lease
     }).eq('id',1)
 
     return new Response(JSON.stringify({
