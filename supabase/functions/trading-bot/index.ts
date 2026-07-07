@@ -1458,7 +1458,6 @@ Deno.serve(async (req) => {
 
     let balance = state.balance
     const now   = Date.now()
-    const circuitBreakerActive = balance < INITIAL_BALANCE*(1-MAX_DD_STOP)
     const utcH  = new Date().getUTCHours()
     const utcM  = new Date().getUTCMinutes()
     const rawRisk = state.risk as string
@@ -1515,25 +1514,35 @@ Deno.serve(async (req) => {
     if (dynamicBlacklist.size>0) log.push(`BLACKLIST ${[...dynamicBlacklist].join(',')}`)
 
     // ── Phase 10: Equity Curve Guard (v25: progressive scaling) ────────────────
+    // v28.1 CRITICAL FIX: drawdown must be measured on EQUITY (cash + open
+    // position notional), not cash balance. Entries deduct notional from cash,
+    // so with 60% exposure the cash-based number read as a 60% "drawdown" and
+    // the guard force-closed every basket at market — the -$958 churn bug.
+    const {data:allOpen}=await supabase.from('bot_trades').select('*').eq('status','OPEN')
+    const lockedNotional = (allOpen||[]).reduce((s:number,t:any)=>s+Number(t.entry_price)*Number(t.size),0)
+    const equity = balance + lockedNotional
+    const circuitBreakerActive = equity < INITIAL_BALANCE*(1-MAX_DD_STOP)
     const peakBalanceStored  = Number(state.peak_balance ?? INITIAL_BALANCE)
-    const currentPeakBalance = Math.max(peakBalanceStored, balance)
-    const newPeakBalance     = balance > peakBalanceStored ? balance : peakBalanceStored
-    const drawdownFromPeak   = currentPeakBalance > 0 ? (currentPeakBalance - balance) / currentPeakBalance : 0
+    const currentPeakBalance = Math.max(peakBalanceStored, equity)
+    const newPeakBalance     = equity > peakBalanceStored ? equity : peakBalanceStored
+    const drawdownFromPeak   = currentPeakBalance > 0 ? (currentPeakBalance - equity) / currentPeakBalance : 0
     const drawdownScale      = calcDrawdownScale(drawdownFromPeak)
     let equityGuardMult   = drawdownScale
-    let equityGuardPaused = drawdownScale <= 0
+    const equityGuardPaused = drawdownScale <= 0   // real 30%+ equity DD → force-close
+    let entriesBlocked    = equityGuardPaused      // blocks new entries only
     if (equityGuardPaused) {
-      log.push(`EQUITY GUARD: ${(drawdownFromPeak*100).toFixed(0)}% drawdown — PAUSED`)
+      log.push(`EQUITY GUARD: ${(drawdownFromPeak*100).toFixed(0)}% equity drawdown — PAUSED`)
     } else if (drawdownScale < 1.0) {
-      log.push(`EQUITY GUARD: ${(drawdownFromPeak*100).toFixed(0)}% drawdown — sizing at ${(drawdownScale*100).toFixed(0)}%`)
+      log.push(`EQUITY GUARD: ${(drawdownFromPeak*100).toFixed(0)}% equity drawdown — sizing at ${(drawdownScale*100).toFixed(0)}%`)
     }
 
-    // v25: Daily P&L circuit breaker — stop if lost more than 3% of balance today
+    // v25: Daily P&L circuit breaker — stop if lost more than 3% of equity today
+    // v28.1: blocks NEW entries only — it no longer force-closes open positions
     const dailyPnl = calcDailyPnl(recent || [])
-    const dailyLossLimitActive = dailyPnl < -(balance * DAILY_LOSS_LIMIT_PCT)
+    const dailyLossLimitActive = dailyPnl < -(equity * DAILY_LOSS_LIMIT_PCT)
     if (dailyLossLimitActive) {
-      equityGuardPaused = true
-      log.push(`DAILY LOSS LIMIT: lost $${Math.abs(dailyPnl).toFixed(0)} today (>${(DAILY_LOSS_LIMIT_PCT*100).toFixed(0)}% of balance) — no new entries`)
+      entriesBlocked = true
+      log.push(`DAILY LOSS LIMIT: lost $${Math.abs(dailyPnl).toFixed(0)} today (>${(DAILY_LOSS_LIMIT_PCT*100).toFixed(0)}% of equity) — no new entries`)
     }
 
     const needDailySummary=utcH===0&&utcM===0
@@ -1625,7 +1634,7 @@ Deno.serve(async (req) => {
     }
 
 
-    const {data:allOpen}=await supabase.from('bot_trades').select('*').eq('status','OPEN')
+    // allOpen fetched above (v28.1) for equity computation
     const openBySymbol:Record<string,any[]>={}
     const corrGroupCount:Record<number,number>={}
     let openCount=0
@@ -1936,7 +1945,7 @@ Deno.serve(async (req) => {
 
         // ── New entry ──────────────────────────────────────
         if (circuitBreakerActive) return
-        if (equityGuardPaused) return  // Phase 10: 30% drawdown pause
+        if (entriesBlocked) return  // 30% equity DD pause or daily loss limit
         if (streakPaused) return
         if (openCount >= MAX_OPEN_TRADES) return
         if (openTrades.length > 0) return  // 1 trade per symbol
@@ -2196,6 +2205,7 @@ Deno.serve(async (req) => {
       ok:true,v:28,openCount,maxOpen:MAX_OPEN_TRADES,streakPaused,streak,btcBias,btcRegime,
       kelly:kellyMult,fearGreed,adaptMinScore,adaptVpocDist,adaptSideFilter,
       session,sessionSizeMult:sp.sizeMult,equityGuardMult,
+      equity:equity.toFixed(2),lockedNotional:lockedNotional.toFixed(2),
       drawdownFromPeak:(drawdownFromPeak*100).toFixed(1)+'%',
       drawdownScale:(drawdownScale*100).toFixed(0)+'%',
       dailyPnl:dailyPnl.toFixed(2),dailyLossLimitActive,
