@@ -2185,6 +2185,29 @@ Deno.serve(async (req) => {
             continue
           }
 
+          // ── v33: Liquidity Zone counter-exit (Option B) ──
+          // If an opposite-direction zone fires with full confidence while we're
+          // losing (< -0.2R), the market is about to sweep stops against us.
+          // Exit early — same logic as stop-hunt counter but OI-validated.
+          const liqOppSide = t.side === 'LONG' ? 'SHORT' : 'LONG'
+          const liqOppR = slDist > 0 ? (price - entry) * dirM / slDist : 0
+          if (liqOppR < -0.2 && oiHistory.length >= 10) {
+            const liqOppResult = detectLiquidationZone(completed, price, oiHistory, liqOppSide)
+            if (liqOppResult.hit && liqOppResult.confidence >= 1.0) {
+              const fav = (price - entry) / entry * dirM
+              const pnl = (price - entry) * size * dirM - price * size * FEE
+              balance += entry * size + pnl; openCount--
+              await supabase.from('bot_trades').update({
+                status: 'SL', exit_price: price, pnl, pnl_pct: fav,
+                closed_at: new Date().toISOString()
+              }).eq('id', t.id)
+              await supabase.from('bot_trade_snapshots').update({ result: 'liq_zone_counter_exit', pnl }).eq('trade_id', t.id).catch(() => {})
+              await updateMarketMemory(supabase, t.id, 'SL', pnl, log)
+              log.push(`LIQ_ZONE_COUNTER ${sym} ${t.side} @${price.toFixed(4)} zone=${liqOppResult.zoneLevel.toFixed(4)} pnl=${pnl.toFixed(2)}`)
+              continue
+            }
+          }
+
           const storedTP_LONG =Number(t.hi)>entry*1.001
           const storedTP_SHORT=Number(t.lo) <entry*0.999
           const tp=storedTP_LONG  ?Number(t.hi)
@@ -2276,6 +2299,22 @@ Deno.serve(async (req) => {
             if (profitR>=5.0) {
               const trail5R=price-atr*0.25*dirM
               newSL=dirM===1?Math.max(newSL,trail5R):Math.min(newSL,trail5R)
+            }
+
+            // v33: Option A — snap SL to just outside our own liquidity zone.
+            // If a same-direction zone is active, it's a validated support (LONG)
+            // or resistance (SHORT) — use it as a natural, tight stop level.
+            if (oiHistory.length >= 10) {
+              const liqOwnResult = detectLiquidationZone(completed, price, oiHistory, t.side as 'LONG'|'SHORT')
+              if (liqOwnResult.hit && liqOwnResult.zoneLevel > 0) {
+                const zoneSL = t.side === 'LONG'
+                  ? liqOwnResult.zoneLevel * (1 - 0.003)  // 0.3% below support
+                  : liqOwnResult.zoneLevel * (1 + 0.003)  // 0.3% above resistance
+                const prevSL = newSL
+                newSL = dirM === 1 ? Math.max(newSL, zoneSL) : Math.min(newSL, zoneSL)
+                if (newSL !== prevSL)
+                  log.push(`LIQ_ZONE_SL ${sym} ${t.side} snap sl=${newSL.toFixed(4)} zone=${liqOwnResult.zoneLevel.toFixed(4)}`)
+              }
             }
 
             if (newSL!==slToUse)
