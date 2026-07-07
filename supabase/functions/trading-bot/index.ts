@@ -1775,6 +1775,36 @@ Deno.serve(async (req) => {
         {headers:{'Content-Type':'application/json'}})
     }
 
+    // v38: migrate open positions TP from 1.8R → 2.5R
+    // Recovers original slDist from stored hi/lo, then writes new TP
+    if (url.searchParams.get('migrate_tp')==='1') {
+      const OLD_TPR = 1.8, NEW_TPR = 2.5
+      const {data:openTrades} = await supabase.from('bot_trades').select('*').eq('status','OPEN')
+      const results: any[] = []
+      for (const t of (openTrades||[])) {
+        const entry = Number(t.entry_price)
+        const hi    = Number(t.hi)
+        const lo    = Number(t.lo)
+        const storedTP_LONG  = hi > entry * 1.001
+        const storedTP_SHORT = lo  < entry * 0.999
+        if (t.side === 'LONG' && storedTP_LONG) {
+          const origSlDist = (hi - entry) / OLD_TPR
+          const newHi = entry + origSlDist * NEW_TPR
+          await supabase.from('bot_trades').update({ hi: newHi }).eq('id', t.id)
+          results.push({ id:t.id, sym:t.sym, side:'LONG', old_tp:hi.toFixed(4), new_tp:newHi.toFixed(4) })
+        } else if (t.side === 'SHORT' && storedTP_SHORT) {
+          const origSlDist = (entry - lo) / OLD_TPR
+          const newLo = entry - origSlDist * NEW_TPR
+          await supabase.from('bot_trades').update({ lo: newLo }).eq('id', t.id)
+          results.push({ id:t.id, sym:t.sym, side:'SHORT', old_tp:lo.toFixed(4), new_tp:newLo.toFixed(4) })
+        } else {
+          results.push({ id:t.id, sym:t.sym, side:t.side, skipped:'no stored TP found' })
+        }
+      }
+      return new Response(JSON.stringify({ok:true, migrated:results.length, results}),
+        {headers:{'Content-Type':'application/json'}})
+    }
+
     if (url.searchParams.get('reset')==='1') {
       const newBalance = 10000
       await supabase.from('bot_trades').delete().neq('id',0)
