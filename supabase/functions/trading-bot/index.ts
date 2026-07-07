@@ -1,5 +1,14 @@
 // ════════════════════════════════════════════════════════════
-// CryptoBot v37 — Production-grade trading bot
+// CryptoBot v38 — Production-grade trading bot
+//
+// v38: WIN RATE FIXES — analysis showed 31.3% WR, PF 0.80 (losing money)
+//  1. Score threshold 60→75 + base floor 50→65: filter out weak entries
+//  2. Trail breakeven 0.5R→1.0R: stop killing winners before partial TP
+//  3. TP 1.8R→2.5R: give winners room to reach full TP (was only 5% of exits)
+//  4. MAX_OPEN_TRADES 50→20: focus on quality not quantity (was shotgunning 40+ coins)
+//  5. MAX_NEW_ENTRIES_PER_SCAN 15→5: don't spray 15 entries per minute
+//  6. STREAK_PAUSE 10min→2h: meaningful circuit breaker (10min was useless)
+//  7. Side filter gap 25%→15%: with LONG WR 20% vs SHORT 38.5%, gap=18.5% → filter LONGs
 //
 // v37: Equal-weight spread across ALL open slots — floor = remainingExposure / slotsLeft
 //  so idle cash is distributed evenly over MAX_OPEN_TRADES positions, not large chunks.
@@ -188,23 +197,23 @@ const SWING_N         = 5
 const SWING_LOOKBACK  = 60
 const SWEEP_LOOKBACK  = 5
 const MAX_HOLD_MIN    = 120  // v32: balanced — max 2h hold
-const STREAK_PAUSE_MS = 10*60_000
+const STREAK_PAUSE_MS = 120*60_000  // v38: 2h pause (was 10min — useless)
 const MAX_NOTIONAL_PCT= 0.20        // kept for reference; not used as hard cap in notional calc
-const MAX_OPEN_TRADES = 50          // v34: raised 30→50 — more slots when needed
+const MAX_OPEN_TRADES = 20          // v38: 50→20 — quality over quantity
 const MAX_TOTAL_EXPOSURE_PCT = 1.0  // 100% — no idle cash
 const FUNDING_EXTREME = 0.0003
 const MIN_SL_PCT      = 0.005
 const SYM_COOLDOWN_MS = 10*60_000  // v32: 10 min cooldown
-const MAX_NEW_ENTRIES_PER_SCAN = 15 // v35: raised 10→15 — fill portfolio faster
+const MAX_NEW_ENTRIES_PER_SCAN = 5  // v38: 15→5 — don't spray entries per scan
 const MAX_DD_STOP     = 0.80
 const INITIAL_BALANCE = 10000
 const DAILY_LOSS_LIMIT_PCT = 0.03
 const FUNDING_AGAINST_THRESHOLD = 0.0005
 
 const VOL_PARAMS = {
-  LOW:    { slMult:1.5, tpR:1.8, trailBeR:0.5, trailAtr:0.6 },  // v32: balanced
-  MEDIUM: { slMult:1.3, tpR:1.8, trailBeR:0.5, trailAtr:0.7 },
-  HIGH:   { slMult:1.0, tpR:1.8, trailBeR:0.5, trailAtr:0.8 },
+  LOW:    { slMult:1.5, tpR:2.5, trailBeR:1.0, trailAtr:0.6 },  // v38: tpR 1.8→2.5, breakeven 0.5→1.0R
+  MEDIUM: { slMult:1.3, tpR:2.5, trailBeR:1.0, trailAtr:0.7 },
+  HIGH:   { slMult:1.0, tpR:2.5, trailBeR:1.0, trailAtr:0.8 },
 }
 
 interface Bar { open:number; high:number; low:number; close:number; vol:number }
@@ -1307,8 +1316,8 @@ function computeAdaptive(trades: any[]): {
 
   let sideFilter:'LONG'|'SHORT'|'BOTH'='BOTH'
   if (longs.length>=15 && shorts.length>=15) {
-    if      (longWR >shortWR+0.25) sideFilter='LONG'
-    else if (shortWR>longWR +0.25) sideFilter='SHORT'
+    if      (longWR >shortWR+0.15) sideFilter='LONG'   // v38: gap 25%→15% — react sooner
+    else if (shortWR>longWR +0.15) sideFilter='SHORT'
   }
   return {minScore, vpocDist, sideFilter}
 }
@@ -2356,14 +2365,9 @@ Deno.serve(async (req) => {
             const profitR=origSlDist>0?(price-entry)*dirM/origSlDist:0
             let newSL=slToUse
 
-            // v27.6: at 0.6R cut the remaining risk in half — protects the
-            // 0.5-1R band without the wick-out-prone full breakeven lock
-            if (profitR>=0.6) {
-              const halfRiskLevel=entry-origSlDist*0.5*dirM
-              newSL=dirM===1?Math.max(newSL,halfRiskLevel):Math.min(newSL,halfRiskLevel)
-            }
-            // v32: Breakeven trail starts at 0.5R — scalping mode
-            if (profitR>=0.5) {
+            // v38: breakeven lock at 1.0R (was 0.5R/0.6R — was cutting winners far too early;
+            // TRAIL was 55% of exits at PF 0.80 — price never breathed enough to hit TP)
+            if (profitR>=1.0) {
               const beLevel=entry*(1+FEE*2.5*dirM)
               newSL=dirM===1?Math.max(newSL,beLevel):Math.min(newSL,beLevel)
             }
@@ -2427,7 +2431,7 @@ Deno.serve(async (req) => {
         const dynRsiOversold    = Number(_bp.rsi_oversold        ?? 35)
         const dynRsiOverbought  = Number(_bp.rsi_overbought       ?? 65)
         const dynBbProx         = Number(_bp.bb_proximity         ?? 1.02)
-        const dynMinConfluence  = Math.max(60, Number(_bp.min_confluence_score ?? 65))
+        const dynMinConfluence  = Math.max(75, Number(_bp.min_confluence_score ?? 75))  // v38: 60→75
         const dynMinAdx         = Number(_bp.min_adx              ?? 20)  // v31-A: default 20
 
         // v22: Use confluence score instead of 2/4 signals
@@ -2508,9 +2512,8 @@ Deno.serve(async (req) => {
         if (entryScore.side === 'SHORT' && symFunding > 0.0002) fundingBonus = 3
 
         const finalScore = entryScore.score + mtfBonus + fundingBonus
-        // v27.6: base floor — bonuses add conviction to a decent setup, they
-        // don't rescue a weak one (base<50 can't enter no matter the bonuses)
-        if (entryScore.score < 50 || finalScore < dynMinConfluence) {
+        // v38: base floor raised 50→65 — bonuses add conviction but can't rescue weak setups
+        if (entryScore.score < 65 || finalScore < dynMinConfluence) {
           log.push(`SKIP ${sym}: score base=${entryScore.score} final=${finalScore} (mtf=${mtfBonus}+fr=${fundingBonus}) < ${dynMinConfluence}`)
           return
         }
