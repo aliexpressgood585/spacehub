@@ -1921,6 +1921,26 @@ Deno.serve(async (req) => {
             }
           }
 
+          // ── v29: Stop-Hunt Counter-Signal Exit ──
+          // If the OPPOSITE stop-hunt fires while we're losing (< -0.2R),
+          // the market just swept stops in the direction that hurts us —
+          // strong reversal evidence. Exit early rather than wait for SL.
+          const shOppSide = t.side === 'LONG' ? 'SHORT' : 'LONG'
+          const shProfitR = slDist > 0 ? (price - entry) * dirM / slDist : 0
+          if (shProfitR < -0.2 && detectStopHunt(completed, shOppSide)) {
+            const fav = (price - entry) / entry * dirM
+            const pnl = (price - entry) * size * dirM - price * size * FEE
+            balance += entry * size + pnl; openCount--
+            await supabase.from('bot_trades').update({
+              status: 'SL', exit_price: price, pnl, pnl_pct: fav,
+              closed_at: new Date().toISOString()
+            }).eq('id', t.id)
+            await supabase.from('bot_trade_snapshots').update({ result: 'stop_hunt_counter_exit', pnl }).eq('trade_id', t.id).catch(() => {})
+            await updateMarketMemory(supabase, t.id, 'SL', pnl, log)
+            log.push(`STOP_HUNT_COUNTER ${sym} ${t.side} @${price.toFixed(4)} pnl=${pnl.toFixed(2)}`)
+            continue
+          }
+
           const storedTP_LONG =Number(t.hi)>entry*1.001
           const storedTP_SHORT=Number(t.lo) <entry*0.999
           const tp=storedTP_LONG  ?Number(t.hi)
