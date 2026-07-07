@@ -7,7 +7,7 @@ const SUPA_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) 
 type RiskType = 'low'|'medium'|'high'
 const normalizeRisk = (r: string): RiskType =>
   (r==='low'||r==='medium'||r==='high') ? r : 'medium'
-type TabType  = 'scanner'|'history'|'stats'|'ai'|'regime'
+type TabType  = 'scanner'|'history'|'stats'|'ai'|'regime'|'analysis'
 type Regime   = 'TREND_UP'|'TREND_DOWN'|'RANGING'|'VOLATILE'
 
 interface Bar { time:number; open:number; high:number; low:number; close:number; vol:number }
@@ -788,7 +788,7 @@ export default function CryptoTradingDashboard() {
 
   const TABS:[TabType,string][]=[
     ['scanner','🔍 סריקה'],['history','📋 היסטוריה'],
-    ['stats','📊 סטטיסטיקות'],['ai','🤖 AI OPT'],['regime','🌐 שוק'],
+    ['stats','📊 סטטיסטיקות'],['analysis','🔬 ניתוח'],['ai','🤖 AI OPT'],['regime','🌐 שוק'],
   ]
 
   return (
@@ -1141,6 +1141,172 @@ export default function CryptoTradingDashboard() {
             ))}
           </div>
         )}
+
+        {/* ── ANALYSIS ── */}
+        {tab==='analysis'&&(()=>{
+          if(closed.length===0)return<div style={{color:C.dim,textAlign:'center' as const,padding:'32px'}}>אין עסקאות לניתוח עדיין</div>
+
+          // by symbol
+          const bySym: Record<string,{count:number;wins:number;pnl:number;holdMin:number[]}>={}
+          for(const t of closed){
+            if(!bySym[t.sym])bySym[t.sym]={count:0,wins:0,pnl:0,holdMin:[]}
+            const d=bySym[t.sym]
+            d.count++; d.pnl+=(t.pnl||0)
+            if((t.pnl||0)>0)d.wins++
+            if(t.closedTs&&t.ts)d.holdMin.push((t.closedTs-t.ts)/60000)
+          }
+          const symRows=Object.entries(bySym).sort((a,b)=>Math.abs(b[1].pnl)-Math.abs(a[1].pnl))
+
+          // by side
+          const longT=closed.filter(t=>t.side==='LONG')
+          const shortT=closed.filter(t=>t.side==='SHORT')
+          const longWr=longT.length?longT.filter(t=>(t.pnl||0)>0).length/longT.length*100:0
+          const shortWr=shortT.length?shortT.filter(t=>(t.pnl||0)>0).length/shortT.length*100:0
+          const longPnl=longT.reduce((a,t)=>a+(t.pnl||0),0)
+          const shortPnl=shortT.reduce((a,t)=>a+(t.pnl||0),0)
+
+          // by status
+          const tpT=closed.filter(t=>t.status==='TP')
+          const slT=closed.filter(t=>t.status==='SL')
+          const trailT=closed.filter(t=>t.status==='TRAIL')
+
+          // streaks
+          let curStreak=0,bestWin=0,bestLoss=0,worstStreak=0
+          for(const t of [...closed].sort((a,b)=>(a.closedTs||a.ts)-(b.closedTs||b.ts))){
+            const w=(t.pnl||0)>0
+            if(w){curStreak=curStreak>0?curStreak+1:1}else{curStreak=curStreak<0?curStreak-1:-1}
+            if(curStreak>bestWin)bestWin=curStreak
+            if(curStreak<worstStreak)worstStreak=curStreak
+          }
+
+          // hold times
+          const holds=closed.filter(t=>t.closedTs&&t.ts).map(t=>(t.closedTs!-t.ts)/60000)
+          const avgHold=holds.length?holds.reduce((a,b)=>a+b,0)/holds.length:0
+
+          // avg win / avg loss
+          const winPnls=closed.filter(t=>(t.pnl||0)>0).map(t=>t.pnl||0)
+          const lossPnls=closed.filter(t=>(t.pnl||0)<0).map(t=>t.pnl||0)
+          const avgWin=winPnls.length?winPnls.reduce((a,b)=>a+b,0)/winPnls.length:0
+          const avgLoss=lossPnls.length?lossPnls.reduce((a,b)=>a+b,0)/lossPnls.length:0
+          const pf=lossPnls.length&&avgLoss!==0?Math.abs(winPnls.reduce((a,b)=>a+b,0)/lossPnls.reduce((a,b)=>a+b,0)):0
+
+          // best / worst 5 trades
+          const best5=[...closed].sort((a,b)=>(b.pnl||0)-(a.pnl||0)).slice(0,5)
+          const worst5=[...closed].sort((a,b)=>(a.pnl||0)-(b.pnl||0)).slice(0,5)
+
+          const Row=({label,val,col}:{label:string;val:string;col?:string})=>(
+            <div style={{display:'flex',justifyContent:'space-between',padding:'4px 0',borderBottom:`1px solid ${C.dim}`}}>
+              <span style={{color:C.muted,fontSize:'9px'}}>{label}</span>
+              <span style={{color:col||C.text,fontWeight:700,fontSize:'10px',fontFamily:'monospace'}}>{val}</span>
+            </div>
+          )
+
+          return(
+            <div style={{display:'flex',flexDirection:'column' as const,gap:'10px'}}>
+
+              {/* summary row */}
+              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'6px'}}>
+                <Tile label="סה״כ עסקאות" value={closed.length.toString()} color={C.blue}/>
+                <Tile label="WR" value={winRate.toFixed(1)+'%'} color={winRate>50?C.green:C.red}/>
+                <Tile label="Profit Factor" value={pf.toFixed(2)} color={pf>1?C.green:C.red}/>
+                <Tile label="P&L כולל" value={(totalPnl>=0?'+':'')+totalPnl.toFixed(2)} color={totalPnl>=0?C.green:C.red}/>
+              </div>
+
+              {/* avg / streaks / hold */}
+              <div style={{background:C.panel,border:`1px solid ${C.border}`,borderRadius:'12px',padding:'10px 14px'}}>
+                <div style={{color:C.blue,fontWeight:700,fontSize:'10px',marginBottom:'8px'}}>📈 ביצועים</div>
+                <Row label="ממוצע זכייה" val={'+'+avgWin.toFixed(2)+'$'} col={C.green}/>
+                <Row label="ממוצע הפסד" val={avgLoss.toFixed(2)+'$'} col={C.red}/>
+                <Row label="יחס R:R" val={(Math.abs(avgWin/avgLoss)||0).toFixed(2)} col={Math.abs(avgWin/avgLoss)>1?C.green:C.yellow}/>
+                <Row label="זמן החזקה ממוצע" val={avgHold.toFixed(0)+' דק׳'}/>
+                <Row label="רצף זכיות מקסימלי" val={bestWin.toString()} col={C.green}/>
+                <Row label="רצף הפסדים מקסימלי" val={Math.abs(worstStreak).toString()} col={C.red}/>
+              </div>
+
+              {/* side breakdown */}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'6px'}}>
+                <div style={{background:`${C.green}08`,border:`1px solid ${C.green}25`,borderRadius:'12px',padding:'10px'}}>
+                  <div style={{color:C.green,fontWeight:700,fontSize:'10px',marginBottom:'6px'}}>▲ לונג ({longT.length})</div>
+                  <Row label="WR" val={longWr.toFixed(1)+'%'} col={longWr>50?C.green:C.red}/>
+                  <Row label="P&L" val={(longPnl>=0?'+':'')+longPnl.toFixed(2)} col={longPnl>=0?C.green:C.red}/>
+                </div>
+                <div style={{background:`${C.red}08`,border:`1px solid ${C.red}25`,borderRadius:'12px',padding:'10px'}}>
+                  <div style={{color:C.red,fontWeight:700,fontSize:'10px',marginBottom:'6px'}}>▼ שורט ({shortT.length})</div>
+                  <Row label="WR" val={shortWr.toFixed(1)+'%'} col={shortWr>50?C.green:C.red}/>
+                  <Row label="P&L" val={(shortPnl>=0?'+':'')+shortPnl.toFixed(2)} col={shortPnl>=0?C.green:C.red}/>
+                </div>
+              </div>
+
+              {/* status breakdown */}
+              <div style={{background:C.panel,border:`1px solid ${C.border}`,borderRadius:'12px',padding:'10px 14px'}}>
+                <div style={{color:C.blue,fontWeight:700,fontSize:'10px',marginBottom:'8px'}}>🎯 סיבות סגירה</div>
+                <div style={{display:'flex',gap:'8px',flexWrap:'wrap' as const}}>
+                  {([['✓ TP',tpT,C.green],['✗ SL',slT,C.red],['~ TRAIL',trailT,C.yellow]] as [string,Trade[],string][]).map(([lbl,arr,col])=>(
+                    <div key={lbl} style={{flex:1,minWidth:'80px',background:`${col}08`,border:`1px solid ${col}25`,borderRadius:'8px',padding:'8px',textAlign:'center' as const}}>
+                      <div style={{color:col,fontWeight:800,fontSize:'14px'}}>{arr.length}</div>
+                      <div style={{color:C.muted,fontSize:'8px'}}>{lbl}</div>
+                      <div style={{color:col,fontSize:'9px'}}>{closed.length?((arr.length/closed.length)*100).toFixed(0)+'%':''}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* best / worst */}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'6px'}}>
+                <div style={{background:C.panel,border:`1px solid ${C.green}25`,borderRadius:'12px',padding:'10px'}}>
+                  <div style={{color:C.green,fontWeight:700,fontSize:'10px',marginBottom:'6px'}}>🏆 5 הטובות</div>
+                  {best5.map(t=>(
+                    <div key={t.id} style={{display:'flex',justifyContent:'space-between',padding:'2px 0',borderBottom:`1px solid ${C.dim}`,fontSize:'9px'}}>
+                      <span style={{color:C.cyan}}>{t.sym}</span>
+                      <span style={{color:C.green,fontWeight:700}}>+{(t.pnl||0).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{background:C.panel,border:`1px solid ${C.red}25`,borderRadius:'12px',padding:'10px'}}>
+                  <div style={{color:C.red,fontWeight:700,fontSize:'10px',marginBottom:'6px'}}>💀 5 הגרועות</div>
+                  {worst5.map(t=>(
+                    <div key={t.id} style={{display:'flex',justifyContent:'space-between',padding:'2px 0',borderBottom:`1px solid ${C.dim}`,fontSize:'9px'}}>
+                      <span style={{color:C.cyan}}>{t.sym}</span>
+                      <span style={{color:C.red,fontWeight:700}}>{(t.pnl||0).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* per symbol table */}
+              <div style={{background:C.panel,border:`1px solid ${C.border}`,borderRadius:'12px',padding:'10px'}}>
+                <div style={{color:C.blue,fontWeight:700,fontSize:'10px',marginBottom:'8px'}}>📊 ביצועים לפי מטבע</div>
+                <div style={{overflowX:'auto' as const}}>
+                  <table style={{width:'100%',borderCollapse:'collapse' as const,fontSize:'9px'}}>
+                    <thead>
+                      <tr style={{background:'rgba(0,200,255,0.04)'}}>
+                        {['מטבע','עסקאות','WR','P&L','זמן ממוצע'].map(h=>(
+                          <th key={h} style={{padding:'4px 6px',textAlign:'right' as const,color:C.muted,borderBottom:`1px solid ${C.dim}`,fontWeight:700}}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {symRows.map(([sym,d])=>{
+                        const wr=d.count?d.wins/d.count*100:0
+                        const avgH=d.holdMin.length?d.holdMin.reduce((a,b)=>a+b,0)/d.holdMin.length:0
+                        return(
+                          <tr key={sym} className="nx-row" style={{borderBottom:`1px solid ${C.dim}`}}>
+                            <td style={{padding:'4px 6px',color:C.cyan,fontWeight:700}}>{sym}</td>
+                            <td style={{padding:'4px 6px',color:C.text}}>{d.count}</td>
+                            <td style={{padding:'4px 6px',color:wr>50?C.green:C.red,fontWeight:700}}>{wr.toFixed(0)}%</td>
+                            <td style={{padding:'4px 6px',color:d.pnl>=0?C.green:C.red,fontWeight:700}}>{d.pnl>=0?'+':''}{d.pnl.toFixed(2)}</td>
+                            <td style={{padding:'4px 6px',color:C.muted}}>{avgH>0?avgH.toFixed(0)+' דק׳':'—'}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+          )
+        })()}
 
         {/* ── AI OPT ── */}
         {tab==='ai'&&(
