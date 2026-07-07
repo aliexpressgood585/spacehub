@@ -635,7 +635,10 @@ export default function CryptoTradingDashboard() {
             processTick(coin.sym,price,parseFloat(d.v||'0'))
           } else {
             const sym=(d.s||'').replace('USDT','')
-            if(sym) processTick(sym,price,0)
+            if(sym){
+              setPrices(p=>({...p,[sym]:{price,change:((price-open24)/open24)*100}}))
+              processTick(sym,price,parseFloat(d.v||'0'))
+            }
           }
         }catch{}
       }
@@ -811,7 +814,7 @@ export default function CryptoTradingDashboard() {
               letterSpacing:'1px',filter:`drop-shadow(0 0 8px ${C.blue}80)`}}>
               ⚡ NEXUS TRADE
             </span>
-            <span style={{fontSize:'8px',color:C.muted,padding:'2px 5px',border:`1px solid ${C.dim}`,borderRadius:'4px'}}>v31</span>
+            <span style={{fontSize:'8px',color:C.muted,padding:'2px 5px',border:`1px solid ${C.dim}`,borderRadius:'4px'}}>v34</span>
           </div>
 
           <div style={{display:'flex',gap:'5px',flexWrap:'wrap' as const}}>
