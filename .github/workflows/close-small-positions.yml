@@ -1,0 +1,29 @@
+name: Close Small Positions
+
+on:
+  workflow_dispatch:
+
+env:
+  PROJECT_REF: mdvheizhciuvqychtwxr
+
+jobs:
+  close:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get anon key
+        id: keys
+        run: |
+          ANON_KEY=$(curl -s \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/api-keys" \
+            | grep -o '"anon"[^}]*"apiKey":"[^"]*"' | grep -o '"apiKey":"[^"]*"' | cut -d'"' -f4)
+          echo "anon_key=${ANON_KEY}" >> $GITHUB_OUTPUT
+
+      - name: Close positions under $500
+        run: |
+          echo "=== Closing small positions ==="
+          curl -s -X POST \
+            "https://${{ env.PROJECT_REF }}.supabase.co/functions/v1/trading-bot?close_small=1" \
+            -H "Authorization: Bearer ${{ steps.keys.outputs.anon_key }}" \
+            -H "Content-Type: application/json" \
+            -d '{}' | python3 -m json.tool
