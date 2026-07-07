@@ -2639,7 +2639,7 @@ Deno.serve(async (req) => {
           Math.max(riskAmt / slPct, equalWeightFloor),
           remainingExposure, balance * 0.95
         )
-        if (notional < 5) return
+        if (notional < 500) return  // v38: min position size $500
 
         // v27.2: authoritative per-scan entry cap — same sync block as the
         // increment, so concurrent coin handlers can't slip past it
