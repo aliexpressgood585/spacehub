@@ -1,6 +1,8 @@
 // ════════════════════════════════════════════════════════════
-// CryptoBot v36 — Production-grade trading bot
+// CryptoBot v37 — Production-grade trading bot
 //
+// v37: Equal-weight spread across ALL open slots — floor = remainingExposure / slotsLeft
+//  so idle cash is distributed evenly over MAX_OPEN_TRADES positions, not large chunks.
 // v36: Fix idle-cash bug — remainingExposure now based on totalPortfolio (cash+exposure)
 //  Old formula: balance × 1.0 - currentExposure → went negative → floor=0 → idle cash
 //  New formula: (balance+currentExposure) × 1.0 - currentExposure = balance → always deploys
@@ -2595,13 +2597,14 @@ Deno.serve(async (req) => {
         const remainingExposure = Math.max(0, totalPortfolio * MAX_TOTAL_EXPOSURE_PCT - currentExposure)
         // remainingExposure ≈ balance when MAX_TOTAL_EXPOSURE_PCT=1.0
         const slotsLeft  = Math.max(1, MAX_OPEN_TRADES - openCount)
-        const chunkSlots = Math.min(slotsLeft, 5)   // v35: was 10 — deploy in fewer chunks for faster fill
+        // v36: spread idle cash evenly across ALL remaining slots — each position
+        // gets remainingExposure/slotsLeft so money is naturally diversified.
         const equalWeightFloor = remainingExposure > 0
-          ? remainingExposure / chunkSlots           // v35: always active, no 10% threshold
+          ? remainingExposure / slotsLeft
           : 0
         const notional = Math.min(
           Math.max(riskAmt / slPct, equalWeightFloor),
-          remainingExposure, balance * 0.95           // v35: removed MAX_NOTIONAL_PCT cap — floor drives sizing
+          remainingExposure, balance * 0.95
         )
         if (notional < 5) return
 
