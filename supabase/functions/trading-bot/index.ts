@@ -1,5 +1,12 @@
 // ════════════════════════════════════════════════════════════
-// CryptoBot v28 — Production-grade trading bot
+// CryptoBot v29 — Production-grade trading bot
+//
+// v29: STOP-HUNT / SPRING / UPTHRUST DETECTION
+//  Signal #13 (+10 pts): detects liquidity sweeps where price briefly
+//  breaks a swing extreme (wiping leveraged stops), then reverses with
+//  a long wick and elevated volume — classic Wyckoff Spring (LONG) or
+//  Upthrust (SHORT). Additive bonus, never a gate, so trade count
+//  stays the same or increases on sweep setups.
 //
 // v28: FOCUS UNIVERSE — 10 most liquid majors only
 //
@@ -391,6 +398,52 @@ function detectBBSqueezeRelease(bbWidthHistory: number[], threshold: number = 0.
   return all5Low && currentBreakout
 }
 
+// v29: Stop-hunt / Spring / Upthrust — Signal #13
+// Looks back 3 bars for a candle that swept a 20-bar swing extreme and
+// reversed: long lower wick (Spring → LONG) or long upper wick (Upthrust → SHORT)
+// with volume above average. No side argument needed from caller — we check
+// the direction that matches the requested side.
+function detectStopHunt(bars: Bar[], side: 'LONG'|'SHORT'): boolean {
+  if (bars.length < 15) return false
+  const LOOKBACK     = 3   // how many recent bars to inspect for the sweep candle
+  const SWING_WIN    = 20  // N-bar window to define the swing extreme
+  const WICK_RATIO   = 1.5 // wick must be >= 1.5× body
+  const VOL_MULT     = 1.4 // volume spike threshold
+
+  const vols   = bars.slice(-20).map(b => b.vol)
+  const volAvg = vols.reduce((a, b) => a + b, 0) / vols.length
+
+  for (let i = bars.length - LOOKBACK; i < bars.length - 1; i++) {
+    const bar  = bars[i]
+    const body = Math.abs(bar.close - bar.open)
+    const range = bar.high - bar.low
+    if (range === 0 || body === 0) continue
+
+    if (side === 'LONG') {
+      // Spring: swept below 20-bar low, then closed back above it
+      const swingLow  = Math.min(...bars.slice(Math.max(0, i - SWING_WIN), i).map(b => b.low))
+      const lowerWick = Math.min(bar.open, bar.close) - bar.low
+      if (
+        bar.low   < swingLow &&          // broke the swing low
+        bar.close > swingLow &&          // closed back above it
+        lowerWick / body >= WICK_RATIO &&// long rejection wick
+        bar.vol   > volAvg * VOL_MULT    // elevated volume confirms real sweep
+      ) return true
+    } else {
+      // Upthrust: swept above 20-bar high, then closed back below it
+      const swingHigh  = Math.max(...bars.slice(Math.max(0, i - SWING_WIN), i).map(b => b.high))
+      const upperWick  = bar.high - Math.max(bar.open, bar.close)
+      if (
+        bar.high  > swingHigh &&         // broke the swing high
+        bar.close < swingHigh &&         // closed back below it
+        upperWick / body >= WICK_RATIO &&// long rejection wick
+        bar.vol   > volAvg * VOL_MULT    // elevated volume
+      ) return true
+    }
+  }
+  return false
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // UPGRADE 6: ADVANCED EXIT SIGNALS
 // ═══════════════════════════════════════════════════════════════════════════
@@ -506,6 +559,7 @@ interface ConfluenceBreakdown {
   macd: number;
   pivotBounce: number;
   bbSqueeze: number;
+  stopHunt: number;
 }
 
 interface EntryScore {
@@ -533,7 +587,7 @@ function calcConfluenceScore(
   btcCloses: number[] = [],
   coinCloses: number[] = []
 ): EntryScore {
-  if (bars.length < 30) return {side: null, slDist: 0, score: 0, breakdown: {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0}, adx, regime: 'UNCERTAIN'}
+  if (bars.length < 30) return {side: null, slDist: 0, score: 0, breakdown: {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0,stopHunt:0}, adx, regime: 'UNCERTAIN'}
 
   const closes = bars.map(b => b.close)
   const highs = bars.map(b => b.high)
@@ -543,7 +597,7 @@ function calcConfluenceScore(
   const rsiHistory = closes.slice(-20).map((c,i) => i === 0 ? 50 : calcRsi(closes.slice(0, closes.length-20+i+1)))
   const bb = calcBB(closes, 20, 2)
 
-  if (!bb.mid || !atr) return {side: null, slDist: 0, score: 0, breakdown: {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0}, adx, regime: 'UNCERTAIN'}
+  if (!bb.mid || !atr) return {side: null, slDist: 0, score: 0, breakdown: {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0,stopHunt:0}, adx, regime: 'UNCERTAIN'}
 
   const e9arr = calcEmaArr(closes, 9)
   const e21arr = calcEmaArr(closes, 21)
@@ -569,7 +623,7 @@ function calcConfluenceScore(
   if (ema1hBias === 'BULL' && curE9 > curE21 && rsi >= 40 && rsi <= 55 && price <= bb.mid) longSig++
 
   const side = longSig >= 2 ? 'LONG' : shortSig >= 2 ? 'SHORT' : null
-  if (!side) return {side: null, slDist: 0, score: 0, breakdown: {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0}, adx, regime: 'UNCERTAIN'}
+  if (!side) return {side: null, slDist: 0, score: 0, breakdown: {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0,stopHunt:0}, adx, regime: 'UNCERTAIN'}
 
   // v27.4: range-fade — band extreme + RSI extreme in low-ADX chop.
   // This is the highest-probability trade a ranging market offers.
@@ -676,7 +730,14 @@ function calcConfluenceScore(
     breakdown.bbSqueeze = 12
   }
 
-  const totalScore = breakdown.vpoc + breakdown.ema1h + breakdown.adxTrend + breakdown.volumeSurge + breakdown.oiFavor + breakdown.sentiment + breakdown.candlePattern + breakdown.stochastic + breakdown.divergence + breakdown.macd + breakdown.pivotBounce + breakdown.bbSqueeze
+  // 13. Stop-hunt / Spring / Upthrust (10 pts) — v29
+  // Price swept a swing extreme, wicked sharply back, volume spike confirms
+  // the liquidity grab was genuine and a reversal is likely.
+  if (detectStopHunt(bars, side)) {
+    breakdown.stopHunt = 10
+  }
+
+  const totalScore = breakdown.vpoc + breakdown.ema1h + breakdown.adxTrend + breakdown.volumeSurge + breakdown.oiFavor + breakdown.sentiment + breakdown.candlePattern + breakdown.stochastic + breakdown.divergence + breakdown.macd + breakdown.pivotBounce + breakdown.bbSqueeze + breakdown.stopHunt
 
   const regime = side === 'LONG' ? 'BULL' : 'BEAR'
 
