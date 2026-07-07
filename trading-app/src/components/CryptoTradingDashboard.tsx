@@ -71,21 +71,25 @@ const REGIME_COLOR: Record<string,string> = {
 const RISK_HE: Record<RiskType,string> = { low:'נמוך', medium:'בינוני', high:'גבוה' }
 const RISK = {
   low:    { riskPct:0.006, sl:0.008, maxPos:5,  maxDayLoss:0.02 },
-  medium: { riskPct:0.010, sl:0.010, maxPos:20, maxDayLoss:0.03 },
-  high:   { riskPct:0.016, sl:0.013, maxPos:20, maxDayLoss:0.04 },
+  medium: { riskPct:0.010, sl:0.010, maxPos:30, maxDayLoss:0.03 },
+  high:   { riskPct:0.016, sl:0.013, maxPos:30, maxDayLoss:0.04 },
 }
 const MIN_SCORE=3, MIN_ADX=12, COOLDOWN_MS=60_000, STALE_MS=45*60_000, STALE_BAND=0.0015
 const TP_MULT=2.4, PARTIAL_AT=1.2, MAX_NOTIONAL_PCT=0.15, CLOSE_COOLDOWN_MS=60_000, COIN_DISABLE_LOSSES=7
 const INIT_BAL=10000, MAX_BARS=600, BAR_MS=60_000, FEE_PCT=0.0005, LEVERAGE=10
 
 const COINS = [
-  {sym:'BTC',ws:'btcusdt'},{sym:'ETH',ws:'ethusdt'},{sym:'SOL',ws:'solusdt'},
-  {sym:'BNB',ws:'bnbusdt'},{sym:'XRP',ws:'xrpusdt'},{sym:'ADA',ws:'adausdt'},
+  {sym:'BTC', ws:'btcusdt'}, {sym:'ETH', ws:'ethusdt'}, {sym:'SOL', ws:'solusdt'},
+  {sym:'BNB', ws:'bnbusdt'}, {sym:'XRP', ws:'xrpusdt'}, {sym:'ADA', ws:'adausdt'},
   {sym:'DOGE',ws:'dogeusdt'},{sym:'AVAX',ws:'avaxusdt'},{sym:'LINK',ws:'linkusdt'},
-  {sym:'DOT',ws:'dotusdt'},{sym:'POL',ws:'polusdt'},{sym:'UNI',ws:'uniusdt'},
-  {sym:'ATOM',ws:'atomusdt'},{sym:'LTC',ws:'ltcusdt'},{sym:'BCH',ws:'bchusdt'},
-  {sym:'NEAR',ws:'nearusdt'},{sym:'ALGO',ws:'algousdt'},{sym:'FIL',ws:'filusdt'},
-  {sym:'VET',ws:'vetusdt'},{sym:'ICP',ws:'icpusdt'},
+  {sym:'DOT', ws:'dotusdt'}, {sym:'POL', ws:'polusdt'}, {sym:'UNI', ws:'uniusdt'},
+  {sym:'ATOM',ws:'atomusdt'},{sym:'LTC', ws:'ltcusdt'}, {sym:'BCH', ws:'bchusdt'},
+  {sym:'NEAR',ws:'nearusdt'},{sym:'ALGO',ws:'algousdt'},{sym:'FIL', ws:'filusdt'},
+  {sym:'VET', ws:'vetusdt'}, {sym:'ICP', ws:'icpusdt'},
+  {sym:'APT', ws:'aptusdt'}, {sym:'ARB', ws:'arbusdt'}, {sym:'OP',  ws:'opusdt'},
+  {sym:'SUI', ws:'suiusdt'}, {sym:'INJ', ws:'injusdt'}, {sym:'TRX', ws:'trxusdt'},
+  {sym:'HBAR',ws:'hbarusdt'},{sym:'AAVE',ws:'aaveusdt'},{sym:'WLD', ws:'wldusdt'},
+  {sym:'SEI', ws:'seiusdt'},
 ]
 
 // ─── math ─────────────────────────────────────────────────────────────────────
@@ -807,7 +811,7 @@ export default function CryptoTradingDashboard() {
               letterSpacing:'1px',filter:`drop-shadow(0 0 8px ${C.blue}80)`}}>
               ⚡ NEXUS TRADE
             </span>
-            <span style={{fontSize:'8px',color:C.muted,padding:'2px 5px',border:`1px solid ${C.dim}`,borderRadius:'4px'}}>v30</span>
+            <span style={{fontSize:'8px',color:C.muted,padding:'2px 5px',border:`1px solid ${C.dim}`,borderRadius:'4px'}}>v31</span>
           </div>
 
           <div style={{display:'flex',gap:'5px',flexWrap:'wrap' as const}}>
@@ -1314,7 +1318,7 @@ export default function CryptoTradingDashboard() {
       </div>
 
       <div style={{textAlign:'center' as const,color:C.muted,fontSize:'9px',marginTop:'8px',letterSpacing:'0.5px',opacity:0.7}}>
-        {supaLive?'☁ שרת בוט v30 פעיל 24/7 · מסגרת זמן 5 דקות · מחירים חיים מ-Binance':'מסחר וירטואלי · מחירים חיים מ-Binance'}
+        {supaLive?'☁ שרת בוט v31 פעיל 24/7 · מסגרת זמן 5 דקות · מחירים חיים מ-Binance':'מסחר וירטואלי · מחירים חיים מ-Binance'}
       </div>
     </div>
   )
