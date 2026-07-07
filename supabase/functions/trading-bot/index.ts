@@ -1805,6 +1805,35 @@ Deno.serve(async (req) => {
         {headers:{'Content-Type':'application/json'}})
     }
 
+    // close all open positions with notional (entry_price * size) < $500
+    if (url.searchParams.get('close_small')==='1') {
+      const {data:stateCs} = await supabase.from('bot_state').select('balance').eq('id',1).single()
+      let balCs = Number(stateCs?.balance ?? 0)
+      const {data:smallTrades} = await supabase.from('bot_trades')
+        .select('*').eq('status','OPEN')
+      const toClose = (smallTrades||[]).filter((t:any) => Number(t.entry_price)*Number(t.size) < 500)
+      const closed: any[] = []
+      for (const t of toClose) {
+        const entry = Number(t.entry_price), size = Number(t.size)
+        const dirM  = t.side === 'LONG' ? 1 : -1
+        const priceRes = await fetch(`${FAPI}/ticker/price?symbol=${t.sym}USDT`,
+          {headers:{'User-Agent':'Mozilla/5.0'}}).then(r=>r.json()).catch(()=>null)
+        const price = priceRes?.price ? +priceRes.price : entry
+        const pnl   = (price - entry) * size * dirM
+        const fav   = (price - entry) / entry * dirM
+        balCs += entry * size + pnl
+        await supabase.from('bot_trades').update({
+          status: pnl >= 0 ? 'TP' : 'SL',
+          exit_price: price, pnl, pnl_pct: fav,
+          closed_at: new Date().toISOString()
+        }).eq('id', t.id)
+        closed.push({ sym:t.sym, side:t.side, notional:(entry*size).toFixed(2), pnl:pnl.toFixed(2) })
+      }
+      await supabase.from('bot_state').update({ balance: balCs, updated_at: new Date().toISOString() }).eq('id',1)
+      return new Response(JSON.stringify({ok:true, closed:closed.length, new_balance:balCs.toFixed(2), positions:closed}),
+        {headers:{'Content-Type':'application/json'}})
+    }
+
     if (url.searchParams.get('reset')==='1') {
       const newBalance = 10000
       await supabase.from('bot_trades').delete().neq('id',0)
