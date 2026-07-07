@@ -1,5 +1,14 @@
 // ════════════════════════════════════════════════════════════
-// CryptoBot v31 — Production-grade trading bot
+// CryptoBot v32 — Production-grade trading bot
+//
+// v32: SCALPING MODE — fast in, fast out
+//  - MAX_HOLD_MIN 180→60 (max 1h hold per trade)
+//  - SYM_COOLDOWN_MS 15→5 min (re-enter same coin faster)
+//  - MAX_NEW_ENTRIES_PER_SCAN 2→5 (fill positions faster)
+//  - tpR 2.2→1.5 (take profit sooner)
+//  - slMult tighter (1.2/1.0/0.8)
+//  - Trail SL starts at 0.5R (was 1.0R)
+//  - PARTIAL_TP_BY_VOL 1.2/1.5/1.8 → 0.8/1.0/1.2
 //
 // v31: ENTRY QUALITY IMPROVEMENTS
 //  A. ADX hard gate: non-rangeFade entries require ADX >= 20 (trend must exist)
@@ -73,7 +82,7 @@ const MIN_SCORE      = 2
 const VPOC_MAX_DIST  = 0.035
 
 // v21: Dynamic partial TP by vol regime
-const PARTIAL_TP_BY_VOL = { LOW: 1.2, MEDIUM: 1.5, HIGH: 1.8 }
+const PARTIAL_TP_BY_VOL = { LOW: 0.8, MEDIUM: 1.0, HIGH: 1.2 }  // v32: earlier partial TP
 
 // v21: Session-based sizing + strictness
 const SESSION_PARAMS = {
@@ -130,24 +139,24 @@ const LEVERAGE        = 10
 const SWING_N         = 5
 const SWING_LOOKBACK  = 60
 const SWEEP_LOOKBACK  = 5
-const MAX_HOLD_MIN    = 180
+const MAX_HOLD_MIN    = 60  // v32: scalping — max 1h hold
 const STREAK_PAUSE_MS = 10*60_000
 const MAX_NOTIONAL_PCT= 0.12
 const MAX_OPEN_TRADES = 30
 const MAX_TOTAL_EXPOSURE_PCT = 1.0  // 100% — no idle cash
 const FUNDING_EXTREME = 0.0003
 const MIN_SL_PCT      = 0.005
-const SYM_COOLDOWN_MS = 15*60_000
-const MAX_NEW_ENTRIES_PER_SCAN = 2
+const SYM_COOLDOWN_MS = 5*60_000   // v32: 5 min cooldown (was 15)
+const MAX_NEW_ENTRIES_PER_SCAN = 5  // v32: up to 5 entries per scan (was 2)
 const MAX_DD_STOP     = 0.80
 const INITIAL_BALANCE = 10000
 const DAILY_LOSS_LIMIT_PCT = 0.03
 const FUNDING_AGAINST_THRESHOLD = 0.0005
 
 const VOL_PARAMS = {
-  LOW:    { slMult:2.0, tpR:2.2, trailBeR:0.8, trailAtr:0.6 },
-  MEDIUM: { slMult:1.5, tpR:2.2, trailBeR:0.8, trailAtr:0.7 },
-  HIGH:   { slMult:1.2, tpR:2.5, trailBeR:1.0, trailAtr:0.8 },
+  LOW:    { slMult:1.2, tpR:1.5, trailBeR:0.5, trailAtr:0.5 },  // v32: scalping
+  MEDIUM: { slMult:1.0, tpR:1.5, trailBeR:0.5, trailAtr:0.6 },
+  HIGH:   { slMult:0.8, tpR:1.5, trailBeR:0.5, trailAtr:0.7 },
 }
 
 interface Bar { open:number; high:number; low:number; close:number; vol:number }
@@ -2145,8 +2154,8 @@ Deno.serve(async (req) => {
               const halfRiskLevel=entry-origSlDist*0.5*dirM
               newSL=dirM===1?Math.max(newSL,halfRiskLevel):Math.min(newSL,halfRiskLevel)
             }
-            // v27: Breakeven trail starts at 1.0R — let winners breathe
-            if (profitR>=1.0) {
+            // v32: Breakeven trail starts at 0.5R — scalping mode
+            if (profitR>=0.5) {
               const beLevel=entry*(1+FEE*2.5*dirM)
               newSL=dirM===1?Math.max(newSL,beLevel):Math.min(newSL,beLevel)
             }
