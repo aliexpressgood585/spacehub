@@ -1,5 +1,10 @@
 // ════════════════════════════════════════════════════════════
-// CryptoBot v30 — Production-grade trading bot
+// CryptoBot v31 — Production-grade trading bot
+//
+// v31: ENTRY QUALITY IMPROVEMENTS
+//  A. ADX hard gate: non-rangeFade entries require ADX >= 20 (trend must exist)
+//  B. Loss cooldown: 4-hour cooldown per coin+direction after a losing trade
+//  C. MAX_OPEN_TRADES raised to 30 (no artificial cap on good setups)
 //
 // v30: BOS + EMA200 MACRO ALIGNMENT (Signals #15 & #16)
 //  Signal #15 BOS (+8 pts): Break of Structure — bar closed above 20-bar
@@ -117,7 +122,7 @@ const SWEEP_LOOKBACK  = 5
 const MAX_HOLD_MIN    = 180
 const STREAK_PAUSE_MS = 10*60_000
 const MAX_NOTIONAL_PCT= 0.12
-const MAX_OPEN_TRADES = 8
+const MAX_OPEN_TRADES = 30
 const MAX_TOTAL_EXPOSURE_PCT = 0.60
 const FUNDING_EXTREME = 0.0003
 const MIN_SL_PCT      = 0.005
@@ -1637,6 +1642,17 @@ Deno.serve(async (req) => {
       if (t.closed_at && now-new Date(t.closed_at).getTime()<SYM_COOLDOWN_MS)
         symCooldown.add(t.sym)
 
+    // v31-B: 4-hour loss cooldown per coin+direction
+    // After a losing trade, block re-entry in the same direction for 4h
+    const LOSS_COOLDOWN_MS = 4 * 3600_000
+    const lossCooldown = new Set<string>()
+    for (const t of (recent||[])) {
+      if (t.closed_at && Number(t.pnl) < 0 && t.side) {
+        const age = now - new Date(t.closed_at).getTime()
+        if (age < LOSS_COOLDOWN_MS) lossCooldown.add(`${t.sym}_${t.side}`)
+      }
+    }
+
     const dynamicBlacklist=buildBlacklist(recent||[])
 
     let streak=0
@@ -2150,6 +2166,9 @@ Deno.serve(async (req) => {
         if (openCount >= MAX_OPEN_TRADES) return
         if (openTrades.length > 0) return  // 1 trade per symbol
         if (symCooldown.has(sym)) return
+        // v31-B: loss cooldown check (applied after entryScore.side is known)
+        // NOTE: side is determined after calcConfluenceScore — loss cooldown
+        // is checked further below once we know the side.
         if (dynamicBlacklist.has(sym)) return
         // Phase 4: Skip suspended coins
         if (suspendedCoins.has(sym)) { log.push(`SKIP ${sym}: suspended`); return }
@@ -2165,7 +2184,7 @@ Deno.serve(async (req) => {
         const dynRsiOverbought  = Number(_bp.rsi_overbought       ?? 65)
         const dynBbProx         = Number(_bp.bb_proximity         ?? 1.02)
         const dynMinConfluence  = Math.max(60, Number(_bp.min_confluence_score ?? 65))
-        const dynMinAdx         = Number(_bp.min_adx              ?? 0)
+        const dynMinAdx         = Number(_bp.min_adx              ?? 20)  // v31-A: default 20
 
         // v22: Use confluence score instead of 2/4 signals
         // UPGRADE 2: Pass BTC closes for correlation analysis
@@ -2182,11 +2201,19 @@ Deno.serve(async (req) => {
           return
         }
 
+        // v31-B: loss cooldown — now we know the side
+        if (lossCooldown.has(`${sym}_${entryScore.side}`)) {
+          log.push(`SKIP ${sym}: loss cooldown active for ${entryScore.side} (4h)`)
+          return
+        }
+
         // v27.5: sizing only — the score gate moved to finalScore below, so
         // MTF/funding alignment bonuses count before a trade is rejected.
         const adxSizeAdj = calcAdxSizeAdj(adx, entryScore.rangeFade)
-        if (dynMinAdx > 0 && adx < dynMinAdx) {
-          log.push(`SKIP ${sym}: adx=${adx.toFixed(0)} < min_adx=${dynMinAdx}`)
+        // v31-A: ADX hard gate — require ADX >= dynMinAdx for trend entries.
+        // RangeFade entries are exempt (they deliberately target low-ADX ranges).
+        if (!entryScore.rangeFade && adx < dynMinAdx) {
+          log.push(`SKIP ${sym}: adx=${adx.toFixed(0)} < ${dynMinAdx} (no trend)`)
           return
         }
 
