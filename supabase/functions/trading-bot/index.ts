@@ -1,5 +1,13 @@
 // ════════════════════════════════════════════════════════════
-// CryptoBot v33 — Production-grade trading bot
+// CryptoBot v34 — Production-grade trading bot
+//
+// v34: DYNAMIC UNIVERSE + MOMENTUM PRE-BREAKOUT (Signal #18)
+//  Coin universe: replaced 30 fixed coins with ALL active Binance Futures
+//  USDT perps with ≥$5M 24h volume (up to 100 coins), fetched live each scan.
+//  Signal #18 (+20 pts): detects early momentum before the main move.
+//  Need 3 of 4: volume spike ≥4×, 24h change 3-30% in right direction,
+//  OI surge ≥15%, price breaking above/below 20-bar swing extreme.
+//  Partial credit (+10 pts) for 2 of 4. Additive — never a gate.
 //
 // v33: LIQUIDITY ZONE — Signal #17 (+15 pts)
 //  Fetches OI history from Binance Futures to validate liquidation clusters.
@@ -122,6 +130,32 @@ async function fetchAllLiquidCoins(minVolUSD = 25_000_000): Promise<string[]> {
       .slice(0, 60)
       .map(t => t.symbol.replace('USDT',''))
   } catch { return FALLBACK_COINS }
+}
+
+// v34: Dynamic universe from Binance Futures — all active USDT perps
+interface CoinInfo { sym: string; change24h: number }
+const MIN_FUTURES_VOL_USDT = 5_000_000  // $5M — catches altcoins in early momentum
+const MAX_FUTURES_COINS    = 100         // cap scan per cycle
+
+async function fetchFuturesCoins(): Promise<CoinInfo[]> {
+  try {
+    const res = await fetch(`${FAPI}/ticker/24hr`, { headers: { 'User-Agent': 'Mozilla/5.0' } })
+    if (!res.ok) return FIXED_COINS.map(s => ({ sym: s, change24h: 0 }))
+    const tickers: any[] = await res.json()
+    const EXCLUDE = /^(.*)(UP|DOWN|BULL|BEAR|HEDGE|3L|3S|5L|5S)USDT$/
+    return tickers
+      .filter(t =>
+        t.symbol.endsWith('USDT') &&
+        /^[A-Z0-9]+USDT$/.test(t.symbol) &&
+        !EXCLUDE.test(t.symbol) &&
+        parseFloat(t.quoteVolume) >= MIN_FUTURES_VOL_USDT
+      )
+      .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
+      .slice(0, MAX_FUTURES_COINS)
+      .map(t => ({ sym: t.symbol.replace('USDT', ''), change24h: parseFloat(t.priceChangePercent) / 100 }))
+  } catch {
+    return FIXED_COINS.map(s => ({ sym: s, change24h: 0 }))
+  }
 }
 
 async function fetchFearGreed(): Promise<number> {
@@ -719,7 +753,8 @@ interface ConfluenceBreakdown {
   vwap: number;
   bos: number;
   ema200: number;
-  liqZone: number;  // v33
+  liqZone: number;   // v33
+  momentum: number;  // v34
 }
 
 interface EntryScore {
@@ -747,9 +782,10 @@ function calcConfluenceScore(
   btcCloses: number[] = [],
   coinCloses: number[] = [],
   ema200Bias: 'BULL'|'BEAR'|'NEUTRAL' = 'NEUTRAL',  // v30
-  oiHistory: OIRecord[] = []                          // v33: liquidation zone
+  oiHistory: OIRecord[] = [],                         // v33: liquidation zone
+  change24h: number = 0                               // v34: 24h price change (fraction)
 ): EntryScore {
-  const NULL_BD = {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0,stopHunt:0,vwap:0,bos:0,ema200:0,liqZone:0}
+  const NULL_BD = {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0,stopHunt:0,vwap:0,bos:0,ema200:0,liqZone:0,momentum:0}
   if (bars.length < 30) return {side: null, slDist: 0, score: 0, breakdown: NULL_BD, adx, regime: 'UNCERTAIN'}
 
   const closes = bars.map(b => b.close)
@@ -796,7 +832,7 @@ function calcConfluenceScore(
   )
 
   // Confluence Score Breakdown (0-100)
-  const breakdown: ConfluenceBreakdown = {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0,stopHunt:0,vwap:0,bos:0,ema200:0,liqZone:0}
+  const breakdown: ConfluenceBreakdown = {vpoc:0,ema1h:0,adxTrend:0,volumeSurge:0,oiFavor:0,sentiment:0,candlePattern:0,stochastic:0,divergence:0,macd:0,pivotBounce:0,bbSqueeze:0,stopHunt:0,vwap:0,bos:0,ema200:0,liqZone:0,momentum:0}
 
   // 1. VPOC alignment (25 pts): price near VPOC
   const vpocDist = Math.abs(vpoc - price) / price
@@ -935,7 +971,41 @@ function calcConfluenceScore(
     breakdown.liqZone = liqResult.confidence >= 1.0 ? 15 : 8
   }
 
-  const totalScore = breakdown.vpoc + breakdown.ema1h + breakdown.adxTrend + breakdown.volumeSurge + breakdown.oiFavor + breakdown.sentiment + breakdown.candlePattern + breakdown.stochastic + breakdown.divergence + breakdown.macd + breakdown.pivotBounce + breakdown.bbSqueeze + breakdown.stopHunt + breakdown.vwap + breakdown.bos + breakdown.ema200 + breakdown.liqZone
+  // 18. Momentum Pre-Breakout (20 pts) — v34
+  // Catches coins in early momentum phase before the main explosive move.
+  // Need 3 of 4 conditions; partial credit (+10) for exactly 2.
+  {
+    let mbConds = 0
+
+    // C1: Volume spike ≥ 4× 20-bar average
+    const mbVolSlice = bars.slice(-21, -1).map(b => b.vol)
+    const mbVolAvg = mbVolSlice.reduce((a, b) => a + b, 0) / Math.max(1, mbVolSlice.length)
+    if (mbVolAvg > 0 && bars[bars.length - 1].vol >= mbVolAvg * 4) mbConds++
+
+    // C2: 24h change in the right direction, 3%–30% (moving but not exhausted)
+    const absChange = Math.abs(change24h)
+    const rightDir = (side === 'LONG' && change24h > 0) || (side === 'SHORT' && change24h < 0)
+    if (rightDir && absChange >= 0.03 && absChange <= 0.30) mbConds++
+
+    // C3: OI surge — recent 6 OI bars ≥ 15% above baseline
+    const mbOiVals = oiHistory.map(o => o.oi)
+    if (mbOiVals.length >= 10) {
+      const mbOiBase = mbOiVals.slice(0, -6).reduce((a, b) => a + b, 0) / Math.max(1, mbOiVals.length - 6)
+      const mbOiNow  = mbOiVals.slice(-6).reduce((a, b) => a + b, 0) / 6
+      if (mbOiBase > 0 && mbOiNow > mbOiBase * 1.15) mbConds++
+    }
+
+    // C4: Swing breakout — price above 20-bar high (LONG) or below 20-bar low (SHORT)
+    const mbHighs = bars.slice(-21, -1).map(b => b.high)
+    const mbLows  = bars.slice(-21, -1).map(b => b.low)
+    if (side === 'LONG'  && price > Math.max(...mbHighs)) mbConds++
+    if (side === 'SHORT' && price < Math.min(...mbLows))  mbConds++
+
+    if (mbConds >= 3) breakdown.momentum = 20
+    else if (mbConds === 2) breakdown.momentum = 10
+  }
+
+  const totalScore = breakdown.vpoc + breakdown.ema1h + breakdown.adxTrend + breakdown.volumeSurge + breakdown.oiFavor + breakdown.sentiment + breakdown.candlePattern + breakdown.stochastic + breakdown.divergence + breakdown.macd + breakdown.pivotBounce + breakdown.bbSqueeze + breakdown.stopHunt + breakdown.vwap + breakdown.bos + breakdown.ema200 + breakdown.liqZone + breakdown.momentum
 
   const regime = side === 'LONG' ? 'BULL' : 'BEAR'
 
@@ -1831,10 +1901,10 @@ Deno.serve(async (req) => {
     }
 
     const needDailySummary=utcH===0&&utcM===0
-    const [btcBars,allFunding,COINS,fearGreed,trades100,dayTradesRaw,btcAdxForDaily]=await Promise.all([
+    const [btcBars,allFunding,coinInfoList,fearGreed,trades100,dayTradesRaw,btcAdxForDaily]=await Promise.all([
       fetchBars('BTC','5m',60),
       fetchAllFundingRates(),
-      Promise.resolve(FIXED_COINS),
+      fetchFuturesCoins(),  // v34: dynamic universe from Binance Futures
       fetchFearGreed(),
       supabase.from('bot_trades').select('pnl,side,sym').neq('status','OPEN')
         .order('closed_at',{ascending:false}).limit(100).then(r=>r.data||[]),
@@ -1844,6 +1914,10 @@ Deno.serve(async (req) => {
         : Promise.resolve(null),
       needDailySummary ? fetchBars('BTC','5m',200).then(b => b.length > 30 ? calcADX(b) : 20) : Promise.resolve(20)
     ])
+
+    // v34: extract string list + 24h change map from futures ticker
+    const COINS = (coinInfoList as CoinInfo[]).map(c => c.sym)
+    const change24hMap = new Map<string, number>((coinInfoList as CoinInfo[]).map(c => [c.sym, c.change24h]))
 
     const {minScore:adaptMinScore,vpocDist:adaptVpocDist,sideFilter:adaptSideFilter}=
       computeAdaptive(trades100 as any[])
@@ -2357,7 +2431,8 @@ Deno.serve(async (req) => {
           btcBars.map(b => b.close),
           completed.map(b => b.close),
           ema200Bias,
-          oiHistory  // v33: Signal #17 liquidity zone
+          oiHistory,                       // v33: Signal #17 liquidity zone
+          change24hMap.get(sym) ?? 0       // v34: Signal #18 momentum
         )
 
         if (!entryScore.side) {
