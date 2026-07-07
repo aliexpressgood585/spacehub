@@ -82,7 +82,7 @@ const MIN_SCORE      = 2
 const VPOC_MAX_DIST  = 0.035
 
 // v21: Dynamic partial TP by vol regime
-const PARTIAL_TP_BY_VOL = { LOW: 0.8, MEDIUM: 1.0, HIGH: 1.2 }  // v32: earlier partial TP
+const PARTIAL_TP_BY_VOL = { LOW: 1.0, MEDIUM: 1.2, HIGH: 1.4 }  // v32: balanced partial TP
 
 // v21: Session-based sizing + strictness
 const SESSION_PARAMS = {
@@ -139,24 +139,24 @@ const LEVERAGE        = 10
 const SWING_N         = 5
 const SWING_LOOKBACK  = 60
 const SWEEP_LOOKBACK  = 5
-const MAX_HOLD_MIN    = 60  // v32: scalping — max 1h hold
+const MAX_HOLD_MIN    = 120  // v32: balanced — max 2h hold
 const STREAK_PAUSE_MS = 10*60_000
 const MAX_NOTIONAL_PCT= 0.12
 const MAX_OPEN_TRADES = 30
 const MAX_TOTAL_EXPOSURE_PCT = 1.0  // 100% — no idle cash
 const FUNDING_EXTREME = 0.0003
 const MIN_SL_PCT      = 0.005
-const SYM_COOLDOWN_MS = 5*60_000   // v32: 5 min cooldown (was 15)
-const MAX_NEW_ENTRIES_PER_SCAN = 5  // v32: up to 5 entries per scan (was 2)
+const SYM_COOLDOWN_MS = 10*60_000  // v32: 10 min cooldown
+const MAX_NEW_ENTRIES_PER_SCAN = 3  // v32: up to 3 entries per scan
 const MAX_DD_STOP     = 0.80
 const INITIAL_BALANCE = 10000
 const DAILY_LOSS_LIMIT_PCT = 0.03
 const FUNDING_AGAINST_THRESHOLD = 0.0005
 
 const VOL_PARAMS = {
-  LOW:    { slMult:1.2, tpR:1.5, trailBeR:0.5, trailAtr:0.5 },  // v32: scalping
-  MEDIUM: { slMult:1.0, tpR:1.5, trailBeR:0.5, trailAtr:0.6 },
-  HIGH:   { slMult:0.8, tpR:1.5, trailBeR:0.5, trailAtr:0.7 },
+  LOW:    { slMult:1.5, tpR:1.8, trailBeR:0.5, trailAtr:0.6 },  // v32: balanced
+  MEDIUM: { slMult:1.3, tpR:1.8, trailBeR:0.5, trailAtr:0.7 },
+  HIGH:   { slMult:1.0, tpR:1.8, trailBeR:0.5, trailAtr:0.8 },
 }
 
 interface Bar { open:number; high:number; low:number; close:number; vol:number }
