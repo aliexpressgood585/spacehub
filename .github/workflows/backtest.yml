@@ -27,11 +27,10 @@ jobs:
         env:
           BT_DAYS: ${{ github.event.inputs.days }}
         run: |
-          if [ "${{ github.event.inputs.mode }}" = "explore" ]; then
-            bash backtest/fetch-explore.sh
-          else
-            bash backtest/fetch.sh
-          fi
+          case "${{ github.event.inputs.mode }}" in
+            explore|refine) bash backtest/fetch-explore.sh ;;
+            *) bash backtest/fetch.sh ;;
+          esac
 
       - name: Run backtest
         env:

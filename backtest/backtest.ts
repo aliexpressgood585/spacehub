@@ -964,12 +964,97 @@ function runExplore() {
   console.log(`\nWalk-forward: 3 equal windows over ~6 months. gross=no fees, maker=0.02%/side, taker=0.05%/side.`)
 }
 
+// REFINE — 4h Donchian family only: window × ADX gate × TP × SL grid.
+// Purpose: confirm the explore winner is a stable HILL, not an isolated spike.
+function runRefine() {
+  const FEE_TAKER=0.0010, FEE_MAKER=0.0004, SPACING=2, MAXHOLD=96
+  const DWS=[40,55,70], ADXS=[0,20,25,30], TPS=[0.6,0.8,1.0,1.2], SLS=[1.0,1.4,2.0]
+  const to4h = (a:Bar[]):Bar[] => {
+    const out:Bar[] = []; let cur:Bar|null=null; let bucket=-1
+    for (const b of a) { const k=Math.floor(b.t/14400000)
+      if (k!==bucket) { if (cur) out.push(cur); bucket=k
+        cur={t:k*14400000,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol} }
+      else if (cur) { cur.high=Math.max(cur.high,b.high); cur.low=Math.min(cur.low,b.low); cur.close=b.close; cur.vol+=b.vol } }
+    if (cur) out.push(cur); return out
+  }
+  const dset: Record<string,Bar[]> = {}
+  let tmin=Infinity, tmax=-Infinity
+  for (const c of COINS) { const a=to4h(loadCSV(c,'1h'))
+    if (a.length>400) { dset[c]=a; tmin=Math.min(tmin,a[0].t); tmax=Math.max(tmax,a[a.length-1].t) } }
+  console.log(`  4h: ${Object.keys(dset).length} coins, ${((tmax-tmin)/86400000).toFixed(0)} days`)
+  const wSpan=(tmax-tmin)/3
+  const winOf=(t:number)=>Math.min(2,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  interface Agg { n:number; w:number; sumT:number; sumM:number }
+  const stats: Record<string,Agg[]> = {}
+  for (const c of Object.keys(dset)) {
+    const arr=dset[c]
+    const lastIdx: Record<string,number> = {}
+    for (let i=100;i<arr.length-1;i++) {
+      const win=arr.slice(Math.max(0,i-99),i+1)
+      const price=arr[i].close
+      const atr=calcATR(win.slice(-20)); if(!atr) continue
+      const adx=calcADX(win.slice(-60))
+      for (const dw of DWS) {
+        if (i<dw+1) continue
+        const prior=arr.slice(i-dw,i)
+        const hi=Math.max(...prior.map(b=>b.high)), lo=Math.min(...prior.map(b=>b.low))
+        const side: 'LONG'|'SHORT'|null = price>hi?'LONG':price<lo?'SHORT':null
+        if (!side) continue
+        for (const ax of ADXS) {
+          if (ax>0 && adx<=ax) continue
+          const lk=`${dw}|${ax}`
+          if (lastIdx[lk]!==undefined && i-lastIdx[lk]<SPACING) continue
+          lastIdx[lk]=i
+          const dirM=side==='LONG'?1:-1
+          for (const slM of SLS) {
+            const slDist=Math.max(atr*slM, price*0.005), slPct=slDist/price
+            if (slPct>0.08) continue
+            const feeT=FEE_TAKER/slPct, feeM=FEE_MAKER/slPct
+            const slPx=price-slDist*dirM
+            for (const tp of TPS) {
+              const tpPx=price+slDist*tp*dirM
+              let r:number|null=null
+              const jEnd=Math.min(arr.length-1,i+MAXHOLD)
+              for (let j=i+1;j<=jEnd;j++) { const b=arr[j]
+                if (side==='LONG') { if(b.low<=slPx){r=-1;break} if(b.high>=tpPx){r=tp;break} }
+                else { if(b.high>=slPx){r=-1;break} if(b.low<=tpPx){r=tp;break} } }
+              if (r===null) r=(arr[jEnd].close-price)*dirM/slDist
+              const key=`dw${dw}|adx${ax}|tp${tp}|sl${slM}`
+              if (!stats[key]) stats[key]=[{n:0,w:0,sumT:0,sumM:0},{n:0,w:0,sumT:0,sumM:0},{n:0,w:0,sumT:0,sumM:0}]
+              const a=stats[key][winOf(arr[i].t)]
+              a.n++; a.sumT+=r-feeT; a.sumM+=r-feeM; if(r-feeM>0)a.w++
+            }
+          }
+        }
+      }
+    }
+  }
+  const rows=Object.entries(stats).map(([key,ws])=>{
+    const tot=ws.reduce((a,x)=>({n:a.n+x.n,w:a.w+x.w,sumT:a.sumT+x.sumT,sumM:a.sumM+x.sumM}),{n:0,w:0,sumT:0,sumM:0})
+    const wM=ws.map(x=>x.n?x.sumM/x.n:-9)
+    const okM=wM.every(e=>e>0)&&ws.every(x=>x.n>=15)
+    return {key,tot,expM:tot.n?tot.sumM/tot.n:-9,expT:tot.n?tot.sumT/tot.n:-9,wM,okM,minM:Math.min(...wM)}
+  }).filter(r=>r.tot.n>=150)
+  rows.sort((a,b)=>b.minM-a.minM)
+  console.log(`\nconfig                      n     WR     maker    taker  | maker w1/w2/w3       | verdict`)
+  for (const r of rows.slice(0,35)) {
+    const wr=r.tot.n?r.tot.w/r.tot.n:0
+    console.log(`  ${r.key.padEnd(24)} ${String(r.tot.n).padStart(5)}  ${(wr*100).toFixed(1).padStart(5)}%  ${(r.expM>=0?'+':'')}${r.expM.toFixed(3)}  ${(r.expT>=0?'+':'')}${r.expT.toFixed(3)} | ${r.wM.map(e=>((e>=0?'+':'')+e.toFixed(2)).padStart(6)).join(' ')} | ${r.okM?'✅ROBUST':''}`)
+  }
+  console.log(`\n${rows.filter(r=>r.okM).length} ROBUST config(s). SPACING=2 bars (8h) between entries per coin.`)
+}
+
 // ─────────────────────────────────────────────────────────────
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
     console.log(`████ EXPLORE — 15m/1h mean-reversion, 6 months, real fees, walk-forward ████`)
     runExplore()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'refine') {
+    console.log(`████ REFINE — 4h Donchian grid ████`)
+    runRefine()
     return
   }
 
