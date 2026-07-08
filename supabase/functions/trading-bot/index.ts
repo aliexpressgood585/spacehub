@@ -1819,6 +1819,29 @@ Deno.serve(async (req) => {
         {headers:{'Content-Type':'application/json'}})
     }
 
+    // v41.1 diagnostic: run the LIVE DONCH4H entry evaluation on the whole
+    // universe right now (ignoring the 15-min window) and report — NO trading.
+    if (url.searchParams.get('donch_test')==='1') {
+      const coinsD = await fetchFuturesCoins()
+      const outD: any[] = []
+      for (const ci of coinsD.slice(0, 35)) {
+        try {
+          const b4 = await fetchBars(ci.sym, '4h', 70)
+          if (b4.length < 45) { outD.push({sym:ci.sym, err:'bars='+b4.length}); continue }
+          const c4 = b4.slice(0,-1)
+          const last4 = c4[c4.length-1]
+          const prior = c4.slice(-41,-1)
+          const hiN = Math.max(...prior.map(b=>b.high))
+          const loN = Math.min(...prior.map(b=>b.low))
+          const side = last4.close>hiN ? 'LONG' : last4.close<loN ? 'SHORT' : null
+          const adx4 = calcADX(c4.slice(-60))
+          if (side) outD.push({sym:ci.sym, side, close:last4.close, hi40:hiN, lo40:loN, adx:+adx4.toFixed(1), wouldEnter: adx4>25})
+        } catch (e) { outD.push({sym:ci.sym, err:String(e).slice(0,60)}) }
+      }
+      return new Response(JSON.stringify({ok:true, universe:coinsD.length, breakouts:outD, checked_at:new Date().toISOString()}),
+        {headers:{'Content-Type':'application/json'}})
+    }
+
     // v38: migrate open positions TP from 1.8R → 2.5R
     // Recovers original slDist from stored hi/lo, then writes new TP
     if (url.searchParams.get('migrate_tp')==='1') {
