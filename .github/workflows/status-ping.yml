@@ -1,0 +1,75 @@
+name: Status Ping
+
+on:
+  push:
+    paths: ['.status-ping']
+
+env:
+  PROJECT_REF: mdvheizhciuvqychtwxr
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bot state + trades
+        run: |
+          q() { curl -s -X POST "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" -d "{\"query\": \"$1\"}"; echo; }
+          echo "=== BOT STATE (updated_at shows the cron is alive) ==="
+          q "SELECT balance, peak_balance, streak, market_regime, updated_at FROM bot_state WHERE id=1;"
+          echo "=== OPEN POSITIONS ==="
+          q "SELECT sym, side, entry_price, size, score, trail_sl, hi, lo, opened_at FROM bot_trades WHERE status='OPEN' ORDER BY opened_at DESC;"
+          echo "=== TRADE COUNTS ==="
+          q "SELECT count(*) FILTER (WHERE status='OPEN') AS open, count(*) FILTER (WHERE status != 'OPEN') AS closed FROM bot_trades;"
+
+      - name: Independent breakout check (OKX 4h data)
+        run: |
+          python3 - <<'PYEOF'
+          import json, urllib.request
+          COINS = ["BTC","ETH","SOL","BNB","XRP","ADA","DOGE","AVAX","LINK","DOT","POL","UNI","ATOM","LTC","BCH","NEAR","ALGO","FIL","VET","ICP","APT","ARB","OP","SUI","INJ","TRX","HBAR","AAVE","WLD","SEI"]
+          def candles(sym):
+              url=f"https://www.okx.com/api/v5/market/candles?instId={sym}-USDT-SWAP&bar=4H&limit=100"
+              req=urllib.request.Request(url, headers={"User-Agent":"Mozilla/5.0"})
+              d=json.load(urllib.request.urlopen(req, timeout=20))["data"]
+              # newest first → reverse to oldest first; fields: ts,o,h,l,c,...
+              rows=[(int(x[0]),float(x[1]),float(x[2]),float(x[3]),float(x[4])) for x in reversed(d)]
+              return rows
+          def adx(bars,p=14):
+              if len(bars)<p+1: return 20
+              trs,pd,md=[],[],[]
+              for i in range(1,len(bars)):
+                  h,l,pc=bars[i][2],bars[i][3],bars[i-1][4]
+                  trs.append(max(h-l,abs(h-pc),abs(l-pc)))
+                  hd=h-bars[i-1][2]; ld=bars[i-1][3]-l
+                  pd.append(hd if hd>0 and hd>ld else 0); md.append(ld if ld>0 and ld>hd else 0)
+              tr14=sum(trs[:p]); pd14=sum(pd[:p]); md14=sum(md[:p])
+              pdi=(pd14/tr14*100) if tr14>0 else 0; mdi=(md14/tr14*100) if tr14>0 else 0
+              s=pdi+mdi; a=(abs(pdi-mdi)/s*100) if s>0 else 0
+              for i in range(p,len(trs)):
+                  tr14=(tr14*(p-1)+trs[i])/p; pd14=(pd14*(p-1)+pd[i])/p; md14=(md14*(p-1)+md[i])/p
+                  pdi=(pd14/tr14*100) if tr14>0 else 0; mdi=(md14/tr14*100) if tr14>0 else 0
+                  s=pdi+mdi; dx=(abs(pdi-mdi)/s*100) if s>0 else 0
+                  a=(a*(p-1)+dx)/p
+              return a
+          print("Checking last TWO completed 4h bars (12:00 & 16:00 UTC closes) for Donchian-40 breakouts + ADX>25:")
+          any_hit=False
+          for c in COINS:
+              try:
+                  b=candles(c)
+                  if len(b)<45: print(f"  {c}: insufficient data"); continue
+                  comp=b[:-1]  # completed bars
+                  for back in (1,2):  # last completed and the one before
+                      sig=comp[-back]
+                      prior=comp[-back-40:-back]
+                      hi=max(x[2] for x in prior); lo=min(x[3] for x in prior)
+                      brk = "LONG" if sig[4]>hi else ("SHORT" if sig[4]<lo else None)
+                      if brk:
+                          a=adx(comp[-back-60:-back+1] if back>1 else comp[-61:])
+                          any_hit=True
+                          print(f"  {c}: {brk} breakout on bar -{back} close={sig[4]} (ch40 {lo:.6g}..{hi:.6g}) adx={a:.0f} {'← WOULD ENTER' if a>25 else '(adx<=25 → correctly skipped)'}")
+              except Exception as e:
+                  print(f"  {c}: error {e}")
+          if not any_hit:
+              print("  NO coin broke its 40-bar channel in the last two 4h bars → zero entries is CORRECT behavior.")
+          PYEOF
