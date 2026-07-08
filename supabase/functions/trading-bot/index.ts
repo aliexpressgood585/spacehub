@@ -1,5 +1,16 @@
 // ════════════════════════════════════════════════════════════
-// CryptoBot v39 — Production-grade trading bot
+// CryptoBot v40 — Production-grade trading bot
+//
+// v40: BACKTEST-DRIVEN — 44d/40-coin replay on real Binance data showed the
+//  strategy is net-negative in EVERY config, BUT the score-75 gate was the
+//  least-bad (21% WR, PF 0.71) → the score carries real edge only at the top.
+//  So: keep the strict gate, take MORE of the good setups, weight capital by
+//  conviction — do not pump low-quality volume.
+//   1. Score-weighted sizing: 0.8x/1.0x/1.3x/1.6x by finalScore (was flat split)
+//   2. MAX_OPEN 20→30, entries/scan 5→8: stop throttling good (75+) setups
+//   3. Universe 40→60 coins (keep $50M floor): more chances to find 75+ setups
+//   4. Streak pause 2h→30min: keep trading through drawdowns (still a breaker)
+//  Keeps v39: gate 75, no partial TP, BE 1.5R / trail 2.0R, net-exposure cap 60%.
 //
 // v39: EXPECTANCY + RISK OVERHAUL (all changes except fee-sim, added later)
 //  1. Partial TP REMOVED: capped winners → negative expectancy at 32% WR.
@@ -163,7 +174,7 @@ async function fetchAllLiquidCoins(minVolUSD = 25_000_000): Promise<string[]> {
 // v34: Dynamic universe from Binance Futures — all active USDT perps
 interface CoinInfo { sym: string; change24h: number }
 const MIN_FUTURES_VOL_USDT = 50_000_000  // v39: $5M→$50M — only liquid coins, clean execution
-const MAX_FUTURES_COINS    = 40          // v39: 100→40 — no illiquid junk (FARTCOIN/PUMP/etc)
+const MAX_FUTURES_COINS    = 60          // v40: 40→60 — scan more liquid coins = more good setups
 
 async function fetchFuturesCoins(): Promise<CoinInfo[]> {
   try {
@@ -209,14 +220,14 @@ const SWING_N         = 5
 const SWING_LOOKBACK  = 60
 const SWEEP_LOOKBACK  = 5
 const MAX_HOLD_MIN    = 120  // v32: balanced — max 2h hold
-const STREAK_PAUSE_MS = 120*60_000  // v38: 2h pause (was 10min — useless)
+const STREAK_PAUSE_MS = 30*60_000   // v40: 2h→30min — trade more, but still a circuit breaker
 const MAX_NOTIONAL_PCT= 0.20        // kept for reference; not used as hard cap in notional calc
-const MAX_OPEN_TRADES = 20          // v38: 50→20 — quality over quantity
+const MAX_OPEN_TRADES = 30          // v40: 20→30 — the 75-gate is the quality limiter, not this cap
 const MAX_TOTAL_EXPOSURE_PCT = 1.0  // 100% — no idle cash
 const FUNDING_EXTREME = 0.0003
 const MIN_SL_PCT      = 0.005
 const SYM_COOLDOWN_MS = 10*60_000  // v32: 10 min cooldown
-const MAX_NEW_ENTRIES_PER_SCAN = 5  // v38: 15→5 — don't spray entries per scan
+const MAX_NEW_ENTRIES_PER_SCAN = 8  // v40: 5→8 — take more of the good (75+) setups as they appear
 const MAX_DD_STOP     = 0.80
 const INITIAL_BALANCE = 10000
 const DAILY_LOSS_LIMIT_PCT = 0.03
@@ -2670,9 +2681,15 @@ Deno.serve(async (req) => {
         const totalPortfolio   = balance + currentExposure
         const remainingExposure = Math.max(0, totalPortfolio * MAX_TOTAL_EXPOSURE_PCT - currentExposure)
         const slotsLeft  = Math.max(1, MAX_OPEN_TRADES - openCount)
-        // v38: equal sizing — divide remaining cash evenly across all remaining slots
+        // v40: score-weighted equal sizing. Backtest showed the score DOES carry
+        // edge at the top (gate-75 was the least-bad, best WR) — so put more
+        // capital on higher-conviction setups instead of a flat split.
+        const scoreMult = finalScore >= 120 ? 1.6
+                        : finalScore >= 100 ? 1.3
+                        : finalScore >=  85 ? 1.0
+                        :                     0.8
         const notional = Math.min(
-          remainingExposure / slotsLeft,
+          (remainingExposure / slotsLeft) * scoreMult,
           remainingExposure, balance * 0.95
         )
         if (notional < 500) return  // v38: min position size $500
