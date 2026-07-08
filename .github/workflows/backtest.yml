@@ -1,0 +1,26 @@
+name: Strategy Backtest
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: 'Days of history to backtest'
+        required: false
+        default: '45'
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+
+      - name: Run backtest
+        env:
+          BT_DAYS: ${{ github.event.inputs.days }}
+        run: |
+          deno run --allow-net --allow-env backtest/backtest.ts
