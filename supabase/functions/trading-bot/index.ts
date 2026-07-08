@@ -1,5 +1,17 @@
 // ════════════════════════════════════════════════════════════
-// CryptoBot v38 — Production-grade trading bot
+// CryptoBot v39 — Production-grade trading bot
+//
+// v39: EXPECTANCY + RISK OVERHAUL (all changes except fee-sim, added later)
+//  1. Partial TP REMOVED: capped winners → negative expectancy at 32% WR.
+//     Winners now run to full 2.5R TP, protected by breakeven(1.5R)+trail(2.0R).
+//  2. Net directional exposure cap 60%: no more all-shorts concentration
+//     (that lost $1,150 unrealized when the market rose).
+//  3. Liquidity floor $5M→$50M, universe 100→40 coins: no illiquid junk.
+//  4. Side logic fix: EMA cross only counts with real separation (≥0.05%),
+//     no free point on a flat EMA → side was near-random before.
+//  5. Optimizer: min 50 trades before Claude tunes (was 5) — no curve-fit
+//     on noise; equal position sizing (from v38) retained.
+//  6. Clean-slate reset: zeroes peak/stats + clears optimizer params.
 //
 // v38: WIN RATE FIXES — analysis showed 31.3% WR, PF 0.80 (losing money)
 //  1. Score threshold 60→75 + base floor 50→65: filter out weak entries
@@ -150,8 +162,8 @@ async function fetchAllLiquidCoins(minVolUSD = 25_000_000): Promise<string[]> {
 
 // v34: Dynamic universe from Binance Futures — all active USDT perps
 interface CoinInfo { sym: string; change24h: number }
-const MIN_FUTURES_VOL_USDT = 5_000_000  // $5M — catches altcoins in early momentum
-const MAX_FUTURES_COINS    = 100         // cap scan per cycle
+const MIN_FUTURES_VOL_USDT = 50_000_000  // v39: $5M→$50M — only liquid coins, clean execution
+const MAX_FUTURES_COINS    = 40          // v39: 100→40 — no illiquid junk (FARTCOIN/PUMP/etc)
 
 async function fetchFuturesCoins(): Promise<CoinInfo[]> {
   try {
@@ -827,8 +839,14 @@ function calcConfluenceScore(
   if (price <= bb.lower * bbProx) longSig++
   else if (price >= bb.upper * (2 - bbProx)) shortSig++
 
-  if (curE9 > curE21) longSig++
-  else shortSig++
+  // v39: only count the EMA cross when there's real separation. The old
+  // `else shortSig++` handed a free point to one side on a flat EMA, so a
+  // single mean-reversion signal was enough to enter — side was near-random.
+  const emaSep = curE21 > 0 ? Math.abs(curE9 - curE21) / curE21 : 0
+  if (emaSep >= 0.0005) {
+    if (curE9 > curE21) longSig++
+    else shortSig++
+  }
 
   // v27.3: trend-continuation setup — the mean-reversion signals above almost
   // never fire SHORT in a downtrend (market stays oversold), leaving the bot
@@ -1837,13 +1855,21 @@ Deno.serve(async (req) => {
     if (url.searchParams.get('reset')==='1') {
       const newBalance = 10000
       await supabase.from('bot_trades').delete().neq('id',0)
+      // v39: clean-slate reset — also zero peak/stats and clear optimizer's
+      // curve-fit params so we measure the v39 changes from scratch.
       await supabase.from('bot_state').update({
         balance: newBalance,
+        peak_balance: newBalance,
         streak: 0,
-        market_regime: 'v21_5M',
+        trade_count: 0,
+        overall_wr: 0,
+        overall_pf: 1.0,
+        bot_params: {},
+        lock_until: null,
+        market_regime: 'v39_5M',
         updated_at: new Date().toISOString()
       }).eq('id',1)
-      return new Response(JSON.stringify({ok:true,msg:'RESET DONE',balance:newBalance,trades_deleted:true}),
+      return new Response(JSON.stringify({ok:true,msg:'RESET DONE (clean slate v39)',balance:newBalance,trades_deleted:true}),
         {headers:{'Content-Type':'application/json'}})
     }
 
@@ -2370,23 +2396,11 @@ Deno.serve(async (req) => {
           // v21: Dynamic partial TP R by current vol regime
           const dynamicPartialR=dynPartialTP[volRegime]
 
-          if (!t.partial_done && origSlDist>0 && t.mtf) {
-            const partialTPPrice=entry+origSlDist*dynamicPartialR*dirM
-            const partialHit=t.side==='LONG'?price>=partialTPPrice:price<=partialTPPrice
-            if (partialHit) {
-              const halfSize  =size/2
-              const partialPnl=(price-entry)*halfSize*dirM - price*halfSize*FEE
-              balance+=entry*halfSize+partialPnl
-              // ── STAGE 2: Adjust SL to breakeven + 0.2R when partial TP hits ──
-              const bePoint = entry*(1+FEE*2.5*dirM)
-              const adjPoint = origSlDist > 0 ? bePoint + origSlDist*0.2*dirM : bePoint
-              await supabase.from('bot_trades').update({
-                size:halfSize,trail_sl:adjPoint,partial_done:true
-              }).eq('id',t.id)
-              log.push(`PARTIAL ${sym} ${t.side} @${price.toFixed(4)} ${dynamicPartialR}R pnl=${partialPnl.toFixed(2)} sl_adj_be+0.2R`)
-              continue
-            }
-          }
+          // v39: PARTIAL TP DISABLED — with 32% WR the strategy needs
+          // avg_win/avg_loss > 2.1x; taking half off at ~1.2R capped winners
+          // and guaranteed negative expectancy. Let winners run to full TP,
+          // protected only by the breakeven+trail below.
+          void dynamicPartialR
 
           // ── Use adjusted SL if equity guard is active ──
           const slToUse = equityGuardMult === 0.5 ? adjustedSl : sl
@@ -2424,13 +2438,14 @@ Deno.serve(async (req) => {
             const profitR=origSlDist>0?(price-entry)*dirM/origSlDist:0
             let newSL=slToUse
 
-            // v38: breakeven lock at 1.0R (was 0.5R/0.6R — was cutting winners far too early;
-            // TRAIL was 55% of exits at PF 0.80 — price never breathed enough to hit TP)
-            if (profitR>=1.0) {
+            // v39: breakeven lock pushed 1.0R→1.5R and ATR trail 1.5R→2.0R.
+            // With partial TP removed, winners must reach toward the 2.5R full
+            // TP — locking breakeven too early was exiting them flat (TRAIL 55%).
+            if (profitR>=1.5) {
               const beLevel=entry*(1+FEE*2.5*dirM)
               newSL=dirM===1?Math.max(newSL,beLevel):Math.min(newSL,beLevel)
             }
-            if (profitR>=1.5) {
+            if (profitR>=2.0) {
               const trailLevel=price-atr*vp.trailAtr*dirM
               newSL=dirM===1?Math.max(newSL,trailLevel):Math.min(newSL,trailLevel)
             }
@@ -2661,6 +2676,22 @@ Deno.serve(async (req) => {
           remainingExposure, balance * 0.95
         )
         if (notional < 500) return  // v38: min position size $500
+
+        // v39: net directional exposure cap — block entries that would push net
+        // long or net short beyond 60% of the portfolio. Prevents the all-shorts
+        // concentration that lost $1,150 unrealized when the market rose.
+        const sideExp = (allOpen||[]).reduce((acc:{long:number,short:number}, t:any) => {
+          const n = Number(t.entry_price) * Number(t.size)
+          if (t.side === 'LONG') acc.long += n; else acc.short += n
+          return acc
+        }, {long:0, short:0})
+        const netAfter = entryScore.side === 'LONG'
+          ? (sideExp.long + notional) - sideExp.short
+          : sideExp.long - (sideExp.short + notional)
+        if (totalPortfolio > 0 && Math.abs(netAfter) > totalPortfolio * 0.60) {
+          log.push(`SKIP ${sym}: net ${entryScore.side} exposure cap (net=${(netAfter/totalPortfolio*100).toFixed(0)}%)`)
+          return
+        }
 
         // v27.2: authoritative per-scan entry cap — same sync block as the
         // increment, so concurrent coin handlers can't slip past it

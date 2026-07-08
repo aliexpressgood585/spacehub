@@ -15,8 +15,8 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 const CLAUDE_API   = 'https://api.anthropic.com/v1/messages'
 const CLAUDE_MODEL = 'claude-haiku-4-5-20251001'
 
-const MIN_TRADES_FOR_CLAUDE = 5    // total trades before ever calling Claude
-const NEW_TRADES_THRESHOLD  = 5    // call Claude when this many new trades arrived
+const MIN_TRADES_FOR_CLAUDE = 50   // v39: 5→50 — no curve-fitting on tiny samples
+const NEW_TRADES_THRESHOLD  = 30   // v39: 5→30 — wait for a meaningful new sample
 const WR_DEGRADATION        = 0.15 // call Claude if WR drops by this much
 const CLAUDE_COOLDOWN_MS    = 2 * 60 * 60_000  // 2 hours min between Claude calls
 const MAX_CHANGE            = 0.25 // max 25% change per param per Claude call
@@ -253,7 +253,7 @@ Deno.serve(async () => {
   const shouldCallClaude =
     (newTradesSinceLast >= NEW_TRADES_THRESHOLD && timeSinceLast >= 30 * 60_000) ||
     (wrDrop >= WR_DEGRADATION && timeSinceLast >= 30 * 60_000) ||
-    (timeSinceLast >= CLAUDE_COOLDOWN_MS && newTradesSinceLast >= 5)
+    (timeSinceLast >= CLAUDE_COOLDOWN_MS && newTradesSinceLast >= 30)  // v39: 5→30
 
   if (!shouldCallClaude) {
     // fast path — update meta only
