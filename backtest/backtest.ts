@@ -815,7 +815,147 @@ function runSignalValidation(data:Record<string,Bar[]>, b1h:Record<string,Bar[]>
 }
 
 // ─────────────────────────────────────────────────────────────
+// EXPLORE — higher timeframes (15m/1h), 6 months, REAL FEES, walk-forward.
+// Tests mean-reversion trigger variants × TP × SL. A config only counts as
+// PROVEN if expectancy (net of fees) is positive in ALL 3 time windows.
+// ─────────────────────────────────────────────────────────────
+function runExplore() {
+  const FEE_RT = 0.0010          // 0.05%/side round trip (incl. slippage) — REAL fees
+  const TPS = [0.8, 1.0, 1.5, 2.0]
+  const SLS = [0.7, 1.0, 1.4]
+  const MAXHOLD = 48             // bars (15m: 12h, 1h: 48h)
+  const SPACING = 8              // min bars between candidates per coin+variant
+
+  interface Agg { n:number; w:number; sum:number }
+  const stats: Record<string, Agg[]> = {}   // key → per-window aggregates
+  const curve: Record<string, {t:number,r:number}[]> = {}
+
+  for (const tf of ['15m','1h'] as const) {
+    // load all coins for this tf
+    const dset: Record<string,Bar[]> = {}
+    let tmin=Infinity, tmax=-Infinity
+    for (const c of COINS) {
+      const a = loadCSV(c, tf)
+      if (a.length > 500) { dset[c]=a; tmin=Math.min(tmin,a[0].t); tmax=Math.max(tmax,a[a.length-1].t) }
+    }
+    const nCoins = Object.keys(dset).length
+    console.log(`  ${tf}: ${nCoins} coins loaded, ${((tmax-tmin)/86400000).toFixed(0)} days span`)
+    if (!nCoins) continue
+    const wSpan = (tmax-tmin)/3
+    const winOf = (t:number)=> Math.min(2, Math.max(0, Math.floor((t-tmin)/wSpan)))
+
+    for (const c of Object.keys(dset)) {
+      const arr = dset[c]
+      const lastIdx: Record<string,number> = {}
+      for (let i=200; i<arr.length-1; i++) {
+        const win = arr.slice(i-199, i+1)
+        const closes = win.map(b=>b.close), highs=win.map(b=>b.high), lows=win.map(b=>b.low)
+        const price = closes[closes.length-1]
+        const rsi = calcRsi(closes.slice(-15))
+        const stoch = calcStochastic(closes, highs, lows, 14, 3)
+        const bb = calcBB(closes, 20, 2)
+        if (!bb.mid) continue
+        const atr = calcATR(win.slice(-20)); if (!atr) continue
+
+        // trigger variants
+        const fired: {vid:string, side:'LONG'|'SHORT'}[] = []
+        let sideA: 'LONG'|'SHORT'|null = null
+        if (stoch.K < 20 && rsi < 35) sideA='LONG'
+        else if (stoch.K > 80 && rsi > 65) sideA='SHORT'
+        if (sideA) {
+          fired.push({vid:'A_stoch+rsi', side:sideA})
+          // B: A + confirmation (divergence or stop-hunt)
+          const rsiHist = closes.slice(-20).map((_x,k)=> k===0?50:calcRsi(closes.slice(0, closes.length-20+k+1)))
+          const dv = detectDivergence(rsiHist, closes)
+          const divOK = (dv==='BULL_DIV'&&sideA==='LONG')||(dv==='BEAR_DIV'&&sideA==='SHORT')
+          if (divOK || detectStopHunt(win, sideA)) fired.push({vid:'B_confirmed', side:sideA})
+        }
+        let sideC: 'LONG'|'SHORT'|null = null
+        if (price <= bb.lower*1.005 && rsi < 32) sideC='LONG'
+        else if (price >= bb.upper*0.995 && rsi > 68) sideC='SHORT'
+        if (sideC) fired.push({vid:'C_band+rsi', side:sideC})
+        if (!fired.length) continue
+
+        for (const f of fired) {
+          const lk = f.vid
+          if (lastIdx[lk]!==undefined && i - lastIdx[lk] < SPACING) continue
+          lastIdx[lk] = i
+          const dirM = f.side==='LONG'?1:-1
+          for (const slM of SLS) {
+            const slDist = Math.max(atr*slM, price*0.005)
+            const slPct = slDist/price
+            if (slPct > 0.06) continue
+            const feeR = FEE_RT/slPct
+            const slPx = price - slDist*dirM
+            for (const tp of TPS) {
+              const tpPx = price + slDist*tp*dirM
+              let r: number|null = null
+              let jEnd = Math.min(arr.length-1, i+MAXHOLD)
+              for (let j=i+1; j<=jEnd; j++) {
+                const b = arr[j]
+                if (f.side==='LONG') {
+                  if (b.low <= slPx) { r = -1; break }
+                  if (b.high >= tpPx) { r = tp; break }
+                } else {
+                  if (b.high >= slPx) { r = -1; break }
+                  if (b.low <= tpPx) { r = tp; break }
+                }
+              }
+              if (r===null) r = (arr[jEnd].close - price)*dirM/slDist
+              const net = r - feeR
+              const key = `${tf}|${f.vid}|tp${tp}|sl${slM}`
+              if (!stats[key]) stats[key] = [{n:0,w:0,sum:0},{n:0,w:0,sum:0},{n:0,w:0,sum:0}]
+              const wi = winOf(arr[i].t)
+              stats[key][wi].n++; stats[key][wi].sum += net; if (net>0) stats[key][wi].w++
+              if (!curve[key]) curve[key]=[]
+              curve[key].push({t:arr[i].t, r:net})
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // report
+  const rows = Object.entries(stats).map(([key, ws])=>{
+    const tot = ws.reduce((a,x)=>({n:a.n+x.n, w:a.w+x.w, sum:a.sum+x.sum}), {n:0,w:0,sum:0})
+    const expAll = tot.n ? tot.sum/tot.n : -9
+    const expW = ws.map(x=> x.n ? x.sum/x.n : -9)
+    const allPos = expW.every(e=>e>0) && ws.every(x=>x.n>=20)
+    const minW = Math.min(...expW)
+    return {key, tot, expAll, expW, allPos, minW}
+  }).filter(r=>r.tot.n>=60)
+  rows.sort((a,b)=>b.minW-a.minW)
+
+  console.log(`\nconfig                          n     WR    expR(net)  | w1expR  w2expR  w3expR | verdict`)
+  for (const r of rows.slice(0, 25)) {
+    const wr = r.tot.n ? r.tot.w/r.tot.n : 0
+    console.log(`  ${r.key.padEnd(28)} ${String(r.tot.n).padStart(5)}  ${(wr*100).toFixed(1).padStart(5)}%  ${(r.expAll>=0?'+':'')}${r.expAll.toFixed(3)}R    | ${r.expW.map(e=>((e>=0?'+':'')+e.toFixed(3)).padStart(7)).join(' ')} | ${r.allPos?'✅ ROBUST':''}`)
+  }
+  const winners = rows.filter(r=>r.allPos)
+  console.log(`\n${winners.length} config(s) positive in ALL 3 windows (with ≥20 trades each).`)
+  if (winners.length) {
+    const best = winners[0]
+    // equity curve in R for the best config
+    const pts = curve[best.key].sort((a,b)=>a.t-b.t)
+    let cum=0, peak=0, mdd=0
+    for (const p of pts) { cum+=p.r; if (cum>peak) peak=cum; mdd=Math.max(mdd, peak-cum) }
+    console.log(`\nBEST: ${best.key}`)
+    console.log(`  trades=${best.tot.n}  totalR=${cum>=0?'+':''}${cum.toFixed(1)}R  maxDD=${mdd.toFixed(1)}R`)
+    console.log(`  At 1% risk/trade on $10k: ≈ $${(10000*Math.pow(1.01, cum)).toFixed(0)} final (compounded)`)
+  }
+  console.log(`\nFees INCLUDED (0.05%/side). Walk-forward: 3 equal windows over the span.`)
+}
+
+// ─────────────────────────────────────────────────────────────
 function main() {
+  // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
+  if (Deno.env.get('BT_MODE') === 'explore') {
+    console.log(`████ EXPLORE — 15m/1h mean-reversion, 6 months, real fees, walk-forward ████`)
+    runExplore()
+    return
+  }
+
   console.log(`Loading data (5m + 15m + 1h) from data.binance.vision archive | coins: ${COINS.join(',')}`)
 
   const data:Record<string,Bar[]> = {}, b1h:Record<string,Bar[]> = {}, b15:Record<string,Bar[]> = {}

@@ -26,7 +26,12 @@ jobs:
       - name: Download historical data (data.binance.vision)
         env:
           BT_DAYS: ${{ github.event.inputs.days }}
-        run: bash backtest/fetch.sh
+        run: |
+          if [ "${{ github.event.inputs.mode }}" = "explore" ]; then
+            bash backtest/fetch-explore.sh
+          else
+            bash backtest/fetch.sh
+          fi
 
       - name: Run backtest
         env:
