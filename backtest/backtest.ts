@@ -820,26 +820,59 @@ function runSignalValidation(data:Record<string,Bar[]>, b1h:Record<string,Bar[]>
 // PROVEN if expectancy (net of fees) is positive in ALL 3 time windows.
 // ─────────────────────────────────────────────────────────────
 function runExplore() {
-  const FEE_RT = 0.0010          // 0.05%/side round trip (incl. slippage) — REAL fees
-  const TPS = [0.8, 1.0, 1.5, 2.0]
-  const SLS = [0.7, 1.0, 1.4]
-  const MAXHOLD = 48             // bars (15m: 12h, 1h: 48h)
-  const SPACING = 8              // min bars between candidates per coin+variant
+  const FEE_TAKER = 0.0010       // 0.05%/side round trip (market orders)
+  const FEE_MAKER = 0.0004       // 0.02%/side round trip (limit orders)
+  const TPS = [0.8, 1.0, 1.5, 2.0, 3.0]
+  const SLS = [0.7, 1.0, 1.4, 2.0]
+  const SPACING = 8
 
-  interface Agg { n:number; w:number; sum:number }
-  const stats: Record<string, Agg[]> = {}   // key → per-window aggregates
+  interface Agg { n:number; w:number; sum:number; sumG:number; sumM:number }
+  const mkAgg = ():Agg => ({n:0,w:0,sum:0,sumG:0,sumM:0})
+  const stats: Record<string, Agg[]> = {}
   const curve: Record<string, {t:number,r:number}[]> = {}
 
-  for (const tf of ['15m','1h'] as const) {
-    // load all coins for this tf
+  // 4h aggregation from 1h
+  const to4h = (a:Bar[]):Bar[] => {
+    const out:Bar[] = []; let cur:Bar|null = null; let bucket = -1
+    for (const b of a) {
+      const k = Math.floor(b.t/14400000)
+      if (k!==bucket) { if (cur) out.push(cur); bucket=k
+        cur = {t:k*14400000, open:b.open, high:b.high, low:b.low, close:b.close, vol:b.vol} }
+      else if (cur) { cur.high=Math.max(cur.high,b.high); cur.low=Math.min(cur.low,b.low); cur.close=b.close; cur.vol+=b.vol }
+    }
+    if (cur) out.push(cur)
+    return out
+  }
+
+  interface Ctx { win:Bar[]; closes:number[]; price:number; rsi:number; stochK:number; bb:{upper:number;mid:number;lower:number}; adx:number; confirm:boolean }
+  interface Variant { vid:string; maxhold:number; fire:(c:Ctx)=>('LONG'|'SHORT'|null) }
+  const variants: Variant[] = [
+    {vid:'A_stoch+rsi', maxhold:48, fire:c=> (c.stochK<20&&c.rsi<35)?'LONG':(c.stochK>80&&c.rsi>65)?'SHORT':null},
+    {vid:'B_confirmed', maxhold:48, fire:c=>{ const s=(c.stochK<20&&c.rsi<35)?'LONG':(c.stochK>80&&c.rsi>65)?'SHORT':null; return s&&c.confirm?s:null }},
+    {vid:'D_range_MR',  maxhold:48, fire:c=>{ if(c.adx>=20) return null; return (c.stochK<20&&c.rsi<35)?'LONG':(c.stochK>80&&c.rsi>65)?'SHORT':null }},
+    {vid:'F_band_conf', maxhold:48, fire:c=>{ const s=(c.price<=c.bb.lower*1.005&&c.rsi<32)?'LONG':(c.price>=c.bb.upper*0.995&&c.rsi>68)?'SHORT':null; return s&&c.confirm?s:null }},
+    {vid:'G_donchian55',maxhold:96, fire:c=>{ const hs=c.win.slice(-56,-1); if(!hs.length) return null
+      const hi=Math.max(...hs.map(b=>b.high)), lo=Math.min(...hs.map(b=>b.low))
+      return c.price>hi?'LONG':c.price<lo?'SHORT':null }},
+    {vid:'H_donch_adx', maxhold:96, fire:c=>{ if(c.adx<=25) return null; const hs=c.win.slice(-56,-1); if(!hs.length) return null
+      const hi=Math.max(...hs.map(b=>b.high)), lo=Math.min(...hs.map(b=>b.low))
+      return c.price>hi?'LONG':c.price<lo?'SHORT':null }},
+  ]
+
+  const tfs: [string, (c:string)=>Bar[]][] = [
+    ['1h',  c=>loadCSV(c,'1h')],
+    ['4h',  c=>to4h(loadCSV(c,'1h'))],
+    ['15m', c=>loadCSV(c,'15m')],
+  ]
+  for (const [tf, loader] of tfs) {
     const dset: Record<string,Bar[]> = {}
     let tmin=Infinity, tmax=-Infinity
     for (const c of COINS) {
-      const a = loadCSV(c, tf)
-      if (a.length > 500) { dset[c]=a; tmin=Math.min(tmin,a[0].t); tmax=Math.max(tmax,a[a.length-1].t) }
+      const a = loader(c)
+      if (a.length > 400) { dset[c]=a; tmin=Math.min(tmin,a[0].t); tmax=Math.max(tmax,a[a.length-1].t) }
     }
     const nCoins = Object.keys(dset).length
-    console.log(`  ${tf}: ${nCoins} coins loaded, ${((tmax-tmin)/86400000).toFixed(0)} days span`)
+    console.log(`  ${tf}: ${nCoins} coins, ${((tmax-tmin)/86400000).toFixed(0)} days`)
     if (!nCoins) continue
     const wSpan = (tmax-tmin)/3
     const winOf = (t:number)=> Math.min(2, Math.max(0, Math.floor((t-tmin)/wSpan)))
@@ -856,59 +889,45 @@ function runExplore() {
         const bb = calcBB(closes, 20, 2)
         if (!bb.mid) continue
         const atr = calcATR(win.slice(-20)); if (!atr) continue
-
-        // trigger variants
-        const fired: {vid:string, side:'LONG'|'SHORT'}[] = []
-        let sideA: 'LONG'|'SHORT'|null = null
-        if (stoch.K < 20 && rsi < 35) sideA='LONG'
-        else if (stoch.K > 80 && rsi > 65) sideA='SHORT'
-        if (sideA) {
-          fired.push({vid:'A_stoch+rsi', side:sideA})
-          // B: A + confirmation (divergence or stop-hunt)
+        const adx = calcADX(win.slice(-60))
+        // confirm computed lazily only if some MR variant may need it
+        let confirm = false
+        const maybeMR = (stoch.K<20&&rsi<35)||(stoch.K>80&&rsi>65)||(price<=bb.lower*1.005&&rsi<32)||(price>=bb.upper*0.995&&rsi>68)
+        if (maybeMR) {
+          const sideGuess = (stoch.K<20||rsi<35||price<=bb.lower*1.005) ? 'LONG' : 'SHORT'
           const rsiHist = closes.slice(-20).map((_x,k)=> k===0?50:calcRsi(closes.slice(0, closes.length-20+k+1)))
           const dv = detectDivergence(rsiHist, closes)
-          const divOK = (dv==='BULL_DIV'&&sideA==='LONG')||(dv==='BEAR_DIV'&&sideA==='SHORT')
-          if (divOK || detectStopHunt(win, sideA)) fired.push({vid:'B_confirmed', side:sideA})
+          confirm = (dv==='BULL_DIV'&&sideGuess==='LONG')||(dv==='BEAR_DIV'&&sideGuess==='SHORT')||detectStopHunt(win, sideGuess as 'LONG'|'SHORT')
         }
-        let sideC: 'LONG'|'SHORT'|null = null
-        if (price <= bb.lower*1.005 && rsi < 32) sideC='LONG'
-        else if (price >= bb.upper*0.995 && rsi > 68) sideC='SHORT'
-        if (sideC) fired.push({vid:'C_band+rsi', side:sideC})
-        if (!fired.length) continue
+        const ctx: Ctx = {win, closes, price, rsi, stochK:stoch.K, bb, adx, confirm}
 
-        for (const f of fired) {
-          const lk = f.vid
-          if (lastIdx[lk]!==undefined && i - lastIdx[lk] < SPACING) continue
-          lastIdx[lk] = i
-          const dirM = f.side==='LONG'?1:-1
+        for (const v of variants) {
+          const side = v.fire(ctx); if (!side) continue
+          if (lastIdx[v.vid]!==undefined && i - lastIdx[v.vid] < SPACING) continue
+          lastIdx[v.vid] = i
+          const dirM = side==='LONG'?1:-1
           for (const slM of SLS) {
             const slDist = Math.max(atr*slM, price*0.005)
             const slPct = slDist/price
-            if (slPct > 0.06) continue
-            const feeR = FEE_RT/slPct
+            if (slPct > 0.08) continue
+            const feeT = FEE_TAKER/slPct, feeM = FEE_MAKER/slPct
             const slPx = price - slDist*dirM
             for (const tp of TPS) {
               const tpPx = price + slDist*tp*dirM
               let r: number|null = null
-              let jEnd = Math.min(arr.length-1, i+MAXHOLD)
+              const jEnd = Math.min(arr.length-1, i+v.maxhold)
               for (let j=i+1; j<=jEnd; j++) {
                 const b = arr[j]
-                if (f.side==='LONG') {
-                  if (b.low <= slPx) { r = -1; break }
-                  if (b.high >= tpPx) { r = tp; break }
-                } else {
-                  if (b.high >= slPx) { r = -1; break }
-                  if (b.low <= tpPx) { r = tp; break }
-                }
+                if (side==='LONG') { if (b.low<=slPx){r=-1;break} if (b.high>=tpPx){r=tp;break} }
+                else               { if (b.high>=slPx){r=-1;break} if (b.low<=tpPx){r=tp;break} }
               }
               if (r===null) r = (arr[jEnd].close - price)*dirM/slDist
-              const net = r - feeR
-              const key = `${tf}|${f.vid}|tp${tp}|sl${slM}`
-              if (!stats[key]) stats[key] = [{n:0,w:0,sum:0},{n:0,w:0,sum:0},{n:0,w:0,sum:0}]
-              const wi = winOf(arr[i].t)
-              stats[key][wi].n++; stats[key][wi].sum += net; if (net>0) stats[key][wi].w++
+              const key = `${tf}|${v.vid}|tp${tp}|sl${slM}`
+              if (!stats[key]) stats[key]=[mkAgg(),mkAgg(),mkAgg()]
+              const a = stats[key][winOf(arr[i].t)]
+              a.n++; a.sumG += r; a.sumM += r-feeM; a.sum += r-feeT; if (r-feeT>0) a.w++
               if (!curve[key]) curve[key]=[]
-              curve[key].push({t:arr[i].t, r:net})
+              curve[key].push({t:arr[i].t, r:r-feeM})
             }
           }
         }
@@ -916,35 +935,33 @@ function runExplore() {
     }
   }
 
-  // report
   const rows = Object.entries(stats).map(([key, ws])=>{
-    const tot = ws.reduce((a,x)=>({n:a.n+x.n, w:a.w+x.w, sum:a.sum+x.sum}), {n:0,w:0,sum:0})
-    const expAll = tot.n ? tot.sum/tot.n : -9
-    const expW = ws.map(x=> x.n ? x.sum/x.n : -9)
-    const allPos = expW.every(e=>e>0) && ws.every(x=>x.n>=20)
-    const minW = Math.min(...expW)
-    return {key, tot, expAll, expW, allPos, minW}
-  }).filter(r=>r.tot.n>=60)
-  rows.sort((a,b)=>b.minW-a.minW)
+    const tot = ws.reduce((a,x)=>({n:a.n+x.n, w:a.w+x.w, sum:a.sum+x.sum, sumG:a.sumG+x.sumG, sumM:a.sumM+x.sumM}), mkAgg())
+    const expT = tot.n? tot.sum/tot.n : -9
+    const expG = tot.n? tot.sumG/tot.n : -9
+    const expM = tot.n? tot.sumM/tot.n : -9
+    const wT = ws.map(x=> x.n? x.sum/x.n : -9)
+    const wM = ws.map(x=> x.n? x.sumM/x.n : -9)
+    const okT = wT.every(e=>e>0) && ws.every(x=>x.n>=15)
+    const okM = wM.every(e=>e>0) && ws.every(x=>x.n>=15)
+    return {key, tot, expT, expG, expM, wT, wM, okT, okM, minM:Math.min(...wM)}
+  }).filter(r=>r.tot.n>=45)
+  rows.sort((a,b)=>b.minM-a.minM)
 
-  console.log(`\nconfig                          n     WR    expR(net)  | w1expR  w2expR  w3expR | verdict`)
-  for (const r of rows.slice(0, 25)) {
-    const wr = r.tot.n ? r.tot.w/r.tot.n : 0
-    console.log(`  ${r.key.padEnd(28)} ${String(r.tot.n).padStart(5)}  ${(wr*100).toFixed(1).padStart(5)}%  ${(r.expAll>=0?'+':'')}${r.expAll.toFixed(3)}R    | ${r.expW.map(e=>((e>=0?'+':'')+e.toFixed(3)).padStart(7)).join(' ')} | ${r.allPos?'✅ ROBUST':''}`)
+  console.log(`\nconfig                          n     gross    maker    taker   | maker w1/w2/w3        | verdict`)
+  for (const r of rows.slice(0, 30)) {
+    const v = r.okT ? '✅✅TAKER-ROBUST' : r.okM ? '✅MAKER-ROBUST' : ''
+    console.log(`  ${r.key.padEnd(28)} ${String(r.tot.n).padStart(5)}  ${(r.expG>=0?'+':'')}${r.expG.toFixed(3)}  ${(r.expM>=0?'+':'')}${r.expM.toFixed(3)}  ${(r.expT>=0?'+':'')}${r.expT.toFixed(3)}  | ${r.wM.map(e=>((e>=0?'+':'')+e.toFixed(2)).padStart(6)).join(' ')} | ${v}`)
   }
-  const winners = rows.filter(r=>r.allPos)
-  console.log(`\n${winners.length} config(s) positive in ALL 3 windows (with ≥20 trades each).`)
-  if (winners.length) {
-    const best = winners[0]
-    // equity curve in R for the best config
+  const winners = rows.filter(r=>r.okM)
+  console.log(`\n${winners.length} config(s) MAKER-robust (positive in all 3 windows @0.02%/side).`)
+  for (const best of winners.slice(0,3)) {
     const pts = curve[best.key].sort((a,b)=>a.t-b.t)
     let cum=0, peak=0, mdd=0
     for (const p of pts) { cum+=p.r; if (cum>peak) peak=cum; mdd=Math.max(mdd, peak-cum) }
-    console.log(`\nBEST: ${best.key}`)
-    console.log(`  trades=${best.tot.n}  totalR=${cum>=0?'+':''}${cum.toFixed(1)}R  maxDD=${mdd.toFixed(1)}R`)
-    console.log(`  At 1% risk/trade on $10k: ≈ $${(10000*Math.pow(1.01, cum)).toFixed(0)} final (compounded)`)
+    console.log(`  ${best.key}: trades=${best.tot.n} totalR=${cum>=0?'+':''}${cum.toFixed(1)} maxDD=${mdd.toFixed(1)}R → $10k@1%risk ≈ $${(10000*Math.pow(1.01, cum)).toFixed(0)}`)
   }
-  console.log(`\nFees INCLUDED (0.05%/side). Walk-forward: 3 equal windows over the span.`)
+  console.log(`\nWalk-forward: 3 equal windows over ~6 months. gross=no fees, maker=0.02%/side, taker=0.05%/side.`)
 }
 
 // ─────────────────────────────────────────────────────────────
