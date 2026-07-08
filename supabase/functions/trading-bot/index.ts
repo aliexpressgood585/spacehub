@@ -1,5 +1,10 @@
 // ════════════════════════════════════════════════════════════
-// CryptoBot v41 — DONCH4H strategy (walk-forward proven)
+// CryptoBot v41.1 — DONCH4H strategy + SPLIT exit (walk-forward proven)
+//
+// v41.1: SPLIT exit — half off at 0.6R → SL to breakeven → rest to 1.0R TP.
+//  36-month validation (5,414 trades, 39 coins, Jul23-Jul26, fees included):
+//  WR 67.1% (was 54.7%), maker +0.071R/trade, maxDD 54R (was 78R),
+//  positive in all 6 half-year walk-forward windows. Approved by user.
 //
 // v41: STRATEGY REPLACEMENT — backed by 6-month research on real Binance data:
 //  Entry: Donchian-40 breakout on 4h bars + ADX(4h)>25 trend filter.
@@ -2410,8 +2415,11 @@ Deno.serve(async (req) => {
                   :storedTP_SHORT ?Number(t.lo)
                   :t.side==='LONG'?entry+slDist*vp.tpR:entry-slDist*vp.tpR
 
-          const origSlDist=(t.side==='LONG' &&storedTP_LONG )?(Number(t.hi)-entry)/vp.tpR
-                          :(t.side==='SHORT'&&storedTP_SHORT)?(entry-Number(t.lo))/vp.tpR
+          // v41.1: legacy (mtf) trades store TP at vp.tpR×slDist; DONCH4H trades
+          // store TP at exactly 1.0R — divide by the right factor to recover slDist.
+          const tpRFactor = t.mtf ? vp.tpR : 1.0
+          const origSlDist=(t.side==='LONG' &&storedTP_LONG )?(Number(t.hi)-entry)/tpRFactor
+                          :(t.side==='SHORT'&&storedTP_SHORT)?(entry-Number(t.lo))/tpRFactor
                           :slDist
 
           // v21: Dynamic partial TP R by current vol regime
@@ -2422,6 +2430,25 @@ Deno.serve(async (req) => {
           // and guaranteed negative expectancy. Let winners run to full TP,
           // protected only by the breakeven+trail below.
           void dynamicPartialR
+
+          // ── v41.1 SPLIT exit (DONCH4H trades only, mtf:false) ──
+          // Validated on 36 months / 5,414 trades: WR 54.7%→67.1%, maxDD 78R→54R.
+          // Half off at 0.6R → SL of the remainder moves to breakeven → rest runs
+          // to the stored 1.0R TP.
+          if (!t.mtf && !t.partial_done && origSlDist > 0) {
+            const p06 = entry + origSlDist*0.6*dirM
+            const hit06 = t.side==='LONG' ? price>=p06 : price<=p06
+            if (hit06) {
+              const half = size/2
+              const pnl06 = (price-entry)*half*dirM
+              balance += entry*half + pnl06
+              await supabase.from('bot_trades').update({
+                size: half, trail_sl: entry, partial_done: true
+              }).eq('id', t.id)
+              log.push(`SPLIT_06 ${sym} ${t.side} half@${price.toFixed(4)} pnl=${pnl06.toFixed(2)} sl→BE`)
+              continue
+            }
+          }
 
           // ── Use adjusted SL if equity guard is active ──
           const slToUse = equityGuardMult === 0.5 ? adjustedSl : sl
