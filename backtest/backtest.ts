@@ -745,23 +745,19 @@ function main() {
     console.log(`  ${th}     ${String(n).padStart(4)}    ${(wr*100).toFixed(1).padStart(5)}%  ${(pf===Infinity?'∞':pf.toFixed(2)).padStart(5)}  ${(exp>=0?'+':'')}${exp.toFixed(3)}R   +${awr.toFixed(2)}R   ${alr.toFixed(2)}R`)
   }
 
-  // ── PART B: V38 vs V39 exit engine, head-to-head at a gate with volume ──
-  const TH = 55  // low enough for a meaningful sample given neutralized signals
-  console.log(`\n████ PART B — V38 vs V39 exit engine (same entries, gate=${TH}) ████`)
-  const r38 = runSim(mk({name:'V38', partial:true,  beR:1.0, trailStartR:1.5, netCap:false, entryThreshold:TH, baseFloor:TH-10}), grid, data, b1h, b15, btc5, change24h)
-  const r39 = runSim(mk({name:'V39', partial:false, beR:1.5, trailStartR:2.0, netCap:true,  entryThreshold:TH, baseFloor:TH-10}), grid, data, b1h, b15, btc5, change24h)
-  const s38 = report('V38  (old: partial TP + BE 1.0R + trail 1.5R)', r38)
-  const s39 = report('V39  (new: no partial + BE 1.5R + trail 2.0R + net cap)', r39)
-
-  console.log(`\n═══════════ VERDICT (gate=${TH}) ═══════════`)
-  console.log(`Metric          V38          V39`)
-  console.log(`WR             ${(s38.wr*100).toFixed(1)}%        ${(s39.wr*100).toFixed(1)}%`)
-  console.log(`PF             ${(s38.pf===Infinity?'∞':s38.pf.toFixed(2)).padEnd(8)}     ${s39.pf===Infinity?'∞':s39.pf.toFixed(2)}`)
-  console.log(`Expectancy     ${s38.expR>=0?'+':''}${s38.expR.toFixed(3)}R     ${s39.expR>=0?'+':''}${s39.expR.toFixed(3)}R`)
-  console.log(`Final $        ${s38.finalBal.toFixed(0)}        ${s39.finalBal.toFixed(0)}`)
-  console.log(`Max DD         ${(s38.maxDD*100).toFixed(1)}%        ${(s39.maxDD*100).toFixed(1)}%`)
+  // ── PART B: is TRAILING the profit-killer? V39 (trail) vs PURE (fixed SL/2.5R TP, no trail) ──
+  // Signal validation showed 35.8% WR at a fixed 2.5R exit = +0.25R expectancy,
+  // but the trailing engine cuts winners (avg win 0.4-1.6R). Test removing it.
+  console.log(`\n████ PART B — TRAILING vs PURE fixed SL/TP (no trail), at gates 55 & 75 ████`)
+  for (const TH of [55, 75]) {
+    const rTrail = runSim(mk({partial:false, beR:1.5,  trailStartR:2.0, netCap:true, entryThreshold:TH, baseFloor:Math.max(0,TH-10)}), grid, data, b1h, b15, btc5, change24h)
+    const rPure  = runSim(mk({partial:false, beR:999,  trailStartR:999, netCap:true, entryThreshold:TH, baseFloor:Math.max(0,TH-10)}), grid, data, b1h, b15, btc5, change24h)
+    const sT = report(`TRAIL  gate=${TH} (v39: BE 1.5R + trail 2.0R)`, rTrail)
+    const sP = report(`PURE   gate=${TH} (fixed SL + 2.5R TP, no trail)`, rPure)
+    console.log(`\n─── gate=${TH}:  TRAIL exp ${sT.expR>=0?'+':''}${sT.expR.toFixed(3)}R  vs  PURE exp ${sP.expR>=0?'+':''}${sP.expR.toFixed(3)}R  |  PF ${sT.pf===Infinity?'∞':sT.pf.toFixed(2)} vs ${sP.pf===Infinity?'∞':sP.pf.toFixed(2)} ───`)
+  }
   console.log(`\nNote: OI/funding/fear-greed/liq-zone signals neutralized (no historical source)`)
-  console.log(`→ scores run ~15-30pts low, so PART A thresholds map to higher live gates. FEE=0.`)
+  console.log(`→ scores run ~15-30pts low, so thresholds map to higher live gates. FEE=0.`)
 }
 
 main()
