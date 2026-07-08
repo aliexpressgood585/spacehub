@@ -487,7 +487,34 @@ const VOL_PARAMS = {
   HIGH:   { slMult:1.0, tpR:2.5, trailAtr:0.8 },
 }
 
-interface SimConfig { name:string; partial:boolean; beR:number; trailStartR:number; partialR:number; netCap:boolean; entryThreshold:number; baseFloor:number }
+interface SimConfig { name:string; partial:boolean; beR:number; trailStartR:number; partialR:number; netCap:boolean; entryThreshold:number; baseFloor:number; meanRev?:boolean }
+
+// PURE mean-reversion entry — ONLY the signals with proven positive lift:
+// stochastic extreme (defines side) + RSI divergence + stop-hunt (+volume).
+// No trend signals, no ADX/1H/BTC trend gates. Tests "fade the extreme".
+function mrScore(bars:Bar[], price:number) {
+  if (bars.length < 30) return null
+  const closes = bars.map(b=>b.close), highs = bars.map(b=>b.high), lows = bars.map(b=>b.low)
+  const atr = calcATR(bars.slice(-20)); if (!atr) return null
+  const bb = calcBB(closes,20,2); if (!bb.mid) return null
+  const rsi = calcRsi(closes.slice(-15))
+  const stoch = calcStochastic(closes, highs, lows, 14, 3)
+  let side: 'LONG'|'SHORT'|null = null
+  if (stoch.K < 25 && (price <= bb.lower*1.005 || rsi < 35)) side='LONG'
+  else if (stoch.K > 75 && (price >= bb.upper*0.995 || rsi > 65)) side='SHORT'
+  if (!side) return null
+  const rsiHistory = closes.slice(-20).map((_c,i)=> i===0?50:calcRsi(closes.slice(0, closes.length-20+i+1)))
+  const div = detectDivergence(rsiHistory, closes)
+  const divOK = (div==='BULL_DIV'&&side==='LONG')||(div==='BEAR_DIV'&&side==='SHORT')
+  const shOK = detectStopHunt(bars, side)
+  const vols = bars.slice(-20).map(b=>b.vol); const volAvg = vols.reduce((a,b)=>a+b,0)/vols.length
+  const volOK = bars[bars.length-1].vol > volAvg*1.4
+  let score = 2                    // stoch extreme (the side trigger)
+  if (divOK) score += 4
+  if (shOK)  score += 4
+  if (volOK) score += 1
+  return { side, slDist: atr*1.2, score, needConfirm: divOK||shOK }
+}
 
 function runSim(
   cfg:SimConfig, grid:number[], data:Record<string,Bar[]>,
@@ -608,37 +635,45 @@ function runSim(
       const ch = change24h[sym][bi] ?? 0
       const pchg = completed.length>=2 ? (price-completed[completed.length-2].close)/completed[completed.length-2].close : 0
       const oc = oiContext(oi[sym], arr[bi].t, pchg)
-      const es = calcConfluenceScore(completed, price, vpoc, ema1h, adx, 50, 35, 65, 1.02, ema200, ch, oc.sig, oc.hist)
-      if (!es || !es.side) continue
-      // ADX hard gate
-      if (!es.rangeFade && adx < 20) continue
-      // 1H hard block
-      if (es.side==='LONG' && ema1h==='BEAR') continue
-      if (es.side==='SHORT'&& ema1h==='BULL') continue
-      // BTC bias gate
-      if (es.side==='LONG' && btcBias==='BEAR' && ema1h!=='BULL') continue
-      if (es.side==='SHORT'&& btcBias==='BULL' && ema1h!=='BEAR') continue
-      // mtf bonus
-      const a1 = (es.side==='LONG'&&ema1h==='BULL')||(es.side==='SHORT'&&ema1h==='BEAR')
-      const a15= (es.side==='LONG'&&ema15==='BULL')||(es.side==='SHORT'&&ema15==='BEAR')
-      const mtfBonus = a1&&a15?10:(a1||a15?5:0)
-      const finalScore = es.score + mtfBonus
-      if (es.score < cfg.baseFloor || finalScore < cfg.entryThreshold) continue
+      let entrySide: 'LONG'|'SHORT', rawSlDist:number, finalScore:number
+      let rfFlag = false, bbMidVal:number|undefined = undefined
+      if (cfg.meanRev) {
+        // PURE mean-reversion: only the proven-positive signals (stoch extreme +
+        // divergence + stop-hunt). No trend signals, no ADX/1H/BTC trend gates.
+        const mr = mrScore(completed, price)
+        if (!mr || !mr.needConfirm) continue
+        if (mr.score < cfg.entryThreshold) continue
+        entrySide = mr.side; rawSlDist = mr.slDist; finalScore = mr.score
+      } else {
+        const es = calcConfluenceScore(completed, price, vpoc, ema1h, adx, 50, 35, 65, 1.02, ema200, ch, oc.sig, oc.hist)
+        if (!es || !es.side) continue
+        if (!es.rangeFade && adx < 20) continue
+        if (es.side==='LONG' && ema1h==='BEAR') continue
+        if (es.side==='SHORT'&& ema1h==='BULL') continue
+        if (es.side==='LONG' && btcBias==='BEAR' && ema1h!=='BULL') continue
+        if (es.side==='SHORT'&& btcBias==='BULL' && ema1h!=='BEAR') continue
+        const a1 = (es.side==='LONG'&&ema1h==='BULL')||(es.side==='SHORT'&&ema1h==='BEAR')
+        const a15= (es.side==='LONG'&&ema15==='BULL')||(es.side==='SHORT'&&ema15==='BEAR')
+        const mtfBonus = a1&&a15?10:(a1||a15?5:0)
+        const fs = es.score + mtfBonus
+        if (es.score < cfg.baseFloor || fs < cfg.entryThreshold) continue
+        entrySide = es.side; rawSlDist = es.slDist; finalScore = fs; rfFlag = !!es.rangeFade; bbMidVal = es.bbMid
+      }
       // side filter
-      if (sideFilter==='LONG'&&es.side==='SHORT') continue
-      if (sideFilter==='SHORT'&&es.side==='LONG') continue
+      if (sideFilter==='LONG'&&entrySide==='SHORT') continue
+      if (sideFilter==='SHORT'&&entrySide==='LONG') continue
       // corr group cap (max 3 per group among open)
       const gid = corrGroup(sym)
       if (gid>=0) { const cnt=Object.keys(open).filter(s=>corrGroup(s)===gid).length; if (cnt>=3) continue }
       // SL/TP
       const dynSLMult = adx>25?1.0:adx<15?1.5:1.2
-      const dynSL = calcDynamicSL(es.slDist, adx, dynSLMult)
+      const dynSL = calcDynamicSL(rawSlDist, adx, dynSLMult)
       const slDist = Math.max(dynSL, price*0.005)
       const slPct = slDist/price
       if (slPct < 0.005 || slPct > 0.04) continue
       const {pct:volPct} = calcVolatilityPercentile(completed)
       let tpR = calcDynamicTP(2.5, volPct)
-      if (es.rangeFade && es.bbMid) { const midR=Math.abs(es.bbMid-price)/slDist; if (midR<1.0) continue; tpR=Math.min(tpR,midR) }
+      if (rfFlag && bbMidVal) { const midR=Math.abs(bbMidVal-price)/slDist; if (midR<1.0) continue; tpR=Math.min(tpR,midR) }
       // equal sizing
       const currentExposure = Object.values(open).reduce((a,p)=>a+p.entry*p.size,0)
       const totalPortfolio = balance + currentExposure
@@ -649,15 +684,15 @@ function runSim(
       // net exposure cap (v39)
       if (cfg.netCap) {
         let nl=0, ns=0; for (const p of Object.values(open)) { const n=p.entry*p.size; if(p.side==='LONG')nl+=n; else ns+=n }
-        const netAfter = es.side==='LONG' ? (nl+notional)-ns : nl-(ns+notional)
+        const netAfter = entrySide==='LONG' ? (nl+notional)-ns : nl-(ns+notional)
         if (totalPortfolio>0 && Math.abs(netAfter) > totalPortfolio*0.60) continue
       }
       const size = notional/price
-      const dirM = es.side==='LONG'?1:-1
-      const sl = es.side==='LONG'?price-slDist:price+slDist
+      const dirM = entrySide==='LONG'?1:-1
+      const sl = entrySide==='LONG'?price-slDist:price+slDist
       const tp = price + slDist*tpR*dirM
       balance -= notional
-      open[sym] = {sym, side:es.side, entry:price, size, slDist, sl, tp, be:price, partialDone:false, openIdx:bi, openT:T, origSize:size}
+      open[sym] = {sym, side:entrySide, entry:price, size, slDist, sl, tp, be:price, partialDone:false, openIdx:bi, openT:T, origSize:size}
       newThisScan++
     }
 
@@ -806,8 +841,27 @@ function main() {
 
   const mk = (o:Partial<SimConfig>):SimConfig => ({
     name:'', partial:false, beR:1.5, trailStartR:2.0, partialR:1.2, netCap:true,
-    entryThreshold:75, baseFloor:65, ...o
+    entryThreshold:75, baseFloor:65, meanRev:false, ...o
   })
+
+  // BT_MODE=meanrev → pure mean-reversion strategy sweep, then stop
+  if (Deno.env.get('BT_MODE') === 'meanrev') {
+    console.log(`\n████ PURE MEAN-REVERSION — only stoch+divergence+stopHunt, no trend gates ████`)
+    console.log(`(V39 exits: BE 1.5R + trail 2.0R; score=2 stoch +4 div +4 stopHunt +1 vol)`)
+    console.log(`\nminScore  trades   WR      PF     expR       avgWinR  avgLossR`)
+    for (const th of [5,6,7,8,9]) {
+      const r = runSim(mk({meanRev:true, entryThreshold:th, baseFloor:0}), grid, data, b1h, b15, btc5, change24h, oiData)
+      const real = r.closed.filter(c=>c.status!=='PARTIAL')
+      const n=real.length, w=real.filter(c=>c.pnl>0), l=real.filter(c=>c.pnl<=0)
+      const gw=w.reduce((a,c)=>a+c.pnl,0), gl=Math.abs(l.reduce((a,c)=>a+c.pnl,0))
+      const wr=n?w.length/n:0, pf=gl>0?gw/gl:Infinity, exp=n?real.reduce((a,c)=>a+c.rMultiple,0)/n:0
+      const awr=w.length?w.reduce((a,c)=>a+c.rMultiple,0)/w.length:0
+      const alr=l.length?l.reduce((a,c)=>a+c.rMultiple,0)/l.length:0
+      console.log(`  ${th}      ${String(n).padStart(5)}   ${(wr*100).toFixed(1).padStart(5)}%  ${(pf===Infinity?'∞':pf.toFixed(2)).padStart(5)}  ${(exp>=0?'+':'')}${exp.toFixed(3)}R   +${awr.toFixed(2)}R   ${alr.toFixed(2)}R`)
+    }
+    console.log(`\nFEE=0. Positive expR at any row = the pure mean-reversion premise works.`)
+    return
+  }
 
   // ── PART A: score→expectancy sweep (V39 exit engine, varying entry gate) ──
   // Live has ~15-30 extra pts from OI/FG/liqZone/momentum that we neutralized,
