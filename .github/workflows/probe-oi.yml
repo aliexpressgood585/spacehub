@@ -1,0 +1,24 @@
+name: Probe OI Archive
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe Binance futures metrics (Open Interest) archive
+        run: |
+          D=$(date -u -d "-3 day" +%Y-%m-%d)
+          echo "=== daily metrics zip for $D ==="
+          for SYM in BTC ETH SUI; do
+            url="https://data.binance.vision/data/futures/um/daily/metrics/${SYM}USDT/${SYM}USDT-metrics-${D}.zip"
+            code=$(curl -s -o "/tmp/${SYM}.zip" -w "%{http_code}" -m 30 "$url")
+            echo "[$code] $SYM  $url"
+          done
+          echo ""
+          echo "=== BTC metrics CSV: header + first 3 rows ==="
+          unzip -p /tmp/BTC.zip 2>/dev/null | head -4
+          echo ""
+          echo "=== row count ==="
+          unzip -p /tmp/BTC.zip 2>/dev/null | wc -l
