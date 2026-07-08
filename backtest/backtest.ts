@@ -17,8 +17,6 @@
 //  - 5m decision at bar close, fill at that close; exits scan later bars.
 // ════════════════════════════════════════════════════════════
 
-const FAPI = 'https://fapi.binance.com/fapi/v1'
-
 interface Bar { open:number; high:number; low:number; close:number; vol:number; t:number }
 
 // ─────────────────────────────────────────────────────────────
@@ -334,32 +332,26 @@ function calcConfluenceScore(
 }
 
 // ─────────────────────────────────────────────────────────────
-// DATA FETCH (paginated)
+// DATA LOAD — reads CSVs downloaded by fetch.sh from data.binance.vision
+// (Binance REST fapi is geo-blocked on GitHub runners; the archive is not)
 // ─────────────────────────────────────────────────────────────
-async function fetchKlines(sym:string, interval:string, startMs:number, endMs:number): Promise<Bar[]> {
+function loadCSV(sym:string, interval:string): Bar[] {
+  let txt = ''
+  try { txt = Deno.readTextFileSync(`backtest/data/${sym}-${interval}.csv`) } catch { return [] }
   const out: Bar[] = []
-  let cursor = startMs
-  while (cursor < endMs) {
-    const url = `${FAPI}/klines?symbol=${sym}USDT&interval=${interval}&startTime=${cursor}&limit=1500`
-    let data:number[][] = []
-    for (let attempt=0; attempt<4; attempt++) {
-      try {
-        const r = await fetch(url, {headers:{'User-Agent':'Mozilla/5.0'}})
-        if (r.status === 429 || r.status === 418) { await sleep(2000*(attempt+1)); continue }
-        if (!r.ok) { await sleep(500); continue }
-        data = await r.json(); break
-      } catch { await sleep(1000) }
-    }
-    if (!data.length) break
-    for (const k of data) out.push({t:+k[0], open:+k[1], high:+k[2], low:+k[3], close:+k[4], vol:+k[5]})
-    const last = +data[data.length-1][0]
-    if (data.length < 1500) break
-    cursor = last + 1
-    await sleep(120)
+  for (const line of txt.split('\n')) {
+    if (!line || line[0] < '0' || line[0] > '9') continue   // skip header/blank
+    const f = line.split(',')
+    let t = Number(f[0])
+    if (t > 1e14) t = Math.floor(t / 1000)  // some archives use microseconds
+    const b = {t, open:+f[1], high:+f[2], low:+f[3], close:+f[4], vol:+f[5]}
+    if (Number.isFinite(b.close) && b.close > 0) out.push(b)
   }
-  return out.filter(b => b.t < endMs)
+  out.sort((a,b)=>a.t-b.t)
+  const dedup: Bar[] = []; let last = -1
+  for (const b of out) { if (b.t !== last) { dedup.push(b); last = b.t } }
+  return dedup
 }
-const sleep = (ms:number) => new Promise(r => setTimeout(r, ms))
 
 // last 1h bar with openTime <= t (closed)
 function biasAt1h(bars1h: Bar[], t:number): {ema1h:Bias, ema200:Bias} {
@@ -641,27 +633,23 @@ function report(name:string, r:{closed:ClosedTrade[], finalBal:number, maxDD:num
 }
 
 // ─────────────────────────────────────────────────────────────
-async function main() {
-  const DAYS = Number(Deno.env.get('BT_DAYS') ?? 45)
-  const now = Date.now()
-  const endMs = now
-  const startMs = endMs - DAYS*24*60*60*1000
-  console.log(`Backtest window: ${DAYS} days | coins: ${COINS.join(',')}`)
-  console.log(`Fetching data (5m + 15m + 1h) ...`)
+function main() {
+  console.log(`Loading data (5m + 15m + 1h) from data.binance.vision archive | coins: ${COINS.join(',')}`)
 
   const data:Record<string,Bar[]> = {}, b1h:Record<string,Bar[]> = {}, b15:Record<string,Bar[]> = {}
   const change24h:Record<string,number[]> = {}
   for (const c of COINS) {
-    data[c] = await fetchKlines(c, '5m', startMs, endMs)
-    b1h[c]  = await fetchKlines(c, '1h', startMs - 210*3600000, endMs)  // extra for EMA200 warmup
-    b15[c]  = await fetchKlines(c, '15m', startMs, endMs)
+    data[c] = loadCSV(c, '5m')
+    b1h[c]  = loadCSV(c, '1h')
+    b15[c]  = loadCSV(c, '15m')
     // precompute 24h change per 5m bar (288 bars back)
     const arr = data[c]; const ch = new Array(arr.length).fill(0)
     for (let i=288;i<arr.length;i++) ch[i] = (arr[i].close - arr[i-288].close)/arr[i-288].close
     change24h[c] = ch
-    console.log(`  ${c}: ${data[c].length} 5m bars`)
+    console.log(`  ${c}: ${data[c].length} 5m / ${b1h[c].length} 1h / ${b15[c].length} 15m bars`)
   }
   const btc5 = data['BTC']
+  if (!btc5 || btc5.length === 0) { console.log('NO DATA LOADED — check fetch.sh output'); return }
 
   // build common 5m time grid (union of BTC timestamps is enough; all coins align)
   const grid = btc5.map(b=>b.t)
@@ -687,4 +675,4 @@ async function main() {
   console.log(`scores run conservative → this is a LOWER BOUND on trade count. FEE=0.`)
 }
 
-await main()
+main()

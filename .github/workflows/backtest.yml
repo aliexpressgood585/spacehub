@@ -19,8 +19,10 @@ jobs:
         with:
           deno-version: v1.x
 
-      - name: Run backtest
+      - name: Download historical data (data.binance.vision)
         env:
           BT_DAYS: ${{ github.event.inputs.days }}
-        run: |
-          deno run --allow-net --allow-env backtest/backtest.ts
+        run: bash backtest/fetch.sh
+
+      - name: Run backtest
+        run: deno run --allow-read --allow-env backtest/backtest.ts
