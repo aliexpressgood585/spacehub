@@ -1044,6 +1044,121 @@ function runRefine() {
   console.log(`\n${rows.filter(r=>r.okM).length} ROBUST config(s). SPACING=2 bars (8h) between entries per coin.`)
 }
 
+// VALIDATE — the deployed config (dw40|adx25|sl1.4) over a LONG history
+// (BT_MONTHS, e.g. 36 = includes bear market), 6 walk-forward windows,
+// comparing three exit schemes: tp1.0 (deployed), tp0.6, and SPLIT
+// (half off at 0.6R → SL to breakeven, half runs to 1.0R).
+function runValidate() {
+  const FEE_TAKER=0.0010, FEE_MAKER=0.0004, SPACING=2, MAXHOLD=96, NW=6
+  const DW=40, ADX_GATE=25, SLM=1.4
+  const to4h = (a:Bar[]):Bar[] => {
+    const out:Bar[] = []; let cur:Bar|null=null; let bucket=-1
+    for (const b of a) { const k=Math.floor(b.t/14400000)
+      if (k!==bucket) { if (cur) out.push(cur); bucket=k
+        cur={t:k*14400000,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol} }
+      else if (cur) { cur.high=Math.max(cur.high,b.high); cur.low=Math.min(cur.low,b.low); cur.close=b.close; cur.vol+=b.vol } }
+    if (cur) out.push(cur); return out
+  }
+  const dset: Record<string,Bar[]> = {}
+  let tmin=Infinity, tmax=-Infinity
+  for (const c of COINS) { const a=to4h(loadCSV(c,'1h'))
+    if (a.length>400) { dset[c]=a; tmin=Math.min(tmin,a[0].t); tmax=Math.max(tmax,a[a.length-1].t) } }
+  console.log(`  4h: ${Object.keys(dset).length} coins, ${((tmax-tmin)/86400000).toFixed(0)} days (${((tmax-tmin)/86400000/30.4).toFixed(0)} months)`)
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  const wLabel=(i:number)=>{ const d=new Date(tmin+i*wSpan); return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}` }
+
+  type Scheme = 'tp1.0'|'tp0.6'|'SPLIT'
+  const SCHEMES: Scheme[] = ['tp1.0','tp0.6','SPLIT']
+  interface Agg { n:number; w:number; sumT:number; sumM:number }
+  const mk=():Agg=>({n:0,w:0,sumT:0,sumM:0})
+  const stats: Record<Scheme,Agg[]> = {'tp1.0':[], 'tp0.6':[], 'SPLIT':[]}
+  for (const sc of SCHEMES) for (let i=0;i<NW;i++) stats[sc].push(mk())
+  const curveM: Record<Scheme,{t:number,r:number}[]> = {'tp1.0':[], 'tp0.6':[], 'SPLIT':[]}
+
+  for (const c of Object.keys(dset)) {
+    const arr=dset[c]; let last=-999
+    for (let i=100;i<arr.length-1;i++) {
+      if (i-last<SPACING) continue
+      if (i<DW+1) continue
+      const price=arr[i].close
+      const prior=arr.slice(i-DW,i)
+      const hi=Math.max(...prior.map(b=>b.high)), lo=Math.min(...prior.map(b=>b.low))
+      const side: 'LONG'|'SHORT'|null = price>hi?'LONG':price<lo?'SHORT':null
+      if (!side) continue
+      const win=arr.slice(Math.max(0,i-99),i+1)
+      const adx=calcADX(win.slice(-60)); if (adx<=ADX_GATE) continue
+      const atr=calcATR(win.slice(-20)); if(!atr) continue
+      last=i
+      const slDist=Math.max(atr*SLM, price*0.005), slPct=slDist/price
+      if (slPct>0.08) continue
+      const feeT=FEE_TAKER/slPct, feeM=FEE_MAKER/slPct
+      const dirM=side==='LONG'?1:-1
+      const slPx=price-slDist*dirM
+      const jEnd=Math.min(arr.length-1,i+MAXHOLD)
+      // simulate the three schemes on the same entry
+      const hitAt=(tgt:number)=>{ // returns [exitR or null, barIdx]
+        for (let j=i+1;j<=jEnd;j++) { const b=arr[j]
+          if (side==='LONG') { if (b.low<=slPx) return [-1,j] as const; if (b.high>=price+slDist*tgt*dirM) return [tgt,j] as const }
+          else { if (b.high>=slPx) return [-1,j] as const; if (b.low<=price-(-slDist*tgt*dirM)) return [tgt,j] as const } }
+        return [null,jEnd] as const
+      }
+      const results: Record<Scheme,number> = {'tp1.0':0,'tp0.6':0,'SPLIT':0}
+      for (const tgt of [1.0, 0.6]) {
+        const [r,jx]=hitAt(tgt)
+        results[tgt===1.0?'tp1.0':'tp0.6'] = r!==null ? r : (arr[jx].close-price)*dirM/slDist
+      }
+      // SPLIT: half at 0.6R → BE for the rest → 1.0R
+      {
+        let r=0
+        // phase 1: until 0.6R or SL
+        let j=i+1, phase1:null|number=null, j1=jEnd
+        for (; j<=jEnd; j++) { const b=arr[j]
+          const tp06=price+slDist*0.6*dirM
+          if (side==='LONG') { if (b.low<=slPx){phase1=-1;j1=j;break} if (b.high>=tp06){phase1=0.6;j1=j;break} }
+          else { if (b.high>=slPx){phase1=-1;j1=j;break} if (b.low<=tp06){phase1=0.6;j1=j;break} } }
+        if (phase1===null) r=(arr[jEnd].close-price)*dirM/slDist       // timeout, full size
+        else if (phase1===-1) r=-1                                      // straight SL, full size
+        else {
+          r=0.5*0.6                                                     // banked half
+          // phase 2: BE stop for remaining half, target 1.0R
+          let r2:null|number=null
+          for (let k=j1;k<=jEnd;k++) { const b=arr[k]
+            const tp10=price+slDist*1.0*dirM
+            if (side==='LONG') { if (k>j1 && b.low<=price){r2=0;break} if (b.high>=tp10){r2=1.0;break} }
+            else { if (k>j1 && b.high>=price){r2=0;break} if (b.low<=tp10){r2=1.0;break} } }
+          r += 0.5*(r2!==null ? r2 : (arr[jEnd].close-price)*dirM/slDist)
+        }
+        results['SPLIT']=r
+      }
+      const wi=winOf(arr[i].t)
+      for (const sc of SCHEMES) {
+        const gross=results[sc]
+        const a=stats[sc][wi]
+        a.n++; a.sumT+=gross-feeT; a.sumM+=gross-feeM; if (gross-feeM>0) a.w++
+        curveM[sc].push({t:arr[i].t, r:gross-feeM})
+      }
+    }
+  }
+
+  console.log(`\nWindow starts: ${Array.from({length:NW},(_x,i)=>wLabel(i)).join('  ')}`)
+  console.log(`\nscheme   n      WR      maker    taker   | maker per window`)
+  for (const sc of SCHEMES) {
+    const ws=stats[sc]
+    const tot=ws.reduce((a,x)=>({n:a.n+x.n,w:a.w+x.w,sumT:a.sumT+x.sumT,sumM:a.sumM+x.sumM}),mk())
+    const wM=ws.map(x=>x.n?x.sumM/x.n:0)
+    const okM=ws.every(x=>x.n>=10 && x.sumM/x.n>0)
+    console.log(`  ${sc.padEnd(7)} ${String(tot.n).padStart(5)}  ${(100*(tot.n?tot.w/tot.n:0)).toFixed(1).padStart(5)}%  ${(tot.sumM/tot.n>=0?'+':'')}${(tot.sumM/tot.n).toFixed(3)}  ${(tot.sumT/tot.n>=0?'+':'')}${(tot.sumT/tot.n).toFixed(3)} | ${wM.map(e=>((e>=0?'+':'')+e.toFixed(2)).padStart(6)).join(' ')} ${okM?'✅ALL-POS':''}`)
+  }
+  for (const sc of SCHEMES) {
+    const pts=curveM[sc].sort((a,b)=>a.t-b.t)
+    let cum=0, peak=0, mdd=0
+    for (const p of pts) { cum+=p.r; if(cum>peak)peak=cum; mdd=Math.max(mdd,peak-cum) }
+    console.log(`  ${sc}: totalR=${cum>=0?'+':''}${cum.toFixed(1)}  maxDD=${mdd.toFixed(1)}R  → $10k@1%risk ≈ $${(10000*Math.pow(1.01,cum)).toFixed(0)}`)
+  }
+  console.log(`\nConfig: dw${DW} adx>${ADX_GATE} sl${SLM}xATR(4h). Fees: maker 0.02%/side, taker 0.05%/side.`)
+}
+
 // ─────────────────────────────────────────────────────────────
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
@@ -1055,6 +1170,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'refine') {
     console.log(`████ REFINE — 4h Donchian grid ████`)
     runRefine()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'validate') {
+    console.log(`████ VALIDATE — long-history walk-forward + split-TP comparison ████`)
+    runValidate()
     return
   }
 

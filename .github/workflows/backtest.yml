@@ -8,9 +8,13 @@ on:
         required: false
         default: '45'
       mode:
-        description: 'portfolio (P&L sim) or signals (per-signal validation)'
+        description: 'portfolio / signals / meanrev / explore / refine / validate'
         required: false
         default: 'portfolio'
+      months:
+        description: 'Months of history (explore/refine/validate modes)'
+        required: false
+        default: '6'
 
 jobs:
   backtest:
@@ -26,9 +30,10 @@ jobs:
       - name: Download historical data (data.binance.vision)
         env:
           BT_DAYS: ${{ github.event.inputs.days }}
+          BT_MONTHS: ${{ github.event.inputs.months }}
         run: |
           case "${{ github.event.inputs.mode }}" in
-            explore|refine) bash backtest/fetch-explore.sh ;;
+            explore|refine|validate) bash backtest/fetch-explore.sh ;;
             *) bash backtest/fetch.sh ;;
           esac
 
