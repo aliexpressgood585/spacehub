@@ -4,6 +4,9 @@ on:
   push:
     paths: ['.status-ping']
 
+permissions:
+  contents: write
+
 env:
   PROJECT_REF: mdvheizhciuvqychtwxr
 
@@ -11,30 +14,32 @@ jobs:
   diag:
     runs-on: ubuntu-latest
     steps:
-      - name: Bot state + trades
+      - uses: actions/checkout@v4
+
+      - name: Collect diagnostics into status/latest.txt
         run: |
+          mkdir -p status
+          out=status/latest.txt
+          : > $out
           q() { curl -s -X POST "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
-            -H "Content-Type: application/json" -d "{\"query\": \"$1\"}"; echo; }
-          echo "=== BOT STATE (updated_at shows the cron is alive) ==="
+            -H "Content-Type: application/json" -d "{\"query\": \"$1\"}" >> $out; echo >> $out; }
+          echo "generated_at: $(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $out
+          echo "=== BOT STATE ===" >> $out
           q "SELECT balance, peak_balance, streak, market_regime, updated_at FROM bot_state WHERE id=1;"
-          echo "=== OPEN POSITIONS ==="
+          echo "=== OPEN POSITIONS ===" >> $out
           q "SELECT sym, side, entry_price, size, score, trail_sl, hi, lo, opened_at FROM bot_trades WHERE status='OPEN' ORDER BY opened_at DESC;"
-          echo "=== TRADE COUNTS ==="
+          echo "=== TRADE COUNTS ===" >> $out
           q "SELECT count(*) FILTER (WHERE status='OPEN') AS open, count(*) FILTER (WHERE status != 'OPEN') AS closed FROM bot_trades;"
-
-      - name: Independent breakout check (OKX 4h data)
-        run: |
-          python3 - <<'PYEOF'
+          echo "=== BREAKOUT CHECK (OKX 4h, independent) ===" >> $out
+          python3 - >> $out <<'PYEOF'
           import json, urllib.request
-          COINS = ["BTC","ETH","SOL","BNB","XRP","ADA","DOGE","AVAX","LINK","DOT","POL","UNI","ATOM","LTC","BCH","NEAR","ALGO","FIL","VET","ICP","APT","ARB","OP","SUI","INJ","TRX","HBAR","AAVE","WLD","SEI"]
+          COINS = ["BTC","ETH","SOL","BNB","XRP","ADA","DOGE","AVAX","LINK","DOT","UNI","ATOM","LTC","BCH","NEAR","ALGO","FIL","ICP","APT","ARB","OP","SUI","INJ","TRX","HBAR","AAVE","WLD","SEI"]
           def candles(sym):
               url=f"https://www.okx.com/api/v5/market/candles?instId={sym}-USDT-SWAP&bar=4H&limit=100"
               req=urllib.request.Request(url, headers={"User-Agent":"Mozilla/5.0"})
               d=json.load(urllib.request.urlopen(req, timeout=20))["data"]
-              # newest first → reverse to oldest first; fields: ts,o,h,l,c,...
-              rows=[(int(x[0]),float(x[1]),float(x[2]),float(x[3]),float(x[4])) for x in reversed(d)]
-              return rows
+              return [(int(x[0]),float(x[1]),float(x[2]),float(x[3]),float(x[4])) for x in reversed(d)]
           def adx(bars,p=14):
               if len(bars)<p+1: return 20
               trs,pd,md=[],[],[]
@@ -52,24 +57,32 @@ jobs:
                   s=pdi+mdi; dx=(abs(pdi-mdi)/s*100) if s>0 else 0
                   a=(a*(p-1)+dx)/p
               return a
-          print("Checking last TWO completed 4h bars (12:00 & 16:00 UTC closes) for Donchian-40 breakouts + ADX>25:")
           any_hit=False
           for c in COINS:
               try:
                   b=candles(c)
                   if len(b)<45: print(f"  {c}: insufficient data"); continue
-                  comp=b[:-1]  # completed bars
-                  for back in (1,2):  # last completed and the one before
+                  comp=b[:-1]
+                  for back in (1,2):
                       sig=comp[-back]
                       prior=comp[-back-40:-back]
                       hi=max(x[2] for x in prior); lo=min(x[3] for x in prior)
                       brk = "LONG" if sig[4]>hi else ("SHORT" if sig[4]<lo else None)
                       if brk:
-                          a=adx(comp[-back-60:-back+1] if back>1 else comp[-61:])
+                          a=adx(comp[-61:] if back==1 else comp[-62:-1])
                           any_hit=True
-                          print(f"  {c}: {brk} breakout on bar -{back} close={sig[4]} (ch40 {lo:.6g}..{hi:.6g}) adx={a:.0f} {'← WOULD ENTER' if a>25 else '(adx<=25 → correctly skipped)'}")
+                          verdict = "WOULD ENTER" if a>25 else "adx<=25 -> correctly skipped"
+                          print(f"  {c}: {brk} breakout on bar -{back} close={sig[4]} adx={a:.0f} [{verdict}]")
               except Exception as e:
                   print(f"  {c}: error {e}")
           if not any_hit:
-              print("  NO coin broke its 40-bar channel in the last two 4h bars → zero entries is CORRECT behavior.")
+              print("  NO coin broke its 40-bar channel in the last two 4h bars -> zero entries is CORRECT.")
           PYEOF
+
+      - name: Commit results
+        run: |
+          git config user.name "status-bot"
+          git config user.email "actions@github.com"
+          git add status/latest.txt
+          git commit -m "status: diagnostic snapshot [skip ci]" || echo "no changes"
+          git push
