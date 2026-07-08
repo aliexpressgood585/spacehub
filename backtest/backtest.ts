@@ -411,7 +411,7 @@ const VOL_PARAMS = {
   HIGH:   { slMult:1.0, tpR:2.5, trailAtr:0.8 },
 }
 
-interface SimConfig { name:string; partial:boolean; beR:number; trailStartR:number; partialR:number; netCap:boolean }
+interface SimConfig { name:string; partial:boolean; beR:number; trailStartR:number; partialR:number; netCap:boolean; entryThreshold:number; baseFloor:number }
 
 function runSim(
   cfg:SimConfig, grid:number[], data:Record<string,Bar[]>,
@@ -544,7 +544,7 @@ function runSim(
       const a15= (es.side==='LONG'&&ema15==='BULL')||(es.side==='SHORT'&&ema15==='BEAR')
       const mtfBonus = a1&&a15?10:(a1||a15?5:0)
       const finalScore = es.score + mtfBonus
-      if (es.score < 65 || finalScore < 75) continue
+      if (es.score < cfg.baseFloor || finalScore < cfg.entryThreshold) continue
       // side filter
       if (sideFilter==='LONG'&&es.side==='SHORT') continue
       if (sideFilter==='SHORT'&&es.side==='LONG') continue
@@ -655,24 +655,46 @@ function main() {
   const grid = btc5.map(b=>b.t)
   console.log(`Grid: ${grid.length} 5m steps\n`)
 
-  const cfgV38: SimConfig = {name:'V38 (partial TP + BE 1.0R + trail 1.5R)', partial:true,  beR:1.0, trailStartR:1.5, partialR:1.2, netCap:false}
-  const cfgV39: SimConfig = {name:'V39 (no partial + BE 1.5R + trail 2.0R + net cap)', partial:false, beR:1.5, trailStartR:2.0, partialR:1.2, netCap:true}
+  const mk = (o:Partial<SimConfig>):SimConfig => ({
+    name:'', partial:false, beR:1.5, trailStartR:2.0, partialR:1.2, netCap:true,
+    entryThreshold:75, baseFloor:65, ...o
+  })
 
-  const r38 = runSim(cfgV38, grid, data, b1h, b15, btc5, change24h)
-  const r39 = runSim(cfgV39, grid, data, b1h, b15, btc5, change24h)
+  // ── PART A: score→expectancy sweep (V39 exit engine, varying entry gate) ──
+  // Live has ~15-30 extra pts from OI/FG/liqZone/momentum that we neutralized,
+  // so a live "75" ≈ technical-only 50-60 here. Sweeping brackets real behaviour
+  // AND reveals whether a higher score actually buys a better expectancy.
+  console.log(`\n████ PART A — does a higher score buy a better expectancy? (V39 exits) ████`)
+  console.log(`thresh  trades   WR      PF     expR      avgWinR  avgLossR`)
+  for (const th of [45,50,55,60,65,70,75]) {
+    const r = runSim(mk({entryThreshold:th, baseFloor:Math.max(0,th-10)}), grid, data, b1h, b15, btc5, change24h)
+    const real = r.closed.filter(c=>c.status!=='PARTIAL')
+    const n=real.length, w=real.filter(c=>c.pnl>0)
+    const l=real.filter(c=>c.pnl<=0)
+    const gw=w.reduce((a,c)=>a+c.pnl,0), gl=Math.abs(l.reduce((a,c)=>a+c.pnl,0))
+    const wr=n?w.length/n:0, pf=gl>0?gw/gl:Infinity, exp=n?real.reduce((a,c)=>a+c.rMultiple,0)/n:0
+    const awr=w.length?w.reduce((a,c)=>a+c.rMultiple,0)/w.length:0
+    const alr=l.length?l.reduce((a,c)=>a+c.rMultiple,0)/l.length:0
+    console.log(`  ${th}     ${String(n).padStart(4)}    ${(wr*100).toFixed(1).padStart(5)}%  ${(pf===Infinity?'∞':pf.toFixed(2)).padStart(5)}  ${(exp>=0?'+':'')}${exp.toFixed(3)}R   +${awr.toFixed(2)}R   ${alr.toFixed(2)}R`)
+  }
 
-  const s38 = report('V38  (old: partial TP)', r38)
-  const s39 = report('V39  (new: let winners run)', r39)
+  // ── PART B: V38 vs V39 exit engine, head-to-head at a gate with volume ──
+  const TH = 55  // low enough for a meaningful sample given neutralized signals
+  console.log(`\n████ PART B — V38 vs V39 exit engine (same entries, gate=${TH}) ████`)
+  const r38 = runSim(mk({name:'V38', partial:true,  beR:1.0, trailStartR:1.5, netCap:false, entryThreshold:TH, baseFloor:TH-10}), grid, data, b1h, b15, btc5, change24h)
+  const r39 = runSim(mk({name:'V39', partial:false, beR:1.5, trailStartR:2.0, netCap:true,  entryThreshold:TH, baseFloor:TH-10}), grid, data, b1h, b15, btc5, change24h)
+  const s38 = report('V38  (old: partial TP + BE 1.0R + trail 1.5R)', r38)
+  const s39 = report('V39  (new: no partial + BE 1.5R + trail 2.0R + net cap)', r39)
 
-  console.log(`\n═══════════ VERDICT ═══════════`)
+  console.log(`\n═══════════ VERDICT (gate=${TH}) ═══════════`)
   console.log(`Metric          V38          V39`)
   console.log(`WR             ${(s38.wr*100).toFixed(1)}%        ${(s39.wr*100).toFixed(1)}%`)
-  console.log(`PF             ${s38.pf===Infinity?'∞':s38.pf.toFixed(2)}         ${s39.pf===Infinity?'∞':s39.pf.toFixed(2)}`)
+  console.log(`PF             ${(s38.pf===Infinity?'∞':s38.pf.toFixed(2)).padEnd(8)}     ${s39.pf===Infinity?'∞':s39.pf.toFixed(2)}`)
   console.log(`Expectancy     ${s38.expR>=0?'+':''}${s38.expR.toFixed(3)}R     ${s39.expR>=0?'+':''}${s39.expR.toFixed(3)}R`)
   console.log(`Final $        ${s38.finalBal.toFixed(0)}        ${s39.finalBal.toFixed(0)}`)
   console.log(`Max DD         ${(s38.maxDD*100).toFixed(1)}%        ${(s39.maxDD*100).toFixed(1)}%`)
-  console.log(`\nNote: OI/funding/fear-greed signals neutralized (no historical source) →`)
-  console.log(`scores run conservative → this is a LOWER BOUND on trade count. FEE=0.`)
+  console.log(`\nNote: OI/funding/fear-greed/liq-zone signals neutralized (no historical source)`)
+  console.log(`→ scores run ~15-30pts low, so PART A thresholds map to higher live gates. FEE=0.`)
 }
 
 main()
