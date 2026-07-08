@@ -263,17 +263,17 @@ function calcConfluenceScore(
     (side==='SHORT' && price >= bb.upper*(2-bbProx) && rsi > rsiOverbought-5)
   )
   const bd: Record<string,number> = {}
-  // 1 VPOC (25)
+  // 1 VPOC (v41: 25→8 — signal-validation: −2.3pp lift on 18.9k samples, anti-predictive)
   const vpocDist = Math.abs(vpoc - price) / price
-  bd.vpoc = vpocDist < 0.010 ? 25 : vpocDist < 0.020 ? 18 : vpocDist < 0.035 ? 10 : 0
+  bd.vpoc = vpocDist < 0.010 ? 8 : vpocDist < 0.020 ? 5 : vpocDist < 0.035 ? 3 : 0
   // 2 1H trend (20)
   bd.ema1h = ((side==='LONG'&&ema1hBias==='BULL')||(side==='SHORT'&&ema1hBias==='BEAR')) ? 20 : ema1hBias==='NEUTRAL' ? 10 : 0
   // 3 ADX (10)
   bd.adx = adx > 22 ? 10 : adx > 15 ? 5 : rangeFade ? 8 : 0
-  // 4 Volume (10)
+  // 4 Volume (v41: 10→12 — +0.9pp lift)
   const vols = bars.slice(-20).map(b=>b.vol)
   const volAvg = vols.reduce((a,b)=>a+b,0)/vols.length
-  bd.volume = bars[bars.length-1].vol > volAvg*1.4 ? 10 : 0
+  bd.volume = bars[bars.length-1].vol > volAvg*1.4 ? 12 : 0
   // 6 Fear/Greed (5) — neutral 50 → never fires
   bd.fearGreed = ((fearGreed>80&&side==='LONG')||(fearGreed<20&&side==='SHORT')) ? 5 : 0
   // 7 Candle (15)
@@ -284,15 +284,15 @@ function calcConfluenceScore(
   } else { const lw=(lb.close-lb.low)/barRange
     if (lb.close<lb.open&&lw<0.15) bd.candle=15; else if (lb.close<lb.open&&lw<0.25) bd.candle=10; else if (lb.close<lb.open) bd.candle=5
   }
-  // 8 Stochastic (10)
+  // 8 Stochastic (v41: 10→16 — +2.1pp lift on 10.1k samples, proven)
   const stoch = calcStochastic(closes, highs, lows, 14, 3)
-  bd.stoch = ((side==='LONG'&&stoch.K<20)||(side==='SHORT'&&stoch.K>80)) ? 10 : 0
-  // 9 Divergence (15)
+  bd.stoch = ((side==='LONG'&&stoch.K<20)||(side==='SHORT'&&stoch.K>80)) ? 16 : 0
+  // 9 Divergence (v41: 15→20 — +2.4pp lift, proven)
   const div = detectDivergence(rsiHistory, closes)
-  bd.divergence = ((div==='BULL_DIV'&&side==='LONG')||(div==='BEAR_DIV'&&side==='SHORT')) ? 15 : 0
-  // 10 MACD (10)
+  bd.divergence = ((div==='BULL_DIV'&&side==='LONG')||(div==='BEAR_DIV'&&side==='SHORT')) ? 20 : 0
+  // 10 MACD (v41: 10→3 — −1.9pp lift on 4k samples, anti-predictive)
   const macd = calcMACD(closes)
-  bd.macd = ((side==='LONG'&&macd.histogram>0)||(side==='SHORT'&&macd.histogram<0)) ? 10 : 0
+  bd.macd = ((side==='LONG'&&macd.histogram>0)||(side==='SHORT'&&macd.histogram<0)) ? 3 : 0
   // 11 Pivot (8)
   const piv = calcPivots(lb.high, lb.low, lb.close)
   bd.pivot = detectPivotBounce(price, piv.s1, piv.r1, atr) ? 8 : 0
@@ -302,15 +302,10 @@ function calcConfluenceScore(
     return calcBB(closes.slice(Math.max(0,bi-19),bi+1),20,2).width
   })
   bd.bbSqueeze = detectBBSqueezeRelease(bbWidthHist) ? 12 : 0
-  // 13 Stop-hunt (10)
-  bd.stopHunt = detectStopHunt(bars, side) ? 10 : 0
-  // 14 VWAP (12)
-  const vwap = calcVWAP(bars)
+  // 13 Stop-hunt (v41: 10→16 — +2.7pp lift, best positive signal)
+  bd.stopHunt = detectStopHunt(bars, side) ? 16 : 0
+  // 14 VWAP (v41: 12→0 — −4.0pp lift on 10.9k samples, worst offender; dropped)
   bd.vwap = 0
-  if (vwap > 0) { const vd=(price-vwap)/vwap
-    if (side==='LONG'&&vd>0.001) bd.vwap=12; else if (side==='LONG'&&vd>=-0.001) bd.vwap=6
-    else if (side==='SHORT'&&vd<-0.001) bd.vwap=12; else if (side==='SHORT'&&vd<=0.001) bd.vwap=6
-  }
   // 15 BOS (8)
   bd.bos = detectBOS(bars, side) ? 8 : 0
   // 16 EMA200 (8)
