@@ -33,7 +33,7 @@ jobs:
           BT_MONTHS: ${{ github.event.inputs.months }}
         run: |
           case "${{ github.event.inputs.mode }}" in
-            explore|refine|validate) bash backtest/fetch-explore.sh ;;
+            explore|refine|validate|range) bash backtest/fetch-explore.sh ;;
             *) bash backtest/fetch.sh ;;
           esac
 

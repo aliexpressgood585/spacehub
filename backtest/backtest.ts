@@ -1159,6 +1159,107 @@ function runValidate() {
   console.log(`\nConfig: dw${DW} adx>${ADX_GATE} sl${SLM}xATR(4h). Fees: maker 0.02%/side, taker 0.05%/side.`)
 }
 
+// RANGE — complementary strategy research: fade Bollinger extremes on 4h
+// when ADX<20 (ranging regime — exactly when DONCH4H sits out).
+// Walk-forward over BT_MONTHS with real fees; exits: fixed R or mid-band.
+function runRange() {
+  const FEE_TAKER=0.0010, FEE_MAKER=0.0004, SPACING=2, MAXHOLD=48, NW=6
+  const to4h = (a:Bar[]):Bar[] => {
+    const out:Bar[] = []; let cur:Bar|null=null; let bucket=-1
+    for (const b of a) { const k=Math.floor(b.t/14400000)
+      if (k!==bucket) { if (cur) out.push(cur); bucket=k
+        cur={t:k*14400000,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol} }
+      else if (cur) { cur.high=Math.max(cur.high,b.high); cur.low=Math.min(cur.low,b.low); cur.close=b.close; cur.vol+=b.vol } }
+    if (cur) out.push(cur); return out
+  }
+  const dset: Record<string,Bar[]> = {}
+  let tmin=Infinity, tmax=-Infinity
+  for (const c of COINS) { const a=to4h(loadCSV(c,'1h'))
+    if (a.length>400) { dset[c]=a; tmin=Math.min(tmin,a[0].t); tmax=Math.max(tmax,a[a.length-1].t) } }
+  console.log(`  4h: ${Object.keys(dset).length} coins, ${((tmax-tmin)/86400000).toFixed(0)} days`)
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  interface Agg { n:number; w:number; sumT:number; sumM:number }
+  const mk=():Agg=>({n:0,w:0,sumT:0,sumM:0})
+  const stats: Record<string,Agg[]> = {}
+  const curveM: Record<string,{t:number,r:number}[]> = {}
+
+  const ADXS=[15,20], RSIS=[[35,65],[30,70]], SLS=[1.0,1.4], EXITS=['fix0.6','fix1.0','fix1.5','MID']
+  for (const c of Object.keys(dset)) {
+    const arr=dset[c]
+    const lastIdx: Record<string,number> = {}
+    for (let i=100;i<arr.length-1;i++) {
+      const win=arr.slice(Math.max(0,i-99),i+1)
+      const closes=win.map(b=>b.close)
+      const price=arr[i].close
+      const bb=calcBB(closes,20,2); if(!bb.mid) continue
+      const atr=calcATR(win.slice(-20)); if(!atr) continue
+      const rsi=calcRsi(closes.slice(-15))
+      const adx=calcADX(win.slice(-60))
+      for (const ax of ADXS) {
+        if (adx>=ax) continue
+        for (const [rlo,rhi] of RSIS) {
+          let side: 'LONG'|'SHORT'|null = null
+          if (price<=bb.lower*1.005 && rsi<rlo) side='LONG'
+          else if (price>=bb.upper*0.995 && rsi>rhi) side='SHORT'
+          if (!side) continue
+          const vk=`adx${ax}|rsi${rlo}`
+          if (lastIdx[vk]!==undefined && i-lastIdx[vk]<SPACING) continue
+          lastIdx[vk]=i
+          const dirM=side==='LONG'?1:-1
+          for (const slM of SLS) {
+            const slDist=Math.max(atr*slM, price*0.005), slPct=slDist/price
+            if (slPct>0.08) continue
+            const feeT=FEE_TAKER/slPct, feeM=FEE_MAKER/slPct
+            const slPx=price-slDist*dirM
+            for (const ex of EXITS) {
+              let tgtR:number
+              if (ex==='MID') { tgtR=Math.abs(bb.mid-price)/slDist; if (tgtR<0.5) continue }
+              else tgtR=parseFloat(ex.slice(3))
+              const tpPx=price+slDist*tgtR*dirM
+              let r:number|null=null
+              const jEnd=Math.min(arr.length-1,i+MAXHOLD)
+              for (let j=i+1;j<=jEnd;j++) { const b=arr[j]
+                if (side==='LONG') { if(b.low<=slPx){r=-1;break} if(b.high>=tpPx){r=tgtR;break} }
+                else { if(b.high>=slPx){r=-1;break} if(b.low<=tpPx){r=tgtR;break} } }
+              if (r===null) r=(arr[jEnd].close-price)*dirM/slDist
+              const key=`${vk}|${ex}|sl${slM}`
+              if (!stats[key]) { stats[key]=[]; for(let w=0;w<NW;w++) stats[key].push(mk()) }
+              const a=stats[key][winOf(arr[i].t)]
+              a.n++; a.sumT+=r-feeT; a.sumM+=r-feeM; if(r-feeM>0)a.w++
+              if (!curveM[key]) curveM[key]=[]
+              curveM[key].push({t:arr[i].t, r:r-feeM})
+            }
+          }
+        }
+      }
+    }
+  }
+  const rows=Object.entries(stats).map(([key,ws])=>{
+    const tot=ws.reduce((a,x)=>({n:a.n+x.n,w:a.w+x.w,sumT:a.sumT+x.sumT,sumM:a.sumM+x.sumM}),mk())
+    const wM=ws.map(x=>x.n?x.sumM/x.n:-9)
+    const okM=wM.every(e=>e>0)&&ws.every(x=>x.n>=15)
+    const okT=ws.every(x=>x.n>=15 && x.sumT/x.n>0)
+    return {key,tot,expM:tot.n?tot.sumM/tot.n:-9,expT:tot.n?tot.sumT/tot.n:-9,wM,okM,okT,minM:Math.min(...wM)}
+  }).filter(r=>r.tot.n>=200)
+  rows.sort((a,b)=>b.minM-a.minM)
+  console.log(`\nconfig                       n     WR     maker    taker  | maker per window (6)                 | verdict`)
+  for (const r of rows.slice(0,25)) {
+    const wr=r.tot.n?r.tot.w/r.tot.n:0
+    const v=r.okT?'✅✅TAKER':r.okM?'✅MAKER':''
+    console.log(`  ${r.key.padEnd(25)} ${String(r.tot.n).padStart(5)}  ${(wr*100).toFixed(1).padStart(5)}%  ${(r.expM>=0?'+':'')}${r.expM.toFixed(3)}  ${(r.expT>=0?'+':'')}${r.expT.toFixed(3)} | ${r.wM.map(e=>((e>=0?'+':'')+e.toFixed(2)).padStart(6)).join(' ')} | ${v}`)
+  }
+  const winners=rows.filter(r=>r.okM)
+  console.log(`\n${winners.length} MAKER-robust config(s) across all ${NW} windows.`)
+  for (const best of winners.slice(0,3)) {
+    const pts=curveM[best.key].sort((a,b)=>a.t-b.t)
+    let cum=0, peak=0, mdd=0
+    for (const p of pts) { cum+=p.r; if(cum>peak)peak=cum; mdd=Math.max(mdd,peak-cum) }
+    console.log(`  ${best.key}: n=${best.tot.n} totalR=${cum>=0?'+':''}${cum.toFixed(1)} maxDD=${mdd.toFixed(1)}R`)
+  }
+  console.log(`\nEntry: 4h BB(20,2) extreme + RSI filter, ONLY when ADX<gate (ranging). Fees incl.`)
+}
+
 // ─────────────────────────────────────────────────────────────
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
@@ -1175,6 +1276,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'validate') {
     console.log(`████ VALIDATE — long-history walk-forward + split-TP comparison ████`)
     runValidate()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'range') {
+    console.log(`████ RANGE — 4h BB-fade in ADX<20 regime, walk-forward ████`)
+    runRange()
     return
   }
 

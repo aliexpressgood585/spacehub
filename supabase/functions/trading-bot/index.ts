@@ -192,24 +192,49 @@ const MIN_FUTURES_VOL_USDT = 50_000_000  // v39: $5M→$50M — only liquid coin
 const MAX_FUTURES_COINS    = 60          // v40: 40→60 — scan more liquid coins = more good setups
 
 async function fetchFuturesCoins(): Promise<CoinInfo[]> {
+  // primary: Binance futures 24h tickers
   try {
     const res = await fetch(`${FAPI}/ticker/24hr`, { headers: { 'User-Agent': 'Mozilla/5.0' } })
-    if (!res.ok) return FIXED_COINS.map(s => ({ sym: s, change24h: 0 }))
-    const tickers: any[] = await res.json()
-    const EXCLUDE = /^(.*)(UP|DOWN|BULL|BEAR|HEDGE|3L|3S|5L|5S)USDT$/
-    return tickers
-      .filter(t =>
-        t.symbol.endsWith('USDT') &&
-        /^[A-Z0-9]+USDT$/.test(t.symbol) &&
-        !EXCLUDE.test(t.symbol) &&
-        parseFloat(t.quoteVolume) >= MIN_FUTURES_VOL_USDT
-      )
-      .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
-      .slice(0, MAX_FUTURES_COINS)
-      .map(t => ({ sym: t.symbol.replace('USDT', ''), change24h: parseFloat(t.priceChangePercent) / 100 }))
-  } catch {
-    return FIXED_COINS.map(s => ({ sym: s, change24h: 0 }))
-  }
+    if (res.ok) {
+      const tickers: any[] = await res.json()
+      const EXCLUDE = /^(.*)(UP|DOWN|BULL|BEAR|HEDGE|3L|3S|5L|5S)USDT$/
+      const list = tickers
+        .filter(t =>
+          t.symbol.endsWith('USDT') &&
+          /^[A-Z0-9]+USDT$/.test(t.symbol) &&
+          !EXCLUDE.test(t.symbol) &&
+          parseFloat(t.quoteVolume) >= MIN_FUTURES_VOL_USDT
+        )
+        .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
+        .slice(0, MAX_FUTURES_COINS)
+        .map(t => ({ sym: t.symbol.replace('USDT', ''), change24h: parseFloat(t.priceChangePercent) / 100 }))
+      if (list.length >= 10) return list
+    }
+  } catch { /* fall through */ }
+  // v41.3 fallback: OKX swap tickers — keeps the full 50-60 coin universe even
+  // when Binance geo-blocks the egress IP (was silently shrinking to 30).
+  try {
+    const res = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP',
+      { headers: { 'User-Agent': 'Mozilla/5.0' } })
+    if (res.ok) {
+      const j = await res.json()
+      const rows: any[] = j?.data ?? []
+      const list = rows
+        .filter(t => String(t.instId).endsWith('-USDT-SWAP'))
+        .map(t => {
+          const last = parseFloat(t.last), open = parseFloat(t.open24h)
+          const volUsd = parseFloat(t.volCcy24h) * last
+          return { sym: String(t.instId).split('-')[0], volUsd,
+                   change24h: open > 0 ? (last - open) / open : 0 }
+        })
+        .filter(x => Number.isFinite(x.volUsd) && x.volUsd >= MIN_FUTURES_VOL_USDT && /^[A-Z0-9]+$/.test(x.sym))
+        .sort((a, b) => b.volUsd - a.volUsd)
+        .slice(0, MAX_FUTURES_COINS)
+        .map(x => ({ sym: x.sym, change24h: x.change24h }))
+      if (list.length >= 10) return list
+    }
+  } catch { /* fall through */ }
+  return FIXED_COINS.map(s => ({ sym: s, change24h: 0 }))
 }
 
 async function fetchFearGreed(): Promise<number> {
