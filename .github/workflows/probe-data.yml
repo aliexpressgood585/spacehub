@@ -1,0 +1,26 @@
+name: Probe Data Sources
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe candidate market-data hosts
+        run: |
+          probe() {
+            code=$(curl -s -o /tmp/body -w "%{http_code}" -m 20 "$1" -H "User-Agent: Mozilla/5.0")
+            echo "[$code] $1"
+            head -c 160 /tmp/body 2>/dev/null | tr '\n' ' '; echo; echo "---"
+          }
+          echo "=== Binance futures REST ==="
+          probe "https://fapi.binance.com/fapi/v1/klines?symbol=BTCUSDT&interval=5m&limit=2"
+          echo "=== Binance data.vision daily futures zip (HEAD) ==="
+          curl -s -o /dev/null -w "vision daily: %{http_code}\n" -m 20 -I "https://data.binance.vision/data/futures/um/daily/klines/BTCUSDT/5m/BTCUSDT-5m-2026-07-05.zip"
+          echo "=== Binance data.vision monthly futures zip (HEAD) ==="
+          curl -s -o /dev/null -w "vision monthly: %{http_code}\n" -m 20 -I "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2026-06.zip"
+          echo "=== Bybit v5 ==="
+          probe "https://api.bybit.com/v5/market/kline?category=linear&symbol=BTCUSDT&interval=5&limit=2"
+          echo "=== OKX ==="
+          probe "https://www.okx.com/api/v5/market/candles?instId=BTC-USDT-SWAP&bar=5m&limit=2"
