@@ -41,4 +41,30 @@ for sym in $COINS; do for iv in $INTERVALS; do
   rm -f "$OUT/${sym}-${iv}.part-"*
   echo "${sym}-${iv}: $(wc -l < "$out") rows"
 done; done
+
+# ── Open Interest metrics (5m) — path has no interval subfolder ──
+MBASE="https://data.binance.vision/data/futures/um/daily/metrics"
+dloi() {
+  local sym=$1 d=$2
+  local url="$MBASE/${sym}USDT/${sym}USDT-metrics-${d}.zip"
+  local tmp="/tmp/oi-${sym}-${d}.zip"
+  curl -s -f -m 30 -o "$tmp" "$url" 2>/dev/null || return 0
+  # keep create_time (col1) + sum_open_interest (col3); skip header (starts with 'create')
+  unzip -p "$tmp" 2>/dev/null | grep '^2' | cut -d, -f1,3 > "$OUT/${sym}-oi.part-${d}" 2>/dev/null
+  rm -f "$tmp"
+}
+export -f dloi
+export MBASE OUT
+ojobs=/tmp/oi_jobs.txt; : > "$ojobs"
+for sym in $COINS; do for d in "${dates[@]}"; do echo "$sym $d" >> "$ojobs"; done; done
+echo "Downloading $(wc -l < "$ojobs") OI metric files (parallel) ..."
+xargs -P 12 -n 2 bash -c 'dloi "$@"' _ < "$ojobs"
+for sym in $COINS; do
+  out="$OUT/${sym}-oi.csv"; : > "$out"
+  # shellcheck disable=SC2012
+  parts=$(ls "$OUT/${sym}-oi.part-"* 2>/dev/null | sort)
+  [ -n "$parts" ] && cat $parts >> "$out"
+  rm -f "$OUT/${sym}-oi.part-"*
+  echo "${sym}-oi: $(wc -l < "$out") rows"
+done
 echo "Done."

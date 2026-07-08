@@ -10,9 +10,8 @@
 //   V39 = NO partial + breakeven 1.5R + trail 2.0R            (new)
 //
 // Honest simplifications (documented in the report):
-//  - OI, funding, fear/greed signals are neutralized (no faithful historical
-//    source) → confluence scores run a few points LOW → fewer entries than
-//    live. This is a CONSERVATIVE bias (lower bound on trade count).
+//  - OI + liquidity-zone signals ARE now wired from Binance's metrics archive.
+//    Only funding & fear/greed remain neutral (minor: 0-5 pts each).
 //  - FEE = 0 (matches the current live bot; user adds fee-sim later).
 //  - 5m decision at bar close, fill at that close; exits scan later bars.
 // ════════════════════════════════════════════════════════════
@@ -229,11 +228,63 @@ function getVolRegime(atrPct:number): 'LOW'|'MEDIUM'|'HIGH' {
 
 type Bias = 'BULL'|'BEAR'|'NEUTRAL'
 
-// Confluence scoring — faithful copy; OI/funding/FG signals neutralized (0).
+// ── OI (Open Interest) — from Binance metrics archive ──
+interface OIRecord { timestamp: number; oi: number }
+const LIQ_ZONE_WINDOW=40, LIQ_PROXIMITY_PCT=0.015, LIQ_TOUCH_LOOKBACK=6, LIQ_OI_SURGE_MULT=1.08, LIQ_WICK_RATIO=0.30
+// Copied verbatim from the live bot (Signal #17 liquidity zone).
+function detectLiquidationZone(bars:Bar[], price:number, oiHistory:OIRecord[], side:'LONG'|'SHORT'): {hit:boolean; zoneLevel:number; confidence:number} {
+  const NULL_R = {hit:false, zoneLevel:0, confidence:0}
+  if (bars.length < 30 || oiHistory.length < 10) return NULL_R
+  const oiVals = oiHistory.map(o=>o.oi)
+  const oiBase = oiVals.slice(0,-6).reduce((a,b)=>a+b,0)/Math.max(1, oiVals.length-6)
+  const oiNow  = oiVals.slice(-6).reduce((a,b)=>a+b,0)/6
+  const oiElevated = oiBase>0 && oiNow>oiBase*LIQ_OI_SURGE_MULT
+  const recent = bars.slice(-LIQ_ZONE_WINDOW)
+  if (side==='LONG') {
+    const cand = recent.map(b=>b.low).filter(l=>l<price*0.998).sort((a,b)=>b-a)
+    if (!cand.length) return NULL_R
+    const zoneLevel = cand[0], zoneDist=(price-zoneLevel)/price
+    if (zoneDist>LIQ_PROXIMITY_PCT) return NULL_R
+    const touched = bars.slice(-LIQ_TOUCH_LOOKBACK).some(b=>{ const range=b.high-b.low; const lw=Math.min(b.open,b.close)-b.low
+      return b.low<=zoneLevel*1.002 && b.close>zoneLevel && range>0 && lw/range>=LIQ_WICK_RATIO })
+    if (!touched) return NULL_R
+    return {hit:true, zoneLevel, confidence:(oiElevated?1.5:1.0)*(1-zoneDist/LIQ_PROXIMITY_PCT)}
+  } else {
+    const cand = recent.map(b=>b.high).filter(h=>h>price*1.002).sort((a,b)=>a-b)
+    if (!cand.length) return NULL_R
+    const zoneLevel = cand[0], zoneDist=(zoneLevel-price)/price
+    if (zoneDist>LIQ_PROXIMITY_PCT) return NULL_R
+    const touched = bars.slice(-LIQ_TOUCH_LOOKBACK).some(b=>{ const range=b.high-b.low; const uw=b.high-Math.max(b.open,b.close)
+      return b.high>=zoneLevel*0.998 && b.close<zoneLevel && range>0 && uw/range>=LIQ_WICK_RATIO })
+    if (!touched) return NULL_R
+    return {hit:true, zoneLevel, confidence:(oiElevated?1.5:1.0)*(1-zoneDist/LIQ_PROXIMITY_PCT)}
+  }
+}
+function upperBoundOI(a:{t:number,oi:number}[], t:number): number {
+  let lo=0, hi=a.length; while(lo<hi){ const m=(lo+hi)>>1; if(a[m].t<=t) lo=m+1; else hi=m } return lo
+}
+// Replicates live fetchOISignal (6-bar OI change) + returns 48-bar history for liq-zone.
+function oiContext(oiArr:{t:number,oi:number}[]|undefined, T:number, priceChange:number): {sig:string, hist:OIRecord[]} {
+  if (!oiArr || oiArr.length<2) return {sig:'FLAT', hist:[]}
+  const idx = upperBoundOI(oiArr, T)-1
+  if (idx<1) return {sig:'FLAT', hist:[]}
+  const hist = oiArr.slice(Math.max(0,idx-47), idx+1).map(o=>({timestamp:o.t, oi:o.oi}))
+  const win = oiArr.slice(Math.max(0,idx-5), idx+1)
+  const first=win[0].oi, last=win[win.length-1].oi
+  const oiChg = first>0 ? (last-first)/first : 0
+  let sig='FLAT'
+  if (priceChange>0.003 && oiChg<-0.010) sig='BEAR_DIV'
+  else if (priceChange<-0.003 && oiChg>0.010) sig='BULL_DIV'
+  else sig = oiChg>0.01?'UP':oiChg<-0.01?'DOWN':'FLAT'
+  return {sig, hist}
+}
+
+// Confluence scoring — faithful copy (now WITH OI signals wired in).
 function calcConfluenceScore(
   bars: Bar[], price: number, vpoc: number, ema1hBias: Bias, adx: number,
   fearGreed: number, rsiOversold: number, rsiOverbought: number, bbProx: number,
-  ema200Bias: Bias, change24h: number
+  ema200Bias: Bias, change24h: number,
+  oiSignal: string = '', oiHistory: OIRecord[] = []
 ) {
   if (bars.length < 30) return null
   const closes = bars.map(b => b.close), highs = bars.map(b => b.high), lows = bars.map(b => b.low)
@@ -274,6 +325,10 @@ function calcConfluenceScore(
   const vols = bars.slice(-20).map(b=>b.vol)
   const volAvg = vols.reduce((a,b)=>a+b,0)/vols.length
   bd.volume = bars[bars.length-1].vol > volAvg*1.4 ? 10 : 0
+  // 5 OI favor (15) — now wired from the metrics archive
+  bd.oiFavor = (oiSignal==='BULL_DIV'&&side==='LONG')||(oiSignal==='BEAR_DIV'&&side==='SHORT') ? 15
+             : (oiSignal==='UP'&&side==='LONG')||(oiSignal==='DOWN'&&side==='SHORT') ? 10
+             : oiSignal==='FLAT' ? 5 : 0
   // 6 Fear/Greed (5) — neutral 50 → never fires
   bd.fearGreed = ((fearGreed>80&&side==='LONG')||(fearGreed<20&&side==='SHORT')) ? 5 : 0
   // 7 Candle (15)
@@ -315,12 +370,18 @@ function calcConfluenceScore(
   bd.bos = detectBOS(bars, side) ? 8 : 0
   // 16 EMA200 (8)
   bd.ema200 = ((side==='LONG'&&ema200Bias==='BULL')||(side==='SHORT'&&ema200Bias==='BEAR')) ? 8 : ema200Bias==='NEUTRAL' ? 4 : 0
-  // 18 Momentum (20) — C1 vol, C2 24h change, C4 breakout (C3 OI skipped)
+  // 17 Liquidity zone (15) — now wired from OI history
+  const liq = detectLiquidationZone(bars, price, oiHistory, side)
+  bd.liqZone = liq.hit ? (liq.confidence>=1.0 ? 15 : 8) : 0
+  // 18 Momentum (20) — C1 vol, C2 24h change, C3 OI surge, C4 breakout
   { let c=0
     const vsl=bars.slice(-21,-1).map(b=>b.vol); const va=vsl.reduce((a,b)=>a+b,0)/Math.max(1,vsl.length)
     if (va>0 && bars[bars.length-1].vol >= va*4) c++
     const ac=Math.abs(change24h), rd=(side==='LONG'&&change24h>0)||(side==='SHORT'&&change24h<0)
     if (rd && ac>=0.03 && ac<=0.30) c++
+    const oiV=oiHistory.map(o=>o.oi)
+    if (oiV.length>=10) { const base=oiV.slice(0,-6).reduce((a,b)=>a+b,0)/Math.max(1,oiV.length-6); const now=oiV.slice(-6).reduce((a,b)=>a+b,0)/6
+      if (base>0 && now>base*1.15) c++ }
     const hh=bars.slice(-21,-1).map(b=>b.high), ll=bars.slice(-21,-1).map(b=>b.low)
     if (side==='LONG'&&price>Math.max(...hh)) c++
     if (side==='SHORT'&&price<Math.min(...ll)) c++
@@ -350,6 +411,20 @@ function loadCSV(sym:string, interval:string): Bar[] {
   const dedup: Bar[] = []; let last = -1
   for (const b of out) { if (b.t !== last) { dedup.push(b); last = b.t } }
   return dedup
+}
+// OI metrics: "2026-07-05 00:05:00,106355.895" (UTC datetime, sum_open_interest)
+function loadOI(sym:string): {t:number,oi:number}[] {
+  let txt=''; try { txt = Deno.readTextFileSync(`backtest/data/${sym}-oi.csv`) } catch { return [] }
+  const out:{t:number,oi:number}[] = []
+  for (const line of txt.split('\n')) {
+    if (!line || line[0] !== '2') continue
+    const c = line.indexOf(','); if (c<0) continue
+    const t = new Date(line.slice(0,c).replace(' ','T')+'Z').getTime()
+    const oi = parseFloat(line.slice(c+1))
+    if (Number.isFinite(t) && Number.isFinite(oi)) out.push({t, oi})
+  }
+  out.sort((a,b)=>a.t-b.t)
+  return out
 }
 
 // last 1h bar with openTime <= t (closed)
@@ -416,7 +491,8 @@ interface SimConfig { name:string; partial:boolean; beR:number; trailStartR:numb
 
 function runSim(
   cfg:SimConfig, grid:number[], data:Record<string,Bar[]>,
-  b1h:Record<string,Bar[]>, b15:Record<string,Bar[]>, btc5:Bar[], change24h:Record<string,number[]>
+  b1h:Record<string,Bar[]>, b15:Record<string,Bar[]>, btc5:Bar[], change24h:Record<string,number[]>,
+  oi:Record<string,{t:number,oi:number}[]>
 ): {closed:ClosedTrade[], equityCurve:number[], finalBal:number, maxDD:number} {
   let balance = 10000
   const open: Record<string, OpenPos> = {}
@@ -530,7 +606,9 @@ function runSim(
       const vpoc = calcVPOC(completed.slice(-80))
       // 24h change
       const ch = change24h[sym][bi] ?? 0
-      const es = calcConfluenceScore(completed, price, vpoc, ema1h, adx, 50, 35, 65, 1.02, ema200, ch)
+      const pchg = completed.length>=2 ? (price-completed[completed.length-2].close)/completed[completed.length-2].close : 0
+      const oc = oiContext(oi[sym], arr[bi].t, pchg)
+      const es = calcConfluenceScore(completed, price, vpoc, ema1h, adx, 50, 35, 65, 1.02, ema200, ch, oc.sig, oc.hist)
       if (!es || !es.side) continue
       // ADX hard gate
       if (!es.rangeFade && adx < 20) continue
@@ -640,8 +718,8 @@ function report(name:string, r:{closed:ClosedTrade[], finalBal:number, maxDD:num
 //   WR when it fired  vs  WR when it didn't  →  LIFT (predictive edge)
 // Structural gates only (ADX + 1H) — NO score gate — to get the full population.
 // ─────────────────────────────────────────────────────────────
-const SIGNALS = ['vpoc','ema1h','adx','volume','candle','stoch','divergence','macd','pivot','bbSqueeze','stopHunt','vwap','bos','ema200','momentum']
-function runSignalValidation(data:Record<string,Bar[]>, b1h:Record<string,Bar[]>, change24h:Record<string,number[]>) {
+const SIGNALS = ['vpoc','ema1h','adx','volume','oiFavor','candle','stoch','divergence','macd','pivot','bbSqueeze','stopHunt','vwap','bos','ema200','liqZone','momentum']
+function runSignalValidation(data:Record<string,Bar[]>, b1h:Record<string,Bar[]>, change24h:Record<string,number[]>, oi:Record<string,{t:number,oi:number}[]>) {
   const fired:Record<string,{n:number,w:number}> = {}, off:Record<string,{n:number,w:number}> = {}
   for (const s of SIGNALS) { fired[s]={n:0,w:0}; off[s]={n:0,w:0} }
   let total=0, totalW=0
@@ -658,7 +736,9 @@ function runSignalValidation(data:Record<string,Bar[]>, b1h:Record<string,Bar[]>
       const adx = calcADX(completed)
       const {ema1h, ema200} = biasAt1h(b1h[c], arr[i].t)
       const vpoc = calcVPOC(completed.slice(-80))
-      const es = calcConfluenceScore(completed, price, vpoc, ema1h, adx, 50, 35, 65, 1.02, ema200, ch[i]??0)
+      const pchg = completed.length>=2 ? (price-completed[completed.length-2].close)/completed[completed.length-2].close : 0
+      const oc = oiContext(oi[c], arr[i].t, pchg)
+      const es = calcConfluenceScore(completed, price, vpoc, ema1h, adx, 50, 35, 65, 1.02, ema200, ch[i]??0, oc.sig, oc.hist)
       if (!es || !es.side) { i++; continue }
       if (!es.rangeFade && adx < 20) { i++; continue }
       if (es.side==='LONG' && ema1h==='BEAR') { i++; continue }
@@ -693,7 +773,7 @@ function runSignalValidation(data:Record<string,Bar[]>, b1h:Record<string,Bar[]>
   }
   console.log(`\nLIFT = WR(signal fired) − WR(signal off). Positive = the signal adds predictive edge.`)
   console.log(`Signals with negative lift are HURTING entry quality → drop or invert them.`)
-  console.log(`Note: OI/funding/fear-greed/liq-zone neutralized (no historical source). FEE=0.`)
+  console.log(`Note: OI + liq-zone NOW WIRED from metrics archive; funding/fear-greed still neutral. FEE=0.`)
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -702,21 +782,23 @@ function main() {
 
   const data:Record<string,Bar[]> = {}, b1h:Record<string,Bar[]> = {}, b15:Record<string,Bar[]> = {}
   const change24h:Record<string,number[]> = {}
+  const oiData:Record<string,{t:number,oi:number}[]> = {}
   for (const c of COINS) {
     data[c] = loadCSV(c, '5m')
     b1h[c]  = loadCSV(c, '1h')
     b15[c]  = loadCSV(c, '15m')
+    oiData[c] = loadOI(c)
     // precompute 24h change per 5m bar (288 bars back)
     const arr = data[c]; const ch = new Array(arr.length).fill(0)
     for (let i=288;i<arr.length;i++) ch[i] = (arr[i].close - arr[i-288].close)/arr[i-288].close
     change24h[c] = ch
-    console.log(`  ${c}: ${data[c].length} 5m / ${b1h[c].length} 1h / ${b15[c].length} 15m bars`)
+    console.log(`  ${c}: ${data[c].length} 5m / ${b1h[c].length} 1h / ${b15[c].length} 15m / ${oiData[c].length} OI`)
   }
   const btc5 = data['BTC']
   if (!btc5 || btc5.length === 0) { console.log('NO DATA LOADED — check fetch.sh output'); return }
 
   // BT_MODE=signals → per-signal predictive-power validation, then stop
-  if (Deno.env.get('BT_MODE') === 'signals') { runSignalValidation(data, b1h, change24h); return }
+  if (Deno.env.get('BT_MODE') === 'signals') { runSignalValidation(data, b1h, change24h, oiData); return }
 
   // build common 5m time grid (union of BTC timestamps is enough; all coins align)
   const grid = btc5.map(b=>b.t)
@@ -734,7 +816,7 @@ function main() {
   console.log(`\n████ PART A — does a higher score buy a better expectancy? (V39 exits) ████`)
   console.log(`thresh  trades   WR      PF     expR      avgWinR  avgLossR`)
   for (const th of [45,50,55,60,65,70,75]) {
-    const r = runSim(mk({entryThreshold:th, baseFloor:Math.max(0,th-10)}), grid, data, b1h, b15, btc5, change24h)
+    const r = runSim(mk({entryThreshold:th, baseFloor:Math.max(0,th-10)}), grid, data, b1h, b15, btc5, change24h, oiData)
     const real = r.closed.filter(c=>c.status!=='PARTIAL')
     const n=real.length, w=real.filter(c=>c.pnl>0)
     const l=real.filter(c=>c.pnl<=0)
@@ -750,13 +832,13 @@ function main() {
   // but the trailing engine cuts winners (avg win 0.4-1.6R). Test removing it.
   console.log(`\n████ PART B — TRAILING vs PURE fixed SL/TP (no trail), at gates 55 & 75 ████`)
   for (const TH of [55, 75]) {
-    const rTrail = runSim(mk({partial:false, beR:1.5,  trailStartR:2.0, netCap:true, entryThreshold:TH, baseFloor:Math.max(0,TH-10)}), grid, data, b1h, b15, btc5, change24h)
-    const rPure  = runSim(mk({partial:false, beR:999,  trailStartR:999, netCap:true, entryThreshold:TH, baseFloor:Math.max(0,TH-10)}), grid, data, b1h, b15, btc5, change24h)
+    const rTrail = runSim(mk({partial:false, beR:1.5,  trailStartR:2.0, netCap:true, entryThreshold:TH, baseFloor:Math.max(0,TH-10)}), grid, data, b1h, b15, btc5, change24h, oiData)
+    const rPure  = runSim(mk({partial:false, beR:999,  trailStartR:999, netCap:true, entryThreshold:TH, baseFloor:Math.max(0,TH-10)}), grid, data, b1h, b15, btc5, change24h, oiData)
     const sT = report(`TRAIL  gate=${TH} (v39: BE 1.5R + trail 2.0R)`, rTrail)
     const sP = report(`PURE   gate=${TH} (fixed SL + 2.5R TP, no trail)`, rPure)
     console.log(`\n─── gate=${TH}:  TRAIL exp ${sT.expR>=0?'+':''}${sT.expR.toFixed(3)}R  vs  PURE exp ${sP.expR>=0?'+':''}${sP.expR.toFixed(3)}R  |  PF ${sT.pf===Infinity?'∞':sT.pf.toFixed(2)} vs ${sP.pf===Infinity?'∞':sP.pf.toFixed(2)} ───`)
   }
-  console.log(`\nNote: OI/funding/fear-greed/liq-zone signals neutralized (no historical source)`)
+  console.log(`\nNote: OI + liq-zone NOW WIRED from metrics archive; only funding/fear-greed still neutral.`)
   console.log(`→ scores run ~15-30pts low, so thresholds map to higher live gates. FEE=0.`)
 }
 
