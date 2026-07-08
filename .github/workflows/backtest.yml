@@ -7,6 +7,10 @@ on:
         description: 'Days of history to backtest'
         required: false
         default: '45'
+      mode:
+        description: 'portfolio (P&L sim) or signals (per-signal validation)'
+        required: false
+        default: 'portfolio'
 
 jobs:
   backtest:
@@ -25,4 +29,6 @@ jobs:
         run: bash backtest/fetch.sh
 
       - name: Run backtest
+        env:
+          BT_MODE: ${{ github.event.inputs.mode }}
         run: deno run --allow-read --allow-env backtest/backtest.ts

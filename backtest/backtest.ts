@@ -262,61 +262,59 @@ function calcConfluenceScore(
     (side==='LONG'  && price <= bb.lower*bbProx     && rsi < rsiOversold+5) ||
     (side==='SHORT' && price >= bb.upper*(2-bbProx) && rsi > rsiOverbought-5)
   )
-  let s = 0
+  const bd: Record<string,number> = {}
   // 1 VPOC (25)
   const vpocDist = Math.abs(vpoc - price) / price
-  if (vpocDist < 0.010) s += 25; else if (vpocDist < 0.020) s += 18; else if (vpocDist < 0.035) s += 10
+  bd.vpoc = vpocDist < 0.010 ? 25 : vpocDist < 0.020 ? 18 : vpocDist < 0.035 ? 10 : 0
   // 2 1H trend (20)
-  if ((side==='LONG'&&ema1hBias==='BULL')||(side==='SHORT'&&ema1hBias==='BEAR')) s += 20
-  else if (ema1hBias==='NEUTRAL') s += 10
+  bd.ema1h = ((side==='LONG'&&ema1hBias==='BULL')||(side==='SHORT'&&ema1hBias==='BEAR')) ? 20 : ema1hBias==='NEUTRAL' ? 10 : 0
   // 3 ADX (10)
-  if (adx > 22) s += 10; else if (adx > 15) s += 5; else if (rangeFade) s += 8
+  bd.adx = adx > 22 ? 10 : adx > 15 ? 5 : rangeFade ? 8 : 0
   // 4 Volume (10)
   const vols = bars.slice(-20).map(b=>b.vol)
   const volAvg = vols.reduce((a,b)=>a+b,0)/vols.length
-  if (bars[bars.length-1].vol > volAvg*1.4) s += 10
-  // 5 OI favor — NEUTRALIZED (no historical source)
+  bd.volume = bars[bars.length-1].vol > volAvg*1.4 ? 10 : 0
   // 6 Fear/Greed (5) — neutral 50 → never fires
-  if ((fearGreed>80&&side==='LONG')||(fearGreed<20&&side==='SHORT')) s += 5
+  bd.fearGreed = ((fearGreed>80&&side==='LONG')||(fearGreed<20&&side==='SHORT')) ? 5 : 0
   // 7 Candle (15)
   const lb=bars[bars.length-1], barRange=lb.high-lb.low
+  bd.candle = 0
   if (side==='LONG') { const uw=(lb.high-lb.close)/barRange
-    if (lb.close>lb.open&&uw<0.15) s+=15; else if (lb.close>lb.open&&uw<0.25) s+=10; else if (lb.close>lb.open) s+=5
+    if (lb.close>lb.open&&uw<0.15) bd.candle=15; else if (lb.close>lb.open&&uw<0.25) bd.candle=10; else if (lb.close>lb.open) bd.candle=5
   } else { const lw=(lb.close-lb.low)/barRange
-    if (lb.close<lb.open&&lw<0.15) s+=15; else if (lb.close<lb.open&&lw<0.25) s+=10; else if (lb.close<lb.open) s+=5
+    if (lb.close<lb.open&&lw<0.15) bd.candle=15; else if (lb.close<lb.open&&lw<0.25) bd.candle=10; else if (lb.close<lb.open) bd.candle=5
   }
   // 8 Stochastic (10)
   const stoch = calcStochastic(closes, highs, lows, 14, 3)
-  if ((side==='LONG'&&stoch.K<20)||(side==='SHORT'&&stoch.K>80)) s += 10
+  bd.stoch = ((side==='LONG'&&stoch.K<20)||(side==='SHORT'&&stoch.K>80)) ? 10 : 0
   // 9 Divergence (15)
   const div = detectDivergence(rsiHistory, closes)
-  if ((div==='BULL_DIV'&&side==='LONG')||(div==='BEAR_DIV'&&side==='SHORT')) s += 15
+  bd.divergence = ((div==='BULL_DIV'&&side==='LONG')||(div==='BEAR_DIV'&&side==='SHORT')) ? 15 : 0
   // 10 MACD (10)
   const macd = calcMACD(closes)
-  if ((side==='LONG'&&macd.histogram>0)||(side==='SHORT'&&macd.histogram<0)) s += 10
+  bd.macd = ((side==='LONG'&&macd.histogram>0)||(side==='SHORT'&&macd.histogram<0)) ? 10 : 0
   // 11 Pivot (8)
   const piv = calcPivots(lb.high, lb.low, lb.close)
-  if (detectPivotBounce(price, piv.s1, piv.r1, atr)) s += 8
+  bd.pivot = detectPivotBounce(price, piv.s1, piv.r1, atr) ? 8 : 0
   // 12 BB squeeze (12)
   const bbWidthHist = bars.slice(-10).map((_b,idx)=>{
     const bi=bars.length-10+idx
     return calcBB(closes.slice(Math.max(0,bi-19),bi+1),20,2).width
   })
-  if (detectBBSqueezeRelease(bbWidthHist)) s += 12
+  bd.bbSqueeze = detectBBSqueezeRelease(bbWidthHist) ? 12 : 0
   // 13 Stop-hunt (10)
-  if (detectStopHunt(bars, side)) s += 10
+  bd.stopHunt = detectStopHunt(bars, side) ? 10 : 0
   // 14 VWAP (12)
   const vwap = calcVWAP(bars)
+  bd.vwap = 0
   if (vwap > 0) { const vd=(price-vwap)/vwap
-    if (side==='LONG'&&vd>0.001) s+=12; else if (side==='LONG'&&vd>=-0.001) s+=6
-    else if (side==='SHORT'&&vd<-0.001) s+=12; else if (side==='SHORT'&&vd<=0.001) s+=6
+    if (side==='LONG'&&vd>0.001) bd.vwap=12; else if (side==='LONG'&&vd>=-0.001) bd.vwap=6
+    else if (side==='SHORT'&&vd<-0.001) bd.vwap=12; else if (side==='SHORT'&&vd<=0.001) bd.vwap=6
   }
   // 15 BOS (8)
-  if (detectBOS(bars, side)) s += 8
+  bd.bos = detectBOS(bars, side) ? 8 : 0
   // 16 EMA200 (8)
-  if ((side==='LONG'&&ema200Bias==='BULL')||(side==='SHORT'&&ema200Bias==='BEAR')) s += 8
-  else if (ema200Bias==='NEUTRAL') s += 4
-  // 17 Liquidity zone — NEUTRALIZED (needs historical OI)
+  bd.ema200 = ((side==='LONG'&&ema200Bias==='BULL')||(side==='SHORT'&&ema200Bias==='BEAR')) ? 8 : ema200Bias==='NEUTRAL' ? 4 : 0
   // 18 Momentum (20) — C1 vol, C2 24h change, C4 breakout (C3 OI skipped)
   { let c=0
     const vsl=bars.slice(-21,-1).map(b=>b.vol); const va=vsl.reduce((a,b)=>a+b,0)/Math.max(1,vsl.length)
@@ -326,9 +324,10 @@ function calcConfluenceScore(
     const hh=bars.slice(-21,-1).map(b=>b.high), ll=bars.slice(-21,-1).map(b=>b.low)
     if (side==='LONG'&&price>Math.max(...hh)) c++
     if (side==='SHORT'&&price<Math.min(...ll)) c++
-    if (c>=3) s += 20; else if (c===2) s += 10
+    bd.momentum = c>=3 ? 20 : c===2 ? 10 : 0
   }
-  return { side, slDist: atr*1.2, score: s, adx, rangeFade, bbMid: bb.mid }
+  let s = 0; for (const k in bd) s += bd[k]
+  return { side, slDist: atr*1.2, score: s, adx, rangeFade, bbMid: bb.mid, bd }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -635,6 +634,69 @@ function report(name:string, r:{closed:ClosedTrade[], finalBal:number, maxDD:num
 }
 
 // ─────────────────────────────────────────────────────────────
+// SIGNAL VALIDATION — per-signal predictive power
+// Generates a large population of candidate trades (side + which signals fired)
+// and their forward outcome (fixed SL / 2.5R TP), then measures for each signal:
+//   WR when it fired  vs  WR when it didn't  →  LIFT (predictive edge)
+// Structural gates only (ADX + 1H) — NO score gate — to get the full population.
+// ─────────────────────────────────────────────────────────────
+const SIGNALS = ['vpoc','ema1h','adx','volume','candle','stoch','divergence','macd','pivot','bbSqueeze','stopHunt','vwap','bos','ema200','momentum']
+function runSignalValidation(data:Record<string,Bar[]>, b1h:Record<string,Bar[]>, change24h:Record<string,number[]>) {
+  const fired:Record<string,{n:number,w:number}> = {}, off:Record<string,{n:number,w:number}> = {}
+  for (const s of SIGNALS) { fired[s]={n:0,w:0}; off[s]={n:0,w:0} }
+  let total=0, totalW=0
+  const MAXHOLD = 24  // 120min at 5m — matches live max hold
+  for (const c of COINS) {
+    const arr = data[c]; if (!arr || arr.length < 300) continue
+    const ch = change24h[c]
+    let i = 200
+    while (i < arr.length-1) {
+      const price = arr[i].close
+      const completed = arr.slice(i-199, i+1)
+      const atr = calcATR(completed); const atrPct = atr/price
+      if (atrPct > 0.02 || atrPct < 0.00003) { i++; continue }
+      const adx = calcADX(completed)
+      const {ema1h, ema200} = biasAt1h(b1h[c], arr[i].t)
+      const vpoc = calcVPOC(completed.slice(-80))
+      const es = calcConfluenceScore(completed, price, vpoc, ema1h, adx, 50, 35, 65, 1.02, ema200, ch[i]??0)
+      if (!es || !es.side) { i++; continue }
+      if (!es.rangeFade && adx < 20) { i++; continue }
+      if (es.side==='LONG' && ema1h==='BEAR') { i++; continue }
+      if (es.side==='SHORT'&& ema1h==='BULL') { i++; continue }
+      const dirM = es.side==='LONG'?1:-1
+      const slDist = Math.max(es.slDist, price*0.005)
+      const sl = price - slDist*dirM, tp = price + slDist*2.5*dirM
+      let win = -1, exitBar = i
+      for (let j=i+1; j<Math.min(arr.length, i+1+MAXHOLD); j++) {
+        const b = arr[j]; exitBar=j
+        if (es.side==='LONG') { if (b.low<=sl){win=0;break} if (b.high>=tp){win=1;break} }
+        else                  { if (b.high>=sl){win=0;break} if (b.low<=tp){win=1;break} }
+      }
+      if (win<0) win = (arr[exitBar].close - price)*dirM > 0 ? 1 : 0
+      total++; totalW += win
+      for (const sg of SIGNALS) {
+        if ((es.bd[sg]??0) > 0) { fired[sg].n++; fired[sg].w += win } else { off[sg].n++; off[sg].w += win }
+      }
+      i = exitBar + 1  // no overlapping trades per coin
+    }
+  }
+  const baseWR = total? totalW/total : 0
+  console.log(`\n████ SIGNAL VALIDATION — ${total} candidate trades | baseline WR ${(baseWR*100).toFixed(1)}% ████`)
+  console.log(`(fixed SL / 2.5R TP, ${MAXHOLD*5}min max hold; structural gates only, no score gate)\n`)
+  console.log(`signal        fired#   WR_fired   WR_off     LIFT`)
+  const rows = SIGNALS.map(sg=>{
+    const f=fired[sg], o=off[sg]; const wf=f.n?f.w/f.n:0, wo=o.n?o.w/o.n:0
+    return {sg, n:f.n, wf, wo, lift:wf-wo}
+  }).sort((a,b)=>b.lift-a.lift)
+  for (const r of rows) {
+    console.log(`  ${r.sg.padEnd(12)} ${String(r.n).padStart(5)}   ${(r.wf*100).toFixed(1).padStart(6)}%   ${(r.wo*100).toFixed(1).padStart(6)}%   ${r.lift>=0?'+':''}${(r.lift*100).toFixed(1)}pp`)
+  }
+  console.log(`\nLIFT = WR(signal fired) − WR(signal off). Positive = the signal adds predictive edge.`)
+  console.log(`Signals with negative lift are HURTING entry quality → drop or invert them.`)
+  console.log(`Note: OI/funding/fear-greed/liq-zone neutralized (no historical source). FEE=0.`)
+}
+
+// ─────────────────────────────────────────────────────────────
 function main() {
   console.log(`Loading data (5m + 15m + 1h) from data.binance.vision archive | coins: ${COINS.join(',')}`)
 
@@ -652,6 +714,9 @@ function main() {
   }
   const btc5 = data['BTC']
   if (!btc5 || btc5.length === 0) { console.log('NO DATA LOADED — check fetch.sh output'); return }
+
+  // BT_MODE=signals → per-signal predictive-power validation, then stop
+  if (Deno.env.get('BT_MODE') === 'signals') { runSignalValidation(data, b1h, change24h); return }
 
   // build common 5m time grid (union of BTC timestamps is enough; all coins align)
   const grid = btc5.map(b=>b.t)
