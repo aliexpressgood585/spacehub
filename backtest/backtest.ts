@@ -487,7 +487,7 @@ const VOL_PARAMS = {
   HIGH:   { slMult:1.0, tpR:2.5, trailAtr:0.8 },
 }
 
-interface SimConfig { name:string; partial:boolean; beR:number; trailStartR:number; partialR:number; netCap:boolean; entryThreshold:number; baseFloor:number; meanRev?:boolean; fixedTpR?:number }
+interface SimConfig { name:string; partial:boolean; beR:number; trailStartR:number; partialR:number; netCap:boolean; entryThreshold:number; baseFloor:number; meanRev?:boolean; fixedTpR?:number; slAtrMult?:number }
 
 // PURE mean-reversion entry — ONLY the signals with proven positive lift:
 // stochastic extreme (defines side) + RSI divergence + stop-hunt (+volume).
@@ -667,7 +667,9 @@ function runSim(
       if (gid>=0) { const cnt=Object.keys(open).filter(s=>corrGroup(s)===gid).length; if (cnt>=3) continue }
       // SL/TP
       const dynSLMult = adx>25?1.0:adx<15?1.5:1.2
-      const dynSL = calcDynamicSL(rawSlDist, adx, dynSLMult)
+      // meanRev with an explicit slAtrMult uses a tight fixed SL (extremes invalidate close by);
+      // otherwise the standard ADX-scaled dynamic SL.
+      const dynSL = (cfg.meanRev && cfg.slAtrMult && cfg.slAtrMult>0) ? atr*cfg.slAtrMult : calcDynamicSL(rawSlDist, adx, dynSLMult)
       const slDist = Math.max(dynSL, price*0.005)
       const slPct = slDist/price
       if (slPct < 0.005 || slPct > 0.04) continue
@@ -842,32 +844,27 @@ function main() {
 
   const mk = (o:Partial<SimConfig>):SimConfig => ({
     name:'', partial:false, beR:1.5, trailStartR:2.0, partialR:1.2, netCap:true,
-    entryThreshold:75, baseFloor:65, meanRev:false, fixedTpR:0, ...o
+    entryThreshold:75, baseFloor:65, meanRev:false, fixedTpR:0, slAtrMult:0, ...o
   })
 
   // BT_MODE=meanrev → pure mean-reversion × exit-target matrix, then stop
   if (Deno.env.get('BT_MODE') === 'meanrev') {
-    console.log(`\n████ PURE MEAN-REVERSION × EXIT TARGET — entries: stoch+div+stopHunt (minScore 5) ████`)
-    console.log(`Mean-reversion reverts to the mean fast → test CLOSE fixed targets vs the 2.5R trail.\n`)
-    console.log(`exit            trades   WR      PF     expR       avgWinR  avgLossR`)
-    const variants: {name:string, cfg:Partial<SimConfig>}[] = [
-      {name:'2.5R + trail  ', cfg:{}},
-      {name:'fixed 0.7R    ', cfg:{fixedTpR:0.7, beR:999, trailStartR:999}},
-      {name:'fixed 1.0R    ', cfg:{fixedTpR:1.0, beR:999, trailStartR:999}},
-      {name:'fixed 1.5R    ', cfg:{fixedTpR:1.5, beR:999, trailStartR:999}},
-      {name:'fixed 2.0R    ', cfg:{fixedTpR:2.0, beR:999, trailStartR:999}},
-    ]
-    for (const v of variants) {
-      const r = runSim(mk({meanRev:true, entryThreshold:5, baseFloor:0, ...v.cfg}), grid, data, b1h, b15, btc5, change24h, oiData)
-      const real = r.closed.filter(c=>c.status!=='PARTIAL')
-      const n=real.length, w=real.filter(c=>c.pnl>0), l=real.filter(c=>c.pnl<=0)
-      const gw=w.reduce((a,c)=>a+c.pnl,0), gl=Math.abs(l.reduce((a,c)=>a+c.pnl,0))
-      const wr=n?w.length/n:0, pf=gl>0?gw/gl:Infinity, exp=n?real.reduce((a,c)=>a+c.rMultiple,0)/n:0
-      const awr=w.length?w.reduce((a,c)=>a+c.rMultiple,0)/w.length:0
-      const alr=l.length?l.reduce((a,c)=>a+c.rMultiple,0)/l.length:0
-      console.log(`  ${v.name} ${String(n).padStart(5)}   ${(wr*100).toFixed(1).padStart(5)}%  ${(pf===Infinity?'∞':pf.toFixed(2)).padStart(5)}  ${(exp>=0?'+':'')}${exp.toFixed(3)}R   +${awr.toFixed(2)}R   ${alr.toFixed(2)}R`)
+    console.log(`\n████ MEAN-REVERSION × TP × SL matrix — push toward positive expectancy ████`)
+    console.log(`entries: stoch+div/stopHunt (minScore 5). Note: expR is in R vs the tp/sl SIZE,`)
+    console.log(`so we also print $-final from $10k (the true bottom line).\n`)
+    console.log(`  TP     SL(atr)  trades   WR      PF     expR/trade   $final    maxDD`)
+    for (const tp of [0.7, 1.0, 1.3]) {
+      for (const sl of [0.5, 0.7, 0.9]) {
+        const r = runSim(mk({meanRev:true, entryThreshold:5, baseFloor:0, fixedTpR:tp, slAtrMult:sl, beR:999, trailStartR:999}), grid, data, b1h, b15, btc5, change24h, oiData)
+        const real = r.closed.filter(c=>c.status!=='PARTIAL')
+        const n=real.length, w=real.filter(c=>c.pnl>0), l=real.filter(c=>c.pnl<=0)
+        const gw=w.reduce((a,c)=>a+c.pnl,0), gl=Math.abs(l.reduce((a,c)=>a+c.pnl,0))
+        const wr=n?w.length/n:0, pf=gl>0?gw/gl:Infinity, exp=n?real.reduce((a,c)=>a+c.rMultiple,0)/n:0
+        const flag = r.finalBal>10000 ? '  ✅PROFIT' : ''
+        console.log(`  ${tp.toFixed(1)}R   ${sl.toFixed(1)}xatr   ${String(n).padStart(5)}   ${(wr*100).toFixed(1).padStart(5)}%  ${(pf===Infinity?'∞':pf.toFixed(2)).padStart(5)}   ${(exp>=0?'+':'')}${exp.toFixed(3)}R     ${r.finalBal.toFixed(0).padStart(6)}   ${(r.maxDD*100).toFixed(1)}%${flag}`)
+      }
     }
-    console.log(`\nFEE=0. Positive expR = a genuinely profitable configuration found.`)
+    console.log(`\nFEE=0. $final > 10000 = genuinely profitable configuration found.`)
     return
   }
 
