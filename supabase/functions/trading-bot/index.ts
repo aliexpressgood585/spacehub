@@ -257,14 +257,32 @@ const VOL_PARAMS = {
 interface Bar { open:number; high:number; low:number; close:number; vol:number }
 
 async function fetchBars(sym:string, interval:string, limit:number): Promise<Bar[]> {
+  // primary: Binance futures
   try {
     const res = await fetch(
       `${FAPI}/klines?symbol=${sym}USDT&interval=${interval}&limit=${limit}`,
       { headers:{'User-Agent':'Mozilla/5.0'} }
     )
+    if (res.ok) {
+      const data:number[][] = await res.json()
+      if (Array.isArray(data) && data.length)
+        return data.map(k=>({open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
+    }
+  } catch { /* fall through */ }
+  // v41.2 fallback: OKX perp candles — Supabase egress IPs are sometimes
+  // geo-blocked/rate-limited by Binance; OKX serves the same market data.
+  try {
+    const okxBar = interval==='1h'?'1H':interval==='4h'?'4H':interval==='1d'?'1D':interval
+    const res = await fetch(
+      `https://www.okx.com/api/v5/market/candles?instId=${sym}-USDT-SWAP&bar=${okxBar}&limit=${Math.min(limit,300)}`,
+      { headers:{'User-Agent':'Mozilla/5.0'} }
+    )
     if (!res.ok) return []
-    const data:number[][] = await res.json()
-    return data.map(k=>({open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
+    const j = await res.json()
+    const rows: string[][] = j?.data ?? []
+    // OKX returns newest-first incl. the in-progress candle → reverse to match
+    // Binance semantics (oldest-first, last = current partial bar).
+    return rows.reverse().map(k=>({open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
   } catch { return [] }
 }
 
@@ -1822,6 +1840,8 @@ Deno.serve(async (req) => {
     // v41.1 diagnostic: run the LIVE DONCH4H entry evaluation on the whole
     // universe right now (ignoring the 15-min window) and report — NO trading.
     if (url.searchParams.get('donch_test')==='1') {
+      const fapiProbe = await fetch(`${FAPI}/klines?symbol=BTCUSDT&interval=4h&limit=2`,
+        {headers:{'User-Agent':'Mozilla/5.0'}}).then(r=>r.status).catch(()=>0)
       const coinsD = await fetchFuturesCoins()
       const outD: any[] = []
       for (const ci of coinsD.slice(0, 35)) {
@@ -1838,7 +1858,7 @@ Deno.serve(async (req) => {
           if (side) outD.push({sym:ci.sym, side, close:last4.close, hi40:hiN, lo40:loN, adx:+adx4.toFixed(1), wouldEnter: adx4>25})
         } catch (e) { outD.push({sym:ci.sym, err:String(e).slice(0,60)}) }
       }
-      return new Response(JSON.stringify({ok:true, universe:coinsD.length, breakouts:outD, checked_at:new Date().toISOString()}),
+      return new Response(JSON.stringify({ok:true, fapi_status:fapiProbe, universe:coinsD.length, breakouts:outD, checked_at:new Date().toISOString()}),
         {headers:{'Content-Type':'application/json'}})
     }
 
