@@ -395,7 +395,9 @@ interface OpenPos {
 }
 interface ClosedTrade { sym:string; side:string; status:string; pnl:number; rMultiple:number; heldMin:number }
 
-const COINS = ['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','DOT','LTC','BCH','NEAR','INJ','SUI']
+const COINS = ['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','DOT','LTC','BCH','NEAR','INJ','SUI',
+  'TRX','APT','ARB','OP','ATOM','FIL','UNI','AAVE','ICP','ALGO','SEI','WLD','TIA','RUNE','LDO',
+  'CRV','DYDX','GALA','SAND','AXS','IMX','ENA','PEPE','WIF','FET']
 const MAX_OPEN = 20, MAX_NEW_PER_SCAN = 5, MIN_NOTIONAL = 500
 const SYM_COOLDOWN_MIN = 10, MAX_HOLD_MIN = 120
 const CORR_GROUPS: string[][] = [
