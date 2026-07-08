@@ -487,7 +487,7 @@ const VOL_PARAMS = {
   HIGH:   { slMult:1.0, tpR:2.5, trailAtr:0.8 },
 }
 
-interface SimConfig { name:string; partial:boolean; beR:number; trailStartR:number; partialR:number; netCap:boolean; entryThreshold:number; baseFloor:number; meanRev?:boolean }
+interface SimConfig { name:string; partial:boolean; beR:number; trailStartR:number; partialR:number; netCap:boolean; entryThreshold:number; baseFloor:number; meanRev?:boolean; fixedTpR?:number }
 
 // PURE mean-reversion entry — ONLY the signals with proven positive lift:
 // stochastic extreme (defines side) + RSI divergence + stop-hunt (+volume).
@@ -674,6 +674,7 @@ function runSim(
       const {pct:volPct} = calcVolatilityPercentile(completed)
       let tpR = calcDynamicTP(2.5, volPct)
       if (rfFlag && bbMidVal) { const midR=Math.abs(bbMidVal-price)/slDist; if (midR<1.0) continue; tpR=Math.min(tpR,midR) }
+      if (cfg.fixedTpR && cfg.fixedTpR>0) tpR = cfg.fixedTpR   // override: fixed close target
       // equal sizing
       const currentExposure = Object.values(open).reduce((a,p)=>a+p.entry*p.size,0)
       const totalPortfolio = balance + currentExposure
@@ -841,25 +842,32 @@ function main() {
 
   const mk = (o:Partial<SimConfig>):SimConfig => ({
     name:'', partial:false, beR:1.5, trailStartR:2.0, partialR:1.2, netCap:true,
-    entryThreshold:75, baseFloor:65, meanRev:false, ...o
+    entryThreshold:75, baseFloor:65, meanRev:false, fixedTpR:0, ...o
   })
 
-  // BT_MODE=meanrev → pure mean-reversion strategy sweep, then stop
+  // BT_MODE=meanrev → pure mean-reversion × exit-target matrix, then stop
   if (Deno.env.get('BT_MODE') === 'meanrev') {
-    console.log(`\n████ PURE MEAN-REVERSION — only stoch+divergence+stopHunt, no trend gates ████`)
-    console.log(`(V39 exits: BE 1.5R + trail 2.0R; score=2 stoch +4 div +4 stopHunt +1 vol)`)
-    console.log(`\nminScore  trades   WR      PF     expR       avgWinR  avgLossR`)
-    for (const th of [5,6,7,8,9]) {
-      const r = runSim(mk({meanRev:true, entryThreshold:th, baseFloor:0}), grid, data, b1h, b15, btc5, change24h, oiData)
+    console.log(`\n████ PURE MEAN-REVERSION × EXIT TARGET — entries: stoch+div+stopHunt (minScore 5) ████`)
+    console.log(`Mean-reversion reverts to the mean fast → test CLOSE fixed targets vs the 2.5R trail.\n`)
+    console.log(`exit            trades   WR      PF     expR       avgWinR  avgLossR`)
+    const variants: {name:string, cfg:Partial<SimConfig>}[] = [
+      {name:'2.5R + trail  ', cfg:{}},
+      {name:'fixed 0.7R    ', cfg:{fixedTpR:0.7, beR:999, trailStartR:999}},
+      {name:'fixed 1.0R    ', cfg:{fixedTpR:1.0, beR:999, trailStartR:999}},
+      {name:'fixed 1.5R    ', cfg:{fixedTpR:1.5, beR:999, trailStartR:999}},
+      {name:'fixed 2.0R    ', cfg:{fixedTpR:2.0, beR:999, trailStartR:999}},
+    ]
+    for (const v of variants) {
+      const r = runSim(mk({meanRev:true, entryThreshold:5, baseFloor:0, ...v.cfg}), grid, data, b1h, b15, btc5, change24h, oiData)
       const real = r.closed.filter(c=>c.status!=='PARTIAL')
       const n=real.length, w=real.filter(c=>c.pnl>0), l=real.filter(c=>c.pnl<=0)
       const gw=w.reduce((a,c)=>a+c.pnl,0), gl=Math.abs(l.reduce((a,c)=>a+c.pnl,0))
       const wr=n?w.length/n:0, pf=gl>0?gw/gl:Infinity, exp=n?real.reduce((a,c)=>a+c.rMultiple,0)/n:0
       const awr=w.length?w.reduce((a,c)=>a+c.rMultiple,0)/w.length:0
       const alr=l.length?l.reduce((a,c)=>a+c.rMultiple,0)/l.length:0
-      console.log(`  ${th}      ${String(n).padStart(5)}   ${(wr*100).toFixed(1).padStart(5)}%  ${(pf===Infinity?'∞':pf.toFixed(2)).padStart(5)}  ${(exp>=0?'+':'')}${exp.toFixed(3)}R   +${awr.toFixed(2)}R   ${alr.toFixed(2)}R`)
+      console.log(`  ${v.name} ${String(n).padStart(5)}   ${(wr*100).toFixed(1).padStart(5)}%  ${(pf===Infinity?'∞':pf.toFixed(2)).padStart(5)}  ${(exp>=0?'+':'')}${exp.toFixed(3)}R   +${awr.toFixed(2)}R   ${alr.toFixed(2)}R`)
     }
-    console.log(`\nFEE=0. Positive expR at any row = the pure mean-reversion premise works.`)
+    console.log(`\nFEE=0. Positive expR = a genuinely profitable configuration found.`)
     return
   }
 
