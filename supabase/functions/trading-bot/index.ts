@@ -227,7 +227,7 @@ async function fetchFuturesCoins(): Promise<CoinInfo[]> {
           return { sym: String(t.instId).split('-')[0], volUsd,
                    change24h: open > 0 ? (last - open) / open : 0 }
         })
-        .filter(x => Number.isFinite(x.volUsd) && x.volUsd >= MIN_FUTURES_VOL_USDT && /^[A-Z0-9]+$/.test(x.sym))
+        .filter(x => Number.isFinite(x.volUsd) && x.volUsd >= 20_000_000 && /^[A-Z0-9]+$/.test(x.sym))  // OKX has ~40% of Binance volume — $20M here ≈ $50M global
         .sort((a, b) => b.volUsd - a.volUsd)
         .slice(0, MAX_FUTURES_COINS)
         .map(x => ({ sym: x.sym, change24h: x.change24h }))
