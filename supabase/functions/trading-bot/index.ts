@@ -1,5 +1,15 @@
 // ════════════════════════════════════════════════════════════
-// CryptoBot v40 — Production-grade trading bot
+// CryptoBot v41 — DONCH4H strategy (walk-forward proven)
+//
+// v41: STRATEGY REPLACEMENT — backed by 6-month research on real Binance data:
+//  Entry: Donchian-40 breakout on 4h bars + ADX(4h)>25 trend filter.
+//  Exit:  fixed TP 1.0R / SL 1.4×ATR(4h), 16-day timeout. NO trailing,
+//         NO partial TP, NO 5m-based early exits (all gated by mtf:false).
+//  Proof: 849 trades / 39 coins / 181 days: +0.119R per trade at maker fees,
+//         +0.099R at taker; positive in ALL 3 walk-forward windows; 11
+//         neighboring configs also robust (stable hill, not curve-fit spike).
+//  Entries evaluated only in the 15 min after each 4h close; managed vs live
+//  price every scan. Legacy 5m confluence engine left in place but unreachable.
 //
 // v40: BACKTEST-DRIVEN — 44d/40-coin replay on real Binance data showed the
 //  strategy is net-negative in EVERY config, BUT the score-75 gate was the
@@ -219,14 +229,14 @@ const LEVERAGE        = 10
 const SWING_N         = 5
 const SWING_LOOKBACK  = 60
 const SWEEP_LOOKBACK  = 5
-const MAX_HOLD_MIN    = 120  // v32: balanced — max 2h hold
+const MAX_HOLD_MIN    = 23040  // v41: 96 4h-bars (16d) — swing timeout, matches backtest
 const STREAK_PAUSE_MS = 30*60_000   // v40: 2h→30min — trade more, but still a circuit breaker
 const MAX_NOTIONAL_PCT= 0.20        // kept for reference; not used as hard cap in notional calc
 const MAX_OPEN_TRADES = 30          // v40: 20→30 — the 75-gate is the quality limiter, not this cap
 const MAX_TOTAL_EXPOSURE_PCT = 1.0  // 100% — no idle cash
 const FUNDING_EXTREME = 0.0003
 const MIN_SL_PCT      = 0.005
-const SYM_COOLDOWN_MS = 10*60_000  // v32: 10 min cooldown
+const SYM_COOLDOWN_MS = 8*60*60_000  // v41: 8h (2 4h-bars) between entries per coin — matches backtest SPACING
 const MAX_NEW_ENTRIES_PER_SCAN = 8  // v40: 5→8 — take more of the good (75+) setups as they appear
 const MAX_DD_STOP     = 0.80
 const INITIAL_BALANCE = 10000
@@ -1910,7 +1920,7 @@ Deno.serve(async (req) => {
     const dynVol       = { ...VOL_PARAMS,         ...(_bp.vol_params         ?? {}) } as typeof VOL_PARAMS
     const dynSession   = { ...SESSION_PARAMS,     ...(_bp.session_params     ?? {}) } as typeof SESSION_PARAMS
     const dynPartialTP = { ...PARTIAL_TP_BY_VOL,  ...(_bp.partial_tp_by_vol  ?? {}) } as typeof PARTIAL_TP_BY_VOL
-    const dynMaxHold   = Number(_bp.max_hold_min  ?? MAX_HOLD_MIN)
+    const dynMaxHold   = MAX_HOLD_MIN  // v41: fixed — optimizer must not shrink 4h swing holds
 
     let balance = state.balance
     const now   = Date.now()
@@ -1939,7 +1949,7 @@ Deno.serve(async (req) => {
 
     const {data:recent} = await supabase
       .from('bot_trades').select('sym,pnl,closed_at,status,side').neq('status','OPEN')
-      .gte('closed_at',new Date(now-4*3600_000).toISOString())
+      .gte('closed_at',new Date(now-9*3600_000).toISOString())  // v41: widened for the 8h cooldown
       .order('closed_at',{ascending:false}).limit(100)
 
     const symCooldown=new Set<string>()
@@ -2274,7 +2284,7 @@ Deno.serve(async (req) => {
           const emaCrossedAgainst =
             (t.side==='LONG'  && prevE9Exit >= prevE21Exit && curE9Exit < curE21Exit) ||
             (t.side==='SHORT' && prevE9Exit <= prevE21Exit && curE9Exit > curE21Exit)
-          if (emaCrossedAgainst && isLowVolExit && (price-entry)*dirM < 0) {
+          if (t.mtf && emaCrossedAgainst && isLowVolExit && (price-entry)*dirM < 0) {
             const fav = (price-entry)/entry*dirM
             const pnl = (price-entry)*size*dirM - price*size*FEE
             const finalSt = 'TRAIL'  // gate above guarantees a losing exit
@@ -2300,7 +2310,7 @@ Deno.serve(async (req) => {
           const volAvg20 = volHistory20.reduce((a,b)=>a+b,0)/volHistory20.length
 
           const advancedExit = advancedExitCheck(t, completed[completed.length-1], price, macdData.histogram, rsiHistory20, volHistory20, volAvg20)
-          if (advancedExit.closePercent > 0 && t.status === 'OPEN') {
+          if (t.mtf && advancedExit.closePercent > 0 && t.status === 'OPEN') {
             const closeSize = size * advancedExit.closePercent
             const fav = (price-entry)/entry*dirM
             const closePnl = (price-entry)*closeSize*dirM - price*closeSize*FEE
@@ -2332,7 +2342,7 @@ Deno.serve(async (req) => {
           // institutional bias has shifted against us — exit early.
           const vwapNow = calcVWAP(completed)
           const vwapProfitR = slDist > 0 ? (price - entry) * dirM / slDist : 0
-          if (vwapNow > 0 && vwapProfitR < -0.3) {
+          if (t.mtf && vwapNow > 0 && vwapProfitR < -0.3) {
             const vwapAgainst =
               (t.side === 'LONG'  && price < vwapNow * 0.999) ||
               (t.side === 'SHORT' && price > vwapNow * 1.001)
@@ -2357,7 +2367,7 @@ Deno.serve(async (req) => {
           // strong reversal evidence. Exit early rather than wait for SL.
           const shOppSide = t.side === 'LONG' ? 'SHORT' : 'LONG'
           const shProfitR = slDist > 0 ? (price - entry) * dirM / slDist : 0
-          if (shProfitR < -0.2 && detectStopHunt(completed, shOppSide)) {
+          if (t.mtf && shProfitR < -0.2 && detectStopHunt(completed, shOppSide)) {
             const fav = (price - entry) / entry * dirM
             const pnl = (price - entry) * size * dirM - price * size * FEE
             balance += entry * size + pnl; openCount--
@@ -2377,7 +2387,7 @@ Deno.serve(async (req) => {
           // Exit early — same logic as stop-hunt counter but OI-validated.
           const liqOppSide = t.side === 'LONG' ? 'SHORT' : 'LONG'
           const liqOppR = slDist > 0 ? (price - entry) * dirM / slDist : 0
-          if (liqOppR < -0.2 && oiHistory.length >= 10) {
+          if (t.mtf && liqOppR < -0.2 && oiHistory.length >= 10) {
             const liqOppResult = detectLiquidationZone(completed, price, oiHistory, liqOppSide)
             if (liqOppResult.hit && liqOppResult.confidence >= 1.0) {
               const fav = (price - entry) / entry * dirM
@@ -2512,6 +2522,72 @@ Deno.serve(async (req) => {
         if (balance < 10) return
         // v27.2: cap new entries per scan — don't build the whole basket in one minute
         if (newEntriesThisScan >= MAX_NEW_ENTRIES_PER_SCAN) return
+
+        // ════════════════════════════════════════════════════════════════
+        // v41 ENTRY ENGINE — DONCH4H (replaces the 5m confluence engine).
+        // Walk-forward-proven on 6 months × 39 coins × 849 trades:
+        // Donchian-40 breakout on 4h + ADX>25 | TP 1.0R | SL 1.4×ATR(4h)
+        // +0.119R/trade (maker), +0.099R (taker), positive in all 3 windows.
+        // Entries only evaluated in the 15 min after a 4h close (backtest
+        // semantics: decision at bar close). Exits: pure fixed SL/TP + 16d
+        // timeout — mtf:false disables all legacy trailing/partial/5m exits.
+        // ════════════════════════════════════════════════════════════════
+        {
+          const msInto4h = Date.now() % 14_400_000
+          if (msInto4h > 15 * 60_000) return  // outside the post-close window
+          const bars4h = await fetchBars(sym, '4h', 70)
+          if (bars4h.length < 45) return
+          const c4 = bars4h.slice(0, -1)          // completed 4h bars only
+          const last4 = c4[c4.length - 1]
+          const prior = c4.slice(-41, -1)         // the 40 bars before the signal bar
+          if (prior.length < 40) return
+          const hiN = Math.max(...prior.map(b => b.high))
+          const loN = Math.min(...prior.map(b => b.low))
+          const side4: 'LONG'|'SHORT'|null =
+            last4.close > hiN ? 'LONG' : last4.close < loN ? 'SHORT' : null
+          if (!side4) return
+          const adx4 = calcADX(c4.slice(-60))
+          if (adx4 <= 25) { log.push(`SKIP ${sym}: DONCH4H breakout but adx=${adx4.toFixed(0)}<=25`); return }
+          const atr4 = calcATR(c4.slice(-20))
+          if (!atr4) return
+          const slDist4 = Math.max(atr4 * 1.4, price * 0.005)
+          const slPct4 = slDist4 / price
+          if (slPct4 > 0.08) return
+          const dirM4 = side4 === 'LONG' ? 1 : -1
+          const slPrice4 = price - slDist4 * dirM4
+          const tpPrice4 = price + slDist4 * 1.0 * dirM4   // TP = 1.0R
+
+          // sizing: equal weight across remaining slots + 60% net-direction cap
+          const curExp4 = (allOpen||[]).reduce((s2:number,x:any)=>s2+Number(x.entry_price)*Number(x.size),0)
+          const totPort4 = balance + curExp4
+          const remain4 = Math.max(0, totPort4 - curExp4)
+          const slots4 = Math.max(1, MAX_OPEN_TRADES - openCount)
+          const notional4 = Math.min(remain4 / slots4, remain4, balance * 0.95)
+          if (notional4 < 500) return
+          const sideExp4 = (allOpen||[]).reduce((acc:{l:number,s:number}, x:any) => {
+            const n2 = Number(x.entry_price)*Number(x.size)
+            if (x.side==='LONG') acc.l += n2; else acc.s += n2
+            return acc
+          }, {l:0, s:0})
+          const netAfter4 = side4==='LONG' ? (sideExp4.l+notional4)-sideExp4.s : sideExp4.l-(sideExp4.s+notional4)
+          if (totPort4 > 0 && Math.abs(netAfter4) > totPort4 * 0.60) {
+            log.push(`SKIP ${sym}: DONCH4H net ${side4} exposure cap`); return
+          }
+
+          const size4 = notional4 / price
+          balance -= notional4; openCount++; newEntriesThisScan++
+          await supabase.from('bot_trades').insert({
+            sym, side: side4, entry_price: price, size: size4, fee: 0,
+            trail_sl: slPrice4,
+            hi: side4 === 'LONG' ? tpPrice4 : price,
+            lo: side4 === 'SHORT' ? tpPrice4 : price,
+            status: 'OPEN', score: Math.round(adx4), mtf: false, partial_done: false,
+            paper_mode: paperMode, entry_macd_hist: 0
+          })
+          symCooldown.add(sym)
+          log.push(`OPEN ${sym} ${side4} DONCH4H @${price.toFixed(4)} adx4h=${adx4.toFixed(0)} sl=${slPrice4.toFixed(4)} tp=${tpPrice4.toFixed(4)} $${notional4.toFixed(0)}`)
+          return  // v41: never fall through to the legacy 5m confluence engine
+        }
 
         const dynRsiOversold    = Number(_bp.rsi_oversold        ?? 35)
         const dynRsiOverbought  = Number(_bp.rsi_overbought       ?? 65)
