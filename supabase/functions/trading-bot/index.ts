@@ -2651,21 +2651,13 @@ Deno.serve(async (req) => {
           }
         }
 
-        const riskAmt = balance * R.riskPct * kellyMult * kellyByScore * sizeAdjByRegime * sessionSizeAdj * coinSizeMult * volSizeMult * equityGuardMult * correlationHedgeMult
         const currentExposure = (allOpen||[]).reduce((sum:number, t:any) => sum + Number(t.entry_price) * Number(t.size), 0)
-        // v35: use total portfolio (cash + locked) as base — old formula used balance alone
-        // which went negative once exposure > balance, making equalWeightFloor = 0 forever.
         const totalPortfolio   = balance + currentExposure
         const remainingExposure = Math.max(0, totalPortfolio * MAX_TOTAL_EXPOSURE_PCT - currentExposure)
-        // remainingExposure ≈ balance when MAX_TOTAL_EXPOSURE_PCT=1.0
         const slotsLeft  = Math.max(1, MAX_OPEN_TRADES - openCount)
-        // v36: spread idle cash evenly across ALL remaining slots — each position
-        // gets remainingExposure/slotsLeft so money is naturally diversified.
-        const equalWeightFloor = remainingExposure > 0
-          ? remainingExposure / slotsLeft
-          : 0
+        // v38: equal sizing — divide remaining cash evenly across all remaining slots
         const notional = Math.min(
-          Math.max(riskAmt / slPct, equalWeightFloor),
+          remainingExposure / slotsLeft,
           remainingExposure, balance * 0.95
         )
         if (notional < 500) return  // v38: min position size $500
