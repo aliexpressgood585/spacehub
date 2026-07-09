@@ -1260,6 +1260,111 @@ function runRange() {
   console.log(`\nEntry: 4h BB(20,2) extreme + RSI filter, ONLY when ADX<gate (ranging). Fees incl.`)
 }
 
+// FREQ — how loose can the gate get while staying robust over 36 months?
+// Grid: Donchian window × ADX gate, with the PRODUCTION SPLIT exit
+// (half at 0.6R → BE stop → rest to 1.0R), SL 1.4×ATR. 6 walk-forward windows.
+function runFreq() {
+  const FEE_TAKER=0.0010, FEE_MAKER=0.0004, SPACING=2, MAXHOLD=96, NW=6, SLM=1.4
+  const DWS=[25,30,40], ADXS=[15,18,20,22,25]
+  const to4h = (a:Bar[]):Bar[] => {
+    const out:Bar[] = []; let cur:Bar|null=null; let bucket=-1
+    for (const b of a) { const k=Math.floor(b.t/14400000)
+      if (k!==bucket) { if (cur) out.push(cur); bucket=k
+        cur={t:k*14400000,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol} }
+      else if (cur) { cur.high=Math.max(cur.high,b.high); cur.low=Math.min(cur.low,b.low); cur.close=b.close; cur.vol+=b.vol } }
+    if (cur) out.push(cur); return out
+  }
+  const dset: Record<string,Bar[]> = {}
+  let tmin=Infinity, tmax=-Infinity
+  for (const c of COINS) { const a=to4h(loadCSV(c,'1h'))
+    if (a.length>400) { dset[c]=a; tmin=Math.min(tmin,a[0].t); tmax=Math.max(tmax,a[a.length-1].t) } }
+  const days=(tmax-tmin)/86400000
+  console.log(`  4h: ${Object.keys(dset).length} coins, ${days.toFixed(0)} days`)
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  interface Agg { n:number; w:number; sumT:number; sumM:number }
+  const mk=():Agg=>({n:0,w:0,sumT:0,sumM:0})
+  const stats: Record<string,Agg[]> = {}
+  const curveM: Record<string,{t:number,r:number}[]> = {}
+
+  for (const c of Object.keys(dset)) {
+    const arr=dset[c]
+    const lastIdx: Record<string,number> = {}
+    for (let i=100;i<arr.length-1;i++) {
+      const price=arr[i].close
+      const win=arr.slice(Math.max(0,i-99),i+1)
+      const atr=calcATR(win.slice(-20)); if(!atr) continue
+      const adx=calcADX(win.slice(-60))
+      for (const dw of DWS) {
+        if (i<dw+1) continue
+        const prior=arr.slice(i-dw,i)
+        const hi=Math.max(...prior.map(b=>b.high)), lo=Math.min(...prior.map(b=>b.low))
+        const side: 'LONG'|'SHORT'|null = price>hi?'LONG':price<lo?'SHORT':null
+        if (!side) continue
+        for (const ax of ADXS) {
+          if (adx<=ax) continue
+          const lk=`${dw}|${ax}`
+          if (lastIdx[lk]!==undefined && i-lastIdx[lk]<SPACING) continue
+          lastIdx[lk]=i
+          const dirM=side==='LONG'?1:-1
+          const slDist=Math.max(atr*SLM, price*0.005), slPct=slDist/price
+          if (slPct>0.08) continue
+          const feeT=FEE_TAKER/slPct, feeM=FEE_MAKER/slPct
+          const slPx=price-slDist*dirM
+          const jEnd=Math.min(arr.length-1,i+MAXHOLD)
+          // PRODUCTION SPLIT exit
+          let r=0
+          let j=i+1, phase1:null|number=null, j1=jEnd
+          for (; j<=jEnd; j++) { const b=arr[j]
+            const tp06=price+slDist*0.6*dirM
+            if (side==='LONG') { if (b.low<=slPx){phase1=-1;j1=j;break} if (b.high>=tp06){phase1=0.6;j1=j;break} }
+            else { if (b.high>=slPx){phase1=-1;j1=j;break} if (b.low<=tp06){phase1=0.6;j1=j;break} } }
+          if (phase1===null) r=(arr[jEnd].close-price)*dirM/slDist
+          else if (phase1===-1) r=-1
+          else {
+            r=0.5*0.6
+            let r2:null|number=null
+            for (let k=j1;k<=jEnd;k++) { const b=arr[k]
+              const tp10=price+slDist*1.0*dirM
+              if (side==='LONG') { if (k>j1 && b.low<=price){r2=0;break} if (b.high>=tp10){r2=1.0;break} }
+              else { if (k>j1 && b.high>=price){r2=0;break} if (b.low<=tp10){r2=1.0;break} } }
+            r += 0.5*(r2!==null ? r2 : (arr[jEnd].close-price)*dirM/slDist)
+          }
+          const key=`dw${dw}|adx${ax}`
+          if (!stats[key]) { stats[key]=[]; for(let w=0;w<NW;w++) stats[key].push(mk()) }
+          const a=stats[key][winOf(arr[i].t)]
+          a.n++; a.sumT+=r-feeT; a.sumM+=r-feeM; if(r-feeM>0)a.w++
+          if (!curveM[key]) curveM[key]=[]
+          curveM[key].push({t:arr[i].t, r:r-feeM})
+        }
+      }
+    }
+  }
+  const rows=Object.entries(stats).map(([key,ws])=>{
+    const tot=ws.reduce((a,x)=>({n:a.n+x.n,w:a.w+x.w,sumT:a.sumT+x.sumT,sumM:a.sumM+x.sumM}),mk())
+    const wM=ws.map(x=>x.n?x.sumM/x.n:-9)
+    const okM=wM.every(e=>e>0)&&ws.every(x=>x.n>=15)
+    const okT=ws.every(x=>x.n>=15 && x.sumT/x.n>0)
+    return {key,tot,expM:tot.n?tot.sumM/tot.n:-9,expT:tot.n?tot.sumT/tot.n:-9,wM,okM,okT}
+  })
+  rows.sort((a,b)=>b.tot.n-a.tot.n)
+  console.log(`\nconfig         n     /day    WR     maker    taker  | maker w1..w6                              | verdict`)
+  for (const r of rows) {
+    const wr=r.tot.n?r.tot.w/r.tot.n:0
+    const v=r.okT?'✅✅TAKER':r.okM?'✅MAKER':''
+    console.log(`  ${r.key.padEnd(11)} ${String(r.tot.n).padStart(5)}  ${(r.tot.n/days).toFixed(1).padStart(5)}  ${(wr*100).toFixed(1).padStart(5)}%  ${(r.expM>=0?'+':'')}${r.expM.toFixed(3)}  ${(r.expT>=0?'+':'')}${r.expT.toFixed(3)} | ${r.wM.map(e=>((e>=0?'+':'')+e.toFixed(2)).padStart(6)).join(' ')} | ${v}`)
+  }
+  const winners=rows.filter(r=>r.okM).sort((a,b)=>b.tot.n-a.tot.n)
+  console.log(`\n${winners.length} MAKER-robust config(s). Highest-frequency robust ones:`)
+  for (const best of winners.slice(0,3)) {
+    const pts=curveM[best.key].sort((a,b)=>a.t-b.t)
+    let cum=0, peak=0, mdd=0
+    for (const p of pts) { cum+=p.r; if(cum>peak)peak=cum; mdd=Math.max(mdd,peak-cum) }
+    console.log(`  ${best.key}: n=${best.tot.n} (${(best.tot.n/days).toFixed(1)}/day) totalR=${cum>=0?'+':''}${cum.toFixed(1)} maxDD=${mdd.toFixed(1)}R`)
+  }
+  console.log(`\nSPLIT exits (production), SL 1.4xATR. /day is across ~39 coins; live universe 56 → ~1.4x.`)
+}
+
 // ─────────────────────────────────────────────────────────────
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
@@ -1281,6 +1386,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'range') {
     console.log(`████ RANGE — 4h BB-fade in ADX<20 regime, walk-forward ████`)
     runRange()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'freq') {
+    console.log(`████ FREQ — how loose can the gate get while staying robust? ████`)
+    runFreq()
     return
   }
 
