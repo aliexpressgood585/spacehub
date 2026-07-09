@@ -1,5 +1,10 @@
 // ════════════════════════════════════════════════════════════
-// CryptoBot v41.1 — DONCH4H strategy + SPLIT exit (walk-forward proven)
+// CryptoBot v41.4 — DONCH4H (dw25/adx22) + SPLIT exit (walk-forward proven)
+//
+// v41.4: frequency upgrade — Donchian window 40→25, ADX gate 25→22.
+//  36-month grid: ALL 15 window×gate configs positive in all 6 walk-forward
+//  windows; dw25|adx22 is TAKER-robust with +57% more trades (7.7/day on 39
+//  coins → ~11/day on the 56-coin universe), WR 66.1%, maker +0.055R/trade.
 //
 // v41.1: SPLIT exit — half off at 0.6R → SL to breakeven → rest to 1.0R TP.
 //  36-month validation (5,414 trades, 39 coins, Jul23-Jul26, fees included):
@@ -1875,12 +1880,12 @@ Deno.serve(async (req) => {
           if (b4.length < 45) { outD.push({sym:ci.sym, err:'bars='+b4.length}); continue }
           const c4 = b4.slice(0,-1)
           const last4 = c4[c4.length-1]
-          const prior = c4.slice(-41,-1)
+          const prior = c4.slice(-26,-1)
           const hiN = Math.max(...prior.map(b=>b.high))
           const loN = Math.min(...prior.map(b=>b.low))
           const side = last4.close>hiN ? 'LONG' : last4.close<loN ? 'SHORT' : null
           const adx4 = calcADX(c4.slice(-60))
-          if (side) outD.push({sym:ci.sym, side, close:last4.close, hi40:hiN, lo40:loN, adx:+adx4.toFixed(1), wouldEnter: adx4>25})
+          if (side) outD.push({sym:ci.sym, side, close:last4.close, hi40:hiN, lo40:loN, adx:+adx4.toFixed(1), wouldEnter: adx4>22})
         } catch (e) { outD.push({sym:ci.sym, err:String(e).slice(0,60)}) }
       }
       return new Response(JSON.stringify({ok:true, fapi_status:fapiProbe, universe:coinsD.length, breakouts:outD, checked_at:new Date().toISOString()}),
@@ -2634,15 +2639,15 @@ Deno.serve(async (req) => {
           if (bars4h.length < 45) return
           const c4 = bars4h.slice(0, -1)          // completed 4h bars only
           const last4 = c4[c4.length - 1]
-          const prior = c4.slice(-41, -1)         // the 40 bars before the signal bar
-          if (prior.length < 40) return
+          const prior = c4.slice(-26, -1)         // v41.4: 25 bars before the signal bar (was 40)
+          if (prior.length < 25) return
           const hiN = Math.max(...prior.map(b => b.high))
           const loN = Math.min(...prior.map(b => b.low))
           const side4: 'LONG'|'SHORT'|null =
             last4.close > hiN ? 'LONG' : last4.close < loN ? 'SHORT' : null
           if (!side4) return
           const adx4 = calcADX(c4.slice(-60))
-          if (adx4 <= 25) { log.push(`SKIP ${sym}: DONCH4H breakout but adx=${adx4.toFixed(0)}<=25`); return }
+          if (adx4 <= 22) { log.push(`SKIP ${sym}: DONCH4H breakout but adx=${adx4.toFixed(0)}<=22`); return }
           const atr4 = calcATR(c4.slice(-20))
           if (!atr4) return
           const slDist4 = Math.max(atr4 * 1.4, price * 0.005)
