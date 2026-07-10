@@ -1,4 +1,11 @@
 // ════════════════════════════════════════════════════════════
+// CryptoBot v45 — LADDER exits (⅓@0.6R → BE → ⅓@1.0R → ⅓@1.6R)
+//
+// v45: exit ladder validated on 36 months / 8,421 trades: +0.064R/trade maker
+//  (+16% vs SPLIT), same 66.1% WR, all 6 walk-forward windows positive.
+//  Also tested & REJECTED: Sharpe-momentum ranking (30.6%/yr vs 44.7% raw);
+//  funding tilt measured at −0.003R/trade — negligible, no action.
+//
 // CryptoBot v44 — real fees, ADX-tiered risk, strategy dashboard, monthly regression
 //
 // v44: (#1-fees) FEE=0.05%/side live — sim now matches validation assumptions.
@@ -2646,8 +2653,8 @@ Deno.serve(async (req) => {
                   :t.side==='LONG'?entry+slDist*vp.tpR:entry-slDist*vp.tpR
 
           // v41.1: legacy (mtf) trades store TP at vp.tpR×slDist; DONCH4H trades
-          // store TP at exactly 1.0R — divide by the right factor to recover slDist.
-          const tpRFactor = t.mtf ? vp.tpR : 1.0
+          // store TP at 1.6R (v45 ladder) — divide by the right factor to recover slDist.
+          const tpRFactor = t.mtf ? vp.tpR : 1.6
           const origSlDist=(t.side==='LONG' &&storedTP_LONG )?(Number(t.hi)-entry)/tpRFactor
                           :(t.side==='SHORT'&&storedTP_SHORT)?(entry-Number(t.lo))/tpRFactor
                           :slDist
@@ -2661,22 +2668,36 @@ Deno.serve(async (req) => {
           // protected only by the breakeven+trail below.
           void dynamicPartialR
 
-          // ── v41.1 SPLIT exit (DONCH4H trades only, mtf:false) ──
-          // Validated on 36 months / 5,414 trades: WR 54.7%→67.1%, maxDD 78R→54R.
-          // Half off at 0.6R → SL of the remainder moves to breakeven → rest runs
-          // to the stored 1.0R TP.
-          if (!t.mtf && !t.partial_done && origSlDist > 0) {
-            const p06 = entry + origSlDist*0.6*dirM
-            const hit06 = t.side==='LONG' ? price>=p06 : price<=p06
-            if (hit06) {
-              const half = size/2
-              const pnl06 = (price-entry)*half*dirM - price*half*FEE
-              balance += entry*half + pnl06
-              await supabase.from('bot_trades').update({
-                size: half, trail_sl: entry, partial_done: true
-              }).eq('id', t.id)
-              log.push(`SPLIT_06 ${sym} ${t.side} half@${price.toFixed(4)} pnl=${pnl06.toFixed(2)} sl→BE`)
-              continue
+          // ── v45 LADDER exit (DONCH4H trades only, mtf:false) ──
+          // Validated on 36 months / 8,421 trades: +0.064R maker vs +0.055 SPLIT,
+          // same WR, all 6 windows positive. Thirds at 0.6R → BE stop → 1.0R →
+          // final third runs to the stored 1.6R TP.
+          if (!t.mtf && origSlDist > 0) {
+            const stage = Number((t as any).exit_stage ?? 0)
+            if (stage === 0 && !t.partial_done) {
+              const p06 = entry + origSlDist*0.6*dirM
+              if (t.side==='LONG' ? price>=p06 : price<=p06) {
+                const third = size/3
+                const pnl1 = (price-entry)*third*dirM - price*third*FEE
+                balance += entry*third + pnl1
+                await supabase.from('bot_trades').update({
+                  size: size-third, trail_sl: entry, partial_done: true, exit_stage: 1
+                }).eq('id', t.id)
+                log.push(`LADDER_06 ${sym} ${t.side} ⅓@${price.toFixed(4)} pnl=${pnl1.toFixed(2)} sl→BE`)
+                continue
+              }
+            } else if (stage === 1) {
+              const p10 = entry + origSlDist*1.0*dirM
+              if (t.side==='LONG' ? price>=p10 : price<=p10) {
+                const half = size/2   // half of remaining ⅔ = ⅓ of original
+                const pnl2 = (price-entry)*half*dirM - price*half*FEE
+                balance += entry*half + pnl2
+                await supabase.from('bot_trades').update({
+                  size: size-half, exit_stage: 2
+                }).eq('id', t.id)
+                log.push(`LADDER_10 ${sym} ${t.side} ⅓@${price.toFixed(4)} pnl=${pnl2.toFixed(2)} → last ⅓ to 1.6R`)
+                continue
+              }
             }
           }
 
@@ -2813,7 +2834,7 @@ Deno.serve(async (req) => {
           if (slPct4 > 0.08) return
           const dirM4 = side4 === 'LONG' ? 1 : -1
           const slPrice4 = price - slDist4 * dirM4
-          const tpPrice4 = price + slDist4 * 1.0 * dirM4   // TP = 1.0R
+          const tpPrice4 = price + slDist4 * 1.6 * dirM4   // v45: final ladder stage = 1.6R
 
           // sizing: equal weight across remaining slots + 60% net-direction cap
           const curExp4 = (allOpen||[]).reduce((s2:number,x:any)=>s2+Number(x.entry_price)*Number(x.size),0)
