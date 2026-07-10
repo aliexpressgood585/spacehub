@@ -2335,11 +2335,25 @@ Deno.serve(async (req) => {
           for (let i=momList.length-ROTA_K;i<momList.length;i++) { const x=momList[i]
             target.set(x.sym, {dir:-1, price:x.price}); invVol.set(x.sym, 1/x.vol); shortInvSum += 1/x.vol }
           if (rotaPaused) target.clear()   // v43 (#4): paused → unwind basket, open nothing
-          // close positions that left the basket or flipped direction
+          // v45.1: portfolio estimate up-front (for resize checks + slot sizing)
+          const {data:allOpenRows} = await supabase.from('bot_trades').select('entry_price,size').eq('status','OPEN')
+          const allExp = (allOpenRows||[]).reduce((a:number,x:any)=>a+Number(x.entry_price)*Number(x.size),0)
+          const port = balance + allExp
+          const slotTarget = (sym2:string, dir2:1|-1) => {
+            const sideSum = dir2===1 ? longInvSum : shortInvSum
+            const w = sideSum>0 ? (invVol.get(sym2)??0)/sideSum : 1/ROTA_K
+            return Math.min(Math.max(port*0.35*w, port*0.028), port*0.14)
+          }
+          // close positions that left the basket, flipped direction, or drifted >±35% from target size
           for (const t of (rotaOpenAll||[])) {
             const tgt = target.get(t.sym)
             const wantDir = tgt ? (tgt.dir===1?'LONG':'SHORT') : null
-            if (wantDir === t.side) { target.delete(t.sym); continue }   // keep as-is
+            if (wantDir === t.side) {
+              const curNotional = Number(t.entry_price)*Number(t.size)
+              const tgtNotional = slotTarget(t.sym, tgt!.dir)
+              if (curNotional > tgtNotional*0.65 && curNotional < tgtNotional*1.4) { target.delete(t.sym); continue }  // size OK → keep
+              // size drifted → close and reopen at target below
+            }
             const px = tgt?.price ?? ((await fetchBars(t.sym,'4h',3)).slice(0,-1).pop()?.close ?? Number(t.entry_price))
             const dirM2 = t.side==='LONG'?1:-1
             const pnl2 = (px-Number(t.entry_price))*Number(t.size)*dirM2 - px*Number(t.size)*FEE
@@ -2351,18 +2365,9 @@ Deno.serve(async (req) => {
             }).eq('id',t.id)
             log.push(`ROTA_CLOSE ${t.sym} ${t.side} pnl=${pnl2.toFixed(2)}`)
           }
-          // open the new slots
-          const {data:openNow} = await supabase.from('bot_trades').select('entry_price,size').eq('status','OPEN')
-          const expNow = (openNow||[]).reduce((s2:number,x:any)=>s2+Number(x.entry_price)*Number(x.size),0)
-          const port = balance + expNow
+          // open the new/resized slots (inverse-vol weights, 70% book)
           for (const [sym,tgt] of target) {
-            // v43 (#2): inverse-vol weights — each side splits 25% of the portfolio
-            // by 1/vol (calmer coins get more), clamped to 2-10% per slot.
-            const sideSum = tgt.dir===1 ? longInvSum : shortInvSum
-            const w = sideSum > 0 ? (invVol.get(sym) ?? 0)/sideSum : 1/ROTA_K
-            // v45.1 SPORTY: rotation book 50%→70% of portfolio (validation assumed
-            // a full book at +48%/yr — we were running it at half power)
-            const slotNotional = Math.min(Math.max(port*0.35*w, port*0.028), port*0.14)
+            const slotNotional = slotTarget(sym, tgt.dir)
             if (balance < slotNotional) { log.push(`ROTA_SKIP ${sym}: insufficient cash`); continue }
             const size2 = slotNotional / tgt.price
             const feeIn = slotNotional * FEE
