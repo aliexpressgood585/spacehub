@@ -1,5 +1,12 @@
 // ════════════════════════════════════════════════════════════
-// CryptoBot v42 — DONCH4H (dw25/adx22) + ROTATION (walk-forward proven)
+// CryptoBot v43 — DONCH4H + ROTATION, risk-sized & health-guarded
+//
+// v43 (all walk-forward validated on 36 months):
+//  #1 DONCH4H risk-based sizing: 0.75% portfolio risk per trade (cap 15%/pos).
+//  #2 Rotation inverse-vol weights: 48.4%/yr maker (was 45.9%), maxDD 25% (was 35%).
+//  #4 Per-strategy health kill-switch: last-30-trades sum<0 → strategy pauses itself.
+//  Tested and REJECTED by validation: skip-last-bar momentum (worse: 37.7%/yr),
+//  funding carry (failed window 2 of walk-forward). Not deployed — by discipline.
 //
 // v42: SECOND STRATEGY — cross-sectional momentum rotation, market-neutral.
 //  Every 48h: rank universe by 14-day momentum, LONG top-5 / SHORT bottom-5,
@@ -2245,6 +2252,25 @@ Deno.serve(async (req) => {
     const extraOpenSyms = Object.keys(openBySymbol).filter(s => !fixedSet.has(s))
     const allManagedCoins = [...activeCoins, ...extraOpenSyms]
 
+    // ════ v43 (#4): PER-STRATEGY HEALTH KILL-SWITCH ═══════════════════════════
+    // If a strategy's last 30 closed trades sum negative, pause its NEW entries
+    // (rotation also unwinds its basket). Auto-resumes when the window heals.
+    let donchPaused = false, rotaPaused = false
+    try {
+      const {data:h1} = await supabase.from('bot_trades').select('pnl').eq('strategy','DONCH4H')
+        .neq('status','OPEN').order('closed_at',{ascending:false}).limit(30)
+      if ((h1||[]).length >= 30) {
+        const s1 = (h1||[]).reduce((a:number,x:any)=>a+Number(x.pnl||0),0)
+        if (s1 < 0) { donchPaused = true; log.push(`HEALTH: DONCH4H paused (last30 pnl=${s1.toFixed(2)})`) }
+      }
+      const {data:h2} = await supabase.from('bot_trades').select('pnl').eq('strategy','ROTA')
+        .neq('status','OPEN').order('closed_at',{ascending:false}).limit(30)
+      if ((h2||[]).length >= 30) {
+        const s2 = (h2||[]).reduce((a:number,x:any)=>a+Number(x.pnl||0),0)
+        if (s2 < 0) { rotaPaused = true; log.push(`HEALTH: ROTA paused (last30 pnl=${s2.toFixed(2)})`) }
+      }
+    } catch { /* best-effort */ }
+
     // ════ v42 ROTATION PHASE — cross-sectional momentum L/S (LB84|RB12|K5) ════
     // 36-month walk-forward proof: +45.9%/yr maker, +41%/yr taker, maxDD 35%,
     // positive in all 6 windows. Every 48h: rank universe by 14-day momentum;
@@ -2254,7 +2280,7 @@ Deno.serve(async (req) => {
       const lastRota = state.rebalanced_at ? new Date(state.rebalanced_at).getTime() : 0
       if (now - lastRota >= ROTA_MS - 5*60_000) {
         const {data:rotaOpenAll} = await supabase.from('bot_trades').select('*').eq('status','OPEN').eq('strategy','ROTA')
-        const momList: {sym:string, mom:number, price:number}[] = []
+        const momList: {sym:string, mom:number, price:number, vol:number}[] = []
         // v42.2: rank EXACTLY the 40-coin universe the 36-month validation used —
         // dynamic lists were pulling exotic/tokenized-stock perps outside the proof.
         const ROTA_UNIVERSE = ['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','DOT','LTC','BCH','NEAR','INJ','SUI',
@@ -2267,14 +2293,27 @@ Deno.serve(async (req) => {
             const c4 = b4.slice(0,-1)
             const p1 = c4[c4.length-1].close, p0 = c4[c4.length-1-ROTA_LB]?.close
             if (!p0 || !p1) continue
-            momList.push({sym, mom: p1/p0-1, price: p1})
+            // v43 (#2): realized vol (stdev of 4h returns over the lookback) for inverse-vol weighting
+            const rets: number[] = []
+            for (let k=Math.max(1,c4.length-ROTA_LB); k<c4.length; k++) {
+              const a=c4[k-1].close, b=c4[k].close
+              if (a>0) rets.push(b/a-1)
+            }
+            const mu = rets.reduce((a,b)=>a+b,0)/Math.max(1,rets.length)
+            const vol = Math.sqrt(rets.reduce((a,b)=>a+(b-mu)**2,0)/Math.max(1,rets.length))
+            momList.push({sym, mom: p1/p0-1, price: p1, vol: Math.max(vol, 0.001)})
           } catch { /* skip coin */ }
         }
         if (momList.length >= ROTA_K*4) {
           momList.sort((a,b)=>b.mom-a.mom)
           const target = new Map<string, {dir:1|-1, price:number}>()
-          for (let i=0;i<ROTA_K;i++) target.set(momList[i].sym, {dir:1, price:momList[i].price})
-          for (let i=momList.length-ROTA_K;i<momList.length;i++) target.set(momList[i].sym, {dir:-1, price:momList[i].price})
+          const invVol = new Map<string, number>()
+          let longInvSum = 0, shortInvSum = 0
+          for (let i=0;i<ROTA_K;i++) { const x=momList[i]
+            target.set(x.sym, {dir:1, price:x.price}); invVol.set(x.sym, 1/x.vol); longInvSum += 1/x.vol }
+          for (let i=momList.length-ROTA_K;i<momList.length;i++) { const x=momList[i]
+            target.set(x.sym, {dir:-1, price:x.price}); invVol.set(x.sym, 1/x.vol); shortInvSum += 1/x.vol }
+          if (rotaPaused) target.clear()   // v43 (#4): paused → unwind basket, open nothing
           // close positions that left the basket or flipped direction
           for (const t of (rotaOpenAll||[])) {
             const tgt = target.get(t.sym)
@@ -2295,8 +2334,12 @@ Deno.serve(async (req) => {
           const {data:openNow} = await supabase.from('bot_trades').select('entry_price,size').eq('status','OPEN')
           const expNow = (openNow||[]).reduce((s2:number,x:any)=>s2+Number(x.entry_price)*Number(x.size),0)
           const port = balance + expNow
-          const slotNotional = port * 0.05
           for (const [sym,tgt] of target) {
+            // v43 (#2): inverse-vol weights — each side splits 25% of the portfolio
+            // by 1/vol (calmer coins get more), clamped to 2-10% per slot.
+            const sideSum = tgt.dir===1 ? longInvSum : shortInvSum
+            const w = sideSum > 0 ? (invVol.get(sym) ?? 0)/sideSum : 1/ROTA_K
+            const slotNotional = Math.min(Math.max(port*0.25*w, port*0.02), port*0.10)
             if (balance < slotNotional) { log.push(`ROTA_SKIP ${sym}: insufficient cash`); continue }
             const size2 = slotNotional / tgt.price
             balance -= slotNotional
@@ -2739,6 +2782,7 @@ Deno.serve(async (req) => {
         // timeout — mtf:false disables all legacy trailing/partial/5m exits.
         // ════════════════════════════════════════════════════════════════
         {
+          if (donchPaused) return  // v43 (#4): health kill-switch
           const msInto4h = Date.now() % 14_400_000
           if (msInto4h > 15 * 60_000) return  // outside the post-close window
           const bars4h = await fetchBars(sym, '4h', 70)
@@ -2768,8 +2812,11 @@ Deno.serve(async (req) => {
           const totPort4 = balance + curExp4
           const remain4 = Math.max(0, totPort4 - curExp4)
           const slots4 = Math.max(1, MAX_OPEN_TRADES - openCount)
-          // v42: $500 floor so DONCH4H keeps trading alongside the rotation allocation
-          const notional4 = Math.min(Math.max(remain4 / slots4, 500), remain4, balance * 0.95)
+          // v43 (#1): RISK-BASED sizing — each breakout risks 0.75% of the
+          // portfolio (notional derived from SL distance), capped at 15% of
+          // portfolio per position. Same entries, right-sized capital.
+          const riskNotional = (totPort4 * 0.0075) / slPct4
+          const notional4 = Math.min(Math.max(riskNotional, 500), totPort4 * 0.15, remain4, balance * 0.95)
           if (notional4 < 500) return
           const sideExp4 = (allOpen||[]).reduce((acc:{l:number,s:number}, x:any) => {
             const n2 = Number(x.entry_price)*Number(x.size)
