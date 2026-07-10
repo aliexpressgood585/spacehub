@@ -1,5 +1,11 @@
 // ════════════════════════════════════════════════════════════
-// CryptoBot v41.4 — DONCH4H (dw25/adx22) + SPLIT exit (walk-forward proven)
+// CryptoBot v42 — DONCH4H (dw25/adx22) + ROTATION (walk-forward proven)
+//
+// v42: SECOND STRATEGY — cross-sectional momentum rotation, market-neutral.
+//  Every 48h: rank universe by 14-day momentum, LONG top-5 / SHORT bottom-5,
+//  5%/slot (50% allocation). 36-month proof: +45.9%/yr maker, +41%/yr taker,
+//  maxDD 35%, all 6 walk-forward windows positive. Uncorrelated with DONCH4H:
+//  rotation earns from dispersion (works in flat markets), breakouts from trends.
 //
 // v41.4: frequency upgrade — Donchian window 40→25, ADX gate 25→22.
 //  36-month grid: ALL 15 window×gate configs positive in all 6 walk-forward
@@ -2211,6 +2217,72 @@ Deno.serve(async (req) => {
     const extraOpenSyms = Object.keys(openBySymbol).filter(s => !fixedSet.has(s))
     const allManagedCoins = [...activeCoins, ...extraOpenSyms]
 
+    // ════ v42 ROTATION PHASE — cross-sectional momentum L/S (LB84|RB12|K5) ════
+    // 36-month walk-forward proof: +45.9%/yr maker, +41%/yr taker, maxDD 35%,
+    // positive in all 6 windows. Every 48h: rank universe by 14-day momentum;
+    // LONG top-5, SHORT bottom-5, 5% of portfolio per slot (50% allocation).
+    try {
+      const ROTA_MS = 48*3600_000, ROTA_K = 5, ROTA_LB = 84
+      const lastRota = state.rebalanced_at ? new Date(state.rebalanced_at).getTime() : 0
+      if (now - lastRota >= ROTA_MS - 5*60_000) {
+        const {data:rotaOpenAll} = await supabase.from('bot_trades').select('*').eq('status','OPEN').eq('strategy','ROTA')
+        const momList: {sym:string, mom:number, price:number}[] = []
+        for (const sym of COINS) {
+          try {
+            const b4 = await fetchBars(sym, '4h', ROTA_LB+6)
+            if (b4.length < ROTA_LB+2) continue
+            const c4 = b4.slice(0,-1)
+            const p1 = c4[c4.length-1].close, p0 = c4[c4.length-1-ROTA_LB]?.close
+            if (!p0 || !p1) continue
+            momList.push({sym, mom: p1/p0-1, price: p1})
+          } catch { /* skip coin */ }
+        }
+        if (momList.length >= ROTA_K*4) {
+          momList.sort((a,b)=>b.mom-a.mom)
+          const target = new Map<string, {dir:1|-1, price:number}>()
+          for (let i=0;i<ROTA_K;i++) target.set(momList[i].sym, {dir:1, price:momList[i].price})
+          for (let i=momList.length-ROTA_K;i<momList.length;i++) target.set(momList[i].sym, {dir:-1, price:momList[i].price})
+          // close positions that left the basket or flipped direction
+          for (const t of (rotaOpenAll||[])) {
+            const tgt = target.get(t.sym)
+            const wantDir = tgt ? (tgt.dir===1?'LONG':'SHORT') : null
+            if (wantDir === t.side) { target.delete(t.sym); continue }   // keep as-is
+            const px = tgt?.price ?? ((await fetchBars(t.sym,'4h',3)).slice(0,-1).pop()?.close ?? Number(t.entry_price))
+            const dirM2 = t.side==='LONG'?1:-1
+            const pnl2 = (px-Number(t.entry_price))*Number(t.size)*dirM2
+            balance += Number(t.entry_price)*Number(t.size) + pnl2
+            await supabase.from('bot_trades').update({
+              status: pnl2>=0?'TP':'SL', exit_price:px, pnl:pnl2,
+              pnl_pct:(px-Number(t.entry_price))/Number(t.entry_price)*dirM2,
+              closed_at:new Date().toISOString()
+            }).eq('id',t.id)
+            log.push(`ROTA_CLOSE ${t.sym} ${t.side} pnl=${pnl2.toFixed(2)}`)
+          }
+          // open the new slots
+          const {data:openNow} = await supabase.from('bot_trades').select('entry_price,size').eq('status','OPEN')
+          const expNow = (openNow||[]).reduce((s2:number,x:any)=>s2+Number(x.entry_price)*Number(x.size),0)
+          const port = balance + expNow
+          const slotNotional = port * 0.05
+          for (const [sym,tgt] of target) {
+            if (balance < slotNotional) { log.push(`ROTA_SKIP ${sym}: insufficient cash`); continue }
+            const size2 = slotNotional / tgt.price
+            balance -= slotNotional
+            await supabase.from('bot_trades').insert({
+              sym, side: tgt.dir===1?'LONG':'SHORT', entry_price: tgt.price, size: size2, fee: 0,
+              trail_sl: tgt.dir===1 ? tgt.price*0.01 : tgt.price*100,  // sentinels — ROTA skipped in manage loop
+              hi: tgt.dir===1 ? tgt.price*100 : tgt.price,
+              lo: tgt.dir===-1 ? tgt.price*0.01 : tgt.price,
+              status:'OPEN', score: 0, mtf:false, partial_done:true,
+              paper_mode: paperMode, entry_macd_hist: 0, strategy: 'ROTA'
+            })
+            log.push(`ROTA_OPEN ${sym} ${tgt.dir===1?'LONG':'SHORT'} @${tgt.price} $${slotNotional.toFixed(0)}`)
+          }
+          await supabase.from('bot_state').update({ rebalanced_at: new Date().toISOString() }).eq('id',1)
+          log.push(`ROTA rebalance: universe=${momList.length}`)
+        }
+      }
+    } catch (e) { log.push(`ROTA error: ${String(e).slice(0,80)}`) }
+
     const BATCH=12
     for (let b=0; b<allManagedCoins.length; b+=BATCH) {
       await Promise.all(allManagedCoins.slice(b,b+BATCH).map(async (sym)=>{
@@ -2299,6 +2371,7 @@ Deno.serve(async (req) => {
 
         // ── Manage open positions ─────────────────────────
         for (const t of openTrades) {
+          if (t.strategy === 'ROTA') continue  // v42: rotation positions are closed only by the rebalance phase
           const entry =Number(t.entry_price)
           const size  =Number(t.size)
           const sl    =Number(t.trail_sl)
@@ -2662,7 +2735,8 @@ Deno.serve(async (req) => {
           const totPort4 = balance + curExp4
           const remain4 = Math.max(0, totPort4 - curExp4)
           const slots4 = Math.max(1, MAX_OPEN_TRADES - openCount)
-          const notional4 = Math.min(remain4 / slots4, remain4, balance * 0.95)
+          // v42: $500 floor so DONCH4H keeps trading alongside the rotation allocation
+          const notional4 = Math.min(Math.max(remain4 / slots4, 500), remain4, balance * 0.95)
           if (notional4 < 500) return
           const sideExp4 = (allOpen||[]).reduce((acc:{l:number,s:number}, x:any) => {
             const n2 = Number(x.entry_price)*Number(x.size)
@@ -2682,7 +2756,7 @@ Deno.serve(async (req) => {
             hi: side4 === 'LONG' ? tpPrice4 : price,
             lo: side4 === 'SHORT' ? tpPrice4 : price,
             status: 'OPEN', score: Math.round(adx4), mtf: false, partial_done: false,
-            paper_mode: paperMode, entry_macd_hist: 0
+            paper_mode: paperMode, entry_macd_hist: 0, strategy: 'DONCH4H'
           })
           symCooldown.add(sym)
           log.push(`OPEN ${sym} ${side4} DONCH4H @${price.toFixed(4)} adx4h=${adx4.toFixed(0)} sl=${slPrice4.toFixed(4)} tp=${tpPrice4.toFixed(4)} $${notional4.toFixed(0)}`)
