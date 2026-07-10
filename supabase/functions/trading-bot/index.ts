@@ -293,7 +293,7 @@ const RISK = {
 } as const
 type RiskKey = keyof typeof RISK
 
-const FEE             = 0  // no fee simulation
+const FEE             = 0.0005  // v44: real taker fee 0.05%/side — matches validation assumptions
 const LEVERAGE        = 10
 const SWING_N         = 5
 const SWING_LOOKBACK  = 60
@@ -2321,7 +2321,7 @@ Deno.serve(async (req) => {
             if (wantDir === t.side) { target.delete(t.sym); continue }   // keep as-is
             const px = tgt?.price ?? ((await fetchBars(t.sym,'4h',3)).slice(0,-1).pop()?.close ?? Number(t.entry_price))
             const dirM2 = t.side==='LONG'?1:-1
-            const pnl2 = (px-Number(t.entry_price))*Number(t.size)*dirM2
+            const pnl2 = (px-Number(t.entry_price))*Number(t.size)*dirM2 - px*Number(t.size)*FEE
             balance += Number(t.entry_price)*Number(t.size) + pnl2
             await supabase.from('bot_trades').update({
               status: pnl2>=0?'TP':'SL', exit_price:px, pnl:pnl2,
@@ -2342,9 +2342,10 @@ Deno.serve(async (req) => {
             const slotNotional = Math.min(Math.max(port*0.25*w, port*0.02), port*0.10)
             if (balance < slotNotional) { log.push(`ROTA_SKIP ${sym}: insufficient cash`); continue }
             const size2 = slotNotional / tgt.price
-            balance -= slotNotional
+            const feeIn = slotNotional * FEE
+            balance -= (slotNotional + feeIn)
             await supabase.from('bot_trades').insert({
-              sym, side: tgt.dir===1?'LONG':'SHORT', entry_price: tgt.price, size: size2, fee: 0,
+              sym, side: tgt.dir===1?'LONG':'SHORT', entry_price: tgt.price, size: size2, fee: feeIn,
               trail_sl: tgt.dir===1 ? tgt.price*0.01 : tgt.price*100,  // sentinels — ROTA skipped in manage loop
               hi: tgt.dir===1 ? tgt.price*100 : tgt.price,
               lo: tgt.dir===-1 ? tgt.price*0.01 : tgt.price,
@@ -2662,7 +2663,7 @@ Deno.serve(async (req) => {
             const hit06 = t.side==='LONG' ? price>=p06 : price<=p06
             if (hit06) {
               const half = size/2
-              const pnl06 = (price-entry)*half*dirM
+              const pnl06 = (price-entry)*half*dirM - price*half*FEE
               balance += entry*half + pnl06
               await supabase.from('bot_trades').update({
                 size: half, trail_sl: entry, partial_done: true
@@ -2829,9 +2830,10 @@ Deno.serve(async (req) => {
           }
 
           const size4 = notional4 / price
-          balance -= notional4; openCount++; newEntriesThisScan++
+          const feeIn4 = notional4 * FEE
+          balance -= (notional4 + feeIn4); openCount++; newEntriesThisScan++
           await supabase.from('bot_trades').insert({
-            sym, side: side4, entry_price: price, size: size4, fee: 0,
+            sym, side: side4, entry_price: price, size: size4, fee: feeIn4,
             trail_sl: slPrice4,
             hi: side4 === 'LONG' ? tpPrice4 : price,
             lo: side4 === 'SHORT' ? tpPrice4 : price,

@@ -1610,6 +1610,138 @@ function runV43bt() {
   console.log(`\nAll figures net of fees on turnover. ✅ = positive in all 6 windows (maker).`)
 }
 
+// V44BT — validates #3 ADX-bucket sizing (does higher ADX pay more per trade?)
+// and #2b portfolio vol-targeting on the rotation return stream.
+function runV44bt() {
+  const FEE_T=0.0010, NW=6, SPACING=2, MAXHOLD=96, SLM=1.4, DW=25, ADX_GATE=22
+  const to4h = (a:Bar[]):Bar[] => {
+    const out:Bar[] = []; let cur:Bar|null=null; let bucket=-1
+    for (const b of a) { const k=Math.floor(b.t/14400000)
+      if (k!==bucket) { if (cur) out.push(cur); bucket=k
+        cur={t:k*14400000,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol} }
+      else if (cur) { cur.high=Math.max(cur.high,b.high); cur.low=Math.min(cur.low,b.low); cur.close=b.close; cur.vol+=b.vol } }
+    if (cur) out.push(cur); return out
+  }
+  const dset: Record<string,Bar[]> = {}
+  let tmin=Infinity, tmax=-Infinity
+  for (const c of COINS) { const a=to4h(loadCSV(c,'1h'))
+    if (a.length>400) { dset[c]=a; tmin=Math.min(tmin,a[0].t); tmax=Math.max(tmax,a[a.length-1].t) } }
+  console.log(`  4h: ${Object.keys(dset).length} coins, ${((tmax-tmin)/86400000).toFixed(0)} days`)
+
+  // ── A) DONCH4H SPLIT expectancy by entry-ADX bucket ──
+  const buckets=[[22,28],[28,35],[35,45],[45,999]]
+  const agg=buckets.map(()=>({n:0,w:0,sum:0}))
+  for (const c of Object.keys(dset)) {
+    const arr=dset[c]; let last=-999
+    for (let i=100;i<arr.length-1;i++) {
+      if (i-last<SPACING || i<DW+1) continue
+      const price=arr[i].close
+      const prior=arr.slice(i-DW,i)
+      const hi=Math.max(...prior.map(b=>b.high)), lo=Math.min(...prior.map(b=>b.low))
+      const side: 'LONG'|'SHORT'|null = price>hi?'LONG':price<lo?'SHORT':null
+      if (!side) continue
+      const win=arr.slice(Math.max(0,i-99),i+1)
+      const adx=calcADX(win.slice(-60)); if (adx<=ADX_GATE) continue
+      const atr=calcATR(win.slice(-20)); if(!atr) continue
+      last=i
+      const slDist=Math.max(atr*SLM, price*0.005), slPct=slDist/price
+      if (slPct>0.08) continue
+      const feeT=FEE_T/slPct
+      const dirM=side==='LONG'?1:-1
+      const slPx=price-slDist*dirM
+      const jEnd=Math.min(arr.length-1,i+MAXHOLD)
+      // production SPLIT
+      let r=0, j=i+1, phase1:null|number=null, j1=jEnd
+      for (; j<=jEnd; j++) { const b=arr[j]
+        const tp06=price+slDist*0.6*dirM
+        if (side==='LONG') { if (b.low<=slPx){phase1=-1;j1=j;break} if (b.high>=tp06){phase1=0.6;j1=j;break} }
+        else { if (b.high>=slPx){phase1=-1;j1=j;break} if (b.low<=tp06){phase1=0.6;j1=j;break} } }
+      if (phase1===null) r=(arr[jEnd].close-price)*dirM/slDist
+      else if (phase1===-1) r=-1
+      else { r=0.3
+        let r2:null|number=null
+        for (let k=j1;k<=jEnd;k++) { const b=arr[k]
+          const tp10=price+slDist*1.0*dirM
+          if (side==='LONG') { if (k>j1 && b.low<=price){r2=0;break} if (b.high>=tp10){r2=1.0;break} }
+          else { if (k>j1 && b.high>=price){r2=0;break} if (b.low<=tp10){r2=1.0;break} } }
+        r += 0.5*(r2!==null ? r2 : (arr[jEnd].close-price)*dirM/slDist) }
+      const net=r-feeT
+      const bi=buckets.findIndex(([a,b])=>adx>a&&adx<=b)
+      if (bi>=0) { agg[bi].n++; agg[bi].sum+=net; if(net>0)agg[bi].w++ }
+    }
+  }
+  console.log(`\n── A) DONCH4H SPLIT expectancy by entry ADX (taker fees) ──`)
+  console.log(`ADX bucket    n      WR      expR(net)`)
+  for (const [i,[a,b]] of buckets.entries()) {
+    const x=agg[i]
+    console.log(`  ${String(a).padStart(2)}-${b===999?'∞ ':String(b).padStart(3)}     ${String(x.n).padStart(5)}  ${(100*(x.n?x.w/x.n:0)).toFixed(1).padStart(5)}%   ${(x.n?x.sum/x.n:0)>=0?'+':''}${(x.n?x.sum/x.n:0).toFixed(3)}R`)
+  }
+
+  // ── B) rotation vol-targeting: scale each period by targetVol/realizedVol ──
+  const closes: Record<string, Map<number,number>> = {}
+  for (const c of Object.keys(dset)) { const m=new Map<number,number>(); for (const b of dset[c]) m.set(b.t,b.close); closes[c]=m }
+  const BAR=14400000, LB=84, RB=12, K=5, FEE_M=0.0002
+  const rets:number[]=[]; const times:number[]=[]
+  {
+    let prev=new Map<string,number>()
+    for (let t=tmin+LB*BAR; t+RB*BAR<=tmax; t+=RB*BAR) {
+      const scored:{c:string,mom:number,w:number}[]=[]
+      for (const c of Object.keys(closes)) {
+        const m=closes[c]
+        const p0=m.get(t-LB*BAR), p1=m.get(t), p2=m.get(t+RB*BAR)
+        if (!p0||!p1||!p2||p0<=0) continue
+        const rets2:number[]=[]
+        for (let k=1;k<=LB;k++){ const a=m.get(t-k*BAR), b=m.get(t-(k-1)*BAR); if(a&&b&&a>0) rets2.push(b/a-1) }
+        if (rets2.length<40) continue
+        const mu=rets2.reduce((x,y)=>x+y,0)/rets2.length
+        const v=Math.sqrt(rets2.reduce((x,y)=>x+(y-mu)**2,0)/rets2.length)
+        scored.push({c, mom:p1/p0-1, w:1/Math.max(v,1e-6)})
+      }
+      if (scored.length<K*4) { prev=new Map(); continue }
+      scored.sort((a,b)=>b.mom-a.mom)
+      let ret=0; const basket=new Map<string,number>()
+      for (const [li,leg] of [[0,scored.slice(0,K)] as const,[1,scored.slice(-K)] as const]) {
+        const dir=li===0?1:-1
+        const wsum=leg.reduce((a,x)=>a+x.w,0)
+        for (const x of leg) { basket.set(x.c,dir)
+          const pr=closes[x.c].get(t)!, pr2=closes[x.c].get(t+RB*BAR)!
+          ret += dir*0.5*(x.w/wsum)*(pr2/pr-1) }
+      }
+      let changes=0
+      for (const [c,d] of basket) if (prev.get(c)!==d) changes++
+      for (const [c,d] of prev) if (basket.get(c)!==d) changes++
+      ret -= (changes/(2*K))*FEE_M
+      prev=basket
+      rets.push(ret); times.push(t)
+    }
+  }
+  const evalStream=(scaled:number[])=>{
+    let eq=1, pk=1, dd=0
+    for (const r of scaled) { eq*=(1+r); if(eq>pk)pk=eq; dd=Math.max(dd,1-eq/pk) }
+    const perYear=365.25*86400000/(RB*BAR)
+    return {ann:Math.pow(eq, perYear/Math.max(1,scaled.length))-1, dd}
+  }
+  const raw=evalStream(rets)
+  // vol targeting: rolling 30-period realized vol → leverage = target/real, capped [0.5, 2.0]
+  const targetPer=0.20/Math.sqrt(365.25*86400000/(RB*BAR))
+  const scaled:number[]=[]
+  for (let i=0;i<rets.length;i++) {
+    const w=rets.slice(Math.max(0,i-30), i)
+    let lev=1
+    if (w.length>=15) {
+      const mu=w.reduce((a,b)=>a+b,0)/w.length
+      const v=Math.sqrt(w.reduce((a,b)=>a+(b-mu)**2,0)/w.length)
+      lev=Math.min(2.0, Math.max(0.5, v>0? targetPer/v : 1))
+    }
+    scaled.push(rets[i]*lev)
+  }
+  const vt=evalStream(scaled)
+  console.log(`\n── B) rotation (inv-vol) with portfolio VOL TARGETING (20%/yr target) ──`)
+  console.log(`  raw:          ann=${(raw.ann*100).toFixed(1)}%  maxDD=${(raw.dd*100).toFixed(0)}%`)
+  console.log(`  vol-targeted: ann=${(vt.ann*100).toFixed(1)}%  maxDD=${(vt.dd*100).toFixed(0)}%  (leverage 0.5-2.0x)`)
+  console.log(`\nA: if expR rises with ADX → size by ADX is justified. B: vol targeting quality = ann/DD ratio.`)
+}
+
 // ─────────────────────────────────────────────────────────────
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
@@ -1646,6 +1778,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v43bt') {
     console.log(`████ V43BT — inv-vol weights / skip-momentum / funding carry ████`)
     runV43bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v44bt') {
+    console.log(`████ V44BT — ADX-bucket expectancy + rotation vol-targeting ████`)
+    runV44bt()
     return
   }
 
