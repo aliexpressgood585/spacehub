@@ -390,6 +390,7 @@ export default function CryptoTradingDashboard() {
   const [selected,setSelected]     = useState('BTC')
   const [risk,setRisk]             = useState<RiskType>('medium')
   const [balance,setBalance]       = useState(INIT_BAL)
+  const [equityHist,setEquityHist]=useState<{ts:string;equity:number}[]>([])
   const [botOn,setBotOn]           = useState(true)
   const [trades,setTrades]         = useState<Trade[]>([])
   const [sig,setSig]               = useState<Sig>(emptySig())
@@ -659,7 +660,9 @@ export default function CryptoTradingDashboard() {
       supa.from('bot_trades').select('*').neq('status','OPEN').order('opened_at',{ascending:false}).limit(150),
       supa.from('bot_params_history').select('*').order('created_at',{ascending:false}).limit(20),
       supa.from('market_regime').select('*').order('created_at',{ascending:false}).limit(20),
-    ]).then(([state,open,closed,optHist,regHist])=>{
+      supa.from('bot_equity').select('ts,equity').order('ts',{ascending:false}).limit(384),
+    ]).then(([state,open,closed,optHist,regHist,eqHist])=>{
+      if(eqHist&&!eqHist.error&&eqHist.data)setEquityHist([...eqHist.data].reverse().map((r:any)=>({ts:r.ts,equity:Number(r.equity)})))
       if(state.data){
         const d=state.data
         setBalance(d.balance);balRef.current=d.balance
@@ -784,6 +787,14 @@ export default function CryptoTradingDashboard() {
     return {n:cl.length, wr:cl.length?w2/cl.length*100:0, rp, op}
   }
   const stDonch = stratStats('DONCH4H'), stRota = stratStats('ROTA')
+  const eqPath = (()=>{
+    if (equityHist.length<2) return null
+    const vals=equityHist.map(p=>p.equity)
+    const min=Math.min(...vals), max=Math.max(...vals), rng=Math.max(max-min,1)
+    const W=150, H=36
+    const pts=equityHist.map((p,i)=>`${(i/(equityHist.length-1)*W).toFixed(1)},${(H-((p.equity-min)/rng)*H).toFixed(1)}`)
+    return {d:'M'+pts.join(' L'), up: vals[vals.length-1]>=vals[0], last: vals[vals.length-1]}
+  })()
   const lockedNotional = openTrades.reduce((a,t)=>a+t.entry*t.size,0)
   const totalValue     = balance+lockedNotional+unrealizedPnl
   const sharpe         = calcSharpe(trades)
@@ -950,7 +961,15 @@ export default function CryptoTradingDashboard() {
             </div>
           ))}
           <div style={{background:'rgba(3,8,26,0.85)',border:`1px solid ${C.dim}`,borderRadius:'9px',padding:'7px 10px',fontSize:'9px',color:C.muted,backdropFilter:'blur(10px)'}}>
-            <div>SL <span style={{color:C.red}}>{(R.sl*100).toFixed(1)}%</span> · TP <span style={{color:C.green}}>{(R.sl*TP_MULT*100).toFixed(1)}%</span></div>
+            <div>SL <span style={{color:C.red}}>{(R.sl*100).toFixed(1)}%</span> · TP <span style={{color:C.green}}>{(R.sl*TP_MULT*100).toFixed(1)}%</span>          {eqPath&&(
+            <div style={{background:'rgba(3,8,26,0.85)',border:`1px solid ${C.dim}`,borderRadius:'9px',padding:'6px 10px'}}>
+              <div style={{fontSize:'9px',color:C.muted,marginBottom:'2px'}}>עקומת הון (4 ימים)</div>
+              <svg width="150" height="36" style={{display:'block'}}>
+                <path d={eqPath.d} fill="none" stroke={eqPath.up?C.green:C.red} strokeWidth="1.5"/>
+              </svg>
+            </div>
+          )}
+          </div>
             <div style={{marginTop:'2px'}}>מקס <span style={{color:C.yellow}}>{R.maxPos}</span> פוזיציות</div>
           </div>
         </div>

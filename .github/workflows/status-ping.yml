@@ -35,6 +35,27 @@ jobs:
           q "SELECT COALESCE(strategy,'LEGACY') AS strat, count(*) AS n, count(*) FILTER (WHERE pnl>0) AS wins, round(sum(pnl)::numeric,2) AS realized FROM bot_trades WHERE status != 'OPEN' GROUP BY 1 ORDER BY 1;"
           echo "=== CLOSED TRADES (latest 20) ===" >> $out
           q "SELECT sym, side, COALESCE(strategy,'LEGACY') AS strat, round(pnl::numeric,2) AS pnl FROM bot_trades WHERE status != 'OPEN' ORDER BY closed_at DESC LIMIT 20;"
+          echo "=== LIVE vs BACKTEST EXPECTATION CHECK ===" >> $out
+          curl -s -X POST "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "SELECT COALESCE(strategy,+null) AS x FROM bot_trades LIMIT 0;"}' > /dev/null 2>&1 || true
+          q2() { curl -s -X POST "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" -d "{\"query\": \"$1\"}"; }
+          q2 "SELECT strategy, count(*) AS n, round(100.0*count(*) FILTER (WHERE pnl>0)/count(*),1) AS wr, round(avg(pnl)::numeric,2) AS avg_pnl FROM bot_trades WHERE status != 'OPEN' AND strategy IN ('DONCH4H','ROTA') GROUP BY 1;" > /tmp/lvb.json
+          python3 - >> $out <<'PYEOF3'
+          import json
+          try: rows=json.load(open('/tmp/lvb.json'))
+          except Exception: rows=[]
+          bands={'DONCH4H':{'wr':(55,80),'target':'WR~66%, +0.064R/trade'},'ROTA':{'wr':(35,75),'target':'periods mostly +, ~48%/yr book'}}
+          if not rows: print("  no closed strategy trades yet")
+          for r in rows:
+              st=r['strategy']; n=int(r['n']); wr=float(r['wr'] or 0)
+              b=bands.get(st,{}); lo,hi=b.get('wr',(0,100))
+              verdict='SAMPLE TOO SMALL (<30)' if n<30 else ('IN BAND ✓' if lo<=wr<=hi else '⚠️ OUT OF BAND — investigate')
+              print(f"  {st}: n={n} WR={wr}% avg_pnl=${r['avg_pnl']} | expected: {b.get('target','')} | {verdict}")
+          PYEOF3
           echo "=== OPEN POSITIONS LIVE P&L (OKX marks) ===" >> $out
           curl -s -X POST "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \

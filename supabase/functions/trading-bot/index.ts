@@ -356,19 +356,26 @@ async function fetchBars(sym:string, interval:string, limit:number): Promise<Bar
   } catch { /* fall through */ }
   // v41.2 fallback: OKX perp candles — Supabase egress IPs are sometimes
   // geo-blocked/rate-limited by Binance; OKX serves the same market data.
-  try {
-    const okxBar = interval==='1h'?'1H':interval==='4h'?'4H':interval==='1d'?'1D':interval
-    const res = await fetch(
-      `https://www.okx.com/api/v5/market/candles?instId=${sym}-USDT-SWAP&bar=${okxBar}&limit=${Math.min(limit,300)}`,
-      { headers:{'User-Agent':'Mozilla/5.0'} }
-    )
-    if (!res.ok) return []
-    const j = await res.json()
-    const rows: string[][] = j?.data ?? []
-    // OKX returns newest-first incl. the in-progress candle → reverse to match
-    // Binance semantics (oldest-first, last = current partial bar).
-    return rows.reverse().map(k=>({open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
-  } catch { return [] }
+  // v46: 3 attempts with backoff (OKX rate limits under burst load)
+  const okxBar = interval==='1h'?'1H':interval==='4h'?'4H':interval==='1d'?'1D':interval
+  for (let attempt=0; attempt<3; attempt++) {
+    try {
+      const res = await fetch(
+        `https://www.okx.com/api/v5/market/candles?instId=${sym}-USDT-SWAP&bar=${okxBar}&limit=${Math.min(limit,300)}`,
+        { headers:{'User-Agent':'Mozilla/5.0'} }
+      )
+      if (res.ok) {
+        const j = await res.json()
+        const rows: string[][] = j?.data ?? []
+        if (rows.length)
+          // OKX returns newest-first incl. the in-progress candle → reverse to
+          // match Binance semantics (oldest-first, last = current partial bar).
+          return rows.reverse().map(k=>({open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
+      }
+    } catch { /* retry */ }
+    await new Promise(r=>setTimeout(r, 350*(attempt+1)))
+  }
+  return []
 }
 
 // ── v33: OI history ──────────────────────────────────────────────────────────
@@ -2336,7 +2343,7 @@ Deno.serve(async (req) => {
             target.set(x.sym, {dir:-1, price:x.price}); invVol.set(x.sym, 1/x.vol); shortInvSum += 1/x.vol }
           if (rotaPaused) target.clear()   // v43 (#4): paused → unwind basket, open nothing
           // v45.1: portfolio estimate up-front (for resize checks + slot sizing)
-          const {data:allOpenRows} = await supabase.from('bot_trades').select('entry_price,size').eq('status','OPEN')
+          const {data:allOpenRows} = await supabase.from('bot_trades').select('sym,entry_price,size').eq('status','OPEN')
           const allExp = (allOpenRows||[]).reduce((a:number,x:any)=>a+Number(x.entry_price)*Number(x.size),0)
           const port = balance + allExp
           const slotTarget = (sym2:string, dir2:1|-1) => {
@@ -2367,7 +2374,13 @@ Deno.serve(async (req) => {
           }
           // open the new/resized slots (inverse-vol weights, 70% book)
           for (const [sym,tgt] of target) {
-            const slotNotional = slotTarget(sym, tgt.dir)
+            let slotNotional = slotTarget(sym, tgt.dir)
+            // v46: combined per-coin exposure cap 20% of portfolio (rotation +
+            // breakout on the same coin was doubling concentration)
+            const symExp = (allOpenRows||[]).filter((x:any)=>x.sym===sym)
+              .reduce((a:number,x:any)=>a+Number(x.entry_price)*Number(x.size),0)
+            slotNotional = Math.min(slotNotional, Math.max(0, port*0.20 - symExp))
+            if (slotNotional < port*0.01) { log.push(`ROTA_SKIP ${sym}: per-coin cap`); continue }
             if (balance < slotNotional) { log.push(`ROTA_SKIP ${sym}: insufficient cash`); continue }
             const size2 = slotNotional / tgt.price
             const feeIn = slotNotional * FEE
@@ -3162,6 +3175,13 @@ Deno.serve(async (req) => {
     // v22: Log daily summary if it's the start of a new day
     if (needDailySummary && dayTradesRaw) {
       await logDailySummary(supabase, dayTradesRaw, btcRegime, btcAdxForDaily, log)
+    }
+
+    // v46: equity history — snapshot every 15 minutes for the dashboard curve
+    if (utcM % 15 === 0) {
+      const {data:eqOpen} = await supabase.from('bot_trades').select('entry_price,size').eq('status','OPEN')
+      const eqExp = (eqOpen||[]).reduce((a:number,x:any)=>a+Number(x.entry_price)*Number(x.size),0)
+      try { await supabase.from('bot_equity').insert({ equity: balance+eqExp, balance, exposure: eqExp }) } catch { /* table may not exist yet */ }
     }
 
     await supabase.from('bot_state').update({
