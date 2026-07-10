@@ -222,7 +222,28 @@ async function fetchFuturesCoins(): Promise<CoinInfo[]> {
       if (list.length >= 10) return list
     }
   } catch { /* fall through */ }
-  // v41.3 fallback: OKX swap tickers — keeps the full 50-60 coin universe even
+  // v42.1 fallback #1: Binance SPOT tickers via data-api.binance.vision — this
+  // public data domain is NOT geo-blocked. Pure crypto (no tokenized stocks),
+  // same symbols as futures for all majors.
+  try {
+    const res = await fetch(`${BINANCE_DATA}/ticker/24hr`, { headers: { 'User-Agent': 'Mozilla/5.0' } })
+    if (res.ok) {
+      const tickers: any[] = await res.json()
+      const EXCLUDE = /^(.*)(UP|DOWN|BULL|BEAR|HEDGE|3L|3S|5L|5S)USDT$/
+      const list = tickers
+        .filter(t =>
+          t.symbol.endsWith('USDT') &&
+          /^[A-Z0-9]+USDT$/.test(t.symbol) &&
+          !EXCLUDE.test(t.symbol) &&
+          parseFloat(t.quoteVolume) >= MIN_FUTURES_VOL_USDT
+        )
+        .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
+        .slice(0, MAX_FUTURES_COINS)
+        .map(t => ({ sym: t.symbol.replace('USDT', ''), change24h: parseFloat(t.priceChangePercent) / 100 }))
+      if (list.length >= 10) return list
+    }
+  } catch { /* fall through */ }
+  // v41.3 fallback #2: OKX swap tickers — keeps the full 50-60 coin universe even
   // when Binance geo-blocks the egress IP (was silently shrinking to 30).
   try {
     const res = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP',
