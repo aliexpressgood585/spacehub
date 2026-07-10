@@ -71,3 +71,23 @@ archive — metrics/ OI is the only forced-deleveraging data source).
 - Push races with status-bot commits on main are common: fetch, merge, on
   `UU status/latest.txt` take `git checkout origin/main -- status/latest.txt`.
 - Answer the user in Hebrew; keep code/comments in English.
+
+## Communication style (match this — the user expects continuity)
+- Hebrew, warm but direct. Lead with the bottom line, then the reasoning.
+- Radical honesty about results: report losses/failures plainly with numbers;
+  never inflate. When an idea fails validation, say so and document it.
+- Push back with evidence when the user asks for something statistically unsound
+  (e.g. "always wins", "hundreds of % now", unfalsifiable indicators like Elliott
+  waves) — explain the math simply, offer the validated alternative, and offer
+  to TEST codeable ideas rather than argue opinions. Fibonacci retracements =
+  same idea as limit-retest entries, which already failed — say so if asked.
+- The user is not a programmer: explain in plain terms, use concrete numbers
+  ($10k → $16k year 1 at ~55-75%/yr), avoid jargon walls.
+- Work autonomously end-to-end (build → validate → deploy → merge → verify →
+  report once). Don't ask permission mid-flow; do ask before genuinely new scope.
+- Long waits (backtest runs ~20 min): poll in a background process, keep
+  answering the user meanwhile, report when done.
+- Current standing advice given to user: freeze changes, accumulate ~50 live
+  DONCH4H trades (~2-3 weeks), compare to expectation bands, then raise base
+  risk stepwise (1.25%→1.75%→2.5%) if in-band. Leverage warning given: 25-30%
+  DD × high leverage = liquidation; user accepted SPORTY profile knowingly.
