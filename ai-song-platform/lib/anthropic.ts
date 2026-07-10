@@ -23,6 +23,7 @@ export async function generateLyrics(req: LyricsRequest): Promise<string> {
   const message = await anthropic.messages.create({
     model: "claude-sonnet-5",
     max_tokens: 1024,
+    thinking: { type: "disabled" },
     messages: [
       {
         role: "user",
@@ -48,7 +49,7 @@ Write only the lyrics with section labels. No explanations or commentary.`,
     ],
   });
 
-  const content = message.content[0];
-  if (content.type !== "text") throw new Error("Unexpected response type");
+  const content = message.content.find((b) => b.type === "text");
+  if (!content || content.type !== "text") throw new Error("No text response from model");
   return content.text;
 }
