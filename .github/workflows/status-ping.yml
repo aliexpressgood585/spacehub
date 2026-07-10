@@ -31,6 +31,29 @@ jobs:
           q "SELECT sym, side, entry_price, size, score, trail_sl, hi, lo, opened_at FROM bot_trades WHERE status='OPEN' ORDER BY opened_at DESC;"
           echo "=== TRADE COUNTS ===" >> $out
           q "SELECT count(*) FILTER (WHERE status='OPEN') AS open, count(*) FILTER (WHERE status != 'OPEN') AS closed FROM bot_trades;"
+          echo "=== OPEN POSITIONS LIVE P&L (OKX marks) ===" >> $out
+          curl -s -X POST "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "SELECT sym, side, entry_price, size, strategy, opened_at FROM bot_trades WHERE status='"'"'OPEN'"'"';"}' > /tmp/open.json
+          python3 - >> $out <<'PYEOF2'
+          import json, urllib.request
+          rows=json.load(open('/tmp/open.json'))
+          tot=0.0; totn=0.0
+          for r in rows:
+              sym=r['sym']; side=r['side']; e=float(r['entry_price']); sz=float(r['size'])
+              try:
+                  u=f"https://www.okx.com/api/v5/market/ticker?instId={sym}-USDT-SWAP"
+                  req=urllib.request.Request(u, headers={"User-Agent":"Mozilla/5.0"})
+                  px=float(json.load(urllib.request.urlopen(req,timeout=15))['data'][0]['last'])
+              except Exception as ex:
+                  print(f"  {sym}: no mark ({ex})"); continue
+              dirm=1 if side=='LONG' else -1
+              pnl=(px-e)*sz*dirm; pct=(px-e)/e*dirm*100
+              tot+=pnl; totn+=e*sz
+              print(f"  {sym:9s} {side:5s} {r.get('strategy','?'):8s} entry={e:<12g} now={px:<12g} pnl=${pnl:+8.2f} ({pct:+.2f}%)")
+          print(f"  TOTAL unrealized: ${tot:+.2f} on ${totn:,.0f} notional")
+          PYEOF2
           echo "=== BREAKOUT CHECK (OKX 4h, independent) ===" >> $out
           python3 - >> $out <<'PYEOF'
           import json, urllib.request
