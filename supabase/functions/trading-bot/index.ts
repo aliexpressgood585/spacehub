@@ -2227,7 +2227,8 @@ Deno.serve(async (req) => {
       if (now - lastRota >= ROTA_MS - 5*60_000) {
         const {data:rotaOpenAll} = await supabase.from('bot_trades').select('*').eq('status','OPEN').eq('strategy','ROTA')
         const momList: {sym:string, mom:number, price:number}[] = []
-        for (const sym of COINS) {
+        // rank only the 40 most liquid coins — matches the validated backtest universe
+        for (const sym of COINS.slice(0, 40)) {
           try {
             const b4 = await fetchBars(sym, '4h', ROTA_LB+6)
             if (b4.length < ROTA_LB+2) continue
