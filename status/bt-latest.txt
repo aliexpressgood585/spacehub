@@ -1,0 +1,15 @@
+backtest 2026-07-10T15:20Z mode=v47bt months=36
+████ V47BT — maker/retest entries + liquidation-cascade fade ████
+  loaded 69 coins, 1096 days, 6 windows
+
+── A) DONCH4H CORE40 entry/fee models (dw25|adx22|sl1.4) ──
+  A0 market, all-taker (live now)    n= 8421 WR=66.1% avg=+0.046R fill=0% |  +0.002  +0.004  +0.118  +0.076  +0.037  +0.012 ✅
+  A1 market + maker TP legs          n= 8421 WR=66.1% avg=+0.050R fill=0% |  +0.007  +0.007  +0.122  +0.080  +0.041  +0.016 ✅
+  A2 retest K=1 + chase              n= 8421 WR=63.6% avg=+0.022R fill=56% |  -0.015  +0.011  +0.108  +0.037  -0.027  -0.007 
+  A3 retest K=2 + chase              n= 8421 WR=63.6% avg=+0.020R fill=65% |  +0.006  +0.002  +0.117  -0.001  -0.029  -0.001 
+  A4 retest K=3 + chase              n= 8421 WR=63.7% avg=+0.024R fill=70% |  -0.017  +0.002  +0.135  -0.006  +0.002  -0.003 
+  A5 retest K=2 NO chase (info)      n= 5492 WR=62.6% avg=+0.013R fill=100% |  -0.044  -0.010  +0.121  -0.010  -0.013  -0.003 
+
+── B) LIQUIDATION-CASCADE FADE (15m, ladder exits, taker entry) ──
+  liq data: 0 coins, 0 5m-bins, span 0 days
+  ❌ NOT ENOUGH LIQUIDATION DATA — verdict impossible, do not deploy.
