@@ -1742,6 +1742,170 @@ function runV44bt() {
   console.log(`\nA: if expR rises with ADX → size by ADX is justified. B: vol targeting quality = ann/DD ratio.`)
 }
 
+// V45BT — validates: (1) Sharpe-momentum ranking for rotation,
+// (2) thirds exit ladder 0.6/1.0/1.6R for DONCH4H, (3) funding tilt size.
+function runV45bt() {
+  const FEE_T=0.0010, FEE_M=0.0004, NW=6, BAR=14400000
+  const to4h = (a:Bar[]):Bar[] => {
+    const out:Bar[] = []; let cur:Bar|null=null; let bucket=-1
+    for (const b of a) { const k=Math.floor(b.t/14400000)
+      if (k!==bucket) { if (cur) out.push(cur); bucket=k
+        cur={t:k*14400000,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol} }
+      else if (cur) { cur.high=Math.max(cur.high,b.high); cur.low=Math.min(cur.low,b.low); cur.close=b.close; cur.vol+=b.vol } }
+    if (cur) out.push(cur); return out
+  }
+  const dset: Record<string,Bar[]> = {}
+  const closes: Record<string, Map<number,number>> = {}
+  const funding: Record<string, {t:number,r:number}[]> = {}
+  let tmin=Infinity, tmax=-Infinity
+  for (const c of COINS) {
+    const a=to4h(loadCSV(c,'1h')); if (a.length<200) continue
+    dset[c]=a
+    const m=new Map<number,number>(); for (const b of a) m.set(b.t,b.close); closes[c]=m
+    tmin=Math.min(tmin,a[0].t); tmax=Math.max(tmax,a[a.length-1].t)
+    try {
+      const txt=Deno.readTextFileSync(`backtest/data/${c}-fund.csv`)
+      const fl:{t:number,r:number}[]=[]
+      for (const line of txt.split('\n')) { if (!line||line[0]<'0'||line[0]>'9') continue
+        const i=line.indexOf(','); if (i<0) continue
+        let t=Number(line.slice(0,i)); if (t>1e14) t=Math.floor(t/1000)
+        const r=parseFloat(line.slice(i+1)); if (Number.isFinite(t)&&Number.isFinite(r)) fl.push({t,r}) }
+      fl.sort((x,y)=>x.t-y.t); funding[c]=fl
+    } catch { funding[c]=[] }
+  }
+  const days=(tmax-tmin)/86400000
+  console.log(`  4h: ${Object.keys(dset).length} coins, ${days.toFixed(0)} days`)
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+
+  // ── 1) rotation ranking: raw momentum vs Sharpe momentum (both invVol-weighted) ──
+  console.log(`\n── 1) rotation ranking: RAW vs SHARPE momentum (LB84|RB12|K5, invVol wgts) ──`)
+  const LB=84, RB=12, K=5
+  for (const sharpeRank of [false, true]) {
+    let prev=new Map<string,number>(), eq=1, eqT=1, pk=1, dd=0, periods=0
+    const wSum=new Array(NW).fill(0), wN=new Array(NW).fill(0)
+    for (let t=tmin+LB*BAR; t+RB*BAR<=tmax; t+=RB*BAR) {
+      const scored:{c:string,score:number,w:number}[]=[]
+      for (const c of Object.keys(closes)) {
+        const m=closes[c]
+        const p0=m.get(t-LB*BAR), p1=m.get(t), p2=m.get(t+RB*BAR)
+        if (!p0||!p1||!p2||p0<=0) continue
+        const rets:number[]=[]
+        for (let k=1;k<=LB;k++){ const a=m.get(t-k*BAR), b=m.get(t-(k-1)*BAR); if(a&&b&&a>0) rets.push(b/a-1) }
+        if (rets.length<40) continue
+        const mu=rets.reduce((x,y)=>x+y,0)/rets.length
+        const v=Math.max(Math.sqrt(rets.reduce((x,y)=>x+(y-mu)**2,0)/rets.length),1e-6)
+        const mom=p1/p0-1
+        scored.push({c, score: sharpeRank? mom/v : mom, w:1/v})
+      }
+      if (scored.length<K*4) { prev=new Map(); continue }
+      scored.sort((a,b)=>b.score-a.score)
+      let ret=0; const basket=new Map<string,number>()
+      for (const [li,leg] of [[0,scored.slice(0,K)] as const,[1,scored.slice(-K)] as const]) {
+        const dir=li===0?1:-1
+        const wsum=leg.reduce((a,x)=>a+x.w,0)
+        for (const x of leg) { basket.set(x.c,dir)
+          const pr=closes[x.c].get(t)!, pr2=closes[x.c].get(t+RB*BAR)!
+          ret += dir*0.5*(x.w/wsum)*(pr2/pr-1) }
+      }
+      let ch=0
+      for (const [c,d] of basket) if (prev.get(c)!==d) ch++
+      for (const [c,d] of prev) if (basket.get(c)!==d) ch++
+      const turn=ch/(2*K)
+      prev=basket
+      eq*=(1+ret-turn*FEE_M); eqT*=(1+ret-turn*FEE_T)
+      if (eq>pk) pk=eq; dd=Math.max(dd,1-eq/pk)
+      const wi=winOf(t); wSum[wi]+=ret-turn*FEE_M; wN[wi]++
+      periods++
+    }
+    const perYear=365.25*86400000/(RB*BAR)
+    const annM=Math.pow(eq, perYear/Math.max(1,periods))-1
+    const annT=Math.pow(eqT, perYear/Math.max(1,periods))-1
+    const wAvg=wSum.map((x,i)=>wN[i]?x/wN[i]:0)
+    const ok=wAvg.every(x=>x>0)?'✅':''
+    console.log(`  ${sharpeRank?'SHARPE':'RAW   '}   annM=${(annM*100).toFixed(1)}%  annT=${(annT*100).toFixed(1)}%  maxDD=${(dd*100).toFixed(0)}%  | ${wAvg.map(x=>((x>=0?'+':'')+(x*10000).toFixed(0)).padStart(5)).join(' ')} ${ok}`)
+  }
+
+  // ── 2) DONCH4H exits: SPLIT vs LADDER (+ 3) funding tilt measurement ──
+  console.log(`\n── 2) DONCH4H dw25|adx22: SPLIT (½@0.6→BE, ½@1.0) vs LADDER (⅓@0.6→BE, ⅓@1.0, ⅓@1.6) ──`)
+  const DW=25, GATE=22, SLM=1.4, SPACING=2, MAXHOLD=96
+  interface Agg { n:number; w:number; sumT:number; sumM:number }
+  const mk=():Agg=>({n:0,w:0,sumT:0,sumM:0})
+  const schemes=['SPLIT','LADDER'] as const
+  const stats: Record<string,Agg[]> = {SPLIT:[],LADDER:[]}
+  for (const sc of schemes) for (let i2=0;i2<NW;i2++) stats[sc].push(mk())
+  let fundSum=0, fundN=0, fundBySide={L:{s:0,n:0},S:{s:0,n:0}}
+  for (const c of Object.keys(dset)) {
+    const arr=dset[c]; let last=-999
+    for (let i=100;i<arr.length-1;i++) {
+      if (i-last<SPACING || i<DW+1) continue
+      const price=arr[i].close
+      const prior=arr.slice(i-DW,i)
+      const hi=Math.max(...prior.map(b=>b.high)), lo=Math.min(...prior.map(b=>b.low))
+      const side: 'LONG'|'SHORT'|null = price>hi?'LONG':price<lo?'SHORT':null
+      if (!side) continue
+      const win=arr.slice(Math.max(0,i-99),i+1)
+      const adx=calcADX(win.slice(-60)); if (adx<=GATE) continue
+      const atr=calcATR(win.slice(-20)); if(!atr) continue
+      last=i
+      const slDist=Math.max(atr*SLM, price*0.005), slPct=slDist/price
+      if (slPct>0.08) continue
+      const feeT=FEE_T/slPct, feeM=FEE_M/slPct
+      const dirM=side==='LONG'?1:-1
+      const slPx=price-slDist*dirM
+      const jEnd=Math.min(arr.length-1,i+MAXHOLD)
+      const lvl=(r:number)=>price+slDist*r*dirM
+      // walk once, computing both schemes; state per scheme: [fracRemaining, bankedR, stage, stopR(null=orig SL)]
+      const runScheme=(stages:{r:number,frac:number}[])=>{
+        let banked=0, rem=1, stopAtBE=false, si=0, exitBar=jEnd
+        for (let j=i+1;j<=jEnd;j++) {
+          const b=arr[j]
+          const stopPx = stopAtBE ? price : slPx
+          const hitStop = side==='LONG' ? b.low<=stopPx : b.high>=stopPx
+          // conservative: stop first
+          if (hitStop && !(stopAtBE&&j===i+1)) { banked += rem*(stopAtBE?0:-1); rem=0; exitBar=j; break }
+          while (si<stages.length) {
+            const tgt=lvl(stages[si].r)
+            const hitTgt = side==='LONG' ? b.high>=tgt : b.low<=tgt
+            if (!hitTgt) break
+            banked += stages[si].frac*stages[si].r
+            rem -= stages[si].frac
+            stopAtBE=true; si++
+            if (rem<=1e-9) { exitBar=j; break }
+          }
+          if (rem<=1e-9) break
+        }
+        if (rem>1e-9) banked += rem*((arr[exitBar].close-price)*dirM/slDist)
+        return {r:banked, exitBar}
+      }
+      const rSplit  = runScheme([{r:0.6,frac:0.5},{r:1.0,frac:0.5}])
+      const rLadder = runScheme([{r:0.6,frac:1/3},{r:1.0,frac:1/3},{r:1.6,frac:1/3}])
+      const wi=winOf(arr[i].t)
+      for (const [sc,res] of [['SPLIT',rSplit],['LADDER',rLadder]] as const) {
+        const a=stats[sc][wi]
+        a.n++; a.sumT+=res.r-feeT; a.sumM+=res.r-feeM; if (res.r-feeM>0) a.w++
+      }
+      // 3) funding accrued over the SPLIT holding window (dir: short collects +)
+      const t0=arr[i].t, t1=arr[rSplit.exitBar].t
+      let f=0; for (const fv of (funding[c]||[])) if (fv.t>t0&&fv.t<=t1) f+=fv.r
+      const fR = (-dirM)*f/slPct    // in R units of this trade
+      fundSum+=fR; fundN++
+      if (side==='LONG') { fundBySide.L.s+=fR; fundBySide.L.n++ } else { fundBySide.S.s+=fR; fundBySide.S.n++ }
+    }
+  }
+  console.log(`scheme    n      WR      maker    taker  | maker w1..w6`)
+  for (const sc of schemes) {
+    const ws=stats[sc]
+    const tot=ws.reduce((a,x)=>({n:a.n+x.n,w:a.w+x.w,sumT:a.sumT+x.sumT,sumM:a.sumM+x.sumM}),mk())
+    const wA=ws.map(x=>x.n?x.sumM/x.n:0)
+    const ok=wA.every(x=>x>0)?'✅':''
+    console.log(`  ${sc.padEnd(7)} ${String(tot.n).padStart(5)}  ${(100*(tot.n?tot.w/tot.n:0)).toFixed(1).padStart(5)}%  ${(tot.sumM/tot.n>=0?'+':'')}${(tot.sumM/tot.n).toFixed(3)}  ${(tot.sumT/tot.n>=0?'+':'')}${(tot.sumT/tot.n).toFixed(3)} | ${wA.map(x=>((x>=0?'+':'')+x.toFixed(2)).padStart(6)).join(' ')} ${ok}`)
+  }
+  console.log(`\n── 3) funding accrued while holding (in R per trade, + = earned) ──`)
+  console.log(`  all trades: ${(fundN?fundSum/fundN:0)>=0?'+':''}${(fundN?fundSum/fundN:0).toFixed(4)}R avg (n=${fundN})`)
+  console.log(`  LONG:  ${(fundBySide.L.n?fundBySide.L.s/fundBySide.L.n:0).toFixed(4)}R | SHORT: ${(fundBySide.S.n?fundBySide.S.s/fundBySide.S.n:0).toFixed(4)}R`)
+}
+
 // ─────────────────────────────────────────────────────────────
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
@@ -1783,6 +1947,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v44bt') {
     console.log(`████ V44BT — ADX-bucket expectancy + rotation vol-targeting ████`)
     runV44bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v45bt') {
+    console.log(`████ V45BT — Sharpe-momentum / exit ladder / funding tilt ████`)
+    runV45bt()
     return
   }
 

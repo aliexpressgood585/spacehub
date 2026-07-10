@@ -41,7 +41,7 @@ jobs:
           BT_MONTHS: ${{ env.MONTHS }}
         run: |
           case "$MODE" in
-            explore|refine|validate|range|freq|rota|v43bt|v44bt) bash backtest/fetch-explore.sh ;;
+            explore|refine|validate|range|freq|rota|v43bt|v44bt|v45bt) bash backtest/fetch-explore.sh ;;
             *) bash backtest/fetch.sh ;;
           esac
 
