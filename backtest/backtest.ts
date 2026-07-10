@@ -1461,6 +1461,155 @@ function runRota() {
   console.log(`Fees on actual basket turnover. annRet = compounded, no leverage.`)
 }
 
+// V43BT — validates upgrades #2 (inverse-vol weights), #3 (skip-last momentum)
+// and #5 (funding carry) before deployment. All on 4h data, 6 windows, fees on turnover.
+function runV43bt() {
+  const FEE_T=0.0005, FEE_M=0.0002, NW=6
+  const to4h = (a:Bar[]):Bar[] => {
+    const out:Bar[] = []; let cur:Bar|null=null; let bucket=-1
+    for (const b of a) { const k=Math.floor(b.t/14400000)
+      if (k!==bucket) { if (cur) out.push(cur); bucket=k
+        cur={t:k*14400000,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol} }
+      else if (cur) { cur.high=Math.max(cur.high,b.high); cur.low=Math.min(cur.low,b.low); cur.close=b.close; cur.vol+=b.vol } }
+    if (cur) out.push(cur); return out
+  }
+  const closes: Record<string, Map<number,number>> = {}
+  const funding: Record<string, {t:number,r:number}[]> = {}
+  let tmin=Infinity, tmax=-Infinity, nCoins=0
+  for (const c of COINS) {
+    const a=to4h(loadCSV(c,'1h'))
+    if (a.length<200) continue
+    const m=new Map<number,number>()
+    for (const b of a) m.set(b.t, b.close)
+    closes[c]=m; nCoins++
+    tmin=Math.min(tmin,a[0].t); tmax=Math.max(tmax,a[a.length-1].t)
+    // funding CSV: calc_time_ms,rate
+    try {
+      const txt=Deno.readTextFileSync(`backtest/data/${c}-fund.csv`)
+      const fl:{t:number,r:number}[]=[]
+      for (const line of txt.split('\n')) {
+        if (!line || line[0]<'0'||line[0]>'9') continue
+        const i=line.indexOf(','); if (i<0) continue
+        let t=Number(line.slice(0,i)); if (t>1e14) t=Math.floor(t/1000)
+        const r=parseFloat(line.slice(i+1))
+        if (Number.isFinite(t)&&Number.isFinite(r)) fl.push({t,r})
+      }
+      fl.sort((a2,b2)=>a2.t-b2.t); funding[c]=fl
+    } catch { funding[c]=[] }
+  }
+  const days=(tmax-tmin)/86400000
+  console.log(`  4h closes: ${nCoins} coins, ${days.toFixed(0)} days; funding series loaded: ${Object.values(funding).filter(f=>f.length>50).length}`)
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  const BAR=14400000
+
+  const retOf=(c:string,t0:number,t1:number)=>{ const m=closes[c]; const a=m.get(t0), b=m.get(t1); return (a&&b)?b/a-1:null }
+  const volOf=(c:string,t:number,lb=84)=>{  // stdev of 4h returns over lb bars
+    const m=closes[c]; const rets:number[]=[]
+    for (let k=1;k<=lb;k++){ const a=m.get(t-k*BAR), b=m.get(t-(k-1)*BAR); if(a&&b&&a>0) rets.push(b/a-1) }
+    if (rets.length<40) return null
+    const mu=rets.reduce((x,y)=>x+y,0)/rets.length
+    return Math.sqrt(rets.reduce((x,y)=>x+(y-mu)**2,0)/rets.length)
+  }
+  const fundWindow=(c:string,t0:number,t1:number)=>{ let sum=0; for (const f of (funding[c]||[])) { if (f.t>t0&&f.t<=t1) sum+=f.r } return sum }
+  const fundTrail=(c:string,t:number,ms:number)=>{ let sum=0,n=0; for (const f of (funding[c]||[])) { if (f.t>t-ms&&f.t<=t) {sum+=f.r;n++} } return n>=3?sum:null }
+
+  // ── A) ROTATION variants: skip × weighting (LB84|RB12|K5) ──
+  console.log(`\n── A) ROTATION LB84|RB12|K5 variants ──`)
+  console.log(`variant              periods  annM     annT    maxDD | maker w1..w6 (bps)`)
+  for (const skip of [0,6]) {
+    for (const iv of [false,true]) {
+      const LB=84, RB=12, K=5
+      let prev=new Map<string,number>(), equity=1, peak=1, mdd=0, periods=0
+      const wSum=new Array(NW).fill(0), wN=new Array(NW).fill(0)
+      let equityT=1
+      for (let t=tmin+LB*BAR; t+RB*BAR<=tmax; t+=RB*BAR) {
+        const scored:{c:string,mom:number,w:number}[]=[]
+        for (const c of Object.keys(closes)) {
+          const m=closes[c]
+          const p0=m.get(t-LB*BAR), pS=m.get(t-skip*BAR), p2=m.get(t+RB*BAR), p1=m.get(t)
+          if (!p0||!pS||!p2||!p1||p0<=0) continue
+          let w=1
+          if (iv) { const v=volOf(c,t); if (v===null||v<=0) continue; w=1/v }
+          scored.push({c, mom:pS/p0-1, w})
+        }
+        if (scored.length<K*4) { prev=new Map(); continue }
+        scored.sort((a,b)=>b.mom-a.mom)
+        const legs:[{c:string,w:number}[], {c:string,w:number}[]] = [scored.slice(0,K), scored.slice(-K)]
+        let ret=0
+        const basket=new Map<string,number>()
+        for (const [li,leg] of legs.entries()) {
+          const dir=li===0?1:-1
+          const wsum=leg.reduce((a,x)=>a+x.w,0)
+          for (const x of leg) {
+            const wgt=0.5*(x.w/wsum)   // each side = 50% of book
+            basket.set(x.c,dir)
+            ret += dir*wgt*(retOf(x.c,t,t+RB*BAR) ?? 0)
+          }
+        }
+        let changes=0
+        for (const [c,d] of basket) if (prev.get(c)!==d) changes++
+        for (const [c,d] of prev) if (basket.get(c)!==d) changes++
+        const turn=(changes/(2*K))
+        const retM=ret-turn*FEE_M, retT=ret-turn*FEE_T
+        prev=basket
+        equity*=(1+retM); equityT*=(1+retT)
+        if (equity>peak) peak=equity; mdd=Math.max(mdd,1-equity/peak)
+        const wi=winOf(t); wSum[wi]+=retM; wN[wi]++
+        periods++
+      }
+      const perYear=365.25*86400000/(RB*BAR)
+      const annM=Math.pow(equity, perYear/Math.max(1,periods))-1
+      const annT=Math.pow(equityT, perYear/Math.max(1,periods))-1
+      const wAvg=wSum.map((x,i)=>wN[i]?x/wN[i]:0)
+      const ok=wAvg.every(x=>x>0)?'✅':''
+      console.log(`  skip${skip}|${iv?'invVol':'equal '}      ${String(periods).padStart(5)}  ${(annM*100).toFixed(1).padStart(6)}%  ${(annT*100).toFixed(1).padStart(6)}%  ${(mdd*100).toFixed(0).padStart(3)}% | ${wAvg.map(x=>((x>=0?'+':'')+(x*10000).toFixed(0)).padStart(5)).join(' ')} ${ok}`)
+    }
+  }
+
+  // ── B) FUNDING CARRY: rank by trailing 3d funding, daily rebalance ──
+  console.log(`\n── B) FUNDING CARRY (short rich funding / long negative), K=5 ──`)
+  console.log(`variant           periods  annM     annT    maxDD | maker w1..w6 (bps)`)
+  for (const RB of [6, 12]) {           // 24h / 48h
+    let prev=new Map<string,number>(), equity=1, equityT=1, peak=1, mdd=0, periods=0
+    const wSum=new Array(NW).fill(0), wN=new Array(NW).fill(0)
+    const K=5, TRAIL=3*86400000
+    for (let t=tmin+22*BAR; t+RB*BAR<=tmax; t+=RB*BAR) {
+      const scored:{c:string,f:number}[]=[]
+      for (const c of Object.keys(closes)) {
+        if (!closes[c].get(t)||!closes[c].get(t+RB*BAR)) continue
+        const f=fundTrail(c,t,TRAIL); if (f===null) continue
+        scored.push({c,f})
+      }
+      if (scored.length<K*4) { prev=new Map(); continue }
+      scored.sort((a,b)=>b.f-a.f)
+      const basket=new Map<string,number>()
+      let ret=0
+      for (let i=0;i<K;i++) { const c=scored[i].c; basket.set(c,-1)      // SHORT rich funding → collect it
+        ret += (-1)*(retOf(c,t,t+RB*BAR)??0)/(2*K) + fundWindow(c,t,t+RB*BAR)/(2*K) }
+      for (let i=scored.length-K;i<scored.length;i++) { const c=scored[i].c; basket.set(c,1)  // LONG negative funding → collect it
+        ret += (1)*(retOf(c,t,t+RB*BAR)??0)/(2*K) - fundWindow(c,t,t+RB*BAR)/(2*K) }
+      let changes=0
+      for (const [c,d] of basket) if (prev.get(c)!==d) changes++
+      for (const [c,d] of prev) if (basket.get(c)!==d) changes++
+      const turn=changes/(2*K)
+      const retM=ret-turn*FEE_M, retT=ret-turn*FEE_T
+      prev=basket
+      equity*=(1+retM); equityT*=(1+retT)
+      if (equity>peak) peak=equity; mdd=Math.max(mdd,1-equity/peak)
+      const wi=winOf(t); wSum[wi]+=retM; wN[wi]++
+      periods++
+    }
+    const perYear=365.25*86400000/(RB*BAR)
+    const annM=Math.pow(equity, perYear/Math.max(1,periods))-1
+    const annT=Math.pow(equityT, perYear/Math.max(1,periods))-1
+    const wAvg=wSum.map((x,i)=>wN[i]?x/wN[i]:0)
+    const ok=wAvg.every(x=>x>0)?'✅':''
+    console.log(`  carry RB${RB}        ${String(periods).padStart(5)}  ${(annM*100).toFixed(1).padStart(6)}%  ${(annT*100).toFixed(1).padStart(6)}%  ${(mdd*100).toFixed(0).padStart(3)}% | ${wAvg.map(x=>((x>=0?'+':'')+(x*10000).toFixed(0)).padStart(5)).join(' ')} ${ok}`)
+  }
+  console.log(`\nAll figures net of fees on turnover. ✅ = positive in all 6 windows (maker).`)
+}
+
 // ─────────────────────────────────────────────────────────────
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
@@ -1492,6 +1641,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'rota') {
     console.log(`████ ROTA — cross-sectional momentum rotation, walk-forward ████`)
     runRota()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v43bt') {
+    console.log(`████ V43BT — inv-vol weights / skip-momentum / funding carry ████`)
+    runV43bt()
     return
   }
 

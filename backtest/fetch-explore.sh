@@ -42,4 +42,27 @@ for sym in $COINS; do for iv in $INTERVALS; do
   rm -f "$OUT/${sym}-${iv}.part-"*
   echo "${sym}-${iv}: $(wc -l < "$out") rows"
 done; done
+# ── funding rates (monthly, tiny files) ──
+FBASE="https://data.binance.vision/data/futures/um/monthly/fundingRate"
+dlf() {
+  local sym=$1 m=$2
+  local url="$FBASE/${sym}USDT/${sym}USDT-fundingRate-${m}.zip"
+  local tmp="/tmp/f-${sym}-${m}.zip"
+  curl -s -f -m 30 -o "$tmp" "$url" 2>/dev/null || return 0
+  unzip -p "$tmp" 2>/dev/null | grep '^[0-9]' | cut -d, -f1,3 > "$OUT/${sym}-fund.part-${m}" 2>/dev/null
+  rm -f "$tmp"
+}
+export -f dlf
+export FBASE
+fjobs=/tmp/f_jobs.txt; : > "$fjobs"
+for sym in $COINS; do for m in "${months[@]}"; do echo "$sym $m" >> "$fjobs"; done; done
+echo "Downloading $(wc -l < "$fjobs") funding files ..."
+xargs -P 12 -n 2 bash -c 'dlf "$@"' _ < "$fjobs"
+for sym in $COINS; do
+  out="$OUT/${sym}-fund.csv"; : > "$out"
+  parts=$(ls "$OUT/${sym}-fund.part-"* 2>/dev/null | sort)
+  [ -n "$parts" ] && cat $parts >> "$out"
+  rm -f "$OUT/${sym}-fund.part-"*
+done
+echo "funding done"
 echo "Done."
