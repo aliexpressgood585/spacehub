@@ -49,16 +49,21 @@ asking, but NEVER violate the standing rules below.
 5m mean-reversion (breakeven after fees), 4h BB range-fade, Sharpe-momentum
 ranking, skip-6 momentum, portfolio vol-targeting (better DD but less absolute
 profit — user prioritizes profit), funding carry, funding tilt, 70-coin
-universe, daily Turtle sleeve, daily rotation, trailing removal.
+universe, daily Turtle sleeve, daily rotation, trailing removal, limit-retest
+entries (K=1/2/3+chase — loses momentum, windows negative), liquidation-cascade
+fade via OI-crash (all 12 configs negative; NB Binance has NO liquidation
+archive — metrics/ OI is the only forced-deleveraging data source).
 
 ## Current state (2026-07-10)
-- Live: v46 (pyramiding + measurement pack). Account reset started at $10,000 paper.
-- Expectation bands: DONCH4H WR~66%, +0.064R/trade maker; ROTA ~48%/yr book.
-- **In flight: v47bt validation** (maker/retest entries + liquidation-cascade fade).
-  Check `status/bt-latest.txt`; deploy plan: maker TP-leg fees (applies to open
-  positions too), retest-K entries if they beat A1 with same trade count, LIQFADE
-  strategy only if ✅ robust. See git log for context.
+- Live: **v47** — ladder TP legs fill at exact levels with maker fee 0.02%
+  (validated +0.050R vs +0.046R all-taker, all 6 windows; applies to open
+  positions via manage loop). Account reset started at $10,000 paper.
+- Expectation bands: DONCH4H WR~66%, ~+0.05R/trade; ROTA ~48%/yr book.
+- v47bt validation CLOSED: retest entries rejected, OI-cascade fade rejected
+  (full numbers in `status/bt-latest.txt`).
 - User's chosen risk profile: SPORTY (base risk 1.25%). Split exits chosen: LADDER.
+- Recommendation on record: freeze strategy changes 1-2 weeks, accumulate ~50
+  live trades, compare to expectation bands before raising risk further.
 
 ## How to work
 - Small edits → verify types (`tsc --noEmit --ignoreConfig --skipLibCheck` on a

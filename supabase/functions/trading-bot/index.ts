@@ -8,8 +8,10 @@
 //  all entries remain taker 0.05%. Tested & REJECTED same batch: limit-retest
 //  entries (K=1/2/3 + chase — better fee/price but loses the momentum;
 //  windows negative), pure-limit entries (drops 35% of trades AND negative).
-//  Binance liquidationSnapshot archive DOES NOT EXIST → cascade fade being
-//  re-validated with OI-crash detection from the metrics archive instead.
+//  Binance liquidationSnapshot archive DOES NOT EXIST → cascade fade was
+//  re-validated with OI-crash detection from the metrics archive (20 coins,
+//  6.35M samples, 36 months): ALL 12 configs NEGATIVE (avg -0.008..-0.068R,
+//  WR ~60% but losers outsize winners — catching falling knives). REJECTED.
 //
 // CryptoBot v46 — measurement pack + PYRAMID (validated)
 //
