@@ -26,7 +26,7 @@ jobs:
             -H "Content-Type: application/json" -d "{\"query\": \"$1\"}" >> $out; echo >> $out; }
           echo "generated_at: $(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $out
           echo "=== BOT STATE ===" >> $out
-          q "SELECT balance, peak_balance, streak, market_regime, updated_at FROM bot_state WHERE id=1;"
+          q "SELECT balance, peak_balance, streak, market_regime, updated_at, rebalanced_at FROM bot_state WHERE id=1;"
           echo "=== OPEN POSITIONS ===" >> $out
           q "SELECT sym, side, entry_price, size, score, trail_sl, hi, lo, opened_at FROM bot_trades WHERE status='OPEN' ORDER BY opened_at DESC;"
           echo "=== TRADE COUNTS ===" >> $out
