@@ -1,4 +1,16 @@
 // ════════════════════════════════════════════════════════════
+// CryptoBot v47 — MAKER exits (validated)
+//
+// v47: ladder TP legs (0.6R/1.0R/1.6R) now fill at the exact level with maker
+//  fee 0.02% — they are resting limit orders in a real account. 36-month
+//  walk-forward, 8,421 trades: +0.050R vs +0.046R all-taker, all 6 windows ✅.
+//  Applies to already-open positions via the manage loop. Stops/timeouts and
+//  all entries remain taker 0.05%. Tested & REJECTED same batch: limit-retest
+//  entries (K=1/2/3 + chase — better fee/price but loses the momentum;
+//  windows negative), pure-limit entries (drops 35% of trades AND negative).
+//  Binance liquidationSnapshot archive DOES NOT EXIST → cascade fade being
+//  re-validated with OI-crash detection from the metrics archive instead.
+//
 // CryptoBot v46 — measurement pack + PYRAMID (validated)
 //
 // v46: expectation-band check, bot_equity history + dashboard curve, combined
@@ -323,6 +335,10 @@ const RISK = {
 type RiskKey = keyof typeof RISK
 
 const FEE             = 0.0005  // v44: real taker fee 0.05%/side — matches validation assumptions
+// v47: ladder TP legs are resting limit orders in a real account → maker fee,
+// filled at the exact level (no favorable-slippage fantasy). Validated on 36
+// months / 8,421 trades: +0.050R vs +0.046R all-taker, all 6 windows positive.
+const FEE_MAKER       = 0.0002
 const LEVERAGE        = 10
 const SWING_N         = 5
 const SWING_LOOKBACK  = 60
@@ -2713,24 +2729,24 @@ Deno.serve(async (req) => {
               const p06 = entry + origSlDist*0.6*dirM
               if (t.side==='LONG' ? price>=p06 : price<=p06) {
                 const third = size/3
-                const pnl1 = (price-entry)*third*dirM - price*third*FEE
+                const pnl1 = (p06-entry)*third*dirM - p06*third*FEE_MAKER   // v47: limit fill at level, maker fee
                 balance += entry*third + pnl1
                 await supabase.from('bot_trades').update({
                   size: size-third, trail_sl: entry, partial_done: true, exit_stage: 1
                 }).eq('id', t.id)
-                log.push(`LADDER_06 ${sym} ${t.side} ⅓@${price.toFixed(4)} pnl=${pnl1.toFixed(2)} sl→BE`)
+                log.push(`LADDER_06 ${sym} ${t.side} ⅓@${p06.toFixed(4)} pnl=${pnl1.toFixed(2)} sl→BE`)
                 continue
               }
             } else if (stage === 1) {
               const p10 = entry + origSlDist*1.0*dirM
               if (t.side==='LONG' ? price>=p10 : price<=p10) {
                 const half = size/2   // half of remaining ⅔ = ⅓ of original
-                const pnl2 = (price-entry)*half*dirM - price*half*FEE
+                const pnl2 = (p10-entry)*half*dirM - p10*half*FEE_MAKER   // v47: limit fill at level, maker fee
                 balance += entry*half + pnl2
                 await supabase.from('bot_trades').update({
                   size: size-half, exit_stage: 2
                 }).eq('id', t.id)
-                log.push(`LADDER_10 ${sym} ${t.side} ⅓@${price.toFixed(4)} pnl=${pnl2.toFixed(2)} → last ⅓ to 1.6R`)
+                log.push(`LADDER_10 ${sym} ${t.side} ⅓@${p10.toFixed(4)} pnl=${pnl2.toFixed(2)} → last ⅓ to 1.6R`)
                 continue
               }
             }
@@ -2753,12 +2769,16 @@ Deno.serve(async (req) => {
           if (!newStatus&&ageMs>adjMaxHold*60_000) newStatus='TRAIL'
 
           if (newStatus) {
-            const fav=(price-entry)/entry*dirM
-            const pnl=(price-entry)*size*dirM-price*size*FEE
+            // v47: DONCH4H TP is a resting limit at the stored 1.6R level →
+            // fill at the level itself with maker fee. Stops/timeouts stay taker.
+            const isMakerTP = newStatus==='TP' && !t.mtf
+            const exitPx = isMakerTP ? tp : price
+            const fav=(exitPx-entry)/entry*dirM
+            const pnl=(exitPx-entry)*size*dirM-exitPx*size*(isMakerTP?FEE_MAKER:FEE)
             const final=pnl>0&&newStatus==='SL'?'TP':newStatus
             balance+=entry*size+pnl; openCount--
             await supabase.from('bot_trades').update({
-              status:final,exit_price:price,pnl,
+              status:final,exit_price:exitPx,pnl,
               pnl_pct:fav,closed_at:new Date().toISOString()
             }).eq('id',t.id)
             // Phase 1: update snapshot with close result

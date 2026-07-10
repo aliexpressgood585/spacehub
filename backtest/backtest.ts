@@ -2179,52 +2179,53 @@ function runV47bt() {
   reportA('A4 retest K=3 + chase',           scanA({kind:'retest',K:3,chase:true},true))
   reportA('A5 retest K=2 NO chase (info)',   scanA({kind:'retest',K:2,chase:false},true))
 
-  // ── B) liquidation-cascade fade on 15m bars ──
-  console.log(`\n── B) LIQUIDATION-CASCADE FADE (15m, ladder exits, taker entry) ──`)
-  interface LiqBar { sell:number, buy:number }
-  const d15:Record<string,Bar[]>={}, liq:Record<string,Map<number,LiqBar>>={}
-  let liqRows=0, liqT0=Infinity, liqT1=-Infinity
+  // ── B) forced-deleveraging (liquidation-cascade) fade on 15m bars ──
+  // Binance publishes NO liquidation archive; cascades are detected instead as
+  // a fast Open-Interest crash + fast price move together (forced closes destroy
+  // OI). OI comes from the metrics archive at 5-min resolution (SYM-oi5.csv).
+  console.log(`\n── B) OI-CRASH CASCADE FADE (15m, ladder exits, taker entry) ──`)
+  const d15:Record<string,Bar[]>={}, oi5:Record<string,{t:number,v:number}[]>={}
+  let oiRows=0, oiT0=Infinity, oiT1=-Infinity
   for (const c of COINS) {
     let txt:string
-    try { txt=Deno.readTextFileSync(`backtest/data/${c}-liq.csv`) } catch { continue }
-    const m=new Map<number,LiqBar>()
+    try { txt=Deno.readTextFileSync(`backtest/data/${c}-oi5.csv`) } catch { continue }
+    const arr:{t:number,v:number}[]=[]
     for (const line of txt.split('\n')) {
-      const p=line.split(','); if (p.length<3) continue
-      const t=Number(p[0]), sd=p[1], nt=Number(p[2])
-      if (!Number.isFinite(t)||!Number.isFinite(nt)||nt<=0) continue
-      const k=Math.floor(t/900000)*900000
-      let e=m.get(k); if(!e){e={sell:0,buy:0}; m.set(k,e)}
-      if (sd==='SELL') e.sell+=nt; else e.buy+=nt
-      liqRows++; if(t<liqT0)liqT0=t; if(t>liqT1)liqT1=t
+      if (!line || line[0]!=='2') continue
+      const cm=line.indexOf(','); if (cm<0) continue
+      const t=new Date(line.slice(0,cm)+'Z').getTime()
+      const v=parseFloat(line.slice(cm+1))
+      if (Number.isFinite(t)&&Number.isFinite(v)&&v>0) arr.push({t,v})
     }
-    if (m.size<500) continue
+    arr.sort((a,b)=>a.t-b.t)
+    if (arr.length<5000) continue
     const b=loadCSV(c,'15m'); if (b.length<5000) continue
-    d15[c]=b; liq[c]=m
+    d15[c]=b; oi5[c]=arr; oiRows+=arr.length
+    oiT0=Math.min(oiT0,arr[0].t); oiT1=Math.max(oiT1,arr[arr.length-1].t)
   }
-  const nLiq=Object.keys(d15).length
-  console.log(`  liq data: ${nLiq} coins, ${liqRows} 5m-bins, span ${liqT0<liqT1?((liqT1-liqT0)/86400000).toFixed(0):0} days`)
-  if (nLiq<5) { console.log(`  ❌ NOT ENOUGH LIQUIDATION DATA — verdict impossible, do not deploy.`); return }
+  const nOi=Object.keys(d15).length
+  console.log(`  OI data: ${nOi} coins, ${oiRows} 5m samples, span ${oiT0<oiT1?((oiT1-oiT0)/86400000).toFixed(0):0} days`)
+  if (nOi<5) { console.log(`  ❌ NOT ENOUGH OI DATA — verdict impossible, do not deploy.`); return }
 
-  const simLiq=(Q:number, X:number, HOLD:number)=>{
+  const simOi=(X:number, Y:number, HOLD:number)=>{
     const ws:Agg[]=[]; for (let i2=0;i2<NW;i2++) ws.push(mk())
     for (const c of Object.keys(d15)) {
-      const arr=d15[c], lm=liq[c]
-      const tot:number[]=arr.map(b=>{const e=lm.get(b.t); return e?(e.sell+e.buy):0})
-      const W=1344   // 14d of 15m bars
-      let run=0, last=-999
-      for (let i=0;i<arr.length-1;i++) {
-        run+=tot[i]; if (i>=W) run-=tot[i-W]
-        if (i<W||i<24) continue
-        const mean=run/W
-        if (mean<=0) continue
-        let s1=0,b1=0
-        for(let k2=0;k2<4;k2++){const ee=lm.get(arr[i-k2].t); if(ee){s1+=ee.sell;b1+=ee.buy}}
+      const arr=d15[c], os=oi5[c]
+      let p=0, last=-999
+      for (let i=24;i<arr.length-1;i++) {
+        const tc=arr[i].t+900000            // bar close time
+        while (p<os.length-1 && os[p+1].t<=tc) p++
+        if (os[p].t>tc || os[p].t<tc-1200000) continue   // no fresh OI sample
+        let q=p; while (q>0 && os[q].t>tc-3600000) q--
+        if (os[q].t>tc-3600000 || os[q].t<tc-5400000) continue
+        const dOI=os[p].v/os[q].v-1
+        if (dOI>-X) continue                              // need an OI crash
         const ret1h=arr[i].close/arr[i-4].close-1
         let side:'LONG'|'SHORT'|null=null
-        if (s1>=Q*mean*4 && ret1h<=-X) side='LONG'        // longs got wrecked → fade down-move
-        else if (b1>=Q*mean*4 && ret1h>=X) side='SHORT'   // shorts got wrecked → fade up-move
+        if (ret1h<=-Y) side='LONG'        // longs force-closed → fade the flush
+        else if (ret1h>=Y) side='SHORT'   // shorts force-closed → fade the squeeze
         if (!side) continue
-        if (i-last<32) continue   // 8h per-coin cooldown
+        if (i-last<32) continue           // 8h per-coin cooldown
         last=i
         const price=arr[i].close
         const atr=calcATR(arr.slice(Math.max(0,i-20),i+1)); if(!atr) continue
@@ -2244,10 +2245,10 @@ function runV47bt() {
     const ok=act.length>=4 && act.every(x=>x.sum/x.n>0)?'✅':''
     console.log(`  ${name.padEnd(26)} n=${String(tot.n).padStart(5)} (${(tot.n/days).toFixed(2)}/d) WR=${(100*(tot.n?tot.w/tot.n:0)).toFixed(1)}% avg=${(tot.sum/Math.max(1,tot.n)>=0?'+':'')}${(tot.sum/Math.max(1,tot.n)).toFixed(3)}R | ${ws.map((x,i3)=>x.n?(((wA[i3]>=0?'+':'')+wA[i3].toFixed(2))+'/'+x.n).padStart(9):'      ·  ').join(' ')} ${ok}`)
   }
-  for (const Q of [6,12,25])
-    for (const X of [0.01,0.02])
+  for (const X of [0.015,0.03,0.05])
+    for (const Y of [0.01,0.02])
       for (const HOLD of [32,96])
-        reportB(`Q${Q}|x${(X*100).toFixed(0)}%|hold${HOLD/4}h`, simLiq(Q,X,HOLD))
+        reportB(`oi-${(X*100).toFixed(1)}%|px${(Y*100).toFixed(0)}%|h${HOLD/4}h`, simOi(X,Y,HOLD))
   console.log(`\n✅(A) = all ${NW} windows positive, n>=15/window. ✅(B) = all windows with n>=10 positive, >=4 active windows.`)
 }
 

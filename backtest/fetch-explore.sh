@@ -66,21 +66,21 @@ for sym in $COINS; do
 done
 echo "funding done"
 
-# ── liquidation snapshots (daily files only — Binance has no monthly archive) ──
-# Fetched only when BT_FETCH_LIQ=1 (v47bt mode): ~22k small files for 20 majors.
-# Each day is binned to 5-minute buckets in-flight: t,side,notional
+# ── open-interest metrics (daily files — verified to exist; liquidationSnapshot
+# does NOT exist in the archive). Fetched only when BT_FETCH_LIQ=1 (v47bt):
+# ~22k small files for 20 majors → SYM-oi5.csv rows "ISO_time,oi_usd" (5-min samples)
 if [ "${BT_FETCH_LIQ:-0}" = "1" ]; then
   LIQ_COINS="BTC ETH SOL BNB XRP DOGE ADA AVAX LINK DOT LTC BCH NEAR SUI TRX APT ARB OP ATOM FIL"
-  LBASE="https://data.binance.vision/data/futures/um/daily/liquidationSnapshot"
+  LBASE="https://data.binance.vision/data/futures/um/daily/metrics"
   dll() {
     local sym=$1 d=$2
-    local url="$LBASE/${sym}USDT/${sym}USDT-liquidationSnapshot-${d}.zip"
+    local url="$LBASE/${sym}USDT/${sym}USDT-metrics-${d}.zip"
     local tmp="/tmp/l-${sym}-${d}.zip"
     curl -s -f -m 30 -o "$tmp" "$url" 2>/dev/null || return 0
-    # cols: time,side,order_type,tif,orig_qty,price,avg_price,status,last_fill,acc_fill
-    unzip -p "$tmp" 2>/dev/null | awk -F, '$1 ~ /^[0-9]+$/ {
-      b=int($1/300000)*300000; k=b","$2; s[k]+=$5*$6
-    } END { for (k in s) printf "%s,%.2f\n", k, s[k] }' > "$OUT/${sym}-liq.part-${d}" 2>/dev/null
+    # cols: create_time,symbol,sum_open_interest,sum_open_interest_value,...
+    unzip -p "$tmp" 2>/dev/null | awk -F, '$1 ~ /^2/ {
+      gsub(/ /,"T",$1); printf "%s,%s\n", $1, $4
+    }' > "$OUT/${sym}-oi5.part-${d}" 2>/dev/null
     rm -f "$tmp"
   }
   export -f dll
@@ -95,15 +95,15 @@ if [ "${BT_FETCH_LIQ:-0}" = "1" ]; then
   done
   ljobs=/tmp/l_jobs.txt; : > "$ljobs"
   for sym in $LIQ_COINS; do for d in "${dates[@]}"; do echo "$sym $d" >> "$ljobs"; done; done
-  echo "Downloading $(wc -l < "$ljobs") daily liquidation files ..."
+  echo "Downloading $(wc -l < "$ljobs") daily OI-metrics files ..."
   xargs -P 32 -n 2 bash -c 'dll "$@"' _ < "$ljobs"
   for sym in $LIQ_COINS; do
-    out="$OUT/${sym}-liq.csv"; : > "$out"
-    parts=$(ls "$OUT/${sym}-liq.part-"* 2>/dev/null | sort)
+    out="$OUT/${sym}-oi5.csv"; : > "$out"
+    parts=$(ls "$OUT/${sym}-oi5.part-"* 2>/dev/null | sort)
     [ -n "$parts" ] && cat $parts >> "$out"
-    rm -f "$OUT/${sym}-liq.part-"*
-    echo "${sym}-liq: $(wc -l < "$out") bins"
+    rm -f "$OUT/${sym}-oi5.part-"*
+    echo "${sym}-oi5: $(wc -l < "$out") rows"
   done
-  echo "liquidations done"
+  echo "OI metrics done"
 fi
 echo "Done."
