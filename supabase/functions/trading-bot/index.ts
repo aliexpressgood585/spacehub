@@ -1,4 +1,11 @@
 // ════════════════════════════════════════════════════════════
+// CryptoBot v44 — real fees, ADX-tiered risk, strategy dashboard, monthly regression
+//
+// v44: (#1-fees) FEE=0.05%/side live — sim now matches validation assumptions.
+//  (#3-ADX sizing) breakout risk scales 0.75x→2.0x with entry ADX (validated
+//  monotonic expectancy ladder). Vol-targeting tested: better ratio (DD 25→18%)
+//  but lower absolute return (48.4→39.8%/yr) → NOT deployed (profit priority).
+//
 // CryptoBot v43 — DONCH4H + ROTATION, risk-sized & health-guarded
 //
 // v43 (all walk-forward validated on 36 months):
@@ -2816,7 +2823,10 @@ Deno.serve(async (req) => {
           // v43 (#1): RISK-BASED sizing — each breakout risks 0.75% of the
           // portfolio (notional derived from SL distance), capped at 15% of
           // portfolio per position. Same entries, right-sized capital.
-          const riskNotional = (totPort4 * 0.0075) / slPct4
+          // v44 (#3): ADX-tiered risk — validated monotonic ladder on 36 months:
+          // expR +0.007 (adx 22-28) → +0.019 → +0.042 → +0.086 (adx>45).
+          const adxMult = adx4 > 45 ? 2.0 : adx4 > 35 ? 1.5 : adx4 > 28 ? 1.0 : 0.75
+          const riskNotional = (totPort4 * 0.0075 * adxMult) / slPct4
           const notional4 = Math.min(Math.max(riskNotional, 500), totPort4 * 0.15, remain4, balance * 0.95)
           if (notional4 < 500) return
           const sideExp4 = (allOpen||[]).reduce((acc:{l:number,s:number}, x:any) => {

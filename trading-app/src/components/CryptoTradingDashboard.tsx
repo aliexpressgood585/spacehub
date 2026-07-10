@@ -17,6 +17,7 @@ interface Trade {
   pnl?:number; pnlPct?:number; ts:number
   status:'OPEN'|'TP'|'SL'|'TRAIL'
   hi:number; lo:number; trailSL:number; fee:number
+  strategy?:string
   slPct?:number; tpPct?:number
   partialDone?:boolean; closedTs?:number
 }
@@ -110,7 +111,7 @@ function computeSig(bars:Bar[]):Sig{if(bars.length<35)return emptySig();const cl
 function getMultiTFSig(bars1m:Bar[]):Sig{const s1=computeSig(bars1m);const bars5m=build5mBars(bars1m);if(bars5m.length<25)return s1;const s5=computeSig(bars5m);if(s1.dir==='HOLD')return s1;if(s5.dir===s1.dir)return{...s1,score:Math.min(5,s1.score+1),mtf:true};return s1}
 function calcSharpe(trades:Trade[]):number{const cl=trades.filter(t=>t.pnlPct!==undefined);if(cl.length<3)return 0;const r=cl.map(t=>t.pnlPct!);const m=r.reduce((a,b)=>a+b,0)/r.length;const s=Math.sqrt(r.reduce((a,b)=>a+(b-m)**2,0)/r.length)||1e-9;return(m/s)*Math.sqrt(252)}
 function calcMaxDD(trades:Trade[]):number{let bal=INIT_BAL,peak=INIT_BAL,mx=0;for(const t of trades){if(t.pnl){bal+=t.pnl;if(bal>peak)peak=bal;mx=Math.max(mx,(peak-bal)/peak)}}return mx*100}
-function mapDbTrade(t:Record<string,unknown>):Trade{return{id:t.id as number,sym:t.sym as string,side:t.side as 'LONG'|'SHORT',entry:Number(t.entry_price),exit:t.exit_price!=null?Number(t.exit_price):undefined,size:Number(t.size),pnl:t.pnl!=null?Number(t.pnl):undefined,pnlPct:t.pnl_pct!=null?Number(t.pnl_pct):undefined,ts:new Date(t.opened_at as string).getTime(),closedTs:t.closed_at?new Date(t.closed_at as string).getTime():undefined,status:t.status as 'OPEN'|'TP'|'SL'|'TRAIL',hi:Number(t.hi),lo:Number(t.lo),trailSL:Number(t.trail_sl),fee:Number(t.fee)}}
+function mapDbTrade(t:Record<string,unknown>):Trade{return{id:t.id as number,sym:t.sym as string,side:t.side as 'LONG'|'SHORT',entry:Number(t.entry_price),exit:t.exit_price!=null?Number(t.exit_price):undefined,size:Number(t.size),pnl:t.pnl!=null?Number(t.pnl):undefined,pnlPct:t.pnl_pct!=null?Number(t.pnl_pct):undefined,ts:new Date(t.opened_at as string).getTime(),closedTs:t.closed_at?new Date(t.closed_at as string).getTime():undefined,status:t.status as 'OPEN'|'TP'|'SL'|'TRAIL',hi:Number(t.hi),lo:Number(t.lo),trailSL:Number(t.trail_sl),fee:Number(t.fee),strategy:(t.strategy as string)||'LEGACY'}}
 
 // ─── canvas renderers ─────────────────────────────────────────────────────────
 function drawCandles(canvas:HTMLCanvasElement,bars:Bar[],sig:Sig){
@@ -775,6 +776,14 @@ export default function CryptoTradingDashboard() {
     return a+(t.side==='LONG'?(cur-t.entry):(t.entry-cur))*t.size-t.fee
   },0)
   const totalPnl       = realizedPnl+unrealizedPnl
+  const stratStats = (name:string) => {
+    const cl = closed.filter(t=>t.strategy===name)
+    const w2 = cl.filter(t=>(t.pnl||0)>0).length
+    const rp = cl.reduce((a,t)=>a+(t.pnl||0),0)
+    const op = openTrades.filter(t=>t.strategy===name).length
+    return {n:cl.length, wr:cl.length?w2/cl.length*100:0, rp, op}
+  }
+  const stDonch = stratStats('DONCH4H'), stRota = stratStats('ROTA')
   const lockedNotional = openTrades.reduce((a,t)=>a+t.entry*t.size,0)
   const totalValue     = balance+lockedNotional+unrealizedPnl
   const sharpe         = calcSharpe(trades)
@@ -819,7 +828,7 @@ export default function CryptoTradingDashboard() {
               letterSpacing:'1px',filter:`drop-shadow(0 0 8px ${C.blue}80)`}}>
               ⚡ NEXUS TRADE
             </span>
-            <span style={{fontSize:'8px',color:C.muted,padding:'2px 5px',border:`1px solid ${C.dim}`,borderRadius:'4px'}}>v41</span>
+            <span style={{fontSize:'8px',color:C.muted,padding:'2px 5px',border:`1px solid ${C.dim}`,borderRadius:'4px'}}>v44</span>
           </div>
 
           <div style={{display:'flex',gap:'5px',flexWrap:'wrap' as const}}>
@@ -928,6 +937,8 @@ export default function CryptoTradingDashboard() {
             ['עסקאות',trades.length.toString(),C.blue],
             ['שארפ',sharpe.toFixed(2),sharpe>1?C.green:sharpe>0?C.yellow:C.red],
             ['מקס ירידה',maxDD.toFixed(1)+'%',maxDD<10?C.green:maxDD<25?C.yellow:C.red],
+            ['📈 פריצות',`${stDonch.op}פ ${stDonch.n}ס ${(stDonch.rp>=0?'+':'')}${stDonch.rp.toFixed(0)}$`,stDonch.rp>=0?C.green:C.red],
+            ['🔄 רוטציה',`${stRota.op}פ ${stRota.n}ס ${(stRota.rp>=0?'+':'')}${stRota.rp.toFixed(0)}$ ${stRota.wr.toFixed(0)}%`,stRota.rp>=0?C.green:C.red],
           ].map(([k,v,col])=>(
             <div key={k} style={{
               background:'rgba(3,8,26,0.85)',border:`1px solid ${C.dim}`,borderRadius:'9px',

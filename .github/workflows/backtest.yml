@@ -1,6 +1,8 @@
 name: Strategy Backtest
 
 on:
+  schedule:
+    - cron: '0 6 1 * *'   # monthly edge-decay regression (1st of month, 06:00 UTC)
   workflow_dispatch:
     inputs:
       days:
@@ -16,10 +18,16 @@ on:
         required: false
         default: '6'
 
+permissions:
+  contents: write
+
 jobs:
   backtest:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      MODE: ${{ github.event.inputs.mode || 'freq' }}
+      MONTHS: ${{ github.event.inputs.months || '36' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -29,15 +37,26 @@ jobs:
 
       - name: Download historical data (data.binance.vision)
         env:
-          BT_DAYS: ${{ github.event.inputs.days }}
-          BT_MONTHS: ${{ github.event.inputs.months }}
+          BT_DAYS: ${{ github.event.inputs.days || '45' }}
+          BT_MONTHS: ${{ env.MONTHS }}
         run: |
-          case "${{ github.event.inputs.mode }}" in
+          case "$MODE" in
             explore|refine|validate|range|freq|rota|v43bt|v44bt) bash backtest/fetch-explore.sh ;;
             *) bash backtest/fetch.sh ;;
           esac
 
       - name: Run backtest
         env:
-          BT_MODE: ${{ github.event.inputs.mode }}
-        run: deno run --allow-read --allow-env backtest/backtest.ts
+          BT_MODE: ${{ env.MODE }}
+        run: deno run --allow-read --allow-env backtest/backtest.ts | tee /tmp/bt.log
+
+      - name: Commit regression report (scheduled runs)
+        if: github.event_name == 'schedule'
+        run: |
+          mkdir -p status
+          { echo "monthly regression $(date -u +%Y-%m-%d) mode=$MODE months=$MONTHS"; tail -60 /tmp/bt.log; } > status/regression.txt
+          git config user.name "regression-bot"; git config user.email "actions@github.com"
+          git add status/regression.txt
+          git commit -m "status: monthly edge regression [skip ci]" || echo "no changes"
+          git pull --rebase origin main || true
+          git push || echo "push failed (non-fatal)" 
