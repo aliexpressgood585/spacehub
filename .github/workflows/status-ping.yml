@@ -32,7 +32,9 @@ jobs:
           echo "=== TRADE COUNTS ===" >> $out
           q "SELECT count(*) FILTER (WHERE status='OPEN') AS open, count(*) FILTER (WHERE status != 'OPEN') AS closed FROM bot_trades;"
           echo "=== REALIZED P&L BY STRATEGY ===" >> $out
-          q "SELECT COALESCE(strategy,'"'"'LEGACY'"'"') AS strat, count(*) AS n, count(*) FILTER (WHERE pnl>0) AS wins, round(sum(pnl)::numeric,2) AS realized FROM bot_trades WHERE status != '"'"'OPEN'"'"' GROUP BY 1 ORDER BY 1;"
+          q "SELECT COALESCE(strategy,'LEGACY') AS strat, count(*) AS n, count(*) FILTER (WHERE pnl>0) AS wins, round(sum(pnl)::numeric,2) AS realized FROM bot_trades WHERE status != 'OPEN' GROUP BY 1 ORDER BY 1;"
+          echo "=== CLOSED TRADES (latest 20) ===" >> $out
+          q "SELECT sym, side, COALESCE(strategy,'LEGACY') AS strat, round(pnl::numeric,2) AS pnl FROM bot_trades WHERE status != 'OPEN' ORDER BY closed_at DESC LIMIT 20;"
           echo "=== OPEN POSITIONS LIVE P&L (OKX marks) ===" >> $out
           curl -s -X POST "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \

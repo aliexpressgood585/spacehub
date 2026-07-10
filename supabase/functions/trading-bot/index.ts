@@ -2143,7 +2143,14 @@ Deno.serve(async (req) => {
     ])
 
     // v34: extract string list + 24h change map from futures ticker
-    const COINS = (coinInfoList as CoinInfo[]).map(c => c.sym)
+    // v42.3: CRYPTO ONLY — user directive: no stock/commodity perps (NVDA/TSLA/
+    // SOXL/XAUT/etc). Both strategies scan only the 40-coin universe that the
+    // 36-month walk-forward validation used.
+    const CRYPTO_40 = new Set(['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','DOT','LTC','BCH','NEAR','INJ','SUI',
+      'TRX','APT','ARB','OP','ATOM','FIL','UNI','AAVE','ICP','ALGO','SEI','WLD','TIA','RUNE','LDO',
+      'CRV','DYDX','GALA','SAND','AXS','IMX','ENA','PEPE','WIF','FET'])
+    let COINS = (coinInfoList as CoinInfo[]).map(c => c.sym).filter(sym => CRYPTO_40.has(sym))
+    if (COINS.length < 10) COINS = [...CRYPTO_40]
     const change24hMap = new Map<string, number>((coinInfoList as CoinInfo[]).map(c => [c.sym, c.change24h]))
 
     const {minScore:adaptMinScore,vpocDist:adaptVpocDist,sideFilter:adaptSideFilter}=
