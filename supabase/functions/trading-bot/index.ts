@@ -2248,8 +2248,12 @@ Deno.serve(async (req) => {
       if (now - lastRota >= ROTA_MS - 5*60_000) {
         const {data:rotaOpenAll} = await supabase.from('bot_trades').select('*').eq('status','OPEN').eq('strategy','ROTA')
         const momList: {sym:string, mom:number, price:number}[] = []
-        // rank only the 40 most liquid coins — matches the validated backtest universe
-        for (const sym of COINS.slice(0, 40)) {
+        // v42.2: rank EXACTLY the 40-coin universe the 36-month validation used —
+        // dynamic lists were pulling exotic/tokenized-stock perps outside the proof.
+        const ROTA_UNIVERSE = ['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','DOT','LTC','BCH','NEAR','INJ','SUI',
+          'TRX','APT','ARB','OP','ATOM','FIL','UNI','AAVE','ICP','ALGO','SEI','WLD','TIA','RUNE','LDO',
+          'CRV','DYDX','GALA','SAND','AXS','IMX','ENA','PEPE','WIF','FET']
+        for (const sym of ROTA_UNIVERSE) {
           try {
             const b4 = await fetchBars(sym, '4h', ROTA_LB+6)
             if (b4.length < ROTA_LB+2) continue
