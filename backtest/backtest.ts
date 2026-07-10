@@ -1365,6 +1365,102 @@ function runFreq() {
   console.log(`\nSPLIT exits (production), SL 1.4xATR. /day is across ~39 coins; live universe 56 → ~1.4x.`)
 }
 
+// ROTA — cross-sectional momentum rotation (market-neutral long/short).
+// Every REBAL bars: rank coins by LOOKBACK return; LONG top K, SHORT bottom K,
+// equal weight 1/(2K). Fees charged on actual basket turnover.
+function runRota() {
+  const FEE_T=0.0005, FEE_M=0.0002   // per side
+  const NW=6
+  const to4h = (a:Bar[]):Bar[] => {
+    const out:Bar[] = []; let cur:Bar|null=null; let bucket=-1
+    for (const b of a) { const k=Math.floor(b.t/14400000)
+      if (k!==bucket) { if (cur) out.push(cur); bucket=k
+        cur={t:k*14400000,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol} }
+      else if (cur) { cur.high=Math.max(cur.high,b.high); cur.low=Math.min(cur.low,b.low); cur.close=b.close; cur.vol+=b.vol } }
+    if (cur) out.push(cur); return out
+  }
+  // per-coin close map keyed by 4h bucket timestamp
+  const closes: Record<string, Map<number,number>> = {}
+  let tmin=Infinity, tmax=-Infinity
+  let nCoins=0
+  for (const c of COINS) {
+    const a=to4h(loadCSV(c,'1h'))
+    if (a.length<200) continue
+    const m=new Map<number,number>()
+    for (const b of a) m.set(b.t, b.close)
+    closes[c]=m; nCoins++
+    tmin=Math.min(tmin,a[0].t); tmax=Math.max(tmax,a[a.length-1].t)
+  }
+  const days=(tmax-tmin)/86400000
+  console.log(`  4h closes: ${nCoins} coins, ${days.toFixed(0)} days`)
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  const BAR=14400000
+
+  console.log(`\nconfig                periods  avgRet/prd  annRet     maxDD  | maker per window (avg ret bps)          | verdict`)
+  const results:any[]=[]
+  for (const LB of [18,42,84]) {           // lookback: 3d / 7d / 14d
+    for (const RB of [6,12,42]) {          // rebalance: 24h / 48h / 7d
+      for (const K of [3,5]) {
+        for (const fee of [FEE_M, FEE_T]) {
+          let prevBasket = new Map<string,number>()   // coin → +1/-1
+          let equity=1, peak=1, mdd=0
+          const wSum=new Array(NW).fill(0), wN=new Array(NW).fill(0)
+          let periods=0, sumRet=0
+          for (let t=tmin+LB*BAR; t+RB*BAR<=tmax; t+=RB*BAR) {
+            // rank available coins
+            const scored:{c:string,mom:number}[]=[]
+            for (const c of Object.keys(closes)) {
+              const m=closes[c]
+              const p0=m.get(t-LB*BAR), p1=m.get(t), p2=m.get(t+RB*BAR)
+              if (p0===undefined||p1===undefined||p2===undefined||p0<=0) continue
+              scored.push({c, mom:p1/p0-1})
+            }
+            if (scored.length < K*4) { prevBasket=new Map(); continue }
+            scored.sort((a,b)=>b.mom-a.mom)
+            const basket=new Map<string,number>()
+            for (let i=0;i<K;i++) basket.set(scored[i].c, +1)
+            for (let i=scored.length-K;i<scored.length;i++) basket.set(scored[i].c, -1)
+            // period return
+            let ret=0
+            for (const [c,dir] of basket) {
+              const m=closes[c]
+              const p1=m.get(t)!, p2=m.get(t+RB*BAR)!
+              ret += dir*(p2/p1-1)/(2*K)
+            }
+            // turnover fees: each changed slot pays fee per side on its weight
+            let changes=0
+            for (const [c,dir] of basket) if (prevBasket.get(c)!==dir) changes++
+            for (const [c,dir] of prevBasket) if (basket.get(c)!==dir) changes++
+            ret -= (changes/(2*K))*fee
+            prevBasket=basket
+            equity*=(1+ret); if (equity>peak) peak=equity
+            mdd=Math.max(mdd,1-equity/peak)
+            const wi=winOf(t); wSum[wi]+=ret; wN[wi]++
+            periods++; sumRet+=ret
+          }
+          const avg=periods?sumRet/periods:0
+          const perYear=365.25*86400000/(RB*BAR)
+          const ann=Math.pow(equity, perYear/Math.max(1,periods))-1
+          const wAvg=wSum.map((x,i)=>wN[i]?x/wN[i]:0)
+          const okAll=wAvg.every(x=>x>0)
+          if (fee===FEE_M) results.push({key:`LB${LB}|RB${RB}|K${K}`, fee:'maker', periods, avg, ann, mdd, wAvg, okAll})
+          else { const r=results[results.length-1]; r.annT=ann; r.okAllT=okAll }
+        }
+      }
+    }
+  }
+  results.sort((a,b)=>b.ann-a.ann)
+  for (const r of results) {
+    const v=r.okAllT?'✅✅TAKER':r.okAll?'✅MAKER':''
+    console.log(`  ${r.key.padEnd(16)} ${String(r.periods).padStart(6)}  ${(r.avg*10000).toFixed(1).padStart(7)}bp  ${(r.ann*100).toFixed(1).padStart(6)}%/y (T:${(r.annT*100).toFixed(0)}%)  ${(r.mdd*100).toFixed(0).padStart(3)}%  | ${r.wAvg.map((x:number)=>((x>=0?'+':'')+(x*10000).toFixed(0)).padStart(5)).join(' ')} | ${v}`)
+  }
+  const winners=results.filter(r=>r.okAll)
+  console.log(`\n${winners.length}/${results.length} configs MAKER-robust (positive avg return in all 6 windows).`)
+  console.log(`Long top-K / short bottom-K by LB-bar momentum, rebalance every RB bars, weight 1/(2K).`)
+  console.log(`Fees on actual basket turnover. annRet = compounded, no leverage.`)
+}
+
 // ─────────────────────────────────────────────────────────────
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
@@ -1391,6 +1487,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'freq') {
     console.log(`████ FREQ — how loose can the gate get while staying robust? ████`)
     runFreq()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'rota') {
+    console.log(`████ ROTA — cross-sectional momentum rotation, walk-forward ████`)
+    runRota()
     return
   }
 
