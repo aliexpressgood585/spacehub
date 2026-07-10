@@ -2067,6 +2067,191 @@ function runV46bt() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// v47bt: (A) maker/limit-retest entries for DONCH4H — fee edge without losing
+// trades (hybrid: limit at breakout level, chase market if no retest in K bars),
+// (B) liquidation-cascade fade — new uncorrelated strategy from Binance
+// liquidationSnapshot archives. Walk-forward, 6 windows, real fees.
+// Fees per side: taker 0.05%, maker 0.02%.
+function runV47bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000
+  const toTf = (a:Bar[], ms:number):Bar[] => {
+    const out:Bar[] = []; let cur:Bar|null=null; let bucket=-1
+    for (const b of a) { const k=Math.floor(b.t/ms)
+      if (k!==bucket) { if (cur) out.push(cur); bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol} }
+      else if (cur) { cur.high=Math.max(cur.high,b.high); cur.low=Math.min(cur.low,b.low); cur.close=b.close; cur.vol+=b.vol } }
+    if (cur) out.push(cur); return out
+  }
+  const d4: Record<string,Bar[]> = {}
+  let tmin=Infinity, tmax=-Infinity
+  for (const c of COINS) {
+    const h=loadCSV(c,'1h'); if (h.length<500) continue
+    d4[c]=toTf(h,BAR4)
+    tmin=Math.min(tmin,h[0].t); tmax=Math.max(tmax,h[h.length-1].t)
+  }
+  const days=(tmax-tmin)/86400000
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${days.toFixed(0)} days, ${NW} windows`)
+
+  interface Agg { n:number; w:number; sum:number; fills:number }
+  const mk=():Agg=>({n:0,w:0,sum:0,fills:0})
+
+  // ladder simulator (0.6/1.0/1.6R thirds, BE after first leg) from an arbitrary
+  // start bar + entry price; tracks what fraction exited at limit TPs (maker-able).
+  // On the fill bar itself only the stop is checked (no same-bar TP — conservative).
+  const ladder2=(arr:Bar[], j0:number, entry:number, side:'LONG'|'SHORT', slDist:number, jEnd:number, checkStopOnJ0:boolean)=>{
+    const dirM=side==='LONG'?1:-1, slPx=entry-slDist*dirM
+    const lvl=(r:number)=>entry+slDist*r*dirM
+    const stages=[{r:0.6,frac:1/3},{r:1.0,frac:1/3},{r:1.6,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0, rem=1, be=false, si=0, tpFrac=0
+    for (let j=j0;j<=jEndc;j++) {
+      if (j===j0 && !checkStopOnJ0) continue
+      const b=arr[j], stopPx=be?entry:slPx
+      if (side==='LONG'?b.low<=stopPx:b.high>=stopPx) { banked+=rem*(be?0:-1); rem=0; break }
+      if (j===j0) continue
+      while (si<stages.length) {
+        const tgt=lvl(stages[si].r)
+        if (!(side==='LONG'?b.high>=tgt:b.low<=tgt)) break
+        banked+=stages[si].frac*stages[si].r; tpFrac+=stages[si].frac; rem-=stages[si].frac; be=true; si++
+      }
+      if (rem<=1e-9) break
+    }
+    if (rem>1e-9) banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return {r:banked, tpFrac}
+  }
+
+  // ── A) DONCH4H dw25|adx22 CORE40 with different entry/fee models ──
+  type EntryMode = {kind:'market'}|{kind:'retest', K:number, chase:boolean}
+  const scanA=(mode:EntryMode, makerTP:boolean)=>{
+    const ws:Agg[]=[]; for (let i2=0;i2<NW;i2++) ws.push(mk())
+    for (const c of Object.keys(d4)) {
+      if (!CORE40.has(c)) continue
+      const arr=d4[c]; let last=-999
+      for (let i=100;i<arr.length-1;i++) {
+        const price=arr[i].close
+        const prior=arr.slice(i-25,i)
+        const hi=Math.max(...prior.map(b=>b.high)), lo=Math.min(...prior.map(b=>b.low))
+        const side: 'LONG'|'SHORT'|null = price>hi?'LONG':price<lo?'SHORT':null
+        if (!side) continue
+        const win=arr.slice(Math.max(0,i-99),i+1)
+        const adx=calcADX(win.slice(-60)); if (adx<=22) continue
+        const atr=calcATR(win.slice(-20)); if(!atr) continue
+        if (i-last<2) continue
+        last=i
+        const slDist=Math.max(atr*1.4, price*0.005)
+        if (slDist/price>0.08) continue
+        let entry=price, j0=i, entryFee=TK, isRetest=false
+        if (mode.kind==='retest') {
+          const level=side==='LONG'?hi:lo
+          let filled=false
+          for (let j=i+1;j<=Math.min(i+mode.K,arr.length-1);j++) {
+            if (side==='LONG'?arr[j].low<=level:arr[j].high>=level) { entry=level; j0=j; entryFee=MK; isRetest=true; filled=true; break }
+          }
+          if (!filled) {
+            if (!mode.chase) continue
+            const jc=Math.min(i+mode.K,arr.length-1)
+            entry=arr[jc].close; j0=jc
+          }
+        }
+        const slPct=slDist/entry
+        const res=ladder2(arr, j0, entry, side, slDist, i+96, isRetest)
+        const exitFee = makerTP ? (res.tpFrac*MK+(1-res.tpFrac)*TK) : TK
+        const net=res.r-(entryFee+exitFee)/slPct
+        const a=ws[winOf(arr[i].t)]
+        a.n++; if(net>0) a.w++; a.sum+=net; if(isRetest) a.fills++
+      }
+    }
+    return ws
+  }
+  const reportA=(name:string, ws:Agg[])=>{
+    const tot=ws.reduce((a,x)=>({n:a.n+x.n,w:a.w+x.w,sum:a.sum+x.sum,fills:a.fills+x.fills}),mk())
+    const wA=ws.map(x=>x.n?x.sum/x.n:0)
+    const ok=wA.every(x=>x>0)&&ws.every(x=>x.n>=15)?'✅':''
+    console.log(`  ${name.padEnd(34)} n=${String(tot.n).padStart(5)} WR=${(100*(tot.n?tot.w/tot.n:0)).toFixed(1)}% avg=${(tot.sum/Math.max(1,tot.n)>=0?'+':'')}${(tot.sum/Math.max(1,tot.n)).toFixed(3)}R fill=${(100*tot.fills/Math.max(1,tot.n)).toFixed(0)}% | ${wA.map(x=>((x>=0?'+':'')+x.toFixed(3)).padStart(7)).join(' ')} ${ok}`)
+  }
+  console.log(`\n── A) DONCH4H CORE40 entry/fee models (dw25|adx22|sl1.4) ──`)
+  reportA('A0 market, all-taker (live now)', scanA({kind:'market'},false))
+  reportA('A1 market + maker TP legs',       scanA({kind:'market'},true))
+  reportA('A2 retest K=1 + chase',           scanA({kind:'retest',K:1,chase:true},true))
+  reportA('A3 retest K=2 + chase',           scanA({kind:'retest',K:2,chase:true},true))
+  reportA('A4 retest K=3 + chase',           scanA({kind:'retest',K:3,chase:true},true))
+  reportA('A5 retest K=2 NO chase (info)',   scanA({kind:'retest',K:2,chase:false},true))
+
+  // ── B) liquidation-cascade fade on 15m bars ──
+  console.log(`\n── B) LIQUIDATION-CASCADE FADE (15m, ladder exits, taker entry) ──`)
+  interface LiqBar { sell:number, buy:number }
+  const d15:Record<string,Bar[]>={}, liq:Record<string,Map<number,LiqBar>>={}
+  let liqRows=0, liqT0=Infinity, liqT1=-Infinity
+  for (const c of COINS) {
+    let txt:string
+    try { txt=Deno.readTextFileSync(`backtest/data/${c}-liq.csv`) } catch { continue }
+    const m=new Map<number,LiqBar>()
+    for (const line of txt.split('\n')) {
+      const p=line.split(','); if (p.length<3) continue
+      const t=Number(p[0]), sd=p[1], nt=Number(p[2])
+      if (!Number.isFinite(t)||!Number.isFinite(nt)||nt<=0) continue
+      const k=Math.floor(t/900000)*900000
+      let e=m.get(k); if(!e){e={sell:0,buy:0}; m.set(k,e)}
+      if (sd==='SELL') e.sell+=nt; else e.buy+=nt
+      liqRows++; if(t<liqT0)liqT0=t; if(t>liqT1)liqT1=t
+    }
+    if (m.size<500) continue
+    const b=loadCSV(c,'15m'); if (b.length<5000) continue
+    d15[c]=b; liq[c]=m
+  }
+  const nLiq=Object.keys(d15).length
+  console.log(`  liq data: ${nLiq} coins, ${liqRows} 5m-bins, span ${liqT0<liqT1?((liqT1-liqT0)/86400000).toFixed(0):0} days`)
+  if (nLiq<5) { console.log(`  ❌ NOT ENOUGH LIQUIDATION DATA — verdict impossible, do not deploy.`); return }
+
+  const simLiq=(Q:number, X:number, HOLD:number)=>{
+    const ws:Agg[]=[]; for (let i2=0;i2<NW;i2++) ws.push(mk())
+    for (const c of Object.keys(d15)) {
+      const arr=d15[c], lm=liq[c]
+      const tot:number[]=arr.map(b=>{const e=lm.get(b.t); return e?(e.sell+e.buy):0})
+      const W=1344   // 14d of 15m bars
+      let run=0, last=-999
+      for (let i=0;i<arr.length-1;i++) {
+        run+=tot[i]; if (i>=W) run-=tot[i-W]
+        if (i<W||i<24) continue
+        const mean=run/W
+        if (mean<=0) continue
+        let s1=0,b1=0
+        for(let k2=0;k2<4;k2++){const ee=lm.get(arr[i-k2].t); if(ee){s1+=ee.sell;b1+=ee.buy}}
+        const ret1h=arr[i].close/arr[i-4].close-1
+        let side:'LONG'|'SHORT'|null=null
+        if (s1>=Q*mean*4 && ret1h<=-X) side='LONG'        // longs got wrecked → fade down-move
+        else if (b1>=Q*mean*4 && ret1h>=X) side='SHORT'   // shorts got wrecked → fade up-move
+        if (!side) continue
+        if (i-last<32) continue   // 8h per-coin cooldown
+        last=i
+        const price=arr[i].close
+        const atr=calcATR(arr.slice(Math.max(0,i-20),i+1)); if(!atr) continue
+        const slDist=Math.max(3*atr, price*0.006), slPct=slDist/price
+        if (slPct>0.08) continue
+        const res=ladder2(arr,i,price,side,slDist,i+HOLD,false)
+        const net=res.r-(TK + res.tpFrac*MK+(1-res.tpFrac)*TK)/slPct
+        const a=ws[winOf(arr[i].t)]; a.n++; if(net>0)a.w++; a.sum+=net
+      }
+    }
+    return ws
+  }
+  const reportB=(name:string, ws:Agg[])=>{
+    const tot=ws.reduce((a,x)=>({n:a.n+x.n,w:a.w+x.w,sum:a.sum+x.sum,fills:0}),mk())
+    const act=ws.filter(x=>x.n>=10)
+    const wA=ws.map(x=>x.n?x.sum/x.n:0)
+    const ok=act.length>=4 && act.every(x=>x.sum/x.n>0)?'✅':''
+    console.log(`  ${name.padEnd(26)} n=${String(tot.n).padStart(5)} (${(tot.n/days).toFixed(2)}/d) WR=${(100*(tot.n?tot.w/tot.n:0)).toFixed(1)}% avg=${(tot.sum/Math.max(1,tot.n)>=0?'+':'')}${(tot.sum/Math.max(1,tot.n)).toFixed(3)}R | ${ws.map((x,i3)=>x.n?(((wA[i3]>=0?'+':'')+wA[i3].toFixed(2))+'/'+x.n).padStart(9):'      ·  ').join(' ')} ${ok}`)
+  }
+  for (const Q of [6,12,25])
+    for (const X of [0.01,0.02])
+      for (const HOLD of [32,96])
+        reportB(`Q${Q}|x${(X*100).toFixed(0)}%|hold${HOLD/4}h`, simLiq(Q,X,HOLD))
+  console.log(`\n✅(A) = all ${NW} windows positive, n>=15/window. ✅(B) = all windows with n>=10 positive, >=4 active windows.`)
+}
+
+// ─────────────────────────────────────────────────────────────
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
@@ -2117,6 +2302,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v46bt') {
     console.log(`████ V46BT — extended universe / daily sleeves / pyramiding ████`)
     runV46bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v47bt') {
+    console.log(`████ V47BT — maker/retest entries + liquidation-cascade fade ████`)
+    runV47bt()
     return
   }
 

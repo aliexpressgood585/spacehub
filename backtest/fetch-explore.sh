@@ -65,4 +65,45 @@ for sym in $COINS; do
   rm -f "$OUT/${sym}-fund.part-"*
 done
 echo "funding done"
+
+# ── liquidation snapshots (daily files only — Binance has no monthly archive) ──
+# Fetched only when BT_FETCH_LIQ=1 (v47bt mode): ~22k small files for 20 majors.
+# Each day is binned to 5-minute buckets in-flight: t,side,notional
+if [ "${BT_FETCH_LIQ:-0}" = "1" ]; then
+  LIQ_COINS="BTC ETH SOL BNB XRP DOGE ADA AVAX LINK DOT LTC BCH NEAR SUI TRX APT ARB OP ATOM FIL"
+  LBASE="https://data.binance.vision/data/futures/um/daily/liquidationSnapshot"
+  dll() {
+    local sym=$1 d=$2
+    local url="$LBASE/${sym}USDT/${sym}USDT-liquidationSnapshot-${d}.zip"
+    local tmp="/tmp/l-${sym}-${d}.zip"
+    curl -s -f -m 30 -o "$tmp" "$url" 2>/dev/null || return 0
+    # cols: time,side,order_type,tif,orig_qty,price,avg_price,status,last_fill,acc_fill
+    unzip -p "$tmp" 2>/dev/null | awk -F, '$1 ~ /^[0-9]+$/ {
+      b=int($1/300000)*300000; k=b","$2; s[k]+=$5*$6
+    } END { for (k in s) printf "%s,%.2f\n", k, s[k] }' > "$OUT/${sym}-liq.part-${d}" 2>/dev/null
+    rm -f "$tmp"
+  }
+  export -f dll
+  export LBASE
+  dates=()
+  d0=$(date -u -d "$(date -u +%Y-%m-01) -$MONTHS month" +%Y-%m-%d)
+  dcur="$d0"
+  dend=$(date -u -d "2 days ago" +%Y-%m-%d)
+  while [ "$dcur" \< "$dend" ] || [ "$dcur" = "$dend" ]; do
+    dates+=("$dcur")
+    dcur=$(date -u -d "$dcur +1 day" +%Y-%m-%d)
+  done
+  ljobs=/tmp/l_jobs.txt; : > "$ljobs"
+  for sym in $LIQ_COINS; do for d in "${dates[@]}"; do echo "$sym $d" >> "$ljobs"; done; done
+  echo "Downloading $(wc -l < "$ljobs") daily liquidation files ..."
+  xargs -P 32 -n 2 bash -c 'dll "$@"' _ < "$ljobs"
+  for sym in $LIQ_COINS; do
+    out="$OUT/${sym}-liq.csv"; : > "$out"
+    parts=$(ls "$OUT/${sym}-liq.part-"* 2>/dev/null | sort)
+    [ -n "$parts" ] && cat $parts >> "$out"
+    rm -f "$OUT/${sym}-liq.part-"*
+    echo "${sym}-liq: $(wc -l < "$out") bins"
+  done
+  echo "liquidations done"
+fi
 echo "Done."

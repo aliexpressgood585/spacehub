@@ -24,7 +24,7 @@ permissions:
 jobs:
   backtest:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 55
     env:
       MODE: ${{ github.event.inputs.mode || 'freq' }}
       MONTHS: ${{ github.event.inputs.months || '36' }}
@@ -40,8 +40,9 @@ jobs:
           BT_DAYS: ${{ github.event.inputs.days || '45' }}
           BT_MONTHS: ${{ env.MONTHS }}
         run: |
+          [ "$MODE" = "v47bt" ] && export BT_FETCH_LIQ=1
           case "$MODE" in
-            explore|refine|validate|range|freq|rota|v43bt|v44bt|v45bt|v46bt) bash backtest/fetch-explore.sh ;;
+            explore|refine|validate|range|freq|rota|v43bt|v44bt|v45bt|v46bt|v47bt) bash backtest/fetch-explore.sh ;;
             *) bash backtest/fetch.sh ;;
           esac
 
@@ -49,6 +50,17 @@ jobs:
         env:
           BT_MODE: ${{ env.MODE }}
         run: deno run --allow-read --allow-env backtest/backtest.ts | tee /tmp/bt.log
+
+      - name: Commit result snapshot (dispatch runs)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          mkdir -p status
+          { echo "backtest $(date -u +%Y-%m-%dT%H:%MZ) mode=$MODE months=$MONTHS"; tail -250 /tmp/bt.log; } > status/bt-latest.txt
+          git config user.name "backtest-bot"; git config user.email "actions@github.com"
+          git add status/bt-latest.txt
+          git commit -m "status: backtest result [skip ci]" || echo "no changes"
+          git pull --rebase origin main || true
+          git push || echo "push failed (non-fatal)"
 
       - name: Commit regression report (scheduled runs)
         if: github.event_name == 'schedule'
