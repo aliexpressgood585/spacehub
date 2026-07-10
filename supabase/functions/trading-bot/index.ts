@@ -1,4 +1,11 @@
 // ════════════════════════════════════════════════════════════
+// CryptoBot v45.1 — SPORTY risk profile (user-selected)
+//
+// v45.1: rotation book 50%→70% of portfolio (validated at full book: +48%/yr,
+//  DD 25%); DONCH4H base risk 0.75%→1.25% (ADX-tiered up to 2.5%), position
+//  cap 15%→20%. Same entries, same exits — only capital allocation scaled.
+//  Expected: ~55-75%/yr with ~25-30% worst drawdowns. User accepted the DD.
+//
 // CryptoBot v45 — LADDER exits (⅓@0.6R → BE → ⅓@1.0R → ⅓@1.6R)
 //
 // v45: exit ladder validated on 36 months / 8,421 trades: +0.064R/trade maker
@@ -2353,7 +2360,9 @@ Deno.serve(async (req) => {
             // by 1/vol (calmer coins get more), clamped to 2-10% per slot.
             const sideSum = tgt.dir===1 ? longInvSum : shortInvSum
             const w = sideSum > 0 ? (invVol.get(sym) ?? 0)/sideSum : 1/ROTA_K
-            const slotNotional = Math.min(Math.max(port*0.25*w, port*0.02), port*0.10)
+            // v45.1 SPORTY: rotation book 50%→70% of portfolio (validation assumed
+            // a full book at +48%/yr — we were running it at half power)
+            const slotNotional = Math.min(Math.max(port*0.35*w, port*0.028), port*0.14)
             if (balance < slotNotional) { log.push(`ROTA_SKIP ${sym}: insufficient cash`); continue }
             const size2 = slotNotional / tgt.price
             const feeIn = slotNotional * FEE
@@ -2847,8 +2856,9 @@ Deno.serve(async (req) => {
           // v44 (#3): ADX-tiered risk — validated monotonic ladder on 36 months:
           // expR +0.007 (adx 22-28) → +0.019 → +0.042 → +0.086 (adx>45).
           const adxMult = adx4 > 45 ? 2.0 : adx4 > 35 ? 1.5 : adx4 > 28 ? 1.0 : 0.75
-          const riskNotional = (totPort4 * 0.0075 * adxMult) / slPct4
-          const notional4 = Math.min(Math.max(riskNotional, 500), totPort4 * 0.15, remain4, balance * 0.95)
+          // v45.1 SPORTY: base risk 0.75%→1.25% per breakout (2.5% on ADX>45 monsters)
+          const riskNotional = (totPort4 * 0.0125 * adxMult) / slPct4
+          const notional4 = Math.min(Math.max(riskNotional, 500), totPort4 * 0.20, remain4, balance * 0.95)
           if (notional4 < 500) return
           const sideExp4 = (allOpen||[]).reduce((acc:{l:number,s:number}, x:any) => {
             const n2 = Number(x.entry_price)*Number(x.size)
