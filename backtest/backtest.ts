@@ -471,7 +471,11 @@ interface ClosedTrade { sym:string; side:string; status:string; pnl:number; rMul
 
 const COINS = ['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','DOT','LTC','BCH','NEAR','INJ','SUI',
   'TRX','APT','ARB','OP','ATOM','FIL','UNI','AAVE','ICP','ALGO','SEI','WLD','TIA','RUNE','LDO',
-  'CRV','DYDX','GALA','SAND','AXS','IMX','ENA','PEPE','WIF','FET']
+  'CRV','DYDX','GALA','SAND','AXS','IMX','ENA','PEPE','WIF','FET',
+  'TON','XLM','ETC','HBAR','VET','EGLD','FLOW','CHZ','MANA','GRT','SNX','COMP','MKR','ENJ','1INCH',
+  'ZIL','KAVA','ROSE','CELO','ONE','QTUM','IOTA','XTZ','NEO','DASH','ZEC','BAND','STORJ','KSM','JASMY']
+// the original validated 40 (for sub-universe comparisons)
+const CORE40 = new Set(COINS.slice(0,40))
 const MAX_OPEN = 20, MAX_NEW_PER_SCAN = 5, MIN_NOTIONAL = 500
 const SYM_COOLDOWN_MIN = 10, MAX_HOLD_MIN = 120
 const CORR_GROUPS: string[][] = [
@@ -1906,6 +1910,162 @@ function runV45bt() {
   console.log(`  LONG:  ${(fundBySide.L.n?fundBySide.L.s/fundBySide.L.n:0).toFixed(4)}R | SHORT: ${(fundBySide.S.n?fundBySide.S.s/fundBySide.S.n:0).toFixed(4)}R`)
 }
 
+// V46BT — validates 4 growth ideas in one run:
+//  A) DONCH4H (dw25|adx22, LADDER) on the EXTENDED 70-coin universe vs CORE40
+//  B) daily Donchian (Turtle-style) sleeve
+//  C) daily rotation sleeve (LB30d, weekly rebalance)
+//  D) pyramiding proxy: continuation entries while an same-coin same-dir winner is open
+function runV46bt() {
+  const FEE_T=0.0010, FEE_M=0.0004, NW=6, BAR4=14400000, DAY=86400000
+  const toTf = (a:Bar[], ms:number):Bar[] => {
+    const out:Bar[] = []; let cur:Bar|null=null; let bucket=-1
+    for (const b of a) { const k=Math.floor(b.t/ms)
+      if (k!==bucket) { if (cur) out.push(cur); bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol} }
+      else if (cur) { cur.high=Math.max(cur.high,b.high); cur.low=Math.min(cur.low,b.low); cur.close=b.close; cur.vol+=b.vol } }
+    if (cur) out.push(cur); return out
+  }
+  const d4: Record<string,Bar[]> = {}, d1: Record<string,Bar[]> = {}
+  let tmin=Infinity, tmax=-Infinity
+  for (const c of COINS) {
+    const h=loadCSV(c,'1h'); if (h.length<500) continue
+    d4[c]=toTf(h,BAR4); d1[c]=toTf(h,DAY)
+    tmin=Math.min(tmin,h[0].t); tmax=Math.max(tmax,h[h.length-1].t)
+  }
+  const days=(tmax-tmin)/86400000
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${days.toFixed(0)} days`)
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  interface Agg { n:number; w:number; sumT:number; sumM:number }
+  const mk=():Agg=>({n:0,w:0,sumT:0,sumM:0})
+
+  // shared LADDER candidate simulator
+  const ladderTrade=(arr:Bar[], i:number, side:'LONG'|'SHORT', slDist:number, maxhold:number)=>{
+    const price=arr[i].close, dirM=side==='LONG'?1:-1, slPx=price-slDist*dirM
+    const jEnd=Math.min(arr.length-1,i+maxhold)
+    const lvl=(r:number)=>price+slDist*r*dirM
+    const stages=[{r:0.6,frac:1/3},{r:1.0,frac:1/3},{r:1.6,frac:1/3}]
+    let banked=0, rem=1, be=false, si=0, exitBar=jEnd
+    for (let j=i+1;j<=jEnd;j++) {
+      const b=arr[j]
+      const stopPx=be?price:slPx
+      if (side==='LONG'?b.low<=stopPx:b.high>=stopPx) { banked+=rem*(be?0:-1); rem=0; exitBar=j; break }
+      while (si<stages.length) {
+        const tgt=lvl(stages[si].r)
+        if (!(side==='LONG'?b.high>=tgt:b.low<=tgt)) break
+        banked+=stages[si].frac*stages[si].r; rem-=stages[si].frac; be=true; si++
+        if (rem<=1e-9) { exitBar=j; break }
+      }
+      if (rem<=1e-9) break
+    }
+    if (rem>1e-9) banked+=rem*((arr[exitBar].close-price)*dirM/slDist)
+    return {r:banked, exitBar}
+  }
+
+  const donchScan=(dset:Record<string,Bar[]>, DW:number, GATE:number, SLM:number, maxhold:number, coinFilter:((c:string)=>boolean)|null, pyramid:boolean)=>{
+    const ws:Agg[]=[]; for (let i2=0;i2<NW;i2++) ws.push(mk())
+    for (const c of Object.keys(dset)) {
+      if (coinFilter && !coinFilter(c)) continue
+      const arr=dset[c]; let last=-999
+      const openUntil:{bar:number, side:string, entry:number, slDist:number}[]=[]
+      for (let i=100;i<arr.length-1;i++) {
+        if (i<DW+1) continue
+        const price=arr[i].close
+        const prior=arr.slice(i-DW,i)
+        const hi=Math.max(...prior.map(b=>b.high)), lo=Math.min(...prior.map(b=>b.low))
+        const side: 'LONG'|'SHORT'|null = price>hi?'LONG':price<lo?'SHORT':null
+        if (!side) continue
+        const win=arr.slice(Math.max(0,i-99),i+1)
+        const adx=calcADX(win.slice(-60)); if (GATE>0 && adx<=GATE) continue
+        const atr=calcATR(win.slice(-20)); if(!atr) continue
+        // spacing OR pyramid continuation
+        let allowed = i-last>=2
+        if (!allowed && pyramid) {
+          const act=openUntil.filter(o=>o.bar>=i && o.side===side)
+          const dirM=side==='LONG'?1:-1
+          allowed = act.length>0 && act.length<2 && act.every(o=>(price-o.entry)*dirM/o.slDist>=0.6)
+        }
+        if (!allowed) continue
+        last=i
+        const slDist=Math.max(atr*SLM, price*0.005), slPct=slDist/price
+        if (slPct>0.08) continue
+        const feeT=FEE_T/slPct, feeM=FEE_M/slPct
+        const res=ladderTrade(arr,i,side,slDist,maxhold)
+        openUntil.push({bar:res.exitBar, side, entry:price, slDist})
+        const a=ws[winOf(arr[i].t)]
+        a.n++; a.sumT+=res.r-feeT; a.sumM+=res.r-feeM; if (res.r-feeM>0) a.w++
+      }
+    }
+    return ws
+  }
+  const report=(name:string, ws:Agg[], perDayDiv:number)=>{
+    const tot=ws.reduce((a,x)=>({n:a.n+x.n,w:a.w+x.w,sumT:a.sumT+x.sumT,sumM:a.sumM+x.sumM}),mk())
+    const wA=ws.map(x=>x.n?x.sumM/x.n:0)
+    const ok=wA.every(x=>x>0)&&ws.every(x=>x.n>=15)?'✅':''
+    console.log(`  ${name.padEnd(30)} n=${String(tot.n).padStart(5)} (${(tot.n/perDayDiv).toFixed(1)}/d) WR=${(100*(tot.n?tot.w/tot.n:0)).toFixed(1)}% M=${(tot.sumM/Math.max(1,tot.n)>=0?'+':'')}${(tot.sumM/Math.max(1,tot.n)).toFixed(3)} T=${(tot.sumT/Math.max(1,tot.n)>=0?'+':'')}${(tot.sumT/Math.max(1,tot.n)).toFixed(3)} | ${wA.map(x=>((x>=0?'+':'')+x.toFixed(2)).padStart(6)).join(' ')} ${ok}`)
+  }
+
+  console.log(`\n── A) DONCH4H universe: CORE40 vs EXTENDED70 (+ D pyramiding) ──`)
+  report('4h dw25|adx22 CORE40',        donchScan(d4,25,22,1.4,96,(c)=>CORE40.has(c),false), days)
+  report('4h dw25|adx22 EXTENDED70',    donchScan(d4,25,22,1.4,96,null,false), days)
+  report('4h CORE40 + PYRAMID',         donchScan(d4,25,22,1.4,96,(c)=>CORE40.has(c),true), days)
+
+  console.log(`\n── B) daily Donchian (Turtle) sleeve, LADDER exits ──`)
+  report('1d dw20|adx0  |sl2.0',        donchScan(d1,20,0, 2.0,60,null,false), days)
+  report('1d dw20|adx20|sl2.0',         donchScan(d1,20,20,2.0,60,null,false), days)
+  report('1d dw30|adx20|sl2.0',         donchScan(d1,30,20,2.0,60,null,false), days)
+
+  // C) daily rotation LB30d / RB 7d, invVol
+  console.log(`\n── C) daily rotation LB30|RB7|K5 (invVol) ──`)
+  {
+    const closes: Record<string, Map<number,number>> = {}
+    for (const c of Object.keys(d1)) { const m=new Map<number,number>(); for (const b of d1[c]) m.set(b.t,b.close); closes[c]=m }
+    const LB=30, RB=7, K=5
+    let prev=new Map<string,number>(), eq=1, eqT=1, pk=1, dd=0, periods=0
+    const wSum=new Array(NW).fill(0), wN=new Array(NW).fill(0)
+    for (let t=tmin+LB*DAY; t+RB*DAY<=tmax; t+=RB*DAY) {
+      const t0=Math.floor((t-LB*DAY)/DAY)*DAY, t1=Math.floor(t/DAY)*DAY, t2=Math.floor((t+RB*DAY)/DAY)*DAY
+      const scored:{c:string,mom:number,w:number}[]=[]
+      for (const c of Object.keys(closes)) {
+        const m=closes[c]
+        const p0=m.get(t0), p1=m.get(t1), p2=m.get(t2)
+        if (!p0||!p1||!p2||p0<=0) continue
+        const rets:number[]=[]
+        for (let k=1;k<=LB;k++){ const a=m.get(t1-k*DAY), b=m.get(t1-(k-1)*DAY); if(a&&b&&a>0) rets.push(b/a-1) }
+        if (rets.length<20) continue
+        const mu=rets.reduce((x,y)=>x+y,0)/rets.length
+        const v=Math.max(Math.sqrt(rets.reduce((x,y)=>x+(y-mu)**2,0)/rets.length),1e-6)
+        scored.push({c, mom:p1/p0-1, w:1/v})
+      }
+      if (scored.length<K*4) { prev=new Map(); continue }
+      scored.sort((a,b)=>b.mom-a.mom)
+      let ret=0; const basket=new Map<string,number>()
+      for (const [li,leg] of [[0,scored.slice(0,K)] as const,[1,scored.slice(-K)] as const]) {
+        const dir=li===0?1:-1
+        const wsum=leg.reduce((a,x)=>a+x.w,0)
+        for (const x of leg) { basket.set(x.c,dir)
+          ret += dir*0.5*(x.w/wsum)*((closes[x.c].get(t2)!/closes[x.c].get(t1)!)-1) }
+      }
+      let ch=0
+      for (const [c,dd2] of basket) if (prev.get(c)!==dd2) ch++
+      for (const [c,dd2] of prev) if (basket.get(c)!==dd2) ch++
+      const turn=ch/(2*K)
+      prev=basket
+      eq*=(1+ret-turn*FEE_M); eqT*=(1+ret-turn*FEE_T)
+      if (eq>pk) pk=eq; dd=Math.max(dd,1-eq/pk)
+      const wi=winOf(t); wSum[wi]+=ret-turn*FEE_M; wN[wi]++
+      periods++
+    }
+    const perYear=365.25/RB
+    const annM=Math.pow(eq, perYear/Math.max(1,periods))-1
+    const annT=Math.pow(eqT, perYear/Math.max(1,periods))-1
+    const wAvg=wSum.map((x,i)=>wN[i]?x/wN[i]:0)
+    const ok=wAvg.every(x=>x>0)?'✅':''
+    console.log(`  1d LB30|RB7|K5   annM=${(annM*100).toFixed(1)}% annT=${(annT*100).toFixed(1)}% maxDD=${(dd*100).toFixed(0)}% | ${wAvg.map(x=>((x>=0?'+':'')+(x*10000).toFixed(0)).padStart(5)).join(' ')} ${ok}`)
+  }
+  console.log(`\n✅ = positive maker expectancy in all ${NW} windows.`)
+}
+
 // ─────────────────────────────────────────────────────────────
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
@@ -1952,6 +2112,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v45bt') {
     console.log(`████ V45BT — Sharpe-momentum / exit ladder / funding tilt ████`)
     runV45bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v46bt') {
+    console.log(`████ V46BT — extended universe / daily sleeves / pyramiding ████`)
+    runV46bt()
     return
   }
 
