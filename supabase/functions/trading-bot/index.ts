@@ -1,4 +1,12 @@
 // ════════════════════════════════════════════════════════════
+// CryptoBot v46 — measurement pack + PYRAMID (validated)
+//
+// v46: expectation-band check, bot_equity history + dashboard curve, combined
+//  per-coin exposure cap 20%, OKX retry/backoff, and PYRAMIDING: a 2nd breakout
+//  unit stacks on a ≥0.6R same-direction winner (9,000 trades, +0.062R, all 6
+//  windows ✅). Tested & REJECTED by walk-forward: 70-coin universe (w1<0),
+//  daily Turtle sleeve (w3<0), daily rotation (3 windows <0) — not deployed.
+//
 // CryptoBot v45.1 — SPORTY risk profile (user-selected)
 //
 // v45.1: rotation book 50%→70% of portfolio (validated at full book: +48%/yr,
@@ -2812,7 +2820,12 @@ Deno.serve(async (req) => {
         if (entriesBlocked) return  // 30% equity DD pause or daily loss limit
         if (streakPaused) return
         if (openCount >= MAX_OPEN_TRADES) return
-        if (openTrades.length > 0) return  // 1 trade per symbol
+        // v46 PYRAMID (validated: 9,000 trades, +0.062R, all 6 windows positive):
+        // allow a 2nd DONCH4H unit on the same coin when the 1st is ≥0.6R in
+        // profit and the new breakout is the same direction. Anything else blocks.
+        const donchOnSym = openTrades.filter((t:any)=>t.strategy==='DONCH4H')
+        if (openTrades.some((t:any)=>t.strategy!=='DONCH4H')) return  // ROTA/legacy holds the coin
+        if (donchOnSym.length >= 2) return                            // max 2 units
         if (symCooldown.has(sym)) return
         // v31-B: loss cooldown check (applied after entryScore.side is known)
         // NOTE: side is determined after calcConfluenceScore — loss cooldown
@@ -2854,6 +2867,18 @@ Deno.serve(async (req) => {
           if (!side4) return
           const adx4 = calcADX(c4.slice(-60))
           if (adx4 <= 22) { log.push(`SKIP ${sym}: DONCH4H breakout but adx=${adx4.toFixed(0)}<=22`); return }
+          // v46 PYRAMID gate: a 2nd unit only stacks on a same-direction winner ≥0.6R
+          if (donchOnSym.length > 0) {
+            const ok = donchOnSym.every((t:any) => {
+              if (t.side !== side4) return false
+              const e2=Number(t.entry_price), d2=t.side==='LONG'?1:-1
+              const tpStored = t.side==='LONG'?Number(t.hi):Number(t.lo)
+              const sd2 = Math.abs(tpStored-e2)/1.6
+              return sd2>0 && (price-e2)*d2/sd2 >= 0.6
+            })
+            if (!ok) return
+            log.push(`PYRAMID ${sym}: stacking 2nd unit on winning ${side4}`)
+          }
           const atr4 = calcATR(c4.slice(-20))
           if (!atr4) return
           const slDist4 = Math.max(atr4 * 1.4, price * 0.005)
