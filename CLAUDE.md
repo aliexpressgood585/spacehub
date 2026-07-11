@@ -56,7 +56,8 @@ fade via OI-crash (all 12 configs negative; NB Binance has NO liquidation
 archive — metrics/ OI is the only forced-deleveraging data source), top-trader
 positioning tilt (FOLLOWING whales slightly HURT: +0.049 vs +0.050R base;
 fading them +0.051R but < +0.004R deploy bar = noise), Fear&Greed sizing tilt
-(both directions noise-level).
+(both directions noise-level), pair spread BTC/ETH+ETH/SOL+BTC/SOL (12 configs,
+best = 5/6 windows but only ~47 trades/36m and w6 negative — rejected).
 
 ## Current state (2026-07-10)
 - Live: **v50** — daily loss limit (-5%/24h peak → pause new entries only), ROTA K=7 (annT 38.2%, maxDD 17%, all windows), pyramid depth 3
@@ -71,6 +72,10 @@ fading them +0.051R but < +0.004R deploy bar = noise), Fear&Greed sizing tilt
 - User's chosen risk profile: SPORTY (base risk 1.25%). Split exits chosen: LADDER.
 - Recommendation on record: freeze strategy changes 1-2 weeks, accumulate ~50
   live trades, compare to expectation bands before raising risk further.
+- Monte Carlo DD table (v50bt, for the risk-raise decision; real DD runs deeper
+  due to concurrent positions): 1.25% risk → median maxDD 16%, p90 25%, p99 36%;
+  1.75% → 22/34/47%; 2.50% → 31/46/60%. User must accept the tier's p90 before
+  each raise.
 
 ## How to work
 - Small edits → verify types (`tsc --noEmit --ignoreConfig --skipLibCheck` on a
