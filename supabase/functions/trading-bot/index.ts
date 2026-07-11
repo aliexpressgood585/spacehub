@@ -1,4 +1,17 @@
 // ════════════════════════════════════════════════════════════
+// CryptoBot v51.0 — DONCH4H Donchian window 25 → 15 (breadth upgrade)
+//
+// v51.0: v55bt walk-forward (36m, 6 windows, real fees) showed DW=15 keeps
+//  the full edge with far more signals: n=11,218 vs 8,421 (+33% trades),
+//  avg +0.0456R/trade, ALL 6 windows positive, total 512R vs 420R (+22%).
+//  DW=15 was never tested in the old refine grids ([25,30,40,55,70]).
+//  Same ADX(60)>22 gate, SL=1.4×ATR, ladder exits, pyramiding unchanged.
+//  Also tested & REJECTED in v54bt/v55bt: 4th pyramid unit at 1.6R
+//  (-0.0088R incremental), volume-confirmation filter (rule-5: cuts 26-63%
+//  of trades), ROTA skew weights (-0.3pp, worse DD), session filters
+//  (rule-5), DW=40 slow sleeve (window-1 negative), ROTA 7d horizon
+//  (annT 13.5% vs 38.2%), 12h Donchian sleeve (2 windows negative).
+//
 // CryptoBot v50.2 — bug-review fixes (full code audit)
 //
 // v50.2: (1) equity snapshots are now MARK-TO-MARKET (were entry-priced —
@@ -2057,7 +2070,7 @@ Deno.serve(async (req) => {
           if (b4.length < 45) { outD.push({sym:ci.sym, err:'bars='+b4.length}); continue }
           const c4 = b4.slice(0,-1)
           const last4 = c4[c4.length-1]
-          const prior = c4.slice(-26,-1)
+          const prior = c4.slice(-16,-1)          // v51: matches live DW=15
           const hiN = Math.max(...prior.map(b=>b.high))
           const loN = Math.min(...prior.map(b=>b.low))
           const side = last4.close>hiN ? 'LONG' : last4.close<loN ? 'SHORT' : null
@@ -3019,8 +3032,12 @@ Deno.serve(async (req) => {
           if (bars4h.length < 45) return
           const c4 = bars4h.slice(0, -1)          // completed 4h bars only
           const last4 = c4[c4.length - 1]
-          const prior = c4.slice(-26, -1)         // v41.4: 25 bars before the signal bar (was 40)
-          if (prior.length < 25) return
+          // v51: Donchian window 25→15 (v55bt: DW=15 n=11,218 avg +0.0456R, all 6
+          // windows positive → +33% trades, +22% total R vs DW=25's 420R/36m.
+          // DW=40 slow sleeve rejected: window-1 negative. 15 was never in the
+          // old refine grids [25,30,40,55,70] — first time tested.)
+          const prior = c4.slice(-16, -1)         // 15 bars before the signal bar
+          if (prior.length < 15) return
           const hiN = Math.max(...prior.map(b => b.high))
           const loN = Math.min(...prior.map(b => b.low))
           const side4: 'LONG'|'SHORT'|null =

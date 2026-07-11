@@ -62,20 +62,35 @@ squeeze/compression sizing tilt (the classic "narrow channel = better breakout"
 lore is BACKWARDS here: compression-boost LOST -0.0035R; wide-channel-boost
 gained +0.0037R but misses the +0.004R bar and only 3/6 windows better — ADX
 tiering already captures the real effect), weekend tilt (noise both ways).
-RESEARCH CHAPTER CLOSED 2026-07-11: ~400 list items triaged over 4 user lists,
-13 validation batches run. Free, validatable data is exhausted. Next edge
-levers: 50-trade live checkpoint → risk raise per Monte Carlo table; later
-real-exchange connection + capital.
+v53bt (2026-07-11): 1h mean-reversion ADX<22+RSI extremes (avg -0.13R — in
+crypto extreme RSI = continuation, not reversal), 1h large-body cascade fade
+(avg -0.08 to -0.13R). v54bt: 4th pyramid unit at 1.6R (-0.0088R incremental —
+1.6R is exactly where moves exhaust; the ladder exit there is correct),
+volume-confirmation filter (rule-5: cuts 26-63% of trades; NB high-vol
+breakouts DO carry +30% more edge — info only), ROTA negative-skew weight
+penalty (-0.3pp, worse DD — crash-prone coins ARE the momentum), session
+filters (rule-5; overnight 00-08 UTC is the weakest session +0.019R).
+v55bt: DW=40 slow sleeve (w1 negative), ROTA 7d momentum horizon (annT 13.5%
+vs 38.2% — 7d is too noisy) and 50/50 blend (25.9%, w4 negative), 12h
+Donchian sleeve (2 windows negative — the 4h sweet spot is real).
+RESEARCH NOTE: the "chapter closed" call on 2026-07-11 was premature — v55bt
+found DW=15 (deployed as v51). Breadth (more sleeves of the proven edge) was
+the unexplored axis; it too is now exhausted (15✅ / 40✗ / 12h✗ / dual-ROTA✗).
+Next edge levers: 50-trade live checkpoint → risk raise per Monte Carlo table;
+later real-exchange connection + capital.
 
-## Current state (2026-07-10)
-- Live: **v50.1** — USDT depeg monitor + cross-source bad-tick shield;
-  daily loss limit (-5%/24h peak → pause new entries only), ROTA K=7 (annT 38.2%, maxDD 17%, all windows), pyramid depth 3
-  (3rd unit at ≥1.0R), maker TP-leg fills (v47), stablecoin exclusion (v48, by
-  the user's second Claude session), Bybit third data source, watchdog + daily
-  report workflows (GitHub issues). Account reset started at $10,000 paper.
+## Current state (2026-07-11)
+- Live: **v51.0** — DONCH4H Donchian window 25→15 (v55bt: n=11,218 +33%
+  trades, avg +0.0456R, all 6 windows, +22% total R; DW=15 was never in the
+  old refine grids). On top of v50.2 (mark-to-market equity snapshots,
+  era-anchored stats — shipped by the second session) and v50.1 (USDT depeg
+  monitor + cross-source bad-tick shield, daily -5% loss brake), ROTA K=7
+  (annT 38.2%, all windows), pyramid depth 3, maker TP-leg fills, stablecoin
+  exclusion, Bybit third source, watchdog + daily report workflows. Account
+  reset started at $10,000 paper.
   NOTE: a second Claude account session works on this repo too — always fetch
   and read git log before assuming file state.
-- Expectation bands: DONCH4H WR~66%, ~+0.05R/trade; ROTA ~48%/yr book.
+- Expectation bands: DONCH4H WR~66%, ~+0.046R/trade (v51 DW=15); ROTA ~48%/yr book.
 - v47bt+v48bt validations CLOSED: retest entries, OI-cascade fade, 1h sleeve all
   rejected (numbers in `status/bt-latest.txt`).
 - User's chosen risk profile: SPORTY (base risk 1.25%). Split exits chosen: LADDER.

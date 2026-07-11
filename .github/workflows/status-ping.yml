@@ -48,7 +48,7 @@ jobs:
           import json
           try: rows=json.load(open('/tmp/lvb.json'))
           except Exception: rows=[]
-          bands={'DONCH4H':{'wr':(55,80),'target':'WR~66%, +0.064R/trade'},'ROTA':{'wr':(35,75),'target':'periods mostly +, ~48%/yr book'}}
+          bands={'DONCH4H':{'wr':(55,80),'target':'WR~66%, +0.046R/trade (v51 DW=15)'},'ROTA':{'wr':(35,75),'target':'periods mostly +, ~48%/yr book'}}
           if not rows: print("  no closed strategy trades yet")
           for r in rows:
               st=r['strategy']; n=int(r['n']); wr=float(r['wr'] or 0)

@@ -1,30 +1,22 @@
-backtest 2026-07-11T22:27Z mode=v54bt months=36
-████ V54BT — 4th Pyramid / Volume Confirmation / ROTA Skew / Session Filter ████
+backtest 2026-07-11T22:38Z mode=v55bt months=36
+████ V55BT — BREADTH: Donchian ensemble / ROTA dual horizon / 12h sleeve ████
   loaded 69 coins, 6 windows
 
-── A) DONCH4H 4th Pyramid Unit — continuation at 1.6R, SL→1.0R, TP→2.5R ──
-  same-size unit: SL_new = 0.6×origSlDist, TP_new = 0.9×origSlDist (1.5R new-unit R)
-  baseline     n=8421  avg +0.0499R | w:   +7.1‰   +7.3‰ +122.2‰  +79.8‰  +41.1‰  +16.2‰ ✅
-  4th unit   27% reach 1.6R  avg incr -0.0088R | w:  -30.9‰  -29.0‰  +15.8‰   -2.8‰  +17.6‰  -32.0‰ 
-  deploy bar: all windows positive AND avg incremental R > +0.004R per original trade.
+── A) DONCH 4h length ensemble — DW=15 / 25 (live) / 40 as parallel sleeves ──
+  each sleeve: ADX(60)>22, SL=1.4×ATR, ladder 0.6/1.0/1.6R, hold 96 bars
+  DW=25 (live baseline)    n= 8421  avg +0.0499R | w:   +7.1‰   +7.3‰ +122.2‰  +79.8‰  +41.1‰  +16.2‰ ✅
+  DW=15 (fast sleeve)      n=11218  avg +0.0456R | w:   +6.2‰  +37.0‰  +96.9‰  +84.1‰  +10.9‰  +20.4‰ ✅ DEPLOYABLE
+  DW=40 (slow sleeve)      n= 6368  avg +0.0607R | w:   -6.2‰   +5.7‰ +127.4‰  +72.4‰  +50.7‰  +74.0‰ 
+  deploy bar (new sleeve): all 6 windows positive AND avg ≥ +0.004R standalone.
 
-── B) DONCH4H Volume Confirmation — breakout bar vol vs 20-bar MA ──
-  ⚠️  INFORMATIONAL: rule-5 rejects if trade count drops >20%
-  vol>1.2×MA  n=6218/8421 (−26%)  avg +0.0507R |   +0.5‰  +19.6‰ +121.3‰  +74.9‰  +35.3‰  +27.7‰ ❌ RULE5
-  vol>1.5×MA  n=4876/8421 (−42%)  avg +0.0515R |   +7.1‰  +18.7‰ +102.7‰  +74.3‰  +67.0‰  +27.7‰ ❌ RULE5
-  vol>2.0×MA  n=3124/8421 (−63%)  avg +0.0651R |  +31.9‰   +8.7‰ +127.6‰  +53.5‰ +136.3‰  +35.3‰ ❌ RULE5
+── B) ROTA K=7 dual horizon — LB=84 (14d live) vs LB=42 (7d) vs 50/50 blend ──
+  LB=84 (14d)    (live baseline)          annT=38.2% maxDD=20% | bps/period:   +25   +39   +13    +7   +24    +8 ✅
+  LB=42 (7d)     below baseline (38.2%)   annT=13.5% maxDD=39% | bps/period:   +14   +24   +20   -37   +15   +15 
+  50/50 blend    below baseline (38.2%)   annT=25.9% maxDD=22% | bps/period:   +20   +31   +17   -15   +19   +12 
+  deploy blend only if all windows positive AND annT ≥ LB=84 annT.
 
-── C) ROTA K=7 Skew-Adjusted Weights — penalise negative-skew (crash-prone) coins ──
-  weight = 1/(vol × (1 + max(0,−skew) × alpha))  vs baseline alpha=0 (plain 1/vol)
-  alpha=0.0 (baseline 1/vol)   annT=38.2% maxDD=20% | bps/period:   +25   +39   +13    +7   +24    +8 ✅
-  alpha=0.3 Δ-0.3pp          annT=37.9% maxDD=22% | bps/period:   +26   +37   +13    +6   +25    +8 ✅
-  alpha=0.6 Δ-0.5pp          annT=37.6% maxDD=24% | bps/period:   +27   +36   +14    +5   +26    +7 ✅
-
-── D) DONCH4H Time-of-Day — which 4h session wins? ──
-  ⚠️  INFORMATIONAL: rule-5 rejects filters cutting >20% of trades
-  full day (baseline)          n= 8421         avg +0.0499R |   +7.1‰   +7.3‰ +122.2‰  +79.8‰  +41.1‰  +16.2‰ ✅
-  08-16 UTC (London+NY)        n= 2994 (−64%)  avg +0.0579R |  +81.1‰  -70.8‰ +110.3‰  +41.5‰ +110.5‰  +80.2‰ ❌ RULE5
-  16-00 UTC (NY evening+Asia)  n= 2917 (−65%)  avg +0.0682R |  -34.5‰  +80.9‰ +124.3‰ +195.2‰  +39.0‰  -36.0‰ ❌ RULE5
-  00-08 UTC (overnight)        n= 2510 (−70%)  avg +0.0191R |  -36.2‰  +34.9‰ +133.7‰   -5.0‰  -32.3‰  -11.6‰ ❌ RULE5
+── C) 12h DONCH-25 sleeve (hold cap 32 bars ≈ 16d; daily failed, 12h untested) ──
+  12h DW=25                n= 1785  avg +0.0468R | w:  +50.4‰   -9.4‰  -19.0‰  +57.9‰  +26.6‰ +148.1‰ 
+  deploy bar: all 6 windows positive AND avg ≥ +0.004R standalone.
 
 ✅ = all 6 windows positive.
