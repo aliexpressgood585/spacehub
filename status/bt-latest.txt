@@ -1,22 +1,25 @@
-backtest 2026-07-11T22:38Z mode=v55bt months=36
-████ V55BT — BREADTH: Donchian ensemble / ROTA dual horizon / 12h sleeve ████
+backtest 2026-07-11T22:58Z mode=v56bt months=36
+████ V56BT — neighbor re-tune around DW=15: DW curve / ADX gate / cooldown / ROTA K ████
   loaded 69 coins, 6 windows
 
-── A) DONCH 4h length ensemble — DW=15 / 25 (live) / 40 as parallel sleeves ──
-  each sleeve: ADX(60)>22, SL=1.4×ATR, ladder 0.6/1.0/1.6R, hold 96 bars
-  DW=25 (live baseline)    n= 8421  avg +0.0499R | w:   +7.1‰   +7.3‰ +122.2‰  +79.8‰  +41.1‰  +16.2‰ ✅
-  DW=15 (fast sleeve)      n=11218  avg +0.0456R | w:   +6.2‰  +37.0‰  +96.9‰  +84.1‰  +10.9‰  +20.4‰ ✅ DEPLOYABLE
-  DW=40 (slow sleeve)      n= 6368  avg +0.0607R | w:   -6.2‰   +5.7‰ +127.4‰  +72.4‰  +50.7‰  +74.0‰ 
-  deploy bar (new sleeve): all 6 windows positive AND avg ≥ +0.004R standalone.
+── A) DW curve (adx22, cd2): 10 / 12 / 15 (live) / 20 ──
+  DW=15 (live v51)       n=11218 WR=66.0% avg +0.0456R totR= 512 | w:   +6.2‰  +37.0‰  +96.9‰  +84.1‰  +10.9‰  +20.4‰ ✅ (baseline)
+  DW=10                  n=13928 WR=65.5% avg +0.0369R totR= 514 | w:   +5.2‰  +18.1‰  +77.2‰  +76.0‰   -6.6‰  +37.1‰ 
+  DW=12                  n=12591 WR=65.8% avg +0.0404R totR= 509 | w:   +2.9‰  +19.1‰  +82.6‰  +80.7‰   +7.7‰  +32.0‰ (all+, totR 509 ≤ base 512)
+  DW=20                  n= 9507 WR=66.2% avg +0.0481R totR= 457 | w:   +0.9‰  +19.7‰ +109.5‰  +88.1‰  +27.1‰  +18.7‰ (all+, totR 457 ≤ base 512)
 
-── B) ROTA K=7 dual horizon — LB=84 (14d live) vs LB=42 (7d) vs 50/50 blend ──
-  LB=84 (14d)    (live baseline)          annT=38.2% maxDD=20% | bps/period:   +25   +39   +13    +7   +24    +8 ✅
-  LB=42 (7d)     below baseline (38.2%)   annT=13.5% maxDD=39% | bps/period:   +14   +24   +20   -37   +15   +15 
-  50/50 blend    below baseline (38.2%)   annT=25.9% maxDD=22% | bps/period:   +20   +31   +17   -15   +19   +12 
-  deploy blend only if all windows positive AND annT ≥ LB=84 annT.
+── B) ADX gate on DW=15: 18 / 20 / 22 (live) ──
+  adx>18                 n=13633 WR=65.8% avg +0.0404R totR= 550 | w:   -4.0‰  +23.6‰ +103.9‰ +101.5‰   -7.4‰   +2.0‰ 
+  adx>20                 n=12374 WR=65.9% avg +0.0436R totR= 540 | w:   +3.3‰  +29.2‰ +101.3‰  +95.7‰   -1.7‰  +13.9‰ 
 
-── C) 12h DONCH-25 sleeve (hold cap 32 bars ≈ 16d; daily failed, 12h untested) ──
-  12h DW=25                n= 1785  avg +0.0468R | w:  +50.4‰   -9.4‰  -19.0‰  +57.9‰  +26.6‰ +148.1‰ 
-  deploy bar: all 6 windows positive AND avg ≥ +0.004R standalone.
+── C) entry cooldown on DW=15|adx22: 1 bar vs 2 (live) ──
+  cooldown=1             n=14113 WR=66.0% avg +0.0484R totR= 683 | w:  +20.1‰  +34.7‰  +90.8‰ +104.0‰   -4.7‰  +27.0‰ 
+  deploy bar (A/B/C): all 6 windows positive AND total R > DW15|adx22|cd2 baseline.
+
+── D) ROTA K sweep: 7 (live) / 8 / 9 — LB=84, RB=12, invVol, taker fees ──
+  K=7  annT=38.2% maxDD=20% | bps/period:   +25   +39   +13    +7   +24    +8 ✅ (baseline)
+  K=8  annT=39.2% maxDD=15% | bps/period:   +25   +41   +13    +9   +23    +6 ✅ ≥ baseline
+  K=9  annT=32.8% maxDD=19% | bps/period:   +32   +34    -3   +11   +23    +7 
+  deploy bar (D): all windows positive AND annT ≥ K=7 annT.
 
 ✅ = all 6 windows positive.
