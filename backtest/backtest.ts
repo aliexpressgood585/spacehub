@@ -2179,6 +2179,155 @@ function runV51bt() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// v52bt: (A) DONCH4H 3rd exit level — 1.6R (live baseline) vs 2.0R vs 2.5R;
+//   does a wider last TP stage lift expectancy across all 6 walk-forward windows?
+//   Deploy bar: all windows positive AND total avg R ≥ baseline +0.004R.
+// (B) ROTA K=7 rebalance frequency: RB=12 (48h, live) vs RB=6 (24h);
+//   does daily rebalancing improve returns vs the live 48h cadence?
+//   Deploy bar: RB=6 all windows positive AND annT ≥ 0.9× RB=12 annT (no regression).
+function runV52bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000
+  const toTf = (a:Bar[], ms:number):Bar[] => {
+    const out:Bar[] = []; let cur:Bar|null=null; let bucket=-1
+    for (const b of a) { const k=Math.floor(b.t/ms)
+      if (k!==bucket) { if (cur) out.push(cur); bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol} }
+      else if (cur) { cur.high=Math.max(cur.high,b.high); cur.low=Math.min(cur.low,b.low); cur.close=b.close; cur.vol+=b.vol } }
+    if (cur) out.push(cur); return out
+  }
+  const d4: Record<string,Bar[]> = {}
+  let tmin=Infinity, tmax=-Infinity
+  for (const c of COINS) {
+    const h=loadCSV(c,'1h'); if (h.length<500) continue
+    d4[c]=toTf(h,BAR4)
+    tmin=Math.min(tmin,h[0].t); tmax=Math.max(tmax,h[h.length-1].t)
+  }
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${NW} windows`)
+
+  // ── A) DONCH4H 3rd exit level: 1.6R (live) vs 2.0R vs 2.5R ──
+  console.log(`\n── A) DONCH4H LADDER 3rd exit: 0.6/1.0/X — testing X = 1.6 | 2.0 | 2.5 ──`)
+  console.log(`  setup: Donchian-25, ADX(60)>22, SL=1.4×ATR, hold cap 96 bars`)
+  const ladder2=(arr:Bar[], j0:number, entry:number, side:'LONG'|'SHORT', slDist:number, jEnd:number, r3:number)=>{
+    const dirM=side==='LONG'?1:-1, slPx=entry-slDist*dirM
+    const lvl=(r:number)=>entry+slDist*r*dirM
+    const stages=[{r:0.6,frac:1/3},{r:1.0,frac:1/3},{r:r3,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0, rem=1, be=false, si=0, tpFrac=0
+    for (let j=j0+1;j<=jEndc;j++) {
+      const b=arr[j], stopPx=be?entry:slPx
+      if (side==='LONG'?b.low<=stopPx:b.high>=stopPx) { banked+=rem*(be?0:-1); rem=0; break }
+      while (si<stages.length) {
+        const tgt=lvl(stages[si].r)
+        if (!(side==='LONG'?b.high>=tgt:b.low<=tgt)) break
+        banked+=stages[si].frac*stages[si].r; tpFrac+=stages[si].frac; rem-=stages[si].frac; be=true; si++
+      }
+      if (rem<=1e-9) break
+    }
+    if (rem>1e-9) banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return {r:banked, tpFrac}
+  }
+  interface Tr52 { win:number; net:number }
+  let baselineAvg=0
+  for (const r3 of [1.6, 2.0, 2.5]) {
+    const trades:Tr52[]=[]
+    for (const c of Object.keys(d4)) {
+      if (!CORE40.has(c)) continue
+      const arr=d4[c]; let last=-999
+      for (let i=100;i<arr.length-1;i++) {
+        const price=arr[i].close
+        const prior=arr.slice(i-25,i)
+        let hi=-Infinity, lo=Infinity
+        for (const b of prior) { if (b.high>hi) hi=b.high; if (b.low<lo) lo=b.low }
+        const side: 'LONG'|'SHORT'|null = price>hi?'LONG':price<lo?'SHORT':null
+        if (!side) continue
+        const win=arr.slice(Math.max(0,i-99),i+1)
+        const adx=calcADX(win.slice(-60)); if (adx<=22) continue
+        const atr=calcATR(win.slice(-20)); if(!atr) continue
+        if (i-last<2) continue
+        last=i
+        const slDist=Math.max(atr*1.4, price*0.005), slPct=slDist/price
+        if (slPct>0.08) continue
+        const res=ladder2(arr,i,price,side,slDist,i+96,r3)
+        const net=res.r-(TK + res.tpFrac*MK+(1-res.tpFrac)*TK)/slPct
+        trades.push({win:winOf(arr[i].t), net})
+      }
+    }
+    const wSum=new Array(NW).fill(0), wN=new Array(NW).fill(0)
+    for (const tr of trades) { wSum[tr.win]+=tr.net; wN[tr.win]++ }
+    const wAvg=wSum.map((x,i)=>wN[i]?x/wN[i]:0)
+    const total=trades.reduce((a,t)=>a+t.net,0)/Math.max(1,trades.length)
+    const ok=wAvg.every(x=>x>0)?'✅':''
+    const tag=r3===1.6?'(live baseline)':'              '
+    if (r3===1.6) baselineAvg=total
+    const delta=r3===1.6?'':` Δ${total-baselineAvg>=0?'+':''}${((total-baselineAvg)*1000).toFixed(1)}‰`
+    console.log(`  r3=${r3.toFixed(1)}R ${tag}  n=${trades.length}  avg ${(total>=0?'+':'')+total.toFixed(4)}R${delta} | w: ${wAvg.map(x=>((x>=0?'+':'')+(x*1000).toFixed(1)+'‰').padStart(7)).join(' ')} ${ok}`)
+  }
+  console.log(`  deploy bar: all windows positive AND ≥+0.004R above 1.6R baseline.`)
+
+  // ── B) ROTA K=7 rebalance frequency: RB=12 (48h live) vs RB=6 (24h) ──
+  console.log(`\n── B) ROTA K=7 rebalance frequency: RB=12 (48h live) vs RB=6 (24h) ──`)
+  console.log(`  invVol weights, LB=84, taker fees on turnover; K=7 fixed (already validated)`)
+  {
+    const closes: Record<string, Map<number,number>> = {}
+    for (const c of Object.keys(d4)) { const m=new Map<number,number>(); for (const b of d4[c]) m.set(b.t,b.close); closes[c]=m }
+    const FEE_T2=0.0010, FEE_M2=0.0004, LB=84, K=7
+    const volOf=(c:string,t:number)=>{
+      const m=closes[c]; const rets:number[]=[]
+      for (let k=1;k<=LB;k++){ const a=m.get(t-k*BAR4), b=m.get(t-(k-1)*BAR4); if(a&&b&&a>0) rets.push(b/a-1) }
+      if (rets.length<40) return null
+      const mu=rets.reduce((x,y)=>x+y,0)/rets.length
+      return Math.sqrt(rets.reduce((x,y)=>x+(y-mu)**2,0)/rets.length)
+    }
+    const retOf=(c:string,t0:number,t1:number)=>{ const m=closes[c]; const a=m.get(t0), b=m.get(t1); return (a&&b)?b/a-1:null }
+    let annT12=0
+    for (const RB of [12, 6]) {
+      let prev=new Map<string,number>(), eq=1, eqT=1, pk=1, mdd=0, periods=0
+      const wSum=new Array(NW).fill(0), wN=new Array(NW).fill(0)
+      for (let t=tmin+LB*BAR4; t+RB*BAR4<=tmax; t+=RB*BAR4) {
+        const scored:{c:string,mom:number,w:number}[]=[]
+        for (const c of Object.keys(closes)) {
+          if (!CORE40.has(c)) continue
+          const p0=closes[c].get(t-LB*BAR4), p1=closes[c].get(t), p2=closes[c].get(t+RB*BAR4)
+          if (!p0||!p1||!p2||p0<=0) continue
+          const v=volOf(c,t); if (v===null||v<=0) continue
+          scored.push({c, mom:p1/p0-1, w:1/v})
+        }
+        if (scored.length<K*4) { prev=new Map(); continue }
+        scored.sort((a,b)=>b.mom-a.mom)
+        let ret=0; const basket=new Map<string,number>()
+        for (const [li,leg] of [[0,scored.slice(0,K)] as const,[1,scored.slice(-K)] as const]) {
+          const dir=li===0?1:-1
+          const wsum=leg.reduce((a,x)=>a+x.w,0)
+          for (const x of leg) { basket.set(x.c,dir)
+            ret += dir*0.5*(x.w/wsum)*(retOf(x.c,t,t+RB*BAR4)??0) }
+        }
+        let ch=0
+        for (const [c,d] of basket) if (prev.get(c)!==d) ch++
+        for (const [c,d] of prev) if (basket.get(c)!==d) ch++
+        const turn=ch/(2*K)
+        prev=basket
+        eq*=(1+ret-turn*FEE_M2); eqT*=(1+ret-turn*FEE_T2)
+        if (eq>pk) pk=eq; mdd=Math.max(mdd,1-eq/pk)
+        const wi=winOf(t); wSum[wi]+=ret-turn*FEE_T2; wN[wi]++
+        periods++
+      }
+      const perYear=365.25*86400000/(RB*BAR4)
+      const annM=Math.pow(eq, perYear/Math.max(1,periods))-1
+      const annT=Math.pow(eqT, perYear/Math.max(1,periods))-1
+      if (RB===12) annT12=annT
+      const wAvg=wSum.map((x,i)=>wN[i]?x/wN[i]:0)
+      const ok=wAvg.every(x=>x>0)?'✅':''
+      const ref=RB===12?'(live baseline)':` vs baseline: ${annT>=annT12*0.9?'✅ passes 0.9×':'❌ below 0.9×'} (${(annT12*100).toFixed(1)}%×0.9=${(annT12*90).toFixed(1)}%)`
+      console.log(`  RB=${RB} (${RB===12?'48h':'24h'}) ${ref}  annM=${(annM*100).toFixed(1)}% annT=${(annT*100).toFixed(1)}% maxDD=${(mdd*100).toFixed(0)}% | bps/period: ${wAvg.map(x=>((x>=0?'+':'')+(x*10000).toFixed(0)).padStart(5)).join(' ')} ${ok}`)
+    }
+    console.log(`  deploy RB=6 only if all taker windows positive AND annT ≥ 0.9× RB=12 annT.`)
+  }
+  console.log(`\n✅ = all ${NW} windows positive.`)
+}
+
+// ─────────────────────────────────────────────────────────────
 // v50bt: (A) market-neutral pair spread (cointegration-style) on 4h bars —
 //  rolling-β log spread, z-score entries; both legs pay taker fees.
 //  (B) Monte Carlo drawdown analysis of the live DONCH4H edge: resample the
@@ -2892,6 +3041,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v51bt') {
     console.log(`████ V51BT — squeeze tilt + weekend tilt ████`)
     runV51bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v52bt') {
+    console.log(`████ V52BT — DONCH4H 3rd exit level + ROTA rebalance frequency ████`)
+    runV52bt()
     return
   }
 
