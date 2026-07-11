@@ -84,7 +84,9 @@ Next edge levers: 50-trade live checkpoint → risk raise per Monte Carlo table;
 later real-exchange connection + capital.
 
 ## Current state (2026-07-11)
-- Live: **v52.0** — ROTA K=8 (v56bt: annT 39.2%, maxDD 15%, all windows; K=9
+- Live: **v52.1** — ops: risk_usd per trade (live avg R vs band), shields JSONB
+  + dashboard card + watchdog shield alerts, reset truncates bot_equity,
+  deploy CLI retry, weekly trade-journal CSV. Strategy layer: ROTA K=8 (v56bt: annT 39.2%, maxDD 15%, all windows; K=9
   rejected w3<0). DONCH4H Donchian window 25→15 (v55bt: n=11,218 +33%
   trades, avg +0.0456R, all 6 windows, +22% total R; DW=15 was never in the
   old refine grids). On top of v50.2 (mark-to-market equity snapshots,

@@ -536,6 +536,7 @@ export default function CryptoTradingDashboard() {
   // v50.2: account-epoch anchor (first bot_equity snapshot ≈ account reset) —
   // pre-reset closed trades must not pollute per-strategy stats / the 50-trade counter
   const [epochTs,setEpochTs]=useState<number>(0)
+  const [shields,setShields]=useState<Record<string,boolean>>({})
   const [botOn,setBotOn]           = useState(true)
   const [trades,setTrades]         = useState<Trade[]>([])
   const [sig,setSig]               = useState<Sig>(emptySig())
@@ -850,6 +851,7 @@ export default function CryptoTradingDashboard() {
         if(d.regime_confidence)setRegimeConf(d.regime_confidence as number)
         if(d.coin_weights)setCoinWeights(d.coin_weights as Record<string,number>)
         if(d.rebalanced_at)setRebalancedAt(d.rebalanced_at as string)
+        setShields((d as any).shields||{})
       }
       const all=[...(open.data||[]),...(closed.data||[])]
       tradeRef.current=all.map(t=>mapDbTrade(t as Record<string,unknown>))
@@ -1193,6 +1195,12 @@ export default function CryptoTradingDashboard() {
             </div>
           ))}
           <ProgressRing value={donchProgress} max={50} color={donchProgress>=50?C.green:C.blue} label="🎯 בדיקת רצועות"/>
+          <div className="shimmer-row" style={{border:`1px solid ${Object.values(shields).some(Boolean)?C.red:C.dim}`,borderRadius:'9px',padding:'6px 10px',display:'flex',justifyContent:'space-between',alignItems:'center',backdropFilter:'blur(10px)'}}>
+            <span style={{color:C.muted,fontSize:'9px'}}>🛡️ מגנים</span>
+            <span style={{color:Object.values(shields).some(Boolean)?C.red:C.green,fontWeight:800,fontSize:'11px'}}>
+              {(()=>{const m:[string,string][]=[['donch_paused','פריצות⏸'],['rota_paused','רוטציה⏸'],['day_loss_paused','בלם-5%'],['depeg_paused','דה-פג!']];const act=m.filter(([k])=>shields[k]).map(([,v])=>v);return act.length?act.join(' '):'הכל פעיל ✓'})()}
+            </span>
+          </div>
           <div style={{background:'rgba(3,8,26,0.85)',border:`1px solid ${C.dim}`,borderRadius:'9px',padding:'7px 10px',fontSize:'9px',color:C.muted,backdropFilter:'blur(10px)'}}>
             <div>SL <span style={{color:C.red}}>{(R.sl*100).toFixed(1)}%</span> · TP <span style={{color:C.green}}>{(R.sl*TP_MULT*100).toFixed(1)}%</span>          {eqPath&&(
             <div style={{background:'rgba(3,8,26,0.85)',border:`1px solid ${C.dim}`,borderRadius:'9px',padding:'6px 10px'}}>

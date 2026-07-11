@@ -1,4 +1,14 @@
 // ════════════════════════════════════════════════════════════
+// CryptoBot v52.1 — visibility & measurement ops (no strategy change)
+//
+// v52.1: (1) risk_usd stored at DONCH4H entry → live avg R vs the +0.046R
+//  band computed exactly (ping + daily report). (2) shields JSONB published
+//  to bot_state each cycle → dashboard shield card + watchdog opens/closes
+//  a GitHub issue when any shield trips. (3) ?reset=1 now truncates
+//  bot_equity so the era anchor moves with a reset. (4) deploy workflow
+//  retries the CLI setup once (transient GH download failures). (5) weekly
+//  trade-journal CSV export workflow (backup + Excel journal).
+//
 // CryptoBot v52.0 — ROTA K=8 (validated v56bt)
 //
 // v52.0: rotation 8 long / 8 short — annT 39.2% vs 38.2% (K=7), maxDD 15%
@@ -2156,6 +2166,9 @@ Deno.serve(async (req) => {
     if (url.searchParams.get('reset')==='1') {
       const newBalance = 10000
       await supabase.from('bot_trades').delete().neq('id',0)
+      // v52.1: truncate equity history so the era anchor (min bot_equity.ts)
+      // moves with the reset — otherwise stats would span two accounts.
+      await supabase.from('bot_equity').delete().neq('id',0)
       // v39: clean-slate reset — also zero peak/stats and clear optimizer's
       // curve-fit params so we measure the v39 changes from scratch.
       await supabase.from('bot_state').update({
@@ -3119,7 +3132,8 @@ Deno.serve(async (req) => {
             hi: side4 === 'LONG' ? tpPrice4 : price,
             lo: side4 === 'SHORT' ? tpPrice4 : price,
             status: 'OPEN', score: Math.round(adx4), mtf: false, partial_done: false,
-            paper_mode: paperMode, entry_macd_hist: 0, strategy: 'DONCH4H'
+            paper_mode: paperMode, entry_macd_hist: 0, strategy: 'DONCH4H',
+            risk_usd: slDist4 * size4   // v52.1: risk taken at entry → live R = pnl/risk_usd
           })
           symCooldown.add(sym)
           log.push(`OPEN ${sym} ${side4} DONCH4H @${price.toFixed(4)} adx4h=${adx4.toFixed(0)} sl=${slPrice4.toFixed(4)} tp=${tpPrice4.toFixed(4)} $${notional4.toFixed(0)}`)
@@ -3419,6 +3433,9 @@ Deno.serve(async (req) => {
       peak_balance:  newPeakBalance,
       coin_weights:  coinWeights,
       lock_until:    new Date().toISOString(),  // v28.2: release run lease
+      // v52.1: shield state published for the dashboard + watchdog alerts
+      shields: { donch_paused: donchPaused, rota_paused: rotaPaused,
+                 day_loss_paused: dayLossPaused, depeg_paused: depegPaused },
     }).eq('id',1)
 
     return new Response(JSON.stringify({
