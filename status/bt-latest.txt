@@ -1,26 +1,13 @@
-backtest 2026-07-11T18:46Z mode=v50bt months=36
-████ V50BT — pair spread + Monte Carlo DD analysis ████
-  loaded 69 coins, 1096 days
+backtest 2026-07-11T19:04Z mode=v51bt months=36
+████ V51BT — squeeze tilt + weekend tilt ████
+  loaded 69 coins
+  8421 trades; compPct on 8416; weekend share 26%
 
-── A) PAIR SPREAD (rolling-β log spread, z-score, both legs taker) ──
-  BTC/ETH look180 z2 out0.5 stop3.5      n=  88 WR=44% avg=0.015%/trade |  -0.19/16  +1.45/13  -1.48/10  +0.08/20  -0.10/12  -0.00/17 
-  BTC/ETH look180 z2.5 out0.5 stop3.5    n=  71 WR=46% avg=0.178%/trade |  -0.17/12  +2.34/11   -0.90/9  -0.07/16  -0.16/10  -0.02/13 
-  BTC/ETH look360 z2 out0.5 stop3.5      n=  55 WR=44% avg=0.204%/trade |  -0.23/13  +0.89/11   -0.27/7   +1.02/9   -0.16/6   -0.21/9 
-  BTC/ETH look360 z2.5 out0.5 stop3.5    n=  47 WR=53% avg=0.825%/trade |  +0.06/12  +1.60/10   +0.71/6   +1.89/8   +0.78/6   -0.39/5 
-  ETH/SOL look180 z2 out0.5 stop3.5      n=  99 WR=43% avg=-0.600%/trade |  +0.27/13  -2.65/12  +0.14/13  -0.95/26  -0.13/15  -0.32/20 
-  ETH/SOL look180 z2.5 out0.5 stop3.5    n=  82 WR=40% avg=-0.448%/trade |   +0.16/9   -1.87/8  +0.32/11  -1.01/24  +0.01/13  -0.15/17 
-  ETH/SOL look360 z2 out0.5 stop3.5      n=  53 WR=43% avg=0.183%/trade |   +1.67/9   -4.59/5  +0.41/10   +0.69/6  +0.50/15   +0.23/8 
-  ETH/SOL look360 z2.5 out0.5 stop3.5    n=  47 WR=45% avg=0.812%/trade |   +3.20/8   -3.83/5  +0.67/10   +4.11/5  +0.36/13   -0.04/6 
-  BTC/SOL look180 z2 out0.5 stop3.5      n=  94 WR=50% avg=-0.106%/trade |  +0.92/15  -1.10/15  +0.47/14  -0.04/18  -0.70/20  +0.05/12 
-  BTC/SOL look180 z2.5 out0.5 stop3.5    n=  73 WR=44% avg=-0.136%/trade |  +1.10/13  -1.26/11  +0.96/10  -0.07/14  -0.92/18   -0.36/7 
-  BTC/SOL look360 z2 out0.5 stop3.5      n=  51 WR=53% avg=0.157%/trade |   +2.27/7   -1.72/6  +0.23/10  +0.79/10   -0.77/7  -0.22/11 
-  BTC/SOL look360 z2.5 out0.5 stop3.5    n=  37 WR=46% avg=0.445%/trade |   +3.16/5   -1.73/5   +0.60/8   +2.47/5   -0.27/8   -0.95/6 
+── tilt evaluation (▲ = beats baseline in that window) ──
+  A squeeze 1.25/0.75 @30/70pct      avg +0.0464R vs base +0.0499R |  +0.018▲  +0.008▲  +0.119▽  +0.084▲  +0.045▲  -0.012▽ 
+  A squeeze 1.5/0.5 @30/70pct        avg +0.0431R vs base +0.0499R |  +0.029▲  +0.008▲  +0.116▽  +0.089▲  +0.049▲  -0.039▽ 
+  A squeeze CONTRA (wide=big)        avg +0.0536R vs base +0.0499R |  -0.004▽  +0.007▽  +0.125▲  +0.075▽  +0.036▽  +0.047▲ 
+  B weekend BOOST 1.25               avg +0.0503R vs base +0.0499R |  +0.012▲  +0.011▲  +0.117▽  +0.083▲  +0.041▽  +0.013▽ (pos, not uniformly better)
+  B weekend CUT 0.75                 avg +0.0495R vs base +0.0499R |  +0.001▽  +0.003▽  +0.128▲  +0.076▽  +0.041▲  +0.019▲ (pos, not uniformly better)
 
-── B) MONTE CARLO — 5,000 synthetic years (500 trades) per risk tier ──
-  edge sample: 8421 trades, avg 0.0499R
-  risk 1.25%: median end ×1.34 (p10 ×1.00) | maxDD median 16% · p90 25% · p99 36%
-  risk 1.75%: median end ×1.49 (p10 ×0.97) | maxDD median 22% · p90 34% · p99 47%
-  risk 2.50%: median end ×1.68 (p10 ×0.92) | maxDD median 31% · p90 46% · p99 60%
-  NOTE: single-position sequential model — ignores concurrent-position correlation, so real DD runs somewhat deeper. Use as a floor, not a ceiling.
-
-✅(A) = ≥5 active windows, all positive.
+✅ = positive AND better than baseline in all 6 windows. Deploy bar: ✅ plus ≥+0.004R total.
