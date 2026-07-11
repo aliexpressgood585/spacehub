@@ -101,6 +101,9 @@ later real-exchange connection + capital.
 - User's chosen risk profile: SPORTY (base risk 1.25%). Split exits chosen: LADDER.
 - Recommendation on record: freeze strategy changes 1-2 weeks, accumulate ~50
   live trades, compare to expectation bands before raising risk further.
+- USER DECISION (2026-07-12): stay at 1.25% base risk until the 50-trade
+  checkpoint; revisit the Monte Carlo table then. Do NOT raise risk before
+  the counter hits 50 and DONCH4H is in-band.
 - Monte Carlo DD table (v50bt, for the risk-raise decision; real DD runs deeper
   due to concurrent positions): 1.25% risk → median maxDD 16%, p90 25%, p99 36%;
   1.75% → 22/34/47%; 2.50% → 31/46/60%. User must accept the tier's p90 before
