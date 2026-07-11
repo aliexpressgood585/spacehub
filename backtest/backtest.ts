@@ -2067,6 +2067,147 @@ function runV46bt() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// v49bt: "smart money" SIZING TILTS — same trades, smarter capital allocation.
+//  A) top-trader positioning (Binance metrics col 6: positions-weighted
+//     long/short ratio of the largest accounts, 5-min samples): breakout
+//     aligned with top traders' net positioning → 1.25x size; against → 0.75x.
+//  B) Fear & Greed extremes (alternative.me daily): fear≤20 + LONG or
+//     greed≥80 + SHORT → 1.25x; the opposite extreme → 0.75x.
+// Trade count is UNCHANGED by construction. Deploy only if the tilt improves
+// the weighted avg R in every window (a tilt that only helps sometimes is noise).
+function runV49bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000
+  const toTf = (a:Bar[], ms:number):Bar[] => {
+    const out:Bar[] = []; let cur:Bar|null=null; let bucket=-1
+    for (const b of a) { const k=Math.floor(b.t/ms)
+      if (k!==bucket) { if (cur) out.push(cur); bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol} }
+      else if (cur) { cur.high=Math.max(cur.high,b.high); cur.low=Math.min(cur.low,b.low); cur.close=b.close; cur.vol+=b.vol } }
+    if (cur) out.push(cur); return out
+  }
+  const d4: Record<string,Bar[]> = {}
+  let tmin=Infinity, tmax=-Infinity
+  for (const c of COINS) {
+    const h=loadCSV(c,'1h'); if (h.length<500) continue
+    d4[c]=toTf(h,BAR4)
+    tmin=Math.min(tmin,h[0].t); tmax=Math.max(tmax,h[h.length-1].t)
+  }
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+
+  // top-trader long/short ratio series per coin
+  const tt: Record<string,{t:number,r:number}[]> = {}
+  let ttCoins=0
+  for (const c of COINS) {
+    let txt:string
+    try { txt=Deno.readTextFileSync(`backtest/data/${c}-tt.csv`) } catch { continue }
+    const arr:{t:number,r:number}[]=[]
+    for (const line of txt.split('\n')) {
+      if (!line || line[0]!=='2') continue
+      const cm=line.indexOf(','); if (cm<0) continue
+      const t=new Date(line.slice(0,cm)+'Z').getTime()
+      const r=parseFloat(line.slice(cm+1))
+      if (Number.isFinite(t)&&Number.isFinite(r)&&r>0) arr.push({t,r})
+    }
+    arr.sort((a,b)=>a.t-b.t)
+    if (arr.length>5000) { tt[c]=arr; ttCoins++ }
+  }
+  // Fear & Greed daily map (UTC day → value)
+  const fng=new Map<number,number>()
+  try {
+    const j=JSON.parse(Deno.readTextFileSync('backtest/data/fng.json'))
+    for (const row of (j?.data??[])) {
+      const t=Number(row.timestamp)*1000, v=Number(row.value)
+      if (Number.isFinite(t)&&Number.isFinite(v)) fng.set(Math.floor(t/86400000), v)
+    }
+  } catch { /* absent */ }
+  console.log(`  loaded ${Object.keys(d4).length} coins; top-trader series: ${ttCoins}; F&G days: ${fng.size}`)
+
+  const ladder2=(arr:Bar[], j0:number, entry:number, side:'LONG'|'SHORT', slDist:number, jEnd:number)=>{
+    const dirM=side==='LONG'?1:-1, slPx=entry-slDist*dirM
+    const lvl=(r:number)=>entry+slDist*r*dirM
+    const stages=[{r:0.6,frac:1/3},{r:1.0,frac:1/3},{r:1.6,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0, rem=1, be=false, si=0, tpFrac=0
+    for (let j=j0+1;j<=jEndc;j++) {
+      const b=arr[j], stopPx=be?entry:slPx
+      if (side==='LONG'?b.low<=stopPx:b.high>=stopPx) { banked+=rem*(be?0:-1); rem=0; break }
+      while (si<stages.length) {
+        const tgt=lvl(stages[si].r)
+        if (!(side==='LONG'?b.high>=tgt:b.low<=tgt)) break
+        banked+=stages[si].frac*stages[si].r; tpFrac+=stages[si].frac; rem-=stages[si].frac; be=true; si++
+      }
+      if (rem<=1e-9) break
+    }
+    if (rem>1e-9) banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return {r:banked, tpFrac}
+  }
+
+  // collect every DONCH4H trade once, with signal-time context
+  interface Tr { t:number; win:number; net:number; dir:number; ttDev:number|null; fg:number|null }
+  const trades:Tr[]=[]
+  for (const c of Object.keys(d4)) {
+    if (!CORE40.has(c)) continue
+    const arr=d4[c]; let last=-999
+    const ts=tt[c]||[]; let p=0
+    for (let i=100;i<arr.length-1;i++) {
+      const price=arr[i].close
+      const prior=arr.slice(i-25,i)
+      let hi=-Infinity, lo=Infinity
+      for (const b of prior) { if (b.high>hi) hi=b.high; if (b.low<lo) lo=b.low }
+      const side: 'LONG'|'SHORT'|null = price>hi?'LONG':price<lo?'SHORT':null
+      if (!side) continue
+      const win=arr.slice(Math.max(0,i-99),i+1)
+      const adx=calcADX(win.slice(-60)); if (adx<=22) continue
+      const atr=calcATR(win.slice(-20)); if(!atr) continue
+      if (i-last<2) continue
+      last=i
+      const slDist=Math.max(atr*1.4, price*0.005), slPct=slDist/price
+      if (slPct>0.08) continue
+      const res=ladder2(arr,i,price,side,slDist,i+96)
+      const net=res.r-(TK + res.tpFrac*MK+(1-res.tpFrac)*TK)/slPct
+      // top-trader deviation vs its own trailing 14d mean, at signal time
+      const tc=arr[i].t+BAR4
+      let ttDev:number|null=null
+      if (ts.length) {
+        while (p<ts.length-1 && ts[p+1].t<=tc) p++
+        if (ts[p].t<=tc && ts[p].t>tc-3600000) {
+          let s=0,n=0
+          for (let q=p;q>=0 && ts[q].t>tc-14*86400000;q--) { s+=ts[q].r; n++ }
+          if (n>200) ttDev=ts[p].r/(s/n)-1
+        }
+      }
+      const fg=fng.get(Math.floor(arr[i].t/86400000)) ?? null
+      trades.push({t:arr[i].t, win:winOf(arr[i].t), net, dir:side==='LONG'?1:-1, ttDev, fg})
+    }
+  }
+  console.log(`  ${trades.length} trades collected; ttDev available on ${trades.filter(x=>x.ttDev!==null).length}, F&G on ${trades.filter(x=>x.fg!==null).length}`)
+
+  const evalTilt=(name:string, wOf:(tr:Tr)=>number)=>{
+    const base=new Array(NW).fill(0).map(()=>({s:0,w:0}))
+    const tilt=new Array(NW).fill(0).map(()=>({s:0,w:0}))
+    for (const tr of trades) {
+      base[tr.win].s+=tr.net; base[tr.win].w+=1
+      const wgt=wOf(tr)
+      tilt[tr.win].s+=tr.net*wgt; tilt[tr.win].w+=wgt
+    }
+    const bA=base.map(x=>x.w?x.s/x.w:0), tA=tilt.map(x=>x.w?x.s/x.w:0)
+    const better=tA.map((x,i)=>x>bA[i])
+    const okAll=tA.every(x=>x>0), okBetter=better.every(Boolean)
+    const bT=base.reduce((a,x)=>a+x.s,0)/Math.max(1,base.reduce((a,x)=>a+x.w,0))
+    const tT=tilt.reduce((a,x)=>a+x.s,0)/Math.max(1,tilt.reduce((a,x)=>a+x.w,0))
+    console.log(`  ${name.padEnd(30)} avg ${ (tT>=0?'+':'')+tT.toFixed(4)}R vs base ${(bT>=0?'+':'')+bT.toFixed(4)}R | ${tA.map((x,i)=>(((x>=0?'+':'')+x.toFixed(3))+(better[i]?'▲':'▽')).padStart(8)).join(' ')} ${okAll&&okBetter?'✅':okAll?'(pos, not uniformly better)':''}`)
+  }
+  console.log(`\n── tilt evaluation (weighted avg R per window; ▲ = beats baseline in that window) ──`)
+  evalTilt('A tt-align 1.25/0.75 @2%',  tr=>tr.ttDev===null?1:(tr.ttDev*tr.dir>0.02?1.25:tr.ttDev*tr.dir<-0.02?0.75:1))
+  evalTilt('A tt-align 1.5/0.5 @2%',    tr=>tr.ttDev===null?1:(tr.ttDev*tr.dir>0.02?1.5:tr.ttDev*tr.dir<-0.02?0.5:1))
+  evalTilt('A tt-CONTRA 1.25/0.75 @2%', tr=>tr.ttDev===null?1:(tr.ttDev*tr.dir<-0.02?1.25:tr.ttDev*tr.dir>0.02?0.75:1))
+  evalTilt('B F&G extreme 1.25/0.75',   tr=>tr.fg===null?1:((tr.fg<=20&&tr.dir>0)||(tr.fg>=80&&tr.dir<0)?1.25:((tr.fg<=20&&tr.dir<0)||(tr.fg>=80&&tr.dir>0)?0.75:1)))
+  evalTilt('B F&G CONTRA 1.25/0.75',    tr=>tr.fg===null?1:((tr.fg<=20&&tr.dir<0)||(tr.fg>=80&&tr.dir>0)?1.25:((tr.fg<=20&&tr.dir>0)||(tr.fg>=80&&tr.dir<0)?0.75:1)))
+  console.log(`\n✅ = positive in all ${NW} windows AND beats baseline in all ${NW} windows. Deploy bar: ✅ plus ≥+0.004R total improvement.`)
+}
+
+// ─────────────────────────────────────────────────────────────
 // v48bt: growth candidates that ADD trades (never cut):
 //  A) pyramid depth 3 — 3rd unit stacks only when all open units ≥1.2R
 //  B) 1h Donchian sleeve — same engine on 1h bars (fees bite harder; prove it)
@@ -2476,6 +2617,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v48bt') {
     console.log(`████ V48BT — pyramid depth 3 / 1h sleeve / rotation K=7 ████`)
     runV48bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v49bt') {
+    console.log(`████ V49BT — top-trader positioning tilt + Fear&Greed tilt ████`)
+    runV49bt()
     return
   }
 

@@ -77,10 +77,12 @@ if [ "${BT_FETCH_LIQ:-0}" = "1" ]; then
     local url="$LBASE/${sym}USDT/${sym}USDT-metrics-${d}.zip"
     local tmp="/tmp/l-${sym}-${d}.zip"
     curl -s -f -m 30 -o "$tmp" "$url" 2>/dev/null || return 0
-    # cols: create_time,symbol,sum_open_interest,sum_open_interest_value,...
-    unzip -p "$tmp" 2>/dev/null | awk -F, '$1 ~ /^2/ {
-      gsub(/ /,"T",$1); printf "%s,%s\n", $1, $4
-    }' > "$OUT/${sym}-oi5.part-${d}" 2>/dev/null
+    # cols: create_time,symbol,sum_open_interest,sum_open_interest_value,
+    #       count_toptrader_ls_ratio,sum_toptrader_ls_ratio(positions),...
+    unzip -p "$tmp" 2>/dev/null | awk -F, -v oi="$OUT/${sym}-oi5.part-${d}" -v tt="$OUT/${sym}-tt.part-${d}" '$1 ~ /^2/ {
+      gsub(/ /,"T",$1); printf "%s,%s\n", $1, $4 > oi
+      if ($6 != "" && $6+0 > 0) printf "%s,%s\n", $1, $6 > tt
+    }' 2>/dev/null
     rm -f "$tmp"
   }
   export -f dll
@@ -98,12 +100,17 @@ if [ "${BT_FETCH_LIQ:-0}" = "1" ]; then
   echo "Downloading $(wc -l < "$ljobs") daily OI-metrics files ..."
   xargs -P 32 -n 2 bash -c 'dll "$@"' _ < "$ljobs"
   for sym in $LIQ_COINS; do
-    out="$OUT/${sym}-oi5.csv"; : > "$out"
-    parts=$(ls "$OUT/${sym}-oi5.part-"* 2>/dev/null | sort)
-    [ -n "$parts" ] && cat $parts >> "$out"
-    rm -f "$OUT/${sym}-oi5.part-"*
-    echo "${sym}-oi5: $(wc -l < "$out") rows"
+    for kind in oi5 tt; do
+      out="$OUT/${sym}-${kind}.csv"; : > "$out"
+      parts=$(ls "$OUT/${sym}-${kind}.part-"* 2>/dev/null | sort)
+      [ -n "$parts" ] && cat $parts >> "$out"
+      rm -f "$OUT/${sym}-${kind}.part-"*
+    done
+    echo "${sym}: oi5=$(wc -l < "$OUT/${sym}-oi5.csv") tt=$(wc -l < "$OUT/${sym}-tt.csv")"
   done
-  echo "OI metrics done"
+  echo "OI/top-trader metrics done"
+  # Fear & Greed full daily history (free, alternative.me)
+  curl -s -m 60 "https://api.alternative.me/fng/?limit=0&format=json" > "$OUT/fng.json" 2>/dev/null || true
+  echo "fng: $(wc -c < "$OUT/fng.json" 2>/dev/null || echo 0) bytes"
 fi
 echo "Done."

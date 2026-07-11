@@ -40,9 +40,9 @@ jobs:
           BT_DAYS: ${{ github.event.inputs.days || '45' }}
           BT_MONTHS: ${{ env.MONTHS }}
         run: |
-          [ "$MODE" = "v47bt" ] && export BT_FETCH_LIQ=1
+          { [ "$MODE" = "v47bt" ] || [ "$MODE" = "v49bt" ]; } && export BT_FETCH_LIQ=1
           case "$MODE" in
-            explore|refine|validate|range|freq|rota|v43bt|v44bt|v45bt|v46bt|v47bt|v48bt) bash backtest/fetch-explore.sh ;;
+            explore|refine|validate|range|freq|rota|v43bt|v44bt|v45bt|v46bt|v47bt|v48bt|v49bt) bash backtest/fetch-explore.sh ;;
             *) bash backtest/fetch.sh ;;
           esac
 
