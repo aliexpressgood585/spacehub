@@ -38,7 +38,7 @@ jobs:
           echo "verdict=$verdict"
           existing=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/issues?state=open&labels=watchdog" \
-            | grep -o '"number": *[0-9]*' | head -1 | grep -o '[0-9]*')
+            | grep -o '"number": *[0-9]*' | head -1 | grep -o '[0-9]*' || true)
           if [ "$verdict" != "OK" ]; then
             body="הבוט לא מעדכן את מצבו כבר יותר מ-15 דקות (updated_at=${upd:-none}). ייתכן שה-cron נפל או שהפונקציה קורסת. בדיקה: push לקובץ .status-ping או צפייה בלוגים של Supabase."
             if [ -z "$existing" ]; then
