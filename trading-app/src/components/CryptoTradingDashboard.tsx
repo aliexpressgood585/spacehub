@@ -328,7 +328,63 @@ const STYLE_TAG = `
   ::-webkit-scrollbar{width:3px;height:3px}
   ::-webkit-scrollbar-track{background:transparent}
   ::-webkit-scrollbar-thumb{background:rgba(0,200,255,0.3);border-radius:2px}
+  @keyframes ticker-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+  @keyframes scan-sweep{0%{left:-4px;opacity:0}5%{opacity:1}90%{opacity:0.7}100%{left:calc(100% + 4px);opacity:0}}
+  @keyframes shimmer{0%{background-position:-400% 0}100%{background-position:400% 0}}
+  .ticker-track{display:flex;animation:ticker-scroll 50s linear infinite;will-change:transform}
+  .ticker-track:hover{animation-play-state:paused}
+  .scan-line{position:absolute;top:0;bottom:0;width:2px;pointer-events:none;background:linear-gradient(180deg,transparent 0%,rgba(0,200,255,0.6) 30%,rgba(0,200,255,0.9) 50%,rgba(0,200,255,0.6) 70%,transparent 100%);box-shadow:0 0 10px rgba(0,200,255,0.8),0 0 20px rgba(0,200,255,0.3);animation:scan-sweep 5s ease-in-out infinite}
+  .shimmer-row{background:linear-gradient(90deg,transparent 0%,rgba(0,200,255,0.04) 50%,transparent 100%) !important;background-size:400% 100% !important;animation:shimmer 3.5s ease-in-out infinite}
 `
+
+// ─── star field ──────────────────────────────────────────────────────────────
+function StarField(){
+  const ref=useRef<HTMLCanvasElement>(null)
+  useEffect(()=>{
+    const c=ref.current;if(!c)return
+    const ctx=c.getContext('2d');if(!ctx)return
+    const resize=()=>{c.width=window.innerWidth;c.height=window.innerHeight}
+    resize();window.addEventListener('resize',resize)
+    const stars=Array.from({length:80},()=>({
+      x:Math.random()*window.innerWidth,y:Math.random()*window.innerHeight,
+      r:Math.random()*1.1+0.2,speed:Math.random()*0.22+0.04,op:Math.random()*0.4+0.08,
+    }))
+    let raf:number
+    const draw=()=>{
+      ctx.clearRect(0,0,c.width,c.height)
+      for(const s of stars){
+        s.y-=s.speed;if(s.y<0){s.y=c.height;s.x=Math.random()*c.width}
+        ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2)
+        ctx.fillStyle=`rgba(180,220,255,${s.op})`;ctx.fill()
+      }
+      raf=requestAnimationFrame(draw)
+    }
+    draw()
+    return()=>{cancelAnimationFrame(raf);window.removeEventListener('resize',resize)}
+  },[])
+  return <canvas ref={ref} style={{position:'fixed',inset:0,pointerEvents:'none',zIndex:0,opacity:0.7}}/>
+}
+
+// ─── animated counter ────────────────────────────────────────────────────────
+function useAnimatedCounter(target:number,duration=700):number{
+  const [val,setVal]=useState(target)
+  const prev=useRef(target)
+  useEffect(()=>{
+    const from=prev.current
+    if(Math.abs(target-from)<0.5){prev.current=target;setVal(target);return}
+    const t0=performance.now();let raf:number
+    const tick=(now:number)=>{
+      const p=Math.min((now-t0)/duration,1)
+      const ease=1-(1-p)**3
+      setVal(from+(target-from)*ease)
+      if(p<1)raf=requestAnimationFrame(tick)
+      else{prev.current=target;setVal(target)}
+    }
+    raf=requestAnimationFrame(tick)
+    return()=>cancelAnimationFrame(raf)
+  },[target,duration])
+  return val
+}
 
 // ─── 3D card ──────────────────────────────────────────────────────────────────
 function Card3D({children,style,color}:{children:React.ReactNode;style?:CSSProperties;color?:string}){
@@ -826,6 +882,7 @@ export default function CryptoTradingDashboard() {
   const R              = RISK[risk]
   const supaLive       = supaStatus==='live'
   const fmtP           = (p:number)=>p>=1000?p.toFixed(2):p>=1?p.toFixed(4):p.toFixed(6)
+  const animBalance    = useAnimatedCounter(totalValue)
   const M:CSSProperties= {fontFamily:"'Courier New',monospace",userSelect:'none' as const,direction:'rtl'}
   const regColor       = REGIME_COLOR[marketRegime]||C.blue
 
@@ -839,6 +896,7 @@ export default function CryptoTradingDashboard() {
       background:`radial-gradient(ellipse 80% 50% at 50% 0%,rgba(0,40,80,0.5) 0%,#020814 60%)`,
       minHeight:'100vh',color:C.text,padding:'8px',fontSize:'11px',overflowX:'hidden',
     }}>
+      <StarField/>
       <style dangerouslySetInnerHTML={{__html:STYLE_TAG}}/>
 
       {/* ══ HEADER ══ */}
@@ -887,7 +945,7 @@ export default function CryptoTradingDashboard() {
           {/* portfolio value */}
           <div style={{marginRight:'auto',textAlign:'right' as const}}>
             <div className="balance-num" style={{fontWeight:900,fontSize:'28px',color:C.bright,letterSpacing:'-1px',lineHeight:1}}>
-              ${totalValue.toFixed(0)}
+              ${animBalance.toFixed(0)}
             </div>
             <div style={{fontSize:'11px',fontWeight:800,
               color:totalPnl>=0?C.green:C.red,
@@ -956,6 +1014,31 @@ export default function CryptoTradingDashboard() {
         })}
       </div>
 
+      {/* ══ TICKER TAPE ══ */}
+      <div style={{overflow:'hidden',marginBottom:'8px',height:'24px',
+        background:'rgba(0,8,24,0.7)',border:`1px solid ${C.border}`,borderRadius:'8px',
+        position:'relative',display:'flex',alignItems:'center'}}>
+        <div style={{position:'absolute',left:0,top:0,bottom:0,width:'30px',zIndex:2,
+          background:'linear-gradient(90deg,rgba(0,8,24,0.9),transparent)',pointerEvents:'none'}}/>
+        <div style={{position:'absolute',right:0,top:0,bottom:0,width:'30px',zIndex:2,
+          background:'linear-gradient(270deg,rgba(0,8,24,0.9),transparent)',pointerEvents:'none'}}/>
+        <div className="ticker-track">
+          {[...COINS,...COINS].map((c,i)=>{
+            const info=prices[c.sym];const chg=info?.change||0
+            return (
+              <span key={i} style={{display:'inline-flex',alignItems:'center',gap:'4px',
+                padding:'0 12px',fontSize:'9px',fontWeight:700,height:'24px',
+                borderRight:`1px solid rgba(0,200,255,0.08)`,whiteSpace:'nowrap' as const,
+                color:chg>0?C.green:chg<0?C.red:C.muted}}>
+                <span style={{color:C.blue,fontWeight:900}}>{c.sym}</span>
+                {info?fmtP(info.price):'—'}
+                <span>{chg>=0?'+':''}{chg.toFixed(2)}%</span>
+              </span>
+            )
+          })}
+        </div>
+      </div>
+
       {/* ══ MAIN GRID ══ */}
       <div style={{display:'grid',gridTemplateColumns:'160px 1fr',gap:'8px',marginBottom:'8px'}}>
 
@@ -975,8 +1058,8 @@ export default function CryptoTradingDashboard() {
             ['🛡️ נסיגת הון',eqMaxDD.toFixed(1)+'%',eqMaxDD<10?C.green:eqMaxDD<25?C.yellow:C.red],
             ['🎯 עד בדיקת רצועות',`${donchProgress}/50`,donchProgress>=50?C.green:C.blue],
           ].map(([k,v,col])=>(
-            <div key={k} style={{
-              background:'rgba(3,8,26,0.85)',border:`1px solid ${C.dim}`,borderRadius:'9px',
+            <div key={k} className="shimmer-row" style={{
+              border:`1px solid ${C.dim}`,borderRadius:'9px',
               padding:'6px 10px',display:'flex',justifyContent:'space-between',alignItems:'center',
               backdropFilter:'blur(10px)',
             }}>
@@ -1015,9 +1098,12 @@ export default function CryptoTradingDashboard() {
             </div>
           </div>
 
-          <canvas ref={canvasRef} width={600} height={155}
-            style={{width:'100%',height:'155px',borderRadius:'8px',background:'rgba(1,4,16,0.9)',display:'block',
-              border:`1px solid ${C.dim}`,marginBottom:'8px'}}/>
+          <div style={{position:'relative',marginBottom:'8px'}}>
+            <canvas ref={canvasRef} width={600} height={155}
+              style={{width:'100%',height:'155px',borderRadius:'8px',background:'rgba(1,4,16,0.9)',display:'block',
+                border:`1px solid ${C.dim}`}}/>
+            <div className="scan-line"/>
+          </div>
 
           {/* indicator pills */}
           <div style={{display:'flex',gap:'3px',flexWrap:'wrap' as const,marginBottom:'8px'}}>
