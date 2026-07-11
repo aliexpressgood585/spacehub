@@ -3088,6 +3088,203 @@ function runV47bt() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// v54bt: FOUR ENHANCEMENTS on 4h CORE40 data, 6 walk-forward windows.
+// (A) DONCH4H 4th Pyramid Unit: same-size continuation at 1.6R → SL=1.0R, TP=2.5R
+// (B) DONCH4H Volume Confirmation: breakout bar vol vs 20-bar MA (informational)
+// (C) ROTA Skew-Adjusted Weights: penalise crash-prone coins (negative-skew penalty)
+// (D) DONCH4H Time-of-Day: which session has the best expectancy? (informational)
+// All: taker 0.05%/side, 36-month history, deploy bars noted per section.
+function runV54bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000
+  const toTf=(a:Bar[],ms:number):Bar[]=>{
+    const out:Bar[]=[]; let cur:Bar|null=null; let bucket=-1
+    for(const b of a){const k=Math.floor(b.t/ms)
+      if(k!==bucket){if(cur)out.push(cur);bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol}}
+      else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol}}
+    if(cur)out.push(cur);return out}
+  const d4:Record<string,Bar[]>={}
+  let tmin=Infinity,tmax=-Infinity
+  for(const c of COINS){const h=loadCSV(c,'1h');if(h.length<500)continue
+    d4[c]=toTf(h,BAR4);tmin=Math.min(tmin,h[0].t);tmax=Math.max(tmax,h[h.length-1].t)}
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${NW} windows`)
+
+  // ladder 0.6/1.0/1.6R + records hit16j (bar index when 1.6R first hit, or -1)
+  const ladderFull=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const stages=[{r:0.6,frac:1/3},{r:1.0,frac:1/3},{r:1.6,frac:1/3}]
+    const jEndc=Math.min(j0+96,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0,hit16j=-1
+    for(let j=j0+1;j<=jEndc;j++){
+      const b=arr[j],stopPx=be?entry:slPx
+      if(side==='LONG'?b.low<=stopPx:b.high>=stopPx){banked+=rem*(be?0:-1);rem=0;break}
+      while(si<stages.length){
+        const tgt=entry+slDist*stages[si].r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=stages[si].frac*stages[si].r;tpFrac+=stages[si].frac;rem-=stages[si].frac;be=true
+        if(stages[si].r===1.6)hit16j=j
+        si++}
+      if(rem<=1e-9)break}
+    if(rem>1e-9)banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return{r:banked,tpFrac,hit16j}}
+
+  // scan all DONCH4H entries once, precompute net R + metadata
+  interface DTr{c:string;j:number;entry:number;side:'LONG'|'SHORT';slDist:number;
+    win:number;net:number;hit16j:number;volRatio:number;hour:number}
+  const allTr:DTr[]=[]
+  for(const c of Object.keys(d4)){
+    if(!CORE40.has(c))continue
+    const arr=d4[c];let last=-999
+    for(let i=100;i<arr.length-1;i++){
+      const price=arr[i].close
+      const prior=arr.slice(i-25,i)
+      let hi=-Infinity,lo=Infinity
+      for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+      const side:'LONG'|'SHORT'|null=price>hi?'LONG':price<lo?'SHORT':null
+      if(!side)continue
+      const win=arr.slice(Math.max(0,i-99),i+1)
+      const adx=calcADX(win.slice(-60));if(adx<=22)continue
+      const atr=calcATR(win.slice(-20));if(!atr)continue
+      if(i-last<2)continue
+      last=i
+      const slDist=Math.max(atr*1.4,price*0.005)
+      if(slDist/price>0.08)continue
+      const res=ladderFull(arr,i,price,side,slDist)
+      const slPct=slDist/price
+      const net=res.r-(TK+res.tpFrac*MK+(1-res.tpFrac)*TK)/slPct
+      const slice20=arr.slice(Math.max(0,i-20),i)
+      const volMA=slice20.length?slice20.reduce((a,b)=>a+b.vol,0)/slice20.length:arr[i].vol
+      const volRatio=volMA>0?arr[i].vol/volMA:1
+      const hour=new Date(arr[i].t).getUTCHours()
+      allTr.push({c,j:i,entry:price,side,slDist,win:winOf(arr[i].t),net,hit16j:res.hit16j,volRatio,hour})}}
+
+  // ── A) 4th Pyramid Unit ──
+  console.log(`\n── A) DONCH4H 4th Pyramid Unit — continuation at 1.6R, SL→1.0R, TP→2.5R ──`)
+  console.log(`  same-size unit: SL_new = 0.6×origSlDist, TP_new = 0.9×origSlDist (1.5R new-unit R)`)
+  {
+    const wSumBase=new Array(NW).fill(0),wSumAdd=new Array(NW).fill(0),wN=new Array(NW).fill(0)
+    let totalBase=0,totalAdd=0,hit16count=0
+    for(const e of allTr){
+      const origSlPct=e.slDist/e.entry,dirM=e.side==='LONG'?1:-1
+      wSumBase[e.win]+=e.net;wN[e.win]++;totalBase+=e.net
+      if(e.hit16j<0)continue
+      hit16count++
+      const arr=d4[e.c]
+      const contEntry=e.entry+e.slDist*1.6*dirM
+      const contSlDist=e.slDist*0.6,contTpDist=e.slDist*0.9
+      const contSlPx=contEntry-contSlDist*dirM,contTpPx=contEntry+contTpDist*dirM
+      const jEnd=Math.min(e.hit16j+32,arr.length-1)
+      let rVal=0,hit=false
+      for(let j=e.hit16j+1;j<=jEnd;j++){
+        const b=arr[j]
+        if(e.side==='LONG'?b.low<=contSlPx:b.high>=contSlPx){rVal=-1;hit=true;break}
+        if(e.side==='LONG'?b.high>=contTpPx:b.low<=contTpPx){rVal=contTpDist/contSlDist;hit=true;break}}
+      if(!hit)rVal=(arr[jEnd].close-contEntry)*dirM/contSlDist
+      const addR=rVal*(contSlDist/e.slDist)-TK*2/origSlPct
+      wSumAdd[e.win]+=addR;totalAdd+=addR}
+    const n=allTr.length
+    const wAvgBase=wSumBase.map((x,i)=>wN[i]?x/wN[i]:0)
+    const wAvgAdd=wSumAdd.map((x,i)=>wN[i]?x/wN[i]:0)
+    const avgBase=totalBase/Math.max(1,n),avgAdd=totalAdd/Math.max(1,n)
+    const okBase=wAvgBase.every(x=>x>0)?'✅':''
+    const okAdd=wAvgAdd.every(x=>x>0)&&avgAdd>0.004?'✅ DEPLOY':wAvgAdd.every(x=>x>0)?'(all+, below deploy bar)':''
+    console.log(`  baseline     n=${n}  avg ${(avgBase>=0?'+':'')+avgBase.toFixed(4)}R | w: ${wAvgBase.map(x=>((x>=0?'+':'')+(x*1000).toFixed(1)+'‰').padStart(7)).join(' ')} ${okBase}`)
+    console.log(`  4th unit   ${(hit16count*100/n).toFixed(0)}% reach 1.6R  avg incr ${(avgAdd>=0?'+':'')+avgAdd.toFixed(4)}R | w: ${wAvgAdd.map(x=>((x>=0?'+':'')+(x*1000).toFixed(1)+'‰').padStart(7)).join(' ')} ${okAdd}`)
+    console.log(`  deploy bar: all windows positive AND avg incremental R > +0.004R per original trade.`)}
+
+  // ── B) Volume Confirmation (informational) ──
+  console.log(`\n── B) DONCH4H Volume Confirmation — breakout bar vol vs 20-bar MA ──`)
+  console.log(`  ⚠️  INFORMATIONAL: rule-5 rejects if trade count drops >20%`)
+  {
+    const N=allTr.length
+    for(const vMult of [1.2,1.5,2.0]){
+      const sub=allTr.filter(e=>e.volRatio>=vMult)
+      const wSum=new Array(NW).fill(0),wN=new Array(NW).fill(0)
+      let tot=0
+      for(const e of sub){wSum[e.win]+=e.net;wN[e.win]++;tot+=e.net}
+      const wAvg=wSum.map((x,i)=>wN[i]?x/wN[i]:0)
+      const avg=tot/Math.max(1,sub.length),cut=(1-sub.length/N)*100
+      const flag=cut>20?'❌ RULE5':cut>10?'⚠️':wAvg.every(x=>x>0)?'✅':''
+      console.log(`  vol>${vMult.toFixed(1)}×MA  n=${sub.length}/${N} (−${cut.toFixed(0)}%)  avg ${(avg>=0?'+':'')+avg.toFixed(4)}R | ${wAvg.map(x=>((x>=0?'+':'')+(x*1000).toFixed(1)+'‰').padStart(7)).join(' ')} ${flag}`)}}
+
+  // ── C) ROTA Skew-Adjusted Weights ──
+  console.log(`\n── C) ROTA K=7 Skew-Adjusted Weights — penalise negative-skew (crash-prone) coins ──`)
+  console.log(`  weight = 1/(vol × (1 + max(0,−skew) × alpha))  vs baseline alpha=0 (plain 1/vol)`)
+  {
+    const closes:Record<string,Map<number,number>>={}
+    for(const c of Object.keys(d4)){const m=new Map<number,number>();for(const b of d4[c])m.set(b.t,b.close);closes[c]=m}
+    const LB=84,K=7,RB=12,FEE_T2=0.0010
+    const statsOf=(c:string,t:number)=>{
+      const m=closes[c];const rets:number[]=[]
+      for(let k=1;k<=LB;k++){const a=m.get(t-k*BAR4),b=m.get(t-(k-1)*BAR4);if(a&&b&&a>0)rets.push(b/a-1)}
+      if(rets.length<40)return null
+      const mu=rets.reduce((x,y)=>x+y,0)/rets.length
+      const diffs=rets.map(r=>r-mu)
+      const vol=Math.sqrt(diffs.reduce((x,y)=>x+y*y,0)/rets.length)
+      const skew=vol>0?diffs.reduce((x,y)=>x+y**3,0)/rets.length/vol**3:0
+      return{vol,skew}}
+    const retOf=(c:string,t0:number,t1:number)=>{const m=closes[c];const a=m.get(t0),b=m.get(t1);return(a&&b)?b/a-1:null}
+    let annT0=0
+    for(const alpha of [0,0.3,0.6]){
+      let prev=new Map<string,number>(),eq=1,pk=1,mdd=0,periods=0
+      const wSum=new Array(NW).fill(0),wN=new Array(NW).fill(0)
+      for(let t=tmin+LB*BAR4;t+RB*BAR4<=tmax;t+=RB*BAR4){
+        const scored:{c:string,mom:number,w:number}[]=[]
+        for(const c of Object.keys(closes)){
+          if(!CORE40.has(c))continue
+          const p0=closes[c].get(t-LB*BAR4),p1=closes[c].get(t)
+          if(!p0||!p1||p0<=0||!closes[c].get(t+RB*BAR4))continue
+          const st=statsOf(c,t);if(!st||st.vol<=0)continue
+          const w=1/(st.vol*(1+Math.max(0,-st.skew)*alpha))
+          scored.push({c,mom:p1/p0-1,w})}
+        if(scored.length<K*4){prev=new Map();continue}
+        scored.sort((a,b)=>b.mom-a.mom)
+        let ret=0;const basket=new Map<string,number>()
+        for(const [li,leg] of [[0,scored.slice(0,K)] as const,[1,scored.slice(-K)] as const]){
+          const dir=li===0?1:-1,wsum=leg.reduce((a,x)=>a+x.w,0)
+          for(const x of leg){basket.set(x.c,dir);ret+=dir*0.5*(x.w/wsum)*(retOf(x.c,t,t+RB*BAR4)??0)}}
+        let ch=0
+        for(const[c,d]of basket)if(prev.get(c)!==d)ch++
+        for(const[c,d]of prev)if(basket.get(c)!==d)ch++
+        const turn=ch/(2*K);prev=basket
+        eq*=(1+ret-turn*FEE_T2)
+        if(eq>pk)pk=eq;mdd=Math.max(mdd,1-eq/pk)
+        const wi=winOf(t);wSum[wi]+=ret-turn*FEE_T2;wN[wi]++;periods++}
+      const perYear=365.25*86400000/(RB*BAR4)
+      const annT=Math.pow(eq,perYear/Math.max(1,periods))-1
+      if(alpha===0)annT0=annT
+      const wAvg=wSum.map((x,i)=>wN[i]?x/wN[i]:0)
+      const ok=wAvg.every(x=>x>0)?'✅':''
+      const ref=alpha===0?'(baseline 1/vol)  ':`Δ${((annT-annT0)*100>=0?'+':'')+(((annT-annT0)*100).toFixed(1))}pp         `
+      console.log(`  alpha=${alpha.toFixed(1)} ${ref} annT=${(annT*100).toFixed(1)}% maxDD=${(mdd*100).toFixed(0)}% | bps/period: ${wAvg.map(x=>((x>=0?'+':'')+(x*10000).toFixed(0)).padStart(5)).join(' ')} ${ok}`)}}
+
+  // ── D) Time-of-Day Filter (informational) ──
+  console.log(`\n── D) DONCH4H Time-of-Day — which 4h session wins? ──`)
+  console.log(`  ⚠️  INFORMATIONAL: rule-5 rejects filters cutting >20% of trades`)
+  {
+    const N=allTr.length
+    const sessions:[string,(h:number)=>boolean][]=[
+      ['full day (baseline)',(_h)=>true],
+      ['08-16 UTC (London+NY)',h=>h>=8&&h<16],
+      ['16-00 UTC (NY evening+Asia)',h=>h>=16],
+      ['00-08 UTC (overnight)',h=>h>=0&&h<8],
+    ]
+    for(const[label,pred]of sessions){
+      const sub=allTr.filter(e=>pred(e.hour))
+      const wSum=new Array(NW).fill(0),wN=new Array(NW).fill(0)
+      let tot=0
+      for(const e of sub){wSum[e.win]+=e.net;wN[e.win]++;tot+=e.net}
+      const wAvg=wSum.map((x,i)=>wN[i]?x/wN[i]:0)
+      const avg=tot/Math.max(1,sub.length),cut=sub.length<N?(1-sub.length/N)*100:0
+      const flag=cut>20?'❌ RULE5':cut>10?'⚠️':wAvg.every(x=>x>0)?'✅':''
+      console.log(`  ${label.padEnd(28)} n=${String(sub.length).padStart(5)}${cut>0?' (−'+cut.toFixed(0)+'%)':'       '}  avg ${(avg>=0?'+':'')+avg.toFixed(4)}R | ${wAvg.map(x=>((x>=0?'+':'')+(x*1000).toFixed(1)+'‰').padStart(7)).join(' ')} ${flag}`)}}
+
+  console.log(`\n✅ = all ${NW} windows positive.`)
+}
+
+// ─────────────────────────────────────────────────────────────
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
@@ -3173,6 +3370,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v53bt') {
     console.log(`████ V53BT — Mean Reversion (ranging) + Liquidation Cascade Fade ████`)
     runV53bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v54bt') {
+    console.log(`████ V54BT — 4th Pyramid / Volume Confirmation / ROTA Skew / Session Filter ████`)
+    runV54bt()
     return
   }
 
