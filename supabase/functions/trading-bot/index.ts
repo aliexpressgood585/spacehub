@@ -1,4 +1,16 @@
 // ════════════════════════════════════════════════════════════
+// CryptoBot v49 — pyramid depth 3 + ROTA K=7 (validated) + ops pack
+//
+// v49 (walk-forward 36m, 6 windows, real fees — status/bt-latest.txt):
+//  • ROTA K 5→7: annT 38.2% vs 34.4%, maxDD 17% vs 26%, all windows ✅
+//  • PYRAMID depth 3: 3rd unit stacks when all open units ≥1.0R — 9,091
+//    trades, +0.047R, all windows ✅ (more trades, same edge)
+//  • REJECTED: 1h Donchian sleeve — ALL configs negative after fees
+//    (w1/w2/w5/w6 <0). Same fee-ceiling failure mode as 5m meanrev.
+//  • Ops: Bybit third candle source (fapi→OKX→Bybit); watchdog workflow
+//    (issue alert if heartbeat stale >15min); daily report workflow (08:00 IL);
+//    dashboard: equity maxDD + 50-trade checkpoint progress.
+//
 // CryptoBot v48 — stablecoin exclusion + FIXED_COINS = CRYPTO_40
 //
 // v48: fetchFuturesCoins() now excludes stablecoins (USD1, USDC, FDUSD, etc.)
@@ -416,6 +428,22 @@ async function fetchBars(sym:string, interval:string, limit:number): Promise<Bar
     } catch { /* retry */ }
     await new Promise(r=>setTimeout(r, 350*(attempt+1)))
   }
+  // v47.1 fallback #3: Bybit linear perp candles — third independent source so a
+  // simultaneous Binance geo-block + OKX outage can't blind the bot.
+  const bybitIv = interval==='1h'?'60':interval==='4h'?'240':interval==='1d'?'D':interval==='15m'?'15':interval==='5m'?'5':'60'
+  try {
+    const res = await fetch(
+      `https://api.bybit.com/v5/market/kline?category=linear&symbol=${sym}USDT&interval=${bybitIv}&limit=${Math.min(limit,1000)}`,
+      { headers:{'User-Agent':'Mozilla/5.0'} }
+    )
+    if (res.ok) {
+      const j = await res.json()
+      const rows: string[][] = j?.result?.list ?? []
+      if (rows.length)
+        // Bybit also returns newest-first → reverse to Binance semantics.
+        return rows.reverse().map(k=>({open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
+    }
+  } catch { /* give up */ }
   return []
 }
 
@@ -2343,9 +2371,11 @@ Deno.serve(async (req) => {
     // ════ v42 ROTATION PHASE — cross-sectional momentum L/S (LB84|RB12|K5) ════
     // 36-month walk-forward proof: +45.9%/yr maker, +41%/yr taker, maxDD 35%,
     // positive in all 6 windows. Every 48h: rank universe by 14-day momentum;
-    // LONG top-5, SHORT bottom-5, 5% of portfolio per slot (50% allocation).
+    // LONG top-7, SHORT bottom-7 (v49; validated), inverse-vol weights, 70% book.
     try {
-      const ROTA_MS = 48*3600_000, ROTA_K = 5, ROTA_LB = 84
+      // v49: K 5→7 — walk-forward 36m: annT 38.2% vs 34.4%, maxDD 17% vs 26%,
+      // all 6 windows positive. More slots, better return, lower drawdown.
+      const ROTA_MS = 48*3600_000, ROTA_K = 7, ROTA_LB = 84
       const lastRota = state.rebalanced_at ? new Date(state.rebalanced_at).getTime() : 0
       if (now - lastRota >= ROTA_MS - 5*60_000) {
         const {data:rotaOpenAll} = await supabase.from('bot_trades').select('*').eq('status','OPEN').eq('strategy','ROTA')
@@ -2860,9 +2890,11 @@ Deno.serve(async (req) => {
         // v46 PYRAMID (validated: 9,000 trades, +0.062R, all 6 windows positive):
         // allow a 2nd DONCH4H unit on the same coin when the 1st is ≥0.6R in
         // profit and the new breakout is the same direction. Anything else blocks.
+        // v49: depth 3 (validated: 9,091 trades, +0.047R, all 6 windows) —
+        // 3rd unit requires ALL open units ≥1.0R.
         const donchOnSym = openTrades.filter((t:any)=>t.strategy==='DONCH4H')
         if (openTrades.some((t:any)=>t.strategy!=='DONCH4H')) return  // ROTA/legacy holds the coin
-        if (donchOnSym.length >= 2) return                            // max 2 units
+        if (donchOnSym.length >= 3) return                            // max 3 units
         if (symCooldown.has(sym)) return
         // v31-B: loss cooldown check (applied after entryScore.side is known)
         // NOTE: side is determined after calcConfluenceScore — loss cooldown
@@ -2905,16 +2937,18 @@ Deno.serve(async (req) => {
           const adx4 = calcADX(c4.slice(-60))
           if (adx4 <= 22) { log.push(`SKIP ${sym}: DONCH4H breakout but adx=${adx4.toFixed(0)}<=22`); return }
           // v46 PYRAMID gate: a 2nd unit only stacks on a same-direction winner ≥0.6R
+          // v49: a 3rd unit requires ALL open units ≥1.0R (validated, all 6 windows)
           if (donchOnSym.length > 0) {
+            const needR = donchOnSym.length >= 2 ? 1.0 : 0.6
             const ok = donchOnSym.every((t:any) => {
               if (t.side !== side4) return false
               const e2=Number(t.entry_price), d2=t.side==='LONG'?1:-1
               const tpStored = t.side==='LONG'?Number(t.hi):Number(t.lo)
               const sd2 = Math.abs(tpStored-e2)/1.6
-              return sd2>0 && (price-e2)*d2/sd2 >= 0.6
+              return sd2>0 && (price-e2)*d2/sd2 >= needR
             })
             if (!ok) return
-            log.push(`PYRAMID ${sym}: stacking 2nd unit on winning ${side4}`)
+            log.push(`PYRAMID ${sym}: stacking unit #${donchOnSym.length+1} on winning ${side4}`)
           }
           const atr4 = calcATR(c4.slice(-20))
           if (!atr4) return

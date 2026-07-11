@@ -1,0 +1,63 @@
+name: Bot Watchdog
+
+# Heartbeat monitor: the bot updates bot_state.updated_at every minute.
+# If it goes stale >15 minutes the bot is down (cron dead / function crashing)
+# → open a GitHub issue so the owner gets a push/email notification.
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+env:
+  PROJECT_REF: mdvheizhciuvqychtwxr
+
+jobs:
+  heartbeat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check heartbeat
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          row=$(curl -s -X POST "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "SELECT updated_at, balance FROM bot_state WHERE id=1;"}')
+          echo "state: $row"
+          upd=$(echo "$row" | grep -o '"updated_at":"[^"]*"' | cut -d'"' -f4)
+          if [ -z "$upd" ]; then verdict="NO_STATE"; else
+            age=$(( $(date -u +%s) - $(date -u -d "$upd" +%s) ))
+            echo "heartbeat age: ${age}s"
+            if [ "$age" -gt 900 ]; then verdict="STALE"; else verdict="OK"; fi
+          fi
+          echo "verdict=$verdict"
+          existing=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/issues?state=open&labels=watchdog" \
+            | grep -o '"number": *[0-9]*' | head -1 | grep -o '[0-9]*')
+          if [ "$verdict" != "OK" ]; then
+            body="הבוט לא מעדכן את מצבו כבר יותר מ-15 דקות (updated_at=${upd:-none}). ייתכן שה-cron נפל או שהפונקציה קורסת. בדיקה: push לקובץ .status-ping או צפייה בלוגים של Supabase."
+            if [ -z "$existing" ]; then
+              curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" \
+                "https://api.github.com/repos/${{ github.repository }}/issues" \
+                -d "{\"title\":\"🚨 Bot heartbeat stale — הבוט לא מגיב\",\"body\":$(echo "$body" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))'),\"labels\":[\"watchdog\"]}" > /dev/null
+              echo "issue opened"
+            else
+              echo "issue #$existing already open — not duplicating"
+            fi
+          else
+            if [ -n "$existing" ]; then
+              curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" \
+                "https://api.github.com/repos/${{ github.repository }}/issues/$existing/comments" \
+                -d '{"body":"✅ הבוט חזר לפעום — נסגר אוטומטית."}' > /dev/null
+              curl -s -X PATCH -H "Authorization: Bearer $GH_TOKEN" \
+                "https://api.github.com/repos/${{ github.repository }}/issues/$existing" \
+                -d '{"state":"closed"}' > /dev/null
+              echo "recovery: issue #$existing closed"
+            fi
+            echo "heartbeat OK"
+          fi

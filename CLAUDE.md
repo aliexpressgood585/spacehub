@@ -25,14 +25,14 @@ asking, but NEVER violate the standing rules below.
   - **DONCH4H**: Donchian-25 breakout on 4h closes, ADX(60)>22 gate, entries only
     first 15 min after each 4h close; SL=1.4×ATR; LADDER exits ⅓@0.6R(→BE)/⅓@1.0R/⅓@1.6R
     via `exit_stage`; ADX-tiered risk sizing (base 1.25%, up to 2.5%); pyramiding
-    (2nd unit on ≥0.6R same-direction winner, max 2).
-  - **ROTA**: every 48h rank 40 coins by 14d momentum, LONG top-5 / SHORT bottom-5,
+    (2nd unit on ≥0.6R winner, 3rd on ≥1.0R, max 3 — v49).
+  - **ROTA**: every 48h rank 40 coins by 14d momentum, LONG top-7 / SHORT bottom-7 (v49),
     inverse-vol weights, 70% of book, per-coin combined cap 20%, drift-resize ±35%.
 - Per-strategy health kill-switch: last-30 closed trades sum<0 → pause.
 - Data: Binance fapi is geo-blocked (451) from Supabase AND GitHub runners →
   live bot falls back to OKX candles/tickers; backtests use data.binance.vision archives.
 - **Backtests**: `backtest/backtest.ts`, run via GitHub Actions `backtest.yml`
-  (workflow_dispatch inputs: mode/months). Modes v43bt…v47bt = research batches.
+  (workflow_dispatch inputs: mode/months). Modes v43bt…v48bt = research batches.
   Results are COMMITTED to `status/bt-latest.txt` (dispatch) / `status/regression.txt`
   (monthly) because job-log download is blocked from the sandbox.
 - **Diagnostics without gh CLI**: edit `.status-ping` + push → workflow writes
@@ -49,18 +49,22 @@ asking, but NEVER violate the standing rules below.
 5m mean-reversion (breakeven after fees), 4h BB range-fade, Sharpe-momentum
 ranking, skip-6 momentum, portfolio vol-targeting (better DD but less absolute
 profit — user prioritizes profit), funding carry, funding tilt, 70-coin
-universe, daily Turtle sleeve, daily rotation, trailing removal, limit-retest
+universe, daily Turtle sleeve, daily rotation, trailing removal, 1h Donchian
+sleeve (all configs negative after fees — same ceiling as 5m), limit-retest
 entries (K=1/2/3+chase — loses momentum, windows negative), liquidation-cascade
 fade via OI-crash (all 12 configs negative; NB Binance has NO liquidation
 archive — metrics/ OI is the only forced-deleveraging data source).
 
 ## Current state (2026-07-10)
-- Live: **v47** — ladder TP legs fill at exact levels with maker fee 0.02%
-  (validated +0.050R vs +0.046R all-taker, all 6 windows; applies to open
-  positions via manage loop). Account reset started at $10,000 paper.
+- Live: **v49** — ROTA K=7 (annT 38.2%, maxDD 17%, all windows), pyramid depth 3
+  (3rd unit at ≥1.0R), maker TP-leg fills (v47), stablecoin exclusion (v48, by
+  the user's second Claude session), Bybit third data source, watchdog + daily
+  report workflows (GitHub issues). Account reset started at $10,000 paper.
+  NOTE: a second Claude account session works on this repo too — always fetch
+  and read git log before assuming file state.
 - Expectation bands: DONCH4H WR~66%, ~+0.05R/trade; ROTA ~48%/yr book.
-- v47bt validation CLOSED: retest entries rejected, OI-cascade fade rejected
-  (full numbers in `status/bt-latest.txt`).
+- v47bt+v48bt validations CLOSED: retest entries, OI-cascade fade, 1h sleeve all
+  rejected (numbers in `status/bt-latest.txt`).
 - User's chosen risk profile: SPORTY (base risk 1.25%). Split exits chosen: LADDER.
 - Recommendation on record: freeze strategy changes 1-2 weeks, accumulate ~50
   live trades, compare to expectation bands before raising risk further.

@@ -795,6 +795,14 @@ export default function CryptoTradingDashboard() {
     const pts=equityHist.map((p,i)=>`${(i/(equityHist.length-1)*W).toFixed(1)},${(H-((p.equity-min)/rng)*H).toFixed(1)}`)
     return {d:'M'+pts.join(' L'), up: vals[vals.length-1]>=vals[0], last: vals[vals.length-1]}
   })()
+  // v47.1: equity-curve max drawdown (real, from bot_equity snapshots) +
+  // progress toward the 50-trade live-vs-backtest checkpoint
+  const eqMaxDD = (()=>{
+    let pk=-Infinity, dd=0
+    for (const p of equityHist) { if (p.equity>pk) pk=p.equity; if (pk>0) dd=Math.max(dd,1-p.equity/pk) }
+    return dd*100
+  })()
+  const donchProgress = Math.min(stDonch.n, 50)
   const lockedNotional = openTrades.reduce((a,t)=>a+t.entry*t.size,0)
   const totalValue     = balance+lockedNotional+unrealizedPnl
   const sharpe         = calcSharpe(trades)
@@ -839,7 +847,7 @@ export default function CryptoTradingDashboard() {
               letterSpacing:'1px',filter:`drop-shadow(0 0 8px ${C.blue}80)`}}>
               ⚡ NEXUS TRADE
             </span>
-            <span style={{fontSize:'8px',color:C.muted,padding:'2px 5px',border:`1px solid ${C.dim}`,borderRadius:'4px'}}>v48</span>
+            <span style={{fontSize:'8px',color:C.muted,padding:'2px 5px',border:`1px solid ${C.dim}`,borderRadius:'4px'}}>v49</span>
           </div>
 
           <div style={{display:'flex',gap:'5px',flexWrap:'wrap' as const}}>
@@ -950,6 +958,8 @@ export default function CryptoTradingDashboard() {
             ['מקס ירידה',maxDD.toFixed(1)+'%',maxDD<10?C.green:maxDD<25?C.yellow:C.red],
             ['📈 פריצות',`${stDonch.op}פ ${stDonch.n}ס ${(stDonch.rp>=0?'+':'')}${stDonch.rp.toFixed(0)}$`,stDonch.rp>=0?C.green:C.red],
             ['🔄 רוטציה',`${stRota.op}פ ${stRota.n}ס ${(stRota.rp>=0?'+':'')}${stRota.rp.toFixed(0)}$ ${stRota.wr.toFixed(0)}%`,stRota.rp>=0?C.green:C.red],
+            ['🛡️ נסיגת הון',eqMaxDD.toFixed(1)+'%',eqMaxDD<10?C.green:eqMaxDD<25?C.yellow:C.red],
+            ['🎯 עד בדיקת רצועות',`${donchProgress}/50`,donchProgress>=50?C.green:C.blue],
           ].map(([k,v,col])=>(
             <div key={k} style={{
               background:'rgba(3,8,26,0.85)',border:`1px solid ${C.dim}`,borderRadius:'9px',

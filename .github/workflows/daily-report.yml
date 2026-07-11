@@ -1,0 +1,72 @@
+name: Daily Report
+
+# Posts a morning summary (08:00 Israel) as a comment on the pinned report
+# issue — the owner gets it as a normal GitHub notification.
+on:
+  schedule:
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+env:
+  PROJECT_REF: mdvheizhciuvqychtwxr
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Build and post summary
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          q() { curl -s -X POST "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" -d "{\"query\": \"$1\"}"; }
+          q "SELECT round(balance::numeric,2) AS balance, updated_at FROM bot_state WHERE id=1;" > /tmp/st.json
+          q "SELECT count(*) AS open_n, round(sum(entry_price*size)::numeric,0) AS notional FROM bot_trades WHERE status='OPEN';" > /tmp/open.json
+          q "SELECT COALESCE(strategy,'LEGACY') AS strat, count(*) AS n, count(*) FILTER (WHERE pnl>0) AS wins, round(sum(pnl)::numeric,2) AS pnl FROM bot_trades WHERE status != 'OPEN' AND closed_at > now() - interval '24 hours' GROUP BY 1;" > /tmp/day.json
+          q "SELECT COALESCE(strategy,'LEGACY') AS strat, count(*) AS n, count(*) FILTER (WHERE pnl>0) AS wins, round(sum(pnl)::numeric,2) AS pnl FROM bot_trades WHERE status != 'OPEN' GROUP BY 1 ORDER BY 1;" > /tmp/all.json
+          python3 - > /tmp/report.md <<'PYEOF'
+          import json
+          def load(p):
+              try: return json.load(open(p))
+              except Exception: return []
+          st=load('/tmp/st.json'); op=load('/tmp/open.json'); day=load('/tmp/day.json'); alls=load('/tmp/all.json')
+          bal=st[0]['balance'] if st else '?'
+          print(f"## דוח יומי — יתרה: ${bal}")
+          if op: print(f"\n**פוזיציות פתוחות:** {op[0]['open_n']} (חשיפה ${op[0]['notional'] or 0})")
+          print("\n**24 השעות האחרונות:**")
+          if not day: print("- לא נסגרו עסקאות")
+          for r in day: print(f"- {r['strat']}: {r['n']} עסקאות, {r['wins']} מנצחות, P&L ${r['pnl']}")
+          print("\n**מצטבר (מאז האיפוס):**")
+          donch_n=0
+          for r in alls:
+              print(f"- {r['strat']}: {r['n']} סגורות, {r['wins']} מנצחות, P&L ${r['pnl']}")
+              if r['strat']=='DONCH4H': donch_n=int(r['n'])
+          print(f"\n**התקדמות לבדיקת הרצועות:** {donch_n}/50 עסקאות DONCH4H")
+          if donch_n>=50: print("👉 הגיע הזמן להשוות לרצועות הציפייה ולשקול העלאת סיכון (ראה CLAUDE.md).")
+          PYEOF
+          existing=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/issues?state=open&labels=daily-report" \
+            | grep -o '"number": *[0-9]*' | head -1 | grep -o '[0-9]*')
+          if [ -z "$existing" ]; then
+            existing=$(curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" \
+              "https://api.github.com/repos/${{ github.repository }}/issues" \
+              -d '{"title":"📊 דוחות יומיים — SpaceHub Bot","body":"דוח בוקר אוטומטי מתפרסם כאן כל יום ב-08:00 שעון ישראל.","labels":["daily-report"]}' \
+              | grep -o '"number": *[0-9]*' | head -1 | grep -o '[0-9]*')
+          fi
+          python3 - "$existing" <<'PYEOF'
+          import json, os, sys, urllib.request
+          num=sys.argv[1]
+          body=open('/tmp/report.md').read()
+          req=urllib.request.Request(
+            f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/issues/{num}/comments",
+            data=json.dumps({"body":body}).encode(),
+            headers={"Authorization":"Bearer "+os.environ['GH_TOKEN'],"Content-Type":"application/json"})
+          urllib.request.urlopen(req)
+          print(f"posted to issue #{num}")
+          PYEOF
