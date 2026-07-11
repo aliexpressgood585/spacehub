@@ -1,18 +1,19 @@
-backtest 2026-07-11T20:46Z mode=v52bt months=36
-████ V52BT — DONCH4H 3rd exit level + ROTA rebalance frequency ████
-  loaded 69 coins, 6 windows
+backtest 2026-07-11T22:10Z mode=v53bt months=36
+████ V53BT — Mean Reversion (ranging) + Liquidation Cascade Fade ████
+  loaded 69 coins, 1096 days, 6 windows
 
-── A) DONCH4H LADDER 3rd exit: 0.6/1.0/X — testing X = 1.6 | 2.0 | 2.5 ──
-  setup: Donchian-25, ADX(60)>22, SL=1.4×ATR, hold cap 96 bars
-  r3=1.6R (live baseline)  n=8421  avg +0.0499R | w:   +7.1‰   +7.3‰ +122.2‰  +79.8‰  +41.1‰  +16.2‰ ✅
-  r3=2.0R                 n=8421  avg +0.0526R Δ+2.7‰ | w:  +11.5‰   -1.7‰ +133.6‰  +82.2‰  +45.4‰  +17.3‰ 
-  r3=2.5R                 n=8421  avg +0.0564R Δ+6.5‰ | w:  +12.0‰   -3.5‰ +145.4‰  +88.8‰  +51.2‰  +15.3‰ 
-  deploy bar: all windows positive AND ≥+0.004R above 1.6R baseline.
+── A) MEAN REVERSION (1h, ADX<22 gate, RSI overbought/oversold) ──
+  SL=1.2×ATR(14), TP=1.0×ATR(14), max hold 24h, min cooldown 4 bars
+  RSI 28/72  n=23117  avg -0.1329R | w: -180.0‰ -139.6‰ -198.2‰  -92.7‰  -74.5‰ -133.0‰ 
+  RSI 30/70  n=29277  avg -0.1306R | w: -167.6‰ -146.9‰ -179.0‰  -95.7‰  -76.4‰ -132.0‰ 
+  RSI 33/67  n=40467  avg -0.1318R | w: -162.6‰ -151.5‰ -175.7‰ -112.5‰  -86.1‰ -113.7‰ 
+  deploy bar: all 6 windows positive AND avg R > +0.005R.
 
-── B) ROTA K=7 rebalance frequency: RB=12 (48h live) vs RB=6 (24h) ──
-  invVol weights, LB=84, taker fees on turnover; K=7 fixed (already validated)
-  RB=12 (48h) (live baseline)  annM=47.6% annT=38.2% maxDD=17% | bps/period:   +25   +39   +13    +7   +24    +8 ✅
-  RB=6 (24h)  vs baseline: ❌ below 0.9× (38.2%×0.9=34.4%)  annM=46.9% annT=33.4% maxDD=18% | bps/period:   +12   +19    +9    +3    +7    +3 ✅
-  deploy RB=6 only if all taker windows positive AND annT ≥ 0.9× RB=12 annT.
+── B) LIQUIDATION CASCADE FADE (1h large-body candle, fade opposite direction) ──
+  ADX(20)<30, SL=1.0×ATR(20), TP=0.8×ATR(20), max hold 8 bars
+  body>1.8×ATR  n= 6327  avg -0.1321R | w:  -30.5‰ -220.1‰   -7.5‰ -214.1‰ -192.2‰ -107.7‰ 
+  body>2.0×ATR  n= 4177  avg -0.1132R | w:   -9.3‰ -197.7‰   +8.7‰ -211.4‰ -175.4‰  -61.1‰ 
+  body>2.5×ATR  n= 1623  avg -0.0805R | w:  +59.3‰ -178.8‰ +126.3‰ -244.4‰ -171.2‰   -5.6‰ 
+  deploy bar: all 6 windows positive AND avg R > +0.003R.
 
 ✅ = all 6 windows positive.
