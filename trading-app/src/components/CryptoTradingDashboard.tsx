@@ -335,6 +335,11 @@ const STYLE_TAG = `
   .ticker-track:hover{animation-play-state:paused}
   .scan-line{position:absolute;top:0;bottom:0;width:2px;pointer-events:none;background:linear-gradient(180deg,transparent 0%,rgba(0,200,255,0.6) 30%,rgba(0,200,255,0.9) 50%,rgba(0,200,255,0.6) 70%,transparent 100%);box-shadow:0 0 10px rgba(0,200,255,0.8),0 0 20px rgba(0,200,255,0.3);animation:scan-sweep 5s ease-in-out infinite}
   .shimmer-row{background:linear-gradient(90deg,transparent 0%,rgba(0,200,255,0.04) 50%,transparent 100%) !important;background-size:400% 100% !important;animation:shimmer 3.5s ease-in-out infinite}
+  @keyframes card-outline-cycle{0%,100%{outline-color:rgba(0,200,255,0.35)}33%{outline-color:rgba(240,24,122,0.35)}66%{outline-color:rgba(155,93,229,0.35)}}
+  .card-aura{outline:1px solid rgba(0,200,255,0.35);outline-offset:-1px;animation:card-outline-cycle 5s ease-in-out infinite}
+  @keyframes toast-in{from{transform:translateX(110%);opacity:0}to{transform:translateX(0);opacity:1}}
+  @keyframes toast-out{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(110%)}}
+  .toast-enter{animation:toast-in 0.3s cubic-bezier(0.34,1.56,0.64,1) forwards}
 `
 
 // ─── star field ──────────────────────────────────────────────────────────────
@@ -386,6 +391,76 @@ function useAnimatedCounter(target:number,duration=700):number{
   return val
 }
 
+// ─── matrix rain ─────────────────────────────────────────────────────────────
+function MatrixRain(){
+  const ref=useRef<HTMLCanvasElement>(null)
+  useEffect(()=>{
+    const c=ref.current;if(!c)return
+    const ctx=c.getContext('2d');if(!ctx)return
+    const resize=()=>{c.width=window.innerWidth;c.height=window.innerHeight}
+    resize();window.addEventListener('resize',resize)
+    const cols=Math.floor(c.width/18);const drops=Array(cols).fill(0).map(()=>Math.random()*-60)
+    const chars='01アイウエカキクサシスタチBTCETHSOL<>{}[]//\\'.split('')
+    let raf:number
+    const draw=()=>{
+      ctx.fillStyle='rgba(2,8,20,0.06)';ctx.fillRect(0,0,c.width,c.height)
+      for(let i=0;i<drops.length;i++){
+        const ch=chars[Math.floor(Math.random()*chars.length)]
+        const bright=Math.random()>0.92
+        ctx.fillStyle=bright?'rgba(0,245,160,0.9)':'rgba(0,200,255,0.25)'
+        ctx.font=`${bright?'bold ':''}11px monospace`
+        ctx.fillText(ch,i*18,drops[i]*18)
+        if(drops[i]*18>c.height&&Math.random()>0.978)drops[i]=0
+        drops[i]+=0.5
+      }
+      raf=requestAnimationFrame(draw)
+    }
+    draw()
+    return()=>{cancelAnimationFrame(raf);window.removeEventListener('resize',resize)}
+  },[])
+  return <canvas ref={ref} style={{position:'fixed',inset:0,pointerEvents:'none',zIndex:0,opacity:0.18}}/>
+}
+
+// ─── cursor glow ──────────────────────────────────────────────────────────────
+function CursorGlow(){
+  const [pos,setPos]=useState({x:-400,y:-400})
+  useEffect(()=>{
+    const mv=(e:MouseEvent)=>setPos({x:e.clientX,y:e.clientY})
+    window.addEventListener('mousemove',mv)
+    return()=>window.removeEventListener('mousemove',mv)
+  },[])
+  return (
+    <div style={{position:'fixed',pointerEvents:'none',zIndex:1,
+      left:pos.x-160,top:pos.y-160,width:'320px',height:'320px',
+      background:'radial-gradient(circle,rgba(0,200,255,0.07) 0%,transparent 68%)',
+      borderRadius:'50%',transition:'left 0.08s ease-out,top 0.08s ease-out'}}/>
+  )
+}
+
+// ─── progress ring ────────────────────────────────────────────────────────────
+function ProgressRing({value,max,color,label}:{value:number;max:number;color:string;label:string}){
+  const r=15,circ=2*Math.PI*r,pct=Math.min(value/max,1)
+  return (
+    <div className="shimmer-row" style={{border:`1px solid ${color}22`,borderRadius:'9px',
+      padding:'7px 10px',display:'flex',alignItems:'center',gap:'9px',backdropFilter:'blur(10px)'}}>
+      <div style={{position:'relative',width:'38px',height:'38px',flexShrink:0}}>
+        <svg width="38" height="38" style={{position:'absolute',top:0,left:0,transform:'rotate(-90deg)'}}>
+          <circle cx="19" cy="19" r={r} fill="none" stroke={`${color}22`} strokeWidth="2.5"/>
+          <circle cx="19" cy="19" r={r} fill="none" stroke={color} strokeWidth="2.5"
+            strokeDasharray={circ} strokeDashoffset={circ*(1-pct)} strokeLinecap="round"
+            style={{transition:'stroke-dashoffset 1s ease',filter:`drop-shadow(0 0 4px ${color})`}}/>
+        </svg>
+        <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',
+          fontSize:'8px',fontWeight:900,color,fontFamily:'monospace'}}>{value}</div>
+      </div>
+      <div>
+        <div style={{fontSize:'9px',color:'#3a5878'}}>{label}</div>
+        <div style={{fontSize:'10px',color,fontWeight:800}}>{Math.round(pct*100)}% מ-{max}</div>
+      </div>
+    </div>
+  )
+}
+
 // ─── 3D card ──────────────────────────────────────────────────────────────────
 function Card3D({children,style,color}:{children:React.ReactNode;style?:CSSProperties;color?:string}){
   const [tilt,setTilt]=useState({x:0,y:0})
@@ -400,6 +475,7 @@ function Card3D({children,style,color}:{children:React.ReactNode;style?:CSSPrope
   const col=color||C.blue
   return (
     <div ref={ref} onMouseMove={onMove} onMouseLeave={()=>setTilt({x:0,y:0})}
+      className="card-aura"
       style={{
         background:C.panel,
         backdropFilter:'blur(20px)',
@@ -480,6 +556,7 @@ export default function CryptoTradingDashboard() {
   const [rebalancedAt,setRebalancedAt]  = useState<string|null>(null)
   const [livePositions,setLivePositions]= useState<Record<number,{cur:number;pnl:number;pct:number}>>({})
   const [extraWsSyms,setExtraWsSyms]   = useState<string[]>([])
+  const [toasts,setToasts]             = useState<{id:number;msg:string;color:string;pnl?:number}[]>([])
 
   const barsMap    = useRef(new Map<string,Bar[]>())
   const curBar     = useRef(new Map<string,Bar>())
@@ -500,6 +577,10 @@ export default function CryptoTradingDashboard() {
   const supaModeRef= useRef(!!SUPA_URL&&!!SUPA_KEY)
   const logRef     = useRef<string[]>([])
   const dayRef     = useRef<{date:string,start:number}>({date:'',start:INIT_BAL})
+  const toastIdRef = useRef(0)
+  const prevTradeIdsRef    = useRef<Set<number>>(new Set())
+  const prevTradeStatusRef = useRef<Record<number,string>>({})
+  const toastInitRef       = useRef(false)
 
   tradeRef.current=trades; botRef.current=botOn
   selRef.current=selected; riskRef.current=risk; balRef.current=balance
@@ -509,6 +590,29 @@ export default function CryptoTradingDashboard() {
     logRef.current=[entry,...logRef.current].slice(0,40)
     setExecLog([...logRef.current])
   },[])
+
+  const addToast=useCallback((msg:string,color:string,pnl?:number)=>{
+    const id=++toastIdRef.current
+    setToasts(prev=>[...prev.slice(-4),{id,msg,color,pnl}])
+    setTimeout(()=>setToasts(prev=>prev.filter(t=>t.id!==id)),3800)
+  },[])
+
+  useEffect(()=>{
+    if(!toastInitRef.current&&trades.length>0){
+      for(const t of trades){prevTradeIdsRef.current.add(t.id);prevTradeStatusRef.current[t.id]=t.status}
+      toastInitRef.current=true;return
+    }
+    if(!toastInitRef.current)return
+    for(const t of trades){
+      if(!prevTradeIdsRef.current.has(t.id)&&t.status==='OPEN'){
+        addToast(`▲ ${t.sym} ${t.side==='LONG'?'לונג':'שורט'} נפתח`,t.side==='LONG'?C.green:C.red)
+      }
+      if(prevTradeStatusRef.current[t.id]==='OPEN'&&t.status!=='OPEN'){
+        addToast(`${t.status==='TP'?'✓ TP':'✗ '+t.status} ${t.sym}`,t.status==='TP'?C.green:C.red,t.pnl)
+      }
+      prevTradeIdsRef.current.add(t.id);prevTradeStatusRef.current[t.id]=t.status
+    }
+  },[trades,addToast])
 
   const handleManualClose=useCallback(async(t:Trade)=>{
     if(!SUPA_URL){addLog('⚠ Supabase לא מחובר');return}
@@ -896,8 +1000,30 @@ export default function CryptoTradingDashboard() {
       background:`radial-gradient(ellipse 80% 50% at 50% 0%,rgba(0,40,80,0.5) 0%,#020814 60%)`,
       minHeight:'100vh',color:C.text,padding:'8px',fontSize:'11px',overflowX:'hidden',
     }}>
+      <MatrixRain/>
       <StarField/>
+      <CursorGlow/>
       <style dangerouslySetInnerHTML={{__html:STYLE_TAG}}/>
+
+      {/* ══ TOAST STACK ══ */}
+      <div style={{position:'fixed',top:'16px',right:'16px',zIndex:300,display:'flex',flexDirection:'column',gap:'8px',pointerEvents:'none'}}>
+        {toasts.map(t=>(
+          <div key={t.id} className="toast-enter" style={{
+            padding:'10px 16px',borderRadius:'10px',fontSize:'11px',fontWeight:700,minWidth:'190px',
+            background:`linear-gradient(135deg,${t.color}22,rgba(2,8,20,0.96))`,
+            border:`1px solid ${t.color}55`,color:t.color,
+            boxShadow:`0 4px 24px ${t.color}30,0 0 0 1px ${t.color}20`,
+            backdropFilter:'blur(14px)',
+          }}>
+            {t.msg}
+            {t.pnl!==undefined&&(
+              <span style={{marginRight:'8px',color:t.pnl>=0?C.green:C.red,fontWeight:900}}>
+                {' '}{t.pnl>=0?'+':''}{t.pnl.toFixed(2)}$
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
 
       {/* ══ HEADER ══ */}
       <div style={{
@@ -1056,7 +1182,6 @@ export default function CryptoTradingDashboard() {
             ['📈 פריצות',`${stDonch.op}פ ${stDonch.n}ס ${(stDonch.rp>=0?'+':'')}${stDonch.rp.toFixed(0)}$`,stDonch.rp>=0?C.green:C.red],
             ['🔄 רוטציה',`${stRota.op}פ ${stRota.n}ס ${(stRota.rp>=0?'+':'')}${stRota.rp.toFixed(0)}$ ${stRota.wr.toFixed(0)}%`,stRota.rp>=0?C.green:C.red],
             ['🛡️ נסיגת הון',eqMaxDD.toFixed(1)+'%',eqMaxDD<10?C.green:eqMaxDD<25?C.yellow:C.red],
-            ['🎯 עד בדיקת רצועות',`${donchProgress}/50`,donchProgress>=50?C.green:C.blue],
           ].map(([k,v,col])=>(
             <div key={k} className="shimmer-row" style={{
               border:`1px solid ${C.dim}`,borderRadius:'9px',
@@ -1067,6 +1192,7 @@ export default function CryptoTradingDashboard() {
               <span style={{color:col as string,fontWeight:800,fontSize:'11px'}}>{v}</span>
             </div>
           ))}
+          <ProgressRing value={donchProgress} max={50} color={donchProgress>=50?C.green:C.blue} label="🎯 בדיקת רצועות"/>
           <div style={{background:'rgba(3,8,26,0.85)',border:`1px solid ${C.dim}`,borderRadius:'9px',padding:'7px 10px',fontSize:'9px',color:C.muted,backdropFilter:'blur(10px)'}}>
             <div>SL <span style={{color:C.red}}>{(R.sl*100).toFixed(1)}%</span> · TP <span style={{color:C.green}}>{(R.sl*TP_MULT*100).toFixed(1)}%</span>          {eqPath&&(
             <div style={{background:'rgba(3,8,26,0.85)',border:`1px solid ${C.dim}`,borderRadius:'9px',padding:'6px 10px'}}>
