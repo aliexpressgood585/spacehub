@@ -2067,6 +2067,154 @@ function runV46bt() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// v50bt: (A) market-neutral pair spread (cointegration-style) on 4h bars —
+//  rolling-β log spread, z-score entries; both legs pay taker fees.
+//  (B) Monte Carlo drawdown analysis of the live DONCH4H edge: resample the
+//  8,400+ per-trade R outcomes into 5,000 synthetic years at each risk tier —
+//  gives DD percentiles for the 1.25%→1.75%→2.5% risk-raise decision.
+function runV50bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000
+  const toTf = (a:Bar[], ms:number):Bar[] => {
+    const out:Bar[] = []; let cur:Bar|null=null; let bucket=-1
+    for (const b of a) { const k=Math.floor(b.t/ms)
+      if (k!==bucket) { if (cur) out.push(cur); bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol} }
+      else if (cur) { cur.high=Math.max(cur.high,b.high); cur.low=Math.min(cur.low,b.low); cur.close=b.close; cur.vol+=b.vol } }
+    if (cur) out.push(cur); return out
+  }
+  const d4: Record<string,Bar[]> = {}
+  let tmin=Infinity, tmax=-Infinity
+  for (const c of COINS) {
+    const h=loadCSV(c,'1h'); if (h.length<500) continue
+    d4[c]=toTf(h,BAR4)
+    tmin=Math.min(tmin,h[0].t); tmax=Math.max(tmax,h[h.length-1].t)
+  }
+  const days=(tmax-tmin)/86400000
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${days.toFixed(0)} days`)
+
+  // ── A) pair spread ──
+  console.log(`\n── A) PAIR SPREAD (rolling-β log spread, z-score, both legs taker) ──`)
+  const pairSim=(A:string, B:string, LOOK:number, ZIN:number, ZOUT:number, ZSTOP:number, MAXHOLD:number)=>{
+    const a=d4[A], b=d4[B]
+    if (!a||!b) return null
+    const mb=new Map<number,number>(); for (const x of b) mb.set(x.t,x.close)
+    const pts:{t:number,la:number,lb:number}[]=[]
+    for (const x of a) { const pb=mb.get(x.t); if (pb&&x.close>0&&pb>0) pts.push({t:x.t, la:Math.log(x.close), lb:Math.log(pb)}) }
+    const wr=new Array(NW).fill(0).map(()=>({n:0,w:0,sum:0}))
+    let pos:{dir:number, beta:number, e:{la:number,lb:number}, bar:number}|null=null
+    for (let i=LOOK;i<pts.length-1;i++) {
+      // rolling OLS beta + spread stats over LOOK bars
+      let sx=0,sy=0,sxx=0,sxy=0
+      for (let k=i-LOOK;k<i;k++){ sx+=pts[k].lb; sy+=pts[k].la; sxx+=pts[k].lb*pts[k].lb; sxy+=pts[k].lb*pts[k].la }
+      const nL=LOOK, den=nL*sxx-sx*sx
+      if (Math.abs(den)<1e-12) continue
+      const beta=(nL*sxy-sx*sy)/den, alpha=(sy-beta*sx)/nL
+      let m=0,m2=0
+      for (let k=i-LOOK;k<i;k++){ const sp=pts[k].la-beta*pts[k].lb-alpha; m+=sp; m2+=sp*sp }
+      m/=nL; const sd=Math.sqrt(Math.max(m2/nL-m*m,1e-12))
+      const sp=pts[i].la-beta*pts[i].lb-alpha
+      const z=(sp-m)/sd
+      if (!pos) {
+        if (Math.abs(z)>=ZIN && Math.abs(z)<ZSTOP) {
+          pos={dir: z>0?-1:1, beta, e:{la:pts[i].la, lb:pts[i].lb}, bar:i}   // dir=+1: long A short B
+        }
+      } else {
+        const zNow=z
+        const closed = (pos.dir===1 ? zNow>=-ZOUT : zNow<=ZOUT) || Math.abs(zNow)>=ZSTOP || (i-pos.bar)>=MAXHOLD
+        if (closed) {
+          // per-leg returns; position = 0.5 notional each leg
+          const rA=(pts[i].la-pos.e.la)*pos.dir, rB=(pts[i].lb-pos.e.lb)*(-pos.dir)
+          const gross=0.5*(Math.exp(rA)-1)+0.5*(Math.exp(rB)-1)
+          const net=gross-4*0.5*TK   // 2 legs × entry+exit, half notional each
+          const wi=winOf(pts[i].t)
+          wr[wi].n++; if (net>0) wr[wi].w++; wr[wi].sum+=net
+          pos=null
+        }
+      }
+    }
+    return wr
+  }
+  const reportPair=(name:string, wr:{n:number,w:number,sum:number}[]|null)=>{
+    if (!wr) { console.log(`  ${name}: missing data`); return }
+    const tot=wr.reduce((a,x)=>({n:a.n+x.n,w:a.w+x.w,sum:a.sum+x.sum}),{n:0,w:0,sum:0})
+    const wA=wr.map(x=>x.n?x.sum/x.n:0)
+    const act=wr.filter(x=>x.n>=5)
+    const ok=act.length>=5&&act.every(x=>x.sum/x.n>0)?'✅':''
+    console.log(`  ${name.padEnd(38)} n=${String(tot.n).padStart(4)} WR=${(100*(tot.n?tot.w/tot.n:0)).toFixed(0)}% avg=${(tot.sum/Math.max(1,tot.n)*100).toFixed(3)}%/trade | ${wA.map((x,i)=>wr[i].n?((x>=0?'+':'')+(x*100).toFixed(2)+'/'+wr[i].n).padStart(9):'      ·  ').join(' ')} ${ok}`)
+  }
+  for (const [A,B] of [['BTC','ETH'],['ETH','SOL'],['BTC','SOL']] as const)
+    for (const LOOK of [180, 360])
+      for (const ZIN of [2.0, 2.5])
+        reportPair(`${A}/${B} look${LOOK} z${ZIN} out0.5 stop3.5`, pairSim(A,B,LOOK,ZIN,0.5,3.5,180))
+
+  // ── B) Monte Carlo DD percentiles for the risk-raise decision ──
+  console.log(`\n── B) MONTE CARLO — 5,000 synthetic years (500 trades) per risk tier ──`)
+  const ladder2=(arr:Bar[], j0:number, entry:number, side:'LONG'|'SHORT', slDist:number, jEnd:number)=>{
+    const dirM=side==='LONG'?1:-1, slPx=entry-slDist*dirM
+    const lvl=(r:number)=>entry+slDist*r*dirM
+    const stages=[{r:0.6,frac:1/3},{r:1.0,frac:1/3},{r:1.6,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0, rem=1, be=false, si=0, tpFrac=0
+    for (let j=j0+1;j<=jEndc;j++) {
+      const b=arr[j], stopPx=be?entry:slPx
+      if (side==='LONG'?b.low<=stopPx:b.high>=stopPx) { banked+=rem*(be?0:-1); rem=0; break }
+      while (si<stages.length) {
+        const tgt=lvl(stages[si].r)
+        if (!(side==='LONG'?b.high>=tgt:b.low<=tgt)) break
+        banked+=stages[si].frac*stages[si].r; tpFrac+=stages[si].frac; rem-=stages[si].frac; be=true; si++
+      }
+      if (rem<=1e-9) break
+    }
+    if (rem>1e-9) banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return {r:banked, tpFrac}
+  }
+  const rs:number[]=[]
+  for (const c of Object.keys(d4)) {
+    if (!CORE40.has(c)) continue
+    const arr=d4[c]; let last=-999
+    for (let i=100;i<arr.length-1;i++) {
+      const price=arr[i].close
+      const prior=arr.slice(i-25,i)
+      let hi=-Infinity, lo=Infinity
+      for (const b of prior) { if (b.high>hi) hi=b.high; if (b.low<lo) lo=b.low }
+      const side: 'LONG'|'SHORT'|null = price>hi?'LONG':price<lo?'SHORT':null
+      if (!side) continue
+      const win=arr.slice(Math.max(0,i-99),i+1)
+      const adx=calcADX(win.slice(-60)); if (adx<=22) continue
+      const atr=calcATR(win.slice(-20)); if(!atr) continue
+      if (i-last<2) continue
+      last=i
+      const slDist=Math.max(atr*1.4, price*0.005), slPct=slDist/price
+      if (slPct>0.08) continue
+      const res=ladder2(arr,i,price,side,slDist,i+96)
+      rs.push(res.r-(TK + res.tpFrac*MK+(1-res.tpFrac)*TK)/slPct)
+    }
+  }
+  console.log(`  edge sample: ${rs.length} trades, avg ${(rs.reduce((a,x)=>a+x,0)/rs.length).toFixed(4)}R`)
+  const PATHS=5000, TRADES=500
+  for (const risk of [0.0125, 0.0175, 0.025]) {
+    const dds:number[]=[], ends:number[]=[]
+    for (let p2=0;p2<PATHS;p2++) {
+      let eq=1, pk=1, dd=0
+      for (let k=0;k<TRADES;k++) {
+        const r=rs[Math.floor(Math.random()*rs.length)]
+        eq*=(1+risk*r)
+        if (eq>pk) pk=eq
+        dd=Math.max(dd,1-eq/pk)
+      }
+      dds.push(dd); ends.push(eq)
+    }
+    dds.sort((a,b)=>a-b); ends.sort((a,b)=>a-b)
+    const q=(arr:number[],p3:number)=>arr[Math.min(arr.length-1,Math.floor(p3*arr.length))]
+    console.log(`  risk ${(risk*100).toFixed(2)}%: median end ×${q(ends,0.5).toFixed(2)} (p10 ×${q(ends,0.10).toFixed(2)}) | maxDD median ${(q(dds,0.5)*100).toFixed(0)}% · p90 ${(q(dds,0.9)*100).toFixed(0)}% · p99 ${(q(dds,0.99)*100).toFixed(0)}%`)
+  }
+  console.log(`  NOTE: single-position sequential model — ignores concurrent-position correlation, so real DD runs somewhat deeper. Use as a floor, not a ceiling.`)
+  console.log(`\n✅(A) = ≥5 active windows, all positive.`)
+}
+
+// ─────────────────────────────────────────────────────────────
 // v49bt: "smart money" SIZING TILTS — same trades, smarter capital allocation.
 //  A) top-trader positioning (Binance metrics col 6: positions-weighted
 //     long/short ratio of the largest accounts, 5-min samples): breakout
@@ -2622,6 +2770,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v49bt') {
     console.log(`████ V49BT — top-trader positioning tilt + Fear&Greed tilt ████`)
     runV49bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v50bt') {
+    console.log(`████ V50BT — pair spread + Monte Carlo DD analysis ████`)
+    runV50bt()
     return
   }
 

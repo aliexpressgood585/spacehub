@@ -1,4 +1,14 @@
 // ════════════════════════════════════════════════════════════
+// CryptoBot v50 — DAILY LOSS LIMIT (black-day circuit breaker)
+//
+// v50: if equity drops >5% below its 24h peak (bot_equity snapshots), NEW
+//  entries and rebalances pause until the 24h window heals. Open positions
+//  keep their stops/BE/ladders — the brake stops adding risk, it never
+//  panic-sells the book. User-approved safety addition.
+//  Same batch, REJECTED (v49bt): top-trader positioning tilt (following
+//  whales HURT: +0.049 vs +0.050R; fading them +0.051R = below the +0.004R
+//  deploy bar) and Fear&Greed sizing tilt (noise both directions).
+//
 // CryptoBot v49 — pyramid depth 3 + ROTA K=7 (validated) + ops pack
 //
 // v49 (walk-forward 36m, 6 windows, real fees — status/bt-latest.txt):
@@ -2368,6 +2378,26 @@ Deno.serve(async (req) => {
       }
     } catch { /* best-effort */ }
 
+    // ════ v50: DAILY LOSS LIMIT (black-day circuit breaker) ═══════════════════
+    // If portfolio equity dropped >5% from its 24h peak (bot_equity snapshots
+    // every 15 min), block NEW entries and rebalances until the window heals.
+    // Open positions are NOT touched — their stops/BE locks/ladders keep
+    // managing them; panic-closing an entire book at the low is how retail dies.
+    let dayLossPaused = false
+    try {
+      const since = new Date(Date.now() - 24*3600_000).toISOString()
+      const {data:eqRows} = await supabase.from('bot_equity').select('equity,ts')
+        .gte('ts', since).order('ts',{ascending:true})
+      if ((eqRows||[]).length >= 8) {
+        const eqs = (eqRows||[]).map((r:any)=>Number(r.equity)).filter((x:number)=>Number.isFinite(x)&&x>0)
+        const peak24 = Math.max(...eqs), cur = eqs[eqs.length-1]
+        if (peak24 > 0 && cur < peak24 * 0.95) {
+          dayLossPaused = true
+          log.push(`DAY-LOSS LIMIT: equity ${cur.toFixed(0)} is ${((1-cur/peak24)*100).toFixed(1)}% under 24h peak ${peak24.toFixed(0)} — new entries paused`)
+        }
+      }
+    } catch { /* best-effort */ }
+
     // ════ v42 ROTATION PHASE — cross-sectional momentum L/S (LB84|RB12|K5) ════
     // 36-month walk-forward proof: +45.9%/yr maker, +41%/yr taker, maxDD 35%,
     // positive in all 6 windows. Every 48h: rank universe by 14-day momentum;
@@ -2377,7 +2407,8 @@ Deno.serve(async (req) => {
       // all 6 windows positive. More slots, better return, lower drawdown.
       const ROTA_MS = 48*3600_000, ROTA_K = 7, ROTA_LB = 84
       const lastRota = state.rebalanced_at ? new Date(state.rebalanced_at).getTime() : 0
-      if (now - lastRota >= ROTA_MS - 5*60_000) {
+      // v50: postpone the whole rebalance on a black day (retry next cycle once healed)
+      if (!dayLossPaused && now - lastRota >= ROTA_MS - 5*60_000) {
         const {data:rotaOpenAll} = await supabase.from('bot_trades').select('*').eq('status','OPEN').eq('strategy','ROTA')
         const momList: {sym:string, mom:number, price:number, vol:number}[] = []
         // v42.2: rank EXACTLY the 40-coin universe the 36-month validation used —
@@ -2921,6 +2952,7 @@ Deno.serve(async (req) => {
         // ════════════════════════════════════════════════════════════════
         {
           if (donchPaused) return  // v43 (#4): health kill-switch
+          if (dayLossPaused) return  // v50: daily loss circuit breaker
           const msInto4h = Date.now() % 14_400_000
           if (msInto4h > 15 * 60_000) return  // outside the post-close window
           const bars4h = await fetchBars(sym, '4h', 70)
