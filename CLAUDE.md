@@ -57,7 +57,15 @@ archive — metrics/ OI is the only forced-deleveraging data source), top-trader
 positioning tilt (FOLLOWING whales slightly HURT: +0.049 vs +0.050R base;
 fading them +0.051R but < +0.004R deploy bar = noise), Fear&Greed sizing tilt
 (both directions noise-level), pair spread BTC/ETH+ETH/SOL+BTC/SOL (12 configs,
-best = 5/6 windows but only ~47 trades/36m and w6 negative — rejected).
+best = 5/6 windows but only ~47 trades/36m and w6 negative — rejected),
+squeeze/compression sizing tilt (the classic "narrow channel = better breakout"
+lore is BACKWARDS here: compression-boost LOST -0.0035R; wide-channel-boost
+gained +0.0037R but misses the +0.004R bar and only 3/6 windows better — ADX
+tiering already captures the real effect), weekend tilt (noise both ways).
+RESEARCH CHAPTER CLOSED 2026-07-11: ~400 list items triaged over 4 user lists,
+13 validation batches run. Free, validatable data is exhausted. Next edge
+levers: 50-trade live checkpoint → risk raise per Monte Carlo table; later
+real-exchange connection + capital.
 
 ## Current state (2026-07-10)
 - Live: **v50.1** — USDT depeg monitor + cross-source bad-tick shield;
