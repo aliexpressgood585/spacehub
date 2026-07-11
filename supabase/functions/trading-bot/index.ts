@@ -1,4 +1,12 @@
 // ════════════════════════════════════════════════════════════
+// CryptoBot v50.1 — data-integrity shields
+//
+// v50.1: (1) USDT depeg monitor — USDC/USDT >1% off peg pauses new entries
+//  (the one catastrophe stops can't handle; fails open on fetch errors).
+//  (2) Cross-source price sanity — entries (DONCH4H + ROTA) require Bybit to
+//  agree with the scan price within 0.5%, so a bad tick can never open a
+//  position. Pure risk shields, zero strategy impact.
+//
 // CryptoBot v50 — DAILY LOSS LIMIT (black-day circuit breaker)
 //
 // v50: if equity drops >5% below its 24h peak (bot_equity snapshots), NEW
@@ -403,6 +411,23 @@ const VOL_PARAMS = {
 }
 
 interface Bar { open:number; high:number; low:number; close:number; vol:number }
+
+// v50.1: cross-source price sanity — a position must never open on a bad tick.
+// Compares the scan price against Bybit's independent mark; >0.5% disagreement
+// blocks THIS entry attempt only. Fails open when Bybit is unreachable so a
+// Bybit outage can't halt trading by itself.
+async function priceSane(sym:string, px:number): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `https://api.bybit.com/v5/market/tickers?category=linear&symbol=${sym}USDT`,
+      { headers:{'User-Agent':'Mozilla/5.0'} })
+    if (!res.ok) return true
+    const j = await res.json()
+    const p2 = Number(j?.result?.list?.[0]?.lastPrice)
+    if (!Number.isFinite(p2) || p2 <= 0) return true
+    return Math.abs(px/p2 - 1) <= 0.005
+  } catch { return true }
+}
 
 async function fetchBars(sym:string, interval:string, limit:number): Promise<Bar[]> {
   // primary: Binance futures
@@ -2398,6 +2423,24 @@ Deno.serve(async (req) => {
       }
     } catch { /* best-effort */ }
 
+    // ════ v50.1: USDT DEPEG MONITOR ════════════════════════════════════════
+    // The whole book is USDT-denominated; a USDT depeg is the one catastrophe
+    // stops can't protect against. USDC/USDT drifting >1% off 1.0 → pause new
+    // entries. Fails open on fetch errors (an OKX hiccup must not halt trading).
+    let depegPaused = false
+    try {
+      const res = await fetch('https://www.okx.com/api/v5/market/ticker?instId=USDC-USDT',
+        { headers:{'User-Agent':'Mozilla/5.0'} })
+      if (res.ok) {
+        const px = Number((await res.json())?.data?.[0]?.last)
+        if (Number.isFinite(px) && px > 0 && Math.abs(px - 1) > 0.01) {
+          depegPaused = true
+          log.push(`🚨 USDT DEPEG: USDC/USDT=${px.toFixed(4)} — new entries paused`)
+        }
+      }
+    } catch { /* fail open */ }
+    if (depegPaused) dayLossPaused = true  // same brake, same gates
+
     // ════ v42 ROTATION PHASE — cross-sectional momentum L/S (LB84|RB12|K5) ════
     // 36-month walk-forward proof: +45.9%/yr maker, +41%/yr taker, maxDD 35%,
     // positive in all 6 windows. Every 48h: rank universe by 14-day momentum;
@@ -2484,6 +2527,7 @@ Deno.serve(async (req) => {
             slotNotional = Math.min(slotNotional, Math.max(0, port*0.20 - symExp))
             if (slotNotional < port*0.01) { log.push(`ROTA_SKIP ${sym}: per-coin cap`); continue }
             if (balance < slotNotional) { log.push(`ROTA_SKIP ${sym}: insufficient cash`); continue }
+            if (!(await priceSane(sym, tgt.price))) { log.push(`ROTA_SKIP ${sym}: cross-source price mismatch (bad tick?)`); continue }
             const size2 = slotNotional / tgt.price
             const feeIn = slotNotional * FEE
             balance -= (slotNotional + feeIn)
@@ -3016,6 +3060,10 @@ Deno.serve(async (req) => {
             log.push(`SKIP ${sym}: DONCH4H net ${side4} exposure cap`); return
           }
 
+          // v50.1: never open on a bad tick — require Bybit to agree within 0.5%
+          if (!(await priceSane(sym, price))) {
+            log.push(`SKIP ${sym}: cross-source price mismatch (bad tick?)`); return
+          }
           const size4 = notional4 / price
           const feeIn4 = notional4 * FEE
           balance -= (notional4 + feeIn4); openCount++; newEntriesThisScan++

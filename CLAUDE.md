@@ -60,7 +60,8 @@ fading them +0.051R but < +0.004R deploy bar = noise), Fear&Greed sizing tilt
 best = 5/6 windows but only ~47 trades/36m and w6 negative — rejected).
 
 ## Current state (2026-07-10)
-- Live: **v50** — daily loss limit (-5%/24h peak → pause new entries only), ROTA K=7 (annT 38.2%, maxDD 17%, all windows), pyramid depth 3
+- Live: **v50.1** — USDT depeg monitor + cross-source bad-tick shield;
+  daily loss limit (-5%/24h peak → pause new entries only), ROTA K=7 (annT 38.2%, maxDD 17%, all windows), pyramid depth 3
   (3rd unit at ≥1.0R), maker TP-leg fills (v47), stablecoin exclusion (v48, by
   the user's second Claude session), Bybit third data source, watchdog + daily
   report workflows (GitHub issues). Account reset started at $10,000 paper.
