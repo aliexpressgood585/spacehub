@@ -2328,6 +2328,128 @@ function runV52bt() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// v53bt: TWO NEW ORTHOGONAL STRATEGIES — both use 1h bars, CORE40 universe,
+//   taker fees 0.05%/side, 6 walk-forward windows.
+// (A) MEAN REVERSION on ranging 1h bars:
+//   Regime gate ADX(20)<22 → RSI(14)<30 long / >70 short.
+//   SL=1.2×ATR(14), TP=1.0×ATR(14), max hold 24 bars (1 day).
+//   Tests three RSI thresholds: 28/72, 30/70, 33/67.
+//   Deploy bar: all 6 windows positive, avg R > +0.005R.
+// (B) LIQUIDATION CASCADE FADE on 1h bars:
+//   A "cascade" candle: body > 2.0×ATR(20) (large forced move).
+//   Fade opposite direction — ADX(20)<30 filter (trending cascades continue).
+//   Entry next bar, SL=1.0×ATR, TP=0.8×ATR, max hold 8 bars.
+//   Tests size threshold multiples: 1.8×, 2.0×, 2.5×.
+//   Deploy bar: all 6 windows positive, avg R > +0.003R.
+function runV53bt() {
+  const TK=0.0005, NW=6, BAR1H=3600000
+  const d1h: Record<string,Bar[]> = {}
+  let tmin=Infinity, tmax=-Infinity
+  for (const c of COINS) {
+    const h=loadCSV(c,'1h'); if (h.length<200) continue
+    d1h[c]=h
+    tmin=Math.min(tmin,h[0].t); tmax=Math.max(tmax,h[h.length-1].t)
+  }
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  console.log(`  loaded ${Object.keys(d1h).length} coins, ${((tmax-tmin)/86400000).toFixed(0)} days, ${NW} windows`)
+
+  // ── A) MEAN REVERSION: ADX<22 + RSI extremes, 1h bars ──
+  console.log(`\n── A) MEAN REVERSION (1h, ADX<22 gate, RSI overbought/oversold) ──`)
+  console.log(`  SL=1.2×ATR(14), TP=1.0×ATR(14), max hold 24h, min cooldown 4 bars`)
+
+  for (const [rsiLo, rsiHi] of [[28,72],[30,70],[33,67]]) {
+    interface MrTr { win:number; net:number }
+    const trades:MrTr[]=[]
+    for (const c of Object.keys(d1h)) {
+      if (!CORE40.has(c)) continue
+      const arr=d1h[c]; let last=-999
+      for (let i=50;i<arr.length-1;i++) {
+        const win=arr.slice(Math.max(0,i-49),i+1)
+        const adx=calcADX(win.slice(-20)); if (adx>=22) continue
+        const atr=calcATR(win.slice(-14)); if (!atr) continue
+        const closes=win.map(b=>b.close)
+        const rsi=calcRsi(closes,14)
+        const side: 'LONG'|'SHORT'|null = rsi<rsiLo?'LONG':rsi>rsiHi?'SHORT':null
+        if (!side) continue
+        if (i-last<4) continue
+        last=i
+        const entry=arr[i].close
+        const slDist=atr*1.2, tpDist=atr*1.0, slPct=slDist/entry
+        if (slPct>0.06) continue
+        const dirM=side==='LONG'?1:-1
+        const slPx=entry-slDist*dirM, tpPx=entry+tpDist*dirM
+        const jEnd=Math.min(i+24,arr.length-1)
+        let rVal=0, hit=false
+        for (let j=i+1;j<=jEnd;j++) {
+          const b=arr[j]
+          if (side==='LONG'?b.low<=slPx:b.high>=slPx) { rVal=-1; hit=true; break }
+          if (side==='LONG'?b.high>=tpPx:b.low<=tpPx) { rVal=tpDist/slDist; hit=true; break }
+        }
+        if (!hit) rVal=(arr[jEnd].close-entry)*dirM/slDist
+        const net=rVal - TK*2/slPct
+        trades.push({win:winOf(arr[i].t), net})
+      }
+    }
+    const wSum=new Array(NW).fill(0), wN=new Array(NW).fill(0)
+    for (const tr of trades) { wSum[tr.win]+=tr.net; wN[tr.win]++ }
+    const wAvg=wSum.map((x,i)=>wN[i]?x/wN[i]:0)
+    const total=trades.reduce((a,t)=>a+t.net,0)/Math.max(1,trades.length)
+    const ok=wAvg.every(x=>x>0)?'✅':wAvg.filter(x=>x>0).length>=5?'(5/6)':''
+    console.log(`  RSI ${rsiLo}/${rsiHi}  n=${trades.length.toString().padStart(5)}  avg ${(total>=0?'+':'')+total.toFixed(4)}R | w: ${wAvg.map(x=>((x>=0?'+':'')+(x*1000).toFixed(1)+'‰').padStart(7)).join(' ')} ${ok}`)
+  }
+  console.log(`  deploy bar: all 6 windows positive AND avg R > +0.005R.`)
+
+  // ── B) LIQUIDATION CASCADE FADE: large-body 1h candle, ADX<30, fade next bar ──
+  console.log(`\n── B) LIQUIDATION CASCADE FADE (1h large-body candle, fade opposite direction) ──`)
+  console.log(`  ADX(20)<30, SL=1.0×ATR(20), TP=0.8×ATR(20), max hold 8 bars`)
+
+  for (const mult of [1.8, 2.0, 2.5]) {
+    interface CsTr { win:number; net:number }
+    const trades:CsTr[]=[]
+    for (const c of Object.keys(d1h)) {
+      if (!CORE40.has(c)) continue
+      const arr=d1h[c]; let last=-999
+      for (let i=25;i<arr.length-1;i++) {
+        const win=arr.slice(Math.max(0,i-24),i+1)
+        const adx=calcADX(win); if (adx>=30) continue
+        const atr=calcATR(win); if (!atr) continue
+        const b=arr[i]
+        const body=Math.abs(b.close-b.open)
+        if (body < mult*atr) continue
+        if (i-last<2) continue
+        last=i
+        const bearish=b.close<b.open
+        const side: 'LONG'|'SHORT'=bearish?'LONG':'SHORT'
+        const entry=arr[i+1].open
+        const slDist=atr*1.0, tpDist=atr*0.8, slPct=slDist/entry
+        if (slPct>0.07||slPct<0.001) continue
+        const dirM=side==='LONG'?1:-1
+        const slPx=entry-slDist*dirM, tpPx=entry+tpDist*dirM
+        const jEnd=Math.min(i+1+8,arr.length-1)
+        let rVal=0, hit=false
+        for (let j=i+2;j<=jEnd;j++) {
+          const bj=arr[j]
+          if (side==='LONG'?bj.low<=slPx:bj.high>=slPx) { rVal=-1; hit=true; break }
+          if (side==='LONG'?bj.high>=tpPx:bj.low<=tpPx) { rVal=tpDist/slDist; hit=true; break }
+        }
+        if (!hit) rVal=(arr[jEnd].close-entry)*dirM/slDist
+        const net=rVal - TK*2/slPct
+        trades.push({win:winOf(arr[i].t), net})
+      }
+    }
+    const wSum=new Array(NW).fill(0), wN=new Array(NW).fill(0)
+    for (const tr of trades) { wSum[tr.win]+=tr.net; wN[tr.win]++ }
+    const wAvg=wSum.map((x,i)=>wN[i]?x/wN[i]:0)
+    const total=trades.reduce((a,t)=>a+t.net,0)/Math.max(1,trades.length)
+    const ok=wAvg.every(x=>x>0)?'✅':wAvg.filter(x=>x>0).length>=5?'(5/6)':''
+    console.log(`  body>${mult.toFixed(1)}×ATR  n=${trades.length.toString().padStart(5)}  avg ${(total>=0?'+':'')+total.toFixed(4)}R | w: ${wAvg.map(x=>((x>=0?'+':'')+(x*1000).toFixed(1)+'‰').padStart(7)).join(' ')} ${ok}`)
+  }
+  console.log(`  deploy bar: all 6 windows positive AND avg R > +0.003R.`)
+  console.log(`\n✅ = all ${NW} windows positive.`)
+}
+
+// ─────────────────────────────────────────────────────────────
 // v50bt: (A) market-neutral pair spread (cointegration-style) on 4h bars —
 //  rolling-β log spread, z-score entries; both legs pay taker fees.
 //  (B) Monte Carlo drawdown analysis of the live DONCH4H edge: resample the
@@ -3046,6 +3168,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v52bt') {
     console.log(`████ V52BT — DONCH4H 3rd exit level + ROTA rebalance frequency ████`)
     runV52bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v53bt') {
+    console.log(`████ V53BT — Mean Reversion (ranging) + Liquidation Cascade Fade ████`)
+    runV53bt()
     return
   }
 
