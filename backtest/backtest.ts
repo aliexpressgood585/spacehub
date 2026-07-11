@@ -2067,6 +2067,169 @@ function runV46bt() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// v48bt: growth candidates that ADD trades (never cut):
+//  A) pyramid depth 3 — 3rd unit stacks only when all open units ≥1.2R
+//  B) 1h Donchian sleeve — same engine on 1h bars (fees bite harder; prove it)
+//  C) rotation K=7 vs K=5 — more slots, same book
+// Fee accounting matches live v47: entries taker 0.05%, ladder TP legs maker 0.02%.
+function runV48bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000, BAR1=3600000
+  const toTf = (a:Bar[], ms:number):Bar[] => {
+    const out:Bar[] = []; let cur:Bar|null=null; let bucket=-1
+    for (const b of a) { const k=Math.floor(b.t/ms)
+      if (k!==bucket) { if (cur) out.push(cur); bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol} }
+      else if (cur) { cur.high=Math.max(cur.high,b.high); cur.low=Math.min(cur.low,b.low); cur.close=b.close; cur.vol+=b.vol } }
+    if (cur) out.push(cur); return out
+  }
+  const d4: Record<string,Bar[]> = {}, d1h: Record<string,Bar[]> = {}
+  let tmin=Infinity, tmax=-Infinity
+  for (const c of COINS) {
+    const h=loadCSV(c,'1h'); if (h.length<500) continue
+    d1h[c]=h; d4[c]=toTf(h,BAR4)
+    tmin=Math.min(tmin,h[0].t); tmax=Math.max(tmax,h[h.length-1].t)
+  }
+  const days=(tmax-tmin)/86400000
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${days.toFixed(0)} days, ${NW} windows`)
+
+  interface Agg { n:number; w:number; sum:number }
+  const mk=():Agg=>({n:0,w:0,sum:0})
+  const ladder2=(arr:Bar[], j0:number, entry:number, side:'LONG'|'SHORT', slDist:number, jEnd:number)=>{
+    const dirM=side==='LONG'?1:-1, slPx=entry-slDist*dirM
+    const lvl=(r:number)=>entry+slDist*r*dirM
+    const stages=[{r:0.6,frac:1/3},{r:1.0,frac:1/3},{r:1.6,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0, rem=1, be=false, si=0, tpFrac=0, exitBar=jEndc
+    for (let j=j0+1;j<=jEndc;j++) {
+      const b=arr[j], stopPx=be?entry:slPx
+      if (side==='LONG'?b.low<=stopPx:b.high>=stopPx) { banked+=rem*(be?0:-1); rem=0; exitBar=j; break }
+      while (si<stages.length) {
+        const tgt=lvl(stages[si].r)
+        if (!(side==='LONG'?b.high>=tgt:b.low<=tgt)) break
+        banked+=stages[si].frac*stages[si].r; tpFrac+=stages[si].frac; rem-=stages[si].frac; be=true; si++
+      }
+      if (rem<=1e-9) { exitBar=j; break }
+    }
+    if (rem>1e-9) banked+=rem*((arr[exitBar].close-entry)*dirM/slDist)
+    return {r:banked, tpFrac, exitBar}
+  }
+
+  // Donchian scan with pyramid depth + configurable timeframe
+  const donchScan=(dset:Record<string,Bar[]>, DW:number, GATE:number, SLM:number, maxhold:number, maxUnits:number, unit3R:number)=>{
+    const ws:Agg[]=[]; for (let i2=0;i2<NW;i2++) ws.push(mk())
+    for (const c of Object.keys(dset)) {
+      if (!CORE40.has(c)) continue
+      const arr=dset[c]; let last=-999
+      const open:{bar:number, side:string, entry:number, slDist:number}[]=[]
+      for (let i=Math.max(100,DW+1);i<arr.length-1;i++) {
+        const price=arr[i].close
+        const prior=arr.slice(i-DW,i)
+        let hi=-Infinity, lo=Infinity
+        for (const b of prior) { if (b.high>hi) hi=b.high; if (b.low<lo) lo=b.low }
+        const side: 'LONG'|'SHORT'|null = price>hi?'LONG':price<lo?'SHORT':null
+        if (!side) continue
+        const win=arr.slice(Math.max(0,i-99),i+1)
+        const adx=calcADX(win.slice(-60)); if (GATE>0 && adx<=GATE) continue
+        const atr=calcATR(win.slice(-20)); if(!atr) continue
+        let allowed = i-last>=2
+        if (!allowed && maxUnits>1) {
+          const act=open.filter(o=>o.bar>=i && o.side===side)
+          const dirM=side==='LONG'?1:-1
+          const needR = act.length>=2 ? unit3R : 0.6
+          allowed = act.length>0 && act.length<maxUnits && act.every(o=>(price-o.entry)*dirM/o.slDist>=needR)
+        }
+        if (!allowed) continue
+        last=i
+        const slDist=Math.max(atr*SLM, price*0.005), slPct=slDist/price
+        if (slPct>0.08) continue
+        const res=ladder2(arr,i,price,side,slDist,i+maxhold)
+        open.push({bar:res.exitBar, side, entry:price, slDist})
+        const net=res.r-(TK + res.tpFrac*MK+(1-res.tpFrac)*TK)/slPct
+        const a=ws[winOf(arr[i].t)]
+        a.n++; if (net>0) a.w++; a.sum+=net
+      }
+    }
+    return ws
+  }
+  const report=(name:string, ws:Agg[])=>{
+    const tot=ws.reduce((a,x)=>({n:a.n+x.n,w:a.w+x.w,sum:a.sum+x.sum}),mk())
+    const wA=ws.map(x=>x.n?x.sum/x.n:0)
+    const ok=wA.every(x=>x>0)&&ws.every(x=>x.n>=15)?'✅':''
+    console.log(`  ${name.padEnd(32)} n=${String(tot.n).padStart(6)} (${(tot.n/days).toFixed(1)}/d) WR=${(100*(tot.n?tot.w/tot.n:0)).toFixed(1)}% avg=${(tot.sum/Math.max(1,tot.n)>=0?'+':'')}${(tot.sum/Math.max(1,tot.n)).toFixed(3)}R | ${wA.map(x=>((x>=0?'+':'')+x.toFixed(3)).padStart(7)).join(' ')} ${ok}`)
+  }
+
+  console.log(`\n── A) PYRAMID DEPTH (4h dw25|adx22|sl1.4, maker TP legs) ──`)
+  report('P1 no pyramid (baseline)',      donchScan(d4,25,22,1.4,96,1,0))
+  report('P2 max 2 units @0.6R (live)',   donchScan(d4,25,22,1.4,96,2,0))
+  report('P3 max 3 units, 3rd @1.2R',     donchScan(d4,25,22,1.4,96,3,1.2))
+  report('P3 max 3 units, 3rd @1.0R',     donchScan(d4,25,22,1.4,96,3,1.0))
+
+  console.log(`\n── B) 1h DONCHIAN SLEEVE (adx22|sl1.4, maker TP legs) ──`)
+  report('1h dw25 |hold96h(4d)',   donchScan(d1h,25,22,1.4,96,1,0))
+  report('1h dw50 |hold96h(4d)',   donchScan(d1h,50,22,1.4,96,1,0))
+  report('1h dw100|hold96h(4d)',   donchScan(d1h,100,22,1.4,96,1,0))
+  report('1h dw50 |hold240h(10d)', donchScan(d1h,50,22,1.4,240,1,0))
+  report('1h dw100|hold240h(10d)', donchScan(d1h,100,22,1.4,240,1,0))
+
+  console.log(`\n── C) ROTATION K=5 vs K=7 (4h LB84|RB12, invVol, fees on turnover) ──`)
+  {
+    const closes: Record<string, Map<number,number>> = {}
+    for (const c of Object.keys(d4)) { const m=new Map<number,number>(); for (const b of d4[c]) m.set(b.t,b.close); closes[c]=m }
+    const FEE_T2=0.0010, FEE_M2=0.0004, LB=84, RB=12
+    const retOf=(c:string,t0:number,t1:number)=>{ const m=closes[c]; const a=m.get(t0), b=m.get(t1); return (a&&b)?b/a-1:null }
+    const volOf=(c:string,t:number)=>{
+      const m=closes[c]; const rets:number[]=[]
+      for (let k=1;k<=LB;k++){ const a=m.get(t-k*BAR4), b=m.get(t-(k-1)*BAR4); if(a&&b&&a>0) rets.push(b/a-1) }
+      if (rets.length<40) return null
+      const mu=rets.reduce((x,y)=>x+y,0)/rets.length
+      return Math.sqrt(rets.reduce((x,y)=>x+(y-mu)**2,0)/rets.length)
+    }
+    for (const K of [5,7]) {
+      let prev=new Map<string,number>(), eq=1, eqT=1, pk=1, mdd=0, periods=0
+      const wSum=new Array(NW).fill(0), wN=new Array(NW).fill(0)
+      for (let t=tmin+LB*BAR4; t+RB*BAR4<=tmax; t+=RB*BAR4) {
+        const scored:{c:string,mom:number,w:number}[]=[]
+        for (const c of Object.keys(closes)) {
+          if (!CORE40.has(c)) continue
+          const p0=closes[c].get(t-LB*BAR4), p1=closes[c].get(t), p2=closes[c].get(t+RB*BAR4)
+          if (!p0||!p1||!p2||p0<=0) continue
+          const v=volOf(c,t); if (v===null||v<=0) continue
+          scored.push({c, mom:p1/p0-1, w:1/v})
+        }
+        if (scored.length<K*4) { prev=new Map(); continue }
+        scored.sort((a,b)=>b.mom-a.mom)
+        let ret=0; const basket=new Map<string,number>()
+        for (const [li,leg] of [[0,scored.slice(0,K)] as const,[1,scored.slice(-K)] as const]) {
+          const dir=li===0?1:-1
+          const wsum=leg.reduce((a,x)=>a+x.w,0)
+          for (const x of leg) { basket.set(x.c,dir)
+            ret += dir*0.5*(x.w/wsum)*(retOf(x.c,t,t+RB*BAR4)??0) }
+        }
+        let ch=0
+        for (const [c,d] of basket) if (prev.get(c)!==d) ch++
+        for (const [c,d] of prev) if (basket.get(c)!==d) ch++
+        const turn=ch/(2*K)
+        prev=basket
+        eq*=(1+ret-turn*FEE_M2); eqT*=(1+ret-turn*FEE_T2)
+        if (eq>pk) pk=eq; mdd=Math.max(mdd,1-eq/pk)
+        const wi=winOf(t); wSum[wi]+=ret-turn*FEE_T2; wN[wi]++
+        periods++
+      }
+      const perYear=365.25*86400000/(RB*BAR4)
+      const annM=Math.pow(eq, perYear/Math.max(1,periods))-1
+      const annT=Math.pow(eqT, perYear/Math.max(1,periods))-1
+      const wAvg=wSum.map((x,i)=>wN[i]?x/wN[i]:0)
+      const ok=wAvg.every(x=>x>0)?'✅':''
+      console.log(`  K=${K}  annM=${(annM*100).toFixed(1)}% annT=${(annT*100).toFixed(1)}% maxDD=${(mdd*100).toFixed(0)}% | taker w1..w6(bps): ${wAvg.map(x=>((x>=0?'+':'')+(x*10000).toFixed(0)).padStart(5)).join(' ')} ${ok}`)
+    }
+    console.log(`  deploy K=7 only if all taker windows positive AND annT ≥ 0.9× K=5's.`)
+  }
+  console.log(`\n✅ = all ${NW} windows positive (n≥15/window for A/B).`)
+}
+
+// ─────────────────────────────────────────────────────────────
 // v47bt: (A) maker/limit-retest entries for DONCH4H — fee edge without losing
 // trades (hybrid: limit at breakout level, chase market if no retest in K bars),
 // (B) liquidation-cascade fade — new uncorrelated strategy from Binance
@@ -2308,6 +2471,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v47bt') {
     console.log(`████ V47BT — maker/retest entries + liquidation-cascade fade ████`)
     runV47bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v48bt') {
+    console.log(`████ V48BT — pyramid depth 3 / 1h sleeve / rotation K=7 ████`)
+    runV48bt()
     return
   }
 
