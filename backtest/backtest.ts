@@ -3088,6 +3088,154 @@ function runV47bt() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// v55bt: BREADTH — same validated edge, more parallel bets (adds trades, rule-5 safe).
+// (A) Donchian length ensemble on 4h: DW=15 / 25 (live) / 40 as separate sleeves.
+//     Deploy a new sleeve if all 6 windows positive AND avg ≥ +0.004R on its own.
+// (B) ROTA dual momentum horizon: LB=84 (14d live) vs LB=42 (7d) vs 50/50 blend.
+//     Deploy blend only if all windows positive AND annT ≥ baseline annT.
+// (C) 12h Donchian-25 sleeve (between 4h=works and daily=rejected; never tested).
+// All: CORE40, taker 0.05%/side (maker 0.02% on TP legs), 36m, 6 windows.
+function runV55bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000, BAR12=43200000
+  const toTf=(a:Bar[],ms:number):Bar[]=>{
+    const out:Bar[]=[]; let cur:Bar|null=null; let bucket=-1
+    for(const b of a){const k=Math.floor(b.t/ms)
+      if(k!==bucket){if(cur)out.push(cur);bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol}}
+      else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol}}
+    if(cur)out.push(cur);return out}
+  const d4:Record<string,Bar[]>={}, d12:Record<string,Bar[]>={}
+  let tmin=Infinity,tmax=-Infinity
+  for(const c of COINS){const h=loadCSV(c,'1h');if(h.length<500)continue
+    d4[c]=toTf(h,BAR4); d12[c]=toTf(h,BAR12)
+    tmin=Math.min(tmin,h[0].t);tmax=Math.max(tmax,h[h.length-1].t)}
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${NW} windows`)
+
+  const ladder=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,jEnd:number)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const stages=[{r:0.6,frac:1/3},{r:1.0,frac:1/3},{r:1.6,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0
+    for(let j=j0+1;j<=jEndc;j++){
+      const b=arr[j],stopPx=be?entry:slPx
+      if(side==='LONG'?b.low<=stopPx:b.high>=stopPx){banked+=rem*(be?0:-1);rem=0;break}
+      while(si<stages.length){
+        const tgt=entry+slDist*stages[si].r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=stages[si].frac*stages[si].r;tpFrac+=stages[si].frac;rem-=stages[si].frac;be=true;si++}
+      if(rem<=1e-9)break}
+    if(rem>1e-9)banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return{r:banked,tpFrac}}
+
+  const scanSleeve=(data:Record<string,Bar[]>,DW:number,holdCap:number)=>{
+    const wSum=new Array(NW).fill(0),wN=new Array(NW).fill(0)
+    let n=0,tot=0
+    for(const c of Object.keys(data)){
+      if(!CORE40.has(c))continue
+      const arr=data[c];let last=-999
+      for(let i=100;i<arr.length-1;i++){
+        const price=arr[i].close
+        const prior=arr.slice(i-DW,i)
+        let hi=-Infinity,lo=Infinity
+        for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+        const side:'LONG'|'SHORT'|null=price>hi?'LONG':price<lo?'SHORT':null
+        if(!side)continue
+        const win=arr.slice(Math.max(0,i-99),i+1)
+        const adx=calcADX(win.slice(-60));if(adx<=22)continue
+        const atr=calcATR(win.slice(-20));if(!atr)continue
+        if(i-last<2)continue
+        last=i
+        const slDist=Math.max(atr*1.4,price*0.005),slPct=slDist/price
+        if(slPct>0.08)continue
+        const res=ladder(arr,i,price,side,slDist,i+holdCap)
+        const net=res.r-(TK+res.tpFrac*MK+(1-res.tpFrac)*TK)/slPct
+        const wi=winOf(arr[i].t);wSum[wi]+=net;wN[wi]++;n++;tot+=net}}
+    return{wSum,wN,n,tot}}
+
+  const reportSleeve=(name:string,s:{wSum:number[],wN:number[],n:number,tot:number},isBaseline:boolean)=>{
+    const wAvg=s.wSum.map((x,i)=>s.wN[i]?x/s.wN[i]:0)
+    const avg=s.tot/Math.max(1,s.n)
+    const ok=wAvg.every(x=>x>0)?(isBaseline?'✅':avg>0.004?'✅ DEPLOYABLE':'(all+, below +0.004R bar)'):''
+    console.log(`  ${name.padEnd(24)} n=${String(s.n).padStart(5)}  avg ${(avg>=0?'+':'')+avg.toFixed(4)}R | w: ${wAvg.map(x=>((x>=0?'+':'')+(x*1000).toFixed(1)+'‰').padStart(7)).join(' ')} ${ok}`)}
+
+  // ── A) Donchian length ensemble on 4h ──
+  console.log(`\n── A) DONCH 4h length ensemble — DW=15 / 25 (live) / 40 as parallel sleeves ──`)
+  console.log(`  each sleeve: ADX(60)>22, SL=1.4×ATR, ladder 0.6/1.0/1.6R, hold 96 bars`)
+  reportSleeve('DW=25 (live baseline)',scanSleeve(d4,25,96),true)
+  reportSleeve('DW=15 (fast sleeve)',scanSleeve(d4,15,96),false)
+  reportSleeve('DW=40 (slow sleeve)',scanSleeve(d4,40,96),false)
+  console.log(`  deploy bar (new sleeve): all 6 windows positive AND avg ≥ +0.004R standalone.`)
+
+  // ── B) ROTA dual momentum horizon ──
+  console.log(`\n── B) ROTA K=7 dual horizon — LB=84 (14d live) vs LB=42 (7d) vs 50/50 blend ──`)
+  {
+    const closes:Record<string,Map<number,number>>={}
+    for(const c of Object.keys(d4)){const m=new Map<number,number>();for(const b of d4[c])m.set(b.t,b.close);closes[c]=m}
+    const K=7,RB=12,FEE_T2=0.0010
+    const volOf=(c:string,t:number,LB:number)=>{
+      const m=closes[c];const rets:number[]=[]
+      for(let k=1;k<=LB;k++){const a=m.get(t-k*BAR4),b=m.get(t-(k-1)*BAR4);if(a&&b&&a>0)rets.push(b/a-1)}
+      if(rets.length<LB/2)return null
+      const mu=rets.reduce((x,y)=>x+y,0)/rets.length
+      return Math.sqrt(rets.reduce((x,y)=>x+(y-mu)**2,0)/rets.length)}
+    const retOf=(c:string,t0:number,t1:number)=>{const m=closes[c];const a=m.get(t0),b=m.get(t1);return(a&&b)?b/a-1:null}
+    const book=(LB:number)=>{
+      const out=new Map<number,number>()   // t → net taker period return
+      let prev=new Map<string,number>()
+      for(let t=tmin+84*BAR4;t+RB*BAR4<=tmax;t+=RB*BAR4){  // same grid for all LBs
+        const scored:{c:string,mom:number,w:number}[]=[]
+        for(const c of Object.keys(closes)){
+          if(!CORE40.has(c))continue
+          const p0=closes[c].get(t-LB*BAR4),p1=closes[c].get(t)
+          if(!p0||!p1||p0<=0||!closes[c].get(t+RB*BAR4))continue
+          const v=volOf(c,t,LB);if(v===null||v<=0)continue
+          scored.push({c,mom:p1/p0-1,w:1/v})}
+        if(scored.length<K*4){prev=new Map();continue}
+        scored.sort((a,b)=>b.mom-a.mom)
+        let ret=0;const basket=new Map<string,number>()
+        for(const [li,leg] of [[0,scored.slice(0,K)] as const,[1,scored.slice(-K)] as const]){
+          const dir=li===0?1:-1,wsum=leg.reduce((a,x)=>a+x.w,0)
+          for(const x of leg){basket.set(x.c,dir);ret+=dir*0.5*(x.w/wsum)*(retOf(x.c,t,t+RB*BAR4)??0)}}
+        let ch=0
+        for(const[c,d]of basket)if(prev.get(c)!==d)ch++
+        for(const[c,d]of prev)if(basket.get(c)!==d)ch++
+        prev=basket
+        out.set(t,ret-(ch/(2*K))*FEE_T2)}
+      return out}
+    const b84=book(84),b42=book(42)
+    const blend=new Map<number,number>()
+    for(const[t,r]of b84){const r2=b42.get(t);if(r2!==undefined)blend.set(t,0.5*r+0.5*r2)}
+    let annT84=0
+    const evalBook=(name:string,bk:Map<number,number>,isBase:boolean)=>{
+      let eq=1,pk=1,mdd=0
+      const wSum=new Array(NW).fill(0),wN=new Array(NW).fill(0)
+      const ts=[...bk.keys()].sort((a,b)=>a-b)
+      for(const t of ts){const r=bk.get(t)!
+        eq*=(1+r);if(eq>pk)pk=eq;mdd=Math.max(mdd,1-eq/pk)
+        const wi=winOf(t);wSum[wi]+=r;wN[wi]++}
+      const perYear=365.25*86400000/(RB*BAR4)
+      const annT=Math.pow(eq,perYear/Math.max(1,ts.length))-1
+      if(isBase)annT84=annT
+      const wAvg=wSum.map((x,i)=>wN[i]?x/wN[i]:0)
+      const ok=wAvg.every(x=>x>0)?'✅':''
+      const ref=isBase?'(live baseline)':annT>=annT84?'≥ baseline ✅':`below baseline (${(annT84*100).toFixed(1)}%)`
+      console.log(`  ${name.padEnd(14)} ${ref.padEnd(24)} annT=${(annT*100).toFixed(1)}% maxDD=${(mdd*100).toFixed(0)}% | bps/period: ${wAvg.map(x=>((x>=0?'+':'')+(x*10000).toFixed(0)).padStart(5)).join(' ')} ${ok}`)}
+    evalBook('LB=84 (14d)',b84,true)
+    evalBook('LB=42 (7d)',b42,false)
+    evalBook('50/50 blend',blend,false)
+    console.log(`  deploy blend only if all windows positive AND annT ≥ LB=84 annT.`)}
+
+  // ── C) 12h Donchian-25 sleeve ──
+  console.log(`\n── C) 12h DONCH-25 sleeve (hold cap 32 bars ≈ 16d; daily failed, 12h untested) ──`)
+  reportSleeve('12h DW=25',scanSleeve(d12,25,32),false)
+  console.log(`  deploy bar: all 6 windows positive AND avg ≥ +0.004R standalone.`)
+
+  console.log(`\n✅ = all ${NW} windows positive.`)
+}
+
+// ─────────────────────────────────────────────────────────────
 // v54bt: FOUR ENHANCEMENTS on 4h CORE40 data, 6 walk-forward windows.
 // (A) DONCH4H 4th Pyramid Unit: same-size continuation at 1.6R → SL=1.0R, TP=2.5R
 // (B) DONCH4H Volume Confirmation: breakout bar vol vs 20-bar MA (informational)
@@ -3375,6 +3523,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v54bt') {
     console.log(`████ V54BT — 4th Pyramid / Volume Confirmation / ROTA Skew / Session Filter ████`)
     runV54bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v55bt') {
+    console.log(`████ V55BT — BREADTH: Donchian ensemble / ROTA dual horizon / 12h sleeve ████`)
+    runV55bt()
     return
   }
 
