@@ -26,7 +26,7 @@ asking, but NEVER violate the standing rules below.
     first 15 min after each 4h close; SL=1.4×ATR; LADDER exits ⅓@0.6R(→BE)/⅓@1.0R/⅓@1.6R
     via `exit_stage`; ADX-tiered risk sizing (base 1.25%, up to 2.5%); pyramiding
     (2nd unit on ≥0.6R winner, 3rd on ≥1.0R, max 3 — v49).
-  - **ROTA**: every 48h rank 40 coins by 14d momentum, LONG top-7 / SHORT bottom-7 (v49),
+  - **ROTA**: every 48h rank 40 coins by 14d momentum, LONG top-8 / SHORT bottom-8 (v52),
     inverse-vol weights, 70% of book, per-coin combined cap 20%, drift-resize ±35%.
 - Per-strategy health kill-switch: last-30 closed trades sum<0 → pause.
 - Data: Binance fapi is geo-blocked (451) from Supabase AND GitHub runners →
@@ -73,6 +73,10 @@ filters (rule-5; overnight 00-08 UTC is the weakest session +0.019R).
 v55bt: DW=40 slow sleeve (w1 negative), ROTA 7d momentum horizon (annT 13.5%
 vs 38.2% — 7d is too noisy) and 50/50 blend (25.9%, w4 negative), 12h
 Donchian sleeve (2 windows negative — the 4h sweet spot is real).
+v56bt neighbor re-tune: DW curve peaks at 15 (10: w5<0; 12: 509R; 20: 457R vs
+512R base — smooth hill, DW=15 confirmed), ADX gate 18/20 flip w5 negative
+(keep 22), entry cooldown=1 bar tempting (+33% totR, n=14,113) but w5 -4.7‰
+REJECTED per all-windows rule, ROTA K=9 rejected (w3<0) — K=8 deployed (v52).
 RESEARCH NOTE: the "chapter closed" call on 2026-07-11 was premature — v55bt
 found DW=15 (deployed as v51). Breadth (more sleeves of the proven edge) was
 the unexplored axis; it too is now exhausted (15✅ / 40✗ / 12h✗ / dual-ROTA✗).
@@ -80,7 +84,8 @@ Next edge levers: 50-trade live checkpoint → risk raise per Monte Carlo table;
 later real-exchange connection + capital.
 
 ## Current state (2026-07-11)
-- Live: **v51.0** — DONCH4H Donchian window 25→15 (v55bt: n=11,218 +33%
+- Live: **v52.0** — ROTA K=8 (v56bt: annT 39.2%, maxDD 15%, all windows; K=9
+  rejected w3<0). DONCH4H Donchian window 25→15 (v55bt: n=11,218 +33%
   trades, avg +0.0456R, all 6 windows, +22% total R; DW=15 was never in the
   old refine grids). On top of v50.2 (mark-to-market equity snapshots,
   era-anchored stats — shipped by the second session) and v50.1 (USDT depeg

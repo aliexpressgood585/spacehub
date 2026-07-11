@@ -1,4 +1,16 @@
 // ════════════════════════════════════════════════════════════
+// CryptoBot v52.0 — ROTA K=8 (validated v56bt)
+//
+// v52.0: rotation 8 long / 8 short — annT 39.2% vs 38.2% (K=7), maxDD 15%
+//  vs 20%, all 6 windows positive. Same batch REJECTED per the pre-set bar:
+//  • DW 10/12/20 — the DW curve peaks at 15 (12→509R, 20→457R vs 512R
+//    baseline; 10 has w5 negative). Smooth hill = DW=15 is not a fluke.
+//  • ADX gate 18/20 — both flip w5 (and 18 also w1) negative. Keep 22.
+//  • entry cooldown 1 bar — tempting (+33% totR, n=14,113) but w5 -4.7‰
+//    violates the all-windows rule. NOT deployed; noted for re-test only if
+//    a future batch shows w5-era robustness some other way.
+//  • ROTA K=9 — w3 negative, annT collapses to 32.8%.
+//
 // CryptoBot v51.0 — DONCH4H Donchian window 25 → 15 (breadth upgrade)
 //
 // v51.0: v55bt walk-forward (36m, 6 windows, real fees) showed DW=15 keeps
@@ -2472,11 +2484,12 @@ Deno.serve(async (req) => {
     // ════ v42 ROTATION PHASE — cross-sectional momentum L/S (LB84|RB12|K5) ════
     // 36-month walk-forward proof: +45.9%/yr maker, +41%/yr taker, maxDD 35%,
     // positive in all 6 windows. Every 48h: rank universe by 14-day momentum;
-    // LONG top-7, SHORT bottom-7 (v49; validated), inverse-vol weights, 70% book.
+    // LONG top-8, SHORT bottom-8 (v52; validated), inverse-vol weights, 70% book.
     try {
-      // v49: K 5→7 — walk-forward 36m: annT 38.2% vs 34.4%, maxDD 17% vs 26%,
-      // all 6 windows positive. More slots, better return, lower drawdown.
-      const ROTA_MS = 48*3600_000, ROTA_K = 7, ROTA_LB = 84
+      // v49: K 5→7 — annT 38.2% vs 34.4%, maxDD 17% vs 26%, all windows ✅.
+      // v52: K 7→8 — v56bt: annT 39.2% vs 38.2%, maxDD 15% vs 20%, all windows ✅.
+      // K=9 REJECTED (w3 negative, annT 32.8% — the edge thins past 8).
+      const ROTA_MS = 48*3600_000, ROTA_K = 8, ROTA_LB = 84
       const lastRota = state.rebalanced_at ? new Date(state.rebalanced_at).getTime() : 0
       // v50: postpone the whole rebalance on a black day (retry next cycle once healed)
       if (!dayLossPaused && now - lastRota >= ROTA_MS - 5*60_000) {
