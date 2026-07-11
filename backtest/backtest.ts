@@ -3088,6 +3088,145 @@ function runV47bt() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// v56bt: NEIGHBOR RE-TUNE around the new DW=15 optimum (v51 live). When one
+// parameter moves, the ones tuned around the OLD optimum deserve a re-check.
+// Overfit guard: pre-registered bars, all-6-windows requirement, reject rest.
+// (A) DW curve: 10 / 12 / 15 (live baseline) / 20 — map the frontier edge.
+// (B) ADX gate on DW=15: 18 / 20 / 22 (live) — the 22 gate was tuned for DW=25.
+// (C) Per-coin entry cooldown on DW=15: 1 bar vs 2 (live).
+// Deploy bar (A/B/C): all 6 windows positive AND total R > DW15|adx22|cd2 total R.
+// (D) ROTA K sweep: 7 (live) / 8 / 9 — deploy only if annT ≥ K=7 annT, all windows +.
+function runV56bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000
+  const toTf=(a:Bar[],ms:number):Bar[]=>{
+    const out:Bar[]=[]; let cur:Bar|null=null; let bucket=-1
+    for(const b of a){const k=Math.floor(b.t/ms)
+      if(k!==bucket){if(cur)out.push(cur);bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol}}
+      else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol}}
+    if(cur)out.push(cur);return out}
+  const d4:Record<string,Bar[]>={}
+  let tmin=Infinity,tmax=-Infinity
+  for(const c of COINS){const h=loadCSV(c,'1h');if(h.length<500)continue
+    d4[c]=toTf(h,BAR4);tmin=Math.min(tmin,h[0].t);tmax=Math.max(tmax,h[h.length-1].t)}
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${NW} windows`)
+
+  const ladder=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,jEnd:number)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const stages=[{r:0.6,frac:1/3},{r:1.0,frac:1/3},{r:1.6,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0
+    for(let j=j0+1;j<=jEndc;j++){
+      const b=arr[j],stopPx=be?entry:slPx
+      if(side==='LONG'?b.low<=stopPx:b.high>=stopPx){banked+=rem*(be?0:-1);rem=0;break}
+      while(si<stages.length){
+        const tgt=entry+slDist*stages[si].r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=stages[si].frac*stages[si].r;tpFrac+=stages[si].frac;rem-=stages[si].frac;be=true;si++}
+      if(rem<=1e-9)break}
+    if(rem>1e-9)banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return{r:banked,tpFrac}}
+
+  const scan=(DW:number,adxGate:number,cd:number)=>{
+    const wSum=new Array(NW).fill(0),wN=new Array(NW).fill(0)
+    let n=0,tot=0,wins=0
+    for(const c of Object.keys(d4)){
+      if(!CORE40.has(c))continue
+      const arr=d4[c];let last=-999
+      for(let i=100;i<arr.length-1;i++){
+        const price=arr[i].close
+        const prior=arr.slice(i-DW,i)
+        let hi=-Infinity,lo=Infinity
+        for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+        const side:'LONG'|'SHORT'|null=price>hi?'LONG':price<lo?'SHORT':null
+        if(!side)continue
+        const win=arr.slice(Math.max(0,i-99),i+1)
+        const adx=calcADX(win.slice(-60));if(adx<=adxGate)continue
+        const atr=calcATR(win.slice(-20));if(!atr)continue
+        if(i-last<cd)continue
+        last=i
+        const slDist=Math.max(atr*1.4,price*0.005),slPct=slDist/price
+        if(slPct>0.08)continue
+        const res=ladder(arr,i,price,side,slDist,i+96)
+        const net=res.r-(TK+res.tpFrac*MK+(1-res.tpFrac)*TK)/slPct
+        const wi=winOf(arr[i].t);wSum[wi]+=net;wN[wi]++;n++;tot+=net;if(net>0)wins++}}
+    return{wSum,wN,n,tot,wins}}
+
+  let baseTot=0
+  const report=(name:string,s:{wSum:number[],wN:number[],n:number,tot:number,wins:number},isBase:boolean)=>{
+    const wAvg=s.wSum.map((x,i)=>s.wN[i]?x/s.wN[i]:0)
+    const avg=s.tot/Math.max(1,s.n)
+    if(isBase)baseTot=s.tot
+    const allPos=wAvg.every(x=>x>0)
+    const ok=isBase?'✅ (baseline)':allPos&&s.tot>baseTot?'✅ BEATS BASELINE':allPos?`(all+, totR ${s.tot.toFixed(0)} ≤ base ${baseTot.toFixed(0)})`:''
+    console.log(`  ${name.padEnd(22)} n=${String(s.n).padStart(5)} WR=${(100*s.wins/Math.max(1,s.n)).toFixed(1)}% avg ${(avg>=0?'+':'')+avg.toFixed(4)}R totR=${s.tot.toFixed(0).padStart(4)} | w: ${wAvg.map(x=>((x>=0?'+':'')+(x*1000).toFixed(1)+'‰').padStart(7)).join(' ')} ${ok}`)}
+
+  console.log(`\n── A) DW curve (adx22, cd2): 10 / 12 / 15 (live) / 20 ──`)
+  report('DW=15 (live v51)',scan(15,22,2),true)
+  report('DW=10',scan(10,22,2),false)
+  report('DW=12',scan(12,22,2),false)
+  report('DW=20',scan(20,22,2),false)
+
+  console.log(`\n── B) ADX gate on DW=15: 18 / 20 / 22 (live) ──`)
+  report('adx>18',scan(15,18,2),false)
+  report('adx>20',scan(15,20,2),false)
+
+  console.log(`\n── C) entry cooldown on DW=15|adx22: 1 bar vs 2 (live) ──`)
+  report('cooldown=1',scan(15,22,1),false)
+  console.log(`  deploy bar (A/B/C): all 6 windows positive AND total R > DW15|adx22|cd2 baseline.`)
+
+  // ── D) ROTA K sweep ──
+  console.log(`\n── D) ROTA K sweep: 7 (live) / 8 / 9 — LB=84, RB=12, invVol, taker fees ──`)
+  {
+    const closes:Record<string,Map<number,number>>={}
+    for(const c of Object.keys(d4)){const m=new Map<number,number>();for(const b of d4[c])m.set(b.t,b.close);closes[c]=m}
+    const LB=84,RB=12,FEE_T2=0.0010
+    const volOf=(c:string,t:number)=>{
+      const m=closes[c];const rets:number[]=[]
+      for(let k=1;k<=LB;k++){const a=m.get(t-k*BAR4),b=m.get(t-(k-1)*BAR4);if(a&&b&&a>0)rets.push(b/a-1)}
+      if(rets.length<40)return null
+      const mu=rets.reduce((x,y)=>x+y,0)/rets.length
+      return Math.sqrt(rets.reduce((x,y)=>x+(y-mu)**2,0)/rets.length)}
+    const retOf=(c:string,t0:number,t1:number)=>{const m=closes[c];const a=m.get(t0),b=m.get(t1);return(a&&b)?b/a-1:null}
+    let annT7=0
+    for(const K of [7,8,9]){
+      let prev=new Map<string,number>(),eq=1,pk=1,mdd=0,periods=0
+      const wSum=new Array(NW).fill(0),wN=new Array(NW).fill(0)
+      for(let t=tmin+LB*BAR4;t+RB*BAR4<=tmax;t+=RB*BAR4){
+        const scored:{c:string,mom:number,w:number}[]=[]
+        for(const c of Object.keys(closes)){
+          if(!CORE40.has(c))continue
+          const p0=closes[c].get(t-LB*BAR4),p1=closes[c].get(t)
+          if(!p0||!p1||p0<=0||!closes[c].get(t+RB*BAR4))continue
+          const v=volOf(c,t);if(v===null||v<=0)continue
+          scored.push({c,mom:p1/p0-1,w:1/v})}
+        if(scored.length<K*4){prev=new Map();continue}
+        scored.sort((a,b)=>b.mom-a.mom)
+        let ret=0;const basket=new Map<string,number>()
+        for(const [li,leg] of [[0,scored.slice(0,K)] as const,[1,scored.slice(-K)] as const]){
+          const dir=li===0?1:-1,wsum=leg.reduce((a,x)=>a+x.w,0)
+          for(const x of leg){basket.set(x.c,dir);ret+=dir*0.5*(x.w/wsum)*(retOf(x.c,t,t+RB*BAR4)??0)}}
+        let ch=0
+        for(const[c,d]of basket)if(prev.get(c)!==d)ch++
+        for(const[c,d]of prev)if(basket.get(c)!==d)ch++
+        prev=basket
+        eq*=(1+ret-(ch/(2*K))*FEE_T2)
+        if(eq>pk)pk=eq;mdd=Math.max(mdd,1-eq/pk)
+        const wi=winOf(t);wSum[wi]+=ret-(ch/(2*K))*FEE_T2;wN[wi]++;periods++}
+      const perYear=365.25*86400000/(RB*BAR4)
+      const annT=Math.pow(eq,perYear/Math.max(1,periods))-1
+      if(K===7)annT7=annT
+      const wAvg=wSum.map((x,i)=>wN[i]?x/wN[i]:0)
+      const ok=wAvg.every(x=>x>0)?(K===7?'✅ (baseline)':annT>=annT7?'✅ ≥ baseline':`(all+, below ${(annT7*100).toFixed(1)}%)`):''
+      console.log(`  K=${K}  annT=${(annT*100).toFixed(1)}% maxDD=${(mdd*100).toFixed(0)}% | bps/period: ${wAvg.map(x=>((x>=0?'+':'')+(x*10000).toFixed(0)).padStart(5)).join(' ')} ${ok}`)}
+    console.log(`  deploy bar (D): all windows positive AND annT ≥ K=7 annT.`)}
+
+  console.log(`\n✅ = all ${NW} windows positive.`)
+}
+
+// ─────────────────────────────────────────────────────────────
 // v55bt: BREADTH — same validated edge, more parallel bets (adds trades, rule-5 safe).
 // (A) Donchian length ensemble on 4h: DW=15 / 25 (live) / 40 as separate sleeves.
 //     Deploy a new sleeve if all 6 windows positive AND avg ≥ +0.004R on its own.
@@ -3528,6 +3667,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v55bt') {
     console.log(`████ V55BT — BREADTH: Donchian ensemble / ROTA dual horizon / 12h sleeve ████`)
     runV55bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v56bt') {
+    console.log(`████ V56BT — neighbor re-tune around DW=15: DW curve / ADX gate / cooldown / ROTA K ████`)
+    runV56bt()
     return
   }
 
