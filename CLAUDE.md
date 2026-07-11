@@ -53,7 +53,10 @@ universe, daily Turtle sleeve, daily rotation, trailing removal, 1h Donchian
 sleeve (all configs negative after fees — same ceiling as 5m), limit-retest
 entries (K=1/2/3+chase — loses momentum, windows negative), liquidation-cascade
 fade via OI-crash (all 12 configs negative; NB Binance has NO liquidation
-archive — metrics/ OI is the only forced-deleveraging data source).
+archive — metrics/ OI is the only forced-deleveraging data source), top-trader
+positioning tilt (FOLLOWING whales slightly HURT: +0.049 vs +0.050R base;
+fading them +0.051R but < +0.004R deploy bar = noise), Fear&Greed sizing tilt
+(both directions noise-level).
 
 ## Current state (2026-07-10)
 - Live: **v49** — ROTA K=7 (annT 38.2%, maxDD 17%, all windows), pyramid depth 3
