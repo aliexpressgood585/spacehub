@@ -29,7 +29,7 @@ jobs:
           q "SELECT round(balance::numeric,2) AS balance, updated_at FROM bot_state WHERE id=1;" > /tmp/st.json
           q "SELECT count(*) AS open_n, round(sum(entry_price*size)::numeric,0) AS notional FROM bot_trades WHERE status='OPEN';" > /tmp/open.json
           q "SELECT COALESCE(strategy,'LEGACY') AS strat, count(*) AS n, count(*) FILTER (WHERE pnl>0) AS wins, round(sum(pnl)::numeric,2) AS pnl FROM bot_trades WHERE status != 'OPEN' AND closed_at > now() - interval '24 hours' GROUP BY 1;" > /tmp/day.json
-          q "SELECT COALESCE(strategy,'LEGACY') AS strat, count(*) AS n, count(*) FILTER (WHERE pnl>0) AS wins, round(sum(pnl)::numeric,2) AS pnl FROM bot_trades WHERE status != 'OPEN' GROUP BY 1 ORDER BY 1;" > /tmp/all.json
+          q "SELECT COALESCE(strategy,'LEGACY') AS strat, count(*) AS n, count(*) FILTER (WHERE pnl>0) AS wins, round(sum(pnl)::numeric,2) AS pnl FROM bot_trades WHERE status != 'OPEN' AND closed_at >= (SELECT COALESCE(min(ts),'2026-01-01'::timestamptz) FROM bot_equity) GROUP BY 1 ORDER BY 1;" > /tmp/all.json
           python3 - > /tmp/report.md <<'PYEOF'
           import json
           def load(p):

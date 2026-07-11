@@ -391,6 +391,9 @@ export default function CryptoTradingDashboard() {
   const [risk,setRisk]             = useState<RiskType>('medium')
   const [balance,setBalance]       = useState(INIT_BAL)
   const [equityHist,setEquityHist]=useState<{ts:string;equity:number}[]>([])
+  // v50.2: account-epoch anchor (first bot_equity snapshot ≈ account reset) —
+  // pre-reset closed trades must not pollute per-strategy stats / the 50-trade counter
+  const [epochTs,setEpochTs]=useState<number>(0)
   const [botOn,setBotOn]           = useState(true)
   const [trades,setTrades]         = useState<Trade[]>([])
   const [sig,setSig]               = useState<Sig>(emptySig())
@@ -660,9 +663,11 @@ export default function CryptoTradingDashboard() {
       supa.from('bot_trades').select('*').neq('status','OPEN').order('opened_at',{ascending:false}).limit(150),
       supa.from('bot_params_history').select('*').order('created_at',{ascending:false}).limit(20),
       supa.from('market_regime').select('*').order('created_at',{ascending:false}).limit(20),
-      supa.from('bot_equity').select('ts,equity').order('ts',{ascending:false}).limit(384),
-    ]).then(([state,open,closed,optHist,regHist,eqHist])=>{
+      supa.from('bot_equity').select('ts,equity').order('ts',{ascending:false}).limit(2000),
+      supa.from('bot_equity').select('ts').order('ts',{ascending:true}).limit(1),
+    ]).then(([state,open,closed,optHist,regHist,eqHist,eqFirst])=>{
       if(eqHist&&!eqHist.error&&eqHist.data)setEquityHist([...eqHist.data].reverse().map((r:any)=>({ts:r.ts,equity:Number(r.equity)})))
+      if(eqFirst&&!eqFirst.error&&eqFirst.data&&eqFirst.data[0])setEpochTs(new Date((eqFirst.data[0] as any).ts).getTime())
       if(state.data){
         const d=state.data
         setBalance(d.balance);balRef.current=d.balance
@@ -780,7 +785,7 @@ export default function CryptoTradingDashboard() {
   },0)
   const totalPnl       = realizedPnl+unrealizedPnl
   const stratStats = (name:string) => {
-    const cl = closed.filter(t=>t.strategy===name)
+    const cl = closed.filter(t=>t.strategy===name && (!epochTs || (t.closedTs??0)>=epochTs))
     const w2 = cl.filter(t=>(t.pnl||0)>0).length
     const rp = cl.reduce((a,t)=>a+(t.pnl||0),0)
     const op = openTrades.filter(t=>t.strategy===name).length
@@ -789,10 +794,10 @@ export default function CryptoTradingDashboard() {
   const stDonch = stratStats('DONCH4H'), stRota = stratStats('ROTA')
   const eqPath = (()=>{
     if (equityHist.length<2) return null
-    const vals=equityHist.map(p=>p.equity)
+    const vals=equityHist.slice(-384).map(p=>p.equity)
     const min=Math.min(...vals), max=Math.max(...vals), rng=Math.max(max-min,1)
     const W=150, H=36
-    const pts=equityHist.map((p,i)=>`${(i/(equityHist.length-1)*W).toFixed(1)},${(H-((p.equity-min)/rng)*H).toFixed(1)}`)
+    const pts=equityHist.slice(-384).map((p,i,arr2)=>`${(i/(arr2.length-1)*W).toFixed(1)},${(H-((p.equity-min)/rng)*H).toFixed(1)}`)
     return {d:'M'+pts.join(' L'), up: vals[vals.length-1]>=vals[0], last: vals[vals.length-1]}
   })()
   // v47.1: equity-curve max drawdown (real, from bot_equity snapshots) +

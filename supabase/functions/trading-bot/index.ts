@@ -1,4 +1,15 @@
 // ════════════════════════════════════════════════════════════
+// CryptoBot v50.2 — bug-review fixes (full code audit)
+//
+// v50.2: (1) equity snapshots are now MARK-TO-MARKET (were entry-priced —
+//  unrealized losses were invisible to the -5% daily brake until stops
+//  realized them). (2) Era-anchored stats: the 50-trade checkpoint counter,
+//  expectation-band check and per-strategy dashboard stats now count only
+//  trades closed after the account epoch (min bot_equity.ts) — pre-reset
+//  trades were polluting the sample. (3) Dashboard equity maxDD now spans
+//  ~20 days of snapshots (sparkline stays 4d). NOTE for future resets:
+//  ?reset=1 should also truncate bot_equity to move the epoch.
+//
 // CryptoBot v50.1 — data-integrity shields
 //
 // v50.1: (1) USDT depeg monitor — USDC/USDT >1% off peg pauses new entries
@@ -2383,6 +2394,10 @@ Deno.serve(async (req) => {
     const fixedSet = new Set(activeCoins)
     const extraOpenSyms = Object.keys(openBySymbol).filter(s => !fixedSet.has(s))
     const allManagedCoins = [...activeCoins, ...extraOpenSyms]
+    // v50.2: live marks collected during the scan → mark-to-market equity
+    // snapshots (so the daily-loss brake sees unrealized damage, not only
+    // realized). Falls back to entry price for coins with no mark this cycle.
+    const livePx = new Map<string, number>()
 
     // ════ v43 (#4): PER-STRATEGY HEALTH KILL-SWITCH ═══════════════════════════
     // If a strategy's last 30 closed trades sum negative, pause its NEW entries
@@ -2573,6 +2588,7 @@ Deno.serve(async (req) => {
             log.push(`FALLBACK ${sym}: using CoinGecko price $${price}`)
           } else return
         }
+        livePx.set(sym, price)   // v50.2: mark for MTM equity snapshot
         const completed=bars5m.slice(0,-1)
         const atr      =calcATR(completed)
         const atrPct   =atr/price
@@ -3355,9 +3371,16 @@ Deno.serve(async (req) => {
 
     // v46: equity history — snapshot every 15 minutes for the dashboard curve
     if (utcM % 15 === 0) {
-      const {data:eqOpen} = await supabase.from('bot_trades').select('entry_price,size').eq('status','OPEN')
+      const {data:eqOpen} = await supabase.from('bot_trades').select('sym,side,entry_price,size').eq('status','OPEN')
       const eqExp = (eqOpen||[]).reduce((a:number,x:any)=>a+Number(x.entry_price)*Number(x.size),0)
-      try { await supabase.from('bot_equity').insert({ equity: balance+eqExp, balance, exposure: eqExp }) } catch { /* table may not exist yet */ }
+      // v50.2: mark-to-market — position value at the live mark, not at entry.
+      // LONG: size×px. SHORT: entry margin + (entry-px)×size = size×(2·entry−px).
+      const eqMtm = (eqOpen||[]).reduce((a:number,x:any)=>{
+        const e=Number(x.entry_price), sz=Number(x.size)
+        const px=livePx.get(x.sym) ?? e
+        return a + (x.side==='LONG' ? sz*px : sz*(2*e-px))
+      },0)
+      try { await supabase.from('bot_equity').insert({ equity: balance+eqMtm, balance, exposure: eqExp }) } catch { /* table may not exist yet */ }
     }
 
     await supabase.from('bot_state').update({

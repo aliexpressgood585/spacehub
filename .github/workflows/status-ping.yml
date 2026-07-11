@@ -43,7 +43,7 @@ jobs:
           q2() { curl -s -X POST "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
             -H "Content-Type: application/json" -d "{\"query\": \"$1\"}"; }
-          q2 "SELECT strategy, count(*) AS n, round(100.0*count(*) FILTER (WHERE pnl>0)/count(*),1) AS wr, round(avg(pnl)::numeric,2) AS avg_pnl FROM bot_trades WHERE status != 'OPEN' AND strategy IN ('DONCH4H','ROTA') GROUP BY 1;" > /tmp/lvb.json
+          q2 "SELECT strategy, count(*) AS n, round(100.0*count(*) FILTER (WHERE pnl>0)/count(*),1) AS wr, round(avg(pnl)::numeric,2) AS avg_pnl FROM bot_trades WHERE status != 'OPEN' AND strategy IN ('DONCH4H','ROTA') AND closed_at >= (SELECT COALESCE(min(ts),'2026-01-01'::timestamptz) FROM bot_equity) GROUP BY 1;" > /tmp/lvb.json
           python3 - >> $out <<'PYEOF3'
           import json
           try: rows=json.load(open('/tmp/lvb.json'))
