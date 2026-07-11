@@ -304,6 +304,10 @@ const STYLE_TAG = `
   @keyframes flash-dn{0%{background:rgba(255,58,94,0.25);transform:scale(1.04)}100%{background:transparent;transform:scale(1)}}
   @keyframes num-up{0%{color:#00f5a0;transform:translateY(-3px)}100%{transform:translateY(0)}}
   @keyframes num-dn{0%{color:#ff3a5e;transform:translateY(3px)}100%{transform:translateY(0)}}
+  @keyframes hologram{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+  @keyframes sig-green{0%,100%{box-shadow:0 4px 20px rgba(0,245,160,0.2),inset 0 0 0 1px rgba(0,245,160,0.3)}50%{box-shadow:0 4px 36px rgba(0,245,160,0.55),0 0 60px rgba(0,245,160,0.18),inset 0 0 0 1px rgba(0,245,160,0.6)}}
+  @keyframes sig-red{0%,100%{box-shadow:0 4px 20px rgba(255,58,94,0.2),inset 0 0 0 1px rgba(255,58,94,0.3)}50%{box-shadow:0 4px 36px rgba(255,58,94,0.55),0 0 60px rgba(255,58,94,0.18),inset 0 0 0 1px rgba(255,58,94,0.6)}}
+  @keyframes balance-glow{0%,100%{text-shadow:0 0 14px rgba(255,255,255,0.18)}50%{text-shadow:0 0 28px rgba(255,255,255,0.5),0 0 60px rgba(200,240,255,0.2)}}
   .live-dot{animation:pulse-dot 1.4s ease-in-out infinite}
   .glow-beat{animation:glow-beat 2s ease-in-out infinite}
   .slide-up{animation:slide-up 0.25s ease-out}
@@ -312,12 +316,18 @@ const STYLE_TAG = `
   .flash-dn{animation:flash-dn 0.4s ease-out}
   .num-up{animation:num-up 0.3s ease-out}
   .num-dn{animation:num-dn 0.3s ease-out}
+  .nx-title{background:linear-gradient(90deg,#00ccff,#ff44cc,#00ffcc,#cc44ff,#00ccff);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:hologram 5s linear infinite;filter:drop-shadow(0 0 10px rgba(0,200,255,0.6))}
+  .sig-buy{animation:sig-green 2.2s ease-in-out infinite}
+  .sig-sell{animation:sig-red 2.2s ease-in-out infinite}
+  .balance-num{animation:balance-glow 3s ease-in-out infinite}
   .nx-btn{transition:all 0.18s ease;cursor:pointer}
-  .nx-btn:hover{filter:brightness(1.25);transform:translateY(-1px)}
-  .nx-row:hover{background:rgba(0,200,255,0.04)!important}
+  .nx-btn:hover{filter:brightness(1.3);transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,0.4)!important}
+  .nx-row:hover{background:rgba(0,200,255,0.05)!important}
+  .stat-3d:hover{transform:translateY(-2px) scale(1.02);transition:transform .2s ease}
+  .stat-3d{transition:transform .2s ease}
   ::-webkit-scrollbar{width:3px;height:3px}
   ::-webkit-scrollbar-track{background:transparent}
-  ::-webkit-scrollbar-thumb{background:rgba(0,200,255,0.25);border-radius:2px}
+  ::-webkit-scrollbar-thumb{background:rgba(0,200,255,0.3);border-radius:2px}
 `
 
 // ─── 3D card ──────────────────────────────────────────────────────────────────
@@ -846,13 +856,11 @@ export default function CryptoTradingDashboard() {
         {/* row 1: title + status + regime */}
         <div style={{display:'flex',flexWrap:'wrap' as const,gap:'8px',alignItems:'center',marginBottom:'10px'}}>
           <div className="float" style={{display:'flex',alignItems:'center',gap:'6px'}}>
-            <span style={{fontSize:'18px',fontWeight:900,
-              background:`linear-gradient(135deg,${C.blue},${C.pink})`,
-              WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',
-              letterSpacing:'1px',filter:`drop-shadow(0 0 8px ${C.blue}80)`}}>
+            <span className="nx-title" style={{fontSize:'18px',fontWeight:900,letterSpacing:'2px'}}>
               ⚡ NEXUS TRADE
             </span>
-            <span style={{fontSize:'8px',color:C.muted,padding:'2px 5px',border:`1px solid ${C.dim}`,borderRadius:'4px'}}>v50</span>
+            <span style={{fontSize:'8px',color:C.blue,padding:'2px 6px',border:`1px solid ${C.blue}40`,borderRadius:'4px',
+              boxShadow:`0 0 8px ${C.blue}30`,background:`${C.blue}10`}}>v50</span>
           </div>
 
           <div style={{display:'flex',gap:'5px',flexWrap:'wrap' as const}}>
@@ -878,11 +886,12 @@ export default function CryptoTradingDashboard() {
 
           {/* portfolio value */}
           <div style={{marginRight:'auto',textAlign:'right' as const}}>
-            <div style={{fontWeight:900,fontSize:'28px',color:C.bright,letterSpacing:'-1px',lineHeight:1,
-              textShadow:`0 0 20px rgba(255,255,255,0.15)`}}>
+            <div className="balance-num" style={{fontWeight:900,fontSize:'28px',color:C.bright,letterSpacing:'-1px',lineHeight:1}}>
               ${totalValue.toFixed(0)}
             </div>
-            <div style={{fontSize:'11px',color:totalPnl>=0?C.green:C.red,fontWeight:700}}>
+            <div style={{fontSize:'11px',fontWeight:800,
+              color:totalPnl>=0?C.green:C.red,
+              textShadow:totalPnl>=0?`0 0 10px ${C.green}80`:`0 0 10px ${C.red}80`}}>
               {totalPnl>=0?'+':''}{totalPnl.toFixed(2)} כולל
             </div>
           </div>
@@ -1028,14 +1037,17 @@ export default function CryptoTradingDashboard() {
           </div>
 
           {/* signal banner */}
-          <div style={{
+          <div className={sig.dir==='BUY'?'sig-buy':sig.dir==='SELL'?'sig-sell':''} style={{
             padding:'10px 14px',borderRadius:'10px',textAlign:'center' as const,
             fontWeight:900,fontSize:'16px',letterSpacing:'0.5px',
-            background:sig.dir==='BUY'?`linear-gradient(135deg,${C.green}10,${C.teal}05)`:
-              sig.dir==='SELL'?`linear-gradient(135deg,${C.red}10,${C.pink}05)`:'rgba(10,20,50,0.5)',
-            border:`1px solid ${sig.dir==='BUY'?C.green+'35':sig.dir==='SELL'?C.red+'35':C.dim}`,
+            background:sig.dir==='BUY'
+              ?`linear-gradient(135deg,${C.green}14,${C.teal}08)`
+              :sig.dir==='SELL'
+                ?`linear-gradient(135deg,${C.red}14,${C.pink}08)`
+                :'rgba(10,20,50,0.5)',
+            border:`1px solid ${sig.dir==='BUY'?C.green+'45':sig.dir==='SELL'?C.red+'45':C.dim}`,
             color:sig.dir==='BUY'?C.green:sig.dir==='SELL'?C.red:C.muted,
-            boxShadow:sig.dir!=='HOLD'?`0 4px 24px ${sig.dir==='BUY'?C.green:C.red}18`:undefined,
+            textShadow:sig.dir!=='HOLD'?`0 0 14px ${sig.dir==='BUY'?C.green:C.red}cc`:undefined,
           }}>
             {sig.dir==='BUY'?'▲ קנייה':sig.dir==='SELL'?'▼ מכירה':'— ממתין'} · {sig.score}/5
           </div>
