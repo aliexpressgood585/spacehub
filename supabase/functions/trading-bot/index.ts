@@ -1,4 +1,11 @@
 // ════════════════════════════════════════════════════════════
+// CryptoBot v48 — stablecoin exclusion + FIXED_COINS = CRYPTO_40
+//
+// v48: fetchFuturesCoins() now excludes stablecoins (USD1, USDC, FDUSD, etc.)
+//  from all three fallback tiers; added Array.isArray guard to prevent silent
+//  JSON format mismatches; FIXED_COINS updated to match the 40-coin validation
+//  universe; donch_test response now includes fetch_source for diagnosis.
+//
 // CryptoBot v47 — MAKER exits (validated)
 //
 // v47: ladder TP legs (0.6R/1.0R/1.6R) now fill at the exact level with maker
@@ -182,12 +189,12 @@ const BINANCE      = 'https://api.binance.com/api/v3'
 const FAPI         = 'https://fapi.binance.com/fapi/v1'
 const FAPI_DATA    = 'https://fapi.binance.com/futures/data'
 
-// v31: expanded to 30 coins — matches dashboard universe
+// v48: aligned with CRYPTO_40 validation universe
 const FIXED_COINS = [
-  'BTC','ETH','SOL','BNB','XRP','ADA','DOGE','AVAX','LINK',
-  'DOT','POL','UNI','ATOM','LTC','BCH','NEAR','ALGO','FIL',
-  'VET','ICP','APT','ARB','OP','SUI','INJ','TRX','HBAR',
-  'AAVE','WLD','SEI',
+  'BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','DOT',
+  'LTC','BCH','NEAR','INJ','SUI','TRX','APT','ARB','OP','ATOM',
+  'FIL','UNI','AAVE','ICP','ALGO','SEI','WLD','TIA','RUNE','LDO',
+  'CRV','DYDX','GALA','SAND','AXS','IMX','ENA','PEPE','WIF','FET',
 ]
 const FALLBACK_COINS = FIXED_COINS
 const MIN_COIN_WIN_RATE = 0.42
@@ -251,50 +258,56 @@ async function fetchAllLiquidCoins(minVolUSD = 25_000_000): Promise<string[]> {
 interface CoinInfo { sym: string; change24h: number }
 const MIN_FUTURES_VOL_USDT = 50_000_000  // v39: $5M→$50M — only liquid coins, clean execution
 const MAX_FUTURES_COINS    = 60          // v40: 40→60 — scan more liquid coins = more good setups
+// v48: stablecoins / wrapped tokens — never trade these even if they appear in ticker data
+const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD|PYUSD|AEUR|EURS|SUSD|XAUT|PAXG|WBTC|WETH)USDT$/
+
+let _lastFetchSource = 'unknown'  // tracked for donch_test diagnostic
 
 async function fetchFuturesCoins(): Promise<CoinInfo[]> {
+  const EXCL = /^(.*)(UP|DOWN|BULL|BEAR|HEDGE|3L|3S|5L|5S)USDT$/
   // primary: Binance futures 24h tickers
   try {
     const res = await fetch(`${FAPI}/ticker/24hr`, { headers: { 'User-Agent': 'Mozilla/5.0' } })
     if (res.ok) {
-      const tickers: any[] = await res.json()
-      const EXCLUDE = /^(.*)(UP|DOWN|BULL|BEAR|HEDGE|3L|3S|5L|5S)USDT$/
-      const list = tickers
-        .filter(t =>
-          t.symbol.endsWith('USDT') &&
-          /^[A-Z0-9]+USDT$/.test(t.symbol) &&
-          !EXCLUDE.test(t.symbol) &&
-          parseFloat(t.quoteVolume) >= MIN_FUTURES_VOL_USDT
-        )
-        .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
-        .slice(0, MAX_FUTURES_COINS)
-        .map(t => ({ sym: t.symbol.replace('USDT', ''), change24h: parseFloat(t.priceChangePercent) / 100 }))
-      if (list.length >= 10) return list
+      const raw = await res.json()
+      if (Array.isArray(raw)) {
+        const list = raw
+          .filter(t =>
+            t.symbol.endsWith('USDT') &&
+            /^[A-Z0-9]+USDT$/.test(t.symbol) &&
+            !EXCL.test(t.symbol) &&
+            !STABLE_EXCLUDE.test(t.symbol) &&
+            parseFloat(t.quoteVolume) >= MIN_FUTURES_VOL_USDT
+          )
+          .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
+          .slice(0, MAX_FUTURES_COINS)
+          .map(t => ({ sym: t.symbol.replace('USDT', ''), change24h: parseFloat(t.priceChangePercent) / 100 }))
+        if (list.length >= 10) { _lastFetchSource = 'fapi'; return list }
+      }
     }
   } catch { /* fall through */ }
-  // v42.1 fallback #1: Binance SPOT tickers via data-api.binance.vision — this
-  // public data domain is NOT geo-blocked. Pure crypto (no tokenized stocks),
-  // same symbols as futures for all majors.
+  // v42.1 fallback #1: Binance SPOT tickers via data-api.binance.vision
   try {
     const res = await fetch(`${BINANCE_DATA}/ticker/24hr`, { headers: { 'User-Agent': 'Mozilla/5.0' } })
     if (res.ok) {
-      const tickers: any[] = await res.json()
-      const EXCLUDE = /^(.*)(UP|DOWN|BULL|BEAR|HEDGE|3L|3S|5L|5S)USDT$/
-      const list = tickers
-        .filter(t =>
-          t.symbol.endsWith('USDT') &&
-          /^[A-Z0-9]+USDT$/.test(t.symbol) &&
-          !EXCLUDE.test(t.symbol) &&
-          parseFloat(t.quoteVolume) >= MIN_FUTURES_VOL_USDT
-        )
-        .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
-        .slice(0, MAX_FUTURES_COINS)
-        .map(t => ({ sym: t.symbol.replace('USDT', ''), change24h: parseFloat(t.priceChangePercent) / 100 }))
-      if (list.length >= 10) return list
+      const raw = await res.json()
+      if (Array.isArray(raw)) {
+        const list = raw
+          .filter(t =>
+            t.symbol.endsWith('USDT') &&
+            /^[A-Z0-9]+USDT$/.test(t.symbol) &&
+            !EXCL.test(t.symbol) &&
+            !STABLE_EXCLUDE.test(t.symbol) &&
+            parseFloat(t.quoteVolume) >= MIN_FUTURES_VOL_USDT
+          )
+          .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
+          .slice(0, MAX_FUTURES_COINS)
+          .map(t => ({ sym: t.symbol.replace('USDT', ''), change24h: parseFloat(t.priceChangePercent) / 100 }))
+        if (list.length >= 10) { _lastFetchSource = 'spot'; return list }
+      }
     }
   } catch { /* fall through */ }
-  // v41.3 fallback #2: OKX swap tickers — keeps the full 50-60 coin universe even
-  // when Binance geo-blocks the egress IP (was silently shrinking to 30).
+  // v41.3 fallback #2: OKX swap tickers
   try {
     const res = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP',
       { headers: { 'User-Agent': 'Mozilla/5.0' } })
@@ -309,13 +322,15 @@ async function fetchFuturesCoins(): Promise<CoinInfo[]> {
           return { sym: String(t.instId).split('-')[0], volUsd,
                    change24h: open > 0 ? (last - open) / open : 0 }
         })
-        .filter(x => Number.isFinite(x.volUsd) && x.volUsd >= 20_000_000 && /^[A-Z0-9]+$/.test(x.sym))  // OKX has ~40% of Binance volume — $20M here ≈ $50M global
+        .filter(x => Number.isFinite(x.volUsd) && x.volUsd >= 20_000_000
+                  && /^[A-Z0-9]+$/.test(x.sym) && !STABLE_EXCLUDE.test(x.sym + 'USDT'))
         .sort((a, b) => b.volUsd - a.volUsd)
         .slice(0, MAX_FUTURES_COINS)
         .map(x => ({ sym: x.sym, change24h: x.change24h }))
-      if (list.length >= 10) return list
+      if (list.length >= 10) { _lastFetchSource = 'okx'; return list }
     }
   } catch { /* fall through */ }
+  _lastFetchSource = 'fixed'
   return FIXED_COINS.map(s => ({ sym: s, change24h: 0 }))
 }
 
@@ -1976,7 +1991,7 @@ Deno.serve(async (req) => {
           if (side) outD.push({sym:ci.sym, side, close:last4.close, hi40:hiN, lo40:loN, adx:+adx4.toFixed(1), wouldEnter: adx4>22})
         } catch (e) { outD.push({sym:ci.sym, err:String(e).slice(0,60)}) }
       }
-      return new Response(JSON.stringify({ok:true, fapi_status:fapiProbe, universe:coinsD.length, breakouts:outD, checked_at:new Date().toISOString()}),
+      return new Response(JSON.stringify({ok:true, fapi_status:fapiProbe, universe:coinsD.length, fetch_source:_lastFetchSource, breakouts:outD, checked_at:new Date().toISOString()}),
         {headers:{'Content-Type':'application/json'}})
     }
 
