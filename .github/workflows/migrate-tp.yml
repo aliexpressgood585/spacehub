@@ -1,0 +1,31 @@
+name: Migrate Open Positions TP
+
+on:
+  workflow_dispatch:
+
+env:
+  PROJECT_REF: mdvheizhciuvqychtwxr
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update open positions TP from 1.8R to 2.5R
+        run: |
+          echo "=== Migrating TP for open positions ==="
+          curl -s -X POST \
+            "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "UPDATE bot_trades SET hi = CASE WHEN side = '\''LONG'\'' AND hi > entry_price * 1.001 THEN entry_price + (hi - entry_price) / 1.8 * 2.5 ELSE hi END, lo = CASE WHEN side = '\''SHORT'\'' AND lo < entry_price * 0.999 THEN entry_price - (entry_price - lo) / 1.8 * 2.5 ELSE lo END WHERE status = '\''OPEN'\'';"}' \
+            | python3 -m json.tool
+
+      - name: Show updated positions
+        run: |
+          echo "=== Updated open positions ==="
+          curl -s -X POST \
+            "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "SELECT sym, side, entry_price, trail_sl, hi, lo FROM bot_trades WHERE status = '\''OPEN'\'' ORDER BY opened_at DESC LIMIT 30;"}' \
+            | python3 -m json.tool

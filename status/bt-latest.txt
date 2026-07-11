@@ -1,0 +1,13 @@
+backtest 2026-07-11T19:04Z mode=v51bt months=36
+████ V51BT — squeeze tilt + weekend tilt ████
+  loaded 69 coins
+  8421 trades; compPct on 8416; weekend share 26%
+
+── tilt evaluation (▲ = beats baseline in that window) ──
+  A squeeze 1.25/0.75 @30/70pct      avg +0.0464R vs base +0.0499R |  +0.018▲  +0.008▲  +0.119▽  +0.084▲  +0.045▲  -0.012▽ 
+  A squeeze 1.5/0.5 @30/70pct        avg +0.0431R vs base +0.0499R |  +0.029▲  +0.008▲  +0.116▽  +0.089▲  +0.049▲  -0.039▽ 
+  A squeeze CONTRA (wide=big)        avg +0.0536R vs base +0.0499R |  -0.004▽  +0.007▽  +0.125▲  +0.075▽  +0.036▽  +0.047▲ 
+  B weekend BOOST 1.25               avg +0.0503R vs base +0.0499R |  +0.012▲  +0.011▲  +0.117▽  +0.083▲  +0.041▽  +0.013▽ (pos, not uniformly better)
+  B weekend CUT 0.75                 avg +0.0495R vs base +0.0499R |  +0.001▽  +0.003▽  +0.128▲  +0.076▽  +0.041▲  +0.019▲ (pos, not uniformly better)
+
+✅ = positive AND better than baseline in all 6 windows. Deploy bar: ✅ plus ≥+0.004R total.

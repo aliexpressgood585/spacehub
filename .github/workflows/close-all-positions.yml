@@ -1,0 +1,22 @@
+name: Close All Open Positions
+
+on:
+  workflow_dispatch:
+
+env:
+  PROJECT_REF: mdvheizhciuvqychtwxr
+
+jobs:
+  close:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reset DB — delete all trades and reset balance to 500
+        run: |
+          curl -s -X POST \
+            "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "DELETE FROM bot_trades; UPDATE bot_state SET balance=500 WHERE id=1;"}' \
+            | tee /tmp/reset_result.json
+          cat /tmp/reset_result.json
+          echo "Done"

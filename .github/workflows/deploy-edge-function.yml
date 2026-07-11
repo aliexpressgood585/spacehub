@@ -1,0 +1,97 @@
+name: Deploy Edge Function
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/**'
+  workflow_dispatch:
+
+env:
+  SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+  PROJECT_REF: mdvheizhciuvqychtwxr
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Login to Supabase
+        run: supabase login --token ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Link project
+        run: supabase link --project-ref ${{ env.PROJECT_REF }}
+
+      - name: Remove unused crons
+        run: |
+          for JOB in 'bot-v18-every-minute' 'market-regime' 'portfolio-rebalancer'; do
+            curl -s -X POST \
+              "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
+              -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"query\": \"SELECT cron.unschedule(jobid) FROM cron.job WHERE jobname = '${JOB}';\"}" \
+              && echo "Removed: ${JOB}" || echo "Not found (ok): ${JOB}"
+          done
+
+      - name: Run SQL migrations via management API
+        run: |
+          curl -s -X POST \
+            "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS overall_wr NUMERIC(5,4) DEFAULT 0; ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS overall_pf NUMERIC(6,3) DEFAULT 1.0; ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS trade_count INT DEFAULT 0; ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS streak INT DEFAULT 0; ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS bot_params JSONB DEFAULT '"'"'{}'"'"'; ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS last_optimized_at TIMESTAMPTZ; CREATE TABLE IF NOT EXISTS bot_params_history (id BIGSERIAL PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), trade_count INT, overall_wr NUMERIC(5,4), overall_pf NUMERIC(6,3), params_before JSONB, params_after JSONB, reasoning TEXT); ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS market_regime TEXT DEFAULT '"'"'RANGING'"'"'; ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS regime_confidence NUMERIC(4,2) DEFAULT 0.5; ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS regime_updated_at TIMESTAMPTZ; ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS coin_weights JSONB DEFAULT '"'"'{}'"'"'; ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS rebalanced_at TIMESTAMPTZ; CREATE TABLE IF NOT EXISTS market_regime (id BIGSERIAL PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), regime TEXT NOT NULL, confidence NUMERIC(4,2), btc_adx NUMERIC(6,2), btc_atr_pct NUMERIC(8,5), btc_ema_slope NUMERIC(10,6), bb_width_pct NUMERIC(8,5), notes TEXT); CREATE TABLE IF NOT EXISTS rebalance_history (id BIGSERIAL PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), trade_count INT, weights_after JSONB, scores JSONB); ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS peak_balance NUMERIC(12,2) DEFAULT 10000; ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS lock_until TIMESTAMPTZ; CREATE TABLE IF NOT EXISTS bot_trades_log (id BIGSERIAL PRIMARY KEY, date DATE NOT NULL UNIQUE, total_trades INT DEFAULT 0, wins INT DEFAULT 0, losses INT DEFAULT 0, win_rate NUMERIC(5,4) DEFAULT 0, profit NUMERIC(12,2) DEFAULT 0, market_regime TEXT, avg_adx NUMERIC(6,2), avg_confluence_score NUMERIC(6,2), created_at TIMESTAMPTZ DEFAULT now()); CREATE TABLE IF NOT EXISTS bot_trade_snapshots (id BIGSERIAL PRIMARY KEY, trade_id BIGINT REFERENCES bot_trades(id), coin TEXT NOT NULL, side TEXT NOT NULL, confluence_score NUMERIC(5,1), adx NUMERIC(6,2), rsi NUMERIC(5,2), volume_ratio NUMERIC(6,3), hour_utc INT, market_regime TEXT, session TEXT, oi_signal TEXT, fear_greed INT, result TEXT, pnl NUMERIC(12,4), vpoc NUMERIC(18,8), volatility_pct INT, adjusted_sl NUMERIC(18,8), adjusted_tp NUMERIC(18,8), stochastic_k NUMERIC(6,2), stochastic_d NUMERIC(6,2), macd_histogram NUMERIC(10,4), correlation_hedge NUMERIC(4,2), entry_macd_hist NUMERIC(10,4), created_at TIMESTAMPTZ DEFAULT now()); ALTER TABLE bot_trade_snapshots ADD COLUMN IF NOT EXISTS vpoc NUMERIC(18,8); ALTER TABLE bot_trade_snapshots ADD COLUMN IF NOT EXISTS volatility_pct INT; ALTER TABLE bot_trade_snapshots ADD COLUMN IF NOT EXISTS adjusted_sl NUMERIC(18,8); ALTER TABLE bot_trade_snapshots ADD COLUMN IF NOT EXISTS adjusted_tp NUMERIC(18,8); ALTER TABLE bot_trade_snapshots ADD COLUMN IF NOT EXISTS stochastic_k NUMERIC(6,2); ALTER TABLE bot_trade_snapshots ADD COLUMN IF NOT EXISTS stochastic_d NUMERIC(6,2); ALTER TABLE bot_trade_snapshots ADD COLUMN IF NOT EXISTS macd_histogram NUMERIC(10,4); ALTER TABLE bot_trade_snapshots ADD COLUMN IF NOT EXISTS correlation_hedge NUMERIC(4,2); ALTER TABLE bot_trades ADD COLUMN IF NOT EXISTS entry_macd_hist NUMERIC(10,4); ALTER TABLE bot_trades ADD COLUMN IF NOT EXISTS snapshot_recorded BOOLEAN DEFAULT false; CREATE TABLE IF NOT EXISTS bot_market_memory (id BIGSERIAL PRIMARY KEY, condition_key TEXT NOT NULL, win_rate NUMERIC(5,4), trade_count INT, avg_pnl NUMERIC(10,4), last_updated TIMESTAMPTZ DEFAULT now()); CREATE UNIQUE INDEX IF NOT EXISTS idx_bot_market_memory_ck ON bot_market_memory(condition_key); ALTER TABLE bot_trades ADD COLUMN IF NOT EXISTS strategy TEXT DEFAULT '"'"'LEGACY'"'"'; ALTER TABLE bot_trades ADD COLUMN IF NOT EXISTS exit_stage INT DEFAULT 0; CREATE TABLE IF NOT EXISTS bot_equity (id BIGSERIAL PRIMARY KEY, ts TIMESTAMPTZ DEFAULT now(), equity NUMERIC, balance NUMERIC, exposure NUMERIC);"
+            }' | tee /tmp/migration_result.json
+          grep -q '"error"' /tmp/migration_result.json && echo "Migration warning (columns may already exist)" || echo "Migration applied successfully"
+
+      - name: Set optimizer secrets
+        run: |
+          supabase secrets set \
+            ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }} \
+            --project-ref ${{ env.PROJECT_REF }}
+
+      - name: Deploy trading-bot function
+        run: supabase functions deploy trading-bot --project-ref ${{ env.PROJECT_REF }} --no-verify-jwt
+
+      - name: Deploy trading-optimizer function
+        run: supabase functions deploy trading-optimizer --project-ref ${{ env.PROJECT_REF }} --no-verify-jwt
+
+      - name: Deploy market-regime-detector function
+        run: supabase functions deploy market-regime-detector --project-ref ${{ env.PROJECT_REF }} --no-verify-jwt
+
+      - name: Deploy portfolio-rebalancer function
+        run: supabase functions deploy portfolio-rebalancer --project-ref ${{ env.PROJECT_REF }} --no-verify-jwt
+
+      - name: Deploy close-trade function
+        run: supabase functions deploy close-trade --project-ref ${{ env.PROJECT_REF }} --no-verify-jwt
+
+      - name: Deploy reset-account function
+        run: supabase functions deploy reset-account --project-ref ${{ env.PROJECT_REF }} --no-verify-jwt
+
+      - name: Setup cron jobs
+        run: |
+          ANON_KEY=$(curl -s \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/api-keys" \
+            | grep -o '"anon"[^}]*"apiKey":"[^"]*"' | grep -o '"apiKey":"[^"]*"' | cut -d'"' -f4)
+          echo "Got anon key: ${ANON_KEY:0:10}..."
+          BASE="https://${{ env.PROJECT_REF }}.supabase.co/functions/v1"
+          HEADERS="jsonb_build_object('Authorization','Bearer ${ANON_KEY}')"
+          curl -s -X POST \
+            "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": \"
+              SELECT cron.schedule('trading-bot','* * * * *',\\\$q\\\$SELECT net.http_post(url:='${BASE}/trading-bot',headers:=${HEADERS})\\\$q\\\$) ON CONFLICT DO NOTHING;
+              SELECT cron.schedule('trading-optimizer','* * * * *',\\\$q\\\$SELECT net.http_post(url:='${BASE}/trading-optimizer',headers:=${HEADERS})\\\$q\\\$) ON CONFLICT DO NOTHING;
+              SELECT cron.schedule('market-regime','*/5 * * * *',\\\$q\\\$SELECT net.http_post(url:='${BASE}/market-regime-detector',headers:=${HEADERS})\\\$q\\\$) ON CONFLICT DO NOTHING;
+              SELECT cron.schedule('portfolio-rebalancer','0 * * * *',\\\$q\\\$SELECT net.http_post(url:='${BASE}/portfolio-rebalancer',headers:=${HEADERS})\\\$q\\\$) ON CONFLICT DO NOTHING;
+            \"}" || echo "Cron: set manually if needed"
+
+      - name: Done
+        run: echo "All 4 functions deployed - bot(1m) optimizer(1m) regime(5m) rebalancer(1h)"

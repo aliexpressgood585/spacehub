@@ -1,0 +1,70 @@
+name: Bot Status Report
+
+on:
+  workflow_dispatch:
+    inputs:
+      invoke_bot:
+        description: 'Also invoke a live trading-bot run (CAN OPEN TRADES). Default: read-only.'
+        required: false
+        default: 'no'
+
+env:
+  PROJECT_REF: mdvheizhciuvqychtwxr
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bot state
+        run: |
+          echo "=== BOT STATE ==="
+          curl -s -X POST \
+            "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "SELECT balance, peak_balance, risk, streak, trade_count, market_regime, updated_at, bot_params FROM bot_state WHERE id=1;"}'
+          echo ""
+
+      - name: Invoke trading-bot and show decision log
+        if: ${{ github.event.inputs.invoke_bot == 'yes' }}
+        run: |
+          echo "=== LIVE BOT RUN (decision log) ==="
+          ANON_KEY=$(curl -s \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/api-keys" \
+            | grep -o '"anon"[^}]*"apiKey":"[^"]*"' | grep -o '"apiKey":"[^"]*"' | cut -d'"' -f4)
+          curl -s -X POST \
+            "https://${{ env.PROJECT_REF }}.supabase.co/functions/v1/trading-bot" \
+            -H "Authorization: Bearer ${ANON_KEY}" \
+            -H "Content-Type: application/json" -d '{}'
+          echo ""
+
+      - name: Open positions
+        run: |
+          echo "=== OPEN POSITIONS ==="
+          curl -s -X POST \
+            "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "SELECT sym, side, entry_price, size, score, trail_sl, hi, lo, opened_at FROM bot_trades WHERE status='"'"'OPEN'"'"' ORDER BY opened_at DESC;"}'
+          echo ""
+
+      - name: Recent closed trades
+        run: |
+          echo "=== LAST 30 CLOSED TRADES ==="
+          curl -s -X POST \
+            "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "SELECT sym, side, status, entry_price, exit_price, pnl, score, opened_at, closed_at FROM bot_trades WHERE status != '"'"'OPEN'"'"' ORDER BY closed_at DESC LIMIT 30;"}'
+          echo ""
+
+      - name: Summary stats
+        run: |
+          echo "=== SUMMARY ==="
+          curl -s -X POST \
+            "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "SELECT count(*) FILTER (WHERE status != '"'"'OPEN'"'"') AS closed, count(*) FILTER (WHERE status = '"'"'OPEN'"'"') AS open, count(*) FILTER (WHERE status != '"'"'OPEN'"'"' AND pnl > 0) AS wins, round(sum(pnl) FILTER (WHERE status != '"'"'OPEN'"'"')::numeric, 2) AS realized_pnl, count(*) FILTER (WHERE status = '"'"'TP'"'"') AS tp_closes, count(*) FILTER (WHERE status = '"'"'TRAIL'"'"') AS trail_closes, count(*) FILTER (WHERE status = '"'"'SL'"'"') AS sl_closes FROM bot_trades;"}'
+          echo ""

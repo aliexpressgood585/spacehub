@@ -1,0 +1,473 @@
+// ════════════════════════════════════════════════════════════
+// Trading Optimizer Agent v2 — redeploy
+//
+// Runs every minute via Supabase cron.
+// Fast path (every tick): evaluates current performance,
+//   updates lightweight adaptive state, detects degradation.
+// Slow path (Claude AI): called only when:
+//   a) 10+ new trades since last Claude run, OR
+//   b) recent WR dropped >15% from baseline, OR
+//   c) 2+ hours since last Claude optimization
+// Stores results in bot_state.bot_params (JSONB).
+// ════════════════════════════════════════════════════════════
+import { createClient } from 'npm:@supabase/supabase-js@2'
+
+const CLAUDE_API   = 'https://api.anthropic.com/v1/messages'
+const CLAUDE_MODEL = 'claude-haiku-4-5-20251001'
+
+const MIN_TRADES_FOR_CLAUDE = 50   // v39: 5→50 — no curve-fitting on tiny samples
+const NEW_TRADES_THRESHOLD  = 30   // v39: 5→30 — wait for a meaningful new sample
+const WR_DEGRADATION        = 0.15 // call Claude if WR drops by this much
+const CLAUDE_COOLDOWN_MS    = 2 * 60 * 60_000  // 2 hours min between Claude calls
+const MAX_CHANGE            = 0.25 // max 25% change per param per Claude call
+
+// ─── defaults ────────────────────────────────────────────────────────────────
+const DEFAULTS = {
+  vol_params: {
+    LOW:    { slMult: 2.0, tpR: 2.2, trailBeR: 0.8, trailAtr: 0.6 },
+    MEDIUM: { slMult: 1.5, tpR: 2.2, trailBeR: 0.8, trailAtr: 0.7 },
+    HIGH:   { slMult: 1.2, tpR: 2.5, trailBeR: 1.0, trailAtr: 0.8 },
+  },
+  session_params: {
+    ASIAN: { sizeMult: 0.7, minScoreBonus: 1 },
+    EU:    { sizeMult: 1.0, minScoreBonus: 0 },
+    US:    { sizeMult: 1.0, minScoreBonus: 0 },
+    DEAD:  { sizeMult: 0.8, minScoreBonus: 0 },
+  },
+  partial_tp_by_vol: { LOW: 1.2, MEDIUM: 1.5, HIGH: 1.8 },
+  max_hold_min: 180,
+  // simple entry params — tuned by optimizer
+  rsi_oversold:        35,
+  rsi_overbought:      65,
+  bb_proximity:        1.02,
+  tp_r:                2.5,
+  // Phase 7: confluence/ADX gate thresholds — tuned by optimizer
+  min_confluence_score: 65,
+  min_adx:              0,
+  // optimizer state (not sent to trading bot)
+  _meta: {
+    trade_count_at_last_claude: 0,
+    last_claude_ts: 0,
+    baseline_wr: 0,
+  },
+}
+
+// ─── bounds ───────────────────────────────────────────────────────────────────
+const BOUNDS = {
+  slMult:         { min: 0.8, max: 3.5 },
+  tpR:            { min: 1.5, max: 4.5 },
+  trailBeR:       { min: 0.4, max: 1.8 },
+  trailAtr:       { min: 0.3, max: 1.5 },
+  sizeMult:       { min: 0.3, max: 1.5 },
+  minScoreBonus:  { min: 0,   max: 2   },
+  partial_r:      { min: 0.4, max: 2.5 },
+  max_hold_min:   { min: 60,  max: 720 },
+  rsi_oversold:   { min: 25,  max: 45  },
+  rsi_overbought: { min: 55,  max: 75  },
+  bb_proximity:         { min: 1.002, max: 1.03 },
+  tp_r:                 { min: 1.5, max: 4.0 },
+  min_confluence_score: { min: 50, max: 80 },
+  min_adx:              { min: 0,  max: 30 },
+}
+
+function clamp(v: number, min: number, max: number) { return Math.max(min, Math.min(max, v)) }
+function limitChange(nv: number, ov: number, mc: number) {
+  const r = nv / ov
+  if (r > 1 + mc) return ov * (1 + mc)
+  if (r < 1 - mc) return ov * (1 - mc)
+  return nv
+}
+function round2(v: number) { return Math.round(v * 100) / 100 }
+
+function sessionFromHour(h: number): 'ASIAN' | 'EU' | 'US' | 'DEAD' {
+  if (h < 8)  return 'ASIAN'
+  if (h < 13) return 'EU'
+  if (h < 21) return 'US'
+  return 'DEAD'
+}
+
+
+// ─── stats ────────────────────────────────────────────────────────────────────
+interface Seg { count: number; wins: number; totalPnl: number; winPnl: number; lossPnl: number }
+function emptySeg(): Seg { return { count: 0, wins: 0, totalPnl: 0, winPnl: 0, lossPnl: 0 } }
+function addToSeg(s: Seg, pnl: number) {
+  s.count++
+  if (pnl > 0) { s.wins++; s.winPnl += pnl } else s.lossPnl += pnl
+  s.totalPnl += pnl
+}
+function segResult(s: Seg) {
+  const wr   = s.count ? s.wins / s.count : 0
+  const avgW = s.wins               ? s.winPnl / s.wins               : 0
+  const avgL = (s.count - s.wins)   ? Math.abs(s.lossPnl) / (s.count - s.wins) : 1
+  return {
+    count: s.count,
+    wr:     round2(wr),
+    avgPnl: round2(s.count ? s.totalPnl / s.count : 0),
+    pf:     round2(avgL > 0 ? avgW / avgL : 1),
+  }
+}
+
+function buildStats(trades: any[]) {
+  const overall = emptySeg()
+  const bySession:  Record<string, Seg> = { ASIAN: emptySeg(), EU: emptySeg(), US: emptySeg(), DEAD: emptySeg() }
+  const byMode:     Record<string, Seg> = { SWEEP: emptySeg(), RANGE: emptySeg() }
+  const bySide:     Record<string, Seg> = { LONG: emptySeg(), SHORT: emptySeg() }
+  const byScore:    Record<string, Seg> = { low: emptySeg(), med: emptySeg(), high: emptySeg() }
+  const holdWin: number[] = [], holdLoss: number[] = []
+
+  for (const t of trades) {
+    const pnl  = Number(t.pnl ?? 0)
+    const sess = t.closed_at ? sessionFromHour(new Date(t.closed_at).getUTCHours()) : 'US'
+    const mode = t.mtf ? 'SWEEP' : 'RANGE'
+    const sc   = Number(t.score ?? 0)
+    const sb   = sc <= 2 ? 'low' : sc <= 4 ? 'med' : 'high'
+
+    addToSeg(overall, pnl)
+    addToSeg(bySession[sess], pnl)
+    addToSeg(byMode[mode], pnl)
+    addToSeg(bySide[t.side ?? 'LONG'], pnl)
+    addToSeg(byScore[sb], pnl)
+
+    if (t.opened_at && t.closed_at) {
+      const m = (new Date(t.closed_at).getTime() - new Date(t.opened_at).getTime()) / 60000
+      if (m > 0 && m < 2000) pnl > 0 ? holdWin.push(m) : holdLoss.push(m)
+    }
+  }
+
+  const avgHoldWin  = holdWin.length  ? Math.round(holdWin.reduce((a, b)  => a + b, 0)  / holdWin.length)  : 0
+  const avgHoldLoss = holdLoss.length ? Math.round(holdLoss.reduce((a, b) => a + b, 0) / holdLoss.length) : 0
+
+  return { overall, bySession, byMode, bySide, byScore, avgHoldWin, avgHoldLoss }
+}
+
+// ─── Claude call ──────────────────────────────────────────────────────────────
+async function callClaude(system: string, user: string): Promise<string> {
+  const key = Deno.env.get('ANTHROPIC_API_KEY')
+  if (!key) throw new Error('ANTHROPIC_API_KEY not set')
+  const res = await fetch(CLAUDE_API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 1024, system, messages: [{ role: 'user', content: user }] }),
+  })
+  if (!res.ok) throw new Error(`Claude ${res.status}`)
+  const d: any = await res.json()
+  return d.content?.[0]?.text ?? ''
+}
+
+// ─── apply Claude suggestions ─────────────────────────────────────────────────
+function applyProposed(proposed: any, current: any): any {
+  const safe = JSON.parse(JSON.stringify(current))
+
+  for (const r of ['LOW', 'MEDIUM', 'HIGH'] as const) {
+    if (!proposed.vol_params?.[r]) continue
+    const p = proposed.vol_params[r], c = current.vol_params[r]
+    safe.vol_params[r] = {
+      slMult:   round2(clamp(limitChange(+p.slMult,   c.slMult,   MAX_CHANGE), BOUNDS.slMult.min,   BOUNDS.slMult.max)),
+      tpR:      round2(clamp(limitChange(+p.tpR,      c.tpR,      MAX_CHANGE), BOUNDS.tpR.min,      BOUNDS.tpR.max)),
+      // v27.6: bot trails at fixed 1R breakeven — knob retired, value preserved untouched
+      trailBeR: c.trailBeR,
+      trailAtr: round2(clamp(limitChange(+p.trailAtr, c.trailAtr, MAX_CHANGE), BOUNDS.trailAtr.min, BOUNDS.trailAtr.max)),
+    }
+  }
+  for (const s of ['ASIAN', 'EU', 'US', 'DEAD'] as const) {
+    if (!proposed.session_params?.[s]) continue
+    const p = proposed.session_params[s], c = current.session_params[s]
+    safe.session_params[s] = {
+      sizeMult:      round2(clamp(limitChange(+p.sizeMult, c.sizeMult, MAX_CHANGE), BOUNDS.sizeMult.min, BOUNDS.sizeMult.max)),
+      minScoreBonus: Math.round(clamp(+p.minScoreBonus, BOUNDS.minScoreBonus.min, BOUNDS.minScoreBonus.max)),
+    }
+  }
+  for (const r of ['LOW', 'MEDIUM', 'HIGH'] as const) {
+    if (proposed.partial_tp_by_vol?.[r] == null) continue
+    safe.partial_tp_by_vol[r] = round2(clamp(limitChange(+proposed.partial_tp_by_vol[r], current.partial_tp_by_vol[r], MAX_CHANGE), BOUNDS.partial_r.min, BOUNDS.partial_r.max))
+  }
+  if (proposed.max_hold_min) {
+    safe.max_hold_min = Math.round(clamp(limitChange(+proposed.max_hold_min, current.max_hold_min, MAX_CHANGE), BOUNDS.max_hold_min.min, BOUNDS.max_hold_min.max))
+  }
+  if (proposed.rsi_oversold != null) {
+    safe.rsi_oversold = round2(clamp(+proposed.rsi_oversold, BOUNDS.rsi_oversold.min, BOUNDS.rsi_oversold.max))
+  }
+  if (proposed.rsi_overbought != null) {
+    safe.rsi_overbought = round2(clamp(+proposed.rsi_overbought, BOUNDS.rsi_overbought.min, BOUNDS.rsi_overbought.max))
+  }
+  if (proposed.bb_proximity != null) {
+    safe.bb_proximity = round2(clamp(+proposed.bb_proximity, BOUNDS.bb_proximity.min, BOUNDS.bb_proximity.max))
+  }
+  if (proposed.tp_r != null) {
+    safe.tp_r = round2(clamp(limitChange(+proposed.tp_r, current.tp_r ?? 2.0, MAX_CHANGE), BOUNDS.tp_r.min, BOUNDS.tp_r.max))
+  }
+  // Phase 7: min_confluence_score and min_adx
+  if (proposed.min_confluence_score != null) {
+    safe.min_confluence_score = round2(clamp(+proposed.min_confluence_score, BOUNDS.min_confluence_score.min, BOUNDS.min_confluence_score.max))
+  }
+  if (proposed.min_adx != null) {
+    safe.min_adx = round2(clamp(+proposed.min_adx, BOUNDS.min_adx.min, BOUNDS.min_adx.max))
+  }
+  return safe
+}
+
+// ─── main ─────────────────────────────────────────────────────────────────────
+Deno.serve(async () => {
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SERVICE_ROLE_KEY')!,
+  )
+
+  // load state
+  const { data: stateRow } = await supabase.from('bot_state').select('bot_params, balance').eq('id', 1).single()
+  const params = { ...DEFAULTS, ...(stateRow?.bot_params ?? {}) }
+  const meta   = { ...DEFAULTS._meta, ...(params._meta ?? {}) }
+
+  // fetch recent trades
+  const { data: trades } = await supabase
+    .from('bot_trades')
+    .select('sym,side,pnl,status,opened_at,closed_at,mtf,score')
+    .neq('status', 'OPEN')
+    .order('closed_at', { ascending: false })
+    .limit(300)
+
+  const tradeCount = trades?.length ?? 0
+  const now        = Date.now()
+
+  // ── fast path: compute current WR ─────────────────────────────────────────
+  if (tradeCount < MIN_TRADES_FOR_CLAUDE) {
+    return new Response(JSON.stringify({ ok: true, skip: 'not enough trades', count: tradeCount }), {
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  const stats     = buildStats(trades!)
+  const currentWR = segStats_wr(stats.overall)
+  const recent20WR = trades
+    ? trades.slice(0, 20).filter((t: any) => Number(t.pnl ?? 0) > 0).length / Math.min(20, trades.length)
+    : 0
+
+  // set baseline WR on first run
+  if (meta.baseline_wr === 0) meta.baseline_wr = currentWR
+
+  // ── decide if we should call Claude ───────────────────────────────────────
+  const newTradesSinceLast = tradeCount - meta.trade_count_at_last_claude
+  const timeSinceLast      = now - (meta.last_claude_ts || 0)
+  const wrDrop             = meta.baseline_wr - recent20WR
+
+  const shouldCallClaude =
+    (newTradesSinceLast >= NEW_TRADES_THRESHOLD && timeSinceLast >= 30 * 60_000) ||
+    (wrDrop >= WR_DEGRADATION && timeSinceLast >= 30 * 60_000) ||
+    (timeSinceLast >= CLAUDE_COOLDOWN_MS && newTradesSinceLast >= 30)  // v39: 5→30
+
+  if (!shouldCallClaude) {
+    // fast path — update meta only
+    await supabase.from('bot_state').update({
+      bot_params: { ...params, _meta: meta },
+    }).eq('id', 1)
+    return new Response(JSON.stringify({
+      ok: true,
+      skip: 'no Claude needed',
+      currentWR, recent20WR, newTrades: newTradesSinceLast, timeSinceLast: Math.round(timeSinceLast / 60000) + 'm',
+    }), { headers: { 'Content-Type': 'application/json' } })
+  }
+
+  // ── slow path: call Claude ─────────────────────────────────────────────────
+  const { overall, bySession, byMode, bySide, byScore, avgHoldWin, avgHoldLoss } = stats
+
+  // ── Phase 7: Fetch last 200 bot_trade_snapshots + market memory ───────────
+  const [snapshotRes, marketMemoryRes] = await Promise.all([
+    supabase.from('bot_trade_snapshots')
+      .select('hour_utc, adx, confluence_score, result, pnl')
+      .not('result', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(200),
+    supabase.from('bot_market_memory')
+      .select('condition_key, win_rate, trade_count, avg_pnl')
+      .order('trade_count', { ascending: false })
+      .limit(20),
+  ])
+  const snapshots    = snapshotRes.data    ?? []
+  const marketMemory = marketMemoryRes.data ?? []
+
+  interface SnapSeg { wins: number; total: number }
+  const byHour:       Record<number, SnapSeg> = {}
+  const byAdxRange:   Record<string, SnapSeg> = {}
+  const byConfBucket: Record<string, SnapSeg> = {}
+
+  for (const s of snapshots) {
+    const isWin = s.result === 'TP' || Number(s.pnl ?? 0) > 0
+    const inc = (map: Record<string|number, SnapSeg>, key: string|number) => {
+      if (!map[key]) map[key] = { wins: 0, total: 0 }
+      map[key].total++
+      if (isWin) map[key].wins++
+    }
+    if (s.hour_utc != null) inc(byHour, s.hour_utc)
+    const adxV = s.adx ?? 0
+    inc(byAdxRange, adxV < 15 ? 'adx_0_15' : adxV < 25 ? 'adx_15_25' : adxV < 35 ? 'adx_25_35' : 'adx_35+')
+    const cs = s.confluence_score ?? 0
+    inc(byConfBucket, cs < 60 ? 'conf_50_60' : cs < 70 ? 'conf_60_70' : cs < 80 ? 'conf_70_80' : 'conf_80+')
+  }
+
+  const fmtSnap = (m: Record<string|number, SnapSeg>) =>
+    Object.entries(m).map(([k,v]) => `${k}:WR=${v.total?(v.wins/v.total).toFixed(2):'n/a'}(${v.total})`).join(' ')
+
+  const bestHours = Object.entries(byHour)
+    .filter(([,v]) => v.total >= 3)
+    .sort((a,b) => (b[1].wins/b[1].total)-(a[1].wins/a[1].total))
+    .slice(0,5).map(([h,v]) => `${h}h:${(v.wins/v.total).toFixed(2)}`).join(' ')
+
+  const marketMemorySummary = marketMemory.length
+    ? marketMemory.map((m:any) => `${m.condition_key}: WR=${Number(m.win_rate).toFixed(2)} n=${m.trade_count} avgPnl=$${Number(m.avg_pnl).toFixed(2)}`).join('\n  ')
+    : 'no data yet'
+
+  // ── Phase 8: Walk-forward replay ──────────────────────────────────────────
+  function replaySnapshots(snaps: any[], minConf: number, minAdxVal: number): number {
+    let wins = 0, total = 0
+    for (const s of snaps) {
+      if ((s.confluence_score ?? 0) >= minConf && (s.adx ?? 0) >= minAdxVal) {
+        total++
+        if (s.result === 'TP' || Number(s.pnl ?? 0) > 0) wins++
+      }
+    }
+    return total > 0 ? wins / total : 0
+  }
+
+  const last50Snaps    = snapshots.slice(0, 50)
+  const currentConfMin = params.min_confluence_score ?? 60
+  const currentAdxMin  = params.min_adx ?? 0
+  const baselineWRsnap = replaySnapshots(last50Snaps, currentConfMin, currentAdxMin)
+
+  const analysisSummary = `
+OVERALL (${tradeCount} trades): WR=${segResult(overall).wr} avgPnl=$${segResult(overall).avgPnl} PF=${segResult(overall).pf}
+RECENT 20 WR: ${round2(recent20WR)} (baseline: ${round2(meta.baseline_wr)})
+HOLD TIME: winners avg ${avgHoldWin}m | losers avg ${avgHoldLoss}m | max_hold currently ${params.max_hold_min}m
+
+BY SESSION:
+  ASIAN: ${JSON.stringify(segResult(bySession.ASIAN))}
+  EU:    ${JSON.stringify(segResult(bySession.EU))}
+  US:    ${JSON.stringify(segResult(bySession.US))}
+  DEAD:  ${JSON.stringify(segResult(bySession.DEAD))}
+
+BY MODE:
+  SWEEP: ${JSON.stringify(segResult(byMode.SWEEP))}
+  RANGE: ${JSON.stringify(segResult(byMode.RANGE))}
+
+BY SIDE:
+  LONG:  ${JSON.stringify(segResult(bySide.LONG))}
+  SHORT: ${JSON.stringify(segResult(bySide.SHORT))}
+
+BY SCORE:
+  0-2: ${JSON.stringify(segResult(byScore.low))}
+  3-4: ${JSON.stringify(segResult(byScore.med))}
+  5+:  ${JSON.stringify(segResult(byScore.high))}
+
+SNAPSHOT ANALYSIS (last 200 closed trades with all indicator data):
+  BY HOUR (best): ${bestHours || 'insufficient data'}
+  BY ADX RANGE:   ${fmtSnap(byAdxRange)}
+  BY CONF BUCKET: ${fmtSnap(byConfBucket)}
+  Walk-forward WR on last 50 with current gates (conf>=${currentConfMin} adx>=${currentAdxMin}): ${baselineWRsnap.toFixed(3)}
+
+MARKET MEMORY (condition-based win rates):
+  ${marketMemorySummary}
+
+CURRENT PARAMS (excluding _meta):
+${JSON.stringify({ vol_params: params.vol_params, session_params: params.session_params, partial_tp_by_vol: params.partial_tp_by_vol, max_hold_min: params.max_hold_min, rsi_oversold: params.rsi_oversold, rsi_overbought: params.rsi_overbought, bb_proximity: params.bb_proximity, tp_r: params.tp_r, min_confluence_score: params.min_confluence_score, min_adx: params.min_adx }, null, 2)}`
+
+  const systemPrompt = `You are an expert crypto trading parameter optimizer.
+The bot uses RSI+BB+EMA+confluence entry system with 20x leverage.
+Analyze performance data and return ONLY a JSON object with optimized parameters.
+Rules:
+- Make small conservative adjustments (max 25% per param per call)
+- If LONG WR >> SHORT WR: raise rsi_overbought to reduce short signals
+- If SHORT WR >> LONG WR: lower rsi_oversold to reduce long signals
+- If overall WR < 0.40: tighten bb_proximity e.g. 1.005; raise min_confluence_score
+- If overall WR > 0.55: loosen bb_proximity e.g. 1.02; can lower min_confluence_score slightly
+- If winners hold shorter than losers: reduce max_hold_min
+- tp_r should reward winners: raise if WR > 0.5, lower if WR < 0.4
+- min_confluence_score: raise if conf_50_60 bucket has poor WR. Bounds [50-80]
+- min_adx: raise if adx_0_15 range has poor WR. Start conservative 0-10. Bounds [0-30]
+- Look at market memory: avoid conditions with chronic low WR
+- Bounds: rsi_oversold[25-45], rsi_overbought[55-75], bb_proximity[1.002-1.03], tp_r[1.5-4.0], max_hold_min[60-360]
+- Return ONLY valid JSON.
+
+{
+  "rsi_oversold": X,
+  "rsi_overbought": X,
+  "bb_proximity": X,
+  "tp_r": X,
+  "max_hold_min": X,
+  "min_confluence_score": X,
+  "min_adx": X,
+  "reasoning": "one line"
+}`
+
+  let proposed: any
+  let reasoning = ''
+  try {
+    const raw   = await callClaude(systemPrompt, analysisSummary)
+    const match = raw.match(/\{[\s\S]*\}/)
+    if (!match) throw new Error('no JSON')
+    proposed  = JSON.parse(match[0])
+    reasoning = proposed.reasoning ?? ''
+  } catch (e) {
+    const errMsg = String(e)
+    await supabase.from('bot_params_history').insert({
+      trade_count: tradeCount,
+      overall_wr:  segStats_wr(stats.overall),
+      overall_pf:  0,
+      params_before: {},
+      params_after:  {},
+      reasoning: `ERROR: ${errMsg}`,
+    }).catch(() => {})
+    return new Response(JSON.stringify({ ok: false, error: errMsg }), {
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  const paramsBefore = JSON.parse(JSON.stringify(params))
+  const safe = applyProposed(proposed, params)
+
+  // ── Phase 8: Walk-Forward Validation — only adopt gate params if WR improves ≥2%
+  const newConfMin   = safe.min_confluence_score ?? 60
+  const newAdxMin    = safe.min_adx ?? 0
+  const newWRsnap    = replaySnapshots(last50Snaps, newConfMin, newAdxMin)
+  const wrImprovement = newWRsnap - baselineWRsnap
+  let paramsAdopted  = true
+
+  if (last50Snaps.length >= 10 && wrImprovement < 0.02) {
+    // Reject gate-param changes; keep other param adjustments
+    safe.min_confluence_score = currentConfMin
+    safe.min_adx              = currentAdxMin
+    paramsAdopted             = false
+    reasoning += ` | gate params REJECTED: no improvement (${(wrImprovement*100).toFixed(1)}%)`
+  } else if (last50Snaps.length >= 10) {
+    reasoning += ` | gate params ADOPTED: WR +${(wrImprovement*100).toFixed(1)}%`
+  }
+
+  // update meta
+  meta.trade_count_at_last_claude = tradeCount
+  meta.last_claude_ts             = now
+  meta.baseline_wr                = currentWR
+
+  safe._meta = meta
+
+  const ov = segResult(overall)
+
+  // save to bot_state and history log in parallel
+  await Promise.all([
+    supabase.from('bot_state').update({
+      bot_params: safe,
+      last_optimized_at: new Date().toISOString(),
+    }).eq('id', 1),
+    supabase.from('bot_params_history').insert({
+      trade_count:   tradeCount,
+      overall_wr:    ov.wr,
+      overall_pf:    ov.pf,
+      params_before: { vol_params: paramsBefore.vol_params, session_params: paramsBefore.session_params, partial_tp_by_vol: paramsBefore.partial_tp_by_vol, max_hold_min: paramsBefore.max_hold_min, min_confluence_score: paramsBefore.min_confluence_score, min_adx: paramsBefore.min_adx },
+      params_after:  { vol_params: safe.vol_params, session_params: safe.session_params, partial_tp_by_vol: safe.partial_tp_by_vol, max_hold_min: safe.max_hold_min, min_confluence_score: safe.min_confluence_score, min_adx: safe.min_adx },
+      reasoning,
+    }),
+  ])
+
+  return new Response(JSON.stringify({ ok: true, claudeCalled: true, reasoning, paramsAdopted, wrImprovement: (wrImprovement*100).toFixed(1)+'%', params: safe }), {
+    headers: { 'Content-Type': 'application/json' },
+  })
+})
+
+function segStats_wr(s: Seg) { return s.count ? s.wins / s.count : 0 }

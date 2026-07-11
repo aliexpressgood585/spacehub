@@ -1,0 +1,143 @@
+name: Status Ping
+
+on:
+  push:
+    paths: ['.status-ping']
+
+permissions:
+  contents: write
+
+env:
+  PROJECT_REF: mdvheizhciuvqychtwxr
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Collect diagnostics into status/latest.txt
+        run: |
+          mkdir -p status
+          out=status/latest.txt
+          : > $out
+          q() { curl -s -X POST "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" -d "{\"query\": \"$1\"}" >> $out; echo >> $out; }
+          echo "generated_at: $(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $out
+          echo "=== BOT STATE ===" >> $out
+          q "SELECT balance, peak_balance, streak, market_regime, updated_at, rebalanced_at FROM bot_state WHERE id=1;"
+          echo "=== OPEN POSITIONS ===" >> $out
+          q "SELECT sym, side, entry_price, size, score, trail_sl, hi, lo, opened_at FROM bot_trades WHERE status='OPEN' ORDER BY opened_at DESC;"
+          echo "=== TRADE COUNTS ===" >> $out
+          q "SELECT count(*) FILTER (WHERE status='OPEN') AS open, count(*) FILTER (WHERE status != 'OPEN') AS closed FROM bot_trades;"
+          echo "=== REALIZED P&L BY STRATEGY ===" >> $out
+          q "SELECT COALESCE(strategy,'LEGACY') AS strat, count(*) AS n, count(*) FILTER (WHERE pnl>0) AS wins, round(sum(pnl)::numeric,2) AS realized FROM bot_trades WHERE status != 'OPEN' GROUP BY 1 ORDER BY 1;"
+          echo "=== CLOSED TRADES (latest 20) ===" >> $out
+          q "SELECT sym, side, COALESCE(strategy,'LEGACY') AS strat, round(pnl::numeric,2) AS pnl FROM bot_trades WHERE status != 'OPEN' ORDER BY closed_at DESC LIMIT 20;"
+          echo "=== LIVE vs BACKTEST EXPECTATION CHECK ===" >> $out
+          curl -s -X POST "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "SELECT COALESCE(strategy,+null) AS x FROM bot_trades LIMIT 0;"}' > /dev/null 2>&1 || true
+          q2() { curl -s -X POST "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" -d "{\"query\": \"$1\"}"; }
+          q2 "SELECT strategy, count(*) AS n, round(100.0*count(*) FILTER (WHERE pnl>0)/count(*),1) AS wr, round(avg(pnl)::numeric,2) AS avg_pnl FROM bot_trades WHERE status != 'OPEN' AND strategy IN ('DONCH4H','ROTA') AND closed_at >= (SELECT COALESCE(min(ts),'2026-01-01'::timestamptz) FROM bot_equity) GROUP BY 1;" > /tmp/lvb.json
+          python3 - >> $out <<'PYEOF3'
+          import json
+          try: rows=json.load(open('/tmp/lvb.json'))
+          except Exception: rows=[]
+          bands={'DONCH4H':{'wr':(55,80),'target':'WR~66%, +0.064R/trade'},'ROTA':{'wr':(35,75),'target':'periods mostly +, ~48%/yr book'}}
+          if not rows: print("  no closed strategy trades yet")
+          for r in rows:
+              st=r['strategy']; n=int(r['n']); wr=float(r['wr'] or 0)
+              b=bands.get(st,{}); lo,hi=b.get('wr',(0,100))
+              verdict='SAMPLE TOO SMALL (<30)' if n<30 else ('IN BAND ✓' if lo<=wr<=hi else '⚠️ OUT OF BAND — investigate')
+              print(f"  {st}: n={n} WR={wr}% avg_pnl=${r['avg_pnl']} | expected: {b.get('target','')} | {verdict}")
+          PYEOF3
+          echo "=== OPEN POSITIONS LIVE P&L (OKX marks) ===" >> $out
+          curl -s -X POST "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "SELECT sym, side, entry_price, size, strategy, opened_at FROM bot_trades WHERE status='"'"'OPEN'"'"';"}' > /tmp/open.json
+          python3 - >> $out <<'PYEOF2'
+          import json, urllib.request
+          rows=json.load(open('/tmp/open.json'))
+          tot=0.0; totn=0.0
+          for r in rows:
+              sym=r['sym']; side=r['side']; e=float(r['entry_price']); sz=float(r['size'])
+              try:
+                  u=f"https://www.okx.com/api/v5/market/ticker?instId={sym}-USDT-SWAP"
+                  req=urllib.request.Request(u, headers={"User-Agent":"Mozilla/5.0"})
+                  px=float(json.load(urllib.request.urlopen(req,timeout=15))['data'][0]['last'])
+              except Exception as ex:
+                  print(f"  {sym}: no mark ({ex})"); continue
+              dirm=1 if side=='LONG' else -1
+              pnl=(px-e)*sz*dirm; pct=(px-e)/e*dirm*100
+              tot+=pnl; totn+=e*sz
+              print(f"  {sym:9s} {side:5s} {r.get('strategy','?'):8s} entry={e:<12g} now={px:<12g} pnl=${pnl:+8.2f} ({pct:+.2f}%)")
+          print(f"  TOTAL unrealized: ${tot:+.2f} on ${totn:,.0f} notional")
+          PYEOF2
+          echo "=== BREAKOUT CHECK (OKX 4h, independent) ===" >> $out
+          python3 - >> $out <<'PYEOF'
+          import json, urllib.request
+          COINS = ["BTC","ETH","SOL","BNB","XRP","ADA","DOGE","AVAX","LINK","DOT","UNI","ATOM","LTC","BCH","NEAR","ALGO","FIL","ICP","APT","ARB","OP","SUI","INJ","TRX","HBAR","AAVE","WLD","SEI"]
+          def candles(sym):
+              url=f"https://www.okx.com/api/v5/market/candles?instId={sym}-USDT-SWAP&bar=4H&limit=100"
+              req=urllib.request.Request(url, headers={"User-Agent":"Mozilla/5.0"})
+              d=json.load(urllib.request.urlopen(req, timeout=20))["data"]
+              return [(int(x[0]),float(x[1]),float(x[2]),float(x[3]),float(x[4])) for x in reversed(d)]
+          def adx(bars,p=14):
+              if len(bars)<p+1: return 20
+              trs,pd,md=[],[],[]
+              for i in range(1,len(bars)):
+                  h,l,pc=bars[i][2],bars[i][3],bars[i-1][4]
+                  trs.append(max(h-l,abs(h-pc),abs(l-pc)))
+                  hd=h-bars[i-1][2]; ld=bars[i-1][3]-l
+                  pd.append(hd if hd>0 and hd>ld else 0); md.append(ld if ld>0 and ld>hd else 0)
+              tr14=sum(trs[:p]); pd14=sum(pd[:p]); md14=sum(md[:p])
+              pdi=(pd14/tr14*100) if tr14>0 else 0; mdi=(md14/tr14*100) if tr14>0 else 0
+              s=pdi+mdi; a=(abs(pdi-mdi)/s*100) if s>0 else 0
+              for i in range(p,len(trs)):
+                  tr14=(tr14*(p-1)+trs[i])/p; pd14=(pd14*(p-1)+pd[i])/p; md14=(md14*(p-1)+md[i])/p
+                  pdi=(pd14/tr14*100) if tr14>0 else 0; mdi=(md14/tr14*100) if tr14>0 else 0
+                  s=pdi+mdi; dx=(abs(pdi-mdi)/s*100) if s>0 else 0
+                  a=(a*(p-1)+dx)/p
+              return a
+          any_hit=False
+          for c in COINS:
+              try:
+                  b=candles(c)
+                  if len(b)<45: print(f"  {c}: insufficient data"); continue
+                  comp=b[:-1]
+                  for back in (1,2,3,4,5,6):
+                      sig=comp[-back]
+                      prior=comp[-back-40:-back]
+                      hi=max(x[2] for x in prior); lo=min(x[3] for x in prior)
+                      brk = "LONG" if sig[4]>hi else ("SHORT" if sig[4]<lo else None)
+                      if brk:
+                          a=adx(comp[-61:] if back==1 else comp[-62:-1])
+                          any_hit=True
+                          verdict = "WOULD ENTER" if a>25 else "adx<=25 -> correctly skipped"
+                          print(f"  {c}: {brk} breakout on bar -{back} close={sig[4]} adx={a:.0f} [{verdict}]")
+              except Exception as e:
+                  print(f"  {c}: error {e}")
+          if not any_hit:
+              print("  NO coin broke its 40-bar channel in the last six 4h bars -> zero entries is CORRECT.")
+          PYEOF
+          echo "=== LIVE BOT DONCH4H EVAL (what the bot itself sees right now) ===" >> $out
+          ANON_KEY=$(curl -s -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/api-keys" \
+            | grep -o '"anon"[^}]*"apiKey":"[^"]*"' | grep -o '"apiKey":"[^"]*"' | cut -d'"' -f4)
+          curl -s -m 120 "https://${{ env.PROJECT_REF }}.supabase.co/functions/v1/trading-bot?donch_test=1" \
+            -H "Authorization: Bearer ${ANON_KEY}" >> $out
+          echo >> $out
+
+      - name: Commit results
+        run: |
+          git config user.name "status-bot"
+          git config user.email "actions@github.com"
+          git add status/latest.txt
+          git commit -m "status: diagnostic snapshot [skip ci]" || echo "no changes"
+          git push
