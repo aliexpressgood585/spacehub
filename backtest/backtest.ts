@@ -4724,6 +4724,118 @@ function runV66bt() {
   console.log(`  samples are BTC/ETH/majors-heavy. R @1.25% risk; DD is single-position seq (real deeper).`)
 }
 
+
+// ─────────────────────────────────────────────────────────────
+// v67bt: BASIS CARRY (funding arbitrage) — long spot + short perp, delta-zero,
+// collect funding. Pre-validation for the real-exchange stage (needs a spot
+// leg → CANNOT be paper-traded on the current bot; this only proves/kills the
+// idea before capital exists). Data: real Binance 8h funding history.
+// Fees: spot taker 0.10%/side + perp taker 0.05%/side → 0.30% per round trip.
+// Yield is reported ON DEPLOYED CAPITAL (spot notional + equal perp margin =
+// 2× notional → funding/2), the honest number.
+// Deploy bar (future): all 6 windows positive AND net ≥5%/yr on capital.
+function runV67bt() {
+  const RT_FEE=0.0030, NW=6, P8=8*3600_000
+  const loadFund=(c:string):{t:number,r:number}[]=>{
+    try {
+      const txt=Deno.readTextFileSync(`backtest/data/${c}-fund.csv`)
+      const fl:{t:number,r:number}[]=[]
+      for (const line of txt.split('\n')) {
+        if (!line || line[0]<'0'||line[0]>'9') continue
+        const i=line.indexOf(','); if (i<0) continue
+        let t=Number(line.slice(0,i)); if (t>1e14) t=Math.floor(t/1000)
+        const r=parseFloat(line.slice(i+1))
+        if (Number.isFinite(t)&&Number.isFinite(r)) fl.push({t,r})
+      }
+      fl.sort((a,b)=>a.t-b.t); return fl
+    } catch { return [] }
+  }
+  const fund:Record<string,{t:number,r:number}[]>={}
+  let tmin=Infinity,tmax=-Infinity
+  for (const c of COINS) {
+    const f=loadFund(c); if (f.length<300) continue
+    fund[c]=f
+    tmin=Math.min(tmin,f[0].t); tmax=Math.max(tmax,f[f.length-1].t)
+  }
+  const years=(tmax-tmin)/(365.25*86400000)
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  console.log(`  funding series: ${Object.keys(fund).length} coins, ${years.toFixed(1)} years`)
+
+  const report=(name:string,wSum:number[],flips:number)=>{
+    // wSum entries are net funding fractions ON NOTIONAL per window
+    const tot=wSum.reduce((a,b)=>a+b,0)
+    const annNotional=tot/years, annCap=annNotional/2
+    const ok=wSum.every(x=>x>0)?(annCap>=0.05?'✅ VALIDATED (≥5%/yr)':'(all+, <5%/yr bar)'):''
+    console.log(`  ${name.padEnd(30)} net/yr on capital=${(annCap*100).toFixed(1)}% (on notional ${(annNotional*100).toFixed(1)}%) flips=${flips} | w%: ${wSum.map(x=>((x>=0?'+':'')+(x*100/ (wSpan/(365.25*86400000)) /2).toFixed(1))).join(' ')} ${ok}`)
+  }
+
+  // ── A) always-on carry per major ──
+  console.log(`\n── A) ALWAYS-ON basis carry (enter once, hold 36m) ──`)
+  for (const c of ['BTC','ETH','SOL','BNB']) {
+    if (!fund[c]) continue
+    const wSum=new Array(NW).fill(0)
+    for (const p of fund[c]) wSum[winOf(p.t)]+=p.r
+    wSum[0]-=RT_FEE  // one round trip over the whole period
+    report(`${c} always-on`,wSum,1)
+  }
+
+  // ── B) threshold-gated carry (trailing 7d avg funding decides in/out) ──
+  console.log(`\n── B) GATED carry — in position only while trailing 7d avg funding > cutoff ──`)
+  for (const c of ['BTC','ETH']) {
+    if (!fund[c]) continue
+    for (const cut of [0, 0.00005, 0.0001]) {
+      const f=fund[c]; const wSum=new Array(NW).fill(0)
+      let inPos=false, flips=0
+      for (let i=21;i<f.length;i++) {           // 21 samples = 7 days trailing
+        let s=0; for (let k=i-21;k<i;k++) s+=f[k].r
+        const trail=s/21
+        const want=trail>cut
+        if (want!==inPos) { wSum[winOf(f[i].t)]-=RT_FEE/2; inPos=want; flips++ } // half RT per flip (one side opens, other closes later)
+        if (inPos) wSum[winOf(f[i].t)]+=f[i].r
+      }
+      report(`${c} gate>${(cut*100).toFixed(3)}%/8h`,wSum,flips)
+    }
+  }
+
+  // ── C) top-K funding rotation across CORE40 ──
+  console.log(`\n── C) TOP-K rotation — hold basis on K coins with highest trailing 7d funding, rebalance 3d ──`)
+  {
+    const syms=Object.keys(fund).filter(c=>CORE40.has(c))
+    const idx:Record<string,Map<number,number>>={}
+    for (const c of syms) { const m=new Map<number,number>(); for (const p of fund[c]) m.set(Math.round(p.t/P8), p.r); idx[c]=m }
+    for (const K of [3,5]) {
+      const wSum=new Array(NW).fill(0)
+      let held=new Set<string>(), flips=0
+      const start=Math.round(tmin/P8)+21, end=Math.round(tmax/P8)
+      for (let s8=start; s8<=end; s8++) {
+        const t=s8*P8
+        if ((s8-start)%9===0) {                  // every 3 days re-pick
+          const scored:{c:string,tr:number}[]=[]
+          for (const c of syms) {
+            let s=0,n=0
+            for (let k=s8-21;k<s8;k++){ const r=idx[c].get(k); if(r!==undefined){s+=r;n++} }
+            if (n>=15) scored.push({c,tr:s/n})
+          }
+          if (scored.length>=K*2) {
+            scored.sort((a,b)=>b.tr-a.tr)
+            const next=new Set(scored.slice(0,K).filter(x=>x.tr>0).map(x=>x.c))
+            let ch=0
+            for (const c of next) if (!held.has(c)) ch++
+            for (const c of held) if (!next.has(c)) ch++
+            if (ch>0) { wSum[winOf(t)]-=(ch/(2*K))*RT_FEE; flips+=ch }
+            held=next
+          }
+        }
+        for (const c of held) { const r=idx[c].get(s8); if (r!==undefined) wSum[winOf(t)]+=r/K }
+      }
+      report(`top-${K} rotation (3d)`,wSum,flips)
+    }
+  }
+  console.log(`\n  NB: needs a REAL spot leg — deployable only at the real-exchange stage.`)
+  console.log(`  ✅ bar: all ${NW} windows positive AND ≥5%/yr net on deployed capital.`)
+}
+
 // ─────────────────────────────────────────────────────────────
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
@@ -4870,6 +4982,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v65bt') {
     console.log(`████ V65BT — directional-concentration cap ████`)
     runV65bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v67bt') {
+    console.log(`\u2588\u2588\u2588\u2588 V67BT \u2014 BASIS CARRY (funding arbitrage) pre-validation \u2588\u2588\u2588\u2588`)
+    runV67bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v66bt') {
