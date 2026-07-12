@@ -1,19 +1,15 @@
-backtest 2026-07-12T20:19Z mode=v72bt months=36
-████ V72BT — learned multivariate sizing model (OLS combo vs flat/ADX-only) ████
+backtest 2026-07-12T21:26Z mode=v73bt months=36
+████ V73BT — Donchian adaptive window (vol-scaled) vs fixed-15 ████
   loaded 69 coins, 6 windows
-  collected 11218 breakout trades with features
 
-  FLAT (base, m=1):            rwAvgR=0.0469  all6=❌
-  windows: -0.003 +0.014 +0.120 +0.090 +0.053 -0.015
+── DONCHIAN ADAPTIVE: window breathes with vol (atrFast/atrRef)^k ──
+  k        avgW    n       totR     avgR      all6   windows
+  0 (fix)  15.0   11218     526  +0.0469   ❌    -0.003 +0.014 +0.120 +0.090 +0.053 -0.015
+  -0.50   15.1   11223     500  +0.0446   ❌    -0.007 +0.008 +0.115 +0.089 +0.052 -0.013
+  -0.25   15.0   11235     507  +0.0451   ❌    -0.006 +0.010 +0.117 +0.090 +0.051 -0.015
+  +0.25   15.0   11209     534  +0.0476   ❌    -0.001 +0.014 +0.122 +0.091 +0.052 -0.015
+  +0.50   14.9   11229     526  +0.0469   ❌    -0.003 +0.015 +0.122 +0.091 +0.049 -0.015
 
-  scheme                        rwAvgR   Δvs-base   all6   windows
-  ADX-only (learned tier)  s=0.25  +0.0534  +0.0065   ❌   -0.001 +0.027 +0.125 +0.104 +0.057 -0.010
-  ADX-only (learned tier)  s=0.5  +0.0593  +0.0124   ❌   +0.001 +0.037 +0.131 +0.117 +0.060 -0.006
-  ADX-only (learned tier)  s=0.75  +0.0615  +0.0146   ❌   -0.002 +0.039 +0.134 +0.123 +0.065 -0.005
-  FULL 5-feature combo     s=0.25  +0.0469  +0.0000   ❌   +0.000 +0.024 +0.121 +0.089 +0.058 -0.024
-  FULL 5-feature combo     s=0.5  +0.0470  +0.0001   ❌   +0.003 +0.031 +0.122 +0.090 +0.062 -0.032
-  FULL 5-feature combo     s=0.75  +0.0476  +0.0007   ❌   +0.005 +0.036 +0.124 +0.094 +0.063 -0.038
-
-  DEPLOY BAR: FULL combo must beat FLAT rwAvgR AND stay ✅ all-6-windows
-  AND beat ADX-only (else the multivariate combo adds nothing over the
-  single ADX tier we already run). Δ must clear the +0.004R noise floor.
+  DEPLOY BAR: an adaptive k must beat fixed-15 totR (526R) AND stay
+  ✅ all-6-windows. Note fixed-15 is the incumbent; adaptive adds a
+  parameter (k) that can overfit — needs a clear, robust win to justify.
