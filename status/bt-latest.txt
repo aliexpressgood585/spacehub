@@ -1,15 +1,25 @@
-backtest 2026-07-12T11:08Z mode=v65bt months=36
-████ V65BT — directional-concentration cap ████
-  loaded 69 coins, 6 windows
-  11218 DONCH4H trades
+backtest 2026-07-12T11:53Z mode=v66bt months=72
+████ V66BT — extended-history stress test (2020-2026) ████
+  history: 2020-07-01 → 2026-06-30 (6.0y), 69 coins
+  17795 DONCH4H trades over the full history
 
-── DIRECTIONAL-CONCENTRATION CAP (max simultaneous same-side DONCH4H) ──
-  no cap (live)      n=11218 totR 696 |  +0.014  +0.029  +0.134  +0.103  +0.068  +0.002 ✅base
-  cap 3  n= 2166 totR    23 skip=9052(80.7%, avg 0.0743R) |  +0.018  -0.064  +0.032  -0.039  +0.068  +0.056 
-  cap 4  n= 2725 totR    22 skip=8493(75.7%, avg 0.0793R) |  +0.023  -0.027  +0.015  -0.047  +0.062  +0.024 
-  cap 5  n= 3213 totR    58 skip=8005(71.4%, avg 0.0796R) |  +0.036  -0.015  +0.029  -0.048  +0.085  +0.023 
-  cap 6  n= 3662 totR    87 skip=7556(67.4%, avg 0.0806R) |  +0.028  -0.004  +0.026  -0.030  +0.096  +0.027 
-  cap 8  n= 4483 totR   163 skip=6735(60.0%, avg 0.0791R) |  +0.038  +0.004  +0.055  -0.002  +0.117  +0.009 
+── BY CALENDAR YEAR ──
+  2020                     n= 674 WR=62% totR=  -7 avg=-0.011 | L:+17(424) S:-25(250) | DD~43%
+  2021                     n=1788 WR=59% totR= -92 avg=-0.051 | L:-11(1181) S:-81(607) | DD~183%
+  2022                     n=2565 WR=65% totR=  25 avg=+0.010 | L:-122(1139) S:+147(1426) | DD~111%
+  2023                     n=2884 WR=62% totR= -13 avg=-0.005 | L:-26(1719) S:+13(1165) | DD~219%
+  2024                     n=3964 WR=68% totR= 344 avg=+0.087 | L:+0(2075) S:+344(1889) | DD~70%
+  2025                     n=3815 WR=66% totR= 338 avg=+0.089 | L:+160(2030) S:+178(1785) | DD~107%
+  2026                     n=2072 WR=64% totR=   6 avg=+0.003 | L:-78(949) S:+85(1123) | DD~204%
 
-  skip avg R < 0 ⇒ the capped clustered entries were net-losers (cap helps).
-  ✅>base = all 6 windows positive AND total R > no-cap. Also weigh the trade-count cut (rule 5).
+── NAMED CRISIS WINDOWS (survival test) ──
+  COVID crash 2020         (no data)
+  2021 bull leg            n= 473 WR=64% totR=  32 avg=+0.068 | L:+45(397) S:-12(76) | DD~58%
+  May-2021 crash           n= 426 WR=56% totR= -43 avg=-0.101 | L:-4(219) S:-39(207) | DD~77%
+  LUNA collapse            n= 397 WR=74% totR=  82 avg=+0.206 | L:-12(138) S:+94(259) | DD~39%
+  2022 full bear           n=2565 WR=65% totR=  25 avg=+0.010 | L:-122(1139) S:+147(1426) | DD~111%
+  FTX collapse             n= 237 WR=66% totR=  -2 avg=-0.006 | L:+0(89) S:-2(148) | DD~27%
+  2023-26 (live window)    n=12753 WR=65% totR= 664 avg=+0.052 | L:+54(6777) S:+610(5976) | DD~219%
+
+  NB: universe shrinks going back (many alts launched post-2021); pre-2021
+  samples are BTC/ETH/majors-heavy. R @1.25% risk; DD is single-position seq (real deeper).
