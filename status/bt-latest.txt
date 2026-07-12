@@ -1,17 +1,9 @@
-backtest 2026-07-12T15:32Z mode=v68bt months=36
-████ V68BT — volatility-spike guard + ADX-skip analysis ████
+backtest 2026-07-12T15:48Z mode=v69bt months=36
+████ V69BT — Heikin-Ashi smoothed breakout signal ████
   loaded 69 coins, 6 windows
 
-── A) VOLATILITY-SPIKE analysis (signal-bar range vs 20-bar avg) ──
-  calm  (<1.5×)          n= 5368 avg +0.0401R |  +0.028  -0.004  +0.124  +0.137  -0.067  -0.002
-  normal(1.5-2.5×)       n= 3992 avg +0.0714R |  -0.015  +0.061  +0.151  +0.084  +0.105  +0.008
-  spike (2.5-3.5×)       n= 1214 avg +0.0906R |  -0.045  -0.027  +0.121  +0.018  +0.444  +0.015
-  extreme(≥3.5×)         n=  655 avg +0.1260R |  +0.106  +0.201  +0.115  +0.072  +0.330  -0.061
-  → if extreme-spike avg << overall, a spike guard would help (but it CUTS trades = rule 5).
+── HEIKIN-ASHI vs STANDARD candle breakout signal ──
+  standard (live)      n=11218 WR=66.0% avg +0.0620R totR 696 ✅6w |  +0.014  +0.029  +0.134  +0.103  +0.068  +0.002
+  heikin-ashi          n= 6477 WR=65.7% avg +0.0638R totR 413  ≤base |  +0.068  +0.009  +0.101  +0.138  +0.063  -0.005
 
-── B) ADX-SKIP analysis (what the adx≤22 skipped breakouts would have done) ──
-  TAKEN (adx>22):   n=11229 avg +0.0617R
-  SKIPPED (adx≤22): n=12271 avg +0.0432R
-  → skipped avg << taken avg confirms the 22 gate keeps the good ones out of the bad.
-
-  (info-first: both A and B would CUT trades if turned into filters — rule 5.)
+  ✅6w+>base = deploy; else standard candle stays.
