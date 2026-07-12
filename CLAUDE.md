@@ -149,6 +149,16 @@ Also shipped: LIVE_READINESS.md (paper-vs-real gap, go-live checklist, staged
 capital plan). RESEARCH STATUS: 22 validation batches done; core params all
 confirmed optimal on re-test = strong signal we're at a real optimum. Highest-
 value next step is the LIVE transition, not batch 23.
+v65bt (2026-07-12): directional-concentration CAP (born from the live correlated
+long-cluster loss) REJECTED — decisively. Capping simultaneous same-side breakouts
+skips 60-80% of trades (massive rule-5 breach) and the SKIPPED trades average
++0.074-0.081R = WINNERS (better than the +0.062R overall). KEY LESSON: many
+simultaneous same-direction breakouts = a STRONGLY TRENDING market = exactly when
+breakouts pay most. The clustering is a TREND feature, not a risk bug; the rare
+bad cluster (the live night) is the unavoidable cost of the engine that makes
+most of the profit. This is the SECOND angle (after v57 size-shrink) to confirm:
+you cannot remove the correlated downside without killing the larger clustered
+upside. Correlation risk here is intrinsic to the momentum edge — accept it.
 
 ## Current state (2026-07-11)
 - Live: **v53.0** — DONCH4H final ladder third TRAILS (chandelier 2.5×ATR4;
