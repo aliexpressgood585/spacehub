@@ -363,6 +363,9 @@ const MAX_FUTURES_COINS    = 60          // v40: 40→60 — scan more liquid co
 const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD|PYUSD|AEUR|EURS|SUSD|XAUT|PAXG|WBTC|WETH)USDT$/
 
 let _lastFetchSource = 'unknown'  // tracked for donch_test diagnostic
+// v54.1: per-source feed health counters (reset each cycle, saved to bot_state)
+let _feedStats = { binance:{ok:0,fail:0}, okx:{ok:0,fail:0}, bybit:{ok:0,fail:0} }
+const resetFeedStats = () => { _feedStats = { binance:{ok:0,fail:0}, okx:{ok:0,fail:0}, bybit:{ok:0,fail:0} } }
 
 async function fetchFuturesCoins(): Promise<CoinInfo[]> {
   const EXCL = /^(.*)(UP|DOWN|BULL|BEAR|HEDGE|3L|3S|5L|5S)USDT$/
@@ -513,10 +516,13 @@ async function fetchBars(sym:string, interval:string, limit:number): Promise<Bar
     )
     if (res.ok) {
       const data:number[][] = await res.json()
-      if (Array.isArray(data) && data.length)
+      if (Array.isArray(data) && data.length) {
+        _feedStats.binance.ok++
         return data.map(k=>({open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
+      }
     }
-  } catch { /* fall through */ }
+    _feedStats.binance.fail++
+  } catch { _feedStats.binance.fail++ }
   // v41.2 fallback: OKX perp candles — Supabase egress IPs are sometimes
   // geo-blocked/rate-limited by Binance; OKX serves the same market data.
   // v46: 3 attempts with backoff (OKX rate limits under burst load)
@@ -530,12 +536,15 @@ async function fetchBars(sym:string, interval:string, limit:number): Promise<Bar
       if (res.ok) {
         const j = await res.json()
         const rows: string[][] = j?.data ?? []
-        if (rows.length)
+        if (rows.length) {
+          _feedStats.okx.ok++
           // OKX returns newest-first incl. the in-progress candle → reverse to
           // match Binance semantics (oldest-first, last = current partial bar).
           return rows.reverse().map(k=>({open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
+        }
       }
-    } catch { /* retry */ }
+      _feedStats.okx.fail++
+    } catch { _feedStats.okx.fail++ }
     await new Promise(r=>setTimeout(r, 350*(attempt+1)))
   }
   // v47.1 fallback #3: Bybit linear perp candles — third independent source so a
@@ -549,11 +558,14 @@ async function fetchBars(sym:string, interval:string, limit:number): Promise<Bar
     if (res.ok) {
       const j = await res.json()
       const rows: string[][] = j?.result?.list ?? []
-      if (rows.length)
+      if (rows.length) {
+        _feedStats.bybit.ok++
         // Bybit also returns newest-first → reverse to Binance semantics.
         return rows.reverse().map(k=>({open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
+      }
     }
-  } catch { /* give up */ }
+    _feedStats.bybit.fail++
+  } catch { _feedStats.bybit.fail++ }
   return []
 }
 
@@ -2319,6 +2331,7 @@ Deno.serve(async (req) => {
     }
 
     const log:string[]=[]
+    resetFeedStats()  // v54.1: per-cycle feed health counters
     if (streakPaused) log.push(`STREAK PAUSE ${streak}`)
     if (dynamicBlacklist.size>0) log.push(`BLACKLIST ${[...dynamicBlacklist].join(',')}`)
 
@@ -3548,6 +3561,8 @@ Deno.serve(async (req) => {
       // v52.1: shield state published for the dashboard + watchdog alerts
       shields: { donch_paused: donchPaused, rota_paused: rotaPaused,
                  day_loss_paused: dayLossPaused, depeg_paused: depegPaused },
+      // v54.1: per-source feed health for the dashboard panel
+      feed_health: { ..._feedStats, source: _lastFetchSource, ts: new Date().toISOString() },
     }).eq('id',1)
 
     return new Response(JSON.stringify({
