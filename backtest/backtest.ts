@@ -5195,6 +5195,144 @@ function runV71bt() {
   console.log(`  stays ✅ AND > Donchian at 3-6 bps (realistic live cost).`)
 }
 
+// v72bt: LEARNED MULTIVARIATE SIZING. Every prior sizing test tuned ONE feature
+// in isolation (ADX tiers, vol tilt, dominance tilt, whale tilt) — all noise
+// alone except ADX. This is the first test of a LEARNED COMBINATION: fit an OLS
+// model R ~ [adx, vol, breakout-body, breakout-distance, momentum] out-of-sample
+// (train on 5 windows, size the 6th), map predicted-edge → risk multiplier
+// (bounded, no trade cut = rule 5 safe). Question: does the multivariate combo
+// beat flat sizing AND beat the single-ADX model we already run, in all 6 windows?
+function runV72bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000, SLIP=0.0003
+  const toTf=(a:Bar[],ms:number):Bar[]=>{
+    const out:Bar[]=[]; let cur:Bar|null=null; let bucket=-1
+    for(const b of a){const k=Math.floor(b.t/ms)
+      if(k!==bucket){if(cur)out.push(cur);bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol}}
+      else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol}}
+    if(cur)out.push(cur);return out}
+  const d4:Record<string,Bar[]>={}
+  let tmin=Infinity,tmax=-Infinity
+  for(const c of COINS){const h=loadCSV(c,'1h');if(h.length<500)continue
+    d4[c]=toTf(h,BAR4);tmin=Math.min(tmin,h[0].t);tmax=Math.max(tmax,h[h.length-1].t)}
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${NW} windows`)
+
+  const ladder=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,atr:number,jEnd:number)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const legs=[{r:0.6,frac:1/3},{r:1.0,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0,ext=entry
+    for(let j=j0+1;j<=jEndc;j++){const b=arr[j]
+      const stop=si>=2?(side==='LONG'?ext-2.5*atr:ext+2.5*atr):(be?entry:slPx)
+      if(side==='LONG'?b.low<=stop:b.high>=stop){banked+=rem*(si>=2?(stop-entry)*dirM/slDist:(be?0:-1));rem=0;break}
+      while(si<legs.length){const tgt=entry+slDist*legs[si].r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=legs[si].frac*legs[si].r;tpFrac+=legs[si].frac;rem-=legs[si].frac;be=true;si++}
+      if(si>=2)ext=side==='LONG'?Math.max(ext,b.high):Math.min(ext,b.low)
+      if(rem<=1e-9)break}
+    if(rem>1e-9)banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return {r:banked,tpFrac}}
+
+  // 1) collect every live-gate breakout with features (all measured at signal
+  //    time i — no lookahead) and its realized net R (fees + 3bps live slippage).
+  type Row={w:number,x:number[],r:number}
+  const rows:Row[]=[]
+  const FN=['adx','vol','body','dist','mom']  // feature names (intercept added in fit)
+  for(const c of Object.keys(d4)){
+    if(!CORE40.has(c))continue
+    const arr=d4[c];let last=-999
+    for(let i=100;i<arr.length-1;i++){
+      const price=arr[i].close
+      const prior=arr.slice(i-15,i);let hi=-Infinity,lo=Infinity
+      for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+      const side:'LONG'|'SHORT'|null=price>hi?'LONG':price<lo?'SHORT':null
+      if(!side)continue
+      const win=arr.slice(Math.max(0,i-99),i+1)
+      const adx=calcADX(win.slice(-60));if(adx<=22)continue
+      const atr=calcATR(win.slice(-20));if(!atr)continue
+      if(i-last<2)continue
+      last=i
+      const slDist=Math.max(atr*1.4,price*0.005),slPct=slDist/price
+      if(slPct>0.08)continue
+      const res=ladder(arr,i,price,side,slDist,atr,i+96)
+      const slipR=(1+(1-res.tpFrac))*SLIP/slPct
+      const net=res.r-(TK+res.tpFrac*MK+(1-res.tpFrac)*TK)/slPct-slipR
+      const bar=arr[i]
+      const f_adx=adx
+      const f_vol=atr/price
+      const f_body=Math.abs(bar.close-bar.open)/atr
+      const f_dist=(side==='LONG'?(price-hi):(lo-price))/atr
+      const f_mom=side==='LONG'?(price/arr[i-14].close-1):(arr[i-14].close/price-1)
+      rows.push({w:winOf(bar.t),x:[f_adx,f_vol,f_body,f_dist,f_mom],r:net})
+    }
+  }
+  console.log(`  collected ${rows.length} breakout trades with features\n`)
+
+  // OLS via normal equations (X'X b = X'y), Gauss-Jordan solve. Features
+  // standardized on TRAIN only; intercept prepended.
+  const ols=(rowsTr:Row[],feats:number[])=>{
+    // standardize chosen features on TRAIN only
+    const p=feats.length
+    const mean=feats.map(fi=>rowsTr.reduce((a,r)=>a+r.x[fi],0)/rowsTr.length)
+    const sd=feats.map((fi,k)=>{const v=rowsTr.reduce((a,r)=>a+(r.x[fi]-mean[k])**2,0)/rowsTr.length;return Math.sqrt(v)||1})
+    const dim=p+1  // + intercept
+    const XtX=Array.from({length:dim},()=>new Array(dim).fill(0))
+    const Xty=new Array(dim).fill(0)
+    for(const r of rowsTr){
+      const z=[1,...feats.map((fi,k)=>(r.x[fi]-mean[k])/sd[k])]
+      for(let a=0;a<dim;a++){Xty[a]+=z[a]*r.r;for(let bb=0;bb<dim;bb++)XtX[a][bb]+=z[a]*z[bb]}}
+    // Gaussian elimination with back-substitution
+    const Maug=XtX.map((row,i)=>[...row,Xty[i]])
+    for(let col=0;col<dim;col++){
+      let piv=col;for(let r=col+1;r<dim;r++)if(Math.abs(Maug[r][col])>Math.abs(Maug[piv][col]))piv=r
+      if(Math.abs(Maug[piv][col])<1e-12)return null
+      ;[Maug[col],Maug[piv]]=[Maug[piv],Maug[col]]
+      const pv=Maug[col][col];for(let k=col;k<=dim;k++)Maug[col][k]/=pv
+      for(let r=0;r<dim;r++){if(r===col)continue;const f=Maug[r][col]
+        for(let k=col;k<=dim;k++)Maug[r][k]-=f*Maug[col][k]}}
+    const beta=Maug.map(r=>r[dim])
+    return {beta,mean,sd,feats,
+      pred:(x:number[])=>beta[0]+feats.reduce((a,fi,k)=>a+beta[k+1]*(x[fi]-mean[k])/sd[k],0)}
+  }
+  // sizing: predicted edge → bounded multiplier m=clamp(1+slope*z,mLo,mHi), z=(pred-μ)/σ
+  // of TRAIN predictions. Metric = risk-weighted avg R = Σ(m·r)/Σm (R per unit
+  // risk deployed) — rises only if the model up-sizes the genuinely better trades.
+  const evalScheme=(feats:number[]|null,slope:number,mLo:number,mHi:number)=>{
+    const wnum=Array.from({length:NW},()=>({mr:0,m:0}))
+    for(let tw=0;tw<NW;tw++){
+      const tr=rows.filter(r=>r.w!==tw),te=rows.filter(r=>r.w===tw)
+      let m_of:(r:Row)=>number
+      if(!feats){m_of=()=>1}
+      else{const model=ols(tr,feats);if(!model){m_of=()=>1}
+        else{const preds=tr.map(r=>model.pred(r.x))
+          const pm=preds.reduce((a,x)=>a+x,0)/preds.length
+          const ps=Math.sqrt(preds.reduce((a,x)=>a+(x-pm)**2,0)/preds.length)||1
+          m_of=(r:Row)=>Math.max(mLo,Math.min(mHi,1+slope*(model.pred(r.x)-pm)/ps))}}
+      for(const r of te){const m=m_of(r);wnum[tw].mr+=m*r.r;wnum[tw].m+=m}}
+    const wAvg=wnum.map(w=>w.m?w.mr/w.m:0)
+    const totMr=wnum.reduce((a,w)=>a+w.mr,0),totM=wnum.reduce((a,w)=>a+w.m,0)
+    return {rwAvg:totMr/totM, allPos:wAvg.every(x=>x>0), wAvg}}
+
+  const base=evalScheme(null,0,1,1)
+  console.log(`  FLAT (base, m=1):            rwAvgR=${base.rwAvg.toFixed(4)}  all6=${base.allPos?'✅':'❌'}`)
+  console.log(`  windows: ${base.wAvg.map(x=>(x>=0?'+':'')+x.toFixed(3)).join(' ')}\n`)
+  console.log(`  scheme                        rwAvgR   Δvs-base   all6   windows`)
+  const adxOnly=[0]  // feature index 0 = adx (the single feature we already tier on)
+  const full=[0,1,2,3,4]
+  for(const [name,feats] of [['ADX-only (learned tier)',adxOnly],['FULL 5-feature combo',full]] as [string,number[]][]){
+    for(const slope of [0.25,0.5,0.75]){
+      const s=evalScheme(feats,slope,0.5,2.5)
+      const d=s.rwAvg-base.rwAvg
+      console.log(`  ${name.padEnd(24)} s=${slope}  ${(s.rwAvg>=0?'+':'')}${s.rwAvg.toFixed(4)}  ${(d>=0?'+':'')}${d.toFixed(4)}   ${s.allPos?'✅':'❌'}   ${s.wAvg.map(x=>(x>=0?'+':'')+x.toFixed(3)).join(' ')}`)
+    }
+  }
+  console.log(`\n  DEPLOY BAR: FULL combo must beat FLAT rwAvgR AND stay ✅ all-6-windows`)
+  console.log(`  AND beat ADX-only (else the multivariate combo adds nothing over the`)
+  console.log(`  single ADX tier we already run). Δ must clear the +0.004R noise floor.`)
+}
+
 // ─────────────────────────────────────────────────────────────
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
@@ -5371,6 +5509,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v66bt') {
     console.log(`████ V66BT — extended-history stress test (2020-2026) ████`)
     runV66bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v72bt') {
+    console.log(`████ V72BT — learned multivariate sizing model (OLS combo vs flat/ADX-only) ████`)
+    runV72bt()
     return
   }
 
