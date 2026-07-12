@@ -4422,6 +4422,129 @@ function runV63bt() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// v64bt: (A) SL-multiplier × ATR-period re-tune on DW=15 — the stop (1.4×ATR20)
+//  was fit on DW=25; check it's still optimal on the live config (like the ADX
+//  tiers were). (B) cross-sleeve confluence: upsize a DONCH4H breakout that is
+//  ALSO a top/bottom ROTA momentum pick (two independent systems agree = higher
+//  conviction). Sizing tilt, never cuts trades. Deploy bar: all 6 windows.
+function runV64bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000
+  const toTf=(a:Bar[],ms:number):Bar[]=>{
+    const out:Bar[]=[]; let cur:Bar|null=null; let bucket=-1
+    for(const b of a){const k=Math.floor(b.t/ms)
+      if(k!==bucket){if(cur)out.push(cur);bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol}}
+      else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol}}
+    if(cur)out.push(cur);return out}
+  const d4:Record<string,Bar[]>={}
+  let tmin=Infinity,tmax=-Infinity
+  for(const c of COINS){const h=loadCSV(c,'1h');if(h.length<500)continue
+    d4[c]=toTf(h,BAR4);tmin=Math.min(tmin,h[0].t);tmax=Math.max(tmax,h[h.length-1].t)}
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${NW} windows`)
+  const closeAt:Record<string,Map<number,number>>={}
+  for(const c of Object.keys(d4)){const m=new Map<number,number>();for(const b of d4[c])m.set(b.t,b.close);closeAt[c]=m}
+
+  const ladder=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,atr:number,jEnd:number)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const legs=[{r:0.6,frac:1/3},{r:1.0,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0,ext=entry
+    for(let j=j0+1;j<=jEndc;j++){const b=arr[j]
+      const stop=si>=2?(side==='LONG'?ext-2.5*atr:ext+2.5*atr):(be?entry:slPx)
+      if(side==='LONG'?b.low<=stop:b.high>=stop){banked+=rem*(si>=2?(stop-entry)*dirM/slDist:(be?0:-1));rem=0;break}
+      while(si<legs.length){const tgt=entry+slDist*legs[si].r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=legs[si].frac*legs[si].r;tpFrac+=legs[si].frac;rem-=legs[si].frac;be=true;si++}
+      if(si>=2)ext=side==='LONG'?Math.max(ext,b.high):Math.min(ext,b.low)
+      if(rem<=1e-9)break}
+    if(rem>1e-9)banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return {r:banked,tpFrac}}
+
+  // 14d (84-bar) momentum rank helper for confluence
+  const momAt=(c:string,t:number)=>{const a=closeAt[c].get(t-84*BAR4),b=closeAt[c].get(t);return(a&&b&&a>0)?b/a-1:null}
+  const isRotaPick=(sym:string,t:number,side:'LONG'|'SHORT'):boolean=>{
+    const scored:{c:string,m:number}[]=[]
+    for(const c of Object.keys(d4)){if(!CORE40.has(c))continue;const m=momAt(c,t);if(m!==null)scored.push({c,m})}
+    if(scored.length<32)return false
+    scored.sort((a,b)=>b.m-a.m)
+    const top=new Set(scored.slice(0,8).map(x=>x.c)),bot=new Set(scored.slice(-8).map(x=>x.c))
+    return side==='LONG'?top.has(sym):bot.has(sym)}
+
+  // ── A) SL multiplier × ATR period sweep ──
+  console.log(`\n── A) SL-MULTIPLIER × ATR-PERIOD re-tune (DW=15, v53 exit) ──`)
+  const sweepSL=(SLM:number,ATRP:number)=>{
+    const ws:{n:number,sum:number}[]=Array.from({length:NW},()=>({n:0,sum:0}))
+    for(const c of Object.keys(d4)){
+      if(!CORE40.has(c))continue
+      const arr=d4[c];let last=-999
+      for(let i=100;i<arr.length-1;i++){
+        const price=arr[i].close
+        const prior=arr.slice(i-15,i);let hi=-Infinity,lo=Infinity
+        for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+        const side:'LONG'|'SHORT'|null=price>hi?'LONG':price<lo?'SHORT':null
+        if(!side)continue
+        const win=arr.slice(Math.max(0,i-99),i+1)
+        const adx=calcADX(win.slice(-60));if(adx<=22)continue
+        const atr=calcATR(win.slice(-ATRP));if(!atr)continue
+        if(i-last<2)continue
+        last=i
+        const slDist=Math.max(atr*SLM,price*0.005),slPct=slDist/price
+        if(slPct>0.08)continue
+        const res=ladder(arr,i,price,side,slDist,atr,i+96)
+        const net=res.r-(TK+res.tpFrac*MK+(1-res.tpFrac)*TK)/slPct
+        const w=ws[winOf(arr[i].t)];w.n++;w.sum+=net}
+    }
+    const tot=ws.reduce((a,x)=>({n:a.n+x.n,sum:a.sum+x.sum}),{n:0,sum:0})
+    const wA=ws.map(x=>x.n?x.sum/x.n:0)
+    return {n:tot.n,avg:tot.sum/tot.n,tot:tot.sum,allPos:wA.every(x=>x>0)}}
+  console.log(`  config           n      avg      totR   all6w`)
+  for(const ATRP of [14,20,30])for(const SLM of [1.2,1.4,1.6,1.8]){
+    const r=sweepSL(SLM,ATRP)
+    const tag=(SLM===1.4&&ATRP===20)?' (LIVE)':''
+    console.log(`  ATR${ATRP} SL${SLM.toFixed(1)}${tag.padEnd(8)} ${String(r.n).padStart(5)}  ${(r.avg>=0?'+':'')}${r.avg.toFixed(4)}  ${r.tot.toFixed(0).padStart(5)}   ${r.allPos?'✅':''}`)}
+
+  // ── B) cross-sleeve confluence sizing ──
+  console.log(`\n── B) CROSS-SLEEVE CONFLUENCE (breakout also a ROTA momentum pick → upsize) ──`)
+  interface T{win:number;net:number;conf:boolean}
+  const trades:T[]=[]
+  for(const c of Object.keys(d4)){
+    if(!CORE40.has(c))continue
+    const arr=d4[c];let last=-999
+    for(let i=100;i<arr.length-1;i++){
+      const price=arr[i].close
+      const prior=arr.slice(i-15,i);let hi=-Infinity,lo=Infinity
+      for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+      const side:'LONG'|'SHORT'|null=price>hi?'LONG':price<lo?'SHORT':null
+      if(!side)continue
+      const win=arr.slice(Math.max(0,i-99),i+1)
+      const adx=calcADX(win.slice(-60));if(adx<=22)continue
+      const atr=calcATR(win.slice(-20));if(!atr)continue
+      if(i-last<2)continue
+      last=i
+      const slDist=Math.max(atr*1.4,price*0.005),slPct=slDist/price
+      if(slPct>0.08)continue
+      const res=ladder(arr,i,price,side,slDist,atr,i+96)
+      const net=res.r-(TK+res.tpFrac*MK+(1-res.tpFrac)*TK)/slPct
+      trades.push({win:winOf(arr[i].t),net,conf:isRotaPick(c,arr[i].t,side)})}
+  }
+  const nConf=trades.filter(t=>t.conf).length
+  console.log(`  ${trades.length} trades, ${nConf} (${(100*nConf/trades.length).toFixed(0)}%) also a ROTA momentum pick`)
+  console.log(`  confluence-only avg: ${(trades.filter(t=>t.conf).reduce((a,t)=>a+t.net,0)/Math.max(1,nConf)).toFixed(4)}R  vs non-conf: ${(trades.filter(t=>!t.conf).reduce((a,t)=>a+t.net,0)/Math.max(1,trades.length-nConf)).toFixed(4)}R`)
+  const evalC=(name:string,mult:number)=>{
+    const base=Array.from({length:NW},()=>({s:0,w:0})),tilt=Array.from({length:NW},()=>({s:0,w:0}))
+    for(const t of trades){base[t.win].s+=t.net;base[t.win].w+=1;const g=t.conf?mult:1;tilt[t.win].s+=t.net*g;tilt[t.win].w+=g}
+    const bA=base.map(x=>x.w?x.s/x.w:0),tA=tilt.map(x=>x.w?x.s/x.w:0)
+    const better=tA.map((x,i)=>x>bA[i])
+    const bT=base.reduce((a,x)=>a+x.s,0)/base.reduce((a,x)=>a+x.w,0),tT=tilt.reduce((a,x)=>a+x.s,0)/tilt.reduce((a,x)=>a+x.w,0)
+    console.log(`  ${name.padEnd(22)} avg ${(tT>=0?'+':'')+tT.toFixed(4)}R vs ${(bT>=0?'+':'')+bT.toFixed(4)} | ${tA.map((x,i)=>(((x>=0?'+':'')+x.toFixed(3))+(better[i]?'▲':'▽')).padStart(8)).join(' ')} ${tA.every(x=>x>0)&&better.every(Boolean)&&(tT-bT)>0.004?'✅':''}`)}
+  evalC('confluence 1.25×',1.25)
+  evalC('confluence 1.5×',1.5)
+  console.log(`\n✅ = beats base in all 6 windows AND >+0.004R total.`)
+}
+
+// ─────────────────────────────────────────────────────────────
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
@@ -4557,6 +4680,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v63bt') {
     console.log(`████ V63BT — WR-optimized ladder (first-leg R + BE timing) ████`)
     runV63bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v64bt') {
+    console.log(`████ V64BT — SL/ATR re-tune + cross-sleeve confluence ████`)
+    runV64bt()
     return
   }
 
