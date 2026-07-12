@@ -43,7 +43,7 @@ jobs:
           q2() { curl -s -X POST "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
             -H "Content-Type: application/json" -d "{\"query\": \"$1\"}"; }
-          q2 "SELECT strategy, count(*) AS n, round(100.0*count(*) FILTER (WHERE pnl>0)/count(*),1) AS wr, round(avg(pnl)::numeric,2) AS avg_pnl FROM bot_trades WHERE status != 'OPEN' AND strategy IN ('DONCH4H','ROTA') AND closed_at >= (SELECT COALESCE(min(ts),'2026-01-01'::timestamptz) FROM bot_equity) GROUP BY 1;" > /tmp/lvb.json
+          q2 "SELECT strategy, count(*) AS n, round(100.0*count(*) FILTER (WHERE pnl>0)/count(*),1) AS wr, round(avg(pnl)::numeric,2) AS avg_pnl, round(avg(pnl/NULLIF(risk_usd,0)) FILTER (WHERE risk_usd>0)::numeric,4) AS avg_r FROM bot_trades WHERE status != 'OPEN' AND strategy IN ('DONCH4H','ROTA') AND closed_at >= (SELECT COALESCE(min(ts),'2026-01-01'::timestamptz) FROM bot_equity) GROUP BY 1;" > /tmp/lvb.json
           python3 - >> $out <<'PYEOF3'
           import json
           try: rows=json.load(open('/tmp/lvb.json'))
@@ -54,7 +54,8 @@ jobs:
               st=r['strategy']; n=int(r['n']); wr=float(r['wr'] or 0)
               b=bands.get(st,{}); lo,hi=b.get('wr',(0,100))
               verdict='SAMPLE TOO SMALL (<30)' if n<30 else ('IN BAND ✓' if lo<=wr<=hi else '⚠️ OUT OF BAND — investigate')
-              print(f"  {st}: n={n} WR={wr}% avg_pnl=${r['avg_pnl']} | expected: {b.get('target','')} | {verdict}")
+              ar=r.get('avg_r')
+              print(f"  {st}: n={n} WR={wr}% avg_pnl=${r['avg_pnl']} avgR={ar if ar is not None else 'n/a'} | expected: {b.get('target','')} | {verdict}")
           PYEOF3
           echo "=== OPEN POSITIONS LIVE P&L (OKX marks) ===" >> $out
           curl -s -X POST "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \

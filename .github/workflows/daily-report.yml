@@ -30,6 +30,7 @@ jobs:
           q "SELECT count(*) AS open_n, round(sum(entry_price*size)::numeric,0) AS notional FROM bot_trades WHERE status='OPEN';" > /tmp/open.json
           q "SELECT COALESCE(strategy,'LEGACY') AS strat, count(*) AS n, count(*) FILTER (WHERE pnl>0) AS wins, round(sum(pnl)::numeric,2) AS pnl FROM bot_trades WHERE status != 'OPEN' AND closed_at > now() - interval '24 hours' GROUP BY 1;" > /tmp/day.json
           q "SELECT COALESCE(strategy,'LEGACY') AS strat, count(*) AS n, count(*) FILTER (WHERE pnl>0) AS wins, round(sum(pnl)::numeric,2) AS pnl FROM bot_trades WHERE status != 'OPEN' AND closed_at >= (SELECT COALESCE(min(ts),'2026-01-01'::timestamptz) FROM bot_equity) GROUP BY 1 ORDER BY 1;" > /tmp/all.json
+          q "SELECT round(avg(pnl/NULLIF(risk_usd,0))::numeric,4) AS avg_r, count(*) AS n FROM bot_trades WHERE status != 'OPEN' AND strategy='DONCH4H' AND risk_usd>0 AND closed_at >= (SELECT COALESCE(min(ts),'2026-01-01'::timestamptz) FROM bot_equity);" > /tmp/avgr.json
           python3 - > /tmp/report.md <<'PYEOF'
           import json
           def load(p):
@@ -47,6 +48,9 @@ jobs:
           for r in alls:
               print(f"- {r['strat']}: {r['n']} סגורות, {r['wins']} מנצחות, P&L ${r['pnl']}")
               if r['strat']=='DONCH4H': donch_n=int(r['n'])
+          avgr=load('/tmp/avgr.json')
+          if avgr and avgr[0].get('avg_r') is not None and int(avgr[0]['n'])>0:
+              print(f"\n**R ממוצע חי (פריצות):** {avgr[0]['avg_r']}R על {avgr[0]['n']} עסקאות | יעד: +0.046R")
           print(f"\n**התקדמות לבדיקת הרצועות:** {donch_n}/50 עסקאות DONCH4H")
           if donch_n>=50: print("👉 הגיע הזמן להשוות לרצועות הציפייה ולשקול העלאת סיכון (ראה CLAUDE.md).")
           PYEOF

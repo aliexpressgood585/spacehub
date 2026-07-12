@@ -1,22 +1,25 @@
-backtest 2026-07-11T22:38Z mode=v55bt months=36
-████ V55BT — BREADTH: Donchian ensemble / ROTA dual horizon / 12h sleeve ████
-  loaded 69 coins, 6 windows
+backtest 2026-07-12T11:53Z mode=v66bt months=72
+████ V66BT — extended-history stress test (2020-2026) ████
+  history: 2020-07-01 → 2026-06-30 (6.0y), 69 coins
+  17795 DONCH4H trades over the full history
 
-── A) DONCH 4h length ensemble — DW=15 / 25 (live) / 40 as parallel sleeves ──
-  each sleeve: ADX(60)>22, SL=1.4×ATR, ladder 0.6/1.0/1.6R, hold 96 bars
-  DW=25 (live baseline)    n= 8421  avg +0.0499R | w:   +7.1‰   +7.3‰ +122.2‰  +79.8‰  +41.1‰  +16.2‰ ✅
-  DW=15 (fast sleeve)      n=11218  avg +0.0456R | w:   +6.2‰  +37.0‰  +96.9‰  +84.1‰  +10.9‰  +20.4‰ ✅ DEPLOYABLE
-  DW=40 (slow sleeve)      n= 6368  avg +0.0607R | w:   -6.2‰   +5.7‰ +127.4‰  +72.4‰  +50.7‰  +74.0‰ 
-  deploy bar (new sleeve): all 6 windows positive AND avg ≥ +0.004R standalone.
+── BY CALENDAR YEAR ──
+  2020                     n= 674 WR=62% totR=  -7 avg=-0.011 | L:+17(424) S:-25(250) | DD~43%
+  2021                     n=1788 WR=59% totR= -92 avg=-0.051 | L:-11(1181) S:-81(607) | DD~183%
+  2022                     n=2565 WR=65% totR=  25 avg=+0.010 | L:-122(1139) S:+147(1426) | DD~111%
+  2023                     n=2884 WR=62% totR= -13 avg=-0.005 | L:-26(1719) S:+13(1165) | DD~219%
+  2024                     n=3964 WR=68% totR= 344 avg=+0.087 | L:+0(2075) S:+344(1889) | DD~70%
+  2025                     n=3815 WR=66% totR= 338 avg=+0.089 | L:+160(2030) S:+178(1785) | DD~107%
+  2026                     n=2072 WR=64% totR=   6 avg=+0.003 | L:-78(949) S:+85(1123) | DD~204%
 
-── B) ROTA K=7 dual horizon — LB=84 (14d live) vs LB=42 (7d) vs 50/50 blend ──
-  LB=84 (14d)    (live baseline)          annT=38.2% maxDD=20% | bps/period:   +25   +39   +13    +7   +24    +8 ✅
-  LB=42 (7d)     below baseline (38.2%)   annT=13.5% maxDD=39% | bps/period:   +14   +24   +20   -37   +15   +15 
-  50/50 blend    below baseline (38.2%)   annT=25.9% maxDD=22% | bps/period:   +20   +31   +17   -15   +19   +12 
-  deploy blend only if all windows positive AND annT ≥ LB=84 annT.
+── NAMED CRISIS WINDOWS (survival test) ──
+  COVID crash 2020         (no data)
+  2021 bull leg            n= 473 WR=64% totR=  32 avg=+0.068 | L:+45(397) S:-12(76) | DD~58%
+  May-2021 crash           n= 426 WR=56% totR= -43 avg=-0.101 | L:-4(219) S:-39(207) | DD~77%
+  LUNA collapse            n= 397 WR=74% totR=  82 avg=+0.206 | L:-12(138) S:+94(259) | DD~39%
+  2022 full bear           n=2565 WR=65% totR=  25 avg=+0.010 | L:-122(1139) S:+147(1426) | DD~111%
+  FTX collapse             n= 237 WR=66% totR=  -2 avg=-0.006 | L:+0(89) S:-2(148) | DD~27%
+  2023-26 (live window)    n=12753 WR=65% totR= 664 avg=+0.052 | L:+54(6777) S:+610(5976) | DD~219%
 
-── C) 12h DONCH-25 sleeve (hold cap 32 bars ≈ 16d; daily failed, 12h untested) ──
-  12h DW=25                n= 1785  avg +0.0468R | w:  +50.4‰   -9.4‰  -19.0‰  +57.9‰  +26.6‰ +148.1‰ 
-  deploy bar: all 6 windows positive AND avg ≥ +0.004R standalone.
-
-✅ = all 6 windows positive.
+  NB: universe shrinks going back (many alts launched post-2021); pre-2021
+  samples are BTC/ETH/majors-heavy. R @1.25% risk; DD is single-position seq (real deeper).

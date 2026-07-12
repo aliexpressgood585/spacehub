@@ -27,7 +27,7 @@ jobs:
           row=$(curl -s -X POST "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d '{"query": "SELECT updated_at, balance FROM bot_state WHERE id=1;"}')
+            -d '{"query": "SELECT updated_at, balance, shields FROM bot_state WHERE id=1;"}')
           echo "state: $row"
           upd=$(echo "$row" | grep -o '"updated_at":"[^"]*"' | cut -d'"' -f4)
           if [ -z "$upd" ]; then verdict="NO_STATE"; else
@@ -60,4 +60,35 @@ jobs:
               echo "recovery: issue #$existing closed"
             fi
             echo "heartbeat OK"
+          fi
+
+          # v52.1: shield-trigger alerts — any active shield opens its own issue
+          active=$(echo "$row" | python3 -c "
+          import json,sys
+          try:
+              d=json.load(sys.stdin); sh=(d[0].get('shields') or {}) if d else {}
+              names={'donch_paused':'פריצות מושהות (kill-switch)','rota_paused':'רוטציה מושהית (kill-switch)','day_loss_paused':'בלם יום שחור -5% דרוך','depeg_paused':'🚨 חשד לדה-פג USDT'}
+              print(', '.join(v for k,v in names.items() if sh.get(k)))
+          except Exception: print('')")
+          shissue=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/issues?state=open&labels=shield" \
+            | grep -o '"number": *[0-9]*' | head -1 | grep -o '[0-9]*' || true)
+          if [ -n "$active" ]; then
+            if [ -z "$shissue" ]; then
+              curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" \
+                "https://api.github.com/repos/${{ github.repository }}/issues" \
+                -d "{\"title\":\"🛡️ מגן הופעל: ${active}\",\"body\":\"מגן סיכון פעיל כרגע: ${active}. כניסות חדשות מושהות עד החלמה. הפוזיציות הפתוחות ממשיכות להיות מנוהלות כרגיל.\",\"labels\":[\"shield\"]}" > /dev/null
+              echo "shield issue opened: $active"
+            else echo "shield issue already open"; fi
+          else
+            if [ -n "$shissue" ]; then
+              curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" \
+                "https://api.github.com/repos/${{ github.repository }}/issues/$shissue/comments" \
+                -d '{"body":"✅ כל המגנים שוחררו — המסחר חזר למצב רגיל."}' > /dev/null
+              curl -s -X PATCH -H "Authorization: Bearer $GH_TOKEN" \
+                "https://api.github.com/repos/${{ github.repository }}/issues/$shissue" \
+                -d '{"state":"closed"}' > /dev/null
+              echo "shield issue closed"
+            fi
+            echo "shields clear"
           fi

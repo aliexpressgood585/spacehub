@@ -1,0 +1,46 @@
+name: Trade Journal Backup
+
+# Weekly CSV export of the full trade history → committed to the repo.
+# Backup (the DB is otherwise a single copy) + an Excel-openable journal +
+# the future baseline for paper-vs-real comparison.
+on:
+  schedule:
+    - cron: '0 6 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PROJECT_REF: mdvheizhciuvqychtwxr
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Export trades to CSV
+        run: |
+          curl -s -X POST "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "SELECT id, sym, side, strategy, entry_price, exit_price, size, risk_usd, pnl, pnl_pct, fee, status, exit_stage, opened_at, closed_at FROM bot_trades ORDER BY id;"}' > /tmp/trades.json
+          mkdir -p status
+          python3 - <<'PYEOF'
+          import csv, json
+          rows=json.load(open('/tmp/trades.json'))
+          cols=['id','sym','side','strategy','entry_price','exit_price','size','risk_usd','pnl','pnl_pct','fee','status','exit_stage','opened_at','closed_at']
+          with open('status/trades-journal.csv','w',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=cols,extrasaction='ignore')
+              w.writeheader()
+              for r in rows: w.writerow(r)
+          print(f"exported {len(rows)} trades")
+          PYEOF
+      - name: Commit journal
+        run: |
+          git config user.name "journal-bot"; git config user.email "actions@github.com"
+          git add status/trades-journal.csv
+          git commit -m "journal: weekly trade export [skip ci]" || echo "no changes"
+          git pull --rebase origin main || true
+          git push || echo "push failed (non-fatal)"

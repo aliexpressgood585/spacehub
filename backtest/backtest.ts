@@ -3572,6 +3572,1159 @@ function runV54bt() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// v57bt: portfolio-risk research (never cuts trades — only resizes/exits):
+//  A) correlation-aware sizing — shrink a new DONCH4H entry that piles onto an
+//     already-loaded correlated same-direction cluster; normalized so BOTH books
+//     deploy the same MEAN risk (any drawdown gain is from reallocation, not
+//     from just trading smaller). Compares equity + maxDD per window.
+//  B) time-stop — a trade that hasn't banked its first ladder leg (0.6R) within
+//     N bars exits at the close; frees capital from dead trades. Per-trade R.
+//  C) fractional-Kelly sizing table — measures the Kelly-optimal risk fraction
+//     from the real R distribution (build + report; deploy GATED behind the
+//     50-trade live checkpoint per the user's standing risk decision).
+function runV57bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000
+  const toTf=(a:Bar[],ms:number):Bar[]=>{
+    const out:Bar[]=[]; let cur:Bar|null=null; let bucket=-1
+    for(const b of a){const k=Math.floor(b.t/ms)
+      if(k!==bucket){if(cur)out.push(cur);bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol}}
+      else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol}}
+    if(cur)out.push(cur);return out}
+  const d4:Record<string,Bar[]>={}
+  let tmin=Infinity,tmax=-Infinity
+  for(const c of COINS){const h=loadCSV(c,'1h');if(h.length<500)continue
+    d4[c]=toTf(h,BAR4);tmin=Math.min(tmin,h[0].t);tmax=Math.max(tmax,h[h.length-1].t)}
+  const coins=Object.keys(d4)
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  console.log(`  loaded ${coins.length} coins, ${((tmax-tmin)/86400000).toFixed(0)} days, ${NW} windows`)
+
+  // ladder sim that also reports: exit time, and (for time-stop) whether the
+  // first leg (0.6R) was banked within `tsBar` bars — if not, exit at that close.
+  const ladderTS=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,jEnd:number,tsBar:number)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const stages=[{r:0.6,frac:1/3},{r:1.0,frac:1/3},{r:1.6,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0,exitBar=jEndc
+    for(let j=j0+1;j<=jEndc;j++){
+      const b=arr[j],stopPx=be?entry:slPx
+      if(side==='LONG'?b.low<=stopPx:b.high>=stopPx){banked+=rem*(be?0:-1);rem=0;exitBar=j;break}
+      while(si<stages.length){
+        const tgt=entry+slDist*stages[si].r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=stages[si].frac*stages[si].r;tpFrac+=stages[si].frac;rem-=stages[si].frac;be=true;si++}
+      if(rem<=1e-9){exitBar=j;break}
+      // time-stop: no first leg banked within tsBar bars → exit at this close
+      if(tsBar>0 && si===0 && (j-j0)>=tsBar){
+        banked+=rem*((arr[j].close-entry)*dirM/slDist);rem=0;exitBar=j;break}}
+    if(rem>1e-9){banked+=rem*((arr[exitBar].close-entry)*dirM/slDist)}
+    return {r:banked,tpFrac,exitBar}
+  }
+
+  // collect DONCH4H trades chronologically (DW=15/adx22/sl1.4 — the live config)
+  interface T { coin:string; t0:number; t1:number; side:1|-1; r:number; rTS:Record<number,number> }
+  const buildTrades=(tsBar:number):Map<number,{coin:string,t0:number,t1:number,side:1|-1,r:number}[]>=>{
+    const bySig=new Map<number,{coin:string,t0:number,t1:number,side:1|-1,r:number}[]>()
+    for(const c of coins){
+      if(!CORE40.has(c))continue
+      const arr=d4[c];let last=-999
+      for(let i=100;i<arr.length-1;i++){
+        const price=arr[i].close
+        const prior=arr.slice(i-15,i)
+        let hi=-Infinity,lo=Infinity
+        for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+        const side:'LONG'|'SHORT'|null=price>hi?'LONG':price<lo?'SHORT':null
+        if(!side)continue
+        const win=arr.slice(Math.max(0,i-99),i+1)
+        const adx=calcADX(win.slice(-60));if(adx<=22)continue
+        const atr=calcATR(win.slice(-20));if(!atr)continue
+        if(i-last<2)continue
+        last=i
+        const slDist=Math.max(atr*1.4,price*0.005),slPct=slDist/price
+        if(slPct>0.08)continue
+        const res=ladderTS(arr,i,price,side,slDist,i+96,tsBar)
+        const net=res.r-(TK+res.tpFrac*MK+(1-res.tpFrac)*TK)/slPct
+        const key=arr[i].t
+        if(!bySig.has(key))bySig.set(key,[])
+        bySig.get(key)!.push({coin:c,t0:arr[i].t,t1:arr[res.exitBar].t,side:side==='LONG'?1:-1,r:net})
+      }
+    }
+    return bySig
+  }
+
+  // static full-period return-correlation matrix (proxy for "move together")
+  const rets:Record<string,Map<number,number>>={}
+  for(const c of coins){const m=new Map<number,number>();const a=d4[c]
+    for(let i=1;i<a.length;i++){if(a[i-1].close>0)m.set(a[i].t,a[i].close/a[i-1].close-1)}
+    rets[c]=m}
+  const corr=(a:string,b:string):number=>{
+    const ma=rets[a],mb=rets[b];let n=0,sa=0,sb=0,saa=0,sbb=0,sab=0
+    for(const[t,x]of ma){const y=mb.get(t);if(y===undefined)continue
+      n++;sa+=x;sb+=y;saa+=x*x;sbb+=y*y;sab+=x*y}
+    if(n<200)return 0
+    const cov=sab/n-(sa/n)*(sb/n),va=saa/n-(sa/n)**2,vb=sbb/n-(sb/n)**2
+    return(va>0&&vb>0)?cov/Math.sqrt(va*vb):0}
+  const cm:Record<string,Record<string,number>>={}
+  for(const a of coins){cm[a]={};for(const b of coins)cm[a][b]=a===b?1:corr(a,b)}
+
+  // ── A) correlation-aware sizing: portfolio equity sim, baseline vs corr ──
+  console.log(`\n── A) CORRELATION-AWARE SIZING (equity + maxDD, mean-risk-normalized) ──`)
+  const simPortfolio=(LAMBDA:number)=>{
+    const bySig=buildTrades(0)
+    const times=[...bySig.keys()].sort((a,b)=>a-b)
+    // first pass: raw weights (1/(1+λ·correlated same-dir open heat))
+    const open:{coin:string,t1:number,side:1|-1}[]=[]
+    const trades:{t0:number,t1:number,r:number,w:number}[]=[]
+    for(const t of times){
+      for(const tr of bySig.get(t)!){
+        const act=open.filter(o=>o.t1>t&&o.side===tr.side)
+        let heat=0;for(const o of act)heat+=Math.max(0,cm[tr.coin][o.coin])
+        const w=1/(1+LAMBDA*heat)
+        trades.push({t0:tr.t0,t1:tr.t1,r:tr.r,w})
+        open.push({coin:tr.coin,t1:tr.t1,side:tr.side})
+      }
+      // prune closed
+      for(let k=open.length-1;k>=0;k--)if(open[k].t1<=t)open.splice(k,1)
+    }
+    // normalize weights to mean 1 → same average deployed risk as baseline
+    const mw=trades.reduce((a,x)=>a+x.w,0)/Math.max(1,trades.length)
+    for(const tr of trades)tr.w/=(mw||1)
+    return trades
+  }
+  const equityStats=(trades:{t0:number,t1:number,r:number,w:number}[],useW:boolean)=>{
+    // additive R-space equity in risk units; MTM drawdown via unrealized running R
+    const R0=0.0125
+    // realize at exit time; approximate DD by ledger at each exit event
+    const evs=[...trades].sort((a,b)=>a.t1-b.t1)
+    const perW:{real:number,peak:number,dd:number}[]=Array.from({length:NW},()=>({real:0,peak:0,dd:0}))
+    let real=0,peak=0,dd=0
+    for(const e of evs){
+      real+=R0*(useW?e.w:1)*e.r
+      if(real>peak)peak=real
+      dd=Math.max(dd,peak-real)
+      const wi=winOf(e.t1);const pw=perW[wi]
+      pw.real+=R0*(useW?e.w:1)*e.r
+    }
+    // per-window return
+    return {total:real,maxDD:dd,perW:perW.map(p=>p.real)}
+  }
+  for(const LAMBDA of [0.5,1.0,2.0]){
+    const tr=simPortfolio(LAMBDA)
+    const base=equityStats(tr,false),cor=equityStats(tr,true)
+    const better=cor.perW.map((x,i)=>x>=base.perW[i]-1e-9)
+    const allPos=cor.perW.every(x=>x>0)
+    const ddGain=(base.maxDD-cor.maxDD)/Math.max(1e-9,base.maxDD)*100
+    const retKeep=cor.total/Math.max(1e-9,base.total)*100
+    console.log(`  λ=${LAMBDA.toFixed(1)}  totR base ${base.total.toFixed(2)}→corr ${cor.total.toFixed(2)} (${retKeep.toFixed(0)}%) | maxDD ${base.maxDD.toFixed(2)}→${cor.maxDD.toFixed(2)} (${ddGain>=0?'-':'+'}${Math.abs(ddGain).toFixed(0)}%) | win+:${allPos?'yes':'no'} ${allPos&&ddGain>5&&retKeep>95?'✅':''}`)
+  }
+  console.log(`  deploy bar (A): DD improves >5% AND keeps >95% of return AND all windows positive.`)
+
+  // ── B) time-stop for stalled trades ──
+  console.log(`\n── B) TIME-STOP (exit if 0.6R not banked within N bars) ──`)
+  const perTradeWF=(tsBar:number)=>{
+    const bySig=buildTrades(tsBar)
+    const ws:{n:number,sum:number}[]=Array.from({length:NW},()=>({n:0,sum:0}))
+    for(const[,arr]of bySig)for(const tr of arr){const w=ws[winOf(tr.t0)];w.n++;w.sum+=tr.r}
+    return ws}
+  const reportB=(name:string,ws:{n:number,sum:number}[])=>{
+    const tot=ws.reduce((a,x)=>({n:a.n+x.n,sum:a.sum+x.sum}),{n:0,sum:0})
+    const wA=ws.map(x=>x.n?x.sum/x.n:0)
+    const ok=wA.every(x=>x>0)&&ws.every(x=>x.n>=15)?'✅':''
+    console.log(`  ${name.padEnd(24)} n=${String(tot.n).padStart(5)} avg ${(tot.sum/Math.max(1,tot.n)>=0?'+':'')}${(tot.sum/Math.max(1,tot.n)).toFixed(4)}R totR ${tot.sum.toFixed(0)} | ${wA.map(x=>((x>=0?'+':'')+x.toFixed(3)).padStart(7)).join(' ')} ${ok}`)}
+  reportB('no time-stop (live)',perTradeWF(0))
+  reportB('time-stop 6 bars(1d)',perTradeWF(6))
+  reportB('time-stop 12 bars(2d)',perTradeWF(12))
+  reportB('time-stop 18 bars(3d)',perTradeWF(18))
+  console.log(`  deploy bar (B): all 6 windows positive AND total R > live baseline.`)
+
+  // ── C) fractional-Kelly sizing table (measure only; deploy gated to 50-trade checkpoint) ──
+  console.log(`\n── C) KELLY SIZING TABLE (measure — NOT auto-deployed; gated behind 50-trade checkpoint) ──`)
+  const allR:number[]=[]
+  for(const[,arr]of buildTrades(0))for(const tr of arr)allR.push(tr.r)
+  const mean=allR.reduce((a,x)=>a+x,0)/allR.length
+  const varr=allR.reduce((a,x)=>a+(x-mean)**2,0)/allR.length
+  // continuous-outcome Kelly f* ≈ mean / E[R^2]; risk fraction per trade in R-units
+  const er2=varr+mean*mean
+  const kelly=mean/er2
+  console.log(`  edge: n=${allR.length} mean=${mean.toFixed(4)}R sd=${Math.sqrt(varr).toFixed(3)}R`)
+  console.log(`  full-Kelly f* ≈ ${kelly.toFixed(3)} (risk-units/trade) | half-Kelly ${(kelly/2).toFixed(3)} | quarter ${(kelly/4).toFixed(3)}`)
+  console.log(`  → translate to base risk%: current 1.25% is ${(0.0125/Math.max(1e-9,kelly*0.01)).toFixed(2)}× of 1%·f*.`)
+  console.log(`  NOTE: Kelly on a finite sample overstates; standard practice is ¼–½ Kelly. Do NOT deploy before the 50-trade live checkpoint confirms the live edge matches +0.046R.`)
+  console.log(`\n✅ = passes the per-section deploy bar.`)
+}
+
+// ─────────────────────────────────────────────────────────────
+// v58bt: on the live DW=15 config —
+//  A) ADX-tier recalibration: the risk multipliers (adx>45→2.0 etc) were fit on
+//     DW=25; re-measure expectancy per ADX bucket on DW=15 to see if the tiers
+//     are still monotonic / correctly placed (info → sizing, never cuts trades).
+//  B) final-third trailing: instead of a fixed 1.6R cap on the last third, trail
+//     it (chandelier: high − k·ATR) to catch fat-tail runs. Per-trade R, WF.
+//  C) long/short asymmetry: measure LONG vs SHORT expectancy separately; test
+//     asymmetric base-risk tilt. Deploy bar: all 6 windows beat baseline.
+function runV58bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000
+  const toTf=(a:Bar[],ms:number):Bar[]=>{
+    const out:Bar[]=[]; let cur:Bar|null=null; let bucket=-1
+    for(const b of a){const k=Math.floor(b.t/ms)
+      if(k!==bucket){if(cur)out.push(cur);bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol}}
+      else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol}}
+    if(cur)out.push(cur);return out}
+  const d4:Record<string,Bar[]>={}
+  let tmin=Infinity,tmax=-Infinity
+  for(const c of COINS){const h=loadCSV(c,'1h');if(h.length<500)continue
+    d4[c]=toTf(h,BAR4);tmin=Math.min(tmin,h[0].t);tmax=Math.max(tmax,h[h.length-1].t)}
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${NW} windows`)
+
+  // standard ladder (fixed 1.6R final leg)
+  const ladderFixed=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,jEnd:number)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const stages=[{r:0.6,frac:1/3},{r:1.0,frac:1/3},{r:1.6,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0
+    for(let j=j0+1;j<=jEndc;j++){const b=arr[j],stopPx=be?entry:slPx
+      if(side==='LONG'?b.low<=stopPx:b.high>=stopPx){banked+=rem*(be?0:-1);rem=0;break}
+      while(si<stages.length){const tgt=entry+slDist*stages[si].r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=stages[si].frac*stages[si].r;tpFrac+=stages[si].frac;rem-=stages[si].frac;be=true;si++}
+      if(rem<=1e-9)break}
+    if(rem>1e-9)banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return {r:banked,tpFrac}}
+
+  // ladder with trailing final third (first two legs 0.6/1.0R banked; last third
+  // rides a chandelier stop = extreme − TRAIL×ATR once past 1.0R)
+  const ladderTrail=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,jEnd:number,TRAIL:number,atr:number)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const legs=[{r:0.6,frac:1/3},{r:1.0,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0
+    let ext=entry  // running extreme for the trailing third
+    for(let j=j0+1;j<=jEndc;j++){const b=arr[j]
+      // trailing stop active only on the final third (after both legs banked)
+      const trailStop = si>=2 ? (side==='LONG'? ext-TRAIL*atr : ext+TRAIL*atr) : (be?entry:slPx)
+      if(side==='LONG'?b.low<=trailStop:b.high>=trailStop){
+        const exitR=(trailStop-entry)*dirM/slDist
+        banked+=rem*(si>=2?exitR:(be?0:-1));rem=0;break}
+      while(si<legs.length){const tgt=entry+slDist*legs[si].r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=legs[si].frac*legs[si].r;tpFrac+=legs[si].frac;rem-=legs[si].frac;be=true;si++}
+      if(si>=2){ // update extreme for trailing third
+        ext = side==='LONG'? Math.max(ext,b.high) : Math.min(ext,b.low)}
+      if(rem<=1e-9)break}
+    if(rem>1e-9)banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return {r:banked,tpFrac}}
+
+  // collect signals with adx + side, both exit models
+  interface Sig { win:number; adx:number; side:1|-1; rFixed:number; rTrail:Record<number,number> }
+  const sigs:Sig[]=[]
+  const TRAILS=[2.5,3.5,4.5]
+  for(const c of Object.keys(d4)){
+    if(!CORE40.has(c))continue
+    const arr=d4[c];let last=-999
+    for(let i=100;i<arr.length-1;i++){
+      const price=arr[i].close
+      const prior=arr.slice(i-15,i);let hi=-Infinity,lo=Infinity
+      for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+      const side:'LONG'|'SHORT'|null=price>hi?'LONG':price<lo?'SHORT':null
+      if(!side)continue
+      const win=arr.slice(Math.max(0,i-99),i+1)
+      const adx=calcADX(win.slice(-60));if(adx<=22)continue
+      const atr=calcATR(win.slice(-20));if(!atr)continue
+      if(i-last<2)continue
+      last=i
+      const slDist=Math.max(atr*1.4,price*0.005),slPct=slDist/price
+      if(slPct>0.08)continue
+      const fee=(TK+MK/3+2*TK/3)/slPct // ladder maker on 1st leg approx; conservative
+      const rf=ladderFixed(arr,i,price,side,slDist,i+96)
+      const rTrail:Record<number,number>={}
+      for(const T of TRAILS){const rt=ladderTrail(arr,i,price,side,slDist,i+96,T,atr)
+        rTrail[T]=rt.r-(TK+rt.tpFrac*MK+(1-rt.tpFrac)*TK)/slPct}
+      sigs.push({win:winOf(arr[i].t),adx,side:side==='LONG'?1:-1,
+        rFixed:rf.r-(TK+rf.tpFrac*MK+(1-rf.tpFrac)*TK)/slPct,rTrail})
+    }
+  }
+  console.log(`  ${sigs.length} DONCH4H signals collected`)
+
+  // ── A) ADX-bucket expectancy on DW=15 ──
+  console.log(`\n── A) ADX-BUCKET EXPECTANCY (DW=15) — are the live tiers still right? ──`)
+  const buckets:[string,(a:number)=>boolean][]=[
+    ['22-28 (×0.75)',a=>a>22&&a<=28],['28-35 (×1.0)',a=>a>28&&a<=35],
+    ['35-45 (×1.5)',a=>a>35&&a<=45],['>45 (×2.0)',a=>a>45]]
+  for(const[name,fn]of buckets){
+    const sub=sigs.filter(s=>fn(s.adx))
+    const avg=sub.reduce((a,s)=>a+s.rFixed,0)/Math.max(1,sub.length)
+    const wA:number[]=Array.from({length:NW},(_,w)=>{const ss=sub.filter(s=>s.win===w);return ss.length?ss.reduce((a,s)=>a+s.rFixed,0)/ss.length:0})
+    console.log(`  ADX ${name.padEnd(14)} n=${String(sub.length).padStart(5)} avg ${(avg>=0?'+':'')+avg.toFixed(4)}R | ${wA.map(x=>((x>=0?'+':'')+x.toFixed(3)).padStart(7)).join(' ')}`)}
+  console.log(`  → monotonic rising = tiers correct; a bucket out of order = re-tune candidate.`)
+
+  // ── B) final-third trailing vs fixed 1.6R ──
+  console.log(`\n── B) FINAL-THIRD TRAILING vs FIXED 1.6R CAP ──`)
+  const wfR=(get:(s:Sig)=>number,name:string)=>{
+    const ws:{n:number,sum:number}[]=Array.from({length:NW},()=>({n:0,sum:0}))
+    for(const s of sigs){const w=ws[s.win];w.n++;w.sum+=get(s)}
+    const tot=ws.reduce((a,x)=>({n:a.n+x.n,sum:a.sum+x.sum}),{n:0,sum:0})
+    const wA=ws.map(x=>x.n?x.sum/x.n:0)
+    const base=sigs.reduce((a,s)=>a+s.rFixed,0)
+    const ok=wA.every(x=>x>0)&&tot.sum>base?'✅':''
+    console.log(`  ${name.padEnd(22)} avg ${(tot.sum/tot.n>=0?'+':'')}${(tot.sum/tot.n).toFixed(4)}R totR ${tot.sum.toFixed(0)} | ${wA.map(x=>((x>=0?'+':'')+x.toFixed(3)).padStart(7)).join(' ')} ${ok}`)}
+  wfR(s=>s.rFixed,'fixed 1.6R (live)')
+  for(const T of TRAILS)wfR(s=>s.rTrail[T],`trail ${T}×ATR`)
+  console.log(`  deploy bar (B): all 6 windows positive AND total R > fixed baseline.`)
+
+  // ── C) long/short asymmetry ──
+  console.log(`\n── C) LONG vs SHORT EXPECTANCY ──`)
+  for(const[nm,d]of[['LONG',1],['SHORT',-1]]as const){
+    const sub=sigs.filter(s=>s.side===d)
+    const avg=sub.reduce((a,s)=>a+s.rFixed,0)/Math.max(1,sub.length)
+    const wA:number[]=Array.from({length:NW},(_,w)=>{const ss=sub.filter(s=>s.win===w&&s.side===d);return ss.length?ss.reduce((a,s)=>a+s.rFixed,0)/ss.length:0})
+    console.log(`  ${nm.padEnd(6)} n=${String(sub.length).padStart(5)} avg ${(avg>=0?'+':'')+avg.toFixed(4)}R | ${wA.map(x=>((x>=0?'+':'')+x.toFixed(3)).padStart(7)).join(' ')}`)}
+  console.log(`  → a durable gap both across the total AND all windows justifies an asymmetric base-risk tilt; noise-level or window-flipping = reject.`)
+  console.log(`\n✅ = passes the per-section deploy bar.`)
+}
+
+// ─────────────────────────────────────────────────────────────
+// v59bt: extend the v53 trailing win. Baseline = ⅓@0.6R / ⅓@1.0R / trail 2.5×ATR.
+//  A) exit-shape grid: fraction split × how many legs trail (final only vs
+//     middle+final vs all-trail) — does trailing more of the position help?
+//  B) ADX-scaled trail distance: wider trail on strong (ADX>45) breakouts.
+// Deploy bar: all 6 windows positive AND total R > the 696R v53 trailing baseline.
+function runV59bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000
+  const toTf=(a:Bar[],ms:number):Bar[]=>{
+    const out:Bar[]=[]; let cur:Bar|null=null; let bucket=-1
+    for(const b of a){const k=Math.floor(b.t/ms)
+      if(k!==bucket){if(cur)out.push(cur);bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol}}
+      else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol}}
+    if(cur)out.push(cur);return out}
+  const d4:Record<string,Bar[]>={}
+  let tmin=Infinity,tmax=-Infinity
+  for(const c of COINS){const h=loadCSV(c,'1h');if(h.length<500)continue
+    d4[c]=toTf(h,BAR4);tmin=Math.min(tmin,h[0].t);tmax=Math.max(tmax,h[h.length-1].t)}
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${NW} windows`)
+
+  // generalized ladder: legs = [{r, frac, trail?}] — a leg with trail:true rides
+  // a chandelier (extreme − TRAIL×atr) instead of banking at its r-target.
+  // Legs bank in order; once a trailing leg activates, the remaining size trails.
+  const sim=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,atr:number,jEnd:number,
+             legs:{r:number,frac:number,trail:boolean}[],TRAIL:number)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0,ext=entry,trailing=false
+    for(let j=j0+1;j<=jEndc;j++){
+      const b=arr[j]
+      const stop = trailing ? (side==='LONG'?ext-TRAIL*atr:ext+TRAIL*atr) : (be?entry:slPx)
+      if(side==='LONG'?b.low<=stop:b.high>=stop){
+        const exitR=(stop-entry)*dirM/slDist
+        banked+=rem*(trailing?exitR:(be?0:-1));rem=0;break}
+      // advance through legs
+      while(si<legs.length){
+        const L=legs[si]
+        if(L.trail){ // activate trailing for the remaining position at this r-target
+          const tgt=entry+slDist*L.r*dirM
+          if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+          trailing=true;be=true;si=legs.length // trail consumes the rest
+          break}
+        const tgt=entry+slDist*L.r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=L.frac*L.r;tpFrac+=L.frac;rem-=L.frac;be=true;si++}
+      if(trailing)ext=side==='LONG'?Math.max(ext,b.high):Math.min(ext,b.low)
+      if(rem<=1e-9)break}
+    if(rem>1e-9)banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return {r:banked,tpFrac}}
+
+  // collect signals; evaluate each exit shape inline (store adx for B)
+  interface S{win:number;adx:number;arr:Bar[];i:number;entry:number;side:'LONG'|'SHORT';slDist:number;atr:number}
+  const S:S[]=[]
+  for(const c of Object.keys(d4)){
+    if(!CORE40.has(c))continue
+    const arr=d4[c];let last=-999
+    for(let i=100;i<arr.length-1;i++){
+      const price=arr[i].close
+      const prior=arr.slice(i-15,i);let hi=-Infinity,lo=Infinity
+      for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+      const side:'LONG'|'SHORT'|null=price>hi?'LONG':price<lo?'SHORT':null
+      if(!side)continue
+      const win=arr.slice(Math.max(0,i-99),i+1)
+      const adx=calcADX(win.slice(-60));if(adx<=22)continue
+      const atr=calcATR(win.slice(-20));if(!atr)continue
+      if(i-last<2)continue
+      last=i
+      const slDist=Math.max(atr*1.4,price*0.005);if(slDist/price>0.08)continue
+      S.push({win:winOf(arr[i].t),adx,arr,i,entry:price,side,slDist,atr})
+    }
+  }
+  console.log(`  ${S.length} DONCH4H signals`)
+
+  const netOf=(s:S,legs:{r:number,frac:number,trail:boolean}[],TRAIL:number)=>{
+    const res=sim(s.arr,s.i,s.entry,s.side,s.slDist,s.atr,s.i+96,legs,TRAIL)
+    return res.r-(TK+res.tpFrac*MK+(1-res.tpFrac)*TK)/(s.slDist/s.entry)}
+  const wf=(name:string,legsFn:(s:S)=>[{r:number,frac:number,trail:boolean}[],number])=>{
+    const ws:{n:number,sum:number}[]=Array.from({length:NW},()=>({n:0,sum:0}))
+    for(const s of S){const[legs,T]=legsFn(s);const w=ws[s.win];w.n++;w.sum+=netOf(s,legs,T)}
+    const tot=ws.reduce((a,x)=>({n:a.n+x.n,sum:a.sum+x.sum}),{n:0,sum:0})
+    const wA=ws.map(x=>x.n?x.sum/x.n:0)
+    const ok=wA.every(x=>x>0)&&tot.sum>696?'✅>base':wA.every(x=>x>0)?'(all+, ≤696)':''
+    console.log(`  ${name.padEnd(30)} avg ${(tot.sum/tot.n>=0?'+':'')}${(tot.sum/tot.n).toFixed(4)}R totR ${tot.sum.toFixed(0)} | ${wA.map(x=>((x>=0?'+':'')+x.toFixed(3)).padStart(7)).join(' ')} ${ok}`)}
+
+  console.log(`\n── A) EXIT-SHAPE GRID (baseline = ⅓@.6/⅓@1.0/trail2.5 = 696R) ──`)
+  wf('⅓.6 ⅓1.0 trail2.5 (v53)', ()=>[[{r:0.6,frac:1/3,trail:false},{r:1.0,frac:1/3,trail:false},{r:1.0,frac:1/3,trail:true}],2.5])
+  wf('⅓.6 trail@1.0 (2 legs)',   ()=>[[{r:0.6,frac:1/3,trail:false},{r:1.0,frac:1/3,trail:true}],2.5])
+  wf('½.6 trail@1.0',            ()=>[[{r:0.6,frac:1/2,trail:false},{r:1.0,frac:1/2,trail:true}],2.5])
+  wf('¼.6 ¼1.0 ½trail2.5',       ()=>[[{r:0.6,frac:1/4,trail:false},{r:1.0,frac:1/4,trail:false},{r:1.0,frac:1/2,trail:true}],2.5])
+  wf('trail@0.6 (all trail)',    ()=>[[{r:0.6,frac:1,trail:true}],2.5])
+  wf('⅓.6 ⅓1.0 ⅓trail2.5 T3.5', ()=>[[{r:0.6,frac:1/3,trail:false},{r:1.0,frac:1/3,trail:false},{r:1.0,frac:1/3,trail:true}],3.5])
+
+  console.log(`\n── B) ADX-SCALED TRAIL DISTANCE (final third; wider on strong breakouts) ──`)
+  wf('trail 2.5 flat (v53)',     ()=>[[{r:0.6,frac:1/3,trail:false},{r:1.0,frac:1/3,trail:false},{r:1.0,frac:1/3,trail:true}],2.5])
+  wf('trail 2.5/3.5 by adx45',   (s)=>[[{r:0.6,frac:1/3,trail:false},{r:1.0,frac:1/3,trail:false},{r:1.0,frac:1/3,trail:true}], s.adx>45?3.5:2.5])
+  wf('trail 2.0/3.0/4.0 tiers',  (s)=>[[{r:0.6,frac:1/3,trail:false},{r:1.0,frac:1/3,trail:false},{r:1.0,frac:1/3,trail:true}], s.adx>45?4.0:s.adx>35?3.0:2.0])
+  console.log(`\n✅>base = all 6 windows positive AND total R > 696 (the v53 live baseline).`)
+}
+
+// ─────────────────────────────────────────────────────────────
+// v60bt: portfolio-construction level (a "#1 trader" question, never touched):
+//  A) dynamic capital allocation between the two uncorrelated sleeves
+//     (DONCH4H vs ROTA) — fixed 50/50 vs trailing-return / inverse-vol /
+//     Sharpe weighting, with LONG smoothing windows (short windows = chasing
+//     noise = overfitting → expected to fail). Compares combined equity + DD.
+//  B) BTC-regime size tilt on DONCH4H (up-size in a confirmed BTC trend; a
+//     sizing tilt, not a filter — never cuts trades).
+// Deploy bar: beats fixed 50/50 (A) / flat sizing (B) in ALL 6 windows.
+function runV60bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000, MONTH=30*86400000
+  const toTf=(a:Bar[],ms:number):Bar[]=>{
+    const out:Bar[]=[]; let cur:Bar|null=null; let bucket=-1
+    for(const b of a){const k=Math.floor(b.t/ms)
+      if(k!==bucket){if(cur)out.push(cur);bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol}}
+      else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol}}
+    if(cur)out.push(cur);return out}
+  const d4:Record<string,Bar[]>={}
+  let tmin=Infinity,tmax=-Infinity
+  for(const c of COINS){const h=loadCSV(c,'1h');if(h.length<500)continue
+    d4[c]=toTf(h,BAR4);tmin=Math.min(tmin,h[0].t);tmax=Math.max(tmax,h[h.length-1].t)}
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  const nMonths=Math.floor((tmax-tmin)/MONTH)
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${nMonths} months, ${NW} windows`)
+
+  // trailing final-third ladder (the v53 live exit)
+  const ladder=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,atr:number,jEnd:number)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const legs=[{r:0.6,frac:1/3},{r:1.0,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0,ext=entry
+    for(let j=j0+1;j<=jEndc;j++){const b=arr[j]
+      const stop=si>=2?(side==='LONG'?ext-2.5*atr:ext+2.5*atr):(be?entry:slPx)
+      if(side==='LONG'?b.low<=stop:b.high>=stop){banked+=rem*(si>=2?(stop-entry)*dirM/slDist:(be?0:-1));rem=0;break}
+      while(si<legs.length){const tgt=entry+slDist*legs[si].r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=legs[si].frac*legs[si].r;tpFrac+=legs[si].frac;rem-=legs[si].frac;be=true;si++}
+      if(si>=2)ext=side==='LONG'?Math.max(ext,b.high):Math.min(ext,b.low)
+      if(rem<=1e-9)break}
+    if(rem>1e-9)banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return {r:banked,tpFrac,exitT:arr[Math.min(jEnd,arr.length-1)].t}}
+
+  // BTC 4h trend state per timestamp (EMA-slope sign over 20 bars)
+  const btc=d4['BTC']||[]
+  const btcEma:Map<number,number>=new Map()
+  {let e=btc.length?btc[0].close:0;const k=2/(20+1)
+   for(const b of btc){e=b.close*k+e*(1-k);btcEma.set(b.t,e)}}
+  const btcTrendAt=(t:number):number=>{ // +1 up / -1 down / 0 flat vs 10-bar-ago EMA
+    const e=btcEma.get(t),ePrev=btcEma.get(t-10*BAR4)
+    if(e===undefined||ePrev===undefined)return 0
+    const chg=(e-ePrev)/ePrev
+    return chg>0.02?1:chg<-0.02?-1:0}
+
+  // ── DONCH4H monthly return stream + regime-tilt streams ──
+  const donchMonth=new Array(nMonths+1).fill(0)
+  const donchMonthTilt=new Array(nMonths+1).fill(0)
+  const tiltWF:{n:number,sum:number,sumTilt:number}[]=Array.from({length:NW},()=>({n:0,sum:0,sumTilt:0}))
+  const R0=0.0125
+  for(const c of Object.keys(d4)){
+    if(!CORE40.has(c))continue
+    const arr=d4[c];let last=-999
+    for(let i=100;i<arr.length-1;i++){
+      const price=arr[i].close
+      const prior=arr.slice(i-15,i);let hi=-Infinity,lo=Infinity
+      for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+      const side:'LONG'|'SHORT'|null=price>hi?'LONG':price<lo?'SHORT':null
+      if(!side)continue
+      const win=arr.slice(Math.max(0,i-99),i+1)
+      const adx=calcADX(win.slice(-60));if(adx<=22)continue
+      const atr=calcATR(win.slice(-20));if(!atr)continue
+      if(i-last<2)continue
+      last=i
+      const slDist=Math.max(atr*1.4,price*0.005),slPct=slDist/price
+      if(slPct>0.08)continue
+      const res=ladder(arr,i,price,side,slDist,atr,i+96)
+      const net=res.r-(TK+res.tpFrac*MK+(1-res.tpFrac)*TK)/slPct
+      const m=Math.min(nMonths,Math.floor((arr[i].t-tmin)/MONTH))
+      donchMonth[m]+=R0*net
+      // regime tilt: breakout aligned with BTC trend → 1.25×, against → 0.85×
+      const tr=btcTrendAt(arr[i].t),dir=side==='LONG'?1:-1
+      const mult=tr===0?1:(tr===dir?1.25:0.85)
+      donchMonthTilt[m]+=R0*mult*net
+      const wf=tiltWF[winOf(arr[i].t)];wf.n++;wf.sum+=net;wf.sumTilt+=mult*net
+    }
+  }
+
+  // ── ROTA monthly return stream (LB84|RB12|K8, invVol, 70% book) ──
+  const rotaMonth=new Array(nMonths+1).fill(0)
+  {
+    const closes:Record<string,Map<number,number>>={}
+    for(const c of Object.keys(d4)){if(!CORE40.has(c))continue;const m=new Map<number,number>();for(const b of d4[c])m.set(b.t,b.close);closes[c]=m}
+    const LB=84,RB=12,K=8
+    const volOf=(c:string,t:number)=>{const m=closes[c];const rr:number[]=[]
+      for(let k=1;k<=LB;k++){const a=m.get(t-k*BAR4),b=m.get(t-(k-1)*BAR4);if(a&&b&&a>0)rr.push(b/a-1)}
+      if(rr.length<40)return null;const mu=rr.reduce((x,y)=>x+y,0)/rr.length
+      return Math.sqrt(rr.reduce((x,y)=>x+(y-mu)**2,0)/rr.length)}
+    for(let t=tmin+LB*BAR4;t+RB*BAR4<=tmax;t+=RB*BAR4){
+      const scored:{c:string,mom:number,w:number}[]=[]
+      for(const c of Object.keys(closes)){const p0=closes[c].get(t-LB*BAR4),p1=closes[c].get(t),p2=closes[c].get(t+RB*BAR4)
+        if(!p0||!p1||!p2||p0<=0)continue;const v=volOf(c,t);if(v===null||v<=0)continue
+        scored.push({c,mom:p1/p0-1,w:1/v})}
+      if(scored.length<K*4)continue
+      scored.sort((a,b)=>b.mom-a.mom)
+      let ret=0
+      for(const[li,leg]of[[0,scored.slice(0,K)]as const,[1,scored.slice(-K)]as const]){
+        const dir=li===0?1:-1;const wsum=leg.reduce((a,x)=>a+x.w,0)
+        for(const x of leg)ret+=dir*0.5*0.7*(x.w/wsum)*((closes[x.c].get(t+RB*BAR4)!/closes[x.c].get(t)!)-1)}
+      const m=Math.min(nMonths,Math.floor((t-tmin)/MONTH))
+      rotaMonth[m]+=ret
+    }
+  }
+
+  // ── A) allocation schemes on the two monthly streams ──
+  console.log(`\n── A) DYNAMIC ALLOCATION between DONCH4H & ROTA (monthly, walk-forward) ──`)
+  const dMean=donchMonth.reduce((a,x)=>a+x,0)/nMonths, rMean=rotaMonth.reduce((a,x)=>a+x,0)/nMonths
+  console.log(`  sleeve monthly: DONCH4H ${(dMean*100).toFixed(2)}%  ROTA ${(rMean*100).toFixed(2)}%`)
+  const runAlloc=(name:string,wFn:(m:number)=>number)=>{
+    // wFn returns DONCH weight in [0,1]; ROTA = 1-w
+    let eq=1,pk=1,dd=0;const wSum=new Array(NW).fill(0),wN=new Array(NW).fill(0)
+    for(let m=0;m<nMonths;m++){
+      const w=Math.max(0,Math.min(1,wFn(m)))
+      const r=w*donchMonth[m]+(1-w)*rotaMonth[m]
+      eq*=(1+r);if(eq>pk)pk=eq;dd=Math.max(dd,1-eq/pk)
+      const wi=winOf(tmin+m*MONTH);wSum[wi]+=r;wN[wi]++}
+    const wA=wSum.map((x,i)=>wN[i]?x/wN[i]:0)
+    const ann=Math.pow(eq,12/nMonths)-1
+    const ok=wA.every(x=>x>0)?'✅':''
+    console.log(`  ${name.padEnd(30)} ann ${(ann*100).toFixed(1)}% maxDD ${(dd*100).toFixed(0)}% | ${wA.map(x=>((x>=0?'+':'')+(x*100).toFixed(1)).padStart(6)).join(' ')} ${ok}`)}
+  const trail=(arr:number[],m:number,n:number)=>{let s=0,c=0;for(let k=Math.max(0,m-n);k<m;k++){s+=arr[k];c++}return c?s/c:0}
+  const tvol=(arr:number[],m:number,n:number)=>{const sl=arr.slice(Math.max(0,m-n),m);if(sl.length<3)return 1;const mu=sl.reduce((a,x)=>a+x,0)/sl.length;return Math.sqrt(sl.reduce((a,x)=>a+(x-mu)**2,0)/sl.length)||1}
+  runAlloc('fixed 50/50 (baseline)',()=>0.5)
+  for(const LB of [3,6,12]){
+    runAlloc(`perf-weighted ${LB}m`,(m)=>{const d=trail(donchMonth,m,LB),r=trail(rotaMonth,m,LB);const s=Math.abs(d)+Math.abs(r);return s>0?(d>r?0.5+0.5*Math.min(1,(d-r)/(s+1e-9)):0.5-0.5*Math.min(1,(r-d)/(s+1e-9))):0.5})
+    runAlloc(`inverse-vol ${LB}m`,(m)=>{const vd=tvol(donchMonth,m,LB),vr=tvol(rotaMonth,m,LB);return (1/vd)/((1/vd)+(1/vr))})
+  }
+  console.log(`  deploy bar (A): beats fixed 50/50 ann return AND all 6 windows positive.`)
+
+  // ── B) BTC-regime size tilt on DONCH4H ──
+  console.log(`\n── B) BTC-REGIME SIZE TILT on DONCH4H (1.25× with-trend / 0.85× against) ──`)
+  const tot=tiltWF.reduce((a,x)=>({n:a.n+x.n,sum:a.sum+x.sum,sumTilt:a.sumTilt+x.sumTilt}),{n:0,sum:0,sumTilt:0})
+  const baseW=tiltWF.map(x=>x.n?x.sum/x.n:0), tiltW=tiltWF.map(x=>x.n?x.sumTilt/x.n:0)
+  const better=tiltW.map((x,i)=>x>baseW[i])
+  console.log(`  base   avg ${(tot.sum/tot.n).toFixed(4)}R | ${baseW.map(x=>((x>=0?'+':'')+x.toFixed(3)).padStart(7)).join(' ')}`)
+  console.log(`  tilt   avg ${(tot.sumTilt/tot.n).toFixed(4)}R | ${tiltW.map((x,i)=>(((x>=0?'+':'')+x.toFixed(3))+(better[i]?'▲':'▽')).padStart(8)).join(' ')} ${tiltW.every(x=>x>0)&&better.every(Boolean)?'✅':''}`)
+  console.log(`  deploy bar (B): tilt positive AND beats base in all 6 windows.`)
+  console.log(`\n✅ = passes the per-section deploy bar.`)
+}
+
+// ─────────────────────────────────────────────────────────────
+// v61bt: stop-hunt-aware ("the game vs the other side") stop placement for
+//  DONCH4H. Market makers sweep clustered stops just beyond obvious swing
+//  levels then reverse; a blind 1.4×ATR stop can land inside that cluster and
+//  get hunted. Test: push the stop just BEYOND the nearest liquidity pool
+//  (recent swing low/high or the Donchian level), capped so risk stays bounded.
+//  Risk-based sizing keeps $ risk fixed; ladder + trailing-final-third as live.
+//  Deploy bar: beats the fixed-1.4×ATR stop in ALL 6 windows.
+function runV61bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000
+  const toTf=(a:Bar[],ms:number):Bar[]=>{
+    const out:Bar[]=[]; let cur:Bar|null=null; let bucket=-1
+    for(const b of a){const k=Math.floor(b.t/ms)
+      if(k!==bucket){if(cur)out.push(cur);bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol}}
+      else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol}}
+    if(cur)out.push(cur);return out}
+  const d4:Record<string,Bar[]>={}
+  let tmin=Infinity,tmax=-Infinity
+  for(const c of COINS){const h=loadCSV(c,'1h');if(h.length<500)continue
+    d4[c]=toTf(h,BAR4);tmin=Math.min(tmin,h[0].t);tmax=Math.max(tmax,h[h.length-1].t)}
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${NW} windows`)
+
+  // ladder with trailing final third (v53 live exit), given an explicit slDist
+  const ladder=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,atr:number,jEnd:number)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const legs=[{r:0.6,frac:1/3},{r:1.0,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0,ext=entry
+    for(let j=j0+1;j<=jEndc;j++){const b=arr[j]
+      const stop=si>=2?(side==='LONG'?ext-2.5*atr:ext+2.5*atr):(be?entry:slPx)
+      if(side==='LONG'?b.low<=stop:b.high>=stop){banked+=rem*(si>=2?(stop-entry)*dirM/slDist:(be?0:-1));rem=0;break}
+      while(si<legs.length){const tgt=entry+slDist*legs[si].r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=legs[si].frac*legs[si].r;tpFrac+=legs[si].frac;rem-=legs[si].frac;be=true;si++}
+      if(si>=2)ext=side==='LONG'?Math.max(ext,b.high):Math.min(ext,b.low)
+      if(rem<=1e-9)break}
+    if(rem>1e-9)banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return {r:banked,tpFrac}}
+
+  // stop models: 'fixed' = 1.4×ATR; 'swingN' = beyond nearest N-bar swing pool;
+  // 'donch' = beyond the breakout's own Donchian level. All capped to [0.8,2.6]×ATR.
+  const runStop=(model:string,swingN:number,buf:number)=>{
+    const ws:{n:number,sum:number}[]=Array.from({length:NW},()=>({n:0,sum:0}))
+    for(const c of Object.keys(d4)){
+      if(!CORE40.has(c))continue
+      const arr=d4[c];let last=-999
+      for(let i=100;i<arr.length-1;i++){
+        const price=arr[i].close
+        const prior=arr.slice(i-15,i);let hi=-Infinity,lo=Infinity
+        for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+        const side:'LONG'|'SHORT'|null=price>hi?'LONG':price<lo?'SHORT':null
+        if(!side)continue
+        const win=arr.slice(Math.max(0,i-99),i+1)
+        const adx=calcADX(win.slice(-60));if(adx<=22)continue
+        const atr=calcATR(win.slice(-20));if(!atr)continue
+        if(i-last<2)continue
+        last=i
+        const dirM=side==='LONG'?1:-1
+        let slDist:number
+        if(model==='fixed'){slDist=Math.max(atr*1.4,price*0.005)}
+        else{
+          // liquidity pool below (LONG) / above (SHORT)
+          let pool:number
+          if(model==='donch'){pool=side==='LONG'?lo:hi}
+          else{const sw=arr.slice(i-swingN,i)
+            pool=side==='LONG'?Math.min(...sw.map(b=>b.low)):Math.max(...sw.map(b=>b.high))}
+          const beyond=pool-buf*atr*dirM            // just past the pool
+          const swDist=(price-beyond)*dirM
+          const naive=Math.max(atr*1.4,price*0.005)
+          slDist=Math.min(Math.max(swDist,naive),atr*2.6)   // never tighter than naive; capped
+        }
+        if(slDist/price>0.08)continue
+        const res=ladder(arr,i,price,side,slDist,atr,i+96)
+        const net=res.r-(TK+res.tpFrac*MK+(1-res.tpFrac)*TK)/(slDist/price)
+        const w=ws[winOf(arr[i].t)];w.n++;w.sum+=net
+      }
+    }
+    return ws}
+  const report=(name:string,ws:{n:number,sum:number}[],baseTot:number)=>{
+    const tot=ws.reduce((a,x)=>({n:a.n+x.n,sum:a.sum+x.sum}),{n:0,sum:0})
+    const wA=ws.map(x=>x.n?x.sum/x.n:0)
+    const ok=wA.every(x=>x>0)&&tot.sum>baseTot?'✅>base':wA.every(x=>x>0)?'(all+, ≤base)':''
+    console.log(`  ${name.padEnd(26)} n=${String(tot.n).padStart(5)} avg ${(tot.sum/tot.n>=0?'+':'')}${(tot.sum/tot.n).toFixed(4)}R totR ${tot.sum.toFixed(0)} | ${wA.map(x=>((x>=0?'+':'')+x.toFixed(3)).padStart(7)).join(' ')} ${ok}`)
+    return tot.sum}
+
+  console.log(`\n── STOP-HUNT-AWARE STOP PLACEMENT (DONCH4H, v53 exit) ──`)
+  const base=report('fixed 1.4×ATR (live)',runStop('fixed',0,0),-1e9)
+  report('beyond Donchian low',   runStop('donch',0,0.2),  base)
+  report('beyond 5-bar swing +0.2',runStop('swing',5,0.2), base)
+  report('beyond 5-bar swing +0.5',runStop('swing',5,0.5), base)
+  report('beyond 10-bar swing +0.2',runStop('swing',10,0.2),base)
+  report('beyond 10-bar swing +0.5',runStop('swing',10,0.5),base)
+  console.log(`\n✅>base = all 6 windows positive AND total R > fixed-ATR baseline (${base.toFixed(0)}R).`)
+}
+
+// ─────────────────────────────────────────────────────────────
+// v62bt: BTC-dominance regime tilt on ALT DONCH4H breakouts. Dominance proxy =
+//  BTC trailing return − mean alt trailing return (positive = dominance rising
+//  = risk-off for alts). Thesis: alt breakouts work better when dominance is
+//  FALLING (alt-season). Tilt size (not a filter — never cuts trades); BTC's own
+//  breakouts unaffected. Deploy bar: beats base in ALL 6 windows AND >+0.004R.
+function runV62bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000
+  const toTf=(a:Bar[],ms:number):Bar[]=>{
+    const out:Bar[]=[]; let cur:Bar|null=null; let bucket=-1
+    for(const b of a){const k=Math.floor(b.t/ms)
+      if(k!==bucket){if(cur)out.push(cur);bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol}}
+      else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol}}
+    if(cur)out.push(cur);return out}
+  const d4:Record<string,Bar[]>={}
+  let tmin=Infinity,tmax=-Infinity
+  for(const c of COINS){const h=loadCSV(c,'1h');if(h.length<500)continue
+    d4[c]=toTf(h,BAR4);tmin=Math.min(tmin,h[0].t);tmax=Math.max(tmax,h[h.length-1].t)}
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${NW} windows`)
+
+  // dominance proxy: at time t, BTC 14d return − mean alt 14d return (LB=84 bars)
+  const closeAt:Record<string,Map<number,number>>={}
+  for(const c of Object.keys(d4)){const m=new Map<number,number>();for(const b of d4[c])m.set(b.t,b.close);closeAt[c]=m}
+  const LBd=84
+  const retN=(c:string,t:number)=>{const a=closeAt[c].get(t-LBd*BAR4),b=closeAt[c].get(t);return(a&&b&&a>0)?b/a-1:null}
+  const domAt=(t:number):number|null=>{
+    const br=retN('BTC',t);if(br===null)return null
+    let s=0,n=0;for(const c of Object.keys(d4)){if(c==='BTC'||!CORE40.has(c))continue;const r=retN(c,t);if(r!==null){s+=r;n++}}
+    if(n<15)return null
+    return br-(s/n)}   // >0 = BTC outperforming = dominance rising
+
+  const ladder=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,atr:number,jEnd:number)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const legs=[{r:0.6,frac:1/3},{r:1.0,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0,ext=entry
+    for(let j=j0+1;j<=jEndc;j++){const b=arr[j]
+      const stop=si>=2?(side==='LONG'?ext-2.5*atr:ext+2.5*atr):(be?entry:slPx)
+      if(side==='LONG'?b.low<=stop:b.high>=stop){banked+=rem*(si>=2?(stop-entry)*dirM/slDist:(be?0:-1));rem=0;break}
+      while(si<legs.length){const tgt=entry+slDist*legs[si].r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=legs[si].frac*legs[si].r;tpFrac+=legs[si].frac;rem-=legs[si].frac;be=true;si++}
+      if(si>=2)ext=side==='LONG'?Math.max(ext,b.high):Math.min(ext,b.low)
+      if(rem<=1e-9)break}
+    if(rem>1e-9)banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return {r:banked,tpFrac}}
+
+  interface T{win:number;net:number;isAlt:boolean;dom:number|null}
+  const trades:T[]=[]
+  for(const c of Object.keys(d4)){
+    if(!CORE40.has(c))continue
+    const arr=d4[c];let last=-999
+    for(let i=100;i<arr.length-1;i++){
+      const price=arr[i].close
+      const prior=arr.slice(i-15,i);let hi=-Infinity,lo=Infinity
+      for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+      const side:'LONG'|'SHORT'|null=price>hi?'LONG':price<lo?'SHORT':null
+      if(!side)continue
+      const win=arr.slice(Math.max(0,i-99),i+1)
+      const adx=calcADX(win.slice(-60));if(adx<=22)continue
+      const atr=calcATR(win.slice(-20));if(!atr)continue
+      if(i-last<2)continue
+      last=i
+      const slDist=Math.max(atr*1.4,price*0.005),slPct=slDist/price
+      if(slPct>0.08)continue
+      const res=ladder(arr,i,price,side,slDist,atr,i+96)
+      const net=res.r-(TK+res.tpFrac*MK+(1-res.tpFrac)*TK)/slPct
+      trades.push({win:winOf(arr[i].t),net,isAlt:c!=='BTC',dom:domAt(arr[i].t)})
+    }
+  }
+  const nDom=trades.filter(t=>t.dom!==null).length
+  console.log(`  ${trades.length} trades (${trades.filter(t=>t.isAlt).length} alt), dominance available on ${nDom}`)
+
+  const evalTilt=(name:string,wOf:(t:T)=>number)=>{
+    const base=Array.from({length:NW},()=>({s:0,w:0})),tilt=Array.from({length:NW},()=>({s:0,w:0}))
+    for(const t of trades){base[t.win].s+=t.net;base[t.win].w+=1;const g=wOf(t);tilt[t.win].s+=t.net*g;tilt[t.win].w+=g}
+    const bA=base.map(x=>x.w?x.s/x.w:0),tA=tilt.map(x=>x.w?x.s/x.w:0)
+    const better=tA.map((x,i)=>x>bA[i])
+    const bT=base.reduce((a,x)=>a+x.s,0)/base.reduce((a,x)=>a+x.w,0)
+    const tT=tilt.reduce((a,x)=>a+x.s,0)/tilt.reduce((a,x)=>a+x.w,0)
+    console.log(`  ${name.padEnd(30)} avg ${(tT>=0?'+':'')+tT.toFixed(4)}R vs base ${(bT>=0?'+':'')+bT.toFixed(4)}R | ${tA.map((x,i)=>(((x>=0?'+':'')+x.toFixed(3))+(better[i]?'▲':'▽')).padStart(8)).join(' ')} ${tA.every(x=>x>0)&&better.every(Boolean)&&(tT-bT)>0.004?'✅':''}`)}
+  console.log(`\n── BTC-DOMINANCE TILT on ALT breakouts (BTC breakouts unchanged) ──`)
+  // alt breakout: dominance FALLING (dom<0, alt-season) → upsize; RISING → downsize
+  evalTilt('alt: dom<0→1.25 / dom>0→0.85', t=>(!t.isAlt||t.dom===null)?1:(t.dom<0?1.25:0.85))
+  evalTilt('alt: dom<0→1.5 / dom>0→0.5',   t=>(!t.isAlt||t.dom===null)?1:(t.dom<0?1.5:0.5))
+  evalTilt('alt CONTRA: dom>0→1.25',       t=>(!t.isAlt||t.dom===null)?1:(t.dom>0?1.25:0.85))
+  console.log(`\n✅ = beats base in all 6 windows AND total improvement > +0.004R.`)
+}
+
+// ─────────────────────────────────────────────────────────────
+// v63bt: WIN-RATE optimization of the ladder (never touched from the WR angle).
+//  The first ladder leg controls WR: once ⅓ banks and the stop moves to BE, the
+//  trade can't close red. Lower the first leg → more trades reach it → higher WR
+//  (at a small total-R cost). Sweep first-leg R (0.4/0.5/0.6) + faster-BE. Reports
+//  BOTH WR and total R per config so the user can trade a little R for a smoother,
+//  higher-WR equity curve going into LIVE. Same entries — never cuts trades.
+function runV63bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000
+  const toTf=(a:Bar[],ms:number):Bar[]=>{
+    const out:Bar[]=[]; let cur:Bar|null=null; let bucket=-1
+    for(const b of a){const k=Math.floor(b.t/ms)
+      if(k!==bucket){if(cur)out.push(cur);bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol}}
+      else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol}}
+    if(cur)out.push(cur);return out}
+  const d4:Record<string,Bar[]>={}
+  let tmin=Infinity,tmax=-Infinity
+  for(const c of COINS){const h=loadCSV(c,'1h');if(h.length<500)continue
+    d4[c]=toTf(h,BAR4);tmin=Math.min(tmin,h[0].t);tmax=Math.max(tmax,h[h.length-1].t)}
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${NW} windows`)
+
+  // ladder with configurable first-leg R (L1), second leg 1.0R, trailing final third.
+  // beFast: move stop to BE as soon as price touches L1 (before the bar that banks it).
+  const ladder=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,atr:number,jEnd:number,L1:number,beFast:boolean)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const legs=[{r:L1,frac:1/3},{r:1.0,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0,ext=entry
+    for(let j=j0+1;j<=jEndc;j++){const b=arr[j]
+      // fast BE: touching L1 arms breakeven even before the leg is banked this loop
+      if(beFast&&!be){const l1px=entry+slDist*L1*dirM;if(side==='LONG'?b.high>=l1px:b.low<=l1px)be=true}
+      const stop=si>=2?(side==='LONG'?ext-2.5*atr:ext+2.5*atr):(be?entry:slPx)
+      if(side==='LONG'?b.low<=stop:b.high>=stop){banked+=rem*(si>=2?(stop-entry)*dirM/slDist:(be?0:-1));rem=0;break}
+      while(si<legs.length){const tgt=entry+slDist*legs[si].r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=legs[si].frac*legs[si].r;tpFrac+=legs[si].frac;rem-=legs[si].frac;be=true;si++}
+      if(si>=2)ext=side==='LONG'?Math.max(ext,b.high):Math.min(ext,b.low)
+      if(rem<=1e-9)break}
+    if(rem>1e-9)banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return {r:banked,tpFrac}}
+
+  interface Sig{win:number;arr:Bar[];i:number;entry:number;side:'LONG'|'SHORT';slDist:number;atr:number;slPct:number}
+  const S:Sig[]=[]
+  for(const c of Object.keys(d4)){
+    if(!CORE40.has(c))continue
+    const arr=d4[c];let last=-999
+    for(let i=100;i<arr.length-1;i++){
+      const price=arr[i].close
+      const prior=arr.slice(i-15,i);let hi=-Infinity,lo=Infinity
+      for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+      const side:'LONG'|'SHORT'|null=price>hi?'LONG':price<lo?'SHORT':null
+      if(!side)continue
+      const win=arr.slice(Math.max(0,i-99),i+1)
+      const adx=calcADX(win.slice(-60));if(adx<=22)continue
+      const atr=calcATR(win.slice(-20));if(!atr)continue
+      if(i-last<2)continue
+      last=i
+      const slDist=Math.max(atr*1.4,price*0.005),slPct=slDist/price
+      if(slPct>0.08)continue
+      S.push({win:winOf(arr[i].t),arr,i,entry:price,side,slDist,atr,slPct})
+    }
+  }
+  console.log(`  ${S.length} DONCH4H signals`)
+
+  const run=(name:string,L1:number,beFast:boolean)=>{
+    const ws:{n:number,w:number,sum:number}[]=Array.from({length:NW},()=>({n:0,w:0,sum:0}))
+    for(const s of S){
+      const res=ladder(s.arr,s.i,s.entry,s.side,s.slDist,s.atr,s.i+96,L1,beFast)
+      const net=res.r-(TK+res.tpFrac*MK+(1-res.tpFrac)*TK)/s.slPct
+      const wf=ws[s.win];wf.n++;wf.sum+=net;if(net>0)wf.w++}
+    const tot=ws.reduce((a,x)=>({n:a.n+x.n,w:a.w+x.w,sum:a.sum+x.sum}),{n:0,w:0,sum:0})
+    const wr=100*tot.w/tot.n, avg=tot.sum/tot.n
+    const wA=ws.map(x=>x.n?x.sum/x.n:0)
+    const allPos=wA.every(x=>x>0)?'✅6w':''
+    console.log(`  ${name.padEnd(24)} WR ${wr.toFixed(1)}% avg ${(avg>=0?'+':'')}${avg.toFixed(4)}R totR ${tot.sum.toFixed(0)} ${allPos}`)
+    return {wr,tot:tot.sum}}
+
+  console.log(`\n── WR-OPTIMIZED LADDER (first-leg R + BE timing) ──`)
+  console.log(`  (current live = first leg 0.6R, no fast-BE)`)
+  const base=run('L1=0.6 (live)',0.6,false)
+  run('L1=0.5',0.5,false)
+  run('L1=0.4',0.4,false)
+  run('L1=0.6 + fastBE',0.6,true)
+  run('L1=0.5 + fastBE',0.5,true)
+  run('L1=0.4 + fastBE',0.4,true)
+  run('L1=0.3 + fastBE',0.3,true)
+  console.log(`\n  baseline: WR ${base.wr.toFixed(1)}%, totR ${base.tot.toFixed(0)}. Higher WR configs trade R for smoothness.`)
+  console.log(`  ✅6w = positive in all 6 windows. Decision is the user's: WR-vs-profit for the LIVE transition.`)
+}
+
+// ─────────────────────────────────────────────────────────────
+// v64bt: (A) SL-multiplier × ATR-period re-tune on DW=15 — the stop (1.4×ATR20)
+//  was fit on DW=25; check it's still optimal on the live config (like the ADX
+//  tiers were). (B) cross-sleeve confluence: upsize a DONCH4H breakout that is
+//  ALSO a top/bottom ROTA momentum pick (two independent systems agree = higher
+//  conviction). Sizing tilt, never cuts trades. Deploy bar: all 6 windows.
+function runV64bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000
+  const toTf=(a:Bar[],ms:number):Bar[]=>{
+    const out:Bar[]=[]; let cur:Bar|null=null; let bucket=-1
+    for(const b of a){const k=Math.floor(b.t/ms)
+      if(k!==bucket){if(cur)out.push(cur);bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol}}
+      else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol}}
+    if(cur)out.push(cur);return out}
+  const d4:Record<string,Bar[]>={}
+  let tmin=Infinity,tmax=-Infinity
+  for(const c of COINS){const h=loadCSV(c,'1h');if(h.length<500)continue
+    d4[c]=toTf(h,BAR4);tmin=Math.min(tmin,h[0].t);tmax=Math.max(tmax,h[h.length-1].t)}
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${NW} windows`)
+  const closeAt:Record<string,Map<number,number>>={}
+  for(const c of Object.keys(d4)){const m=new Map<number,number>();for(const b of d4[c])m.set(b.t,b.close);closeAt[c]=m}
+
+  const ladder=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,atr:number,jEnd:number)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const legs=[{r:0.6,frac:1/3},{r:1.0,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0,ext=entry
+    for(let j=j0+1;j<=jEndc;j++){const b=arr[j]
+      const stop=si>=2?(side==='LONG'?ext-2.5*atr:ext+2.5*atr):(be?entry:slPx)
+      if(side==='LONG'?b.low<=stop:b.high>=stop){banked+=rem*(si>=2?(stop-entry)*dirM/slDist:(be?0:-1));rem=0;break}
+      while(si<legs.length){const tgt=entry+slDist*legs[si].r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=legs[si].frac*legs[si].r;tpFrac+=legs[si].frac;rem-=legs[si].frac;be=true;si++}
+      if(si>=2)ext=side==='LONG'?Math.max(ext,b.high):Math.min(ext,b.low)
+      if(rem<=1e-9)break}
+    if(rem>1e-9)banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return {r:banked,tpFrac}}
+
+  // 14d (84-bar) momentum rank helper for confluence
+  const momAt=(c:string,t:number)=>{const a=closeAt[c].get(t-84*BAR4),b=closeAt[c].get(t);return(a&&b&&a>0)?b/a-1:null}
+  const isRotaPick=(sym:string,t:number,side:'LONG'|'SHORT'):boolean=>{
+    const scored:{c:string,m:number}[]=[]
+    for(const c of Object.keys(d4)){if(!CORE40.has(c))continue;const m=momAt(c,t);if(m!==null)scored.push({c,m})}
+    if(scored.length<32)return false
+    scored.sort((a,b)=>b.m-a.m)
+    const top=new Set(scored.slice(0,8).map(x=>x.c)),bot=new Set(scored.slice(-8).map(x=>x.c))
+    return side==='LONG'?top.has(sym):bot.has(sym)}
+
+  // ── A) SL multiplier × ATR period sweep ──
+  console.log(`\n── A) SL-MULTIPLIER × ATR-PERIOD re-tune (DW=15, v53 exit) ──`)
+  const sweepSL=(SLM:number,ATRP:number)=>{
+    const ws:{n:number,sum:number}[]=Array.from({length:NW},()=>({n:0,sum:0}))
+    for(const c of Object.keys(d4)){
+      if(!CORE40.has(c))continue
+      const arr=d4[c];let last=-999
+      for(let i=100;i<arr.length-1;i++){
+        const price=arr[i].close
+        const prior=arr.slice(i-15,i);let hi=-Infinity,lo=Infinity
+        for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+        const side:'LONG'|'SHORT'|null=price>hi?'LONG':price<lo?'SHORT':null
+        if(!side)continue
+        const win=arr.slice(Math.max(0,i-99),i+1)
+        const adx=calcADX(win.slice(-60));if(adx<=22)continue
+        const atr=calcATR(win.slice(-ATRP));if(!atr)continue
+        if(i-last<2)continue
+        last=i
+        const slDist=Math.max(atr*SLM,price*0.005),slPct=slDist/price
+        if(slPct>0.08)continue
+        const res=ladder(arr,i,price,side,slDist,atr,i+96)
+        const net=res.r-(TK+res.tpFrac*MK+(1-res.tpFrac)*TK)/slPct
+        const w=ws[winOf(arr[i].t)];w.n++;w.sum+=net}
+    }
+    const tot=ws.reduce((a,x)=>({n:a.n+x.n,sum:a.sum+x.sum}),{n:0,sum:0})
+    const wA=ws.map(x=>x.n?x.sum/x.n:0)
+    return {n:tot.n,avg:tot.sum/tot.n,tot:tot.sum,allPos:wA.every(x=>x>0)}}
+  console.log(`  config           n      avg      totR   all6w`)
+  for(const ATRP of [14,20,30])for(const SLM of [1.2,1.4,1.6,1.8]){
+    const r=sweepSL(SLM,ATRP)
+    const tag=(SLM===1.4&&ATRP===20)?' (LIVE)':''
+    console.log(`  ATR${ATRP} SL${SLM.toFixed(1)}${tag.padEnd(8)} ${String(r.n).padStart(5)}  ${(r.avg>=0?'+':'')}${r.avg.toFixed(4)}  ${r.tot.toFixed(0).padStart(5)}   ${r.allPos?'✅':''}`)}
+
+  // ── B) cross-sleeve confluence sizing ──
+  console.log(`\n── B) CROSS-SLEEVE CONFLUENCE (breakout also a ROTA momentum pick → upsize) ──`)
+  interface T{win:number;net:number;conf:boolean}
+  const trades:T[]=[]
+  for(const c of Object.keys(d4)){
+    if(!CORE40.has(c))continue
+    const arr=d4[c];let last=-999
+    for(let i=100;i<arr.length-1;i++){
+      const price=arr[i].close
+      const prior=arr.slice(i-15,i);let hi=-Infinity,lo=Infinity
+      for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+      const side:'LONG'|'SHORT'|null=price>hi?'LONG':price<lo?'SHORT':null
+      if(!side)continue
+      const win=arr.slice(Math.max(0,i-99),i+1)
+      const adx=calcADX(win.slice(-60));if(adx<=22)continue
+      const atr=calcATR(win.slice(-20));if(!atr)continue
+      if(i-last<2)continue
+      last=i
+      const slDist=Math.max(atr*1.4,price*0.005),slPct=slDist/price
+      if(slPct>0.08)continue
+      const res=ladder(arr,i,price,side,slDist,atr,i+96)
+      const net=res.r-(TK+res.tpFrac*MK+(1-res.tpFrac)*TK)/slPct
+      trades.push({win:winOf(arr[i].t),net,conf:isRotaPick(c,arr[i].t,side)})}
+  }
+  const nConf=trades.filter(t=>t.conf).length
+  console.log(`  ${trades.length} trades, ${nConf} (${(100*nConf/trades.length).toFixed(0)}%) also a ROTA momentum pick`)
+  console.log(`  confluence-only avg: ${(trades.filter(t=>t.conf).reduce((a,t)=>a+t.net,0)/Math.max(1,nConf)).toFixed(4)}R  vs non-conf: ${(trades.filter(t=>!t.conf).reduce((a,t)=>a+t.net,0)/Math.max(1,trades.length-nConf)).toFixed(4)}R`)
+  const evalC=(name:string,mult:number)=>{
+    const base=Array.from({length:NW},()=>({s:0,w:0})),tilt=Array.from({length:NW},()=>({s:0,w:0}))
+    for(const t of trades){base[t.win].s+=t.net;base[t.win].w+=1;const g=t.conf?mult:1;tilt[t.win].s+=t.net*g;tilt[t.win].w+=g}
+    const bA=base.map(x=>x.w?x.s/x.w:0),tA=tilt.map(x=>x.w?x.s/x.w:0)
+    const better=tA.map((x,i)=>x>bA[i])
+    const bT=base.reduce((a,x)=>a+x.s,0)/base.reduce((a,x)=>a+x.w,0),tT=tilt.reduce((a,x)=>a+x.s,0)/tilt.reduce((a,x)=>a+x.w,0)
+    console.log(`  ${name.padEnd(22)} avg ${(tT>=0?'+':'')+tT.toFixed(4)}R vs ${(bT>=0?'+':'')+bT.toFixed(4)} | ${tA.map((x,i)=>(((x>=0?'+':'')+x.toFixed(3))+(better[i]?'▲':'▽')).padStart(8)).join(' ')} ${tA.every(x=>x>0)&&better.every(Boolean)&&(tT-bT)>0.004?'✅':''}`)}
+  evalC('confluence 1.25×',1.25)
+  evalC('confluence 1.5×',1.5)
+  console.log(`\n✅ = beats base in all 6 windows AND >+0.004R total.`)
+}
+
+// ─────────────────────────────────────────────────────────────
+// v65bt: directional-concentration CAP — born from live data (a same-direction
+//  breakout cluster all dumped together). Distinct from v57 size-shrink: here we
+//  simply don't open the (CAP+1)th simultaneously-open same-SIDE DONCH4H entry.
+//  Portfolio sim, chronological. Measures total R + per-window + how many trades
+//  the cap skips (rule-5 check) + whether the skipped trades were net-negative.
+function runV65bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000
+  const toTf=(a:Bar[],ms:number):Bar[]=>{
+    const out:Bar[]=[]; let cur:Bar|null=null; let bucket=-1
+    for(const b of a){const k=Math.floor(b.t/ms)
+      if(k!==bucket){if(cur)out.push(cur);bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol}}
+      else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol}}
+    if(cur)out.push(cur);return out}
+  const d4:Record<string,Bar[]>={}
+  let tmin=Infinity,tmax=-Infinity
+  for(const c of COINS){const h=loadCSV(c,'1h');if(h.length<500)continue
+    d4[c]=toTf(h,BAR4);tmin=Math.min(tmin,h[0].t);tmax=Math.max(tmax,h[h.length-1].t)}
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${NW} windows`)
+
+  const ladder=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,atr:number,jEnd:number)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const legs=[{r:0.6,frac:1/3},{r:1.0,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0,ext=entry,exitBar=jEndc
+    for(let j=j0+1;j<=jEndc;j++){const b=arr[j]
+      const stop=si>=2?(side==='LONG'?ext-2.5*atr:ext+2.5*atr):(be?entry:slPx)
+      if(side==='LONG'?b.low<=stop:b.high>=stop){banked+=rem*(si>=2?(stop-entry)*dirM/slDist:(be?0:-1));rem=0;exitBar=j;break}
+      while(si<legs.length){const tgt=entry+slDist*legs[si].r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=legs[si].frac*legs[si].r;tpFrac+=legs[si].frac;rem-=legs[si].frac;be=true;si++}
+      if(si>=2)ext=side==='LONG'?Math.max(ext,b.high):Math.min(ext,b.low)
+      if(rem<=1e-9){exitBar=j;break}}
+    if(rem>1e-9)banked+=rem*((arr[exitBar].close-entry)*dirM/slDist)
+    return {r:banked,tpFrac,exitT:arr[exitBar].t}}
+
+  // collect all DONCH4H trades chronologically
+  interface Tr{t0:number;t1:number;side:1|-1;win:number;net:number}
+  const all:Tr[]=[]
+  for(const c of Object.keys(d4)){
+    if(!CORE40.has(c))continue
+    const arr=d4[c];let last=-999
+    for(let i=100;i<arr.length-1;i++){
+      const price=arr[i].close
+      const prior=arr.slice(i-15,i);let hi=-Infinity,lo=Infinity
+      for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+      const side:'LONG'|'SHORT'|null=price>hi?'LONG':price<lo?'SHORT':null
+      if(!side)continue
+      const win=arr.slice(Math.max(0,i-99),i+1)
+      const adx=calcADX(win.slice(-60));if(adx<=22)continue
+      const atr=calcATR(win.slice(-20));if(!atr)continue
+      if(i-last<2)continue
+      last=i
+      const slDist=Math.max(atr*1.4,price*0.005),slPct=slDist/price
+      if(slPct>0.08)continue
+      const res=ladder(arr,i,price,side,slDist,atr,i+96)
+      const net=res.r-(TK+res.tpFrac*MK+(1-res.tpFrac)*TK)/slPct
+      all.push({t0:arr[i].t,t1:res.exitT,side:side==='LONG'?1:-1,win:winOf(arr[i].t),net})}
+  }
+  all.sort((a,b)=>a.t0-b.t0)
+  console.log(`  ${all.length} DONCH4H trades`)
+
+  const sim=(CAP:number)=>{
+    const open:Tr[]=[];const ws:{n:number,sum:number}[]=Array.from({length:NW},()=>({n:0,sum:0}))
+    let skipped=0,skippedNet=0
+    for(const tr of all){
+      // prune closed
+      for(let k=open.length-1;k>=0;k--)if(open[k].t1<=tr.t0)open.splice(k,1)
+      if(CAP>0){const sameSide=open.filter(o=>o.side===tr.side).length
+        if(sameSide>=CAP){skipped++;skippedNet+=tr.net;continue}}
+      open.push(tr)
+      const w=ws[tr.win];w.n++;w.sum+=tr.net}
+    const tot=ws.reduce((a,x)=>({n:a.n+x.n,sum:a.sum+x.sum}),{n:0,sum:0})
+    const wA=ws.map(x=>x.n?x.sum/x.n:0)
+    return {n:tot.n,sum:tot.sum,wA,allPos:wA.every(x=>x>0),skipped,skippedNet}}
+
+  console.log(`\n── DIRECTIONAL-CONCENTRATION CAP (max simultaneous same-side DONCH4H) ──`)
+  const base=sim(0)
+  console.log(`  no cap (live)      n=${base.n} totR ${base.sum.toFixed(0)} | ${base.wA.map(x=>((x>=0?'+':'')+x.toFixed(3)).padStart(7)).join(' ')} ✅base`)
+  for(const CAP of [3,4,5,6,8]){
+    const r=sim(CAP)
+    const cut=(100*r.skipped/base.n).toFixed(1)
+    const skAvg=r.skipped?(r.skippedNet/r.skipped).toFixed(4):'0'
+    const ok=r.allPos&&r.sum>base.sum?'✅>base':r.allPos?'(all+, ≤base)':''
+    console.log(`  cap ${CAP}  n=${String(r.n).padStart(5)} totR ${r.sum.toFixed(0).padStart(5)} skip=${r.skipped}(${cut}%, avg ${skAvg}R) | ${r.wA.map(x=>((x>=0?'+':'')+x.toFixed(3)).padStart(7)).join(' ')} ${ok}`)}
+  console.log(`\n  skip avg R < 0 ⇒ the capped clustered entries were net-losers (cap helps).`)
+  console.log(`  ✅>base = all 6 windows positive AND total R > no-cap. Also weigh the trade-count cut (rule 5).`)
+}
+
+// ─────────────────────────────────────────────────────────────
+// v66bt: STRESS TEST over max available history (~2020-2026, Binance USDT-M
+//  perp archive start). Runs the LIVE DONCH4H config (DW=15/adx22/sl1.4/ladder+
+//  trailing) and buckets results by calendar year AND by named crisis windows
+//  (COVID crash, May-2021, LUNA, FTX). Answers: does the edge survive bear
+//  markets / -50% crashes? Long/short split shown (crashes should favour shorts).
+function runV66bt() {
+  const TK=0.0005, MK=0.0002, BAR4=14400000
+  const toTf=(a:Bar[],ms:number):Bar[]=>{
+    const out:Bar[]=[]; let cur:Bar|null=null; let bucket=-1
+    for(const b of a){const k=Math.floor(b.t/ms)
+      if(k!==bucket){if(cur)out.push(cur);bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol}}
+      else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol}}
+    if(cur)out.push(cur);return out}
+  const d4:Record<string,Bar[]>={}
+  let tmin=Infinity,tmax=-Infinity
+  for(const c of COINS){const h=loadCSV(c,'1h');if(h.length<300)continue
+    d4[c]=toTf(h,BAR4);tmin=Math.min(tmin,h[0].t);tmax=Math.max(tmax,h[h.length-1].t)}
+  console.log(`  history: ${new Date(tmin).toISOString().slice(0,10)} → ${new Date(tmax).toISOString().slice(0,10)} (${((tmax-tmin)/86400000/365).toFixed(1)}y), ${Object.keys(d4).length} coins`)
+
+  const ladder=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,atr:number,jEnd:number)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const legs=[{r:0.6,frac:1/3},{r:1.0,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0,ext=entry
+    for(let j=j0+1;j<=jEndc;j++){const b=arr[j]
+      const stop=si>=2?(side==='LONG'?ext-2.5*atr:ext+2.5*atr):(be?entry:slPx)
+      if(side==='LONG'?b.low<=stop:b.high>=stop){banked+=rem*(si>=2?(stop-entry)*dirM/slDist:(be?0:-1));rem=0;break}
+      while(si<legs.length){const tgt=entry+slDist*legs[si].r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=legs[si].frac*legs[si].r;tpFrac+=legs[si].frac;rem-=legs[si].frac;be=true;si++}
+      if(si>=2)ext=side==='LONG'?Math.max(ext,b.high):Math.min(ext,b.low)
+      if(rem<=1e-9)break}
+    if(rem>1e-9)banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return {r:banked,tpFrac}}
+
+  interface Tr{t:number;side:1|-1;net:number}
+  const all:Tr[]=[]
+  for(const c of Object.keys(d4)){
+    if(!CORE40.has(c))continue
+    const arr=d4[c];let last=-999
+    for(let i=100;i<arr.length-1;i++){
+      const price=arr[i].close
+      const prior=arr.slice(i-15,i);let hi=-Infinity,lo=Infinity
+      for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+      const side:'LONG'|'SHORT'|null=price>hi?'LONG':price<lo?'SHORT':null
+      if(!side)continue
+      const win=arr.slice(Math.max(0,i-99),i+1)
+      const adx=calcADX(win.slice(-60));if(adx<=22)continue
+      const atr=calcATR(win.slice(-20));if(!atr)continue
+      if(i-last<2)continue
+      last=i
+      const slDist=Math.max(atr*1.4,price*0.005),slPct=slDist/price
+      if(slPct>0.08)continue
+      const res=ladder(arr,i,price,side,slDist,atr,i+96)
+      const net=res.r-(TK+res.tpFrac*MK+(1-res.tpFrac)*TK)/slPct
+      all.push({t:arr[i].t,side:side==='LONG'?1:-1,net})}
+  }
+  all.sort((a,b)=>a.t-b.t)
+  console.log(`  ${all.length} DONCH4H trades over the full history\n`)
+
+  const stat=(label:string,t0:string,t1:string)=>{
+    const a=Date.parse(t0+'T00:00:00Z'),b=Date.parse(t1+'T00:00:00Z')
+    const sub=all.filter(x=>x.t>=a&&x.t<b)
+    if(!sub.length){console.log(`  ${label.padEnd(24)} (no data)`);return}
+    const n=sub.length,w=sub.filter(x=>x.net>0).length
+    const tot=sub.reduce((s,x)=>s+x.net,0)
+    const L=sub.filter(x=>x.side===1),Sh=sub.filter(x=>x.side===-1)
+    const lR=L.reduce((s,x)=>s+x.net,0),sR=Sh.reduce((s,x)=>s+x.net,0)
+    // simple sequential equity for a rough per-period maxDD (R units @1.25%)
+    let eq=0,pk=0,dd=0;for(const x of sub){eq+=0.0125*x.net;if(eq>pk)pk=eq;dd=Math.max(dd,pk-eq)}
+    console.log(`  ${label.padEnd(24)} n=${String(n).padStart(4)} WR=${(100*w/n).toFixed(0)}% totR=${tot.toFixed(0).padStart(4)} avg=${(tot/n>=0?'+':'')}${(tot/n).toFixed(3)} | L:${(lR>=0?'+':'')}${lR.toFixed(0)}(${L.length}) S:${(sR>=0?'+':'')}${sR.toFixed(0)}(${Sh.length}) | DD~${(dd*100).toFixed(0)}%`)}
+
+  console.log(`── BY CALENDAR YEAR ──`)
+  for(const y of ['2020','2021','2022','2023','2024','2025','2026'])stat(y,`${y}-01-01`,`${y}-12-31`)
+  console.log(`\n── NAMED CRISIS WINDOWS (survival test) ──`)
+  stat('COVID crash 2020',   '2020-03-01','2020-04-15')
+  stat('2021 bull leg',      '2021-01-01','2021-05-01')
+  stat('May-2021 crash',     '2021-05-10','2021-07-31')
+  stat('LUNA collapse',      '2022-05-01','2022-06-30')
+  stat('2022 full bear',     '2022-01-01','2022-12-31')
+  stat('FTX collapse',       '2022-11-01','2022-12-01')
+  stat('2023-26 (live window)','2023-01-01','2026-12-31')
+  console.log(`\n  NB: universe shrinks going back (many alts launched post-2021); pre-2021`)
+  console.log(`  samples are BTC/ETH/majors-heavy. R @1.25% risk; DD is single-position seq (real deeper).`)
+}
+
+// ─────────────────────────────────────────────────────────────
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
@@ -3672,6 +4825,56 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v56bt') {
     console.log(`████ V56BT — neighbor re-tune around DW=15: DW curve / ADX gate / cooldown / ROTA K ████`)
     runV56bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v57bt') {
+    console.log(`████ V57BT — correlation-aware sizing / time-stop / Kelly table ████`)
+    runV57bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v58bt') {
+    console.log(`████ V58BT — ADX recalibration / final-third trailing / long-short asymmetry ████`)
+    runV58bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v59bt') {
+    console.log(`████ V59BT — extend trailing (exit-shape grid) + ADX-scaled trail distance ████`)
+    runV59bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v60bt') {
+    console.log(`████ V60BT — dynamic sleeve allocation + BTC-regime size tilt ████`)
+    runV60bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v61bt') {
+    console.log(`████ V61BT — stop-hunt-aware (liquidity) stop placement ████`)
+    runV61bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v62bt') {
+    console.log(`████ V62BT — BTC-dominance regime tilt on alt breakouts ████`)
+    runV62bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v63bt') {
+    console.log(`████ V63BT — WR-optimized ladder (first-leg R + BE timing) ████`)
+    runV63bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v64bt') {
+    console.log(`████ V64BT — SL/ATR re-tune + cross-sleeve confluence ████`)
+    runV64bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v65bt') {
+    console.log(`████ V65BT — directional-concentration cap ████`)
+    runV65bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v66bt') {
+    console.log(`████ V66BT — extended-history stress test (2020-2026) ████`)
+    runV66bt()
     return
   }
 

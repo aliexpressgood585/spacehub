@@ -1,4 +1,37 @@
 // ════════════════════════════════════════════════════════════
+// CryptoBot v53.0 — trailing final third (validated v58bt)
+//
+// v53.0: the DONCH4H ladder's final third now TRAILS (chandelier, 2.5×ATR4)
+//  instead of capping at a fixed 1.6R. v58bt walk-forward (36m, 11,218 signals):
+//  +0.0620R vs +0.0456R, total 696R vs 512R (+36%), all 6 windows positive.
+//  First two legs (0.6R/1.0R) still bank maker; the trailing exit is taker.
+//  Same batch: ADX risk tiers CONFIRMED still monotonic on DW=15 (no change);
+//  long/short asymmetry NOT deployed — SHORT +0.089R vs LONG +0.006R is large
+//  but LONG is negative in 3/6 windows = regime-dependent (this 3y window was
+//  short-favourable), a directional tilt would blow up in a bull market. Watch.
+//
+// CryptoBot v52.1 — visibility & measurement ops (no strategy change)
+//
+// v52.1: (1) risk_usd stored at DONCH4H entry → live avg R vs the +0.046R
+//  band computed exactly (ping + daily report). (2) shields JSONB published
+//  to bot_state each cycle → dashboard shield card + watchdog opens/closes
+//  a GitHub issue when any shield trips. (3) ?reset=1 now truncates
+//  bot_equity so the era anchor moves with a reset. (4) deploy workflow
+//  retries the CLI setup once (transient GH download failures). (5) weekly
+//  trade-journal CSV export workflow (backup + Excel journal).
+//
+// CryptoBot v52.0 — ROTA K=8 (validated v56bt)
+//
+// v52.0: rotation 8 long / 8 short — annT 39.2% vs 38.2% (K=7), maxDD 15%
+//  vs 20%, all 6 windows positive. Same batch REJECTED per the pre-set bar:
+//  • DW 10/12/20 — the DW curve peaks at 15 (12→509R, 20→457R vs 512R
+//    baseline; 10 has w5 negative). Smooth hill = DW=15 is not a fluke.
+//  • ADX gate 18/20 — both flip w5 (and 18 also w1) negative. Keep 22.
+//  • entry cooldown 1 bar — tempting (+33% totR, n=14,113) but w5 -4.7‰
+//    violates the all-windows rule. NOT deployed; noted for re-test only if
+//    a future batch shows w5-era robustness some other way.
+//  • ROTA K=9 — w3 negative, annT collapses to 32.8%.
+//
 // CryptoBot v51.0 — DONCH4H Donchian window 25 → 15 (breadth upgrade)
 //
 // v51.0: v55bt walk-forward (36m, 6 windows, real fees) showed DW=15 keeps
@@ -2144,6 +2177,9 @@ Deno.serve(async (req) => {
     if (url.searchParams.get('reset')==='1') {
       const newBalance = 10000
       await supabase.from('bot_trades').delete().neq('id',0)
+      // v52.1: truncate equity history so the era anchor (min bot_equity.ts)
+      // moves with the reset — otherwise stats would span two accounts.
+      await supabase.from('bot_equity').delete().neq('id',0)
       // v39: clean-slate reset — also zero peak/stats and clear optimizer's
       // curve-fit params so we measure the v39 changes from scratch.
       await supabase.from('bot_state').update({
@@ -2472,11 +2508,12 @@ Deno.serve(async (req) => {
     // ════ v42 ROTATION PHASE — cross-sectional momentum L/S (LB84|RB12|K5) ════
     // 36-month walk-forward proof: +45.9%/yr maker, +41%/yr taker, maxDD 35%,
     // positive in all 6 windows. Every 48h: rank universe by 14-day momentum;
-    // LONG top-7, SHORT bottom-7 (v49; validated), inverse-vol weights, 70% book.
+    // LONG top-8, SHORT bottom-8 (v52; validated), inverse-vol weights, 70% book.
     try {
-      // v49: K 5→7 — walk-forward 36m: annT 38.2% vs 34.4%, maxDD 17% vs 26%,
-      // all 6 windows positive. More slots, better return, lower drawdown.
-      const ROTA_MS = 48*3600_000, ROTA_K = 7, ROTA_LB = 84
+      // v49: K 5→7 — annT 38.2% vs 34.4%, maxDD 17% vs 26%, all windows ✅.
+      // v52: K 7→8 — v56bt: annT 39.2% vs 38.2%, maxDD 15% vs 20%, all windows ✅.
+      // K=9 REJECTED (w3 negative, annT 32.8% — the edge thins past 8).
+      const ROTA_MS = 48*3600_000, ROTA_K = 8, ROTA_LB = 84
       const lastRota = state.rebalanced_at ? new Date(state.rebalanced_at).getTime() : 0
       // v50: postpone the whole rebalance on a black day (retry next cycle once healed)
       if (!dayLossPaused && now - lastRota >= ROTA_MS - 5*60_000) {
@@ -2895,11 +2932,41 @@ Deno.serve(async (req) => {
                 const pnl2 = (p10-entry)*half*dirM - p10*half*FEE_MAKER   // v47: limit fill at level, maker fee
                 balance += entry*half + pnl2
                 await supabase.from('bot_trades').update({
-                  size: size-half, exit_stage: 2
+                  size: size-half, exit_stage: 2, trail_sl: entry
                 }).eq('id', t.id)
-                log.push(`LADDER_10 ${sym} ${t.side} ⅓@${p10.toFixed(4)} pnl=${pnl2.toFixed(2)} → last ⅓ to 1.6R`)
+                log.push(`LADDER_10 ${sym} ${t.side} ⅓@${p10.toFixed(4)} pnl=${pnl2.toFixed(2)} → final ⅓ trails`)
                 continue
               }
+            } else if (stage === 2) {
+              // ── v53 TRAILING FINAL THIRD (replaces fixed 1.6R cap) ──
+              // v58bt walk-forward (36m, 11,218 signals): chandelier trail on the
+              // last third — +0.0620R vs +0.0456R fixed, totR 696 vs 512 (+36%),
+              // all 6 windows positive. Fat-tail capture: rare 4R+ runs pay for
+              // the give-back. Trail dist = 2.5×ATR(4h) = origSlDist×2.5/1.4.
+              // Stop = taker (market); first two legs already banked maker at
+              // 0.6R/1.0R. trail_sl ratchets from BE and never loosens.
+              const trailDist = origSlDist * (2.5/1.4)
+              const chand = t.side==='LONG' ? price - trailDist : price + trailDist
+              const cur = Number(t.trail_sl)
+              const nt = t.side==='LONG' ? Math.max(cur, chand) : Math.min(cur, chand)
+              const hit = t.side==='LONG' ? price <= nt : price >= nt
+              const timedOut = ageMs > MAX_HOLD_MIN*60_000
+              if (hit || timedOut) {
+                const fav=(price-entry)/entry*dirM
+                const pnl=(price-entry)*size*dirM - price*size*FEE   // trailing stop = taker
+                const final = pnl>0 ? 'TP' : 'TRAIL'
+                balance += entry*size + pnl; openCount--
+                await supabase.from('bot_trades').update({
+                  status: final, exit_price: price, pnl, pnl_pct: fav,
+                  closed_at: new Date().toISOString()
+                }).eq('id', t.id)
+                await supabase.from('bot_trade_snapshots').update({ result: final, pnl }).eq('trade_id', t.id).catch(()=>{})
+                await updateMarketMemory(supabase, t.id, final, pnl, log)
+                log.push(`LADDER_TRAIL ${sym} ${t.side} final⅓ @${price.toFixed(4)} pnl=${pnl.toFixed(2)} ${timedOut?'(timeout)':''}`)
+                continue
+              }
+              if (nt !== cur) await supabase.from('bot_trades').update({ trail_sl: nt }).eq('id', t.id)
+              continue  // ride the final third — never fall through to the fixed-TP logic
             }
           }
 
@@ -3106,7 +3173,8 @@ Deno.serve(async (req) => {
             hi: side4 === 'LONG' ? tpPrice4 : price,
             lo: side4 === 'SHORT' ? tpPrice4 : price,
             status: 'OPEN', score: Math.round(adx4), mtf: false, partial_done: false,
-            paper_mode: paperMode, entry_macd_hist: 0, strategy: 'DONCH4H'
+            paper_mode: paperMode, entry_macd_hist: 0, strategy: 'DONCH4H',
+            risk_usd: slDist4 * size4   // v52.1: risk taken at entry → live R = pnl/risk_usd
           })
           symCooldown.add(sym)
           log.push(`OPEN ${sym} ${side4} DONCH4H @${price.toFixed(4)} adx4h=${adx4.toFixed(0)} sl=${slPrice4.toFixed(4)} tp=${tpPrice4.toFixed(4)} $${notional4.toFixed(0)}`)
@@ -3406,6 +3474,9 @@ Deno.serve(async (req) => {
       peak_balance:  newPeakBalance,
       coin_weights:  coinWeights,
       lock_until:    new Date().toISOString(),  // v28.2: release run lease
+      // v52.1: shield state published for the dashboard + watchdog alerts
+      shields: { donch_paused: donchPaused, rota_paused: rotaPaused,
+                 day_loss_paused: dayLossPaused, depeg_paused: depegPaused },
     }).eq('id',1)
 
     return new Response(JSON.stringify({
