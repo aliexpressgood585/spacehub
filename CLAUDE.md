@@ -80,6 +80,16 @@ REJECTED per all-windows rule, ROTA K=9 rejected (w3<0) — K=8 deployed (v52).
 RESEARCH NOTE: the "chapter closed" call on 2026-07-11 was premature — v55bt
 found DW=15 (deployed as v51). Breadth (more sleeves of the proven edge) was
 the unexplored axis; it too is now exhausted (15✅ / 40✗ / 12h✗ / dual-ROTA✗).
+v57bt (2026-07-12): correlation-aware sizing REJECTED (mean-risk-normalized
+portfolio sim: best λ=0.5 cut maxDD 14% but kept only 38% of return — shrinking
+correlated entries kills the big clustered winners too; λ≥1 breaks windows).
+Time-stop REJECTED (all N of 6/12/18 bars reduce total R 512→≤477 and flip w1
+negative — "dead" stalled trades recover enough to matter; cutting them forfeits
+the turnarounds). Kelly table (measure only, gated to 50-trade checkpoint):
+mean +0.0456R, sd 0.834R → full-Kelly f*≈0.065, ¼-Kelly≈0.016. KEY INSIGHT:
+current 1.25% base risk ≈ quarter-Kelly (conservative); the 1.75%/2.5% MC tiers
+sit between ¼ and ½ Kelly — the professional zone. Confirms the risk-raise
+ladder direction is sound, still gated behind 50 live trades.
 Next edge levers: 50-trade live checkpoint → risk raise per Monte Carlo table;
 later real-exchange connection + capital.
 
