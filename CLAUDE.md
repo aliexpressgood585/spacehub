@@ -129,6 +129,15 @@ INTUITIVE tilt (upsize alts when BTC-dominance falling = "alt-season") HURTS
 total (+0.0702R, beats base 5/6 windows) — meaning an alt breakout firing DESPITE
 BTC strength = higher-conviction signal — but w5 negative = not robust. Rejected.
 Info: don't chase alt-season; alt breakouts against BTC strength are the real ones.
+v63bt (2026-07-12): WR-optimized ladder (first-leg R level, the untested WR
+angle). Lowering the first leg DOES raise WR cleanly without cutting trades:
+L1=0.6 (live) WR 66.0%/696R/all-6-windows✅; L1=0.5 WR 69.7%/656R(-6%)/breaks a
+window; L1=0.4 WR 73.6%/586R(-16%)/breaks a window. fastBE variants pathological
+(WR 3-18%, hugely negative — implementation artifact, rejected). VERDICT: current
+L1=0.6 is the robustness frontier for WR too. Higher WR is buyable but costs
+profit AND breaks the all-windows rule → NOT deployed. Left as a documented
+USER OPTION for the live transition (trade ~6% profit for a smoother/higher-WR
+curve = L1=0.5) if the user prefers equity smoothness over max profit.
 
 ## Current state (2026-07-11)
 - Live: **v53.0** — DONCH4H final ladder third TRAILS (chandelier 2.5×ATR4;
