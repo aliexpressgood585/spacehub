@@ -3887,6 +3887,108 @@ function runV58bt() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// v59bt: extend the v53 trailing win. Baseline = ⅓@0.6R / ⅓@1.0R / trail 2.5×ATR.
+//  A) exit-shape grid: fraction split × how many legs trail (final only vs
+//     middle+final vs all-trail) — does trailing more of the position help?
+//  B) ADX-scaled trail distance: wider trail on strong (ADX>45) breakouts.
+// Deploy bar: all 6 windows positive AND total R > the 696R v53 trailing baseline.
+function runV59bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000
+  const toTf=(a:Bar[],ms:number):Bar[]=>{
+    const out:Bar[]=[]; let cur:Bar|null=null; let bucket=-1
+    for(const b of a){const k=Math.floor(b.t/ms)
+      if(k!==bucket){if(cur)out.push(cur);bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol}}
+      else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol}}
+    if(cur)out.push(cur);return out}
+  const d4:Record<string,Bar[]>={}
+  let tmin=Infinity,tmax=-Infinity
+  for(const c of COINS){const h=loadCSV(c,'1h');if(h.length<500)continue
+    d4[c]=toTf(h,BAR4);tmin=Math.min(tmin,h[0].t);tmax=Math.max(tmax,h[h.length-1].t)}
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${NW} windows`)
+
+  // generalized ladder: legs = [{r, frac, trail?}] — a leg with trail:true rides
+  // a chandelier (extreme − TRAIL×atr) instead of banking at its r-target.
+  // Legs bank in order; once a trailing leg activates, the remaining size trails.
+  const sim=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,atr:number,jEnd:number,
+             legs:{r:number,frac:number,trail:boolean}[],TRAIL:number)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0,ext=entry,trailing=false
+    for(let j=j0+1;j<=jEndc;j++){
+      const b=arr[j]
+      const stop = trailing ? (side==='LONG'?ext-TRAIL*atr:ext+TRAIL*atr) : (be?entry:slPx)
+      if(side==='LONG'?b.low<=stop:b.high>=stop){
+        const exitR=(stop-entry)*dirM/slDist
+        banked+=rem*(trailing?exitR:(be?0:-1));rem=0;break}
+      // advance through legs
+      while(si<legs.length){
+        const L=legs[si]
+        if(L.trail){ // activate trailing for the remaining position at this r-target
+          const tgt=entry+slDist*L.r*dirM
+          if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+          trailing=true;be=true;si=legs.length // trail consumes the rest
+          break}
+        const tgt=entry+slDist*L.r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=L.frac*L.r;tpFrac+=L.frac;rem-=L.frac;be=true;si++}
+      if(trailing)ext=side==='LONG'?Math.max(ext,b.high):Math.min(ext,b.low)
+      if(rem<=1e-9)break}
+    if(rem>1e-9)banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return {r:banked,tpFrac}}
+
+  // collect signals; evaluate each exit shape inline (store adx for B)
+  interface S{win:number;adx:number;arr:Bar[];i:number;entry:number;side:'LONG'|'SHORT';slDist:number;atr:number}
+  const S:S[]=[]
+  for(const c of Object.keys(d4)){
+    if(!CORE40.has(c))continue
+    const arr=d4[c];let last=-999
+    for(let i=100;i<arr.length-1;i++){
+      const price=arr[i].close
+      const prior=arr.slice(i-15,i);let hi=-Infinity,lo=Infinity
+      for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+      const side:'LONG'|'SHORT'|null=price>hi?'LONG':price<lo?'SHORT':null
+      if(!side)continue
+      const win=arr.slice(Math.max(0,i-99),i+1)
+      const adx=calcADX(win.slice(-60));if(adx<=22)continue
+      const atr=calcATR(win.slice(-20));if(!atr)continue
+      if(i-last<2)continue
+      last=i
+      const slDist=Math.max(atr*1.4,price*0.005);if(slDist/price>0.08)continue
+      S.push({win:winOf(arr[i].t),adx,arr,i,entry:price,side,slDist,atr})
+    }
+  }
+  console.log(`  ${S.length} DONCH4H signals`)
+
+  const netOf=(s:S,legs:{r:number,frac:number,trail:boolean}[],TRAIL:number)=>{
+    const res=sim(s.arr,s.i,s.entry,s.side,s.slDist,s.atr,s.i+96,legs,TRAIL)
+    return res.r-(TK+res.tpFrac*MK+(1-res.tpFrac)*TK)/(s.slDist/s.entry)}
+  const wf=(name:string,legsFn:(s:S)=>[{r:number,frac:number,trail:boolean}[],number])=>{
+    const ws:{n:number,sum:number}[]=Array.from({length:NW},()=>({n:0,sum:0}))
+    for(const s of S){const[legs,T]=legsFn(s);const w=ws[s.win];w.n++;w.sum+=netOf(s,legs,T)}
+    const tot=ws.reduce((a,x)=>({n:a.n+x.n,sum:a.sum+x.sum}),{n:0,sum:0})
+    const wA=ws.map(x=>x.n?x.sum/x.n:0)
+    const ok=wA.every(x=>x>0)&&tot.sum>696?'✅>base':wA.every(x=>x>0)?'(all+, ≤696)':''
+    console.log(`  ${name.padEnd(30)} avg ${(tot.sum/tot.n>=0?'+':'')}${(tot.sum/tot.n).toFixed(4)}R totR ${tot.sum.toFixed(0)} | ${wA.map(x=>((x>=0?'+':'')+x.toFixed(3)).padStart(7)).join(' ')} ${ok}`)}
+
+  console.log(`\n── A) EXIT-SHAPE GRID (baseline = ⅓@.6/⅓@1.0/trail2.5 = 696R) ──`)
+  wf('⅓.6 ⅓1.0 trail2.5 (v53)', ()=>[[{r:0.6,frac:1/3,trail:false},{r:1.0,frac:1/3,trail:false},{r:1.0,frac:1/3,trail:true}],2.5])
+  wf('⅓.6 trail@1.0 (2 legs)',   ()=>[[{r:0.6,frac:1/3,trail:false},{r:1.0,frac:1/3,trail:true}],2.5])
+  wf('½.6 trail@1.0',            ()=>[[{r:0.6,frac:1/2,trail:false},{r:1.0,frac:1/2,trail:true}],2.5])
+  wf('¼.6 ¼1.0 ½trail2.5',       ()=>[[{r:0.6,frac:1/4,trail:false},{r:1.0,frac:1/4,trail:false},{r:1.0,frac:1/2,trail:true}],2.5])
+  wf('trail@0.6 (all trail)',    ()=>[[{r:0.6,frac:1,trail:true}],2.5])
+  wf('⅓.6 ⅓1.0 ⅓trail2.5 T3.5', ()=>[[{r:0.6,frac:1/3,trail:false},{r:1.0,frac:1/3,trail:false},{r:1.0,frac:1/3,trail:true}],3.5])
+
+  console.log(`\n── B) ADX-SCALED TRAIL DISTANCE (final third; wider on strong breakouts) ──`)
+  wf('trail 2.5 flat (v53)',     ()=>[[{r:0.6,frac:1/3,trail:false},{r:1.0,frac:1/3,trail:false},{r:1.0,frac:1/3,trail:true}],2.5])
+  wf('trail 2.5/3.5 by adx45',   (s)=>[[{r:0.6,frac:1/3,trail:false},{r:1.0,frac:1/3,trail:false},{r:1.0,frac:1/3,trail:true}], s.adx>45?3.5:2.5])
+  wf('trail 2.0/3.0/4.0 tiers',  (s)=>[[{r:0.6,frac:1/3,trail:false},{r:1.0,frac:1/3,trail:false},{r:1.0,frac:1/3,trail:true}], s.adx>45?4.0:s.adx>35?3.0:2.0])
+  console.log(`\n✅>base = all 6 windows positive AND total R > 696 (the v53 live baseline).`)
+}
+
+// ─────────────────────────────────────────────────────────────
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
@@ -3997,6 +4099,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v58bt') {
     console.log(`████ V58BT — ADX recalibration / final-third trailing / long-short asymmetry ████`)
     runV58bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v59bt') {
+    console.log(`████ V59BT — extend trailing (exit-shape grid) + ADX-scaled trail distance ████`)
+    runV59bt()
     return
   }
 
