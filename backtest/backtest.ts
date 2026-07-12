@@ -4237,6 +4237,98 @@ function runV61bt() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// v62bt: BTC-dominance regime tilt on ALT DONCH4H breakouts. Dominance proxy =
+//  BTC trailing return − mean alt trailing return (positive = dominance rising
+//  = risk-off for alts). Thesis: alt breakouts work better when dominance is
+//  FALLING (alt-season). Tilt size (not a filter — never cuts trades); BTC's own
+//  breakouts unaffected. Deploy bar: beats base in ALL 6 windows AND >+0.004R.
+function runV62bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000
+  const toTf=(a:Bar[],ms:number):Bar[]=>{
+    const out:Bar[]=[]; let cur:Bar|null=null; let bucket=-1
+    for(const b of a){const k=Math.floor(b.t/ms)
+      if(k!==bucket){if(cur)out.push(cur);bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol}}
+      else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol}}
+    if(cur)out.push(cur);return out}
+  const d4:Record<string,Bar[]>={}
+  let tmin=Infinity,tmax=-Infinity
+  for(const c of COINS){const h=loadCSV(c,'1h');if(h.length<500)continue
+    d4[c]=toTf(h,BAR4);tmin=Math.min(tmin,h[0].t);tmax=Math.max(tmax,h[h.length-1].t)}
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${NW} windows`)
+
+  // dominance proxy: at time t, BTC 14d return − mean alt 14d return (LB=84 bars)
+  const closeAt:Record<string,Map<number,number>>={}
+  for(const c of Object.keys(d4)){const m=new Map<number,number>();for(const b of d4[c])m.set(b.t,b.close);closeAt[c]=m}
+  const LBd=84
+  const retN=(c:string,t:number)=>{const a=closeAt[c].get(t-LBd*BAR4),b=closeAt[c].get(t);return(a&&b&&a>0)?b/a-1:null}
+  const domAt=(t:number):number|null=>{
+    const br=retN('BTC',t);if(br===null)return null
+    let s=0,n=0;for(const c of Object.keys(d4)){if(c==='BTC'||!CORE40.has(c))continue;const r=retN(c,t);if(r!==null){s+=r;n++}}
+    if(n<15)return null
+    return br-(s/n)}   // >0 = BTC outperforming = dominance rising
+
+  const ladder=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,atr:number,jEnd:number)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const legs=[{r:0.6,frac:1/3},{r:1.0,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0,ext=entry
+    for(let j=j0+1;j<=jEndc;j++){const b=arr[j]
+      const stop=si>=2?(side==='LONG'?ext-2.5*atr:ext+2.5*atr):(be?entry:slPx)
+      if(side==='LONG'?b.low<=stop:b.high>=stop){banked+=rem*(si>=2?(stop-entry)*dirM/slDist:(be?0:-1));rem=0;break}
+      while(si<legs.length){const tgt=entry+slDist*legs[si].r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=legs[si].frac*legs[si].r;tpFrac+=legs[si].frac;rem-=legs[si].frac;be=true;si++}
+      if(si>=2)ext=side==='LONG'?Math.max(ext,b.high):Math.min(ext,b.low)
+      if(rem<=1e-9)break}
+    if(rem>1e-9)banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return {r:banked,tpFrac}}
+
+  interface T{win:number;net:number;isAlt:boolean;dom:number|null}
+  const trades:T[]=[]
+  for(const c of Object.keys(d4)){
+    if(!CORE40.has(c))continue
+    const arr=d4[c];let last=-999
+    for(let i=100;i<arr.length-1;i++){
+      const price=arr[i].close
+      const prior=arr.slice(i-15,i);let hi=-Infinity,lo=Infinity
+      for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+      const side:'LONG'|'SHORT'|null=price>hi?'LONG':price<lo?'SHORT':null
+      if(!side)continue
+      const win=arr.slice(Math.max(0,i-99),i+1)
+      const adx=calcADX(win.slice(-60));if(adx<=22)continue
+      const atr=calcATR(win.slice(-20));if(!atr)continue
+      if(i-last<2)continue
+      last=i
+      const slDist=Math.max(atr*1.4,price*0.005),slPct=slDist/price
+      if(slPct>0.08)continue
+      const res=ladder(arr,i,price,side,slDist,atr,i+96)
+      const net=res.r-(TK+res.tpFrac*MK+(1-res.tpFrac)*TK)/slPct
+      trades.push({win:winOf(arr[i].t),net,isAlt:c!=='BTC',dom:domAt(arr[i].t)})
+    }
+  }
+  const nDom=trades.filter(t=>t.dom!==null).length
+  console.log(`  ${trades.length} trades (${trades.filter(t=>t.isAlt).length} alt), dominance available on ${nDom}`)
+
+  const evalTilt=(name:string,wOf:(t:T)=>number)=>{
+    const base=Array.from({length:NW},()=>({s:0,w:0})),tilt=Array.from({length:NW},()=>({s:0,w:0}))
+    for(const t of trades){base[t.win].s+=t.net;base[t.win].w+=1;const g=wOf(t);tilt[t.win].s+=t.net*g;tilt[t.win].w+=g}
+    const bA=base.map(x=>x.w?x.s/x.w:0),tA=tilt.map(x=>x.w?x.s/x.w:0)
+    const better=tA.map((x,i)=>x>bA[i])
+    const bT=base.reduce((a,x)=>a+x.s,0)/base.reduce((a,x)=>a+x.w,0)
+    const tT=tilt.reduce((a,x)=>a+x.s,0)/tilt.reduce((a,x)=>a+x.w,0)
+    console.log(`  ${name.padEnd(30)} avg ${(tT>=0?'+':'')+tT.toFixed(4)}R vs base ${(bT>=0?'+':'')+bT.toFixed(4)}R | ${tA.map((x,i)=>(((x>=0?'+':'')+x.toFixed(3))+(better[i]?'▲':'▽')).padStart(8)).join(' ')} ${tA.every(x=>x>0)&&better.every(Boolean)&&(tT-bT)>0.004?'✅':''}`)}
+  console.log(`\n── BTC-DOMINANCE TILT on ALT breakouts (BTC breakouts unchanged) ──`)
+  // alt breakout: dominance FALLING (dom<0, alt-season) → upsize; RISING → downsize
+  evalTilt('alt: dom<0→1.25 / dom>0→0.85', t=>(!t.isAlt||t.dom===null)?1:(t.dom<0?1.25:0.85))
+  evalTilt('alt: dom<0→1.5 / dom>0→0.5',   t=>(!t.isAlt||t.dom===null)?1:(t.dom<0?1.5:0.5))
+  evalTilt('alt CONTRA: dom>0→1.25',       t=>(!t.isAlt||t.dom===null)?1:(t.dom>0?1.25:0.85))
+  console.log(`\n✅ = beats base in all 6 windows AND total improvement > +0.004R.`)
+}
+
+// ─────────────────────────────────────────────────────────────
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
@@ -4362,6 +4454,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v61bt') {
     console.log(`████ V61BT — stop-hunt-aware (liquidity) stop placement ████`)
     runV61bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v62bt') {
+    console.log(`████ V62BT — BTC-dominance regime tilt on alt breakouts ████`)
+    runV62bt()
     return
   }
 
