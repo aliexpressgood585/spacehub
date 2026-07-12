@@ -63,6 +63,23 @@ jobs:
             ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }} \
             --project-ref ${{ env.PROJECT_REF }}
 
+      # v55: exchange keys for live execution — OPTIONAL. Add BYBIT_API_KEY +
+      # BYBIT_API_SECRET as GitHub repo secrets and LIVE_TRADING=1 as a repo
+      # VARIABLE to arm live mode. Absent secrets → paper mode, untouched.
+      - name: Set exchange secrets (live trading, optional)
+        env:
+          BK: ${{ secrets.BYBIT_API_KEY }}
+          BS: ${{ secrets.BYBIT_API_SECRET }}
+          LT: ${{ vars.LIVE_TRADING }}
+        run: |
+          if [ -n "$BK" ] && [ -n "$BS" ]; then
+            supabase secrets set BYBIT_API_KEY="$BK" BYBIT_API_SECRET="$BS" LIVE_TRADING="${LT:-0}" \
+              --project-ref ${{ env.PROJECT_REF }}
+            echo "exchange secrets set (LIVE_TRADING=${LT:-0})"
+          else
+            echo "no exchange keys — paper mode"
+          fi
+
       - name: Deploy trading-bot function
         run: supabase functions deploy trading-bot --project-ref ${{ env.PROJECT_REF }} --no-verify-jwt
 

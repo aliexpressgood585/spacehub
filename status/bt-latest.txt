@@ -1,25 +1,13 @@
-backtest 2026-07-12T11:53Z mode=v66bt months=72
-████ V66BT — extended-history stress test (2020-2026) ████
-  history: 2020-07-01 → 2026-06-30 (6.0y), 69 coins
-  17795 DONCH4H trades over the full history
+backtest 2026-07-12T16:01Z mode=v71bt months=36
+████ V71BT — slippage-robustness gate for reg-channel ████
+  loaded 69 coins, 6 windows
 
-── BY CALENDAR YEAR ──
-  2020                     n= 674 WR=62% totR=  -7 avg=-0.011 | L:+17(424) S:-25(250) | DD~43%
-  2021                     n=1788 WR=59% totR= -92 avg=-0.051 | L:-11(1181) S:-81(607) | DD~183%
-  2022                     n=2565 WR=65% totR=  25 avg=+0.010 | L:-122(1139) S:+147(1426) | DD~111%
-  2023                     n=2884 WR=62% totR= -13 avg=-0.005 | L:-26(1719) S:+13(1165) | DD~219%
-  2024                     n=3964 WR=68% totR= 344 avg=+0.087 | L:+0(2075) S:+344(1889) | DD~70%
-  2025                     n=3815 WR=66% totR= 338 avg=+0.089 | L:+160(2030) S:+178(1785) | DD~107%
-  2026                     n=2072 WR=64% totR=   6 avg=+0.003 | L:-78(949) S:+85(1123) | DD~204%
+── SLIPPAGE STRESS: Donchian vs reg-channel(k=2.0) ──
+  slip/side   Donchian totR        reg-channel totR
+   0 bps        696 (+0.0620R) ✅        751 (+0.0379R) ✅
+   3 bps        526 (+0.0469R) ❌        448 (+0.0226R) ❌
+   6 bps        356 (+0.0318R) ❌        145 (+0.0073R) ❌
+  10 bps        130 (+0.0116R) ❌       -259 (-0.0131R) ❌
 
-── NAMED CRISIS WINDOWS (survival test) ──
-  COVID crash 2020         (no data)
-  2021 bull leg            n= 473 WR=64% totR=  32 avg=+0.068 | L:+45(397) S:-12(76) | DD~58%
-  May-2021 crash           n= 426 WR=56% totR= -43 avg=-0.101 | L:-4(219) S:-39(207) | DD~77%
-  LUNA collapse            n= 397 WR=74% totR=  82 avg=+0.206 | L:-12(138) S:+94(259) | DD~39%
-  2022 full bear           n=2565 WR=65% totR=  25 avg=+0.010 | L:-122(1139) S:+147(1426) | DD~111%
-  FTX collapse             n= 237 WR=66% totR=  -2 avg=-0.006 | L:+0(89) S:-2(148) | DD~27%
-  2023-26 (live window)    n=12753 WR=65% totR= 664 avg=+0.052 | L:+54(6777) S:+610(5976) | DD~219%
-
-  NB: universe shrinks going back (many alts launched post-2021); pre-2021
-  samples are BTC/ETH/majors-heavy. R @1.25% risk; DD is single-position seq (real deeper).
+  live slippage assumption = 3 bps/side. Deploy reg-channel only if it
+  stays ✅ AND > Donchian at 3-6 bps (realistic live cost).

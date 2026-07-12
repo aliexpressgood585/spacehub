@@ -1,4 +1,19 @@
 // ════════════════════════════════════════════════════════════
+// CryptoBot v55.0 — LIVE EXECUTION ADAPTER (Bybit v5) — triple-locked, OFF by default
+//
+// v55.0: the execution seam of EXECUTION_MODEL.md, implemented. Five seam
+//  points (DONCH4H open, ROTA open/close, ladder legs, final closes) route to
+//  real Bybit reduce-only/market orders ONLY when ALL THREE locks open:
+//  (1) BYBIT_API_KEY+SECRET secrets exist, (2) bot_state.paper_mode=false,
+//  (3) env LIVE_TRADING='1'. Otherwise identical paper behaviour, bit-for-bit.
+//  Real avg fill price replaces the simulated fill when available; lot-size
+//  rounding via instruments-info; rejected orders → logErr + retry next cycle
+//  (positions never orphaned); exchange-vs-DB reconciliation every 5 min
+//  (alert-only); legacy 5m engine hard-disabled in live mode (only validated
+//  strategies touch real money). Ladder legs execute as reduce-only MARKET in
+//  v55 (taker, ~3bps worse than modeled maker — measured at small capital
+//  before any size-up; resting-limit upgrade is the documented next step).
+//
 // CryptoBot v54.0 — ops hardening (zero strategy changes)
 //
 // v54.0: (1) bot_errors table + logErr() — swallowed exceptions become
@@ -505,6 +520,100 @@ async function priceSane(sym:string, px:number): Promise<boolean> {
     if (!Number.isFinite(p2) || p2 <= 0) return true
     return Math.abs(px/p2 - 1) <= 0.005
   } catch { return true }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// v55: LIVE EXECUTION ADAPTER (Bybit v5, USDT linear perps) — GATED OFF.
+// Fires ONLY when ALL THREE locks open:
+//   (1) BYBIT_API_KEY + BYBIT_API_SECRET secrets exist
+//   (2) bot_state.paper_mode === false
+//   (3) env LIVE_TRADING === '1'
+// Otherwise every seam point below behaves exactly as before (paper).
+// The strategy layer is untouched — this is the execution seam of
+// EXECUTION_MODEL.md, nothing more.
+const BYBIT_BASE = 'https://api.bybit.com'
+const _instCache = new Map<string,{qtyStep:number,minQty:number}>()
+
+async function bybitHmac(secret:string, payload:string): Promise<string> {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret),
+    {name:'HMAC', hash:'SHA-256'}, false, ['sign'])
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload))
+  return [...new Uint8Array(sig)].map(b=>b.toString(16).padStart(2,'0')).join('')
+}
+
+async function bybitReq(method:'GET'|'POST', path:string, params:Record<string,unknown>): Promise<any> {
+  const apiKey = Deno.env.get('BYBIT_API_KEY')!, secret = Deno.env.get('BYBIT_API_SECRET')!
+  const ts = Date.now().toString(), recv = '15000'
+  let url = `${BYBIT_BASE}${path}`, body = ''
+  if (method === 'GET') {
+    const qs = Object.entries(params).map(([k,v])=>`${k}=${v}`).join('&')
+    url += qs ? `?${qs}` : ''
+    const sign = await bybitHmac(secret, ts+apiKey+recv+qs)
+    const res = await fetch(url, {headers:{'X-BAPI-API-KEY':apiKey,'X-BAPI-TIMESTAMP':ts,'X-BAPI-RECV-WINDOW':recv,'X-BAPI-SIGN':sign}})
+    return await res.json()
+  }
+  body = JSON.stringify(params)
+  const sign = await bybitHmac(secret, ts+apiKey+recv+body)
+  const res = await fetch(url, {method:'POST', body,
+    headers:{'Content-Type':'application/json','X-BAPI-API-KEY':apiKey,'X-BAPI-TIMESTAMP':ts,'X-BAPI-RECV-WINDOW':recv,'X-BAPI-SIGN':sign}})
+  return await res.json()
+}
+
+// round qty down to the instrument's step; 0 = below exchange minimum
+async function bybitQty(sym:string, qty:number): Promise<number> {
+  let inst = _instCache.get(sym)
+  if (!inst) {
+    try {
+      const res = await fetch(`${BYBIT_BASE}/v5/market/instruments-info?category=linear&symbol=${sym}USDT`,
+        {headers:{'User-Agent':'Mozilla/5.0'}})
+      const j = await res.json()
+      const f = j?.result?.list?.[0]?.lotSizeFilter
+      if (!f) return 0
+      inst = {qtyStep:Number(f.qtyStep), minQty:Number(f.minOrderQty)}
+      _instCache.set(sym, inst)
+    } catch { return 0 }
+  }
+  const stepped = Math.floor(qty/inst.qtyStep)*inst.qtyStep
+  const fixed = Number(stepped.toFixed(8))
+  return fixed >= inst.minQty ? fixed : 0
+}
+
+// market order (one-way mode); returns real avg fill price when available
+async function bybitMarket(sym:string, buy:boolean, qty:number, reduceOnly:boolean):
+    Promise<{ok:boolean, avgPrice?:number, err?:string}> {
+  try {
+    const j = await bybitReq('POST','/v5/order/create',{
+      category:'linear', symbol:`${sym}USDT`, side: buy?'Buy':'Sell',
+      orderType:'Market', qty:String(qty), positionIdx:0, reduceOnly,
+      timeInForce:'IOC',
+    })
+    if (j?.retCode !== 0) return {ok:false, err:`retCode=${j?.retCode} ${j?.retMsg}`}
+    const oid = j?.result?.orderId
+    // one short poll for the real fill price (best effort)
+    if (oid) {
+      await new Promise(r=>setTimeout(r,500))
+      try {
+        const q = await bybitReq('GET','/v5/order/realtime',{category:'linear', symbol:`${sym}USDT`, orderId:oid})
+        const avg = Number(q?.result?.list?.[0]?.avgPrice)
+        if (Number.isFinite(avg) && avg>0) return {ok:true, avgPrice:avg}
+      } catch { /* fill price best-effort */ }
+    }
+    return {ok:true}
+  } catch (e) { return {ok:false, err:String(e).slice(0,200)} }
+}
+
+// exchange truth vs DB truth — alert-only in v55 (no auto-heal)
+async function bybitPositions(): Promise<Map<string,{side:string,size:number}>|null> {
+  try {
+    const j = await bybitReq('GET','/v5/position/list',{category:'linear', settleCoin:'USDT', limit:200})
+    if (j?.retCode !== 0) return null
+    const m = new Map<string,{side:string,size:number}>()
+    for (const p of (j?.result?.list||[])) {
+      const sz = Number(p.size)
+      if (sz>0) m.set(String(p.symbol).replace('USDT',''), {side:p.side==='Buy'?'LONG':'SHORT', size:sz})
+    }
+    return m
+  } catch { return null }
 }
 
 async function fetchBars(sym:string, interval:string, limit:number): Promise<Bar[]> {
@@ -2258,6 +2367,10 @@ Deno.serve(async (req) => {
     }
 
     const paperMode = url.searchParams.get('paper')==='1' || state.paper_mode===true
+    // v55: TRIPLE-LOCKED live mode — keys present AND paper off AND explicit env switch
+    const liveMode = !paperMode
+      && Deno.env.get('LIVE_TRADING')==='1'
+      && !!Deno.env.get('BYBIT_API_KEY') && !!Deno.env.get('BYBIT_API_SECRET')
 
     // dynamic params from optimizer agent (falls back to hardcoded defaults)
     const _bp   = (state.bot_params ?? {}) as Record<string,any>
@@ -2332,6 +2445,31 @@ Deno.serve(async (req) => {
 
     const log:string[]=[]
     resetFeedStats()  // v54.1: per-cycle feed health counters
+    if (liveMode) log.push('MODE: LIVE EXECUTION (bybit)')
+    // v55: reconciliation — exchange truth vs DB truth, alert-only, every 5 min
+    if (liveMode && utcM % 5 === 0) {
+      const exch = await bybitPositions()
+      if (exch) {
+        const {data:dbOpen} = await supabase.from('bot_trades').select('sym,side,size').eq('status','OPEN')
+        const db = new Map<string,number>()
+        for (const t of (dbOpen||[])) {
+          const k = `${t.sym}:${t.side}`
+          db.set(k, (db.get(k)||0) + Number(t.size))
+        }
+        for (const [sym2,pos] of exch) {
+          const k = `${sym2}:${pos.side}`
+          const dbSz = db.get(k)||0
+          if (Math.abs(dbSz-pos.size)/Math.max(pos.size,1e-9) > 0.05) {
+            await logErr('reconcile', `${k} exchange=${pos.size} db=${dbSz.toFixed(6)}`)
+            log.push(`RECONCILE MISMATCH ${k}: exch=${pos.size} db=${dbSz.toFixed(4)}`)
+          }
+          db.delete(k)
+        }
+        for (const [k,sz] of db) {
+          if (sz>0) { await logErr('reconcile', `${k} in DB (${sz.toFixed(6)}) but NOT on exchange`); log.push(`RECONCILE MISSING ${k} on exchange`) }
+        }
+      } else { await logErr('reconcile', 'bybitPositions returned null') }
+    }
     if (streakPaused) log.push(`STREAK PAUSE ${streak}`)
     if (dynamicBlacklist.size>0) log.push(`BLACKLIST ${[...dynamicBlacklist].join(',')}`)
 
@@ -2614,7 +2752,13 @@ Deno.serve(async (req) => {
             }
             const pxRaw = tgt?.price ?? ((await fetchBars(t.sym,'4h',3)).slice(0,-1).pop()?.close ?? Number(t.entry_price))
             const dirM2 = t.side==='LONG'?1:-1
-            const px = pxRaw * (1 - dirM2 * SLIP)   // v54: market close → adverse slippage
+            let px = pxRaw * (1 - dirM2 * SLIP)   // v54: market close → adverse slippage
+            if (liveMode) {   // v55 seam #3: reduce-only market close
+              const q = await bybitQty(t.sym, Number(t.size))
+              const r = q>0 ? await bybitMarket(t.sym, t.side==='SHORT', q, true) : {ok:false, err:'qty<min'} as const
+              if (!r.ok) { log.push(`LIVE_CLOSE_FAIL ${t.sym}: ${'err' in r?r.err:''} — keeping open, retry next cycle`); await logErr('live_close_rota', `${t.sym} ${'err' in r?r.err:''}`); continue }
+              if (r.avgPrice) px = r.avgPrice
+            }
             const pnl2 = (px-Number(t.entry_price))*Number(t.size)*dirM2 - px*Number(t.size)*FEE
             balance += Number(t.entry_price)*Number(t.size) + pnl2
             await supabase.from('bot_trades').update({
@@ -2635,8 +2779,16 @@ Deno.serve(async (req) => {
             if (slotNotional < port*0.01) { log.push(`ROTA_SKIP ${sym}: per-coin cap`); logSkip(sym,'ROTA','per_coin_cap',{slot:+slotNotional.toFixed(0)}); continue }
             if (balance < slotNotional) { log.push(`ROTA_SKIP ${sym}: insufficient cash`); logSkip(sym,'ROTA','insufficient_cash',{slot:+slotNotional.toFixed(0), cash:+balance.toFixed(0)}); continue }
             if (!(await priceSane(sym, tgt.price))) { log.push(`ROTA_SKIP ${sym}: cross-source price mismatch (bad tick?)`); logSkip(sym,'ROTA','bad_tick',{price:tgt.price}); continue }
-            const fillPx = tgt.price * (1 + tgt.dir * SLIP)   // v54: market entry → adverse slippage
-            const size2 = slotNotional / fillPx
+            let fillPx = tgt.price * (1 + tgt.dir * SLIP)   // v54: market entry → adverse slippage
+            let size2 = slotNotional / fillPx
+            if (liveMode) {   // v55 seam #2: real market order
+              const q = await bybitQty(sym, size2)
+              if (q <= 0) { log.push(`LIVE_SKIP ${sym}: below exchange min qty`); logSkip(sym,'ROTA','live_min_qty',{size:size2}); continue }
+              const r = await bybitMarket(sym, tgt.dir===1, q, false)
+              if (!r.ok) { log.push(`LIVE_REJECT ${sym}: ${r.err}`); await logErr('live_open_rota', `${sym} ${r.err}`); continue }
+              size2 = q
+              if (r.avgPrice) fillPx = r.avgPrice
+            }
             const feeIn = slotNotional * FEE
             balance -= (slotNotional + feeIn)
             await supabase.from('bot_trades').insert({
@@ -2960,6 +3112,13 @@ Deno.serve(async (req) => {
               const p06 = entry + origSlDist*0.6*dirM
               if (t.side==='LONG' ? price>=p06 : price<=p06) {
                 const third = size/3
+                if (liveMode) {   // v55 seam #4a: reduce-only market for the leg
+                  const q = await bybitQty(sym, third)
+                  if (q > 0) {
+                    const r = await bybitMarket(sym, t.side==='SHORT', q, true)
+                    if (!r.ok) { log.push(`LIVE_LEG_FAIL ${sym} 0.6R: ${r.err}`); await logErr('live_leg06', `${sym} ${r.err}`); continue }
+                  }
+                }
                 const pnl1 = (p06-entry)*third*dirM - p06*third*FEE_MAKER   // v47: limit fill at level, maker fee
                 balance += entry*third + pnl1
                 await supabase.from('bot_trades').update({
@@ -2972,6 +3131,13 @@ Deno.serve(async (req) => {
               const p10 = entry + origSlDist*1.0*dirM
               if (t.side==='LONG' ? price>=p10 : price<=p10) {
                 const half = size/2   // half of remaining ⅔ = ⅓ of original
+                if (liveMode) {   // v55 seam #4b
+                  const q = await bybitQty(sym, half)
+                  if (q > 0) {
+                    const r = await bybitMarket(sym, t.side==='SHORT', q, true)
+                    if (!r.ok) { log.push(`LIVE_LEG_FAIL ${sym} 1.0R: ${r.err}`); await logErr('live_leg10', `${sym} ${r.err}`); continue }
+                  }
+                }
                 const pnl2 = (p10-entry)*half*dirM - p10*half*FEE_MAKER   // v47: limit fill at level, maker fee
                 balance += entry*half + pnl2
                 await supabase.from('bot_trades').update({
@@ -2995,6 +3161,11 @@ Deno.serve(async (req) => {
               const hit = t.side==='LONG' ? price <= nt : price >= nt
               const timedOut = ageMs > MAX_HOLD_MIN*60_000
               if (hit || timedOut) {
+                if (liveMode) {   // v55 seam #4c: reduce-only market, full remaining third
+                  const q = await bybitQty(sym, size)
+                  const r = q>0 ? await bybitMarket(sym, t.side==='SHORT', q, true) : {ok:false, err:'qty<min'} as const
+                  if (!r.ok) { log.push(`LIVE_CLOSE_FAIL ${sym} trail: ${'err' in r?r.err:''}`); await logErr('live_close_trail', `${sym}`); continue }
+                }
                 const fav=(price-entry)/entry*dirM
                 const pnl=(price-entry)*size*dirM - price*size*FEE   // trailing stop = taker
                 const final = pnl>0 ? 'TP' : 'TRAIL'
@@ -3034,7 +3205,13 @@ Deno.serve(async (req) => {
             // fill at the level itself with maker fee. Stops/timeouts stay taker.
             // v54: stops/timeouts are market fills → 3 bps adverse slippage.
             const isMakerTP = newStatus==='TP' && !t.mtf
-            const exitPx = isMakerTP ? tp : price * (1 - dirM * SLIP)
+            let exitPx = isMakerTP ? tp : price * (1 - dirM * SLIP)
+            if (liveMode) {   // v55 seam #5: reduce-only market close
+              const q = await bybitQty(sym, size)
+              const r = q>0 ? await bybitMarket(sym, t.side==='SHORT', q, true) : {ok:false, err:'qty<min'} as const
+              if (!r.ok) { log.push(`LIVE_CLOSE_FAIL ${sym}: ${'err' in r?r.err:''} — retry next cycle`); await logErr('live_close', `${sym}`); continue }
+              if (r.avgPrice) exitPx = r.avgPrice
+            }
             const fav=(exitPx-entry)/entry*dirM
             const pnl=(exitPx-entry)*size*dirM-exitPx*size*(isMakerTP?FEE_MAKER:FEE)
             const final=pnl>0&&newStatus==='SL'?'TP':newStatus
@@ -3232,8 +3409,16 @@ Deno.serve(async (req) => {
           }
           // v54: adverse entry slippage on the market fill (3 bps); SL/TP levels
           // stay at the scan-price levels — only the recorded fill moves.
-          const fillPx4 = price * (1 + dirM4 * SLIP)
-          const size4 = notional4 / fillPx4
+          let fillPx4 = price * (1 + dirM4 * SLIP)
+          let size4 = notional4 / fillPx4
+          if (liveMode) {   // v55 seam #1: real market order, real fill price
+            const q = await bybitQty(sym, size4)
+            if (q <= 0) { log.push(`LIVE_SKIP ${sym}: below exchange min qty`); logSkip(sym,'DONCH4H','live_min_qty',{size:size4}); return }
+            const r = await bybitMarket(sym, side4==='LONG', q, false)
+            if (!r.ok) { log.push(`LIVE_REJECT ${sym}: ${r.err}`); await logErr('live_open_donch', `${sym} ${r.err}`); return }
+            size4 = q
+            if (r.avgPrice) fillPx4 = r.avgPrice
+          }
           const feeIn4 = notional4 * FEE
           balance -= (notional4 + feeIn4); openCount++; newEntriesThisScan++
           await supabase.from('bot_trades').insert({
@@ -3457,6 +3642,7 @@ Deno.serve(async (req) => {
         // Store MACD histogram at entry for advanced exit comparison
         const macdEntry = calcMACD(completed.map(b => b.close))
 
+        if (liveMode) { log.push(`LIVE: legacy engine disabled (${sym}) — only validated strategies trade real money`); return }
         const { data: insertedTrade } = await supabase.from('bot_trades').insert({
           sym, side, entry_price: price, size, fee,
           trail_sl: slPrice, hi: hiVal, lo: loVal,

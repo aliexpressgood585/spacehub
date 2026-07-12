@@ -42,7 +42,7 @@ jobs:
         run: |
           { [ "$MODE" = "v47bt" ] || [ "$MODE" = "v49bt" ]; } && export BT_FETCH_LIQ=1
           case "$MODE" in
-            explore|refine|validate|range|freq|rota|v43bt|v44bt|v45bt|v46bt|v47bt|v48bt|v49bt|v50bt|v51bt|v52bt|v53bt|v54bt|v55bt|v56bt|v57bt|v58bt|v59bt|v60bt|v61bt|v62bt|v63bt|v64bt|v65bt|v66bt|v67bt) bash backtest/fetch-explore.sh ;;
+            explore|refine|validate|range|freq|rota|v43bt|v44bt|v45bt|v46bt|v47bt|v48bt|v49bt|v50bt|v51bt|v52bt|v53bt|v54bt|v55bt|v56bt|v57bt|v58bt|v59bt|v60bt|v61bt|v62bt|v63bt|v64bt|v65bt|v66bt|v67bt|v68bt|v69bt|v70bt|v71bt) bash backtest/fetch-explore.sh ;;
             *) bash backtest/fetch.sh ;;
           esac
 

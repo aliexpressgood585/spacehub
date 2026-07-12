@@ -171,9 +171,64 @@ output (183-219%) is a NAIVE-R-SUM ARTIFACT, not real account DD (real = Monte
 Carlo 16-36%). LIVE IMPLICATION: expect lumpy returns, DO NOT panic-off in a
 flat year — it's the strategy's nature. The 36m validation window (2023-26)
 includes the flat 2023, so it's representative, not cherry-picked.
+v67bt (2026-07-12, 2nd session): BASIS CARRY / funding arbitrage pre-validation
+(long spot + short perp to harvest funding; needs a REAL spot leg = real-exchange
+stage). REJECTED at our scale. Best = BTC/ETH always-on +3.6-3.7%/yr net on
+deployed capital (all 6 windows positive but BELOW the 5%/yr deploy bar); SOL
++2.5% (2 windows neg), BNB -1.1% (neg). Gated variants all <5%/yr + w6 negative.
+Top-K funding rotation NEGATIVE (-2 to -3%/yr — 3d rebalance fees on both legs
+eat it). CONCLUSION: funding arb is real but THIN (~3.7%/yr) — a pro play that
+needs huge capital to matter; at our scale it locks capital for less than the
+55-75%/yr main strategies return. Confirms the early call (v43bt funding carry
+also rejected). NOT deployable anyway without the spot leg. Re-examine only if
+real-exchange + large capital changes the math.
+v68bt (2026-07-12): two external-AI-report ideas tested — both DISPROVE the
+report. (A) Volatility-spike guard BACKWARDS: bigger breakout bar = BETTER trade
+(calm<1.5× +0.040R → extreme≥3.5× +0.126R). A "skip the spike" guard would cut
+the BEST trades — same reversed lore as squeeze (v51). (B) ADX-skip analysis:
+taken(adx>22) +0.062R vs skipped(adx≤22) +0.043R — the 22 gate keeps the strong
+ones; skipped are still positive but weaker (why lowering to 18/20 breaks windows
+per v56bt — weaker trades add variance). Both would cut trades (rule 5) anyway.
+NET: an independent code review reached for ideas we'd already tested/that the
+data reverses — strong confirmation the config is at a real optimum. The report's
+real value was OPERATIONAL (Telegram alerts + dashboard range toggle — deployed).
+v69bt (2026-07-12): Heikin-Ashi smoothed breakout REJECTED — the smoothing lags:
+6,477 signals vs 11,218 standard (-42% = rule 5), totR 413 vs 696, w6 negative.
+Marginally higher per-trade avg (+0.0638 vs +0.0620) doesn't cover the trade loss.
+Standard candles stay. (5th indicator-list triage: everything deployed/rejected/
+unfalsifiable/paid-data/family-dup; HA + reg-channel are the only new testables.)
+v70bt (2026-07-12): reg-channel (LSMA±k·σ) breakout PASSED the walk-forward bar!
+k=2.0: n=19,831 (+77% trades), +0.0379R, totR 751 vs 696, all 6 windows ✅;
+k=1.5: totR 816 but razor-thin windows. FIRST new positive result in ~20 batches.
+BUT NOT auto-deployed — it's a CORE-SIGNAL swap with a THIN per-trade edge (+0.038
+vs Donchian +0.062R) = slippage-fragile. Gated behind v71bt (slippage stress) —
+a core-engine change needs the execution-cost gate a same-signal tweak doesn't.
+If it survives 3-6bps slippage, deploy as an ADDITIVE breakout sleeve (fires on
+different signals than Donchian), NOT a replacement.
+v71bt (2026-07-12): slippage gate KILLED the reg-channel. At 0bps reg wins
+(751>696) but at 3bps (live assumption) it falls BELOW Donchian (448<526), at
+6bps <half (145 vs 356), at 10bps NEGATIVE (-259) while Donchian still +130.
+The thin +0.038R edge has no cushion vs execution cost; Donchian's +0.062R
+absorbs it. NICE cross-check: Donchian@3bps = +0.0469R = EXACTLY the live band.
+LESSON: v70bt passed the walk-forward bar and looked like a win, but was a
+zero-slippage illusion — a core-signal swap on a thin high-frequency edge dies
+on real costs. Donchian STAYS. This is why a core-engine change needs the
+execution-cost gate on top of the walk-forward bar. reg-channel CLOSED.
+6th indicator list (~500 more, Ehlers/MA-variants/Gann/options/on-chain)
+triaged 2026-07-12: nothing new — all family-dups / unfalsifiable / paid-data /
+stock-fundamentals. Linear-regression channel was the only live item = v70/71bt.
 
 ## Current state (2026-07-12)
-- Live: **v54.0** — ops hardening, zero strategy changes: bot_errors table +
+- Live: **v55.0** — LIVE EXECUTION ADAPTER (Bybit v5), triple-locked OFF:
+  keys secrets + paper_mode=false + LIVE_TRADING='1' (repo variable, currently
+  unset/0). Five seam points route to real orders when armed; reconciliation
+  (exchange-vs-DB) every 5 min alert-only; legacy 5m engine hard-disabled in
+  live mode; ladder legs = reduce-only market in v55 (limit upgrade after
+  small-capital validation). USER STEPS in GO_LIVE.md (account, API key with
+  NO withdrawal permission, GitHub secrets, staged $500-1000). Rule 3 update:
+  user said connect (2026-07-12) — adapter built; ARMING still requires the
+  user's explicit GO after keys are in place. NEVER accept keys in chat.
+- Previous: **v54.0** — ops hardening, zero strategy changes: bot_errors table +
   logErr (no more silent catches; watchdog error-spike alerts), paper realism
   (3 bps adverse slippage on market fills + hourly perp funding sim
   0.01%/8h — expectation bands measure REAL economics now), bot_skips

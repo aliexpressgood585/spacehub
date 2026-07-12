@@ -74,3 +74,22 @@ jobs:
           urllib.request.urlopen(req)
           print(f"posted to issue #{num}")
           PYEOF
+
+      - name: Telegram push (optional — needs secrets)
+        if: ${{ always() }}
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT" ] && { echo "no telegram secrets — skipping"; exit 0; }
+          [ -f /tmp/report.md ] || { echo "no report"; exit 0; }
+          python3 - <<'PYEOF'
+          import os, json, urllib.request
+          body=open('/tmp/report.md').read()[:3800]
+          req=urllib.request.Request(
+            f"https://api.telegram.org/bot{os.environ['TG_TOKEN']}/sendMessage",
+            data=json.dumps({"chat_id":os.environ['TG_CHAT'],"text":body,"parse_mode":"Markdown","disable_web_page_preview":True}).encode(),
+            headers={"Content-Type":"application/json"})
+          try: urllib.request.urlopen(req,timeout=15); print("telegram sent")
+          except Exception as e: print("telegram failed:", e)
+          PYEOF

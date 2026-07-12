@@ -23,7 +23,15 @@ jobs:
       - name: Check heartbeat
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TG_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
+          # v55: Telegram push helper — no-op if secrets absent (GitHub-issue fallback stays)
+          tg() {
+            [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT" ] && return 0
+            curl -s -m 15 -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+              -d "chat_id=${TG_CHAT}" --data-urlencode "text=$1" > /dev/null || true
+          }
           row=$(curl -s -X POST "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
             -H "Content-Type: application/json" \
@@ -45,6 +53,7 @@ jobs:
               curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" \
                 "https://api.github.com/repos/${{ github.repository }}/issues" \
                 -d "{\"title\":\"🚨 Bot heartbeat stale — הבוט לא מגיב\",\"body\":$(echo "$body" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))'),\"labels\":[\"watchdog\"]}" > /dev/null
+              tg "🚨 SpaceHub: הבוט לא מגיב מעל 15 דקות (updated_at=${upd:-none}). בדוק את Supabase."
               echo "issue opened"
             else
               echo "issue #$existing already open — not duplicating"
@@ -78,6 +87,7 @@ jobs:
               curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" \
                 "https://api.github.com/repos/${{ github.repository }}/issues" \
                 -d "{\"title\":\"🛡️ מגן הופעל: ${active}\",\"body\":\"מגן סיכון פעיל כרגע: ${active}. כניסות חדשות מושהות עד החלמה. הפוזיציות הפתוחות ממשיכות להיות מנוהלות כרגיל.\",\"labels\":[\"shield\"]}" > /dev/null
+              tg "🛡️ SpaceHub: מגן הופעל — ${active}. כניסות חדשות מושהות; פוזיציות פתוחות ממשיכות כרגיל."
               echo "shield issue opened: $active"
             else echo "shield issue already open"; fi
           else
@@ -121,7 +131,11 @@ jobs:
       - name: 50-trade checkpoint (v54)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TG_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
+          tg() { [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT" ] && return 0
+            curl -s -m 15 -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" -d "chat_id=${TG_CHAT}" --data-urlencode "text=$1" > /dev/null || true; }
           row=$(curl -s -X POST "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
             -H "Content-Type: application/json" \
@@ -139,6 +153,7 @@ jobs:
               curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" \
                 "https://api.github.com/repos/${{ github.repository }}/issues" \
                 -d "{\"title\":\"🎯 צ'קפוינט 50 עסקאות DONCH4H — n=${n} WR=${wr}% avgR=${avgr}\",\"body\":$(echo "$body" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))'),\"labels\":[\"checkpoint-50\"]}" > /dev/null
+              tg "🎯 SpaceHub: הגעת ל-50 עסקאות DONCH4H! n=${n} WR=${wr}% avgR=${avgr}. זמן להשוות לרצועות ולהחליט על העלאת סיכון."
               echo "checkpoint issue opened"
             else
               echo "checkpoint issue already exists (#$existing) — fires once"
