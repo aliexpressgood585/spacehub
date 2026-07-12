@@ -4139,6 +4139,104 @@ function runV60bt() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// v61bt: stop-hunt-aware ("the game vs the other side") stop placement for
+//  DONCH4H. Market makers sweep clustered stops just beyond obvious swing
+//  levels then reverse; a blind 1.4×ATR stop can land inside that cluster and
+//  get hunted. Test: push the stop just BEYOND the nearest liquidity pool
+//  (recent swing low/high or the Donchian level), capped so risk stays bounded.
+//  Risk-based sizing keeps $ risk fixed; ladder + trailing-final-third as live.
+//  Deploy bar: beats the fixed-1.4×ATR stop in ALL 6 windows.
+function runV61bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000
+  const toTf=(a:Bar[],ms:number):Bar[]=>{
+    const out:Bar[]=[]; let cur:Bar|null=null; let bucket=-1
+    for(const b of a){const k=Math.floor(b.t/ms)
+      if(k!==bucket){if(cur)out.push(cur);bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol}}
+      else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol}}
+    if(cur)out.push(cur);return out}
+  const d4:Record<string,Bar[]>={}
+  let tmin=Infinity,tmax=-Infinity
+  for(const c of COINS){const h=loadCSV(c,'1h');if(h.length<500)continue
+    d4[c]=toTf(h,BAR4);tmin=Math.min(tmin,h[0].t);tmax=Math.max(tmax,h[h.length-1].t)}
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${NW} windows`)
+
+  // ladder with trailing final third (v53 live exit), given an explicit slDist
+  const ladder=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,atr:number,jEnd:number)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const legs=[{r:0.6,frac:1/3},{r:1.0,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0,ext=entry
+    for(let j=j0+1;j<=jEndc;j++){const b=arr[j]
+      const stop=si>=2?(side==='LONG'?ext-2.5*atr:ext+2.5*atr):(be?entry:slPx)
+      if(side==='LONG'?b.low<=stop:b.high>=stop){banked+=rem*(si>=2?(stop-entry)*dirM/slDist:(be?0:-1));rem=0;break}
+      while(si<legs.length){const tgt=entry+slDist*legs[si].r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=legs[si].frac*legs[si].r;tpFrac+=legs[si].frac;rem-=legs[si].frac;be=true;si++}
+      if(si>=2)ext=side==='LONG'?Math.max(ext,b.high):Math.min(ext,b.low)
+      if(rem<=1e-9)break}
+    if(rem>1e-9)banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return {r:banked,tpFrac}}
+
+  // stop models: 'fixed' = 1.4×ATR; 'swingN' = beyond nearest N-bar swing pool;
+  // 'donch' = beyond the breakout's own Donchian level. All capped to [0.8,2.6]×ATR.
+  const runStop=(model:string,swingN:number,buf:number)=>{
+    const ws:{n:number,sum:number}[]=Array.from({length:NW},()=>({n:0,sum:0}))
+    for(const c of Object.keys(d4)){
+      if(!CORE40.has(c))continue
+      const arr=d4[c];let last=-999
+      for(let i=100;i<arr.length-1;i++){
+        const price=arr[i].close
+        const prior=arr.slice(i-15,i);let hi=-Infinity,lo=Infinity
+        for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+        const side:'LONG'|'SHORT'|null=price>hi?'LONG':price<lo?'SHORT':null
+        if(!side)continue
+        const win=arr.slice(Math.max(0,i-99),i+1)
+        const adx=calcADX(win.slice(-60));if(adx<=22)continue
+        const atr=calcATR(win.slice(-20));if(!atr)continue
+        if(i-last<2)continue
+        last=i
+        const dirM=side==='LONG'?1:-1
+        let slDist:number
+        if(model==='fixed'){slDist=Math.max(atr*1.4,price*0.005)}
+        else{
+          // liquidity pool below (LONG) / above (SHORT)
+          let pool:number
+          if(model==='donch'){pool=side==='LONG'?lo:hi}
+          else{const sw=arr.slice(i-swingN,i)
+            pool=side==='LONG'?Math.min(...sw.map(b=>b.low)):Math.max(...sw.map(b=>b.high))}
+          const beyond=pool-buf*atr*dirM            // just past the pool
+          const swDist=(price-beyond)*dirM
+          const naive=Math.max(atr*1.4,price*0.005)
+          slDist=Math.min(Math.max(swDist,naive),atr*2.6)   // never tighter than naive; capped
+        }
+        if(slDist/price>0.08)continue
+        const res=ladder(arr,i,price,side,slDist,atr,i+96)
+        const net=res.r-(TK+res.tpFrac*MK+(1-res.tpFrac)*TK)/(slDist/price)
+        const w=ws[winOf(arr[i].t)];w.n++;w.sum+=net
+      }
+    }
+    return ws}
+  const report=(name:string,ws:{n:number,sum:number}[],baseTot:number)=>{
+    const tot=ws.reduce((a,x)=>({n:a.n+x.n,sum:a.sum+x.sum}),{n:0,sum:0})
+    const wA=ws.map(x=>x.n?x.sum/x.n:0)
+    const ok=wA.every(x=>x>0)&&tot.sum>baseTot?'✅>base':wA.every(x=>x>0)?'(all+, ≤base)':''
+    console.log(`  ${name.padEnd(26)} n=${String(tot.n).padStart(5)} avg ${(tot.sum/tot.n>=0?'+':'')}${(tot.sum/tot.n).toFixed(4)}R totR ${tot.sum.toFixed(0)} | ${wA.map(x=>((x>=0?'+':'')+x.toFixed(3)).padStart(7)).join(' ')} ${ok}`)
+    return tot.sum}
+
+  console.log(`\n── STOP-HUNT-AWARE STOP PLACEMENT (DONCH4H, v53 exit) ──`)
+  const base=report('fixed 1.4×ATR (live)',runStop('fixed',0,0),-1e9)
+  report('beyond Donchian low',   runStop('donch',0,0.2),  base)
+  report('beyond 5-bar swing +0.2',runStop('swing',5,0.2), base)
+  report('beyond 5-bar swing +0.5',runStop('swing',5,0.5), base)
+  report('beyond 10-bar swing +0.2',runStop('swing',10,0.2),base)
+  report('beyond 10-bar swing +0.5',runStop('swing',10,0.5),base)
+  console.log(`\n✅>base = all 6 windows positive AND total R > fixed-ATR baseline (${base.toFixed(0)}R).`)
+}
+
+// ─────────────────────────────────────────────────────────────
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
@@ -4259,6 +4357,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v60bt') {
     console.log(`████ V60BT — dynamic sleeve allocation + BTC-regime size tilt ████`)
     runV60bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v61bt') {
+    console.log(`████ V61BT — stop-hunt-aware (liquidity) stop placement ████`)
+    runV61bt()
     return
   }
 
