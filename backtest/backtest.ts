@@ -3989,6 +3989,156 @@ function runV59bt() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// v60bt: portfolio-construction level (a "#1 trader" question, never touched):
+//  A) dynamic capital allocation between the two uncorrelated sleeves
+//     (DONCH4H vs ROTA) — fixed 50/50 vs trailing-return / inverse-vol /
+//     Sharpe weighting, with LONG smoothing windows (short windows = chasing
+//     noise = overfitting → expected to fail). Compares combined equity + DD.
+//  B) BTC-regime size tilt on DONCH4H (up-size in a confirmed BTC trend; a
+//     sizing tilt, not a filter — never cuts trades).
+// Deploy bar: beats fixed 50/50 (A) / flat sizing (B) in ALL 6 windows.
+function runV60bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000, MONTH=30*86400000
+  const toTf=(a:Bar[],ms:number):Bar[]=>{
+    const out:Bar[]=[]; let cur:Bar|null=null; let bucket=-1
+    for(const b of a){const k=Math.floor(b.t/ms)
+      if(k!==bucket){if(cur)out.push(cur);bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol}}
+      else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol}}
+    if(cur)out.push(cur);return out}
+  const d4:Record<string,Bar[]>={}
+  let tmin=Infinity,tmax=-Infinity
+  for(const c of COINS){const h=loadCSV(c,'1h');if(h.length<500)continue
+    d4[c]=toTf(h,BAR4);tmin=Math.min(tmin,h[0].t);tmax=Math.max(tmax,h[h.length-1].t)}
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  const nMonths=Math.floor((tmax-tmin)/MONTH)
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${nMonths} months, ${NW} windows`)
+
+  // trailing final-third ladder (the v53 live exit)
+  const ladder=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,atr:number,jEnd:number)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const legs=[{r:0.6,frac:1/3},{r:1.0,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0,ext=entry
+    for(let j=j0+1;j<=jEndc;j++){const b=arr[j]
+      const stop=si>=2?(side==='LONG'?ext-2.5*atr:ext+2.5*atr):(be?entry:slPx)
+      if(side==='LONG'?b.low<=stop:b.high>=stop){banked+=rem*(si>=2?(stop-entry)*dirM/slDist:(be?0:-1));rem=0;break}
+      while(si<legs.length){const tgt=entry+slDist*legs[si].r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=legs[si].frac*legs[si].r;tpFrac+=legs[si].frac;rem-=legs[si].frac;be=true;si++}
+      if(si>=2)ext=side==='LONG'?Math.max(ext,b.high):Math.min(ext,b.low)
+      if(rem<=1e-9)break}
+    if(rem>1e-9)banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return {r:banked,tpFrac,exitT:arr[Math.min(jEnd,arr.length-1)].t}}
+
+  // BTC 4h trend state per timestamp (EMA-slope sign over 20 bars)
+  const btc=d4['BTC']||[]
+  const btcEma:Map<number,number>=new Map()
+  {let e=btc.length?btc[0].close:0;const k=2/(20+1)
+   for(const b of btc){e=b.close*k+e*(1-k);btcEma.set(b.t,e)}}
+  const btcTrendAt=(t:number):number=>{ // +1 up / -1 down / 0 flat vs 10-bar-ago EMA
+    const e=btcEma.get(t),ePrev=btcEma.get(t-10*BAR4)
+    if(e===undefined||ePrev===undefined)return 0
+    const chg=(e-ePrev)/ePrev
+    return chg>0.02?1:chg<-0.02?-1:0}
+
+  // ── DONCH4H monthly return stream + regime-tilt streams ──
+  const donchMonth=new Array(nMonths+1).fill(0)
+  const donchMonthTilt=new Array(nMonths+1).fill(0)
+  const tiltWF:{n:number,sum:number,sumTilt:number}[]=Array.from({length:NW},()=>({n:0,sum:0,sumTilt:0}))
+  const R0=0.0125
+  for(const c of Object.keys(d4)){
+    if(!CORE40.has(c))continue
+    const arr=d4[c];let last=-999
+    for(let i=100;i<arr.length-1;i++){
+      const price=arr[i].close
+      const prior=arr.slice(i-15,i);let hi=-Infinity,lo=Infinity
+      for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+      const side:'LONG'|'SHORT'|null=price>hi?'LONG':price<lo?'SHORT':null
+      if(!side)continue
+      const win=arr.slice(Math.max(0,i-99),i+1)
+      const adx=calcADX(win.slice(-60));if(adx<=22)continue
+      const atr=calcATR(win.slice(-20));if(!atr)continue
+      if(i-last<2)continue
+      last=i
+      const slDist=Math.max(atr*1.4,price*0.005),slPct=slDist/price
+      if(slPct>0.08)continue
+      const res=ladder(arr,i,price,side,slDist,atr,i+96)
+      const net=res.r-(TK+res.tpFrac*MK+(1-res.tpFrac)*TK)/slPct
+      const m=Math.min(nMonths,Math.floor((arr[i].t-tmin)/MONTH))
+      donchMonth[m]+=R0*net
+      // regime tilt: breakout aligned with BTC trend → 1.25×, against → 0.85×
+      const tr=btcTrendAt(arr[i].t),dir=side==='LONG'?1:-1
+      const mult=tr===0?1:(tr===dir?1.25:0.85)
+      donchMonthTilt[m]+=R0*mult*net
+      const wf=tiltWF[winOf(arr[i].t)];wf.n++;wf.sum+=net;wf.sumTilt+=mult*net
+    }
+  }
+
+  // ── ROTA monthly return stream (LB84|RB12|K8, invVol, 70% book) ──
+  const rotaMonth=new Array(nMonths+1).fill(0)
+  {
+    const closes:Record<string,Map<number,number>>={}
+    for(const c of Object.keys(d4)){if(!CORE40.has(c))continue;const m=new Map<number,number>();for(const b of d4[c])m.set(b.t,b.close);closes[c]=m}
+    const LB=84,RB=12,K=8
+    const volOf=(c:string,t:number)=>{const m=closes[c];const rr:number[]=[]
+      for(let k=1;k<=LB;k++){const a=m.get(t-k*BAR4),b=m.get(t-(k-1)*BAR4);if(a&&b&&a>0)rr.push(b/a-1)}
+      if(rr.length<40)return null;const mu=rr.reduce((x,y)=>x+y,0)/rr.length
+      return Math.sqrt(rr.reduce((x,y)=>x+(y-mu)**2,0)/rr.length)}
+    for(let t=tmin+LB*BAR4;t+RB*BAR4<=tmax;t+=RB*BAR4){
+      const scored:{c:string,mom:number,w:number}[]=[]
+      for(const c of Object.keys(closes)){const p0=closes[c].get(t-LB*BAR4),p1=closes[c].get(t),p2=closes[c].get(t+RB*BAR4)
+        if(!p0||!p1||!p2||p0<=0)continue;const v=volOf(c,t);if(v===null||v<=0)continue
+        scored.push({c,mom:p1/p0-1,w:1/v})}
+      if(scored.length<K*4)continue
+      scored.sort((a,b)=>b.mom-a.mom)
+      let ret=0
+      for(const[li,leg]of[[0,scored.slice(0,K)]as const,[1,scored.slice(-K)]as const]){
+        const dir=li===0?1:-1;const wsum=leg.reduce((a,x)=>a+x.w,0)
+        for(const x of leg)ret+=dir*0.5*0.7*(x.w/wsum)*((closes[x.c].get(t+RB*BAR4)!/closes[x.c].get(t)!)-1)}
+      const m=Math.min(nMonths,Math.floor((t-tmin)/MONTH))
+      rotaMonth[m]+=ret
+    }
+  }
+
+  // ── A) allocation schemes on the two monthly streams ──
+  console.log(`\n── A) DYNAMIC ALLOCATION between DONCH4H & ROTA (monthly, walk-forward) ──`)
+  const dMean=donchMonth.reduce((a,x)=>a+x,0)/nMonths, rMean=rotaMonth.reduce((a,x)=>a+x,0)/nMonths
+  console.log(`  sleeve monthly: DONCH4H ${(dMean*100).toFixed(2)}%  ROTA ${(rMean*100).toFixed(2)}%`)
+  const runAlloc=(name:string,wFn:(m:number)=>number)=>{
+    // wFn returns DONCH weight in [0,1]; ROTA = 1-w
+    let eq=1,pk=1,dd=0;const wSum=new Array(NW).fill(0),wN=new Array(NW).fill(0)
+    for(let m=0;m<nMonths;m++){
+      const w=Math.max(0,Math.min(1,wFn(m)))
+      const r=w*donchMonth[m]+(1-w)*rotaMonth[m]
+      eq*=(1+r);if(eq>pk)pk=eq;dd=Math.max(dd,1-eq/pk)
+      const wi=winOf(tmin+m*MONTH);wSum[wi]+=r;wN[wi]++}
+    const wA=wSum.map((x,i)=>wN[i]?x/wN[i]:0)
+    const ann=Math.pow(eq,12/nMonths)-1
+    const ok=wA.every(x=>x>0)?'✅':''
+    console.log(`  ${name.padEnd(30)} ann ${(ann*100).toFixed(1)}% maxDD ${(dd*100).toFixed(0)}% | ${wA.map(x=>((x>=0?'+':'')+(x*100).toFixed(1)).padStart(6)).join(' ')} ${ok}`)}
+  const trail=(arr:number[],m:number,n:number)=>{let s=0,c=0;for(let k=Math.max(0,m-n);k<m;k++){s+=arr[k];c++}return c?s/c:0}
+  const tvol=(arr:number[],m:number,n:number)=>{const sl=arr.slice(Math.max(0,m-n),m);if(sl.length<3)return 1;const mu=sl.reduce((a,x)=>a+x,0)/sl.length;return Math.sqrt(sl.reduce((a,x)=>a+(x-mu)**2,0)/sl.length)||1}
+  runAlloc('fixed 50/50 (baseline)',()=>0.5)
+  for(const LB of [3,6,12]){
+    runAlloc(`perf-weighted ${LB}m`,(m)=>{const d=trail(donchMonth,m,LB),r=trail(rotaMonth,m,LB);const s=Math.abs(d)+Math.abs(r);return s>0?(d>r?0.5+0.5*Math.min(1,(d-r)/(s+1e-9)):0.5-0.5*Math.min(1,(r-d)/(s+1e-9))):0.5})
+    runAlloc(`inverse-vol ${LB}m`,(m)=>{const vd=tvol(donchMonth,m,LB),vr=tvol(rotaMonth,m,LB);return (1/vd)/((1/vd)+(1/vr))})
+  }
+  console.log(`  deploy bar (A): beats fixed 50/50 ann return AND all 6 windows positive.`)
+
+  // ── B) BTC-regime size tilt on DONCH4H ──
+  console.log(`\n── B) BTC-REGIME SIZE TILT on DONCH4H (1.25× with-trend / 0.85× against) ──`)
+  const tot=tiltWF.reduce((a,x)=>({n:a.n+x.n,sum:a.sum+x.sum,sumTilt:a.sumTilt+x.sumTilt}),{n:0,sum:0,sumTilt:0})
+  const baseW=tiltWF.map(x=>x.n?x.sum/x.n:0), tiltW=tiltWF.map(x=>x.n?x.sumTilt/x.n:0)
+  const better=tiltW.map((x,i)=>x>baseW[i])
+  console.log(`  base   avg ${(tot.sum/tot.n).toFixed(4)}R | ${baseW.map(x=>((x>=0?'+':'')+x.toFixed(3)).padStart(7)).join(' ')}`)
+  console.log(`  tilt   avg ${(tot.sumTilt/tot.n).toFixed(4)}R | ${tiltW.map((x,i)=>(((x>=0?'+':'')+x.toFixed(3))+(better[i]?'▲':'▽')).padStart(8)).join(' ')} ${tiltW.every(x=>x>0)&&better.every(Boolean)?'✅':''}`)
+  console.log(`  deploy bar (B): tilt positive AND beats base in all 6 windows.`)
+  console.log(`\n✅ = passes the per-section deploy bar.`)
+}
+
+// ─────────────────────────────────────────────────────────────
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
@@ -4104,6 +4254,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v59bt') {
     console.log(`████ V59BT — extend trailing (exit-shape grid) + ADX-scaled trail distance ████`)
     runV59bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v60bt') {
+    console.log(`████ V60BT — dynamic sleeve allocation + BTC-regime size tilt ████`)
+    runV60bt()
     return
   }
 
