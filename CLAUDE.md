@@ -217,6 +217,24 @@ execution-cost gate on top of the walk-forward bar. reg-channel CLOSED.
 6th indicator list (~500 more, Ehlers/MA-variants/Gann/options/on-chain)
 triaged 2026-07-12: nothing new — all family-dups / unfalsifiable / paid-data /
 stock-fundamentals. Linear-regression channel was the only live item = v70/71bt.
+v72bt (2026-07-12): LEARNED MULTIVARIATE SIZING — the ML axis, first test of a
+feature COMBINATION (prior sizing batches each tuned ONE feature). Walk-forward
+OLS (train 5 windows, size the 6th OOS) mapping [adx,vol,body,dist,mom] →
+bounded risk multiplier, no trade cut (rule-5 safe). Metric = risk-weighted
+avg R. RESULT, decisive REJECT: FLAT base rwAvgR=0.0469. ADX-only learned tier
++0.0065→+0.0146 (CONFIRMS ADX is the sole real feature — same as every prior
+batch). FULL 5-feature combo Δ≈+0.0000→+0.0007 vs base = ZERO, and WORSE than
+ADX-only. Worse still: the 4 extra features make w6 progressively MORE negative
+as the model leans harder (-0.024/-0.032/-0.038 at slope .25/.5/.75) = textbook
+overfit — the combo fits the train windows and bleeds out-of-sample. LESSON:
+it's not just "each indicator alone is noise" (v49/51/62/68) — the COMBINATION
+is noise too, and adding weak features actively hurts OOS. ADX is the only
+feature carrying combinable sizing edge, and the live ADX tiers already capture
+it. This closes the ML/feature-ensemble axis: a learned multivariate model does
+NOT beat the single hand-tuned ADX tier. NB even FLAT base is all6=❌ here (w1
+-0.003, w6 -0.015) because this lens is per-window MEAN R w/ 3bps slip, stricter
+than the deployed totR-sum + full sizing stack (w1/w6 = the flat-2023-ish weak
+windows from v66bt) — not a contradiction of the live all-windows-positive config.
 
 ## Current state (2026-07-12)
 - Live: **v55.0** — LIVE EXECUTION ADAPTER (Bybit v5), triple-locked OFF:
