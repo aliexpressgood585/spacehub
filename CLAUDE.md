@@ -182,6 +182,16 @@ needs huge capital to matter; at our scale it locks capital for less than the
 55-75%/yr main strategies return. Confirms the early call (v43bt funding carry
 also rejected). NOT deployable anyway without the spot leg. Re-examine only if
 real-exchange + large capital changes the math.
+v68bt (2026-07-12): two external-AI-report ideas tested — both DISPROVE the
+report. (A) Volatility-spike guard BACKWARDS: bigger breakout bar = BETTER trade
+(calm<1.5× +0.040R → extreme≥3.5× +0.126R). A "skip the spike" guard would cut
+the BEST trades — same reversed lore as squeeze (v51). (B) ADX-skip analysis:
+taken(adx>22) +0.062R vs skipped(adx≤22) +0.043R — the 22 gate keeps the strong
+ones; skipped are still positive but weaker (why lowering to 18/20 breaks windows
+per v56bt — weaker trades add variance). Both would cut trades (rule 5) anyway.
+NET: an independent code review reached for ideas we'd already tested/that the
+data reverses — strong confirmation the config is at a real optimum. The report's
+real value was OPERATIONAL (Telegram alerts + dashboard range toggle — deployed).
 
 ## Current state (2026-07-12)
 - Live: **v54.0** — ops hardening, zero strategy changes: bot_errors table +
