@@ -92,9 +92,17 @@ sit between ¼ and ½ Kelly — the professional zone. Confirms the risk-raise
 ladder direction is sound, still gated behind 50 live trades.
 Next edge levers: 50-trade live checkpoint → risk raise per Monte Carlo table;
 later real-exchange connection + capital.
+v58bt (2026-07-12): ADX risk tiers CONFIRMED monotonic on DW=15 (0.017→0.032→
+0.054→0.086R, no re-tune). Final-third TRAILING DEPLOYED (v53.0; +36% totR,
+all windows). Long/short asymmetry NOT deployed: SHORT +0.089R vs LONG +0.006R
+but LONG negative in 3/6 windows = regime-dependent (short-favourable 3y window);
+a directional tilt risks blowing up in a bull market — WATCH, re-measure after
+a full bull leg before ever tilting.
 
 ## Current state (2026-07-11)
-- Live: **v52.1** — ops: risk_usd per trade (live avg R vs band), shields JSONB
+- Live: **v53.0** — DONCH4H final ladder third TRAILS (chandelier 2.5×ATR4;
+  v58bt: +0.062R vs +0.046R, totR 696 vs 512 +36%, all 6 windows). On top of
+  v52.1: ops: risk_usd per trade (live avg R vs band), shields JSONB
   + dashboard card + watchdog shield alerts, reset truncates bot_equity,
   deploy CLI retry, weekly trade-journal CSV. Strategy layer: ROTA K=8 (v56bt: annT 39.2%, maxDD 15%, all windows; K=9
   rejected w3<0). DONCH4H Donchian window 25→15 (v55bt: n=11,218 +33%

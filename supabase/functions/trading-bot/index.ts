@@ -1,4 +1,15 @@
 // ════════════════════════════════════════════════════════════
+// CryptoBot v53.0 — trailing final third (validated v58bt)
+//
+// v53.0: the DONCH4H ladder's final third now TRAILS (chandelier, 2.5×ATR4)
+//  instead of capping at a fixed 1.6R. v58bt walk-forward (36m, 11,218 signals):
+//  +0.0620R vs +0.0456R, total 696R vs 512R (+36%), all 6 windows positive.
+//  First two legs (0.6R/1.0R) still bank maker; the trailing exit is taker.
+//  Same batch: ADX risk tiers CONFIRMED still monotonic on DW=15 (no change);
+//  long/short asymmetry NOT deployed — SHORT +0.089R vs LONG +0.006R is large
+//  but LONG is negative in 3/6 windows = regime-dependent (this 3y window was
+//  short-favourable), a directional tilt would blow up in a bull market. Watch.
+//
 // CryptoBot v52.1 — visibility & measurement ops (no strategy change)
 //
 // v52.1: (1) risk_usd stored at DONCH4H entry → live avg R vs the +0.046R
@@ -2921,11 +2932,41 @@ Deno.serve(async (req) => {
                 const pnl2 = (p10-entry)*half*dirM - p10*half*FEE_MAKER   // v47: limit fill at level, maker fee
                 balance += entry*half + pnl2
                 await supabase.from('bot_trades').update({
-                  size: size-half, exit_stage: 2
+                  size: size-half, exit_stage: 2, trail_sl: entry
                 }).eq('id', t.id)
-                log.push(`LADDER_10 ${sym} ${t.side} ⅓@${p10.toFixed(4)} pnl=${pnl2.toFixed(2)} → last ⅓ to 1.6R`)
+                log.push(`LADDER_10 ${sym} ${t.side} ⅓@${p10.toFixed(4)} pnl=${pnl2.toFixed(2)} → final ⅓ trails`)
                 continue
               }
+            } else if (stage === 2) {
+              // ── v53 TRAILING FINAL THIRD (replaces fixed 1.6R cap) ──
+              // v58bt walk-forward (36m, 11,218 signals): chandelier trail on the
+              // last third — +0.0620R vs +0.0456R fixed, totR 696 vs 512 (+36%),
+              // all 6 windows positive. Fat-tail capture: rare 4R+ runs pay for
+              // the give-back. Trail dist = 2.5×ATR(4h) = origSlDist×2.5/1.4.
+              // Stop = taker (market); first two legs already banked maker at
+              // 0.6R/1.0R. trail_sl ratchets from BE and never loosens.
+              const trailDist = origSlDist * (2.5/1.4)
+              const chand = t.side==='LONG' ? price - trailDist : price + trailDist
+              const cur = Number(t.trail_sl)
+              const nt = t.side==='LONG' ? Math.max(cur, chand) : Math.min(cur, chand)
+              const hit = t.side==='LONG' ? price <= nt : price >= nt
+              const timedOut = ageMs > MAX_HOLD_MIN*60_000
+              if (hit || timedOut) {
+                const fav=(price-entry)/entry*dirM
+                const pnl=(price-entry)*size*dirM - price*size*FEE   // trailing stop = taker
+                const final = pnl>0 ? 'TP' : 'TRAIL'
+                balance += entry*size + pnl; openCount--
+                await supabase.from('bot_trades').update({
+                  status: final, exit_price: price, pnl, pnl_pct: fav,
+                  closed_at: new Date().toISOString()
+                }).eq('id', t.id)
+                await supabase.from('bot_trade_snapshots').update({ result: final, pnl }).eq('trade_id', t.id).catch(()=>{})
+                await updateMarketMemory(supabase, t.id, final, pnl, log)
+                log.push(`LADDER_TRAIL ${sym} ${t.side} final⅓ @${price.toFixed(4)} pnl=${pnl.toFixed(2)} ${timedOut?'(timeout)':''}`)
+                continue
+              }
+              if (nt !== cur) await supabase.from('bot_trades').update({ trail_sl: nt }).eq('id', t.id)
+              continue  // ride the final third — never fall through to the fixed-TP logic
             }
           }
 
