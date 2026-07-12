@@ -219,7 +219,16 @@ triaged 2026-07-12: nothing new — all family-dups / unfalsifiable / paid-data 
 stock-fundamentals. Linear-regression channel was the only live item = v70/71bt.
 
 ## Current state (2026-07-12)
-- Live: **v54.0** — ops hardening, zero strategy changes: bot_errors table +
+- Live: **v55.0** — LIVE EXECUTION ADAPTER (Bybit v5), triple-locked OFF:
+  keys secrets + paper_mode=false + LIVE_TRADING='1' (repo variable, currently
+  unset/0). Five seam points route to real orders when armed; reconciliation
+  (exchange-vs-DB) every 5 min alert-only; legacy 5m engine hard-disabled in
+  live mode; ladder legs = reduce-only market in v55 (limit upgrade after
+  small-capital validation). USER STEPS in GO_LIVE.md (account, API key with
+  NO withdrawal permission, GitHub secrets, staged $500-1000). Rule 3 update:
+  user said connect (2026-07-12) — adapter built; ARMING still requires the
+  user's explicit GO after keys are in place. NEVER accept keys in chat.
+- Previous: **v54.0** — ops hardening, zero strategy changes: bot_errors table +
   logErr (no more silent catches; watchdog error-spike alerts), paper realism
   (3 bps adverse slippage on market fills + hourly perp funding sim
   0.01%/8h — expectation bands measure REAL economics now), bot_skips
