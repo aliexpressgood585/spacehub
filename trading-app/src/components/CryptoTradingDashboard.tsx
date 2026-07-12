@@ -574,6 +574,8 @@ export default function CryptoTradingDashboard() {
   const [epochTs,setEpochTs]=useState<number>(0)
   const [shields,setShields]=useState<Record<string,boolean>>({})
   const [feedHealth,setFeedHealth]=useState<Record<string,any>>({})
+  // v55: equity-curve range selector (days; 0 = all history)
+  const [eqRangeDays,setEqRangeDays]=useState<number>(0)
   const [botOn,setBotOn]           = useState(true)
   const [trades,setTrades]         = useState<Trade[]>([])
   const [sig,setSig]               = useState<Sig>(emptySig())
@@ -973,7 +975,14 @@ export default function CryptoTradingDashboard() {
     if(bars.length>0)drawCandles(canvasRef.current,bars,sig)
   },[tick,selected,sig])
   useEffect(()=>{if(eqRef.current)drawEquity(eqRef.current,trades)},[trades])
-  useEffect(()=>{if(scopeRef.current&&equityHist.length>=2)drawScope(scopeRef.current,equityHist)},[equityHist])
+  // v55: history filtered to the selected range (0 = all)
+  const eqView=(()=>{
+    if(!eqRangeDays||equityHist.length<2)return equityHist
+    const cut=Date.now()-eqRangeDays*86400000
+    const f=equityHist.filter(p=>new Date(p.ts).getTime()>=cut)
+    return f.length>=2?f:equityHist
+  })()
+  useEffect(()=>{if(scopeRef.current&&eqView.length>=2)drawScope(scopeRef.current,eqView)},[eqView])
   useEffect(()=>{if(bubRef.current)drawBubbles(bubRef.current,allSigs,prices)},[allSigs,prices])
 
   const handleBotToggle=()=>{
@@ -1167,7 +1176,7 @@ export default function CryptoTradingDashboard() {
 
       {/* ══ EQUITY SCOPE HERO (v53.1 redesign) ══ */}
       {equityHist.length>=2&&(()=>{
-        const base=equityHist[0].equity
+        const base=eqView[0].equity
         const deltaPct=base>0?((totalValue/base-1)*100):0
         return (
           <div style={{background:C.panel,border:`1px solid ${C.border}`,borderRadius:'6px',
@@ -1181,8 +1190,15 @@ export default function CryptoTradingDashboard() {
                 color:deltaPct>=0?C.green:C.red}}>
                 {deltaPct>=0?'+':''}{deltaPct.toFixed(2)}% מאז האיפוס
               </span>
-              <span style={{marginRight:'auto',fontSize:'9px',color:C.muted}}>
-                {equityHist.length} דגימות · שיא ${Math.max(...equityHist.map(p=>p.equity)).toLocaleString(undefined,{maximumFractionDigits:0})}
+              <span style={{marginRight:'auto',display:'flex',gap:'4px',alignItems:'center'}}>
+                {[[7,'7י'],[30,'30י'],[0,'הכל']].map(([d,lbl])=>(
+                  <button key={String(d)} onClick={()=>setEqRangeDays(d as number)} style={{
+                    fontSize:'9px',fontWeight:700,padding:'2px 7px',borderRadius:'5px',cursor:'pointer',
+                    border:`1px solid ${eqRangeDays===d?C.bright:C.border}`,
+                    background:eqRangeDays===d?`${C.bright}18`:'transparent',
+                    color:eqRangeDays===d?C.bright:C.muted}}>{lbl as string}</button>
+                ))}
+                <span style={{fontSize:'9px',color:C.muted,marginRight:'6px'}}>{eqView.length} דגימות</span>
               </span>
             </div>
             <canvas ref={scopeRef} width={880} height={210}
