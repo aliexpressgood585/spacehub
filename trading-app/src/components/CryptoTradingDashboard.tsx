@@ -573,6 +573,7 @@ export default function CryptoTradingDashboard() {
   // pre-reset closed trades must not pollute per-strategy stats / the 50-trade counter
   const [epochTs,setEpochTs]=useState<number>(0)
   const [shields,setShields]=useState<Record<string,boolean>>({})
+  const [feedHealth,setFeedHealth]=useState<Record<string,any>>({})
   const [botOn,setBotOn]           = useState(true)
   const [trades,setTrades]         = useState<Trade[]>([])
   const [sig,setSig]               = useState<Sig>(emptySig())
@@ -889,6 +890,7 @@ export default function CryptoTradingDashboard() {
         if(d.coin_weights)setCoinWeights(d.coin_weights as Record<string,number>)
         if(d.rebalanced_at)setRebalancedAt(d.rebalanced_at as string)
         setShields((d as any).shields||{})
+        setFeedHealth((d as any).feed_health||{})
       }
       const all=[...(open.data||[]),...(closed.data||[])]
       tradeRef.current=all.map(t=>mapDbTrade(t as Record<string,unknown>))
@@ -1274,6 +1276,27 @@ export default function CryptoTradingDashboard() {
               {(()=>{const m:[string,string][]=[['donch_paused','פריצות⏸'],['rota_paused','רוטציה⏸'],['day_loss_paused','בלם-5%'],['depeg_paused','דה-פג!']];const act=m.filter(([k])=>shields[k]).map(([,v])=>v);return act.length?act.join(' '):'הכל פעיל ✓'})()}
             </span>
           </div>
+          {feedHealth.ts&&(
+            <div style={{background:'rgba(3,8,26,0.85)',border:`1px solid ${C.dim}`,borderRadius:'9px',padding:'6px 10px',backdropFilter:'blur(10px)'}}>
+              <div style={{fontSize:'9px',color:C.muted,marginBottom:'3px'}}>בריאות מקורות דאטה</div>
+              <div style={{display:'flex',gap:'8px',flexWrap:'wrap' as const}}>
+                {(['binance','okx','bybit'] as const).map(src=>{
+                  const st=feedHealth[src]||{ok:0,fail:0}
+                  const tot=st.ok+st.fail
+                  const rate=tot>0?st.ok/tot:0
+                  const col=tot===0?C.muted:rate>=0.9?C.green:rate>=0.5?C.yellow:C.red
+                  const label=tot===0?'—':rate>=0.9?'LIVE':rate>=0.5?'חלקי':'נפל'
+                  const primary=feedHealth.source===src||(src==='binance'&&(feedHealth.source==='fapi'||feedHealth.source==='spot'))
+                  return (
+                    <span key={src} style={{fontSize:'9px',fontWeight:700,color:col,display:'inline-flex',alignItems:'center',gap:'4px'}}>
+                      <span style={{width:'5px',height:'5px',borderRadius:'50%',background:col,display:'inline-block'}}/>
+                      {src.toUpperCase()}{primary?'★':''} {label}{tot>0?` ${st.ok}/${tot}`:''}
+                    </span>
+                  )
+                })}
+              </div>
+            </div>
+          )}
           <div style={{background:'rgba(3,8,26,0.85)',border:`1px solid ${C.dim}`,borderRadius:'9px',padding:'7px 10px',fontSize:'9px',color:C.muted,backdropFilter:'blur(10px)'}}>
             <div>SL <span style={{color:C.red}}>{(R.sl*100).toFixed(1)}%</span> · TP <span style={{color:C.green}}>{(R.sl*TP_MULT*100).toFixed(1)}%</span>          {eqPath&&(
             <div style={{background:'rgba(3,8,26,0.85)',border:`1px solid ${C.dim}`,borderRadius:'9px',padding:'6px 10px'}}>
