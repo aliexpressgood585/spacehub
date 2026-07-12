@@ -4637,6 +4637,94 @@ function runV65bt() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// v66bt: STRESS TEST over max available history (~2020-2026, Binance USDT-M
+//  perp archive start). Runs the LIVE DONCH4H config (DW=15/adx22/sl1.4/ladder+
+//  trailing) and buckets results by calendar year AND by named crisis windows
+//  (COVID crash, May-2021, LUNA, FTX). Answers: does the edge survive bear
+//  markets / -50% crashes? Long/short split shown (crashes should favour shorts).
+function runV66bt() {
+  const TK=0.0005, MK=0.0002, BAR4=14400000
+  const toTf=(a:Bar[],ms:number):Bar[]=>{
+    const out:Bar[]=[]; let cur:Bar|null=null; let bucket=-1
+    for(const b of a){const k=Math.floor(b.t/ms)
+      if(k!==bucket){if(cur)out.push(cur);bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol}}
+      else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol}}
+    if(cur)out.push(cur);return out}
+  const d4:Record<string,Bar[]>={}
+  let tmin=Infinity,tmax=-Infinity
+  for(const c of COINS){const h=loadCSV(c,'1h');if(h.length<300)continue
+    d4[c]=toTf(h,BAR4);tmin=Math.min(tmin,h[0].t);tmax=Math.max(tmax,h[h.length-1].t)}
+  console.log(`  history: ${new Date(tmin).toISOString().slice(0,10)} → ${new Date(tmax).toISOString().slice(0,10)} (${((tmax-tmin)/86400000/365).toFixed(1)}y), ${Object.keys(d4).length} coins`)
+
+  const ladder=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,atr:number,jEnd:number)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const legs=[{r:0.6,frac:1/3},{r:1.0,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0,ext=entry
+    for(let j=j0+1;j<=jEndc;j++){const b=arr[j]
+      const stop=si>=2?(side==='LONG'?ext-2.5*atr:ext+2.5*atr):(be?entry:slPx)
+      if(side==='LONG'?b.low<=stop:b.high>=stop){banked+=rem*(si>=2?(stop-entry)*dirM/slDist:(be?0:-1));rem=0;break}
+      while(si<legs.length){const tgt=entry+slDist*legs[si].r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=legs[si].frac*legs[si].r;tpFrac+=legs[si].frac;rem-=legs[si].frac;be=true;si++}
+      if(si>=2)ext=side==='LONG'?Math.max(ext,b.high):Math.min(ext,b.low)
+      if(rem<=1e-9)break}
+    if(rem>1e-9)banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return {r:banked,tpFrac}}
+
+  interface Tr{t:number;side:1|-1;net:number}
+  const all:Tr[]=[]
+  for(const c of Object.keys(d4)){
+    if(!CORE40.has(c))continue
+    const arr=d4[c];let last=-999
+    for(let i=100;i<arr.length-1;i++){
+      const price=arr[i].close
+      const prior=arr.slice(i-15,i);let hi=-Infinity,lo=Infinity
+      for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+      const side:'LONG'|'SHORT'|null=price>hi?'LONG':price<lo?'SHORT':null
+      if(!side)continue
+      const win=arr.slice(Math.max(0,i-99),i+1)
+      const adx=calcADX(win.slice(-60));if(adx<=22)continue
+      const atr=calcATR(win.slice(-20));if(!atr)continue
+      if(i-last<2)continue
+      last=i
+      const slDist=Math.max(atr*1.4,price*0.005),slPct=slDist/price
+      if(slPct>0.08)continue
+      const res=ladder(arr,i,price,side,slDist,atr,i+96)
+      const net=res.r-(TK+res.tpFrac*MK+(1-res.tpFrac)*TK)/slPct
+      all.push({t:arr[i].t,side:side==='LONG'?1:-1,net})}
+  }
+  all.sort((a,b)=>a.t-b.t)
+  console.log(`  ${all.length} DONCH4H trades over the full history\n`)
+
+  const stat=(label:string,t0:string,t1:string)=>{
+    const a=Date.parse(t0+'T00:00:00Z'),b=Date.parse(t1+'T00:00:00Z')
+    const sub=all.filter(x=>x.t>=a&&x.t<b)
+    if(!sub.length){console.log(`  ${label.padEnd(24)} (no data)`);return}
+    const n=sub.length,w=sub.filter(x=>x.net>0).length
+    const tot=sub.reduce((s,x)=>s+x.net,0)
+    const L=sub.filter(x=>x.side===1),Sh=sub.filter(x=>x.side===-1)
+    const lR=L.reduce((s,x)=>s+x.net,0),sR=Sh.reduce((s,x)=>s+x.net,0)
+    // simple sequential equity for a rough per-period maxDD (R units @1.25%)
+    let eq=0,pk=0,dd=0;for(const x of sub){eq+=0.0125*x.net;if(eq>pk)pk=eq;dd=Math.max(dd,pk-eq)}
+    console.log(`  ${label.padEnd(24)} n=${String(n).padStart(4)} WR=${(100*w/n).toFixed(0)}% totR=${tot.toFixed(0).padStart(4)} avg=${(tot/n>=0?'+':'')}${(tot/n).toFixed(3)} | L:${(lR>=0?'+':'')}${lR.toFixed(0)}(${L.length}) S:${(sR>=0?'+':'')}${sR.toFixed(0)}(${Sh.length}) | DD~${(dd*100).toFixed(0)}%`)}
+
+  console.log(`── BY CALENDAR YEAR ──`)
+  for(const y of ['2020','2021','2022','2023','2024','2025','2026'])stat(y,`${y}-01-01`,`${y}-12-31`)
+  console.log(`\n── NAMED CRISIS WINDOWS (survival test) ──`)
+  stat('COVID crash 2020',   '2020-03-01','2020-04-15')
+  stat('2021 bull leg',      '2021-01-01','2021-05-01')
+  stat('May-2021 crash',     '2021-05-10','2021-07-31')
+  stat('LUNA collapse',      '2022-05-01','2022-06-30')
+  stat('2022 full bear',     '2022-01-01','2022-12-31')
+  stat('FTX collapse',       '2022-11-01','2022-12-01')
+  stat('2023-26 (live window)','2023-01-01','2026-12-31')
+  console.log(`\n  NB: universe shrinks going back (many alts launched post-2021); pre-2021`)
+  console.log(`  samples are BTC/ETH/majors-heavy. R @1.25% risk; DD is single-position seq (real deeper).`)
+}
+
+// ─────────────────────────────────────────────────────────────
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
@@ -4782,6 +4870,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v65bt') {
     console.log(`████ V65BT — directional-concentration cap ████`)
     runV65bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v66bt') {
+    console.log(`████ V66BT — extended-history stress test (2020-2026) ████`)
+    runV66bt()
     return
   }
 
