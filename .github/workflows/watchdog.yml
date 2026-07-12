@@ -92,3 +92,57 @@ jobs:
             fi
             echo "shields clear"
           fi
+
+      - name: Error-spike check (v54)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          errs=$(curl -s -X POST "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "SELECT count(*) AS n FROM bot_errors WHERE ts > now() - interval '"'"'60 minutes'"'"';"}' \
+            | grep -o '"n": *[0-9]*' | grep -o '[0-9]*' | head -1 || true)
+          echo "errors last 60m: ${errs:-0}"
+          if [ "${errs:-0}" -gt 30 ]; then
+            existing=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+              "https://api.github.com/repos/${{ github.repository }}/issues?state=open&labels=error-spike" \
+              | grep -o '"number": *[0-9]*' | head -1 | grep -o '[0-9]*' || true)
+            if [ -z "$existing" ]; then
+              body="הבוט רשם ${errs} שגיאות בשעה האחרונה (סף התראה: 30). בדיקה: SELECT scope, count(*) FROM bot_errors WHERE ts > now() - interval '1 hour' GROUP BY scope ORDER BY 2 DESC;"
+              curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" \
+                "https://api.github.com/repos/${{ github.repository }}/issues" \
+                -d "{\"title\":\"⚠️ Error spike — ${errs} שגיאות בבוט בשעה האחרונה\",\"body\":$(echo "$body" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))'),\"labels\":[\"error-spike\"]}" > /dev/null
+              echo "error-spike issue opened"
+            else
+              echo "error-spike issue #$existing already open"
+            fi
+          fi
+
+      - name: 50-trade checkpoint (v54)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          row=$(curl -s -X POST "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "SELECT count(*) AS n, round(100.0*count(*) FILTER (WHERE pnl>0)/greatest(count(*),1),1) AS wr, round(avg(pnl/nullif(risk_usd,0))::numeric,4) AS avg_r FROM bot_trades WHERE strategy='"'"'DONCH4H'"'"' AND status != '"'"'OPEN'"'"' AND risk_usd > 0 AND closed_at >= (SELECT COALESCE(min(ts),'"'"'2026-01-01'"'"'::timestamptz) FROM bot_equity);"}')
+          echo "checkpoint: $row"
+          n=$(echo "$row" | grep -o '"n": *[0-9]*' | grep -o '[0-9]*' | head -1 || true)
+          if [ "${n:-0}" -ge 50 ]; then
+            existing=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+              "https://api.github.com/repos/${{ github.repository }}/issues?state=all&labels=checkpoint-50" \
+              | grep -o '"number": *[0-9]*' | head -1 | grep -o '[0-9]*' || true)
+            if [ -z "$existing" ]; then
+              wr=$(echo "$row" | grep -o '"wr": *[0-9.]*' | grep -o '[0-9.]*' | head -1 || true)
+              avgr=$(echo "$row" | grep -o '"avg_r": *[-0-9.]*' | grep -oE '\-?[0-9.]+' | head -1 || true)
+              body="צ'קפוינט 50 העסקאות הושלם: n=${n}, WR=${wr}%, avg R=${avgr}. רף הציפייה: WR~66%, +0.046R לעסקה. אם בתוך הרף — אפשר לשקול העלאת סיכון 1.25%→1.75% לפי טבלת מונטה-קרלו (v50bt, status/bt-latest). אם מתחת לרף — לחקור לפני שמעלים."
+              curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" \
+                "https://api.github.com/repos/${{ github.repository }}/issues" \
+                -d "{\"title\":\"🎯 צ'קפוינט 50 עסקאות DONCH4H — n=${n} WR=${wr}% avgR=${avgr}\",\"body\":$(echo "$body" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))'),\"labels\":[\"checkpoint-50\"]}" > /dev/null
+              echo "checkpoint issue opened"
+            else
+              echo "checkpoint issue already exists (#$existing) — fires once"
+            fi
+          else
+            echo "checkpoint progress: ${n:-0}/50"
+          fi

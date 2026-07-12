@@ -1092,7 +1092,7 @@ export default function CryptoTradingDashboard() {
               NEXUS TRADE
             </span>
             <span style={{fontSize:'8px',color:C.blue,padding:'2px 6px',border:`1px solid ${C.blue}40`,borderRadius:'4px',
-              boxShadow:`0 0 8px ${C.blue}30`,background:`${C.blue}10`}}>v53</span>
+              boxShadow:`0 0 8px ${C.blue}30`,background:`${C.blue}10`}}>v54</span>
           </div>
 
           <div style={{display:'flex',gap:'5px',flexWrap:'wrap' as const}}>
