@@ -18,6 +18,7 @@ interface Trade {
   status:'OPEN'|'TP'|'SL'|'TRAIL'
   hi:number; lo:number; trailSL:number; fee:number
   strategy?:string
+  riskUsd?:number
   slPct?:number; tpPct?:number
   partialDone?:boolean; closedTs?:number
 }
@@ -111,7 +112,7 @@ function computeSig(bars:Bar[]):Sig{if(bars.length<35)return emptySig();const cl
 function getMultiTFSig(bars1m:Bar[]):Sig{const s1=computeSig(bars1m);const bars5m=build5mBars(bars1m);if(bars5m.length<25)return s1;const s5=computeSig(bars5m);if(s1.dir==='HOLD')return s1;if(s5.dir===s1.dir)return{...s1,score:Math.min(5,s1.score+1),mtf:true};return s1}
 function calcSharpe(trades:Trade[]):number{const cl=trades.filter(t=>t.pnlPct!==undefined);if(cl.length<3)return 0;const r=cl.map(t=>t.pnlPct!);const m=r.reduce((a,b)=>a+b,0)/r.length;const s=Math.sqrt(r.reduce((a,b)=>a+(b-m)**2,0)/r.length)||1e-9;return(m/s)*Math.sqrt(252)}
 function calcMaxDD(trades:Trade[]):number{let bal=INIT_BAL,peak=INIT_BAL,mx=0;for(const t of trades){if(t.pnl){bal+=t.pnl;if(bal>peak)peak=bal;mx=Math.max(mx,(peak-bal)/peak)}}return mx*100}
-function mapDbTrade(t:Record<string,unknown>):Trade{return{id:t.id as number,sym:t.sym as string,side:t.side as 'LONG'|'SHORT',entry:Number(t.entry_price),exit:t.exit_price!=null?Number(t.exit_price):undefined,size:Number(t.size),pnl:t.pnl!=null?Number(t.pnl):undefined,pnlPct:t.pnl_pct!=null?Number(t.pnl_pct):undefined,ts:new Date(t.opened_at as string).getTime(),closedTs:t.closed_at?new Date(t.closed_at as string).getTime():undefined,status:t.status as 'OPEN'|'TP'|'SL'|'TRAIL',hi:Number(t.hi),lo:Number(t.lo),trailSL:Number(t.trail_sl),fee:Number(t.fee),strategy:(t.strategy as string)||'LEGACY'}}
+function mapDbTrade(t:Record<string,unknown>):Trade{return{id:t.id as number,sym:t.sym as string,side:t.side as 'LONG'|'SHORT',entry:Number(t.entry_price),exit:t.exit_price!=null?Number(t.exit_price):undefined,size:Number(t.size),pnl:t.pnl!=null?Number(t.pnl):undefined,pnlPct:t.pnl_pct!=null?Number(t.pnl_pct):undefined,ts:new Date(t.opened_at as string).getTime(),closedTs:t.closed_at?new Date(t.closed_at as string).getTime():undefined,status:t.status as 'OPEN'|'TP'|'SL'|'TRAIL',hi:Number(t.hi),lo:Number(t.lo),trailSL:Number(t.trail_sl),fee:Number(t.fee),strategy:(t.strategy as string)||'LEGACY',riskUsd:t.risk_usd!=null?Number(t.risk_usd):undefined}}
 
 // ─── canvas renderers ─────────────────────────────────────────────────────────
 function drawCandles(canvas:HTMLCanvasElement,bars:Bar[],sig:Sig){
@@ -949,6 +950,9 @@ export default function CryptoTradingDashboard() {
   const openTrades  = trades.filter(t=>t.status==='OPEN')
   const closed      = trades.filter(t=>t.status!=='OPEN')
   const wins        = closed.filter(t=>(t.pnl||0)>0).length
+  // v52: history tab shows the current account era only (pre-reset trades stay in DB, out of sight)
+  const eraClosed   = closed.filter(t=>!epochTs || (t.closedTs??0)>=epochTs)
+  const eraWins     = eraClosed.filter(t=>(t.pnl||0)>0).length
   const winRate     = closed.length>0?(wins/closed.length*100):0
   const realizedPnl = closed.reduce((a,t)=>a+(t.pnl||0),0)
   const unrealizedPnl = openTrades.reduce((a,t)=>{
@@ -980,6 +984,16 @@ export default function CryptoTradingDashboard() {
     return dd*100
   })()
   const donchProgress = Math.min(stDonch.n, 50)
+  // v52: live avg R (era DONCH4H closes carrying risk_usd) vs the +0.046R target
+  const liveR = (()=>{
+    const rs=eraClosedR()
+    if (!rs.length) return null
+    return {avg: rs.reduce((a2,x)=>a2+x,0)/rs.length, n: rs.length}
+  })()
+  function eraClosedR(){
+    return closed.filter(t=>t.strategy==='DONCH4H' && (!epochTs||(t.closedTs??0)>=epochTs) && (t.riskUsd||0)>0)
+      .map(t=>(t.pnl||0)/(t.riskUsd as number))
+  }
   const lockedNotional = openTrades.reduce((a,t)=>a+t.entry*t.size,0)
   const totalValue     = balance+lockedNotional+unrealizedPnl
   const sharpe         = calcSharpe(trades)
@@ -1184,6 +1198,7 @@ export default function CryptoTradingDashboard() {
             ['📈 פריצות',`${stDonch.op}פ ${stDonch.n}ס ${(stDonch.rp>=0?'+':'')}${stDonch.rp.toFixed(0)}$`,stDonch.rp>=0?C.green:C.red],
             ['🔄 רוטציה',`${stRota.op}פ ${stRota.n}ס ${(stRota.rp>=0?'+':'')}${stRota.rp.toFixed(0)}$ ${stRota.wr.toFixed(0)}%`,stRota.rp>=0?C.green:C.red],
             ['🛡️ נסיגת הון',eqMaxDD.toFixed(1)+'%',eqMaxDD<10?C.green:eqMaxDD<25?C.yellow:C.red],
+            ['⚖️ R ממוצע חי',liveR?`${liveR.avg>=0?'+':''}${liveR.avg.toFixed(3)}R (${liveR.n}) / +0.046`:'נבנה מעכשיו',liveR?(liveR.avg>=0?C.green:C.red):C.muted],
           ].map(([k,v,col])=>(
             <div key={k} className="shimmer-row" style={{
               border:`1px solid ${C.dim}`,borderRadius:'9px',
@@ -1311,7 +1326,7 @@ export default function CryptoTradingDashboard() {
             }}>{label}</button>
           ))}
           <span style={{marginRight:'auto',color:C.muted,fontSize:'9px',alignSelf:'center',paddingRight:'8px'}}>
-            {closed.length} סגורות · {wins} זכיות
+            {eraClosed.length} סגורות · {eraWins} זכיות
           </span>
         </div>
 
@@ -1355,7 +1370,7 @@ export default function CryptoTradingDashboard() {
 
         {/* ── HISTORY ── */}
         {tab==='history'&&(
-          closed.length===0
+          eraClosed.length===0
             ?<div style={{color:C.dim,textAlign:'center' as const,padding:'32px',fontSize:'12px'}}>אין עסקאות סגורות — הבוט עוקב</div>
             :<div style={{overflowX:'auto' as const}}>
               <table style={{width:'100%',borderCollapse:'collapse' as const,fontSize:'10px'}}>
@@ -1368,7 +1383,7 @@ export default function CryptoTradingDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {[...closed]
+                  {[...eraClosed]
                     .sort((a,b)=>(b.closedTs||b.ts)-(a.closedTs||a.ts))
                     .slice(0,50)
                     .map(t=>{
