@@ -1,25 +1,24 @@
-backtest 2026-07-12T11:53Z mode=v66bt months=72
-████ V66BT — extended-history stress test (2020-2026) ████
-  history: 2020-07-01 → 2026-06-30 (6.0y), 69 coins
-  17795 DONCH4H trades over the full history
+backtest 2026-07-12T15:02Z mode=v67bt months=36
+████ V67BT — BASIS CARRY (funding arbitrage) pre-validation ████
+  funding series: 69 coins, 3.0 years
 
-── BY CALENDAR YEAR ──
-  2020                     n= 674 WR=62% totR=  -7 avg=-0.011 | L:+17(424) S:-25(250) | DD~43%
-  2021                     n=1788 WR=59% totR= -92 avg=-0.051 | L:-11(1181) S:-81(607) | DD~183%
-  2022                     n=2565 WR=65% totR=  25 avg=+0.010 | L:-122(1139) S:+147(1426) | DD~111%
-  2023                     n=2884 WR=62% totR= -13 avg=-0.005 | L:-26(1719) S:+13(1165) | DD~219%
-  2024                     n=3964 WR=68% totR= 344 avg=+0.087 | L:+0(2075) S:+344(1889) | DD~70%
-  2025                     n=3815 WR=66% totR= 338 avg=+0.089 | L:+160(2030) S:+178(1785) | DD~107%
-  2026                     n=2072 WR=64% totR=   6 avg=+0.003 | L:-78(949) S:+85(1123) | DD~204%
+── A) ALWAYS-ON basis carry (enter once, hold 36m) ──
+  BTC always-on                  net/yr on capital=3.6% (on notional 7.2%) flips=1 | w%: +3.8 +8.0 +4.0 +2.2 +2.9 +0.6 (all+, <5%/yr bar)
+  ETH always-on                  net/yr on capital=3.7% (on notional 7.5%) flips=1 | w%: +4.3 +8.3 +4.7 +2.4 +2.6 +0.2 (all+, <5%/yr bar)
+  SOL always-on                  net/yr on capital=2.5% (on notional 5.0%) flips=1 | w%: +2.6 +9.8 +4.0 -0.0 +0.4 -1.7 
+  BNB always-on                  net/yr on capital=-1.1% (on notional -2.2%) flips=1 | w%: -1.6 -5.3 +1.6 -2.7 +0.6 +0.9 
 
-── NAMED CRISIS WINDOWS (survival test) ──
-  COVID crash 2020         (no data)
-  2021 bull leg            n= 473 WR=64% totR=  32 avg=+0.068 | L:+45(397) S:-12(76) | DD~58%
-  May-2021 crash           n= 426 WR=56% totR= -43 avg=-0.101 | L:-4(219) S:-39(207) | DD~77%
-  LUNA collapse            n= 397 WR=74% totR=  82 avg=+0.206 | L:-12(138) S:+94(259) | DD~39%
-  2022 full bear           n=2565 WR=65% totR=  25 avg=+0.010 | L:-122(1139) S:+147(1426) | DD~111%
-  FTX collapse             n= 237 WR=66% totR=  -2 avg=-0.006 | L:+0(89) S:-2(148) | DD~27%
-  2023-26 (live window)    n=12753 WR=65% totR= 664 avg=+0.052 | L:+54(6777) S:+610(5976) | DD~219%
+── B) GATED carry — in position only while trailing 7d avg funding > cutoff ──
+  BTC gate>0.000%/8h             net/yr on capital=2.9% (on notional 5.7%) flips=33 | w%: +2.9 +8.0 +3.5 +1.6 +2.6 -1.5 
+  BTC gate>0.005%/8h             net/yr on capital=1.5% (on notional 2.9%) flips=66 | w%: +2.1 +5.6 +2.1 -0.4 +0.5 -1.2 
+  BTC gate>0.010%/8h             net/yr on capital=1.5% (on notional 3.0%) flips=16 | w%: +2.0 +5.8 +1.2 +0.0 -0.0 +0.0 
+  ETH gate>0.000%/8h             net/yr on capital=3.0% (on notional 5.9%) flips=35 | w%: +3.9 +8.3 +3.8 +1.1 +2.3 -1.7 
+  ETH gate>0.005%/8h             net/yr on capital=1.5% (on notional 3.0%) flips=72 | w%: +2.6 +7.9 +4.1 -1.1 -2.4 -2.1 
+  ETH gate>0.010%/8h             net/yr on capital=1.6% (on notional 3.3%) flips=18 | w%: +2.8 +5.9 +1.8 -0.5 -0.2 +0.0 
 
-  NB: universe shrinks going back (many alts launched post-2021); pre-2021
-  samples are BTC/ETH/majors-heavy. R @1.25% risk; DD is single-position seq (real deeper).
+── C) TOP-K rotation — hold basis on K coins with highest trailing 7d funding, rebalance 3d ──
+  top-3 rotation (3d)            net/yr on capital=-2.8% (on notional -5.7%) flips=1007 | w%: -1.3 +6.1 -3.6 -7.5 -5.6 -5.2 
+  top-5 rotation (3d)            net/yr on capital=-2.0% (on notional -4.0%) flips=1471 | w%: -0.3 +5.7 -2.4 -5.9 -4.6 -4.5 
+
+  NB: needs a REAL spot leg — deployable only at the real-exchange stage.
+  ✅ bar: all 6 windows positive AND ≥5%/yr net on deployed capital.
