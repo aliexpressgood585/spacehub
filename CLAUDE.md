@@ -197,6 +197,14 @@ v69bt (2026-07-12): Heikin-Ashi smoothed breakout REJECTED — the smoothing lag
 Marginally higher per-trade avg (+0.0638 vs +0.0620) doesn't cover the trade loss.
 Standard candles stay. (5th indicator-list triage: everything deployed/rejected/
 unfalsifiable/paid-data/family-dup; HA + reg-channel are the only new testables.)
+v70bt (2026-07-12): reg-channel (LSMA±k·σ) breakout PASSED the walk-forward bar!
+k=2.0: n=19,831 (+77% trades), +0.0379R, totR 751 vs 696, all 6 windows ✅;
+k=1.5: totR 816 but razor-thin windows. FIRST new positive result in ~20 batches.
+BUT NOT auto-deployed — it's a CORE-SIGNAL swap with a THIN per-trade edge (+0.038
+vs Donchian +0.062R) = slippage-fragile. Gated behind v71bt (slippage stress) —
+a core-engine change needs the execution-cost gate a same-signal tweak doesn't.
+If it survives 3-6bps slippage, deploy as an ADDITIVE breakout sleeve (fires on
+different signals than Donchian), NOT a replacement.
 
 ## Current state (2026-07-12)
 - Live: **v54.0** — ops hardening, zero strategy changes: bot_errors table +
