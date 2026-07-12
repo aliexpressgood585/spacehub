@@ -107,6 +107,17 @@ trail distance (2.5/3.5, tiered) both <696 AND w6 negative. NOTHING deployed —
 v53 confirmed as the robustness frontier. LESSON: higher totR here = one great
 trending window (w3 hit +0.300 for all-trail) masking fragility; the all-windows
 rule is exactly what blocks that trap.
+v60bt (2026-07-12): portfolio-construction level. Dynamic sleeve allocation
+REJECTED — perf-weighting (3/6/12m) chases noise: higher ann but maxDD blows to
+75-87% and w6 stays negative; inverse-vol/risk-parity positive in all 6 windows
+but cuts return to ~1/3 (loads stable-but-weaker ROTA) = the SAME DD-for-profit
+tradeoff already rejected in vol-targeting; user prioritizes absolute profit.
+Fixed 50/50 stays. NB model's absolute figures inflated (capital-unconstrained
+monthly R aggregation); only the relative scheme comparison is trustworthy.
+BTC-regime size tilt REJECTED — +0.0014R (below +0.004R bar), beats base in only
+4/6 windows. CONCLUSION: portfolio-level levers exhausted. Remaining edge sources
+= 50-trade risk-raise + real-exchange execution; no more strategy/portfolio
+research without a NEW data source or a regime change flagged by the regression.
 
 ## Current state (2026-07-11)
 - Live: **v53.0** — DONCH4H final ladder third TRAILS (chandelier 2.5×ATR4;
