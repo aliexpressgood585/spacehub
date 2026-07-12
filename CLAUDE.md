@@ -236,6 +236,22 @@ NOT beat the single hand-tuned ADX tier. NB even FLAT base is all6=❌ here (w1
 than the deployed totR-sum + full sizing stack (w1/w6 = the flat-2023-ish weak
 windows from v66bt) — not a contradiction of the live all-windows-positive config.
 
+v73bt (2026-07-12): DONCHIAN ADAPTIVE window (external-report idea — window
+length scales with vol, W=clamp(round(15·(atrFast/atrRef)^k),8,30)). REJECTED —
+and instructively. avgW stays 15.0 for EVERY k (-0.5→+0.5): atrFast/atrRef is so
+mean-reverting near 1 that the "adaptive" window barely leaves 15 → adaptive
+collapses to fixed-15. totR wobble 500-534 vs 526 base = noise; best k=+0.25 is
++1.5% (below any bar) and w1/w6 unchanged (all6=❌ on this strict per-window
+mean-R/3bps lens, same as v72bt). Fixed DW=15 confirmed AGAIN, now on the
+adaptive-window axis. 4th time an external-report strategy idea, once actually
+coded, reduces to the incumbent (after HA v69, reg-channel v70/71, ML combo v72).
+The external report's genuinely-new item tested; the rest were already
+tested-rejected (correlation guard = v57/v65 twice, volume/session filters =
+v54bt rule-5, mean-reversion = many, funding arb = v67bt, 3rd sleeve exhausted).
+Its real value is OPERATIONAL (live-transition prep: tests, security audit,
+Sharpe/DD go-live gates, dashboard risk metrics Sortino/Calmar/Omega + equity-vs-
+BTC) — not new strategy edge.
+
 ## Current state (2026-07-12)
 - Live: **v54.0** — ops hardening, zero strategy changes: bot_errors table +
   logErr (no more silent catches; watchdog error-spike alerts), paper realism
