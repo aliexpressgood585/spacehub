@@ -1,19 +1,21 @@
-backtest 2026-07-12T09:11Z mode=v59bt months=36
-████ V59BT — extend trailing (exit-shape grid) + ADX-scaled trail distance ████
-  loaded 69 coins, 6 windows
-  11218 DONCH4H signals
+backtest 2026-07-12T09:50Z mode=v60bt months=36
+████ V60BT — dynamic sleeve allocation + BTC-regime size tilt ████
+  loaded 69 coins, 36 months, 6 windows
 
-── A) EXIT-SHAPE GRID (baseline = ⅓@.6/⅓@1.0/trail2.5 = 696R) ──
-  ⅓.6 ⅓1.0 trail2.5 (v53)        avg +0.0620R totR 696 |  +0.014  +0.029  +0.134  +0.103  +0.068  +0.002 (all+, ≤696)
-  ⅓.6 trail@1.0 (2 legs)         avg +0.0826R totR 927 |  +0.020  +0.004  +0.183  +0.145  +0.125  -0.011 
-  ½.6 trail@1.0                  avg +0.0697R totR 782 |  +0.017  +0.018  +0.153  +0.118  +0.096  -0.008 
-  ¼.6 ¼1.0 ½trail2.5             avg +0.0736R totR 826 |  +0.018  +0.015  +0.161  +0.127  +0.097  -0.003 
-  trail@0.6 (all trail)          avg +0.1117R totR 1253 |  +0.033  -0.061  +0.300  +0.168  +0.204  -0.023 
-  ⅓.6 ⅓1.0 ⅓trail2.5 T3.5        avg +0.0505R totR 567 |  +0.009  +0.017  +0.153  +0.072  +0.027  -0.000 
+── A) DYNAMIC ALLOCATION between DONCH4H & ROTA (monthly, walk-forward) ──
+  sleeve monthly: DONCH4H 24.15%  ROTA 2.65%
+  fixed 50/50 (baseline)         ann 201.7% maxDD 58% |   +3.2  +13.5  +32.6  +21.6  +10.3   -3.7 
+  perf-weighted 3m               ann 227.9% maxDD 77% |   +4.0  +13.3  +59.7  +36.5  +17.0  -15.6 
+  inverse-vol 3m                 ann 74.3% maxDD 8% |   +5.3   +7.2   +7.6   +3.7   +2.9   +2.6 ✅
+  perf-weighted 6m               ann 252.2% maxDD 75% |   +3.1   +7.1  +57.6  +39.0  +17.8   -0.2 
+  inverse-vol 6m                 ann 69.9% maxDD 10% |   +4.8   +6.8   +8.1   +3.8   +2.8   +1.4 ✅
+  perf-weighted 12m              ann 194.9% maxDD 87% |   +3.1  +11.9  +53.2  +40.2  +17.5   -8.7 
+  inverse-vol 12m                ann 72.9% maxDD 9% |   +4.8   +6.8   +8.6   +3.8   +3.0   +1.8 ✅
+  deploy bar (A): beats fixed 50/50 ann return AND all 6 windows positive.
 
-── B) ADX-SCALED TRAIL DISTANCE (final third; wider on strong breakouts) ──
-  trail 2.5 flat (v53)           avg +0.0620R totR 696 |  +0.014  +0.029  +0.134  +0.103  +0.068  +0.002 (all+, ≤696)
-  trail 2.5/3.5 by adx45         avg +0.0586R totR 657 |  +0.010  +0.032  +0.144  +0.085  +0.060  -0.003 
-  trail 2.0/3.0/4.0 tiers        avg +0.0563R totR 632 |  +0.010  +0.020  +0.138  +0.090  +0.063  -0.007 
+── B) BTC-REGIME SIZE TILT on DONCH4H (1.25× with-trend / 0.85× against) ──
+  base   avg 0.0620R |  +0.014  +0.029  +0.134  +0.103  +0.068  +0.002
+  tilt   avg 0.0634R |  +0.015▲  +0.020▽  +0.143▲  +0.105▲  +0.060▽  +0.014▲ 
+  deploy bar (B): tilt positive AND beats base in all 6 windows.
 
-✅>base = all 6 windows positive AND total R > 696 (the v53 live baseline).
+✅ = passes the per-section deploy bar.
