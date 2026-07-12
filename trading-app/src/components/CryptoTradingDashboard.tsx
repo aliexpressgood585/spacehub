@@ -1042,6 +1042,34 @@ export default function CryptoTradingDashboard() {
     return closed.filter(t=>t.strategy==='DONCH4H' && (!epochTs||(t.closedTs??0)>=epochTs) && (t.riskUsd||0)>0)
       .map(t=>(t.pnl||0)/(t.riskUsd as number))
   }
+  // v56 PROOF PANEL: honest live-vs-backtest verdict. A point estimate alone
+  // ("avg R = 0.03") is misleading at small n — the 95% CI is huge. This turns
+  // "trust the backtest" into "is the live sample statistically consistent with
+  // the +0.046R / 66% WR expectation band?" No strategy change; pure evidence.
+  const proof = (()=>{
+    const rs=eraClosedR()
+    const n=rs.length
+    if (n<1) return null
+    const R_TGT=0.046, WR_TGT=0.66
+    const mean=rs.reduce((a2,x)=>a2+x,0)/n
+    const variance=n>1?rs.reduce((a2,x)=>a2+(x-mean)**2,0)/(n-1):0
+    const sd=Math.sqrt(variance)
+    const se=n>0?sd/Math.sqrt(n):0
+    const rLo=mean-1.96*se, rHi=mean+1.96*se
+    const wins2=rs.filter(x=>x>0).length
+    const p=wins2/n
+    const seP=Math.sqrt(Math.max(p*(1-p),0)/n)
+    const wrLo=Math.max(0,p-1.96*seP), wrHi=Math.min(1,p+1.96*seP)
+    // verdict: green=confirms edge, blue=consistent/too-few, yellow=drifting low,
+    // red=live edge statistically negative (real concern → investigate before scaling)
+    let verdict:string, vcol:string
+    if (n<15) { verdict='מדגם קטן — עוד '+(15-n)+' לאמינות'; vcol=C.muted }
+    else if (rLo>R_TGT) { verdict='מעל הרצועה ✓✓ (אדג\' חזק מהצפוי)'; vcol=C.green }
+    else if (R_TGT>=rLo && R_TGT<=rHi) { verdict='תואם רצועה ✓ (+0.046 בתוך הרווח)'; vcol=C.green }
+    else if (rHi<0) { verdict='⚠ אדג\' חי שלילי — לחקור לפני הגדלה'; vcol=C.red }
+    else { verdict='מתחת לרצועה — עדיין חיובי, במעקב'; vcol=C.yellow }
+    return {n,mean,sd,rLo,rHi,p,wrLo,wrHi,verdict,vcol,R_TGT,WR_TGT}
+  })()
   const lockedNotional = openTrades.reduce((a,t)=>a+t.entry*t.size,0)
   const totalValue     = balance+lockedNotional+unrealizedPnl
   const sharpe         = calcSharpe(trades)
@@ -1286,6 +1314,32 @@ export default function CryptoTradingDashboard() {
             </div>
           ))}
           <ProgressRing value={donchProgress} max={50} color={donchProgress>=50?C.green:C.blue} label="בדיקת רצועות"/>
+          {/* v56: live-vs-backtest PROOF panel — statistical verdict, not a raw number */}
+          {proof&&(
+            <div className="shimmer-row" style={{border:`1px solid ${proof.vcol}`,borderRadius:'9px',padding:'7px 10px',backdropFilter:'blur(10px)',display:'flex',flexDirection:'column' as const,gap:'4px'}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <span style={{color:C.muted,fontSize:'9px'}}>הוכחה חיה vs בקטסט</span>
+                <span style={{color:C.muted,fontSize:'8px'}}>n={proof.n}</span>
+              </div>
+              <div style={{fontSize:'8.5px',color:C.muted,lineHeight:1.5}}>
+                <div style={{display:'flex',justifyContent:'space-between'}}>
+                  <span>R ממוצע (95%)</span>
+                  <span style={{color:proof.vcol,fontWeight:800}}>
+                    {proof.mean>=0?'+':''}{proof.mean.toFixed(3)} [{proof.rLo>=0?'+':''}{proof.rLo.toFixed(3)},{proof.rHi>=0?'+':''}{proof.rHi.toFixed(3)}]
+                  </span>
+                </div>
+                <div style={{display:'flex',justifyContent:'space-between'}}>
+                  <span>יעד רצועה</span>
+                  <span style={{color:C.muted}}>+{proof.R_TGT.toFixed(3)}R</span>
+                </div>
+                <div style={{display:'flex',justifyContent:'space-between'}}>
+                  <span>זכייה (95%)</span>
+                  <span style={{fontWeight:700}}>{(proof.p*100).toFixed(0)}% [{(proof.wrLo*100).toFixed(0)}–{(proof.wrHi*100).toFixed(0)}] / 66%</span>
+                </div>
+              </div>
+              <div style={{fontSize:'8.5px',fontWeight:800,color:proof.vcol,textAlign:'center' as const,paddingTop:'2px',borderTop:`1px solid ${C.dim}`}}>{proof.verdict}</div>
+            </div>
+          )}
           <div className="shimmer-row" style={{border:`1px solid ${Object.values(shields).some(Boolean)?C.red:C.dim}`,borderRadius:'9px',padding:'6px 10px',display:'flex',justifyContent:'space-between',alignItems:'center',backdropFilter:'blur(10px)'}}>
             <span style={{color:C.muted,fontSize:'9px'}}>מגנים</span>
             <span style={{color:Object.values(shields).some(Boolean)?C.red:C.green,fontWeight:800,fontSize:'11px'}}>
