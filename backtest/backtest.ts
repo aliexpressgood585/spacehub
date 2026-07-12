@@ -4837,6 +4837,99 @@ function runV67bt() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// v68bt: two external-report ideas that weren't yet tested —
+//  A) volatility-spike guard: is entering when the signal 4h bar is 3-4× the
+//     average bar range (news/manipulation) systematically worse? (measure the
+//     spike-entries' expectancy; a guard would SKIP them — rule-5, so info-first)
+//  B) ADX-skip analysis: what would the ADX≤22 skipped breakouts have returned?
+//     Confirms the 22 gate is well-placed (v56bt showed 18/20 break windows).
+function runV68bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000
+  const toTf=(a:Bar[],ms:number):Bar[]=>{
+    const out:Bar[]=[]; let cur:Bar|null=null; let bucket=-1
+    for(const b of a){const k=Math.floor(b.t/ms)
+      if(k!==bucket){if(cur)out.push(cur);bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol}}
+      else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol}}
+    if(cur)out.push(cur);return out}
+  const d4:Record<string,Bar[]>={}
+  let tmin=Infinity,tmax=-Infinity
+  for(const c of COINS){const h=loadCSV(c,'1h');if(h.length<500)continue
+    d4[c]=toTf(h,BAR4);tmin=Math.min(tmin,h[0].t);tmax=Math.max(tmax,h[h.length-1].t)}
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${NW} windows`)
+
+  const ladder=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,atr:number,jEnd:number)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const legs=[{r:0.6,frac:1/3},{r:1.0,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0,ext=entry
+    for(let j=j0+1;j<=jEndc;j++){const b=arr[j]
+      const stop=si>=2?(side==='LONG'?ext-2.5*atr:ext+2.5*atr):(be?entry:slPx)
+      if(side==='LONG'?b.low<=stop:b.high>=stop){banked+=rem*(si>=2?(stop-entry)*dirM/slDist:(be?0:-1));rem=0;break}
+      while(si<legs.length){const tgt=entry+slDist*legs[si].r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=legs[si].frac*legs[si].r;tpFrac+=legs[si].frac;rem-=legs[si].frac;be=true;si++}
+      if(si>=2)ext=side==='LONG'?Math.max(ext,b.high):Math.min(ext,b.low)
+      if(rem<=1e-9)break}
+    if(rem>1e-9)banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return {r:banked,tpFrac}}
+
+  // ── A) volatility-spike guard: bucket signal-bar range vs trailing avg ──
+  interface T{win:number;net:number;spikeMult:number}
+  const taken:T[]=[]
+  // ── B) skipped signals (adx<=22 only reason) with their would-be net ──
+  const skipWin:{n:number,sum:number}[]=Array.from({length:NW},()=>({n:0,sum:0}))
+  const takWin:{n:number,sum:number}[]=Array.from({length:NW},()=>({n:0,sum:0}))
+  for(const c of Object.keys(d4)){
+    if(!CORE40.has(c))continue
+    const arr=d4[c];let last=-999
+    for(let i=100;i<arr.length-1;i++){
+      const price=arr[i].close
+      const prior=arr.slice(i-15,i);let hi=-Infinity,lo=Infinity
+      for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+      const side:'LONG'|'SHORT'|null=price>hi?'LONG':price<lo?'SHORT':null
+      if(!side)continue
+      const win=arr.slice(Math.max(0,i-99),i+1)
+      const adx=calcADX(win.slice(-60))
+      const atr=calcATR(win.slice(-20));if(!atr)continue
+      if(i-last<2)continue
+      const slDist=Math.max(atr*1.4,price*0.005),slPct=slDist/price
+      if(slPct>0.08)continue
+      // avg bar range over last 20 bars, and this signal bar's range
+      let rng=0;for(let k=i-20;k<i;k++)rng+=(arr[k].high-arr[k].low);rng/=20
+      const barRange=arr[i].high-arr[i].low
+      const spikeMult=rng>0?barRange/rng:1
+      const res=ladder(arr,i,price,side,slDist,atr,i+96)
+      const net=res.r-(TK+res.tpFrac*MK+(1-res.tpFrac)*TK)/slPct
+      if(adx>22){ last=i; taken.push({win:winOf(arr[i].t),net,spikeMult}); const w=takWin[winOf(arr[i].t)];w.n++;w.sum+=net }
+      else { const w=skipWin[winOf(arr[i].t)];w.n++;w.sum+=net }  // adx-skipped (measure only)
+    }
+  }
+  console.log(`\n── A) VOLATILITY-SPIKE analysis (signal-bar range vs 20-bar avg) ──`)
+  const spikeBucket=(lbl:string,f:(m:number)=>boolean)=>{
+    const sub=taken.filter(t=>f(t.spikeMult))
+    if(!sub.length){console.log(`  ${lbl}: none`);return}
+    const avg=sub.reduce((a,t)=>a+t.net,0)/sub.length
+    const wA:number[]=Array.from({length:NW},(_,w)=>{const ss=sub.filter(t=>t.win===w);return ss.length?ss.reduce((a,t)=>a+t.net,0)/ss.length:0})
+    console.log(`  ${lbl.padEnd(22)} n=${String(sub.length).padStart(5)} avg ${(avg>=0?'+':'')+avg.toFixed(4)}R | ${wA.map(x=>((x>=0?'+':'')+x.toFixed(3)).padStart(7)).join(' ')}`)}
+  spikeBucket('calm  (<1.5×)',   m=>m<1.5)
+  spikeBucket('normal(1.5-2.5×)', m=>m>=1.5&&m<2.5)
+  spikeBucket('spike (2.5-3.5×)', m=>m>=2.5&&m<3.5)
+  spikeBucket('extreme(≥3.5×)',   m=>m>=3.5)
+  console.log(`  → if extreme-spike avg << overall, a spike guard would help (but it CUTS trades = rule 5).`)
+
+  console.log(`\n── B) ADX-SKIP analysis (what the adx≤22 skipped breakouts would have done) ──`)
+  const tot=(a:{n:number,sum:number}[])=>a.reduce((x,y)=>({n:x.n+y.n,sum:x.sum+y.sum}),{n:0,sum:0})
+  const tk=tot(takWin),sk=tot(skipWin)
+  console.log(`  TAKEN (adx>22):   n=${tk.n} avg ${(tk.sum/tk.n>=0?'+':'')}${(tk.sum/tk.n).toFixed(4)}R`)
+  console.log(`  SKIPPED (adx≤22): n=${sk.n} avg ${(sk.sum/sk.n>=0?'+':'')}${(sk.sum/sk.n).toFixed(4)}R`)
+  console.log(`  → skipped avg << taken avg confirms the 22 gate keeps the good ones out of the bad.`)
+  console.log(`\n  (info-first: both A and B would CUT trades if turned into filters — rule 5.)`)
+}
+
+// ─────────────────────────────────────────────────────────────
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
@@ -4987,6 +5080,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v67bt') {
     console.log(`\u2588\u2588\u2588\u2588 V67BT \u2014 BASIS CARRY (funding arbitrage) pre-validation \u2588\u2588\u2588\u2588`)
     runV67bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v68bt') {
+    console.log(`\u2588\u2588\u2588\u2588 V68BT \u2014 volatility-spike guard + ADX-skip analysis \u2588\u2588\u2588\u2588`)
+    runV68bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v66bt') {
