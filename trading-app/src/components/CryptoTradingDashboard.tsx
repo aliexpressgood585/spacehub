@@ -185,6 +185,45 @@ function drawEquity(canvas:HTMLCanvasElement,trades:Trade[]){
   ctx.strokeStyle=C.green;ctx.lineWidth=2;ctx.shadowColor=C.green;ctx.shadowBlur=6;ctx.stroke();ctx.shadowBlur=0
 }
 
+// v53.1 redesign: oscilloscope hero — real bot_equity trace on an engineering
+// grid, dashed baseline at the era's first snapshot, live cursor with value.
+function drawScope(canvas:HTMLCanvasElement,hist:{ts:string;equity:number}[]){
+  const ctx=canvas.getContext('2d');if(!ctx||hist.length<2)return
+  const W=canvas.width,H=canvas.height
+  ctx.clearRect(0,0,W,H)
+  const padL=10,padR=118,padT=14,padB=10,iw=W-padL-padR,ih=H-padT-padB
+  ctx.strokeStyle='rgba(140,170,210,0.07)';ctx.lineWidth=1
+  for(let i=0;i<=5;i++){const y=padT+ih*i/5;ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(W-padR,y);ctx.stroke()}
+  for(let i=0;i<=12;i++){const x=padL+iw*i/12;ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,H-padB);ctx.stroke()}
+  const eq=hist.map(p=>p.equity)
+  const base=eq[0]
+  const mn=Math.min(...eq,base)-(Math.max(...eq)-Math.min(...eq)||50)*0.08
+  const mx=Math.max(...eq,base)+(Math.max(...eq)-Math.min(...eq)||50)*0.08
+  const X=(i:number)=>padL+iw*i/(eq.length-1)
+  const Y=(v:number)=>padT+ih*(1-(v-mn)/(mx-mn||1))
+  const g=ctx.createLinearGradient(0,padT,0,H-padB)
+  g.addColorStop(0,'rgba(53,224,255,0.16)');g.addColorStop(1,'rgba(53,224,255,0)')
+  ctx.beginPath();ctx.moveTo(X(0),Y(eq[0]))
+  for(let i=1;i<eq.length;i++)ctx.lineTo(X(i),Y(eq[i]))
+  ctx.lineTo(X(eq.length-1),H-padB);ctx.lineTo(X(0),H-padB);ctx.closePath()
+  ctx.fillStyle=g;ctx.fill()
+  ctx.beginPath();ctx.moveTo(X(0),Y(eq[0]))
+  for(let i=1;i<eq.length;i++)ctx.lineTo(X(i),Y(eq[i]))
+  ctx.strokeStyle='#35e0ff';ctx.lineWidth=1.6;ctx.stroke()
+  ctx.setLineDash([3,5]);ctx.strokeStyle='rgba(140,170,210,0.32)'
+  ctx.beginPath();ctx.moveTo(padL,Y(base));ctx.lineTo(W-padR,Y(base));ctx.stroke()
+  ctx.setLineDash([])
+  const lx=X(eq.length-1),ly=Y(eq[eq.length-1])
+  ctx.fillStyle='#35e0ff';ctx.beginPath();ctx.arc(lx,ly,3,0,7);ctx.fill()
+  ctx.strokeStyle='rgba(53,224,255,0.35)';ctx.beginPath();ctx.arc(lx,ly,7,0,7);ctx.stroke()
+  ctx.font='11px "IBM Plex Mono",ui-monospace,monospace';ctx.textAlign='left'
+  ctx.fillStyle='#35e0ff'
+  ctx.fillText(eq[eq.length-1].toLocaleString(undefined,{maximumFractionDigits:2}),lx+12,ly+4)
+  ctx.fillStyle='rgba(140,170,210,0.55)'
+  const byOff=Math.abs(Y(base)-ly)<12?(ly>Y(base)?-8:12):4
+  ctx.fillText(base.toLocaleString(undefined,{maximumFractionDigits:0}),lx+12,Y(base)+byOff)
+}
+
 function drawBubbles(canvas:HTMLCanvasElement,allSigs:Record<string,Sig>,prices:Record<string,PriceInfo>){
   const ctx=canvas.getContext('2d');if(!ctx)return
   const W=canvas.width,H=canvas.height
@@ -567,6 +606,7 @@ export default function CryptoTradingDashboard() {
   const canvasRef  = useRef<HTMLCanvasElement>(null)
   const eqRef      = useRef<HTMLCanvasElement>(null)
   const bubRef     = useRef<HTMLCanvasElement>(null)
+  const scopeRef   = useRef<HTMLCanvasElement>(null)
   const cooldown   = useRef<Record<string,number>>({})
   const allSigsRef = useRef<Record<string,Sig>>({})
   const sigTimer   = useRef(0)
@@ -931,6 +971,7 @@ export default function CryptoTradingDashboard() {
     if(bars.length>0)drawCandles(canvasRef.current,bars,sig)
   },[tick,selected,sig])
   useEffect(()=>{if(eqRef.current)drawEquity(eqRef.current,trades)},[trades])
+  useEffect(()=>{if(scopeRef.current&&equityHist.length>=2)drawScope(scopeRef.current,equityHist)},[equityHist])
   useEffect(()=>{if(bubRef.current)drawBubbles(bubRef.current,allSigs,prices)},[allSigs,prices])
 
   const handleBotToggle=()=>{
@@ -1121,6 +1162,32 @@ export default function CryptoTradingDashboard() {
           }}>{botOn?'בוט פעיל':'בוט כבוי'}</button>
         </div>
       </div>
+
+      {/* ══ EQUITY SCOPE HERO (v53.1 redesign) ══ */}
+      {equityHist.length>=2&&(()=>{
+        const base=equityHist[0].equity
+        const deltaPct=base>0?((totalValue/base-1)*100):0
+        return (
+          <div style={{background:C.panel,border:`1px solid ${C.border}`,borderRadius:'6px',
+            padding:'12px 14px 6px',marginBottom:'8px',boxShadow:C.glow}}>
+            <div style={{display:'flex',alignItems:'baseline',gap:'14px',flexWrap:'wrap' as const,marginBottom:'2px'}}>
+              <span style={{fontSize:'10px',color:C.muted,letterSpacing:'0.5px'}}>הון כולל (mark-to-market)</span>
+              <span style={{fontSize:'26px',fontWeight:700,color:C.bright,direction:'ltr' as const,lineHeight:1.1}}>
+                ${totalValue.toLocaleString(undefined,{maximumFractionDigits:2})}
+              </span>
+              <span style={{fontSize:'12px',fontWeight:700,direction:'ltr' as const,
+                color:deltaPct>=0?C.green:C.red}}>
+                {deltaPct>=0?'+':''}{deltaPct.toFixed(2)}% מאז האיפוס
+              </span>
+              <span style={{marginRight:'auto',fontSize:'9px',color:C.muted}}>
+                {equityHist.length} דגימות · שיא ${Math.max(...equityHist.map(p=>p.equity)).toLocaleString(undefined,{maximumFractionDigits:0})}
+              </span>
+            </div>
+            <canvas ref={scopeRef} width={880} height={210}
+              style={{width:'100%',height:'190px',display:'block'}}/>
+          </div>
+        )
+      })()}
 
       {/* ══ COIN STRIP ══ */}
       <div style={{display:'flex',gap:'4px',overflowX:'auto' as const,marginBottom:'8px',paddingBottom:'2px',scrollbarWidth:'none' as const}}>
