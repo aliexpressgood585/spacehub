@@ -5333,6 +5333,92 @@ function runV72bt() {
   console.log(`  single ADX tier we already run). Δ must clear the +0.004R noise floor.`)
 }
 
+// v73bt: DONCHIAN ADAPTIVE — window length scales with volatility regime
+// (external-report idea). Prior batches tuned FIXED windows (10/12/15/20/25/40;
+// 15 won). Never tested a window that BREATHES with vol. Hypothesis both ways:
+// high-vol→WIDER (k>0, filter chop false-breaks) vs high-vol→NARROWER (k<0,
+// catch fast moves). W=clamp(round(15·(atrFast/atrRef)^k),8,30). Same ADX gate,
+// stop, ladder, 3bps slip. Deploy only if beats fixed-15 AND all-6-windows.
+function runV73bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000, SLIP=0.0003
+  const toTf=(a:Bar[],ms:number):Bar[]=>{
+    const out:Bar[]=[]; let cur:Bar|null=null; let bucket=-1
+    for(const b of a){const k=Math.floor(b.t/ms)
+      if(k!==bucket){if(cur)out.push(cur);bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol}}
+      else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol}}
+    if(cur)out.push(cur);return out}
+  const d4:Record<string,Bar[]>={}
+  let tmin=Infinity,tmax=-Infinity
+  for(const c of COINS){const h=loadCSV(c,'1h');if(h.length<500)continue
+    d4[c]=toTf(h,BAR4);tmin=Math.min(tmin,h[0].t);tmax=Math.max(tmax,h[h.length-1].t)}
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${NW} windows`)
+
+  const ladder=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,atr:number,jEnd:number)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const legs=[{r:0.6,frac:1/3},{r:1.0,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0,ext=entry
+    for(let j=j0+1;j<=jEndc;j++){const b=arr[j]
+      const stop=si>=2?(side==='LONG'?ext-2.5*atr:ext+2.5*atr):(be?entry:slPx)
+      if(side==='LONG'?b.low<=stop:b.high>=stop){banked+=rem*(si>=2?(stop-entry)*dirM/slDist:(be?0:-1));rem=0;break}
+      while(si<legs.length){const tgt=entry+slDist*legs[si].r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=legs[si].frac*legs[si].r;tpFrac+=legs[si].frac;rem-=legs[si].frac;be=true;si++}
+      if(si>=2)ext=side==='LONG'?Math.max(ext,b.high):Math.min(ext,b.low)
+      if(rem<=1e-9)break}
+    if(rem>1e-9)banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return {r:banked,tpFrac}}
+
+  // k=0 → fixed 15 (baseline). k>0 → wider window in high vol; k<0 → narrower.
+  const scan=(k:number)=>{
+    const ws:{n:number,sum:number}[]=Array.from({length:NW},()=>({n:0,sum:0}))
+    let wSum=0,wCnt=0
+    for(const c of Object.keys(d4)){
+      if(!CORE40.has(c))continue
+      const arr=d4[c];let last=-999
+      for(let i=100;i<arr.length-1;i++){
+        const price=arr[i].close
+        const atrFast=calcATR(arr.slice(i-20,i+1))
+        const atrRef=calcATR(arr.slice(i-100,i+1))
+        if(!atrFast||!atrRef)continue
+        const W=k===0?15:Math.max(8,Math.min(30,Math.round(15*Math.pow(atrFast/atrRef,k))))
+        const prior=arr.slice(i-W,i);let hi=-Infinity,lo=Infinity
+        for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+        const side:'LONG'|'SHORT'|null=price>hi?'LONG':price<lo?'SHORT':null
+        if(!side)continue
+        const win=arr.slice(Math.max(0,i-99),i+1)
+        const adx=calcADX(win.slice(-60));if(adx<=22)continue
+        const atr=calcATR(win.slice(-20));if(!atr)continue
+        if(i-last<2)continue
+        last=i
+        const slDist=Math.max(atr*1.4,price*0.005),slPct=slDist/price
+        if(slPct>0.08)continue
+        const res=ladder(arr,i,price,side,slDist,atr,i+96)
+        const slipR=(1+(1-res.tpFrac))*SLIP/slPct
+        const net=res.r-(TK+res.tpFrac*MK+(1-res.tpFrac)*TK)/slPct-slipR
+        const w=ws[winOf(arr[i].t)];w.n++;w.sum+=net;wSum+=W;wCnt++}
+    }
+    const tot=ws.reduce((a,x)=>({n:a.n+x.n,sum:a.sum+x.sum}),{n:0,sum:0})
+    const wA=ws.map(x=>x.n?x.sum/x.n:0)
+    return {n:tot.n,avg:tot.sum/tot.n,tot:tot.sum,allPos:wA.every(x=>x>0),avgW:wSum/wCnt,wA}}
+
+  console.log(`\n── DONCHIAN ADAPTIVE: window breathes with vol (atrFast/atrRef)^k ──`)
+  console.log(`  k        avgW    n       totR     avgR      all6   windows`)
+  const base=scan(0)
+  console.log(`  0 (fix)  15.0   ${String(base.n).padStart(5)}   ${base.tot.toFixed(0).padStart(5)}  ${(base.avg>=0?'+':'')}${base.avg.toFixed(4)}   ${base.allPos?'✅':'❌'}    ${base.wA.map(x=>(x>=0?'+':'')+x.toFixed(3)).join(' ')}`)
+  for(const k of [-0.5,-0.25,0.25,0.5]){
+    const s=scan(k)
+    const tag=(s.tot>base.tot&&s.allPos)?'  ← beats fixed-15':''
+    console.log(`  ${(k>=0?'+':'')}${k.toFixed(2)}  ${s.avgW.toFixed(1).padStart(5)}   ${String(s.n).padStart(5)}   ${s.tot.toFixed(0).padStart(5)}  ${(s.avg>=0?'+':'')}${s.avg.toFixed(4)}   ${s.allPos?'✅':'❌'}    ${s.wA.map(x=>(x>=0?'+':'')+x.toFixed(3)).join(' ')}${tag}`)
+  }
+  console.log(`\n  DEPLOY BAR: an adaptive k must beat fixed-15 totR (${base.tot.toFixed(0)}R) AND stay`)
+  console.log(`  ✅ all-6-windows. Note fixed-15 is the incumbent; adaptive adds a`)
+  console.log(`  parameter (k) that can overfit — needs a clear, robust win to justify.`)
+}
+
 // ─────────────────────────────────────────────────────────────
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
@@ -5514,6 +5600,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v72bt') {
     console.log(`████ V72BT — learned multivariate sizing model (OLS combo vs flat/ADX-only) ████`)
     runV72bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v73bt') {
+    console.log(`████ V73BT — Donchian adaptive window (vol-scaled) vs fixed-15 ████`)
+    runV73bt()
     return
   }
 
