@@ -192,6 +192,11 @@ per v56bt — weaker trades add variance). Both would cut trades (rule 5) anyway
 NET: an independent code review reached for ideas we'd already tested/that the
 data reverses — strong confirmation the config is at a real optimum. The report's
 real value was OPERATIONAL (Telegram alerts + dashboard range toggle — deployed).
+v69bt (2026-07-12): Heikin-Ashi smoothed breakout REJECTED — the smoothing lags:
+6,477 signals vs 11,218 standard (-42% = rule 5), totR 413 vs 696, w6 negative.
+Marginally higher per-trade avg (+0.0638 vs +0.0620) doesn't cover the trade loss.
+Standard candles stay. (5th indicator-list triage: everything deployed/rejected/
+unfalsifiable/paid-data/family-dup; HA + reg-channel are the only new testables.)
 
 ## Current state (2026-07-12)
 - Live: **v54.0** — ops hardening, zero strategy changes: bot_errors table +
