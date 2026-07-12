@@ -1,24 +1,17 @@
-backtest 2026-07-12T15:02Z mode=v67bt months=36
-████ V67BT — BASIS CARRY (funding arbitrage) pre-validation ████
-  funding series: 69 coins, 3.0 years
+backtest 2026-07-12T15:32Z mode=v68bt months=36
+████ V68BT — volatility-spike guard + ADX-skip analysis ████
+  loaded 69 coins, 6 windows
 
-── A) ALWAYS-ON basis carry (enter once, hold 36m) ──
-  BTC always-on                  net/yr on capital=3.6% (on notional 7.2%) flips=1 | w%: +3.8 +8.0 +4.0 +2.2 +2.9 +0.6 (all+, <5%/yr bar)
-  ETH always-on                  net/yr on capital=3.7% (on notional 7.5%) flips=1 | w%: +4.3 +8.3 +4.7 +2.4 +2.6 +0.2 (all+, <5%/yr bar)
-  SOL always-on                  net/yr on capital=2.5% (on notional 5.0%) flips=1 | w%: +2.6 +9.8 +4.0 -0.0 +0.4 -1.7 
-  BNB always-on                  net/yr on capital=-1.1% (on notional -2.2%) flips=1 | w%: -1.6 -5.3 +1.6 -2.7 +0.6 +0.9 
+── A) VOLATILITY-SPIKE analysis (signal-bar range vs 20-bar avg) ──
+  calm  (<1.5×)          n= 5368 avg +0.0401R |  +0.028  -0.004  +0.124  +0.137  -0.067  -0.002
+  normal(1.5-2.5×)       n= 3992 avg +0.0714R |  -0.015  +0.061  +0.151  +0.084  +0.105  +0.008
+  spike (2.5-3.5×)       n= 1214 avg +0.0906R |  -0.045  -0.027  +0.121  +0.018  +0.444  +0.015
+  extreme(≥3.5×)         n=  655 avg +0.1260R |  +0.106  +0.201  +0.115  +0.072  +0.330  -0.061
+  → if extreme-spike avg << overall, a spike guard would help (but it CUTS trades = rule 5).
 
-── B) GATED carry — in position only while trailing 7d avg funding > cutoff ──
-  BTC gate>0.000%/8h             net/yr on capital=2.9% (on notional 5.7%) flips=33 | w%: +2.9 +8.0 +3.5 +1.6 +2.6 -1.5 
-  BTC gate>0.005%/8h             net/yr on capital=1.5% (on notional 2.9%) flips=66 | w%: +2.1 +5.6 +2.1 -0.4 +0.5 -1.2 
-  BTC gate>0.010%/8h             net/yr on capital=1.5% (on notional 3.0%) flips=16 | w%: +2.0 +5.8 +1.2 +0.0 -0.0 +0.0 
-  ETH gate>0.000%/8h             net/yr on capital=3.0% (on notional 5.9%) flips=35 | w%: +3.9 +8.3 +3.8 +1.1 +2.3 -1.7 
-  ETH gate>0.005%/8h             net/yr on capital=1.5% (on notional 3.0%) flips=72 | w%: +2.6 +7.9 +4.1 -1.1 -2.4 -2.1 
-  ETH gate>0.010%/8h             net/yr on capital=1.6% (on notional 3.3%) flips=18 | w%: +2.8 +5.9 +1.8 -0.5 -0.2 +0.0 
+── B) ADX-SKIP analysis (what the adx≤22 skipped breakouts would have done) ──
+  TAKEN (adx>22):   n=11229 avg +0.0617R
+  SKIPPED (adx≤22): n=12271 avg +0.0432R
+  → skipped avg << taken avg confirms the 22 gate keeps the good ones out of the bad.
 
-── C) TOP-K rotation — hold basis on K coins with highest trailing 7d funding, rebalance 3d ──
-  top-3 rotation (3d)            net/yr on capital=-2.8% (on notional -5.7%) flips=1007 | w%: -1.3 +6.1 -3.6 -7.5 -5.6 -5.2 
-  top-5 rotation (3d)            net/yr on capital=-2.0% (on notional -4.0%) flips=1471 | w%: -0.3 +5.7 -2.4 -5.9 -4.6 -4.5 
-
-  NB: needs a REAL spot leg — deployable only at the real-exchange stage.
-  ✅ bar: all 6 windows positive AND ≥5%/yr net on deployed capital.
+  (info-first: both A and B would CUT trades if turned into filters — rule 5.)
