@@ -4930,6 +4930,90 @@ function runV68bt() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// v69bt: Heikin-Ashi smoothed breakout — the last genuinely-untested,
+//  codeable, free-data candidate. Run the DONCH4H logic on HA candles (which
+//  smooth noise) vs standard candles. Expectation: HA lags → worse for
+//  breakouts (like the slow DW=40 sleeve). Deploy bar: beats standard, all 6w.
+function runV69bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000
+  const toTf=(a:Bar[],ms:number):Bar[]=>{
+    const out:Bar[]=[]; let cur:Bar|null=null; let bucket=-1
+    for(const b of a){const k=Math.floor(b.t/ms)
+      if(k!==bucket){if(cur)out.push(cur);bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol}}
+      else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol}}
+    if(cur)out.push(cur);return out}
+  // Heikin-Ashi transform: HA_close=ohlc/4, HA_open=(prevHAopen+prevHAclose)/2,
+  // HA_high=max(high,HAopen,HAclose), HA_low=min(low,HAopen,HAclose)
+  const toHA=(a:Bar[]):Bar[]=>{
+    const out:Bar[]=[];let po=a[0].open,pc=a[0].close
+    for(const b of a){const hc=(b.open+b.high+b.low+b.close)/4
+      const ho=out.length?(po+pc)/2:(b.open+b.close)/2
+      const hh=Math.max(b.high,ho,hc),hl=Math.min(b.low,ho,hc)
+      out.push({t:b.t,open:ho,high:hh,low:hl,close:hc,vol:b.vol});po=ho;pc=hc}
+    return out}
+  const d4:Record<string,Bar[]>={},d4ha:Record<string,Bar[]>={}
+  let tmin=Infinity,tmax=-Infinity
+  for(const c of COINS){const h=loadCSV(c,'1h');if(h.length<500)continue
+    const b4=toTf(h,BAR4);d4[c]=b4;d4ha[c]=toHA(b4);tmin=Math.min(tmin,h[0].t);tmax=Math.max(tmax,h[h.length-1].t)}
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${NW} windows`)
+
+  const ladder=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,atr:number,jEnd:number)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const legs=[{r:0.6,frac:1/3},{r:1.0,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0,ext=entry
+    for(let j=j0+1;j<=jEndc;j++){const b=arr[j]
+      const stop=si>=2?(side==='LONG'?ext-2.5*atr:ext+2.5*atr):(be?entry:slPx)
+      if(side==='LONG'?b.low<=stop:b.high>=stop){banked+=rem*(si>=2?(stop-entry)*dirM/slDist:(be?0:-1));rem=0;break}
+      while(si<legs.length){const tgt=entry+slDist*legs[si].r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=legs[si].frac*legs[si].r;tpFrac+=legs[si].frac;rem-=legs[si].frac;be=true;si++}
+      if(si>=2)ext=side==='LONG'?Math.max(ext,b.high):Math.min(ext,b.low)
+      if(rem<=1e-9)break}
+    if(rem>1e-9)banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return {r:banked,tpFrac}}
+
+  // sigArr = candle series used for the SIGNAL (HA or standard); exit always
+  // simulated on the REAL price series (we trade real fills, not HA prices).
+  const scan=(sigKey:'std'|'ha')=>{
+    const ws:{n:number,w:number,sum:number}[]=Array.from({length:NW},()=>({n:0,w:0,sum:0}))
+    for(const c of Object.keys(d4)){
+      if(!CORE40.has(c))continue
+      const real=d4[c],sig=sigKey==='ha'?d4ha[c]:d4[c];let last=-999
+      for(let i=100;i<real.length-1;i++){
+        const sp=sig[i].close
+        const prior=sig.slice(i-15,i);let hi=-Infinity,lo=Infinity
+        for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+        const side:'LONG'|'SHORT'|null=sp>hi?'LONG':sp<lo?'SHORT':null
+        if(!side)continue
+        const win=real.slice(Math.max(0,i-99),i+1)
+        const adx=calcADX(win.slice(-60));if(adx<=22)continue
+        const atr=calcATR(win.slice(-20));if(!atr)continue
+        if(i-last<2)continue
+        last=i
+        const price=real[i].close  // real fill price, not HA
+        const slDist=Math.max(atr*1.4,price*0.005),slPct=slDist/price
+        if(slPct>0.08)continue
+        const res=ladder(real,i,price,side,slDist,atr,i+96)
+        const net=res.r-(TK+res.tpFrac*MK+(1-res.tpFrac)*TK)/slPct
+        const w=ws[winOf(real[i].t)];w.n++;w.sum+=net;if(net>0)w.w++}
+    }
+    const tot=ws.reduce((a,x)=>({n:a.n+x.n,w:a.w+x.w,sum:a.sum+x.sum}),{n:0,w:0,sum:0})
+    const wA=ws.map(x=>x.n?x.sum/x.n:0)
+    return {n:tot.n,wr:100*tot.w/tot.n,avg:tot.sum/tot.n,tot:tot.sum,wA,allPos:wA.every(x=>x>0)}}
+
+  console.log(`\n── HEIKIN-ASHI vs STANDARD candle breakout signal ──`)
+  const std=scan('std'),ha=scan('ha')
+  const fmt=(r:any,nm:string,base?:number)=>console.log(`  ${nm.padEnd(20)} n=${String(r.n).padStart(5)} WR=${r.wr.toFixed(1)}% avg ${(r.avg>=0?'+':'')}${r.avg.toFixed(4)}R totR ${r.tot.toFixed(0)} ${r.allPos?'✅6w':''}${base!==undefined?(r.tot>base?' >base':' ≤base'):''} | ${r.wA.map((x:number)=>((x>=0?'+':'')+x.toFixed(3)).padStart(7)).join(' ')}`)
+  fmt(std,'standard (live)')
+  fmt(ha,'heikin-ashi',std.tot)
+  console.log(`\n  ✅6w+>base = deploy; else standard candle stays.`)
+}
+
+// ─────────────────────────────────────────────────────────────
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
@@ -5085,6 +5169,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v68bt') {
     console.log(`\u2588\u2588\u2588\u2588 V68BT \u2014 volatility-spike guard + ADX-skip analysis \u2588\u2588\u2588\u2588`)
     runV68bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v69bt') {
+    console.log(`\u2588\u2588\u2588\u2588 V69BT \u2014 Heikin-Ashi smoothed breakout signal \u2588\u2588\u2588\u2588`)
+    runV69bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v66bt') {
