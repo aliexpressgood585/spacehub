@@ -159,6 +159,18 @@ bad cluster (the live night) is the unavoidable cost of the engine that makes
 most of the profit. This is the SECOND angle (after v57 size-shrink) to confirm:
 you cannot remove the correlated downside without killing the larger clustered
 upside. Correlation risk here is intrinsic to the momentum edge — accept it.
+v66bt (2026-07-12): 6-YEAR STRESS TEST (2020-2026, 17,795 trades). SURVIVAL
+CONFIRMED — the edge survives every major crash and THRIVES in collapses: LUNA
++82R/WR74%/avg+0.206R (shorts +94), FTX flat, 2022 bear +25R (shorts +147 vs
+longs -122). The SHORT side is the crash lifeline. BUT the edge is REGIME-
+DEPENDENT/lumpy: 2021 was a LOSING year (-92R, choppy violent bull whipsaws
+breakouts), 2023 flat (-13R); 2024/2025 great (+344/+338R). Breakout edge
+concentrates in trending years, struggles in chop — normal for the style, and
+exactly why ROTA (uncorrelated) + kill-switch exist. NB the huge DD% in v66bt
+output (183-219%) is a NAIVE-R-SUM ARTIFACT, not real account DD (real = Monte
+Carlo 16-36%). LIVE IMPLICATION: expect lumpy returns, DO NOT panic-off in a
+flat year — it's the strategy's nature. The 36m validation window (2023-26)
+includes the flat 2023, so it's representative, not cherry-picked.
 
 ## Current state (2026-07-11)
 - Live: **v53.0** — DONCH4H final ladder third TRAILS (chandelier 2.5×ATR4;
