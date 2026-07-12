@@ -138,6 +138,17 @@ L1=0.6 is the robustness frontier for WR too. Higher WR is buyable but costs
 profit AND breaks the all-windows rule → NOT deployed. Left as a documented
 USER OPTION for the live transition (trade ~6% profit for a smoother/higher-WR
 curve = L1=0.5) if the user prefers equity smoothness over max profit.
+v64bt (2026-07-12): SL-multiplier × ATR-period re-tune on DW=15 — LIVE config
+(ATR20/SL1.4, 696R) CONFIRMED optimal: highest total R among all-6-window
+configs (wider stops raise per-trade R but lower total R — fewer survive the 8%
+cap). Like the ADX tiers, the core stop is NOT stale. Cross-sleeve confluence
+REJECTED — breakouts that are ALSO a ROTA momentum pick are slightly WEAKER
+(0.0551 vs 0.0648R): by the time a coin is a momentum leader the move is mature;
+fresh breakouts carry more edge. Upsizing confluence hurt (+0.0615 vs +0.0620).
+Also shipped: LIVE_READINESS.md (paper-vs-real gap, go-live checklist, staged
+capital plan). RESEARCH STATUS: 22 validation batches done; core params all
+confirmed optimal on re-test = strong signal we're at a real optimum. Highest-
+value next step is the LIVE transition, not batch 23.
 
 ## Current state (2026-07-11)
 - Live: **v53.0** — DONCH4H final ladder third TRAILS (chandelier 2.5×ATR4;
