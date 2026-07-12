@@ -205,6 +205,18 @@ vs Donchian +0.062R) = slippage-fragile. Gated behind v71bt (slippage stress) �
 a core-engine change needs the execution-cost gate a same-signal tweak doesn't.
 If it survives 3-6bps slippage, deploy as an ADDITIVE breakout sleeve (fires on
 different signals than Donchian), NOT a replacement.
+v71bt (2026-07-12): slippage gate KILLED the reg-channel. At 0bps reg wins
+(751>696) but at 3bps (live assumption) it falls BELOW Donchian (448<526), at
+6bps <half (145 vs 356), at 10bps NEGATIVE (-259) while Donchian still +130.
+The thin +0.038R edge has no cushion vs execution cost; Donchian's +0.062R
+absorbs it. NICE cross-check: Donchian@3bps = +0.0469R = EXACTLY the live band.
+LESSON: v70bt passed the walk-forward bar and looked like a win, but was a
+zero-slippage illusion — a core-signal swap on a thin high-frequency edge dies
+on real costs. Donchian STAYS. This is why a core-engine change needs the
+execution-cost gate on top of the walk-forward bar. reg-channel CLOSED.
+6th indicator list (~500 more, Ehlers/MA-variants/Gann/options/on-chain)
+triaged 2026-07-12: nothing new — all family-dups / unfalsifiable / paid-data /
+stock-fundamentals. Linear-regression channel was the only live item = v70/71bt.
 
 ## Current state (2026-07-12)
 - Live: **v54.0** — ops hardening, zero strategy changes: bot_errors table +
