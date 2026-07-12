@@ -4329,6 +4329,99 @@ function runV62bt() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// v63bt: WIN-RATE optimization of the ladder (never touched from the WR angle).
+//  The first ladder leg controls WR: once ⅓ banks and the stop moves to BE, the
+//  trade can't close red. Lower the first leg → more trades reach it → higher WR
+//  (at a small total-R cost). Sweep first-leg R (0.4/0.5/0.6) + faster-BE. Reports
+//  BOTH WR and total R per config so the user can trade a little R for a smoother,
+//  higher-WR equity curve going into LIVE. Same entries — never cuts trades.
+function runV63bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000
+  const toTf=(a:Bar[],ms:number):Bar[]=>{
+    const out:Bar[]=[]; let cur:Bar|null=null; let bucket=-1
+    for(const b of a){const k=Math.floor(b.t/ms)
+      if(k!==bucket){if(cur)out.push(cur);bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol}}
+      else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol}}
+    if(cur)out.push(cur);return out}
+  const d4:Record<string,Bar[]>={}
+  let tmin=Infinity,tmax=-Infinity
+  for(const c of COINS){const h=loadCSV(c,'1h');if(h.length<500)continue
+    d4[c]=toTf(h,BAR4);tmin=Math.min(tmin,h[0].t);tmax=Math.max(tmax,h[h.length-1].t)}
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${NW} windows`)
+
+  // ladder with configurable first-leg R (L1), second leg 1.0R, trailing final third.
+  // beFast: move stop to BE as soon as price touches L1 (before the bar that banks it).
+  const ladder=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,atr:number,jEnd:number,L1:number,beFast:boolean)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const legs=[{r:L1,frac:1/3},{r:1.0,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0,ext=entry
+    for(let j=j0+1;j<=jEndc;j++){const b=arr[j]
+      // fast BE: touching L1 arms breakeven even before the leg is banked this loop
+      if(beFast&&!be){const l1px=entry+slDist*L1*dirM;if(side==='LONG'?b.high>=l1px:b.low<=l1px)be=true}
+      const stop=si>=2?(side==='LONG'?ext-2.5*atr:ext+2.5*atr):(be?entry:slPx)
+      if(side==='LONG'?b.low<=stop:b.high>=stop){banked+=rem*(si>=2?(stop-entry)*dirM/slDist:(be?0:-1));rem=0;break}
+      while(si<legs.length){const tgt=entry+slDist*legs[si].r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=legs[si].frac*legs[si].r;tpFrac+=legs[si].frac;rem-=legs[si].frac;be=true;si++}
+      if(si>=2)ext=side==='LONG'?Math.max(ext,b.high):Math.min(ext,b.low)
+      if(rem<=1e-9)break}
+    if(rem>1e-9)banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return {r:banked,tpFrac}}
+
+  interface Sig{win:number;arr:Bar[];i:number;entry:number;side:'LONG'|'SHORT';slDist:number;atr:number;slPct:number}
+  const S:Sig[]=[]
+  for(const c of Object.keys(d4)){
+    if(!CORE40.has(c))continue
+    const arr=d4[c];let last=-999
+    for(let i=100;i<arr.length-1;i++){
+      const price=arr[i].close
+      const prior=arr.slice(i-15,i);let hi=-Infinity,lo=Infinity
+      for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+      const side:'LONG'|'SHORT'|null=price>hi?'LONG':price<lo?'SHORT':null
+      if(!side)continue
+      const win=arr.slice(Math.max(0,i-99),i+1)
+      const adx=calcADX(win.slice(-60));if(adx<=22)continue
+      const atr=calcATR(win.slice(-20));if(!atr)continue
+      if(i-last<2)continue
+      last=i
+      const slDist=Math.max(atr*1.4,price*0.005),slPct=slDist/price
+      if(slPct>0.08)continue
+      S.push({win:winOf(arr[i].t),arr,i,entry:price,side,slDist,atr,slPct})
+    }
+  }
+  console.log(`  ${S.length} DONCH4H signals`)
+
+  const run=(name:string,L1:number,beFast:boolean)=>{
+    const ws:{n:number,w:number,sum:number}[]=Array.from({length:NW},()=>({n:0,w:0,sum:0}))
+    for(const s of S){
+      const res=ladder(s.arr,s.i,s.entry,s.side,s.slDist,s.atr,s.i+96,L1,beFast)
+      const net=res.r-(TK+res.tpFrac*MK+(1-res.tpFrac)*TK)/s.slPct
+      const wf=ws[s.win];wf.n++;wf.sum+=net;if(net>0)wf.w++}
+    const tot=ws.reduce((a,x)=>({n:a.n+x.n,w:a.w+x.w,sum:a.sum+x.sum}),{n:0,w:0,sum:0})
+    const wr=100*tot.w/tot.n, avg=tot.sum/tot.n
+    const wA=ws.map(x=>x.n?x.sum/x.n:0)
+    const allPos=wA.every(x=>x>0)?'✅6w':''
+    console.log(`  ${name.padEnd(24)} WR ${wr.toFixed(1)}% avg ${(avg>=0?'+':'')}${avg.toFixed(4)}R totR ${tot.sum.toFixed(0)} ${allPos}`)
+    return {wr,tot:tot.sum}}
+
+  console.log(`\n── WR-OPTIMIZED LADDER (first-leg R + BE timing) ──`)
+  console.log(`  (current live = first leg 0.6R, no fast-BE)`)
+  const base=run('L1=0.6 (live)',0.6,false)
+  run('L1=0.5',0.5,false)
+  run('L1=0.4',0.4,false)
+  run('L1=0.6 + fastBE',0.6,true)
+  run('L1=0.5 + fastBE',0.5,true)
+  run('L1=0.4 + fastBE',0.4,true)
+  run('L1=0.3 + fastBE',0.3,true)
+  console.log(`\n  baseline: WR ${base.wr.toFixed(1)}%, totR ${base.tot.toFixed(0)}. Higher WR configs trade R for smoothness.`)
+  console.log(`  ✅6w = positive in all 6 windows. Decision is the user's: WR-vs-profit for the LIVE transition.`)
+}
+
+// ─────────────────────────────────────────────────────────────
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
@@ -4459,6 +4552,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v62bt') {
     console.log(`████ V62BT — BTC-dominance regime tilt on alt breakouts ████`)
     runV62bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v63bt') {
+    console.log(`████ V63BT — WR-optimized ladder (first-leg R + BE timing) ████`)
+    runV63bt()
     return
   }
 
