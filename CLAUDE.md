@@ -171,6 +171,17 @@ output (183-219%) is a NAIVE-R-SUM ARTIFACT, not real account DD (real = Monte
 Carlo 16-36%). LIVE IMPLICATION: expect lumpy returns, DO NOT panic-off in a
 flat year — it's the strategy's nature. The 36m validation window (2023-26)
 includes the flat 2023, so it's representative, not cherry-picked.
+v67bt (2026-07-12, 2nd session): BASIS CARRY / funding arbitrage pre-validation
+(long spot + short perp to harvest funding; needs a REAL spot leg = real-exchange
+stage). REJECTED at our scale. Best = BTC/ETH always-on +3.6-3.7%/yr net on
+deployed capital (all 6 windows positive but BELOW the 5%/yr deploy bar); SOL
++2.5% (2 windows neg), BNB -1.1% (neg). Gated variants all <5%/yr + w6 negative.
+Top-K funding rotation NEGATIVE (-2 to -3%/yr — 3d rebalance fees on both legs
+eat it). CONCLUSION: funding arb is real but THIN (~3.7%/yr) — a pro play that
+needs huge capital to matter; at our scale it locks capital for less than the
+55-75%/yr main strategies return. Confirms the early call (v43bt funding carry
+also rejected). NOT deployable anyway without the spot leg. Re-examine only if
+real-exchange + large capital changes the math.
 
 ## Current state (2026-07-12)
 - Live: **v54.0** — ops hardening, zero strategy changes: bot_errors table +
