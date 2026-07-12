@@ -118,6 +118,11 @@ BTC-regime size tilt REJECTED — +0.0014R (below +0.004R bar), beats base in on
 4/6 windows. CONCLUSION: portfolio-level levers exhausted. Remaining edge sources
 = 50-trade risk-raise + real-exchange execution; no more strategy/portfolio
 research without a NEW data source or a regime change flagged by the regression.
+v61bt (2026-07-12): stop-hunt-aware (liquidity) stop placement REJECTED — all
+variants (beyond Donchian low / 5-10 bar swing) DROP total R (350-473 vs 696)
+AND cut trades (11,218→~7,200: wider stops breach the 8% cap = rule-5 violation)
+AND flip w6 negative. NB it DID improve 5/6 windows (surviving hunts is real),
+but w6 blowup + trade loss kill it. Fixed 1.4×ATR stop stays.
 
 ## Current state (2026-07-11)
 - Live: **v53.0** — DONCH4H final ladder third TRAILS (chandelier 2.5×ATR4;
