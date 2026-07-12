@@ -1,11 +1,13 @@
-backtest 2026-07-12T15:54Z mode=v70bt months=36
-████ V70BT — regression-channel breakout vs Donchian ████
+backtest 2026-07-12T16:01Z mode=v71bt months=36
+████ V71BT — slippage-robustness gate for reg-channel ████
   loaded 69 coins, 6 windows
 
-── REGRESSION-CHANNEL breakout vs DONCHIAN-15 ──
-  Donchian-15 (live)       n=11218 WR=66.0% avg +0.0620R totR 696 ✅6w |  +0.014  +0.029  +0.134  +0.103  +0.068  +0.002
-  reg-channel k=1.5        n=30459 WR=64.5% avg +0.0268R totR 816 ✅6w >base |  +0.009  +0.002  +0.083  +0.024  +0.003  +0.035
-  reg-channel k=2.0        n=19831 WR=65.0% avg +0.0379R totR 751 ✅6w >base |  +0.012  +0.026  +0.073  +0.049  +0.030  +0.032
-  reg-channel k=2.5        n=12642 WR=65.1% avg +0.0441R totR 558 ✅6w ≤base |  +0.016  +0.053  +0.049  +0.042  +0.057  +0.045
+── SLIPPAGE STRESS: Donchian vs reg-channel(k=2.0) ──
+  slip/side   Donchian totR        reg-channel totR
+   0 bps        696 (+0.0620R) ✅        751 (+0.0379R) ✅
+   3 bps        526 (+0.0469R) ❌        448 (+0.0226R) ❌
+   6 bps        356 (+0.0318R) ❌        145 (+0.0073R) ❌
+  10 bps        130 (+0.0116R) ❌       -259 (-0.0131R) ❌
 
-  ✅6w+>base = deploy; else Donchian stays.
+  live slippage assumption = 3 bps/side. Deploy reg-channel only if it
+  stays ✅ AND > Donchian at 3-6 bps (realistic live cost).
