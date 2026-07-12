@@ -1,11 +1,17 @@
-backtest 2026-07-12T10:14Z mode=v62bt months=36
-████ V62BT — BTC-dominance regime tilt on alt breakouts ████
+backtest 2026-07-12T10:21Z mode=v63bt months=36
+████ V63BT — WR-optimized ladder (first-leg R + BE timing) ████
   loaded 69 coins, 6 windows
-  11218 trades (10910 alt), dominance available on 11218
+  11218 DONCH4H signals
 
-── BTC-DOMINANCE TILT on ALT breakouts (BTC breakouts unchanged) ──
-  alt: dom<0→1.25 / dom>0→0.85   avg +0.0533R vs base +0.0620R |  -0.005▽  +0.026▽  +0.115▽  +0.090▽  +0.069▲  +0.001▽ 
-  alt: dom<0→1.5 / dom>0→0.5     avg +0.0376R vs base +0.0620R |  -0.036▽  +0.022▽  +0.084▽  +0.061▽  +0.071▲  -0.001▽ 
-  alt CONTRA: dom>0→1.25         avg +0.0702R vs base +0.0620R |  +0.032▲  +0.031▲  +0.152▲  +0.115▲  +0.068▽  +0.003▲ 
+── WR-OPTIMIZED LADDER (first-leg R + BE timing) ──
+  (current live = first leg 0.6R, no fast-BE)
+  L1=0.6 (live)            WR 66.0% avg +0.0620R totR 696 ✅6w
+  L1=0.5                   WR 69.7% avg +0.0585R totR 656 
+  L1=0.4                   WR 73.6% avg +0.0523R totR 586 
+  L1=0.6 + fastBE          WR 17.8% avg -0.2412R totR -2706 
+  L1=0.5 + fastBE          WR 12.7% avg -0.2470R totR -2771 
+  L1=0.4 + fastBE          WR 7.3% avg -0.2420R totR -2715 
+  L1=0.3 + fastBE          WR 3.4% avg -0.2177R totR -2442 
 
-✅ = beats base in all 6 windows AND total improvement > +0.004R.
+  baseline: WR 66.0%, totR 696. Higher WR configs trade R for smoothness.
+  ✅6w = positive in all 6 windows. Decision is the user's: WR-vs-profit for the LIVE transition.
