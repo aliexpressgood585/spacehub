@@ -1,13 +1,19 @@
-backtest 2026-07-12T16:01Z mode=v71bt months=36
-████ V71BT — slippage-robustness gate for reg-channel ████
+backtest 2026-07-12T20:19Z mode=v72bt months=36
+████ V72BT — learned multivariate sizing model (OLS combo vs flat/ADX-only) ████
   loaded 69 coins, 6 windows
+  collected 11218 breakout trades with features
 
-── SLIPPAGE STRESS: Donchian vs reg-channel(k=2.0) ──
-  slip/side   Donchian totR        reg-channel totR
-   0 bps        696 (+0.0620R) ✅        751 (+0.0379R) ✅
-   3 bps        526 (+0.0469R) ❌        448 (+0.0226R) ❌
-   6 bps        356 (+0.0318R) ❌        145 (+0.0073R) ❌
-  10 bps        130 (+0.0116R) ❌       -259 (-0.0131R) ❌
+  FLAT (base, m=1):            rwAvgR=0.0469  all6=❌
+  windows: -0.003 +0.014 +0.120 +0.090 +0.053 -0.015
 
-  live slippage assumption = 3 bps/side. Deploy reg-channel only if it
-  stays ✅ AND > Donchian at 3-6 bps (realistic live cost).
+  scheme                        rwAvgR   Δvs-base   all6   windows
+  ADX-only (learned tier)  s=0.25  +0.0534  +0.0065   ❌   -0.001 +0.027 +0.125 +0.104 +0.057 -0.010
+  ADX-only (learned tier)  s=0.5  +0.0593  +0.0124   ❌   +0.001 +0.037 +0.131 +0.117 +0.060 -0.006
+  ADX-only (learned tier)  s=0.75  +0.0615  +0.0146   ❌   -0.002 +0.039 +0.134 +0.123 +0.065 -0.005
+  FULL 5-feature combo     s=0.25  +0.0469  +0.0000   ❌   +0.000 +0.024 +0.121 +0.089 +0.058 -0.024
+  FULL 5-feature combo     s=0.5  +0.0470  +0.0001   ❌   +0.003 +0.031 +0.122 +0.090 +0.062 -0.032
+  FULL 5-feature combo     s=0.75  +0.0476  +0.0007   ❌   +0.005 +0.036 +0.124 +0.094 +0.063 -0.038
+
+  DEPLOY BAR: FULL combo must beat FLAT rwAvgR AND stay ✅ all-6-windows
+  AND beat ADX-only (else the multivariate combo adds nothing over the
+  single ADX tier we already run). Δ must clear the +0.004R noise floor.
