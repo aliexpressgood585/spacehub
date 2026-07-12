@@ -123,6 +123,12 @@ variants (beyond Donchian low / 5-10 bar swing) DROP total R (350-473 vs 696)
 AND cut trades (11,218→~7,200: wider stops breach the 8% cap = rule-5 violation)
 AND flip w6 negative. NB it DID improve 5/6 windows (surviving hunts is real),
 but w6 blowup + trade loss kill it. Fixed 1.4×ATR stop stays.
+v62bt (2026-07-12): BTC-dominance regime tilt on alt breakouts REJECTED. The
+INTUITIVE tilt (upsize alts when BTC-dominance falling = "alt-season") HURTS
+(+0.0533 vs +0.0620R). The CONTRA (upsize alts when BTC-dominance RISING) helps
+total (+0.0702R, beats base 5/6 windows) — meaning an alt breakout firing DESPITE
+BTC strength = higher-conviction signal — but w5 negative = not robust. Rejected.
+Info: don't chase alt-season; alt breakouts against BTC strength are the real ones.
 
 ## Current state (2026-07-11)
 - Live: **v53.0** — DONCH4H final ladder third TRAILS (chandelier 2.5×ATR4;
