@@ -3755,6 +3755,138 @@ function runV57bt() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// v58bt: on the live DW=15 config —
+//  A) ADX-tier recalibration: the risk multipliers (adx>45→2.0 etc) were fit on
+//     DW=25; re-measure expectancy per ADX bucket on DW=15 to see if the tiers
+//     are still monotonic / correctly placed (info → sizing, never cuts trades).
+//  B) final-third trailing: instead of a fixed 1.6R cap on the last third, trail
+//     it (chandelier: high − k·ATR) to catch fat-tail runs. Per-trade R, WF.
+//  C) long/short asymmetry: measure LONG vs SHORT expectancy separately; test
+//     asymmetric base-risk tilt. Deploy bar: all 6 windows beat baseline.
+function runV58bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000
+  const toTf=(a:Bar[],ms:number):Bar[]=>{
+    const out:Bar[]=[]; let cur:Bar|null=null; let bucket=-1
+    for(const b of a){const k=Math.floor(b.t/ms)
+      if(k!==bucket){if(cur)out.push(cur);bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol}}
+      else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol}}
+    if(cur)out.push(cur);return out}
+  const d4:Record<string,Bar[]>={}
+  let tmin=Infinity,tmax=-Infinity
+  for(const c of COINS){const h=loadCSV(c,'1h');if(h.length<500)continue
+    d4[c]=toTf(h,BAR4);tmin=Math.min(tmin,h[0].t);tmax=Math.max(tmax,h[h.length-1].t)}
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${NW} windows`)
+
+  // standard ladder (fixed 1.6R final leg)
+  const ladderFixed=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,jEnd:number)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const stages=[{r:0.6,frac:1/3},{r:1.0,frac:1/3},{r:1.6,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0
+    for(let j=j0+1;j<=jEndc;j++){const b=arr[j],stopPx=be?entry:slPx
+      if(side==='LONG'?b.low<=stopPx:b.high>=stopPx){banked+=rem*(be?0:-1);rem=0;break}
+      while(si<stages.length){const tgt=entry+slDist*stages[si].r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=stages[si].frac*stages[si].r;tpFrac+=stages[si].frac;rem-=stages[si].frac;be=true;si++}
+      if(rem<=1e-9)break}
+    if(rem>1e-9)banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return {r:banked,tpFrac}}
+
+  // ladder with trailing final third (first two legs 0.6/1.0R banked; last third
+  // rides a chandelier stop = extreme − TRAIL×ATR once past 1.0R)
+  const ladderTrail=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,jEnd:number,TRAIL:number,atr:number)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const legs=[{r:0.6,frac:1/3},{r:1.0,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0
+    let ext=entry  // running extreme for the trailing third
+    for(let j=j0+1;j<=jEndc;j++){const b=arr[j]
+      // trailing stop active only on the final third (after both legs banked)
+      const trailStop = si>=2 ? (side==='LONG'? ext-TRAIL*atr : ext+TRAIL*atr) : (be?entry:slPx)
+      if(side==='LONG'?b.low<=trailStop:b.high>=trailStop){
+        const exitR=(trailStop-entry)*dirM/slDist
+        banked+=rem*(si>=2?exitR:(be?0:-1));rem=0;break}
+      while(si<legs.length){const tgt=entry+slDist*legs[si].r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=legs[si].frac*legs[si].r;tpFrac+=legs[si].frac;rem-=legs[si].frac;be=true;si++}
+      if(si>=2){ // update extreme for trailing third
+        ext = side==='LONG'? Math.max(ext,b.high) : Math.min(ext,b.low)}
+      if(rem<=1e-9)break}
+    if(rem>1e-9)banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return {r:banked,tpFrac}}
+
+  // collect signals with adx + side, both exit models
+  interface Sig { win:number; adx:number; side:1|-1; rFixed:number; rTrail:Record<number,number> }
+  const sigs:Sig[]=[]
+  const TRAILS=[2.5,3.5,4.5]
+  for(const c of Object.keys(d4)){
+    if(!CORE40.has(c))continue
+    const arr=d4[c];let last=-999
+    for(let i=100;i<arr.length-1;i++){
+      const price=arr[i].close
+      const prior=arr.slice(i-15,i);let hi=-Infinity,lo=Infinity
+      for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+      const side:'LONG'|'SHORT'|null=price>hi?'LONG':price<lo?'SHORT':null
+      if(!side)continue
+      const win=arr.slice(Math.max(0,i-99),i+1)
+      const adx=calcADX(win.slice(-60));if(adx<=22)continue
+      const atr=calcATR(win.slice(-20));if(!atr)continue
+      if(i-last<2)continue
+      last=i
+      const slDist=Math.max(atr*1.4,price*0.005),slPct=slDist/price
+      if(slPct>0.08)continue
+      const fee=(TK+MK/3+2*TK/3)/slPct // ladder maker on 1st leg approx; conservative
+      const rf=ladderFixed(arr,i,price,side,slDist,i+96)
+      const rTrail:Record<number,number>={}
+      for(const T of TRAILS){const rt=ladderTrail(arr,i,price,side,slDist,i+96,T,atr)
+        rTrail[T]=rt.r-(TK+rt.tpFrac*MK+(1-rt.tpFrac)*TK)/slPct}
+      sigs.push({win:winOf(arr[i].t),adx,side:side==='LONG'?1:-1,
+        rFixed:rf.r-(TK+rf.tpFrac*MK+(1-rf.tpFrac)*TK)/slPct,rTrail})
+    }
+  }
+  console.log(`  ${sigs.length} DONCH4H signals collected`)
+
+  // ── A) ADX-bucket expectancy on DW=15 ──
+  console.log(`\n── A) ADX-BUCKET EXPECTANCY (DW=15) — are the live tiers still right? ──`)
+  const buckets:[string,(a:number)=>boolean][]=[
+    ['22-28 (×0.75)',a=>a>22&&a<=28],['28-35 (×1.0)',a=>a>28&&a<=35],
+    ['35-45 (×1.5)',a=>a>35&&a<=45],['>45 (×2.0)',a=>a>45]]
+  for(const[name,fn]of buckets){
+    const sub=sigs.filter(s=>fn(s.adx))
+    const avg=sub.reduce((a,s)=>a+s.rFixed,0)/Math.max(1,sub.length)
+    const wA:number[]=Array.from({length:NW},(_,w)=>{const ss=sub.filter(s=>s.win===w);return ss.length?ss.reduce((a,s)=>a+s.rFixed,0)/ss.length:0})
+    console.log(`  ADX ${name.padEnd(14)} n=${String(sub.length).padStart(5)} avg ${(avg>=0?'+':'')+avg.toFixed(4)}R | ${wA.map(x=>((x>=0?'+':'')+x.toFixed(3)).padStart(7)).join(' ')}`)}
+  console.log(`  → monotonic rising = tiers correct; a bucket out of order = re-tune candidate.`)
+
+  // ── B) final-third trailing vs fixed 1.6R ──
+  console.log(`\n── B) FINAL-THIRD TRAILING vs FIXED 1.6R CAP ──`)
+  const wfR=(get:(s:Sig)=>number,name:string)=>{
+    const ws:{n:number,sum:number}[]=Array.from({length:NW},()=>({n:0,sum:0}))
+    for(const s of sigs){const w=ws[s.win];w.n++;w.sum+=get(s)}
+    const tot=ws.reduce((a,x)=>({n:a.n+x.n,sum:a.sum+x.sum}),{n:0,sum:0})
+    const wA=ws.map(x=>x.n?x.sum/x.n:0)
+    const base=sigs.reduce((a,s)=>a+s.rFixed,0)
+    const ok=wA.every(x=>x>0)&&tot.sum>base?'✅':''
+    console.log(`  ${name.padEnd(22)} avg ${(tot.sum/tot.n>=0?'+':'')}${(tot.sum/tot.n).toFixed(4)}R totR ${tot.sum.toFixed(0)} | ${wA.map(x=>((x>=0?'+':'')+x.toFixed(3)).padStart(7)).join(' ')} ${ok}`)}
+  wfR(s=>s.rFixed,'fixed 1.6R (live)')
+  for(const T of TRAILS)wfR(s=>s.rTrail[T],`trail ${T}×ATR`)
+  console.log(`  deploy bar (B): all 6 windows positive AND total R > fixed baseline.`)
+
+  // ── C) long/short asymmetry ──
+  console.log(`\n── C) LONG vs SHORT EXPECTANCY ──`)
+  for(const[nm,d]of[['LONG',1],['SHORT',-1]]as const){
+    const sub=sigs.filter(s=>s.side===d)
+    const avg=sub.reduce((a,s)=>a+s.rFixed,0)/Math.max(1,sub.length)
+    const wA:number[]=Array.from({length:NW},(_,w)=>{const ss=sub.filter(s=>s.win===w&&s.side===d);return ss.length?ss.reduce((a,s)=>a+s.rFixed,0)/ss.length:0})
+    console.log(`  ${nm.padEnd(6)} n=${String(sub.length).padStart(5)} avg ${(avg>=0?'+':'')+avg.toFixed(4)}R | ${wA.map(x=>((x>=0?'+':'')+x.toFixed(3)).padStart(7)).join(' ')}`)}
+  console.log(`  → a durable gap both across the total AND all windows justifies an asymmetric base-risk tilt; noise-level or window-flipping = reject.`)
+  console.log(`\n✅ = passes the per-section deploy bar.`)
+}
+
+// ─────────────────────────────────────────────────────────────
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
@@ -3860,6 +3992,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v57bt') {
     console.log(`████ V57BT — correlation-aware sizing / time-stop / Kelly table ████`)
     runV57bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v58bt') {
+    console.log(`████ V58BT — ADX recalibration / final-third trailing / long-short asymmetry ████`)
+    runV58bt()
     return
   }
 
