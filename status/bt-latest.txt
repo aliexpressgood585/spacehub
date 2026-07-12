@@ -1,21 +1,13 @@
-backtest 2026-07-12T09:50Z mode=v60bt months=36
-████ V60BT — dynamic sleeve allocation + BTC-regime size tilt ████
-  loaded 69 coins, 36 months, 6 windows
+backtest 2026-07-12T10:07Z mode=v61bt months=36
+████ V61BT — stop-hunt-aware (liquidity) stop placement ████
+  loaded 69 coins, 6 windows
 
-── A) DYNAMIC ALLOCATION between DONCH4H & ROTA (monthly, walk-forward) ──
-  sleeve monthly: DONCH4H 24.15%  ROTA 2.65%
-  fixed 50/50 (baseline)         ann 201.7% maxDD 58% |   +3.2  +13.5  +32.6  +21.6  +10.3   -3.7 
-  perf-weighted 3m               ann 227.9% maxDD 77% |   +4.0  +13.3  +59.7  +36.5  +17.0  -15.6 
-  inverse-vol 3m                 ann 74.3% maxDD 8% |   +5.3   +7.2   +7.6   +3.7   +2.9   +2.6 ✅
-  perf-weighted 6m               ann 252.2% maxDD 75% |   +3.1   +7.1  +57.6  +39.0  +17.8   -0.2 
-  inverse-vol 6m                 ann 69.9% maxDD 10% |   +4.8   +6.8   +8.1   +3.8   +2.8   +1.4 ✅
-  perf-weighted 12m              ann 194.9% maxDD 87% |   +3.1  +11.9  +53.2  +40.2  +17.5   -8.7 
-  inverse-vol 12m                ann 72.9% maxDD 9% |   +4.8   +6.8   +8.6   +3.8   +3.0   +1.8 ✅
-  deploy bar (A): beats fixed 50/50 ann return AND all 6 windows positive.
+── STOP-HUNT-AWARE STOP PLACEMENT (DONCH4H, v53 exit) ──
+  fixed 1.4×ATR (live)       n=11218 avg +0.0620R totR 696 |  +0.014  +0.029  +0.134  +0.103  +0.068  +0.002 ✅>base
+  beyond Donchian low        n= 7144 avg +0.0496R totR 354 |  +0.059  +0.046  +0.150  +0.085  +0.061  -0.065 
+  beyond 5-bar swing +0.2    n= 7799 avg +0.0606R totR 473 |  +0.053  +0.047  +0.160  +0.065  +0.073  -0.018 
+  beyond 5-bar swing +0.5    n= 7455 avg +0.0543R totR 405 |  +0.050  +0.056  +0.157  +0.074  +0.059  -0.042 
+  beyond 10-bar swing +0.2   n= 7244 avg +0.0487R totR 353 |  +0.054  +0.043  +0.142  +0.076  +0.069  -0.059 
+  beyond 10-bar swing +0.5   n= 7167 avg +0.0489R totR 350 |  +0.057  +0.043  +0.147  +0.083  +0.064  -0.064 
 
-── B) BTC-REGIME SIZE TILT on DONCH4H (1.25× with-trend / 0.85× against) ──
-  base   avg 0.0620R |  +0.014  +0.029  +0.134  +0.103  +0.068  +0.002
-  tilt   avg 0.0634R |  +0.015▲  +0.020▽  +0.143▲  +0.105▲  +0.060▽  +0.014▲ 
-  deploy bar (B): tilt positive AND beats base in all 6 windows.
-
-✅ = passes the per-section deploy bar.
+✅>base = all 6 windows positive AND total R > fixed-ATR baseline (696R).
