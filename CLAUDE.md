@@ -98,6 +98,15 @@ all windows). Long/short asymmetry NOT deployed: SHORT +0.089R vs LONG +0.006R
 but LONG negative in 3/6 windows = regime-dependent (short-favourable 3y window);
 a directional tilt risks blowing up in a bull market — WATCH, re-measure after
 a full bull leg before ever tilting.
+v59bt (2026-07-12): tried to extend the v53 trailing win — ALL variants that
+trail MORE of the position have HIGHER total R (⅓.6+trail@1.0=927, ¼¼½=826,
+all-trail@0.6=1253!) but every one flips a window negative (all-trail: w2 -0.061,
+w6 -0.023). v53 (⅓@.6/⅓@1.0/trail2.5, 696R) is the ONLY config positive in all
+6 windows = the maximal trailing that survives the all-windows rule. ADX-scaled
+trail distance (2.5/3.5, tiered) both <696 AND w6 negative. NOTHING deployed —
+v53 confirmed as the robustness frontier. LESSON: higher totR here = one great
+trending window (w3 hit +0.300 for all-trail) masking fragility; the all-windows
+rule is exactly what blocks that trap.
 
 ## Current state (2026-07-11)
 - Live: **v53.0** — DONCH4H final ladder third TRAILS (chandelier 2.5×ATR4;
