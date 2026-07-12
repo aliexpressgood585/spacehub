@@ -172,8 +172,19 @@ Carlo 16-36%). LIVE IMPLICATION: expect lumpy returns, DO NOT panic-off in a
 flat year — it's the strategy's nature. The 36m validation window (2023-26)
 includes the flat 2023, so it's representative, not cherry-picked.
 
-## Current state (2026-07-11)
-- Live: **v53.0** — DONCH4H final ladder third TRAILS (chandelier 2.5×ATR4;
+## Current state (2026-07-12)
+- Live: **v54.0** — ops hardening, zero strategy changes: bot_errors table +
+  logErr (no more silent catches; watchdog error-spike alerts), paper realism
+  (3 bps adverse slippage on market fills + hourly perp funding sim
+  0.01%/8h — expectation bands measure REAL economics now), bot_skips
+  skipped-signal journal (ADX gate / caps / bad ticks / pyramid gate — free
+  live research dataset), DONCH4H liquidity guard (notional ≤0.5% of 24h
+  vol), watchdog auto-opens the 50-trade checkpoint issue (label
+  checkpoint-50, fires once). Dashboard: precision-instrument redesign +
+  oscilloscope equity hero; RLS anon-read policies fixed for
+  bot_equity/market_regime/rebalance_history (2026-07-12 — reads were
+  silently blocked).
+- Previous, v53.0 — DONCH4H final ladder third TRAILS (chandelier 2.5×ATR4;
   v58bt: +0.062R vs +0.046R, totR 696 vs 512 +36%, all 6 windows). On top of
   v52.1: ops: risk_usd per trade (live avg R vs band), shields JSONB
   + dashboard card + watchdog shield alerts, reset truncates bot_equity,

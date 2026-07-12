@@ -1,4 +1,18 @@
 // ════════════════════════════════════════════════════════════
+// CryptoBot v54.0 — ops hardening (zero strategy changes)
+//
+// v54.0: (1) bot_errors table + logErr() — swallowed exceptions become
+//  visible; watchdog alerts on spikes (the RLS bug of 2026-07-12 hid because
+//  errors were silent). (2) Paper realism: 3 bps adverse slippage on market
+//  fills (entries, stops, ROTA turns; maker TP legs stay clean) + hourly perp
+//  funding sim (longs pay / shorts receive 0.01%/8h) — the 50-trade
+//  checkpoint now measures real economics. (3) bot_skips journal — every
+//  skipped signal (ADX gate, caps, bad ticks, pyramid gate) is recorded: a
+//  free live dataset for future research. (4) Liquidity guard — DONCH4H
+//  notional capped at 0.5% of 24h volume (no-op at paper scale, protects
+//  real capital later). (5) Watchdog: error-spike alerts + auto 50-trade
+//  checkpoint issue.
+//
 // CryptoBot v53.0 — trailing final third (validated v58bt)
 //
 // v53.0: the DONCH4H ladder's final third now TRAILS (chandelier, 2.5×ATR4)
@@ -439,6 +453,10 @@ const RISK = {
 type RiskKey = keyof typeof RISK
 
 const FEE             = 0.0005  // v44: real taker fee 0.05%/side — matches validation assumptions
+// v54: paper-realism constants — close the paper-vs-real gap BEFORE the
+// 50-trade checkpoint so it measures reality, not fantasy.
+const SLIP            = 0.0003  // 3 bps adverse slippage on market fills (entries, stops); maker TP legs fill clean
+const FUND_8H         = 0.0001  // 0.01%/8h perp funding, long-run crypto average: longs pay, shorts receive
 // v47: ladder TP legs are resting limit orders in a real account → maker fee,
 // filled at the exact level (no favorable-slippage fantasy). Validated on 36
 // months / 8,421 trades: +0.050R vs +0.046R all-taker, all 6 windows positive.
@@ -2076,6 +2094,16 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SERVICE_ROLE_KEY')!
     )
+    // v54: error visibility — swallowed exceptions go to bot_errors so the
+    // watchdog can alert on spikes instead of bugs hiding for weeks.
+    const logErr = async (scope:string, e:unknown) => {
+      try { await supabase.from('bot_errors').insert({ scope, message: String(e).slice(0,500) }) } catch { /* never recurse */ }
+    }
+    // v54: skipped-signal journal — the one free dataset live operation
+    // produces. Best-effort; never blocks the scan.
+    const logSkip = (sym:string, strategy:string, reason:string, detail:Record<string,unknown> = {}) => {
+      supabase.from('bot_skips').insert({ sym, strategy, reason, detail }).then(()=>{},()=>{})
+    }
 
     if (url.searchParams.get('backtest')==='1') {
       const days = parseInt(url.searchParams.get('days') || '30', 10)
@@ -2465,7 +2493,7 @@ Deno.serve(async (req) => {
         const s2 = (h2||[]).reduce((a:number,x:any)=>a+Number(x.pnl||0),0)
         if (s2 < 0) { rotaPaused = true; log.push(`HEALTH: ROTA paused (last30 pnl=${s2.toFixed(2)})`) }
       }
-    } catch { /* best-effort */ }
+    } catch (e) { await logErr('health_check', e) }
 
     // ════ v50: DAILY LOSS LIMIT (black-day circuit breaker) ═══════════════════
     // If portfolio equity dropped >5% from its 24h peak (bot_equity snapshots
@@ -2485,7 +2513,7 @@ Deno.serve(async (req) => {
           log.push(`DAY-LOSS LIMIT: equity ${cur.toFixed(0)} is ${((1-cur/peak24)*100).toFixed(1)}% under 24h peak ${peak24.toFixed(0)} — new entries paused`)
         }
       }
-    } catch { /* best-effort */ }
+    } catch (e) { await logErr('day_loss_brake', e) }
 
     // ════ v50.1: USDT DEPEG MONITOR ════════════════════════════════════════
     // The whole book is USDT-denominated; a USDT depeg is the one catastrophe
@@ -2571,8 +2599,9 @@ Deno.serve(async (req) => {
               if (curNotional > tgtNotional*0.65 && curNotional < tgtNotional*1.4) { target.delete(t.sym); continue }  // size OK → keep
               // size drifted → close and reopen at target below
             }
-            const px = tgt?.price ?? ((await fetchBars(t.sym,'4h',3)).slice(0,-1).pop()?.close ?? Number(t.entry_price))
+            const pxRaw = tgt?.price ?? ((await fetchBars(t.sym,'4h',3)).slice(0,-1).pop()?.close ?? Number(t.entry_price))
             const dirM2 = t.side==='LONG'?1:-1
+            const px = pxRaw * (1 - dirM2 * SLIP)   // v54: market close → adverse slippage
             const pnl2 = (px-Number(t.entry_price))*Number(t.size)*dirM2 - px*Number(t.size)*FEE
             balance += Number(t.entry_price)*Number(t.size) + pnl2
             await supabase.from('bot_trades').update({
@@ -2590,17 +2619,18 @@ Deno.serve(async (req) => {
             const symExp = (allOpenRows||[]).filter((x:any)=>x.sym===sym)
               .reduce((a:number,x:any)=>a+Number(x.entry_price)*Number(x.size),0)
             slotNotional = Math.min(slotNotional, Math.max(0, port*0.20 - symExp))
-            if (slotNotional < port*0.01) { log.push(`ROTA_SKIP ${sym}: per-coin cap`); continue }
-            if (balance < slotNotional) { log.push(`ROTA_SKIP ${sym}: insufficient cash`); continue }
-            if (!(await priceSane(sym, tgt.price))) { log.push(`ROTA_SKIP ${sym}: cross-source price mismatch (bad tick?)`); continue }
-            const size2 = slotNotional / tgt.price
+            if (slotNotional < port*0.01) { log.push(`ROTA_SKIP ${sym}: per-coin cap`); logSkip(sym,'ROTA','per_coin_cap',{slot:+slotNotional.toFixed(0)}); continue }
+            if (balance < slotNotional) { log.push(`ROTA_SKIP ${sym}: insufficient cash`); logSkip(sym,'ROTA','insufficient_cash',{slot:+slotNotional.toFixed(0), cash:+balance.toFixed(0)}); continue }
+            if (!(await priceSane(sym, tgt.price))) { log.push(`ROTA_SKIP ${sym}: cross-source price mismatch (bad tick?)`); logSkip(sym,'ROTA','bad_tick',{price:tgt.price}); continue }
+            const fillPx = tgt.price * (1 + tgt.dir * SLIP)   // v54: market entry → adverse slippage
+            const size2 = slotNotional / fillPx
             const feeIn = slotNotional * FEE
             balance -= (slotNotional + feeIn)
             await supabase.from('bot_trades').insert({
-              sym, side: tgt.dir===1?'LONG':'SHORT', entry_price: tgt.price, size: size2, fee: feeIn,
-              trail_sl: tgt.dir===1 ? tgt.price*0.01 : tgt.price*100,  // sentinels — ROTA skipped in manage loop
-              hi: tgt.dir===1 ? tgt.price*100 : tgt.price,
-              lo: tgt.dir===-1 ? tgt.price*0.01 : tgt.price,
+              sym, side: tgt.dir===1?'LONG':'SHORT', entry_price: fillPx, size: size2, fee: feeIn,
+              trail_sl: tgt.dir===1 ? fillPx*0.01 : fillPx*100,  // sentinels — ROTA skipped in manage loop
+              hi: tgt.dir===1 ? fillPx*100 : fillPx,
+              lo: tgt.dir===-1 ? fillPx*0.01 : fillPx,
               status:'OPEN', score: 0, mtf:false, partial_done:true,
               paper_mode: paperMode, entry_macd_hist: 0, strategy: 'ROTA'
             })
@@ -2610,7 +2640,7 @@ Deno.serve(async (req) => {
           log.push(`ROTA rebalance: universe=${momList.length}`)
         }
       }
-    } catch (e) { log.push(`ROTA error: ${String(e).slice(0,80)}`) }
+    } catch (e) { log.push(`ROTA error: ${String(e).slice(0,80)}`); await logErr('rota_rebalance', e) }
 
     const BATCH=12
     for (let b=0; b<allManagedCoins.length; b+=BATCH) {
@@ -2989,8 +3019,9 @@ Deno.serve(async (req) => {
           if (newStatus) {
             // v47: DONCH4H TP is a resting limit at the stored 1.6R level →
             // fill at the level itself with maker fee. Stops/timeouts stay taker.
+            // v54: stops/timeouts are market fills → 3 bps adverse slippage.
             const isMakerTP = newStatus==='TP' && !t.mtf
-            const exitPx = isMakerTP ? tp : price
+            const exitPx = isMakerTP ? tp : price * (1 - dirM * SLIP)
             const fav=(exitPx-entry)/entry*dirM
             const pnl=(exitPx-entry)*size*dirM-exitPx*size*(isMakerTP?FEE_MAKER:FEE)
             const final=pnl>0&&newStatus==='SL'?'TP':newStatus
@@ -3111,7 +3142,11 @@ Deno.serve(async (req) => {
             last4.close > hiN ? 'LONG' : last4.close < loN ? 'SHORT' : null
           if (!side4) return
           const adx4 = calcADX(c4.slice(-60))
-          if (adx4 <= 22) { log.push(`SKIP ${sym}: DONCH4H breakout but adx=${adx4.toFixed(0)}<=22`); return }
+          if (adx4 <= 22) {
+            log.push(`SKIP ${sym}: DONCH4H breakout but adx=${adx4.toFixed(0)}<=22`)
+            if (msInto4h < 120_000) logSkip(sym,'DONCH4H','adx_gate',{adx:+adx4.toFixed(1), side:side4, close:last4.close})
+            return
+          }
           // v46 PYRAMID gate: a 2nd unit only stacks on a same-direction winner ≥0.6R
           // v49: a 3rd unit requires ALL open units ≥1.0R (validated, all 6 windows)
           if (donchOnSym.length > 0) {
@@ -3123,7 +3158,10 @@ Deno.serve(async (req) => {
               const sd2 = Math.abs(tpStored-e2)/1.6
               return sd2>0 && (price-e2)*d2/sd2 >= needR
             })
-            if (!ok) return
+            if (!ok) {
+              if (msInto4h < 120_000) logSkip(sym,'DONCH4H','pyramid_gate',{units:donchOnSym.length, side:side4})
+              return
+            }
             log.push(`PYRAMID ${sym}: stacking unit #${donchOnSym.length+1} on winning ${side4}`)
           }
           const atr4 = calcATR(c4.slice(-20))
@@ -3148,8 +3186,19 @@ Deno.serve(async (req) => {
           const adxMult = adx4 > 45 ? 2.0 : adx4 > 35 ? 1.5 : adx4 > 28 ? 1.0 : 0.75
           // v45.1 SPORTY: base risk 0.75%→1.25% per breakout (2.5% on ADX>45 monsters)
           const riskNotional = (totPort4 * 0.0125 * adxMult) / slPct4
-          const notional4 = Math.min(Math.max(riskNotional, 500), totPort4 * 0.20, remain4, balance * 0.95)
-          if (notional4 < 500) return
+          let notional4 = Math.min(Math.max(riskNotional, 500), totPort4 * 0.20, remain4, balance * 0.95)
+          // v54: liquidity guard — never exceed 0.5% of the coin's 24h quote
+          // volume (last 6 completed 4h bars). No-op at paper scale on majors;
+          // protects thin alts when real capital arrives.
+          const quoteVol24h = c4.slice(-6).reduce((s2:number,b2:Bar)=>s2+b2.vol,0) * price
+          if (quoteVol24h > 0 && notional4 > quoteVol24h * 0.005) {
+            notional4 = quoteVol24h * 0.005
+            log.push(`LIQ_CAP ${sym}: notional capped to $${notional4.toFixed(0)} (0.5% of 24h vol)`)
+          }
+          if (notional4 < 500) {
+            if (msInto4h < 120_000) logSkip(sym,'DONCH4H','too_small_or_liq_cap',{notional:+notional4.toFixed(0), vol24h:+quoteVol24h.toFixed(0)})
+            return
+          }
           const sideExp4 = (allOpen||[]).reduce((acc:{l:number,s:number}, x:any) => {
             const n2 = Number(x.entry_price)*Number(x.size)
             if (x.side==='LONG') acc.l += n2; else acc.s += n2
@@ -3157,27 +3206,34 @@ Deno.serve(async (req) => {
           }, {l:0, s:0})
           const netAfter4 = side4==='LONG' ? (sideExp4.l+notional4)-sideExp4.s : sideExp4.l-(sideExp4.s+notional4)
           if (totPort4 > 0 && Math.abs(netAfter4) > totPort4 * 0.60) {
-            log.push(`SKIP ${sym}: DONCH4H net ${side4} exposure cap`); return
+            log.push(`SKIP ${sym}: DONCH4H net ${side4} exposure cap`)
+            if (msInto4h < 120_000) logSkip(sym,'DONCH4H','net_exposure_cap',{side:side4, netAfterPct:+(netAfter4/totPort4*100).toFixed(0)})
+            return
           }
 
           // v50.1: never open on a bad tick — require Bybit to agree within 0.5%
           if (!(await priceSane(sym, price))) {
-            log.push(`SKIP ${sym}: cross-source price mismatch (bad tick?)`); return
+            log.push(`SKIP ${sym}: cross-source price mismatch (bad tick?)`)
+            if (msInto4h < 120_000) logSkip(sym,'DONCH4H','bad_tick',{price})
+            return
           }
-          const size4 = notional4 / price
+          // v54: adverse entry slippage on the market fill (3 bps); SL/TP levels
+          // stay at the scan-price levels — only the recorded fill moves.
+          const fillPx4 = price * (1 + dirM4 * SLIP)
+          const size4 = notional4 / fillPx4
           const feeIn4 = notional4 * FEE
           balance -= (notional4 + feeIn4); openCount++; newEntriesThisScan++
           await supabase.from('bot_trades').insert({
-            sym, side: side4, entry_price: price, size: size4, fee: feeIn4,
+            sym, side: side4, entry_price: fillPx4, size: size4, fee: feeIn4,
             trail_sl: slPrice4,
-            hi: side4 === 'LONG' ? tpPrice4 : price,
-            lo: side4 === 'SHORT' ? tpPrice4 : price,
+            hi: side4 === 'LONG' ? tpPrice4 : fillPx4,
+            lo: side4 === 'SHORT' ? tpPrice4 : fillPx4,
             status: 'OPEN', score: Math.round(adx4), mtf: false, partial_done: false,
             paper_mode: paperMode, entry_macd_hist: 0, strategy: 'DONCH4H',
             risk_usd: slDist4 * size4   // v52.1: risk taken at entry → live R = pnl/risk_usd
           })
           symCooldown.add(sym)
-          log.push(`OPEN ${sym} ${side4} DONCH4H @${price.toFixed(4)} adx4h=${adx4.toFixed(0)} sl=${slPrice4.toFixed(4)} tp=${tpPrice4.toFixed(4)} $${notional4.toFixed(0)}`)
+          log.push(`OPEN ${sym} ${side4} DONCH4H @${fillPx4.toFixed(4)} adx4h=${adx4.toFixed(0)} sl=${slPrice4.toFixed(4)} tp=${tpPrice4.toFixed(4)} $${notional4.toFixed(0)}`)
           return  // v41: never fall through to the legacy 5m confluence engine
         }
 
@@ -3445,6 +3501,7 @@ Deno.serve(async (req) => {
 
       } catch(e) {
         log.push(`ERR ${sym}: ${String(e).slice(0,40)}`)
+        await logErr('scan:'+sym, e)
       }
       }))
     }
@@ -3457,6 +3514,20 @@ Deno.serve(async (req) => {
     // v46: equity history — snapshot every 15 minutes for the dashboard curve
     if (utcM % 15 === 0) {
       const {data:eqOpen} = await supabase.from('bot_trades').select('sym,side,entry_price,size').eq('status','OPEN')
+      // v54: perp funding simulation — once per hour, longs pay / shorts
+      // receive FUND_8H/8 of notional. Portfolio-level (balance), so the
+      // equity curve and the checkpoint measure real perp economics.
+      if (utcM === 0) {
+        let fund = 0
+        for (const x of (eqOpen||[])) {
+          const notional = Number(x.entry_price)*Number(x.size)
+          fund += (x.side==='LONG' ? -1 : 1) * notional * (FUND_8H/8)
+        }
+        if (Math.abs(fund) > 0.0001) {
+          balance += fund
+          log.push(`FUNDING ${fund>=0?'+':''}${fund.toFixed(4)}$ (${(eqOpen||[]).length} pos)`)
+        }
+      }
       const eqExp = (eqOpen||[]).reduce((a:number,x:any)=>a+Number(x.entry_price)*Number(x.size),0)
       // v50.2: mark-to-market — position value at the live mark, not at entry.
       // LONG: size×px. SHORT: entry margin + (entry-px)×size = size×(2·entry−px).
@@ -3465,7 +3536,7 @@ Deno.serve(async (req) => {
         const px=livePx.get(x.sym) ?? e
         return a + (x.side==='LONG' ? sz*px : sz*(2*e-px))
       },0)
-      try { await supabase.from('bot_equity').insert({ equity: balance+eqMtm, balance, exposure: eqExp }) } catch { /* table may not exist yet */ }
+      try { await supabase.from('bot_equity').insert({ equity: balance+eqMtm, balance, exposure: eqExp }) } catch (e) { await logErr('equity_snapshot', e) }
     }
 
     await supabase.from('bot_state').update({
