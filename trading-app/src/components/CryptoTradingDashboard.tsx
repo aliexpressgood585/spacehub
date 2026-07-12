@@ -39,33 +39,36 @@ interface RegimeRow {
 }
 
 // ─── palette ─────────────────────────────────────────────────────────────────
+// v53.1 redesign: "precision instrument" — one live accent (cyan) for the live
+// layer only; green/red reserved for economic meaning; amber for warnings.
+// pink/blue/teal/cyan intentionally alias the single accent; purple is neutral.
 const C = {
-  bg:     '#020814',
-  panel:  'rgba(3,8,26,0.92)',
-  panel2: 'rgba(5,12,35,0.88)',
-  pink:   '#f0187a',
-  green:  '#00f5a0',
-  red:    '#ff3a5e',
-  yellow: '#ffb800',
-  blue:   '#00c8ff',
-  purple: '#9b5de5',
-  teal:   '#00e5cc',
-  cyan:   '#0af',
-  dim:    'rgba(255,255,255,0.05)',
-  muted:  '#3a5878',
-  text:   '#cde0ff',
-  bright: '#f0f8ff',
-  border: 'rgba(0,200,255,0.2)',
-  glow:   '0 4px 30px rgba(0,200,255,0.08), 0 1px 4px rgba(0,0,0,0.7)',
-  glowP:  '0 4px 30px rgba(240,24,122,0.12), 0 1px 4px rgba(0,0,0,0.7)',
-  glowG:  '0 4px 30px rgba(0,245,160,0.12), 0 1px 4px rgba(0,0,0,0.7)',
+  bg:     '#04070E',
+  panel:  'rgba(10,17,29,0.96)',
+  panel2: 'rgba(13,21,36,0.94)',
+  pink:   '#35e0ff',
+  green:  '#00d492',
+  red:    '#ff4d6a',
+  yellow: '#ffb454',
+  blue:   '#35e0ff',
+  purple: '#8fa3bf',
+  teal:   '#35e0ff',
+  cyan:   '#35e0ff',
+  dim:    'rgba(140,170,210,0.06)',
+  muted:  '#8fa3bf',
+  text:   '#c7d5e8',
+  bright: '#eef4fc',
+  border: 'rgba(140,170,210,0.14)',
+  glow:   '0 1px 3px rgba(0,0,0,0.45)',
+  glowP:  '0 1px 3px rgba(0,0,0,0.45)',
+  glowG:  '0 1px 3px rgba(0,0,0,0.45)',
 }
 
 const REGIME_HE: Record<string,string> = {
-  TREND_UP:   '📈 טרנד עולה',
-  TREND_DOWN: '📉 טרנד יורד',
-  RANGING:    '↔️ ריינג׳',
-  VOLATILE:   '⚡ תנודתי',
+  TREND_UP:   'טרנד עולה',
+  TREND_DOWN: 'טרנד יורד',
+  RANGING:    'ריינג׳',
+  VOLATILE:   'תנודתי',
 }
 const REGIME_COLOR: Record<string,string> = {
   TREND_UP: C.green, TREND_DOWN: C.red, RANGING: C.blue, VOLATILE: C.yellow,
@@ -296,51 +299,44 @@ function LivePosition({t,live,fmtP,onClose}:{t:Trade;live?:{cur:number;pnl:numbe
 }
 
 // ─── injected animations ──────────────────────────────────────────────────────
+// v53.1 redesign: quiet motion — no glows, no hologram, no aura cycling.
+// Class names are kept so markup keeps working; the flash/slide feedbacks stay.
 const STYLE_TAG = `
-  @keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(0.85)}}
-  @keyframes glow-beat{0%,100%{box-shadow:0 0 8px currentColor}50%{box-shadow:0 0 22px currentColor,0 0 40px currentColor}}
+  *{font-variant-numeric:tabular-nums}
+  @keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:0.3}}
   @keyframes slide-up{from{transform:translateY(6px);opacity:0}to{transform:translateY(0);opacity:1}}
-  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
-  @keyframes flash-up{0%{background:rgba(0,245,160,0.25);transform:scale(1.04)}100%{background:transparent;transform:scale(1)}}
-  @keyframes flash-dn{0%{background:rgba(255,58,94,0.25);transform:scale(1.04)}100%{background:transparent;transform:scale(1)}}
-  @keyframes num-up{0%{color:#00f5a0;transform:translateY(-3px)}100%{transform:translateY(0)}}
-  @keyframes num-dn{0%{color:#ff3a5e;transform:translateY(3px)}100%{transform:translateY(0)}}
-  @keyframes hologram{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
-  @keyframes sig-green{0%,100%{box-shadow:0 4px 20px rgba(0,245,160,0.2),inset 0 0 0 1px rgba(0,245,160,0.3)}50%{box-shadow:0 4px 36px rgba(0,245,160,0.55),0 0 60px rgba(0,245,160,0.18),inset 0 0 0 1px rgba(0,245,160,0.6)}}
-  @keyframes sig-red{0%,100%{box-shadow:0 4px 20px rgba(255,58,94,0.2),inset 0 0 0 1px rgba(255,58,94,0.3)}50%{box-shadow:0 4px 36px rgba(255,58,94,0.55),0 0 60px rgba(255,58,94,0.18),inset 0 0 0 1px rgba(255,58,94,0.6)}}
-  @keyframes balance-glow{0%,100%{text-shadow:0 0 14px rgba(255,255,255,0.18)}50%{text-shadow:0 0 28px rgba(255,255,255,0.5),0 0 60px rgba(200,240,255,0.2)}}
-  .live-dot{animation:pulse-dot 1.4s ease-in-out infinite}
-  .glow-beat{animation:glow-beat 2s ease-in-out infinite}
+  @keyframes flash-up{0%{background:rgba(0,212,146,0.18)}100%{background:transparent}}
+  @keyframes flash-dn{0%{background:rgba(255,77,106,0.18)}100%{background:transparent}}
+  @keyframes num-up{0%{color:#00d492;transform:translateY(-3px)}100%{transform:translateY(0)}}
+  @keyframes num-dn{0%{color:#ff4d6a;transform:translateY(3px)}100%{transform:translateY(0)}}
+  .live-dot{animation:pulse-dot 2.4s ease-in-out infinite}
+  .glow-beat{animation:none}
   .slide-up{animation:slide-up 0.25s ease-out}
-  .float{animation:float 3s ease-in-out infinite}
+  .float{animation:none}
   .flash-up{animation:flash-up 0.4s ease-out}
   .flash-dn{animation:flash-dn 0.4s ease-out}
   .num-up{animation:num-up 0.3s ease-out}
   .num-dn{animation:num-dn 0.3s ease-out}
-  .nx-title{background:linear-gradient(90deg,#00ccff,#ff44cc,#00ffcc,#cc44ff,#00ccff);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:hologram 5s linear infinite;filter:drop-shadow(0 0 10px rgba(0,200,255,0.6))}
-  .sig-buy{animation:sig-green 2.2s ease-in-out infinite}
-  .sig-sell{animation:sig-red 2.2s ease-in-out infinite}
-  .balance-num{animation:balance-glow 3s ease-in-out infinite}
-  .nx-btn{transition:all 0.18s ease;cursor:pointer}
-  .nx-btn:hover{filter:brightness(1.3);transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,0.4)!important}
-  .nx-row:hover{background:rgba(0,200,255,0.05)!important}
-  .stat-3d:hover{transform:translateY(-2px) scale(1.02);transition:transform .2s ease}
-  .stat-3d{transition:transform .2s ease}
+  .nx-title{color:#eef4fc;letter-spacing:0.14em}
+  .sig-buy{box-shadow:inset 0 0 0 1px rgba(0,212,146,0.4)}
+  .sig-sell{box-shadow:inset 0 0 0 1px rgba(255,77,106,0.4)}
+  .balance-num{animation:none}
+  .nx-btn{transition:border-color 0.15s ease,color 0.15s ease,background 0.15s ease;cursor:pointer}
+  .nx-btn:hover{filter:brightness(1.15)}
+  .nx-row:hover{background:rgba(140,170,210,0.05)!important}
+  .stat-3d{transition:none}
   ::-webkit-scrollbar{width:3px;height:3px}
   ::-webkit-scrollbar-track{background:transparent}
-  ::-webkit-scrollbar-thumb{background:rgba(0,200,255,0.3);border-radius:2px}
+  ::-webkit-scrollbar-thumb{background:rgba(140,170,210,0.25);border-radius:2px}
   @keyframes ticker-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
-  @keyframes scan-sweep{0%{left:-4px;opacity:0}5%{opacity:1}90%{opacity:0.7}100%{left:calc(100% + 4px);opacity:0}}
-  @keyframes shimmer{0%{background-position:-400% 0}100%{background-position:400% 0}}
   .ticker-track{display:flex;animation:ticker-scroll 50s linear infinite;will-change:transform}
   .ticker-track:hover{animation-play-state:paused}
-  .scan-line{position:absolute;top:0;bottom:0;width:2px;pointer-events:none;background:linear-gradient(180deg,transparent 0%,rgba(0,200,255,0.6) 30%,rgba(0,200,255,0.9) 50%,rgba(0,200,255,0.6) 70%,transparent 100%);box-shadow:0 0 10px rgba(0,200,255,0.8),0 0 20px rgba(0,200,255,0.3);animation:scan-sweep 5s ease-in-out infinite}
-  .shimmer-row{background:linear-gradient(90deg,transparent 0%,rgba(0,200,255,0.04) 50%,transparent 100%) !important;background-size:400% 100% !important;animation:shimmer 3.5s ease-in-out infinite}
-  @keyframes card-outline-cycle{0%,100%{outline-color:rgba(0,200,255,0.35)}33%{outline-color:rgba(240,24,122,0.35)}66%{outline-color:rgba(155,93,229,0.35)}}
-  .card-aura{outline:1px solid rgba(0,200,255,0.35);outline-offset:-1px;animation:card-outline-cycle 5s ease-in-out infinite}
+  .scan-line{display:none}
+  .shimmer-row{background:transparent!important;animation:none}
+  .card-aura{outline:1px solid rgba(140,170,210,0.18);outline-offset:-1px}
   @keyframes toast-in{from{transform:translateX(110%);opacity:0}to{transform:translateX(0);opacity:1}}
-  @keyframes toast-out{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(110%)}}
-  .toast-enter{animation:toast-in 0.3s cubic-bezier(0.34,1.56,0.64,1) forwards}
+  .toast-enter{animation:toast-in 0.25s ease-out forwards}
+  @media (prefers-reduced-motion:reduce){.live-dot,.ticker-track{animation:none}}
 `
 
 // ─── star field ──────────────────────────────────────────────────────────────
@@ -940,7 +936,7 @@ export default function CryptoTradingDashboard() {
   const handleBotToggle=()=>{
     const next=!botOn;setBotOn(next);botRef.current=next
     supaRef.current?.from('bot_state').update({active:next,updated_at:new Date().toISOString()}).eq('id',1)
-    addLog(next?'🤖 בוט הופעל':'🤖 בוט כובה')
+    addLog(next?'בוט הופעל':'בוט כובה')
   }
   const handleRiskChange=(r:RiskType)=>{
     setRisk(r);riskRef.current=r
@@ -1003,22 +999,21 @@ export default function CryptoTradingDashboard() {
   const supaLive       = supaStatus==='live'
   const fmtP           = (p:number)=>p>=1000?p.toFixed(2):p>=1?p.toFixed(4):p.toFixed(6)
   const animBalance    = useAnimatedCounter(totalValue)
-  const M:CSSProperties= {fontFamily:"'Courier New',monospace",userSelect:'none' as const,direction:'rtl'}
+  const M:CSSProperties= {fontFamily:"'IBM Plex Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace",userSelect:'none' as const,direction:'rtl'}
   const regColor       = REGIME_COLOR[marketRegime]||C.blue
 
   const TABS:[TabType,string][]=[
-    ['scanner','🔍 סריקה'],['history','📋 היסטוריה'],
-    ['stats','📊 סטטיסטיקות'],['analysis','🔬 ניתוח'],['ai','🤖 AI OPT'],['regime','🌐 שוק'],
+    ['scanner','סריקה'],['history','היסטוריה'],
+    ['stats','סטטיסטיקות'],['analysis','ניתוח'],['ai','AI OPT'],['regime','שוק'],
   ]
 
   return (
     <div style={{...M,
-      background:`radial-gradient(ellipse 80% 50% at 50% 0%,rgba(0,40,80,0.5) 0%,#020814 60%)`,
+      background:C.bg,
       minHeight:'100vh',color:C.text,padding:'8px',fontSize:'11px',overflowX:'hidden',
     }}>
-      <MatrixRain/>
-      <StarField/>
-      <CursorGlow/>
+      {/* v53.1 redesign: ambient canvas effects (matrix/stars/cursor glow) removed —
+          the instrument reads better on a still ground, and it saves battery */}
       <style dangerouslySetInnerHTML={{__html:STYLE_TAG}}/>
 
       {/* ══ TOAST STACK ══ */}
@@ -1043,21 +1038,17 @@ export default function CryptoTradingDashboard() {
 
       {/* ══ HEADER ══ */}
       <div style={{
-        background:'linear-gradient(180deg,rgba(0,30,60,0.7) 0%,rgba(2,8,26,0.92) 100%)',
-        border:`1px solid rgba(0,200,255,0.15)`,borderRadius:'16px',
+        background:C.panel,
+        border:`1px solid ${C.border}`,borderRadius:'6px',
         padding:'12px 16px',marginBottom:'8px',
-        boxShadow:'0 8px 40px rgba(0,0,0,0.5),inset 0 1px 0 rgba(0,200,255,0.1)',
+        boxShadow:C.glow,
         position:'relative',overflow:'hidden',
       }}>
-        {/* diagonal accent line */}
-        <div style={{position:'absolute',top:0,left:0,right:0,height:'2px',
-          background:`linear-gradient(90deg,transparent,${C.blue}80,${C.pink}80,transparent)`}}/>
-
         {/* row 1: title + status + regime */}
         <div style={{display:'flex',flexWrap:'wrap' as const,gap:'8px',alignItems:'center',marginBottom:'10px'}}>
-          <div className="float" style={{display:'flex',alignItems:'center',gap:'6px'}}>
-            <span className="nx-title" style={{fontSize:'18px',fontWeight:900,letterSpacing:'2px'}}>
-              ⚡ NEXUS TRADE
+          <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+            <span className="nx-title" style={{fontSize:'16px',fontWeight:900}}>
+              NEXUS TRADE
             </span>
             <span style={{fontSize:'8px',color:C.blue,padding:'2px 6px',border:`1px solid ${C.blue}40`,borderRadius:'4px',
               boxShadow:`0 0 8px ${C.blue}30`,background:`${C.blue}10`}}>v53</span>
@@ -1081,7 +1072,7 @@ export default function CryptoTradingDashboard() {
               padding:'3px 10px',fontSize:'9px',fontWeight:700,
               background:serverPaperMode?`${C.teal}12`:`${C.red}12`,
               color:serverPaperMode?C.teal:C.red,
-            }}>{serverPaperMode?'📋 נייר':'💵 אמיתי'}</button>
+            }}>{serverPaperMode?'נייר':'אמיתי'}</button>
           </div>
 
           {/* portfolio value */}
@@ -1091,7 +1082,7 @@ export default function CryptoTradingDashboard() {
             </div>
             <div style={{fontSize:'11px',fontWeight:800,
               color:totalPnl>=0?C.green:C.red,
-              textShadow:totalPnl>=0?`0 0 10px ${C.green}80`:`0 0 10px ${C.red}80`}}>
+              }}>
               {totalPnl>=0?'+':''}{totalPnl.toFixed(2)} כולל
             </div>
           </div>
@@ -1127,7 +1118,7 @@ export default function CryptoTradingDashboard() {
             background:botOn?`${C.green}15`:'rgba(255,255,255,0.03)',
             color:botOn?C.green:C.muted,
             boxShadow:botOn?`0 0 14px ${C.green}30`:undefined,
-          }}>{botOn?'🤖 פעיל':'🤖 כבוי'}</button>
+          }}>{botOn?'בוט פעיל':'בוט כבוי'}</button>
         </div>
       </div>
 
@@ -1195,10 +1186,10 @@ export default function CryptoTradingDashboard() {
             ['עסקאות',trades.length.toString(),C.blue],
             ['שארפ',sharpe.toFixed(2),sharpe>1?C.green:sharpe>0?C.yellow:C.red],
             ['מקס ירידה',maxDD.toFixed(1)+'%',maxDD<10?C.green:maxDD<25?C.yellow:C.red],
-            ['📈 פריצות',`${stDonch.op}פ ${stDonch.n}ס ${(stDonch.rp>=0?'+':'')}${stDonch.rp.toFixed(0)}$`,stDonch.rp>=0?C.green:C.red],
-            ['🔄 רוטציה',`${stRota.op}פ ${stRota.n}ס ${(stRota.rp>=0?'+':'')}${stRota.rp.toFixed(0)}$ ${stRota.wr.toFixed(0)}%`,stRota.rp>=0?C.green:C.red],
-            ['🛡️ נסיגת הון',eqMaxDD.toFixed(1)+'%',eqMaxDD<10?C.green:eqMaxDD<25?C.yellow:C.red],
-            ['⚖️ R ממוצע חי',liveR?`${liveR.avg>=0?'+':''}${liveR.avg.toFixed(3)}R (${liveR.n}) / +0.046`:'נבנה מעכשיו',liveR?(liveR.avg>=0?C.green:C.red):C.muted],
+            ['פריצות',`${stDonch.op}פ ${stDonch.n}ס ${(stDonch.rp>=0?'+':'')}${stDonch.rp.toFixed(0)}$`,stDonch.rp>=0?C.green:C.red],
+            ['רוטציה',`${stRota.op}פ ${stRota.n}ס ${(stRota.rp>=0?'+':'')}${stRota.rp.toFixed(0)}$ ${stRota.wr.toFixed(0)}%`,stRota.rp>=0?C.green:C.red],
+            ['נסיגת הון',eqMaxDD.toFixed(1)+'%',eqMaxDD<10?C.green:eqMaxDD<25?C.yellow:C.red],
+            ['R ממוצע חי',liveR?`${liveR.avg>=0?'+':''}${liveR.avg.toFixed(3)}R (${liveR.n}) / +0.046`:'נבנה מעכשיו',liveR?(liveR.avg>=0?C.green:C.red):C.muted],
           ].map(([k,v,col])=>(
             <div key={k} className="shimmer-row" style={{
               border:`1px solid ${C.dim}`,borderRadius:'9px',
@@ -1209,9 +1200,9 @@ export default function CryptoTradingDashboard() {
               <span style={{color:col as string,fontWeight:800,fontSize:'11px'}}>{v}</span>
             </div>
           ))}
-          <ProgressRing value={donchProgress} max={50} color={donchProgress>=50?C.green:C.blue} label="🎯 בדיקת רצועות"/>
+          <ProgressRing value={donchProgress} max={50} color={donchProgress>=50?C.green:C.blue} label="בדיקת רצועות"/>
           <div className="shimmer-row" style={{border:`1px solid ${Object.values(shields).some(Boolean)?C.red:C.dim}`,borderRadius:'9px',padding:'6px 10px',display:'flex',justifyContent:'space-between',alignItems:'center',backdropFilter:'blur(10px)'}}>
-            <span style={{color:C.muted,fontSize:'9px'}}>🛡️ מגנים</span>
+            <span style={{color:C.muted,fontSize:'9px'}}>מגנים</span>
             <span style={{color:Object.values(shields).some(Boolean)?C.red:C.green,fontWeight:800,fontSize:'11px'}}>
               {(()=>{const m:[string,string][]=[['donch_paused','פריצות⏸'],['rota_paused','רוטציה⏸'],['day_loss_paused','בלם-5%'],['depeg_paused','דה-פג!']];const act=m.filter(([k])=>shields[k]).map(([,v])=>v);return act.length?act.join(' '):'הכל פעיל ✓'})()}
             </span>
@@ -1282,7 +1273,7 @@ export default function CryptoTradingDashboard() {
                 :'rgba(10,20,50,0.5)',
             border:`1px solid ${sig.dir==='BUY'?C.green+'45':sig.dir==='SELL'?C.red+'45':C.dim}`,
             color:sig.dir==='BUY'?C.green:sig.dir==='SELL'?C.red:C.muted,
-            textShadow:sig.dir!=='HOLD'?`0 0 14px ${sig.dir==='BUY'?C.green:C.red}cc`:undefined,
+            
           }}>
             {sig.dir==='BUY'?'▲ קנייה':sig.dir==='SELL'?'▼ מכירה':'— ממתין'} · {sig.score}/5
           </div>
@@ -1506,7 +1497,7 @@ export default function CryptoTradingDashboard() {
 
               {/* avg / streaks / hold */}
               <div style={{background:C.panel,border:`1px solid ${C.border}`,borderRadius:'12px',padding:'10px 14px'}}>
-                <div style={{color:C.blue,fontWeight:700,fontSize:'10px',marginBottom:'8px'}}>📈 ביצועים</div>
+                <div style={{color:C.blue,fontWeight:700,fontSize:'10px',marginBottom:'8px'}}>ביצועים</div>
                 <Row label="ממוצע זכייה" val={'+'+avgWin.toFixed(2)+'$'} col={C.green}/>
                 <Row label="ממוצע הפסד" val={avgLoss.toFixed(2)+'$'} col={C.red}/>
                 <Row label="יחס R:R" val={(Math.abs(avgWin/avgLoss)||0).toFixed(2)} col={Math.abs(avgWin/avgLoss)>1?C.green:C.yellow}/>
@@ -1531,7 +1522,7 @@ export default function CryptoTradingDashboard() {
 
               {/* status breakdown */}
               <div style={{background:C.panel,border:`1px solid ${C.border}`,borderRadius:'12px',padding:'10px 14px'}}>
-                <div style={{color:C.blue,fontWeight:700,fontSize:'10px',marginBottom:'8px'}}>🎯 סיבות סגירה</div>
+                <div style={{color:C.blue,fontWeight:700,fontSize:'10px',marginBottom:'8px'}}>סיבות סגירה</div>
                 <div style={{display:'flex',gap:'8px',flexWrap:'wrap' as const}}>
                   {([['✓ TP',tpT,C.green],['✗ SL',slT,C.red],['~ TRAIL',trailT,C.yellow]] as [string,Trade[],string][]).map(([lbl,arr,col])=>(
                     <div key={lbl} style={{flex:1,minWidth:'80px',background:`${col}08`,border:`1px solid ${col}25`,borderRadius:'8px',padding:'8px',textAlign:'center' as const}}>
@@ -1546,7 +1537,7 @@ export default function CryptoTradingDashboard() {
               {/* best / worst */}
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'6px'}}>
                 <div style={{background:C.panel,border:`1px solid ${C.green}25`,borderRadius:'12px',padding:'10px'}}>
-                  <div style={{color:C.green,fontWeight:700,fontSize:'10px',marginBottom:'6px'}}>🏆 5 הטובות</div>
+                  <div style={{color:C.green,fontWeight:700,fontSize:'10px',marginBottom:'6px'}}>5 הטובות</div>
                   {best5.map(t=>(
                     <div key={t.id} style={{display:'flex',justifyContent:'space-between',padding:'2px 0',borderBottom:`1px solid ${C.dim}`,fontSize:'9px'}}>
                       <span style={{color:C.cyan}}>{t.sym}</span>
@@ -1555,7 +1546,7 @@ export default function CryptoTradingDashboard() {
                   ))}
                 </div>
                 <div style={{background:C.panel,border:`1px solid ${C.red}25`,borderRadius:'12px',padding:'10px'}}>
-                  <div style={{color:C.red,fontWeight:700,fontSize:'10px',marginBottom:'6px'}}>💀 5 הגרועות</div>
+                  <div style={{color:C.red,fontWeight:700,fontSize:'10px',marginBottom:'6px'}}>5 הגרועות</div>
                   {worst5.map(t=>(
                     <div key={t.id} style={{display:'flex',justifyContent:'space-between',padding:'2px 0',borderBottom:`1px solid ${C.dim}`,fontSize:'9px'}}>
                       <span style={{color:C.cyan}}>{t.sym}</span>
@@ -1567,7 +1558,7 @@ export default function CryptoTradingDashboard() {
 
               {/* per symbol table */}
               <div style={{background:C.panel,border:`1px solid ${C.border}`,borderRadius:'12px',padding:'10px'}}>
-                <div style={{color:C.blue,fontWeight:700,fontSize:'10px',marginBottom:'8px'}}>📊 ביצועים לפי מטבע</div>
+                <div style={{color:C.blue,fontWeight:700,fontSize:'10px',marginBottom:'8px'}}>ביצועים לפי מטבע</div>
                 <div style={{overflowX:'auto' as const}}>
                   <table style={{width:'100%',borderCollapse:'collapse' as const,fontSize:'9px'}}>
                     <thead>
@@ -1605,7 +1596,7 @@ export default function CryptoTradingDashboard() {
           <div>
             <div style={{background:`${C.teal}08`,border:`1px solid ${C.teal}25`,borderRadius:'12px',padding:'12px',marginBottom:'10px'}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'8px'}}>
-                <span style={{color:C.teal,fontWeight:700,fontSize:'11px'}}>🤖 מצב אופטימייזר AI</span>
+                <span style={{color:C.teal,fontWeight:700,fontSize:'11px'}}>מצב אופטימייזר AI</span>
                 <span style={{fontSize:'9px',color:C.muted}}>
                   {lastOptimizedAt?`עדכון: ${new Date(lastOptimizedAt).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}`:'טרם הורץ'}
                 </span>
@@ -1675,7 +1666,7 @@ export default function CryptoTradingDashboard() {
               <div style={{position:'absolute',top:0,left:0,right:0,bottom:0,
                 background:`radial-gradient(ellipse 80% 60% at 50% 0%,${regColor}10,transparent)`,pointerEvents:'none'}}/>
               <div className="float" style={{fontSize:'32px',fontWeight:900,color:regColor,
-                textShadow:`0 0 30px ${regColor}80`,marginBottom:'6px'}}>
+                marginBottom:'6px'}}>
                 {REGIME_HE[marketRegime]||marketRegime}
               </div>
               <div style={{display:'flex',justifyContent:'center',gap:'8px',marginBottom:'10px'}}>
@@ -1701,7 +1692,7 @@ export default function CryptoTradingDashboard() {
             {Object.keys(coinWeights).length>0&&(
               <div style={{marginBottom:'10px'}}>
                 <div style={{color:C.yellow,fontWeight:700,fontSize:'10px',marginBottom:'8px',display:'flex',alignItems:'center',gap:'6px'}}>
-                  ⚖️ משקלי מטבעות
+                  משקלי מטבעות
                   {rebalancedAt&&<span style={{color:C.muted,fontWeight:400}}>· עדכון: {new Date(rebalancedAt).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}</span>}
                 </div>
                 <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(90px,1fr))',gap:'5px'}}>
@@ -1760,7 +1751,7 @@ export default function CryptoTradingDashboard() {
         </Card3D>
         <Card3D style={{padding:'12px'}} color={C.green}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'8px'}}>
-            <span style={{color:C.green,fontWeight:700,fontSize:'10px'}}>📈 עקומת הון</span>
+            <span style={{color:C.green,fontWeight:700,fontSize:'10px'}}>עקומת הון</span>
             <span style={{color:totalPnl>=0?C.green:C.red,fontWeight:700,fontSize:'11px'}}>
               {totalPnl>=0?'+':''}{totalPnl.toFixed(2)}
             </span>
