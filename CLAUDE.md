@@ -272,6 +272,15 @@ so win-rate alone (58%, close to crypto's ~66%) doesn't translate to edge —
 the R-multiple distribution is what breaks. Gold CLOSED on this engine; would
 need a fundamentally different (probably mean-reversion or much-slower-signal)
 approach to have a chance, which is new-research-from-scratch, not a quick add.
+v77bt (2026-07-13, user-requested): 15m/30m/45m TIMEFRAME SCAN — all
+rejected. Full 36m/6-window walk-forward. Gross edge climbs monotonically
+with TF (5m -0.024 → 45m/DW80 +0.033 → 4h +0.051R) confirming 4h is the
+real inflection point. BUT: no sub-4h config passes all 6 windows even gross
+— window 1 (choppy/2023-equivalent period) is negative for every DW tested
+across 15m/30m/45m. ADX>22 gate is what saves 4h in choppy windows; without
+it the sub-4h edge is too thin. RSI mean-reversion 15m: +0.002R gross (noise).
+CONCLUSION: 15m/30m/45m axis CLOSED alongside 5m.
+
 v76bt (2026-07-13, user-requested): 5m GROSS EDGE RESEARCH — decisive
 rejection of ALL 5m signal families. (A) Donchian 5m: DW=15/25/40/75 ALL
 NEGATIVE even gross/fee=0 (avgR -0.024 to -0.043R) — no edge exists at the
