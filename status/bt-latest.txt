@@ -1,15 +1,21 @@
-backtest 2026-07-12T21:26Z mode=v73bt months=36
-████ V73BT — Donchian adaptive window (vol-scaled) vs fixed-15 ████
-  loaded 69 coins, 6 windows
+backtest 2026-07-13T01:02Z mode=v74bt months=36
+████ V74BT — GOLD SLEEVE pre-validation (PAXG/XAUT, unchanged DONCH4H engine) ████
+  PAXG: 25670 raw 1h bars loaded
+  XAUT: 2314 raw 1h bars loaded
 
-── DONCHIAN ADAPTIVE: window breathes with vol (atrFast/atrRef)^k ──
-  k        avgW    n       totR     avgR      all6   windows
-  0 (fix)  15.0   11218     526  +0.0469   ❌    -0.003 +0.014 +0.120 +0.090 +0.053 -0.015
-  -0.50   15.1   11223     500  +0.0446   ❌    -0.007 +0.008 +0.115 +0.089 +0.052 -0.013
-  -0.25   15.0   11235     507  +0.0451   ❌    -0.006 +0.010 +0.117 +0.090 +0.051 -0.015
-  +0.25   15.0   11209     534  +0.0476   ❌    -0.001 +0.014 +0.122 +0.091 +0.052 -0.015
-  +0.50   14.9   11229     526  +0.0469   ❌    -0.003 +0.015 +0.122 +0.091 +0.049 -0.015
+  loaded 2/2 gold symbols, 6 windows, span=1096d
 
-  DEPLOY BAR: an adaptive k must beat fixed-15 totR (526R) AND stay
-  ✅ all-6-windows. Note fixed-15 is the incumbent; adaptive adds a
-  parameter (k) that can overfit — needs a clear, robust win to justify.
+── GOLD SLEEVE (Donchian-15/ADX22, unchanged DONCH4H engine) ──
+  n=343  WR=58.3%  totR=-30.5  avgR=-0.0888
+  windows: -0.371 +0.021 -0.058 -0.246 -0.078 +0.095  all6=❌
+  PAXG: n=315 WR=58.4% totR=-26.0
+  XAUT: n=28 WR=57.1% totR=-4.4
+
+  correlation (gold-sleeve daily R vs BTC daily return, n=263 days): -0.047
+  (near 0 = genuinely uncorrelated diversifier; near ±1 = just another crypto bet)
+
+  DEPLOY BAR: same as every sleeve — positive in ALL 6 windows, beats noise
+  floor. CAVEAT: only 2 symbol(s) → far fewer signals than
+  CRYPTO_40's breadth, so this result is lower-confidence than a normal batch
+  even if it clears the bar — treat a pass here as "promising, watch further,"
+  not "proven," until more history/symbols accumulate.
