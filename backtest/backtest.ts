@@ -5632,6 +5632,194 @@ function runV75bt() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// v77bt: 15m / 30m / 45m gross-edge scan
+// Tests whether Donchian breakout edge turns positive somewhere between 5m
+// (proven-negative gross, v76bt) and 4h (proven-positive with real fees).
+// 15m data already on disk (fetch-explore.sh). 30m/45m resampled in-code.
+// Full 36-month / 6-window walk-forward (unlike v76bt's 2-window 12m).
+function runV77bt() {
+  const COINS_TOP10 = ['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','DOT']
+  const TK = 0.0005, SLIP = 0.0003, MK = 0.0002
+  const NW = 6
+
+  // ── resample helper: n × 15m → one bar per n bars ──
+  const resample = (bars: Bar[], n: number): Bar[] => {
+    const out: Bar[] = []; let cur: Bar|null = null; let count = 0
+    for (const b of bars) {
+      if (!cur) { cur = {...b}; count = 1 }
+      else { cur.high = Math.max(cur.high, b.high); cur.low = Math.min(cur.low, b.low)
+             cur.close = b.close; cur.vol += b.vol; count++ }
+      if (count === n) { out.push(cur); cur = null; count = 0 }
+    }
+    return out
+  }
+
+  // Load 15m for top-10 coins, resample to 30m and 45m
+  type TF = '15m' | '30m' | '45m' | '4h'
+  const d: Record<TF, Record<string, Bar[]>> = {'15m': {}, '30m': {}, '45m': {}, '4h': {}}
+  let tmin = Infinity, tmax = -Infinity
+  for (const c of COINS_TOP10) {
+    const b15 = loadCSV(c, '15m')
+    if (b15.length < 500) { console.log(`  SKIP ${c}: only ${b15.length} 15m bars`); continue }
+    d['15m'][c] = b15
+    d['30m'][c] = resample(b15, 2)
+    d['45m'][c] = resample(b15, 3)
+    const b1h = loadCSV(c, '1h')
+    d['4h'][c] = (() => {
+      const out: Bar[] = []; let cur: Bar|null = null; let bucket = -1
+      for (const b of b1h) { const k = Math.floor(b.t/14400000)
+        if (k!==bucket) { if(cur) out.push(cur); bucket=k
+          cur={t:k*14400000,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol} }
+        else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol} }
+      if(cur) out.push(cur); return out
+    })()
+    tmin = Math.min(tmin, b15[0].t); tmax = Math.max(tmax, b15[b15.length-1].t)
+  }
+  const loaded = Object.keys(d['15m'])
+  const wSpan = (tmax - tmin) / NW
+  const winOf = (t: number) => Math.min(NW-1, Math.max(0, Math.floor((t-tmin)/wSpan)))
+  console.log(`  loaded ${loaded.length} coins, ${((tmax-tmin)/86400000).toFixed(0)} days, ${NW} windows`)
+  console.log(`  15m bars/coin: ~${Object.values(d['15m'])[0]?.length ?? 0}`)
+  console.log(`  30m bars/coin: ~${Object.values(d['30m'])[0]?.length ?? 0}`)
+  console.log(`  45m bars/coin: ~${Object.values(d['45m'])[0]?.length ?? 0}\n`)
+
+  type Tr = { r: number; win: number }
+
+  // Generic exit: ladder ⅓@0.6R / ⅓@1.0R / ⅓@1.6R, stop at -1R, timeout at maxHold
+  function exitTrade(bars: Bar[], i: number, side: 'LONG'|'SHORT',
+                     slDist: number, fee: number, slip: number, maxHold: number): Tr {
+    const dirM = side === 'LONG' ? 1 : -1
+    const entry = bars[i].close * (1 + dirM * slip)
+    const slPx = entry - slDist * dirM
+    const tp1 = entry + slDist * 0.6 * dirM
+    const tp2 = entry + slDist * 1.0 * dirM
+    const tp3 = entry + slDist * 1.6 * dirM
+    const slPct = slDist / entry
+    let filled1 = false, filled2 = false, pnl = 0
+    const jEnd = Math.min(i + maxHold, bars.length - 1)
+    for (let j = i+1; j <= jEnd; j++) {
+      const b = bars[j]
+      if (side==='LONG' ? b.low<=slPx : b.high>=slPx) {
+        const rem = 1 - (filled1?1/3:0) - (filled2?1/3:0)
+        pnl -= rem; return { r: pnl - fee*2/slPct, win: winOf(bars[i].t) }
+      }
+      if (!filled1 && (side==='LONG'?b.high>=tp1:b.low<=tp1)) { filled1=true; pnl+=1/3*0.6 }
+      if (filled1&&!filled2 && (side==='LONG'?b.high>=tp2:b.low<=tp2)) { filled2=true; pnl+=1/3*1.0 }
+      if (filled1&&filled2 && (side==='LONG'?b.high>=tp3:b.low<=tp3)) {
+        pnl+=1/3*1.6; return { r: pnl - fee*2/slPct, win: winOf(bars[i].t) }
+      }
+    }
+    const ep = bars[jEnd].close*(1-dirM*slip)
+    const rem = 1-(filled1?1/3:0)-(filled2?1/3:0)
+    pnl += rem*((ep-entry)*dirM/slDist)
+    return { r: pnl - fee*2/slPct, win: winOf(bars[i].t) }
+  }
+
+  function summarise(label: string, trades: Tr[], feeLabel: string) {
+    if (!trades.length) { console.log(`  ${label} [${feeLabel}]: n=0`); return }
+    const tot = trades.reduce((s,t)=>s+t.r, 0)
+    const avg = tot/trades.length
+    const byW = Array.from({length:NW}, (_,w)=>{
+      const wt = trades.filter(t=>t.win===w)
+      return wt.length ? wt.reduce((s,t)=>s+t.r,0)/wt.length : 0
+    })
+    const allPos = byW.every(r=>r>0)
+    const wStr = byW.map(r=>(r>=0?'+':'')+r.toFixed(3)).join(' ')
+    console.log(`  ${(label+' ['+feeLabel+']').padEnd(36)} n=${String(trades.length).padStart(6)}  avgR=${avg>=0?'+':''}${avg.toFixed(4)}  totR=${tot>=0?'+':''}${tot.toFixed(0).padStart(6)}  ${allPos?'✅':'❌'}  [${wStr}]`)
+  }
+
+  // ── DONCHIAN BREAKOUT: 15m / 30m / 45m / 4h ─────────────────────────────
+  console.log(`── DONCHIAN BREAKOUT — gross (0fee) vs real taker vs maker ──`)
+  console.log(`   (SL=1.4×ATR20, ladder ⅓@0.6R/1.0R/1.6R, cooldown=DW bars)`)
+
+  const tfCfgs: {tf: TF; dws: number[]; maxH: number; label: string}[] = [
+    { tf:'15m', dws:[15,25,50,100,240], maxH:96,  label:'15m' },   // maxH=96=24h
+    { tf:'30m', dws:[8,15,25,50,120],   maxH:48,  label:'30m' },   // maxH=48=24h
+    { tf:'45m', dws:[6,10,20,40,80],    maxH:32,  label:'45m' },   // maxH=32=24h
+    { tf:'4h',  dws:[15],               maxH:20,  label:'4h (ADX>22 gate, reference)' },
+  ]
+
+  for (const {tf, dws, maxH, label} of tfCfgs) {
+    console.log(`\n  ── ${label} ──`)
+    const is4h = tf === '4h'
+    for (const dw of dws) {
+      const gTr: Tr[] = [], rTr: Tr[] = [], mTr: Tr[] = []
+      const warmup = Math.max(dw+1, 25)
+      for (const sym of loaded) {
+        const bars = d[tf][sym]
+        if (!bars || bars.length < warmup+maxH+1) continue
+        let last = -99
+        for (let i = warmup; i < bars.length-maxH-1; i++) {
+          const prior = bars.slice(i-dw, i)
+          const hiN = Math.max(...prior.map(b=>b.high))
+          const loN = Math.min(...prior.map(b=>b.low))
+          const side: 'LONG'|'SHORT'|null =
+            bars[i].close > hiN ? 'LONG' : bars[i].close < loN ? 'SHORT' : null
+          if (!side) continue
+          if (is4h) {
+            const adx = calcADX(bars.slice(Math.max(0,i-60), i+1))
+            if (adx <= 22) continue
+          }
+          if (i - last < dw) continue
+          const atr = calcATR(bars.slice(i-20, i+1))
+          if (!atr) continue
+          const slDist = Math.max(atr*1.4, bars[i].close*(is4h?0.005:0.003))
+          const slPct = slDist/bars[i].close
+          if (slPct>0.08||slPct<0.0005) continue
+          last = i
+          gTr.push(exitTrade(bars,i,side,slDist,0,0,maxH))
+          rTr.push(exitTrade(bars,i,side,slDist,TK,SLIP,maxH))
+          mTr.push(exitTrade(bars,i,side,slDist,MK,0,maxH))
+        }
+      }
+      const lbl = `DW=${dw}`
+      summarise(lbl, gTr, 'GROSS')
+      summarise(lbl, rTr, 'taker')
+      summarise(lbl, mTr, 'maker')
+    }
+  }
+
+  // ── RSI MEAN-REVERSION: 15m only (v76bt showed no 5m edge even gross) ──
+  console.log(`\n── RSI MEAN-REVERSION 15m (gross vs taker; 30m/45m skipped — 5m=noise) ──`)
+  for (const [lo, hi] of [[30,70],[25,75],[20,80]] as [number,number][]) {
+    const gTr: Tr[] = [], rTr: Tr[] = []
+    for (const sym of loaded) {
+      const bars = d['15m'][sym]; if (!bars) continue
+      let last = -99
+      for (let i = 30; i < bars.length-25; i++) {
+        const closes = bars.slice(Math.max(0,i-20),i+1).map(b=>b.close)
+        const rsi = calcRsi(closes, 14)
+        const side: 'LONG'|'SHORT'|null = rsi < lo ? 'LONG' : rsi > hi ? 'SHORT' : null
+        if (!side) continue
+        if (i-last < 4) continue  // 1h cooldown (4 × 15m)
+        const atr = calcATR(bars.slice(Math.max(0,i-20),i+1)); if (!atr) continue
+        const slDist = atr*1.4; const slPct=slDist/bars[i].close
+        if (slPct>0.06||slPct<0.0003) continue
+        last=i
+        // quick exit: TP=0.6R, SL=-1R, max 4h (16 bars)
+        const entry=bars[i].close; const dirM=side==='LONG'?1:-1
+        const tpPx=entry+slDist*0.6*dirM; const slPx=entry-slDist*dirM
+        let rVal=0; let hit=false
+        for(let j=i+1;j<=Math.min(i+16,bars.length-1);j++){
+          const b=bars[j]
+          if(side==='LONG'?b.low<=slPx:b.high>=slPx){rVal=-1;hit=true;break}
+          if(side==='LONG'?b.high>=tpPx:b.low<=tpPx){rVal=0.6;hit=true;break}
+        }
+        if(!hit) rVal=(bars[Math.min(i+16,bars.length-1)].close-entry)*dirM/slDist
+        const feeDrag=TK*2/slPct
+        gTr.push({r:rVal, win:winOf(bars[i].t)})
+        rTr.push({r:rVal-feeDrag, win:winOf(bars[i].t)})
+      }
+    }
+    summarise(`RSI${lo}/${hi}`, gTr, 'GROSS')
+    summarise(`RSI${lo}/${hi}`, rTr, 'taker')
+    console.log('')
+  }
+  console.log(`\n  DEPLOY BAR: ALL 6 windows positive (gross + real). 5m was negative even GROSS.`)
+  console.log(`  DW=240 on 15m ≈ DW=15 on 4h (same ~60h lookback) — apples-to-apples reference.`)
+}
+
+// ─────────────────────────────────────────────────────────────
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
@@ -6050,6 +6238,11 @@ function runV76bt() {
   if (Deno.env.get('BT_MODE') === 'v76bt') {
     console.log(`████ V76BT — 5m GROSS EDGE RESEARCH (Donchian breakout + RSI mean-reversion, fees=0 vs real) ████`)
     runV76bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v77bt') {
+    console.log(`████ V77BT — 15m/30m/45m TIMEFRAME SCAN (Donchian + RSI, gross vs real, 36m/6-window) ████`)
+    runV77bt()
     return
   }
 
