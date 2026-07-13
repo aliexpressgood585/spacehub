@@ -1,45 +1,41 @@
-backtest 2026-07-13T01:14Z mode=v75bt months=36
-████ V75BT — GOLD MEAN-REVERSION (PAXG only, BB/RSI fade in low-ADX regime) ████
-  PAXG: 6418 4h bars, 1096 days, 6 windows
-  NOTE: single-instrument test (XAUT's ~96d history can't support
-  a 36-month walk-forward) — treat any pass here as low-confidence
-  vs a normal CRYPTO_40-breadth batch, regardless of the result.
+backtest 2026-07-13T11:44Z mode=v76bt months=12
+████ V76BT — 5m GROSS EDGE RESEARCH (Donchian breakout + RSI mean-reversion, fees=0 vs real) ████
+  loaded 10 coins, 365 days, 2 windows
+  5m bars per coin: ~105120
 
-  adxMax rsi      slMult exit     n     totR    avgR      all6   windows
-  adx<15 rsi35/65 sl1 fix0.6         235     -80  -0.3388   ❌    -0.169 -0.217 -0.245 -0.317 -0.806 -0.278
-  adx<15 rsi35/65 sl1 fix1.0         235    -100  -0.4239   ❌    -0.305 -0.478 -0.201 -0.363 -0.825 -0.340
-  adx<15 rsi35/65 sl1 fix1.5         235    -101  -0.4303   ❌    -0.450 -0.478 -0.310 -0.277 -0.825 -0.109
-  adx<15 rsi35/65 sl1 MID            217     -91  -0.4179   ❌    -0.523 -0.219 -0.393 -0.428 -0.862 +0.043
-  adx<15 rsi35/65 sl1.4 fix0.6       235     -70  -0.2990   ❌    -0.166 -0.226 -0.143 -0.206 -0.734 -0.348
-  adx<15 rsi35/65 sl1.4 fix1.0       235     -77  -0.3280   ❌    -0.261 -0.299 -0.221 -0.183 -0.695 -0.287
-  adx<15 rsi35/65 sl1.4 fix1.5       235     -94  -0.3982   ❌    -0.405 -0.371 -0.514 +0.002 -0.792 -0.152
-  adx<15 rsi35/65 sl1.4 MID          203     -76  -0.3745   ❌    -0.592 -0.056 -0.359 -0.180 -0.847 -0.138
-  adx<15 rsi30/70 sl1 fix0.6         147     -62  -0.4230   ❌    -0.170 -0.108 -0.270 -0.578 -1.077 -0.423
-  adx<15 rsi30/70 sl1 fix1.0         147     -70  -0.4774   ❌    -0.303 -0.198 -0.283 -0.512 -1.092 -0.564
-  adx<15 rsi30/70 sl1 fix1.5         147     -80  -0.5455   ❌    -0.470 -0.327 -0.450 -0.456 -1.129 -0.387
-  adx<15 rsi30/70 sl1 MID            142     -70  -0.4944   ❌    -0.536 -0.034 -0.532 -0.581 -1.245 +0.086
-  adx<15 rsi30/70 sl1.4 fix0.6       147     -54  -0.3696   ❌    -0.124 -0.052 -0.147 -0.517 -0.986 -0.554
-  adx<15 rsi30/70 sl1.4 fix1.0       147     -62  -0.4240   ❌    -0.257 -0.142 -0.347 -0.450 -0.912 -0.507
-  adx<15 rsi30/70 sl1.4 fix1.5       147     -75  -0.5091   ❌    -0.320 -0.271 -0.630 -0.256 -1.097 -0.330
-  adx<15 rsi30/70 sl1.4 MID          139     -65  -0.4705   ❌    -0.503 +0.023 -0.473 -0.474 -1.213 -0.113
-  adx<20 rsi35/65 sl1 fix0.6         371    -135  -0.3635   ❌    -0.245 -0.256 -0.346 -0.380 -0.494 -0.499
-  adx<20 rsi35/65 sl1 fix1.0         371    -173  -0.4670   ❌    -0.442 -0.380 -0.542 -0.435 -0.510 -0.499
-  adx<20 rsi35/65 sl1 fix1.5         371    -190  -0.5115   ❌    -0.573 -0.409 -0.550 -0.400 -0.723 -0.308
-  adx<20 rsi35/65 sl1 MID            347    -158  -0.4555   ❌    -0.584 -0.121 -0.575 -0.507 -0.635 -0.201
-  adx<20 rsi35/65 sl1.4 fix0.6       371    -116  -0.3113   ❌    -0.151 -0.221 -0.305 -0.287 -0.464 -0.483
-  adx<20 rsi35/65 sl1.4 fix1.0       371    -136  -0.3663   ❌    -0.336 -0.292 -0.385 -0.301 -0.508 -0.350
-  adx<20 rsi35/65 sl1.4 fix1.5       371    -163  -0.4383   ❌    -0.523 -0.314 -0.523 -0.206 -0.693 -0.255
-  adx<20 rsi35/65 sl1.4 MID          331    -117  -0.3541   ❌    -0.512 -0.033 -0.380 -0.304 -0.585 -0.200
-  adx<20 rsi30/70 sl1 fix0.6         251     -99  -0.3948   ❌    -0.213 -0.146 -0.263 -0.486 -0.612 -0.697
-  adx<20 rsi30/70 sl1 fix1.0         251    -117  -0.4666   ❌    -0.395 -0.098 -0.508 -0.454 -0.628 -0.748
-  adx<20 rsi30/70 sl1 fix1.5         251    -143  -0.5701   ❌    -0.508 -0.217 -0.599 -0.454 -0.929 -0.619
-  adx<20 rsi30/70 sl1 MID            243    -130  -0.5360   ❌    -0.574 +0.078 -0.580 -0.667 -0.915 -0.416
-  adx<20 rsi30/70 sl1.4 fix0.6       251     -91  -0.3624   ❌    -0.167 -0.087 -0.231 -0.421 -0.586 -0.745
-  adx<20 rsi30/70 sl1.4 fix1.0       251    -112  -0.4468   ❌    -0.349 -0.182 -0.395 -0.443 -0.677 -0.629
-  adx<20 rsi30/70 sl1.4 fix1.5       251    -135  -0.5373   ❌    -0.456 -0.218 -0.531 -0.389 -0.950 -0.564
-  adx<20 rsi30/70 sl1.4 MID          239    -114  -0.4759   ❌    -0.528 +0.039 -0.381 -0.555 -0.883 -0.405
+── A) DONCHIAN 5m BREAKOUT (Donchian-N high/low, SL=1.4×ATR20) ──
+  Exits: ladder ⅓@0.6R/⅓@1.0R/⅓@1.6R, max hold 24h (288 bars)
+  DW=15 [GROSS(0fee)]: n=43485  avgR=-0.0238  totR=-1033  ❌  wins=-0.017 -0.031
+  DW=15 [taker(0.05%)]: n=43485  avgR=-0.3729  totR=-16215  ❌  wins=-0.353 -0.394
+  DW=15 [maker(0.02%)]: n=43485  avgR=-0.1319  totR=-5737  ❌  wins=-0.122 -0.143
 
-  best by totR: adx<15 rsi30/70 sl1.4 fix0.6 → -54R, all6=❌
-  DEPLOY BAR: positive in ALL 6 windows AND n large enough to trust (this
-  is one symbol, so even a passing config here is "promising, watch
-  further with more history," not proof at CRYPTO_40 confidence.
+  DW=25 [GROSS(0fee)]: n=26749  avgR=-0.0427  totR=-1143  ❌  wins=-0.038 -0.048
+  DW=25 [taker(0.05%)]: n=26749  avgR=-0.3965  totR=-10607  ❌  wins=-0.380 -0.414
+  DW=25 [maker(0.02%)]: n=26749  avgR=-0.1527  totR=-4086  ❌  wins=-0.145 -0.161
+
+  DW=40 [GROSS(0fee)]: n=16936  avgR=-0.0319  totR=-540  ❌  wins=-0.023 -0.042
+  DW=40 [taker(0.05%)]: n=16936  avgR=-0.3896  totR=-6599  ❌  wins=-0.368 -0.412
+  DW=40 [maker(0.02%)]: n=16936  avgR=-0.1424  totR=-2412  ❌  wins=-0.130 -0.155
+
+  DW=75 [GROSS(0fee)]: n=9292  avgR=-0.0419  totR=-389  ❌  wins=-0.031 -0.053
+  DW=75 [taker(0.05%)]: n=9292  avgR=-0.3925  totR=-3648  ❌  wins=-0.370 -0.417
+  DW=75 [maker(0.02%)]: n=9292  avgR=-0.1511  totR=-1404  ❌  wins=-0.137 -0.166
+
+
+── B) RSI MEAN-REVERSION 5m (SL=1.4×ATR20, TP=0.6R quick, max 2h) ──
+  v53bt showed RSI extremes = CONTINUATION on 1h — testing if 5m differs
+  RSI30/70 [GROSS(0fee)]: n=67277  avgR=+0.0107  totR=+721  ✅  wins=+0.008 +0.013
+  RSI30/70 [taker(0.05%)]: n=67277  avgR=-0.3240  totR=-21798  ❌  wins=-0.312 -0.336
+
+  RSI25/75 [GROSS(0fee)]: n=40387  avgR=+0.0073  totR=+294  ❌  wins=-0.001 +0.016
+  RSI25/75 [taker(0.05%)]: n=40387  avgR=-0.3207  totR=-12953  ❌  wins=-0.315 -0.326
+
+  RSI20/80 [GROSS(0fee)]: n=21428  avgR=+0.0082  totR=+175  ❌  wins=-0.000 +0.016
+  RSI20/80 [taker(0.05%)]: n=21428  avgR=-0.3105  totR=-6653  ❌  wins=-0.306 -0.315
+
+
+── C) REFERENCE — DONCH4H 4h baseline (same 10 coins, same period) ──
+  DONCH4H-4h (ADX>22) [taker(0.05%)]: n=1060  avgR=-0.0041  totR=-4  ❌  wins=+0.064 -0.075
+
+  DEPLOY BAR: gross avgR >> 0.10R (enough to survive real fees of ~0.05R+ overhead)
+  NOTE: 12m / 2 windows only — research quality. Need 36m/6 windows for deployment.
