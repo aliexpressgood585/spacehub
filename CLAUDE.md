@@ -272,6 +272,17 @@ so win-rate alone (58%, close to crypto's ~66%) doesn't translate to edge —
 the R-multiple distribution is what breaks. Gold CLOSED on this engine; would
 need a fundamentally different (probably mean-reversion or much-slower-signal)
 approach to have a chance, which is new-research-from-scratch, not a quick add.
+v76bt (2026-07-13, user-requested): 5m GROSS EDGE RESEARCH — decisive
+rejection of ALL 5m signal families. (A) Donchian 5m: DW=15/25/40/75 ALL
+NEGATIVE even gross/fee=0 (avgR -0.024 to -0.043R) — no edge exists at the
+signal level, not a fee problem. (B) RSI mean-reversion 5m: tiny gross signal
+(RSI30/70 +0.011R) but 30× smaller than real fee drag (0.33R/trade) — not
+viable even with maker-only fills. CONCLUSION: 4h is the confirmed sweet spot;
+nothing below it has structural edge. Note: DONCH4H 4h reference on the SAME
+12-month window shows -0.004R (choppy period) — confirms the period was
+challenging for trend-following across all timeframes, yet 5m was WORSE even
+on gross. 5m axis CLOSED.
+
 v75bt (2026-07-13, user-requested follow-up): GOLD MEAN-REVERSION, the
 "fundamentally different approach" v74bt flagged as the only remaining chance
 for gold. Tested BB(20,2)/RSI fade gated to low-ADX ranging regime, PAXG only
