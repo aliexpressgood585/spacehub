@@ -251,6 +251,27 @@ v54bt rule-5, mean-reversion = many, funding arb = v67bt, 3rd sleeve exhausted).
 Its real value is OPERATIONAL (live-transition prep: tests, security audit,
 Sharpe/DD go-live gates, dashboard risk metrics Sortino/Calmar/Omega + equity-vs-
 BTC) — not new strategy edge.
+v74bt (2026-07-13, user-requested): GOLD SLEEVE pre-validation. Ran the
+UNCHANGED proven DONCH4H engine (Donchian-15/ADX22/1.4×ATR stop/ladder) on
+PAXG+XAUT (Binance gold-backed tokens) instead of CRYPTO_40 — testing whether
+trend-following transfers to gold and whether it's a genuinely uncorrelated
+diversifier. RESULT: REJECTED, decisively. n=343 (PAXG 315, XAUT 28 — XAUT has
+much shorter Binance history), WR=58.3% (reasonable) but avgR=-0.089R
+(NEGATIVE) — losers outsize winners on average, the opposite of crypto where
+the trailing-exit ladder harvests fat-tailed trending moves. Only 2/6 windows
+positive (w1 -0.371, w4 -0.246 — two bad windows, not a fluke). INTERESTING
+FINDING: the diversification hypothesis was RIGHT — correlation of the gold-
+sleeve's daily R to BTC's daily return = -0.047 (essentially zero, confirms
+gold's macro drivers — real rates/dollar — are genuinely unrelated to crypto
+momentum). But an uncorrelated LOSING strategy has no value; correlation only
+matters once a sleeve clears the profitability bar, and this one doesn't.
+LESSON: our Donchian+trailing-ladder engine is tuned to crypto's violent,
+fat-tailed trend character (liquidation cascades, leverage-driven overshoots);
+gold's calmer, macro-driven price action doesn't have the same payoff shape,
+so win-rate alone (58%, close to crypto's ~66%) doesn't translate to edge —
+the R-multiple distribution is what breaks. Gold CLOSED on this engine; would
+need a fundamentally different (probably mean-reversion or much-slower-signal)
+approach to have a chance, which is new-research-from-scratch, not a quick add.
 
 ## Current state (2026-07-12)
 - Live: **v55.0** — LIVE EXECUTION ADAPTER (Bybit v5), triple-locked OFF:
