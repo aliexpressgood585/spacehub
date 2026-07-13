@@ -5824,9 +5824,232 @@ function main() {
     runV74bt()
     return
   }
+// ── v76bt: 5m GROSS EDGE RESEARCH ──────────────────────────────────────────
+// Purpose: answer "does any edge exist on 5m BEFORE fees?" for two signal
+// families: Donchian breakout and RSI mean-reversion.  Run with and without
+// fees/slippage so the user can see exactly how much margin fees eat.
+// Data: top-10 coins (BTC ETH SOL BNB XRP DOGE ADA AVAX LINK DOT), 12 months.
+// Note: 12 months = 2 walk-forward windows (not 6) — research quality only;
+// nothing deploys from this without the standard 36-month 6-window gate.
+function runV76bt() {
+  const COINS_5M = ['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','DOT']
+  const REAL_FEE = 0.0005, REAL_SLIP = 0.0003   // taker + adverse slippage
+  const MAKER_FEE = 0.0002                        // maker-only scenario
+  const BAR5M = 300_000                           // 5 min in ms
+  const MAX_HOLD_5M = 288                         // 24h = 288 × 5m bars
+
+  // Load 5m data
+  const d5m: Record<string,Bar[]> = {}
+  let tmin=Infinity, tmax=-Infinity
+  for (const c of COINS_5M) {
+    const bars = loadCSV(c, '5m')
+    if (bars.length < 500) { console.log(`  SKIP ${c}: only ${bars.length} 5m bars`); continue }
+    d5m[c] = bars
+    tmin = Math.min(tmin, bars[0].t)
+    tmax = Math.max(tmax, bars[bars.length-1].t)
+  }
+  const loaded = Object.keys(d5m)
+  const days = ((tmax - tmin) / 86_400_000).toFixed(0)
+  const NW = 2  // 2 half-year windows (12m of data)
+  const wSpan = (tmax - tmin) / NW
+  const winOf = (t:number) => Math.min(NW-1, Math.max(0, Math.floor((t-tmin)/wSpan)))
+  console.log(`  loaded ${loaded.length} coins, ${days} days, ${NW} windows`)
+  console.log(`  5m bars per coin: ~${Object.values(d5m)[0]?.length ?? 0}`)
+
+  type Tr = { r: number; win: number; slPct: number }
+
+  // helper: run one exit simulation from entry bar i, given slDist & dir
+  function exitTrade(bars: Bar[], i: number, side: 'LONG'|'SHORT', slDist: number,
+                     fee: number, slip: number): Tr {
+    const dirM = side === 'LONG' ? 1 : -1
+    const entry = bars[i].close * (1 + dirM * slip)  // adverse fill
+    const slPx = entry - slDist * dirM
+    // Ladder: ⅓ @ 0.6R, ⅓ @ 1.0R, ⅓ @ 1.6R (same as DONCH4H)
+    const tp1 = entry + slDist * 0.6 * dirM
+    const tp2 = entry + slDist * 1.0 * dirM
+    const tp3 = entry + slDist * 1.6 * dirM
+    let filled1=false, filled2=false, pnl=0
+    const slPct = slDist / entry
+    const jEnd = Math.min(i + MAX_HOLD_5M, bars.length - 1)
+    for (let j = i+1; j <= jEnd; j++) {
+      const b = bars[j]
+      // check SL first (adverse)
+      if (side==='LONG'?b.low<=slPx:b.high>=slPx) {
+        const frac1 = filled1 ? 0 : 1/3, frac2 = filled2 ? 0 : (filled1 ? 2/3 : 2/3)
+        const remFrac = 1 - (filled1?1/3:0) - (filled2?1/3:0)
+        pnl += remFrac * -1.0  // lose 1R on remainder
+        const rVal = pnl - fee * 2 / slPct
+        return { r: rVal, win: winOf(bars[i].t), slPct }
+      }
+      if (!filled1 && (side==='LONG'?b.high>=tp1:b.low<=tp1)) {
+        filled1=true; pnl += (1/3) * 0.6  // bank ⅓ at 0.6R
+      }
+      if (filled1 && !filled2 && (side==='LONG'?b.high>=tp2:b.low<=tp2)) {
+        filled2=true; pnl += (1/3) * 1.0
+      }
+      if (filled1 && filled2 && (side==='LONG'?b.high>=tp3:b.low<=tp3)) {
+        pnl += (1/3) * 1.6
+        const rVal = pnl - fee * 2 / slPct
+        return { r: rVal, win: winOf(bars[i].t), slPct }
+      }
+    }
+    // timeout: close at last price
+    const exitPx = bars[jEnd].close * (1 - dirM * slip)
+    const remFrac = 1 - (filled1?1/3:0) - (filled2?1/3:0)
+    pnl += remFrac * ((exitPx - entry) * dirM / slDist)
+    const rVal = pnl - fee * 2 / slPct
+    return { r: rVal, win: winOf(bars[i].t), slPct }
+  }
+
+  function summarise(label: string, trades: Tr[], fee: number, slip: number) {
+    if (trades.length === 0) { console.log(`  ${label}: n=0`); return }
+    const n = trades.length
+    const tot = trades.reduce((s,t)=>s+t.r, 0)
+    const avg = tot/n
+    const byWin = Array.from({length:NW}, (_,w)=>{
+      const wt = trades.filter(t=>t.win===w)
+      return wt.length ? wt.reduce((s,t)=>s+t.r,0)/wt.length : 0
+    })
+    const allPos = byWin.every(r=>r>0)
+    const feeNote = fee===0 ? 'GROSS(0fee)' : fee===MAKER_FEE ? 'maker(0.02%)' : 'taker(0.05%)'
+    const winStr = byWin.map(r=>r>=0?`+${r.toFixed(3)}`:`${r.toFixed(3)}`).join(' ')
+    console.log(`  ${label} [${feeNote}]: n=${n}  avgR=${avg>=0?'+':''}${avg.toFixed(4)}  totR=${tot>=0?'+':''}${tot.toFixed(0)}  ${allPos?'✅':'❌'}  wins=${winStr}`)
+  }
+
+  // ── PART A: DONCHIAN 5m BREAKOUT ─────────────────────────────────────────
+  console.log(`\n── A) DONCHIAN 5m BREAKOUT (Donchian-N high/low, SL=1.4×ATR20) ──`)
+  console.log(`  Exits: ladder ⅓@0.6R/⅓@1.0R/⅓@1.6R, max hold 24h (288 bars)`)
+
+  for (const dw of [15, 25, 40, 75]) {
+    const tradesGross: Tr[] = [], tradesReal: Tr[] = [], tradesMaker: Tr[] = []
+    const warmup = Math.max(dw + 1, 40)
+    for (const sym of loaded) {
+      const bars = d5m[sym]
+      let lastEntryBar = -99
+      for (let i = warmup; i < bars.length - MAX_HOLD_5M - 1; i++) {
+        // Donchian: N bars BEFORE current (completed bars)
+        const prior = bars.slice(i - dw, i)
+        const hiN = Math.max(...prior.map(b => b.high))
+        const loN = Math.min(...prior.map(b => b.low))
+        const cur = bars[i]
+        const side: 'LONG'|'SHORT'|null =
+          cur.close > hiN ? 'LONG' : cur.close < loN ? 'SHORT' : null
+        if (!side) continue
+        if (i - lastEntryBar < dw) continue  // cooldown = DW bars (same logic as 4h)
+        const atr = calcATR(bars.slice(i - 20, i))
+        if (!atr) continue
+        const slDist = Math.max(atr * 1.4, cur.close * 0.003)
+        const slPct = slDist / cur.close
+        if (slPct > 0.08 || slPct < 0.0005) continue
+        lastEntryBar = i
+        tradesGross.push(exitTrade(bars, i, side, slDist, 0, 0))
+        tradesReal.push(exitTrade(bars, i, side, slDist, REAL_FEE, REAL_SLIP))
+        tradesMaker.push(exitTrade(bars, i, side, slDist, MAKER_FEE, 0))
+      }
+    }
+    const label = `DW=${dw}`
+    summarise(label, tradesGross, 0, 0)
+    summarise(label, tradesReal, REAL_FEE, REAL_SLIP)
+    summarise(label, tradesMaker, MAKER_FEE, 0)
+    console.log(``)
+  }
+
+  // ── PART B: RSI MEAN-REVERSION 5m ────────────────────────────────────────
+  console.log(`\n── B) RSI MEAN-REVERSION 5m (SL=1.4×ATR20, TP=0.6R quick, max 2h) ──`)
+  console.log(`  v53bt showed RSI extremes = CONTINUATION on 1h — testing if 5m differs`)
+
+  for (const [rsiLo, rsiHi] of [[30,70],[25,75],[20,80]] as [number,number][]) {
+    const tradesGross: Tr[] = [], tradesReal: Tr[] = []
+    for (const sym of loaded) {
+      const bars = d5m[sym]
+      let lastEntry = -99
+      for (let i = 30; i < bars.length - 25; i++) {
+        const closes = bars.slice(Math.max(0,i-20), i+1).map(b=>b.close)
+        const rsi = calcRsi(closes, 14)
+        const side: 'LONG'|'SHORT'|null = rsi < rsiLo ? 'LONG' : rsi > rsiHi ? 'SHORT' : null
+        if (!side) continue
+        if (i - lastEntry < 6) continue  // 30-min cooldown
+        const atr = calcATR(bars.slice(Math.max(0,i-20), i+1))
+        if (!atr) continue
+        const slDist = atr * 1.4
+        const slPct = slDist / bars[i].close
+        if (slPct > 0.06 || slPct < 0.0003) continue
+        lastEntry = i
+        // mean-reversion: quick exit — just TP at 0.6R, SL at -1R, hold max 2h (24 bars)
+        const entry = bars[i].close
+        const dirM = side==='LONG'?1:-1
+        const tpPx = entry + slDist * 0.6 * dirM
+        const slPx = entry - slDist * dirM
+        let rVal = 0; let hit = false
+        const jEnd = Math.min(i+24, bars.length-1)
+        for (let j=i+1; j<=jEnd; j++) {
+          const b = bars[j]
+          if (side==='LONG'?b.low<=slPx:b.high>=slPx) { rVal=-1; hit=true; break }
+          if (side==='LONG'?b.high>=tpPx:b.low<=tpPx) { rVal=0.6; hit=true; break }
+        }
+        if (!hit) rVal=(bars[jEnd].close-entry)*dirM/slDist
+        const feeDrag = REAL_FEE * 2 / slPct
+        tradesGross.push({ r: rVal, win: winOf(bars[i].t), slPct })
+        tradesReal.push({ r: rVal - feeDrag, win: winOf(bars[i].t), slPct })
+      }
+    }
+    const label = `RSI${rsiLo}/${rsiHi}`
+    summarise(label, tradesGross, 0, 0)
+    summarise(label, tradesReal, REAL_FEE, REAL_SLIP)
+    console.log(``)
+  }
+
+  // ── REFERENCE: what 4h DONCH4H baseline looks like on these same 10 coins ──
+  console.log(`\n── C) REFERENCE — DONCH4H 4h baseline (same 10 coins, same period) ──`)
+  const to4h = (a:Bar[]):Bar[] => {
+    const out:Bar[] = []; let cur:Bar|null = null; let bucket = -1
+    for (const b of a) {
+      const k = Math.floor(b.t/14400000)
+      if (k!==bucket) { if (cur) out.push(cur); bucket=k
+        cur = {t:k*14400000, open:b.open, high:b.high, low:b.low, close:b.close, vol:b.vol} }
+      else if (cur) { cur.high=Math.max(cur.high,b.high); cur.low=Math.min(cur.low,b.low); cur.close=b.close; cur.vol+=b.vol }
+    }
+    if (cur) out.push(cur)
+    return out
+  }
+  const ref4h: Tr[] = []
+  for (const sym of loaded) {
+    const h1 = loadCSV(sym, '1h')
+    if (h1.length < 200) continue
+    const bars = to4h(h1)
+    let lastEntry = -99
+    for (let i = 40; i < bars.length - 20; i++) {
+      const prior = bars.slice(i-15, i)
+      const hiN = Math.max(...prior.map(b=>b.high))
+      const loN = Math.min(...prior.map(b=>b.low))
+      const side: 'LONG'|'SHORT'|null =
+        bars[i].close > hiN ? 'LONG' : bars[i].close < loN ? 'SHORT' : null
+      if (!side) continue
+      const adx = calcADX(bars.slice(Math.max(0,i-60), i+1))
+      if (adx <= 22) continue
+      if (i - lastEntry < 2) continue
+      const atr = calcATR(bars.slice(i-20, i+1))
+      if (!atr) continue
+      const slDist = Math.max(atr*1.4, bars[i].close*0.005)
+      const slPct = slDist/bars[i].close
+      if (slPct > 0.08) continue
+      lastEntry = i
+      ref4h.push(exitTrade(bars, i, side, slDist, REAL_FEE, REAL_SLIP))
+    }
+  }
+  summarise('DONCH4H-4h (ADX>22)', ref4h, REAL_FEE, REAL_SLIP)
+  console.log(`\n  DEPLOY BAR: gross avgR >> 0.10R (enough to survive real fees of ~0.05R+ overhead)`)
+  console.log(`  NOTE: 12m / 2 windows only — research quality. Need 36m/6 windows for deployment.`)
+}
+
   if (Deno.env.get('BT_MODE') === 'v75bt') {
     console.log(`████ V75BT — GOLD MEAN-REVERSION (PAXG only, BB/RSI fade in low-ADX regime) ████`)
     runV75bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v76bt') {
+    console.log(`████ V76BT — 5m GROSS EDGE RESEARCH (Donchian breakout + RSI mean-reversion, fees=0 vs real) ████`)
+    runV76bt()
     return
   }
 
