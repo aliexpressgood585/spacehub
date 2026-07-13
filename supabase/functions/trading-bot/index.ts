@@ -1,4 +1,15 @@
 // ════════════════════════════════════════════════════════════
+// CryptoBot v56.0 — Portfolio Heat Limit (capital-safety guardrail)
+//
+// v56.0: MAX_HEAT_PCT=0.95 — DONCH4H entry is trimmed/skipped when total
+//  open notional (ROTA 70% book + all DONCH4H positions combined) would
+//  exceed 95% of portfolio value. Closes the over-allocation gap where both
+//  strategies firing simultaneously pushed total notional to ~115% of account,
+//  forcing a negative free balance. Capital-safety guard in the same category
+//  as the daily-loss limit (v50) and liquidity guard (v54): trims to fit;
+//  skips (heat_limit in bot_skips) only when < $500 remains. No backtest
+//  change needed — this guard is a live-trading safeguard only.
+//
 // CryptoBot v55.0 — LIVE EXECUTION ADAPTER (Bybit v5) — triple-locked, OFF by default
 //
 // v55.0: the execution seam of EXECUTION_MODEL.md, implemented. Five seam
@@ -488,6 +499,7 @@ const STREAK_PAUSE_MS = 30*60_000   // v40: 2h→30min — trade more, but still
 const MAX_NOTIONAL_PCT= 0.20        // kept for reference; not used as hard cap in notional calc
 const MAX_OPEN_TRADES = 30          // v40: 20→30 — the 75-gate is the quality limiter, not this cap
 const MAX_TOTAL_EXPOSURE_PCT = 1.0  // 100% — no idle cash
+const MAX_HEAT_PCT        = 0.95  // v56: total open notional / portfolio cap (both strategies combined)
 const FUNDING_EXTREME = 0.0003
 const MIN_SL_PCT      = 0.005
 const SYM_COOLDOWN_MS = 8*60*60_000  // v41: 8h (2 4h-bars) between entries per coin — matches backtest SPACING
@@ -3385,8 +3397,19 @@ Deno.serve(async (req) => {
             notional4 = quoteVol24h * 0.005
             log.push(`LIQ_CAP ${sym}: notional capped to $${notional4.toFixed(0)} (0.5% of 24h vol)`)
           }
+          // v56: Portfolio Heat Limit — prevent total open notional (DONCH4H + ROTA
+          // combined) from exceeding 95% of portfolio value. Fires when ROTA's 70% book
+          // + several DONCH4H positions are open simultaneously. Trims entry to fit;
+          // skips only if remaining room < $500.
+          const heatRoom = Math.max(0, totPort4 * MAX_HEAT_PCT - curExp4)
+          if (notional4 > heatRoom) {
+            notional4 = heatRoom
+            if (heatRoom >= 500) log.push(`HEAT_CAP ${sym}: notional trimmed to $${heatRoom.toFixed(0)} (heat=${(curExp4/Math.max(totPort4,1)*100).toFixed(0)}%)`)
+          }
           if (notional4 < 500) {
-            if (msInto4h < 120_000) logSkip(sym,'DONCH4H','too_small_or_liq_cap',{notional:+notional4.toFixed(0), vol24h:+quoteVol24h.toFixed(0)})
+            const isHeat = heatRoom < 500
+            if (msInto4h < 120_000) logSkip(sym,'DONCH4H', isHeat ? 'heat_limit' : 'too_small_or_liq_cap',
+              {notional:+notional4.toFixed(0), vol24h:+quoteVol24h.toFixed(0), heatPct:+(curExp4/Math.max(totPort4,1)*100).toFixed(0)})
             return
           }
           const sideExp4 = (allOpen||[]).reduce((acc:{l:number,s:number}, x:any) => {

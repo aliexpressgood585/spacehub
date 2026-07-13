@@ -291,8 +291,14 @@ choice. GOLD AXIS CLOSED — would need a non-technical edge (e.g. real
 order-flow/liquidity data on PAXG, or a different gold-tracking instrument
 with deeper Binance history) to be worth revisiting, not another signal test.
 
-## Current state (2026-07-12)
-- Live: **v55.0** — LIVE EXECUTION ADAPTER (Bybit v5), triple-locked OFF:
+## Current state (2026-07-13)
+- Live: **v56.0** — Portfolio Heat Limit: MAX_HEAT_PCT=0.95 caps total open
+  notional (ROTA + DONCH4H combined) at 95% of portfolio value. Closes the
+  over-allocation gap where both strategies firing simultaneously pushed
+  notional to ~115% of account (negative free balance). DONCH4H entry is
+  trimmed to fit the remaining heat room; skipped (heat_limit in bot_skips)
+  only if < $500 remains. Pure capital-safety guardrail, no strategy change.
+- Previous: **v55.0** — LIVE EXECUTION ADAPTER (Bybit v5), triple-locked OFF:
   keys secrets + paper_mode=false + LIVE_TRADING='1' (repo variable, currently
   unset/0). Five seam points route to real orders when armed; reconciliation
   (exchange-vs-DB) every 5 min alert-only; legacy 5m engine hard-disabled in
