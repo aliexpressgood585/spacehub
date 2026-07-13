@@ -272,6 +272,24 @@ so win-rate alone (58%, close to crypto's ~66%) doesn't translate to edge —
 the R-multiple distribution is what breaks. Gold CLOSED on this engine; would
 need a fundamentally different (probably mean-reversion or much-slower-signal)
 approach to have a chance, which is new-research-from-scratch, not a quick add.
+v75bt (2026-07-13, user-requested follow-up): GOLD MEAN-REVERSION, the
+"fundamentally different approach" v74bt flagged as the only remaining chance
+for gold. Tested BB(20,2)/RSI fade gated to low-ADX ranging regime, PAXG only
+(XAUT's ~96-day Binance history can't support a 6-window walk-forward — that's
+a hard data-availability ceiling, not a param-search problem). 32-config grid
+(ADX<15/20, RSI 30/70 & 35/65, SL 1.0×/1.4×ATR, 4 exit shapes). RESULT:
+REJECTED — more decisively than v74bt. ALL 32 configs negative, zero exceptions
+(best totR=-54R). Window 5 was catastrophic across nearly every config
+(-0.4R to -1.2R) — one bad regime hurt every parameter combo, not a tuning
+issue. CONCLUSION: gold on Binance (PAXG) doesn't work with EITHER
+trend-following (v74bt) OR mean-reversion (v75bt) at our real-fee/3bps-slip
+assumptions. Both of the two standard technical playbooks failed decisively on
+the same instrument — this is a strong signal the instrument itself (thin
+liquidity, or PAXG's price discovery lagging physical gold NAV updates rather
+than trading like a normal continuous market) is the problem, not the signal
+choice. GOLD AXIS CLOSED — would need a non-technical edge (e.g. real
+order-flow/liquidity data on PAXG, or a different gold-tracking instrument
+with deeper Binance history) to be worth revisiting, not another signal test.
 
 ## Current state (2026-07-12)
 - Live: **v55.0** — LIVE EXECUTION ADAPTER (Bybit v5), triple-locked OFF:
