@@ -5419,6 +5419,126 @@ function runV73bt() {
   console.log(`  parameter (k) that can overfit — needs a clear, robust win to justify.`)
 }
 
+// v74bt: GOLD SLEEVE PRE-VALIDATION. Runs the exact PROVEN DONCH4H engine
+// (Donchian-15 on 4h closes, ADX(60)>22 gate, SL=1.4×ATR, ⅓@0.6R/⅓@1.0R/
+// trail-2.5×ATR ladder, real fees + 3bps slip) unchanged — just pointed at
+// PAXG/XAUT (Binance gold-backed tokens) instead of CRYPTO_40. Question:
+// does the trend-following playbook (originally a commodities technique —
+// Donchian/Turtle was invented on grain/gold futures, not crypto) transfer
+// to gold? If it passes the walk-forward bar, it's a candidate ADDITIVE
+// sleeve (new symbols, doesn't touch existing trades = rule-5 safe) AND
+// a genuinely uncorrelated diversifier (gold's macro drivers — real rates,
+// dollar, inflation — are unrelated to crypto momentum). Small-sample
+// caveat: only 1-2 symbols vs CRYPTO_40's breadth, so noise is higher and
+// the all-6-windows bar is intrinsically harder to clear on N alone.
+function runV74bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000, SLIP=0.0003
+  const toTf=(a:Bar[],ms:number):Bar[]=>{
+    const out:Bar[]=[]; let cur:Bar|null=null; let bucket=-1
+    for(const b of a){const k=Math.floor(b.t/ms)
+      if(k!==bucket){if(cur)out.push(cur);bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol}}
+      else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol}}
+    if(cur)out.push(cur);return out}
+
+  const GOLD=['PAXG','XAUT']
+  const d4:Record<string,Bar[]>={}
+  let tmin=Infinity,tmax=-Infinity
+  for(const c of GOLD){const h=loadCSV(c,'1h')
+    console.log(`  ${c}: ${h.length} raw 1h bars loaded`)
+    if(h.length<200)continue
+    d4[c]=toTf(h,BAR4);tmin=Math.min(tmin,h[0].t);tmax=Math.max(tmax,h[h.length-1].t)}
+  if(Object.keys(d4).length===0){
+    console.log(`\n  NO GOLD DATA FOUND on Binance archive (futures or spot) for ${GOLD.join('/')}.`)
+    console.log(`  Cannot validate — the symbols may not have monthly-archive history,`)
+    console.log(`  or the fetch step found nothing. Check fetch-gold.sh output above.`)
+    return
+  }
+  const btc1h=loadCSV('BTC','1h')
+  const btc4h=btc1h.length>200?toTf(btc1h,BAR4):[]
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  console.log(`\n  loaded ${Object.keys(d4).length}/${GOLD.length} gold symbols, ${NW} windows, span=${((tmax-tmin)/86400000).toFixed(0)}d`)
+
+  const ladder=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,atr:number,jEnd:number)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const legs=[{r:0.6,frac:1/3},{r:1.0,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0,ext=entry
+    for(let j=j0+1;j<=jEndc;j++){const b=arr[j]
+      const stop=si>=2?(side==='LONG'?ext-2.5*atr:ext+2.5*atr):(be?entry:slPx)
+      if(side==='LONG'?b.low<=stop:b.high>=stop){banked+=rem*(si>=2?(stop-entry)*dirM/slDist:(be?0:-1));rem=0;break}
+      while(si<legs.length){const tgt=entry+slDist*legs[si].r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=legs[si].frac*legs[si].r;tpFrac+=legs[si].frac;rem-=legs[si].frac;be=true;si++}
+      if(si>=2)ext=side==='LONG'?Math.max(ext,b.high):Math.min(ext,b.low)
+      if(rem<=1e-9)break}
+    if(rem>1e-9)banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return {r:banked,tpFrac}}
+
+  type Trade={t:number,sym:string,side:string,net:number}
+  const trades:Trade[]=[]
+  const ws:{n:number,sum:number}[]=Array.from({length:NW},()=>({n:0,sum:0}))
+  for(const c of Object.keys(d4)){
+    const arr=d4[c];let last=-999
+    for(let i=100;i<arr.length-1;i++){
+      const price=arr[i].close
+      const prior=arr.slice(i-15,i);let hi=-Infinity,lo=Infinity
+      for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+      const side:'LONG'|'SHORT'|null=price>hi?'LONG':price<lo?'SHORT':null
+      if(!side)continue
+      const win=arr.slice(Math.max(0,i-99),i+1)
+      const adx=calcADX(win.slice(-60));if(adx<=22)continue
+      const atr=calcATR(win.slice(-20));if(!atr)continue
+      if(i-last<2)continue
+      last=i
+      const slDist=Math.max(atr*1.4,price*0.005),slPct=slDist/price
+      if(slPct>0.08)continue
+      const res=ladder(arr,i,price,side,slDist,atr,i+96)
+      const slipR=(1+(1-res.tpFrac))*SLIP/slPct
+      const net=res.r-(TK+res.tpFrac*MK+(1-res.tpFrac)*TK)/slPct-slipR
+      trades.push({t:arr[i].t,sym:c,side,net})
+      const w=ws[winOf(arr[i].t)];w.n++;w.sum+=net}
+  }
+  const tot=ws.reduce((a,x)=>({n:a.n+x.n,sum:a.sum+x.sum}),{n:0,sum:0})
+  const wA=ws.map(x=>x.n?x.sum/x.n:0)
+  const wins=trades.filter(t=>t.net>0).length
+
+  console.log(`\n── GOLD SLEEVE (Donchian-15/ADX22, unchanged DONCH4H engine) ──`)
+  console.log(`  n=${tot.n}  WR=${trades.length?(wins/trades.length*100).toFixed(1):'—'}%  totR=${tot.sum.toFixed(1)}  avgR=${tot.n?(tot.sum/tot.n).toFixed(4):'—'}`)
+  console.log(`  windows: ${wA.map(x=>(x>=0?'+':'')+x.toFixed(3)).join(' ')}  all6=${wA.every(x=>x>0)?'✅':'❌'}`)
+  for(const c of Object.keys(d4)){
+    const ct=trades.filter(t=>t.sym===c)
+    const cw=ct.filter(t=>t.net>0).length
+    console.log(`  ${c}: n=${ct.length} WR=${ct.length?(cw/ct.length*100).toFixed(1):'—'}% totR=${ct.reduce((a,t)=>a+t.net,0).toFixed(1)}`)
+  }
+
+  // correlation check: daily gold-sleeve trade-day net R vs BTC daily return
+  // (only meaningful if we have both — informs "uncorrelated diversifier" claim)
+  if(btc4h.length>200 && trades.length>10){
+    const dayR:Record<number,number>={}
+    for(const t of trades){const d=Math.floor(t.t/86400000);dayR[d]=(dayR[d]||0)+t.net}
+    const btcDay:Record<number,number>={}
+    for(let i=1;i<btc4h.length;i++){const d=Math.floor(btc4h[i].t/86400000)
+      btcDay[d]=((btc4h[i].close-btc4h[i-1].close)/btc4h[i-1].close)}
+    const days=Object.keys(dayR).map(Number).filter(d=>btcDay[d]!==undefined)
+    if(days.length>20){
+      const gx=days.map(d=>dayR[d]),by=days.map(d=>btcDay[d])
+      const mg=gx.reduce((a,x)=>a+x,0)/gx.length, mb=by.reduce((a,x)=>a+x,0)/by.length
+      let cov=0,vg=0,vb=0
+      for(let i=0;i<days.length;i++){cov+=(gx[i]-mg)*(by[i]-mb);vg+=(gx[i]-mg)**2;vb+=(by[i]-mb)**2}
+      const corr=cov/Math.sqrt(vg*vb||1)
+      console.log(`\n  correlation (gold-sleeve daily R vs BTC daily return, n=${days.length} days): ${corr.toFixed(3)}`)
+      console.log(`  (near 0 = genuinely uncorrelated diversifier; near ±1 = just another crypto bet)`)
+    }
+  }
+  console.log(`\n  DEPLOY BAR: same as every sleeve — positive in ALL 6 windows, beats noise`)
+  console.log(`  floor. CAVEAT: only ${Object.keys(d4).length} symbol(s) → far fewer signals than`)
+  console.log(`  CRYPTO_40's breadth, so this result is lower-confidence than a normal batch`)
+  console.log(`  even if it clears the bar — treat a pass here as "promising, watch further,"`)
+  console.log(`  not "proven," until more history/symbols accumulate.`)
+}
+
 // ─────────────────────────────────────────────────────────────
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
@@ -5605,6 +5725,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v73bt') {
     console.log(`████ V73BT — Donchian adaptive window (vol-scaled) vs fixed-15 ████`)
     runV73bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v74bt') {
+    console.log(`████ V74BT — GOLD SLEEVE pre-validation (PAXG/XAUT, unchanged DONCH4H engine) ████`)
+    runV74bt()
     return
   }
 
