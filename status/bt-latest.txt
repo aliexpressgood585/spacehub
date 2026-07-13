@@ -1,41 +1,79 @@
-backtest 2026-07-13T11:44Z mode=v76bt months=12
-████ V76BT — 5m GROSS EDGE RESEARCH (Donchian breakout + RSI mean-reversion, fees=0 vs real) ████
-  loaded 10 coins, 365 days, 2 windows
-  5m bars per coin: ~105120
+backtest 2026-07-13T12:22Z mode=v77bt months=36
+████ V77BT — 15m/30m/45m TIMEFRAME SCAN (Donchian + RSI, gross vs real, 36m/6-window) ████
+  loaded 10 coins, 1096 days, 6 windows
+  15m bars/coin: ~105216
+  30m bars/coin: ~52608
+  45m bars/coin: ~35072
 
-── A) DONCHIAN 5m BREAKOUT (Donchian-N high/low, SL=1.4×ATR20) ──
-  Exits: ladder ⅓@0.6R/⅓@1.0R/⅓@1.6R, max hold 24h (288 bars)
-  DW=15 [GROSS(0fee)]: n=43485  avgR=-0.0238  totR=-1033  ❌  wins=-0.017 -0.031
-  DW=15 [taker(0.05%)]: n=43485  avgR=-0.3729  totR=-16215  ❌  wins=-0.353 -0.394
-  DW=15 [maker(0.02%)]: n=43485  avgR=-0.1319  totR=-5737  ❌  wins=-0.122 -0.143
+── DONCHIAN BREAKOUT — gross (0fee) vs real taker vs maker ──
+   (SL=1.4×ATR20, ladder ⅓@0.6R/1.0R/1.6R, cooldown=DW bars)
 
-  DW=25 [GROSS(0fee)]: n=26749  avgR=-0.0427  totR=-1143  ❌  wins=-0.038 -0.048
-  DW=25 [taker(0.05%)]: n=26749  avgR=-0.3965  totR=-10607  ❌  wins=-0.380 -0.414
-  DW=25 [maker(0.02%)]: n=26749  avgR=-0.1527  totR=-4086  ❌  wins=-0.145 -0.161
+  ── 15m ──
+  DW=15 [GROSS]                        n= 42861  avgR=-0.0079  totR=  -337  ❌  [-0.019 -0.030 +0.002 +0.033 -0.004 -0.031]
+  DW=15 [taker]                        n= 42861  avgR=-0.2298  totR= -9851  ❌  [-0.290 -0.238 -0.195 -0.164 -0.222 -0.275]
+  DW=15 [maker]                        n= 42861  avgR=-0.0754  totR= -3230  ❌  [-0.101 -0.094 -0.059 -0.027 -0.070 -0.105]
+  DW=25 [GROSS]                        n= 26466  avgR=-0.0014  totR=   -38  ❌  [-0.031 -0.014 +0.022 +0.028 +0.000 -0.015]
+  DW=25 [taker]                        n= 26466  avgR=-0.2278  totR= -6029  ❌  [-0.299 -0.225 -0.189 -0.174 -0.221 -0.266]
+  DW=25 [maker]                        n= 26466  avgR=-0.0701  totR= -1854  ❌  [-0.114 -0.079 -0.041 -0.033 -0.067 -0.091]
+  DW=50 [GROSS]                        n= 13582  avgR=+0.0132  totR=+   180  ❌  [-0.023 -0.020 +0.048 +0.043 +0.025 +0.002]
+  DW=50 [taker]                        n= 13582  avgR=-0.2069  totR= -2810  ❌  [-0.283 -0.226 -0.155 -0.161 -0.188 -0.237]
+  DW=50 [maker]                        n= 13582  avgR=-0.0541  totR=  -735  ❌  [-0.103 -0.085 -0.013 -0.017 -0.041 -0.072]
+  DW=100 [GROSS]                       n=  6983  avgR=+0.0003  totR=+     2  ❌  [-0.098 -0.031 +0.044 +0.084 +0.001 -0.007]
+  DW=100 [taker]                       n=  6983  avgR=-0.1955  totR= -1365  ❌  [-0.338 -0.218 -0.137 -0.090 -0.181 -0.222]
+  DW=100 [maker]                       n=  6983  avgR=-0.0624  totR=  -436  ❌  [-0.172 -0.091 -0.014 +0.027 -0.060 -0.075]
+  DW=240 [GROSS]                       n=  2995  avgR=+0.0320  totR=+    96  ❌  [-0.016 -0.057 +0.065 +0.059 +0.021 +0.115]
+  DW=240 [taker]                       n=  2995  avgR=-0.1603  totR=  -480  ❌  [-0.256 -0.226 -0.107 -0.136 -0.148 -0.101]
+  DW=240 [maker]                       n=  2995  avgR=-0.0269  totR=   -81  ❌  [-0.086 -0.112 +0.012 +0.003 -0.035 +0.050]
 
-  DW=40 [GROSS(0fee)]: n=16936  avgR=-0.0319  totR=-540  ❌  wins=-0.023 -0.042
-  DW=40 [taker(0.05%)]: n=16936  avgR=-0.3896  totR=-6599  ❌  wins=-0.368 -0.412
-  DW=40 [maker(0.02%)]: n=16936  avgR=-0.1424  totR=-2412  ❌  wins=-0.130 -0.155
+  ── 30m ──
+  DW=8 [GROSS]                         n= 37849  avgR=+0.0006  totR=+    23  ❌  [-0.005 -0.028 -0.007 +0.024 +0.009 +0.009]
+  DW=8 [taker]                         n= 37849  avgR=-0.1538  totR= -5821  ❌  [-0.202 -0.169 -0.143 -0.112 -0.140 -0.160]
+  DW=8 [maker]                         n= 37849  avgR=-0.0469  totR= -1776  ❌  [-0.064 -0.072 -0.049 -0.018 -0.037 -0.043]
+  DW=15 [GROSS]                        n= 21122  avgR=-0.0025  totR=   -54  ❌  [-0.014 -0.041 -0.002 +0.032 -0.006 +0.014]
+  DW=15 [taker]                        n= 21122  avgR=-0.1598  totR= -3375  ❌  [-0.215 -0.184 -0.139 -0.111 -0.160 -0.155]
+  DW=15 [maker]                        n= 21122  avgR=-0.0504  totR= -1065  ❌  [-0.074 -0.086 -0.044 -0.010 -0.053 -0.038]
+  DW=25 [GROSS]                        n= 13064  avgR=+0.0041  totR=+    53  ❌  [-0.042 -0.001 +0.025 -0.012 +0.037 +0.014]
+  DW=25 [taker]                        n= 13064  avgR=-0.1578  totR= -2061  ❌  [-0.244 -0.153 -0.110 -0.160 -0.124 -0.163]
+  DW=25 [maker]                        n= 13064  avgR=-0.0448  totR=  -586  ❌  [-0.103 -0.047 -0.018 -0.056 -0.011 -0.039]
+  DW=50 [GROSS]                        n=  6747  avgR=+0.0111  totR=+    75  ❌  [-0.049 -0.010 +0.030 +0.044 +0.028 +0.017]
+  DW=50 [taker]                        n=  6747  avgR=-0.1383  totR=  -933  ❌  [-0.234 -0.153 -0.111 -0.088 -0.118 -0.137]
+  DW=50 [maker]                        n=  6747  avgR=-0.0353  totR=  -238  ❌  [-0.105 -0.054 -0.011 +0.002 -0.017 -0.034]
+  DW=120 [GROSS]                       n=  2924  avgR=+0.0225  totR=+    66  ❌  [-0.073 +0.021 +0.014 +0.072 +0.033 +0.058]
+  DW=120 [taker]                       n=  2924  avgR=-0.1129  totR=  -330  ❌  [-0.236 -0.107 -0.103 -0.053 -0.104 -0.089]
+  DW=120 [maker]                       n=  2924  avgR=-0.0215  totR=   -63  ❌  [-0.127 -0.019 -0.025 +0.030 -0.009 +0.010]
 
-  DW=75 [GROSS(0fee)]: n=9292  avgR=-0.0419  totR=-389  ❌  wins=-0.031 -0.053
-  DW=75 [taker(0.05%)]: n=9292  avgR=-0.3925  totR=-3648  ❌  wins=-0.370 -0.417
-  DW=75 [maker(0.02%)]: n=9292  avgR=-0.1511  totR=-1404  ❌  wins=-0.137 -0.166
+  ── 45m ──
+  DW=6 [GROSS]                         n= 32598  avgR=+0.0048  totR=+   156  ❌  [-0.022 -0.019 +0.008 +0.039 +0.000 +0.020]
+  DW=6 [taker]                         n= 32598  avgR=-0.1196  totR= -3898  ❌  [-0.176 -0.136 -0.103 -0.071 -0.123 -0.113]
+  DW=6 [maker]                         n= 32598  avgR=-0.0335  totR= -1092  ❌  [-0.070 -0.054 -0.026 +0.005 -0.037 -0.021]
+  DW=10 [GROSS]                        n= 20393  avgR=-0.0021  totR=   -42  ❌  [-0.027 -0.033 +0.018 +0.012 -0.023 +0.040]
+  DW=10 [taker]                        n= 20393  avgR=-0.1267  totR= -2583  ❌  [-0.185 -0.153 -0.093 -0.097 -0.141 -0.094]
+  DW=10 [maker]                        n= 20393  avgR=-0.0404  totR=  -824  ❌  [-0.075 -0.069 -0.015 -0.022 -0.060 -0.002]
+  DW=20 [GROSS]                        n= 10776  avgR=+0.0049  totR=+    53  ❌  [-0.010 -0.040 +0.055 -0.021 -0.003 +0.049]
+  DW=20 [taker]                        n= 10776  avgR=-0.1243  totR= -1340  ❌  [-0.171 -0.161 -0.062 -0.131 -0.131 -0.094]
+  DW=20 [maker]                        n= 10776  avgR=-0.0345  totR=  -372  ❌  [-0.060 -0.077 +0.020 -0.056 -0.041 +0.006]
+  DW=40 [GROSS]                        n=  5480  avgR=+0.0250  totR=+   137  ❌  [-0.056 +0.008 +0.060 -0.003 +0.041 +0.095]
+  DW=40 [taker]                        n=  5480  avgR=-0.0990  totR=  -543  ❌  [-0.214 -0.116 -0.045 -0.112 -0.080 -0.037]
+  DW=40 [maker]                        n=  5480  avgR=-0.0135  totR=   -74  ❌  [-0.103 -0.028 +0.025 -0.038 +0.003 +0.053]
+  DW=80 [GROSS]                        n=  2855  avgR=+0.0332  totR=+    95  ❌  [-0.062 +0.020 +0.055 +0.077 -0.014 +0.116]
+  DW=80 [taker]                        n=  2855  avgR=-0.0816  totR=  -233  ❌  [-0.198 -0.083 -0.041 -0.032 -0.139 -0.007]
+  DW=80 [maker]                        n=  2855  avgR=-0.0038  totR=   -11  ❌  [-0.108 -0.014 +0.023 +0.042 -0.050 +0.076]
+
+  ── 4h (ADX>22 gate, reference) ──
+  DW=15 [GROSS]                        n=  1777  avgR=+0.0510  totR=+    91  ❌  [+0.153 +0.050 +0.115 +0.011 +0.036 -0.049]
+  DW=15 [taker]                        n=  1777  avgR=+0.0002  totR=+     0  ❌  [+0.076 +0.008 +0.072 -0.037 -0.010 -0.101]
+  DW=15 [maker]                        n=  1777  avgR=+0.0361  totR=+    64  ❌  [+0.134 +0.037 +0.101 -0.003 +0.021 -0.065]
+
+── RSI MEAN-REVERSION 15m (gross vs taker; 30m/45m skipped — 5m=noise) ──
+  RSI30/70 [GROSS]                     n= 81830  avgR=+0.0016  totR=+   128  ❌  [+0.021 +0.016 -0.005 -0.009 -0.020 +0.009]
+  RSI30/70 [taker]                     n= 81830  avgR=-0.1655  totR=-13542  ❌  [-0.194 -0.138 -0.150 -0.159 -0.182 -0.172]
+
+  RSI25/75 [GROSS]                     n= 46140  avgR=+0.0041  totR=+   187  ❌  [+0.032 +0.005 +0.015 -0.007 -0.022 +0.006]
+  RSI25/75 [taker]                     n= 46140  avgR=-0.1572  totR= -7254  ❌  [-0.172 -0.145 -0.125 -0.153 -0.179 -0.169]
+
+  RSI20/80 [GROSS]                     n= 22710  avgR=-0.0037  totR=   -85  ❌  [+0.035 +0.003 +0.023 -0.021 -0.053 +0.004]
+  RSI20/80 [taker]                     n= 22710  avgR=-0.1589  totR= -3608  ❌  [-0.157 -0.141 -0.112 -0.164 -0.205 -0.165]
 
 
-── B) RSI MEAN-REVERSION 5m (SL=1.4×ATR20, TP=0.6R quick, max 2h) ──
-  v53bt showed RSI extremes = CONTINUATION on 1h — testing if 5m differs
-  RSI30/70 [GROSS(0fee)]: n=67277  avgR=+0.0107  totR=+721  ✅  wins=+0.008 +0.013
-  RSI30/70 [taker(0.05%)]: n=67277  avgR=-0.3240  totR=-21798  ❌  wins=-0.312 -0.336
-
-  RSI25/75 [GROSS(0fee)]: n=40387  avgR=+0.0073  totR=+294  ❌  wins=-0.001 +0.016
-  RSI25/75 [taker(0.05%)]: n=40387  avgR=-0.3207  totR=-12953  ❌  wins=-0.315 -0.326
-
-  RSI20/80 [GROSS(0fee)]: n=21428  avgR=+0.0082  totR=+175  ❌  wins=-0.000 +0.016
-  RSI20/80 [taker(0.05%)]: n=21428  avgR=-0.3105  totR=-6653  ❌  wins=-0.306 -0.315
-
-
-── C) REFERENCE — DONCH4H 4h baseline (same 10 coins, same period) ──
-  DONCH4H-4h (ADX>22) [taker(0.05%)]: n=1060  avgR=-0.0041  totR=-4  ❌  wins=+0.064 -0.075
-
-  DEPLOY BAR: gross avgR >> 0.10R (enough to survive real fees of ~0.05R+ overhead)
-  NOTE: 12m / 2 windows only — research quality. Need 36m/6 windows for deployment.
+  DEPLOY BAR: ALL 6 windows positive (gross + real). 5m was negative even GROSS.
+  DW=240 on 15m ≈ DW=15 on 4h (same ~60h lookback) — apples-to-apples reference.
