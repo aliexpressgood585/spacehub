@@ -5539,6 +5539,98 @@ function runV74bt() {
   console.log(`  not "proven," until more history/symbols accumulate.`)
 }
 
+// v75bt: GOLD MEAN-REVERSION (the honest second attempt after v74bt killed
+// trend-following on gold). Hypothesis: unlike crypto — where mean-reversion
+// was rejected repeatedly because leveraged liquidation cascades make extreme
+// RSI a CONTINUATION signal — gold isn't driven by retail leverage/liquidations.
+// It's macro-driven (real rates, dollar) and calmer, so it may genuinely
+// mean-revert in ranging regimes the way textbook BB/RSI fade assumes. Tests
+// PAXG ONLY: XAUT's Binance archive history (~96 days) is too short for a
+// 36-month/6-window walk-forward — including it would just add noise, not
+// signal, so this batch is upfront about testing a SINGLE instrument. That
+// is a real structural limit of gold's available Binance history, not
+// something more parameter search can fix — flagged in the output.
+function runV75bt() {
+  const TK=0.0005, MK=0.0002, NW=6, SLIP=0.0003, SPACING=2, MAXHOLD=48
+  const to4h=(a:Bar[]):Bar[]=>{
+    const out:Bar[]=[]; let cur:Bar|null=null; let bucket=-1
+    for(const b of a){const k=Math.floor(b.t/14400000)
+      if(k!==bucket){if(cur)out.push(cur);bucket=k
+        cur={t:k*14400000,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol}}
+      else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol}}
+    if(cur)out.push(cur);return out}
+
+  const h1=loadCSV('PAXG','1h')
+  if(h1.length<500){console.log(`  PAXG: only ${h1.length} 1h bars — insufficient. Aborting.`);return}
+  const arr=to4h(h1)
+  const tmin=arr[0].t, tmax=arr[arr.length-1].t
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  console.log(`  PAXG: ${arr.length} 4h bars, ${((tmax-tmin)/86400000).toFixed(0)} days, ${NW} windows`)
+  console.log(`  NOTE: single-instrument test (XAUT's ~96d history can't support`)
+  console.log(`  a 36-month walk-forward) — treat any pass here as low-confidence`)
+  console.log(`  vs a normal CRYPTO_40-breadth batch, regardless of the result.\n`)
+
+  const scan=(adxMax:number,rLo:number,rHi:number,slMult:number,exit:string)=>{
+    const ws:{n:number,sum:number}[]=Array.from({length:NW},()=>({n:0,sum:0}))
+    let lastIdx=-999
+    for(let i=100;i<arr.length-1;i++){
+      const win=arr.slice(Math.max(0,i-99),i+1)
+      const closes=win.map(b=>b.close)
+      const price=arr[i].close
+      const bb=calcBB(closes,20,2);if(!bb.mid)continue
+      const atr=calcATR(win.slice(-20));if(!atr)continue
+      const rsi=calcRsi(closes.slice(-15))
+      const adx=calcADX(win.slice(-60))
+      if(adx>=adxMax)continue
+      let side:'LONG'|'SHORT'|null=null
+      if(price<=bb.lower*1.005 && rsi<rLo)side='LONG'
+      else if(price>=bb.upper*0.995 && rsi>rHi)side='SHORT'
+      if(!side)continue
+      if(i-lastIdx<SPACING)continue
+      lastIdx=i
+      const dirM=side==='LONG'?1:-1
+      const slDist=Math.max(atr*slMult,price*0.005),slPct=slDist/price
+      if(slPct>0.08)continue
+      const slPx=price-slDist*dirM
+      let tgtR:number
+      if(exit==='MID'){tgtR=Math.abs(bb.mid-price)/slDist;if(tgtR<0.5)continue}
+      else tgtR=parseFloat(exit.slice(3))
+      const tpPx=price+slDist*tgtR*dirM
+      let r:number|null=null
+      const jEnd=Math.min(arr.length-1,i+MAXHOLD)
+      for(let j=i+1;j<=jEnd;j++){const b=arr[j]
+        if(side==='LONG'){if(b.low<=slPx){r=-1;break};if(b.high>=tpPx){r=tgtR;break}}
+        else{if(b.high>=slPx){r=-1;break};if(b.low<=tpPx){r=tgtR;break}}}
+      if(r===null){const last=arr[jEnd];r=((last.close-price)*dirM)/slDist}
+      const slipR=2*SLIP/slPct  // entry + exit, both taker (no maker legs in this simple exit shape)
+      const net=r-2*TK/slPct-slipR
+      const w=ws[winOf(arr[i].t)];w.n++;w.sum+=net}
+    const tot=ws.reduce((a,x)=>({n:a.n+x.n,sum:a.sum+x.sum}),{n:0,sum:0})
+    const wA=ws.map(x=>x.n?x.sum/x.n:0)
+    return {n:tot.n,avg:tot.n?tot.sum/tot.n:0,tot:tot.sum,allPos:tot.n>0&&wA.every(x=>x>0),wA}}
+
+  console.log(`  adxMax rsi      slMult exit     n     totR    avgR      all6   windows`)
+  let best:{cfg:string,tot:number,allPos:boolean}|null=null
+  for(const adxMax of [15,20]){
+    for(const [rLo,rHi] of [[35,65],[30,70]] as [number,number][]){
+      for(const slMult of [1.0,1.4]){
+        for(const exit of ['fix0.6','fix1.0','fix1.5','MID']){
+          const s=scan(adxMax,rLo,rHi,slMult,exit)
+          if(s.n<20)continue
+          const cfg=`adx<${adxMax} rsi${rLo}/${rHi} sl${slMult} ${exit}`
+          console.log(`  ${cfg.padEnd(32)} ${String(s.n).padStart(5)}  ${s.tot.toFixed(0).padStart(6)}  ${(s.avg>=0?'+':'')}${s.avg.toFixed(4)}   ${s.allPos?'✅':'❌'}    ${s.wA.map(x=>(x>=0?'+':'')+x.toFixed(3)).join(' ')}`)
+          if(!best||s.tot>best.tot)best={cfg,tot:s.tot,allPos:s.allPos}
+        }
+      }
+    }
+  }
+  console.log(`\n  best by totR: ${best?best.cfg+' → '+best.tot.toFixed(0)+'R, all6='+(best.allPos?'✅':'❌'):'none with n>=20'}`)
+  console.log(`  DEPLOY BAR: positive in ALL 6 windows AND n large enough to trust (this`)
+  console.log(`  is one symbol, so even a passing config here is "promising, watch`)
+  console.log(`  further with more history," not proof at CRYPTO_40 confidence.`)
+}
+
 // ─────────────────────────────────────────────────────────────
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
@@ -5730,6 +5822,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v74bt') {
     console.log(`████ V74BT — GOLD SLEEVE pre-validation (PAXG/XAUT, unchanged DONCH4H engine) ████`)
     runV74bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v75bt') {
+    console.log(`████ V75BT — GOLD MEAN-REVERSION (PAXG only, BB/RSI fade in low-ADX regime) ████`)
+    runV75bt()
     return
   }
 
