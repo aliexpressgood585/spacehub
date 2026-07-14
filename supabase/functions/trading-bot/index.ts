@@ -1,4 +1,12 @@
 // ════════════════════════════════════════════════════════════
+// CryptoBot v56.1 — donch_test CRYPTO_40 filter (rule-2 fix)
+//
+// v56.1: donch_test=1 diagnostic was scanning tokenized stocks (SKHYNIX, SNDK,
+//  MU, SOXL, LIT etc.) because OKX fallback exposes non-crypto perps and the
+//  diagnostic path lacked the CRYPTO_40 filter that the main bot already uses.
+//  Fixed: coinsD now filtered to CRYPTO_40 before the breakout scan. No strategy
+//  change — diagnostic-only fix.
+//
 // CryptoBot v56.0 — Portfolio Heat Limit (capital-safety guardrail)
 //
 // v56.0: MAX_HEAT_PCT=0.95 — DONCH4H entry is trimmed/skipped when total
@@ -2257,8 +2265,13 @@ Deno.serve(async (req) => {
       const fapiProbe = await fetch(`${FAPI}/klines?symbol=BTCUSDT&interval=4h&limit=2`,
         {headers:{'User-Agent':'Mozilla/5.0'}}).then(r=>r.status).catch(()=>0)
       const coinsD = await fetchFuturesCoins()
+      // v56.1: apply CRYPTO_40 filter — donch_test was scanning tokenized stocks (OKX fallback exposes non-crypto perps)
+      const CRYPTO_40_D = new Set(['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','DOT','LTC','BCH','NEAR','INJ','SUI',
+        'TRX','APT','ARB','OP','ATOM','FIL','UNI','AAVE','ICP','ALGO','SEI','WLD','TIA','RUNE','LDO',
+        'CRV','DYDX','GALA','SAND','AXS','IMX','ENA','PEPE','WIF','FET'])
+      const coinsD40 = coinsD.filter(c => CRYPTO_40_D.has(c.sym))
       const outD: any[] = []
-      for (const ci of coinsD.slice(0, 35)) {
+      for (const ci of coinsD40.slice(0, 40)) {
         try {
           const b4 = await fetchBars(ci.sym, '4h', 70)
           if (b4.length < 45) { outD.push({sym:ci.sym, err:'bars='+b4.length}); continue }
