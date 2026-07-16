@@ -37,6 +37,12 @@ jobs:
           q "SELECT COALESCE(strategy,'LEGACY') AS strat, count(*) AS n, count(*) FILTER (WHERE pnl>0) AS wins, round(sum(pnl)::numeric,2) AS realized FROM bot_trades WHERE status != 'OPEN' GROUP BY 1 ORDER BY 1;"
           echo "=== CLOSED TRADES (latest 20) ===" >> $out
           q "SELECT sym, side, COALESCE(strategy,'LEGACY') AS strat, round(pnl::numeric,2) AS pnl FROM bot_trades WHERE status != 'OPEN' ORDER BY closed_at DESC LIMIT 20;"
+          echo "=== SKIPPED SIGNALS (bot_skips summary, last 7d) ===" >> $out
+          q "SELECT strategy, reason, count(*) AS n, max(ts)::date AS latest FROM bot_skips WHERE ts > now() - interval '7 days' GROUP BY 1,2 ORDER BY 3 DESC;"
+          echo "=== SKIPPED SIGNALS (latest 12 w/ detail) ===" >> $out
+          q "SELECT ts::timestamp(0), sym, strategy, reason, detail FROM bot_skips ORDER BY ts DESC LIMIT 12;"
+          echo "=== DONCH4H CLOSED TRADES w/ R (latest 25) ===" >> $out
+          q "SELECT closed_at::timestamp(0) AS closed, sym, side, round(pnl::numeric,2) AS pnl, round(risk_usd::numeric,2) AS risk, round((pnl/NULLIF(risk_usd,0))::numeric,3) AS r FROM bot_trades WHERE strategy='DONCH4H' AND status != 'OPEN' ORDER BY closed_at DESC LIMIT 25;"
           echo "=== LIVE vs BACKTEST EXPECTATION CHECK ===" >> $out
           curl -s -X POST "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
