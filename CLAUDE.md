@@ -311,8 +311,22 @@ choice. GOLD AXIS CLOSED — would need a non-technical edge (e.g. real
 order-flow/liquidity data on PAXG, or a different gold-tracking instrument
 with deeper Binance history) to be worth revisiting, not another signal test.
 
-## Current state (2026-07-13)
-- Live: **v56.0** — Portfolio Heat Limit: MAX_HEAT_PCT=0.95 caps total open
+## Current state (2026-07-16)
+- Live: **v56.2** — LADDER LEG P&L ACCOUNTING FIX (critical analytics bug, found
+  in live-trade review): ladder leg profits (⅓@0.6R, ⅓@1.0R) were credited to
+  balance but never stored on the trade row — rows closed with only the final
+  third's pnl, so a trade that banked +0.53R then BE-stopped showed as a small
+  LOSS. Live WR read 8% vs real ~66%; the health kill-switch (sums last-30 pnl)
+  was ~16 trades from falsely pausing DONCH4H; the 50-trade checkpoint would
+  have read garbage. Fix: legs_banked column accumulates leg pnl at each leg;
+  ALL close paths (trail close, generic SL/BE/timeout, equity-guard, close_small)
+  store pnl = final leg + legs_banked; SQL migration backfills closed AND open
+  laddered rows (0.2×risk_usd stage 1, 0.5333×risk_usd stage 2, idempotent via
+  legs_banked=0 guard). Balance was always correct — analytics/kill-switch repair.
+  Also v56.1 (same day): donch_test diagnostic now applies CRYPTO_40 filter
+  (OKX fallback was exposing tokenized-stock perps in the scan output — rule-2).
+  status-ping.yml now also reports bot_skips summary + per-trade R for DONCH4H.
+- Previous: **v56.0** — Portfolio Heat Limit: MAX_HEAT_PCT=0.95 caps total open
   notional (ROTA + DONCH4H combined) at 95% of portfolio value. Closes the
   over-allocation gap where both strategies firing simultaneously pushed
   notional to ~115% of account (negative free balance). DONCH4H entry is

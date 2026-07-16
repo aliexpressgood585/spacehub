@@ -1,4 +1,17 @@
 // ════════════════════════════════════════════════════════════
+// CryptoBot v56.2 — LADDER LEG P&L ACCOUNTING FIX (critical analytics bug)
+//
+// v56.2: ladder leg profits (⅓@0.6R, ⅓@1.0R) were credited to balance but
+//  NEVER stored on the trade row — the row closed with only the final third's
+//  pnl. Result: a trade that banked +0.53R in legs then BE-stopped showed as
+//  a small LOSS. Live WR read 8% vs the real ~66%; the per-strategy health
+//  kill-switch (sums last-30 pnl) was on track to falsely pause a profitable
+//  DONCH4H; the 50-trade checkpoint would have read garbage. Fix: new
+//  legs_banked column accumulates leg pnl; every close path stores
+//  pnl = final leg + legs_banked. SQL migration backfills closed & open
+//  laddered rows (0.2×risk_usd for stage 1, 0.5333×risk_usd for stage 2).
+//  Balance was always correct — this is analytics/kill-switch data repair.
+//
 // CryptoBot v56.1 — donch_test CRYPTO_40 filter (rule-2 fix)
 //
 // v56.1: donch_test=1 diagnostic was scanning tokenized stocks (SKHYNIX, SNDK,
@@ -2333,9 +2346,10 @@ Deno.serve(async (req) => {
         const priceRes = await fetch(`${FAPI}/ticker/price?symbol=${t.sym}USDT`,
           {headers:{'User-Agent':'Mozilla/5.0'}}).then(r=>r.json()).catch(()=>null)
         const price = priceRes?.price ? +priceRes.price : entry
-        const pnl   = (price - entry) * size * dirM
+        const pnlLeg = (price - entry) * size * dirM
+        const pnl   = pnlLeg + (Number(t.legs_banked)||0)   // v56.2
         const fav   = (price - entry) / entry * dirM
-        balCs += entry * size + pnl
+        balCs += entry * size + pnlLeg
         await supabase.from('bot_trades').update({
           status: pnl >= 0 ? 'TP' : 'SL',
           exit_price: price, pnl, pnl_pct: fav,
@@ -2961,8 +2975,9 @@ Deno.serve(async (req) => {
           // ── TASK 1: Equity Guard — if 30% drawdown, close ALL positions immediately ──
           if (equityGuardPaused) {
             const fav = (price-entry)/entry*dirM
-            const pnl = (price-entry)*size*dirM - price*size*FEE
-            balance += entry*size+pnl; openCount--
+            const pnlLeg = (price-entry)*size*dirM - price*size*FEE
+            const pnl = pnlLeg + (Number((t as any).legs_banked)||0)   // v56.2
+            balance += entry*size+pnlLeg; openCount--
             await supabase.from('bot_trades').update({
               status: pnl >= 0 ? 'TP' : 'SL', exit_price:price, pnl, pnl_pct:fav,
               closed_at:new Date().toISOString()
@@ -3147,7 +3162,8 @@ Deno.serve(async (req) => {
                 const pnl1 = (p06-entry)*third*dirM - p06*third*FEE_MAKER   // v47: limit fill at level, maker fee
                 balance += entry*third + pnl1
                 await supabase.from('bot_trades').update({
-                  size: size-third, trail_sl: entry, partial_done: true, exit_stage: 1
+                  size: size-third, trail_sl: entry, partial_done: true, exit_stage: 1,
+                  legs_banked: (Number((t as any).legs_banked)||0) + pnl1   // v56.2: leg pnl must reach the row
                 }).eq('id', t.id)
                 log.push(`LADDER_06 ${sym} ${t.side} ⅓@${p06.toFixed(4)} pnl=${pnl1.toFixed(2)} sl→BE`)
                 continue
@@ -3166,7 +3182,8 @@ Deno.serve(async (req) => {
                 const pnl2 = (p10-entry)*half*dirM - p10*half*FEE_MAKER   // v47: limit fill at level, maker fee
                 balance += entry*half + pnl2
                 await supabase.from('bot_trades').update({
-                  size: size-half, exit_stage: 2, trail_sl: entry
+                  size: size-half, exit_stage: 2, trail_sl: entry,
+                  legs_banked: (Number((t as any).legs_banked)||0) + pnl2   // v56.2: leg pnl must reach the row
                 }).eq('id', t.id)
                 log.push(`LADDER_10 ${sym} ${t.side} ⅓@${p10.toFixed(4)} pnl=${pnl2.toFixed(2)} → final ⅓ trails`)
                 continue
@@ -3192,9 +3209,11 @@ Deno.serve(async (req) => {
                   if (!r.ok) { log.push(`LIVE_CLOSE_FAIL ${sym} trail: ${'err' in r?r.err:''}`); await logErr('live_close_trail', `${sym}`); continue }
                 }
                 const fav=(price-entry)/entry*dirM
-                const pnl=(price-entry)*size*dirM - price*size*FEE   // trailing stop = taker
+                const pnlLeg=(price-entry)*size*dirM - price*size*FEE   // trailing stop = taker
+                // v56.2: row pnl = final leg + banked ladder legs (balance got legs at leg time)
+                const pnl = pnlLeg + (Number((t as any).legs_banked)||0)
                 const final = pnl>0 ? 'TP' : 'TRAIL'
-                balance += entry*size + pnl; openCount--
+                balance += entry*size + pnlLeg; openCount--
                 await supabase.from('bot_trades').update({
                   status: final, exit_price: price, pnl, pnl_pct: fav,
                   closed_at: new Date().toISOString()
@@ -3238,9 +3257,11 @@ Deno.serve(async (req) => {
               if (r.avgPrice) exitPx = r.avgPrice
             }
             const fav=(exitPx-entry)/entry*dirM
-            const pnl=(exitPx-entry)*size*dirM-exitPx*size*(isMakerTP?FEE_MAKER:FEE)
+            const pnlLeg=(exitPx-entry)*size*dirM-exitPx*size*(isMakerTP?FEE_MAKER:FEE)
+            // v56.2: include banked ladder legs (zero for non-laddered rows)
+            const pnl = pnlLeg + (Number((t as any).legs_banked)||0)
             const final=pnl>0&&newStatus==='SL'?'TP':newStatus
-            balance+=entry*size+pnl; openCount--
+            balance+=entry*size+pnlLeg; openCount--
             await supabase.from('bot_trades').update({
               status:final,exit_price:exitPx,pnl,
               pnl_pct:fav,closed_at:new Date().toISOString()
