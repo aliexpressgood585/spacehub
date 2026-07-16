@@ -1,4 +1,12 @@
 // ════════════════════════════════════════════════════════════
+// CryptoBot v56.3 — bad-tick shield tolerance 0.5% → 1.5% (rule-5 fix)
+//
+// v56.3: the cross-source sanity check skipped 5 healthy ROTA slots in a single
+//  rebalance (ICP/LINK/AAVE/AVAX/INJ, 2026-07-16 11:54) — a 0.5-1% OKX↔Bybit
+//  basis on alt perps is routine, while real bad ticks are off by 10-100×.
+//  Tolerance widened to 1.5% (still catches every real bad tick); the actual
+//  divergence % is now logged in bot_skips detail for data-driven tuning.
+//
 // CryptoBot v56.2 — LADDER LEG P&L ACCOUNTING FIX (critical analytics bug)
 //
 // v56.2: ladder leg profits (⅓@0.6R, ⅓@1.0R) were credited to balance but
@@ -539,10 +547,17 @@ const VOL_PARAMS = {
 interface Bar { open:number; high:number; low:number; close:number; vol:number }
 
 // v50.1: cross-source price sanity — a position must never open on a bad tick.
-// Compares the scan price against Bybit's independent mark; >0.5% disagreement
+// Compares the scan price against Bybit's independent mark; large disagreement
 // blocks THIS entry attempt only. Fails open when Bybit is unreachable so a
 // Bybit outage can't halt trading by itself.
+// v56.3: tolerance 0.5% → 1.5%. Real bad ticks (the shield's target) are off by
+// 10-100×, while a 0.5-1% OKX↔Bybit basis on alt perps is routine — the tight
+// tolerance skipped 5 healthy ROTA slots in one rebalance (rule-5 violation).
+// Divergence is now logged so the threshold can be tuned on data.
+const PRICE_SANE_TOL = 0.015
+let _lastPriceDiverge = 0   // set by priceSane, read by callers for skip logging
 async function priceSane(sym:string, px:number): Promise<boolean> {
+  _lastPriceDiverge = 0
   try {
     const res = await fetch(
       `https://api.bybit.com/v5/market/tickers?category=linear&symbol=${sym}USDT`,
@@ -551,7 +566,8 @@ async function priceSane(sym:string, px:number): Promise<boolean> {
     const j = await res.json()
     const p2 = Number(j?.result?.list?.[0]?.lastPrice)
     if (!Number.isFinite(p2) || p2 <= 0) return true
-    return Math.abs(px/p2 - 1) <= 0.005
+    _lastPriceDiverge = Math.abs(px/p2 - 1)
+    return _lastPriceDiverge <= PRICE_SANE_TOL
   } catch { return true }
 }
 
@@ -2817,7 +2833,7 @@ Deno.serve(async (req) => {
             slotNotional = Math.min(slotNotional, Math.max(0, port*0.20 - symExp))
             if (slotNotional < port*0.01) { log.push(`ROTA_SKIP ${sym}: per-coin cap`); logSkip(sym,'ROTA','per_coin_cap',{slot:+slotNotional.toFixed(0)}); continue }
             if (balance < slotNotional) { log.push(`ROTA_SKIP ${sym}: insufficient cash`); logSkip(sym,'ROTA','insufficient_cash',{slot:+slotNotional.toFixed(0), cash:+balance.toFixed(0)}); continue }
-            if (!(await priceSane(sym, tgt.price))) { log.push(`ROTA_SKIP ${sym}: cross-source price mismatch (bad tick?)`); logSkip(sym,'ROTA','bad_tick',{price:tgt.price}); continue }
+            if (!(await priceSane(sym, tgt.price))) { log.push(`ROTA_SKIP ${sym}: cross-source price mismatch (bad tick?)`); logSkip(sym,'ROTA','bad_tick',{price:tgt.price, divergePct:+( _lastPriceDiverge*100).toFixed(2)}); continue }
             let fillPx = tgt.price * (1 + tgt.dir * SLIP)   // v54: market entry → adverse slippage
             let size2 = slotNotional / fillPx
             if (liveMode) {   // v55 seam #2: real market order
@@ -3461,7 +3477,7 @@ Deno.serve(async (req) => {
           // v50.1: never open on a bad tick — require Bybit to agree within 0.5%
           if (!(await priceSane(sym, price))) {
             log.push(`SKIP ${sym}: cross-source price mismatch (bad tick?)`)
-            if (msInto4h < 120_000) logSkip(sym,'DONCH4H','bad_tick',{price})
+            if (msInto4h < 120_000) logSkip(sym,'DONCH4H','bad_tick',{price, divergePct:+(_lastPriceDiverge*100).toFixed(2)})
             return
           }
           // v54: adverse entry slippage on the market fill (3 bps); SL/TP levels

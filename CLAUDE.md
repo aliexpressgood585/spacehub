@@ -312,7 +312,14 @@ order-flow/liquidity data on PAXG, or a different gold-tracking instrument
 with deeper Binance history) to be worth revisiting, not another signal test.
 
 ## Current state (2026-07-16)
-- Live: **v56.2** — LADDER LEG P&L ACCOUNTING FIX (critical analytics bug, found
+- Live: **v56.3** — bad-tick shield tolerance 0.5%→1.5% (rule-5 fix): the
+  cross-source sanity check skipped 5 healthy ROTA slots in one rebalance
+  (routine 0.5-1% OKX↔Bybit alt-perp basis tripped it; real bad ticks are
+  10-100× off). Divergence % now logged in bot_skips detail for tuning.
+  VERIFIED post-deploy (status 2026-07-16 15:53): DONCH4H corrected stats
+  n=12 WR=41.7% avgR=+0.106 (was falsely 8.3%/-0.116 pre-v56.2 backfill);
+  realized -56.72→-4.52; kill-switch now fed honest data.
+- Previous: **v56.2** — LADDER LEG P&L ACCOUNTING FIX (critical analytics bug, found
   in live-trade review): ladder leg profits (⅓@0.6R, ⅓@1.0R) were credited to
   balance but never stored on the trade row — rows closed with only the final
   third's pnl, so a trade that banked +0.53R then BE-stopped showed as a small
