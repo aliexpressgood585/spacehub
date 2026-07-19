@@ -311,7 +311,26 @@ choice. GOLD AXIS CLOSED — would need a non-technical edge (e.g. real
 order-flow/liquidity data on PAXG, or a different gold-tracking instrument
 with deeper Binance history) to be worth revisiting, not another signal test.
 
-## Current state (2026-07-16)
+## Current state (2026-07-19)
+- CHECKPOINT STATUS (2026-07-19 review, user asked "reached 50?"): the official
+  counter (DONCH4H closed, risk_usd>0, era-anchored — what the watchdog fires
+  on) is at **11/50**, NOT 50. The ~54 total closed rows include ROTA (35) and
+  8 day-0 out-of-universe rows (EVAA/VANRY/US/BASED/SOXL/KORU etc., opened
+  2026-07-10 00:21 before the universe pin caught them, force-closed same
+  morning — excluded from all expectation math; NB 6 early DONCH4H rows have
+  risk_usd=null → their ladder legs couldn't be backfilled, so "realized
+  -184" overstates the loss). Clean n=11: WR 54.5%, avgR **-0.289** vs band
+  +0.046 → z≈-1.3, WITHIN noise (need |z|>2) but below band. Regime=RANGING
+  all week (53 adx_gate skips = gate working; breakout losses in chop are the
+  v66bt lumpy-profile, not a defect). VERDICT: no risk raise (standing rule:
+  50 + in-band required), no strategy change, keep accumulating; re-review at
+  n≈30 or on kill-switch/regime flip. ROTA era: WR 58.8%, realized ≈ -23 +
+  open winners (LDO +16%) ≈ flat-positive — carrying the book in chop as
+  designed. v56.3 bad-tick fix VERIFIED: 07-18 rebalance opened all 8 slots,
+  zero false skips since deploy. Binance fapi feed came back (source=fapi,
+  84 ok / 0 fail) — OKX fallback dormant. Heat-limit skipped LTC breakout
+  twice on 07-18 (heat 96%) — by design (v56.0), watch-item only.
+
 - Live: **v56.3** — bad-tick shield tolerance 0.5%→1.5% (rule-5 fix): the
   cross-source sanity check skipped 5 healthy ROTA slots in one rebalance
   (routine 0.5-1% OKX↔Bybit alt-perp basis tripped it; real bad ticks are
