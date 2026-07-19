@@ -1,12 +1,18 @@
-# SpaceHub Trading Bot — Session Handoff (read this first)
+# SpaceHub — Session Handoff (read this first)
 
-Paper-trading crypto bot. Owner (Hebrew speaker) wants: a highly profitable bot
-with PROOF, as many good trades as possible. Full autonomy granted — act without
+This repo contains **two independent projects**:
+1. **SpaceHub Frontend** — React 19/TypeScript space-exploration web app, deployed on Vercel (`src/`, `api/`, `public/`)
+2. **Crypto Trading Bot** — Deno edge function on Supabase + trading dashboard on GitHub Pages (`supabase/`, `backtest/`, `trading-app/`)
+
+The bot is the primary focus of active development. Owner (Hebrew speaker) wants: a highly
+profitable bot with PROOF, as many good trades as possible. Full autonomy granted — act without
 asking, but NEVER violate the standing rules below.
 
-## Standing user rules (verbatim intent, do not break)
-1. **Deploy + merge after every change**: push to BOTH `main` AND
-   `claude/universal-gate-remote-iay0gg`. A stop-hook rejects uncommitted work.
+---
+
+## Standing rules (do not break)
+1. **Deploy + merge after every change**: push to `main` AND the current Claude session branch
+   (`claude/claude-md-docs-px19u3` in this session). A stop-hook rejects uncommitted work.
 2. **NO stocks / tokenized equities** — crypto only. Both strategies are pinned
    to the validated 40-coin universe (`CRYPTO_40` in the bot).
 3. **NO real exchange connection** for now (paper mode only; user will say when).
@@ -17,33 +23,158 @@ asking, but NEVER violate the standing rules below.
 6. **Validation discipline**: nothing deploys without a 36-month walk-forward
    (6 windows, real fees: taker 0.05%/side, maker 0.02%/side) positive in ALL
    windows. Failures get rejected and documented in code comments.
+7. **No auth/accounts** in the SpaceHub frontend — ever.
+8. **No Stripe/payments activation** — `api/create-checkout-session.ts` and
+   `api/webhook.ts` are stubs, do not wire them to the frontend.
+9. **Vercel Hobby plan = max 12 serverless functions.** The repo is at exactly 12.
+   Adding any new file to `api/` (without `_` prefix) breaks deployment.
 
-## Architecture
+---
+
+## SpaceHub Frontend App
+
+### Overview
+- **Live URL:** https://www.spacehubapp.com/
+- **Stack:** React 19, TypeScript, Vite 8, Tailwind CSS v4, React Router v7
+- **Deploy:** Vercel (auto-deploys on push to `main` touching `src/`, `api/`, `public/`)
+
+### Frontend structure (`src/`)
+- Entry: `src/main.tsx` → `src/App.tsx`
+- 211+ components in `src/components/`, all loaded via `React.lazy()` + `<Suspense>`
+- Routing: React Router v7
+- i18n: `src/i18n/LangContext.tsx` + `src/i18n/translations.ts`
+- CSS: Tailwind v4 + custom classes in `src/index.css`
+- Constants/config: `src/config/constants.ts`
+- TypeScript config: `tsconfig.app.json` covers **only `src/`** — API files are NOT type-checked
+  by `tsc`; they are compiled by esbuild at Vercel deploy time
+- Strict TS flags: `noUnusedLocals: true`, `noUnusedParameters: true`
+
+### API serverless functions (`api/`)
+All 12 slots are used (Vercel Hobby limit). Files prefixed `_` are shared modules, not functions.
+
+| File | Purpose | External API |
+|------|---------|-------------|
+| `api/apod.ts` | NASA APOD | api.nasa.gov |
+| `api/ai.ts` | AI chat | NVIDIA build API |
+| `api/analytics.ts` | Analytics | — |
+| `api/gallery.ts` | NASA image search | images-api.nasa.gov |
+| `api/iss.ts` | ISS real-time position | api.open-notify.org |
+| `api/newsletter.ts` | Newsletter subscription | — |
+| `api/sitemap.ts` | Sitemap XML | — |
+| `api/space-extra.ts` | Additional space data | — |
+| `api/subscribe.ts` | Email subscribe | — |
+| `api/tle.ts` | Satellite TLE data | celestrak.org |
+| `api/create-checkout-session.ts` | Stripe stub (inactive) | Stripe |
+| `api/webhook.ts` | Stripe stub (inactive) | Stripe |
+| `api/_rateLimit.ts` | Shared rate-limiter (NOT a function) | — |
+
+**API coding rules:**
+- `AbortSignal.timeout(8000)` on all external fetches (Vercel timeout = 10s)
+- Always `try/catch`; return HTTP 200 with empty payload on error (`{ error: '...', results: [] }`)
+- Set `Cache-Control` headers (cache success, `no-store` on error)
+- `catch {` (no binding) when error value is unused — avoids `noUnusedLocals`
+
+### Environment variables (`.env.example`)
+```
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_MONTHLY_PRICE_ID=price_...
+STRIPE_YEARLY_PRICE_ID=price_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+VITE_BASE_URL=https://spacehub-nu.vercel.app
+NVIDIA_API_KEY=nvapi-...   # server-side only, never exposed to browser
+```
+
+### Frontend dev workflow
+```bash
+npm install
+npm run dev        # Vite dev server
+npm run build      # tsc -b && vite build
+npm run lint       # ESLint
+```
+Type-check (no local deno needed): `tsc --noEmit --ignoreConfig --skipLibCheck` on `src/`
+
+### Known issues / tech debt
+- `api/apod.ts` / `api/iss.ts` use `DEMO_KEY` or depend on unreliable third-party uptime;
+  components already show fallback UI
+- `api/_rateLimit.ts` in-memory rate limiter resets on cold start (acceptable for current traffic)
+- 211 components lazy-loaded; consider route-level splitting if LCP degrades
+
+---
+
+## Crypto Trading Bot
+
+### Architecture
 - **Live bot**: `supabase/functions/trading-bot/index.ts` (Deno edge function,
   cron every minute, Supabase project `mdvheizhciuvqychtwxr`). Version header at top.
 - Two validated strategies:
-  - **DONCH4H**: Donchian-25 breakout on 4h closes, ADX(60)>22 gate, entries only
-    first 15 min after each 4h close; SL=1.4×ATR; LADDER exits ⅓@0.6R(→BE)/⅓@1.0R/⅓@1.6R
-    via `exit_stage`; ADX-tiered risk sizing (base 1.25%, up to 2.5%); pyramiding
-    (2nd unit on ≥0.6R winner, 3rd on ≥1.0R, max 3 — v49).
-  - **ROTA**: every 48h rank 40 coins by 14d momentum, LONG top-8 / SHORT bottom-8 (v52),
+  - **DONCH4H**: Donchian-15 breakout on 4h closes, ADX(60)>22 gate, entries only
+    first 15 min after each 4h close; SL=1.4×ATR; LADDER exits ⅓@0.6R(→BE)/⅓@1.0R/⅓trail(chandelier
+    2.5×ATR4); ADX-tiered risk sizing (base 1.25%, up to 2.5%); pyramiding
+    (2nd unit on ≥0.6R winner, 3rd on ≥1.0R, max 3).
+  - **ROTA**: every 48h rank 40 coins by 14d momentum, LONG top-8 / SHORT bottom-8 (K=8),
     inverse-vol weights, 70% of book, per-coin combined cap 20%, drift-resize ±35%.
 - Per-strategy health kill-switch: last-30 closed trades sum<0 → pause.
+- Portfolio heat limit: MAX_HEAT_PCT=0.95 — total open notional capped at 95% of portfolio.
 - Data: Binance fapi is geo-blocked (451) from Supabase AND GitHub runners →
   live bot falls back to OKX candles/tickers; backtests use data.binance.vision archives.
-- **Backtests**: `backtest/backtest.ts`, run via GitHub Actions `backtest.yml`
-  (workflow_dispatch inputs: mode/months). Modes v43bt…v48bt = research batches.
-  Results are COMMITTED to `status/bt-latest.txt` (dispatch) / `status/regression.txt`
-  (monthly) because job-log download is blocked from the sandbox.
-- **Diagnostics without gh CLI**: edit `.status-ping` + push → workflow writes
-  `status/latest.txt` (bot state, positions, live P&L via OKX marks, expectation-band
-  check vs backtest, independent breakout scan, live `?donch_test=1`).
-  `force-rebalance.yml` clears `rebalanced_at` to force a rotation.
-- **Dashboard**: `trading-app/` → GitHub Pages via `deploy-trading-app.yml`;
-  version tag in `CryptoTradingDashboard.tsx` must match bot version.
-- Deploys: push to main touching `supabase/functions/**` triggers
-  `deploy-edge-function.yml` (also runs SQL migrations listed inside it).
-  Wait ~90s after deploy before poking the function.
+
+### Other Supabase functions
+- `supabase/functions/close-trade/` — manual close helper
+- `supabase/functions/market-regime-detector/` — regime classification
+- `supabase/functions/portfolio-rebalancer/` — ROTA rotation logic
+- `supabase/functions/reset-account/` — paper account reset
+- `supabase/functions/trading-optimizer/` — param optimizer
+
+### Database tables (Supabase Postgres)
+Key tables in `bot_*` namespace: `bot_state`, `bot_trades`, `bot_equity`, `bot_errors`,
+`bot_skips`, `bot_trades_log`, `bot_trade_snapshots`, `market_regime`, `rebalance_history`.
+SQL migrations are inlined in `deploy-edge-function.yml` (idempotent `ADD COLUMN IF NOT EXISTS`).
+
+### Backtests
+- `backtest/backtest.ts` — Deno script, run via GitHub Actions `backtest.yml`
+  (`workflow_dispatch` inputs: `mode` / `months`).
+- Modes: `portfolio`, `signals`, `meanrev`, `explore`, `refine`, `validate`, `v76bt`, etc.
+- Results committed to `status/bt-latest.txt` (dispatch) / `status/regression.txt` (monthly)
+  because job-log download is blocked from the sandbox.
+- Validation bar: 36-month walk-forward (6 windows), all 6 must be positive, real fees +3bps slip.
+- Deploy bar for sizing improvements: +0.004R incremental (below = noise).
+
+### GitHub Actions workflows (`.github/workflows/`)
+| Workflow | Trigger | Purpose |
+|---------|---------|---------|
+| `deploy-edge-function.yml` | push to main touching `supabase/functions/**` | Deploy bot + SQL migrations |
+| `deploy-trading-app.yml` | push to main touching `trading-app/**` | GitHub Pages dashboard |
+| `backtest.yml` | schedule (monthly) / dispatch | Run backtests, commit results |
+| `watchdog.yml` | every 30 min | Heartbeat check; opens GitHub issue + Telegram alert if bot down |
+| `bot-status.yml` | dispatch | Read-only bot state snapshot |
+| `status-ping.yml` | push to `.status-ping` | Full diagnostic: positions, P&L, breakout scan |
+| `daily-report.yml` | daily | Daily P&L summary |
+| `trade-journal.yml` | weekly | Export trades CSV to `status/trades-journal.csv` |
+| `force-rebalance.yml` | dispatch | Clear `rebalanced_at` to force ROTA rotation |
+| `close-all-positions.yml` | dispatch | Emergency close |
+| `close-small-positions.yml` | dispatch | Close dust positions |
+| `reset-account.yml` | dispatch | Paper account reset |
+| `ci.yml` | push | Lint/type-check |
+| `probe-data.yml` | dispatch | Data feed probe |
+| `probe-oi.yml` | dispatch | OI data probe |
+
+### Diagnostics without gh CLI
+- Edit `.status-ping` (any change) + push → `status-ping.yml` fires → writes `status/latest.txt`
+- `force-rebalance.yml` clears `rebalanced_at` to force a rotation next cycle
+- Live bot diagnostic: invoke with `?donch_test=1` query param
+
+### Trading Dashboard (`trading-app/`)
+- React 18 + TypeScript + Vite + Supabase anon key (hardcoded in component)
+- Deployed to GitHub Pages via `deploy-trading-app.yml`
+- Single component: `trading-app/src/components/CryptoTradingDashboard.tsx`
+- **Version tag in dashboard must match bot version** after each bot deploy
+
+### Deploys
+Push to `main` touching `supabase/functions/**` triggers `deploy-edge-function.yml`.
+Wait ~90s after deploy before testing the function.
+Dashboard auto-deploys on push touching `trading-app/**`.
+
+---
 
 ## Tested & REJECTED (do NOT redeploy without fresh validation)
 5m mean-reversion (breakeven after fees), 4h BB range-fade, Sharpe-momentum
@@ -195,7 +326,7 @@ real value was OPERATIONAL (Telegram alerts + dashboard range toggle — deploye
 v69bt (2026-07-12): Heikin-Ashi smoothed breakout REJECTED — the smoothing lags:
 6,477 signals vs 11,218 standard (-42% = rule 5), totR 413 vs 696, w6 negative.
 Marginally higher per-trade avg (+0.0638 vs +0.0620) doesn't cover the trade loss.
-Standard candles stay. (5th indicator-list triage: everything deployed/rejected/
+Standard candles stays. (5th indicator-list triage: everything deployed/rejected/
 unfalsifiable/paid-data/family-dup; HA + reg-channel are the only new testables.)
 v70bt (2026-07-12): reg-channel (LSMA±k·σ) breakout PASSED the walk-forward bar!
 k=2.0: n=19,831 (+77% trades), +0.0379R, totR 751 vs 696, all 6 windows ✅;
@@ -311,6 +442,8 @@ choice. GOLD AXIS CLOSED — would need a non-technical edge (e.g. real
 order-flow/liquidity data on PAXG, or a different gold-tracking instrument
 with deeper Binance history) to be worth revisiting, not another signal test.
 
+---
+
 ## Current state (2026-07-19)
 - CHECKPOINT STATUS (2026-07-19 review, user asked "reached 50?"): the official
   counter (DONCH4H closed, risk_usd>0, era-anchored — what the watchdog fires
@@ -407,12 +540,28 @@ with deeper Binance history) to be worth revisiting, not another signal test.
   1.75% → 22/34/47%; 2.50% → 31/46/60%. User must accept the tier's p90 before
   each raise.
 
+---
+
 ## How to work
+
+### Bot changes
 - Small edits → verify types (`tsc --noEmit --ignoreConfig --skipLibCheck` on a
   copy outside the repo; deno not installed locally), commit, push both branches.
 - Push races with status-bot commits on main are common: fetch, merge, on
   `UU status/latest.txt` take `git checkout origin/main -- status/latest.txt`.
+
+### Frontend (SpaceHub) changes
+- `npm run build` before committing to catch TypeScript errors (API files are
+  NOT checked by tsc; test them via Vercel preview).
+- Never add a new file to `api/` without deleting an existing one first (12-function cap).
+- Components must use `React.lazy()` — do not import them statically in App.tsx.
+
+### Both projects
 - Answer the user in Hebrew; keep code/comments in English.
+- Always `git fetch` and check `git log` before assuming file state (multiple
+  Claude sessions may have committed concurrently).
+
+---
 
 ## Communication style (match this — the user expects continuity)
 - Hebrew, warm but direct. Lead with the bottom line, then the reasoning.
