@@ -114,6 +114,9 @@ jobs:
                   s=pdi+mdi; dx=(abs(pdi-mdi)/s*100) if s>0 else 0
                   a=(a*(p-1)+dx)/p
               return a
+          # v56.4: aligned with LIVE params — DW=15 (v51) and ADX>22 gate. The old
+          # 40-bar/ADX25 version flagged signals the live bot correctly ignores,
+          # creating false "bot missed a trade" alarms in this report.
           any_hit=False
           for c in COINS:
               try:
@@ -122,18 +125,18 @@ jobs:
                   comp=b[:-1]
                   for back in (1,2,3,4,5,6):
                       sig=comp[-back]
-                      prior=comp[-back-40:-back]
+                      prior=comp[-back-15:-back]
                       hi=max(x[2] for x in prior); lo=min(x[3] for x in prior)
                       brk = "LONG" if sig[4]>hi else ("SHORT" if sig[4]<lo else None)
                       if brk:
                           a=adx(comp[-61:] if back==1 else comp[-62:-1])
                           any_hit=True
-                          verdict = "WOULD ENTER" if a>25 else "adx<=25 -> correctly skipped"
+                          verdict = "WOULD ENTER" if a>22 else "adx<=22 -> correctly skipped"
                           print(f"  {c}: {brk} breakout on bar -{back} close={sig[4]} adx={a:.0f} [{verdict}]")
               except Exception as e:
                   print(f"  {c}: error {e}")
           if not any_hit:
-              print("  NO coin broke its 40-bar channel in the last six 4h bars -> zero entries is CORRECT.")
+              print("  NO coin broke its 15-bar channel in the last six 4h bars -> zero entries is CORRECT.")
           PYEOF
           echo "=== LIVE BOT DONCH4H EVAL (what the bot itself sees right now) ===" >> $out
           ANON_KEY=$(curl -s -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
