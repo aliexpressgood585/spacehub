@@ -1,4 +1,17 @@
 // ════════════════════════════════════════════════════════════
+// CryptoBot v56.5 — UNIVERSE COLLAPSE FIX (why the bot went quiet)
+//
+// v56.5: fetchFuturesCoins() accepted the first source returning >=10 symbols.
+//  With Binance fapi geo-blocked (451), a degraded SPOT response of exactly 11
+//  symbols cleared that bar and short-circuited the healthy OKX fallback (~39).
+//  The live tradeable universe silently collapsed 40 -> 11: DONCH4H stopped
+//  seeing most breakouts (BNB adx47 / ADA adx61 / LTC adx29 all missed on
+//  2026-08-07) and ROTA could not rank top-8/bottom-8 from 11 coins.
+//  Fix: sources are now scored by COVERAGE of the validated 40-coin universe
+//  (MIN_UNIVERSE_COVERAGE=25) instead of raw symbol count; the richest source
+//  seen wins if none clears the bar, and FIXED_COINS remains the last resort.
+//  donch_test now reports coverage so this can never hide again.
+//
 // CryptoBot v56.3 — bad-tick shield tolerance 0.5% → 1.5% (rule-5 fix)
 //
 // v56.3: the cross-source sanity check skipped 5 healthy ROTA slots in a single
@@ -353,6 +366,14 @@ const FIXED_COINS = [
   'CRV','DYDX','GALA','SAND','AXS','IMX','ENA','PEPE','WIF','FET',
 ]
 const FALLBACK_COINS = FIXED_COINS
+// v56.5: single source of truth for the validated 40-coin universe. Both strategies
+// are pinned to it, so a data source is only useful in proportion to how much of it
+// it actually covers — see fetchFuturesCoins().
+const CRYPTO_40_SET = new Set(FIXED_COINS)
+// A source must cover at least this many of the 40 before we accept it and stop
+// trying better ones. The old bar was "any 10 symbols", which let a degraded feed
+// short-circuit a healthy fallback.
+const MIN_UNIVERSE_COVERAGE = 25
 const MIN_COIN_WIN_RATE = 0.42
 const MIN_COIN_TRADES   = 8
 
@@ -418,12 +439,23 @@ const MAX_FUTURES_COINS    = 60          // v40: 40→60 — scan more liquid co
 const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD|PYUSD|AEUR|EURS|SUSD|XAUT|PAXG|WBTC|WETH)USDT$/
 
 let _lastFetchSource = 'unknown'  // tracked for donch_test diagnostic
+let _lastUniverseCoverage = -1     // v56.5: how many of CRYPTO_40 the chosen source covered
 // v54.1: per-source feed health counters (reset each cycle, saved to bot_state)
 let _feedStats = { binance:{ok:0,fail:0}, okx:{ok:0,fail:0}, bybit:{ok:0,fail:0} }
 const resetFeedStats = () => { _feedStats = { binance:{ok:0,fail:0}, okx:{ok:0,fail:0}, bybit:{ok:0,fail:0} } }
 
 async function fetchFuturesCoins(): Promise<CoinInfo[]> {
   const EXCL = /^(.*)(UP|DOWN|BULL|BEAR|HEDGE|3L|3S|5L|5S)USDT$/
+  // v56.5: accept a source only if it covers enough of the validated universe.
+  // Track the best partial result so a total washout still returns the richest feed
+  // we saw rather than the first one that cleared a token threshold.
+  let best: { list: CoinInfo[]; src: string; cover: number } = { list: [], src: 'none', cover: -1 }
+  const consider = (list: CoinInfo[], src: string): CoinInfo[] | null => {
+    const cover = list.reduce((n, c) => n + (CRYPTO_40_SET.has(c.sym) ? 1 : 0), 0)
+    if (cover > best.cover) best = { list, src, cover }
+    if (cover >= MIN_UNIVERSE_COVERAGE) { _lastFetchSource = src; _lastUniverseCoverage = cover; return list }
+    return null
+  }
   // primary: Binance futures 24h tickers
   try {
     const res = await fetch(`${FAPI}/ticker/24hr`, { headers: { 'User-Agent': 'Mozilla/5.0' } })
@@ -441,7 +473,7 @@ async function fetchFuturesCoins(): Promise<CoinInfo[]> {
           .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
           .slice(0, MAX_FUTURES_COINS)
           .map(t => ({ sym: t.symbol.replace('USDT', ''), change24h: parseFloat(t.priceChangePercent) / 100 }))
-        if (list.length >= 10) { _lastFetchSource = 'fapi'; return list }
+        const ok = consider(list, 'fapi'); if (ok) return ok
       }
     }
   } catch { /* fall through */ }
@@ -462,7 +494,7 @@ async function fetchFuturesCoins(): Promise<CoinInfo[]> {
           .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
           .slice(0, MAX_FUTURES_COINS)
           .map(t => ({ sym: t.symbol.replace('USDT', ''), change24h: parseFloat(t.priceChangePercent) / 100 }))
-        if (list.length >= 10) { _lastFetchSource = 'spot'; return list }
+        const ok = consider(list, 'spot'); if (ok) return ok
       }
     }
   } catch { /* fall through */ }
@@ -486,10 +518,19 @@ async function fetchFuturesCoins(): Promise<CoinInfo[]> {
         .sort((a, b) => b.volUsd - a.volUsd)
         .slice(0, MAX_FUTURES_COINS)
         .map(x => ({ sym: x.sym, change24h: x.change24h }))
-      if (list.length >= 10) { _lastFetchSource = 'okx'; return list }
+      const ok = consider(list, 'okx'); if (ok) return ok
     }
   } catch { /* fall through */ }
+  // v56.5: no source cleared the coverage bar — use the richest one we actually saw
+  // (still far better than the static list), and only fall back to FIXED_COINS if
+  // every source failed outright. Coverage is surfaced for the diagnostics.
+  if (best.cover >= 10) {
+    _lastFetchSource = best.src + '_partial'
+    _lastUniverseCoverage = best.cover
+    return best.list
+  }
   _lastFetchSource = 'fixed'
+  _lastUniverseCoverage = FIXED_COINS.length
   return FIXED_COINS.map(s => ({ sym: s, change24h: 0 }))
 }
 
@@ -2314,7 +2355,9 @@ Deno.serve(async (req) => {
           if (side) outD.push({sym:ci.sym, side, close:last4.close, hi40:hiN, lo40:loN, adx:+adx4.toFixed(1), wouldEnter: adx4>22})
         } catch (e) { outD.push({sym:ci.sym, err:String(e).slice(0,60)}) }
       }
-      return new Response(JSON.stringify({ok:true, fapi_status:fapiProbe, universe:coinsD.length, fetch_source:_lastFetchSource, breakouts:outD, checked_at:new Date().toISOString()}),
+      return new Response(JSON.stringify({ok:true, fapi_status:fapiProbe, universe:coinsD.length,
+        universe_c40:coinsD40.length, coverage:_lastUniverseCoverage, coverage_min:MIN_UNIVERSE_COVERAGE,
+        fetch_source:_lastFetchSource, breakouts:outD, checked_at:new Date().toISOString()}),
         {headers:{'Content-Type':'application/json'}})
     }
 
