@@ -54,11 +54,22 @@ jobs:
           q2 "SELECT strategy, count(*) AS n, round(100.0*count(*) FILTER (WHERE pnl>0)/count(*),1) AS wr, round(avg(pnl)::numeric,2) AS avg_pnl, round(avg(pnl/NULLIF(risk_usd,0)) FILTER (WHERE risk_usd>0)::numeric,4) AS avg_r FROM bot_trades WHERE status != 'OPEN' AND strategy IN ('DONCH4H','ROTA') AND closed_at >= (SELECT COALESCE(min(ts),'2026-01-01'::timestamptz) FROM bot_equity) GROUP BY 1;" > /tmp/lvb.json
           python3 - >> $out <<'PYEOF3'
           import json
+          # v56.5: the Supabase management API returns an ERROR OBJECT (not a row list)
+          # when a query/auth/project problem occurs. The old code iterated it blindly and
+          # crashed the whole diag step with `string indices must be integers`, taking the
+          # rest of the report (open P&L, breakout scan, live bot eval) down with it.
+          # Now: surface the raw error and keep going.
           try: rows=json.load(open('/tmp/lvb.json'))
-          except Exception: rows=[]
+          except Exception as ex: rows=None; print(f"  ⚠️ could not parse query response: {ex}")
+          if isinstance(rows, dict):
+              print(f"  ⚠️ SUPABASE ERROR (not rows): {json.dumps(rows)[:400]}")
+              rows=[]
+          elif rows is None:
+              rows=[]
           bands={'DONCH4H':{'wr':(55,80),'target':'WR~66%, +0.046R/trade (v51 DW=15)'},'ROTA':{'wr':(35,75),'target':'periods mostly +, ~48%/yr book'}}
           if not rows: print("  no closed strategy trades yet")
           for r in rows:
+              if not isinstance(r, dict): print(f"  ⚠️ unexpected row: {r!r}"); continue
               st=r['strategy']; n=int(r['n']); wr=float(r['wr'] or 0)
               b=bands.get(st,{}); lo,hi=b.get('wr',(0,100))
               verdict='SAMPLE TOO SMALL (<30)' if n<30 else ('IN BAND ✓' if lo<=wr<=hi else '⚠️ OUT OF BAND — investigate')
@@ -72,9 +83,14 @@ jobs:
             -d '{"query": "SELECT sym, side, entry_price, size, strategy, opened_at FROM bot_trades WHERE status='"'"'OPEN'"'"';"}' > /tmp/open.json
           python3 - >> $out <<'PYEOF2'
           import json, urllib.request
-          rows=json.load(open('/tmp/open.json'))
+          try: rows=json.load(open('/tmp/open.json'))
+          except Exception as ex: rows=None; print(f"  ⚠️ could not parse open-positions response: {ex}")
+          if isinstance(rows, dict):
+              print(f"  ⚠️ SUPABASE ERROR (not rows): {json.dumps(rows)[:400]}"); rows=[]
+          elif rows is None: rows=[]
           tot=0.0; totn=0.0
           for r in rows:
+              if not isinstance(r, dict): print(f"  ⚠️ unexpected row: {r!r}"); continue
               sym=r['sym']; side=r['side']; e=float(r['entry_price']); sz=float(r['size'])
               try:
                   u=f"https://www.okx.com/api/v5/market/ticker?instId={sym}-USDT-SWAP"
@@ -145,8 +161,18 @@ jobs:
           curl -s -m 120 "https://${{ env.PROJECT_REF }}.supabase.co/functions/v1/trading-bot?donch_test=1" \
             -H "Authorization: Bearer ${ANON_KEY}" >> $out
           echo >> $out
+          # v56.5: liveness probe independent of the management API — if the project or
+          # the cron is down, this is the line that says so plainly.
+          echo "=== BOT LIVENESS (HTTP probe, no mgmt API) ===" >> $out
+          code=$(curl -s -o /tmp/probe.txt -w '%{http_code}' -m 60 \
+            "https://${{ env.PROJECT_REF }}.supabase.co/functions/v1/trading-bot" \
+            -H "Authorization: Bearer ${ANON_KEY}" || echo "000")
+          echo "  edge_function_http=${code}" >> $out
+          echo "  response_head=$(head -c 300 /tmp/probe.txt 2>/dev/null)" >> $out
+          if [ -z "$ANON_KEY" ]; then echo "  ⚠️ ANON_KEY EMPTY — management API/token problem" >> $out; fi
 
       - name: Commit results
+        if: always()
         run: |
           git config user.name "status-bot"
           git config user.email "actions@github.com"
