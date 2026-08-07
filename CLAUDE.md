@@ -311,6 +311,38 @@ choice. GOLD AXIS CLOSED — would need a non-technical edge (e.g. real
 order-flow/liquidity data on PAXG, or a different gold-tracking instrument
 with deeper Binance history) to be worth revisiting, not another signal test.
 
+## INCIDENT 2026-08-07 — bot went quiet (three stacked faults)
+- **BLOCKED ON USER**: `SUPABASE_ACCESS_TOKEN` returns `{"message":"Unauthorized"}`
+  (expired/revoked). It gates deploys, status-ping AND the watchdog — so v56.5
+  is committed but **NOT deployed**, and the live bot still runs the old code.
+  Recovery: user creates a new PAT in Supabase (Account → Access Tokens) and
+  updates GitHub → Settings → Secrets → Actions → SUPABASE_ACCESS_TOKEN. Never
+  accept the token in chat. Watchdog issue #19 (opened 08-04) was this, but its
+  message said "bot not responding" — misleading; fixed below.
+- **v56.5 UNIVERSE COLLAPSE (the actual trading stall)**: fetchFuturesCoins()
+  accepted the first source with >=10 symbols. fapi is geo-blocked (451), and the
+  Binance SPOT fallback degraded to exactly 11 symbols — clearing the bar and
+  short-circuiting the healthy OKX fallback (~39). Live universe fell 40→11:
+  donch_test showed `universe:11 source:spot breakouts:[]` while an independent
+  OKX scan found BNB SHORT adx=47, ADA LONG adx=61, LTC LONG adx=29, WLD SHORT
+  adx=25 — strong signals the bot could not see. ROTA also cannot rank top-8/
+  bottom-8 out of 11. FIX (committed, awaiting token): sources scored by COVERAGE
+  of CRYPTO_40 (`MIN_UNIVERSE_COVERAGE=25`) instead of raw count; richest source
+  wins if none clears the bar (`*_partial`); donch_test reports coverage.
+- **Both health kill-switches fired** (by design, v43 #4): ROTA last-30 first went
+  negative 07-20, DONCH4H 07-26 → new entries paused. Partly a CONSEQUENCE of the
+  universe collapse (fewer/worse signals). They auto-resume when the window heals.
+- **Diagnostics hardened**: the status-ping python blocks crashed with
+  `string indices must be integers` on an error object, killing the whole step so
+  no report was committed — we were blind exactly when it mattered. Now they
+  surface the raw error and continue; commit step is `if: always()`; new BOT
+  LIVENESS probe (edge fn HTTP + empty-ANON_KEY warning) independent of the mgmt
+  API. Watchdog now reports BAD_TOKEN separately from a real stall.
+- Bot process itself CONFIRMED ALIVE throughout (edge fn HTTP 200,
+  `"another run in progress — skipped"` = cron firing every minute).
+- Checkpoint counter at the last readable snapshot: **27/50**, WR 63.0%,
+  avgR -0.079 (WR near the 66% band; avgR still below — ranging-market profile).
+
 ## Current state (2026-07-19)
 - CHECKPOINT STATUS (2026-07-19 review, user asked "reached 50?"): the official
   counter (DONCH4H closed, risk_usd>0, era-anchored — what the watchdog fires

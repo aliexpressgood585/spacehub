@@ -38,7 +38,12 @@ jobs:
             -d '{"query": "SELECT updated_at, balance, shields FROM bot_state WHERE id=1;"}')
           echo "state: $row"
           upd=$(echo "$row" | grep -o '"updated_at":"[^"]*"' | cut -d'"' -f4)
-          if [ -z "$upd" ]; then verdict="NO_STATE"; else
+          # v56.5: an expired/revoked SUPABASE_ACCESS_TOKEN returns {"message":"Unauthorized"}.
+          # The old code lumped that in with NO_STATE and alerted "the bot is not responding",
+          # which sent us hunting the bot while the real fault was the credential — and the
+          # same dead token silently disabled deploys and every diagnostic too.
+          if echo "$row" | grep -qi '"message" *: *"Unauthorized"'; then verdict="BAD_TOKEN"
+          elif [ -z "$upd" ]; then verdict="NO_STATE"; else
             age=$(( $(date -u +%s) - $(date -u -d "$upd" +%s) ))
             echo "heartbeat age: ${age}s"
             if [ "$age" -gt 900 ]; then verdict="STALE"; else verdict="OK"; fi
@@ -48,13 +53,21 @@ jobs:
             "https://api.github.com/repos/${{ github.repository }}/issues?state=open&labels=watchdog" \
             | grep -o '"number": *[0-9]*' | head -1 | grep -o '[0-9]*' || true)
           if [ "$verdict" != "OK" ]; then
-            body="הבוט לא מעדכן את מצבו כבר יותר מ-15 דקות (updated_at=${upd:-none}). ייתכן שה-cron נפל או שהפונקציה קורסת. בדיקה: push לקובץ .status-ping או צפייה בלוגים של Supabase."
+            if [ "$verdict" = "BAD_TOKEN" ]; then
+              title="🔑 SUPABASE_ACCESS_TOKEN פג — ניטור ופריסות מושבתים"
+              body="השאילתה ל-Supabase מחזירה Unauthorized: הטוקן SUPABASE_ACCESS_TOKEN פג או בוטל. הבוט עצמו עשוי לרוץ כרגיל, אבל חסומים: פריסות (deploy-edge-function), דוחות status-ping, והניטור הזה. תיקון: צור Personal Access Token חדש ב-Supabase (Account → Access Tokens) ועדכן אותו ב-GitHub → Settings → Secrets and variables → Actions → SUPABASE_ACCESS_TOKEN. אין להדביק את הטוקן בצ'אט."
+              alert="🔑 SpaceHub: הטוקן של Supabase פג — פריסות וניטור מושבתים. צריך לחדש אותו ב-GitHub Secrets."
+            else
+              title="🚨 Bot heartbeat stale — הבוט לא מגיב"
+              body="הבוט לא מעדכן את מצבו כבר יותר מ-15 דקות (updated_at=${upd:-none}). ייתכן שה-cron נפל או שהפונקציה קורסת. בדיקה: push לקובץ .status-ping או צפייה בלוגים של Supabase."
+              alert="🚨 SpaceHub: הבוט לא מגיב מעל 15 דקות (updated_at=${upd:-none}). בדוק את Supabase."
+            fi
             if [ -z "$existing" ]; then
               curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" \
                 "https://api.github.com/repos/${{ github.repository }}/issues" \
-                -d "{\"title\":\"🚨 Bot heartbeat stale — הבוט לא מגיב\",\"body\":$(echo "$body" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))'),\"labels\":[\"watchdog\"]}" > /dev/null
-              tg "🚨 SpaceHub: הבוט לא מגיב מעל 15 דקות (updated_at=${upd:-none}). בדוק את Supabase."
-              echo "issue opened"
+                -d "{\"title\":\"$title\",\"body\":$(echo "$body" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))'),\"labels\":[\"watchdog\"]}" > /dev/null
+              tg "$alert"
+              echo "issue opened ($verdict)"
             else
               echo "issue #$existing already open — not duplicating"
             fi
