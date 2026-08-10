@@ -10,7 +10,11 @@ import { fetchIssTle, predictPasses, describePass, compass, type Pass } from './
 //   GET  ?action=cron       -> (CRON_SECRET) send ISS pass alerts that are due
 //
 // Push lives here rather than in its own api/push.ts purely to respect the
-// 12-function Vercel Hobby ceiling this project is already at.
+// 12-function Vercel Hobby ceiling this project is already at. For the same
+// reason the cron runs once a day: Hobby rejects any schedule more frequent
+// than daily, and an invalid schedule fails the whole deployment. That makes
+// the nightly digest the primary alert; the 20-minute "overhead soon" ping
+// only fires on plans that allow a frequent cron.
 
 const SUPABASE_URL = process.env.PUSH_SUPABASE_URL || process.env.ANALYTICS_SUPABASE_URL || ''
 const SERVICE_KEY = process.env.PUSH_SUPABASE_SERVICE_KEY || ''
@@ -70,7 +74,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ key: VAPID_PUBLIC || null })
   }
 
-  if (action === 'subscribe' || action === 'unsub' || action === 'cron') {
+  // Vercel attaches `Authorization: Bearer $CRON_SECRET` to scheduled
+  // invocations. Recognising that directly means the cron still works even if
+  // the query string in the schedule's path is dropped — otherwise a cron run
+  // would silently fall through and just return the ISS position.
+  const isCronRequest =
+    Boolean(CRON_SECRET) && req.headers.authorization === `Bearer ${CRON_SECRET}`
+
+  if (action === 'subscribe' || action === 'unsub' || action === 'cron' || isCronRequest) {
     if (!pushConfigured()) return res.status(503).json({ error: 'push not configured' })
     if (action === 'subscribe') return subscribe(req, res)
     if (action === 'unsub') return unsubscribe(req, res)
