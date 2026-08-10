@@ -202,7 +202,6 @@ const SpaceMegastructures = lazy(() => import('./components/SpaceMegastructures'
 const CosmicMysteries = lazy(() => import('./components/CosmicMysteries'))
 const CosmicOdds = lazy(() => import('./components/CosmicOdds'))
 const CosmicCounters = lazy(() => import('./components/CosmicCounters'))
-const CryptoTradingDashboard = lazy(() => import('./components/CryptoTradingDashboard'))
 import LoadingScreen from './components/LoadingScreen'
 import CursorGlow from './components/CursorGlow'
 import Reveal from './components/Reveal'
@@ -211,23 +210,24 @@ import MobileNav from './components/MobileNav'
 import PageviewTracker from './components/PageviewTracker'
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'))
 import { ISSProvider, useISS } from './contexts/ISSContext'
+import { AuthProvider } from './contexts/AuthContext'
 import BlogPage from './pages/BlogPage'
 import BlogArticlePage from './pages/BlogArticlePage'
 import PremiumPage from './pages/PremiumPage'
-const AIModelsPage = lazy(() => import('./pages/AIModelsPage'))
+const ToolsIndexPage = lazy(() => import('./pages/ToolsIndexPage'))
+const ToolPage = lazy(() => import('./pages/ToolPage'))
 import CityPage, { CITY_DATA } from './pages/CityPage'
 import PrivacyPage from './pages/PrivacyPage'
 import SuccessPage from './pages/SuccessPage'
 import NotFoundPage from './pages/NotFoundPage'
 
-type Tab = 'dashboard' | 'starmap' | 'tracker' | 'solar' | 'weather' | 'events' | 'news' | 'quiz' | 'blog' | 'gallery' | 'spacex' | 'explore' | 'observe' | 'science' | 'ai' | 'trading'
+type Tab = 'dashboard' | 'starmap' | 'tracker' | 'solar' | 'weather' | 'events' | 'news' | 'quiz' | 'blog' | 'gallery' | 'spacex' | 'explore' | 'observe' | 'science' | 'ai'
 
 const TAB_HASH: Record<Tab, string> = {
   dashboard: '#iss', starmap: '#starmap', tracker: '#tracker',
   solar: '#solar', weather: '#weather', events: '#events',
   news: '#news', quiz: '#quiz', blog: '#blog', gallery: '#gallery',
   spacex: '#spacex', explore: '#explore', observe: '#observe', science: '#science', ai: '#ai',
-  trading: '#trading',
 }
 
 const TAB_TITLES: Record<Tab, string> = {
@@ -246,7 +246,6 @@ const TAB_TITLES: Record<Tab, string> = {
   observe:   'Observer Tools — SpaceHub',
   science:   'Space Science Lab — SpaceHub',
   ai:        'AstroAI — Space Intelligence — SpaceHub',
-  trading:   'Crypto Trading Terminal — SpaceHub',
 }
 const HASH_TAB: Record<string, Tab> = Object.fromEntries(
   Object.entries(TAB_HASH).map(([k, v]) => [v, k as Tab])
@@ -268,7 +267,6 @@ const TAB_DEFS: { id: Tab; icon: string; tKey: string }[] = [
   { id: 'spacex',    icon: '🚀', tKey: 'tab.spacex' },
   { id: 'explore',   icon: '🔬', tKey: 'tab.explore' },
   { id: 'ai',        icon: '🤖', tKey: 'tab.ai' },
-  { id: 'trading',   icon: '📊', tKey: 'tab.trading' },
 ]
 
 const FOOTER_FEATURES = [
@@ -828,12 +826,6 @@ function MainApp() {
               </div>
             )}
 
-            {activeTab === 'trading' && (
-              <div className="max-w-4xl mx-auto">
-                <SafeWrap label="CryptoTrading"><Suspense fallback={<SkeletonCard />}><CryptoTradingDashboard /></Suspense></SafeWrap>
-              </div>
-            )}
-
             {activeTab === 'blog' && <SafeWrap label="BlogPage"><BlogPage /></SafeWrap>}
 
             {activeTab === 'gallery' && (
@@ -933,9 +925,9 @@ function MainApp() {
 
             {/* Links */}
             <nav aria-label="Footer navigation" className="flex flex-wrap gap-x-6 gap-y-2 justify-center mb-6">
+              <Link to="/tools" className="text-gray-500 hover:text-indigo-400 text-xs font-semibold transition-colors">Tools</Link>
               <Link to="/blog" className="text-gray-500 hover:text-indigo-400 text-xs font-semibold transition-colors">Blog</Link>
               <Link to="/premium" className="text-gray-500 hover:text-indigo-400 text-xs font-semibold transition-colors">Premium</Link>
-              <Link to="/ai-models" className="text-gray-500 hover:text-indigo-400 text-xs font-semibold transition-colors">AI Models</Link>
               <Link to="/privacy" className="text-gray-500 hover:text-indigo-400 text-xs font-semibold transition-colors">Privacy Policy</Link>
               <span className="hidden md:contents">
                 {Object.entries(CITY_DATA).map(([slug, c]) => (
@@ -986,6 +978,7 @@ function MainApp() {
 export default function App() {
   return (
     <LangProvider>
+      <AuthProvider>
       <BrowserRouter>
         <PageviewTracker />
         <ISSProvider>
@@ -1003,7 +996,8 @@ export default function App() {
           } />
           <Route path="/blog/:slug" element={<BlogArticlePage />} />
           <Route path="/premium" element={<PremiumPage />} />
-          <Route path="/ai-models" element={<Suspense fallback={null}><AIModelsPage /></Suspense>} />
+          <Route path="/tools" element={<Suspense fallback={null}><ToolsIndexPage /></Suspense>} />
+          <Route path="/tools/:slug" element={<Suspense fallback={null}><ToolPage /></Suspense>} />
           <Route path="/iss/:city" element={<CityPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/success" element={<SuccessPage />} />
@@ -1012,6 +1006,7 @@ export default function App() {
         </Routes>
         </ISSProvider>
       </BrowserRouter>
+      </AuthProvider>
     </LangProvider>
   )
 }

@@ -87,10 +87,22 @@ const BLOG_SLUGS = [
   'best-dew-heaters-telescope-2026',
 ]
 
+// Tool pages — keep in sync with src/pages/toolsRegistry.ts
+const TOOL_SLUGS = [
+  'star-map', 'tonights-sky', 'iss-tracker', 'iss-pass-predictor', 'moon-phase',
+  'meteor-showers', 'solar-system-3d', 'planet-visibility', 'planet-explorer',
+  'satellite-tracker', 'aurora-forecast', 'space-weather', 'light-pollution',
+  'seeing-forecast', 'telescope-advisor', 'astrophotography-planner',
+  'observation-log', 'night-sky-calendar', 'eclipse-countdown',
+  'constellation-guide', 'deep-sky-browser', 'exoplanet-explorer',
+  'asteroid-tracker', 'mars-weather', 'nasa-apod', 'jwst-gallery',
+  'astro-calculator', 'space-quiz',
+]
+
 export default function handler(req: VercelRequest, res: VercelResponse) {
   const today = new Date().toISOString().slice(0, 10)
 
-  const staticPages = ['', '/premium', '/blog'].map(path => `
+  const staticPages = ['', '/premium', '/blog', '/tools'].map(path => `
   <url>
     <loc>${BASE}${path}</loc>
     <lastmod>${today}</lastmod>
@@ -114,9 +126,17 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     <priority>0.8</priority>
   </url>`).join('')
 
+  const toolPages = TOOL_SLUGS.map(slug => `
+  <url>
+    <loc>${BASE}/tools/${slug}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>`).join('')
+
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${staticPages}${cityPages}${blogPages}
+${staticPages}${toolPages}${cityPages}${blogPages}
 </urlset>`
 
   res.setHeader('Content-Type', 'application/xml')
