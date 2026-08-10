@@ -41,7 +41,10 @@ export default function SolarWind3D() {
     const earth = new THREE.Mesh(earthGeo, earthMat)
     earth.position.set(3.5, 0, 0)
     scene.add(earth)
-    scene.add(new THREE.PointLight(0xffaa00, 2, 20))
+    // decay=0 — see SolarSystem3D: r155+ physical falloff would darken Earth here.
+    const sunLight = new THREE.PointLight(0xffaa00, 2, 20)
+    sunLight.decay = 0
+    scene.add(sunLight)
 
     // Solar wind particles
     interface Particle {

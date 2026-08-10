@@ -210,9 +210,12 @@ import MobileNav from './components/MobileNav'
 import PageviewTracker from './components/PageviewTracker'
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'))
 import { ISSProvider, useISS } from './contexts/ISSContext'
+import { AuthProvider } from './contexts/AuthContext'
 import BlogPage from './pages/BlogPage'
 import BlogArticlePage from './pages/BlogArticlePage'
 import PremiumPage from './pages/PremiumPage'
+const ToolsIndexPage = lazy(() => import('./pages/ToolsIndexPage'))
+const ToolPage = lazy(() => import('./pages/ToolPage'))
 import CityPage, { CITY_DATA } from './pages/CityPage'
 import PrivacyPage from './pages/PrivacyPage'
 import SuccessPage from './pages/SuccessPage'
@@ -922,6 +925,7 @@ function MainApp() {
 
             {/* Links */}
             <nav aria-label="Footer navigation" className="flex flex-wrap gap-x-6 gap-y-2 justify-center mb-6">
+              <Link to="/tools" className="text-gray-500 hover:text-indigo-400 text-xs font-semibold transition-colors">Tools</Link>
               <Link to="/blog" className="text-gray-500 hover:text-indigo-400 text-xs font-semibold transition-colors">Blog</Link>
               <Link to="/premium" className="text-gray-500 hover:text-indigo-400 text-xs font-semibold transition-colors">Premium</Link>
               <Link to="/privacy" className="text-gray-500 hover:text-indigo-400 text-xs font-semibold transition-colors">Privacy Policy</Link>
@@ -974,6 +978,7 @@ function MainApp() {
 export default function App() {
   return (
     <LangProvider>
+      <AuthProvider>
       <BrowserRouter>
         <PageviewTracker />
         <ISSProvider>
@@ -991,6 +996,8 @@ export default function App() {
           } />
           <Route path="/blog/:slug" element={<BlogArticlePage />} />
           <Route path="/premium" element={<PremiumPage />} />
+          <Route path="/tools" element={<Suspense fallback={null}><ToolsIndexPage /></Suspense>} />
+          <Route path="/tools/:slug" element={<Suspense fallback={null}><ToolPage /></Suspense>} />
           <Route path="/iss/:city" element={<CityPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/success" element={<SuccessPage />} />
@@ -999,6 +1006,7 @@ export default function App() {
         </Routes>
         </ISSProvider>
       </BrowserRouter>
+      </AuthProvider>
     </LangProvider>
   )
 }

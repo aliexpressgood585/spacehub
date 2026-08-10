@@ -1,24 +1,49 @@
 import { useState, useEffect } from 'react'
+import { enablePush } from '../lib/push'
 
 export default function NotificationBanner() {
   const [show, setShow] = useState(false)
   const [granted, setGranted] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState(false)
 
   useEffect(() => {
-    if (!('Notification' in window)) return
+    if (!('Notification' in window) || !('PushManager' in window)) return
     if (Notification.permission !== 'default') return
     if (localStorage.getItem('notif_dismissed')) return
     const t = setTimeout(() => setShow(true), 25000)
     return () => clearTimeout(t)
   }, [])
 
+  // Alerts are only useful with a location to compute passes for. Ask the
+  // browser, but never block enabling on it — the server falls back to a
+  // digest for whatever location we do have.
+  const currentLocation = () =>
+    new Promise<{ lat: number; lng: number } | undefined>(resolve => {
+      if (!navigator.geolocation) return resolve(undefined)
+      navigator.geolocation.getCurrentPosition(
+        p => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
+        () => resolve(undefined),
+        { timeout: 8000, maximumAge: 600_000 },
+      )
+    })
+
   const request = async () => {
-    const perm = await Notification.requestPermission()
-    if (perm === 'granted') {
+    setBusy(true)
+    setFailed(false)
+    const loc = await currentLocation()
+    const state = await enablePush(loc)
+    setBusy(false)
+
+    if (state === 'on') {
       setGranted(true)
       setTimeout(() => setShow(false), 3000)
-    } else {
+    } else if (state === 'denied') {
       dismiss()
+    } else {
+      // Permission may have been granted but the subscription failed — say so
+      // rather than showing a success message for alerts that will never come.
+      setFailed(true)
     }
   }
 
@@ -53,8 +78,8 @@ export default function NotificationBanner() {
         <div className="flex items-center gap-3">
           <span style={{ fontSize: 28 }}>✅</span>
           <div>
-            <p className="text-white font-bold text-sm">Notifications enabled!</p>
-            <p className="text-gray-400 text-xs">You'll be alerted when ISS passes your city.</p>
+            <p className="text-white font-bold text-sm">Alerts are on!</p>
+            <p className="text-gray-400 text-xs">We'll ping you before the ISS passes overhead.</p>
           </div>
         </div>
       ) : (
@@ -69,14 +94,17 @@ export default function NotificationBanner() {
           <div className="flex-1 min-w-0">
             <p className="text-white font-bold text-sm mb-0.5">Get ISS pass-over alerts</p>
             <p className="text-gray-400 text-xs leading-relaxed mb-3">
-              We'll notify you 10 min before the ISS flies over your location — visible to the naked eye!
+              {failed
+                ? "Couldn't turn on alerts just now — please try again in a moment."
+                : "We'll notify you before the ISS flies over your location — even when SpaceHub is closed."}
             </p>
             <div className="flex gap-2">
               <button
                 onClick={request}
-                className="btn-shimmer px-4 py-2 text-xs font-bold rounded-xl flex-1"
+                disabled={busy}
+                className="btn-shimmer px-4 py-2 text-xs font-bold rounded-xl flex-1 disabled:opacity-60"
               >
-                🚀 Enable Alerts
+                {busy ? 'Enabling…' : failed ? '↻ Try again' : '🚀 Enable Alerts'}
               </button>
               <button
                 onClick={dismiss}

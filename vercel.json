@@ -4,7 +4,10 @@
     { "source": "/.well-known/assetlinks.json", "destination": "/.well-known/assetlinks.json" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
-  "crons": [{ "path": "/api/newsletter", "schedule": "0 9 * * 1" }],
+  "crons": [
+    { "path": "/api/newsletter", "schedule": "0 9 * * 1" },
+    { "path": "/api/iss?action=cron", "schedule": "*/15 * * * *" }
+  ],
   "headers": [
     {
       "source": "/(.*)",

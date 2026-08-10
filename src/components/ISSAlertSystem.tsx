@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useLang } from '../i18n/LangContext'
+import { enablePush, getPushState, updatePushLocation } from '../lib/push'
 
 interface UserLocation { lat: number; lng: number; city: string }
 interface ISSData { latitude: number; longitude: number; altitude: number; velocity: number }
@@ -48,12 +49,25 @@ export default function ISSAlertSystem() {
   const [notified, setNotified] = useState(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const notifSupported = 'Notification' in window
+  const notifSupported = 'Notification' in window && 'PushManager' in window
+
+  // Reflect an existing push subscription so the badge isn't a lie after reload.
+  useEffect(() => {
+    getPushState().then(s => setNotifGranted(s === 'on'))
+  }, [])
+
+  // Alerts are computed server-side for a stored location, so any change of
+  // city (or a geolocation fix) has to be pushed up or we'd alert on the old one.
+  useEffect(() => {
+    if (!notifGranted || !userLoc) return
+    updatePushLocation({ lat: userLoc.lat, lng: userLoc.lng, city: userLoc.city })
+  }, [notifGranted, userLoc])
 
   const requestNotifications = async () => {
     if (!notifSupported) return
-    const perm = await Notification.requestPermission()
-    setNotifGranted(perm === 'granted')
+    const loc = userLoc ?? DEFAULT
+    const state = await enablePush({ lat: loc.lat, lng: loc.lng, city: loc.city })
+    setNotifGranted(state === 'on')
   }
 
   const sendNotification = useCallback((elevAngle: number) => {
