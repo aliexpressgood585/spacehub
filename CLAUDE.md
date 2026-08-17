@@ -343,6 +343,23 @@ with deeper Binance history) to be worth revisiting, not another signal test.
 - Checkpoint counter at the last readable snapshot: **27/50**, WR 63.0%,
   avgR -0.079 (WR near the 66% band; avgR still below — ranging-market profile).
 
+## BOT STOPPED 2026-08-03 → 08-17 (kill-switch deadlock) — FIXED in v56.6
+Bot looked perfectly healthy the whole time (heartbeat every minute, universe
+42, feeds green, edge fn 200) but placed ZERO trades for 14 days. Cause: BOTH
+health kill-switches fired (DONCH4H last30 = -$76.64, ROTA = -$48.28), and the
+switch pauses ENTRIES — with the book empty (ROTA unwinds its basket when
+paused) no new trades could close, so the "last 30 closed" window froze and
+"auto-resumes when the window heals" became structurally impossible. Fix
+(v56.6): a window whose newest close is older than HEALTH_STALE_H=48h is
+STALE → released with a log line; a genuinely recent losing streak still
+pauses. Also fixed: `.eq(...).catch(...)` threw "catch is not a function"
+(PostgREST builder is a thenable, not a Promise) and aborted the per-coin scan
+handler mid-exit — 10 sites swapped to `.then(ok,err)`.
+NOTE: bot_state.paper_mode is currently FALSE while Bybit keys / LIVE_TRADING
+are NOT set → liveMode=false, fills still simulated, but trades get tagged
+paper_mode:false (mislabel only, no real orders). Set it back to true unless
+arming live.
+
 ## Current state (2026-07-19)
 - CHECKPOINT STATUS (2026-07-19 review, user asked "reached 50?"): the official
   counter (DONCH4H closed, risk_usd>0, era-anchored — what the watchdog fires

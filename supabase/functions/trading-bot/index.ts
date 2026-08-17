@@ -1,4 +1,18 @@
 // ════════════════════════════════════════════════════════════
+// CryptoBot v56.6 — KILL-SWITCH DEADLOCK FIX (why the bot stayed quiet)
+//
+// v56.6: (1) The per-strategy health kill-switch could never auto-resume.
+//  It pauses ENTRIES; once both switches fired and the book emptied, no new
+//  trades closed, so the "last 30 closed" window froze and the stated
+//  "auto-resumes when the window heals" was structurally impossible. Live
+//  result: zero trades 2026-08-03 → 08-17 while the bot looked perfectly
+//  healthy (heartbeat fine, universe 42, feeds green). Fix: a window whose
+//  newest close is older than HEALTH_STALE_H (48h) is stale and is released
+//  with a log line — a genuinely recent losing streak still pauses as before.
+//  (2) `.eq(...).catch(...)` threw "catch is not a function" (the PostgREST
+//  builder is a thenable, not a Promise), aborting the per-coin scan handler
+//  during exits — 10 sites swapped to `.then(ok, err)`.
+//
 // CryptoBot v56.5 — UNIVERSE COLLAPSE FIX (why the bot went quiet)
 //
 // v56.5: fetchFuturesCoins() accepted the first source returning >=10 symbols.
@@ -2728,20 +2742,37 @@ Deno.serve(async (req) => {
     // ════ v43 (#4): PER-STRATEGY HEALTH KILL-SWITCH ═══════════════════════════
     // If a strategy's last 30 closed trades sum negative, pause its NEW entries
     // (rotation also unwinds its basket). Auto-resumes when the window heals.
+    //
+    // v56.6 DEADLOCK FIX: the switch pauses ENTRIES, so once it fires and the
+    // book empties there are no new closes — the last-30 window freezes and
+    // "auto-resume when the window heals" becomes impossible. The bot sat
+    // paused 2026-08-03 → 08-17 (14 days, zero trades) for exactly this reason.
+    // The switch is meant to react to a RECENT losing streak, so a window whose
+    // newest close is older than HEALTH_STALE_H no longer describes the present:
+    // it is released (logged), letting the strategy re-prove itself on fresh
+    // trades. A genuinely live losing streak still pauses exactly as before.
+    const HEALTH_STALE_H = 48
     let donchPaused = false, rotaPaused = false
     try {
-      const {data:h1} = await supabase.from('bot_trades').select('pnl').eq('strategy','DONCH4H')
-        .neq('status','OPEN').order('closed_at',{ascending:false}).limit(30)
-      if ((h1||[]).length >= 30) {
-        const s1 = (h1||[]).reduce((a:number,x:any)=>a+Number(x.pnl||0),0)
-        if (s1 < 0) { donchPaused = true; log.push(`HEALTH: DONCH4H paused (last30 pnl=${s1.toFixed(2)})`) }
+      const healthOf = async (strat:string) => {
+        const {data} = await supabase.from('bot_trades').select('pnl,closed_at').eq('strategy',strat)
+          .neq('status','OPEN').order('closed_at',{ascending:false}).limit(30)
+        const rows = data||[]
+        if (rows.length < 30) return {pause:false, sum:0, ageH:0}
+        const sum = rows.reduce((a:number,x:any)=>a+Number(x.pnl||0),0)
+        const newest = new Date((rows[0] as any).closed_at).getTime()
+        const ageH = (Date.now()-newest)/3600_000
+        if (sum >= 0) return {pause:false, sum, ageH}
+        if (ageH > HEALTH_STALE_H) {
+          log.push(`HEALTH: ${strat} window STALE (${ageH.toFixed(0)}h old, sum=${sum.toFixed(2)}) — released, re-proving on fresh trades`)
+          return {pause:false, sum, ageH}
+        }
+        return {pause:true, sum, ageH}
       }
-      const {data:h2} = await supabase.from('bot_trades').select('pnl').eq('strategy','ROTA')
-        .neq('status','OPEN').order('closed_at',{ascending:false}).limit(30)
-      if ((h2||[]).length >= 30) {
-        const s2 = (h2||[]).reduce((a:number,x:any)=>a+Number(x.pnl||0),0)
-        if (s2 < 0) { rotaPaused = true; log.push(`HEALTH: ROTA paused (last30 pnl=${s2.toFixed(2)})`) }
-      }
+      const hD = await healthOf('DONCH4H')
+      if (hD.pause) { donchPaused = true; log.push(`HEALTH: DONCH4H paused (last30 pnl=${hD.sum.toFixed(2)})`) }
+      const hR = await healthOf('ROTA')
+      if (hR.pause) { rotaPaused = true; log.push(`HEALTH: ROTA paused (last30 pnl=${hR.sum.toFixed(2)})`) }
     } catch (e) { await logErr('health_check', e) }
 
     // ════ v50: DAILY LOSS LIMIT (black-day circuit breaker) ═══════════════════
@@ -3026,8 +3057,8 @@ Deno.serve(async (req) => {
                 vpoc: +(vpoc.toFixed(6)),
                 volatility_pct: volPct,
                 result: 'snapshot_current'
-              }).catch(()=>{})
-              await supabase.from('bot_trades').update({snapshot_recorded: true}).eq('id',t.id).catch(()=>{})
+              }).then(()=>{},()=>{})
+              await supabase.from('bot_trades').update({snapshot_recorded: true}).eq('id',t.id).then(()=>{},()=>{})
             } catch { /* non-fatal */ }
           }
 
@@ -3041,7 +3072,7 @@ Deno.serve(async (req) => {
               status: pnl >= 0 ? 'TP' : 'SL', exit_price:price, pnl, pnl_pct:fav,
               closed_at:new Date().toISOString()
             }).eq('id',t.id)
-            await supabase.from('bot_trade_snapshots').update({ result:'equity_guard_forced_close', pnl }).eq('trade_id',t.id).catch(()=>{})
+            await supabase.from('bot_trade_snapshots').update({ result:'equity_guard_forced_close', pnl }).eq('trade_id',t.id).then(()=>{},()=>{})
             await updateMarketMemory(supabase, t.id, 'TP', pnl, log)
             log.push(`EQUITY_GUARD_CLOSE ${sym} ${t.side} @${price.toFixed(4)} pnl=${pnl.toFixed(2)}`)
             continue
@@ -3068,7 +3099,7 @@ Deno.serve(async (req) => {
               status:finalSt, exit_price:price, pnl, pnl_pct:fav,
               closed_at:new Date().toISOString()
             }).eq('id',t.id)
-            await supabase.from('bot_trade_snapshots').update({ result:'early_exit_ema_reversal', pnl }).eq('trade_id',t.id).catch(()=>{})
+            await supabase.from('bot_trade_snapshots').update({ result:'early_exit_ema_reversal', pnl }).eq('trade_id',t.id).then(()=>{},()=>{})
             await updateMarketMemory(supabase, t.id, finalSt, pnl, log)
             log.push(`RETROACTIVE_EARLY_EXIT ${sym} ${t.side} @${price.toFixed(4)} vs entry ${entry.toFixed(4)} pnl=${pnl.toFixed(2)}`)
             continue
@@ -3097,7 +3128,7 @@ Deno.serve(async (req) => {
                 status:'TP', exit_price:price, pnl:closePnl, pnl_pct:fav,
                 closed_at:new Date().toISOString()
               }).eq('id',t.id)
-              await supabase.from('bot_trade_snapshots').update({ result:`advanced_exit_${advancedExit.reason}`, pnl:closePnl }).eq('trade_id',t.id).catch(()=>{})
+              await supabase.from('bot_trade_snapshots').update({ result:`advanced_exit_${advancedExit.reason}`, pnl:closePnl }).eq('trade_id',t.id).then(()=>{},()=>{})
               await updateMarketMemory(supabase, t.id, 'TP', closePnl, log)
               log.push(`ADVANCED_EXIT ${sym} ${t.side} (${advancedExit.reason}) @${price.toFixed(4)} pnl=${closePnl.toFixed(2)}`)
               continue
@@ -3129,7 +3160,7 @@ Deno.serve(async (req) => {
                 status: 'SL', exit_price: price, pnl, pnl_pct: fav,
                 closed_at: new Date().toISOString()
               }).eq('id', t.id)
-              await supabase.from('bot_trade_snapshots').update({ result: 'vwap_counter_exit', pnl }).eq('trade_id', t.id).catch(() => {})
+              await supabase.from('bot_trade_snapshots').update({ result: 'vwap_counter_exit', pnl }).eq('trade_id', t.id).then(()=>{},()=>{})
               await updateMarketMemory(supabase, t.id, 'SL', pnl, log)
               log.push(`VWAP_COUNTER ${sym} ${t.side} @${price.toFixed(4)} vwap=${vwapNow.toFixed(4)} pnl=${pnl.toFixed(2)}`)
               continue
@@ -3150,7 +3181,7 @@ Deno.serve(async (req) => {
               status: 'SL', exit_price: price, pnl, pnl_pct: fav,
               closed_at: new Date().toISOString()
             }).eq('id', t.id)
-            await supabase.from('bot_trade_snapshots').update({ result: 'stop_hunt_counter_exit', pnl }).eq('trade_id', t.id).catch(() => {})
+            await supabase.from('bot_trade_snapshots').update({ result: 'stop_hunt_counter_exit', pnl }).eq('trade_id', t.id).then(()=>{},()=>{})
             await updateMarketMemory(supabase, t.id, 'SL', pnl, log)
             log.push(`STOP_HUNT_COUNTER ${sym} ${t.side} @${price.toFixed(4)} pnl=${pnl.toFixed(2)}`)
             continue
@@ -3172,7 +3203,7 @@ Deno.serve(async (req) => {
                 status: 'SL', exit_price: price, pnl, pnl_pct: fav,
                 closed_at: new Date().toISOString()
               }).eq('id', t.id)
-              await supabase.from('bot_trade_snapshots').update({ result: 'liq_zone_counter_exit', pnl }).eq('trade_id', t.id).catch(() => {})
+              await supabase.from('bot_trade_snapshots').update({ result: 'liq_zone_counter_exit', pnl }).eq('trade_id', t.id).then(()=>{},()=>{})
               await updateMarketMemory(supabase, t.id, 'SL', pnl, log)
               log.push(`LIQ_ZONE_COUNTER ${sym} ${t.side} @${price.toFixed(4)} zone=${liqOppResult.zoneLevel.toFixed(4)} pnl=${pnl.toFixed(2)}`)
               continue
@@ -3277,7 +3308,7 @@ Deno.serve(async (req) => {
                   status: final, exit_price: price, pnl, pnl_pct: fav,
                   closed_at: new Date().toISOString()
                 }).eq('id', t.id)
-                await supabase.from('bot_trade_snapshots').update({ result: final, pnl }).eq('trade_id', t.id).catch(()=>{})
+                await supabase.from('bot_trade_snapshots').update({ result: final, pnl }).eq('trade_id', t.id).then(()=>{},()=>{})
                 await updateMarketMemory(supabase, t.id, final, pnl, log)
                 log.push(`LADDER_TRAIL ${sym} ${t.side} final⅓ @${price.toFixed(4)} pnl=${pnl.toFixed(2)} ${timedOut?'(timeout)':''}`)
                 continue
@@ -3326,7 +3357,7 @@ Deno.serve(async (req) => {
               pnl_pct:fav,closed_at:new Date().toISOString()
             }).eq('id',t.id)
             // Phase 1: update snapshot with close result
-            await supabase.from('bot_trade_snapshots').update({ result:final, pnl }).eq('trade_id',t.id).catch(()=>{})
+            await supabase.from('bot_trade_snapshots').update({ result:final, pnl }).eq('trade_id',t.id).then(()=>{},()=>{})
             // Phase 9: update market memory
             await updateMarketMemory(supabase, t.id, final, pnl, log)
             const modeTag=t.mtf?'SWEEP':'RANGE'
