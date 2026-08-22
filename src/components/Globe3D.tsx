@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
+import '../lib/threeSetup'
 
 export default function Globe3D() {
   const containerRef = useRef<HTMLDivElement>(null)

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import * as THREE from 'three'
+import '../lib/threeSetup'
 
 // ── Schlyter orbital mechanics ───────────────────────────────────────────────
 const DEG = Math.PI / 180
