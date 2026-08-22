@@ -1,6 +1,7 @@
-import { Suspense, useEffect } from 'react'
+import { Suspense, useEffect, useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { TOOL_BY_SLUG, TOOLS } from './toolsRegistry'
+import { useJsonLd, breadcrumbLd, toolLd } from '../lib/jsonLd'
 import NotFoundPage from './NotFoundPage'
 
 const SITE = 'https://www.spacehubapp.com'
@@ -53,8 +54,29 @@ function useToolSeo(title: string, blurb: string, slug: string) {
 export default function ToolPage() {
   const { slug = '' } = useParams()
   const tool = TOOL_BY_SLUG.get(slug)
+  const shortName = tool ? tool.title.split('—')[0].trim() : ''
 
   useToolSeo(tool?.title ?? '', tool?.blurb ?? '', slug)
+
+  // Memoised so the effect doesn't re-inject the block on every render.
+  const ld = useMemo(
+    () =>
+      tool
+        ? {
+            '@context': 'https://schema.org',
+            '@graph': [
+              toolLd({ slug, name: shortName, description: tool.blurb }),
+              breadcrumbLd([
+                { name: 'SpaceHub', path: '/' },
+                { name: 'Tools', path: '/tools' },
+                { name: shortName, path: `/tools/${slug}` },
+              ]),
+            ],
+          }
+        : null,
+    [tool, slug, shortName],
+  )
+  useJsonLd(`tool-${slug}`, ld)
 
   if (!tool) return <NotFoundPage />
 

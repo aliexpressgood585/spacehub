@@ -188,6 +188,16 @@ export const CITY_DATA: Record<string, { name: string; nameEn: string; lat: numb
   'guadalajara':     { name: 'Guadalajara',     nameEn: 'Guadalajara',     lat: 20.66,  lng: -103.35, desc: 'Guadalajara — Highland altitude improves ISS visibility' },
 }
 
+// The tools that are genuinely useful from a specific place, phrased for it.
+const CITY_TOOL_LINKS: { slug: string; label: string; hint: (city: string) => string }[] = [
+  { slug: 'iss-pass-predictor', label: '🛰️ ISS Pass Predictor', hint: c => `Exact times the station crosses ${c}` },
+  { slug: 'tonights-sky',       label: "🌌 Tonight's Sky",       hint: c => `Planets and stars visible from ${c} tonight` },
+  { slug: 'star-map',           label: '🗺️ Interactive Star Map', hint: c => `Live map of the sky above ${c}` },
+  { slug: 'moon-phase',         label: '🌙 Moon Phase Tonight',   hint: c => `Illumination, moonrise and moonset in ${c}` },
+  { slug: 'light-pollution',    label: '💡 Light Pollution Map',  hint: c => `How dark the sky really is around ${c}` },
+  { slug: 'seeing-forecast',    label: '🔭 Seeing Forecast',      hint: c => `The best nights to observe from ${c}` },
+]
+
 export default function CityPage() {
   const { city } = useParams<{ city: string }>()
   const data = city ? CITY_DATA[city] : null
@@ -267,6 +277,27 @@ export default function CityPage() {
           <p className="text-gray-400 text-sm leading-relaxed">
             Use SpaceHub's ISS Live system to know exactly when the ISS passes over {data.name} and get an alert in advance.
           </p>
+        </div>
+
+        {/* Tools — these 183 city pages are the site's widest crawl surface, so
+            linking the tool pages from here is what gets them discovered. */}
+        <div className="mt-8">
+          <h3 className="text-sm font-bold text-gray-500 mb-3 uppercase tracking-widest">
+            Stargazing Tools for {data.name}
+          </h3>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {CITY_TOOL_LINKS.map(tool => (
+              <Link
+                key={tool.slug}
+                to={`/tools/${tool.slug}`}
+                className="block px-4 py-3 rounded-xl text-sm text-gray-300 hover:text-white transition-colors"
+                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
+              >
+                <span className="font-semibold">{tool.label}</span>
+                <span className="block text-gray-500 text-xs mt-0.5">{tool.hint(data.name)}</span>
+              </Link>
+            ))}
+          </div>
         </div>
 
         {/* Other cities */}

@@ -1,6 +1,7 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { TOOLS } from './toolsRegistry'
+import { useJsonLd, breadcrumbLd, toolListLd } from '../lib/jsonLd'
 
 // Hub page: gives crawlers (and people) one place that links to every tool
 // page, so the individual routes are discoverable without a sitemap fetch.
@@ -18,6 +19,21 @@ const GROUPS: { tab: string; label: string }[] = [
 ]
 
 export default function ToolsIndexPage() {
+  const ld = useMemo(
+    () => ({
+      '@context': 'https://schema.org',
+      '@graph': [
+        toolListLd(TOOLS.map(t => ({ slug: t.slug, name: t.title.split('—')[0].trim() }))),
+        breadcrumbLd([
+          { name: 'SpaceHub', path: '/' },
+          { name: 'Tools', path: '/tools' },
+        ]),
+      ],
+    }),
+    [],
+  )
+  useJsonLd('tools-index', ld)
+
   useEffect(() => {
     const prev = document.title
     document.title = 'Free Astronomy Tools — Star Map, ISS Tracker & More | SpaceHub'
