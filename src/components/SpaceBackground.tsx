@@ -26,8 +26,21 @@ export default function SpaceBackground() {
       } catch {}
     }
 
+    // The starfield is decorative and costs ~700 KB of three.js. Skip the
+    // download entirely for people who have told the browser they are paying
+    // for data or are on a very slow link — the CSS nebula gradient below
+    // still carries the look. Everyone else sees the scene unchanged.
+    const shouldSkipForData = () => {
+      const c = (navigator as Navigator & {
+        connection?: { saveData?: boolean; effectiveType?: string }
+      }).connection
+      if (!c) return false
+      return Boolean(c.saveData) || c.effectiveType === 'slow-2g' || c.effectiveType === '2g'
+    }
+
     const init = async () => {
       try {
+        if (shouldSkipForData()) return
         const THREE = await import('three').catch(() => null)
         if (!THREE || !containerRef.current) return
         // Match the colour handling the other scenes use (see lib/threeSetup).
