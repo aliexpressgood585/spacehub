@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
+import '../lib/threeSetup'
 
 const SHOWERS = [
   { name: 'Perseids',       peak: 'Aug 11–13', zhr: 100, radiant: 'Perseus',    active: '7/17–8/24' },

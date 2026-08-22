@@ -30,6 +30,8 @@ export default function SpaceBackground() {
       try {
         const THREE = await import('three').catch(() => null)
         if (!THREE || !containerRef.current) return
+        // Match the colour handling the other scenes use (see lib/threeSetup).
+        THREE.ColorManagement.enabled = false
 
         const W = window.innerWidth
         const H = window.innerHeight
