@@ -286,13 +286,16 @@ export default function MarsRoverDashboard() {
     setPhotos([])
     setImgErrors(new Set())
 
-    const url = `https://api.nasa.gov/mars-photos/api/v1/rovers/${activeRover}/latest_photos?api_key=DEMO_KEY`
+    const url = `/api/mars-photos?rover=${activeRover}`
     fetch(url)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
       })
-      .then((data: { latest_photos: MarsPhoto[] }) => {
+      .then((data: { latest_photos?: MarsPhoto[]; error?: string }) => {
+        // /api/mars-photos answers 200 with { error } when the upstream feed
+        // is unreachable, so an empty grid never masks a failed request.
+        if (data.error) throw new Error(data.error === 'rate_limited' ? 'NASA rate limit' : data.error)
         const all = data.latest_photos ?? []
         // Deduplicate by camera — show variety across cameras, max 9 photos
         const seen = new Set<string>()
@@ -320,13 +323,13 @@ export default function MarsRoverDashboard() {
     setManifestLoading(true)
     setManifest(null)
 
-    const url = `https://api.nasa.gov/mars-photos/api/v1/manifests/${activeRover}?api_key=DEMO_KEY`
+    const url = `/api/mars-photos?rover=${activeRover}&manifest=1`
     fetch(url)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
       })
-      .then((data: { photo_manifest: RoverManifest }) => {
+      .then((data: { photo_manifest?: RoverManifest }) => {
         setManifest(data.photo_manifest ?? null)
         setManifestLoading(false)
       })
@@ -612,7 +615,7 @@ export default function MarsRoverDashboard() {
             <p style={{ fontSize: 32, marginBottom: 12 }}>🛸</p>
             <p style={{ color: '#f87171', fontWeight: 700, marginBottom: 6 }}>Signal Lost</p>
             <p style={{ color: '#6b7280', fontSize: 12, marginBottom: 16 }}>
-              Could not reach NASA API ({error}). Rate limits may apply with DEMO_KEY.
+              Could not reach NASA API ({error}). Try again in a moment.
             </p>
             <button
               onClick={() => setRefreshKey(k => k + 1)}
@@ -763,7 +766,7 @@ export default function MarsRoverDashboard() {
 
         {/* ── Footer ── */}
         <p style={{ color: '#374151', fontSize: 10, marginTop: 16, textAlign: 'center' }}>
-          Data via NASA Mars Rover Photos API · DEMO_KEY (rate-limited)
+          Data via NASA Mars Rover Photos API
         </p>
 
       </div>

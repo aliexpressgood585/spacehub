@@ -38,9 +38,10 @@ export default function JWSTGallery() {
   const [errors,    setErrors]    = useState<Set<number>>(new Set())
 
   useEffect(() => {
-    // Primary: NASA APOD batch for the JWST first-light week (July 12–19 2022)
-    // APOD images are served from apod.nasa.gov — reliable CDN, proper CORS
-    fetch('https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY&start_date=2022-07-12&end_date=2022-07-19')
+    // Primary: NASA APOD batch for the JWST first-light week (July 12–19 2022),
+    // through /api/nasa so the deployment's key and the CDN cache are used
+    // rather than every visitor spending the shared DEMO_KEY quota.
+    fetch('/api/nasa?path=/planetary/apod&start_date=2022-07-12&end_date=2022-07-19')
       .then(r => r.json())
       .then((data: Array<{ title: string; url: string; date: string; media_type: string }>) => {
         const imgs = Array.isArray(data)
