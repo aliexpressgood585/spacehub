@@ -1,38 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { CITY_DATA } from '../src/data/cities'
 
 const BASE = 'https://www.spacehubapp.com'
 
-const CITIES = [
-  'new-york', 'london', 'los-angeles', 'paris', 'tokyo', 'sydney', 'toronto',
-  'berlin', 'dubai', 'chicago', 'tel-aviv', 'jerusalem', 'amsterdam', 'madrid',
-  'rome', 'moscow', 'beijing', 'singapore', 'mumbai', 'cairo', 'mexico-city',
-  'buenos-aires', 'sao-paulo', 'johannesburg', 'seoul', 'bangkok', 'istanbul',
-  'vienna', 'stockholm', 'miami', 'houston', 'san-francisco', 'cape-town',
-  'melbourne', 'seattle', 'barcelona', 'milan', 'lisbon', 'prague', 'warsaw',
-  'lagos', 'nairobi', 'lima', 'bogota', 'santiago', 'montreal', 'vancouver',
-  'riyadh', 'shanghai', 'hong-kong', 'jakarta', 'kuala-lumpur', 'manila', 'accra',
-  'boston', 'washington-dc', 'philadelphia', 'atlanta', 'denver', 'phoenix',
-  'dallas', 'austin', 'houston-tx', 'san-diego', 'las-vegas', 'portland',
-  'minneapolis', 'detroit', 'orlando', 'tampa', 'nashville', 'new-orleans',
-  'salt-lake-city', 'kansas-city', 'st-louis', 'pittsburgh', 'cleveland',
-  'baltimore', 'sacramento', 'honolulu', 'anchorage', 'charlotte', 'columbus',
-  'calgary', 'edmonton', 'ottawa', 'winnipeg', 'quebec-city', 'halifax',
-  'dublin', 'edinburgh', 'manchester', 'birmingham', 'glasgow', 'brussels',
-  'zurich', 'geneva', 'munich', 'frankfurt', 'hamburg', 'cologne',
-  'copenhagen', 'oslo', 'helsinki', 'reykjavik', 'athens', 'budapest',
-  'bucharest', 'sofia', 'belgrade', 'zagreb', 'krakow', 'porto', 'valencia',
-  'seville', 'naples', 'turin', 'florence', 'venice', 'nice', 'lyon',
-  'marseille', 'tallinn', 'riga', 'vilnius', 'kyiv', 'abu-dhabi', 'doha',
-  'kuwait-city', 'amman', 'muscat', 'haifa', 'eilat', 'beer-sheva', 'osaka',
-  'kyoto', 'nagoya', 'busan', 'taipei', 'shenzhen', 'guangzhou', 'chengdu',
-  'delhi', 'bangalore', 'chennai', 'kolkata', 'hyderabad', 'karachi',
-  'lahore', 'dhaka', 'colombo', 'kathmandu', 'hanoi', 'ho-chi-minh-city',
-  'manila-ph', 'casablanca', 'marrakech', 'tunis', 'algiers', 'addis-ababa',
-  'dar-es-salaam', 'kampala', 'durban', 'abuja', 'brisbane', 'perth',
-  'adelaide', 'auckland', 'wellington', 'christchurch', 'rio-de-janeiro',
-  'brasilia', 'montevideo', 'asuncion', 'la-paz', 'quito', 'caracas',
-  'panama-city', 'guatemala-city', 'havana', 'san-juan', 'monterrey', 'guadalajara',
-]
+// Derived from the same table the /iss/:city pages render, so the sitemap can
+// never advertise a URL that has no page behind it (or miss one that does).
+const CITIES = Object.keys(CITY_DATA)
 
 const BLOG_SLUGS = [
   'best-telescope-for-kids-2026',
@@ -99,7 +72,7 @@ const TOOL_SLUGS = [
   'astro-calculator', 'space-quiz',
 ]
 
-export default function handler(req: VercelRequest, res: VercelResponse) {
+export default function handler(_req: VercelRequest, res: VercelResponse) {
   const today = new Date().toISOString().slice(0, 10)
 
   const staticPages = ['', '/premium', '/blog', '/tools'].map(path => `

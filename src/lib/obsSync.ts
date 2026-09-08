@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { getSupabase } from './supabase'
 
 // Cloud mirror for the observation log.
 //
@@ -52,6 +52,7 @@ const fromRow = (r: Row): Observation => ({
 })
 
 export async function fetchRemote(userId: string): Promise<Observation[] | null> {
+  const supabase = await getSupabase()
   if (!supabase) return null
   const { data, error } = await supabase
     .from('observations')
@@ -62,11 +63,13 @@ export async function fetchRemote(userId: string): Promise<Observation[] | null>
 }
 
 export async function pushOne(o: Observation, userId: string): Promise<void> {
+  const supabase = await getSupabase()
   if (!supabase) return
   await supabase.from('observations').upsert(toRow(o, userId), { onConflict: 'user_id,id' })
 }
 
 export async function deleteOne(id: string, userId: string): Promise<void> {
+  const supabase = await getSupabase()
   if (!supabase) return
   await supabase.from('observations').delete().eq('user_id', userId).eq('id', id)
 }
@@ -94,7 +97,8 @@ export async function mergeOnSignIn(
     }
   }
 
-  if (toUpload.length && supabase) {
+  const supabase = toUpload.length ? await getSupabase() : null
+  if (supabase) {
     await supabase
       .from('observations')
       .upsert(toUpload.map(o => toRow(o, userId)), { onConflict: 'user_id,id' })

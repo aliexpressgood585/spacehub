@@ -211,15 +211,19 @@ import PageviewTracker from './components/PageviewTracker'
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'))
 import { ISSProvider, useISS } from './contexts/ISSContext'
 import { AuthProvider } from './contexts/AuthContext'
-import BlogPage from './pages/BlogPage'
-import BlogArticlePage from './pages/BlogArticlePage'
-import PremiumPage from './pages/PremiumPage'
+// Every route below is code-split. BlogPage alone carries ~190 KB of article
+// prose; statically importing it put the full text of every article into the
+// entry bundle that each homepage visitor downloads before seeing anything.
+const BlogPage = lazy(() => import('./pages/BlogPage'))
+const BlogArticlePage = lazy(() => import('./pages/BlogArticlePage'))
+const PremiumPage = lazy(() => import('./pages/PremiumPage'))
 const ToolsIndexPage = lazy(() => import('./pages/ToolsIndexPage'))
 const ToolPage = lazy(() => import('./pages/ToolPage'))
-import CityPage, { CITY_DATA } from './pages/CityPage'
-import PrivacyPage from './pages/PrivacyPage'
-import SuccessPage from './pages/SuccessPage'
-import NotFoundPage from './pages/NotFoundPage'
+const CityPage = lazy(() => import('./pages/CityPage'))
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage'))
+const SuccessPage = lazy(() => import('./pages/SuccessPage'))
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
+import { CITY_DATA } from './data/cities'
 
 type Tab = 'dashboard' | 'starmap' | 'tracker' | 'solar' | 'weather' | 'events' | 'news' | 'quiz' | 'blog' | 'gallery' | 'spacex' | 'explore' | 'observe' | 'science' | 'ai'
 
@@ -339,6 +343,31 @@ function SkeletonCard() {
         <div className="skeleton-line h-3 w-3/5" />
       </div>
     </div>
+  )
+}
+
+function RouteFallback() {
+  return (
+    <div style={{ minHeight: '100vh', background: '#020510', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="skeleton-line" style={{ width: 220, height: 14, borderRadius: 8 }} aria-label="Loading page" role="status" />
+    </div>
+  )
+}
+
+/* Every card in every tab renders through <Section>, which bundles the three
+   things each card needs — and which most of them were missing:
+   - Reveal defers mounting until the card is within ~1200px of the viewport,
+     so opening a long tab (Science holds ~110 cards) fetches a handful of
+     chunks instead of firing every one of them at once;
+   - SafeWrap keeps a crash inside the one card instead of blanking the page;
+   - Suspense shows the skeleton while that card's chunk arrives. */
+function Section({ children, label, delay }: { children: ReactNode; label?: string; delay?: 0 | 1 | 2 | 3 | 4 }) {
+  return (
+    <Reveal delay={delay}>
+      <SafeWrap label={label}>
+        <Suspense fallback={<SkeletonCard />}>{children}</Suspense>
+      </SafeWrap>
+    </Reveal>
   )
 }
 
@@ -541,30 +570,30 @@ function MainApp() {
 
             {activeTab === 'dashboard' && (
               <div className="space-y-5">
-                <Reveal><SafeWrap label="TonightsSky"><Suspense fallback={<SkeletonCard />}><TonightsSky /></Suspense></SafeWrap></Reveal>
-                <Reveal><SafeWrap label="Updates"><Suspense fallback={<SkeletonCard />}><WeeklyUpdates /></Suspense></SafeWrap></Reveal>
+                <Section label="TonightsSky"><TonightsSky /></Section>
+                <Section label="Updates"><WeeklyUpdates /></Section>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Reveal delay={1}><SafeWrap label="Astronauts"><Suspense fallback={<SkeletonCard />}><AstronautsInSpace /></Suspense></SafeWrap></Reveal>
-                  <Reveal delay={2}><SafeWrap label="Moon Phase"><Suspense fallback={<SkeletonCard />}><MoonPhase /></Suspense></SafeWrap></Reveal>
-                  <Reveal delay={3}><SafeWrap label="Launch Countdown"><Suspense fallback={<SkeletonCard />}><LaunchCountdown /></Suspense></SafeWrap></Reveal>
+                  <Section label="Astronauts" delay={1}><AstronautsInSpace /></Section>
+                  <Section label="Moon Phase" delay={2}><MoonPhase /></Section>
+                  <Section label="Launch Countdown" delay={3}><LaunchCountdown /></Section>
                 </div>
-                <Reveal><SafeWrap label="Space History"><Suspense fallback={<SkeletonCard />}><SpaceHistory /></Suspense></SafeWrap></Reveal>
+                <Section label="Space History"><SpaceHistory /></Section>
                 <Reveal><SafeWrap label="ISS Alerts"><div ref={issRef}><Suspense fallback={null}><ISSAlertSystem /></Suspense></div></SafeWrap></Reveal>
-                <Reveal><SafeWrap label="ISS Pass Predictor"><Suspense fallback={<SkeletonCard />}><ISSPassPredictor /></Suspense></SafeWrap></Reveal>
-                <Reveal><SafeWrap label="ISS Tracker"><Suspense fallback={<SkeletonCard />}><ISSTracker /></Suspense></SafeWrap></Reveal>
+                <Section label="ISS Pass Predictor"><ISSPassPredictor /></Section>
+                <Section label="ISS Tracker"><ISSTracker /></Section>
                 <Reveal><SafeWrap label="Share Card"><Suspense fallback={null}><ShareCard issLat={issData?.lat} issLng={issData?.lng} issAlt={issData?.alt} /></Suspense></SafeWrap></Reveal>
-                <Reveal><SafeWrap label="NASA APOD"><Suspense fallback={<SkeletonCard />}><NasaAPOD /></Suspense></SafeWrap></Reveal>
-                <Reveal><SafeWrap label="Asteroid Tracker"><Suspense fallback={<SkeletonCard />}><AsteroidTracker /></Suspense></SafeWrap></Reveal>
+                <Section label="NASA APOD"><NasaAPOD /></Section>
+                <Section label="Asteroid Tracker"><AsteroidTracker /></Section>
                 <AdBanner />
               </div>
             )}
 
             {activeTab === 'starmap' && (
               <div className="space-y-5">
-                <SafeWrap label="StarMap"><Suspense fallback={<SkeletonCard />}><StarMap /></Suspense></SafeWrap>
-                <Suspense fallback={<SkeletonCard />}><MilkyWayMap /></Suspense>
-                <SafeWrap label="ARStarFinder"><Suspense fallback={<SkeletonCard />}><ARStarFinder /></Suspense></SafeWrap>
-                <Suspense fallback={<SkeletonCard />}><ConstellationGuide /></Suspense>
+                <Section label="StarMap"><StarMap /></Section>
+                <Section label="MilkyWayMap"><MilkyWayMap /></Section>
+                <Section label="ARStarFinder"><ARStarFinder /></Section>
+                <Section label="ConstellationGuide"><ConstellationGuide /></Section>
                 <div className="space-card holo-border p-6">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="icon-box text-xl">🛸</div>
@@ -582,10 +611,10 @@ function MainApp() {
 
             {activeTab === 'tracker' && (
               <div className="space-y-5">
-                <SafeWrap label="ARSkyView"><Suspense fallback={<SkeletonCard />}><ARSkyView /></Suspense></SafeWrap>
-                <SafeWrap label="SatelliteTracker"><Suspense fallback={<SkeletonCard />}><SatelliteTracker /></Suspense></SafeWrap>
-                <SafeWrap label="SpaceDebris"><Suspense fallback={<SkeletonCard />}><SpaceDebris /></Suspense></SafeWrap>
-                <Suspense fallback={<SkeletonCard />}><SpaceDebrisDashboard /></Suspense>
+                <Section label="ARSkyView"><ARSkyView /></Section>
+                <Section label="SatelliteTracker"><SatelliteTracker /></Section>
+                <Section label="SpaceDebris"><SpaceDebris /></Section>
+                <Section label="SpaceDebrisDashboard"><SpaceDebrisDashboard /></Section>
               </div>
             )}
 
@@ -599,240 +628,240 @@ function MainApp() {
                       <p className="text-gray-500 text-sm">Interactive real-time planet positions</p>
                     </div>
                   </div>
-                  <Suspense fallback={<SkeletonCard />}><SolarSystem3D /></Suspense>
+                  <Section label="SolarSystem3D"><SolarSystem3D /></Section>
                 </div>
-                <Suspense fallback={<SkeletonCard />}><PlanetExplorer /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><PlanetVisibilityCalendar /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><PlanetaryMoons /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><PlanetaryRings /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><IceGiants /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><PlanetaryAtmospheres /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><LunarGeology /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><CometExplorer /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><MeteorShowers /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><PlanetaryScience /></Suspense>
+                <Section label="PlanetExplorer"><PlanetExplorer /></Section>
+                <Section label="PlanetVisibilityCalendar"><PlanetVisibilityCalendar /></Section>
+                <Section label="PlanetaryMoons"><PlanetaryMoons /></Section>
+                <Section label="PlanetaryRings"><PlanetaryRings /></Section>
+                <Section label="IceGiants"><IceGiants /></Section>
+                <Section label="PlanetaryAtmospheres"><PlanetaryAtmospheres /></Section>
+                <Section label="LunarGeology"><LunarGeology /></Section>
+                <Section label="CometExplorer"><CometExplorer /></Section>
+                <Section label="MeteorShowers"><MeteorShowers /></Section>
+                <Section label="PlanetaryScience"><PlanetaryScience /></Section>
               </div>
             )}
 
             {activeTab === 'weather' && (
               <div className="space-y-5">
-                <Suspense fallback={<SkeletonCard />}><LiveSpaceWeather /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SolarFlareAlerts /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><AuroraForecast /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceWeatherHistory /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><MarsWeather /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceWeather /></Suspense>
+                <Section label="LiveSpaceWeather"><LiveSpaceWeather /></Section>
+                <Section label="SolarFlareAlerts"><SolarFlareAlerts /></Section>
+                <Section label="AuroraForecast"><AuroraForecast /></Section>
+                <Section label="SpaceWeatherHistory"><SpaceWeatherHistory /></Section>
+                <Section label="MarsWeather"><MarsWeather /></Section>
+                <Section label="SpaceWeather"><SpaceWeather /></Section>
               </div>
             )}
             {activeTab === 'events' && (
               <div className="space-y-5">
-                <Suspense fallback={<SkeletonCard />}><MeteorShower3D /></Suspense>
+                <Section label="MeteorShower3D"><MeteorShower3D /></Section>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <Suspense fallback={<SkeletonCard />}><EclipseCountdown /></Suspense>
-                  <Suspense fallback={<SkeletonCard />}><ConjunctionAlert /></Suspense>
+                  <Section label="EclipseCountdown"><EclipseCountdown /></Section>
+                  <Section label="ConjunctionAlert"><ConjunctionAlert /></Section>
                 </div>
-                <Suspense fallback={<SkeletonCard />}><CometTracker /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><EventsCalendar /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><NightSkyCalendar /></Suspense>
+                <Section label="CometTracker"><CometTracker /></Section>
+                <Section label="EventsCalendar"><EventsCalendar /></Section>
+                <Section label="NightSkyCalendar"><NightSkyCalendar /></Section>
               </div>
             )}
 
             {activeTab === 'news' && (
               <div className="space-y-5">
-                <Suspense fallback={<SkeletonCard />}><SpaceNewsFeed /></Suspense>
+                <Section label="SpaceNewsFeed"><SpaceNewsFeed /></Section>
                 <AdBanner />
               </div>
             )}
 
             {activeTab === 'quiz' && (
               <div className="max-w-lg mx-auto">
-                <Suspense fallback={<SkeletonCard />}><SpaceQuiz /></Suspense>
+                <Section label="SpaceQuiz"><SpaceQuiz /></Section>
               </div>
             )}
 
             {activeTab === 'spacex' && (
               <div className="space-y-5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <Suspense fallback={<SkeletonCard />}><MarsCountdown /></Suspense>
-                  <Suspense fallback={<SkeletonCard />}><RocketReusability /></Suspense>
+                  <Section label="MarsCountdown"><MarsCountdown /></Section>
+                  <Section label="RocketReusability"><RocketReusability /></Section>
                 </div>
-                <Suspense fallback={<SkeletonCard />}><SpaceCostChart /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceMissions /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><ArtemisMoonMap /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceXNewsFeed /></Suspense>
+                <Section label="SpaceCostChart"><SpaceCostChart /></Section>
+                <Section label="SpaceMissions"><SpaceMissions /></Section>
+                <Section label="ArtemisMoonMap"><ArtemisMoonMap /></Section>
+                <Section label="SpaceXNewsFeed"><SpaceXNewsFeed /></Section>
               </div>
             )}
 
             {activeTab === 'explore' && (
               <div className="space-y-5">
-                <Suspense fallback={<SkeletonCard />}><PlanetExplorer /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><ExoplanetExplorer /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><ExoplanetAtmospheres /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><MarsRoverDashboard /></Suspense>
+                <Section label="PlanetExplorer"><PlanetExplorer /></Section>
+                <Section label="ExoplanetExplorer"><ExoplanetExplorer /></Section>
+                <Section label="ExoplanetAtmospheres"><ExoplanetAtmospheres /></Section>
+                <Section label="MarsRoverDashboard"><MarsRoverDashboard /></Section>
                 <AdBanner />
-                <Suspense fallback={<SkeletonCard />}><GalaxyExplorer /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><DeepSkyBrowser /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceTimeline /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><DwarfPlanets /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><MarsColonyPlanner /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceAgencyTracker /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceFoodGuide /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><AsteroidTypes /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceColonization /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><ArtemisProgram /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceEconomics /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceNavigationHistory /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceRaceHistory /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceLaw /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceHabitation /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><DeepSpaceNetwork /></Suspense>
+                <Section label="GalaxyExplorer"><GalaxyExplorer /></Section>
+                <Section label="DeepSkyBrowser"><DeepSkyBrowser /></Section>
+                <Section label="SpaceTimeline"><SpaceTimeline /></Section>
+                <Section label="DwarfPlanets"><DwarfPlanets /></Section>
+                <Section label="MarsColonyPlanner"><MarsColonyPlanner /></Section>
+                <Section label="SpaceAgencyTracker"><SpaceAgencyTracker /></Section>
+                <Section label="SpaceFoodGuide"><SpaceFoodGuide /></Section>
+                <Section label="AsteroidTypes"><AsteroidTypes /></Section>
+                <Section label="SpaceColonization"><SpaceColonization /></Section>
+                <Section label="ArtemisProgram"><ArtemisProgram /></Section>
+                <Section label="SpaceEconomics"><SpaceEconomics /></Section>
+                <Section label="SpaceNavigationHistory"><SpaceNavigationHistory /></Section>
+                <Section label="SpaceRaceHistory"><SpaceRaceHistory /></Section>
+                <Section label="SpaceLaw"><SpaceLaw /></Section>
+                <Section label="SpaceHabitation"><SpaceHabitation /></Section>
+                <Section label="DeepSpaceNetwork"><DeepSpaceNetwork /></Section>
               </div>
             )}
 
             {activeTab === 'science' && (
               <div className="space-y-5">
-                <Suspense fallback={<SkeletonCard />}><StellarEvolutionSimulator /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><HRDiagram /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><BlackHoleVisualizer /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><GravitationalWaveExplorer /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><NeutronStarVisualizer /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><TimeDilationCalculator /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><OrbitalMechanicsLab /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><TelescopeHistory /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><CosmicDistanceCalculator /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><CosmologyTimeline /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><AstrobioExplorer /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><AtmosphereComparison /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><CosmicSizeComparison /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceHealthEffects /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><DrakeEquation /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpacePropulsion /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><StellarNucleosynthesis /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><CosmicScale /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SunLayers /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpacecraftSpeed /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><VariableStarTracker /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><RadiationCalculator /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><RocketEngineComparison /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><InterstellarTravel /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><DarkEnergyExplorer /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><CosmicEvents /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpectroscopyExplorer /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><RadioAstronomy /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><AstrobiologyTimeline /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SolarSystemFormation /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><NuclearFusionInSpace /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><GalacticArchitecture /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><CosmicWebExplorer /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceTelescopes /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><QuantumCosmology /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SupernovaExplosions /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><DarkMatterDetectors /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><GravitationalWaves /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><NeutronStars /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><InterstellarMedium /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><CelestialMechanics /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceProbes /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><CosmicExplosions /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><TidesAndGravity /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><MultiverseTheory /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><BinaryStars /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><CosmicElements /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><RocketScienceCalculator /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><AsteroidMining /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><ExoplanetWeather /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><GalacticCivilizations /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><NuclearAstrophysics /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceDebrisTracker /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><PlanetaryDefense /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><ConstellationMythology /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><CosmicDistanceLadder /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceHazards /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><AstroPhotography /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><BigBangTimeline /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><ExtremeUniverse /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceMythsDebunked /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><QuantumInSpace /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><CosmicNeighborhood /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceWeirdObjects /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><OceanWorldsGuide /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><CosmicClocks /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><NebulaeTypes /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceFutureTech /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><DeepSpaceMessages /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceInNumbers /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><AstronomyMilestones /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceAnimalExplorers /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><StellarClassification /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceSurvivalGuide /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><CosmicRays /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><PlanetaryGeology /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceDebrisTimeline /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><FermiParadox /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><AsteroidImpactSimulator /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><UniverseScaleExplorer /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><CosmicHistoryTimeline /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><LightTravelTime /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceTelescopeComparison /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><PlanetaryFates /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><ExoplanetHabitability /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceSurvivalCalculator /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><CosmicRecipeBook /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><StellarSizeComparison /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceMissionTimeline /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><UniverseRecords /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><PlanetWeightCalculator /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><WarpDriveCalculator /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceAgeCalculator /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><StellarLifecycle /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><BlackHoleJourney /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><CosmicAddress /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><DarkMatterDetective /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><FutureOfUniverse /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><AtomicOrigins /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><GalacticMerger /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpacePsychology /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceMegastructures /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><CosmicMysteries /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><CosmicOdds /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><CosmicCounters /></Suspense>
+                <Section label="StellarEvolutionSimulator"><StellarEvolutionSimulator /></Section>
+                <Section label="HRDiagram"><HRDiagram /></Section>
+                <Section label="BlackHoleVisualizer"><BlackHoleVisualizer /></Section>
+                <Section label="GravitationalWaveExplorer"><GravitationalWaveExplorer /></Section>
+                <Section label="NeutronStarVisualizer"><NeutronStarVisualizer /></Section>
+                <Section label="TimeDilationCalculator"><TimeDilationCalculator /></Section>
+                <Section label="OrbitalMechanicsLab"><OrbitalMechanicsLab /></Section>
+                <Section label="TelescopeHistory"><TelescopeHistory /></Section>
+                <Section label="CosmicDistanceCalculator"><CosmicDistanceCalculator /></Section>
+                <Section label="CosmologyTimeline"><CosmologyTimeline /></Section>
+                <Section label="AstrobioExplorer"><AstrobioExplorer /></Section>
+                <Section label="AtmosphereComparison"><AtmosphereComparison /></Section>
+                <Section label="CosmicSizeComparison"><CosmicSizeComparison /></Section>
+                <Section label="SpaceHealthEffects"><SpaceHealthEffects /></Section>
+                <Section label="DrakeEquation"><DrakeEquation /></Section>
+                <Section label="SpacePropulsion"><SpacePropulsion /></Section>
+                <Section label="StellarNucleosynthesis"><StellarNucleosynthesis /></Section>
+                <Section label="CosmicScale"><CosmicScale /></Section>
+                <Section label="SunLayers"><SunLayers /></Section>
+                <Section label="SpacecraftSpeed"><SpacecraftSpeed /></Section>
+                <Section label="VariableStarTracker"><VariableStarTracker /></Section>
+                <Section label="RadiationCalculator"><RadiationCalculator /></Section>
+                <Section label="RocketEngineComparison"><RocketEngineComparison /></Section>
+                <Section label="InterstellarTravel"><InterstellarTravel /></Section>
+                <Section label="DarkEnergyExplorer"><DarkEnergyExplorer /></Section>
+                <Section label="CosmicEvents"><CosmicEvents /></Section>
+                <Section label="SpectroscopyExplorer"><SpectroscopyExplorer /></Section>
+                <Section label="RadioAstronomy"><RadioAstronomy /></Section>
+                <Section label="AstrobiologyTimeline"><AstrobiologyTimeline /></Section>
+                <Section label="SolarSystemFormation"><SolarSystemFormation /></Section>
+                <Section label="NuclearFusionInSpace"><NuclearFusionInSpace /></Section>
+                <Section label="GalacticArchitecture"><GalacticArchitecture /></Section>
+                <Section label="CosmicWebExplorer"><CosmicWebExplorer /></Section>
+                <Section label="SpaceTelescopes"><SpaceTelescopes /></Section>
+                <Section label="QuantumCosmology"><QuantumCosmology /></Section>
+                <Section label="SupernovaExplosions"><SupernovaExplosions /></Section>
+                <Section label="DarkMatterDetectors"><DarkMatterDetectors /></Section>
+                <Section label="GravitationalWaves"><GravitationalWaves /></Section>
+                <Section label="NeutronStars"><NeutronStars /></Section>
+                <Section label="InterstellarMedium"><InterstellarMedium /></Section>
+                <Section label="CelestialMechanics"><CelestialMechanics /></Section>
+                <Section label="SpaceProbes"><SpaceProbes /></Section>
+                <Section label="CosmicExplosions"><CosmicExplosions /></Section>
+                <Section label="TidesAndGravity"><TidesAndGravity /></Section>
+                <Section label="MultiverseTheory"><MultiverseTheory /></Section>
+                <Section label="BinaryStars"><BinaryStars /></Section>
+                <Section label="CosmicElements"><CosmicElements /></Section>
+                <Section label="RocketScienceCalculator"><RocketScienceCalculator /></Section>
+                <Section label="AsteroidMining"><AsteroidMining /></Section>
+                <Section label="ExoplanetWeather"><ExoplanetWeather /></Section>
+                <Section label="GalacticCivilizations"><GalacticCivilizations /></Section>
+                <Section label="NuclearAstrophysics"><NuclearAstrophysics /></Section>
+                <Section label="SpaceDebrisTracker"><SpaceDebrisTracker /></Section>
+                <Section label="PlanetaryDefense"><PlanetaryDefense /></Section>
+                <Section label="ConstellationMythology"><ConstellationMythology /></Section>
+                <Section label="CosmicDistanceLadder"><CosmicDistanceLadder /></Section>
+                <Section label="SpaceHazards"><SpaceHazards /></Section>
+                <Section label="AstroPhotography"><AstroPhotography /></Section>
+                <Section label="BigBangTimeline"><BigBangTimeline /></Section>
+                <Section label="ExtremeUniverse"><ExtremeUniverse /></Section>
+                <Section label="SpaceMythsDebunked"><SpaceMythsDebunked /></Section>
+                <Section label="QuantumInSpace"><QuantumInSpace /></Section>
+                <Section label="CosmicNeighborhood"><CosmicNeighborhood /></Section>
+                <Section label="SpaceWeirdObjects"><SpaceWeirdObjects /></Section>
+                <Section label="OceanWorldsGuide"><OceanWorldsGuide /></Section>
+                <Section label="CosmicClocks"><CosmicClocks /></Section>
+                <Section label="NebulaeTypes"><NebulaeTypes /></Section>
+                <Section label="SpaceFutureTech"><SpaceFutureTech /></Section>
+                <Section label="DeepSpaceMessages"><DeepSpaceMessages /></Section>
+                <Section label="SpaceInNumbers"><SpaceInNumbers /></Section>
+                <Section label="AstronomyMilestones"><AstronomyMilestones /></Section>
+                <Section label="SpaceAnimalExplorers"><SpaceAnimalExplorers /></Section>
+                <Section label="StellarClassification"><StellarClassification /></Section>
+                <Section label="SpaceSurvivalGuide"><SpaceSurvivalGuide /></Section>
+                <Section label="CosmicRays"><CosmicRays /></Section>
+                <Section label="PlanetaryGeology"><PlanetaryGeology /></Section>
+                <Section label="SpaceDebrisTimeline"><SpaceDebrisTimeline /></Section>
+                <Section label="FermiParadox"><FermiParadox /></Section>
+                <Section label="AsteroidImpactSimulator"><AsteroidImpactSimulator /></Section>
+                <Section label="UniverseScaleExplorer"><UniverseScaleExplorer /></Section>
+                <Section label="CosmicHistoryTimeline"><CosmicHistoryTimeline /></Section>
+                <Section label="LightTravelTime"><LightTravelTime /></Section>
+                <Section label="SpaceTelescopeComparison"><SpaceTelescopeComparison /></Section>
+                <Section label="PlanetaryFates"><PlanetaryFates /></Section>
+                <Section label="ExoplanetHabitability"><ExoplanetHabitability /></Section>
+                <Section label="SpaceSurvivalCalculator"><SpaceSurvivalCalculator /></Section>
+                <Section label="CosmicRecipeBook"><CosmicRecipeBook /></Section>
+                <Section label="StellarSizeComparison"><StellarSizeComparison /></Section>
+                <Section label="SpaceMissionTimeline"><SpaceMissionTimeline /></Section>
+                <Section label="UniverseRecords"><UniverseRecords /></Section>
+                <Section label="PlanetWeightCalculator"><PlanetWeightCalculator /></Section>
+                <Section label="WarpDriveCalculator"><WarpDriveCalculator /></Section>
+                <Section label="SpaceAgeCalculator"><SpaceAgeCalculator /></Section>
+                <Section label="StellarLifecycle"><StellarLifecycle /></Section>
+                <Section label="BlackHoleJourney"><BlackHoleJourney /></Section>
+                <Section label="CosmicAddress"><CosmicAddress /></Section>
+                <Section label="DarkMatterDetective"><DarkMatterDetective /></Section>
+                <Section label="FutureOfUniverse"><FutureOfUniverse /></Section>
+                <Section label="AtomicOrigins"><AtomicOrigins /></Section>
+                <Section label="GalacticMerger"><GalacticMerger /></Section>
+                <Section label="SpacePsychology"><SpacePsychology /></Section>
+                <Section label="SpaceMegastructures"><SpaceMegastructures /></Section>
+                <Section label="CosmicMysteries"><CosmicMysteries /></Section>
+                <Section label="CosmicOdds"><CosmicOdds /></Section>
+                <Section label="CosmicCounters"><CosmicCounters /></Section>
               </div>
             )}
 
             {activeTab === 'observe' && (
               <div className="space-y-5">
-                <Suspense fallback={<SkeletonCard />}><ObservationLog /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><NightSessionPlanner /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><PersonalSkyReport /></Suspense>
+                <Section label="ObservationLog"><ObservationLog /></Section>
+                <Section label="NightSessionPlanner"><NightSessionPlanner /></Section>
+                <Section label="PersonalSkyReport"><PersonalSkyReport /></Section>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <Suspense fallback={<SkeletonCard />}><SeeingForecast /></Suspense>
-                  <Suspense fallback={<SkeletonCard />}><LightPollutionMeter /></Suspense>
+                  <Section label="SeeingForecast"><SeeingForecast /></Section>
+                  <Section label="LightPollutionMeter"><LightPollutionMeter /></Section>
                 </div>
-                <Suspense fallback={<SkeletonCard />}><AstroPhotoPlanner /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><TelescopeAdvisor /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><ExoplanetTransitPlanner /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><SpaceSounds /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><AstroCalculator /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><EarthFromSpace /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><AstronomyGlossary /></Suspense>
+                <Section label="AstroPhotoPlanner"><AstroPhotoPlanner /></Section>
+                <Section label="TelescopeAdvisor"><TelescopeAdvisor /></Section>
+                <Section label="ExoplanetTransitPlanner"><ExoplanetTransitPlanner /></Section>
+                <Section label="SpaceSounds"><SpaceSounds /></Section>
+                <Section label="AstroCalculator"><AstroCalculator /></Section>
+                <Section label="EarthFromSpace"><EarthFromSpace /></Section>
+                <Section label="AstronomyGlossary"><AstronomyGlossary /></Section>
               </div>
             )}
 
             {activeTab === 'ai' && (
               <div className="max-w-3xl mx-auto space-y-5">
-                <Suspense fallback={<SkeletonCard />}><AstroAI /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><CosmicCalendar /></Suspense>
-                <Suspense fallback={<SkeletonCard />}><StarlightCalculator /></Suspense>
+                <Section label="AstroAI"><AstroAI /></Section>
+                <Section label="CosmicCalendar"><CosmicCalendar /></Section>
+                <Section label="StarlightCalculator"><StarlightCalculator /></Section>
               </div>
             )}
 
-            {activeTab === 'blog' && <SafeWrap label="BlogPage"><BlogPage /></SafeWrap>}
+            {activeTab === 'blog' && <Section label="BlogPage"><BlogPage /></Section>}
 
             {activeTab === 'gallery' && (
               <div className="space-y-5">
-                <Suspense fallback={<SkeletonCard />}><JWSTGallery /></Suspense>
+                <Section label="JWSTGallery"><JWSTGallery /></Section>
                 <AdBanner />
-                <Suspense fallback={<SkeletonCard />}><AstroGallery /></Suspense>
+                <Section label="AstroGallery"><AstroGallery /></Section>
               </div>
             )}
 
@@ -982,6 +1011,7 @@ export default function App() {
       <BrowserRouter>
         <PageviewTracker />
         <ISSProvider>
+        <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route path="/" element={<SafeWrap root label="MainApp"><MainApp /></SafeWrap>} />
           <Route path="/blog" element={
@@ -996,14 +1026,15 @@ export default function App() {
           } />
           <Route path="/blog/:slug" element={<BlogArticlePage />} />
           <Route path="/premium" element={<PremiumPage />} />
-          <Route path="/tools" element={<Suspense fallback={null}><ToolsIndexPage /></Suspense>} />
-          <Route path="/tools/:slug" element={<Suspense fallback={null}><ToolPage /></Suspense>} />
+          <Route path="/tools" element={<ToolsIndexPage />} />
+          <Route path="/tools/:slug" element={<ToolPage />} />
           <Route path="/iss/:city" element={<CityPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/success" element={<SuccessPage />} />
-          <Route path="/analytics" element={<Suspense fallback={null}><AnalyticsPage /></Suspense>} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
+        </Suspense>
         </ISSProvider>
       </BrowserRouter>
       </AuthProvider>
