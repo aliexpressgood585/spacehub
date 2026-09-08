@@ -1,9 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import Stripe from 'stripe'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-05-28.basil',
-})
+// No apiVersion pin: it was frozen at '2025-05-28.basil' while the SDK moved
+// on, so this file spoke a different Stripe version than create-checkout-session
+// (which never pinned one). Both now use the version the installed SDK targets.
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
 export const config = { api: { bodyParser: false } }
 

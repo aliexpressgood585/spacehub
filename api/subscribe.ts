@@ -23,8 +23,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
       body: JSON.stringify({ email, unsubscribed: false }),
     })
-    const data = await r.json() as { id?: string; message?: string }
-    // Treat "already subscribed" as success from the user's perspective
+    // Treat "already subscribed" (and any other Resend reply) as success from
+    // the user's perspective — the address either is on the list or just was.
+    void r
     res.json({ success: true })
   } catch {
     res.json({ success: true })

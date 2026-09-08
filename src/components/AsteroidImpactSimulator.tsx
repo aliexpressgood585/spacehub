@@ -106,7 +106,7 @@ function calcImpact(asteroid: Asteroid, targetHasOcean: boolean): ImpactResult {
   const devastationRadius = d * 40
   const windowsBreak = d * 100
 
-  let energyComparison = ''
+  let energyComparison: string
   if (energyMegatons < 0.001) energyComparison = 'a large bomb'
   else if (energyMegatons < 0.1) energyComparison = 'a nuclear weapon'
   else if (energyMegatons < 10) energyComparison = `${Math.round(energyMegatons * 67)} Hiroshima bombs`

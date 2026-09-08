@@ -145,7 +145,7 @@ function moonPhaseInfo(date: Date): { phase: number; name: string; emoji: string
   const cyclePos = ((jd - knownNew) % synodicMonth + synodicMonth) % synodicMonth
   const phase = cyclePos / synodicMonth
   const illumination = Math.round((1 - Math.cos(phase * 2 * Math.PI)) / 2 * 100)
-  let name = '', emoji = ''
+  let name: string, emoji: string
   if (phase < 0.03 || phase >= 0.97) { name = 'New Moon'; emoji = '🌑' }
   else if (phase < 0.22) { name = 'Waxing Crescent'; emoji = '🌒' }
   else if (phase < 0.28) { name = 'First Quarter'; emoji = '🌓' }

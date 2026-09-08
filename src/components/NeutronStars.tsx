@@ -79,7 +79,8 @@ function PulsarCanvas({ type }: { type: NeutronStarType }) {
           const theta = phi + (r / 80) * Math.PI * 0.3
           const x = cx + Math.cos(theta + angle * 0.3) * r
           const y = cy + Math.sin(theta + angle * 0.3) * r * 0.6
-          r === 10 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
+          if (r === 10) ctx.moveTo(x, y)
+          else ctx.lineTo(x, y)
         }
         ctx.strokeStyle = `rgba(139,92,246,0.2)`
         ctx.lineWidth = 1

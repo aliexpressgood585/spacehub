@@ -245,7 +245,7 @@ export default function StellarSizeComparison() {
             {[
               { label: 'Radius', value: `${selected.radiusSolar >= 1 ? `${selected.radiusSolar.toLocaleString()} solar radii` : `${toEarths(selected.radiusSolar)}× Earth`}` },
               { label: 'Radius (km)', value: selected.radiusSolar >= 1 ? `${(selected.radiusSolar * 695700).toLocaleString()} km` : `${selected.radiusKm.toLocaleString()} km` },
-              { label: 'vs Earth', value: `${toEarths(selected.radiusSolar)}× Earth\'s radius` },
+              { label: 'vs Earth', value: `${toEarths(selected.radiusSolar)}× Earth's radius` },
               { label: 'vs Sun', value: selected.radiusSolar >= 1 ? `${selected.radiusSolar}× Sun` : `${(selected.radiusSolar / sunRadius * 100).toFixed(3)}% of Sun` },
               { label: 'Mass', value: selected.mass },
             ].map(s => (

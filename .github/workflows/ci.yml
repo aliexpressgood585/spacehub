@@ -17,8 +17,17 @@ jobs:
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
+      # `tsc --noEmit` used to stand here, and it checked nothing: the root
+      # tsconfig is `files: []` plus project references, so without -b it has no
+      # inputs and passes on any error. -b walks the referenced projects
+      # (app, node, api) for real.
       - name: TypeScript check
-        run: npx tsc --noEmit
+        run: npx tsc -b --force
+      # Site + serverless code only. The Deno trading-bot sources under
+      # supabase/functions, backtest and trading-app carry their own backlog and
+      # are linted separately, so they cannot mask a regression here.
+      - name: Lint (site + API)
+        run: npx eslint src api
       - name: Build
         run: npm run build
         env:

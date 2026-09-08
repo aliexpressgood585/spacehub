@@ -583,6 +583,13 @@ function formatExp(exp: number): string {
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 
+// Journey auto-play: atom (~10⁻¹⁰) → universe (10²⁶) over 30 s.
+// Module scope so the animation callbacks can depend on them honestly instead
+// of closing over values that are re-created on every render.
+const JOURNEY_START_EXP = -10
+const JOURNEY_END_EXP = 26
+const JOURNEY_DURATION_MS = 30000
+
 export default function CosmicScale() {
   const [sliderVal, setSliderVal] = useState(expToSlider(0)) // start at human scale
   const [compareA, setCompareA] = useState('earth')
@@ -599,11 +606,6 @@ export default function CosmicScale() {
 
   const objA = SCALE_OBJECTS.find(o => o.id === compareA) ?? SCALE_OBJECTS[8]
   const objB = SCALE_OBJECTS.find(o => o.id === compareB) ?? SCALE_OBJECTS[10]
-
-  // Journey auto-play: atom (~10⁻¹⁰) → universe (10²⁶) over 30 s
-  const JOURNEY_START_EXP = -10
-  const JOURNEY_END_EXP = 26
-  const JOURNEY_DURATION_MS = 30000
 
   const stopJourney = useCallback(() => {
     if (rafRef.current !== null) {
