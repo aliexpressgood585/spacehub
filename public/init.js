@@ -1,5 +1,15 @@
 // Service Worker — force-update on every load so new deployments always reach users
 if ('serviceWorker' in navigator) {
+  // Was this page already under a service worker when it started?
+  //
+  // This single flag is what separates "a new deployment took over, reload to
+  // get the fresh JS" from "the very first service worker just claimed a page
+  // that already loaded straight from the network". Only the first case needs a
+  // reload. Without the distinction every first-time visitor had the page
+  // yanked out from under them the moment the SW activated — and because the
+  // reloaded page registers again, that reload could repeat.
+  const wasControlled = !!navigator.serviceWorker.controller
+
   window.addEventListener('load', async function () {
     try {
       const reg = await navigator.serviceWorker.register('/sw.js')
@@ -7,13 +17,18 @@ if ('serviceWorker' in navigator) {
       // Check for a new SW version on every page load (not just every 24h)
       reg.update()
 
-      // When a new SW activates and takes control, reload once so fresh JS is served
+      // When a NEW deployment's SW takes control, reload once so fresh JS is
+      // served. Guarded twice over: once per document, and once per tab, so a
+      // misbehaving worker can never put the tab in a reload loop.
       let refreshing = false
       navigator.serviceWorker.addEventListener('controllerchange', function () {
-        if (!refreshing) {
-          refreshing = true
-          window.location.reload()
-        }
+        if (!wasControlled || refreshing) return
+        try {
+          if (sessionStorage.getItem('_sw_reloaded')) return
+          sessionStorage.setItem('_sw_reloaded', '1')
+        } catch (_) { /* storage blocked — the per-document guard still holds */ }
+        refreshing = true
+        window.location.reload()
       })
 
       // If a new SW is waiting (e.g. from a previous visit), tell it to activate now

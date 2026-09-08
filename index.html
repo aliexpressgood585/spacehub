@@ -139,8 +139,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="SpaceHub" />
     <meta name="theme-color" content="#050816" />
-  </head>
-  <script>
+    <script>
     (function() {
       var KEEP = { 'spacehub-v12': 1, 'spacehub-api-v6': 1 };
       var _reloading = false;
@@ -151,17 +150,19 @@
         window.location.reload();
       }
 
-      // Auto-reload when a new SW takes control (gets users onto fresh code immediately)
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.addEventListener('controllerchange', safeReload);
-        navigator.serviceWorker.addEventListener('message', function(e) {
-          if (e.data && e.data.type === 'SW_UPDATED') safeReload();
-        });
-      }
+      // NOTE: reloading when a new service worker takes control is handled in
+      // /init.js, which knows whether this page was already controlled. Two more
+      // listeners lived here (controllerchange + the SW_UPDATED message) and
+      // fired on a first visit, when there is nothing stale to reload for.
+      // This script keeps only the recovery paths below.
 
       // If last load failed due to stale SW: nuke everything and reload clean
-      if (sessionStorage.getItem('_sw_fail')) {
-        sessionStorage.removeItem('_sw_fail');
+      var swFailed = false;
+      try {
+        swFailed = !!sessionStorage.getItem('_sw_fail');
+        if (swFailed) sessionStorage.removeItem('_sw_fail');
+      } catch (e) { /* storage blocked — skip the recovery path */ }
+      if (swFailed) {
         if ('serviceWorker' in navigator) {
           navigator.serviceWorker.getRegistrations().then(function(regs) {
             return Promise.all(regs.map(function(r) { return r.unregister(); }));
@@ -188,7 +189,8 @@
         });
       }
     })();
-  </script>
+    </script>
+  </head>
   <body style="background:#020510">
     <noscript>
       <div style="padding:40px 24px;font-family:system-ui,sans-serif;background:#020510;color:#e0e0e0;min-height:100vh;max-width:900px;margin:0 auto">
