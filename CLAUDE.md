@@ -319,6 +319,21 @@ with deeper Binance history) to be worth revisiting, not another signal test.
   updates GitHub → Settings → Secrets → Actions → SUPABASE_ACCESS_TOKEN. Never
   accept the token in chat. Watchdog issue #19 (opened 08-04) was this, but its
   message said "bot not responding" — misleading; fixed below.
+  **2026-09-14 UPDATE — "new PAT" is NOT sufficient on its own.** User rotated
+  the secret; `supabase login` then SUCCEEDED ("You are now logged in") but
+  `supabase link` failed with a DIFFERENT error: `{"message":"Your account does
+  not have the necessary privileges to access this endpoint"}`. So read the
+  error text, don't just retry: `Unauthorized` = dead/expired token, whereas
+  `necessary privileges` = token is VALID but its ACCOUNT lacks rights on
+  project mdvheizhciuvqychtwxr — i.e. the PAT was generated while signed into a
+  different Supabase account (multi-account: Google vs email login), or scoped
+  too narrowly if Supabase offered scopes, or the account's org role is below
+  Owner/Administrator. Verification step to give the user:
+  open https://supabase.com/dashboard/project/mdvheizhciuvqychtwxr — if the
+  project opens, that session is the right account; generate the PAT from THAT
+  account. Deploy history: last SUCCESS 2026-07-16 (v56.3); failures 08-07
+  (v56.5), 08-17 (v56.6), 09-02 (user manual retry), 09-14 (post-rotation,
+  privileges error).
 - **v56.5 UNIVERSE COLLAPSE (the actual trading stall)**: fetchFuturesCoins()
   accepted the first source with >=10 symbols. fapi is geo-blocked (451), and the
   Binance SPOT fallback degraded to exactly 11 symbols — clearing the bar and
