@@ -1,4 +1,4 @@
-generated_at: 2026-08-07T15:07:42Z
+generated_at: 2026-08-17T22:31:53Z
 === BOT STATE ===
 {"message":"Unauthorized"}
 === FEED HEALTH (per-source, v54.1) ===
@@ -24,21 +24,27 @@ generated_at: 2026-08-07T15:07:42Z
   ⚠️ SUPABASE ERROR (not rows): {"message": "Unauthorized"}
   TOTAL unrealized: $+0.00 on $0 notional
 === BREAKOUT CHECK (OKX 4h, independent) ===
-  SOL: SHORT breakout on bar -5 close=72.76 adx=10 [adx<=22 -> correctly skipped]
-  BNB: SHORT breakout on bar -2 close=585.1 adx=47 [WOULD ENTER]
-  XRP: SHORT breakout on bar -3 close=1.0207 adx=18 [adx<=22 -> correctly skipped]
-  XRP: SHORT breakout on bar -5 close=1.0343 adx=18 [adx<=22 -> correctly skipped]
-  ADA: LONG breakout on bar -6 close=0.2087 adx=61 [WOULD ENTER]
-  LTC: LONG breakout on bar -6 close=45.65 adx=29 [WOULD ENTER]
-  NEAR: SHORT breakout on bar -3 close=1.643 adx=11 [adx<=22 -> correctly skipped]
-  NEAR: SHORT breakout on bar -5 close=1.657 adx=11 [adx<=22 -> correctly skipped]
-  INJ: SHORT breakout on bar -3 close=4.494 adx=19 [adx<=22 -> correctly skipped]
-  INJ: SHORT breakout on bar -4 close=4.574 adx=19 [adx<=22 -> correctly skipped]
-  HBAR: SHORT breakout on bar -5 close=0.06807 adx=5 [adx<=22 -> correctly skipped]
-  WLD: SHORT breakout on bar -5 close=0.3003 adx=25 [WOULD ENTER]
+  BTC: LONG breakout on bar -1 close=64279.9 adx=15 [adx<=22 -> correctly skipped]
+  BTC: LONG breakout on bar -2 close=64170.0 adx=21 [adx<=22 -> correctly skipped]
+  BTC: LONG breakout on bar -4 close=63499.9 adx=21 [adx<=22 -> correctly skipped]
+  BTC: LONG breakout on bar -5 close=63405.0 adx=21 [adx<=22 -> correctly skipped]
+  ETH: LONG breakout on bar -2 close=1912.23 adx=18 [adx<=22 -> correctly skipped]
+  ETH: LONG breakout on bar -5 close=1900.09 adx=18 [adx<=22 -> correctly skipped]
+  SOL: LONG breakout on bar -2 close=76.05 adx=19 [adx<=22 -> correctly skipped]
+  SOL: LONG breakout on bar -4 close=75.74 adx=19 [adx<=22 -> correctly skipped]
+  SOL: SHORT breakout on bar -6 close=74.56 adx=19 [adx<=22 -> correctly skipped]
+  ATOM: SHORT breakout on bar -2 close=1.411 adx=23 [WOULD ENTER]
+  ATOM: SHORT breakout on bar -3 close=1.439 adx=23 [WOULD ENTER]
+  ATOM: SHORT breakout on bar -6 close=1.452 adx=23 [WOULD ENTER]
+  APT: SHORT breakout on bar -6 close=0.5177 adx=20 [adx<=22 -> correctly skipped]
+  SUI: SHORT breakout on bar -6 close=0.6707 adx=17 [adx<=22 -> correctly skipped]
+  TRX: SHORT breakout on bar -2 close=0.32945 adx=23 [WOULD ENTER]
+  HBAR: SHORT breakout on bar -6 close=0.06461 adx=10 [adx<=22 -> correctly skipped]
+  AAVE: LONG breakout on bar -2 close=88.11 adx=8 [adx<=22 -> correctly skipped]
+  SEI: SHORT breakout on bar -6 close=0.03937 adx=13 [adx<=22 -> correctly skipped]
 === LIVE BOT DONCH4H EVAL (what the bot itself sees right now) ===
-{"ok":true,"fapi_status":451,"universe":11,"fetch_source":"spot","breakouts":[],"checked_at":"2026-08-07T15:07:53.460Z"}
+{"ok":true,"fapi_status":451,"universe":42,"fetch_source":"okx","breakouts":[{"sym":"BTC","side":"LONG","close":64279.9,"hi40":64200,"lo40":62685,"adx":16.2,"wouldEnter":false}],"checked_at":"2026-08-17T22:32:05.138Z"}
 === BOT LIVENESS (HTTP probe, no mgmt API) ===
   edge_function_http=200
-  response_head={"ok":true,"v":28,"openCount":0,"maxOpen":30,"streakPaused":false,"streak":0,"btcBias":"BEAR","btcRegime":"RANGING","kelly":1,"fearGreed":29,"adaptMinScore":2,"adaptVpocDist":0.035,"adaptSideFilter":"SHORT","session":"US","sessionSizeMult":1,"equityGuardMult":1,"equity":"10202.64","lockedNotional":"
+  response_head={"ok":true,"v":28,"openCount":0,"maxOpen":30,"streakPaused":false,"streak":0,"btcBias":"BEAR","btcRegime":"RANGING","kelly":1,"fearGreed":31,"adaptMinScore":2,"adaptVpocDist":0.035,"adaptSideFilter":"SHORT","session":"DEAD","sessionSizeMult":0.8,"equityGuardMult":1,"equity":"10202.64","lockedNotiona
   ⚠️ ANON_KEY EMPTY — management API/token problem
