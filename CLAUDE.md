@@ -17,6 +17,9 @@ asking, but NEVER violate the standing rules below.
 6. **Validation discipline**: nothing deploys without a 36-month walk-forward
    (6 windows, real fees: taker 0.05%/side, maker 0.02%/side) positive in ALL
    windows. Failures get rejected and documented in code comments.
+7. **Always update this file** (user: "תעדכן תמיד", 2026-09-17). Every incident,
+   verdict, deploy and state change gets recorded here in the same turn it
+   happens — don't wait to be asked.
 
 ## Architecture
 - **Live bot**: `supabase/functions/trading-bot/index.ts` (Deno edge function,
@@ -358,7 +361,34 @@ with deeper Binance history) to be worth revisiting, not another signal test.
 - Checkpoint counter at the last readable snapshot: **27/50**, WR 63.0%,
   avgR -0.079 (WR near the 66% band; avgR still below — ranging-market profile).
 
-## BOT STOPPED 2026-08-03 → 08-17 (kill-switch deadlock) — FIXED in v56.6
+## RESOLVED 2026-09-17 — bot trading again after a 45-day freeze
+Freeze ran 2026-08-03 → 09-17 (zero trades). Ended when the USER opened the
+bot's own reset endpoint in a browser:
+`https://mdvheizhciuvqychtwxr.supabase.co/functions/v1/trading-bot?reset=1`
+(the function is deployed --no-verify-jwt, so a plain click works from any
+device — no admin access, no token). Reset deletes bot_trades + bot_equity and
+sets balance to 10000; the kill-switch then sees 0 closed trades (<30) and
+cannot pause. Verified 12:03 UTC: shields all false, COINS=40/40, no HEALTH
+lines in the log, first trade in 45 days = NEAR LONG @12:00 ($2,001 notional,
+risk $99.57), equity $9,998.98. ROTA rotates next at the 48h mark.
+**Keep this link** — it is the emergency unblock if the deadlock recurs.
+Before the reset the full pre-freeze era was exported to `migration/export/`
+(124 trades, 6,357 equity samples, 07-10 → 09-14) and committed, so the history
+is preserved and can be restored into the migrated project.
+STILL OPEN: the live code is v56.3 — the v56.6 deadlock fix is STILL NOT
+deployed (no management access, see incident above), so the freeze CAN recur.
+The permanent fix is the project migration; tooling is ready and waiting on the
+user for a project ref + anon key (`migration/README.md`, `migration/import.py`,
+`.github/workflows/migrate-restore.yml`).
+CORRECTION (same day, recorded because it was stated wrong to the user first):
+the anon key does NOT have write access. A PATCH/DELETE probe using a
+filter that matched no rows returned HTTP 204 and was misread as "writes
+allowed" — PostgREST returns 204 even when RLS blocks the statement and zero
+rows are affected. Re-tested with `Prefer: return=representation`: 0 rows
+returned => RLS blocks anon writes. There is NO public-key vulnerability, and
+no agent-side DB workaround exists for the kill-switch (reset link only).
+
+## BOT STOPPED 2026-08-03 → 08-17 (kill-switch deadlock) — FIXED in v56.6 (not yet deployed)
 Bot looked perfectly healthy the whole time (heartbeat every minute, universe
 42, feeds green, edge fn 200) but placed ZERO trades for 14 days. Cause: BOTH
 health kill-switches fired (DONCH4H last30 = -$76.64, ROTA = -$48.28), and the
@@ -375,7 +405,17 @@ are NOT set → liveMode=false, fills still simulated, but trades get tagged
 paper_mode:false (mislabel only, no real orders). Set it back to true unless
 arming live.
 
-## Current state (2026-07-19)
+## Current state (2026-09-17)
+- **TRADING AGAIN** after the reset (see RESOLVED section). Account restarted at
+  $10,000; pre-freeze history lives in `migration/export/`, not in the live DB.
+- Live code: **v56.3** (last successful deploy 2026-07-16). v56.5 universe fix
+  and v56.6 deadlock fix are committed but UNDEPLOYED — deploys fail because the
+  project belongs to a Supabase account the user cannot sign into.
+- Next action when the user has time: resume/create a project in their own
+  `spacehub` org, hand over project ref + anon key, then migrate (schema+funcs+
+  cron come from the deploy workflow; data from migrate-restore.yml).
+
+## Earlier state (2026-07-19)
 - CHECKPOINT STATUS (2026-07-19 review, user asked "reached 50?"): the official
   counter (DONCH4H closed, risk_usd>0, era-anchored — what the watchdog fires
   on) is at **11/50**, NOT 50. The ~54 total closed rows include ROTA (35) and
