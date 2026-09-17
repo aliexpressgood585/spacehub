@@ -12,9 +12,18 @@ jobs:
     steps:
       - name: Clear rebalanced_at (next bot scan re-runs rotation)
         run: |
-          curl -s -X POST "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
+          # NB: curl exits 0 on an HTTP error body, so the response MUST be
+          # inspected — this step used to print "Cleared" and report success
+          # even when the management API rejected the call (2026-09-17).
+          resp=$(curl -s -X POST "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d '{"query": "UPDATE bot_state SET rebalanced_at = NULL WHERE id = 1 RETURNING rebalanced_at;"}'
-          echo ""
+            -d '{"query": "UPDATE bot_state SET rebalanced_at = NULL WHERE id = 1 RETURNING rebalanced_at;"}')
+          echo "$resp"
+          case "$resp" in
+            *'"message"'*)
+              echo "::error::management API refused the write: $resp"
+              echo "::error::SUPABASE_ACCESS_TOKEN's account lacks rights on ${{ env.PROJECT_REF }} — see CLAUDE.md incident notes"
+              exit 1 ;;
+          esac
           echo "Cleared — rotation will rebalance on the next 1-minute scan."
