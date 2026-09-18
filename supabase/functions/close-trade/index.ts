@@ -9,6 +9,21 @@ const CORS = {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
+  // v56.8 — OWNER-ONLY. This function is deployed --no-verify-jwt (the every-minute
+  // cron needs to reach the bot without a session), and `verify_jwt` would not help
+  // anyway: the anon key IS a valid JWT, and it ships inside the public dashboard
+  // bundle. So until now anyone on the internet could POST a trade_id here and close
+  // the bot's positions. Gate on the service-role key, which Supabase injects into
+  // the function environment and which never leaves the server: the public page
+  // cannot present it, the owner and the agent can.
+  const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  const bearer  = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '')
+  if (!SERVICE || bearer !== SERVICE) {
+    return new Response(JSON.stringify({ error: 'forbidden: owner credentials required' }), {
+      status: 403, headers: { 'Content-Type': 'application/json', ...CORS },
+    })
+  }
+
   try {
     const { trade_id, exit_price, pnl, pnl_pct } = await req.json()
     if (!trade_id) return new Response(JSON.stringify({ error: 'missing trade_id' }), { status: 400, headers: CORS })

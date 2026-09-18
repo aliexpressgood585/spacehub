@@ -1,4 +1,21 @@
 // ════════════════════════════════════════════════════════════
+// CryptoBot v56.8 — RELEASE PROVENANCE + honest regime label
+//
+// v56.8: closes the external audit's first finding — that nobody could map the
+//  public page to a git commit to a deployed function, so no live number could be
+//  honestly attributed to the validated DONCH4H/ROTA system.
+//  (1) The deploy entrypoint pins the source to a commit SHA and passes it in on
+//      globalThis; the bot republishes it to `deployment_manifest` (once per cold
+//      start) and in every `?donch_test=1` response, together with a fingerprint
+//      of CRYPTO_40 so a silently edited universe shows up as a different release
+//      even at the same SHA. Verifiable with the public anon key alone.
+//  (2) bot_state.market_regime was written as `btcRegime + '_v23_5M'` — a label
+//      left over from the retired v23 5-minute engine. The 4h bot has not used
+//      that engine for many versions, but the dashboard faithfully displayed
+//      "RANGING_v23_5M", which is what led an outside reviewer to conclude a
+//      second 5-minute engine was live. The suffix is gone; the field now says
+//      what actually runs.
+//
 // CryptoBot v56.7 — UNIVERSE COVERAGE FIX (the volume floor was eating CRYPTO_40)
 //
 // v56.7: fetchFuturesCoins() ranked every source by 24h volume, dropped anything
@@ -465,6 +482,40 @@ const MIN_FUTURES_VOL_USDT = 50_000_000  // v39: $5M→$50M — only liquid coin
 const MAX_FUTURES_COINS    = 60          // v40: 40→60 — scan more liquid coins = more good setups
 // v48: stablecoins / wrapped tokens — never trade these even if they appear in ticker data
 const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD|PYUSD|AEUR|EURS|SUSD|XAUT|PAXG|WBTC|WETH)USDT$/
+
+// ── v56.8: RELEASE PROVENANCE ──────────────────────────────────────────────
+// External audit (Manus, 2026-09-18) opened on exactly this: nobody could map
+// "the page you are looking at" -> git commit -> deployed function -> database,
+// so no live number could be honestly attributed to the validated DONCH4H/ROTA
+// system. The deploy entrypoint pins the source to a commit SHA and hands it
+// over on globalThis; the bot republishes it into `deployment_manifest` and into
+// every diagnostic response, so the chain is verifiable from the public anon key
+// alone. Anything that cannot state its SHA is, by definition, unattributable.
+const BOT_VERSION = 'v56.8'
+const RELEASE_SHA = String((globalThis as any).__RELEASE_SHA ?? 'unpinned')
+// Universe fingerprint: a cheap order-independent digest, so a silently edited
+// CRYPTO_40 shows up as a different release even at an identical SHA.
+const UNIVERSE_HASH = (() => {
+  let h = 2166136261
+  for (const c of [...FIXED_COINS].sort().join(',')) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) }
+  return (h >>> 0).toString(16).padStart(8, '0')
+})()
+let _manifestWritten = false
+const publishManifest = async (
+  supabase: any, paperMode: boolean, liveMode: boolean,
+  onErr: (scope: string, e: unknown) => unknown,
+) => {
+  if (_manifestWritten) return                      // once per cold start, not per cycle
+  _manifestWritten = true
+  const row = {
+    sha: RELEASE_SHA, bot_version: BOT_VERSION, universe_hash: UNIVERSE_HASH,
+    universe_size: FIXED_COINS.length, paper_mode: paperMode, live_trading: liveMode,
+    booted_at: new Date().toISOString(),
+  }
+  // Never let provenance bookkeeping break a trading cycle.
+  await supabase.from('deployment_manifest').upsert(row, { onConflict: 'sha' })
+    .then(() => {}, (e: unknown) => onErr('manifest', e))
+}
 
 let _lastFetchSource = 'unknown'  // tracked for donch_test diagnostic
 let _lastUniverseCoverage = -1     // v56.5: how many of CRYPTO_40 the chosen source covered
@@ -2404,7 +2455,10 @@ Deno.serve(async (req) => {
           if (side) outD.push({sym:ci.sym, side, close:last4.close, hi40:hiN, lo40:loN, adx:+adx4.toFixed(1), wouldEnter: adx4>22})
         } catch (e) { outD.push({sym:ci.sym, err:String(e).slice(0,60)}) }
       }
-      return new Response(JSON.stringify({ok:true, fapi_status:fapiProbe, universe:coinsD.length,
+      return new Response(JSON.stringify({ok:true,
+        release:{sha:RELEASE_SHA, bot_version:BOT_VERSION, universe_hash:UNIVERSE_HASH,
+                 strategies:['DONCH4H','ROTA'], timeframe:'4h', universe_size:FIXED_COINS.length},
+        fapi_status:fapiProbe, universe:coinsD.length,
         universe_c40:coinsD40.length, coverage:_lastUniverseCoverage, coverage_min:MIN_UNIVERSE_COVERAGE,
         fetch_source:_lastFetchSource, breakouts:outD, checked_at:new Date().toISOString()}),
         {headers:{'Content-Type':'application/json'}})
@@ -2487,7 +2541,7 @@ Deno.serve(async (req) => {
         overall_pf: 1.0,
         bot_params: {},
         lock_until: null,
-        market_regime: 'v39_5M',
+        market_regime: 'RANGING',
         updated_at: new Date().toISOString()
       }).eq('id',1)
       return new Response(JSON.stringify({ok:true,msg:'RESET DONE (clean slate v39)',balance:newBalance,trades_deleted:true}),
@@ -2518,6 +2572,9 @@ Deno.serve(async (req) => {
     const liveMode = !paperMode
       && Deno.env.get('LIVE_TRADING')==='1'
       && !!Deno.env.get('BYBIT_API_KEY') && !!Deno.env.get('BYBIT_API_SECRET')
+
+    // v56.8: record which build is actually running, once per cold start
+    await publishManifest(supabase, paperMode, liveMode, logErr)
 
     // dynamic params from optimizer agent (falls back to hardcoded defaults)
     const _bp   = (state.bot_params ?? {}) as Record<string,any>
@@ -3085,7 +3142,7 @@ Deno.serve(async (req) => {
                 rsi: +(rsiSnap.toFixed(2)),
                 volume_ratio: +(volRatioSnap.toFixed(3)),
                 hour_utc: utcH,
-                market_regime: btcRegime+'_v23_5M',
+                market_regime: btcRegime,
                 session: session,
                 oi_signal: oiSig,
                 fear_greed: fearGreed,
@@ -3852,7 +3909,7 @@ Deno.serve(async (req) => {
               rsi: +(rsiSnap.toFixed(2)),
               volume_ratio: +(volRatioSnap.toFixed(3)),
               hour_utc: utcH,
-              market_regime: btcRegime+'_v23_5M',
+              market_regime: btcRegime,
               session: session,
               oi_signal: oiSig,
               fear_greed: fearGreed,
@@ -3922,7 +3979,7 @@ Deno.serve(async (req) => {
 
     await supabase.from('bot_state').update({
       balance, updated_at: new Date().toISOString(),
-      market_regime: btcRegime+'_v23_5M', streak,
+      market_regime: btcRegime, streak,
       peak_balance:  newPeakBalance,
       coin_weights:  coinWeights,
       lock_until:    new Date().toISOString(),  // v28.2: release run lease
