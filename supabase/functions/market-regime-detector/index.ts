@@ -46,10 +46,31 @@ Deno.serve(async () => {
   try {
     const supa = createClient(SUPA_URL, SUPA_KEY)
 
-    // Fetch 100 candles of 1h BTC from Binance
-    const res = await fetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=100')
-    if (!res.ok) throw new Error('Binance fetch failed')
-    const candles: number[][] = await res.json()
+    // v58.0: was a single call to Binance SPOT (api.binance.com), which this
+    // project's egress cannot reach — the function had been returning
+    // "Binance fetch failed" on every run. The reference for this bot is Binance
+    // FUTURES, so try fapi first and fall back through the same ladder the rest
+    // of the system uses, reporting which source actually answered rather than
+    // presenting a fallback price as if it were the futures mark.
+    let candles: number[][] | null = null
+    let feedSource = 'none'
+    const sources: [string, string, (j: any) => number[][] | null][] = [
+      ['fapi',    'https://fapi.binance.com/fapi/v1/klines?symbol=BTCUSDT&interval=1h&limit=100',
+       (j) => Array.isArray(j) ? j : null],
+      ['spot',    'https://data-api.binance.vision/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=100',
+       (j) => Array.isArray(j) ? j : null],
+      ['okx',     'https://www.okx.com/api/v5/market/candles?instId=BTC-USDT-SWAP&bar=1H&limit=100',
+       (j) => Array.isArray(j?.data) ? [...j.data].reverse().map((k: string[]) => [0, k[1], k[2], k[3], k[4], k[5]] as unknown as number[]) : null],
+    ]
+    for (const [name, url, parse] of sources) {
+      try {
+        const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } })
+        if (!r.ok) continue
+        const parsed = parse(await r.json())
+        if (parsed && parsed.length > 50) { candles = parsed; feedSource = name; break }
+      } catch { /* next source */ }
+    }
+    if (!candles) throw new Error('all kline sources failed (fapi/spot/okx)')
 
     const hi  = candles.map(c => parseFloat(String(c[2])))
     const lo  = candles.map(c => parseFloat(String(c[3])))
@@ -93,7 +114,7 @@ Deno.serve(async () => {
       regime, confidence,
       btc_adx: adx, btc_atr_pct: atrPct,
       btc_ema_slope: emaSlope, bb_width_pct: bbWidth,
-      notes
+      notes: `${notes} src=${feedSource}`
     })
 
     // ═══ v58.0: READ-ONLY on bot_state. ═══════════════════════════════════
@@ -106,7 +127,7 @@ Deno.serve(async () => {
     // The regime series is still recorded in its own `market_regime` table, which
     // is where it belongs; trading-bot is the single owner of bot_state.
 
-    return new Response(JSON.stringify({ read_only: true, regime, confidence, adx, atrPct, notes }), {
+    return new Response(JSON.stringify({ read_only: true, feed_source: feedSource, regime, confidence, adx, atrPct, notes }), {
       headers: { 'Content-Type': 'application/json' }
     })
   } catch (err) {
