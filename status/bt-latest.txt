@@ -1,30 +1,43 @@
-backtest 2026-09-18T14:52Z mode=v78bt months=36
-████ V78BT — sub-gate ADX tier at reduced size (more trades, same engine) ████
+backtest 2026-09-18T15:35Z mode=v79bt months=36
+████ V79BT — sub-gate tier: deployed lens + slippage gate ████
   loaded 69 coins, 6 windows, span 1096 days
 
-── SUB-GATE TIER: take ADX (G..22] breakouts at reduced size, ON TOP of the live book ──
-   objective = size-weighted total R (a half-size trade earns half)
-   G=22 is the incumbent: gate unchanged, nothing extra taken
+── STAGE 2 / part A: is this lens valid? (incumbent must pass all 6) ──
+  LIVE adx>22 @3bps   n=11412  totR 865  all6 FAIL
+    windows: -75.0  +286.4  +222.2  +275.5  +159.2  -3.6
 
-  config              n      extra    totR     d-totR    all6   windows (risk-wtd avgR)
-  LIVE (adx>22)    11412        0      865        -    XX   -0.037 +0.114 +0.091 +0.105 +0.065 -0.001
-  G>18 x0.25      13862     2672      860       -5    XX   -0.041 +0.114 +0.090 +0.104 +0.062 -0.006
-  G>18 x0.40      13862     2672      874   +     9    XX   -0.042 +0.115 +0.090 +0.102 +0.060 -0.007
-  G>18 x0.50      13862     2672      884   +    19    XX   -0.042 +0.115 +0.090 +0.102 +0.059 -0.008
-  G>18 x0.75      13862     2672      908   +    43    XX   -0.043 +0.117 +0.090 +0.100 +0.057 -0.010
-     ^ the (18,22] band alone: n=2672, unweighted avgR +0.0363
-  G>15 x0.25      15914     4822      866   +     2    XX   -0.041 +0.112 +0.091 +0.101 +0.061 -0.009
-  G>15 x0.40      15914     4822      879   +    14    XX   -0.043 +0.111 +0.092 +0.098 +0.059 -0.012
-  G>15 x0.50      15914     4822      888   +    23    XX   -0.044 +0.111 +0.092 +0.096 +0.057 -0.014
-  G>15 x0.75      15914     4822      909   +    44    XX   -0.047 +0.109 +0.092 +0.091 +0.054 -0.018
-     ^ the (15,22] band alone: n=4822, unweighted avgR +0.0177
-  G>12 x0.25      17993     6941      866   +     1    XX   -0.038 +0.110 +0.092 +0.095 +0.059 -0.012
-  G>12 x0.40      17993     6941      892   +    27    XX   -0.039 +0.109 +0.094 +0.089 +0.057 -0.017
-  G>12 x0.50      17993     6941      909   +    44    XX   -0.039 +0.109 +0.095 +0.086 +0.056 -0.020
-  G>12 x0.75      17993     6941      951   +    87    XX   -0.039 +0.109 +0.097 +0.079 +0.053 -0.027
-     ^ the (12,22] band alone: n=6941, unweighted avgR +0.0245
+  LENS REJECTED: the deployed config fails all-6 here too, so this bar
+  cannot discriminate either. Do NOT read the rows below as a verdict.
 
-  DEPLOY BAR: size-weighted totR must EXCEED the live 865R AND stay
-  positive in all 6 windows. Trade count rises by construction (rule 5 safe).
-  If every row fails, the answer to "more, faster trades" is settled: the
-  signals we discard are discarded for a reason, at every size.
+── part B: sub-gate tier on the deployed lens, @3bps ──
+  config             n      extra    totR    d-totR   all6   windows
+  LIVE            11412        0     865       -   FAIL  -75.0 +286.4 +222.2 +275.5 +159.2 -3.6
+  G>18 x0.25     13862     2672     860      -5   FAIL  -85.5 +296.6 +226.7 +279.4 +157.7 -15.3
+  G>18 x0.40     13862     2672     874  +     9   FAIL  -88.8 +306.4 +233.2 +283.6 +158.7 -18.9
+  G>18 x0.50     13862     2672     884  +    19   FAIL  -91.0 +313.0 +237.5 +286.3 +159.3 -21.3
+  G>18 x0.75     13862     2672     908  +    43   FAIL  -96.4 +329.4 +248.3 +293.3 +161.0 -27.4
+  G>15 x0.25     15914     4822     866  +     2   FAIL  -87.4 +299.5 +237.7 +280.0 +160.6 -24.1
+  G>15 x0.40     15914     4822     879  +    14   FAIL  -95.4 +310.2 +250.9 +284.9 +162.0 -33.5
+  G>15 x0.50     15914     4822     888  +    23   FAIL  -100.8 +317.4 +259.8 +288.1 +163.0 -39.8
+  G>15 x0.75     15914     4822     909  +    44   FAIL  -114.2 +335.2 +281.9 +296.2 +165.3 -55.5
+  G>12 x0.25     17993     6941     866  +     1   FAIL  -83.7 +299.7 +249.7 +273.6 +160.4 -33.5
+  G>12 x0.40     17993     6941     892  +    27   FAIL  -89.9 +317.3 +272.8 +276.2 +165.3 -50.0
+  G>12 x0.50     17993     6941     909  +    44   FAIL  -94.0 +329.0 +288.2 +277.9 +168.6 -61.1
+  G>12 x0.75     17993     6941     951  +    87   FAIL  -104.2 +358.4 +326.7 +282.2 +176.9 -88.6
+
+── part C: SLIPPAGE GATE — the test that killed reg-channel (v71bt) ──
+  a candidate must still beat the incumbent AT THE SAME slippage, at 3 AND 6 bps
+
+  slip   LIVE totR   (no candidates from part B)
+   0bps       1085   
+   3bps        865   
+   6bps        644   
+  10bps        350   
+
+  DEPLOY BAR — all four, or it does not ship:
+   1. the incumbent passes all-6 on this lens (part A), else the run is void
+   2. totR beats the incumbent at 3bps
+   3. all 6 windows positive
+   4. the margin SURVIVES 6bps — reg-channel led at 0bps and was
+      less than half the incumbent by 6. A thin edge with no cushion is
+      not an edge, it is a measurement of the cost model.
