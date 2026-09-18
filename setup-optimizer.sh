@@ -5,7 +5,7 @@
 # ════════════════════════════════════════════════════════════
 set -e
 
-PROJECT_REF="mdvheizhciuvqychtwxr"
+PROJECT_REF="adxgadwghgkwmntsnrar"
 
 echo "🚀 Trading Optimizer Setup"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -79,7 +79,7 @@ SELECT cron.schedule(
   'trading-optimizer',
   '* * * * *',
   $$SELECT net.http_post(
-    url := 'https://mdvheizhciuvqychtwxr.supabase.co/functions/v1/trading-optimizer',
+    url := 'https://adxgadwghgkwmntsnrar.supabase.co/functions/v1/trading-optimizer',
     headers := '{"Authorization":"Bearer YOUR_ANON_KEY"}'::jsonb
   )$$
 );

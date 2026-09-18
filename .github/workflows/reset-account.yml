@@ -9,7 +9,7 @@ on:
         default: ''
 
 env:
-  PROJECT_REF: mdvheizhciuvqychtwxr
+  PROJECT_REF: adxgadwghgkwmntsnrar
 
 jobs:
   reset:
@@ -30,7 +30,7 @@ jobs:
           echo "🔄 Starting complete trading bot account reset..."
 
           RESPONSE=$(curl -s -X POST \
-            "https://mdvheizhciuvqychtwxr.supabase.co/functions/v1/reset-account" \
+            "https://adxgadwghgkwmntsnrar.supabase.co/functions/v1/reset-account" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
             -H "Content-Type: application/json" \
             -d '{}')
