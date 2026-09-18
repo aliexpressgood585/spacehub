@@ -655,6 +655,9 @@ export default function CryptoTradingDashboard() {
     }
   },[trades,addToast])
 
+  // Kept, unwired: close-trade is owner-only from v56.8 (service-role key required),
+  // so this cannot work from a public page. Left in place as the shape of the owner
+  // path for whenever manual close moves behind a real login.
   const handleManualClose=useCallback(async(t:Trade)=>{
     if(!SUPA_URL){addLog('⚠ Supabase לא מחובר');return}
     const live=livePositions[t.id]
@@ -985,14 +988,31 @@ export default function CryptoTradingDashboard() {
   useEffect(()=>{if(scopeRef.current&&eqView.length>=2)drawScope(scopeRef.current,eqView)},[eqView])
   useEffect(()=>{if(bubRef.current)drawBubbles(bubRef.current,allSigs,prices)},[allSigs,prices])
 
+  // v56.8 — these three controls write to bot_state with the ANON key, which RLS has
+  // always blocked. PostgREST answers 204 with zero rows affected, the old code never
+  // looked at the result, so the UI flipped locally and silently reverted on the next
+  // poll: a control that looks like it works and does nothing. Report what actually
+  // happened instead of pretending. (The page is public and unauthenticated, so anon
+  // write access is not the fix — the fix is to say so.)
+  const reportWrite=async(p:unknown,okMsg:string)=>{
+    const r=await (p as Promise<{error?:{message?:string}|null;data?:unknown[]|null}>)
+    const wrote=Array.isArray(r?.data)?r.data.length>0:!r?.error
+    addLog(wrote?okMsg:'⚠ השינוי לא נשמר — הדף ציבורי וקריאה-בלבד')
+    return wrote
+  }
   const handleBotToggle=()=>{
     const next=!botOn;setBotOn(next);botRef.current=next
-    supaRef.current?.from('bot_state').update({active:next,updated_at:new Date().toISOString()}).eq('id',1)
-    addLog(next?'בוט הופעל':'בוט כובה')
+    void reportWrite(
+      supaRef.current?.from('bot_state').update({active:next,updated_at:new Date().toISOString()})
+        .eq('id',1).select('id'),
+      next?'בוט הופעל':'בוט כובה')
   }
   const handleRiskChange=(r:RiskType)=>{
     setRisk(r);riskRef.current=r
-    supaRef.current?.from('bot_state').update({risk:r,updated_at:new Date().toISOString()}).eq('id',1)
+    void reportWrite(
+      supaRef.current?.from('bot_state').update({risk:r,updated_at:new Date().toISOString()})
+        .eq('id',1).select('id'),
+      `סיכון: ${r}`)
   }
 
   const openTrades  = trades.filter(t=>t.status==='OPEN')
@@ -1131,7 +1151,7 @@ export default function CryptoTradingDashboard() {
               NEXUS TRADE
             </span>
             <span style={{fontSize:'8px',color:C.blue,padding:'2px 6px',border:`1px solid ${C.blue}40`,borderRadius:'4px',
-              boxShadow:`0 0 8px ${C.blue}30`,background:`${C.blue}10`}}>v56.7</span>
+              boxShadow:`0 0 8px ${C.blue}30`,background:`${C.blue}10`}}>v56.8</span>
           </div>
 
           <div style={{display:'flex',gap:'5px',flexWrap:'wrap' as const}}>
@@ -1146,7 +1166,9 @@ export default function CryptoTradingDashboard() {
             </span>
             <button className="nx-btn" onClick={()=>{
               const next=!serverPaperMode;setServerPaperMode(next)
-              supaRef.current?.from('bot_state').update({paper_mode:next}).eq('id',1)
+              void reportWrite(
+                supaRef.current?.from('bot_state').update({paper_mode:next}).eq('id',1).select('id'),
+                next?'מצב נייר':'מצב חי')
             }} style={{
               border:`1px solid ${serverPaperMode?C.teal:C.red}44`,borderRadius:'20px',
               padding:'3px 10px',fontSize:'9px',fontWeight:700,
@@ -1453,7 +1475,10 @@ export default function CryptoTradingDashboard() {
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(170px,1fr))',gap:'6px'}}>
             {openTrades.map(t=>(
               <LivePosition key={t.id} t={t} live={livePositions[t.id]} fmtP={fmtP}
-                onClose={supaModeRef.current?()=>handleManualClose(t):undefined}/>
+                /* v56.8: manual close is owner-only now — close-trade requires the
+                   service-role key, which a public page cannot hold. Hiding the
+                   button rather than leaving one that always 403s. */
+                onClose={undefined}/>
             ))}
           </div>
         </div>
