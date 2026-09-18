@@ -5453,7 +5453,18 @@ function runV78bt() {
     d4[c]=toTf(h,BAR4);tmin=Math.min(tmin,h[0].t);tmax=Math.max(tmax,h[h.length-1].t)}
   const wSpan=(tmax-tmin)/NW
   const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
-  console.log(`  loaded ${Object.keys(d4).length} coins, ${NW} windows`)
+  // v78bt: fail loudly on a short dataset. The first run of this mode silently
+  // used 45 days instead of 36 months (the workflow's data-fetch step has a MODE
+  // whitelist and v78bt was not on it), which produced n=301 and two empty
+  // windows — a baseline that does not reproduce the known-good 11,218 signals.
+  // A backtest that quietly measures the wrong period is worse than no backtest.
+  const spanDays=(tmax-tmin)/86400000
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${NW} windows, span ${spanDays.toFixed(0)} days`)
+  if (spanDays < 900) {
+    console.log(`\n  ABORT: need ~36 months of 1h history, got ${spanDays.toFixed(0)} days.`)
+    console.log(`  The fetch step ran the short-history fetcher. Results would be meaningless.`)
+    return
+  }
 
   // identical ladder to live v53: 1/3 @0.6R -> BE, 1/3 @1.0R, last third trails 2.5xATR
   const ladder=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,atr:number,jEnd:number)=>{
