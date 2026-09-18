@@ -463,8 +463,10 @@ the agent; the user only approved ("אל תבקש ממני אני מאשר הכ�
   no delete-function call — delete it from the dashboard when convenient.
 
 ## Current state (2026-09-18)
-- **LIVE AND TRADING** on `adxgadwghgkwmntsnrar`, code **v57.1**
-  (sha `135ecf9e…`, confirmed live in `deployment_manifest` and `?donch_test=1`).
+- **LIVE AND TRADING** on `adxgadwghgkwmntsnrar`, code **v57.2**
+  (sha `2e22438f…`, confirmed live in `deployment_manifest` and `?donch_test=1`).
+- **BASE RISK IS NOW 1.75%** (was 1.25%) — owner instruction at 0/50 trades,
+  see v57.2. Expect maxDD median 22% / p90 34%. Next raise stays gated.
   First successful deploys since 2026-07-16; they carry v56.5 (universe), v56.6
   (deadlock), v56.7 (coverage), v56.8 (provenance), v56.9 (heat race), v57.0
   (dashboard engine removal) and v57.1 (ROTA stale fills).
@@ -484,6 +486,28 @@ the agent; the user only approved ("אל תבקש ממני אני מאשר הכ�
 - WATCH NEXT: confirm on the next multi-breakout 4h close that HEAT_CAP actually
   logs and trims (the v56.9 fix has not yet met a six-signal cycle in the wild),
   and that cash returns positive as the first ladder legs bank.
+
+## v57.2 (2026-09-18) — BASE RISK RAISED 1.25% → 1.75% (owner instruction)
+Tier 2 of the v50bt Monte Carlo ladder. Drawdown expectation moves from median
+16% / p90 25% / p99 36% to **median 22% / p90 34% / p99 47%**. The ADX tiers
+multiply it unchanged, so ADX>45 breakouts now size at **3.5%** (was 2.5%).
+Kelly context (v57bt): f*≈6.5%, so 1.75% is roughly ⅓-Kelly — still under the
+optimum, growth scales close to linearly, variance scales with the square.
+HOW IT HAPPENED, recorded honestly: the owner asked whether the bot could be made
+"more aggressive, earning a lot all the time". The answer given was that ONE real
+lever exists (this one), that it doubles the pain as well as the gain, that "all
+the time" does not exist (v66bt: 2021 −92R, 2023 flat), and that their own
+2026-07-12 rule blocked it at 0/50 trades. They then instructed the raise anyway,
+in plain words. That is their call on their own paper account and it was actioned
+in full — but NOTHING about it is validated by live results: the expectation band
+has not been confirmed at any size on this project.
+IMPLEMENTATION: hoisted to a module-scope `BASE_RISK_PCT` and published in
+`deployment_manifest.base_risk_pct` and in `?donch_test=1`, so the size the bot
+trades at is readable from the public anon key instead of from source. Verified
+live: manifest row for v57.2 shows `base_risk_pct: 0.0175`.
+NOTE FOR THE NEXT SESSION: do not read the 1.75% as evidence of anything. If the
+first 50 trades come in below band, the honest move is back to 1.25%, not onward
+to 2.5%.
 
 ## v57.1 (2026-09-18) — ROTA was filling at a price up to FOUR HOURS old
 Found while checking a user report ("positions were in profit and it didn't close
@@ -728,6 +752,10 @@ bars, and make the diagnostic print the number it is judging.
 - USER DECISION (2026-07-12): stay at 1.25% base risk until the 50-trade
   checkpoint; revisit the Monte Carlo table then. Do NOT raise risk before
   the counter hits 50 and DONCH4H is in-band.
+  **SUPERSEDED 2026-09-18 by the owner**: raised to 1.75% on explicit instruction
+  at 0/50 trades — see v57.2. The checkpoint rule still governs the NEXT step
+  (1.75% → 2.5%): do not raise again without 50 closed DONCH4H trades in-band,
+  unless the owner again instructs it in as many words.
 - Monte Carlo DD table (v50bt, for the risk-raise decision; real DD runs deeper
   due to concurrent positions): 1.25% risk → median maxDD 16%, p90 25%, p99 36%;
   1.75% → 22/34/47%; 2.50% → 31/46/60%. User must accept the tier's p90 before
