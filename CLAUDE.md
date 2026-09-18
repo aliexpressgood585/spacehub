@@ -42,8 +42,11 @@ asking, but NEVER violate the standing rules below.
   `status/latest.txt` (bot state, positions, live P&L via OKX marks, expectation-band
   check vs backtest, independent breakout scan, live `?donch_test=1`).
   `force-rebalance.yml` clears `rebalanced_at` to force a rotation.
-- **Dashboard**: `trading-app/` → GitHub Pages via `deploy-trading-app.yml`;
-  version tag in `CryptoTradingDashboard.tsx` must match bot version.
+- **Dashboard**: `trading-app/` → GitHub Pages via `deploy-trading-app.yml`.
+  Since v57.0 it is a pure VIEWER of the server bot — no client-side strategy, no
+  writes (RLS read-only, close-trade owner-only). The header version chip reads
+  the live build from `deployment_manifest`, so there is no hardcoded tag to keep
+  in sync any more. Never reintroduce a signal the bot does not compute.
 - Deploys: push to main touching `supabase/functions/**` triggers
   `deploy-edge-function.yml` (also runs SQL migrations listed inside it).
   Wait ~90s after deploy before poking the function.
@@ -477,6 +480,37 @@ the agent; the user only approved ("אל תבקש ממני אני מאשר הכ�
   logs and trims (the v56.9 fix has not yet met a six-signal cycle in the wild),
   and that cash returns positive as the first ladder legs bank.
 
+## v57.0 (2026-09-18) — the legacy 5m engine is OUT of the dashboard
+Last open item from the external audit, closed. `trading-app/` carried a complete
+SECOND trading system: a client-side 5-minute paper engine with its own risk
+table, entry/exit thresholds and a 5-flag EMA/RSI/MACD/BB/StochRSI confluence
+scorer. It had been unreachable for many versions (every entry point opened with
+`if (supaModeRef.current) return`, and supaMode is permanently on) but it still
+PAINTED the page: "SL 1.0% · TP 2.4%", a 4/5 score, a green "▲ קנייה" banner —
+none of it connected to DONCH4H/ROTA. That is what made the reviewer conclude a
+second 5m engine was trading live.
+REMOVED: openTrade / checkTrades / handleManualClose; the indicator math
+(EMA/RSI/MACD/BB/StochRSI/ADX/ATR, 1m→5m/15m bar builders, computeSig,
+getMultiTFSig); the RISK table and MIN_SCORE / MIN_ADX / TP_MULT / PARTIAL_AT /
+MAX_NOTIONAL_PCT / LEVERAGE / FEE_PCT; the `Sig` type and its state.
+REPLACED so the page reports the BOT, not its own opinion: coin strip, market map
+and scanner table key off the bot's open positions (side, sleeve, live P&L); the
+chart drops EMA/BB overlays and the BUY/SELL dot, keeping candles + a marker for
+a position the bot actually holds; the config card states the real rules
+(Donchian-15/4h, ADX>22, 1.4×ATR, ⅓/⅓/trail, ROTA 14d, 1.25% base); the header
+chip reads the live build out of `deployment_manifest` (version + short commit),
+so the page names the code that produced its numbers.
+KEPT: the Binance price WebSocket — it feeds live P&L for the bot's own open
+positions and was never part of the engine.
+VERIFIED: typecheck + production build clean, 1955→1844 lines, and the LIVE Pages
+bundle contains zero occurrences of `StochRSI` / `MTF` / `computeSig`.
+LESSON: dead code that still renders is not dead. It had no execution path for
+months and still cost a full external audit cycle, because a dashboard is a
+claim about what the system does.
+REMAINING audit items: #2 health state machine (the deadlock itself is already
+fixed in v56.6 — the refactor is cosmetic), #3 order-intent journal (only matters
+at the real-exchange stage). The audit is otherwise closed.
+
 ## v56.9 (2026-09-18) — the 95% heat cap that never fired (concurrency race)
 Caught on live data ~1h after v56.7 shipped, and it is the most serious defect
 found this session. At the 08:00 UTC 4h close SIX DONCH4H breakouts fired in one
@@ -539,11 +573,8 @@ honestly attributed to the validated DONCH4H/ROTA system.
   returns 204 with zero rows, the old code never checked, so the UI flipped
   locally and reverted on the next poll — controls that look live and do nothing.
   They now `.select('id')` and report when the write does not land.
-STILL OPEN from the audit: the legacy client-side 5m engine (WebSocket + RSI/
-MACD/BB/Stoch, ~700 lines) is still inside the dashboard bundle. It can no longer
-write anything (close-trade gated, RLS read-only), but it should be deleted.
-Audit items 2 (health state machine — the deadlock itself is fixed in v56.6) and
-3 (order-intent journal — only matters at the real-exchange stage) not started.
+(The legacy client-side 5m engine noted here as still-open was deleted the same
+day — see v57.0 above.)
 
 ## v56.7 (2026-09-18) — the volume floor was eating the pinned universe
 Found on the migrated project's first live cycle, and it had been silently
