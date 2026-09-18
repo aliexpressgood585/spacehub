@@ -463,10 +463,15 @@ the agent; the user only approved ("אל תבקש ממני אני מאשר הכ�
   no delete-function call — delete it from the dashboard when convenient.
 
 ## Current state (2026-09-18)
-- **LIVE AND TRADING** on `adxgadwghgkwmntsnrar`, code **v56.9**
-  (sha `69f93169…`, confirmed live in `deployment_manifest` and `?donch_test=1`).
+- **LIVE AND TRADING** on `adxgadwghgkwmntsnrar`, code **v57.1**
+  (sha `135ecf9e…`, confirmed live in `deployment_manifest` and `?donch_test=1`).
   First successful deploys since 2026-07-16; they carry v56.5 (universe), v56.6
-  (deadlock), v56.7 (coverage), v56.8 (provenance) and v56.9 (heat race).
+  (deadlock), v56.7 (coverage), v56.8 (provenance), v56.9 (heat race), v57.0
+  (dashboard engine removal) and v57.1 (ROTA stale fills).
+- LADDER VERIFIED LIVE for the first time on this project, 2026-09-18 08:57: INJ
+  crossed 0.6R at 08:55 and two minutes later `exit_stage=1`, `legs_banked=$8.71`,
+  stop moved to breakeven. End-to-end proof that the v56.2 leg accounting and the
+  v56.6 `.catch` fix both work.
 - Book at 08:30 UTC: 16 open (10 ROTA from the 05:46 rebalance + 6 DONCH4H from
   the 08:00 4h close), notional $13,754, equity ~$9,950, cash **-$3,761** — the
   v56.9 over-allocation, left to unwind through the ladders. Total stop risk on
@@ -479,6 +484,37 @@ the agent; the user only approved ("אל תבקש ממני אני מאשר הכ�
 - WATCH NEXT: confirm on the next multi-breakout 4h close that HEAT_CAP actually
   logs and trims (the v56.9 fix has not yet met a six-signal cycle in the wild),
   and that cash returns positive as the first ladder legs bank.
+
+## v57.1 (2026-09-18) — ROTA was filling at a price up to FOUR HOURS old
+Found while checking a user report ("positions were in profit and it didn't close
+them"). The positions were fine — the PRICES were not. Note the pattern: the user
+report was wrong on its face and still led to the best find of the session.
+DEFECT: ROTA ranks momentum from the last COMPLETED 4h candle (`p1`) and then used
+that same close as the ENTRY and EXIT price. Right for the signal, wrong for a
+fill — a rebalance lands on an arbitrary minute of the 4h window, so fills
+averaged ~2h stale.
+MEASURED on the live 05:46 rotation (filled at the 04:00 close, 1h46m old):
+- 4 of the 10 opened slots entered 1.1-2.3% off the real market
+  (FET +2.27%, WIF +1.23%, NEAR +1.19%, UNI +1.11%)
+- the cross-source shield rejected 6 MORE that had drifted further
+  (CRV 1.67 / ADA 1.79 / INJ 1.80 / APT 2.48 / OP 2.75 / ARB 6.89%)
+= 37% of the sleeve skipped, a rule-5 trade cut caused by OUR OWN stale feed.
+Cross-checked against Binance 1m bars at 05:46: per-minute ranges were 0.09-0.76%,
+so this was two hours of drift, not a spike — **the bad-tick shield was RIGHT**.
+(My first hypothesis was the opposite — that the shield was over-firing on routine
+OKX↔Bybit basis, as in v56.3. The data reversed it. Check which side is wrong
+before widening a tolerance: the "false positive" was a true positive.)
+The EXIT path had the same defect, so realised ROTA P&L was measured against
+fills that never existed.
+FIX: `fetchLivePrice()` (Binance → OKX → Bybit, ≤1 min old) supplies entry, exit
+and sizing; the 4h close still supplies the momentum ranking. One cached fetch per
+symbol per rebalance. Also added the missing `1m` mapping to the Bybit kline
+interval table (it silently fell through to `60`).
+NOT a strategy change and NOT a trade cut: the backtest fills at the bar close,
+which is self-consistent there but unachievable live — this makes the live engine
+do what the backtest MEANT, and it removes false bad-tick rejections.
+WATCH: the next rotation (~2026-09-20 05:46 UTC) is the first on live prices —
+expect ~0% divergence and 16 of 16 slots filled instead of 10.
 
 ## v57.0 (2026-09-18) — the legacy 5m engine is OUT of the dashboard
 Last open item from the external audit, closed. `trading-app/` carried a complete
