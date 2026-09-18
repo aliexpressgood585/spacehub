@@ -1,4 +1,26 @@
 // ════════════════════════════════════════════════════════════
+// CryptoBot v56.9 — HEAT LIMIT RACE (the 95% cap that never fired)
+//
+// v56.9: the portfolio heat limit (v56.0, MAX_HEAT_PCT=0.95) was computed from
+//  `allOpen` — ONE snapshot taken at the top of the cycle — while the per-coin
+//  scan runs in `Promise.all` batches of 12. Every concurrent entry therefore
+//  sized itself against the same stale exposure and none could see the others.
+//  Live proof, 2026-09-18 08:00 UTC: six DONCH4H breakouts fired in one cycle,
+//  each read heat=47%, each took its full slice — $9,087 of fresh notional on
+//  top of ROTA's $4,667 = 138% of a $9,950 account, cash balance -$3,761, and
+//  the 95% cap logged nothing. The same snapshot blindness applied between the
+//  sleeves: ROTA opens its basket earlier in the very same invocation.
+//  FIX: a cycle-scoped running total (heatCommitted / netCommitted) that both
+//  sleeves add to. A breakout reserves its room synchronously — before the first
+//  `await`, which is the only place a sibling in the batch can interleave — and
+//  releases it on every path that then bails out.
+//  NB this does NOT cut trades (standing rule 5): v56.0's design already TRIMS
+//  an entry to the room left and only skips under $500, and v65bt established
+//  that simultaneous same-side breakouts are the WINNERS and must never be
+//  capped by count. What was broken was the arithmetic, not the policy.
+//  It surfaced only now because v56.7 restored the universe from 21 to 40 coins;
+//  at half a universe, six simultaneous qualifying breakouts were rare.
+//
 // CryptoBot v56.8 — RELEASE PROVENANCE + honest regime label
 //
 // v56.8: closes the external audit's first finding — that nobody could map the
@@ -491,7 +513,7 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v56.8'
+const BOT_VERSION = 'v56.9'
 const RELEASE_SHA = String((globalThis as any).__RELEASE_SHA ?? 'unpinned')
 // Universe fingerprint: a cheap order-independent digest, so a silently edited
 // CRYPTO_40 shows up as a different release even at an identical SHA.
@@ -2683,6 +2705,15 @@ Deno.serve(async (req) => {
     // so with 60% exposure the cash-based number read as a 60% "drawdown" and
     // the guard force-closed every basket at market — the -$958 churn bug.
     const {data:allOpen}=await supabase.from('bot_trades').select('*').eq('status','OPEN')
+    // v56.9: notional committed by entries EARLIER IN THIS SAME CYCLE. `allOpen` is a
+    // single snapshot taken here, and the per-coin scan runs in Promise.all batches of
+    // 12, so without this every concurrent entry sized itself against the same stale
+    // exposure and none could see the others. Live proof (2026-09-18 08:00): six
+    // DONCH4H breakouts fired in one cycle, each read heat=47% and each took its full
+    // slice — $9,087 of new notional on top of ROTA's $4,667 = 138% of a $9,950
+    // account, cash balance -$3,761, with the 95% heat cap never firing once.
+    let heatCommitted = 0
+    const netCommitted = { l: 0, s: 0 }
     const lockedNotional = (allOpen||[]).reduce((s:number,t:any)=>s+Number(t.entry_price)*Number(t.size),0)
     const equity = balance + lockedNotional
     const circuitBreakerActive = equity < INITIAL_BALANCE*(1-MAX_DD_STOP)
@@ -3010,6 +3041,12 @@ Deno.serve(async (req) => {
               size2 = q
               if (r.avgPrice) fillPx = r.avgPrice
             }
+            // v56.9: ROTA opens its basket earlier in the same cycle than the DONCH4H
+            // scan, but both size themselves off the `allOpen` snapshot taken before
+            // either ran — so a breakout could not see a basket opened minutes earlier
+            // in the same invocation. Book it into the same running total.
+            heatCommitted += slotNotional
+            if (tgt.dir === 1) netCommitted.l += slotNotional; else netCommitted.s += slotNotional
             const feeIn = slotNotional * FEE
             balance -= (slotNotional + feeIn)
             await supabase.from('bot_trades').insert({
@@ -3617,15 +3654,18 @@ Deno.serve(async (req) => {
           // combined) from exceeding 95% of portfolio value. Fires when ROTA's 70% book
           // + several DONCH4H positions are open simultaneously. Trims entry to fit;
           // skips only if remaining room < $500.
-          const heatRoom = Math.max(0, totPort4 * MAX_HEAT_PCT - curExp4)
+          // v56.9: subtract what THIS cycle has already committed, not just what the
+          // snapshot showed — see the heatCommitted comment where it is declared.
+          const heatUsed = curExp4 + heatCommitted
+          const heatRoom = Math.max(0, totPort4 * MAX_HEAT_PCT - heatUsed)
           if (notional4 > heatRoom) {
             notional4 = heatRoom
-            if (heatRoom >= 500) log.push(`HEAT_CAP ${sym}: notional trimmed to $${heatRoom.toFixed(0)} (heat=${(curExp4/Math.max(totPort4,1)*100).toFixed(0)}%)`)
+            if (heatRoom >= 500) log.push(`HEAT_CAP ${sym}: notional trimmed to $${heatRoom.toFixed(0)} (heat=${(heatUsed/Math.max(totPort4,1)*100).toFixed(0)}%)`)
           }
           if (notional4 < 500) {
             const isHeat = heatRoom < 500
             if (msInto4h < 120_000) logSkip(sym,'DONCH4H', isHeat ? 'heat_limit' : 'too_small_or_liq_cap',
-              {notional:+notional4.toFixed(0), vol24h:+quoteVol24h.toFixed(0), heatPct:+(curExp4/Math.max(totPort4,1)*100).toFixed(0)})
+              {notional:+notional4.toFixed(0), vol24h:+quoteVol24h.toFixed(0), heatPct:+(heatUsed/Math.max(totPort4,1)*100).toFixed(0)})
             return
           }
           const sideExp4 = (allOpen||[]).reduce((acc:{l:number,s:number}, x:any) => {
@@ -3633,18 +3673,29 @@ Deno.serve(async (req) => {
             if (x.side==='LONG') acc.l += n2; else acc.s += n2
             return acc
           }, {l:0, s:0})
+          sideExp4.l += netCommitted.l; sideExp4.s += netCommitted.s   // v56.9: same-cycle entries
           const netAfter4 = side4==='LONG' ? (sideExp4.l+notional4)-sideExp4.s : sideExp4.l-(sideExp4.s+notional4)
           if (totPort4 > 0 && Math.abs(netAfter4) > totPort4 * 0.60) {
             log.push(`SKIP ${sym}: DONCH4H net ${side4} exposure cap`)
             if (msInto4h < 120_000) logSkip(sym,'DONCH4H','net_exposure_cap',{side:side4, netAfterPct:+(netAfter4/totPort4*100).toFixed(0)})
             return
           }
+          // v56.9: RESERVE the room now. Everything from here to the insert is either
+          // synchronous or an await, and an await is exactly where a sibling coin in the
+          // same Promise.all batch gets to run — so the reservation has to happen before
+          // the first one, and be released on every path that then bails out.
+          heatCommitted += notional4
+          if (side4==='LONG') netCommitted.l += notional4; else netCommitted.s += notional4
+          const releaseHeat = () => {
+            heatCommitted -= notional4
+            if (side4==='LONG') netCommitted.l -= notional4; else netCommitted.s -= notional4
+          }
 
           // v50.1: never open on a bad tick — require Bybit to agree within 0.5%
           if (!(await priceSane(sym, price))) {
             log.push(`SKIP ${sym}: cross-source price mismatch (bad tick?)`)
             if (msInto4h < 120_000) logSkip(sym,'DONCH4H','bad_tick',{price, divergePct:+(_lastPriceDiverge*100).toFixed(2)})
-            return
+            releaseHeat(); return
           }
           // v54: adverse entry slippage on the market fill (3 bps); SL/TP levels
           // stay at the scan-price levels — only the recorded fill moves.
@@ -3652,9 +3703,9 @@ Deno.serve(async (req) => {
           let size4 = notional4 / fillPx4
           if (liveMode) {   // v55 seam #1: real market order, real fill price
             const q = await bybitQty(sym, size4)
-            if (q <= 0) { log.push(`LIVE_SKIP ${sym}: below exchange min qty`); logSkip(sym,'DONCH4H','live_min_qty',{size:size4}); return }
+            if (q <= 0) { log.push(`LIVE_SKIP ${sym}: below exchange min qty`); logSkip(sym,'DONCH4H','live_min_qty',{size:size4}); releaseHeat(); return }
             const r = await bybitMarket(sym, side4==='LONG', q, false)
-            if (!r.ok) { log.push(`LIVE_REJECT ${sym}: ${r.err}`); await logErr('live_open_donch', `${sym} ${r.err}`); return }
+            if (!r.ok) { log.push(`LIVE_REJECT ${sym}: ${r.err}`); await logErr('live_open_donch', `${sym} ${r.err}`); releaseHeat(); return }
             size4 = q
             if (r.avgPrice) fillPx4 = r.avgPrice
           }
