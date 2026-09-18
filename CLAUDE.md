@@ -460,14 +460,90 @@ the agent; the user only approved ("אל תבקש ממני אני מאשר הכ�
   no delete-function call — delete it from the dashboard when convenient.
 
 ## Current state (2026-09-18)
-- **LIVE AND TRADING** on `adxgadwghgkwmntsnrar`, code **v56.7** — the first
-  successful deploy since 2026-07-16, and it carries v56.5 (universe), v56.6
-  (kill-switch deadlock) and v56.7 (coverage) all at once.
-- First cycles: ROTA rebalanced 05:46 UTC and opened 10 positions; equity ~$9,983
-  on $10,000, exposure ~$4,667, zero rows in `bot_errors`, all shields false.
-- `donch_test` after v56.7: `universe:42 universe_c40:40 coverage:40 source:spot`,
-  31 breakouts / 26 wouldEnter (was 21/40 and `okx_partial` before the fix).
+- **LIVE AND TRADING** on `adxgadwghgkwmntsnrar`, code **v56.9**
+  (sha `69f93169…`, confirmed live in `deployment_manifest` and `?donch_test=1`).
+  First successful deploys since 2026-07-16; they carry v56.5 (universe), v56.6
+  (deadlock), v56.7 (coverage), v56.8 (provenance) and v56.9 (heat race).
+- Book at 08:30 UTC: 16 open (10 ROTA from the 05:46 rebalance + 6 DONCH4H from
+  the 08:00 4h close), notional $13,754, equity ~$9,950, cash **-$3,761** — the
+  v56.9 over-allocation, left to unwind through the ladders. Total stop risk on
+  the six breakouts is $327 (~3.3% of equity), so the exposure is a leverage
+  problem, not a risk-of-ruin one. Both sleeves skip new entries until cash turns
+  positive again (see the v56.9 note). `bot_errors` empty throughout.
+- `donch_test`: `universe:42 universe_c40:40 coverage:40 source:spot`, 31
+  breakouts / 26 wouldEnter (was 21/40 and `okx_partial` before v56.7).
 - Checkpoint counter restarts at **0/50**. No risk raise before 50 in-band trades.
+- WATCH NEXT: confirm on the next multi-breakout 4h close that HEAT_CAP actually
+  logs and trims (the v56.9 fix has not yet met a six-signal cycle in the wild),
+  and that cash returns positive as the first ladder legs bank.
+
+## v56.9 (2026-09-18) — the 95% heat cap that never fired (concurrency race)
+Caught on live data ~1h after v56.7 shipped, and it is the most serious defect
+found this session. At the 08:00 UTC 4h close SIX DONCH4H breakouts fired in one
+cycle and every one opened at full size: $9,087 of fresh notional on top of
+ROTA's $4,667 = **138% of a $9,950 account**, cash balance **-$3,761**, and the
+v56.0 heat cap (MAX_HEAT_PCT=0.95) logged nothing at all.
+CAUSE: the cap is computed from `allOpen` — ONE snapshot taken at the top of the
+cycle — while the per-coin scan runs in `Promise.all` batches of 12. Every
+concurrent entry read the same stale exposure (heat=47%) and none could see the
+others. Same blindness between sleeves: ROTA opens its basket earlier in the very
+same invocation, off the same snapshot.
+FIX: a cycle-scoped running total (`heatCommitted` / `netCommitted`) both sleeves
+add to. A breakout RESERVES its room synchronously — before the first `await`,
+which is the only point where a sibling in the batch can interleave — and
+releases it on every path that then bails out (bad_tick, live_min_qty,
+live_reject).
+NOT a trade cut (rule 5): v56.0 already TRIMS to the room left and only skips
+under $500, and v65bt established that simultaneous same-side breakouts are the
+WINNERS and must never be capped by count. The arithmetic was broken, not the
+policy.
+WHY NOW: v56.7 restored the universe 21 → 40 coins. At half a universe, six
+simultaneous qualifying breakouts were rare enough that the race never surfaced.
+A correctness fix that raises trade count will expose whatever downstream sizing
+bug was hiding behind the lower rate — expect that pattern again.
+LIVE BOOK NOTE: per-trade RISK was never wrong — the six stops together are $327,
+~3.3% of equity. The defect is LEVERAGE, not risk. Positions were left to run
+their ladders rather than closed by hand (closing a cluster by hand is exactly
+the v65bt mistake). SIDE EFFECT while cash is negative: `notional4` is capped by
+`balance*0.95` and by ROTA's `balance < slotNotional` check, so BOTH sleeves skip
+new entries until positions close and return cash — a soft, self-resolving
+freeze, not the v56.6 deadlock (no kill-switch involved, it clears on the first
+ladder leg).
+
+## v56.8 (2026-09-18) — release provenance, honest regime label, owner-only close
+Closes finding #1 of the external audit: the chain public page → git commit →
+deployed function → database was not verifiable, so no live number could be
+honestly attributed to the validated DONCH4H/ROTA system.
+- **Manifest**: the deploy entrypoint is a two-file shim — `release.ts` sets
+  `globalThis.__RELEASE_SHA`, then `index.ts` imports it and the pinned remote
+  source (import order guarantees the stamp is set first). The bot writes the SHA
+  to `deployment_manifest` once per cold start and returns it in every
+  `?donch_test=1` response, with `universe_hash` (FNV-1a over sorted CRYPTO_40)
+  so a silently edited universe reads as a different release at the same SHA.
+  All readable with the public anon key. VERIFIED live.
+- **`_v23_5M` label removed**: `bot_state.market_regime` was written as
+  `btcRegime + '_v23_5M'`, left over from the retired v23 5-minute engine. The 4h
+  bot has not used that engine for many versions, but the dashboard faithfully
+  displayed "RANGING_v23_5M" — which is precisely what made an outside reviewer
+  conclude a second 5m engine was live. It now says what actually runs.
+  NB the reviewer's inference was wrong but the complaint was right: a cosmetic
+  lie in a status field cost a full external audit cycle.
+- **close-trade is owner-only**: it is deployed `--no-verify-jwt`, and
+  `verify_jwt` would not have helped — the anon key IS a valid JWT and ships in
+  the public bundle. Anyone could POST a `trade_id` and close the bot's
+  positions. It now requires the service-role key (injected by Supabase, never
+  reaches a browser); verified 403 with the anon key. The dashboard's
+  manual-close button is unwired rather than left to 403.
+- **Dead dashboard controls made honest**: bot on/off, risk and paper-mode write
+  to `bot_state` with the anon key, which RLS has ALWAYS blocked. PostgREST
+  returns 204 with zero rows, the old code never checked, so the UI flipped
+  locally and reverted on the next poll — controls that look live and do nothing.
+  They now `.select('id')` and report when the write does not land.
+STILL OPEN from the audit: the legacy client-side 5m engine (WebSocket + RSI/
+MACD/BB/Stoch, ~700 lines) is still inside the dashboard bundle. It can no longer
+write anything (close-trade gated, RLS read-only), but it should be deleted.
+Audit items 2 (health state machine — the deadlock itself is fixed in v56.6) and
+3 (order-intent journal — only matters at the real-exchange stage) not started.
 
 ## v56.7 (2026-09-18) — the volume floor was eating the pinned universe
 Found on the migrated project's first live cycle, and it had been silently
