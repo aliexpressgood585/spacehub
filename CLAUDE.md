@@ -405,15 +405,94 @@ are NOT set → liveMode=false, fills still simulated, but trades get tagged
 paper_mode:false (mislabel only, no real orders). Set it back to true unless
 arming live.
 
-## Current state (2026-09-17)
-- **TRADING AGAIN** after the reset (see RESOLVED section). Account restarted at
-  $10,000; pre-freeze history lives in `migration/export/`, not in the live DB.
-- Live code: **v56.3** (last successful deploy 2026-07-16). v56.5 universe fix
-  and v56.6 deadlock fix are committed but UNDEPLOYED — deploys fail because the
-  project belongs to a Supabase account the user cannot sign into.
-- Next action when the user has time: resume/create a project in their own
-  `spacehub` org, hand over project ref + anon key, then migrate (schema+funcs+
-  cron come from the deploy workflow; data from migrate-restore.yml).
+## MIGRATION DONE 2026-09-18 — the bot runs on a project the user owns
+The two-month deploy blockade is over. Everything below was done end-to-end by
+the agent; the user only approved ("אל תבקש ממני אני מאשר הכל").
+- **What unblocked it**: the Supabase MCP connector has FULL management rights on
+  the user's own `ShiftPay` org (`qsoomzmcxdthodfxbfuy`). It never had rights on
+  the old project — that one is in the lost account. So the fix was never "find a
+  token", it was "build in the org we can already reach".
+- **New project**: `spacehub-bot` = ref **`adxgadwghgkwmntsnrar`**, eu-central-1,
+  free plan. URL `https://adxgadwghgkwmntsnrar.supabase.co`.
+- **Freeing the slot**: free tier = 2 active projects per user and the user was at
+  the cap. Checked contents rather than names: `shift-pay` holds real production
+  data (124 profiles, 515 shifts, 3,882 visits) — untouchable; `lumen` was an
+  empty dating-app scaffold (0 profiles/matches/messages, its only "activity" an
+  hourly `expire_stale_matches` cron cleaning rows that do not exist). Paused
+  `lumen`. NB resuming it later needs a free slot again.
+- **Schema**: the deploy workflow's migration SQL is all `ALTER TABLE ... ADD
+  COLUMN` and assumes `bot_state`/`bot_trades` already exist — on a genuinely
+  fresh project it dies on statement 1. Base DDL for those two was applied first
+  (columns mirror `migration/export/*.json`), then the workflow SQL, then
+  `pg_cron` + `pg_net`, then the 4 cron rows (bot 1m / optimizer 1m / regime 5m /
+  rebalancer 1h).
+- **RLS hardening**: the workflow creates anon SELECT policies but never enables
+  RLS on those tables, and a policy on an RLS-off table is inert — the public anon
+  key would have had full write. RLS is now ON for all 11 tables with anon SELECT
+  only. Verified live: `PATCH bot_state` with `Prefer: return=representation`
+  returns `[]` (0 rows) and the balance is unchanged. Security advisors: clean.
+- **Data**: started clean at $10,000. The 124-trade pre-freeze era stays archived
+  in `migration/export/` and was deliberately NOT replayed — restoring a mostly
+  losing last-30 window would hand the health kill-switch a pause on day one,
+  which is the exact deadlock being fixed.
+- **STILL OPEN — `SUPABASE_ACCESS_TOKEN`**: still returns `necessary privileges`,
+  now even against the NEW project, so the token's account is not the ShiftPay
+  one. Consequence: GitHub-Actions ops are still dead (status-ping, watchdog,
+  daily-report, force-rebalance, reset-account, close-*, trade-journal, migrate-
+  restore, and `deploy-edge-function` itself). Deploys and DB work go through the
+  MCP connector instead. To restore them the user must create a PAT while signed
+  into the account that owns ShiftPay (verify first by opening
+  https://supabase.com/dashboard/project/adxgadwghgkwmntsnrar — if it opens, that
+  session is the right account) and paste it into GitHub → Settings → Secrets →
+  Actions. Never accept the token in chat.
+- **Old project `mdvheizhciuvqychtwxr` is a ZOMBIE**: its cron cannot be stopped
+  without management access, so it keeps paper-trading its own DB forever. Paper
+  mode, no real money, nothing points at it any more (dashboard bundle verified:
+  only the new ref appears). Ignore it.
+- **Deploy method, since the CLI path is blocked**: each function is deployed as a
+  one-line entrypoint that imports its real source from the PUBLIC repo at a fixed
+  commit SHA. The edge bundler inlines it at deploy time (verified), so the running
+  function has no GitHub dependency at runtime — and the SHA in the header is a
+  real release manifest: what is live is exactly what is in git. This is also the
+  only way to ship `trading-bot` (200 KB) through a tool that takes file contents
+  inline. NB `zz-import-probe` is a leftover slot from proving the bundler
+  resolves remote TS; it is neutralised (410 stub, verify_jwt on) because MCP has
+  no delete-function call — delete it from the dashboard when convenient.
+
+## Current state (2026-09-18)
+- **LIVE AND TRADING** on `adxgadwghgkwmntsnrar`, code **v56.7** — the first
+  successful deploy since 2026-07-16, and it carries v56.5 (universe), v56.6
+  (kill-switch deadlock) and v56.7 (coverage) all at once.
+- First cycles: ROTA rebalanced 05:46 UTC and opened 10 positions; equity ~$9,983
+  on $10,000, exposure ~$4,667, zero rows in `bot_errors`, all shields false.
+- `donch_test` after v56.7: `universe:42 universe_c40:40 coverage:40 source:spot`,
+  31 breakouts / 26 wouldEnter (was 21/40 and `okx_partial` before the fix).
+- Checkpoint counter restarts at **0/50**. No risk raise before 50 in-band trades.
+
+## v56.7 (2026-09-18) — the volume floor was eating the pinned universe
+Found on the migrated project's first live cycle, and it had been silently
+costing trades for a while. `fetchFuturesCoins()` still ranked every source by
+24h volume, dropped anything under a hardcoded floor ($50M Binance / $20M OKX)
+and kept the top 60 — rules from v34-v40, when the universe was still dynamic.
+Both strategies have been PINNED to CRYPTO_40 since v48, so that ranking no
+longer selects anything, it only subtracts. As market-wide volume fell the floor
+quietly ate the universe: measured 2026-09-18, exactly **12** Binance SPOT USDT
+pairs clear $50M and only **10** of them are ours; OKX's $20M bar left 21/40.
+Live effect: the bot scanned half the validated set and ROTA filled 10 of its 16
+slots (it cannot rank a clean top-8/bottom-8 out of 21 names).
+FIX: a CRYPTO_40 symbol is taken at whatever volume its source reports; the floor
+and the 60-slice now only govern the extra non-pinned names. Per-trade liquidity
+stays where it belongs — the v54 entry guard caps notional at 0.5% of the coin's
+24h volume — so the universe filter no longer doubles as one.
+Same class as v56.5 (a data-plumbing constant strangling the feed), NOT a
+strategy change: it restores the universe the 36-month walk-forward was actually
+run on, and it can only add signals (standing rules 2 and 5). Verified live:
+coverage 21 → 40, source `okx_partial` → `spot`.
+LESSON, worth generalising: every hardcoded absolute threshold in the data layer
+($50M volume, ">=10 symbols" in v56.5, the 0.5% bad-tick tolerance in v56.3) is a
+time bomb — it encodes market conditions from the day it was written and degrades
+silently, without an error, as the market moves. Prefer relative/coverage-based
+bars, and make the diagnostic print the number it is judging.
 
 ## Earlier state (2026-07-19)
 - CHECKPOINT STATUS (2026-07-19 review, user asked "reached 50?"): the official
@@ -514,6 +593,16 @@ arming live.
 ## How to work
 - Small edits → verify types (`tsc --noEmit --ignoreConfig --skipLibCheck` on a
   copy outside the repo; deno not installed locally), commit, push both branches.
+- **Deploying (2026-09-18 onward)**: GitHub Actions cannot deploy — use the
+  Supabase MCP connector. Commit and PUSH first, then deploy each function as a
+  one-line entrypoint importing
+  `https://raw.githubusercontent.com/aliexpressgood585/spacehub/<SHA>/supabase/functions/<fn>/index.ts`
+  with `verify_jwt: false` (all 6 functions are `--no-verify-jwt`). The SHA must
+  be a commit already on the public repo or the bundler 404s. DB work goes through
+  `apply_migration` / `execute_sql` on `adxgadwghgkwmntsnrar`.
+- **Never force-push a feature branch from main.** Doing so discarded the status-
+  bot commits on both branches on 2026-09-18 (recovered from the local refs).
+  Always `git checkout <branch> && git merge main && git push`.
 - Push races with status-bot commits on main are common: fetch, merge, on
   `UU status/latest.txt` take `git checkout origin/main -- status/latest.txt`.
 - Answer the user in Hebrew; keep code/comments in English.
