@@ -20,6 +20,21 @@ asking, but NEVER violate the standing rules below.
 7. **Always update this file** (user: "תעדכן תמיד", 2026-09-17). Every incident,
    verdict, deploy and state change gets recorded here in the same turn it
    happens — don't wait to be asked.
+8. **STANDING AUTHORISATION (owner, 2026-09-18): do not ask for approval.**
+   "לא רוצה יותר שתצטרך אישור ממני... מאשר לך חופשי". Build, validate, commit,
+   merge, deploy and report — all without checking in first. This does NOT relax
+   rules 2-6: the walk-forward bar, paper-only, the trade-count rule and the
+   universe pin are engineering standards, not permission gates, and blanket
+   approval is not permission to lower them. Nor does it change what must be
+   ESCALATED rather than asked: a result that fails validation, a deploy that is
+   blocked, and anything the owner would be surprised by still gets reported
+   plainly — reporting is not asking.
+   NB approval was never what blocked unattended DEPLOYS. Triggered sessions are
+   created without MCP connectors, so they hold no Supabase management access;
+   no amount of owner approval grants it. A routine created from the claude.ai
+   Routines UI with the connector attached is the only fix. Until then an
+   unattended session can write, test, commit and merge — but must never claim a
+   deploy it could not make.
 
 ## Architecture
 - **Live bot**: `supabase/functions/trading-bot/index.ts` (Deno edge function,
