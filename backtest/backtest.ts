@@ -5543,6 +5543,135 @@ function runV78bt() {
   console.log(`  signals we discard are discarded for a reason, at every size.`)
 }
 
+// ── v79bt: SUB-GATE TIER, STAGE 2 — the deployed lens, and the slippage gate
+// v78bt stage 1 said yes on totR (+87R, +6,941 trades) but could not be ruled on,
+// because it scored windows by risk-weighted MEAN R with 3bps slip — a lens on
+// which the INCUMBENT also fails all-6 (w1 -0.037, w6 -0.001), the same artifact
+// v72bt and v73bt recorded. A bar the champion cannot clear cannot judge a
+// challenger. Stage 2 scores each window the way the deployed config is scored:
+// the SUM of size-weighted R inside the window, which is what "positive in all 6
+// windows" has always meant here and what the live 696R/all-6 result was measured
+// on. The incumbent must come out all-6 positive, or this lens is wrong too and
+// the run is thrown away rather than read.
+// Fused with the v71bt execution-cost gate, because the sub-gate band's edge
+// (+0.018 to +0.036R) is THINNER than Donchian's +0.062R — precisely the shape
+// that made reg-channel look like a winner at 0bps and die at 3. A thin edge
+// must be priced before it is believed, not after.
+function runV79bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000
+  const toTf=(a:Bar[],ms:number):Bar[]=>{
+    const out:Bar[]=[]; let cur:Bar|null=null; let bucket=-1
+    for(const b of a){const k=Math.floor(b.t/ms)
+      if(k!==bucket){if(cur)out.push(cur);bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol}}
+      else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol}}
+    if(cur)out.push(cur);return out}
+  const d4:Record<string,Bar[]>={}
+  let tmin=Infinity,tmax=-Infinity
+  for(const c of COINS){const h=loadCSV(c,'1h');if(h.length<500)continue
+    d4[c]=toTf(h,BAR4);tmin=Math.min(tmin,h[0].t);tmax=Math.max(tmax,h[h.length-1].t)}
+  const spanDays=(tmax-tmin)/86400000
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${NW} windows, span ${spanDays.toFixed(0)} days`)
+  if (spanDays < 900) {
+    console.log(`\n  ABORT: need ~36 months of 1h history, got ${spanDays.toFixed(0)} days.`)
+    return
+  }
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+
+  const ladder=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,atr:number,jEnd:number)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const legs=[{r:0.6,frac:1/3},{r:1.0,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0,ext=entry
+    for(let j=j0+1;j<=jEndc;j++){const b=arr[j]
+      const stop=si>=2?(side==='LONG'?ext-2.5*atr:ext+2.5*atr):(be?entry:slPx)
+      if(side==='LONG'?b.low<=stop:b.high>=stop){banked+=rem*(si>=2?(stop-entry)*dirM/slDist:(be?0:-1));rem=0;break}
+      while(si<legs.length){const tgt=entry+slDist*legs[si].r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=legs[si].frac*legs[si].r;tpFrac+=legs[si].frac;rem-=legs[si].frac;be=true;si++}
+      if(si>=2)ext=side==='LONG'?Math.max(ext,b.high):Math.min(ext,b.low)
+      if(rem<=1e-9)break}
+    if(rem>1e-9)banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return {r:banked,tpFrac}}
+
+  const tierMult=(adx:number)=>adx>45?2.0:adx>35?1.5:adx>28?1.0:0.75
+
+  // per-window metric = SUM of size-weighted net R (the deployed lens)
+  const scan=(subGate:number, subMult:number, SLIP:number)=>{
+    const ws:number[]=Array.from({length:NW},()=>0)
+    let n=0,nSub=0,tot=0,subN=0,subRsum=0
+    for(const c of Object.keys(d4)){
+      if(!CORE40.has(c))continue
+      const arr=d4[c];let last=-999
+      for(let i=100;i<arr.length-1;i++){
+        const price=arr[i].close
+        const prior=arr.slice(i-15,i);let hi=-Infinity,lo=Infinity
+        for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+        const side:'LONG'|'SHORT'|null=price>hi?'LONG':price<lo?'SHORT':null
+        if(!side)continue
+        const win=arr.slice(Math.max(0,i-99),i+1)
+        const adx=calcADX(win.slice(-60))
+        const isSub = adx>subGate && adx<=22
+        if(adx<=22 && !isSub)continue
+        const mult = isSub ? subMult : tierMult(adx)
+        const atr=calcATR(win.slice(-20));if(!atr)continue
+        if(i-last<2)continue
+        last=i
+        const slDist=Math.max(atr*1.4,price*0.005),slPct=slDist/price
+        if(slPct>0.08)continue
+        const res=ladder(arr,i,price,side,slDist,atr,i+96)
+        const slipR=(1+(1-res.tpFrac))*SLIP/slPct
+        const net=res.r-(TK+res.tpFrac*MK+(1-res.tpFrac)*TK)/slPct-slipR
+        ws[winOf(arr[i].t)] += mult*net
+        n++; tot+=mult*net
+        if(isSub){nSub++;subN++;subRsum+=net}}
+    }
+    return {n,nSub,tot,ws,allPos:ws.every(x=>x>0),subAvg:subN?subRsum/subN:0}}
+
+  // ── gate 1: does the INCUMBENT clear all-6 on this lens? if not, lens is wrong
+  console.log(`\n── STAGE 2 / part A: is this lens valid? (incumbent must pass all 6) ──`)
+  const base3=scan(22,0,0.0003)
+  console.log(`  LIVE adx>22 @3bps   n=${base3.n}  totR ${base3.tot.toFixed(0)}  all6 ${base3.allPos?'PASS':'FAIL'}`)
+  console.log(`    windows: ${base3.ws.map(x=>(x>=0?'+':'')+x.toFixed(1)).join('  ')}`)
+  if(!base3.allPos){
+    console.log(`\n  LENS REJECTED: the deployed config fails all-6 here too, so this bar`)
+    console.log(`  cannot discriminate either. Do NOT read the rows below as a verdict.`)
+  } else {
+    console.log(`  LENS OK — the incumbent clears the bar, so the bar can judge a challenger.`)
+  }
+
+  console.log(`\n── part B: sub-gate tier on the deployed lens, @3bps ──`)
+  console.log(`  config             n      extra    totR    d-totR   all6   windows`)
+  console.log(`  LIVE           ${String(base3.n).padStart(6)}        0  ${base3.tot.toFixed(0).padStart(6)}       -   ${base3.allPos?'PASS':'FAIL'}  ${base3.ws.map(x=>(x>=0?'+':'')+x.toFixed(1)).join(' ')}`)
+  const cands:{tag:string,g:number,m:number}[]=[]
+  for(const G of [18,15,12]) for(const m of [0.25,0.40,0.50,0.75]){
+    const s=scan(G,m,0.0003); const d=s.tot-base3.tot
+    const pass = d>0 && s.allPos
+    if(pass) cands.push({tag:`G>${G} x${m.toFixed(2)}`,g:G,m})
+    console.log(`  G>${String(G).padStart(2)} x${m.toFixed(2)}    ${String(s.n).padStart(6)}  ${String(s.nSub).padStart(7)}  ${s.tot.toFixed(0).padStart(6)}  ${(d>=0?'+':'')}${d.toFixed(0).padStart(6)}   ${s.allPos?'PASS':'FAIL'}  ${s.ws.map(x=>(x>=0?'+':'')+x.toFixed(1)).join(' ')}${pass?'  <== CANDIDATE':''}`)
+  }
+
+  // ── part C: the v71bt gate. a thin edge must be priced before it is believed.
+  console.log(`\n── part C: SLIPPAGE GATE — the test that killed reg-channel (v71bt) ──`)
+  console.log(`  a candidate must still beat the incumbent AT THE SAME slippage, at 3 AND 6 bps`)
+  console.log(`\n  slip   LIVE totR   ${cands.length?cands.map(c=>c.tag.padEnd(12)).join(''):'(no candidates from part B)'}`)
+  for(const bps of [0,3,6,10]){
+    const b=scan(22,0,bps/10000)
+    const row=cands.map(c=>{const s=scan(c.g,c.m,bps/10000)
+      const d=s.tot-b.tot
+      return `${s.tot.toFixed(0)}(${d>=0?'+':''}${d.toFixed(0)})`.padEnd(12)}).join('')
+    console.log(`  ${String(bps).padStart(2)}bps  ${b.tot.toFixed(0).padStart(9)}   ${row}`)
+  }
+  console.log(`\n  DEPLOY BAR — all four, or it does not ship:`)
+  console.log(`   1. the incumbent passes all-6 on this lens (part A), else the run is void`)
+  console.log(`   2. totR beats the incumbent at 3bps`)
+  console.log(`   3. all 6 windows positive`)
+  console.log(`   4. the margin SURVIVES 6bps — reg-channel led at 0bps and was`)
+  console.log(`      less than half the incumbent by 6. A thin edge with no cushion is`)
+  console.log(`      not an edge, it is a measurement of the cost model.`)
+}
+
 // v74bt: GOLD SLEEVE PRE-VALIDATION. Runs the exact PROVEN DONCH4H engine
 // (Donchian-15 on 4h closes, ADX(60)>22 gate, SL=1.4×ATR, ⅓@0.6R/⅓@1.0R/
 // trail-2.5×ATR ladder, real fees + 3bps slip) unchanged — just pointed at
@@ -6129,6 +6258,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v73bt') {
     console.log(`████ V73BT — Donchian adaptive window (vol-scaled) vs fixed-15 ████`)
     runV73bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v79bt') {
+    console.log(`████ V79BT — sub-gate tier: deployed lens + slippage gate ████`)
+    runV79bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v78bt') {
