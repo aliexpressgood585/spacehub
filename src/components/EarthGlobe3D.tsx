@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
+import '../lib/threeSetup'
 
 function createEarthTexture(): THREE.Texture {
   const canvas = document.createElement('canvas')

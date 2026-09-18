@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useLang } from '../i18n/LangContext'
 import { useISS } from '../contexts/ISSContext'
+import AccountButton from './AccountButton'
 import type { Lang } from '../i18n/translations'
 
 interface BeforeInstallPromptEvent extends Event {
@@ -181,6 +182,9 @@ export default function Header({ onPremium }: Props) {
           >
             <span aria-hidden="true">{lightMode ? '🌙' : '☀️'}</span>
           </button>
+
+          <AccountButton />
+
 
           <select
             value={lang}

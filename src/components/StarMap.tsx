@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import * as THREE from 'three'
+import '../lib/threeSetup'
 
 // ── MATH HELPERS ──────────────────────────────────────────────
 const DEG = Math.PI / 180

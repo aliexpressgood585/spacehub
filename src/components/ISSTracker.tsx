@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import * as THREE from 'three'
+import '../lib/threeSetup'
 
 interface ISSPosition {
   latitude: number

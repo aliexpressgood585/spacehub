@@ -17,6 +17,9 @@ asking, but NEVER violate the standing rules below.
 6. **Validation discipline**: nothing deploys without a 36-month walk-forward
    (6 windows, real fees: taker 0.05%/side, maker 0.02%/side) positive in ALL
    windows. Failures get rejected and documented in code comments.
+7. **Always update this file** (user: "תעדכן תמיד", 2026-09-17). Every incident,
+   verdict, deploy and state change gets recorded here in the same turn it
+   happens — don't wait to be asked.
 
 ## Architecture
 - **Live bot**: `supabase/functions/trading-bot/index.ts` (Deno edge function,
@@ -319,6 +322,21 @@ with deeper Binance history) to be worth revisiting, not another signal test.
   updates GitHub → Settings → Secrets → Actions → SUPABASE_ACCESS_TOKEN. Never
   accept the token in chat. Watchdog issue #19 (opened 08-04) was this, but its
   message said "bot not responding" — misleading; fixed below.
+  **2026-09-14 UPDATE — "new PAT" is NOT sufficient on its own.** User rotated
+  the secret; `supabase login` then SUCCEEDED ("You are now logged in") but
+  `supabase link` failed with a DIFFERENT error: `{"message":"Your account does
+  not have the necessary privileges to access this endpoint"}`. So read the
+  error text, don't just retry: `Unauthorized` = dead/expired token, whereas
+  `necessary privileges` = token is VALID but its ACCOUNT lacks rights on
+  project mdvheizhciuvqychtwxr — i.e. the PAT was generated while signed into a
+  different Supabase account (multi-account: Google vs email login), or scoped
+  too narrowly if Supabase offered scopes, or the account's org role is below
+  Owner/Administrator. Verification step to give the user:
+  open https://supabase.com/dashboard/project/mdvheizhciuvqychtwxr — if the
+  project opens, that session is the right account; generate the PAT from THAT
+  account. Deploy history: last SUCCESS 2026-07-16 (v56.3); failures 08-07
+  (v56.5), 08-17 (v56.6), 09-02 (user manual retry), 09-14 (post-rotation,
+  privileges error).
 - **v56.5 UNIVERSE COLLAPSE (the actual trading stall)**: fetchFuturesCoins()
   accepted the first source with >=10 symbols. fapi is geo-blocked (451), and the
   Binance SPOT fallback degraded to exactly 11 symbols — clearing the bar and
@@ -343,7 +361,61 @@ with deeper Binance history) to be worth revisiting, not another signal test.
 - Checkpoint counter at the last readable snapshot: **27/50**, WR 63.0%,
   avgR -0.079 (WR near the 66% band; avgR still below — ranging-market profile).
 
-## Current state (2026-07-19)
+## RESOLVED 2026-09-17 — bot trading again after a 45-day freeze
+Freeze ran 2026-08-03 → 09-17 (zero trades). Ended when the USER opened the
+bot's own reset endpoint in a browser:
+`https://mdvheizhciuvqychtwxr.supabase.co/functions/v1/trading-bot?reset=1`
+(the function is deployed --no-verify-jwt, so a plain click works from any
+device — no admin access, no token). Reset deletes bot_trades + bot_equity and
+sets balance to 10000; the kill-switch then sees 0 closed trades (<30) and
+cannot pause. Verified 12:03 UTC: shields all false, COINS=40/40, no HEALTH
+lines in the log, first trade in 45 days = NEAR LONG @12:00 ($2,001 notional,
+risk $99.57), equity $9,998.98. ROTA rotates next at the 48h mark.
+**Keep this link** — it is the emergency unblock if the deadlock recurs.
+Before the reset the full pre-freeze era was exported to `migration/export/`
+(124 trades, 6,357 equity samples, 07-10 → 09-14) and committed, so the history
+is preserved and can be restored into the migrated project.
+STILL OPEN: the live code is v56.3 — the v56.6 deadlock fix is STILL NOT
+deployed (no management access, see incident above), so the freeze CAN recur.
+The permanent fix is the project migration; tooling is ready and waiting on the
+user for a project ref + anon key (`migration/README.md`, `migration/import.py`,
+`.github/workflows/migrate-restore.yml`).
+CORRECTION (same day, recorded because it was stated wrong to the user first):
+the anon key does NOT have write access. A PATCH/DELETE probe using a
+filter that matched no rows returned HTTP 204 and was misread as "writes
+allowed" — PostgREST returns 204 even when RLS blocks the statement and zero
+rows are affected. Re-tested with `Prefer: return=representation`: 0 rows
+returned => RLS blocks anon writes. There is NO public-key vulnerability, and
+no agent-side DB workaround exists for the kill-switch (reset link only).
+
+## BOT STOPPED 2026-08-03 → 08-17 (kill-switch deadlock) — FIXED in v56.6 (not yet deployed)
+Bot looked perfectly healthy the whole time (heartbeat every minute, universe
+42, feeds green, edge fn 200) but placed ZERO trades for 14 days. Cause: BOTH
+health kill-switches fired (DONCH4H last30 = -$76.64, ROTA = -$48.28), and the
+switch pauses ENTRIES — with the book empty (ROTA unwinds its basket when
+paused) no new trades could close, so the "last 30 closed" window froze and
+"auto-resumes when the window heals" became structurally impossible. Fix
+(v56.6): a window whose newest close is older than HEALTH_STALE_H=48h is
+STALE → released with a log line; a genuinely recent losing streak still
+pauses. Also fixed: `.eq(...).catch(...)` threw "catch is not a function"
+(PostgREST builder is a thenable, not a Promise) and aborted the per-coin scan
+handler mid-exit — 10 sites swapped to `.then(ok,err)`.
+NOTE: bot_state.paper_mode is currently FALSE while Bybit keys / LIVE_TRADING
+are NOT set → liveMode=false, fills still simulated, but trades get tagged
+paper_mode:false (mislabel only, no real orders). Set it back to true unless
+arming live.
+
+## Current state (2026-09-17)
+- **TRADING AGAIN** after the reset (see RESOLVED section). Account restarted at
+  $10,000; pre-freeze history lives in `migration/export/`, not in the live DB.
+- Live code: **v56.3** (last successful deploy 2026-07-16). v56.5 universe fix
+  and v56.6 deadlock fix are committed but UNDEPLOYED — deploys fail because the
+  project belongs to a Supabase account the user cannot sign into.
+- Next action when the user has time: resume/create a project in their own
+  `spacehub` org, hand over project ref + anon key, then migrate (schema+funcs+
+  cron come from the deploy workflow; data from migrate-restore.yml).
+
+## Earlier state (2026-07-19)
 - CHECKPOINT STATUS (2026-07-19 review, user asked "reached 50?"): the official
   counter (DONCH4H closed, risk_usd>0, era-anchored — what the watchdog fires
   on) is at **11/50**, NOT 50. The ~54 total closed rows include ROTA (35) and

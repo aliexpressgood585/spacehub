@@ -1,18 +1,6 @@
-import { useState, useMemo } from 'react'
-
-interface Observation {
-  id: string
-  date: string // YYYY-MM-DD
-  object: string
-  telescope: string
-  eyepiece: string
-  magnification: number
-  seeing: number // 1-5
-  transparency: number // 1-5
-  darkness: number // 1-5
-  notes: string
-  createdAt: number
-}
+import { useState, useMemo, useEffect } from 'react'
+import { useAuth } from '../contexts/AuthContext'
+import { mergeOnSignIn, pushOne, deleteOne, type Observation } from '../lib/obsSync'
 
 const STORAGE_KEY = 'spacehub_obslog'
 const OBJECT_SUGGESTIONS = [
@@ -102,9 +90,33 @@ const emptyForm = () => ({
 })
 
 export default function ObservationLog() {
+  const { user, enabled: authEnabled } = useAuth()
   const [observations, setObservations] = useState<Observation[]>(() =>
     loadObs().sort((a, b) => b.createdAt - a.createdAt)
   )
+  const [syncState, setSyncState] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle')
+
+  // On sign-in, union whatever is on this device with the account's rows. The
+  // device copy is never dropped — someone may have logged months anonymously.
+  useEffect(() => {
+    if (!user) {
+      setSyncState('idle')
+      return
+    }
+    let alive = true
+    setSyncState('syncing')
+    mergeOnSignIn(loadObs(), user.id).then(merged => {
+      if (!alive) return
+      if (!merged) {
+        setSyncState('error')
+        return
+      }
+      setObservations(merged)
+      saveObs(merged)
+      setSyncState('synced')
+    })
+    return () => { alive = false }
+  }, [user])
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [objInput, setObjInput] = useState('')
@@ -140,6 +152,7 @@ export default function ObservationLog() {
     const updated = [newObs, ...observations]
     setObservations(updated)
     saveObs(updated)
+    if (user) pushOne(newObs, user.id).catch(() => setSyncState('error'))
     setForm(emptyForm())
     setObjInput('')
     setShowForm(false)
@@ -149,6 +162,7 @@ export default function ObservationLog() {
     const updated = observations.filter(o => o.id !== id)
     setObservations(updated)
     saveObs(updated)
+    if (user) deleteOne(id, user.id).catch(() => setSyncState('error'))
   }
 
   const setField = (field: string, value: string | number) => {
@@ -185,7 +199,15 @@ export default function ObservationLog() {
           <div className="icon-box text-xl">📓</div>
           <div>
             <h3 className="text-white font-bold text-base">Observation Journal</h3>
-            <p className="text-gray-500 text-xs">Personal astronomy log — stored locally</p>
+            <p className="text-gray-500 text-xs">
+              {syncState === 'syncing' && '⏳ Syncing to your account…'}
+              {syncState === 'synced' && '☁️ Synced to your account'}
+              {syncState === 'error' && '⚠️ Saved on this device — cloud sync unavailable'}
+              {syncState === 'idle' &&
+                (authEnabled
+                  ? 'Saved on this device — sign in to sync it'
+                  : 'Personal astronomy log — stored locally')}
+            </p>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

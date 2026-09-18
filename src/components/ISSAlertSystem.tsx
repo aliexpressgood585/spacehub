@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useLang } from '../i18n/LangContext'
+import { enablePush, disablePush, getPushState, updatePushLocation } from '../lib/push'
 
 interface UserLocation { lat: number; lng: number; city: string }
 interface ISSData { latitude: number; longitude: number; altitude: number; velocity: number }
@@ -48,12 +49,30 @@ export default function ISSAlertSystem() {
   const [notified, setNotified] = useState(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const notifSupported = 'Notification' in window
+  const notifSupported = 'Notification' in window && 'PushManager' in window
+
+  // Reflect an existing push subscription so the badge isn't a lie after reload.
+  useEffect(() => {
+    getPushState().then(s => setNotifGranted(s === 'on'))
+  }, [])
+
+  // Alerts are computed server-side for a stored location, so any change of
+  // city (or a geolocation fix) has to be pushed up or we'd alert on the old one.
+  useEffect(() => {
+    if (!notifGranted || !userLoc) return
+    updatePushLocation({ lat: userLoc.lat, lng: userLoc.lng, city: userLoc.city })
+  }, [notifGranted, userLoc])
 
   const requestNotifications = async () => {
     if (!notifSupported) return
-    const perm = await Notification.requestPermission()
-    setNotifGranted(perm === 'granted')
+    const loc = userLoc ?? DEFAULT
+    const state = await enablePush({ lat: loc.lat, lng: loc.lng, city: loc.city })
+    setNotifGranted(state === 'on')
+  }
+
+  const turnOffNotifications = async () => {
+    await disablePush()
+    setNotifGranted(false)
   }
 
   const sendNotification = useCallback((elevAngle: number) => {
@@ -151,10 +170,20 @@ export default function ISSAlertSystem() {
           <p className="text-gray-500 text-xs">{t('iss.subtitle')}</p>
         </div>
         {notifGranted ? (
-          <span className="flex items-center gap-1.5 text-xs text-green-400 font-semibold">
-            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block" />
-            {t('iss.alertsActive')}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="flex items-center gap-1.5 text-xs text-green-400 font-semibold">
+              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block" />
+              {t('iss.alertsActive')}
+            </span>
+            {/* Anything that can be switched on has to be switchable off. */}
+            <button
+              onClick={turnOffNotifications}
+              className="text-xs px-2.5 py-1 rounded-lg font-semibold transition"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: '#9ca3af' }}
+            >
+              Turn off
+            </button>
+          </div>
         ) : notifSupported ? (
           <div className="flex flex-col items-end gap-0.5">
             <button

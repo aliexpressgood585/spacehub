@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import * as THREE from 'three'
+import '../lib/threeSetup'
 
 // ── Schlyter orbital mechanics ───────────────────────────────────────────────
 const DEG = Math.PI / 180
@@ -118,7 +119,12 @@ export default function SolarSystem3D() {
       const m = new THREE.MeshBasicMaterial({ color: [0xff8800, 0xff5500, 0xff2200][i], transparent: true, opacity: [0.14, 0.07, 0.03][i] })
       scene.add(new THREE.Mesh(g, m))
     })
-    scene.add(new THREE.PointLight(0xfff5e0, 3, 80))
+    // decay=0 keeps this stylised orrery lit evenly out to Neptune. three r155+
+    // defaults point lights to physical inverse-square falloff, which left the
+    // outer planets as black silhouettes at this scene scale.
+    const sunLight = new THREE.PointLight(0xfff5e0, 3, 80)
+    sunLight.decay = 0
+    scene.add(sunLight)
     scene.add(new THREE.AmbientLight(0x112244, 0.4))
 
     // Orbit rings
