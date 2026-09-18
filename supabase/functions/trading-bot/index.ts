@@ -437,6 +437,21 @@
 //     gate parity, dead code removed (findSimpleEntry, shouldSkip, ultra)
 // ════════════════════════════════════════════════════════════
 import { createClient } from 'npm:@supabase/supabase-js@2'
+// ── v59.0: THE STRATEGY IS NO LONGER DEFINED IN THIS FILE ──────────────────
+// Signal, gate, stop distance, sizing, the ladder state machine, the ROTA
+// ranking and every constant they read now live in shared/strategy.ts, which
+// the backtest imports from as well. Before this, each side carried its own
+// transcription of the rules; they agreed on the indicators and diverged on
+// everything around them, and v79bt is what that cost — a full 36-month run
+// that reproduced the documented trade count and not the documented window
+// profile, with no way to tell a bad reimplementation from a decayed edge.
+//
+// The relative path matters: this function is deployed as a one-line entrypoint
+// that imports this file from raw.githubusercontent at a pinned commit SHA, so
+// '../../../shared/strategy.ts' resolves against that SAME SHA. The deployed
+// bundle and the backtest therefore run identical text, and the release manifest
+// pins both at once.
+import * as S from '../../../shared/strategy.ts'
 
 const BINANCE_DATA = 'https://data-api.binance.vision/api/v3'
 const BINANCE      = 'https://api.binance.com/api/v3'
@@ -444,12 +459,7 @@ const FAPI         = 'https://fapi.binance.com/fapi/v1'
 const FAPI_DATA    = 'https://fapi.binance.com/futures/data'
 
 // v48: aligned with CRYPTO_40 validation universe
-const FIXED_COINS = [
-  'BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','DOT',
-  'LTC','BCH','NEAR','INJ','SUI','TRX','APT','ARB','OP','ATOM',
-  'FIL','UNI','AAVE','ICP','ALGO','SEI','WLD','TIA','RUNE','LDO',
-  'CRV','DYDX','GALA','SAND','AXS','IMX','ENA','PEPE','WIF','FET',
-]
+const FIXED_COINS: string[] = [...S.CRYPTO_40]
 const FALLBACK_COINS = FIXED_COINS
 // v56.5: single source of truth for the validated 40-coin universe. Both strategies
 // are pinned to it, so a data source is only useful in proportion to how much of it
@@ -531,15 +541,11 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v58.0'
+const BOT_VERSION = 'v59.0'
 const RELEASE_SHA = String((globalThis as any).__RELEASE_SHA ?? 'unpinned')
 // Universe fingerprint: a cheap order-independent digest, so a silently edited
 // CRYPTO_40 shows up as a different release even at an identical SHA.
-const UNIVERSE_HASH = (() => {
-  let h = 2166136261
-  for (const c of [...FIXED_COINS].sort().join(',')) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) }
-  return (h >>> 0).toString(16).padStart(8, '0')
-})()
+const UNIVERSE_HASH = S.universeHash(FIXED_COINS)
 // v58.0: the outer catch sits outside logErr's scope, so it needs its own path
 // to bot_errors — an unhandled cycle failure is exactly the event we must never
 // lose, and the original error must survive any failure to record it.
@@ -702,34 +708,34 @@ const RISK = {
 } as const
 type RiskKey = keyof typeof RISK
 
-const FEE             = 0.0005  // v44: real taker fee 0.05%/side — matches validation assumptions
+const FEE             = S.FEE_TAKER  // v44: real taker fee 0.05%/side — matches validation assumptions
 // v54: paper-realism constants — close the paper-vs-real gap BEFORE the
 // 50-trade checkpoint so it measures reality, not fantasy.
-const SLIP            = 0.0003  // 3 bps adverse slippage on market fills (entries, stops); maker TP legs fill clean
+const SLIP            = S.SLIP  // 3 bps adverse slippage on market fills (entries, stops); maker TP legs fill clean
 const FUND_8H         = 0.0001  // 0.01%/8h perp funding, long-run crypto average: longs pay, shorts receive
 // v47: ladder TP legs are resting limit orders in a real account → maker fee,
 // filled at the exact level (no favorable-slippage fantasy). Validated on 36
 // months / 8,421 trades: +0.050R vs +0.046R all-taker, all 6 windows positive.
-const FEE_MAKER       = 0.0002
+const FEE_MAKER       = S.FEE_MAKER
 const LEVERAGE        = 10
 const SWING_N         = 5
 const SWING_LOOKBACK  = 60
 const SWEEP_LOOKBACK  = 5
-const MAX_HOLD_MIN    = 23040  // v41: 96 4h-bars (16d) — swing timeout, matches backtest
+const MAX_HOLD_MIN    = S.MAX_HOLD_MS / 60_000  // v41: 96 4h-bars (16d) — swing timeout, matches backtest
 const STREAK_PAUSE_MS = 30*60_000   // v40: 2h→30min — trade more, but still a circuit breaker
 const MAX_NOTIONAL_PCT= 0.20        // kept for reference; not used as hard cap in notional calc
-const MAX_OPEN_TRADES = 30          // v40: 20→30 — the 75-gate is the quality limiter, not this cap
+const MAX_OPEN_TRADES = S.MAX_OPEN_TRADES   // v40: 20→30 — the 75-gate is the quality limiter, not this cap
 const MAX_TOTAL_EXPOSURE_PCT = 1.0  // 100% — no idle cash
 // v57.2: base risk per DONCH4H breakout, raised 1.25% -> 1.75% on explicit owner
 // instruction (see the sizing block for the full note). Module-scope so the live
 // value is published in the release manifest and in ?donch_test=1 — the size the
 // bot actually trades at should never be something you have to read code to learn.
-const BASE_RISK_PCT       = 0.0175
-const MAX_HEAT_PCT        = 0.95  // v56: total open notional / portfolio cap (both strategies combined)
+const BASE_RISK_PCT       = S.BASE_RISK_PCT
+const MAX_HEAT_PCT        = S.MAX_HEAT_PCT  // v56: total open notional / portfolio cap (both strategies combined)
 const FUNDING_EXTREME = 0.0003
-const MIN_SL_PCT      = 0.005
+const MIN_SL_PCT      = S.SL_MIN_PCT
 const SYM_COOLDOWN_MS = 8*60*60_000  // v41: 8h (2 4h-bars) between entries per coin — matches backtest SPACING
-const MAX_NEW_ENTRIES_PER_SCAN = 8  // v40: 5→8 — take more of the good (75+) setups as they appear
+const MAX_NEW_ENTRIES_PER_SCAN = S.MAX_NEW_ENTRIES_PER_SCAN  // v40: 5→8 — take more of the good (75+) setups as they appear
 const MAX_DD_STOP     = 0.80
 const INITIAL_BALANCE = 10000
 const DAILY_LOSS_LIMIT_PCT = 0.03
@@ -741,7 +747,16 @@ const VOL_PARAMS = {
   HIGH:   { slMult:1.0, tpR:2.5, trailBeR:1.0, trailAtr:0.8 },
 }
 
-interface Bar { open:number; high:number; low:number; close:number; vol:number }
+// v59.0: Bar is the SHARED Bar, and it carries `t` (the bar's open time in ms).
+// Until now this file's Bar had no timestamp at all: all three feeds hand us the
+// open time in field 0 and all three mappers threw it away. That left the bot
+// unable to answer the most basic question about its own data — "is this the bar
+// that just closed?" — and forced every timing decision onto wall-clock
+// arithmetic (`Date.now() % 14_400_000`) instead of onto the bars themselves. A
+// stale or misaligned fallback series would have produced a confident breakout
+// off the wrong bar with nothing in the log to show for it. Same family as
+// v57.1, where ROTA filled at a price up to four hours old.
+type Bar = S.Bar
 
 // v50.1: cross-source price sanity — a position must never open on a bad tick.
 // Compares the scan price against Bybit's independent mark; large disagreement
@@ -873,7 +888,7 @@ async function fetchBars(sym:string, interval:string, limit:number): Promise<Bar
       const data:number[][] = await res.json()
       if (Array.isArray(data) && data.length) {
         _feedStats.binance.ok++
-        return data.map(k=>({open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
+        return data.map(k=>({t:+k[0],open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
       }
     }
     _feedStats.binance.fail++
@@ -895,7 +910,7 @@ async function fetchBars(sym:string, interval:string, limit:number): Promise<Bar
           _feedStats.okx.ok++
           // OKX returns newest-first incl. the in-progress candle → reverse to
           // match Binance semantics (oldest-first, last = current partial bar).
-          return rows.reverse().map(k=>({open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
+          return rows.reverse().map(k=>({t:+k[0],open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
         }
       }
       _feedStats.okx.fail++
@@ -916,7 +931,7 @@ async function fetchBars(sym:string, interval:string, limit:number): Promise<Bar
       if (rows.length) {
         _feedStats.bybit.ok++
         // Bybit also returns newest-first → reverse to Binance semantics.
-        return rows.reverse().map(k=>({open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
+        return rows.reverse().map(k=>({t:+k[0],open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
       }
     }
     _feedStats.bybit.fail++
@@ -1023,15 +1038,10 @@ function detectLiquidationZone(
   }
 }
 
-function calcATR(bars:Bar[], p=14): number {
-  if (bars.length < p+1) return bars[0]?.high - bars[0]?.low || 0
-  const trs = bars.slice(1).map((b,i)=>Math.max(
-    b.high-b.low, Math.abs(b.high-bars[i].close), Math.abs(b.low-bars[i].close)
-  ))
-  let atr = trs.slice(0,p).reduce((a,v)=>a+v,0)/p
-  for (let i=p; i<trs.length; i++) atr=(atr*(p-1)+trs[i])/p
-  return atr
-}
+// v59.0: the indicators are the shared module's, byte-for-byte. They were
+// verified identical to the copies they replace (ATR20 1.1632112956, ADX60
+// 31.6683034253 on the tests/strategy.test.ts fixture) before the swap.
+const calcATR = S.calcATR
 
 function calcEma(closes:number[], p:number): number {
   const k=2/(p+1); let e=closes[0]
@@ -1404,48 +1414,7 @@ function advancedExitCheck(
   return {closePercent: 0, reason: ''}
 }
 
-function calcADX(bars: Bar[], period=14): number {
-  if (bars.length < period+1) return 20
-
-  const trs:number[]=[], plusDMs:number[]=[], minusDMs:number[]=[]
-
-  for (let i=1; i<bars.length; i++) {
-    const h=bars[i].high, l=bars[i].low, pc=bars[i-1].close
-    const tr=Math.max(h-l, Math.abs(h-pc), Math.abs(l-pc))
-    const hd=h-bars[i-1].high, ld=bars[i-1].low-l
-
-    trs.push(tr)
-    plusDMs.push((hd>0 && hd>ld) ? hd : 0)
-    minusDMs.push((ld>0 && ld>hd) ? ld : 0)
-  }
-
-  // Initial sums for first period (Wilder's method)
-  let tr14=trs.slice(0,period).reduce((a,b)=>a+b,0)
-  let pd14=plusDMs.slice(0,period).reduce((a,b)=>a+b,0)
-  let md14=minusDMs.slice(0,period).reduce((a,b)=>a+b,0)
-
-  // Compute first DX from initial smoothed values
-  const plus_di0=tr14>0?(pd14/tr14)*100:0
-  const minus_di0=tr14>0?(md14/tr14)*100:0
-  const di_sum0=plus_di0+minus_di0
-  const dx0=di_sum0>0?(Math.abs(plus_di0-minus_di0)/di_sum0)*100:0
-
-  let adx=dx0
-
-  // Single pass: smooth TR/DI, compute DX, smooth into ADX
-  for (let i=period; i<trs.length; i++) {
-    tr14=(tr14*(period-1)+trs[i])/period
-    pd14=(pd14*(period-1)+plusDMs[i])/period
-    md14=(md14*(period-1)+minusDMs[i])/period
-    const new_plus_di=tr14>0?(pd14/tr14)*100:0
-    const new_minus_di=tr14>0?(md14/tr14)*100:0
-    const new_di_sum=new_plus_di+new_minus_di
-    const new_dx=new_di_sum>0?((Math.abs(new_plus_di-new_minus_di))/new_di_sum)*100:0
-    adx=(adx*(period-1)+new_dx)/period
-  }
-
-  return Math.min(100, Math.max(0, adx))
-}
+const calcADX = S.calcADX
 
 function detectRegime(bars: Bar[]): 'TRENDING'|'RANGING'|'SQUEEZE' {
   if (bars.length < 50) return 'TRENDING'
@@ -2242,7 +2211,7 @@ async function fetchBarsHistorical(sym: string, interval: string, days: number):
       if (!res.ok) break
       const data: number[][] = await res.json()
       if (!data.length) break
-      const bars = data.map(k => ({open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
+      const bars = data.map(k => ({t:+k[0],open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
       allBars.unshift(...bars)
       endTime = startTime - 1
       remaining -= data.length
@@ -2505,10 +2474,7 @@ Deno.serve(async (req) => {
         {headers:{'User-Agent':'Mozilla/5.0'}}).then(r=>r.status).catch(()=>0)
       const coinsD = await fetchFuturesCoins()
       // v56.1: apply CRYPTO_40 filter — donch_test was scanning tokenized stocks (OKX fallback exposes non-crypto perps)
-      const CRYPTO_40_D = new Set(['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','DOT','LTC','BCH','NEAR','INJ','SUI',
-        'TRX','APT','ARB','OP','ATOM','FIL','UNI','AAVE','ICP','ALGO','SEI','WLD','TIA','RUNE','LDO',
-        'CRV','DYDX','GALA','SAND','AXS','IMX','ENA','PEPE','WIF','FET'])
-      const coinsD40 = coinsD.filter(c => CRYPTO_40_D.has(c.sym))
+      const coinsD40 = coinsD.filter(c => CRYPTO_40_SET.has(c.sym))
       const outD: any[] = []
       for (const ci of coinsD40.slice(0, 40)) {
         try {
@@ -2516,12 +2482,13 @@ Deno.serve(async (req) => {
           if (b4.length < 45) { outD.push({sym:ci.sym, err:'bars='+b4.length}); continue }
           const c4 = b4.slice(0,-1)
           const last4 = c4[c4.length-1]
-          const prior = c4.slice(-16,-1)          // v51: matches live DW=15
-          const hiN = Math.max(...prior.map(b=>b.high))
-          const loN = Math.min(...prior.map(b=>b.low))
-          const side = last4.close>hiN ? 'LONG' : last4.close<loN ? 'SHORT' : null
-          const adx4 = calcADX(c4.slice(-60))
-          if (side) outD.push({sym:ci.sym, side, close:last4.close, hi40:hiN, lo40:loN, adx:+adx4.toFixed(1), wouldEnter: adx4>22})
+          // v59.0: the diagnostic runs the ENGINE's signal, not a transcription of
+          // it. This endpoint is how every deploy is verified — a scan that drifts
+          // from the entry path turns the verification itself into a fiction.
+          const sigD = S.donchSignal(c4)
+          const adx4 = S.gateAdx(c4)
+          if (sigD) outD.push({sym:ci.sym, side:sigD.side, close:last4.close, hi40:sigD.hiN, lo40:sigD.loN,
+                               adx:+adx4.toFixed(1), wouldEnter: adx4 > S.ADX_GATE, bar_open:last4.t})
         } catch (e) { outD.push({sym:ci.sym, err:String(e).slice(0,60)}) }
       }
       return new Response(JSON.stringify({ok:true,
@@ -2823,11 +2790,8 @@ Deno.serve(async (req) => {
     // v42.3: CRYPTO ONLY — user directive: no stock/commodity perps (NVDA/TSLA/
     // SOXL/XAUT/etc). Both strategies scan only the 40-coin universe that the
     // 36-month walk-forward validation used.
-    const CRYPTO_40 = new Set(['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','DOT','LTC','BCH','NEAR','INJ','SUI',
-      'TRX','APT','ARB','OP','ATOM','FIL','UNI','AAVE','ICP','ALGO','SEI','WLD','TIA','RUNE','LDO',
-      'CRV','DYDX','GALA','SAND','AXS','IMX','ENA','PEPE','WIF','FET'])
-    let COINS = (coinInfoList as CoinInfo[]).map(c => c.sym).filter(sym => CRYPTO_40.has(sym))
-    if (COINS.length < 10) COINS = [...CRYPTO_40]
+    let COINS = (coinInfoList as CoinInfo[]).map(c => c.sym).filter(sym => CRYPTO_40_SET.has(sym))
+    if (COINS.length < 10) COINS = [...S.CRYPTO_40]
     const change24hMap = new Map<string, number>((coinInfoList as CoinInfo[]).map(c => [c.sym, c.change24h]))
 
     const {minScore:adaptMinScore,vpocDist:adaptVpocDist,sideFilter:adaptSideFilter}=
@@ -3008,7 +2972,7 @@ Deno.serve(async (req) => {
       // v49: K 5→7 — annT 38.2% vs 34.4%, maxDD 17% vs 26%, all windows ✅.
       // v52: K 7→8 — v56bt: annT 39.2% vs 38.2%, maxDD 15% vs 20%, all windows ✅.
       // K=9 REJECTED (w3 negative, annT 32.8% — the edge thins past 8).
-      const ROTA_MS = 48*3600_000, ROTA_K = 8, ROTA_LB = 84
+      const ROTA_MS = S.ROTA_MS, ROTA_K = S.ROTA_K, ROTA_LB = S.ROTA_LB
       const lastRota = state.rebalanced_at ? new Date(state.rebalanced_at).getTime() : 0
       // v50: postpone the whole rebalance on a black day (retry next cycle once healed)
       if (!dayLossPaused && now - lastRota >= ROTA_MS - 5*60_000) {
@@ -3016,9 +2980,7 @@ Deno.serve(async (req) => {
         const momList: {sym:string, mom:number, price:number, vol:number}[] = []
         // v42.2: rank EXACTLY the 40-coin universe the 36-month validation used —
         // dynamic lists were pulling exotic/tokenized-stock perps outside the proof.
-        const ROTA_UNIVERSE = ['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','DOT','LTC','BCH','NEAR','INJ','SUI',
-          'TRX','APT','ARB','OP','ATOM','FIL','UNI','AAVE','ICP','ALGO','SEI','WLD','TIA','RUNE','LDO',
-          'CRV','DYDX','GALA','SAND','AXS','IMX','ENA','PEPE','WIF','FET']
+        const ROTA_UNIVERSE: string[] = [...S.CRYPTO_40]
         for (const sym of ROTA_UNIVERSE) {
           try {
             const b4 = await fetchBars(sym, '4h', ROTA_LB+6)
@@ -3054,7 +3016,7 @@ Deno.serve(async (req) => {
           const slotTarget = (sym2:string, dir2:1|-1) => {
             const sideSum = dir2===1 ? longInvSum : shortInvSum
             const w = sideSum>0 ? (invVol.get(sym2)??0)/sideSum : 1/ROTA_K
-            return Math.min(Math.max(port*0.35*w, port*0.028), port*0.14)
+            return S.rotaSlotTarget(port, w)
           }
           // v57.1: one live price per symbol for this whole rebalance — the close
           // loop and the open loop both need it, and the rebalance is a single
@@ -3071,7 +3033,7 @@ Deno.serve(async (req) => {
             if (wantDir === t.side) {
               const curNotional = Number(t.entry_price)*Number(t.size)
               const tgtNotional = slotTarget(t.sym, tgt!.dir)
-              if (curNotional > tgtNotional*0.65 && curNotional < tgtNotional*1.4) { target.delete(t.sym); continue }  // size OK → keep
+              if (S.rotaSizeOk(curNotional, tgtNotional)) { target.delete(t.sym); continue }  // size OK → keep
               // size drifted → close and reopen at target below
             }
             // v57.1: fill at the CURRENT price, not the last completed 4h close.
@@ -3101,7 +3063,7 @@ Deno.serve(async (req) => {
             // breakout on the same coin was doubling concentration)
             const symExp = (allOpenRows||[]).filter((x:any)=>x.sym===sym)
               .reduce((a:number,x:any)=>a+Number(x.entry_price)*Number(x.size),0)
-            slotNotional = Math.min(slotNotional, Math.max(0, port*0.20 - symExp))
+            slotNotional = Math.min(slotNotional, Math.max(0, port*S.PER_COIN_CAP - symExp))
             if (slotNotional < port*0.01) { log.push(`ROTA_SKIP ${sym}: per-coin cap`); logSkip(sym,'ROTA','per_coin_cap',{slot:+slotNotional.toFixed(0)}); continue }
             if (balance < slotNotional) { log.push(`ROTA_SKIP ${sym}: insufficient cash`); logSkip(sym,'ROTA','insufficient_cash',{slot:+slotNotional.toFixed(0), cash:+balance.toFixed(0)}); continue }
             // v57.1: enter at the CURRENT price. `tgt.price` is the close of the last
@@ -3450,7 +3412,7 @@ Deno.serve(async (req) => {
           if (!t.mtf && origSlDist > 0) {
             const stage = Number((t as any).exit_stage ?? 0)
             if (stage === 0 && !t.partial_done) {
-              const p06 = entry + origSlDist*0.6*dirM
+              const p06 = entry + origSlDist*S.LADDER_LEG1_R*dirM
               if (t.side==='LONG' ? price>=p06 : price<=p06) {
                 const third = size/3
                 if (liveMode) {   // v55 seam #4a: reduce-only market for the leg
@@ -3470,7 +3432,7 @@ Deno.serve(async (req) => {
                 continue
               }
             } else if (stage === 1) {
-              const p10 = entry + origSlDist*1.0*dirM
+              const p10 = entry + origSlDist*S.LADDER_LEG2_R*dirM
               if (t.side==='LONG' ? price>=p10 : price<=p10) {
                 const half = size/2   // half of remaining ⅔ = ⅓ of original
                 if (liveMode) {   // v55 seam #4b
@@ -3497,7 +3459,7 @@ Deno.serve(async (req) => {
               // the give-back. Trail dist = 2.5×ATR(4h) = origSlDist×2.5/1.4.
               // Stop = taker (market); first two legs already banked maker at
               // 0.6R/1.0R. trail_sl ratchets from BE and never loosens.
-              const trailDist = origSlDist * (2.5/1.4)
+              const trailDist = origSlDist * (S.TRAIL_ATR_MULT / S.SL_ATR_MULT)
               const chand = t.side==='LONG' ? price - trailDist : price + trailDist
               const cur = Number(t.trail_sl)
               const nt = t.side==='LONG' ? Math.max(cur, chand) : Math.min(cur, chand)
@@ -3667,48 +3629,63 @@ Deno.serve(async (req) => {
           if (bars4h.length < 45) return
           const c4 = bars4h.slice(0, -1)          // completed 4h bars only
           const last4 = c4[c4.length - 1]
-          // v51: Donchian window 25→15 (v55bt: DW=15 n=11,218 avg +0.0456R, all 6
+          // v59.0: the signal is S.donchSignal — the same call the backtest makes.
+          // (v51: Donchian window 25→15, v55bt: DW=15 n=11,218 avg +0.0456R, all 6
           // windows positive → +33% trades, +22% total R vs DW=25's 420R/36m.
           // DW=40 slow sleeve rejected: window-1 negative. 15 was never in the
           // old refine grids [25,30,40,55,70] — first time tested.)
-          const prior = c4.slice(-16, -1)         // 15 bars before the signal bar
-          if (prior.length < 15) return
-          const hiN = Math.max(...prior.map(b => b.high))
-          const loN = Math.min(...prior.map(b => b.low))
-          const side4: 'LONG'|'SHORT'|null =
-            last4.close > hiN ? 'LONG' : last4.close < loN ? 'SHORT' : null
-          if (!side4) return
-          const adx4 = calcADX(c4.slice(-60))
-          if (adx4 <= 22) {
-            log.push(`SKIP ${sym}: DONCH4H breakout but adx=${adx4.toFixed(0)}<=22`)
+          const sig4 = S.donchSignal(c4)
+          if (!sig4) return
+          const side4: 'LONG'|'SHORT' = sig4.side
+          // v59.0 BAR-ALIGNMENT DIAGNOSTIC. Now that bars carry their open time we
+          // can finally ask whether this series is the one that just closed, rather
+          // than trusting `Date.now() % 14_400_000` and hoping the feed agrees. A
+          // fallback source that lags a bar would otherwise produce a confident
+          // breakout off the wrong candle with nothing in the log to show for it.
+          // DELIBERATELY DIAGNOSTIC ONLY — it journals and never skips. Standing
+          // rule 5 forbids adding a filter that can cut trades, and the honest
+          // first move on a suspected data fault is to measure how often it fires,
+          // not to start dropping entries on a hypothesis. If bot_skips shows these
+          // accumulating, that is evidence, and then it is a decision to make.
+          if (Number.isFinite(last4.t) && last4.t > 0 && msInto4h < 120_000) {
+            const lagMs = Date.now() - (last4.t + 14_400_000)
+            if (lagMs > 15 * 60_000) {
+              logSkip(sym, 'DONCH4H', 'bar_lag_diagnostic',
+                { lagMin: Math.round(lagMs / 60_000), barOpen: last4.t, source: _lastFetchSource, side: side4 })
+            }
+          }
+          const adx4 = S.gateAdx(c4)
+          if (adx4 <= S.ADX_GATE) {
+            log.push(`SKIP ${sym}: DONCH4H breakout but adx=${adx4.toFixed(0)}<=${S.ADX_GATE}`)
             if (msInto4h < 120_000) logSkip(sym,'DONCH4H','adx_gate',{adx:+adx4.toFixed(1), side:side4, close:last4.close})
             return
           }
           // v46 PYRAMID gate: a 2nd unit only stacks on a same-direction winner ≥0.6R
           // v49: a 3rd unit requires ALL open units ≥1.0R (validated, all 6 windows)
           if (donchOnSym.length > 0) {
-            const needR = donchOnSym.length >= 2 ? 1.0 : 0.6
-            const ok = donchOnSym.every((t:any) => {
-              if (t.side !== side4) return false
-              const e2=Number(t.entry_price), d2=t.side==='LONG'?1:-1
-              const tpStored = t.side==='LONG'?Number(t.hi):Number(t.lo)
-              const sd2 = Math.abs(tpStored-e2)/1.6
-              return sd2>0 && (price-e2)*d2/sd2 >= needR
-            })
+            // The row does not persist the stop distance, so recover it from the
+            // stored 1.6R take-profit level — |tp − entry| / 1.6 — and hand the
+            // shared gate plain numbers. Same arithmetic as before, one owner.
+            const units: S.OpenUnit[] = donchOnSym.map((t:any) => ({
+              side: t.side as S.Side,
+              entry: Number(t.entry_price),
+              origSlDist: Math.abs((t.side==='LONG' ? Number(t.hi) : Number(t.lo)) - Number(t.entry_price)) / S.LADDER_TP_R,
+            }))
+            const ok = S.pyramidGateOk(units, side4, price)
             if (!ok) {
               if (msInto4h < 120_000) logSkip(sym,'DONCH4H','pyramid_gate',{units:donchOnSym.length, side:side4})
               return
             }
             log.push(`PYRAMID ${sym}: stacking unit #${donchOnSym.length+1} on winning ${side4}`)
           }
-          const atr4 = calcATR(c4.slice(-20))
+          const atr4 = S.entryAtr(c4)
           if (!atr4) return
-          const slDist4 = Math.max(atr4 * 1.4, price * 0.005)
+          const slDist4 = S.stopDistance(atr4, price)
           const slPct4 = slDist4 / price
-          if (slPct4 > 0.08) return
+          if (slPct4 > S.SL_MAX_PCT) return
           const dirM4 = side4 === 'LONG' ? 1 : -1
           const slPrice4 = price - slDist4 * dirM4
-          const tpPrice4 = price + slDist4 * 1.6 * dirM4   // v45: final ladder stage = 1.6R
+          const tpPrice4 = price + slDist4 * S.LADDER_TP_R * dirM4   // v45: final ladder stage = 1.6R
 
           // sizing: equal weight across remaining slots + 60% net-direction cap
           const curExp4 = (allOpen||[]).reduce((s2:number,x:any)=>s2+Number(x.entry_price)*Number(x.size),0)
@@ -3720,7 +3697,7 @@ Deno.serve(async (req) => {
           // portfolio per position. Same entries, right-sized capital.
           // v44 (#3): ADX-tiered risk — validated monotonic ladder on 36 months:
           // expR +0.007 (adx 22-28) → +0.019 → +0.042 → +0.086 (adx>45).
-          const adxMult = adx4 > 45 ? 2.0 : adx4 > 35 ? 1.5 : adx4 > 28 ? 1.0 : 0.75
+          const adxMult = S.adxTierMult(adx4)
           // v45.1 SPORTY: base risk 0.75%→1.25% per breakout.
           // v57.2 (2026-09-18, EXPLICIT USER INSTRUCTION): 1.25% → 1.75%.
           //  This is tier 2 of the Monte Carlo ladder (v50bt): median maxDD 22%,

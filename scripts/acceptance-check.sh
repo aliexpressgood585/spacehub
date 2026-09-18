@@ -49,6 +49,27 @@ hits=$(grep -rnE "(BYBIT_API_(KEY|SECRET)|SUPABASE_ACCESS_TOKEN|service_role)[[:
 [ "$hits" = "0" ] && ok "no hardcoded secrets" || { no "$hits possible hardcoded secrets"; \
   grep -rnE "(BYBIT_API_(KEY|SECRET)|SUPABASE_ACCESS_TOKEN|service_role)[[:space:]]*[:=][[:space:]]*['\"][A-Za-z0-9_.-]{12,}" $B backtest trading-app/src 2>/dev/null | grep -v "Deno.env.get"; }
 
+echo "── 11. one strategy, two consumers ──────────────────────────"
+# v59.0: the rules live in shared/strategy.ts and both the bot and the backtest
+# import them. The unit suite proves the module is right; the parity suite proves
+# neither consumer has grown a second copy beside it. This is the gate that would
+# have caught the v79bt divergence before a 36-month run was spent on it.
+grep -q "import \* as S from '../../../shared/strategy.ts'" $B/trading-bot/index.ts \
+  && ok "bot imports the shared strategy" || no "bot does not import shared/strategy.ts"
+grep -q "import \* as S from '../shared/strategy.ts'" backtest/backtest.ts \
+  && ok "backtest imports the shared strategy" || no "backtest does not import shared/strategy.ts"
+if command -v node >/dev/null 2>&1; then
+  if bash scripts/run-tests.sh >/tmp/spacehub-tests.log 2>&1; then
+    ok "test suite green ($(grep -oE '[0-9]+ assertions passed' /tmp/spacehub-tests.log | \
+        awk '{s+=$1} END {print s+0}') assertions)"
+  else
+    no "test suite FAILED — see the tail below"
+    tail -25 /tmp/spacehub-tests.log
+  fi
+else
+  no "node not available — the test suite could not run, so this check proves nothing"
+fi
+
 echo
 [ $fail -eq 0 ] && echo "ALL CHECKS PASS" || echo "SOME CHECKS FAILED"
 exit $fail

@@ -1,0 +1,65 @@
+name: tests
+
+# The strategy suite, on every push and PR that can change the rules.
+#
+# This workflow needs NO secrets. That is the point: SUPABASE_ACCESS_TOKEN has
+# been dead since 2026-08-07 and took status-ping, the watchdog and the deploy
+# workflow down with it, so anything that matters has to keep working without
+# it. Plain Node, --experimental-strip-types, no install step, no network.
+
+on:
+  push:
+    paths:
+      - 'shared/**'
+      - 'tests/**'
+      - 'backtest/backtest.ts'
+      - 'supabase/functions/**'
+      - 'scripts/run-tests.sh'
+      - '.github/workflows/tests.yml'
+  pull_request:
+    paths:
+      - 'shared/**'
+      - 'tests/**'
+      - 'backtest/backtest.ts'
+      - 'supabase/functions/**'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Strategy + parity suites, and the typecheck
+        run: bash scripts/run-tests.sh
+
+      - name: Acceptance gate
+        # The same script that must pass before any deploy. Running it here means
+        # a regression is caught on push rather than at deploy time, when the only
+        # person who can act on it may be a triggered session with no connectors.
+        run: bash scripts/acceptance-check.sh
+
+      - name: Workflow YAML lint
+        # Two backtest runs were lost to workflow bugs (a mode missing from the
+        # fetch whitelist, a commit step still gated on workflow_dispatch). A
+        # parse error is the cheapest class of that failure to catch.
+        run: |
+          python3 - <<'PY'
+          import sys, glob
+          try:
+              import yaml
+          except ImportError:
+              print("PyYAML unavailable — skipping (not a pass)"); sys.exit(0)
+          bad = 0
+          for f in sorted(glob.glob('.github/workflows/*.yml')):
+              try:
+                  yaml.safe_load(open(f))
+                  print(f"  ok    {f}")
+              except Exception as e:
+                  print(f"  FAIL  {f}: {e}"); bad += 1
+          sys.exit(1 if bad else 0)
+          PY
