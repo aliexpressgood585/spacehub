@@ -1,5 +1,44 @@
 # SpaceHub Trading Bot — Session Handoff (read this first)
 
+## ⏱ RESUME HERE — for a session that wakes cold (2026-09-18 16:00 UTC)
+A scheduled firing may land after a usage-limit gap, into a session with no
+memory of what came before. Missed firings are LOST, not queued, so do not try to
+catch up on a backlog — just take the next item below. This block is rewritten
+whenever the state of play changes; trust it over anything you half-remember.
+
+**Live, verified:** v58.0 on `adxgadwghgkwmntsnrar`, sha `d1954d97…`, paper_mode
+true, risk 1.75%, coverage 40/40, 0 errors, 0 LEGACY trades. Equity ~$10,04x on
+$10,000, cash recovering from the v56.9 over-allocation. Checkpoint 2/50.
+
+**THE BLOCKING PROBLEM, and the next thing to work on:**
+Two full 36-month runs (v78bt, v79bt) could not judge the sub-gate ADX tier,
+because on BOTH lenses the INCUMBENT fails all-6 — the same two windows each
+time (w1, w6). The documented incumbent is 696R all-6-positive. Our scan
+reproduces its trade count (11,412 vs 11,218) but not its window profile.
+Either the scan is not the engine (no pyramiding / heat cap / ROTA interaction /
+per-coin caps) or the edge has decayed on data through 2026-09. Nothing we
+currently have can separate those two.
+→ So build ITEM 4 FIRST: one shared strategy module used by BOTH trading-bot and
+  backtest. Same entries, exits, ATR, ADX, Donchian, ROTA, sizing, trailing; real
+  bar timestamps not i*timeframe; correlation on returns not raw prices. Until it
+  exists, no strategy question can be answered honestly, including whether the
+  live config still clears its own bar. Then re-run v79bt against the real engine.
+Do NOT deploy the sub-gate tier. It is neither accepted nor rejected.
+
+**How to run a backtest without the GitHub connector:** edit the first
+non-comment line of `backtest/.run-request` to "MODE MONTHS" and push to main.
+Result lands in `status/bt-latest.txt`. New modes must ALSO be added to the
+fetch-step whitelist in backtest.yml or they silently get 45 days of data.
+
+**What you cannot do unattended:** deploy. Triggered sessions carry no MCP
+connectors, so there is no Supabase management access. Write, test, commit and
+merge — then say plainly that the deploy is pending. Never claim one you could
+not make.
+
+**Before any deploy:** `bash scripts/acceptance-check.sh`, then verify the live
+result against `deployment_manifest` and `?donch_test=1`.
+
+
 Paper-trading crypto bot. Owner (Hebrew speaker) wants: a highly profitable bot
 with PROOF, as many good trades as possible. Full autonomy granted — act without
 asking, but NEVER violate the standing rules below.
