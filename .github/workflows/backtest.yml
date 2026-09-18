@@ -3,6 +3,13 @@ name: Strategy Backtest
 on:
   schedule:
     - cron: '0 6 1 * *'   # monthly edge-decay regression (1st of month, 06:00 UTC)
+  # A push to backtest/.run-request runs whatever that file asks for. The repo
+  # already uses this shape for status-ping, and it exists for the same reason:
+  # a session without the GitHub connector cannot call workflow_dispatch, but it
+  # can always commit a file. Format: one line, "MODE MONTHS" (months optional).
+  push:
+    paths:
+      - 'backtest/.run-request'
   workflow_dispatch:
     inputs:
       days:
@@ -25,11 +32,33 @@ jobs:
   backtest:
     runs-on: ubuntu-latest
     timeout-minutes: 55
-    env:
-      MODE: ${{ github.event.inputs.mode || 'freq' }}
-      MONTHS: ${{ github.event.inputs.months || '36' }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Resolve mode (dispatch inputs, or backtest/.run-request on push)
+        id: cfg
+        run: |
+          set -euo pipefail
+          MODE='${{ github.event.inputs.mode }}'
+          MONTHS='${{ github.event.inputs.months }}'
+          if [ -z "$MODE" ] && [ -f backtest/.run-request ]; then
+            # first non-comment, non-empty line: "MODE [MONTHS]"
+            REQ=$(grep -vE '^\s*(#|$)' backtest/.run-request | head -1)
+            MODE=$(echo "$REQ"  | awk '{print $1}')
+            RM=$(echo  "$REQ"   | awk '{print $2}')
+            [ -n "$RM" ] && MONTHS="$RM" || true
+            echo "from .run-request: mode=$MODE months=$MONTHS"
+          fi
+          # fail closed: an unreadable request must not silently run the default
+          if [ -z "$MODE" ]; then
+            if [ "${{ github.event_name }}" = "push" ]; then
+              echo "::error::backtest/.run-request changed but no mode could be read from it"; exit 1
+            fi
+            MODE=freq
+          fi
+          [ -n "$MONTHS" ] || MONTHS=36
+          echo "MODE=$MODE"     >> "$GITHUB_ENV"
+          echo "MONTHS=$MONTHS" >> "$GITHUB_ENV"
 
       - uses: denoland/setup-deno@v1
         with:
