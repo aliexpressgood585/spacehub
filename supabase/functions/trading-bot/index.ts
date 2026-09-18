@@ -1,4 +1,22 @@
 // ════════════════════════════════════════════════════════════
+// CryptoBot v57.1 — ROTA was filling at a price up to FOUR HOURS old
+//
+// v57.1: ROTA ranked momentum from the last COMPLETED 4h candle and then used
+//  that same close as the ENTRY and EXIT price. Right for the signal, wrong for
+//  a fill: a rebalance can land on any minute of the 4h window, so the fill
+//  price averaged ~2 hours stale. Measured on the live 2026-09-18 05:46 rotation
+//  (the 04:00 close, 1h46m old): four of the ten opened slots were 1.1-2.3% away
+//  from the real market, and the cross-source shield rejected six more that had
+//  drifted 1.6-7.2% — 37% of the sleeve skipped, a rule-5 trade cut caused
+//  entirely by our own stale feed. The exit path had the same defect, so realised
+//  ROTA P&L was measured against fills that never existed.
+//  FIX: `fetchLivePrice()` (Binance → OKX → Bybit, ≤1 min old) supplies entry,
+//  exit and sizing; the 4h close still supplies the momentum ranking, which is
+//  what it is for. One cached fetch per symbol per rebalance.
+//  NB the backtest fills at the bar close, which is self-consistent there but
+//  unachievable live — this makes the live engine do what the backtest MEANT.
+//  It cannot cut trades: it removes false bad-tick rejections.
+//
 // CryptoBot v56.9 — HEAT LIMIT RACE (the 95% cap that never fired)
 //
 // v56.9: the portfolio heat limit (v56.0, MAX_HEAT_PCT=0.95) was computed from
@@ -513,7 +531,7 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v56.9'
+const BOT_VERSION = 'v57.1'
 const RELEASE_SHA = String((globalThis as any).__RELEASE_SHA ?? 'unpinned')
 // Universe fingerprint: a cheap order-independent digest, so a silently edited
 // CRYPTO_40 shows up as a different release even at an identical SHA.
@@ -870,7 +888,7 @@ async function fetchBars(sym:string, interval:string, limit:number): Promise<Bar
   }
   // v47.1 fallback #3: Bybit linear perp candles — third independent source so a
   // simultaneous Binance geo-block + OKX outage can't blind the bot.
-  const bybitIv = interval==='1h'?'60':interval==='4h'?'240':interval==='1d'?'D':interval==='15m'?'15':interval==='5m'?'5':'60'
+  const bybitIv = interval==='1h'?'60':interval==='4h'?'240':interval==='1d'?'D':interval==='15m'?'15':interval==='5m'?'5':interval==='1m'?'1':'60'
   try {
     const res = await fetch(
       `https://api.bybit.com/v5/market/kline?category=linear&symbol=${sym}USDT&interval=${bybitIv}&limit=${Math.min(limit,1000)}`,
@@ -888,6 +906,19 @@ async function fetchBars(sym:string, interval:string, limit:number): Promise<Bar
     _feedStats.bybit.fail++
   } catch { _feedStats.bybit.fail++ }
   return []
+}
+
+// v57.1: the current market price, through the same source ladder as every other
+// feed (Binance → OKX → Bybit), at most a minute old. ROTA used to fill at the
+// close of the last COMPLETED 4h candle, which is up to 4 hours stale — see the
+// v57.1 note in the header. `fetchBars` returns the in-progress bar last, so its
+// close is the live price.
+async function fetchLivePrice(sym: string): Promise<number|null> {
+  try {
+    const b = await fetchBars(sym, '1m', 2)
+    const p = b.length ? b[b.length-1].close : NaN
+    return Number.isFinite(p) && p > 0 ? p : null
+  } catch { return null }
 }
 
 // ── v33: OI history ──────────────────────────────────────────────────────────
@@ -2992,6 +3023,14 @@ Deno.serve(async (req) => {
             const w = sideSum>0 ? (invVol.get(sym2)??0)/sideSum : 1/ROTA_K
             return Math.min(Math.max(port*0.35*w, port*0.028), port*0.14)
           }
+          // v57.1: one live price per symbol for this whole rebalance — the close
+          // loop and the open loop both need it, and the rebalance is a single
+          // moment in time, so fetching twice would be noise as well as latency.
+          const _rotaPxCache = new Map<string, number|null>()
+          const rotaPx = async (sym2:string): Promise<number|null> => {
+            if (!_rotaPxCache.has(sym2)) _rotaPxCache.set(sym2, await fetchLivePrice(sym2))
+            return _rotaPxCache.get(sym2) ?? null
+          }
           // close positions that left the basket, flipped direction, or drifted >±35% from target size
           for (const t of (rotaOpenAll||[])) {
             const tgt = target.get(t.sym)
@@ -3002,7 +3041,9 @@ Deno.serve(async (req) => {
               if (curNotional > tgtNotional*0.65 && curNotional < tgtNotional*1.4) { target.delete(t.sym); continue }  // size OK → keep
               // size drifted → close and reopen at target below
             }
-            const pxRaw = tgt?.price ?? ((await fetchBars(t.sym,'4h',3)).slice(0,-1).pop()?.close ?? Number(t.entry_price))
+            // v57.1: fill at the CURRENT price, not the last completed 4h close.
+            const pxRaw = (await rotaPx(t.sym)) ?? tgt?.price
+              ?? ((await fetchBars(t.sym,'4h',3)).slice(0,-1).pop()?.close ?? Number(t.entry_price))
             const dirM2 = t.side==='LONG'?1:-1
             let px = pxRaw * (1 - dirM2 * SLIP)   // v54: market close → adverse slippage
             if (liveMode) {   // v55 seam #3: reduce-only market close
@@ -3030,8 +3071,16 @@ Deno.serve(async (req) => {
             slotNotional = Math.min(slotNotional, Math.max(0, port*0.20 - symExp))
             if (slotNotional < port*0.01) { log.push(`ROTA_SKIP ${sym}: per-coin cap`); logSkip(sym,'ROTA','per_coin_cap',{slot:+slotNotional.toFixed(0)}); continue }
             if (balance < slotNotional) { log.push(`ROTA_SKIP ${sym}: insufficient cash`); logSkip(sym,'ROTA','insufficient_cash',{slot:+slotNotional.toFixed(0), cash:+balance.toFixed(0)}); continue }
-            if (!(await priceSane(sym, tgt.price))) { log.push(`ROTA_SKIP ${sym}: cross-source price mismatch (bad tick?)`); logSkip(sym,'ROTA','bad_tick',{price:tgt.price, divergePct:+( _lastPriceDiverge*100).toFixed(2)}); continue }
-            let fillPx = tgt.price * (1 + tgt.dir * SLIP)   // v54: market entry → adverse slippage
+            // v57.1: enter at the CURRENT price. `tgt.price` is the close of the last
+            // completed 4h candle — right for ranking momentum, wrong as a fill: at a
+            // 05:46 rebalance it is the 04:00 close, nearly two hours old. Measured
+            // live on 2026-09-18 that staleness put entries 1.1-2.3% off the market
+            // and made the bad-tick shield reject six healthy slots (1.6-7.2% apart),
+            // i.e. 37% of the sleeve — a rule-5 trade cut caused by our own stale feed.
+            const livePx = await rotaPx(sym)
+            if (livePx === null) { log.push(`ROTA_SKIP ${sym}: no live price`); logSkip(sym,'ROTA','no_live_price',{}); continue }
+            if (!(await priceSane(sym, livePx))) { log.push(`ROTA_SKIP ${sym}: cross-source price mismatch (bad tick?)`); logSkip(sym,'ROTA','bad_tick',{price:livePx, stalePrice:tgt.price, divergePct:+( _lastPriceDiverge*100).toFixed(2)}); continue }
+            let fillPx = livePx * (1 + tgt.dir * SLIP)   // v54: market entry → adverse slippage
             let size2 = slotNotional / fillPx
             if (liveMode) {   // v55 seam #2: real market order
               const q = await bybitQty(sym, size2)
@@ -3057,7 +3106,7 @@ Deno.serve(async (req) => {
               status:'OPEN', score: 0, mtf:false, partial_done:true,
               paper_mode: paperMode, entry_macd_hist: 0, strategy: 'ROTA'
             })
-            log.push(`ROTA_OPEN ${sym} ${tgt.dir===1?'LONG':'SHORT'} @${tgt.price} $${slotNotional.toFixed(0)}`)
+            log.push(`ROTA_OPEN ${sym} ${tgt.dir===1?'LONG':'SHORT'} @${fillPx.toFixed(6)} (4h close was ${tgt.price}) $${slotNotional.toFixed(0)}`)
           }
           await supabase.from('bot_state').update({ rebalanced_at: new Date().toISOString() }).eq('id',1)
           log.push(`ROTA rebalance: universe=${momList.length}`)
