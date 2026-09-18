@@ -71,10 +71,19 @@ const BOUNDS = {
 }
 
 function clamp(v: number, min: number, max: number) { return Math.max(min, Math.min(max, v)) }
+// v58.0: the ratio form `nv/ov` breaks on the values it is most likely to meet.
+// ov === 0 makes r Infinity (or NaN when nv is 0 too), and both branches then
+// return ov*(1±mc) === 0 — so any parameter that ever reached zero was pinned
+// there permanently, and a NaN proposal sailed through untouched as `nv`. A
+// negative anchor inverts the comparisons. Clamp on absolute distance instead,
+// with an explicit floor so a zero anchor can still move, and reject anything
+// non-finite outright rather than letting it reach the bounds check.
 function limitChange(nv: number, ov: number, mc: number) {
-  const r = nv / ov
-  if (r > 1 + mc) return ov * (1 + mc)
-  if (r < 1 - mc) return ov * (1 - mc)
+  if (!Number.isFinite(nv)) return Number.isFinite(ov) ? ov : 0
+  if (!Number.isFinite(ov)) return nv
+  const step = Math.max(Math.abs(ov) * mc, 1e-6)   // zero anchors still get a step
+  if (nv > ov + step) return ov + step
+  if (nv < ov - step) return ov - step
   return nv
 }
 function round2(v: number) { return Math.round(v * 100) / 100 }
@@ -256,12 +265,10 @@ Deno.serve(async () => {
     (timeSinceLast >= CLAUDE_COOLDOWN_MS && newTradesSinceLast >= 30)  // v39: 5→30
 
   if (!shouldCallClaude) {
-    // fast path — update meta only
-    await supabase.from('bot_state').update({
-      bot_params: { ...params, _meta: meta },
-    }).eq('id', 1)
+    // v58.0 READ-ONLY: was writing bot_params._meta here. See the banner at the
+    // adopt path below — this function may not write bot_state at all.
     return new Response(JSON.stringify({
-      ok: true,
+      ok: true, read_only: true,
       skip: 'no Claude needed',
       currentWR, recent20WR, newTrades: newTradesSinceLast, timeSinceLast: Math.round(timeSinceLast / 60000) + 'm',
     }), { headers: { 'Content-Type': 'application/json' } })
@@ -416,7 +423,7 @@ Rules:
       reasoning: `ERROR: ${errMsg}`,
     }).catch(() => {})
     return new Response(JSON.stringify({ ok: false, error: errMsg }), {
-      headers: { 'Content-Type': 'application/json' },
+      status: 500, headers: { 'Content-Type': 'application/json' },   // v58.0: was 200
     })
   }
 
@@ -449,12 +456,23 @@ Rules:
 
   const ov = segResult(overall)
 
-  // save to bot_state and history log in parallel
+  // ═══ v58.0: READ-ONLY — NO AUTO-APPLY WITHOUT A WALK-FORWARD HOLDOUT ═════
+  // This adopted parameters live, every minute, from an LLM call scored on
+  // in-sample live results. Two things make that unacceptable:
+  //  * the parameters it tunes — min_confluence_score, min_adx, rsi_oversold,
+  //    bb_proximity, partial_tp_by_vol, session_params — belong to the retired
+  //    5m confluence engine, which v58.0 hard-disabled. It was steering a dead
+  //    engine, and its writes to bot_params still landed in the row the live
+  //    sleeves read.
+  //  * DONCH4H and ROTA take none of their parameters from here; every one of
+  //    them is fixed in code behind a 36-month 6-window walk-forward. Adopting
+  //    anything on the strength of a few dozen recent trades is curve-fitting to
+  //    noise, and the standing rule is that nothing ships without all six windows
+  //    positive under real fees.
+  // The analysis still runs and is still journalled to bot_params_history, so the
+  // proposals remain inspectable. It just cannot move the live config. Re-enable
+  // only behind a real holdout, for parameters an engine in use actually reads.
   await Promise.all([
-    supabase.from('bot_state').update({
-      bot_params: safe,
-      last_optimized_at: new Date().toISOString(),
-    }).eq('id', 1),
     supabase.from('bot_params_history').insert({
       trade_count:   tradeCount,
       overall_wr:    ov.wr,
@@ -465,7 +483,7 @@ Rules:
     }),
   ])
 
-  return new Response(JSON.stringify({ ok: true, claudeCalled: true, reasoning, paramsAdopted, wrImprovement: (wrImprovement*100).toFixed(1)+'%', params: safe }), {
+  return new Response(JSON.stringify({ ok: true, read_only: true, applied: false, claudeCalled: true, reasoning, paramsAdopted, wrImprovement: (wrImprovement*100).toFixed(1)+'%', params: safe }), {
     headers: { 'Content-Type': 'application/json' },
   })
 })
