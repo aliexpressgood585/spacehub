@@ -531,7 +531,7 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v57.1'
+const BOT_VERSION = 'v57.2'
 const RELEASE_SHA = String((globalThis as any).__RELEASE_SHA ?? 'unpinned')
 // Universe fingerprint: a cheap order-independent digest, so a silently edited
 // CRYPTO_40 shows up as a different release even at an identical SHA.
@@ -549,7 +549,8 @@ const publishManifest = async (
   _manifestWritten = true
   const row = {
     sha: RELEASE_SHA, bot_version: BOT_VERSION, universe_hash: UNIVERSE_HASH,
-    universe_size: FIXED_COINS.length, paper_mode: paperMode, live_trading: liveMode,
+    universe_size: FIXED_COINS.length, base_risk_pct: BASE_RISK_PCT,
+    paper_mode: paperMode, live_trading: liveMode,
     booted_at: new Date().toISOString(),
   }
   // Never let provenance bookkeeping break a trading cycle.
@@ -709,6 +710,11 @@ const STREAK_PAUSE_MS = 30*60_000   // v40: 2h→30min — trade more, but still
 const MAX_NOTIONAL_PCT= 0.20        // kept for reference; not used as hard cap in notional calc
 const MAX_OPEN_TRADES = 30          // v40: 20→30 — the 75-gate is the quality limiter, not this cap
 const MAX_TOTAL_EXPOSURE_PCT = 1.0  // 100% — no idle cash
+// v57.2: base risk per DONCH4H breakout, raised 1.25% -> 1.75% on explicit owner
+// instruction (see the sizing block for the full note). Module-scope so the live
+// value is published in the release manifest and in ?donch_test=1 — the size the
+// bot actually trades at should never be something you have to read code to learn.
+const BASE_RISK_PCT       = 0.0175
 const MAX_HEAT_PCT        = 0.95  // v56: total open notional / portfolio cap (both strategies combined)
 const FUNDING_EXTREME = 0.0003
 const MIN_SL_PCT      = 0.005
@@ -2510,7 +2516,8 @@ Deno.serve(async (req) => {
       }
       return new Response(JSON.stringify({ok:true,
         release:{sha:RELEASE_SHA, bot_version:BOT_VERSION, universe_hash:UNIVERSE_HASH,
-                 strategies:['DONCH4H','ROTA'], timeframe:'4h', universe_size:FIXED_COINS.length},
+                 strategies:['DONCH4H','ROTA'], timeframe:'4h', universe_size:FIXED_COINS.length,
+                 base_risk_pct:BASE_RISK_PCT},
         fapi_status:fapiProbe, universe:coinsD.length,
         universe_c40:coinsD40.length, coverage:_lastUniverseCoverage, coverage_min:MIN_UNIVERSE_COVERAGE,
         fetch_source:_lastFetchSource, breakouts:outD, checked_at:new Date().toISOString()}),
@@ -3688,8 +3695,18 @@ Deno.serve(async (req) => {
           // v44 (#3): ADX-tiered risk — validated monotonic ladder on 36 months:
           // expR +0.007 (adx 22-28) → +0.019 → +0.042 → +0.086 (adx>45).
           const adxMult = adx4 > 45 ? 2.0 : adx4 > 35 ? 1.5 : adx4 > 28 ? 1.0 : 0.75
-          // v45.1 SPORTY: base risk 0.75%→1.25% per breakout (2.5% on ADX>45 monsters)
-          const riskNotional = (totPort4 * 0.0125 * adxMult) / slPct4
+          // v45.1 SPORTY: base risk 0.75%→1.25% per breakout.
+          // v57.2 (2026-09-18, EXPLICIT USER INSTRUCTION): 1.25% → 1.75%.
+          //  This is tier 2 of the Monte Carlo ladder (v50bt): median maxDD 22%,
+          //  p90 34%, p99 47%, against 16/25/36% at 1.25%. In Kelly terms it moves
+          //  from ~¼-Kelly to ~⅓-Kelly — still under the f*≈6.5% optimum, so growth
+          //  scales close to linearly while variance scales with the square.
+          //  It was raised WITHOUT the 50-trade checkpoint the owner themselves set
+          //  on 2026-07-12 (counter was 0/50). The risk was put to them in numbers —
+          //  a p90 34% drawdown — and they instructed the raise anyway. Recorded here
+          //  because the next session must not read this as a validated result: the
+          //  live expectation band has NOT been confirmed at any size yet.
+          const riskNotional = (totPort4 * BASE_RISK_PCT * adxMult) / slPct4
           let notional4 = Math.min(Math.max(riskNotional, 500), totPort4 * 0.20, remain4, balance * 0.95)
           // v54: liquidity guard — never exceed 0.5% of the coin's 24h quote
           // volume (last 6 completed 4h bars). No-op at paper scale on majors;
