@@ -96,14 +96,17 @@ Deno.serve(async () => {
       notes
     })
 
-    // Update bot_state
-    await supa.from('bot_state').update({
-      market_regime: regime,
-      regime_confidence: confidence,
-      regime_updated_at: new Date().toISOString()
-    }).eq('id', 1)
+    // ═══ v58.0: READ-ONLY on bot_state. ═══════════════════════════════════
+    // This ran every 5 minutes and wrote {market_regime, regime_confidence}
+    // while trading-bot writes the SAME field every cycle from its own BTC
+    // regime read. Two writers, different inputs (1h Binance spot klines here vs
+    // the bot's own 4h feed), different label vocabularies — last writer wins, so
+    // the field flapped and the dashboard showed whichever fired most recently.
+    // Anything reasoning off bot_state.market_regime was reading a coin flip.
+    // The regime series is still recorded in its own `market_regime` table, which
+    // is where it belongs; trading-bot is the single owner of bot_state.
 
-    return new Response(JSON.stringify({ regime, confidence, adx, atrPct, notes }), {
+    return new Response(JSON.stringify({ read_only: true, regime, confidence, adx, atrPct, notes }), {
       headers: { 'Content-Type': 'application/json' }
     })
   } catch (err) {
