@@ -16,20 +16,20 @@
 //  - 5m decision at bar close, fill at that close; exits scan later bars.
 // ════════════════════════════════════════════════════════════
 
-interface Bar { open:number; high:number; low:number; close:number; vol:number; t:number }
+// ─────────────────────────────────────────────────────────────
+// THE STRATEGY ITSELF is imported, not copied. Until v80 this file carried its
+// own transcription of the bot's rules; they agreed on the indicators and
+// diverged on everything around them, which is what made v79bt unreadable —
+// it reproduced the documented trade count and not the documented window
+// profile, and we had no way to tell a bad reimplementation from a decayed
+// edge. Anything that DECIDES now lives in shared/strategy.ts and both the
+// live bot and this file import it, so the two cannot drift apart again.
+// ─────────────────────────────────────────────────────────────
+import * as S from '../shared/strategy.ts'
 
-// ─────────────────────────────────────────────────────────────
-// COPIED VERBATIM FROM THE BOT (pure functions)
-// ─────────────────────────────────────────────────────────────
-function calcATR(bars:Bar[], p=14): number {
-  if (bars.length < p+1) return bars[0]?.high - bars[0]?.low || 0
-  const trs = bars.slice(1).map((b,i)=>Math.max(
-    b.high-b.low, Math.abs(b.high-bars[i].close), Math.abs(b.low-bars[i].close)
-  ))
-  let atr = trs.slice(0,p).reduce((a,v)=>a+v,0)/p
-  for (let i=p; i<trs.length; i++) atr=(atr*(p-1)+trs[i])/p
-  return atr
-}
+type Bar = S.Bar
+
+const calcATR = S.calcATR
 function calcEma(closes:number[], p:number): number {
   const k=2/(p+1); let e=closes[0]
   for (let i=1; i<closes.length; i++) e=closes[i]*k+e*(1-k)
@@ -143,29 +143,8 @@ function detectBOS(bars: Bar[], side: 'LONG'|'SHORT'): boolean {
   if (side === 'LONG')  return cur.close > Math.max(...bars.slice(-WIN-1,-1).map(b => b.high))
   else                  return cur.close < Math.min(...bars.slice(-WIN-1,-1).map(b => b.low))
 }
-function calcADX(bars: Bar[], period=14): number {
-  if (bars.length < period+1) return 20
-  const trs:number[]=[], plusDMs:number[]=[], minusDMs:number[]=[]
-  for (let i=1; i<bars.length; i++) {
-    const h=bars[i].high, l=bars[i].low, pc=bars[i-1].close
-    const tr=Math.max(h-l, Math.abs(h-pc), Math.abs(l-pc))
-    const hd=h-bars[i-1].high, ld=bars[i-1].low-l
-    trs.push(tr); plusDMs.push((hd>0&&hd>ld)?hd:0); minusDMs.push((ld>0&&ld>hd)?ld:0)
-  }
-  let tr14=trs.slice(0,period).reduce((a,b)=>a+b,0)
-  let pd14=plusDMs.slice(0,period).reduce((a,b)=>a+b,0)
-  let md14=minusDMs.slice(0,period).reduce((a,b)=>a+b,0)
-  const plus0=tr14>0?(pd14/tr14)*100:0, minus0=tr14>0?(md14/tr14)*100:0
-  const sum0=plus0+minus0
-  let adx=sum0>0?(Math.abs(plus0-minus0)/sum0)*100:0
-  for (let i=period; i<trs.length; i++) {
-    tr14=(tr14*(period-1)+trs[i])/period; pd14=(pd14*(period-1)+plusDMs[i])/period; md14=(md14*(period-1)+minusDMs[i])/period
-    const pdi=tr14>0?(pd14/tr14)*100:0, mdi=tr14>0?(md14/tr14)*100:0, s=pdi+mdi
-    const dx=s>0?((Math.abs(pdi-mdi))/s)*100:0
-    adx=(adx*(period-1)+dx)/period
-  }
-  return Math.min(100, Math.max(0, adx))
-}
+const calcADX = S.calcADX
+
 function detectRegime(bars: Bar[]): 'TRENDING'|'RANGING'|'SQUEEZE' {
   if (bars.length < 50) return 'TRENDING'
   const closes = bars.slice(-50).map(b=>b.close)
@@ -474,8 +453,10 @@ const COINS = ['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','DOT','L
   'CRV','DYDX','GALA','SAND','AXS','IMX','ENA','PEPE','WIF','FET',
   'TON','XLM','ETC','HBAR','VET','EGLD','FLOW','CHZ','MANA','GRT','SNX','COMP','MKR','ENJ','1INCH',
   'ZIL','KAVA','ROSE','CELO','ONE','QTUM','IOTA','XTZ','NEO','DASH','ZEC','BAND','STORJ','KSM','JASMY']
-// the original validated 40 (for sub-universe comparisons)
-const CORE40 = new Set(COINS.slice(0,40))
+// The validated 40, from the shared pin. COINS above is the wider research list
+// (70 names) used only for sub-universe comparisons; anything that claims to
+// measure the DEPLOYED strategy must run on CORE40 and nothing else.
+const CORE40 = new Set<string>(S.CRYPTO_40)
 const MAX_OPEN = 20, MAX_NEW_PER_SCAN = 5, MIN_NOTIONAL = 500
 const SYM_COOLDOWN_MIN = 10, MAX_HOLD_MIN = 120
 const CORR_GROUPS: string[][] = [
