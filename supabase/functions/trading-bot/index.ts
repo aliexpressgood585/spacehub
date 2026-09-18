@@ -1,4 +1,18 @@
 // ════════════════════════════════════════════════════════════
+// CryptoBot v56.7 — UNIVERSE COVERAGE FIX (the volume floor was eating CRYPTO_40)
+//
+// v56.7: fetchFuturesCoins() ranked every source by 24h volume, dropped anything
+//  under a hardcoded floor ($50M Binance / $20M OKX) and kept only the top 60 —
+//  rules written in v34-v40 when the universe was still dynamic. Both strategies
+//  have been PINNED to CRYPTO_40 since v48, so that ranking no longer selects, it
+//  only subtracts: on the first cycle of the migrated project (2026-09-18) just 12
+//  Binance SPOT pairs cleared $50M (10 of ours) and OKX left 21/40, so the bot
+//  scanned half the validated universe and ROTA filled 10 of its 16 slots. Now a
+//  CRYPTO_40 symbol is taken at whatever volume its source reports; the floor and
+//  the slice only govern the extra non-pinned names. Per-trade liquidity is still
+//  enforced at entry by the v54 guard (notional <= 0.5% of 24h volume). This adds
+//  trades and restores the backtested universe — it never removes a signal.
+//
 // CryptoBot v56.6 — KILL-SWITCH DEADLOCK FIX (why the bot stayed quiet)
 //
 // v56.6: (1) The per-strategy health kill-switch could never auto-resume.
@@ -470,23 +484,49 @@ async function fetchFuturesCoins(): Promise<CoinInfo[]> {
     if (cover >= MIN_UNIVERSE_COVERAGE) { _lastFetchSource = src; _lastUniverseCoverage = cover; return list }
     return null
   }
+  // v56.7: the universe is PINNED to CRYPTO_40, so membership — not a 24h-volume
+  // rank — decides whether a symbol belongs in the scan list. The volume floor and
+  // the top-60 slice below are leftovers from the v34-v40 dynamic-universe era, and
+  // as market-wide volume fell they quietly ate the universe: on 2026-09-18 only 12
+  // Binance SPOT USDT pairs cleared the $50M floor (10 of them ours) and OKX's $20M
+  // bar left 21/40, so the bot scanned half the validated set and ROTA could fill
+  // only 10 of its 16 slots. Per-trade liquidity is already enforced at entry by the
+  // v54 guard (notional <= 0.5% of 24h volume), so this filter must not double as
+  // one. Pinned coins are therefore taken at whatever volume the source reports;
+  // the floor and the slice now only govern the extra non-CRYPTO_40 names.
+  type Row = { sym: string; vol: number; change24h: number }
+  const rank = (rows: Row[], floor: number): CoinInfo[] => {
+    const seen = new Set<string>()
+    const pinned: CoinInfo[] = []
+    const extra: Row[] = []
+    for (const r of rows) {
+      if (!r.sym || seen.has(r.sym)) continue
+      seen.add(r.sym)
+      if (CRYPTO_40_SET.has(r.sym)) pinned.push({ sym: r.sym, change24h: r.change24h })
+      else if (Number.isFinite(r.vol) && r.vol >= floor) extra.push(r)
+    }
+    extra.sort((a, b) => b.vol - a.vol)
+    return pinned.concat(
+      extra.slice(0, Math.max(0, MAX_FUTURES_COINS - pinned.length))
+           .map(x => ({ sym: x.sym, change24h: x.change24h }))
+    )
+  }
   // primary: Binance futures 24h tickers
   try {
     const res = await fetch(`${FAPI}/ticker/24hr`, { headers: { 'User-Agent': 'Mozilla/5.0' } })
     if (res.ok) {
       const raw = await res.json()
       if (Array.isArray(raw)) {
-        const list = raw
+        const list = rank(raw
           .filter(t =>
             t.symbol.endsWith('USDT') &&
             /^[A-Z0-9]+USDT$/.test(t.symbol) &&
             !EXCL.test(t.symbol) &&
-            !STABLE_EXCLUDE.test(t.symbol) &&
-            parseFloat(t.quoteVolume) >= MIN_FUTURES_VOL_USDT
+            !STABLE_EXCLUDE.test(t.symbol)
           )
-          .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
-          .slice(0, MAX_FUTURES_COINS)
-          .map(t => ({ sym: t.symbol.replace('USDT', ''), change24h: parseFloat(t.priceChangePercent) / 100 }))
+          .map(t => ({ sym: t.symbol.replace('USDT', ''), vol: parseFloat(t.quoteVolume),
+                       change24h: parseFloat(t.priceChangePercent) / 100 })),
+          MIN_FUTURES_VOL_USDT)
         const ok = consider(list, 'fapi'); if (ok) return ok
       }
     }
@@ -497,17 +537,16 @@ async function fetchFuturesCoins(): Promise<CoinInfo[]> {
     if (res.ok) {
       const raw = await res.json()
       if (Array.isArray(raw)) {
-        const list = raw
+        const list = rank(raw
           .filter(t =>
             t.symbol.endsWith('USDT') &&
             /^[A-Z0-9]+USDT$/.test(t.symbol) &&
             !EXCL.test(t.symbol) &&
-            !STABLE_EXCLUDE.test(t.symbol) &&
-            parseFloat(t.quoteVolume) >= MIN_FUTURES_VOL_USDT
+            !STABLE_EXCLUDE.test(t.symbol)
           )
-          .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
-          .slice(0, MAX_FUTURES_COINS)
-          .map(t => ({ sym: t.symbol.replace('USDT', ''), change24h: parseFloat(t.priceChangePercent) / 100 }))
+          .map(t => ({ sym: t.symbol.replace('USDT', ''), vol: parseFloat(t.quoteVolume),
+                       change24h: parseFloat(t.priceChangePercent) / 100 })),
+          MIN_FUTURES_VOL_USDT)
         const ok = consider(list, 'spot'); if (ok) return ok
       }
     }
@@ -519,19 +558,15 @@ async function fetchFuturesCoins(): Promise<CoinInfo[]> {
     if (res.ok) {
       const j = await res.json()
       const rows: any[] = j?.data ?? []
-      const list = rows
+      const list = rank(rows
         .filter(t => String(t.instId).endsWith('-USDT-SWAP'))
         .map(t => {
           const last = parseFloat(t.last), open = parseFloat(t.open24h)
-          const volUsd = parseFloat(t.volCcy24h) * last
-          return { sym: String(t.instId).split('-')[0], volUsd,
+          return { sym: String(t.instId).split('-')[0], vol: parseFloat(t.volCcy24h) * last,
                    change24h: open > 0 ? (last - open) / open : 0 }
         })
-        .filter(x => Number.isFinite(x.volUsd) && x.volUsd >= 20_000_000
-                  && /^[A-Z0-9]+$/.test(x.sym) && !STABLE_EXCLUDE.test(x.sym + 'USDT'))
-        .sort((a, b) => b.volUsd - a.volUsd)
-        .slice(0, MAX_FUTURES_COINS)
-        .map(x => ({ sym: x.sym, change24h: x.change24h }))
+        .filter(x => /^[A-Z0-9]+$/.test(x.sym) && !STABLE_EXCLUDE.test(x.sym + 'USDT')),
+        20_000_000)
       const ok = consider(list, 'okx'); if (ok) return ok
     }
   } catch { /* fall through */ }
