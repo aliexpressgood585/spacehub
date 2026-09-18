@@ -1,30 +1,30 @@
-backtest 2026-09-18T14:46Z mode=v78bt months=36
+backtest 2026-09-18T14:52Z mode=v78bt months=36
 ████ V78BT — sub-gate ADX tier at reduced size (more trades, same engine) ████
-  loaded 39 coins, 6 windows
+  loaded 69 coins, 6 windows, span 1096 days
 
 ── SUB-GATE TIER: take ADX (G..22] breakouts at reduced size, ON TOP of the live book ──
    objective = size-weighted total R (a half-size trade earns half)
    G=22 is the incumbent: gate unchanged, nothing extra taken
 
   config              n      extra    totR     d-totR    all6   windows (risk-wtd avgR)
-  LIVE (adx>22)      301        0       54        -    XX   +0.000 +0.000 +0.507 -0.197 +0.111 -0.082
-  G>18 x0.25        360       63       53       -1    XX   +0.000 +0.000 +0.511 -0.202 +0.108 -0.102
-  G>18 x0.40        360       63       52       -2    XX   +0.000 +0.000 +0.514 -0.205 +0.099 -0.111
-  G>18 x0.50        360       63       51       -3    XX   +0.000 +0.000 +0.516 -0.207 +0.094 -0.118
-  G>18 x0.75        360       63       49       -5    XX   +0.000 +0.000 +0.521 -0.211 +0.082 -0.133
-     ^ the (18,22] band alone: n=63, unweighted avgR -0.0999
-  G>15 x0.25        401      106       51       -3    XX   +0.000 +0.000 +0.513 -0.217 +0.104 -0.105
-  G>15 x0.40        401      106       49       -5    XX   +0.000 +0.000 +0.518 -0.227 +0.098 -0.121
-  G>15 x0.50        401      106       47       -7    XX   +0.000 +0.000 +0.521 -0.234 +0.094 -0.131
-  G>15 x0.75        401      106       44      -10    XX   +0.000 +0.000 +0.528 -0.250 +0.087 -0.153
-     ^ the (15,22] band alone: n=106, unweighted avgR -0.1378
-  G>12 x0.25        453      158       48       -6    XX   +0.000 +0.000 +0.513 -0.233 +0.099 -0.106
-  G>12 x0.40        453      158       44      -10    XX   +0.000 +0.000 +0.518 -0.252 +0.091 -0.121
-  G>12 x0.50        453      158       42      -12    XX   +0.000 +0.000 +0.521 -0.263 +0.087 -0.131
-  G>12 x0.75        453      158       35      -19    XX   +0.000 +0.000 +0.528 -0.288 +0.078 -0.151
-     ^ the (12,22] band alone: n=158, unweighted avgR -0.1612
+  LIVE (adx>22)    11412        0      865        -    XX   -0.037 +0.114 +0.091 +0.105 +0.065 -0.001
+  G>18 x0.25      13862     2672      860       -5    XX   -0.041 +0.114 +0.090 +0.104 +0.062 -0.006
+  G>18 x0.40      13862     2672      874   +     9    XX   -0.042 +0.115 +0.090 +0.102 +0.060 -0.007
+  G>18 x0.50      13862     2672      884   +    19    XX   -0.042 +0.115 +0.090 +0.102 +0.059 -0.008
+  G>18 x0.75      13862     2672      908   +    43    XX   -0.043 +0.117 +0.090 +0.100 +0.057 -0.010
+     ^ the (18,22] band alone: n=2672, unweighted avgR +0.0363
+  G>15 x0.25      15914     4822      866   +     2    XX   -0.041 +0.112 +0.091 +0.101 +0.061 -0.009
+  G>15 x0.40      15914     4822      879   +    14    XX   -0.043 +0.111 +0.092 +0.098 +0.059 -0.012
+  G>15 x0.50      15914     4822      888   +    23    XX   -0.044 +0.111 +0.092 +0.096 +0.057 -0.014
+  G>15 x0.75      15914     4822      909   +    44    XX   -0.047 +0.109 +0.092 +0.091 +0.054 -0.018
+     ^ the (15,22] band alone: n=4822, unweighted avgR +0.0177
+  G>12 x0.25      17993     6941      866   +     1    XX   -0.038 +0.110 +0.092 +0.095 +0.059 -0.012
+  G>12 x0.40      17993     6941      892   +    27    XX   -0.039 +0.109 +0.094 +0.089 +0.057 -0.017
+  G>12 x0.50      17993     6941      909   +    44    XX   -0.039 +0.109 +0.095 +0.086 +0.056 -0.020
+  G>12 x0.75      17993     6941      951   +    87    XX   -0.039 +0.109 +0.097 +0.079 +0.053 -0.027
+     ^ the (12,22] band alone: n=6941, unweighted avgR +0.0245
 
-  DEPLOY BAR: size-weighted totR must EXCEED the live 54R AND stay
+  DEPLOY BAR: size-weighted totR must EXCEED the live 865R AND stay
   positive in all 6 windows. Trade count rises by construction (rule 5 safe).
   If every row fails, the answer to "more, faster trades" is settled: the
   signals we discard are discarded for a reason, at every size.
