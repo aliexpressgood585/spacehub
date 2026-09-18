@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, type CSSProperties } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo, type CSSProperties } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
 const SUPA_URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || 'https://adxgadwghgkwmntsnrar.supabase.co'
@@ -21,11 +21,6 @@ interface Trade {
   riskUsd?:number
   slPct?:number; tpPct?:number
   partialDone?:boolean; closedTs?:number
-}
-interface Sig {
-  dir:'BUY'|'SELL'|'HOLD'; score:number; f:boolean[]
-  rsi:number; adx:number; volOk:boolean; mtf:boolean
-  bb:{upper:number;mid:number;lower:number}
 }
 interface PriceInfo { price:number; change:number }
 interface OptimizerRun {
@@ -74,14 +69,17 @@ const REGIME_COLOR: Record<string,string> = {
   TREND_UP: C.green, TREND_DOWN: C.red, RANGING: C.blue, VOLATILE: C.yellow,
 }
 const RISK_HE: Record<RiskType,string> = { low:'נמוך', medium:'בינוני', high:'גבוה' }
-const RISK = {
-  low:    { riskPct:0.006, sl:0.008, maxPos:5,  maxDayLoss:0.02 },
-  medium: { riskPct:0.010, sl:0.010, maxPos:30, maxDayLoss:0.03 },
-  high:   { riskPct:0.016, sl:0.013, maxPos:30, maxDayLoss:0.04 },
-}
-const MIN_SCORE=3, MIN_ADX=12, COOLDOWN_MS=60_000, STALE_MS=45*60_000, STALE_BAND=0.0015
-const TP_MULT=2.4, PARTIAL_AT=1.2, MAX_NOTIONAL_PCT=1.0, CLOSE_COOLDOWN_MS=60_000, COIN_DISABLE_LOSSES=7
-const INIT_BAL=10000, MAX_BARS=600, BAR_MS=60_000, FEE_PCT=0.0005, LEVERAGE=10
+// v57.0: the client-side 5-minute paper engine that used to live in this file is
+// gone — its risk table, entry/exit thresholds, confluence scoring and indicator
+// panel with it. It had been unreachable for many versions (every entry point
+// began `if (supaModeRef.current) return`), but it still PAINTED the page: fixed
+// "SL 1.0% · TP 2.4%", a 5-flag EMA/RSI/MACD/BB/Stoch score and BUY/SELL banners
+// that had nothing to do with the DONCH4H/ROTA bot the server actually runs. An
+// external reviewer read those and concluded a second 5m engine was trading live.
+// A dashboard that shows a strategy nobody runs is not a cosmetic problem: it
+// makes every number on the page unattributable. What remains is a viewer of the
+// server bot — live prices, its positions, its equity, its config.
+const INIT_BAL=10000, MAX_BARS=600, BAR_MS=60_000
 
 const COINS = [
   {sym:'BTC', ws:'btcusdt'}, {sym:'ETH', ws:'ethusdt'}, {sym:'SOL', ws:'solusdt'},
@@ -98,27 +96,21 @@ const COINS = [
 ]
 
 // ─── math ─────────────────────────────────────────────────────────────────────
-function calcEma(src:number[],p:number):number[]{const k=2/(p+1);const out=[src[0]];for(let i=1;i<src.length;i++)out.push(src[i]*k+out[i-1]*(1-k));return out}
-function calcRsi(src:number[],p=14):number{if(src.length<p+1)return 50;let g=0,l=0;for(let i=src.length-p;i<src.length;i++){const d=src[i]-src[i-1];if(d>0)g+=d;else l-=d}return 100-100/(1+(g/p)/((l/p)||1e-9))}
-function calcMacd(src:number[]):number{if(src.length<26)return 0;const e12=calcEma(src,12),e26=calcEma(src,26);const ml=e12.map((v,i)=>v-e26[i]);const sig=calcEma(ml,9);const n=ml.length-1;return ml[n]-sig[n]}
-function calcBB(src:number[],p=20,m=2):{upper:number;mid:number;lower:number}{const sl=src.length>=p?src.slice(-p):src;const mid=sl.reduce((a,b)=>a+b,0)/sl.length;const std=Math.sqrt(sl.reduce((a,b)=>a+(b-mid)**2,0)/sl.length);return{upper:mid+m*std,mid,lower:mid-m*std}}
-function calcStochRsi(src:number[],p=14):{k:number;d:number}{if(src.length<p*2)return{k:50,d:50};const rsiArr:number[]=[];for(let i=p;i<src.length;i++)rsiArr.push(calcRsi(src.slice(0,i+1),p));if(rsiArr.length<p)return{k:50,d:50};const rec=rsiArr.slice(-p);const lo=Math.min(...rec),hi=Math.max(...rec);const k=hi===lo?50:((rsiArr[rsiArr.length-1]-lo)/(hi-lo))*100;const ks=rsiArr.slice(-3).map((_v,i2,a)=>{const sl2=rsiArr.slice(0,rsiArr.length-a.length+1+i2);const rr=sl2.slice(-p);const l2=Math.min(...rr),h2=Math.max(...rr);return h2===l2?50:((sl2[sl2.length-1]-l2)/(h2-l2))*100});return{k,d:ks.reduce((a,b)=>a+b,0)/ks.length}}
-function calcAdx(bars:Bar[],p=14):number{if(bars.length<p+2)return 20;const sl=bars.slice(-(p+1));let trS=0,plusS=0,minS=0;for(let i=1;i<sl.length;i++){const c=sl[i],pv=sl[i-1];const tr=Math.max(c.high-c.low,Math.abs(c.high-pv.close),Math.abs(c.low-pv.close));const up=c.high-pv.high,dn=pv.low-c.low;trS+=tr;plusS+=(up>dn&&up>0)?up:0;minS+=(dn>up&&dn>0)?dn:0}if(!trS)return 20;const pDI=plusS/trS*100,mDI=minS/trS*100;return Math.abs(pDI-mDI)/((pDI+mDI)||1)*100}
-function calcAtr(bars:Bar[],p=14):number{if(bars.length<2)return bars[0]?(bars[0].high-bars[0].low):1;const trs=bars.slice(-(p+1)).map((b,i,a)=>{if(i===0)return b.high-b.low;return Math.max(b.high-b.low,Math.abs(b.high-a[i-1].close),Math.abs(b.low-a[i-1].close))});return trs.reduce((a,b)=>a+b,0)/trs.length}
-function buildNBars(bars1m:Bar[],n:number):Bar[]{const out:Bar[]=[];for(let i=0;i+n-1<bars1m.length;i+=n){const sl=bars1m.slice(i,i+n);out.push({time:sl[0].time,open:sl[0].open,high:Math.max(...sl.map(b=>b.high)),low:Math.min(...sl.map(b=>b.low)),close:sl[n-1].close,vol:sl.reduce((a,b)=>a+b.vol,0)})}return out}
-function build5mBars(bars1m:Bar[]):Bar[]{return buildNBars(bars1m,5)}
-function trend15m(bars1m:Bar[]):'UP'|'DOWN'|'NEUTRAL'{const b15=buildNBars(bars1m,15);if(b15.length<25)return 'NEUTRAL';const cl=b15.map(b=>b.close),n=cl.length-1;const e9=calcEma(cl,9),e21=calcEma(cl,21);return e9[n]>e21[n]?'UP':'DOWN'}
-function isVolOk(bars:Bar[]):boolean{if(bars.length<20)return true;const avg=bars.slice(-20).reduce((a,b)=>a+b.vol,0)/20;return bars[bars.length-1].vol>=avg*1.0}
-function getBtcBias(btcBars:Bar[]):'BULL'|'BEAR'|'NEUTRAL'{if(btcBars.length<20)return 'NEUTRAL';const cl=btcBars.map(b=>b.close);const rsi=calcRsi(cl,14);const e9=calcEma(cl,9),e21=calcEma(cl,21),n=cl.length-1;if(rsi>55&&e9[n]>e21[n])return 'BULL';if(rsi<45&&e9[n]<e21[n])return 'BEAR';return 'NEUTRAL'}
-function emptySig():Sig{return{dir:'HOLD',score:0,f:[false,false,false,false,false],rsi:50,adx:20,volOk:true,mtf:false,bb:{upper:0,mid:0,lower:0}}}
-function computeSig(bars:Bar[]):Sig{if(bars.length<35)return emptySig();const cl=bars.map(b=>b.close),n=cl.length-1;const e9=calcEma(cl,9),e21=calcEma(cl,21);const emaBull=e9[n]>e21[n];const rsi=calcRsi(cl,14);const rsiBull=rsi>52&&rsi<76,rsiBear=rsi<48&&rsi>24;const hist=calcMacd(cl);const macdBull=hist>0;const bb=calcBB(cl);const p=cl[n];const bbBull=p>bb.mid&&p<bb.upper,bbBear=p<bb.mid&&p>bb.lower;const{k,d}=calcStochRsi(cl);const stochBull=k>d&&k<80,stochBear=k<d&&k>20;const adx=calcAdx(bars);const vok=isVolOk(bars);const bF=[emaBull,rsiBull,macdBull,bbBull,stochBull];const sF=[!emaBull,rsiBear,!macdBull,bbBear,stochBear];const bS=bF.filter(Boolean).length,sS=sF.filter(Boolean).length;if(bS>=3)return{dir:'BUY',score:bS,f:bF,rsi,adx,volOk:vok,mtf:false,bb};if(sS>=3)return{dir:'SELL',score:sS,f:sF,rsi,adx,volOk:vok,mtf:false,bb};return{dir:'HOLD',score:Math.max(bS,sS),f:bF,rsi,adx,volOk:vok,mtf:false,bb}}
-function getMultiTFSig(bars1m:Bar[]):Sig{const s1=computeSig(bars1m);const bars5m=build5mBars(bars1m);if(bars5m.length<25)return s1;const s5=computeSig(bars5m);if(s1.dir==='HOLD')return s1;if(s5.dir===s1.dir)return{...s1,score:Math.min(5,s1.score+1),mtf:true};return s1}
+// v57.0: the legacy indicator math (EMA/RSI/MACD/BB/StochRSI/ADX/ATR, the 1m->5m/15m
+// bar builders and the 5-flag confluence scorer) was only ever fed to the retired
+// client-side engine and to the panel that displayed its verdict. Deleted with it.
+// The strategy indicators that matter now are computed server-side, in the bot.
 function calcSharpe(trades:Trade[]):number{const cl=trades.filter(t=>t.pnlPct!==undefined);if(cl.length<3)return 0;const r=cl.map(t=>t.pnlPct!);const m=r.reduce((a,b)=>a+b,0)/r.length;const s=Math.sqrt(r.reduce((a,b)=>a+(b-m)**2,0)/r.length)||1e-9;return(m/s)*Math.sqrt(252)}
 function calcMaxDD(trades:Trade[]):number{let bal=INIT_BAL,peak=INIT_BAL,mx=0;for(const t of trades){if(t.pnl){bal+=t.pnl;if(bal>peak)peak=bal;mx=Math.max(mx,(peak-bal)/peak)}}return mx*100}
 function mapDbTrade(t:Record<string,unknown>):Trade{return{id:t.id as number,sym:t.sym as string,side:t.side as 'LONG'|'SHORT',entry:Number(t.entry_price),exit:t.exit_price!=null?Number(t.exit_price):undefined,size:Number(t.size),pnl:t.pnl!=null?Number(t.pnl):undefined,pnlPct:t.pnl_pct!=null?Number(t.pnl_pct):undefined,ts:new Date(t.opened_at as string).getTime(),closedTs:t.closed_at?new Date(t.closed_at as string).getTime():undefined,status:t.status as 'OPEN'|'TP'|'SL'|'TRAIL',hi:Number(t.hi),lo:Number(t.lo),trailSL:Number(t.trail_sl),fee:Number(t.fee),strategy:(t.strategy as string)||'LEGACY',riskUsd:t.risk_usd!=null?Number(t.risk_usd):undefined}}
 
 // ─── canvas renderers ─────────────────────────────────────────────────────────
-function drawCandles(canvas:HTMLCanvasElement,bars:Bar[],sig:Sig){
+// v57.0: price only. The EMA9/21 lines, the Bollinger band fill and the BUY/SELL
+// dot were the retired 5m engine's view of the market, drawn on 1-minute bars —
+// nothing the server bot looks at. Painting them next to the bot's real P&L
+// implied the two were related. Candles and the last price stay; a position
+// marker replaces the signal dot, because that IS something the bot decided.
+function drawCandles(canvas:HTMLCanvasElement,bars:Bar[],pos?:'LONG'|'SHORT'){
   const ctx=canvas.getContext('2d');if(!ctx||bars.length<3)return
   const W=canvas.width,H=canvas.height
   ctx.clearRect(0,0,W,H)
@@ -131,18 +123,6 @@ function drawCandles(canvas:HTMLCanvasElement,bars:Bar[],sig:Sig){
   const hi=Math.max(...sl.map(b=>b.high))*1.0012
   const toY=(v:number)=>H-2-((v-lo)/(hi-lo))*(H-4)
   const cw=(W-4)/sl.length
-  const cl=sl.map(b=>b.close)
-  const e9=calcEma(cl,9),e21=calcEma(cl,21)
-  // BB band fill
-  const bbArr=cl.map((_,i)=>calcBB(cl.slice(0,i+1)))
-  ctx.beginPath();bbArr.forEach((bb,i)=>{i===0?ctx.moveTo(i*cw+cw/2+2,toY(bb.upper)):ctx.lineTo(i*cw+cw/2+2,toY(bb.upper))})
-  for(let i=bbArr.length-1;i>=0;i--)ctx.lineTo(i*cw+cw/2+2,toY(bbArr[i].lower))
-  ctx.closePath();ctx.fillStyle='rgba(0,200,255,0.05)';ctx.fill()
-  // EMA lines
-  ctx.beginPath();e21.forEach((v,i)=>{i===0?ctx.moveTo(i*cw+cw/2+2,toY(v)):ctx.lineTo(i*cw+cw/2+2,toY(v))})
-  ctx.strokeStyle='rgba(240,24,122,0.55)';ctx.lineWidth=1.2;ctx.stroke()
-  ctx.beginPath();e9.forEach((v,i)=>{i===0?ctx.moveTo(i*cw+cw/2+2,toY(v)):ctx.lineTo(i*cw+cw/2+2,toY(v))})
-  ctx.strokeStyle='rgba(0,200,255,0.7)';ctx.lineWidth=1.5;ctx.stroke()
   // candles
   sl.forEach((b,i)=>{
     const x=i*cw+2;const isUp=b.close>=b.open
@@ -158,12 +138,13 @@ function drawCandles(canvas:HTMLCanvasElement,bars:Bar[],sig:Sig){
   ctx.fillStyle='rgba(2,8,20,0.9)';ctx.fillRect(2,toY(lp)-13,72,14)
   ctx.fillStyle=C.green;ctx.font='bold 10px monospace'
   ctx.fillText(lp>=100?lp.toFixed(2):lp.toFixed(5),4,toY(lp)-1)
-  // signal dot
-  ctx.beginPath();ctx.arc(W-10,10,6,0,Math.PI*2)
-  const dotCol=sig.dir==='BUY'?C.green:sig.dir==='SELL'?C.red:C.muted
-  ctx.fillStyle=dotCol
-  if(sig.dir!=='HOLD'){ctx.shadowColor=dotCol;ctx.shadowBlur=12}
-  ctx.fill();ctx.shadowBlur=0
+  // open-position marker (the bot's, not a suggestion)
+  if(pos){
+    const col=pos==='LONG'?C.green:C.red
+    ctx.fillStyle=col;ctx.font='bold 9px monospace';ctx.textAlign='right'
+    ctx.fillText(pos==='LONG'?'\u25b2 LONG':'\u25bc SHORT',W-6,13)
+    ctx.textAlign='left'
+  }
 }
 
 function drawEquity(canvas:HTMLCanvasElement,trades:Trade[]){
@@ -224,7 +205,10 @@ function drawScope(canvas:HTMLCanvasElement,hist:{ts:string;equity:number}[]){
   ctx.fillText(base.toLocaleString(undefined,{maximumFractionDigits:0}),lx+12,Y(base)+byOff)
 }
 
-function drawBubbles(canvas:HTMLCanvasElement,allSigs:Record<string,Sig>,prices:Record<string,PriceInfo>){
+// v57.0: the market map used to colour each bubble by the retired engine's
+// BUY/SELL verdict. It now shows what is actually true: 24h move, and whether
+// the server bot holds that coin and on which side.
+function drawBubbles(canvas:HTMLCanvasElement,pos:Record<string,'LONG'|'SHORT'>,prices:Record<string,PriceInfo>){
   const ctx=canvas.getContext('2d');if(!ctx)return
   const W=canvas.width,H=canvas.height
   ctx.clearRect(0,0,W,H)
@@ -232,16 +216,16 @@ function drawBubbles(canvas:HTMLCanvasElement,allSigs:Record<string,Sig>,prices:
   COINS.forEach((coin,i)=>{
     const col=i%cols,row=Math.floor(i/cols)
     const cx=col*cw+cw/2,cy=row*ch+ch/2
-    const s=allSigs[coin.sym];const chg=prices[coin.sym]?.change||0
-    const r=Math.min(cw,ch)*0.38;const dir=s?.dir||'HOLD'
-    const fill=dir==='BUY'?'rgba(0,245,160,0.15)':dir==='SELL'?'rgba(255,58,94,0.15)':'rgba(10,20,50,0.5)'
-    const stroke=dir==='BUY'?C.green:dir==='SELL'?C.red:C.muted
+    const side=pos[coin.sym];const chg=prices[coin.sym]?.change||0
+    const r=Math.min(cw,ch)*0.38
+    const fill=side==='LONG'?'rgba(0,245,160,0.15)':side==='SHORT'?'rgba(255,58,94,0.15)':'rgba(10,20,50,0.5)'
+    const stroke=side==='LONG'?C.green:side==='SHORT'?C.red:C.muted
     ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2)
     ctx.fillStyle=fill;ctx.fill()
-    if(dir!=='HOLD'){ctx.shadowColor=stroke;ctx.shadowBlur=14}
-    ctx.strokeStyle=stroke;ctx.lineWidth=dir==='HOLD'?0.4:1.8;ctx.stroke()
+    if(side){ctx.shadowColor=stroke;ctx.shadowBlur=14}
+    ctx.strokeStyle=stroke;ctx.lineWidth=side?1.8:0.4;ctx.stroke()
     ctx.shadowBlur=0
-    ctx.fillStyle=dir==='BUY'?C.green:dir==='SELL'?C.red:C.text
+    ctx.fillStyle=side?stroke:C.text
     ctx.font=`bold ${Math.max(8,r*0.44)}px monospace`;ctx.textAlign='center';ctx.textBaseline='middle'
     ctx.fillText(coin.sym,cx,cy-3)
     ctx.font=`${Math.max(7,r*0.3)}px monospace`
@@ -256,7 +240,7 @@ function LivePosition({t,live,fmtP,onClose}:{t:Trade;live?:{cur:number;pnl:numbe
   const cur      = live?.cur ?? t.entry
   const dirM     = t.side==='LONG'?1:-1
   const pnl      = live?.pnl ?? ((cur-t.entry)*dirM*t.size)
-  const pct      = live?.pct ?? ((cur-t.entry)/t.entry*dirM*100)   // v49.1: real price-move % (was ×LEVERAGE display)
+  const pct      = live?.pct ?? ((cur-t.entry)/t.entry*dirM*100)   // v49.1: real price-move %, never a leveraged display
   const col      = pnl>=0?C.green:C.red
   const notional = +(t.entry*t.size).toFixed(2)
 
@@ -578,8 +562,6 @@ export default function CryptoTradingDashboard() {
   const [eqRangeDays,setEqRangeDays]=useState<number>(0)
   const [botOn,setBotOn]           = useState(true)
   const [trades,setTrades]         = useState<Trade[]>([])
-  const [sig,setSig]               = useState<Sig>(emptySig())
-  const [allSigs,setAllSigs]       = useState<Record<string,Sig>>({})
   const [tick,setTick]             = useState(0)
   const [wsStatus,setWsStatus]     = useState<'connecting'|'live'|'error'>('connecting')
   const [supaStatus,setSupaStatus] = useState<'off'|'connecting'|'live'|'error'>(SUPA_URL&&SUPA_KEY?'connecting':'off')
@@ -594,6 +576,8 @@ export default function CryptoTradingDashboard() {
   const [regimeHistory,setRegimeHistory] = useState<RegimeRow[]>([])
   const [coinWeights,setCoinWeights]    = useState<Record<string,number>>({})
   const [rebalancedAt,setRebalancedAt]  = useState<string|null>(null)
+  // v57.0: which build is actually serving, straight from the bot's own manifest
+  const [release,setRelease]=useState<{sha:string;bot_version:string}|null>(null)
   const [livePositions,setLivePositions]= useState<Record<number,{cur:number;pnl:number;pct:number}>>({})
   const [extraWsSyms,setExtraWsSyms]   = useState<string[]>([])
   const [toasts,setToasts]             = useState<{id:number;msg:string;color:string;pnl?:number}[]>([])
@@ -611,13 +595,10 @@ export default function CryptoTradingDashboard() {
   const bubRef     = useRef<HTMLCanvasElement>(null)
   const scopeRef   = useRef<HTMLCanvasElement>(null)
   const cooldown   = useRef<Record<string,number>>({})
-  const allSigsRef = useRef<Record<string,Sig>>({})
-  const sigTimer   = useRef(0)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supaRef    = useRef<any>(null)
   const supaModeRef= useRef(!!SUPA_URL&&!!SUPA_KEY)
   const logRef     = useRef<string[]>([])
-  const dayRef     = useRef<{date:string,start:number}>({date:'',start:INIT_BAL})
   const toastIdRef = useRef(0)
   const prevTradeIdsRef    = useRef<Set<number>>(new Set())
   const prevTradeStatusRef = useRef<Record<number,string>>({})
@@ -655,126 +636,10 @@ export default function CryptoTradingDashboard() {
     }
   },[trades,addToast])
 
-  // Kept, unwired: close-trade is owner-only from v56.8 (service-role key required),
-  // so this cannot work from a public page. Left in place as the shape of the owner
-  // path for whenever manual close moves behind a real login.
-  const handleManualClose=useCallback(async(t:Trade)=>{
-    if(!SUPA_URL){addLog('⚠ Supabase לא מחובר');return}
-    const live=livePositions[t.id]
-    const exitPrice=live?.cur??t.entry
-    const dirM=t.side==='LONG'?1:-1
-    const pnl=(exitPrice-t.entry)*dirM*t.size-exitPrice*t.size*FEE_PCT
-    const pnlPct=(exitPrice-t.entry)/t.entry*dirM*100
-    try {
-      const resp=await fetch(`${SUPA_URL}/functions/v1/close-trade`,{
-        method:'POST',
-        headers:{'Content-Type':'application/json','Authorization':`Bearer ${SUPA_KEY}`},
-        body:JSON.stringify({trade_id:t.id,exit_price:exitPrice,pnl,pnl_pct:pnlPct}),
-      })
-      const json=await resp.json()
-      if(json.error){addLog(`⚠ שגיאה: ${json.error}`);return}
-      // update local state immediately — don't wait for realtime event
-      const closed:Trade={...t,status:'MANUAL' as Trade['status'],exit:exitPrice,pnl,pnlPct}
-      setTrades(prev=>{const next=prev.map(x=>x.id===t.id?closed:x);tradeRef.current=next;return next})
-      setLivePositions(prev=>{const next={...prev};delete next[t.id];return next})
-      addLog(`✕ סגור ידני ${t.sym} @ ${exitPrice>=100?exitPrice.toFixed(2):exitPrice.toFixed(5)} ${pnl>=0?'+':''}${pnl.toFixed(2)}$`)
-    } catch(e:unknown){addLog(`⚠ שגיאה: ${e instanceof Error?e.message:String(e)}`)}
-  },[livePositions,addLog])
-
-  const openTrade=useCallback((sym:string,side:'LONG'|'SHORT',price:number,s:Sig)=>{
-    if(supaModeRef.current)return
-    const now=Date.now()
-    if((cooldown.current[sym]||0)+COOLDOWN_MS>now)return
-    if(s.score<MIN_SCORE||s.adx<MIN_ADX||!s.volOk)return
-    const R=RISK[riskRef.current]
-    const today=new Date().toISOString().slice(0,10)
-    if(dayRef.current.date!==today)dayRef.current={date:today,start:balRef.current}
-    if((dayRef.current.start-balRef.current)/dayRef.current.start>=R.maxDayLoss)return
-    const closedForSym=tradeRef.current.filter(t=>t.sym===sym&&t.status!=='OPEN')
-    const last10=closedForSym.slice(-10)
-    if(last10.length>=10&&last10.filter(t=>(t.pnl||0)<0).length>=COIN_DISABLE_LOSSES)return
-    const lastClosedTs=closedForSym.reduce((m,t)=>Math.max(m,t.closedTs||0),0)
-    if(lastClosedTs+CLOSE_COOLDOWN_MS>now)return
-    const btcBars=barsMap.current.get('BTC')||[]
-    const bias=getBtcBias(btcBars)
-    if(sym!=='BTC'&&side==='LONG'&&bias==='BEAR')return
-    if(sym!=='BTC'&&side==='SHORT'&&bias==='BULL')return
-    const bars=barsMap.current.get(sym)||[]
-    const t15=trend15m(bars)
-    if(side==='LONG'&&t15==='DOWN')return
-    if(side==='SHORT'&&t15==='UP')return
-    const openCount=tradeRef.current.filter(t=>t.status==='OPEN').length
-    if(openCount>=R.maxPos)return
-    const atrPct=calcAtr(bars)/price
-    const slPct=Math.min(Math.max(atrPct*1.3,R.sl*0.6),R.sl*1.8)
-    const tpPct=slPct*TP_MULT
-    const riskAmt=balRef.current*R.riskPct
-    let notional=riskAmt/slPct
-    notional=Math.min(notional,balRef.current*MAX_NOTIONAL_PCT,balRef.current*0.95)
-    if(notional<5)return
-    const size=notional/price
-    const fee=price*size*FEE_PCT
-    const trailSL=side==='LONG'?price*(1-slPct):price*(1+slPct)
-    const t:Trade={id:idRef.current++,sym,side,entry:price,size,ts:now,status:'OPEN',hi:price,lo:price,trailSL,fee,slPct,tpPct}
-    cooldown.current[sym]=now
-    const next=[...tradeRef.current,t];tradeRef.current=next;setTrades([...next])
-    setBalance(b=>{const nb=b-notional-fee;balRef.current=nb;return nb})
-    addLog(`▲ פתיחה ${sym} ${side} @ ${price>=100?price.toFixed(2):price.toFixed(5)} [${s.score}/5]`)
-  },[addLog])
-
-  const checkTrades=useCallback((sym:string,price:number)=>{
-    if(supaModeRef.current)return
-    const R=RISK[riskRef.current];let dirty=false;const now=Date.now()
-    const partials:Trade[]=[]
-    const updated=tradeRef.current.map(t=>{
-      if(t.sym!==sym||t.status!=='OPEN')return t
-      const nt={...t}
-      const slPct=nt.slPct??R.sl,tpPct=nt.tpPct??R.sl*TP_MULT
-      const dirM=nt.side==='LONG'?1:-1
-      const fav=(price-nt.entry)/nt.entry*dirM
-      if(price>nt.hi)nt.hi=price;if(price<nt.lo)nt.lo=price
-      if(!nt.partialDone&&fav>=PARTIAL_AT*slPct){
-        const half=nt.size/2;const raw=fav*nt.entry*half
-        const exitFee=price*half*FEE_PCT;const halfEntryFee=nt.fee/2
-        const pnl=raw-halfEntryFee-exitFee
-        partials.push({id:idRef.current++,sym,side:nt.side,entry:nt.entry,exit:price,size:half,pnl,pnlPct:fav,ts:nt.ts,closedTs:now,status:'TP',hi:price,lo:price,trailSL:nt.trailSL,fee:halfEntryFee,partialDone:true,slPct,tpPct})
-        nt.size=half;nt.fee=halfEntryFee;nt.partialDone=true
-        const be=nt.entry*(1+dirM*2*FEE_PCT)
-        if(dirM===1&&be>nt.trailSL)nt.trailSL=be
-        if(dirM===-1&&be<nt.trailSL)nt.trailSL=be
-        setBalance(b=>{const nb=b+nt.entry*half+pnl;balRef.current=nb;return nb})
-        addLog(`◐ חלקי ${sym} @ ${price>=100?price.toFixed(2):price.toFixed(5)} +${pnl.toFixed(2)}`)
-        dirty=true
-      }
-      if(nt.side==='LONG'){
-        if(price>=nt.entry*(1+0.5*slPct)){const cand=price*(1-0.6*slPct);if(cand>nt.trailSL){nt.trailSL=cand;dirty=true}}
-        if(price>=nt.entry*(1+slPct)){const be=nt.entry*(1+2*FEE_PCT);if(be>nt.trailSL){nt.trailSL=be;dirty=true}}
-        const sl=Math.max(nt.trailSL,nt.entry*(1-slPct))
-        if(price>=nt.entry*(1+tpPct)){nt.status='TP';nt.exit=price;dirty=true}
-        else if(price<=sl){nt.status=price<=nt.entry*(1-slPct)?'SL':'TRAIL';nt.exit=price;dirty=true}
-      } else {
-        if(price<=nt.entry*(1-0.5*slPct)){const cand=price*(1+0.6*slPct);if(cand<nt.trailSL){nt.trailSL=cand;dirty=true}}
-        if(price<=nt.entry*(1-slPct)){const be=nt.entry*(1-2*FEE_PCT);if(be<nt.trailSL){nt.trailSL=be;dirty=true}}
-        const sl=Math.min(nt.trailSL,nt.entry*(1+slPct))
-        if(price<=nt.entry*(1-tpPct)){nt.status='TP';nt.exit=price;dirty=true}
-        else if(price>=sl){nt.status=price>=nt.entry*(1+slPct)?'SL':'TRAIL';nt.exit=price;dirty=true}
-      }
-      if(nt.status==='OPEN'&&now-nt.ts>STALE_MS){
-        const uPct=(price-nt.entry)/nt.entry*(nt.side==='LONG'?1:-1)
-        if(Math.abs(uPct)<STALE_BAND){nt.status='TRAIL';nt.exit=price;dirty=true}
-      }
-      if(nt.exit!==undefined&&nt.pnl===undefined){
-        const raw=nt.side==='LONG'?(nt.exit-nt.entry)*nt.size:(nt.entry-nt.exit)*nt.size
-        const exitFee=nt.exit*nt.size*FEE_PCT
-        nt.pnl=raw-nt.fee-exitFee;nt.pnlPct=(nt.exit-nt.entry)/nt.entry*(nt.side==='LONG'?1:-1);nt.closedTs=now
-        setBalance(b=>{const nb=b+nt.entry*nt.size+(nt.pnl as number);balRef.current=nb;return nb})
-        addLog(`${nt.status==='TP'?'✓ TP':'✗ '+nt.status} ${sym} P&L: ${(nt.pnl>=0?'+':'')}${nt.pnl.toFixed(2)}`)
-        dirty=true
-      }
-      return nt
-    })
-    if(dirty){const next=[...updated,...partials];tradeRef.current=next;setTrades(next)}
-  },[addLog])
+  // v57.0: handleManualClose, openTrade and checkTrades deleted. The two engine
+  // halves had been unreachable since supaMode became permanent (both opened with
+  // `if (supaModeRef.current) return`), and manual close is owner-only from v56.8 —
+  // close-trade now requires the service-role key, which a public page cannot hold.
 
   const processTick=useCallback((sym:string,price:number,vol:number)=>{
     const now=Date.now(),barStart=Math.floor(now/BAR_MS)*BAR_MS
@@ -784,7 +649,6 @@ export default function CryptoTradingDashboard() {
       cb={time:barStart,open:price,high:price,low:price,close:price,vol}
       curBar.current.set(sym,cb)
     } else {cb.close=price;if(price>cb.high)cb.high=price;if(price<cb.low)cb.low=price;cb.vol+=vol}
-    checkTrades(sym,price)
     // push live PnL for any open positions on this symbol
     const openForSym=tradeRef.current.filter(t=>t.sym===sym&&t.status==='OPEN')
     if(openForSym.length>0){
@@ -799,18 +663,8 @@ export default function CryptoTradingDashboard() {
         return next
       })
     }
-    const bars=[...(barsMap.current.get(sym)||[]),cb]
-    const s=getMultiTFSig(bars)
-    allSigsRef.current[sym]=s
-    const isSel=sym===selRef.current
-    if(isSel){setSig(s);setTick(n=>n+1)}
-    if(botRef.current&&s.dir!=='HOLD'&&!supaModeRef.current){
-      const openForSym=tradeRef.current.filter(t=>t.sym===sym&&t.status==='OPEN')
-      if(openForSym.length===0)openTrade(sym,s.dir==='BUY'?'LONG':'SHORT',price,s)
-    }
-    const elapsed=now-sigTimer.current
-    if(elapsed>500||isSel){sigTimer.current=now;setAllSigs({...allSigsRef.current})}
-  },[checkTrades,openTrade])
+    if(sym===selRef.current)setTick(n=>n+1)   // repaint the selected chart
+  },[])
 
   useEffect(()=>{
     const load=async()=>{
@@ -821,12 +675,10 @@ export default function CryptoTradingDashboard() {
           const data:number[][]=await res.json()
           const bars:Bar[]=data.map(k=>({time:k[0] as number,open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
           barsMap.current.set(coin.sym,bars.slice(0,-1))
-          const s=getMultiTFSig(bars);allSigsRef.current[coin.sym]=s
-          if(coin.sym===selRef.current)setSig(s)
+          if(coin.sym===selRef.current)setTick(n=>n+1)
         }catch{}
         await new Promise(r=>setTimeout(r,120))
       }
-      setAllSigs({...allSigsRef.current})
     }
     load()
   },[])
@@ -879,7 +731,9 @@ export default function CryptoTradingDashboard() {
       supa.from('market_regime').select('*').order('created_at',{ascending:false}).limit(20),
       supa.from('bot_equity').select('ts,equity').order('ts',{ascending:false}).limit(2000),
       supa.from('bot_equity').select('ts').order('ts',{ascending:true}).limit(1),
-    ]).then(([state,open,closed,optHist,regHist,eqHist,eqFirst])=>{
+      supa.from('deployment_manifest').select('sha,bot_version').order('first_seen',{ascending:false}).limit(1),
+    ]).then(([state,open,closed,optHist,regHist,eqHist,eqFirst,manifest])=>{
+      if(manifest&&!manifest.error&&manifest.data&&manifest.data[0])setRelease(manifest.data[0] as {sha:string;bot_version:string})
       if(eqHist&&!eqHist.error&&eqHist.data)setEquityHist([...eqHist.data].reverse().map((r:any)=>({ts:r.ts,equity:Number(r.equity)})))
       if(eqFirst&&!eqFirst.error&&eqFirst.data&&eqFirst.data[0])setEpochTs(new Date((eqFirst.data[0] as any).ts).getTime())
       if(state.data){
@@ -971,12 +825,21 @@ export default function CryptoTradingDashboard() {
     return ()=>{clearInterval(poll);clearInterval(syncPoll);if(retryTimeout)clearTimeout(retryTimeout);supa.removeChannel(ch)}
   },[addLog])
 
+  // v57.0: what the server bot actually holds, per coin. This replaces the map of
+  // client-side BUY/SELL verdicts that used to colour the strip, the table and the
+  // market map — the page now reports the bot's positions instead of its own opinion.
+  const posBySym=useMemo(()=>{
+    const m:Record<string,'LONG'|'SHORT'>={}
+    for(const t of trades) if(t.status==='OPEN') m[t.sym]=t.side
+    return m
+  },[trades])
+
   useEffect(()=>{
     if(!canvasRef.current)return
     const bars=[...(barsMap.current.get(selected)||[])]
     const cb=curBar.current.get(selected);if(cb)bars.push(cb)
-    if(bars.length>0)drawCandles(canvasRef.current,bars,sig)
-  },[tick,selected,sig])
+    if(bars.length>0)drawCandles(canvasRef.current,bars,posBySym[selected])
+  },[tick,selected,posBySym])
   useEffect(()=>{if(eqRef.current)drawEquity(eqRef.current,trades)},[trades])
   // v55: history filtered to the selected range (0 = all)
   const eqView=(()=>{
@@ -986,7 +849,7 @@ export default function CryptoTradingDashboard() {
     return f.length>=2?f:equityHist
   })()
   useEffect(()=>{if(scopeRef.current&&eqView.length>=2)drawScope(scopeRef.current,eqView)},[eqView])
-  useEffect(()=>{if(bubRef.current)drawBubbles(bubRef.current,allSigs,prices)},[allSigs,prices])
+  useEffect(()=>{if(bubRef.current)drawBubbles(bubRef.current,posBySym,prices)},[posBySym,prices])
 
   // v56.8 — these three controls write to bot_state with the ANON key, which RLS has
   // always blocked. PostgREST answers 204 with zero rows affected, the old code never
@@ -1095,7 +958,6 @@ export default function CryptoTradingDashboard() {
   const sharpe         = calcSharpe(trades)
   const maxDD          = calcMaxDD(trades)
   const selInfo        = prices[selected]
-  const R              = RISK[risk]
   const supaLive       = supaStatus==='live'
   const fmtP           = (p:number)=>p>=1000?p.toFixed(2):p>=1?p.toFixed(4):p.toFixed(6)
   const animBalance    = useAnimatedCounter(totalValue)
@@ -1151,7 +1013,9 @@ export default function CryptoTradingDashboard() {
               NEXUS TRADE
             </span>
             <span style={{fontSize:'8px',color:C.blue,padding:'2px 6px',border:`1px solid ${C.blue}40`,borderRadius:'4px',
-              boxShadow:`0 0 8px ${C.blue}30`,background:`${C.blue}10`}}>v56.9</span>
+              boxShadow:`0 0 8px ${C.blue}30`,background:`${C.blue}10`}}
+              title={release?`commit ${release.sha}`:'הגרסה החיה טרם נקראה'}>
+              {release?`${release.bot_version} · ${release.sha.slice(0,7)}`:'…'}</span>
           </div>
 
           <div style={{display:'flex',gap:'5px',flexWrap:'wrap' as const}}>
@@ -1260,9 +1124,9 @@ export default function CryptoTradingDashboard() {
       {/* ══ COIN STRIP ══ */}
       <div style={{display:'flex',gap:'4px',overflowX:'auto' as const,marginBottom:'8px',paddingBottom:'2px',scrollbarWidth:'none' as const}}>
         {COINS.map(c=>{
-          const info=prices[c.sym];const chg=info?.change||0;const cs=allSigs[c.sym]
+          const info=prices[c.sym];const chg=info?.change||0;const held=posBySym[c.sym]
           const active=selected===c.sym;const wt=coinWeights[c.sym]
-          const sigCol=cs?.dir==='BUY'?C.green:cs?.dir==='SELL'?C.red:undefined
+          const sigCol=held==='LONG'?C.green:held==='SHORT'?C.red:undefined
           return (
             <button key={c.sym} className="nx-btn" onClick={()=>setSelected(c.sym)} style={{
               flexShrink:0,minWidth:'64px',padding:'6px 7px',borderRadius:'10px',
@@ -1276,7 +1140,7 @@ export default function CryptoTradingDashboard() {
               <div style={{fontWeight:800,fontSize:'10px',color:active?C.pink:sigCol||C.text}}>{c.sym}</div>
               <div style={{fontSize:'8px',color:chg>0.5?C.green:chg<-0.5?C.red:C.muted}}>{chg>=0?'+':''}{chg.toFixed(1)}%</div>
               {wt&&<div style={{fontSize:'7px',color:wt>1.2?C.green:wt<0.8?C.red:C.muted,fontWeight:700}}>{wt.toFixed(1)}×</div>}
-              {cs?.dir!=='HOLD'&&<div style={{fontSize:'9px',fontWeight:900,color:sigCol||C.dim}}>{cs?.dir==='BUY'?'▲':'▼'}</div>}
+              {held&&<div style={{fontSize:'9px',fontWeight:900,color:sigCol}}>{held==='LONG'?'▲':'▼'}</div>}
             </button>
           )
         })}
@@ -1389,8 +1253,7 @@ export default function CryptoTradingDashboard() {
               </div>
             </div>
           )}
-          <div style={{background:'rgba(3,8,26,0.85)',border:`1px solid ${C.dim}`,borderRadius:'9px',padding:'7px 10px',fontSize:'9px',color:C.muted,backdropFilter:'blur(10px)'}}>
-            <div>SL <span style={{color:C.red}}>{(R.sl*100).toFixed(1)}%</span> · TP <span style={{color:C.green}}>{(R.sl*TP_MULT*100).toFixed(1)}%</span>          {eqPath&&(
+          {eqPath&&(
             <div style={{background:'rgba(3,8,26,0.85)',border:`1px solid ${C.dim}`,borderRadius:'9px',padding:'6px 10px'}}>
               <div style={{fontSize:'9px',color:C.muted,marginBottom:'2px'}}>עקומת הון (4 ימים)</div>
               <svg width="150" height="36" style={{display:'block'}}>
@@ -1398,17 +1261,22 @@ export default function CryptoTradingDashboard() {
               </svg>
             </div>
           )}
-          </div>
-            <div style={{marginTop:'2px'}}>מקס <span style={{color:C.yellow}}>{R.maxPos}</span> פוזיציות</div>
+          {/* v57.0: this card used to print "SL 1.0% · TP 2.4% · מקס 30 פוזיציות" —
+              the retired client engine's fixed levels, which the bot has never used.
+              These are the rules the server actually trades. */}
+          <div style={{background:'rgba(3,8,26,0.85)',border:`1px solid ${C.dim}`,borderRadius:'9px',padding:'7px 10px',fontSize:'9px',color:C.muted,backdropFilter:'blur(10px)'}}>
+            <div><span style={{color:C.cyan,fontWeight:800}}>DONCH4H</span> · דונצ'יאן 15 על נרות 4 שעות · שער <span style={{color:C.yellow}}>ADX&gt;22</span></div>
+            <div style={{marginTop:'2px'}}>סטופ <span style={{color:C.red}}>1.4×ATR</span> · יציאה <span style={{color:C.green}}>⅓@0.6R→BE · ⅓@1.0R · שליש נגרר</span></div>
+            <div style={{marginTop:'2px'}}><span style={{color:C.cyan,fontWeight:800}}>ROTA</span> · מומנטום 14 ימים כל 48 שעות · לונג 8 / שורט 8</div>
+            <div style={{marginTop:'2px'}}>סיכון בסיס <span style={{color:C.yellow}}>1.25%</span> לעסקה · תקרת חשיפה 95%</div>
           </div>
         </div>
 
         {/* CHART CARD */}
-        <Card3D style={{padding:'12px'}} color={sig.dir==='BUY'?C.green:sig.dir==='SELL'?C.red:C.blue}>
+        <Card3D style={{padding:'12px'}} color={posBySym[selected]==='LONG'?C.green:posBySym[selected]==='SHORT'?C.red:C.blue}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'8px'}}>
             <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
               <span style={{fontWeight:900,fontSize:'14px',color:C.bright}}>{selected}<span style={{color:C.muted,fontWeight:400}}>/USDT</span></span>
-              {sig.mtf&&<span style={{fontSize:'8px',padding:'2px 6px',borderRadius:'4px',background:`${C.blue}18`,color:C.blue,border:`1px solid ${C.blue}30`}}>✓ MTF</span>}
             </div>
             <div style={{textAlign:'right' as const}}>
               <div style={{fontWeight:900,fontSize:'15px',color:selInfo?.change>0?C.green:selInfo?.change<0?C.red:C.text}}>
@@ -1427,37 +1295,31 @@ export default function CryptoTradingDashboard() {
             <div className="scan-line"/>
           </div>
 
-          {/* indicator pills */}
-          <div style={{display:'flex',gap:'3px',flexWrap:'wrap' as const,marginBottom:'8px'}}>
-            {['EMA','RSI','MACD','BB','StochRSI'].map((lbl,i)=>(
-              <span key={lbl} style={{padding:'2px 7px',borderRadius:'5px',fontSize:'9px',fontWeight:700,
-                background:sig.f[i]?`${C.green}12`:`${C.red}10`,
-                color:sig.f[i]?C.green:C.red,
-                border:`1px solid ${sig.f[i]?C.green+'30':C.red+'25'}`,
-              }}>{lbl}</span>
-            ))}
-            <span style={{padding:'2px 7px',fontSize:'9px',color:C.muted}}>
-              RSI <strong style={{color:sig.rsi>70?C.red:sig.rsi<30?C.green:C.yellow}}>{sig.rsi.toFixed(0)}</strong>
-            </span>
-            <span style={{padding:'2px 7px',fontSize:'9px',color:C.muted}}>
-              ADX <strong style={{color:sig.adx>25?C.green:C.yellow}}>{sig.adx.toFixed(0)}</strong>
-            </span>
-          </div>
-
-          {/* signal banner */}
-          <div className={sig.dir==='BUY'?'sig-buy':sig.dir==='SELL'?'sig-sell':''} style={{
+          {/* v57.0: the EMA/RSI/MACD/BB/StochRSI pill row and the BUY/SELL banner
+              below it were the retired client engine's verdict on 1-minute bars.
+              They were the single most misleading thing on this page — a visitor
+              read "▲ קנייה 4/5" and assumed that was the bot. What the bot has to
+              say about this coin is whether it is holding it, so that is what is
+              shown; anything else would be this page inventing a signal again. */}
+          <div style={{
             padding:'10px 14px',borderRadius:'10px',textAlign:'center' as const,
-            fontWeight:900,fontSize:'16px',letterSpacing:'0.5px',
-            background:sig.dir==='BUY'
+            fontWeight:900,fontSize:'14px',letterSpacing:'0.5px',
+            background:posBySym[selected]==='LONG'
               ?`linear-gradient(135deg,${C.green}14,${C.teal}08)`
-              :sig.dir==='SELL'
+              :posBySym[selected]==='SHORT'
                 ?`linear-gradient(135deg,${C.red}14,${C.pink}08)`
                 :'rgba(10,20,50,0.5)',
-            border:`1px solid ${sig.dir==='BUY'?C.green+'45':sig.dir==='SELL'?C.red+'45':C.dim}`,
-            color:sig.dir==='BUY'?C.green:sig.dir==='SELL'?C.red:C.muted,
-            
+            border:`1px solid ${posBySym[selected]==='LONG'?C.green+'45':posBySym[selected]==='SHORT'?C.red+'45':C.dim}`,
+            color:posBySym[selected]==='LONG'?C.green:posBySym[selected]==='SHORT'?C.red:C.muted,
           }}>
-            {sig.dir==='BUY'?'▲ קנייה':sig.dir==='SELL'?'▼ מכירה':'— ממתין'} · {sig.score}/5
+            {(()=>{
+              const held=openTrades.filter(t=>t.sym===selected)
+              if(held.length===0)return '\u2014 הבוט לא מחזיק'
+              const side=held[0].side==='LONG'?'\u25b2 לונג':'\u25bc שורט'
+              const strat=[...new Set(held.map(t=>t.strategy))].join(' + ')
+              const pnl=held.reduce((a,t)=>a+(livePositions[t.id]?.pnl??0),0)
+              return `${side} · ${strat}${held.length>1?` \u00d7${held.length}`:''} · ${pnl>=0?'+':''}${pnl.toFixed(2)}$`
+            })()}
           </div>
         </Card3D>
       </div>
@@ -1512,7 +1374,7 @@ export default function CryptoTradingDashboard() {
             <table style={{width:'100%',borderCollapse:'collapse' as const,fontSize:'10px'}}>
               <thead>
                 <tr style={{background:'rgba(0,200,255,0.04)'}}>
-                  {['מטבע','מחיר','24%','ציון','RSI','ADX','משקל','סיגנל'].map(h=>(
+                  {['מטבע','מחיר','24%','משקל ROTA','אסטרטגיה','פוזיציה','P&L'].map(h=>(
                     <th key={h} style={{padding:'6px 8px',textAlign:'right' as const,color:C.muted,
                       borderBottom:`1px solid ${C.dim}`,fontWeight:700,fontSize:'9px',letterSpacing:'0.5px'}}>{h}</th>
                   ))}
@@ -1520,8 +1382,15 @@ export default function CryptoTradingDashboard() {
               </thead>
               <tbody>
                 {COINS.map(c=>{
-                  const info=prices[c.sym];const s=allSigs[c.sym];if(!info)return null
-                  const wt=coinWeights[c.sym];const sigCol=s?.dir==='BUY'?C.green:s?.dir==='SELL'?C.red:undefined
+                  const info=prices[c.sym];if(!info)return null
+                  // v57.0: score / RSI / ADX came from the retired client engine and
+                  // described a strategy nobody runs. These columns describe the bot.
+                  const wt=coinWeights[c.sym]
+                  const held=openTrades.filter(t=>t.sym===c.sym)
+                  const side=held[0]?.side
+                  const sigCol=side==='LONG'?C.green:side==='SHORT'?C.red:undefined
+                  const pnl=held.reduce((a,t)=>a+(livePositions[t.id]?.pnl??0),0)
+                  const strat=[...new Set(held.map(t=>t.strategy))].join('+')
                   return (
                     <tr key={c.sym} className="nx-row" onClick={()=>setSelected(c.sym)} style={{
                       cursor:'pointer',borderBottom:`1px solid ${C.dim}`,transition:'background 0.1s',
@@ -1529,12 +1398,13 @@ export default function CryptoTradingDashboard() {
                       <td style={{padding:'5px 8px',color:sigCol||C.blue,fontWeight:800}}>{c.sym}</td>
                       <td style={{padding:'5px 8px',color:C.text,fontFamily:'monospace'}}>{fmtP(info.price)}</td>
                       <td style={{padding:'5px 8px',color:info.change>0?C.green:info.change<0?C.red:C.muted,fontWeight:700}}>{info.change>=0?'+':''}{info.change.toFixed(2)}%</td>
-                      <td style={{padding:'5px 8px',color:s?.dir!=='HOLD'?C.cyan:C.dim,fontWeight:700}}>{s?.score||0}/5</td>
-                      <td style={{padding:'5px 8px',color:s?.rsi>70?C.red:s?.rsi<30?C.green:C.yellow}}>{s?.rsi.toFixed(0)||'—'}</td>
-                      <td style={{padding:'5px 8px',color:s?.adx>25?C.green:s?.adx>14?C.yellow:C.red}}>{s?.adx.toFixed(0)||'—'}</td>
                       <td style={{padding:'5px 8px',color:wt?(wt>1.2?C.green:wt<0.7?C.red:C.muted):C.dim,fontWeight:700}}>{wt?wt.toFixed(1)+'×':'—'}</td>
+                      <td style={{padding:'5px 8px',color:strat?C.cyan:C.dim,fontWeight:700,fontSize:'9px'}}>{strat||'—'}</td>
                       <td style={{padding:'5px 8px',fontWeight:900,color:sigCol||C.dim}}>
-                        {s?.dir==='BUY'?'▲ קנייה':s?.dir==='SELL'?'▼ מכירה':'—'}
+                        {side==='LONG'?'▲ לונג':side==='SHORT'?'▼ שורט':'—'}{held.length>1?` ×${held.length}`:''}
+                      </td>
+                      <td style={{padding:'5px 8px',fontWeight:700,fontFamily:'monospace',color:held.length===0?C.dim:pnl>=0?C.green:C.red}}>
+                        {held.length===0?'—':`${pnl>=0?'+':''}${pnl.toFixed(2)}`}
                       </td>
                     </tr>
                   )
