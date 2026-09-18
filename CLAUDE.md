@@ -16,13 +16,15 @@ because on BOTH lenses the INCUMBENT fails all-6 — the same two windows each
 time (w1, w6). The documented incumbent is 696R all-6-positive. Our scan
 reproduces its trade count (11,412 vs 11,218) but not its window profile.
 Either the scan is not the engine (no pyramiding / heat cap / ROTA interaction /
-per-coin caps) or the edge has decayed on data through 2026-09. Nothing we
-currently have can separate those two.
-→ So build ITEM 4 FIRST: one shared strategy module used by BOTH trading-bot and
-  backtest. Same entries, exits, ATR, ADX, Donchian, ROTA, sizing, trailing; real
-  bar timestamps not i*timeframe; correlation on returns not raw prices. Until it
-  exists, no strategy question can be answered honestly, including whether the
-  live config still clears its own bar. Then re-run v79bt against the real engine.
+per-coin caps) or the edge has decayed on data through 2026-09.
+→ **ITEM 4 IS NOW HALF DONE — see v59.0 below.** `shared/strategy.ts` exists and
+  BOTH the bot and the backtest import it: signal, gate, stop, sizing, ladder,
+  ROTA, every tuned constant. 138 assertions guard it, and the live bot's bars
+  now carry their timestamps. What is NOT done is the second half: the backtest
+  still has no capital-constrained PORTFOLIO simulator, so it still cannot model
+  pyramiding, the heat cap, the net/per-coin caps or the ROTA interaction. That
+  is the remaining work, and it is what the (a)-vs-(b) question actually needs.
+  Only then re-run v79bt.
 Do NOT deploy the sub-gate tier. It is neither accepted nor rejected.
 
 **How to run a backtest without the GitHub connector:** edit the first
@@ -76,6 +78,11 @@ asking, but NEVER violate the standing rules below.
    deploy it could not make.
 
 ## Architecture
+- **THE STRATEGY**: `shared/strategy.ts` (v59.0). Signal, ADX gate, stop distance,
+  sizing chain, ladder state machine, ROTA ranking/weights, CRYPTO_40 and every
+  tuned constant — pure functions, no Deno/Supabase/npm/network. The bot and the
+  backtest BOTH import it. Change a rule here or nowhere. Tests:
+  `bash scripts/run-tests.sh` (138 assertions + typecheck, no install, offline).
 - **Live bot**: `supabase/functions/trading-bot/index.ts` (Deno edge function,
   cron every minute, Supabase project `mdvheizhciuvqychtwxr`). Version header at top.
 - Two validated strategies:
@@ -601,6 +608,77 @@ owner holding); market_regime written by the bot alone; 0 LEGACY trades; 0 error
 NOT DONE, and not to be read as done: shared backtest/live engine module (item 4),
 order-intent ledger + idempotency keys (item 9), unit/parity test suites (item 11).
 Those are multi-day refactors across a 3,900-line bot and a 6,300-line backtest.
+
+## v59.0 (2026-09-18) — ONE strategy, two consumers (item 4, first half)
+The rules are no longer written down twice. `shared/strategy.ts` is now the only
+definition of the signal, the ADX gate, the stop distance, the sizing chain, the
+ladder state machine, the ROTA ranking and weights, and every tuned constant
+behind them; `supabase/functions/trading-bot/index.ts` and `backtest/backtest.ts`
+both import it. The bot imports it by RELATIVE path on purpose — the deploy shim
+pulls the bot from raw.githubusercontent at a pinned SHA, so `../../../shared/
+strategy.ts` resolves against that same SHA and the deployed bundle and the
+backtest run identical text.
+WHY THIS WAS THE BLOCKING ITEM: v79bt spent a full 36-month run and could not say
+whether the live config still passes its own bar, because a backtest that
+paraphrases the bot cannot answer a question about the bot. It still can't fully
+— see "what is still missing" — but the paraphrase is gone.
+VERIFIED BEFORE THE SWAP, not assumed: the live bot's `calcATR`/`calcADX` were
+extracted to a scratch file and run against the suite's fixture beside the shared
+module's. ATR20 1.1632112956, ADX60 31.6683034253, ADX15 8.7448526925 — identical
+to ten decimals, both functions. The backtest's copies were already identical to
+the bot's. So the indicator layer was never the divergence, which is itself worth
+knowing: whatever separates our scan from the documented run is in the PORTFOLIO
+layer, not the maths.
+WHAT THE REWIRE FOUND, all of it by reading rather than by anything failing:
+1. **The live bot threw away every bar timestamp.** Its `Bar` had no `t` field at
+   all and all three kline mappers (Binance, OKX, Bybit) dropped field 0. The bot
+   therefore could not answer "is this the bar that just closed?" and pushed every
+   timing decision onto `Date.now() % 14_400_000`. A fallback feed lagging one bar
+   would have produced a confident breakout off the wrong candle with nothing in
+   the log. Same family as v57.1's four-hour-old ROTA fills. Bars now carry `t`,
+   and the entry path journals `bar_lag_diagnostic` when the newest completed bar
+   is more than 15 min stale. DELIBERATELY DIAGNOSTIC ONLY — it never skips, because
+   standing rule 5 forbids adding a filter that cuts trades and the honest first
+   move on a suspected data fault is to measure it, not to act on a hypothesis.
+   If those rows accumulate in `bot_skips`, that is evidence and then it is a
+   decision.
+2. **`?donch_test=1` had its OWN Donchian scan** — its own `slice(-16,-1)`, its own
+   `adx4>22`. That endpoint is how EVERY deploy is verified. A verification that
+   re-implements the thing it verifies is not a verification. It now calls
+   `S.donchSignal` / `S.gateAdx`, and also reports `bar_open` per row.
+3. **THREE more copies of the 40-coin universe** were in the bot (the donch_test
+   filter, the scan filter, and FIXED_COINS). Rule 2 aside, `universe_hash` in the
+   release manifest is computed from one of them — so a silent edit to either of
+   the others would have left the manifest swearing the universe was unchanged.
+   One list now, `S.CRYPTO_40`, and the hash arithmetic moved with it byte-for-byte
+   (still `2d336399`, asserted in the suite).
+TESTS (item 11, partial): `tests/strategy.test.ts` — 105 assertions on the rules
+themselves, including golden indicator values taken FROM the live bot, the ladder
+walked end to end in R, every sizing cap, the pyramid thresholds, the ROTA weights
+and the collapsed-universe guard. `tests/parity.test.ts` — 33 structural assertions
+that neither consumer has grown a second copy of a rule, that the paper lock is
+intact, that no trade insert is untagged and that no kline mapper drops `t`.
+`scripts/run-tests.sh` runs both plus a typecheck of all three files; it needs no
+npm install, no deno, no network and no secrets — deliberately, because
+SUPABASE_ACCESS_TOKEN has been dead since 2026-08-07 and anything that matters has
+to work without it. `scripts/acceptance-check.sh` now runs the suite as section 11,
+so the pre-deploy gate includes it, and `.github/workflows/tests.yml` runs it on
+push along with a YAML lint of every workflow.
+NB the bot typechecks with exactly 3 pre-existing TS2345 'never' errors (empty
+array literals, long predating this work). The runner asserts that count rather
+than hiding it: if it moves, something new broke.
+A NOTE ON WHAT THIS IS: a refactor, not a strategy change. Every substitution was
+one-for-one and the arithmetic was verified before the swap. It is NOT covered by
+a fresh walk-forward and does not need one — but it also proves nothing new about
+the edge, and must not be read as if it did.
+WHAT IS STILL MISSING, and it is the important half: the backtest has no
+capital-constrained portfolio simulator. It still aggregates an unconstrained R
+sum, so it still cannot model pyramiding, the heat cap, the net-exposure or
+per-coin caps, cash exhaustion, or the ROTA sleeve competing for the same book.
+Those constraints bite hardest in exactly the trending windows that carry the
+profit, which makes them the leading candidate for the v79bt divergence. Until
+that simulator exists, (a) "the scan is not the engine" is still not ruled out,
+and the sub-gate tier is still unjudged.
 
 ## v79bt (2026-09-18) — VOID, and the void is the finding
 Stage 2 of the sub-gate tier. It did not rule on the sub-gate tier, because the
