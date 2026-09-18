@@ -463,8 +463,13 @@ the agent; the user only approved ("אל תבקש ממני אני מאשר הכ�
   no delete-function call — delete it from the dashboard when convenient.
 
 ## Current state (2026-09-18)
-- **LIVE AND TRADING** on `adxgadwghgkwmntsnrar`, code **v57.2**
-  (sha `2e22438f…`, confirmed live in `deployment_manifest` and `?donch_test=1`).
+- **LIVE AND TRADING** on `adxgadwghgkwmntsnrar`, code **v58.0**
+  (sha `d1954d97…`, confirmed live in `deployment_manifest` and `?donch_test=1`).
+- **trading-bot is the SINGLE owner of bot_state.** portfolio-rebalancer,
+  market-regime-detector and trading-optimizer are all read-only on it. Do not
+  re-introduce a second writer — see v58.0 for what that cost.
+- **Paper is hard-locked** by `ALLOW_LIVE_EXECUTION`, which is unset. The DB
+  column alone can no longer flip the bot live or mislabel a row.
 - **BASE RISK IS NOW 1.75%** (was 1.25%) — owner instruction at 0/50 trades,
   see v57.2. Expect maxDD median 22% / p90 34%. Next raise stays gated.
   First successful deploys since 2026-07-16; they carry v56.5 (universe), v56.6
@@ -486,6 +491,96 @@ the agent; the user only approved ("אל תבקש ממני אני מאשר הכ�
 - WATCH NEXT: confirm on the next multi-breakout 4h close that HEAT_CAP actually
   logs and trims (the v56.9 fix has not yet met a six-signal cycle in the wild),
   and that cash returns positive as the first ladder legs bank.
+
+## v58.0 (2026-09-18) — engines consolidated, ONE owner per piece of state
+Five silent defects, all found by reading rather than by anything failing.
+1. **LEGACY 5m ENGINE COULD STILL TRADE.** It was fenced off only by the `return`
+   in the DONCH4H block, which fires ONLY when a breakout opens. On every cycle
+   where DONCH4H found nothing — nearly all of them — execution fell through and
+   the legacy confluence engine could open a position. Its insert was the one row
+   shape in the file that set no `strategy`, so the column default tagged it
+   'LEGACY' and it landed in the same book, equity curve and health kill-switch as
+   the validated sleeves. Nothing fired here only because its gate is 75.
+   264 lines DELETED. DONCH4H and ROTA are now the only engines, full stop.
+2. **THREE WRITERS ON bot_state — one a live time bomb.** portfolio-rebalancer
+   wrote {coin_weights, rebalanced_at} hourly. `rebalanced_at` IS ROTA's 48h
+   rotation clock, so an hourly reset means the 48h test can NEVER pass — ROTA
+   stops rotating permanently, no error, healthy heartbeat, the exact shape of the
+   45-day freeze. It had not fired only because of the `trades.length < 15` early
+   return; at 15 closed trades in 14 days the sleeve dies. And `coin_weights` is
+   not weights to the bot — it holds {sym:{suspended_until}}; overwriting it with
+   numbers destroyed live suspensions AND gave the bot a shape it cannot read, so
+   suspensions silently lapsed. market-regime-detector wrote `market_regime` every
+   5 min against the bot's own per-cycle write, different feed, different
+   vocabulary — last-writer-wins flapping. BOTH are now read-only on bot_state.
+   **trading-bot is the sole owner.** (reset-account untouched — off limits.)
+3. **PAPER IS NOW THE FLOOR, NOT A FALLBACK.** `paperMode` read a DB column, so a
+   wrong row flipped the bot out of paper and mislabelled rows — which already
+   happened. `ALLOW_LIVE_EXECUTION` is now the outermost gate, a deploy-time env
+   var not data, set NOWHERE in this repo. Anything but the exact string 'true'
+   means paper regardless of DB, query string or keys. paperMode and liveMode move
+   together, so there is no silent live→paper downgrade under a live label.
+   VERIFIED live: manifest reports paper_mode true (the DB column was false).
+4. **OPTIMIZER WAS STEERING THE DELETED ENGINE.** It adopted params live every
+   minute from an LLM scored in-sample, and every param it tunes belonged to the
+   5m engine. DONCH4H/ROTA read none of them. Now READ-ONLY: still analyses, still
+   journals to bot_params_history, cannot move the live config. No auto-apply
+   without a holdout. `limitChange` rewritten — the ratio form returned 0 forever
+   for a zeroed param (r=Infinity → both branches return ov*(1±mc)=0), passed NaN
+   straight through (both comparisons false) and inverted on negative anchors.
+   Now absolute-distance clamping with a floor, non-finite rejected.
+5. **A CRASHED CYCLE ANSWERED HTTP 200.** Every monitor reads the status line, so
+   a cycle that threw before managing a trade was indistinguishable from a healthy
+   one — the 45-day freeze shape again. Now 500, with its own path to bot_errors
+   (logErr is scoped inside the handler).
+ALSO: market-regime-detector read Binance SPOT (`api.binance.com`), unreachable
+from this egress — it had returned "Binance fetch failed" on EVERY run since the
+migration. Now fapi first (Futures is the reference), then data-api spot, then
+OKX, and it reports `feed_source` so a fallback is never shown as a futures mark.
+`scripts/acceptance-check.sh` asserts all of the above + a secrets scan. NB its
+first draft reported two FALSE failures (grepped a field name surviving only in a
+comment; piped grep into head so the exit status came from head) — a check that
+cries wolf gets ignored, so fix the check, don't lower the bar.
+VERIFIED LIVE after deploy: v58.0 / sha d1954d97 in both `deployment_manifest` and
+`?donch_test=1`; paper_mode true; rebalanced_at unchanged since 05:46 (single
+owner holding); market_regime written by the bot alone; 0 LEGACY trades; 0 errors.
+NOT DONE, and not to be read as done: shared backtest/live engine module (item 4),
+order-intent ledger + idempotency keys (item 9), unit/parity test suites (item 11).
+Those are multi-day refactors across a 3,900-line bot and a 6,300-line backtest.
+
+## v78bt (2026-09-18) — sub-gate ADX tier: PROMISING, NOT DEPLOYABLE ON THIS LENS
+The only untested route to "more trades". Every faster-bar answer is closed with
+gross-edge evidence (5m negative at fee=0, 15m/30m/45m break w1, 1h/12h break
+windows), so extra trades can only come from signals the 4h engine already sees
+and discards. v68bt measured those (ADX<=22) at +0.043R — positive, just weaker.
+v56bt had tried lowering the GATE to 18/20 at FULL size and w5 flipped negative.
+Untested third option: take them as their own tier at REDUCED size — a sizing
+question, and ADX is the only feature with proven sizing edge (v44/v58bt/v72bt),
+and rule-5 safe by construction.
+RESULT (n=11,412 baseline, span 1096 days — baseline reproduces the documented
+~11,218, so the dataset is trustworthy):
+  band alone: (18,22] n=2,672 avgR +0.0363 | (15,22] n=4,822 +0.0177 |
+              (12,22] n=6,941 +0.0245  — all POSITIVE, confirming v68bt
+  best row: G>12 x0.75 → totR 951 vs 865 base (+87R, +10%) on +6,941 trades (+61%)
+  and totR rises MONOTONICALLY with both a lower gate and a larger multiplier.
+BUT: window 6 degrades as you lean harder (-0.001 base → -0.027 at G>12 x0.75),
+and **the incumbent itself fails all-6 on this lens** (w1 -0.037, w6 -0.001) —
+the same documented artifact as v72bt/v73bt: per-window risk-weighted MEAN R with
+3bps slip is stricter than the deployed totR-sum + full sizing stack. So the
+all-windows rule cannot discriminate here and NOTHING is deployed on this run.
+NEXT STEP, not a deploy: re-run on the deployed lens where the incumbent is known
+to pass all 6, so the rule can actually decide. This is the first genuinely
+positive strategy result since v70bt — and v70bt looked like a win too until the
+slippage gate killed it, so it gets the second stage before anything ships.
+PROCESS NOTE: the FIRST v78bt run completed in 80s and printed a full, plausible
+table — all 12 rows losing, clean monotonic trend, tidy conclusion. It was
+worthless: the workflow's fetch step picks the data fetcher from a MODE whitelist,
+v78bt was not on it, so it silently used 45 days instead of 36 months. The tell
+was not the result, it was the BASELINE — n=301 against the documented 11,218,
+two empty windows, and the incumbent failing a bar it is known to pass. ALWAYS
+check that the baseline reproduces a known number before reading any row below
+it. The mode now ABORTS under a 900-day span instead of reporting on whatever it
+finds.
 
 ## v57.2 (2026-09-18) — BASE RISK RAISED 1.25% → 1.75% (owner instruction)
 Tier 2 of the v50bt Monte Carlo ladder. Drawdown expectation moves from median

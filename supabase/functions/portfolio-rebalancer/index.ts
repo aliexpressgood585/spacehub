@@ -63,12 +63,27 @@ Deno.serve(async () => {
       weights[sym] = parseFloat((0.3 + norm * 1.7).toFixed(2))  // 0.30 → 2.00
     }
 
-    // Persist in bot_state
-    const { error: upErr } = await supa.from('bot_state').update({
-      coin_weights: weights,
-      rebalanced_at: new Date().toISOString()
-    }).eq('id', 1)
-
+    // ═══ v58.0: READ-ONLY. This function no longer writes bot_state. ═══════
+    // It used to set { coin_weights, rebalanced_at } every hour, and BOTH were
+    // live corruption of state that trading-bot owns:
+    //
+    //  * `rebalanced_at` is ROTA's 48-hour rotation clock. The bot asks "has it
+    //    been 48h since rebalanced_at?" — so an hourly reset means the answer is
+    //    permanently no. ROTA would stop rotating, forever, with no error and a
+    //    perfectly healthy-looking heartbeat. It has not fired yet only because
+    //    of the `trades.length < 15` early return above; the moment 15 trades
+    //    close inside 14 days, the rotation sleeve dies silently.
+    //
+    //  * `coin_weights` is not a weight map to trading-bot at all — it stores
+    //    per-coin suspension metadata ({sym: {suspended_until}}). Overwriting it
+    //    with numbers (0.3-2.0) both destroyed live suspensions and fed the bot
+    //    a shape it cannot read, so `coinWeights[c].suspended_until` on a number
+    //    silently became undefined and every suspension quietly lapsed.
+    //
+    // Nothing reads this scoring, and its per-coin weighting was never part of a
+    // walk-forward. It stays as a measurement that writes only to its own history
+    // table. trading-bot is the single owner of bot_state.
+    const upErr = null as { message?: string } | null
     if (upErr) throw new Error(upErr.message)
 
     // Log to rebalance_history
@@ -78,7 +93,7 @@ Deno.serve(async () => {
       scores
     })
 
-    return new Response(JSON.stringify({ weights, coins_scored: Object.keys(weights).length }), {
+    return new Response(JSON.stringify({ read_only: true, weights, coins_scored: Object.keys(weights).length }), {
       headers: { 'Content-Type': 'application/json' }
     })
   } catch (err) {

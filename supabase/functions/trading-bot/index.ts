@@ -531,7 +531,7 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v57.2'
+const BOT_VERSION = 'v58.0'
 const RELEASE_SHA = String((globalThis as any).__RELEASE_SHA ?? 'unpinned')
 // Universe fingerprint: a cheap order-independent digest, so a silently edited
 // CRYPTO_40 shows up as a different release even at an identical SHA.
@@ -540,6 +540,16 @@ const UNIVERSE_HASH = (() => {
   for (const c of [...FIXED_COINS].sort().join(',')) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) }
   return (h >>> 0).toString(16).padStart(8, '0')
 })()
+// v58.0: the outer catch sits outside logErr's scope, so it needs its own path
+// to bot_errors — an unhandled cycle failure is exactly the event we must never
+// lose, and the original error must survive any failure to record it.
+async function logErrTop(scope: string, e: unknown) {
+  try {
+    const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+    await sb.from('bot_errors').insert({ scope, message: String(e).slice(0,500) })
+  } catch { /* swallow: reporting must not replace the real error */ }
+}
+
 let _manifestWritten = false
 const publishManifest = async (
   supabase: any, paperMode: boolean, liveMode: boolean,
@@ -2627,9 +2637,25 @@ Deno.serve(async (req) => {
         {headers:{'Content-Type':'application/json'}})
     }
 
-    const paperMode = url.searchParams.get('paper')==='1' || state.paper_mode===true
-    // v55: TRIPLE-LOCKED live mode — keys present AND paper off AND explicit env switch
-    const liveMode = !paperMode
+    // ═══ v58.0: PAPER IS THE FLOOR, NOT THE FALLBACK ══════════════════════
+    // The old `paperMode` read bot_state.paper_mode, a DB column — so a wrong or
+    // missing row silently flipped the bot out of paper and tagged its trades
+    // paper_mode:false. That already happened once (recorded in CLAUDE.md: rows
+    // mislabelled while fills were still simulated), which is the worst shape of
+    // this bug — the label and the behaviour disagreeing.
+    // ALLOW_LIVE_EXECUTION is now the outermost gate and it is a deploy-time env
+    // var, not data. Absent or anything other than the exact string 'true' means
+    // paper, whatever the database, the query string or the keys say. There is no
+    // silent downgrade path: if live were ever armed and a key went missing, the
+    // bot does not quietly keep trading as paper under a live label — liveMode
+    // goes false AND paperMode goes true together, so every row is tagged for
+    // what it actually was.
+    const ALLOW_LIVE = Deno.env.get('ALLOW_LIVE_EXECUTION') === 'true'
+    const paperMode = !ALLOW_LIVE || url.searchParams.get('paper')==='1' || state.paper_mode===true
+    // v55: live mode was triple-locked; v58.0 makes it quadruple — the env flag
+    // above must ALSO be explicitly 'true'. It is not set anywhere in this repo.
+    const liveMode = ALLOW_LIVE
+      && !paperMode
       && Deno.env.get('LIVE_TRADING')==='1'
       && !!Deno.env.get('BYBIT_API_KEY') && !!Deno.env.get('BYBIT_API_SECRET')
 
@@ -3791,269 +3817,26 @@ Deno.serve(async (req) => {
           return  // v41: never fall through to the legacy 5m confluence engine
         }
 
-        const dynRsiOversold    = Number(_bp.rsi_oversold        ?? 35)
-        const dynRsiOverbought  = Number(_bp.rsi_overbought       ?? 65)
-        const dynBbProx         = Number(_bp.bb_proximity         ?? 1.02)
-        const dynMinConfluence  = Math.max(75, Number(_bp.min_confluence_score ?? 75))  // v38: 60→75
-        const dynMinAdx         = Number(_bp.min_adx              ?? 20)  // v31-A: default 20
-
-        // v22: Use confluence score instead of 2/4 signals
-        // UPGRADE 2: Pass BTC closes for correlation analysis
-        const entryScore = calcConfluenceScore(
-          completed, price, vpoc, ema1hBias, adx, fearGreed, oiSig,
-          dynRsiOversold, dynRsiOverbought, dynBbProx,
-          btcBars.map(b => b.close),
-          completed.map(b => b.close),
-          ema200Bias,
-          oiHistory,                       // v33: Signal #17 liquidity zone
-          change24hMap.get(sym) ?? 0       // v34: Signal #18 momentum
-        )
-
-        if (!entryScore.side) {
-          log.push(`SKIP ${sym}: no confluence (RSI/BB/EMA mismatch)`)
-          return
-        }
-        if (entryScore.breakdown.liqZone > 0) {
-          log.push(`LIQ_ZONE ${sym}: +${entryScore.breakdown.liqZone}pts ${entryScore.side}`)
-        }
-
-        // v31-B: loss cooldown — now we know the side
-        if (lossCooldown.has(`${sym}_${entryScore.side}`)) {
-          log.push(`SKIP ${sym}: loss cooldown active for ${entryScore.side} (4h)`)
-          return
-        }
-
-        // v27.5: sizing only — the score gate moved to finalScore below, so
-        // MTF/funding alignment bonuses count before a trade is rejected.
-        const adxSizeAdj = calcAdxSizeAdj(adx, entryScore.rangeFade)
-        // v31-A: ADX hard gate — require ADX >= dynMinAdx for trend entries.
-        // RangeFade entries are exempt (they deliberately target low-ADX ranges).
-        if (!entryScore.rangeFade && adx < dynMinAdx) {
-          log.push(`SKIP ${sym}: adx=${adx.toFixed(0)} < ${dynMinAdx} (no trend)`)
-          return
-        }
-
-        // v24: Hard block only when 1H is STRONGLY against direction
-        if (entryScore.side === 'LONG' && ema1hBias === 'BEAR') {
-          log.push(`SKIP ${sym}: 1H trend against LONG (${ema1hBias})`)
-          return
-        }
-        if (entryScore.side === 'SHORT' && ema1hBias === 'BULL') {
-          log.push(`SKIP ${sym}: 1H trend against SHORT (${ema1hBias})`)
-          return
-        }
-
-        // v27.2: BTC market bias gate — no counter-trend basket against the market.
-        // v27.6: a coin whose OWN 1H trend agrees with the trade overrides the
-        // BTC veto (alt-rotation regimes: BTC red while a coin trends up cleanly).
-        if (entryScore.side === 'LONG' && btcBias === 'BEAR' && ema1hBias !== 'BULL') {
-          log.push(`SKIP ${sym}: BTC bias BEAR blocks LONG (coin 1H not BULL)`)
-          return
-        }
-        if (entryScore.side === 'SHORT' && btcBias === 'BULL' && ema1hBias !== 'BEAR') {
-          log.push(`SKIP ${sym}: BTC bias BULL blocks SHORT (coin 1H not BEAR)`)
-          return
-        }
-
-        // v25: Funding rate filter — skip if funding is strongly against direction
-        const symFunding = allFunding[sym] ?? 0
-        if (entryScore.side && isFundingAgainst(symFunding, entryScore.side)) {
-          log.push(`SKIP ${sym}: funding ${(symFunding*100).toFixed(3)}% against ${entryScore.side}`)
-          return
-        }
-
-        // v24: Multi-TF alignment as score bonus instead of hard gate
-        let mtfBonus = 0
-        const _1hAligned = (entryScore.side === 'LONG' && ema1hBias === 'BULL') || (entryScore.side === 'SHORT' && ema1hBias === 'BEAR')
-        const _15mAligned = (entryScore.side === 'LONG' && ema15mBias === 'BULL') || (entryScore.side === 'SHORT' && ema15mBias === 'BEAR')
-        if (_1hAligned && _15mAligned) mtfBonus = 10
-        else if (_1hAligned || _15mAligned) mtfBonus = 5
-
-        // v25: Funding rate bonus — if funding FAVORS our direction, add +3
-        let fundingBonus = 0
-        if (entryScore.side === 'LONG' && symFunding < -0.0002) fundingBonus = 3
-        if (entryScore.side === 'SHORT' && symFunding > 0.0002) fundingBonus = 3
-
-        const finalScore = entryScore.score + mtfBonus + fundingBonus
-        // v38: base floor raised 50→65 — bonuses add conviction but can't rescue weak setups
-        if (entryScore.score < 65 || finalScore < dynMinConfluence) {
-          log.push(`SKIP ${sym}: score base=${entryScore.score} final=${finalScore} (mtf=${mtfBonus}+fr=${fundingBonus}) < ${dynMinConfluence}`)
-          return
-        }
-
-        const { side, slDist: rawSlDist } = entryScore
-        // ── STAGE 2: Dynamic SL based on ADX ──
-        const dynamicSL = calcDynamicSL(rawSlDist, adx, dynamicSLMult)
-        const slDist = Math.max(dynamicSL, price * MIN_SL_PCT)
-
-        if (adaptSideFilter === 'LONG'  && side === 'SHORT') return
-        if (adaptSideFilter === 'SHORT' && side === 'LONG')  return
-
-        const gid = getCorrGroup(sym)
-        if (gid >= 0 && (corrGroupCount[gid] || 0) >= MAX_PER_GROUP) return
-
-        const slPrice = side === 'LONG' ? price - slDist : price + slDist
-        const slPct   = slDist / price
-        if (slPct < MIN_SL_PCT || slPct > 0.04) return
-
-        // ── STAGE 2: Dynamic TP based on volatility percentile ──
-        // v27.4: range-fade targets the mid-band — a 2.5R target never fills
-        // inside a range. If the range is too tight for >= 1R, skip: fees win.
-        let tpR = dynamicTPBase
-        if (entryScore.rangeFade && entryScore.bbMid) {
-          const midR = Math.abs(entryScore.bbMid - price) / slDist
-          if (midR < 1.0) {
-            log.push(`SKIP ${sym}: range too tight (mid-band ${midR.toFixed(2)}R)`)
-            return
-          }
-          tpR = Math.min(tpR, midR)
-        }
-        const tpPrice = side === 'LONG' ? price + slDist * tpR : price - slDist * tpR
-        const hiVal   = side === 'LONG' ? tpPrice : price
-        const loVal   = side === 'SHORT' ? tpPrice : price
-
-        // v22: Apply Kelly scaling by confluence score
-        const kellyByScore    = getKellyScaleByScore(entryScore.score)
-        const sizeAdjByRegime = adxSizeAdj
-
-        // ── STAGE 2: Volatility-adjusted position sizing ──
-        let volSizeMult = 1.0
-        if (volPctile < 5) {
-          volSizeMult = 0.8  // Low vol — boring, reduce size
-        } else if (volPctile > 95) {
-          volSizeMult = 1.2  // High vol — risky but good for trending, increase size
-        }
-
-        // Phase 6: Session size filter applied to riskAmt
-        let sessionSizeAdj = sp.sizeMult
-        if (session === 'DEAD') sessionSizeAdj = 0.5
-        else if (session === 'ASIAN' && adx < 18) sessionSizeAdj = 0.7
-
-        // Phase 5: Coin boost/reduce
-        let coinSizeMult = 1.0
-        if (topBoostCoins.has(sym)) {
-          coinSizeMult = 1.3
-          log.push(`coin_boost: ${sym} 1.3x`)
-        } else if (bottomReduceCoins.has(sym)) {
-          coinSizeMult = 0.7
-          log.push(`coin_reduce: ${sym} 0.7x`)
-        }
-
-        // ─────────────────────────────────────────────────────────────────────────
-        // UPGRADE 1: CORRELATION HEDGING
-        // ─────────────────────────────────────────────────────────────────────────
-        let correlationHedgeMult = 1.0
-        let hedgeLog = ''
-        if (btcBars.length >= 100 && completed.length >= 100) {
-          const btcClosesList = btcBars.map(b => b.close)
-          const coinClosesList = completed.map(b => b.close)
-          const correlation = calcCorrelationMatrix(btcClosesList, coinClosesList, 100)
-          correlationHedgeMult = applyCorrelationHedge(correlation, entryScore.side)
-          if (correlationHedgeMult !== 1.0) {
-            hedgeLog = `hedge_applied: ${sym} corr with BTC ${correlation.toFixed(2)} → size ${(correlationHedgeMult*100).toFixed(0)}%`
-            log.push(hedgeLog)
-          }
-        }
-
-        const currentExposure = (allOpen||[]).reduce((sum:number, t:any) => sum + Number(t.entry_price) * Number(t.size), 0)
-        const totalPortfolio   = balance + currentExposure
-        const remainingExposure = Math.max(0, totalPortfolio * MAX_TOTAL_EXPOSURE_PCT - currentExposure)
-        const slotsLeft  = Math.max(1, MAX_OPEN_TRADES - openCount)
-        // v40: score-weighted equal sizing. Backtest showed the score DOES carry
-        // edge at the top (gate-75 was the least-bad, best WR) — so put more
-        // capital on higher-conviction setups instead of a flat split.
-        const scoreMult = finalScore >= 120 ? 1.6
-                        : finalScore >= 100 ? 1.3
-                        : finalScore >=  85 ? 1.0
-                        :                     0.8
-        const notional = Math.min(
-          (remainingExposure / slotsLeft) * scoreMult,
-          remainingExposure, balance * 0.95
-        )
-        if (notional < 500) return  // v38: min position size $500
-
-        // v39: net directional exposure cap — block entries that would push net
-        // long or net short beyond 60% of the portfolio. Prevents the all-shorts
-        // concentration that lost $1,150 unrealized when the market rose.
-        const sideExp = (allOpen||[]).reduce((acc:{long:number,short:number}, t:any) => {
-          const n = Number(t.entry_price) * Number(t.size)
-          if (t.side === 'LONG') acc.long += n; else acc.short += n
-          return acc
-        }, {long:0, short:0})
-        const netAfter = entryScore.side === 'LONG'
-          ? (sideExp.long + notional) - sideExp.short
-          : sideExp.long - (sideExp.short + notional)
-        if (totalPortfolio > 0 && Math.abs(netAfter) > totalPortfolio * 0.60) {
-          log.push(`SKIP ${sym}: net ${entryScore.side} exposure cap (net=${(netAfter/totalPortfolio*100).toFixed(0)}%)`)
-          return
-        }
-
-        // v27.2: authoritative per-scan entry cap — same sync block as the
-        // increment, so concurrent coin handlers can't slip past it
-        if (newEntriesThisScan >= MAX_NEW_ENTRIES_PER_SCAN) return
-        const size = notional / price, fee = price * size * FEE
-        balance -= (notional + fee); openCount++; newEntriesThisScan++
-        if (gid >= 0) corrGroupCount[gid] = (corrGroupCount[gid] || 0) + 1
-
-        // Store MACD histogram at entry for advanced exit comparison
-        const macdEntry = calcMACD(completed.map(b => b.close))
-
-        if (liveMode) { log.push(`LIVE: legacy engine disabled (${sym}) — only validated strategies trade real money`); return }
-        const { data: insertedTrade } = await supabase.from('bot_trades').insert({
-          sym, side, entry_price: price, size, fee,
-          trail_sl: slPrice, hi: hiVal, lo: loVal,
-          status: 'OPEN', score: Math.round(finalScore), mtf: true, partial_done: false,
-          paper_mode: paperMode,
-          entry_macd_hist: +(macdEntry.histogram.toFixed(4))
-        }).select('id').single()
-
-        // Phase 1: Save trade snapshot with all indicator values at entry + STAGE 2 fields
-        if (insertedTrade?.id) {
-          const cls5m       = completed.map((b:Bar) => b.close)
-          const rsiSnap     = calcRsi(cls5m.slice(-15))
-          const vols20Snap  = completed.slice(-20).map((b:Bar) => b.vol)
-          const volAvgSnap  = vols20Snap.reduce((a:number,v:number)=>a+v,0)/vols20Snap.length
-          const curVolSnap  = completed[completed.length-1].vol
-          const volRatioSnap = volAvgSnap > 0 ? curVolSnap/volAvgSnap : 1.0
-          const stochSnap   = calcStochastic(cls5m, completed.map(b=>b.high), completed.map(b=>b.low))
-          const macdSnap    = calcMACD(cls5m)
-
-          try {
-            await supabase.from('bot_trade_snapshots').insert({
-              trade_id: insertedTrade.id, coin: sym, side: side,
-              confluence_score: Math.round(entryScore.score),
-              adx: +(adx.toFixed(2)),
-              rsi: +(rsiSnap.toFixed(2)),
-              volume_ratio: +(volRatioSnap.toFixed(3)),
-              hour_utc: utcH,
-              market_regime: btcRegime,
-              session: session,
-              oi_signal: oiSig,
-              fear_greed: fearGreed,
-              vpoc: +(vpoc.toFixed(6)),
-              volatility_pct: volPctile,
-              adjusted_sl: +(slPrice.toFixed(6)),
-              adjusted_tp: +(tpPrice.toFixed(6)),
-              stochastic_k: +(stochSnap.K.toFixed(2)),
-              stochastic_d: +(stochSnap.D.toFixed(2)),
-              macd_histogram: +(macdSnap.histogram.toFixed(4)),
-              correlation_hedge: +(correlationHedgeMult.toFixed(2))
-            })
-          } catch { /* non-fatal */ }
-        }
-
-        // v23: Log confluence score breakdown + STAGE 2 enhancements
-        const breakdownStr = Object.entries(entryScore.breakdown)
-          .filter(([_,v]) => v > 0)
-          .map(([k,v]) => `${k}=${v}`)
-          .join(' ')
-        const volSizeStr = volSizeMult !== 1.0 ? ` vol_sz=${volSizeMult.toFixed(1)}x` : ''
-        const tpStr = dynamicTPBase !== 2.5 ? ` dyn_tp=${dynamicTPBase.toFixed(2)}R` : ''
-        const mtfStr = ema15mBias !== 'NEUTRAL' ? ` 15m=${ema15mBias}` : ''
-        const hedgeStr = correlationHedgeMult !== 1.0 ? ` hedge=${(correlationHedgeMult*100).toFixed(0)}%` : ''
-        const frStr = symFunding !== 0 ? ` fr=${(symFunding*100).toFixed(3)}%` : ''
-        log.push(`OPEN ${sym} ${side} [CONF] score=${finalScore}(base=${Math.round(entryScore.score)}+mtf=${mtfBonus}+fr=${fundingBonus}) (${breakdownStr})${mtfStr} adx=${adx.toFixed(0)}${tpStr}${hedgeStr}${frStr} vol_pct=${volPctile}${volSizeStr} sess_adj=${sessionSizeAdj.toFixed(2)} @${price.toFixed(6)} sl=${(slPct*100).toFixed(3)}% $${notional.toFixed(0)} ${session}`)
-
+        // ═══ v58.0: LEGACY 5m ENGINE — HARD STOP ═══════════════════════════
+        // Everything below this line is the retired v23/v39 5-minute confluence
+        // engine (RSI/MACD/BB/Stoch scoring, its own SL/TP, its own sizing). It
+        // was only ever fenced off by the `return` in the DONCH4H block above,
+        // which fires ONLY when a breakout opens. On every cycle where DONCH4H
+        // found nothing — the overwhelming majority — execution fell straight
+        // through to here and the legacy engine could open a position. Those rows
+        // carry no `strategy` field, so the column default tagged them 'LEGACY',
+        // and they would land in the same book, the same equity curve and the
+        // same health kill-switch as the two validated sleeves while having no
+        // walk-forward behind them at all. Nothing on this project has fired yet
+        // (16 trades, all DONCH4H/ROTA) only because the confluence gate is 75.
+        // DONCH4H and ROTA are the only engines. This returns unconditionally.
+        return
+        // (The ~275 lines of the retired 5m confluence engine that used to sit
+        //  here — its scoring, sizing, SL/TP and its own bot_trades insert, the
+        //  one row shape in the file that never set a `strategy` — are deleted.
+        //  They were unreachable behind the return above, but an untagged insert
+        //  sitting in the file is a loaded gun: one edited return and it writes
+        //  'LEGACY' rows into the same book the validated sleeves are measured in.)
       } catch(e) {
         log.push(`ERR ${sym}: ${String(e).slice(0,40)}`)
         await logErr('scan:'+sym, e)
@@ -4124,8 +3907,14 @@ Deno.serve(async (req) => {
     }),{headers:{'Content-Type':'application/json'}})
 
   } catch(e) {
-    return new Response(JSON.stringify({error:String(e)}),{
-      status:200,headers:{'Content-Type':'application/json'}
+    // v58.0: this returned HTTP 200 with the error in the body. Every monitor in
+    // front of it — the cron runner, the watchdog, an uptime check — reads the
+    // status line, so a cycle that threw before placing or managing a single
+    // trade was indistinguishable from a healthy one. That is precisely the shape
+    // of the 45-day freeze: green everywhere, nothing happening. Fail loudly.
+    try { await logErrTop('cycle', e) } catch { /* never mask the original */ }
+    return new Response(JSON.stringify({ok:false, error:String(e)}),{
+      status:500,headers:{'Content-Type':'application/json'}
     })
   }
 })

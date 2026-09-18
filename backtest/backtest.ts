@@ -5419,6 +5419,130 @@ function runV73bt() {
   console.log(`  parameter (k) that can overfit — needs a clear, robust win to justify.`)
 }
 
+// ── v78bt: SUB-GATE TIER — more trades from signals we already SEE and throw away
+// The owner wants more, faster trades. Every "faster timeframe" answer is closed:
+// 5m has no gross edge at all (v76bt, fee=0 and still negative), 15m/30m/45m all
+// break window 1 (v77bt), 1h and 12h sleeves break windows (v55bt). So the extra
+// trades cannot come from a shorter bar. They have to come from signals the 4h
+// engine already generates and currently DISCARDS.
+// That set exists and is measured: v68bt found breakouts with ADX<=22 — the ones
+// the gate rejects — average +0.043R. POSITIVE, just weaker than the +0.062R of
+// the ones we take. v56bt then tried lowering the gate to 18/20 at FULL size and
+// window 5 flipped negative: the weaker signals carry more variance than the book
+// can absorb at full weight.
+// Nobody has tried the obvious third option: take them as their OWN TIER at
+// REDUCED size. That is a sizing question, and sizing on ADX is the one axis with
+// proven edge (v44/v58bt monotonic tiers; v72bt: ADX is the ONLY feature that
+// carries combinable sizing edge). It is also rule-5 safe by construction — it
+// only ADDS entries, never removes one.
+// Objective is size-weighted total R (proportional to dollars), not mean R: a
+// half-size trade earns half. Deploy bar unchanged — beat the incumbent's total
+// AND stay positive in all 6 windows.
+function runV78bt() {
+  const TK=0.0005, MK=0.0002, NW=6, BAR4=14400000, SLIP=0.0003
+  const toTf=(a:Bar[],ms:number):Bar[]=>{
+    const out:Bar[]=[]; let cur:Bar|null=null; let bucket=-1
+    for(const b of a){const k=Math.floor(b.t/ms)
+      if(k!==bucket){if(cur)out.push(cur);bucket=k
+        cur={t:k*ms,open:b.open,high:b.high,low:b.low,close:b.close,vol:b.vol}}
+      else if(cur){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.vol+=b.vol}}
+    if(cur)out.push(cur);return out}
+  const d4:Record<string,Bar[]>={}
+  let tmin=Infinity,tmax=-Infinity
+  for(const c of COINS){const h=loadCSV(c,'1h');if(h.length<500)continue
+    d4[c]=toTf(h,BAR4);tmin=Math.min(tmin,h[0].t);tmax=Math.max(tmax,h[h.length-1].t)}
+  const wSpan=(tmax-tmin)/NW
+  const winOf=(t:number)=>Math.min(NW-1,Math.max(0,Math.floor((t-tmin)/wSpan)))
+  // v78bt: fail loudly on a short dataset. The first run of this mode silently
+  // used 45 days instead of 36 months (the workflow's data-fetch step has a MODE
+  // whitelist and v78bt was not on it), which produced n=301 and two empty
+  // windows — a baseline that does not reproduce the known-good 11,218 signals.
+  // A backtest that quietly measures the wrong period is worse than no backtest.
+  const spanDays=(tmax-tmin)/86400000
+  console.log(`  loaded ${Object.keys(d4).length} coins, ${NW} windows, span ${spanDays.toFixed(0)} days`)
+  if (spanDays < 900) {
+    console.log(`\n  ABORT: need ~36 months of 1h history, got ${spanDays.toFixed(0)} days.`)
+    console.log(`  The fetch step ran the short-history fetcher. Results would be meaningless.`)
+    return
+  }
+
+  // identical ladder to live v53: 1/3 @0.6R -> BE, 1/3 @1.0R, last third trails 2.5xATR
+  const ladder=(arr:Bar[],j0:number,entry:number,side:'LONG'|'SHORT',slDist:number,atr:number,jEnd:number)=>{
+    const dirM=side==='LONG'?1:-1,slPx=entry-slDist*dirM
+    const legs=[{r:0.6,frac:1/3},{r:1.0,frac:1/3}]
+    const jEndc=Math.min(jEnd,arr.length-1)
+    let banked=0,rem=1,be=false,si=0,tpFrac=0,ext=entry
+    for(let j=j0+1;j<=jEndc;j++){const b=arr[j]
+      const stop=si>=2?(side==='LONG'?ext-2.5*atr:ext+2.5*atr):(be?entry:slPx)
+      if(side==='LONG'?b.low<=stop:b.high>=stop){banked+=rem*(si>=2?(stop-entry)*dirM/slDist:(be?0:-1));rem=0;break}
+      while(si<legs.length){const tgt=entry+slDist*legs[si].r*dirM
+        if(!(side==='LONG'?b.high>=tgt:b.low<=tgt))break
+        banked+=legs[si].frac*legs[si].r;tpFrac+=legs[si].frac;rem-=legs[si].frac;be=true;si++}
+      if(si>=2)ext=side==='LONG'?Math.max(ext,b.high):Math.min(ext,b.low)
+      if(rem<=1e-9)break}
+    if(rem>1e-9)banked+=rem*((arr[jEndc].close-entry)*dirM/slDist)
+    return {r:banked,tpFrac}}
+
+  // live ADX tiers, unchanged
+  const tierMult=(adx:number)=>adx>45?2.0:adx>35?1.5:adx>28?1.0:0.75
+
+  // subGate = lowest ADX accepted (22 -> incumbent, nothing extra taken)
+  // subMult = size multiplier applied to the extra [subGate, 22] band
+  const scan=(subGate:number, subMult:number)=>{
+    const ws:{wsum:number,rsum:number}[]=Array.from({length:NW},()=>({wsum:0,rsum:0}))
+    let n=0,nSub=0,tot=0,subTot=0,subN=0,subRsum=0
+    for(const c of Object.keys(d4)){
+      if(!CORE40.has(c))continue
+      const arr=d4[c];let last=-999
+      for(let i=100;i<arr.length-1;i++){
+        const price=arr[i].close
+        const prior=arr.slice(i-15,i);let hi=-Infinity,lo=Infinity
+        for(const b of prior){if(b.high>hi)hi=b.high;if(b.low<lo)lo=b.low}
+        const side:'LONG'|'SHORT'|null=price>hi?'LONG':price<lo?'SHORT':null
+        if(!side)continue
+        const win=arr.slice(Math.max(0,i-99),i+1)
+        const adx=calcADX(win.slice(-60))
+        const isSub = adx>subGate && adx<=22
+        if(adx<=22 && !isSub)continue
+        const mult = isSub ? subMult : tierMult(adx)
+        const atr=calcATR(win.slice(-20));if(!atr)continue
+        if(i-last<2)continue
+        last=i
+        const slDist=Math.max(atr*1.4,price*0.005),slPct=slDist/price
+        if(slPct>0.08)continue
+        const res=ladder(arr,i,price,side,slDist,atr,i+96)
+        const slipR=(1+(1-res.tpFrac))*SLIP/slPct
+        const net=res.r-(TK+res.tpFrac*MK+(1-res.tpFrac)*TK)/slPct-slipR
+        const w=ws[winOf(arr[i].t)]
+        w.wsum+=mult; w.rsum+=mult*net
+        n++; tot+=mult*net
+        if(isSub){nSub++;subTot+=mult*net;subN++;subRsum+=net}}
+    }
+    const wA=ws.map(x=>x.wsum?x.rsum/x.wsum:0)
+    return {n,nSub,tot,wA,allPos:wA.every(x=>x>0),subAvg:subN?subRsum/subN:0,subTot}}
+
+  console.log(`\n── SUB-GATE TIER: take ADX (G..22] breakouts at reduced size, ON TOP of the live book ──`)
+  console.log(`   objective = size-weighted total R (a half-size trade earns half)`)
+  console.log(`   G=22 is the incumbent: gate unchanged, nothing extra taken\n`)
+  const base=scan(22,0)
+  console.log(`  config              n      extra    totR     d-totR    all6   windows (risk-wtd avgR)`)
+  console.log(`  LIVE (adx>22)   ${String(base.n).padStart(6)}        0   ${base.tot.toFixed(0).padStart(6)}        -    ${base.allPos?'OK':'XX'}   ${base.wA.map(x=>(x>=0?'+':'')+x.toFixed(3)).join(' ')}`)
+  for(const G of [18,15,12]){
+    for(const m of [0.25,0.40,0.50,0.75]){
+      const s=scan(G,m)
+      const d=s.tot-base.tot
+      const tag=(d>0&&s.allPos)?'  <== BEATS LIVE':''
+      console.log(`  G>${String(G).padStart(2)} x${m.toFixed(2)}     ${String(s.n).padStart(6)}   ${String(s.nSub).padStart(6)}   ${s.tot.toFixed(0).padStart(6)}   ${(d>=0?'+':'')}${d.toFixed(0).padStart(6)}    ${s.allPos?'OK':'XX'}   ${s.wA.map(x=>(x>=0?'+':'')+x.toFixed(3)).join(' ')}${tag}`)
+    }
+    const probe=scan(G,0.0001)
+    console.log(`     ^ the (${G},22] band alone: n=${probe.nSub}, unweighted avgR ${(probe.subAvg>=0?'+':'')}${probe.subAvg.toFixed(4)}`)
+  }
+  console.log(`\n  DEPLOY BAR: size-weighted totR must EXCEED the live ${base.tot.toFixed(0)}R AND stay`)
+  console.log(`  positive in all 6 windows. Trade count rises by construction (rule 5 safe).`)
+  console.log(`  If every row fails, the answer to "more, faster trades" is settled: the`)
+  console.log(`  signals we discard are discarded for a reason, at every size.`)
+}
+
 // v74bt: GOLD SLEEVE PRE-VALIDATION. Runs the exact PROVEN DONCH4H engine
 // (Donchian-15 on 4h closes, ADX(60)>22 gate, SL=1.4×ATR, ⅓@0.6R/⅓@1.0R/
 // trail-2.5×ATR ladder, real fees + 3bps slip) unchanged — just pointed at
@@ -6005,6 +6129,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v73bt') {
     console.log(`████ V73BT — Donchian adaptive window (vol-scaled) vs fixed-15 ████`)
     runV73bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v78bt') {
+    console.log(`████ V78BT — sub-gate ADX tier at reduced size (more trades, same engine) ████`)
+    runV78bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v74bt') {
