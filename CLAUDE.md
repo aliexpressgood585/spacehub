@@ -563,6 +563,43 @@ NOT DONE, and not to be read as done: shared backtest/live engine module (item 4
 order-intent ledger + idempotency keys (item 9), unit/parity test suites (item 11).
 Those are multi-day refactors across a 3,900-line bot and a 6,300-line backtest.
 
+## v79bt (2026-09-18) — VOID, and the void is the finding
+Stage 2 of the sub-gate tier. It did not rule on the sub-gate tier, because the
+guard built into it fired first: **part A checks that the INCUMBENT passes all-6
+before any challenger is read, and it does not.**
+  LIVE adx>22 @3bps, n=11,412, totR 865, windows:
+    w1 -75.0   w2 +286.4   w3 +222.2   w4 +275.5   w5 +159.2   w6 -3.6
+That is the SECOND lens on which the deployed config fails all-6 (v78bt's
+risk-weighted mean-R lens was the first, w1 -0.037 / w6 -0.001 — same two
+windows). So the sub-gate tier is still unjudged after two full runs, and the
+rows in part B must not be read as a verdict. They are recorded, not believed.
+WHY THIS MATTERS MORE THAN THE TIER: the documented incumbent is 696R **positive
+in all six windows** (v58bt/v59bt). My scan reproduces its TRADE COUNT almost
+exactly (11,412 vs 11,218) but not its window profile. Two candidate explanations
+and I cannot yet separate them:
+  (a) MY SCAN IS NOT THE ENGINE. It has the Donchian-15 signal, the ADX gate, the
+      1.4xATR stop, the ladder and the ADX tier multipliers — but no pyramiding,
+      no heat cap, no ROTA interaction, no per-coin caps, and its own window
+      boundaries. A simplified reimplementation is not the thing it models.
+  (b) THE EDGE HAS DECAYED. The documented run was measured on an earlier 36-month
+      span; this one ends 2026-09. If the incumbent genuinely no longer clears
+      all-6 on fresh data, that is a far larger finding than any sub-gate tier and
+      it changes what we are doing, not just how we size it.
+(a) is the likelier explanation and must be eliminated FIRST — assuming (b)
+without ruling out (a) would be exactly the panic the v66bt lumpiness note warns
+against. But (b) cannot be waved away either, and the only way to tell them apart
+is a shared engine both the live bot and the backtest run (item 4 of the owner's
+list). That item stops being cleanup and becomes the blocking dependency for every
+strategy question from here: **we currently have no instrument that can reliably
+say whether the live config still passes its own bar.**
+USEFUL BY-PRODUCT — the incumbent's own slippage curve, which is new:
+    0bps 1085R | 3bps 865R | 6bps 644R | 10bps 350R
+It loses roughly a quarter of total R per 3bps. The live 3bps assumption is
+therefore not a rounding detail; it is the difference between 1085 and 865.
+STATUS: sub-gate tier NOT rejected and NOT accepted — unjudgeable with the
+instruments we have. Nothing deployed. Next step is item 4, then re-run v79bt
+against the real engine.
+
 ## v78bt (2026-09-18) — sub-gate ADX tier: PROMISING, NOT DEPLOYABLE ON THIS LENS
 The only untested route to "more trades". Every faster-bar answer is closed with
 gross-edge evidence (5m negative at fee=0, 15m/30m/45m break w1, 1h/12h break
