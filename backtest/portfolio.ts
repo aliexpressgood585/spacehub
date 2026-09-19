@@ -91,6 +91,31 @@ export interface SimConfig {
    *  isolated rather than argued about. */
   pyramidMax: number
   manageOn: '1h' | '4h'
+  /**
+   * PARITY MODE — a diagnostic, never a result.
+   *
+   * Removes every capital constraint AND the two rules that stop a symbol being
+   * re-entered (the pyramid gate and the 8h cooldown), so the engine takes the
+   * same signal set the old unconstrained scan took. Its only job is to answer
+   * one question: if per-trade expectancy still does not reproduce the
+   * documented +0.046R, the LADDER is wrong; if it does reproduce it, the ladder
+   * is right and the constrained run's lower expectancy is a SELECTION effect,
+   * not a bug.
+   *
+   * That distinction cannot be argued, only measured — which is the whole reason
+   * this flag exists.
+   */
+  parity: boolean
+  /**
+   * The trailing third's floor. 'breakeven' is what the LIVE BOT does and the
+   * default. 'free' reproduces the convention every historical backtest used,
+   * where the chandelier floats from an extreme seeded at entry and the final
+   * third can fall to roughly entry - 1.79R before stopping.
+   *
+   * These are NOT the same strategy, and the difference was invisible for as
+   * long as the rules were written down twice.
+   */
+  trailFloor: 'breakeven' | 'free'
 }
 
 export function defaultConfig(over: Partial<SimConfig> = {}): SimConfig {
@@ -104,6 +129,8 @@ export function defaultConfig(over: Partial<SimConfig> = {}): SimConfig {
     fundingPer8h: 0.0001,
     pyramidMax: S.PYRAMID_MAX,
     manageOn: '1h',
+    parity: false,
+    trailFloor: 'breakeven',
     ...over,
   }
 }
@@ -151,6 +178,11 @@ export interface ClosedTrade {
   adx: number
   unit: number
   reason: string
+  /** profit already banked by the ladder legs before this close. Exposed because
+   *  the ratio of "banked a leg then stopped at breakeven" trades is the tell for
+   *  a whole class of intra-bar accounting bug — see the regression guard in
+   *  tests/portfolio.test.ts. */
+  legsBanked: number
   fees: number
   slip: number
   funding: number
@@ -288,7 +320,8 @@ export function runPortfolio(
       openedAt: p.openedAt, closedAt: t, pnl,
       r: p.riskUsd > 0 ? pnl / p.riskUsd : 0,
       riskUsd: p.riskUsd, notional: p.entry * p.sizeOrig, adx: p.adx, unit: p.unit,
-      reason, fees: p.feesPaid, slip: p.slipPaid, funding: p.fundingPaid,
+      reason, legsBanked: p.legsBanked, fees: p.feesPaid, slip: p.slipPaid,
+      funding: p.fundingPaid,
       heldH: (t - p.openedAt) / H1,
     })
     if (p.sleeve === 'DONCH4H') lastCloseBySym.set(p.sym, t)
@@ -313,28 +346,70 @@ export function runPortfolio(
     const adverse = p.side === 'LONG' ? bar.low : bar.high
     const favour = p.side === 'LONG' ? bar.high : bar.low
 
-    // A fast move can clear 0.6R and 1.0R inside one hour, and the live bot —
-    // polling every minute — would bank both. Loop until the bar has nothing
-    // left to give, or the position is gone.
+    // ONE DIRECTION PER BAR. This is the correction that made v80bt's first run
+    // worthless, and it is worth spelling out because the wrong version looked
+    // more conservative, not less.
+    //
+    // The first draft looped: bank a leg off the bar's favourable extreme, then
+    // immediately re-test the freshly-moved breakeven stop against the SAME
+    // bar's adverse extreme. That charges one bar's range twice, in opposite
+    // directions, as if both happened and the bad one happened second. Almost
+    // every winner therefore banked a third at 0.6R and was instantly stopped at
+    // breakeven — win rate came out at 51% against the documented 66%, and every
+    // single configuration lost money.
+    //
+    // So: the stop gets first refusal at its PRE-BAR level. If it survives, the
+    // bar may advance through as many target rungs as its favourable extreme
+    // reached — a fast hour really can clear 0.6R and 1.0R, and the live bot,
+    // polling every minute, really would bank both — but the stop that those
+    // legs just moved is not re-tested until the next bar.
+    const preBarStop = p.stopPx
+    {
+      const pos: S.LadderPos = {
+        side: p.side, entry: p.entry, origSlDist: p.origSlDist,
+        stage: p.stage, stopPx: preBarStop, sizeLeft: p.sizeLeft, sizeOrig: p.sizeOrig,
+      }
+      // ladderStep tests the stop before the target, so feeding it the ADVERSE
+      // extreme resolves the bar pessimistically in one call. 'optimistic' gives
+      // the target first refusal, then re-tests the stop if nothing fired.
+      const beFloor = cfg.trailFloor === 'breakeven'
+      // BOTH arguments are the ADVERSE extreme, and that is the point.
+      //
+      // The first fix caught this double-count for stages 0 and 1 and MISSED it
+      // for stage 2, because the ratchet happens INSIDE ladderStep: passing the
+      // bar's favourable extreme as favPx raises the chandelier using this bar's
+      // high and then tests this bar's low against the raised level. Same bar,
+      // counted twice, in opposite directions — the identical defect, one stage
+      // over, and it lived in exactly the stage that carries the fat-tail profit.
+      //
+      // Passing `adverse` for both makes this a pure question: did the stop, AT
+      // THE LEVEL IT HELD WHEN THE BAR OPENED, get hit? The ratchet then happens
+      // in the rung loop below, where it belongs, and applies from the next bar.
+      let act = cfg.intrabar === 'conservative'
+        ? S.ladderStep(pos, adverse, adverse, ageMs, beFloor)
+        : S.ladderStep(pos, favour, favour, ageMs, beFloor)
+      if (cfg.intrabar === 'optimistic' && act.kind === 'none') {
+        act = S.ladderStep({ ...pos, stopPx: act.stopPx }, adverse, adverse, ageMs, beFloor)
+      }
+      if (act.kind === 'close') {
+        const raw = act.px / (1 - dirM * SLIP)
+        const sc = Math.abs(raw - act.px) * p.sizeLeft
+        slip += sc; p.slipPaid += sc
+        closePosition(p, act.px, t, act.reason, S.FEE_TAKER, false)
+        return
+      }
+    }
+
+    // The stop held. Now advance the rungs the favourable extreme reached.
     for (let guard = 0; guard < 4; guard++) {
       if (p.sizeLeft <= 1e-12) return
       const pos: S.LadderPos = {
         side: p.side, entry: p.entry, origSlDist: p.origSlDist,
         stage: p.stage, stopPx: p.stopPx, sizeLeft: p.sizeLeft, sizeOrig: p.sizeOrig,
       }
-
-      // ladderStep always tests the stop before the target. Feeding it the
-      // ADVERSE extreme as the mark therefore resolves the bar pessimistically
-      // in one call — which is the default, and the honest one.
-      // 'optimistic' gives the target first refusal by testing the stop against
-      // the FAVOURABLE extreme, then re-tests the stop properly if nothing fired.
-      let act = cfg.intrabar === 'conservative'
-        ? S.ladderStep(pos, adverse, favour, ageMs)
-        : S.ladderStep(pos, favour, favour, ageMs)
-
-      if (cfg.intrabar === 'optimistic' && act.kind === 'none') {
-        act = S.ladderStep({ ...pos, stopPx: act.stopPx }, adverse, favour, ageMs)
-      }
+      // Probe with the favourable extreme only: the stop was already given its
+      // chance above, at the level it held when the bar opened.
+      const act = S.ladderStep(pos, favour, favour, ageMs, cfg.trailFloor === 'breakeven')
 
       if (act.kind === 'leg') {
         // A resting limit at the level. makerFillRate < 1 treats the remainder
@@ -386,8 +461,8 @@ export function runPortfolio(
     // the capital signal under tens of thousands of rows on the first run — the
     // rejection log exists to measure what the CAPS cost us, so it stays clean.
     // The contribution of units 2 and 3 is measured separately, by unit index.
-    if (units.length >= cfg.pyramidMax ||
-        !S.pyramidGateOk(units as S.OpenUnit[], c.side, c.price)) return false
+    if (!cfg.parity && (units.length >= cfg.pyramidMax ||
+        !S.pyramidGateOk(units as S.OpenUnit[], c.side, c.price))) return false
 
     const sized = S.sizeBreakout({
       portfolio: port, balance: cash, openExposure: exp, heatCommitted: 0,
@@ -509,11 +584,16 @@ export function runPortfolio(
 
   for (let t = Math.ceil(tFrom / step) * step; t <= tTo; t += step) {
     // 1. MANAGE — exits before entries, always.
+    // At 4h resolution the management bar must be the 4h bar, not whichever 1h
+    // bar happens to sit at t-4h. Getting that wrong would silently drop three
+    // hours of range out of every stop check and make the coarse mode look far
+    // better than it is — which is exactly the comparison being measured here.
     for (const p of open.slice()) {
-      const m = idx1.get(p.sym)!
+      const m = step === H1 ? idx1.get(p.sym)! : idx4.get(p.sym)!
+      const arr = step === H1 ? data[p.sym].b1 : data[p.sym].b4
       const i = m.get(t - step)
       if (i === undefined) continue
-      manage(p, data[p.sym].b1[i], t)
+      manage(p, arr[i], t)
     }
 
     // 2. DECIDE — only on a 4h boundary, only from bars that have closed.
@@ -543,7 +623,7 @@ export function runPortfolio(
           // linear scan of a growing closed-trade list per candidate per step is
           // quadratic and would dominate the whole run.
           const lc = lastCloseBySym.get(sym)
-          if (lc !== undefined && t - lc < 8 * H1) continue
+          if (!cfg.parity && lc !== undefined && t - lc < 8 * H1) continue
           const quoteVol24h = completed.slice(-6).reduce((a, b) => a + b.vol, 0) * price
           cands.push({ sym, side: sig.side, adx, atr, price, slDist, slPct, quoteVol24h, seq: seq++ })
         }

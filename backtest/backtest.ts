@@ -6164,6 +6164,37 @@ function runV80bt() {
 
   const allTrades = base.flatMap(x => x.r.closed)
   const allRej = base.flatMap(x => x.r.rejections)
+
+  // ── THE BASELINE SANITY GATE ──────────────────────────────────────────────
+  // The v78bt lesson, and then the v80bt-run-1 lesson on top of it: a run that
+  // completes and prints a tidy table can still be worthless, and the tell is
+  // never the conclusion — it is whether the BASELINE reproduces a number we
+  // already know. Run 1 of v80bt printed six clean windows and a full metric
+  // set, and every row of it was garbage, because an intra-bar accounting bug
+  // dropped win rate from the documented ~66% to 51%.
+  //
+  // Capital constraints change WHICH trades are taken. They do NOT change the
+  // mechanics of a single trade, so per-trade win rate and expectancy must stay
+  // near the documented band or the engine itself is broken.
+  {
+    const d = allTrades.filter(t => t.sleeve === 'DONCH4H' && t.riskUsd > 0)
+    const wr = d.length ? d.filter(t => t.pnl > 0).length / d.length * 100 : 0
+    const avgR = d.length ? d.reduce((a, t) => a + t.r, 0) / d.length : 0
+    console.log(`\n  BASELINE CHECK — per-trade mechanics vs the documented band`)
+    console.log(`    DONCH4H win rate  ${wr.toFixed(1)}%   (documented ~66%, band 58-74%)`)
+    console.log(`    DONCH4H avg R     ${(avgR >= 0 ? '+' : '') + avgR.toFixed(4)}  (documented +0.046 to +0.062)`)
+    const wrBad = d.length > 200 && (wr < 58 || wr > 74)
+    const rBad = d.length > 200 && avgR < -0.02
+    if (wrBad || rBad) {
+      console.log(`\n  ################ BASELINE FAILS — DO NOT READ THE ROWS BELOW ################`)
+      console.log(`  Capital limits change which trades are taken, not what a trade does. A`)
+      console.log(`  per-trade profile this far from the documented one is an ENGINE BUG, not`)
+      console.log(`  a finding. Fix the simulator and re-run; do not interpret this output.`)
+      console.log(`  #############################################################################`)
+    } else {
+      console.log(`    OK — per-trade mechanics match, so the portfolio rows below can be read.`)
+    }
+  }
   const cost = base.reduce((s, x) => ({
     fees: s.fees + x.m.fees, slip: s.slip + x.m.slip, funding: s.funding + x.m.funding }),
     { fees: 0, slip: 0, funding: 0 })
@@ -6171,6 +6202,67 @@ function runV80bt() {
     `slippage $${cost.slip.toFixed(0)} | funding $${cost.funding.toFixed(0)}`)
   console.log(`  DONCH4H signals taken ${allTrades.filter(t => t.sleeve === 'DONCH4H').length} | ` +
     `ROTA slots ${allTrades.filter(t => t.sleeve === 'ROTA').length}`)
+
+  // ── PARITY DIAGNOSTIC ─────────────────────────────────────────────────────
+  // Run 2's baseline still failed (avgR -0.130 against a documented +0.046) even
+  // after the intra-bar fix, and there are exactly two explanations:
+  //   (a) the LADDER is still wrong, or
+  //   (b) the ladder is right and the constrained engine takes a WORSE MIX of
+  //       trades, because a symbol with an open position is blocked, so winners
+  //       tie a symbol up for weeks while losers free it in hours — the engine
+  //       preferentially re-enters right after a loss.
+  // Nothing in the constrained output can separate those. Parity mode can: it
+  // removes the capital limits, the pyramid gate and the cooldown, so the engine
+  // takes the same signal set the old unconstrained scan took. If expectancy
+  // reproduces there, the ladder is sound and (b) is the answer — and (b) is a
+  // genuine finding about the live engine, not a bug.
+  console.log(`\n── PARITY DIAGNOSTIC: same signal set as the unconstrained scan ──`)
+  console.log(`  Run 3 showed the LIVE ladder does not reproduce the documented +0.0469R`)
+  console.log(`  even on the same signals. Reading the two implementations side by side`)
+  console.log(`  found why, and it is not a simulator bug — it is a REAL DIVERGENCE:`)
+  console.log(``)
+  console.log(`    LIVE BOT   leg 2 sets trail_sl = entry, then stage 2 ratchets with`)
+  console.log(`               nt = max(cur, chand). The final third can NEVER stop below`)
+  console.log(`               breakeven.`)
+  console.log(`    BACKTESTS  stop = ext - 2.5*atr with ext SEEDED AT ENTRY and updated`)
+  console.log(`               only at the end of each bar, with no floor. On the first bar`)
+  console.log(`               of stage 2 that stop sits near entry - 1.79R.`)
+  console.log(``)
+  console.log(`  Those are different strategies. The looser one gives the final third room`)
+  console.log(`  to dip and recover, which on a fat-tailed edge is worth a great deal. The`)
+  console.log(`  table below measures how much.`)
+  console.log(``)
+  console.log(`  variant                          n     WR%     avgR     vs +0.0469`)
+  for (const tf of ['breakeven', 'free'] as const) {
+    for (const mo of ['1h', '4h'] as const) {
+      const pr = PF.runPortfolio(data, PF.defaultConfig({
+        parity: true, startCash: 1e9, sleeves: ['DONCH4H'], trailFloor: tf, manageOn: mo,
+      }), tmin + WARM, tmax)
+      const d = pr.closed.filter(t => t.riskUsd > 0)
+      const wr = d.length ? d.filter(t => t.pnl > 0).length / d.length * 100 : 0
+      const avgR = d.length ? d.reduce((a, t) => a + t.r, 0) / d.length : 0
+      const tag = `${tf === 'breakeven' ? 'breakeven(LIVE)' : 'free(BACKTEST)'} manage ${mo}`
+      console.log(`  ${tag.padEnd(30)} ${String(d.length).padStart(5)}  ${wr.toFixed(1).padStart(5)}  ` +
+        `${(avgR >= 0 ? '+' : '') + avgR.toFixed(4)}  ${Math.abs(avgR - 0.0469) < 0.02 ? 'REPRODUCES' : 'no'}`)
+    }
+  }
+  console.log(``)
+  console.log(`  WHY MANAGEMENT RESOLUTION IS ON TRIAL HERE, and it is the sharper`)
+  console.log(`  question of the two: every historical backtest manages on 4h bars. A`)
+  console.log(`  trade that banks 0.6R in hour 1 and dips back through entry in hour 3`)
+  console.log(`  of the SAME 4h bar is never breakeven-stopped by that model — the stop`)
+  console.log(`  only becomes active on the NEXT bar. The live bot polls every minute`)
+  console.log(`  and WOULD stop it. So if 4h reproduces +0.0469 and 1h does not, the`)
+  console.log(`  documented edge is partly an artifact of coarse bar resolution, and the`)
+  console.log(`  1h figure is the more faithful estimate of what the bot actually earns.`)
+  console.log(`  That would be a bigger and more uncomfortable finding than the trail`)
+  console.log(`  floor, and it is why it is being measured rather than argued.`)
+  console.log(``)
+  console.log(`  If 'free' reproduces and 'breakeven' does not, then every validated number`)
+  console.log(`  in CLAUDE.md describes a ladder the live bot does not run, and v58bt/v59bt`)
+  console.log(`  (which chose the trailing third and its distance) must be re-run before`)
+  console.log(`  any of them is trusted again. That is a larger finding than the sub-gate`)
+  console.log(`  tier and it is the direct reason shared/strategy.ts was built.`)
 
   // ── C. what the caps cost, and which one ──────────────────────────────────
   console.log(`\n── PART C: WHAT THE CAPS COST ──`)
@@ -6257,6 +6349,159 @@ function runV80bt() {
   console.log(`  CLAUDE.md. Those came from an unconstrained R-sum; these are dollars`)
   console.log(`  on a real $10,000 that can run out. A LOWER number here is not a`)
   console.log(`  regression — it is the first honest measurement.`)
+}
+
+
+// ════════════════════════════════════════════════════════════════════════════
+// v81bt — THE LADDER DIFF. Five 36-month runs of hypothesis-testing failed to
+// explain why the simulator will not reproduce the documented +0.0469R, and two
+// of my hypotheses (trail floor, bar resolution) were refuted by measurement —
+// the second in the opposite direction from my prediction. So this stops
+// guessing and does the thing that should have been done after run 3: put the
+// two ladders side by side on IDENTICAL trades and find the first place they
+// disagree.
+//
+// Both sides get the same symbol, the same signal, the same entry price, the
+// same stop distance, the same ATR, the same bars, and the same 96-bar horizon.
+// The ONLY difference is the exit machinery. Fees are reported separately from
+// gross R so a cost-model discrepancy cannot hide inside an exit discrepancy.
+//
+// This is cheap: no portfolio, no capital, no windows. It either finds the
+// divergence in one run or proves the two ladders agree and the problem is
+// somewhere else entirely — and either answer is worth more than a sixth grid.
+// ════════════════════════════════════════════════════════════════════════════
+function runV81bt() {
+  const BAR4 = 14400000, TK = 0.0005, MK = 0.0002, SLIP = 0.0003
+  const to4h = (a: Bar[], ms: number): Bar[] => {
+    const out: Bar[] = []; let cur: Bar | null = null; let bucket = -1
+    for (const b of a) {
+      const k = Math.floor(b.t / ms)
+      if (k !== bucket) { if (cur) out.push(cur); bucket = k
+        cur = { t: k * ms, open: b.open, high: b.high, low: b.low, close: b.close, vol: b.vol } }
+      else if (cur) { cur.high = Math.max(cur.high, b.high); cur.low = Math.min(cur.low, b.low)
+        cur.close = b.close; cur.vol += b.vol }
+    }
+    if (cur) out.push(cur); return out
+  }
+
+  // ── LADDER A: verbatim from runV79bt, the code that produced +0.0469R ──────
+  const ladderV79 = (arr: Bar[], j0: number, entry: number, side: 'LONG'|'SHORT',
+                     slDist: number, atr: number, jEnd: number) => {
+    const dirM = side === 'LONG' ? 1 : -1, slPx = entry - slDist * dirM
+    const legs = [{ r: 0.6, frac: 1/3 }, { r: 1.0, frac: 1/3 }]
+    const jEndc = Math.min(jEnd, arr.length - 1)
+    let banked = 0, rem = 1, be = false, si = 0, tpFrac = 0, ext = entry
+    for (let j = j0 + 1; j <= jEndc; j++) {
+      const b = arr[j]
+      const stop = si >= 2 ? (side === 'LONG' ? ext - 2.5*atr : ext + 2.5*atr) : (be ? entry : slPx)
+      if (side === 'LONG' ? b.low <= stop : b.high >= stop) {
+        banked += rem * (si >= 2 ? (stop - entry) * dirM / slDist : (be ? 0 : -1)); rem = 0; break
+      }
+      while (si < legs.length) {
+        const tgt = entry + slDist * legs[si].r * dirM
+        if (!(side === 'LONG' ? b.high >= tgt : b.low <= tgt)) break
+        banked += legs[si].frac * legs[si].r; tpFrac += legs[si].frac; rem -= legs[si].frac; be = true; si++
+      }
+      if (si >= 2) ext = side === 'LONG' ? Math.max(ext, b.high) : Math.min(ext, b.low)
+      if (rem <= 1e-9) break
+    }
+    if (rem > 1e-9) banked += rem * ((arr[jEndc].close - entry) * dirM / slDist)
+    return { r: banked, tpFrac }
+  }
+
+  // ── LADDER B: shared/strategy.ts, stepped over the SAME 4h bars ────────────
+  // Unit size so pnl/slDist is R directly, and no fees — gross against gross.
+  const ladderShared = (arr: Bar[], j0: number, entry: number, side: 'LONG'|'SHORT',
+                        slDist: number, jEnd: number) => {
+    const dirM = side === 'LONG' ? 1 : -1
+    const jEndc = Math.min(jEnd, arr.length - 1)
+    const pos: S.LadderPos = {
+      side, entry, origSlDist: slDist, stage: 0,
+      stopPx: entry - slDist * dirM, sizeLeft: 1, sizeOrig: 1,
+    }
+    let banked = 0, tpFrac = 0
+    for (let j = j0 + 1; j <= jEndc; j++) {
+      const b = arr[j]
+      const adverse = side === 'LONG' ? b.low : b.high
+      const favour = side === 'LONG' ? b.high : b.low
+      // stop first, at the level it held when the bar opened
+      let act = S.ladderStep({ ...pos }, adverse, adverse, 0)
+      if (act.kind === 'close') {
+        banked += (act.px / (1 - dirM*SLIP) - entry) * pos.sizeLeft * dirM / slDist
+        pos.sizeLeft = 0; break
+      }
+      // then the rungs the favourable extreme reached
+      for (let g = 0; g < 4 && pos.sizeLeft > 1e-9; g++) {
+        const a2 = S.ladderStep({ ...pos }, favour, favour, 0)
+        if (a2.kind === 'leg') {
+          banked += (a2.px - entry) * a2.qty * dirM / slDist
+          tpFrac += a2.qty
+          pos.sizeLeft -= a2.qty; pos.stage = a2.stage; pos.stopPx = a2.stopPx
+          continue
+        }
+        if (a2.kind === 'none') { pos.stopPx = a2.stopPx }
+        break
+      }
+      if (pos.sizeLeft <= 1e-9) break
+    }
+    if (pos.sizeLeft > 1e-9) banked += (arr[jEndc].close - entry) * pos.sizeLeft * dirM / slDist
+    return { r: banked, tpFrac }
+  }
+
+  const rows: { sym: string; t: number; side: string; a: number; b: number; d: number }[] = []
+  let nA = 0, nB = 0, sumA = 0, sumB = 0, sumNetA = 0, sumNetB = 0
+
+  for (const c of COINS) {
+    if (!CORE40.has(c)) continue
+    const h = loadCSV(c, '1h'); if (h.length < 500) continue
+    const arr = to4h(h, BAR4)
+    let last = -999
+    for (let i = 100; i < arr.length - 1; i++) {
+      const completed = arr.slice(i - 70, i + 1)
+      const sig = S.donchSignal(completed); if (!sig) continue
+      const adx = S.gateAdx(completed); if (adx <= S.ADX_GATE) continue
+      const atr = S.entryAtr(completed); if (!atr) continue
+      if (i - last < 2) continue
+      last = i
+      const price = arr[i].close
+      const slDist = S.stopDistance(atr, price), slPct = slDist / price
+      if (slPct > S.SL_MAX_PCT) continue
+
+      const A = ladderV79(arr, i, price, sig.side, slDist, atr, i + 96)
+      const B = ladderShared(arr, i, price, sig.side, slDist, i + 96)
+      const feeR = (tp: number) => (TK + tp*MK + (1-tp)*TK) / slPct + (1 + (1-tp)) * SLIP / slPct
+      nA++; nB++; sumA += A.r; sumB += B.r
+      sumNetA += A.r - feeR(A.tpFrac); sumNetB += B.r - feeR(B.tpFrac)
+      if (Math.abs(A.r - B.r) > 1e-6) rows.push({ sym: c, t: arr[i].t, side: sig.side, a: A.r, b: B.r, d: B.r - A.r })
+    }
+  }
+
+  console.log(`\n  signals compared: ${nA}`)
+  console.log(`  LADDER A (v79bt, the code behind the documented number)`)
+  console.log(`     gross avgR ${(sumA/nA >= 0 ? '+' : '') + (sumA/nA).toFixed(4)}   net avgR ${(sumNetA/nA >= 0 ? '+' : '') + (sumNetA/nA).toFixed(4)}`)
+  console.log(`  LADDER B (shared/strategy.ts = what the LIVE BOT runs)`)
+  console.log(`     gross avgR ${(sumB/nB >= 0 ? '+' : '') + (sumB/nB).toFixed(4)}   net avgR ${(sumNetB/nB >= 0 ? '+' : '') + (sumNetB/nB).toFixed(4)}`)
+  console.log(`  documented reference: net +0.0469`)
+  console.log(`\n  trades where the two ladders disagree: ${rows.length} of ${nA} ` +
+    `(${(rows.length/nA*100).toFixed(1)}%)`)
+
+  if (rows.length) {
+    rows.sort((x, y) => Math.abs(y.d) - Math.abs(x.d))
+    console.log(`\n  the 15 largest disagreements (B = live ladder, A = backtest ladder):`)
+    console.log(`   sym    date                 side    A(bt)    B(live)     diff`)
+    for (const r of rows.slice(0, 15)) {
+      console.log(`   ${r.sym.padEnd(6)} ${new Date(r.t).toISOString().slice(0,16)}  ${r.side.padEnd(5)} ` +
+        `${(r.a >= 0 ? '+' : '') + r.a.toFixed(3)}   ${(r.b >= 0 ? '+' : '') + r.b.toFixed(3)}   ` +
+        `${(r.d >= 0 ? '+' : '') + r.d.toFixed(3)}`)
+    }
+    const worse = rows.filter(r => r.d < 0).length
+    console.log(`\n  B worse than A on ${worse}/${rows.length}, better on ${rows.length - worse}`)
+    console.log(`  mean difference (B - A): ${((sumB - sumA)/nA >= 0 ? '+' : '') + ((sumB - sumA)/nA).toFixed(4)}R per signal`)
+  } else {
+    console.log(`\n  THE TWO LADDERS AGREE EXACTLY. The divergence is NOT in the exit`)
+    console.log(`  machinery — look at signal selection, the cost model, or the`)
+    console.log(`  documented number itself.`)
+  }
 }
 
 function main() {
@@ -6444,6 +6689,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v73bt') {
     console.log(`████ V73BT — Donchian adaptive window (vol-scaled) vs fixed-15 ████`)
     runV73bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v81bt') {
+    console.log(`████ V81BT — LADDER DIFF: backtest ladder vs the live ladder, same trades ████`)
+    runV81bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v80bt') {

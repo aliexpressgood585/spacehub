@@ -237,11 +237,20 @@ function drawBubbles(canvas:HTMLCanvasElement,pos:Record<string,'LONG'|'SHORT'>,
 
 // ─── live position card ───────────────────────────────────────────────────────
 function LivePosition({t,live,fmtP,onClose}:{t:Trade;live?:{cur:number;pnl:number;pct:number};fmtP:(p:number)=>string;onClose?:()=>void}){
+  // v61.0: NO LIVE PRICE MUST NOT LOOK LIKE ZERO P&L.
+  // The old fallback was `cur = live?.cur ?? t.entry`, so with the price feed
+  // down every card rendered "+0.00$ / +0.000%" — a confident measurement of
+  // nothing. On a phone in a region where Binance is geo-blocked that is EVERY
+  // card, and the page looked frozen while the bot was trading normally.
+  // Same class of defect as the "_v23_5M" regime label and the dead control
+  // buttons: the dashboard stating something false about the system. A missing
+  // number is shown as missing.
+  const stale    = !live
   const cur      = live?.cur ?? t.entry
   const dirM     = t.side==='LONG'?1:-1
-  const pnl      = live?.pnl ?? ((cur-t.entry)*dirM*t.size)
-  const pct      = live?.pct ?? ((cur-t.entry)/t.entry*dirM*100)   // v49.1: real price-move %, never a leveraged display
-  const col      = pnl>=0?C.green:C.red
+  const pnl      = live?.pnl ?? 0
+  const pct      = live?.pct ?? 0
+  const col      = stale ? C.muted : (pnl>=0?C.green:C.red)
   const notional = +(t.entry*t.size).toFixed(2)
 
   const prevPnl = useRef(pnl)
@@ -272,8 +281,8 @@ function LivePosition({t,live,fmtP,onClose}:{t:Trade;live?:{cur:number;pnl:numbe
           {t.side==='LONG'?'▲':'▼'} {t.sym}
         </span>
         <div style={{display:'flex',alignItems:'center',gap:'5px'}}>
-          <span style={{fontFamily:'monospace',fontSize:'11px',color:C.text,fontWeight:700}}>
-            {fmtP(cur)}
+          <span style={{fontFamily:'monospace',fontSize:'11px',color:stale?C.muted:C.text,fontWeight:700}}>
+            {stale?'—':fmtP(cur)}
           </span>
           {onClose&&(
             <button type="button" onClick={(e)=>{e.stopPropagation();onClose()}} style={{
@@ -293,18 +302,18 @@ function LivePosition({t,live,fmtP,onClose}:{t:Trade;live?:{cur:number;pnl:numbe
           fontWeight:900,fontSize:'14px',color:col,
           transition:'color 0.2s',
         }}>
-          {pnl>=0?'+':''}{pnl.toFixed(2)}$
+          {stale?'—':`${pnl>=0?'+':''}${pnl.toFixed(2)}$`}
         </span>
       </div>
       {/* pct + progress */}
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:'6px'}}>
         <span style={{fontSize:'9px',color:col,fontWeight:700}}>
-          {pct>=0?'+':''}{pct.toFixed(3)}%
+          {stale?'אין הזנת מחיר':`${pct>=0?'+':''}${pct.toFixed(3)}%`}
         </span>
         <div style={{flex:1,height:'3px',background:C.dim,borderRadius:'2px',overflow:'hidden'}}>
           <div style={{
             height:'100%',
-            width:`${Math.min(Math.abs(pct)*25,100)}%`,
+            width:stale?'0%':`${Math.min(Math.abs(pct)*25,100)}%`,
             background:col,borderRadius:'2px',
             boxShadow:`0 0 4px ${col}`,
             transition:'width 0.15s ease',
@@ -577,7 +586,7 @@ export default function CryptoTradingDashboard() {
   const [coinWeights,setCoinWeights]    = useState<Record<string,number>>({})
   const [rebalancedAt,setRebalancedAt]  = useState<string|null>(null)
   // v57.0: which build is actually serving, straight from the bot's own manifest
-  const [release,setRelease]=useState<{sha:string;bot_version:string}|null>(null)
+  const [release,setRelease]=useState<{sha:string;bot_version:string;base_risk_pct?:number}|null>(null)
   const [livePositions,setLivePositions]= useState<Record<number,{cur:number;pnl:number;pct:number}>>({})
   const [extraWsSyms,setExtraWsSyms]   = useState<string[]>([])
   const [toasts,setToasts]             = useState<{id:number;msg:string;color:string;pnl?:number}[]>([])
@@ -720,6 +729,49 @@ export default function CryptoTradingDashboard() {
     return ()=>{dead=true;ws?.close()}
   },[processTick,extraWsSyms])
 
+  // ── v61.0: OKX price fallback ───────────────────────────────────────────────
+  // The Binance WebSocket is geo-blocked in some regions — the same 451 the BOT
+  // hits from Supabase, which is exactly why the bot already falls back
+  // Binance -> OKX -> Bybit. The dashboard never did, so on a phone in one of
+  // those regions the page showed a full book with no prices on any of it.
+  // One REST call to OKX returns every swap ticker at once, so this costs a
+  // single request every 12s and only runs while the socket is not delivering.
+  useEffect(()=>{
+    let dead=false, timer:ReturnType<typeof setTimeout>|null=null
+    const poll=async()=>{
+      if(dead)return
+      try{
+        const res=await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP')
+        if(res.ok){
+          const j=await res.json()
+          const next:Record<string,{price:number;change:number}>={}
+          for(const r of (j?.data??[])){
+            const id=String(r.instId||'')
+            if(!id.endsWith('-USDT-SWAP'))continue
+            const sym=id.slice(0,-10)
+            const price=parseFloat(r.last), open24=parseFloat(r.open24h)
+            if(!Number.isFinite(price)||price<=0)continue
+            next[sym]={price,change:Number.isFinite(open24)&&open24>0?((price-open24)/open24)*100:0}
+          }
+          if(!dead&&Object.keys(next).length){
+            // The socket wins where it is delivering; OKX only fills the gaps,
+            // so a healthy Binance feed is never overwritten by a slower poll.
+            setPrices(p=>{
+              const merged={...p}
+              for(const [sym,v] of Object.entries(next)) if(!merged[sym]) merged[sym]=v
+              return merged
+            })
+            setWsStatus(st=>st==='live'?st:'live')
+          }
+        }
+      }catch{/* offline or blocked too — leave the cards showing "no feed" */}
+      if(!dead)timer=setTimeout(poll,12000)
+    }
+    // Give the socket a few seconds to prove itself before adding traffic.
+    timer=setTimeout(poll,4000)
+    return ()=>{dead=true;if(timer)clearTimeout(timer)}
+  },[])
+
   useEffect(()=>{
     if(!SUPA_URL||!SUPA_KEY)return
     const supa=createClient(SUPA_URL,SUPA_KEY);supaRef.current=supa
@@ -731,9 +783,9 @@ export default function CryptoTradingDashboard() {
       supa.from('market_regime').select('*').order('created_at',{ascending:false}).limit(20),
       supa.from('bot_equity').select('ts,equity').order('ts',{ascending:false}).limit(2000),
       supa.from('bot_equity').select('ts').order('ts',{ascending:true}).limit(1),
-      supa.from('deployment_manifest').select('sha,bot_version').order('first_seen',{ascending:false}).limit(1),
+      supa.from('deployment_manifest').select('sha,bot_version,base_risk_pct').order('first_seen',{ascending:false}).limit(1),
     ]).then(([state,open,closed,optHist,regHist,eqHist,eqFirst,manifest])=>{
-      if(manifest&&!manifest.error&&manifest.data&&manifest.data[0])setRelease(manifest.data[0] as {sha:string;bot_version:string})
+      if(manifest&&!manifest.error&&manifest.data&&manifest.data[0])setRelease(manifest.data[0] as {sha:string;bot_version:string;base_risk_pct?:number})
       if(eqHist&&!eqHist.error&&eqHist.data)setEquityHist([...eqHist.data].reverse().map((r:any)=>({ts:r.ts,equity:Number(r.equity)})))
       if(eqFirst&&!eqFirst.error&&eqFirst.data&&eqFirst.data[0])setEpochTs(new Date((eqFirst.data[0] as any).ts).getTime())
       if(state.data){
@@ -1268,7 +1320,13 @@ export default function CryptoTradingDashboard() {
             <div><span style={{color:C.cyan,fontWeight:800}}>DONCH4H</span> · דונצ'יאן 15 על נרות 4 שעות · שער <span style={{color:C.yellow}}>ADX&gt;22</span></div>
             <div style={{marginTop:'2px'}}>סטופ <span style={{color:C.red}}>1.4×ATR</span> · יציאה <span style={{color:C.green}}>⅓@0.6R→BE · ⅓@1.0R · שליש נגרר</span></div>
             <div style={{marginTop:'2px'}}><span style={{color:C.cyan,fontWeight:800}}>ROTA</span> · מומנטום 14 ימים כל 48 שעות · לונג 8 / שורט 8</div>
-            <div style={{marginTop:'2px'}}>סיכון בסיס <span style={{color:C.yellow}}>1.25%</span> לעסקה · תקרת חשיפה 95%</div>
+            {/* v61.0: read the risk the bot ACTUALLY trades at, from the release
+                manifest. This card hardcoded 1.25% while the bot ran 1.75% since
+                v57.2 — the page was stating something false about the system,
+                the same defect class as the "_v23_5M" label. */}
+            <div style={{marginTop:'2px'}}>סיכון בסיס <span style={{color:C.yellow}}>
+              {release?.base_risk_pct!=null?`${(release.base_risk_pct*100).toFixed(2)}%`:'—'}
+            </span> לעסקה · תקרת חשיפה 95%</div>
           </div>
         </div>
 

@@ -3,8 +3,9 @@
 # The mode must also be in the fetch-step whitelist in backtest.yml, or it will
 # silently get the short-history fetcher (see the v78bt note in CLAUDE.md).
 #
-# last run: v80bt 36 (2026-09-19) — FIRST capital-constrained portfolio run.
-# Reads: what the deployed config does with a real $10,000; whether ROTA starves
-# DONCH4H; what the caps cost and which cap; what pyramid units 2 and 3 add;
-# whether the allocation policy matters; slippage + maker-fill sensitivity.
-v80bt 36
+# v81bt: THE LADDER DIFF. Five 36-month runs failed to explain why the sim will
+# not reproduce +0.0469R, and both my hypotheses were refuted by measurement —
+# the second in the opposite direction from my prediction. So: stop guessing.
+# Put the v79bt inline ladder and shared/strategy.ts side by side on IDENTICAL
+# trades, gross and net, and find where they disagree. No portfolio, no capital.
+v81bt 36
