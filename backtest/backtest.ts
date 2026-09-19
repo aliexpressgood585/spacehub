@@ -6164,6 +6164,37 @@ function runV80bt() {
 
   const allTrades = base.flatMap(x => x.r.closed)
   const allRej = base.flatMap(x => x.r.rejections)
+
+  // ── THE BASELINE SANITY GATE ──────────────────────────────────────────────
+  // The v78bt lesson, and then the v80bt-run-1 lesson on top of it: a run that
+  // completes and prints a tidy table can still be worthless, and the tell is
+  // never the conclusion — it is whether the BASELINE reproduces a number we
+  // already know. Run 1 of v80bt printed six clean windows and a full metric
+  // set, and every row of it was garbage, because an intra-bar accounting bug
+  // dropped win rate from the documented ~66% to 51%.
+  //
+  // Capital constraints change WHICH trades are taken. They do NOT change the
+  // mechanics of a single trade, so per-trade win rate and expectancy must stay
+  // near the documented band or the engine itself is broken.
+  {
+    const d = allTrades.filter(t => t.sleeve === 'DONCH4H' && t.riskUsd > 0)
+    const wr = d.length ? d.filter(t => t.pnl > 0).length / d.length * 100 : 0
+    const avgR = d.length ? d.reduce((a, t) => a + t.r, 0) / d.length : 0
+    console.log(`\n  BASELINE CHECK — per-trade mechanics vs the documented band`)
+    console.log(`    DONCH4H win rate  ${wr.toFixed(1)}%   (documented ~66%, band 58-74%)`)
+    console.log(`    DONCH4H avg R     ${(avgR >= 0 ? '+' : '') + avgR.toFixed(4)}  (documented +0.046 to +0.062)`)
+    const wrBad = d.length > 200 && (wr < 58 || wr > 74)
+    const rBad = d.length > 200 && avgR < -0.02
+    if (wrBad || rBad) {
+      console.log(`\n  ################ BASELINE FAILS — DO NOT READ THE ROWS BELOW ################`)
+      console.log(`  Capital limits change which trades are taken, not what a trade does. A`)
+      console.log(`  per-trade profile this far from the documented one is an ENGINE BUG, not`)
+      console.log(`  a finding. Fix the simulator and re-run; do not interpret this output.`)
+      console.log(`  #############################################################################`)
+    } else {
+      console.log(`    OK — per-trade mechanics match, so the portfolio rows below can be read.`)
+    }
+  }
   const cost = base.reduce((s, x) => ({
     fees: s.fees + x.m.fees, slip: s.slip + x.m.slip, funding: s.funding + x.m.funding }),
     { fees: 0, slip: 0, funding: 0 })

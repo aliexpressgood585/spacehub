@@ -151,6 +151,11 @@ export interface ClosedTrade {
   adx: number
   unit: number
   reason: string
+  /** profit already banked by the ladder legs before this close. Exposed because
+   *  the ratio of "banked a leg then stopped at breakeven" trades is the tell for
+   *  a whole class of intra-bar accounting bug — see the regression guard in
+   *  tests/portfolio.test.ts. */
+  legsBanked: number
   fees: number
   slip: number
   funding: number
@@ -288,7 +293,8 @@ export function runPortfolio(
       openedAt: p.openedAt, closedAt: t, pnl,
       r: p.riskUsd > 0 ? pnl / p.riskUsd : 0,
       riskUsd: p.riskUsd, notional: p.entry * p.sizeOrig, adx: p.adx, unit: p.unit,
-      reason, fees: p.feesPaid, slip: p.slipPaid, funding: p.fundingPaid,
+      reason, legsBanked: p.legsBanked, fees: p.feesPaid, slip: p.slipPaid,
+      funding: p.fundingPaid,
       heldH: (t - p.openedAt) / H1,
     })
     if (p.sleeve === 'DONCH4H') lastCloseBySym.set(p.sym, t)
@@ -313,28 +319,57 @@ export function runPortfolio(
     const adverse = p.side === 'LONG' ? bar.low : bar.high
     const favour = p.side === 'LONG' ? bar.high : bar.low
 
-    // A fast move can clear 0.6R and 1.0R inside one hour, and the live bot —
-    // polling every minute — would bank both. Loop until the bar has nothing
-    // left to give, or the position is gone.
+    // ONE DIRECTION PER BAR. This is the correction that made v80bt's first run
+    // worthless, and it is worth spelling out because the wrong version looked
+    // more conservative, not less.
+    //
+    // The first draft looped: bank a leg off the bar's favourable extreme, then
+    // immediately re-test the freshly-moved breakeven stop against the SAME
+    // bar's adverse extreme. That charges one bar's range twice, in opposite
+    // directions, as if both happened and the bad one happened second. Almost
+    // every winner therefore banked a third at 0.6R and was instantly stopped at
+    // breakeven — win rate came out at 51% against the documented 66%, and every
+    // single configuration lost money.
+    //
+    // So: the stop gets first refusal at its PRE-BAR level. If it survives, the
+    // bar may advance through as many target rungs as its favourable extreme
+    // reached — a fast hour really can clear 0.6R and 1.0R, and the live bot,
+    // polling every minute, really would bank both — but the stop that those
+    // legs just moved is not re-tested until the next bar.
+    const preBarStop = p.stopPx
+    {
+      const pos: S.LadderPos = {
+        side: p.side, entry: p.entry, origSlDist: p.origSlDist,
+        stage: p.stage, stopPx: preBarStop, sizeLeft: p.sizeLeft, sizeOrig: p.sizeOrig,
+      }
+      // ladderStep tests the stop before the target, so feeding it the ADVERSE
+      // extreme resolves the bar pessimistically in one call. 'optimistic' gives
+      // the target first refusal, then re-tests the stop if nothing fired.
+      let act = cfg.intrabar === 'conservative'
+        ? S.ladderStep(pos, adverse, favour, ageMs)
+        : S.ladderStep(pos, favour, favour, ageMs)
+      if (cfg.intrabar === 'optimistic' && act.kind === 'none') {
+        act = S.ladderStep({ ...pos, stopPx: act.stopPx }, adverse, favour, ageMs)
+      }
+      if (act.kind === 'close') {
+        const raw = act.px / (1 - dirM * SLIP)
+        const sc = Math.abs(raw - act.px) * p.sizeLeft
+        slip += sc; p.slipPaid += sc
+        closePosition(p, act.px, t, act.reason, S.FEE_TAKER, false)
+        return
+      }
+    }
+
+    // The stop held. Now advance the rungs the favourable extreme reached.
     for (let guard = 0; guard < 4; guard++) {
       if (p.sizeLeft <= 1e-12) return
       const pos: S.LadderPos = {
         side: p.side, entry: p.entry, origSlDist: p.origSlDist,
         stage: p.stage, stopPx: p.stopPx, sizeLeft: p.sizeLeft, sizeOrig: p.sizeOrig,
       }
-
-      // ladderStep always tests the stop before the target. Feeding it the
-      // ADVERSE extreme as the mark therefore resolves the bar pessimistically
-      // in one call — which is the default, and the honest one.
-      // 'optimistic' gives the target first refusal by testing the stop against
-      // the FAVOURABLE extreme, then re-tests the stop properly if nothing fired.
-      let act = cfg.intrabar === 'conservative'
-        ? S.ladderStep(pos, adverse, favour, ageMs)
-        : S.ladderStep(pos, favour, favour, ageMs)
-
-      if (cfg.intrabar === 'optimistic' && act.kind === 'none') {
-        act = S.ladderStep({ ...pos, stopPx: act.stopPx }, adverse, favour, ageMs)
-      }
+      // Probe with the favourable extreme only: the stop was already given its
+      // chance above, at the level it held when the bar opened.
+      const act = S.ladderStep(pos, favour, favour, ageMs)
 
       if (act.kind === 'leg') {
         // A resting limit at the level. makerFillRate < 1 treats the remainder
