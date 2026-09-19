@@ -1,43 +1,85 @@
-backtest 2026-09-18T15:35Z mode=v79bt months=36
-████ V79BT — sub-gate tier: deployed lens + slippage gate ████
-  loaded 69 coins, 6 windows, span 1096 days
+backtest 2026-09-19T18:38Z mode=v80bt months=36
+████ V80BT — CAPITAL-CONSTRAINED PORTFOLIO: the first honest run ████
+  loaded 39 coins, span 1096 days
 
-── STAGE 2 / part A: is this lens valid? (incumbent must pass all 6) ──
-  LIVE adx>22 @3bps   n=11412  totR 865  all6 FAIL
-    windows: -75.0  +286.4  +222.2  +275.5  +159.2  -3.6
+── PART A: the DEPLOYED config on $10,000 per window ──
+  config                 trades  reject    net%   maxDD  all6  per-window net%
+  LIVE (both sleeves)      4835   11577   -123.8%   41.3% FAIL  -8.3 -33.2 -17.2 -26.1 -17.9 -21.1
 
-  LENS REJECTED: the deployed config fails all-6 here too, so this bar
-  cannot discriminate either. Do NOT read the rows below as a verdict.
+  full metrics, window by window:
+   w   trades   net%    CAGR   maxDD  Calmar  Sharpe  Sortino    PF   expR   WR%   util%  rejected
+   1     758    -8.3     -17    19.1   -0.95   -0.53    -0.52   0.93 -0.184    52     90     1426
+   2     820   -33.2     -55    41.3   -1.61   -3.06    -2.92   0.76 -0.204    51     89     2040
+   3     847   -17.2     -31    24.7   -1.39   -0.97    -0.96   0.90 -0.238    50     87     1987
+   4     808   -26.1     -45    27.5   -1.90   -2.73    -2.62   0.81 -0.203    50     89     2194
+   5     778   -17.9     -33    19.0   -1.89   -1.97    -1.93   0.87 -0.251    50     88     1969
+   6     824   -21.1     -38    24.3   -1.73   -2.55    -2.51   0.79 -0.211    51     90     1961
 
-── part B: sub-gate tier on the deployed lens, @3bps ──
-  config             n      extra    totR    d-totR   all6   windows
-  LIVE            11412        0     865       -   FAIL  -75.0 +286.4 +222.2 +275.5 +159.2 -3.6
-  G>18 x0.25     13862     2672     860      -5   FAIL  -85.5 +296.6 +226.7 +279.4 +157.7 -15.3
-  G>18 x0.40     13862     2672     874  +     9   FAIL  -88.8 +306.4 +233.2 +283.6 +158.7 -18.9
-  G>18 x0.50     13862     2672     884  +    19   FAIL  -91.0 +313.0 +237.5 +286.3 +159.3 -21.3
-  G>18 x0.75     13862     2672     908  +    43   FAIL  -96.4 +329.4 +248.3 +293.3 +161.0 -27.4
-  G>15 x0.25     15914     4822     866  +     2   FAIL  -87.4 +299.5 +237.7 +280.0 +160.6 -24.1
-  G>15 x0.40     15914     4822     879  +    14   FAIL  -95.4 +310.2 +250.9 +284.9 +162.0 -33.5
-  G>15 x0.50     15914     4822     888  +    23   FAIL  -100.8 +317.4 +259.8 +288.1 +163.0 -39.8
-  G>15 x0.75     15914     4822     909  +    44   FAIL  -114.2 +335.2 +281.9 +296.2 +165.3 -55.5
-  G>12 x0.25     17993     6941     866  +     1   FAIL  -83.7 +299.7 +249.7 +273.6 +160.4 -33.5
-  G>12 x0.40     17993     6941     892  +    27   FAIL  -89.9 +317.3 +272.8 +276.2 +165.3 -50.0
-  G>12 x0.50     17993     6941     909  +    44   FAIL  -94.0 +329.0 +288.2 +277.9 +168.6 -61.1
-  G>12 x0.75     17993     6941     951  +    87   FAIL  -104.2 +358.4 +326.7 +282.2 +176.9 -88.6
+  costs across all windows: fees $3195 | slippage $1835 | funding $-42
+  DONCH4H signals taken 1998 | ROTA slots 2837
 
-── part C: SLIPPAGE GATE — the test that killed reg-channel (v71bt) ──
-  a candidate must still beat the incumbent AT THE SAME slippage, at 3 AND 6 bps
+── PART C: WHAT THE CAPS COST ──
+  reason                    count   avg wanted $   avg ADX
+  DONCH4H/heat              10679          5871      37.5
+  DONCH4H/cash                719          5380      37.5
+  DONCH4H/too_small           100          4138      38.1
+  DONCH4H/per_coin             25         11575      42.6
+  ROTA/heat                    20            25       0.0
+  ROTA/per_coin                17             4       0.0
+  ROTA/cash                    17           364       0.0
 
-  slip   LIVE totR   (no candidates from part B)
-   0bps       1085   
-   3bps        865   
-   6bps        644   
-  10bps        350   
+  avg ADX of breakouts TAKEN 35.4 vs REJECTED 37.5
+  >>> the caps are turning away the STRONGER signals
 
-  DEPLOY BAR — all four, or it does not ship:
-   1. the incumbent passes all-6 on this lens (part A), else the run is void
-   2. totR beats the incumbent at 3bps
-   3. all 6 windows positive
-   4. the margin SURVIVES 6bps — reg-channel led at 0bps and was
-      less than half the incumbent by 6. A thin edge with no cushion is
-      not an edge, it is a measurement of the cost model.
+── PART B: DOES ONE SLEEVE STARVE THE OTHER? (same $10,000) ──
+  config                 trades  reject    net%   maxDD  all6  per-window net%
+  DONCH4H alone            3454    9397   -365.8%   75.1% FAIL  -69.3 -63.2 -74.8 -51.0 -48.0 -59.5
+  ROTA alone               2840       0     63.3%   20.3% FAIL  +33.6 -4.9 +24.2 +2.6 +9.4 -1.5
+  both (= PART A)          4835   11577   -123.8%   41.3% FAIL  -8.3 -33.2 -17.2 -26.1 -17.9 -21.1
+
+  DONCH4H trades: 3454 alone -> 1998 when sharing (-42%)
+  ROTA slots:     2840 alone -> 2837 when sharing (-0%)
+  net%: DONCH4H alone -365.8 + ROTA alone 63.3 = -302.5 if they did not compete; together they make -123.8
+  NB "alone" figures are NOT additive — each had the full $10,000. The
+  comparison that matters is return-per-dollar and drawdown, not the sum.
+
+── PART D: PYRAMID UNITS ──
+  unit 1:  n= 1834  avgR -0.2073  WR 57.5%  total $-15990
+  unit 2:  n=  157  avgR -0.2956  WR 56.1%  total $-1359
+  unit 3:  n=    7  avgR -0.4814  WR 42.9%  total $-51
+  config                 trades  reject    net%   maxDD  all6  per-window net%
+  pyramidMax=1             4775   10897   -116.6%   41.1% FAIL  -10.6 -31.7 -11.8 -25.7 -17.7 -19.0
+  pyramidMax=2             4826   11557   -123.0%   41.4% FAIL  -8.3 -33.3 -17.2 -25.0 -17.8 -21.4
+  pyramidMax=3             4835   11577   -123.8%   41.3% FAIL  -8.3 -33.2 -17.2 -26.1 -17.9 -21.1
+
+── PART E: WHO GETS THE MONEY WHEN THERE IS NOT ENOUGH ──
+  The live bot has NO policy: entries run in Promise.all batches, so the
+  coin whose network call returned first takes the capital. 'arrival' is
+  that baseline. NB 'adx' is not obviously better — high-ADX entries size
+  up to 2.0x and eat the remaining room faster, which can cut trade count.
+  config                 trades  reject    net%   maxDD  all6  per-window net%
+  arrival                  4835   11577   -123.8%   41.3% FAIL  -8.3 -33.2 -17.2 -26.1 -17.9 -21.1
+  adx                      4823   11551   -132.8%   43.6% FAIL  -5.7 -35.6 -22.7 -26.9 -18.3 -23.7
+  edge_cost                4794   11617   -142.2%   43.0% FAIL  -16.2 -34.3 -21.0 -31.2 -17.9 -21.6
+
+── PART F: EXECUTION ASSUMPTIONS ──
+  config                 trades  reject    net%   maxDD  all6  per-window net%
+  slip 0bps                4874   11528   -115.7%   45.1% FAIL  -9.6 -37.4 -12.1 -23.3 -15.5 -17.8
+  slip 3bps                4835   11577   -123.8%   41.3% FAIL  -8.3 -33.2 -17.2 -26.1 -17.9 -21.1
+  slip 6bps                4829   11579   -137.2%   43.2% FAIL  -11.0 -34.7 -17.1 -27.8 -22.8 -23.8
+  slip 10bps               4811   11610   -155.3%   45.1% FAIL  -17.7 -37.2 -19.7 -29.3 -25.1 -26.3
+  --- maker fill rate on the two ladder legs (1.0 = what every earlier
+      backtest silently assumed) ---
+  makerFill 1.0            4835   11577   -123.8%   41.3% FAIL  -8.3 -33.2 -17.2 -26.1 -17.9 -21.1
+  makerFill 0.7            4832   11584   -124.8%   41.5% FAIL  -8.5 -33.4 -17.4 -26.3 -18.1 -21.2
+  makerFill 0.4            4833   11581   -125.8%   41.6% FAIL  -8.7 -33.5 -17.7 -26.6 -17.8 -21.4
+  makerFill 0.0            4831   11582   -127.3%   41.8% FAIL  -9.1 -33.8 -18.0 -26.9 -18.1 -21.5
+  --- intrabar resolution ---
+  stop-first (default)     4835   11577   -123.8%   41.3% FAIL  -8.3 -33.2 -17.2 -26.1 -17.9 -21.1
+  target-first             4858   11539   -108.5%   40.1% FAIL  -3.0 -30.2 -16.1 -24.6 -14.9 -19.7
+
+  READ THIS BEFORE BELIEVING ANY ROW ABOVE:
+  These numbers are NOT comparable to the 696R / +0.062R figures in
+  CLAUDE.md. Those came from an unconstrained R-sum; these are dollars
+  on a real $10,000 that can run out. A LOWER number here is not a
+  regression — it is the first honest measurement.
