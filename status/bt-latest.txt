@@ -1,4 +1,4 @@
-backtest 2026-09-19T18:49Z mode=v80bt months=36
+backtest 2026-09-19T19:00Z mode=v80bt months=36
 ████ V80BT — CAPITAL-CONSTRAINED PORTFOLIO: the first honest run ████
   loaded 39 coins, span 1096 days
 
@@ -27,6 +27,13 @@ backtest 2026-09-19T18:49Z mode=v80bt months=36
 
   costs across all windows: fees $3275 | slippage $1870 | funding $-38
   DONCH4H signals taken 2001 | ROTA slots 2834
+
+── PARITY DIAGNOSTIC: same signal set as the unconstrained scan ──
+  unconstrained signal set: n=14411  WR 60.1%  avgR -0.0869
+  documented reference:     n~11218  WR ~66%   avgR +0.0469 (at 3bps)
+  >>> LADDER IS STILL WRONG. Expectancy does not reproduce even on the
+      same signal set, so the defect is in the exit machinery, not in
+      which trades get funded. Do not read the portfolio rows.
 
 ── PART C: WHAT THE CAPS COST ──
   reason                    count   avg wanted $   avg ADX
