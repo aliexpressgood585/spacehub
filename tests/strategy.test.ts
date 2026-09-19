@@ -332,6 +332,41 @@ function fixture(n = 80): S.Bar[] {
     } else check('a stop closes the position', false)
   }
 
+  // ── THE GUARD THAT WAS MISSING, and it cost six 36-month runs ─────────────
+  // Every earlier stop test passed a mark EQUAL to the stop level, so the
+  // distinction between "fills at the stop" and "fills at the mark" never
+  // showed up. A backtest passes the BAR'S EXTREME as the mark, and until
+  // v61.1 the exit was booked there — at the worst price of the entire bar.
+  // Result: -10.5R on a trade whose stop caps it at -1R, and a module that
+  // disagreed with the historical ladder on 99.4% of 11,412 trades.
+  // A test that only ever probes the boundary cannot see past it.
+  {
+    const deepLong = S.ladderStep(mk(), 70, 70)   // bar low far below the 90 stop
+    check('a long stop fills at the STOP, not at the bar extreme',
+      deepLong.kind === 'close' && Math.abs(deepLong.px - 90 * (1 - S.SLIP)) < 1e-9,
+      deepLong.kind === 'close' ? `filled at ${deepLong.px.toFixed(4)}, expected ~${(90 * (1 - S.SLIP)).toFixed(4)}` : 'did not close')
+    if (deepLong.kind === 'close') {
+      const r = ((deepLong.px - 100) * deepLong.qty - deepLong.fee) / 30
+      check('so a deep gap still loses about 1R, never many', r > -1.1, `got ${r.toFixed(3)}R`)
+    }
+
+    const deepShort = S.ladderStep(mk('SHORT'), 150, 150)  // bar high far above the 110 stop
+    check('a short stop fills at the STOP, not at the bar extreme',
+      deepShort.kind === 'close' && Math.abs(deepShort.px - 110 * (1 + S.SLIP)) < 1e-9,
+      deepShort.kind === 'close' ? `filled at ${deepShort.px.toFixed(4)}` : 'did not close')
+    if (deepShort.kind === 'close') {
+      const r = ((100 - deepShort.px) * deepShort.qty - deepShort.fee) / 30
+      check('the short side is capped the same way', r > -1.1, `got ${r.toFixed(3)}R`)
+    }
+
+    // the trailing third obeys the same rule
+    const p2 = { ...mk(), stage: 2 as const, stopPx: 120, sizeLeft: 1 }
+    const tr = S.ladderStep(p2, 80, 80)
+    check('a trailing exit fills at the trail level, not at the bar extreme',
+      tr.kind === 'close' && tr.reason === 'trail' && Math.abs(tr.px - 120 * (1 - S.SLIP)) < 1e-9,
+      tr.kind === 'close' ? `filled at ${tr.px.toFixed(4)}, expected ~${(120 * (1 - S.SLIP)).toFixed(4)}` : 'did not close')
+  }
+
   // the chandelier ratchets and never loosens
   {
     const p = { ...mk(), stage: 2 as const, stopPx: 100, sizeLeft: 1 }

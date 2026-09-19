@@ -372,7 +372,23 @@ export function ladderStep(
 
   if (pos.stage < 2) {
     if (hitStop) {
-      const exit = px * (1 - dirM * SLIP)
+      // A STOP FILLS AT THE STOP LEVEL, NOT AT THE MARK.
+      //
+      // This returned `px` until v61.1, and `px` is whatever the caller passed —
+      // for the live bot a per-minute ticker, near enough the stop; for a
+      // BACKTEST the bar's ADVERSE EXTREME, i.e. the worst price of the entire
+      // bar. So a stop-out was booked at the bar's low instead of at the stop,
+      // and losses of -5R to -10R appeared on trades whose stop caps them at -1R.
+      // That single defect accounted for essentially the whole gap between this
+      // module (-0.190R) and the historical ladder (+0.052R) across 11,412
+      // trades: they disagreed on 99.4% of them.
+      //
+      // Gap risk is understated by this convention — a bar that opens beyond the
+      // stop really would fill worse. That is the same assumption every
+      // historical backtest here makes (v79bt fills at `stop` exactly), so the
+      // numbers stay comparable, and it is far closer to the truth than booking
+      // every stop at the bar's extreme.
+      const exit = pos.stopPx * (1 - dirM * SLIP)
       return { kind: 'close', reason: 'sl', px: exit, qty: pos.sizeLeft, fee: exit * pos.sizeLeft * FEE_TAKER }
     }
     const tgt = pos.stage === 0 ? p06 : p10
@@ -401,7 +417,9 @@ export function ladderStep(
     : chand
   const hit = pos.side === 'LONG' ? px <= nt : px >= nt
   if (hit || ageMs > MAX_HOLD_MS) {
-    const exit = px * (1 - dirM * SLIP)
+    // Same rule as the initial stop: the trailing exit fills at the trailing
+    // LEVEL. A timeout is a genuine market order, so it fills at the mark.
+    const exit = (hit ? nt : px) * (1 - dirM * SLIP)
     return {
       kind: 'close', reason: hit ? 'trail' : 'timeout', px: exit,
       qty: pos.sizeLeft, fee: exit * pos.sizeLeft * FEE_TAKER,

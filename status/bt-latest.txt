@@ -1,32 +1,32 @@
-backtest 2026-09-19T19:29Z mode=v81bt months=36
+backtest 2026-09-19T19:40Z mode=v81bt months=36
 ████ V81BT — LADDER DIFF: backtest ladder vs the live ladder, same trades ████
 
   signals compared: 11412
   LADDER A (v79bt, the code behind the documented number)
      gross avgR +0.0950   net avgR +0.0524
   LADDER B (shared/strategy.ts = what the LIVE BOT runs)
-     gross avgR -0.1476   net avgR -0.1903
+     gross avgR +0.0949   net avgR +0.0522
   documented reference: net +0.0469
 
-  trades where the two ladders disagree: 11346 of 11412 (99.4%)
+  trades where the two ladders disagree: 1945 of 11412 (17.0%)
 
   the 15 largest disagreements (B = live ladder, A = backtest ladder):
    sym    date                 side    A(bt)    B(live)     diff
-   UNI    2026-02-11T04:00  SHORT -1.000   -10.551   -9.551
-   AAVE   2025-10-07T12:00  SHORT +7.793   +0.513   -7.280
-   SUI    2025-10-10T12:00  SHORT +8.090   +2.063   -6.027
-   FET    2025-10-08T08:00  SHORT +8.913   +3.402   -5.511
-   XRP    2025-10-10T12:00  SHORT +7.313   +1.888   -5.424
-   ETH    2024-03-05T12:00  LONG  -1.000   -5.976   -4.976
-   APT    2025-10-09T00:00  SHORT +5.088   +0.442   -4.646
-   RUNE   2026-08-19T00:00  SHORT -1.000   -5.565   -4.565
-   FET    2025-10-09T16:00  SHORT +6.401   +1.986   -4.415
-   SOL    2024-03-05T12:00  LONG  -1.000   -5.359   -4.359
-   DOT    2025-10-10T16:00  SHORT +6.328   +2.118   -4.210
-   ADA    2025-10-10T12:00  SHORT +6.032   +1.845   -4.187
-   ICP    2026-08-22T00:00  LONG  -1.000   -4.992   -3.992
-   SEI    2024-06-07T12:00  LONG  -1.000   -4.933   -3.933
-   SAND   2023-12-04T00:00  LONG  -1.000   -4.917   -3.917
+   AAVE   2025-10-07T12:00  SHORT +7.793   +0.533   -7.260
+   APT    2025-10-09T00:00  SHORT +5.088   +0.533   -4.555
+   DOT    2023-12-05T16:00  LONG  +3.245   +0.533   -2.711
+   SEI    2024-04-10T00:00  SHORT +3.125   +0.533   -2.592
+   ARB    2024-04-10T00:00  SHORT +3.088   +0.533   -2.555
+   ALGO   2026-03-31T04:00  LONG  +3.057   +0.533   -2.523
+   FIL    2024-04-10T00:00  SHORT +3.017   +0.533   -2.484
+   BNB    2024-08-02T20:00  SHORT +2.939   +0.533   -2.406
+   INJ    2024-04-09T12:00  SHORT +2.913   +0.533   -2.379
+   INJ    2024-04-10T00:00  SHORT +2.869   +0.533   -2.335
+   TIA    2024-04-10T00:00  SHORT +2.863   +0.533   -2.329
+   SUI    2024-04-10T00:00  SHORT +2.861   +0.533   -2.327
+   ICP    2024-03-22T04:00  LONG  +2.793   +0.533   -2.260
+   CRV    2024-06-11T00:00  SHORT +2.778   +0.533   -2.244
+   CRV    2025-07-14T00:00  LONG  +2.693   +0.533   -2.159
 
-  B worse than A on 10398/11346, better on 948
-  mean difference (B - A): -0.2426R per signal
+  B worse than A on 366/1945, better on 1579
+  mean difference (B - A): -0.0001R per signal
