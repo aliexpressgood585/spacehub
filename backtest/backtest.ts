@@ -26,6 +26,7 @@
 // live bot and this file import it, so the two cannot drift apart again.
 // ─────────────────────────────────────────────────────────────
 import * as S from '../shared/strategy.ts'
+import * as PF from './portfolio.ts'
 
 type Bar = S.Bar
 
@@ -6054,6 +6055,210 @@ function runV77bt() {
 }
 
 // ─────────────────────────────────────────────────────────────
+
+// ════════════════════════════════════════════════════════════════════════════
+// v80bt — THE FIRST RUN ON A CAPITAL-CONSTRAINED ENGINE.
+//
+// Everything before this measured an unconstrained sum of R: the same dollar in
+// ten places at once, no cash floor, no heat cap, no competition between the two
+// sleeves, and no credit for an early exit freeing capital. This mode runs the
+// real thing — backtest/portfolio.ts, over shared/strategy.ts, the same module
+// the live bot imports.
+//
+// It answers, in order:
+//   A. What does the DEPLOYED config actually do with $10,000?
+//   B. Does ROTA starve DONCH4H? (each sleeve alone vs together, same capital)
+//   C. What do the caps cost, and which cap?
+//   D. What do pyramid units 2 and 3 actually add?
+//   E. Does the allocation policy matter — and is 'adx' really better than the
+//      arbitrary order the live bot uses today?
+//   F. Slippage and maker-fill sensitivity.
+//
+// Each of the 6 windows is an INDEPENDENT $10,000 run. That is the only honest
+// way to do a walk-forward on a capital-constrained engine: carrying equity
+// across windows would let window 3's compounding decide window 5's position
+// sizes, and "positive in all six" would stop meaning anything.
+// ════════════════════════════════════════════════════════════════════════════
+function runV80bt() {
+  const NW = 6, BAR4 = 14400000
+  const to4h = (a: Bar[], ms: number): Bar[] => {
+    const out: Bar[] = []; let cur: Bar | null = null; let bucket = -1
+    for (const b of a) {
+      const k = Math.floor(b.t / ms)
+      if (k !== bucket) { if (cur) out.push(cur); bucket = k
+        cur = { t: k * ms, open: b.open, high: b.high, low: b.low, close: b.close, vol: b.vol } }
+      else if (cur) { cur.high = Math.max(cur.high, b.high); cur.low = Math.min(cur.low, b.low)
+        cur.close = b.close; cur.vol += b.vol }
+    }
+    if (cur) out.push(cur); return out
+  }
+
+  const data: Record<string, PF.CoinData> = {}
+  let tmin = Infinity, tmax = -Infinity
+  for (const c of COINS) {
+    if (!CORE40.has(c)) continue
+    const h = loadCSV(c, '1h')
+    if (h.length < 500) continue
+    data[c] = { b1: h, b4: to4h(h, BAR4) }
+    tmin = Math.min(tmin, h[0].t); tmax = Math.max(tmax, h[h.length - 1].t)
+  }
+  const spanDays = (tmax - tmin) / 86400000
+  console.log(`  loaded ${Object.keys(data).length} coins, span ${spanDays.toFixed(0)} days`)
+
+  // The v78bt lesson, enforced: a mode that silently gets 45 days of data prints
+  // a plausible table and is worthless. Refuse rather than report.
+  if (spanDays < 900 || Object.keys(data).length < 30) {
+    console.log(`\n  ABORT: need ~36 months of 1h history across CORE40, got ` +
+      `${spanDays.toFixed(0)} days / ${Object.keys(data).length} coins.`)
+    return
+  }
+
+  const wSpan = (tmax - tmin) / NW
+  const winBounds = Array.from({ length: NW }, (_, i) =>
+    [tmin + i * wSpan, tmin + (i + 1) * wSpan] as [number, number])
+  // the first window needs history in front of it for ADX(60)/ROTA(84)
+  const WARM = 100 * BAR4
+
+  const runWindows = (over: Partial<PF.SimConfig>) => {
+    const out: { m: PF.Metrics; r: PF.SimResult }[] = []
+    for (let w = 0; w < NW; w++) {
+      const [a, b] = winBounds[w]
+      const from = Math.max(tmin + WARM, a)
+      if (b - from < 30 * 86400000) { continue }
+      const r = PF.runPortfolio(data, PF.defaultConfig(over), from, b)
+      out.push({ m: PF.metrics(r, 10000, (b - from) / 86400000), r })
+    }
+    return out
+  }
+
+  const line = (tag: string, ws: { m: PF.Metrics }[]) => {
+    const net = ws.map(x => x.m.netPct)
+    const all6 = ws.length >= NW - 1 && net.every(x => x > 0)
+    const tot = ws.reduce((s, x) => s + x.m.netPct, 0)
+    const tr = ws.reduce((s, x) => s + x.m.trades, 0)
+    const rj = ws.reduce((s, x) => s + x.m.rejected, 0)
+    const dd = Math.max(...ws.map(x => x.m.maxDD))
+    console.log(`  ${tag.padEnd(22)} ${String(tr).padStart(6)} ${String(rj).padStart(7)} ` +
+      `${tot.toFixed(1).padStart(8)}% ${dd.toFixed(1).padStart(6)}% ` +
+      `${all6 ? 'PASS' : 'FAIL'}  ${net.map(x => (x >= 0 ? '+' : '') + x.toFixed(1)).join(' ')}`)
+    return { tot, all6, tr, rj, dd }
+  }
+
+  // ── A. the deployed config, for the first time with real capital ───────────
+  console.log(`\n── PART A: the DEPLOYED config on $10,000 per window ──`)
+  console.log(`  config                 trades  reject    net%   maxDD  all6  per-window net%`)
+  const base = runWindows({})
+  const baseS = line('LIVE (both sleeves)', base)
+
+  console.log(`\n  full metrics, window by window:`)
+  console.log(`   w   trades   net%    CAGR   maxDD  Calmar  Sharpe  Sortino    PF   expR   WR%   util%  rejected`)
+  base.forEach((x, i) => {
+    const m = x.m
+    console.log(`   ${i + 1}  ${String(m.trades).padStart(6)} ${m.netPct.toFixed(1).padStart(7)} ` +
+      `${m.cagr.toFixed(0).padStart(7)} ${m.maxDD.toFixed(1).padStart(7)} ` +
+      `${m.calmar.toFixed(2).padStart(7)} ${m.sharpe.toFixed(2).padStart(7)} ` +
+      `${m.sortino.toFixed(2).padStart(8)} ${(m.profitFactor === Infinity ? 'inf' : m.profitFactor.toFixed(2)).padStart(6)} ` +
+      `${(m.expectancyR >= 0 ? '+' : '') + m.expectancyR.toFixed(3)} ${m.winRate.toFixed(0).padStart(5)} ` +
+      `${m.utilisation.toFixed(0).padStart(6)}  ${String(m.rejected).padStart(7)}`)
+  })
+
+  const allTrades = base.flatMap(x => x.r.closed)
+  const allRej = base.flatMap(x => x.r.rejections)
+  const cost = base.reduce((s, x) => ({
+    fees: s.fees + x.m.fees, slip: s.slip + x.m.slip, funding: s.funding + x.m.funding }),
+    { fees: 0, slip: 0, funding: 0 })
+  console.log(`\n  costs across all windows: fees $${cost.fees.toFixed(0)} | ` +
+    `slippage $${cost.slip.toFixed(0)} | funding $${cost.funding.toFixed(0)}`)
+  console.log(`  DONCH4H signals taken ${allTrades.filter(t => t.sleeve === 'DONCH4H').length} | ` +
+    `ROTA slots ${allTrades.filter(t => t.sleeve === 'ROTA').length}`)
+
+  // ── C. what the caps cost, and which one ──────────────────────────────────
+  console.log(`\n── PART C: WHAT THE CAPS COST ──`)
+  const byReason: Record<string, { n: number; want: number; adx: number }> = {}
+  for (const r of allRej) {
+    const k = `${r.sleeve}/${r.reason}`
+    byReason[k] ??= { n: 0, want: 0, adx: 0 }
+    byReason[k].n++; byReason[k].want += r.wantedNotional; byReason[k].adx += r.adx
+  }
+  console.log(`  reason                    count   avg wanted $   avg ADX`)
+  for (const [k, v] of Object.entries(byReason).sort((a, b) => b[1].n - a[1].n)) {
+    console.log(`  ${k.padEnd(24)} ${String(v.n).padStart(6)}   ${(v.want / v.n).toFixed(0).padStart(11)}   ` +
+      `${v.n ? (v.adx / v.n).toFixed(1).padStart(7) : '      -'}`)
+  }
+  // The comparison that matters: were the REJECTED breakouts better or worse
+  // than the ones we took? v65bt found that skipped clustered breakouts were the
+  // WINNERS — if that holds here, the caps are costing real money.
+  const takenAdx = allTrades.filter(t => t.sleeve === 'DONCH4H')
+  const rejAdx = allRej.filter(r => r.sleeve === 'DONCH4H' && r.adx > 0)
+  if (takenAdx.length && rejAdx.length) {
+    const ta = takenAdx.reduce((s, t) => s + t.adx, 0) / takenAdx.length
+    const ra = rejAdx.reduce((s, r) => s + r.adx, 0) / rejAdx.length
+    console.log(`\n  avg ADX of breakouts TAKEN ${ta.toFixed(1)} vs REJECTED ${ra.toFixed(1)}`)
+    console.log(`  ${ra > ta ? '>>> the caps are turning away the STRONGER signals' :
+                               '    the caps turn away weaker signals than we keep'}`)
+  }
+
+  // ── B. sleeve contention ──────────────────────────────────────────────────
+  console.log(`\n── PART B: DOES ONE SLEEVE STARVE THE OTHER? (same $10,000) ──`)
+  console.log(`  config                 trades  reject    net%   maxDD  all6  per-window net%`)
+  const donOnly = runWindows({ sleeves: ['DONCH4H'] })
+  const rotaOnly = runWindows({ sleeves: ['ROTA'] })
+  const dS = line('DONCH4H alone', donOnly)
+  const rS = line('ROTA alone', rotaOnly)
+  line('both (= PART A)', base)
+  const donInBoth = base.reduce((s, x) => s + x.r.closed.filter(t => t.sleeve === 'DONCH4H').length, 0)
+  const rotaInBoth = base.reduce((s, x) => s + x.r.closed.filter(t => t.sleeve === 'ROTA').length, 0)
+  const donAloneN = donOnly.reduce((s, x) => s + x.m.trades, 0)
+  const rotaAloneN = rotaOnly.reduce((s, x) => s + x.m.trades, 0)
+  console.log(`\n  DONCH4H trades: ${donAloneN} alone -> ${donInBoth} when sharing ` +
+    `(${((donInBoth / Math.max(1, donAloneN) - 1) * 100).toFixed(0)}%)`)
+  console.log(`  ROTA slots:     ${rotaAloneN} alone -> ${rotaInBoth} when sharing ` +
+    `(${((rotaInBoth / Math.max(1, rotaAloneN) - 1) * 100).toFixed(0)}%)`)
+  console.log(`  net%: DONCH4H alone ${dS.tot.toFixed(1)} + ROTA alone ${rS.tot.toFixed(1)} ` +
+    `= ${(dS.tot + rS.tot).toFixed(1)} if they did not compete; together they make ${baseS.tot.toFixed(1)}`)
+  console.log(`  NB "alone" figures are NOT additive — each had the full $10,000. The`)
+  console.log(`  comparison that matters is return-per-dollar and drawdown, not the sum.`)
+
+  // ── D. what do pyramid units add ──────────────────────────────────────────
+  console.log(`\n── PART D: PYRAMID UNITS ──`)
+  for (const u of [1, 2, 3]) {
+    const set = allTrades.filter(t => t.sleeve === 'DONCH4H' && t.unit === u && t.riskUsd > 0)
+    if (!set.length) { console.log(`  unit ${u}: none`); continue }
+    const avgR = set.reduce((s, t) => s + t.r, 0) / set.length
+    const wr = set.filter(t => t.pnl > 0).length / set.length * 100
+    console.log(`  unit ${u}:  n=${String(set.length).padStart(5)}  avgR ${(avgR >= 0 ? '+' : '') + avgR.toFixed(4)}  ` +
+      `WR ${wr.toFixed(1)}%  total $${set.reduce((s, t) => s + t.pnl, 0).toFixed(0)}`)
+  }
+  console.log(`  config                 trades  reject    net%   maxDD  all6  per-window net%`)
+  for (const pm of [1, 2, 3]) line(`pyramidMax=${pm}`, runWindows({ pyramidMax: pm }))
+
+  // ── E. allocation policy ──────────────────────────────────────────────────
+  console.log(`\n── PART E: WHO GETS THE MONEY WHEN THERE IS NOT ENOUGH ──`)
+  console.log(`  The live bot has NO policy: entries run in Promise.all batches, so the`)
+  console.log(`  coin whose network call returned first takes the capital. 'arrival' is`)
+  console.log(`  that baseline. NB 'adx' is not obviously better — high-ADX entries size`)
+  console.log(`  up to 2.0x and eat the remaining room faster, which can cut trade count.`)
+  console.log(`  config                 trades  reject    net%   maxDD  all6  per-window net%`)
+  for (const p of ['arrival', 'adx', 'edge_cost'] as PF.AllocPolicy[]) line(p, runWindows({ alloc: p }))
+
+  // ── F. execution sensitivity ──────────────────────────────────────────────
+  console.log(`\n── PART F: EXECUTION ASSUMPTIONS ──`)
+  console.log(`  config                 trades  reject    net%   maxDD  all6  per-window net%`)
+  for (const bps of [0, 3, 6, 10]) line(`slip ${bps}bps`, runWindows({ slipBps: bps }))
+  console.log(`  --- maker fill rate on the two ladder legs (1.0 = what every earlier`)
+  console.log(`      backtest silently assumed) ---`)
+  for (const mf of [1.0, 0.7, 0.4, 0.0]) line(`makerFill ${mf.toFixed(1)}`, runWindows({ makerFillRate: mf }))
+  console.log(`  --- intrabar resolution ---`)
+  line('stop-first (default)', base)
+  line('target-first', runWindows({ intrabar: 'optimistic' }))
+
+  console.log(`\n  READ THIS BEFORE BELIEVING ANY ROW ABOVE:`)
+  console.log(`  These numbers are NOT comparable to the 696R / +0.062R figures in`)
+  console.log(`  CLAUDE.md. Those came from an unconstrained R-sum; these are dollars`)
+  console.log(`  on a real $10,000 that can run out. A LOWER number here is not a`)
+  console.log(`  regression — it is the first honest measurement.`)
+}
+
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
@@ -6239,6 +6444,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v73bt') {
     console.log(`████ V73BT — Donchian adaptive window (vol-scaled) vs fixed-15 ████`)
     runV73bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v80bt') {
+    console.log(`████ V80BT — CAPITAL-CONSTRAINED PORTFOLIO: the first honest run ████`)
+    runV80bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v79bt') {
