@@ -3,9 +3,9 @@
 # The mode must also be in the fetch-step whitelist in backtest.yml, or it will
 # silently get the short-history fetcher (see the v78bt note in CLAUDE.md).
 #
-# v81bt re-run after the FIX. Run 1 of v81bt found it: shared/strategy.ts booked
-# a stop exit at the MARK it was handed, which in a backtest is the bar's worst
-# price — so stop-outs showed -5R to -10R on trades whose stop caps them at -1R.
-# 99.4% of 11,412 trades disagreed. Stops now fill at the STOP LEVEL.
-# Expect ladder B to converge on ladder A (+0.052 net) if that was the whole gap.
-v81bt 36
+# v80bt on the CALIBRATED simulator (v61.1). The previous five v80bt runs were
+# all measured on a broken engine and their rows mean nothing. Now the shared
+# module reproduces the documented +0.0469R to four decimals, so PART A (does
+# the deployed config pass 6 windows on dollars), PART B (does ROTA starve
+# DONCH4H) and PART C (do the caps reject the stronger signals) finally count.
+v80bt 36

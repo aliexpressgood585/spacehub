@@ -26,14 +26,19 @@ time (w1, w6). The documented incumbent is 696R all-6-positive. Our scan
 reproduces its trade count (11,412 vs 11,218) but not its window profile.
 Either the scan is not the engine (no pyramiding / heat cap / ROTA interaction /
 per-coin caps) or the edge has decayed on data through 2026-09.
-→ **ITEM 4 IS DONE — v59.0 (shared rules) + v60.0 (portfolio sim).**
-  `shared/strategy.ts` holds the rules and BOTH the bot and the backtest import
-  it. `backtest/portfolio.ts` is the capital-constrained simulator: real cash,
-  real caps, pyramiding, both sleeves competing for one book, 1h management
-  resolution, stop-before-target. 189 assertions guard the pair.
-  **AWAITING: the first v80bt run** (`backtest/.run-request` → `v80bt 36`,
-  result lands in `status/bt-latest.txt`). Until those numbers are read, the
-  sub-gate tier is still unjudged and (a)-vs-(b) is still open.
+→ **ANSWERED — and it was (a): the scan was never the engine.**
+  The calibrated simulator reproduces the documented +0.0469R (v61.1: shared
+  module net +0.0522 vs the historical ladder's +0.0524, mean difference
+  -0.0001R per trade). **The edge has NOT decayed.** The v78bt/v79bt window
+  profiles came from an instrument that did not model the engine.
+  → NEXT: re-run `v80bt 36` on the calibrated simulator. Its PART A/B/C were
+    written against a broken engine and mean nothing yet. The live questions:
+    does the deployed config pass all 6 windows on DOLLARS; does ROTA starve
+    DONCH4H (-42% of breakout trades in the uncalibrated runs); does the heat
+    cap reject the STRONGER signals (rejected ADX 37.5 vs taken 35.6).
+  → THEN the sub-gate tier can finally be judged, on an instrument that works.
+  NB item 4 is only PARTLY done — the live bot does not call `ladderStep`; its
+  exit machinery is still inline. See the correction in v61.1.
 Do NOT deploy the sub-gate tier. It is neither accepted nor rejected.
 
 **How to run a backtest without the GitHub connector:** edit the first
@@ -700,6 +705,70 @@ Those constraints bite hardest in exactly the trending windows that carry the
 profit, which makes them the leading candidate for the v79bt divergence. Until
 that simulator exists, (a) "the scan is not the engine" is still not ruled out,
 and the sub-gate tier is still unjudged.
+
+## v61.1 (2026-09-19) — THE SIMULATOR IS CALIBRATED. Six runs and one diff.
+After the fix, on 11,412 identical trades:
+    LADDER A (v79bt inline, the code behind the documented number)
+       gross +0.0950   net +0.0524
+    LADDER B (shared/strategy.ts)
+       gross +0.0949   net +0.0522
+    mean difference: -0.0001R per signal
+Agreement to four decimal places. Disagreement fell from 99.4% to 17.0%, and the
+documented +0.0469R is REPRODUCED. The reference was sound; the instrument was
+not. **`backtest/portfolio.ts` can now be trusted, and v80bt's rows finally mean
+something.**
+
+THE BUG, found by diffing rather than by a sixth hypothesis: `ladderStep` booked
+a stop exit at `px` — the mark the CALLER passed. Live that is a per-minute
+ticker, near enough the stop. In a backtest it is the bar's ADVERSE EXTREME, so
+every stop-out was recorded at the worst price of the entire bar. The tell was
+arithmetic, not statistical: UNI -10.551R, ETH -5.976R, RUNE -5.565R on trades
+where A showed exactly -1.000. **A loss of ten R cannot exist when the stop caps
+it at one.** Stops and trailing exits now fill at their trigger LEVEL, the same
+convention v79bt uses, so the two are comparable. Gap risk is understated by
+that choice and it is documented where it is made.
+
+HOW THE SUITE MISSED IT, which matters more than the bug: every stop test passed
+a mark EQUAL to the stop level, so "fills at the stop" and "fills at the mark"
+were indistinguishable. **A test that only probes the boundary cannot see past
+it.** Five assertions now push the mark far beyond the stop — long, short and
+the trailing third — and check the fill price AND that the loss stays near 1R.
+
+THE ROAD HERE, recorded because the process is the lesson:
+ run 1  VOID. Intra-bar double count: a leg banked off the bar's high, then the
+        freshly-moved breakeven stop tested against the SAME bar's low. WR 51%
+        vs a documented 66%, every config losing. The wrong version looked MORE
+        conservative, which is why it survived review.
+ run 2  Better (-55% vs -123%) and still refused by the baseline gate. Correct
+        call: -0.130R against +0.046R is an unexplained gap, not a finding.
+ run 3  Parity mode ruled out the selection hypothesis — same signal set, still
+        -0.0869R. So the defect was in the exit machinery.
+ run 4  HYPOTHESIS REFUTED. I predicted the live breakeven floor was the cause;
+        the loose ladder came out WORSE (-0.155 vs -0.087).
+ run 5  SECOND HYPOTHESIS REFUTED, in the opposite direction from the prediction:
+        4h management was worse than 1h (-0.174 vs -0.073), not better.
+ v81bt  Stopped guessing. Diffed the two ladders on identical trades. One run.
+The rule earned: after two refuted hypotheses, stop running grids and diff
+against the known-good implementation. A 36-month grid tests a guess; a diff
+finds the defect.
+
+THE RESIDUAL 17% IS REAL, NOT NOISE — and it is a finding about the LIVE bot.
+Every one of the fifteen largest remaining disagreements shows B at exactly
++0.533R. That is 0.2R + 0.3333R: both ladder legs banked and the trailing third
+stopped at breakeven, while A rode the same trades to +2.7R through +7.8R.
+So the live breakeven floor CAPS THE FAT TAIL. Net it is a wash (B better on
+1,579 trades, worse on 366, mean -0.0001R) but the SHAPE differs: B trades fat
+tails for a higher hit rate. Given that v58bt's entire case for the trailing
+third was fat-tail capture (+36% totR), whether the floor should exist is now a
+legitimate question for the calibrated simulator — measured, not assumed.
+
+CORRECTION TO v59.0's CLAIM: **the live bot does not call `ladderStep`. Zero
+occurrences.** v59.0 wired the ENTRY path to the shared module — signal, gate,
+stop distance, ADX tier, pyramid gate, ladder levels — but the bot's exit state
+machine is still its own inline code. "Item 4 is done" was overstated: the rules
+are shared, the exit MACHINERY is not. This fix therefore touches the backtest
+only and cannot affect the running bot. Wiring the live exits to `ladderStep` is
+the remaining work and needs its own validation.
 
 ## v61.0 (2026-09-19) — the dashboard was showing +0.00 on every position
 User reported the page looked frozen: all 16 positions at "+0.00$ / +0.000%",
