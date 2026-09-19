@@ -1,23 +1,23 @@
-backtest 2026-09-19T19:10Z mode=v80bt months=36
+backtest 2026-09-19T19:21Z mode=v80bt months=36
 ████ V80BT — CAPITAL-CONSTRAINED PORTFOLIO: the first honest run ████
   loaded 39 coins, span 1096 days
 
 ── PART A: the DEPLOYED config on $10,000 per window ──
   config                 trades  reject    net%   maxDD  all6  per-window net%
-  LIVE (both sleeves)      4835   11704    -55.1%   36.2% FAIL  +2.7 -24.1 +2.5 -17.8 -4.2 -14.1
+  LIVE (both sleeves)      4858   11697    -40.1%   35.4% FAIL  +6.2 -22.8 +6.8 -15.7 -0.4 -14.3
 
   full metrics, window by window:
    w   trades   net%    CAGR   maxDD  Calmar  Sharpe  Sortino    PF   expR   WR%   util%  rejected
-   1     756     2.7       6    17.9    0.33    0.35     0.36   1.01 -0.140    51     90     1461
-   2     816   -24.1     -42    36.2   -1.33   -1.99    -1.89   0.82 -0.093    52     90     2041
-   3     870     2.5       5    19.2    0.26    0.32     0.33   1.03 -0.120    50     87     1978
-   4     788   -17.8     -32    21.6   -1.65   -1.74    -1.73   0.87 -0.136    51     89     2244
-   5     779    -4.2      -8     9.3   -0.91   -0.32    -0.33   0.98 -0.129    52     88     2003
-   6     826   -14.1     -26    18.4   -1.54   -1.53    -1.54   0.86 -0.163    50     91     1977
+   1     770     6.2      14    17.9    0.77    0.62     0.63   1.03 -0.144    51     90     1450
+   2     819   -22.8     -40    35.4   -1.29   -1.83    -1.77   0.84 -0.061    52     89     2049
+   3     872     6.8      14    19.0    0.72    0.56     0.58   1.05 -0.103    51     87     1976
+   4     791   -15.7     -29    21.1   -1.49   -1.47    -1.48   0.89 -0.114    51     89     2241
+   5     782    -0.4      -1     8.3   -0.10    0.07     0.07   1.01 -0.097    52     88     1997
+   6     824   -14.3     -27    18.7   -1.53   -1.56    -1.58   0.85 -0.158    51     91     1984
 
   BASELINE CHECK — per-trade mechanics vs the documented band
-    DONCH4H win rate  58.5%   (documented ~66%, band 58-74%)
-    DONCH4H avg R     -0.1303  (documented +0.046 to +0.062)
+    DONCH4H win rate  58.7%   (documented ~66%, band 58-74%)
+    DONCH4H avg R     -0.1134  (documented +0.046 to +0.062)
 
   ################ BASELINE FAILS — DO NOT READ THE ROWS BELOW ################
   Capital limits change which trades are taken, not what a trade does. A
@@ -25,8 +25,8 @@ backtest 2026-09-19T19:10Z mode=v80bt months=36
   a finding. Fix the simulator and re-run; do not interpret this output.
   #############################################################################
 
-  costs across all windows: fees $3275 | slippage $1870 | funding $-38
-  DONCH4H signals taken 2001 | ROTA slots 2834
+  costs across all windows: fees $3322 | slippage $1897 | funding $-36
+  DONCH4H signals taken 2021 | ROTA slots 2837
 
 ── PARITY DIAGNOSTIC: same signal set as the unconstrained scan ──
   Run 3 showed the LIVE ladder does not reproduce the documented +0.0469R
@@ -44,9 +44,22 @@ backtest 2026-09-19T19:10Z mode=v80bt months=36
   to dip and recover, which on a fat-tailed edge is worth a great deal. The
   table below measures how much.
 
-  trail floor        n     WR%     avgR      vs documented +0.0469
-  breakeven (LIVE)   14411   60.1  -0.0869   does not reproduce
-  free (BACKTESTS)   14324   48.8  -0.1550   does not reproduce
+  variant                          n     WR%     avgR     vs +0.0469
+  breakeven(LIVE) manage 1h      14416   60.1  -0.0734  no
+  breakeven(LIVE) manage 4h      14326   53.1  -0.1740  no
+  free(BACKTEST) manage 1h       14215   47.6  -0.0554  no
+  free(BACKTEST) manage 4h       14164   40.2  -0.1640  no
+
+  WHY MANAGEMENT RESOLUTION IS ON TRIAL HERE, and it is the sharper
+  question of the two: every historical backtest manages on 4h bars. A
+  trade that banks 0.6R in hour 1 and dips back through entry in hour 3
+  of the SAME 4h bar is never breakeven-stopped by that model — the stop
+  only becomes active on the NEXT bar. The live bot polls every minute
+  and WOULD stop it. So if 4h reproduces +0.0469 and 1h does not, the
+  documented edge is partly an artifact of coarse bar resolution, and the
+  1h figure is the more faithful estimate of what the bot actually earns.
+  That would be a bigger and more uncomfortable finding than the trail
+  floor, and it is why it is being measured rather than argued.
 
   If 'free' reproduces and 'breakeven' does not, then every validated number
   in CLAUDE.md describes a ladder the live bot does not run, and v58bt/v59bt
@@ -56,12 +69,12 @@ backtest 2026-09-19T19:10Z mode=v80bt months=36
 
 ── PART C: WHAT THE CAPS COST ──
   reason                    count   avg wanted $   avg ADX
-  DONCH4H/heat              10769          6256      37.6
-  DONCH4H/cash                822          5245      36.3
-  DONCH4H/too_small            44          5020      33.8
-  ROTA/heat                    21            35       0.0
-  ROTA/cash                    18           426       0.0
-  DONCH4H/per_coin             17         12010      40.2
+  DONCH4H/heat              10860          6329      37.5
+  DONCH4H/cash                726          5394      36.8
+  DONCH4H/too_small            45          5140      35.3
+  ROTA/heat                    19            28       0.0
+  ROTA/cash                    17           440       0.0
+  DONCH4H/per_coin             17         11276      38.4
   ROTA/per_coin                13             7       0.0
 
   avg ADX of breakouts TAKEN 35.6 vs REJECTED 37.5
@@ -69,24 +82,24 @@ backtest 2026-09-19T19:10Z mode=v80bt months=36
 
 ── PART B: DOES ONE SLEEVE STARVE THE OTHER? (same $10,000) ──
   config                 trades  reject    net%   maxDD  all6  per-window net%
-  DONCH4H alone            3432    9651   -290.5%   64.7% FAIL  -53.0 -55.7 -64.4 -40.1 -28.0 -49.2
+  DONCH4H alone            3440    9678   -274.6%   59.9% FAIL  -52.3 -52.9 -59.5 -39.1 -21.7 -49.0
   ROTA alone               2840       0     63.3%   20.3% FAIL  +33.6 -4.9 +24.2 +2.6 +9.4 -1.5
-  both (= PART A)          4835   11704    -55.1%   36.2% FAIL  +2.7 -24.1 +2.5 -17.8 -4.2 -14.1
+  both (= PART A)          4858   11697    -40.1%   35.4% FAIL  +6.2 -22.8 +6.8 -15.7 -0.4 -14.3
 
-  DONCH4H trades: 3432 alone -> 2001 when sharing (-42%)
-  ROTA slots:     2840 alone -> 2834 when sharing (-0%)
-  net%: DONCH4H alone -290.5 + ROTA alone 63.3 = -227.1 if they did not compete; together they make -55.1
+  DONCH4H trades: 3440 alone -> 2021 when sharing (-41%)
+  ROTA slots:     2840 alone -> 2837 when sharing (-0%)
+  net%: DONCH4H alone -274.6 + ROTA alone 63.3 = -211.3 if they did not compete; together they make -40.1
   NB "alone" figures are NOT additive — each had the full $10,000. The
   comparison that matters is return-per-dollar and drawdown, not the sum.
 
 ── PART D: PYRAMID UNITS ──
-  unit 1:  n= 1757  avgR -0.1182  WR 59.1%  total $-9618
-  unit 2:  n=  225  avgR -0.2031  WR 55.1%  total $-1210
-  unit 3:  n=   19  avgR -0.3847  WR 47.4%  total $-88
+  unit 1:  n= 1768  avgR -0.1077  WR 59.0%  total $-8727
+  unit 2:  n=  229  avgR -0.1415  WR 57.2%  total $-891
+  unit 3:  n=   24  avgR -0.2661  WR 54.2%  total $-86
   config                 trades  reject    net%   maxDD  all6  per-window net%
-  pyramidMax=1             4768   10796    -65.6%   39.8% FAIL  +0.3 -29.1 -1.5 -16.1 -6.0 -13.1
-  pyramidMax=2             4828   11654    -50.3%   35.9% FAIL  +3.2 -23.4 +2.6 -17.2 -1.5 -13.9
-  pyramidMax=3             4835   11704    -55.1%   36.2% FAIL  +2.7 -24.1 +2.5 -17.8 -4.2 -14.1
+  pyramidMax=1             4763   10772    -49.8%   39.2% FAIL  +2.1 -27.9 +10.2 -17.7 -3.8 -12.6
+  pyramidMax=2             4844   11641    -35.3%   35.2% FAIL  +6.9 -22.4 +7.8 -16.3 +2.8 -14.2
+  pyramidMax=3             4858   11697    -40.1%   35.4% FAIL  +6.2 -22.8 +6.8 -15.7 -0.4 -14.3
 
 ── PART E: WHO GETS THE MONEY WHEN THERE IS NOT ENOUGH ──
   The live bot has NO policy: entries run in Promise.all batches, so the
@@ -94,24 +107,24 @@ backtest 2026-09-19T19:10Z mode=v80bt months=36
   that baseline. NB 'adx' is not obviously better — high-ADX entries size
   up to 2.0x and eat the remaining room faster, which can cut trade count.
   config                 trades  reject    net%   maxDD  all6  per-window net%
-  arrival                  4835   11704    -55.1%   36.2% FAIL  +2.7 -24.1 +2.5 -17.8 -4.2 -14.1
-  adx                      4831   11660    -84.9%   40.0% FAIL  -2.3 -25.8 -8.9 -20.7 -6.9 -20.3
-  edge_cost                4834   11663    -91.4%   37.0% FAIL  -15.2 -22.8 -5.4 -22.5 -5.9 -19.5
+  arrival                  4858   11697    -40.1%   35.4% FAIL  +6.2 -22.8 +6.8 -15.7 -0.4 -14.3
+  adx                      4841   11673    -62.0%   40.4% FAIL  +1.0 -24.8 +5.4 -19.3 -4.6 -19.7
+  edge_cost                4844   11687    -74.4%   37.4% FAIL  -11.5 -21.0 +1.1 -20.7 -2.3 -20.1
 
 ── PART F: EXECUTION ASSUMPTIONS ──
   config                 trades  reject    net%   maxDD  all6  per-window net%
-  slip 0bps                4854   11698    -41.8%   42.4% FAIL  +8.2 -32.8 +8.9 -15.5 -0.6 -10.0
-  slip 3bps                4835   11704    -55.1%   36.2% FAIL  +2.7 -24.1 +2.5 -17.8 -4.2 -14.1
-  slip 6bps                4830   11707    -67.2%   37.7% FAIL  +0.5 -26.9 +1.7 -19.5 -7.4 -15.6
-  slip 10bps               4802   11749    -91.6%   39.5% FAIL  -6.4 -30.5 -1.4 -23.4 -11.4 -18.5
+  slip 0bps                4868   11698    -29.1%   41.5% FAIL  +9.4 -30.9 +13.5 -13.9 +3.8 -11.0
+  slip 3bps                4858   11697    -40.1%   35.4% FAIL  +6.2 -22.8 +6.8 -15.7 -0.4 -14.3
+  slip 6bps                4844   11716    -53.6%   37.2% FAIL  +4.1 -25.3 +5.7 -17.5 -3.5 -17.0
+  slip 10bps               4831   11734    -79.9%   38.4% FAIL  -2.7 -29.2 +2.2 -21.0 -8.9 -20.2
   --- maker fill rate on the two ladder legs (1.0 = what every earlier
       backtest silently assumed) ---
-  makerFill 1.0            4835   11704    -55.1%   36.2% FAIL  +2.7 -24.1 +2.5 -17.8 -4.2 -14.1
-  makerFill 0.7            4833   11706    -56.3%   36.3% FAIL  +2.1 -24.3 +2.3 -18.0 -4.3 -14.1
-  makerFill 0.4            4833   11706    -57.6%   36.4% FAIL  +1.9 -24.5 +2.0 -18.1 -4.6 -14.4
-  makerFill 0.0            4833   11709    -59.6%   36.9% FAIL  +1.5 -25.3 +1.7 -18.2 -4.9 -14.4
+  makerFill 1.0            4858   11697    -40.1%   35.4% FAIL  +6.2 -22.8 +6.8 -15.7 -0.4 -14.3
+  makerFill 0.7            4858   11697    -41.4%   35.5% FAIL  +6.0 -23.0 +6.6 -15.9 -0.7 -14.5
+  makerFill 0.4            4858   11697    -42.8%   35.6% FAIL  +5.7 -23.2 +6.4 -16.0 -0.9 -14.7
+  makerFill 0.0            4857   11698    -44.7%   35.8% FAIL  +5.1 -23.4 +6.0 -16.3 -1.1 -15.1
   --- intrabar resolution ---
-  stop-first (default)     4835   11704    -55.1%   36.2% FAIL  +2.7 -24.1 +2.5 -17.8 -4.2 -14.1
+  stop-first (default)     4858   11697    -40.1%   35.4% FAIL  +6.2 -22.8 +6.8 -15.7 -0.4 -14.3
   target-first             4839   11704    -55.3%   37.3% FAIL  +2.7 -25.7 +2.7 -17.8 -3.7 -13.5
 
   READ THIS BEFORE BELIEVING ANY ROW ABOVE:
