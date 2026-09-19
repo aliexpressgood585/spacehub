@@ -1,56 +1,66 @@
-backtest 2026-09-19T18:38Z mode=v80bt months=36
+backtest 2026-09-19T18:49Z mode=v80bt months=36
 ████ V80BT — CAPITAL-CONSTRAINED PORTFOLIO: the first honest run ████
   loaded 39 coins, span 1096 days
 
 ── PART A: the DEPLOYED config on $10,000 per window ──
   config                 trades  reject    net%   maxDD  all6  per-window net%
-  LIVE (both sleeves)      4835   11577   -123.8%   41.3% FAIL  -8.3 -33.2 -17.2 -26.1 -17.9 -21.1
+  LIVE (both sleeves)      4835   11704    -55.1%   36.2% FAIL  +2.7 -24.1 +2.5 -17.8 -4.2 -14.1
 
   full metrics, window by window:
    w   trades   net%    CAGR   maxDD  Calmar  Sharpe  Sortino    PF   expR   WR%   util%  rejected
-   1     758    -8.3     -17    19.1   -0.95   -0.53    -0.52   0.93 -0.184    52     90     1426
-   2     820   -33.2     -55    41.3   -1.61   -3.06    -2.92   0.76 -0.204    51     89     2040
-   3     847   -17.2     -31    24.7   -1.39   -0.97    -0.96   0.90 -0.238    50     87     1987
-   4     808   -26.1     -45    27.5   -1.90   -2.73    -2.62   0.81 -0.203    50     89     2194
-   5     778   -17.9     -33    19.0   -1.89   -1.97    -1.93   0.87 -0.251    50     88     1969
-   6     824   -21.1     -38    24.3   -1.73   -2.55    -2.51   0.79 -0.211    51     90     1961
+   1     756     2.7       6    17.9    0.33    0.35     0.36   1.01 -0.140    51     90     1461
+   2     816   -24.1     -42    36.2   -1.33   -1.99    -1.89   0.82 -0.093    52     90     2041
+   3     870     2.5       5    19.2    0.26    0.32     0.33   1.03 -0.120    50     87     1978
+   4     788   -17.8     -32    21.6   -1.65   -1.74    -1.73   0.87 -0.136    51     89     2244
+   5     779    -4.2      -8     9.3   -0.91   -0.32    -0.33   0.98 -0.129    52     88     2003
+   6     826   -14.1     -26    18.4   -1.54   -1.53    -1.54   0.86 -0.163    50     91     1977
 
-  costs across all windows: fees $3195 | slippage $1835 | funding $-42
-  DONCH4H signals taken 1998 | ROTA slots 2837
+  BASELINE CHECK — per-trade mechanics vs the documented band
+    DONCH4H win rate  58.5%   (documented ~66%, band 58-74%)
+    DONCH4H avg R     -0.1303  (documented +0.046 to +0.062)
+
+  ################ BASELINE FAILS — DO NOT READ THE ROWS BELOW ################
+  Capital limits change which trades are taken, not what a trade does. A
+  per-trade profile this far from the documented one is an ENGINE BUG, not
+  a finding. Fix the simulator and re-run; do not interpret this output.
+  #############################################################################
+
+  costs across all windows: fees $3275 | slippage $1870 | funding $-38
+  DONCH4H signals taken 2001 | ROTA slots 2834
 
 ── PART C: WHAT THE CAPS COST ──
   reason                    count   avg wanted $   avg ADX
-  DONCH4H/heat              10679          5871      37.5
-  DONCH4H/cash                719          5380      37.5
-  DONCH4H/too_small           100          4138      38.1
-  DONCH4H/per_coin             25         11575      42.6
-  ROTA/heat                    20            25       0.0
-  ROTA/per_coin                17             4       0.0
-  ROTA/cash                    17           364       0.0
+  DONCH4H/heat              10769          6256      37.6
+  DONCH4H/cash                822          5245      36.3
+  DONCH4H/too_small            44          5020      33.8
+  ROTA/heat                    21            35       0.0
+  ROTA/cash                    18           426       0.0
+  DONCH4H/per_coin             17         12010      40.2
+  ROTA/per_coin                13             7       0.0
 
-  avg ADX of breakouts TAKEN 35.4 vs REJECTED 37.5
+  avg ADX of breakouts TAKEN 35.6 vs REJECTED 37.5
   >>> the caps are turning away the STRONGER signals
 
 ── PART B: DOES ONE SLEEVE STARVE THE OTHER? (same $10,000) ──
   config                 trades  reject    net%   maxDD  all6  per-window net%
-  DONCH4H alone            3454    9397   -365.8%   75.1% FAIL  -69.3 -63.2 -74.8 -51.0 -48.0 -59.5
+  DONCH4H alone            3432    9651   -290.5%   64.7% FAIL  -53.0 -55.7 -64.4 -40.1 -28.0 -49.2
   ROTA alone               2840       0     63.3%   20.3% FAIL  +33.6 -4.9 +24.2 +2.6 +9.4 -1.5
-  both (= PART A)          4835   11577   -123.8%   41.3% FAIL  -8.3 -33.2 -17.2 -26.1 -17.9 -21.1
+  both (= PART A)          4835   11704    -55.1%   36.2% FAIL  +2.7 -24.1 +2.5 -17.8 -4.2 -14.1
 
-  DONCH4H trades: 3454 alone -> 1998 when sharing (-42%)
-  ROTA slots:     2840 alone -> 2837 when sharing (-0%)
-  net%: DONCH4H alone -365.8 + ROTA alone 63.3 = -302.5 if they did not compete; together they make -123.8
+  DONCH4H trades: 3432 alone -> 2001 when sharing (-42%)
+  ROTA slots:     2840 alone -> 2834 when sharing (-0%)
+  net%: DONCH4H alone -290.5 + ROTA alone 63.3 = -227.1 if they did not compete; together they make -55.1
   NB "alone" figures are NOT additive — each had the full $10,000. The
   comparison that matters is return-per-dollar and drawdown, not the sum.
 
 ── PART D: PYRAMID UNITS ──
-  unit 1:  n= 1834  avgR -0.2073  WR 57.5%  total $-15990
-  unit 2:  n=  157  avgR -0.2956  WR 56.1%  total $-1359
-  unit 3:  n=    7  avgR -0.4814  WR 42.9%  total $-51
+  unit 1:  n= 1757  avgR -0.1182  WR 59.1%  total $-9618
+  unit 2:  n=  225  avgR -0.2031  WR 55.1%  total $-1210
+  unit 3:  n=   19  avgR -0.3847  WR 47.4%  total $-88
   config                 trades  reject    net%   maxDD  all6  per-window net%
-  pyramidMax=1             4775   10897   -116.6%   41.1% FAIL  -10.6 -31.7 -11.8 -25.7 -17.7 -19.0
-  pyramidMax=2             4826   11557   -123.0%   41.4% FAIL  -8.3 -33.3 -17.2 -25.0 -17.8 -21.4
-  pyramidMax=3             4835   11577   -123.8%   41.3% FAIL  -8.3 -33.2 -17.2 -26.1 -17.9 -21.1
+  pyramidMax=1             4768   10796    -65.6%   39.8% FAIL  +0.3 -29.1 -1.5 -16.1 -6.0 -13.1
+  pyramidMax=2             4828   11654    -50.3%   35.9% FAIL  +3.2 -23.4 +2.6 -17.2 -1.5 -13.9
+  pyramidMax=3             4835   11704    -55.1%   36.2% FAIL  +2.7 -24.1 +2.5 -17.8 -4.2 -14.1
 
 ── PART E: WHO GETS THE MONEY WHEN THERE IS NOT ENOUGH ──
   The live bot has NO policy: entries run in Promise.all batches, so the
@@ -58,25 +68,25 @@ backtest 2026-09-19T18:38Z mode=v80bt months=36
   that baseline. NB 'adx' is not obviously better — high-ADX entries size
   up to 2.0x and eat the remaining room faster, which can cut trade count.
   config                 trades  reject    net%   maxDD  all6  per-window net%
-  arrival                  4835   11577   -123.8%   41.3% FAIL  -8.3 -33.2 -17.2 -26.1 -17.9 -21.1
-  adx                      4823   11551   -132.8%   43.6% FAIL  -5.7 -35.6 -22.7 -26.9 -18.3 -23.7
-  edge_cost                4794   11617   -142.2%   43.0% FAIL  -16.2 -34.3 -21.0 -31.2 -17.9 -21.6
+  arrival                  4835   11704    -55.1%   36.2% FAIL  +2.7 -24.1 +2.5 -17.8 -4.2 -14.1
+  adx                      4831   11660    -84.9%   40.0% FAIL  -2.3 -25.8 -8.9 -20.7 -6.9 -20.3
+  edge_cost                4834   11663    -91.4%   37.0% FAIL  -15.2 -22.8 -5.4 -22.5 -5.9 -19.5
 
 ── PART F: EXECUTION ASSUMPTIONS ──
   config                 trades  reject    net%   maxDD  all6  per-window net%
-  slip 0bps                4874   11528   -115.7%   45.1% FAIL  -9.6 -37.4 -12.1 -23.3 -15.5 -17.8
-  slip 3bps                4835   11577   -123.8%   41.3% FAIL  -8.3 -33.2 -17.2 -26.1 -17.9 -21.1
-  slip 6bps                4829   11579   -137.2%   43.2% FAIL  -11.0 -34.7 -17.1 -27.8 -22.8 -23.8
-  slip 10bps               4811   11610   -155.3%   45.1% FAIL  -17.7 -37.2 -19.7 -29.3 -25.1 -26.3
+  slip 0bps                4854   11698    -41.8%   42.4% FAIL  +8.2 -32.8 +8.9 -15.5 -0.6 -10.0
+  slip 3bps                4835   11704    -55.1%   36.2% FAIL  +2.7 -24.1 +2.5 -17.8 -4.2 -14.1
+  slip 6bps                4830   11707    -67.2%   37.7% FAIL  +0.5 -26.9 +1.7 -19.5 -7.4 -15.6
+  slip 10bps               4802   11749    -91.6%   39.5% FAIL  -6.4 -30.5 -1.4 -23.4 -11.4 -18.5
   --- maker fill rate on the two ladder legs (1.0 = what every earlier
       backtest silently assumed) ---
-  makerFill 1.0            4835   11577   -123.8%   41.3% FAIL  -8.3 -33.2 -17.2 -26.1 -17.9 -21.1
-  makerFill 0.7            4832   11584   -124.8%   41.5% FAIL  -8.5 -33.4 -17.4 -26.3 -18.1 -21.2
-  makerFill 0.4            4833   11581   -125.8%   41.6% FAIL  -8.7 -33.5 -17.7 -26.6 -17.8 -21.4
-  makerFill 0.0            4831   11582   -127.3%   41.8% FAIL  -9.1 -33.8 -18.0 -26.9 -18.1 -21.5
+  makerFill 1.0            4835   11704    -55.1%   36.2% FAIL  +2.7 -24.1 +2.5 -17.8 -4.2 -14.1
+  makerFill 0.7            4833   11706    -56.3%   36.3% FAIL  +2.1 -24.3 +2.3 -18.0 -4.3 -14.1
+  makerFill 0.4            4833   11706    -57.6%   36.4% FAIL  +1.9 -24.5 +2.0 -18.1 -4.6 -14.4
+  makerFill 0.0            4833   11709    -59.6%   36.9% FAIL  +1.5 -25.3 +1.7 -18.2 -4.9 -14.4
   --- intrabar resolution ---
-  stop-first (default)     4835   11577   -123.8%   41.3% FAIL  -8.3 -33.2 -17.2 -26.1 -17.9 -21.1
-  target-first             4858   11539   -108.5%   40.1% FAIL  -3.0 -30.2 -16.1 -24.6 -14.9 -19.7
+  stop-first (default)     4835   11704    -55.1%   36.2% FAIL  +2.7 -24.1 +2.5 -17.8 -4.2 -14.1
+  target-first             4839   11704    -55.3%   37.3% FAIL  +2.7 -25.7 +2.7 -17.8 -3.7 -13.5
 
   READ THIS BEFORE BELIEVING ANY ROW ABOVE:
   These numbers are NOT comparable to the 696R / +0.062R figures in
