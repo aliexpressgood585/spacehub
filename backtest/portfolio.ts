@@ -107,6 +107,19 @@ export interface SimConfig {
    */
   parity: boolean
   /**
+   * HARD cap on DONCH4H exposure as a fraction of portfolio, or null for
+   * today's behaviour (no explicit budget — the sleeves simply race for the
+   * shared heat cap).
+   *
+   * WHY THIS EXISTS: v80bt measured DONCH4H alone at -46.9% and together with
+   * ROTA at +70.1%. The breakout sleeve is only profitable on the LEFTOVERS.
+   * But nothing GUARANTEES it gets only leftovers — if ROTA's health
+   * kill-switch fires it unwinds its whole basket, and DONCH4H inherits the
+   * entire book, i.e. exactly the losing configuration, with no one deciding
+   * it. Today's good behaviour is an accident of ROTA's timing, not a design.
+   */
+  donchBudget: number | null
+  /**
    * The trailing third's floor. 'breakeven' is what the LIVE BOT does and the
    * default. 'free' reproduces the convention every historical backtest used,
    * where the chandelier floats from an extreme seeded at entry and the final
@@ -131,6 +144,7 @@ export function defaultConfig(over: Partial<SimConfig> = {}): SimConfig {
     manageOn: '1h',
     parity: false,
     trailFloor: 'breakeven',
+    donchBudget: null,
     ...over,
   }
 }
@@ -464,6 +478,19 @@ export function runPortfolio(
     if (!cfg.parity && (units.length >= cfg.pyramidMax ||
         !S.pyramidGateOk(units as S.OpenUnit[], c.side, c.price))) return false
 
+    // The explicit sleeve budget, applied BEFORE the shared caps so it binds
+    // whatever ROTA is doing — including when ROTA holds nothing at all.
+    if (cfg.donchBudget !== null) {
+      const donchExp = open.filter(x => x.sleeve === 'DONCH4H')
+        .reduce((a, x) => a + x.entry * x.sizeLeft, 0)
+      const room = Math.max(0, port * cfg.donchBudget - donchExp)
+      if (room < S.MIN_NOTIONAL) {
+        rejections.push({ t, sym: c.sym, sleeve: 'DONCH4H', side: c.side,
+          reason: 'heat', adx: c.adx, wantedNotional: room })
+        return false
+      }
+    }
+
     const sized = S.sizeBreakout({
       portfolio: port, balance: cash, openExposure: exp, heatCommitted: 0,
       longExposure: se.l, shortExposure: se.s, symExposure: symExposure(c.sym),
@@ -482,21 +509,32 @@ export function runPortfolio(
       return false
     }
 
+    let notional = sized.notional
+    if (cfg.donchBudget !== null) {
+      const donchExp = open.filter(x => x.sleeve === 'DONCH4H')
+        .reduce((a, x) => a + x.entry * x.sizeLeft, 0)
+      notional = Math.min(notional, Math.max(0, port * cfg.donchBudget - donchExp))
+      if (notional < S.MIN_NOTIONAL) {
+        rejections.push({ t, sym: c.sym, sleeve: 'DONCH4H', side: c.side,
+          reason: 'heat', adx: c.adx, wantedNotional: notional })
+        return false
+      }
+    }
     const dirM = c.side === 'LONG' ? 1 : -1
     const fillPx = c.price * (1 + dirM * SLIP)
-    const size = sized.notional / fillPx
-    const feeIn = sized.notional * S.FEE_TAKER
-    if (cash < sized.notional + feeIn) {
+    const size = notional / fillPx
+    const feeIn = notional * S.FEE_TAKER
+    if (cash < notional + feeIn) {
       rejections.push({ t, sym: c.sym, sleeve: 'DONCH4H', side: c.side, reason: 'cash',
-        adx: c.adx, wantedNotional: sized.notional })
+        adx: c.adx, wantedNotional: notional })
       return false
     }
 
-    cash -= sized.notional + feeIn
-    fees += feeIn; slip += Math.abs(fillPx - c.price) * size; turnover += sized.notional
+    cash -= notional + feeIn
+    fees += feeIn; slip += Math.abs(fillPx - c.price) * size; turnover += notional
     open.push({
       id: nextId++, sym: c.sym, sleeve: 'DONCH4H', side: c.side, entry: fillPx,
-      openedAt: t, costBasis: sized.notional, sizeOrig: size, sizeLeft: size,
+      openedAt: t, costBasis: notional, sizeOrig: size, sizeLeft: size,
       origSlDist: c.slDist, stage: 0, stopPx: c.price - c.slDist * dirM,
       riskUsd: c.slDist * size, legsBanked: 0, adx: c.adx, unit: units.length + 1,
       lastFundingAt: t, feesPaid: feeIn, slipPaid: Math.abs(fillPx - c.price) * size,

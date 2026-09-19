@@ -6504,6 +6504,141 @@ function runV81bt() {
   }
 }
 
+
+// ════════════════════════════════════════════════════════════════════════════
+// v82bt — THE DEPLOY BAR, applied to the three candidates v80bt produced.
+//
+// Every row here is judged against ALL FOUR conditions, and a candidate that
+// misses any one of them is rejected and documented rather than argued for:
+//   1. beats the incumbent on net return at 3bps
+//   2. positive in all 6 windows
+//   3. still beats the incumbent at 6bps (the v71bt gate that killed reg-channel)
+//   4. does not reduce trade count (standing rule 5)
+//
+// The candidates, in the order I would ship them:
+//   A. DONCH4H BUDGET CAP — the safety fix. v80bt measured DONCH4H alone at
+//      -46.9% and with ROTA at +70.1%: the breakout sleeve is profitable only on
+//      leftovers, and NOTHING guarantees it gets only leftovers. If ROTA's
+//      kill-switch fires it unwinds its whole basket and DONCH4H inherits the
+//      entire book — the losing configuration, entered by accident. This is a
+//      protection against a live failure mode, not an optimisation.
+//   B. pyramidMax 2 — unit 3 fired 29 times in 36 months for $38.
+//   C. trail floor — the live breakeven floor caps the fat tail.
+// ════════════════════════════════════════════════════════════════════════════
+function runV82bt() {
+  const NW = 6, BAR4 = 14400000
+  const to4h = (a: Bar[], ms: number): Bar[] => {
+    const out: Bar[] = []; let cur: Bar | null = null; let bucket = -1
+    for (const b of a) {
+      const k = Math.floor(b.t / ms)
+      if (k !== bucket) { if (cur) out.push(cur); bucket = k
+        cur = { t: k * ms, open: b.open, high: b.high, low: b.low, close: b.close, vol: b.vol } }
+      else if (cur) { cur.high = Math.max(cur.high, b.high); cur.low = Math.min(cur.low, b.low)
+        cur.close = b.close; cur.vol += b.vol }
+    }
+    if (cur) out.push(cur); return out
+  }
+  const data: Record<string, PF.CoinData> = {}
+  let tmin = Infinity, tmax = -Infinity
+  for (const c of COINS) {
+    if (!CORE40.has(c)) continue
+    const h = loadCSV(c, '1h'); if (h.length < 500) continue
+    data[c] = { b1: h, b4: to4h(h, BAR4) }
+    tmin = Math.min(tmin, h[0].t); tmax = Math.max(tmax, h[h.length - 1].t)
+  }
+  const spanDays = (tmax - tmin) / 86400000
+  console.log(`  loaded ${Object.keys(data).length} coins, span ${spanDays.toFixed(0)} days`)
+  if (spanDays < 900 || Object.keys(data).length < 30) {
+    console.log(`\n  ABORT: need ~36 months across CORE40, got ${spanDays.toFixed(0)} days / ` +
+      `${Object.keys(data).length} coins.`); return
+  }
+  const wSpan = (tmax - tmin) / NW
+  const WARM = 100 * BAR4
+
+  const run = (over: Partial<PF.SimConfig>) => {
+    const ms: PF.Metrics[] = []
+    for (let w = 0; w < NW; w++) {
+      const a = tmin + w * wSpan, b = tmin + (w + 1) * wSpan
+      const from = Math.max(tmin + WARM, a)
+      if (b - from < 30 * 86400000) continue
+      const r = PF.runPortfolio(data, PF.defaultConfig(over), from, b)
+      ms.push(PF.metrics(r, 10000, (b - from) / 86400000))
+    }
+    const net = ms.map(x => x.netPct)
+    return {
+      ms, net, tot: net.reduce((a, b) => a + b, 0),
+      all6: ms.length >= NW - 1 && net.every(x => x > 0),
+      trades: ms.reduce((a, x) => a + x.trades, 0),
+      dd: Math.max(...ms.map(x => x.maxDD)),
+    }
+  }
+
+  const row = (tag: string, r: ReturnType<typeof run>, base: ReturnType<typeof run> | null) => {
+    const d = base ? r.tot - base.tot : 0
+    const dt = base ? r.trades - base.trades : 0
+    console.log(`  ${tag.padEnd(26)} ${String(r.trades).padStart(6)} ${(dt >= 0 ? '+' : '') + String(dt).padStart(5)}  ` +
+      `${r.tot.toFixed(1).padStart(7)}% ${(base ? (d >= 0 ? '+' : '') + d.toFixed(1) : '     -').padStart(7)}  ` +
+      `${r.dd.toFixed(1).padStart(5)}%  ${r.all6 ? 'PASS' : 'FAIL'}  ` +
+      `${r.net.map(x => (x >= 0 ? '+' : '') + x.toFixed(1)).join(' ')}`)
+  }
+
+  console.log(`\n  config                     trades  dTrd     net%   d-net   maxDD  all6  per-window`)
+  const base3 = run({})
+  row('INCUMBENT @3bps', base3, null)
+
+  console.log(`\n── CANDIDATE A: explicit DONCH4H budget cap ──`)
+  const budgets: [string, number][] = [['25%', 0.25], ['35%', 0.35], ['45%', 0.45], ['60%', 0.60]]
+  const aRes: { tag: string; v: number; r: ReturnType<typeof run> }[] = []
+  for (const [tag, v] of budgets) {
+    const r = run({ donchBudget: v }); aRes.push({ tag, v, r }); row(`donchBudget ${tag}`, r, base3)
+  }
+
+  console.log(`\n── CANDIDATE B: pyramid depth ──`)
+  const bRes: { tag: string; v: number; r: ReturnType<typeof run> }[] = []
+  for (const v of [1, 2]) {
+    const r = run({ pyramidMax: v }); bRes.push({ tag: `pyramidMax=${v}`, v, r }); row(`pyramidMax=${v}`, r, base3)
+  }
+
+  console.log(`\n── CANDIDATE C: trailing-third floor ──`)
+  const cR = run({ trailFloor: 'free' })
+  row('trail floor FREE', cR, base3)
+
+  // ── THE GATE ──────────────────────────────────────────────────────────────
+  console.log(`\n══ DEPLOY BAR — all four conditions, or it does not ship ══`)
+  const base6 = run({ slipBps: 6 })
+  console.log(`  incumbent @6bps: ${base6.tot.toFixed(1)}%`)
+  console.log(`\n  candidate                  3bps    6bps   all6  trades  VERDICT`)
+  const judge = (tag: string, over: Partial<PF.SimConfig>, r3: ReturnType<typeof run>) => {
+    const r6 = run({ ...over, slipBps: 6 })
+    const beats3 = r3.tot > base3.tot
+    const beats6 = r6.tot > base6.tot
+    const noCut = r3.trades >= base3.trades * 0.99
+    const pass = beats3 && beats6 && r3.all6 && noCut
+    const why: string[] = []
+    if (!beats3) why.push('loses at 3bps')
+    if (!beats6) why.push('loses at 6bps')
+    if (!r3.all6) why.push('a window is negative')
+    if (!noCut) why.push('cuts trades')
+    console.log(`  ${tag.padEnd(26)} ${r3.tot.toFixed(1).padStart(6)}  ${r6.tot.toFixed(1).padStart(6)}  ` +
+      `${r3.all6 ? ' ok ' : 'FAIL'}  ${String(r3.trades).padStart(6)}  ` +
+      `${pass ? '*** DEPLOY ***' : 'REJECT: ' + why.join(', ')}`)
+    return pass
+  }
+  const winners: string[] = []
+  for (const x of aRes) if (judge(`donchBudget ${x.tag}`, { donchBudget: x.v }, x.r)) winners.push(`donchBudget ${x.tag}`)
+  for (const x of bRes) if (judge(x.tag, { pyramidMax: x.v }, x.r)) winners.push(x.tag)
+  if (judge('trail floor FREE', { trailFloor: 'free' }, cR)) winners.push('trail floor FREE')
+
+  console.log(`\n  PASSING THE FULL BAR: ${winners.length ? winners.join(' | ') : 'NONE'}`)
+  if (!winners.length) {
+    console.log(`  Nothing ships. The incumbent stays. Document and move on —`)
+    console.log(`  this is the bar working, not the bar being unlucky.`)
+  }
+  console.log(`\n  NB the INCUMBENT itself fails all-6 (w2 negative), so condition 2`)
+  console.log(`  is a HIGHER bar than the deployed config currently meets. That is`)
+  console.log(`  deliberate: a change should not inherit an exemption.`)
+}
+
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
@@ -6689,6 +6824,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v73bt') {
     console.log(`████ V73BT — Donchian adaptive window (vol-scaled) vs fixed-15 ████`)
     runV73bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v82bt') {
+    console.log(`████ V82BT — THE DEPLOY BAR on v80bt's three candidates ████`)
+    runV82bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v81bt') {
