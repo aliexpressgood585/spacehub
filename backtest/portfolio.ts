@@ -120,6 +120,21 @@ export interface SimConfig {
    */
   donchBudget: number | null
   /**
+   * THE HEALTH KILL-SWITCH, which every run before v83bt silently omitted.
+   *
+   * The live bot pauses a sleeve's ENTRIES when the sum of its last 30 closed
+   * trades is negative, and ROTA additionally UNWINDS ITS WHOLE BASKET when
+   * paused. v56.6 added a release: a window whose newest close is older than
+   * 48h is stale and the pause lifts.
+   *
+   * Leaving it out means the simulator has been modelling a bot that can never
+   * stop trading — which is exactly the scenario in which the DONCH4H budget cap
+   * matters, since a paused ROTA hands the entire book to the breakout sleeve.
+   * Default false so every number measured before this stays comparable; v83bt
+   * turns it on and reports the difference.
+   */
+  killSwitch: boolean
+  /**
    * The trailing third's floor. 'breakeven' is what the LIVE BOT does and the
    * default. 'free' reproduces the convention every historical backtest used,
    * where the chandelier floats from an extreme seeded at entry and the final
@@ -145,6 +160,7 @@ export function defaultConfig(over: Partial<SimConfig> = {}): SimConfig {
     parity: false,
     trailFloor: 'breakeven',
     donchBudget: null,
+    killSwitch: false,
     ...over,
   }
 }
@@ -232,6 +248,10 @@ export interface SimResult {
   fees: number
   slip: number
   funding: number
+  /** kill-switch telemetry — zero when cfg.killSwitch is false */
+  donchPausedDays: number
+  rotaPausedDays: number
+  rotaUnwinds: number
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -259,6 +279,8 @@ export function runPortfolio(
   const open: Position[] = []
   const closed: ClosedTrade[] = []
   const lastCloseBySym = new Map<string, number>()
+  const closedBySleeve: Record<Sleeve, ClosedTrade[]> = { DONCH4H: [], ROTA: [] }
+  let donchPausedDays = 0, rotaPausedDays = 0, rotaUnwinds = 0
   const rejections: Rejection[] = []
   const equity: SimResult['equity'] = []
   let fees = 0, slip = 0, funding = 0, turnover = 0
@@ -339,6 +361,7 @@ export function runPortfolio(
       heldH: (t - p.openedAt) / H1,
     })
     if (p.sleeve === 'DONCH4H') lastCloseBySym.set(p.sym, t)
+    closedBySleeve[p.sleeve].push(closed[closed.length - 1])
     open.splice(open.indexOf(p), 1)
   }
 
@@ -616,6 +639,23 @@ export function runPortfolio(
     lastRota = t
   }
 
+  /**
+   * Exactly the live rule: the sum of the last 30 CLOSED trades of this sleeve.
+   * Fewer than 30 cannot pause (this is what makes the reset endpoint an unblock).
+   * A window whose newest close is older than HEALTH_STALE_H is stale and
+   * releases — the v56.6 fix for the deadlock that froze the bot for 45 days.
+   */
+  const HEALTH_STALE_MS = 48 * H1
+  function paused(sleeve: Sleeve, t: number): boolean {
+    if (!cfg.killSwitch) return false
+    const arr = closedBySleeve[sleeve]
+    if (arr.length < 30) return false
+    const last30 = arr.slice(-30)
+    const newest = last30[last30.length - 1].closedAt
+    if (t - newest > HEALTH_STALE_MS) return false      // stale window releases
+    return last30.reduce((a, x) => a + x.pnl, 0) < 0
+  }
+
   // ── the event loop ─────────────────────────────────────────────────────────
   const step = cfg.manageOn === '1h' ? H1 : H4
   let seq = 0
@@ -636,9 +676,24 @@ export function runPortfolio(
 
     // 2. DECIDE — only on a 4h boundary, only from bars that have closed.
     if (t % H4 === 0) {
-      if (cfg.sleeves.includes('ROTA') && t - lastRota >= S.ROTA_MS) rebalanceRota(t)
+      const rotaPaused = paused('ROTA', t)
+      const donchPaused = paused('DONCH4H', t)
+      if (rotaPaused) {
+        rotaPausedDays += 4 / 24
+        // Paused ROTA UNWINDS — this is the live behaviour and the whole reason
+        // the budget cap exists: the breakout sleeve inherits the entire book.
+        const open_ = open.filter(x => x.sleeve === 'ROTA')
+        if (open_.length) rotaUnwinds++
+        for (const p of open_) {
+          const mk = markOf(p.sym, t)
+          if (mk !== null) closePosition(p, mk, t, 'rota_health_pause', S.FEE_TAKER, true)
+        }
+      }
+      if (donchPaused) donchPausedDays += 4 / 24
 
-      if (cfg.sleeves.includes('DONCH4H')) {
+      if (cfg.sleeves.includes('ROTA') && !rotaPaused && t - lastRota >= S.ROTA_MS) rebalanceRota(t)
+
+      if (cfg.sleeves.includes('DONCH4H') && !donchPaused) {
         const cands: Candidate[] = []
         for (const sym of syms) {
           const m = idx4.get(sym)!
@@ -689,6 +744,7 @@ export function runPortfolio(
     utilisation: utilN ? utilSum / utilN : 0,
     turnoverNotional: turnover,
     fees, slip, funding,
+    donchPausedDays, rotaPausedDays, rotaUnwinds,
   }
 }
 
