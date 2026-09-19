@@ -1,134 +1,32 @@
-backtest 2026-09-19T19:21Z mode=v80bt months=36
-████ V80BT — CAPITAL-CONSTRAINED PORTFOLIO: the first honest run ████
-  loaded 39 coins, span 1096 days
+backtest 2026-09-19T19:29Z mode=v81bt months=36
+████ V81BT — LADDER DIFF: backtest ladder vs the live ladder, same trades ████
 
-── PART A: the DEPLOYED config on $10,000 per window ──
-  config                 trades  reject    net%   maxDD  all6  per-window net%
-  LIVE (both sleeves)      4858   11697    -40.1%   35.4% FAIL  +6.2 -22.8 +6.8 -15.7 -0.4 -14.3
+  signals compared: 11412
+  LADDER A (v79bt, the code behind the documented number)
+     gross avgR +0.0950   net avgR +0.0524
+  LADDER B (shared/strategy.ts = what the LIVE BOT runs)
+     gross avgR -0.1476   net avgR -0.1903
+  documented reference: net +0.0469
 
-  full metrics, window by window:
-   w   trades   net%    CAGR   maxDD  Calmar  Sharpe  Sortino    PF   expR   WR%   util%  rejected
-   1     770     6.2      14    17.9    0.77    0.62     0.63   1.03 -0.144    51     90     1450
-   2     819   -22.8     -40    35.4   -1.29   -1.83    -1.77   0.84 -0.061    52     89     2049
-   3     872     6.8      14    19.0    0.72    0.56     0.58   1.05 -0.103    51     87     1976
-   4     791   -15.7     -29    21.1   -1.49   -1.47    -1.48   0.89 -0.114    51     89     2241
-   5     782    -0.4      -1     8.3   -0.10    0.07     0.07   1.01 -0.097    52     88     1997
-   6     824   -14.3     -27    18.7   -1.53   -1.56    -1.58   0.85 -0.158    51     91     1984
+  trades where the two ladders disagree: 11346 of 11412 (99.4%)
 
-  BASELINE CHECK — per-trade mechanics vs the documented band
-    DONCH4H win rate  58.7%   (documented ~66%, band 58-74%)
-    DONCH4H avg R     -0.1134  (documented +0.046 to +0.062)
+  the 15 largest disagreements (B = live ladder, A = backtest ladder):
+   sym    date                 side    A(bt)    B(live)     diff
+   UNI    2026-02-11T04:00  SHORT -1.000   -10.551   -9.551
+   AAVE   2025-10-07T12:00  SHORT +7.793   +0.513   -7.280
+   SUI    2025-10-10T12:00  SHORT +8.090   +2.063   -6.027
+   FET    2025-10-08T08:00  SHORT +8.913   +3.402   -5.511
+   XRP    2025-10-10T12:00  SHORT +7.313   +1.888   -5.424
+   ETH    2024-03-05T12:00  LONG  -1.000   -5.976   -4.976
+   APT    2025-10-09T00:00  SHORT +5.088   +0.442   -4.646
+   RUNE   2026-08-19T00:00  SHORT -1.000   -5.565   -4.565
+   FET    2025-10-09T16:00  SHORT +6.401   +1.986   -4.415
+   SOL    2024-03-05T12:00  LONG  -1.000   -5.359   -4.359
+   DOT    2025-10-10T16:00  SHORT +6.328   +2.118   -4.210
+   ADA    2025-10-10T12:00  SHORT +6.032   +1.845   -4.187
+   ICP    2026-08-22T00:00  LONG  -1.000   -4.992   -3.992
+   SEI    2024-06-07T12:00  LONG  -1.000   -4.933   -3.933
+   SAND   2023-12-04T00:00  LONG  -1.000   -4.917   -3.917
 
-  ################ BASELINE FAILS — DO NOT READ THE ROWS BELOW ################
-  Capital limits change which trades are taken, not what a trade does. A
-  per-trade profile this far from the documented one is an ENGINE BUG, not
-  a finding. Fix the simulator and re-run; do not interpret this output.
-  #############################################################################
-
-  costs across all windows: fees $3322 | slippage $1897 | funding $-36
-  DONCH4H signals taken 2021 | ROTA slots 2837
-
-── PARITY DIAGNOSTIC: same signal set as the unconstrained scan ──
-  Run 3 showed the LIVE ladder does not reproduce the documented +0.0469R
-  even on the same signals. Reading the two implementations side by side
-  found why, and it is not a simulator bug — it is a REAL DIVERGENCE:
-
-    LIVE BOT   leg 2 sets trail_sl = entry, then stage 2 ratchets with
-               nt = max(cur, chand). The final third can NEVER stop below
-               breakeven.
-    BACKTESTS  stop = ext - 2.5*atr with ext SEEDED AT ENTRY and updated
-               only at the end of each bar, with no floor. On the first bar
-               of stage 2 that stop sits near entry - 1.79R.
-
-  Those are different strategies. The looser one gives the final third room
-  to dip and recover, which on a fat-tailed edge is worth a great deal. The
-  table below measures how much.
-
-  variant                          n     WR%     avgR     vs +0.0469
-  breakeven(LIVE) manage 1h      14416   60.1  -0.0734  no
-  breakeven(LIVE) manage 4h      14326   53.1  -0.1740  no
-  free(BACKTEST) manage 1h       14215   47.6  -0.0554  no
-  free(BACKTEST) manage 4h       14164   40.2  -0.1640  no
-
-  WHY MANAGEMENT RESOLUTION IS ON TRIAL HERE, and it is the sharper
-  question of the two: every historical backtest manages on 4h bars. A
-  trade that banks 0.6R in hour 1 and dips back through entry in hour 3
-  of the SAME 4h bar is never breakeven-stopped by that model — the stop
-  only becomes active on the NEXT bar. The live bot polls every minute
-  and WOULD stop it. So if 4h reproduces +0.0469 and 1h does not, the
-  documented edge is partly an artifact of coarse bar resolution, and the
-  1h figure is the more faithful estimate of what the bot actually earns.
-  That would be a bigger and more uncomfortable finding than the trail
-  floor, and it is why it is being measured rather than argued.
-
-  If 'free' reproduces and 'breakeven' does not, then every validated number
-  in CLAUDE.md describes a ladder the live bot does not run, and v58bt/v59bt
-  (which chose the trailing third and its distance) must be re-run before
-  any of them is trusted again. That is a larger finding than the sub-gate
-  tier and it is the direct reason shared/strategy.ts was built.
-
-── PART C: WHAT THE CAPS COST ──
-  reason                    count   avg wanted $   avg ADX
-  DONCH4H/heat              10860          6329      37.5
-  DONCH4H/cash                726          5394      36.8
-  DONCH4H/too_small            45          5140      35.3
-  ROTA/heat                    19            28       0.0
-  ROTA/cash                    17           440       0.0
-  DONCH4H/per_coin             17         11276      38.4
-  ROTA/per_coin                13             7       0.0
-
-  avg ADX of breakouts TAKEN 35.6 vs REJECTED 37.5
-  >>> the caps are turning away the STRONGER signals
-
-── PART B: DOES ONE SLEEVE STARVE THE OTHER? (same $10,000) ──
-  config                 trades  reject    net%   maxDD  all6  per-window net%
-  DONCH4H alone            3440    9678   -274.6%   59.9% FAIL  -52.3 -52.9 -59.5 -39.1 -21.7 -49.0
-  ROTA alone               2840       0     63.3%   20.3% FAIL  +33.6 -4.9 +24.2 +2.6 +9.4 -1.5
-  both (= PART A)          4858   11697    -40.1%   35.4% FAIL  +6.2 -22.8 +6.8 -15.7 -0.4 -14.3
-
-  DONCH4H trades: 3440 alone -> 2021 when sharing (-41%)
-  ROTA slots:     2840 alone -> 2837 when sharing (-0%)
-  net%: DONCH4H alone -274.6 + ROTA alone 63.3 = -211.3 if they did not compete; together they make -40.1
-  NB "alone" figures are NOT additive — each had the full $10,000. The
-  comparison that matters is return-per-dollar and drawdown, not the sum.
-
-── PART D: PYRAMID UNITS ──
-  unit 1:  n= 1768  avgR -0.1077  WR 59.0%  total $-8727
-  unit 2:  n=  229  avgR -0.1415  WR 57.2%  total $-891
-  unit 3:  n=   24  avgR -0.2661  WR 54.2%  total $-86
-  config                 trades  reject    net%   maxDD  all6  per-window net%
-  pyramidMax=1             4763   10772    -49.8%   39.2% FAIL  +2.1 -27.9 +10.2 -17.7 -3.8 -12.6
-  pyramidMax=2             4844   11641    -35.3%   35.2% FAIL  +6.9 -22.4 +7.8 -16.3 +2.8 -14.2
-  pyramidMax=3             4858   11697    -40.1%   35.4% FAIL  +6.2 -22.8 +6.8 -15.7 -0.4 -14.3
-
-── PART E: WHO GETS THE MONEY WHEN THERE IS NOT ENOUGH ──
-  The live bot has NO policy: entries run in Promise.all batches, so the
-  coin whose network call returned first takes the capital. 'arrival' is
-  that baseline. NB 'adx' is not obviously better — high-ADX entries size
-  up to 2.0x and eat the remaining room faster, which can cut trade count.
-  config                 trades  reject    net%   maxDD  all6  per-window net%
-  arrival                  4858   11697    -40.1%   35.4% FAIL  +6.2 -22.8 +6.8 -15.7 -0.4 -14.3
-  adx                      4841   11673    -62.0%   40.4% FAIL  +1.0 -24.8 +5.4 -19.3 -4.6 -19.7
-  edge_cost                4844   11687    -74.4%   37.4% FAIL  -11.5 -21.0 +1.1 -20.7 -2.3 -20.1
-
-── PART F: EXECUTION ASSUMPTIONS ──
-  config                 trades  reject    net%   maxDD  all6  per-window net%
-  slip 0bps                4868   11698    -29.1%   41.5% FAIL  +9.4 -30.9 +13.5 -13.9 +3.8 -11.0
-  slip 3bps                4858   11697    -40.1%   35.4% FAIL  +6.2 -22.8 +6.8 -15.7 -0.4 -14.3
-  slip 6bps                4844   11716    -53.6%   37.2% FAIL  +4.1 -25.3 +5.7 -17.5 -3.5 -17.0
-  slip 10bps               4831   11734    -79.9%   38.4% FAIL  -2.7 -29.2 +2.2 -21.0 -8.9 -20.2
-  --- maker fill rate on the two ladder legs (1.0 = what every earlier
-      backtest silently assumed) ---
-  makerFill 1.0            4858   11697    -40.1%   35.4% FAIL  +6.2 -22.8 +6.8 -15.7 -0.4 -14.3
-  makerFill 0.7            4858   11697    -41.4%   35.5% FAIL  +6.0 -23.0 +6.6 -15.9 -0.7 -14.5
-  makerFill 0.4            4858   11697    -42.8%   35.6% FAIL  +5.7 -23.2 +6.4 -16.0 -0.9 -14.7
-  makerFill 0.0            4857   11698    -44.7%   35.8% FAIL  +5.1 -23.4 +6.0 -16.3 -1.1 -15.1
-  --- intrabar resolution ---
-  stop-first (default)     4858   11697    -40.1%   35.4% FAIL  +6.2 -22.8 +6.8 -15.7 -0.4 -14.3
-  target-first             4839   11704    -55.3%   37.3% FAIL  +2.7 -25.7 +2.7 -17.8 -3.7 -13.5
-
-  READ THIS BEFORE BELIEVING ANY ROW ABOVE:
-  These numbers are NOT comparable to the 696R / +0.062R figures in
-  CLAUDE.md. Those came from an unconstrained R-sum; these are dollars
-  on a real $10,000 that can run out. A LOWER number here is not a
-  regression — it is the first honest measurement.
+  B worse than A on 10398/11346, better on 948
+  mean difference (B - A): -0.2426R per signal
