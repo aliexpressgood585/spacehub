@@ -3,10 +3,9 @@
 # The mode must also be in the fetch-step whitelist in backtest.yml, or it will
 # silently get the short-history fetcher (see the v78bt note in CLAUDE.md).
 #
-# run 5: v80bt 36 (2026-09-19). Run 4 REFUTED my trail-floor hypothesis (the
-# 'free' ladder came out WORSE, -0.155 vs -0.087, so that was not the cause).
-# Run 5 tests the sharper suspect: MANAGEMENT RESOLUTION. Every historical
-# backtest manages on 4h bars; a trade that banks 0.6R in hour 1 and dips back
-# through entry in hour 3 of the same bar is never breakeven-stopped there, but
-# the live bot polls every minute and would stop it. 2x2 grid: trail floor x 1h/4h.
-v80bt 36
+# v81bt: THE LADDER DIFF. Five 36-month runs failed to explain why the sim will
+# not reproduce +0.0469R, and both my hypotheses were refuted by measurement —
+# the second in the opposite direction from my prediction. So: stop guessing.
+# Put the v79bt inline ladder and shared/strategy.ts side by side on IDENTICAL
+# trades, gross and net, and find where they disagree. No portfolio, no capital.
+v81bt 36

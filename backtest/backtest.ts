@@ -6351,6 +6351,159 @@ function runV80bt() {
   console.log(`  regression — it is the first honest measurement.`)
 }
 
+
+// ════════════════════════════════════════════════════════════════════════════
+// v81bt — THE LADDER DIFF. Five 36-month runs of hypothesis-testing failed to
+// explain why the simulator will not reproduce the documented +0.0469R, and two
+// of my hypotheses (trail floor, bar resolution) were refuted by measurement —
+// the second in the opposite direction from my prediction. So this stops
+// guessing and does the thing that should have been done after run 3: put the
+// two ladders side by side on IDENTICAL trades and find the first place they
+// disagree.
+//
+// Both sides get the same symbol, the same signal, the same entry price, the
+// same stop distance, the same ATR, the same bars, and the same 96-bar horizon.
+// The ONLY difference is the exit machinery. Fees are reported separately from
+// gross R so a cost-model discrepancy cannot hide inside an exit discrepancy.
+//
+// This is cheap: no portfolio, no capital, no windows. It either finds the
+// divergence in one run or proves the two ladders agree and the problem is
+// somewhere else entirely — and either answer is worth more than a sixth grid.
+// ════════════════════════════════════════════════════════════════════════════
+function runV81bt() {
+  const BAR4 = 14400000, TK = 0.0005, MK = 0.0002, SLIP = 0.0003
+  const to4h = (a: Bar[], ms: number): Bar[] => {
+    const out: Bar[] = []; let cur: Bar | null = null; let bucket = -1
+    for (const b of a) {
+      const k = Math.floor(b.t / ms)
+      if (k !== bucket) { if (cur) out.push(cur); bucket = k
+        cur = { t: k * ms, open: b.open, high: b.high, low: b.low, close: b.close, vol: b.vol } }
+      else if (cur) { cur.high = Math.max(cur.high, b.high); cur.low = Math.min(cur.low, b.low)
+        cur.close = b.close; cur.vol += b.vol }
+    }
+    if (cur) out.push(cur); return out
+  }
+
+  // ── LADDER A: verbatim from runV79bt, the code that produced +0.0469R ──────
+  const ladderV79 = (arr: Bar[], j0: number, entry: number, side: 'LONG'|'SHORT',
+                     slDist: number, atr: number, jEnd: number) => {
+    const dirM = side === 'LONG' ? 1 : -1, slPx = entry - slDist * dirM
+    const legs = [{ r: 0.6, frac: 1/3 }, { r: 1.0, frac: 1/3 }]
+    const jEndc = Math.min(jEnd, arr.length - 1)
+    let banked = 0, rem = 1, be = false, si = 0, tpFrac = 0, ext = entry
+    for (let j = j0 + 1; j <= jEndc; j++) {
+      const b = arr[j]
+      const stop = si >= 2 ? (side === 'LONG' ? ext - 2.5*atr : ext + 2.5*atr) : (be ? entry : slPx)
+      if (side === 'LONG' ? b.low <= stop : b.high >= stop) {
+        banked += rem * (si >= 2 ? (stop - entry) * dirM / slDist : (be ? 0 : -1)); rem = 0; break
+      }
+      while (si < legs.length) {
+        const tgt = entry + slDist * legs[si].r * dirM
+        if (!(side === 'LONG' ? b.high >= tgt : b.low <= tgt)) break
+        banked += legs[si].frac * legs[si].r; tpFrac += legs[si].frac; rem -= legs[si].frac; be = true; si++
+      }
+      if (si >= 2) ext = side === 'LONG' ? Math.max(ext, b.high) : Math.min(ext, b.low)
+      if (rem <= 1e-9) break
+    }
+    if (rem > 1e-9) banked += rem * ((arr[jEndc].close - entry) * dirM / slDist)
+    return { r: banked, tpFrac }
+  }
+
+  // ── LADDER B: shared/strategy.ts, stepped over the SAME 4h bars ────────────
+  // Unit size so pnl/slDist is R directly, and no fees — gross against gross.
+  const ladderShared = (arr: Bar[], j0: number, entry: number, side: 'LONG'|'SHORT',
+                        slDist: number, jEnd: number) => {
+    const dirM = side === 'LONG' ? 1 : -1
+    const jEndc = Math.min(jEnd, arr.length - 1)
+    const pos: S.LadderPos = {
+      side, entry, origSlDist: slDist, stage: 0,
+      stopPx: entry - slDist * dirM, sizeLeft: 1, sizeOrig: 1,
+    }
+    let banked = 0, tpFrac = 0
+    for (let j = j0 + 1; j <= jEndc; j++) {
+      const b = arr[j]
+      const adverse = side === 'LONG' ? b.low : b.high
+      const favour = side === 'LONG' ? b.high : b.low
+      // stop first, at the level it held when the bar opened
+      let act = S.ladderStep({ ...pos }, adverse, adverse, 0)
+      if (act.kind === 'close') {
+        banked += (act.px / (1 - dirM*SLIP) - entry) * pos.sizeLeft * dirM / slDist
+        pos.sizeLeft = 0; break
+      }
+      // then the rungs the favourable extreme reached
+      for (let g = 0; g < 4 && pos.sizeLeft > 1e-9; g++) {
+        const a2 = S.ladderStep({ ...pos }, favour, favour, 0)
+        if (a2.kind === 'leg') {
+          banked += (a2.px - entry) * a2.qty * dirM / slDist
+          tpFrac += a2.qty
+          pos.sizeLeft -= a2.qty; pos.stage = a2.stage; pos.stopPx = a2.stopPx
+          continue
+        }
+        if (a2.kind === 'none') { pos.stopPx = a2.stopPx }
+        break
+      }
+      if (pos.sizeLeft <= 1e-9) break
+    }
+    if (pos.sizeLeft > 1e-9) banked += (arr[jEndc].close - entry) * pos.sizeLeft * dirM / slDist
+    return { r: banked, tpFrac }
+  }
+
+  const rows: { sym: string; t: number; side: string; a: number; b: number; d: number }[] = []
+  let nA = 0, nB = 0, sumA = 0, sumB = 0, sumNetA = 0, sumNetB = 0
+
+  for (const c of COINS) {
+    if (!CORE40.has(c)) continue
+    const h = loadCSV(c, '1h'); if (h.length < 500) continue
+    const arr = to4h(h, BAR4)
+    let last = -999
+    for (let i = 100; i < arr.length - 1; i++) {
+      const completed = arr.slice(i - 70, i + 1)
+      const sig = S.donchSignal(completed); if (!sig) continue
+      const adx = S.gateAdx(completed); if (adx <= S.ADX_GATE) continue
+      const atr = S.entryAtr(completed); if (!atr) continue
+      if (i - last < 2) continue
+      last = i
+      const price = arr[i].close
+      const slDist = S.stopDistance(atr, price), slPct = slDist / price
+      if (slPct > S.SL_MAX_PCT) continue
+
+      const A = ladderV79(arr, i, price, sig.side, slDist, atr, i + 96)
+      const B = ladderShared(arr, i, price, sig.side, slDist, i + 96)
+      const feeR = (tp: number) => (TK + tp*MK + (1-tp)*TK) / slPct + (1 + (1-tp)) * SLIP / slPct
+      nA++; nB++; sumA += A.r; sumB += B.r
+      sumNetA += A.r - feeR(A.tpFrac); sumNetB += B.r - feeR(B.tpFrac)
+      if (Math.abs(A.r - B.r) > 1e-6) rows.push({ sym: c, t: arr[i].t, side: sig.side, a: A.r, b: B.r, d: B.r - A.r })
+    }
+  }
+
+  console.log(`\n  signals compared: ${nA}`)
+  console.log(`  LADDER A (v79bt, the code behind the documented number)`)
+  console.log(`     gross avgR ${(sumA/nA >= 0 ? '+' : '') + (sumA/nA).toFixed(4)}   net avgR ${(sumNetA/nA >= 0 ? '+' : '') + (sumNetA/nA).toFixed(4)}`)
+  console.log(`  LADDER B (shared/strategy.ts = what the LIVE BOT runs)`)
+  console.log(`     gross avgR ${(sumB/nB >= 0 ? '+' : '') + (sumB/nB).toFixed(4)}   net avgR ${(sumNetB/nB >= 0 ? '+' : '') + (sumNetB/nB).toFixed(4)}`)
+  console.log(`  documented reference: net +0.0469`)
+  console.log(`\n  trades where the two ladders disagree: ${rows.length} of ${nA} ` +
+    `(${(rows.length/nA*100).toFixed(1)}%)`)
+
+  if (rows.length) {
+    rows.sort((x, y) => Math.abs(y.d) - Math.abs(x.d))
+    console.log(`\n  the 15 largest disagreements (B = live ladder, A = backtest ladder):`)
+    console.log(`   sym    date                 side    A(bt)    B(live)     diff`)
+    for (const r of rows.slice(0, 15)) {
+      console.log(`   ${r.sym.padEnd(6)} ${new Date(r.t).toISOString().slice(0,16)}  ${r.side.padEnd(5)} ` +
+        `${(r.a >= 0 ? '+' : '') + r.a.toFixed(3)}   ${(r.b >= 0 ? '+' : '') + r.b.toFixed(3)}   ` +
+        `${(r.d >= 0 ? '+' : '') + r.d.toFixed(3)}`)
+    }
+    const worse = rows.filter(r => r.d < 0).length
+    console.log(`\n  B worse than A on ${worse}/${rows.length}, better on ${rows.length - worse}`)
+    console.log(`  mean difference (B - A): ${((sumB - sumA)/nA >= 0 ? '+' : '') + ((sumB - sumA)/nA).toFixed(4)}R per signal`)
+  } else {
+    console.log(`\n  THE TWO LADDERS AGREE EXACTLY. The divergence is NOT in the exit`)
+    console.log(`  machinery — look at signal selection, the cost model, or the`)
+    console.log(`  documented number itself.`)
+  }
+}
+
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
@@ -6536,6 +6689,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v73bt') {
     console.log(`████ V73BT — Donchian adaptive window (vol-scaled) vs fixed-15 ████`)
     runV73bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v81bt') {
+    console.log(`████ V81BT — LADDER DIFF: backtest ladder vs the live ladder, same trades ████`)
+    runV81bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v80bt') {
