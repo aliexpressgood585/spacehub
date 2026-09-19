@@ -106,6 +106,16 @@ export interface SimConfig {
    * this flag exists.
    */
   parity: boolean
+  /**
+   * The trailing third's floor. 'breakeven' is what the LIVE BOT does and the
+   * default. 'free' reproduces the convention every historical backtest used,
+   * where the chandelier floats from an extreme seeded at entry and the final
+   * third can fall to roughly entry - 1.79R before stopping.
+   *
+   * These are NOT the same strategy, and the difference was invisible for as
+   * long as the rules were written down twice.
+   */
+  trailFloor: 'breakeven' | 'free'
 }
 
 export function defaultConfig(over: Partial<SimConfig> = {}): SimConfig {
@@ -120,6 +130,7 @@ export function defaultConfig(over: Partial<SimConfig> = {}): SimConfig {
     pyramidMax: S.PYRAMID_MAX,
     manageOn: '1h',
     parity: false,
+    trailFloor: 'breakeven',
     ...over,
   }
 }
@@ -361,11 +372,12 @@ export function runPortfolio(
       // ladderStep tests the stop before the target, so feeding it the ADVERSE
       // extreme resolves the bar pessimistically in one call. 'optimistic' gives
       // the target first refusal, then re-tests the stop if nothing fired.
+      const beFloor = cfg.trailFloor === 'breakeven'
       let act = cfg.intrabar === 'conservative'
-        ? S.ladderStep(pos, adverse, favour, ageMs)
-        : S.ladderStep(pos, favour, favour, ageMs)
+        ? S.ladderStep(pos, adverse, favour, ageMs, beFloor)
+        : S.ladderStep(pos, favour, favour, ageMs, beFloor)
       if (cfg.intrabar === 'optimistic' && act.kind === 'none') {
-        act = S.ladderStep({ ...pos, stopPx: act.stopPx }, adverse, favour, ageMs)
+        act = S.ladderStep({ ...pos, stopPx: act.stopPx }, adverse, favour, ageMs, beFloor)
       }
       if (act.kind === 'close') {
         const raw = act.px / (1 - dirM * SLIP)
@@ -385,7 +397,7 @@ export function runPortfolio(
       }
       // Probe with the favourable extreme only: the stop was already given its
       // chance above, at the level it held when the bar opened.
-      const act = S.ladderStep(pos, favour, favour, ageMs)
+      const act = S.ladderStep(pos, favour, favour, ageMs, cfg.trailFloor === 'breakeven')
 
       if (act.kind === 'leg') {
         // A resting limit at the level. makerFillRate < 1 treats the remainder

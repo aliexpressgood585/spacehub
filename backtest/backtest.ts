@@ -6217,28 +6217,39 @@ function runV80bt() {
   // reproduces there, the ladder is sound and (b) is the answer — and (b) is a
   // genuine finding about the live engine, not a bug.
   console.log(`\n── PARITY DIAGNOSTIC: same signal set as the unconstrained scan ──`)
-  {
+  console.log(`  Run 3 showed the LIVE ladder does not reproduce the documented +0.0469R`)
+  console.log(`  even on the same signals. Reading the two implementations side by side`)
+  console.log(`  found why, and it is not a simulator bug — it is a REAL DIVERGENCE:`)
+  console.log(``)
+  console.log(`    LIVE BOT   leg 2 sets trail_sl = entry, then stage 2 ratchets with`)
+  console.log(`               nt = max(cur, chand). The final third can NEVER stop below`)
+  console.log(`               breakeven.`)
+  console.log(`    BACKTESTS  stop = ext - 2.5*atr with ext SEEDED AT ENTRY and updated`)
+  console.log(`               only at the end of each bar, with no floor. On the first bar`)
+  console.log(`               of stage 2 that stop sits near entry - 1.79R.`)
+  console.log(``)
+  console.log(`  Those are different strategies. The looser one gives the final third room`)
+  console.log(`  to dip and recover, which on a fat-tailed edge is worth a great deal. The`)
+  console.log(`  table below measures how much.`)
+  console.log(``)
+  console.log(`  trail floor        n     WR%     avgR      vs documented +0.0469`)
+  for (const tf of ['breakeven', 'free'] as const) {
     const pr = PF.runPortfolio(data, PF.defaultConfig({
-      parity: true, startCash: 1e9, sleeves: ['DONCH4H'],
+      parity: true, startCash: 1e9, sleeves: ['DONCH4H'], trailFloor: tf,
     }), tmin + WARM, tmax)
     const d = pr.closed.filter(t => t.riskUsd > 0)
     const wr = d.length ? d.filter(t => t.pnl > 0).length / d.length * 100 : 0
     const avgR = d.length ? d.reduce((a, t) => a + t.r, 0) / d.length : 0
-    console.log(`  unconstrained signal set: n=${d.length}  WR ${wr.toFixed(1)}%  ` +
-      `avgR ${(avgR >= 0 ? '+' : '') + avgR.toFixed(4)}`)
-    console.log(`  documented reference:     n~11218  WR ~66%   avgR +0.0469 (at 3bps)`)
-    if (avgR > 0.02) {
-      console.log(`  >>> LADDER IS SOUND. The constrained run's lower expectancy is a`)
-      console.log(`      SELECTION effect: blocking a symbol while it holds a position means`)
-      console.log(`      winners occupy a symbol for weeks and losers free it in hours, so`)
-      console.log(`      the engine re-enters preferentially after losses. That is a real`)
-      console.log(`      property of the LIVE bot and a finding in its own right.`)
-    } else {
-      console.log(`  >>> LADDER IS STILL WRONG. Expectancy does not reproduce even on the`)
-      console.log(`      same signal set, so the defect is in the exit machinery, not in`)
-      console.log(`      which trades get funded. Do not read the portfolio rows.`)
-    }
+    const tag = tf === 'breakeven' ? 'breakeven (LIVE)' : 'free (BACKTESTS)'
+    console.log(`  ${tag.padEnd(18)} ${String(d.length).padStart(5)}  ${wr.toFixed(1).padStart(5)}  ` +
+      `${(avgR >= 0 ? '+' : '') + avgR.toFixed(4)}   ${Math.abs(avgR - 0.0469) < 0.02 ? 'REPRODUCES' : 'does not reproduce'}`)
   }
+  console.log(``)
+  console.log(`  If 'free' reproduces and 'breakeven' does not, then every validated number`)
+  console.log(`  in CLAUDE.md describes a ladder the live bot does not run, and v58bt/v59bt`)
+  console.log(`  (which chose the trailing third and its distance) must be re-run before`)
+  console.log(`  any of them is trusted again. That is a larger finding than the sub-gate`)
+  console.log(`  tier and it is the direct reason shared/strategy.ts was built.`)
 
   // ── C. what the caps cost, and which one ──────────────────────────────────
   console.log(`\n── PART C: WHAT THE CAPS COST ──`)
