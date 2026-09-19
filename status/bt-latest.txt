@@ -1,129 +1,39 @@
-backtest 2026-09-19T19:47Z mode=v80bt months=36
-████ V80BT — CAPITAL-CONSTRAINED PORTFOLIO: the first honest run ████
+backtest 2026-09-19T21:58Z mode=v82bt months=36
+████ V82BT — THE DEPLOY BAR on v80bt's three candidates ████
   loaded 39 coins, span 1096 days
 
-── PART A: the DEPLOYED config on $10,000 per window ──
-  config                 trades  reject    net%   maxDD  all6  per-window net%
-  LIVE (both sleeves)      4941   11586     70.1%   28.2% FAIL  +30.5 -10.0 +29.3 +0.9 +17.7 +1.7
+  config                     trades  dTrd     net%   d-net   maxDD  all6  per-window
+  INCUMBENT @3bps              4941 +    0     70.1%       -   28.2%  FAIL  +30.5 -10.0 +29.3 +0.9 +17.7 +1.7
 
-  full metrics, window by window:
-   w   trades   net%    CAGR   maxDD  Calmar  Sharpe  Sortino    PF   expR   WR%   util%  rejected
-   1     794    30.5      80    11.2    5.96    2.27     2.39   1.18 +0.020    54     91     1424
-   2     827   -10.0     -19    28.2   -0.71   -0.69    -0.70   0.93 +0.045    53     89     2043
-   3     885    29.3      67    12.8    4.58    1.69     1.81   1.18 +0.033    53     87     1953
-   4     803     0.9       2    11.2    0.16    0.19     0.20   1.01 +0.046    54     89     2216
-   5     791    17.7      38     5.8    6.08    1.65     1.85   1.14 +0.049    54     89     1988
-   6     841     1.7       4    11.3    0.31    0.29     0.30   1.00 -0.030    53     91     1962
+── CANDIDATE A: explicit DONCH4H budget cap ──
+  donchBudget 25%              4836  -105     71.1%    +1.1   26.1%  FAIL  +28.6 -7.1 +32.6 -1.7 +17.4 +1.2
+  donchBudget 35%              4941 +    0     70.1%    +0.0   28.2%  FAIL  +30.5 -10.0 +29.3 +0.9 +17.7 +1.7
+  donchBudget 45%              4941 +    0     70.1%    +0.0   28.2%  FAIL  +30.5 -10.0 +29.3 +0.9 +17.7 +1.7
+  donchBudget 60%              4941 +    0     70.1%    +0.0   28.2%  FAIL  +30.5 -10.0 +29.3 +0.9 +17.7 +1.7
 
-  BASELINE CHECK — per-trade mechanics vs the documented band
-    DONCH4H win rate  63.8%   (documented ~66%, band 58-74%)
-    DONCH4H avg R     +0.0263  (documented +0.046 to +0.062)
-    OK — per-trade mechanics match, so the portfolio rows below can be read.
+── CANDIDATE B: pyramid depth ──
+  pyramidMax=1                 4834  -107     68.7%    -1.4   29.3%  FAIL  +28.6 -13.8 +34.5 +1.4 +13.9 +4.1
+  pyramidMax=2                 4923   -18     73.3%    +3.3   27.4%  FAIL  +30.7 -9.0 +28.4 +0.2 +20.1 +2.9
 
-  costs across all windows: fees $3699 | slippage $2111 | funding $-39
-  DONCH4H signals taken 2104 | ROTA slots 2837
+── CANDIDATE C: trailing-third floor ──
+  trail floor FREE             3865 -1076     76.4%    +6.4   27.3%  FAIL  +56.5 -7.8 +27.2 +2.9 +2.4 -4.7
 
-── PARITY DIAGNOSTIC: same signal set as the unconstrained scan ──
-  Run 3 showed the LIVE ladder does not reproduce the documented +0.0469R
-  even on the same signals. Reading the two implementations side by side
-  found why, and it is not a simulator bug — it is a REAL DIVERGENCE:
+══ DEPLOY BAR — all four conditions, or it does not ship ══
+  incumbent @6bps: 59.2%
 
-    LIVE BOT   leg 2 sets trail_sl = entry, then stage 2 ratchets with
-               nt = max(cur, chand). The final third can NEVER stop below
-               breakeven.
-    BACKTESTS  stop = ext - 2.5*atr with ext SEEDED AT ENTRY and updated
-               only at the end of each bar, with no floor. On the first bar
-               of stage 2 that stop sits near entry - 1.79R.
+  candidate                  3bps    6bps   all6  trades  VERDICT
+  donchBudget 25%              71.1    59.9  FAIL    4836  REJECT: a window is negative, cuts trades
+  donchBudget 35%              70.1    58.7  FAIL    4941  REJECT: loses at 3bps, loses at 6bps, a window is negative
+  donchBudget 45%              70.1    59.2  FAIL    4941  REJECT: loses at 3bps, loses at 6bps, a window is negative
+  donchBudget 60%              70.1    59.2  FAIL    4941  REJECT: loses at 3bps, loses at 6bps, a window is negative
+  pyramidMax=1                 68.7    55.4  FAIL    4834  REJECT: loses at 3bps, loses at 6bps, a window is negative, cuts trades
+  pyramidMax=2                 73.3    60.5  FAIL    4923  REJECT: a window is negative
+  trail floor FREE             76.4    60.6  FAIL    3865  REJECT: a window is negative, cuts trades
 
-  Those are different strategies. The looser one gives the final third room
-  to dip and recover, which on a fat-tailed edge is worth a great deal. The
-  table below measures how much.
+  PASSING THE FULL BAR: NONE
+  Nothing ships. The incumbent stays. Document and move on —
+  this is the bar working, not the bar being unlucky.
 
-  variant                          n     WR%     avgR     vs +0.0469
-  breakeven(LIVE) manage 1h      14417   66.3  +0.0713  no
-  breakeven(LIVE) manage 4h      14414   65.7  +0.0734  no
-  free(BACKTEST) manage 1h       14226   53.5  +0.0423  REPRODUCES
-  free(BACKTEST) manage 4h       14235   52.3  +0.0098  no
-
-  WHY MANAGEMENT RESOLUTION IS ON TRIAL HERE, and it is the sharper
-  question of the two: every historical backtest manages on 4h bars. A
-  trade that banks 0.6R in hour 1 and dips back through entry in hour 3
-  of the SAME 4h bar is never breakeven-stopped by that model — the stop
-  only becomes active on the NEXT bar. The live bot polls every minute
-  and WOULD stop it. So if 4h reproduces +0.0469 and 1h does not, the
-  documented edge is partly an artifact of coarse bar resolution, and the
-  1h figure is the more faithful estimate of what the bot actually earns.
-  That would be a bigger and more uncomfortable finding than the trail
-  floor, and it is why it is being measured rather than argued.
-
-  If 'free' reproduces and 'breakeven' does not, then every validated number
-  in CLAUDE.md describes a ladder the live bot does not run, and v58bt/v59bt
-  (which chose the trailing third and its distance) must be re-run before
-  any of them is trusted again. That is a larger finding than the sub-gate
-  tier and it is the direct reason shared/strategy.ts was built.
-
-── PART C: WHAT THE CAPS COST ──
-  reason                    count   avg wanted $   avg ADX
-  DONCH4H/heat              10696          6960      37.5
-  DONCH4H/cash                724          6032      37.4
-  DONCH4H/too_small           105          5358      38.2
-  ROTA/heat                    22            22       0.0
-  ROTA/cash                    17           465       0.0
-  ROTA/per_coin                14             8       0.0
-  DONCH4H/per_coin              8         18302      42.3
-
-  avg ADX of breakouts TAKEN 35.4 vs REJECTED 37.5
-  >>> the caps are turning away the STRONGER signals
-
-── PART B: DOES ONE SLEEVE STARVE THE OTHER? (same $10,000) ──
-  config                 trades  reject    net%   maxDD  all6  per-window net%
-  DONCH4H alone            3543    9507    -46.9%   27.9% FAIL  -9.7 -13.7 -23.3 -10.0 +20.8 -10.9
-  ROTA alone               2840       0     63.3%   20.3% FAIL  +33.6 -4.9 +24.2 +2.6 +9.4 -1.5
-  both (= PART A)          4941   11586     70.1%   28.2% FAIL  +30.5 -10.0 +29.3 +0.9 +17.7 +1.7
-
-  DONCH4H trades: 3543 alone -> 2104 when sharing (-41%)
-  ROTA slots:     2840 alone -> 2837 when sharing (-0%)
-  net%: DONCH4H alone -46.9 + ROTA alone 63.3 = 16.4 if they did not compete; together they make 70.1
-  NB "alone" figures are NOT additive — each had the full $10,000. The
-  comparison that matters is return-per-dollar and drawdown, not the sum.
-
-── PART D: PYRAMID UNITS ──
-  unit 1:  n= 1836  avgR +0.0217  WR 63.6%  total $535
-  unit 2:  n=  239  avgR +0.0649  WR 64.4%  total $314
-  unit 3:  n=   29  avgR +0.0024  WR 69.0%  total $38
-  config                 trades  reject    net%   maxDD  all6  per-window net%
-  pyramidMax=1             4834   10626     68.7%   29.3% FAIL  +28.6 -13.8 +34.5 +1.4 +13.9 +4.1
-  pyramidMax=2             4923   11537     73.3%   27.4% FAIL  +30.7 -9.0 +28.4 +0.2 +20.1 +2.9
-  pyramidMax=3             4941   11586     70.1%   28.2% FAIL  +30.5 -10.0 +29.3 +0.9 +17.7 +1.7
-
-── PART E: WHO GETS THE MONEY WHEN THERE IS NOT ENOUGH ──
-  The live bot has NO policy: entries run in Promise.all batches, so the
-  coin whose network call returned first takes the capital. 'arrival' is
-  that baseline. NB 'adx' is not obviously better — high-ADX entries size
-  up to 2.0x and eat the remaining room faster, which can cut trade count.
-  config                 trades  reject    net%   maxDD  all6  per-window net%
-  arrival                  4941   11586     70.1%   28.2% FAIL  +30.5 -10.0 +29.3 +0.9 +17.7 +1.7
-  adx                      4918   11556     64.5%   31.1% FAIL  +29.7 -5.7 +26.1 -1.6 +15.0 +0.9
-  edge_cost                4939   11543     67.8%   27.2% FAIL  +15.9 +1.2 +31.6 -1.4 +20.2 +0.3
-
-── PART F: EXECUTION ASSUMPTIONS ──
-  config                 trades  reject    net%   maxDD  all6  per-window net%
-  slip 0bps                4952   11578     90.8%   29.6% FAIL  +35.3 -14.1 +38.7 +2.0 +22.2 +6.7
-  slip 3bps                4941   11586     70.1%   28.2% FAIL  +30.5 -10.0 +29.3 +0.9 +17.7 +1.7
-  slip 6bps                4923   11602     59.2%   29.0% FAIL  +28.3 -10.3 +28.9 -0.8 +13.6 -0.5
-  slip 10bps               4900   11640     26.4%   28.4% FAIL  +18.1 -14.5 +23.3 -5.9 +9.9 -4.5
-  --- maker fill rate on the two ladder legs (1.0 = what every earlier
-      backtest silently assumed) ---
-  makerFill 1.0            4941   11586     70.1%   28.2% FAIL  +30.5 -10.0 +29.3 +0.9 +17.7 +1.7
-  makerFill 0.7            4941   11586     68.6%   27.8% FAIL  +30.1 -9.0 +29.0 +0.7 +16.4 +1.5
-  makerFill 0.4            4938   11591     67.1%   27.9% FAIL  +29.8 -9.2 +28.7 +0.4 +16.1 +1.3
-  makerFill 0.0            4938   11593     65.7%   28.1% FAIL  +29.3 -9.5 +29.1 +0.2 +15.6 +0.9
-  --- intrabar resolution ---
-  stop-first (default)     4941   11586     70.1%   28.2% FAIL  +30.5 -10.0 +29.3 +0.9 +17.7 +1.7
-  target-first             4945   11562     59.6%   28.7% FAIL  +29.4 -12.1 +26.0 -0.8 +13.3 +3.9
-
-  READ THIS BEFORE BELIEVING ANY ROW ABOVE:
-  These numbers are NOT comparable to the 696R / +0.062R figures in
-  CLAUDE.md. Those came from an unconstrained R-sum; these are dollars
-  on a real $10,000 that can run out. A LOWER number here is not a
-  regression — it is the first honest measurement.
+  NB the INCUMBENT itself fails all-6 (w2 negative), so condition 2
+  is a HIGHER bar than the deployed config currently meets. That is
+  deliberate: a change should not inherit an exemption.

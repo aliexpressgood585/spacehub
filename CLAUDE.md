@@ -706,6 +706,55 @@ profit, which makes them the leading candidate for the v79bt divergence. Until
 that simulator exists, (a) "the scan is not the engine" is still not ruled out,
 and the sub-gate tier is still unjudged.
 
+## v82bt (2026-09-19) — THE BAR REJECTED ALL THREE. Nothing shipped.
+Owner said deploy; the bar is their own rule 6 and rule 8 says blanket approval
+does not lower it. So the bar was run and it rejected everything.
+
+  candidate              3bps    6bps   trades   verdict
+  INCUMBENT              70.1    59.2     4941   (w2 negative)
+  donchBudget 25%        71.1    59.9     4836   REJECT: window, cuts 105 trades
+  donchBudget 35/45/60%  70.1    59.2     4941   REJECT: identical to incumbent
+  pyramidMax=1           68.7    55.4     4834   REJECT: loses both, cuts trades
+  pyramidMax=2           73.3    60.5     4923   REJECT: window only
+  trail floor FREE       76.4    60.6     3865   REJECT: cuts 1,076 trades (-22%)
+
+THREE THINGS THE RUN SAID THAT MATTER MORE THAN THE VERDICTS:
+
+1. **WINDOW 2 IS NEGATIVE IN EVERY SINGLE CONFIGURATION, INCLUDING THE
+   INCUMBENT.** So on this lens the all-6 condition is not discriminating
+   between candidates — it is a wall that nothing can clear, and the deployed
+   config cannot clear it either. The rule was written for the unconstrained
+   R-sum lens, where the incumbent DID pass all six. On the capital-constrained
+   dollar lens, nobody passes.
+   That is an OWNER DECISION, not mine to make: either the all-6 rule keeps its
+   literal form and nothing can ever ship again on this lens, or it is restated
+   for the new lens (e.g. "no worse than the incumbent in every window"). I am
+   not lowering it unilaterally and I am not shipping the best of a failing set.
+
+2. **CANDIDATE A WAS TESTED AGAINST THE WRONG SCENARIO, and its rejection is
+   therefore close to meaningless.** Budgets of 35/45/60% produced numbers
+   IDENTICAL to the incumbent, which means DONCH4H never reaches 35% of the book
+   while ROTA is running normally — the cap is inert by construction under normal
+   conditions. But the risk it exists for is ROTA's health kill-switch firing and
+   unwinding the whole basket, leaving DONCH4H the entire book. **The simulator
+   never models a kill-switch pause**, so the one scenario the fix protects
+   against was never simulated. Testing a safety device only under conditions
+   where it cannot engage proves nothing about it.
+   → The ROTA-kill-switch exposure REMAINS AN OPEN RISK. It has fired before
+     (2026-07-20). Proper test: a run where ROTA is disabled partway through.
+
+3. **pyramidMax=2 is the near miss and the honest best candidate.** It beats the
+   incumbent at 3bps (73.3 vs 70.1) AND at 6bps (60.5 vs 59.2), with LOWER
+   drawdown (27.4 vs 28.2), and costs 18 trades out of 4,941 — 0.4%. Its only
+   failure is the universal window-2 condition. If condition 2 is ever restated,
+   this is the first thing to re-examine.
+   The trail floor scored higher still (76.4/60.6) but cuts 22% of trades, which
+   is a clean rule-5 rejection and needs no further argument.
+
+NOTHING WAS DEPLOYED. The incumbent stays exactly as it is. This is the bar
+working, not the bar being unlucky — and the value of running it was the three
+findings above, not a green light.
+
 ## v80bt (2026-09-19) — THE FIRST HONEST PORTFOLIO RUN. Four surprises, three of
 ## them reversing something I believed this morning.
 Baseline gate PASSES (WR 63.8%, avgR +0.0263), so these rows can be read.
