@@ -3,7 +3,8 @@
 # The mode must also be in the fetch-step whitelist in backtest.yml, or it will
 # silently get the short-history fetcher (see the v78bt note in CLAUDE.md).
 #
-# v82bt: the DEPLOY BAR on v80bt's three candidates — DONCH4H budget cap,
-# pyramidMax=2, trail floor. All four conditions: beats incumbent at 3bps,
-# all 6 windows positive, still beats at 6bps, no trade-count cut.
-v82bt 36
+# v83bt: the health kill-switch, which NO previous run modelled. Every number
+# in v80bt/v82bt describes a bot that can never pause. This turns it on, and
+# finally tests candidate A against the scenario it exists for: ROTA paused,
+# basket unwound, DONCH4H holding the whole book.
+v83bt 36

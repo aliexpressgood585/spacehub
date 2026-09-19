@@ -6639,6 +6639,115 @@ function runV82bt() {
   console.log(`  deliberate: a change should not inherit an exemption.`)
 }
 
+
+// ════════════════════════════════════════════════════════════════════════════
+// v83bt — THE SCENARIO CANDIDATE A WAS NEVER TESTED AGAINST.
+//
+// v82bt rejected the DONCH4H budget cap, and that rejection was close to
+// meaningless: at 35/45/60% the results were IDENTICAL to the incumbent,
+// because DONCH4H never reaches 35% of the book while ROTA is running normally.
+// The cap is inert by construction under normal conditions. Testing a safety
+// device only where it cannot engage proves nothing about it.
+//
+// The scenario it exists for is ROTA's health kill-switch firing. ROTA then
+// UNWINDS ITS ENTIRE BASKET, and the breakout sleeve — measured at -46.9% when
+// given the whole book — inherits it, with nobody deciding.
+//
+// The simulator did not model the kill-switch at all until now, so EVERY number
+// in v80bt and v82bt describes a bot that can never pause. This run turns it on.
+// ════════════════════════════════════════════════════════════════════════════
+function runV83bt() {
+  const NW = 6, BAR4 = 14400000
+  const to4h = (a: Bar[], ms: number): Bar[] => {
+    const out: Bar[] = []; let cur: Bar | null = null; let bucket = -1
+    for (const b of a) {
+      const k = Math.floor(b.t / ms)
+      if (k !== bucket) { if (cur) out.push(cur); bucket = k
+        cur = { t: k * ms, open: b.open, high: b.high, low: b.low, close: b.close, vol: b.vol } }
+      else if (cur) { cur.high = Math.max(cur.high, b.high); cur.low = Math.min(cur.low, b.low)
+        cur.close = b.close; cur.vol += b.vol }
+    }
+    if (cur) out.push(cur); return out
+  }
+  const data: Record<string, PF.CoinData> = {}
+  let tmin = Infinity, tmax = -Infinity
+  for (const c of COINS) {
+    if (!CORE40.has(c)) continue
+    const h = loadCSV(c, '1h'); if (h.length < 500) continue
+    data[c] = { b1: h, b4: to4h(h, BAR4) }
+    tmin = Math.min(tmin, h[0].t); tmax = Math.max(tmax, h[h.length - 1].t)
+  }
+  const spanDays = (tmax - tmin) / 86400000
+  console.log(`  loaded ${Object.keys(data).length} coins, span ${spanDays.toFixed(0)} days`)
+  if (spanDays < 900 || Object.keys(data).length < 30) {
+    console.log(`\n  ABORT: need ~36 months across CORE40.`); return
+  }
+  const wSpan = (tmax - tmin) / NW, WARM = 100 * BAR4
+
+  const run = (over: Partial<PF.SimConfig>) => {
+    const ms: PF.Metrics[] = []; let dPaused = 0, rPaused = 0, unwinds = 0
+    for (let w = 0; w < NW; w++) {
+      const a = tmin + w * wSpan, b = tmin + (w + 1) * wSpan
+      const from = Math.max(tmin + WARM, a)
+      if (b - from < 30 * 86400000) continue
+      const r = PF.runPortfolio(data, PF.defaultConfig(over), from, b)
+      ms.push(PF.metrics(r, 10000, (b - from) / 86400000))
+      dPaused += r.donchPausedDays; rPaused += r.rotaPausedDays; unwinds += r.rotaUnwinds
+    }
+    const net = ms.map(x => x.netPct)
+    return { ms, net, tot: net.reduce((a, b) => a + b, 0),
+      all6: ms.length >= NW - 1 && net.every(x => x > 0),
+      trades: ms.reduce((a, x) => a + x.trades, 0),
+      dd: Math.max(...ms.map(x => x.maxDD)), dPaused, rPaused, unwinds }
+  }
+  const row = (tag: string, r: ReturnType<typeof run>) =>
+    console.log(`  ${tag.padEnd(28)} ${String(r.trades).padStart(6)} ${r.tot.toFixed(1).padStart(7)}% ` +
+      `${r.dd.toFixed(1).padStart(5)}%  ${r.all6 ? 'PASS' : 'FAIL'}  ` +
+      `${r.net.map(x => (x >= 0 ? '+' : '') + x.toFixed(1)).join(' ')}`)
+
+  console.log(`\n── PART A: what the kill-switch itself costs ──`)
+  console.log(`  config                       trades     net%  maxDD  all6  per-window`)
+  const off = run({}); row('kill-switch OFF (v80bt)', off)
+  const on = run({ killSwitch: true }); row('kill-switch ON (the real bot)', on)
+  console.log(`\n  ROTA paused ${on.rPaused.toFixed(0)} days across the six windows, ` +
+    `unwinding its basket ${on.unwinds} times.`)
+  console.log(`  DONCH4H paused ${on.dPaused.toFixed(0)} days.`)
+  console.log(`  Net effect of having a kill-switch at all: ${(on.tot - off.tot >= 0 ? '+' : '')}` +
+    `${(on.tot - off.tot).toFixed(1)} points, drawdown ${(on.dd - off.dd >= 0 ? '+' : '')}${(on.dd - off.dd).toFixed(1)}pp.`)
+  if (on.rPaused < 1) {
+    console.log(`\n  >>> ROTA NEVER PAUSES in 36 months. The scenario the budget cap`)
+    console.log(`      protects against does not occur in this data, so candidate A`)
+    console.log(`      cannot be validated here EITHER — it would be protecting against`)
+    console.log(`      something the historical record does not contain. That is not a`)
+    console.log(`      pass and not a fail; it is an untestable, and it should be called`)
+    console.log(`      one rather than dressed up as either.`)
+  }
+
+  console.log(`\n── PART B: candidate A, finally against the scenario it exists for ──`)
+  console.log(`  config                       trades     net%  maxDD  all6  per-window`)
+  row('killSwitch ON, no budget', on)
+  for (const b of [0.25, 0.35, 0.45]) {
+    const r = run({ killSwitch: true, donchBudget: b })
+    row(`killSwitch ON, budget ${(b * 100).toFixed(0)}%`, r)
+    const d = r.tot - on.tot
+    if (Math.abs(d) < 0.05) console.log(`      (identical to no-budget — the cap never engaged)`)
+  }
+
+  console.log(`\n── PART C: the worst case, forced ──`)
+  console.log(`  ROTA disabled entirely = the state a paused ROTA leaves behind.`)
+  console.log(`  This is the configuration v80bt measured at -46.9%.`)
+  console.log(`  config                       trades     net%  maxDD  all6  per-window`)
+  const solo = run({ sleeves: ['DONCH4H'] }); row('DONCH4H alone, no budget', solo)
+  for (const b of [0.25, 0.35, 0.45, 0.60]) {
+    row(`DONCH4H alone, budget ${(b * 100).toFixed(0)}%`, run({ sleeves: ['DONCH4H'], donchBudget: b }))
+  }
+  console.log(`\n  THIS is the question that matters: if the breakout sleeve is ever left`)
+  console.log(`  alone with the book, does a hard budget cap reduce the damage? A cap`)
+  console.log(`  that turns -46.9% into something survivable is worth having even`)
+  console.log(`  though it is inert in normal conditions — it is insurance, and`)
+  console.log(`  insurance is judged on the claim, not on the premium.`)
+}
+
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
@@ -6824,6 +6933,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v73bt') {
     console.log(`████ V73BT — Donchian adaptive window (vol-scaled) vs fixed-15 ████`)
     runV73bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v83bt') {
+    console.log(`████ V83BT — the kill-switch scenario candidate A was never tested against ████`)
+    runV83bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v82bt') {
