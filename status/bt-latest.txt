@@ -1,4 +1,4 @@
-backtest 2026-09-19T19:00Z mode=v80bt months=36
+backtest 2026-09-19T19:10Z mode=v80bt months=36
 ████ V80BT — CAPITAL-CONSTRAINED PORTFOLIO: the first honest run ████
   loaded 39 coins, span 1096 days
 
@@ -29,11 +29,30 @@ backtest 2026-09-19T19:00Z mode=v80bt months=36
   DONCH4H signals taken 2001 | ROTA slots 2834
 
 ── PARITY DIAGNOSTIC: same signal set as the unconstrained scan ──
-  unconstrained signal set: n=14411  WR 60.1%  avgR -0.0869
-  documented reference:     n~11218  WR ~66%   avgR +0.0469 (at 3bps)
-  >>> LADDER IS STILL WRONG. Expectancy does not reproduce even on the
-      same signal set, so the defect is in the exit machinery, not in
-      which trades get funded. Do not read the portfolio rows.
+  Run 3 showed the LIVE ladder does not reproduce the documented +0.0469R
+  even on the same signals. Reading the two implementations side by side
+  found why, and it is not a simulator bug — it is a REAL DIVERGENCE:
+
+    LIVE BOT   leg 2 sets trail_sl = entry, then stage 2 ratchets with
+               nt = max(cur, chand). The final third can NEVER stop below
+               breakeven.
+    BACKTESTS  stop = ext - 2.5*atr with ext SEEDED AT ENTRY and updated
+               only at the end of each bar, with no floor. On the first bar
+               of stage 2 that stop sits near entry - 1.79R.
+
+  Those are different strategies. The looser one gives the final third room
+  to dip and recover, which on a fat-tailed edge is worth a great deal. The
+  table below measures how much.
+
+  trail floor        n     WR%     avgR      vs documented +0.0469
+  breakeven (LIVE)   14411   60.1  -0.0869   does not reproduce
+  free (BACKTESTS)   14324   48.8  -0.1550   does not reproduce
+
+  If 'free' reproduces and 'breakeven' does not, then every validated number
+  in CLAUDE.md describes a ladder the live bot does not run, and v58bt/v59bt
+  (which chose the trailing third and its distance) must be re-run before
+  any of them is trusted again. That is a larger finding than the sub-gate
+  tier and it is the direct reason shared/strategy.ts was built.
 
 ── PART C: WHAT THE CAPS COST ──
   reason                    count   avg wanted $   avg ADX
