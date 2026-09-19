@@ -3,8 +3,10 @@
 # The mode must also be in the fetch-step whitelist in backtest.yml, or it will
 # silently get the short-history fetcher (see the v78bt note in CLAUDE.md).
 #
-# run 2: v80bt 36 (2026-09-19) — re-run after run 1 was VOID (intra-bar
-# double-counting bug dropped win rate to 51%). Baseline gate now added.
+# run 3: v80bt 36 (2026-09-19) — run 1 VOID (intra-bar double count), run 2
+# baseline still failed (avgR -0.130 vs +0.046). Run 3 adds the PARITY
+# DIAGNOSTIC, which separates 'the ladder is wrong' from 'the constrained
+# engine takes a worse mix of trades'. Read that block before anything else.
 # Reads: what the deployed config does with a real $10,000; whether ROTA starves
 # DONCH4H; what the caps cost and which cap; what pyramid units 2 and 3 add;
 # whether the allocation policy matters; slippage + maker-fill sensitivity.

@@ -91,6 +91,21 @@ export interface SimConfig {
    *  isolated rather than argued about. */
   pyramidMax: number
   manageOn: '1h' | '4h'
+  /**
+   * PARITY MODE — a diagnostic, never a result.
+   *
+   * Removes every capital constraint AND the two rules that stop a symbol being
+   * re-entered (the pyramid gate and the 8h cooldown), so the engine takes the
+   * same signal set the old unconstrained scan took. Its only job is to answer
+   * one question: if per-trade expectancy still does not reproduce the
+   * documented +0.046R, the LADDER is wrong; if it does reproduce it, the ladder
+   * is right and the constrained run's lower expectancy is a SELECTION effect,
+   * not a bug.
+   *
+   * That distinction cannot be argued, only measured — which is the whole reason
+   * this flag exists.
+   */
+  parity: boolean
 }
 
 export function defaultConfig(over: Partial<SimConfig> = {}): SimConfig {
@@ -104,6 +119,7 @@ export function defaultConfig(over: Partial<SimConfig> = {}): SimConfig {
     fundingPer8h: 0.0001,
     pyramidMax: S.PYRAMID_MAX,
     manageOn: '1h',
+    parity: false,
     ...over,
   }
 }
@@ -421,8 +437,8 @@ export function runPortfolio(
     // the capital signal under tens of thousands of rows on the first run — the
     // rejection log exists to measure what the CAPS cost us, so it stays clean.
     // The contribution of units 2 and 3 is measured separately, by unit index.
-    if (units.length >= cfg.pyramidMax ||
-        !S.pyramidGateOk(units as S.OpenUnit[], c.side, c.price)) return false
+    if (!cfg.parity && (units.length >= cfg.pyramidMax ||
+        !S.pyramidGateOk(units as S.OpenUnit[], c.side, c.price))) return false
 
     const sized = S.sizeBreakout({
       portfolio: port, balance: cash, openExposure: exp, heatCommitted: 0,
@@ -578,7 +594,7 @@ export function runPortfolio(
           // linear scan of a growing closed-trade list per candidate per step is
           // quadratic and would dominate the whole run.
           const lc = lastCloseBySym.get(sym)
-          if (lc !== undefined && t - lc < 8 * H1) continue
+          if (!cfg.parity && lc !== undefined && t - lc < 8 * H1) continue
           const quoteVol24h = completed.slice(-6).reduce((a, b) => a + b.vol, 0) * price
           cands.push({ sym, side: sig.side, adx, atr, price, slDist, slPct, quoteVol24h, seq: seq++ })
         }

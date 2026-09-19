@@ -6203,6 +6203,43 @@ function runV80bt() {
   console.log(`  DONCH4H signals taken ${allTrades.filter(t => t.sleeve === 'DONCH4H').length} | ` +
     `ROTA slots ${allTrades.filter(t => t.sleeve === 'ROTA').length}`)
 
+  // ── PARITY DIAGNOSTIC ─────────────────────────────────────────────────────
+  // Run 2's baseline still failed (avgR -0.130 against a documented +0.046) even
+  // after the intra-bar fix, and there are exactly two explanations:
+  //   (a) the LADDER is still wrong, or
+  //   (b) the ladder is right and the constrained engine takes a WORSE MIX of
+  //       trades, because a symbol with an open position is blocked, so winners
+  //       tie a symbol up for weeks while losers free it in hours — the engine
+  //       preferentially re-enters right after a loss.
+  // Nothing in the constrained output can separate those. Parity mode can: it
+  // removes the capital limits, the pyramid gate and the cooldown, so the engine
+  // takes the same signal set the old unconstrained scan took. If expectancy
+  // reproduces there, the ladder is sound and (b) is the answer — and (b) is a
+  // genuine finding about the live engine, not a bug.
+  console.log(`\n── PARITY DIAGNOSTIC: same signal set as the unconstrained scan ──`)
+  {
+    const pr = PF.runPortfolio(data, PF.defaultConfig({
+      parity: true, startCash: 1e9, sleeves: ['DONCH4H'],
+    }), tmin + WARM, tmax)
+    const d = pr.closed.filter(t => t.riskUsd > 0)
+    const wr = d.length ? d.filter(t => t.pnl > 0).length / d.length * 100 : 0
+    const avgR = d.length ? d.reduce((a, t) => a + t.r, 0) / d.length : 0
+    console.log(`  unconstrained signal set: n=${d.length}  WR ${wr.toFixed(1)}%  ` +
+      `avgR ${(avgR >= 0 ? '+' : '') + avgR.toFixed(4)}`)
+    console.log(`  documented reference:     n~11218  WR ~66%   avgR +0.0469 (at 3bps)`)
+    if (avgR > 0.02) {
+      console.log(`  >>> LADDER IS SOUND. The constrained run's lower expectancy is a`)
+      console.log(`      SELECTION effect: blocking a symbol while it holds a position means`)
+      console.log(`      winners occupy a symbol for weeks and losers free it in hours, so`)
+      console.log(`      the engine re-enters preferentially after losses. That is a real`)
+      console.log(`      property of the LIVE bot and a finding in its own right.`)
+    } else {
+      console.log(`  >>> LADDER IS STILL WRONG. Expectancy does not reproduce even on the`)
+      console.log(`      same signal set, so the defect is in the exit machinery, not in`)
+      console.log(`      which trades get funded. Do not read the portfolio rows.`)
+    }
+  }
+
   // ── C. what the caps cost, and which one ──────────────────────────────────
   console.log(`\n── PART C: WHAT THE CAPS COST ──`)
   const byReason: Record<string, { n: number; want: number; adx: number }> = {}
