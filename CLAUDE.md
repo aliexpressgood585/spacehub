@@ -1,14 +1,23 @@
 # SpaceHub Trading Bot — Session Handoff (read this first)
 
-## ⏱ RESUME HERE — for a session that wakes cold (2026-09-18 16:00 UTC)
+## ⏱ RESUME HERE — for a session that wakes cold (2026-09-19 16:35 UTC)
 A scheduled firing may land after a usage-limit gap, into a session with no
 memory of what came before. Missed firings are LOST, not queued, so do not try to
 catch up on a backlog — just take the next item below. This block is rewritten
 whenever the state of play changes; trust it over anything you half-remember.
 
-**Live, verified:** v58.0 on `adxgadwghgkwmntsnrar`, sha `d1954d97…`, paper_mode
-true, risk 1.75%, coverage 40/40, 0 errors, 0 LEGACY trades. Equity ~$10,04x on
-$10,000, cash recovering from the v56.9 over-allocation. Checkpoint 2/50.
+**Live, verified 2026-09-19 16:30 UTC:** **v59.0** on `adxgadwghgkwmntsnrar`,
+sha `51b2dfbb…`, confirmed in BOTH `deployment_manifest` and `?donch_test=1`.
+paper_mode true, live_trading false, risk 1.75%, universe_hash 2d336399,
+coverage 40/40 source `spot`, `bot_errors` empty, all four shields false, 0
+LEGACY rows, heartbeat every minute.
+Equity **$10,073.53** on $10,000 (+0.74%), cash **+$505** (fully recovered from
+the v56.9 −$3,761), exposure $9,607. Book: 10 ROTA + 6 DONCH4H open.
+Closed so far: 5 DONCH4H (4 TP / 1 SL), realised **+$4.53**. Checkpoint **5/50**
+— far too small to judge anything; do not read it as a result either way.
+NB exposure/equity is 95.4%, a hair over MAX_HEAT_PCT. That is mark-to-market
+drift on positions already open, not a cap breach: the cap governs NEW entries at
+entry time and cash is positive. Nothing like the v56.9 shape (138%, cash −$3.7k).
 
 **THE BLOCKING PROBLEM, and the next thing to work on:**
 Two full 36-month runs (v78bt, v79bt) could not judge the sub-gate ADX tier,
@@ -32,10 +41,12 @@ non-comment line of `backtest/.run-request` to "MODE MONTHS" and push to main.
 Result lands in `status/bt-latest.txt`. New modes must ALSO be added to the
 fetch-step whitelist in backtest.yml or they silently get 45 days of data.
 
-**What you cannot do unattended:** deploy. Triggered sessions carry no MCP
-connectors, so there is no Supabase management access. Write, test, commit and
-merge — then say plainly that the deploy is pending. Never claim one you could
-not make.
+**What you cannot do unattended:** deploy — USUALLY. The rule held for every
+earlier triggered session, but on 2026-09-19 the firing DID carry the Supabase
+connector and v59.0 was deployed and verified from it. So: check whether
+`mcp__Supabase__*` is actually available before assuming it is not. If it is
+absent, write/test/commit/merge and say plainly that the deploy is pending —
+never claim one you could not make.
 
 **Before any deploy:** `bash scripts/acceptance-check.sh`, then verify the live
 result against `deployment_manifest` and `?donch_test=1`.
@@ -523,9 +534,10 @@ the agent; the user only approved ("אל תבקש ממני אני מאשר הכ�
   resolves remote TS; it is neutralised (410 stub, verify_jwt on) because MCP has
   no delete-function call — delete it from the dashboard when convenient.
 
-## Current state (2026-09-18)
-- **LIVE AND TRADING** on `adxgadwghgkwmntsnrar`, code **v58.0**
-  (sha `d1954d97…`, confirmed live in `deployment_manifest` and `?donch_test=1`).
+## Current state (2026-09-19)
+- **LIVE AND TRADING** on `adxgadwghgkwmntsnrar`, code **v59.0**
+  (sha `51b2dfbb…`, confirmed live in `deployment_manifest` and `?donch_test=1`).
+  v58.0 (sha `d1954d97…`) ran 2026-09-18 15:00 → 2026-09-19 16:29.
 - **trading-bot is the SINGLE owner of bot_state.** portfolio-rebalancer,
   market-regime-detector and trading-optimizer are all read-only on it. Do not
   re-introduce a second writer — see v58.0 for what that cost.
@@ -671,6 +683,15 @@ A NOTE ON WHAT THIS IS: a refactor, not a strategy change. Every substitution wa
 one-for-one and the arithmetic was verified before the swap. It is NOT covered by
 a fresh walk-forward and does not need one — but it also proves nothing new about
 the edge, and must not be read as if it did.
+DEPLOYED AND VERIFIED 2026-09-19 16:30 UTC, sha `51b2dfbb…`: `deployment_manifest`
+and `?donch_test=1` both report v59.0, paper_mode true, live_trading false,
+base_risk 0.0175, universe_hash 2d336399 (unchanged, as intended), coverage 40/40.
+`bot_errors` empty across the changeover and the cycle keeps its one-minute
+heartbeat, so the remote import of `shared/strategy.ts` resolves and inlines
+correctly at deploy time — the whole deploy method depended on that and it is now
+proven rather than assumed. `donch_test` rows also carry `bar_open` now, and the
+newest completed 4h bar reads 12:00 UTC at 16:30 — correct, so the timestamps are
+real and the alignment diagnostic has something true to measure against.
 WHAT IS STILL MISSING, and it is the important half: the backtest has no
 capital-constrained portfolio simulator. It still aggregates an unconstrained R
 sum, so it still cannot model pyramiding, the heat cap, the net-exposure or
