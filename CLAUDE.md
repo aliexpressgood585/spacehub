@@ -19,27 +19,28 @@ NB exposure/equity is 95.4%, a hair over MAX_HEAT_PCT. That is mark-to-market
 drift on positions already open, not a cap breach: the cap governs NEW entries at
 entry time and cash is positive. Nothing like the v56.9 shape (138%, cash −$3.7k).
 
-**THE BLOCKING PROBLEM, and the next thing to work on:**
-Two full 36-month runs (v78bt, v79bt) could not judge the sub-gate ADX tier,
-because on BOTH lenses the INCUMBENT fails all-6 — the same two windows each
-time (w1, w6). The documented incumbent is 696R all-6-positive. Our scan
-reproduces its trade count (11,412 vs 11,218) but not its window profile.
-Either the scan is not the engine (no pyramiding / heat cap / ROTA interaction /
-per-coin caps) or the edge has decayed on data through 2026-09.
-→ **ANSWERED — and it was (a): the scan was never the engine.**
-  The calibrated simulator reproduces the documented +0.0469R (v61.1: shared
-  module net +0.0522 vs the historical ladder's +0.0524, mean difference
-  -0.0001R per trade). **The edge has NOT decayed.** The v78bt/v79bt window
-  profiles came from an instrument that did not model the engine.
-  → NEXT: re-run `v80bt 36` on the calibrated simulator. Its PART A/B/C were
-    written against a broken engine and mean nothing yet. The live questions:
-    does the deployed config pass all 6 windows on DOLLARS; does ROTA starve
-    DONCH4H (-42% of breakout trades in the uncalibrated runs); does the heat
-    cap reject the STRONGER signals (rejected ADX 37.5 vs taken 35.6).
-  → THEN the sub-gate tier can finally be judged, on an instrument that works.
-  NB item 4 is only PARTLY done — the live bot does not call `ladderStep`; its
-  exit machinery is still inline. See the correction in v61.1.
+**WHERE THE RESEARCH STANDS (read v83bt, v82bt, v80bt, v61.1 in that order):**
+The three-day blocking question — is the scan not the engine, or has the edge
+decayed — is ANSWERED: it was the instrument. `backtest/portfolio.ts` reproduces
+the documented +0.0469R to four decimals (v61.1). The edge has NOT decayed.
+On the calibrated, capital-constrained lens the honest figures are:
+  deployed engine INCLUDING its kill-switch  **+38.8%** / 36m, maxDD 26.9%,
+  three negative windows (w2 -11.8, w4 -20.6, w6 -4.7).
+  The +70.1% quoted in v80bt was the engine WITHOUT the kill-switch. Use 38.8%.
+**THE OPEN QUESTION IS NOW THE KILL-SWITCH, not the sub-gate tier.** It costs
+31.3 points and buys 1.3pp of drawdown (v83bt part A). Do NOT remove it on that
+one run — it is also the only thing standing between a broken sleeve and the
+account. The work is to design a circuit breaker that does not sell the bottom,
+and to validate it.
+REJECTED this session, on the merits: donchBudget cap (v82bt + v83bt part B),
+pyramidMax 1 and 2, free trail floor, ADX-ordered allocation.
+NB item 4 is only PARTLY done — the live bot does not call `ladderStep`; its
+exit machinery is still inline. See the correction in v61.1.
 Do NOT deploy the sub-gate tier. It is neither accepted nor rejected.
+**A NOTE ON THE ALL-6 RULE**: on this lens NOTHING clears it, including the
+incumbent. Either the rule gets restated for the dollar lens (e.g. "no worse
+than the incumbent in every window") or it blocks everything forever. That is
+the owner's call, not mine, and it has been put to them.
 
 **How to run a backtest without the GitHub connector:** edit the first
 non-comment line of `backtest/.run-request` to "MODE MONTHS" and push to main.
@@ -755,8 +756,79 @@ NOTHING WAS DEPLOYED. The incumbent stays exactly as it is. This is the bar
 working, not the bar being unlucky — and the value of running it was the three
 findings above, not a green light.
 
+## v83bt (2026-09-19) — THE KILL-SWITCH HAS NEVER BEEN MEASURED, AND IT IS THE
+## LARGEST SINGLE NEGATIVE IN THE SYSTEM.
+Every backtest in this file, including v80bt and v82bt yesterday, ran with the
+health kill-switch OFF — not by decision, but because no simulator had ever
+implemented it. The live bot has had it since v43. So every "deployed config"
+number in this file measured a bot that is NOT the deployed bot.
+
+── PART A — what it costs ──
+    kill-switch OFF (what v80bt reported)  4941 trades  +70.1%  maxDD 28.2%
+      per-window  +30.5 -10.0 +29.3  +0.9 +17.7  +1.7   (1 negative)
+    kill-switch ON (what actually runs)    5345 trades  +38.8%  maxDD 26.9%
+      per-window  +24.4 -11.8 +26.7 -20.6 +24.8  -4.7   (3 negative)
+    ROTA paused 157 days, unwound its basket 143 times. DONCH4H paused 536 days.
+**-31.3 points of return, bought for 1.3pp of drawdown.** That is not a safety
+feature paying for itself; that is the worst trade in the book.
+**CORRECTION TO v80bt, stated plainly: "DEPLOYED CONFIG +70.1%, 5 of 6 positive"
+was WRONG.** The deployed engine, with its own kill-switch, measures **+38.8%
+with THREE negative windows**. I reported a config that was missing a live
+component and called it the deployed one. The honest number is 38.8%.
+NB trade COUNT goes UP with the kill-switch on (4941 → 5345). Pausing one sleeve
+frees capital the other spends, so this is not a rule-5 trade cut in either
+direction — it is a different book, not a smaller one.
+WHY IT COSTS SO MUCH, mechanically: the switch fires on the last-30 sum, which
+goes negative in exactly the choppy stretches that PRECEDE the trending recovery.
+It sells the basket at the bottom (143 unwinds) and stands aside for the bounce.
+w4 is the clearest case: +0.9% → -20.6%. The pause did not avoid a drawdown, it
+converted an open drawdown into a realised one and then missed the repair.
+THIS IS NOT A DEPLOY. Removing a safety mechanism on one run, on an instrument
+three days old, is exactly the move this file exists to prevent — and the
+kill-switch is also what stands between a genuinely broken sleeve and the whole
+account. What it IS: the first evidence that the mechanism as written (last-30
+dollar sum, whole-basket unwind) is badly specified, and a queued question —
+what shape of circuit breaker actually protects without selling the bottom.
+
+── PART B — candidate A against the scenario it was built for: IT FAILS ──
+    killSwitch ON, no budget   5345  +38.8%  maxDD 26.9%  +24.4 -11.8 +26.7 -20.6 +24.8 -4.7
+    killSwitch ON, budget 25%  5315  +24.6%  maxDD 20.7%  +23.5  +2.1  +4.9 -16.0  +9.7 +0.4
+    killSwitch ON, budget 35%  5328  +15.2%  maxDD 14.2%  +11.4  +2.9  +7.3  -5.5  +8.4 -9.3
+    killSwitch ON, budget 45%  5370  +19.5%  maxDD 24.8%  +19.6 -10.0 +13.2  +1.1  +6.6 -11.0
+v82bt rejected the DONCH4H budget cap and noted the rejection might be unfair
+because the cap is inert under normal conditions. So it was re-run against the
+stress it exists for. It is WORSE there too: -14.2 points at 25%. It buys real
+drawdown (26.9 → 20.7, and 14.2 at 35%) and it is the only thing tested that
+turns w2 positive — but paying 14 points for it is the vol-targeting trade this
+file has already rejected twice (v57bt, v60bt) on the owner's stated priority.
+**Candidate A is now REJECTED on the merits, not on a technicality.**
+
+── PART C — the artificial worst case, where it does work ──
+    DONCH4H alone, no budget   3543  -46.9%  maxDD 27.9%
+    DONCH4H alone, budget 25%  1884   -6.9%  maxDD 18.4%
+    DONCH4H alone, budget 35%  2537  -12.8%  maxDD 22.0%
+    DONCH4H alone, budget 45%  2936  -32.5%  maxDD 24.7%
+    DONCH4H alone, budget 60%  3171  -27.4%  maxDD 28.6%
+The cap turns -46.9% into -6.9% — insurance that pays on the claim. But it does
+so by cutting 47% of the trades, and this scenario (ROTA gone entirely, forever)
+is not a state the live bot can reach: a paused ROTA resumes. Part B is the real
+scenario and the cap loses there. Recorded so the next session does not re-open
+it on the strength of Part C alone.
+
+LESSON, and it generalises past this run: **a backtest that omits a live safety
+mechanism is not conservative, it is wrong in an unknown direction.** I assumed
+for three days that leaving the kill-switch out made the model optimistic-but-
+comparable. It made it optimistic by 31 points AND changed which windows pass.
+Audit the simulator against the LIVE FEATURE LIST, not against intuition about
+which omissions flatter.
+
 ## v80bt (2026-09-19) — THE FIRST HONEST PORTFOLIO RUN. Four surprises, three of
 ## them reversing something I believed this morning.
+NB SUPERSEDED IN PART BY v83bt: these rows ran with the health kill-switch OFF,
+so "DEPLOYED CONFIG" below is the engine MINUS a live component. The real
+deployed figure is +38.8% with three negative windows. The relative comparisons
+(sleeves, allocation, pyramid, maker, slippage) all hold — they were measured
+against each other on the same lens.
 Baseline gate PASSES (WR 63.8%, avgR +0.0263), so these rows can be read.
 Six INDEPENDENT $10,000 windows, real cash, real caps, both sleeves competing.
 
