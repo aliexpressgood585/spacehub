@@ -373,11 +373,23 @@ export function runPortfolio(
       // extreme resolves the bar pessimistically in one call. 'optimistic' gives
       // the target first refusal, then re-tests the stop if nothing fired.
       const beFloor = cfg.trailFloor === 'breakeven'
+      // BOTH arguments are the ADVERSE extreme, and that is the point.
+      //
+      // The first fix caught this double-count for stages 0 and 1 and MISSED it
+      // for stage 2, because the ratchet happens INSIDE ladderStep: passing the
+      // bar's favourable extreme as favPx raises the chandelier using this bar's
+      // high and then tests this bar's low against the raised level. Same bar,
+      // counted twice, in opposite directions — the identical defect, one stage
+      // over, and it lived in exactly the stage that carries the fat-tail profit.
+      //
+      // Passing `adverse` for both makes this a pure question: did the stop, AT
+      // THE LEVEL IT HELD WHEN THE BAR OPENED, get hit? The ratchet then happens
+      // in the rung loop below, where it belongs, and applies from the next bar.
       let act = cfg.intrabar === 'conservative'
-        ? S.ladderStep(pos, adverse, favour, ageMs, beFloor)
+        ? S.ladderStep(pos, adverse, adverse, ageMs, beFloor)
         : S.ladderStep(pos, favour, favour, ageMs, beFloor)
       if (cfg.intrabar === 'optimistic' && act.kind === 'none') {
-        act = S.ladderStep({ ...pos, stopPx: act.stopPx }, adverse, favour, ageMs, beFloor)
+        act = S.ladderStep({ ...pos, stopPx: act.stopPx }, adverse, adverse, ageMs, beFloor)
       }
       if (act.kind === 'close') {
         const raw = act.px / (1 - dirM * SLIP)
@@ -572,11 +584,16 @@ export function runPortfolio(
 
   for (let t = Math.ceil(tFrom / step) * step; t <= tTo; t += step) {
     // 1. MANAGE — exits before entries, always.
+    // At 4h resolution the management bar must be the 4h bar, not whichever 1h
+    // bar happens to sit at t-4h. Getting that wrong would silently drop three
+    // hours of range out of every stop check and make the coarse mode look far
+    // better than it is — which is exactly the comparison being measured here.
     for (const p of open.slice()) {
-      const m = idx1.get(p.sym)!
+      const m = step === H1 ? idx1.get(p.sym)! : idx4.get(p.sym)!
+      const arr = step === H1 ? data[p.sym].b1 : data[p.sym].b4
       const i = m.get(t - step)
       if (i === undefined) continue
-      manage(p, data[p.sym].b1[i], t)
+      manage(p, arr[i], t)
     }
 
     // 2. DECIDE — only on a 4h boundary, only from bars that have closed.

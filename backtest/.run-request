@@ -3,7 +3,10 @@
 # The mode must also be in the fetch-step whitelist in backtest.yml, or it will
 # silently get the short-history fetcher (see the v78bt note in CLAUDE.md).
 #
-# run 4: v80bt 36 (2026-09-19) — measures the LIVE ladder (breakeven floor)
-# against the HISTORICAL backtest ladder (free chandelier from entry). Run 3
-# proved the live ladder does not reproduce +0.0469R on the same signals.
+# run 5: v80bt 36 (2026-09-19). Run 4 REFUTED my trail-floor hypothesis (the
+# 'free' ladder came out WORSE, -0.155 vs -0.087, so that was not the cause).
+# Run 5 tests the sharper suspect: MANAGEMENT RESOLUTION. Every historical
+# backtest manages on 4h bars; a trade that banks 0.6R in hour 1 and dips back
+# through entry in hour 3 of the same bar is never breakeven-stopped there, but
+# the live bot polls every minute and would stop it. 2x2 grid: trail floor x 1h/4h.
 v80bt 36

@@ -6232,18 +6232,31 @@ function runV80bt() {
   console.log(`  to dip and recover, which on a fat-tailed edge is worth a great deal. The`)
   console.log(`  table below measures how much.`)
   console.log(``)
-  console.log(`  trail floor        n     WR%     avgR      vs documented +0.0469`)
+  console.log(`  variant                          n     WR%     avgR     vs +0.0469`)
   for (const tf of ['breakeven', 'free'] as const) {
-    const pr = PF.runPortfolio(data, PF.defaultConfig({
-      parity: true, startCash: 1e9, sleeves: ['DONCH4H'], trailFloor: tf,
-    }), tmin + WARM, tmax)
-    const d = pr.closed.filter(t => t.riskUsd > 0)
-    const wr = d.length ? d.filter(t => t.pnl > 0).length / d.length * 100 : 0
-    const avgR = d.length ? d.reduce((a, t) => a + t.r, 0) / d.length : 0
-    const tag = tf === 'breakeven' ? 'breakeven (LIVE)' : 'free (BACKTESTS)'
-    console.log(`  ${tag.padEnd(18)} ${String(d.length).padStart(5)}  ${wr.toFixed(1).padStart(5)}  ` +
-      `${(avgR >= 0 ? '+' : '') + avgR.toFixed(4)}   ${Math.abs(avgR - 0.0469) < 0.02 ? 'REPRODUCES' : 'does not reproduce'}`)
+    for (const mo of ['1h', '4h'] as const) {
+      const pr = PF.runPortfolio(data, PF.defaultConfig({
+        parity: true, startCash: 1e9, sleeves: ['DONCH4H'], trailFloor: tf, manageOn: mo,
+      }), tmin + WARM, tmax)
+      const d = pr.closed.filter(t => t.riskUsd > 0)
+      const wr = d.length ? d.filter(t => t.pnl > 0).length / d.length * 100 : 0
+      const avgR = d.length ? d.reduce((a, t) => a + t.r, 0) / d.length : 0
+      const tag = `${tf === 'breakeven' ? 'breakeven(LIVE)' : 'free(BACKTEST)'} manage ${mo}`
+      console.log(`  ${tag.padEnd(30)} ${String(d.length).padStart(5)}  ${wr.toFixed(1).padStart(5)}  ` +
+        `${(avgR >= 0 ? '+' : '') + avgR.toFixed(4)}  ${Math.abs(avgR - 0.0469) < 0.02 ? 'REPRODUCES' : 'no'}`)
+    }
   }
+  console.log(``)
+  console.log(`  WHY MANAGEMENT RESOLUTION IS ON TRIAL HERE, and it is the sharper`)
+  console.log(`  question of the two: every historical backtest manages on 4h bars. A`)
+  console.log(`  trade that banks 0.6R in hour 1 and dips back through entry in hour 3`)
+  console.log(`  of the SAME 4h bar is never breakeven-stopped by that model — the stop`)
+  console.log(`  only becomes active on the NEXT bar. The live bot polls every minute`)
+  console.log(`  and WOULD stop it. So if 4h reproduces +0.0469 and 1h does not, the`)
+  console.log(`  documented edge is partly an artifact of coarse bar resolution, and the`)
+  console.log(`  1h figure is the more faithful estimate of what the bot actually earns.`)
+  console.log(`  That would be a bigger and more uncomfortable finding than the trail`)
+  console.log(`  floor, and it is why it is being measured rather than argued.`)
   console.log(``)
   console.log(`  If 'free' reproduces and 'breakeven' does not, then every validated number`)
   console.log(`  in CLAUDE.md describes a ladder the live bot does not run, and v58bt/v59bt`)
