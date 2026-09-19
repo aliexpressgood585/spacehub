@@ -144,6 +144,43 @@ export interface SimConfig {
    * long as the rules were written down twice.
    */
   trailFloor: 'breakeven' | 'free'
+  /**
+   * WYCKOFF STRUCTURE TILT — research, null by default (v84bt).
+   *
+   * A SIZING tilt, never a filter: every signal is still taken, some at a
+   * different size. That is deliberate. Standing rule 5 forbids improving
+   * profitability by cutting trades, and both Wyckoff constructs are exactly
+   * the kind of thing one is tempted to turn into a "skip the weak breakout"
+   * rule — which is what v54bt (volume) and v68bt (bar size) already rejected.
+   */
+  wyckoff: WyckTilt | null
+}
+
+export interface WyckTilt {
+  /** 'spring' = shakeout quality only; 'er' = effort/result only; 'both' = the
+   *  conjunction, which is the actual Wyckoff reading of a strong markup. */
+  mode: 'spring' | 'er' | 'both'
+  /** size multiplier when the structure reads favourable */
+  boost: number
+  /** size multiplier when it reads unfavourable */
+  damp: number
+  /** effort÷result above this counts as absorption (supply meeting the move) */
+  erHi: number
+}
+
+/** Bounded so a tilt can never become a filter by shrinking a ticket to zero,
+ *  and never a risk raise by the back door. */
+function wyckMult(f: S.WyckoffFeat | null, w: WyckTilt | null): number {
+  if (!w || !f) return 1
+  const absorbed = f.er > w.erHi
+  let good: boolean, bad: boolean
+  switch (w.mode) {
+    case 'spring': good = f.spring; bad = !f.spring; break
+    case 'er':     good = !absorbed; bad = absorbed; break
+    case 'both':   good = f.spring && !absorbed; bad = !f.spring && absorbed; break
+  }
+  const m = good ? w.boost : bad ? w.damp : 1
+  return Math.min(2, Math.max(0.25, m))
 }
 
 export function defaultConfig(over: Partial<SimConfig> = {}): SimConfig {
@@ -161,6 +198,7 @@ export function defaultConfig(over: Partial<SimConfig> = {}): SimConfig {
     trailFloor: 'breakeven',
     donchBudget: null,
     killSwitch: false,
+    wyckoff: null,
     ...over,
   }
 }
@@ -187,6 +225,7 @@ interface Position {
   legsBanked: number
   adx: number
   unit: number            // 1 = first unit on this symbol, 2/3 = pyramid
+  wyck: S.WyckoffFeat | null
   lastFundingAt: number
   feesPaid: number
   slipPaid: number
@@ -207,6 +246,9 @@ export interface ClosedTrade {
   notional: number
   adx: number
   unit: number
+  /** Wyckoff structure of the breakout bar, measured on EVERY trade whether or
+   *  not a tilt is active. Null for ROTA, which has no breakout bar. */
+  wyck: S.WyckoffFeat | null
   reason: string
   /** profit already banked by the ladder legs before this close. Exposed because
    *  the ratio of "banked a leg then stopped at breakeven" trades is the tell for
@@ -356,7 +398,7 @@ export function runPortfolio(
       openedAt: p.openedAt, closedAt: t, pnl,
       r: p.riskUsd > 0 ? pnl / p.riskUsd : 0,
       riskUsd: p.riskUsd, notional: p.entry * p.sizeOrig, adx: p.adx, unit: p.unit,
-      reason, legsBanked: p.legsBanked, fees: p.feesPaid, slip: p.slipPaid,
+      wyck: p.wyck, reason, legsBanked: p.legsBanked, fees: p.feesPaid, slip: p.slipPaid,
       funding: p.fundingPaid,
       heldH: (t - p.openedAt) / H1,
     })
@@ -484,6 +526,7 @@ export function runPortfolio(
   interface Candidate {
     sym: string; side: S.Side; adx: number; atr: number; price: number
     slDist: number; slPct: number; quoteVol24h: number; seq: number
+    wyck: S.WyckoffFeat | null
   }
 
   function tryOpen(c: Candidate, t: number): boolean {
@@ -518,10 +561,12 @@ export function runPortfolio(
       portfolio: port, balance: cash, openExposure: exp, heatCommitted: 0,
       longExposure: se.l, shortExposure: se.s, symExposure: symExposure(c.sym),
       adx: c.adx, slPct: c.slPct, side: c.side, quoteVol24h: c.quoteVol24h,
+      riskMult: wyckMult(c.wyck, cfg.wyckoff),
     })
 
     if (!sized.ok) {
-      const want = (port * S.BASE_RISK_PCT * S.adxTierMult(c.adx)) / c.slPct
+      const want = (port * S.BASE_RISK_PCT * S.adxTierMult(c.adx) *
+        wyckMult(c.wyck, cfg.wyckoff)) / c.slPct
       const reason: Rejection['reason'] =
         sized.reason === 'heat_limit' ? 'heat'
         : sized.reason === 'net_exposure_cap' ? 'net_exposure'
@@ -560,7 +605,7 @@ export function runPortfolio(
       openedAt: t, costBasis: notional, sizeOrig: size, sizeLeft: size,
       origSlDist: c.slDist, stage: 0, stopPx: c.price - c.slDist * dirM,
       riskUsd: c.slDist * size, legsBanked: 0, adx: c.adx, unit: units.length + 1,
-      lastFundingAt: t, feesPaid: feeIn, slipPaid: Math.abs(fillPx - c.price) * size,
+      wyck: c.wyck, lastFundingAt: t, feesPaid: feeIn, slipPaid: Math.abs(fillPx - c.price) * size,
       fundingPaid: 0,
     })
     return true
@@ -632,7 +677,7 @@ export function runPortfolio(
       open.push({
         id: nextId++, sym, sleeve: 'ROTA', side, entry: fillPx, openedAt: t,
         costBasis: slot, sizeOrig: size, sizeLeft: size, origSlDist: 0, stage: 0,
-        stopPx: 0, riskUsd: 0, legsBanked: 0, adx: 0, unit: 1, lastFundingAt: t,
+        stopPx: 0, riskUsd: 0, legsBanked: 0, adx: 0, unit: 1, wyck: null, lastFundingAt: t,
         feesPaid: feeIn, slipPaid: Math.abs(fillPx - mk) * size, fundingPaid: 0,
       })
     }
@@ -718,7 +763,12 @@ export function runPortfolio(
           const lc = lastCloseBySym.get(sym)
           if (!cfg.parity && lc !== undefined && t - lc < 8 * H1) continue
           const quoteVol24h = completed.slice(-6).reduce((a, b) => a + b.vol, 0) * price
-          cands.push({ sym, side: sig.side, adx, atr, price, slDist, slPct, quoteVol24h, seq: seq++ })
+          // Measured on every candidate whether or not a tilt is active, so
+          // part A can describe the population the deployed config actually
+          // trades rather than a population selected by the tilt under test.
+          const wyck = S.wyckoffFeatures(completed, sig.side)
+          cands.push({ sym, side: sig.side, adx, atr, price, slDist, slPct, quoteVol24h,
+            wyck, seq: seq++ })
         }
         for (const c of orderCandidates(cands, cfg.alloc)) tryOpen(c, t)
       }

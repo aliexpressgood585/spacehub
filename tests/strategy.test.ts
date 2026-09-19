@@ -517,6 +517,111 @@ function fixture(n = 80): S.Bar[] {
   near('the ADX gate is 22', S.ADX_GATE, 22)
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// 11. WYCKOFF FEATURES — research primitives (v84bt). Not deployed; tested so a
+//     research run cannot be read on a feature that does not compute what its
+//     name claims. Each assertion builds the structure by hand rather than
+//     asserting on real data, because a feature that only "looks right" on a
+//     chart is exactly the Wyckoff failure mode this repo is trying to avoid.
+// ════════════════════════════════════════════════════════════════════════════
+{
+  const b = (o: number, h: number, l: number, c: number, v = 100, t = 0): S.Bar =>
+    ({ t, open: o, high: h, low: l, close: c, vol: v })
+
+  // A flat range at 100±1 for plenty of history, so any structure we inject is
+  // the only structure present.
+  const flat = (n: number): S.Bar[] =>
+    Array.from({ length: n }, (_, i) => b(100, 101, 99, 100, 100, i * 14400000))
+
+  // riskMult defaults to 1 — the deployed path must be untouched by the hook.
+  {
+    const inp: S.SizeInput = {
+      portfolio: 10_000, balance: 10_000, openExposure: 0, heatCommitted: 0,
+      longExposure: 0, shortExposure: 0, symExposure: 0,
+      adx: 25, slPct: 0.10, side: 'LONG', quoteVol24h: 0,
+    }
+    const a = S.sizeBreakout(inp)
+    const c = S.sizeBreakout({ ...inp, riskMult: 1 })
+    check('riskMult omitted === riskMult 1 (the hook is inert by default)',
+      a.ok && c.ok && a.notional === c.notional)
+    const half = S.sizeBreakout({ ...inp, riskMult: 0.5 })
+    check('riskMult halves the risk budget',
+      half.ok && Math.abs(half.notional - 656.25) < 1e-6,
+      half.ok ? `got ${half.notional}` : half.reason)
+  }
+
+  // Not enough history → null, never a fabricated default.
+  check('wyckoffFeatures returns null on short history',
+    S.wyckoffFeatures(flat(10), 'LONG') === null)
+
+  // No spring anywhere in a flat range.
+  {
+    const f = S.wyckoffFeatures(flat(40), 'LONG')
+    check('flat range reports no spring', f !== null && f.spring === false)
+    check('flat range effort and result are both ~1',
+      f !== null && Math.abs(f.effort - 1) < 1e-9 && Math.abs(f.result - 1) < 1e-9)
+  }
+
+  // A SPRING: one bar dips below the prior Donchian low and closes back inside.
+  {
+    const bars = flat(40)
+    bars[34] = b(100, 101, 95, 100, 100, 34 * 14400000)   // wick down, close inside
+    const f = S.wyckoffFeatures(bars, 'LONG')
+    check('a failed breakdown that closes back inside IS a spring',
+      f !== null && f.spring === true)
+    check('springAge counts bars back from the signal bar',
+      f !== null && f.springAge === 39 - 34, f ? `got ${f.springAge}` : '')
+  }
+
+  // A breakdown that CLOSES below is not a spring — it is a breakdown.
+  {
+    const bars = flat(40)
+    bars[34] = b(100, 101, 95, 96, 100, 34 * 14400000)
+    const f = S.wyckoffFeatures(bars, 'LONG')
+    check('a breakdown that closes OUTSIDE is not a spring',
+      f !== null && f.spring === false)
+  }
+
+  // The SHORT side is the mirror (upthrust), not a copy.
+  {
+    const bars = flat(40)
+    bars[34] = b(100, 106, 99, 100, 100, 34 * 14400000)   // wick up, close inside
+    const up = S.wyckoffFeatures(bars, 'SHORT')
+    const lo = S.wyckoffFeatures(bars, 'LONG')
+    check('an upthrust is a spring for a SHORT', up !== null && up.spring === true)
+    check('...and is NOT one for a LONG', lo !== null && lo.spring === false)
+  }
+
+  // EFFORT vs RESULT: heavy volume, small bar = absorption = high er.
+  {
+    const bars = flat(40)
+    bars[39] = b(100, 100.5, 99.5, 100, 400, 39 * 14400000)  // 4x volume, half range
+    const f = S.wyckoffFeatures(bars, 'LONG')
+    check('heavy volume on a small bar reads as high effort/result',
+      f !== null && Math.abs(f.effort - 4) < 1e-9 &&
+      Math.abs(f.result - 0.5) < 1e-9 && Math.abs(f.er - 8) < 1e-9,
+      f ? `effort ${f.effort} result ${f.result} er ${f.er}` : '')
+  }
+
+  // ...and the converse: a big bar on ordinary volume is cheap movement.
+  {
+    const bars = flat(40)
+    bars[39] = b(100, 104, 100, 104, 100, 39 * 14400000)
+    const f = S.wyckoffFeatures(bars, 'LONG')
+    check('a wide bar on normal volume reads as low effort/result',
+      f !== null && f.er < 1, f ? `er ${f.er}` : '')
+  }
+
+  // A doji must not manufacture an infinite ratio out of one flat bar.
+  {
+    const bars = flat(40)
+    bars[39] = b(100, 100, 100, 100, 100, 39 * 14400000)
+    const f = S.wyckoffFeatures(bars, 'LONG')
+    check('a zero-range bar cannot produce an infinite er',
+      f !== null && Number.isFinite(f.er) && f.er <= 20, f ? `er ${f.er}` : '')
+  }
+}
+
 // ─── report ─────────────────────────────────────────────────────────────────
 console.log(`\n  shared/strategy.ts — ${passed} assertions passed, ${failures.length} failed`)
 if (failures.length) {

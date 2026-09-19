@@ -6748,6 +6748,156 @@ function runV83bt() {
   console.log(`  insurance is judged on the claim, not on the premium.`)
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// v84bt — WYCKOFF STRUCTURE, the two constructs that are actually new.
+//
+// Wyckoff is a method, not an indicator, so it was split into pieces and each
+// piece checked against what this repo already knows (the full triage is in the
+// header comment of shared/strategy.ts). Almost all of it is already deployed
+// (the breakout out of a range IS Donchian; "don't trade inside the range" IS
+// the ADX gate) or already rejected (volume as a filter v54bt, spring-as-a-
+// reversal v47bt/v53bt, stops beyond the shakeout v61bt, smart-money tilt).
+// Phase labelling is not codeable at all and cannot clear rule 6.
+//
+// Two constructs survive that triage:
+//   SPRING   — did a failed breakdown (shakeout) precede this breakout?
+//   E/R      — did the breakout bar buy its movement cheaply, or did it take
+//              heavy volume to move a little (absorption)?
+//
+// PART A describes them on the population the DEPLOYED config actually trades.
+// It runs with killSwitch TRUE — the v83bt lesson: a simulator that omits a
+// live safety mechanism is not conservative, it is wrong in an unknown
+// direction. Describing first is the point: if neither feature separates the
+// trades, no tilt built on it can work and part B is noise by construction.
+//
+// PART B only then tilts SIZE, never trade selection (rule 5).
+// The prior going in is low, and it is worth stating so it cannot be quietly
+// revised afterwards: v72bt closed the feature-combination axis, finding that
+// ADX is the only feature carrying combinable sizing edge and that adding weak
+// features made the out-of-sample window progressively WORSE.
+// ════════════════════════════════════════════════════════════════════════════
+function runV84bt() {
+  const NW = 6, BAR4 = 14400000
+  const to4h = (a: Bar[], ms: number): Bar[] => {
+    const out: Bar[] = []; let cur: Bar | null = null; let bucket = -1
+    for (const b of a) {
+      const k = Math.floor(b.t / ms)
+      if (k !== bucket) { if (cur) out.push(cur); bucket = k
+        cur = { t: k * ms, open: b.open, high: b.high, low: b.low, close: b.close, vol: b.vol } }
+      else if (cur) { cur.high = Math.max(cur.high, b.high); cur.low = Math.min(cur.low, b.low)
+        cur.close = b.close; cur.vol += b.vol }
+    }
+    if (cur) out.push(cur); return out
+  }
+  const data: Record<string, PF.CoinData> = {}
+  let tmin = Infinity, tmax = -Infinity
+  for (const c of COINS) {
+    if (!CORE40.has(c)) continue
+    const h = loadCSV(c, '1h'); if (h.length < 500) continue
+    data[c] = { b1: h, b4: to4h(h, BAR4) }
+    tmin = Math.min(tmin, h[0].t); tmax = Math.max(tmax, h[h.length - 1].t)
+  }
+  const spanDays = (tmax - tmin) / 86400000
+  console.log(`  loaded ${Object.keys(data).length} coins, span ${spanDays.toFixed(0)} days`)
+  if (spanDays < 900 || Object.keys(data).length < 30) {
+    console.log(`\n  ABORT: need ~36 months across CORE40.`); return
+  }
+  const wSpan = (tmax - tmin) / NW, WARM = 100 * BAR4
+
+  const run = (over: Partial<PF.SimConfig>) => {
+    const ms: PF.Metrics[] = []; const all: PF.ClosedTrade[] = []
+    for (let w = 0; w < NW; w++) {
+      const a = tmin + w * wSpan, b = tmin + (w + 1) * wSpan
+      const from = Math.max(tmin + WARM, a)
+      if (b - from < 30 * 86400000) continue
+      const r = PF.runPortfolio(data, PF.defaultConfig({ killSwitch: true, ...over }), from, b)
+      ms.push(PF.metrics(r, 10000, (b - from) / 86400000))
+      for (const c of r.closed) all.push(c)
+    }
+    const net = ms.map(x => x.netPct)
+    return { ms, net, all, tot: net.reduce((a, b) => a + b, 0),
+      all6: ms.length >= NW - 1 && net.every(x => x > 0),
+      trades: ms.reduce((a, x) => a + x.trades, 0),
+      dd: Math.max(...ms.map(x => x.maxDD)) }
+  }
+  const row = (tag: string, r: ReturnType<typeof run>) =>
+    console.log(`  ${tag.padEnd(30)} ${String(r.trades).padStart(6)} ${r.tot.toFixed(1).padStart(7)}% ` +
+      `${r.dd.toFixed(1).padStart(5)}%  ${r.all6 ? 'PASS' : 'FAIL'}  ` +
+      `${r.net.map(x => (x >= 0 ? '+' : '') + x.toFixed(1)).join(' ')}`)
+
+  const base = run({})
+  const donch = base.all.filter(t => t.sleeve === 'DONCH4H' && t.wyck)
+  const stat = (name: string, xs: PF.ClosedTrade[]) => {
+    if (!xs.length) { console.log(`  ${name.padEnd(34)}      —`); return }
+    const n = xs.length
+    const avgR = xs.reduce((a, x) => a + x.r, 0) / n
+    const wr = xs.filter(x => x.pnl > 0).length / n * 100
+    const usd = xs.reduce((a, x) => a + x.pnl, 0)
+    console.log(`  ${name.padEnd(34)} ${String(n).padStart(5)}  avgR ${(avgR >= 0 ? '+' : '')}${avgR.toFixed(4)}` +
+      `  WR ${wr.toFixed(1)}%  $${usd.toFixed(0)}`)
+  }
+
+  console.log(`\n── PART A: do the two constructs SEPARATE the trades at all? ──`)
+  console.log(`  Population = DONCH4H closes of the DEPLOYED config (kill-switch ON).`)
+  console.log(`  n=${donch.length}. If these rows are flat, no tilt can help and part B is noise.\n`)
+  console.log(`  SPRING — was the breakout preceded by a failed breakdown/upthrust?`)
+  stat('spring present', donch.filter(t => t.wyck!.spring))
+  stat('no spring', donch.filter(t => !t.wyck!.spring))
+  console.log(`\n  EFFORT / RESULT on the breakout bar (higher = absorption):`)
+  const ers = donch.map(t => t.wyck!.er).sort((a, b) => a - b)
+  const q = (p: number) => ers[Math.min(ers.length - 1, Math.floor(p * ers.length))]
+  const [q25, q50, q75] = [q(0.25), q(0.50), q(0.75)]
+  console.log(`  quartiles: ${q25.toFixed(2)} / ${q50.toFixed(2)} / ${q75.toFixed(2)}`)
+  stat(`er <= ${q25.toFixed(2)}  (cheap movement)`, donch.filter(t => t.wyck!.er <= q25))
+  stat(`er ${q25.toFixed(2)}–${q50.toFixed(2)}`, donch.filter(t => t.wyck!.er > q25 && t.wyck!.er <= q50))
+  stat(`er ${q50.toFixed(2)}–${q75.toFixed(2)}`, donch.filter(t => t.wyck!.er > q50 && t.wyck!.er <= q75))
+  stat(`er >  ${q75.toFixed(2)}  (absorption)`, donch.filter(t => t.wyck!.er > q75))
+  console.log(`\n  CONTROL — the two ingredients separately, because v54bt measured`)
+  console.log(`  volume alone and v68bt measured bar size alone. If the RATIO does no`)
+  console.log(`  better than its parts, it is not a new feature, it is a restatement.`)
+  const eff = donch.map(t => t.wyck!.effort).sort((a, b) => a - b)
+  const eMed = eff[eff.length >> 1]
+  stat(`effort (volume) above median`, donch.filter(t => t.wyck!.effort > eMed))
+  stat(`effort (volume) below median`, donch.filter(t => t.wyck!.effort <= eMed))
+  const res = donch.map(t => t.wyck!.result).sort((a, b) => a - b)
+  const rMed = res[res.length >> 1]
+  stat(`result (bar range) above median`, donch.filter(t => t.wyck!.result > rMed))
+  stat(`result (bar range) below median`, donch.filter(t => t.wyck!.result <= rMed))
+
+  console.log(`\n── PART B: the tilts, through the full 6-window bar ──`)
+  console.log(`  Sizing only — every signal is still taken. Trade counts should move`)
+  console.log(`  barely at all; a large move means the tilt became a filter via the`)
+  console.log(`  $500 minimum ticket, and that is a rule-5 problem, not a result.`)
+  console.log(`  config                         trades     net%  maxDD  all6  per-window`)
+  row('INCUMBENT (kill-switch ON)', base)
+  const erHi = q75
+  for (const [mode, boost, damp] of [
+    ['spring', 1.25, 1.0], ['spring', 1.0, 0.75], ['spring', 1.25, 0.75],
+    ['er', 1.25, 1.0], ['er', 1.0, 0.75], ['er', 1.25, 0.75],
+    ['both', 1.25, 0.75],
+  ] as [PF.WyckTilt['mode'], number, number][]) {
+    row(`${mode} boost ${boost} damp ${damp}`,
+      run({ wyckoff: { mode, boost, damp, erHi } }))
+  }
+
+  console.log(`\n── PART C: the survivor, if any, at 6bps ──`)
+  console.log(`  v71bt is the reason this stage exists: reg-channel passed the`)
+  console.log(`  walk-forward bar and died on execution cost. A sizing tilt that`)
+  console.log(`  only works at 3bps is a zero-slippage illusion.`)
+  console.log(`  config                         trades     net%  maxDD  all6  per-window`)
+  row('INCUMBENT @6bps', run({ slipBps: 6 }))
+  for (const [mode, boost, damp] of [
+    ['spring', 1.25, 0.75], ['er', 1.25, 0.75], ['both', 1.25, 0.75],
+  ] as [PF.WyckTilt['mode'], number, number][]) {
+    row(`${mode} 1.25/0.75 @6bps`,
+      run({ slipBps: 6, wyckoff: { mode, boost, damp, erHi } }))
+  }
+
+  console.log(`\n  DEPLOY BAR, unchanged: beat the incumbent at 3bps AND 6bps, not`)
+  console.log(`  worse in any window, and no material trade loss. Anything less is`)
+  console.log(`  recorded and rejected, the same as the previous 25 batches.`)
+}
+
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
@@ -6933,6 +7083,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v73bt') {
     console.log(`████ V73BT — Donchian adaptive window (vol-scaled) vs fixed-15 ████`)
     runV73bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v84bt') {
+    console.log(`████ V84BT — Wyckoff structure: spring quality and effort-vs-result ████`)
+    runV84bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v83bt') {

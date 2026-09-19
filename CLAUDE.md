@@ -99,7 +99,7 @@ asking, but NEVER violate the standing rules below.
   sizing chain, ladder state machine, ROTA ranking/weights, CRYPTO_40 and every
   tuned constant — pure functions, no Deno/Supabase/npm/network. The bot and the
   backtest BOTH import it. Change a rule here or nowhere. Tests:
-  `bash scripts/run-tests.sh` (138 assertions + typecheck, no install, offline).
+  `bash scripts/run-tests.sh` (209 assertions + typecheck, no install, offline).
 - **Live bot**: `supabase/functions/trading-bot/index.ts` (Deno edge function,
   cron every minute, Supabase project `mdvheizhciuvqychtwxr`). Version header at top.
 - Two validated strategies:
@@ -755,6 +755,52 @@ THREE THINGS THE RUN SAID THAT MATTER MORE THAN THE VERDICTS:
 NOTHING WAS DEPLOYED. The incumbent stays exactly as it is. This is the bar
 working, not the bar being unlucky — and the value of running it was the three
 findings above, not a green light.
+
+## v84bt (2026-09-19) — WYCKOFF, TRIAGED INTO CODE. QUEUED, NOT YET MEASURED.
+Owner asked whether Wyckoff can be integrated. It is a METHOD, not an indicator,
+so the first job was to split it into rules that can each be written down
+unambiguously and checked against what this repo already knows. Most of it is
+not new here:
+  accumulation -> markup out of a trading range = THE DONCHIAN BREAKOUT. The
+      core Wyckoff trade is already the deployed DONCH4H sleeve.
+  "do not trade inside the range"               = the ADX>22 gate (v56bt, v68bt)
+  volume / effort-vs-result as a FILTER         = v54bt, rejected on rule 5
+      (cuts 26-63% of trades), though high-volume breakouts do carry +30% edge
+  spring traded as a REVERSAL at the range edge = limit-retest entries (v47bt),
+      4h BB range-fade, 1h RSI-extreme fade (v53bt, -0.13R). In crypto an
+      extreme is continuation, not reversal — measured repeatedly.
+  stop placed beyond the shakeout low           = v61bt, rejected (totR 696->350)
+  Composite Man / smart money                   = top-trader tilt, noise-level
+  phase labelling (PS/SC/AR/ST/SOS/LPS, A-E)    = NOT CODEABLE. Two analysts
+      label the same chart differently and the labels move in hindsight. Same
+      class as Elliott waves: unfalsifiable, so it cannot clear rule 6. Said
+      plainly to the owner rather than implemented as something that "looks
+      Wyckoff-ish".
+TWO CONSTRUCTS SURVIVE and are genuinely untested, both now in
+`shared/strategy.ts` as pure functions with 18 new assertions:
+ 1. SPRING/UPTHRUST BEFORE the breakout, as a QUALITY MARK rather than a trade —
+    did a failed breakdown that closed back inside precede this signal? Defined
+    against the SAME Donchian extreme the entry uses, so "the range" means one
+    thing in both places.
+ 2. EFFORT vs RESULT on the breakout bar — volume relative to the range median,
+    divided by bar range relative to the range median. v54bt measured volume
+    alone and v68bt measured bar size alone; the RATIO is the actual Wyckoff
+    construct. Part A reports the ratio AND its two ingredients separately, so
+    if the ratio does no better than its parts it is a restatement, not a
+    feature.
+Both are tested as SIZING TILTS, never filters (rule 5). New `riskMult` hook on
+`SizeInput`, default 1, so the deployed path is provably untouched — asserted.
+RUN DESIGN, carrying the v83bt lesson: every window runs with `killSwitch: true`.
+A simulator that omits a live safety mechanism is not conservative, it is wrong
+in an unknown direction. Part A describes the population the DEPLOYED config
+actually trades; if neither feature separates it, part B is noise by
+construction. Part C repeats the survivors at 6bps, because v71bt is the standing
+reminder that a thin edge can pass the walk-forward bar and die on execution cost.
+PRIOR, recorded BEFORE the result so it cannot be quietly revised: LOW. v72bt
+closed the feature-combination axis — ADX is the only feature carrying combinable
+sizing edge, and adding weak features made the out-of-sample window worse. Four
+external-report ideas have already reduced to the incumbent once coded.
+STATUS: built, tests green, queued via `backtest/.run-request`. NOTHING MEASURED.
 
 ## v83bt (2026-09-19) — THE KILL-SWITCH HAS NEVER BEEN MEASURED, AND IT IS THE
 ## LARGEST SINGLE NEGATIVE IN THE SYSTEM.

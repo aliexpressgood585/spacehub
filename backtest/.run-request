@@ -3,8 +3,11 @@
 # The mode must also be in the fetch-step whitelist in backtest.yml, or it will
 # silently get the short-history fetcher (see the v78bt note in CLAUDE.md).
 #
-# v83bt: the health kill-switch, which NO previous run modelled. Every number
-# in v80bt/v82bt describes a bot that can never pause. This turns it on, and
-# finally tests candidate A against the scenario it exists for: ROTA paused,
-# basket unwound, DONCH4H holding the whole book.
-v83bt 36
+# v84bt: Wyckoff. The method splits into pieces that are already deployed (the
+# breakout out of a range IS Donchian), already rejected (volume as a filter,
+# spring-as-a-reversal, stops beyond the shakeout, smart-money tilt) or not
+# codeable at all (phase labelling). Two constructs survive the triage and are
+# genuinely untested here: SPRING (did a shakeout precede this breakout) and
+# EFFORT/RESULT (did the breakout bar buy its movement cheaply). Part A asks
+# whether they separate the trades at all before any tilt is built on them.
+v84bt 36
