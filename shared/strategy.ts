@@ -245,6 +245,20 @@ export interface SizeInput {
   slPct: number
   side: Side
   quoteVol24h: number    // 0 disables the liquidity cap
+  /**
+   * RESEARCH HOOK, default 1 = today's behaviour exactly.
+   *
+   * A multiplier on the risk budget for this one entry, applied BEFORE every
+   * cap. It exists so a candidate sizing tilt can be measured through the real
+   * sizing chain instead of a paraphrase of it. NOTHING in the deployed path
+   * passes it; the live bot's only size lever is `adxTierMult`.
+   *
+   * NB a damp below 1 is partly absorbed: `Math.max(riskNotional, MIN_NOTIONAL)`
+   * floors every ticket at $500, so shrinking a small entry may change nothing.
+   * That is the live rule and the measurement must live with it rather than
+   * pretend a sub-minimum ticket is placeable.
+   */
+  riskMult?: number
 }
 
 export type SizeResult =
@@ -256,7 +270,8 @@ export function sizeBreakout(inp: SizeInput): SizeResult {
   if (portfolio <= 0) return { ok: false, reason: 'too_small' }
 
   const remain = Math.max(0, portfolio - openExposure)
-  const riskNotional = (portfolio * BASE_RISK_PCT * adxTierMult(inp.adx)) / inp.slPct
+  const riskNotional =
+    (portfolio * BASE_RISK_PCT * adxTierMult(inp.adx) * (inp.riskMult ?? 1)) / inp.slPct
   let notional = Math.min(
     Math.max(riskNotional, MIN_NOTIONAL),
     portfolio * PER_POSITION_CAP,
@@ -297,6 +312,116 @@ export function sizeBreakout(inp: SizeInput): SizeResult {
   if (Math.abs(l - s) > portfolio * NET_EXPOSURE_CAP) return { ok: false, reason: 'net_exposure_cap' }
 
   return { ok: true, notional, trimmedBy }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WYCKOFF STRUCTURE — RESEARCH ONLY (v84bt). NOT A DEPLOYED RULE.
+//
+// Wyckoff is a method, not an indicator, so the honest first step is to split it
+// into pieces that can each be written as an unambiguous rule and checked. Most
+// of it turns out to be either already deployed or already rejected:
+//
+//   accumulation → markup out of a trading range  = the Donchian breakout. This
+//       IS DONCH4H. The core Wyckoff trade is the deployed sleeve.
+//   "do not trade inside the range"               = the ADX>22 gate (v56bt, v68bt)
+//   effort/result as a FILTER on volume           = v54bt, rejected on rule 5
+//       (cuts 26-63% of trades) although high-volume breakouts do carry +30% edge
+//   Composite-Man / smart-money positioning       = top-trader tilt, noise-level
+//   spring traded as a REVERSAL at the range edge = limit-retest entries (v47bt),
+//       BB range-fade, 1h RSI-extreme fade (v53bt, -0.13R) — all rejected. In
+//       crypto an extreme is continuation, not reversal.
+//   stop placement beyond the shakeout low        = v61bt, rejected (totR 696→350)
+//   phase labelling (PS/SC/AR/ST/SOS/LPS, A-E)    = NOT CODEABLE. Two analysts
+//       label the same chart differently and the labels move in hindsight. Same
+//       class as Elliott waves: unfalsifiable, so it cannot clear rule 6.
+//
+// That leaves exactly two constructs that are Wyckoff-specific, unambiguous, and
+// genuinely untested here. Both are defined below in terms of primitives the
+// entry already uses, so they cannot smuggle in a second definition of a range:
+//
+//  1. SPRING / UPTHRUST BEFORE the breakout — not as a trade, as a QUALITY MARK.
+//     Wyckoff's claim is that a range which first shook weak holders out (a
+//     failed breakdown that closed back inside) produces a stronger markup than
+//     one that did not. We have never asked whether OUR breakouts differ by this.
+//  2. EFFORT vs RESULT on the breakout bar — volume relative to the range's
+//     median, divided by bar range relative to the range's median. High effort
+//     with low result = absorption = supply meeting the move. v54bt measured
+//     volume alone and v68bt measured bar size alone; the RATIO is the actual
+//     Wyckoff construct and is new.
+//
+// Both are reported as continuous features first and only then considered as
+// SIZING tilts, never as filters — a filter cuts trades and dies on rule 5.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** How far back to look for a spring/upthrust, in 4h bars. One Donchian window:
+ *  the shakeout has to belong to the range being broken, not to an older one. */
+export const WYCK_LOOKBACK = DONCH_WINDOW
+
+export interface WyckoffFeat {
+  /** a failed breakdown (LONG) / failed breakout (SHORT) inside the lookback */
+  spring: boolean
+  /** bars since that shakeout; 0 when there was none */
+  springAge: number
+  /** breakout-bar volume ÷ median volume of the range. Wyckoff "effort". */
+  effort: number
+  /** breakout-bar range ÷ median range of the range. Wyckoff "result". */
+  result: number
+  /** effort ÷ result. HIGH = lots of volume bought little movement = absorption. */
+  er: number
+}
+
+/**
+ * Features of the bar that produced a signal, plus the range behind it.
+ *
+ * `bars` must end ON the signal bar and carry at least 2·DONCH_WINDOW+2 bars of
+ * history, which is what the spring scan needs to evaluate each candidate bar
+ * against its OWN prior Donchian extreme. Returns null when there is not enough
+ * history or the range is degenerate — never a fabricated default, because a
+ * fabricated feature is indistinguishable from a measured one downstream.
+ */
+export function wyckoffFeatures(
+  bars: Bar[], side: Side, lookback = WYCK_LOOKBACK,
+): WyckoffFeat | null {
+  const need = DONCH_WINDOW + lookback + 2
+  if (bars.length < need) return null
+  const sig = bars[bars.length - 1]
+  const range = bars.slice(-1 - DONCH_WINDOW, -1)
+  if (range.length < DONCH_WINDOW) return null
+
+  const med = (xs: number[]): number => {
+    const a = xs.slice().sort((p, q) => p - q)
+    const h = a.length >> 1
+    return a.length % 2 ? a[h] : (a[h - 1] + a[h]) / 2
+  }
+  const mVol = med(range.map(b => b.vol))
+  const mRng = med(range.map(b => b.high - b.low))
+  if (!(mVol > 0) || !(mRng > 0)) return null
+
+  const effort = sig.vol / mVol
+  const result = (sig.high - sig.low) / mRng
+  // result is bounded away from zero so a doji cannot manufacture an infinite
+  // ratio out of one flat bar.
+  const er = effort / Math.max(result, 0.05)
+
+  // SPRING (for a LONG) — somewhere in the lookback, a bar poked BELOW the
+  // Donchian low as it stood before that bar, and closed back above it. The
+  // mirror for a SHORT is an UPTHRUST through the Donchian high. Deliberately
+  // the same extreme the entry itself uses, so "the range" means one thing.
+  let spring = false, springAge = 0
+  const end = bars.length - 1
+  for (let j = end - 1; j >= end - lookback && j - DONCH_WINDOW >= 0; j--) {
+    const prior = bars.slice(j - DONCH_WINDOW, j)
+    if (prior.length < DONCH_WINDOW) break
+    if (side === 'LONG') {
+      const lo = Math.min(...prior.map(b => b.low))
+      if (bars[j].low < lo && bars[j].close > lo) { spring = true; springAge = end - j; break }
+    } else {
+      const hi = Math.max(...prior.map(b => b.high))
+      if (bars[j].high > hi && bars[j].close < hi) { spring = true; springAge = end - j; break }
+    }
+  }
+
+  return { spring, springAge, effort, result, er }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
