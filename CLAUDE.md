@@ -26,14 +26,14 @@ time (w1, w6). The documented incumbent is 696R all-6-positive. Our scan
 reproduces its trade count (11,412 vs 11,218) but not its window profile.
 Either the scan is not the engine (no pyramiding / heat cap / ROTA interaction /
 per-coin caps) or the edge has decayed on data through 2026-09.
-→ **ITEM 4 IS NOW HALF DONE — see v59.0 below.** `shared/strategy.ts` exists and
-  BOTH the bot and the backtest import it: signal, gate, stop, sizing, ladder,
-  ROTA, every tuned constant. 138 assertions guard it, and the live bot's bars
-  now carry their timestamps. What is NOT done is the second half: the backtest
-  still has no capital-constrained PORTFOLIO simulator, so it still cannot model
-  pyramiding, the heat cap, the net/per-coin caps or the ROTA interaction. That
-  is the remaining work, and it is what the (a)-vs-(b) question actually needs.
-  Only then re-run v79bt.
+→ **ITEM 4 IS DONE — v59.0 (shared rules) + v60.0 (portfolio sim).**
+  `shared/strategy.ts` holds the rules and BOTH the bot and the backtest import
+  it. `backtest/portfolio.ts` is the capital-constrained simulator: real cash,
+  real caps, pyramiding, both sleeves competing for one book, 1h management
+  resolution, stop-before-target. 189 assertions guard the pair.
+  **AWAITING: the first v80bt run** (`backtest/.run-request` → `v80bt 36`,
+  result lands in `status/bt-latest.txt`). Until those numbers are read, the
+  sub-gate tier is still unjudged and (a)-vs-(b) is still open.
 Do NOT deploy the sub-gate tier. It is neither accepted nor rejected.
 
 **How to run a backtest without the GitHub connector:** edit the first
@@ -700,6 +700,67 @@ Those constraints bite hardest in exactly the trending windows that carry the
 profit, which makes them the leading candidate for the v79bt divergence. Until
 that simulator exists, (a) "the scan is not the engine" is still not ruled out,
 and the sub-gate tier is still unjudged.
+
+## v60.0 (2026-09-19) — the capital-constrained portfolio simulator (item 4, second half)
+`backtest/portfolio.ts`. Every backtest before this aggregated an UNCONSTRAINED
+sum of R — the same dollar in ten places at once, no cash floor, no heat cap, no
+competition between the sleeves, and no credit for an early exit freeing capital
+for the next trade. On an edge of +0.046 to +0.062R that is not a rounding error.
+It is also the leading suspect for the v79bt divergence, because the caps bite
+hardest in exactly the trending windows that carry the profit.
+WHAT IT IS: event-driven over real bar timestamps, holding real cash, importing
+`shared/strategy.ts` so the rules it runs are the rules the bot runs. Positions
+are managed on 1h bars (4 checks per 4h bar — coarser than the live bot's
+per-minute poll, far finer than the old bar-close scan). Exits are processed
+before entries at every step, so capital released is available immediately.
+THE THREE CHOICES THAT DECIDE WHETHER IT TELLS THE TRUTH, all explicit:
+ 1. INTRA-BAR AMBIGUITY resolves the STOP first by default. Resolving it the
+    other way is the commonest way a backtest flatters itself, and at bar
+    resolution the case arises constantly. `intrabar:'optimistic'` exists only
+    to MEASURE the size of that assumption, never to produce a headline.
+ 2. MAKER FILL RATE is a knob. Every earlier backtest silently assumed 1.0 — that
+    both ladder legs always rest and always fill at the exact level. 0.7/0.4/0.0
+    treat the remainder as market fills, which is what an unfilled limit is.
+ 3. DETERMINISM. The maker draw uses a seeded LCG, never Math.random(); a
+    backtest that returns a different number each run cannot be compared to
+    itself.
+WHAT IT DELIBERATELY DOES NOT DO: no order-book depth model. The external report
+asked for "dynamic slippage by book depth" — we have no order-book data, so that
+would be invention, not measurement.
+THREE BUGS CAUGHT BY THE SMOKE TEST BEFORE ANY CI TIME WAS SPENT (the v78bt
+lesson applied: assert the accounting before trusting a table):
+ - The pyramid gate was being logged as a capital "rejection". It fires on most
+   bars of most open positions and buried the real signal under 28,684 rows. It
+   is a strategy rule, not a capital shortage; the rejection log now only records
+   what the CAPS cost.
+ - Two O(n2) hot spots: slicing each coin's full history on every decision (40x
+   per 4h bar for three years) and a linear scan of the growing closed-trade list
+   for the 8h cooldown. Both would have turned a 90-second run into an hour.
+ - The ladder could only advance one rung per management bar. A fast hour can
+   clear 0.6R and 1.0R and the live bot, polling every minute, would bank both.
+THE FIRST REAL LESSON, and it is the reason this thing exists — from a test
+assertion that FAILED: "optimistic intrabar must beat conservative" is TRUE per
+trade and FALSE per portfolio. Resolving a bar optimistically changes WHEN
+capital is released, which changes WHICH later trades get funded, which changes
+everything downstream. **A per-trade improvement does not imply a portfolio
+improvement once the same dollar cannot be in two places.** Every conclusion in
+the "Tested & REJECTED" list above was reached on the unconstrained model and is
+therefore measured on a lens that could not see this effect. They are not
+retracted — but the ones about EXIT TIMING (v57bt time-stop, v59bt ladder shapes,
+v63bt first-leg level) genuinely reopen, because an earlier exit now has a
+benefit the old model could not price: it frees capital.
+ALSO CORRECTED, honestly: I told the owner I would fix the live bot's capital
+allocation order (today it is `Promise.all` arrival order — whichever coin's
+network call returns first gets the money). I then realised that prioritising by
+ADX can REDUCE trade count, because high-ADX entries size up to 2.0x and consume
+the remaining room faster. That collides with standing rule 5, so it is now a
+MEASURED parameter in part E of v80bt rather than a fix applied on a hunch.
+STATUS: built, 51 invariant assertions passing on synthetic data, wired as mode
+`v80bt`, queued via `backtest/.run-request`. NOTHING IS MEASURED YET — the real
+36-month numbers land in `status/bt-latest.txt`.
+READING THE OUTPUT WHEN IT ARRIVES: the dollar figures are NOT comparable to the
+696R / +0.062R in this file. Those came from the unconstrained R-sum. A lower
+number is not a regression, it is the first honest measurement.
 
 ## v79bt (2026-09-18) — VOID, and the void is the finding
 Stage 2 of the sub-gate tier. It did not rule on the sub-gate tier, because the

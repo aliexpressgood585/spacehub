@@ -21,6 +21,7 @@ run() {
 
 run "strategy rules"        tests/strategy.test.ts
 run "live/backtest parity"  tests/parity.test.ts
+run "portfolio simulator"   tests/portfolio.test.ts
 
 # ── typecheck: the shared module and both of its consumers ──────────────────
 # The bot and the backtest are Deno programs, so `npm:` specifiers and the Deno
@@ -42,14 +43,17 @@ tc() {
 
 shared_errs=$(tc shared/strategy.ts | grep -c "error TS" || true)
 bt_errs=$(tc backtest/backtest.ts | grep -c "error TS" || true)
+pf_errs=$(tc backtest/portfolio.ts | grep -c "error TS" || true)
 bot_errs=$(tc supabase/functions/trading-bot/index.ts | grep -c "error TS" || true)
 
 echo "  shared/strategy.ts        $shared_errs errors (expected 0)"
 echo "  backtest/backtest.ts      $bt_errs errors (expected 0)"
+echo "  backtest/portfolio.ts     $pf_errs errors (expected 0)"
 echo "  trading-bot/index.ts      $bot_errs errors (expected 3 pre-existing)"
 
 [ "$shared_errs" -eq 0 ] || { echo "  FAIL: shared module must typecheck clean"; fail=1; }
 [ "$bt_errs" -eq 0 ]     || { echo "  FAIL: backtest must typecheck clean"; fail=1; }
+[ "$pf_errs" -eq 0 ]     || { echo "  FAIL: portfolio sim must typecheck clean"; fail=1; }
 if [ "$bot_errs" -gt 3 ]; then
   echo "  FAIL: the bot gained a type error — run tsc directly to see it"
   tc supabase/functions/trading-bot/index.ts | head -20
