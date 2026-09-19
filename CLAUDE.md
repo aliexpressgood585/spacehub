@@ -706,6 +706,86 @@ profit, which makes them the leading candidate for the v79bt divergence. Until
 that simulator exists, (a) "the scan is not the engine" is still not ruled out,
 and the sub-gate tier is still unjudged.
 
+## v80bt (2026-09-19) — THE FIRST HONEST PORTFOLIO RUN. Four surprises, three of
+## them reversing something I believed this morning.
+Baseline gate PASSES (WR 63.8%, avgR +0.0263), so these rows can be read.
+Six INDEPENDENT $10,000 windows, real cash, real caps, both sleeves competing.
+
+DEPLOYED CONFIG: **+70.1%** summed over six windows, maxDD 28.2%, **5 of 6
+positive** (w2 -10.0%). Per window: +30.5 / -10.0 / +29.3 / +0.9 / +17.7 / +1.7.
+It does NOT clear all-6 — w2 is negative in nearly every configuration tried —
+and that is the honest limit of the deployed engine on real capital.
+NOTE: avgR +0.0263 sits BELOW the documented +0.046-0.062 band. Not a bug: that
+band came from the unconstrained model. **The real engine earns less per trade
+than the archive claims**, because capital limits change which trades it takes.
+
+### 1. DONCH4H ALONE LOSES MONEY. ROTA CARRIES THE ACCOUNT.
+    DONCH4H alone   3,543 trades   -46.9%   maxDD 27.9%   negative in 5 of 6
+    ROTA alone      2,840 slots    +63.3%   maxDD 20.3%
+    both together   4,941          +70.1%   maxDD 28.2%
+The breakout sleeve — the one carrying every validation batch, the 696R, ~25
+research runs — **is negative at full allocation.** ROTA, which has had a
+fraction of the attention, makes the money.
+AND THE COMBINATION BEATS EITHER: +70.1% against ROTA's +63.3% alone. DONCH4H
+adds ~+7pp when it gets the LEFTOVERS (2,104 trades) and destroys -46.9% when it
+gets the whole book (3,543 trades).
+**So the framing I had all week was backwards. ROTA is not starving DONCH4H —
+ROTA is protecting DONCH4H from itself.** The -41% trade "loss" I was preparing
+to fix is the reason the account is profitable.
+CAVEAT, stated because it limits the claim: an "alone" run hands one sleeve the
+entire $10,000, so DONCH4H alone runs at far higher effective allocation per
+signal than it ever does live. This is not a verdict on the breakout edge; it is
+a verdict on that edge AT 100% ALLOCATION AND 1.75% BASE RISK. The honest
+statement is: **DONCH4H's edge does not survive being given the whole book.**
+
+### 2. THE LIVE BOT'S "NO ALLOCATION POLICY" IS THE BEST POLICY TESTED.
+    arrival (= what live does today, i.e. arbitrary)  +70.1%  maxDD 28.2%
+    adx     (strongest trend first)                   +64.5%  maxDD 31.1%
+    edge_cost                                         +67.8%  maxDD 27.2%
+I told the owner I would "fix" the arrival-order allocation. Then I caught
+myself, made it a measured parameter instead of a hunch, and the measurement
+says the hunch was WRONG: prioritising by ADX is 5.6pp worse with HIGHER
+drawdown. High-ADX entries size up to 2.0x and eat the room faster, so ordering
+by strength concentrates the book. The external report warned of exactly this.
+**Not changing the live bot was the right call, and it was right for a reason I
+did not have at the time.**
+
+### 3. THE THIRD PYRAMID UNIT IS DEAD WEIGHT.
+    unit 1  n=1,836  avgR +0.0217   total $535
+    unit 2  n=  239  avgR +0.0649   total $314   <- the best unit on the book
+    unit 3  n=   29  avgR +0.0024   total  $38
+    pyramidMax=1  +68.7%  maxDD 29.3%
+    pyramidMax=2  +73.3%  maxDD 27.4%   <- best return AND lowest drawdown
+    pyramidMax=3  +70.1%  maxDD 28.2%
+Unit 2 is the strongest trade type in the whole system. Unit 3 fires 29 times in
+36 months for $38 and costs a point of drawdown. Capping at 2 gains +3.2pp with
+LESS drawdown. NB it also costs 18 trades (4,941 -> 4,923, 0.4%) so rule 5 needs
+weighing, but this is the closest thing to a free improvement the run produced.
+NOT DEPLOYED: one run is not the bar.
+
+### 4. THE MAKER ASSUMPTION IS NOT LOAD-BEARING — the report's worry was unfounded.
+    makerFill 1.0  +70.1%    0.7  +68.6%    0.4  +67.1%    0.0  +65.7%
+Every historical backtest silently assumed both ladder legs always rest and fill
+at the exact level. At 0% maker fill — every leg a market order — the result is
+-4.4pp. Real, small, survivable. The ladder does not depend on the assumption.
+SLIPPAGE, by contrast, is load-bearing: 0bps +90.8% / 3bps +70.1% / 6bps +59.2%
+/ 10bps +26.4%. Every 3bps costs roughly 11 points.
+INTRABAR: stop-first +70.1% vs target-first +59.6%. The pessimistic convention
+scores HIGHER here, which is the capital effect again — an earlier exit frees
+capital for the next trade.
+
+### WHAT TO DO WITH THIS
+Nothing ships off one run. The queue, re-ordered by what the data now says:
+ a. SLEEVE BUDGETS — and test giving DONCH4H LESS, not more. The external
+    report proposed 60/25/15 in DONCH4H's favour; finding 1 says that is
+    probably the wrong direction.
+ b. pyramidMax=2 through the full 6-window + 3/6bps bar.
+ c. Continuous Allocation (proportional cohort downsizing) — still the best
+    untested idea, and finding 2 says allocation POLICY matters less than
+    expected while allocation SIZE may matter more.
+ d. The trail-floor question from v61.1.
+ e. Only then the sub-gate tier.
+
 ## v61.1 (2026-09-19) — THE SIMULATOR IS CALIBRATED. Six runs and one diff.
 After the fix, on 11,412 identical trades:
     LADDER A (v79bt inline, the code behind the documented number)
