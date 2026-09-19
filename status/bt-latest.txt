@@ -1,39 +1,35 @@
-backtest 2026-09-19T21:58Z mode=v82bt months=36
-████ V82BT — THE DEPLOY BAR on v80bt's three candidates ████
+backtest 2026-09-19T22:14Z mode=v83bt months=36
+████ V83BT — the kill-switch scenario candidate A was never tested against ████
   loaded 39 coins, span 1096 days
 
-  config                     trades  dTrd     net%   d-net   maxDD  all6  per-window
-  INCUMBENT @3bps              4941 +    0     70.1%       -   28.2%  FAIL  +30.5 -10.0 +29.3 +0.9 +17.7 +1.7
+── PART A: what the kill-switch itself costs ──
+  config                       trades     net%  maxDD  all6  per-window
+  kill-switch OFF (v80bt)        4941    70.1%  28.2%  FAIL  +30.5 -10.0 +29.3 +0.9 +17.7 +1.7
+  kill-switch ON (the real bot)   5345    38.8%  26.9%  FAIL  +24.4 -11.8 +26.7 -20.6 +24.8 -4.7
 
-── CANDIDATE A: explicit DONCH4H budget cap ──
-  donchBudget 25%              4836  -105     71.1%    +1.1   26.1%  FAIL  +28.6 -7.1 +32.6 -1.7 +17.4 +1.2
-  donchBudget 35%              4941 +    0     70.1%    +0.0   28.2%  FAIL  +30.5 -10.0 +29.3 +0.9 +17.7 +1.7
-  donchBudget 45%              4941 +    0     70.1%    +0.0   28.2%  FAIL  +30.5 -10.0 +29.3 +0.9 +17.7 +1.7
-  donchBudget 60%              4941 +    0     70.1%    +0.0   28.2%  FAIL  +30.5 -10.0 +29.3 +0.9 +17.7 +1.7
+  ROTA paused 157 days across the six windows, unwinding its basket 143 times.
+  DONCH4H paused 536 days.
+  Net effect of having a kill-switch at all: -31.3 points, drawdown -1.3pp.
 
-── CANDIDATE B: pyramid depth ──
-  pyramidMax=1                 4834  -107     68.7%    -1.4   29.3%  FAIL  +28.6 -13.8 +34.5 +1.4 +13.9 +4.1
-  pyramidMax=2                 4923   -18     73.3%    +3.3   27.4%  FAIL  +30.7 -9.0 +28.4 +0.2 +20.1 +2.9
+── PART B: candidate A, finally against the scenario it exists for ──
+  config                       trades     net%  maxDD  all6  per-window
+  killSwitch ON, no budget       5345    38.8%  26.9%  FAIL  +24.4 -11.8 +26.7 -20.6 +24.8 -4.7
+  killSwitch ON, budget 25%      5315    24.6%  20.7%  FAIL  +23.5 +2.1 +4.9 -16.0 +9.7 +0.4
+  killSwitch ON, budget 35%      5328    15.2%  14.2%  FAIL  +11.4 +2.9 +7.3 -5.5 +8.4 -9.3
+  killSwitch ON, budget 45%      5370    19.5%  24.8%  FAIL  +19.6 -10.0 +13.2 +1.1 +6.6 -11.0
 
-── CANDIDATE C: trailing-third floor ──
-  trail floor FREE             3865 -1076     76.4%    +6.4   27.3%  FAIL  +56.5 -7.8 +27.2 +2.9 +2.4 -4.7
+── PART C: the worst case, forced ──
+  ROTA disabled entirely = the state a paused ROTA leaves behind.
+  This is the configuration v80bt measured at -46.9%.
+  config                       trades     net%  maxDD  all6  per-window
+  DONCH4H alone, no budget       3543   -46.9%  27.9%  FAIL  -9.7 -13.7 -23.3 -10.0 +20.8 -10.9
+  DONCH4H alone, budget 25%      1884    -6.9%  18.4%  FAIL  -9.0 -5.4 +1.0 -3.6 +9.1 +1.0
+  DONCH4H alone, budget 35%      2537   -12.8%  22.0%  FAIL  -6.1 -9.3 +1.9 -5.8 +6.1 +0.4
+  DONCH4H alone, budget 45%      2936   -32.5%  24.7%  FAIL  -12.5 -12.3 -0.8 -6.5 +2.6 -3.1
+  DONCH4H alone, budget 60%      3171   -27.4%  28.6%  FAIL  -5.6 -11.0 -13.6 -12.4 +22.7 -7.4
 
-══ DEPLOY BAR — all four conditions, or it does not ship ══
-  incumbent @6bps: 59.2%
-
-  candidate                  3bps    6bps   all6  trades  VERDICT
-  donchBudget 25%              71.1    59.9  FAIL    4836  REJECT: a window is negative, cuts trades
-  donchBudget 35%              70.1    58.7  FAIL    4941  REJECT: loses at 3bps, loses at 6bps, a window is negative
-  donchBudget 45%              70.1    59.2  FAIL    4941  REJECT: loses at 3bps, loses at 6bps, a window is negative
-  donchBudget 60%              70.1    59.2  FAIL    4941  REJECT: loses at 3bps, loses at 6bps, a window is negative
-  pyramidMax=1                 68.7    55.4  FAIL    4834  REJECT: loses at 3bps, loses at 6bps, a window is negative, cuts trades
-  pyramidMax=2                 73.3    60.5  FAIL    4923  REJECT: a window is negative
-  trail floor FREE             76.4    60.6  FAIL    3865  REJECT: a window is negative, cuts trades
-
-  PASSING THE FULL BAR: NONE
-  Nothing ships. The incumbent stays. Document and move on —
-  this is the bar working, not the bar being unlucky.
-
-  NB the INCUMBENT itself fails all-6 (w2 negative), so condition 2
-  is a HIGHER bar than the deployed config currently meets. That is
-  deliberate: a change should not inherit an exemption.
+  THIS is the question that matters: if the breakout sleeve is ever left
+  alone with the book, does a hard budget cap reduce the damage? A cap
+  that turns -46.9% into something survivable is worth having even
+  though it is inert in normal conditions — it is insurance, and
+  insurance is judged on the claim, not on the premium.
