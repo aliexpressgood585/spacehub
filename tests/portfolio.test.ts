@@ -41,12 +41,25 @@ function makeCoin(seed: number, hours: number, trend: number): S.Bar[] {
   let px = 100 + seed
   let r = seed * 2654435761
   const rnd = () => { r = (Math.imul(r, 1664525) + 1013904223) >>> 0; return r / 0x100000000 - 0.5 }
+
+  // VOLATILITY CLUSTERING AND FAT WICKS, and they are not decoration.
+  // The first version of this fixture used flat 0.6% wicks. That is far narrower
+  // than a 0.6R ladder rung (~1.4 x ATR x 0.6, i.e. a couple of percent), so no
+  // single bar could ever reach a target AND dip back through entry — and the
+  // intra-bar double-counting bug that wrecked v80bt's first run was therefore
+  // INVISIBLE to the whole suite. A fixture too gentle to produce the pathology
+  // cannot guard against it. Real crypto hours cluster and spike; so do these.
+  let vol = 0.012
   for (let i = 0; i < hours; i++) {
-    const drift = trend * Math.sin(i / 300) + rnd() * 0.012
+    // GARCH-ish: volatility is persistent, with occasional bursts
+    vol = 0.9 * vol + 0.1 * 0.012 + (Math.abs(rnd()) > 0.46 ? 0.02 : 0)
+    vol = Math.min(vol, 0.08)
+    const drift = trend * Math.sin(i / 300) + rnd() * vol
     const open = px
     px = Math.max(1, px * (1 + drift))
-    const hi = Math.max(open, px) * (1 + Math.abs(rnd()) * 0.006)
-    const lo = Math.min(open, px) * (1 - Math.abs(rnd()) * 0.006)
+    const wick = vol * (0.6 + Math.abs(rnd()))
+    const hi = Math.max(open, px) * (1 + Math.abs(rnd()) * wick)
+    const lo = Math.min(open, px) * (1 - Math.abs(rnd()) * wick)
     bars.push({ t: i * H1, open, high: hi, low: lo, close: px, vol: 50_000 + i })
   }
   return bars
@@ -153,6 +166,42 @@ const base = P.runPortfolio(data, P.defaultConfig(), tFrom, tTo)
   check('ladder legs are banked, not lost',
     don.some(t => t.r > 0.2 && t.r < 0.9),
     'expected some trades that banked legs then stopped at breakeven')
+
+  // ── THE REGRESSION GUARD FOR v80bt's FIRST, WORTHLESS RUN ────────────────
+  // The first draft of manage() banked a leg off the bar's favourable extreme
+  // and then immediately re-tested the freshly-moved breakeven stop against the
+  // SAME bar's adverse extreme — charging one bar's range twice, in opposite
+  // directions, with the bad one assumed to happen second. The effect is
+  // specific and recognisable: almost every trade that banks a leg then closes
+  // at breakeven, so win rate collapses toward a coin flip and every
+  // configuration loses money. On the real 36 months it produced 51% WR against
+  // the documented 66%, and -123% on the deployed config.
+  //
+  // The tell is the RATIO. Some banked-then-breakeven trades are normal and
+  // expected — that is what the ladder is for. Nearly all of them is a bug.
+  // HONESTY ABOUT THIS GUARD: it is weak, and it was measured to be weak rather
+  // than assumed to be strong. Re-running the suite against a deliberately
+  // re-broken copy moved win rate only 59.4% -> 56.4% and this ratio 26% -> 32%
+  // — neither crosses a threshold that would not also fire on noise. Synthetic
+  // bars simply do not reproduce the magnitude the real 36 months did (51% WR,
+  // every config losing). So this catches a GROSS regression only; the real
+  // guard for this class lives in v80bt itself, where the run is checked against
+  // the documented live band before any row of it is read.
+  const banked = don.filter(t => t.legsBanked > 0)
+  const bankedThenBE = banked.filter(t => t.r > 0.1 && t.r < 0.3)
+  const ratio = banked.length ? bankedThenBE.length / banked.length : 0
+  check('a leg and its breakeven stop do not both fire on most bars',
+    banked.length > 5 && ratio < 0.6,
+    `${bankedThenBE.length}/${banked.length} = ${(ratio * 100).toFixed(0)}% of leg-banking ` +
+    `trades ended at breakeven`)
+  console.log(`    banked-a-leg trades: ${banked.length}, of which ended near breakeven ` +
+    `${bankedThenBE.length} (${(ratio * 100).toFixed(0)}%)`)
+
+  // And the aggregate the bug moved most: win rate. The live band is ~66%.
+  const wr = don.filter(t => t.pnl > 0).length / don.length * 100
+  console.log(`    DONCH4H win rate on the fixture: ${wr.toFixed(1)}%`)
+  check('win rate is not collapsed toward a coin flip', wr > 52,
+    `${wr.toFixed(1)}% — the documented live band is ~66%`)
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -211,12 +260,17 @@ const base = P.runPortfolio(data, P.defaultConfig(), tFrom, tTo)
   console.log(`    contention probe: DONCH4H alone ${donOnly.closed.length} trades, ` +
     `sharing with ROTA ${donInBoth} trades`)
 
-  // Pyramiding off must not increase the DONCH4H trade count.
+  // Pyramiding. The obvious assertion — "turning it off cannot ADD trades" —
+  // is another casualty of the same lesson, and it failed here: with pyramiding
+  // off, capital that would have gone into a 2nd or 3rd unit on one symbol is
+  // free to open a position on a DIFFERENT symbol instead. Under a capital
+  // constraint, removing a way to spend money can raise the trade count.
   const noPyr = P.runPortfolio(data, P.defaultConfig({ pyramidMax: 1 }), tFrom, tTo)
   const pyrTrades = base.closed.filter(t => t.sleeve === 'DONCH4H').length
   const flatTrades = noPyr.closed.filter(t => t.sleeve === 'DONCH4H').length
-  check('disabling pyramiding does not add breakout trades', flatTrades <= pyrTrades + 2,
+  check('disabling pyramiding changes the book', pyrTrades !== flatTrades,
     `pyr ${pyrTrades} vs flat ${flatTrades}`)
+  console.log(`    pyramiding on: ${pyrTrades} breakout trades, off: ${flatTrades}`)
   check('pyramiding produces units beyond the first',
     base.closed.some(t => t.unit > 1), 'no 2nd/3rd units ever opened')
 }

@@ -701,6 +701,37 @@ profit, which makes them the leading candidate for the v79bt divergence. Until
 that simulator exists, (a) "the scan is not the engine" is still not ruled out,
 and the sub-gate tier is still unjudged.
 
+## v61.0 (2026-09-19) — the dashboard was showing +0.00 on every position
+User reported the page looked frozen: all 16 positions at "+0.00$ / +0.000%",
+entry price identical to current price on every card. The BOT was fine — verified
+the same minute: heartbeat 20s old, 0 errors, shields false, equity $10,195 and
+rising. The DASHBOARD was lying.
+CAUSE: `const cur = live?.cur ?? t.entry`. With no live price the card fell back
+to the entry price, so P&L computed to exactly zero and rendered as a confident
+"+0.00$", indistinguishable from a real flat position.
+WHY THERE WAS NO LIVE PRICE: the page feeds prices from
+`wss://stream.binance.com`, and Binance is geo-blocked in the owner's region —
+the SAME 451 the bot hits from Supabase egress, which is precisely why the bot
+has fallen back Binance → OKX → Bybit since v41.2. The dashboard never had that
+ladder. So on the owner's phone: full book, no prices on any of it.
+THREE FIXES:
+1. A missing number is shown as missing — "—" and "אין הזנת מחיר" in muted grey,
+   progress bar at zero. Never a fabricated 0.00.
+2. OKX REST fallback: one call to `/api/v5/market/tickers?instType=SWAP` returns
+   every swap ticker at once, polled every 12s, starting 4s after mount so the
+   socket gets first chance. It only FILLS GAPS — a symbol already priced by the
+   socket is never overwritten, so a healthy Binance feed is untouched.
+3. The config card hardcoded "סיכון בסיס 1.25%" while the bot has run 1.75%
+   since v57.2. It now reads `deployment_manifest.base_risk_pct`, the same row
+   the version chip already reads.
+PATTERN, now the FOURTH time: `_v23_5M` in the regime label, the dead control
+buttons that flipped locally and reverted, the legacy 5m engine that still
+painted a BUY banner, and now a fabricated zero. Every one was the dashboard
+stating something false about the system, and every one cost real diagnostic
+time. A dashboard is a claim. RULE: never let a display substitute a plausible
+value for a missing one — show that it is missing.
+Verified: typecheck clean, production build clean (422.79 kB).
+
 ## v60.0 (2026-09-19) — the capital-constrained portfolio simulator (item 4, second half)
 `backtest/portfolio.ts`. Every backtest before this aggregated an UNCONSTRAINED
 sum of R — the same dollar in ten places at once, no cash floor, no heat cap, no

@@ -350,7 +350,23 @@ export function ladderLevels(pos: LadderPos) {
  * the ambiguity; the backtest at bar granularity faces it constantly, and
  * resolving it optimistically is exactly how a backtest flatters itself.
  */
-export function ladderStep(pos: LadderPos, px: number, favPx = px, ageMs = 0): LadderAction {
+export function ladderStep(
+  pos: LadderPos, px: number, favPx = px, ageMs = 0,
+  /**
+   * TRUE (the default, and what the LIVE BOT does): the trailing third's stop
+   * can never fall below breakeven. Leg 2 sets trail_sl = entry and stage 2 only
+   * ratchets it up — `nt = max(cur, chand)`.
+   *
+   * FALSE reproduces the convention every historical backtest in this repo used,
+   * where the chandelier floats free from an extreme seeded at `entry`, so on
+   * the first bar of stage 2 the stop sits at roughly entry − 1.79R. That is a
+   * materially LOOSER strategy: it gives the final third room to dip and recover.
+   *
+   * This parameter exists ONLY so the two can be measured against each other.
+   * The live bot's behaviour is the default and must stay the default.
+   */
+  trailFloorBreakeven = true,
+): LadderAction {
   const { dirM, p06, p10, trailDist } = ladderLevels(pos)
   const hitStop = pos.side === 'LONG' ? px <= pos.stopPx : px >= pos.stopPx
 
@@ -380,7 +396,9 @@ export function ladderStep(pos: LadderPos, px: number, favPx = px, ageMs = 0): L
 
   // stage 2 — the trailing third
   const chand = pos.side === 'LONG' ? favPx - trailDist : favPx + trailDist
-  const nt = pos.side === 'LONG' ? Math.max(pos.stopPx, chand) : Math.min(pos.stopPx, chand)
+  const nt = trailFloorBreakeven
+    ? (pos.side === 'LONG' ? Math.max(pos.stopPx, chand) : Math.min(pos.stopPx, chand))
+    : chand
   const hit = pos.side === 'LONG' ? px <= nt : px >= nt
   if (hit || ageMs > MAX_HOLD_MS) {
     const exit = px * (1 - dirM * SLIP)
