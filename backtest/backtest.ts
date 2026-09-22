@@ -8020,6 +8020,69 @@ function runV92bt() {
   console.log(`  3x -45.0%, 10x -118.7%, 100x -342.1%. Leverage is a volume knob.`)
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// v105bt — two last price-only ideas with literature support, 36m, 40 coins, 1h.
+// A: cross-sectional SHORT-TERM REVERSAL — every H hours long the K worst and
+//    short the K best performers over the last L hours, hold H.
+// B: BTC LEAD-LAG — after BTC moves >= th in one hour, trade the alt basket in
+//    BTC's direction for the next H hours (alts supposedly catch up).
+// Both judged gross and net (taker 5bps + slip 5/10bps per side per leg), with
+// the last 20% of the span reported separately and never used to choose.
+// ════════════════════════════════════════════════════════════════════════════
+function runV105bt() {
+  const HR = 3600000
+  const MAJ = new Set(['BTC', 'ETH'])
+  const px: Record<string, Map<number, number>> = {}
+  let t0 = Infinity, t1 = -Infinity
+  for (const c of COINS) {
+    if (!CORE40.has(c)) continue
+    const h = loadCSV(c, '1h'); if (h.length < 2000) continue
+    const m = new Map<number, number>(); for (const b of h) m.set(b.t, b.close)
+    px[c] = m; t0 = Math.min(t0, h[0].t); t1 = Math.max(t1, h[h.length - 1].t)
+  }
+  const syms = Object.keys(px), alts = syms.filter(s => s !== 'BTC')
+  const oosFrom = t0 + (t1 - t0) * 0.8
+  console.log(`  ${syms.length} coins, span ${((t1 - t0) / 86400000).toFixed(0)} days, OOS from ${new Date(oosFrom).toISOString().slice(0, 10)}`)
+  const cost = (s: string) => 2 * (5 + (MAJ.has(s) ? 5 : 10))
+  const ret = (s: string, a: number, b: number) => { const p0 = px[s].get(a), p1 = px[s].get(b); return p0 && p1 ? (p1 / p0 - 1) * 10_000 : NaN }
+  const line = (tag: string, per: { t: number; g: number; n: number }[], perYear: number) => {
+    const is = per.filter(x => x.t < oosFrom), oo = per.filter(x => x.t >= oosFrom)
+    const m = (a: typeof per, k: 'g' | 'n') => a.reduce((x, y) => x + y[k], 0) / Math.max(1, a.length)
+    console.log(`  ${tag.padEnd(28)} n=${String(per.length).padStart(6)}  IS gross ${m(is, 'g').toFixed(2).padStart(7)} net ${m(is, 'n').toFixed(2).padStart(7)} bps` +
+      `   OOS gross ${m(oo, 'g').toFixed(2).padStart(7)} net ${m(oo, 'n').toFixed(2).padStart(7)} bps   OOS net %/yr ${(m(oo, 'n') * perYear / 100).toFixed(1)}`)
+  }
+  console.log(`\n── A: cross-sectional short-term reversal (long K losers / short K winners) ──`)
+  for (const L of [1, 4, 24]) for (const H of [4, 24]) for (const K of [4, 8]) {
+    const per: { t: number; g: number; n: number }[] = []
+    for (let t = t0 + L * HR; t + H * HR <= t1; t += H * HR) {
+      const rows = syms.map(s => ({ s, r: ret(s, t - L * HR, t), f: ret(s, t, t + H * HR) }))
+        .filter(x => Number.isFinite(x.r) && Number.isFinite(x.f))
+      if (rows.length < 4 * K) continue
+      rows.sort((a, b) => a.r - b.r)
+      const lo = rows.slice(0, K), hi = rows.slice(-K)
+      const g = (lo.reduce((a, x) => a + x.f, 0) / K - hi.reduce((a, x) => a + x.f, 0) / K) / 2
+      const c = [...lo, ...hi].reduce((a, x) => a + cost(x.s), 0) / (2 * K)
+      per.push({ t, g, n: g - c })
+    }
+    line(`L${L}h H${H}h K${K}`, per, 8760 / H)
+  }
+  console.log(`\n── B: BTC lead-lag (alt basket follows a big BTC hour) ──`)
+  for (const th of [100, 200]) for (const H of [1, 4]) {
+    const per: { t: number; g: number; n: number }[] = []
+    for (let t = t0 + HR; t + H * HR <= t1; t += HR) {
+      const b = ret('BTC', t - HR, t); if (!Number.isFinite(b) || Math.abs(b) < th) continue
+      const d = Math.sign(b)
+      const fs = alts.map(s => ({ s, f: ret(s, t, t + H * HR) })).filter(x => Number.isFinite(x.f))
+      if (fs.length < 10) continue
+      const g = d * fs.reduce((a, x) => a + x.f, 0) / fs.length
+      per.push({ t, g, n: g - fs.reduce((a, x) => a + cost(x.s), 0) / fs.length })
+      t += (H - 1) * HR
+    }
+    line(`BTC |1h|>=${th / 100}% hold ${H}h`, per, per.length / ((t1 - t0) / (365 * 86400000)))
+  }
+  console.log(`\n  Costs per leg round trip: 20 bps majors / 30 bps alts (taker + slippage).`)
+  console.log(`  B's %/yr uses the realised event frequency. OOS = last 20%, never used to choose.`)
+}
 // v104bt — make the one working engine survive: vol targeting + momentum ensemble.
 function runV104bt() {
   const BAR4 = 14400000, H = 3600000, CASH = 500
@@ -8964,6 +9027,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v94bt') {
     console.log(`████ V94BT — the exit: does the breakeven floor cap the fat tail? ████`)
     runV94bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v105bt') {
+    console.log('████ V105BT — short-term reversal + BTC lead-lag, 36m, 40 coins ████')
+    runV105bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v104bt') {
