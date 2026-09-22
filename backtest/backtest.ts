@@ -8021,6 +8021,81 @@ function runV92bt() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+// v101bt — ORDER FLOW. Binance kline archives carry taker-buy volume (col 10),
+// so every 5m bar has an aggressor imbalance TI = (2*takerBuy - vol) / vol.
+// A new data source for this repo. PART A is an information test, no trading:
+// does TI over the last k bars predict the NEXT 15 minutes' return by more
+// than a round trip costs? PART B trades the extreme deciles both ways
+// (follow / fade) with a 15-minute hold, so the sign is measured, not assumed.
+// Deciles are cut on the FIRST HALF of the data and applied to the second half
+// only, so the thresholds are not fitted to the returns they are judged on.
+// ════════════════════════════════════════════════════════════════════════════
+function runV101bt() {
+  const MAJ = new Set(['BTC', 'ETH'])
+  const coins = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT']
+  type Row = { t: number; close: number; vol: number; tb: number; n: number }
+  const load = (c: string): Row[] => {
+    let txt = ''; try { txt = Deno.readTextFileSync(`backtest/data/${c}-5m.csv`) } catch { return [] }
+    const out: Row[] = []
+    for (const line of txt.split('\n')) {
+      if (!line || line[0] < '0' || line[0] > '9') continue
+      const f = line.split(','); let t = Number(f[0]); if (t > 1e14) t = Math.floor(t / 1000)
+      const r = { t, close: +f[4], vol: +f[5], n: +f[8], tb: +f[9] }
+      if (r.close > 0 && r.vol > 0 && Number.isFinite(r.tb)) out.push(r)
+    }
+    out.sort((a, b) => a.t - b.t)
+    return out.filter((r, i) => i === 0 || r.t !== out[i - 1].t)
+  }
+  const H = 3   // 15 minutes
+  for (const k of [1, 3, 12]) {
+    type Obs = { ti: number; fwd: number; t: number; slip: number }
+    const obs: Obs[] = []
+    for (const c of coins) {
+      const b = load(c); if (b.length < 5000) continue
+      const slip = (MAJ.has(c) ? 5 : 10)
+      for (let i = k; i < b.length - H; i++) {
+        let v = 0, tb = 0
+        for (let j = i - k + 1; j <= i; j++) { v += b[j].vol; tb += b[j].tb }
+        if (!(v > 0)) continue
+        obs.push({ ti: (2 * tb - v) / v, fwd: (b[i + H].close / b[i].close - 1) * 10_000, t: b[i].t, slip })
+      }
+    }
+    if (!obs.length) { console.log('  ABORT: no taker-buy column'); return }
+    obs.sort((a, b) => a.t - b.t)
+    const half = Math.floor(obs.length / 2)
+    const train = obs.slice(0, half).map(o => o.ti).sort((a, b) => a - b)
+    const q = (p: number) => train[Math.floor(p * (train.length - 1))]
+    const cuts = [0.1, 0.2, 0.4, 0.6, 0.8, 0.9].map(q)
+    const test = obs.slice(half)
+    const bucket = (ti: number) => ti < cuts[0] ? 0 : ti < cuts[1] ? 1 : ti < cuts[2] ? 2 : ti < cuts[3] ? 3 : ti < cuts[4] ? 4 : ti < cuts[5] ? 5 : 6
+    const names = ['bottom 10%', '10-20%', '20-40%', '40-60%', '60-80%', '80-90%', 'top 10%']
+    console.log(`\n── PART A, k=${k} bars (${k * 5} min of flow), OUT-OF-SAMPLE half, forward 15 min ──`)
+    console.log(`  bucket        TI range            n      mean fwd bps   up%`)
+    for (let bk = 0; bk < 7; bk++) {
+      const xs = test.filter(o => bucket(o.ti) === bk)
+      if (!xs.length) continue
+      const m = xs.reduce((a, o) => a + o.fwd, 0) / xs.length
+      const lo = bk === 0 ? -1 : cuts[bk - 1], hi = bk === 6 ? 1 : cuts[bk]
+      console.log(`  ${names[bk].padEnd(12)} ${lo.toFixed(3).padStart(7)} .. ${hi.toFixed(3).padStart(6)} ${String(xs.length).padStart(8)} ${m.toFixed(2).padStart(12)} ${(xs.filter(o => o.fwd > 0).length / xs.length * 100).toFixed(1).padStart(6)}%`)
+    }
+    // PART B: trade only the extreme deciles, 15-min hold, both conventions
+    const top = test.filter(o => bucket(o.ti) === 6), bot = test.filter(o => bucket(o.ti) === 0)
+    for (const mode of ['follow', 'fade'] as const) {
+      for (const cost of ['taker', 'maker'] as const) {
+        const net = (o: Obs, dir: number) => dir * o.fwd - (cost === 'taker' ? 2 * (5 + o.slip) : 2 * 2)
+        const d = mode === 'follow' ? 1 : -1
+        const all = [...top.map(o => net(o, d)), ...bot.map(o => net(o, -d))]
+        const gross = [...top.map(o => d * o.fwd), ...bot.map(o => -d * o.fwd)]
+        const g = gross.reduce((a, x) => a + x, 0) / gross.length, n = all.reduce((a, x) => a + x, 0) / all.length
+        console.log(`  PART B k=${k} ${mode.padEnd(6)} ${cost}: trades ${all.length}  gross ${g.toFixed(2)} bps  net ${n.toFixed(2)} bps/trade`)
+      }
+    }
+  }
+  console.log(`\n  Round trip: taker 2x(5bps fee + 5/10bps slip) = 20-30 bps; maker 2x2 = 4 bps`)
+  console.log(`  (maker assumes EVERY limit fills — v100bt showed real maker fills are`)
+  console.log(`  adverse-selected, so the maker row is an upper bound, not a result).`)
+}
+// ════════════════════════════════════════════════════════════════════════════
 // v100bt — MAKER-ONLY mean-reversion scalp. The one fast signal with positive
 // gross (v76bt: 5m RSI fade +0.011R) died on a 0.33R taker cost. Here entries
 // AND targets are resting limits (0.02% each, no slippage); only stops and the
@@ -8676,6 +8751,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v94bt') {
     console.log(`████ V94BT — the exit: does the breakeven floor cap the fat tail? ████`)
     runV94bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v101bt') {
+    console.log('████ V101BT — order flow (taker imbalance) → next 15 min ████')
+    runV101bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v100bt') {
