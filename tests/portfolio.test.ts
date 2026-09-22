@@ -315,6 +315,45 @@ const base = P.runPortfolio(data, P.defaultConfig(), tFrom, tTo)
     `${m.rejected} rejections (${JSON.stringify(m.rejectedByReason)})`)
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// donchRiskMult — the CONTROL knob (v85bt). It has to be inert at 1 and it has
+// to actually move size, or the control proves nothing.
+// ════════════════════════════════════════════════════════════════════════════
+{
+  const a = P.runPortfolio(data, P.defaultConfig({ killSwitch: true }), tFrom, tTo)
+  const b = P.runPortfolio(data, P.defaultConfig({ killSwitch: true, donchRiskMult: 1 }), tFrom, tTo)
+  check('donchRiskMult 1 is identical to omitting it',
+    a.finalEquity === b.finalEquity && a.closed.length === b.closed.length,
+    `${a.finalEquity} vs ${b.finalEquity}`)
+
+  const half = P.runPortfolio(data, P.defaultConfig({ killSwitch: true, donchRiskMult: 0.5 }), tFrom, tTo)
+  const dt = (r: P.SimResult) => r.closed.filter(t => t.sleeve === 'DONCH4H')
+  const meanNotional = (r: P.SimResult) => {
+    const x = dt(r); return x.reduce((s, t) => s + t.notional, 0) / Math.max(1, x.length)
+  }
+  check('donchRiskMult 0.5 reduces the AVERAGE DONCH4H ticket',
+    meanNotional(half) < meanNotional(a),
+    `${meanNotional(half).toFixed(0)} vs ${meanNotional(a).toFixed(0)}`)
+
+  // THE SURPRISE, and it is the reason this knob needed a test rather than an
+  // assumption: halving per-trade risk does NOT halve sleeve exposure. Smaller
+  // tickets exhaust the cash floor and the heat cap later, so MORE signals get
+  // funded, and the SUM of notional across the sleeve goes UP. Downsizing a
+  // trade and downsizing a sleeve are different operations once capital binds —
+  // the same lesson as v60.0's optimistic-intrabar assertion.
+  const totalNotional = (r: P.SimResult) => dt(r).reduce((s, t) => s + t.notional, 0)
+  check('...while FUNDING MORE TRADES — smaller tickets are not less exposure',
+    dt(half).length > dt(a).length,
+    `${dt(half).length} trades vs ${dt(a).length}; total notional ` +
+    `${totalNotional(half).toFixed(0)} vs ${totalNotional(a).toFixed(0)}`)
+
+  // It must NOT touch ROTA — the control has to isolate one sleeve or it is
+  // measuring two things at once, which is the exact confound it exists to rule out.
+  const rota = (r: P.SimResult) => r.closed.filter(t => t.sleeve === 'ROTA').length
+  check('donchRiskMult leaves the ROTA sleeve present',
+    rota(half) > 0 && rota(a) > 0, `${rota(half)} vs ${rota(a)}`)
+}
+
 // ─── report ─────────────────────────────────────────────────────────────────
 console.log(`\n  portfolio simulator — ${passed} assertions passed, ${failures.length} failed`)
 if (failures.length) {

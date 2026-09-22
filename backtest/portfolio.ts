@@ -154,6 +154,17 @@ export interface SimConfig {
    * rule — which is what v54bt (volume) and v68bt (bar size) already rejected.
    */
   wyckoff: WyckTilt | null
+  /**
+   * UNIFORM risk multiplier on every DONCH4H entry — the CONTROL for any
+   * per-trade tilt, added in v85bt.
+   *
+   * v84bt's best Wyckoff row upsized the trades part A had just measured as
+   * WORSE and downsized the ones it measured as BETTER, and still scored +20
+   * points. A tilt that beats the incumbent while pointing the wrong way is not
+   * reading its feature; it is moving total sleeve exposure. This knob moves
+   * exposure with NO feature attached, so the two can finally be told apart.
+   */
+  donchRiskMult: number
 }
 
 export interface WyckTilt {
@@ -199,6 +210,7 @@ export function defaultConfig(over: Partial<SimConfig> = {}): SimConfig {
     donchBudget: null,
     killSwitch: false,
     wyckoff: null,
+    donchRiskMult: 1,
     ...over,
   }
 }
@@ -564,12 +576,12 @@ export function runPortfolio(
       portfolio: port, balance: cash, openExposure: exp, heatCommitted: 0,
       longExposure: se.l, shortExposure: se.s, symExposure: symExposure(c.sym),
       adx: c.adx, slPct: c.slPct, side: c.side, quoteVol24h: c.quoteVol24h,
-      riskMult: wyckMult(c.wyck, cfg.wyckoff),
+      riskMult: wyckMult(c.wyck, cfg.wyckoff) * cfg.donchRiskMult,
     })
 
     if (!sized.ok) {
       const want = (port * S.BASE_RISK_PCT * S.adxTierMult(c.adx) *
-        wyckMult(c.wyck, cfg.wyckoff)) / c.slPct
+        wyckMult(c.wyck, cfg.wyckoff) * cfg.donchRiskMult) / c.slPct
       const reason: Rejection['reason'] =
         sized.reason === 'heat_limit' ? 'heat'
         : sized.reason === 'net_exposure_cap' ? 'net_exposure'
