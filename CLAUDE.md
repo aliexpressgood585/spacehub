@@ -51,6 +51,66 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## v87bt (2026-09-22) — **THE ERROR BAR IS 10.6 POINTS.** Read this before
+## believing any dollar figure in this file.
+A 0.1% change to the DONCH4H risk multiplier — economically nothing, it does not
+change any position's size meaningfully — moves the six-window total from
+**+27.6% to +38.2%**. Five runs, spread 10.6pp, sd 5.2pp.
+    donchRiskMult 0.999 / 0.9995 -> +38.2%
+    donchRiskMult 1 / 1.0005 / 1.001 -> +27.6%
+The engine is deterministic (v86bt proved that) but PATH-DEPENDENT and
+knife-edged: a hair's change flips which entry wins a funding race, and
+everything downstream diverges. This is the measurement v86bt's starting-cash
+probe failed to make, because the engine is scale-invariant and that probe
+tested an axis it cannot feel.
+**WHAT IS NOW INSIDE THE NOISE AND MUST NOT BE QUOTED AS A FINDING:**
+ - v80bt pyramidMax=2 "+3.2pp" — noise
+ - v80bt allocation policies, arrival vs adx "5.6pp" — noise
+ - **v86bt's headline, ROTA-only +29.3% vs deployed +27.6%** — 1.7pp, NOISE.
+   I reported that to the owner an hour earlier as "the best configuration ever
+   measured". The RETURN claim does not survive. See below for what does.
+ - v83bt part B's budget rows (-14pp) — borderline, treat as unproven
+RULE GOING FORWARD: on this instrument, a difference under ~10pp is not a
+result. Either average over perturbations or compare only effects far larger
+than the bar. This does not retract the pre-v60.0 unconstrained-lens work, which
+was measured on a different instrument.
+
+**WHAT SURVIVES THE BAR, and it is not the return — it is DRAWDOWN and COST:**
+    ROTA only @0bps  +41.8%  maxDD 13.6%  **all6 PASS**  +18.9 +2.4 +13.9 +0.1 +1.9 +4.7
+    ROTA only @3bps  +29.3%  maxDD 12.3%  +8.5 +3.8 +12.1 -0.3 +2.5 +2.7
+    ROTA only @6bps   +3.9%  maxDD 13.8%
+    ROTA only @10bps  -8.4%  maxDD 17.3%
+    DEPLOYED  @0bps  +41.5%  maxDD 24.3%
+    DEPLOYED  @3bps  +27.6%  maxDD 26.9%
+    DEPLOYED  @6bps  **-11.8%**  maxDD 27.2%
+    DEPLOYED  @10bps **-45.6%**  maxDD 21.3%
+ - **Drawdown is halved** (12-14% vs 24-27%) at EVERY cost level. Far outside a
+   10.6pp bar on a 14-point gap, and consistent across the whole part C sweep.
+ - **Cost robustness is decisive**: at 6bps the gap is 15.7 points, at 10bps it
+   is 37.2. The deployed mix loses money at 6bps; ROTA-only is still positive.
+   DONCH4H is what makes the book cost-fragile.
+ - ROTA-only at 0bps is **the first and only configuration ever to PASS all six
+   windows on the dollar lens.** It does not pass at 3bps (w4 -0.3) but nothing
+   else has come close.
+**AND THE ONE CLEAN DIAL THIS PROJECT HAS.** ROTA's book fraction responds
+MONOTONICALLY, unlike every other parameter tried here:
+    book 0.25 -> +17.5%  maxDD  9.3%
+    book 0.30 -> +28.3%  maxDD 10.6%
+    book 0.35 -> +29.3%  maxDD 12.3%   (deployed)
+    book 0.40 -> +35.1%  maxDD 17.2%
+    book 0.45 -> +43.9%  maxDD 19.7%
+Return and drawdown both climb in order. Compare the DONCH4H multiplier's
+zigzag (v85bt: 36/68/33/70/1%). A dial that responds in order is a real dial;
+one that zigzags is a knife edge. At 6bps the ordering holds too (0.30 -4.6%,
+0.35 +3.9%, 0.40 +13.5%).
+**This is the honest answer to the owner's "I want much more return, at high
+risk": it is the only axis measured here that actually delivers more return for
+more risk in a predictable way** — and even book 0.45 has LOWER drawdown (19.7%)
+than the deployed mix (26.9%) while returning +43.9% against +27.6%.
+STILL NOT A DEPLOY: it rests on one run, turning DONCH4H off is the largest
+change ever proposed here, and the LIVE book says the opposite (DONCH4H +$258 on
+18 closes, ROTA -$338 on 14). It is the owner's call and it has been put to them.
+
 ## v86bt (2026-09-22) — THE SLEEVE SPLIT. Two of my own hypotheses refuted.
 
 **PART A — MY NOISE PROBE WAS BADLY DESIGNED, and the result says so.**
@@ -77,8 +137,10 @@ DO NOT cite "the noise floor is zero" as licence to trust small differences.
     20% ROTA            5514    -7.8%  maxDD 26.2%
     DONCH4H only        1594   **-42.6%**  maxDD 23.8%
     ROTA only           4117   **+29.3%  maxDD 12.3%**  +8.5 +3.8 +12.1 -0.3 +2.5 +2.7
-**ROTA ALONE IS THE BEST CONFIGURATION EVER MEASURED ON THIS INSTRUMENT.** Same
-return as the deployed mix with **less than half the drawdown**, and a window
+**NB THE RETURN CLAIM HERE IS RETRACTED BY v87bt** — +29.3% vs +27.6% is 1.7pp
+against a measured error bar of 10.6pp, i.e. noise. The DRAWDOWN and COST
+findings survive and are strengthened; see v87bt. Original text follows.
+ROTA alone matches the deployed mix's return with **less than half the drawdown**, and a window
 profile of five positive and one at -0.3 — the closest anything has come to
 all-6 on the dollar lens, including the incumbent.
 **I had this backwards this morning.** The audit reasoned that the PR #21 funding

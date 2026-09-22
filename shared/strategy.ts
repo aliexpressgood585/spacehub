@@ -246,6 +246,20 @@ export interface SizeInput {
   side: Side
   quoteVol24h: number    // 0 disables the liquidity cap
   /**
+   * LEVERAGE. Overrides MAX_HEAT_PCT (0.95) and NET_EXPOSURE_CAP (0.60) as a
+   * pair, scaled together, or undefined for the deployed no-leverage caps.
+   *
+   * WHY IT EXISTS: the deployed engine cannot exceed 95% of portfolio in open
+   * notional, so raising BASE_RISK_PCT alone is mostly absorbed by the cap —
+   * the risk dial is not the aggression dial. Anyone asking for materially
+   * higher returns is asking for THIS, whether they know it or not, and it is
+   * better measured than guessed at.
+   *
+   * NOTHING in the deployed path passes it. Paper only; ALLOW_LIVE_EXECUTION
+   * remains the outermost gate and is set nowhere in this repo.
+   */
+  heatCap?: number
+  /**
    * RESEARCH HOOK, default 1 = today's behaviour exactly.
    *
    * A multiplier on the risk budget for this one entry, applied BEFORE every
@@ -274,7 +288,7 @@ export function sizeBreakout(inp: SizeInput): SizeResult {
     (portfolio * BASE_RISK_PCT * adxTierMult(inp.adx) * (inp.riskMult ?? 1)) / inp.slPct
   let notional = Math.min(
     Math.max(riskNotional, MIN_NOTIONAL),
-    portfolio * PER_POSITION_CAP,
+    portfolio * PER_POSITION_CAP * ((inp.heatCap ?? MAX_HEAT_PCT) / MAX_HEAT_PCT),
     remain,
     balance * 0.95,
   )
@@ -300,7 +314,8 @@ export function sizeBreakout(inp: SizeInput): SizeResult {
   // trade-count filter (standing rule 5) and must never become one: v65bt
   // established that simultaneous same-side breakouts are the WINNERS.
   const heatUsed = openExposure + heatCommitted
-  const heatRoom = Math.max(0, portfolio * MAX_HEAT_PCT - heatUsed)
+  const heatCap = inp.heatCap ?? MAX_HEAT_PCT
+  const heatRoom = Math.max(0, portfolio * heatCap - heatUsed)
   if (notional > heatRoom) { notional = heatRoom; trimmedBy = 'heat' }
 
   if (notional < MIN_NOTIONAL) {
@@ -309,7 +324,11 @@ export function sizeBreakout(inp: SizeInput): SizeResult {
 
   const l = inp.side === 'LONG' ? inp.longExposure + notional : inp.longExposure
   const s = inp.side === 'SHORT' ? inp.shortExposure + notional : inp.shortExposure
-  if (Math.abs(l - s) > portfolio * NET_EXPOSURE_CAP) return { ok: false, reason: 'net_exposure_cap' }
+  // The net-exposure cap scales with leverage; holding it at 0.60 while the
+  // heat cap rises would silently force the book market-neutral instead of
+  // leveraged, which is a different experiment from the one being run.
+  const netCap = NET_EXPOSURE_CAP * (heatCap / MAX_HEAT_PCT)
+  if (Math.abs(l - s) > portfolio * netCap) return { ok: false, reason: 'net_exposure_cap' }
 
   return { ok: true, notional, trimmedBy }
 }

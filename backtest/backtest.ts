@@ -7304,6 +7304,145 @@ function runV87bt() {
   console.log(`  confirmation, and it is the owner's call regardless.`)
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// v88bt — THE AGGRESSION SURFACE, owner-requested. Measured, not argued.
+//
+// The owner asked for very high risk. Before raising anything, two facts had to
+// be established, and the second was a surprise:
+//
+//  1. The risk dial is NOT the aggression dial. BASE_RISK_PCT sets how much is
+//     risked per breakout, but MAX_HEAT_PCT caps TOTAL open notional at 95% of
+//     portfolio. Past a certain point raising the risk percentage just gets
+//     absorbed by that cap — the book is already full. The deployed engine has
+//     NO LEVERAGE AT ALL.
+//  2. So the real lever is the CAP, i.e. borrowing. That is what "high risk"
+//     actually means here, and it is what this run measures.
+//
+// WHAT THIS REPORTS THAT NO EARLIER RUN DID: RUIN. Total return is meaningless
+// at high leverage because the average is dominated by paths that no longer
+// exist — an account that hits zero in window 2 cannot participate in window 3.
+// Each window is an independent $10,000, so a window at -100% IS a wipeout, and
+// counting those is the only honest summary of a leveraged book.
+//
+// PAPER ONLY. ALLOW_LIVE_EXECUTION is unset and set nowhere in this repo; this
+// changes a backtest parameter, not the running bot.
+// ════════════════════════════════════════════════════════════════════════════
+function runV88bt() {
+  const NW = 6, BAR4 = 14400000
+  const to4h = (a: Bar[], ms: number): Bar[] => {
+    const out: Bar[] = []; let cur: Bar | null = null; let bucket = -1
+    for (const b of a) {
+      const k = Math.floor(b.t / ms)
+      if (k !== bucket) { if (cur) out.push(cur); bucket = k
+        cur = { t: k * ms, open: b.open, high: b.high, low: b.low, close: b.close, vol: b.vol } }
+      else if (cur) { cur.high = Math.max(cur.high, b.high); cur.low = Math.min(cur.low, b.low)
+        cur.close = b.close; cur.vol += b.vol }
+    }
+    if (cur) out.push(cur); return out
+  }
+  const data: Record<string, PF.CoinData> = {}
+  let tmin = Infinity, tmax = -Infinity
+  for (const c of COINS) {
+    if (!CORE40.has(c)) continue
+    const h = loadCSV(c, '1h'); if (h.length < 500) continue
+    data[c] = { b1: h, b4: to4h(h, BAR4) }
+    tmin = Math.min(tmin, h[0].t); tmax = Math.max(tmax, h[h.length - 1].t)
+  }
+  const spanDays = (tmax - tmin) / 86400000
+  console.log(`  loaded ${Object.keys(data).length} coins, span ${spanDays.toFixed(0)} days`)
+  if (spanDays < 900 || Object.keys(data).length < 30) {
+    console.log(`\n  ABORT: need ~36 months across CORE40.`); return
+  }
+  const wSpan = (tmax - tmin) / NW, WARM = 100 * BAR4
+
+  const run = (over: Partial<PF.SimConfig>) => {
+    const ms: PF.Metrics[] = []
+    for (let w = 0; w < NW; w++) {
+      const a = tmin + w * wSpan, b = tmin + (w + 1) * wSpan
+      const from = Math.max(tmin + WARM, a)
+      if (b - from < 30 * 86400000) continue
+      const r = PF.runPortfolio(data, PF.defaultConfig({ killSwitch: true, ...over }), from, b)
+      ms.push(PF.metrics(r, 10000, (b - from) / 86400000))
+    }
+    const net = ms.map(x => x.netPct)
+    // A window that lost 90%+ of a $10,000 account is a wipeout in every sense
+    // that matters: with real leverage the position would have been liquidated
+    // before it got there, so this count UNDERSTATES the damage.
+    const ruined = net.filter(x => x <= -90).length
+    const bad50 = net.filter(x => x <= -50).length
+    return { ms, net, tot: net.reduce((a, b) => a + b, 0),
+      trades: ms.reduce((a, x) => a + x.trades, 0),
+      dd: Math.max(...ms.map(x => x.maxDD)), ruined, bad50,
+      worst: Math.min(...net) }
+  }
+  const row = (tag: string, r: ReturnType<typeof run>) =>
+    console.log(`  ${tag.padEnd(26)} ${String(r.trades).padStart(6)} ${r.tot.toFixed(1).padStart(9)}% ` +
+      `${r.dd.toFixed(1).padStart(6)}% ${r.worst.toFixed(1).padStart(8)}% ` +
+      `${String(r.bad50).padStart(4)} ${String(r.ruined).padStart(5)}  ` +
+      `${r.net.map(x => (x >= 0 ? '+' : '') + x.toFixed(0)).join(' ')}`)
+  const hdr = () => console.log(
+    `  config                      trades       net%  maxDD    worst  <-50 WIPED  per-window`)
+
+  console.log(`\n── PART A: the RISK dial alone, at the deployed 95% exposure cap ──`)
+  console.log(`  base risk 1.75% = multiplier 1.0. This is the dial v57.2 moved.`)
+  hdr()
+  for (const [tag, m] of [['1.75% (deployed)', 1.0], ['2.5%', 1.43], ['3.5%', 2.0],
+                          ['5.0%', 2.86], ['6.5% (full Kelly)', 3.71], ['10%', 5.71]] as [string, number][]) {
+    row(tag, run({ donchRiskMult: m }))
+  }
+  console.log(`\n  READ THE TREND, not any single row: if the numbers stop moving as the`)
+  console.log(`  multiplier climbs, the 95% heat cap is absorbing it and the risk dial`)
+  console.log(`  has run out of travel. That is the whole point of part B.`)
+
+  console.log(`\n── PART B: LEVERAGE. The cap itself — this is the real dial ──`)
+  console.log(`  heatCap 0.95 = deployed (no leverage). 3.0 = 3x the account.`)
+  console.log(`  The per-position and net-exposure caps scale with it, so the book`)
+  console.log(`  genuinely levers up instead of being forced market-neutral.`)
+  hdr()
+  for (const [tag, h] of [['1x (deployed 0.95)', 0.95], ['2x', 2.0], ['3x', 3.0],
+                          ['5x', 5.0], ['10x', 10.0], ['25x', 25.0]] as [string, number][]) {
+    row(tag, run({ heatCap: h }))
+  }
+
+  console.log(`\n── PART C: both dials together — what "very high risk" actually is ──`)
+  hdr()
+  for (const [tag, m, h] of [['3.5% risk + 3x', 2.0, 3.0], ['5% risk + 5x', 2.86, 5.0],
+                             ['6.5% risk + 10x', 3.71, 10.0],
+                             ['10% risk + 25x', 5.71, 25.0]] as [string, number, number][]) {
+    row(tag, run({ donchRiskMult: m, heatCap: h }))
+  }
+  console.log(`\n── PART D: ROTA-only — the ONE clean dial this project has ──`)
+  console.log(`  v87bt part C found the book fraction is MONOTONIC, unlike everything`)
+  console.log(`  else tested here: 0.30 -> +28.3%, 0.35 -> +29.3%, 0.40 -> +35.1%,`)
+  console.log(`  0.45 -> +43.9%, with drawdown climbing in step (10.6 -> 19.7%).`)
+  console.log(`  A dial that responds in order is a dial worth turning. This extends it`)
+  console.log(`  past the point the sleeve was ever designed for, and then adds leverage.`)
+  hdr()
+  for (const b of [0.45, 0.5, 0.6, 0.7]) {
+    row(`ROTA book ${b} @3bps`, run({ sleeves: ['ROTA'], rotaBook: b }))
+  }
+  for (const b of [0.45, 0.5, 0.6]) {
+    row(`ROTA book ${b} @6bps`, run({ sleeves: ['ROTA'], rotaBook: b, slipBps: 6 }))
+  }
+  console.log(`  — and with borrowed money on top —`)
+  for (const [tag, h] of [['ROTA only 2x', 2.0], ['ROTA only 3x', 3.0],
+                          ['ROTA only 5x', 5.0], ['ROTA only 10x', 10.0]] as [string, number][]) {
+    row(tag, run({ sleeves: ['ROTA'], heatCap: h }))
+  }
+  for (const [tag, h] of [['ROTA 3x @6bps', 3.0], ['ROTA 5x @6bps', 5.0]] as [string, number][]) {
+    row(tag, run({ sleeves: ['ROTA'], heatCap: h, slipBps: 6 }))
+  }
+
+  console.log(`\n  THE COLUMN THAT DECIDES THIS IS "WIPED", NOT "net%".`)
+  console.log(`  Six independent \$10,000 windows. A window at -90% or worse is an`)
+  console.log(`  account that no longer exists — and a real exchange would have`)
+  console.log(`  liquidated it well before -90%, so every wipeout count here is a`)
+  console.log(`  FLOOR on how often the real thing dies.`)
+  console.log(`  NB this simulator has no liquidation engine and no margin call. It`)
+  console.log(`  lets a levered account keep trading through losses a broker would`)
+  console.log(`  have closed. High-leverage rows are therefore OPTIMISTIC.`)
+}
+
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
@@ -7489,6 +7628,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v73bt') {
     console.log(`████ V73BT — Donchian adaptive window (vol-scaled) vs fixed-15 ████`)
     runV73bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v88bt') {
+    console.log(`████ V88BT — the aggression surface: risk dial, leverage, and ruin ████`)
+    runV88bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v87bt') {

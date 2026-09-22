@@ -1,9 +1,7 @@
 # Format: one line, "MODE [MONTHS]".
 #
-# v87bt: the missing cell. v86bt measured ROTA-only at +29.3% / maxDD 12.3% with
-# five of six windows positive — the best configuration ever measured here — but
-# did NOT run it at 6bps, and v71bt is the standing reminder that a config can
-# look excellent at 3bps and die on execution cost. Also carries a PROPERLY
-# designed path-perturbation probe, because v86bt's starting-cash probe tested a
-# scale axis the engine is invariant to and therefore measured nothing.
-v87bt 36
+# v88bt: the aggression surface, owner-requested. Two dials — base risk, which
+# the 95% heat cap absorbs past a point, and LEVERAGE, which is what "high risk"
+# actually means in this engine. Reports RUIN (windows at -90% or worse), not
+# just return, because an average over paths that ended at zero is a lie.
+v88bt 36
