@@ -541,7 +541,7 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v63.0'
+const BOT_VERSION = 'v64.0'
 const RELEASE_SHA = String((globalThis as any).__RELEASE_SHA ?? 'unpinned')
 // Universe fingerprint: a cheap order-independent digest, so a silently edited
 // CRYPTO_40 shows up as a different release even at an identical SHA.
@@ -2647,6 +2647,17 @@ Deno.serve(async (req) => {
     const ENABLED_SLEEVES = (Deno.env.get('ENABLED_SLEEVES')
       ?? String((globalThis as any).__ENABLED_SLEEVES ?? 'DONCH4H,ROTA'))
       .split(',').map(x => x.trim().toUpperCase()).filter(Boolean)
+    // ── ISOLATED MARGIN (v64.0), deploy-time like the sleeve gate ────────────
+    // A position costs notional/LEV in cash and is collateral for ITSELF: when
+    // its unrealised loss eats (1-MAINT) of that margin the exchange closes it
+    // and the margin is gone. Nothing else in the book is touched.
+    // Unset or 1 = the cash account exactly as before.
+    // MEASURED (v93bt, ROTA at $500): 1x +9.9% | 2x +15.7% | 3x +6.2% |
+    // 5x -1.2% | 10x -21.9% (216 liquidations) | 20x -18.8%. 2x is the optimum;
+    // the owner instructed 10x on 2026-09-22 after being shown this table.
+    const LEV = Math.max(1, Number(Deno.env.get('LEVERAGE')
+      ?? (globalThis as any).__LEVERAGE ?? 1) || 1)
+    const MAINT = 0.005
     const DONCH_ENABLED = ENABLED_SLEEVES.includes('DONCH4H')
     const ROTA_ENABLED  = ENABLED_SLEEVES.includes('ROTA')
     const paperMode = !ALLOW_LIVE || url.searchParams.get('paper')==='1' || state.paper_mode===true
@@ -2777,7 +2788,14 @@ Deno.serve(async (req) => {
     let heatCommitted = 0
     const netCommitted = { l: 0, s: 0 }
     const lockedNotional = (allOpen||[]).reduce((s:number,t:any)=>s+Number(t.entry_price)*Number(t.size),0)
-    const equity = balance + lockedNotional
+    // v64.0: with margin, `balance` holds cash AFTER posting margin, so equity is
+    // cash + MARGIN POSTED, never cash + full notional. Adding the notional back
+    // would inflate a $500 account at 10x to $5,000 and every percentage derived
+    // from it — drawdown, the circuit breaker, the heat cap — would be wrong by
+    // the leverage factor. Identical to lockedNotional when every row is lev=1.
+    const lockedMargin = (allOpen||[]).reduce((s:number,t:any)=>
+      s + Number(t.entry_price)*Number(t.size)/(Math.max(1, Number(t.lev)||1)), 0)
+    const equity = balance + lockedMargin
     const circuitBreakerActive = equity < INITIAL_BALANCE*(1-MAX_DD_STOP)
     const peakBalanceStored  = Number(state.peak_balance ?? INITIAL_BALANCE)
     const currentPeakBalance = Math.max(peakBalanceStored, equity)
@@ -3043,7 +3061,12 @@ Deno.serve(async (req) => {
           // v45.1: portfolio estimate up-front (for resize checks + slot sizing)
           const {data:allOpenRows} = await supabase.from('bot_trades').select('sym,entry_price,size').eq('status','OPEN')
           const allExp = (allOpenRows||[]).reduce((a:number,x:any)=>a+Number(x.entry_price)*Number(x.size),0)
-          const port = balance + allExp
+          // Portfolio value uses MARGIN posted (see v64.0 note above); allExp
+          // stays full notional because the heat cap governs EXPOSURE, and
+          // exposure is what is actually at risk in the market.
+          const allMargin = (allOpenRows||[]).reduce((a:number,x:any)=>
+            a + Number(x.entry_price)*Number(x.size)/(Math.max(1, Number(x.lev)||1)), 0)
+          const port = balance + allMargin
           const slotTarget = (sym2:string, dir2:1|-1) => {
             const sideSum = dir2===1 ? longInvSum : shortInvSum
             const w = sideSum>0 ? (invVol.get(sym2)??0)/sideSum : 1/ROTA_K
@@ -3079,7 +3102,7 @@ Deno.serve(async (req) => {
               if (r.avgPrice) px = r.avgPrice
             }
             const pnl2 = (px-Number(t.entry_price))*Number(t.size)*dirM2 - px*Number(t.size)*FEE
-            balance += Number(t.entry_price)*Number(t.size) + pnl2
+            balance += Number(t.entry_price)*Number(t.size)/(Number(t.lev)||1) + pnl2
             await supabase.from('bot_trades').update({
               status: pnl2>=0?'TP':'SL', exit_price:px, pnl:pnl2,
               pnl_pct:(px-Number(t.entry_price))/Number(t.entry_price)*dirM2,
@@ -3123,14 +3146,14 @@ Deno.serve(async (req) => {
             heatCommitted += slotNotional
             if (tgt.dir === 1) netCommitted.l += slotNotional; else netCommitted.s += slotNotional
             const feeIn = slotNotional * FEE
-            balance -= (slotNotional + feeIn)
+            balance -= (slotNotional / LEV + feeIn)   // v64.0: margin, not notional
             await supabase.from('bot_trades').insert({
               sym, side: tgt.dir===1?'LONG':'SHORT', entry_price: fillPx, size: size2, fee: feeIn,
               trail_sl: tgt.dir===1 ? fillPx*0.01 : fillPx*100,  // sentinels — ROTA skipped in manage loop
               hi: tgt.dir===1 ? fillPx*100 : fillPx,
               lo: tgt.dir===-1 ? fillPx*0.01 : fillPx,
               status:'OPEN', score: 0, mtf:false, partial_done:true,
-              paper_mode: paperMode, entry_macd_hist: 0, strategy: 'ROTA'
+              paper_mode: paperMode, entry_macd_hist: 0, strategy: 'ROTA', lev: LEV
             })
             log.push(`ROTA_OPEN ${sym} ${tgt.dir===1?'LONG':'SHORT'} @${fillPx.toFixed(6)} (4h close was ${tgt.price}) $${slotNotional.toFixed(0)}`)
           }
@@ -3227,10 +3250,56 @@ Deno.serve(async (req) => {
         const curBarVol    = completed[completed.length-1].vol
         const isLowVolExit = volAvg20Exit > 0 && curBarVol < volAvg20Exit * 0.8
 
+        // ── LIQUIDATION PASS (v64.0) — runs BEFORE management, on EVERY sleeve
+        // Isolated margin: a position dies when its unrealised loss has eaten
+        // (1-MAINT) of the margin posted against it, and the margin is gone.
+        //
+        // THIS EXISTS BECAUSE THE MANAGEMENT LOOP BELOW SKIPS ROTA. ROTA closes
+        // only at the 48h rebalance, so without this a levered rotation slot
+        // could blow through its margin unwatched for two days. Shipping
+        // leverage without it would be the exact thing v88bt printed: an account
+        // that keeps trading after it is dead.
+        // Inert at LEV=1: margin == notional, so the trigger needs a -99.5%
+        // move and can never fire on a cash account.
+        const liquidatedIds = new Set<number>()
+        if (LEV > 1) {
+          for (const t of openTrades.slice()) {
+            const e = Number(t.entry_price), sz = Number(t.size)
+            const lv = Math.max(1, Number(t.lev) || 1)
+            if (!(e > 0) || !(sz > 0) || lv <= 1) continue
+            const mk = await fetchLivePrice(t.sym)
+            if (mk === null || !(mk > 0)) continue          // no mark, no forced exit
+            const dM = t.side === 'LONG' ? 1 : -1
+            const margin = e * sz / lv
+            const loss = (e - mk) * sz * dM
+            if (loss < margin * (1 - MAINT)) continue
+            // Settle at the liquidation LEVEL, not the current mark: the
+            // exchange closes the moment maintenance margin is breached.
+            const liqPx = e - dM * (margin * (1 - MAINT)) / sz
+            const pnlLiq = (liqPx - e) * sz * dM - liqPx * sz * S.FEE_TAKER
+            balance += margin + pnlLiq
+            openCount--
+            await supabase.from('bot_trades').update({
+              status: 'SL', exit_price: liqPx, closed_at: new Date().toISOString(),
+              pnl: pnlLiq + Number(t.legs_banked || 0),
+              pnl_pct: e > 0 ? ((liqPx - e) / e) * 100 * dM : 0,
+            }).eq('id', t.id).then(ok => ok, err => logErr('liquidate', String(err)))
+            log.push(`LIQUIDATED ${t.sym} ${t.side} @${liqPx.toFixed(6)} lev=${lv}x margin=$${margin.toFixed(2)} pnl=$${pnlLiq.toFixed(2)}`)
+            logSkip(t.sym, t.strategy || 'ROTA', 'liquidated',
+              { lev: lv, margin: +margin.toFixed(2), mark: mk, liqPx })
+            liquidatedIds.add(t.id)
+          }
+        }
+
         // ── Manage open positions ─────────────────────────
         for (const t of openTrades) {
+          if (liquidatedIds.has(t.id)) continue // v64.0: already closed by the liquidation pass
           if (t.strategy === 'ROTA') continue  // v42: rotation positions are closed only by the rebalance phase
           const entry =Number(t.entry_price)
+          // v64.0: the leverage this position was OPENED at. Read from the row,
+          // never from the current deploy flag — a level change must not alter
+          // how an already-open position settles.
+          const tLev = Math.max(1, Number(t.lev) || 1)
           const size  =Number(t.size)
           const sl    =Number(t.trail_sl)
           const slDist=Math.abs(entry-sl)
@@ -3271,7 +3340,7 @@ Deno.serve(async (req) => {
             const fav = (price-entry)/entry*dirM
             const pnlLeg = (price-entry)*size*dirM - price*size*FEE
             const pnl = pnlLeg + (Number((t as any).legs_banked)||0)   // v56.2
-            balance += entry*size+pnlLeg; openCount--
+            balance += entry*size/tLev+pnlLeg; openCount--
             await supabase.from('bot_trades').update({
               status: pnl >= 0 ? 'TP' : 'SL', exit_price:price, pnl, pnl_pct:fav,
               closed_at:new Date().toISOString()
@@ -3298,7 +3367,7 @@ Deno.serve(async (req) => {
             const fav = (price-entry)/entry*dirM
             const pnl = (price-entry)*size*dirM - price*size*FEE
             const finalSt = 'TRAIL'  // gate above guarantees a losing exit
-            balance += entry*size+pnl; openCount--
+            balance += entry*size/tLev+pnl; openCount--
             await supabase.from('bot_trades').update({
               status:finalSt, exit_price:price, pnl, pnl_pct:fav,
               closed_at:new Date().toISOString()
@@ -3324,7 +3393,7 @@ Deno.serve(async (req) => {
             const closeSize = size * advancedExit.closePercent
             const fav = (price-entry)/entry*dirM
             const closePnl = (price-entry)*closeSize*dirM - price*closeSize*FEE
-            balance += entry*closeSize+closePnl
+            balance += entry*closeSize/tLev+closePnl
 
             if (advancedExit.closePercent >= 1.0) {
               openCount--
@@ -3359,7 +3428,7 @@ Deno.serve(async (req) => {
             if (vwapAgainst) {
               const fav = (price - entry) / entry * dirM
               const pnl = (price - entry) * size * dirM - price * size * FEE
-              balance += entry * size + pnl; openCount--
+              balance += entry * size/tLev + pnl; openCount--
               await supabase.from('bot_trades').update({
                 status: 'SL', exit_price: price, pnl, pnl_pct: fav,
                 closed_at: new Date().toISOString()
@@ -3380,7 +3449,7 @@ Deno.serve(async (req) => {
           if (t.mtf && shProfitR < -0.2 && detectStopHunt(completed, shOppSide)) {
             const fav = (price - entry) / entry * dirM
             const pnl = (price - entry) * size * dirM - price * size * FEE
-            balance += entry * size + pnl; openCount--
+            balance += entry * size/tLev + pnl; openCount--
             await supabase.from('bot_trades').update({
               status: 'SL', exit_price: price, pnl, pnl_pct: fav,
               closed_at: new Date().toISOString()
@@ -3402,7 +3471,7 @@ Deno.serve(async (req) => {
             if (liqOppResult.hit && liqOppResult.confidence >= 1.0) {
               const fav = (price - entry) / entry * dirM
               const pnl = (price - entry) * size * dirM - price * size * FEE
-              balance += entry * size + pnl; openCount--
+              balance += entry * size/tLev + pnl; openCount--
               await supabase.from('bot_trades').update({
                 status: 'SL', exit_price: price, pnl, pnl_pct: fav,
                 closed_at: new Date().toISOString()
@@ -3454,7 +3523,7 @@ Deno.serve(async (req) => {
                   }
                 }
                 const pnl1 = (p06-entry)*third*dirM - p06*third*FEE_MAKER   // v47: limit fill at level, maker fee
-                balance += entry*third + pnl1
+                balance += entry*third/tLev + pnl1
                 await supabase.from('bot_trades').update({
                   size: size-third, trail_sl: entry, partial_done: true, exit_stage: 1,
                   legs_banked: (Number((t as any).legs_banked)||0) + pnl1   // v56.2: leg pnl must reach the row
@@ -3474,7 +3543,7 @@ Deno.serve(async (req) => {
                   }
                 }
                 const pnl2 = (p10-entry)*half*dirM - p10*half*FEE_MAKER   // v47: limit fill at level, maker fee
-                balance += entry*half + pnl2
+                balance += entry*half/tLev + pnl2
                 await supabase.from('bot_trades').update({
                   size: size-half, exit_stage: 2, trail_sl: entry,
                   legs_banked: (Number((t as any).legs_banked)||0) + pnl2   // v56.2: leg pnl must reach the row
@@ -3507,7 +3576,7 @@ Deno.serve(async (req) => {
                 // v56.2: row pnl = final leg + banked ladder legs (balance got legs at leg time)
                 const pnl = pnlLeg + (Number((t as any).legs_banked)||0)
                 const final = pnl>0 ? 'TP' : 'TRAIL'
-                balance += entry*size + pnlLeg; openCount--
+                balance += entry*size/tLev + pnlLeg; openCount--
                 await supabase.from('bot_trades').update({
                   status: final, exit_price: price, pnl, pnl_pct: fav,
                   closed_at: new Date().toISOString()
