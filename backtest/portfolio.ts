@@ -170,6 +170,8 @@ export interface SimConfig {
    * capital across both sides). The sleeve-split question, made measurable.
    */
   rotaBook: number | null
+  /** Leverage: overrides the 0.95 heat cap, or null for the deployed caps. */
+  heatCap: number | null
 }
 
 export interface WyckTilt {
@@ -217,6 +219,7 @@ export function defaultConfig(over: Partial<SimConfig> = {}): SimConfig {
     wyckoff: null,
     donchRiskMult: 1,
     rotaBook: null,
+    heatCap: null,
     ...over,
   }
 }
@@ -583,6 +586,7 @@ export function runPortfolio(
       longExposure: se.l, shortExposure: se.s, symExposure: symExposure(c.sym),
       adx: c.adx, slPct: c.slPct, side: c.side, quoteVol24h: c.quoteVol24h,
       riskMult: wyckMult(c.wyck, cfg.wyckoff) * cfg.donchRiskMult,
+      heatCap: cfg.heatCap ?? undefined,
     })
 
     if (!sized.ok) {
