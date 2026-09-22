@@ -51,6 +51,26 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## v65.0 (2026-09-22 22:15) — CONCENTRATED ROTA: K=2 per side (4 positions), 3x.
+Owner: reset, aggressive, "not 16 positions at once". Account reset to $500
+again (the 2h 10x era: 16 closes, realised +$0.86 — not exported, trivial).
+v95bt, $500, 12 months, 6 windows, isolated leverage, kill-switch on:
+    K8 1x  +4.6%  | K8 3x +28.0% | K8 10x -13.9% (198 liq)
+    K4 1x +18.8%  | K4 2x +16.6% | K4 10x -42.1%
+    K3 1x +15.5%  | K3 2x +24.3% | K3 10x -15.5%
+    K2 1x +24.1%  | K2 2x +21.3% | **K2 3x +36.8% maxDD 22.2% worst -4.6% 4 liq**
+    K2 5x +38.5% worst -6.6% 9 liq | K2 10x +2.1% 74 liq | K2 2x @6bps +24.8%
+READING IT: K2 sits at +21..+38% at EVERY leverage 1-5x against K8's +4.6% at
+1x — a ~20pp gap, beyond the 10.6pp bar, and consistent across rows, so
+concentration is the real effect. Leverage ordering within K2 (3x vs 5x) is
+inside the bar; 3x chosen for the better worst window and half the
+liquidations. 10x is the worst or near-worst at every K — do not go back there.
+NOT CLEARED: rule 6 all-6 (w4 -5), 12 months only, ~300 trades. Owner's call.
+LIVE KNOB: `ROTA_K` env / shim `__ROTA_K` (bounded [1, S.ROTA_K]; the
+collapsed-universe guard stays at S.ROTA_K*4). Shim: `__ROTA_K='2'`,
+`__LEVERAGE='3'`. Function version 15, sha `433e0b3f`.
+ROLLBACK: remove both shim lines (K=8, 1x).
+
 ## v64.0 / v64.1 (2026-09-22) — 10x ISOLATED LEVERAGE ON ROTA. Owner: "רוצה מינוף פי 10".
 Owner's call on their paper account, reaffirmed after v93bt was put to them:
 10x measured **-21.9%, 216 liquidations**. 2x (+15.7%) is the optimum.
