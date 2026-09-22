@@ -541,7 +541,7 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v67.1'
+const BOT_VERSION = 'v67.2'
 const RELEASE_SHA = String((globalThis as any).__RELEASE_SHA ?? 'unpinned')
 // Universe fingerprint: a cheap order-independent digest, so a silently edited
 // CRYPTO_40 shows up as a different release even at an identical SHA.
@@ -3960,7 +3960,7 @@ Deno.serve(async (req) => {
 
     // v46: equity history — snapshot every 15 minutes for the dashboard curve
     if (utcM % 15 === 0) {
-      const {data:eqOpen} = await supabase.from('bot_trades').select('sym,side,entry_price,size').eq('status','OPEN')
+      const {data:eqOpen} = await supabase.from('bot_trades').select('sym,side,entry_price,size,lev').eq('status','OPEN')
       // v54: perp funding simulation — once per hour, longs pay / shorts
       // receive FUND_8H/8 of notional. Portfolio-level (balance), so the
       // equity curve and the checkpoint measure real perp economics.
@@ -3977,11 +3977,14 @@ Deno.serve(async (req) => {
       }
       const eqExp = (eqOpen||[]).reduce((a:number,x:any)=>a+Number(x.entry_price)*Number(x.size),0)
       // v50.2: mark-to-market — position value at the live mark, not at entry.
-      // LONG: size×px. SHORT: entry margin + (entry-px)×size = size×(2·entry−px).
+      // v67.2: value = MARGIN posted + unrealised P&L. The old form (size×px)
+      // is only right at 1x; at 2x it booked the borrowed half as equity
+      // ($776 on a $500 account), and it floors a liquidated slot at -margin.
       const eqMtm = (eqOpen||[]).reduce((a:number,x:any)=>{
-        const e=Number(x.entry_price), sz=Number(x.size)
+        const e=Number(x.entry_price), sz=Number(x.size), lv=Math.max(1, Number(x.lev)||1)
         const px=livePx.get(x.sym) ?? e
-        return a + (x.side==='LONG' ? sz*px : sz*(2*e-px))
+        const upnl = (x.side==='LONG' ? 1 : -1) * (px-e) * sz
+        return a + Math.max(0, e*sz/lv + upnl)
       },0)
       try { await supabase.from('bot_equity').insert({ equity: balance+eqMtm, balance, exposure: eqExp }) } catch (e) { await logErr('equity_snapshot', e) }
     }
