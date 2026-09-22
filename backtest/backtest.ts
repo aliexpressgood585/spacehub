@@ -8021,6 +8021,68 @@ function runV92bt() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+// v102bt — take the v101bt flow signal to a horizon where costs stop dominating.
+// Every H hours, rank the 10 coins by aggressor imbalance TI over the last L
+// hours; long the bottom 2 / short the top 2 ('fade') or the reverse ('follow'),
+// hold H, re-rank. Cross-sectional and market-neutral, like ROTA. Cost per
+// rebalance: every leg round-trips at taker 5bps + slip 5/10bps per side
+// (conservative: no credit for legs that stay in the basket). Six windows.
+// ════════════════════════════════════════════════════════════════════════════
+function runV102bt() {
+  const MAJ = new Set(['BTC', 'ETH'])
+  const coins = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT']
+  const HR = 3600000
+  // hourly series: close, vol, takerBuy
+  const ser: Record<string, Map<number, { c: number; v: number; tb: number }>> = {}
+  let t0 = Infinity, t1 = -Infinity
+  for (const c of coins) {
+    let txt = ''; try { txt = Deno.readTextFileSync(`backtest/data/${c}-5m.csv`) } catch { continue }
+    const m = new Map<number, { c: number; v: number; tb: number }>()
+    for (const line of txt.split('\n')) {
+      if (!line || line[0] < '0' || line[0] > '9') continue
+      const f = line.split(','); let t = Number(f[0]); if (t > 1e14) t = Math.floor(t / 1000)
+      const h = Math.floor(t / HR) * HR, cl = +f[4], v = +f[5], tb = +f[9]
+      if (!(cl > 0) || !Number.isFinite(tb)) continue
+      const x = m.get(h); if (x) { x.c = cl; x.v += v; x.tb += tb } else m.set(h, { c: cl, v, tb })
+    }
+    if (m.size < 2000) continue
+    ser[c] = m
+    for (const h of m.keys()) { t0 = Math.min(t0, h); t1 = Math.max(t1, h) }
+  }
+  const syms = Object.keys(ser)
+  console.log(`  ${syms.length} coins, span ${((t1 - t0) / 86400000).toFixed(0)} days, hourly aggregation of 5m flow`)
+  const NW = 6, wSpan = (t1 - t0) / NW
+  console.log(`\n  L=lookback h, H=hold h   mode    periods  gross bps/period  cost  net bps/period  net %/yr(approx)  per-window net %`)
+  for (const L of [4, 24, 72]) for (const H of [1, 4, 12, 24]) for (const mode of ['fade', 'follow'] as const) {
+    const per: { t: number; g: number; n: number }[] = []
+    for (let t = t0 + L * HR; t + H * HR <= t1; t += H * HR) {
+      const rows: { s: string; ti: number; r: number; cost: number }[] = []
+      for (const s of syms) {
+        const m = ser[s]; let v = 0, tb = 0, ok = true
+        for (let h = t - L * HR; h < t; h += HR) { const x = m.get(h); if (!x) { ok = false; break } v += x.v; tb += x.tb }
+        const a = m.get(t - HR), b = m.get(t + H * HR - HR)
+        if (!ok || !a || !b || !(v > 0)) continue
+        rows.push({ s, ti: (2 * tb - v) / v, r: (b.c / a.c - 1) * 10_000, cost: 2 * (5 + (MAJ.has(s) ? 5 : 10)) })
+      }
+      if (rows.length < 8) continue
+      rows.sort((x, y) => x.ti - y.ti)
+      const lo = rows.slice(0, 2), hi = rows.slice(-2)
+      const d = mode === 'fade' ? 1 : -1   // fade: long the most-sold (lo), short the most-bought (hi)
+      const g = (d * (lo[0].r + lo[1].r) - d * (hi[0].r + hi[1].r)) / 4
+      const c = (lo[0].cost + lo[1].cost + hi[0].cost + hi[1].cost) / 4
+      per.push({ t, g, n: g - c })
+    }
+    if (!per.length) continue
+    const g = per.reduce((a, x) => a + x.g, 0) / per.length, n = per.reduce((a, x) => a + x.n, 0) / per.length
+    const perYear = 8760 / H
+    const wins = Array.from({ length: NW }, (_, k) => per.filter(x => Math.min(NW - 1, Math.floor((x.t - t0) / wSpan)) === k).reduce((a, x) => a + x.n, 0) / 100)
+    console.log(`  L${String(L).padStart(2)} H${String(H).padStart(2)}            ${mode.padEnd(6)} ${String(per.length).padStart(7)} ${g.toFixed(2).padStart(12)} ${(g - n).toFixed(1).padStart(10)} ${n.toFixed(2).padStart(12)} ${(n * perYear / 100).toFixed(1).padStart(14)}%   ${wins.map(x => (x >= 0 ? '+' : '') + x.toFixed(0)).join(' ')}`)
+  }
+  console.log(`\n  net %/yr is the simple sum of per-period net returns on a fully invested`)
+  console.log(`  long/short book (no compounding, no leverage). Cost assumes every leg is`)
+  console.log(`  closed and reopened each period — an upper bound on turnover.`)
+}
+// ════════════════════════════════════════════════════════════════════════════
 // v101bt — ORDER FLOW. Binance kline archives carry taker-buy volume (col 10),
 // so every 5m bar has an aggressor imbalance TI = (2*takerBuy - vol) / vol.
 // A new data source for this repo. PART A is an information test, no trading:
@@ -8751,6 +8813,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v94bt') {
     console.log(`████ V94BT — the exit: does the breakeven floor cap the fat tail? ████`)
     runV94bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v102bt') {
+    console.log('████ V102BT — cross-sectional order-flow rotation, 1-24h holds ████')
+    runV102bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v101bt') {
