@@ -1,7 +1,4 @@
-# Format: one line, "MODE [MONTHS]".
-#
-# v93bt: the owner actual account — the deployed config at \$500 with ISOLATED
-# leverage (margin per position, liquidation at maintenance margin, account
-# death). DONCH4H cannot trade at \$500 because MIN_NOTIONAL is an absolute \$500,
-# so ROTA is the only sleeve that can size anything.
-v93bt 12
+# v94bt: the exit. Hard stop+target -0.051R vs the ladder +0.046R on
+# identical entries — 0.1R from how you leave. v61.1 found the breakeven floor
+# caps the fat tail (winners exiting at exactly +0.533R that ran to +2.7..7.8R).
+v94bt 12
