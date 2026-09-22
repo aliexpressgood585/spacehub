@@ -8021,6 +8021,81 @@ function runV92bt() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+// v100bt — MAKER-ONLY mean-reversion scalp. The one fast signal with positive
+// gross (v76bt: 5m RSI fade +0.011R) died on a 0.33R taker cost. Here entries
+// AND targets are resting limits (0.02% each, no slippage); only stops and the
+// time exit pay taker + slippage. A limit counts as filled ONLY if a later bar
+// trades THROUGH it (strictly beyond) — the conservative adverse-selection rule:
+// a limit that is merely touched is assumed unfilled. The stop is checked on
+// the fill bar itself (after a through-fill the bar may keep going).
+// ════════════════════════════════════════════════════════════════════════════
+function runV100bt() {
+  const MAJ = new Set(['BTC', 'ETH'])
+  const coins = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT']
+  const data: Record<string, { b: Bar[]; rsi: number[]; atr: number[] }> = {}
+  let t0 = Infinity, t1 = -Infinity
+  for (const c of coins) {
+    const b = loadCSV(c, '5m'); if (b.length < 5000) continue
+    const rsi = new Array(b.length).fill(50), atr = new Array(b.length).fill(0)
+    let ag = 0, al = 0, tr = 0
+    for (let i = 1; i < b.length; i++) {
+      const d = b[i].close - b[i - 1].close
+      const g = Math.max(0, d), l = Math.max(0, -d)
+      const t = Math.max(b[i].high - b[i].low, Math.abs(b[i].high - b[i - 1].close), Math.abs(b[i].low - b[i - 1].close))
+      if (i <= 14) { ag += g / 14; al += l / 14; tr += t / 14 }
+      else { ag = (ag * 13 + g) / 14; al = (al * 13 + l) / 14; tr = (tr * 13 + t) / 14 }
+      rsi[i] = al === 0 ? 100 : 100 - 100 / (1 + ag / al); atr[i] = tr
+    }
+    data[c] = { b, rsi, atr }; t0 = Math.min(t0, b[0].t); t1 = Math.max(t1, b[b.length - 1].t)
+  }
+  console.log(`  ${Object.keys(data).length} coins, span ${((t1 - t0) / 86400000).toFixed(0)} days, 5m bars`)
+  const NW = 6, wSpan = (t1 - t0) / NW, hours = (t1 - t0) / 3600000
+
+  const run = (lo: number, tp: number, sl: number, H: number) => {
+    const out: { r: number; g: number; w: number }[] = []
+    let placed = 0
+    for (const c of Object.keys(data)) {
+      const { b, rsi, atr } = data[c], slip = (MAJ.has(c) ? 5 : 10) / 10_000
+      let i = 20
+      while (i < b.length - H - 3) {
+        const side = rsi[i] < lo ? 1 : rsi[i] > 100 - lo ? -1 : 0
+        if (side === 0 || !(atr[i] > 0)) { i++; continue }
+        placed++
+        const lim = b[i].close
+        // fill window: the next 2 bars, strictly through the limit
+        let f = -1
+        for (let j = i + 1; j <= i + 2; j++) if ((side === 1 && b[j].low < lim) || (side === -1 && b[j].high > lim)) { f = j; break }
+        if (f < 0) { i += 3; continue }
+        const stopD = sl * atr[i], stop = lim - side * stopD, tgt = lim + side * tp * atr[i]
+        let exit = b[Math.min(b.length - 1, f + H)].close, how = 'time', k = f
+        for (; k <= f + H; k++) {
+          const adv = side === 1 ? b[k].low : b[k].high, fav = side === 1 ? b[k].high : b[k].low
+          if ((adv - stop) * side <= 0) { exit = stop; how = 'stop'; break }
+          if (k > f && (fav - tgt) * side > 0) { exit = tgt; how = 'tgt'; break }
+        }
+        const gross = (exit - lim) * side / stopD
+        const cost = lim * S.FEE_MAKER + (how === 'tgt' ? exit * S.FEE_MAKER : exit * (S.FEE_TAKER + slip))
+        out.push({ r: gross - cost / stopD, g: gross, w: Math.min(NW - 1, Math.floor((b[i].t - t0) / wSpan)) })
+        i = Math.min(k, f + H) + 1
+      }
+    }
+    return { out, placed }
+  }
+  console.log(`\n  config                       fills  fill%  /hour   WR    gross R   net R   cost R   total net R   per-window net R`)
+  for (const lo of [20, 10]) for (const tp of [0.5, 1.0]) for (const sl of [1, 2]) for (const H of [3, 6]) {
+    const { out: o, placed } = run(lo, tp, sl, H)
+    if (!o.length) continue
+    const g = o.reduce((a, x) => a + x.g, 0) / o.length, n = o.reduce((a, x) => a + x.r, 0) / o.length
+    const wins = Array.from({ length: NW }, (_, k) => o.filter(x => x.w === k).reduce((a, x) => a + x.r, 0))
+    const tag = `RSI${lo}/${100 - lo} tp${tp} sl${sl} hold${H * 5}m`
+    console.log(`  ${tag.padEnd(28)} ${String(o.length).padStart(6)} ${(o.length / placed * 100).toFixed(0).padStart(5)}% ${(o.length / hours).toFixed(1).padStart(6)} ` +
+      `${(o.filter(x => x.r > 0).length / o.length * 100).toFixed(1).padStart(5)}% ${g.toFixed(4).padStart(8)} ${n.toFixed(4).padStart(8)} ` +
+      `${(g - n).toFixed(4).padStart(7)} ${(n * o.length).toFixed(0).padStart(12)}   ${wins.map(x => (x >= 0 ? '+' : '') + x.toFixed(0)).join(' ')}`)
+  }
+  console.log(`\n  Fill rule is strict (price must trade THROUGH the limit), so fills are`)
+  console.log(`  the adverse-selected ones a real maker gets. Gross R = before any cost.`)
+}
+// ════════════════════════════════════════════════════════════════════════════
 // v99bt — owner's scalp spec: ONE side only, chosen by market direction; hold
 // at most 15 minutes, then out and free to re-enter. 5m bars, top-10 coins, 12m.
 // Direction = BTC 5m close vs its 24h SMA (above -> longs only, below -> shorts
@@ -8601,6 +8676,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v94bt') {
     console.log(`████ V94BT — the exit: does the breakeven floor cap the fat tail? ████`)
     runV94bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v100bt') {
+    console.log('████ V100BT — maker-only mean-reversion scalp (strict fills) ████')
+    runV100bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v99bt') {

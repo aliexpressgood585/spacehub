@@ -51,6 +51,19 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## v100bt (2026-09-22 23:20) — MAKER-ONLY MEAN-REVERSION SCALP: REJECTED, worse gross.
+5m RSI 20/80 and 10/90 fade, limit entry at the signal close, fill only if a
+later bar trades STRICTLY THROUGH it, maker target, taker stop/time exit, hold
+15/30 min. 16 rows, 10 coins, 12m.
+    GROSS R -0.09 .. -0.31 in every row, every window negative.
+    Best: RSI20/80 tp1 sl2 hold30m net -0.271R, WR 55%, 0.5 trades/hour.
+The v76bt +0.011R gross came from filling EVERY signal at the close. With a
+realistic maker fill rule the fills are adverse-selected (the ones where price
+keeps running through your limit) and the edge turns decisively negative.
+Maker fees fixed the cost side (0.11-0.41R) and exposed that there was never a
+signal. FIFTH sub-hour rejection. Also structural: the live bot runs once per
+minute from pg_cron with no exchange connection — it cannot scalp in any case.
+
 ## v99bt (2026-09-22 23:15) — OWNER'S SCALP SPEC: REJECTED, all 24 rows, all 6 windows.
 Spec: one side only by market direction (BTC 5m vs 24h SMA), 5m breakout of
 N-bar high/low, stop k x ATR, target 1.5x, max hold 15 min, re-enter. 10 coins,
