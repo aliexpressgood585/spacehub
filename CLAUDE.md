@@ -51,6 +51,45 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## v91bt (2026-09-22) — THE OWNER WAS PARTLY RIGHT. Coin selection is REAL —
+## and roughly twelve times too small to pay for itself.
+Owner's idea: pick 3-4 coins instead of spraying 16. Split into its two claims
+and tested the one that was testable.
+
+── PART B, strictly out-of-sample: rank on window N, trade only top-K in N+1 ──
+    baseline (trade everything)   gross **-0.0228**   net -0.4186
+    top-3   n=2,687   gross **+0.0025**   net -0.3831   0/7 periods positive
+    top-4   n=3,531   gross **+0.0074**   net -0.3685   0/7
+    top-6   n=5,273   gross **+0.0103**   net -0.4105   0/7
+    top-10  n=8,880   gross  -0.0122      net -0.4195   0/7
+**SELECTION CARRIES REAL INFORMATION.** Ranking on the past moves gross from
+-0.0228 to +0.0103, a swing of **+0.033R**, out-of-sample, with a sensible shape
+— it improves as selection tightens (3→6) and decays as it loosens (10). Past
+performance genuinely predicts future performance here. That is the first
+positive signal anywhere in this fast-trading push and the owner found it.
+**AND IT IS NOWHERE NEAR ENOUGH.** The cost is **0.39R per trade**. Selection
+buys +0.033R. It would have to be **twelve times stronger** to break even, and
+**0 of 7 periods** were positive at any K.
+
+── PART A, and this is the cleanest number in the run ──
+    coins with POSITIVE GROSS: **14 of 39**
+    coins with POSITIVE NET  : **0 of 39**
+Not one coin in the universe survives its own execution costs at 15m. Note TRX:
+gross +0.0465 but net **-1.3465** — cheap, low-volatility coins are the WORST
+for this, because an ATR stop on them is a tiny percentage of price and the
+fixed 0.16% round trip swamps it. The cost problem is worst exactly where the
+"quiet" coins are.
+
+**THE REAL DIAGNOSIS, and it points somewhere: the killer is the COST-TO-RISK
+RATIO, not the signal and not the fees.** A 0.16% round trip against a 15m ATR
+stop of ~0.41% of price is 39% of risk. The SAME round trip against a 4h stop of
+~3% of price is about 5% of risk. That is the entire difference between the
+deployed 4h engine and everything fast that has been tried here.
+→ THE ONE COMBINATION NEVER TESTED: selection applied to a SLOWER timeframe,
+  where cost is 5% of R instead of 39%. Selection is worth +0.033R gross; at 4h
+  that survives instead of being erased. Queued as the honest next step, and it
+  came out of the owner's idea, not mine.
+
 ## v90bt (2026-09-22) — THE FAST ENGINE LOSES MONEY FOR FREE. Axis closed.
 Owner's phase change, built and measured: 15m bars, ADX>25 breakout / ADX<18
 band-fade / stand aside between, 1.0xATR stop, 1.5xATR target, 6h timeout.
