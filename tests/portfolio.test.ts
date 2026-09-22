@@ -326,14 +326,20 @@ const base = P.runPortfolio(data, P.defaultConfig(), tFrom, tTo)
     a.finalEquity === b.finalEquity && a.closed.length === b.closed.length,
     `${a.finalEquity} vs ${b.finalEquity}`)
 
-  const half = P.runPortfolio(data, P.defaultConfig({ killSwitch: true, donchRiskMult: 0.5 }), tFrom, tTo)
+  // DONCH4H-only: this assertion is about the risk MULTIPLIER, so ROTA must not
+  // be in the run. With both sleeves the ROTA book fraction changes how much
+  // capital is left for breakouts, and that perturbation swamps the effect being
+  // measured — it flipped the comparison when ROTA_BOOK moved 0.35 -> 0.45.
+  const soloCfg = { killSwitch: true, sleeves: ['DONCH4H'] as P.Sleeve[] }
+  const a2 = P.runPortfolio(data, P.defaultConfig(soloCfg), tFrom, tTo)
+  const half = P.runPortfolio(data, P.defaultConfig({ ...soloCfg, donchRiskMult: 0.5 }), tFrom, tTo)
   const dt = (r: P.SimResult) => r.closed.filter(t => t.sleeve === 'DONCH4H')
   const meanNotional = (r: P.SimResult) => {
     const x = dt(r); return x.reduce((s, t) => s + t.notional, 0) / Math.max(1, x.length)
   }
   check('donchRiskMult 0.5 reduces the AVERAGE DONCH4H ticket',
-    meanNotional(half) < meanNotional(a),
-    `${meanNotional(half).toFixed(0)} vs ${meanNotional(a).toFixed(0)}`)
+    meanNotional(half) < meanNotional(a2),
+    `${meanNotional(half).toFixed(0)} vs ${meanNotional(a2).toFixed(0)}`)
 
   // THE SURPRISE, and it is the reason this knob needed a test rather than an
   // assumption: halving per-trade risk does NOT halve sleeve exposure. Smaller
@@ -343,15 +349,27 @@ const base = P.runPortfolio(data, P.defaultConfig(), tFrom, tTo)
   // the same lesson as v60.0's optimistic-intrabar assertion.
   const totalNotional = (r: P.SimResult) => dt(r).reduce((s, t) => s + t.notional, 0)
   check('...while FUNDING MORE TRADES — smaller tickets are not less exposure',
-    dt(half).length > dt(a).length,
-    `${dt(half).length} trades vs ${dt(a).length}; total notional ` +
-    `${totalNotional(half).toFixed(0)} vs ${totalNotional(a).toFixed(0)}`)
+    dt(half).length > dt(a2).length,
+    `${dt(half).length} trades vs ${dt(a2).length}; total notional ` +
+    `${totalNotional(half).toFixed(0)} vs ${totalNotional(a2).toFixed(0)}`)
 
   // It must NOT touch ROTA — the control has to isolate one sleeve or it is
   // measuring two things at once, which is the exact confound it exists to rule out.
+  // The isolation check belongs on a BOTH-sleeves run: the knob must not touch
+  // ROTA. (`half`/`a2` above are DONCH4H-only by construction, so they have no
+  // ROTA trades and cannot answer this.)
   const rota = (r: P.SimResult) => r.closed.filter(t => t.sleeve === 'ROTA').length
-  check('donchRiskMult leaves the ROTA sleeve present',
-    rota(half) > 0 && rota(a) > 0, `${rota(half)} vs ${rota(a)}`)
+  const bothHalf = P.runPortfolio(data,
+    P.defaultConfig({ killSwitch: true, donchRiskMult: 0.5 }), tFrom, tTo)
+  // NOT byte-identical, and expecting that was my error: the sleeves COMPETE
+  // for one pot of cash, so smaller breakout tickets leave different capital for
+  // ROTA and its trade count moves a little. That is the v60.0 coupling, working
+  // as designed. What must hold is that the knob does not DISABLE ROTA or
+  // wholesale redirect the book — a few percent of drift, not a takeover.
+  const drift = Math.abs(rota(bothHalf) - rota(a)) / Math.max(1, rota(a))
+  check('donchRiskMult perturbs ROTA only through shared capital, not directly',
+    rota(bothHalf) > 0 && drift < 0.10,
+    `${rota(bothHalf)} vs ${rota(a)} = ${(drift * 100).toFixed(1)}% drift`)
 }
 
 // ════════════════════════════════════════════════════════════════════════════
