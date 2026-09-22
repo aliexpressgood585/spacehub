@@ -8021,6 +8021,65 @@ function runV92bt() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+// v103bt — ORDER BOOK. Binance bookDepth archive, last snapshot per 5m bucket:
+// resting notional within +-0.2% and +-1% of mid. OBI = (bid - ask)/(bid + ask).
+// Entry at the close of the 5m bar whose open is the bucket (the snapshot is
+// inside that bar, so nothing from the future is used). Forward 15m / 1h / 4h.
+// Deciles cut on the first half, judged on the second half only. Trade rows:
+// extreme deciles, follow / fade, taker (real) and every-limit-fills maker (an
+// upper bound — v100bt showed real maker fills are adverse-selected).
+// ════════════════════════════════════════════════════════════════════════════
+function runV103bt() {
+  const MAJ = new Set(['BTC', 'ETH'])
+  const coins = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT']
+  type Obs = { t: number; o02: number; o1: number; f: number[]; slip: number }
+  const obs: Obs[] = []
+  const HS = [3, 12, 48]
+  let nCoins = 0
+  for (const c of coins) {
+    let txt = ''; try { txt = Deno.readTextFileSync(`backtest/data/${c}-book.csv`) } catch { continue }
+    const px = new Map<number, number>()
+    for (const b of loadCSV(c, '5m')) px.set(b.t, b.close)
+    let n = 0
+    for (const line of txt.split('\n')) {
+      const f = line.split(','); if (f.length < 5) continue
+      const t = +f[0], b02 = +f[1], a02 = +f[2], b1 = +f[3], a1 = +f[4]
+      const p0 = px.get(t); if (!p0 || !(b02 + a02 > 0) || !(b1 + a1 > 0)) continue
+      const fw: number[] = []
+      for (const h of HS) { const p = px.get(t + h * 300_000); fw.push(p ? (p / p0 - 1) * 10_000 : NaN) }
+      obs.push({ t, o02: (b02 - a02) / (b02 + a02), o1: (b1 - a1) / (b1 + a1), f: fw, slip: MAJ.has(c) ? 5 : 10 }); n++
+    }
+    if (n) nCoins++
+  }
+  if (!obs.length) { console.log('  ABORT: no bookDepth data'); return }
+  obs.sort((a, b) => a.t - b.t)
+  console.log(`  ${nCoins} coins, ${obs.length} snapshots, ${((obs[obs.length - 1].t - obs[0].t) / 86400000).toFixed(0)} days`)
+  const half = Math.floor(obs.length / 2), test = obs.slice(half)
+  for (const feat of ['o02', 'o1'] as const) {
+    const tr = obs.slice(0, half).map(o => o[feat]).sort((a, b) => a - b)
+    const q = (p: number) => tr[Math.floor(p * (tr.length - 1))]
+    const cuts = [0.1, 0.2, 0.4, 0.6, 0.8, 0.9].map(q)
+    const bk = (x: number) => cuts.findIndex(c => x < c) === -1 ? 6 : cuts.findIndex(c => x < c)
+    const names = ['bottom 10%', '10-20%', '20-40%', '40-60%', '60-80%', '80-90%', 'top 10%']
+    console.log(`\n── ${feat === 'o02' ? 'OBI within 0.2% of mid' : 'OBI within 1% of mid'} — OUT-OF-SAMPLE half, mean forward bps ──`)
+    console.log(`  bucket          n      fwd 15m    fwd 1h     fwd 4h`)
+    for (let k = 0; k < 7; k++) {
+      const xs = test.filter(o => bk(o[feat]) === k)
+      const m = (h: number) => { const v = xs.map(o => o.f[h]).filter(Number.isFinite); return v.reduce((a, b) => a + b, 0) / Math.max(1, v.length) }
+      console.log(`  ${names[k].padEnd(12)} ${String(xs.length).padStart(7)} ${m(0).toFixed(2).padStart(10)} ${m(1).toFixed(2).padStart(10)} ${m(2).toFixed(2).padStart(10)}`)
+    }
+    const top = test.filter(o => bk(o[feat]) === 6), bot = test.filter(o => bk(o[feat]) === 0)
+    for (let h = 0; h < HS.length; h++) for (const mode of ['follow', 'fade'] as const) {
+      const d = mode === 'follow' ? 1 : -1
+      const legs = [...top.map(o => ({ r: d * o.f[h], s: o.slip })), ...bot.map(o => ({ r: -d * o.f[h], s: o.slip }))].filter(x => Number.isFinite(x.r))
+      const g = legs.reduce((a, x) => a + x.r, 0) / legs.length
+      const tk = legs.reduce((a, x) => a + x.r - 2 * (5 + x.s), 0) / legs.length
+      console.log(`  trade ${feat} hold ${['15m', '1h', '4h'][h]} ${mode.padEnd(6)}: n=${legs.length}  gross ${g.toFixed(2)} bps  net taker ${tk.toFixed(2)}  net maker(upper bound) ${(g - 4).toFixed(2)}`)
+    }
+  }
+  console.log(`\n  Round trip: taker 2x(5 fee + 5/10 slip) = 20-30 bps; maker 4 bps if every limit filled.`)
+}
+// ════════════════════════════════════════════════════════════════════════════
 // v102bt — take the v101bt flow signal to a horizon where costs stop dominating.
 // Every H hours, rank the 10 coins by aggressor imbalance TI over the last L
 // hours; long the bottom 2 / short the top 2 ('fade') or the reverse ('follow'),
@@ -8813,6 +8872,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v94bt') {
     console.log(`████ V94BT — the exit: does the breakeven floor cap the fat tail? ████`)
     runV94bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v103bt') {
+    console.log('████ V103BT — order-book imbalance (bookDepth archive) → 15m / 1h / 4h ████')
+    runV103bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v102bt') {
