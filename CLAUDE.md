@@ -51,6 +51,16 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## v105bt (2026-09-22 23:55) — SHORT-TERM REVERSAL + BTC LEAD-LAG: REJECTED.
+36m, 39 coins, 1h. A: long K losers / short K winners over L=1/4/24h, hold
+4/24h. B: after a >=1%/2% BTC hour, alt basket in BTC's direction for 1/4h.
+    A: gross -10 .. +10 bps vs ~28 bps cost; 0 of 12 rows net positive IS or OOS.
+    B: BTC>=2% looked good IN-SAMPLE (gross +17 / +21 bps) and FLIPPED OOS
+       (-22.6 / -24.3) — a textbook multiple-testing false positive, exactly
+       what the untouched 20% exists to catch. 0 of 4 rows net positive.
+NINTH rejection tonight. Owner has been told that further blind searching
+raises the false-positive rate, not the odds.
+
 ## v104bt + v69.0 (2026-09-22 23:45) — VOL TARGET + MOMENTUM ENSEMBLE. Deployed.
 Goal: make the one engine with an edge survive its own drawdowns. 36m, 4 IS
 windows + last 20% OOS once, K2 12h, 1x x1.75 slots (the live v68.1 config),
