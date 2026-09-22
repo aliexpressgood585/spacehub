@@ -95,6 +95,25 @@ AND `?donch_test=1`, so which sleeves are live is verifiable from the public ano
 key rather than from source — the v56.8 provenance rule.
 Paper stays hard-locked: `ALLOW_LIVE_EXECUTION` untouched and still unset.
 
+**DEPLOYED AND VERIFIED 2026-09-22 19:05 UTC**, function version 11, sha
+`d9a2437d…`. Chain confirmed end to end from the public anon key:
+    ?donch_test=1     v62.0 / d9a2437dce95 / **enabled_sleeves: ROTA** /
+                      base_risk 0.0175 / universe_hash 2d336399 / coverage 40
+    deployment_manifest  v62.0, sha d9a2437d…, enabled_sleeves ROTA,
+                      paper_mode true, live_trading false, base_risk_pct 0.0175
+    bot_errors EMPTY, heartbeat current, all four shields false
+    **open book UNCHANGED: 15 ROTA + 3 DONCH4H** — the breakout positions kept
+    their ladders exactly as intended, equity $9,947.
+NB `deployment_manifest` had no `enabled_sleeves` column, so the first cold
+start's manifest write failed silently and no v62.0 row appeared. Added the
+column (`ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, nullable, same shape as
+`base_risk_pct`) and redeployed to force a fresh cold start; the row then
+landed. Worth remembering: the bot writes the manifest ONCE per cold start, so a
+schema gap there fails quietly and costs the provenance the manifest exists for.
+
+**ROLLBACK, one step:** redeploy the shim with `__ENABLED_SLEEVES = 'DONCH4H,ROTA'`
+(or delete the line). No code change, no migration.
+
 ## v89bt RESULT (2026-09-22) — **LEVERAGE MAKES IT WORSE AT EVERY LEVEL.**
 VALIDITY CHECK PASSED FIRST: 1x returns +27.6% at 3bps and -11.8% at 6bps,
 matching the pre-margin engine exactly. The rewrite did not break the cash path.
