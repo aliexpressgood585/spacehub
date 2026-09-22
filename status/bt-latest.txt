@@ -1,75 +1,48 @@
-backtest 2026-09-22T22:22Z mode=v97bt months=12
-████ V97BT — one-sided (regime) vs long+short, 48/24/12h rotation ████
-  39 coins, span 365 days
+backtest 2026-09-22T22:48Z mode=v98bt months=36
+████ V98BT — aggressive-controlled profile: stops, stop-sized risk, bounded leverage, breakers ████
+  39 coins, span 1096 days
+  in-sample 2023-09-01 .. 2026-01-24 (4 windows)   OOS 2026-01-24 .. 2026-08-31
 
-── K=2, rebalance every 48h, margin-sized ──
-  config             trades      net%  maxDD    worst   LIQ RUIN  per-window
-  L+S 1x               301     24.1%   16.9%     -8.7%     0 0/6  +5 +12 +8 +1 +6 -9
-  L+S 2x               302     52.2%   28.6%     -0.3%     2 0/6  +1 +24 +13 +3 +12 -0
-  L+S 5x               325    100.6%   55.8%    -54.0%    14 0/6  +38 +66 +19 -20 +52 -54
-  L+S 10x              389    -94.0%   68.4%    -52.7%    83 0/6  +28 -2 -24 +5 -53 -48
-  one 1x               176     16.4%   13.8%     -5.3%     0 0/6  -3 +17 +18 -5 -5 -5
-  one 2x               176     35.2%   31.2%    -13.8%     1 0/6  -14 +34 +39 -3 -10 -11
-  one 5x               177     91.9%   55.2%    -43.3%     6 0/6  -24 +90 +117 -22 -26 -43
-  one 10x              190     62.9%   78.6%    -69.7%    41 0/6  -21 +190 +65 -70 -44 -58
-  one 2x @6bps         176     27.3%   31.3%    -14.1%     1 0/6  -14 +34 +38 -9 -10 -12
+── IN-SAMPLE: current live config (no stops, $70 margin 2x) for reference ──
+  config                          trades   net%   maxDD  Sharpe   PF  cost/gross  LIQ  stop/tgt  dayH strk ddH  per-window
+  LIVE K2 2x margin, no stop       1641   128.7   58.2%   0.57  1.02       43%    1       0/0    0    0   0  +67 -44 -15 +121
 
-── K=2, rebalance every 24h, margin-sized ──
-  config             trades      net%  maxDD    worst   LIQ RUIN  per-window
-  L+S 1x               426     27.7%   20.3%    -13.2%     0 0/6  +7 +17 +3 -4 +18 -13
-  L+S 2x               436     64.4%   27.3%    -18.8%     3 0/6  +5 +45 +3 -8 +39 -19
-  L+S 5x               460     73.2%   54.3%    -51.9%    17 0/6  +44 +83 -38 -21 +57 -52
-  L+S 10x              518    -64.8%   89.9%    -68.8%    72 0/6  +66 -21 -60 -62 +81 -69
-  one 1x               260     17.2%   13.6%     -4.4%     0 0/6  -3 +15 +14 -4 -1 -3
-  one 2x               260     21.3%   31.3%    -13.9%     1 0/6  -14 +31 +28 -9 -8 -7
-  one 5x               260     52.5%   56.5%    -42.2%     4 0/6  -26 +83 +62 -42 -1 -24
-  one 10x              277     54.0%   73.7%    -61.1%    30 0/6  -31 +152 +87 -58 -34 -61
-  one 2x @6bps         263      8.0%   31.5%    -18.7%     1 0/6  -14 +30 +27 -19 -9 -8
+── IN-SAMPLE grid (selection happens here, and only here) ──
+  config                          trades   net%   maxDD  Sharpe   PF  cost/gross  LIQ  stop/tgt  dayH strk ddH  per-window
+  risk2% sl1.5atr rr1.5 alt5x       446   -69.2   25.2%  -1.69  0.77       n/a    2    165/95    0   22   4  -23 -24 -10 -13
+  risk2% sl1.5atr rr1.5 alt10x      432   -69.7   25.2%  -1.75  0.75       n/a    5    159/94    0   21   4  -23 -24 -10 -13
+  risk2% sl1.5atr rr2.5 alt5x       506   -65.4   25.5%  -1.56  0.75     1906%    3    192/63    0   29   4  -23 -24 -12 -7
+  risk2% sl1.5atr rr2.5 alt10x      499   -67.0   26.0%  -1.56  0.75    12405%    8    187/63    0   29   4  -23 -24 -14 -7
+  risk2% sl2.5atr rr1.5 alt5x      1000    26.8   26.6%  -0.25  0.96       75%    7   159/151    0   42   3  +63 -25 -17 +6
+  risk2% sl2.5atr rr1.5 alt10x     1002    21.6   27.6%  -0.29  0.95       78%   15   151/151    0   41   3  +60 -25 -18 +4
+  risk2% sl2.5atr rr2.5 alt5x       898    18.3   25.2%  -0.26  0.95       79%    6    144/60    0   45   3  +56 -24 -14 +0
+  risk2% sl2.5atr rr2.5 alt10x      893    15.8   25.1%  -0.27  0.94       81%   13    136/60    0   43   3  +53 -24 -14 +2
+  risk3% sl1.5atr rr1.5 alt5x       172   -67.1   26.0%  -1.50  0.74       n/a    1     66/35    1   10   4  -23 -23 -1 -19
+  risk3% sl1.5atr rr1.5 alt10x      169   -67.4   26.0%  -1.47  0.74       n/a    3     62/35    2   10   4  -23 -24 -2 -19
+  risk3% sl1.5atr rr2.5 alt5x       270   -48.5   25.6%  -1.12  0.76      587%    1    103/31    2   16   4  -22 -23 -5 +2
+  risk3% sl1.5atr rr2.5 alt10x      264   -48.8   25.9%  -1.08  0.76      742%    4     95/31    3   16   4  -22 -24 -5 +3
+  risk3% sl2.5atr rr1.5 alt5x       772    92.8   25.2%   0.21  0.98       53%    6   120/120    0   30   3  +103 -24 -10 +24
+  risk3% sl2.5atr rr1.5 alt10x      809    85.2   25.1%   0.01  0.94       56%   14   116/130    0   34   3  +99 -24 -10 +21
+  risk3% sl2.5atr rr2.5 alt5x       688    72.4   25.1%  -0.04  0.94       56%    5    104/51    1   35   3  +91 -24 -8 +14
+  risk3% sl2.5atr rr2.5 alt10x      787    66.9   25.3%  -0.02  0.93       61%   12    114/57    0   38   3  +84 -24 -8 +15
+  risk5% sl1.5atr rr1.5 alt5x       131   -40.0   25.2%  -0.61  0.89       n/a    1     46/31    4    7   4  -20 -23 +17 -14
+  risk5% sl1.5atr rr1.5 alt10x      126   -43.2   27.9%  -0.60  0.87       n/a    3     44/31    4    6   4  -19 -26 +16 -14
+  risk5% sl1.5atr rr2.5 alt5x       162     2.5   25.2%  -0.42  0.83       95%    1     55/21    5    9   4  -19 -23 +9 +36
+  risk5% sl1.5atr rr2.5 alt10x      102   -45.4   26.8%  -0.78  0.75       n/a    3     35/11    3    5   4  -19 -24 +8 -9
+  risk5% sl2.5atr rr1.5 alt5x       226   -18.0   25.3%  -0.79  0.82      148%    1     38/29    5   11   4  -21 -23 +0 +27
+  risk5% sl2.5atr rr1.5 alt10x      221   -20.8   25.3%  -0.78  0.82      164%    4     35/29    5   10   4  -21 -24 +0 +24
+  risk5% sl2.5atr rr2.5 alt5x       184   -29.4   25.5%  -0.87  0.78      345%    1     34/11    4   10   4  -23 -23 +5 +12
+  risk5% sl2.5atr rr2.5 alt10x      103   -59.7   26.2%  -1.27  0.69       n/a    3      20/5    3    7   4  -23 -24 +5 -18
 
-── K=2, rebalance every 12h, margin-sized ──
-  config             trades      net%  maxDD    worst   LIQ RUIN  per-window
-  L+S 1x               623     23.8%   18.9%     -6.1%     0 0/6  +8 +16 +4 -2 +4 -6
-  L+S 2x               625     69.5%   25.4%    -12.7%     0 0/6  +17 +43 +6 -4 +21 -13
-  L+S 5x               638     72.2%   65.0%    -62.8%    15 0/6  +46 +108 -63 -2 +34 -51
-  L+S 10x              689      2.0%   82.0%    -68.3%    56 0/6  +73 +138 -68 -29 -55 -56
-  one 1x               388     10.5%   13.3%     -4.9%     0 0/6  -5 +6 +16 -3 -1 -2
-  one 2x               389      8.5%   31.6%    -18.1%     1 0/6  -18 +10 +32 -7 -5 -4
-  one 5x               392      4.2%   55.6%    -34.1%     4 0/6  -32 +21 +85 -19 -16 -34
-  one 10x              396   -183.6%   74.1%    -60.5%    27 0/6  -21 +36 -48 -44 -60 -45
-  one 2x @6bps         391     -6.3%   31.9%    -18.6%     1 0/6  -19 +9 +31 -8 -6 -13
+  SELECTED on in-sample (0 liq, no DD halt, most positive windows, then return): risk3% sl2.5atr rr1.5 alt5x
 
-── K=4, rebalance every 48h, margin-sized ──
-  config             trades      net%  maxDD    worst   LIQ RUIN  per-window
-  L+S 1x               645     18.8%   12.3%     -4.7%     0 0/6  +16 +7 -5 -4 +8 -3
-  L+S 2x               634     38.6%   22.7%     -7.7%     3 0/6  +28 +11 -2 -8 +15 -7
-  L+S 5x               675     58.1%   40.8%    -31.8%    26 0/6  +84 +51 -18 -7 -19 -32
-  L+S 10x              732    136.1%   69.1%    -59.8%   123 0/6  +108 -48 -19 -26 +181 -60
-  one 1x               316     29.9%   15.3%     -4.4%     0 0/6  -1 +18 +17 -4 -1 +1
-  one 2x               316     42.9%   39.9%    -18.0%     2 0/6  -18 +37 +36 -9 -4 +1
-  one 5x               346     44.0%   64.4%    -54.4%    12 0/6  -25 +95 +35 -12 +5 -54
-  one 10x              412   -260.5%   77.5%    -70.7%    72 0/6  -39 +10 -39 -70 -51 -71
-  one 2x @6bps         339     11.0%   40.0%    -32.3%     2 0/6  -18 +36 +35 -4 -4 -32
+── OUT-OF-SAMPLE, run once ──
+  config                          trades   net%   maxDD  Sharpe   PF  cost/gross  LIQ  stop/tgt  dayH strk ddH  per-window
+  risk3% sl2.5atr rr1.5 alt5x       104   -24.3   24.9%  -1.83  0.79       n/a    0     25/12    0    6   1  -24
+  LIVE K2 2x margin, no stop        386    -6.1   30.7%   0.09  0.97      143%    1       0/0    0    0   0  -6
+  risk3% sl2.5atr rr1.5 alt5x @10/15bps    102   -24.4   24.9%  -1.85  0.78       n/a    0     25/12    0    5   1  -24
 
-── K=4, rebalance every 24h, margin-sized ──
-  config             trades      net%  maxDD    worst   LIQ RUIN  per-window
-  L+S 1x               952      2.6%   13.3%    -10.2%     0 0/6  +13 +3 -6 -10 +4 -2
-  L+S 2x               983    -25.1%   25.7%    -23.3%     3 0/6  +20 -3 -23 -19 +3 -2
-  L+S 5x              1009    -35.8%   65.8%    -38.9%    26 0/6  +55 -31 -29 -17 +25 -39
-  L+S 10x             1053    -57.1%   73.1%    -67.6%   112 0/6  +167 +5 -55 -47 -58 -68
-  one 1x               487      5.3%   16.1%    -14.3%     0 0/6  -7 +18 +22 -14 -4 -8
-  one 2x               496     -7.9%   41.2%    -28.8%     2 0/6  -29 +36 +46 -27 -19 -15
-  one 5x               514   -121.6%   70.1%    -56.6%     9 0/6  -45 +92 -28 -57 -43 -41
-  one 10x              584   -289.1%   92.2%    -89.8%    53 0/6  -58 -43 +42 -74 -66 -90
-  one 2x @6bps         497    -14.9%   41.4%    -29.3%     2 0/6  -29 +26 +45 -21 -20 -16
-
-── K=4, rebalance every 12h, margin-sized ──
-  config             trades      net%  maxDD    worst   LIQ RUIN  per-window
-  L+S 1x              1389     -9.3%   11.1%     -5.6%     0 0/6  -4 +5 +1 -2 -6 -4
-  L+S 2x              1351    -40.9%   33.2%    -26.8%     3 0/6  -27 +14 +4 -5 -8 -19
-  L+S 5x              1441    -75.1%   45.4%    -36.1%    20 0/6  +7 +12 -22 -22 -14 -36
-  L+S 10x             1409   -274.5%   73.5%    -69.7%   107 0/6  +4 -13 -62 -65 -70 -69
-  one 1x               697    -10.6%   20.6%    -14.6%     0 0/6  +2 +3 +20 -11 -15 -9
-  one 2x               705    -18.8%   37.5%    -27.9%     0 0/6  +2 +9 +39 -23 -28 -18
-  one 5x               711     -5.3%   58.2%    -50.0%     4 0/6  -5 -8 +102 -50 -7 -37
-  one 10x              773    -37.7%   71.4%    -65.0%    36 0/6  -43 +46 +110 -54 -31 -65
-  one 2x @6bps         692    -18.4%   38.1%    -29.0%     0 0/6  +1 +8 +37 -24 -29 -11
+  cost/gross = (fees + slippage) / (net + fees + slippage + funding).
+  Liquidation checked on each 1h bar's adverse extreme; tier-1 MMR only
+  (0.4% BTC/ETH, 1.0% alts) — larger notionals sit in higher tiers, so LIQ is a floor.
+  Funding is a flat 0.01%/8h (no archive), longs pay, shorts receive.
