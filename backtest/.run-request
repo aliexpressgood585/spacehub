@@ -1,13 +1,10 @@
 # Push a change to this file to run a backtest without the GitHub connector.
 # Format: one line, "MODE [MONTHS]". Lines starting with # are ignored.
-# The mode must also be in the fetch-step whitelist in backtest.yml, or it will
-# silently get the short-history fetcher (see the v78bt note in CLAUDE.md).
+# The mode must also be in the fetch-step whitelist in backtest.yml.
 #
-# v85bt: the control v84bt needed. v84bt's best Wyckoff row upsized the group
-# its own part A measured as WORSE and still scored +20 points — so it is not
-# reading its feature. This runs a uniform DONCH4H risk multiplier with no
-# feature attached, plus the INVERTED tilt, to separate "Wyckoff works" from
-# "smaller breakout tickets work". Also re-anchors the incumbent, because two
-# simulator bugs (ROTA funding, slippage in the ladder exits) were fixed after
-# v84bt ran and every number in CLAUDE.md predates them.
-v85bt 36
+# v86bt: the sleeve split the owner asked for — 70% of capital sits in ROTA on
+# the strength of a figure the PR #21 funding fix showed was inflated. Behind a
+# NOISE FLOOR first: v85bt's uniform sweep zigzagged 36/68/33/70/1% across
+# adjacent settings, so the instrument's error bar must be measured (by
+# perturbing starting cash, which cannot matter) before any row is read.
+v86bt 36

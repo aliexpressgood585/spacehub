@@ -609,10 +609,19 @@ export function rotaTargets(rows: RotaRow[]): RotaTarget[] {
   return out
 }
 
-/** Target notional for one rotation slot, before the per-coin cap. */
-export function rotaSlotTarget(portfolio: number, weight: number): number {
+/** Target notional for one rotation slot, before the per-coin cap.
+ *
+ *  `book` overrides the per-side book fraction and defaults to the deployed
+ *  ROTA_BOOK, so the live path is untouched. It exists because 70% of capital
+ *  is allocated to this sleeve on the strength of a simulator figure that the
+ *  PR #21 funding fix showed was overstated — see the portfolio audit in
+ *  CLAUDE.md. The split has to be measurable to be defensible. */
+export function rotaSlotTarget(
+  portfolio: number, weight: number, book = ROTA_BOOK,
+): number {
+  if (book <= 0) return 0
   return Math.min(
-    Math.max(portfolio * ROTA_BOOK * weight, portfolio * ROTA_SLOT_MIN),
+    Math.max(portfolio * book * weight, portfolio * ROTA_SLOT_MIN),
     portfolio * ROTA_SLOT_MAX,
   )
 }
