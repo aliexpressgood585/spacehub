@@ -83,6 +83,16 @@ still saw the closed $700 notionals and zeroed every new slot (`per_coin_cap`,
 slot 0). Closed rows are now dropped and `port` recomputed after the close loop.
 VERIFIED 22:29 UTC, function v18, sha `a466729a`: NEAR/AVAX LONG + CRV/DOT
 SHORT, 2x, $139 notional each on $70 margin, cash $218.75, 0 errors.
+v67.2 (owner: "the bot isn't working well"): the trading was fine; the ACCOUNT
+VALUE was wrong in two places, both summing NOTIONAL instead of margin:
+ - bot's 15-min `bot_equity` snapshot (size×px) wrote **$776.25** on a $500
+   account at 2x. Now margin + unrealised per position, floored at 0.
+ - dashboard `totalValue = balance + Σ entry×size + upnl`, same error. Now
+   entry×size/lev; the position card also shows leverage and collateral.
+The bad $776 row was deleted. Same bug family as v64.0's pre-deploy equity
+fix and the v96bt simulator fix: EVERY place that turns positions into money
+must divide by `lev`. Grep for `entry_price)*Number(x.size)` before trusting
+a new one.
 
 ## v65.0 (2026-09-22 22:15) — CONCENTRATED ROTA: K=2 per side (4 positions), 3x.
 Owner: reset, aggressive, "not 16 positions at once". Account reset to $500
