@@ -1,48 +1,33 @@
-backtest 2026-09-22T23:20Z mode=v101bt months=12
-████ V101BT — order flow (taker imbalance) → next 15 min ████
+backtest 2026-09-22T23:24Z mode=v102bt months=12
+████ V102BT — cross-sectional order-flow rotation, 1-24h holds ████
+  10 coins, span 365 days, hourly aggregation of 5m flow
 
-── PART A, k=1 bars (5 min of flow), OUT-OF-SAMPLE half, forward 15 min ──
-  bucket        TI range            n      mean fwd bps   up%
-  bottom 10%    -1.000 .. -0.310    71947        -0.05   48.8%
-  10-20%        -0.310 .. -0.207    52171         0.15   49.3%
-  20-40%        -0.207 .. -0.069    92091         0.10   48.9%
-  40-60%        -0.069 ..  0.050    87644         0.13   48.1%
-  60-80%         0.050 ..  0.188    93359        -0.02   47.8%
-  80-90%         0.188 ..  0.291    53897         0.03   47.3%
-  top 10%        0.291 ..  1.000    74471        -0.07   46.5%
-  PART B k=1 follow taker: trades 146418  gross -0.01 bps  net -28.48 bps/trade
-  PART B k=1 follow maker: trades 146418  gross -0.01 bps  net -4.01 bps/trade
-  PART B k=1 fade   taker: trades 146418  gross 0.01 bps  net -28.45 bps/trade
-  PART B k=1 fade   maker: trades 146418  gross 0.01 bps  net -3.99 bps/trade
+  L=lookback h, H=hold h   mode    periods  gross bps/period  cost  net bps/period  net %/yr(approx)  per-window net %
+  L 4 H 1            fade      8755        -0.09       28.2       -28.26        -2475.7%   -412 -407 -408 -419 -405 -423
+  L 4 H 1            follow    8755         0.09       28.2       -28.08        -2460.2%   -403 -414 -417 -408 -416 -401
+  L 4 H 4            fade      2188         0.51       28.2       -27.67         -606.1%   -100 -90 -98 -106 -108 -104
+  L 4 H 4            follow    2188        -0.51       28.2       -28.70         -628.6%   -104 -116 -108 -101 -98 -102
+  L 4 H12            fade       729         3.23       28.2       -24.95         -182.1%   -28 -24 -33 -37 -35 -25
+  L 4 H12            follow     729        -3.23       28.2       -31.40         -229.2%   -40 -44 -35 -33 -33 -43
+  L 4 H24            fade       364         6.46       28.1       -21.62          -78.9%   -7 -15 -11 -29 -14 -3
+  L 4 H24            follow     364        -6.46       28.1       -34.55         -126.1%   -27 -19 -23 -5 -20 -32
+  L24 H 1            fade      8735         0.15       27.9       -27.77        -2432.4%   -395 -401 -414 -403 -404 -408
+  L24 H 1            follow    8735        -0.15       27.9       -28.06        -2458.3%   -410 -418 -409 -405 -404 -406
+  L24 H 4            fade      2183         0.02       27.9       -27.90         -610.9%   -88 -101 -107 -102 -110 -102
+  L24 H 4            follow    2183        -0.02       27.9       -27.93         -611.7%   -114 -104 -99 -100 -93 -101
+  L24 H12            fade       727        -1.10       27.8       -28.95         -211.3%   -22 -39 -34 -40 -38 -38
+  L24 H12            follow     727         1.10       27.8       -26.74         -195.2%   -45 -30 -34 -27 -30 -29
+  L24 H24            fade       363        -7.22       27.8       -35.04         -127.9%   -26 -17 -17 -16 -25 -26
+  L24 H24            follow     363         7.22       27.8       -20.60          -75.2%   -7 -17 -17 -18 -8 -7
+  L72 H 1            fade      8687         0.04       27.6       -27.51        -2409.8%   -387 -408 -398 -389 -411 -397
+  L72 H 1            follow    8687        -0.04       27.6       -27.59        -2417.1%   -395 -406 -413 -395 -385 -403
+  L72 H 4            fade      2171        -0.04       27.6       -27.60         -604.4%   -88 -105 -93 -97 -116 -100
+  L72 H 4            follow    2171         0.04       27.6       -27.51         -602.5%   -107 -98 -110 -99 -83 -100
+  L72 H12            fade       723        -1.63       27.5       -29.15         -212.8%   -28 -43 -26 -32 -47 -34
+  L72 H12            follow     723         1.63       27.5       -25.90         -189.0%   -38 -24 -41 -34 -19 -32
+  L72 H24            fade       361        -5.65       27.5       -33.19         -121.1%   -17 -28 -3 -17 -36 -19
+  L72 H24            follow     361         5.65       27.5       -21.89          -79.9%   -15 -6 -31 -16 +2 -13
 
-── PART A, k=3 bars (15 min of flow), OUT-OF-SAMPLE half, forward 15 min ──
-  bucket        TI range            n      mean fwd bps   up%
-  bottom 10%    -1.000 .. -0.219    68560         0.56   51.1%
-  10-20%        -0.219 .. -0.147    52541         0.28   49.7%
-  20-40%        -0.147 .. -0.052    93547         0.01   48.8%
-  40-60%        -0.052 ..  0.028    88410         0.21   48.2%
-  60-80%         0.028 ..  0.123    95854        -0.04   47.2%
-  80-90%         0.123 ..  0.195    54377        -0.29   46.5%
-  top 10%        0.195 ..  1.000    72281        -0.46   45.3%
-  PART B k=3 follow taker: trades 140841  gross -0.51 bps  net -28.84 bps/trade
-  PART B k=3 follow maker: trades 140841  gross -0.51 bps  net -4.51 bps/trade
-  PART B k=3 fade   taker: trades 140841  gross 0.51 bps  net -27.81 bps/trade
-  PART B k=3 fade   maker: trades 140841  gross 0.51 bps  net -3.49 bps/trade
-
-── PART A, k=12 bars (60 min of flow), OUT-OF-SAMPLE half, forward 15 min ──
-  bucket        TI range            n      mean fwd bps   up%
-  bottom 10%    -1.000 .. -0.138    66452         0.48   51.1%
-  10-20%        -0.138 .. -0.094    51105         0.04   49.5%
-  20-40%        -0.094 .. -0.037    93684         0.19   49.1%
-  40-60%        -0.037 ..  0.010    90270         0.34   48.3%
-  60-80%         0.010 ..  0.066    97023        -0.20   47.0%
-  80-90%         0.066 ..  0.111    55385        -0.23   46.4%
-  top 10%        0.111 ..  1.000    71606        -0.43   45.4%
-  PART B k=12 follow taker: trades 138058  gross -0.45 bps  net -28.65 bps/trade
-  PART B k=12 follow maker: trades 138058  gross -0.45 bps  net -4.45 bps/trade
-  PART B k=12 fade   taker: trades 138058  gross 0.45 bps  net -27.74 bps/trade
-  PART B k=12 fade   maker: trades 138058  gross 0.45 bps  net -3.55 bps/trade
-
-  Round trip: taker 2x(5bps fee + 5/10bps slip) = 20-30 bps; maker 2x2 = 4 bps
-  (maker assumes EVERY limit fills — v100bt showed real maker fills are
-  adverse-selected, so the maker row is an upper bound, not a result).
+  net %/yr is the simple sum of per-period net returns on a fully invested
+  long/short book (no compounding, no leverage). Cost assumes every leg is
+  closed and reopened each period — an upper bound on turnover.
