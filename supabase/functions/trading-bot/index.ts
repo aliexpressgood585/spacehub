@@ -3059,7 +3059,7 @@ Deno.serve(async (req) => {
             target.set(x.sym, {dir:-1, price:x.price}); invVol.set(x.sym, 1/x.vol); shortInvSum += 1/x.vol }
           if (rotaPaused) target.clear()   // v43 (#4): paused → unwind basket, open nothing
           // v45.1: portfolio estimate up-front (for resize checks + slot sizing)
-          const {data:allOpenRows} = await supabase.from('bot_trades').select('sym,entry_price,size').eq('status','OPEN')
+          const {data:allOpenRows} = await supabase.from('bot_trades').select('sym,entry_price,size,lev').eq('status','OPEN')
           const allExp = (allOpenRows||[]).reduce((a:number,x:any)=>a+Number(x.entry_price)*Number(x.size),0)
           // Portfolio value uses MARGIN posted (see v64.0 note above); allExp
           // stays full notional because the heat cap governs EXPOSURE, and
