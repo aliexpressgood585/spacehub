@@ -7706,6 +7706,161 @@ function runV90bt() {
   console.log(`  regime-switching engine make money before and after costs.`)
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// v91bt — "PICK 3-4 COINS AND TRADE THEM HARD" — the owner's idea, and there
+// are TWO claims inside it that have to be separated or the test proves nothing.
+//
+//  CLAIM 1, CONCENTRATION: put the whole account into fewer positions. This
+//  changes SIZE, not edge. v90bt measured the per-trade edge at -0.0185R GROSS;
+//  concentrating a negative edge loses the same money faster, it does not
+//  reverse the sign. There is nothing to test here — it is arithmetic.
+//
+//  CLAIM 2, SELECTION: that SOME coins are worth fast-trading and most are not,
+//  and that they can be identified in advance. THIS IS REAL, IT IS UNTESTED,
+//  and it is the whole idea. If the good coins persist from one period to the
+//  next, the owner is right and it is exploitable. If the leaders reshuffle
+//  every window, the per-coin spread is just noise and picking winners from
+//  history is curve-fitting with extra steps.
+//
+// PART B IS THE TEST THAT DECIDES IT and it is strictly out-of-sample: rank the
+// coins by realised edge in window N, trade ONLY the top K in window N+1, never
+// peeking forward. That is exactly what a person doing this by hand would do.
+// ════════════════════════════════════════════════════════════════════════════
+function runV91bt() {
+  const TREND_GATE = 25, RANGE_GATE = 18
+  const DW = 20, BB_N = 20, BB_K = 2.0
+  const SL_ATR = 1.0, TP_ATR = 1.5, MAX_BARS = 24
+
+  const sma = (a: number[]) => a.reduce((x, y) => x + y, 0) / a.length
+  const sd = (a: number[]) => { const m = sma(a); return Math.sqrt(sma(a.map(x => (x - m) ** 2))) }
+
+  type Tr = { sym: string; r: number; rGross: number; t: number }
+  const trades: Tr[] = []
+  let spanMin = Infinity, spanMax = -Infinity, scanned = 0
+
+  for (const sym of COINS) {
+    if (!CORE40.has(sym)) continue
+    const b = loadCSV(sym, '15m')
+    if (b.length < 400) continue
+    scanned++
+    spanMin = Math.min(spanMin, b[0].t); spanMax = Math.max(spanMax, b[b.length - 1].t)
+    let i = 70
+    while (i < b.length - 1) {
+      const hist = b.slice(i - 70, i + 1)
+      const adx = S.calcADX(hist.slice(-61), 14)
+      const atr = S.calcATR(hist.slice(-21), 14)
+      if (!(atr > 0)) { i++; continue }
+      const px = b[i].close
+      let side: S.Side | null = null
+      if (adx > TREND_GATE) {
+        const w = b.slice(i - DW, i)
+        const hi = Math.max(...w.map(x => x.high)), lo = Math.min(...w.map(x => x.low))
+        if (px > hi) side = 'LONG'; else if (px < lo) side = 'SHORT'
+      } else if (adx < RANGE_GATE) {
+        const c = b.slice(i - BB_N, i).map(x => x.close)
+        const m = sma(c), s2 = sd(c)
+        if (s2 > 0) {
+          if (px < m - BB_K * s2) side = 'LONG'
+          else if (px > m + BB_K * s2) side = 'SHORT'
+        }
+      }
+      if (!side) { i++; continue }
+      const dirM = side === 'LONG' ? 1 : -1
+      const entry = px, stop = entry - dirM * SL_ATR * atr, tgt = entry + dirM * TP_ATR * atr
+      let exit = entry, bars = 0
+      for (let j = i + 1; j < Math.min(b.length, i + 1 + MAX_BARS); j++) {
+        bars = j - i
+        const adv = side === 'LONG' ? b[j].low : b[j].high
+        const fav = side === 'LONG' ? b[j].high : b[j].low
+        if ((side === 'LONG' && adv <= stop) || (side === 'SHORT' && adv >= stop)) { exit = stop; break }
+        if ((side === 'LONG' && fav >= tgt) || (side === 'SHORT' && fav <= tgt)) { exit = tgt; break }
+        exit = b[j].close
+      }
+      const riskPx = SL_ATR * atr
+      const gross = ((exit - entry) * dirM) / riskPx
+      const costR = (entry * (S.FEE_TAKER + S.SLIP) + exit * (S.FEE_TAKER + S.SLIP)) / riskPx
+      trades.push({ sym, r: gross - costR, rGross: gross, t: b[i].t })
+      i += bars + 1
+    }
+  }
+  const days = (spanMax - spanMin) / 86400000
+  console.log(`  ${scanned} coins, ${days.toFixed(0)} days, ${trades.length} signals`)
+  if (trades.length < 1000) { console.log('  ABORT: too few signals'); return }
+
+  const avg = (xs: Tr[], k: 'r' | 'rGross') =>
+    xs.length ? xs.reduce((a, x) => a + x[k], 0) / xs.length : 0
+
+  console.log(`\n── PART A: is there a per-coin spread at all? ──`)
+  const bySym = new Map<string, Tr[]>()
+  for (const t of trades) { const a = bySym.get(t.sym) ?? []; a.push(t); bySym.set(t.sym, a) }
+  const rows = [...bySym.entries()].map(([sym, xs]) =>
+    ({ sym, n: xs.length, g: avg(xs, 'rGross'), net: avg(xs, 'r') }))
+    .sort((a, b) => b.g - a.g)
+  const posG = rows.filter(r => r.g > 0).length
+  const posN = rows.filter(r => r.net > 0).length
+  console.log(`  coins with POSITIVE GROSS: ${posG} of ${rows.length}`)
+  console.log(`  coins with POSITIVE NET  : ${posN} of ${rows.length}`)
+  console.log(`  best 5 by gross:`)
+  for (const r of rows.slice(0, 5))
+    console.log(`    ${r.sym.padEnd(6)} n=${String(r.n).padStart(4)} gross ${(r.g>=0?'+':'')+r.g.toFixed(4)}  net ${(r.net>=0?'+':'')+r.net.toFixed(4)}`)
+  console.log(`  worst 3 by gross:`)
+  for (const r of rows.slice(-3))
+    console.log(`    ${r.sym.padEnd(6)} n=${String(r.n).padStart(4)} gross ${(r.g>=0?'+':'')+r.g.toFixed(4)}  net ${(r.net>=0?'+':'')+r.net.toFixed(4)}`)
+  console.log(`  A spread ALWAYS exists across 39 coins — that is what randomness`)
+  console.log(`  looks like. Part B is the only thing that separates it from skill.`)
+
+  console.log(`\n── PART B: THE TEST. Rank on the PAST, trade the FUTURE. ──`)
+  console.log(`  Out-of-sample: rank coins by realised edge in window N, then trade`)
+  console.log(`  ONLY the top K in window N+1. No forward peeking anywhere.`)
+  const NW = 8, span = (spanMax - spanMin) / NW
+  const wIdx = (t: number) => Math.min(NW - 1, Math.floor((t - spanMin) / span))
+  const byWin: Tr[][] = Array.from({ length: NW }, () => [])
+  for (const t of trades) byWin[wIdx(t.t)].push(t)
+
+  for (const K of [3, 4, 6, 10]) {
+    let selG = 0, selN = 0, n = 0, wins = 0, periods = 0
+    for (let w = 1; w < NW; w++) {
+      const prev = new Map<string, Tr[]>()
+      for (const t of byWin[w - 1]) { const a = prev.get(t.sym) ?? []; a.push(t); prev.set(t.sym, a) }
+      // Require a minimum sample so the ranking is not driven by a coin that
+      // happened to fire three times and win all three.
+      const ranked = [...prev.entries()]
+        .filter(([, xs]) => xs.length >= 10)
+        .map(([sym, xs]) => ({ sym, g: avg(xs, 'rGross') }))
+        .sort((a, b) => b.g - a.g).slice(0, K).map(x => x.sym)
+      if (!ranked.length) continue
+      const pick = new Set(ranked)
+      const nxt = byWin[w].filter(t => pick.has(t.sym))
+      if (!nxt.length) continue
+      periods++
+      const tot = nxt.reduce((a, x) => a + x.r, 0)
+      if (tot > 0) wins++
+      selG += nxt.reduce((a, x) => a + x.rGross, 0); selN += tot; n += nxt.length
+    }
+    const allN = byWin.slice(1).flat()
+    const baseN = avg(allN, 'r'), baseG = avg(allN, 'rGross')
+    console.log(`  top-${String(K).padEnd(2)}  n=${String(n).padStart(5)}  ` +
+      `gross ${(selG/Math.max(1,n)>=0?'+':'')+(selG/Math.max(1,n)).toFixed(4)}  ` +
+      `NET ${(selN/Math.max(1,n)>=0?'+':'')+(selN/Math.max(1,n)).toFixed(4)}  ` +
+      `totNet ${selN.toFixed(0)}R  periods positive ${wins}/${periods}`)
+    if (K === 3) console.log(`    (trade-everything baseline over the same span: ` +
+      `gross ${baseG.toFixed(4)} net ${baseN.toFixed(4)})`)
+  }
+  console.log(`\n  READ IT LIKE THIS: if the top-K rows beat the baseline, past`)
+  console.log(`  performance predicts future performance and the owner's idea works.`)
+  console.log(`  If they sit on top of it, the leaders reshuffle and the per-coin`)
+  console.log(`  spread in part A was noise.`)
+
+  console.log(`\n── PART C: what concentration does to a NEGATIVE edge ──`)
+  const e = avg(trades, 'r')
+  console.log(`  measured net edge ${e.toFixed(4)}R per trade.`)
+  console.log(`  Concentration multiplies position size, never the sign. Putting a`)
+  console.log(`  \$500 account into 4 names instead of 16 makes each trade 4x the`)
+  console.log(`  size, so the SAME edge compounds 4x faster — downward at this sign.`)
+  console.log(`  Concentration is only ever worth doing on top of a POSITIVE edge,`)
+  console.log(`  which is exactly what part B is testing for.`)
+}
+
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
@@ -7891,6 +8046,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v73bt') {
     console.log(`████ V73BT — Donchian adaptive window (vol-scaled) vs fixed-15 ████`)
     runV73bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v91bt') {
+    console.log(`████ V91BT — can the right 3-4 coins be picked IN ADVANCE? ████`)
+    runV91bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v90bt') {
