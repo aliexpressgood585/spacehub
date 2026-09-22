@@ -8021,6 +8021,113 @@ function runV92bt() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+// v98bt — the owner's aggressive-controlled profile on the 4h ROTA engine.
+// Stop + 1.5R+ target on every trade, size from stop distance, leverage the
+// highest the liquidation buffer allows (<=20x BTC/ETH, <=10x alts), isolated,
+// per-pair tier-1 maintenance margin, 5bps majors / 10bps alts slippage,
+// funding every 8h, and the five breakers. Selection on the first 80% (4
+// walk-forward windows); the last 20% is touched ONCE, by the chosen config.
+// ════════════════════════════════════════════════════════════════════════════
+function runV98bt() {
+  const BAR4 = 14400000, H = 3600000, CASH = 500
+  const to4h = (a: Bar[]): Bar[] => {
+    const out: Bar[] = []; let cur: Bar | null = null; let bk = -1
+    for (const b of a) {
+      const k = Math.floor(b.t / BAR4)
+      if (k !== bk) { if (cur) out.push(cur); bk = k
+        cur = { t: k * BAR4, open: b.open, high: b.high, low: b.low, close: b.close, vol: b.vol } }
+      else if (cur) { cur.high = Math.max(cur.high, b.high); cur.low = Math.min(cur.low, b.low)
+        cur.close = b.close; cur.vol += b.vol }
+    }
+    if (cur) out.push(cur); return out
+  }
+  const data: Record<string, PF.CoinData> = {}
+  let tmin = Infinity, tmax = -Infinity
+  for (const c of COINS) {
+    if (!CORE40.has(c)) continue
+    const h = loadCSV(c, '1h'); if (h.length < 500) continue
+    data[c] = { b1: h, b4: to4h(h) }
+    tmin = Math.min(tmin, h[0].t); tmax = Math.max(tmax, h[h.length - 1].t)
+  }
+  const span = tmax - tmin
+  console.log(`  ${Object.keys(data).length} coins, span ${(span / 86400000).toFixed(0)} days`)
+  if (span < 600 * 86400000) { console.log('  ABORT: need >= 600 days'); return }
+  const WARM = 100 * BAR4
+  const oosFrom = tmin + span * 0.8
+  const IS_W = 4, isSpan = (oosFrom - tmin) / IS_W
+  console.log(`  in-sample ${new Date(tmin).toISOString().slice(0, 10)} .. ${new Date(oosFrom).toISOString().slice(0, 10)} (4 windows)` +
+    `   OOS ${new Date(oosFrom).toISOString().slice(0, 10)} .. ${new Date(tmax).toISOString().slice(0, 10)}`)
+
+  const RP = (o: Partial<PF.RiskProfile>): PF.RiskProfile => ({ riskPct: 0.03, atrMult: 1.5, rr: 1.5,
+    levMajor: 20, levAlt: 10, mmrMajor: 0.004, mmrAlt: 0.01, liqBuffer: 0.3, slipAltBps: 10,
+    maxPositions: 3, dayLossHalt: 0.10, ddHalt: 0.25, lossStreak: 4, streakPauseMs: H, ...o })
+  type Agg = { net: number[]; dd: number; sh: number[]; pf: number[]; feePct: number; liq: number;
+    trades: number; stops: number; tgts: number; dayH: number; strk: number; ddH: number }
+  const one = (from: number, to: number, cfg: Partial<PF.SimConfig>) => {
+    const r = PF.runPortfolio(data, PF.defaultConfig({ startCash: CASH, sleeves: ['ROTA'], rotaK: 2,
+      rotaMs: 12 * H, killSwitch: false, slipBps: 5, ...cfg }), Math.max(from, tmin + WARM), to)
+    const m = PF.metrics(r, CASH, (to - from) / 86400000)
+    const gross = m.netUsd + m.fees + m.slip + m.funding
+    return { r, m, cost: m.fees + m.slip, gross }
+  }
+  const agg = (wins: [number, number][], cfg: Partial<PF.SimConfig>): Agg => {
+    const a: Agg = { net: [], dd: 0, sh: [], pf: [], feePct: 0, liq: 0, trades: 0, stops: 0, tgts: 0, dayH: 0, strk: 0, ddH: 0 }
+    let cost = 0, gross = 0
+    for (const [f, t] of wins) {
+      const x = one(f, t, cfg)
+      a.net.push(x.m.netPct); a.dd = Math.max(a.dd, x.m.maxDD); a.sh.push(x.m.sharpe)
+      a.pf.push(x.m.profitFactor); a.liq += x.r.liquidations; a.trades += x.m.trades
+      a.stops += x.r.breakers.stops; a.tgts += x.r.breakers.targets; a.dayH += x.r.breakers.dayHalts
+      a.strk += x.r.breakers.streakPauses; if (x.r.breakers.ddHaltAt !== null) a.ddH++
+      cost += x.cost; gross += x.gross
+    }
+    a.feePct = gross > 0 ? cost / gross * 100 : Infinity
+    return a
+  }
+  const tot = (a: Agg) => a.net.reduce((x, y) => x + y, 0)
+  const avg = (v: number[]) => v.filter(Number.isFinite).reduce((x, y) => x + y, 0) / Math.max(1, v.filter(Number.isFinite).length)
+  const hdr = () => console.log(`  config                          trades   net%   maxDD  Sharpe   PF  cost/gross  LIQ  stop/tgt  dayH strk ddH  per-window`)
+  const row = (tag: string, a: Agg) => console.log(`  ${tag.padEnd(30)} ${String(a.trades).padStart(6)} ${tot(a).toFixed(1).padStart(7)} ` +
+    `${a.dd.toFixed(1).padStart(6)}% ${avg(a.sh).toFixed(2).padStart(6)} ${avg(a.pf).toFixed(2).padStart(5)} ` +
+    `${(Number.isFinite(a.feePct) ? a.feePct.toFixed(0) + '%' : 'n/a').padStart(9)} ${String(a.liq).padStart(4)} ` +
+    `${(a.stops + '/' + a.tgts).padStart(9)} ${String(a.dayH).padStart(4)} ${String(a.strk).padStart(4)} ${String(a.ddH).padStart(3)}  ` +
+    a.net.map(x => (x >= 0 ? '+' : '') + x.toFixed(0)).join(' '))
+
+  const isWins: [number, number][] = []
+  for (let w = 0; w < IS_W; w++) isWins.push([tmin + w * isSpan, tmin + (w + 1) * isSpan])
+  const oos: [number, number][] = [[oosFrom, tmax]]
+
+  console.log(`\n── IN-SAMPLE: current live config (no stops, $70 margin 2x) for reference ──`)
+  hdr()
+  const LIVE = { leverage: 2, rotaMarginSizing: true } as Partial<PF.SimConfig>
+  row('LIVE K2 2x margin, no stop', agg(isWins, LIVE))
+
+  console.log(`\n── IN-SAMPLE grid (selection happens here, and only here) ──`)
+  hdr()
+  const grid: { tag: string; cfg: Partial<PF.SimConfig>; a: Agg }[] = []
+  for (const riskPct of [0.02, 0.03, 0.05]) for (const atrMult of [1.5, 2.5])
+    for (const rr of [1.5, 2.5]) for (const levAlt of [5, 10]) {
+      const tag = `risk${riskPct * 100}% sl${atrMult}atr rr${rr} alt${levAlt}x`
+      const cfg = { risk: RP({ riskPct, atrMult, rr, levAlt }) }
+      const a = agg(isWins, cfg); grid.push({ tag, cfg, a }); row(tag, a)
+    }
+  const eligible = grid.filter(g => g.a.liq === 0 && g.a.ddH === 0)
+  const pick = (eligible.length ? eligible : grid).slice().sort((x, y) =>
+    (y.a.net.filter(v => v > 0).length - x.a.net.filter(v => v > 0).length) || (tot(y.a) - tot(x.a)))[0]
+  console.log(`\n  SELECTED on in-sample (0 liq, no DD halt, most positive windows, then return): ${pick.tag}`)
+
+  console.log(`\n── OUT-OF-SAMPLE, run once ──`)
+  hdr()
+  row(pick.tag, agg(oos, pick.cfg))
+  row('LIVE K2 2x margin, no stop', agg(oos, LIVE))
+  const stress = { ...pick.cfg, slipBps: 10, risk: { ...(pick.cfg.risk as PF.RiskProfile), slipAltBps: 15 } }
+  row(pick.tag + ' @10/15bps', agg(oos, stress))
+  console.log(`\n  cost/gross = (fees + slippage) / (net + fees + slippage + funding).`)
+  console.log(`  Liquidation checked on each 1h bar's adverse extreme; tier-1 MMR only`)
+  console.log(`  (0.4% BTC/ETH, 1.0% alts) — larger notionals sit in higher tiers, so LIQ is a floor.`)
+  console.log(`  Funding is a flat 0.01%/8h (no archive), longs pay, shorts receive.`)
+}
+// ════════════════════════════════════════════════════════════════════════════
 // v93bt — THE LIVE CONFIGURATION, AT $500, WITH ISOLATED LEVERAGE.
 // The owner's actual account, not a research abstraction.
 //
@@ -8418,6 +8525,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v94bt') {
     console.log(`████ V94BT — the exit: does the breakeven floor cap the fat tail? ████`)
     runV94bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v98bt') {
+    console.log('████ V98BT — aggressive-controlled profile: stops, stop-sized risk, bounded leverage, breakers ████')
+    runV98bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v97bt') {

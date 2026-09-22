@@ -76,6 +76,30 @@ export type AllocPolicy =
   | 'donch_first'  // breakouts get first refusal, ROTA takes the remainder
   | 'rota_first'   // the rotation basket is funded first
 
+/**
+ * v98bt — the owner's aggressive-but-controlled profile, applied to ROTA.
+ * Every position gets an ATR stop and an R-multiple target; size comes from
+ * the STOP DISTANCE (riskPct of equity lost at the stop), never from leverage.
+ * Leverage is then the highest integer <= the cap whose liquidation price sits
+ * at least `liqBuffer` beyond the stop; if even 1x cannot satisfy that, no entry.
+ */
+export interface RiskProfile {
+  riskPct: number          // 0.02-0.05 of equity lost if the stop fills
+  atrMult: number          // stop = atrMult x ATR14(4h)
+  rr: number               // target = rr x stop distance (>= 1.5)
+  levMajor: number         // BTC/ETH cap (10-20)
+  levAlt: number           // everything else (<= 10)
+  mmrMajor: number         // maintenance margin rate, tier 1
+  mmrAlt: number
+  liqBuffer: number        // stop must sit this fraction of the liq distance before liq (0.3)
+  slipAltBps: number       // alts slip more than majors
+  maxPositions: number
+  dayLossHalt: number      // 0.10 -> no entries until next UTC day
+  ddHalt: number           // 0.25 from peak -> flatten and stop for good
+  lossStreak: number       // 4 consecutive losers ->
+  streakPauseMs: number    //   pause entries this long
+}
+
 export interface SimConfig {
   startCash: number
   sleeves: Sleeve[]              // which engines are live this run
@@ -178,6 +202,7 @@ export interface SimConfig {
   rotaSide?: 'both' | 'regime'
   /** v97bt: rebalance period in ms (default S.ROTA_MS, 48h). */
   rotaMs?: number
+  risk?: RiskProfile | null
   /** Leverage: overrides the 0.95 heat cap, or null for the deployed caps. */
   heatCap: number | null
   /**
@@ -283,6 +308,8 @@ interface Position {
   feesPaid: number
   slipPaid: number
   fundingPaid: number
+  tpPx?: number
+  mmr?: number
 }
 
 export interface ClosedTrade {
@@ -322,7 +349,7 @@ export interface Rejection {
   sym: string
   sleeve: Sleeve
   side: S.Side
-  reason: 'cash' | 'heat' | 'net_exposure' | 'per_coin' | 'too_small'
+  reason: 'cash' | 'heat' | 'net_exposure' | 'per_coin' | 'too_small' | 'breaker' | 'max_positions' | 'stop_beyond_liq'
   adx: number
   wantedNotional: number
   /** what this trade WOULD have made, simulated forward with the same rules.
@@ -332,6 +359,8 @@ export interface Rejection {
 }
 
 export interface SimResult {
+  /** v98bt breaker + exit telemetry (zeros when cfg.risk is unset) */
+  breakers: { dayHalts: number; streakPauses: number; ddHaltAt: number | null; stops: number; targets: number }
   closed: ClosedTrade[]
   rejections: Rejection[]
   equity: { t: number; equity: number; cash: number; exposure: number }[]
@@ -370,6 +399,14 @@ export function runPortfolio(
   tTo: number,
 ): SimResult {
   const SLIP = cfg.slipBps / 10_000
+  const RP = cfg.risk ?? null
+  const MAJORS = new Set(['BTC', 'ETH'])
+  const slipFor = (sym: string) => RP && !MAJORS.has(sym) ? RP.slipAltBps / 10_000 : SLIP
+  // v98bt breaker state
+  let lossRun = 0, streakPauseUntil = 0, dayHaltUntil = 0, ddHaltAt: number | null = null
+  let dayKey = -1, dayStartEq = cfg.startCash, peakEq = cfg.startCash
+  let dayHalts = 0, streakPauses = 0, stops = 0, targets = 0
+  const canEnter = (t: number) => ddHaltAt === null && t >= dayHaltUntil && t >= streakPauseUntil
   const syms = Object.keys(data).filter(s => (S.CRYPTO_40 as readonly string[]).includes(s))
 
   let cash = cfg.startCash
@@ -444,7 +481,7 @@ export function runPortfolio(
     let fillPx = px
     let slipCost = 0
     if (applySlip) {
-      fillPx = px * (1 - dirM * SLIP)
+      fillPx = px * (1 - dirM * slipFor(p.sym))
       slipCost = Math.abs(px - fillPx) * p.sizeLeft
     }
     const fee = fillPx * p.sizeLeft * feeRate
@@ -465,6 +502,10 @@ export function runPortfolio(
       heldH: (t - p.openedAt) / H1,
     })
     if (p.sleeve === 'DONCH4H') lastCloseBySym.set(p.sym, t)
+    if (RP) {
+      if (pnl < 0) { if (++lossRun >= RP.lossStreak) { streakPauseUntil = t + RP.streakPauseMs; lossRun = 0; streakPauses++ } }
+      else lossRun = 0
+    }
     closedBySleeve[p.sleeve].push(closed[closed.length - 1])
     open.splice(open.indexOf(p), 1)
   }
@@ -483,14 +524,19 @@ export function runPortfolio(
     // This runs BEFORE the ladder so a stop cannot "save" a position the
     // exchange would already have closed — getting that order wrong is exactly
     // how a leveraged backtest flatters itself.
-    if (cfg.leverage > 1) {
+    if (cfg.leverage > 1 || (p.mmr !== undefined && p.marginPerUnit < p.entry * 0.999)) {
       const adverseX = p.side === 'LONG' ? bar.low : bar.high
       const marginHeld = p.marginPerUnit * p.sizeLeft
       const loss = (p.entry - adverseX) * p.sizeLeft * dirM
-      if (loss >= marginHeld * (1 - cfg.maintMargin)) {
+      // v98bt: with a per-pair rate the exchange rule is exact — liquidated when
+      // margin - loss falls to mmr x notional.
+      const lossLimit = p.mmr !== undefined
+        ? marginHeld - p.mmr * p.entry * p.sizeLeft
+        : marginHeld * (1 - cfg.maintMargin)
+      if (loss >= lossLimit) {
         // The liquidation price, not the bar extreme: the exchange closes you
         // the moment maintenance margin is breached.
-        const liqPx = p.entry - dirM * (marginHeld * (1 - cfg.maintMargin)) / p.sizeLeft
+        const liqPx = p.entry - dirM * lossLimit / p.sizeLeft
         liquidations++
         closePosition(p, liqPx, t, 'liquidated', S.FEE_TAKER, true)
         return
@@ -506,7 +552,17 @@ export function runPortfolio(
 
     // ROTA exits only at rebalance, but its perpetual positions still accrue
     // funding. Returning before the accrual silently exempted this whole book.
-    if (p.sleeve === 'ROTA') return
+    if (p.sleeve === 'ROTA') {
+      // v98bt: exchange-side STOP_MARKET (taker + slip) checked first, then the
+      // target as a resting LIMIT (maker, no slip). Stop-first is conservative.
+      if (p.stopPx > 0) {
+        const adv = p.side === 'LONG' ? bar.low : bar.high
+        const fav = p.side === 'LONG' ? bar.high : bar.low
+        if ((adv - p.stopPx) * dirM <= 0) { stops++; closePosition(p, p.stopPx, t, 'stop', S.FEE_TAKER, true); return }
+        if (p.tpPx && (fav - p.tpPx) * dirM >= 0) { targets++; closePosition(p, p.tpPx, t, 'target', S.FEE_MAKER, false); return }
+      }
+      return
+    }
 
     // The adverse extreme is what can hit a stop; the favourable extreme is what
     // can hit a target or ratchet the trail.
@@ -708,6 +764,45 @@ export function runPortfolio(
   // ── ROTA ───────────────────────────────────────────────────────────────────
   let lastRota = 0
 
+  function openRisk(sym: string, tgt: S.RotaTarget, t: number, mk: number) {
+    const R = RP!
+    const side: S.Side = tgt.dir === 1 ? 'LONG' : 'SHORT'
+    const rej = (reason: Rejection['reason'], n = 0) => rejections.push({ t, sym, sleeve: 'ROTA', side, reason, adx: 0, wantedNotional: n })
+    if (!canEnter(t)) return rej('breaker')
+    if (open.length >= R.maxPositions) return rej('max_positions')
+    const i = idx4.get(sym)!.get(t - H4)
+    if (i === undefined || i < 20) return
+    const atr = S.calcATR(data[sym].b4.slice(i - 20, i + 1), 14)
+    const dirM = tgt.dir
+    const fillPx = mk * (1 + dirM * slipFor(sym))
+    const stopDist = R.atrMult * atr
+    const stopPct = stopDist / fillPx
+    if (!(stopPct > 0)) return
+    const major = MAJORS.has(sym)
+    const mmr = major ? R.mmrMajor : R.mmrAlt
+    const cap = major ? R.levMajor : R.levAlt
+    // liq distance at lev L is 1/L - mmr; the stop must use at most (1-buffer) of it
+    const lev = Math.min(cap, Math.floor(1 / (stopPct / (1 - R.liqBuffer) + mmr)))
+    if (lev < 1) return rej('stop_beyond_liq')
+    const eq = cash + postedMargin() + unrealised(t)
+    const riskUsd = eq * R.riskPct
+    const notional = riskUsd / stopPct
+    const margin = notional / lev
+    const feeIn = notional * S.FEE_TAKER
+    if (cash < margin + feeIn) return rej('cash', notional)
+    const size = notional / fillPx
+    cash -= margin + feeIn
+    fees += feeIn; slip += Math.abs(fillPx - mk) * size; turnover += notional
+    open.push({
+      id: nextId++, sym, sleeve: 'ROTA', side, entry: fillPx, openedAt: t,
+      costBasis: margin, marginPerUnit: margin / size,
+      sizeOrig: size, sizeLeft: size, origSlDist: stopDist, stage: 0,
+      stopPx: fillPx - dirM * stopDist, tpPx: fillPx + dirM * R.rr * stopDist, mmr,
+      riskUsd, legsBanked: 0, adx: lev, unit: 1, wyck: null, lastFundingAt: t,
+      feesPaid: feeIn, slipPaid: Math.abs(fillPx - mk) * size, fundingPaid: 0,
+    })
+  }
+
   function rebalanceRota(t: number) {
     const rows: S.RotaRow[] = []
     for (const sym of syms) {
@@ -730,6 +825,7 @@ export function runPortfolio(
     for (const p of open.filter(x => x.sleeve === 'ROTA').slice()) {
       const tgt = want.get(p.sym)
       const wantSide = tgt ? (tgt.dir === 1 ? 'LONG' : 'SHORT') : null
+      if (wantSide === p.side && RP) { want.delete(p.sym); continue }   // v98bt: stop/target own the exit
       if (wantSide === p.side) {
         const cur = p.entry * p.sizeLeft
         if (S.rotaSizeOk(cur, S.rotaSlotTarget(port, tgt!.weight, cfg.rotaBook ?? undefined) * (cfg.rotaMarginSizing ? cfg.leverage : 1))) { want.delete(p.sym); continue }
@@ -742,6 +838,7 @@ export function runPortfolio(
     for (const [sym, tgt] of want) {
       const mk = markOf(sym, t)
       if (mk === null) continue
+      if (RP) { openRisk(sym, tgt, t, mk); continue }
       const port2 = cash + postedMargin() + unrealised(t)
       const SC = cfg.rotaMarginSizing ? cfg.leverage : 1
       let slot = S.rotaSlotTarget(port2, tgt.weight, cfg.rotaBook ?? undefined) * SC
@@ -814,6 +911,20 @@ export function runPortfolio(
       const i = m.get(t - step)
       if (i === undefined) continue
       manage(p, arr[i], t)
+    }
+
+    // v98bt breakers, checked every management step on marked equity
+    if (RP && ddHaltAt === null) {
+      const eqNow = cash + postedMargin() + unrealised(t)
+      const dk = Math.floor(t / 86_400_000)
+      if (dk !== dayKey) { dayKey = dk; dayStartEq = eqNow }
+      peakEq = Math.max(peakEq, eqNow)
+      if (eqNow <= peakEq * (1 - RP.ddHalt)) {
+        ddHaltAt = t
+        for (const p of open.slice()) { const mk = markOf(p.sym, t); if (mk !== null) closePosition(p, mk, t, 'dd_halt', S.FEE_TAKER, true) }
+      } else if (t >= dayHaltUntil && eqNow <= dayStartEq * (1 - RP.dayLossHalt)) {
+        dayHaltUntil = (dk + 1) * 86_400_000; dayHalts++
+      }
     }
 
     // 2. DECIDE — only on a 4h boundary, only from bars that have closed.
@@ -898,6 +1009,7 @@ export function runPortfolio(
   }
 
   return {
+    breakers: { dayHalts, streakPauses, ddHaltAt, stops, targets },
     closed, rejections, equity,
     finalEquity: equity.length ? equity[equity.length - 1].equity : cfg.startCash,
     peakExposurePct,

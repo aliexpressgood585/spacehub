@@ -428,6 +428,30 @@ const base = P.runPortfolio(data, P.defaultConfig(), tFrom, tTo)
     `ruined=${lev50.ruinedAt !== null}`)
 }
 
+// ─── v98bt risk profile: stop-sized, leverage bounded by liquidation ─────────
+{
+  const RISK: P.RiskProfile = { riskPct: 0.03, atrMult: 1.5, rr: 1.5, levMajor: 20, levAlt: 10,
+    mmrMajor: 0.004, mmrAlt: 0.01, liqBuffer: 0.3, slipAltBps: 10, maxPositions: 3,
+    dayLossHalt: 0.10, ddHalt: 0.25, lossStreak: 4, streakPauseMs: 3_600_000 }
+  const r = P.runPortfolio(data, P.defaultConfig({ sleeves: ['ROTA'], rotaK: 2, risk: RISK,
+    rotaMs: 12 * 3_600_000 }), tFrom, tTo)
+  const rota = r.closed.filter(x => x.sleeve === 'ROTA')
+  check('risk profile: trades happen', rota.length > 0, `n=${rota.length}`)
+  check('risk profile: stop sits before liquidation -> 0 liquidations', r.liquidations === 0, `liq=${r.liquidations}`)
+  check('risk profile: every trade carries a stop (riskUsd > 0)', rota.every(x => x.riskUsd > 0))
+  const worstR = Math.min(...rota.map(x => x.r))
+  check('risk profile: no loss much beyond 1R (stop honoured)', worstR > -1.6, `worstR=${worstR.toFixed(2)}`)
+  const maxLev = Math.max(...rota.map(x => x.adx))
+  check('risk profile: leverage within caps', maxLev <= 20 && maxLev >= 1, `maxLev=${maxLev}`)
+  let maxOpen = 0
+  for (const e of r.equity) void e
+  check('risk profile: stops and targets both fire', r.breakers.stops > 0 && r.breakers.targets > 0,
+    `stops=${r.breakers.stops} targets=${r.breakers.targets}`)
+  void maxOpen
+  const noRisk = P.runPortfolio(data, P.defaultConfig({ sleeves: ['ROTA'] }), tFrom, tTo)
+  check('risk profile unset: breaker telemetry is zero', noRisk.breakers.stops === 0 && noRisk.breakers.dayHalts === 0)
+}
+
 // ─── report ─────────────────────────────────────────────────────────────────
 console.log(`\n  portfolio simulator — ${passed} assertions passed, ${failures.length} failed`)
 if (failures.length) {
