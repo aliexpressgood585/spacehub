@@ -1,25 +1,39 @@
-backtest 2026-09-22T19:55Z mode=v94bt months=12
-████ V94BT — the exit: does the breakeven floor cap the fat tail? ████
+backtest 2026-09-22T22:12Z mode=v95bt months=12
+████ V95BT — concentrated ROTA at $500: fewer names, isolated leverage ████
   39 coins, span 365 days
 
-── THE BREAKEVEN FLOOR: does it protect, or does it cap? ──
-  v61.1 says the floor exits winners at exactly +0.533R that would
-  otherwise run to +2.7R..+7.8R. This is that, measured on dollars.
-  config                     trades      net%  maxDD   per-trade  per-window
-  floor ON  (deployed)        1628    -11.1%   14.7%  avgR +0.0463  +13 +12 -1 -12 -15 -8
-  floor OFF (let it run)      1366    -39.3%   18.3%  avgR -0.2004  +12 -9 -10 -13 -1 -17
+── ROTA K=8 per side (16 positions) ──
+  config             trades      net%  maxDD    worst   LIQ RUIN  per-window
+  K8 1x               1266      4.6%    8.9%     -6.4%     0 0/6  +12 +8 +1 -5 -6 -5
+  K8 2x               1352      9.6%   11.7%    -10.5%     8 0/6  +13 +12 +8 -9 -11 -4
+  K8 3x               1465     28.0%   15.2%    -14.3%    12 0/6  +21 +26 +5 -2 -14 -8
+  K8 5x               1611     16.9%   13.7%    -10.1%    41 0/6  +28 +24 -8 -9 -8 -10
+  K8 10x              1903    -13.9%   12.7%    -10.6%   198 0/6  -8 -10 +21 -11 -9 +3
+  K8 2x @6bps         1384      1.4%   13.3%    -13.4%     7 0/6  +13 +11 +7 -10 -13 -5
 
-── the same at 6bps, because an exit change must survive cost ──
-  config                     trades      net%  maxDD   per-trade  per-window
-  floor ON  @6bps             1684    -22.2%   15.4%  avgR +0.0581  +13 +2 -2 -11 -15 -9
-  floor OFF @6bps             1290    -21.1%   13.6%  avgR -0.1411  +13 -3 -2 -9 -10 -10
+── ROTA K=4 per side (8 positions) ──
+  config             trades      net%  maxDD    worst   LIQ RUIN  per-window
+  K4 1x                645     18.8%   12.3%     -4.7%     0 0/6  +16 +7 -5 -4 +8 -3
+  K4 2x                663     16.6%   16.7%    -12.5%     4 0/6  +15 +14 -11 -2 +13 -12
+  K4 3x                692     11.3%   18.0%    -15.5%    11 0/6  +20 +14 -8 -2 +3 -15
+  K4 5x                806     10.3%   24.4%    -22.9%    27 0/6  +36 +14 -11 -7 +0 -23
+  K4 10x               941    -42.1%   19.6%    -18.2%   125 0/6  -3 +14 -8 -13 -14 -18
+  K4 2x @6bps          676      9.1%   18.5%    -15.1%     3 0/6  +15 +13 -12 -3 +11 -15
 
-── ROTA-only book (what is actually deployed at $500) ──
-  config                     trades      net%  maxDD   per-trade  per-window
-  ROTA floor ON               1266      4.6%    8.9%  avgR +0.0000  +12 +8 +1 -5 -6 -5
-  ROTA floor OFF              1266      4.6%    8.9%  avgR +0.0000  +12 +8 +1 -5 -6 -5
+── ROTA K=3 per side (6 positions) ──
+  config             trades      net%  maxDD    worst   LIQ RUIN  per-window
+  K3 1x                478     15.5%   14.2%     -9.7%     0 0/6  +11 +9 +13 -5 -2 -10
+  K3 2x                481     24.3%   19.4%    -18.2%     4 0/6  +3 +14 +20 -4 +10 -18
+  K3 3x                518     -4.7%   21.4%    -13.0%     7 0/6  +11 +7 -13 +1 -4 -7
+  K3 5x                567     10.3%   21.0%    -15.8%    21 0/6  +17 +13 -4 -5 +6 -16
+  K3 10x               626    -15.5%   22.6%    -16.6%   106 0/6  +17 -7 -17 -7 +11 -13
+  K3 2x @6bps          480     23.6%   20.0%    -18.9%     4 0/6  +6 +13 +19 -5 +9 -19
 
-  RULE 5 CHECK: this is an EXIT change, so trade counts must barely
-  move. v82bt saw 'free' cut 1,076 trades (-22%) at $10k — if that
-  repeats it is a rule-5 rejection however good the return looks,
-  because a trade held longer is a trade not re-entered elsewhere.
+── ROTA K=2 per side (4 positions) ──
+  config             trades      net%  maxDD    worst   LIQ RUIN  per-window
+  K2 1x                301     24.1%   16.9%     -8.7%     0 0/6  +5 +12 +8 +1 +6 -9
+  K2 2x                299     21.3%   19.5%     -8.1%     3 0/6  +2 +15 +9 -4 +8 -8
+  K2 3x                298     36.8%   22.2%     -4.6%     4 0/6  +8 +13 +14 -5 +8 -1
+  K2 5x                313     38.5%   22.6%     -6.6%     9 0/6  +11 +17 +14 -5 +8 -7
+  K2 10x               369      2.1%   17.5%    -13.2%    74 0/6  +2 +2 +10 -9 +10 -13
+  K2 2x @6bps          303     24.8%   19.6%     -4.6%     2 0/6  +1 +15 +9 -5 +7 -2
