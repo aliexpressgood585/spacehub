@@ -1,9 +1,6 @@
 # Format: one line, "MODE [MONTHS]".
 #
-# v91bt: the owner's idea — pick 3-4 coins and trade them hard instead of
-# spraying 16. Two claims inside it. Concentration is arithmetic and cannot
-# flip a negative edge. SELECTION is real and untested: part B ranks coins on
-# window N and trades ONLY the top K in window N+1, strictly out-of-sample.
-# If the leaders persist, the idea works. If they reshuffle, part A's spread
-# was noise.
-v91bt 6
+# v92bt: the combination. Owner coin selection (worth +0.033R gross, v91bt)
+# moved to 4h where the 0.16% round trip is ~5% of the stop instead of 39%,
+# plus the isolated-leverage ceiling: where liquidation comes inside the stop.
+v92bt 6

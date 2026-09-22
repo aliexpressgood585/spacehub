@@ -7861,6 +7861,165 @@ function runV91bt() {
   console.log(`  which is exactly what part B is testing for.`)
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// v92bt — THE COMBINATION: the owner's coin selection, moved to a timeframe
+// where it can survive its own costs, with ISOLATED leverage on top.
+//
+// v91bt found selection is worth +0.033R gross, out-of-sample and real, against
+// a 15m cost of 0.39R — twelve times too small. The diagnosis was the
+// COST-TO-RISK RATIO, not the signal: the same 0.16% round trip is 39% of a 15m
+// ATR stop and about 5% of a 4h one. So this moves the identical engine to 4h
+// and keeps everything else the same.
+//
+// LEVERAGE, and the owner is right about isolated margin: it caps the loss at
+// the margin posted for that one position. But note what it does NOT do —
+// leverage does not change an R-MULTIPLE. A trade that loses 0.4R loses 0.4R at
+// 1x and at 10x; only the dollars scale. So leverage multiplies the SIGN of the
+// edge, which is why v89bt measured it worse at every level on a losing config.
+// What leverage DOES change, and what part C measures, is the point where the
+// LIQUIDATION PRICE COMES INSIDE THE STOP — past that the stop stops protecting
+// anything and every loser becomes a full margin wipe instead of a 1R loss.
+// ════════════════════════════════════════════════════════════════════════════
+function runV92bt() {
+  const TREND_GATE = 25, RANGE_GATE = 18
+  const DW = 20, BB_N = 20, BB_K = 2.0
+  const SL_ATR = 1.0, TP_ATR = 1.5, MAX_BARS = 24
+  const H4 = 14_400_000
+
+  const to4h = (a: Bar[]): Bar[] => {
+    const out: Bar[] = []; let cur: Bar | null = null; let bk = -1
+    for (const b of a) {
+      const k = Math.floor(b.t / H4)
+      if (k !== bk) { if (cur) out.push(cur); bk = k
+        cur = { t: k * H4, open: b.open, high: b.high, low: b.low, close: b.close, vol: b.vol } }
+      else if (cur) { cur.high = Math.max(cur.high, b.high); cur.low = Math.min(cur.low, b.low)
+        cur.close = b.close; cur.vol += b.vol }
+    }
+    if (cur) out.push(cur); return out
+  }
+  const sma = (a: number[]) => a.reduce((x, y) => x + y, 0) / a.length
+  const sd = (a: number[]) => { const m = sma(a); return Math.sqrt(sma(a.map(x => (x - m) ** 2))) }
+
+  type Tr = { sym: string; r: number; rGross: number; t: number; stopPct: number }
+
+  const scan = (tf: '15m' | '4h'): { trades: Tr[]; days: number } => {
+    const trades: Tr[] = []
+    let lo = Infinity, hi = -Infinity
+    for (const sym of COINS) {
+      if (!CORE40.has(sym)) continue
+      const raw = loadCSV(sym, tf === '15m' ? '15m' : '1h')
+      if (raw.length < 400) continue
+      const b = tf === '4h' ? to4h(raw) : raw
+      if (b.length < 200) continue
+      lo = Math.min(lo, b[0].t); hi = Math.max(hi, b[b.length - 1].t)
+      let i = 70
+      while (i < b.length - 1) {
+        const hist = b.slice(i - 70, i + 1)
+        const adx = S.calcADX(hist.slice(-61), 14)
+        const atr = S.calcATR(hist.slice(-21), 14)
+        if (!(atr > 0)) { i++; continue }
+        const px = b[i].close
+        let side: S.Side | null = null
+        if (adx > TREND_GATE) {
+          const w = b.slice(i - DW, i)
+          const h2 = Math.max(...w.map(x => x.high)), l2 = Math.min(...w.map(x => x.low))
+          if (px > h2) side = 'LONG'; else if (px < l2) side = 'SHORT'
+        } else if (adx < RANGE_GATE) {
+          const c = b.slice(i - BB_N, i).map(x => x.close)
+          const m = sma(c), s2 = sd(c)
+          if (s2 > 0) { if (px < m - BB_K * s2) side = 'LONG'; else if (px > m + BB_K * s2) side = 'SHORT' }
+        }
+        if (!side) { i++; continue }
+        const dirM = side === 'LONG' ? 1 : -1
+        const entry = px, stop = entry - dirM * SL_ATR * atr, tgt = entry + dirM * TP_ATR * atr
+        let exit = entry, bars = 0
+        for (let j = i + 1; j < Math.min(b.length, i + 1 + MAX_BARS); j++) {
+          bars = j - i
+          const adv = side === 'LONG' ? b[j].low : b[j].high
+          const fav = side === 'LONG' ? b[j].high : b[j].low
+          if ((side === 'LONG' && adv <= stop) || (side === 'SHORT' && adv >= stop)) { exit = stop; break }
+          if ((side === 'LONG' && fav >= tgt) || (side === 'SHORT' && fav <= tgt)) { exit = tgt; break }
+          exit = b[j].close
+        }
+        const riskPx = SL_ATR * atr
+        const gross = ((exit - entry) * dirM) / riskPx
+        const costR = (entry * (S.FEE_TAKER + S.SLIP) + exit * (S.FEE_TAKER + S.SLIP)) / riskPx
+        trades.push({ sym, r: gross - costR, rGross: gross, t: b[i].t, stopPct: riskPx / entry })
+        i += bars + 1
+      }
+    }
+    return { trades, days: (hi - lo) / 86400000 }
+  }
+
+  const avg = (xs: Tr[], k: 'r' | 'rGross') =>
+    xs.length ? xs.reduce((a, x) => a + x[k], 0) / xs.length : 0
+
+  console.log(`\n── PART A: same engine, 15m vs 4h. Does the cost ratio fix it? ──`)
+  const res: Record<string, { trades: Tr[]; days: number }> = {}
+  for (const tf of ['15m', '4h'] as const) {
+    const r = scan(tf); res[tf] = r
+    const st = r.trades.reduce((a, x) => a + x.stopPct, 0) / Math.max(1, r.trades.length)
+    const cost = avg(r.trades, 'rGross') - avg(r.trades, 'r')
+    console.log(`  ${tf.padEnd(4)} n=${String(r.trades.length).padStart(6)}  ` +
+      `stop ${(st * 100).toFixed(2)}% of price  cost ${cost.toFixed(4)}R  ` +
+      `gross ${(avg(r.trades,'rGross')>=0?'+':'')+avg(r.trades,'rGross').toFixed(4)}  ` +
+      `NET ${(avg(r.trades,'r')>=0?'+':'')+avg(r.trades,'r').toFixed(4)}  ` +
+      `${(r.trades.length/(r.days*24)).toFixed(1)}/hr`)
+  }
+
+  console.log(`\n── PART B: + the owner's coin selection, out-of-sample, on 4h ──`)
+  const T = res['4h'].trades
+  if (T.length > 500) {
+    const lo = Math.min(...T.map(x => x.t)), hi = Math.max(...T.map(x => x.t))
+    const NW = 8, span = (hi - lo) / NW
+    const byWin: Tr[][] = Array.from({ length: NW }, () => [])
+    for (const t of T) byWin[Math.min(NW - 1, Math.floor((t.t - lo) / span))].push(t)
+    const base = byWin.slice(1).flat()
+    console.log(`  baseline (all coins)  n=${String(base.length).padStart(5)}  ` +
+      `gross ${avg(base,'rGross').toFixed(4)}  NET ${avg(base,'r').toFixed(4)}`)
+    for (const K of [3, 4, 6, 10]) {
+      let sel: Tr[] = [], pos = 0, per = 0
+      for (let w = 1; w < NW; w++) {
+        const prev = new Map<string, Tr[]>()
+        for (const t of byWin[w - 1]) { const a = prev.get(t.sym) ?? []; a.push(t); prev.set(t.sym, a) }
+        const pick = new Set([...prev.entries()].filter(([, xs]) => xs.length >= 5)
+          .map(([sym, xs]) => ({ sym, g: avg(xs, 'rGross') }))
+          .sort((a, b) => b.g - a.g).slice(0, K).map(x => x.sym))
+        const nxt = byWin[w].filter(t => pick.has(t.sym))
+        if (!nxt.length) continue
+        per++; if (nxt.reduce((a, x) => a + x.r, 0) > 0) pos++
+        sel = sel.concat(nxt)
+      }
+      console.log(`  top-${String(K).padEnd(2)}  n=${String(sel.length).padStart(5)}  ` +
+        `gross ${(avg(sel,'rGross')>=0?'+':'')+avg(sel,'rGross').toFixed(4)}  ` +
+        `NET ${(avg(sel,'r')>=0?'+':'')+avg(sel,'r').toFixed(4)}  ` +
+        `totNet ${sel.reduce((a,x)=>a+x.r,0).toFixed(0)}R  periods positive ${pos}/${per}`)
+    }
+  }
+
+  console.log(`\n── PART C: ISOLATED LEVERAGE — where the stop stops protecting you ──`)
+  console.log(`  Isolated margin liquidates at roughly 1/leverage adverse (minus the`)
+  console.log(`  maintenance margin). While that distance is WIDER than the stop, the`)
+  console.log(`  stop fires first and leverage only scales dollars. Once it is`)
+  console.log(`  NARROWER, every loser becomes a full margin wipe instead of a 1R loss.`)
+  for (const tf of ['15m', '4h'] as const) {
+    const t = res[tf].trades
+    if (!t.length) continue
+    const stops = t.map(x => x.stopPct).sort((a, b) => a - b)
+    const med = stops[stops.length >> 1]
+    const p90 = stops[Math.floor(stops.length * 0.90)]
+    const safeMed = 1 / med, safeWide = 1 / p90
+    console.log(`  ${tf.padEnd(4)} median stop ${(med*100).toFixed(2)}% -> stop is inside liquidation up to ` +
+      `**${safeMed.toFixed(0)}x**; for the widest 10% of stops only to ${safeWide.toFixed(0)}x`)
+  }
+  const e15 = avg(res['15m'].trades, 'r'), e4 = avg(res['4h'].trades, 'r')
+  console.log(`\n  AND THE PART LEVERAGE CANNOT TOUCH: an R-multiple is leverage-invariant.`)
+  console.log(`  15m nets ${e15.toFixed(4)}R per trade, 4h nets ${e4.toFixed(4)}R. At 10x those are`)
+  console.log(`  ${(e15*10).toFixed(3)}R and ${(e4*10).toFixed(3)}R of the account per trade — the same`)
+  console.log(`  numbers, ten times louder. v89bt measured this end to end: 2x -10.8%,`)
+  console.log(`  3x -45.0%, 10x -118.7%, 100x -342.1%. Leverage is a volume knob.`)
+}
+
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
@@ -8046,6 +8205,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v73bt') {
     console.log(`████ V73BT — Donchian adaptive window (vol-scaled) vs fixed-15 ████`)
     runV73bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v92bt') {
+    console.log(`████ V92BT — selection + slower timeframe + isolated leverage ████`)
+    runV92bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v91bt') {
