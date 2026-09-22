@@ -51,6 +51,21 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## v103bt (2026-09-22 23:35) — ORDER BOOK (bookDepth archive): REJECTED.
+New data source: `data.binance.vision/.../daily/bookDepth` — cumulative resting
+notional at +-0.2/1/2/3/4/5% of mid every ~30s. `backtest/fetch-bookdepth.sh`
+keeps the last snapshot per 5m bucket at +-0.2% and +-1% (gawk). 10 coins,
+70 days returned (of 90 asked), 201,600 snapshots, OOS second half.
+    OBI 0.2%: the only ordered effect is at 4h — heavy BIDS -> weaker next 4h
+    (top decile +5.2 bps vs +12..14 mid). Fade: gross +4.74 bps, net taker
+    -22.9, and only the impossible every-limit-fills maker row is +0.74.
+    OBI 1%: flat/noise at every horizon (|gross| <= 0.66 bps).
+Every forward bucket is positive at 4h — the test half was an up-drift, so the
+level is market beta, not signal. EIGHTH rejection this session. Standing
+conclusion for the owner: with public data (OHLCV, taker flow, L2 depth
+snapshots) there is no sub-day edge that survives Binance costs on this
+universe; the only measured edge is 4h+ cross-sectional momentum (ROTA).
+
 ## v102bt (2026-09-22 23:30) — ORDER FLOW AT 1-24h HOLDS: REJECTED, all 24 rows.
 Cross-sectional: rank 10 coins by taker imbalance over L=4/24/72h, long bottom
 2 / short top 2 (fade) or reverse (follow), hold H=1/4/12/24h, re-rank.
