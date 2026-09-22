@@ -6133,7 +6133,7 @@ function runV80bt() {
 
   const line = (tag: string, ws: { m: PF.Metrics }[]) => {
     const net = ws.map(x => x.m.netPct)
-    const all6 = ws.length >= NW - 1 && net.every(x => x > 0)
+    const all6 = PF.allSixPositive(net)
     const tot = ws.reduce((s, x) => s + x.m.netPct, 0)
     const tr = ws.reduce((s, x) => s + x.m.trades, 0)
     const rj = ws.reduce((s, x) => s + x.m.rejected, 0)
@@ -6567,7 +6567,7 @@ function runV82bt() {
     const net = ms.map(x => x.netPct)
     return {
       ms, net, tot: net.reduce((a, b) => a + b, 0),
-      all6: ms.length >= NW - 1 && net.every(x => x > 0),
+      all6: PF.allSixPositive(net),
       trades: ms.reduce((a, x) => a + x.trades, 0),
       dd: Math.max(...ms.map(x => x.maxDD)),
     }
@@ -6696,7 +6696,7 @@ function runV83bt() {
     }
     const net = ms.map(x => x.netPct)
     return { ms, net, tot: net.reduce((a, b) => a + b, 0),
-      all6: ms.length >= NW - 1 && net.every(x => x > 0),
+      all6: PF.allSixPositive(net),
       trades: ms.reduce((a, x) => a + x.trades, 0),
       dd: Math.max(...ms.map(x => x.maxDD)), dPaused, rPaused, unwinds }
   }
@@ -6816,7 +6816,7 @@ function runV84bt() {
     }
     const net = ms.map(x => x.netPct)
     return { ms, net, all, tot: net.reduce((a, b) => a + b, 0),
-      all6: ms.length >= NW - 1 && net.every(x => x > 0),
+      all6: PF.allSixPositive(net),
       trades: ms.reduce((a, x) => a + x.trades, 0),
       dd: Math.max(...ms.map(x => x.maxDD)) }
   }

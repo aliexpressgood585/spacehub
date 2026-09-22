@@ -211,6 +211,23 @@ const base = P.runPortfolio(data, P.defaultConfig(), tFrom, tTo)
   // More slippage must never help.
   const s0 = P.runPortfolio(data, P.defaultConfig({ slipBps: 0 }), tFrom, tTo)
   const s10 = P.runPortfolio(data, P.defaultConfig({ slipBps: 10 }), tFrom, tTo)
+  check('zero-slippage scenario charges no slippage', s0.slip === 0 &&
+    s0.closed.every(t => t.slip === 0))
+  // An initial stop's level can be reconstructed independently from the entry
+  // fill and original risk. This catches a caller forgetting to pass its
+  // stress cost into ladderStep even if the cost telemetry itself looks right.
+  for (const [bps, result] of [[0, s0], [10, s10]] as const) {
+    const stops = result.closed.filter(t => t.sleeve === 'DONCH4H' && t.reason === 'sl' && t.legsBanked === 0)
+    check(`${bps}bps fixture exercises initial stops`, stops.length > 0)
+    check(`${bps}bps stop fills use the scenario cost`, stops.every(t => {
+      const dir = t.side === 'LONG' ? 1 : -1
+      const fraction = bps / 10000
+      const signalPx = t.entry / (1 + dir * fraction)
+      const qty = t.notional / t.entry
+      const stop = signalPx - dir * t.riskUsd / qty
+      return Math.abs(t.exit - stop * (1 - dir * fraction)) < 1e-8
+    }))
+  }
   check('higher slippage lowers the result', s10.finalEquity < s0.finalEquity,
     `0bps ${s0.finalEquity.toFixed(0)} vs 10bps ${s10.finalEquity.toFixed(0)}`)
 
@@ -249,6 +266,10 @@ const base = P.runPortfolio(data, P.defaultConfig(), tFrom, tTo)
     donOnly.closed.every(t => t.sleeve === 'DONCH4H') && donOnly.closed.length > 0)
   check('ROTA-only runs only rotations',
     rotaOnly.closed.every(t => t.sleeve === 'ROTA') && rotaOnly.closed.length > 0)
+  check('held ROTA positions accrue funding too',
+    rotaOnly.closed.some(t => t.heldH >= 8 && t.funding !== 0))
+  check('ROTA funding has the correct side', rotaOnly.closed.every(t =>
+    t.side === 'LONG' ? t.funding >= 0 : t.funding <= 0))
 
   // THE HEADLINE QUESTION this simulator was built to answer: does one sleeve
   // starve the other? On synthetic data the answer is meaningless, but the

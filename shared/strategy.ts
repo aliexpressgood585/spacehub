@@ -491,7 +491,13 @@ export function ladderStep(
    * The live bot's behaviour is the default and must stay the default.
    */
   trailFloorBreakeven = true,
+  /** Adverse market-fill fraction; callers running cost stress tests must pass
+   * their scenario here too. Resting maker targets remain at their limit. */
+  marketSlip = SLIP,
 ): LadderAction {
+  if (!Number.isFinite(marketSlip) || marketSlip < 0 || marketSlip >= 1) {
+    throw new RangeError('marketSlip must be finite and in [0, 1)')
+  }
   const { dirM, p06, p10, trailDist } = ladderLevels(pos)
   const hitStop = pos.side === 'LONG' ? px <= pos.stopPx : px >= pos.stopPx
 
@@ -513,7 +519,7 @@ export function ladderStep(
       // historical backtest here makes (v79bt fills at `stop` exactly), so the
       // numbers stay comparable, and it is far closer to the truth than booking
       // every stop at the bar's extreme.
-      const exit = pos.stopPx * (1 - dirM * SLIP)
+      const exit = pos.stopPx * (1 - dirM * marketSlip)
       return { kind: 'close', reason: 'sl', px: exit, qty: pos.sizeLeft, fee: exit * pos.sizeLeft * FEE_TAKER }
     }
     const tgt = pos.stage === 0 ? p06 : p10
@@ -529,7 +535,7 @@ export function ladderStep(
       }
     }
     if (ageMs > MAX_HOLD_MS) {
-      const exit = px * (1 - dirM * SLIP)
+      const exit = px * (1 - dirM * marketSlip)
       return { kind: 'close', reason: 'timeout', px: exit, qty: pos.sizeLeft, fee: exit * pos.sizeLeft * FEE_TAKER }
     }
     return { kind: 'none', stopPx: pos.stopPx }
@@ -544,7 +550,7 @@ export function ladderStep(
   if (hit || ageMs > MAX_HOLD_MS) {
     // Same rule as the initial stop: the trailing exit fills at the trailing
     // LEVEL. A timeout is a genuine market order, so it fills at the mark.
-    const exit = (hit ? nt : px) * (1 - dirM * SLIP)
+    const exit = (hit ? nt : px) * (1 - dirM * marketSlip)
     return {
       kind: 'close', reason: hit ? 'trail' : 'timeout', px: exit,
       qty: pos.sizeLeft, fee: exit * pos.sizeLeft * FEE_TAKER,
