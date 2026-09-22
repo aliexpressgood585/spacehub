@@ -541,7 +541,7 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v68.1'
+const BOT_VERSION = 'v69.0'
 // v68.0 breakers — owner spec, deliberately NOT env/shim-configurable.
 const DAY_LOSS_HALT = 0.10, DD_HALT = 0.25, LOSS_STREAK = 4, BRK_STREAK_PAUSE_MS = 3_600_000, ERR_HALT = 10
 const RELEASE_SHA = String((globalThis as any).__RELEASE_SHA ?? 'unpinned')
@@ -3083,6 +3083,12 @@ Deno.serve(async (req) => {
       const ROTA_MS = _rotaH >= 4 && _rotaH <= 48 ? _rotaH * 3_600_000 : S.ROTA_MS
       const ROTA_SIDE = (Deno.env.get('ROTA_SIDE') ?? (globalThis as any).__ROTA_SIDE) === 'regime' ? 'regime' : 'both'
       const ROTA_LB = S.ROTA_LB
+      // v69.0 (v104bt): momentum ensemble lookbacks in 4h bars, e.g. '42,84,168'
+      const ROTA_LBS: number[] = String(Deno.env.get('ROTA_LBS') ?? (globalThis as any).__ROTA_LBS ?? '')
+        .split(',').map(Number).filter(n => Number.isInteger(n) && n >= 6 && n <= 300)
+      // v69.0 (v104bt): vol target — slots x min(1, target / basket vol), floor 0.2
+      const _vt = Number(Deno.env.get('ROTA_VOL_TARGET') ?? (globalThis as any).__ROTA_VOL_TARGET ?? 0)
+      const ROTA_VOL_TARGET = Number.isFinite(_vt) && _vt > 0 && _vt < 5 ? _vt : 0
       const ROTA_K = Math.min(S.ROTA_K, Math.max(1, Math.floor(
         Number(Deno.env.get('ROTA_K') ?? (globalThis as any).__ROTA_K ?? S.ROTA_K) || S.ROTA_K)))
       const lastRota = state.rebalanced_at ? new Date(state.rebalanced_at).getTime() : 0
@@ -3095,11 +3101,18 @@ Deno.serve(async (req) => {
         const ROTA_UNIVERSE: string[] = [...S.CRYPTO_40]
         for (const sym of ROTA_UNIVERSE) {
           try {
-            const b4 = await fetchBars(sym, '4h', ROTA_LB+6)
-            if (b4.length < ROTA_LB+2) continue
+            const b4 = await fetchBars(sym, '4h', Math.max(ROTA_LB, ...ROTA_LBS)+6)
+            if (b4.length < Math.max(ROTA_LB, ...ROTA_LBS)+2) continue
             const c4 = b4.slice(0,-1)
             const p1 = c4[c4.length-1].close, p0 = c4[c4.length-1-ROTA_LB]?.close
             if (!p0 || !p1) continue
+            // v69.0: momentum ensemble (v104bt) — mean of simple returns over ROTA_LBS
+            let mom = p1/p0-1
+            if (ROTA_LBS.length) {
+              const ps = ROTA_LBS.map(lb => c4[c4.length-1-lb]?.close)
+              if (ps.some(p => !(p > 0))) continue
+              mom = ps.reduce((a:number,p:number)=>a + (p1/p-1), 0) / ps.length
+            }
             // v43 (#2): realized vol (stdev of 4h returns over the lookback) for inverse-vol weighting
             const rets: number[] = []
             for (let k=Math.max(1,c4.length-ROTA_LB); k<c4.length; k++) {
@@ -3108,7 +3121,7 @@ Deno.serve(async (req) => {
             }
             const mu = rets.reduce((a,b)=>a+b,0)/Math.max(1,rets.length)
             const vol = Math.sqrt(rets.reduce((a,b)=>a+(b-mu)**2,0)/Math.max(1,rets.length))
-            momList.push({sym, mom: p1/p0-1, price: p1, vol: Math.max(vol, 0.001)})
+            momList.push({sym, mom, price: p1, vol: Math.max(vol, 0.001)})
           } catch { /* skip coin */ }
         }
         if (momList.length >= S.ROTA_K*4) {
@@ -3145,7 +3158,16 @@ Deno.serve(async (req) => {
           // puts ~95% of a 1x account to work (4 x ~24.5%).
           const _ss = Number(Deno.env.get('ROTA_SLOT_SCALE') ?? (globalThis as any).__ROTA_SLOT_SCALE ?? 1)
           const SLOT_SCALE = Number.isFinite(_ss) ? Math.min(2, Math.max(1, _ss)) : 1
-          const SCALE = (MARGIN_SIZING ? LEV : 1) * SLOT_SCALE
+          let SCALE = (MARGIN_SIZING ? LEV : 1) * SLOT_SCALE
+          if (ROTA_VOL_TARGET > 0) {
+            const tv = [...target.keys()].map(k => momList.find(m => m.sym === k)?.vol ?? 0).filter(v => v > 0)
+            const basketVol = tv.length ? tv.reduce((a,b)=>a+b,0)/tv.length * Math.sqrt(6*365) : 0
+            if (basketVol > 0) {
+              const vs = Math.max(0.2, Math.min(1, ROTA_VOL_TARGET / basketVol))
+              SCALE *= vs
+              log.push(`ROTA vol target ${ROTA_VOL_TARGET} / basket ${basketVol.toFixed(2)} -> size x${vs.toFixed(2)}`)
+            }
+          }
           const slotTarget = (sym2:string, dir2:1|-1) => {
             const sideSum = dir2===1 ? longInvSum : shortInvSum
             const w = sideSum>0 ? (invVol.get(sym2)??0)/sideSum : 1/ROTA_K
