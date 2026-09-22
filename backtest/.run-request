@@ -1,8 +1,7 @@
 # Format: one line, "MODE [MONTHS]".
 #
-# v89bt: leverage for real — margin accounting, isolated liquidation at
-# maintenance margin, and account death. v88bt's leverage rows were identical
-# because the engine was a cash account that could not borrow. Built with the
-# liquidation engine attached on purpose: a leverage model without one reports
-# profits earned by a dead account.
-v89bt 36
+# v90bt: the fast regime-switching engine the owner asked for — 15m bars,
+# breakout when ADX is high, band-fade when ADX is low, tight stop, quick target.
+# Reports GROSS vs NET side by side, because every previous fast-trading result
+# here died on that comparison and it is the only question that matters.
+v90bt 6
