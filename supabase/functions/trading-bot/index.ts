@@ -541,7 +541,7 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v68.0'
+const BOT_VERSION = 'v68.1'
 // v68.0 breakers — owner spec, deliberately NOT env/shim-configurable.
 const DAY_LOSS_HALT = 0.10, DD_HALT = 0.25, LOSS_STREAK = 4, BRK_STREAK_PAUSE_MS = 3_600_000, ERR_HALT = 10
 const RELEASE_SHA = String((globalThis as any).__RELEASE_SHA ?? 'unpinned')
@@ -3140,7 +3140,12 @@ Deno.serve(async (req) => {
           // really enlarges the position and a ~9.5% adverse move liquidates the
           // slot's margin and nothing else. Off = v65.0 (notional-sized) exactly.
           const MARGIN_SIZING = (Deno.env.get('ROTA_MARGIN_SIZING') ?? (globalThis as any).__ROTA_MARGIN_SIZING) === '1'
-          const SCALE = MARGIN_SIZING ? LEV : 1
+          // v68.1: owner "use all the money" — a deploy-time multiplier on the slot
+          // target (and the per-coin cap with it), bounded [1, 2]. 1.75 on K=2
+          // puts ~95% of a 1x account to work (4 x ~24.5%).
+          const _ss = Number(Deno.env.get('ROTA_SLOT_SCALE') ?? (globalThis as any).__ROTA_SLOT_SCALE ?? 1)
+          const SLOT_SCALE = Number.isFinite(_ss) ? Math.min(2, Math.max(1, _ss)) : 1
+          const SCALE = (MARGIN_SIZING ? LEV : 1) * SLOT_SCALE
           const slotTarget = (sym2:string, dir2:1|-1) => {
             const sideSum = dir2===1 ? longInvSum : shortInvSum
             const w = sideSum>0 ? (invVol.get(sym2)??0)/sideSum : 1/ROTA_K
