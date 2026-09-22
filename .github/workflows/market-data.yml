@@ -29,11 +29,19 @@ jobs:
         shell: bash
         run: |
           mkdir -p capture
-          set +e
-          timeout --signal=INT --kill-after=10s 90s python -u scripts/collect-market-data.py --db capture/market.sqlite
-          result=$?
-          set -e
-          if [ "$result" != 0 ] && [ "$result" != 124 ]; then exit "$result"; fi
+          python - <<'PY'
+          import asyncio, importlib.util
+          spec = importlib.util.spec_from_file_location('recorder', 'scripts/collect-market-data.py')
+          recorder = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(recorder)
+          async def sample():
+              try:
+                  async with asyncio.timeout(90):
+                      await recorder.collect('capture/market.sqlite')
+              except TimeoutError:
+                  pass
+          asyncio.run(sample())
+          PY
       - name: Verify data actually arrived
         run: |
           python - <<'PY'
