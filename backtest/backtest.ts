@@ -8035,7 +8035,7 @@ function runV92bt() {
 // and account death. Each position is collateral for itself, which is what the
 // owner asked for.
 // ════════════════════════════════════════════════════════════════════════════
-function runV93bt(concentrated = false) {
+function runV93bt(concentrated = false, marginSized = false) {
   const NW = 6, BAR4 = 14400000
   const to4h = (a: Bar[], ms: number): Bar[] => {
     const out: Bar[] = []; let cur: Bar | null = null; let bk = -1
@@ -8088,6 +8088,22 @@ function runV93bt(concentrated = false) {
   const hdr = () => console.log(
     `  config             trades      net%  maxDD    worst   LIQ RUIN  per-window`)
 
+  if (marginSized) {
+    // v96bt — owner's model: the slot is the MARGIN ($70), notional = margin x
+    // leverage ($700 at 10x); a ~9.5% adverse move liquidates that $70 only.
+    // Also re-runs v95bt's notional-sized K2 rows on the corrected simulator
+    // (v95bt/v93bt/v89bt counted notional, not margin, as portfolio value).
+    for (const K of [2, 4]) {
+      console.log(`\n── K=${K}, CORRECTED simulator, notional-sized (what v65.0 runs) ──`)
+      hdr()
+      for (const L of [1, 3, 10]) row(`K${K} ${L}x`, run(L, { rotaK: K }))
+      console.log(`\n── K=${K}, MARGIN-SIZED: slot = margin, notional = margin x lev ──`)
+      hdr()
+      for (const L of [1, 2, 3, 5, 10, 20]) row(`K${K} m${L}x`, run(L, { rotaK: K, rotaMarginSizing: true }))
+      row(`K${K} m10x @6bps`, run(10, { rotaK: K, rotaMarginSizing: true, slipBps: 6 }))
+    }
+    return
+  }
   if (concentrated) {
     // v95bt — owner: "not 16 positions at once". Fewer names per side, same
     // engine, same $500, isolated leverage. K=8 is the deployed control.
@@ -8388,6 +8404,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v94bt') {
     console.log(`████ V94BT — the exit: does the breakeven floor cap the fat tail? ████`)
     runV94bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v96bt') {
+    console.log('████ V96BT — margin-sized ROTA ($70 x leverage), corrected simulator ████')
+    runV93bt(false, true)
     return
   }
   if (Deno.env.get('BT_MODE') === 'v95bt') {

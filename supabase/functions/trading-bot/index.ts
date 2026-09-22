@@ -541,7 +541,7 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v65.0'
+const BOT_VERSION = 'v66.0'
 const RELEASE_SHA = String((globalThis as any).__RELEASE_SHA ?? 'unpinned')
 // Universe fingerprint: a cheap order-independent digest, so a silently edited
 // CRYPTO_40 shows up as a different release even at an identical SHA.
@@ -3071,6 +3071,12 @@ Deno.serve(async (req) => {
           const allMargin = (allOpenRows||[]).reduce((a:number,x:any)=>
             a + Number(x.entry_price)*Number(x.size)/(Math.max(1, Number(x.lev)||1)), 0)
           const port = balance + allMargin
+          // v66.0: MARGIN SIZING (owner: "$70 at 10x = $700"). When on, the slot
+          // target is the MARGIN posted and notional = margin x LEV, so leverage
+          // really enlarges the position and a ~9.5% adverse move liquidates the
+          // slot's margin and nothing else. Off = v65.0 (notional-sized) exactly.
+          const MARGIN_SIZING = (Deno.env.get('ROTA_MARGIN_SIZING') ?? (globalThis as any).__ROTA_MARGIN_SIZING) === '1'
+          const SCALE = MARGIN_SIZING ? LEV : 1
           const slotTarget = (sym2:string, dir2:1|-1) => {
             const sideSum = dir2===1 ? longInvSum : shortInvSum
             const w = sideSum>0 ? (invVol.get(sym2)??0)/sideSum : 1/ROTA_K
@@ -3090,7 +3096,7 @@ Deno.serve(async (req) => {
             const wantDir = tgt ? (tgt.dir===1?'LONG':'SHORT') : null
             if (wantDir === t.side) {
               const curNotional = Number(t.entry_price)*Number(t.size)
-              const tgtNotional = slotTarget(t.sym, tgt!.dir)
+              const tgtNotional = slotTarget(t.sym, tgt!.dir) * SCALE
               // v64.1: a slot opened at a different leverage is NOT kept — otherwise
               // a leverage change never reaches a basket whose sizes stay in band.
               const levOk = Math.max(1, Number(t.lev)||1) === LEV
@@ -3119,14 +3125,14 @@ Deno.serve(async (req) => {
           }
           // open the new/resized slots (inverse-vol weights, 70% book)
           for (const [sym,tgt] of target) {
-            let slotNotional = slotTarget(sym, tgt.dir)
+            let slotNotional = slotTarget(sym, tgt.dir) * SCALE
             // v46: combined per-coin exposure cap 20% of portfolio (rotation +
             // breakout on the same coin was doubling concentration)
             const symExp = (allOpenRows||[]).filter((x:any)=>x.sym===sym)
               .reduce((a:number,x:any)=>a+Number(x.entry_price)*Number(x.size),0)
-            slotNotional = Math.min(slotNotional, Math.max(0, port*S.PER_COIN_CAP - symExp))
-            if (slotNotional < port*0.01) { log.push(`ROTA_SKIP ${sym}: per-coin cap`); logSkip(sym,'ROTA','per_coin_cap',{slot:+slotNotional.toFixed(0)}); continue }
-            if (balance < slotNotional) { log.push(`ROTA_SKIP ${sym}: insufficient cash`); logSkip(sym,'ROTA','insufficient_cash',{slot:+slotNotional.toFixed(0), cash:+balance.toFixed(0)}); continue }
+            slotNotional = Math.min(slotNotional, Math.max(0, port*S.PER_COIN_CAP*SCALE - symExp))
+            if (slotNotional < port*0.01*SCALE) { log.push(`ROTA_SKIP ${sym}: per-coin cap`); logSkip(sym,'ROTA','per_coin_cap',{slot:+slotNotional.toFixed(0)}); continue }
+            if (balance < (MARGIN_SIZING ? slotNotional/LEV + slotNotional*FEE : slotNotional)) { log.push(`ROTA_SKIP ${sym}: insufficient cash`); logSkip(sym,'ROTA','insufficient_cash',{slot:+slotNotional.toFixed(0), cash:+balance.toFixed(0)}); continue }
             // v57.1: enter at the CURRENT price. `tgt.price` is the close of the last
             // completed 4h candle — right for ranking momentum, wrong as a fill: at a
             // 05:46 rebalance it is the 04:00 close, nearly two hours old. Measured
