@@ -1,54 +1,55 @@
-backtest 2026-09-19T22:44Z mode=v84bt months=36
-████ V84BT — Wyckoff structure: spring quality and effort-vs-result ████
+backtest 2026-09-22T17:15Z mode=v85bt months=36
+████ V85BT — control: is the Wyckoff tilt a feature or just sleeve sizing? ████
   loaded 39 coins, span 1096 days
 
-── PART A: do the two constructs SEPARATE the trades at all? ──
-  Population = DONCH4H closes of the DEPLOYED config (kill-switch ON).
-  n=1307. If these rows are flat, no tilt can help and part B is noise.
+── PART A: re-anchor the incumbent on the FIXED simulator ──
+  ROTA now pays funding and the slippage scenario now reaches the
+  ladder's exits. Every figure in CLAUDE.md predates both fixes.
+  config                           trades     net%  maxDD  all6  per-window
+  INCUMBENT @3bps                    5317    27.6%  26.9%  FAIL  +24.3 -11.8 +15.9 -20.7 +24.7 -4.8
+  INCUMBENT @6bps                    5413   -11.8%  27.2%  FAIL  +17.8 -12.4 +14.5 -11.4 -0.2 -20.1
 
-  SPRING — was the breakout preceded by a failed breakdown/upthrust?
-  spring present                       444  avgR -0.0157  WR 62.2%  $-487
-  no spring                            863  avgR +0.0357  WR 64.8%  $1418
+  v84bt reported the same two configs at +38.8% and +1.5%.
+  The gap between those and the rows above is what the two bugs were worth.
 
-  EFFORT / RESULT on the breakout bar (higher = absorption):
-  quartiles: 0.86 / 1.07 / 1.36
-  er <= 0.86  (cheap movement)         327  avgR +0.0218  WR 66.4%  $341
-  er 0.86–1.07                         327  avgR -0.0508  WR 60.6%  $-1830
-  er 1.07–1.36                         327  avgR +0.0544  WR 61.8%  $1317
-  er >  1.36  (absorption)             326  avgR +0.0477  WR 66.9%  $1103
+── PART B: THE CONTROL. Feature, or just less breakout exposure? ──
+  If the uniform rows match the Wyckoff row, the feature is doing nothing.
+  config                           trades     net%  maxDD  all6  per-window
+  INCUMBENT                          5317    27.6%  26.9%  FAIL  +24.3 -11.8 +15.9 -20.7 +24.7 -4.8
+  wyckoff spring 1.25/0.75           5370    58.1%  25.8%  FAIL  +28.4 -10.5 +32.2 -7.6 +29.7 -14.0
+  UNIFORM donchRiskMult 0.9          5293    36.0%  26.5%  FAIL  +27.2 -11.3 -0.7 -3.3 +29.2 -5.0
+  UNIFORM donchRiskMult 0.85         5346    67.9%  26.5%  FAIL  +28.4 -11.3 +31.0 -4.1 +28.9 -5.1
+  UNIFORM donchRiskMult 0.8          5419    32.7%  26.3%  FAIL  +28.8 -11.1 +18.9 -20.9 +27.5 -10.6
+  UNIFORM donchRiskMult 0.75         5315    69.7%  26.2%  FAIL  +36.1 -11.1 +40.8 -21.4 +28.2 -2.9
+  UNIFORM donchRiskMult 0.6          5278     0.7%  26.7%  FAIL  +14.5 -10.8 +10.8 -21.7 +27.0 -19.1
 
-  CONTROL — the two ingredients separately, because v54bt measured
-  volume alone and v68bt measured bar size alone. If the RATIO does no
-  better than its parts, it is not a new feature, it is a restatement.
-  effort (volume) above median         653  avgR +0.0254  WR 64.6%  $1427
-  effort (volume) below median         654  avgR +0.0111  WR 63.1%  $-497
-  result (bar range) above median      653  avgR +0.0152  WR 64.0%  $567
-  result (bar range) below median      654  avgR +0.0213  WR 63.8%  $363
+  The Wyckoff row's effective average multiplier is
+  (444*1.25 + 863*0.75)/1307 = 0.920 — compare it to the
+  uniform row closest to that number. If they agree, the answer is in.
+  Watch the TRADE COUNTS too: a smaller ticket funds more signals, so
+  the uniform rows are expected to ADD trades, not cut them.
 
-── PART B: the tilts, through the full 6-window bar ──
-  Sizing only — every signal is still taken. Trade counts should move
-  barely at all; a large move means the tilt became a filter via the
-  $500 minimum ticket, and that is a rule-5 problem, not a result.
-  config                         trades     net%  maxDD  all6  per-window
-  INCUMBENT (kill-switch ON)       5345    38.8%  26.9%  FAIL  +24.4 -11.8 +26.7 -20.6 +24.8 -4.7
-  spring boost 1.25 damp 1         5348    37.9%  26.2%  FAIL  +24.5 -11.0 +16.2 -2.0 +24.6 -14.3
-  spring boost 1 damp 0.75         5407    53.5%  26.5%  FAIL  +28.5 -11.3 +32.2 -21.0 +30.0 -4.8
-  spring boost 1.25 damp 0.75      5370    58.8%  25.8%  FAIL  +28.5 -10.5 +32.4 -7.5 +29.8 -13.9
-  er boost 1.25 damp 1             5316    30.0%  26.1%  FAIL  +24.5 -11.0 +7.0 -2.0 +24.5 -13.1
-  er boost 1 damp 0.75             5347    21.2%  26.9%  FAIL  +24.0 -11.9 +16.1 -20.6 +24.0 -10.4
-  er boost 1.25 damp 0.75          5307    11.0%  26.3%  FAIL  +24.2 -11.0 +7.0 -20.2 +23.7 -12.7
-  both boost 1.25 damp 0.75        5334    19.6%  26.3%  FAIL  +24.1 -11.0 +16.2 -20.2 +24.6 -14.1
+── PART C: the inverted tilt — the sharpest test of all ──
+  If spring really carried information, REVERSING the tilt (damp the
+  spring group, boost the rest) should move the result the other way.
+  If both directions help, the feature is irrelevant and only the
+  average multiplier matters.
+  config                           trades     net%  maxDD  all6  per-window
+  spring 1.25/0.75 (v84bt best)      5370    58.1%  25.8%  FAIL  +28.4 -10.5 +32.2 -7.6 +29.7 -14.0
+  spring 0.75/1.25 (INVERTED)        5381    13.1%  26.6%  FAIL  +21.3 -11.5 +5.3 -20.7 +27.7 -9.1
 
-── PART C: the survivor, if any, at 6bps ──
-  v71bt is the reason this stage exists: reg-channel passed the
-  walk-forward bar and died on execution cost. A sizing tilt that
-  only works at 3bps is a zero-slippage illusion.
-  config                         trades     net%  maxDD  all6  per-window
-  INCUMBENT @6bps                  5368     1.5%  26.9%  FAIL  +36.0 -12.0 +13.6 -17.2 +0.6 -19.5
-  spring 1.25/0.75 @6bps           5380     7.7%  25.8%  FAIL  +23.7 -9.1 +27.8 -23.0 +1.7 -13.3
-  er 1.25/0.75 @6bps               5527     6.9%  25.6%  FAIL  +11.0 -10.4 +26.1 -9.6 +0.1 -10.2
-  both 1.25/0.75 @6bps             5416    10.5%  25.8%  FAIL  +19.5 -10.7 +17.4 -6.1 +0.6 -10.2
+  NB the inverted row has a HIGHER average multiplier, so on the
+  exposure hypothesis it should score WORSE than 1.25/0.75 while still
+  differing from the incumbent. On the feature hypothesis it should be
+  worse than the incumbent outright.
 
-  DEPLOY BAR, unchanged: beat the incumbent at 3bps AND 6bps, not
-  worse in any window, and no material trade loss. Anything less is
-  recorded and rejected, the same as the previous 25 batches.
+── PART D: if uniform downsizing IS the effect, does it clear the bar? ──
+  config                           trades     net%  maxDD  all6  per-window
+  INCUMBENT @6bps                    5413   -11.8%  27.2%  FAIL  +17.8 -12.4 +14.5 -11.4 -0.2 -20.1
+  UNIFORM 0.85 @6bps                 5438   -15.9%  26.4%  FAIL  +21.9 -11.5 +14.6 -20.9 +0.3 -20.3
+  UNIFORM 0.75 @6bps                 5380     7.0%  25.5%  FAIL  +19.5 -9.8 +40.4 -22.6 +0.6 -21.2
+  UNIFORM 0.6 @6bps                  5344   -42.1%  25.1%  FAIL  +6.4 -17.0 +8.1 -18.2 +0.9 -22.2
+
+  Rule 5 check: uniform downsizing is a SIZING change, so trade counts
+  should hold. Where a count drops, the $500 minimum ticket turned the
+  multiplier into a filter and the row is a rule-5 rejection, not a win.
