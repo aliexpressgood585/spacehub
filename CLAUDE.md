@@ -51,6 +51,34 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## v98bt + v68.0 (2026-09-22 23:00) — OWNER'S AGGRESSIVE-CONTROLLED SPEC: NO EDGE.
+Owner brief: 1-5m Binance testnet bot, 10-20x isolated, 2-5% risk, stop-sized,
+stop >=30% before liq, R:R >=1.5, breakers. Stage 1 found the premise wrong
+(4h paper bot, no exchange, 1-5m already measured gross-negative 3x); owner
+chose option (a): apply stages 3/5 to the 4h ROTA engine.
+v98bt, 36m, $500, 4 in-sample walk-forward windows + last 20% OOS run ONCE.
+ATR(4h) stop, target rr x stop, size = riskPct x equity / stop distance,
+leverage = max int <= cap (20x BTC/ETH, 5/10x alts) keeping the stop >= 30%
+of the liq distance before liq, tier-1 MMR 0.4%/1.0%, slip 5/10bps, funding
+0.01%/8h, breakers day -10% / DD 25% / 4 losses -> 1h / max 3 positions.
+    24-config grid in-sample: NOT ONE config has 0 liquidations; 1.5xATR
+    stops lose -40..-70% in every risk tier (stopped out by noise); best
+    risk3% sl2.5atr rr1.5 alt5x +92.8% but DD-halted in 3 of 4 windows.
+    **OOS: -24.3%, PF 0.79, Sharpe -1.83, DD breaker fired.** @10/15bps -24.4%.
+    LIVE config (K2 2x margin, no stop) over 36m: IS +128.7% but windows
+    +67 / -44 / -15 / +121, **maxDD 58.2%**, OOS -6.1%, 1 liq per period.
+VERDICT, told to the owner plainly: after real costs there is no edge in
+this profile. Stops destroy ROTA (a 48h/12h momentum hold needs room; ATR
+stops harvest noise), and the live K2 config's +69.5% (v97bt) was one good
+year — on 36 months it draws down 58%, over the owner's own 25% breaker.
+v68.0 DEPLOYED ANYWAY (safety, strategy-independent): day -10% from UTC open
+until midnight (replaces v50's 5%/24h-peak), DD 25% from equity peak ->
+flatten + `bot_state.hard_halt_at` (persisted, human clears), 4 losing closes
+-> 1h pause, >=10 bot_errors in 15 min -> pause, breaker query failure fails
+CLOSED. NOT configurable. Max-3-positions NOT enforced live (K2 = 4).
+Account reset to $500 at 22:46, rotation clock held; auto-releases ~10:46 UTC
+09-23 with the K2 2x config unless the owner decides otherwise.
+
 ## v66.0 → v67.0 (2026-09-22 22:30) — MARGIN SIZING, one-sided tested, 12h rotation.
 Owner: "$70 at 10x = $700, account stays $500, isolated, 10% drop wipes the
 $70"; then "not both sides, one side by conditions, fast trades".
