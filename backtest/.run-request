@@ -1,10 +1,9 @@
-# Push a change to this file to run a backtest without the GitHub connector.
-# Format: one line, "MODE [MONTHS]". Lines starting with # are ignored.
-# The mode must also be in the fetch-step whitelist in backtest.yml.
+# Format: one line, "MODE [MONTHS]".
 #
-# v86bt: the sleeve split the owner asked for — 70% of capital sits in ROTA on
-# the strength of a figure the PR #21 funding fix showed was inflated. Behind a
-# NOISE FLOOR first: v85bt's uniform sweep zigzagged 36/68/33/70/1% across
-# adjacent settings, so the instrument's error bar must be measured (by
-# perturbing starting cash, which cannot matter) before any row is read.
-v86bt 36
+# v87bt: the missing cell. v86bt measured ROTA-only at +29.3% / maxDD 12.3% with
+# five of six windows positive — the best configuration ever measured here — but
+# did NOT run it at 6bps, and v71bt is the standing reminder that a config can
+# look excellent at 3bps and die on execution cost. Also carries a PROPERLY
+# designed path-perturbation probe, because v86bt's starting-cash probe tested a
+# scale axis the engine is invariant to and therefore measured nothing.
+v87bt 36
