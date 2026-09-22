@@ -541,7 +541,7 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v66.0'
+const BOT_VERSION = 'v67.0'
 const RELEASE_SHA = String((globalThis as any).__RELEASE_SHA ?? 'unpinned')
 // Universe fingerprint: a cheap order-independent digest, so a silently edited
 // CRYPTO_40 shows up as a different release even at an identical SHA.
@@ -3023,7 +3023,11 @@ Deno.serve(async (req) => {
       // K=9 REJECTED (w3 negative, annT 32.8% — the edge thins past 8).
       // v65.0: names per side, deploy-time like LEVERAGE (env, then shim global).
       // Bounded to [1, S.ROTA_K]; the collapsed-universe guard below stays on S.ROTA_K.
-      const ROTA_MS = S.ROTA_MS, ROTA_LB = S.ROTA_LB
+      // v67.0: rotation period and side, deploy-time (env, then shim global).
+      const _rotaH = Number(Deno.env.get('ROTA_HOURS') ?? (globalThis as any).__ROTA_HOURS ?? 0)
+      const ROTA_MS = _rotaH >= 4 && _rotaH <= 48 ? _rotaH * 3_600_000 : S.ROTA_MS
+      const ROTA_SIDE = (Deno.env.get('ROTA_SIDE') ?? (globalThis as any).__ROTA_SIDE) === 'regime' ? 'regime' : 'both'
+      const ROTA_LB = S.ROTA_LB
       const ROTA_K = Math.min(S.ROTA_K, Math.max(1, Math.floor(
         Number(Deno.env.get('ROTA_K') ?? (globalThis as any).__ROTA_K ?? S.ROTA_K) || S.ROTA_K)))
       const lastRota = state.rebalanced_at ? new Date(state.rebalanced_at).getTime() : 0
@@ -3057,9 +3061,12 @@ Deno.serve(async (req) => {
           const target = new Map<string, {dir:1|-1, price:number}>()
           const invVol = new Map<string, number>()
           let longInvSum = 0, shortInvSum = 0
-          for (let i=0;i<ROTA_K;i++) { const x=momList[i]
+          // v67.0: 'regime' trades ONE side, picked by median 14d momentum (S.rotaRegimeSide)
+          const rs = ROTA_SIDE === 'regime' ? S.rotaRegimeSide(momList) : 0
+          if (rs !== 0) log.push(`ROTA side=${rs === 1 ? 'LONG' : 'SHORT'} (regime)`)
+          if (rs !== -1) for (let i=0;i<ROTA_K;i++) { const x=momList[i]
             target.set(x.sym, {dir:1, price:x.price}); invVol.set(x.sym, 1/x.vol); longInvSum += 1/x.vol }
-          for (let i=momList.length-ROTA_K;i<momList.length;i++) { const x=momList[i]
+          if (rs !== 1) for (let i=momList.length-ROTA_K;i<momList.length;i++) { const x=momList[i]
             target.set(x.sym, {dir:-1, price:x.price}); invVol.set(x.sym, 1/x.vol); shortInvSum += 1/x.vol }
           if (rotaPaused) target.clear()   // v43 (#4): paused → unwind basket, open nothing
           // v45.1: portfolio estimate up-front (for resize checks + slot sizing)
