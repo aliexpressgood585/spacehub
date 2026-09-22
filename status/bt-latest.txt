@@ -1,33 +1,37 @@
-backtest 2026-09-22T23:24Z mode=v102bt months=12
-████ V102BT — cross-sectional order-flow rotation, 1-24h holds ████
-  10 coins, span 365 days, hourly aggregation of 5m flow
+backtest 2026-09-22T23:31Z mode=v103bt months=12
+████ V103BT — order-book imbalance (bookDepth archive) → 15m / 1h / 4h ████
+  10 coins, 201600 snapshots, 70 days
 
-  L=lookback h, H=hold h   mode    periods  gross bps/period  cost  net bps/period  net %/yr(approx)  per-window net %
-  L 4 H 1            fade      8755        -0.09       28.2       -28.26        -2475.7%   -412 -407 -408 -419 -405 -423
-  L 4 H 1            follow    8755         0.09       28.2       -28.08        -2460.2%   -403 -414 -417 -408 -416 -401
-  L 4 H 4            fade      2188         0.51       28.2       -27.67         -606.1%   -100 -90 -98 -106 -108 -104
-  L 4 H 4            follow    2188        -0.51       28.2       -28.70         -628.6%   -104 -116 -108 -101 -98 -102
-  L 4 H12            fade       729         3.23       28.2       -24.95         -182.1%   -28 -24 -33 -37 -35 -25
-  L 4 H12            follow     729        -3.23       28.2       -31.40         -229.2%   -40 -44 -35 -33 -33 -43
-  L 4 H24            fade       364         6.46       28.1       -21.62          -78.9%   -7 -15 -11 -29 -14 -3
-  L 4 H24            follow     364        -6.46       28.1       -34.55         -126.1%   -27 -19 -23 -5 -20 -32
-  L24 H 1            fade      8735         0.15       27.9       -27.77        -2432.4%   -395 -401 -414 -403 -404 -408
-  L24 H 1            follow    8735        -0.15       27.9       -28.06        -2458.3%   -410 -418 -409 -405 -404 -406
-  L24 H 4            fade      2183         0.02       27.9       -27.90         -610.9%   -88 -101 -107 -102 -110 -102
-  L24 H 4            follow    2183        -0.02       27.9       -27.93         -611.7%   -114 -104 -99 -100 -93 -101
-  L24 H12            fade       727        -1.10       27.8       -28.95         -211.3%   -22 -39 -34 -40 -38 -38
-  L24 H12            follow     727         1.10       27.8       -26.74         -195.2%   -45 -30 -34 -27 -30 -29
-  L24 H24            fade       363        -7.22       27.8       -35.04         -127.9%   -26 -17 -17 -16 -25 -26
-  L24 H24            follow     363         7.22       27.8       -20.60          -75.2%   -7 -17 -17 -18 -8 -7
-  L72 H 1            fade      8687         0.04       27.6       -27.51        -2409.8%   -387 -408 -398 -389 -411 -397
-  L72 H 1            follow    8687        -0.04       27.6       -27.59        -2417.1%   -395 -406 -413 -395 -385 -403
-  L72 H 4            fade      2171        -0.04       27.6       -27.60         -604.4%   -88 -105 -93 -97 -116 -100
-  L72 H 4            follow    2171         0.04       27.6       -27.51         -602.5%   -107 -98 -110 -99 -83 -100
-  L72 H12            fade       723        -1.63       27.5       -29.15         -212.8%   -28 -43 -26 -32 -47 -34
-  L72 H12            follow     723         1.63       27.5       -25.90         -189.0%   -38 -24 -41 -34 -19 -32
-  L72 H24            fade       361        -5.65       27.5       -33.19         -121.1%   -17 -28 -3 -17 -36 -19
-  L72 H24            follow     361         5.65       27.5       -21.89          -79.9%   -15 -6 -31 -16 +2 -13
+── OBI within 0.2% of mid — OUT-OF-SAMPLE half, mean forward bps ──
+  bucket          n      fwd 15m    fwd 1h     fwd 4h
+  bottom 10%     12999       0.44       3.19      12.64
+  10-20%         11231       1.12       3.08      14.04
+  20-40%         20338       1.23       3.15      13.39
+  40-60%         18250       0.94       2.75      12.70
+  60-80%         18098       0.38       2.68      10.99
+  80-90%          9507      -0.03       1.81       8.80
+  top 10%        10377       0.40       2.75       5.18
+  trade o02 hold 15m follow: n=23364  gross -0.07 bps  net taker -27.74  net maker(upper bound) -4.07
+  trade o02 hold 15m fade  : n=23364  gross 0.07 bps  net taker -27.60  net maker(upper bound) -3.93
+  trade o02 hold 1h follow: n=23344  gross -0.55 bps  net taker -28.22  net maker(upper bound) -4.55
+  trade o02 hold 1h fade  : n=23344  gross 0.55 bps  net taker -27.11  net maker(upper bound) -3.45
+  trade o02 hold 4h follow: n=23250  gross -4.74 bps  net taker -32.40  net maker(upper bound) -8.74
+  trade o02 hold 4h fade  : n=23250  gross 4.74 bps  net taker -22.93  net maker(upper bound) 0.74
 
-  net %/yr is the simple sum of per-period net returns on a fully invested
-  long/short book (no compounding, no leverage). Cost assumes every leg is
-  closed and reopened each period — an upper bound on turnover.
+── OBI within 1% of mid — OUT-OF-SAMPLE half, mean forward bps ──
+  bucket          n      fwd 15m    fwd 1h     fwd 4h
+  bottom 10%     14379      -0.12       0.94       7.78
+  10-20%         12222       0.50       2.25      11.74
+  20-40%         21139       1.15       3.47      16.04
+  40-60%         17449       0.56       4.28      11.60
+  60-80%         16969       1.29       2.72       9.63
+  80-90%          9458       1.04       2.15       9.36
+  top 10%         9184       0.13       3.18      12.41
+  trade o1 hold 15m follow: n=23560  gross 0.12 bps  net taker -26.34  net maker(upper bound) -3.88
+  trade o1 hold 15m fade  : n=23560  gross -0.12 bps  net taker -26.58  net maker(upper bound) -4.12
+  trade o1 hold 1h follow: n=23551  gross 0.66 bps  net taker -25.80  net maker(upper bound) -3.34
+  trade o1 hold 1h fade  : n=23551  gross -0.66 bps  net taker -27.12  net maker(upper bound) -4.66
+  trade o1 hold 4h follow: n=23504  gross 0.09 bps  net taker -26.36  net maker(upper bound) -3.91
+  trade o1 hold 4h fade  : n=23504  gross -0.09 bps  net taker -26.55  net maker(upper bound) -4.09
+
+  Round trip: taker 2x(5 fee + 5/10 slip) = 20-30 bps; maker 4 bps if every limit filled.
