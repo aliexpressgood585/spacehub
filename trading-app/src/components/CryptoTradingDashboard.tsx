@@ -18,6 +18,7 @@ interface Trade {
   status:'OPEN'|'TP'|'SL'|'TRAIL'
   hi:number; lo:number; trailSL:number; fee:number
   strategy?:string
+  lev?:number
   riskUsd?:number
   slPct?:number; tpPct?:number
   partialDone?:boolean; closedTs?:number
@@ -102,7 +103,7 @@ const COINS = [
 // The strategy indicators that matter now are computed server-side, in the bot.
 function calcSharpe(trades:Trade[]):number{const cl=trades.filter(t=>t.pnlPct!==undefined);if(cl.length<3)return 0;const r=cl.map(t=>t.pnlPct!);const m=r.reduce((a,b)=>a+b,0)/r.length;const s=Math.sqrt(r.reduce((a,b)=>a+(b-m)**2,0)/r.length)||1e-9;return(m/s)*Math.sqrt(252)}
 function calcMaxDD(trades:Trade[]):number{let bal=INIT_BAL,peak=INIT_BAL,mx=0;for(const t of trades){if(t.pnl){bal+=t.pnl;if(bal>peak)peak=bal;mx=Math.max(mx,(peak-bal)/peak)}}return mx*100}
-function mapDbTrade(t:Record<string,unknown>):Trade{return{id:t.id as number,sym:t.sym as string,side:t.side as 'LONG'|'SHORT',entry:Number(t.entry_price),exit:t.exit_price!=null?Number(t.exit_price):undefined,size:Number(t.size),pnl:t.pnl!=null?Number(t.pnl):undefined,pnlPct:t.pnl_pct!=null?Number(t.pnl_pct):undefined,ts:new Date(t.opened_at as string).getTime(),closedTs:t.closed_at?new Date(t.closed_at as string).getTime():undefined,status:t.status as 'OPEN'|'TP'|'SL'|'TRAIL',hi:Number(t.hi),lo:Number(t.lo),trailSL:Number(t.trail_sl),fee:Number(t.fee),strategy:(t.strategy as string)||'LEGACY',riskUsd:t.risk_usd!=null?Number(t.risk_usd):undefined}}
+function mapDbTrade(t:Record<string,unknown>):Trade{return{id:t.id as number,sym:t.sym as string,side:t.side as 'LONG'|'SHORT',entry:Number(t.entry_price),exit:t.exit_price!=null?Number(t.exit_price):undefined,size:Number(t.size),pnl:t.pnl!=null?Number(t.pnl):undefined,pnlPct:t.pnl_pct!=null?Number(t.pnl_pct):undefined,ts:new Date(t.opened_at as string).getTime(),closedTs:t.closed_at?new Date(t.closed_at as string).getTime():undefined,status:t.status as 'OPEN'|'TP'|'SL'|'TRAIL',hi:Number(t.hi),lo:Number(t.lo),trailSL:Number(t.trail_sl),fee:Number(t.fee),strategy:(t.strategy as string)||'LEGACY',riskUsd:t.risk_usd!=null?Number(t.risk_usd):undefined,lev:Math.max(1,Number(t.lev)||1)}}
 
 // ─── canvas renderers ─────────────────────────────────────────────────────────
 // v57.0: price only. The EMA9/21 lines, the Bollinger band fill and the BUY/SELL
@@ -323,7 +324,7 @@ function LivePosition({t,live,fmtP,onClose}:{t:Trade;live?:{cur:number;pnl:numbe
       {/* notional row */}
       <div style={{marginTop:'4px'}}>
         <span style={{fontSize:'9px',color:C.muted}}>
-          פוזיציה: ${notional.toLocaleString()}
+          פוזיציה: ${notional.toLocaleString()}{(t.lev||1)>1?` · מינוף ${t.lev}x · בטחון $${(notional/(t.lev||1)).toFixed(0)}`:''}
         </span>
       </div>
     </div>
@@ -1005,7 +1006,9 @@ export default function CryptoTradingDashboard() {
     else { verdict='מתחת לרצועה — עדיין חיובי, במעקב'; vcol=C.yellow }
     return {n,mean,sd,rLo,rHi,p,wrLo,wrHi,verdict,vcol,R_TGT,WR_TGT}
   })()
-  const lockedNotional = openTrades.reduce((a,t)=>a+t.entry*t.size,0)
+  // v67.2: collateral actually posted (notional / leverage), not the full
+  // notional — at 2x the old sum booked the borrowed half as account value.
+  const lockedNotional = openTrades.reduce((a,t)=>a+t.entry*t.size/(t.lev||1),0)
   const totalValue     = balance+lockedNotional+unrealizedPnl
   const sharpe         = calcSharpe(trades)
   const maxDD          = calcMaxDD(trades)
