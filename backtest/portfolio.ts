@@ -172,6 +172,25 @@ export interface SimConfig {
   rotaBook: number | null
   /** Leverage: overrides the 0.95 heat cap, or null for the deployed caps. */
   heatCap: number | null
+  /**
+   * MARGIN LEVERAGE. 1 = the deployed cash account, where a position costs its
+   * full notional and nothing can ever be liquidated.
+   *
+   * Above 1 the engine posts notional/leverage as margin and a LIQUIDATION
+   * ENGINE becomes active (see `maintMargin`). These two ship together on
+   * purpose: v88bt printed five identical leverage rows because the cash
+   * constraint silently bound first, and a leverage model WITHOUT liquidation
+   * is worse than none — it lets a dead account keep trading and reports the
+   * profits it "made" afterwards.
+   */
+  leverage: number
+  /**
+   * Maintenance margin rate, isolated per position. A position is liquidated
+   * when its unrealised loss has consumed (1 - maintMargin) of the margin
+   * posted against it — i.e. you lose the margin, which is what a real
+   * isolated-margin liquidation does. 0.005 is typical for large crypto perps.
+   */
+  maintMargin: number
 }
 
 export interface WyckTilt {
@@ -220,6 +239,8 @@ export function defaultConfig(over: Partial<SimConfig> = {}): SimConfig {
     donchRiskMult: 1,
     rotaBook: null,
     heatCap: null,
+    leverage: 1,
+    maintMargin: 0.005,
     ...over,
   }
 }
@@ -237,6 +258,9 @@ interface Position {
   openedAt: number
   /** cash actually withdrawn at entry — returned on close, as the live bot does */
   costBasis: number
+  /** margin posted per unit of size. At leverage 1 this is simply the entry
+   *  price, so every cash-account result is bit-identical to before. */
+  marginPerUnit: number
   sizeOrig: number
   sizeLeft: number
   origSlDist: number
@@ -312,6 +336,9 @@ export interface SimResult {
   slip: number
   funding: number
   /** kill-switch telemetry — zero when cfg.killSwitch is false */
+  liquidations: number
+  /** timestamp at which equity hit ~zero and the account stopped, or null */
+  ruinedAt: number | null
   donchPausedDays: number
   rotaPausedDays: number
   rotaUnwinds: number
@@ -343,6 +370,8 @@ export function runPortfolio(
   const closed: ClosedTrade[] = []
   const lastCloseBySym = new Map<string, number>()
   const closedBySleeve: Record<Sleeve, ClosedTrade[]> = { DONCH4H: [], ROTA: [] }
+  let liquidations = 0
+  let ruinedAt: number | null = null
   let donchPausedDays = 0, rotaPausedDays = 0, rotaUnwinds = 0
   const rejections: Rejection[] = []
   const equity: SimResult['equity'] = []
@@ -384,7 +413,11 @@ export function runPortfolio(
     return a + (mk - p.entry) * p.sizeLeft * (p.side === 'LONG' ? 1 : -1)
   }, 0)
 
-  const equityAt = (t: number) => cash + exposureOf() + unrealised(t)
+  /** Margin actually posted and still locked in open positions. At leverage 1
+   *  this equals exposureOf() exactly, so nothing about the cash-account path
+   *  changes. */
+  const postedMargin = () => open.reduce((a, p) => a + p.marginPerUnit * p.sizeLeft, 0)
+  const equityAt = (t: number) => cash + postedMargin() + unrealised(t)
 
   // Deterministic pseudo-randomness for the maker-fill draw. A backtest that
   // returns a different number each run cannot be compared to itself, so this
@@ -410,7 +443,7 @@ export function runPortfolio(
     const legPnl = (fillPx - p.entry) * p.sizeLeft * dirM - fee
     const pnl = legPnl + p.legsBanked
 
-    cash += p.entry * p.sizeLeft + legPnl
+    cash += p.marginPerUnit * p.sizeLeft + legPnl
     fees += fee; slip += slipCost; turnover += fillPx * p.sizeLeft
     p.feesPaid += fee; p.slipPaid += slipCost
 
@@ -432,6 +465,29 @@ export function runPortfolio(
   function manage(p: Position, bar: S.Bar, t: number) {
     const dirM = p.side === 'LONG' ? 1 : -1
     const ageMs = t - p.openedAt
+
+    // ── LIQUIDATION, checked before anything else ────────────────────────────
+    // Isolated margin: the position dies when its unrealised loss has eaten
+    // (1 - maintMargin) of the margin posted against it. Tested against the
+    // bar's ADVERSE extreme, because an exchange liquidates intrabar on a wick
+    // and does not wait politely for the close.
+    //
+    // This runs BEFORE the ladder so a stop cannot "save" a position the
+    // exchange would already have closed — getting that order wrong is exactly
+    // how a leveraged backtest flatters itself.
+    if (cfg.leverage > 1) {
+      const adverseX = p.side === 'LONG' ? bar.low : bar.high
+      const marginHeld = p.marginPerUnit * p.sizeLeft
+      const loss = (p.entry - adverseX) * p.sizeLeft * dirM
+      if (loss >= marginHeld * (1 - cfg.maintMargin)) {
+        // The liquidation price, not the bar extreme: the exchange closes you
+        // the moment maintenance margin is breached.
+        const liqPx = p.entry - dirM * (marginHeld * (1 - cfg.maintMargin)) / p.sizeLeft
+        liquidations++
+        closePosition(p, liqPx, t, 'liquidated', S.FEE_TAKER, true)
+        return
+      }
+    }
 
     // funding accrues on the notional, longs pay and shorts receive
     while (t - p.lastFundingAt >= H8) {
@@ -522,7 +578,7 @@ export function runPortfolio(
         const fillPx = asMaker ? act.px : act.px * (1 - dirM * SLIP)
         const fee = fillPx * qty * (asMaker ? S.FEE_MAKER : S.FEE_TAKER)
         const legPnl = (fillPx - p.entry) * qty * dirM - fee
-        cash += p.entry * qty + legPnl
+        cash += p.marginPerUnit * qty + legPnl
         fees += fee; turnover += fillPx * qty
         if (!asMaker) { const sc = Math.abs(act.px - fillPx) * qty; slip += sc; p.slipPaid += sc }
         p.feesPaid += fee
@@ -617,17 +673,19 @@ export function runPortfolio(
     const fillPx = c.price * (1 + dirM * SLIP)
     const size = notional / fillPx
     const feeIn = notional * S.FEE_TAKER
-    if (cash < notional + feeIn) {
+    if (cash < notional / cfg.leverage + feeIn) {
       rejections.push({ t, sym: c.sym, sleeve: 'DONCH4H', side: c.side, reason: 'cash',
         adx: c.adx, wantedNotional: notional })
       return false
     }
 
-    cash -= notional + feeIn
+    const marginIn = notional / cfg.leverage
+    cash -= marginIn + feeIn
     fees += feeIn; slip += Math.abs(fillPx - c.price) * size; turnover += notional
     open.push({
       id: nextId++, sym: c.sym, sleeve: 'DONCH4H', side: c.side, entry: fillPx,
-      openedAt: t, costBasis: notional, sizeOrig: size, sizeLeft: size,
+      openedAt: t, costBasis: marginIn, marginPerUnit: marginIn / size,
+      sizeOrig: size, sizeLeft: size,
       origSlDist: c.slDist, stage: 0, stopPx: c.price - c.slDist * dirM,
       riskUsd: c.slDist * size, legsBanked: 0, adx: c.adx, unit: units.length + 1,
       wyck: c.wyck, lastFundingAt: t, feesPaid: feeIn, slipPaid: Math.abs(fillPx - c.price) * size,
@@ -697,11 +755,13 @@ export function runPortfolio(
       const dirM = tgt.dir
       const fillPx = mk * (1 + dirM * SLIP)
       const size = slot / fillPx
-      cash -= slot + feeIn
+      const marginIn = slot / cfg.leverage
+      cash -= marginIn + feeIn
       fees += feeIn; slip += Math.abs(fillPx - mk) * size; turnover += slot
       open.push({
         id: nextId++, sym, sleeve: 'ROTA', side, entry: fillPx, openedAt: t,
-        costBasis: slot, sizeOrig: size, sizeLeft: size, origSlDist: 0, stage: 0,
+        costBasis: marginIn, marginPerUnit: marginIn / size,
+        sizeOrig: size, sizeLeft: size, origSlDist: 0, stage: 0,
         stopPx: 0, riskUsd: 0, legsBanked: 0, adx: 0, unit: 1, wyck: null, lastFundingAt: t,
         feesPaid: feeIn, slipPaid: Math.abs(fillPx - mk) * size, fundingPaid: 0,
       })
@@ -802,12 +862,25 @@ export function runPortfolio(
     // 3. MARK
     if (t % H4 === 0) {
       const exp = exposureOf()
-      const eq = cash + exp + unrealised(t)
+      const eq = cash + postedMargin() + unrealised(t)
       equity.push({ t, equity: eq, cash, exposure: exp })
       if (eq > 0) {
         const u = exp / eq
         peakExposurePct = Math.max(peakExposurePct, u)
         utilSum += u; utilN++
+      }
+      // ── ACCOUNT DEATH ──────────────────────────────────────────────────────
+      // A levered account that reaches zero equity is GONE. It does not trade
+      // its way back, and a backtest that lets it keep going is reporting
+      // profits earned by a corpse. Everything is force-closed and the window
+      // is over. Without this, the "leverage" rows are fiction.
+      if (ruinedAt === null && eq <= cfg.startCash * 0.01) {
+        ruinedAt = t
+        for (const p of open.slice()) {
+          const mk = markOf(p.sym, t)
+          if (mk !== null) closePosition(p, mk, t, 'account_ruined', S.FEE_TAKER, true)
+        }
+        break
       }
     }
   }
@@ -820,6 +893,7 @@ export function runPortfolio(
     turnoverNotional: turnover,
     fees, slip, funding,
     donchPausedDays, rotaPausedDays, rotaUnwinds,
+    liquidations, ruinedAt,
   }
 }
 

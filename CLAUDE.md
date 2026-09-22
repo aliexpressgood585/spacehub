@@ -51,6 +51,45 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## v89bt (2026-09-22) — MARGIN, LIQUIDATION AND ACCOUNT DEATH. Owner-requested.
+The owner asked three times for very high risk and, after v88bt showed the
+engine structurally cannot do it, instructed me to build the leverage model. It
+is their paper account and the level is their call, so it is built — WITH the
+liquidation engine, which was the condition I stated when offering it and is not
+negotiable: **a leverage model without a liquidation model reports profits
+earned by a corpse**, which is exactly the flattering nonsense v88bt printed.
+
+WHAT WAS BUILT, in `shared/strategy.ts` and `backtest/portfolio.ts`:
+ - **Margin accounting.** A position costs `notional / leverage` in cash rather
+   than its full notional; `marginPerUnit` is returned proportionally as ladder
+   legs bank out. Equity is `cash + postedMargin + unrealised`.
+ - **Isolated liquidation.** A position dies when its unrealised loss has eaten
+   `(1 - maintMargin)` of the margin posted against it, `maintMargin = 0.005`.
+   Checked against the bar's ADVERSE EXTREME and **before the ladder**, because
+   an exchange liquidates on a wick and does not wait for a stop to save you.
+   The fill is the liquidation price, not the bar extreme.
+ - **ACCOUNT DEATH.** Equity at or below 1% of starting capital force-closes the
+   book and ends the window. Without this the levered rows are fiction.
+ - The sizing chain now lets free cash support `leverage ×` its own value, which
+   is the thing v88bt was missing: `remain` and `balance * 0.95` bound it first,
+   so the heat cap never bound and every leverage row came out identical.
+
+GUARDED BY ASSERTIONS, because this is the most dangerous code in the repo:
+leverage 1 must be **bit-identical** to the old cash account and can never
+liquidate; leverage 5 must put materially more notional on the book AND
+liquidate; a liquidation cannot lose much more than the margin posted; 50x must
+be able to destroy the account. Fixture: **1x = 0 liquidations, 5x = 15,
+50x = 1,366**. Suite at **376 assertions**.
+
+STILL OPTIMISTIC, and it must be said wherever these rows are quoted:
+liquidation is checked once per management bar rather than tick by tick, and
+there is no funding spike, no auto-deleveraging, no exchange outage and no
+spread widening in a crash. Every one of those makes real leverage worse. The
+RUIN column is a FLOOR.
+STATUS: built, tests green, queued. NOTHING MEASURED YET, and nothing deployed —
+this is a backtest capability, not a change to the running bot, which remains
+paper-locked by `ALLOW_LIVE_EXECUTION` and unlevered.
+
 ## v88bt (2026-09-22) — THE LEVERAGE MEASUREMENT FAILED, and that failure is
 ## the answer to "can this bot do very high risk". It structurally cannot.
 Owner asked for very high risk, was given the maths once, reaffirmed twice. It
@@ -330,7 +369,7 @@ asking, but NEVER violate the standing rules below.
   sizing chain, ladder state machine, ROTA ranking/weights, CRYPTO_40 and every
   tuned constant — pure functions, no Deno/Supabase/npm/network. The bot and the
   backtest BOTH import it. Change a rule here or nowhere. Tests:
-  `bash scripts/run-tests.sh` (370 assertions + typecheck, no install, offline).
+  `bash scripts/run-tests.sh` (376 assertions + typecheck, no install, offline).
 - **Live bot**: `supabase/functions/trading-bot/index.ts` (Deno edge function,
   cron every minute, Supabase project `mdvheizhciuvqychtwxr`). Version header at top.
 - Two validated strategies:
