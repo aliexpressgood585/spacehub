@@ -1,7 +1,8 @@
 # Format: one line, "MODE [MONTHS]".
 #
-# v88bt: the aggression surface, owner-requested. Two dials — base risk, which
-# the 95% heat cap absorbs past a point, and LEVERAGE, which is what "high risk"
-# actually means in this engine. Reports RUIN (windows at -90% or worse), not
-# just return, because an average over paths that ended at zero is a lie.
-v88bt 36
+# v89bt: leverage for real — margin accounting, isolated liquidation at
+# maintenance margin, and account death. v88bt's leverage rows were identical
+# because the engine was a cash account that could not borrow. Built with the
+# liquidation engine attached on purpose: a leverage model without one reports
+# profits earned by a dead account.
+v89bt 36

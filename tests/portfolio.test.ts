@@ -354,6 +354,62 @@ const base = P.runPortfolio(data, P.defaultConfig(), tFrom, tTo)
     rota(half) > 0 && rota(a) > 0, `${rota(half)} vs ${rota(a)}`)
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// MARGIN + LIQUIDATION (v89bt). The two guards that make a leverage number
+// honest: leverage 1 must change NOTHING, and leverage > 1 must actually kill
+// accounts. v88bt printed five identical leverage rows because the cash
+// constraint silently bound first — these assertions exist so that cannot
+// recur unnoticed.
+// ════════════════════════════════════════════════════════════════════════════
+{
+  const cashAcct = P.runPortfolio(data, P.defaultConfig({ killSwitch: true }), tFrom, tTo)
+  const lev1 = P.runPortfolio(data, P.defaultConfig({ killSwitch: true, leverage: 1 }), tFrom, tTo)
+  check('leverage 1 is bit-identical to the cash account',
+    cashAcct.finalEquity === lev1.finalEquity &&
+    cashAcct.closed.length === lev1.closed.length,
+    `${cashAcct.finalEquity} vs ${lev1.finalEquity}`)
+  check('a cash account can never be liquidated',
+    lev1.liquidations === 0 && lev1.ruinedAt === null,
+    `${lev1.liquidations} liquidations`)
+
+  // Leverage must actually reach the book: more notional per dollar of cash.
+  const lev5 = P.runPortfolio(data, P.defaultConfig({
+    killSwitch: true, leverage: 5, heatCap: 0.95 * 5 }), tFrom, tTo)
+  const notional = (r: P.SimResult) =>
+    r.closed.reduce((a, t) => a + t.notional, 0)
+  check('leverage 5 puts materially more notional on the book than 1x',
+    notional(lev5) > notional(lev1) * 1.2,
+    `${notional(lev5).toFixed(0)} vs ${notional(lev1).toFixed(0)} — if these are` +
+    ` equal, something other than the heat cap is binding, which is the exact` +
+    ` v88bt failure`)
+
+  check('leverage 5 liquidates positions the cash account never loses',
+    lev5.liquidations > 0, `${lev5.liquidations} liquidations`)
+
+  // The defining property of a liquidation: you lose the margin, not more.
+  // A loss far beyond the posted margin means the engine is letting positions
+  // run past the point an exchange would have closed them.
+  const liqs = lev5.closed.filter(t => t.reason === 'liquidated')
+  if (liqs.length) {
+    const worst = Math.min(...liqs.map(t => t.pnl))
+    const maxMargin = Math.max(...liqs.map(t => t.notional / 5))
+    check('a liquidation cannot lose much more than the margin posted',
+      worst > -maxMargin * 1.5,
+      `worst liquidation ${worst.toFixed(2)} against max margin ${maxMargin.toFixed(2)}`)
+  }
+
+  // Extreme leverage must be able to END an account. If it cannot, the ruin
+  // column in any leverage run is meaningless and must not be reported.
+  const lev50 = P.runPortfolio(data, P.defaultConfig({
+    killSwitch: true, leverage: 50, heatCap: 0.95 * 50 }), tFrom, tTo)
+  check('50x can ruin the account outright (or at least liquidate heavily)',
+    lev50.ruinedAt !== null || lev50.liquidations > lev5.liquidations,
+    `ruinedAt=${lev50.ruinedAt} liquidations=${lev50.liquidations}`)
+  console.log(`    leverage probe: 1x ${lev1.liquidations} liq, ` +
+    `5x ${lev5.liquidations} liq, 50x ${lev50.liquidations} liq ` +
+    `ruined=${lev50.ruinedAt !== null}`)
+}
+
 // ─── report ─────────────────────────────────────────────────────────────────
 console.log(`\n  portfolio simulator — ${passed} assertions passed, ${failures.length} failed`)
 if (failures.length) {

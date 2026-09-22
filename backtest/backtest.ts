@@ -7443,6 +7443,115 @@ function runV88bt() {
   console.log(`  have closed. High-leverage rows are therefore OPTIMISTIC.`)
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// v89bt — LEVERAGE, FOR REAL THIS TIME. Owner-requested, built with the
+// liquidation engine attached because it is worthless and dangerous without it.
+//
+// v88bt printed 2x through 25x as five identical rows. That was not a finding,
+// it was a cash account refusing to borrow: `tryOpen` debited the full notional
+// and the sizing chain was bounded by free cash, so the heat cap never bound.
+//
+// NOW BUILT: margin accounting (a position costs notional/leverage), isolated
+// per-position liquidation at maintenance margin, and ACCOUNT DEATH — an
+// account whose equity reaches ~zero is force-closed and stops trading for the
+// rest of the window. Without that last piece a backtest reports profits earned
+// by a corpse.
+//
+// Guarded by assertions in tests/portfolio.test.ts: leverage 1 is bit-identical
+// to the old cash account, leverage 5 puts materially more notional on the book
+// AND liquidates, a liquidation cannot lose much more than the margin posted,
+// and 50x must be able to destroy the account. On the synthetic fixture:
+// 1x = 0 liquidations, 5x = 15, 50x = 1,366.
+//
+// READ THE RIGHT COLUMNS. `net%` is the least informative number here. LIQ is
+// how many positions the exchange closed; RUIN is how many of the six
+// independent $10,000 windows ended as a dead account.
+// PAPER ONLY. ALLOW_LIVE_EXECUTION is unset and set nowhere in this repo.
+// ════════════════════════════════════════════════════════════════════════════
+function runV89bt() {
+  const NW = 6, BAR4 = 14400000
+  const to4h = (a: Bar[], ms: number): Bar[] => {
+    const out: Bar[] = []; let cur: Bar | null = null; let bucket = -1
+    for (const b of a) {
+      const k = Math.floor(b.t / ms)
+      if (k !== bucket) { if (cur) out.push(cur); bucket = k
+        cur = { t: k * ms, open: b.open, high: b.high, low: b.low, close: b.close, vol: b.vol } }
+      else if (cur) { cur.high = Math.max(cur.high, b.high); cur.low = Math.min(cur.low, b.low)
+        cur.close = b.close; cur.vol += b.vol }
+    }
+    if (cur) out.push(cur); return out
+  }
+  const data: Record<string, PF.CoinData> = {}
+  let tmin = Infinity, tmax = -Infinity
+  for (const c of COINS) {
+    if (!CORE40.has(c)) continue
+    const h = loadCSV(c, '1h'); if (h.length < 500) continue
+    data[c] = { b1: h, b4: to4h(h, BAR4) }
+    tmin = Math.min(tmin, h[0].t); tmax = Math.max(tmax, h[h.length - 1].t)
+  }
+  const spanDays = (tmax - tmin) / 86400000
+  console.log(`  loaded ${Object.keys(data).length} coins, span ${spanDays.toFixed(0)} days`)
+  if (spanDays < 900 || Object.keys(data).length < 30) {
+    console.log(`\n  ABORT: need ~36 months across CORE40.`); return
+  }
+  const wSpan = (tmax - tmin) / NW, WARM = 100 * BAR4
+
+  const run = (lev: number, over: Partial<PF.SimConfig> = {}) => {
+    const ms: PF.Metrics[] = []; let liq = 0, ruined = 0
+    for (let w = 0; w < NW; w++) {
+      const a = tmin + w * wSpan, b = tmin + (w + 1) * wSpan
+      const from = Math.max(tmin + WARM, a)
+      if (b - from < 30 * 86400000) continue
+      const r = PF.runPortfolio(data, PF.defaultConfig({
+        killSwitch: true, leverage: lev,
+        heatCap: lev > 1 ? 0.95 * lev : null, ...over }), from, b)
+      ms.push(PF.metrics(r, 10000, (b - from) / 86400000))
+      liq += r.liquidations
+      if (r.ruinedAt !== null) ruined++
+    }
+    const net = ms.map(x => x.netPct)
+    return { net, tot: net.reduce((a, b) => a + b, 0),
+      trades: ms.reduce((a, x) => a + x.trades, 0),
+      dd: Math.max(...ms.map(x => x.maxDD)), liq, ruined,
+      worst: Math.min(...net) }
+  }
+  const row = (tag: string, r: ReturnType<typeof run>) =>
+    console.log(`  ${tag.padEnd(20)} ${String(r.trades).padStart(6)} ${r.tot.toFixed(1).padStart(9)}% ` +
+      `${r.dd.toFixed(1).padStart(6)}% ${r.worst.toFixed(1).padStart(8)}% ` +
+      `${String(r.liq).padStart(6)} ${String(r.ruined) + '/6'}   ` +
+      `${r.net.map(x => (x >= 0 ? '+' : '') + x.toFixed(0)).join(' ')}`)
+  const hdr = () => console.log(
+    `  config                trades       net%  maxDD    worst    LIQ  RUIN  per-window`)
+
+  console.log(`\n── PART A: the deployed engine, levered ──`)
+  hdr()
+  for (const L of [1, 2, 3, 5, 10, 20, 50, 100]) row(`${L}x`, run(L))
+
+  console.log(`\n── PART B: ROTA-only, levered (the config with half the drawdown) ──`)
+  hdr()
+  for (const L of [1, 2, 3, 5, 10, 25]) {
+    row(`ROTA ${L}x`, run(L, { sleeves: ['ROTA'] }))
+  }
+
+  console.log(`\n── PART C: 6bps, because leverage multiplies COSTS too ──`)
+  console.log(`  Every dollar of borrowed notional pays the same spread as an owned`)
+  console.log(`  one. This is where leverage usually dies before liquidation gets it.`)
+  hdr()
+  for (const L of [1, 3, 5, 10]) row(`${L}x @6bps`, run(L, { slipBps: 6 }))
+
+  console.log(`\n── WHAT 1000%/WEEK WOULD REQUIRE, against these rows ──`)
+  console.log(`  1000%/week = 11x per week = roughly 5.7e54x over three years.`)
+  console.log(`  The best row above is the number to compare it with.`)
+  console.log(`\n  READ "RUIN" FIRST. Six independent $10,000 windows; RUIN counts the`)
+  console.log(`  ones that ended as a dead account. A row with a high net% and a`)
+  console.log(`  non-zero RUIN is not an opportunity — it is a coin flip that paid`)
+  console.log(`  out in the windows that survived.`)
+  console.log(`  STILL OPTIMISTIC, and by a lot: liquidation is checked once per`)
+  console.log(`  management bar, not tick by tick; there is no funding spike, no`)
+  console.log(`  auto-deleveraging, no exchange outage and no widening spread in a`)
+  console.log(`  crash — every one of which makes real leveraged trading worse.`)
+}
+
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
@@ -7628,6 +7737,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v73bt') {
     console.log(`████ V73BT — Donchian adaptive window (vol-scaled) vs fixed-15 ████`)
     runV73bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v89bt') {
+    console.log(`████ V89BT — leverage with margin, liquidation and account death ████`)
+    runV89bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v88bt') {

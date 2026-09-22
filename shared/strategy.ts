@@ -260,6 +260,18 @@ export interface SizeInput {
    */
   heatCap?: number
   /**
+   * MARGIN LEVERAGE, default 1 = the deployed cash account.
+   *
+   * At leverage L a position of notional N costs N/L in cash instead of N, so
+   * the account can hold L times its own value in open notional. This is the
+   * ONLY thing that makes "high risk" mechanically possible here — v88bt
+   * established that the risk percentage alone is fully absorbed by the caps.
+   *
+   * It is meaningless, and dangerously flattering, without the liquidation
+   * engine in backtest/portfolio.ts. Do not use one without the other.
+   */
+  leverage?: number
+  /**
    * RESEARCH HOOK, default 1 = today's behaviour exactly.
    *
    * A multiplier on the risk budget for this one entry, applied BEFORE every
@@ -283,14 +295,17 @@ export function sizeBreakout(inp: SizeInput): SizeResult {
   const { portfolio, balance, openExposure, heatCommitted } = inp
   if (portfolio <= 0) return { ok: false, reason: 'too_small' }
 
-  const remain = Math.max(0, portfolio - openExposure)
+  const lev = Math.max(1, inp.leverage ?? 1)
+  // With margin, the ceiling on open notional is the leveraged heat cap, and
+  // free cash supports `lev` times its own value in position.
+  const remain = Math.max(0, portfolio * (inp.heatCap ?? MAX_HEAT_PCT) / MAX_HEAT_PCT - openExposure)
   const riskNotional =
     (portfolio * BASE_RISK_PCT * adxTierMult(inp.adx) * (inp.riskMult ?? 1)) / inp.slPct
   let notional = Math.min(
     Math.max(riskNotional, MIN_NOTIONAL),
     portfolio * PER_POSITION_CAP * ((inp.heatCap ?? MAX_HEAT_PCT) / MAX_HEAT_PCT),
     remain,
-    balance * 0.95,
+    balance * 0.95 * lev,
   )
   let trimmedBy: 'none' | 'liquidity' | 'heat' = 'none'
 
