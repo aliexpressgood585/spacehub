@@ -541,7 +541,7 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v64.1'
+const BOT_VERSION = 'v65.0'
 const RELEASE_SHA = String((globalThis as any).__RELEASE_SHA ?? 'unpinned')
 // Universe fingerprint: a cheap order-independent digest, so a silently edited
 // CRYPTO_40 shows up as a different release even at an identical SHA.
@@ -3021,7 +3021,11 @@ Deno.serve(async (req) => {
       // v49: K 5→7 — annT 38.2% vs 34.4%, maxDD 17% vs 26%, all windows ✅.
       // v52: K 7→8 — v56bt: annT 39.2% vs 38.2%, maxDD 15% vs 20%, all windows ✅.
       // K=9 REJECTED (w3 negative, annT 32.8% — the edge thins past 8).
-      const ROTA_MS = S.ROTA_MS, ROTA_K = S.ROTA_K, ROTA_LB = S.ROTA_LB
+      // v65.0: names per side, deploy-time like LEVERAGE (env, then shim global).
+      // Bounded to [1, S.ROTA_K]; the collapsed-universe guard below stays on S.ROTA_K.
+      const ROTA_MS = S.ROTA_MS, ROTA_LB = S.ROTA_LB
+      const ROTA_K = Math.min(S.ROTA_K, Math.max(1, Math.floor(
+        Number(Deno.env.get('ROTA_K') ?? (globalThis as any).__ROTA_K ?? S.ROTA_K) || S.ROTA_K)))
       const lastRota = state.rebalanced_at ? new Date(state.rebalanced_at).getTime() : 0
       // v50: postpone the whole rebalance on a black day (retry next cycle once healed)
       if (ROTA_ENABLED && !dayLossPaused && now - lastRota >= ROTA_MS - 5*60_000) {
@@ -3048,7 +3052,7 @@ Deno.serve(async (req) => {
             momList.push({sym, mom: p1/p0-1, price: p1, vol: Math.max(vol, 0.001)})
           } catch { /* skip coin */ }
         }
-        if (momList.length >= ROTA_K*4) {
+        if (momList.length >= S.ROTA_K*4) {
           momList.sort((a,b)=>b.mom-a.mom)
           const target = new Map<string, {dir:1|-1, price:number}>()
           const invVol = new Map<string, number>()
