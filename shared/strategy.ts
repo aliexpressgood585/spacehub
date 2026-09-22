@@ -146,7 +146,7 @@ export const MAX_NEW_ENTRIES_PER_SCAN = 8
 export const ROTA_MS = 48 * 3600_000     // rebalance interval
 export const ROTA_K = 8                  // v56bt: K=9 flips window 3 negative
 export const ROTA_LB = 84                // 84 4h bars = 14 days of momentum
-export const ROTA_BOOK = 0.35            // per-side book fraction (0.35 long + 0.35 short = 70%)
+export const ROTA_BOOK = 0.45            // v63.0 owner instruction: raise deployed capital 70% -> 90%. v87bt measured 0.45 at +43.9% vs 0.35's +29.3% (maxDD 19.7% vs 12.3%) at $10k. NB v88bt showed this dial ZIGZAGS past 0.45 — do not push further without a fresh run.
 export const ROTA_SLOT_MIN = 0.028       // floor per slot, as a fraction of portfolio
 export const ROTA_SLOT_MAX = 0.14        // ceiling per slot
 export const ROTA_DRIFT_LO = 0.65        // keep an existing slot if it sits inside
