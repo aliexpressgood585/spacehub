@@ -1,34 +1,41 @@
-backtest 2026-09-22T19:18Z mode=v90bt months=6
-████ V90BT — the fast regime-switching engine: gross vs net ████
-  scanned 39 coins, span 184 days, 39179 signals
+backtest 2026-09-22T19:26Z mode=v91bt months=6
+████ V91BT — can the right 3-4 coins be picked IN ADVANCE? ████
+  39 coins, 184 days, 39179 signals
 
-── PART A: GROSS vs NET. This is the whole question. ──
-  config                      n     per-trade R          WR      total
-  ALL                     39179  gross -0.0185  NET -0.4082  WR 38.8%  totNet -15993R
-  TREND (breakout)        16417  gross -0.0337  NET -0.4092  WR 38.1%  totNet -6718R
-  RANGE (fade)            22762  gross -0.0075  NET -0.4075  WR 39.2%  totNet -9275R
+── PART A: is there a per-coin spread at all? ──
+  coins with POSITIVE GROSS: 14 of 39
+  coins with POSITIVE NET  : 0 of 39
+  best 5 by gross:
+    BCH    n=1018 gross +0.0595  net -0.4118
+    TRX    n=1090 gross +0.0465  net -1.3465
+    NEAR   n= 983 gross +0.0406  net -0.2188
+    ALGO   n= 973 gross +0.0402  net -0.2746
+    LTC    n=1008 gross +0.0387  net -0.4992
+  worst 3 by gross:
+    FIL    n= 896 gross -0.1015  net -0.4066
+    SEI    n=1109 gross -0.1023  net -0.4582
+    ENA    n=1064 gross -0.1051  net -0.3432
+  A spread ALWAYS exists across 39 coins — that is what randomness
+  looks like. Part B is the only thing that separates it from skill.
 
-  FREQUENCY: 8.9 trades/hour across the whole 40-coin universe
-  (owner asked for 10-15/hour — this is what the rules actually produce)
-  average hold 62 min, average COST 0.3897R per trade
-  i.e. every trade starts 0.390R in the hole before the market moves.
+── PART B: THE TEST. Rank on the PAST, trade the FUTURE. ──
+  Out-of-sample: rank coins by realised edge in window N, then trade
+  ONLY the top K in window N+1. No forward peeking anywhere.
+  top-3   n= 2687  gross +0.0025  NET -0.3831  totNet -1029R  periods positive 0/7
+    (trade-everything baseline over the same span: gross -0.0228 net -0.4186)
+  top-4   n= 3531  gross +0.0074  NET -0.3685  totNet -1301R  periods positive 0/7
+  top-6   n= 5273  gross +0.0103  NET -0.4105  totNet -2165R  periods positive 0/7
+  top-10  n= 8880  gross -0.0122  NET -0.4195  totNet -3725R  periods positive 0/7
 
-── PART B: is it the SIGNAL or the COSTS? ──
-  GROSS IS -0.0185R — NEGATIVE BEFORE ANY FEE IS CHARGED.
-  No fee schedule, no sizing, no maker trick and no amount of leverage
-  fixes a signal that loses money for free. Same result as v76bt's 5m
-  scan. The axis is closed, and this is the evidence.
+  READ IT LIKE THIS: if the top-K rows beat the baseline, past
+  performance predicts future performance and the owner's idea works.
+  If they sit on top of it, the leaders reshuffle and the per-coin
+  spread in part A was noise.
 
-── PART C: walk-forward, 6 windows — does it hold up over time? ──
-  window 1  n= 6115  totNet  -2141.0R
-  window 2  n= 6583  totNet  -2942.1R
-  window 3  n= 6828  totNet  -2760.4R
-  window 4  n= 6649  totNet  -1850.2R
-  window 5  n= 6389  totNet  -2953.3R
-  window 6  n= 6615  totNet  -3346.4R
-  windows positive: 0 of 6
-
-  NOTHING DEPLOYS OFF THIS. It is a 6-month 15m scan, not the 36-month
-  bar, and it has no portfolio layer — no cash limit, no caps, no
-  competition between positions. It answers ONE question: does a fast
-  regime-switching engine make money before and after costs.
+── PART C: what concentration does to a NEGATIVE edge ──
+  measured net edge -0.4082R per trade.
+  Concentration multiplies position size, never the sign. Putting a
+  $500 account into 4 names instead of 16 makes each trade 4x the
+  size, so the SAME edge compounds 4x faster — downward at this sign.
+  Concentration is only ever worth doing on top of a POSITIVE edge,
+  which is exactly what part B is testing for.
