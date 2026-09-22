@@ -566,7 +566,8 @@ const publishManifest = async (
   const row = {
     sha: RELEASE_SHA, bot_version: BOT_VERSION, universe_hash: UNIVERSE_HASH,
     universe_size: FIXED_COINS.length, base_risk_pct: BASE_RISK_PCT,
-    enabled_sleeves: (Deno.env.get('ENABLED_SLEEVES') ?? 'DONCH4H,ROTA'),
+    enabled_sleeves: (Deno.env.get('ENABLED_SLEEVES')
+      ?? String((globalThis as any).__ENABLED_SLEEVES ?? 'DONCH4H,ROTA')),
     paper_mode: paperMode, live_trading: liveMode,
     booted_at: new Date().toISOString(),
   }
@@ -2496,7 +2497,8 @@ Deno.serve(async (req) => {
         release:{sha:RELEASE_SHA, bot_version:BOT_VERSION, universe_hash:UNIVERSE_HASH,
                  strategies:['DONCH4H','ROTA'], timeframe:'4h', universe_size:FIXED_COINS.length,
                  base_risk_pct:BASE_RISK_PCT,
-                 enabled_sleeves:(Deno.env.get('ENABLED_SLEEVES') ?? 'DONCH4H,ROTA')},
+                 enabled_sleeves:(Deno.env.get('ENABLED_SLEEVES')
+                   ?? String((globalThis as any).__ENABLED_SLEEVES ?? 'DONCH4H,ROTA'))},
         fapi_status:fapiProbe, universe:coinsD.length,
         universe_c40:coinsD40.length, coverage:_lastUniverseCoverage, coverage_min:MIN_UNIVERSE_COVERAGE,
         fetch_source:_lastFetchSource, breakouts:outD, checked_at:new Date().toISOString()}),
@@ -2636,7 +2638,14 @@ Deno.serve(async (req) => {
     // A deploy-time env var, not a DB column, so a wrong row cannot silently
     // turn a sleeve back on. Unset means BOTH sleeves, which is the old
     // behaviour exactly, so rollback is one deploy with the var removed.
-    const ENABLED_SLEEVES = (Deno.env.get('ENABLED_SLEEVES') ?? 'DONCH4H,ROTA')
+    // Read from the deploy-time env var if one is set, otherwise from the value
+    // the release shim stamped in — the same mechanism as __RELEASE_SHA. Both are
+    // deploy-time: changing either requires a redeploy, which is the property
+    // that matters. Unset in both places means BOTH sleeves, i.e. old behaviour.
+    // NB deliberately NOT the pattern used for ALLOW_LIVE_EXECUTION, which stays
+    // env-only so that nothing in this repo can arm real execution.
+    const ENABLED_SLEEVES = (Deno.env.get('ENABLED_SLEEVES')
+      ?? String((globalThis as any).__ENABLED_SLEEVES ?? 'DONCH4H,ROTA'))
       .split(',').map(x => x.trim().toUpperCase()).filter(Boolean)
     const DONCH_ENABLED = ENABLED_SLEEVES.includes('DONCH4H')
     const ROTA_ENABLED  = ENABLED_SLEEVES.includes('ROTA')
