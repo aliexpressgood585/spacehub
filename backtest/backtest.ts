@@ -7552,6 +7552,160 @@ function runV89bt() {
   console.log(`  crash — every one of which makes real leveraged trading worse.`)
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// v90bt — THE FAST ENGINE. Owner phase change: "10-15 trades an hour", quick
+// take-profit, tight stops, and profit from RANGING as well as up and down.
+//
+// Built as ONE regime-aware engine rather than several parallel ones: on a $500
+// account parallel sleeves would each size below any sane ticket, and "react to
+// how the chart behaved" is a regime question, not three separate strategies.
+//   ADX > TREND_GATE  -> breakout continuation, both directions
+//   ADX < RANGE_GATE  -> fade the band edge back toward the mean, both directions
+//   in between        -> stand aside (the chop that kills both styles)
+//
+// THE ONE NUMBER THAT DECIDES THIS is GROSS vs NET. Every prior fast-trading
+// result here died the same way, so the run reports both side by side:
+//   v76bt  5m Donchian, every window: NEGATIVE AT FEE = 0
+//   v76bt  5m RSI fade: +0.011R gross against 0.33R/trade of fee drag
+//   v77bt  15m/30m/45m all fail window 1; gross edge climbs monotonically with
+//          timeframe (5m -0.024 -> 45m +0.033 -> 4h +0.051R)
+// If GROSS is negative here too, no fee schedule, no sizing and no execution
+// trick can save it and the axis is closed for good. If GROSS is positive and
+// NET is not, then it is a cost problem and the honest question becomes maker
+// fills, not signal hunting.
+// ════════════════════════════════════════════════════════════════════════════
+function runV90bt() {
+  const TREND_GATE = 25, RANGE_GATE = 18
+  const DW = 20, BB_N = 20, BB_K = 2.0
+  const SL_ATR = 1.0, TP_ATR = 1.5, MAX_BARS = 24   // 6h on 15m
+  const BAR_MS = 15 * 60_000
+
+  const sma = (a: number[]) => a.reduce((x, y) => x + y, 0) / a.length
+  const sd = (a: number[]) => { const m = sma(a); return Math.sqrt(sma(a.map(x => (x - m) ** 2))) }
+
+  type Tr = { r: number; rGross: number; regime: 'TREND' | 'RANGE'; bars: number; t: number }
+  const trades: Tr[] = []
+  let scanned = 0, spanMin = Infinity, spanMax = -Infinity
+
+  for (const sym of COINS) {
+    if (!CORE40.has(sym)) continue
+    const b = loadCSV(sym, '15m')
+    if (b.length < 400) continue
+    scanned++
+    spanMin = Math.min(spanMin, b[0].t); spanMax = Math.max(spanMax, b[b.length - 1].t)
+
+    let i = 70
+    while (i < b.length - 1) {
+      const hist = b.slice(i - 70, i + 1)
+      const adx = S.calcADX(hist.slice(-61), 14)
+      const atr = S.calcATR(hist.slice(-21), 14)
+      if (!(atr > 0)) { i++; continue }
+      const px = b[i].close
+      let side: S.Side | null = null
+      let regime: 'TREND' | 'RANGE' | null = null
+
+      if (adx > TREND_GATE) {
+        const w = b.slice(i - DW, i)
+        const hi = Math.max(...w.map(x => x.high)), lo = Math.min(...w.map(x => x.low))
+        if (px > hi) { side = 'LONG'; regime = 'TREND' }
+        else if (px < lo) { side = 'SHORT'; regime = 'TREND' }
+      } else if (adx < RANGE_GATE) {
+        const c = b.slice(i - BB_N, i).map(x => x.close)
+        const m = sma(c), s2 = sd(c)
+        if (s2 > 0) {
+          if (px < m - BB_K * s2) { side = 'LONG'; regime = 'RANGE' }
+          else if (px > BB_K * s2 + m) { side = 'SHORT'; regime = 'RANGE' }
+        }
+      }
+      if (!side || !regime) { i++; continue }
+
+      // Walk forward bar by bar. Stop is checked against the adverse extreme
+      // FIRST — the pessimistic convention, same as the portfolio simulator.
+      const dirM = side === 'LONG' ? 1 : -1
+      const entry = px
+      const stop = entry - dirM * SL_ATR * atr
+      const tgt = entry + dirM * TP_ATR * atr
+      let exit = entry, bars = 0
+      for (let j = i + 1; j < Math.min(b.length, i + 1 + MAX_BARS); j++) {
+        bars = j - i
+        const adv = side === 'LONG' ? b[j].low : b[j].high
+        const fav = side === 'LONG' ? b[j].high : b[j].low
+        if ((side === 'LONG' && adv <= stop) || (side === 'SHORT' && adv >= stop)) { exit = stop; break }
+        if ((side === 'LONG' && fav >= tgt) || (side === 'SHORT' && fav <= tgt)) { exit = tgt; break }
+        exit = b[j].close
+      }
+      const riskPx = SL_ATR * atr
+      const gross = ((exit - entry) * dirM) / riskPx
+      // Round trip, both legs market: taker in + taker out + slippage both ways.
+      const costR = (entry * (S.FEE_TAKER + S.SLIP) + exit * (S.FEE_TAKER + S.SLIP)) / riskPx
+      trades.push({ r: gross - costR, rGross: gross, regime, bars, t: b[i].t })
+      i += bars + 1          // no overlapping positions on the same symbol
+    }
+  }
+
+  const days = (spanMax - spanMin) / 86400000
+  console.log(`  scanned ${scanned} coins, span ${days.toFixed(0)} days, ${trades.length} signals`)
+  if (!trades.length) { console.log('  ABORT: no signals'); return }
+
+  const stat = (name: string, xs: Tr[]) => {
+    if (!xs.length) { console.log(`  ${name.padEnd(22)}      —`); return }
+    const g = xs.reduce((a, x) => a + x.rGross, 0) / xs.length
+    const n = xs.reduce((a, x) => a + x.r, 0) / xs.length
+    const wr = xs.filter(x => x.r > 0).length / xs.length * 100
+    console.log(`  ${name.padEnd(22)} ${String(xs.length).padStart(6)}  ` +
+      `gross ${(g >= 0 ? '+' : '') + g.toFixed(4)}  NET ${(n >= 0 ? '+' : '') + n.toFixed(4)}  ` +
+      `WR ${wr.toFixed(1)}%  totNet ${(n * xs.length).toFixed(0)}R`)
+  }
+
+  console.log(`\n── PART A: GROSS vs NET. This is the whole question. ──`)
+  console.log(`  config                      n     per-trade R          WR      total`)
+  stat('ALL', trades)
+  stat('TREND (breakout)', trades.filter(t => t.regime === 'TREND'))
+  stat('RANGE (fade)', trades.filter(t => t.regime === 'RANGE'))
+
+  const perHour = trades.length / (days * 24)
+  const costAvg = trades.reduce((a, x) => a + (x.rGross - x.r), 0) / trades.length
+  const heldAvg = trades.reduce((a, x) => a + x.bars, 0) / trades.length
+  console.log(`\n  FREQUENCY: ${perHour.toFixed(1)} trades/hour across the whole 40-coin universe`)
+  console.log(`  (owner asked for 10-15/hour — this is what the rules actually produce)`)
+  console.log(`  average hold ${(heldAvg * 15).toFixed(0)} min, average COST ${costAvg.toFixed(4)}R per trade`)
+  console.log(`  i.e. every trade starts ${costAvg.toFixed(3)}R in the hole before the market moves.`)
+
+  console.log(`\n── PART B: is it the SIGNAL or the COSTS? ──`)
+  const g = trades.reduce((a, x) => a + x.rGross, 0) / trades.length
+  const n = trades.reduce((a, x) => a + x.r, 0) / trades.length
+  if (g <= 0) {
+    console.log(`  GROSS IS ${g.toFixed(4)}R — NEGATIVE BEFORE ANY FEE IS CHARGED.`)
+    console.log(`  No fee schedule, no sizing, no maker trick and no amount of leverage`)
+    console.log(`  fixes a signal that loses money for free. Same result as v76bt's 5m`)
+    console.log(`  scan. The axis is closed, and this is the evidence.`)
+  } else if (n <= 0) {
+    console.log(`  GROSS +${g.toFixed(4)}R but NET ${n.toFixed(4)}R — the signal is real and`)
+    console.log(`  the COSTS eat it. Then the only honest lever is execution: resting`)
+    console.log(`  maker entries instead of market fills. Worth one more run, not a deploy.`)
+  } else {
+    console.log(`  BOTH POSITIVE: gross +${g.toFixed(4)}R, net +${n.toFixed(4)}R.`)
+    console.log(`  First fast-trading configuration here ever to clear its own costs.`)
+    console.log(`  Next gate is the walk-forward, NOT a deploy.`)
+  }
+
+  console.log(`\n── PART C: walk-forward, 6 windows — does it hold up over time? ──`)
+  const lo = spanMin, span = (spanMax - spanMin) / 6
+  const wins: number[] = []
+  for (let w = 0; w < 6; w++) {
+    const a = lo + w * span, bnd = lo + (w + 1) * span
+    const x = trades.filter(t => t.t >= a && t.t < bnd)
+    const tot = x.reduce((acc, t) => acc + t.r, 0)
+    wins.push(tot)
+    console.log(`  window ${w + 1}  n=${String(x.length).padStart(5)}  totNet ${tot.toFixed(1).padStart(8)}R`)
+  }
+  console.log(`  windows positive: ${wins.filter(x => x > 0).length} of 6`)
+  console.log(`\n  NOTHING DEPLOYS OFF THIS. It is a 6-month 15m scan, not the 36-month`)
+  console.log(`  bar, and it has no portfolio layer — no cash limit, no caps, no`)
+  console.log(`  competition between positions. It answers ONE question: does a fast`)
+  console.log(`  regime-switching engine make money before and after costs.`)
+}
+
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
@@ -7737,6 +7891,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v73bt') {
     console.log(`████ V73BT — Donchian adaptive window (vol-scaled) vs fixed-15 ████`)
     runV73bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v90bt') {
+    console.log(`████ V90BT — the fast regime-switching engine: gross vs net ████`)
+    runV90bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v89bt') {
