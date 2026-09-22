@@ -51,6 +51,16 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## v102bt (2026-09-22 23:30) — ORDER FLOW AT 1-24h HOLDS: REJECTED, all 24 rows.
+Cross-sectional: rank 10 coins by taker imbalance over L=4/24/72h, long bottom
+2 / short top 2 (fade) or reverse (follow), hold H=1/4/12/24h, re-rank.
+    Gross per period: -7.2 .. +7.2 bps; cost ~28 bps (every leg reopened).
+    Best: L24 H24 follow +7.22 gross, -20.6 net; 0 of 24 rows net positive.
+    The sign FLIPS between lookbacks (L4 favours fade, L24/L72 favour follow)
+    — the signature of noise, not of a slower version of the v101bt effect.
+Even at half the assumed turnover the best row stays negative. The flow
+signal does not survive being slowed down. SEVENTH rejection this session.
+
 ## v101bt (2026-09-22 23:25) — ORDER FLOW: a REAL signal, ~50x too small. Fast axis closed.
 New data source: taker-buy volume (kline col 10) -> aggressor imbalance TI over
 the last 5/15/60 min vs the NEXT 15 min, 10 coins, 12m, deciles cut on the
