@@ -1,26 +1,26 @@
-backtest 2026-09-22T23:39Z mode=v104bt months=36
-████ V104BT — ROTA K2 live config: vol targeting + momentum ensemble, 36m, 80/20 OOS ████
-  39 coins, span 1096 days
-  in-sample 2023-09-01 .. 2026-01-24 (4 windows)   OOS 2026-01-24 .. 2026-08-31
+backtest 2026-09-22T23:51Z mode=v105bt months=36
+████ V105BT — short-term reversal + BTC lead-lag, 36m, 40 coins ████
+  39 coins, span 1096 days, OOS from 2026-01-24
 
-── IN-SAMPLE (selection happens here, and only here) — K2, 12h, $5k-style 1x x1.75, breakers on ──
-  config                          trades   net%   maxDD  Sharpe   PF  cost/gross  LIQ  stop/tgt  dayH strk ddH  per-window
-  LIVE without breakers            6686  -136.4   74.1%  -1.51  0.95      214%    0       0/0    0    0   0  -20 -68 -55 +8
-  mom14d no-volT                   2466   -27.8   25.5%  -0.57  0.96      129%    0       0/0    0  122   4  -19 -23 +2 +12
-  mom14d volT50%                   2339    19.7   25.1%  -0.24  1.00       71%    0       0/0    0   85   2  +12 -25 -17 +50
-  mom14d volT70%                   1910    36.2   25.0%   0.10  1.00       65%    0       0/0    0   73   2  +19 -24 -14 +54
-  mom14d volT90%                   2373    13.7   25.2%  -0.37  0.99       88%    0       0/0    0  105   3  +38 -23 -10 +8
-  ens7/14/28d no-volT              2605    50.6   25.0%  -0.69  0.96       74%    0       0/0    0  137   3  +87 -24 +8 -21
-  ens7/14/28d volT50%              1920    67.1   24.3%   0.40  1.03       39%    0       0/0    0   71   1  +54 -23 -5 +42
-  ens7/14/28d volT70%              1485    94.5   25.1%  -0.07  1.00       37%    0       0/0    0   54   2  +95 -22 -6 +28
-  ens7/14/28d volT90%              1892   115.6   25.1%  -0.34  1.08       41%    0       0/0    0   86   3  +153 -24 -0 -13
+── A: cross-sectional short-term reversal (long K losers / short K winners) ──
+  L1h H4h K4                   n=  6575  IS gross   -0.79 net  -30.44 bps   OOS gross    2.65 net  -27.12 bps   OOS net %/yr -594.0
+  L1h H4h K8                   n=  6575  IS gross   -0.15 net  -29.71 bps   OOS gross    2.42 net  -27.21 bps   OOS net %/yr -595.9
+  L1h H24h K4                  n=  1095  IS gross   -5.80 net  -35.42 bps   OOS gross    9.85 net  -19.92 bps   OOS net %/yr -72.7
+  L1h H24h K8                  n=  1095  IS gross   -3.93 net  -33.44 bps   OOS gross    6.39 net  -23.23 bps   OOS net %/yr -84.8
+  L4h H4h K4                   n=  6574  IS gross    1.08 net  -28.60 bps   OOS gross    1.91 net  -27.82 bps   OOS net %/yr -609.4
+  L4h H4h K8                   n=  6574  IS gross    0.82 net  -28.74 bps   OOS gross    1.03 net  -28.58 bps   OOS net %/yr -626.0
+  L4h H24h K4                  n=  1095  IS gross   -5.67 net  -35.37 bps   OOS gross    6.59 net  -23.19 bps   OOS net %/yr -84.6
+  L4h H24h K8                  n=  1095  IS gross   -4.88 net  -34.45 bps   OOS gross    2.51 net  -27.12 bps   OOS net %/yr -99.0
+  L24h H4h K4                  n=  6569  IS gross   -1.65 net  -31.29 bps   OOS gross   -2.84 net  -32.56 bps   OOS net %/yr -713.0
+  L24h H4h K8                  n=  6569  IS gross   -0.51 net  -30.04 bps   OOS gross   -1.15 net  -30.73 bps   OOS net %/yr -673.1
+  L24h H24h K4                 n=  1094  IS gross  -10.03 net  -39.67 bps   OOS gross  -27.27 net  -57.00 bps   OOS net %/yr -208.0
+  L24h H24h K8                 n=  1094  IS gross   -0.82 net  -30.35 bps   OOS gross  -17.55 net  -47.14 bps   OOS net %/yr -172.1
 
-  SELECTED on in-sample (fewest DD halts, most positive windows, then return): ens7/14/28d volT50%
+── B: BTC lead-lag (alt basket follows a big BTC hour) ──
+  BTC |1h|>=1% hold 1h         n=  1335  IS gross   -2.17 net  -31.90 bps   OOS gross   -3.34 net  -33.08 bps   OOS net %/yr -147.1
+  BTC |1h|>=1% hold 4h         n=   950  IS gross   -6.34 net  -36.07 bps   OOS gross   -5.18 net  -34.92 bps   OOS net %/yr -110.5
+  BTC |1h|>=2% hold 1h         n=   219  IS gross   17.28 net  -12.45 bps   OOS gross  -22.63 net  -52.37 bps   OOS net %/yr -38.2
+  BTC |1h|>=2% hold 4h         n=   182  IS gross   20.95 net   -8.79 bps   OOS gross  -24.26 net  -53.99 bps   OOS net %/yr -32.7
 
-── OUT-OF-SAMPLE, run once ──
-  config                          trades   net%   maxDD  Sharpe   PF  cost/gross  LIQ  stop/tgt  dayH strk ddH  per-window
-  ens7/14/28d volT50%               387     1.0   21.1%   0.20  1.01       91%    0       0/0    0   16   0  +1
-  LIVE (mom14d no-volT)             381   -23.8   24.5%  -2.04  0.83       n/a    0       0/0    0   20   1  -24
-  ens7/14/28d volT50% @10/15bps     389    -4.2   22.9%  -0.15  0.97      136%    0       0/0    0   17   0  -4
-
-  Breakers as live: day -10%, DD 25% (flatten + stop for the window), 4 losses -> 1h.
+  Costs per leg round trip: 20 bps majors / 30 bps alts (taker + slippage).
+  B's %/yr uses the realised event frequency. OOS = last 20%, never used to choose.
