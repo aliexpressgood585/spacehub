@@ -541,7 +541,7 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v64.0'
+const BOT_VERSION = 'v64.1'
 const RELEASE_SHA = String((globalThis as any).__RELEASE_SHA ?? 'unpinned')
 // Universe fingerprint: a cheap order-independent digest, so a silently edited
 // CRYPTO_40 shows up as a different release even at an identical SHA.
@@ -3059,7 +3059,7 @@ Deno.serve(async (req) => {
             target.set(x.sym, {dir:-1, price:x.price}); invVol.set(x.sym, 1/x.vol); shortInvSum += 1/x.vol }
           if (rotaPaused) target.clear()   // v43 (#4): paused → unwind basket, open nothing
           // v45.1: portfolio estimate up-front (for resize checks + slot sizing)
-          const {data:allOpenRows} = await supabase.from('bot_trades').select('sym,entry_price,size').eq('status','OPEN')
+          const {data:allOpenRows} = await supabase.from('bot_trades').select('sym,entry_price,size,lev').eq('status','OPEN')
           const allExp = (allOpenRows||[]).reduce((a:number,x:any)=>a+Number(x.entry_price)*Number(x.size),0)
           // Portfolio value uses MARGIN posted (see v64.0 note above); allExp
           // stays full notional because the heat cap governs EXPOSURE, and
@@ -3087,7 +3087,10 @@ Deno.serve(async (req) => {
             if (wantDir === t.side) {
               const curNotional = Number(t.entry_price)*Number(t.size)
               const tgtNotional = slotTarget(t.sym, tgt!.dir)
-              if (S.rotaSizeOk(curNotional, tgtNotional)) { target.delete(t.sym); continue }  // size OK → keep
+              // v64.1: a slot opened at a different leverage is NOT kept — otherwise
+              // a leverage change never reaches a basket whose sizes stay in band.
+              const levOk = Math.max(1, Number(t.lev)||1) === LEV
+              if (levOk && S.rotaSizeOk(curNotional, tgtNotional)) { target.delete(t.sym); continue }  // size OK → keep
               // size drifted → close and reopen at target below
             }
             // v57.1: fill at the CURRENT price, not the last completed 4h close.
