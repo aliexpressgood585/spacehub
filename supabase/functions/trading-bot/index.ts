@@ -541,7 +541,7 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v59.0'
+const BOT_VERSION = 'v62.0'
 const RELEASE_SHA = String((globalThis as any).__RELEASE_SHA ?? 'unpinned')
 // Universe fingerprint: a cheap order-independent digest, so a silently edited
 // CRYPTO_40 shows up as a different release even at an identical SHA.
@@ -566,6 +566,7 @@ const publishManifest = async (
   const row = {
     sha: RELEASE_SHA, bot_version: BOT_VERSION, universe_hash: UNIVERSE_HASH,
     universe_size: FIXED_COINS.length, base_risk_pct: BASE_RISK_PCT,
+    enabled_sleeves: (Deno.env.get('ENABLED_SLEEVES') ?? 'DONCH4H,ROTA'),
     paper_mode: paperMode, live_trading: liveMode,
     booted_at: new Date().toISOString(),
   }
@@ -2494,7 +2495,8 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ok:true,
         release:{sha:RELEASE_SHA, bot_version:BOT_VERSION, universe_hash:UNIVERSE_HASH,
                  strategies:['DONCH4H','ROTA'], timeframe:'4h', universe_size:FIXED_COINS.length,
-                 base_risk_pct:BASE_RISK_PCT},
+                 base_risk_pct:BASE_RISK_PCT,
+                 enabled_sleeves:(Deno.env.get('ENABLED_SLEEVES') ?? 'DONCH4H,ROTA')},
         fapi_status:fapiProbe, universe:coinsD.length,
         universe_c40:coinsD40.length, coverage:_lastUniverseCoverage, coverage_min:MIN_UNIVERSE_COVERAGE,
         fetch_source:_lastFetchSource, breakouts:outD, checked_at:new Date().toISOString()}),
@@ -2618,6 +2620,26 @@ Deno.serve(async (req) => {
     // goes false AND paperMode goes true together, so every row is tagged for
     // what it actually was.
     const ALLOW_LIVE = Deno.env.get('ALLOW_LIVE_EXECUTION') === 'true'
+
+    // ── SLEEVE GATE (v62.0) — deploy-time, same pattern as the paper lock ─────
+    // Owner instruction 2026-09-22: run ROTA alone. The evidence is v86bt/v87bt:
+    // ROTA-only halves drawdown (12-14% vs 24-27%) at EVERY cost level, beats
+    // the mix by 15.7pp at 6bps and 37.2pp at 10bps where the mix LOSES money,
+    // and has one negative window against the mix's three. The RETURN claim is
+    // NOT part of that case: +29.3% vs +27.6% is 1.7pp against a measured 10.6pp
+    // error bar, i.e. noise.
+    //
+    // ENTRIES ONLY. Open DONCH4H positions keep their ladders, stops and
+    // trailing exits and are left to finish on their own terms — closing a book
+    // by hand is the v65bt mistake and there is no reason to repeat it.
+    //
+    // A deploy-time env var, not a DB column, so a wrong row cannot silently
+    // turn a sleeve back on. Unset means BOTH sleeves, which is the old
+    // behaviour exactly, so rollback is one deploy with the var removed.
+    const ENABLED_SLEEVES = (Deno.env.get('ENABLED_SLEEVES') ?? 'DONCH4H,ROTA')
+      .split(',').map(x => x.trim().toUpperCase()).filter(Boolean)
+    const DONCH_ENABLED = ENABLED_SLEEVES.includes('DONCH4H')
+    const ROTA_ENABLED  = ENABLED_SLEEVES.includes('ROTA')
     const paperMode = !ALLOW_LIVE || url.searchParams.get('paper')==='1' || state.paper_mode===true
     // v55: live mode was triple-locked; v58.0 makes it quadruple — the env flag
     // above must ALSO be explicitly 'true'. It is not set anywhere in this repo.
@@ -2975,7 +2997,7 @@ Deno.serve(async (req) => {
       const ROTA_MS = S.ROTA_MS, ROTA_K = S.ROTA_K, ROTA_LB = S.ROTA_LB
       const lastRota = state.rebalanced_at ? new Date(state.rebalanced_at).getTime() : 0
       // v50: postpone the whole rebalance on a black day (retry next cycle once healed)
-      if (!dayLossPaused && now - lastRota >= ROTA_MS - 5*60_000) {
+      if (ROTA_ENABLED && !dayLossPaused && now - lastRota >= ROTA_MS - 5*60_000) {
         const {data:rotaOpenAll} = await supabase.from('bot_trades').select('*').eq('status','OPEN').eq('strategy','ROTA')
         const momList: {sym:string, mom:number, price:number, vol:number}[] = []
         // v42.2: rank EXACTLY the 40-coin universe the 36-month validation used —
@@ -3593,6 +3615,8 @@ Deno.serve(async (req) => {
         // profit and the new breakout is the same direction. Anything else blocks.
         // v49: depth 3 (validated: 9,091 trades, +0.047R, all 6 windows) —
         // 3rd unit requires ALL open units ≥1.0R.
+        // v62.0 sleeve gate — new breakout entries only. Exits are untouched.
+        if (!DONCH_ENABLED) return
         const donchOnSym = openTrades.filter((t:any)=>t.strategy==='DONCH4H')
         if (openTrades.some((t:any)=>t.strategy!=='DONCH4H')) return  // ROTA/legacy holds the coin
         if (donchOnSym.length >= 3) return                            // max 3 units
