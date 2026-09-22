@@ -77,6 +77,12 @@ NOT used. The 10x instruction was superseded on the owner's stated goal
 ("profit as fast as possible") — 10x measured -94% on their own model; they
 were told and can restore it with one shim line.
 NOT CLEARED: rule 6 (w6 -12.7), 12 months, L+S 12h @6bps not measured.
+v67.1 FIX: the first v67.0 rotation closed the four 10x slots and opened
+NOTHING — the rebalance read open rows once BEFORE closing, so the per-coin cap
+still saw the closed $700 notionals and zeroed every new slot (`per_coin_cap`,
+slot 0). Closed rows are now dropped and `port` recomputed after the close loop.
+VERIFIED 22:29 UTC, function v18, sha `a466729a`: NEAR/AVAX LONG + CRV/DOT
+SHORT, 2x, $139 notional each on $70 margin, cash $218.75, 0 errors.
 
 ## v65.0 (2026-09-22 22:15) — CONCENTRATED ROTA: K=2 per side (4 positions), 3x.
 Owner: reset, aggressive, "not 16 positions at once". Account reset to $500

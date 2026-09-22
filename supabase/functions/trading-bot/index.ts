@@ -541,7 +541,7 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v67.0'
+const BOT_VERSION = 'v67.1'
 const RELEASE_SHA = String((globalThis as any).__RELEASE_SHA ?? 'unpinned')
 // Universe fingerprint: a cheap order-independent digest, so a silently edited
 // CRYPTO_40 shows up as a different release even at an identical SHA.
@@ -3070,14 +3070,16 @@ Deno.serve(async (req) => {
             target.set(x.sym, {dir:-1, price:x.price}); invVol.set(x.sym, 1/x.vol); shortInvSum += 1/x.vol }
           if (rotaPaused) target.clear()   // v43 (#4): paused → unwind basket, open nothing
           // v45.1: portfolio estimate up-front (for resize checks + slot sizing)
-          const {data:allOpenRows} = await supabase.from('bot_trades').select('sym,entry_price,size,lev').eq('status','OPEN')
+          const {data:_allOpenRows0} = await supabase.from('bot_trades').select('id,sym,entry_price,size,lev').eq('status','OPEN')
+          let allOpenRows: any[] = _allOpenRows0 || []
           const allExp = (allOpenRows||[]).reduce((a:number,x:any)=>a+Number(x.entry_price)*Number(x.size),0)
           // Portfolio value uses MARGIN posted (see v64.0 note above); allExp
           // stays full notional because the heat cap governs EXPOSURE, and
           // exposure is what is actually at risk in the market.
-          const allMargin = (allOpenRows||[]).reduce((a:number,x:any)=>
+          const marginOf = (rows:any[]) => rows.reduce((a:number,x:any)=>
             a + Number(x.entry_price)*Number(x.size)/(Math.max(1, Number(x.lev)||1)), 0)
-          const port = balance + allMargin
+          let allMargin = marginOf(allOpenRows)
+          let port = balance + allMargin
           // v66.0: MARGIN SIZING (owner: "$70 at 10x = $700"). When on, the slot
           // target is the MARGIN posted and notional = margin x LEV, so leverage
           // really enlarges the position and a ~9.5% adverse move liquidates the
@@ -3097,6 +3099,7 @@ Deno.serve(async (req) => {
             if (!_rotaPxCache.has(sym2)) _rotaPxCache.set(sym2, await fetchLivePrice(sym2))
             return _rotaPxCache.get(sym2) ?? null
           }
+          const _rotaClosed = new Set<any>()
           // close positions that left the basket, flipped direction, or drifted >±35% from target size
           for (const t of (rotaOpenAll||[])) {
             const tgt = target.get(t.sym)
@@ -3129,7 +3132,14 @@ Deno.serve(async (req) => {
               closed_at:new Date().toISOString()
             }).eq('id',t.id)
             log.push(`ROTA_CLOSE ${t.sym} ${t.side} pnl=${pnl2.toFixed(2)}`)
+            _rotaClosed.add(t.id)
           }
+          // v67.1: rows closed just above must stop counting — the pre-close
+          // snapshot otherwise double-counts their margin in `port` and their
+          // notional in the per-coin cap, which at 10x zeroed every new slot.
+          allOpenRows = allOpenRows.filter((x:any) => !_rotaClosed.has(x.id))
+          allMargin = marginOf(allOpenRows)
+          port = balance + allMargin
           // open the new/resized slots (inverse-vol weights, 70% book)
           for (const [sym,tgt] of target) {
             let slotNotional = slotTarget(sym, tgt.dir) * SCALE
