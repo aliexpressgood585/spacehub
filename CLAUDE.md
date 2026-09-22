@@ -51,6 +51,57 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## v92bt (2026-09-22) — THE COST DIAGNOSIS WAS RIGHT. THE ENGINE IS STILL WORSE
+## THAN THE ONE ALREADY RUNNING.
+── PART A: the cost-to-risk fix, and it works exactly as predicted ──
+    15m  n=39,179  stop 0.56%  cost **0.3897R**  gross -0.0185  NET **-0.4082**
+    4h   n= 2,345  stop 2.34%  cost **0.0844R**  gross **+0.0336**  NET **-0.0508**
+Moving the identical engine to 4h cut the cost **4.6x** and flipped GROSS
+POSITIVE. Net improved eightfold, -0.41R to -0.05R. **The diagnosis was correct:
+the killer was never the signal or the fee, it was the ratio between them.**
+BUT NET IS STILL NEGATIVE. Gross +0.034 against cost 0.084 — costs are still 2.5x
+the edge. And frequency collapses to 0.5 trades/hour, which is the unavoidable
+other side of the same coin: the cost ratio improves *because* you trade less.
+
+**THE COMPARISON THAT MATTERS, and it settles the whole phase:** the DEPLOYED
+DONCH4H engine nets **+0.046R** at 4h. This experimental engine nets **-0.051R**
+on the same bars. The difference is not the timeframe — it is the EXIT: a
+1.0xATR stop with a hard 1.5R target versus the validated ladder with a trailing
+third. **The fast-trading detour ends with the engine that was already running
+being the best thing measured all day.**
+
+── PART B: selection did NOT transfer to 4h ──
+    baseline  n=2,078  gross +0.0204  NET -0.0649
+    top-3     n=  166  gross **-0.0963**  NET -0.1970   2/7 periods
+    top-4     n=  230  gross -0.0623  NET -0.1562   2/7
+    top-6     n=  333  gross +0.0259  NET -0.0607   2/7
+    top-10    n=  550  gross +0.0483  NET -0.0403   3/7
+The ordering **INVERTS** against 15m: there tighter selection helped (top-3/4/6
+positive, top-10 worst); here tighter selection is WORST and top-10 is best.
+The reason is sample: 4h yields 2,345 trades total, so top-3 leaves ~24 trades
+per ranking period. **A ranking built on 24 trades is fitting noise.**
+So v91bt's +0.033R selection effect does not survive the move, and it must now
+be treated as unproven rather than as a finding — it may have been real only
+because 15m gave it 39,179 trades to rank on, which is exactly the regime where
+the costs make it worthless. Selection needs a big sample; the big sample only
+exists where the edge is eaten. That is a genuine bind, not a tuning problem.
+
+── PART C: the isolated-leverage ceiling, measured from the real stop spread ──
+    15m  median stop 0.50%  ->  stop protects up to **201x** (widest 10%: 107x)
+    4h   median stop 2.17%  ->  stop protects up to **46x**  (widest 10%: 28x)
+Above those, liquidation sits INSIDE the stop and every loser becomes a full
+margin wipe instead of a 1R loss. The owner is right that isolated margin caps
+the damage to one position — but an R-multiple is leverage-invariant, so 4h's
+-0.0508R per trade is -0.508R of the account per trade at 10x. Leverage is a
+volume knob on the sign of the edge, which v89bt measured end to end
+(2x -10.8%, 3x -45.0%, 10x -118.7%, 100x -342.1%).
+
+**WHERE THE FAST-TRADING PHASE LANDS:** v90bt (negative gross at 15m), v91bt
+(selection real but 12x too small), v92bt (cost ratio fixed, still worse than
+the incumbent). The honest conclusion is that the 4h engine already deployed is
+the fastest configuration that clears its own costs on this universe, and the
+reason is the ladder exit rather than the entry.
+
 ## v91bt (2026-09-22) — THE OWNER WAS PARTLY RIGHT. Coin selection is REAL —
 ## and roughly twelve times too small to pay for itself.
 Owner's idea: pick 3-4 coins instead of spraying 16. Split into its two claims
