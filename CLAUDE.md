@@ -51,6 +51,21 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## v101bt (2026-09-22 23:25) — ORDER FLOW: a REAL signal, ~50x too small. Fast axis closed.
+New data source: taker-buy volume (kline col 10) -> aggressor imbalance TI over
+the last 5/15/60 min vs the NEXT 15 min, 10 coins, 12m, deciles cut on the
+first half and judged on the second (out-of-sample).
+    k=3 (15m of flow): bottom decile +0.56 bps ... top decile -0.46 bps,
+    near-monotonic — heavy aggressive BUYING is followed by slight DOWN (fade).
+    k=12 same shape (+0.48 .. -0.43). k=1 flat (noise).
+    Best trade (fade extremes): gross +0.51 bps vs round trip 20-30 bps taker
+    -> net -27.8 bps; even the impossible every-limit-fills maker row -3.5 bps.
+First flow edge ever measured here and it is genuine in SHAPE, but it is
+0.5 bps against a minimum real cost of ~4-20 bps. SIXTH sub-hour rejection
+(v76bt, v77bt, v90bt, v99bt, v100bt, v101bt). With OHLCV + taker-flow data,
+a once-per-minute cron and no exchange link, there is no scalp to build.
+Remaining unknowns would need tick/L2 order-book data and exchange co-location.
+
 ## v100bt (2026-09-22 23:20) — MAKER-ONLY MEAN-REVERSION SCALP: REJECTED, worse gross.
 5m RSI 20/80 and 10/90 fade, limit entry at the signal close, fill only if a
 later bar trades STRICTLY THROUGH it, maker target, taker stop/time exit, hold
