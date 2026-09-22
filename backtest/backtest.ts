@@ -8111,6 +8111,82 @@ function runV93bt() {
   console.log(`  are floors.`)
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// v94bt — THE EXIT. The one lever with real room left.
+// v92bt: identical entries, identical bars. Hard stop+target -0.051R; the
+// deployed ladder +0.046R. ~0.1R per trade from HOW YOU LEAVE, nothing else.
+// v61.1 found the specific leak: the breakeven floor on the trailing third
+// caps the fat tail — the 15 biggest disagreements all exited at exactly
+// +0.533R while the same trades, unfloored, ran to +2.7R through +7.8R.
+// ════════════════════════════════════════════════════════════════════════════
+function runV94bt() {
+  const NW = 6, BAR4 = 14400000
+  const to4h = (a: Bar[], ms: number): Bar[] => {
+    const out: Bar[] = []; let cur: Bar | null = null; let bk = -1
+    for (const b of a) {
+      const k = Math.floor(b.t / ms)
+      if (k !== bk) { if (cur) out.push(cur); bk = k
+        cur = { t: k*ms, open: b.open, high: b.high, low: b.low, close: b.close, vol: b.vol } }
+      else if (cur) { cur.high = Math.max(cur.high, b.high); cur.low = Math.min(cur.low, b.low)
+        cur.close = b.close; cur.vol += b.vol }
+    }
+    if (cur) out.push(cur); return out
+  }
+  const data: Record<string, PF.CoinData> = {}
+  let tmin = Infinity, tmax = -Infinity
+  for (const c of COINS) {
+    if (!CORE40.has(c)) continue
+    const h = loadCSV(c, '1h'); if (h.length < 500) continue
+    data[c] = { b1: h, b4: to4h(h, BAR4) }
+    tmin = Math.min(tmin, h[0].t); tmax = Math.max(tmax, h[h.length-1].t)
+  }
+  const spanDays = (tmax - tmin) / 86400000
+  console.log(`  ${Object.keys(data).length} coins, span ${spanDays.toFixed(0)} days`)
+  if (spanDays < 150) { console.log('  ABORT'); return }
+  const wSpan = (tmax - tmin) / NW, WARM = 100 * BAR4
+
+  const run = (over: Partial<PF.SimConfig>) => {
+    const ms: PF.Metrics[] = []
+    for (let w = 0; w < NW; w++) {
+      const a = tmin + w*wSpan, b = tmin + (w+1)*wSpan
+      const from = Math.max(tmin + WARM, a)
+      if (b - from < 20*86400000) continue
+      ms.push(PF.metrics(PF.runPortfolio(data,
+        PF.defaultConfig({ killSwitch: true, ...over }), from, b), 10000, (b-from)/86400000))
+    }
+    const net = ms.map(x => x.netPct)
+    return { net, tot: net.reduce((a,b)=>a+b,0), trades: ms.reduce((a,x)=>a+x.trades,0),
+      dd: Math.max(...ms.map(x=>x.maxDD)), r: ms.reduce((a,x)=>a+x.expectancyR,0)/Math.max(1,ms.length) }
+  }
+  const row = (tag: string, r: ReturnType<typeof run>) =>
+    console.log(`  ${tag.padEnd(26)} ${String(r.trades).padStart(5)} ${r.tot.toFixed(1).padStart(8)}% ` +
+      `${r.dd.toFixed(1).padStart(6)}%  avgR ${(r.r>=0?'+':'')+r.r.toFixed(4)}  ` +
+      `${r.net.map(x=>(x>=0?'+':'')+x.toFixed(0)).join(' ')}`)
+  const hdr = () => console.log(`  config                     trades      net%  maxDD   per-trade  per-window`)
+
+  console.log(`\n── THE BREAKEVEN FLOOR: does it protect, or does it cap? ──`)
+  console.log(`  v61.1 says the floor exits winners at exactly +0.533R that would`)
+  console.log(`  otherwise run to +2.7R..+7.8R. This is that, measured on dollars.`)
+  hdr()
+  row('floor ON  (deployed)', run({ trailFloor: 'breakeven' }))
+  row('floor OFF (let it run)', run({ trailFloor: 'free' }))
+
+  console.log(`\n── the same at 6bps, because an exit change must survive cost ──`)
+  hdr()
+  row('floor ON  @6bps', run({ trailFloor: 'breakeven', slipBps: 6 }))
+  row('floor OFF @6bps', run({ trailFloor: 'free', slipBps: 6 }))
+
+  console.log(`\n── ROTA-only book (what is actually deployed at \$500) ──`)
+  hdr()
+  row('ROTA floor ON', run({ sleeves: ['ROTA'], trailFloor: 'breakeven' }))
+  row('ROTA floor OFF', run({ sleeves: ['ROTA'], trailFloor: 'free' }))
+
+  console.log(`\n  RULE 5 CHECK: this is an EXIT change, so trade counts must barely`)
+  console.log(`  move. v82bt saw 'free' cut 1,076 trades (-22%) at \$10k — if that`)
+  console.log(`  repeats it is a rule-5 rejection however good the return looks,`)
+  console.log(`  because a trade held longer is a trade not re-entered elsewhere.`)
+}
+
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
@@ -8296,6 +8372,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v73bt') {
     console.log(`████ V73BT — Donchian adaptive window (vol-scaled) vs fixed-15 ████`)
     runV73bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v94bt') {
+    console.log(`████ V94BT — the exit: does the breakeven floor cap the fat tail? ████`)
+    runV94bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v93bt') {
