@@ -203,6 +203,15 @@ export interface SimConfig {
   /** v97bt: rebalance period in ms (default S.ROTA_MS, 48h). */
   rotaMs?: number
   risk?: RiskProfile | null
+  /** v104bt: breakers without the stop profile (day / DD / streak), same semantics */
+  breakers?: Pick<RiskProfile, 'dayLossHalt' | 'ddHalt' | 'lossStreak' | 'streakPauseMs'> | null
+  /** v104bt: live `ROTA_SLOT_SCALE` (slot target and per-coin cap multiplier) */
+  rotaSlotScale?: number
+  /** v104bt: momentum = mean of simple returns over these lookbacks (4h bars) */
+  rotaLbs?: number[]
+  /** v104bt: scale ROTA slots by min(1, target / annualised mean 14d realised
+   *  vol of the traded names), floor 0.2 — sizes down in turbulent markets */
+  volTarget?: { target: number } | null
   /** Leverage: overrides the 0.95 heat cap, or null for the deployed caps. */
   heatCap: number | null
   /**
@@ -400,6 +409,7 @@ export function runPortfolio(
 ): SimResult {
   const SLIP = cfg.slipBps / 10_000
   const RP = cfg.risk ?? null
+  const BK = cfg.breakers ?? RP
   const MAJORS = new Set(['BTC', 'ETH'])
   const slipFor = (sym: string) => RP && !MAJORS.has(sym) ? RP.slipAltBps / 10_000 : SLIP
   // v98bt breaker state
@@ -502,8 +512,8 @@ export function runPortfolio(
       heldH: (t - p.openedAt) / H1,
     })
     if (p.sleeve === 'DONCH4H') lastCloseBySym.set(p.sym, t)
-    if (RP) {
-      if (pnl < 0) { if (++lossRun >= RP.lossStreak) { streakPauseUntil = t + RP.streakPauseMs; lossRun = 0; streakPauses++ } }
+    if (BK) {
+      if (pnl < 0) { if (++lossRun >= BK.lossStreak) { streakPauseUntil = t + BK.streakPauseMs; lossRun = 0; streakPauses++ } }
       else lossRun = 0
     }
     closedBySleeve[p.sleeve].push(closed[closed.length - 1])
@@ -811,12 +821,23 @@ export function runPortfolio(
       if (i === undefined) continue
       // WINDOWED, not sliced from zero. rotaStats reads ROTA_LB+1 bars; copying
       // the whole history 40x per rebalance turns a 90-second run into an hour.
-      const completed = data[sym].b4.slice(Math.max(0, i - (S.ROTA_LB + 4)), i + 1)
-      const st = S.rotaStats(sym, completed)
+      const maxLb = Math.max(S.ROTA_LB, ...(cfg.rotaLbs ?? []))
+      const completed = data[sym].b4.slice(Math.max(0, i - (maxLb + 4)), i + 1)
+      const st = S.rotaStats(sym, completed.slice(-(S.ROTA_LB + 5)))
+      if (st && cfg.rotaLbs?.length) {
+        const p1 = completed[completed.length - 1].close
+        const ms = cfg.rotaLbs.map(lb => completed[completed.length - 1 - lb]?.close).filter(p => p > 0).map(p0 => p1 / p0 - 1)
+        if (ms.length !== cfg.rotaLbs.length) continue
+        st.mom = ms.reduce((a, b) => a + b, 0) / ms.length
+      }
       if (st) rows.push(st)
     }
     const targets = S.rotaTargets(rows, cfg.rotaK ?? S.ROTA_K, cfg.rotaSide ?? 'both')
     if (targets.length === 0) return
+    // v104bt: annualised mean realised vol of the names being traded (no
+    // feedback from the book's own sizing, unlike an equity-curve estimate)
+    const tv = targets.map(x => rows.find(r => r.sym === x.sym)?.vol ?? 0).filter(v => v > 0)
+    const basketVol = tv.length ? tv.reduce((a, b) => a + b, 0) / tv.length * Math.sqrt(6 * 365) : 0
 
     const want = new Map(targets.map(x => [x.sym, x]))
     const port = cash + postedMargin() + unrealised(t)
@@ -840,7 +861,9 @@ export function runPortfolio(
       if (mk === null) continue
       if (RP) { openRisk(sym, tgt, t, mk); continue }
       const port2 = cash + postedMargin() + unrealised(t)
-      const SC = cfg.rotaMarginSizing ? cfg.leverage : 1
+      if (BK && !canEnter(t)) { rejections.push({ t, sym, sleeve: 'ROTA', side: tgt.dir === 1 ? 'LONG' : 'SHORT', reason: 'breaker', adx: 0, wantedNotional: 0 }); continue }
+      let SC = (cfg.rotaMarginSizing ? cfg.leverage : 1) * (cfg.rotaSlotScale ?? 1)
+      if (cfg.volTarget && basketVol > 0) SC *= Math.max(0.2, Math.min(1, cfg.volTarget.target / basketVol))
       let slot = S.rotaSlotTarget(port2, tgt.weight, cfg.rotaBook ?? undefined) * SC
       slot = Math.min(slot, Math.max(0, port2 * S.PER_COIN_CAP * SC - symExposure(sym)))
       const side: S.Side = tgt.dir === 1 ? 'LONG' : 'SHORT'
@@ -914,15 +937,15 @@ export function runPortfolio(
     }
 
     // v98bt breakers, checked every management step on marked equity
-    if (RP && ddHaltAt === null) {
+    if (BK && ddHaltAt === null) {
       const eqNow = cash + postedMargin() + unrealised(t)
       const dk = Math.floor(t / 86_400_000)
       if (dk !== dayKey) { dayKey = dk; dayStartEq = eqNow }
       peakEq = Math.max(peakEq, eqNow)
-      if (eqNow <= peakEq * (1 - RP.ddHalt)) {
+      if (eqNow <= peakEq * (1 - BK.ddHalt)) {
         ddHaltAt = t
         for (const p of open.slice()) { const mk = markOf(p.sym, t); if (mk !== null) closePosition(p, mk, t, 'dd_halt', S.FEE_TAKER, true) }
-      } else if (t >= dayHaltUntil && eqNow <= dayStartEq * (1 - RP.dayLossHalt)) {
+      } else if (t >= dayHaltUntil && eqNow <= dayStartEq * (1 - BK.dayLossHalt)) {
         dayHaltUntil = (dk + 1) * 86_400_000; dayHalts++
       }
     }
