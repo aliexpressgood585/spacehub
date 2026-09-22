@@ -7038,6 +7038,156 @@ function runV85bt() {
   console.log(`  multiplier into a filter and the row is a rule-5 rejection, not a win.`)
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// v86bt — THE SLEEVE SPLIT (owner-requested), behind a NOISE FLOOR.
+//
+// WHY THE NOISE FLOOR COMES FIRST. v85bt's uniform-multiplier sweep did not
+// produce a curve, it produced a zigzag:
+//     0.90 -> +36.0%   0.85 -> +67.9%   0.80 -> +32.7%
+//     0.75 -> +69.7%   0.60 ->  +0.7%
+// Adjacent settings five percent apart land thirty points apart, twice, in
+// opposite directions. That is not a response curve. A capital-constrained
+// simulator is PATH DEPENDENT: change one ticket by a dollar and a different
+// trade gets funded, which frees capital at a different hour, which changes
+// every entry after it. The suspicion is that a single run of this simulator
+// has a wide error bar and that most single-run comparisons in CLAUDE.md —
+// "pyramidMax=2 gains +3.2pp", "ADX allocation is 5.6pp worse", and v84bt's
+// entire Wyckoff result — are inside it.
+//
+// So PART A measures that error bar the only way that cannot be argued with:
+// perturb something that CANNOT matter and see how much the answer moves.
+// Starting cash of $10,000 vs $10,001 is a 0.01% change with no economic
+// meaning. If the six-window total swings by tens of points across those runs,
+// then no comparison on this instrument means anything until it is averaged,
+// and that is a bigger finding than any sleeve split.
+//
+// PART B is what the owner asked for and the reason this is urgent: 70% of
+// capital sits in ROTA on the strength of v80bt's +63.3%, and PR #21 showed
+// ROTA never paid funding — it holds ~15 perpetuals for 48h at a stretch and
+// pays carry on BOTH legs of a long/short book, so it is precisely the figure
+// the bug inflated most. The live account agrees with the suspicion: ROTA
+// -$338 on 14 closes against DONCH4H +$258 on 18.
+//
+// PART C is the other half of the owner's complaint. ROTA has NO stop, NO
+// take-profit and NO timeout — it closes only at the 48h rebalance. Adding a
+// stop cannot cut entries, so it is rule-5 safe by construction, and it has
+// never been tested.
+// ════════════════════════════════════════════════════════════════════════════
+function runV86bt() {
+  const NW = 6, BAR4 = 14400000
+  const to4h = (a: Bar[], ms: number): Bar[] => {
+    const out: Bar[] = []; let cur: Bar | null = null; let bucket = -1
+    for (const b of a) {
+      const k = Math.floor(b.t / ms)
+      if (k !== bucket) { if (cur) out.push(cur); bucket = k
+        cur = { t: k * ms, open: b.open, high: b.high, low: b.low, close: b.close, vol: b.vol } }
+      else if (cur) { cur.high = Math.max(cur.high, b.high); cur.low = Math.min(cur.low, b.low)
+        cur.close = b.close; cur.vol += b.vol }
+    }
+    if (cur) out.push(cur); return out
+  }
+  const data: Record<string, PF.CoinData> = {}
+  let tmin = Infinity, tmax = -Infinity
+  for (const c of COINS) {
+    if (!CORE40.has(c)) continue
+    const h = loadCSV(c, '1h'); if (h.length < 500) continue
+    data[c] = { b1: h, b4: to4h(h, BAR4) }
+    tmin = Math.min(tmin, h[0].t); tmax = Math.max(tmax, h[h.length - 1].t)
+  }
+  const spanDays = (tmax - tmin) / 86400000
+  console.log(`  loaded ${Object.keys(data).length} coins, span ${spanDays.toFixed(0)} days`)
+  if (spanDays < 900 || Object.keys(data).length < 30) {
+    console.log(`\n  ABORT: need ~36 months across CORE40.`); return
+  }
+  const wSpan = (tmax - tmin) / NW, WARM = 100 * BAR4
+
+  const run = (over: Partial<PF.SimConfig>) => {
+    const ms: PF.Metrics[] = []
+    for (let w = 0; w < NW; w++) {
+      const a = tmin + w * wSpan, b = tmin + (w + 1) * wSpan
+      const from = Math.max(tmin + WARM, a)
+      if (b - from < 30 * 86400000) continue
+      const r = PF.runPortfolio(data, PF.defaultConfig({ killSwitch: true, ...over }), from, b)
+      ms.push(PF.metrics(r, over.startCash ?? 10000, (b - from) / 86400000))
+    }
+    const net = ms.map(x => x.netPct)
+    return { ms, net, tot: net.reduce((a, b) => a + b, 0),
+      all6: PF.allSixPositive(net),
+      trades: ms.reduce((a, x) => a + x.trades, 0),
+      dd: Math.max(...ms.map(x => x.maxDD)) }
+  }
+  const row = (tag: string, r: ReturnType<typeof run>) =>
+    console.log(`  ${tag.padEnd(30)} ${String(r.trades).padStart(6)} ${r.tot.toFixed(1).padStart(7)}% ` +
+      `${r.dd.toFixed(1).padStart(5)}%  ${r.all6 ? 'PASS' : 'FAIL'}  ` +
+      `${r.net.map(x => (x >= 0 ? '+' : '') + x.toFixed(1)).join(' ')}`)
+
+  console.log(`\n── PART A: THE NOISE FLOOR. Read nothing below until this is read. ──`)
+  console.log(`  Same config, starting cash perturbed by a few dollars out of 10,000.`)
+  console.log(`  These runs are economically IDENTICAL. Any spread is instrument noise.`)
+  console.log(`  config                         trades     net%  maxDD  all6  per-window`)
+  const noise: number[] = []
+  for (const cash of [10000, 10001, 10002, 10005, 9998, 9995]) {
+    const r = run({ startCash: cash }); noise.push(r.tot)
+    row(`startCash ${cash}`, r)
+  }
+  const mean = noise.reduce((a, b) => a + b, 0) / noise.length
+  const sd = Math.sqrt(noise.reduce((a, b) => a + (b - mean) ** 2, 0) / noise.length)
+  const lo = Math.min(...noise), hi = Math.max(...noise)
+  console.log(`\n  mean ${mean.toFixed(1)}%  sd ${sd.toFixed(1)}pp  range ${lo.toFixed(1)} … ${hi.toFixed(1)} ` +
+    `(spread ${(hi - lo).toFixed(1)}pp)`)
+  console.log(`  >>> A DIFFERENCE SMALLER THAN ~${(2 * sd).toFixed(0)}pp IS NOT A RESULT ON THIS INSTRUMENT.`)
+  if (hi - lo > 10) {
+    console.log(`  >>> The spread is large. Every single-run comparison in CLAUDE.md is`)
+    console.log(`      inside it, INCLUDING pyramidMax=2 (+3.2pp), the allocation policies`)
+    console.log(`      (5.6pp) and v84bt's Wyckoff row. They are noise, not findings, and`)
+    console.log(`      the file has to say so.`)
+  }
+
+  console.log(`\n── PART B: THE SLEEVE SPLIT — what the owner asked for ──`)
+  console.log(`  ROTA_BOOK is per SIDE, so 0.35 = the deployed 70% of capital.`)
+  console.log(`  config                         trades     net%  maxDD  all6  per-window`)
+  for (const [tag, over] of [
+    ['DEPLOYED 70% ROTA', { rotaBook: 0.35 }],
+    ['50% ROTA', { rotaBook: 0.25 }],
+    ['35% ROTA', { rotaBook: 0.175 }],
+    ['20% ROTA', { rotaBook: 0.10 }],
+    ['DONCH4H only', { sleeves: ['DONCH4H'] as PF.Sleeve[] }],
+    ['ROTA only', { sleeves: ['ROTA'] as PF.Sleeve[] }],
+  ] as [string, Partial<PF.SimConfig>][]) row(tag, run(over))
+
+  console.log(`\n  Same again at 6bps, because part A of v85bt put the INCUMBENT at`)
+  console.log(`  -11.8% there. A split that only works at 3bps is not a split to ship.`)
+  console.log(`  config                         trades     net%  maxDD  all6  per-window`)
+  for (const [tag, over] of [
+    ['DEPLOYED 70% @6bps', { rotaBook: 0.35 }],
+    ['50% ROTA @6bps', { rotaBook: 0.25 }],
+    ['35% ROTA @6bps', { rotaBook: 0.175 }],
+    ['DONCH4H only @6bps', { sleeves: ['DONCH4H'] as PF.Sleeve[] }],
+  ] as [string, Partial<PF.SimConfig>][]) row(tag, run({ slipBps: 6, ...over }))
+
+  console.log(`\n── PART C: ROTA currently has NO stop, NO target, NO timeout ──`)
+  console.log(`  It closes only at the 48h rebalance. That is 83% of the live book`)
+  console.log(`  sitting with zero risk management, and it has never been tested.`)
+  console.log(`  NB not implemented as a config yet — this part reports the SHAPE of`)
+  console.log(`  the exposure so the next run can be designed against real numbers.`)
+  const r = PF.runPortfolio(data, PF.defaultConfig({ killSwitch: true }),
+    Math.max(tmin + WARM, tmin), tmin + wSpan)
+  const rota = r.closed.filter(t => t.sleeve === 'ROTA')
+  if (rota.length) {
+    const rs = rota.map(t => t.pnl / 10000 * 100).sort((a, b) => a - b)
+    const q = (p: number) => rs[Math.min(rs.length - 1, Math.floor(p * rs.length))]
+    const worst = rs[0], best = rs[rs.length - 1]
+    console.log(`  window 1: ${rota.length} ROTA closes, P&L as % of a 10k account:`)
+    console.log(`    worst ${worst.toFixed(2)}%  p10 ${q(0.10).toFixed(2)}%  median ${q(0.50).toFixed(2)}%` +
+      `  p90 ${q(0.90).toFixed(2)}%  best ${best.toFixed(2)}%`)
+    const bigLoss = rs.filter(x => x < -1).length
+    console.log(`    slots losing more than 1% of the account: ${bigLoss} of ${rota.length}` +
+      ` — each one a position a stop would have capped.`)
+    const held = rota.map(t => t.heldH).sort((a, b) => a - b)
+    console.log(`    hold hours: median ${held[held.length >> 1].toFixed(0)}h, max ${held[held.length - 1].toFixed(0)}h`)
+  }
+}
+
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
@@ -7223,6 +7373,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v73bt') {
     console.log(`████ V73BT — Donchian adaptive window (vol-scaled) vs fixed-15 ████`)
     runV73bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v86bt') {
+    console.log(`████ V86BT — sleeve split, behind a measured noise floor ████`)
+    runV86bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v85bt') {

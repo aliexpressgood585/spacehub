@@ -165,6 +165,11 @@ export interface SimConfig {
    * exposure with NO feature attached, so the two can finally be told apart.
    */
   donchRiskMult: number
+  /**
+   * ROTA's per-side book fraction, or null for the deployed 0.35 (= 70% of
+   * capital across both sides). The sleeve-split question, made measurable.
+   */
+  rotaBook: number | null
 }
 
 export interface WyckTilt {
@@ -211,6 +216,7 @@ export function defaultConfig(over: Partial<SimConfig> = {}): SimConfig {
     killSwitch: false,
     wyckoff: null,
     donchRiskMult: 1,
+    rotaBook: null,
     ...over,
   }
 }
@@ -653,7 +659,7 @@ export function runPortfolio(
       const wantSide = tgt ? (tgt.dir === 1 ? 'LONG' : 'SHORT') : null
       if (wantSide === p.side) {
         const cur = p.entry * p.sizeLeft
-        if (S.rotaSizeOk(cur, S.rotaSlotTarget(port, tgt!.weight))) { want.delete(p.sym); continue }
+        if (S.rotaSizeOk(cur, S.rotaSlotTarget(port, tgt!.weight, cfg.rotaBook ?? undefined))) { want.delete(p.sym); continue }
       }
       const mk = markOf(p.sym, t)
       if (mk !== null) closePosition(p, mk, t, 'rota_exit', S.FEE_TAKER, true)
@@ -664,7 +670,7 @@ export function runPortfolio(
       const mk = markOf(sym, t)
       if (mk === null) continue
       const port2 = cash + exposureOf() + unrealised(t)
-      let slot = S.rotaSlotTarget(port2, tgt.weight)
+      let slot = S.rotaSlotTarget(port2, tgt.weight, cfg.rotaBook ?? undefined)
       slot = Math.min(slot, Math.max(0, port2 * S.PER_COIN_CAP - symExposure(sym)))
       const side: S.Side = tgt.dir === 1 ? 'LONG' : 'SHORT'
       if (slot < port2 * 0.01) {
