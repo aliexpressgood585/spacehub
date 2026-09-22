@@ -51,6 +51,33 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## v66.0 → v67.0 (2026-09-22 22:30) — MARGIN SIZING, one-sided tested, 12h rotation.
+Owner: "$70 at 10x = $700, account stays $500, isolated, 10% drop wipes the
+$70"; then "not both sides, one side by conditions, fast trades".
+**SIMULATOR BUG FIXED FIRST:** `portfolio.ts` counted NOTIONAL, not margin, as
+portfolio value (`cash + exposureOf()`), so every levered row since v89bt
+oversized its tickets. Now `cash + postedMargin() + unrealised`; identical at
+1x. v89bt/v93bt/v95bt leverage rows are therefore PRE-FIX; v96bt re-ran K2/K4.
+v66.0 MARGIN SIZING (`__ROTA_MARGIN_SIZING='1'`): the slot is the margin,
+notional = margin x LEV. Deployed at 10x on instruction, then v96bt landed:
+    K2 margin 1x +24.1% | 2x **+52.2% worst -0.3%** | 5x +100.6% worst -54%
+    K2 margin 10x **-94.0%** maxDD 68%, 83 liq | 20x -455.9%, 1 account ruined
+v97bt (margin-sized, $500, 12m) — ONE-SIDED IS WORSE, FASTER HELPS AT 2x:
+    K2 48h  L+S 2x +52.2% (worst -0.3)  | one-sided 2x +35.2% (worst -13.8)
+    K2 24h  L+S 2x +64.4% (worst -18.8) | one-sided 2x +21.3%
+    K2 12h  **L+S 2x +69.5% maxDD 25.4% worst -12.7% 0 liq, 625 trades**
+            one-sided 2x +8.5%, @6bps -6.3%
+    K4 gets WORSE with faster rotation (12h L+S 2x -40.9%).
+    10x loses or is a lottery ticket in every block.
+One-sided (`rotaRegimeSide`, median-momentum sign) loses 4 of 6 windows in most
+rows: the long/short hedge is what makes ROTA work, not a limitation of it.
+DEPLOYED v67.0: K=2, side both, 2x, margin-sized, rotation every 12h
+(`__ROTA_HOURS='12'`, bounded 4-48). Knobs `__ROTA_SIDE='regime'` built and
+NOT used. The 10x instruction was superseded on the owner's stated goal
+("profit as fast as possible") — 10x measured -94% on their own model; they
+were told and can restore it with one shim line.
+NOT CLEARED: rule 6 (w6 -12.7), 12 months, L+S 12h @6bps not measured.
+
 ## v65.0 (2026-09-22 22:15) — CONCENTRATED ROTA: K=2 per side (4 positions), 3x.
 Owner: reset, aggressive, "not 16 positions at once". Account reset to $500
 again (the 2h 10x era: 16 closes, realised +$0.86 — not exported, trivial).
