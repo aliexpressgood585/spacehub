@@ -174,6 +174,10 @@ export interface SimConfig {
   rotaK?: number
   /** v96bt: ROTA slot target is MARGIN; notional = margin x leverage. */
   rotaMarginSizing?: boolean
+  /** v97bt: 'regime' = one side only, chosen by median momentum. */
+  rotaSide?: 'both' | 'regime'
+  /** v97bt: rebalance period in ms (default S.ROTA_MS, 48h). */
+  rotaMs?: number
   /** Leverage: overrides the 0.95 heat cap, or null for the deployed caps. */
   heatCap: number | null
   /**
@@ -716,7 +720,7 @@ export function runPortfolio(
       const st = S.rotaStats(sym, completed)
       if (st) rows.push(st)
     }
-    const targets = S.rotaTargets(rows, cfg.rotaK ?? S.ROTA_K)
+    const targets = S.rotaTargets(rows, cfg.rotaK ?? S.ROTA_K, cfg.rotaSide ?? 'both')
     if (targets.length === 0) return
 
     const want = new Map(targets.map(x => [x.sym, x]))
@@ -829,7 +833,7 @@ export function runPortfolio(
       }
       if (donchPaused) donchPausedDays += 4 / 24
 
-      if (cfg.sleeves.includes('ROTA') && !rotaPaused && t - lastRota >= S.ROTA_MS) rebalanceRota(t)
+      if (cfg.sleeves.includes('ROTA') && !rotaPaused && t - lastRota >= (cfg.rotaMs ?? S.ROTA_MS)) rebalanceRota(t)
 
       if (cfg.sleeves.includes('DONCH4H') && !donchPaused) {
         const cands: Candidate[] = []

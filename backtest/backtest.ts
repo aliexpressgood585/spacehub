@@ -8035,7 +8035,7 @@ function runV92bt() {
 // and account death. Each position is collateral for itself, which is what the
 // owner asked for.
 // ════════════════════════════════════════════════════════════════════════════
-function runV93bt(concentrated = false, marginSized = false) {
+function runV93bt(concentrated = false, marginSized = false, directional = false) {
   const NW = 6, BAR4 = 14400000
   const to4h = (a: Bar[], ms: number): Bar[] => {
     const out: Bar[] = []; let cur: Bar | null = null; let bk = -1
@@ -8088,6 +8088,20 @@ function runV93bt(concentrated = false, marginSized = false) {
   const hdr = () => console.log(
     `  config             trades      net%  maxDD    worst   LIQ RUIN  per-window`)
 
+  if (directional) {
+    // v97bt — owner: one side only by conditions, faster rotation.
+    // side 'regime' = longs only if median 14d momentum >= 0, else shorts only.
+    const H = 3600000
+    for (const K of [2, 4]) for (const ms of [48, 24, 12]) {
+      console.log(`\n── K=${K}, rebalance every ${ms}h, margin-sized ──`)
+      hdr()
+      for (const side of ['both', 'regime'] as const)
+        for (const L of [1, 2, 5, 10])
+          row(`${side === 'both' ? 'L+S' : 'one'} ${L}x`, run(L, { rotaK: K, rotaMarginSizing: true, rotaSide: side, rotaMs: ms * H }))
+      row(`one 2x @6bps`, run(2, { rotaK: K, rotaMarginSizing: true, rotaSide: 'regime', rotaMs: ms * H, slipBps: 6 }))
+    }
+    return
+  }
   if (marginSized) {
     // v96bt — owner's model: the slot is the MARGIN ($70), notional = margin x
     // leverage ($700 at 10x); a ~9.5% adverse move liquidates that $70 only.
@@ -8404,6 +8418,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v94bt') {
     console.log(`████ V94BT — the exit: does the breakeven floor cap the fat tail? ████`)
     runV94bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v97bt') {
+    console.log('████ V97BT — one-sided (regime) vs long+short, 48/24/12h rotation ████')
+    runV93bt(false, false, true)
     return
   }
   if (Deno.env.get('BT_MODE') === 'v96bt') {
