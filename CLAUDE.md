@@ -51,6 +51,46 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## 2026-09-22 19:15 — ACCOUNT RESTARTED AT $500. Owner instruction. PHASE CHANGE.
+Owner: close everything, reset to $500, and move to FAST trading — "10-15 trades
+an hour", quick profit-taking, tight stops, profit from ranging/up/down like
+options, using liquidation points, whales and news.
+
+DONE, and the history was preserved first rather than destroyed:
+ - Full era exported to `migration/export-v62era/` (50 trades, 451 equity rows)
+   and committed BEFORE the wipe. The live track record is in git.
+ - FINAL RESULT OF THE v59/v62 ERA (09-18 → 09-22, 5 days):
+   **32 closed trades, realised -$79.60.** DONCH4H 18 closes +$258.78,
+   ROTA 14 closes -$338.39. Equity ended $9,947 on $10,000.
+ - `bot_trade_snapshots`, `bot_trades`, `bot_equity` cleared (snapshots first —
+   an FK on `trade_id` blocks the trades delete otherwise). Balance set to 500,
+   `rebalanced_at` NULLed so ROTA rotates on the next cycle instead of waiting
+   48h, shields cleared.
+ - Kill-switch consequently reset to 0 closes and CANNOT fire.
+NB at $500 the ROTA slot band is $14-$70 (2.8%-14% of portfolio) and DONCH4H's
+$500 minimum ticket is the whole account, so the breakout sleeve could not size
+an entry here even if it were enabled. It is not — v62.0's gate stands.
+
+**THE FAST-TRADING REQUEST — what is already measured, so the next session does
+not re-derive it:**
+ - v76bt: 5m Donchian DW=15/25/40/75 ALL NEGATIVE at **fee = 0**. Not a cost
+   problem; no edge exists at the signal level.
+ - v76bt: 5m RSI mean-reversion +0.011R gross against a 0.33R/trade fee drag —
+   **30x smaller than costs.**
+ - v77bt: 15m/30m/45m all fail window 1 for every DW tested, and gross edge
+   climbs MONOTONICALLY with timeframe (5m -0.024 → 45m +0.033 → 4h +0.051R).
+ - Liquidation-point trading: OI-crash cascade fade, all 12 configs negative,
+   AND Binance publishes no liquidation archive — OI is the only proxy.
+ - Whales: top-trader positioning tilt — following HURT, fading was noise.
+ - News: no timestamped historical archive exists here, so it cannot clear rule 6.
+**THE ARITHMETIC THAT DECIDES IT:** a round trip costs 0.16% (taker 0.05% x2 +
+slip 3bps x2). At 12 trades/hour that is ~288/day; on a fully-deployed account
+that is **~46% of the account per day in costs alone**, and ~9%/day even at
+one-fifth sizing. The edge required to clear that does not exist at 5m — it was
+measured at NEGATIVE before any fee was charged.
+That is recorded as the standing evidence. The owner has been told once, plainly,
+and it is their paper account.
+
 ## v62.0 (2026-09-22) — ROTA RUNS ALONE. Owner instruction, evidence-backed.
 Owner: "תפרוס את ROTA לבד". Actioned in full.
 
