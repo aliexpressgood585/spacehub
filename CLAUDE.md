@@ -19,6 +19,13 @@ NB exposure/equity is 95.4%, a hair over MAX_HEAT_PCT. That is mark-to-market
 drift on positions already open, not a cap breach: the cap governs NEW entries at
 entry time and cash is positive. Nothing like the v56.9 shape (138%, cash −$3.7k).
 
+**⚠ 2026-09-22 — EVERY PORTFOLIO-SIMULATOR DOLLAR FIGURE BELOW IS PRE-FIX.**
+PR #21 fixed two defects: ROTA never accrued funding, and `ladderStep` charged a
+hardcoded 3bps on stop/trail/timeout exits regardless of the slippage scenario.
+So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85bt
+part A re-anchors them. Do not quote those numbers until it lands.
+**v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
+
 **WHERE THE RESEARCH STANDS (read v83bt, v82bt, v80bt, v61.1 in that order):**
 The three-day blocking question — is the scan not the engine, or has the edge
 decayed — is ANSWERED: it was the instrument. `backtest/portfolio.ts` reproduces
@@ -99,7 +106,7 @@ asking, but NEVER violate the standing rules below.
   sizing chain, ladder state machine, ROTA ranking/weights, CRYPTO_40 and every
   tuned constant — pure functions, no Deno/Supabase/npm/network. The bot and the
   backtest BOTH import it. Change a rule here or nowhere. Tests:
-  `bash scripts/run-tests.sh` (209 assertions + typecheck, no install, offline).
+  `bash scripts/run-tests.sh` (370 assertions + typecheck, no install, offline).
 - **Live bot**: `supabase/functions/trading-bot/index.ts` (Deno edge function,
   cron every minute, Supabase project `mdvheizhciuvqychtwxr`). Version header at top.
 - Two validated strategies:
@@ -755,6 +762,72 @@ THREE THINGS THE RUN SAID THAT MATTER MORE THAN THE VERDICTS:
 NOTHING WAS DEPLOYED. The incumbent stays exactly as it is. This is the bar
 working, not the bar being unlucky — and the value of running it was the three
 findings above, not a green light.
+
+## v85bt (2026-09-22) — TWO SIMULATOR BUGS, AND v84bt IS VOID. Control queued.
+
+### PR #21 (the other session) — two real defects, and they reach back through
+### EVERY number in this file that came off the portfolio simulator.
+1. **ROTA NEVER PAID FUNDING.** `manage()` opened with `if (p.sleeve === 'ROTA')
+   return` — placed BEFORE the funding accrual, so the entire rotation book held
+   perpetual positions for 48h at a time and was never charged carry. ROTA is the
+   sleeve CARRYING THE ACCOUNT (+63.3% alone in v80bt), so its contribution is
+   overstated everywhere it appears: v80bt, v82bt, v83bt, v84bt.
+2. **EVERY SLIPPAGE STRESS COLUMN WAS SECRETLY A 3bps COLUMN.** `ladderStep`
+   charged the hardcoded module constant `SLIP` on every stop, trail and timeout
+   exit instead of the scenario's slippage. So the "6bps" and "10bps" rows paid
+   6/10bps on ENTRIES and 3bps on those EXITS. That taints v80bt's 0/3/6/10bps
+   table, v82bt's 6bps column, v84bt's part C — and the slippage curve is not a
+   side detail here, it is the gate that killed the reg-channel in v71bt.
+Both now fixed and covered by `tests/execution-costs.test.ts`. Suite is at **370
+assertions**. NOTHING in the "Tested & REJECTED" list is retracted on this — those
+were mostly measured on the older unconstrained lens — but **every dollar figure
+produced by `backtest/portfolio.ts` needs re-anchoring**, which is part A of v85bt.
+LESSON, and it is the same shape as v83bt's: an omission inside a simulator does
+not announce itself. v83bt was a missing kill-switch, this is a missing cost and a
+scenario parameter that did not reach where it was needed. Both were found by
+READING, neither by a failing number. The simulator needs auditing against the
+live cost model the same way it now gets audited against the live feature list.
+
+### v84bt (Wyckoff) — VOID, and its own two halves are why
+Beyond the two bugs, the run contradicts itself, which is disqualifying on its own.
+PART A, the population the deployed config actually trades (n=1,307 DONCH4H):
+    spring present   444   avgR -0.0157   WR 62.2%   -$487
+    no spring        863   avgR +0.0357   WR 64.8%  +$1418
+    er quartiles:  +0.0218 / -0.0508 / +0.0544 / +0.0477
+    CONTROL — effort alone  +0.0254 vs +0.0111 | result alone +0.0152 vs +0.0213
+THREE readings, none of them a green light:
+ - The spring gap is **NOT SIGNIFICANT**: 0.051R difference against a standard
+   error of ~0.047R, z≈1.1. It leans the OPPOSITE way to Wyckoff's claim (the
+   shakeout makes the breakout WORSE, not better) but not enough to assert even
+   that. The honest word is "nothing".
+ - The E/R quartiles are **NON-MONOTONIC** (+.022 / -.051 / +.054 / +.048). That
+   is the shape of noise. Compare the ADX tiers, which climb in order
+   0.017→0.032→0.054→0.086. A feature that does not order its own quartiles is
+   not a feature.
+ - The CONTROL settles E/R specifically: the ratio's spread is WIDER than either
+   ingredient's while being unordered — the signature of fitting noise. v54bt
+   measured volume, v68bt measured bar size; the ratio adds nothing to either.
+   NB `result` even leans slightly the opposite way to v68bt here.
+PART B then scored `spring boost 1.25 damp 0.75` at **+58.8% against the
+incumbent's +38.8%** — by UPSIZING the 444 trades part A called worse and
+DOWNSIZING the 863 it called better. **A tilt cannot be reading a feature it
+points away from.** That row is not a Wyckoff result; it is something else wearing
+a Wyckoff label, and shipping it would have been the purest form of the mistake
+this file exists to prevent.
+→ v85bt is the CONTROL that names it: `donchRiskMult`, a uniform multiplier on
+  every breakout entry with NO feature attached, plus the INVERTED tilt. If
+  uniform reproduces the gain, Wyckoff contributed nothing. If BOTH tilt
+  directions beat the incumbent, only the average ticket size matters.
+REFINEMENT I OWE TO A FAILED ASSERTION, caught while building that control:
+halving per-trade risk does **not** halve sleeve exposure. On the fixture it
+RAISED total DONCH4H notional (756,960 → 783,806), because smaller tickets reach
+the cash floor and the heat cap later, so MORE signals get funded. **Downsizing a
+TRADE and downsizing a SLEEVE are different operations once capital binds.** My
+first hypothesis ("the tilt just shrinks DONCH4H") was therefore too simple, and
+the test said so before the 36-month run could mislead me. Same family as v60.0's
+optimistic-intrabar assertion.
+STATUS: nothing deployed, nothing accepted. Wyckoff is NOT yet rejected either —
+it is unjudged pending the control, exactly like the sub-gate tier.
 
 ## v84bt (2026-09-19) — WYCKOFF, TRIAGED INTO CODE. QUEUED, NOT YET MEASURED.
 Owner asked whether Wyckoff can be integrated. It is a METHOD, not an indicator,

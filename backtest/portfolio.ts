@@ -154,6 +154,17 @@ export interface SimConfig {
    * rule — which is what v54bt (volume) and v68bt (bar size) already rejected.
    */
   wyckoff: WyckTilt | null
+  /**
+   * UNIFORM risk multiplier on every DONCH4H entry — the CONTROL for any
+   * per-trade tilt, added in v85bt.
+   *
+   * v84bt's best Wyckoff row upsized the trades part A had just measured as
+   * WORSE and downsized the ones it measured as BETTER, and still scored +20
+   * points. A tilt that beats the incumbent while pointing the wrong way is not
+   * reading its feature; it is moving total sleeve exposure. This knob moves
+   * exposure with NO feature attached, so the two can finally be told apart.
+   */
+  donchRiskMult: number
 }
 
 export interface WyckTilt {
@@ -199,6 +210,7 @@ export function defaultConfig(over: Partial<SimConfig> = {}): SimConfig {
     donchBudget: null,
     killSwitch: false,
     wyckoff: null,
+    donchRiskMult: 1,
     ...over,
   }
 }
@@ -409,7 +421,6 @@ export function runPortfolio(
 
   // ── ladder management for one position over one management bar ─────────────
   function manage(p: Position, bar: S.Bar, t: number) {
-    if (p.sleeve === 'ROTA') return    // ROTA exits only at a rebalance
     const dirM = p.side === 'LONG' ? 1 : -1
     const ageMs = t - p.openedAt
 
@@ -419,6 +430,10 @@ export function runPortfolio(
       cash -= f; funding += f; p.fundingPaid += f
       p.lastFundingAt += H8
     }
+
+    // ROTA exits only at rebalance, but its perpetual positions still accrue
+    // funding. Returning before the accrual silently exempted this whole book.
+    if (p.sleeve === 'ROTA') return
 
     // The adverse extreme is what can hit a stop; the favourable extreme is what
     // can hit a target or ratchet the trail.
@@ -465,10 +480,10 @@ export function runPortfolio(
       // THE LEVEL IT HELD WHEN THE BAR OPENED, get hit? The ratchet then happens
       // in the rung loop below, where it belongs, and applies from the next bar.
       let act = cfg.intrabar === 'conservative'
-        ? S.ladderStep(pos, adverse, adverse, ageMs, beFloor)
-        : S.ladderStep(pos, favour, favour, ageMs, beFloor)
+        ? S.ladderStep(pos, adverse, adverse, ageMs, beFloor, SLIP)
+        : S.ladderStep(pos, favour, favour, ageMs, beFloor, SLIP)
       if (cfg.intrabar === 'optimistic' && act.kind === 'none') {
-        act = S.ladderStep({ ...pos, stopPx: act.stopPx }, adverse, adverse, ageMs, beFloor)
+        act = S.ladderStep({ ...pos, stopPx: act.stopPx }, adverse, adverse, ageMs, beFloor, SLIP)
       }
       if (act.kind === 'close') {
         const raw = act.px / (1 - dirM * SLIP)
@@ -488,7 +503,7 @@ export function runPortfolio(
       }
       // Probe with the favourable extreme only: the stop was already given its
       // chance above, at the level it held when the bar opened.
-      const act = S.ladderStep(pos, favour, favour, ageMs, cfg.trailFloor === 'breakeven')
+      const act = S.ladderStep(pos, favour, favour, ageMs, cfg.trailFloor === 'breakeven', SLIP)
 
       if (act.kind === 'leg') {
         // A resting limit at the level. makerFillRate < 1 treats the remainder
@@ -561,12 +576,12 @@ export function runPortfolio(
       portfolio: port, balance: cash, openExposure: exp, heatCommitted: 0,
       longExposure: se.l, shortExposure: se.s, symExposure: symExposure(c.sym),
       adx: c.adx, slPct: c.slPct, side: c.side, quoteVol24h: c.quoteVol24h,
-      riskMult: wyckMult(c.wyck, cfg.wyckoff),
+      riskMult: wyckMult(c.wyck, cfg.wyckoff) * cfg.donchRiskMult,
     })
 
     if (!sized.ok) {
       const want = (port * S.BASE_RISK_PCT * S.adxTierMult(c.adx) *
-        wyckMult(c.wyck, cfg.wyckoff)) / c.slPct
+        wyckMult(c.wyck, cfg.wyckoff) * cfg.donchRiskMult) / c.slPct
       const reason: Rejection['reason'] =
         sized.reason === 'heat_limit' ? 'heat'
         : sized.reason === 'net_exposure_cap' ? 'net_exposure'
@@ -833,6 +848,12 @@ export interface Metrics {
   utilisation: number; turnoverX: number
   fees: number; slip: number; funding: number
   totR: number
+}
+
+/** A missing, invalid, flat or losing window cannot satisfy the owner's all-six
+ * rule. This is one necessary condition, not a complete deployment approval. */
+export function allSixPositive(netReturns: readonly number[]): boolean {
+  return netReturns.length === 6 && netReturns.every(x => Number.isFinite(x) && x > 0)
 }
 
 export function metrics(r: SimResult, startCash: number, days: number): Metrics {

@@ -6133,7 +6133,7 @@ function runV80bt() {
 
   const line = (tag: string, ws: { m: PF.Metrics }[]) => {
     const net = ws.map(x => x.m.netPct)
-    const all6 = ws.length >= NW - 1 && net.every(x => x > 0)
+    const all6 = PF.allSixPositive(net)
     const tot = ws.reduce((s, x) => s + x.m.netPct, 0)
     const tr = ws.reduce((s, x) => s + x.m.trades, 0)
     const rj = ws.reduce((s, x) => s + x.m.rejected, 0)
@@ -6567,7 +6567,7 @@ function runV82bt() {
     const net = ms.map(x => x.netPct)
     return {
       ms, net, tot: net.reduce((a, b) => a + b, 0),
-      all6: ms.length >= NW - 1 && net.every(x => x > 0),
+      all6: PF.allSixPositive(net),
       trades: ms.reduce((a, x) => a + x.trades, 0),
       dd: Math.max(...ms.map(x => x.maxDD)),
     }
@@ -6696,7 +6696,7 @@ function runV83bt() {
     }
     const net = ms.map(x => x.netPct)
     return { ms, net, tot: net.reduce((a, b) => a + b, 0),
-      all6: ms.length >= NW - 1 && net.every(x => x > 0),
+      all6: PF.allSixPositive(net),
       trades: ms.reduce((a, x) => a + x.trades, 0),
       dd: Math.max(...ms.map(x => x.maxDD)), dPaused, rPaused, unwinds }
   }
@@ -6816,7 +6816,7 @@ function runV84bt() {
     }
     const net = ms.map(x => x.netPct)
     return { ms, net, all, tot: net.reduce((a, b) => a + b, 0),
-      all6: ms.length >= NW - 1 && net.every(x => x > 0),
+      all6: PF.allSixPositive(net),
       trades: ms.reduce((a, x) => a + x.trades, 0),
       dd: Math.max(...ms.map(x => x.maxDD)) }
   }
@@ -6896,6 +6896,146 @@ function runV84bt() {
   console.log(`\n  DEPLOY BAR, unchanged: beat the incumbent at 3bps AND 6bps, not`)
   console.log(`  worse in any window, and no material trade loss. Anything less is`)
   console.log(`  recorded and rejected, the same as the previous 25 batches.`)
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// v85bt — IS THE WYCKOFF TILT READING ITS FEATURE, OR JUST SHRINKING A SLEEVE?
+//
+// v84bt is VOID on two counts and this run replaces it:
+//
+//  1. TWO SIMULATOR BUGS were fixed after it ran (PR #21). ROTA positions never
+//     accrued funding — the accrual sat behind an early `return` — and ROTA is
+//     the sleeve carrying the account, so its contribution was overstated in
+//     v80bt/v82bt/v83bt/v84bt alike. And `ladderStep` charged the hardcoded 3bps
+//     on every stop, trail and timeout regardless of the scenario, so EVERY
+//     slippage stress column ever printed here was really a 3bps column.
+//
+//  2. ITS OWN TWO HALVES CONTRADICT EACH OTHER. Part A measured spring-present
+//     breakouts as WORSE (avgR -0.0157 on n=444) than no-spring (+0.0357 on
+//     n=863). Part B's best row then scored +58.8% against the incumbent's
+//     +38.8% by BOOSTING the spring-present group 1.25x and DAMPING the
+//     no-spring group to 0.75x — upsizing what part A called worse and
+//     downsizing what it called better. A tilt cannot be reading a feature it
+//     points away from.
+//     NB part A's separation is not significant anyway: the difference is
+//     0.051R against a standard error of about 0.047R, z ~ 1.1. And the E/R
+//     quartiles were NON-MONOTONIC (+0.022 / -0.051 / +0.054 / +0.048), which is
+//     the shape of noise, not of a feature — contrast the ADX tiers, which climb
+//     0.017 -> 0.032 -> 0.054 -> 0.086 in order.
+//
+// THE HYPOTHESIS this run tests: the +20 points came from TICKET SIZE, not from
+// Wyckoff. 444 trades boosted 1.25x and 863 damped 0.75x is a net reduction in
+// the average breakout ticket, and v80bt/v83bt already established that DONCH4H
+// loses money when it gets more of the book while ROTA carries the account.
+//
+// REFINEMENT, forced by an assertion that FAILED while building this control and
+// worth more than the assertion it replaced: halving per-trade risk does NOT
+// halve sleeve exposure. On the fixture it RAISED total DONCH4H notional
+// (756,960 -> 783,806) because smaller tickets reach the cash floor and the heat
+// cap later, so MORE signals get funded. So the mechanism under test is not
+// simply "less breakout risk" — it is a smaller-ticket, more-positions book.
+// Downsizing a TRADE and downsizing a SLEEVE are different operations once
+// capital binds, which is precisely why this needs measuring and not asserting.
+//
+// THE CONTROL: `donchRiskMult`, a uniform multiplier on every breakout entry
+// with no feature attached. If it reproduces the gain, Wyckoff contributed
+// nothing and the real finding is about sleeve sizing.
+// ════════════════════════════════════════════════════════════════════════════
+function runV85bt() {
+  const NW = 6, BAR4 = 14400000
+  const to4h = (a: Bar[], ms: number): Bar[] => {
+    const out: Bar[] = []; let cur: Bar | null = null; let bucket = -1
+    for (const b of a) {
+      const k = Math.floor(b.t / ms)
+      if (k !== bucket) { if (cur) out.push(cur); bucket = k
+        cur = { t: k * ms, open: b.open, high: b.high, low: b.low, close: b.close, vol: b.vol } }
+      else if (cur) { cur.high = Math.max(cur.high, b.high); cur.low = Math.min(cur.low, b.low)
+        cur.close = b.close; cur.vol += b.vol }
+    }
+    if (cur) out.push(cur); return out
+  }
+  const data: Record<string, PF.CoinData> = {}
+  let tmin = Infinity, tmax = -Infinity
+  for (const c of COINS) {
+    if (!CORE40.has(c)) continue
+    const h = loadCSV(c, '1h'); if (h.length < 500) continue
+    data[c] = { b1: h, b4: to4h(h, BAR4) }
+    tmin = Math.min(tmin, h[0].t); tmax = Math.max(tmax, h[h.length - 1].t)
+  }
+  const spanDays = (tmax - tmin) / 86400000
+  console.log(`  loaded ${Object.keys(data).length} coins, span ${spanDays.toFixed(0)} days`)
+  if (spanDays < 900 || Object.keys(data).length < 30) {
+    console.log(`\n  ABORT: need ~36 months across CORE40.`); return
+  }
+  const wSpan = (tmax - tmin) / NW, WARM = 100 * BAR4
+
+  const run = (over: Partial<PF.SimConfig>) => {
+    const ms: PF.Metrics[] = []
+    for (let w = 0; w < NW; w++) {
+      const a = tmin + w * wSpan, b = tmin + (w + 1) * wSpan
+      const from = Math.max(tmin + WARM, a)
+      if (b - from < 30 * 86400000) continue
+      const r = PF.runPortfolio(data, PF.defaultConfig({ killSwitch: true, ...over }), from, b)
+      ms.push(PF.metrics(r, 10000, (b - from) / 86400000))
+    }
+    const net = ms.map(x => x.netPct)
+    return { ms, net, tot: net.reduce((a, b) => a + b, 0),
+      all6: PF.allSixPositive(net),
+      trades: ms.reduce((a, x) => a + x.trades, 0),
+      dd: Math.max(...ms.map(x => x.maxDD)) }
+  }
+  const row = (tag: string, r: ReturnType<typeof run>) =>
+    console.log(`  ${tag.padEnd(32)} ${String(r.trades).padStart(6)} ${r.tot.toFixed(1).padStart(7)}% ` +
+      `${r.dd.toFixed(1).padStart(5)}%  ${r.all6 ? 'PASS' : 'FAIL'}  ` +
+      `${r.net.map(x => (x >= 0 ? '+' : '') + x.toFixed(1)).join(' ')}`)
+
+  console.log(`\n── PART A: re-anchor the incumbent on the FIXED simulator ──`)
+  console.log(`  ROTA now pays funding and the slippage scenario now reaches the`)
+  console.log(`  ladder's exits. Every figure in CLAUDE.md predates both fixes.`)
+  console.log(`  config                           trades     net%  maxDD  all6  per-window`)
+  const base = run({}); row('INCUMBENT @3bps', base)
+  const base6 = run({ slipBps: 6 }); row('INCUMBENT @6bps', base6)
+  console.log(`\n  v84bt reported the same two configs at +38.8% and +1.5%.`)
+  console.log(`  The gap between those and the rows above is what the two bugs were worth.`)
+
+  console.log(`\n── PART B: THE CONTROL. Feature, or just less breakout exposure? ──`)
+  console.log(`  If the uniform rows match the Wyckoff row, the feature is doing nothing.`)
+  console.log(`  config                           trades     net%  maxDD  all6  per-window`)
+  row('INCUMBENT', base)
+  const wy = run({ wyckoff: { mode: 'spring', boost: 1.25, damp: 0.75, erHi: 1.36 } })
+  row('wyckoff spring 1.25/0.75', wy)
+  for (const m of [0.9, 0.85, 0.8, 0.75, 0.6]) {
+    row(`UNIFORM donchRiskMult ${m}`, run({ donchRiskMult: m }))
+  }
+  console.log(`\n  The Wyckoff row's effective average multiplier is`)
+  console.log(`  (444*1.25 + 863*0.75)/1307 = ${((444*1.25 + 863*0.75)/1307).toFixed(3)} — compare it to the`)
+  console.log(`  uniform row closest to that number. If they agree, the answer is in.`)
+  console.log(`  Watch the TRADE COUNTS too: a smaller ticket funds more signals, so`)
+  console.log(`  the uniform rows are expected to ADD trades, not cut them.`)
+
+  console.log(`\n── PART C: the inverted tilt — the sharpest test of all ──`)
+  console.log(`  If spring really carried information, REVERSING the tilt (damp the`)
+  console.log(`  spring group, boost the rest) should move the result the other way.`)
+  console.log(`  If both directions help, the feature is irrelevant and only the`)
+  console.log(`  average multiplier matters.`)
+  console.log(`  config                           trades     net%  maxDD  all6  per-window`)
+  row('spring 1.25/0.75 (v84bt best)', wy)
+  row('spring 0.75/1.25 (INVERTED)',
+    run({ wyckoff: { mode: 'spring', boost: 0.75, damp: 1.25, erHi: 1.36 } }))
+  console.log(`\n  NB the inverted row has a HIGHER average multiplier, so on the`)
+  console.log(`  exposure hypothesis it should score WORSE than 1.25/0.75 while still`)
+  console.log(`  differing from the incumbent. On the feature hypothesis it should be`)
+  console.log(`  worse than the incumbent outright.`)
+
+  console.log(`\n── PART D: if uniform downsizing IS the effect, does it clear the bar? ──`)
+  console.log(`  config                           trades     net%  maxDD  all6  per-window`)
+  row('INCUMBENT @6bps', base6)
+  for (const m of [0.85, 0.75, 0.6]) {
+    row(`UNIFORM ${m} @6bps`, run({ slipBps: 6, donchRiskMult: m }))
+  }
+  console.log(`\n  Rule 5 check: uniform downsizing is a SIZING change, so trade counts`)
+  console.log(`  should hold. Where a count drops, the $500 minimum ticket turned the`)
+  console.log(`  multiplier into a filter and the row is a rule-5 rejection, not a win.`)
 }
 
 function main() {
@@ -7083,6 +7223,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v73bt') {
     console.log(`████ V73BT — Donchian adaptive window (vol-scaled) vs fixed-15 ████`)
     runV73bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v85bt') {
+    console.log(`████ V85BT — control: is the Wyckoff tilt a feature or just sleeve sizing? ████`)
+    runV85bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v84bt') {
