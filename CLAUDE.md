@@ -51,6 +51,50 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## v62.0 (2026-09-22) — ROTA RUNS ALONE. Owner instruction, evidence-backed.
+Owner: "תפרוס את ROTA לבד". Actioned in full.
+
+**THE CASE, and note what is NOT in it:** the RETURN claim is excluded. ROTA-only
++29.3% vs the mix's +27.6% is 1.7pp against a measured 10.6pp error bar (v87bt) —
+noise, and it must not be quoted as a reason. What carries the decision:
+ - **DRAWDOWN HALVED at every cost level**: 12-14% against 24-27%. A 14-point gap,
+   far outside the bar, consistent across the whole book-fraction sweep.
+ - **COST ROBUSTNESS**: at 6bps ROTA-only is +3.9% while the mix is **-11.8%**;
+   at 10bps -8.4% against **-45.6%**. Gaps of 15.7 and 37.2 points. The deployed
+   mix LOSES MONEY if execution costs run at 6bps; DONCH4H is what makes the book
+   cost-fragile.
+ - **WINDOWS**: ROTA-only has ONE negative window (-0.3); the mix has THREE
+   (-11.8, -20.7, -4.8). On the "no worse than the incumbent in every window"
+   restatement, this passes where the incumbent does not.
+ - ROTA-only at 0bps is the only configuration ever to clear all six windows.
+
+**WHAT THIS DOES NOT CLEAR, stated plainly:**
+ - It does NOT pass rule 6's all-6 at 3bps (w4 -0.3). Neither does the incumbent
+   (three negative). The all-6 rule remains unrestated and is still the owner's
+   open decision.
+ - It is a **rule-5 TRADE CUT**: ~5,317 → ~4,117 trades over 36 months, -23%.
+   The counter-argument is that those trades are measurably loss-making at full
+   allocation (-42.6% alone) and are the source of the cost fragility — but it is
+   a cut and it is recorded as one.
+ - **The LIVE book says the OPPOSITE**: DONCH4H +$258 on 18 closes, ROTA -$338 on
+   14. n is tiny and four days is nothing, but it is the only live evidence there
+   is and it points the other way. If DONCH4H keeps outperforming live, this
+   decision should be revisited rather than defended.
+ - One run, on an instrument three days old.
+
+**IMPLEMENTATION — `ENABLED_SLEEVES`, a deploy-time env var, not a DB column**,
+the same pattern and for the same reason as `ALLOW_LIVE_EXECUTION`: a wrong row
+cannot silently turn a sleeve back on. Unset means `DONCH4H,ROTA` — the old
+behaviour exactly — so **rollback is one deploy with the variable removed.**
+**ENTRIES ONLY.** The three open DONCH4H positions keep their ladders, stops and
+trailing exits and finish on their own terms. Closing a book by hand is the
+v65bt mistake and there was no reason to repeat it.
+The gate is symmetric (`ROTA_ENABLED` guards the rebalance too) so the flag can
+never be half-wired, and `enabled_sleeves` is published in `deployment_manifest`
+AND `?donch_test=1`, so which sleeves are live is verifiable from the public anon
+key rather than from source — the v56.8 provenance rule.
+Paper stays hard-locked: `ALLOW_LIVE_EXECUTION` untouched and still unset.
+
 ## v89bt RESULT (2026-09-22) — **LEVERAGE MAKES IT WORSE AT EVERY LEVEL.**
 VALIDITY CHECK PASSED FIRST: 1x returns +27.6% at 3bps and -11.8% at 6bps,
 matching the pre-margin engine exactly. The rewrite did not break the cash path.
