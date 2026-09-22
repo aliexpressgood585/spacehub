@@ -629,17 +629,18 @@ export interface RotaTarget { sym: string; dir: 1 | -1; price: number; weight: n
  * Returns [] when fewer than 4K names rank — the live bot's own guard against
  * ranking a collapsed universe, which is what the v56.5/v56.7 incidents were.
  */
-export function rotaTargets(rows: RotaRow[]): RotaTarget[] {
+export function rotaTargets(rows: RotaRow[], k: number = ROTA_K): RotaTarget[] {
+  // the collapsed-universe guard stays pinned to ROTA_K whatever k is
   if (rows.length < ROTA_K * 4) return []
   const sorted = [...rows].sort((a, b) => b.mom - a.mom)
   const out: RotaTarget[] = []
   let longInv = 0, shortInv = 0
-  const longs = sorted.slice(0, ROTA_K)
-  const shorts = sorted.slice(-ROTA_K)
+  const longs = sorted.slice(0, k)
+  const shorts = sorted.slice(-k)
   for (const x of longs) longInv += 1 / x.vol
   for (const x of shorts) shortInv += 1 / x.vol
-  for (const x of longs) out.push({ sym: x.sym, dir: 1, price: x.price, weight: longInv > 0 ? (1 / x.vol) / longInv : 1 / ROTA_K })
-  for (const x of shorts) out.push({ sym: x.sym, dir: -1, price: x.price, weight: shortInv > 0 ? (1 / x.vol) / shortInv : 1 / ROTA_K })
+  for (const x of longs) out.push({ sym: x.sym, dir: 1, price: x.price, weight: longInv > 0 ? (1 / x.vol) / longInv : 1 / k })
+  for (const x of shorts) out.push({ sym: x.sym, dir: -1, price: x.price, weight: shortInv > 0 ? (1 / x.vol) / shortInv : 1 / k })
   return out
 }
 

@@ -8035,7 +8035,7 @@ function runV92bt() {
 // and account death. Each position is collateral for itself, which is what the
 // owner asked for.
 // ════════════════════════════════════════════════════════════════════════════
-function runV93bt() {
+function runV93bt(concentrated = false) {
   const NW = 6, BAR4 = 14400000
   const to4h = (a: Bar[], ms: number): Bar[] => {
     const out: Bar[] = []; let cur: Bar | null = null; let bk = -1
@@ -8088,6 +8088,17 @@ function runV93bt() {
   const hdr = () => console.log(
     `  config             trades      net%  maxDD    worst   LIQ RUIN  per-window`)
 
+  if (concentrated) {
+    // v95bt — owner: "not 16 positions at once". Fewer names per side, same
+    // engine, same $500, isolated leverage. K=8 is the deployed control.
+    for (const K of [8, 4, 3, 2]) {
+      console.log(`\n── ROTA K=${K} per side (${2 * K} positions) ──`)
+      hdr()
+      for (const L of [1, 2, 3, 5, 10]) row(`K${K} ${L}x`, run(L, { rotaK: K }))
+      row(`K${K} 2x @6bps`, run(2, { rotaK: K, slipBps: 6 }))
+    }
+    return
+  }
   console.log(`\n── THE DEPLOYED CONFIG AT $500, ISOLATED LEVERAGE ──`)
   hdr()
   for (const L of [1, 2, 3, 5, 10, 20]) row(`ROTA ${L}x`, run(L))
@@ -8377,6 +8388,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v94bt') {
     console.log(`████ V94BT — the exit: does the breakeven floor cap the fat tail? ████`)
     runV94bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v95bt') {
+    console.log('████ V95BT — concentrated ROTA at $500: fewer names, isolated leverage ████')
+    runV93bt(true)
     return
   }
   if (Deno.env.get('BT_MODE') === 'v93bt') {

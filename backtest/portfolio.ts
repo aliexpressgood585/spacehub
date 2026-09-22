@@ -170,6 +170,8 @@ export interface SimConfig {
    * capital across both sides). The sleeve-split question, made measurable.
    */
   rotaBook: number | null
+  /** v95bt: names per side for ROTA (default S.ROTA_K). */
+  rotaK?: number
   /** Leverage: overrides the 0.95 heat cap, or null for the deployed caps. */
   heatCap: number | null
   /**
@@ -709,7 +711,7 @@ export function runPortfolio(
       const st = S.rotaStats(sym, completed)
       if (st) rows.push(st)
     }
-    const targets = S.rotaTargets(rows)
+    const targets = S.rotaTargets(rows, cfg.rotaK ?? S.ROTA_K)
     if (targets.length === 0) return
 
     const want = new Map(targets.map(x => [x.sym, x]))
