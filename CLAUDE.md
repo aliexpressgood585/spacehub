@@ -51,6 +51,16 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## LIVE 2026-09-22 23:04 UTC — $5,000, 1x, ALL CAPITAL DEPLOYED (v68.1)
+Owner: "$5,000 without leverage, I'll count it as x10", then "use all the money".
+Told once: $5k unlevered has NO liquidation, so reading it as $500 x10 hides
+exactly what killed 10x in v96bt (-94%).
+v68.1 adds `__ROTA_SLOT_SCALE` (bounded 1-2) multiplying slot target + per-coin
+cap. Shim: K=2, LEVERAGE 1, margin sizing on, 12h, SLOT_SCALE 1.75, function
+v22, sha `22132353`. Verified: NEAR/AVAX LONG, CRV/DOT SHORT, $1,225 each,
+cash $97.55, 0 errors. Exposure class = v98bt's 'LIVE K2 2x' row (36m maxDD
+58%), so the v68.0 DD-25% breaker (at ~$3,750) is the binding risk control.
+
 ## v98bt + v68.0 (2026-09-22 23:00) — OWNER'S AGGRESSIVE-CONTROLLED SPEC: NO EDGE.
 Owner brief: 1-5m Binance testnet bot, 10-20x isolated, 2-5% risk, stop-sized,
 stop >=30% before liq, R:R >=1.5, breakers. Stage 1 found the premise wrong
