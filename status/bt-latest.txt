@@ -1,45 +1,53 @@
-backtest 2026-09-22T18:07Z mode=v86bt months=36
-████ V86BT — sleeve split, behind a measured noise floor ████
+backtest 2026-09-22T18:16Z mode=v87bt months=36
+████ V87BT — ROTA-only across the cost curve + a real noise probe ████
   loaded 39 coins, span 1096 days
 
-── PART A: THE NOISE FLOOR. Read nothing below until this is read. ──
-  Same config, starting cash perturbed by a few dollars out of 10,000.
-  These runs are economically IDENTICAL. Any spread is instrument noise.
+── PART A: THE MISSING CELL — ROTA-only across the cost curve ──
   config                         trades     net%  maxDD  all6  per-window
-  startCash 10000                  5317    27.6%  26.9%  FAIL  +24.3 -11.8 +15.9 -20.7 +24.7 -4.8
-  startCash 10001                  5317    27.6%  26.9%  FAIL  +24.3 -11.8 +15.9 -20.7 +24.7 -4.8
-  startCash 10002                  5317    27.6%  26.9%  FAIL  +24.3 -11.8 +15.9 -20.7 +24.7 -4.8
-  startCash 10005                  5317    27.6%  26.9%  FAIL  +24.3 -11.8 +15.9 -20.7 +24.7 -4.8
-  startCash 9998                   5317    27.6%  26.9%  FAIL  +24.3 -11.8 +15.9 -20.7 +24.7 -4.8
-  startCash 9995                   5317    27.6%  26.9%  FAIL  +24.3 -11.8 +15.9 -20.7 +24.7 -4.8
+  ROTA only @0bps                  4116    41.8%  13.6%  PASS  +18.9 +2.4 +13.9 +0.1 +1.9 +4.7
+  ROTA only @3bps                  4117    29.3%  12.3%  FAIL  +8.5 +3.8 +12.1 -0.3 +2.5 +2.7
+  ROTA only @6bps                  4248     3.9%  13.8%  FAIL  +11.3 +1.8 +9.4 -11.6 +0.7 -7.6
+  ROTA only @10bps                 4350    -8.4%  17.3%  FAIL  +3.4 -3.9 +9.0 -7.3 -2.4 -7.3
+  — and the deployed mix on the same curve, for comparison —
+  DEPLOYED mix @0bps               5147    41.5%  24.3%  FAIL  +34.0 -10.5 +3.2 -8.6 +25.4 -2.0
+  DEPLOYED mix @3bps               5317    27.6%  26.9%  FAIL  +24.3 -11.8 +15.9 -20.7 +24.7 -4.8
+  DEPLOYED mix @6bps               5413   -11.8%  27.2%  FAIL  +17.8 -12.4 +14.5 -11.4 -0.2 -20.1
+  DEPLOYED mix @10bps              5259   -45.6%  21.3%  FAIL  +4.5 -10.0 +4.4 -18.9 -6.7 -18.9
 
-  mean 27.6%  sd 0.0pp  range 27.6 … 27.6 (spread 0.0pp)
-  >>> A DIFFERENCE SMALLER THAN ~0pp IS NOT A RESULT ON THIS INSTRUMENT.
+  THE TEST: ROTA-only must still beat the deployed mix at 6bps, and
+  must not collapse at 10bps the way the reg-channel did in v71bt.
+  ROTA turns its whole book every 48h, so it pays MORE spread per
+  dollar than a breakout sleeve that holds for days — if anything is
+  cost-fragile here, it is this.
 
-── PART B: THE SLEEVE SPLIT — what the owner asked for ──
-  ROTA_BOOK is per SIDE, so 0.35 = the deployed 70% of capital.
+── PART B: the noise probe, on an axis the engine can actually feel ──
+  A 0.1% risk multiplier changes no position materially but does change
+  which entry wins a funding race. v86bt's starting-cash probe could not
+  do this: the engine is scale-invariant, so it measured nothing.
   config                         trades     net%  maxDD  all6  per-window
-  DEPLOYED 70% ROTA                5317    27.6%  26.9%  FAIL  +24.3 -11.8 +15.9 -20.7 +24.7 -4.8
-  50% ROTA                         5714   -11.6%  25.0%  FAIL  +1.4 -9.8 +2.8 -6.6 +8.3 -7.7
-  35% ROTA                         5469   -16.5%  21.3%  FAIL  +21.6 -11.5 -10.5 -13.7 +12.2 -14.5
-  20% ROTA                         5514    -7.8%  26.2%  FAIL  +6.9 -16.1 +7.5 -6.1 +9.1 -9.0
-  DONCH4H only                     1594   -42.6%  23.8%  FAIL  +0.5 -7.9 -13.5 -16.6 +13.4 -18.5
-  ROTA only                        4117    29.3%  12.3%  FAIL  +8.5 +3.8 +12.1 -0.3 +2.5 +2.7
+  donchRiskMult 0.999              5345    38.2%  26.9%  FAIL  +24.3 -11.8 +26.6 -20.7 +24.7 -4.8
+  donchRiskMult 0.9995             5345    38.2%  26.9%  FAIL  +24.3 -11.8 +26.6 -20.7 +24.7 -4.8
+  donchRiskMult 1                  5317    27.6%  26.9%  FAIL  +24.3 -11.8 +15.9 -20.7 +24.7 -4.8
+  donchRiskMult 1.0005             5317    27.6%  26.9%  FAIL  +24.3 -11.8 +15.9 -20.7 +24.7 -4.8
+  donchRiskMult 1.001              5317    27.6%  26.9%  FAIL  +24.3 -11.8 +15.9 -20.7 +24.7 -4.8
 
-  Same again at 6bps, because part A of v85bt put the INCUMBENT at
-  -11.8% there. A split that only works at 3bps is not a split to ship.
+  mean 31.8%  sd 5.2pp  range 27.6 … 38.2 (spread 10.6pp)
+  >>> This spread is the real error bar. A 0.1% input change is not a
+      strategy difference, so anything it moves is knife-edge, not edge.
+
+── PART C: is ROTA-only robust, or is 70% just one lucky setting? ──
+  If the sleeve is genuinely sound, nearby book fractions should behave
+  similarly. If only 0.35 works, it is a fitted parameter, not a finding.
   config                         trades     net%  maxDD  all6  per-window
-  DEPLOYED 70% @6bps               5413   -11.8%  27.2%  FAIL  +17.8 -12.4 +14.5 -11.4 -0.2 -20.1
-  50% ROTA @6bps                   5649     1.5%  28.4%  FAIL  +36.1 -6.9 -6.2 -8.2 +2.3 -15.5
-  35% ROTA @6bps                   5579   -25.7%  27.7%  FAIL  +19.3 -16.5 -15.9 -11.1 +9.3 -10.8
-  DONCH4H only @6bps               1586   -60.4%  24.5%  FAIL  -2.8 -13.0 -6.7 -18.6 -1.6 -17.6
+  ROTA only, book 0.25 @3bps       4190    17.5%   9.3%  FAIL  +15.4 +3.4 +6.2 -6.7 -2.0 +1.2
+  ROTA only, book 0.3 @3bps        4088    28.3%  10.6%  FAIL  +7.5 +4.1 +11.0 -0.7 +2.8 +3.7
+  ROTA only, book 0.35 @3bps       4117    29.3%  12.3%  FAIL  +8.5 +3.8 +12.1 -0.3 +2.5 +2.7
+  ROTA only, book 0.4 @3bps        4120    35.1%  17.2%  FAIL  +10.5 -0.5 +16.1 +1.8 +3.6 +3.7
+  ROTA only, book 0.45 @3bps       4116    43.9%  19.7%  FAIL  +21.7 -1.4 +17.3 -2.7 +4.8 +4.2
+  ROTA only, book 0.3 @6bps        4341    -4.6%  11.9%  FAIL  -1.7 +2.4 +7.7 -5.8 +3.0 -10.2
+  ROTA only, book 0.35 @6bps       4248     3.9%  13.8%  FAIL  +11.3 +1.8 +9.4 -11.6 +0.7 -7.6
+  ROTA only, book 0.4 @6bps        4226    13.5%  19.0%  FAIL  +7.2 -2.8 +13.8 -5.7 +4.4 -3.4
 
-── PART C: ROTA currently has NO stop, NO target, NO timeout ──
-  It closes only at the 48h rebalance. That is 83% of the live book
-  sitting with zero risk management, and it has never been tested.
-  NB not implemented as a config yet — this part reports the SHAPE of
-  the exposure so the next run can be designed against real numbers.
-  window 1: 562 ROTA closes, P&L as % of a 10k account:
-    worst -1.89%  p10 -0.44%  median -0.02%  p90 0.45%  best 2.82%
-    slots losing more than 1% of the account: 7 of 562 — each one a position a stop would have capped.
-    hold hours: median 52h, max 436h
+  DEPLOY BAR unchanged. Nothing ships on one run, and removing a whole
+  sleeve is the largest change ever proposed here — it would need its own
+  confirmation, and it is the owner's call regardless.
