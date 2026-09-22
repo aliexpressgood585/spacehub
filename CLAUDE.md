@@ -68,6 +68,11 @@ measured and why the return goes DOWN, not up.
 lev=1, because a slot whose size is still in its ±35% band is kept. A slot
 whose `lev` ≠ LEV is now closed and reopened, so a leverage change actually
 reaches the book. ROLLBACK: shim `__LEVERAGE='1'` (or remove it).
+VERIFIED LIVE 2026-09-22 22:06 UTC: v64.1 sha `3e0b8a12` (function v14) in
+`deployment_manifest`; forced rotation reopened **16/16 slots at lev 10**,
+$398 notional on ~$40 margin, cash $460.68, equity $501.20, 0 errors, 0 liq.
+NB PR #24 (owner, merged same evening) added `lev` to the rebalance's open-rows
+select — without it the portfolio estimate counted notional, not margin.
 Paper lock untouched: `ALLOW_LIVE_EXECUTION` still unset.
 
 ## v63.0 (2026-09-22) — DEPLOYED CAPITAL 70% -> 90%. Owner asked for 4x.
