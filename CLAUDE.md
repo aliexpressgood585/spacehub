@@ -51,6 +51,19 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## v99bt (2026-09-22 23:15) — OWNER'S SCALP SPEC: REJECTED, all 24 rows, all 6 windows.
+Spec: one side only by market direction (BTC 5m vs 24h SMA), 5m breakout of
+N-bar high/low, stop k x ATR, target 1.5x, max hold 15 min, re-enter. 10 coins,
+12m, taker 0.05% + slip 5/10bps; a maker-entry row as the generous case.
+    GROSS R, before any cost: -0.10 .. +0.0015 — i.e. ZERO. No edge exists.
+    Cost per trade 0.38R (2xATR stop, maker in) .. 2.43R (0.5xATR, taker).
+    Best row: one-side N12 sl2atr maker-in, net -0.379R/trade, 6.1 trades/h.
+    Every row negative in every window.
+One-side is marginally better GROSS than both-sides (+0.0015 vs -0.006) — noise.
+At 3% risk the best row loses ~1.1% of the account per trade, ~6 trades/hour:
+an account is gone in a day. FOURTH independent confirmation that sub-hour
+trading has no edge here (v76bt, v77bt, v90bt, v99bt). NOT DEPLOYED.
+
 ## LIVE 2026-09-22 23:04 UTC — $5,000, 1x, ALL CAPITAL DEPLOYED (v68.1)
 Owner: "$5,000 without leverage, I'll count it as x10", then "use all the money".
 Told once: $5k unlevered has NO liquidation, so reading it as $500 x10 hides
