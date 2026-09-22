@@ -71,6 +71,7 @@ export type Sleeve = 'DONCH4H' | 'ROTA'
  */
 export type AllocPolicy =
   | 'arrival'      // signal order, i.e. what live does today (the baseline)
+  | 'cohort_equal' // research: share current capacity across eligible breakouts
   | 'adx'          // strongest trend first
   | 'edge_cost'    // best expected edge per dollar of cost
   | 'donch_first'  // breakouts get first refusal, ROTA takes the remainder
@@ -279,6 +280,7 @@ export interface Rejection {
 }
 
 export interface SimResult {
+  openedTrades: number
   closed: ClosedTrade[]
   rejections: Rejection[]
   equity: { t: number; equity: number; cash: number; exposure: number }[]
@@ -532,7 +534,7 @@ export function runPortfolio(
     wyck: S.WyckoffFeat | null
   }
 
-  function tryOpen(c: Candidate, t: number): boolean {
+  function tryOpen(c: Candidate, t: number, entryCap = Infinity): boolean {
     const exp = exposureOf()
     const port = cash + exp + unrealised(t)
     const se = sideExposure()
@@ -564,7 +566,11 @@ export function runPortfolio(
       portfolio: port, balance: cash, openExposure: exp, heatCommitted: 0,
       longExposure: se.l, shortExposure: se.s, symExposure: symExposure(c.sym),
       adx: c.adx, slPct: c.slPct, side: c.side, quoteVol24h: c.quoteVol24h,
-      riskMult: wyckMult(c.wyck, cfg.wyckoff),
+      // A research-only capacity cap can only shrink the existing risk request.
+      // Applying it before sizeBreakout also evaluates net exposure at the
+      // intended size, rather than rejecting a larger size we would never fund.
+      riskMult: Math.min(wyckMult(c.wyck, cfg.wyckoff),
+        entryCap * c.slPct / (port * S.BASE_RISK_PCT * S.adxTierMult(c.adx))),
     })
 
     if (!sized.ok) {
@@ -773,7 +779,31 @@ export function runPortfolio(
           cands.push({ sym, side: sig.side, adx, atr, price, slDist, slPct, quoteVol24h,
             wyck, seq: seq++ })
         }
-        for (const c of orderCandidates(cands, cfg.alloc)) tryOpen(c, t)
+        let ordered = orderCandidates(cands, cfg.alloc)
+        if (cfg.alloc === 'cohort_equal' && !cfg.parity) {
+          ordered = ordered.filter(c => {
+            const units = open.filter(p => p.sym === c.sym && p.sleeve === 'DONCH4H')
+              .map(p => ({ side: p.side, entry: p.entry, origSlDist: p.origSlDist }))
+            return units.length < cfg.pyramidMax && S.pyramidGateOk(units, c.side, c.price)
+          })
+        }
+        for (let i = 0; i < ordered.length; i++) {
+          let cap = Infinity
+          if (cfg.alloc === 'cohort_equal') {
+            const port = equityAt(t)
+            let room = Math.max(0, Math.min(port * S.MAX_HEAT_PCT - exposureOf(),
+              cash / (1 + S.FEE_TAKER)))
+            if (cfg.donchBudget !== null) {
+              const used = open.filter(p => p.sleeve === 'DONCH4H')
+                .reduce((sum, p) => sum + p.entry * p.sizeLeft, 0)
+              room = Math.min(room, Math.max(0, port * cfg.donchBudget - used))
+            }
+            // If all minimum tickets cannot fit, preserve arrival order. Never
+            // invent capacity or shrink below the established minimum ticket.
+            cap = Math.max(S.MIN_NOTIONAL, room / (ordered.length - i))
+          }
+          tryOpen(ordered[i], t, cap)
+        }
       }
     }
 
@@ -791,7 +821,7 @@ export function runPortfolio(
   }
 
   return {
-    closed, rejections, equity,
+    openedTrades: nextId - 1, closed, rejections, equity,
     finalEquity: equity.length ? equity[equity.length - 1].equity : cfg.startCash,
     peakExposurePct,
     utilisation: utilN ? utilSum / utilN : 0,

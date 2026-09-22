@@ -17,10 +17,15 @@ done
 
 dl() {
   local sym=$1 iv=$2 m=$3
-  local url="$BASE/${sym}USDT/${iv}/${sym}USDT-${iv}-${m}.zip"
+  local contract=$sym
+  [ "$sym" = "PEPE" ] && contract=1000PEPE
+  local url="$BASE/${contract}USDT/${iv}/${contract}USDT-${iv}-${m}.zip"
   local tmp="/tmp/${sym}-${iv}-${m}.zip"
   curl -s -f -m 60 -o "$tmp" "$url" 2>/dev/null || return 0
   unzip -p "$tmp" 2>/dev/null | grep '^[0-9]' > "$OUT/${sym}-${iv}.part-${m}" 2>/dev/null
+  if [ "$sym" = "PEPE" ]; then
+    python3 backtest/normalize-contract.py "$OUT/${sym}-${iv}.part-${m}" || return 1
+  fi
   rm -f "$tmp"
 }
 export -f dl

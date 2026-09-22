@@ -315,6 +315,19 @@ const base = P.runPortfolio(data, P.defaultConfig(), tFrom, tTo)
     `${m.rejected} rejections (${JSON.stringify(m.rejectedByReason)})`)
 }
 
+{
+  const cfg = P.defaultConfig({ alloc: 'cohort_equal', killSwitch: true })
+  const a = P.runPortfolio(data, cfg, tFrom, tTo)
+  const b = P.runPortfolio(data, cfg, tFrom, tTo)
+  check('cohort allocation is deterministic', a.finalEquity === b.finalEquity)
+  check('entry count includes still-open trades', a.openedTrades >= a.closed.length)
+  check('cohort allocation preserves minimum breakout tickets', a.closed
+    .filter(t => t.sleeve === 'DONCH4H').every(t => t.notional >= S.MIN_NOTIONAL - 1e-8))
+  check('cohort allocation preserves finite accounting', a.equity.every(e => Number.isFinite(e.equity)))
+  check('cohort breakout trades retain positive risk figures', a.closed
+    .filter(t => t.sleeve === 'DONCH4H').every(t => t.riskUsd > 0))
+}
+
 // ─── report ─────────────────────────────────────────────────────────────────
 console.log(`\n  portfolio simulator — ${passed} assertions passed, ${failures.length} failed`)
 if (failures.length) {

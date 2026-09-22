@@ -2,6 +2,7 @@
 // node --experimental-strip-types backtest/validation-audit.ts
 // Input: backtest/data/<symbol>-1h.csv from the monthly Binance archive.
 import { readFileSync } from 'node:fs'
+import { argv } from 'node:process'
 import * as S from '../shared/strategy.ts'
 import * as P from './portfolio.ts'
 
@@ -55,20 +56,28 @@ if (Object.keys(data).length !== S.CRYPTO_40.length || (tmax - tmin) / 86400000 
 console.log(`Coverage: ${Object.keys(data).length}/40 symbols, ${new Date(tmin).toISOString()} to ${new Date(tmax).toISOString()}`)
 console.log('Frozen incumbent, kill-switch ON. Six independent chronological windows; no parameter fitting.')
 console.log('A positive-window result alone is NOT deployment clearance: this simulator still has execution/parity limitations.')
-for (const slipBps of [3, 6]) {
+const policies: P.AllocPolicy[] = argv.includes('--cohort-study')
+  ? ['arrival', 'cohort_equal'] : ['arrival']
+for (const alloc of policies) for (const slipBps of [3, 6]) {
   const results: P.Metrics[] = []
   const span = (tmax - tmin) / 6
   for (let w = 0; w < 6; w++) {
     const from = Math.max(tmin + 100 * H4, tmin + w * span)
     const to = tmin + (w + 1) * span
-    const result = P.runPortfolio(data, P.defaultConfig({ killSwitch: true, slipBps }), from, to)
+    const result = P.runPortfolio(data, P.defaultConfig({ killSwitch: true, slipBps, alloc }), from, to)
     const m = P.metrics(result, 10_000, (to - from) / 86400000)
     results.push(m)
-    console.log(JSON.stringify({ slipBps, window: w + 1, from, to,
+    const hoursTo = (target: number) => {
+      const mark = result.equity.find(e => e.equity >= target)
+      return mark ? (mark.t - from) / H1 : null
+    }
+    console.log(JSON.stringify({ alloc, slipBps, window: w + 1, from, to,
+      openedTrades: result.openedTrades, hoursToOnePct: hoursTo(10_100),
+      hoursToFivePct: hoursTo(10_500),
       closedTrades: m.trades, netUsd: m.netUsd, netPct: m.netPct, maxDD: m.maxDD,
       fees: m.fees, slippage: m.slip, funding: m.funding }))
   }
-  console.log(JSON.stringify({ slipBps, allSixPositive: P.allSixPositive(results.map(m => m.netPct)),
+  console.log(JSON.stringify({ alloc, slipBps, allSixPositive: P.allSixPositive(results.map(m => m.netPct)),
     closedTrades: results.reduce((sum, m) => sum + m.trades, 0),
     // This sum is deliberately labelled: resetting each window to $10k does
     // not produce a compounded, continuous 36-month portfolio return.
