@@ -51,6 +51,66 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## v86bt (2026-09-22) — THE SLEEVE SPLIT. Two of my own hypotheses refuted.
+
+**PART A — MY NOISE PROBE WAS BADLY DESIGNED, and the result says so.**
+Six runs with starting cash perturbed $9,995 … $10,005 returned **identical
+numbers to the decimal** — same 5,317 trades, same +27.6%, spread 0.0pp.
+That proves the simulator is DETERMINISTIC (no hidden randomness), which is
+worth knowing. It does **not** measure what I built it to measure. Starting cash
+is a pure SCALE parameter and the whole engine is scale-invariant: every cap is
+a fraction of portfolio, so multiplying the account by 1.0005 multiplies every
+ticket by 1.0005 and funds exactly the same trades. I probed an axis the system
+cannot respond to and called it a noise floor.
+**So the v85bt zigzag (0.90→+36%, 0.85→+68%, 0.80→+33%, 0.75→+70%, 0.60→+0.7%)
+is STILL UNEXPLAINED and still a live concern.** It is deterministic jaggedness,
+not measurement noise — which is a different problem with the same consequence:
+a single parameter setting sits on a knife edge and may not generalise. The
+correct probe perturbs the PATH without changing the economics (e.g. shifting
+the window start by one bar, or a 0.1% multiplier change). Queued, not done.
+DO NOT cite "the noise floor is zero" as licence to trust small differences.
+
+**PART B — THE SPLIT, and it reverses the audit hypothesis I wrote this morning**
+    DEPLOYED 70% ROTA   5317   +27.6%  maxDD 26.9%  +24.3 -11.8 +15.9 -20.7 +24.7 -4.8
+    50% ROTA            5714   -11.6%  maxDD 25.0%
+    35% ROTA            5469   -16.5%  maxDD 21.3%
+    20% ROTA            5514    -7.8%  maxDD 26.2%
+    DONCH4H only        1594   **-42.6%**  maxDD 23.8%
+    ROTA only           4117   **+29.3%  maxDD 12.3%**  +8.5 +3.8 +12.1 -0.3 +2.5 +2.7
+**ROTA ALONE IS THE BEST CONFIGURATION EVER MEASURED ON THIS INSTRUMENT.** Same
+return as the deployed mix with **less than half the drawdown**, and a window
+profile of five positive and one at -0.3 — the closest anything has come to
+all-6 on the dollar lens, including the incumbent.
+**I had this backwards this morning.** The audit reasoned that the PR #21 funding
+bug flattered ROTA most (it holds ~15 perpetuals for 48h and pays carry on both
+legs), so ROTA was the suspect sleeve. ROTA now PAYS that funding in this run and
+still wins. The drag is **DONCH4H** — the sleeve carrying 25+ validation batches,
+the 696R, and nearly all of the research attention. Consistent with v80bt
+finding 1, and stronger, because the cost fix went the other way.
+At 6bps: deployed -11.8%, 50% +1.5%, 35% -25.7%, **DONCH4H only -60.4%**.
+**ROTA-only at 6bps was NOT RUN — that is the missing cell and the whole
+decision rests on it.** Queued as v87bt. Nothing can be concluded until it lands:
+v71bt is the standing reminder that a configuration can look excellent at 3bps
+and die on execution cost.
+CAUTION, stated because it limits the claim: the middle rows are jumbled (50%
+scores worse than 20%), the same jaggedness as v85bt. The ENDPOINTS are what
+carry the finding — +29.3% against -42.6% is 72 points apart, far outside any
+plausible jaggedness — but the intermediate splits should not be ranked.
+**AND THE LIVE BOOK SAYS THE OPPOSITE**: DONCH4H +$258 on 18 closes, ROTA -$338
+on 14. n is tiny and four days is nothing, but the tension is real and must not
+be resolved by picking whichever instrument agrees with the current hypothesis.
+
+**PART C — a stop on ROTA would barely matter. Idea killed before it cost a run.**
+562 ROTA closes in window 1, P&L as % of a $10,000 account:
+    worst -1.89%  p10 -0.44%  median -0.02%  p90 +0.45%  best +2.82%
+    only **7 of 562** lose more than 1% of the account
+    hold hours: median 52h, max **436h** (18 days)
+ROTA's losses are NOT fat-tailed, so the stop I proposed adding would touch
+roughly 1% of positions and change almost nothing. Dropped. The real oddity here
+is the 436h hold: the ±35% drift band keeps a slot through rebalances, so some
+positions persist for weeks — that, not the missing stop, is the thing worth
+examining.
+
 **PORTFOLIO AUDIT 2026-09-22, owner asked why the account does not move:**
     ROTA     15 pos  $6,008 notional  8 LONG / 7 SHORT  **$0 stop-risk**
     DONCH4H   3 pos  $3,383 notional  3 LONG / 0 SHORT   $256 stop-risk

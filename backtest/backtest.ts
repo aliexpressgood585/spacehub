@@ -7188,6 +7188,122 @@ function runV86bt() {
   }
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// v87bt — THE MISSING CELL, plus the noise probe done properly this time.
+//
+// v86bt put ROTA-only at +29.3% with maxDD 12.3% and five of six windows
+// positive — the best configuration ever measured on this instrument, at half
+// the deployed drawdown. It did not run that configuration at 6bps. v71bt is
+// the standing reminder of why that matters: the reg-channel sleeve beat the
+// incumbent at 0bps and was worth less than half of it at 6bps. So the decision
+// rests entirely on a cell that has not been filled.
+//
+// AND THE NOISE PROBE, REBUILT. v86bt perturbed STARTING CASH and got six
+// identical results, which I nearly reported as "the noise floor is zero". It
+// is not: every cap in this engine is a fraction of portfolio, so the system is
+// SCALE-INVARIANT and starting cash cannot perturb the path at all. The probe
+// tested an axis the engine cannot respond to. This one perturbs the path
+// without changing the economics — a 0.1% risk multiplier, which shifts which
+// trade wins a funding race without meaningfully changing any position's size.
+// If THAT moves the six-window total by tens of points, then v85bt's zigzag is
+// knife-edge sensitivity and single-setting results do not generalise.
+// ════════════════════════════════════════════════════════════════════════════
+function runV87bt() {
+  const NW = 6, BAR4 = 14400000
+  const to4h = (a: Bar[], ms: number): Bar[] => {
+    const out: Bar[] = []; let cur: Bar | null = null; let bucket = -1
+    for (const b of a) {
+      const k = Math.floor(b.t / ms)
+      if (k !== bucket) { if (cur) out.push(cur); bucket = k
+        cur = { t: k * ms, open: b.open, high: b.high, low: b.low, close: b.close, vol: b.vol } }
+      else if (cur) { cur.high = Math.max(cur.high, b.high); cur.low = Math.min(cur.low, b.low)
+        cur.close = b.close; cur.vol += b.vol }
+    }
+    if (cur) out.push(cur); return out
+  }
+  const data: Record<string, PF.CoinData> = {}
+  let tmin = Infinity, tmax = -Infinity
+  for (const c of COINS) {
+    if (!CORE40.has(c)) continue
+    const h = loadCSV(c, '1h'); if (h.length < 500) continue
+    data[c] = { b1: h, b4: to4h(h, BAR4) }
+    tmin = Math.min(tmin, h[0].t); tmax = Math.max(tmax, h[h.length - 1].t)
+  }
+  const spanDays = (tmax - tmin) / 86400000
+  console.log(`  loaded ${Object.keys(data).length} coins, span ${spanDays.toFixed(0)} days`)
+  if (spanDays < 900 || Object.keys(data).length < 30) {
+    console.log(`\n  ABORT: need ~36 months across CORE40.`); return
+  }
+  const wSpan = (tmax - tmin) / NW, WARM = 100 * BAR4
+
+  const run = (over: Partial<PF.SimConfig>) => {
+    const ms: PF.Metrics[] = []
+    for (let w = 0; w < NW; w++) {
+      const a = tmin + w * wSpan, b = tmin + (w + 1) * wSpan
+      const from = Math.max(tmin + WARM, a)
+      if (b - from < 30 * 86400000) continue
+      const r = PF.runPortfolio(data, PF.defaultConfig({ killSwitch: true, ...over }), from, b)
+      ms.push(PF.metrics(r, 10000, (b - from) / 86400000))
+    }
+    const net = ms.map(x => x.netPct)
+    return { ms, net, tot: net.reduce((a, b) => a + b, 0),
+      all6: PF.allSixPositive(net),
+      trades: ms.reduce((a, x) => a + x.trades, 0),
+      dd: Math.max(...ms.map(x => x.maxDD)) }
+  }
+  const row = (tag: string, r: ReturnType<typeof run>) =>
+    console.log(`  ${tag.padEnd(30)} ${String(r.trades).padStart(6)} ${r.tot.toFixed(1).padStart(7)}% ` +
+      `${r.dd.toFixed(1).padStart(5)}%  ${r.all6 ? 'PASS' : 'FAIL'}  ` +
+      `${r.net.map(x => (x >= 0 ? '+' : '') + x.toFixed(1)).join(' ')}`)
+
+  const ROTA_ONLY: Partial<PF.SimConfig> = { sleeves: ['ROTA'] }
+
+  console.log(`\n── PART A: THE MISSING CELL — ROTA-only across the cost curve ──`)
+  console.log(`  config                         trades     net%  maxDD  all6  per-window`)
+  for (const bps of [0, 3, 6, 10]) {
+    row(`ROTA only @${bps}bps`, run({ ...ROTA_ONLY, slipBps: bps }))
+  }
+  console.log(`  — and the deployed mix on the same curve, for comparison —`)
+  for (const bps of [0, 3, 6, 10]) row(`DEPLOYED mix @${bps}bps`, run({ slipBps: bps }))
+  console.log(`\n  THE TEST: ROTA-only must still beat the deployed mix at 6bps, and`)
+  console.log(`  must not collapse at 10bps the way the reg-channel did in v71bt.`)
+  console.log(`  ROTA turns its whole book every 48h, so it pays MORE spread per`)
+  console.log(`  dollar than a breakout sleeve that holds for days — if anything is`)
+  console.log(`  cost-fragile here, it is this.`)
+
+  console.log(`\n── PART B: the noise probe, on an axis the engine can actually feel ──`)
+  console.log(`  A 0.1% risk multiplier changes no position materially but does change`)
+  console.log(`  which entry wins a funding race. v86bt's starting-cash probe could not`)
+  console.log(`  do this: the engine is scale-invariant, so it measured nothing.`)
+  console.log(`  config                         trades     net%  maxDD  all6  per-window`)
+  const probe: number[] = []
+  for (const m of [0.999, 0.9995, 1.0, 1.0005, 1.001]) {
+    const r = run({ donchRiskMult: m }); probe.push(r.tot)
+    row(`donchRiskMult ${m}`, r)
+  }
+  const mean = probe.reduce((a, b) => a + b, 0) / probe.length
+  const sd = Math.sqrt(probe.reduce((a, b) => a + (b - mean) ** 2, 0) / probe.length)
+  console.log(`\n  mean ${mean.toFixed(1)}%  sd ${sd.toFixed(1)}pp  ` +
+    `range ${Math.min(...probe).toFixed(1)} … ${Math.max(...probe).toFixed(1)} ` +
+    `(spread ${(Math.max(...probe) - Math.min(...probe)).toFixed(1)}pp)`)
+  console.log(`  >>> This spread is the real error bar. A 0.1% input change is not a`)
+  console.log(`      strategy difference, so anything it moves is knife-edge, not edge.`)
+
+  console.log(`\n── PART C: is ROTA-only robust, or is 70% just one lucky setting? ──`)
+  console.log(`  If the sleeve is genuinely sound, nearby book fractions should behave`)
+  console.log(`  similarly. If only 0.35 works, it is a fitted parameter, not a finding.`)
+  console.log(`  config                         trades     net%  maxDD  all6  per-window`)
+  for (const b of [0.25, 0.30, 0.35, 0.40, 0.45]) {
+    row(`ROTA only, book ${b} @3bps`, run({ ...ROTA_ONLY, rotaBook: b }))
+  }
+  for (const b of [0.30, 0.35, 0.40]) {
+    row(`ROTA only, book ${b} @6bps`, run({ ...ROTA_ONLY, rotaBook: b, slipBps: 6 }))
+  }
+  console.log(`\n  DEPLOY BAR unchanged. Nothing ships on one run, and removing a whole`)
+  console.log(`  sleeve is the largest change ever proposed here — it would need its own`)
+  console.log(`  confirmation, and it is the owner's call regardless.`)
+}
+
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
@@ -7373,6 +7489,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v73bt') {
     console.log(`████ V73BT — Donchian adaptive window (vol-scaled) vs fixed-15 ████`)
     runV73bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v87bt') {
+    console.log(`████ V87BT — ROTA-only across the cost curve + a real noise probe ████`)
+    runV87bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v86bt') {
