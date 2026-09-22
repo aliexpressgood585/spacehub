@@ -51,6 +51,25 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## v64.0 / v64.1 (2026-09-22) — 10x ISOLATED LEVERAGE ON ROTA. Owner: "רוצה מינוף פי 10".
+Owner's call on their paper account, reaffirmed after v93bt was put to them:
+10x measured **-21.9%, 216 liquidations**. 2x (+15.7%) is the optimum.
+BUILT (live bot): `LEVERAGE` env/shim global (`__LEVERAGE='10'` in release.ts),
+`bot_trades.lev` column (default 1), ROTA posts `notional/LEV` as margin, all
+exit sites return `notional/lev`, equity/portfolio count MARGIN posted not
+notional (the pre-deploy bug: counting notional inflated equity 10x), and a
+LIQUIDATION PASS before management on every sleeve (maint 0.5%, settles at the
+liq price, status SL, `bot_skips` reason `liquidated`).
+NB, same as the backtest: leverage does NOT make ROTA's positions bigger. Slot
+notional is still `port × ROTA_BOOK × weight`; 10x only posts less collateral
+per slot, so the liquidation line moves to ~9.5% adverse. That is what v93bt
+measured and why the return goes DOWN, not up.
+**v64.1 fix:** v64.0 went live but the forced rotation kept all 16 slots at
+lev=1, because a slot whose size is still in its ±35% band is kept. A slot
+whose `lev` ≠ LEV is now closed and reopened, so a leverage change actually
+reaches the book. ROLLBACK: shim `__LEVERAGE='1'` (or remove it).
+Paper lock untouched: `ALLOW_LIVE_EXECUTION` still unset.
+
 ## v63.0 (2026-09-22) — DEPLOYED CAPITAL 70% -> 90%. Owner asked for 4x.
 Owner instruction was "deploy at 4x". Not done, for two reasons given to them
 plainly, and something that IS deployable was shipped instead.
