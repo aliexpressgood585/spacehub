@@ -51,6 +51,60 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## v88bt (2026-09-22) — THE LEVERAGE MEASUREMENT FAILED, and that failure is
+## the answer to "can this bot do very high risk". It structurally cannot.
+Owner asked for very high risk, was given the maths once, reaffirmed twice. It
+is a paper account and the level is their call, so the job was to MEASURE the
+aggression surface rather than argue. The run did not produce one.
+
+**PART A — the risk dial is DEAD above ~2.5%.**
+    1.75% (deployed) 5317  +27.6%  maxDD 26.9%
+    2.5% / 3.5% / 5.0% / 6.5% / 10%   ALL IDENTICAL: 5313 trades, +3.0%, 31.6%
+Five different risk settings, byte-identical results. The caps absorb everything
+above ~1.43x: `PER_POSITION_CAP` (20%), and then `remain = portfolio −
+openExposure` and `balance * 0.95` in the sizing min-chain. Turning the risk dial
+past that point changes nothing at all. NB 1.75% -> 2.5% COSTS 24 points here
+(+27.6% -> +3.0%) with worse drawdown — but that is a 24pt move on a 10.6pt error
+bar, so it is real in sign and unreliable in size.
+
+**PART B — 2x, 3x, 5x, 10x and 25x leverage ALL RETURN THE SAME NUMBERS.**
+    1x   5317  +27.6%  maxDD 26.9%
+    2x through 25x   ALL IDENTICAL: 5509 trades, −1.3%, 31.7%
+That is not a finding about leverage. **It is a broken instrument, and reporting
+"leverage does not help" from those rows would have been badly wrong.**
+THE CAUSE: `backtest/portfolio.ts` is a CASH account. `tryOpen` does
+`cash -= notional + feeIn` and refuses when `cash < notional + feeIn`; the sizing
+chain is bounded by `remain` and `balance * 0.95`, neither of which I scaled with
+`heatCap`. Positions are bought OUTRIGHT. **There is no margin model, no
+borrowing and no liquidation engine anywhere in this repo.** Raising the heat cap
+cannot create leverage because the cash constraint binds long before it.
+**SO THE HONEST ANSWER TO THE OWNER'S REQUEST: high risk is not something this
+bot is currently configured badly for — it is something the bot CANNOT DO.**
+Delivering it would mean building margin accounting, a maintenance-margin rule
+and a liquidation engine into BOTH the simulator and the live bot. That is
+multi-day work, it is the single most dangerous change ever proposed here, and
+it must not be half-built: a leverage model without a liquidation model produces
+exactly the flattering nonsense part B printed.
+The `heatCap` knob is therefore INERT and left in place with this note rather
+than deleted, so nobody re-derives the same false result from it.
+
+**PART D — the "monotonic ROTA dial" BREAKS when extended. Retract that too.**
+    book 0.45  4116  +43.9%  maxDD 19.7%
+    book 0.50  4314   +7.5%  maxDD 15.9%
+    book 0.60  3686  +56.2%  maxDD 24.4%
+    book 0.70  3158 +134.9%  maxDD 33.1%   (-23% TRADES = rule-5 breach)
+v87bt found 0.25→0.45 climbing in order and I reported it to the owner as "the
+one clean dial this project has". Extended, it zigzags: 0.50 drops to +7.5%
+between +43.9% and +56.2%. The monotonicity was a four-point artefact of a
+narrow range, not a property. **Retracted.**
+The +134.9% at book 0.70 is the v59bt trap in its purest form: one window at
++99% carrying a profile of +99/−10/+50/+12/−19/+4, on 23% FEWER trades. High
+total masking fragility, plus a clean rule-5 rejection.
+
+**THE "WIPED" COLUMN READS ZERO EVERYWHERE — and means nothing**, because part B
+established there is no leverage and no liquidation. It was the right column to
+add and it had nothing to measure. Keep it for when a margin model exists.
+
 ## v87bt (2026-09-22) — **THE ERROR BAR IS 10.6 POINTS.** Read this before
 ## believing any dollar figure in this file.
 A 0.1% change to the DONCH4H risk multiplier — economically nothing, it does not
@@ -92,8 +146,9 @@ was measured on a different instrument.
  - ROTA-only at 0bps is **the first and only configuration ever to PASS all six
    windows on the dollar lens.** It does not pass at 3bps (w4 -0.3) but nothing
    else has come close.
-**AND THE ONE CLEAN DIAL THIS PROJECT HAS.** ROTA's book fraction responds
-MONOTONICALLY, unlike every other parameter tried here:
+**A DIAL THAT LOOKED CLEAN AND WAS NOT — see v88bt part D, which RETRACTS this.**
+Over this narrow range ROTA's book fraction appeared to respond monotonically;
+extended to 0.50-0.70 it zigzags, so the ordering below is a four-point artefact:
     book 0.25 -> +17.5%  maxDD  9.3%
     book 0.30 -> +28.3%  maxDD 10.6%
     book 0.35 -> +29.3%  maxDD 12.3%   (deployed)
