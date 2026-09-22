@@ -1,7 +1,9 @@
 # Format: one line, "MODE [MONTHS]".
 #
-# v90bt: the fast regime-switching engine the owner asked for — 15m bars,
-# breakout when ADX is high, band-fade when ADX is low, tight stop, quick target.
-# Reports GROSS vs NET side by side, because every previous fast-trading result
-# here died on that comparison and it is the only question that matters.
-v90bt 6
+# v91bt: the owner's idea — pick 3-4 coins and trade them hard instead of
+# spraying 16. Two claims inside it. Concentration is arithmetic and cannot
+# flip a negative edge. SELECTION is real and untested: part B ranks coins on
+# window N and trades ONLY the top K in window N+1, strictly out-of-sample.
+# If the leaders persist, the idea works. If they reshuffle, part A's spread
+# was noise.
+v91bt 6
