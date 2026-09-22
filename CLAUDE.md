@@ -51,6 +51,24 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## v104bt + v69.0 (2026-09-22 23:45) — VOL TARGET + MOMENTUM ENSEMBLE. Deployed.
+Goal: make the one engine with an edge survive its own drawdowns. 36m, 4 IS
+windows + last 20% OOS once, K2 12h, 1x x1.75 slots (the live v68.1 config),
+live breakers on (day 10%, DD 25% flatten, 4 losses 1h).
+    LIVE v68.1 WITHOUT breakers  IS -136.4%, maxDD 74% (!)
+    LIVE v68.1 with breakers     IS  -27.8%, DD-halted 4/4 windows | OOS -23.8%
+    ens7/14/28d volT50%          IS  +67.1%, 1 DD halt, PF 1.03    | OOS **+1.0%**, maxDD 21.1%
+    ens7/14/28d volT90%          IS +115.6% but 3 DD halts
+    @10/15bps OOS -4.2%
+NB the LIVE row contradicts v98bt's 'LIVE K2 2x' (+128.7% IS) on similar gross
+exposure — K=2 is 4 names, the path-dependence bar is far wider than v87bt's
+10.6pp here. Treat single K2 rows as low-confidence.
+VERDICT: the selected config beats the live one by ~25pp OOS and halts less —
+an improvement worth shipping — but OOS it is ~flat, not a money machine.
+DEPLOYED v69.0: `__ROTA_LBS='42,84,168'` (mean of 7/14/28d returns),
+`__ROTA_VOL_TARGET='0.5'` (slots x min(1, 0.5 / annualised mean vol of the
+traded names), floor 0.2), rest unchanged. ROLLBACK: drop both shim lines.
+
 ## v103bt (2026-09-22 23:35) — ORDER BOOK (bookDepth archive): REJECTED.
 New data source: `data.binance.vision/.../daily/bookDepth` — cumulative resting
 notional at +-0.2/1/2/3/4/5% of mid every ~30s. `backtest/fetch-bookdepth.sh`
