@@ -51,6 +51,37 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## v90bt (2026-09-22) — THE FAST ENGINE LOSES MONEY FOR FREE. Axis closed.
+Owner's phase change, built and measured: 15m bars, ADX>25 breakout / ADX<18
+band-fade / stand aside between, 1.0xATR stop, 1.5xATR target, 6h timeout.
+39 coins, 184 days, **39,179 signals**.
+
+    ALL     39,179   gross **-0.0185R**   NET -0.4082R   WR 38.8%   -15,993R
+    TREND   16,417   gross -0.0337R       NET -0.4092R   WR 38.1%
+    RANGE   22,762   gross -0.0075R       NET -0.4075R   WR 39.2%
+    windows positive: **0 of 6**
+
+**GROSS IS NEGATIVE.** The signal loses money BEFORE a single fee is charged, in
+both regimes, in all six windows. No fee schedule, no maker fill, no sizing rule
+and no leverage repairs a signal that is unprofitable for free. This is the THIRD
+independent confirmation of the same thing (v76bt 5m Donchian negative at fee=0;
+v77bt 15m/30m/45m fail window 1), now including the regime-switching and
+range-fade variants that had never been tried together. **The fast-trading axis
+is closed on evidence, not on opinion.**
+
+THE COST NUMBER, which is the part worth remembering: **0.3897R per trade**.
+Every fast trade starts 39% of its own risk in the hole before the market moves
+at all. Frequency came out at 8.9 trades/hour across all 40 coins — close to the
+owner's 10-15 target, so the shortfall is NOT that the rules are too quiet; they
+fire plenty and lose.
+Average hold 62 minutes. WR 38.8% against a 1.5:1 target, which needs 40% just
+to break even gross.
+
+WHAT THIS DOES NOT SAY: it is a 6-month 15m scan with no portfolio layer. It
+answers exactly one question — does a fast regime-switching engine make money
+before and after costs — and the answer is no on both. A portfolio layer cannot
+rescue a negative gross edge; it can only allocate it.
+
 ## 2026-09-22 19:15 — ACCOUNT RESTARTED AT $500. Owner instruction. PHASE CHANGE.
 Owner: close everything, reset to $500, and move to FAST trading — "10-15 trades
 an hour", quick profit-taking, tight stops, profit from ranging/up/down like

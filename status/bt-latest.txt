@@ -1,45 +1,34 @@
-backtest 2026-09-22T18:35Z mode=v89bt months=36
-████ V89BT — leverage with margin, liquidation and account death ████
-  loaded 39 coins, span 1096 days
+backtest 2026-09-22T19:18Z mode=v90bt months=6
+████ V90BT — the fast regime-switching engine: gross vs net ████
+  scanned 39 coins, span 184 days, 39179 signals
 
-── PART A: the deployed engine, levered ──
-  config                trades       net%  maxDD    worst    LIQ  RUIN  per-window
-  1x                     5317      27.6%   26.9%    -20.7%      0 0/6   +24 -12 +16 -21 +25 -5
-  2x                     6737     -10.8%   42.2%    -42.2%      7 0/6   +12 -17 +27 -24 +33 -42
-  3x                     7629     -45.0%   50.2%    -42.2%     27 0/6   +14 -11 -38 -42 +58 -26
-  5x                     8820     183.3%   69.5%    -64.5%    161 0/6   -38 +21 -56 -65 +349 -28
-  10x                    9558    -118.7%   86.2%    -76.3%    781 0/6   -14 +146 -71 -76 -45 -58
-  20x                   10177     -29.4%   94.1%    -78.3%   2192 0/6   -50 +135 -18 -78 +45 -62
-  50x                   10827    -148.5%   82.4%    -69.3%   4725 0/6   -50 -69 -67 -50 +27 +60
-  100x                   9977    -342.1%   72.5%    -70.4%   6508 0/6   -36 -56 -66 -70 -65 -48
+── PART A: GROSS vs NET. This is the whole question. ──
+  config                      n     per-trade R          WR      total
+  ALL                     39179  gross -0.0185  NET -0.4082  WR 38.8%  totNet -15993R
+  TREND (breakout)        16417  gross -0.0337  NET -0.4092  WR 38.1%  totNet -6718R
+  RANGE (fade)            22762  gross -0.0075  NET -0.4075  WR 39.2%  totNet -9275R
 
-── PART B: ROTA-only, levered (the config with half the drawdown) ──
-  config                trades       net%  maxDD    worst    LIQ  RUIN  per-window
-  ROTA 1x                4117      29.3%   12.3%     -0.3%      0 0/6   +8 +4 +12 -0 +3 +3
-  ROTA 2x                4302      30.1%   23.5%    -19.1%     11 0/6   +24 +3 +10 -19 +15 -3
-  ROTA 3x                4722     -14.8%   34.0%    -32.1%     31 0/6   +15 -4 -9 -32 +17 -2
-  ROTA 5x                5068     -23.2%   21.5%    -12.8%    150 0/6   +4 -13 -10 -12 +13 -5
-  ROTA 10x               5876     -60.9%   30.5%    -19.4%    717 0/6   -11 -19 -7 -9 +3 -18
-  ROTA 25x               7087     -29.6%   23.2%    -22.1%   2045 0/6   -21 +8 +16 -22 +6 -17
+  FREQUENCY: 8.9 trades/hour across the whole 40-coin universe
+  (owner asked for 10-15/hour — this is what the rules actually produce)
+  average hold 62 min, average COST 0.3897R per trade
+  i.e. every trade starts 0.390R in the hole before the market moves.
 
-── PART C: 6bps, because leverage multiplies COSTS too ──
-  Every dollar of borrowed notional pays the same spread as an owned
-  one. This is where leverage usually dies before liquidation gets it.
-  config                trades       net%  maxDD    worst    LIQ  RUIN  per-window
-  1x @6bps               5413     -11.8%   27.2%    -20.1%      0 0/6   +18 -12 +14 -11 -0 -20
-  3x @6bps               7628     -85.5%   54.3%    -39.5%     32 0/6   +3 -39 -6 -20 +1 -23
-  5x @6bps               8690    -183.9%   74.1%    -70.1%    136 0/6   -48 +8 -41 -70 +31 -63
-  10x @6bps              9077    -316.1%   89.3%    -87.1%    714 0/6   -64 +31 -84 -87 -56 -55
+── PART B: is it the SIGNAL or the COSTS? ──
+  GROSS IS -0.0185R — NEGATIVE BEFORE ANY FEE IS CHARGED.
+  No fee schedule, no sizing, no maker trick and no amount of leverage
+  fixes a signal that loses money for free. Same result as v76bt's 5m
+  scan. The axis is closed, and this is the evidence.
 
-── WHAT 1000%/WEEK WOULD REQUIRE, against these rows ──
-  1000%/week = 11x per week = roughly 5.7e54x over three years.
-  The best row above is the number to compare it with.
+── PART C: walk-forward, 6 windows — does it hold up over time? ──
+  window 1  n= 6115  totNet  -2141.0R
+  window 2  n= 6583  totNet  -2942.1R
+  window 3  n= 6828  totNet  -2760.4R
+  window 4  n= 6649  totNet  -1850.2R
+  window 5  n= 6389  totNet  -2953.3R
+  window 6  n= 6615  totNet  -3346.4R
+  windows positive: 0 of 6
 
-  READ "RUIN" FIRST. Six independent $10,000 windows; RUIN counts the
-  ones that ended as a dead account. A row with a high net% and a
-  non-zero RUIN is not an opportunity — it is a coin flip that paid
-  out in the windows that survived.
-  STILL OPTIMISTIC, and by a lot: liquidation is checked once per
-  management bar, not tick by tick; there is no funding spike, no
-  auto-deleveraging, no exchange outage and no widening spread in a
-  crash — every one of which makes real leveraged trading worse.
+  NOTHING DEPLOYS OFF THIS. It is a 6-month 15m scan, not the 36-month
+  bar, and it has no portfolio layer — no cash limit, no caps, no
+  competition between positions. It answers ONE question: does a fast
+  regime-switching engine make money before and after costs.
