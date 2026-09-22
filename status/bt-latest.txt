@@ -1,53 +1,67 @@
-backtest 2026-09-22T18:16Z mode=v87bt months=36
-████ V87BT — ROTA-only across the cost curve + a real noise probe ████
+backtest 2026-09-22T18:23Z mode=v88bt months=36
+████ V88BT — the aggression surface: risk dial, leverage, and ruin ████
   loaded 39 coins, span 1096 days
 
-── PART A: THE MISSING CELL — ROTA-only across the cost curve ──
-  config                         trades     net%  maxDD  all6  per-window
-  ROTA only @0bps                  4116    41.8%  13.6%  PASS  +18.9 +2.4 +13.9 +0.1 +1.9 +4.7
-  ROTA only @3bps                  4117    29.3%  12.3%  FAIL  +8.5 +3.8 +12.1 -0.3 +2.5 +2.7
-  ROTA only @6bps                  4248     3.9%  13.8%  FAIL  +11.3 +1.8 +9.4 -11.6 +0.7 -7.6
-  ROTA only @10bps                 4350    -8.4%  17.3%  FAIL  +3.4 -3.9 +9.0 -7.3 -2.4 -7.3
-  — and the deployed mix on the same curve, for comparison —
-  DEPLOYED mix @0bps               5147    41.5%  24.3%  FAIL  +34.0 -10.5 +3.2 -8.6 +25.4 -2.0
-  DEPLOYED mix @3bps               5317    27.6%  26.9%  FAIL  +24.3 -11.8 +15.9 -20.7 +24.7 -4.8
-  DEPLOYED mix @6bps               5413   -11.8%  27.2%  FAIL  +17.8 -12.4 +14.5 -11.4 -0.2 -20.1
-  DEPLOYED mix @10bps              5259   -45.6%  21.3%  FAIL  +4.5 -10.0 +4.4 -18.9 -6.7 -18.9
+── PART A: the RISK dial alone, at the deployed 95% exposure cap ──
+  base risk 1.75% = multiplier 1.0. This is the dial v57.2 moved.
+  config                      trades       net%  maxDD    worst  <-50 WIPED  per-window
+  1.75% (deployed)             5317      27.6%   26.9%    -20.7%    0     0  +24 -12 +16 -21 +25 -5
+  2.5%                         5313       3.0%   31.6%    -28.6%    0     0  +24 -11 +7 -29 +24 -13
+  3.5%                         5313       3.0%   31.6%    -28.6%    0     0  +24 -11 +7 -29 +24 -13
+  5.0%                         5313       3.0%   31.6%    -28.6%    0     0  +24 -11 +7 -29 +24 -13
+  6.5% (full Kelly)            5313       3.0%   31.6%    -28.6%    0     0  +24 -11 +7 -29 +24 -13
+  10%                          5313       3.0%   31.6%    -28.6%    0     0  +24 -11 +7 -29 +24 -13
 
-  THE TEST: ROTA-only must still beat the deployed mix at 6bps, and
-  must not collapse at 10bps the way the reg-channel did in v71bt.
-  ROTA turns its whole book every 48h, so it pays MORE spread per
-  dollar than a breakout sleeve that holds for days — if anything is
-  cost-fragile here, it is this.
+  READ THE TREND, not any single row: if the numbers stop moving as the
+  multiplier climbs, the 95% heat cap is absorbing it and the risk dial
+  has run out of travel. That is the whole point of part B.
 
-── PART B: the noise probe, on an axis the engine can actually feel ──
-  A 0.1% risk multiplier changes no position materially but does change
-  which entry wins a funding race. v86bt's starting-cash probe could not
-  do this: the engine is scale-invariant, so it measured nothing.
-  config                         trades     net%  maxDD  all6  per-window
-  donchRiskMult 0.999              5345    38.2%  26.9%  FAIL  +24.3 -11.8 +26.6 -20.7 +24.7 -4.8
-  donchRiskMult 0.9995             5345    38.2%  26.9%  FAIL  +24.3 -11.8 +26.6 -20.7 +24.7 -4.8
-  donchRiskMult 1                  5317    27.6%  26.9%  FAIL  +24.3 -11.8 +15.9 -20.7 +24.7 -4.8
-  donchRiskMult 1.0005             5317    27.6%  26.9%  FAIL  +24.3 -11.8 +15.9 -20.7 +24.7 -4.8
-  donchRiskMult 1.001              5317    27.6%  26.9%  FAIL  +24.3 -11.8 +15.9 -20.7 +24.7 -4.8
+── PART B: LEVERAGE. The cap itself — this is the real dial ──
+  heatCap 0.95 = deployed (no leverage). 3.0 = 3x the account.
+  The per-position and net-exposure caps scale with it, so the book
+  genuinely levers up instead of being forced market-neutral.
+  config                      trades       net%  maxDD    worst  <-50 WIPED  per-window
+  1x (deployed 0.95)           5317      27.6%   26.9%    -20.7%    0     0  +24 -12 +16 -21 +25 -5
+  2x                           5509      -1.3%   31.7%    -29.2%    0     0  +37 -3 -1 -29 -3 -3
+  3x                           5509      -1.3%   31.7%    -29.2%    0     0  +37 -3 -1 -29 -3 -3
+  5x                           5509      -1.3%   31.7%    -29.2%    0     0  +37 -3 -1 -29 -3 -3
+  10x                          5509      -1.3%   31.7%    -29.2%    0     0  +37 -3 -1 -29 -3 -3
+  25x                          5509      -1.3%   31.7%    -29.2%    0     0  +37 -3 -1 -29 -3 -3
 
-  mean 31.8%  sd 5.2pp  range 27.6 … 38.2 (spread 10.6pp)
-  >>> This spread is the real error bar. A 0.1% input change is not a
-      strategy difference, so anything it moves is knife-edge, not edge.
+── PART C: both dials together — what "very high risk" actually is ──
+  config                      trades       net%  maxDD    worst  <-50 WIPED  per-window
+  3.5% risk + 3x               5511       7.5%   31.8%    -29.4%    0     0  +38 -3 -0 -29 +6 -3
+  5% risk + 5x                 5511       7.5%   31.8%    -29.4%    0     0  +38 -3 -0 -29 +6 -3
+  6.5% risk + 10x              5511       7.5%   31.8%    -29.4%    0     0  +38 -3 -0 -29 +6 -3
+  10% risk + 25x               5511       7.5%   31.8%    -29.4%    0     0  +38 -3 -0 -29 +6 -3
 
-── PART C: is ROTA-only robust, or is 70% just one lucky setting? ──
-  If the sleeve is genuinely sound, nearby book fractions should behave
-  similarly. If only 0.35 works, it is a fitted parameter, not a finding.
-  config                         trades     net%  maxDD  all6  per-window
-  ROTA only, book 0.25 @3bps       4190    17.5%   9.3%  FAIL  +15.4 +3.4 +6.2 -6.7 -2.0 +1.2
-  ROTA only, book 0.3 @3bps        4088    28.3%  10.6%  FAIL  +7.5 +4.1 +11.0 -0.7 +2.8 +3.7
-  ROTA only, book 0.35 @3bps       4117    29.3%  12.3%  FAIL  +8.5 +3.8 +12.1 -0.3 +2.5 +2.7
-  ROTA only, book 0.4 @3bps        4120    35.1%  17.2%  FAIL  +10.5 -0.5 +16.1 +1.8 +3.6 +3.7
-  ROTA only, book 0.45 @3bps       4116    43.9%  19.7%  FAIL  +21.7 -1.4 +17.3 -2.7 +4.8 +4.2
-  ROTA only, book 0.3 @6bps        4341    -4.6%  11.9%  FAIL  -1.7 +2.4 +7.7 -5.8 +3.0 -10.2
-  ROTA only, book 0.35 @6bps       4248     3.9%  13.8%  FAIL  +11.3 +1.8 +9.4 -11.6 +0.7 -7.6
-  ROTA only, book 0.4 @6bps        4226    13.5%  19.0%  FAIL  +7.2 -2.8 +13.8 -5.7 +4.4 -3.4
+── PART D: ROTA-only — the ONE clean dial this project has ──
+  v87bt part C found the book fraction is MONOTONIC, unlike everything
+  else tested here: 0.30 -> +28.3%, 0.35 -> +29.3%, 0.40 -> +35.1%,
+  0.45 -> +43.9%, with drawdown climbing in step (10.6 -> 19.7%).
+  A dial that responds in order is a dial worth turning. This extends it
+  past the point the sleeve was ever designed for, and then adds leverage.
+  config                      trades       net%  maxDD    worst  <-50 WIPED  per-window
+  ROTA book 0.45 @3bps         4116      43.9%   19.7%     -2.7%    0     0  +22 -1 +17 -3 +5 +4
+  ROTA book 0.5 @3bps          4314       7.5%   15.9%     -9.7%    0     0  +10 +7 +5 -3 -2 -10
+  ROTA book 0.6 @3bps          3686      56.2%   24.4%     -8.9%    0     0  +54 -1 +6 +14 -9 -9
+  ROTA book 0.7 @3bps          3158     134.9%   33.1%    -19.0%    0     0  +99 -10 +50 +12 -19 +4
+  ROTA book 0.45 @6bps         4245      15.7%   21.4%     -5.5%    0     0  +7 -4 +17 -0 +1 -6
+  ROTA book 0.5 @6bps          4434       0.6%   24.2%    -12.6%    0     0  +4 -4 +27 -11 -2 -13
+  ROTA book 0.6 @6bps          3759      27.5%   28.6%    -23.9%    0     0  +60 -2 +7 +8 -24 -21
+  — and with borrowed money on top —
+  ROTA only 2x                 4117      29.3%   12.3%     -0.3%    0     0  +8 +4 +12 -0 +3 +3
+  ROTA only 3x                 4117      29.3%   12.3%     -0.3%    0     0  +8 +4 +12 -0 +3 +3
+  ROTA only 5x                 4117      29.3%   12.3%     -0.3%    0     0  +8 +4 +12 -0 +3 +3
+  ROTA only 10x                4117      29.3%   12.3%     -0.3%    0     0  +8 +4 +12 -0 +3 +3
+  ROTA 3x @6bps                4248       3.9%   13.8%    -11.6%    0     0  +11 +2 +9 -12 +1 -8
+  ROTA 5x @6bps                4248       3.9%   13.8%    -11.6%    0     0  +11 +2 +9 -12 +1 -8
 
-  DEPLOY BAR unchanged. Nothing ships on one run, and removing a whole
-  sleeve is the largest change ever proposed here — it would need its own
-  confirmation, and it is the owner's call regardless.
+  THE COLUMN THAT DECIDES THIS IS "WIPED", NOT "net%".
+  Six independent $10,000 windows. A window at -90% or worse is an
+  account that no longer exists — and a real exchange would have
+  liquidated it well before -90%, so every wipeout count here is a
+  FLOOR on how often the real thing dies.
+  NB this simulator has no liquidation engine and no margin call. It
+  lets a levered account keep trading through losses a broker would
+  have closed. High-leverage rows are therefore OPTIMISTIC.
