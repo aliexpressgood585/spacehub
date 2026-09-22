@@ -1,67 +1,45 @@
-backtest 2026-09-22T18:23Z mode=v88bt months=36
-████ V88BT — the aggression surface: risk dial, leverage, and ruin ████
+backtest 2026-09-22T18:35Z mode=v89bt months=36
+████ V89BT — leverage with margin, liquidation and account death ████
   loaded 39 coins, span 1096 days
 
-── PART A: the RISK dial alone, at the deployed 95% exposure cap ──
-  base risk 1.75% = multiplier 1.0. This is the dial v57.2 moved.
-  config                      trades       net%  maxDD    worst  <-50 WIPED  per-window
-  1.75% (deployed)             5317      27.6%   26.9%    -20.7%    0     0  +24 -12 +16 -21 +25 -5
-  2.5%                         5313       3.0%   31.6%    -28.6%    0     0  +24 -11 +7 -29 +24 -13
-  3.5%                         5313       3.0%   31.6%    -28.6%    0     0  +24 -11 +7 -29 +24 -13
-  5.0%                         5313       3.0%   31.6%    -28.6%    0     0  +24 -11 +7 -29 +24 -13
-  6.5% (full Kelly)            5313       3.0%   31.6%    -28.6%    0     0  +24 -11 +7 -29 +24 -13
-  10%                          5313       3.0%   31.6%    -28.6%    0     0  +24 -11 +7 -29 +24 -13
+── PART A: the deployed engine, levered ──
+  config                trades       net%  maxDD    worst    LIQ  RUIN  per-window
+  1x                     5317      27.6%   26.9%    -20.7%      0 0/6   +24 -12 +16 -21 +25 -5
+  2x                     6737     -10.8%   42.2%    -42.2%      7 0/6   +12 -17 +27 -24 +33 -42
+  3x                     7629     -45.0%   50.2%    -42.2%     27 0/6   +14 -11 -38 -42 +58 -26
+  5x                     8820     183.3%   69.5%    -64.5%    161 0/6   -38 +21 -56 -65 +349 -28
+  10x                    9558    -118.7%   86.2%    -76.3%    781 0/6   -14 +146 -71 -76 -45 -58
+  20x                   10177     -29.4%   94.1%    -78.3%   2192 0/6   -50 +135 -18 -78 +45 -62
+  50x                   10827    -148.5%   82.4%    -69.3%   4725 0/6   -50 -69 -67 -50 +27 +60
+  100x                   9977    -342.1%   72.5%    -70.4%   6508 0/6   -36 -56 -66 -70 -65 -48
 
-  READ THE TREND, not any single row: if the numbers stop moving as the
-  multiplier climbs, the 95% heat cap is absorbing it and the risk dial
-  has run out of travel. That is the whole point of part B.
+── PART B: ROTA-only, levered (the config with half the drawdown) ──
+  config                trades       net%  maxDD    worst    LIQ  RUIN  per-window
+  ROTA 1x                4117      29.3%   12.3%     -0.3%      0 0/6   +8 +4 +12 -0 +3 +3
+  ROTA 2x                4302      30.1%   23.5%    -19.1%     11 0/6   +24 +3 +10 -19 +15 -3
+  ROTA 3x                4722     -14.8%   34.0%    -32.1%     31 0/6   +15 -4 -9 -32 +17 -2
+  ROTA 5x                5068     -23.2%   21.5%    -12.8%    150 0/6   +4 -13 -10 -12 +13 -5
+  ROTA 10x               5876     -60.9%   30.5%    -19.4%    717 0/6   -11 -19 -7 -9 +3 -18
+  ROTA 25x               7087     -29.6%   23.2%    -22.1%   2045 0/6   -21 +8 +16 -22 +6 -17
 
-── PART B: LEVERAGE. The cap itself — this is the real dial ──
-  heatCap 0.95 = deployed (no leverage). 3.0 = 3x the account.
-  The per-position and net-exposure caps scale with it, so the book
-  genuinely levers up instead of being forced market-neutral.
-  config                      trades       net%  maxDD    worst  <-50 WIPED  per-window
-  1x (deployed 0.95)           5317      27.6%   26.9%    -20.7%    0     0  +24 -12 +16 -21 +25 -5
-  2x                           5509      -1.3%   31.7%    -29.2%    0     0  +37 -3 -1 -29 -3 -3
-  3x                           5509      -1.3%   31.7%    -29.2%    0     0  +37 -3 -1 -29 -3 -3
-  5x                           5509      -1.3%   31.7%    -29.2%    0     0  +37 -3 -1 -29 -3 -3
-  10x                          5509      -1.3%   31.7%    -29.2%    0     0  +37 -3 -1 -29 -3 -3
-  25x                          5509      -1.3%   31.7%    -29.2%    0     0  +37 -3 -1 -29 -3 -3
+── PART C: 6bps, because leverage multiplies COSTS too ──
+  Every dollar of borrowed notional pays the same spread as an owned
+  one. This is where leverage usually dies before liquidation gets it.
+  config                trades       net%  maxDD    worst    LIQ  RUIN  per-window
+  1x @6bps               5413     -11.8%   27.2%    -20.1%      0 0/6   +18 -12 +14 -11 -0 -20
+  3x @6bps               7628     -85.5%   54.3%    -39.5%     32 0/6   +3 -39 -6 -20 +1 -23
+  5x @6bps               8690    -183.9%   74.1%    -70.1%    136 0/6   -48 +8 -41 -70 +31 -63
+  10x @6bps              9077    -316.1%   89.3%    -87.1%    714 0/6   -64 +31 -84 -87 -56 -55
 
-── PART C: both dials together — what "very high risk" actually is ──
-  config                      trades       net%  maxDD    worst  <-50 WIPED  per-window
-  3.5% risk + 3x               5511       7.5%   31.8%    -29.4%    0     0  +38 -3 -0 -29 +6 -3
-  5% risk + 5x                 5511       7.5%   31.8%    -29.4%    0     0  +38 -3 -0 -29 +6 -3
-  6.5% risk + 10x              5511       7.5%   31.8%    -29.4%    0     0  +38 -3 -0 -29 +6 -3
-  10% risk + 25x               5511       7.5%   31.8%    -29.4%    0     0  +38 -3 -0 -29 +6 -3
+── WHAT 1000%/WEEK WOULD REQUIRE, against these rows ──
+  1000%/week = 11x per week = roughly 5.7e54x over three years.
+  The best row above is the number to compare it with.
 
-── PART D: ROTA-only — the ONE clean dial this project has ──
-  v87bt part C found the book fraction is MONOTONIC, unlike everything
-  else tested here: 0.30 -> +28.3%, 0.35 -> +29.3%, 0.40 -> +35.1%,
-  0.45 -> +43.9%, with drawdown climbing in step (10.6 -> 19.7%).
-  A dial that responds in order is a dial worth turning. This extends it
-  past the point the sleeve was ever designed for, and then adds leverage.
-  config                      trades       net%  maxDD    worst  <-50 WIPED  per-window
-  ROTA book 0.45 @3bps         4116      43.9%   19.7%     -2.7%    0     0  +22 -1 +17 -3 +5 +4
-  ROTA book 0.5 @3bps          4314       7.5%   15.9%     -9.7%    0     0  +10 +7 +5 -3 -2 -10
-  ROTA book 0.6 @3bps          3686      56.2%   24.4%     -8.9%    0     0  +54 -1 +6 +14 -9 -9
-  ROTA book 0.7 @3bps          3158     134.9%   33.1%    -19.0%    0     0  +99 -10 +50 +12 -19 +4
-  ROTA book 0.45 @6bps         4245      15.7%   21.4%     -5.5%    0     0  +7 -4 +17 -0 +1 -6
-  ROTA book 0.5 @6bps          4434       0.6%   24.2%    -12.6%    0     0  +4 -4 +27 -11 -2 -13
-  ROTA book 0.6 @6bps          3759      27.5%   28.6%    -23.9%    0     0  +60 -2 +7 +8 -24 -21
-  — and with borrowed money on top —
-  ROTA only 2x                 4117      29.3%   12.3%     -0.3%    0     0  +8 +4 +12 -0 +3 +3
-  ROTA only 3x                 4117      29.3%   12.3%     -0.3%    0     0  +8 +4 +12 -0 +3 +3
-  ROTA only 5x                 4117      29.3%   12.3%     -0.3%    0     0  +8 +4 +12 -0 +3 +3
-  ROTA only 10x                4117      29.3%   12.3%     -0.3%    0     0  +8 +4 +12 -0 +3 +3
-  ROTA 3x @6bps                4248       3.9%   13.8%    -11.6%    0     0  +11 +2 +9 -12 +1 -8
-  ROTA 5x @6bps                4248       3.9%   13.8%    -11.6%    0     0  +11 +2 +9 -12 +1 -8
-
-  THE COLUMN THAT DECIDES THIS IS "WIPED", NOT "net%".
-  Six independent $10,000 windows. A window at -90% or worse is an
-  account that no longer exists — and a real exchange would have
-  liquidated it well before -90%, so every wipeout count here is a
-  FLOOR on how often the real thing dies.
-  NB this simulator has no liquidation engine and no margin call. It
-  lets a levered account keep trading through losses a broker would
-  have closed. High-leverage rows are therefore OPTIMISTIC.
+  READ "RUIN" FIRST. Six independent $10,000 windows; RUIN counts the
+  ones that ended as a dead account. A row with a high net% and a
+  non-zero RUIN is not an opportunity — it is a coin flip that paid
+  out in the windows that survived.
+  STILL OPTIMISTIC, and by a lot: liquidation is checked once per
+  management bar, not tick by tick; there is no funding spike, no
+  auto-deleveraging, no exchange outage and no widening spread in a
+  crash — every one of which makes real leveraged trading worse.

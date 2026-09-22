@@ -51,6 +51,52 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## v89bt RESULT (2026-09-22) — **LEVERAGE MAKES IT WORSE AT EVERY LEVEL.**
+VALIDITY CHECK PASSED FIRST: 1x returns +27.6% at 3bps and -11.8% at 6bps,
+matching the pre-margin engine exactly. The rewrite did not break the cash path.
+
+── PART A: the deployed engine, levered ──
+    1x     5317   +27.6%  maxDD 26.9%  worst -20.7%     0 liq
+    2x     6737   -10.8%  maxDD 42.2%  worst -42.2%     7 liq
+    3x     7629   -45.0%  maxDD 50.2%  worst -42.2%    27 liq
+    5x     8820  +183.3%  maxDD 69.5%  worst -64.5%   161 liq
+    10x    9558  -118.7%  maxDD 86.2%  worst -76.3%   781 liq
+    20x   10177   -29.4%  maxDD 94.1%  worst -78.3%  2192 liq
+    50x   10827  -148.5%  maxDD 82.4%  worst -69.3%  4725 liq
+    100x   9977  -342.1%  maxDD 72.5%  worst -70.4%  6508 liq
+**THE 5x ROW IS THE TRAP AND MUST BE READ, NOT QUOTED.** +183.3% looks like the
+jackpot. Its windows are −38 / +21 / −56 / −65 / **+349** / −28: **five of six
+windows LOSE**, and one window at +349% carries the entire number. That is a
+lottery ticket with a 69.5% drawdown, not a strategy — the v59bt trap at its
+most extreme.
+── PART C: 6bps, where it actually dies ──
+    1x   -11.8%  |  3x  -85.5%  |  5x  -183.9%  |  10x  -316.1% (worst window -87.1%)
+── PART B: even the best config gains nothing from leverage ──
+    ROTA 1x  +29.3% maxDD 12.3%  |  2x  +30.1% maxDD 23.5%  (same return, double DD)
+    ROTA 3x  -14.8%  |  5x -23.2%  |  10x -60.9%  |  25x -29.6%
+
+**WHY, mechanically:** leverage multiplies the edge AND the costs, and the costs
+are CERTAIN while the edge is not. Worse, liquidation converts a temporary
+drawdown into a permanent loss — the position dies at the bottom and cannot
+participate in the recovery. The trade counts rising with leverage (5,317 →
+10,827) is not more opportunity, it is the same book being churned and killed.
+
+**AN HONEST FAILURE OF MY OWN METRIC: RUIN reads 0/6 everywhere and that is
+NOT a clean bill of health.** Every size in this engine is a fraction of
+portfolio, so as equity falls position sizes fall with it and the account decays
+geometrically toward zero without ever crossing my 1%-of-start threshold. A
+window ending at **-87%** is ruin for any real person; my counter simply could
+not see it. **Read the `worst` column, not RUIN.** The threshold was badly
+chosen and is left documented rather than quietly retuned.
+
+**AGAINST THE OWNER'S TARGET:** the single best row in the entire table is
++183.3% over THREE YEARS, and it is the lottery ticket described above.
+1000%/week over the same span is ~5.7e54×. The gap is not a tuning problem.
+
+STATUS: leverage measured, rejected on the evidence, NOTHING DEPLOYED. The live
+bot has no margin code, no liquidation handling and no exchange connection, and
+remains paper-locked by ALLOW_LIVE_EXECUTION.
+
 ## v89bt (2026-09-22) — MARGIN, LIQUIDATION AND ACCOUNT DEATH. Owner-requested.
 The owner asked three times for very high risk and, after v88bt showed the
 engine structurally cannot do it, instructed me to build the leverage model. It
