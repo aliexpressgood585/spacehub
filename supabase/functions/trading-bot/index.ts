@@ -541,7 +541,9 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v67.2'
+const BOT_VERSION = 'v68.0'
+// v68.0 breakers — owner spec, deliberately NOT env/shim-configurable.
+const DAY_LOSS_HALT = 0.10, DD_HALT = 0.25, LOSS_STREAK = 4, BRK_STREAK_PAUSE_MS = 3_600_000, ERR_HALT = 10
 const RELEASE_SHA = String((globalThis as any).__RELEASE_SHA ?? 'unpinned')
 // Universe fingerprint: a cheap order-independent digest, so a silently edited
 // CRYPTO_40 shows up as a different release even at an identical SHA.
@@ -2980,20 +2982,73 @@ Deno.serve(async (req) => {
     // every 15 min), block NEW entries and rebalances until the window heals.
     // Open positions are NOT touched — their stops/BE locks/ladders keep
     // managing them; panic-closing an entire book at the low is how retail dies.
+    // v68.0 (owner spec): the day brake is -10% from the FIRST equity snapshot
+    // of the current UTC day, and holds until the next UTC day. Replaces the
+    // v50 rule (-5% from the rolling 24h peak).
     let dayLossPaused = false
     try {
-      const since = new Date(Date.now() - 24*3600_000).toISOString()
+      const dayStart = new Date(); dayStart.setUTCHours(0,0,0,0)
       const {data:eqRows} = await supabase.from('bot_equity').select('equity,ts')
-        .gte('ts', since).order('ts',{ascending:true})
-      if ((eqRows||[]).length >= 8) {
-        const eqs = (eqRows||[]).map((r:any)=>Number(r.equity)).filter((x:number)=>Number.isFinite(x)&&x>0)
-        const peak24 = Math.max(...eqs), cur = eqs[eqs.length-1]
-        if (peak24 > 0 && cur < peak24 * 0.95) {
+        .gte('ts', dayStart.toISOString()).order('ts',{ascending:true})
+      const eqs = (eqRows||[]).map((r:any)=>Number(r.equity)).filter((x:number)=>Number.isFinite(x)&&x>0)
+      if (eqs.length >= 2) {
+        const d0 = eqs[0], cur = eqs[eqs.length-1]
+        if (cur <= d0 * (1 - DAY_LOSS_HALT)) {
           dayLossPaused = true
-          log.push(`DAY-LOSS LIMIT: equity ${cur.toFixed(0)} is ${((1-cur/peak24)*100).toFixed(1)}% under 24h peak ${peak24.toFixed(0)} — new entries paused`)
+          log.push(`BREAKER day-loss: equity ${cur.toFixed(2)} is ${((1-cur/d0)*100).toFixed(1)}% under today's open ${d0.toFixed(2)} — no entries until 00:00 UTC`)
         }
       }
     } catch (e) { await logErr('day_loss_brake', e) }
+
+    // ════ v68.0 BREAKERS (owner spec, not switchable) ═══════════════════════
+    // 1. drawdown DD_HALT from the equity peak since reset -> flatten + HARD
+    //    halt, persisted in bot_state.hard_halt_at; only a human clears it.
+    // 2. LOSS_STREAK consecutive losing closes -> no entries for 1h.
+    // 3. >= ERR_HALT errors in 15 min -> no entries (API / execution kill switch).
+    let breakerPaused = false
+    try {
+      if (state.hard_halt_at) {
+        breakerPaused = true
+        log.push(`BREAKER hard halt since ${state.hard_halt_at}: ${state.hard_halt_reason ?? ''}`)
+      } else {
+        const {data:pk} = await supabase.from('bot_equity').select('equity').order('equity',{ascending:false}).limit(1)
+        const {data:lastEq} = await supabase.from('bot_equity').select('equity').order('ts',{ascending:false}).limit(1)
+        const peak = Number(pk?.[0]?.equity), cur = Number(lastEq?.[0]?.equity)
+        if (peak > 0 && cur > 0 && cur <= peak * (1 - DD_HALT)) {
+          breakerPaused = true
+          const why = `drawdown ${((1-cur/peak)*100).toFixed(1)}% from peak ${peak.toFixed(2)} (limit ${DD_HALT*100}%)`
+          const {data:toClose} = await supabase.from('bot_trades').select('*').eq('status','OPEN')
+          for (const t of (toClose||[])) {
+            const px = await fetchLivePrice(t.sym)
+            if (px === null) continue
+            const dM = t.side==='LONG'?1:-1, e0 = Number(t.entry_price), sz = Number(t.size)
+            const fillPx = px * (1 - dM*SLIP)
+            const pnl = (fillPx-e0)*sz*dM - fillPx*sz*FEE + Number(t.legs_banked||0)
+            balance += e0*sz/Math.max(1,Number(t.lev)||1) + (fillPx-e0)*sz*dM - fillPx*sz*FEE
+            await supabase.from('bot_trades').update({ status: pnl>=0?'TP':'SL', exit_price: fillPx, pnl,
+              pnl_pct: (fillPx-e0)/e0*dM, closed_at: new Date().toISOString() }).eq('id', t.id)
+            log.push(`BREAKER_FLATTEN ${t.sym} ${t.side} pnl=${pnl.toFixed(2)}`)
+          }
+          await supabase.from('bot_state').update({ hard_halt_at: new Date().toISOString(), hard_halt_reason: why }).eq('id',1)
+          await logErr('breaker_dd_halt', why)
+          log.push(`BREAKER HARD HALT: ${why} — book flattened, trading stopped until a human clears hard_halt_at`)
+        }
+      }
+      const {data:last4} = await supabase.from('bot_trades').select('pnl,closed_at').neq('status','OPEN')
+        .not('closed_at','is',null).order('closed_at',{ascending:false}).limit(LOSS_STREAK)
+      if ((last4||[]).length === LOSS_STREAK && (last4||[]).every((x:any)=>Number(x.pnl) < 0)
+          && Date.now() - new Date(last4![0].closed_at).getTime() < BRK_STREAK_PAUSE_MS) {
+        breakerPaused = true
+        log.push(`BREAKER ${LOSS_STREAK} losses in a row — entries paused until ${new Date(new Date(last4![0].closed_at).getTime()+BRK_STREAK_PAUSE_MS).toISOString()}`)
+      }
+      const {count:errN} = await supabase.from('bot_errors').select('id',{count:'exact',head:true})
+        .gte('ts', new Date(Date.now()-15*60_000).toISOString())
+      if ((errN ?? 0) >= ERR_HALT) {
+        breakerPaused = true
+        log.push(`BREAKER ${errN} errors in 15 min — entries paused (API kill switch)`)
+      }
+    } catch (e) { await logErr('breakers', e); breakerPaused = true }   // fail CLOSED
+    if (breakerPaused) dayLossPaused = true   // same gates as the day brake
 
     // ════ v50.1: USDT DEPEG MONITOR ════════════════════════════════════════
     // The whole book is USDT-denominated; a USDT depeg is the one catastrophe
