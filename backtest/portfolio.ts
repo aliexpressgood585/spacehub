@@ -409,7 +409,6 @@ export function runPortfolio(
 
   // ── ladder management for one position over one management bar ─────────────
   function manage(p: Position, bar: S.Bar, t: number) {
-    if (p.sleeve === 'ROTA') return    // ROTA exits only at a rebalance
     const dirM = p.side === 'LONG' ? 1 : -1
     const ageMs = t - p.openedAt
 
@@ -419,6 +418,10 @@ export function runPortfolio(
       cash -= f; funding += f; p.fundingPaid += f
       p.lastFundingAt += H8
     }
+
+    // ROTA exits only at rebalance, but its perpetual positions still accrue
+    // funding. Returning before the accrual silently exempted this whole book.
+    if (p.sleeve === 'ROTA') return
 
     // The adverse extreme is what can hit a stop; the favourable extreme is what
     // can hit a target or ratchet the trail.
@@ -465,10 +468,10 @@ export function runPortfolio(
       // THE LEVEL IT HELD WHEN THE BAR OPENED, get hit? The ratchet then happens
       // in the rung loop below, where it belongs, and applies from the next bar.
       let act = cfg.intrabar === 'conservative'
-        ? S.ladderStep(pos, adverse, adverse, ageMs, beFloor)
-        : S.ladderStep(pos, favour, favour, ageMs, beFloor)
+        ? S.ladderStep(pos, adverse, adverse, ageMs, beFloor, SLIP)
+        : S.ladderStep(pos, favour, favour, ageMs, beFloor, SLIP)
       if (cfg.intrabar === 'optimistic' && act.kind === 'none') {
-        act = S.ladderStep({ ...pos, stopPx: act.stopPx }, adverse, adverse, ageMs, beFloor)
+        act = S.ladderStep({ ...pos, stopPx: act.stopPx }, adverse, adverse, ageMs, beFloor, SLIP)
       }
       if (act.kind === 'close') {
         const raw = act.px / (1 - dirM * SLIP)
@@ -488,7 +491,7 @@ export function runPortfolio(
       }
       // Probe with the favourable extreme only: the stop was already given its
       // chance above, at the level it held when the bar opened.
-      const act = S.ladderStep(pos, favour, favour, ageMs, cfg.trailFloor === 'breakeven')
+      const act = S.ladderStep(pos, favour, favour, ageMs, cfg.trailFloor === 'breakeven', SLIP)
 
       if (act.kind === 'leg') {
         // A resting limit at the level. makerFillRate < 1 treats the remainder
@@ -833,6 +836,12 @@ export interface Metrics {
   utilisation: number; turnoverX: number
   fees: number; slip: number; funding: number
   totR: number
+}
+
+/** A missing, invalid, flat or losing window cannot satisfy the owner's all-six
+ * rule. This is one necessary condition, not a complete deployment approval. */
+export function allSixPositive(netReturns: readonly number[]): boolean {
+  return netReturns.length === 6 && netReturns.every(x => Number.isFinite(x) && x > 0)
 }
 
 export function metrics(r: SimResult, startCash: number, days: number): Metrics {

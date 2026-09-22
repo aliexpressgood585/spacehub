@@ -5,23 +5,27 @@ name: tests
 # This workflow needs NO secrets. That is the point: SUPABASE_ACCESS_TOKEN has
 # been dead since 2026-08-07 and took status-ping, the watchdog and the deploy
 # workflow down with it, so anything that matters has to keep working without
-# it. Plain Node, --experimental-strip-types, no install step, no network.
+# it. Plain Node, --experimental-strip-types, and a pinned compiler install.
 
 on:
   push:
     paths:
       - 'shared/**'
       - 'tests/**'
-      - 'backtest/backtest.ts'
+      - 'backtest/**'
       - 'supabase/functions/**'
       - 'scripts/run-tests.sh'
+      - 'scripts/acceptance-check.sh'
       - '.github/workflows/tests.yml'
   pull_request:
     paths:
       - 'shared/**'
       - 'tests/**'
-      - 'backtest/backtest.ts'
+      - 'backtest/**'
       - 'supabase/functions/**'
+      - 'scripts/run-tests.sh'
+      - 'scripts/acceptance-check.sh'
+      - '.github/workflows/tests.yml'
   workflow_dispatch:
 
 jobs:
@@ -33,6 +37,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+
+      - name: Install pinned compiler
+        run: |
+          npm install --prefix "$RUNNER_TEMP/spacehub-typecheck" --no-audit --no-fund typescript@6.0.2
+          echo "$RUNNER_TEMP/spacehub-typecheck/node_modules/.bin" >> "$GITHUB_PATH"
 
       - name: Strategy + parity suites, and the typecheck
         run: bash scripts/run-tests.sh
