@@ -6,6 +6,31 @@ memory of what came before. Missed firings are LOST, not queued, so do not try t
 catch up on a backlog — just take the next item below. This block is rewritten
 whenever the state of play changes; trust it over anything you half-remember.
 
+**LIVE STATE 2026-09-22 17:10 UTC** (supersedes the 09-19 block below):
+v59.0 / sha `51b2dfbb…` still deployed, heartbeat current, `bot_errors` EMPTY,
+all four shields false, coverage 40/40 source `spot`, regime RANGING.
+Equity **$9,997.36** on $10,000 — flat. Cash $547. Book: **15 ROTA + 3 DONCH4H**.
+ROTA rotated 05:38 today, on its 48h clock, unaided.
+Closed since 09-18, and note it is the REVERSE of what the backtest predicts:
+    DONCH4H  n=18  WR 83.3%  **+$258.78**  avgR +0.362
+    ROTA     n=14  WR 28.6%  **-$338.39**
+**DO NOT READ THIS AS CONFIRMING OR REFUTING v80bt/v83bt.** n=18 over four days.
+DONCH4H's avgR sits above the +0.046 band at z≈1.7, short of the |z|>2 this file
+requires. The backtest says DONCH4H loses at full allocation and ROTA carries the
+account; live says the opposite so far. Both statements are compatible with noise
+at this sample size, and the honest position is that we cannot yet tell.
+Checkpoint **18/50**. No risk raise before 50 in band.
+**WATCH — the live risk this creates:** ROTA's last-30 sum is -$338 on 14 closes.
+The kill-switch needs 30 closes to fire, so it CANNOT pause yet; if the next 16
+keep this shape it will, and v83bt just measured that pause as the single most
+expensive mechanism in the system (-31 points, sells the basket at the bottom).
+That is the thing to watch on this account, ahead of any research question.
+**v57.1 CONFIRMED ON LIVE DATA**: zero ROTA `bad_tick` skips since the pre-fix
+rotation of 2026-09-18 05:46 — two clean rotations since, against 6 false
+rejections in one rotation before. 15 of 16 slots filled today (was 10/16).
+Today's skips were routine: 4 pyramid_gate, 1 per_coin_cap, 2 `bar_lag_diagnostic`
+(the v59.0 staleness journal — low, but it is firing, so keep an eye on it).
+
 **Live, verified 2026-09-19 16:30 UTC:** **v59.0** on `adxgadwghgkwmntsnrar`,
 sha `51b2dfbb…`, confirmed in BOTH `deployment_manifest` and `?donch_test=1`.
 paper_mode true, live_trading false, risk 1.75%, universe_hash 2d336399,
