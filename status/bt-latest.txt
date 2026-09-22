@@ -1,27 +1,32 @@
-backtest 2026-09-22T19:31Z mode=v92bt months=6
-████ V92BT — selection + slower timeframe + isolated leverage ████
+backtest 2026-09-22T19:42Z mode=v93bt months=12
+████ V93BT — the live config at $500 with isolated leverage ████
+  39 coins, span 365 days
 
-── PART A: same engine, 15m vs 4h. Does the cost ratio fix it? ──
-  15m  n= 39179  stop 0.56% of price  cost 0.3897R  gross -0.0185  NET -0.4082  8.9/hr
-  4h   n=  2345  stop 2.34% of price  cost 0.0844R  gross +0.0336  NET -0.0508  0.5/hr
+── THE DEPLOYED CONFIG AT $500, ISOLATED LEVERAGE ──
+  config             trades      net%  maxDD    worst   LIQ RUIN  per-window
+  ROTA 1x             1205      9.9%    6.5%     -4.3%     0 0/6  +8 +7 +1 +2 -4 -4
+  ROTA 2x             1261     15.7%    8.3%     -6.8%     7 0/6  +11 +14 +2 -7 -4 +0
+  ROTA 3x             1376      6.2%    9.3%     -7.2%    16 0/6  +14 +8 +0 -5 -7 -4
+  ROTA 5x             1584     -1.2%   11.4%    -10.7%    35 0/6  +2 +14 +2 -1 -11 -7
+  ROTA 10x            1742    -21.9%   11.3%    -10.5%   216 0/6  +6 -6 +7 -10 -9 -10
+  ROTA 20x            2162    -18.8%   14.2%    -14.2%   525 0/6  -7 +7 +5 -8 -14 -1
 
-── PART B: + the owner's coin selection, out-of-sample, on 4h ──
-  baseline (all coins)  n= 2078  gross 0.0204  NET -0.0649
-  top-3   n=  166  gross -0.0963  NET -0.1970  totNet -33R  periods positive 2/7
-  top-4   n=  230  gross -0.0623  NET -0.1562  totNet -36R  periods positive 2/7
-  top-6   n=  333  gross +0.0259  NET -0.0607  totNet -20R  periods positive 2/7
-  top-10  n=  550  gross +0.0483  NET -0.0403  totNet -22R  periods positive 3/7
+── same, at 6bps — leverage pays the spread on borrowed size too ──
+  config             trades      net%  maxDD    worst   LIQ RUIN  per-window
+  ROTA 1x @6bps       1207      4.2%    9.0%     -6.6%     0 0/6  +8 +6 +1 +1 -5 -7
+  ROTA 2x @6bps       1286      6.5%    8.7%     -7.6%     7 0/6  +10 +8 +1 -8 -5 -1
+  ROTA 3x @6bps       1408      5.5%    9.6%     -8.1%    13 0/6  +13 +7 -1 -2 -8 -4
+  ROTA 5x @6bps       1514      1.1%   12.3%    -11.8%    38 0/6  +1 +18 -2 -2 -12 -2
 
-── PART C: ISOLATED LEVERAGE — where the stop stops protecting you ──
-  Isolated margin liquidates at roughly 1/leverage adverse (minus the
-  maintenance margin). While that distance is WIDER than the stop, the
-  stop fires first and leverage only scales dollars. Once it is
-  NARROWER, every loser becomes a full margin wipe instead of a 1R loss.
-  15m  median stop 0.50% -> stop is inside liquidation up to **201x**; for the widest 10% of stops only to 107x
-  4h   median stop 2.17% -> stop is inside liquidation up to **46x**; for the widest 10% of stops only to 28x
+── what $500 turns into, per window, at the best level ──
+  best leverage on this data: 2x
+  average window: $500 -> $513
+  worst  window: $500 -> $466
+  liquidations: 7, accounts ruined: 0/6
 
-  AND THE PART LEVERAGE CANNOT TOUCH: an R-multiple is leverage-invariant.
-  15m nets -0.4082R per trade, 4h nets -0.0508R. At 10x those are
-  -4.082R and -0.508R of the account per trade — the same
-  numbers, ten times louder. v89bt measured this end to end: 2x -10.8%,
-  3x -45.0%, 10x -118.7%, 100x -342.1%. Leverage is a volume knob.
+  NB DONCH4H cannot trade at $500 at all: MIN_NOTIONAL is an absolute
+  $500, i.e. the entire account for one ticket. The v62.0 sleeve gate
+  is not what silences it here — the account size is.
+  Liquidation is checked once per management bar, not tick by tick,
+  and there is no funding spike or auto-deleveraging, so LIQ and RUIN
+  are floors.
