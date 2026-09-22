@@ -1,48 +1,32 @@
-backtest 2026-09-22T22:48Z mode=v98bt months=36
-████ V98BT — aggressive-controlled profile: stops, stop-sized risk, bounded leverage, breakers ████
-  39 coins, span 1096 days
-  in-sample 2023-09-01 .. 2026-01-24 (4 windows)   OOS 2026-01-24 .. 2026-08-31
+backtest 2026-09-22T23:11Z mode=v99bt months=12
+████ V99BT — one-side scalp, max 15 min hold, re-entry ████
+  10 coins, span 365 days, 5m bars
 
-── IN-SAMPLE: current live config (no stops, $70 margin 2x) for reference ──
-  config                          trades   net%   maxDD  Sharpe   PF  cost/gross  LIQ  stop/tgt  dayH strk ddH  per-window
-  LIVE K2 2x margin, no stop       1641   128.7   58.2%   0.57  1.02       43%    1       0/0    0    0   0  +67 -44 -15 +121
+  config                          trades  /hour   WR    gross R   net R   cost R   total net R   per-window net R
+  one-side N6 sl0.5atr taker       86075    9.8  19.7%  -0.0777  -2.4803   2.4025      -213489   -33919 -31446 -33980 -34303 -35216 -44625
+  one-side N6 sl0.5atr maker-in    86075    9.8  34.8%  -0.0777  -1.2759   1.1982      -109823   -17211 -16076 -17940 -17790 -18241 -22565
+  one-side N6 sl1atr taker         77608    8.9  23.4%  -0.0003  -1.2734   1.2732       -98829   -15708 -14358 -15540 -16077 -16149 -20997
+  one-side N6 sl1atr maker-in      77608    8.9  29.5%  -0.0003  -0.6699   0.6696       -51987   -8243 -7440 -8264 -8520 -8498 -11021
+  one-side N6 sl2atr taker         74391    8.5  16.4%   0.0015  -0.6859   0.6873       -51021   -8303 -7366 -7881 -8406 -8178 -10888
+  one-side N6 sl2atr maker-in      74391    8.5  24.6%   0.0015  -0.3837   0.3851       -28541   -4727 -4041 -4389 -4758 -4518 -6109
+  one-side N12 sl0.5atr taker      61763    7.1  19.9%  -0.1031  -2.4842   2.3811      -153432   -24749 -22660 -24507 -24266 -25850 -31401
+  one-side N12 sl0.5atr maker-in   61763    7.1  34.2%  -0.1031  -1.2940   1.1909       -79920   -12682 -11769 -13138 -12744 -13566 -16020
+  one-side N12 sl1atr taker        55886    6.4  24.8%  -0.0065  -1.2589   1.2525       -70357   -11354 -10350 -11061 -11218 -11818 -14556
+  one-side N12 sl1atr maker-in     55886    6.4  30.4%  -0.0065  -0.6611   0.6547       -36948   -5930 -5415 -5892 -5918 -6239 -7555
+  one-side N12 sl2atr taker        53485    6.1  17.5%  -0.0004  -0.6784   0.6779       -36283   -5994 -5299 -5572 -5913 -5965 -7539
+  one-side N12 sl2atr maker-in     53485    6.1  25.1%  -0.0004  -0.3789   0.3785       -20265   -3395 -2929 -3094 -3350 -3297 -4199
+  both    N6 sl0.5atr taker       144626   16.5  19.0%  -0.0712  -2.5025   2.4313      -361921   -57933 -53375 -56620 -58805 -57404 -77784
+  both    N6 sl0.5atr maker-in    144626   16.5  34.6%  -0.0712  -1.2837   1.2125      -185661   -29417 -27489 -29828 -30114 -29396 -39417
+  both    N6 sl1atr taker         129653   14.8  21.5%  -0.0103  -1.3074   1.2970      -169504   -27024 -24743 -26328 -27598 -26754 -37057
+  both    N6 sl1atr maker-in      129653   14.8  27.9%  -0.0103  -0.6977   0.6873       -90454   -14409 -13154 -14266 -14613 -14212 -19801
+  both    N6 sl2atr taker         123142   14.1  15.0%  -0.0059  -0.7027   0.6968       -86528   -14036 -12437 -13327 -14318 -13497 -18912
+  both    N6 sl2atr maker-in      123142   14.1  23.4%  -0.0059  -0.3979   0.3920       -48992   -8062 -6933 -7584 -8131 -7544 -10738
+  both    N12 sl0.5atr taker       98342   11.2  18.9%  -0.0944  -2.5253   2.4309      -248342   -39928 -36752 -38600 -39953 -40002 -53108
+  both    N12 sl0.5atr maker-in    98342   11.2  34.1%  -0.0944  -1.3089   1.2145      -128722   -20425 -19197 -20560 -20719 -20755 -27066
+  both    N12 sl1atr taker         88985   10.2  22.7%  -0.0150  -1.3027   1.2877      -115918   -18658 -17062 -17798 -18699 -18569 -25131
+  both    N12 sl1atr maker-in      88985   10.2  28.6%  -0.0150  -0.6930   0.6780       -61665   -9912 -9115 -9609 -9890 -9850 -13290
+  both    N12 sl2atr taker         85324    9.7  15.8%  -0.0072  -0.7013   0.6941       -59839   -9795 -8680 -9068 -9852 -9472 -12973
+  both    N12 sl2atr maker-in      85324    9.7  23.7%  -0.0072  -0.3963   0.3891       -33812   -5606 -4864 -5132 -5601 -5294 -7314
 
-── IN-SAMPLE grid (selection happens here, and only here) ──
-  config                          trades   net%   maxDD  Sharpe   PF  cost/gross  LIQ  stop/tgt  dayH strk ddH  per-window
-  risk2% sl1.5atr rr1.5 alt5x       446   -69.2   25.2%  -1.69  0.77       n/a    2    165/95    0   22   4  -23 -24 -10 -13
-  risk2% sl1.5atr rr1.5 alt10x      432   -69.7   25.2%  -1.75  0.75       n/a    5    159/94    0   21   4  -23 -24 -10 -13
-  risk2% sl1.5atr rr2.5 alt5x       506   -65.4   25.5%  -1.56  0.75     1906%    3    192/63    0   29   4  -23 -24 -12 -7
-  risk2% sl1.5atr rr2.5 alt10x      499   -67.0   26.0%  -1.56  0.75    12405%    8    187/63    0   29   4  -23 -24 -14 -7
-  risk2% sl2.5atr rr1.5 alt5x      1000    26.8   26.6%  -0.25  0.96       75%    7   159/151    0   42   3  +63 -25 -17 +6
-  risk2% sl2.5atr rr1.5 alt10x     1002    21.6   27.6%  -0.29  0.95       78%   15   151/151    0   41   3  +60 -25 -18 +4
-  risk2% sl2.5atr rr2.5 alt5x       898    18.3   25.2%  -0.26  0.95       79%    6    144/60    0   45   3  +56 -24 -14 +0
-  risk2% sl2.5atr rr2.5 alt10x      893    15.8   25.1%  -0.27  0.94       81%   13    136/60    0   43   3  +53 -24 -14 +2
-  risk3% sl1.5atr rr1.5 alt5x       172   -67.1   26.0%  -1.50  0.74       n/a    1     66/35    1   10   4  -23 -23 -1 -19
-  risk3% sl1.5atr rr1.5 alt10x      169   -67.4   26.0%  -1.47  0.74       n/a    3     62/35    2   10   4  -23 -24 -2 -19
-  risk3% sl1.5atr rr2.5 alt5x       270   -48.5   25.6%  -1.12  0.76      587%    1    103/31    2   16   4  -22 -23 -5 +2
-  risk3% sl1.5atr rr2.5 alt10x      264   -48.8   25.9%  -1.08  0.76      742%    4     95/31    3   16   4  -22 -24 -5 +3
-  risk3% sl2.5atr rr1.5 alt5x       772    92.8   25.2%   0.21  0.98       53%    6   120/120    0   30   3  +103 -24 -10 +24
-  risk3% sl2.5atr rr1.5 alt10x      809    85.2   25.1%   0.01  0.94       56%   14   116/130    0   34   3  +99 -24 -10 +21
-  risk3% sl2.5atr rr2.5 alt5x       688    72.4   25.1%  -0.04  0.94       56%    5    104/51    1   35   3  +91 -24 -8 +14
-  risk3% sl2.5atr rr2.5 alt10x      787    66.9   25.3%  -0.02  0.93       61%   12    114/57    0   38   3  +84 -24 -8 +15
-  risk5% sl1.5atr rr1.5 alt5x       131   -40.0   25.2%  -0.61  0.89       n/a    1     46/31    4    7   4  -20 -23 +17 -14
-  risk5% sl1.5atr rr1.5 alt10x      126   -43.2   27.9%  -0.60  0.87       n/a    3     44/31    4    6   4  -19 -26 +16 -14
-  risk5% sl1.5atr rr2.5 alt5x       162     2.5   25.2%  -0.42  0.83       95%    1     55/21    5    9   4  -19 -23 +9 +36
-  risk5% sl1.5atr rr2.5 alt10x      102   -45.4   26.8%  -0.78  0.75       n/a    3     35/11    3    5   4  -19 -24 +8 -9
-  risk5% sl2.5atr rr1.5 alt5x       226   -18.0   25.3%  -0.79  0.82      148%    1     38/29    5   11   4  -21 -23 +0 +27
-  risk5% sl2.5atr rr1.5 alt10x      221   -20.8   25.3%  -0.78  0.82      164%    4     35/29    5   10   4  -21 -24 +0 +24
-  risk5% sl2.5atr rr2.5 alt5x       184   -29.4   25.5%  -0.87  0.78      345%    1     34/11    4   10   4  -23 -23 +5 +12
-  risk5% sl2.5atr rr2.5 alt10x      103   -59.7   26.2%  -1.27  0.69       n/a    3      20/5    3    7   4  -23 -24 +5 -18
-
-  SELECTED on in-sample (0 liq, no DD halt, most positive windows, then return): risk3% sl2.5atr rr1.5 alt5x
-
-── OUT-OF-SAMPLE, run once ──
-  config                          trades   net%   maxDD  Sharpe   PF  cost/gross  LIQ  stop/tgt  dayH strk ddH  per-window
-  risk3% sl2.5atr rr1.5 alt5x       104   -24.3   24.9%  -1.83  0.79       n/a    0     25/12    0    6   1  -24
-  LIVE K2 2x margin, no stop        386    -6.1   30.7%   0.09  0.97      143%    1       0/0    0    0   0  -6
-  risk3% sl2.5atr rr1.5 alt5x @10/15bps    102   -24.4   24.9%  -1.85  0.78       n/a    0     25/12    0    5   1  -24
-
-  cost/gross = (fees + slippage) / (net + fees + slippage + funding).
-  Liquidation checked on each 1h bar's adverse extreme; tier-1 MMR only
-  (0.4% BTC/ETH, 1.0% alts) — larger notionals sit in higher tiers, so LIQ is a floor.
-  Funding is a flat 0.01%/8h (no archive), longs pay, shorts receive.
+  gross R = before any cost; net R = after fees + slippage. A strategy
+  with negative GROSS cannot be rescued by cheaper execution or leverage.

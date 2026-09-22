@@ -8021,6 +8021,82 @@ function runV92bt() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+// v99bt — owner's scalp spec: ONE side only, chosen by market direction; hold
+// at most 15 minutes, then out and free to re-enter. 5m bars, top-10 coins, 12m.
+// Direction = BTC 5m close vs its 24h SMA (above -> longs only, below -> shorts
+// only). Entry = 5m close through the prior N-bar high (long) / low (short) in
+// that direction. Stop k x ATR14(5m), target 1.5 x stop, else market exit at
+// bar 3 (15 min). Stop checked first. Costs: taker 0.05%/side + slippage
+// 5bps majors / 10bps alts per side; a maker-entry row is included as the
+// most generous case (0.02% in, no entry slippage).
+// ════════════════════════════════════════════════════════════════════════════
+function runV99bt() {
+  const MAJ = new Set(['BTC', 'ETH'])
+  const btc = loadCSV('BTC', '5m')
+  if (btc.length < 5000) { console.log('  ABORT: no BTC 5m data'); return }
+  const dirAt = new Map<number, 1 | -1>()
+  let sum = 0
+  for (let i = 0; i < btc.length; i++) {
+    sum += btc[i].close; if (i >= 288) sum -= btc[i - 288].close
+    if (i >= 287) dirAt.set(btc[i].t, btc[i].close >= sum / 288 ? 1 : -1)
+  }
+  const coins = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT']
+  const data: Record<string, Bar[]> = {}
+  let t0 = Infinity, t1 = -Infinity
+  for (const c of coins) { const b = loadCSV(c, '5m'); if (b.length > 5000) { data[c] = b; t0 = Math.min(t0, b[0].t); t1 = Math.max(t1, b[b.length - 1].t) } }
+  console.log(`  ${Object.keys(data).length} coins, span ${((t1 - t0) / 86400000).toFixed(0)} days, 5m bars`)
+  const NW = 6, wSpan = (t1 - t0) / NW
+
+  const run = (N: number, slAtr: number, makerIn: boolean, oneSide: boolean) => {
+    const out: { r: number; g: number; w: number; win: boolean }[] = []
+    for (const c of Object.keys(data)) {
+      const b = data[c], slip = (MAJ.has(c) ? 5 : 10) / 10_000
+      let i = Math.max(N, 20)
+      while (i < b.length - 4) {
+        const d = dirAt.get(b[i].t)
+        if (d === undefined) { i++; continue }
+        const w = b.slice(i - N, i)
+        const hi = Math.max(...w.map(x => x.high)), lo = Math.min(...w.map(x => x.low))
+        let side: 1 | -1 | 0 = 0
+        if (b[i].close > hi) side = 1; else if (b[i].close < lo) side = -1
+        if (side === 0 || (oneSide && side !== d)) { i++; continue }
+        const atr = S.calcATR(b.slice(i - 20, i + 1), 14)
+        if (!(atr > 0)) { i++; continue }
+        const entry = b[i].close, stopD = slAtr * atr
+        const stop = entry - side * stopD, tgt = entry + side * 1.5 * stopD
+        let exit = entry, how = 'time', j = i + 1
+        for (; j <= i + 3; j++) {
+          const adv = side === 1 ? b[j].low : b[j].high, fav = side === 1 ? b[j].high : b[j].low
+          if ((adv - stop) * side <= 0) { exit = stop; how = 'stop'; break }
+          if ((fav - tgt) * side >= 0) { exit = tgt; how = 'tgt'; break }
+          exit = b[j].close
+        }
+        const gross = (exit - entry) * side / stopD
+        const inCost = makerIn ? entry * S.FEE_MAKER : entry * (S.FEE_TAKER + slip)
+        const outCost = how === 'tgt' ? exit * S.FEE_MAKER : exit * (S.FEE_TAKER + slip)
+        const net = gross - (inCost + outCost) / stopD
+        out.push({ r: net, g: gross, w: Math.min(NW - 1, Math.floor((b[i].t - t0) / wSpan)), win: net > 0 })
+        i = Math.min(j, i + 3) + 1   // re-enter from the next bar after exit
+      }
+    }
+    return out
+  }
+  const hours = (t1 - t0) / 3600000
+  console.log(`\n  config                          trades  /hour   WR    gross R   net R   cost R   total net R   per-window net R`)
+  for (const oneSide of [true, false]) for (const N of [6, 12]) for (const sl of [0.5, 1.0, 2.0]) for (const mk of [false, true]) {
+    const o = run(N, sl, mk, oneSide)
+    if (!o.length) continue
+    const g = o.reduce((a, x) => a + x.g, 0) / o.length, n = o.reduce((a, x) => a + x.r, 0) / o.length
+    const wins = Array.from({ length: NW }, (_, k) => o.filter(x => x.w === k).reduce((a, x) => a + x.r, 0))
+    const tag = `${oneSide ? 'one-side' : 'both   '} N${N} sl${sl}atr ${mk ? 'maker-in' : 'taker   '}`
+    console.log(`  ${tag.padEnd(31)} ${String(o.length).padStart(6)} ${(o.length / hours).toFixed(1).padStart(6)} ` +
+      `${(o.filter(x => x.win).length / o.length * 100).toFixed(1).padStart(5)}% ${g.toFixed(4).padStart(8)} ${n.toFixed(4).padStart(8)} ` +
+      `${(g - n).toFixed(4).padStart(8)} ${(n * o.length).toFixed(0).padStart(12)}   ${wins.map(x => (x >= 0 ? '+' : '') + x.toFixed(0)).join(' ')}`)
+  }
+  console.log(`\n  gross R = before any cost; net R = after fees + slippage. A strategy`)
+  console.log(`  with negative GROSS cannot be rescued by cheaper execution or leverage.`)
+}
+// ════════════════════════════════════════════════════════════════════════════
 // v98bt — the owner's aggressive-controlled profile on the 4h ROTA engine.
 // Stop + 1.5R+ target on every trade, size from stop distance, leverage the
 // highest the liquidation buffer allows (<=20x BTC/ETH, <=10x alts), isolated,
@@ -8525,6 +8601,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v94bt') {
     console.log(`████ V94BT — the exit: does the breakeven floor cap the fat tail? ████`)
     runV94bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v99bt') {
+    console.log('████ V99BT — one-side scalp, max 15 min hold, re-entry ████')
+    runV99bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v98bt') {
