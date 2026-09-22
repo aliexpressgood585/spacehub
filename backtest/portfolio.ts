@@ -172,6 +172,8 @@ export interface SimConfig {
   rotaBook: number | null
   /** v95bt: names per side for ROTA (default S.ROTA_K). */
   rotaK?: number
+  /** v96bt: ROTA slot target is MARGIN; notional = margin x leverage. */
+  rotaMarginSizing?: boolean
   /** Leverage: overrides the 0.95 heat cap, or null for the deployed caps. */
   heatCap: number | null
   /**
@@ -613,7 +615,10 @@ export function runPortfolio(
 
   function tryOpen(c: Candidate, t: number): boolean {
     const exp = exposureOf()
-    const port = cash + exp + unrealised(t)
+    // v66.0: portfolio = cash + MARGIN posted + unrealised (was + notional,
+    // which at leverage > 1 inflated the portfolio and oversized every ticket;
+    // identical at leverage 1, where margin == notional)
+    const port = cash + postedMargin() + unrealised(t)
     const se = sideExposure()
 
     const units = open.filter(p => p.sym === c.sym && p.sleeve === 'DONCH4H')
@@ -715,7 +720,7 @@ export function runPortfolio(
     if (targets.length === 0) return
 
     const want = new Map(targets.map(x => [x.sym, x]))
-    const port = cash + exposureOf() + unrealised(t)
+    const port = cash + postedMargin() + unrealised(t)
 
     // close what left the basket, flipped, or drifted out of its band
     for (const p of open.filter(x => x.sleeve === 'ROTA').slice()) {
@@ -723,7 +728,7 @@ export function runPortfolio(
       const wantSide = tgt ? (tgt.dir === 1 ? 'LONG' : 'SHORT') : null
       if (wantSide === p.side) {
         const cur = p.entry * p.sizeLeft
-        if (S.rotaSizeOk(cur, S.rotaSlotTarget(port, tgt!.weight, cfg.rotaBook ?? undefined))) { want.delete(p.sym); continue }
+        if (S.rotaSizeOk(cur, S.rotaSlotTarget(port, tgt!.weight, cfg.rotaBook ?? undefined) * (cfg.rotaMarginSizing ? cfg.leverage : 1))) { want.delete(p.sym); continue }
       }
       const mk = markOf(p.sym, t)
       if (mk !== null) closePosition(p, mk, t, 'rota_exit', S.FEE_TAKER, true)
@@ -733,9 +738,10 @@ export function runPortfolio(
     for (const [sym, tgt] of want) {
       const mk = markOf(sym, t)
       if (mk === null) continue
-      const port2 = cash + exposureOf() + unrealised(t)
-      let slot = S.rotaSlotTarget(port2, tgt.weight, cfg.rotaBook ?? undefined)
-      slot = Math.min(slot, Math.max(0, port2 * S.PER_COIN_CAP - symExposure(sym)))
+      const port2 = cash + postedMargin() + unrealised(t)
+      const SC = cfg.rotaMarginSizing ? cfg.leverage : 1
+      let slot = S.rotaSlotTarget(port2, tgt.weight, cfg.rotaBook ?? undefined) * SC
+      slot = Math.min(slot, Math.max(0, port2 * S.PER_COIN_CAP * SC - symExposure(sym)))
       const side: S.Side = tgt.dir === 1 ? 'LONG' : 'SHORT'
       if (slot < port2 * 0.01) {
         rejections.push({ t, sym, sleeve: 'ROTA', side, reason: 'per_coin', adx: 0, wantedNotional: slot })
@@ -743,14 +749,14 @@ export function runPortfolio(
       }
       // the heat cap is shared with DONCH4H — this is where the sleeves actually
       // compete, and the rejection row is the evidence of it
-      const heatRoom = Math.max(0, port2 * S.MAX_HEAT_PCT - exposureOf())
+      const heatRoom = Math.max(0, port2 * S.MAX_HEAT_PCT * SC - exposureOf())
       if (slot > heatRoom) slot = heatRoom
       if (slot < port2 * 0.01) {
         rejections.push({ t, sym, sleeve: 'ROTA', side, reason: 'heat', adx: 0, wantedNotional: slot })
         continue
       }
       const feeIn = slot * S.FEE_TAKER
-      if (cash < slot + feeIn) {
+      if (cash < (cfg.rotaMarginSizing ? slot / cfg.leverage : slot) + feeIn) {
         rejections.push({ t, sym, sleeve: 'ROTA', side, reason: 'cash', adx: 0, wantedNotional: slot })
         continue
       }
