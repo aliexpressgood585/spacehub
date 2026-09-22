@@ -51,6 +51,28 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+**PORTFOLIO AUDIT 2026-09-22, owner asked why the account does not move:**
+    ROTA     15 pos  $6,008 notional  8 LONG / 7 SHORT  **$0 stop-risk**
+    DONCH4H   3 pos  $3,383 notional  3 LONG / 0 SHORT   $256 stop-risk
+    total $9,391 on $9,997 equity = 94% exposure
+Their read of the machine is CORRECT, and it is structural, not a sample-size
+excuse: **ROTA is 83% of the open positions and it is market-neutral by design
+(8L/7S) and has NO exits at all** — no stop, no take-profit, no timeout; it
+closes only at the 48h rebalance. A hedged book with no exit logic is exactly
+what "it just opens positions and nothing moves" looks like from outside.
+**AND THE FUNDING BUG LANDED HARDEST EXACTLY THERE.** ROTA holds ~15 perpetual
+positions continuously for 48h at a time and pays carry on BOTH legs of a
+long/short book; DONCH4H holds 3 positions for shorter spans. So the sleeve the
+simulator credited with carrying the account (+63.3% alone, v80bt) is precisely
+the one whose costs were most understated. **`ROTA_BOOK = 0.35` per side = 70%
+of capital is allocated on the strength of the least trustworthy number in this
+file.** Re-measuring the sleeve split is now the top research item, ahead of the
+kill-switch — and it is queue item (a) from v80bt, arrived at from a second
+direction.
+Live so far agrees with that suspicion and disagrees with the archive: ROTA
+-$338 on 14 closes, DONCH4H +$258 on 18. n is far too small to conclude, but it
+points the same way as the bug does, which is worth something.
+
 **WHERE THE RESEARCH STANDS (read v83bt, v82bt, v80bt, v61.1 in that order):**
 The three-day blocking question — is the scan not the engine, or has the edge
 decayed — is ANSWERED: it was the instrument. `backtest/portfolio.ts` reproduces
