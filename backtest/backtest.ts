@@ -8020,6 +8020,97 @@ function runV92bt() {
   console.log(`  3x -45.0%, 10x -118.7%, 100x -342.1%. Leverage is a volume knob.`)
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// v93bt — THE LIVE CONFIGURATION, AT $500, WITH ISOLATED LEVERAGE.
+// The owner's actual account, not a research abstraction.
+//
+// Why $500 is structurally different and not just a smaller $10,000: MIN_NOTIONAL
+// is an ABSOLUTE $500, so at a $500 account a single breakout ticket is the whole
+// portfolio and DONCH4H cannot size an entry at all — it is dead here regardless
+// of the v62.0 sleeve gate. ROTA's slot band (2.8%-14% of portfolio) scales, so
+// ROTA is the only thing that can trade. That is exactly what is deployed.
+//
+// Leverage is ISOLATED with the v89bt engine: margin per position, liquidation at
+// maintenance margin checked against the bar's adverse extreme before the ladder,
+// and account death. Each position is collateral for itself, which is what the
+// owner asked for.
+// ════════════════════════════════════════════════════════════════════════════
+function runV93bt() {
+  const NW = 6, BAR4 = 14400000
+  const to4h = (a: Bar[], ms: number): Bar[] => {
+    const out: Bar[] = []; let cur: Bar | null = null; let bk = -1
+    for (const b of a) {
+      const k = Math.floor(b.t / ms)
+      if (k !== bk) { if (cur) out.push(cur); bk = k
+        cur = { t: k * ms, open: b.open, high: b.high, low: b.low, close: b.close, vol: b.vol } }
+      else if (cur) { cur.high = Math.max(cur.high, b.high); cur.low = Math.min(cur.low, b.low)
+        cur.close = b.close; cur.vol += b.vol }
+    }
+    if (cur) out.push(cur); return out
+  }
+  const data: Record<string, PF.CoinData> = {}
+  let tmin = Infinity, tmax = -Infinity
+  for (const c of COINS) {
+    if (!CORE40.has(c)) continue
+    const h = loadCSV(c, '1h'); if (h.length < 500) continue
+    data[c] = { b1: h, b4: to4h(h, BAR4) }
+    tmin = Math.min(tmin, h[0].t); tmax = Math.max(tmax, h[h.length - 1].t)
+  }
+  const spanDays = (tmax - tmin) / 86400000
+  console.log(`  ${Object.keys(data).length} coins, span ${spanDays.toFixed(0)} days`)
+  if (spanDays < 150) { console.log('  ABORT: need more history'); return }
+  const wSpan = (tmax - tmin) / NW, WARM = 100 * BAR4
+  const CASH = 500
+
+  const run = (lev: number, over: Partial<PF.SimConfig> = {}) => {
+    const ms: PF.Metrics[] = []; let liq = 0, ruined = 0
+    for (let w = 0; w < NW; w++) {
+      const a = tmin + w * wSpan, b = tmin + (w + 1) * wSpan
+      const from = Math.max(tmin + WARM, a)
+      if (b - from < 20 * 86400000) continue
+      const r = PF.runPortfolio(data, PF.defaultConfig({
+        startCash: CASH, killSwitch: true, sleeves: ['ROTA'], leverage: lev,
+        heatCap: lev > 1 ? 0.95 * lev : null, ...over }), from, b)
+      ms.push(PF.metrics(r, CASH, (b - from) / 86400000))
+      liq += r.liquidations; if (r.ruinedAt !== null) ruined++
+    }
+    const net = ms.map(x => x.netPct)
+    return { net, tot: net.reduce((a, b) => a + b, 0),
+      trades: ms.reduce((a, x) => a + x.trades, 0),
+      dd: Math.max(...ms.map(x => x.maxDD)), worst: Math.min(...net), liq, ruined,
+      dollars: CASH * net.reduce((a, b) => a + b, 0) / 100 / NW }
+  }
+  const row = (tag: string, r: ReturnType<typeof run>) =>
+    console.log(`  ${tag.padEnd(18)} ${String(r.trades).padStart(5)} ${r.tot.toFixed(1).padStart(8)}% ` +
+      `${r.dd.toFixed(1).padStart(6)}% ${r.worst.toFixed(1).padStart(8)}% ` +
+      `${String(r.liq).padStart(5)} ${r.ruined}/6  ` +
+      `${r.net.map(x => (x >= 0 ? '+' : '') + x.toFixed(0)).join(' ')}`)
+  const hdr = () => console.log(
+    `  config             trades      net%  maxDD    worst   LIQ RUIN  per-window`)
+
+  console.log(`\n── THE DEPLOYED CONFIG AT $500, ISOLATED LEVERAGE ──`)
+  hdr()
+  for (const L of [1, 2, 3, 5, 10, 20]) row(`ROTA ${L}x`, run(L))
+
+  console.log(`\n── same, at 6bps — leverage pays the spread on borrowed size too ──`)
+  hdr()
+  for (const L of [1, 2, 3, 5]) row(`ROTA ${L}x @6bps`, run(L, { slipBps: 6 }))
+
+  console.log(`\n── what $500 turns into, per window, at the best level ──`)
+  const best = [1, 2, 3, 5].map(L => ({ L, r: run(L) }))
+    .sort((a, b) => b.r.tot - a.r.tot)[0]
+  console.log(`  best leverage on this data: ${best.L}x`)
+  console.log(`  average window: $${CASH} -> $${(CASH * (1 + best.r.tot / 100 / NW)).toFixed(0)}`)
+  console.log(`  worst  window: $${CASH} -> $${(CASH * (1 + best.r.worst / 100)).toFixed(0)}`)
+  console.log(`  liquidations: ${best.r.liq}, accounts ruined: ${best.r.ruined}/6`)
+  console.log(`\n  NB DONCH4H cannot trade at $500 at all: MIN_NOTIONAL is an absolute`)
+  console.log(`  $500, i.e. the entire account for one ticket. The v62.0 sleeve gate`)
+  console.log(`  is not what silences it here — the account size is.`)
+  console.log(`  Liquidation is checked once per management bar, not tick by tick,`)
+  console.log(`  and there is no funding spike or auto-deleveraging, so LIQ and RUIN`)
+  console.log(`  are floors.`)
+}
+
 function main() {
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
@@ -8205,6 +8296,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v73bt') {
     console.log(`████ V73BT — Donchian adaptive window (vol-scaled) vs fixed-15 ████`)
     runV73bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v93bt') {
+    console.log(`████ V93BT — the live config at $500 with isolated leverage ████`)
+    runV93bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v92bt') {

@@ -1,6 +1,7 @@
 # Format: one line, "MODE [MONTHS]".
 #
-# v92bt: the combination. Owner coin selection (worth +0.033R gross, v91bt)
-# moved to 4h where the 0.16% round trip is ~5% of the stop instead of 39%,
-# plus the isolated-leverage ceiling: where liquidation comes inside the stop.
-v92bt 6
+# v93bt: the owner actual account — the deployed config at \$500 with ISOLATED
+# leverage (margin per position, liquidation at maintenance margin, account
+# death). DONCH4H cannot trade at \$500 because MIN_NOTIONAL is an absolute \$500,
+# so ROTA is the only sleeve that can size anything.
+v93bt 12
