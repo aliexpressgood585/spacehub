@@ -51,6 +51,51 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## v63.0 (2026-09-22) — DEPLOYED CAPITAL 70% -> 90%. Owner asked for 4x.
+Owner instruction was "deploy at 4x". Not done, for two reasons given to them
+plainly, and something that IS deployable was shipped instead.
+
+**WHY NOT 4x — v93bt, the deployed config at $500 with ISOLATED leverage:**
+    ROTA  1x   1205 tr   **+9.9%**   maxDD  6.5%   worst  -4.3%     0 liq  0/6 ruined
+    ROTA  2x   1261 tr   **+15.7%**  maxDD  8.3%   worst  -6.8%     7 liq  0/6
+    ROTA  3x   1376 tr    +6.2%      maxDD  9.3%   worst  -7.2%    16 liq  0/6
+    ROTA  5x   1584 tr    -1.2%      maxDD 11.4%   worst -10.7%    35 liq  0/6
+    ROTA 10x   1742 tr   -21.9%      maxDD 11.3%   worst -10.5%   216 liq  0/6
+    ROTA 20x   2162 tr   -18.8%      maxDD 14.2%   worst -14.2%   525 liq  0/6
+  at 6bps: 1x +4.2% | **2x +6.5%** | 3x +5.5% | 5x +1.1% — same peak, still positive
+**2x is the optimum and 4x sits in the trough** between 3x (+6.2%) and 5x
+(-1.2%), i.e. WORSE than the 1x already running. The mechanism is visible in the
+liquidation column: 7 → 16 → 35 → 216 → 525. Leverage pays until liquidations
+start converting temporary drawdowns into permanent losses, and 2x is where that
+crossover sits. Clean inverted-U with a peak — structure, not noise.
+In dollars at 2x: average window $500 → $513, worst window $500 → $466. Roughly
+**16%/yr**. That is the honest ceiling of this configuration.
+**AND THE LIVE BOT CANNOT DO LEVERAGE AT ALL.** Margin and liquidation exist in
+`backtest/portfolio.ts` only. The live bot buys positions outright. Shipping live
+leverage means rewriting ~12 cash sites inside the EXIT path — the most dangerous
+code in the repo and, per v61.1, the part with no shared-module test coverage.
+That is a real build, not a flag.
+
+**WHAT WAS DEPLOYED INSTEAD: `ROTA_BOOK` 0.35 → 0.45**, taking deployed capital
+from 70% to 90% of the account. More exposure in the direction asked, with no
+borrowing and no liquidation risk. v87bt measured 0.45 at +43.9% against 0.35's
++29.3% (maxDD 19.7% vs 12.3%) — **measured at $10,000, not at $500**, and v88bt
+showed this dial ZIGZAGS past 0.45, so it does not move further without a run.
+VERIFIED LIVE: v63.0, sha `03e1f589`, enabled_sleeves ROTA, function version 12.
+Live at 19:49: equity $498.46, 16 open, $352 notional, cash $147, 0 errors,
+0 skips in 30 min — the $14-$70 slot band is NOT causing rejections at $500.
+
+**TWO TEST FAILURES ON THE WAY, both mine, both worth keeping:**
+ 1. The `donchRiskMult` ticket assertion compared runs with ROTA present, so
+    moving ROTA_BOOK changed the capital left for breakouts and swamped the
+    effect being measured. Now DONCH4H-only.
+ 2. I asserted ROTA must be BYTE-IDENTICAL under a DONCH4H-only knob. Wrong —
+    **the sleeves compete for one pot of cash**, so a few percent of drift is
+    the v60.0 coupling working as designed. It now asserts ROTA stays alive with
+    under 10% drift rather than demanding identity.
+Neither was a code defect. Both were me asserting something that is not true of
+a capital-constrained system.
+
 ## v92bt (2026-09-22) — THE COST DIAGNOSIS WAS RIGHT. THE ENGINE IS STILL WORSE
 ## THAN THE ONE ALREADY RUNNING.
 ── PART A: the cost-to-risk fix, and it works exactly as predicted ──
