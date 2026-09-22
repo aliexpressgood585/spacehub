@@ -1,32 +1,25 @@
-backtest 2026-09-22T19:42Z mode=v93bt months=12
-████ V93BT — the live config at $500 with isolated leverage ████
+backtest 2026-09-22T19:55Z mode=v94bt months=12
+████ V94BT — the exit: does the breakeven floor cap the fat tail? ████
   39 coins, span 365 days
 
-── THE DEPLOYED CONFIG AT $500, ISOLATED LEVERAGE ──
-  config             trades      net%  maxDD    worst   LIQ RUIN  per-window
-  ROTA 1x             1205      9.9%    6.5%     -4.3%     0 0/6  +8 +7 +1 +2 -4 -4
-  ROTA 2x             1261     15.7%    8.3%     -6.8%     7 0/6  +11 +14 +2 -7 -4 +0
-  ROTA 3x             1376      6.2%    9.3%     -7.2%    16 0/6  +14 +8 +0 -5 -7 -4
-  ROTA 5x             1584     -1.2%   11.4%    -10.7%    35 0/6  +2 +14 +2 -1 -11 -7
-  ROTA 10x            1742    -21.9%   11.3%    -10.5%   216 0/6  +6 -6 +7 -10 -9 -10
-  ROTA 20x            2162    -18.8%   14.2%    -14.2%   525 0/6  -7 +7 +5 -8 -14 -1
+── THE BREAKEVEN FLOOR: does it protect, or does it cap? ──
+  v61.1 says the floor exits winners at exactly +0.533R that would
+  otherwise run to +2.7R..+7.8R. This is that, measured on dollars.
+  config                     trades      net%  maxDD   per-trade  per-window
+  floor ON  (deployed)        1628    -11.1%   14.7%  avgR +0.0463  +13 +12 -1 -12 -15 -8
+  floor OFF (let it run)      1366    -39.3%   18.3%  avgR -0.2004  +12 -9 -10 -13 -1 -17
 
-── same, at 6bps — leverage pays the spread on borrowed size too ──
-  config             trades      net%  maxDD    worst   LIQ RUIN  per-window
-  ROTA 1x @6bps       1207      4.2%    9.0%     -6.6%     0 0/6  +8 +6 +1 +1 -5 -7
-  ROTA 2x @6bps       1286      6.5%    8.7%     -7.6%     7 0/6  +10 +8 +1 -8 -5 -1
-  ROTA 3x @6bps       1408      5.5%    9.6%     -8.1%    13 0/6  +13 +7 -1 -2 -8 -4
-  ROTA 5x @6bps       1514      1.1%   12.3%    -11.8%    38 0/6  +1 +18 -2 -2 -12 -2
+── the same at 6bps, because an exit change must survive cost ──
+  config                     trades      net%  maxDD   per-trade  per-window
+  floor ON  @6bps             1684    -22.2%   15.4%  avgR +0.0581  +13 +2 -2 -11 -15 -9
+  floor OFF @6bps             1290    -21.1%   13.6%  avgR -0.1411  +13 -3 -2 -9 -10 -10
 
-── what $500 turns into, per window, at the best level ──
-  best leverage on this data: 2x
-  average window: $500 -> $513
-  worst  window: $500 -> $466
-  liquidations: 7, accounts ruined: 0/6
+── ROTA-only book (what is actually deployed at $500) ──
+  config                     trades      net%  maxDD   per-trade  per-window
+  ROTA floor ON               1266      4.6%    8.9%  avgR +0.0000  +12 +8 +1 -5 -6 -5
+  ROTA floor OFF              1266      4.6%    8.9%  avgR +0.0000  +12 +8 +1 -5 -6 -5
 
-  NB DONCH4H cannot trade at $500 at all: MIN_NOTIONAL is an absolute
-  $500, i.e. the entire account for one ticket. The v62.0 sleeve gate
-  is not what silences it here — the account size is.
-  Liquidation is checked once per management bar, not tick by tick,
-  and there is no funding spike or auto-deleveraging, so LIQ and RUIN
-  are floors.
+  RULE 5 CHECK: this is an EXIT change, so trade counts must barely
+  move. v82bt saw 'free' cut 1,076 trades (-22%) at $10k — if that
+  repeats it is a rule-5 rejection however good the return looks,
+  because a trade held longer is a trade not re-entered elsewhere.
