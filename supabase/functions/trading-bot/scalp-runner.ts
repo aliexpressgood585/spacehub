@@ -104,11 +104,12 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
     const att=attribution(closedHist),ex=execStats(closedHist)
     const spreads=evaluated.map(x=>Number(x.signals?.spread_bps)).filter(Number.isFinite)
     const reasons=Object.entries(ex.reasons).map(([k,v])=>`${k} ${v}`).join(', ')
-    say('execution',`מרווח ממוצע ${spreads.length?(spreads.reduce((a,b)=>a+b,0)/spreads.length).toFixed(1):'—'} נק׳ בסיס; ביצוע דמו במחיר ה-ask/bid עם החלקה ${SCALP.slip*1e4} נק׳. ${ex.n?`${ex.n} עסקאות אחרונות: החזקה ממוצעת ${ex.avgHoldMin?.toFixed(1)} דק׳, סיבות יציאה: ${reasons}, עמלות $${ex.fees.toFixed(2)}, נטו $${ex.net.toFixed(2)}.`:'אין עדיין עסקאות סגורות.'}`,spreads.some(x=>x>SCALP.maxSpread*1e4)?'veto':'ok')
+    say('execution',`מרווח ממוצע ${spreads.length?(spreads.reduce((a,b)=>a+b,0)/spreads.length).toFixed(1):'—'} נק׳ בסיס; ביצוע דמו במחיר ה-ask/bid עם החלקה ${(SCALP.slip*1e4).toFixed(0)} נק׳. ${ex.n?`${ex.n} עסקאות אחרונות: החזקה ממוצעת ${ex.avgHoldMin?.toFixed(1)} דק׳, סיבות יציאה: ${reasons}, עמלות $${ex.fees.toFixed(2)}, נטו $${ex.net.toFixed(2)}.`:'אין עדיין עסקאות סגורות.'}`,spreads.some(x=>x>SCALP.maxSpread*1e4)?'veto':'ok')
     minutes[minutes.length-1].data={spread_bps:spreads,...ex}
     say('compliance',blocked.length?`חסימה: ${blocked.join(', ')}.`:`בדקתי את התוכנית: דמו 1x, עד ${SCALP.maxPositions} פוזיציות, ללא מטבע כפול, עד ${SCALP.perCoin*100}% למטבע, חשיפה עד ${SCALP.allocation*100}%. תקין.`,blocked.length?'veto':'ok')
-    const best=evaluated.find(x=>x.sym===entries[0]?.sym)||[...evaluated].sort((a,c)=>c.score-a.score)[0]
-    minutes.push(...debate(best,att,entries.length>0,blocked,now))
+    const top=[...evaluated].sort((a,c)=>c.score-a.score)[0]
+    const best=evaluated.find(x=>x.sym===entries[0]?.sym)||picks[0]||top
+    minutes.push(...debate(best,att,entries.length>0,blocked,now,!!best&&retained.some((t:any)=>t.sym===best.sym)))
     const q=minutes.find(m=>m.who==='quant');if(q)q.data={...att,hit:Object.fromEntries(Object.entries(att).map(([k,v])=>[k,hitPct(v)]))}
   }
   const {data:result}=await db.rpc('scalp_commit_cycle',{p_lease:lease,p_closes:closes,p_updates:updates,p_entries:entries,p_minutes:due?minutes:null,p_marks:marks,p_feed:{source:'perpetuals',ok:data.size,fail:failures.length,failures},p_candidates:due?evaluated:null}).throwOnError()
