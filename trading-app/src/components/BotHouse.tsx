@@ -7,14 +7,15 @@
 // the room says what it is waiting for. Walking happens only on a real hand-off seen
 // while the page is open (a rotation → the trader, a closed trade → the treasurer).
 // Nothing here computes a signal of its own (see CLAUDE.md: the dashboard is a viewer).
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { SUPA_URL, SUPA_KEY } from '../supa'
 import { TEAM_INTERVAL_MS } from '../../../shared/team-meeting'
 import { SCALP } from '../../../shared/scalp'
 const CYCLE_LABEL = `${String(Math.floor(TEAM_INTERVAL_MS / 60_000)).padStart(2, '0')}:${String((TEAM_INTERVAL_MS / 1000) % 60).padStart(2, '0')}`
 
-type Id = 'scout' | 'regime' | 'rota' | 'donch' | 'risk' | 'trader' | 'treasurer' | 'reporter' | 'auditor'
+type Id = 'scout' | 'regime' | 'rota' | 'donch' | 'risk' | 'trader' | 'treasurer' | 'reporter' | 'auditor' | 'pm' | 'quant' | 'compliance' | 'execution'
+interface Minute { who: Id; says: string; vote: string; checked_at?: string; round?: number; to?: string; data?: Row }
 interface Row { [k: string]: unknown }
 interface Snap {
   at: number
@@ -34,7 +35,7 @@ interface Snap {
 }
 interface Status { working: boolean; asleep?: boolean; alarm?: boolean; line: string; action?: string; at?: number; reviewed?: boolean }
 
-const SHORT: Record<string, string> = { rota: 'אסטרטגיה', donch: 'אימות', reporter: 'יומן', auditor: 'מבקר' }
+const SHORT: Record<string, string> = { rota: 'אסטרטגיה', donch: 'אימות', reporter: 'יומן', auditor: 'מבקר', pm: 'מנהל תיק', quant: 'כמותי', compliance: 'ציות', execution: 'ביצוע' }
 const ROSTER: Record<Id, { name: string; role: string; color: string }> = {
   scout: { name: 'איתן', role: 'סורק נתונים', color: '#35e0ff' },
   regime: { name: 'נועה', role: 'חזאית השוק', color: '#c38bff' },
@@ -45,8 +46,12 @@ const ROSTER: Record<Id, { name: string; role: string; color: string }> = {
   treasurer: { name: 'שירה', role: 'גזברית', color: '#ffd76a' },
   reporter: { name: 'יונתן', role: 'רושם היומן', color: '#9fd3ff' },
   auditor: { name: 'אבי', role: 'מבקר ביצועים', color: '#b8f28a' },
+  pm: { name: 'תמר', role: 'מנהלת התיק', color: '#ffffff' },
+  quant: { name: 'גיל', role: 'אנליסט כמותי', color: '#a0a8ff' },
+  compliance: { name: 'הדס', role: 'קצינת ציות', color: '#ff9fce' },
+  execution: { name: 'אלון', role: 'דסק ביצוע', color: '#5ff0b0' },
 }
-const W = 480, H = 430, R = 2
+const W = 480, H = 560, R = 2
 // rooms: attic (reporter, donch) · upper floor (rota, regime, scout) · ground floor (treasurer, trader, risk)
 const ROOM: Record<Id, { x0: number; y0: number; w: number; h: number; floor: number }> = {
   reporter: { x0: 100, y0: 48, w: 93, h: 62, floor: 108 },
@@ -58,6 +63,11 @@ const ROOM: Record<Id, { x0: number; y0: number; w: number; h: number; floor: nu
   treasurer: { x0: 8, y0: 262, w: 154, h: 138, floor: 396 },
   trader: { x0: 163, y0: 262, w: 154, h: 138, floor: 396 },
   risk: { x0: 318, y0: 262, w: 154, h: 138, floor: 396 },
+  // v72.0 basement trading floor: the desk that debates and rules
+  execution: { x0: 8, y0: 414, w: 115, h: 136, floor: 544 },
+  compliance: { x0: 124, y0: 414, w: 115, h: 136, floor: 544 },
+  quant: { x0: 240, y0: 414, w: 115, h: 136, floor: 544 },
+  pm: { x0: 356, y0: 414, w: 116, h: 136, floor: 544 },
 }
 const IDS = Object.keys(ROSTER) as Id[]
 const LOOK: Record<Id, { skin: string; hair: string; shirt: string; pants: string; style: number; glasses: boolean }> = {
@@ -70,6 +80,10 @@ const LOOK: Record<Id, { skin: string; hair: string; shirt: string; pants: strin
   treasurer: { skin: '#7d4b2c', hair: '#161616', shirt: '#d64f8c', pants: '#23304a', style: 1, glasses: false },
   reporter: { skin: '#dca577', hair: '#e0ad4a', shirt: '#5ac8fa', pants: '#3d2c22', style: 0, glasses: true },
   auditor: { skin: '#b07448', hair: '#ece6d6', shirt: '#6aa36a', pants: '#2c3550', style: 4, glasses: true },
+  pm: { skin: '#f3c9a2', hair: '#161616', shirt: '#1d2433', pants: '#1d2433', style: 1, glasses: false },
+  quant: { skin: '#dca577', hair: '#6b3b1d', shirt: '#5a64d8', pants: '#2c3550', style: 0, glasses: true },
+  compliance: { skin: '#c98d5e', hair: '#b8472c', shirt: '#d65fa0', pants: '#23304a', style: 1, glasses: true },
+  execution: { skin: '#7d4b2c', hair: '#161616', shirt: '#2fb37a', pants: '#2c3550', style: 3, glasses: false },
 }
 
 const num = (v: unknown) => (v == null ? NaN : Number(v))
@@ -195,9 +209,14 @@ function derive(s: Snap | null, now: number): Record<Id, Status> {
     out.risk = { working:false, alarm:!!bp.scalp_paused, line:`${bp.scalp_paused ? 'כניסות מושהות' : 'פיקוח פעיל'} · הפסד יומי 5% / ירידה 15% · חדשות וליקווידציות רק עם מקור, זמן ואימות מחיר · דמו 1x` }
     out.auditor = {working:false,line:'האסטרטגיה החדשה ניסיונית; נתוני ROTA קודמים אינם הוכחה לביצועיה.'}
   }
+  const scalpOn = sleeves.includes('SCALP')
+  out.pm = { working: false, asleep: !scalpOn, line: scalpOn ? 'מכריעה בסוף כל ישיבה לפי כלל הרוב; לא מוסיפה אות משלה.' : 'פעילה רק במסחר הסקאלפ' }
+  out.quant = { working: false, asleep: !scalpOn, line: 'מודד מי מהסוכנים צדק בעסקאות שנסגרו.' }
+  out.compliance = { working: false, asleep: !scalpOn, line: `בודקת כל תוכנית: דמו 1x, עד ${SCALP.maxPositions} פוזיציות, עד 25% למטבע.` }
+  out.execution = { working: false, asleep: !scalpOn, line: 'מודד מרווחים, זמני החזקה וסיבות יציאה.' }
   const meeting = s.meetings[0]
   const meetingAt = ts(meeting?.ts)
-  const minutes = (Array.isArray(meeting?.minutes) ? meeting.minutes : []) as { who: Id; says: string; vote: string; checked_at?: string }[]
+  const minutes = (Array.isArray(meeting?.minutes) ? meeting.minutes : []) as Minute[]
   if (alive && meetingAt && now - meetingAt < TEAM_INTERVAL_MS + 90_000) {
     for (const m of minutes) {
       if (!out[m.who] || !m.checked_at) continue
@@ -217,6 +236,38 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
   const [err, setErr] = useState<string | null>(null)
   const [now, setNow] = useState(Date.now())
   const [sel, setSel] = useState<Id | null>(null)
+  const [replay, setReplay] = useState<{ id: unknown; start: number } | null>(null)
+  const [fast, setFast] = useState(Date.now())
+  const [ticks, setTicks] = useState<Record<string, Tick>>({})
+  const mins = ((snap?.meetings?.[0]?.minutes ?? []) as Minute[])
+  const shown = replay ? Math.max(0, Math.min(mins.length, Math.floor((fast - replay.start) / STEP_MS) + 1)) : mins.length
+  const replaying = !!replay && fast - replay.start < mins.length * STEP_MS + 2500
+  const speaker = replaying && shown > 0 ? mins[shown - 1] : null
+  const speakRef = useRef<Id | null>(null); speakRef.current = speaker?.who ?? null
+  useEffect(() => { if (!replaying) return; const iv = setInterval(() => setFast(Date.now()), 250); return () => clearInterval(iv) }, [replaying, replay])
+  useEffect(() => { if (replay) setFast(Date.now()) }, [replay])
+  // live marks for the scalp universe from OKX public swap tickers (display only)
+  useEffect(() => {
+    let alive = true
+    const pull = async () => {
+      try {
+        const r = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP')
+        const j = await r.json()
+        if (!alive || j.code !== '0') return
+        setTicks((old) => {
+          const nx: Record<string, Tick> = {}
+          for (const x of j.data as { instId: string; last: string; sodUtc0: string; ts: string }[]) {
+            const m = /^([A-Z]+)-USDT-SWAP$/.exec(x.instId); if (!m || !UNIVERSE.includes(m[1])) continue
+            const px = Number(x.last), o = Number(x.sodUtc0)
+            nx[m[1]] = { px, chg: o > 0 ? px / o - 1 : NaN, dir: old[m[1]] ? Math.sign(px - old[m[1]].px) || old[m[1]].dir : 0, t: Number(x.ts) }
+          }
+          return nx
+        })
+      } catch { /* shown as missing, never invented */ }
+    }
+    void pull(); const iv = setInterval(pull, 4000)
+    return () => { alive = false; clearInterval(iv) }
+  }, [])
   const cvRef = useRef<HTMLCanvasElement>(null)
   const status = useMemo(() => derive(snap, now), [snap, now])
   const statusRef = useRef(status); statusRef.current = status
@@ -260,9 +311,13 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
       } catch (e) { if (alive) setErr(e instanceof Error ? e.message : String(e)) } finally { loading = false }
     }
     void load()
+    const ch = supa.channel('house-live')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'team_meetings' }, () => void load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bot_trades' }, () => void load())
+      .subscribe()
     const iv = setInterval(load, 15_000)
     const tick = setInterval(() => setNow(Date.now()), 5_000)
-    return () => { alive = false; clearInterval(iv); clearInterval(tick) }
+    return () => { alive = false; clearInterval(iv); clearInterval(tick); void supa.removeChannel(ch) }
   }, [])
 
   // hand-offs: only when a new real event appears while the page is open
@@ -272,19 +327,33 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
     const p = prev.current
     const meeting = snap.meetings[0]?.id ?? snap.meetings[0]?.ts
     prev.current = { reb, closeId, skipId, meeting }
-    if (!p) return
+    if (!p) { if (meeting) setReplay({ id: meeting, start: Date.now() }); return }
     const walk = (from: Id, to: Id, carry: string) => {
       const P = people.current[from], A = ROOM[from], B = ROOM[to]
       if (P.path.length) return
       const pts: Person['path'] = []
-      const stairX = 160
-      if (A.floor !== B.floor) { pts.push({ x: stairX, y: A.floor }, { x: stairX, y: B.floor }) }
-      pts.push({ x: B.x0 + B.w / 2 + (B.x0 < A.x0 ? 26 : -46), y: B.floor, hold: 1800 })
-      if (A.floor !== B.floor) pts.push({ x: stairX, y: B.floor }, { x: stairX, y: A.floor })
+      // two staircases: attic/upper↔ground at x=160, ground↔basement at x=124
+      const route = (f0: number, f1: number) => {
+        const out: Person['path'] = [], down = f1 > f0
+        let f = f0
+        while (f !== f1) {
+          const nf = down ? (f < 396 ? Math.min(f1, 396) : 544) : (f > 396 ? 396 : f1)
+          const sx = Math.max(f, nf) > 396 ? 124 : 160
+          out.push({ x: sx, y: f }, { x: sx, y: nf }); f = nf
+        }
+        return out
+      }
+      pts.push(...route(A.floor, B.floor))
+      pts.push({ x: B.x0 + B.w / 2 + (B.x0 < A.x0 ? 26 : -46), y: B.floor, hold: 2400 })
+      pts.push(...route(B.floor, A.floor))
       pts.push(home(from))
       P.carry = carry; P.path = pts
     }
     if (meeting && meeting !== p.meeting) {
+      setReplay({ id: meeting, start: Date.now() })
+      // round-2 speakers (dissenters + quant) walk to the PM's desk with their case
+      const mins = (snap.meetings[0]?.minutes ?? []) as Minute[]
+      for (const w of new Set(mins.filter((m) => m.round === 2 && m.who !== 'pm').map((m) => m.who))) if (ROOM[w]) walk(w, 'pm', 'orders')
       // A short desk-to-board review only after a persisted server review arrives.
       for (const id of IDS) {
         const P = people.current[id], r = ROOM[id]
@@ -312,7 +381,8 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
       const night = (hour % 24) < 6 || (hour % 24) >= 19
       const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, night ? '#060a1d' : '#6fb7ff'); g.addColorStop(1, night ? '#1a2346' : '#c4e6ff'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H)
       if (night) for (let i = 0; i < 40; i++) px((i * 97) % W, (i * 53) % 90, 1, 1, '#c9d3ff')
-      px(0, 404, W, 26, night ? '#1b3620' : '#3f8f3e'); px(0, 404, W, 3, night ? '#264d2c' : '#5bb452')
+      px(0, 404, W, H - 404, '#2b1f16'); for (let i = 0; i < 60; i++) px((i * 71) % W, 410 + ((i * 37) % 146), 2, 2, '#3a2a1d')
+      px(0, 400, W, 8, night ? '#1b3620' : '#3f8f3e'); px(0, 400, W, 3, night ? '#264d2c' : '#5bb452')
       // roof + chimney smoke = the bot's heartbeat
       ctx.fillStyle = night ? '#431f1f' : '#8e3b2e'; ctx.beginPath(); ctx.moveTo(0, 118); ctx.lineTo(240, 20); ctx.lineTo(480, 118); ctx.closePath(); ctx.fill()
       px(372, 40, 16, 40, '#6c6c74'); px(369, 37, 22, 5, '#55555c')
@@ -320,11 +390,11 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
       // antenna on the roof blinks on each real scan
       px(420, 58, 2, 30, '#8a8f98'); px(414, 56, 14, 2, '#8a8f98')
       if (st.scout?.working && !reduced && Math.floor(t * 4) % 2) px(419, 52, 4, 4, '#35e0ff')
-      px(0, 112, W, 292, '#2a2118')
+      px(0, 112, W, 292, '#2a2118'); px(0, 410, W, 144, '#1a130d')
       for (const id of IDS) {
         const r = ROOM[id], a = st[id]
         const lit = !dead && !a?.asleep
-        const wall = { auditor: '#24382a', reporter: '#3a3222', donch: '#2f2a44', rota: '#1f3a2c', regime: '#2f2a44', scout: '#26324a', treasurer: '#3a2630', trader: '#1f3440', risk: '#3a2222' }[id]
+        const wall = { auditor: '#24382a', reporter: '#3a3222', donch: '#2f2a44', rota: '#1f3a2c', regime: '#2f2a44', scout: '#26324a', treasurer: '#3a2630', trader: '#1f3440', risk: '#3a2222', pm: '#20242f', quant: '#232648', compliance: '#3a2436', execution: '#163a30' }[id]
         px(r.x0, r.y0, r.w, r.h, lit ? wall : '#141821')
         px(r.x0, r.floor, r.w, 6, '#5a3d27'); for (let x = r.x0; x < r.x0 + r.w; x += 14) px(x, r.floor, 1, 6, 'rgba(0,0,0,0.3)')
         // desk + chair
@@ -378,12 +448,39 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
           for (let i = 0; i < coins; i++) px(dx + 28, r.floor - 28 - i * 2, 10, 2, i % 2 ? '#f0b44c' : '#d4a03a')
           if (Number.isFinite(exp) && eq > 0) { px(r.x0 + 60, r.y0 + 14, 60, 5, '#1b2230'); px(r.x0 + 60, r.y0 + 14, Math.round(60 * Math.min(1, exp / eq)), 5, '#35e0ff') }
         }
+        const mins = ((s?.meetings?.[0]?.minutes ?? []) as Minute[])
+        if (id === 'pm') {
+          // three monitors: equity curve from bot_equity
+          for (let i = 0; i < 3; i++) { px(r.x0 + 8 + i * 34, r.y0 + 14, 32, 22, '#0b0f18'); px(r.x0 + 9 + i * 34, r.y0 + 15, 30, 20, '#0f1a2a') }
+          const cv = (s?.curve ?? []).slice(0, 200).map((c) => num(c.equity)).filter(Number.isFinite).reverse()
+          if (cv.length > 2) { const lo = Math.min(...cv), hi = Math.max(...cv), rg = Math.max(hi - lo, 1e-9); const up = cv[cv.length - 1] >= cv[0]; for (let i = 0; i < 96; i++) { const v = cv[Math.floor((i / 96) * (cv.length - 1))]; px(r.x0 + 10 + i, r.y0 + 33 - ((v - lo) / rg) * 16, 1, 1, up ? '#00d492' : '#ff4d6a') } }
+          const dec = mins.find((m) => m.who === 'pm')
+          px(r.x0 + 40, r.y0 + 44, 36, 8, dec?.vote === 'long' ? '#0f5a3a' : dec?.vote === 'short' ? '#6a3a0a' : dec?.vote === 'veto' ? '#6a1020' : '#2a3040')
+        }
+        if (id === 'quant') {
+          px(r.x0 + 8, r.y0 + 12, 70, 44, '#eef1f5'); px(r.x0 + 6, r.y0 + 10, 74, 3, '#8a8f98')
+          const hit = ((mins.find((m) => m.who === 'quant')?.data as Row | undefined)?.hit ?? {}) as Record<string, number | null>
+          ;['regime', 'rota', 'donch', 'trader', 'risk'].forEach((k, i) => { const v = hit[k]; const h = v == null ? 2 : Math.max(2, Math.round((v / 100) * 34)); px(r.x0 + 14 + i * 12, r.y0 + 52 - h, 8, h, v == null ? '#c9d1de' : v >= 50 ? '#148a50' : '#c23a3a') })
+          px(r.x0 + 12, r.y0 + 35, 62, 1, '#8a8f98')
+        }
+        if (id === 'compliance') {
+          px(r.x0 + 10, r.y0 + 12, 36, 44, '#fffaf0'); px(r.x0 + 10, r.y0 + 12, 36, 4, '#d65fa0')
+          const c = mins.find((m) => m.who === 'compliance'); const bad = c?.vote === 'veto'
+          for (let i = 0; i < 5; i++) { px(r.x0 + 14, r.y0 + 20 + i * 7, 4, 4, bad && i === 0 ? '#c23a3a' : '#148a50'); px(r.x0 + 21, r.y0 + 21 + i * 7, 20 - (i % 2) * 6, 2, '#8a8f98') }
+        }
+        if (id === 'execution') {
+          for (let i = 0; i < 2; i++) { px(r.x0 + 10 + i * 42, r.y0 + 14, 38, 26, '#0b0f18'); px(r.x0 + 11 + i * 42, r.y0 + 15, 36, 24, '#0c1f18') }
+          const recent = [...(s?.open ?? []), ...(s?.closed ?? [])].slice(0, 12)
+          recent.forEach((tr, i) => { const good = tr.status === 'OPEN' ? tr.side === 'LONG' : num(tr.pnl) > 0; px(r.x0 + 13 + (i % 6) * 13, r.y0 + 18 + Math.floor(i / 6) * 10, 9, 3, good ? '#00d492' : '#ff4d6a') })
+          if (a?.working && !reduced && k % 2) px(r.x0 + 10, r.y0 + 42, 80, 2, '#5ff0b0')
+        }
         // room lamp: green = acted just now, grey = waiting, red = alarm
         px(r.x0 + r.w - 10, r.y0 + 4, 5, 5, a?.alarm ? '#ff4d6a' : a?.working ? '#00d492' : '#56607a')
       }
       // stairs between the floors (drawn inside the upper-left wall)
       for (let i = 0; i < 9; i++) px(150 + i * 1.5, 256 + i * 15.5, 12, 3, '#6b4a2c')
-      if (dead) { ctx.fillStyle = 'rgba(4,7,14,0.35)'; ctx.fillRect(0, 112, W, 292) }
+      for (let i = 0; i < 9; i++) px(118 + i * 1.5, 404 + i * 15.5, 10, 3, '#6b4a2c')
+      if (dead) { ctx.fillStyle = 'rgba(4,7,14,0.35)'; ctx.fillRect(0, 112, W, H - 112) }
     }
     const drawPerson = (p: Person, t: number) => {
       const L = LOOK[p.id], st = statusRef.current[p.id]
@@ -415,6 +512,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
         if (st?.alarm && !reduced && Math.floor(t * 2) % 2) { px(x - 3, y + top - 12, 7, 8, '#ff4d6a'); px(x, y + top - 11, 1, 4, '#fff'); px(x, y + top - 6, 1, 1, '#fff') }
       }
       if (selRef.current === p.id) px(x - 2, y - 44, 5, 3, '#f0b44c')
+      if (speakRef.current === p.id && !reduced) { const b = Math.floor(t * 3) % 3; px(x + 6, y - 44, 12, 8, '#fffaf0'); for (let i = 0; i <= b; i++) px(x + 8 + i * 3, y - 41, 2, 2, '#1d1608') }
       ctx.setTransform(R, 0, 0, R, 0, 0)
     }
     const step = (dt: number) => {
@@ -456,7 +554,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
         <div>
           <span className="bh-eyebrow">NEXUS / AUTONOMOUS OPERATIONS</span>
           <h1>בית הבוט <small>חדר הבקרה</small></h1>
-          <p>תשעה תפקידים. ישיבת צוות וכניסות כל דקה, בדיקת יציאות כל 10 שניות. מסקנות ופעולות מתוך מנוע הבוט, גם כשהעמוד סגור.</p>
+          <p>13 סוכנים כמו בקרן גידור: 9 אנליסטים מצביעים, דסק של 4 (מנהלת תיק, כמותי, ציות, ביצוע) מתווכח ומכריע. ישיבה וכניסות כל דקה, בדיקת יציאות כל 10 שניות — הכל מתוך מנוע הבוט, גם כשהעמוד סגור.</p>
         </div>
         <div className="bh-chips">
           <span className={`bh-chip ${live ? 'ok' : 'bad'}`}><i />{live ? `הבוט רץ · דופק ${ago(ts(snap?.state?.updated_at), now)}` : snap ? 'אין דופק מהבוט' : 'מתחבר…'}</span>
@@ -473,6 +571,8 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
         <div><span>חשיפה</span><strong dir="ltr">{usd(num(snap?.equity[0]?.exposure))}</strong><small>{snap?.state?.team_vol_cap ? `תקרת צוות: ${snap.state.team_vol_cap}` : 'לפי הגדרות המנוע'}</small></div>
       </div>
       <Cycle snap={snap} now={now} />
+      <Tape ticks={ticks} snap={snap} />
+      <Floor snap={snap} ticks={ticks} now={fast > now ? fast : now} />
       <div className="bh-scene">
         <canvas ref={cvRef} onClick={onCanvas} role="img" aria-label="בית הבוט. הרשימה שמתחת לבית מתארת כל חדר ומה הבוט עשה בו באמת." />
         <div className="bh-ov">
@@ -483,7 +583,8 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
                 <button className={`bh-tag${sel === id ? ' sel' : ''}`} style={{ right: `${100 - ((r.x0 + r.w / 2) / W) * 100}%`, top: `${((r.y0 + 2) / H) * 100}%`, ['--c' as string]: ROSTER[id].color }} onClick={() => pick(id)}>
                   {ROSTER[id].name} <span>· {SHORT[id] ?? ROSTER[id].role}</span>
                 </button>
-                {sel === id && a.action && <div className="bh-say" style={{ right: `${100 - ((r.x0 + r.w / 2) / W) * 100}%`, top: `${((r.floor - 44) / H) * 100}%` }}>{a.action}</div>}
+                {speaker?.who === id && <div className="bh-say live" style={{ right: `${100 - ((r.x0 + r.w / 2) / W) * 100}%`, top: `${((r.floor - 44) / H) * 100}%` }}>{speaker.to ? <b>→ {ROSTER[speaker.to as Id]?.name ?? speaker.to}: </b> : null}{speaker.says.slice(0, 140)}</div>}
+                {!speaker && sel === id && a.action && <div className="bh-say" style={{ right: `${100 - ((r.x0 + r.w / 2) / W) * 100}%`, top: `${((r.floor - 44) / H) * 100}%` }}>{a.action}</div>}
               </div>
             )
           })}
@@ -494,10 +595,9 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
         <h2>מסחר דמו אוטונומי · {(snap?.open ?? []).filter(t=>t.strategy==='SCALP').length}/{SCALP.maxPositions} פוזיציות · כל דקה · 1–15 דקות</h2>
         <p className="bh-mnote">הסכמה אלגוריתמית → בדיקת עלויות וסיכון → ביצוע. בדיקת יציאות כל 10 שניות; סגירה מתוכננת ב-15 דקות גם בהפסד. השהיות או נתונים חסרים עלולים לעכב אותה. סטופ נגרר אינו מבטיח רווח. עמלות 0.05% לכל צד, החלקה 0.03% ומימון מדומה יחסי. אותות: EMA8/21, מומנטום, חוסר איזון בספר, liquidity sweep משוער, חדשות ציבוריות (Cointelegraph/CoinDesk) וליקווידציות OKX — נספרים רק אם טריים ומאומתים מול המחיר.</p>
         <Intel snap={snap} now={now} />
-        {(snap?.open ?? []).filter(t=>t.strategy==='SCALP').map(t=><div className="bh-maction" key={String(t.id)}><b>{String(t.sym)} · {String(t.side)}</b> · כניסה {String(t.entry_price)} · מקור {String((t.scalp_meta as Row | null)?.source ?? '—')}<br/>סטופ נגרר {String(t.trail_sl)} · מוחזק {Math.max(0,Math.floor((now-ts(t.opened_at))/60_000))} דק׳ · {now >= ts(t.opened_at)+15*60_000 ? 'זמן הסגירה הגיע — ממתין לאישור ביצוע' : `סגירת זמן בעוד ${Math.max(0,Math.ceil((ts(t.opened_at)+15*60_000-now)/60_000))} דקות`}</div>)}
-        {!snap?.open.some(t=>t.strategy==='SCALP') && <p className="bh-mnote">אין כרגע פוזיציות של האסטרטגיה החדשה. סיבת ההמתנה מופיעה בישיבה.</p>}
+        <p className="bh-mnote">הפוזיציות עצמן מוצגות חיות ברצפת המסחר למעלה.</p>
       </section>}
-      <Meeting snap={snap} now={now} />
+      <Meeting snap={snap} now={now} shown={shown} replaying={replaying} />
 
       {snap && snap.meetings.length > 1 && <details className="bh-history"><summary>היסטוריית החלטות · {snap.meetings.length} סבבים אחרונים</summary>{snap.meetings.slice(1).map((m, i) => <div key={String(m.id ?? i)}><time>{ago(ts(m.ts), now)}</time><b>{DECISION[String(m.decision)] ?? String(m.decision)}</b><p>{String(m.action ?? '')}</p></div>)}</details>}
       <div className="bh-list">
@@ -526,16 +626,84 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
 // v71.1: the team meeting the BOT itself holds every minute (team_meetings).
 // The house only shows the minutes; every vote was computed server-side from
 // the bot's own tables, and the only action the team can take is a de-risk cap.
+interface Tick { px: number; chg: number; dir: number; t: number }
+const UNIVERSE = ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'ADA', 'LINK', 'AVAX']
+const STEP_MS = 1100
+const ROUND: Record<number, string> = { 1: 'סבב 1 · כל סוכן מצביע מהתחום שלו', 2: 'סבב 2 · התנגדויות ורקורד מול מנהלת התיק', 3: 'סבב 3 · החלטה' }
+const fmtPx = (v: number) => (!Number.isFinite(v) ? '—' : v >= 1000 ? v.toLocaleString('en-US', { maximumFractionDigits: 1 }) : v >= 1 ? v.toFixed(3) : v.toFixed(5))
+const pct = (v: number, d = 2) => (Number.isFinite(v) ? `${v >= 0 ? '+' : ''}${(v * 100).toFixed(d)}%` : '—')
+
+// v72.0: live price tape. OKX public swap tickers, display only — the bot trades on its own feed.
+function Tape({ ticks, snap }: { ticks: Record<string, Tick>; snap: Snap | null }) {
+  const held = new Map((snap?.open ?? []).map((t) => [String(t.sym), String(t.side)]))
+  const items = UNIVERSE.map((c) => {
+    const k = ticks[c]
+    return <span key={c} className={`bh-tk ${k?.dir > 0 ? 'up' : k?.dir < 0 ? 'dn' : ''}`}>
+      {held.has(c) && <i className={held.get(c) === 'LONG' ? 'l' : 's'} title="פוזיציה פתוחה" />}<b>{c}</b> <span dir="ltr">{k ? fmtPx(k.px) : '—'}</span> <em dir="ltr" className={k && k.chg >= 0 ? 'g' : 'r'}>{k ? pct(k.chg) : ''}</em>
+    </span>
+  })
+  return <div className="bh-tape" aria-label="מחירים חיים"><div className="bh-tape-in">{items}{items}</div><small>מחירי OKX חיים · מתעדכן כל 4 שניות{Object.keys(ticks).length ? '' : ' · אין הזנה כרגע'}</small></div>
+}
+
+// v72.0: the trading floor — open book marked live, trade tape, equity line. All from bot rows + public marks.
+function Floor({ snap, ticks, now }: { snap: Snap | null; ticks: Record<string, Tick>; now: number }) {
+  const open = snap?.open ?? []
+  const closed = snap?.closed ?? []
+  const day = new Date(); day.setUTCHours(0, 0, 0, 0)
+  const today = (snap?.closedAll ?? []).filter((t) => ts(t.closed_at) >= day.getTime())
+  const dayPnl = today.reduce((a, t) => a + num(t.pnl), 0)
+  const dayWins = today.filter((t) => num(t.pnl) > 0).length
+  let upnl = 0, marked = 0
+  const rows = open.map((t) => {
+    const dir = t.side === 'LONG' ? 1 : -1, e = num(t.entry_price), sz = num(t.size), k = ticks[String(t.sym)]
+    const mark = k?.px ?? NaN, u = Number.isFinite(mark) ? dir * (mark - e) * sz - num(t.fee || 0) : NaN
+    if (Number.isFinite(u)) { upnl += u; marked++ }
+    const held = now - ts(t.opened_at), stop = num(t.trail_sl)
+    const toStop = Number.isFinite(mark) && stop > 0 ? (dir * (mark - stop)) / mark : NaN
+    return { t, dir, e, mark, u, up: Number.isFinite(u) ? u / (e * sz) : NaN, held, stop, toStop }
+  })
+  const cv = (snap?.curve ?? []).slice(0, 360).map((c) => num(c.equity)).filter(Number.isFinite).reverse()
+  let path = '', up = true
+  if (cv.length > 2) { const lo = Math.min(...cv), hi = Math.max(...cv), rg = Math.max(hi - lo, 1e-9); up = cv[cv.length - 1] >= cv[0]; path = cv.map((v, i) => `${i ? 'L' : 'M'}${((i / (cv.length - 1)) * 300).toFixed(1)},${(46 - ((v - lo) / rg) * 42).toFixed(1)}`).join(' ') }
+  return <section className="bh-floor">
+    <div className="bh-fhead">
+      <div><span className="bh-eyebrow">TRADING FLOOR · LIVE</span><h2>ספר פוזיציות · {open.length}/{SCALP.maxPositions}</h2></div>
+      <div className="bh-kpis">
+        <div><span>רווח/הפסד פתוח</span><strong dir="ltr" className={upnl >= 0 ? 'g' : 'r'}>{marked ? usd(upnl) : '—'}</strong></div>
+        <div><span>ממומש היום (UTC)</span><strong dir="ltr" className={dayPnl >= 0 ? 'g' : 'r'}>{usd(dayPnl)}</strong></div>
+        <div><span>עסקאות היום</span><strong>{today.length} <small>({dayWins} ברווח)</small></strong></div>
+      </div>
+    </div>
+    {path && <svg className="bh-spark" viewBox="0 0 300 48" preserveAspectRatio="none" aria-label="עקומת הון"><path d={path} fill="none" stroke={up ? '#00d492' : '#ff4d6a'} strokeWidth="1.6" vectorEffect="non-scaling-stroke" /></svg>}
+    <div className="bh-blot">
+      {rows.length ? rows.map(({ t, dir, e, mark, u, up: upc, held, stop, toStop }) => (
+        <div key={String(t.id)} className={`bh-pos ${Number.isFinite(u) ? (u >= 0 ? 'win' : 'lose') : ''}`}>
+          <div className="bh-pos-top"><b>{String(t.sym)}</b><span className={dir > 0 ? 'bh-l' : 'bh-s'}>{dir > 0 ? 'LONG' : 'SHORT'}</span><em>{String(t.strategy)}</em><strong dir="ltr">{Number.isFinite(u) ? `${usd(u)} (${pct(upc)})` : 'אין מחיר חי'}</strong></div>
+          <div className="bh-pos-mid" dir="ltr"><span>entry {fmtPx(e)}</span><span>mark {fmtPx(mark)}</span><span>stop {fmtPx(stop)}{Number.isFinite(toStop) ? ` (${pct(toStop)})` : ''}</span></div>
+          {t.strategy === 'SCALP' && <div className="bh-bar"><i style={{ width: `${Math.min(100, (held / SCALP.maxHoldMs) * 100)}%` }} /><span dir="ltr">{Math.floor(held / 60_000)}:{String(Math.floor((held % 60_000) / 1000)).padStart(2, '0')} / 15:00</span></div>}
+        </div>)) : <p className="bh-mnote">אין פוזיציות פתוחות כרגע. הסיבה מופיעה בהחלטת מנהלת התיק בישיבה.</p>}
+    </div>
+    <div className="bh-tape2">
+      <span className="bh-eyebrow">TRADE TAPE · עסקאות אחרונות</span>
+      {closed.slice(0, 8).map((t) => { const hold = (ts(t.closed_at) - ts(t.opened_at)) / 60_000; const why = String((t.scalp_meta as Row | null)?.exit_reason ?? t.status ?? ''); return (
+        <div key={String(t.id)} className="bh-fill"><time>{new Date(ts(t.closed_at)).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time><b>{String(t.sym)}</b><span className={t.side === 'LONG' ? 'bh-l' : 'bh-s'}>{t.side === 'LONG' ? '▲' : '▼'}</span><em>{why}{Number.isFinite(hold) ? ` · ${hold.toFixed(1)} דק׳` : ''}</em><strong dir="ltr" className={num(t.pnl) >= 0 ? 'g' : 'r'}>{usd(num(t.pnl))}</strong></div>) })}
+      {!closed.length && <p className="bh-mnote">עוד אין עסקאות סגורות.</p>}
+    </div>
+    <p className="bh-mnote">מחיר חי: OKX (תצוגה בלבד). הבוט מסמן ונסגר לפי ההזנה שלו בשרת, כך שייתכנו הבדלים קטנים. מסחר דמו 1x, ללא הבטחת רווח.</p>
+  </section>
+}
+
 const VOTE: Record<string, { t: string; c: string }> = {
   derisk: { t: 'להקטין', c: '#ff4d6a' }, ok: { t: 'תקין', c: '#00d492' },
   long: {t:'לונג',c:'#00d492'}, short: {t:'שורט',c:'#ffb454'}, veto: {t:'חסימה',c:'#ff4d6a'},
   hold: { t: 'להמשיך', c: '#8fa3bf' }, sleep: { t: 'כבוי', c: '#5b6b82' },
 }
 const DECISION: Record<string, string> = { SCALP_OPEN:'נפתחו עסקאות דמו', SCALP_HOLD:'אין כניסה מתאימה', SCALP_PAUSED:'כניסות מושהות', HOLD: 'ממשיכים כרגיל', DERISK: 'הקטנת חשיפה', RESTORE: 'חזרה לגודל רגיל' }
-function Meeting({ snap, now }: { snap: Snap | null; now: number }) {
+function Meeting({ snap, now, shown, replaying }: { snap: Snap | null; now: number; shown: number; replaying: boolean }) {
   const m = snap?.meetings?.[0]
   if (!m) return <div className="bh-meet"><h2>ישיבת צוות</h2><p className="bh-mnote">עוד לא התקיימה ישיבה. הצוות נפגש כל דקה.</p></div>
-  const mins = (Array.isArray(m.minutes) ? m.minutes : []) as { who: Id; says: string; vote: string }[]
+  const all = (Array.isArray(m.minutes) ? m.minutes : []) as Minute[]
+  const mins = all.slice(0, shown)
   const cap = snap?.state?.team_vol_cap
   return (
     <div className="bh-meet">
@@ -546,12 +714,16 @@ function Meeting({ snap, now }: { snap: Snap | null; now: number }) {
       <p className="bh-maction">{String(m.action ?? '')}</p>
       <div className="bh-mins">
         {mins.map((x, i) => (
-          <div key={i} className="bh-min">
-            <span className="bh-av sm" style={{ background: ROSTER[x.who]?.color ?? '#888' }}>{ROSTER[x.who]?.name?.[0] ?? '?'}</span>
-            <span><b>{ROSTER[x.who]?.name ?? x.who}</b> {x.says}</span>
-            <span className="bh-vote" style={{ color: VOTE[x.vote]?.c, borderColor: VOTE[x.vote]?.c }}>{VOTE[x.vote]?.t ?? x.vote}</span>
+          <div key={i}>
+            {(i === 0 || (mins[i - 1].round ?? 1) !== (x.round ?? 1)) && <div className="bh-round">{ROUND[x.round ?? 1]}</div>}
+            <div className={`bh-min bh-in${x.round === 3 ? ' pm' : x.round === 2 ? ' r2' : ''}`}>
+              <span className="bh-av sm" style={{ background: ROSTER[x.who]?.color ?? '#888' }}>{ROSTER[x.who]?.name?.[0] ?? '?'}</span>
+              <span><b>{ROSTER[x.who]?.name ?? x.who}</b>{x.to ? <em className="bh-to"> ← ל{ROSTER[x.to as Id]?.name ?? x.to}</em> : null} {x.says}</span>
+              <span className="bh-vote" style={{ color: VOTE[x.vote]?.c, borderColor: VOTE[x.vote]?.c }}>{VOTE[x.vote]?.t ?? x.vote}</span>
+            </div>
           </div>
         ))}
+        {replaying && shown < all.length && <div className="bh-typing"><span className="bh-av sm" style={{ background: ROSTER[all[shown].who]?.color }}>{ROSTER[all[shown].who]?.name?.[0]}</span> {ROSTER[all[shown].who]?.name} מקליד/ה<i>.</i><i>.</i><i>.</i></div>}
       </div>
       <p className="bh-mnote">
         {String(snap?.manifest?.enabled_sleeves ?? '').includes('SCALP') ? `בכל ישיבה (כל דקה) המנוע בוחן פתיחות דמו לפי ההצבעות, היתרה ומגבלות התיק. עד ${SCALP.maxPositions} פוזיציות ללא מינוף (1x) ועד 99% הקצאה. רק פעולות שנשמרו מופיעות כבוצעו.` : <>הצוות נפגש בתוך הבוט כל דקה. כל אחד בודק רק את התחום שלו בנתונים האמיתיים ומצביע. הצוות יכול לקבל לבד החלטה אחת בלבד: להקטין את הפוזיציות כששניים או יותר מצביעים "להקטין", ולחזור לגודל הרגיל לאחר 24 שעות מההקטנה ובדיקה תקינה ללא הצבעות להקטנה. התקרה חלה על גודל הרוטציה הבאה; היא לא סוגרת עסקאות קיימות. אין הגדלה מעבר להגדרות הפריסה.
@@ -637,18 +809,66 @@ const CSS = `
 .bh-st.work { color:#00d492; background:rgba(0,212,146,0.12); } .bh-st.wait { color:#8fa3bf; background:rgba(140,170,210,0.08); }
 .bh-st.sleep { color:#8fa3bf; background:rgba(140,170,210,0.05); } .bh-st.alarm { color:#ff4d6a; background:rgba(255,77,106,0.12); }
 .bh-note { font-size:11.5px; color:#8fa3bf; line-height:1.6; margin:0; }
+.bh-tape { position:relative; overflow:hidden; border:1px solid #213148; border-radius:12px; background:#070d17; padding:9px 0 20px; }
+.bh-tape-in { display:flex; gap:26px; width:max-content; animation:bhscroll 38s linear infinite; padding-inline:12px; }
+.bh-tape:hover .bh-tape-in { animation-play-state:paused; }
+@keyframes bhscroll { from { transform:translateX(0) } to { transform:translateX(50%) } }
+.bh-tape small { position:absolute; bottom:3px; right:12px; font-size:9.5px; color:#6b819c; }
+.bh-tk { font-size:13px; white-space:nowrap; font-variant-numeric:tabular-nums; color:#dbe7f5; transition:color .4s; display:inline-flex; gap:5px; align-items:center; }
+.bh-tk b { color:#fff; } .bh-tk.up span { color:#00d492; } .bh-tk.dn span { color:#ff4d6a; }
+.bh-tk em { font-style:normal; font-size:11px; } .g { color:#00d492 !important; } .r { color:#ff4d6a !important; }
+.bh-tk i { width:7px; height:7px; border-radius:50%; } .bh-tk i.l { background:#00d492; } .bh-tk i.s { background:#ffb454; }
+.bh-floor { border:1px solid #1f3a4a; border-radius:14px; padding:18px; background:radial-gradient(120% 80% at 100% 0%,#0f2233,#070c15); display:grid; gap:12px; }
+.bh-fhead { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:flex-end; }
+.bh-fhead h2 { margin:0; font-size:17px; color:#effaff; }
+.bh-kpis { display:flex; gap:16px; flex-wrap:wrap; } .bh-kpis div { display:grid; gap:2px; } .bh-kpis span { font-size:10.5px; color:#8fa3bf; }
+.bh-kpis strong { font-size:17px; color:#effaff; font-variant-numeric:tabular-nums; } .bh-kpis small { font-size:11px; color:#8fa3bf; font-weight:400; }
+.bh-spark { width:100%; height:52px; background:linear-gradient(#0b1726,#070c15); border-radius:8px; }
+.bh-blot { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:8px; }
+.bh-pos { border:1px solid #213148; border-radius:10px; padding:10px 12px; background:#0a1321; display:grid; gap:6px; transition:border-color .5s, box-shadow .5s; }
+.bh-pos.win { border-color:rgba(0,212,146,.45); box-shadow:inset 3px 0 0 #00d492; } .bh-pos.lose { border-color:rgba(255,77,106,.45); box-shadow:inset 3px 0 0 #ff4d6a; }
+.bh-pos-top { display:flex; gap:8px; align-items:center; font-size:13px; } .bh-pos-top b { color:#fff; font-size:14px; } .bh-pos-top em { font-style:normal; font-size:10px; color:#8fa3bf; }
+.bh-pos-top strong { margin-inline-start:auto; font-variant-numeric:tabular-nums; }
+.bh-pos.win .bh-pos-top strong { color:#00d492; } .bh-pos.lose .bh-pos-top strong { color:#ff4d6a; }
+.bh-l { color:#00d492; font-weight:800; font-size:11px; } .bh-s { color:#ffb454; font-weight:800; font-size:11px; }
+.bh-pos-mid { display:flex; gap:10px; flex-wrap:wrap; font-size:11px; color:#9cb1c9; font-variant-numeric:tabular-nums; }
+.bh-bar { position:relative; height:14px; background:#13223a; border-radius:7px; overflow:hidden; }
+.bh-bar i { position:absolute; inset:0 auto 0 0; background:linear-gradient(90deg,#1f6fcc,#f0b44c); transition:width 1s linear; }
+.bh-bar span { position:relative; display:block; text-align:center; font-size:10px; line-height:14px; color:#effaff; font-variant-numeric:tabular-nums; }
+.bh-tape2 { display:grid; gap:4px; }
+.bh-fill { display:grid; grid-template-columns:auto auto auto 1fr auto; gap:8px; align-items:center; font-size:12px; padding:5px 8px; border-radius:6px; background:#0a1321; animation:bhin .5s ease; }
+.bh-fill time { color:#6b819c; font-variant-numeric:tabular-nums; } .bh-fill b { color:#fff; } .bh-fill em { font-style:normal; color:#8fa3bf; } .bh-fill strong { font-variant-numeric:tabular-nums; }
+.bh-round { font-size:10.5px; letter-spacing:.5px; color:#54d4ce; margin:10px 0 4px; border-top:1px dashed #213148; padding-top:8px; }
+.bh-in { animation:bhin .45s ease; } @keyframes bhin { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:none } }
+.bh-min.r2 { background:rgba(255,180,84,.06); border-radius:8px; padding:4px; } .bh-min.pm { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.2); border-radius:8px; padding:6px; }
+.bh-to { font-style:normal; color:#f0b44c; font-size:11px; }
+.bh-typing { font-size:12px; color:#8fa3bf; display:flex; gap:6px; align-items:center; } .bh-typing i { font-style:normal; animation:bhdot 1.2s infinite; } .bh-typing i:nth-child(3) { animation-delay:.2s } .bh-typing i:nth-child(4) { animation-delay:.4s }
+@keyframes bhdot { 0%,100% { opacity:.2 } 50% { opacity:1 } }
+.bh-say.live { background:#f0fff8; box-shadow:0 0 0 2px #00a070, 3px 3px 0 rgba(0,0,0,.35); animation:bhin .3s ease; z-index:2; }
+@media(max-width:520px) { .bh-kpis strong { font-size:14px; } .bh-floor { padding:12px; } .bh-fill { grid-template-columns:auto auto auto 1fr; } .bh-fill em { display:none; } }
+.bh-mx-wrap { overflow-x:auto; }
+.bh-mx { width:100%; border-collapse:separate; border-spacing:3px; font-size:12px; text-align:center; }
+.bh-mx th { color:#8fa3bf; font-weight:600; font-size:10.5px; padding:3px; white-space:nowrap; } .bh-mx tbody th { color:#fff; font-size:12.5px; text-align:right; }
+.bh-mx td { background:#0f1929; border-radius:5px; padding:5px 3px; color:#56607a; } .bh-mx td.up { background:rgba(0,212,146,.16); color:#00d492; } .bh-mx td.dn { background:rgba(255,77,106,.16); color:#ff4d6a; }
+.bh-mx td.n { color:#9cb1c9; font-size:10.5px; }
+@media(max-width:520px){ .bh-mx .n, .bh-mx .nh { display:none } .bh-mx { border-spacing:2px; font-size:11px } .bh-mx th { font-size:9.5px } }
+.bh-chipd { font-size:10.5px; font-weight:800; border-radius:12px; padding:2px 7px; border:1px solid #56607a; color:#8fa3bf; white-space:nowrap; } .bh-chipd.l { color:#00d492; border-color:#00d492; } .bh-chipd.s { color:#ffb454; border-color:#ffb454; }
+@media (prefers-reduced-motion: reduce) { .bh-tape-in, .bh-in, .bh-fill, .bh-say.live { animation:none; } }
 `
 
 // v71.1: the evidence behind the last meeting, as the bot saved it (bot_params.scalp_candidates).
 function Intel({ snap, now }: { snap: Snap | null; now: number }) {
   const c = ((snap?.state?.bot_params as Row | undefined)?.scalp_candidates ?? []) as { sym: string; side: number; score: number; signals?: Row | null }[]
   if (!Array.isArray(c) || !c.length) return <p className="bh-mnote">אין עדיין נתוני אותות מהישיבה האחרונה.</p>
-  const d = (x: unknown) => (Number(x) > 0 ? '▲' : Number(x) < 0 ? '▼' : '·')
-  return <div className="bh-mins">{c.map((x) => {
-    const g = x.signals ?? {}
-    return <div key={x.sym} className="bh-min"><span><b>{x.sym}</b> EMA {d(g.trend)} מומנטום {d(g.momentum)} ספר {d(g.flow)} sweep {d(g.sweep)} חדשות {d(g.news)} ליקווידציות {d(g.liq)}
-      {g.news_title ? <><br/><small>“{String(g.news_title).slice(0, 80)}” · {String(g.news_source)} · {ago(Number(g.news_ts), now)} · {g.news_verified ? 'מאומת במחיר' : 'לא מאומת'}</small></> : null}
-      <br/><small>ליקווידציות OKX תקפות {String(g.liq_valid ?? 0)} · נפסלו {String(g.liq_rejected ?? 0)}</small></span>
-      <span className="bh-vote" style={{ color: x.side > 0 ? '#00d492' : x.side < 0 ? '#ffb454' : '#8fa3bf' }}>{x.side > 0 ? 'לונג' : x.side < 0 ? 'שורט' : 'אין כניסה'}</span></div>
-  })}</div>
+  const cols: [string, string][] = [['trend', 'EMA'], ['momentum', 'מומנטום'], ['flow', 'ספר'], ['sweep', 'sweep'], ['news', 'חדשות'], ['liq', 'ליקווד׳']]
+  const cell = (x: unknown) => { const v = Number(x); return <td className={v > 0 ? 'up' : v < 0 ? 'dn' : ''}>{v > 0 ? '▲' : v < 0 ? '▼' : '·'}</td> }
+  const news = c.filter((x) => x.signals?.news_title)
+  return <>
+    <div className="bh-mx-wrap"><table className="bh-mx">
+      <thead><tr><th>מטבע</th>{cols.map(([, h]) => <th key={h}>{h}</th>)}<th className="nh">מרווח</th><th>החלטה</th></tr></thead>
+      <tbody>{c.map((x) => { const g = x.signals ?? {}; return <tr key={x.sym}><th>{x.sym}</th>{cols.map(([k]) => <Fragment key={k}>{cell(g[k])}</Fragment>)}<td className="n" dir="ltr">{Number.isFinite(num(g.spread_bps)) ? `${num(g.spread_bps).toFixed(1)}bp` : '—'}</td><td><span className={`bh-chipd ${x.side > 0 ? 'l' : x.side < 0 ? 's' : ''}`}>{x.side > 0 ? 'לונג' : x.side < 0 ? 'שורט' : 'אין כניסה'}</span></td></tr> })}</tbody>
+    </table></div>
+    <p className="bh-mnote">ליקווידציות OKX שנבדקו: {c.map((x) => `${x.sym} ${String(x.signals?.liq_valid ?? 0)} תקפות/${String(x.signals?.liq_rejected ?? 0)} נפסלו`).join(' · ')}</p>
+    {news.map((x) => <p key={x.sym} className="bh-mnote">📰 {x.sym}: “{String(x.signals?.news_title).slice(0, 90)}” · {String(x.signals?.news_source)} · {ago(Number(x.signals?.news_ts), now)} · {x.signals?.news_verified ? 'מאומת במחיר' : 'לא מאומת — לא נספר'}</p>)}
+  </>
 }

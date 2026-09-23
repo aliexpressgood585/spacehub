@@ -81,6 +81,27 @@ has been run. Do not present the house upgrade as implementing that request.
 Existing equity snapshots occur every 15 minutes, so
 review freshness tolerance is 20 minutes, not 5.
 
+## v72.0 (2026-09-23) — hedge-fund desk: 13 agents that debate, live trading floor in the house
+Owner: more agents where useful, agents consulting each other "like a hedge fund",
+and a house page that looks alive like a real trading desk.
+- `shared/desk.ts` (pure, 20 assertions in `tests/desk.test.ts`): four new agents.
+  pm (תמר) rules in round 3 using the SAME scalp majority rule — no new signal;
+  quant (גיל) = per-agent hit rate on closed SCALP trades (each directional vote vs
+  the trade's pnl sign), INFO ONLY, does not reweight votes (small sample, would be
+  an untested data-mined filter); compliance (הדס) re-checks the plan (paper 1x,
+  <=8, no duplicate coin, <=25%/coin, <=99% exposure) and can only BLOCK; execution
+  (אלון) = spreads, hold times, exit reasons, fees, net of the last 100 SCALP closes.
+- Meeting now has rounds: 1 = 9 analysts + execution + compliance vote; 2 =
+  dissenters argue to the PM and the quant brings their record; 3 = PM decision.
+  Minutes items carry `round`, `to`, `data` (jsonb, no migration needed).
+- House: 4-room basement trading floor (PM equity monitors, quant hit-rate board,
+  compliance checklist, execution screens), live OKX ticker tape (display only),
+  position blotter marked live with timeout bars, trade tape, equity line, today's
+  realised P&L, signal matrix, meeting replayed message-by-message with speech
+  bubbles, dissenters walk to the PM, realtime refresh on team_meetings/bot_trades.
+- Bug fixed on the way: replay index could go negative and crash the page;
+  v71.1's signal list rendered in a 24px grid column (unreadable) — now a matrix.
+
 ## v71.1 (2026-09-23) — SCALP: 8 positions, team check every minute, news + liquidations
 Built on PR #27 (v71.0 autonomous paper SCALP). Owner spec: up to 8 concurrent,
 team check + entries every minute, 1-15 min holds, trailing stop, EMA / momentum /
