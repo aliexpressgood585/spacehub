@@ -101,6 +101,9 @@ good entries and consult each other".
   agents with their weights, PM states the weighted score vs the 20% bar.
 - House: two more basement floors (10 analyst rooms: last vote arrow + weight
   bar), 15-bar quant board, matrix columns for all agents + weighted score.
+DEPLOYED 2026-09-23 16:34 UTC: PR #32 (f74ad525), function v32, manifest v73.0 paper
+true / live false, 0 errors, first 23-agent meeting 16:35:48, Pages run #106 green.
+Weights already bite: regime (EMA) and rota (momentum) 36% on 39 votes -> 0.63.
 
 ## v72.0 (2026-09-23) — hedge-fund desk: 13 agents that debate, live trading floor in the house
 Owner: more agents where useful, agents consulting each other "like a hedge fund",
