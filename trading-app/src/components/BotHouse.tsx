@@ -262,7 +262,7 @@ function derive(s: Snap | null, now: number): Record<Id, Status> {
   const scalpOn = sleeves.includes('SCALP')
   out.pm = { working: false, asleep: !scalpOn, line: scalpOn ? 'מכריעה בסוף כל ישיבה לפי כלל הרוב; לא מוסיפה אות משלה.' : 'פעילה רק במסחר הסקאלפ' }
   out.quant = { working: false, asleep: !scalpOn, line: 'מודד מי מהסוכנים צדק בעסקאות שנסגרו.' }
-  out.compliance = { working: false, asleep: !scalpOn, line: `בודקת כל תוכנית: דמו 1x, עד ${SCALP.maxPositions} פוזיציות, עד 25% למטבע.` }
+  out.compliance = { working: false, asleep: !scalpOn, line: `בודקת כל תוכנית: דמו 1x, עד ${SCALP.maxPositions} פוזיציות, עד ${SCALP.perCoin * 100}% למטבע, עד ${SCALP.allocation * 100}% מהתיק.` }
   out.execution = { working: false, asleep: !scalpOn, line: 'מודד מרווחים, זמני החזקה וסיבות יציאה.' }
   for (const t of Object.keys(TEAMS) as Team[]) out[TEAMS[t].lead as Id] = { working: false, asleep: !scalpOn, line: `${TEAMS[t].label}: 10 סוכנים מצביעים כל דקה; כל אחד נבחן מול 5 הדקות הבאות ומשקלו מתעדכן לבד.` }
   for (const k of NEW_AGENTS as Id[]) out[k] = { working: false, asleep: !scalpOn, line: `סוכן ${AGENTS[k].role}: מצביע לונג/שורט על כל מטבע בכל ישיבה. המשקל שלו נקבע לפי הרקורד.` }
