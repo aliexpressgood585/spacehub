@@ -4,6 +4,7 @@
 // order-book imbalance/estimated liquidity-sweep zones, plus public news and
 // liquidation context that only counts when its source, time and price check out.
 import { AGENTS, NEW_AGENTS, type AgentCtx } from './agents.ts'
+import { SWARM, TEAMS, runSwarm, type Team } from './swarm.ts'
 export const SCALP = { minWeighted: 0.2, maxHoldMs: 15*60_000, minHoldMs: 60_000, meetingMs: 60_000, fee: 0.0005, slip: 0.0003, maxSpread: 0.001, maxPositions: 8, allocation: 0.99, perCoin: 0.25, newsMaxAgeMs: 60*60_000, liqMaxAgeMs: 10*60_000, liqMaxPxDev: 0.03 } as const
 export interface Bar { t:number; o:number; h:number; l:number; c:number; v:number }
 export interface Quote { bid:number; ask:number; ts:number; imbalance:number; source:string }
@@ -63,7 +64,7 @@ export function assess(sym:string,b:Bar[],q:Quote,now:number,intel:Intel={news:[
   const votes:Vote[]=[]; const say=(who:string,says:string,vote:string)=>votes.push({who,says,vote,checked_at:new Date(now).toISOString()})
   const good=validQuote(q,now)&&b.length>=30&&now-b[b.length-1].t<150_000&&b.every((x,i)=>[x.t,x.o,x.h,x.l,x.c,x.v].every(Number.isFinite)&&x.l>0&&x.h>=Math.max(x.o,x.c)&&x.l<=Math.min(x.o,x.c)&&x.t+60_000<=now&&(!i||x.t-b[i-1].t===60_000))
   say('scout',`${sym}: ${good?'ספר פקודות ונרות דקה סגורים תקינים':'נתונים חסרים או ישנים'} (${q.source})`,good?'ok':'veto')
-  if(!good)return {sym,side:0,stopPct:0,holdMin:0,votes,score:0,weighted:0,pro:0,con:0,signals:null}
+  if(!good)return {sym,side:0,stopPct:0,holdMin:0,votes,score:0,weighted:0,pro:0,con:0,signals:null,dirs:{} as Record<string,number>,mid:NaN}
   const c=b.map(x=>x.c), last=c[c.length-1], atr=b.slice(-14).reduce((a,x)=>a+x.h-x.l,0)/14/last
   const mid=(q.bid+q.ask)/2
   const trend=Math.sign(ema(c,8)-ema(c,21)); const momentum=Math.sign(last/c[c.length-4]-1)
@@ -74,7 +75,9 @@ export function assess(sym:string,b:Bar[],q:Quote,now:number,intel:Intel={news:[
   const ctx:AgentCtx={btc:intel.btc,funding:intel.funding}
   const extra=Object.fromEntries(NEW_AGENTS.map(k=>{try{return [k,AGENTS[k].run(b,ctx)]}catch{return [k,{dir:0,says:'שגיאת חישוב'}]}}))
   // v73.0: 15 directional agents, each weighted by its live record (weights.ts rules).
-  const dirs:Record<string,number>={regime:trend,rota:momentum,donch:sweep.dir,trader:flow,risk:Math.sign(nw.dir+lq.dir),...Object.fromEntries(NEW_AGENTS.map(k=>[k,Math.sign(extra[k].dir)]))}
+  // v75.0: + the 50-agent swarm; weights come from shadow learning (swarm.ts).
+  const sw=runSwarm(b,{btc:intel.btc})
+  const dirs:Record<string,number>={regime:trend,rota:momentum,donch:sweep.dir,trader:flow,risk:Math.sign(nw.dir+lq.dir),...Object.fromEntries(NEW_AGENTS.map(k=>[k,Math.sign(extra[k].dir)])),...sw}
   const w=(k:string)=>intel.weights?.[k]??1
   let S=0,Wt=0,pro=0,con=0
   for(const [k,d] of Object.entries(dirs)){S+=w(k)*d;Wt+=w(k)}
@@ -93,9 +96,16 @@ export function assess(sym:string,b:Bar[],q:Quote,now:number,intel:Intel={news:[
   say('trader',`${sym}: חוסר איזון בספר ${(q.imbalance*100).toFixed(0)}%, מרווח ${(spread*100).toFixed(3)}%`,liquid?vs(flow):'veto')
   say('risk',`${sym}: ${nw.item?`חדשות: "${nw.item.title.slice(0,70)}" (${nw.item.source}, ${new Date(nw.item.ts).toISOString().slice(11,16)}Z) · תנועת מחיר מאז ${(nw.move*100).toFixed(2)}% ${nw.verified?'מאומת':'לא מאומת — לא נספר'}`:'אין חדשות טריות'} · ליקווידציות תקפות ${lq.valid} (נפסלו ${lq.rejected})`,vs(nw.dir+lq.dir))
   for(const k of NEW_AGENTS)say(k,`${sym}: ${extra[k].says}`,vs(extra[k].dir))
+  const team:Record<string,number>={}
+  for(const t of Object.keys(TEAMS) as Team[]){
+    const mem=SWARM.filter(x=>x.team===t);let ts=0,l=0,sh=0,off=0
+    for(const m of mem){const d=sw[m.id],ww=w(m.id);if(ww===0)off++;ts+=ww*d;if(d>0)l++;else if(d<0)sh++}
+    team[t]=Math.sign(ts)
+    say(TEAMS[t].lead,`${sym}: ${TEAMS[t].label} — לונג ${l} · שורט ${sh} · ניטרלי ${mem.length-l-sh}${off?` · ${off} בספסל`:''}`,vs(ts))
+  }
   say('auditor',`${sym}: טווח תנודתיות ${(atr*250).toFixed(2)}%, אומדן עלות הלוך־חזור ${(cost*100).toFixed(2)}%; זה אינו אומדן רווח`,rangeOk?'ok':'veto')
   return {sym,side:liquid&&rangeOk?side:0,stopPct:Math.min(0.01,Math.max(0.003,atr*1.5)),holdMin:planHold(side,Wt?S/Wt:0,Math.sign(extra.htf.dir),atr),votes,score:Math.abs(direction),weighted:Wt?S/Wt:0,pro,con,
-    signals:{trend,momentum,flow,sweep:sweep.dir,news:nw.dir,liq:lq.dir,news_title:nw.item?.title??null,news_source:nw.item?.source??null,news_ts:nw.item?.ts??null,news_verified:nw.verified,spread_bps:spread*1e4,liq_valid:lq.valid,liq_rejected:lq.rejected,...Object.fromEntries(NEW_AGENTS.map(k=>[k,Math.sign(extra[k].dir)])),weighted:Wt?S/Wt:0}}
+    signals:{trend,momentum,flow,sweep:sweep.dir,news:nw.dir,liq:lq.dir,news_title:nw.item?.title??null,news_source:nw.item?.source??null,news_ts:nw.item?.ts??null,news_verified:nw.verified,spread_bps:spread*1e4,liq_valid:lq.valid,liq_rejected:lq.rejected,...Object.fromEntries(NEW_AGENTS.map(k=>[k,Math.sign(extra[k].dir)])),...Object.fromEntries(Object.entries(team).map(([k,v])=>['team_'+k,v])),weighted:Wt?S/Wt:0},dirs,mid}
 }
 // v74.0: adaptive hold, 1-15 minutes. The planned hold is set at entry by the
 // team (planHold); at every meeting the current view can close early (FLIP),

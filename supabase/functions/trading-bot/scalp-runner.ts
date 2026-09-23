@@ -1,6 +1,7 @@
 import {SCALP,assess,allocation,exitPlan,validQuote,type Quote,type Bar,type Vote,type Intel,type NewsItem,type LiqEvent} from '../../../shared/scalp.ts'
 import {attribution,execStats,compliance,debate,hitPct,type Minute} from '../../../shared/desk.ts'
-import {AGENTS,NEW_AGENTS,weights} from '../../../shared/agents.ts'
+import {AGENTS,NEW_AGENTS} from '../../../shared/agents.ts'
+import {SWARM,TEAMS,decayStat,scoreSnapshot,learnedWeight,meanBps,tStat,LEARN,type Stat,type Team} from '../../../shared/swarm.ts'
 const UNIVERSE=['BTC','ETH','SOL','XRP','DOGE','ADA','LINK','AVAX']
 async function json(url:string) {const r=await fetch(url,{signal:AbortSignal.timeout(3500)});if(!r.ok)throw new Error(`market HTTP ${r.status}`);return r.json()}
 const NEWS_FEEDS=[['cointelegraph','https://cointelegraph.com/rss'],['coindesk','https://www.coindesk.com/arc/outboundfeeds/rss/']]
@@ -58,12 +59,35 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
   await Promise.all(symbols.map(async sym=>{try{const m=await market(sym,due&&UNIVERSE.includes(sym));if(!validQuote(m.q,Date.now()))throw new Error('stale quote');data.set(sym,m)}catch{failures.push(sym)}}))
   const ctx=await intelP
   const closedHist:any[]=due?((await db.from('bot_trades').select('sym,side,pnl,fee,opened_at,closed_at,scalp_meta').eq('strategy','SCALP').neq('status','OPEN').order('closed_at',{ascending:false}).limit(200).throwOnError()).data??[]):[]
-  const att0=attribution(closedHist),W=weights(att0)
+  // v75.0 shadow learning: every agent's weight comes from how its votes did over the next 5 minutes.
+  let learnErr=''
+  const statRows:Stat[]=due?await Promise.resolve(db.from('agent_stats').select('agent,n,s,s2,updated_at').throwOnError()).then((r:any)=>r.data??[],(e:any)=>{learnErr=String(e?.message??e);return []}):[]
+  const stats:Record<string,Stat>=Object.fromEntries(statRows.map(r=>[r.agent,decayStat({...r,n:+r.n,s:+r.s,s2:+r.s2},r.agent,Date.now())]))
+  const W:Record<string,number>=Object.fromEntries(Object.entries(stats).map(([k,v])=>[k,learnedWeight(v)]))
   const now=Date.now(),closes:any[]=[],updates:any[]=[],entries:any[]=[],marks:Record<string,number>={}
   let cash=Number(state.balance),exposure=0,equity=cash
   const retained:any[]=[]
   const evaluated=due?UNIVERSE.filter(sym=>data.has(sym)).map(sym=>assess(sym,data.get(sym)!.b,data.get(sym)!.q,now,{...(ctx?.intel[sym]??{news:[],liqs:[]}),btc:sym==='BTC'?undefined:data.get('BTC')?.b,weights:W})):[]
   const views=new Map(evaluated.map(x=>[x.sym,{side:x.side,weighted:x.weighted}]))
+  let learned:{scored:number,updated:number}={scored:0,updated:0}
+  if(due&&evaluated.length&&!learnErr){
+    try{
+      const votes=Object.fromEntries(evaluated.filter(x=>Number.isFinite(x.mid)).map(x=>[x.sym,x.dirs]))
+      const px=Object.fromEntries(evaluated.filter(x=>Number.isFinite(x.mid)).map(x=>[x.sym,x.mid]))
+      const lo=new Date(now-LEARN.horizonMs-120_000).toISOString(),hi=new Date(now-LEARN.horizonMs+30_000).toISOString()
+      const {data:old}=await db.from('agent_snapshots').select('id,ts,votes,px').eq('scored',false).gte('ts',lo).lte('ts',hi).order('ts',{ascending:true}).limit(1).throwOnError()
+      if(old?.length){
+        const upd=scoreSnapshot(stats,old[0].votes,old[0].px,px,now)
+        const rows=Object.values(upd)
+        if(rows.length)await db.from('agent_stats').upsert(rows).throwOnError()
+        await db.from('agent_snapshots').update({scored:true}).eq('id',old[0].id).throwOnError()
+        for(const r of rows){stats[r.agent]=r}
+        learned={scored:1,updated:rows.length}
+      }
+      await db.from('agent_snapshots').insert({votes,px}).throwOnError()
+      await db.from('agent_snapshots').delete().lt('ts',new Date(now-24*3600_000).toISOString()).throwOnError()
+    }catch(e:any){learnErr=String(e?.message??e)}
+  }
   for(const t of open) {
     const m=data.get(t.sym),dir=t.side==='LONG'?1:-1,notional=Number(t.entry_price)*Number(t.size)
     if(!m) {retained.push(t);exposure+=notional;equity+=notional;continue}
@@ -101,6 +125,13 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
     say('rota',`מומנטום 3 דקות: ${tally('rota')}. ${line('rota')}`,lead('rota','hold'))
     say('donch',`אזורי liquidity sweep משוערים: ${tally('donch')}. ${line('donch')}`,lead('donch','hold'))
     for(const k of NEW_AGENTS)say(k,`${AGENTS[k].role} (משקל ${(W[k]??1).toFixed(2)}): ${tally(k)}. ${line(k)}`,lead(k,'hold'))
+    for(const t of Object.keys(TEAMS) as Team[]){
+      const mem=SWARM.filter(x=>x.team===t), ranked=[...mem].sort((a,c)=>meanBps(stats[c.id])-meanBps(stats[a.id]))
+      const benched=mem.filter(m=>(stats[m.id]?.n??0)>=LEARN.minN&&learnedWeight(stats[m.id])===0).length
+      const learning=mem.filter(m=>(stats[m.id]?.n??0)<LEARN.minN).length
+      const best=ranked[0],bs=stats[best.id]
+      say(TEAMS[t].lead,`${TEAMS[t].label} (${mem.length} סוכנים): ${tally(TEAMS[t].lead)}. הכי טוב כרגע: ${best.label} ${bs?`${meanBps(bs).toFixed(1)} נק׳ בסיס ל-5 דק׳ על ${bs.n.toFixed(0)} הצבעות`:'עדיין לומד'}. ${benched} בספסל, ${learning} עדיין לומדים.`,lead(TEAMS[t].lead,'hold'))
+    }
     say('risk',`דמו 1x; עד ${SCALP.maxPositions} פוזיציות, עד ${SCALP.perCoin*100}% למטבע ועד ${SCALP.allocation*100}% הקצאה אחרי עמלות. עצירת כניסות בהפסד יומי 5% או ירידה 15%. ${line('risk')}`,eligible?'ok':'veto')
     say('trader',`ספר פקודות: ${tally('trader')}. מועמדות לביצוע: ${entries.map(e=>`${e.sym} ${e.side}`).join(', ')||'אין הסכמה מתאימה'}. זמן החזקה מתוכנן לפי התנאים: ${entries.map(e=>`${e.sym} ${e.hold_min} דק׳`).join(', ')||'—'} (1–15). בכל ישיבה: סגירה מוקדמת אם הצוות מתהפך, הארכה לעסקה מרוויחה שהצוות עדיין תומך בה.`,entries.length?'ok':'hold')
     say('treasurer',`מזומן צפוי אחרי הפעולות $${cash.toFixed(2)}; ${retained.length+entries.length}/${SCALP.maxPositions} פוזיציות. הביצוע נבדק שוב באותה עסקת מסד נתונים.`)
@@ -117,7 +148,13 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
     const top=[...evaluated].sort((a,c)=>c.score-a.score)[0]
     const best=evaluated.find(x=>x.sym===entries[0]?.sym)||picks[0]||top
     minutes.push(...debate(best,att,entries.length>0,blocked,now,!!best&&retained.some((t:any)=>t.sym===best.sym),W))
-    const q=minutes.find(m=>m.who==='quant');if(q)q.data={...att,hit:Object.fromEntries(Object.entries(att).map(([k,v])=>[k,hitPct(v)])),weights:W}
+    const q=minutes.find(m=>m.who==='quant')
+    if(q){
+      const all=Object.values(stats).filter(x=>x.n>=LEARN.minN), benchN=all.filter(x=>learnedWeight(x)===0).length
+      const topL=[...all].sort((a,c)=>tStat(c)-tStat(a)).slice(0,3).map(x=>`${x.agent} t=${tStat(x).toFixed(1)}`)
+      q.says+=` למידת צל (כל דקה, מול 5 דק׳ קדימה): ${all.length} סוכנים עם מספיק נתונים, ${benchN} בספסל${topL.length?`, מובילים: ${topL.join(', ')}`:''}.${learnErr?` שגיאת למידה: ${learnErr.slice(0,80)}`:learned.scored?` עודכנו ${learned.updated} סוכנים.`:''}`
+      q.data={...att,hit:Object.fromEntries(Object.entries(att).map(([k,v])=>[k,hitPct(v)])),weights:W}
+    }
   }
   const {data:result}=await db.rpc('scalp_commit_cycle',{p_lease:lease,p_closes:closes,p_updates:updates,p_entries:entries,p_minutes:due?minutes:null,p_marks:marks,p_feed:{source:'perpetuals',ok:data.size,fail:failures.length,failures},p_candidates:due?evaluated:null}).throwOnError()
   return result

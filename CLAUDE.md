@@ -81,6 +81,36 @@ has been run. Do not present the house upgrade as implementing that request.
 Existing equity snapshots occur every 15 minutes, so
 review freshness tolerance is 20 minutes, not 5.
 
+## v75.0 (2026-09-23) — the swarm: 50 more agents + autonomous shadow learning (73 total)
+Owner: "add 50 more agents and have them improve over time to the highest level,
+all autonomously".
+- `shared/swarm.ts`: 50 agents in 5 teams of 10 (trend, momentum, reversal —
+  the opposite hypothesis on purpose, breakout, volume/flow), each a parameter
+  variant of a public indicator on 1-minute bars; 5 team leads (רז/נגה/אלה/יובל/
+  דור) speak for them in the meeting. 65 directional voters now (5 + 10 + 50).
+- SHADOW LEARNING (the "improve by themselves" part): every meeting stores each
+  agent's vote per coin + the mid price in `agent_snapshots`; ~5 min later the
+  snapshot is scored (edge = dir x return, bps, GROSS of costs) into
+  `agent_stats` with exponential decay (12h half-life). Weight = 1 + t/2 clamped
+  [0, 2.5], weight 1 until 100 effective votes, t <= -2 -> weight 0 = BENCHED
+  (still scored, returns when it improves). Replaces the closed-trade weights of
+  v73.0 (those had ~30 samples/day; this has ~hundreds/hour). Closed-trade
+  attribution stays as quant INFO.
+- Honest limits (said to the owner): this is SELECTION among fixed rules, not
+  code that writes new strategies; with 65 agents some will look good by luck
+  (multiple testing) — shrinkage (minN), decay and the t-stat limit it, they do
+  not remove it; scores are GROSS, a real trade needs ~16bps round trip.
+- Migration `20260923180000_agent_learning.sql` (applied live): agent_stats (anon
+  read), agent_snapshots (no anon access), both RLS on. Snapshots pruned >24h.
+  Learning DB errors never block trading; they are reported in the quant line.
+- House: 7th floor (5 team-lead rooms, 10 tiles each: grey learning / green
+  active / bright boosted / dark red benched + weight bar), "ליגת הסוכנים" table
+  ranking all 65 voters by t (weight, bps/5min, effective votes, status), team
+  columns in the signal matrix. Mobile: the matrix's hide-column rule was hiding
+  the league numbers — fixed with a scoped override.
+Tests: `tests/swarm.test.ts` (50 agents, 5x10, id collisions, direction sanity,
+learning math, decay, benching, noise stays |t|<3); runner mock now a Proxy.
+
 ## v74.0 (2026-09-23) — adaptive hold, 1 to 15 minutes, decided by the team
 Owner: "hold a trade 5 minutes or 1 minute, as needed".
 - Entry: `planHold(side, weighted, htf, atr)` = 5 min, +5 if the 60-min slope
