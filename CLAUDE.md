@@ -51,6 +51,23 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## 2026-09-23 13:20 UTC — dashboard: "בית הבוט" (#house), read-only, real data only
+Owner: "I want the bot's state inside a house — how it actually works, real data only".
+`trading-app/src/components/BotHouse.tsx`, opened from a "🏠 בית הבוט" chip next to
+the version tag (or `/#house`). A pixel house with one room per real part of the
+bot. Every line is read from the bot's own tables with the anon key, every 15s:
+- bot_state: heartbeat, feed_health, shields, hard_halt, peak_balance, rebalanced_at
+- market_regime, bot_trades (open, last closes, ROTA batch times), bot_skips,
+  bot_equity, bot_trades_log, bot_errors and deployment_manifest (enabled_sleeves)
+
+A resident "works" only when its table shows a fresh row, and walks only on a real
+new event: rebalanced_at changes, or a new closed trade.
+The next-rotation estimate is the gap between the last two ROTA open batches.
+DONCH4H is shown asleep while enabled_sleeves = ROTA.
+
+The house computes NO signal (the viewer rule holds). No bot code or DB change.
+`src/supa.ts` now holds SUPA_URL/SUPA_KEY for both components.
+
 ## 2026-09-23 06:10 UTC — vol target 0.5 -> 0.7 (owner: "more aggressive")
 Shim only, same sha `ad53cd42`, function v24. v104bt in-sample: volT70
 +94.5% / 2 DD halts vs volT50 +67.1% / 1 halt (27pp, beyond the bar); volT70
