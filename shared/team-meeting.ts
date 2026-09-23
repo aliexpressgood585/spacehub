@@ -1,5 +1,5 @@
-// Operational review cadence and existing bounded cap policy. No trade signals.
-export const TEAM_INTERVAL_MS = 5 * 60_000
+// Operational review cadence (v71.0: every minute, matching SCALP.meetingMs) and existing bounded cap policy. No trade signals.
+export const TEAM_INTERVAL_MS = 60_000
 export function meetingDue(last: number, now: number): boolean {
   return Number.isFinite(now) && (!Number.isFinite(last) || last <= 0 || now - last >= TEAM_INTERVAL_MS)
 }

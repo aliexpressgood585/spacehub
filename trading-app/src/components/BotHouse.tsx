@@ -11,6 +11,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { SUPA_URL, SUPA_KEY } from '../supa'
 import { TEAM_INTERVAL_MS } from '../../../shared/team-meeting'
+import { SCALP } from '../../../shared/scalp'
+const CYCLE_LABEL = `${String(Math.floor(TEAM_INTERVAL_MS / 60_000)).padStart(2, '0')}:${String((TEAM_INTERVAL_MS / 1000) % 60).padStart(2, '0')}`
 
 type Id = 'scout' | 'regime' | 'rota' | 'donch' | 'risk' | 'trader' | 'treasurer' | 'reporter' | 'auditor'
 interface Row { [k: string]: unknown }
@@ -187,10 +189,10 @@ function derive(s: Snap | null, now: number): Record<Id, Status> {
     at: lastC,
   }
   if (sleeves.includes('SCALP')) {
-    out.rota = { working:false, line:'אסטרטגיית דמו מהירה: הסכמה בין כיוון, מומנטום וספר פקודות; בדיקת עלויות וסיכון.' }
-    out.donch = { working:false, line:'בודק חוסר איזון בספר הפקודות כחלק מהחלטת הכניסה.' }
+    out.rota = { working:false, line:'מומנטום 3 דקות על 8 חוזים; מצביע לונג/שורט בכל ישיבה.' }
+    out.donch = { working:false, line:'מסמן אזורי liquidity sweep משוערים (שיא/שפל 20 דקות) ומצביע כשיש סחיפה וחזרה.' }
     const bp = (st.bot_params ?? {}) as Row
-    out.risk = { working:false, alarm:!!bp.scalp_paused, line:`${bp.scalp_paused ? 'כניסות מושהות' : 'פיקוח פעיל'} · הפסד יומי 5% / ירידה 15% · דמו ללא מינוף` }
+    out.risk = { working:false, alarm:!!bp.scalp_paused, line:`${bp.scalp_paused ? 'כניסות מושהות' : 'פיקוח פעיל'} · הפסד יומי 5% / ירידה 15% · חדשות וליקווידציות רק עם מקור, זמן ואימות מחיר · דמו 1x` }
     out.auditor = {working:false,line:'האסטרטגיה החדשה ניסיונית; נתוני ROTA קודמים אינם הוכחה לביצועיה.'}
   }
   const meeting = s.meetings[0]
@@ -454,7 +456,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
         <div>
           <span className="bh-eyebrow">NEXUS / AUTONOMOUS OPERATIONS</span>
           <h1>בית הבוט <small>חדר הבקרה</small></h1>
-          <p>תשעה תפקידים. מחזור בדיקה כל 5 דקות. מסקנות ופעולות מתוך מנוע הבוט, גם כשהעמוד סגור.</p>
+          <p>תשעה תפקידים. ישיבת צוות וכניסות כל דקה, בדיקת יציאות כל 10 שניות. מסקנות ופעולות מתוך מנוע הבוט, גם כשהעמוד סגור.</p>
         </div>
         <div className="bh-chips">
           <span className={`bh-chip ${live ? 'ok' : 'bad'}`}><i />{live ? `הבוט רץ · דופק ${ago(ts(snap?.state?.updated_at), now)}` : snap ? 'אין דופק מהבוט' : 'מתחבר…'}</span>
@@ -489,9 +491,10 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
       </div>
 
       {String(snap?.manifest?.enabled_sleeves ?? '').includes('SCALP') && <section className="bh-meet">
-        <h2>מסחר דמו אוטונומי · 1–15 דקות</h2>
-        <p className="bh-mnote">הסכמה אלגוריתמית → בדיקת עלויות וסיכון → ביצוע. בדיקת יציאות כל 10 שניות; סגירה מתוכננת ב-15 דקות גם בהפסד. השהיות או נתונים חסרים עלולים לעכב אותה. סטופ נגרר אינו מבטיח רווח. עמלות 0.05% לכל צד, החלקה 0.03% ומימון מדומה יחסי.</p>
-        {(snap?.open ?? []).filter(t=>t.strategy==='SCALP').map(t=><div className="bh-maction" key={String(t.id)}><b>{String(t.sym)} · {String(t.side)}</b><br/>סטופ {String(t.trail_sl)} · {now >= ts(t.opened_at)+15*60_000 ? 'זמן הסגירה הגיע — ממתין לאישור ביצוע' : `סגירת זמן בעוד ${Math.max(0,Math.ceil((ts(t.opened_at)+15*60_000-now)/60_000))} דקות`}</div>)}
+        <h2>מסחר דמו אוטונומי · {(snap?.open ?? []).filter(t=>t.strategy==='SCALP').length}/{SCALP.maxPositions} פוזיציות · כל דקה · 1–15 דקות</h2>
+        <p className="bh-mnote">הסכמה אלגוריתמית → בדיקת עלויות וסיכון → ביצוע. בדיקת יציאות כל 10 שניות; סגירה מתוכננת ב-15 דקות גם בהפסד. השהיות או נתונים חסרים עלולים לעכב אותה. סטופ נגרר אינו מבטיח רווח. עמלות 0.05% לכל צד, החלקה 0.03% ומימון מדומה יחסי. אותות: EMA8/21, מומנטום, חוסר איזון בספר, liquidity sweep משוער, חדשות ציבוריות (Cointelegraph/CoinDesk) וליקווידציות OKX — נספרים רק אם טריים ומאומתים מול המחיר.</p>
+        <Intel snap={snap} now={now} />
+        {(snap?.open ?? []).filter(t=>t.strategy==='SCALP').map(t=><div className="bh-maction" key={String(t.id)}><b>{String(t.sym)} · {String(t.side)}</b> · כניסה {String(t.entry_price)} · מקור {String((t.scalp_meta as Row | null)?.source ?? '—')}<br/>סטופ נגרר {String(t.trail_sl)} · מוחזק {Math.max(0,Math.floor((now-ts(t.opened_at))/60_000))} דק׳ · {now >= ts(t.opened_at)+15*60_000 ? 'זמן הסגירה הגיע — ממתין לאישור ביצוע' : `סגירת זמן בעוד ${Math.max(0,Math.ceil((ts(t.opened_at)+15*60_000-now)/60_000))} דקות`}</div>)}
         {!snap?.open.some(t=>t.strategy==='SCALP') && <p className="bh-mnote">אין כרגע פוזיציות של האסטרטגיה החדשה. סיבת ההמתנה מופיעה בישיבה.</p>}
       </section>}
       <Meeting snap={snap} now={now} />
@@ -520,7 +523,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
   )
 }
 
-// v70.1: the team meeting the BOT itself holds every five minutes (team_meetings).
+// v71.1: the team meeting the BOT itself holds every minute (team_meetings).
 // The house only shows the minutes; every vote was computed server-side from
 // the bot's own tables, and the only action the team can take is a de-risk cap.
 const VOTE: Record<string, { t: string; c: string }> = {
@@ -531,7 +534,7 @@ const VOTE: Record<string, { t: string; c: string }> = {
 const DECISION: Record<string, string> = { SCALP_OPEN:'נפתחו עסקאות דמו', SCALP_HOLD:'אין כניסה מתאימה', SCALP_PAUSED:'כניסות מושהות', HOLD: 'ממשיכים כרגיל', DERISK: 'הקטנת חשיפה', RESTORE: 'חזרה לגודל רגיל' }
 function Meeting({ snap, now }: { snap: Snap | null; now: number }) {
   const m = snap?.meetings?.[0]
-  if (!m) return <div className="bh-meet"><h2>ישיבת צוות</h2><p className="bh-mnote">עוד לא התקיימה ישיבה. הצוות נפגש כל 5 דקות.</p></div>
+  if (!m) return <div className="bh-meet"><h2>ישיבת צוות</h2><p className="bh-mnote">עוד לא התקיימה ישיבה. הצוות נפגש כל דקה.</p></div>
   const mins = (Array.isArray(m.minutes) ? m.minutes : []) as { who: Id; says: string; vote: string }[]
   const cap = snap?.state?.team_vol_cap
   return (
@@ -551,7 +554,7 @@ function Meeting({ snap, now }: { snap: Snap | null; now: number }) {
         ))}
       </div>
       <p className="bh-mnote">
-        {String(snap?.manifest?.enabled_sleeves ?? '').includes('SCALP') ? 'בכל ישיבה המנוע בוחן פתיחות דמו לפי ההצבעות, היתרה ומגבלות התיק. עד 4 פוזיציות ללא מינוף ועד 99% הקצאה. רק פעולות שנשמרו מופיעות כבוצעו.' : <>הצוות נפגש בתוך הבוט כל 5 דקות. כל אחד בודק רק את התחום שלו בנתונים האמיתיים ומצביע. הצוות יכול לקבל לבד החלטה אחת בלבד: להקטין את הפוזיציות כששניים או יותר מצביעים "להקטין", ולחזור לגודל הרגיל לאחר 24 שעות מההקטנה ובדיקה תקינה ללא הצבעות להקטנה. התקרה חלה על גודל הרוטציה הבאה; היא לא סוגרת עסקאות קיימות. אין הגדלה מעבר להגדרות הפריסה.
+        {String(snap?.manifest?.enabled_sleeves ?? '').includes('SCALP') ? `בכל ישיבה (כל דקה) המנוע בוחן פתיחות דמו לפי ההצבעות, היתרה ומגבלות התיק. עד ${SCALP.maxPositions} פוזיציות ללא מינוף (1x) ועד 99% הקצאה. רק פעולות שנשמרו מופיעות כבוצעו.` : <>הצוות נפגש בתוך הבוט כל דקה. כל אחד בודק רק את התחום שלו בנתונים האמיתיים ומצביע. הצוות יכול לקבל לבד החלטה אחת בלבד: להקטין את הפוזיציות כששניים או יותר מצביעים "להקטין", ולחזור לגודל הרגיל לאחר 24 שעות מההקטנה ובדיקה תקינה ללא הצבעות להקטנה. התקרה חלה על גודל הרוטציה הבאה; היא לא סוגרת עסקאות קיימות. אין הגדלה מעבר להגדרות הפריסה.
         {cap ? ` כרגע: פוזיציות מוקטנות (יעד ${cap}).` : ' כרגע: גודל רגיל.'}</>}
       </p>
     </div>
@@ -565,7 +568,7 @@ function Cycle({ snap, now }: { snap: Snap | null; now: number }) {
   const late = last > 0 && now - next > 90_000
   const progress = last ? Math.min(100, Math.max(0, (now - last) / TEAM_INTERVAL_MS * 100)) : 0
   return <section className={`bh-cycle${late ? ' late' : ''}`} aria-label="מחזור הבדיקה">
-    <div><span className="bh-eyebrow">מחזור צוות / 05:00</span><h2>{!last ? 'ממתינים לבדיקה ראשונה' : late ? 'סבב הבדיקה מתעכב' : seconds ? 'הבדיקה הבאה בעוד' : 'ממתינים לתוצאת הסבב מהשרת'}</h2><p>{last ? `הבדיקה האחרונה ${ago(last, now)} · העמוד מתעדכן כל 15 שניות` : 'הנתונים יופיעו לאחר שהמנוע ישמור את תוצאות הבדיקה'}</p></div>
+    <div><span className="bh-eyebrow">מחזור צוות / {CYCLE_LABEL}</span><h2>{!last ? 'ממתינים לבדיקה ראשונה' : late ? 'סבב הבדיקה מתעכב' : seconds ? 'הבדיקה הבאה בעוד' : 'ממתינים לתוצאת הסבב מהשרת'}</h2><p>{last ? `הבדיקה האחרונה ${ago(last, now)} · העמוד מתעדכן כל 15 שניות` : 'הנתונים יופיעו לאחר שהמנוע ישמור את תוצאות הבדיקה'}</p></div>
     <strong dir="ltr">{last && seconds ? `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}` : '—'}</strong>
     <div className="bh-progress"><i style={{ width: `${progress}%` }} /></div>
   </section>
@@ -635,3 +638,17 @@ const CSS = `
 .bh-st.sleep { color:#8fa3bf; background:rgba(140,170,210,0.05); } .bh-st.alarm { color:#ff4d6a; background:rgba(255,77,106,0.12); }
 .bh-note { font-size:11.5px; color:#8fa3bf; line-height:1.6; margin:0; }
 `
+
+// v71.1: the evidence behind the last meeting, as the bot saved it (bot_params.scalp_candidates).
+function Intel({ snap, now }: { snap: Snap | null; now: number }) {
+  const c = ((snap?.state?.bot_params as Row | undefined)?.scalp_candidates ?? []) as { sym: string; side: number; score: number; signals?: Row | null }[]
+  if (!Array.isArray(c) || !c.length) return <p className="bh-mnote">אין עדיין נתוני אותות מהישיבה האחרונה.</p>
+  const d = (x: unknown) => (Number(x) > 0 ? '▲' : Number(x) < 0 ? '▼' : '·')
+  return <div className="bh-mins">{c.map((x) => {
+    const g = x.signals ?? {}
+    return <div key={x.sym} className="bh-min"><span><b>{x.sym}</b> EMA {d(g.trend)} מומנטום {d(g.momentum)} ספר {d(g.flow)} sweep {d(g.sweep)} חדשות {d(g.news)} ליקווידציות {d(g.liq)}
+      {g.news_title ? <><br/><small>“{String(g.news_title).slice(0, 80)}” · {String(g.news_source)} · {ago(Number(g.news_ts), now)} · {g.news_verified ? 'מאומת במחיר' : 'לא מאומת'}</small></> : null}
+      <br/><small>ליקווידציות OKX תקפות {String(g.liq_valid ?? 0)} · נפסלו {String(g.liq_rejected ?? 0)}</small></span>
+      <span className="bh-vote" style={{ color: x.side > 0 ? '#00d492' : x.side < 0 ? '#ffb454' : '#8fa3bf' }}>{x.side > 0 ? 'לונג' : x.side < 0 ? 'שורט' : 'אין כניסה'}</span></div>
+  })}</div>
+}

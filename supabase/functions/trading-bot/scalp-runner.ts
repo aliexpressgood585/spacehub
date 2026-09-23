@@ -1,6 +1,29 @@
-import {SCALP,assess,allocation,exitPlan,validQuote,type Quote,type Bar,type Vote} from '../../../shared/scalp.ts'
+import {SCALP,assess,allocation,exitPlan,validQuote,type Quote,type Bar,type Vote,type Intel,type NewsItem,type LiqEvent} from '../../../shared/scalp.ts'
 const UNIVERSE=['BTC','ETH','SOL','XRP','DOGE','ADA','LINK','AVAX']
 async function json(url:string) {const r=await fetch(url,{signal:AbortSignal.timeout(3500)});if(!r.ok)throw new Error(`market HTTP ${r.status}`);return r.json()}
+const NEWS_FEEDS=[['cointelegraph','https://cointelegraph.com/rss'],['coindesk','https://www.coindesk.com/arc/outboundfeeds/rss/']]
+const tag=(x:string,n:string)=>{const m=x.match(new RegExp(`<${n}[^>]*>([\\s\\S]*?)</${n}>`));return m?m[1].replace(/<!\[CDATA\[|\]\]>/g,'').trim():''}
+export function parseRss(xml:string,source:string):NewsItem[] {
+  return xml.split('<item>').slice(1).map(x=>({title:tag(x,'title'),url:tag(x,'link'),ts:Date.parse(tag(x,'pubDate')),source})).filter(n=>n.title&&Number.isFinite(n.ts))
+}
+async function text(url:string){const r=await fetch(url,{signal:AbortSignal.timeout(3500),redirect:'follow'});if(!r.ok)throw new Error(`news HTTP ${r.status}`);return r.text()}
+// Public context. Failures here never block trading; they are reported by the scout.
+async function intel(syms:string[]):Promise<{intel:Record<string,Intel>,news:NewsItem[],sources:string[],failed:string[]}> {
+  const failed:string[]=[],sources:string[]=[];let news:NewsItem[]=[]
+  await Promise.all(NEWS_FEEDS.map(async([src,url])=>{try{const n=parseRss(await text(url),src);news=news.concat(n);sources.push(`${src} (${n.length})`)}catch{failed.push(src)}}))
+  const out:Record<string,Intel>={}
+  await Promise.all(syms.map(async sym=>{
+    const liqs:LiqEvent[]=[]
+    try{
+      const d=await json(`https://www.okx.com/api/v5/public/liquidation-orders?instType=SWAP&instFamily=${sym}-USDT&state=filled&limit=100`)
+      if(d.code!=='0')throw new Error('okx liq')
+      for(const g of d.data??[])if(g.instId===`${sym}-USDT-SWAP`)for(const e of g.details??[])liqs.push({side:e.posSide==='long'||(!e.posSide&&e.side==='sell')?'long':'short',px:+e.bkPx,sz:+e.sz,ts:+e.ts,source:'okx-liquidations'})
+    }catch{failed.push(`liq:${sym}`)}
+    out[sym]={news,liqs}
+  }))
+  if(!failed.some(f=>f.startsWith('liq:')))sources.push('okx-liquidations')
+  return {intel:out,news,sources,failed}
+}
 async function market(sym:string, candles:boolean):Promise<{q:Quote,b:Bar[]}> {
   // Perpetual-contract sources only; never silently substitute spot prices.
   try {
@@ -26,7 +49,9 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
   const due=!params.scalp_started||!meetings?.length||Date.now()-Date.parse(meetings[0].ts)>=SCALP.meetingMs
   const symbols=[...new Set<string>([...open.map((t:any)=>String(t.sym)),...(due?UNIVERSE:[])])]
   const data=new Map<string,{q:Quote,b:Bar[]}>(); const failures:string[]=[]
+  const intelP=due?intel(UNIVERSE).catch(()=>({intel:{} as Record<string,Intel>,news:[] as NewsItem[],sources:[] as string[],failed:['intel']})):Promise.resolve(null)
   await Promise.all(symbols.map(async sym=>{try{const m=await market(sym,due&&UNIVERSE.includes(sym));if(!validQuote(m.q,Date.now()))throw new Error('stale quote');data.set(sym,m)}catch{failures.push(sym)}}))
+  const ctx=await intelP
   const now=Date.now(),closes:any[]=[],updates:any[]=[],entries:any[]=[],marks:Record<string,number>={}
   let cash=Number(state.balance),exposure=0,equity=cash
   const retained:any[]=[]
@@ -41,7 +66,7 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
     } else {retained.push(t);exposure+=notional;updates.push({id:t.id,stop:plan.stop})}
   }
   equity=cash+retained.reduce((s:number,t:any)=>s+Number(t.entry_price)*Number(t.size)+(marks[t.sym]?((t.side==='LONG'?1:-1)*(marks[t.sym]-Number(t.entry_price))*Number(t.size)):0),0)
-  const evaluated=due?UNIVERSE.filter(sym=>data.has(sym)).map(sym=>assess(sym,data.get(sym)!.b,data.get(sym)!.q,now)):[]
+  const evaluated=due?UNIVERSE.filter(sym=>data.has(sym)).map(sym=>assess(sym,data.get(sym)!.b,data.get(sym)!.q,now,ctx?.intel[sym])):[]
   const closedSyms=new Set(open.filter((t:any)=>closes.some(c=>c.id===t.id)).map((t:any)=>t.sym))
   const picks=evaluated.filter(x=>x.side&&!retained.some(t=>t.sym===x.sym)&&!closedSyms.has(x.sym)).sort((a,b)=>b.score-a.score)
   // Migration must finish before this account starts scalping. Never estimate missing marks into entries.
@@ -55,13 +80,21 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
   }
   const minutes:Vote[]=[];const say=(who:string,says:string,vote='hold')=>minutes.push({who,says,vote,checked_at:new Date(now).toISOString()})
   if(due){
-    say('scout',`בדקתי ${data.size} חוזים; ${failures.length} מקורות חסרים. ${[...new Set([...data.values()].map(m=>m.q.source))].join(', ')}`,failures.length?'veto':'ok')
-    const best=evaluated.find(x=>x.sym===entries[0]?.sym)||evaluated[0]
-    for(const who of ['regime','rota','donch','auditor'])say(who,best?.votes.find(v=>v.who===who)?.says||'אין מספיק נתונים להחלטה',best?.votes.find(v=>v.who===who)?.vote||'hold')
-    say('risk',`דמו 1x; עד 4 פוזיציות, עד 25% למטבע ועד 99% הקצאה אחרי עמלות. עצירת כניסות בהפסד יומי 5% או ירידה 15%.`,eligible?'ok':'veto')
-    say('trader',`מועמדות לביצוע: ${entries.map(e=>`${e.sym} ${e.side}`).join(', ')||'אין הסכמה מתאימה'}. סטופ נגרר וסגירת זמן ב-15 דקות.`)
-    say('treasurer',`מזומן צפוי אחרי הפעולות $${cash.toFixed(2)}. הביצוע ייבדק שוב באותה עסקת מסד נתונים.`)
-    say('reporter','הצבעות אלגוריתמיות מנתוני שוק; אסטרטגיית דמו ניסיונית ללא אימות היסטורי. סריקת יציאות כל 10 שניות; השהיות או נתונים חסרים עלולים לעכב סגירה.')
+    const long=evaluated.filter(x=>x.side>0).length,short=evaluated.filter(x=>x.side<0).length
+    const count=(who:string,v:string)=>evaluated.filter(x=>x.votes.find(y=>y.who===who)?.vote===v).length
+    const tally=(who:string)=>`לונג ${count(who,'long')} · שורט ${count(who,'short')} · ניטרלי ${count(who,'hold')}${count(who,'veto')?` · חסימה ${count(who,'veto')}`:''}`
+    const lead=(who:string,d:string)=>{const l=count(who,'long'),sh=count(who,'short');return l>sh?'long':sh>l?'short':d}
+    const best=evaluated.find(x=>x.sym===entries[0]?.sym)||[...evaluated].sort((a,c)=>c.score-a.score)[0]
+    const line=(who:string)=>best?.votes.find(v=>v.who===who)?.says||'אין מספיק נתונים'
+    say('scout',`בדקתי ${data.size}/${UNIVERSE.length} חוזים (${[...new Set([...data.values()].map(m=>m.q.source))].join(', ')||'אין'}); חדשות וליקווידציות: ${ctx?.sources.join(', ')||'לא זמין'}${ctx?.failed.length?` · נכשלו: ${ctx.failed.join(', ')}`:''}`,failures.length?'veto':'ok')
+    say('regime',`EMA8/21 על ${evaluated.length} מטבעות: ${tally('regime')}. ${line('regime')}`,lead('regime','hold'))
+    say('rota',`מומנטום 3 דקות: ${tally('rota')}. ${line('rota')}`,lead('rota','hold'))
+    say('donch',`אזורי liquidity sweep משוערים: ${tally('donch')}. ${line('donch')}`,lead('donch','hold'))
+    say('risk',`דמו 1x; עד ${SCALP.maxPositions} פוזיציות, עד ${SCALP.perCoin*100}% למטבע ועד ${SCALP.allocation*100}% הקצאה אחרי עמלות. עצירת כניסות בהפסד יומי 5% או ירידה 15%. ${line('risk')}`,eligible?'ok':'veto')
+    say('trader',`ספר פקודות: ${tally('trader')}. מועמדות לביצוע: ${entries.map(e=>`${e.sym} ${e.side}`).join(', ')||'אין הסכמה מתאימה'}. סטופ נגרר מדקה 1, סגירת זמן ב-15 דקות.`,entries.length?'ok':'hold')
+    say('treasurer',`מזומן צפוי אחרי הפעולות $${cash.toFixed(2)}; ${retained.length+entries.length}/${SCALP.maxPositions} פוזיציות. הביצוע נבדק שוב באותה עסקת מסד נתונים.`)
+    say('auditor',`עלות מול תנודתיות: ${count('auditor','ok')} עוברים, ${count('auditor','veto')} נחסמים. אסטרטגיה ניסיונית ללא אימות היסטורי; מחקרי העבר מצאו שסקאלפ מתחת לשעה לא עבר עלויות.`,count('auditor','ok')?'ok':'veto')
+    say('reporter',`סיכום: ${long} מועמדי לונג, ${short} מועמדי שורט, ${entries.length} כניסות נשלחו לביצוע. בדיקת צוות כל דקה, בדיקת יציאות כל 10 שניות.`)
   }
   const {data:result}=await db.rpc('scalp_commit_cycle',{p_lease:lease,p_closes:closes,p_updates:updates,p_entries:entries,p_minutes:due?minutes:null,p_marks:marks,p_feed:{source:'perpetuals',ok:data.size,fail:failures.length,failures},p_candidates:due?evaluated:null}).throwOnError()
   return result
