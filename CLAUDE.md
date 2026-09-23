@@ -81,6 +81,17 @@ has been run. Do not present the house upgrade as implementing that request.
 Existing equity snapshots occur every 15 minutes, so
 review freshness tolerance is 20 minutes, not 5.
 
+## v76.1 (2026-09-23) — combo team: 10 agents that require several oscillators to agree
+Owner: 10 more agents combining several oscillators in parallel, fully autonomous.
+`shared/swarm.ts` team 'combo' (lead שחר): RSI+MACD, RSI+Stoch+CCI, EMA+RSI+volume,
+BB+RSI reversal, MACD+OBV, trend+pullback, breakout+volume+ATR, VWAP+momentum+
+up-volume, 3 timeframes, 4-of-5 oscillator majority. Each votes only when all its
+parts agree (majority5: 4 of 5). They join the same shadow learning (weights,
+benching) — no new mechanism. 75 directional voters, 84 agents total. House: 6th
+room on the team floor (rooms narrowed to 76px, short tags).
+Honest line kept for the owner: more voters do not create an edge by themselves;
+the learning only chooses whom to listen to, and costs (~16bps round trip) remain.
+
 ## v76.0 (2026-09-23) — SCALP trades the whole portfolio
 Owner: "and trade the whole portfolio". Measured first: 17:13 UTC exposure was 99%
 (8 open, cash $57) but the 3h AVERAGE was 61% (avg 4.4 open) — every ticket was
