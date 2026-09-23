@@ -51,6 +51,29 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## v79.0 (2026-09-23) — trade BIGGER moves + never stop (owner: "I want it to keep trading and make money")
+Owner's argument (correct in principle): fees are fixed per trade, so they only
+dominate when the move is small. v78.0 proved every agent loses net at 5 minutes.
+- Learning scores every vote at 5/15/60/240 min NET of 16bps (`LEARN.horizonsMin`,
+  keys agent / agent@h). Each agent is judged on its BEST horizon (`bestHorizon`).
+- `teamWeights`: absolute weights while >=5 agents are net-positive; otherwise
+  RELATIVE mode (w = 1 + (t - median t)/2, clamp 0..2.5) — follows the least-bad,
+  weights never all zero, so the desk keeps trading and keeps collecting evidence.
+  HONEST: relative mode is trading WITHOUT proven edge; it was the owner's call.
+- Planned hold = weighted median best-horizon of the agents backing the trade,
+  1..240 min (SCALP.maxHoldMs 240m); stop = old stop x sqrt(hold/5), max 4%.
+- Ledger migration `20260923210000_scalp_long_hold.sql` (applied live BEFORE the
+  function deploy; compatible with old runner): hold caps 15->240, stop band
+  0.3-1% -> 0.3-4%. Tests assert both against SCALP constants.
+- Horizon stats start empty; 15m data after ~15 min, 240m after ~4h and 100 votes.
+DEPLOYED 2026-09-23 22:22 UTC: PR #43 (3b5956d1), function v43, manifest v79.0 paper
+true / live false, 0 errors. Horizon learning filled instantly from the 24h of stored
+snapshots (219 agent@h rows); still 0 net-positive agents -> RELATIVE mode, weighted
+scores non-zero again (FET -61% with 6 shorts at 22:26).
+NO ENTRY YET, and it is NOT the learning: the ledger's DAILY LOSS BREAKER is on
+(scalp_paused: equity $4,793 <= 95% of the day's opening $5,049.55). It resets on its
+own at 00:00 UTC (new day baseline). Left untouched on purpose — a safety breaker.
+
 ## v78.0 (2026-09-23) — shadow learning scores NET of costs (owner: "add your improvement")
 `scoreSnapshot` edge = dir x return(bps) - `LEARN.costBps` (16 = 2 x (fee 5 + slip 3),
 test asserts == SCALP round trip). A right call smaller than the round trip now

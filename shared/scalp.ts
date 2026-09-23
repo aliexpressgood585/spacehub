@@ -5,7 +5,7 @@
 // liquidation context that only counts when its source, time and price check out.
 import { AGENTS, NEW_AGENTS, type AgentCtx } from './agents.ts'
 import { SWARM, TEAMS, runSwarm, type Team } from './swarm.ts'
-export const SCALP = { minWeighted: 0.2, maxHoldMs: 15*60_000, minHoldMs: 60_000, meetingMs: 60_000, fee: 0.0005, slip: 0.0003, maxSpread: 0.001, maxPositions: 8, allocation: 0.99, perCoin: 0.5, newsMaxAgeMs: 60*60_000, liqMaxAgeMs: 10*60_000, liqMaxPxDev: 0.03 } as const
+export const SCALP = { minWeighted: 0.2, maxHoldMs: 240*60_000, minHoldMs: 60_000, meetingMs: 60_000, fee: 0.0005, slip: 0.0003, maxSpread: 0.001, maxPositions: 8, allocation: 0.99, perCoin: 0.5, newsMaxAgeMs: 60*60_000, liqMaxAgeMs: 10*60_000, liqMaxPxDev: 0.03 } as const
 export interface Bar { t:number; o:number; h:number; l:number; c:number; v:number }
 export interface Quote { bid:number; ask:number; ts:number; imbalance:number; source:string }
 export interface Vote { who:string; says:string; vote:string; checked_at:string }
@@ -124,7 +124,7 @@ export function exitPlan(t:any,q:Quote,now:number,view?:View) {
   const dir=t.side==='LONG'?1:-1, entry=Number(t.entry_price), stop=Number(t.trail_sl)
   const px=dir===1?q.bid:q.ask, meta=t.scalp_meta||{}, stopPct=Number(meta.stop_pct)||0.004
   const held=now-Date.parse(t.opened_at)
-  const planned=Math.max(1,Math.min(15,Number(meta.hold_min)||15))*60_000
+  const planned=Math.max(1,Math.min(SCALP.maxHoldMs/60_000,Number(meta.hold_min)||15))*60_000
   const timeout=held>=SCALP.maxHoldMs
   // The protective stop always fires; nothing else can close inside the first minute.
   const stopped=dir===1?px<=stop:px>=stop

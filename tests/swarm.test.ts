@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import {SCALP} from '../shared/scalp.ts'
-import {SWARM,SWARM_IDS,TEAMS,runSwarm,scoreSnapshot,decayStat,learnedWeight,tStat,LEARN,meanBps} from '../shared/swarm.ts'
+import {SWARM,SWARM_IDS,TEAMS,runSwarm,scoreSnapshot,decayStat,learnedWeight,tStat,LEARN,meanBps,teamWeights,bestHorizon,hKey} from '../shared/swarm.ts'
 import {NEW_AGENTS} from '../shared/agents.ts'
 const now=1_800_000_000_000
 const mk=(f:(i:number)=>number,v=(i:number)=>100)=>Array.from({length:65},(_,i)=>{const c=f(i),o=f(i-1);return {t:now-(65-i)*60000,o,h:Math.max(o,c)*1.0002,l:Math.min(o,c)*0.9998,c,v:v(i)}})
@@ -44,4 +44,15 @@ assert.equal(u.c_multi_tf,1); assert.equal(d.c_multi_tf,-1)
 assert.equal(LEARN.costBps,Math.round((SCALP.fee+SCALP.slip)*2*1e4),'learning cost = SCALP round trip')
 let tiny:any={}; for(let i=0;i<150;i++) tiny={...tiny,...scoreSnapshot(tiny,{BTC:{t:1}},{BTC:100},{BTC:100.05+(i%3)*0.01},now)}
 assert.ok(meanBps(tiny.t)<0&&learnedWeight(tiny.t)<1,'a 5bps right call does not pay 16bps and is not boosted')
+// v79.0: horizons + never-all-zero weights
+{const mk=(n:number,m:number)=>({agent:'x',n,s:m*n,s2:(m*m+100)*n,updated_at:new Date(now).toISOString()})
+ const S:any={a:mk(300,-20),'a@240':mk(300,8),b:mk(300,-20),c:mk(300,-25),d:mk(300,-30),e:mk(300,-22),f:mk(300,-40)}
+ assert.equal(bestHorizon(S,'a').h,240,'agent judged on its best horizon')
+ const tw=teamWeights(S,['a','b','c','d','e','f'])
+ assert.equal(tw.H.a,240); assert.equal(tw.mode,'relative','fewer than minActive profitable -> relative mode')
+ assert.ok(Object.values(tw.W).some(w=>w>0),'weights never all zero'); assert.ok(tw.W.a>tw.W.f,'relative mode follows the best')
+ const up:any={};for(const k of ['a','b','c','d','e','f'])up[k]=mk(300,10)
+ const ta=teamWeights(up,['a','b','c','d','e','f']);assert.equal(ta.mode,'absolute');assert.equal(ta.active,6)
+ assert.equal(hKey('a',5),'a');assert.equal(hKey('a',60),'a@60')
+ const sx=scoreSnapshot({},{BTC:{a:1}},{BTC:100},{BTC:101},now,16,'@60');assert.ok(sx['a@60']&&Math.abs(sx['a@60'].s-84)<1e-6,'100bps move minus 16 = 84 net')}
 console.log('Swarm: 60 agents in 6 teams, shadow learning, decay and benching passed')
