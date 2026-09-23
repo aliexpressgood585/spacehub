@@ -679,14 +679,30 @@ export default function CryptoTradingDashboard() {
   useEffect(()=>{
     const load=async()=>{
       for(const coin of COINS){
+        // Binance first; it is geo-blocked (451/CORS) in the owner's region, so
+        // fall back to OKX swap candles — the same ladder the bot uses (v61.0).
+        let bars:Bar[]|null=null
         try{
           const res=await fetch(`https://api.binance.com/api/v3/klines?symbol=${coin.sym}USDT&interval=5m&limit=300`)
-          if(!res.ok)continue
-          const data:number[][]=await res.json()
-          const bars:Bar[]=data.map(k=>({time:k[0] as number,open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
+          if(res.ok){
+            const data:number[][]=await res.json()
+            bars=data.map(k=>({time:k[0] as number,open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
+          }
+        }catch{}
+        if(!bars||!bars.length){
+          try{
+            const res=await fetch(`https://www.okx.com/api/v5/market/candles?instId=${coin.sym}-USDT-SWAP&bar=5m&limit=300`)
+            if(res.ok){
+              const j=await res.json()
+              const rows:string[][]=Array.isArray(j?.data)?j.data:[]
+              bars=rows.map(k=>({time:+k[0],open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]})).reverse()
+            }
+          }catch{}
+        }
+        if(bars&&bars.length){
           barsMap.current.set(coin.sym,bars.slice(0,-1))
           if(coin.sym===selRef.current)setTick(n=>n+1)
-        }catch{}
+        }
         await new Promise(r=>setTimeout(r,120))
       }
     }
