@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import {runScalp,parseRss} from '../supabase/functions/trading-bot/scalp-runner.ts'
+import {runScalp,parseRss,UNIVERSE,BINANCE_SYM} from '../supabase/functions/trading-bot/scalp-runner.ts'
 const old={id:123,sym:'NEAR',side:'LONG',strategy:'ROTA',lev:1,paper_mode:true,entry_price:100,size:1,trail_sl:1,opened_at:new Date(Date.now()-3600000).toISOString()}
 let request:any;const urls:string[]=[]
 const writes:string[]=[]
@@ -22,6 +22,8 @@ try{
  assert.ok(request.p_minutes.find((m:any)=>m.who==='risk').says.includes('עד 8 פוזיציות'))
  const rss=parseRss('<rss><item><title><![CDATA[Bitcoin jumps]]></title><link>https://x/y</link><pubDate>Wed, 23 Sep 2026 14:52:11 +0000</pubDate></item><item><title>no date</title></item></rss>','test')
  assert.equal(rss.length,1);assert.equal(rss[0].title,'Bitcoin jumps');assert.equal(rss[0].ts,Date.parse('2026-09-23T14:52:11Z'))
+assert.equal(UNIVERSE.length,40); assert.equal(BINANCE_SYM.PEPE.s,'1000PEPEUSDT')
+ assert.ok(urls.some(x=>x.includes('symbol=1000PEPEUSDT&')),'PEPE priced from the 1000-unit Binance contract')
  await assert.rejects(()=>runScalp(db,{balance:1000},'x',false),/paper-only/)
  console.log('Scalp runner: transition, symbol mapping, allocation and nine-role audit passed')
 }finally{globalThis.fetch=original}

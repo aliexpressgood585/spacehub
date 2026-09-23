@@ -71,4 +71,6 @@ import {readFileSync,readdirSync} from 'node:fs'
 const mig=readdirSync('supabase/migrations').filter(f=>readFileSync(`supabase/migrations/${f}`,'utf8').includes('scalp_commit_cycle')).sort().pop()!
 assert.ok(readFileSync(`supabase/migrations/${mig}`,'utf8').includes(`countopen>=${SCALP.maxPositions}`),`latest ledger migration ${mig} must cap at ${SCALP.maxPositions}`)
 assert.ok(readFileSync(`supabase/migrations/${mig}`,'utf8').includes(`eq*${SCALP.perCoin}`),`latest ledger migration ${mig} must cap each coin at ${SCALP.perCoin}`)
+import {CRYPTO_40} from '../shared/strategy.ts'
+for(const c of CRYPTO_40)assert.ok(readFileSync(`supabase/migrations/${mig}`,'utf8').includes(`'${c}'`),`ledger whitelist must include ${c}`)
 console.log(`DB ledger cap matches SCALP.maxPositions (${mig})`)

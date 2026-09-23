@@ -81,6 +81,23 @@ has been run. Do not present the house upgrade as implementing that request.
 Existing equity snapshots occur every 15 minutes, so
 review freshness tolerance is 20 minutes, not 5.
 
+## v77.0 (2026-09-23) — SCALP scans all 40 coins, priced from Binance USDT-M futures
+Owner: agents go over the 40 leading Binance futures coins, prices matching Binance.
+- Universe 8 -> `S.CRYPTO_40` (the pinned, validated list; standing rule 2).
+- Binance fapi first for depth + 1m klines (source 'binance-futures'), OKX swap
+  fallback per coin. PEPE trades on Binance as 1000PEPEUSDT: prices /1000, sizes
+  x1000 (`BINANCE_SYM`) so every price is per ONE coin, same unit as OKX.
+- Funding: one Binance `premiumIndex` call for all coins, OKX per-coin only if
+  missing. Liquidations stay OKX (Binance has no public liquidation REST).
+- Requests go through a small pool (10 market / 8 intel) instead of 80+ at once.
+- A single missing coin no longer freezes all entries: entries allowed while
+  <=20% of coins fail AND every held coin is priced.
+- Snapshots and `scalp_candidates` store only non-zero votes (40 coins x 75 voters).
+- Ledger whitelist -> the 40 names, migration `20260923200000_scalp_crypto40.sql`
+  (applied live); test asserts every CRYPTO_40 name is in the latest migration.
+- House: price tape for all 40 from Binance Futures (browser), OKX fallback with the
+  source counted on screen; agent cards show a 40-cell vote grid + counts.
+
 ## v76.2 (2026-09-23) — house: "קיר הסוכנים", one window per agent (dashboard only)
 Owner: every agent, old and new, laid out in order, each in its own window, not on
 top of each other. New `Wall` component in BotHouse.tsx: 89 cards (9 house + 4 desk +
