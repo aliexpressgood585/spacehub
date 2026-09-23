@@ -81,6 +81,21 @@ has been run. Do not present the house upgrade as implementing that request.
 Existing equity snapshots occur every 15 minutes, so
 review freshness tolerance is 20 minutes, not 5.
 
+## v76.0 (2026-09-23) — SCALP trades the whole portfolio
+Owner: "and trade the whole portfolio". Measured first: 17:13 UTC exposure was 99%
+(8 open, cash $57) but the 3h AVERAGE was 61% (avg 4.4 open) — every ticket was
+sized as if all 8 slots would fill (equity/8 = 12%), so 2-3 signals left most
+cash idle.
+- Sizing: free capital (up to 99% of equity) is now split among the entries of
+  THIS meeting, not among the free slots: 1 entry -> up to 50%, 2 -> ~49.5% each,
+  8 -> ~12.4% each.
+- Per-coin cap 25% -> 50% (`SCALP.perCoin`, compliance agent, house text) and in
+  the ledger via migration `20260923190000_scalp_whole_portfolio.sql` (applied
+  live; only `eq*0.25` -> `eq*0.5` changed). Test asserts migration == constant.
+- TRADE-OFF said to the owner: bigger single-coin exposure (one bad coin = up
+  to half the account), and early entries can use up the cash so a later, better
+  signal waits until something closes (the 1-15 min holds recycle cash quickly).
+
 ## v75.0 (2026-09-23) — the swarm: 50 more agents + autonomous shadow learning (73 total)
 Owner: "add 50 more agents and have them improve over time to the highest level,
 all autonomously".
