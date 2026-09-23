@@ -12,9 +12,10 @@ import { createClient } from '@supabase/supabase-js'
 import { SUPA_URL, SUPA_KEY } from '../supa'
 import { TEAM_INTERVAL_MS } from '../../../shared/team-meeting'
 import { SCALP } from '../../../shared/scalp'
+import { AGENTS, NEW_AGENTS } from '../../../shared/agents'
 const CYCLE_LABEL = `${String(Math.floor(TEAM_INTERVAL_MS / 60_000)).padStart(2, '0')}:${String((TEAM_INTERVAL_MS / 1000) % 60).padStart(2, '0')}`
 
-type Id = 'scout' | 'regime' | 'rota' | 'donch' | 'risk' | 'trader' | 'treasurer' | 'reporter' | 'auditor' | 'pm' | 'quant' | 'compliance' | 'execution'
+type Id = 'scout' | 'regime' | 'rota' | 'donch' | 'risk' | 'trader' | 'treasurer' | 'reporter' | 'auditor' | 'pm' | 'quant' | 'compliance' | 'execution' | 'rsi' | 'vwap' | 'breakout' | 'volume' | 'macd' | 'bollinger' | 'htf' | 'btclead' | 'candle' | 'funding'
 interface Minute { who: Id; says: string; vote: string; checked_at?: string; round?: number; to?: string; data?: Row }
 interface Row { [k: string]: unknown }
 interface Snap {
@@ -35,7 +36,7 @@ interface Snap {
 }
 interface Status { working: boolean; asleep?: boolean; alarm?: boolean; line: string; action?: string; at?: number; reviewed?: boolean }
 
-const SHORT: Record<string, string> = { rota: 'אסטרטגיה', donch: 'אימות', reporter: 'יומן', auditor: 'מבקר', pm: 'מנהל תיק', quant: 'כמותי', compliance: 'ציות', execution: 'ביצוע' }
+const SHORT: Record<string, string> = { rota: 'אסטרטגיה', donch: 'אימות', reporter: 'יומן', auditor: 'מבקר', pm: 'מנהל תיק', quant: 'כמותי', compliance: 'ציות', execution: 'ביצוע' , ...Object.fromEntries(NEW_AGENTS.map((k) => [k, AGENTS[k].role]))}
 const ROSTER: Record<Id, { name: string; role: string; color: string }> = {
   scout: { name: 'איתן', role: 'סורק נתונים', color: '#35e0ff' },
   regime: { name: 'נועה', role: 'חזאית השוק', color: '#c38bff' },
@@ -50,8 +51,18 @@ const ROSTER: Record<Id, { name: string; role: string; color: string }> = {
   quant: { name: 'גיל', role: 'אנליסט כמותי', color: '#a0a8ff' },
   compliance: { name: 'הדס', role: 'קצינת ציות', color: '#ff9fce' },
   execution: { name: 'אלון', role: 'דסק ביצוע', color: '#5ff0b0' },
+  rsi: { name: AGENTS.rsi.name, role: 'סוכן ' + AGENTS.rsi.role, color: '#ffd166' },
+  vwap: { name: AGENTS.vwap.name, role: 'סוכן ' + AGENTS.vwap.role, color: '#06d6a0' },
+  breakout: { name: AGENTS.breakout.name, role: 'סוכן ' + AGENTS.breakout.role, color: '#ef476f' },
+  volume: { name: AGENTS.volume.name, role: 'סוכן ' + AGENTS.volume.role, color: '#118ab2' },
+  macd: { name: AGENTS.macd.name, role: 'סוכן ' + AGENTS.macd.role, color: '#f78c6b' },
+  bollinger: { name: AGENTS.bollinger.name, role: 'סוכן ' + AGENTS.bollinger.role, color: '#c77dff' },
+  htf: { name: AGENTS.htf.name, role: 'סוכן ' + AGENTS.htf.role, color: '#80ed99' },
+  btclead: { name: AGENTS.btclead.name, role: 'סוכן ' + AGENTS.btclead.role, color: '#f4a261' },
+  candle: { name: AGENTS.candle.name, role: 'סוכן ' + AGENTS.candle.role, color: '#e9c46a' },
+  funding: { name: AGENTS.funding.name, role: 'סוכן ' + AGENTS.funding.role, color: '#4cc9f0' },
 }
-const W = 480, H = 560, R = 2
+const W = 480, H = 840, R = 2
 // rooms: attic (reporter, donch) · upper floor (rota, regime, scout) · ground floor (treasurer, trader, risk)
 const ROOM: Record<Id, { x0: number; y0: number; w: number; h: number; floor: number }> = {
   reporter: { x0: 100, y0: 48, w: 93, h: 62, floor: 108 },
@@ -68,6 +79,17 @@ const ROOM: Record<Id, { x0: number; y0: number; w: number; h: number; floor: nu
   compliance: { x0: 124, y0: 414, w: 115, h: 136, floor: 544 },
   quant: { x0: 240, y0: 414, w: 115, h: 136, floor: 544 },
   pm: { x0: 356, y0: 414, w: 116, h: 136, floor: 544 },
+  // v73.0 two more basement floors: the signal analysts
+  rsi: { x0: 8, y0: 556, w: 92, h: 134, floor: 686 },
+  vwap: { x0: 101, y0: 556, w: 92, h: 134, floor: 686 },
+  breakout: { x0: 194, y0: 556, w: 92, h: 134, floor: 686 },
+  volume: { x0: 287, y0: 556, w: 92, h: 134, floor: 686 },
+  macd: { x0: 380, y0: 556, w: 92, h: 134, floor: 686 },
+  bollinger: { x0: 8, y0: 696, w: 92, h: 134, floor: 826 },
+  htf: { x0: 101, y0: 696, w: 92, h: 134, floor: 826 },
+  btclead: { x0: 194, y0: 696, w: 92, h: 134, floor: 826 },
+  candle: { x0: 287, y0: 696, w: 92, h: 134, floor: 826 },
+  funding: { x0: 380, y0: 696, w: 92, h: 134, floor: 826 },
 }
 const IDS = Object.keys(ROSTER) as Id[]
 const LOOK: Record<Id, { skin: string; hair: string; shirt: string; pants: string; style: number; glasses: boolean }> = {
@@ -84,6 +106,16 @@ const LOOK: Record<Id, { skin: string; hair: string; shirt: string; pants: strin
   quant: { skin: '#dca577', hair: '#6b3b1d', shirt: '#5a64d8', pants: '#2c3550', style: 0, glasses: true },
   compliance: { skin: '#c98d5e', hair: '#b8472c', shirt: '#d65fa0', pants: '#23304a', style: 1, glasses: true },
   execution: { skin: '#7d4b2c', hair: '#161616', shirt: '#2fb37a', pants: '#2c3550', style: 3, glasses: false },
+  rsi: { skin: '#f3c9a2', hair: '#161616', shirt: '#ffd166', pants: '#23304a', style: 0, glasses: true },
+  vwap: { skin: '#dca577', hair: '#e0ad4a', shirt: '#06d6a0', pants: '#23304a', style: 1, glasses: false },
+  breakout: { skin: '#b07448', hair: '#6b3b1d', shirt: '#ef476f', pants: '#23304a', style: 2, glasses: false },
+  volume: { skin: '#7d4b2c', hair: '#2b1d12', shirt: '#118ab2', pants: '#23304a', style: 3, glasses: true },
+  macd: { skin: '#c98d5e', hair: '#b8472c', shirt: '#f78c6b', pants: '#23304a', style: 4, glasses: false },
+  bollinger: { skin: '#f3c9a2', hair: '#161616', shirt: '#c77dff', pants: '#23304a', style: 0, glasses: false },
+  htf: { skin: '#dca577', hair: '#e0ad4a', shirt: '#80ed99', pants: '#23304a', style: 1, glasses: true },
+  btclead: { skin: '#b07448', hair: '#6b3b1d', shirt: '#f4a261', pants: '#23304a', style: 2, glasses: false },
+  candle: { skin: '#7d4b2c', hair: '#2b1d12', shirt: '#e9c46a', pants: '#23304a', style: 3, glasses: false },
+  funding: { skin: '#c98d5e', hair: '#b8472c', shirt: '#4cc9f0', pants: '#23304a', style: 4, glasses: true },
 }
 
 const num = (v: unknown) => (v == null ? NaN : Number(v))
@@ -214,6 +246,7 @@ function derive(s: Snap | null, now: number): Record<Id, Status> {
   out.quant = { working: false, asleep: !scalpOn, line: 'מודד מי מהסוכנים צדק בעסקאות שנסגרו.' }
   out.compliance = { working: false, asleep: !scalpOn, line: `בודקת כל תוכנית: דמו 1x, עד ${SCALP.maxPositions} פוזיציות, עד 25% למטבע.` }
   out.execution = { working: false, asleep: !scalpOn, line: 'מודד מרווחים, זמני החזקה וסיבות יציאה.' }
+  for (const k of NEW_AGENTS as Id[]) out[k] = { working: false, asleep: !scalpOn, line: `סוכן ${AGENTS[k].role}: מצביע לונג/שורט על כל מטבע בכל ישיבה. המשקל שלו נקבע לפי הרקורד.` }
   const meeting = s.meetings[0]
   const meetingAt = ts(meeting?.ts)
   const minutes = (Array.isArray(meeting?.minutes) ? meeting.minutes : []) as Minute[]
@@ -333,13 +366,15 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
       if (P.path.length) return
       const pts: Person['path'] = []
       // two staircases: attic/upper↔ground at x=160, ground↔basement at x=124
+      const FLOORS = [108, 250, 396, 544, 686, 826]
       const route = (f0: number, f1: number) => {
-        const out: Person['path'] = [], down = f1 > f0
-        let f = f0
-        while (f !== f1) {
-          const nf = down ? (f < 396 ? Math.min(f1, 396) : 544) : (f > 396 ? 396 : f1)
-          const sx = Math.max(f, nf) > 396 ? 124 : 160
-          out.push({ x: sx, y: f }, { x: sx, y: nf }); f = nf
+        const out: Person['path'] = []
+        let i = FLOORS.indexOf(f0); const j = FLOORS.indexOf(f1)
+        if (i < 0 || j < 0) return out
+        while (i !== j) {
+          const ni = i + Math.sign(j - i), a = FLOORS[i], b = FLOORS[ni], lo = Math.max(a, b)
+          const sx = lo <= 250 ? 160 : lo <= 396 ? 160 : lo <= 544 ? 124 : 100
+          out.push({ x: sx, y: a }, { x: sx, y: b }); i = ni
         }
         return out
       }
@@ -390,11 +425,11 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
       // antenna on the roof blinks on each real scan
       px(420, 58, 2, 30, '#8a8f98'); px(414, 56, 14, 2, '#8a8f98')
       if (st.scout?.working && !reduced && Math.floor(t * 4) % 2) px(419, 52, 4, 4, '#35e0ff')
-      px(0, 112, W, 292, '#2a2118'); px(0, 410, W, 144, '#1a130d')
+      px(0, 112, W, 292, '#2a2118'); px(0, 410, W, H - 414, '#1a130d')
       for (const id of IDS) {
         const r = ROOM[id], a = st[id]
         const lit = !dead && !a?.asleep
-        const wall = { auditor: '#24382a', reporter: '#3a3222', donch: '#2f2a44', rota: '#1f3a2c', regime: '#2f2a44', scout: '#26324a', treasurer: '#3a2630', trader: '#1f3440', risk: '#3a2222', pm: '#20242f', quant: '#232648', compliance: '#3a2436', execution: '#163a30' }[id]
+        const wall = ({ auditor: '#24382a', reporter: '#3a3222', donch: '#2f2a44', rota: '#1f3a2c', regime: '#2f2a44', scout: '#26324a', treasurer: '#3a2630', trader: '#1f3440', risk: '#3a2222', pm: '#20242f', quant: '#232648', compliance: '#3a2436', execution: '#163a30' } as Record<string, string>)[id] ?? '#1c2538'
         px(r.x0, r.y0, r.w, r.h, lit ? wall : '#141821')
         px(r.x0, r.floor, r.w, 6, '#5a3d27'); for (let x = r.x0; x < r.x0 + r.w; x += 14) px(x, r.floor, 1, 6, 'rgba(0,0,0,0.3)')
         // desk + chair
@@ -460,7 +495,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
         if (id === 'quant') {
           px(r.x0 + 8, r.y0 + 12, 70, 44, '#eef1f5'); px(r.x0 + 6, r.y0 + 10, 74, 3, '#8a8f98')
           const hit = ((mins.find((m) => m.who === 'quant')?.data as Row | undefined)?.hit ?? {}) as Record<string, number | null>
-          ;['regime', 'rota', 'donch', 'trader', 'risk'].forEach((k, i) => { const v = hit[k]; const h = v == null ? 2 : Math.max(2, Math.round((v / 100) * 34)); px(r.x0 + 14 + i * 12, r.y0 + 52 - h, 8, h, v == null ? '#c9d1de' : v >= 50 ? '#148a50' : '#c23a3a') })
+          ;['regime', 'rota', 'donch', 'trader', 'risk', ...NEW_AGENTS].forEach((k, i) => { const v = hit[k]; const h = v == null ? 2 : Math.max(2, Math.round((v / 100) * 34)); px(r.x0 + 11 + i * 4.3, r.y0 + 52 - h, 3, h, v == null ? '#c9d1de' : v >= 50 ? '#148a50' : '#c23a3a') })
           px(r.x0 + 12, r.y0 + 35, 62, 1, '#8a8f98')
         }
         if (id === 'compliance') {
@@ -474,12 +509,24 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
           recent.forEach((tr, i) => { const good = tr.status === 'OPEN' ? tr.side === 'LONG' : num(tr.pnl) > 0; px(r.x0 + 13 + (i % 6) * 13, r.y0 + 18 + Math.floor(i / 6) * 10, 9, 3, good ? '#00d492' : '#ff4d6a') })
           if (a?.working && !reduced && k % 2) px(r.x0 + 10, r.y0 + 42, 80, 2, '#5ff0b0')
         }
+        if ((NEW_AGENTS as string[]).includes(id)) {
+          const mv = mins.find((m) => m.who === id)
+          const col = mv?.vote === 'long' ? '#00d492' : mv?.vote === 'short' ? '#ff4d6a' : '#56607a'
+          px(r.x0 + 10, r.y0 + 14, 44, 30, '#0b0f18'); px(r.x0 + 11, r.y0 + 15, 42, 28, '#0f1a2a')
+          const cx = r.x0 + 32, cy = r.y0 + 29
+          if (mv?.vote === 'long') for (let i = 0; i < 6; i++) px(cx - i, cy - 6 + i, 1 + i * 2, 1, col)
+          else if (mv?.vote === 'short') for (let i = 0; i < 6; i++) px(cx - i, cy + 6 - i, 1 + i * 2, 1, col)
+          else px(cx - 6, cy, 12, 2, col)
+          const wt = num(((mins.find((m) => m.who === 'quant')?.data as Row | undefined)?.weights as Row | undefined)?.[id])
+          px(r.x0 + 58, r.y0 + 14, 5, 30, '#1b2230'); const wh = Math.round(30 * Math.min(1, (Number.isFinite(wt) ? wt : 1) / 2)); px(r.x0 + 58, r.y0 + 44 - wh, 5, wh, '#f0b44c')
+        }
         // room lamp: green = acted just now, grey = waiting, red = alarm
         px(r.x0 + r.w - 10, r.y0 + 4, 5, 5, a?.alarm ? '#ff4d6a' : a?.working ? '#00d492' : '#56607a')
       }
       // stairs between the floors (drawn inside the upper-left wall)
       for (let i = 0; i < 9; i++) px(150 + i * 1.5, 256 + i * 15.5, 12, 3, '#6b4a2c')
       for (let i = 0; i < 9; i++) px(118 + i * 1.5, 404 + i * 15.5, 10, 3, '#6b4a2c')
+      for (let f = 0; f < 2; f++) for (let i = 0; i < 9; i++) px(96 + i * 1.2, 548 + f * 140 + i * 15, 8, 3, '#6b4a2c')
       if (dead) { ctx.fillStyle = 'rgba(4,7,14,0.35)'; ctx.fillRect(0, 112, W, H - 112) }
     }
     const drawPerson = (p: Person, t: number) => {
@@ -554,7 +601,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
         <div>
           <span className="bh-eyebrow">NEXUS / AUTONOMOUS OPERATIONS</span>
           <h1>בית הבוט <small>חדר הבקרה</small></h1>
-          <p>13 סוכנים כמו בקרן גידור: 9 אנליסטים מצביעים, דסק של 4 (מנהלת תיק, כמותי, ציות, ביצוע) מתווכח ומכריע. ישיבה וכניסות כל דקה, בדיקת יציאות כל 10 שניות — הכל מתוך מנוע הבוט, גם כשהעמוד סגור.</p>
+          <p>23 סוכנים כמו בקרן גידור: 15 אנליסטים מצביעים לונג/שורט ומשקל כל אחד נקבע לפי הרקורד שלו, דסק של 4 (מנהלת תיק, כמותי, ציות, ביצוע) מתווכח ומכריע. ישיבה וכניסות כל דקה, בדיקת יציאות כל 10 שניות — הכל מתוך מנוע הבוט, גם כשהעמוד סגור.</p>
         </div>
         <div className="bh-chips">
           <span className={`bh-chip ${live ? 'ok' : 'bad'}`}><i />{live ? `הבוט רץ · דופק ${ago(ts(snap?.state?.updated_at), now)}` : snap ? 'אין דופק מהבוט' : 'מתחבר…'}</span>
@@ -628,7 +675,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
 // the bot's own tables, and the only action the team can take is a de-risk cap.
 interface Tick { px: number; chg: number; dir: number; t: number }
 const UNIVERSE = ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'ADA', 'LINK', 'AVAX']
-const STEP_MS = 1100
+const STEP_MS = 700
 const ROUND: Record<number, string> = { 1: 'סבב 1 · כל סוכן מצביע מהתחום שלו', 2: 'סבב 2 · התנגדויות ורקורד מול מנהלת התיק', 3: 'סבב 3 · החלטה' }
 const fmtPx = (v: number) => (!Number.isFinite(v) ? '—' : v >= 1000 ? v.toLocaleString('en-US', { maximumFractionDigits: 1 }) : v >= 1 ? v.toFixed(3) : v.toFixed(5))
 const pct = (v: number, d = 2) => (Number.isFinite(v) ? `${v >= 0 ? '+' : ''}${(v * 100).toFixed(d)}%` : '—')
@@ -850,8 +897,9 @@ const CSS = `
 .bh-mx { width:100%; border-collapse:separate; border-spacing:3px; font-size:12px; text-align:center; }
 .bh-mx th { color:#8fa3bf; font-weight:600; font-size:10.5px; padding:3px; white-space:nowrap; } .bh-mx tbody th { color:#fff; font-size:12.5px; text-align:right; }
 .bh-mx td { background:#0f1929; border-radius:5px; padding:5px 3px; color:#56607a; } .bh-mx td.up { background:rgba(0,212,146,.16); color:#00d492; } .bh-mx td.dn { background:rgba(255,77,106,.16); color:#ff4d6a; }
-.bh-mx td.n { color:#9cb1c9; font-size:10.5px; }
-@media(max-width:520px){ .bh-mx .n, .bh-mx .nh { display:none } .bh-mx { border-spacing:2px; font-size:11px } .bh-mx th { font-size:9.5px } }
+.bh-mx td.n { color:#9cb1c9; font-size:10.5px; } .bh-mx td.sc { color:#f0b44c; font-weight:800; }
+.bh-mx thead th:first-child, .bh-mx tbody th { position:sticky; right:0; background:#0a111d; z-index:1; }
+@media(max-width:520px){ .bh-mx .nh, .bh-mx td.n:not(.sc) { display:none } .bh-mx { border-spacing:2px; font-size:11px } .bh-mx th { font-size:9.5px } }
 .bh-chipd { font-size:10.5px; font-weight:800; border-radius:12px; padding:2px 7px; border:1px solid #56607a; color:#8fa3bf; white-space:nowrap; } .bh-chipd.l { color:#00d492; border-color:#00d492; } .bh-chipd.s { color:#ffb454; border-color:#ffb454; }
 @media (prefers-reduced-motion: reduce) { .bh-tape-in, .bh-in, .bh-fill, .bh-say.live { animation:none; } }
 `
@@ -860,13 +908,13 @@ const CSS = `
 function Intel({ snap, now }: { snap: Snap | null; now: number }) {
   const c = ((snap?.state?.bot_params as Row | undefined)?.scalp_candidates ?? []) as { sym: string; side: number; score: number; signals?: Row | null }[]
   if (!Array.isArray(c) || !c.length) return <p className="bh-mnote">אין עדיין נתוני אותות מהישיבה האחרונה.</p>
-  const cols: [string, string][] = [['trend', 'EMA'], ['momentum', 'מומנטום'], ['flow', 'ספר'], ['sweep', 'sweep'], ['news', 'חדשות'], ['liq', 'ליקווד׳']]
+  const cols: [string, string][] = [['trend', 'EMA'], ['momentum', 'מומנטום'], ['flow', 'ספר'], ['sweep', 'sweep'], ['news', 'חדשות'], ['liq', 'ליקווד׳'], ...NEW_AGENTS.map((k) => [k, AGENTS[k].role] as [string, string])]
   const cell = (x: unknown) => { const v = Number(x); return <td className={v > 0 ? 'up' : v < 0 ? 'dn' : ''}>{v > 0 ? '▲' : v < 0 ? '▼' : '·'}</td> }
   const news = c.filter((x) => x.signals?.news_title)
   return <>
     <div className="bh-mx-wrap"><table className="bh-mx">
-      <thead><tr><th>מטבע</th>{cols.map(([, h]) => <th key={h}>{h}</th>)}<th className="nh">מרווח</th><th>החלטה</th></tr></thead>
-      <tbody>{c.map((x) => { const g = x.signals ?? {}; return <tr key={x.sym}><th>{x.sym}</th>{cols.map(([k]) => <Fragment key={k}>{cell(g[k])}</Fragment>)}<td className="n" dir="ltr">{Number.isFinite(num(g.spread_bps)) ? `${num(g.spread_bps).toFixed(1)}bp` : '—'}</td><td><span className={`bh-chipd ${x.side > 0 ? 'l' : x.side < 0 ? 's' : ''}`}>{x.side > 0 ? 'לונג' : x.side < 0 ? 'שורט' : 'אין כניסה'}</span></td></tr> })}</tbody>
+      <thead><tr><th>מטבע</th>{cols.map(([, h]) => <th key={h}>{h}</th>)}<th>ציון</th><th className="nh">מרווח</th><th>החלטה</th></tr></thead>
+      <tbody>{c.map((x) => { const g = x.signals ?? {}; return <tr key={x.sym}><th>{x.sym}</th>{cols.map(([k]) => <Fragment key={k}>{cell(g[k])}</Fragment>)}<td className="n sc" dir="ltr">{Number.isFinite(num(g.weighted)) ? `${(num(g.weighted) * 100).toFixed(0)}%` : '—'}</td><td className="n" dir="ltr">{Number.isFinite(num(g.spread_bps)) ? `${num(g.spread_bps).toFixed(1)}bp` : '—'}</td><td><span className={`bh-chipd ${x.side > 0 ? 'l' : x.side < 0 ? 's' : ''}`}>{x.side > 0 ? 'לונג' : x.side < 0 ? 'שורט' : 'אין כניסה'}</span></td></tr> })}</tbody>
     </table></div>
     <p className="bh-mnote">ליקווידציות OKX שנבדקו: {c.map((x) => `${x.sym} ${String(x.signals?.liq_valid ?? 0)} תקפות/${String(x.signals?.liq_rejected ?? 0)} נפסלו`).join(' · ')}</p>
     {news.map((x) => <p key={x.sym} className="bh-mnote">📰 {x.sym}: “{String(x.signals?.news_title).slice(0, 90)}” · {String(x.signals?.news_source)} · {ago(Number(x.signals?.news_ts), now)} · {x.signals?.news_verified ? 'מאומת במחיר' : 'לא מאומת — לא נספר'}</p>)}

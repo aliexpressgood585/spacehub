@@ -3,14 +3,15 @@
 // team check + entries every minute, 1-15 min holds, trailing stop, EMA/momentum/
 // order-book imbalance/estimated liquidity-sweep zones, plus public news and
 // liquidation context that only counts when its source, time and price check out.
-export const SCALP = { maxHoldMs: 15*60_000, minHoldMs: 60_000, meetingMs: 60_000, fee: 0.0005, slip: 0.0003, maxSpread: 0.001, maxPositions: 8, allocation: 0.99, perCoin: 0.25, newsMaxAgeMs: 60*60_000, liqMaxAgeMs: 10*60_000, liqMaxPxDev: 0.03 } as const
+import { AGENTS, NEW_AGENTS, type AgentCtx } from './agents.ts'
+export const SCALP = { minWeighted: 0.2, maxHoldMs: 15*60_000, minHoldMs: 60_000, meetingMs: 60_000, fee: 0.0005, slip: 0.0003, maxSpread: 0.001, maxPositions: 8, allocation: 0.99, perCoin: 0.25, newsMaxAgeMs: 60*60_000, liqMaxAgeMs: 10*60_000, liqMaxPxDev: 0.03 } as const
 export interface Bar { t:number; o:number; h:number; l:number; c:number; v:number }
 export interface Quote { bid:number; ask:number; ts:number; imbalance:number; source:string }
 export interface Vote { who:string; says:string; vote:string; checked_at:string }
 // Public context, each item carrying where it came from and when.
 export interface NewsItem { title:string; source:string; url:string; ts:number }
 export interface LiqEvent { side:'long'|'short'; px:number; sz:number; ts:number; source:string }
-export interface Intel { news:NewsItem[]; liqs:LiqEvent[] }
+export interface Intel { news:NewsItem[]; liqs:LiqEvent[]; btc?:Bar[]; funding?:number|null; weights?:Record<string,number> }
 export function validQuote(q: Quote, now:number): boolean {
   return [q.bid,q.ask,q.ts,q.imbalance].every(Number.isFinite) && q.bid>0 && q.ask>=q.bid && now-q.ts>=-5000 && now-q.ts<20_000
 }
@@ -70,10 +71,19 @@ export function assess(sym:string,b:Bar[],q:Quote,now:number,intel:Intel={news:[
   const sweep=liquiditySweep(b)
   const nw=newsCheck(sym,b,intel.news,now)
   const lq=liqCheck(intel.liqs,mid,now)
-  const direction=trend+momentum+flow+sweep.dir+nw.dir+lq.dir
-  // Needs a net 2-vote majority and must not fight the EMA trend.
-  const raw=Math.abs(direction)>=2?Math.sign(direction):0
+  const ctx:AgentCtx={btc:intel.btc,funding:intel.funding}
+  const extra=Object.fromEntries(NEW_AGENTS.map(k=>{try{return [k,AGENTS[k].run(b,ctx)]}catch{return [k,{dir:0,says:'שגיאת חישוב'}]}}))
+  // v73.0: 15 directional agents, each weighted by its live record (weights.ts rules).
+  const dirs:Record<string,number>={regime:trend,rota:momentum,donch:sweep.dir,trader:flow,risk:Math.sign(nw.dir+lq.dir),...Object.fromEntries(NEW_AGENTS.map(k=>[k,Math.sign(extra[k].dir)]))}
+  const w=(k:string)=>intel.weights?.[k]??1
+  let S=0,Wt=0,pro=0,con=0
+  for(const [k,d] of Object.entries(dirs)){S+=w(k)*d;Wt+=w(k)}
+  const raw0=Math.sign(S)
+  for(const d of Object.values(dirs)){if(d===raw0)pro++;else if(d===-raw0)con++}
+  // Needs weighted net >= 20% of all weight, a head-count lead of 2, and must not fight the EMA trend.
+  const raw=raw0&&Math.abs(S)/Wt>=SCALP.minWeighted&&pro-con>=2?raw0:0
   const side=raw&&trend!==-raw?raw:0
+  const direction=S
   const spread=(q.ask-q.bid)/mid, cost=2*(SCALP.fee+SCALP.slip)+spread
   const liquid=spread<=SCALP.maxSpread; const rangeOk=atr*2.5>cost*1.3
   const vs=(d:number)=>d>0?'long':d<0?'short':'hold'
@@ -82,9 +92,10 @@ export function assess(sym:string,b:Bar[],q:Quote,now:number,intel:Intel={news:[
   say('donch',`${sym}: אזור נזילות משוער ${sweep.zoneLo.toPrecision(6)}–${sweep.zoneHi.toPrecision(6)}; ${sweep.dir>0?'סחיפת תחתית וחזרה':sweep.dir<0?'סחיפת שיא ודחייה':'אין סחיפה'}`,vs(sweep.dir))
   say('trader',`${sym}: חוסר איזון בספר ${(q.imbalance*100).toFixed(0)}%, מרווח ${(spread*100).toFixed(3)}%`,liquid?vs(flow):'veto')
   say('risk',`${sym}: ${nw.item?`חדשות: "${nw.item.title.slice(0,70)}" (${nw.item.source}, ${new Date(nw.item.ts).toISOString().slice(11,16)}Z) · תנועת מחיר מאז ${(nw.move*100).toFixed(2)}% ${nw.verified?'מאומת':'לא מאומת — לא נספר'}`:'אין חדשות טריות'} · ליקווידציות תקפות ${lq.valid} (נפסלו ${lq.rejected})`,vs(nw.dir+lq.dir))
+  for(const k of NEW_AGENTS)say(k,`${sym}: ${extra[k].says}`,vs(extra[k].dir))
   say('auditor',`${sym}: טווח תנודתיות ${(atr*250).toFixed(2)}%, אומדן עלות הלוך־חזור ${(cost*100).toFixed(2)}%; זה אינו אומדן רווח`,rangeOk?'ok':'veto')
-  return {sym,side:liquid&&rangeOk?side:0,stopPct:Math.min(0.01,Math.max(0.003,atr*1.5)),votes,score:Math.abs(direction),
-    signals:{trend,momentum,flow,sweep:sweep.dir,news:nw.dir,liq:lq.dir,news_title:nw.item?.title??null,news_source:nw.item?.source??null,news_ts:nw.item?.ts??null,news_verified:nw.verified,spread_bps:spread*1e4,liq_valid:lq.valid,liq_rejected:lq.rejected}}
+  return {sym,side:liquid&&rangeOk?side:0,stopPct:Math.min(0.01,Math.max(0.003,atr*1.5)),votes,score:Math.abs(direction),weighted:Wt?S/Wt:0,pro,con,
+    signals:{trend,momentum,flow,sweep:sweep.dir,news:nw.dir,liq:lq.dir,news_title:nw.item?.title??null,news_source:nw.item?.source??null,news_ts:nw.item?.ts??null,news_verified:nw.verified,spread_bps:spread*1e4,liq_valid:lq.valid,liq_rejected:lq.rejected,...Object.fromEntries(NEW_AGENTS.map(k=>[k,Math.sign(extra[k].dir)])),weighted:Wt?S/Wt:0}}
 }
 export function exitPlan(t:any,q:Quote,now:number) {
   const dir=t.side==='LONG'?1:-1, entry=Number(t.entry_price), stop=Number(t.trail_sl)

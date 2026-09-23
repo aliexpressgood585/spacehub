@@ -16,7 +16,8 @@ assert.ok(compliance([],[{sym:'ETH',notional:300}],1000,300).some(x=>x.includes(
 assert.ok(compliance(Array.from({length:8},(_,i)=>({...ok,sym:'S'+i})),[{sym:'ETH',notional:10}],1000,100).some(x=>x.includes('8')))
 assert.ok(compliance([],[],1000,995).some(x=>x.includes('99%')))
 const best={sym:'BTC',side:1,score:3,votes:[v('regime','long'),v('rota','long'),v('trader','short'),v('donch','hold'),v('auditor','ok')]}
-const d=debate(best,a,true,[],0)
+const a9=attribution([...closed,...closed,...closed])
+const d=debate(best,a9,true,[],0)
 assert.equal(d.filter(m=>m.round===2&&m.who==='trader').length,1)
 assert.ok(d.find(m=>m.who==='quant')!.says.includes('67%'))
 assert.equal(d[d.length-1].who,'pm');assert.equal(d[d.length-1].vote,'long')
