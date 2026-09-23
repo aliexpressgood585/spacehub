@@ -51,6 +51,16 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## v77.2 (2026-09-23) — "אין מחיר חי" removed: prices always available in the house
+Owner saw "no live price" on position cards. Cause: the browser pulled Binance fapi
+with NO timeout (geo-blocked/hanging for the owner) and only then OKX, and every
+pull REPLACED the tick map, so a failed pull blanked every price.
+Fix: Binance + OKX in parallel, 3.5s timeout each; third source = the bot's own
+server-side Binance Futures mid (`scalp_candidates[].mid/ts`, added in scalp-runner,
+written every meeting); ticks MERGE (a coin keeps its last price, source + age shown)
+and persist in localStorage; before first data the card says "טוען מחיר…".
+Dashboard: OKX fallback now starts immediately (was 4s), same wording. Display only.
+
 ## v70.1 (2026-09-23) — five-minute operational reviews + house control room
 Owner requested an autonomous review every five minutes, visible in the house.
 Server cadence now 5m under the existing runner lease; no new trading signals,

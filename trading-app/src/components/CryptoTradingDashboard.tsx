@@ -309,7 +309,7 @@ function LivePosition({t,live,fmtP,onClose}:{t:Trade;live?:{cur:number;pnl:numbe
       {/* pct + progress */}
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:'6px'}}>
         <span style={{fontSize:'9px',color:col,fontWeight:700}}>
-          {stale?'אין הזנת מחיר':`${pct>=0?'+':''}${pct.toFixed(3)}%`}
+          {stale?'טוען מחיר…':`${pct>=0?'+':''}${pct.toFixed(3)}%`}
         </span>
         <div style={{flex:1,height:'3px',background:C.dim,borderRadius:'2px',overflow:'hidden'}}>
           <div style={{
@@ -785,7 +785,7 @@ export default function CryptoTradingDashboard() {
       if(!dead)timer=setTimeout(poll,12000)
     }
     // Give the socket a few seconds to prove itself before adding traffic.
-    timer=setTimeout(poll,4000)
+    timer=setTimeout(poll,0)
     return ()=>{dead=true;if(timer)clearTimeout(timer)}
   },[])
 
