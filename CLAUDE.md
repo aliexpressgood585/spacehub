@@ -91,6 +91,9 @@ benching) — no new mechanism. 75 directional voters, 84 agents total. House: 6
 room on the team floor (rooms narrowed to 76px, short tags).
 Honest line kept for the owner: more voters do not create an edge by themselves;
 the learning only chooses whom to listen to, and costs (~16bps round trip) remain.
+DEPLOYED 2026-09-23 17:36 UTC: PR #37 (0ecd268b), function v37, manifest v76.1 paper
+true / live false, 0 errors, 29 roles per meeting, comboDesk speaking; 17:38: 64
+agents with stats, 27 past minN=100 (learned weights now active).
 
 ## v76.0 (2026-09-23) — SCALP trades the whole portfolio
 Owner: "and trade the whole portfolio". Measured first: 17:13 UTC exposure was 99%
