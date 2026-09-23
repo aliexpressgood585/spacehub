@@ -100,6 +100,8 @@ Owner: agents go over the 40 leading Binance futures coins, prices matching Bina
 DEPLOYED 2026-09-23 17:50 UTC: PR #39 (08989c6e), function v38, v77.0 paper, 0 errors;
 scout: 40/40 contracts from binance-futures, binance-funding OK. OKX liquidations
 failed for 11 of 40 (burst rate limit) -> v77.1: liq pool 8->4 + one retry.
+v77.1 DEPLOYED 17:54 UTC (PR #40, 46ee4f74, function v39): 17:55 meeting 40/40 from
+binance-futures, liquidation failures 11 -> 1 (RUNE), 0 errors.
 
 ## v76.2 (2026-09-23) — house: "קיר הסוכנים", one window per agent (dashboard only)
 Owner: every agent, old and new, laid out in order, each in its own window, not on
