@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, type CSSProperties } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
-const SUPA_URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || 'https://adxgadwghgkwmntsnrar.supabase.co'
-const SUPA_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFkeGdhZHdnaGdrd21udHNucmFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk2NzY3OTksImV4cCI6MjEwNTI1Mjc5OX0.08xmuV7Wf49I8rp_RffeiIQVqWNilE7QRfNxpmrU_j4'
+import { SUPA_URL, SUPA_KEY } from '../supa'
 
 type RiskType = 'low'|'medium'|'high'
 const normalizeRisk = (r: string): RiskType =>
@@ -1087,6 +1086,9 @@ export default function CryptoTradingDashboard() {
               boxShadow:`0 0 8px ${C.blue}30`,background:`${C.blue}10`}}
               title={release?`commit ${release.sha}`:'הגרסה החיה טרם נקראה'}>
               {release?`${release.bot_version} · ${release.sha.slice(0,7)}`:'…'}</span>
+            <a href="#house" className="nx-btn" title="בית הבוט — מה כל חלק בבוט עושה עכשיו, מנתונים אמיתיים" style={{
+              fontSize:'10px',fontWeight:800,color:C.bright,padding:'3px 10px',borderRadius:'20px',textDecoration:'none',
+              border:`1px solid ${C.yellow}55`,background:`${C.yellow}14`}}>🏠 בית הבוט</a>
           </div>
 
           <div style={{display:'flex',gap:'5px',flexWrap:'wrap' as const}}>
