@@ -51,6 +51,17 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## 2026-09-23 22:30 UTC — ACCOUNT RESET to $5,000 on v79.0 (owner: "reset, start over, no patience to wait")
+History exported FIRST to `migration/export-v79era/` (190 trades, 494 equity rows,
+realised -$201.49 for the v71-v79 SCALP era) and committed. Then bot_trade_snapshots,
+bot_trades, bot_equity cleared; balance 5000, peak 5000, hard_halt null, scalp_peak/
+day/paused keys removed (daily breaker re-baselines). agent_stats (the learning,
+incl. 5/15/60/240 horizons) deliberately KEPT — it is the autonomy's memory.
+Verified 22:32: 0 errors, not paused, 8 positions opened at once, ALL SHORT (AAVE RUNE
+LTC XRP SEI LDO SUI ICP), ~$619 each, planned hold 60 min, stop 1.04%, cash $49.67.
+NB one-directional book = one market bet; a sharp bounce hits all 8 together.
+Relative mode (no agent proven net-positive yet). Paper 1x unchanged.
+
 ## v79.0 (2026-09-23) — trade BIGGER moves + never stop (owner: "I want it to keep trading and make money")
 Owner's argument (correct in principle): fees are fixed per trade, so they only
 dominate when the move is small. v78.0 proved every agent loses net at 5 minutes.
