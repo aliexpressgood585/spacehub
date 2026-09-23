@@ -670,6 +670,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
         </div>
       </div>
 
+      <Wall snap={snap} status={status} />
       {String(snap?.manifest?.enabled_sleeves ?? '').includes('SCALP') && <section className="bh-meet">
         <h2>מסחר דמו אוטונומי · {(snap?.open ?? []).filter(t=>t.strategy==='SCALP').length}/{SCALP.maxPositions} פוזיציות · כל דקה · החזקה גמישה 1–15 דקות</h2>
         <p className="bh-mnote">הסכמה אלגוריתמית → בדיקת עלויות וסיכון → ביצוע. בדיקת יציאות כל 10 שניות. זמן ההחזקה נקבע בכניסה לפי התנאים (1–15 דק׳): מגמה חזקה = יותר זמן, שוק מהיר = פחות. בכל ישיבה הצוות יכול לסגור מוקדם אם הוא מתהפך, או להאריך עסקה מרוויחה עד 15 דק׳; עסקה מפסידה נסגרת בזמן המתוכנן. השהיות או נתונים חסרים עלולים לעכב אותה. סטופ נגרר אינו מבטיח רווח. עמלות 0.05% לכל צד, החלקה 0.03% ומימון מדומה יחסי. אותות: EMA8/21, מומנטום, חוסר איזון בספר, liquidity sweep משוער, חדשות ציבוריות (Cointelegraph/CoinDesk) וליקווידציות OKX — נספרים רק אם טריים ומאומתים מול המחיר.</p>
@@ -937,6 +938,22 @@ const CSS = `
 .bh-mx thead th:first-child, .bh-mx tbody th { position:sticky; right:0; background:#0a111d; z-index:1; }
 @media(max-width:520px){ .bh-mx .nh, .bh-mx td.n:not(.sc) { display:none } .bh-mx { border-spacing:2px; font-size:11px } .bh-mx th { font-size:9.5px } }
 .bh-chipd { font-size:10.5px; font-weight:800; border-radius:12px; padding:2px 7px; border:1px solid #56607a; color:#8fa3bf; white-space:nowrap; } .bh-chipd.l { color:#00d492; border-color:#00d492; } .bh-chipd.s { color:#ffb454; border-color:#ffb454; }
+.bh-wall { background:rgba(10,17,29,0.96); border:1px solid rgba(140,170,210,0.18); border-radius:14px; padding:18px; display:grid; gap:10px; }
+.bh-wall h2 { margin:0; font-size:15px; color:#f0b44c; }
+.bh-grp { border-top:1px solid #213148; padding-top:8px; }
+.bh-grp-h { width:100%; text-align:right; background:none; border:0; color:#dbe7f5; font:inherit; font-weight:800; font-size:13px; cursor:pointer; padding:4px 0; }
+.bh-grp-h em { color:#8fa3bf; font-style:normal; font-weight:400; }
+.bh-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:8px; margin-top:8px; }
+.bh-card { background:#0a1321; border:1px solid #213148; border-inline-start:3px solid var(--c); border-radius:10px; padding:8px 10px; display:grid; gap:4px; min-width:0; }
+.bh-card-h { display:flex; align-items:center; gap:6px; min-width:0; } .bh-card-h b { color:#fff; font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+.bh-card-r { color:#8fa3bf; font-size:10.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.bh-card-s { color:#9cb1c9; font-size:10.5px; line-height:1.4; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+.bh-cchip { font-size:9.5px; font-weight:800; border-radius:10px; padding:1px 6px; border:1px solid #56607a; color:#8fa3bf; white-space:nowrap; }
+.bh-cchip.ok { color:#00d492; border-color:#00d492; } .bh-cchip.bad { color:#ff4d6a; border-color:#ff4d6a; }
+.bh-votes { display:grid; grid-template-columns:repeat(4,1fr); gap:2px; direction:ltr; }
+.bh-votes span { font-size:9px; color:#56607a; background:#0f1929; border-radius:4px; padding:1px 3px; display:flex; justify-content:space-between; }
+.bh-votes span i { font-style:normal; } .bh-votes span.up { color:#00d492; background:rgba(0,212,146,.12); } .bh-votes span.dn { color:#ff4d6a; background:rgba(255,77,106,.12); }
+@media(max-width:520px){ .bh-cards { grid-template-columns:repeat(2,minmax(0,1fr)); } .bh-wall { padding:12px; } }
 @media (prefers-reduced-motion: reduce) { .bh-tape-in, .bh-in, .bh-fill, .bh-say.live { animation:none; } }
 `
 
@@ -981,5 +998,48 @@ function League({ snap }: { snap: Snap | null }) {
       </tr> })}</tbody>
     </table></div>
     <button className="bh-btn" onClick={() => setAll((x) => !x)}>{all ? 'הצג 15 מובילים' : `הצג את כל ${rows.length}`}</button>
+  </section>
+}
+
+// v76.2: every agent in its own window — one card each, grouped, laid out in a grid (no overlap).
+const COINS = ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'ADA', 'LINK', 'AVAX']
+const GROUPS: { title: string; ids: string[] }[] = [
+  { title: 'צוות הבית', ids: ['scout', 'regime', 'rota', 'donch', 'risk', 'trader', 'treasurer', 'reporter', 'auditor'] },
+  { title: 'דסק ההחלטות', ids: ['pm', 'quant', 'compliance', 'execution'] },
+  { title: 'אנליסטים', ids: [...NEW_AGENTS] },
+  ...(Object.keys(TEAMS) as Team[]).map((t) => ({ title: `${TEAMS[t].label} · ראש הצוות ${TEAMS[t].name}`, ids: [TEAMS[t].lead, ...SWARM.filter((a) => a.team === t).map((a) => a.id)] })),
+]
+const VOTERS = new Set(['regime', 'rota', 'donch', 'trader', 'risk', ...NEW_AGENTS, ...SWARM.map((a) => a.id)])
+function Wall({ snap, status }: { snap: Snap | null; status: Record<Id, Status> }) {
+  const [open, setOpen] = useState<Record<string, boolean>>({ 'צוות הבית': true, 'דסק ההחלטות': true })
+  const cands = ((snap?.state?.bot_params as Row | undefined)?.scalp_candidates ?? []) as { sym: string; dirs?: Record<string, number> }[]
+  const bySym = new Map((Array.isArray(cands) ? cands : []).map((c) => [c.sym, c.dirs ?? {}]))
+  const st = snap?.agentStats ?? {}
+  const total = GROUPS.reduce((a, g) => a + g.ids.length, 0)
+  const swarmName = (id: string) => SWARM.find((a) => a.id === id)
+  return <section className="bh-wall">
+    <div className="bh-mtop"><h2>קיר הסוכנים · {total} סוכנים, חלון לכל אחד</h2><span className="bh-dec">{VOTERS.size} מצביעים · 8 מטבעות · מתעדכן כל דקה</span></div>
+    {GROUPS.map((g) => {
+      const isOpen = open[g.title] ?? false
+      return <div key={g.title} className="bh-grp">
+        <button className="bh-grp-h" onClick={() => setOpen((o) => ({ ...o, [g.title]: !isOpen }))} aria-expanded={isOpen}>{isOpen ? '▾' : '▸'} {g.title} <em>({g.ids.length})</em></button>
+        {isOpen && <div className="bh-cards">{g.ids.map((id) => {
+          const sw = swarmName(id), ro = ROSTER[id as Id]
+          const name = ro?.name ?? sw?.label ?? id, role = ro?.role ?? (sw ? TEAMS[sw.team].label : '')
+          const color = ro?.color ?? '#6b7a90', a = status[id as Id], s0 = st[id]
+          const voter = VOTERS.has(id), learning = !s0 || s0.n < LEARN.minN, w = learnedWeight(s0)
+          const chip = !voter ? (a?.alarm ? ['התראה', 'bad'] : a?.asleep ? ['כבוי', ''] : ['פעיל', 'ok']) : learning ? ['לומד', ''] : w === 0 ? ['ספסל', 'bad'] : w > 1 ? ['מוגבר', 'ok'] : ['פעיל', 'ok']
+          return <div key={id} className="bh-card" style={{ ['--c' as string]: color }}>
+            <div className="bh-card-h"><span className="bh-av sm" style={{ background: color }}>{name[0]}</span><b>{name}</b><span className={`bh-cchip ${chip[1]}`}>{chip[0]}</span></div>
+            <small className="bh-card-r">{role}</small>
+            {voter ? <>
+              <div className="bh-votes">{COINS.map((c) => { const d = bySym.get(c)?.[id]; return <span key={c} className={d > 0 ? 'up' : d < 0 ? 'dn' : ''} title={c}>{c}<i>{d > 0 ? '▲' : d < 0 ? '▼' : '·'}</i></span> })}</div>
+              <small className="bh-card-s" dir="rtl">משקל {learning ? '1.00' : w.toFixed(2)} · {s0 ? `${meanBps(s0).toFixed(1)} נק׳ בסיס · ${s0.n.toFixed(0)} הצבעות` : 'עוד אין ציון'}</small>
+            </> : <small className="bh-card-s">{a?.line ?? '—'}</small>}
+          </div>
+        })}</div>}
+      </div>
+    })}
+    <p className="bh-mnote">כל כרטיס הוא סוכן אחד. חיצים = ההצבעה שלו בישיבה האחרונה לכל מטבע (▲ לונג, ▼ שורט, · ניטרלי). משקל וציון = למידת הצל (5 דקות קדימה). לחצו על כותרת כדי לפתוח או לסגור קבוצה.</p>
   </section>
 }
