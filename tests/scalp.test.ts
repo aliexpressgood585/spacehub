@@ -78,3 +78,4 @@ console.log(`DB ledger cap matches SCALP.maxPositions (${mig})`)
 // v79.0: the ledger honours holds up to the new cap
 assert.ok(readFileSync(`supabase/migrations/${mig}`,'utf8').includes(`least(${SCALP.maxHoldMs/60000},`),`latest ledger migration ${mig} must cap hold at ${SCALP.maxHoldMs/60000}`)
 assert.ok(readFileSync(`supabase/migrations/${mig}`,'utf8').includes('between 0.003 and 0.04'),'ledger stop band must allow the widened long-hold stop (runner clamps to 4%)')
+assert.ok(readFileSync('shared/scalp.ts','utf8').includes("intel.mode==='proven'||trend!==-raw"),'EMA veto is lifted only in proven mode')
