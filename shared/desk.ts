@@ -52,7 +52,7 @@ export function compliance(open: any[], entries: { sym: string; notional: number
 
 const HE: Record<string, string> = { regime: 'נועה', rota: 'דניאל', donch: 'עומר', trader: 'רוני', risk: 'מיכל' }
 // Round 2 + 3: the dissenters argue, the quant brings their record, the PM rules.
-export function debate(best: { sym: string; side: number; score: number; votes: Vote[] } | undefined, att: Record<string, { n: number; right: number }>, opened: boolean, blocked: string[], now: number): Minute[] {
+export function debate(best: { sym: string; side: number; score: number; votes: Vote[] } | undefined, att: Record<string, { n: number; right: number }>, opened: boolean, blocked: string[], now: number, held = false): Minute[] {
   const at = new Date(now).toISOString(), out: Minute[] = []
   if (!best) return [{ who: 'pm', says: 'אין מטבע עם נתונים תקינים לדיון. אין כניסה.', vote: 'hold', checked_at: at, round: 3 }]
   const dirs = best.votes.filter((v) => (DIRECTIONAL as readonly string[]).includes(v.who) && (v.vote === 'long' || v.vote === 'short'))
@@ -65,6 +65,7 @@ export function debate(best: { sym: string; side: number; score: number; votes: 
   out.push({ who: 'quant', to: 'pm', says: rec.length ? `רקורד כיוון בעסקאות שנסגרו: ${rec.join(' · ')}. מדגם קטן — מידע בלבד, לא משנה את הכלל.` : 'אין עדיין עסקאות סגורות למדוד מי צודק.', vote: 'hold', checked_at: at, round: 2, data: att })
   const verdict = blocked.length ? `ציות חסם: ${blocked.join(', ')}. לא נשלחות כניסות.`
     : opened ? `${best.sym} ${best.side > 0 ? 'לונג' : 'שורט'} אושר: ${longs} בעד לונג מול ${shorts} בעד שורט, ללא התנגדות מגמת EMA.`
+    : held ? `${best.sym} כבר מוחזק; אין מועמד חדש עם רוב נטו של 2. ממתינים.`
     : `${best.sym}: ${longs} לונג מול ${shorts} שורט — ${best.side ? 'אין מקום או הון פנוי' : 'אין רוב נטו של 2 או שהכיוון נגד מגמת EMA'}. ממתינים.`
   out.push({ who: 'pm', says: `החלטה: ${verdict}`, vote: blocked.length ? 'veto' : opened ? (best.side > 0 ? 'long' : 'short') : 'hold', checked_at: at, round: 3 })
   return out

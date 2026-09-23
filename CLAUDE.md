@@ -99,8 +99,12 @@ and a house page that looks alive like a real trading desk.
   position blotter marked live with timeout bars, trade tape, equity line, today's
   realised P&L, signal matrix, meeting replayed message-by-message with speech
   bubbles, dissenters walk to the PM, realtime refresh on team_meetings/bot_trades.
+- v72.1: slippage printed as 2.9999999999999996 bp; the PM debated an already-held coin with the wrong reason — debate now picks the first un-held candidate.
 - Bug fixed on the way: replay index could go negative and crash the page;
   v71.1's signal list rendered in a 24px grid column (unreadable) — now a matrix.
+DEPLOYED v72.0 2026-09-23 16:19 UTC: PR #30 (fe2e9fbc), function v30, manifest v72.0
+paper/live false, 0 errors; first 13-agent meeting 16:19:34 (quant: regime 48% / rota
+48% on 29 closes). Pages run #105 green, live bundle contains the floor + desk.
 
 ## v71.1 (2026-09-23) — SCALP: 8 positions, team check every minute, news + liquidations
 Built on PR #27 (v71.0 autonomous paper SCALP). Owner spec: up to 8 concurrent,
