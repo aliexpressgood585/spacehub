@@ -51,6 +51,12 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## v80.3 (2026-09-24) — PEPE showed "0.00000" everywhere (display only)
+Owner: "why is PEPE without market data". Data was fine (bot entry 0.00000432, source
+binance-futures); the house's `fmtPx` printed sub-$1 prices with toFixed(5), so PEPE's
+entry/mark/stop/tape all read 0.00000. Now 4 significant digits (0.000004323); same fix
+in the dashboard chart label, open-trade log line and `fmtP`. No bot change.
+
 ## v80.0 (2026-09-24) — PROVEN-ONLY voting + concentration (owner: "yes, fast")
 Owner asked for one big trade every 10 min, closed at 15 min. Told the math: $8 fee
 on $5k x 144 trades/day = ~$1,150/day (~23% of the account); fixed clock forces
