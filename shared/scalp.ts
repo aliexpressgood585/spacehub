@@ -5,7 +5,7 @@
 // liquidation context that only counts when its source, time and price check out.
 import { AGENTS, NEW_AGENTS, type AgentCtx } from './agents.ts'
 import { SWARM, TEAMS, runSwarm, type Team } from './swarm.ts'
-export const SCALP = { minWeighted: 0.2, maxHoldMs: 240*60_000, minHoldMs: 60_000, meetingMs: 60_000, fee: 0.0005, slip: 0.0003, maxSpread: 0.001, maxPositions: 8, allocation: 0.99, perCoin: 0.5, newsMaxAgeMs: 60*60_000, liqMaxAgeMs: 10*60_000, liqMaxPxDev: 0.03 } as const
+export const SCALP = { minWeighted: 0.2, maxHoldMs: 240*60_000, minHoldMs: 60_000, meetingMs: 60_000, fee: 0.0005, slip: 0.0003, maxSpread: 0.001, maxPositions: 8, maxEntries: 2, allocation: 0.99, perCoin: 0.5, newsMaxAgeMs: 60*60_000, liqMaxAgeMs: 10*60_000, liqMaxPxDev: 0.03 } as const
 export interface Bar { t:number; o:number; h:number; l:number; c:number; v:number }
 export interface Quote { bid:number; ask:number; ts:number; imbalance:number; source:string }
 export interface Vote { who:string; says:string; vote:string; checked_at:string }
@@ -82,7 +82,7 @@ export function assess(sym:string,b:Bar[],q:Quote,now:number,intel:Intel={news:[
   let S=0,Wt=0,pro=0,con=0
   for(const [k,d] of Object.entries(dirs)){S+=w(k)*d;Wt+=w(k)}
   const raw0=Math.sign(S)
-  for(const d of Object.values(dirs)){if(d===raw0)pro++;else if(d===-raw0)con++}
+  for(const [k,d] of Object.entries(dirs)){if(w(k)<=0)continue;if(d===raw0)pro++;else if(d===-raw0)con++}  // v80.0: only agents with a say are counted
   // Needs weighted net >= 20% of all weight, a head-count lead of 2, and must not fight the EMA trend.
   const raw=raw0&&Math.abs(S)/Wt>=SCALP.minWeighted&&pro-con>=2?raw0:0
   const side=raw&&trend!==-raw?raw:0

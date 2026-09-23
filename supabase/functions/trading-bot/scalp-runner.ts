@@ -138,7 +138,8 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
     p.holdMin=Math.max(1,Math.min(SCALP.maxHoldMs/60_000,hold))
     p.stopPct=Math.min(0.04,p.stopPct*Math.sqrt(Math.max(1,p.holdMin/5)))
   }
-  const take=picks.slice(0,SCALP.maxPositions-retained.length)
+  // v80.0: concentrate — only the strongest 1-2 signals of this meeting get capital
+  const take=picks.slice(0,Math.min(SCALP.maxEntries,SCALP.maxPositions-retained.length))
   if(due&&eligible)for(const p of take){
     const n=allocation(cash,equity,exposure,take.length-entries.length)
     if(n<20)continue
@@ -188,7 +189,7 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
     if(q){
       const all=Object.values(stats).filter(x=>x.n>=LEARN.minN), benchN=all.filter(x=>learnedWeight(x)===0).length
       const topL=[...all].sort((a,c)=>tStat(c)-tStat(a)).slice(0,3).map(x=>`${x.agent} t=${tStat(x).toFixed(1)}`)
-      q.says+=` למידת צל נטו אחרי עמלות, אופקים 5/15/60/240 דק׳: ${team.active} סוכנים מרוויחים נטו באופק הטוב שלהם — מצב ${team.mode==='absolute'?'מוחלט (רק מי שמרוויח)':'יחסי (הולכים אחרי הטובים ביותר כדי לא לעצור)'}; ${all.length} מדדים עם מספיק נתונים, ${benchN} בספסל${topL.length?`, מובילים: ${topL.join(', ')}`:''}.${learnErr?` שגיאת למידה: ${learnErr.slice(0,80)}`:learned.scored?` עודכנו ${learned.updated} סוכנים.`:''}`
+      q.says+=` למידת צל נטו אחרי עמלות, אופקים 5/15/60/240 דק׳: ${team.active} סוכנים מרוויחים נטו באופק הטוב שלהם — מצב ${team.mode==='proven'?`מוכחים בלבד (רק ${team.active} הסוכנים שעברו את העמלות מצביעים; מקסימום ${SCALP.maxEntries} כניסות לישיבה)`:'יחסי (פחות מ-3 מוכחים — הולכים אחרי הטובים ביותר כדי לא לעצור)'}; ${all.length} מדדים עם מספיק נתונים, ${benchN} בספסל${topL.length?`, מובילים: ${topL.join(', ')}`:''}.${learnErr?` שגיאת למידה: ${learnErr.slice(0,80)}`:learned.scored?` עודכנו ${learned.updated} סוכנים.`:''}`
       q.data={...att,hit:Object.fromEntries(Object.entries(att).map(([k,v])=>[k,hitPct(v)])),weights:W,horizons:H,mode:team.mode,active:team.active}
     }
   }
