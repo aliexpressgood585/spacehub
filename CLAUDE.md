@@ -51,6 +51,17 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## 2026-09-23 18:40 UTC — owner decision: LEAVE SCALP AS IS, wait for results
+Live SCALP since 15:26: 144 closes, WR 25.0%, net -$200.45, fees $115.58 (>half).
+Owner told plainly: costs eat the scalp; 10x would multiply fees x10 in dollars
+(1.6% of margin per round trip) and v96bt measured 10x at -94%. Owner asked about
+10x, was shown the math, and chose NO change: keep 1x, keep running, judge later.
+Owner priority stated: autonomy + self-improvement over time matters most.
+Learning state at 18:31: 75 voters with stats, 62 past minN, ~40 boosted, ~9 benched.
+OPEN SUGGESTION (not done, owner said leave as is): score shadow learning NET of
+the ~16bps round trip so "boosted" means "would have made money", not just "right
+direction". Do it only if the owner asks.
+
 ## v77.2 (2026-09-23) — "אין מחיר חי" removed: prices always available in the house
 Owner saw "no live price" on position cards. Cause: the browser pulled Binance fapi
 with NO timeout (geo-blocked/hanging for the owner) and only then OKX, and every
