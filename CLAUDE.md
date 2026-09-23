@@ -97,6 +97,9 @@ Owner: "hold a trade 5 minutes or 1 minute, as needed".
 - House: timer bar = held / planned (turns into "extended, up to 15:00"), trade
   tape shows exit reason in Hebrew + planned minutes.
 Still a demo rule with no walk-forward validation.
+DEPLOYED 2026-09-23 16:42 UTC: PR #33 (d20756aa), function v33, manifest v74.0 paper
+true / live false, 0 errors. First live effects: BTC SHORT planned 5 min, LINK LONG
+planned 10 min (PM: weighted 36%, 7 vs 1), SOL closed by FLIP after 7.9 min.
 
 ## v73.0 (2026-09-23) — 23 agents: 10 signal analysts + performance-weighted voting
 Owner: "add option 1 (weights by track record) and 10 more agents that can bring
