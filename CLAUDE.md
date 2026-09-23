@@ -110,6 +110,11 @@ all autonomously".
   the league numbers — fixed with a scoped override.
 Tests: `tests/swarm.test.ts` (50 agents, 5x10, id collisions, direction sanity,
 learning math, decay, benching, noise stays |t|<3); runner mock now a Proxy.
+DEPLOYED 2026-09-23 17:02 UTC: PR #34 (ace8a408), function v34, manifest v75.0 paper
+true / live false, 0 errors; 28 roles per meeting; 17:10 check: 7 snapshots, 3
+scored, 49 agents with stats (max n 24, all still 'learning' below minN 100).
+v75.1 (PR #35, b44c5874, function v35): quant text no longer quotes the retired
+closed-trade weight rule.
 
 ## v74.0 (2026-09-23) — adaptive hold, 1 to 15 minutes, decided by the team
 Owner: "hold a trade 5 minutes or 1 minute, as needed".
