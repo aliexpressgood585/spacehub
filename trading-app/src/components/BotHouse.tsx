@@ -173,7 +173,7 @@ function derive(s: Snap | null, now: number): Record<Id, Status> {
 interface Person { id: Id; x: number; y: number; face: 1 | -1; path: { x: number; y: number; hold?: number }[]; until: number; carry: string | null }
 const home = (id: Id) => ({ x: ROOM[id].x0 + ROOM[id].w / 2 - 20, y: ROOM[id].floor })
 
-export default function BotHouse({ onBack }: { onBack: () => void }) {
+export default function BotHouse({ onBack }: { onBack?: () => void }) {
   const [snap, setSnap] = useState<Snap | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [now, setNow] = useState(Date.now())
@@ -400,7 +400,7 @@ export default function BotHouse({ onBack }: { onBack: () => void }) {
           <span className={`bh-chip ${live ? 'ok' : 'bad'}`}><i />{live ? `הבוט רץ · דופק ${ago(ts(snap?.state?.updated_at), now)}` : snap ? 'אין דופק מהבוט' : 'מתחבר…'}</span>
           <span className="bh-chip">{version}</span>
           <span className="bh-chip">{snap?.state?.paper_mode ? 'מסחר נייר' : 'מסחר אמיתי'}</span>
-          <button className="bh-btn" onClick={onBack}>חזרה לדשבורד</button>
+          {onBack && <button className="bh-btn" onClick={onBack}>חזרה לדשבורד</button>}
         </div>
       </div>
       {err && <div className="bh-err" role="alert">לא הצלחתי לקרוא את נתוני הבוט: {err}. מנסה שוב כל 15 שניות.</div>}
