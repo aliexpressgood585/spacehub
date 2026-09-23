@@ -2,7 +2,8 @@ import assert from 'node:assert/strict'
 import {runScalp,parseRss} from '../supabase/functions/trading-bot/scalp-runner.ts'
 const old={id:123,sym:'NEAR',side:'LONG',strategy:'ROTA',lev:1,paper_mode:true,entry_price:100,size:1,trail_sl:1,opened_at:new Date(Date.now()-3600000).toISOString()}
 let request:any;const urls:string[]=[]
-const db={from:(table:string)=>{const builder:any={};for(const k of ['select','eq','neq','order','limit'])builder[k]=()=>builder;builder.throwOnError=async()=>({data:table==='bot_trades'?[old]:[]});return builder},rpc:(name:string,args:any)=>{assert.equal(name,'scalp_commit_cycle');request=args;return {throwOnError:async()=>({data:{ok:true}})}}}
+const writes:string[]=[]
+const db={from:(table:string)=>{const builder:any=new Proxy({},{get:(_t,k:string)=>k==='throwOnError'?async()=>({data:table==='bot_trades'?[old]:[]}):k==='then'?undefined:(...a:any[])=>{if(['insert','upsert','update','delete'].includes(k))writes.push(`${k}:${table}`);return builder}});return builder},rpc:(name:string,args:any)=>{assert.equal(name,'scalp_commit_cycle');request=args;return {throwOnError:async()=>({data:{ok:true}})}}}
 const original=globalThis.fetch
 try{
  globalThis.fetch=(async(url:string)=>{urls.push(url);const now=Date.now();const minute=Math.floor(now/60000)*60000;
@@ -14,8 +15,9 @@ try{
  assert.ok(request.p_entries.every((x:any)=>!x.sym.includes('USDT')&&x.notional>0&&x.hold_min>=1&&x.hold_min<=15))
  assert.ok(urls.some(x=>x.includes('symbol=NEARUSDT&')))
  assert.ok(request.p_entries.reduce((a:number,x:any)=>a+x.notional*1.0005,0)<1101)
- assert.ok(request.p_minutes.every((m:any)=>['scout','regime','rota','donch','risk','trader','treasurer','reporter','auditor','pm','quant','compliance','execution','rsi','vwap','breakout','volume','macd','bollinger','htf','btclead','candle','funding'].includes(m.who)))
- assert.equal(new Set(request.p_minutes.map((m:any)=>m.who)).size,23)
+ assert.ok(request.p_minutes.every((m:any)=>['scout','regime','rota','donch','risk','trader','treasurer','reporter','auditor','pm','quant','compliance','execution','rsi','vwap','breakout','volume','macd','bollinger','htf','btclead','candle','funding','trendDesk','momDesk','revDesk','brkDesk','flowDesk'].includes(m.who)))
+ assert.equal(new Set(request.p_minutes.map((m:any)=>m.who)).size,28)
+ assert.ok(writes.includes('insert:agent_snapshots'),'snapshot saved every meeting')
  assert.equal(request.p_minutes[request.p_minutes.length-1].who,'pm');assert.equal(request.p_minutes[request.p_minutes.length-1].round,3)
  assert.ok(request.p_minutes.find((m:any)=>m.who==='risk').says.includes('עד 8 פוזיציות'))
  const rss=parseRss('<rss><item><title><![CDATA[Bitcoin jumps]]></title><link>https://x/y</link><pubDate>Wed, 23 Sep 2026 14:52:11 +0000</pubDate></item><item><title>no date</title></item></rss>','test')
