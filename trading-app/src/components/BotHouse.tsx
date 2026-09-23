@@ -13,9 +13,10 @@ import { SUPA_URL, SUPA_KEY } from '../supa'
 import { TEAM_INTERVAL_MS } from '../../../shared/team-meeting'
 import { SCALP } from '../../../shared/scalp'
 import { AGENTS, NEW_AGENTS } from '../../../shared/agents'
+import { SWARM, TEAMS, LEARN, learnedWeight, tStat, meanBps, decayStat, type Stat, type Team } from '../../../shared/swarm'
 const CYCLE_LABEL = `${String(Math.floor(TEAM_INTERVAL_MS / 60_000)).padStart(2, '0')}:${String((TEAM_INTERVAL_MS / 1000) % 60).padStart(2, '0')}`
 
-type Id = 'scout' | 'regime' | 'rota' | 'donch' | 'risk' | 'trader' | 'treasurer' | 'reporter' | 'auditor' | 'pm' | 'quant' | 'compliance' | 'execution' | 'rsi' | 'vwap' | 'breakout' | 'volume' | 'macd' | 'bollinger' | 'htf' | 'btclead' | 'candle' | 'funding'
+type Id = 'scout' | 'regime' | 'rota' | 'donch' | 'risk' | 'trader' | 'treasurer' | 'reporter' | 'auditor' | 'pm' | 'quant' | 'compliance' | 'execution' | 'rsi' | 'vwap' | 'breakout' | 'volume' | 'macd' | 'bollinger' | 'htf' | 'btclead' | 'candle' | 'funding' | 'trendDesk' | 'momDesk' | 'revDesk' | 'brkDesk' | 'flowDesk'
 interface Minute { who: Id; says: string; vote: string; checked_at?: string; round?: number; to?: string; data?: Row }
 interface Row { [k: string]: unknown }
 interface Snap {
@@ -33,6 +34,7 @@ interface Snap {
   rotaBatches: number[]
   closedAll: Row[]
   curve: Row[]
+  agentStats: Record<string, Stat>
 }
 interface Status { working: boolean; asleep?: boolean; alarm?: boolean; line: string; action?: string; at?: number; reviewed?: boolean }
 
@@ -60,9 +62,14 @@ const ROSTER: Record<Id, { name: string; role: string; color: string }> = {
   htf: { name: AGENTS.htf.name, role: 'סוכן ' + AGENTS.htf.role, color: '#80ed99' },
   btclead: { name: AGENTS.btclead.name, role: 'סוכן ' + AGENTS.btclead.role, color: '#f4a261' },
   candle: { name: AGENTS.candle.name, role: 'סוכן ' + AGENTS.candle.role, color: '#e9c46a' },
+  trendDesk: { name: TEAMS.trend.name, role: 'ראש ' + TEAMS.trend.label + ' (10 סוכנים)', color: '#9ad0ff' },
+  momDesk: { name: TEAMS.mom.name, role: 'ראש ' + TEAMS.mom.label + ' (10 סוכנים)', color: '#ffb3c7' },
+  revDesk: { name: TEAMS.rev.name, role: 'ראש ' + TEAMS.rev.label + ' (10 סוכנים)', color: '#c3f584' },
+  brkDesk: { name: TEAMS.brk.name, role: 'ראש ' + TEAMS.brk.label + ' (10 סוכנים)', color: '#ffd29a' },
+  flowDesk: { name: TEAMS.flow.name, role: 'ראש ' + TEAMS.flow.label + ' (10 סוכנים)', color: '#b9a7ff' },
   funding: { name: AGENTS.funding.name, role: 'סוכן ' + AGENTS.funding.role, color: '#4cc9f0' },
 }
-const W = 480, H = 840, R = 2
+const W = 480, H = 980, R = 2
 // rooms: attic (reporter, donch) · upper floor (rota, regime, scout) · ground floor (treasurer, trader, risk)
 const ROOM: Record<Id, { x0: number; y0: number; w: number; h: number; floor: number }> = {
   reporter: { x0: 100, y0: 48, w: 93, h: 62, floor: 108 },
@@ -79,6 +86,12 @@ const ROOM: Record<Id, { x0: number; y0: number; w: number; h: number; floor: nu
   compliance: { x0: 124, y0: 414, w: 115, h: 136, floor: 544 },
   quant: { x0: 240, y0: 414, w: 115, h: 136, floor: 544 },
   pm: { x0: 356, y0: 414, w: 116, h: 136, floor: 544 },
+  // v75.0 the swarm floor: five team leads, ten agents each
+  trendDesk: { x0: 8, y0: 836, w: 92, h: 136, floor: 966 },
+  momDesk: { x0: 101, y0: 836, w: 92, h: 136, floor: 966 },
+  revDesk: { x0: 194, y0: 836, w: 92, h: 136, floor: 966 },
+  brkDesk: { x0: 287, y0: 836, w: 92, h: 136, floor: 966 },
+  flowDesk: { x0: 380, y0: 836, w: 92, h: 136, floor: 966 },
   // v73.0 two more basement floors: the signal analysts
   rsi: { x0: 8, y0: 556, w: 92, h: 134, floor: 686 },
   vwap: { x0: 101, y0: 556, w: 92, h: 134, floor: 686 },
@@ -93,6 +106,11 @@ const ROOM: Record<Id, { x0: number; y0: number; w: number; h: number; floor: nu
 }
 const IDS = Object.keys(ROSTER) as Id[]
 const LOOK: Record<Id, { skin: string; hair: string; shirt: string; pants: string; style: number; glasses: boolean }> = {
+  trendDesk: { skin: '#f3c9a2', hair: '#161616', shirt: '#9ad0ff', pants: '#1d2433', style: 2, glasses: false },
+  momDesk: { skin: '#b07448', hair: '#e0ad4a', shirt: '#ffb3c7', pants: '#1d2433', style: 3, glasses: true },
+  revDesk: { skin: '#dca577', hair: '#6b3b1d', shirt: '#c3f584', pants: '#1d2433', style: 4, glasses: false },
+  brkDesk: { skin: '#7d4b2c', hair: '#2b1d12', shirt: '#ffd29a', pants: '#1d2433', style: 0, glasses: true },
+  flowDesk: { skin: '#c98d5e', hair: '#b8472c', shirt: '#b9a7ff', pants: '#1d2433', style: 1, glasses: false },
   scout: { skin: '#dca577', hair: '#2b1d12', shirt: '#3a7bd5', pants: '#2c3550', style: 0, glasses: true },
   regime: { skin: '#f3c9a2', hair: '#b8472c', shirt: '#8e5bd0', pants: '#23304a', style: 1, glasses: false },
   rota: { skin: '#b07448', hair: '#161616', shirt: '#48a868', pants: '#3d2c22', style: 2, glasses: false },
@@ -246,6 +264,7 @@ function derive(s: Snap | null, now: number): Record<Id, Status> {
   out.quant = { working: false, asleep: !scalpOn, line: 'מודד מי מהסוכנים צדק בעסקאות שנסגרו.' }
   out.compliance = { working: false, asleep: !scalpOn, line: `בודקת כל תוכנית: דמו 1x, עד ${SCALP.maxPositions} פוזיציות, עד 25% למטבע.` }
   out.execution = { working: false, asleep: !scalpOn, line: 'מודד מרווחים, זמני החזקה וסיבות יציאה.' }
+  for (const t of Object.keys(TEAMS) as Team[]) out[TEAMS[t].lead as Id] = { working: false, asleep: !scalpOn, line: `${TEAMS[t].label}: 10 סוכנים מצביעים כל דקה; כל אחד נבחן מול 5 הדקות הבאות ומשקלו מתעדכן לבד.` }
   for (const k of NEW_AGENTS as Id[]) out[k] = { working: false, asleep: !scalpOn, line: `סוכן ${AGENTS[k].role}: מצביע לונג/שורט על כל מטבע בכל ישיבה. המשקל שלו נקבע לפי הרקורד.` }
   const meeting = s.meetings[0]
   const meetingAt = ts(meeting?.ts)
@@ -318,7 +337,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
       if (loading) return
       loading = true
       try {
-        const [st, rg, eq, op, cl, sk, er, dl, mf, rb, ca, cv, mt] = await Promise.all([
+        const [st, rg, eq, op, cl, sk, er, dl, mf, rb, ca, cv, mt, ag] = await Promise.all([
           supa.from('bot_state').select('*').eq('id', 1).maybeSingle(),
           supa.from('market_regime').select('*').order('created_at', { ascending: false }).limit(1),
           supa.from('bot_equity').select('*').order('ts', { ascending: false }).limit(2),
@@ -332,6 +351,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
           supa.from('bot_trades').select('pnl,closed_at,strategy').neq('status', 'OPEN').order('closed_at', { ascending: false }).limit(500),
           supa.from('bot_equity').select('equity,ts').order('ts', { ascending: false }).limit(2000),
           supa.from('team_meetings').select('*').order('ts', { ascending: false }).limit(12),
+          supa.from('agent_stats').select('*'),
         ])
         const firstErr = [st, rg, eq, op, cl, sk, er, dl, mf, rb, ca, cv, mt].find((r) => r.error)?.error
         if (firstErr) throw new Error(firstErr.message)
@@ -339,7 +359,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
         const batches: number[] = []
         for (const r of (rb.data ?? []) as Row[]) { const t = ts(r.opened_at); if (!batches.length || batches[batches.length - 1] - t > 10 * 60_000) batches.push(t) }
         if (!alive) return
-        setSnap({ at: Date.now(), meetings: (mt.data ?? []) as Row[], state: (st.data as Row) ?? null, regime: (rg.data?.[0] as Row) ?? null, equity: (eq.data ?? []) as Row[], open: (op.data ?? []) as Row[], closed: (cl.data ?? []) as Row[], skips: (sk.data ?? []) as Row[], errors: (er.data ?? []) as Row[], daily: (dl.data?.[0] as Row) ?? null, manifest: (mf.data?.[0] as Row) ?? null, rotaBatches: batches, closedAll: (ca.data ?? []) as Row[], curve: (cv.data ?? []) as Row[] })
+        setSnap({ at: Date.now(), meetings: (mt.data ?? []) as Row[], state: (st.data as Row) ?? null, regime: (rg.data?.[0] as Row) ?? null, equity: (eq.data ?? []) as Row[], open: (op.data ?? []) as Row[], closed: (cl.data ?? []) as Row[], skips: (sk.data ?? []) as Row[], errors: (er.data ?? []) as Row[], daily: (dl.data?.[0] as Row) ?? null, manifest: (mf.data?.[0] as Row) ?? null, rotaBatches: batches, closedAll: (ca.data ?? []) as Row[], curve: (cv.data ?? []) as Row[], agentStats: Object.fromEntries(((ag.data ?? []) as Row[]).map((r) => [String(r.agent), decayStat({ agent: String(r.agent), n: num(r.n), s: num(r.s), s2: num(r.s2), updated_at: String(r.updated_at) }, String(r.agent), Date.now())])) })
         setErr(null)
       } catch (e) { if (alive) setErr(e instanceof Error ? e.message : String(e)) } finally { loading = false }
     }
@@ -366,7 +386,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
       if (P.path.length) return
       const pts: Person['path'] = []
       // two staircases: attic/upper↔ground at x=160, ground↔basement at x=124
-      const FLOORS = [108, 250, 396, 544, 686, 826]
+      const FLOORS = [108, 250, 396, 544, 686, 826, 966]
       const route = (f0: number, f1: number) => {
         const out: Person['path'] = []
         let i = FLOORS.indexOf(f0); const j = FLOORS.indexOf(f1)
@@ -429,7 +449,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
       for (const id of IDS) {
         const r = ROOM[id], a = st[id]
         const lit = !dead && !a?.asleep
-        const wall = ({ auditor: '#24382a', reporter: '#3a3222', donch: '#2f2a44', rota: '#1f3a2c', regime: '#2f2a44', scout: '#26324a', treasurer: '#3a2630', trader: '#1f3440', risk: '#3a2222', pm: '#20242f', quant: '#232648', compliance: '#3a2436', execution: '#163a30' } as Record<string, string>)[id] ?? '#1c2538'
+        const wall = ({ auditor: '#24382a', reporter: '#3a3222', donch: '#2f2a44', rota: '#1f3a2c', regime: '#2f2a44', scout: '#26324a', treasurer: '#3a2630', trader: '#1f3440', risk: '#3a2222', pm: '#20242f', quant: '#232648', compliance: '#3a2436', execution: '#163a30', trendDesk: '#16304a', momDesk: '#3a1f33', revDesk: '#23361f', brkDesk: '#3a2d18', flowDesk: '#26204a' } as Record<string, string>)[id] ?? '#1c2538'
         px(r.x0, r.y0, r.w, r.h, lit ? wall : '#141821')
         px(r.x0, r.floor, r.w, 6, '#5a3d27'); for (let x = r.x0; x < r.x0 + r.w; x += 14) px(x, r.floor, 1, 6, 'rgba(0,0,0,0.3)')
         // desk + chair
@@ -509,6 +529,15 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
           recent.forEach((tr, i) => { const good = tr.status === 'OPEN' ? tr.side === 'LONG' : num(tr.pnl) > 0; px(r.x0 + 13 + (i % 6) * 13, r.y0 + 18 + Math.floor(i / 6) * 10, 9, 3, good ? '#00d492' : '#ff4d6a') })
           if (a?.working && !reduced && k % 2) px(r.x0 + 10, r.y0 + 42, 80, 2, '#5ff0b0')
         }
+        const teamKey = (Object.keys(TEAMS) as Team[]).find((t) => TEAMS[t].lead === id)
+        if (teamKey) {
+          px(r.x0 + 8, r.y0 + 12, 76, 40, '#0b0f18')
+          SWARM.filter((a) => a.team === teamKey).forEach((a, i) => {
+            const st = s?.agentStats?.[a.id], w = learnedWeight(st), learning = !st || st.n < LEARN.minN
+            px(r.x0 + 12 + (i % 5) * 14, r.y0 + 16 + Math.floor(i / 5) * 16, 10, 10, learning ? '#56607a' : w === 0 ? '#5a1a24' : w > 1.2 ? '#00d492' : '#2a6f5a')
+            if (!learning && w > 0) px(r.x0 + 12 + (i % 5) * 14, r.y0 + 26 + Math.floor(i / 5) * 16 - Math.round(8 * Math.min(1, w / 2.5)), 10, 1, '#f0b44c')
+          })
+        }
         if ((NEW_AGENTS as string[]).includes(id)) {
           const mv = mins.find((m) => m.who === id)
           const col = mv?.vote === 'long' ? '#00d492' : mv?.vote === 'short' ? '#ff4d6a' : '#56607a'
@@ -526,7 +555,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
       // stairs between the floors (drawn inside the upper-left wall)
       for (let i = 0; i < 9; i++) px(150 + i * 1.5, 256 + i * 15.5, 12, 3, '#6b4a2c')
       for (let i = 0; i < 9; i++) px(118 + i * 1.5, 404 + i * 15.5, 10, 3, '#6b4a2c')
-      for (let f = 0; f < 2; f++) for (let i = 0; i < 9; i++) px(96 + i * 1.2, 548 + f * 140 + i * 15, 8, 3, '#6b4a2c')
+      for (let f = 0; f < 3; f++) for (let i = 0; i < 9; i++) px(96 + i * 1.2, 548 + f * 140 + i * 15, 8, 3, '#6b4a2c')
       if (dead) { ctx.fillStyle = 'rgba(4,7,14,0.35)'; ctx.fillRect(0, 112, W, H - 112) }
     }
     const drawPerson = (p: Person, t: number) => {
@@ -601,7 +630,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
         <div>
           <span className="bh-eyebrow">NEXUS / AUTONOMOUS OPERATIONS</span>
           <h1>בית הבוט <small>חדר הבקרה</small></h1>
-          <p>23 סוכנים כמו בקרן גידור: 15 אנליסטים מצביעים לונג/שורט ומשקל כל אחד נקבע לפי הרקורד שלו, דסק של 4 (מנהלת תיק, כמותי, ציות, ביצוע) מתווכח ומכריע. ישיבה וכניסות כל דקה, בדיקת יציאות כל 10 שניות — הכל מתוך מנוע הבוט, גם כשהעמוד סגור.</p>
+          <p>73 סוכנים כמו בקרן גידור: 65 מצביעים לונג/שורט (15 אנליסטים + 50 בחמישה צוותים), כל אחד נבחן כל דקה מול 5 הדקות הבאות ומשקלו מתעדכן לבד — מי שטועה בעקביות יורד לספסל. דסק של 4 מתווכח ומכריע. ישיבה וכניסות כל דקה, בדיקת יציאות כל 10 שניות — הכל מתוך מנוע הבוט, גם כשהעמוד סגור.</p>
         </div>
         <div className="bh-chips">
           <span className={`bh-chip ${live ? 'ok' : 'bad'}`}><i />{live ? `הבוט רץ · דופק ${ago(ts(snap?.state?.updated_at), now)}` : snap ? 'אין דופק מהבוט' : 'מתחבר…'}</span>
@@ -645,6 +674,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
         <p className="bh-mnote">הפוזיציות עצמן מוצגות חיות ברצפת המסחר למעלה.</p>
       </section>}
       <Meeting snap={snap} now={now} shown={shown} replaying={replaying} />
+      <League snap={snap} />
 
       {snap && snap.meetings.length > 1 && <details className="bh-history"><summary>היסטוריית החלטות · {snap.meetings.length} סבבים אחרונים</summary>{snap.meetings.slice(1).map((m, i) => <div key={String(m.id ?? i)}><time>{ago(ts(m.ts), now)}</time><b>{DECISION[String(m.decision)] ?? String(m.decision)}</b><p>{String(m.action ?? '')}</p></div>)}</details>}
       <div className="bh-list">
@@ -899,7 +929,8 @@ const CSS = `
 .bh-mx { width:100%; border-collapse:separate; border-spacing:3px; font-size:12px; text-align:center; }
 .bh-mx th { color:#8fa3bf; font-weight:600; font-size:10.5px; padding:3px; white-space:nowrap; } .bh-mx tbody th { color:#fff; font-size:12.5px; text-align:right; }
 .bh-mx td { background:#0f1929; border-radius:5px; padding:5px 3px; color:#56607a; } .bh-mx td.up { background:rgba(0,212,146,.16); color:#00d492; } .bh-mx td.dn { background:rgba(255,77,106,.16); color:#ff4d6a; }
-.bh-mx td.n { color:#9cb1c9; font-size:10.5px; } .bh-mx td.sc { color:#f0b44c; font-weight:800; }
+.bh-mx td.n { color:#9cb1c9; font-size:10.5px; }
+.bh-lg td { padding:4px 6px; } @media(max-width:520px){ .bh-mx.bh-lg td.n { display:table-cell !important } } .bh-lg tbody th { font-weight:600; font-size:12px; white-space:nowrap; } .bh-mx td.sc { color:#f0b44c; font-weight:800; }
 .bh-mx thead th:first-child, .bh-mx tbody th { position:sticky; right:0; background:#0a111d; z-index:1; }
 @media(max-width:520px){ .bh-mx .nh, .bh-mx td.n:not(.sc) { display:none } .bh-mx { border-spacing:2px; font-size:11px } .bh-mx th { font-size:9.5px } }
 .bh-chipd { font-size:10.5px; font-weight:800; border-radius:12px; padding:2px 7px; border:1px solid #56607a; color:#8fa3bf; white-space:nowrap; } .bh-chipd.l { color:#00d492; border-color:#00d492; } .bh-chipd.s { color:#ffb454; border-color:#ffb454; }
@@ -910,7 +941,7 @@ const CSS = `
 function Intel({ snap, now }: { snap: Snap | null; now: number }) {
   const c = ((snap?.state?.bot_params as Row | undefined)?.scalp_candidates ?? []) as { sym: string; side: number; score: number; signals?: Row | null }[]
   if (!Array.isArray(c) || !c.length) return <p className="bh-mnote">אין עדיין נתוני אותות מהישיבה האחרונה.</p>
-  const cols: [string, string][] = [['trend', 'EMA'], ['momentum', 'מומנטום'], ['flow', 'ספר'], ['sweep', 'sweep'], ['news', 'חדשות'], ['liq', 'ליקווד׳'], ...NEW_AGENTS.map((k) => [k, AGENTS[k].role] as [string, string])]
+  const cols: [string, string][] = [['trend', 'EMA'], ['momentum', 'מומנטום'], ['flow', 'ספר'], ['sweep', 'sweep'], ['news', 'חדשות'], ['liq', 'ליקווד׳'], ...NEW_AGENTS.map((k) => [k, AGENTS[k].role] as [string, string]), ...(Object.keys(TEAMS) as Team[]).map((t) => ['team_' + t, TEAMS[t].label] as [string, string])]
   const cell = (x: unknown) => { const v = Number(x); return <td className={v > 0 ? 'up' : v < 0 ? 'dn' : ''}>{v > 0 ? '▲' : v < 0 ? '▼' : '·'}</td> }
   const news = c.filter((x) => x.signals?.news_title)
   return <>
@@ -921,4 +952,31 @@ function Intel({ snap, now }: { snap: Snap | null; now: number }) {
     <p className="bh-mnote">ליקווידציות OKX שנבדקו: {c.map((x) => `${x.sym} ${String(x.signals?.liq_valid ?? 0)} תקפות/${String(x.signals?.liq_rejected ?? 0)} נפסלו`).join(' · ')}</p>
     {news.map((x) => <p key={x.sym} className="bh-mnote">📰 {x.sym}: “{String(x.signals?.news_title).slice(0, 90)}” · {String(x.signals?.news_source)} · {ago(Number(x.signals?.news_ts), now)} · {x.signals?.news_verified ? 'מאומת במחיר' : 'לא מאומת — לא נספר'}</p>)}
   </>
+}
+
+// v75.0: every voting agent ranked by its shadow record (agent_stats), as the bot scores it.
+const LABEL: Record<string, string> = { regime: 'נועה · EMA', rota: 'דניאל · מומנטום', donch: 'עומר · sweep', trader: 'רוני · ספר פקודות', risk: 'מיכל · חדשות/ליקווידציות', ...Object.fromEntries(NEW_AGENTS.map((k) => [k, `${AGENTS[k].name} · ${AGENTS[k].role}`])), ...Object.fromEntries(SWARM.map((a) => [a.id, `${a.label} · ${TEAMS[a.team].label}`])) }
+function League({ snap }: { snap: Snap | null }) {
+  const [all, setAll] = useState(false)
+  const st = snap?.agentStats ?? {}
+  const ids = Object.keys(LABEL)
+  const rows = ids.map((id) => ({ id, st: st[id], w: learnedWeight(st[id]), t: tStat(st[id]), m: meanBps(st[id]) }))
+    .sort((a, b) => (b.st && b.st.n >= LEARN.minN ? b.t : -99) - (a.st && a.st.n >= LEARN.minN ? a.t : -99) || (b.st?.n ?? 0) - (a.st?.n ?? 0))
+  const ready = rows.filter((r) => r.st && r.st.n >= LEARN.minN), bench = ready.filter((r) => r.w === 0).length
+  return <section className="bh-meet">
+    <div className="bh-mtop"><h2>ליגת הסוכנים · {ids.length} מצביעים</h2><span className="bh-dec">{ready.length} מדורגים · {bench} בספסל · {ids.length - ready.length} לומדים</span></div>
+    <p className="bh-mnote">כל דקה כל סוכן מצביע על 8 המטבעות, ואחרי 5 דקות בודקים אם צדק. הציון דועך בחצי כל 12 שעות, כך שהוא עוקב אחרי השוק הנוכחי. משקל = 1 + t/2 בטווח 0–2.5, רק אחרי {LEARN.minN} הצבעות; t≤−2 = ספסל (עדיין נבחן וחוזר כשמשתפר). ציון גולמי לפני עמלות — עסקה אמיתית צריכה לעבור ~16 נק׳ בסיס עלות.</p>
+    <div className="bh-mx-wrap"><table className="bh-mx bh-lg">
+      <thead><tr><th>#</th><th>סוכן</th><th>משקל</th><th>t</th><th>נק׳ בסיס/5ד׳</th><th>הצבעות</th><th>מצב</th></tr></thead>
+      <tbody>{rows.slice(0, all ? rows.length : 15).map((r, i) => { const learning = !r.st || r.st.n < LEARN.minN; return <tr key={r.id}>
+        <td className="n">{i + 1}</td><th>{LABEL[r.id]}</th>
+        <td className={learning ? 'n' : r.w === 0 ? 'dn' : r.w > 1 ? 'up' : 'n'} dir="ltr">{learning ? '1.00' : r.w.toFixed(2)}</td>
+        <td className="n" dir="ltr">{r.st ? r.t.toFixed(1) : '—'}</td>
+        <td className={r.m > 0 ? 'up' : r.m < 0 ? 'dn' : 'n'} dir="ltr">{r.st ? r.m.toFixed(1) : '—'}</td>
+        <td className="n" dir="ltr">{r.st ? r.st.n.toFixed(0) : 0}</td>
+        <td><span className={`bh-chipd ${learning ? '' : r.w === 0 ? 's' : 'l'}`}>{learning ? 'לומד' : r.w === 0 ? 'ספסל' : r.w > 1 ? 'מוגבר' : 'פעיל'}</span></td>
+      </tr> })}</tbody>
+    </table></div>
+    <button className="bh-btn" onClick={() => setAll((x) => !x)}>{all ? 'הצג 15 מובילים' : `הצג את כל ${rows.length}`}</button>
+  </section>
 }
