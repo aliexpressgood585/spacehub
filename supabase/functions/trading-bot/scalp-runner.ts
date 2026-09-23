@@ -2,7 +2,15 @@ import {SCALP,assess,allocation,exitPlan,validQuote,type Quote,type Bar,type Vot
 import {attribution,execStats,compliance,debate,hitPct,type Minute} from '../../../shared/desk.ts'
 import {AGENTS,NEW_AGENTS} from '../../../shared/agents.ts'
 import {SWARM,TEAMS,decayStat,scoreSnapshot,learnedWeight,meanBps,tStat,LEARN,type Stat,type Team} from '../../../shared/swarm.ts'
-const UNIVERSE=['BTC','ETH','SOL','XRP','DOGE','ADA','LINK','AVAX']
+import {CRYPTO_40} from '../../../shared/strategy.ts'
+// v77.0: the validated 40-coin universe (standing rule 2), priced from Binance USDT-M futures first.
+export const UNIVERSE:string[]=[...CRYPTO_40]
+// Binance lists some coins in 1000-unit contracts; prices are divided and sizes multiplied
+// back so every price the agents see is per ONE coin, the same unit as the OKX fallback.
+export const BINANCE_SYM:Record<string,{s:string,k:number}>={PEPE:{s:'1000PEPEUSDT',k:1000}}
+const bsym=(sym:string)=>BINANCE_SYM[sym]??{s:`${sym}USDT`,k:1}
+// small worker pool so 40 coins never fire 80+ requests in one burst
+async function pool<T>(items:T[],n:number,fn:(x:T)=>Promise<void>){let i=0;await Promise.all(Array.from({length:Math.min(n,items.length)},async()=>{while(i<items.length)await fn(items[i++])}))}
 async function json(url:string) {const r=await fetch(url,{signal:AbortSignal.timeout(3500)});if(!r.ok)throw new Error(`market HTTP ${r.status}`);return r.json()}
 const NEWS_FEEDS=[['cointelegraph','https://cointelegraph.com/rss'],['coindesk','https://www.coindesk.com/arc/outboundfeeds/rss/']]
 const tag=(x:string,n:string)=>{const m=x.match(new RegExp(`<${n}[^>]*>([\\s\\S]*?)</${n}>`));return m?m[1].replace(/<!\[CDATA\[|\]\]>/g,'').trim():''}
@@ -15,29 +23,31 @@ async function intel(syms:string[]):Promise<{intel:Record<string,Intel>,news:New
   const failed:string[]=[],sources:string[]=[];let news:NewsItem[]=[]
   await Promise.all(NEWS_FEEDS.map(async([src,url])=>{try{const n=parseRss(await text(url),src);news=news.concat(n);sources.push(`${src} (${n.length})`)}catch{failed.push(src)}}))
   const out:Record<string,Intel>={}
-  await Promise.all(syms.map(async sym=>{
+  const bnFunding:Record<string,number>={}
+  try{const all=await json('https://fapi.binance.com/fapi/v1/premiumIndex');for(const x of all??[]){const v=Number(x.lastFundingRate);if(Number.isFinite(v))bnFunding[x.symbol]=v};sources.push('binance-funding')}catch{failed.push('binance-funding')}
+  await pool(syms,8,async sym=>{
     const liqs:LiqEvent[]=[]
     try{
       const d=await json(`https://www.okx.com/api/v5/public/liquidation-orders?instType=SWAP&instFamily=${sym}-USDT&state=filled&limit=100`)
       if(d.code!=='0')throw new Error('okx liq')
       for(const g of d.data??[])if(g.instId===`${sym}-USDT-SWAP`)for(const e of g.details??[])liqs.push({side:e.posSide==='long'||(!e.posSide&&e.side==='sell')?'long':'short',px:+e.bkPx,sz:+e.sz,ts:+e.ts,source:'okx-liquidations'})
     }catch{failed.push(`liq:${sym}`)}
-    let funding:number|null=null
-    try{const f=await json(`https://www.okx.com/api/v5/public/funding-rate?instId=${sym}-USDT-SWAP`);const v=Number(f?.data?.[0]?.fundingRate);if(f.code==='0'&&Number.isFinite(v))funding=v}catch{failed.push(`funding:${sym}`)}
+    let funding:number|null=bnFunding[bsym(sym).s]??null
+    if(funding===null)try{const f=await json(`https://www.okx.com/api/v5/public/funding-rate?instId=${sym}-USDT-SWAP`);const v=Number(f?.data?.[0]?.fundingRate);if(f.code==='0'&&Number.isFinite(v))funding=v}catch{failed.push(`funding:${sym}`)}
     out[sym]={news,liqs,funding}
-  }))
+  })
   if(!failed.some(f=>f.startsWith('liq:')))sources.push('okx-liquidations')
-  if(!failed.some(f=>f.startsWith('funding:')))sources.push('okx-funding')
   return {intel:out,news,sources,failed}
 }
 async function market(sym:string, candles:boolean):Promise<{q:Quote,b:Bar[]}> {
   // Perpetual-contract sources only; never silently substitute spot prices.
   try {
-    const [d,k]=await Promise.all([json(`https://fapi.binance.com/fapi/v1/depth?symbol=${sym}USDT&limit=5`),candles?json(`https://fapi.binance.com/fapi/v1/klines?symbol=${sym}USDT&interval=1m&limit=65`):Promise.resolve([])])
-    const bid=Number(d.bids[0][0]),ask=Number(d.asks[0][0]),bs=d.bids.reduce((s:number,x:any)=>s+Number(x[1]),0),as=d.asks.reduce((s:number,x:any)=>s+Number(x[1]),0)
+    const {s:bs0,k:K}=bsym(sym)
+    const [d,k]=await Promise.all([json(`https://fapi.binance.com/fapi/v1/depth?symbol=${bs0}&limit=5`),candles?json(`https://fapi.binance.com/fapi/v1/klines?symbol=${bs0}&interval=1m&limit=65`):Promise.resolve([])])
+    const bid=Number(d.bids[0][0])/K,ask=Number(d.asks[0][0])/K,bs=d.bids.reduce((s:number,x:any)=>s+Number(x[1]),0),as=d.asks.reduce((s:number,x:any)=>s+Number(x[1]),0)
     const q={bid,ask,ts:Number(d.E),imbalance:(bs-as)/(bs+as),source:'binance-futures'}
     if(!validQuote(q,Date.now()))throw new Error('stale Binance quote')
-    return {q,b:k.filter((x:any)=>Number(x[6])<Date.now()).map((x:any)=>({t:+x[0],o:+x[1],h:+x[2],l:+x[3],c:+x[4],v:+x[5]}))}
+    return {q,b:k.filter((x:any)=>Number(x[6])<Date.now()).map((x:any)=>({t:+x[0],o:+x[1]/K,h:+x[2]/K,l:+x[3]/K,c:+x[4]/K,v:+x[5]*K}))}
   } catch {
     const inst=`${sym}-USDT-SWAP`
     const [d,k]=await Promise.all([json(`https://www.okx.com/api/v5/market/books?instId=${inst}&sz=5`),candles?json(`https://www.okx.com/api/v5/market/candles?instId=${inst}&bar=1m&limit=65`):Promise.resolve({data:[]})])
@@ -56,7 +66,7 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
   const symbols=[...new Set<string>([...open.map((t:any)=>String(t.sym)),...(due?UNIVERSE:[])])]
   const data=new Map<string,{q:Quote,b:Bar[]}>(); const failures:string[]=[]
   const intelP=due?intel(UNIVERSE).catch(()=>({intel:{} as Record<string,Intel>,news:[] as NewsItem[],sources:[] as string[],failed:['intel']})):Promise.resolve(null)
-  await Promise.all(symbols.map(async sym=>{try{const m=await market(sym,due&&UNIVERSE.includes(sym));if(!validQuote(m.q,Date.now()))throw new Error('stale quote');data.set(sym,m)}catch{failures.push(sym)}}))
+  await pool(symbols,10,async sym=>{try{const m=await market(sym,due&&UNIVERSE.includes(sym));if(!validQuote(m.q,Date.now()))throw new Error('stale quote');data.set(sym,m)}catch{failures.push(sym)}})
   const ctx=await intelP
   const closedHist:any[]=due?((await db.from('bot_trades').select('sym,side,pnl,fee,opened_at,closed_at,scalp_meta').eq('strategy','SCALP').neq('status','OPEN').order('closed_at',{ascending:false}).limit(200).throwOnError()).data??[]):[]
   // v75.0 shadow learning: every agent's weight comes from how its votes did over the next 5 minutes.
@@ -72,7 +82,7 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
   let learned:{scored:number,updated:number}={scored:0,updated:0}
   if(due&&evaluated.length&&!learnErr){
     try{
-      const votes=Object.fromEntries(evaluated.filter(x=>Number.isFinite(x.mid)).map(x=>[x.sym,x.dirs]))
+      const votes=Object.fromEntries(evaluated.filter(x=>Number.isFinite(x.mid)).map(x=>[x.sym,Object.fromEntries(Object.entries(x.dirs).filter(([,d])=>d))]))
       const px=Object.fromEntries(evaluated.filter(x=>Number.isFinite(x.mid)).map(x=>[x.sym,x.mid]))
       const lo=new Date(now-LEARN.horizonMs-120_000).toISOString(),hi=new Date(now-LEARN.horizonMs+30_000).toISOString()
       const {data:old}=await db.from('agent_snapshots').select('id,ts,votes,px').eq('scored',false).gte('ts',lo).lte('ts',hi).order('ts',{ascending:true}).limit(1).throwOnError()
@@ -102,7 +112,7 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
   const closedSyms=new Set(open.filter((t:any)=>closes.some(c=>c.id===t.id)).map((t:any)=>t.sym))
   const picks=evaluated.filter(x=>x.side&&!retained.some(t=>t.sym===x.sym)&&!closedSyms.has(x.sym)).sort((a,b)=>b.score-a.score)
   // Migration must finish before this account starts scalping. Never estimate missing marks into entries.
-  const eligible=!failures.length&&!retained.some(t=>t.strategy!=='SCALP')&&!state.hard_halt_at&&!params.scalp_paused
+  const eligible=failures.length<=Math.floor(UNIVERSE.length*0.2)&&open.every((t:any)=>data.has(String(t.sym)))&&!retained.some(t=>t.strategy!=='SCALP')&&!state.hard_halt_at&&!params.scalp_paused
   // v76.0 whole portfolio: free capital is split among the entries of THIS meeting
   // (not among all 8 slots), capped per coin, so 2 signals use the whole account.
   const take=picks.slice(0,SCALP.maxPositions-retained.length)
@@ -123,7 +133,7 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
     const lead=(who:string,d:string)=>{const l=count(who,'long'),sh=count(who,'short');return l>sh?'long':sh>l?'short':d}
     const best=evaluated.find(x=>x.sym===entries[0]?.sym)||[...evaluated].sort((a,c)=>c.score-a.score)[0]
     const line=(who:string)=>best?.votes.find(v=>v.who===who)?.says||'אין מספיק נתונים'
-    say('scout',`בדקתי ${data.size}/${UNIVERSE.length} חוזים (${[...new Set([...data.values()].map(m=>m.q.source))].join(', ')||'אין'}); חדשות וליקווידציות: ${ctx?.sources.join(', ')||'לא זמין'}${ctx?.failed.length?` · נכשלו: ${ctx.failed.join(', ')}`:''}`,failures.length?'veto':'ok')
+    say('scout',`בדקתי ${data.size}/${UNIVERSE.length} חוזים (${[...new Set([...data.values()].map(m=>m.q.source))].join(', ')||'אין'}); חדשות וליקווידציות: ${ctx?.sources.join(', ')||'לא זמין'}${ctx?.failed.length?` · נכשלו: ${ctx.failed.join(', ')}`:''}`,failures.length>Math.floor(UNIVERSE.length*0.2)?'veto':'ok')
     say('regime',`EMA8/21 על ${evaluated.length} מטבעות: ${tally('regime')}. ${line('regime')}`,lead('regime','hold'))
     say('rota',`מומנטום 3 דקות: ${tally('rota')}. ${line('rota')}`,lead('rota','hold'))
     say('donch',`אזורי liquidity sweep משוערים: ${tally('donch')}. ${line('donch')}`,lead('donch','hold'))
@@ -159,6 +169,6 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
       q.data={...att,hit:Object.fromEntries(Object.entries(att).map(([k,v])=>[k,hitPct(v)])),weights:W}
     }
   }
-  const {data:result}=await db.rpc('scalp_commit_cycle',{p_lease:lease,p_closes:closes,p_updates:updates,p_entries:entries,p_minutes:due?minutes:null,p_marks:marks,p_feed:{source:'perpetuals',ok:data.size,fail:failures.length,failures},p_candidates:due?evaluated:null}).throwOnError()
+  const {data:result}=await db.rpc('scalp_commit_cycle',{p_lease:lease,p_closes:closes,p_updates:updates,p_entries:entries,p_minutes:due?minutes:null,p_marks:marks,p_feed:{source:'perpetuals',ok:data.size,fail:failures.length,failures},p_candidates:due?evaluated.map(x=>({sym:x.sym,side:x.side,score:x.score,weighted:x.weighted,signals:x.signals,dirs:Object.fromEntries(Object.entries(x.dirs).filter(([,d])=>d))})):null}).throwOnError()
   return result
 }
