@@ -12,6 +12,7 @@ import { createClient } from '@supabase/supabase-js'
 import { SUPA_URL, SUPA_KEY } from '../supa'
 import { TEAM_INTERVAL_MS } from '../../../shared/team-meeting'
 import { SCALP } from '../../../shared/scalp'
+import { CRYPTO_40 } from '../../../shared/strategy'
 import { AGENTS, NEW_AGENTS } from '../../../shared/agents'
 import { SWARM, TEAMS, LEARN, learnedWeight, tStat, meanBps, decayStat, type Stat, type Team } from '../../../shared/swarm'
 const CYCLE_LABEL = `${String(Math.floor(TEAM_INTERVAL_MS / 60_000)).padStart(2, '0')}:${String((TEAM_INTERVAL_MS / 1000) % 60).padStart(2, '0')}`
@@ -256,7 +257,7 @@ function derive(s: Snap | null, now: number): Record<Id, Status> {
     at: lastC,
   }
   if (sleeves.includes('SCALP')) {
-    out.rota = { working:false, line:'מומנטום 3 דקות על 8 חוזים; מצביע לונג/שורט בכל ישיבה.' }
+    out.rota = { working:false, line:'מומנטום 3 דקות על 40 חוזים; מצביע לונג/שורט בכל ישיבה.' }
     out.donch = { working:false, line:'מסמן אזורי liquidity sweep משוערים (שיא/שפל 20 דקות) ומצביע כשיש סחיפה וחזרה.' }
     const bp = (st.bot_params ?? {}) as Row
     out.risk = { working:false, alarm:!!bp.scalp_paused, line:`${bp.scalp_paused ? 'כניסות מושהות' : 'פיקוח פעיל'} · הפסד יומי 5% / ירידה 15% · חדשות וליקווידציות רק עם מקור, זמן ואימות מחיר · דמו 1x` }
@@ -305,20 +306,26 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
   useEffect(() => {
     let alive = true
     const pull = async () => {
+      // Binance USDT-M futures first (the bot's reference feed), OKX swaps as fallback; source is shown.
+      const got: Record<string, { px: number; chg: number; t: number; src: string }> = {}
       try {
+        const r = await fetch('https://fapi.binance.com/fapi/v1/ticker/24hr')
+        if (r.ok) {
+          const all = (await r.json()) as { symbol: string; lastPrice: string; priceChangePercent: string; closeTime: number }[]
+          const bySym = new Map(all.map((x) => [x.symbol, x]))
+          for (const c of UNIVERSE) { const m = BN_K[c] ?? { s: `${c}USDT`, k: 1 }; const x = bySym.get(m.s); if (x) got[c] = { px: Number(x.lastPrice) / m.k, chg: Number(x.priceChangePercent) / 100, t: x.closeTime, src: 'Binance Futures' } }
+        }
+      } catch { /* geo-blocked for some viewers: fall back below */ }
+      if (Object.keys(got).length < UNIVERSE.length) try {
         const r = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP')
         const j = await r.json()
-        if (!alive || j.code !== '0') return
-        setTicks((old) => {
-          const nx: Record<string, Tick> = {}
-          for (const x of j.data as { instId: string; last: string; sodUtc0: string; ts: string }[]) {
-            const m = /^([A-Z]+)-USDT-SWAP$/.exec(x.instId); if (!m || !UNIVERSE.includes(m[1])) continue
-            const px = Number(x.last), o = Number(x.sodUtc0)
-            nx[m[1]] = { px, chg: o > 0 ? px / o - 1 : NaN, dir: old[m[1]] ? Math.sign(px - old[m[1]].px) || old[m[1]].dir : 0, t: Number(x.ts) }
-          }
-          return nx
-        })
+        if (j.code === '0') for (const x of j.data as { instId: string; last: string; sodUtc0: string; ts: string }[]) {
+          const m = /^([A-Z0-9]+)-USDT-SWAP$/.exec(x.instId); if (!m || !UNIVERSE.includes(m[1]) || got[m[1]]) continue
+          const px = Number(x.last), o = Number(x.sodUtc0); got[m[1]] = { px, chg: o > 0 ? px / o - 1 : NaN, t: Number(x.ts), src: 'OKX' }
+        }
       } catch { /* shown as missing, never invented */ }
+      if (!alive) return
+      setTicks((old) => Object.fromEntries(Object.entries(got).map(([c, g]) => [c, { ...g, dir: old[c] ? Math.sign(g.px - old[c].px) || old[c].dir : 0 }])))
     }
     void pull(); const iv = setInterval(pull, 4000)
     return () => { alive = false; clearInterval(iv) }
@@ -707,8 +714,9 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
 // v71.1: the team meeting the BOT itself holds every minute (team_meetings).
 // The house only shows the minutes; every vote was computed server-side from
 // the bot's own tables, and the only action the team can take is a de-risk cap.
-interface Tick { px: number; chg: number; dir: number; t: number }
-const UNIVERSE = ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'ADA', 'LINK', 'AVAX']
+interface Tick { px: number; chg: number; dir: number; t: number; src: string }
+const UNIVERSE: string[] = [...CRYPTO_40]
+const BN_K: Record<string, { s: string; k: number }> = { PEPE: { s: '1000PEPEUSDT', k: 1000 } }  // same scaling as the bot
 const STEP_MS = 700
 const EXIT_HE: Record<string, string> = { STOP: 'סטופ', TIMEOUT: 'תקרת 15 דק׳', PLANNED: 'זמן מתוכנן', FLIP: 'הצוות התהפך', MODE_SWITCH: 'מעבר מצב', LEDGER_TEST: 'בדיקה' }
 const ROUND: Record<number, string> = { 1: 'סבב 1 · כל סוכן מצביע מהתחום שלו', 2: 'סבב 2 · התנגדויות ורקורד מול מנהלת התיק', 3: 'סבב 3 · החלטה' }
@@ -724,7 +732,7 @@ function Tape({ ticks, snap }: { ticks: Record<string, Tick>; snap: Snap | null 
       {held.has(c) && <i className={held.get(c) === 'LONG' ? 'l' : 's'} title="פוזיציה פתוחה" />}<b>{c}</b> <span dir="ltr">{k ? fmtPx(k.px) : '—'}</span> <em dir="ltr" className={k && k.chg >= 0 ? 'g' : 'r'}>{k ? pct(k.chg) : ''}</em>
     </span>
   })
-  return <div className="bh-tape" aria-label="מחירים חיים"><div className="bh-tape-in">{items}{items}</div><small>מחירי OKX חיים · מתעדכן כל 4 שניות{Object.keys(ticks).length ? '' : ' · אין הזנה כרגע'}</small></div>
+  return <div className="bh-tape" aria-label="מחירים חיים"><div className="bh-tape-in">{items}{items}</div><small>{(() => { const n = Object.values(ticks).filter((t) => t.src === 'Binance Futures').length, all = Object.keys(ticks).length; return all ? `מחירים חיים: ${n ? `Binance Futures ${n}/${UNIVERSE.length}` : 'Binance חסום בדפדפן הזה'}${all - n ? ` · OKX ${all - n}` : ''} · כל 4 שניות` : 'אין הזנה כרגע' })()}</small></div>
 }
 
 // v72.0: the trading floor — open book marked live, trade tape, equity line. All from bot rows + public marks.
@@ -771,7 +779,7 @@ function Floor({ snap, ticks, now }: { snap: Snap | null; ticks: Record<string, 
         <div key={String(t.id)} className="bh-fill"><time>{new Date(ts(t.closed_at)).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time><b>{String(t.sym)}</b><span className={t.side === 'LONG' ? 'bh-l' : 'bh-s'}>{t.side === 'LONG' ? '▲' : '▼'}</span><em>{why}{Number.isFinite(hold) ? ` · ${hold.toFixed(1)} דק׳` : ''}{Number.isFinite(pl) ? ` (תוכנן ${pl})` : ''}</em><strong dir="ltr" className={num(t.pnl) >= 0 ? 'g' : 'r'}>{usd(num(t.pnl))}</strong></div>) })}
       {!closed.length && <p className="bh-mnote">עוד אין עסקאות סגורות.</p>}
     </div>
-    <p className="bh-mnote">מחיר חי: OKX (תצוגה בלבד). הבוט מסמן ונסגר לפי ההזנה שלו בשרת, כך שייתכנו הבדלים קטנים. מסחר דמו 1x, ללא הבטחת רווח.</p>
+    <p className="bh-mnote">מחיר חי: Binance Futures, ואם חסום אצלך — OKX (תצוגה בלבד; המקור מסומן בפס המחירים). הבוט מסמן ונסגר לפי ההזנה שלו בשרת, כך שייתכנו הבדלים קטנים. מסחר דמו 1x, ללא הבטחת רווח.</p>
   </section>
 }
 
@@ -950,6 +958,7 @@ const CSS = `
 .bh-card-s { color:#9cb1c9; font-size:10.5px; line-height:1.4; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
 .bh-cchip { font-size:9.5px; font-weight:800; border-radius:10px; padding:1px 6px; border:1px solid #56607a; color:#8fa3bf; white-space:nowrap; }
 .bh-cchip.ok { color:#00d492; border-color:#00d492; } .bh-cchip.bad { color:#ff4d6a; border-color:#ff4d6a; }
+.bh-heat { display:grid; grid-template-columns:repeat(10,1fr); gap:2px; direction:ltr; } .bh-heat i { height:7px; border-radius:2px; background:#1b2638; } .bh-heat i.up { background:#00d492; } .bh-heat i.dn { background:#ff4d6a; }
 .bh-votes { display:grid; grid-template-columns:repeat(4,1fr); gap:2px; direction:ltr; }
 .bh-votes span { font-size:9px; color:#56607a; background:#0f1929; border-radius:4px; padding:1px 3px; display:flex; justify-content:space-between; }
 .bh-votes span i { font-style:normal; } .bh-votes span.up { color:#00d492; background:rgba(0,212,146,.12); } .bh-votes span.dn { color:#ff4d6a; background:rgba(255,77,106,.12); }
@@ -985,7 +994,7 @@ function League({ snap }: { snap: Snap | null }) {
   const ready = rows.filter((r) => r.st && r.st.n >= LEARN.minN), bench = ready.filter((r) => r.w === 0).length
   return <section className="bh-meet">
     <div className="bh-mtop"><h2>ליגת הסוכנים · {ids.length} מצביעים</h2><span className="bh-dec">{ready.length} מדורגים · {bench} בספסל · {ids.length - ready.length} לומדים</span></div>
-    <p className="bh-mnote">כל דקה כל סוכן מצביע על 8 המטבעות, ואחרי 5 דקות בודקים אם צדק. הציון דועך בחצי כל 12 שעות, כך שהוא עוקב אחרי השוק הנוכחי. משקל = 1 + t/2 בטווח 0–2.5, רק אחרי {LEARN.minN} הצבעות; t≤−2 = ספסל (עדיין נבחן וחוזר כשמשתפר). ציון גולמי לפני עמלות — עסקה אמיתית צריכה לעבור ~16 נק׳ בסיס עלות.</p>
+    <p className="bh-mnote">כל דקה כל סוכן מצביע על 40 המטבעות, ואחרי 5 דקות בודקים אם צדק. הציון דועך בחצי כל 12 שעות, כך שהוא עוקב אחרי השוק הנוכחי. משקל = 1 + t/2 בטווח 0–2.5, רק אחרי {LEARN.minN} הצבעות; t≤−2 = ספסל (עדיין נבחן וחוזר כשמשתפר). ציון גולמי לפני עמלות — עסקה אמיתית צריכה לעבור ~16 נק׳ בסיס עלות.</p>
     <div className="bh-mx-wrap"><table className="bh-mx bh-lg">
       <thead><tr><th>#</th><th>סוכן</th><th>משקל</th><th>t</th><th>נק׳ בסיס/5ד׳</th><th>הצבעות</th><th>מצב</th></tr></thead>
       <tbody>{rows.slice(0, all ? rows.length : 15).map((r, i) => { const learning = !r.st || r.st.n < LEARN.minN; return <tr key={r.id}>
@@ -1002,7 +1011,7 @@ function League({ snap }: { snap: Snap | null }) {
 }
 
 // v76.2: every agent in its own window — one card each, grouped, laid out in a grid (no overlap).
-const COINS = ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'ADA', 'LINK', 'AVAX']
+const COINS: string[] = [...CRYPTO_40]
 const GROUPS: { title: string; ids: string[] }[] = [
   { title: 'צוות הבית', ids: ['scout', 'regime', 'rota', 'donch', 'risk', 'trader', 'treasurer', 'reporter', 'auditor'] },
   { title: 'דסק ההחלטות', ids: ['pm', 'quant', 'compliance', 'execution'] },
@@ -1018,7 +1027,7 @@ function Wall({ snap, status }: { snap: Snap | null; status: Record<Id, Status> 
   const total = GROUPS.reduce((a, g) => a + g.ids.length, 0)
   const swarmName = (id: string) => SWARM.find((a) => a.id === id)
   return <section className="bh-wall">
-    <div className="bh-mtop"><h2>קיר הסוכנים · {total} סוכנים, חלון לכל אחד</h2><span className="bh-dec">{VOTERS.size} מצביעים · 8 מטבעות · מתעדכן כל דקה</span></div>
+    <div className="bh-mtop"><h2>קיר הסוכנים · {total} סוכנים, חלון לכל אחד</h2><span className="bh-dec">{VOTERS.size} מצביעים · {COINS.length} מטבעות · מתעדכן כל דקה</span></div>
     {GROUPS.map((g) => {
       const isOpen = open[g.title] ?? false
       return <div key={g.title} className="bh-grp">
@@ -1033,13 +1042,16 @@ function Wall({ snap, status }: { snap: Snap | null; status: Record<Id, Status> 
             <div className="bh-card-h"><span className="bh-av sm" style={{ background: color }}>{name[0]}</span><b>{name}</b><span className={`bh-cchip ${chip[1]}`}>{chip[0]}</span></div>
             <small className="bh-card-r">{role}</small>
             {voter ? <>
-              <div className="bh-votes">{COINS.map((c) => { const d = bySym.get(c)?.[id]; return <span key={c} className={d > 0 ? 'up' : d < 0 ? 'dn' : ''} title={c}>{c}<i>{d > 0 ? '▲' : d < 0 ? '▼' : '·'}</i></span> })}</div>
+              {(() => { const ds = COINS.map((c) => bySym.get(c)?.[id] ?? 0); const l = ds.filter((d) => d > 0).length, sh = ds.filter((d) => d < 0).length; return <>
+                <div className="bh-heat" title="40 המטבעות: ירוק לונג, אדום שורט">{COINS.map((c, i) => <i key={c} title={`${c}: ${ds[i] > 0 ? 'לונג' : ds[i] < 0 ? 'שורט' : 'ניטרלי'}`} className={ds[i] > 0 ? 'up' : ds[i] < 0 ? 'dn' : ''} />)}</div>
+                <small className="bh-card-s">▲ {l} לונג · ▼ {sh} שורט · {COINS.length - l - sh} ניטרלי{l + sh ? ` · ${COINS.filter((_, i) => ds[i]).slice(0, 4).map((c) => `${c}${ds[COINS.indexOf(c)] > 0 ? '▲' : '▼'}`).join(' ')}` : ''}</small>
+              </> })()}
               <small className="bh-card-s" dir="rtl">משקל {learning ? '1.00' : w.toFixed(2)} · {s0 ? `${meanBps(s0).toFixed(1)} נק׳ בסיס · ${s0.n.toFixed(0)} הצבעות` : 'עוד אין ציון'}</small>
             </> : <small className="bh-card-s">{a?.line ?? '—'}</small>}
           </div>
         })}</div>}
       </div>
     })}
-    <p className="bh-mnote">כל כרטיס הוא סוכן אחד. חיצים = ההצבעה שלו בישיבה האחרונה לכל מטבע (▲ לונג, ▼ שורט, · ניטרלי). משקל וציון = למידת הצל (5 דקות קדימה). לחצו על כותרת כדי לפתוח או לסגור קבוצה.</p>
+    <p className="bh-mnote">כל כרטיס הוא סוכן אחד.  ריבועים = 40 המטבעות (ירוק לונג, אדום שורט, אפור ניטרלי; החזיקו/רחפו לשם המטבע). משקל וציון = למידת הצל (5 דקות קדימה). לחצו על כותרת כדי לפתוח או לסגור קבוצה.</p>
   </section>
 }
