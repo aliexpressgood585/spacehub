@@ -25,10 +25,13 @@ async function intel(syms:string[]):Promise<{intel:Record<string,Intel>,news:New
   const out:Record<string,Intel>={}
   const bnFunding:Record<string,number>={}
   try{const all=await json('https://fapi.binance.com/fapi/v1/premiumIndex');for(const x of all??[]){const v=Number(x.lastFundingRate);if(Number.isFinite(v))bnFunding[x.symbol]=v};sources.push('binance-funding')}catch{failed.push('binance-funding')}
-  await pool(syms,8,async sym=>{
+  // OKX public liquidation endpoint rate-limits bursts: 4 at a time, one retry after a short pause
+  await pool(syms,4,async sym=>{
     const liqs:LiqEvent[]=[]
     try{
-      const d=await json(`https://www.okx.com/api/v5/public/liquidation-orders?instType=SWAP&instFamily=${sym}-USDT&state=filled&limit=100`)
+      const url=`https://www.okx.com/api/v5/public/liquidation-orders?instType=SWAP&instFamily=${sym}-USDT&state=filled&limit=100`
+      let d=await json(url).catch(()=>null)
+      if(!d||d.code!=='0'){await new Promise(r=>setTimeout(r,400));d=await json(url)}
       if(d.code!=='0')throw new Error('okx liq')
       for(const g of d.data??[])if(g.instId===`${sym}-USDT-SWAP`)for(const e of g.details??[])liqs.push({side:e.posSide==='long'||(!e.posSide&&e.side==='sell')?'long':'short',px:+e.bkPx,sz:+e.sz,ts:+e.ts,source:'okx-liquidations'})
     }catch{failed.push(`liq:${sym}`)}
