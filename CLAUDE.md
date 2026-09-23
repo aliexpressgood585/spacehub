@@ -81,6 +81,7 @@ book full (ALGO/ARB/LINK LONG, INJ SHORT, 60m, cash $57); since reset 14 closed,
 kept. First book: LTC SHORT + PEPE LONG, ~$2,475 each (2 entries = whole account), 60m.
 v80.2: PM debate line counted ALL voters ("11 long vs 0 short" on a SHORT decided by the
 proven faders) and claimed "no EMA conflict" — now counts only voters with weight>0.
+DEPLOYED 23:29 UTC: PR #46 (56cd826d), function v46, manifest v80.2 paper, 0 errors, book unchanged.
 
 ## 2026-09-23 22:30 UTC — ACCOUNT RESET to $5,000 on v79.0 (owner: "reset, start over, no patience to wait")
 History exported FIRST to `migration/export-v79era/` (190 trades, 494 equity rows,
