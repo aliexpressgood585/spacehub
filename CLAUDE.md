@@ -51,6 +51,23 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## v70.0 (2026-09-23 13:45 UTC) — THE HOUSE HOLDS A REAL TEAM MEETING, hourly, inside the bot
+Owner: the residents should meet, consult, decide and be autonomous.
+Built in the BOT (not the page), so the meeting is real and runs unattended:
+once an hour each resident reads its own slice of live data and votes —
+scout (feed health), regime (btcRegime, info only), rota (book), risk (DD from
+equity peak: >=12% derisk, <5% ok), auditor (last-10 closes: < -3% of equity
+derisk, >0 ok, <5 trades hold), trader (bot_errors last hour), treasurer
+(cash/exposure), donch (asleep while off), reporter (minutes).
+ONE autonomous action, SAFE DIRECTION ONLY: >=2 derisk votes -> cap ROTA's vol
+target at 0.5 (the OOS-validated v104bt value) in `bot_state.team_vol_cap`;
+lifted only when risk AND auditor both vote ok and the cap is >=24h old.
+`ROTA_VOL_TARGET = min(shim, cap)` — a DB row can only make the bot SMALLER than
+the deployed shim, never larger (keeps the v58.0 "data can't arm the bot" rule).
+Minutes -> `team_meetings` (anon read, realtime). House shows the latest meeting
+under the scene: each resident's line, vote chip, decision, current cap.
+NOT a strategy change: no new signal; the cap value was already measured.
+
 ## 2026-09-23 13:30 UTC — owner asked for a "team meeting" and a decision; house adds an auditor
 Review of the live data (no bot change):
 - Since the $5,000 reset: 8 closed ROTA trades, 6 wins, net +$22.87.

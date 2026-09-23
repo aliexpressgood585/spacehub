@@ -15,6 +15,7 @@ type Id = 'scout' | 'regime' | 'rota' | 'donch' | 'risk' | 'trader' | 'treasurer
 interface Row { [k: string]: unknown }
 interface Snap {
   at: number
+  meetings: Row[]
   state: Row | null
   regime: Row | null
   equity: Row[]
@@ -211,7 +212,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
     let alive = true
     const load = async () => {
       try {
-        const [st, rg, eq, op, cl, sk, er, dl, mf, rb, ca, cv] = await Promise.all([
+        const [st, rg, eq, op, cl, sk, er, dl, mf, rb, ca, cv, mt] = await Promise.all([
           supa.from('bot_state').select('*').eq('id', 1).maybeSingle(),
           supa.from('market_regime').select('*').order('created_at', { ascending: false }).limit(1),
           supa.from('bot_equity').select('*').order('ts', { ascending: false }).limit(2),
@@ -224,6 +225,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
           supa.from('bot_trades').select('opened_at').eq('strategy', 'ROTA').order('opened_at', { ascending: false }).limit(60),
           supa.from('bot_trades').select('pnl,closed_at,strategy').neq('status', 'OPEN').order('closed_at', { ascending: false }).limit(500),
           supa.from('bot_equity').select('equity,ts').order('ts', { ascending: false }).limit(2000),
+          supa.from('team_meetings').select('*').order('ts', { ascending: false }).limit(3),
         ])
         const firstErr = [st, rg, eq, op, cl, sk, dl, mf, rb, ca, cv].find((r) => r.error)?.error
         if (firstErr) throw new Error(firstErr.message)
@@ -231,7 +233,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
         const batches: number[] = []
         for (const r of (rb.data ?? []) as Row[]) { const t = ts(r.opened_at); if (!batches.length || batches[batches.length - 1] - t > 10 * 60_000) batches.push(t) }
         if (!alive) return
-        setSnap({ at: Date.now(), state: (st.data as Row) ?? null, regime: (rg.data?.[0] as Row) ?? null, equity: (eq.data ?? []) as Row[], open: (op.data ?? []) as Row[], closed: (cl.data ?? []) as Row[], skips: (sk.data ?? []) as Row[], errors: (er.data ?? []) as Row[], daily: (dl.data?.[0] as Row) ?? null, manifest: (mf.data?.[0] as Row) ?? null, rotaBatches: batches, closedAll: (ca.data ?? []) as Row[], curve: (cv.data ?? []) as Row[] })
+        setSnap({ at: Date.now(), meetings: (mt.data ?? []) as Row[], state: (st.data as Row) ?? null, regime: (rg.data?.[0] as Row) ?? null, equity: (eq.data ?? []) as Row[], open: (op.data ?? []) as Row[], closed: (cl.data ?? []) as Row[], skips: (sk.data ?? []) as Row[], errors: (er.data ?? []) as Row[], daily: (dl.data?.[0] as Row) ?? null, manifest: (mf.data?.[0] as Row) ?? null, rotaBatches: batches, closedAll: (ca.data ?? []) as Row[], curve: (cv.data ?? []) as Row[] })
         setErr(null)
       } catch (e) { if (alive) setErr(e instanceof Error ? e.message : String(e)) }
     }
@@ -449,6 +451,8 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
         </div>
       </div>
 
+      <Meeting snap={snap} now={now} />
+
       <div className="bh-list">
         {IDS.map((id) => {
           const a = status[id]
@@ -472,7 +476,57 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
   )
 }
 
+// v70.0: the team meeting the BOT itself holds once an hour (team_meetings).
+// The house only shows the minutes; every vote was computed server-side from
+// the bot's own tables, and the only action the team can take is a de-risk cap.
+const VOTE: Record<string, { t: string; c: string }> = {
+  derisk: { t: 'להקטין', c: '#ff4d6a' }, ok: { t: 'תקין', c: '#00d492' },
+  hold: { t: 'להמשיך', c: '#8fa3bf' }, sleep: { t: 'כבוי', c: '#5b6b82' },
+}
+const DECISION: Record<string, string> = { HOLD: 'ממשיכים כרגיל', DERISK: 'הקטנת חשיפה', RESTORE: 'חזרה לגודל רגיל' }
+function Meeting({ snap, now }: { snap: Snap | null; now: number }) {
+  const m = snap?.meetings?.[0]
+  if (!m) return <div className="bh-meet"><h2>ישיבת צוות</h2><p className="bh-mnote">עוד לא התקיימה ישיבה. הצוות נפגש פעם בשעה.</p></div>
+  const mins = (Array.isArray(m.minutes) ? m.minutes : []) as { who: Id; says: string; vote: string }[]
+  const cap = snap?.state?.team_vol_cap
+  return (
+    <div className="bh-meet">
+      <div className="bh-mtop">
+        <h2>ישיבת צוות · לפני {ago(ts(m.ts), now)}</h2>
+        <span className={`bh-dec d-${String(m.decision).toLowerCase()}`}>{DECISION[String(m.decision)] ?? String(m.decision)}</span>
+      </div>
+      <p className="bh-maction">{String(m.action ?? '')}</p>
+      <div className="bh-mins">
+        {mins.map((x, i) => (
+          <div key={i} className="bh-min">
+            <span className="bh-av sm" style={{ background: ROSTER[x.who]?.color ?? '#888' }}>{ROSTER[x.who]?.name?.[0] ?? '?'}</span>
+            <span><b>{ROSTER[x.who]?.name ?? x.who}</b> {x.says}</span>
+            <span className="bh-vote" style={{ color: VOTE[x.vote]?.c, borderColor: VOTE[x.vote]?.c }}>{VOTE[x.vote]?.t ?? x.vote}</span>
+          </div>
+        ))}
+      </div>
+      <p className="bh-mnote">
+        הצוות נפגש בתוך הבוט פעם בשעה. כל אחד בודק רק את התחום שלו בנתונים האמיתיים ומצביע. הצוות יכול לקבל לבד החלטה אחת בלבד: להקטין את הפוזיציות כששניים או יותר מצביעים "להקטין", ולחזור לגודל הרגיל אחרי יממה תקינה. להגדיל מעבר להגדרה שנבדקה הוא לא יכול.
+        {cap ? ` כרגע: פוזיציות מוקטנות (יעד ${cap}).` : ' כרגע: גודל רגיל.'}
+      </p>
+    </div>
+  )
+}
+
 const CSS = `
+.bh-meet { background:rgba(10,17,29,0.96); border:1px solid rgba(240,180,76,0.3); border-radius:6px; padding:12px 14px; display:grid; gap:8px; }
+.bh-meet h2 { margin:0; font-size:15px; color:#f0b44c; font-weight:900; }
+.bh-mtop { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+.bh-dec { font-size:12px; font-weight:900; border-radius:20px; padding:3px 10px; background:rgba(140,170,210,0.1); color:#c7d5e8; }
+.bh-dec.d-derisk { background:rgba(255,77,106,0.15); color:#ff4d6a; } .bh-dec.d-restore { background:rgba(0,212,146,0.15); color:#00d492; }
+.bh-maction { margin:0; font-size:13px; color:#eef4fc; line-height:1.5; }
+.bh-mins { display:grid; gap:6px; }
+.bh-min { display:grid; grid-template-columns:24px 1fr auto; gap:8px; align-items:start; font-size:12.5px; line-height:1.5; }
+.bh-min b { color:#eef4fc; }
+.bh-av.sm { width:24px; height:24px; border-radius:6px; font-size:12px; }
+.bh-vote { font-size:11px; font-weight:800; border:1px solid; border-radius:20px; padding:1px 8px; white-space:nowrap; }
+.bh-mnote { font-size:11.5px; color:#8fa3bf; line-height:1.6; margin:0; }
+
 .bh { color:#c7d5e8; font-family: system-ui, 'Segoe UI', sans-serif; display:grid; gap:10px; }
 .bh-head { display:flex; flex-wrap:wrap; justify-content:space-between; gap:10px; align-items:flex-end; background:rgba(10,17,29,0.96); border:1px solid rgba(140,170,210,0.14); border-radius:6px; padding:12px 14px; }
 .bh-head h1 { margin:0; font-size:20px; font-weight:900; color:#eef4fc; }
