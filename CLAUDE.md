@@ -68,6 +68,20 @@ DONCH4H is shown asleep while enabled_sleeves = ROTA.
 The house computes NO signal (the viewer rule holds). No bot code or DB change.
 `src/supa.ts` now holds SUPA_URL/SUPA_KEY for both components.
 
+## 2026-09-23 13:00 UTC — dashboard "not active": two real gaps, both fixed
+Owner: "why isn't the dashboard active". Bot + data were healthy (anon REST
+reads fresh rows, v69.0 in the version chip). Rendered the live page in
+Playwright and found:
+ 1. **Realtime never worked on the migrated project.** `supabase_realtime`
+    publication had ZERO tables, so every `postgres_changes` subscription was
+    silent and the page only moved on its 30s poll. Migration
+    `realtime_dashboard_tables` adds bot_trades / bot_state /
+    bot_params_history / market_regime (RLS still governs what anon sees).
+ 2. **The price chart was always empty** — candles came only from
+    api.binance.com, geo-blocked/CORS-blocked for the owner (same family as
+    v61.0's prices). Now falls back to OKX swap candles.
+Verified locally in Chromium: candles render, live indicator green.
+
 ## 2026-09-23 06:10 UTC — vol target 0.5 -> 0.7 (owner: "more aggressive")
 Shim only, same sha `ad53cd42`, function v24. v104bt in-sample: volT70
 +94.5% / 2 DD halts vs volT50 +67.1% / 1 halt (27pp, beyond the bar); volT70
