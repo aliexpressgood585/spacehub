@@ -1,4 +1,4 @@
-// v75.0 — the swarm: 50 more agents in 5 teams, and shadow learning so every
+// v75.0 — the swarm: 50 (v76.1: 60) more agents in 5 (6) teams, and shadow learning so every
 // agent (these 50 + the 15 directional voters before them) keeps improving on
 // its own. Pure functions: no network, no randomness.
 //
@@ -14,13 +14,14 @@ import type { Bar } from './agents.ts'
 
 type Run = (b: Bar[], x: { btc?: Bar[] }) => number
 export interface SwarmAgent { id: string; team: Team; label: string; run: Run }
-export type Team = 'trend' | 'mom' | 'rev' | 'brk' | 'flow'
+export type Team = 'trend' | 'mom' | 'rev' | 'brk' | 'flow' | 'combo'
 export const TEAMS: Record<Team, { lead: string; name: string; label: string }> = {
   trend: { lead: 'trendDesk', name: 'רז', label: 'צוות מגמה' },
   mom: { lead: 'momDesk', name: 'נגה', label: 'צוות מומנטום' },
   rev: { lead: 'revDesk', name: 'אלה', label: 'צוות היפוך' },
   brk: { lead: 'brkDesk', name: 'יובל', label: 'צוות פריצות' },
   flow: { lead: 'flowDesk', name: 'דור', label: 'צוות נפח וזרימה' },
+  combo: { lead: 'comboDesk', name: 'שחר', label: 'צוות שילובים' },
 }
 
 const sgn = (x: number, dead = 0) => (!Number.isFinite(x) ? 0 : x > dead ? 1 : x < -dead ? -1 : 0)
@@ -42,6 +43,9 @@ const cci = (b: Bar[], n: number) => { const tp = b.slice(-n).map((x) => (x.h + 
 const upVolRatio = (b: Bar[], n: number) => { const w = b.slice(-n), up = w.filter((x) => x.c > x.o).reduce((a, x) => a + x.v, 0), all = w.reduce((a, x) => a + x.v, 0); return all > 0 ? up / all : 0.5 }
 const clv = (b: Bar[], n: number) => { const w = b.slice(-n); return w.reduce((a, x) => a + (x.h > x.l ? ((x.c - x.l) - (x.h - x.c)) / (x.h - x.l) : 0), 0) / n }
 
+const macdH = (b: Bar[]) => { const c = C(b); let e12 = c[0], e26 = c[0], sig = 0; const m: number[] = []; for (const x of c) { e12 += (2 / 13) * (x - e12); e26 += (2 / 27) * (x - e26); m.push(e12 - e26) } sig = m[0]; for (const v of m) sig += 0.2 * (v - sig); return m[m.length - 1] - sig }
+// all agree -> that side; any disagreement or silence -> 0
+const all = (...d: number[]) => (d.every((x) => x === 1) ? 1 : d.every((x) => x === -1) ? -1 : 0)
 const A = (id: string, team: Team, label: string, run: Run): SwarmAgent => ({ id, team, label, run })
 export const SWARM: SwarmAgent[] = [
   // trend — follow the prevailing direction
@@ -100,6 +104,19 @@ export const SWARM: SwarmAgent[] = [
   A('btc1', 'flow', 'BTC דקה', (b, x) => (!x.btc || x.btc === b || x.btc.length < 3 ? 0 : sgn(roc(x.btc, 1), 0.0008))),
   A('btc5', 'flow', 'BTC 5 דק׳', (b, x) => (!x.btc || x.btc === b || x.btc.length < 7 ? 0 : sgn(roc(x.btc, 5), 0.002))),
 ]
+// v76.1 combo team: each agent votes only when SEVERAL oscillators agree at once
+SWARM.push(
+  A('c_rsi_macd', 'combo', 'RSI + MACD', (b) => all(rsi(b, 14) > 55 ? 1 : rsi(b, 14) < 45 ? -1 : 0, sgn(macdH(b)))),
+  A('c_rsi_stoch_cci', 'combo', 'RSI + סטוכסטי + CCI', (b) => all(rsi(b, 7) > 55 ? 1 : rsi(b, 7) < 45 ? -1 : 0, stoch(b, 14) > 60 ? 1 : stoch(b, 14) < 40 ? -1 : 0, sgn(cci(b, 20), 50))),
+  A('c_ema_rsi_vol', 'combo', 'EMA + RSI + נפח', (b) => all(sgn(ema(C(b), 9) - ema(C(b), 21)), sgn(rsi(b, 14) - 50), volSpike(b, 1.5))),
+  A('c_bb_rsi_rev', 'combo', 'בולינגר + RSI היפוך', (b) => all(zsc(b, 20) <= -2 ? 1 : zsc(b, 20) >= 2 ? -1 : 0, rsi(b, 7) <= 25 ? 1 : rsi(b, 7) >= 75 ? -1 : 0)),
+  A('c_macd_obv', 'combo', 'MACD + OBV', (b) => all(sgn(macdH(b)), sgn(obvSlope(b, 10), 0.1))),
+  A('c_pullback', 'combo', 'מגמה + תיקון', (b) => { const t = sgn(ema(C(b), 20) - ema(C(b), 50)), r = rsi(b, 7); return t > 0 && r < 40 ? 1 : t < 0 && r > 60 ? -1 : 0 }),
+  A('c_brk_vol_atr', 'combo', 'פריצה + נפח + ATR', (b) => all(donch(b, 20), volSpike(b, 1.5), atr(b, 5) > 1.2 * atr(b, 30) ? donch(b, 20) : 0)),
+  A('c_vwap_mom_flow', 'combo', 'VWAP + מומנטום + נפח עולה', (b) => all(sgn(vwapDev(b, 30), 0.0005), sgn(roc(b, 5), 0.0005), upVolRatio(b, 15) > 0.55 ? 1 : upVolRatio(b, 15) < 0.45 ? -1 : 0)),
+  A('c_multi_tf', 'combo', '3 טווחי זמן', (b) => all(sgn(slope(b, 20), 0.0005), sgn(slope(b, 45), 0.001), sgn(roc(b, 15), 0.001))),
+  A('c_major5', 'combo', 'רוב 4 מתוך 5 מתנדים', (b) => { const v = [rsi(b, 14) > 55 ? 1 : rsi(b, 14) < 45 ? -1 : 0, sgn(macdH(b)), stoch(b, 14) > 60 ? 1 : stoch(b, 14) < 40 ? -1 : 0, sgn(cci(b, 20), 50), mfi(b, 14) > 55 ? 1 : mfi(b, 14) < 45 ? -1 : 0]; const l = v.filter((x) => x === 1).length, sh = v.filter((x) => x === -1).length; return l >= 4 ? 1 : sh >= 4 ? -1 : 0 }),
+)
 export const SWARM_IDS = SWARM.map((a) => a.id)
 export function runSwarm(b: Bar[], x: { btc?: Bar[] }): Record<string, number> {
   const out: Record<string, number> = {}

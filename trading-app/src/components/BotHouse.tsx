@@ -16,7 +16,7 @@ import { AGENTS, NEW_AGENTS } from '../../../shared/agents'
 import { SWARM, TEAMS, LEARN, learnedWeight, tStat, meanBps, decayStat, type Stat, type Team } from '../../../shared/swarm'
 const CYCLE_LABEL = `${String(Math.floor(TEAM_INTERVAL_MS / 60_000)).padStart(2, '0')}:${String((TEAM_INTERVAL_MS / 1000) % 60).padStart(2, '0')}`
 
-type Id = 'scout' | 'regime' | 'rota' | 'donch' | 'risk' | 'trader' | 'treasurer' | 'reporter' | 'auditor' | 'pm' | 'quant' | 'compliance' | 'execution' | 'rsi' | 'vwap' | 'breakout' | 'volume' | 'macd' | 'bollinger' | 'htf' | 'btclead' | 'candle' | 'funding' | 'trendDesk' | 'momDesk' | 'revDesk' | 'brkDesk' | 'flowDesk'
+type Id = 'scout' | 'regime' | 'rota' | 'donch' | 'risk' | 'trader' | 'treasurer' | 'reporter' | 'auditor' | 'pm' | 'quant' | 'compliance' | 'execution' | 'rsi' | 'vwap' | 'breakout' | 'volume' | 'macd' | 'bollinger' | 'htf' | 'btclead' | 'candle' | 'funding' | 'trendDesk' | 'momDesk' | 'revDesk' | 'brkDesk' | 'flowDesk' | 'comboDesk'
 interface Minute { who: Id; says: string; vote: string; checked_at?: string; round?: number; to?: string; data?: Row }
 interface Row { [k: string]: unknown }
 interface Snap {
@@ -38,7 +38,7 @@ interface Snap {
 }
 interface Status { working: boolean; asleep?: boolean; alarm?: boolean; line: string; action?: string; at?: number; reviewed?: boolean }
 
-const SHORT: Record<string, string> = { rota: 'אסטרטגיה', donch: 'אימות', reporter: 'יומן', auditor: 'מבקר', pm: 'מנהל תיק', quant: 'כמותי', compliance: 'ציות', execution: 'ביצוע' , ...Object.fromEntries(NEW_AGENTS.map((k) => [k, AGENTS[k].role]))}
+const SHORT: Record<string, string> = { rota: 'אסטרטגיה', donch: 'אימות', reporter: 'יומן', auditor: 'מבקר', pm: 'מנהל תיק', quant: 'כמותי', compliance: 'ציות', execution: 'ביצוע' , ...Object.fromEntries(NEW_AGENTS.map((k) => [k, AGENTS[k].role])), trendDesk: 'מגמה', momDesk: 'מומנטום', revDesk: 'היפוך', brkDesk: 'פריצות', flowDesk: 'זרימה', comboDesk: 'שילובים' }
 const ROSTER: Record<Id, { name: string; role: string; color: string }> = {
   scout: { name: 'איתן', role: 'סורק נתונים', color: '#35e0ff' },
   regime: { name: 'נועה', role: 'חזאית השוק', color: '#c38bff' },
@@ -66,6 +66,7 @@ const ROSTER: Record<Id, { name: string; role: string; color: string }> = {
   momDesk: { name: TEAMS.mom.name, role: 'ראש ' + TEAMS.mom.label + ' (10 סוכנים)', color: '#ffb3c7' },
   revDesk: { name: TEAMS.rev.name, role: 'ראש ' + TEAMS.rev.label + ' (10 סוכנים)', color: '#c3f584' },
   brkDesk: { name: TEAMS.brk.name, role: 'ראש ' + TEAMS.brk.label + ' (10 סוכנים)', color: '#ffd29a' },
+  comboDesk: { name: TEAMS.combo.name, role: 'ראש ' + TEAMS.combo.label + ' (10 סוכנים)', color: '#ff9f6b' },
   flowDesk: { name: TEAMS.flow.name, role: 'ראש ' + TEAMS.flow.label + ' (10 סוכנים)', color: '#b9a7ff' },
   funding: { name: AGENTS.funding.name, role: 'סוכן ' + AGENTS.funding.role, color: '#4cc9f0' },
 }
@@ -87,11 +88,12 @@ const ROOM: Record<Id, { x0: number; y0: number; w: number; h: number; floor: nu
   quant: { x0: 240, y0: 414, w: 115, h: 136, floor: 544 },
   pm: { x0: 356, y0: 414, w: 116, h: 136, floor: 544 },
   // v75.0 the swarm floor: five team leads, ten agents each
-  trendDesk: { x0: 8, y0: 836, w: 92, h: 136, floor: 966 },
-  momDesk: { x0: 101, y0: 836, w: 92, h: 136, floor: 966 },
-  revDesk: { x0: 194, y0: 836, w: 92, h: 136, floor: 966 },
-  brkDesk: { x0: 287, y0: 836, w: 92, h: 136, floor: 966 },
-  flowDesk: { x0: 380, y0: 836, w: 92, h: 136, floor: 966 },
+  trendDesk: { x0: 8, y0: 836, w: 76, h: 136, floor: 966 },
+  momDesk: { x0: 85, y0: 836, w: 76, h: 136, floor: 966 },
+  revDesk: { x0: 162, y0: 836, w: 76, h: 136, floor: 966 },
+  brkDesk: { x0: 239, y0: 836, w: 76, h: 136, floor: 966 },
+  flowDesk: { x0: 316, y0: 836, w: 76, h: 136, floor: 966 },
+  comboDesk: { x0: 393, y0: 836, w: 79, h: 136, floor: 966 },
   // v73.0 two more basement floors: the signal analysts
   rsi: { x0: 8, y0: 556, w: 92, h: 134, floor: 686 },
   vwap: { x0: 101, y0: 556, w: 92, h: 134, floor: 686 },
@@ -106,6 +108,7 @@ const ROOM: Record<Id, { x0: number; y0: number; w: number; h: number; floor: nu
 }
 const IDS = Object.keys(ROSTER) as Id[]
 const LOOK: Record<Id, { skin: string; hair: string; shirt: string; pants: string; style: number; glasses: boolean }> = {
+  comboDesk: { skin: '#dca577', hair: '#161616', shirt: '#ff9f6b', pants: '#1d2433', style: 0, glasses: true },
   trendDesk: { skin: '#f3c9a2', hair: '#161616', shirt: '#9ad0ff', pants: '#1d2433', style: 2, glasses: false },
   momDesk: { skin: '#b07448', hair: '#e0ad4a', shirt: '#ffb3c7', pants: '#1d2433', style: 3, glasses: true },
   revDesk: { skin: '#dca577', hair: '#6b3b1d', shirt: '#c3f584', pants: '#1d2433', style: 4, glasses: false },
@@ -449,7 +452,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
       for (const id of IDS) {
         const r = ROOM[id], a = st[id]
         const lit = !dead && !a?.asleep
-        const wall = ({ auditor: '#24382a', reporter: '#3a3222', donch: '#2f2a44', rota: '#1f3a2c', regime: '#2f2a44', scout: '#26324a', treasurer: '#3a2630', trader: '#1f3440', risk: '#3a2222', pm: '#20242f', quant: '#232648', compliance: '#3a2436', execution: '#163a30', trendDesk: '#16304a', momDesk: '#3a1f33', revDesk: '#23361f', brkDesk: '#3a2d18', flowDesk: '#26204a' } as Record<string, string>)[id] ?? '#1c2538'
+        const wall = ({ auditor: '#24382a', reporter: '#3a3222', donch: '#2f2a44', rota: '#1f3a2c', regime: '#2f2a44', scout: '#26324a', treasurer: '#3a2630', trader: '#1f3440', risk: '#3a2222', pm: '#20242f', quant: '#232648', compliance: '#3a2436', execution: '#163a30', trendDesk: '#16304a', momDesk: '#3a1f33', revDesk: '#23361f', brkDesk: '#3a2d18', flowDesk: '#26204a', comboDesk: '#3a2418' } as Record<string, string>)[id] ?? '#1c2538'
         px(r.x0, r.y0, r.w, r.h, lit ? wall : '#141821')
         px(r.x0, r.floor, r.w, 6, '#5a3d27'); for (let x = r.x0; x < r.x0 + r.w; x += 14) px(x, r.floor, 1, 6, 'rgba(0,0,0,0.3)')
         // desk + chair
@@ -531,11 +534,11 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
         }
         const teamKey = (Object.keys(TEAMS) as Team[]).find((t) => TEAMS[t].lead === id)
         if (teamKey) {
-          px(r.x0 + 8, r.y0 + 12, 76, 40, '#0b0f18')
+          px(r.x0 + 6, r.y0 + 12, 66, 40, '#0b0f18')
           SWARM.filter((a) => a.team === teamKey).forEach((a, i) => {
             const st = s?.agentStats?.[a.id], w = learnedWeight(st), learning = !st || st.n < LEARN.minN
-            px(r.x0 + 12 + (i % 5) * 14, r.y0 + 16 + Math.floor(i / 5) * 16, 10, 10, learning ? '#56607a' : w === 0 ? '#5a1a24' : w > 1.2 ? '#00d492' : '#2a6f5a')
-            if (!learning && w > 0) px(r.x0 + 12 + (i % 5) * 14, r.y0 + 26 + Math.floor(i / 5) * 16 - Math.round(8 * Math.min(1, w / 2.5)), 10, 1, '#f0b44c')
+            px(r.x0 + 9 + (i % 5) * 12, r.y0 + 16 + Math.floor(i / 5) * 16, 9, 10, learning ? '#56607a' : w === 0 ? '#5a1a24' : w > 1.2 ? '#00d492' : '#2a6f5a')
+            if (!learning && w > 0) px(r.x0 + 9 + (i % 5) * 12, r.y0 + 26 + Math.floor(i / 5) * 16 - Math.round(8 * Math.min(1, w / 2.5)), 9, 1, '#f0b44c')
           })
         }
         if ((NEW_AGENTS as string[]).includes(id)) {
@@ -630,7 +633,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
         <div>
           <span className="bh-eyebrow">NEXUS / AUTONOMOUS OPERATIONS</span>
           <h1>בית הבוט <small>חדר הבקרה</small></h1>
-          <p>73 סוכנים כמו בקרן גידור: 65 מצביעים לונג/שורט (15 אנליסטים + 50 בחמישה צוותים), כל אחד נבחן כל דקה מול 5 הדקות הבאות ומשקלו מתעדכן לבד — מי שטועה בעקביות יורד לספסל. דסק של 4 מתווכח ומכריע. ישיבה וכניסות כל דקה, בדיקת יציאות כל 10 שניות — הכל מתוך מנוע הבוט, גם כשהעמוד סגור.</p>
+          <p>84 סוכנים כמו בקרן גידור: 75 מצביעים לונג/שורט (15 אנליסטים + 60 בשישה צוותים, כולל צוות שילובי מתנדים), כל אחד נבחן כל דקה מול 5 הדקות הבאות ומשקלו מתעדכן לבד — מי שטועה בעקביות יורד לספסל. דסק של 4 מתווכח ומכריע. ישיבה וכניסות כל דקה, בדיקת יציאות כל 10 שניות — הכל מתוך מנוע הבוט, גם כשהעמוד סגור.</p>
         </div>
         <div className="bh-chips">
           <span className={`bh-chip ${live ? 'ok' : 'bad'}`}><i />{live ? `הבוט רץ · דופק ${ago(ts(snap?.state?.updated_at), now)}` : snap ? 'אין דופק מהבוט' : 'מתחבר…'}</span>
