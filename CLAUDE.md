@@ -67,6 +67,8 @@ DONCH4H is shown asleep while enabled_sleeves = ROTA.
 
 The house computes NO signal (the viewer rule holds). No bot code or DB change.
 `src/supa.ts` now holds SUPA_URL/SUPA_KEY for both components.
+The house also stands alone as `house.html`, a second Vite entry with no dashboard
+around it (owner: "only it, alone"): https://aliexpressgood585.github.io/spacehub/house.html
 
 ## 2026-09-23 13:00 UTC — dashboard "not active": two real gaps, both fixed
 Owner: "why isn't the dashboard active". Bot + data were healthy (anon REST
