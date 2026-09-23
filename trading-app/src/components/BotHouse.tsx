@@ -294,7 +294,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
   const [sel, setSel] = useState<Id | null>(null)
   const [replay, setReplay] = useState<{ id: unknown; start: number } | null>(null)
   const [fast, setFast] = useState(Date.now())
-  const [ticks, setTicks] = useState<Record<string, Tick>>({})
+  const [ticks, setTicks] = useState<Record<string, Tick>>(() => { try { return JSON.parse(localStorage.getItem('bh-ticks') ?? '{}') } catch { return {} } })
   const mins = ((snap?.meetings?.[0]?.minutes ?? []) as Minute[])
   const shown = replay ? Math.max(0, Math.min(mins.length, Math.floor((fast - replay.start) / STEP_MS) + 1)) : mins.length
   const replaying = !!replay && fast - replay.start < mins.length * STEP_MS + 2500
@@ -307,25 +307,32 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
     let alive = true
     const pull = async () => {
       // Binance USDT-M futures first (the bot's reference feed), OKX swaps as fallback; source is shown.
+      // Both feeds in parallel with a 3.5s timeout: a geo-blocked Binance can no longer stall the page.
       const got: Record<string, { px: number; chg: number; t: number; src: string }> = {}
-      try {
-        const r = await fetch('https://fapi.binance.com/fapi/v1/ticker/24hr')
-        if (r.ok) {
-          const all = (await r.json()) as { symbol: string; lastPrice: string; priceChangePercent: string; closeTime: number }[]
-          const bySym = new Map(all.map((x) => [x.symbol, x]))
-          for (const c of UNIVERSE) { const m = BN_K[c] ?? { s: `${c}USDT`, k: 1 }; const x = bySym.get(m.s); if (x) got[c] = { px: Number(x.lastPrice) / m.k, chg: Number(x.priceChangePercent) / 100, t: x.closeTime, src: 'Binance Futures' } }
-        }
-      } catch { /* geo-blocked for some viewers: fall back below */ }
-      if (Object.keys(got).length < UNIVERSE.length) try {
-        const r = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP')
-        const j = await r.json()
-        if (j.code === '0') for (const x of j.data as { instId: string; last: string; sodUtc0: string; ts: string }[]) {
-          const m = /^([A-Z0-9]+)-USDT-SWAP$/.exec(x.instId); if (!m || !UNIVERSE.includes(m[1]) || got[m[1]]) continue
-          const px = Number(x.last), o = Number(x.sodUtc0); got[m[1]] = { px, chg: o > 0 ? px / o - 1 : NaN, t: Number(x.ts), src: 'OKX' }
-        }
-      } catch { /* shown as missing, never invented */ }
+      const to = () => (typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal ? AbortSignal.timeout(3500) : undefined)
+      const [bn, ok] = await Promise.allSettled([
+        fetch('https://fapi.binance.com/fapi/v1/ticker/24hr', { signal: to() }).then((r) => (r.ok ? r.json() : null)),
+        fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP', { signal: to() }).then((r) => (r.ok ? r.json() : null)),
+      ])
+      if (bn.status === 'fulfilled' && Array.isArray(bn.value)) {
+        const bySym = new Map((bn.value as { symbol: string; lastPrice: string; priceChangePercent: string; closeTime: number }[]).map((x) => [x.symbol, x]))
+        for (const c of UNIVERSE) { const m = BN_K[c] ?? { s: `${c}USDT`, k: 1 }; const x = bySym.get(m.s); if (x) got[c] = { px: Number(x.lastPrice) / m.k, chg: Number(x.priceChangePercent) / 100, t: x.closeTime, src: 'Binance Futures' } }
+      }
+      if (ok.status === 'fulfilled' && ok.value?.code === '0') for (const x of ok.value.data as { instId: string; last: string; sodUtc0: string; ts: string }[]) {
+        const m = /^([A-Z0-9]+)-USDT-SWAP$/.exec(x.instId); if (!m || !UNIVERSE.includes(m[1]) || got[m[1]]) continue
+        const px = Number(x.last), o = Number(x.sodUtc0); got[m[1]] = { px, chg: o > 0 ? px / o - 1 : NaN, t: Number(x.ts), src: 'OKX' }
+      }
+      // Third source: the bot's own server-side Binance Futures mid from the last meeting (never blocked for the viewer).
+      const cands = ((snapRef.current?.state?.bot_params as Row | undefined)?.scalp_candidates ?? []) as { sym: string; mid?: number; ts?: number }[]
+      for (const c of cands) if (!got[c.sym] && Number(c.mid) > 0) got[c.sym] = { px: Number(c.mid), chg: NaN, t: Number(c.ts) || Date.now(), src: 'מחיר הבוט' }
       if (!alive) return
-      setTicks((old) => Object.fromEntries(Object.entries(got).map(([c, g]) => [c, { ...g, dir: old[c] ? Math.sign(g.px - old[c].px) || old[c].dir : 0 }])))
+      // Merge, never drop: a coin missing from this pull keeps its last known price (with its age shown).
+      setTicks((old) => {
+        const next: Record<string, Tick> = { ...old }
+        for (const [c, g] of Object.entries(got)) next[c] = { ...g, chg: Number.isFinite(g.chg) ? g.chg : old[c]?.chg ?? NaN, dir: old[c] ? Math.sign(g.px - old[c].px) || old[c].dir : 0 }
+        try { localStorage.setItem('bh-ticks', JSON.stringify(next)) } catch { /* optional */ }
+        return next
+      })
     }
     void pull(); const iv = setInterval(pull, 4000)
     return () => { alive = false; clearInterval(iv) }
@@ -768,8 +775,8 @@ function Floor({ snap, ticks, now }: { snap: Snap | null; ticks: Record<string, 
     <div className="bh-blot">
       {rows.length ? rows.map(({ t, dir, e, mark, u, up: upc, held, stop, toStop }) => (
         <div key={String(t.id)} className={`bh-pos ${Number.isFinite(u) ? (u >= 0 ? 'win' : 'lose') : ''}`}>
-          <div className="bh-pos-top"><b>{String(t.sym)}</b><span className={dir > 0 ? 'bh-l' : 'bh-s'}>{dir > 0 ? 'LONG' : 'SHORT'}</span><em>{String(t.strategy)}</em><strong dir="ltr">{Number.isFinite(u) ? `${usd(u)} (${pct(upc)})` : 'אין מחיר חי'}</strong></div>
-          <div className="bh-pos-mid" dir="ltr"><span>entry {fmtPx(e)}</span><span>mark {fmtPx(mark)}</span><span>stop {fmtPx(stop)}{Number.isFinite(toStop) ? ` (${pct(toStop)})` : ''}</span></div>
+          <div className="bh-pos-top"><b>{String(t.sym)}</b><span className={dir > 0 ? 'bh-l' : 'bh-s'}>{dir > 0 ? 'LONG' : 'SHORT'}</span><em>{String(t.strategy)}</em><strong dir="ltr">{Number.isFinite(u) ? `${usd(u)} (${pct(upc)})` : 'טוען מחיר…'}</strong></div>
+          <div className="bh-pos-mid" dir="ltr"><span>entry {fmtPx(e)}</span><span>mark {fmtPx(mark)}{ticks[String(t.sym)] ? ` · ${ticks[String(t.sym)].src}${now - ticks[String(t.sym)].t > 30_000 ? ` · ${Math.round((now - ticks[String(t.sym)].t) / 1000)}s` : ''}` : ''}</span><span>stop {fmtPx(stop)}{Number.isFinite(toStop) ? ` (${pct(toStop)})` : ''}</span></div>
           {t.strategy === 'SCALP' && (() => { const plan = Math.max(1, Math.min(15, num((t.scalp_meta as Row | null)?.hold_min) || 15)) * 60_000; const over = held > plan; return <div className={`bh-bar${over ? ' ext' : ''}`}><i style={{ width: `${Math.min(100, (held / plan) * 100)}%` }} /><span>{over ? 'הוארך · ' : ''}<b dir="ltr">{Math.floor(held / 60_000)}:{String(Math.floor((held % 60_000) / 1000)).padStart(2, '0')} / {plan / 60_000}:00</b>{over ? ' (עד 15:00)' : ' מתוכנן'}</span></div> })()}
         </div>)) : <p className="bh-mnote">אין פוזיציות פתוחות כרגע. הסיבה מופיעה בהחלטת מנהלת התיק בישיבה.</p>}
     </div>
