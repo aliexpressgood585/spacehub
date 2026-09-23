@@ -84,7 +84,7 @@ export function assess(sym:string,b:Bar[],q:Quote,now:number,intel:Intel={news:[
   say('risk',`${sym}: ${nw.item?`חדשות: "${nw.item.title.slice(0,70)}" (${nw.item.source}, ${new Date(nw.item.ts).toISOString().slice(11,16)}Z) · תנועת מחיר מאז ${(nw.move*100).toFixed(2)}% ${nw.verified?'מאומת':'לא מאומת — לא נספר'}`:'אין חדשות טריות'} · ליקווידציות תקפות ${lq.valid} (נפסלו ${lq.rejected})`,vs(nw.dir+lq.dir))
   say('auditor',`${sym}: טווח תנודתיות ${(atr*250).toFixed(2)}%, אומדן עלות הלוך־חזור ${(cost*100).toFixed(2)}%; זה אינו אומדן רווח`,rangeOk?'ok':'veto')
   return {sym,side:liquid&&rangeOk?side:0,stopPct:Math.min(0.01,Math.max(0.003,atr*1.5)),votes,score:Math.abs(direction),
-    signals:{trend,momentum,flow,sweep:sweep.dir,news:nw.dir,liq:lq.dir,news_title:nw.item?.title??null,news_source:nw.item?.source??null,news_ts:nw.item?.ts??null,news_verified:nw.verified,liq_valid:lq.valid,liq_rejected:lq.rejected}}
+    signals:{trend,momentum,flow,sweep:sweep.dir,news:nw.dir,liq:lq.dir,news_title:nw.item?.title??null,news_source:nw.item?.source??null,news_ts:nw.item?.ts??null,news_verified:nw.verified,spread_bps:spread*1e4,liq_valid:lq.valid,liq_rejected:lq.rejected}}
 }
 export function exitPlan(t:any,q:Quote,now:number) {
   const dir=t.side==='LONG'?1:-1, entry=Number(t.entry_price), stop=Number(t.trail_sl)
