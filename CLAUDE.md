@@ -64,6 +64,14 @@ Live data at the time (net of 16bps, n>=100): 5m 0/75 positive (best -10.7bps),
 - `SCALP.maxEntries` 2: only the strongest 1-2 signals per meeting get capital
   (~49.5% each), instead of spreading over up to 8.
 Paper 1x, ledger unchanged (per-coin 50%, 8 max open).
+DEPLOYED 2026-09-24 ~00:0x UTC: PR #44 (04412113), function v44, manifest v80.0 paper
+true / live false, 0 errors. Quant: PROVEN mode, 8 agents vote; leaders are REVERSAL
+agents (vwap30r@60 t=6.4, vwap30r@15 t=5.9, rsi14r@15 t=5.7). Since the reset: 14
+closed, net -$18.56; book LINK/ALGO LONG + INJ SHORT, 60m holds, cash $1,288.
+OPEN CONFLICT, reported to owner, NOT changed: the entry rule still refuses any side
+that fights EMA8/21 (owner's v71 spec) — the proven agents are faders, so the EMA
+rule vetoes much of exactly what they are proven at (e.g. UNI -62% held back).
+Also the PM debate line's "N long vs M short" still counts all voters (display only).
 
 ## 2026-09-23 22:30 UTC — ACCOUNT RESET to $5,000 on v79.0 (owner: "reset, start over, no patience to wait")
 History exported FIRST to `migration/export-v79era/` (190 trades, 494 equity rows,
