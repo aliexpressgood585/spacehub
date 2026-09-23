@@ -66,6 +66,13 @@ dominate when the move is small. v78.0 proved every agent loses net at 5 minutes
   function deploy; compatible with old runner): hold caps 15->240, stop band
   0.3-1% -> 0.3-4%. Tests assert both against SCALP constants.
 - Horizon stats start empty; 15m data after ~15 min, 240m after ~4h and 100 votes.
+DEPLOYED 2026-09-23 22:22 UTC: PR #43 (3b5956d1), function v43, manifest v79.0 paper
+true / live false, 0 errors. Horizon learning filled instantly from the 24h of stored
+snapshots (219 agent@h rows); still 0 net-positive agents -> RELATIVE mode, weighted
+scores non-zero again (FET -61% with 6 shorts at 22:26).
+NO ENTRY YET, and it is NOT the learning: the ledger's DAILY LOSS BREAKER is on
+(scalp_paused: equity $4,793 <= 95% of the day's opening $5,049.55). It resets on its
+own at 00:00 UTC (new day baseline). Left untouched on purpose — a safety breaker.
 
 ## v78.0 (2026-09-23) — shadow learning scores NET of costs (owner: "add your improvement")
 `scoreSnapshot` edge = dir x return(bps) - `LEARN.costBps` (16 = 2 x (fee 5 + slip 3),
