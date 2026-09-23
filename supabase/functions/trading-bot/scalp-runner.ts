@@ -83,7 +83,7 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
   const now=Date.now(),closes:any[]=[],updates:any[]=[],entries:any[]=[],marks:Record<string,number>={}
   let cash=Number(state.balance),exposure=0,equity=cash
   const retained:any[]=[]
-  const evaluated=due?UNIVERSE.filter(sym=>data.has(sym)).map(sym=>assess(sym,data.get(sym)!.b,data.get(sym)!.q,now,{...(ctx?.intel[sym]??{news:[],liqs:[]}),btc:sym==='BTC'?undefined:data.get('BTC')?.b,weights:W})):[]
+  const evaluated=due?UNIVERSE.filter(sym=>data.has(sym)).map(sym=>assess(sym,data.get(sym)!.b,data.get(sym)!.q,now,{...(ctx?.intel[sym]??{news:[],liqs:[]}),btc:sym==='BTC'?undefined:data.get('BTC')?.b,weights:W,mode:team.mode})):[]
   const views=new Map(evaluated.map(x=>[x.sym,{side:x.side,weighted:x.weighted}]))
   let learned:{scored:number,updated:number}={scored:0,updated:0}
   if(due&&evaluated.length&&!learnErr){

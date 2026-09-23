@@ -12,7 +12,7 @@ export interface Vote { who:string; says:string; vote:string; checked_at:string 
 // Public context, each item carrying where it came from and when.
 export interface NewsItem { title:string; source:string; url:string; ts:number }
 export interface LiqEvent { side:'long'|'short'; px:number; sz:number; ts:number; source:string }
-export interface Intel { news:NewsItem[]; liqs:LiqEvent[]; btc?:Bar[]; funding?:number|null; weights?:Record<string,number> }
+export interface Intel { news:NewsItem[]; liqs:LiqEvent[]; btc?:Bar[]; funding?:number|null; weights?:Record<string,number>; mode?:'proven'|'relative' }
 export function validQuote(q: Quote, now:number): boolean {
   return [q.bid,q.ask,q.ts,q.imbalance].every(Number.isFinite) && q.bid>0 && q.ask>=q.bid && now-q.ts>=-5000 && now-q.ts<20_000
 }
@@ -85,7 +85,8 @@ export function assess(sym:string,b:Bar[],q:Quote,now:number,intel:Intel={news:[
   for(const [k,d] of Object.entries(dirs)){if(w(k)<=0)continue;if(d===raw0)pro++;else if(d===-raw0)con++}  // v80.0: only agents with a say are counted
   // Needs weighted net >= 20% of all weight, a head-count lead of 2, and must not fight the EMA trend.
   const raw=raw0&&Math.abs(S)/Wt>=SCALP.minWeighted&&pro-con>=2?raw0:0
-  const side=raw&&trend!==-raw?raw:0
+  // v80.1: in PROVEN mode the EMA8/21 veto is off — the proven agents are faders, and the veto blocked exactly their edge
+  const side=raw&&(intel.mode==='proven'||trend!==-raw)?raw:0
   const direction=S
   const spread=(q.ask-q.bid)/mid, cost=2*(SCALP.fee+SCALP.slip)+spread
   const liquid=spread<=SCALP.maxSpread; const rangeOk=atr*2.5>cost*1.3

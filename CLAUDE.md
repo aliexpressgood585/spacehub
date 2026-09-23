@@ -72,6 +72,8 @@ OPEN CONFLICT, reported to owner, NOT changed: the entry rule still refuses any 
 that fights EMA8/21 (owner's v71 spec) — the proven agents are faders, so the EMA
 rule vetoes much of exactly what they are proven at (e.g. UNI -62% held back).
 Also the PM debate line's "N long vs M short" still counts all voters (display only).
+v80.1 (owner: "yes"): EMA8/21 veto LIFTED in proven mode only (`intel.mode`); relative
+mode keeps it. Faders can now take the counter-trend entries they are proven on.
 
 ## 2026-09-23 22:30 UTC — ACCOUNT RESET to $5,000 on v79.0 (owner: "reset, start over, no patience to wait")
 History exported FIRST to `migration/export-v79era/` (190 trades, 494 equity rows,
