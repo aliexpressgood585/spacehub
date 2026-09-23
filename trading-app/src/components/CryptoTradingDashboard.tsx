@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo, type CSSProperties } from 'react'
+import { SCALP } from '../../../shared/scalp'
 import { createClient } from '@supabase/supabase-js'
 
-const SUPA_URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || 'https://adxgadwghgkwmntsnrar.supabase.co'
-const SUPA_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFkeGdhZHdnaGdrd21udHNucmFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk2NzY3OTksImV4cCI6MjEwNTI1Mjc5OX0.08xmuV7Wf49I8rp_RffeiIQVqWNilE7QRfNxpmrU_j4'
+import { SUPA_URL, SUPA_KEY } from '../supa'
 
 type RiskType = 'low'|'medium'|'high'
 const normalizeRisk = (r: string): RiskType =>
@@ -18,6 +18,7 @@ interface Trade {
   status:'OPEN'|'TP'|'SL'|'TRAIL'
   hi:number; lo:number; trailSL:number; fee:number
   strategy?:string
+  lev?:number
   riskUsd?:number
   slPct?:number; tpPct?:number
   partialDone?:boolean; closedTs?:number
@@ -102,7 +103,7 @@ const COINS = [
 // The strategy indicators that matter now are computed server-side, in the bot.
 function calcSharpe(trades:Trade[]):number{const cl=trades.filter(t=>t.pnlPct!==undefined);if(cl.length<3)return 0;const r=cl.map(t=>t.pnlPct!);const m=r.reduce((a,b)=>a+b,0)/r.length;const s=Math.sqrt(r.reduce((a,b)=>a+(b-m)**2,0)/r.length)||1e-9;return(m/s)*Math.sqrt(252)}
 function calcMaxDD(trades:Trade[]):number{let bal=INIT_BAL,peak=INIT_BAL,mx=0;for(const t of trades){if(t.pnl){bal+=t.pnl;if(bal>peak)peak=bal;mx=Math.max(mx,(peak-bal)/peak)}}return mx*100}
-function mapDbTrade(t:Record<string,unknown>):Trade{return{id:t.id as number,sym:t.sym as string,side:t.side as 'LONG'|'SHORT',entry:Number(t.entry_price),exit:t.exit_price!=null?Number(t.exit_price):undefined,size:Number(t.size),pnl:t.pnl!=null?Number(t.pnl):undefined,pnlPct:t.pnl_pct!=null?Number(t.pnl_pct):undefined,ts:new Date(t.opened_at as string).getTime(),closedTs:t.closed_at?new Date(t.closed_at as string).getTime():undefined,status:t.status as 'OPEN'|'TP'|'SL'|'TRAIL',hi:Number(t.hi),lo:Number(t.lo),trailSL:Number(t.trail_sl),fee:Number(t.fee),strategy:(t.strategy as string)||'LEGACY',riskUsd:t.risk_usd!=null?Number(t.risk_usd):undefined}}
+function mapDbTrade(t:Record<string,unknown>):Trade{return{id:t.id as number,sym:t.sym as string,side:t.side as 'LONG'|'SHORT',entry:Number(t.entry_price),exit:t.exit_price!=null?Number(t.exit_price):undefined,size:Number(t.size),pnl:t.pnl!=null?Number(t.pnl):undefined,pnlPct:t.pnl_pct!=null?Number(t.pnl_pct):undefined,ts:new Date(t.opened_at as string).getTime(),closedTs:t.closed_at?new Date(t.closed_at as string).getTime():undefined,status:t.status as 'OPEN'|'TP'|'SL'|'TRAIL',hi:Number(t.hi),lo:Number(t.lo),trailSL:Number(t.trail_sl),fee:Number(t.fee),strategy:(t.strategy as string)||'LEGACY',riskUsd:t.risk_usd!=null?Number(t.risk_usd):undefined,lev:Math.max(1,Number(t.lev)||1)}}
 
 // ─── canvas renderers ─────────────────────────────────────────────────────────
 // v57.0: price only. The EMA9/21 lines, the Bollinger band fill and the BUY/SELL
@@ -323,7 +324,7 @@ function LivePosition({t,live,fmtP,onClose}:{t:Trade;live?:{cur:number;pnl:numbe
       {/* notional row */}
       <div style={{marginTop:'4px'}}>
         <span style={{fontSize:'9px',color:C.muted}}>
-          פוזיציה: ${notional.toLocaleString()}
+          פוזיציה: ${notional.toLocaleString()}{(t.lev||1)>1?` · מינוף ${t.lev}x · בטחון $${(notional/(t.lev||1)).toFixed(0)}`:''}
         </span>
       </div>
     </div>
@@ -678,14 +679,30 @@ export default function CryptoTradingDashboard() {
   useEffect(()=>{
     const load=async()=>{
       for(const coin of COINS){
+        // Binance first; it is geo-blocked (451/CORS) in the owner's region, so
+        // fall back to OKX swap candles — the same ladder the bot uses (v61.0).
+        let bars:Bar[]|null=null
         try{
           const res=await fetch(`https://api.binance.com/api/v3/klines?symbol=${coin.sym}USDT&interval=5m&limit=300`)
-          if(!res.ok)continue
-          const data:number[][]=await res.json()
-          const bars:Bar[]=data.map(k=>({time:k[0] as number,open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
+          if(res.ok){
+            const data:number[][]=await res.json()
+            bars=data.map(k=>({time:k[0] as number,open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]}))
+          }
+        }catch{}
+        if(!bars||!bars.length){
+          try{
+            const res=await fetch(`https://www.okx.com/api/v5/market/candles?instId=${coin.sym}-USDT-SWAP&bar=5m&limit=300`)
+            if(res.ok){
+              const j=await res.json()
+              const rows:string[][]=Array.isArray(j?.data)?j.data:[]
+              bars=rows.map(k=>({time:+k[0],open:+k[1],high:+k[2],low:+k[3],close:+k[4],vol:+k[5]})).reverse()
+            }
+          }catch{}
+        }
+        if(bars&&bars.length){
           barsMap.current.set(coin.sym,bars.slice(0,-1))
           if(coin.sym===selRef.current)setTick(n=>n+1)
-        }catch{}
+        }
         await new Promise(r=>setTimeout(r,120))
       }
     }
@@ -950,7 +967,7 @@ export default function CryptoTradingDashboard() {
     const op = openTrades.filter(t=>t.strategy===name).length
     return {n:cl.length, wr:cl.length?w2/cl.length*100:0, rp, op}
   }
-  const stDonch = stratStats('DONCH4H'), stRota = stratStats('ROTA')
+  const stDonch = stratStats('DONCH4H'), stRota = stratStats('ROTA'), stScalp = stratStats('SCALP')
   const eqPath = (()=>{
     if (equityHist.length<2) return null
     const vals=equityHist.slice(-384).map(p=>p.equity)
@@ -1005,7 +1022,9 @@ export default function CryptoTradingDashboard() {
     else { verdict='מתחת לרצועה — עדיין חיובי, במעקב'; vcol=C.yellow }
     return {n,mean,sd,rLo,rHi,p,wrLo,wrHi,verdict,vcol,R_TGT,WR_TGT}
   })()
-  const lockedNotional = openTrades.reduce((a,t)=>a+t.entry*t.size,0)
+  // v67.2: collateral actually posted (notional / leverage), not the full
+  // notional — at 2x the old sum booked the borrowed half as account value.
+  const lockedNotional = openTrades.reduce((a,t)=>a+t.entry*t.size/(t.lev||1),0)
   const totalValue     = balance+lockedNotional+unrealizedPnl
   const sharpe         = calcSharpe(trades)
   const maxDD          = calcMaxDD(trades)
@@ -1068,6 +1087,9 @@ export default function CryptoTradingDashboard() {
               boxShadow:`0 0 8px ${C.blue}30`,background:`${C.blue}10`}}
               title={release?`commit ${release.sha}`:'הגרסה החיה טרם נקראה'}>
               {release?`${release.bot_version} · ${release.sha.slice(0,7)}`:'…'}</span>
+            <a href="#house" className="nx-btn" title="בית הבוט — מה כל חלק בבוט עושה עכשיו, מנתונים אמיתיים" style={{
+              fontSize:'10px',fontWeight:800,color:C.bright,padding:'3px 10px',borderRadius:'20px',textDecoration:'none',
+              border:`1px solid ${C.yellow}55`,background:`${C.yellow}14`}}>🏠 בית הבוט</a>
           </div>
 
           <div style={{display:'flex',gap:'5px',flexWrap:'wrap' as const}}>
@@ -1239,6 +1261,7 @@ export default function CryptoTradingDashboard() {
             ['מקס ירידה',maxDD.toFixed(1)+'%',maxDD<10?C.green:maxDD<25?C.yellow:C.red],
             ['פריצות',`${stDonch.op}פ ${stDonch.n}ס ${(stDonch.rp>=0?'+':'')}${stDonch.rp.toFixed(0)}$`,stDonch.rp>=0?C.green:C.red],
             ['רוטציה',`${stRota.op}פ ${stRota.n}ס ${(stRota.rp>=0?'+':'')}${stRota.rp.toFixed(0)}$ ${stRota.wr.toFixed(0)}%`,stRota.rp>=0?C.green:C.red],
+            ['סקאלפ דמו',`${stScalp.op}/${SCALP.maxPositions}פ ${stScalp.n}ס ${(stScalp.rp>=0?'+':'')}${stScalp.rp.toFixed(0)}$ · כל דקה`,stScalp.rp>=0?C.green:C.red],
             ['נסיגת הון',eqMaxDD.toFixed(1)+'%',eqMaxDD<10?C.green:eqMaxDD<25?C.yellow:C.red],
             ['R ממוצע חי',liveR?`${liveR.avg>=0?'+':''}${liveR.avg.toFixed(3)}R (${liveR.n}) / +0.046`:'נבנה מעכשיו',liveR?(liveR.avg>=0?C.green:C.red):C.muted],
           ].map(([k,v,col])=>(
@@ -1901,7 +1924,7 @@ export default function CryptoTradingDashboard() {
       </div>
 
       <div style={{textAlign:'center' as const,color:C.muted,fontSize:'9px',marginTop:'8px',letterSpacing:'0.5px',opacity:0.7}}>
-        {supaLive?'☁ שרת בוט v31 פעיל 24/7 · מסגרת זמן 5 דקות · מחירים חיים מ-Binance':'מסחר וירטואלי · מחירים חיים מ-Binance'}
+        {supaLive?`☁ שרת בוט פעיל 24/7 · סקאלפ דמו 1x · עד ${SCALP.maxPositions} פוזיציות · ישיבת צוות כל דקה`:'מסחר וירטואלי · מחירים חיים מ-Binance'}
       </div>
     </div>
   )

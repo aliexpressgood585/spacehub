@@ -8021,6 +8021,615 @@ function runV92bt() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+// v105bt — two last price-only ideas with literature support, 36m, 40 coins, 1h.
+// A: cross-sectional SHORT-TERM REVERSAL — every H hours long the K worst and
+//    short the K best performers over the last L hours, hold H.
+// B: BTC LEAD-LAG — after BTC moves >= th in one hour, trade the alt basket in
+//    BTC's direction for the next H hours (alts supposedly catch up).
+// Both judged gross and net (taker 5bps + slip 5/10bps per side per leg), with
+// the last 20% of the span reported separately and never used to choose.
+// ════════════════════════════════════════════════════════════════════════════
+function runV105bt() {
+  const HR = 3600000
+  const MAJ = new Set(['BTC', 'ETH'])
+  const px: Record<string, Map<number, number>> = {}
+  let t0 = Infinity, t1 = -Infinity
+  for (const c of COINS) {
+    if (!CORE40.has(c)) continue
+    const h = loadCSV(c, '1h'); if (h.length < 2000) continue
+    const m = new Map<number, number>(); for (const b of h) m.set(b.t, b.close)
+    px[c] = m; t0 = Math.min(t0, h[0].t); t1 = Math.max(t1, h[h.length - 1].t)
+  }
+  const syms = Object.keys(px), alts = syms.filter(s => s !== 'BTC')
+  const oosFrom = t0 + (t1 - t0) * 0.8
+  console.log(`  ${syms.length} coins, span ${((t1 - t0) / 86400000).toFixed(0)} days, OOS from ${new Date(oosFrom).toISOString().slice(0, 10)}`)
+  const cost = (s: string) => 2 * (5 + (MAJ.has(s) ? 5 : 10))
+  const ret = (s: string, a: number, b: number) => { const p0 = px[s].get(a), p1 = px[s].get(b); return p0 && p1 ? (p1 / p0 - 1) * 10_000 : NaN }
+  const line = (tag: string, per: { t: number; g: number; n: number }[], perYear: number) => {
+    const is = per.filter(x => x.t < oosFrom), oo = per.filter(x => x.t >= oosFrom)
+    const m = (a: typeof per, k: 'g' | 'n') => a.reduce((x, y) => x + y[k], 0) / Math.max(1, a.length)
+    console.log(`  ${tag.padEnd(28)} n=${String(per.length).padStart(6)}  IS gross ${m(is, 'g').toFixed(2).padStart(7)} net ${m(is, 'n').toFixed(2).padStart(7)} bps` +
+      `   OOS gross ${m(oo, 'g').toFixed(2).padStart(7)} net ${m(oo, 'n').toFixed(2).padStart(7)} bps   OOS net %/yr ${(m(oo, 'n') * perYear / 100).toFixed(1)}`)
+  }
+  console.log(`\n── A: cross-sectional short-term reversal (long K losers / short K winners) ──`)
+  for (const L of [1, 4, 24]) for (const H of [4, 24]) for (const K of [4, 8]) {
+    const per: { t: number; g: number; n: number }[] = []
+    for (let t = t0 + L * HR; t + H * HR <= t1; t += H * HR) {
+      const rows = syms.map(s => ({ s, r: ret(s, t - L * HR, t), f: ret(s, t, t + H * HR) }))
+        .filter(x => Number.isFinite(x.r) && Number.isFinite(x.f))
+      if (rows.length < 4 * K) continue
+      rows.sort((a, b) => a.r - b.r)
+      const lo = rows.slice(0, K), hi = rows.slice(-K)
+      const g = (lo.reduce((a, x) => a + x.f, 0) / K - hi.reduce((a, x) => a + x.f, 0) / K) / 2
+      const c = [...lo, ...hi].reduce((a, x) => a + cost(x.s), 0) / (2 * K)
+      per.push({ t, g, n: g - c })
+    }
+    line(`L${L}h H${H}h K${K}`, per, 8760 / H)
+  }
+  console.log(`\n── B: BTC lead-lag (alt basket follows a big BTC hour) ──`)
+  for (const th of [100, 200]) for (const H of [1, 4]) {
+    const per: { t: number; g: number; n: number }[] = []
+    for (let t = t0 + HR; t + H * HR <= t1; t += HR) {
+      const b = ret('BTC', t - HR, t); if (!Number.isFinite(b) || Math.abs(b) < th) continue
+      const d = Math.sign(b)
+      const fs = alts.map(s => ({ s, f: ret(s, t, t + H * HR) })).filter(x => Number.isFinite(x.f))
+      if (fs.length < 10) continue
+      const g = d * fs.reduce((a, x) => a + x.f, 0) / fs.length
+      per.push({ t, g, n: g - fs.reduce((a, x) => a + cost(x.s), 0) / fs.length })
+      t += (H - 1) * HR
+    }
+    line(`BTC |1h|>=${th / 100}% hold ${H}h`, per, per.length / ((t1 - t0) / (365 * 86400000)))
+  }
+  console.log(`\n  Costs per leg round trip: 20 bps majors / 30 bps alts (taker + slippage).`)
+  console.log(`  B's %/yr uses the realised event frequency. OOS = last 20%, never used to choose.`)
+}
+// v104bt — make the one working engine survive: vol targeting + momentum ensemble.
+function runV104bt() {
+  const BAR4 = 14400000, H = 3600000, CASH = 500
+  const to4h = (a: Bar[]): Bar[] => {
+    const out: Bar[] = []; let cur: Bar | null = null; let bk = -1
+    for (const b of a) {
+      const k = Math.floor(b.t / BAR4)
+      if (k !== bk) { if (cur) out.push(cur); bk = k
+        cur = { t: k * BAR4, open: b.open, high: b.high, low: b.low, close: b.close, vol: b.vol } }
+      else if (cur) { cur.high = Math.max(cur.high, b.high); cur.low = Math.min(cur.low, b.low)
+        cur.close = b.close; cur.vol += b.vol }
+    }
+    if (cur) out.push(cur); return out
+  }
+  const data: Record<string, PF.CoinData> = {}
+  let tmin = Infinity, tmax = -Infinity
+  for (const c of COINS) {
+    if (!CORE40.has(c)) continue
+    const h = loadCSV(c, '1h'); if (h.length < 500) continue
+    data[c] = { b1: h, b4: to4h(h) }
+    tmin = Math.min(tmin, h[0].t); tmax = Math.max(tmax, h[h.length - 1].t)
+  }
+  const span = tmax - tmin
+  console.log(`  ${Object.keys(data).length} coins, span ${(span / 86400000).toFixed(0)} days`)
+  if (span < 600 * 86400000) { console.log('  ABORT: need >= 600 days'); return }
+  const WARM = 100 * BAR4
+  const oosFrom = tmin + span * 0.8
+  const IS_W = 4, isSpan = (oosFrom - tmin) / IS_W
+  console.log(`  in-sample ${new Date(tmin).toISOString().slice(0, 10)} .. ${new Date(oosFrom).toISOString().slice(0, 10)} (4 windows)` +
+    `   OOS ${new Date(oosFrom).toISOString().slice(0, 10)} .. ${new Date(tmax).toISOString().slice(0, 10)}`)
+
+  const RP = (o: Partial<PF.RiskProfile>): PF.RiskProfile => ({ riskPct: 0.03, atrMult: 1.5, rr: 1.5,
+    levMajor: 20, levAlt: 10, mmrMajor: 0.004, mmrAlt: 0.01, liqBuffer: 0.3, slipAltBps: 10,
+    maxPositions: 3, dayLossHalt: 0.10, ddHalt: 0.25, lossStreak: 4, streakPauseMs: H, ...o })
+  type Agg = { net: number[]; dd: number; sh: number[]; pf: number[]; feePct: number; liq: number;
+    trades: number; stops: number; tgts: number; dayH: number; strk: number; ddH: number }
+  const one = (from: number, to: number, cfg: Partial<PF.SimConfig>) => {
+    const r = PF.runPortfolio(data, PF.defaultConfig({ startCash: CASH, sleeves: ['ROTA'], rotaK: 2,
+      rotaMs: 12 * H, killSwitch: false, slipBps: 5, ...cfg }), Math.max(from, tmin + WARM), to)
+    const m = PF.metrics(r, CASH, (to - from) / 86400000)
+    const gross = m.netUsd + m.fees + m.slip + m.funding
+    return { r, m, cost: m.fees + m.slip, gross }
+  }
+  const agg = (wins: [number, number][], cfg: Partial<PF.SimConfig>): Agg => {
+    const a: Agg = { net: [], dd: 0, sh: [], pf: [], feePct: 0, liq: 0, trades: 0, stops: 0, tgts: 0, dayH: 0, strk: 0, ddH: 0 }
+    let cost = 0, gross = 0
+    for (const [f, t] of wins) {
+      const x = one(f, t, cfg)
+      a.net.push(x.m.netPct); a.dd = Math.max(a.dd, x.m.maxDD); a.sh.push(x.m.sharpe)
+      a.pf.push(x.m.profitFactor); a.liq += x.r.liquidations; a.trades += x.m.trades
+      a.stops += x.r.breakers.stops; a.tgts += x.r.breakers.targets; a.dayH += x.r.breakers.dayHalts
+      a.strk += x.r.breakers.streakPauses; if (x.r.breakers.ddHaltAt !== null) a.ddH++
+      cost += x.cost; gross += x.gross
+    }
+    a.feePct = gross > 0 ? cost / gross * 100 : Infinity
+    return a
+  }
+  const tot = (a: Agg) => a.net.reduce((x, y) => x + y, 0)
+  const avg = (v: number[]) => v.filter(Number.isFinite).reduce((x, y) => x + y, 0) / Math.max(1, v.filter(Number.isFinite).length)
+  const hdr = () => console.log(`  config                          trades   net%   maxDD  Sharpe   PF  cost/gross  LIQ  stop/tgt  dayH strk ddH  per-window`)
+  const row = (tag: string, a: Agg) => console.log(`  ${tag.padEnd(30)} ${String(a.trades).padStart(6)} ${tot(a).toFixed(1).padStart(7)} ` +
+    `${a.dd.toFixed(1).padStart(6)}% ${avg(a.sh).toFixed(2).padStart(6)} ${avg(a.pf).toFixed(2).padStart(5)} ` +
+    `${(Number.isFinite(a.feePct) ? a.feePct.toFixed(0) + '%' : 'n/a').padStart(9)} ${String(a.liq).padStart(4)} ` +
+    `${(a.stops + '/' + a.tgts).padStart(9)} ${String(a.dayH).padStart(4)} ${String(a.strk).padStart(4)} ${String(a.ddH).padStart(3)}  ` +
+    a.net.map(x => (x >= 0 ? '+' : '') + x.toFixed(0)).join(' '))
+
+  const isWins: [number, number][] = []
+  for (let w = 0; w < IS_W; w++) isWins.push([tmin + w * isSpan, tmin + (w + 1) * isSpan])
+  const oos: [number, number][] = [[oosFrom, tmax]]
+
+  const BRK = { dayLossHalt: 0.10, ddHalt: 0.25, lossStreak: 4, streakPauseMs: H }
+  const LIVE: Partial<PF.SimConfig> = { leverage: 1, rotaMarginSizing: true, rotaSlotScale: 1.75, breakers: BRK }
+  const cands: { tag: string; cfg: Partial<PF.SimConfig> }[] = []
+  for (const lbs of [null, [42, 84, 168]] as (number[] | null)[])
+    for (const vt of [null, 0.5, 0.7, 0.9] as (number | null)[])
+      cands.push({ tag: `${lbs ? 'ens7/14/28d' : 'mom14d'} ${vt ? 'volT' + vt * 100 + '%' : 'no-volT'}`,
+        cfg: { ...LIVE, ...(lbs ? { rotaLbs: lbs } : {}), ...(vt ? { volTarget: { target: vt } } : {}) } })
+
+  console.log(`\n── IN-SAMPLE (selection happens here, and only here) — K2, 12h, $5k-style 1x x1.75, breakers on ──`)
+  hdr()
+  row('LIVE without breakers', agg(isWins, { leverage: 1, rotaMarginSizing: true, rotaSlotScale: 1.75 }))
+  const graded = cands.map(c => { const a = agg(isWins, c.cfg); row(c.tag, a); return { ...c, a } })
+  const pick = graded.slice().sort((x, y) =>
+    (x.a.ddH - y.a.ddH) || (y.a.net.filter(v => v > 0).length - x.a.net.filter(v => v > 0).length) || (tot(y.a) - tot(x.a)))[0]
+  console.log(`\n  SELECTED on in-sample (fewest DD halts, most positive windows, then return): ${pick.tag}`)
+  console.log(`\n── OUT-OF-SAMPLE, run once ──`)
+  hdr()
+  row(pick.tag, agg(oos, pick.cfg))
+  row('LIVE (mom14d no-volT)', agg(oos, cands[0].cfg))
+  row(pick.tag + ' @10/15bps', agg(oos, { ...pick.cfg, slipBps: 10 }))
+  console.log(`\n  Breakers as live: day -10%, DD 25% (flatten + stop for the window), 4 losses -> 1h.`)
+}
+// ════════════════════════════════════════════════════════════════════════════
+// v103bt — ORDER BOOK. Binance bookDepth archive, last snapshot per 5m bucket:
+// resting notional within +-0.2% and +-1% of mid. OBI = (bid - ask)/(bid + ask).
+// Entry at the close of the 5m bar whose open is the bucket (the snapshot is
+// inside that bar, so nothing from the future is used). Forward 15m / 1h / 4h.
+// Deciles cut on the first half, judged on the second half only. Trade rows:
+// extreme deciles, follow / fade, taker (real) and every-limit-fills maker (an
+// upper bound — v100bt showed real maker fills are adverse-selected).
+// ════════════════════════════════════════════════════════════════════════════
+function runV103bt() {
+  const MAJ = new Set(['BTC', 'ETH'])
+  const coins = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT']
+  type Obs = { t: number; o02: number; o1: number; f: number[]; slip: number }
+  const obs: Obs[] = []
+  const HS = [3, 12, 48]
+  let nCoins = 0
+  for (const c of coins) {
+    let txt = ''; try { txt = Deno.readTextFileSync(`backtest/data/${c}-book.csv`) } catch { continue }
+    const px = new Map<number, number>()
+    for (const b of loadCSV(c, '5m')) px.set(b.t, b.close)
+    let n = 0
+    for (const line of txt.split('\n')) {
+      const f = line.split(','); if (f.length < 5) continue
+      const t = +f[0], b02 = +f[1], a02 = +f[2], b1 = +f[3], a1 = +f[4]
+      const p0 = px.get(t); if (!p0 || !(b02 + a02 > 0) || !(b1 + a1 > 0)) continue
+      const fw: number[] = []
+      for (const h of HS) { const p = px.get(t + h * 300_000); fw.push(p ? (p / p0 - 1) * 10_000 : NaN) }
+      obs.push({ t, o02: (b02 - a02) / (b02 + a02), o1: (b1 - a1) / (b1 + a1), f: fw, slip: MAJ.has(c) ? 5 : 10 }); n++
+    }
+    if (n) nCoins++
+  }
+  if (!obs.length) { console.log('  ABORT: no bookDepth data'); return }
+  obs.sort((a, b) => a.t - b.t)
+  console.log(`  ${nCoins} coins, ${obs.length} snapshots, ${((obs[obs.length - 1].t - obs[0].t) / 86400000).toFixed(0)} days`)
+  const half = Math.floor(obs.length / 2), test = obs.slice(half)
+  for (const feat of ['o02', 'o1'] as const) {
+    const tr = obs.slice(0, half).map(o => o[feat]).sort((a, b) => a - b)
+    const q = (p: number) => tr[Math.floor(p * (tr.length - 1))]
+    const cuts = [0.1, 0.2, 0.4, 0.6, 0.8, 0.9].map(q)
+    const bk = (x: number) => cuts.findIndex(c => x < c) === -1 ? 6 : cuts.findIndex(c => x < c)
+    const names = ['bottom 10%', '10-20%', '20-40%', '40-60%', '60-80%', '80-90%', 'top 10%']
+    console.log(`\n── ${feat === 'o02' ? 'OBI within 0.2% of mid' : 'OBI within 1% of mid'} — OUT-OF-SAMPLE half, mean forward bps ──`)
+    console.log(`  bucket          n      fwd 15m    fwd 1h     fwd 4h`)
+    for (let k = 0; k < 7; k++) {
+      const xs = test.filter(o => bk(o[feat]) === k)
+      const m = (h: number) => { const v = xs.map(o => o.f[h]).filter(Number.isFinite); return v.reduce((a, b) => a + b, 0) / Math.max(1, v.length) }
+      console.log(`  ${names[k].padEnd(12)} ${String(xs.length).padStart(7)} ${m(0).toFixed(2).padStart(10)} ${m(1).toFixed(2).padStart(10)} ${m(2).toFixed(2).padStart(10)}`)
+    }
+    const top = test.filter(o => bk(o[feat]) === 6), bot = test.filter(o => bk(o[feat]) === 0)
+    for (let h = 0; h < HS.length; h++) for (const mode of ['follow', 'fade'] as const) {
+      const d = mode === 'follow' ? 1 : -1
+      const legs = [...top.map(o => ({ r: d * o.f[h], s: o.slip })), ...bot.map(o => ({ r: -d * o.f[h], s: o.slip }))].filter(x => Number.isFinite(x.r))
+      const g = legs.reduce((a, x) => a + x.r, 0) / legs.length
+      const tk = legs.reduce((a, x) => a + x.r - 2 * (5 + x.s), 0) / legs.length
+      console.log(`  trade ${feat} hold ${['15m', '1h', '4h'][h]} ${mode.padEnd(6)}: n=${legs.length}  gross ${g.toFixed(2)} bps  net taker ${tk.toFixed(2)}  net maker(upper bound) ${(g - 4).toFixed(2)}`)
+    }
+  }
+  console.log(`\n  Round trip: taker 2x(5 fee + 5/10 slip) = 20-30 bps; maker 4 bps if every limit filled.`)
+}
+// ════════════════════════════════════════════════════════════════════════════
+// v102bt — take the v101bt flow signal to a horizon where costs stop dominating.
+// Every H hours, rank the 10 coins by aggressor imbalance TI over the last L
+// hours; long the bottom 2 / short the top 2 ('fade') or the reverse ('follow'),
+// hold H, re-rank. Cross-sectional and market-neutral, like ROTA. Cost per
+// rebalance: every leg round-trips at taker 5bps + slip 5/10bps per side
+// (conservative: no credit for legs that stay in the basket). Six windows.
+// ════════════════════════════════════════════════════════════════════════════
+function runV102bt() {
+  const MAJ = new Set(['BTC', 'ETH'])
+  const coins = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT']
+  const HR = 3600000
+  // hourly series: close, vol, takerBuy
+  const ser: Record<string, Map<number, { c: number; v: number; tb: number }>> = {}
+  let t0 = Infinity, t1 = -Infinity
+  for (const c of coins) {
+    let txt = ''; try { txt = Deno.readTextFileSync(`backtest/data/${c}-5m.csv`) } catch { continue }
+    const m = new Map<number, { c: number; v: number; tb: number }>()
+    for (const line of txt.split('\n')) {
+      if (!line || line[0] < '0' || line[0] > '9') continue
+      const f = line.split(','); let t = Number(f[0]); if (t > 1e14) t = Math.floor(t / 1000)
+      const h = Math.floor(t / HR) * HR, cl = +f[4], v = +f[5], tb = +f[9]
+      if (!(cl > 0) || !Number.isFinite(tb)) continue
+      const x = m.get(h); if (x) { x.c = cl; x.v += v; x.tb += tb } else m.set(h, { c: cl, v, tb })
+    }
+    if (m.size < 2000) continue
+    ser[c] = m
+    for (const h of m.keys()) { t0 = Math.min(t0, h); t1 = Math.max(t1, h) }
+  }
+  const syms = Object.keys(ser)
+  console.log(`  ${syms.length} coins, span ${((t1 - t0) / 86400000).toFixed(0)} days, hourly aggregation of 5m flow`)
+  const NW = 6, wSpan = (t1 - t0) / NW
+  console.log(`\n  L=lookback h, H=hold h   mode    periods  gross bps/period  cost  net bps/period  net %/yr(approx)  per-window net %`)
+  for (const L of [4, 24, 72]) for (const H of [1, 4, 12, 24]) for (const mode of ['fade', 'follow'] as const) {
+    const per: { t: number; g: number; n: number }[] = []
+    for (let t = t0 + L * HR; t + H * HR <= t1; t += H * HR) {
+      const rows: { s: string; ti: number; r: number; cost: number }[] = []
+      for (const s of syms) {
+        const m = ser[s]; let v = 0, tb = 0, ok = true
+        for (let h = t - L * HR; h < t; h += HR) { const x = m.get(h); if (!x) { ok = false; break } v += x.v; tb += x.tb }
+        const a = m.get(t - HR), b = m.get(t + H * HR - HR)
+        if (!ok || !a || !b || !(v > 0)) continue
+        rows.push({ s, ti: (2 * tb - v) / v, r: (b.c / a.c - 1) * 10_000, cost: 2 * (5 + (MAJ.has(s) ? 5 : 10)) })
+      }
+      if (rows.length < 8) continue
+      rows.sort((x, y) => x.ti - y.ti)
+      const lo = rows.slice(0, 2), hi = rows.slice(-2)
+      const d = mode === 'fade' ? 1 : -1   // fade: long the most-sold (lo), short the most-bought (hi)
+      const g = (d * (lo[0].r + lo[1].r) - d * (hi[0].r + hi[1].r)) / 4
+      const c = (lo[0].cost + lo[1].cost + hi[0].cost + hi[1].cost) / 4
+      per.push({ t, g, n: g - c })
+    }
+    if (!per.length) continue
+    const g = per.reduce((a, x) => a + x.g, 0) / per.length, n = per.reduce((a, x) => a + x.n, 0) / per.length
+    const perYear = 8760 / H
+    const wins = Array.from({ length: NW }, (_, k) => per.filter(x => Math.min(NW - 1, Math.floor((x.t - t0) / wSpan)) === k).reduce((a, x) => a + x.n, 0) / 100)
+    console.log(`  L${String(L).padStart(2)} H${String(H).padStart(2)}            ${mode.padEnd(6)} ${String(per.length).padStart(7)} ${g.toFixed(2).padStart(12)} ${(g - n).toFixed(1).padStart(10)} ${n.toFixed(2).padStart(12)} ${(n * perYear / 100).toFixed(1).padStart(14)}%   ${wins.map(x => (x >= 0 ? '+' : '') + x.toFixed(0)).join(' ')}`)
+  }
+  console.log(`\n  net %/yr is the simple sum of per-period net returns on a fully invested`)
+  console.log(`  long/short book (no compounding, no leverage). Cost assumes every leg is`)
+  console.log(`  closed and reopened each period — an upper bound on turnover.`)
+}
+// ════════════════════════════════════════════════════════════════════════════
+// v101bt — ORDER FLOW. Binance kline archives carry taker-buy volume (col 10),
+// so every 5m bar has an aggressor imbalance TI = (2*takerBuy - vol) / vol.
+// A new data source for this repo. PART A is an information test, no trading:
+// does TI over the last k bars predict the NEXT 15 minutes' return by more
+// than a round trip costs? PART B trades the extreme deciles both ways
+// (follow / fade) with a 15-minute hold, so the sign is measured, not assumed.
+// Deciles are cut on the FIRST HALF of the data and applied to the second half
+// only, so the thresholds are not fitted to the returns they are judged on.
+// ════════════════════════════════════════════════════════════════════════════
+function runV101bt() {
+  const MAJ = new Set(['BTC', 'ETH'])
+  const coins = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT']
+  type Row = { t: number; close: number; vol: number; tb: number; n: number }
+  const load = (c: string): Row[] => {
+    let txt = ''; try { txt = Deno.readTextFileSync(`backtest/data/${c}-5m.csv`) } catch { return [] }
+    const out: Row[] = []
+    for (const line of txt.split('\n')) {
+      if (!line || line[0] < '0' || line[0] > '9') continue
+      const f = line.split(','); let t = Number(f[0]); if (t > 1e14) t = Math.floor(t / 1000)
+      const r = { t, close: +f[4], vol: +f[5], n: +f[8], tb: +f[9] }
+      if (r.close > 0 && r.vol > 0 && Number.isFinite(r.tb)) out.push(r)
+    }
+    out.sort((a, b) => a.t - b.t)
+    return out.filter((r, i) => i === 0 || r.t !== out[i - 1].t)
+  }
+  const H = 3   // 15 minutes
+  for (const k of [1, 3, 12]) {
+    type Obs = { ti: number; fwd: number; t: number; slip: number }
+    const obs: Obs[] = []
+    for (const c of coins) {
+      const b = load(c); if (b.length < 5000) continue
+      const slip = (MAJ.has(c) ? 5 : 10)
+      for (let i = k; i < b.length - H; i++) {
+        let v = 0, tb = 0
+        for (let j = i - k + 1; j <= i; j++) { v += b[j].vol; tb += b[j].tb }
+        if (!(v > 0)) continue
+        obs.push({ ti: (2 * tb - v) / v, fwd: (b[i + H].close / b[i].close - 1) * 10_000, t: b[i].t, slip })
+      }
+    }
+    if (!obs.length) { console.log('  ABORT: no taker-buy column'); return }
+    obs.sort((a, b) => a.t - b.t)
+    const half = Math.floor(obs.length / 2)
+    const train = obs.slice(0, half).map(o => o.ti).sort((a, b) => a - b)
+    const q = (p: number) => train[Math.floor(p * (train.length - 1))]
+    const cuts = [0.1, 0.2, 0.4, 0.6, 0.8, 0.9].map(q)
+    const test = obs.slice(half)
+    const bucket = (ti: number) => ti < cuts[0] ? 0 : ti < cuts[1] ? 1 : ti < cuts[2] ? 2 : ti < cuts[3] ? 3 : ti < cuts[4] ? 4 : ti < cuts[5] ? 5 : 6
+    const names = ['bottom 10%', '10-20%', '20-40%', '40-60%', '60-80%', '80-90%', 'top 10%']
+    console.log(`\n── PART A, k=${k} bars (${k * 5} min of flow), OUT-OF-SAMPLE half, forward 15 min ──`)
+    console.log(`  bucket        TI range            n      mean fwd bps   up%`)
+    for (let bk = 0; bk < 7; bk++) {
+      const xs = test.filter(o => bucket(o.ti) === bk)
+      if (!xs.length) continue
+      const m = xs.reduce((a, o) => a + o.fwd, 0) / xs.length
+      const lo = bk === 0 ? -1 : cuts[bk - 1], hi = bk === 6 ? 1 : cuts[bk]
+      console.log(`  ${names[bk].padEnd(12)} ${lo.toFixed(3).padStart(7)} .. ${hi.toFixed(3).padStart(6)} ${String(xs.length).padStart(8)} ${m.toFixed(2).padStart(12)} ${(xs.filter(o => o.fwd > 0).length / xs.length * 100).toFixed(1).padStart(6)}%`)
+    }
+    // PART B: trade only the extreme deciles, 15-min hold, both conventions
+    const top = test.filter(o => bucket(o.ti) === 6), bot = test.filter(o => bucket(o.ti) === 0)
+    for (const mode of ['follow', 'fade'] as const) {
+      for (const cost of ['taker', 'maker'] as const) {
+        const net = (o: Obs, dir: number) => dir * o.fwd - (cost === 'taker' ? 2 * (5 + o.slip) : 2 * 2)
+        const d = mode === 'follow' ? 1 : -1
+        const all = [...top.map(o => net(o, d)), ...bot.map(o => net(o, -d))]
+        const gross = [...top.map(o => d * o.fwd), ...bot.map(o => -d * o.fwd)]
+        const g = gross.reduce((a, x) => a + x, 0) / gross.length, n = all.reduce((a, x) => a + x, 0) / all.length
+        console.log(`  PART B k=${k} ${mode.padEnd(6)} ${cost}: trades ${all.length}  gross ${g.toFixed(2)} bps  net ${n.toFixed(2)} bps/trade`)
+      }
+    }
+  }
+  console.log(`\n  Round trip: taker 2x(5bps fee + 5/10bps slip) = 20-30 bps; maker 2x2 = 4 bps`)
+  console.log(`  (maker assumes EVERY limit fills — v100bt showed real maker fills are`)
+  console.log(`  adverse-selected, so the maker row is an upper bound, not a result).`)
+}
+// ════════════════════════════════════════════════════════════════════════════
+// v100bt — MAKER-ONLY mean-reversion scalp. The one fast signal with positive
+// gross (v76bt: 5m RSI fade +0.011R) died on a 0.33R taker cost. Here entries
+// AND targets are resting limits (0.02% each, no slippage); only stops and the
+// time exit pay taker + slippage. A limit counts as filled ONLY if a later bar
+// trades THROUGH it (strictly beyond) — the conservative adverse-selection rule:
+// a limit that is merely touched is assumed unfilled. The stop is checked on
+// the fill bar itself (after a through-fill the bar may keep going).
+// ════════════════════════════════════════════════════════════════════════════
+function runV100bt() {
+  const MAJ = new Set(['BTC', 'ETH'])
+  const coins = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT']
+  const data: Record<string, { b: Bar[]; rsi: number[]; atr: number[] }> = {}
+  let t0 = Infinity, t1 = -Infinity
+  for (const c of coins) {
+    const b = loadCSV(c, '5m'); if (b.length < 5000) continue
+    const rsi = new Array(b.length).fill(50), atr = new Array(b.length).fill(0)
+    let ag = 0, al = 0, tr = 0
+    for (let i = 1; i < b.length; i++) {
+      const d = b[i].close - b[i - 1].close
+      const g = Math.max(0, d), l = Math.max(0, -d)
+      const t = Math.max(b[i].high - b[i].low, Math.abs(b[i].high - b[i - 1].close), Math.abs(b[i].low - b[i - 1].close))
+      if (i <= 14) { ag += g / 14; al += l / 14; tr += t / 14 }
+      else { ag = (ag * 13 + g) / 14; al = (al * 13 + l) / 14; tr = (tr * 13 + t) / 14 }
+      rsi[i] = al === 0 ? 100 : 100 - 100 / (1 + ag / al); atr[i] = tr
+    }
+    data[c] = { b, rsi, atr }; t0 = Math.min(t0, b[0].t); t1 = Math.max(t1, b[b.length - 1].t)
+  }
+  console.log(`  ${Object.keys(data).length} coins, span ${((t1 - t0) / 86400000).toFixed(0)} days, 5m bars`)
+  const NW = 6, wSpan = (t1 - t0) / NW, hours = (t1 - t0) / 3600000
+
+  const run = (lo: number, tp: number, sl: number, H: number) => {
+    const out: { r: number; g: number; w: number }[] = []
+    let placed = 0
+    for (const c of Object.keys(data)) {
+      const { b, rsi, atr } = data[c], slip = (MAJ.has(c) ? 5 : 10) / 10_000
+      let i = 20
+      while (i < b.length - H - 3) {
+        const side = rsi[i] < lo ? 1 : rsi[i] > 100 - lo ? -1 : 0
+        if (side === 0 || !(atr[i] > 0)) { i++; continue }
+        placed++
+        const lim = b[i].close
+        // fill window: the next 2 bars, strictly through the limit
+        let f = -1
+        for (let j = i + 1; j <= i + 2; j++) if ((side === 1 && b[j].low < lim) || (side === -1 && b[j].high > lim)) { f = j; break }
+        if (f < 0) { i += 3; continue }
+        const stopD = sl * atr[i], stop = lim - side * stopD, tgt = lim + side * tp * atr[i]
+        let exit = b[Math.min(b.length - 1, f + H)].close, how = 'time', k = f
+        for (; k <= f + H; k++) {
+          const adv = side === 1 ? b[k].low : b[k].high, fav = side === 1 ? b[k].high : b[k].low
+          if ((adv - stop) * side <= 0) { exit = stop; how = 'stop'; break }
+          if (k > f && (fav - tgt) * side > 0) { exit = tgt; how = 'tgt'; break }
+        }
+        const gross = (exit - lim) * side / stopD
+        const cost = lim * S.FEE_MAKER + (how === 'tgt' ? exit * S.FEE_MAKER : exit * (S.FEE_TAKER + slip))
+        out.push({ r: gross - cost / stopD, g: gross, w: Math.min(NW - 1, Math.floor((b[i].t - t0) / wSpan)) })
+        i = Math.min(k, f + H) + 1
+      }
+    }
+    return { out, placed }
+  }
+  console.log(`\n  config                       fills  fill%  /hour   WR    gross R   net R   cost R   total net R   per-window net R`)
+  for (const lo of [20, 10]) for (const tp of [0.5, 1.0]) for (const sl of [1, 2]) for (const H of [3, 6]) {
+    const { out: o, placed } = run(lo, tp, sl, H)
+    if (!o.length) continue
+    const g = o.reduce((a, x) => a + x.g, 0) / o.length, n = o.reduce((a, x) => a + x.r, 0) / o.length
+    const wins = Array.from({ length: NW }, (_, k) => o.filter(x => x.w === k).reduce((a, x) => a + x.r, 0))
+    const tag = `RSI${lo}/${100 - lo} tp${tp} sl${sl} hold${H * 5}m`
+    console.log(`  ${tag.padEnd(28)} ${String(o.length).padStart(6)} ${(o.length / placed * 100).toFixed(0).padStart(5)}% ${(o.length / hours).toFixed(1).padStart(6)} ` +
+      `${(o.filter(x => x.r > 0).length / o.length * 100).toFixed(1).padStart(5)}% ${g.toFixed(4).padStart(8)} ${n.toFixed(4).padStart(8)} ` +
+      `${(g - n).toFixed(4).padStart(7)} ${(n * o.length).toFixed(0).padStart(12)}   ${wins.map(x => (x >= 0 ? '+' : '') + x.toFixed(0)).join(' ')}`)
+  }
+  console.log(`\n  Fill rule is strict (price must trade THROUGH the limit), so fills are`)
+  console.log(`  the adverse-selected ones a real maker gets. Gross R = before any cost.`)
+}
+// ════════════════════════════════════════════════════════════════════════════
+// v99bt — owner's scalp spec: ONE side only, chosen by market direction; hold
+// at most 15 minutes, then out and free to re-enter. 5m bars, top-10 coins, 12m.
+// Direction = BTC 5m close vs its 24h SMA (above -> longs only, below -> shorts
+// only). Entry = 5m close through the prior N-bar high (long) / low (short) in
+// that direction. Stop k x ATR14(5m), target 1.5 x stop, else market exit at
+// bar 3 (15 min). Stop checked first. Costs: taker 0.05%/side + slippage
+// 5bps majors / 10bps alts per side; a maker-entry row is included as the
+// most generous case (0.02% in, no entry slippage).
+// ════════════════════════════════════════════════════════════════════════════
+function runV99bt() {
+  const MAJ = new Set(['BTC', 'ETH'])
+  const btc = loadCSV('BTC', '5m')
+  if (btc.length < 5000) { console.log('  ABORT: no BTC 5m data'); return }
+  const dirAt = new Map<number, 1 | -1>()
+  let sum = 0
+  for (let i = 0; i < btc.length; i++) {
+    sum += btc[i].close; if (i >= 288) sum -= btc[i - 288].close
+    if (i >= 287) dirAt.set(btc[i].t, btc[i].close >= sum / 288 ? 1 : -1)
+  }
+  const coins = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT']
+  const data: Record<string, Bar[]> = {}
+  let t0 = Infinity, t1 = -Infinity
+  for (const c of coins) { const b = loadCSV(c, '5m'); if (b.length > 5000) { data[c] = b; t0 = Math.min(t0, b[0].t); t1 = Math.max(t1, b[b.length - 1].t) } }
+  console.log(`  ${Object.keys(data).length} coins, span ${((t1 - t0) / 86400000).toFixed(0)} days, 5m bars`)
+  const NW = 6, wSpan = (t1 - t0) / NW
+
+  const run = (N: number, slAtr: number, makerIn: boolean, oneSide: boolean) => {
+    const out: { r: number; g: number; w: number; win: boolean }[] = []
+    for (const c of Object.keys(data)) {
+      const b = data[c], slip = (MAJ.has(c) ? 5 : 10) / 10_000
+      let i = Math.max(N, 20)
+      while (i < b.length - 4) {
+        const d = dirAt.get(b[i].t)
+        if (d === undefined) { i++; continue }
+        const w = b.slice(i - N, i)
+        const hi = Math.max(...w.map(x => x.high)), lo = Math.min(...w.map(x => x.low))
+        let side: 1 | -1 | 0 = 0
+        if (b[i].close > hi) side = 1; else if (b[i].close < lo) side = -1
+        if (side === 0 || (oneSide && side !== d)) { i++; continue }
+        const atr = S.calcATR(b.slice(i - 20, i + 1), 14)
+        if (!(atr > 0)) { i++; continue }
+        const entry = b[i].close, stopD = slAtr * atr
+        const stop = entry - side * stopD, tgt = entry + side * 1.5 * stopD
+        let exit = entry, how = 'time', j = i + 1
+        for (; j <= i + 3; j++) {
+          const adv = side === 1 ? b[j].low : b[j].high, fav = side === 1 ? b[j].high : b[j].low
+          if ((adv - stop) * side <= 0) { exit = stop; how = 'stop'; break }
+          if ((fav - tgt) * side >= 0) { exit = tgt; how = 'tgt'; break }
+          exit = b[j].close
+        }
+        const gross = (exit - entry) * side / stopD
+        const inCost = makerIn ? entry * S.FEE_MAKER : entry * (S.FEE_TAKER + slip)
+        const outCost = how === 'tgt' ? exit * S.FEE_MAKER : exit * (S.FEE_TAKER + slip)
+        const net = gross - (inCost + outCost) / stopD
+        out.push({ r: net, g: gross, w: Math.min(NW - 1, Math.floor((b[i].t - t0) / wSpan)), win: net > 0 })
+        i = Math.min(j, i + 3) + 1   // re-enter from the next bar after exit
+      }
+    }
+    return out
+  }
+  const hours = (t1 - t0) / 3600000
+  console.log(`\n  config                          trades  /hour   WR    gross R   net R   cost R   total net R   per-window net R`)
+  for (const oneSide of [true, false]) for (const N of [6, 12]) for (const sl of [0.5, 1.0, 2.0]) for (const mk of [false, true]) {
+    const o = run(N, sl, mk, oneSide)
+    if (!o.length) continue
+    const g = o.reduce((a, x) => a + x.g, 0) / o.length, n = o.reduce((a, x) => a + x.r, 0) / o.length
+    const wins = Array.from({ length: NW }, (_, k) => o.filter(x => x.w === k).reduce((a, x) => a + x.r, 0))
+    const tag = `${oneSide ? 'one-side' : 'both   '} N${N} sl${sl}atr ${mk ? 'maker-in' : 'taker   '}`
+    console.log(`  ${tag.padEnd(31)} ${String(o.length).padStart(6)} ${(o.length / hours).toFixed(1).padStart(6)} ` +
+      `${(o.filter(x => x.win).length / o.length * 100).toFixed(1).padStart(5)}% ${g.toFixed(4).padStart(8)} ${n.toFixed(4).padStart(8)} ` +
+      `${(g - n).toFixed(4).padStart(8)} ${(n * o.length).toFixed(0).padStart(12)}   ${wins.map(x => (x >= 0 ? '+' : '') + x.toFixed(0)).join(' ')}`)
+  }
+  console.log(`\n  gross R = before any cost; net R = after fees + slippage. A strategy`)
+  console.log(`  with negative GROSS cannot be rescued by cheaper execution or leverage.`)
+}
+// ════════════════════════════════════════════════════════════════════════════
+// v98bt — the owner's aggressive-controlled profile on the 4h ROTA engine.
+// Stop + 1.5R+ target on every trade, size from stop distance, leverage the
+// highest the liquidation buffer allows (<=20x BTC/ETH, <=10x alts), isolated,
+// per-pair tier-1 maintenance margin, 5bps majors / 10bps alts slippage,
+// funding every 8h, and the five breakers. Selection on the first 80% (4
+// walk-forward windows); the last 20% is touched ONCE, by the chosen config.
+// ════════════════════════════════════════════════════════════════════════════
+function runV98bt() {
+  const BAR4 = 14400000, H = 3600000, CASH = 500
+  const to4h = (a: Bar[]): Bar[] => {
+    const out: Bar[] = []; let cur: Bar | null = null; let bk = -1
+    for (const b of a) {
+      const k = Math.floor(b.t / BAR4)
+      if (k !== bk) { if (cur) out.push(cur); bk = k
+        cur = { t: k * BAR4, open: b.open, high: b.high, low: b.low, close: b.close, vol: b.vol } }
+      else if (cur) { cur.high = Math.max(cur.high, b.high); cur.low = Math.min(cur.low, b.low)
+        cur.close = b.close; cur.vol += b.vol }
+    }
+    if (cur) out.push(cur); return out
+  }
+  const data: Record<string, PF.CoinData> = {}
+  let tmin = Infinity, tmax = -Infinity
+  for (const c of COINS) {
+    if (!CORE40.has(c)) continue
+    const h = loadCSV(c, '1h'); if (h.length < 500) continue
+    data[c] = { b1: h, b4: to4h(h) }
+    tmin = Math.min(tmin, h[0].t); tmax = Math.max(tmax, h[h.length - 1].t)
+  }
+  const span = tmax - tmin
+  console.log(`  ${Object.keys(data).length} coins, span ${(span / 86400000).toFixed(0)} days`)
+  if (span < 600 * 86400000) { console.log('  ABORT: need >= 600 days'); return }
+  const WARM = 100 * BAR4
+  const oosFrom = tmin + span * 0.8
+  const IS_W = 4, isSpan = (oosFrom - tmin) / IS_W
+  console.log(`  in-sample ${new Date(tmin).toISOString().slice(0, 10)} .. ${new Date(oosFrom).toISOString().slice(0, 10)} (4 windows)` +
+    `   OOS ${new Date(oosFrom).toISOString().slice(0, 10)} .. ${new Date(tmax).toISOString().slice(0, 10)}`)
+
+  const RP = (o: Partial<PF.RiskProfile>): PF.RiskProfile => ({ riskPct: 0.03, atrMult: 1.5, rr: 1.5,
+    levMajor: 20, levAlt: 10, mmrMajor: 0.004, mmrAlt: 0.01, liqBuffer: 0.3, slipAltBps: 10,
+    maxPositions: 3, dayLossHalt: 0.10, ddHalt: 0.25, lossStreak: 4, streakPauseMs: H, ...o })
+  type Agg = { net: number[]; dd: number; sh: number[]; pf: number[]; feePct: number; liq: number;
+    trades: number; stops: number; tgts: number; dayH: number; strk: number; ddH: number }
+  const one = (from: number, to: number, cfg: Partial<PF.SimConfig>) => {
+    const r = PF.runPortfolio(data, PF.defaultConfig({ startCash: CASH, sleeves: ['ROTA'], rotaK: 2,
+      rotaMs: 12 * H, killSwitch: false, slipBps: 5, ...cfg }), Math.max(from, tmin + WARM), to)
+    const m = PF.metrics(r, CASH, (to - from) / 86400000)
+    const gross = m.netUsd + m.fees + m.slip + m.funding
+    return { r, m, cost: m.fees + m.slip, gross }
+  }
+  const agg = (wins: [number, number][], cfg: Partial<PF.SimConfig>): Agg => {
+    const a: Agg = { net: [], dd: 0, sh: [], pf: [], feePct: 0, liq: 0, trades: 0, stops: 0, tgts: 0, dayH: 0, strk: 0, ddH: 0 }
+    let cost = 0, gross = 0
+    for (const [f, t] of wins) {
+      const x = one(f, t, cfg)
+      a.net.push(x.m.netPct); a.dd = Math.max(a.dd, x.m.maxDD); a.sh.push(x.m.sharpe)
+      a.pf.push(x.m.profitFactor); a.liq += x.r.liquidations; a.trades += x.m.trades
+      a.stops += x.r.breakers.stops; a.tgts += x.r.breakers.targets; a.dayH += x.r.breakers.dayHalts
+      a.strk += x.r.breakers.streakPauses; if (x.r.breakers.ddHaltAt !== null) a.ddH++
+      cost += x.cost; gross += x.gross
+    }
+    a.feePct = gross > 0 ? cost / gross * 100 : Infinity
+    return a
+  }
+  const tot = (a: Agg) => a.net.reduce((x, y) => x + y, 0)
+  const avg = (v: number[]) => v.filter(Number.isFinite).reduce((x, y) => x + y, 0) / Math.max(1, v.filter(Number.isFinite).length)
+  const hdr = () => console.log(`  config                          trades   net%   maxDD  Sharpe   PF  cost/gross  LIQ  stop/tgt  dayH strk ddH  per-window`)
+  const row = (tag: string, a: Agg) => console.log(`  ${tag.padEnd(30)} ${String(a.trades).padStart(6)} ${tot(a).toFixed(1).padStart(7)} ` +
+    `${a.dd.toFixed(1).padStart(6)}% ${avg(a.sh).toFixed(2).padStart(6)} ${avg(a.pf).toFixed(2).padStart(5)} ` +
+    `${(Number.isFinite(a.feePct) ? a.feePct.toFixed(0) + '%' : 'n/a').padStart(9)} ${String(a.liq).padStart(4)} ` +
+    `${(a.stops + '/' + a.tgts).padStart(9)} ${String(a.dayH).padStart(4)} ${String(a.strk).padStart(4)} ${String(a.ddH).padStart(3)}  ` +
+    a.net.map(x => (x >= 0 ? '+' : '') + x.toFixed(0)).join(' '))
+
+  const isWins: [number, number][] = []
+  for (let w = 0; w < IS_W; w++) isWins.push([tmin + w * isSpan, tmin + (w + 1) * isSpan])
+  const oos: [number, number][] = [[oosFrom, tmax]]
+
+  console.log(`\n── IN-SAMPLE: current live config (no stops, $70 margin 2x) for reference ──`)
+  hdr()
+  const LIVE = { leverage: 2, rotaMarginSizing: true } as Partial<PF.SimConfig>
+  row('LIVE K2 2x margin, no stop', agg(isWins, LIVE))
+
+  console.log(`\n── IN-SAMPLE grid (selection happens here, and only here) ──`)
+  hdr()
+  const grid: { tag: string; cfg: Partial<PF.SimConfig>; a: Agg }[] = []
+  for (const riskPct of [0.02, 0.03, 0.05]) for (const atrMult of [1.5, 2.5])
+    for (const rr of [1.5, 2.5]) for (const levAlt of [5, 10]) {
+      const tag = `risk${riskPct * 100}% sl${atrMult}atr rr${rr} alt${levAlt}x`
+      const cfg = { risk: RP({ riskPct, atrMult, rr, levAlt }) }
+      const a = agg(isWins, cfg); grid.push({ tag, cfg, a }); row(tag, a)
+    }
+  const eligible = grid.filter(g => g.a.liq === 0 && g.a.ddH === 0)
+  const pick = (eligible.length ? eligible : grid).slice().sort((x, y) =>
+    (y.a.net.filter(v => v > 0).length - x.a.net.filter(v => v > 0).length) || (tot(y.a) - tot(x.a)))[0]
+  console.log(`\n  SELECTED on in-sample (0 liq, no DD halt, most positive windows, then return): ${pick.tag}`)
+
+  console.log(`\n── OUT-OF-SAMPLE, run once ──`)
+  hdr()
+  row(pick.tag, agg(oos, pick.cfg))
+  row('LIVE K2 2x margin, no stop', agg(oos, LIVE))
+  const stress = { ...pick.cfg, slipBps: 10, risk: { ...(pick.cfg.risk as PF.RiskProfile), slipAltBps: 15 } }
+  row(pick.tag + ' @10/15bps', agg(oos, stress))
+  console.log(`\n  cost/gross = (fees + slippage) / (net + fees + slippage + funding).`)
+  console.log(`  Liquidation checked on each 1h bar's adverse extreme; tier-1 MMR only`)
+  console.log(`  (0.4% BTC/ETH, 1.0% alts) — larger notionals sit in higher tiers, so LIQ is a floor.`)
+  console.log(`  Funding is a flat 0.01%/8h (no archive), longs pay, shorts receive.`)
+}
+// ════════════════════════════════════════════════════════════════════════════
 // v93bt — THE LIVE CONFIGURATION, AT $500, WITH ISOLATED LEVERAGE.
 // The owner's actual account, not a research abstraction.
 //
@@ -8035,7 +8644,7 @@ function runV92bt() {
 // and account death. Each position is collateral for itself, which is what the
 // owner asked for.
 // ════════════════════════════════════════════════════════════════════════════
-function runV93bt() {
+function runV93bt(concentrated = false, marginSized = false, directional = false) {
   const NW = 6, BAR4 = 14400000
   const to4h = (a: Bar[], ms: number): Bar[] => {
     const out: Bar[] = []; let cur: Bar | null = null; let bk = -1
@@ -8088,6 +8697,47 @@ function runV93bt() {
   const hdr = () => console.log(
     `  config             trades      net%  maxDD    worst   LIQ RUIN  per-window`)
 
+  if (directional) {
+    // v97bt — owner: one side only by conditions, faster rotation.
+    // side 'regime' = longs only if median 14d momentum >= 0, else shorts only.
+    const H = 3600000
+    for (const K of [2, 4]) for (const ms of [48, 24, 12]) {
+      console.log(`\n── K=${K}, rebalance every ${ms}h, margin-sized ──`)
+      hdr()
+      for (const side of ['both', 'regime'] as const)
+        for (const L of [1, 2, 5, 10])
+          row(`${side === 'both' ? 'L+S' : 'one'} ${L}x`, run(L, { rotaK: K, rotaMarginSizing: true, rotaSide: side, rotaMs: ms * H }))
+      row(`one 2x @6bps`, run(2, { rotaK: K, rotaMarginSizing: true, rotaSide: 'regime', rotaMs: ms * H, slipBps: 6 }))
+    }
+    return
+  }
+  if (marginSized) {
+    // v96bt — owner's model: the slot is the MARGIN ($70), notional = margin x
+    // leverage ($700 at 10x); a ~9.5% adverse move liquidates that $70 only.
+    // Also re-runs v95bt's notional-sized K2 rows on the corrected simulator
+    // (v95bt/v93bt/v89bt counted notional, not margin, as portfolio value).
+    for (const K of [2, 4]) {
+      console.log(`\n── K=${K}, CORRECTED simulator, notional-sized (what v65.0 runs) ──`)
+      hdr()
+      for (const L of [1, 3, 10]) row(`K${K} ${L}x`, run(L, { rotaK: K }))
+      console.log(`\n── K=${K}, MARGIN-SIZED: slot = margin, notional = margin x lev ──`)
+      hdr()
+      for (const L of [1, 2, 3, 5, 10, 20]) row(`K${K} m${L}x`, run(L, { rotaK: K, rotaMarginSizing: true }))
+      row(`K${K} m10x @6bps`, run(10, { rotaK: K, rotaMarginSizing: true, slipBps: 6 }))
+    }
+    return
+  }
+  if (concentrated) {
+    // v95bt — owner: "not 16 positions at once". Fewer names per side, same
+    // engine, same $500, isolated leverage. K=8 is the deployed control.
+    for (const K of [8, 4, 3, 2]) {
+      console.log(`\n── ROTA K=${K} per side (${2 * K} positions) ──`)
+      hdr()
+      for (const L of [1, 2, 3, 5, 10]) row(`K${K} ${L}x`, run(L, { rotaK: K }))
+      row(`K${K} 2x @6bps`, run(2, { rotaK: K, slipBps: 6 }))
+    }
+    return
+  }
   console.log(`\n── THE DEPLOYED CONFIG AT $500, ISOLATED LEVERAGE ──`)
   hdr()
   for (const L of [1, 2, 3, 5, 10, 20]) row(`ROTA ${L}x`, run(L))
@@ -8377,6 +9027,61 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v94bt') {
     console.log(`████ V94BT — the exit: does the breakeven floor cap the fat tail? ████`)
     runV94bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v105bt') {
+    console.log('████ V105BT — short-term reversal + BTC lead-lag, 36m, 40 coins ████')
+    runV105bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v104bt') {
+    console.log('████ V104BT — ROTA K2 live config: vol targeting + momentum ensemble, 36m, 80/20 OOS ████')
+    runV104bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v103bt') {
+    console.log('████ V103BT — order-book imbalance (bookDepth archive) → 15m / 1h / 4h ████')
+    runV103bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v102bt') {
+    console.log('████ V102BT — cross-sectional order-flow rotation, 1-24h holds ████')
+    runV102bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v101bt') {
+    console.log('████ V101BT — order flow (taker imbalance) → next 15 min ████')
+    runV101bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v100bt') {
+    console.log('████ V100BT — maker-only mean-reversion scalp (strict fills) ████')
+    runV100bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v99bt') {
+    console.log('████ V99BT — one-side scalp, max 15 min hold, re-entry ████')
+    runV99bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v98bt') {
+    console.log('████ V98BT — aggressive-controlled profile: stops, stop-sized risk, bounded leverage, breakers ████')
+    runV98bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v97bt') {
+    console.log('████ V97BT — one-sided (regime) vs long+short, 48/24/12h rotation ████')
+    runV93bt(false, false, true)
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v96bt') {
+    console.log('████ V96BT — margin-sized ROTA ($70 x leverage), corrected simulator ████')
+    runV93bt(false, true)
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v95bt') {
+    console.log('████ V95BT — concentrated ROTA at $500: fewer names, isolated leverage ████')
+    runV93bt(true)
     return
   }
   if (Deno.env.get('BT_MODE') === 'v93bt') {

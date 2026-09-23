@@ -30,6 +30,9 @@ run() {
   if ! node --experimental-strip-types "$2"; then fail=1; fi
 }
 
+run "scalp runner"          tests/scalp-runner.test.ts
+run "scalp execution"       tests/scalp.test.ts
+run "team review"           tests/team-meeting.test.ts
 run "strategy rules"        tests/strategy.test.ts
 run "live/backtest parity"  tests/parity.test.ts
 run "portfolio simulator"   tests/portfolio.test.ts

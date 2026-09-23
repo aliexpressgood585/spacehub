@@ -452,6 +452,8 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 // bundle and the backtest therefore run identical text, and the release manifest
 // pins both at once.
 import * as S from '../../../shared/strategy.ts'
+import { runScalp } from './scalp-runner.ts'
+import { meetingDue, capDecision } from '../../../shared/team-meeting.ts'
 
 const BINANCE_DATA = 'https://data-api.binance.vision/api/v3'
 const BINANCE      = 'https://api.binance.com/api/v3'
@@ -541,7 +543,9 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v64.0'
+const BOT_VERSION = 'v71.1'
+// v68.0 breakers — owner spec, deliberately NOT env/shim-configurable.
+const DAY_LOSS_HALT = 0.10, DD_HALT = 0.25, LOSS_STREAK = 4, BRK_STREAK_PAUSE_MS = 3_600_000, ERR_HALT = 10
 const RELEASE_SHA = String((globalThis as any).__RELEASE_SHA ?? 'unpinned')
 // Universe fingerprint: a cheap order-independent digest, so a silently edited
 // CRYPTO_40 shows up as a different release even at an identical SHA.
@@ -2598,8 +2602,9 @@ Deno.serve(async (req) => {
     // duplicate positions and corrupted peak_balance. Claim a 50s lease
     // atomically; if another run holds it, exit.
     const nowIso = new Date().toISOString()
+    const runLeaseUntil = new Date(Date.now() + 50_000).toISOString()
     const { data: lockRows } = await supabase.from('bot_state')
-      .update({ lock_until: new Date(Date.now() + 50_000).toISOString() })
+      .update({ lock_until: runLeaseUntil })
       .eq('id', 1)
       .or(`lock_until.is.null,lock_until.lt.${nowIso}`)
       .select('id')
@@ -2670,6 +2675,11 @@ Deno.serve(async (req) => {
 
     // v56.8: record which build is actually running, once per cold start
     await publishManifest(supabase, paperMode, liveMode, logErr)
+
+    if (ENABLED_SLEEVES.includes('SCALP')) {
+      const result = await runScalp(supabase, state, runLeaseUntil, paperMode && !liveMode)
+      return new Response(JSON.stringify({ok:true,version:BOT_VERSION,...result}),{headers:{'Content-Type':'application/json'}})
+    }
 
     // dynamic params from optimizer agent (falls back to hardcoded defaults)
     const _bp   = (state.bot_params ?? {}) as Record<string,any>
@@ -2980,20 +2990,149 @@ Deno.serve(async (req) => {
     // every 15 min), block NEW entries and rebalances until the window heals.
     // Open positions are NOT touched — their stops/BE locks/ladders keep
     // managing them; panic-closing an entire book at the low is how retail dies.
+    // v68.0 (owner spec): the day brake is -10% from the FIRST equity snapshot
+    // of the current UTC day, and holds until the next UTC day. Replaces the
+    // v50 rule (-5% from the rolling 24h peak).
     let dayLossPaused = false
     try {
-      const since = new Date(Date.now() - 24*3600_000).toISOString()
+      const dayStart = new Date(); dayStart.setUTCHours(0,0,0,0)
       const {data:eqRows} = await supabase.from('bot_equity').select('equity,ts')
-        .gte('ts', since).order('ts',{ascending:true})
-      if ((eqRows||[]).length >= 8) {
-        const eqs = (eqRows||[]).map((r:any)=>Number(r.equity)).filter((x:number)=>Number.isFinite(x)&&x>0)
-        const peak24 = Math.max(...eqs), cur = eqs[eqs.length-1]
-        if (peak24 > 0 && cur < peak24 * 0.95) {
+        .gte('ts', dayStart.toISOString()).order('ts',{ascending:true})
+      const eqs = (eqRows||[]).map((r:any)=>Number(r.equity)).filter((x:number)=>Number.isFinite(x)&&x>0)
+      if (eqs.length >= 2) {
+        const d0 = eqs[0], cur = eqs[eqs.length-1]
+        if (cur <= d0 * (1 - DAY_LOSS_HALT)) {
           dayLossPaused = true
-          log.push(`DAY-LOSS LIMIT: equity ${cur.toFixed(0)} is ${((1-cur/peak24)*100).toFixed(1)}% under 24h peak ${peak24.toFixed(0)} — new entries paused`)
+          log.push(`BREAKER day-loss: equity ${cur.toFixed(2)} is ${((1-cur/d0)*100).toFixed(1)}% under today's open ${d0.toFixed(2)} — no entries until 00:00 UTC`)
         }
       }
     } catch (e) { await logErr('day_loss_brake', e) }
+
+    // ════ v68.0 BREAKERS (owner spec, not switchable) ═══════════════════════
+    // 1. drawdown DD_HALT from the equity peak since reset -> flatten + HARD
+    //    halt, persisted in bot_state.hard_halt_at; only a human clears it.
+    // 2. LOSS_STREAK consecutive losing closes -> no entries for 1h.
+    // 3. >= ERR_HALT errors in 15 min -> no entries (API / execution kill switch).
+    let breakerPaused = false
+    try {
+      if (state.hard_halt_at) {
+        breakerPaused = true
+        log.push(`BREAKER hard halt since ${state.hard_halt_at}: ${state.hard_halt_reason ?? ''}`)
+      } else {
+        const {data:pk} = await supabase.from('bot_equity').select('equity').order('equity',{ascending:false}).limit(1)
+        const {data:lastEq} = await supabase.from('bot_equity').select('equity').order('ts',{ascending:false}).limit(1)
+        const peak = Number(pk?.[0]?.equity), cur = Number(lastEq?.[0]?.equity)
+        if (peak > 0 && cur > 0 && cur <= peak * (1 - DD_HALT)) {
+          breakerPaused = true
+          const why = `drawdown ${((1-cur/peak)*100).toFixed(1)}% from peak ${peak.toFixed(2)} (limit ${DD_HALT*100}%)`
+          const {data:toClose} = await supabase.from('bot_trades').select('*').eq('status','OPEN')
+          for (const t of (toClose||[])) {
+            const px = await fetchLivePrice(t.sym)
+            if (px === null) continue
+            const dM = t.side==='LONG'?1:-1, e0 = Number(t.entry_price), sz = Number(t.size)
+            const fillPx = px * (1 - dM*SLIP)
+            const pnl = (fillPx-e0)*sz*dM - fillPx*sz*FEE + Number(t.legs_banked||0)
+            balance += e0*sz/Math.max(1,Number(t.lev)||1) + (fillPx-e0)*sz*dM - fillPx*sz*FEE
+            await supabase.from('bot_trades').update({ status: pnl>=0?'TP':'SL', exit_price: fillPx, pnl,
+              pnl_pct: (fillPx-e0)/e0*dM, closed_at: new Date().toISOString() }).eq('id', t.id)
+            log.push(`BREAKER_FLATTEN ${t.sym} ${t.side} pnl=${pnl.toFixed(2)}`)
+          }
+          await supabase.from('bot_state').update({ hard_halt_at: new Date().toISOString(), hard_halt_reason: why }).eq('id',1)
+          await logErr('breaker_dd_halt', why)
+          log.push(`BREAKER HARD HALT: ${why} — book flattened, trading stopped until a human clears hard_halt_at`)
+        }
+      }
+      const {data:last4} = await supabase.from('bot_trades').select('pnl,closed_at').neq('status','OPEN')
+        .not('closed_at','is',null).order('closed_at',{ascending:false}).limit(LOSS_STREAK)
+      if ((last4||[]).length === LOSS_STREAK && (last4||[]).every((x:any)=>Number(x.pnl) < 0)
+          && Date.now() - new Date(last4![0].closed_at).getTime() < BRK_STREAK_PAUSE_MS) {
+        breakerPaused = true
+        log.push(`BREAKER ${LOSS_STREAK} losses in a row — entries paused until ${new Date(new Date(last4![0].closed_at).getTime()+BRK_STREAK_PAUSE_MS).toISOString()}`)
+      }
+      const {count:errN} = await supabase.from('bot_errors').select('id',{count:'exact',head:true})
+        .gte('ts', new Date(Date.now()-15*60_000).toISOString())
+      if ((errN ?? 0) >= ERR_HALT) {
+        breakerPaused = true
+        log.push(`BREAKER ${errN} errors in 15 min — entries paused (API kill switch)`)
+      }
+    } catch (e) { await logErr('breakers', e); breakerPaused = true }   // fail CLOSED
+    if (breakerPaused) dayLossPaused = true   // same gates as the day brake
+
+    // ════ v70.0 TEAM MEETING (owner: "the house residents meet, decide, act") ═
+    // Every five minutes every resident of the dashboard house reads ITS OWN part of
+    // the bot's real data and votes. The team may take exactly one autonomous
+    // action, and only in the SAFE direction: cap ROTA's vol target at the
+    // OOS-validated 0.5 (v104bt) when >= 2 residents vote to de-risk, and lift
+    // the cap after >= 24h once risk AND audit both report healthy. It can never
+    // make the bot more aggressive than the deployed shim. Minutes are written
+    // to `team_meetings` so the house can show who said what, and why.
+    let teamVolCap: number | null = Number.isFinite(Number(state.team_vol_cap)) && Number(state.team_vol_cap) > 0 ? Number(state.team_vol_cap) : null
+    try {
+      const {data:lastMeet} = await supabase.from('team_meetings').select('ts').order('ts',{ascending:false}).limit(1).throwOnError()
+      const lastT = lastMeet?.[0]?.ts ? new Date(lastMeet[0].ts).getTime() : 0
+      if (meetingDue(lastT, Date.now())) {
+        type Vote = 'derisk' | 'ok' | 'hold' | 'sleep'
+        const minutes: { who: string; says: string; vote: Vote; checked_at: string }[] = []
+        const checkedAt = new Date().toISOString()
+        const say = (who: string, says: string, vote: Vote) => minutes.push({ who, says, vote, checked_at: checkedAt })
+        const {data:eqAll} = await supabase.from('bot_equity').select('equity,ts').order('ts',{ascending:false}).limit(3000).throwOnError()
+        if (!eqAll?.length || Date.now() - new Date(eqAll[0].ts).getTime() > 20*60_000) throw new Error('Team review: equity data missing or stale')
+        const eqs = (eqAll||[]).map((r:any)=>Number(r.equity)).filter((x:number)=>x>0)
+        const eqNow = eqs[0] ?? balance, peakEq = eqs.length ? Math.max(...eqs) : eqNow
+        const dd = peakEq > 0 ? 1 - eqNow / peakEq : 0
+        const {data:last10} = await supabase.from('bot_trades').select('pnl').neq('status','OPEN').not('closed_at','is',null).order('closed_at',{ascending:false}).limit(10).throwOnError()
+        const l10 = (last10||[]).map((r:any)=>Number(r.pnl)||0), l10sum = l10.reduce((a:number,b:number)=>a+b,0)
+        const {data:openNow} = await supabase.from('bot_trades').select('sym,side,entry_price,size,lev,strategy').eq('status','OPEN').throwOnError()
+        const expo = (openNow||[]).reduce((a:number,x:any)=>a+Number(x.entry_price)*Number(x.size),0)
+        const {count:errH} = await supabase.from('bot_errors').select('id',{count:'exact',head:true}).gte('ts', new Date(Date.now()-60*60_000).toISOString()).throwOnError()
+        const feedOk = Object.values(_feedStats).reduce((a:number,f:any)=>a+f.ok,0), feedFail = Object.values(_feedStats).reduce((a:number,f:any)=>a+f.fail,0)
+        // איתן — data
+        if (feedOk === 0) say('scout', `אין נתונים תקינים בסבב הזה (${feedFail} כשלונות). אני לא סומך על המחירים — מציע להקטין.`, 'derisk')
+        else say('scout', `הנתונים תקינים: ${feedOk} קריאות הצליחו${feedFail ? `, ${feedFail} נכשלו וגובו` : ''}.`, 'ok')
+        // נועה — regime
+        say('regime', btcRegime === 'TRENDING' ? 'השוק במגמה. זה המצב שבו מומנטום עובד הכי טוב.' : btcRegime === 'SQUEEZE' ? 'השוק מתכווץ לפני תנועה. אין סיבה לשנות עכשיו.' : 'השוק מדשדש. זה מצב קשה למומנטום, אבל זה לא נימוק לשנות לבד.', 'hold')
+        // דניאל — rotation
+        say('rota', `${(openNow||[]).length} פוזיציות פתוחות בשווי $${expo.toFixed(0)}. הרוטציה הבאה לפי השעון.`, 'hold')
+        // מיכל — risk
+        if (dd >= 0.12) say('risk', `ירידה של ${(dd*100).toFixed(1)}% מהשיא. זה מתקרב למפסק של 25% — אני מצביעה להקטין.`, 'derisk')
+        else if (dd < 0.05) say('risk', `ירידה מהשיא ${(dd*100).toFixed(1)}% בלבד. הסיכון בשליטה.`, 'ok')
+        else say('risk', `ירידה מהשיא ${(dd*100).toFixed(1)}%. עוקבת, עוד לא סיבה לפעול.`, 'hold')
+        // אבי — audit
+        if (l10.length < 5) say('auditor', `רק ${l10.length} עסקאות סגורות. מדגם קטן מדי לשפוט.`, 'hold')
+        else if (l10sum < -0.03 * eqNow) say('auditor', `${l10.length} העסקאות האחרונות הפסידו $${(-l10sum).toFixed(0)}, יותר מ-3% מהחשבון. מצביע להקטין.`, 'derisk')
+        else if (l10sum > 0) say('auditor', `${l10.length} העסקאות האחרונות ברווח של $${l10sum.toFixed(0)}.`, 'ok')
+        else say('auditor', `${l10.length} העסקאות האחרונות בהפסד קטן ($${l10sum.toFixed(0)}). בתוך הרעש.`, 'hold')
+        // רוני — execution
+        if ((errH ?? 0) > 0) say('trader', `היו ${errH} שגיאות בשעה האחרונה. אני מציע להקטין עד שזה מתברר.`, 'derisk')
+        else say('trader', 'בדקתי את יומן התקלות: אין שגיאות רשומות בשעה האחרונה. זה אינו אישור שנשלחו פקודות חדשות.', 'ok')
+        // שירה — treasury
+        say('treasurer', `מזומן פנוי $${balance.toFixed(0)}, חשיפה ${eqNow > 0 ? (expo/eqNow*100).toFixed(0) : 0}% מההון.`, 'hold')
+        // עומר — DONCH4H is off
+        say('donch', DONCH_ENABLED ? 'בדקתי: אסטרטגיית הפריצות מופעלת; סריקה לפי סגירת נר 4 שעות.' : `בדקתי את מצב הפריצות: האסטרטגיה כבויה, ${(openNow||[]).filter((t:any)=>t.strategy==='DONCH4H').length} פוזיציות קיימות. אין פתיחת עסקאות מהאסטרטגיה הזו.`, 'hold')
+        const derisk = minutes.filter(m => m.vote === 'derisk').length
+        const riskOk = minutes.find(m => m.who === 'risk')?.vote === 'ok', auditOk = minutes.find(m => m.who === 'auditor')?.vote === 'ok'
+        const capSince = state.team_cap_since ? new Date(state.team_cap_since).getTime() : 0
+        const before = teamVolCap
+        const nextDecision = capDecision(teamVolCap, derisk, riskOk, auditOk, capSince, Date.now())
+        let decision = 'HOLD', action = 'הבדיקות הושלמו. ממשיכים לפי האסטרטגיה; אין שינוי בגודל הפוזיציות.'
+        if (nextDecision === 'DERISK') {
+          decision = 'DERISK'
+          action = `${derisk} חברי צוות הצביעו להקטין. מהרוטציה הבאה הפוזיציות יהיו קטנות יותר (יעד תנודתיות 0.5).`
+          await supabase.from('bot_state').update({ team_vol_cap: 0.5, team_cap_since: new Date().toISOString() }).eq('id',1).select('id').single().throwOnError()
+          teamVolCap = 0.5
+        } else if (nextDecision === 'RESTORE') {
+          decision = 'RESTORE'
+          action = 'חלפה יממה מההקטנה, ובבדיקה הנוכחית הסיכון והביקורת תקינים ללא הצבעות להקטנה. חוזרים לגודל הרגיל מהרוטציה הבאה.'
+          await supabase.from('bot_state').update({ team_vol_cap: null, team_cap_since: null }).eq('id',1).select('id').single().throwOnError()
+          teamVolCap = null
+        } else if (teamVolCap !== null) {
+          action = `ממשיכים בגודל המוקטן. ${derisk ? `${derisk} עדיין מצביעים להקטין.` : 'מחכים ל-24 שעות מההקטנה ולבדיקה תקינה לפני שחוזרים.'}`
+        }
+        say('reporter', `רשמתי: ${action}`, 'hold')
+        await supabase.from('team_meetings').insert({ decision, action, cap_before: before, cap_after: teamVolCap, minutes }).throwOnError()
+        log.push(`TEAM MEETING ${decision}: ${derisk} derisk votes, cap ${before ?? 'none'} -> ${teamVolCap ?? 'none'}`)
+      }
+    } catch (e) { await logErr('team_meeting', e) }
 
     // ════ v50.1: USDT DEPEG MONITOR ════════════════════════════════════════
     // The whole book is USDT-denominated; a USDT depeg is the one catastrophe
@@ -3021,7 +3160,23 @@ Deno.serve(async (req) => {
       // v49: K 5→7 — annT 38.2% vs 34.4%, maxDD 17% vs 26%, all windows ✅.
       // v52: K 7→8 — v56bt: annT 39.2% vs 38.2%, maxDD 15% vs 20%, all windows ✅.
       // K=9 REJECTED (w3 negative, annT 32.8% — the edge thins past 8).
-      const ROTA_MS = S.ROTA_MS, ROTA_K = S.ROTA_K, ROTA_LB = S.ROTA_LB
+      // v65.0: names per side, deploy-time like LEVERAGE (env, then shim global).
+      // Bounded to [1, S.ROTA_K]; the collapsed-universe guard below stays on S.ROTA_K.
+      // v67.0: rotation period and side, deploy-time (env, then shim global).
+      const _rotaH = Number(Deno.env.get('ROTA_HOURS') ?? (globalThis as any).__ROTA_HOURS ?? 0)
+      const ROTA_MS = _rotaH >= 4 && _rotaH <= 48 ? _rotaH * 3_600_000 : S.ROTA_MS
+      const ROTA_SIDE = (Deno.env.get('ROTA_SIDE') ?? (globalThis as any).__ROTA_SIDE) === 'regime' ? 'regime' : 'both'
+      const ROTA_LB = S.ROTA_LB
+      // v69.0 (v104bt): momentum ensemble lookbacks in 4h bars, e.g. '42,84,168'
+      const ROTA_LBS: number[] = String(Deno.env.get('ROTA_LBS') ?? (globalThis as any).__ROTA_LBS ?? '')
+        .split(',').map(Number).filter(n => Number.isInteger(n) && n >= 6 && n <= 300)
+      // v69.0 (v104bt): vol target — slots x min(1, target / basket vol), floor 0.2
+      const _vt = Number(Deno.env.get('ROTA_VOL_TARGET') ?? (globalThis as any).__ROTA_VOL_TARGET ?? 0)
+      const _vtShim = Number.isFinite(_vt) && _vt > 0 && _vt < 5 ? _vt : 0
+      // v70.0: the team's cap can only LOWER the deployed target, never raise it
+      const ROTA_VOL_TARGET = _vtShim > 0 && teamVolCap !== null ? Math.min(_vtShim, teamVolCap) : _vtShim
+      const ROTA_K = Math.min(S.ROTA_K, Math.max(1, Math.floor(
+        Number(Deno.env.get('ROTA_K') ?? (globalThis as any).__ROTA_K ?? S.ROTA_K) || S.ROTA_K)))
       const lastRota = state.rebalanced_at ? new Date(state.rebalanced_at).getTime() : 0
       // v50: postpone the whole rebalance on a black day (retry next cycle once healed)
       if (ROTA_ENABLED && !dayLossPaused && now - lastRota >= ROTA_MS - 5*60_000) {
@@ -3032,11 +3187,18 @@ Deno.serve(async (req) => {
         const ROTA_UNIVERSE: string[] = [...S.CRYPTO_40]
         for (const sym of ROTA_UNIVERSE) {
           try {
-            const b4 = await fetchBars(sym, '4h', ROTA_LB+6)
-            if (b4.length < ROTA_LB+2) continue
+            const b4 = await fetchBars(sym, '4h', Math.max(ROTA_LB, ...ROTA_LBS)+6)
+            if (b4.length < Math.max(ROTA_LB, ...ROTA_LBS)+2) continue
             const c4 = b4.slice(0,-1)
             const p1 = c4[c4.length-1].close, p0 = c4[c4.length-1-ROTA_LB]?.close
             if (!p0 || !p1) continue
+            // v69.0: momentum ensemble (v104bt) — mean of simple returns over ROTA_LBS
+            let mom = p1/p0-1
+            if (ROTA_LBS.length) {
+              const ps = ROTA_LBS.map(lb => c4[c4.length-1-lb]?.close)
+              if (ps.some(p => !(p > 0))) continue
+              mom = ps.reduce((a:number,p:number)=>a + (p1/p-1), 0) / ps.length
+            }
             // v43 (#2): realized vol (stdev of 4h returns over the lookback) for inverse-vol weighting
             const rets: number[] = []
             for (let k=Math.max(1,c4.length-ROTA_LB); k<c4.length; k++) {
@@ -3045,28 +3207,53 @@ Deno.serve(async (req) => {
             }
             const mu = rets.reduce((a,b)=>a+b,0)/Math.max(1,rets.length)
             const vol = Math.sqrt(rets.reduce((a,b)=>a+(b-mu)**2,0)/Math.max(1,rets.length))
-            momList.push({sym, mom: p1/p0-1, price: p1, vol: Math.max(vol, 0.001)})
+            momList.push({sym, mom, price: p1, vol: Math.max(vol, 0.001)})
           } catch { /* skip coin */ }
         }
-        if (momList.length >= ROTA_K*4) {
+        if (momList.length >= S.ROTA_K*4) {
           momList.sort((a,b)=>b.mom-a.mom)
           const target = new Map<string, {dir:1|-1, price:number}>()
           const invVol = new Map<string, number>()
           let longInvSum = 0, shortInvSum = 0
-          for (let i=0;i<ROTA_K;i++) { const x=momList[i]
+          // v67.0: 'regime' trades ONE side, picked by median 14d momentum (S.rotaRegimeSide)
+          const rs = ROTA_SIDE === 'regime' ? S.rotaRegimeSide(momList) : 0
+          if (rs !== 0) log.push(`ROTA side=${rs === 1 ? 'LONG' : 'SHORT'} (regime)`)
+          if (rs !== -1) for (let i=0;i<ROTA_K;i++) { const x=momList[i]
             target.set(x.sym, {dir:1, price:x.price}); invVol.set(x.sym, 1/x.vol); longInvSum += 1/x.vol }
-          for (let i=momList.length-ROTA_K;i<momList.length;i++) { const x=momList[i]
+          if (rs !== 1) for (let i=momList.length-ROTA_K;i<momList.length;i++) { const x=momList[i]
             target.set(x.sym, {dir:-1, price:x.price}); invVol.set(x.sym, 1/x.vol); shortInvSum += 1/x.vol }
           if (rotaPaused) target.clear()   // v43 (#4): paused → unwind basket, open nothing
           // v45.1: portfolio estimate up-front (for resize checks + slot sizing)
-          const {data:allOpenRows} = await supabase.from('bot_trades').select('sym,entry_price,size').eq('status','OPEN')
+          const {data:_allOpenRows0} = await supabase.from('bot_trades').select('id,sym,entry_price,size,lev').eq('status','OPEN')
+          let allOpenRows: any[] = _allOpenRows0 || []
           const allExp = (allOpenRows||[]).reduce((a:number,x:any)=>a+Number(x.entry_price)*Number(x.size),0)
           // Portfolio value uses MARGIN posted (see v64.0 note above); allExp
           // stays full notional because the heat cap governs EXPOSURE, and
           // exposure is what is actually at risk in the market.
-          const allMargin = (allOpenRows||[]).reduce((a:number,x:any)=>
+          const marginOf = (rows:any[]) => rows.reduce((a:number,x:any)=>
             a + Number(x.entry_price)*Number(x.size)/(Math.max(1, Number(x.lev)||1)), 0)
-          const port = balance + allMargin
+          let allMargin = marginOf(allOpenRows)
+          let port = balance + allMargin
+          // v66.0: MARGIN SIZING (owner: "$70 at 10x = $700"). When on, the slot
+          // target is the MARGIN posted and notional = margin x LEV, so leverage
+          // really enlarges the position and a ~9.5% adverse move liquidates the
+          // slot's margin and nothing else. Off = v65.0 (notional-sized) exactly.
+          const MARGIN_SIZING = (Deno.env.get('ROTA_MARGIN_SIZING') ?? (globalThis as any).__ROTA_MARGIN_SIZING) === '1'
+          // v68.1: owner "use all the money" — a deploy-time multiplier on the slot
+          // target (and the per-coin cap with it), bounded [1, 2]. 1.75 on K=2
+          // puts ~95% of a 1x account to work (4 x ~24.5%).
+          const _ss = Number(Deno.env.get('ROTA_SLOT_SCALE') ?? (globalThis as any).__ROTA_SLOT_SCALE ?? 1)
+          const SLOT_SCALE = Number.isFinite(_ss) ? Math.min(2, Math.max(1, _ss)) : 1
+          let SCALE = (MARGIN_SIZING ? LEV : 1) * SLOT_SCALE
+          if (ROTA_VOL_TARGET > 0) {
+            const tv = [...target.keys()].map(k => momList.find(m => m.sym === k)?.vol ?? 0).filter(v => v > 0)
+            const basketVol = tv.length ? tv.reduce((a,b)=>a+b,0)/tv.length * Math.sqrt(6*365) : 0
+            if (basketVol > 0) {
+              const vs = Math.max(0.2, Math.min(1, ROTA_VOL_TARGET / basketVol))
+              SCALE *= vs
+              log.push(`ROTA vol target ${ROTA_VOL_TARGET} / basket ${basketVol.toFixed(2)} -> size x${vs.toFixed(2)}`)
+            }
+          }
           const slotTarget = (sym2:string, dir2:1|-1) => {
             const sideSum = dir2===1 ? longInvSum : shortInvSum
             const w = sideSum>0 ? (invVol.get(sym2)??0)/sideSum : 1/ROTA_K
@@ -3080,14 +3267,18 @@ Deno.serve(async (req) => {
             if (!_rotaPxCache.has(sym2)) _rotaPxCache.set(sym2, await fetchLivePrice(sym2))
             return _rotaPxCache.get(sym2) ?? null
           }
+          const _rotaClosed = new Set<any>()
           // close positions that left the basket, flipped direction, or drifted >±35% from target size
           for (const t of (rotaOpenAll||[])) {
             const tgt = target.get(t.sym)
             const wantDir = tgt ? (tgt.dir===1?'LONG':'SHORT') : null
             if (wantDir === t.side) {
               const curNotional = Number(t.entry_price)*Number(t.size)
-              const tgtNotional = slotTarget(t.sym, tgt!.dir)
-              if (S.rotaSizeOk(curNotional, tgtNotional)) { target.delete(t.sym); continue }  // size OK → keep
+              const tgtNotional = slotTarget(t.sym, tgt!.dir) * SCALE
+              // v64.1: a slot opened at a different leverage is NOT kept — otherwise
+              // a leverage change never reaches a basket whose sizes stay in band.
+              const levOk = Math.max(1, Number(t.lev)||1) === LEV
+              if (levOk && S.rotaSizeOk(curNotional, tgtNotional)) { target.delete(t.sym); continue }  // size OK → keep
               // size drifted → close and reopen at target below
             }
             // v57.1: fill at the CURRENT price, not the last completed 4h close.
@@ -3109,17 +3300,24 @@ Deno.serve(async (req) => {
               closed_at:new Date().toISOString()
             }).eq('id',t.id)
             log.push(`ROTA_CLOSE ${t.sym} ${t.side} pnl=${pnl2.toFixed(2)}`)
+            _rotaClosed.add(t.id)
           }
+          // v67.1: rows closed just above must stop counting — the pre-close
+          // snapshot otherwise double-counts their margin in `port` and their
+          // notional in the per-coin cap, which at 10x zeroed every new slot.
+          allOpenRows = allOpenRows.filter((x:any) => !_rotaClosed.has(x.id))
+          allMargin = marginOf(allOpenRows)
+          port = balance + allMargin
           // open the new/resized slots (inverse-vol weights, 70% book)
           for (const [sym,tgt] of target) {
-            let slotNotional = slotTarget(sym, tgt.dir)
+            let slotNotional = slotTarget(sym, tgt.dir) * SCALE
             // v46: combined per-coin exposure cap 20% of portfolio (rotation +
             // breakout on the same coin was doubling concentration)
             const symExp = (allOpenRows||[]).filter((x:any)=>x.sym===sym)
               .reduce((a:number,x:any)=>a+Number(x.entry_price)*Number(x.size),0)
-            slotNotional = Math.min(slotNotional, Math.max(0, port*S.PER_COIN_CAP - symExp))
-            if (slotNotional < port*0.01) { log.push(`ROTA_SKIP ${sym}: per-coin cap`); logSkip(sym,'ROTA','per_coin_cap',{slot:+slotNotional.toFixed(0)}); continue }
-            if (balance < slotNotional) { log.push(`ROTA_SKIP ${sym}: insufficient cash`); logSkip(sym,'ROTA','insufficient_cash',{slot:+slotNotional.toFixed(0), cash:+balance.toFixed(0)}); continue }
+            slotNotional = Math.min(slotNotional, Math.max(0, port*S.PER_COIN_CAP*SCALE - symExp))
+            if (slotNotional < port*0.01*SCALE) { log.push(`ROTA_SKIP ${sym}: per-coin cap`); logSkip(sym,'ROTA','per_coin_cap',{slot:+slotNotional.toFixed(0)}); continue }
+            if (balance < (MARGIN_SIZING ? slotNotional/LEV + slotNotional*FEE : slotNotional)) { log.push(`ROTA_SKIP ${sym}: insufficient cash`); logSkip(sym,'ROTA','insufficient_cash',{slot:+slotNotional.toFixed(0), cash:+balance.toFixed(0)}); continue }
             // v57.1: enter at the CURRENT price. `tgt.price` is the close of the last
             // completed 4h candle — right for ranking momentum, wrong as a fill: at a
             // 05:46 rebalance it is the 04:00 close, nearly two hours old. Measured
@@ -3930,7 +4128,7 @@ Deno.serve(async (req) => {
 
     // v46: equity history — snapshot every 15 minutes for the dashboard curve
     if (utcM % 15 === 0) {
-      const {data:eqOpen} = await supabase.from('bot_trades').select('sym,side,entry_price,size').eq('status','OPEN')
+      const {data:eqOpen} = await supabase.from('bot_trades').select('sym,side,entry_price,size,lev').eq('status','OPEN')
       // v54: perp funding simulation — once per hour, longs pay / shorts
       // receive FUND_8H/8 of notional. Portfolio-level (balance), so the
       // equity curve and the checkpoint measure real perp economics.
@@ -3947,11 +4145,14 @@ Deno.serve(async (req) => {
       }
       const eqExp = (eqOpen||[]).reduce((a:number,x:any)=>a+Number(x.entry_price)*Number(x.size),0)
       // v50.2: mark-to-market — position value at the live mark, not at entry.
-      // LONG: size×px. SHORT: entry margin + (entry-px)×size = size×(2·entry−px).
+      // v67.2: value = MARGIN posted + unrealised P&L. The old form (size×px)
+      // is only right at 1x; at 2x it booked the borrowed half as equity
+      // ($776 on a $500 account), and it floors a liquidated slot at -margin.
       const eqMtm = (eqOpen||[]).reduce((a:number,x:any)=>{
-        const e=Number(x.entry_price), sz=Number(x.size)
+        const e=Number(x.entry_price), sz=Number(x.size), lv=Math.max(1, Number(x.lev)||1)
         const px=livePx.get(x.sym) ?? e
-        return a + (x.side==='LONG' ? sz*px : sz*(2*e-px))
+        const upnl = (x.side==='LONG' ? 1 : -1) * (px-e) * sz
+        return a + Math.max(0, e*sz/lv + upnl)
       },0)
       try { await supabase.from('bot_equity').insert({ equity: balance+eqMtm, balance, exposure: eqExp }) } catch (e) { await logErr('equity_snapshot', e) }
     }

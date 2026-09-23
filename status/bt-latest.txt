@@ -1,25 +1,26 @@
-backtest 2026-09-22T19:55Z mode=v94bt months=12
-████ V94BT — the exit: does the breakeven floor cap the fat tail? ████
-  39 coins, span 365 days
+backtest 2026-09-22T23:51Z mode=v105bt months=36
+████ V105BT — short-term reversal + BTC lead-lag, 36m, 40 coins ████
+  39 coins, span 1096 days, OOS from 2026-01-24
 
-── THE BREAKEVEN FLOOR: does it protect, or does it cap? ──
-  v61.1 says the floor exits winners at exactly +0.533R that would
-  otherwise run to +2.7R..+7.8R. This is that, measured on dollars.
-  config                     trades      net%  maxDD   per-trade  per-window
-  floor ON  (deployed)        1628    -11.1%   14.7%  avgR +0.0463  +13 +12 -1 -12 -15 -8
-  floor OFF (let it run)      1366    -39.3%   18.3%  avgR -0.2004  +12 -9 -10 -13 -1 -17
+── A: cross-sectional short-term reversal (long K losers / short K winners) ──
+  L1h H4h K4                   n=  6575  IS gross   -0.79 net  -30.44 bps   OOS gross    2.65 net  -27.12 bps   OOS net %/yr -594.0
+  L1h H4h K8                   n=  6575  IS gross   -0.15 net  -29.71 bps   OOS gross    2.42 net  -27.21 bps   OOS net %/yr -595.9
+  L1h H24h K4                  n=  1095  IS gross   -5.80 net  -35.42 bps   OOS gross    9.85 net  -19.92 bps   OOS net %/yr -72.7
+  L1h H24h K8                  n=  1095  IS gross   -3.93 net  -33.44 bps   OOS gross    6.39 net  -23.23 bps   OOS net %/yr -84.8
+  L4h H4h K4                   n=  6574  IS gross    1.08 net  -28.60 bps   OOS gross    1.91 net  -27.82 bps   OOS net %/yr -609.4
+  L4h H4h K8                   n=  6574  IS gross    0.82 net  -28.74 bps   OOS gross    1.03 net  -28.58 bps   OOS net %/yr -626.0
+  L4h H24h K4                  n=  1095  IS gross   -5.67 net  -35.37 bps   OOS gross    6.59 net  -23.19 bps   OOS net %/yr -84.6
+  L4h H24h K8                  n=  1095  IS gross   -4.88 net  -34.45 bps   OOS gross    2.51 net  -27.12 bps   OOS net %/yr -99.0
+  L24h H4h K4                  n=  6569  IS gross   -1.65 net  -31.29 bps   OOS gross   -2.84 net  -32.56 bps   OOS net %/yr -713.0
+  L24h H4h K8                  n=  6569  IS gross   -0.51 net  -30.04 bps   OOS gross   -1.15 net  -30.73 bps   OOS net %/yr -673.1
+  L24h H24h K4                 n=  1094  IS gross  -10.03 net  -39.67 bps   OOS gross  -27.27 net  -57.00 bps   OOS net %/yr -208.0
+  L24h H24h K8                 n=  1094  IS gross   -0.82 net  -30.35 bps   OOS gross  -17.55 net  -47.14 bps   OOS net %/yr -172.1
 
-── the same at 6bps, because an exit change must survive cost ──
-  config                     trades      net%  maxDD   per-trade  per-window
-  floor ON  @6bps             1684    -22.2%   15.4%  avgR +0.0581  +13 +2 -2 -11 -15 -9
-  floor OFF @6bps             1290    -21.1%   13.6%  avgR -0.1411  +13 -3 -2 -9 -10 -10
+── B: BTC lead-lag (alt basket follows a big BTC hour) ──
+  BTC |1h|>=1% hold 1h         n=  1335  IS gross   -2.17 net  -31.90 bps   OOS gross   -3.34 net  -33.08 bps   OOS net %/yr -147.1
+  BTC |1h|>=1% hold 4h         n=   950  IS gross   -6.34 net  -36.07 bps   OOS gross   -5.18 net  -34.92 bps   OOS net %/yr -110.5
+  BTC |1h|>=2% hold 1h         n=   219  IS gross   17.28 net  -12.45 bps   OOS gross  -22.63 net  -52.37 bps   OOS net %/yr -38.2
+  BTC |1h|>=2% hold 4h         n=   182  IS gross   20.95 net   -8.79 bps   OOS gross  -24.26 net  -53.99 bps   OOS net %/yr -32.7
 
-── ROTA-only book (what is actually deployed at $500) ──
-  config                     trades      net%  maxDD   per-trade  per-window
-  ROTA floor ON               1266      4.6%    8.9%  avgR +0.0000  +12 +8 +1 -5 -6 -5
-  ROTA floor OFF              1266      4.6%    8.9%  avgR +0.0000  +12 +8 +1 -5 -6 -5
-
-  RULE 5 CHECK: this is an EXIT change, so trade counts must barely
-  move. v82bt saw 'free' cut 1,076 trades (-22%) at $10k — if that
-  repeats it is a rule-5 rejection however good the return looks,
-  because a trade held longer is a trade not re-entered elsewhere.
+  Costs per leg round trip: 20 bps majors / 30 bps alts (taker + slippage).
+  B's %/yr uses the realised event frequency. OOS = last 20%, never used to choose.
