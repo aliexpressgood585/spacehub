@@ -131,7 +131,7 @@ export function runSwarm(b: Bar[], x: { btc?: Bar[] }): Record<string, number> {
 // merely pointed the right way). costBps = 2 x (taker fee + slippage) of SCALP,
 // asserted equal in tests (not imported: scalp.ts imports this module).
 // Sums are exponentially decayed (half-life 12h) so scores follow the current market.
-export const LEARN = { horizonMs: 5 * 60_000, halfLifeMs: 12 * 3600_000, minN: 100, lo: 0, hi: 2.5, benchT: -2, costBps: 16 } as const
+export const LEARN = { horizonMs: 5 * 60_000, halfLifeMs: 12 * 3600_000, minN: 100, lo: 0, hi: 2.5, benchT: -2, costBps: 16, horizonsMin: [5, 15, 60, 240] as readonly number[], minActive: 5 } as const
 export interface Stat { agent: string; n: number; s: number; s2: number; updated_at: string }
 export function decayStat(st: Stat | undefined, agent: string, now: number): Stat {
   if (!st) return { agent, n: 0, s: 0, s2: 0, updated_at: new Date(now).toISOString() }
@@ -139,9 +139,9 @@ export function decayStat(st: Stat | undefined, agent: string, now: number): Sta
   return { agent, n: st.n * f, s: st.s * f, s2: st.s2 * f, updated_at: new Date(now).toISOString() }
 }
 // snapshot: votes[sym][agent] = dir, px0[sym] = mid then; px1[sym] = mid now
-export function scoreSnapshot(stats: Record<string, Stat>, votes: Record<string, Record<string, number>>, px0: Record<string, number>, px1: Record<string, number>, now: number, costBps: number = LEARN.costBps): Record<string, Stat> {
+export function scoreSnapshot(stats: Record<string, Stat>, votes: Record<string, Record<string, number>>, px0: Record<string, number>, px1: Record<string, number>, now: number, costBps: number = LEARN.costBps, suffix = ''): Record<string, Stat> {
   const out: Record<string, Stat> = {}
-  const touch = (a: string) => (out[a] ??= decayStat(stats[a], a, now))
+  const touch = (a: string) => (out[a + suffix] ??= decayStat(stats[a + suffix], a + suffix, now))
   for (const [sym, vs] of Object.entries(votes)) {
     const r = px1[sym] / px0[sym] - 1
     if (!Number.isFinite(r)) continue
@@ -165,3 +165,34 @@ export function learnedWeight(st: Stat | undefined): number {
   return Math.round(Math.min(LEARN.hi, Math.max(LEARN.lo, 1 + tStat(st) / 2)) * 100) / 100
 }
 export const meanBps = (st: Stat | undefined) => (st && st.n > 0 ? st.s / st.n : 0)
+
+// v79.0: every vote is also scored 15, 60 and 240 minutes later (key agent@h; the
+// 5-minute score keeps the bare id). A bigger move pays the same 16bps fee, so an
+// agent that is noise at 5 minutes can be right AFTER costs at 4 hours. Each agent
+// is judged on its best horizon, and that horizon becomes the trade's planned hold.
+export const hKey = (agent: string, h: number) => (h === LEARN.horizonsMin[0] ? agent : `${agent}@${h}`)
+export function bestHorizon(stats: Record<string, Stat>, agent: string): { h: number; st: Stat | undefined; t: number } {
+  let best = { h: LEARN.horizonsMin[0], st: stats[agent], t: stats[agent] && stats[agent].n >= LEARN.minN ? tStat(stats[agent]) : -Infinity }
+  for (const h of LEARN.horizonsMin) {
+    const st = stats[hKey(agent, h)]
+    if (!st || st.n < LEARN.minN) continue
+    const t = tStat(st)
+    if (t > best.t) best = { h, st, t }
+  }
+  return best
+}
+// Weights never all go to zero: with fewer than minActive agents clearing costs on
+// their own, the team switches to RELATIVE mode and follows its best-performing
+// members (weight by distance from the median t) so the desk keeps trading and
+// keeps collecting real evidence. mode is reported so the page can say which.
+export function teamWeights(stats: Record<string, Stat>, agents: readonly string[]): { W: Record<string, number>; H: Record<string, number>; mode: 'absolute' | 'relative'; active: number } {
+  const b = Object.fromEntries(agents.map((a) => [a, bestHorizon(stats, a)]))
+  const H = Object.fromEntries(agents.map((a) => [a, b[a].h]))
+  const abs = Object.fromEntries(agents.map((a) => [a, b[a].st && b[a].st!.n >= LEARN.minN ? Math.round(Math.min(LEARN.hi, Math.max(LEARN.lo, 1 + b[a].t / 2)) * 100) / 100 : 1]))
+  const judged = agents.filter((a) => Number.isFinite(b[a].t))
+  const active = judged.filter((a) => b[a].t > 0).length
+  if (active >= LEARN.minActive || judged.length < LEARN.minActive) return { W: abs, H, mode: 'absolute', active }
+  const ts = judged.map((a) => b[a].t).sort((x, y) => x - y), med = ts[Math.floor(ts.length / 2)]
+  const W = Object.fromEntries(agents.map((a) => [a, Number.isFinite(b[a].t) ? Math.round(Math.min(LEARN.hi, Math.max(0, 1 + (b[a].t - med) / 2)) * 100) / 100 : 1]))
+  return { W, H, mode: 'relative', active }
+}

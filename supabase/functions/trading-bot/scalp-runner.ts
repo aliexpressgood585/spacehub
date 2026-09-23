@@ -1,7 +1,8 @@
 import {SCALP,assess,allocation,exitPlan,validQuote,type Quote,type Bar,type Vote,type Intel,type NewsItem,type LiqEvent} from '../../../shared/scalp.ts'
 import {attribution,execStats,compliance,debate,hitPct,type Minute} from '../../../shared/desk.ts'
 import {AGENTS,NEW_AGENTS} from '../../../shared/agents.ts'
-import {SWARM,TEAMS,decayStat,scoreSnapshot,learnedWeight,meanBps,tStat,LEARN,type Stat,type Team} from '../../../shared/swarm.ts'
+import {SWARM,TEAMS,decayStat,scoreSnapshot,learnedWeight,meanBps,tStat,LEARN,teamWeights,bestHorizon,hKey,type Stat,type Team} from '../../../shared/swarm.ts'
+import {DIRECTIONAL} from '../../../shared/desk.ts'
 import {CRYPTO_40} from '../../../shared/strategy.ts'
 // v77.0: the validated 40-coin universe (standing rule 2), priced from Binance USDT-M futures first.
 export const UNIVERSE:string[]=[...CRYPTO_40]
@@ -76,7 +77,9 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
   let learnErr=''
   const statRows:Stat[]=due?await Promise.resolve(db.from('agent_stats').select('agent,n,s,s2,updated_at').throwOnError()).then((r:any)=>r.data??[],(e:any)=>{learnErr=String(e?.message??e);return []}):[]
   const stats:Record<string,Stat>=Object.fromEntries(statRows.map(r=>[r.agent,decayStat({...r,n:+r.n,s:+r.s,s2:+r.s2},r.agent,Date.now())]))
-  const W:Record<string,number>=Object.fromEntries(Object.entries(stats).map(([k,v])=>[k,learnedWeight(v)]))
+  // v79.0: each agent is weighted on its best horizon (5/15/60/240 min, net of costs); weights never all hit zero.
+  const VOTERS=[...DIRECTIONAL,...SWARM.map(x=>x.id)]
+  const team=teamWeights(stats,VOTERS),W=team.W,H=team.H
   const now=Date.now(),closes:any[]=[],updates:any[]=[],entries:any[]=[],marks:Record<string,number>={}
   let cash=Number(state.balance),exposure=0,equity=cash
   const retained:any[]=[]
@@ -96,6 +99,15 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
         await db.from('agent_snapshots').update({scored:true}).eq('id',old[0].id).throwOnError()
         for(const r of rows){stats[r.agent]=r}
         learned={scored:1,updated:rows.length}
+      }
+      // longer horizons: the snapshot taken ~h minutes ago (meetings are ~60s apart, so each is scored ~once per horizon)
+      for(const h of LEARN.horizonsMin.slice(1)){
+        const {data:hs}=await db.from('agent_snapshots').select('ts,votes,px').gt('ts',new Date(now-h*60_000-60_000).toISOString()).lte('ts',new Date(now-h*60_000).toISOString()).order('ts',{ascending:false}).limit(1).throwOnError()
+        if(!hs?.length)continue
+        const upd=scoreSnapshot(stats,hs[0].votes,hs[0].px,px,now,LEARN.costBps,`@${h}`),rows=Object.values(upd)
+        if(rows.length)await db.from('agent_stats').upsert(rows).throwOnError()
+        for(const r of rows){stats[r.agent]=r}
+        learned.scored++;learned.updated+=rows.length
       }
       await db.from('agent_snapshots').insert({votes,px}).throwOnError()
       await db.from('agent_snapshots').delete().lt('ts',new Date(now-24*3600_000).toISOString()).throwOnError()
@@ -118,6 +130,14 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
   const eligible=failures.length<=Math.floor(UNIVERSE.length*0.2)&&open.every((t:any)=>data.has(String(t.sym)))&&!retained.some(t=>t.strategy!=='SCALP')&&!state.hard_halt_at&&!params.scalp_paused
   // v76.0 whole portfolio: free capital is split among the entries of THIS meeting
   // (not among all 8 slots), capped per coin, so 2 signals use the whole account.
+  // v79.0: planned hold = weighted median best-horizon of the agents voting WITH the trade; the stop widens with sqrt(hold)
+  for(const p of picks){
+    const backers=Object.entries(p.dirs).filter(([a,d])=>d===p.side&&(W[a]??1)>0).map(([a])=>({h:H[a]??5,w:W[a]??1})).sort((a,b)=>a.h-b.h)
+    const tot=backers.reduce((x,b)=>x+b.w,0);let acc=0,hold=p.holdMin
+    for(const b of backers){acc+=b.w;if(acc>=tot/2){hold=b.h;break}}
+    p.holdMin=Math.max(1,Math.min(SCALP.maxHoldMs/60_000,hold))
+    p.stopPct=Math.min(0.04,p.stopPct*Math.sqrt(Math.max(1,p.holdMin/5)))
+  }
   const take=picks.slice(0,SCALP.maxPositions-retained.length)
   if(due&&eligible)for(const p of take){
     const n=allocation(cash,equity,exposure,take.length-entries.length)
@@ -145,11 +165,11 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
       const mem=SWARM.filter(x=>x.team===t), ranked=[...mem].sort((a,c)=>meanBps(stats[c.id])-meanBps(stats[a.id]))
       const benched=mem.filter(m=>(stats[m.id]?.n??0)>=LEARN.minN&&learnedWeight(stats[m.id])===0).length
       const learning=mem.filter(m=>(stats[m.id]?.n??0)<LEARN.minN).length
-      const best=ranked[0],bs=stats[best.id]
-      say(TEAMS[t].lead,`${TEAMS[t].label} (${mem.length} סוכנים): ${tally(TEAMS[t].lead)}. הכי טוב כרגע: ${best.label} ${bs?`${meanBps(bs).toFixed(1)} נק׳ בסיס נטו (אחרי עמלות) ל-5 דק׳ על ${bs.n.toFixed(0)} הצבעות`:'עדיין לומד'}. ${benched} בספסל, ${learning} עדיין לומדים.`,lead(TEAMS[t].lead,'hold'))
+      const best=ranked[0],bs=stats[best.id],bh=bestHorizon(stats,best.id)
+      say(TEAMS[t].lead,`${TEAMS[t].label} (${mem.length} סוכנים): ${tally(TEAMS[t].lead)}. הכי טוב כרגע: ${best.label} ${bs?`${meanBps(bs).toFixed(1)} נק׳ בסיס נטו ל-5 דק׳${bh.st&&bh.h!==5?`, באופק ${bh.h} דק׳: ${meanBps(bh.st).toFixed(1)} נטו`:''}`:'עדיין לומד'}. ${benched} בספסל, ${learning} עדיין לומדים.`,lead(TEAMS[t].lead,'hold'))
     }
     say('risk',`דמו 1x; עד ${SCALP.maxPositions} פוזיציות, עד ${SCALP.perCoin*100}% למטבע ועד ${SCALP.allocation*100}% הקצאה אחרי עמלות. עצירת כניסות בהפסד יומי 5% או ירידה 15%. ${line('risk')}`,eligible?'ok':'veto')
-    say('trader',`ספר פקודות: ${tally('trader')}. מועמדות לביצוע: ${entries.map(e=>`${e.sym} ${e.side}`).join(', ')||'אין הסכמה מתאימה'}. זמן החזקה מתוכנן לפי התנאים: ${entries.map(e=>`${e.sym} ${e.hold_min} דק׳`).join(', ')||'—'} (1–15). בכל ישיבה: סגירה מוקדמת אם הצוות מתהפך, הארכה לעסקה מרוויחה שהצוות עדיין תומך בה.`,entries.length?'ok':'hold')
+    say('trader',`ספר פקודות: ${tally('trader')}. מועמדות לביצוע: ${entries.map(e=>`${e.sym} ${e.side}`).join(', ')||'אין הסכמה מתאימה'}. זמן החזקה מתוכנן לפי התנאים: ${entries.map(e=>`${e.sym} ${e.hold_min} דק׳`).join(', ')||'—'} (1–240, לפי האופק שבו הסוכנים התומכים הוכיחו רווח נטו). בכל ישיבה: סגירה מוקדמת אם הצוות מתהפך, הארכה לעסקה מרוויחה שהצוות עדיין תומך בה.`,entries.length?'ok':'hold')
     say('treasurer',`מזומן צפוי אחרי הפעולות $${cash.toFixed(2)}; ${retained.length+entries.length}/${SCALP.maxPositions} פוזיציות. הביצוע נבדק שוב באותה עסקת מסד נתונים.`)
     say('auditor',`עלות מול תנודתיות: ${count('auditor','ok')} עוברים, ${count('auditor','veto')} נחסמים. אסטרטגיה ניסיונית ללא אימות היסטורי; מחקרי העבר מצאו שסקאלפ מתחת לשעה לא עבר עלויות.`,count('auditor','ok')?'ok':'veto')
     say('reporter',`סיכום: ${long} מועמדי לונג, ${short} מועמדי שורט, ${entries.length} כניסות נשלחו לביצוע. בדיקת צוות כל דקה, בדיקת יציאות כל 10 שניות.`)
@@ -168,8 +188,8 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
     if(q){
       const all=Object.values(stats).filter(x=>x.n>=LEARN.minN), benchN=all.filter(x=>learnedWeight(x)===0).length
       const topL=[...all].sort((a,c)=>tStat(c)-tStat(a)).slice(0,3).map(x=>`${x.agent} t=${tStat(x).toFixed(1)}`)
-      q.says+=` למידת צל (כל דקה, מול 5 דק׳ קדימה): ${all.length} סוכנים עם מספיק נתונים, ${benchN} בספסל${topL.length?`, מובילים: ${topL.join(', ')}`:''}.${learnErr?` שגיאת למידה: ${learnErr.slice(0,80)}`:learned.scored?` עודכנו ${learned.updated} סוכנים.`:''}`
-      q.data={...att,hit:Object.fromEntries(Object.entries(att).map(([k,v])=>[k,hitPct(v)])),weights:W}
+      q.says+=` למידת צל נטו אחרי עמלות, אופקים 5/15/60/240 דק׳: ${team.active} סוכנים מרוויחים נטו באופק הטוב שלהם — מצב ${team.mode==='absolute'?'מוחלט (רק מי שמרוויח)':'יחסי (הולכים אחרי הטובים ביותר כדי לא לעצור)'}; ${all.length} מדדים עם מספיק נתונים, ${benchN} בספסל${topL.length?`, מובילים: ${topL.join(', ')}`:''}.${learnErr?` שגיאת למידה: ${learnErr.slice(0,80)}`:learned.scored?` עודכנו ${learned.updated} סוכנים.`:''}`
+      q.data={...att,hit:Object.fromEntries(Object.entries(att).map(([k,v])=>[k,hitPct(v)])),weights:W,horizons:H,mode:team.mode,active:team.active}
     }
   }
   const {data:result}=await db.rpc('scalp_commit_cycle',{p_lease:lease,p_closes:closes,p_updates:updates,p_entries:entries,p_minutes:due?minutes:null,p_marks:marks,p_feed:{source:'perpetuals',ok:data.size,fail:failures.length,failures},p_candidates:due?evaluated.map(x=>({sym:x.sym,mid:x.mid,ts:now,side:x.side,score:x.score,weighted:x.weighted,signals:x.signals,dirs:Object.fromEntries(Object.entries(x.dirs).filter(([,d])=>d))})):null}).throwOnError()
