@@ -60,6 +60,11 @@ server-side Binance Futures mid (`scalp_candidates[].mid/ts`, added in scalp-run
 written every meeting); ticks MERGE (a coin keeps its last price, source + age shown)
 and persist in localStorage; before first data the card says "טוען מחיר…".
 Dashboard: OKX fallback now starts immediately (was 4s), same wording. Display only.
+DEPLOYED 2026-09-23 18:06 UTC: PR #41 (92664937), function v41, manifest v77.2 paper
+true / live false, 0 bot_errors, 40/40 candidates carry mid, Pages bundle live.
+INCIDENT (mine, ~3 min, 18:03-18:06): function v40 shipped a release.ts WITHOUT
+semicolons -> `'sha'\n(globalThis...)` parsed as a call, every cycle 500'd. Fixed in
+v41. SHIM MUST BE: `const g = globalThis as any; g.__RELEASE_SHA = '<sha>'; ...; export {};`
 
 ## v70.1 (2026-09-23) — five-minute operational reviews + house control room
 Owner requested an autonomous review every five minutes, visible in the house.
