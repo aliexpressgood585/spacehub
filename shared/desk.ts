@@ -68,7 +68,7 @@ export function debate(best: { sym: string; side: number; score: number; votes: 
   const ranked = Object.entries(att).filter(([, a]) => a.n >= 5).map(([k, a]) => ({ k, p: hitPct(a) ?? 0, n: a.n })).sort((a, b) => b.p - a.p)
   const top = ranked.slice(0, 3).map((r) => `${HE[r.k] ?? r.k} ${r.p}% (${r.n}, משקל ${wt(r.k).toFixed(2)})`)
   const bottom = ranked.slice(-2).filter((r) => !ranked.slice(0, 3).includes(r)).map((r) => `${HE[r.k] ?? r.k} ${r.p}% (${r.n}, משקל ${wt(r.k).toFixed(2)})`)
-  out.push({ who: 'quant', to: 'pm', says: ranked.length ? `הכי מדויקים: ${top.join(' · ')}${bottom.length ? `. הכי חלשים: ${bottom.join(' · ')}` : ''}. משקל נקבע רק אחרי 30 הצבעות, בטווח 0.5–2.` : 'אין עדיין מספיק עסקאות סגורות לדרג את הסוכנים; כל המשקלים 1.', vote: 'hold', checked_at: at, round: 2, data: att })
+  out.push({ who: 'quant', to: 'pm', says: ranked.length ? `הכי מדויקים: ${top.join(' · ')}${bottom.length ? `. הכי חלשים: ${bottom.join(' · ')}` : ''}. (דיוק בעסקאות שנסגרו — מידע בלבד; המשקל עצמו בא מלמידת הצל).` : 'אין עדיין מספיק עסקאות סגורות לדירוג לפי עסקאות; המשקל בא מלמידת הצל.', vote: 'hold', checked_at: at, round: 2, data: att })
   const score = `ציון משוקלל ${((best.weighted ?? 0) * 100).toFixed(0)}% (סף ${SCALP.minWeighted * 100}%), ${longs} לונג מול ${shorts} שורט`
   const verdict = blocked.length ? `ציות חסם: ${blocked.join(', ')}. לא נשלחות כניסות.`
     : opened ? `${best.sym} ${best.side > 0 ? 'לונג' : 'שורט'} אושר: ${score}, ללא התנגדות מגמת EMA. החזקה מתוכננת ${best.holdMin ?? 15} דק׳ (1–15), עם סגירה מוקדמת אם הצוות מתהפך.`
