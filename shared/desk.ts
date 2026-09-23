@@ -57,7 +57,8 @@ export function debate(best: { sym: string; side: number; score: number; votes: 
   const at = new Date(now).toISOString(), out: Minute[] = []
   if (!best) return [{ who: 'pm', says: 'אין מטבע עם נתונים תקינים לדיון. אין כניסה.', vote: 'hold', checked_at: at, round: 3 }]
   const wt = (k: string) => w[k] ?? 1
-  const dirs = best.votes.filter((v) => DIRECTIONAL.includes(v.who) && (v.vote === 'long' || v.vote === 'short'))
+  // v80.2: count only voters that have a say (weight > 0), so the PM line matches the rule that decided
+  const dirs = best.votes.filter((v) => DIRECTIONAL.includes(v.who) && wt(v.who) > 0 && (v.vote === 'long' || v.vote === 'short'))
   const longs = dirs.filter((v) => v.vote === 'long').length, shorts = dirs.length - longs
   const lw = dirs.filter((v) => v.vote === 'long').reduce((a, v) => a + wt(v.who), 0), sw = dirs.filter((v) => v.vote === 'short').reduce((a, v) => a + wt(v.who), 0)
   const lead = lw > sw ? 'long' : sw > lw ? 'short' : ''
@@ -71,7 +72,7 @@ export function debate(best: { sym: string; side: number; score: number; votes: 
   out.push({ who: 'quant', to: 'pm', says: ranked.length ? `הכי מדויקים: ${top.join(' · ')}${bottom.length ? `. הכי חלשים: ${bottom.join(' · ')}` : ''}. (דיוק בעסקאות שנסגרו — מידע בלבד; המשקל עצמו בא מלמידת הצל).` : 'אין עדיין מספיק עסקאות סגורות לדירוג לפי עסקאות; המשקל בא מלמידת הצל.', vote: 'hold', checked_at: at, round: 2, data: att })
   const score = `ציון משוקלל ${((best.weighted ?? 0) * 100).toFixed(0)}% (סף ${SCALP.minWeighted * 100}%), ${longs} לונג מול ${shorts} שורט`
   const verdict = blocked.length ? `ציות חסם: ${blocked.join(', ')}. לא נשלחות כניסות.`
-    : opened ? `${best.sym} ${best.side > 0 ? 'לונג' : 'שורט'} אושר: ${score}, ללא התנגדות מגמת EMA. החזקה מתוכננת ${best.holdMin ?? 15} דק׳ (1–240), עם סגירה מוקדמת אם הצוות מתהפך.`
+    : opened ? `${best.sym} ${best.side > 0 ? 'לונג' : 'שורט'} אושר: ${score}. החזקה מתוכננת ${best.holdMin ?? 15} דק׳ (1–240), עם סגירה מוקדמת אם הצוות מתהפך.`
     : held ? `${best.sym} כבר מוחזק; אין מועמד חדש שעובר את הסף. ממתינים.`
     : `${best.sym}: ${score} — ${best.side ? 'אין מקום או הון פנוי' : 'לא עובר את הסף, אין יתרון של 2 בספירה, או נגד מגמת EMA'}. ממתינים.`
   out.push({ who: 'pm', says: `החלטה: ${verdict}`, vote: blocked.length ? 'veto' : opened ? (best.side > 0 ? 'long' : 'short') : 'hold', checked_at: at, round: 3 })
