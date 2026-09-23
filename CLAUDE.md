@@ -81,6 +81,17 @@ has been run. Do not present the house upgrade as implementing that request.
 Existing equity snapshots occur every 15 minutes, so
 review freshness tolerance is 20 minutes, not 5.
 
+## v76.2 (2026-09-23) — house: "קיר הסוכנים", one window per agent (dashboard only)
+Owner: every agent, old and new, laid out in order, each in its own window, not on
+top of each other. New `Wall` component in BotHouse.tsx: 89 cards (9 house + 4 desk +
+10 analysts + 6 team leads + 60 swarm), grouped and collapsible (house + desk open by
+default), CSS grid (2 columns on phones). Voter cards show the agent's last vote on
+each of the 8 coins (from `bot_params.scalp_candidates[].dirs`, already written by
+the bot — no bot change), learned weight, bps/5min and effective votes; non-voters
+show their latest meeting line. Status chip: learning / active / boosted / bench.
+NB the owner was earlier told "84 agents" — the true count is 89 (83 + 6 team leads);
+corrected in the page and the reply.
+
 ## v76.1 (2026-09-23) — combo team: 10 agents that require several oscillators to agree
 Owner: 10 more agents combining several oscillators in parallel, fully autonomous.
 `shared/swarm.ts` team 'combo' (lead שחר): RSI+MACD, RSI+Stoch+CCI, EMA+RSI+volume,
