@@ -51,6 +51,14 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## 2026-09-23 06:10 UTC — vol target 0.5 -> 0.7 (owner: "more aggressive")
+Shim only, same sha `ad53cd42`, function v24. v104bt in-sample: volT70
++94.5% / 2 DD halts vs volT50 +67.1% / 1 halt (27pp, beyond the bar); volT70
+was NOT run out-of-sample (running it now would contaminate the OOS set).
+Takes effect at the next rotation (~11:42 UTC). Book at 06:07: NEAR/ARB LONG,
+CRV/TRX SHORT, $1,934 notional, equity $5,038.91 (+0.8%), 0 errors, no halt.
+ROLLBACK: `__ROTA_VOL_TARGET='0.5'`.
+
 ## v105bt (2026-09-22 23:55) — SHORT-TERM REVERSAL + BTC LEAD-LAG: REJECTED.
 36m, 39 coins, 1h. A: long K losers / short K winners over L=1/4/24h, hold
 4/24h. B: after a >=1%/2% BTC hour, alt basket in BTC's direction for 1/4h.
