@@ -95,6 +95,9 @@ cash idle.
 - TRADE-OFF said to the owner: bigger single-coin exposure (one bad coin = up
   to half the account), and early entries can use up the cash so a later, better
   signal waits until something closes (the 1-15 min holds recycle cash quickly).
+DEPLOYED 2026-09-23 17:17 UTC: PR #36 (e56f5151), function v36, manifest v76.0 paper
+true / live false, 0 errors. Live: 17:18 AVAX alone $2,463 (50%), 17:19 BTC+ADA
+$2,435 each -> exposure 99% from 17:20 on (was 61% avg over the prior 3h).
 
 ## v75.0 (2026-09-23) — the swarm: 50 more agents + autonomous shadow learning (73 total)
 Owner: "add 50 more agents and have them improve over time to the highest level,
