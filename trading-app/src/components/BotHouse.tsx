@@ -727,7 +727,7 @@ const BN_K: Record<string, { s: string; k: number }> = { PEPE: { s: '1000PEPEUSD
 const STEP_MS = 700
 const EXIT_HE: Record<string, string> = { STOP: 'סטופ', TIMEOUT: 'תקרת 15 דק׳', PLANNED: 'זמן מתוכנן', FLIP: 'הצוות התהפך', MODE_SWITCH: 'מעבר מצב', LEDGER_TEST: 'בדיקה' }
 const ROUND: Record<number, string> = { 1: 'סבב 1 · כל סוכן מצביע מהתחום שלו', 2: 'סבב 2 · התנגדויות ורקורד מול מנהלת התיק', 3: 'סבב 3 · החלטה' }
-const fmtPx = (v: number) => (!Number.isFinite(v) ? '—' : v >= 1000 ? v.toLocaleString('en-US', { maximumFractionDigits: 1 }) : v >= 1 ? v.toFixed(3) : v.toFixed(5))
+const fmtPx = (v: number) => (!Number.isFinite(v) ? '—' : v >= 1000 ? v.toLocaleString('en-US', { maximumFractionDigits: 1 }) : v >= 1 ? v.toFixed(3) : Number(v.toPrecision(4)).toString())
 const pct = (v: number, d = 2) => (Number.isFinite(v) ? `${v >= 0 ? '+' : ''}${(v * 100).toFixed(d)}%` : '—')
 
 // v72.0: live price tape. OKX public swap tickers, display only — the bot trades on its own feed.

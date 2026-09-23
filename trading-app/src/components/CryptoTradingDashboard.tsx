@@ -138,7 +138,7 @@ function drawCandles(canvas:HTMLCanvasElement,bars:Bar[],pos?:'LONG'|'SHORT'){
   const lp=sl[sl.length-1].close
   ctx.fillStyle='rgba(2,8,20,0.9)';ctx.fillRect(2,toY(lp)-13,72,14)
   ctx.fillStyle=C.green;ctx.font='bold 10px monospace'
-  ctx.fillText(lp>=100?lp.toFixed(2):lp.toFixed(5),4,toY(lp)-1)
+  ctx.fillText(lp>=100?lp.toFixed(2):lp>=1?lp.toFixed(4):String(Number(lp.toPrecision(4))),4,toY(lp)-1)
   // open-position marker (the bot's, not a suggestion)
   if(pos){
     const col=pos==='LONG'?C.green:C.red
@@ -843,7 +843,7 @@ export default function CryptoTradingDashboard() {
           if(t.status==='OPEN'&&!new Set(COINS.map(c=>c.sym)).has(t.sym)){
             setExtraWsSyms(prev=>[...new Set([...prev,t.sym])])
           }
-          addLog(`▲ פתיחה ${t.sym} ${t.side} @ ${t.entry>=100?t.entry.toFixed(2):t.entry.toFixed(5)}`)
+          addLog(`▲ פתיחה ${t.sym} ${t.side} @ ${t.entry>=100?t.entry.toFixed(2):t.entry>=1?t.entry.toFixed(4):String(Number(t.entry.toPrecision(4)))}`)
         })
         .on('postgres_changes',{event:'UPDATE',schema:'public',table:'bot_trades'},(p)=>{
           const t=mapDbTrade(p.new as Record<string,unknown>)
@@ -1030,7 +1030,7 @@ export default function CryptoTradingDashboard() {
   const maxDD          = calcMaxDD(trades)
   const selInfo        = prices[selected]
   const supaLive       = supaStatus==='live'
-  const fmtP           = (p:number)=>p>=1000?p.toFixed(2):p>=1?p.toFixed(4):p.toFixed(6)
+  const fmtP           = (p:number)=>p>=1000?p.toFixed(2):p>=1?p.toFixed(4):String(Number(p.toPrecision(4)))
   const animBalance    = useAnimatedCounter(totalValue)
   const M:CSSProperties= {fontFamily:"'IBM Plex Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace",userSelect:'none' as const,direction:'rtl'}
   const regColor       = REGIME_COLOR[marketRegime]||C.blue
