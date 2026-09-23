@@ -76,6 +76,11 @@ v80.1 (owner: "yes"): EMA8/21 veto LIFTED in proven mode only (`intel.mode`); re
 mode keeps it. Faders can now take the counter-trend entries they are proven on.
 DEPLOYED: PR #45 (8f8a13c9), function v45, manifest v80.1 paper true / live false, 0 errors;
 book full (ALGO/ARB/LINK LONG, INJ SHORT, 60m, cash $57); since reset 14 closed, -$18.56.
+2026-09-24 ~00:15 UTC SECOND RESET (owner): era exported to `migration/export-v80era/`
+(18 trades incl. 4 open, -$18.56 realised) and committed first; same reset SQL; learning
+kept. First book: LTC SHORT + PEPE LONG, ~$2,475 each (2 entries = whole account), 60m.
+v80.2: PM debate line counted ALL voters ("11 long vs 0 short" on a SHORT decided by the
+proven faders) and claimed "no EMA conflict" — now counts only voters with weight>0.
 
 ## 2026-09-23 22:30 UTC — ACCOUNT RESET to $5,000 on v79.0 (owner: "reset, start over, no patience to wait")
 History exported FIRST to `migration/export-v79era/` (190 trades, 494 equity rows,
