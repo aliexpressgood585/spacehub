@@ -59,6 +59,15 @@ Existing agent_stats converted EXACTLY at deploy (no reset, history kept):
 s' = s - 16n, s2' = s2 - 32s + 256n. Expect many agents to lose boost / some to be
 benched: that is the honest re-rating, not a bug. Team-lead line + house note say "נטו".
 Learning only — no change to entry rule, sizing, leverage or paper lock.
+DEPLOYED 2026-09-23 ~22:15 UTC: PR #42 (0c8cd17c), function v42, manifest v78.0 paper
+true / live false; agent_stats converted in place. RESULT, reported to the owner:
+ALL 75 voters benched (t <= -2 net). Best agent c_bb_rsi_rev -10.9 bps/5min NET — not
+one covers the round trip. Consequence: weights all 0 -> weighted score 0% -> SCALP
+opens NO new trades (verified: 0 open, 0 entries, PM "ציון משוקלל 0%"). Cash $4,793.
+This is the learning working, not a bug: it stops paying fees on calls that lose
+after costs. Agents are still scored every meeting and return automatically if the
+market gives moves larger than 16bps in their direction. Only bot_errors row is a
+transient 18:09 http2 error from before this deploy.
 
 ## 2026-09-23 18:40 UTC — owner decision: LEAVE SCALP AS IS, wait for results
 Live SCALP since 15:26: 144 closes, WR 25.0%, net -$200.45, fees $115.58 (>half).
