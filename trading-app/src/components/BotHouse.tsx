@@ -1001,7 +1001,7 @@ function League({ snap }: { snap: Snap | null }) {
   const ready = rows.filter((r) => r.st && r.st.n >= LEARN.minN), bench = ready.filter((r) => r.w === 0).length
   return <section className="bh-meet">
     <div className="bh-mtop"><h2>ליגת הסוכנים · {ids.length} מצביעים</h2><span className="bh-dec">{ready.length} מדורגים · {bench} בספסל · {ids.length - ready.length} לומדים</span></div>
-    <p className="bh-mnote">כל דקה כל סוכן מצביע על 40 המטבעות, ואחרי 5 דקות בודקים אם צדק. הציון דועך בחצי כל 12 שעות, כך שהוא עוקב אחרי השוק הנוכחי. משקל = 1 + t/2 בטווח 0–2.5, רק אחרי {LEARN.minN} הצבעות; t≤−2 = ספסל (עדיין נבחן וחוזר כשמשתפר). ציון גולמי לפני עמלות — עסקה אמיתית צריכה לעבור ~16 נק׳ בסיס עלות.</p>
+    <p className="bh-mnote">כל דקה כל סוכן מצביע על 40 המטבעות, ואחרי 5 דקות בודקים אם צדק. הציון דועך בחצי כל 12 שעות, כך שהוא עוקב אחרי השוק הנוכחי. משקל = 1 + t/2 בטווח 0–2.5, רק אחרי {LEARN.minN} הצבעות; t≤−2 = ספסל (עדיין נבחן וחוזר כשמשתפר). הציון נטו: מכל תנועה מורידים {LEARN.costBps} נק׳ בסיס עמלה+החלקה, כך שסוכן מוגבר הוא סוכן שהקריאות שלו היו מכסות את העסקה.</p>
     <div className="bh-mx-wrap"><table className="bh-mx bh-lg">
       <thead><tr><th>#</th><th>סוכן</th><th>משקל</th><th>t</th><th>נק׳ בסיס/5ד׳</th><th>הצבעות</th><th>מצב</th></tr></thead>
       <tbody>{rows.slice(0, all ? rows.length : 15).map((r, i) => { const learning = !r.st || r.st.n < LEARN.minN; return <tr key={r.id}>

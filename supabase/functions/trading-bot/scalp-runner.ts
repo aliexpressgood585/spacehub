@@ -146,7 +146,7 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
       const benched=mem.filter(m=>(stats[m.id]?.n??0)>=LEARN.minN&&learnedWeight(stats[m.id])===0).length
       const learning=mem.filter(m=>(stats[m.id]?.n??0)<LEARN.minN).length
       const best=ranked[0],bs=stats[best.id]
-      say(TEAMS[t].lead,`${TEAMS[t].label} (${mem.length} סוכנים): ${tally(TEAMS[t].lead)}. הכי טוב כרגע: ${best.label} ${bs?`${meanBps(bs).toFixed(1)} נק׳ בסיס ל-5 דק׳ על ${bs.n.toFixed(0)} הצבעות`:'עדיין לומד'}. ${benched} בספסל, ${learning} עדיין לומדים.`,lead(TEAMS[t].lead,'hold'))
+      say(TEAMS[t].lead,`${TEAMS[t].label} (${mem.length} סוכנים): ${tally(TEAMS[t].lead)}. הכי טוב כרגע: ${best.label} ${bs?`${meanBps(bs).toFixed(1)} נק׳ בסיס נטו (אחרי עמלות) ל-5 דק׳ על ${bs.n.toFixed(0)} הצבעות`:'עדיין לומד'}. ${benched} בספסל, ${learning} עדיין לומדים.`,lead(TEAMS[t].lead,'hold'))
     }
     say('risk',`דמו 1x; עד ${SCALP.maxPositions} פוזיציות, עד ${SCALP.perCoin*100}% למטבע ועד ${SCALP.allocation*100}% הקצאה אחרי עמלות. עצירת כניסות בהפסד יומי 5% או ירידה 15%. ${line('risk')}`,eligible?'ok':'veto')
     say('trader',`ספר פקודות: ${tally('trader')}. מועמדות לביצוע: ${entries.map(e=>`${e.sym} ${e.side}`).join(', ')||'אין הסכמה מתאימה'}. זמן החזקה מתוכנן לפי התנאים: ${entries.map(e=>`${e.sym} ${e.hold_min} דק׳`).join(', ')||'—'} (1–15). בכל ישיבה: סגירה מוקדמת אם הצוות מתהפך, הארכה לעסקה מרוויחה שהצוות עדיין תומך בה.`,entries.length?'ok':'hold')

@@ -126,9 +126,12 @@ export function runSwarm(b: Bar[], x: { btc?: Bar[] }): Record<string, number> {
 
 // ── shadow learning ────────────────────────────────────────────────────────
 // Every meeting stores each agent's vote per coin with the mid price. Five
-// minutes later the move is known: edge = dir * return (gross). Sums are
-// exponentially decayed (half-life 12h) so the scores follow the current market.
-export const LEARN = { horizonMs: 5 * 60_000, halfLifeMs: 12 * 3600_000, minN: 100, lo: 0, hi: 2.5, benchT: -2 } as const
+// minutes later the move is known: edge = dir * return - round-trip cost (v78.0:
+// NET, so a boosted agent is one whose calls would have paid for the trade, not
+// merely pointed the right way). costBps = 2 x (taker fee + slippage) of SCALP,
+// asserted equal in tests (not imported: scalp.ts imports this module).
+// Sums are exponentially decayed (half-life 12h) so scores follow the current market.
+export const LEARN = { horizonMs: 5 * 60_000, halfLifeMs: 12 * 3600_000, minN: 100, lo: 0, hi: 2.5, benchT: -2, costBps: 16 } as const
 export interface Stat { agent: string; n: number; s: number; s2: number; updated_at: string }
 export function decayStat(st: Stat | undefined, agent: string, now: number): Stat {
   if (!st) return { agent, n: 0, s: 0, s2: 0, updated_at: new Date(now).toISOString() }
@@ -136,7 +139,7 @@ export function decayStat(st: Stat | undefined, agent: string, now: number): Sta
   return { agent, n: st.n * f, s: st.s * f, s2: st.s2 * f, updated_at: new Date(now).toISOString() }
 }
 // snapshot: votes[sym][agent] = dir, px0[sym] = mid then; px1[sym] = mid now
-export function scoreSnapshot(stats: Record<string, Stat>, votes: Record<string, Record<string, number>>, px0: Record<string, number>, px1: Record<string, number>, now: number): Record<string, Stat> {
+export function scoreSnapshot(stats: Record<string, Stat>, votes: Record<string, Record<string, number>>, px0: Record<string, number>, px1: Record<string, number>, now: number, costBps: number = LEARN.costBps): Record<string, Stat> {
   const out: Record<string, Stat> = {}
   const touch = (a: string) => (out[a] ??= decayStat(stats[a], a, now))
   for (const [sym, vs] of Object.entries(votes)) {
@@ -144,7 +147,7 @@ export function scoreSnapshot(stats: Record<string, Stat>, votes: Record<string,
     if (!Number.isFinite(r)) continue
     for (const [a, d] of Object.entries(vs)) {
       if (!d) continue
-      const st = touch(a), e = d * r * 1e4   // basis points
+      const st = touch(a), e = d * r * 1e4 - costBps   // basis points, net of the round trip
       st.n += 1; st.s += e; st.s2 += e * e
     }
   }
