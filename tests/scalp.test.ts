@@ -49,6 +49,8 @@ assert.equal(liqCheck([L('long',99),L('short',101)],100,now).dir,0)
 assert.equal(liqCheck([L('long',50),L('long',50)],100,now).valid,0)
 assert.equal(liqCheck([L('long',99,now-3600000),L('long',99)],100,now).dir,0)
 assert.equal(allocation(1000,1000,0,8),123.75)
+// v76.0 whole portfolio: fewer entries -> bigger tickets, capped at 50% per coin
+assert.equal(allocation(1000,1000,0,1),500); assert.equal(allocation(1000,1000,0,2),495); assert.equal(allocation(1000,1000,500,1),490)
 // v74.0 adaptive hold
 assert.equal(planHold(1,0.2,0,0.001),5); assert.equal(planHold(1,0.5,1,0.001),13); assert.equal(planHold(1,0.2,-1,0.003),1)
 assert.equal(planHold(-1,-0.5,-1,0.0005),13); assert.ok(planHold(1,1,1,0)<=15)
@@ -68,4 +70,5 @@ console.log('Scalp signal, timing, trailing and cash invariants passed')
 import {readFileSync,readdirSync} from 'node:fs'
 const mig=readdirSync('supabase/migrations').filter(f=>readFileSync(`supabase/migrations/${f}`,'utf8').includes('scalp_commit_cycle')).sort().pop()!
 assert.ok(readFileSync(`supabase/migrations/${mig}`,'utf8').includes(`countopen>=${SCALP.maxPositions}`),`latest ledger migration ${mig} must cap at ${SCALP.maxPositions}`)
+assert.ok(readFileSync(`supabase/migrations/${mig}`,'utf8').includes(`eq*${SCALP.perCoin}`),`latest ledger migration ${mig} must cap each coin at ${SCALP.perCoin}`)
 console.log(`DB ledger cap matches SCALP.maxPositions (${mig})`)

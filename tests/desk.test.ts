@@ -12,7 +12,8 @@ const ok={paper_mode:true,lev:1,sym:'BTC'}
 assert.deepEqual(compliance([ok],[{sym:'ETH',notional:100}],1000,200),[])
 assert.ok(compliance([ok],[{sym:'BTC',notional:100}],1000,200).includes('מטבע כפול'))
 assert.ok(compliance([{...ok,lev:2}],[],1000,0).length)
-assert.ok(compliance([],[{sym:'ETH',notional:300}],1000,300).some(x=>x.includes('25%')))
+assert.ok(compliance([],[{sym:'ETH',notional:600}],1000,600).some(x=>x.includes('50%')))
+assert.deepEqual(compliance([],[{sym:'ETH',notional:500}],1000,500),[])
 assert.ok(compliance(Array.from({length:8},(_,i)=>({...ok,sym:'S'+i})),[{sym:'ETH',notional:10}],1000,100).some(x=>x.includes('8')))
 assert.ok(compliance([],[],1000,995).some(x=>x.includes('99%')))
 const best={sym:'BTC',side:1,score:3,votes:[v('regime','long'),v('rota','long'),v('trader','short'),v('donch','hold'),v('auditor','ok')]}

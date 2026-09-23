@@ -103,8 +103,11 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
   const picks=evaluated.filter(x=>x.side&&!retained.some(t=>t.sym===x.sym)&&!closedSyms.has(x.sym)).sort((a,b)=>b.score-a.score)
   // Migration must finish before this account starts scalping. Never estimate missing marks into entries.
   const eligible=!failures.length&&!retained.some(t=>t.strategy!=='SCALP')&&!state.hard_halt_at&&!params.scalp_paused
-  if(due&&eligible)for(const p of picks.slice(0,SCALP.maxPositions-retained.length)){
-    const n=allocation(cash,equity,exposure,SCALP.maxPositions-retained.length-entries.length)
+  // v76.0 whole portfolio: free capital is split among the entries of THIS meeting
+  // (not among all 8 slots), capped per coin, so 2 signals use the whole account.
+  const take=picks.slice(0,SCALP.maxPositions-retained.length)
+  if(due&&eligible)for(const p of take){
+    const n=allocation(cash,equity,exposure,take.length-entries.length)
     if(n<20)continue
     const q=data.get(p.sym)!.q,price=(p.side===1?q.ask:q.bid)*(1+p.side*SCALP.slip)
     entries.push({sym:p.sym,side:p.side===1?'LONG':'SHORT',price,notional:n,stop_pct:p.stopPct,hold_min:p.holdMin,quote_ts:q.ts,source:q.source,votes:p.votes})
