@@ -102,6 +102,15 @@ Paper only, 1x, `ALLOW_LIVE_EXECUTION` untouched.
 - House + dashboard show n/8, every minute, per-coin signals incl. news/liq
   source + time + verified flag.
 NO EDGE CLAIM: v76-v105bt found no sub-hour edge after costs. This is a demo.
+DEPLOYED + VERIFIED 2026-09-23 16:04 UTC: PR #29 merged (bbfac770), trading-bot
+function v29, shim `__ENABLED_SLEEVES='SCALP'`, `__LEVERAGE='1'`.
+`deployment_manifest` v71.1 / bbfac770 / paper true / live false; heartbeat
+current; bot_errors 0; 7 meetings in 10 min, 9 roles each; recent rows all
+paper + lev 1. Candidates carry news/liq fields (cointelegraph 30, coindesk 25,
+okx-liquidations). Pages run #104 green; live bundle has maxPositions:8 and
+"כל דקה"; rendered house shows "מחזור צוות / 01:00". The dynamic n/8 panel could
+not be rendered from the sandbox browser (proxy ERR_TOO_MANY_RETRIES on
+supabase.co); the same anon REST reads succeed via curl.
 
 ## v70.0 (2026-09-23 13:45 UTC) — THE HOUSE HOLDS A REAL TEAM MEETING, hourly, inside the bot
 Owner: the residents should meet, consult, decide and be autonomous.
