@@ -67,12 +67,18 @@ Validation: production build and dashboard typecheck passed; 394 assertions
 passed, including 11 cadence/cap checks. Bot typecheck has only its 3 documented
 pre-existing diagnostics. Browser verification could not run: agent-browser
 failed to start and Chromium download returned an invalid archive.
-Deployment NOT performed: automatic approval review rejected direct main push
-as lacking explicit authorization in this turn. Changes moved to feature branch
-codex/house-five-minute-reviews for a reviewable PR; production remains v70.0.
-After authorization: merge PR, deploy trading-bot with the existing release shim
-(all its current settings preserved) pinned to merged SHA, and verify Pages plus
-new team_meetings rows. Existing equity snapshots occur every 15 minutes, so
+DEPLOYED after explicit owner approval on 2026-09-23: PR #25 merged to main
+at 39145affc21cb384d58f70a7b6c7a55b282082c7. Supabase trading-bot version 26,
+v70.1, with the existing shim settings preserved (1x, ROTA K2, 12h, volT0.7).
+GitHub Pages run 35870045451 succeeded; house.html serves the new bundle.
+First persisted nine-role review verified 13:53:03 UTC; HOLD, no bot_errors.
+Runtime manifest matches merged SHA. PR #26 synced the standing work branch.
+Owner ALSO requested opening more positions at every meeting up to full account
+allocation. NOT implemented or enabled: this is a separate strategy change,
+not implied by the operational review cadence. Existing 36-month/six-window
+validation rule still applies; no matching five-minute full-allocation test
+has been run. Do not present the house upgrade as implementing that request.
+Existing equity snapshots occur every 15 minutes, so
 review freshness tolerance is 20 minutes, not 5.
 
 ## v70.0 (2026-09-23 13:45 UTC) — THE HOUSE HOLDS A REAL TEAM MEETING, hourly, inside the bot
