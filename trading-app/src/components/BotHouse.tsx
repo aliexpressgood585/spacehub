@@ -686,8 +686,8 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
 
       <Wall snap={snap} status={status} />
       {String(snap?.manifest?.enabled_sleeves ?? '').includes('SCALP') && <section className="bh-meet">
-        <h2>מסחר דמו אוטונומי · {(snap?.open ?? []).filter(t=>t.strategy==='SCALP').length}/{SCALP.maxPositions} פוזיציות · כל דקה · החזקה גמישה 1–15 דקות</h2>
-        <p className="bh-mnote">הסכמה אלגוריתמית → בדיקת עלויות וסיכון → ביצוע. בדיקת יציאות כל 10 שניות. זמן ההחזקה נקבע בכניסה לפי התנאים (1–15 דק׳): מגמה חזקה = יותר זמן, שוק מהיר = פחות. בכל ישיבה הצוות יכול לסגור מוקדם אם הוא מתהפך, או להאריך עסקה מרוויחה עד 15 דק׳; עסקה מפסידה נסגרת בזמן המתוכנן. השהיות או נתונים חסרים עלולים לעכב אותה. סטופ נגרר אינו מבטיח רווח. עמלות 0.05% לכל צד, החלקה 0.03% ומימון מדומה יחסי. אותות: EMA8/21, מומנטום, חוסר איזון בספר, liquidity sweep משוער, חדשות ציבוריות (Cointelegraph/CoinDesk) וליקווידציות OKX — נספרים רק אם טריים ומאומתים מול המחיר.</p>
+        <h2>מסחר דמו אוטונומי · {(snap?.open ?? []).filter(t=>t.strategy==='SCALP').length}/{SCALP.maxPositions} פוזיציות · כל דקה · החזקה 1–240 דקות לפי אופק הסוכנים</h2>
+        <p className="bh-mnote">הסכמה אלגוריתמית → בדיקת עלויות וסיכון → ביצוע. בדיקת יציאות כל 10 שניות. זמן ההחזקה (1–240 דק׳) נקבע בכניסה לפי האופק שבו הסוכנים התומכים הוכיחו רווח אחרי עמלות — תנועה גדולה יותר משאירה את העמלה קטנה ביחס לרווח. בכל ישיבה הצוות יכול לסגור מוקדם אם הוא מתהפך, או להאריך עסקה מרוויחה עד 240 דק׳; עסקה מפסידה נסגרת בזמן המתוכנן. השהיות או נתונים חסרים עלולים לעכב אותה. סטופ נגרר אינו מבטיח רווח. עמלות 0.05% לכל צד, החלקה 0.03% ומימון מדומה יחסי. אותות: EMA8/21, מומנטום, חוסר איזון בספר, liquidity sweep משוער, חדשות ציבוריות (Cointelegraph/CoinDesk) וליקווידציות OKX — נספרים רק אם טריים ומאומתים מול המחיר.</p>
         <Intel snap={snap} now={now} />
         <p className="bh-mnote">הפוזיציות עצמן מוצגות חיות ברצפת המסחר למעלה.</p>
       </section>}
@@ -777,7 +777,7 @@ function Floor({ snap, ticks, now }: { snap: Snap | null; ticks: Record<string, 
         <div key={String(t.id)} className={`bh-pos ${Number.isFinite(u) ? (u >= 0 ? 'win' : 'lose') : ''}`}>
           <div className="bh-pos-top"><b>{String(t.sym)}</b><span className={dir > 0 ? 'bh-l' : 'bh-s'}>{dir > 0 ? 'LONG' : 'SHORT'}</span><em>{String(t.strategy)}</em><strong dir="ltr">{Number.isFinite(u) ? `${usd(u)} (${pct(upc)})` : 'טוען מחיר…'}</strong></div>
           <div className="bh-pos-mid" dir="ltr"><span>entry {fmtPx(e)}</span><span>mark {fmtPx(mark)}{ticks[String(t.sym)] ? ` · ${ticks[String(t.sym)].src}${now - ticks[String(t.sym)].t > 30_000 ? ` · ${Math.round((now - ticks[String(t.sym)].t) / 1000)}s` : ''}` : ''}</span><span>stop {fmtPx(stop)}{Number.isFinite(toStop) ? ` (${pct(toStop)})` : ''}</span></div>
-          {t.strategy === 'SCALP' && (() => { const plan = Math.max(1, Math.min(15, num((t.scalp_meta as Row | null)?.hold_min) || 15)) * 60_000; const over = held > plan; return <div className={`bh-bar${over ? ' ext' : ''}`}><i style={{ width: `${Math.min(100, (held / plan) * 100)}%` }} /><span>{over ? 'הוארך · ' : ''}<b dir="ltr">{Math.floor(held / 60_000)}:{String(Math.floor((held % 60_000) / 1000)).padStart(2, '0')} / {plan / 60_000}:00</b>{over ? ' (עד 15:00)' : ' מתוכנן'}</span></div> })()}
+          {t.strategy === 'SCALP' && (() => { const plan = Math.max(1, Math.min(SCALP.maxHoldMs / 60_000, num((t.scalp_meta as Row | null)?.hold_min) || 15)) * 60_000; const over = held > plan; return <div className={`bh-bar${over ? ' ext' : ''}`}><i style={{ width: `${Math.min(100, (held / plan) * 100)}%` }} /><span>{over ? 'הוארך · ' : ''}<b dir="ltr">{Math.floor(held / 60_000)}:{String(Math.floor((held % 60_000) / 1000)).padStart(2, '0')} / {plan / 60_000}:00</b>{over ? ` (עד ${SCALP.maxHoldMs / 60_000} דק׳)` : ' מתוכנן'}</span></div> })()}
         </div>)) : <p className="bh-mnote">אין פוזיציות פתוחות כרגע. הסיבה מופיעה בהחלטת מנהלת התיק בישיבה.</p>}
     </div>
     <div className="bh-tape2">
@@ -1001,7 +1001,7 @@ function League({ snap }: { snap: Snap | null }) {
   const ready = rows.filter((r) => r.st && r.st.n >= LEARN.minN), bench = ready.filter((r) => r.w === 0).length
   return <section className="bh-meet">
     <div className="bh-mtop"><h2>ליגת הסוכנים · {ids.length} מצביעים</h2><span className="bh-dec">{ready.length} מדורגים · {bench} בספסל · {ids.length - ready.length} לומדים</span></div>
-    <p className="bh-mnote">כל דקה כל סוכן מצביע על 40 המטבעות, ואחרי 5 דקות בודקים אם צדק. הציון דועך בחצי כל 12 שעות, כך שהוא עוקב אחרי השוק הנוכחי. משקל = 1 + t/2 בטווח 0–2.5, רק אחרי {LEARN.minN} הצבעות; t≤−2 = ספסל (עדיין נבחן וחוזר כשמשתפר). הציון נטו: מכל תנועה מורידים {LEARN.costBps} נק׳ בסיס עמלה+החלקה, כך שסוכן מוגבר הוא סוכן שהקריאות שלו היו מכסות את העסקה.</p>
+    <p className="bh-mnote">כל דקה כל סוכן מצביע על 40 המטבעות, ובודקים אם צדק אחרי 5, 15, 60 ו-240 דקות; כל סוכן נמדד באופק הטוב שלו, וזה גם זמן ההחזקה של העסקה. הציון דועך בחצי כל 12 שעות, כך שהוא עוקב אחרי השוק הנוכחי. משקל = 1 + t/2 בטווח 0–2.5, רק אחרי {LEARN.minN} הצבעות; t≤−2 = ספסל (עדיין נבחן וחוזר כשמשתפר). אם פחות מ-5 סוכנים מרוויחים נטו, הצוות עובר למצב יחסי והולך אחרי הטובים ביותר — המסחר לא נעצר. הציון נטו: מכל תנועה מורידים {LEARN.costBps} נק׳ בסיס עמלה+החלקה, כך שסוכן מוגבר הוא סוכן שהקריאות שלו היו מכסות את העסקה.</p>
     <div className="bh-mx-wrap"><table className="bh-mx bh-lg">
       <thead><tr><th>#</th><th>סוכן</th><th>משקל</th><th>t</th><th>נק׳ בסיס/5ד׳</th><th>הצבעות</th><th>מצב</th></tr></thead>
       <tbody>{rows.slice(0, all ? rows.length : 15).map((r, i) => { const learning = !r.st || r.st.n < LEARN.minN; return <tr key={r.id}>

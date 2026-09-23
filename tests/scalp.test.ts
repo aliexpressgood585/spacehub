@@ -24,7 +24,7 @@ assert.equal(allocation(0,1000,0,4),0)
 assert.equal(allocation(100,1000,1000,1),0)
 assert.equal(allocation(100,1000,0,0),0)
 for(let c=0;c<1000;c+=7){const n=allocation(c,1000,900,1);assert.ok(n>=0&&n*1.0005<=c+1e-9&&n<=90)}
-assert.equal(SCALP.maxPositions,8);assert.equal(SCALP.meetingMs,60000);assert.equal(SCALP.maxHoldMs,15*60000)
+assert.equal(SCALP.maxPositions,8);assert.equal(SCALP.meetingMs,60000);assert.equal(SCALP.maxHoldMs,240*60000)
 // trailing only ratchets after the 1-minute minimum hold; the hard stop still fires at once
 assert.equal(exitPlan({...t,opened_at:new Date(now-30000).toISOString()},{...q,bid:102},now).stop,99)
 assert.equal(exitPlan({...t,opened_at:new Date(now-30000).toISOString()},{...q,bid:98},now).reason,'STOP')
@@ -62,7 +62,7 @@ assert.equal(exitPlan(h5,{...q,bid:100.5},now,{side:1,weighted:0.3}).reason,'EXT
 assert.equal(exitPlan(h5,{...q,bid:100.5},now,{side:0,weighted:0}).reason,'PLANNED')   // winner nobody backs: out
 assert.equal(exitPlan({...h5,opened_at:at(2)},{...q,bid:100.5},now,{side:-1,weighted:-0.3}).reason,'FLIP') // team flips: out early
 assert.equal(exitPlan({...h5,opened_at:at(0.5)},{...q,bid:100.5},now,{side:-1,weighted:-0.3}).close,false) // never inside the first minute
-assert.equal(exitPlan({...h5,opened_at:at(16)},{...q,bid:100.5},now,{side:1,weighted:0.9}).reason,'TIMEOUT') // 15 min is a hard cap
+assert.equal(exitPlan({...h5,opened_at:at(241)},{...q,bid:100.5},now,{side:1,weighted:0.9}).reason,'TIMEOUT') // 240 min is a hard cap
 assert.equal(exitPlan({...h5,opened_at:at(0.2)},{...q,bid:98},now).reason,'STOP')      // stop always fires
 assert.equal(exitPlan({...h5,scalp_meta:{stop_pct:.004,hold_min:1},opened_at:at(1.1)},{...q,bid:99.95},now).reason,'PLANNED') // a 1-minute trade
 console.log('Scalp signal, timing, trailing and cash invariants passed')
@@ -74,3 +74,7 @@ assert.ok(readFileSync(`supabase/migrations/${mig}`,'utf8').includes(`eq*${SCALP
 import {CRYPTO_40} from '../shared/strategy.ts'
 for(const c of CRYPTO_40)assert.ok(readFileSync(`supabase/migrations/${mig}`,'utf8').includes(`'${c}'`),`ledger whitelist must include ${c}`)
 console.log(`DB ledger cap matches SCALP.maxPositions (${mig})`)
+
+// v79.0: the ledger honours holds up to the new cap
+assert.ok(readFileSync(`supabase/migrations/${mig}`,'utf8').includes(`least(${SCALP.maxHoldMs/60000},`),`latest ledger migration ${mig} must cap hold at ${SCALP.maxHoldMs/60000}`)
+assert.ok(readFileSync(`supabase/migrations/${mig}`,'utf8').includes('between 0.003 and 0.04'),'ledger stop band must allow the widened long-hold stop (runner clamps to 4%)')
