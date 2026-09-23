@@ -34,6 +34,7 @@ run "scalp runner"          tests/scalp-runner.test.ts
 run "scalp execution"       tests/scalp.test.ts
 run "team review"           tests/team-meeting.test.ts
 run "hedge-fund desk"       tests/desk.test.ts
+run "signal agents"         tests/agents.test.ts
 run "strategy rules"        tests/strategy.test.ts
 run "live/backtest parity"  tests/parity.test.ts
 run "portfolio simulator"   tests/portfolio.test.ts

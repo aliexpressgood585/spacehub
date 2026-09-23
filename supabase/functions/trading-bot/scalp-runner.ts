@@ -1,5 +1,6 @@
 import {SCALP,assess,allocation,exitPlan,validQuote,type Quote,type Bar,type Vote,type Intel,type NewsItem,type LiqEvent} from '../../../shared/scalp.ts'
 import {attribution,execStats,compliance,debate,hitPct,type Minute} from '../../../shared/desk.ts'
+import {AGENTS,NEW_AGENTS,weights} from '../../../shared/agents.ts'
 const UNIVERSE=['BTC','ETH','SOL','XRP','DOGE','ADA','LINK','AVAX']
 async function json(url:string) {const r=await fetch(url,{signal:AbortSignal.timeout(3500)});if(!r.ok)throw new Error(`market HTTP ${r.status}`);return r.json()}
 const NEWS_FEEDS=[['cointelegraph','https://cointelegraph.com/rss'],['coindesk','https://www.coindesk.com/arc/outboundfeeds/rss/']]
@@ -20,9 +21,12 @@ async function intel(syms:string[]):Promise<{intel:Record<string,Intel>,news:New
       if(d.code!=='0')throw new Error('okx liq')
       for(const g of d.data??[])if(g.instId===`${sym}-USDT-SWAP`)for(const e of g.details??[])liqs.push({side:e.posSide==='long'||(!e.posSide&&e.side==='sell')?'long':'short',px:+e.bkPx,sz:+e.sz,ts:+e.ts,source:'okx-liquidations'})
     }catch{failed.push(`liq:${sym}`)}
-    out[sym]={news,liqs}
+    let funding:number|null=null
+    try{const f=await json(`https://www.okx.com/api/v5/public/funding-rate?instId=${sym}-USDT-SWAP`);const v=Number(f?.data?.[0]?.fundingRate);if(f.code==='0'&&Number.isFinite(v))funding=v}catch{failed.push(`funding:${sym}`)}
+    out[sym]={news,liqs,funding}
   }))
   if(!failed.some(f=>f.startsWith('liq:')))sources.push('okx-liquidations')
+  if(!failed.some(f=>f.startsWith('funding:')))sources.push('okx-funding')
   return {intel:out,news,sources,failed}
 }
 async function market(sym:string, candles:boolean):Promise<{q:Quote,b:Bar[]}> {
@@ -53,7 +57,8 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
   const intelP=due?intel(UNIVERSE).catch(()=>({intel:{} as Record<string,Intel>,news:[] as NewsItem[],sources:[] as string[],failed:['intel']})):Promise.resolve(null)
   await Promise.all(symbols.map(async sym=>{try{const m=await market(sym,due&&UNIVERSE.includes(sym));if(!validQuote(m.q,Date.now()))throw new Error('stale quote');data.set(sym,m)}catch{failures.push(sym)}}))
   const ctx=await intelP
-  const closedHist:any[]=due?((await db.from('bot_trades').select('sym,side,pnl,fee,opened_at,closed_at,scalp_meta').eq('strategy','SCALP').neq('status','OPEN').order('closed_at',{ascending:false}).limit(100).throwOnError()).data??[]):[]
+  const closedHist:any[]=due?((await db.from('bot_trades').select('sym,side,pnl,fee,opened_at,closed_at,scalp_meta').eq('strategy','SCALP').neq('status','OPEN').order('closed_at',{ascending:false}).limit(200).throwOnError()).data??[]):[]
+  const att0=attribution(closedHist),W=weights(att0)
   const now=Date.now(),closes:any[]=[],updates:any[]=[],entries:any[]=[],marks:Record<string,number>={}
   let cash=Number(state.balance),exposure=0,equity=cash
   const retained:any[]=[]
@@ -68,7 +73,7 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
     } else {retained.push(t);exposure+=notional;updates.push({id:t.id,stop:plan.stop})}
   }
   equity=cash+retained.reduce((s:number,t:any)=>s+Number(t.entry_price)*Number(t.size)+(marks[t.sym]?((t.side==='LONG'?1:-1)*(marks[t.sym]-Number(t.entry_price))*Number(t.size)):0),0)
-  const evaluated=due?UNIVERSE.filter(sym=>data.has(sym)).map(sym=>assess(sym,data.get(sym)!.b,data.get(sym)!.q,now,ctx?.intel[sym])):[]
+  const evaluated=due?UNIVERSE.filter(sym=>data.has(sym)).map(sym=>assess(sym,data.get(sym)!.b,data.get(sym)!.q,now,{...(ctx?.intel[sym]??{news:[],liqs:[]}),btc:sym==='BTC'?undefined:data.get('BTC')?.b,weights:W})):[]
   const closedSyms=new Set(open.filter((t:any)=>closes.some(c=>c.id===t.id)).map((t:any)=>t.sym))
   const picks=evaluated.filter(x=>x.side&&!retained.some(t=>t.sym===x.sym)&&!closedSyms.has(x.sym)).sort((a,b)=>b.score-a.score)
   // Migration must finish before this account starts scalping. Never estimate missing marks into entries.
@@ -94,6 +99,7 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
     say('regime',`EMA8/21 על ${evaluated.length} מטבעות: ${tally('regime')}. ${line('regime')}`,lead('regime','hold'))
     say('rota',`מומנטום 3 דקות: ${tally('rota')}. ${line('rota')}`,lead('rota','hold'))
     say('donch',`אזורי liquidity sweep משוערים: ${tally('donch')}. ${line('donch')}`,lead('donch','hold'))
+    for(const k of NEW_AGENTS)say(k,`${AGENTS[k].role} (משקל ${(W[k]??1).toFixed(2)}): ${tally(k)}. ${line(k)}`,lead(k,'hold'))
     say('risk',`דמו 1x; עד ${SCALP.maxPositions} פוזיציות, עד ${SCALP.perCoin*100}% למטבע ועד ${SCALP.allocation*100}% הקצאה אחרי עמלות. עצירת כניסות בהפסד יומי 5% או ירידה 15%. ${line('risk')}`,eligible?'ok':'veto')
     say('trader',`ספר פקודות: ${tally('trader')}. מועמדות לביצוע: ${entries.map(e=>`${e.sym} ${e.side}`).join(', ')||'אין הסכמה מתאימה'}. סטופ נגרר מדקה 1, סגירת זמן ב-15 דקות.`,entries.length?'ok':'hold')
     say('treasurer',`מזומן צפוי אחרי הפעולות $${cash.toFixed(2)}; ${retained.length+entries.length}/${SCALP.maxPositions} פוזיציות. הביצוע נבדק שוב באותה עסקת מסד נתונים.`)
@@ -109,8 +115,8 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
     say('compliance',blocked.length?`חסימה: ${blocked.join(', ')}.`:`בדקתי את התוכנית: דמו 1x, עד ${SCALP.maxPositions} פוזיציות, ללא מטבע כפול, עד ${SCALP.perCoin*100}% למטבע, חשיפה עד ${SCALP.allocation*100}%. תקין.`,blocked.length?'veto':'ok')
     const top=[...evaluated].sort((a,c)=>c.score-a.score)[0]
     const best=evaluated.find(x=>x.sym===entries[0]?.sym)||picks[0]||top
-    minutes.push(...debate(best,att,entries.length>0,blocked,now,!!best&&retained.some((t:any)=>t.sym===best.sym)))
-    const q=minutes.find(m=>m.who==='quant');if(q)q.data={...att,hit:Object.fromEntries(Object.entries(att).map(([k,v])=>[k,hitPct(v)]))}
+    minutes.push(...debate(best,att,entries.length>0,blocked,now,!!best&&retained.some((t:any)=>t.sym===best.sym),W))
+    const q=minutes.find(m=>m.who==='quant');if(q)q.data={...att,hit:Object.fromEntries(Object.entries(att).map(([k,v])=>[k,hitPct(v)])),weights:W}
   }
   const {data:result}=await db.rpc('scalp_commit_cycle',{p_lease:lease,p_closes:closes,p_updates:updates,p_entries:entries,p_minutes:due?minutes:null,p_marks:marks,p_feed:{source:'perpetuals',ok:data.size,fail:failures.length,failures},p_candidates:due?evaluated:null}).throwOnError()
   return result

@@ -3,9 +3,10 @@
 // randomness. They do NOT add a trading signal: the entry rule stays the
 // scalp majority rule. Compliance can only BLOCK (safety), never add exposure.
 import { SCALP, type Vote } from './scalp.ts'
+import { AGENTS, NEW_AGENTS } from './agents.ts'
 
 export const DESK_ROLES = ['pm', 'quant', 'compliance', 'execution'] as const
-export const DIRECTIONAL = ['regime', 'rota', 'donch', 'trader', 'risk'] as const
+export const DIRECTIONAL: readonly string[] = ['regime', 'rota', 'donch', 'trader', 'risk', ...NEW_AGENTS]
 export interface Minute extends Vote { round?: 1 | 2 | 3; to?: string; data?: Record<string, unknown> }
 
 // Quant: how often each directional voter was on the right side of closed SCALP trades.
@@ -50,23 +51,29 @@ export function compliance(open: any[], entries: { sym: string; notional: number
   return bad
 }
 
-const HE: Record<string, string> = { regime: 'נועה', rota: 'דניאל', donch: 'עומר', trader: 'רוני', risk: 'מיכל' }
+const HE: Record<string, string> = { regime: 'נועה', rota: 'דניאל', donch: 'עומר', trader: 'רוני', risk: 'מיכל', ...Object.fromEntries(NEW_AGENTS.map((k) => [k, AGENTS[k].name])) }
 // Round 2 + 3: the dissenters argue, the quant brings their record, the PM rules.
-export function debate(best: { sym: string; side: number; score: number; votes: Vote[] } | undefined, att: Record<string, { n: number; right: number }>, opened: boolean, blocked: string[], now: number, held = false): Minute[] {
+export function debate(best: { sym: string; side: number; score: number; votes: Vote[]; weighted?: number; pro?: number; con?: number } | undefined, att: Record<string, { n: number; right: number }>, opened: boolean, blocked: string[], now: number, held = false, w: Record<string, number> = {}): Minute[] {
   const at = new Date(now).toISOString(), out: Minute[] = []
   if (!best) return [{ who: 'pm', says: 'אין מטבע עם נתונים תקינים לדיון. אין כניסה.', vote: 'hold', checked_at: at, round: 3 }]
-  const dirs = best.votes.filter((v) => (DIRECTIONAL as readonly string[]).includes(v.who) && (v.vote === 'long' || v.vote === 'short'))
+  const wt = (k: string) => w[k] ?? 1
+  const dirs = best.votes.filter((v) => DIRECTIONAL.includes(v.who) && (v.vote === 'long' || v.vote === 'short'))
   const longs = dirs.filter((v) => v.vote === 'long').length, shorts = dirs.length - longs
-  const lead = longs > shorts ? 'long' : shorts > longs ? 'short' : ''
-  const against = lead ? dirs.filter((v) => v.vote !== lead) : []
-  for (const v of against) out.push({ who: v.who, to: 'pm', says: `מתנגד/ת ל-${best.sym} ${lead === 'long' ? 'לונג' : 'שורט'}: ${v.says}`, vote: v.vote, checked_at: at, round: 2 })
-  const rec = [...new Set([...against.map((v) => v.who), ...dirs.filter((v) => v.vote === lead).map((v) => v.who)])]
-    .map((w) => { const p = hitPct(att[w]); return p === null ? '' : `${HE[w]} ${p}% (${att[w].n})` }).filter(Boolean)
-  out.push({ who: 'quant', to: 'pm', says: rec.length ? `רקורד כיוון בעסקאות שנסגרו: ${rec.join(' · ')}. מדגם קטן — מידע בלבד, לא משנה את הכלל.` : 'אין עדיין עסקאות סגורות למדוד מי צודק.', vote: 'hold', checked_at: at, round: 2, data: att })
+  const lw = dirs.filter((v) => v.vote === 'long').reduce((a, v) => a + wt(v.who), 0), sw = dirs.filter((v) => v.vote === 'short').reduce((a, v) => a + wt(v.who), 0)
+  const lead = lw > sw ? 'long' : sw > lw ? 'short' : ''
+  // the four heaviest dissenters speak; the rest are counted
+  const against = (lead ? dirs.filter((v) => v.vote !== lead) : []).sort((a, b) => wt(b.who) - wt(a.who))
+  for (const v of against.slice(0, 4)) out.push({ who: v.who, to: 'pm', says: `מתנגד/ת ל-${best.sym} ${lead === 'long' ? 'לונג' : 'שורט'} (משקל ${wt(v.who).toFixed(2)}): ${v.says.replace(`${best.sym}: `, '')}`, vote: v.vote, checked_at: at, round: 2 })
+  if (against.length > 4) out.push({ who: 'reporter', to: 'pm', says: `עוד ${against.length - 4} מתנגדים בעלי משקל נמוך יותר.`, vote: 'hold', checked_at: at, round: 2 })
+  const ranked = Object.entries(att).filter(([, a]) => a.n >= 5).map(([k, a]) => ({ k, p: hitPct(a) ?? 0, n: a.n })).sort((a, b) => b.p - a.p)
+  const top = ranked.slice(0, 3).map((r) => `${HE[r.k] ?? r.k} ${r.p}% (${r.n}, משקל ${wt(r.k).toFixed(2)})`)
+  const bottom = ranked.slice(-2).filter((r) => !ranked.slice(0, 3).includes(r)).map((r) => `${HE[r.k] ?? r.k} ${r.p}% (${r.n}, משקל ${wt(r.k).toFixed(2)})`)
+  out.push({ who: 'quant', to: 'pm', says: ranked.length ? `הכי מדויקים: ${top.join(' · ')}${bottom.length ? `. הכי חלשים: ${bottom.join(' · ')}` : ''}. משקל נקבע רק אחרי 30 הצבעות, בטווח 0.5–2.` : 'אין עדיין מספיק עסקאות סגורות לדרג את הסוכנים; כל המשקלים 1.', vote: 'hold', checked_at: at, round: 2, data: att })
+  const score = `ציון משוקלל ${((best.weighted ?? 0) * 100).toFixed(0)}% (סף ${SCALP.minWeighted * 100}%), ${longs} לונג מול ${shorts} שורט`
   const verdict = blocked.length ? `ציות חסם: ${blocked.join(', ')}. לא נשלחות כניסות.`
-    : opened ? `${best.sym} ${best.side > 0 ? 'לונג' : 'שורט'} אושר: ${longs} בעד לונג מול ${shorts} בעד שורט, ללא התנגדות מגמת EMA.`
-    : held ? `${best.sym} כבר מוחזק; אין מועמד חדש עם רוב נטו של 2. ממתינים.`
-    : `${best.sym}: ${longs} לונג מול ${shorts} שורט — ${best.side ? 'אין מקום או הון פנוי' : 'אין רוב נטו של 2 או שהכיוון נגד מגמת EMA'}. ממתינים.`
+    : opened ? `${best.sym} ${best.side > 0 ? 'לונג' : 'שורט'} אושר: ${score}, ללא התנגדות מגמת EMA.`
+    : held ? `${best.sym} כבר מוחזק; אין מועמד חדש שעובר את הסף. ממתינים.`
+    : `${best.sym}: ${score} — ${best.side ? 'אין מקום או הון פנוי' : 'לא עובר את הסף, אין יתרון של 2 בספירה, או נגד מגמת EMA'}. ממתינים.`
   out.push({ who: 'pm', says: `החלטה: ${verdict}`, vote: blocked.length ? 'veto' : opened ? (best.side > 0 ? 'long' : 'short') : 'hold', checked_at: at, round: 3 })
   return out
 }

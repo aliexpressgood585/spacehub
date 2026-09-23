@@ -81,6 +81,27 @@ has been run. Do not present the house upgrade as implementing that request.
 Existing equity snapshots occur every 15 minutes, so
 review freshness tolerance is 20 minutes, not 5.
 
+## v73.0 (2026-09-23) — 23 agents: 10 signal analysts + performance-weighted voting
+Owner: "add option 1 (weights by track record) and 10 more agents that can bring
+good entries and consult each other".
+- `shared/agents.ts`: rsi (continuation read), vwap-60, breakout-15, volume spike
+  (>=2x median, bar direction), macd histogram, bollinger (break = continuation),
+  htf (60-min regression slope), btclead (BTC 3-min move applied to alts; BTC
+  abstains), candle (strong body at an extreme), funding (OKX public funding,
+  contrarian: >=3bp/8h short, <=-1bp long; NB funding tilt was rejected on the 4h
+  engine in v43bt). 36 assertions in `tests/agents.test.ts`.
+- Weights (option 1): Bayesian-shrunk hit rate, 20 pseudo-trades at 50%, weight =
+  1+4(p-0.5) clamped [0.5,2], weight 1 until an agent has 30 own votes; recomputed
+  every meeting from the last 200 closed SCALP trades.
+- ENTRY RULE CHANGED (this is a strategy change, demo only, not walk-forward
+  validated): 15 directional agents; enter when |sum w*dir| / sum w >= 0.20, the
+  head-count lead is >= 2, and the side does not fight EMA8/21. Previously: plain
+  net-2 majority of 6 signals. Nothing sub-hour has ever passed rule 6 here.
+- Debate: the 4 heaviest dissenters speak, quant ranks the most/least accurate
+  agents with their weights, PM states the weighted score vs the 20% bar.
+- House: two more basement floors (10 analyst rooms: last vote arrow + weight
+  bar), 15-bar quant board, matrix columns for all agents + weighted score.
+
 ## v72.0 (2026-09-23) — hedge-fund desk: 13 agents that debate, live trading floor in the house
 Owner: more agents where useful, agents consulting each other "like a hedge fund",
 and a house page that looks alive like a real trading desk.
