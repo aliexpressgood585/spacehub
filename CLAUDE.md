@@ -51,6 +51,26 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## 2026-09-23 13:30 UTC — owner asked for a "team meeting" and a decision; house adds an auditor
+Review of the live data (no bot change):
+- Since the $5,000 reset: 8 closed ROTA trades, 6 wins, net +$22.87.
+- Equity $5,051.63 (+1.0%). Range since reset: $4,983 to $5,059.
+- 0 errors, no shield, no halt. Regime RANGING, ADX 18.
+- Exposure rose from $1,934 to $3,206 (63% of equity) at the 11:38 rotation.
+  That is the first rotation under volT 0.7, which was never run out-of-sample.
+
+DECISION: HOLD.
+- No parameter change, no DONCH4H re-enable, no further aggression.
+- Why: 8 trades is noise, rule 6 bars untested deploys, and volT 0.7 had not
+  completed a single rotation.
+
+Added a 9th house resident, "אבי — מבקר ביצועים" (attic, between the journal and DONCH4H).
+It shows, from bot_trades and bot_equity:
+- closed trades against the 50-trade checkpoint, win rate and net;
+- max drawdown against the 25% DD_HALT;
+- exposure as a share of equity.
+Descriptive stats only, no signal.
+
 ## 2026-09-23 13:20 UTC — dashboard: "בית הבוט" (#house), read-only, real data only
 Owner: "I want the bot's state inside a house — how it actually works, real data only".
 `trading-app/src/components/BotHouse.tsx`, opened from a "🏠 בית הבוט" chip next to

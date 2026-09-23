@@ -11,7 +11,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { SUPA_URL, SUPA_KEY } from '../supa'
 
-type Id = 'scout' | 'regime' | 'rota' | 'donch' | 'risk' | 'trader' | 'treasurer' | 'reporter'
+type Id = 'scout' | 'regime' | 'rota' | 'donch' | 'risk' | 'trader' | 'treasurer' | 'reporter' | 'auditor'
 interface Row { [k: string]: unknown }
 interface Snap {
   at: number
@@ -25,10 +25,12 @@ interface Snap {
   daily: Row | null
   manifest: Row | null
   rotaBatches: number[]
+  closedAll: Row[]
+  curve: Row[]
 }
 interface Status { working: boolean; asleep?: boolean; alarm?: boolean; line: string; action?: string; at?: number }
 
-const SHORT: Record<string, string> = { rota: 'רוטציה', donch: 'פריצות', reporter: 'יומן' }
+const SHORT: Record<string, string> = { rota: 'רוטציה', donch: 'פריצות', reporter: 'יומן', auditor: 'מבקר' }
 const ROSTER: Record<Id, { name: string; role: string; color: string }> = {
   scout: { name: 'איתן', role: 'סורק נתונים', color: '#35e0ff' },
   regime: { name: 'נועה', role: 'חזאית השוק', color: '#c38bff' },
@@ -38,12 +40,14 @@ const ROSTER: Record<Id, { name: string; role: string; color: string }> = {
   trader: { name: 'רוני', role: 'סוחר ביצוע', color: '#7fd0ff' },
   treasurer: { name: 'שירה', role: 'גזברית', color: '#ffd76a' },
   reporter: { name: 'יונתן', role: 'רושם היומן', color: '#9fd3ff' },
+  auditor: { name: 'אבי', role: 'מבקר ביצועים', color: '#b8f28a' },
 }
 const W = 480, H = 430, R = 2
 // rooms: attic (reporter, donch) · upper floor (rota, regime, scout) · ground floor (treasurer, trader, risk)
 const ROOM: Record<Id, { x0: number; y0: number; w: number; h: number; floor: number }> = {
-  reporter: { x0: 120, y0: 48, w: 120, h: 62, floor: 108 },
-  donch: { x0: 240, y0: 48, w: 120, h: 62, floor: 108 },
+  reporter: { x0: 100, y0: 48, w: 93, h: 62, floor: 108 },
+  auditor: { x0: 194, y0: 48, w: 93, h: 62, floor: 108 },
+  donch: { x0: 288, y0: 48, w: 93, h: 62, floor: 108 },
   rota: { x0: 8, y0: 116, w: 154, h: 138, floor: 250 },
   regime: { x0: 163, y0: 116, w: 154, h: 138, floor: 250 },
   scout: { x0: 318, y0: 116, w: 154, h: 138, floor: 250 },
@@ -61,6 +65,7 @@ const LOOK: Record<Id, { skin: string; hair: string; shirt: string; pants: strin
   trader: { skin: '#f3c9a2', hair: '#ece6d6', shirt: '#2fb3b3', pants: '#2c3550', style: 3, glasses: false },
   treasurer: { skin: '#7d4b2c', hair: '#161616', shirt: '#d64f8c', pants: '#23304a', style: 1, glasses: false },
   reporter: { skin: '#dca577', hair: '#e0ad4a', shirt: '#5ac8fa', pants: '#3d2c22', style: 0, glasses: true },
+  auditor: { skin: '#b07448', hair: '#ece6d6', shirt: '#6aa36a', pants: '#2c3550', style: 4, glasses: true },
 }
 
 const num = (v: unknown) => (v == null ? NaN : Number(v))
@@ -165,6 +170,20 @@ function derive(s: Snap | null, now: number): Record<Id, Status> {
     : d
       ? { working: now - tD < 10 * 60_000, line: `יומן ${d.date}: ${d.total_trades} עסקאות, ${d.wins} רווח / ${d.losses} הפסד, ${usd(num(d.profit))} · אין שגיאות`, action: `כתב את יומן היום: ${usd(num(d.profit))}`, at: tD }
       : { working: false, line: 'היומן היומי נכתב בחצות UTC' }
+  // auditor: live results since the account reset (the tables hold only this account's history) vs the 50-trade checkpoint
+  const ca = s.closedAll
+  const wins = ca.filter((t) => num(t.pnl) > 0).length
+  const net = ca.reduce((a, t) => a + (num(t.pnl) || 0), 0)
+  let pk = 0, mdd = 0
+  for (const c of [...s.curve].reverse()) { const e = num(c.equity); if (!Number.isFinite(e)) continue; pk = Math.max(pk, e); mdd = Math.max(mdd, pk > 0 ? (pk - e) / pk : 0) }
+  const e0a = s.equity[0], expPct = e0a ? num(e0a.exposure) / num(e0a.equity) : NaN
+  const lastC = ts(ca[0]?.closed_at)
+  out.auditor = {
+    working: now - lastC < 10 * 60_000,
+    line: `${ca.length}/50 עסקאות עד נקודת הבדיקה · ${wins} ברווח (${ca.length ? Math.round((wins / ca.length) * 100) : 0}%) · נטו ${usd(net)} · ירידה מקסימלית ${(mdd * 100).toFixed(1)}% מתוך 25% · חשיפה ${Number.isFinite(expPct) ? Math.round(expPct * 100) : '—'}% מההון${ca.length < 50 ? ' · מדגם קטן מדי להסקת מסקנות' : ''}`,
+    action: `עדכן את הביקורת: ${ca.length}/50 עסקאות, נטו ${usd(net)}`,
+    at: lastC,
+  }
   if (!alive) for (const id of IDS) if (id !== 'scout') out[id] = { ...out[id], working: false }
   return out
 }
@@ -192,7 +211,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
     let alive = true
     const load = async () => {
       try {
-        const [st, rg, eq, op, cl, sk, er, dl, mf, rb] = await Promise.all([
+        const [st, rg, eq, op, cl, sk, er, dl, mf, rb, ca, cv] = await Promise.all([
           supa.from('bot_state').select('*').eq('id', 1).maybeSingle(),
           supa.from('market_regime').select('*').order('created_at', { ascending: false }).limit(1),
           supa.from('bot_equity').select('*').order('ts', { ascending: false }).limit(2),
@@ -203,14 +222,16 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
           supa.from('bot_trades_log').select('*').order('created_at', { ascending: false }).limit(1),
           supa.from('deployment_manifest').select('*').order('first_seen', { ascending: false }).limit(1),
           supa.from('bot_trades').select('opened_at').eq('strategy', 'ROTA').order('opened_at', { ascending: false }).limit(60),
+          supa.from('bot_trades').select('pnl,closed_at,strategy').neq('status', 'OPEN').order('closed_at', { ascending: false }).limit(500),
+          supa.from('bot_equity').select('equity,ts').order('ts', { ascending: false }).limit(2000),
         ])
-        const firstErr = [st, rg, eq, op, cl, sk, dl, mf, rb].find((r) => r.error)?.error
+        const firstErr = [st, rg, eq, op, cl, sk, dl, mf, rb, ca, cv].find((r) => r.error)?.error
         if (firstErr) throw new Error(firstErr.message)
         // distinct rotation batches (all legs of one rotation open within a minute)
         const batches: number[] = []
         for (const r of (rb.data ?? []) as Row[]) { const t = ts(r.opened_at); if (!batches.length || batches[batches.length - 1] - t > 10 * 60_000) batches.push(t) }
         if (!alive) return
-        setSnap({ at: Date.now(), state: (st.data as Row) ?? null, regime: (rg.data?.[0] as Row) ?? null, equity: (eq.data ?? []) as Row[], open: (op.data ?? []) as Row[], closed: (cl.data ?? []) as Row[], skips: (sk.data ?? []) as Row[], errors: (er.data ?? []) as Row[], daily: (dl.data?.[0] as Row) ?? null, manifest: (mf.data?.[0] as Row) ?? null, rotaBatches: batches })
+        setSnap({ at: Date.now(), state: (st.data as Row) ?? null, regime: (rg.data?.[0] as Row) ?? null, equity: (eq.data ?? []) as Row[], open: (op.data ?? []) as Row[], closed: (cl.data ?? []) as Row[], skips: (sk.data ?? []) as Row[], errors: (er.data ?? []) as Row[], daily: (dl.data?.[0] as Row) ?? null, manifest: (mf.data?.[0] as Row) ?? null, rotaBatches: batches, closedAll: (ca.data ?? []) as Row[], curve: (cv.data ?? []) as Row[] })
         setErr(null)
       } catch (e) { if (alive) setErr(e instanceof Error ? e.message : String(e)) }
     }
@@ -269,7 +290,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
       for (const id of IDS) {
         const r = ROOM[id], a = st[id]
         const lit = !dead && !a?.asleep
-        const wall = { reporter: '#3a3222', donch: '#2f2a44', rota: '#1f3a2c', regime: '#2f2a44', scout: '#26324a', treasurer: '#3a2630', trader: '#1f3440', risk: '#3a2222' }[id]
+        const wall = { auditor: '#24382a', reporter: '#3a3222', donch: '#2f2a44', rota: '#1f3a2c', regime: '#2f2a44', scout: '#26324a', treasurer: '#3a2630', trader: '#1f3440', risk: '#3a2222' }[id]
         px(r.x0, r.y0, r.w, r.h, lit ? wall : '#141821')
         px(r.x0, r.floor, r.w, 6, '#5a3d27'); for (let x = r.x0; x < r.x0 + r.w; x += 14) px(x, r.floor, 1, 6, 'rgba(0,0,0,0.3)')
         // desk + chair
@@ -300,6 +321,12 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
           legs.forEach((l, i) => { const y = r.y0 + 17 + i * 5.5; const long = l.side === 'LONG'; px(r.x0 + 14, y, 4, 4, long ? '#148a50' : '#c23a3a'); px(r.x0 + 21, y + 1, Math.min(48, 10 + Math.abs(num(l.size) * num(l.entry_price)) / 60), 2, long ? '#7fd3a8' : '#f0a0a0') })
         }
         if (id === 'donch') { px(r.x0 + 20, r.floor - 12, 44, 10, '#7a5534'); px(r.x0 + 22, r.floor - 18, 40, 7, '#e9e4d6'); px(r.x0 + 22, r.floor - 18, 10, 7, '#ffffff') }
+        if (id === 'auditor') {
+          px(r.x0 + 10, r.y0 + 10, 26, 30, '#a67b4b'); px(r.x0 + 12, r.y0 + 13, 22, 25, '#fffaf0')
+          const n = (s?.closedAll ?? []).length
+          px(r.x0 + 14, r.y0 + 32, 18, 3, '#d9dee6'); px(r.x0 + 14, r.y0 + 32, Math.max(1, Math.round(18 * Math.min(1, n / 50))), 3, '#148a50')
+          for (let i = 0; i < 3; i++) px(r.x0 + 14, r.y0 + 17 + i * 4, 14 - i * 3, 2, '#8a8f98')
+        }
         if (id === 'reporter') { px(r.x0 + 12, r.y0 + 10, 30, 22, '#fffaf0'); px(r.x0 + 12, r.y0 + 10, 30, 4, '#c23a3a'); const d = s?.daily; if (d) { for (let i = 0; i < Math.min(6, num(d.wins)); i++) px(r.x0 + 15 + i * 4, r.y0 + 18, 3, 3, '#148a50'); for (let i = 0; i < Math.min(6, num(d.losses)); i++) px(r.x0 + 15 + i * 4, r.y0 + 24, 3, 3, '#c23a3a') } }
         if (id === 'risk') {
           const sh = (s?.state?.shields ?? {}) as Record<string, boolean>
