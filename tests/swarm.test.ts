@@ -4,10 +4,10 @@ import {NEW_AGENTS} from '../shared/agents.ts'
 const now=1_800_000_000_000
 const mk=(f:(i:number)=>number,v=(i:number)=>100)=>Array.from({length:65},(_,i)=>{const c=f(i),o=f(i-1);return {t:now-(65-i)*60000,o,h:Math.max(o,c)*1.0002,l:Math.min(o,c)*0.9998,c,v:v(i)}})
 const up=mk(i=>100*(1+0.001*i)), down=mk(i=>100*(1-0.001*i)), flat=mk(i=>100+(i%2)*0.01)
-assert.equal(SWARM.length,50); assert.equal(new Set(SWARM_IDS).size,50)
+assert.equal(SWARM.length,60); assert.equal(new Set(SWARM_IDS).size,60)
 for(const t of Object.keys(TEAMS))assert.equal(SWARM.filter(a=>a.team===t).length,10,t)
 assert.ok(SWARM_IDS.every(id=>!NEW_AGENTS.includes(id)&&!['regime','rota','donch','trader','risk'].includes(id)),'ids do not collide')
-for(const b of [up,down,flat]){const r=runSwarm(b,{btc:up});assert.equal(Object.keys(r).length,50);assert.ok(Object.values(r).every(d=>d===-1||d===0||d===1))}
+for(const b of [up,down,flat]){const r=runSwarm(b,{btc:up});assert.equal(Object.keys(r).length,60);assert.ok(Object.values(r).every(d=>d===-1||d===0||d===1))}
 // sanity: trend + momentum agents agree with a clean up-move, reversal agents never say long into it
 const u=runSwarm(up,{}), d=runSwarm(down,{})
 assert.ok(SWARM.filter(a=>a.team==='trend').every(a=>u[a.id]>=0)); assert.ok(SWARM.filter(a=>a.team==='trend').filter(a=>u[a.id]===1).length>=7)
@@ -37,4 +37,6 @@ assert.ok(learnedWeight(dcy)===1||learnedWeight(dcy)>=0,'decayed stat stays vali
 let noise:any={}; let seed=7; const rnd=()=>{seed=(seed*1103515245+12345)%2147483648;return seed/2147483648}
 for(let i=0;i<300;i++){noise={...noise,...scoreSnapshot(noise,{BTC:{z:1}},{BTC:100},{BTC:100*(1+(rnd()-0.5)*0.004)},now)}}
 assert.ok(Math.abs(tStat(noise.z))<3,'pure noise stays near zero t')
-console.log('Swarm: 50 agents in 5 teams, shadow learning, decay and benching passed')
+assert.ok(SWARM.filter(a=>a.team==='combo').every(a=>u[a.id]>=0&&d[a.id]<=0),'combos never fight a clean trend except the reversal ones'||'')
+assert.equal(u.c_multi_tf,1); assert.equal(d.c_multi_tf,-1)
+console.log('Swarm: 60 agents in 6 teams, shadow learning, decay and benching passed')
