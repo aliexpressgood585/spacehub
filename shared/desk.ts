@@ -53,7 +53,7 @@ export function compliance(open: any[], entries: { sym: string; notional: number
 
 const HE: Record<string, string> = { regime: 'נועה', rota: 'דניאל', donch: 'עומר', trader: 'רוני', risk: 'מיכל', ...Object.fromEntries(NEW_AGENTS.map((k) => [k, AGENTS[k].name])) }
 // Round 2 + 3: the dissenters argue, the quant brings their record, the PM rules.
-export function debate(best: { sym: string; side: number; score: number; votes: Vote[]; weighted?: number; pro?: number; con?: number } | undefined, att: Record<string, { n: number; right: number }>, opened: boolean, blocked: string[], now: number, held = false, w: Record<string, number> = {}): Minute[] {
+export function debate(best: { sym: string; side: number; score: number; votes: Vote[]; weighted?: number; pro?: number; con?: number; holdMin?: number } | undefined, att: Record<string, { n: number; right: number }>, opened: boolean, blocked: string[], now: number, held = false, w: Record<string, number> = {}): Minute[] {
   const at = new Date(now).toISOString(), out: Minute[] = []
   if (!best) return [{ who: 'pm', says: 'אין מטבע עם נתונים תקינים לדיון. אין כניסה.', vote: 'hold', checked_at: at, round: 3 }]
   const wt = (k: string) => w[k] ?? 1
@@ -71,7 +71,7 @@ export function debate(best: { sym: string; side: number; score: number; votes: 
   out.push({ who: 'quant', to: 'pm', says: ranked.length ? `הכי מדויקים: ${top.join(' · ')}${bottom.length ? `. הכי חלשים: ${bottom.join(' · ')}` : ''}. משקל נקבע רק אחרי 30 הצבעות, בטווח 0.5–2.` : 'אין עדיין מספיק עסקאות סגורות לדרג את הסוכנים; כל המשקלים 1.', vote: 'hold', checked_at: at, round: 2, data: att })
   const score = `ציון משוקלל ${((best.weighted ?? 0) * 100).toFixed(0)}% (סף ${SCALP.minWeighted * 100}%), ${longs} לונג מול ${shorts} שורט`
   const verdict = blocked.length ? `ציות חסם: ${blocked.join(', ')}. לא נשלחות כניסות.`
-    : opened ? `${best.sym} ${best.side > 0 ? 'לונג' : 'שורט'} אושר: ${score}, ללא התנגדות מגמת EMA.`
+    : opened ? `${best.sym} ${best.side > 0 ? 'לונג' : 'שורט'} אושר: ${score}, ללא התנגדות מגמת EMA. החזקה מתוכננת ${best.holdMin ?? 15} דק׳ (1–15), עם סגירה מוקדמת אם הצוות מתהפך.`
     : held ? `${best.sym} כבר מוחזק; אין מועמד חדש שעובר את הסף. ממתינים.`
     : `${best.sym}: ${score} — ${best.side ? 'אין מקום או הון פנוי' : 'לא עובר את הסף, אין יתרון של 2 בספירה, או נגד מגמת EMA'}. ממתינים.`
   out.push({ who: 'pm', says: `החלטה: ${verdict}`, vote: blocked.length ? 'veto' : opened ? (best.side > 0 ? 'long' : 'short') : 'hold', checked_at: at, round: 3 })

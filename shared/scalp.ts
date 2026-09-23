@@ -63,7 +63,7 @@ export function assess(sym:string,b:Bar[],q:Quote,now:number,intel:Intel={news:[
   const votes:Vote[]=[]; const say=(who:string,says:string,vote:string)=>votes.push({who,says,vote,checked_at:new Date(now).toISOString()})
   const good=validQuote(q,now)&&b.length>=30&&now-b[b.length-1].t<150_000&&b.every((x,i)=>[x.t,x.o,x.h,x.l,x.c,x.v].every(Number.isFinite)&&x.l>0&&x.h>=Math.max(x.o,x.c)&&x.l<=Math.min(x.o,x.c)&&x.t+60_000<=now&&(!i||x.t-b[i-1].t===60_000))
   say('scout',`${sym}: ${good?'ספר פקודות ונרות דקה סגורים תקינים':'נתונים חסרים או ישנים'} (${q.source})`,good?'ok':'veto')
-  if(!good)return {sym,side:0,stopPct:0,votes,score:0,signals:null}
+  if(!good)return {sym,side:0,stopPct:0,holdMin:0,votes,score:0,weighted:0,pro:0,con:0,signals:null}
   const c=b.map(x=>x.c), last=c[c.length-1], atr=b.slice(-14).reduce((a,x)=>a+x.h-x.l,0)/14/last
   const mid=(q.bid+q.ask)/2
   const trend=Math.sign(ema(c,8)-ema(c,21)); const momentum=Math.sign(last/c[c.length-4]-1)
@@ -94,13 +94,27 @@ export function assess(sym:string,b:Bar[],q:Quote,now:number,intel:Intel={news:[
   say('risk',`${sym}: ${nw.item?`חדשות: "${nw.item.title.slice(0,70)}" (${nw.item.source}, ${new Date(nw.item.ts).toISOString().slice(11,16)}Z) · תנועת מחיר מאז ${(nw.move*100).toFixed(2)}% ${nw.verified?'מאומת':'לא מאומת — לא נספר'}`:'אין חדשות טריות'} · ליקווידציות תקפות ${lq.valid} (נפסלו ${lq.rejected})`,vs(nw.dir+lq.dir))
   for(const k of NEW_AGENTS)say(k,`${sym}: ${extra[k].says}`,vs(extra[k].dir))
   say('auditor',`${sym}: טווח תנודתיות ${(atr*250).toFixed(2)}%, אומדן עלות הלוך־חזור ${(cost*100).toFixed(2)}%; זה אינו אומדן רווח`,rangeOk?'ok':'veto')
-  return {sym,side:liquid&&rangeOk?side:0,stopPct:Math.min(0.01,Math.max(0.003,atr*1.5)),votes,score:Math.abs(direction),weighted:Wt?S/Wt:0,pro,con,
+  return {sym,side:liquid&&rangeOk?side:0,stopPct:Math.min(0.01,Math.max(0.003,atr*1.5)),holdMin:planHold(side,Wt?S/Wt:0,Math.sign(extra.htf.dir),atr),votes,score:Math.abs(direction),weighted:Wt?S/Wt:0,pro,con,
     signals:{trend,momentum,flow,sweep:sweep.dir,news:nw.dir,liq:lq.dir,news_title:nw.item?.title??null,news_source:nw.item?.source??null,news_ts:nw.item?.ts??null,news_verified:nw.verified,spread_bps:spread*1e4,liq_valid:lq.valid,liq_rejected:lq.rejected,...Object.fromEntries(NEW_AGENTS.map(k=>[k,Math.sign(extra[k].dir)])),weighted:Wt?S/Wt:0}}
 }
-export function exitPlan(t:any,q:Quote,now:number) {
+// v74.0: adaptive hold, 1-15 minutes. The planned hold is set at entry by the
+// team (planHold); at every meeting the current view can close early (FLIP),
+// close at the planned time (PLANNED) or extend a winner that the team still
+// backs, never past 15 minutes (TIMEOUT). The protective stop always fires.
+export function planHold(side:number,weighted:number,htf:number,atr:number):number {
+  let m=5
+  if(htf===side&&side)m+=5          // the 60-minute slope agrees: give it room
+  if(Math.abs(weighted)>=0.4)m+=3   // strong consensus
+  if(atr>=0.002)m-=3                // fast market (>=0.2% average 1m range): be quick
+  if(htf===-side&&side)m-=2         // against the hour: in and out
+  return Math.max(1,Math.min(15,m))
+}
+export interface View { side:number; weighted:number }
+export function exitPlan(t:any,q:Quote,now:number,view?:View) {
   const dir=t.side==='LONG'?1:-1, entry=Number(t.entry_price), stop=Number(t.trail_sl)
   const px=dir===1?q.bid:q.ask, meta=t.scalp_meta||{}, stopPct=Number(meta.stop_pct)||0.004
   const held=now-Date.parse(t.opened_at)
+  const planned=Math.max(1,Math.min(15,Number(meta.hold_min)||15))*60_000
   const timeout=held>=SCALP.maxHoldMs
   // The protective stop always fires; nothing else can close inside the first minute.
   const stopped=dir===1?px<=stop:px>=stop
@@ -109,7 +123,19 @@ export function exitPlan(t:any,q:Quote,now:number) {
   const active=held>=SCALP.minHoldMs&&move>=2*(SCALP.fee+SCALP.slip)+0.001
   const candidate=px*(1-dir*stopPct*0.6)
   const newStop=active?(dir===1?Math.max(stop,candidate):Math.min(stop,candidate)):stop
-  return {close:timeout||stopped,reason:timeout?'TIMEOUT':stopped?'STOP':'TRAIL',price:px*(1-dir*SCALP.slip),stop:newStop}
+  let reason=timeout?'TIMEOUT':stopped?'STOP':'TRAIL', close=timeout||stopped
+  if(!close&&held>=SCALP.minHoldMs){
+    const against=!!view&&(view.side===-dir||view.weighted*dir<=-SCALP.minWeighted)
+    const backs=!!view&&(view.side===dir||view.weighted*dir>=SCALP.minWeighted)
+    if(against){close=true;reason='FLIP'}
+    else if(held>=planned){
+      // a loser or an unbacked trade leaves at the planned time; a winner the
+      // team still backs is extended; without a fresh view a winner waits for the next meeting
+      if(move<=0||(view&&!backs)){close=true;reason='PLANNED'}
+      else reason='EXTEND'
+    }
+  }
+  return {close,reason,price:px*(1-dir*SCALP.slip),stop:newStop,planned_min:planned/60_000}
 }
 export function allocation(cash:number,equity:number,exposure:number,slots:number):number {
   if(![cash,equity,exposure,slots].every(Number.isFinite)||slots<=0||cash<=0||equity<=0)return 0

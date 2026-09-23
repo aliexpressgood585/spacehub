@@ -5,9 +5,10 @@ begin
  perform id from public.bot_state where id=1 for update;
  update public.bot_trades set status='TEST_HELD' where status='OPEN';
  update public.bot_state set balance=1000,bot_params='{}',hard_halt_at=null,paper_mode=true,active=true,lock_until=now()+interval '45 seconds' where id=1 returning lock_until into l;
- r:=scalp_commit_cycle(l,'[]','[]',jsonb_build_array(jsonb_build_object('sym','BTC','side','LONG','price',100,'notional',247.5,'stop_pct',0.004,'quote_ts',q),jsonb_build_object('sym','BTC','side','LONG','price',100,'notional',247.5,'stop_pct',0.004,'quote_ts',q)), '[]','{}','{"ok":1,"fail":0}',null);
+ r:=scalp_commit_cycle(l,'[]','[]',jsonb_build_array(jsonb_build_object('sym','BTC','side','LONG','price',100,'notional',247.5,'stop_pct',0.004,'hold_min',3,'quote_ts',q),jsonb_build_object('sym','BTC','side','LONG','price',100,'notional',247.5,'stop_pct',0.004,'quote_ts',q)), '[]','{}','{"ok":1,"fail":0}',null);
  if (r->>'opened')::int<>1 then raise exception 'duplicate prevention failed %',r; end if;
  if abs((r->>'balance')::numeric-752.37625)>0.00001 then raise exception 'cash debit wrong %',r; end if;
+ if (select scalp_meta->>'hold_min' from bot_trades where status='OPEN' and strategy='SCALP' order by id desc limit 1)<>'3' then raise exception 'hold_min not stored'; end if;
  begin
   perform scalp_commit_cycle(l,'[]','[]','[]',null,'{}','{}',null);
   raise exception 'replayed lease accepted';

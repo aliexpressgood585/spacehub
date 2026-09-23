@@ -81,6 +81,23 @@ has been run. Do not present the house upgrade as implementing that request.
 Existing equity snapshots occur every 15 minutes, so
 review freshness tolerance is 20 minutes, not 5.
 
+## v74.0 (2026-09-23) — adaptive hold, 1 to 15 minutes, decided by the team
+Owner: "hold a trade 5 minutes or 1 minute, as needed".
+- Entry: `planHold(side, weighted, htf, atr)` = 5 min, +5 if the 60-min slope
+  agrees, +3 if |weighted| >= 0.4, -3 if avg 1m range >= 0.2%, -2 if against the
+  hour, clamped 1..15. Stored as `scalp_meta.hold_min` (+ deadline/max_deadline)
+  by migration `20260923170000_scalp_adaptive_hold.sql` (applied live; ledger
+  test re-run in the live DB, passed, rolled back, 0 leftover rows).
+- Exits (`exitPlan(t, q, now, view)`, view = the team's current side/weighted
+  score for that coin, only on meeting cycles): stop always; 15 min hard cap
+  (TIMEOUT); after 1 min, FLIP if the team now votes against (side opposite or
+  weighted <= -20%); at the planned time a loser or unbacked trade closes
+  (PLANNED), a winner the team still backs is extended (EXTEND); between
+  meetings a winner past plan waits for the next meeting (<= ~60s).
+- House: timer bar = held / planned (turns into "extended, up to 15:00"), trade
+  tape shows exit reason in Hebrew + planned minutes.
+Still a demo rule with no walk-forward validation.
+
 ## v73.0 (2026-09-23) — 23 agents: 10 signal analysts + performance-weighted voting
 Owner: "add option 1 (weights by track record) and 10 more agents that can bring
 good entries and consult each other".

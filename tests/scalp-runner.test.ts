@@ -11,7 +11,7 @@ try{
  await runScalp(db,{balance:1000,bot_params:{}},new Date(Date.now()+50000).toISOString(),true)
  assert.equal(request.p_closes.length,1);assert.equal(request.p_closes[0].reason,'MODE_SWITCH')
  assert.equal(request.p_entries.length,8);assert.ok(request.p_minutes.length>=13)
- assert.ok(request.p_entries.every((x:any)=>!x.sym.includes('USDT')&&x.notional>0))
+ assert.ok(request.p_entries.every((x:any)=>!x.sym.includes('USDT')&&x.notional>0&&x.hold_min>=1&&x.hold_min<=15))
  assert.ok(urls.some(x=>x.includes('symbol=NEARUSDT&')))
  assert.ok(request.p_entries.reduce((a:number,x:any)=>a+x.notional*1.0005,0)<1101)
  assert.ok(request.p_minutes.every((m:any)=>['scout','regime','rota','donch','risk','trader','treasurer','reporter','auditor','pm','quant','compliance','execution','rsi','vwap','breakout','volume','macd','bollinger','htf','btclead','candle','funding'].includes(m.who)))
