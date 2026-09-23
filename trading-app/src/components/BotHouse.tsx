@@ -32,12 +32,12 @@ interface Snap {
 }
 interface Status { working: boolean; asleep?: boolean; alarm?: boolean; line: string; action?: string; at?: number; reviewed?: boolean }
 
-const SHORT: Record<string, string> = { rota: 'רוטציה', donch: 'פריצות', reporter: 'יומן', auditor: 'מבקר' }
+const SHORT: Record<string, string> = { rota: 'אסטרטגיה', donch: 'אימות', reporter: 'יומן', auditor: 'מבקר' }
 const ROSTER: Record<Id, { name: string; role: string; color: string }> = {
   scout: { name: 'איתן', role: 'סורק נתונים', color: '#35e0ff' },
   regime: { name: 'נועה', role: 'חזאית השוק', color: '#c38bff' },
-  rota: { name: 'דניאל', role: 'מנהל הרוטציה (ROTA)', color: '#00d492' },
-  donch: { name: 'עומר', role: 'צייד פריצות (DONCH4H)', color: '#ffb454' },
+  rota: { name: 'דניאל', role: 'מנהל אסטרטגיה', color: '#00d492' },
+  donch: { name: 'עומר', role: 'אימות כניסה', color: '#ffb454' },
   risk: { name: 'מיכל', role: 'שומרת הסיכונים', color: '#ff4d6a' },
   trader: { name: 'רוני', role: 'סוחר ביצוע', color: '#7fd0ff' },
   treasurer: { name: 'שירה', role: 'גזברית', color: '#ffd76a' },
@@ -185,6 +185,13 @@ function derive(s: Snap | null, now: number): Record<Id, Status> {
     line: `${ca.length}/50 עסקאות עד נקודת הבדיקה · ${wins} ברווח (${ca.length ? Math.round((wins / ca.length) * 100) : 0}%) · נטו ${usd(net)} · ירידה מקסימלית ${(mdd * 100).toFixed(1)}% מתוך 25% · חשיפה ${Number.isFinite(expPct) ? Math.round(expPct * 100) : '—'}% מההון${ca.length < 50 ? ' · מדגם קטן מדי להסקת מסקנות' : ''}`,
     action: `עדכן את הביקורת: ${ca.length}/50 עסקאות, נטו ${usd(net)}`,
     at: lastC,
+  }
+  if (sleeves.includes('SCALP')) {
+    out.rota = { working:false, line:'אסטרטגיית דמו מהירה: הסכמה בין כיוון, מומנטום וספר פקודות; בדיקת עלויות וסיכון.' }
+    out.donch = { working:false, line:'בודק חוסר איזון בספר הפקודות כחלק מהחלטת הכניסה.' }
+    const bp = (st.bot_params ?? {}) as Row
+    out.risk = { working:false, alarm:!!bp.scalp_paused, line:`${bp.scalp_paused ? 'כניסות מושהות' : 'פיקוח פעיל'} · הפסד יומי 5% / ירידה 15% · דמו ללא מינוף` }
+    out.auditor = {working:false,line:'האסטרטגיה החדשה ניסיונית; נתוני ROTA קודמים אינם הוכחה לביצועיה.'}
   }
   const meeting = s.meetings[0]
   const meetingAt = ts(meeting?.ts)
@@ -481,6 +488,12 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
         </div>
       </div>
 
+      {String(snap?.manifest?.enabled_sleeves ?? '').includes('SCALP') && <section className="bh-meet">
+        <h2>מסחר דמו אוטונומי · 1–15 דקות</h2>
+        <p className="bh-mnote">הסכמה אלגוריתמית → בדיקת עלויות וסיכון → ביצוע. בדיקת יציאות כל 10 שניות; סגירה מתוכננת ב-15 דקות גם בהפסד. השהיות או נתונים חסרים עלולים לעכב אותה. סטופ נגרר אינו מבטיח רווח. עמלות 0.05% לכל צד, החלקה 0.03% ומימון מדומה יחסי.</p>
+        {(snap?.open ?? []).filter(t=>t.strategy==='SCALP').map(t=><div className="bh-maction" key={String(t.id)}><b>{String(t.sym)} · {String(t.side)}</b><br/>סטופ {String(t.trail_sl)} · {now >= ts(t.opened_at)+15*60_000 ? 'זמן הסגירה הגיע — ממתין לאישור ביצוע' : `סגירת זמן בעוד ${Math.max(0,Math.ceil((ts(t.opened_at)+15*60_000-now)/60_000))} דקות`}</div>)}
+        {!snap?.open.some(t=>t.strategy==='SCALP') && <p className="bh-mnote">אין כרגע פוזיציות של האסטרטגיה החדשה. סיבת ההמתנה מופיעה בישיבה.</p>}
+      </section>}
       <Meeting snap={snap} now={now} />
 
       {snap && snap.meetings.length > 1 && <details className="bh-history"><summary>היסטוריית החלטות · {snap.meetings.length} סבבים אחרונים</summary>{snap.meetings.slice(1).map((m, i) => <div key={String(m.id ?? i)}><time>{ago(ts(m.ts), now)}</time><b>{DECISION[String(m.decision)] ?? String(m.decision)}</b><p>{String(m.action ?? '')}</p></div>)}</details>}
@@ -501,7 +514,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
       </div>
       <p className="bh-note">
         מה אמיתי כאן: הדופק, מקורות הנתונים, משטר השוק, הפוזיציות, הרוטציות, החסימות של מנהלת הסיכונים, ההון, החשיפה והיומן. כולם נקראים כל 15 שניות מהטבלאות של הבוט ב-Supabase.
-        הדמויות לא ממציאות פעולות: הן זזות רק כשמופיעה רשומה חדשה. הבוט רץ פעם בדקה, והרוטציה מתבצעת לפי השעון שלה.
+        הדמויות לא ממציאות פעולות: הן זזות רק כשמופיעה רשומה חדשה. תזמון המנוע נקבע בשרת; סגירה בפועל תלויה בזמינות המחירים ובזמן תגובת השרת.
       </p>
     </div>
   )
@@ -512,9 +525,10 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
 // the bot's own tables, and the only action the team can take is a de-risk cap.
 const VOTE: Record<string, { t: string; c: string }> = {
   derisk: { t: 'להקטין', c: '#ff4d6a' }, ok: { t: 'תקין', c: '#00d492' },
+  long: {t:'לונג',c:'#00d492'}, short: {t:'שורט',c:'#ffb454'}, veto: {t:'חסימה',c:'#ff4d6a'},
   hold: { t: 'להמשיך', c: '#8fa3bf' }, sleep: { t: 'כבוי', c: '#5b6b82' },
 }
-const DECISION: Record<string, string> = { HOLD: 'ממשיכים כרגיל', DERISK: 'הקטנת חשיפה', RESTORE: 'חזרה לגודל רגיל' }
+const DECISION: Record<string, string> = { SCALP_OPEN:'נפתחו עסקאות דמו', SCALP_HOLD:'אין כניסה מתאימה', SCALP_PAUSED:'כניסות מושהות', HOLD: 'ממשיכים כרגיל', DERISK: 'הקטנת חשיפה', RESTORE: 'חזרה לגודל רגיל' }
 function Meeting({ snap, now }: { snap: Snap | null; now: number }) {
   const m = snap?.meetings?.[0]
   if (!m) return <div className="bh-meet"><h2>ישיבת צוות</h2><p className="bh-mnote">עוד לא התקיימה ישיבה. הצוות נפגש כל 5 דקות.</p></div>
@@ -537,8 +551,8 @@ function Meeting({ snap, now }: { snap: Snap | null; now: number }) {
         ))}
       </div>
       <p className="bh-mnote">
-        הצוות נפגש בתוך הבוט כל 5 דקות. כל אחד בודק רק את התחום שלו בנתונים האמיתיים ומצביע. הצוות יכול לקבל לבד החלטה אחת בלבד: להקטין את הפוזיציות כששניים או יותר מצביעים "להקטין", ולחזור לגודל הרגיל לאחר 24 שעות מההקטנה ובדיקה תקינה ללא הצבעות להקטנה. התקרה חלה על גודל הרוטציה הבאה; היא לא סוגרת עסקאות קיימות. אין הגדלה מעבר להגדרות הפריסה.
-        {cap ? ` כרגע: פוזיציות מוקטנות (יעד ${cap}).` : ' כרגע: גודל רגיל.'}
+        {String(snap?.manifest?.enabled_sleeves ?? '').includes('SCALP') ? 'בכל ישיבה המנוע בוחן פתיחות דמו לפי ההצבעות, היתרה ומגבלות התיק. עד 4 פוזיציות ללא מינוף ועד 99% הקצאה. רק פעולות שנשמרו מופיעות כבוצעו.' : <>הצוות נפגש בתוך הבוט כל 5 דקות. כל אחד בודק רק את התחום שלו בנתונים האמיתיים ומצביע. הצוות יכול לקבל לבד החלטה אחת בלבד: להקטין את הפוזיציות כששניים או יותר מצביעים "להקטין", ולחזור לגודל הרגיל לאחר 24 שעות מההקטנה ובדיקה תקינה ללא הצבעות להקטנה. התקרה חלה על גודל הרוטציה הבאה; היא לא סוגרת עסקאות קיימות. אין הגדלה מעבר להגדרות הפריסה.
+        {cap ? ` כרגע: פוזיציות מוקטנות (יעד ${cap}).` : ' כרגע: גודל רגיל.'}</>}
       </p>
     </div>
   )
