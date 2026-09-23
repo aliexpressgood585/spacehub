@@ -10,6 +10,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { SUPA_URL, SUPA_KEY } from '../supa'
+import { TEAM_INTERVAL_MS } from '../../../shared/team-meeting'
 
 type Id = 'scout' | 'regime' | 'rota' | 'donch' | 'risk' | 'trader' | 'treasurer' | 'reporter' | 'auditor'
 interface Row { [k: string]: unknown }
@@ -29,7 +30,7 @@ interface Snap {
   closedAll: Row[]
   curve: Row[]
 }
-interface Status { working: boolean; asleep?: boolean; alarm?: boolean; line: string; action?: string; at?: number }
+interface Status { working: boolean; asleep?: boolean; alarm?: boolean; line: string; action?: string; at?: number; reviewed?: boolean }
 
 const SHORT: Record<string, string> = { rota: 'רוטציה', donch: 'פריצות', reporter: 'יומן', auditor: 'מבקר' }
 const ROSTER: Record<Id, { name: string; role: string; color: string }> = {
@@ -185,6 +186,15 @@ function derive(s: Snap | null, now: number): Record<Id, Status> {
     action: `עדכן את הביקורת: ${ca.length}/50 עסקאות, נטו ${usd(net)}`,
     at: lastC,
   }
+  const meeting = s.meetings[0]
+  const meetingAt = ts(meeting?.ts)
+  const minutes = (Array.isArray(meeting?.minutes) ? meeting.minutes : []) as { who: Id; says: string; vote: string; checked_at?: string }[]
+  if (alive && meetingAt && now - meetingAt < TEAM_INTERVAL_MS + 90_000) {
+    for (const m of minutes) {
+      if (!out[m.who] || !m.checked_at) continue
+      out[m.who] = { ...out[m.who], asleep: false, reviewed: true, alarm: out[m.who].alarm || m.vote === 'derisk', working: now - meetingAt < 30_000, line: `${m.says} · נבדק ${ago(meetingAt, now)}`, action: m.says, at: meetingAt }
+    }
+  }
   if (!alive) for (const id of IDS) if (id !== 'scout') out[id] = { ...out[id], working: false }
   return out
 }
@@ -204,13 +214,16 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
   const snapRef = useRef(snap); snapRef.current = snap
   const selRef = useRef(sel); selRef.current = sel
   const people = useRef<Record<Id, Person>>(Object.fromEntries(IDS.map((id) => [id, { id, ...home(id), face: 1, path: [], until: 0, carry: null }])) as Record<Id, Person>)
-  const prev = useRef<{ reb: number; closeId: unknown; skipId: unknown } | null>(null)
+  const prev = useRef<{ reb: number; closeId: unknown; skipId: unknown; meeting: unknown } | null>(null)
 
   // poll the bot's tables
   useEffect(() => {
     const supa = createClient(SUPA_URL, SUPA_KEY)
     let alive = true
+    let loading = false
     const load = async () => {
+      if (loading) return
+      loading = true
       try {
         const [st, rg, eq, op, cl, sk, er, dl, mf, rb, ca, cv, mt] = await Promise.all([
           supa.from('bot_state').select('*').eq('id', 1).maybeSingle(),
@@ -225,9 +238,9 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
           supa.from('bot_trades').select('opened_at').eq('strategy', 'ROTA').order('opened_at', { ascending: false }).limit(60),
           supa.from('bot_trades').select('pnl,closed_at,strategy').neq('status', 'OPEN').order('closed_at', { ascending: false }).limit(500),
           supa.from('bot_equity').select('equity,ts').order('ts', { ascending: false }).limit(2000),
-          supa.from('team_meetings').select('*').order('ts', { ascending: false }).limit(3),
+          supa.from('team_meetings').select('*').order('ts', { ascending: false }).limit(12),
         ])
-        const firstErr = [st, rg, eq, op, cl, sk, dl, mf, rb, ca, cv].find((r) => r.error)?.error
+        const firstErr = [st, rg, eq, op, cl, sk, er, dl, mf, rb, ca, cv, mt].find((r) => r.error)?.error
         if (firstErr) throw new Error(firstErr.message)
         // distinct rotation batches (all legs of one rotation open within a minute)
         const batches: number[] = []
@@ -235,7 +248,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
         if (!alive) return
         setSnap({ at: Date.now(), meetings: (mt.data ?? []) as Row[], state: (st.data as Row) ?? null, regime: (rg.data?.[0] as Row) ?? null, equity: (eq.data ?? []) as Row[], open: (op.data ?? []) as Row[], closed: (cl.data ?? []) as Row[], skips: (sk.data ?? []) as Row[], errors: (er.data ?? []) as Row[], daily: (dl.data?.[0] as Row) ?? null, manifest: (mf.data?.[0] as Row) ?? null, rotaBatches: batches, closedAll: (ca.data ?? []) as Row[], curve: (cv.data ?? []) as Row[] })
         setErr(null)
-      } catch (e) { if (alive) setErr(e instanceof Error ? e.message : String(e)) }
+      } catch (e) { if (alive) setErr(e instanceof Error ? e.message : String(e)) } finally { loading = false }
     }
     void load()
     const iv = setInterval(load, 15_000)
@@ -248,7 +261,8 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
     if (!snap?.state) return
     const reb = ts(snap.state.rebalanced_at), closeId = snap.closed[0]?.id, skipId = snap.skips[0]?.id
     const p = prev.current
-    prev.current = { reb, closeId, skipId }
+    const meeting = snap.meetings[0]?.id ?? snap.meetings[0]?.ts
+    prev.current = { reb, closeId, skipId, meeting }
     if (!p) return
     const walk = (from: Id, to: Id, carry: string) => {
       const P = people.current[from], A = ROOM[from], B = ROOM[to]
@@ -260,6 +274,15 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
       if (A.floor !== B.floor) pts.push({ x: stairX, y: B.floor }, { x: stairX, y: A.floor })
       pts.push(home(from))
       P.carry = carry; P.path = pts
+    }
+    if (meeting && meeting !== p.meeting) {
+      // A short desk-to-board review only after a persisted server review arrives.
+      for (const id of IDS) {
+        const P = people.current[id], r = ROOM[id]
+        if (P.path.length) continue
+        P.carry = 'orders'
+        P.path = [{ x: r.x0 + 18, y: r.floor, hold: 1800 }, home(id)]
+      }
     }
     if (reb && reb !== p.reb) walk('rota', 'trader', 'orders')
     if (closeId && closeId !== p.closeId) walk('trader', 'treasurer', Number(snap.closed[0]?.pnl) >= 0 ? 'good' : 'bad')
@@ -422,18 +445,25 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
       <style>{CSS}</style>
       <div className="bh-head">
         <div>
-          <h1>בית הבוט</h1>
-          <p>כל חדר הוא חלק אמיתי מהבוט. כל מספר נקרא ישירות מהטבלאות שלו, ודמות זזה רק כשהבוט באמת עשה משהו.</p>
+          <span className="bh-eyebrow">NEXUS / AUTONOMOUS OPERATIONS</span>
+          <h1>בית הבוט <small>חדר הבקרה</small></h1>
+          <p>תשעה תפקידים. מחזור בדיקה כל 5 דקות. מסקנות ופעולות מתוך מנוע הבוט, גם כשהעמוד סגור.</p>
         </div>
         <div className="bh-chips">
           <span className={`bh-chip ${live ? 'ok' : 'bad'}`}><i />{live ? `הבוט רץ · דופק ${ago(ts(snap?.state?.updated_at), now)}` : snap ? 'אין דופק מהבוט' : 'מתחבר…'}</span>
           <span className="bh-chip">{version}</span>
-          <span className="bh-chip">{snap?.state?.paper_mode ? 'מסחר נייר' : 'מסחר אמיתי'}</span>
+          <span className="bh-chip">{!snap?.state ? 'מצב מסחר לא ידוע' : snap.state.paper_mode ? 'מסחר דמו' : 'מסחר אמיתי'}</span>
           {onBack && <button className="bh-btn" onClick={onBack}>חזרה לדשבורד</button>}
         </div>
       </div>
       {err && <div className="bh-err" role="alert">לא הצלחתי לקרוא את נתוני הבוט: {err}. מנסה שוב כל 15 שניות.</div>}
 
+      <div className="bh-metrics">
+        <div><span>שווי תיק</span><strong dir="ltr">{usd(num(snap?.equity[0]?.equity))}</strong><small>לפי מדידת ההון האחרונה</small></div>
+        <div><span>מזומן זמין</span><strong dir="ltr">{usd(num(snap?.equity[0]?.balance))}</strong><small>{snap ? `${snap.open.length} פוזיציות פתוחות` : 'טוען…'}</small></div>
+        <div><span>חשיפה</span><strong dir="ltr">{usd(num(snap?.equity[0]?.exposure))}</strong><small>{snap?.state?.team_vol_cap ? `תקרת צוות: ${snap.state.team_vol_cap}` : 'לפי הגדרות המנוע'}</small></div>
+      </div>
+      <Cycle snap={snap} now={now} />
       <div className="bh-scene">
         <canvas ref={cvRef} onClick={onCanvas} role="img" aria-label="בית הבוט. הרשימה שמתחת לבית מתארת כל חדר ומה הבוט עשה בו באמת." />
         <div className="bh-ov">
@@ -444,7 +474,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
                 <button className={`bh-tag${sel === id ? ' sel' : ''}`} style={{ right: `${100 - ((r.x0 + r.w / 2) / W) * 100}%`, top: `${((r.y0 + 2) / H) * 100}%`, ['--c' as string]: ROSTER[id].color }} onClick={() => pick(id)}>
                   {ROSTER[id].name} <span>· {SHORT[id] ?? ROSTER[id].role}</span>
                 </button>
-                {a?.working && a.action && <div className="bh-say" style={{ right: `${100 - ((r.x0 + r.w / 2) / W) * 100}%`, top: `${((r.floor - 44) / H) * 100}%` }}>{a.action}</div>}
+                {sel === id && a.action && <div className="bh-say" style={{ right: `${100 - ((r.x0 + r.w / 2) / W) * 100}%`, top: `${((r.floor - 44) / H) * 100}%` }}>{a.action}</div>}
               </div>
             )
           })}
@@ -453,6 +483,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
 
       <Meeting snap={snap} now={now} />
 
+      {snap && snap.meetings.length > 1 && <details className="bh-history"><summary>היסטוריית החלטות · {snap.meetings.length} סבבים אחרונים</summary>{snap.meetings.slice(1).map((m, i) => <div key={String(m.id ?? i)}><time>{ago(ts(m.ts), now)}</time><b>{DECISION[String(m.decision)] ?? String(m.decision)}</b><p>{String(m.action ?? '')}</p></div>)}</details>}
       <div className="bh-list">
         {IDS.map((id) => {
           const a = status[id]
@@ -463,7 +494,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
                 <b>{ROSTER[id].name}</b> <em>· {ROSTER[id].role}</em>
                 <span className="bh-line">{a?.line}</span>
               </span>
-              <span className={`bh-st ${a?.alarm ? 'alarm' : a?.asleep ? 'sleep' : a?.working ? 'work' : 'wait'}`}>{a?.alarm ? 'התראה' : a?.asleep ? 'כבוי' : a?.working ? 'עובד עכשיו' : 'ממתין'}</span>
+              <span className={`bh-st ${a?.alarm ? 'alarm' : a?.asleep ? 'sleep' : a?.working ? 'work' : 'wait'}`}>{a?.alarm ? 'התראה' : a?.asleep ? 'כבוי' : a?.working ? 'פעילות אחרונה' : a?.reviewed ? 'נבדק בסבב' : 'ממתין לאירוע'}</span>
             </button>
           )
         })}
@@ -476,7 +507,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
   )
 }
 
-// v70.0: the team meeting the BOT itself holds once an hour (team_meetings).
+// v70.1: the team meeting the BOT itself holds every five minutes (team_meetings).
 // The house only shows the minutes; every vote was computed server-side from
 // the bot's own tables, and the only action the team can take is a de-risk cap.
 const VOTE: Record<string, { t: string; c: string }> = {
@@ -486,13 +517,13 @@ const VOTE: Record<string, { t: string; c: string }> = {
 const DECISION: Record<string, string> = { HOLD: 'ממשיכים כרגיל', DERISK: 'הקטנת חשיפה', RESTORE: 'חזרה לגודל רגיל' }
 function Meeting({ snap, now }: { snap: Snap | null; now: number }) {
   const m = snap?.meetings?.[0]
-  if (!m) return <div className="bh-meet"><h2>ישיבת צוות</h2><p className="bh-mnote">עוד לא התקיימה ישיבה. הצוות נפגש פעם בשעה.</p></div>
+  if (!m) return <div className="bh-meet"><h2>ישיבת צוות</h2><p className="bh-mnote">עוד לא התקיימה ישיבה. הצוות נפגש כל 5 דקות.</p></div>
   const mins = (Array.isArray(m.minutes) ? m.minutes : []) as { who: Id; says: string; vote: string }[]
   const cap = snap?.state?.team_vol_cap
   return (
     <div className="bh-meet">
       <div className="bh-mtop">
-        <h2>ישיבת צוות · לפני {ago(ts(m.ts), now)}</h2>
+        <h2>ישיבת צוות · {ago(ts(m.ts), now)}</h2>
         <span className={`bh-dec d-${String(m.decision).toLowerCase()}`}>{DECISION[String(m.decision)] ?? String(m.decision)}</span>
       </div>
       <p className="bh-maction">{String(m.action ?? '')}</p>
@@ -506,15 +537,50 @@ function Meeting({ snap, now }: { snap: Snap | null; now: number }) {
         ))}
       </div>
       <p className="bh-mnote">
-        הצוות נפגש בתוך הבוט פעם בשעה. כל אחד בודק רק את התחום שלו בנתונים האמיתיים ומצביע. הצוות יכול לקבל לבד החלטה אחת בלבד: להקטין את הפוזיציות כששניים או יותר מצביעים "להקטין", ולחזור לגודל הרגיל אחרי יממה תקינה. להגדיל מעבר להגדרה שנבדקה הוא לא יכול.
+        הצוות נפגש בתוך הבוט כל 5 דקות. כל אחד בודק רק את התחום שלו בנתונים האמיתיים ומצביע. הצוות יכול לקבל לבד החלטה אחת בלבד: להקטין את הפוזיציות כששניים או יותר מצביעים "להקטין", ולחזור לגודל הרגיל לאחר 24 שעות מההקטנה ובדיקה תקינה ללא הצבעות להקטנה. התקרה חלה על גודל הרוטציה הבאה; היא לא סוגרת עסקאות קיימות. אין הגדלה מעבר להגדרות הפריסה.
         {cap ? ` כרגע: פוזיציות מוקטנות (יעד ${cap}).` : ' כרגע: גודל רגיל.'}
       </p>
     </div>
   )
 }
 
+function Cycle({ snap, now }: { snap: Snap | null; now: number }) {
+  const last = ts(snap?.meetings[0]?.ts)
+  const next = last + TEAM_INTERVAL_MS
+  const seconds = Math.max(0, Math.ceil((next - now) / 1000))
+  const late = last > 0 && now - next > 90_000
+  const progress = last ? Math.min(100, Math.max(0, (now - last) / TEAM_INTERVAL_MS * 100)) : 0
+  return <section className={`bh-cycle${late ? ' late' : ''}`} aria-label="מחזור הבדיקה">
+    <div><span className="bh-eyebrow">מחזור צוות / 05:00</span><h2>{!last ? 'ממתינים לבדיקה ראשונה' : late ? 'סבב הבדיקה מתעכב' : seconds ? 'הבדיקה הבאה בעוד' : 'ממתינים לתוצאת הסבב מהשרת'}</h2><p>{last ? `הבדיקה האחרונה ${ago(last, now)} · העמוד מתעדכן כל 15 שניות` : 'הנתונים יופיעו לאחר שהמנוע ישמור את תוצאות הבדיקה'}</p></div>
+    <strong dir="ltr">{last && seconds ? `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}` : '—'}</strong>
+    <div className="bh-progress"><i style={{ width: `${progress}%` }} /></div>
+  </section>
+}
+
 const CSS = `
-.bh-meet { background:rgba(10,17,29,0.96); border:1px solid rgba(240,180,76,0.3); border-radius:6px; padding:12px 14px; display:grid; gap:8px; }
+.bh { max-width:1200px; margin:auto; padding:8px; }
+.bh-eyebrow { display:block; color:#54d4ce; font-size:10px; letter-spacing:1.5px; margin-bottom:8px; }
+.bh-head h1 small { font-size:13px; font-weight:500; color:#8fa3bf; margin-inline-start:8px; }
+.bh-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+.bh-metrics > div { padding:18px; border:1px solid #213148; border-radius:14px; background:linear-gradient(130deg,#111d30,#0a121f); display:grid; gap:7px; }
+.bh-metrics span { font-size:12px; color:#9cb1c9; }
+.bh-metrics strong { font-size:clamp(16px,3vw,27px); color:#effaff; text-align:right; font-variant-numeric:tabular-nums; }
+.bh-metrics small { font-size:10px; color:#7e93af; }
+.bh-cycle { position:relative; padding:20px; background:linear-gradient(120deg,#102c35,#101a2c); border:1px solid #28515e; border-radius:14px; display:flex; justify-content:space-between; align-items:center; gap:10px; overflow:hidden; }
+.bh-cycle h2 { margin:0; font-size:17px; color:#effaff; }
+.bh-cycle p { margin:7px 0 0; color:#a4bbcf; font-size:11px; }
+.bh-cycle > strong { font-size:36px; color:#65e1cc; font-variant-numeric:tabular-nums; }
+.bh-cycle.late { border-color:#ffb454; }
+.bh-progress { position:absolute; height:3px; bottom:0; left:0; right:0; background:#172c3a; }
+.bh-progress i { display:block; height:100%; background:#65e1cc; transition:width 1s linear; }
+.bh-history { border:1px solid #213148; padding:16px; border-radius:14px; background:#0b1320; font-size:12px; }
+.bh-history summary { cursor:pointer; color:#b5ccd9; }
+.bh-history > div { border-top:1px solid #213148; margin-top:12px; padding-top:12px; }
+.bh-history time { margin-inline-end:12px; color:#89a1ba; }
+.bh-history p { margin:6px 0 0; line-height:1.6; }
+@media(max-width:520px) { .bh-metrics { gap:6px; } .bh-metrics > div { padding:11px 8px; } .bh-cycle { padding:15px; } .bh-cycle > strong { font-size:28px; } }
+
+.bh-meet { background:rgba(10,17,29,0.96); border:1px solid rgba(240,180,76,0.3); border-radius:14px; padding:20px; display:grid; gap:8px; }
 .bh-meet h2 { margin:0; font-size:15px; color:#f0b44c; font-weight:900; }
 .bh-mtop { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
 .bh-dec { font-size:12px; font-weight:900; border-radius:20px; padding:3px 10px; background:rgba(140,170,210,0.1); color:#c7d5e8; }
@@ -528,7 +594,7 @@ const CSS = `
 .bh-mnote { font-size:11.5px; color:#8fa3bf; line-height:1.6; margin:0; }
 
 .bh { color:#c7d5e8; font-family: system-ui, 'Segoe UI', sans-serif; display:grid; gap:10px; }
-.bh-head { display:flex; flex-wrap:wrap; justify-content:space-between; gap:10px; align-items:flex-end; background:rgba(10,17,29,0.96); border:1px solid rgba(140,170,210,0.14); border-radius:6px; padding:12px 14px; }
+.bh-head { display:flex; flex-wrap:wrap; justify-content:space-between; gap:10px; align-items:flex-end; background:rgba(10,17,29,0.96); border:1px solid rgba(140,170,210,0.14); border-radius:14px; padding:20px; }
 .bh-head h1 { margin:0; font-size:20px; font-weight:900; color:#eef4fc; }
 .bh-head p { margin:4px 0 0; font-size:12.5px; color:#8fa3bf; max-width:560px; line-height:1.5; }
 .bh-chips { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
@@ -537,7 +603,7 @@ const CSS = `
 .bh-chip.ok i { background:#00d492; box-shadow:0 0 0 3px rgba(0,212,146,0.2); } .bh-chip.bad { color:#ff4d6a; border-color:rgba(255,77,106,0.4); } .bh-chip.bad i { background:#ff4d6a; }
 .bh-btn { font-family:inherit; font-size:12px; font-weight:700; padding:5px 12px; border-radius:20px; border:1px solid rgba(53,224,255,0.4); background:rgba(53,224,255,0.1); color:#35e0ff; cursor:pointer; }
 .bh-err { background:rgba(255,77,106,0.12); border:1px solid rgba(255,77,106,0.4); border-radius:6px; padding:8px 12px; font-size:12.5px; }
-.bh-scene { position:relative; border-radius:8px; overflow:hidden; border:1px solid rgba(140,170,210,0.14); background:#05070c; container-type:inline-size; }
+.bh-scene { position:relative; border-radius:18px; overflow:hidden; border:1px solid rgba(140,170,210,0.14); background:#05070c; container-type:inline-size; }
 .bh-scene canvas { display:block; width:100%; height:auto; aspect-ratio:${W} / ${H}; image-rendering:pixelated; cursor:pointer; }
 .bh-ov { position:absolute; inset:0; pointer-events:none; }
 .bh-tag { position:absolute; transform:translate(50%,0); pointer-events:auto; cursor:pointer; border:0; border-radius:5px; font-family:inherit; white-space:nowrap; font-size:clamp(8.5px,2.1cqw,12.5px); font-weight:800; color:#f4efe2; background:rgba(8,11,18,0.86); padding:0.15em 0.55em; border-bottom:0.2em solid var(--c); }

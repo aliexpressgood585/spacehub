@@ -51,6 +51,30 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## v70.1 (2026-09-23) — five-minute operational reviews + house control room
+Owner requested an autonomous review every five minutes, visible in the house.
+Server cadence now 5m under the existing runner lease; no new trading signals,
+no forced entries, no risk increase and paper-only remains unchanged. Each of
+nine roles records checked_at; disabled DONCH performs a configuration/book
+review, never opens trades. Existing cap thresholds retained; RESTORE now also
+requires zero derisk votes and a valid 24h-old cap timestamp. This is an
+operational/correctness update, not a newly backtested strategy or profit claim.
+Meeting reads/writes throw on database errors; stale equity aborts review;
+cap change must return its saved row before the minutes claim success.
+House: portfolio cards, real countdown/overdue state, last 12 reviews, per-role
+review evidence, event-driven movement, mobile styling. No fabricated activity.
+Validation: production build and dashboard typecheck passed; 394 assertions
+passed, including 11 cadence/cap checks. Bot typecheck has only its 3 documented
+pre-existing diagnostics. Browser verification could not run: agent-browser
+failed to start and Chromium download returned an invalid archive.
+Deployment NOT performed: automatic approval review rejected direct main push
+as lacking explicit authorization in this turn. Changes moved to feature branch
+codex/house-five-minute-reviews for a reviewable PR; production remains v70.0.
+After authorization: merge PR, deploy trading-bot with the existing release shim
+(all its current settings preserved) pinned to merged SHA, and verify Pages plus
+new team_meetings rows. Existing equity snapshots occur every 15 minutes, so
+review freshness tolerance is 20 minutes, not 5.
+
 ## v70.0 (2026-09-23 13:45 UTC) — THE HOUSE HOLDS A REAL TEAM MEETING, hourly, inside the bot
 Owner: the residents should meet, consult, decide and be autonomous.
 Built in the BOT (not the page), so the meeting is real and runs unattended:
