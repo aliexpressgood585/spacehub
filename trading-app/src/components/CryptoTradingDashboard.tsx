@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo, type CSSProperties } from 'react'
+import { SCALP } from '../../../shared/scalp'
 import { createClient } from '@supabase/supabase-js'
 
 import { SUPA_URL, SUPA_KEY } from '../supa'
@@ -966,7 +967,7 @@ export default function CryptoTradingDashboard() {
     const op = openTrades.filter(t=>t.strategy===name).length
     return {n:cl.length, wr:cl.length?w2/cl.length*100:0, rp, op}
   }
-  const stDonch = stratStats('DONCH4H'), stRota = stratStats('ROTA')
+  const stDonch = stratStats('DONCH4H'), stRota = stratStats('ROTA'), stScalp = stratStats('SCALP')
   const eqPath = (()=>{
     if (equityHist.length<2) return null
     const vals=equityHist.slice(-384).map(p=>p.equity)
@@ -1260,6 +1261,7 @@ export default function CryptoTradingDashboard() {
             ['מקס ירידה',maxDD.toFixed(1)+'%',maxDD<10?C.green:maxDD<25?C.yellow:C.red],
             ['פריצות',`${stDonch.op}פ ${stDonch.n}ס ${(stDonch.rp>=0?'+':'')}${stDonch.rp.toFixed(0)}$`,stDonch.rp>=0?C.green:C.red],
             ['רוטציה',`${stRota.op}פ ${stRota.n}ס ${(stRota.rp>=0?'+':'')}${stRota.rp.toFixed(0)}$ ${stRota.wr.toFixed(0)}%`,stRota.rp>=0?C.green:C.red],
+            ['סקאלפ דמו',`${stScalp.op}/${SCALP.maxPositions}פ ${stScalp.n}ס ${(stScalp.rp>=0?'+':'')}${stScalp.rp.toFixed(0)}$ · כל דקה`,stScalp.rp>=0?C.green:C.red],
             ['נסיגת הון',eqMaxDD.toFixed(1)+'%',eqMaxDD<10?C.green:eqMaxDD<25?C.yellow:C.red],
             ['R ממוצע חי',liveR?`${liveR.avg>=0?'+':''}${liveR.avg.toFixed(3)}R (${liveR.n}) / +0.046`:'נבנה מעכשיו',liveR?(liveR.avg>=0?C.green:C.red):C.muted],
           ].map(([k,v,col])=>(
@@ -1922,7 +1924,7 @@ export default function CryptoTradingDashboard() {
       </div>
 
       <div style={{textAlign:'center' as const,color:C.muted,fontSize:'9px',marginTop:'8px',letterSpacing:'0.5px',opacity:0.7}}>
-        {supaLive?'☁ שרת בוט v31 פעיל 24/7 · מסגרת זמן 5 דקות · מחירים חיים מ-Binance':'מסחר וירטואלי · מחירים חיים מ-Binance'}
+        {supaLive?`☁ שרת בוט פעיל 24/7 · סקאלפ דמו 1x · עד ${SCALP.maxPositions} פוזיציות · ישיבת צוות כל דקה`:'מסחר וירטואלי · מחירים חיים מ-Binance'}
       </div>
     </div>
   )

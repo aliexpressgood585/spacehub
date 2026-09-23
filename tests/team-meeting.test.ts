@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { meetingDue, capDecision } from '../shared/team-meeting.ts'
 const now = 1_800_000_000_000
-assert.equal(meetingDue(now - 299_999, now), false)
-assert.equal(meetingDue(now - 300_000, now), true)
+assert.equal(meetingDue(now - 59_999, now), false)
+assert.equal(meetingDue(now - 60_000, now), true)
 assert.equal(meetingDue(0, now), true)
 assert.equal(meetingDue(now + 1000, now), false)
 assert.equal(capDecision(null, 2, false, false, 0, now), 'DERISK')

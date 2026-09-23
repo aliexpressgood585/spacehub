@@ -81,6 +81,28 @@ has been run. Do not present the house upgrade as implementing that request.
 Existing equity snapshots occur every 15 minutes, so
 review freshness tolerance is 20 minutes, not 5.
 
+## v71.1 (2026-09-23) — SCALP: 8 positions, team check every minute, news + liquidations
+Built on PR #27 (v71.0 autonomous paper SCALP). Owner spec: up to 8 concurrent,
+team check + entries every minute, 1-15 min holds, trailing stop, EMA / momentum /
+order-book imbalance / estimated liquidity sweep, public news + liquidations with
+source, time and price verification, all nine roles vote into `team_meetings`.
+Paper only, 1x, `ALLOW_LIVE_EXECUTION` untouched.
+- `shared/scalp.ts`: maxPositions 8, meetingMs 60s, minHoldMs 60s (trail ratchets
+  only after 1 min; the hard stop always fires), `liquiditySweep` (20-bar extreme
+  wicked + closed back inside), `newsCheck` (Cointelegraph/CoinDesk RSS, <=60 min
+  old, names the coin, counts only if price moved >=0.3% since publication),
+  `liqCheck` (OKX public liquidation orders, <=10 min, bankruptcy px within 3% of
+  mid, >=70% one side AND price reclaimed the flush level). Side needs a net
+  2-vote majority and may not fight EMA8/21.
+- `shared/team-meeting.ts` TEAM_INTERVAL_MS 5 min -> 60s.
+- DB: `countopen>=8` guard and the 10-second exit cron were applied live by the
+  other session without files; now recorded as migrations
+  `20260923153728_scalp_eight_positions.sql` / `20260923151832_...`. A test asserts
+  the latest ledger migration cap == SCALP.maxPositions.
+- House + dashboard show n/8, every minute, per-coin signals incl. news/liq
+  source + time + verified flag.
+NO EDGE CLAIM: v76-v105bt found no sub-hour edge after costs. This is a demo.
+
 ## v70.0 (2026-09-23 13:45 UTC) — THE HOUSE HOLDS A REAL TEAM MEETING, hourly, inside the bot
 Owner: the residents should meet, consult, decide and be autonomous.
 Built in the BOT (not the page), so the meeting is real and runs unattended:

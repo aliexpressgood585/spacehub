@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import {SCALP,validQuote,assess,exitPlan,allocation} from '../shared/scalp.ts'
+import {SCALP,validQuote,assess,exitPlan,allocation,liquiditySweep,newsCheck,liqCheck} from '../shared/scalp.ts'
 const now=1800000000000, q={bid:100,ask:100.02,ts:now,imbalance:0.4,source:'test'}
 assert.equal(validQuote(q,now),true)
 assert.equal(validQuote({...q,ts:now-21000},now),false)
@@ -24,4 +24,34 @@ assert.equal(allocation(0,1000,0,4),0)
 assert.equal(allocation(100,1000,1000,1),0)
 assert.equal(allocation(100,1000,0,0),0)
 for(let c=0;c<1000;c+=7){const n=allocation(c,1000,900,1);assert.ok(n>=0&&n*1.0005<=c+1e-9&&n<=90)}
+assert.equal(SCALP.maxPositions,8);assert.equal(SCALP.meetingMs,60000);assert.equal(SCALP.maxHoldMs,15*60000)
+// trailing only ratchets after the 1-minute minimum hold; the hard stop still fires at once
+assert.equal(exitPlan({...t,opened_at:new Date(now-30000).toISOString()},{...q,bid:102},now).stop,99)
+assert.equal(exitPlan({...t,opened_at:new Date(now-30000).toISOString()},{...q,bid:98},now).reason,'STOP')
+// liquidity sweep: last bar wicks under the 20-bar low and closes back inside
+const flat=Array.from({length:30},(_,i)=>({t:now-(30-i)*60000,o:100,h:100.5,l:99.5,c:100,v:1}))
+assert.equal(liquiditySweep([...flat.slice(0,-1),{...flat[29],l:99,c:100.2,h:100.3}]).dir,1)
+assert.equal(liquiditySweep([...flat.slice(0,-1),{...flat[29],h:101,c:99.8,o:100}]).dir,-1)
+assert.equal(liquiditySweep(flat).dir,0)
+// news: needs coin name, freshness and a >=0.3% price move since publication
+const up=Array.from({length:30},(_,i)=>({t:now-(30-i)*60000,o:100+i*.05,h:100.1+i*.05,l:99.9+i*.05,c:100.05+i*.05,v:1}))
+const n1={title:'Bitcoin ETF inflows surge',source:'test',url:'u',ts:now-20*60000}
+assert.equal(newsCheck('BTC',up,[n1],now).dir,1);assert.equal(newsCheck('BTC',up,[n1],now).verified,true)
+assert.equal(newsCheck('ETH',up,[n1],now).item,null)
+assert.equal(newsCheck('BTC',up,[{...n1,ts:now-2*3600000}],now).item,null)
+assert.equal(newsCheck('BTC',flat,[n1],now).verified,false)
+assert.equal(newsCheck('BTC',flat,[{...n1,source:''}],now).item,null)
+// liquidations: fresh, priced near the mid, one-sided, and reclaimed
+const L=(side:'long'|'short',px:number,ts=now-60000)=>({side,px,sz:1,ts,source:'okx'})
+assert.equal(liqCheck([L('long',99),L('long',99.5)],100,now).dir,1)
+assert.equal(liqCheck([L('short',101),L('short',100.5)],100,now).dir,-1)
+assert.equal(liqCheck([L('long',99),L('short',101)],100,now).dir,0)
+assert.equal(liqCheck([L('long',50),L('long',50)],100,now).valid,0)
+assert.equal(liqCheck([L('long',99,now-3600000),L('long',99)],100,now).dir,0)
+assert.equal(allocation(1000,1000,0,8),123.75)
 console.log('Scalp signal, timing, trailing and cash invariants passed')
+// DB guard, edge function and UI must agree on the position cap.
+import {readFileSync,readdirSync} from 'node:fs'
+const mig=readdirSync('supabase/migrations').filter(f=>readFileSync(`supabase/migrations/${f}`,'utf8').includes('scalp_commit_cycle')).sort().pop()!
+assert.ok(readFileSync(`supabase/migrations/${mig}`,'utf8').includes(`countopen>=${SCALP.maxPositions}`),`latest ledger migration ${mig} must cap at ${SCALP.maxPositions}`)
+console.log(`DB ledger cap matches SCALP.maxPositions (${mig})`)
