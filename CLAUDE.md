@@ -51,6 +51,20 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## v80.0 (2026-09-24) — PROVEN-ONLY voting + concentration (owner: "yes, fast")
+Owner asked for one big trade every 10 min, closed at 15 min. Told the math: $8 fee
+on $5k x 144 trades/day = ~$1,150/day (~23% of the account); fixed clock forces
+entries without a signal. Counter-proposal accepted: enter only when agents that
+already beat the fees agree, concentrate capital, hold per their proven horizon.
+Live data at the time (net of 16bps, n>=100): 5m 0/75 positive (best -10.7bps),
+15m 6/71 (best +15.6), 60m 9/66 (best +17.3), 240m 1/41 (+7.8). Could be luck.
+- `teamWeights` mode 'proven': >=3 agents with net t>=1 on their best horizon ->
+  ONLY they vote (others weight 0); else 'relative' fallback (never frozen).
+- `assess`: head-count lead counts only agents with weight>0.
+- `SCALP.maxEntries` 2: only the strongest 1-2 signals per meeting get capital
+  (~49.5% each), instead of spreading over up to 8.
+Paper 1x, ledger unchanged (per-coin 50%, 8 max open).
+
 ## 2026-09-23 22:30 UTC — ACCOUNT RESET to $5,000 on v79.0 (owner: "reset, start over, no patience to wait")
 History exported FIRST to `migration/export-v79era/` (190 trades, 494 equity rows,
 realised -$201.49 for the v71-v79 SCALP era) and committed. Then bot_trade_snapshots,

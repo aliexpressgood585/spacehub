@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import {runScalp,parseRss,UNIVERSE,BINANCE_SYM} from '../supabase/functions/trading-bot/scalp-runner.ts'
+import {SCALP} from '../shared/scalp.ts'
 const old={id:123,sym:'NEAR',side:'LONG',strategy:'ROTA',lev:1,paper_mode:true,entry_price:100,size:1,trail_sl:1,opened_at:new Date(Date.now()-3600000).toISOString()}
 let request:any;const urls:string[]=[]
 const writes:string[]=[]
@@ -11,8 +12,8 @@ try{
  return new Response(JSON.stringify(data),{status:200})}) as typeof fetch
  await runScalp(db,{balance:1000,bot_params:{}},new Date(Date.now()+50000).toISOString(),true)
  assert.equal(request.p_closes.length,1);assert.equal(request.p_closes[0].reason,'MODE_SWITCH')
- assert.equal(request.p_entries.length,8);assert.ok(request.p_minutes.length>=13)
- assert.ok(request.p_entries.every((x:any)=>!x.sym.includes('USDT')&&x.notional>0&&x.hold_min>=1&&x.hold_min<=15))
+ assert.equal(request.p_entries.length,SCALP.maxEntries);assert.ok(request.p_minutes.length>=13)
+ assert.ok(request.p_entries.every((x:any)=>!x.sym.includes('USDT')&&x.notional>0&&x.hold_min>=1&&x.hold_min<=240))
  assert.ok(urls.some(x=>x.includes('symbol=NEARUSDT&')))
  assert.ok(request.p_entries.reduce((a:number,x:any)=>a+x.notional*1.0005,0)<1101)
  assert.ok(request.p_minutes.every((m:any)=>['scout','regime','rota','donch','risk','trader','treasurer','reporter','auditor','pm','quant','compliance','execution','rsi','vwap','breakout','volume','macd','bollinger','htf','btclead','candle','funding','trendDesk','momDesk','revDesk','brkDesk','flowDesk','comboDesk'].includes(m.who)))

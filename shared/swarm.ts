@@ -131,7 +131,7 @@ export function runSwarm(b: Bar[], x: { btc?: Bar[] }): Record<string, number> {
 // merely pointed the right way). costBps = 2 x (taker fee + slippage) of SCALP,
 // asserted equal in tests (not imported: scalp.ts imports this module).
 // Sums are exponentially decayed (half-life 12h) so scores follow the current market.
-export const LEARN = { horizonMs: 5 * 60_000, halfLifeMs: 12 * 3600_000, minN: 100, lo: 0, hi: 2.5, benchT: -2, costBps: 16, horizonsMin: [5, 15, 60, 240] as readonly number[], minActive: 5 } as const
+export const LEARN = { horizonMs: 5 * 60_000, halfLifeMs: 12 * 3600_000, minN: 100, lo: 0, hi: 2.5, benchT: -2, costBps: 16, horizonsMin: [5, 15, 60, 240] as readonly number[], minActive: 3, provenT: 1 } as const
 export interface Stat { agent: string; n: number; s: number; s2: number; updated_at: string }
 export function decayStat(st: Stat | undefined, agent: string, now: number): Stat {
   if (!st) return { agent, n: 0, s: 0, s2: 0, updated_at: new Date(now).toISOString() }
@@ -181,17 +181,19 @@ export function bestHorizon(stats: Record<string, Stat>, agent: string): { h: nu
   }
   return best
 }
-// Weights never all go to zero: with fewer than minActive agents clearing costs on
-// their own, the team switches to RELATIVE mode and follows its best-performing
-// members (weight by distance from the median t) so the desk keeps trading and
-// keeps collecting real evidence. mode is reported so the page can say which.
-export function teamWeights(stats: Record<string, Stat>, agents: readonly string[]): { W: Record<string, number>; H: Record<string, number>; mode: 'absolute' | 'relative'; active: number } {
+// v80.0 PROVEN mode: once >= minActive agents have net t >= provenT on their best
+// horizon, ONLY those agents vote (everyone else weight 0) — entries happen only
+// when agents that already beat the fees agree. With fewer proven agents the team
+// falls back to RELATIVE mode (weight by distance from the median t) so the desk is
+// never frozen for good. mode is reported so the page can say which.
+export function teamWeights(stats: Record<string, Stat>, agents: readonly string[]): { W: Record<string, number>; H: Record<string, number>; mode: 'proven' | 'relative'; active: number } {
   const b = Object.fromEntries(agents.map((a) => [a, bestHorizon(stats, a)]))
   const H = Object.fromEntries(agents.map((a) => [a, b[a].h]))
   const abs = Object.fromEntries(agents.map((a) => [a, b[a].st && b[a].st!.n >= LEARN.minN ? Math.round(Math.min(LEARN.hi, Math.max(LEARN.lo, 1 + b[a].t / 2)) * 100) / 100 : 1]))
   const judged = agents.filter((a) => Number.isFinite(b[a].t))
-  const active = judged.filter((a) => b[a].t > 0).length
-  if (active >= LEARN.minActive || judged.length < LEARN.minActive) return { W: abs, H, mode: 'absolute', active }
+  const proven = judged.filter((a) => b[a].t >= LEARN.provenT), active = proven.length
+  if (active >= LEARN.minActive) return { W: Object.fromEntries(agents.map((a) => [a, proven.includes(a) ? Math.max(1, abs[a]) : 0])), H, mode: 'proven', active }
+  if (judged.length < LEARN.minActive) return { W: abs, H, mode: 'relative', active }
   const ts = judged.map((a) => b[a].t).sort((x, y) => x - y), med = ts[Math.floor(ts.length / 2)]
   const W = Object.fromEntries(agents.map((a) => [a, Number.isFinite(b[a].t) ? Math.round(Math.min(LEARN.hi, Math.max(0, 1 + (b[a].t - med) / 2)) * 100) / 100 : 1]))
   return { W, H, mode: 'relative', active }
