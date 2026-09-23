@@ -452,6 +452,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 // bundle and the backtest therefore run identical text, and the release manifest
 // pins both at once.
 import * as S from '../../../shared/strategy.ts'
+import { meetingDue, capDecision } from '../../../shared/team-meeting.ts'
 
 const BINANCE_DATA = 'https://data-api.binance.vision/api/v3'
 const BINANCE      = 'https://api.binance.com/api/v3'
@@ -541,7 +542,7 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v70.0'
+const BOT_VERSION = 'v70.1'
 // v68.0 breakers — owner spec, deliberately NOT env/shim-configurable.
 const DAY_LOSS_HALT = 0.10, DD_HALT = 0.25, LOSS_STREAK = 4, BRK_STREAK_PAUSE_MS = 3_600_000, ERR_HALT = 10
 const RELEASE_SHA = String((globalThis as any).__RELEASE_SHA ?? 'unpinned')
@@ -3051,7 +3052,7 @@ Deno.serve(async (req) => {
     if (breakerPaused) dayLossPaused = true   // same gates as the day brake
 
     // ════ v70.0 TEAM MEETING (owner: "the house residents meet, decide, act") ═
-    // Once an hour every resident of the dashboard house reads ITS OWN part of
+    // Every five minutes every resident of the dashboard house reads ITS OWN part of
     // the bot's real data and votes. The team may take exactly one autonomous
     // action, and only in the SAFE direction: cap ROTA's vol target at the
     // OOS-validated 0.5 (v104bt) when >= 2 residents vote to de-risk, and lift
@@ -3060,24 +3061,26 @@ Deno.serve(async (req) => {
     // to `team_meetings` so the house can show who said what, and why.
     let teamVolCap: number | null = Number.isFinite(Number(state.team_vol_cap)) && Number(state.team_vol_cap) > 0 ? Number(state.team_vol_cap) : null
     try {
-      const {data:lastMeet} = await supabase.from('team_meetings').select('ts').order('ts',{ascending:false}).limit(1)
+      const {data:lastMeet} = await supabase.from('team_meetings').select('ts').order('ts',{ascending:false}).limit(1).throwOnError()
       const lastT = lastMeet?.[0]?.ts ? new Date(lastMeet[0].ts).getTime() : 0
-      if (Date.now() - lastT >= 60 * 60_000) {
+      if (meetingDue(lastT, Date.now())) {
         type Vote = 'derisk' | 'ok' | 'hold' | 'sleep'
-        const minutes: { who: string; says: string; vote: Vote }[] = []
-        const say = (who: string, says: string, vote: Vote) => minutes.push({ who, says, vote })
-        const {data:eqAll} = await supabase.from('bot_equity').select('equity').order('ts',{ascending:false}).limit(3000)
+        const minutes: { who: string; says: string; vote: Vote; checked_at: string }[] = []
+        const checkedAt = new Date().toISOString()
+        const say = (who: string, says: string, vote: Vote) => minutes.push({ who, says, vote, checked_at: checkedAt })
+        const {data:eqAll} = await supabase.from('bot_equity').select('equity,ts').order('ts',{ascending:false}).limit(3000).throwOnError()
+        if (!eqAll?.length || Date.now() - new Date(eqAll[0].ts).getTime() > 20*60_000) throw new Error('Team review: equity data missing or stale')
         const eqs = (eqAll||[]).map((r:any)=>Number(r.equity)).filter((x:number)=>x>0)
         const eqNow = eqs[0] ?? balance, peakEq = eqs.length ? Math.max(...eqs) : eqNow
         const dd = peakEq > 0 ? 1 - eqNow / peakEq : 0
-        const {data:last10} = await supabase.from('bot_trades').select('pnl').neq('status','OPEN').not('closed_at','is',null).order('closed_at',{ascending:false}).limit(10)
+        const {data:last10} = await supabase.from('bot_trades').select('pnl').neq('status','OPEN').not('closed_at','is',null).order('closed_at',{ascending:false}).limit(10).throwOnError()
         const l10 = (last10||[]).map((r:any)=>Number(r.pnl)||0), l10sum = l10.reduce((a:number,b:number)=>a+b,0)
-        const {data:openNow} = await supabase.from('bot_trades').select('sym,side,entry_price,size,lev').eq('status','OPEN')
+        const {data:openNow} = await supabase.from('bot_trades').select('sym,side,entry_price,size,lev,strategy').eq('status','OPEN').throwOnError()
         const expo = (openNow||[]).reduce((a:number,x:any)=>a+Number(x.entry_price)*Number(x.size),0)
-        const {count:errH} = await supabase.from('bot_errors').select('id',{count:'exact',head:true}).gte('ts', new Date(Date.now()-60*60_000).toISOString())
+        const {count:errH} = await supabase.from('bot_errors').select('id',{count:'exact',head:true}).gte('ts', new Date(Date.now()-60*60_000).toISOString()).throwOnError()
         const feedOk = Object.values(_feedStats).reduce((a:number,f:any)=>a+f.ok,0), feedFail = Object.values(_feedStats).reduce((a:number,f:any)=>a+f.fail,0)
         // איתן — data
-        if (feedOk === 0 && feedFail > 0) say('scout', `אין נתונים תקינים בסבב הזה (${feedFail} כשלונות). אני לא סומך על המחירים — מציע להקטין.`, 'derisk')
+        if (feedOk === 0) say('scout', `אין נתונים תקינים בסבב הזה (${feedFail} כשלונות). אני לא סומך על המחירים — מציע להקטין.`, 'derisk')
         else say('scout', `הנתונים תקינים: ${feedOk} קריאות הצליחו${feedFail ? `, ${feedFail} נכשלו וגובו` : ''}.`, 'ok')
         // נועה — regime
         say('regime', btcRegime === 'TRENDING' ? 'השוק במגמה. זה המצב שבו מומנטום עובד הכי טוב.' : btcRegime === 'SQUEEZE' ? 'השוק מתכווץ לפני תנועה. אין סיבה לשנות עכשיו.' : 'השוק מדשדש. זה מצב קשה למומנטום, אבל זה לא נימוק לשנות לבד.', 'hold')
@@ -3089,34 +3092,37 @@ Deno.serve(async (req) => {
         else say('risk', `ירידה מהשיא ${(dd*100).toFixed(1)}%. עוקבת, עוד לא סיבה לפעול.`, 'hold')
         // אבי — audit
         if (l10.length < 5) say('auditor', `רק ${l10.length} עסקאות סגורות. מדגם קטן מדי לשפוט.`, 'hold')
-        else if (l10sum < -0.03 * eqNow) say('auditor', `10 העסקאות האחרונות הפסידו $${(-l10sum).toFixed(0)}, יותר מ-3% מהחשבון. מצביע להקטין.`, 'derisk')
-        else if (l10sum > 0) say('auditor', `10 העסקאות האחרונות ברווח של $${l10sum.toFixed(0)}.`, 'ok')
-        else say('auditor', `10 העסקאות האחרונות בהפסד קטן ($${l10sum.toFixed(0)}). בתוך הרעש.`, 'hold')
+        else if (l10sum < -0.03 * eqNow) say('auditor', `${l10.length} העסקאות האחרונות הפסידו $${(-l10sum).toFixed(0)}, יותר מ-3% מהחשבון. מצביע להקטין.`, 'derisk')
+        else if (l10sum > 0) say('auditor', `${l10.length} העסקאות האחרונות ברווח של $${l10sum.toFixed(0)}.`, 'ok')
+        else say('auditor', `${l10.length} העסקאות האחרונות בהפסד קטן ($${l10sum.toFixed(0)}). בתוך הרעש.`, 'hold')
         // רוני — execution
         if ((errH ?? 0) > 0) say('trader', `היו ${errH} שגיאות בשעה האחרונה. אני מציע להקטין עד שזה מתברר.`, 'derisk')
-        else say('trader', 'כל הפקודות בוצעו בלי שגיאות בשעה האחרונה.', 'ok')
+        else say('trader', 'בדקתי את יומן התקלות: אין שגיאות רשומות בשעה האחרונה. זה אינו אישור שנשלחו פקודות חדשות.', 'ok')
         // שירה — treasury
         say('treasurer', `מזומן פנוי $${balance.toFixed(0)}, חשיפה ${eqNow > 0 ? (expo/eqNow*100).toFixed(0) : 0}% מההון.`, 'hold')
         // עומר — DONCH4H is off
-        say('donch', DONCH_ENABLED ? 'סורק פריצות כרגיל.' : 'אני כבוי כרגע (רק הרוטציה פעילה).', 'sleep')
+        say('donch', DONCH_ENABLED ? 'בדקתי: אסטרטגיית הפריצות מופעלת; סריקה לפי סגירת נר 4 שעות.' : `בדקתי את מצב הפריצות: האסטרטגיה כבויה, ${(openNow||[]).filter((t:any)=>t.strategy==='DONCH4H').length} פוזיציות קיימות. אין פתיחת עסקאות מהאסטרטגיה הזו.`, 'hold')
         const derisk = minutes.filter(m => m.vote === 'derisk').length
         const riskOk = minutes.find(m => m.who === 'risk')?.vote === 'ok', auditOk = minutes.find(m => m.who === 'auditor')?.vote === 'ok'
         const capSince = state.team_cap_since ? new Date(state.team_cap_since).getTime() : 0
         const before = teamVolCap
-        let decision = 'HOLD', action = 'ממשיכים כרגיל. אין שינוי.'
-        if (derisk >= 2 && teamVolCap === null) {
-          teamVolCap = 0.5; decision = 'DERISK'
+        const nextDecision = capDecision(teamVolCap, derisk, riskOk, auditOk, capSince, Date.now())
+        let decision = 'HOLD', action = 'הבדיקות הושלמו. ממשיכים לפי האסטרטגיה; אין שינוי בגודל הפוזיציות.'
+        if (nextDecision === 'DERISK') {
+          decision = 'DERISK'
           action = `${derisk} חברי צוות הצביעו להקטין. מהרוטציה הבאה הפוזיציות יהיו קטנות יותר (יעד תנודתיות 0.5).`
-          await supabase.from('bot_state').update({ team_vol_cap: 0.5, team_cap_since: new Date().toISOString() }).eq('id',1)
-        } else if (teamVolCap !== null && riskOk && auditOk && Date.now() - capSince >= 24*3600_000) {
-          teamVolCap = null; decision = 'RESTORE'
-          action = 'הסיכון והביקורת תקינים כבר יממה. חוזרים לגודל הרגיל מהרוטציה הבאה.'
-          await supabase.from('bot_state').update({ team_vol_cap: null, team_cap_since: null }).eq('id',1)
+          await supabase.from('bot_state').update({ team_vol_cap: 0.5, team_cap_since: new Date().toISOString() }).eq('id',1).select('id').single().throwOnError()
+          teamVolCap = 0.5
+        } else if (nextDecision === 'RESTORE') {
+          decision = 'RESTORE'
+          action = 'חלפה יממה מההקטנה, ובבדיקה הנוכחית הסיכון והביקורת תקינים ללא הצבעות להקטנה. חוזרים לגודל הרגיל מהרוטציה הבאה.'
+          await supabase.from('bot_state').update({ team_vol_cap: null, team_cap_since: null }).eq('id',1).select('id').single().throwOnError()
+          teamVolCap = null
         } else if (teamVolCap !== null) {
-          action = `ממשיכים בגודל המוקטן. ${derisk ? `${derisk} עדיין מצביעים להקטין.` : 'מחכים ליממה נקייה לפני שחוזרים.'}`
+          action = `ממשיכים בגודל המוקטן. ${derisk ? `${derisk} עדיין מצביעים להקטין.` : 'מחכים ל-24 שעות מההקטנה ולבדיקה תקינה לפני שחוזרים.'}`
         }
         say('reporter', `רשמתי: ${action}`, 'hold')
-        await supabase.from('team_meetings').insert({ decision, action, cap_before: before, cap_after: teamVolCap, minutes })
+        await supabase.from('team_meetings').insert({ decision, action, cap_before: before, cap_after: teamVolCap, minutes }).throwOnError()
         log.push(`TEAM MEETING ${decision}: ${derisk} derisk votes, cap ${before ?? 'none'} -> ${teamVolCap ?? 'none'}`)
       }
     } catch (e) { await logErr('team_meeting', e) }
