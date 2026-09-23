@@ -639,8 +639,8 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
       </div>
 
       {String(snap?.manifest?.enabled_sleeves ?? '').includes('SCALP') && <section className="bh-meet">
-        <h2>מסחר דמו אוטונומי · {(snap?.open ?? []).filter(t=>t.strategy==='SCALP').length}/{SCALP.maxPositions} פוזיציות · כל דקה · 1–15 דקות</h2>
-        <p className="bh-mnote">הסכמה אלגוריתמית → בדיקת עלויות וסיכון → ביצוע. בדיקת יציאות כל 10 שניות; סגירה מתוכננת ב-15 דקות גם בהפסד. השהיות או נתונים חסרים עלולים לעכב אותה. סטופ נגרר אינו מבטיח רווח. עמלות 0.05% לכל צד, החלקה 0.03% ומימון מדומה יחסי. אותות: EMA8/21, מומנטום, חוסר איזון בספר, liquidity sweep משוער, חדשות ציבוריות (Cointelegraph/CoinDesk) וליקווידציות OKX — נספרים רק אם טריים ומאומתים מול המחיר.</p>
+        <h2>מסחר דמו אוטונומי · {(snap?.open ?? []).filter(t=>t.strategy==='SCALP').length}/{SCALP.maxPositions} פוזיציות · כל דקה · החזקה גמישה 1–15 דקות</h2>
+        <p className="bh-mnote">הסכמה אלגוריתמית → בדיקת עלויות וסיכון → ביצוע. בדיקת יציאות כל 10 שניות. זמן ההחזקה נקבע בכניסה לפי התנאים (1–15 דק׳): מגמה חזקה = יותר זמן, שוק מהיר = פחות. בכל ישיבה הצוות יכול לסגור מוקדם אם הוא מתהפך, או להאריך עסקה מרוויחה עד 15 דק׳; עסקה מפסידה נסגרת בזמן המתוכנן. השהיות או נתונים חסרים עלולים לעכב אותה. סטופ נגרר אינו מבטיח רווח. עמלות 0.05% לכל צד, החלקה 0.03% ומימון מדומה יחסי. אותות: EMA8/21, מומנטום, חוסר איזון בספר, liquidity sweep משוער, חדשות ציבוריות (Cointelegraph/CoinDesk) וליקווידציות OKX — נספרים רק אם טריים ומאומתים מול המחיר.</p>
         <Intel snap={snap} now={now} />
         <p className="bh-mnote">הפוזיציות עצמן מוצגות חיות ברצפת המסחר למעלה.</p>
       </section>}
@@ -676,6 +676,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
 interface Tick { px: number; chg: number; dir: number; t: number }
 const UNIVERSE = ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'ADA', 'LINK', 'AVAX']
 const STEP_MS = 700
+const EXIT_HE: Record<string, string> = { STOP: 'סטופ', TIMEOUT: 'תקרת 15 דק׳', PLANNED: 'זמן מתוכנן', FLIP: 'הצוות התהפך', MODE_SWITCH: 'מעבר מצב', LEDGER_TEST: 'בדיקה' }
 const ROUND: Record<number, string> = { 1: 'סבב 1 · כל סוכן מצביע מהתחום שלו', 2: 'סבב 2 · התנגדויות ורקורד מול מנהלת התיק', 3: 'סבב 3 · החלטה' }
 const fmtPx = (v: number) => (!Number.isFinite(v) ? '—' : v >= 1000 ? v.toLocaleString('en-US', { maximumFractionDigits: 1 }) : v >= 1 ? v.toFixed(3) : v.toFixed(5))
 const pct = (v: number, d = 2) => (Number.isFinite(v) ? `${v >= 0 ? '+' : ''}${(v * 100).toFixed(d)}%` : '—')
@@ -727,13 +728,13 @@ function Floor({ snap, ticks, now }: { snap: Snap | null; ticks: Record<string, 
         <div key={String(t.id)} className={`bh-pos ${Number.isFinite(u) ? (u >= 0 ? 'win' : 'lose') : ''}`}>
           <div className="bh-pos-top"><b>{String(t.sym)}</b><span className={dir > 0 ? 'bh-l' : 'bh-s'}>{dir > 0 ? 'LONG' : 'SHORT'}</span><em>{String(t.strategy)}</em><strong dir="ltr">{Number.isFinite(u) ? `${usd(u)} (${pct(upc)})` : 'אין מחיר חי'}</strong></div>
           <div className="bh-pos-mid" dir="ltr"><span>entry {fmtPx(e)}</span><span>mark {fmtPx(mark)}</span><span>stop {fmtPx(stop)}{Number.isFinite(toStop) ? ` (${pct(toStop)})` : ''}</span></div>
-          {t.strategy === 'SCALP' && <div className="bh-bar"><i style={{ width: `${Math.min(100, (held / SCALP.maxHoldMs) * 100)}%` }} /><span dir="ltr">{Math.floor(held / 60_000)}:{String(Math.floor((held % 60_000) / 1000)).padStart(2, '0')} / 15:00</span></div>}
+          {t.strategy === 'SCALP' && (() => { const plan = Math.max(1, Math.min(15, num((t.scalp_meta as Row | null)?.hold_min) || 15)) * 60_000; const over = held > plan; return <div className={`bh-bar${over ? ' ext' : ''}`}><i style={{ width: `${Math.min(100, (held / plan) * 100)}%` }} /><span>{over ? 'הוארך · ' : ''}<b dir="ltr">{Math.floor(held / 60_000)}:{String(Math.floor((held % 60_000) / 1000)).padStart(2, '0')} / {plan / 60_000}:00</b>{over ? ' (עד 15:00)' : ' מתוכנן'}</span></div> })()}
         </div>)) : <p className="bh-mnote">אין פוזיציות פתוחות כרגע. הסיבה מופיעה בהחלטת מנהלת התיק בישיבה.</p>}
     </div>
     <div className="bh-tape2">
       <span className="bh-eyebrow">TRADE TAPE · עסקאות אחרונות</span>
-      {closed.slice(0, 8).map((t) => { const hold = (ts(t.closed_at) - ts(t.opened_at)) / 60_000; const why = String((t.scalp_meta as Row | null)?.exit_reason ?? t.status ?? ''); return (
-        <div key={String(t.id)} className="bh-fill"><time>{new Date(ts(t.closed_at)).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time><b>{String(t.sym)}</b><span className={t.side === 'LONG' ? 'bh-l' : 'bh-s'}>{t.side === 'LONG' ? '▲' : '▼'}</span><em>{why}{Number.isFinite(hold) ? ` · ${hold.toFixed(1)} דק׳` : ''}</em><strong dir="ltr" className={num(t.pnl) >= 0 ? 'g' : 'r'}>{usd(num(t.pnl))}</strong></div>) })}
+      {closed.slice(0, 8).map((t) => { const hold = (ts(t.closed_at) - ts(t.opened_at)) / 60_000; const why0 = String((t.scalp_meta as Row | null)?.exit_reason ?? t.status ?? ''); const why = EXIT_HE[why0] ?? why0; const pl = num((t.scalp_meta as Row | null)?.hold_min); return (
+        <div key={String(t.id)} className="bh-fill"><time>{new Date(ts(t.closed_at)).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time><b>{String(t.sym)}</b><span className={t.side === 'LONG' ? 'bh-l' : 'bh-s'}>{t.side === 'LONG' ? '▲' : '▼'}</span><em>{why}{Number.isFinite(hold) ? ` · ${hold.toFixed(1)} דק׳` : ''}{Number.isFinite(pl) ? ` (תוכנן ${pl})` : ''}</em><strong dir="ltr" className={num(t.pnl) >= 0 ? 'g' : 'r'}>{usd(num(t.pnl))}</strong></div>) })}
       {!closed.length && <p className="bh-mnote">עוד אין עסקאות סגורות.</p>}
     </div>
     <p className="bh-mnote">מחיר חי: OKX (תצוגה בלבד). הבוט מסמן ונסגר לפי ההזנה שלו בשרת, כך שייתכנו הבדלים קטנים. מסחר דמו 1x, ללא הבטחת רווח.</p>
@@ -880,6 +881,7 @@ const CSS = `
 .bh-l { color:#00d492; font-weight:800; font-size:11px; } .bh-s { color:#ffb454; font-weight:800; font-size:11px; }
 .bh-pos-mid { display:flex; gap:10px; flex-wrap:wrap; font-size:11px; color:#9cb1c9; font-variant-numeric:tabular-nums; }
 .bh-bar { position:relative; height:14px; background:#13223a; border-radius:7px; overflow:hidden; }
+.bh-bar.ext i { background:linear-gradient(90deg,#f0b44c,#00d492); }
 .bh-bar i { position:absolute; inset:0 auto 0 0; background:linear-gradient(90deg,#1f6fcc,#f0b44c); transition:width 1s linear; }
 .bh-bar span { position:relative; display:block; text-align:center; font-size:10px; line-height:14px; color:#effaff; font-variant-numeric:tabular-nums; }
 .bh-tape2 { display:grid; gap:4px; }

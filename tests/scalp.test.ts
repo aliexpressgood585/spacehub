@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import {SCALP,validQuote,assess,exitPlan,allocation,liquiditySweep,newsCheck,liqCheck} from '../shared/scalp.ts'
+import {SCALP,validQuote,assess,exitPlan,allocation,liquiditySweep,newsCheck,liqCheck,planHold} from '../shared/scalp.ts'
 const now=1800000000000, q={bid:100,ask:100.02,ts:now,imbalance:0.4,source:'test'}
 assert.equal(validQuote(q,now),true)
 assert.equal(validQuote({...q,ts:now-21000},now),false)
@@ -49,6 +49,20 @@ assert.equal(liqCheck([L('long',99),L('short',101)],100,now).dir,0)
 assert.equal(liqCheck([L('long',50),L('long',50)],100,now).valid,0)
 assert.equal(liqCheck([L('long',99,now-3600000),L('long',99)],100,now).dir,0)
 assert.equal(allocation(1000,1000,0,8),123.75)
+// v74.0 adaptive hold
+assert.equal(planHold(1,0.2,0,0.001),5); assert.equal(planHold(1,0.5,1,0.001),13); assert.equal(planHold(1,0.2,-1,0.003),1)
+assert.equal(planHold(-1,-0.5,-1,0.0005),13); assert.ok(planHold(1,1,1,0)<=15)
+const at=(min:number)=>new Date(now-min*60000).toISOString()
+const h5={entry_price:100,side:'LONG',trail_sl:99,opened_at:at(6),scalp_meta:{stop_pct:.004,hold_min:5}}
+assert.equal(exitPlan(h5,{...q,bid:99.9},now).reason,'PLANNED')                         // loser past plan: out
+assert.equal(exitPlan(h5,{...q,bid:100.5},now).close,false)                             // winner, no fresh view: wait for the meeting
+assert.equal(exitPlan(h5,{...q,bid:100.5},now,{side:1,weighted:0.3}).reason,'EXTEND')   // winner the team backs: extended
+assert.equal(exitPlan(h5,{...q,bid:100.5},now,{side:0,weighted:0}).reason,'PLANNED')   // winner nobody backs: out
+assert.equal(exitPlan({...h5,opened_at:at(2)},{...q,bid:100.5},now,{side:-1,weighted:-0.3}).reason,'FLIP') // team flips: out early
+assert.equal(exitPlan({...h5,opened_at:at(0.5)},{...q,bid:100.5},now,{side:-1,weighted:-0.3}).close,false) // never inside the first minute
+assert.equal(exitPlan({...h5,opened_at:at(16)},{...q,bid:100.5},now,{side:1,weighted:0.9}).reason,'TIMEOUT') // 15 min is a hard cap
+assert.equal(exitPlan({...h5,opened_at:at(0.2)},{...q,bid:98},now).reason,'STOP')      // stop always fires
+assert.equal(exitPlan({...h5,scalp_meta:{stop_pct:.004,hold_min:1},opened_at:at(1.1)},{...q,bid:99.95},now).reason,'PLANNED') // a 1-minute trade
 console.log('Scalp signal, timing, trailing and cash invariants passed')
 // DB guard, edge function and UI must agree on the position cap.
 import {readFileSync,readdirSync} from 'node:fs'
