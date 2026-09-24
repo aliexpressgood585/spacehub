@@ -185,15 +185,19 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean,rotaS
   const VOTERS=[...DIRECTIONAL,...SWARM.map(x=>x.id),...INFO_IDS,...liveF.map(r=>OOS(r.id))]
   // v86.0 promotion = net edge (teamWeights) + stability + unique contribution (refineWeights, on the latest stored votes)
   const tw0=teamWeights(stats,VOTERS)
-  let lastVotes:Record<string,Record<string,number>>={}
-  if(due)try{const {data:ls}=await db.from('agent_snapshots').select('votes').order('ts',{ascending:false}).limit(1).throwOnError();lastVotes=ls?.[0]?.votes??{}}catch{}
-  const ref=refineWeights(stats,tw0,lastVotes)
+  // v86.2: pooled votes of the latest 10 snapshots (key snap:sym) + the previous statuses for hysteresis
+  let lastVotes:Record<string,Record<string,number>>={},prev:Record<string,AgentStatus>={}
+  if(due)try{
+    const [{data:ls},{data:pr}]=await Promise.all([db.from('agent_snapshots').select('votes').order('ts',{ascending:false}).limit(10).throwOnError(),db.from('market_cache').select('data').eq('key','agent_status').throwOnError()])
+    ;(ls??[]).forEach((r:any,i:number)=>{for(const [sym,v] of Object.entries(r.votes??{}))lastVotes[`${i}:${sym}`]=v as Record<string,number>})
+    prev=pr?.[0]?.data??{}
+  }catch{}
+  const ref=refineWeights(stats,tw0,lastVotes,prev)
   const team={...tw0,W:ref.W},W=team.W,H=team.H
   // promotions / demotions / duplicates as events (diffed against the previous meeting's statuses)
   let agentEv=0
   if(due)try{
-    const {data:pr}=await db.from('market_cache').select('data').eq('key','agent_status').throwOnError()
-    const prev:Record<string,AgentStatus>=pr?.[0]?.data??{},evs:any[]=[]
+    const evs:any[]=[]
     const tOf=(a:string)=>{const h=H[a]??5,st=stats[hKey(a,h)];return st?+hT(st,h).toFixed(2):null}
     if(Object.keys(prev).length)for(const [a,s1] of Object.entries(ref.status)){const s0=prev[a];if(s0&&s0!==s1)evs.push({agent:a,from_status:s0,to_status:s1,t:tOf(a),horizon_min:H[a]??null,detail:s1==='duplicate'?`duplicate of ${ref.dupOf[a]}`:s1==='unstable'?'best horizon not confirmed by its neighbour':null})}
     if(evs.length)await db.from('agent_events').insert(evs.slice(0,200)).throwOnError()

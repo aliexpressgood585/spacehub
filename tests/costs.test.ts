@@ -50,3 +50,9 @@ assert.ok(corrScale(r,1,[{ret:r,side:1,weight:0.2}]).mult<1&&corrScale(r,1,[{ret
  assert.ok(m.includes("eq*0.005*rmult/stop")&&m.includes("'costs',x->'costs'")&&m.includes("x->>'funding_rate'"))
  assert.ok(m.includes('create table if not exists public.trade_decisions')&&m.includes('create table if not exists public.agent_events'))}
 console.log('Costs: one model, profit gate, graded risk, correlation, de-dup/stability, ledger migration passed')
+// v86.2 hysteresis: a pair at 85% agreement is not a NEW duplicate, but an existing duplicate stays one
+{const mk=(n:number,m:number):Stat=>({agent:'x',n,s:m*n,s2:(m*m+25)*n,ev:n,updated_at:new Date().toISOString()})
+ const st:Record<string,Stat>={'a@60':mk(3000,12),'b@60':mk(3000,9)},tw={W:{a:2,b:1.5},H:{a:60,b:60},mode:'relative' as const}
+ const v:Record<string,Record<string,number>>={};for(let i=0;i<20;i++)v['S'+i]={a:1,b:i<17?1:-1}   // 85% agreement
+ assert.equal(refineWeights(st,tw,v).status.b,'relative','85% < 90% entry bar');assert.equal(refineWeights(st,tw,v,{b:'duplicate'}).status.b,'duplicate','85% >= 80% release bar: stays')}
+console.log('Costs v86.2: duplicate hysteresis passed')
