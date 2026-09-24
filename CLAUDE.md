@@ -95,6 +95,11 @@ DEPLOYED 12:31 UTC: PR #52 (cbeb829a), function v51, manifest v83.1 SCALP,ROTA p
 false. Verified 12:50: 0 errors, heartbeat current, 8 meetings/10 min; SCALP already down to its
 share — cash $2,460 (was $32) as 4h holds closed and re-entries capped at 49%; equity $4,841.97;
 next ROTA attempt ~13:31 UTC (rebalanced_at set back to 01:31). Factory 100 trial / 50 retired.
+12:55 UTC (owner: "check if the rotation bought"; rebalanced_at set back 12h to run at once, cash was
+$2,755): FIRST ROTA BASKET OPENED — ARB LONG $225, CRV SHORT $87, TRX SHORT $292; NEAR skipped
+(SCALP already long NEAR). Only ~$604 = 12.5% of equity, not 50%: vol target 0.5 vs basket vol
+-> size x0.43 on top of the 14%/slot clamp; the share is a CEILING, the vol target does the sizing
+(v104bt design). Cash after: $2,151. 0 errors.
 
 ## v82.0 (2026-09-24) — new-information agents + autonomous AGENT FACTORY (owner: "10,000 agents"; then "both, fast")
 Owner asked for 10,000 agents. Told plainly: 10k x 4 horizons would make ~250 agents look "proven" by
