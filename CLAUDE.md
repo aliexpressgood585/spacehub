@@ -83,7 +83,33 @@ kline fetchers did the same with 16 workers. Both CANCELLED at 16:48 UTC. Rewrit
 with HTTP/2 multiplexing (`curl -Z --parallel-max 64 --config <url/output pairs>`): fetch-aux.sh,
 fetch-1h.sh (fetch-15m.sh now = `BT_IV=15m fetch-1h.sh`). Smoke from the sandbox: 68 aux files in 3s,
 formats parse (metrics 5-min rows, funding 8h, premium 1h). fetch-5m.sh (360 files) left as is.
-STATUS: see the RESULT line below once the (re-dispatched) ladder run lands.
+RUN 36030368460 (dispatch 16:52, downloads 9 min, compute 35 min, done 17:37 UTC). **RESULT — 1 PASS out of 28,732.**
+    tf    coins  bars   tested  IS-pass(gen0..4)      VAL-pass  FINAL-reached  PASS
+    5m     10  315,648  2,612   11/22/33/42/52        3            3           0   (v85.4 had 0 IS passers: the new features do bite in-sample)
+    15m    40  105,216  2,612   12/21/31/53/49        0            0           0
+    30m    40  105,216  2,612   10/19/39/57/57        0            0           0
+    1h     40   52,584  2,612   35/47/83/81/75       20           20           0
+    2h     40   26,292  2,612   73/103/101/80/78     59           58 + 1       **1**
+    4h    289   13,146  2,612   22/42/81/89/72       10           10           0
+    8h    289    6,573  2,612   24/36/76/78/77       40           40           0
+    12h   289    4,382  2,612   22/39/65/76/85        9            9           0
+    1d    289    2,191  2,612   35/38/55/61/48        9            9           0
+    3d    289      730  2,612   16/29/64/72/50        8            8           0
+    1w    158      312  2,612   0                     0            0           0
+  THE PASSER: `g2h_vr2f_dd301r_wkd` — 2h bars, volume spike ≥2x (follow the bar) AND ≥1% below the 30-bar high
+  (dir −1 on a negative value = LONG: buy the dip on a volume burst), WEEKDAYS only, hold 8h. IS +156.6 /
+  +3.4 / +17.4 / +14.4 bps (t 2.17), VAL t 2.22, FINAL +56 bps t 2.29 on n=2,575 (k=1.8). Bred: gen 0
+  vr1f+z601p5f (IS t 1.66) → gen 1 vr2f+z60 (1.99) → gen 2 vr2f+dd30 (2.95, FINAL t 1.46) → gen 3 + weekday
+  gate (PASS). Siblings of the same family reached the FINAL at t 1.84 / 1.46 / 1.29 / 1.02.
+  **READ IT AGAINST THE LOOKS: 158 genomes reached the FINAL; at t≥2 luck alone passes ≈3.6 of them. We got 1
+  — FEWER than chance.** So this pass is fully consistent with noise, and the family's clustering (five 2h
+  dd30 variants near the bar) is what a real-but-thin effect AND what selection on a shared sample both look
+  like. It is NOT a proven edge; it is exactly what the live gauntlet exists for: the bot seeds it into live
+  TRIAL on 2h bars (market_cache 'gym' cleared at 17:40 so the next meeting fetches it), where it must earn
+  oos and live on data nobody has looked at. Nothing else changes; nothing trades on it.
+  Also visible: the 1w set ran on 158 coins (young perps dropped) and produced 0 IS passers — 312 bars is
+  too few for this test; the 5m set went from 0 to 11 gen-0 IS passers with the widened vocabulary, and
+  still 0 through VAL/FINAL.
 
 ## v85.5 (2026-09-24) — THE VOCABULARY WIDENED TO THE MAXIMUM THE ARCHIVE ALLOWS (owner: "תרחיב את 1 למקסימום, זריז")
 Nine new features, all testable offline AND fed live; only the order book (`ob`) stays untestable:
