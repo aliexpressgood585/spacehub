@@ -83,6 +83,14 @@ $5,000 (-3.3%). Book: 8 open, all planned 240 min (proven agents' best horizon i
 5. HOUSE: `Factory` panel (counts per stage, promoted list with notes), info agents in the league,
    league ranked on best horizon with the horizon column, names for the `info`/`factory` roles.
 Tests: rota-runner.test.ts new; swarm/factory/scalp/scalp-runner updated; suite green; app build OK.
+DEPLOYED 12:24 UTC: migration applied first, PR #51 (a7c852ef), function v50, manifest v83.0
+SCALP,ROTA paper true / live false, 0 errors. First ROTA ranking 12:26: vol_scale 0.43, long
+NEAR ARB / short CRV TRX; NEAR skipped (SCALP holds it), the rest skipped for cash ($32 — SCALP
+still at its old 99%). agent_stats.ev populating (521 rows); factory 100 trial / 46 retired.
+v83.1 (same hour): (a) `starved` = any cash skip -> retry in 1h (the 12:26 cycle had a 'held' skip
+too, so the all-cash test missed it; rebalanced_at set back by SQL to retry within the hour);
+(b) factory judges on SNAPSHOTS not coin-votes: trialMinEv 60 (1h), oosMinEv 120 (2h),
+trialRetireT -0.5 — 46 retirements in 90 min were noise on ~10-minute samples.
 
 ## v82.0 (2026-09-24) — new-information agents + autonomous AGENT FACTORY (owner: "10,000 agents"; then "both, fast")
 Owner asked for 10,000 agents. Told plainly: 10k x 4 horizons would make ~250 agents look "proven" by

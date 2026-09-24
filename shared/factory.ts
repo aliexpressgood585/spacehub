@@ -17,7 +17,10 @@
 import { hT, hKey, LEARN, type Stat } from './swarm.ts'
 import type { Bar } from './agents.ts'
 
-export const FACTORY = { pop: 100, spawnPerMeeting: 20, trialMinN: 300, trialT: 1.0, trialMaxH: 12, oosMinN: 200, liveT: 2.5, oosMaxH: 24, liveDropT: 1.0 } as const
+// v83.1: minEv = scored SNAPSHOTS (≈ minutes), not coin-votes — 300 coin-votes arrive in ~10 minutes and
+// a coin-flip agent is then retired or promoted on noise; an hour (trial) / two (oos) is the floor.
+// trialRetireT: a trial agent is dropped at t <= -0.5, not at the first negative reading.
+export const FACTORY = { pop: 100, spawnPerMeeting: 20, trialMinN: 300, trialMinEv: 60, trialT: 1.0, trialRetireT: -0.5, trialMaxH: 12, oosMinN: 200, oosMinEv: 120, liveT: 2.5, oosMaxH: 24, liveDropT: 1.0 } as const
 export type Stage = 'trial' | 'oos' | 'live' | 'retired'
 export type Gene = [key: string, th: number, dir: 1 | -1]
 export interface Genome { a: Gene; b?: Gene }
@@ -104,7 +107,7 @@ export function spawn(n: number, seed: number, taken: Set<string>, parents: Geno
 // best horizon of the TRIAL stats (bare id), overlap-corrected t, with the factory's own n bar
 function trialBest(stats: Record<string, Stat>, id: string): { h: number; t: number; n: number } {
   let best = { h: LEARN.horizonsMin[0], t: -Infinity, n: 0 }
-  for (const h of LEARN.horizonsMin) { const st = stats[hKey(id, h)]; if (!st || st.n < FACTORY.trialMinN) continue; const t = hT(st, h); if (t > best.t) best = { h, t, n: st.n } }
+  for (const h of LEARN.horizonsMin) { const st = stats[hKey(id, h)]; if (!st || st.n < FACTORY.trialMinN || (st.ev ?? 0) < FACTORY.trialMinEv) continue; const t = hT(st, h); if (t > best.t) best = { h, t, n: st.n } }
   return best
 }
 // one lifecycle step for one row; returns the changed row or null
@@ -113,19 +116,19 @@ export function step(row: FactoryRow, stats: Record<string, Stat>, now: number):
   if (row.stage === 'trial') {
     const b = trialBest(stats, row.id)
     if (Number.isFinite(b.t) && b.t >= FACTORY.trialT) return { ...row, stage: 'oos', stage_at: at, h: b.h, note: `trial t=${b.t.toFixed(2)} @${b.h}m n=${Math.round(b.n)}` }
-    if (Number.isFinite(b.t) && b.t < 0) return { ...row, stage: 'retired', stage_at: at, note: `trial t=${b.t.toFixed(2)}` }
+    if (Number.isFinite(b.t) && b.t <= FACTORY.trialRetireT) return { ...row, stage: 'retired', stage_at: at, note: `trial t=${b.t.toFixed(2)}` }
     if (ageH >= FACTORY.trialMaxH) return { ...row, stage: 'retired', stage_at: at, note: 'trial timeout' }
     return null
   }
   if (row.stage === 'oos' || row.stage === 'live') {
-    const h = row.h ?? LEARN.horizonsMin[0], st = stats[hKey(OOS(row.id), h)], n = st?.n ?? 0, t = hT(st, h)
+    const h = row.h ?? LEARN.horizonsMin[0], st = stats[hKey(OOS(row.id), h)], n = st?.n ?? 0, t = hT(st, h), enough = n >= FACTORY.oosMinN && (st?.ev ?? 0) >= FACTORY.oosMinEv
     if (row.stage === 'oos') {
-      if (n >= FACTORY.oosMinN && t >= FACTORY.liveT) return { ...row, stage: 'live', stage_at: at, note: `oos t=${t.toFixed(2)} @${h}m n=${Math.round(n)}` }
-      if (n >= FACTORY.oosMinN && t < 0) return { ...row, stage: 'retired', stage_at: at, note: `oos t=${t.toFixed(2)}` }
+      if (enough && t >= FACTORY.liveT) return { ...row, stage: 'live', stage_at: at, note: `oos t=${t.toFixed(2)} @${h}m n=${Math.round(n)}` }
+      if (enough && t < 0) return { ...row, stage: 'retired', stage_at: at, note: `oos t=${t.toFixed(2)}` }
       if (ageH >= FACTORY.oosMaxH) return { ...row, stage: 'retired', stage_at: at, note: `oos timeout t=${Number.isFinite(t) ? t.toFixed(2) : '—'} n=${Math.round(n)}` }
       return null
     }
-    if (n >= FACTORY.oosMinN && t < FACTORY.liveDropT) return { ...row, stage: 'retired', stage_at: at, note: `live dropped t=${t.toFixed(2)}` }
+    if (enough && t < FACTORY.liveDropT) return { ...row, stage: 'retired', stage_at: at, note: `live dropped t=${t.toFixed(2)}` }
   }
   return null
 }
