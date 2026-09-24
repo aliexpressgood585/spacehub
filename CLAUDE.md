@@ -61,6 +61,19 @@ Answered with the real state instead. Live, v80.2 (56cd826d) paper true / live f
 $5,000 (-3.3%). Book: 8 open, all planned 240 min (proven agents' best horizon is now
 4h), 5 LONG / 3 SHORT, cash $51. No non-SCALP rows.
 
+## v86.2 (2026-09-24 22:10 UTC) — review of the first 4h under the gate; two fixes
+Owner saw two ROTA shorts (CRV, TRX) "open a long time, not from the right entries". They ARE ROTA's 12:55 basket
+(K=2, 12h rotation; next ~00:55 UTC) — but the house printed ROTA's placeholder trail_sl (px×100 / px÷100, "no
+stop") as a real stop ("stop 33.06 (+9378%)"). House now says "ללא סטופ — יוצא רק בסבב הבא (HH:MMZ) · פתוח N ש׳".
+18:14→22:05 UTC: 2,857 gate decisions, **0 accepted** (no_gross_edge 2,852, book_too_thin 5), best net −25.9 bps,
+avg cost 16.7 bps; 0 new trades; 6 pre-gate SCALP closes net +$9.08 (4 wins); equity 4,882.90 → 4,873.67 (ROTA
+marks); 2 `stale scalp lease` (18:26, 19:12 — one lost cycle each, ~1%); gym passer still trial (n=186).
+BUG: agent_events 889 in 4h (duplicate 450 / relative 439) — duplicate status flapped every meeting because it was
+judged on ONE snapshot. v86.2: agreement pooled over the latest 10 snapshots + hysteresis (enter ≥90%, stay ≥80%).
+OPEN QUESTION PUT TO THE OWNER: ROTA entries bypass the profit gate and hold 12h (outside the 5m–4h brief). Gating
+ROTA with its own measured edge (the xmom info agents, t≈0) would almost certainly stop it — the only sleeve with
+any OOS evidence. Not changed without the owner's call.
+
 ## v86.0 (2026-09-24) — PROFIT GATE + ONE COST MODEL + MICROSTRUCTURE + NET/UNIQUE/STABLE PROMOTION + GRADED RISK
 Owner brief (full autonomy, migrate don't rebuild): gate every entry on NET edge after fees, slippage and funding
 with one realistic cost model; real Binance microstructure, observed vs inferred labelled; promotion on net,

@@ -230,9 +230,11 @@ export function teamWeights(stats: Record<string, Stat>, agents: readonly string
 //  (2) UNIQUE CONTRIBUTION: two voting agents whose recent votes agree on >= dupAgree of the coins either
 //      voted on (>= dupMinOverlap coins) are one signal counted twice — the weaker (lower corrected t) is
 //      set to 0 and labelled a duplicate of the stronger. Measured on the latest stored snapshot's votes.
-export const PROMO = { dupAgree: 0.9, dupMinOverlap: 8 } as const
+// v86.2: agreement is pooled over the latest ~10 stored snapshots (not one minute), and a duplicate stays a duplicate
+// until agreement falls below dupRelease (hysteresis) — v86.1 flapped duplicate<->relative every meeting (889 events in 4h).
+export const PROMO = { dupAgree: 0.9, dupRelease: 0.8, dupMinOverlap: 8 } as const
 export type AgentStatus = 'proven' | 'active' | 'relative' | 'duplicate' | 'unstable' | 'benched' | 'learning'
-export function refineWeights(stats: Record<string, Stat>, tw: { W: Record<string, number>; H: Record<string, number>; mode: 'proven' | 'relative' }, votes: Record<string, Record<string, number>>): { W: Record<string, number>; status: Record<string, AgentStatus>; dupOf: Record<string, string> } {
+export function refineWeights(stats: Record<string, Stat>, tw: { W: Record<string, number>; H: Record<string, number>; mode: 'proven' | 'relative' }, votes: Record<string, Record<string, number>>, prev: Record<string, string> = {}): { W: Record<string, number>; status: Record<string, AgentStatus>; dupOf: Record<string, string> } {
   const W = { ...tw.W }, status: Record<string, AgentStatus> = {}, dupOf: Record<string, string> = {}
   const tOf = (a: string) => { const h = tw.H[a] ?? 5, st = stats[hKey(a, h)]; return st ? hT(st, h) : -Infinity }
   for (const a of Object.keys(W)) {
@@ -252,7 +254,8 @@ export function refineWeights(stats: Record<string, Stat>, tw: { W: Record<strin
       const b = live[j]; if (W[b] === 0) continue
       let both = 0, same = 0
       for (const c of coins) { const va = votes[c]?.[a] ?? 0, vb = votes[c]?.[b] ?? 0; if (!va && !vb) continue; both++; if (va === vb) same++ }
-      if (both >= PROMO.dupMinOverlap && same / both >= PROMO.dupAgree) { W[b] = 0; status[b] = 'duplicate'; dupOf[b] = a }
+      const bar = prev[b] === 'duplicate' ? PROMO.dupRelease : PROMO.dupAgree
+      if (both >= PROMO.dupMinOverlap && same / both >= bar) { W[b] = 0; status[b] = 'duplicate'; dupOf[b] = a }
     }
   }
   return { W, status, dupOf }
