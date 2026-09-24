@@ -23,6 +23,8 @@ const g5=enumerateGenomes(),g4=enumerateGenomes('4h'),gd=enumerateGenomes('1d'),
 assert.equal(g5.length,singles+GYM.pairs+GYM.whenSample);assert.equal(g4.length,g5.length)
 assert.ok(g5.every(g=>!g.tf)&&g4.every(g=>g.tf==='4h')&&gd.every(g=>g.tf==='1d')&&g15.every(g=>g.tf==='15m'))
 assert.equal(g5.filter(g=>g.when).length,GYM.whenSample,'exactly the sampled number of gated genomes')
+assert.ok(gd.filter(g=>g.when).every(g=>!g.when!.h&&g.when!.d),'daily genomes carry day gates only (an hour gate on 1d bars is a no-op)');assert.ok(gd.filter(g=>g.when).length>0)
+{const {fitGate}=await import('../shared/factory.ts');assert.equal(fitGate('1d',WHENS.eu.w),undefined);assert.deepEqual(fitGate('1d',WHENS.euwkd.w),{d:[1,2,3,4,5]});assert.deepEqual(fitGate('4h',WHENS.eu.w),WHENS.eu.w)}
 assert.ok(genomeId(g4[0]).startsWith('g4_')&&genomeId(gd[0]).startsWith('gd_')&&genomeId(g5[0]).startsWith('g_')&&genomeId(g15[0]).startsWith('g15_'),'ids never collide across timeframes')
 assert.equal(new Set([...g5,...g4,...gd,...g15].map(genomeId)).size,4*g5.length)
 assert.deepEqual(enumerateGenomes('4h').map(genomeId),g4.map(genomeId),'deterministic')

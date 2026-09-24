@@ -38,6 +38,14 @@ export const WHENS: Record<string, { w: When; label: string }> = {
   euwkd: { w: { h: [8, 16], d: [1, 2, 3, 4, 5] }, label: 'אירופה, ימי חול' }, uswkd: { w: { h: [16, 24], d: [1, 2, 3, 4, 5] }, label: 'ארה״ב, ימי חול' },
 }
 export const WHEN_KEYS = Object.keys(WHENS)
+// v85.6: a gate must be able to change the vote on the genome's own bars — on daily bars every bar is 00:00 UTC,
+// so an hour window is either always-on or always-off; only the weekday part survives. Returns undefined when
+// nothing survives (no gate), so an identical ungated twin is never bred under a different id.
+export function fitGate(tf: Tf | undefined, w: When | undefined): When | undefined {
+  if (!w) return undefined
+  if (tf === '1d') return w.d ? { d: w.d } : undefined
+  return w
+}
 export function whenOk(w: When | undefined, t: number): boolean {
   if (!w) return true
   const d = new Date(t), hr = d.getUTCHours(), dw = d.getUTCDay()
@@ -148,7 +156,7 @@ export function mutate(g: Genome, r: () => number): Genome {
   if (roll < 0.8) return g.b ? { ...keep, a: g.a } : { ...keep, a: g.a, b: gene(r, g.a[0]) }
   // v85.4: the gate mutates too — gain one, change it, or drop it
   const { when: _drop, ...rest } = keep
-  if (roll < 0.9 || !g.when) return { ...rest, when: WHENS[WHEN_KEYS[Math.floor(r() * WHEN_KEYS.length)]].w, a: g.a, ...(g.b ? { b: g.b } : {}) }
+  if (roll < 0.9 || !g.when) { const w = fitGate(g.tf, WHENS[WHEN_KEYS[Math.floor(r() * WHEN_KEYS.length)]].w); return { ...rest, ...(w ? { when: w } : {}), a: g.a, ...(g.b ? { b: g.b } : {}) } }
   return { ...rest, a: g.a, ...(g.b ? { b: g.b } : {}) }
 }
 export function spawn(n: number, seed: number, taken: Set<string>, parents: Genome[] = []): { id: string; genome: Genome; parent?: string }[] {
