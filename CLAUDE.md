@@ -61,6 +61,19 @@ Answered with the real state instead. Live, v80.2 (56cd826d) paper true / live f
 $5,000 (-3.3%). Book: 8 open, all planned 240 min (proven agents' best horizon is now
 4h), 5 LONG / 3 SHORT, cash $51. No non-SCALP rows.
 
+## v85.1 (2026-09-24) — GYM ON 4h AND 1d BARS (owner: "תרחיב את חדר הכושר ל־4 שעות ויומי, זריז")
+Three sets in one run: 5m/10 coins (as v85.0), **4h/40 coins** (horizons 4h/8h/1d/2d/7d) and **1d/40
+coins** (1d/2d/3d/7d), the slow bars aggregated UTC-aligned from the 1h archive (`aggregate()`, complete
+buckets only; `backtest/fetch-1h.sh`, 40×36 files). Slow sets pay the round trip PLUS funding 0.125bp/h
+(0.01%/8h) for the hours held (`costFor`). Genomes carry `tf` ('4h'|'1d'; absent = the live 1m bars);
+ids `g4_`/`gd_` never collide with `g_`. BOT: slow genomes seeded by the gym are evaluated LIVE on their
+own bars — `slowBars()` caches completed 4h/1d klines for the 40 coins hourly (market_cache `bars_4h` /
+`bars_1d`, Binance then OKX); a missing slow feed = those genomes abstain, nothing else changes. HOUSE:
+GymWall groups verdict × timeframe with a timeframe chip per card and per-set counts. Tests:
+`tests/gym.test.ts` (aggregation, costs, three sets, deterministic ids); factory +3. Smoke on synthetic
+data: 3 sets × 1,500 genomes in ~4s, JSON ~1MB.
+STATUS: see the DEPLOYED/RESULT line below once run #100 lands.
+
 ## v85.0 (2026-09-24) — THE GYM: offline 36-month walk-forward for factory genomes (owner: "תבנה אבל זריז", show every agent in the house)
 Owner lifted the freeze for this. WHY: the live factory judges ~100 random genomes on hours of shadow
 votes (a verdict takes a day and mostly measures luck); the gym runs the SAME vocabulary (`features()`,

@@ -23,7 +23,11 @@ import type { Bar } from './agents.ts'
 export const FACTORY = { pop: 100, spawnPerMeeting: 20, trialMinN: 300, trialMinEv: 60, trialT: 1.0, trialRetireT: -0.5, trialMaxH: 12, oosMinN: 200, oosMinEv: 120, liveT: 2.5, oosMaxH: 24, liveDropT: 1.0 } as const
 export type Stage = 'trial' | 'oos' | 'live' | 'retired'
 export type Gene = [key: string, th: number, dir: 1 | -1]
-export interface Genome { a: Gene; b?: Gene }
+// v85.1: `tf` = the bars the genome reads. Absent = the live 1-minute bars (gym-tested on 5m);
+// '4h' / '1d' genomes come from the gym's slow sets and are evaluated live on 4h / 1d bars.
+export type Tf = '4h' | '1d'
+export interface Genome { a: Gene; b?: Gene; tf?: Tf }
+export const TF_LABEL: Record<string, string> = { '5m': '5 דק׳', '1m': 'דקה', '4h': '4 שעות', '1d': 'יומי' }
 export interface FactoryRow { id: string; genome: Genome; stage: Stage; born: string; stage_at: string; h: number | null; note?: string | null }
 export const OOS = (id: string) => `${id}#o`
 
@@ -48,13 +52,13 @@ export const FEATURE_LABEL: Record<string, string> = {
   oi: 'שינוי ריבית פתוחה', btc5: 'ביטקוין 5 נרות', btc15: 'ביטקוין 15 נרות',
 }
 export const geneText = (g: Gene) => `${FEATURE_LABEL[g[0]] ?? g[0]} ≥ ${g[1]} → ${g[2] > 0 ? 'עם הכיוון' : 'נגד הכיוון'}`
-export const genomeText = (g: Genome) => g.b ? `${geneText(g.a)} וגם ${geneText(g.b)}` : geneText(g.a)
+export const genomeText = (g: Genome) => `${g.b ? `${geneText(g.a)} וגם ${geneText(g.b)}` : geneText(g.a)}${g.tf ? ` (נרות ${TF_LABEL[g.tf]})` : ''}`
 // v85.0 gym: a genome that passed the offline walk-forward (status/gym-latest.json) is seeded
 // into live TRIAL ahead of random spawns — never past it. Retired ids stay retired (`taken`).
 export interface GymPass { id: string; genome: Genome; h: number | null; oos_t: number | null; is: number[] }
 export function gymPicks(passed: GymPass[], taken: Set<string>, slots: number): { id: string; genome: Genome; note: string }[] {
   return passed.filter((p) => !taken.has(p.id)).sort((a, b) => (b.oos_t ?? 0) - (a.oos_t ?? 0)).slice(0, Math.max(0, slots))
-    .map((p) => ({ id: p.id, genome: p.genome, note: `gym: ${p.is.length}/${p.is.length} windows, oos t=${(p.oos_t ?? 0).toFixed(1)} @${p.h}m` }))
+    .map((p) => ({ id: p.id, genome: p.genome, note: `gym${p.genome.tf ? ` ${p.genome.tf}` : ''}: ${p.is.length}/${p.is.length} windows, oos t=${(p.oos_t ?? 0).toFixed(1)} @${p.h}m` }))
 }
 
 const C = (b: Bar[]) => b.map((x) => x.c)
@@ -83,7 +87,7 @@ export function vote(g: Genome, f: Record<string, number>): number {
   const b = geneVote(g.b, f); return a && a === b ? a : 0
 }
 const gid = (g: Gene) => `${g[0]}${String(g[1]).replace('.', 'p')}${g[2] > 0 ? 'f' : 'r'}`
-export const genomeId = (g: Genome) => `g_${gid(g.a)}${g.b ? '_' + gid(g.b) : ''}`
+export const genomeId = (g: Genome) => `${g.tf === '4h' ? 'g4' : g.tf === '1d' ? 'gd' : 'g'}_${gid(g.a)}${g.b ? '_' + gid(g.b) : ''}`
 
 // mulberry32 — deterministic, so a run can be reproduced from its seed
 export function rng(seed: number) { let s = seed >>> 0; return () => { s = (s + 0x6d2b79f5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296 } }
