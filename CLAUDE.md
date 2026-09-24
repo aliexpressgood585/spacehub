@@ -113,7 +113,11 @@ RUN 36030368460 (dispatch 16:52, downloads 9 min, compute 35 min, done 17:37 UTC
   SEEDING GAP FOUND AT 17:47: the bot fetched the file ("1 עברו") but seeded nothing — the population was
   full (97 trial + 3 oos = pop 100 → 0 spawn slots), so a gym passer would have waited for a random genome
   to retire. v85.9: gym passers may take the population up to pop+20 ahead of random spawns; factory line
-  now says "11 גדלי נרות, 289 מטבעות".
+  now says "11 גדלי נרות, 289 מטבעות". DEPLOYED PR #64 (b9035651), function v59, manifest v85.9 @17:49, 0
+  errors. **SEEDED 17:49:24: `g2h_vr2f_dd301r_wkd` [trial] "gym 2h: 4/4 windows, oos t=2.3 @480m"** — the
+  first genome ever to enter the live gauntlet from the gym. It votes in shadow on 2h bars (market_cache
+  `bars_2h`, refreshed hourly); it needs n>=300 on its best horizon, >=60 events and t>=1 to reach live oos,
+  then t>=2.5 there to vote. Watch it in the house (hall + cards) — expect DAYS, not hours.
 
 ## v85.5 (2026-09-24) — THE VOCABULARY WIDENED TO THE MAXIMUM THE ARCHIVE ALLOWS (owner: "תרחיב את 1 למקסימום, זריז")
 Nine new features, all testable offline AND fed live; only the order book (`ob`) stays untestable:
