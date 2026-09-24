@@ -4,6 +4,8 @@ import {AGENTS,NEW_AGENTS} from '../../../shared/agents.ts'
 import {SWARM,TEAMS,decayStat,scoreSnapshot,learnedWeight,meanBps,tStat,hT,LEARN,teamWeights,bestHorizon,hKey,type Stat,type Team} from '../../../shared/swarm.ts'
 import {DIRECTIONAL} from '../../../shared/desk.ts'
 import {CRYPTO_40} from '../../../shared/strategy.ts'
+import {INFO_IDS,infoVotes,xsScore,retOver,oiMove,type InfoData} from '../../../shared/info.ts'
+import {FACTORY,features,vote,spawn,step,statKeys,OOS,type FactoryRow} from '../../../shared/factory.ts'
 // v77.0: the validated 40-coin universe (standing rule 2), priced from Binance USDT-M futures first.
 export const UNIVERSE:string[]=[...CRYPTO_40]
 // Binance lists some coins in 1000-unit contracts; prices are divided and sizes multiplied
@@ -20,12 +22,12 @@ export function parseRss(xml:string,source:string):NewsItem[] {
 }
 async function text(url:string){const r=await fetch(url,{signal:AbortSignal.timeout(3500),redirect:'follow'});if(!r.ok)throw new Error(`news HTTP ${r.status}`);return r.text()}
 // Public context. Failures here never block trading; they are reported by the scout.
-async function intel(syms:string[]):Promise<{intel:Record<string,Intel>,news:NewsItem[],sources:string[],failed:string[]}> {
+async function intel(syms:string[]):Promise<{intel:Record<string,Intel>,news:NewsItem[],sources:string[],failed:string[],premium:Record<string,number>}> {
   const failed:string[]=[],sources:string[]=[];let news:NewsItem[]=[]
   await Promise.all(NEWS_FEEDS.map(async([src,url])=>{try{const n=parseRss(await text(url),src);news=news.concat(n);sources.push(`${src} (${n.length})`)}catch{failed.push(src)}}))
   const out:Record<string,Intel>={}
-  const bnFunding:Record<string,number>={}
-  try{const all=await json('https://fapi.binance.com/fapi/v1/premiumIndex');for(const x of all??[]){const v=Number(x.lastFundingRate);if(Number.isFinite(v))bnFunding[x.symbol]=v};sources.push('binance-funding')}catch{failed.push('binance-funding')}
+  const bnFunding:Record<string,number>={},bnPremium:Record<string,number>={}
+  try{const all=await json('https://fapi.binance.com/fapi/v1/premiumIndex');for(const x of all??[]){const v=Number(x.lastFundingRate);if(Number.isFinite(v))bnFunding[x.symbol]=v;const mk=Number(x.markPrice),ix=Number(x.indexPrice);if(mk>0&&ix>0)bnPremium[x.symbol]=mk/ix-1};sources.push('binance-funding')}catch{failed.push('binance-funding')}
   // OKX public liquidation endpoint rate-limits bursts: 4 at a time, one retry after a short pause
   await pool(syms,4,async sym=>{
     const liqs:LiqEvent[]=[]
@@ -41,7 +43,36 @@ async function intel(syms:string[]):Promise<{intel:Record<string,Intel>,news:New
     out[sym]={news,liqs,funding}
   })
   if(!failed.some(f=>f.startsWith('liq:')))sources.push('okx-liquidations')
-  return {intel:out,news,sources,failed}
+  const premium=Object.fromEntries(syms.filter(s=>Number.isFinite(bnPremium[bsym(s).s])).map(s=>[s,bnPremium[bsym(s).s]]))
+  return {intel:out,news,sources,failed,premium}
+}
+// v82.0 slow public data for the info agents + factory: daily closes (hourly refresh) and
+// hourly open interest (15-min refresh), cached in market_cache. Failures = those agents abstain.
+const CACHE={dailyMs:3600_000,oiMs:15*60_000}
+async function slowData(db:any,now:number):Promise<{daily:InfoData['daily'],oi:InfoData['oi'],notes:string[]}> {
+  const notes:string[]=[]
+  const {data:rows}=await db.from('market_cache').select('key,data,ts').throwOnError()
+  const get=(k:string)=>(rows??[]).find((r:any)=>r.key===k)
+  const age=(k:string)=>get(k)?now-Date.parse(get(k).ts):Infinity
+  let daily:InfoData['daily']=get('daily')?.data??{},oi:InfoData['oi']=get('oi')?.data??{}
+  if(age('daily')>=CACHE.dailyMs){
+    const fresh:InfoData['daily']={}
+    await pool(UNIVERSE,8,async sym=>{
+      try{const k=await json(`https://fapi.binance.com/fapi/v1/klines?symbol=${bsym(sym).s}&interval=1d&limit=30`);const c=k.filter((x:any)=>Number(x[6])<now).map((x:any)=>+x[4]).filter((x:number)=>x>0);if(c.length<15)throw new Error('short');fresh[sym]=c}
+      catch{try{const k=await json(`https://www.okx.com/api/v5/market/candles?instId=${sym}-USDT-SWAP&bar=1Dutc&limit=30`);if(k.code!=='0')throw new Error('okx');const c=k.data.filter((x:any)=>x[8]==='1').reverse().map((x:any)=>+x[4]).filter((x:number)=>x>0);if(c.length>=15)fresh[sym]=c}catch{}}
+    })
+    notes.push(`ימים ${Object.keys(fresh).length}/${UNIVERSE.length}`)
+    if(Object.keys(fresh).length>=32){daily=fresh;await db.from('market_cache').upsert({key:'daily',data:fresh,ts:new Date(now).toISOString()}).throwOnError()}
+  }
+  if(age('oi')>=CACHE.oiMs){
+    const fresh:InfoData['oi']={}
+    await pool(UNIVERSE,8,async sym=>{
+      try{const k=await json(`https://fapi.binance.com/futures/data/openInterestHist?symbol=${bsym(sym).s}&period=1h&limit=6`);const r=(k??[]).map((x:any)=>({oi:+x.sumOpenInterest,v:+x.sumOpenInterestValue})).filter((x:any)=>x.oi>0&&x.v>0);if(r.length>=5)fresh[sym]={oi:r.map((x:any)=>x.oi),px:r.map((x:any)=>x.v/x.oi)}}catch{}
+    })
+    notes.push(`OI ${Object.keys(fresh).length}/${UNIVERSE.length}`)
+    if(Object.keys(fresh).length>=20){oi=fresh;await db.from('market_cache').upsert({key:'oi',data:fresh,ts:new Date(now).toISOString()}).throwOnError()}
+  }
+  return {daily,oi,notes}
 }
 async function market(sym:string, candles:boolean):Promise<{q:Quote,b:Bar[]}> {
   // Perpetual-contract sources only; never silently substitute spot prices.
@@ -69,7 +100,7 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
   const due=!params.scalp_started||!meetings?.length||Date.now()-Date.parse(meetings[0].ts)>=SCALP.meetingMs
   const symbols=[...new Set<string>([...open.map((t:any)=>String(t.sym)),...(due?UNIVERSE:[])])]
   const data=new Map<string,{q:Quote,b:Bar[]}>(); const failures:string[]=[]
-  const intelP=due?intel(UNIVERSE).catch(()=>({intel:{} as Record<string,Intel>,news:[] as NewsItem[],sources:[] as string[],failed:['intel']})):Promise.resolve(null)
+  const intelP=due?intel(UNIVERSE).catch(()=>({intel:{} as Record<string,Intel>,news:[] as NewsItem[],sources:[] as string[],failed:['intel'],premium:{} as Record<string,number>})):Promise.resolve(null)
   await pool(symbols,10,async sym=>{try{const m=await market(sym,due&&UNIVERSE.includes(sym));if(!validQuote(m.q,Date.now()))throw new Error('stale quote');data.set(sym,m)}catch{failures.push(sym)}})
   const ctx=await intelP
   const closedHist:any[]=due?((await db.from('bot_trades').select('sym,side,pnl,fee,opened_at,closed_at,scalp_meta').eq('strategy','SCALP').neq('status','OPEN').order('closed_at',{ascending:false}).limit(200).throwOnError()).data??[]):[]
@@ -78,17 +109,36 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
   const statRows:Stat[]=due?await Promise.resolve(db.from('agent_stats').select('agent,n,s,s2,updated_at').throwOnError()).then((r:any)=>r.data??[],(e:any)=>{learnErr=String(e?.message??e);return []}):[]
   const stats:Record<string,Stat>=Object.fromEntries(statRows.map(r=>[r.agent,decayStat({...r,n:+r.n,s:+r.s,s2:+r.s2},r.agent,Date.now())]))
   // v79.0: each agent is weighted on its best horizon (5/15/60/240 min, net of costs); weights never all hit zero.
-  const VOTERS=[...DIRECTIONAL,...SWARM.map(x=>x.id)]
+  // v82.0 info agents (days-long momentum, open interest, basis) — data no 1-minute agent sees
+  let info:InfoData={daily:{},oi:{},premium:ctx?.premium??{}},infoNote=''
+  if(due)try{const sd=await slowData(db,Date.now());info={...info,daily:sd.daily,oi:sd.oi};infoNote=sd.notes.join(', ')}catch(e:any){infoNote=`מטמון: ${String(e?.message??e).slice(0,60)}`}
+  const infoV=due?infoVotes(UNIVERSE,info):{}
+  const xs=(d:number)=>xsScore(Object.fromEntries(UNIVERSE.map(s=>[s,retOver(info.daily[s],d)])))
+  const xm7=xs(7),xm14=xs(14),xm28=xs(28)
+  // v82.0 agent factory: trial / oos candidates vote in SHADOW only; live ones (their post-selection alias) join the team
+  let frows:FactoryRow[]=[],retiredIds:string[]=[],factErr=''
+  if(due)try{const {data:fr}=await db.from('factory_agents').select('id,genome,stage,born,stage_at,h,note').throwOnError();for(const r of fr??[]){if(r.stage==='retired')retiredIds.push(r.id);else frows.push(r)}}catch(e:any){factErr=String(e?.message??e)}
+  const liveF=frows.filter(r=>r.stage==='live')
+  const factVotes:Record<string,Record<string,number>>={}
+  if(due&&frows.length)for(const sym of UNIVERSE){
+    const m=data.get(sym);if(!m)continue
+    const {doi,dpx}=oiMove(info.oi[sym])
+    const f=features(m.b,{imbalance:m.q.imbalance,funding:ctx?.intel[sym]?.funding,premium:info.premium[sym],xm7:xm7[sym],xm14:xm14[sym],xm28:xm28[sym],doi,dpx,btc:sym==='BTC'?undefined:data.get('BTC')?.b})
+    const v:Record<string,number>={}
+    for(const r of frows){let d=0;try{d=vote(r.genome,f)}catch{d=0}if(d){v[r.id]=d;if(r.stage!=='trial')v[OOS(r.id)]=d}}
+    factVotes[sym]=v
+  }
+  const VOTERS=[...DIRECTIONAL,...SWARM.map(x=>x.id),...INFO_IDS,...liveF.map(r=>OOS(r.id))]
   const team=teamWeights(stats,VOTERS),W=team.W,H=team.H
   const now=Date.now(),closes:any[]=[],updates:any[]=[],entries:any[]=[],marks:Record<string,number>={}
   let cash=Number(state.balance),exposure=0,equity=cash
   const retained:any[]=[]
-  const evaluated=due?UNIVERSE.filter(sym=>data.has(sym)).map(sym=>assess(sym,data.get(sym)!.b,data.get(sym)!.q,now,{...(ctx?.intel[sym]??{news:[],liqs:[]}),btc:sym==='BTC'?undefined:data.get('BTC')?.b,weights:W,mode:team.mode})):[]
+  const evaluated=due?UNIVERSE.filter(sym=>data.has(sym)).map(sym=>assess(sym,data.get(sym)!.b,data.get(sym)!.q,now,{...(ctx?.intel[sym]??{news:[],liqs:[]}),btc:sym==='BTC'?undefined:data.get('BTC')?.b,weights:W,mode:team.mode,extra:{...(infoV[sym]??{}),...Object.fromEntries(liveF.map(r=>[OOS(r.id),factVotes[sym]?.[OOS(r.id)]??0]))}})):[]
   const views=new Map(evaluated.map(x=>[x.sym,{side:x.side,weighted:x.weighted}]))
   let learned:{scored:number,updated:number}={scored:0,updated:0}
   if(due&&evaluated.length&&!learnErr){
     try{
-      const votes=Object.fromEntries(evaluated.filter(x=>Number.isFinite(x.mid)).map(x=>[x.sym,Object.fromEntries(Object.entries(x.dirs).filter(([,d])=>d))]))
+      const votes=Object.fromEntries(evaluated.filter(x=>Number.isFinite(x.mid)).map(x=>[x.sym,{...Object.fromEntries(Object.entries(x.dirs).filter(([,d])=>d)),...(factVotes[x.sym]??{})}]))
       const px=Object.fromEntries(evaluated.filter(x=>Number.isFinite(x.mid)).map(x=>[x.sym,x.mid]))
       const lo=new Date(now-LEARN.horizonMs-120_000).toISOString(),hi=new Date(now-LEARN.horizonMs+30_000).toISOString()
       const {data:old}=await db.from('agent_snapshots').select('id,ts,votes,px').eq('scored',false).gte('ts',lo).lte('ts',hi).order('ts',{ascending:true}).limit(1).throwOnError()
@@ -113,6 +163,22 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
       await db.from('agent_snapshots').delete().lt('ts',new Date(now-24*3600_000).toISOString()).throwOnError()
     }catch(e:any){learnErr=String(e?.message??e)}
   }
+  // v82.0 factory lifecycle: judge, retire (and forget their stats), refill the population
+  let fc={trial:0,oos:0,live:0,retired:retiredIds.length,moved:[] as string[]}
+  if(due&&!factErr)try{
+    const changed=frows.map(r=>step(r,stats,now)).filter((x):x is FactoryRow=>!!x)
+    const byId=new Map(changed.map(r=>[r.id,r]))
+    const after=frows.map(r=>byId.get(r.id)??r).filter(r=>r.stage!=='retired')
+    const retiring=changed.filter(r=>r.stage==='retired')
+    const taken=new Set([...retiredIds,...frows.map(r=>r.id)])
+    const at=new Date(now).toISOString()
+    const born=spawn(Math.max(0,Math.min(FACTORY.spawnPerMeeting,FACTORY.pop-after.filter(r=>r.stage!=='live').length)),Math.floor(now/60000),taken).map(g=>({...g,stage:'trial' as const,born:at,stage_at:at,h:null,note:null}))
+    if(changed.length||born.length)await db.from('factory_agents').upsert([...changed,...born]).throwOnError()
+    if(retiring.length)await db.from('agent_stats').delete().in('agent',retiring.flatMap(r=>statKeys(r.id))).throwOnError()
+    for(const r of [...after,...born])fc[r.stage as 'trial'|'oos'|'live']++
+    fc.retired+=retiring.length
+    fc.moved=changed.filter(r=>r.stage!=='retired').map(r=>`${r.id}→${r.stage}`)
+  }catch(e:any){factErr=String(e?.message??e)}
   for(const t of open) {
     const m=data.get(t.sym),dir=t.side==='LONG'?1:-1,notional=Number(t.entry_price)*Number(t.size)
     if(!m) {retained.push(t);exposure+=notional;equity+=notional;continue}
@@ -170,6 +236,9 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
       const best=ranked[0],bs=stats[best.id],bh=bestHorizon(stats,best.id)
       say(TEAMS[t].lead,`${TEAMS[t].label} (${mem.length} סוכנים): ${tally(TEAMS[t].lead)}. הכי טוב כרגע: ${best.label} ${bs?`${meanBps(bs).toFixed(1)} נק׳ בסיס נטו ל-5 דק׳${bh.st&&bh.h!==5?`, באופק ${bh.h} דק׳: ${meanBps(bh.st).toFixed(1)} נטו`:''}`:'עדיין לומד'}. ${benched} בספסל, ${learning} עדיין לומדים.`,lead(TEAMS[t].lead,'hold'))
     }
+    const cnt=(id:string,d:number)=>evaluated.filter(x=>x.dirs[id]===d).length
+    say('info',`מידע חדש שהסוכנים האחרים לא רואים — מומנטום ימים (${Object.keys(info.daily).length}/40), Open Interest (${Object.keys(info.oi).length}/40), פרמיית חוזה (${Object.keys(info.premium).length}/40). ${INFO_IDS.map(id=>`${id}: ${cnt(id,1)}↑ ${cnt(id,-1)}↓`).join(' · ')}${infoNote?` · רענון: ${infoNote}`:''}`,'hold')
+    say('factory',factErr?`מפעל הסוכנים לא זמין: ${factErr.slice(0,80)}`:`מפעל סוכנים: ${fc.trial} בניסוי (הצבעת צל בלבד), ${fc.oos} בבדיקה על נתונים שלא ראו, ${fc.live} פעילים ומצביעים. נבדקו עד היום ${fc.trial+fc.oos+fc.live+fc.retired}, נפסלו ${fc.retired}. סוכן מצביע רק אחרי t≥${FACTORY.liveT} על נתונים חדשים; סוכן שנפסל לא נבדק שוב.${fc.moved.length?` עכשיו: ${fc.moved.slice(0,4).join(', ')}.`:''}`,fc.live?'ok':'hold')
     say('risk',`דמו 1x; עד ${SCALP.maxPositions} פוזיציות, עד ${SCALP.perCoin*100}% למטבע ועד ${SCALP.allocation*100}% הקצאה אחרי עמלות. עצירת כניסות בהפסד יומי 5% או ירידה 15%. ${line('risk')}`,eligible?'ok':'veto')
     say('trader',`ספר פקודות: ${tally('trader')}. מועמדות לביצוע: ${entries.map(e=>`${e.sym} ${e.side}`).join(', ')||'אין הסכמה מתאימה'}. זמן החזקה מתוכנן לפי התנאים: ${entries.map(e=>`${e.sym} ${e.hold_min} דק׳`).join(', ')||'—'} (1–240, לפי האופק שבו הסוכנים התומכים הוכיחו רווח נטו). בכל ישיבה: סגירה מוקדמת אם הצוות מתהפך, הארכה לעסקה מרוויחה שהצוות עדיין תומך בה.`,entries.length?'ok':'hold')
     say('treasurer',`מזומן צפוי אחרי הפעולות $${cash.toFixed(2)}; ${retained.length+entries.length}/${SCALP.maxPositions} פוזיציות. הביצוע נבדק שוב באותה עסקת מסד נתונים.`)

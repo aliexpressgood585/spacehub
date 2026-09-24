@@ -36,6 +36,8 @@ run "team review"           tests/team-meeting.test.ts
 run "hedge-fund desk"       tests/desk.test.ts
 run "signal agents"         tests/agents.test.ts
 run "swarm + learning"      tests/swarm.test.ts
+run "info agents"           tests/info.test.ts
+run "agent factory"         tests/factory.test.ts
 run "strategy rules"        tests/strategy.test.ts
 run "live/backtest parity"  tests/parity.test.ts
 run "portfolio simulator"   tests/portfolio.test.ts
