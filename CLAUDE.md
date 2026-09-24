@@ -61,6 +61,33 @@ Answered with the real state instead. Live, v80.2 (56cd826d) paper true / live f
 $5,000 (-3.3%). Book: 8 open, all planned 240 min (proven agents' best horizon is now
 4h), 5 LONG / 3 SHORT, cash $51. No non-SCALP rows.
 
+## v85.4 (2026-09-24) — GYM: 15m bars, HOUR/DAY GATES, EVOLUTION (owner: short timeframes, "by certain hours or
+## days", and "automatic agents that improve and come back to the exam better until approved")
+- FOUR sets: 5m/10 coins, **15m/40 coins** (horizons 15m/1h/4h/1d, `fetch-15m.sh`), 4h and 1d on the 289
+  perps. Fast sets capped at 36 months (memory: gene-vote cache = rows × 120 genes as Int8).
+- **TIME GATES** (`Genome.when`, `WHENS` catalogue: Asia/EU/US/US-open/night hours, weekdays/weekend/Mon/Fri,
+  EU-weekdays, US-weekdays): a genome may vote only inside its UTC window. It is a CONDITION of the genome
+  judged by the same gym and the same live gauntlet — not a filter on the bot (rule 5 untouched). `vote(g,f,t)`
+  applies it when `t` is given; the runner passes `Date.now()`; ids carry the gate (`_eu`, `_wke`, …);
+  `genomeText` says "רק בשעות אירופה". Session filters were REJECTED in v54bt as trade cuts on DONCH4H;
+  here the question is different (does a rule have edge only in a session?) and it is judged OOS.
+- **EVOLUTION with an honest split**: IS = first 60% in 4 windows (where parents are judged: all windows
+  net-positive, IS t≥1) → VAL = 60-80% (t≥1.5; evolution may only breed from genomes that pass IS AND VAL)
+  → FINAL = last 20% (t≥2, never used for selection; 'oos' and 'pass' rank EQUAL as parents so the final
+  cannot leak into breeding). Gen 0 = singles + 1,380 pairs + 240 gated variants (1,740); gens 1-4 breed 200
+  children each from the 60 best parents via `mutate()` (threshold step, 2nd condition, gate gained/changed/
+  dropped; tf preserved, direction never flips); ids never re-tested. Every row carries `gen` + `parent`;
+  the summary prints a passer's lineage. Per-set per-gen counts in `data.sets[].gens`.
+- Engine: per-set CACHE of gene votes per (bar, coin) row + hour/dow, built once; a genome is then a table
+  scan (gate = 24×7 mask). Smoke: 4 sets × 2,540 genomes on synthetic data in ~40s under Node; JSON ~3MB.
+- HOUSE: six stations in the hall (4 IS + ביניים + סופי), verdict group "נכשל בבדיקת הביניים", cards show
+  generation and parent, VAL chip. BOT v85.4: gate applied live; 15m slow bars cached 15 min (OKX '15m').
+- Tests: gym suite rewritten (four sets, gates incl. midnight wrap, mutation keeps tf / can drop gate,
+  enumeration counts, ids); suite green; app tsc clean.
+HONEST: evolution multiplies the looks at IS/VAL — that is exactly why FINAL is separate, read once, and
+stays at 2.0. If nothing passes after evolution either, that is the strongest version of the answer so far.
+STATUS: see the RESULT line below once the run lands.
+
 ## v85.3 (2026-09-24) — GYM: MORE COINS, MORE YEARS (owner: "יותר מטבעות ושנים, זריז, רק מטבעות שנסחרים בבינאנס פיוטרס")
 Universe for the slow sets = every USDT-margined PERPETUAL Binance Futures trades TODAY with >= 2 years
 of history, read from the archive itself (`backtest/binance-perps.sh`: S3 listing of data.binance.vision
@@ -73,7 +100,11 @@ the grid when its data starts (young perps simply cover fewer windows); coins wi
 per set, never a reason to abort. 5m set stays 10 coins (5m × 289 × 72m would be ~10GB) but gets 72 months.
 `slowCoins()` in gym.ts reads `backtest/data/perps.txt` (runner-generated, gitignored) else CRYPTO_40;
 fetch-1h.sh reads the same list (Binance spelling, e.g. 1000PEPE).
-STATUS: see the RESULT line below once the run lands.
+**RUN #101 (15:33-15:46) PRODUCED NOTHING AND WENT GREEN.** bt-latest.txt holds only the header line: deno
+died at load (5m × 72 months = 6.3M Bar objects + a Map per coin; 289 Maps for 4h) and `deno … | tee` hid
+the exit code, so the commit step committed the OLD gym files. Same failure family as v78bt's silent
+45-day fetch. Fixed in v85.4: `set -o pipefail` + `--max-old-space-size=8192`, fast sets capped at 36m,
+pointer-walk alignment instead of Maps. NO 72-month result exists yet from this run.
 
 ## v85.2 (2026-09-24) — THE GYM HALL inside the pixel house (owner: more windows for the gym, see each agent's
 ## movement and whether it "came out acquitted"). Dashboard only; no bot change.
