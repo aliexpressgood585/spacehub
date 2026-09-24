@@ -155,6 +155,19 @@ for (const [label, src] of [['live bot', bot], ['backtest', bt]] as const) {
     !/(BYBIT_API_KEY|BYBIT_API_SECRET)\s*=\s*['"][A-Za-z0-9]{8,}/.test(src))
 }
 
+// ─── 8. the learning reads back every field it writes ───────────────────────
+// v83.2: the agent_stats select omitted `ev`, so each cycle restarted the event count at 0,
+// wrote 1 back, and k = n/ev deflated every corrected t to ~0 — no agent could ever be proven
+// and the factory could never promote. Every Stat field must round-trip through the select.
+{
+  // raw source on purpose: the select list IS a string literal, which code() strips
+  const runner = readFileSync(join(root, 'supabase/functions/trading-bot/scalp-runner.ts'), 'utf8')
+  const sel = runner.match(/from\(\s*'agent_stats'\s*\)\s*\.select\(\s*'([^']*)'/)
+  check('the scalp runner reads agent_stats with an explicit select', !!sel)
+  for (const f of ['agent', 'n', 's', 's2', 'ev', 'updated_at'])
+    check(`agent_stats select reads back \`${f}\``, !!sel && sel[1].split(',').map(x => x.trim()).includes(f), sel?.[1] ?? 'no select')
+}
+
 // ─── report ─────────────────────────────────────────────────────────────────
 console.log(`\n  live/backtest parity — ${passed} assertions passed, ${failures.length} failed`)
 if (failures.length) {
