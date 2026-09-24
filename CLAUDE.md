@@ -110,6 +110,10 @@ RUN 36030368460 (dispatch 16:52, downloads 9 min, compute 35 min, done 17:37 UTC
   Also visible: the 1w set ran on 158 coins (young perps dropped) and produced 0 IS passers — 312 bars is
   too few for this test; the 5m set went from 0 to 11 gen-0 IS passers with the widened vocabulary, and
   still 0 through VAL/FINAL.
+  SEEDING GAP FOUND AT 17:47: the bot fetched the file ("1 עברו") but seeded nothing — the population was
+  full (97 trial + 3 oos = pop 100 → 0 spawn slots), so a gym passer would have waited for a random genome
+  to retire. v85.9: gym passers may take the population up to pop+20 ahead of random spawns; factory line
+  now says "11 גדלי נרות, 289 מטבעות".
 
 ## v85.5 (2026-09-24) — THE VOCABULARY WIDENED TO THE MAXIMUM THE ARCHIVE ALLOWS (owner: "תרחיב את 1 למקסימום, זריז")
 Nine new features, all testable offline AND fed live; only the order book (`ob`) stays untestable:
