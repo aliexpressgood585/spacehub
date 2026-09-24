@@ -123,7 +123,11 @@ DEPLOYED 15:49 UTC: PR #59 (668a8197), function v55. Gym run 36023042621 (dispat
   a pass. The bot's factory line stays "0 עברו"; nothing seeded.
   DEFECT SEEN IN THE OUTPUT: on 1d bars an HOUR gate is meaningless (every bar is 00:00) — gd_…_night /
   _asia rows are byte-identical to their ungated parent and waste slots. Fixed in v85.6: 1d genomes take
-  day gates only (factory `fitGate`), in enumeration and in mutation.
+  day gates only (factory `fitGate`), in enumeration and in mutation. v85.6 = PR #61 (5ce95f12), function
+  v57 deployed 16:18 UTC (BOT_VERSION string still 'v85.5' — the manifest shows v85.5 @ sha 5ce95f12; the
+  live delta is gate-shaping in `mutate()` only). The v85.5 widened-vocabulary gym run (36025019078, started
+  16:06) was still in progress when the owner said "סיים"; its result lands in status/gym-latest.json on its
+  own and the house + bot read it automatically. RECORD IT HERE when next awake.
 
 ## v85.3 (2026-09-24) — GYM: MORE COINS, MORE YEARS (owner: "יותר מטבעות ושנים, זריז, רק מטבעות שנסחרים בבינאנס פיוטרס")
 Universe for the slow sets = every USDT-margined PERPETUAL Binance Futures trades TODAY with >= 2 years
