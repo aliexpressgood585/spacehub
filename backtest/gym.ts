@@ -41,13 +41,22 @@ export function slowCoins(): readonly string[] {
   return CRYPTO_40
 }
 const PINNED = CRYPTO_40.map((c) => (c === 'PEPE' ? '1000PEPE' : c))   // Binance spelling for the fast sets
+// v85.7 THE LADDER: every distinct bar size the archives can build. Fast bars (< 4h) run on the pinned 40 and
+// 36 months (rows x genes must fit the heap); 4h and slower run on every Binance perpetual and 72 months.
+// Horizons = 1, 2, 4, 12 and 48 bars, capped at 4 weeks; slow sets pay funding for the hours held.
+const FAST10 = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT']
+const LADDER: { tf: Tf | '5m'; source: '5m' | '15m' | '1h'; barMin: number }[] = [
+  { tf: '5m', source: '5m', barMin: 5 }, { tf: '15m', source: '15m', barMin: 15 }, { tf: '30m', source: '15m', barMin: 30 },
+  { tf: '1h', source: '1h', barMin: 60 }, { tf: '2h', source: '1h', barMin: 120 }, { tf: '4h', source: '1h', barMin: 240 },
+  { tf: '8h', source: '1h', barMin: 480 }, { tf: '12h', source: '1h', barMin: 720 }, { tf: '1d', source: '1h', barMin: 1440 },
+  { tf: '3d', source: '1h', barMin: 4320 }, { tf: '1w', source: '1h', barMin: 10080 },
+]
+const setFor = (l: typeof LADDER[number]): GymSet => {
+  const bars = [1, 2, 4, 12, 48].filter((b) => b * l.barMin <= 4 * 10080)
+  return { tf: l.tf, coins: l.tf === '5m' ? FAST10 : l.barMin < 240 ? PINNED : CRYPTO_40, source: l.source, barMin: l.barMin, horizonsBars: bars, horizonsMin: bars.map((b) => b * l.barMin), fundingBpPerHour: l.tf === '5m' ? 0 : 0.125, maxMonths: l.source === '1h' ? 120 : 36 }
+}
 export const GYM = {
-  sets: [
-    { tf: '5m', coins: ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT'], source: '5m', barMin: 5, horizonsBars: [1, 3, 12, 48], horizonsMin: [5, 15, 60, 240], fundingBpPerHour: 0, maxMonths: 36 },
-    { tf: '15m', coins: PINNED, source: '15m', barMin: 15, horizonsBars: [1, 4, 16, 96], horizonsMin: [15, 60, 240, 1440], fundingBpPerHour: 0.125, maxMonths: 36 },
-    { tf: '4h', coins: CRYPTO_40, source: '1h', barMin: 240, horizonsBars: [1, 2, 6, 12, 42], horizonsMin: [240, 480, 1440, 2880, 10080], fundingBpPerHour: 0.125, maxMonths: 120 },
-    { tf: '1d', coins: CRYPTO_40, source: '1h', barMin: 1440, horizonsBars: [1, 2, 3, 7], horizonsMin: [1440, 2880, 4320, 10080], fundingBpPerHour: 0.125, maxMonths: 120 },
-  ] as readonly GymSet[],
+  sets: LADDER.map(setFor) as readonly GymSet[],
   offlineNA: ['ob'],                              // v85.5: funding, basis and OI now come from the archive; only the order book has none
   window: 80,                                     // bars of history a feature may read
   isWindows: 4, isShare: 0.6, valShare: 0.2,      // FINAL = the remaining 20%
@@ -302,14 +311,14 @@ export function runGymSet(set: GymSet, series: Bar[][], months: number, log: (s:
 export function runGym(months: number, sha: string | null = null, sets0: readonly GymSet[] = GYM.sets, log: (s: string) => void = () => {}): GymReport {
   const rows: GymRow[] = [], reps: GymSetReport[] = []
   const wide = slowCoins()
-  const sets = sets0.map((s) => (s.source === '1h' ? { ...s, coins: wide } : s))
+  const sets = sets0.map((s) => (s.barMin >= 240 ? { ...s, coins: wide } : s))
   for (const set0 of sets) {
     const m = Math.min(months, set0.maxMonths)
     const all = set0.coins.map((c) => set0.source === '1h' ? aggregate(loadCSV(c, '1h'), 60, set0.barMin) : loadCSV(c, set0.source))
     // a coin with too little data is dropped from THIS set (young perpetuals), never a reason to abort
-    const keep = set0.coins.map((_, i) => all[i].length >= GYM.window * 4)
+    const keep = set0.coins.map((_, i) => all[i].length >= GYM.window + 100)   // warm-up plus a hundred scored bars (a weekly set has ~313 bars in 72m)
     const set: GymSet = { ...set0, coins: set0.coins.filter((_, i) => keep[i]) }, series = all.filter((_, i) => keep[i])
-    if (set.coins.length < 8 || !set.coins.includes('BTC')) throw new Error(`gym ${set.tf}: only ${set.coins.length} coins with data (need BTC + 8)`)
+    if (set.coins.length < 8 || !set.coins.includes('BTC')) { log(`[${set0.tf}] skipped: only ${set.coins.length} coins with enough bars (need BTC + 8)`); continue }
     const r = runGymSet(set, series, m, log); rows.push(...r.rows); reps.push(r.report)
   }
   return {
@@ -334,6 +343,8 @@ export function gymSummary(rep: GymReport): string {
     L.push(`[${s.tf}] ${s.coins.length} coins, ${s.bars} bars ${s.from} → ${s.to}: tested ${rows.length} | thin ${by('thin')} | neg. IS window ${by('window')} | IS t<${GYM.isT} ${by('is_t')} | failed VAL ${by('val')} | failed FINAL ${by('oos')} | PASSED ${s.counts.passed}`)
     L.push(`      ${s.gens.map((g) => `gen${g.gen}: ${g.tested} tested / ${g.is_pass} IS / ${g.val_pass} VAL / ${g.passed} pass`).join(' · ')}`)
   }
+  const looks = rep.genomes.filter((r) => r.why === 'oos' || r.why === 'pass').length
+  L.push(`FINAL looks: ${looks} genomes reached the held-out test across ${rep.data.sets.length} timeframes; at t>=${GYM.oosT} pure luck would pass about ${(looks * 0.023).toFixed(1)} of them — read any pass against that number.`)
   const pass = rep.genomes.filter((r) => r.pass).sort((a, b) => (b.oos_t ?? 0) - (a.oos_t ?? 0))
   L.push(pass.length ? `PASSED (by held-out t):` : `PASSED: none — no genome, at any timeframe, in any generation, is net-positive in every IS window, on the validation slice AND on the final held-out 20%. That is a result, not a failure of the gym.`)
   for (const r of pass.slice(0, 40)) L.push(`  ${r.id.padEnd(40)} ${r.tf.padEnd(3)} gen${r.gen} h=${String(r.h).padStart(5)}m  IS ${r.is.map((x) => x.toFixed(1).padStart(7)).join(' ')}  IS t ${r.is_t}  VAL t ${r.val_t}  FINAL ${r.oos_bps}bps t=${r.oos_t} (n=${r.oos_n}, k=${r.k})${r.parent ? `  <- ${lineage(rep, r.id).slice(1).join(' <- ')}` : ''}`)

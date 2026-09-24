@@ -25,12 +25,16 @@ export type Stage = 'trial' | 'oos' | 'live' | 'retired'
 export type Gene = [key: string, th: number, dir: 1 | -1]
 // v85.1: `tf` = the bars the genome reads. Absent = the live 1-minute bars (gym-tested on 5m);
 // '4h' / '1d' genomes come from the gym's slow sets and are evaluated live on 4h / 1d bars.
-export type Tf = '15m' | '4h' | '1d'
+// v85.7: a ladder of DISTINCT timeframes (owner asked for 150 kinds of candles — 150 resamplings of the same
+// prices would be 150 looks at the same information, not 150 sources; the ladder below is every bar size that
+// adds a genuinely different horizon, aggregated from the 5m / 15m / 1h archives)
+export type Tf = '15m' | '30m' | '1h' | '2h' | '4h' | '8h' | '12h' | '1d' | '3d' | '1w'
+export const TF_MIN: Record<string, number> = { '1m': 1, '5m': 5, '15m': 15, '30m': 30, '1h': 60, '2h': 120, '4h': 240, '8h': 480, '12h': 720, '1d': 1440, '3d': 4320, '1w': 10080 }
 // v85.4: an optional TIME GATE — the genome votes only inside a UTC hour window and/or on given weekdays.
 // It is a condition of the genome (judged by the same gym / live gauntlet), not a filter on the bot.
 export interface When { h?: [number, number]; d?: number[] }
 export interface Genome { a: Gene; b?: Gene; tf?: Tf; when?: When }
-export const TF_LABEL: Record<string, string> = { '5m': '5 דק׳', '1m': 'דקה', '15m': '15 דק׳', '4h': '4 שעות', '1d': 'יומי' }
+export const TF_LABEL: Record<string, string> = { '1m': 'דקה', '5m': '5 דק׳', '15m': '15 דק׳', '30m': '30 דק׳', '1h': 'שעה', '2h': '2 שעות', '4h': '4 שעות', '8h': '8 שעות', '12h': '12 שעות', '1d': 'יומי', '3d': '3 ימים', '1w': 'שבועי' }
 export const WHENS: Record<string, { w: When; label: string }> = {
   asia: { w: { h: [0, 8] }, label: 'שעות אסיה 00–08' }, eu: { w: { h: [8, 16] }, label: 'שעות אירופה 08–16' }, us: { w: { h: [16, 24] }, label: 'שעות ארה״ב 16–24' },
   usopen: { w: { h: [13, 21] }, label: 'פתיחת ארה״ב 13–21' }, night: { w: { h: [22, 6] }, label: 'לילה 22–06' },
@@ -43,7 +47,8 @@ export const WHEN_KEYS = Object.keys(WHENS)
 // nothing survives (no gate), so an identical ungated twin is never bred under a different id.
 export function fitGate(tf: Tf | undefined, w: When | undefined): When | undefined {
   if (!w) return undefined
-  if (tf === '1d') return w.d ? { d: w.d } : undefined
+  if (tf && (TF_MIN[tf] ?? 0) >= 1440) return w.d ? { d: w.d } : undefined   // daily and slower: every bar opens at 00:00 UTC
+  if (tf && (TF_MIN[tf] ?? 0) >= 720 && w.h) return w.d ? { d: w.d } : undefined // 12h bars: an hour window is half-on/half-off, not a signal
   return w
 }
 export function whenOk(w: When | undefined, t: number): boolean {
@@ -133,7 +138,7 @@ export function vote(g: Genome, f: Record<string, number>, t?: number): number {
   const b = geneVote(g.b, f); return a && a === b ? a : 0
 }
 const gid = (g: Gene) => `${g[0]}${String(g[1]).replace('.', 'p')}${g[2] > 0 ? 'f' : 'r'}`
-export const genomeId = (g: Genome) => `${g.tf === '4h' ? 'g4' : g.tf === '1d' ? 'gd' : g.tf === '15m' ? 'g15' : 'g'}_${gid(g.a)}${g.b ? '_' + gid(g.b) : ''}${whenId(g.when)}`
+export const genomeId = (g: Genome) => `${g.tf ? `g${g.tf}` : 'g'}_${gid(g.a)}${g.b ? '_' + gid(g.b) : ''}${whenId(g.when)}`
 
 // mulberry32 — deterministic, so a run can be reproduced from its seed
 export function rng(seed: number) { let s = seed >>> 0; return () => { s = (s + 0x6d2b79f5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296 } }

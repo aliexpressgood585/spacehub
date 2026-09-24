@@ -10,10 +10,11 @@ assert.equal(b4[0].o,100);assert.equal(b4[0].c,103.5);assert.equal(b4[0].h,104);
 assert.equal(aggregate([h(1),h(2),h(3)],60,240).length,0,'a bucket missing its first hour is not a bar')
 // costs: the round trip everywhere, plus perpetual funding for the hours a slow genome holds
 const s5=GYM.sets.find(s=>s.tf==='5m')!,s15=GYM.sets.find(s=>s.tf==='15m')!,s4=GYM.sets.find(s=>s.tf==='4h')!,sd=GYM.sets.find(s=>s.tf==='1d')!
-assert.equal(GYM.sets.length,4,'5m, 15m, 4h, 1d')
-assert.equal(costFor(s5,0),LEARN.costBps);assert.ok(Math.abs(costFor(s4,0)-(LEARN.costBps+0.5))<1e-9,'4h hold pays 0.5bp funding (0.01%/8h)');assert.ok(Math.abs(costFor(sd,3)-(LEARN.costBps+21))<1e-9,'7-day hold pays 21bp funding')
+assert.equal(GYM.sets.length,11,'the ladder: 5m 15m 30m 1h 2h 4h 8h 12h 1d 3d 1w');assert.deepEqual(GYM.sets.map(x=>x.tf),['5m','15m','30m','1h','2h','4h','8h','12h','1d','3d','1w'])
+assert.equal(costFor(s5,0),LEARN.costBps);assert.ok(Math.abs(costFor(s4,0)-(LEARN.costBps+0.5))<1e-9,'4h hold pays 0.5bp funding (0.01%/8h)');assert.ok(Math.abs(costFor(sd,3)-(LEARN.costBps+36))<1e-9,'12-day hold pays 36bp funding');assert.deepEqual([...sd.horizonsMin],[1440,2880,5760,17280])
 assert.equal(s4.coins.length,40);assert.equal(sd.coins.length,40);assert.equal(s5.coins.length,10);assert.equal(s15.coins.length,40);assert.ok(s15.coins.includes('1000PEPE'),'Binance spelling for the archive')
-assert.deepEqual([...s4.horizonsMin],[240,480,1440,2880,10080]);assert.equal(s4.horizonsBars[4]*240,10080);assert.deepEqual([...s15.horizonsMin],[15,60,240,1440]);assert.equal(s15.horizonsBars[3]*15,1440)
+assert.deepEqual([...s4.horizonsMin],[240,480,960,2880,11520]);assert.deepEqual([...s15.horizonsMin],[15,30,60,180,720]);assert.deepEqual([...GYM.sets.find(x=>x.tf==='1w')!.horizonsMin],[10080,20160,40320],'horizons capped at 4 weeks')
+assert.ok(GYM.sets.filter(x=>x.barMin<240&&x.tf!=='5m').every(x=>x.coins.length===40),'fast bars on the pinned 40');assert.ok(GYM.sets.filter(x=>x.barMin>=240).every(x=>x.maxMonths===120))
 assert.equal(s5.maxMonths,36);assert.equal(s15.maxMonths,36,'fast sets capped at 36 months (memory)')
 // the three-way split leaves a final slice that is never used for selection
 assert.ok(Math.abs(GYM.isShare+GYM.valShare-0.8)<1e-9,'IS 60% + VAL 20% -> FINAL 20%');assert.ok(GYM.oosT>GYM.valT&&GYM.valT>GYM.isT)
@@ -24,8 +25,8 @@ assert.equal(g5.length,singles+GYM.pairs+GYM.whenSample);assert.equal(g4.length,
 assert.ok(g5.every(g=>!g.tf)&&g4.every(g=>g.tf==='4h')&&gd.every(g=>g.tf==='1d')&&g15.every(g=>g.tf==='15m'))
 assert.equal(g5.filter(g=>g.when).length,GYM.whenSample,'exactly the sampled number of gated genomes')
 assert.ok(gd.filter(g=>g.when).every(g=>!g.when!.h&&g.when!.d),'daily genomes carry day gates only (an hour gate on 1d bars is a no-op)');assert.ok(gd.filter(g=>g.when).length>0)
-{const {fitGate}=await import('../shared/factory.ts');assert.equal(fitGate('1d',WHENS.eu.w),undefined);assert.deepEqual(fitGate('1d',WHENS.euwkd.w),{d:[1,2,3,4,5]});assert.deepEqual(fitGate('4h',WHENS.eu.w),WHENS.eu.w)}
-assert.ok(genomeId(g4[0]).startsWith('g4_')&&genomeId(gd[0]).startsWith('gd_')&&genomeId(g5[0]).startsWith('g_')&&genomeId(g15[0]).startsWith('g15_'),'ids never collide across timeframes')
+{const {fitGate}=await import('../shared/factory.ts');assert.equal(fitGate('1d',WHENS.eu.w),undefined);assert.deepEqual(fitGate('1d',WHENS.euwkd.w),{d:[1,2,3,4,5]});assert.deepEqual(fitGate('4h',WHENS.eu.w),WHENS.eu.w);assert.equal(fitGate('1w',WHENS.asia.w),undefined);assert.equal(fitGate('12h',WHENS.eu.w),undefined,'12h bars: an hour window is not a signal');assert.deepEqual(fitGate('8h',WHENS.eu.w),WHENS.eu.w)}
+assert.ok(genomeId(g4[0]).startsWith('g4h_')&&genomeId(gd[0]).startsWith('g1d_')&&genomeId(g5[0]).startsWith('g_')&&genomeId(g15[0]).startsWith('g15m_'),'ids never collide across timeframes')
 assert.equal(new Set([...g5,...g4,...gd,...g15].map(genomeId)).size,4*g5.length)
 assert.deepEqual(enumerateGenomes('4h').map(genomeId),g4.map(genomeId),'deterministic')
 const gated=g5.find(g=>g.when)!;assert.ok(genomeId(gated).includes('_'),'gate is part of the id');assert.notEqual(genomeId(gated),genomeId({a:gated.a,...(gated.b?{b:gated.b}:{})}))
