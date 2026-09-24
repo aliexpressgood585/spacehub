@@ -5,7 +5,18 @@ import {SWARM,TEAMS,decayStat,scoreSnapshot,learnedWeight,meanBps,tStat,hT,LEARN
 import {DIRECTIONAL} from '../../../shared/desk.ts'
 import {CRYPTO_40} from '../../../shared/strategy.ts'
 import {INFO_IDS,infoVotes,xsScore,retOver,oiMove,type InfoData} from '../../../shared/info.ts'
-import {FACTORY,features,vote,spawn,step,statKeys,OOS,type FactoryRow} from '../../../shared/factory.ts'
+import {FACTORY,features,vote,spawn,step,statKeys,OOS,gymPicks,type FactoryRow,type GymPass} from '../../../shared/factory.ts'
+// v85.0 gym: genomes that passed the offline 36m walk-forward (status/gym-latest.json, committed by the
+// backtest workflow) are seeded into live TRIAL ahead of random spawns. Cached hourly in market_cache;
+// any failure = no gym picks this meeting, never an error that blocks trading.
+const GYM_URL='https://raw.githubusercontent.com/aliexpressgood585/spacehub/main/status/gym-latest.json'
+async function gymPassed(db:any,now:number):Promise<{passed:GymPass[],ran_at:string|null}>{
+  const {data:rows}=await db.from('market_cache').select('key,data,ts').eq('key','gym').throwOnError()
+  const c=rows?.[0];if(c&&now-Date.parse(c.ts)<3600_000)return c.data
+  const r=await fetch(GYM_URL,{signal:AbortSignal.timeout(6000)});if(r.status===404)return {passed:[],ran_at:null};if(!r.ok)throw new Error(`gym ${r.status}`)
+  const j=await r.json();const passed:GymPass[]=(j.genomes??[]).filter((g:any)=>g.pass).map((g:any)=>({id:g.id,genome:g.genome,h:g.h,oos_t:g.oos_t,is:g.is}))
+  const data={passed,ran_at:j.ran_at??null};await db.from('market_cache').upsert({key:'gym',data,ts:new Date(now).toISOString()}).throwOnError();return data
+}
 // v77.0: the validated 40-coin universe (standing rule 2), priced from Binance USDT-M futures first.
 export const UNIVERSE:string[]=[...CRYPTO_40]
 // Binance lists some coins in 1000-unit contracts; prices are divided and sizes multiplied
@@ -165,7 +176,7 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean,rotaS
     }catch(e:any){learnErr=String(e?.message??e)}
   }
   // v82.0 factory lifecycle: judge, retire (and forget their stats), refill the population
-  let fc={trial:0,oos:0,live:0,retired:retiredIds.length,moved:[] as string[]}
+  let fc={trial:0,oos:0,live:0,retired:retiredIds.length,moved:[] as string[],gym:0,gymSeeded:0,gymNote:''}
   if(due&&!factErr)try{
     const changed=frows.map(r=>step(r,stats,now)).filter((x):x is FactoryRow=>!!x)
     const byId=new Map(changed.map(r=>[r.id,r]))
@@ -174,7 +185,12 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean,rotaS
     const taken=new Set([...retiredIds,...frows.map(r=>r.id)])
     const at=new Date(now).toISOString()
     const parents=after.filter(r=>r.stage!=='trial').map(r=>r.genome)
-    const born=spawn(Math.max(0,Math.min(FACTORY.spawnPerMeeting,FACTORY.pop-after.filter(r=>r.stage!=='live').length)),Math.floor(now/60000),taken,parents).map(g=>({id:g.id,genome:g.genome,stage:'trial' as const,born:at,stage_at:at,h:null,note:g.parent?`child of ${g.parent}`:null}))
+    const slots=Math.max(0,Math.min(FACTORY.spawnPerMeeting,FACTORY.pop-after.filter(r=>r.stage!=='live').length))
+    let gym:{passed:GymPass[],ran_at:string|null}={passed:[],ran_at:null};try{gym=await gymPassed(db,now)}catch(e:any){fc.gymNote=String(e?.message??e).slice(0,60)}
+    const fromGym=gymPicks(gym.passed,taken,slots).map(g=>({id:g.id,genome:g.genome,stage:'trial' as const,born:at,stage_at:at,h:null,note:g.note}))
+    for(const g of fromGym)taken.add(g.id)
+    fc.gym=gym.passed.length;fc.gymSeeded=fromGym.length
+    const born=[...fromGym,...spawn(slots-fromGym.length,Math.floor(now/60000),taken,parents).map(g=>({id:g.id,genome:g.genome,stage:'trial' as const,born:at,stage_at:at,h:null,note:g.parent?`child of ${g.parent}`:null}))]
     if(changed.length||born.length)await db.from('factory_agents').upsert([...changed,...born]).throwOnError()
     if(retiring.length)await db.from('agent_stats').delete().in('agent',retiring.flatMap(r=>statKeys(r.id))).throwOnError()
     for(const r of [...after,...born])fc[r.stage as 'trial'|'oos'|'live']++
@@ -246,7 +262,7 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean,rotaS
     }
     const cnt=(id:string,d:number)=>evaluated.filter(x=>x.dirs[id]===d).length
     say('info',`מידע חדש שהסוכנים האחרים לא רואים — מומנטום ימים (${Object.keys(info.daily).length}/40), Open Interest (${Object.keys(info.oi).length}/40), פרמיית חוזה (${Object.keys(info.premium).length}/40). ${INFO_IDS.map(id=>`${id}: ${cnt(id,1)}↑ ${cnt(id,-1)}↓`).join(' · ')}${infoNote?` · רענון: ${infoNote}`:''}`,'hold')
-    say('factory',factErr?`מפעל הסוכנים לא זמין: ${factErr.slice(0,80)}`:`מפעל סוכנים: ${fc.trial} בניסוי (הצבעת צל בלבד), ${fc.oos} בבדיקה על נתונים שלא ראו, ${fc.live} פעילים ומצביעים. נבדקו עד היום ${fc.trial+fc.oos+fc.live+fc.retired}, נפסלו ${fc.retired}. סוכן מצביע רק אחרי t≥${FACTORY.liveT} על נתונים חדשים; סוכן שנפסל לא נבדק שוב.${fc.moved.length?` עכשיו: ${fc.moved.slice(0,4).join(', ')}.`:''}`,fc.live?'ok':'hold')
+    say('factory',factErr?`מפעל הסוכנים לא זמין: ${factErr.slice(0,80)}`:`מפעל סוכנים: ${fc.trial} בניסוי (הצבעת צל בלבד), ${fc.oos} בבדיקה על נתונים שלא ראו, ${fc.live} פעילים ומצביעים. נבדקו עד היום ${fc.trial+fc.oos+fc.live+fc.retired}, נפסלו ${fc.retired}. סוכן מצביע רק אחרי t≥${FACTORY.liveT} על נתונים חדשים; סוכן שנפסל לא נבדק שוב.${fc.moved.length?` עכשיו: ${fc.moved.slice(0,4).join(', ')}.`:''} חדר הכושר (36 חודשים אופליין): ${fc.gymNote?`לא זמין (${fc.gymNote})`:`${fc.gym} עברו${fc.gymSeeded?`, ${fc.gymSeeded} נכנסו עכשיו לניסיון`:''}`}.`,fc.live?'ok':'hold')
     say('risk',`דמו 1x; עד ${SCALP.maxPositions} פוזיציות, עד ${SCALP.perCoin*100}% למטבע ועד ${SCALP.allocation*100}% הקצאה אחרי עמלות. עצירת כניסות בהפסד יומי 5% או ירידה 15%. ${line('risk')}`,eligible?'ok':'veto')
     say('trader',`ספר פקודות: ${tally('trader')}. מועמדות לביצוע: ${entries.map(e=>`${e.sym} ${e.side}`).join(', ')||'אין הסכמה מתאימה'}. זמן החזקה מתוכנן לפי התנאים: ${entries.map(e=>`${e.sym} ${e.hold_min} דק׳`).join(', ')||'—'} (1–1440, לפי האופק שבו הסוכנים התומכים הוכיחו רווח נטו). בכל ישיבה: סגירה מוקדמת אם הצוות מתהפך, הארכה לעסקה מרוויחה שהצוות עדיין תומך בה.`,entries.length?'ok':'hold')
     say('treasurer',`מזומן צפוי אחרי הפעולות $${cash.toFixed(2)}; ${scalpRows.length+entries.length}/${SCALP.maxPositions} פוזיציות סקאלפ${rotaRows.length?` + ${rotaRows.length} רוטציה`:''}. הביצוע נבדק שוב באותה עסקת מסד נתונים.`)

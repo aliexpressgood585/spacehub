@@ -61,6 +61,30 @@ Answered with the real state instead. Live, v80.2 (56cd826d) paper true / live f
 $5,000 (-3.3%). Book: 8 open, all planned 240 min (proven agents' best horizon is now
 4h), 5 LONG / 3 SHORT, cash $51. No non-SCALP rows.
 
+## v85.0 (2026-09-24) — THE GYM: offline 36-month walk-forward for factory genomes (owner: "תבנה אבל זריז", show every agent in the house)
+Owner lifted the freeze for this. WHY: the live factory judges ~100 random genomes on hours of shadow
+votes (a verdict takes a day and mostly measures luck); the gym runs the SAME vocabulary (`features()`,
+`vote()`, all testable singles + a fixed sample of 1,380 pairs = 1,500 genomes) over 36 months of
+Binance USDT-M **5m** bars for **10 coins**, 4 in-sample windows + last 20% held out and read ONCE.
+PASS = best in-sample horizon (chosen on IS only) net-positive of 16bps in EVERY IS window, IS t>=1,
+OOS t>=2 at that horizon (t deflated for overlap by sqrt(bars) and cross-coin by sqrt(1+(k-1)·0.65),
+same as the live league). ob/fr/bs/oi have no archive -> excluded (never "failed").
+- `backtest/gym.ts` (`runGym`, `gymSummary`, `gymMain`), mode `gym` in backtest.ts; workflow: `gym)`
+  fetches 5m via fetch-5m.sh with BT_MONTHS, deno gets `--allow-write=status`, commits
+  `status/gym-latest.json` + `.txt`. `.run-request` = "gym 36". Smoke-tested under Node with a Deno shim
+  on synthetic data: 1,500 genomes × 3,000 bars × 10 coins in 1.3s (-> ~2-3 min for 36m), JSON ~310KB.
+- BOT: `gymPassed()` reads the committed JSON hourly (market_cache key 'gym'; 404 = not run yet, no
+  cache; errors never block trading), `gymPicks()` seeds passers into live TRIAL ahead of random spawns
+  (best OOS t first; retired ids never re-enter; note "gym: 4/4 windows, oos t=X @hm"). They still
+  must earn oos and live on live data. Factory minutes line reports "חדר הכושר: N עברו, M נכנסו".
+- HOUSE: `GymWall` under the agents wall — one card per genome (id, the rule in Hebrew via
+  `genomeText`, 4 IS-window chips + OOS bps/t, horizon, n, k, live factory stage if seeded), grouped
+  עבר / נכשל בחוץ / חלון שלילי / חלש בפנים / מעט דגימות, paged 120 at a time. Reads the public JSON.
+- Tests: factory suite +6 (gymPicks ordering/exclusion/slots, labels); suite green; app tsc clean.
+HONEST: 5m ≠ the live 1m bars, 10 ≠ 40 coins, and a pass seeds a TRIAL, nothing more. If nothing passes,
+that is the answer (all prior sub-day research says it likely will be), stated loudly with numbers.
+STATUS: see the DEPLOYED line below once the run lands.
+
 ## v84.0 (2026-09-24) — "אורביטל": the house in 3D (owner: "3D, out of this world, real actions behind every agent";
 ## and: NO bot changes until they decide). Dashboard only; the bot, its shim and the DB are untouched.
 `trading-app/src/components/Orbital.tsx`, page `house3d.html` (+ link from house.html). three.js via

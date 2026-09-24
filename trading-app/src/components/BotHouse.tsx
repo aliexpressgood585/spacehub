@@ -16,7 +16,7 @@ import { CRYPTO_40 } from '../../../shared/strategy'
 import { AGENTS, NEW_AGENTS } from '../../../shared/agents'
 import { SWARM, TEAMS, LEARN, learnedWeight, hT, meanBps, decayStat, bestHorizon, type Stat, type Team } from '../../../shared/swarm'
 import { INFO_AGENTS } from '../../../shared/info'
-import { FACTORY } from '../../../shared/factory'
+import { FACTORY, genomeText, type Genome } from '../../../shared/factory'
 const CYCLE_LABEL = `${String(Math.floor(TEAM_INTERVAL_MS / 60_000)).padStart(2, '0')}:${String((TEAM_INTERVAL_MS / 1000) % 60).padStart(2, '0')}`
 
 type Id = 'scout' | 'regime' | 'rota' | 'donch' | 'risk' | 'trader' | 'treasurer' | 'reporter' | 'auditor' | 'pm' | 'quant' | 'compliance' | 'execution' | 'rsi' | 'vwap' | 'breakout' | 'volume' | 'macd' | 'bollinger' | 'htf' | 'btclead' | 'candle' | 'funding' | 'trendDesk' | 'momDesk' | 'revDesk' | 'brkDesk' | 'flowDesk' | 'comboDesk'
@@ -295,6 +295,22 @@ const home = (id: Id) => ({ x: ROOM[id].x0 + ROOM[id].w / 2 - 20, y: ROOM[id].fl
 
 export default function BotHouse({ onBack }: { onBack?: () => void }) {
   const [snap, setSnap] = useState<Snap | null>(null)
+  // v85.0: the offline gym's latest report, committed to the repo by the backtest workflow (public file)
+  const [gym, setGym] = useState<GymRep | null | 'missing'>(null)
+  useEffect(() => {
+    let alive = true
+    const load = async () => {
+      try {
+        const r = await fetch(GYM_URL, { cache: 'no-store' })
+        if (r.status === 404) { if (alive) setGym('missing'); return }
+        if (!r.ok) return
+        const j = (await r.json()) as GymRep
+        if (alive && Array.isArray(j?.genomes)) setGym(j)
+      } catch { /* keep the last report */ }
+    }
+    void load(); const iv = setInterval(load, 300_000)
+    return () => { alive = false; clearInterval(iv) }
+  }, [])
   const [err, setErr] = useState<string | null>(null)
   const [now, setNow] = useState(Date.now())
   const [sel, setSel] = useState<Id | null>(null)
@@ -692,6 +708,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
       </div>
 
       <Wall snap={snap} status={status} />
+      <GymWall gym={gym} snap={snap} />
       {String(snap?.manifest?.enabled_sleeves ?? '').includes('SCALP') && <section className="bh-meet">
         <h2>מסחר דמו אוטונומי · {(snap?.open ?? []).filter(t=>t.strategy==='SCALP').length}/{SCALP.maxPositions} פוזיציות · כל דקה · החזקה 1–240 דקות לפי אופק הסוכנים</h2>
         <p className="bh-mnote">הסכמה אלגוריתמית → בדיקת עלויות וסיכון → ביצוע. בדיקת יציאות כל 10 שניות. זמן ההחזקה (1–240 דק׳) נקבע בכניסה לפי האופק שבו הסוכנים התומכים הוכיחו רווח אחרי עמלות — תנועה גדולה יותר משאירה את העמלה קטנה ביחס לרווח. בכל ישיבה הצוות יכול לסגור מוקדם אם הוא מתהפך, או להאריך עסקה מרוויחה עד 240 דק׳; עסקה מפסידה נסגרת בזמן המתוכנן. השהיות או נתונים חסרים עלולים לעכב אותה. סטופ נגרר אינו מבטיח רווח. עמלות 0.05% לכל צד, החלקה 0.03% ומימון מדומה יחסי. אותות: EMA8/21, מומנטום, חוסר איזון בספר, liquidity sweep משוער, חדשות ציבוריות (Cointelegraph/CoinDesk) וליקווידציות OKX — נספרים רק אם טריים ומאומתים מול המחיר.</p>
@@ -971,6 +988,8 @@ const CSS = `
 .bh-card-h { display:flex; align-items:center; gap:6px; min-width:0; } .bh-card-h b { color:#fff; font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
 .bh-card-r { color:#8fa3bf; font-size:10.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .bh-card-s { color:#9cb1c9; font-size:10.5px; line-height:1.4; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+.bh-win { display:flex; gap:4px; flex-wrap:wrap; } .bh-win span { font-size:10px; padding:1px 5px; border-radius:6px; background:#12203a; color:#9cb1c9; direction:ltr; font-variant-numeric:tabular-nums; }
+.bh-win .up { color:#31c48d; background:#0f2a22; } .bh-win .dn { color:#ff7b7b; background:#2a1414; }
 .bh-cchip { font-size:9.5px; font-weight:800; border-radius:10px; padding:1px 6px; border:1px solid #56607a; color:#8fa3bf; white-space:nowrap; }
 .bh-cchip.ok { color:#00d492; border-color:#00d492; } .bh-cchip.bad { color:#ff4d6a; border-color:#ff4d6a; }
 .bh-heat { display:grid; grid-template-columns:repeat(10,1fr); gap:2px; direction:ltr; } .bh-heat i { height:7px; border-radius:2px; background:#1b2638; } .bh-heat i.up { background:#00d492; } .bh-heat i.dn { background:#ff4d6a; }
@@ -1041,6 +1060,47 @@ function Factory({ snap }: { snap: Snap | null }) {
     {promoted.length ? <div className="bh-mx-wrap"><table className="bh-mx bh-lg"><thead><tr><th>סוכן</th><th>שלב</th><th>אופק</th><th>מאז</th><th>הערה</th></tr></thead>
       <tbody>{promoted.map((r) => <tr key={r.id}><th dir="ltr">{r.id}</th><td><span className={`bh-chipd ${r.stage === 'live' ? 'l' : ''}`}>{r.stage === 'live' ? 'פעיל' : 'בבדיקה'}</span></td><td className="n" dir="ltr">{r.h ? `${r.h}m` : '—'}</td><td className="n">{ago(ts(r.stage_at), nowT)}</td><td dir="ltr">{r.note ?? ''}</td></tr>)}</tbody></table></div>
       : <p className="bh-mnote">עדיין אין סוכן שעבר את שלב הניסוי. {recent.length ? `אחרונים: ${recent.map((r) => `${r.id} — ${r.note}`).slice(0, 3).join(' · ')}` : ''}</p>}
+  </section>
+}
+// v85.0: the gym — every genome the offline 36-month walk-forward examined, one card each.
+// Read from the public JSON the backtest workflow commits; nothing is computed here.
+const GYM_URL = 'https://raw.githubusercontent.com/aliexpressgood585/spacehub/main/status/gym-latest.json'
+type GymG = { id: string; genome: Genome; testable: boolean; h: number | null; n: number; k: number; is: number[]; is_t: number | null; oos_bps: number | null; oos_t: number | null; oos_n: number; pass: boolean; why: string }
+type GymRep = { ran_at: string; sha: string | null; data: { coins: string[]; months: number; bars: number; from: string; to: string; windows: number; oos_share: number; timeframe: string }; counts: { tested: number; testable: number; passed: number }; genomes: GymG[] }
+const GYM_WHY: Record<string, [string, string]> = { pass: ['עבר', 'ok'], oos: ['נכשל במבחן החוץ', 'bad'], window: ['חלון שלילי', 'bad'], is_t: ['חלש בתוך המדגם', 'bad'], thin: ['מעט דגימות', ''], untestable: ['לא נבחן אופליין', ''] }
+const GYM_ORDER = ['pass', 'oos', 'window', 'is_t', 'thin', 'untestable']
+const GYM_STAGE: Record<string, string> = { trial: 'בניסיון חי', oos: 'בבדיקה חיה', live: 'מצביע', retired: 'נפסל בלייב' }
+function GymWall({ gym, snap }: { gym: GymRep | null | 'missing'; snap: Snap | null }) {
+  const [open, setOpen] = useState<Record<string, boolean>>({ pass: true })
+  const [shown, setShown] = useState<Record<string, number>>({})
+  const live = new Map(((snap?.factory ?? []) as Row[]).map((r) => [String(r.id), String(r.stage)]))
+  const head = <div className="bh-mtop"><h2>חדר הכושר · אימון אופליין על {gym && gym !== 'missing' ? gym.data.months : 36} חודשים</h2>
+    <span className="bh-dec">{gym === 'missing' ? 'עדיין לא רץ — התוצאה הראשונה תופיע כאן כשההרצה ב־GitHub Actions תסתיים' : !gym ? 'טוען…' : `${gym.counts.tested} נבחנו · ${gym.counts.testable} ניתנים לבחינה · ${gym.counts.passed} עברו · ${ago(ts(gym.ran_at), Date.now())}`}</span></div>
+  if (!gym || gym === 'missing') return <section className="bh-wall">{head}<p className="bh-mnote">כל סוכן־מועמד של המפעל נבחן על {36} חודשים של נרות 5 דקות (10 מטבעות): ארבעה חלונות ללימוד ו־20% אחרונים שנקראים פעם אחת. עובר רק מי שרווחי נטו מעמלות בכל חלון וגם ב־20% שלא ראה. מי שעובר נכנס לניסיון החי — לא ישר למסחר.</p></section>
+  const groups = GYM_ORDER.map((w) => ({ w, rows: gym.genomes.filter((g) => g.why === w).sort((a, b) => (b.oos_t ?? -99) - (a.oos_t ?? -99)) })).filter((g) => g.rows.length)
+  return <section className="bh-wall">
+    {head}
+    <p className="bh-mnote">{gym.data.coins.join(' ')} · נרות {gym.data.timeframe} · {gym.data.from} → {gym.data.to} · {gym.data.windows} חלונות בתוך המדגם + {Math.round(gym.data.oos_share * 100)}% מוחזקים בחוץ. ציון = נקודות בסיס לעסקה אחרי 16 נק׳ עמלות; t מתוקן לחפיפה ולמתאם בין מטבעות (כמו בליגה). עובר = חיובי בכל {gym.data.windows} החלונות וגם t≥2 בחוץ. סוכן שעבר נכנס לניסיון החי ומסומן כאן בשלב שלו.</p>
+    {groups.map((g) => {
+      const isOpen = open[g.w] ?? false, lim = shown[g.w] ?? 120
+      return <div key={g.w} className="bh-grp">
+        <button className="bh-grp-h" onClick={() => setOpen((o) => ({ ...o, [g.w]: !isOpen }))} aria-expanded={isOpen}>{isOpen ? '▾' : '▸'} {GYM_WHY[g.w]?.[0] ?? g.w} <em>({g.rows.length})</em></button>
+        {isOpen && <><div className="bh-cards">{g.rows.slice(0, lim).map((r) => {
+          const st = live.get(r.id), color = r.pass ? '#31c48d' : !r.testable ? '#6b7a90' : r.why === 'thin' ? '#8fa3bf' : '#c0392b'
+          return <div key={r.id} className="bh-card" style={{ ['--c' as string]: color }}>
+            <div className="bh-card-h"><b dir="ltr" title={r.id}>{r.id}</b><span className={`bh-cchip ${GYM_WHY[r.why]?.[1] ?? ''}`}>{GYM_WHY[r.why]?.[0] ?? r.why}</span>{st && <span className="bh-cchip ok">{GYM_STAGE[st] ?? st}</span>}</div>
+            <small className="bh-card-r" title={genomeText(r.genome)}>{genomeText(r.genome)}</small>
+            {r.testable && r.h ? <>
+              <div className="bh-win" title={`${gym.data.windows} חלונות בתוך המדגם, ואז החוץ`}>{r.is.map((x, i) => <span key={i} className={x > 0 ? 'up' : 'dn'}>{x > 0 ? '+' : ''}{x.toFixed(1)}</span>)}<span className={(r.oos_t ?? -9) >= 2 ? 'up' : 'dn'}>חוץ {r.oos_bps ?? '—'} · t {r.oos_t ?? '—'}</span></div>
+              <small className="bh-card-s" dir="rtl">אופק {r.h} דק׳ · {r.n.toLocaleString()} הצבעות · t בפנים {r.is_t} · {r.k} מטבעות לאירוע</small>
+            </> : r.testable ? <small className="bh-card-s">פחות מ־300 הצבעות ב־36 חודשים — אין מה למדוד</small>
+              : <small className="bh-card-s">צריך נתונים בלי ארכיון (ספר פקודות / פאנדינג / פרמיה / ריבית פתוחה) — נבחן רק בלייב</small>}
+          </div>
+        })}</div>
+        {g.rows.length > lim && <button className="bh-grp-h" onClick={() => setShown((s) => ({ ...s, [g.w]: lim + 240 }))}>הצג עוד ({g.rows.length - lim} נוספים)</button>}</>}
+      </div>
+    })}
+    <p className="bh-mnote">כנות: נרות 5 דקות ולא דקה, 10 מטבעות ולא 40, ותוצאת עבר אינה הבטחה. מי שעבר רק זכה בכניסה לניסיון החי — שם הוא צריך להוכיח שוב, על נתונים חיים, לפני שקולו נספר.</p>
   </section>
 }
 // v76.2: every agent in its own window — one card each, grouped, laid out in a grid (no overlap).
