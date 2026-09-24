@@ -61,6 +61,14 @@ Answered with the real state instead. Live, v80.2 (56cd826d) paper true / live f
 $5,000 (-3.3%). Book: 8 open, all planned 240 min (proven agents' best horizon is now
 4h), 5 LONG / 3 SHORT, cash $51. No non-SCALP rows.
 
+## v81.1 (2026-09-24) — overlap-corrected learning t (owner: "yes" after being told funding@240 t=22.8 looked inflated)
+Each snapshot is scored every ~1-min meeting, so an h-minute return overlaps the next h-1
+snapshots and naive t is inflated by ~sqrt(h). `hT(st,h) = tStat/sqrt(h/LEARN.meetingMin)`
+now drives `bestHorizon` (so proven/relative + weights), the quant top-3 line and the house
+league. RESULT, told plainly: after correction NO agent is proven (best funding@240 1.47,
+next vwap30r@240 0.51) -> bot drops to RELATIVE mode, EMA8/21 veto back on. The v81.0
+"7 proven" were largely the overlap artefact. Cross-coin correlation still not corrected.
+
 ## v81.0 (2026-09-24) — owner: "all of it, fast" (after "what else can be improved")
 MEASURED FIRST (143 closes since 2nd reset, by exit reason): FLIP 80 closes WR 83% +$189;
 STOP 51 WR 4% -$337 (hit after ~17 min of ~82 planned); PLANNED 12 -$15.
