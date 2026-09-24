@@ -1182,7 +1182,7 @@ const GYM_URL = 'https://raw.githubusercontent.com/aliexpressgood585/spacehub/ma
 type GymG = { id: string; genome: Genome; tf: string; testable: boolean; gen?: number; parent?: string | null; h: number | null; n: number; k: number; is: number[]; is_t: number | null; val_bps?: number | null; val_t?: number | null; oos_bps: number | null; oos_t: number | null; oos_n: number; pass: boolean; why: string }
 type GymSetRep = { tf: string; coins: string[]; bars: number; from: string; to: string; counts: { tested: number; passed: number } }
 type GymRep = { ran_at: string; sha: string | null; data: { months: number; windows: number; is_share?: number; val_share?: number; oos_share: number; sets: GymSetRep[] }; counts: { tested: number; testable: number; passed: number }; genomes: GymG[] }
-const GYM_TF_ORDER = ['4h', '1d', '5m']
+const GYM_TF_ORDER = ['4h', '8h', '12h', '1d', '3d', '1w', '2h', '1h', '30m', '15m', '5m']
 const fmtH = (m: number) => m >= 1440 ? `${m / 1440} ימים` : m >= 60 ? `${m / 60} שעות` : `${m} דק׳`
 const GYM_WHY: Record<string, [string, string]> = { pass: ['עבר', 'ok'], oos: ['נכשל במבחן הסופי', 'bad'], val: ['נכשל בבדיקת הביניים', 'bad'], window: ['חלון שלילי', 'bad'], is_t: ['חלש בתוך המדגם', 'bad'], thin: ['מעט דגימות', ''], untestable: ['לא נבחן אופליין', ''] }
 const GYM_ORDER = ['pass', 'oos', 'val', 'window', 'is_t', 'thin', 'untestable']
