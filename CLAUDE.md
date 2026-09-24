@@ -76,6 +76,11 @@ meeting and any round-2 argument. HUD: version/sleeves, paper, heartbeat, mode, 
 positions; footer: last meeting action, legend. Verified headless (Chromium/swiftshader): canvas + 31
 labels render, no page errors (DB unreachable from the sandbox, so data shows "—" there). Build 887KB
 (242KB gz). NOT a bot change.
+DEPLOYED 2026-09-24 14:28 UTC: PR #53 (a8610e66), Pages run #120 green, house3d.html answers 200.
+Bot verified UNCHANGED at the same minute: manifest v83.1 cbeb829a paper true / live false, 0 errors
+(2h), equity $4,957.73, cash $2,070, book 6 SCALP + 3 ROTA, factory 100 trial / 50 retired.
+STANDING INSTRUCTION (owner, 2026-09-24): NO bot/trading changes until they decide otherwise —
+display-only work is allowed, anything touching the bot, shim, ledger or DB waits.
 
 ## v83.0 (2026-09-24) — "all five, to the highest level" (owner). Five upgrades in one release.
 1. LEARNING TO 24h: `LEARN.horizonsMin` + 1440; snapshots kept 26h; `halfLifeFor(h)` = max(12h, 6h·h)
