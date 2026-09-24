@@ -5,10 +5,11 @@ import {SWARM,TEAMS,decayStat,scoreSnapshot,learnedWeight,meanBps,tStat,hT,LEARN
 import {DIRECTIONAL} from '../../../shared/desk.ts'
 import {CRYPTO_40} from '../../../shared/strategy.ts'
 import {INFO_IDS,infoVotes,xsScore,retOver,oiMove,type InfoData} from '../../../shared/info.ts'
-import {FACTORY,features,vote,spawn,step,statKeys,OOS,gymPicks,type FactoryRow,type GymPass,type Tf} from '../../../shared/factory.ts'
+import {FACTORY,TF_MIN,features,vote,spawn,step,statKeys,OOS,gymPicks,type FactoryRow,type GymPass,type Tf} from '../../../shared/factory.ts'
 // v85.0 gym: genomes that passed the offline 36m walk-forward (status/gym-latest.json, committed by the
 // backtest workflow) are seeded into live TRIAL ahead of random spawns. Cached hourly in market_cache;
 // any failure = no gym picks this meeting, never an error that blocks trading.
+const OKX_BAR:Record<string,string>={'15m':'15m','30m':'30m','1h':'1H','2h':'2H','4h':'4H','8h':'8H','12h':'12H','1d':'1Dutc','3d':'3Dutc','1w':'1Wutc'}
 const GYM_URL='https://raw.githubusercontent.com/aliexpressgood585/spacehub/main/status/gym-latest.json'
 async function gymPassed(db:any,now:number):Promise<{passed:GymPass[],ran_at:string|null}>{
   const {data:rows}=await db.from('market_cache').select('key,data,ts').eq('key','gym').throwOnError()
@@ -25,12 +26,12 @@ async function slowBars(db:any,now:number,tfs:Tf[]):Promise<Partial<Record<Tf,Re
   const {data:rows}=await db.from('market_cache').select('key,data,ts').in('key',tfs.map(t=>`bars_${t}`)).throwOnError()
   for(const tf of tfs){
     const c=(rows??[]).find((r:any)=>r.key===`bars_${tf}`)
-    if(c&&now-Date.parse(c.ts)<(tf==='15m'?15*60_000:3600_000)){out[tf]=c.data;continue}   // a 15m genome needs fresher bars
+    if(c&&now-Date.parse(c.ts)<Math.min(60,TF_MIN[tf]??60)*60_000){out[tf]=c.data;continue}   // refresh at the bar's own pace, at most hourly
     const fresh:Record<string,Bar[]>={}
     await pool([...UNIVERSE],8,async sym=>{
       const {s,k}=bsym(sym)
       try{const r=await json(`https://fapi.binance.com/fapi/v1/klines?symbol=${s}&interval=${tf}&limit=100`);const b:Bar[]=r.filter((x:any)=>Number(x[6])<now).map((x:any)=>({t:+x[0],o:+x[1]/k,h:+x[2]/k,l:+x[3]/k,c:+x[4]/k,v:+x[5]*k,q:+x[9]*k,n:+x[8]}));if(b.length<85)throw new Error('short');fresh[sym]=b}
-      catch{try{const r=await json(`https://www.okx.com/api/v5/market/candles?instId=${sym}-USDT-SWAP&bar=${tf==='4h'?'4H':tf==='1d'?'1Dutc':'15m'}&limit=100`);if(r.code!=='0')throw new Error('okx');const b:Bar[]=r.data.filter((x:any)=>x[8]==='1').reverse().map((x:any)=>({t:+x[0],o:+x[1],h:+x[2],l:+x[3],c:+x[4],v:+x[5]}));if(b.length>=85)fresh[sym]=b}catch{}}
+      catch{try{const r=await json(`https://www.okx.com/api/v5/market/candles?instId=${sym}-USDT-SWAP&bar=${OKX_BAR[tf]??tf}&limit=100`);if(r.code!=='0')throw new Error('okx');const b:Bar[]=r.data.filter((x:any)=>x[8]==='1').reverse().map((x:any)=>({t:+x[0],o:+x[1],h:+x[2],l:+x[3],c:+x[4],v:+x[5]}));if(b.length>=85)fresh[sym]=b}catch{}}
     })
     if(Object.keys(fresh).length>=20){out[tf]=fresh;await db.from('market_cache').upsert({key:`bars_${tf}`,data:fresh,ts:new Date(now).toISOString()}).throwOnError()}
     else out[tf]=c?.data??{}

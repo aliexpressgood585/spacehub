@@ -61,6 +61,23 @@ Answered with the real state instead. Live, v80.2 (56cd826d) paper true / live f
 $5,000 (-3.3%). Book: 8 open, all planned 240 min (proven agents' best horizon is now
 4h), 5 LONG / 3 SHORT, cash $51. No non-SCALP rows.
 
+## v85.7 (2026-09-24) — THE TIMEFRAME LADDER: 11 distinct bar sizes (owner: "נרחיב את סוגי הנרות ל־150")
+NOT 150, and told the owner why: 150 resamplings of the same prices are 150 LOOKS at one piece of information,
+not 150 sources — at that count the 3-stage gauntlet passes dozens of genomes by luck alone, and sub-hour
+bars for 289 coins × 72 months are tens of GB. Built instead: every bar size that adds a genuinely different
+horizon, aggregated from the 5m / 15m / 1h archives already fetched:
+    5m (10 coins, 36m) · 15m · 30m (pinned 40, 36m, from 15m) · 1h · 2h (pinned 40, 72m, from 1h) ·
+    4h · 8h · 12h · 1d · 3d · 1w (289 perps, 72m, from 1h)
+`LADDER` + `setFor()` in gym.ts build the sets; horizons 1/2/4/12/48 bars capped at 4 weeks; fast bars
+(< 4h) stay on the pinned 40 so rows × genes fits the heap. `Tf` = the 10 slow rungs; ids `g<tf>_` (g4h_,
+g1d_, g1w_ …); `TF_MIN` drives gate shaping (`fitGate`: ≥1d → day gates only; 12h → no hour gates) and the
+runner's slow-bar refresh (at the bar's pace, ≤ 1h; OKX bar names mapped). A set with too few coins/bars is
+SKIPPED with a log line, never an abort (a weekly set has ~313 bars in 72 months; floor = window + 100).
+Summary prints "FINAL looks: N … luck alone would pass ≈ 0.023·N" so a pass is always read against the
+number of looks. Tests updated (11 rungs, horizons, ids, gate shaping); smoke on 30m/2h/8h/12h synthetic.
+Expect the run to take ~30-45 min (11 caches, 11 × ~2,750 genomes with evolution).
+STATUS: see the RESULT line below once the run lands.
+
 ## v85.5 (2026-09-24) — THE VOCABULARY WIDENED TO THE MAXIMUM THE ARCHIVE ALLOWS (owner: "תרחיב את 1 למקסימום, זריז")
 Nine new features, all testable offline AND fed live; only the order book (`ob`) stays untestable:
   ti5 / ti30  taker-buy imbalance over 5/30 bars — from the klines' own taker-buy column (col 9); v101bt found
