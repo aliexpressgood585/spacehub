@@ -61,6 +61,20 @@ Answered with the real state instead. Live, v80.2 (56cd826d) paper true / live f
 $5,000 (-3.3%). Book: 8 open, all planned 240 min (proven agents' best horizon is now
 4h), 5 LONG / 3 SHORT, cash $51. No non-SCALP rows.
 
+## v85.3 (2026-09-24) — GYM: MORE COINS, MORE YEARS (owner: "יותר מטבעות ושנים, זריז, רק מטבעות שנסחרים בבינאנס פיוטרס")
+Universe for the slow sets = every USDT-margined PERPETUAL Binance Futures trades TODAY with >= 2 years
+of history, read from the archive itself (`backtest/binance-perps.sh`: S3 listing of data.binance.vision
+-> drop delivery contracts `_YYMMDD`, index products BTCDOM/DEFI, stablecoin pairs -> keep names with a
+kline file for the last complete month AND 24 months earlier). fapi.binance.com is 451 from both the sandbox
+and the runners, so the archive IS the source of "traded today". Measured 2026-09-24: 1,018 archive
+symbols -> 860 USDT perps -> **289 trading today with >= 2y**. Crypto only by construction (USDT-M has no
+equities). Span 36 -> **72 months** (`.run-request` "gym 72"; BTC 1h archive starts 2019-09). A coin joins
+the grid when its data starts (young perps simply cover fewer windows); coins with < 320 bars are dropped
+per set, never a reason to abort. 5m set stays 10 coins (5m × 289 × 72m would be ~10GB) but gets 72 months.
+`slowCoins()` in gym.ts reads `backtest/data/perps.txt` (runner-generated, gitignored) else CRYPTO_40;
+fetch-1h.sh reads the same list (Binance spelling, e.g. 1000PEPE).
+STATUS: see the RESULT line below once the run lands.
+
 ## v85.2 (2026-09-24) — THE GYM HALL inside the pixel house (owner: more windows for the gym, see each agent's
 ## movement and whether it "came out acquitted"). Dashboard only; no bot change.
 New bottom floor in the canvas scene (H 980 -> 1130): a hall with a running mat, five stations (the four

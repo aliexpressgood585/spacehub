@@ -3,7 +3,10 @@
 # backtest/gym.ts). Monthly archive zips, 40 x BT_MONTHS files, parallel.
 set -uo pipefail
 
-COINS="BTC ETH SOL BNB XRP DOGE ADA AVAX LINK DOT LTC BCH NEAR INJ SUI TRX APT ARB OP ATOM FIL UNI AAVE ICP ALGO SEI WLD TIA RUNE LDO CRV DYDX GALA SAND AXS IMX ENA PEPE WIF FET"
+# v85.3: the universe comes from backtest/binance-perps.sh when it has run (every USDT perpetual trading today
+# with >= 2y of history, Binance spelling e.g. 1000PEPE); otherwise the pinned 40.
+if [ -s backtest/data/perps.txt ]; then COINS=$(tr "\n" " " < backtest/data/perps.txt); else
+COINS="BTC ETH SOL BNB XRP DOGE ADA AVAX LINK DOT LTC BCH NEAR INJ SUI TRX APT ARB OP ATOM FIL UNI AAVE ICP ALGO SEI WLD TIA RUNE LDO CRV DYDX GALA SAND AXS IMX ENA 1000PEPE WIF FET"; fi
 MONTHS=${BT_MONTHS:-36}
 IV=1h
 OUT=backtest/data
@@ -17,7 +20,7 @@ done
 
 dl() {
   local sym=$1 m=$2
-  local bsym="${sym}USDT"; [ "$sym" = "PEPE" ] && bsym="1000PEPEUSDT"
+  local bsym="${sym}USDT"
   local url="$BASE/${bsym}/${IV}/${bsym}-${IV}-${m}.zip"
   local tmp="/tmp/${sym}-${IV}-${m}.zip"
   curl -s -f -m 120 -o "$tmp" "$url" 2>/dev/null || return 0
@@ -33,7 +36,7 @@ for sym in $COINS; do
 done
 
 echo "Downloading $(wc -l < "$jobs") 1h monthly files (parallel, 12 workers) ..."
-xargs -P 12 -n 2 bash -c 'dl "$@"' _ < "$jobs"
+xargs -P 16 -n 2 bash -c 'dl "$@"' _ < "$jobs"
 
 for sym in $COINS; do
   out="$OUT/${sym}-${IV}.csv"; : > "$out"
