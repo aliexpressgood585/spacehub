@@ -71,7 +71,11 @@ losers when the team turns, so "earlier team exit" was already in place. No chan
 SHIPPED: (a) `LEARN.provenT` 1 -> 2.5 (multiple testing: 75 agents x 4 horizons, best kept;
 live 10 at t>=1, 7 at t>=2.5, so proven mode stays on); (b) `SCALP.maxSameSide` 6 via
 `balancePicks` — no more than 6 of 8 open on one side (entries only, runner-side, no ledger
-change); (c) daily Hebrew report routine. Tests added in swarm/scalp suites.
+change); (c) daily Hebrew report routine `trig_01EGnhcdEszAA9FEP8sKUAGC`, 05:00 UTC, fresh session,
+NO connectors (org does not allow them on triggers) -> reads via the public anon REST key, read-only.
+Tests added in swarm/scalp suites.
+DEPLOYED 06:40 UTC: PR #48 (5cc4a34c), function v47, manifest v81.0 paper true / live false,
+0 errors, heartbeat current; book at deploy 4 LONG / 4 SHORT (already within the cap).
 
 ## v80.3 (2026-09-24) — PEPE showed "0.00000" everywhere (display only)
 Owner: "why is PEPE without market data". Data was fine (bot entry 0.00000432, source
