@@ -83,7 +83,21 @@ same as the live league). ob/fr/bs/oi have no archive -> excluded (never "failed
 - Tests: factory suite +6 (gymPicks ordering/exclusion/slots, labels); suite green; app tsc clean.
 HONEST: 5m ≠ the live 1m bars, 10 ≠ 40 coins, and a pass seeds a TRIAL, nothing more. If nothing passes,
 that is the answer (all prior sub-day research says it likely will be), stated loudly with numbers.
-STATUS: see the DEPLOYED line below once the run lands.
+DEPLOYED 15:07 UTC: PR #55 (bd4190af), function v53, manifest v85.0 paper true / live false, 0 errors;
+Pages run #121 green (GymWall live in house.html); backtest run #99 (gym 36) fetched 360 monthly 5m files
+in 20s and ran in 67s; result committed as `status/gym-latest.json` (350KB) + `.txt` at eedd57ef. The
+bot read it on its next meeting: factory line "חדר הכושר (36 חודשים אופליין): 0 עברו".
+**RESULT — 0 of 1,500 PASS.** 315,648 bars 2023-09-01 → 2026-08-31, 10 coins. 1,423 had a horizon
+(>=300 votes); 1,421 fail on a negative IS window, 2 clear all 4 windows but with IS t 0.48 / 0.32
+(bar 1.0) and OOS t -0.09 / +0.10. Only 6 of 1,423 are positive in even 3 of 4 windows. Median net
+edge per vote across all IS windows: **-15.9 bps** — i.e. the 16bps round trip eats essentially the
+whole gross. Best IS: g_vw600p8f_z201p5r @240m IS +30/+14/+11/+8 bps, OOS -5.8. This is the SAME
+answer v76-v105bt gave on the fast axis, now on the factory's own vocabulary with a holdout: on public
+1-5 minute price data there is no rule in this family that pays its costs. It says nothing about the
+live factory's 1m bars beyond "expect the same" — and note the live factory's first 4 oos promotions
+appeared this hour only because the ev fix (v83.2) made promotion possible, not because an edge was found.
+The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
+(daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
 ## v84.0 (2026-09-24) — "אורביטל": the house in 3D (owner: "3D, out of this world, real actions behind every agent";
 ## and: NO bot changes until they decide). Dashboard only; the bot, its shim and the DB are untouched.
