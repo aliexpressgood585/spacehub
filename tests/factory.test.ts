@@ -1,0 +1,37 @@
+import assert from 'node:assert/strict'
+import {FACTORY,FEATURES,features,vote,spawn,step,genomeId,statKeys,OOS,rng,type FactoryRow} from '../shared/factory.ts'
+import {LEARN,hKey,type Stat} from '../shared/swarm.ts'
+const now=1_800_000_000_000,iso=(t:number)=>new Date(t).toISOString()
+const bars=(f:(i:number)=>number)=>Array.from({length:65},(_,i)=>{const c=f(i),o=f(i-1);return {t:now-(65-i)*60000,o,h:Math.max(o,c)*1.0002,l:Math.min(o,c)*0.9998,c,v:100+(i>60?300:0)}})
+const up=bars(i=>100*(1+0.001*i))
+const f=features(up,{imbalance:0.3,funding:0.0002,premium:0.0006,xm7:0.9})
+assert.ok(f.r5>0.4&&f.r5<0.6,'5-min return in %');assert.equal(f.ob,0.3);assert.ok(Math.abs(f.fr-2)<1e-9);assert.ok(Math.abs(f.bs-6)<1e-9);assert.equal(f.xm7,0.9);assert.ok(Number.isNaN(f.oi),'no OI -> NaN, never 0')
+assert.ok(Object.keys(FEATURES).every(k=>k in f),'every feature is computed')
+assert.equal(vote({a:['r5',0.4,1]},f),1);assert.equal(vote({a:['r5',0.4,-1]},f),-1,'fade');assert.equal(vote({a:['r5',0.8,1]},f),0,'below threshold')
+assert.equal(vote({a:['r5',0.4,1],b:['ob',0.2,1]},f),1,'two agreeing conditions');assert.equal(vote({a:['r5',0.4,1],b:['ob',0.2,-1]},f),0,'disagreeing -> no vote')
+assert.equal(vote({a:['oi',1,1]},f),0,'missing data abstains')
+assert.equal(genomeId({a:['r5',0.4,1],b:['ob',0.2,-1]}),'g_r50p4f_ob0p2r')
+// spawn: deterministic, unique, never re-tests a taken genome
+const s1=spawn(50,7,new Set()),s2=spawn(50,7,new Set());assert.deepEqual(s1,s2,'same seed -> same generation')
+assert.equal(new Set(s1.map(x=>x.id)).size,50)
+const taken=new Set(s1.map(x=>x.id));const s3=spawn(50,7,taken);assert.ok(s3.every(x=>!s1.some(y=>y.id===x.id)),'a taken (incl. retired) genome is never spawned again')
+assert.ok(s1.every(x=>x.genome.a[0] in FEATURES&&FEATURES[x.genome.a[0]].includes(x.genome.a[1])&&(!x.genome.b||x.genome.b[0]!==x.genome.a[0])))
+const r=rng(1);assert.ok(Array.from({length:100},()=>r()).every(x=>x>=0&&x<1))
+// lifecycle
+const st=(n:number,mean:number,sd=10):Stat=>({agent:'x',n,s:mean*n,s2:(mean*mean+sd*sd)*n,updated_at:iso(now)})
+const row=(stage:FactoryRow['stage'],h:number|null=null,ageH=1):FactoryRow=>({id:'g_t',genome:{a:['r5',0.4,1]},stage,born:iso(now-ageH*3600e3),stage_at:iso(now-ageH*3600e3),h})
+assert.equal(step(row('trial'),{},now),null,'no evidence yet -> keep waiting')
+assert.equal(step(row('trial',null,FACTORY.trialMaxH+1),{},now)!.stage,'retired','trial timeout')
+const pr=step(row('trial'),{[hKey('g_t',60)]:st(400,6)},now)!;assert.equal(pr.stage,'oos');assert.equal(pr.h,60,'promoted on its best horizon')
+assert.equal(step(row('trial'),{g_t:st(400,-3)},now)!.stage,'retired','negative in trial')
+assert.equal(step(row('trial'),{g_t:st(400,0.2)},now),null,'weak but positive -> keep testing')
+// OOS judged ONLY on the alias at the fixed horizon; trial evidence does not count
+assert.equal(step(row('oos',60),{[hKey('g_t',60)]:st(5000,20)},now),null,'great trial stats alone never make it live')
+assert.equal(step(row('oos',60),{[hKey(OOS('g_t'),60)]:st(300,15)},now)!.stage,'live')
+assert.equal(step(row('oos',60),{[hKey(OOS('g_t'),60)]:st(300,-2)},now)!.stage,'retired')
+assert.equal(step(row('oos',60,FACTORY.oosMaxH+1),{},now)!.stage,'retired','oos timeout')
+assert.equal(step(row('live',60),{[hKey(OOS('g_t'),60)]:st(300,1)},now)!.stage,'retired','live agent that fades is dropped')
+assert.equal(step(row('live',60),{[hKey(OOS('g_t'),60)]:st(300,15)},now),null,'live and still good -> stays')
+assert.equal(statKeys('g_t').length,LEARN.horizonsMin.length*2)
+assert.ok(FACTORY.liveT>=LEARN.provenT,'live bar is at least the proven bar')
+console.log('Agent factory: features, genomes, deterministic spawn, no re-test, trial -> oos -> live lifecycle passed')
