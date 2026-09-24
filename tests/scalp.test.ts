@@ -19,12 +19,12 @@ assert.equal(exitPlan({...t,trail_sl:101},{...q,bid:100.9},now).reason,'STOP')
 const sh={...t,side:'SHORT',trail_sl:101}
 assert.equal(exitPlan(sh,{...q,ask:102},now).close,true)
 assert.ok(exitPlan(sh,{...q,ask:98},now).stop<101)
-assert.equal(allocation(1000,1000,0,4),247.5)
+assert.equal(allocation(1000,1000,0,4),225)  // v87.0: 90% allocation / 4
 assert.equal(allocation(0,1000,0,4),0)
 assert.equal(allocation(100,1000,1000,1),0)
 assert.equal(allocation(100,1000,0,0),0)
 for(let c=0;c<1000;c+=7){const n=allocation(c,1000,900,1);assert.ok(n>=0&&n*1.0005<=c+1e-9&&n<=90)}
-assert.equal(SCALP.maxPositions,16);assert.equal(SCALP.meetingMs,60000);assert.equal(SCALP.maxHoldMs,240*60000)
+assert.equal(SCALP.maxPositions,8);assert.equal(SCALP.meetingMs,60000);assert.equal(SCALP.maxHoldMs,240*60000)
 // trailing only ratchets after the 1-minute minimum hold; the hard stop still fires at once
 assert.equal(exitPlan({...t,opened_at:new Date(now-30000).toISOString()},{...q,bid:102},now).stop,99)
 assert.equal(exitPlan({...t,opened_at:new Date(now-30000).toISOString()},{...q,bid:98},now).reason,'STOP')
@@ -48,9 +48,9 @@ assert.equal(liqCheck([L('short',101),L('short',100.5)],100,now).dir,-1)
 assert.equal(liqCheck([L('long',99),L('short',101)],100,now).dir,0)
 assert.equal(liqCheck([L('long',50),L('long',50)],100,now).valid,0)
 assert.equal(liqCheck([L('long',99,now-3600000),L('long',99)],100,now).dir,0)
-assert.equal(allocation(1000,1000,0,8),123.75)
+assert.equal(allocation(1000,1000,0,8),112.5)
 // v76.0 whole portfolio: fewer entries -> bigger tickets; v86.0: capped at 25% per coin (many parallel positions)
-assert.equal(allocation(1000,1000,0,1),250); assert.equal(allocation(1000,1000,0,2),250); assert.equal(allocation(1000,1000,800,1),190)
+assert.equal(allocation(1000,1000,0,1),250); assert.equal(allocation(1000,1000,0,2),250); assert.equal(allocation(1000,1000,800,1),100)
 // v74.0 adaptive hold
 assert.equal(planHold(1,0.2,0,0.001),5); assert.equal(planHold(1,0.5,1,0.001),13); assert.equal(planHold(1,0.2,-1,0.003),1)
 assert.equal(planHold(-1,-0.5,-1,0.0005),13); assert.ok(planHold(1,1,1,0)<=15)
@@ -85,7 +85,7 @@ assert.ok(readFileSync('shared/scalp.ts','utf8').includes("intel.mode==='proven'
  assert.deepEqual(balancePicks(P,Array(SCALP.maxSameSide-1).fill(1),2).map(x=>x.k),['a','c'],'one below the side cap -> one more long, then the short')
  assert.deepEqual(balancePicks(P,Array(SCALP.maxSameSide).fill(1),2).map(x=>x.k),['c'],'at the side cap -> no more longs')
  assert.deepEqual(balancePicks(P,[],2).map(x=>x.k),['a','b'],'balanced book keeps the two strongest')
- assert.equal(SCALP.maxSameSide,10)}
+ assert.equal(SCALP.maxSameSide,5)}
 // v83.0: allocation honours a reserved share (ROTA alongside)
 assert.ok(allocation(1000,1000,0,2,0.2)<=100+1e-9&&allocation(1000,1000,0,2,0.2)>=99,'20% share over 2 slots -> 10% each (below the 25% coin cap)');assert.equal(allocation(1000,1000,0,1,0),0)
 assert.ok(allocation(1000,1000,400,1,0.49)<=90+1e-9,'own exposure is subtracted from the share')
