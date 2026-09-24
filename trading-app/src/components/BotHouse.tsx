@@ -74,7 +74,7 @@ const ROSTER: Record<Id, { name: string; role: string; color: string }> = {
   flowDesk: { name: TEAMS.flow.name, role: 'ראש ' + TEAMS.flow.label + ' (10 סוכנים)', color: '#b9a7ff' },
   funding: { name: AGENTS.funding.name, role: 'סוכן ' + AGENTS.funding.role, color: '#4cc9f0' },
 }
-const W = 480, H = 980, R = 2
+const W = 480, H = 1130, R = 2
 // rooms: attic (reporter, donch) · upper floor (rota, regime, scout) · ground floor (treasurer, trader, risk)
 const ROOM: Record<Id, { x0: number; y0: number; w: number; h: number; floor: number }> = {
   reporter: { x0: 100, y0: 48, w: 93, h: 62, floor: 108 },
@@ -111,6 +111,17 @@ const ROOM: Record<Id, { x0: number; y0: number; w: number; h: number; floor: nu
   funding: { x0: 380, y0: 696, w: 92, h: 134, floor: 826 },
 }
 const IDS = Object.keys(ROSTER) as Id[]
+// v85.2: the gym hall — the bottom floor. Every genome the offline gym examined walks in, passes the
+// four in-sample windows and the held-out test (a lamp lights green/red at each from ITS real numbers),
+// and leaves through the door its verdict earned. Live factory events (seeded, promoted, retired)
+// jump the queue so a real change is seen the minute it happens. Display only — nothing computed here.
+const GYM_ROOM = { x0: 8, y0: 986, w: 464, h: 136, floor: 1116 }
+const GYM_STATIONS = [76, 146, 216, 286, 356]           // 4 IS windows + the held-out test
+const GYM_DOORS: Record<'trial' | 'pass' | 'fail', number> = { trial: 386, pass: 414, fail: 442 }
+const GYM_DOOR_LABEL: Record<'trial' | 'pass' | 'fail', string> = { trial: 'לניסיון', pass: 'עבר', fail: 'נפסל' }
+type GymEvt = { id: string; text: string; kind: 'replay' | 'live'; lamps: (boolean | null)[]; door: 'trial' | 'pass' | 'fail'; tf: string }
+type GymCur = { e: GymEvt; x: number; st: number; until: number; lamps: (boolean | null)[] }
+const hue = (s: string) => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h % 360 }
 // v83.0: meeting roles without a room of their own (rendered in the minutes and the panels only)
 const EXTRA: Record<string, { name: string; role: string; color: string }> = { info: { name: 'מידע חדש', role: 'מומנטום ימים · Open Interest · פרמיה', color: '#7bd389' }, factory: { name: 'מפעל הסוכנים', role: 'ניסוי → בדיקה → פעיל', color: '#e0b04c' } }
 const who = (id: string) => ROSTER[id as Id] ?? EXTRA[id]
@@ -363,6 +374,10 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
   const status = useMemo(() => derive(snap, now), [snap, now])
   const statusRef = useRef(status); statusRef.current = status
   const snapRef = useRef(snap); snapRef.current = snap
+  // v85.2 gym hall animation state (read by the canvas loop, fed by the gym report + live factory changes)
+  const gymAnim = useRef<{ replay: GymEvt[]; i: number; liveQ: GymEvt[]; cur: GymCur | null; gap: number; done: Record<'trial' | 'pass' | 'fail', number>; stages: Record<string, string> | null; ranAt: string }>({ replay: [], i: 0, liveQ: [], cur: null, gap: 0, done: { trial: 0, pass: 0, fail: 0 }, stages: null, ranAt: '' })
+  const [gymNow, setGymNow] = useState<{ id: string; text: string; kind: 'replay' | 'live' } | null>(null)
+  const gymRef = useRef(gym); gymRef.current = gym
   const selRef = useRef(sel); selRef.current = sel
   const people = useRef<Record<Id, Person>>(Object.fromEntries(IDS.map((id) => [id, { id, ...home(id), face: 1, path: [], until: 0, carry: null }])) as Record<Id, Person>)
   const prev = useRef<{ reb: number; closeId: unknown; skipId: unknown; meeting: unknown } | null>(null)
@@ -412,6 +427,43 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
     const tick = setInterval(() => setNow(Date.now()), 5_000)
     return () => { alive = false; clearInterval(iv); clearInterval(tick); void supa.removeChannel(ch) }
   }, [])
+
+  // v85.2: the gym report feeds the hall's replay queue (passers first, then by held-out t); a new run restarts it
+  useEffect(() => {
+    if (!gym || gym === 'missing') return
+    const g = gymAnim.current
+    if (g.ranAt === gym.ran_at) return
+    g.ranAt = gym.ran_at; g.i = 0; g.done = { trial: 0, pass: 0, fail: 0 }
+    const rows = [...gym.genomes].sort((a, b) => (b.pass ? 1 : 0) - (a.pass ? 1 : 0) || (b.oos_t ?? -99) - (a.oos_t ?? -99))
+    g.replay = rows.map((r) => ({
+      id: r.id, kind: 'replay', tf: r.tf ?? '5m',
+      lamps: r.h ? [...r.is.map((x) => x > 0), r.oos_t == null ? null : r.oos_t >= 2] : [null, null, null, null, null],
+      door: r.pass ? 'pass' : r.why === 'thin' || r.why === 'untestable' ? 'trial' : 'fail',
+      text: `${GYM_WHY[r.why]?.[0] ?? r.why} · נרות ${TF_LABEL[r.tf ?? '5m'] ?? r.tf}${r.h ? ` · אופק ${fmtH(r.h)} · חוץ t ${r.oos_t ?? '—'}` : ''}`,
+    }))
+  }, [gym])
+  // v85.2: live factory changes jump the gym queue — seeded / promoted / retired agents are seen as they happen
+  useEffect(() => {
+    const rows = (snap?.factory ?? []) as Row[]
+    if (!rows.length) return
+    const g = gymAnim.current, next: Record<string, string> = {}
+    for (const r of rows) next[String(r.id)] = String(r.stage)
+    if (g.stages) {
+      for (const r of rows) {
+        const id = String(r.id), st = String(r.stage), was = g.stages[id]
+        if (was === st) continue
+        const tf = String((r.genome as Row | undefined)?.tf ?? '1m'), note = String(r.note ?? '')
+        const ev: GymEvt | null =
+          !was && st === 'trial' ? { id, kind: 'live', tf, lamps: [null, null, null, null, null], door: 'trial', text: note.startsWith('gym') ? `נכנס לניסיון חי מחדר הכושר (${note})` : note.startsWith('child') ? `נולד מסוכן שעבר שלב (${note}) — לניסיון חי` : 'סוכן חדש — לניסיון חי' }
+          : st === 'oos' ? { id, kind: 'live', tf, lamps: [true, true, true, true, null], door: 'pass', text: 'עבר את הניסיון החי — עולה לבדיקה על נתונים שלא ראה' }
+          : st === 'live' ? { id, kind: 'live', tf, lamps: [true, true, true, true, true], door: 'pass', text: 'עבר גם את מבחן החוץ החי — מצביע מעכשיו' }
+          : st === 'retired' ? { id, kind: 'live', tf, lamps: [false, false, false, false, false], door: 'fail', text: was === 'oos' ? 'נפסל במבחן החוץ החי' : 'נפסל בניסיון החי' }
+          : null
+        if (ev) g.liveQ.push(ev)
+      }
+    }
+    g.stages = next
+  }, [snap?.factory])
 
   // hand-offs: only when a new real event appears while the page is open
   useEffect(() => {
@@ -596,6 +648,47 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
       for (let i = 0; i < 9; i++) px(150 + i * 1.5, 256 + i * 15.5, 12, 3, '#6b4a2c')
       for (let i = 0; i < 9; i++) px(118 + i * 1.5, 404 + i * 15.5, 10, 3, '#6b4a2c')
       for (let f = 0; f < 3; f++) for (let i = 0; i < 9; i++) px(96 + i * 1.2, 548 + f * 140 + i * 15, 8, 3, '#6b4a2c')
+      // v85.2 the gym hall (bottom floor): stations, doors, scoreboard — from the gym report + live factory
+      {
+        const G = GYM_ROOM, ga = gymAnim.current, gr = gymRef.current
+        px(G.x0, G.y0, G.w, G.h, '#1b2433'); px(G.x0, G.floor, G.w, 6, '#5a3d27'); for (let x = G.x0; x < G.x0 + G.w; x += 14) px(x, G.floor, 1, 6, 'rgba(0,0,0,0.3)')
+        px(G.x0 + 16, G.floor - 4, GYM_STATIONS[4] - G.x0, 4, '#26344a')   // running mat
+        for (let i = 0; i < 5; i++) px(G.x0 + 40 + i * 44, G.y0 + 10, 3, 3, '#f0b44c')   // wall lights
+        GYM_STATIONS.forEach((sx, i) => {
+          px(sx - 12, G.floor - 12, 24, 12, i === 4 ? '#3a3050' : '#2c3c56'); px(sx - 12, G.floor - 12, 24, 2, '#4a6084')
+          const l = ga.cur?.lamps[i]
+          px(sx - 4, G.floor - 20, 8, 7, l === true ? '#00d492' : l === false ? '#ff4d6a' : '#56607a')
+          if (l === true && !reduced && Math.floor(t * 6) % 2) px(sx - 6, G.floor - 22, 12, 11, 'rgba(0,212,146,0.25)')
+          px(sx - 1, G.floor - 26, 2, 4, '#8a8f98')
+        })
+        // doors: grey = live trial, green = passed, red = failed
+        ;(['trial', 'pass', 'fail'] as const).forEach((d) => { const x = GYM_DOORS[d], c = d === 'pass' ? '#148a50' : d === 'fail' ? '#a12b2b' : '#4a5468'; px(x - 2, G.floor - 46, 24, 46, '#0b0f18'); px(x, G.floor - 44, 20, 44, c); px(x + 14, G.floor - 24, 3, 3, '#f0b44c') })
+        // scoreboard: this run's verdicts (from the report) and what has walked through so far
+        px(G.x0 + 12, G.y0 + 12, 118, 46, '#0b0f18'); px(G.x0 + 13, G.y0 + 13, 116, 44, '#0f1a2a')
+        if (gr && gr !== 'missing') {
+          const tot = Math.max(1, gr.counts.tested), p = gr.counts.passed, f = gr.genomes.filter((r) => !r.pass && r.why !== 'thin' && r.why !== 'untestable').length, th = tot - p - f
+          const bar = (y: number, n: number, c: string) => { px(G.x0 + 18, G.y0 + y, 90, 5, '#1b2230'); px(G.x0 + 18, G.y0 + y, Math.max(n ? 2 : 0, Math.round(90 * n / tot)), 5, c) }
+          bar(18, p, '#00d492'); bar(28, f, '#ff4d6a'); bar(38, th, '#56607a')
+          px(G.x0 + 112, G.y0 + 18, 12, 5, '#00d492'); px(G.x0 + 112, G.y0 + 28, 12, 5, '#ff4d6a'); px(G.x0 + 112, G.y0 + 38, 12, 5, '#56607a')
+          ctx.font = '7px monospace'; ctx.textAlign = 'left'; ctx.fillStyle = '#c9d1de'
+          ctx.fillText(`${p} pass  ${f} fail  ${th} thin  / ${tot}`, G.x0 + 18, G.y0 + 52)
+        } else { ctx.font = '7px monospace'; ctx.textAlign = 'left'; ctx.fillStyle = '#8fa3bf'; ctx.fillText(gr === 'missing' ? 'gym: not run yet' : 'gym: loading', G.x0 + 18, G.y0 + 38) }
+        // live tally of who walked through while this page has been open
+        ctx.font = '7px monospace'; ctx.textAlign = 'right'; ctx.fillStyle = '#8fa3bf'
+        ctx.fillText(`walked: ${ga.done.pass} pass ${ga.done.fail} fail ${ga.done.trial} trial`, G.x0 + G.w - 12, G.y0 + 22)
+        // the trainee on the mat
+        const c = ga.cur
+        if (c) {
+          const x = Math.round(c.x), y = G.floor, moving = c.until < Date.now(), wf = moving && !reduced ? Math.floor(t * 8) % 4 : 0, a = wf === 1 ? 2 : wf === 3 ? -2 : 0
+          const shirt = `hsl(${hue(c.e.id)},55%,52%)`, hat = c.e.tf === '4h' ? '#f0b44c' : c.e.tf === '1d' ? '#b58cff' : c.e.tf === '1m' ? '#35e0ff' : '#dbe7f5'
+          px(x - 6, y - 1, 12, 2, 'rgba(0,0,0,0.3)')
+          px(x - 3 + a, y - 6, 3, 6, '#34507a'); px(x + 1 - a, y - 6, 3, 6, '#34507a')
+          px(x - 4, y - 14, 9, 8, shirt); px(x - 4, y - 21, 8, 8, '#e7b791'); px(x - 4, y - 22, 8, 3, hat); px(x + 2, y - 18, 1, 1, '#111')
+          if (c.e.kind === 'live') { px(x + 6, y - 28, 6, 6, '#00d492'); px(x + 8, y - 26, 2, 2, '#fff') }
+          ctx.font = '7px monospace'; ctx.textAlign = 'center'; ctx.fillStyle = c.e.door === 'pass' ? '#7fd3a8' : c.e.door === 'fail' ? '#f0a0a0' : '#c9d1de'
+          ctx.fillText(c.e.id.length > 26 ? c.e.id.slice(0, 25) + '…' : c.e.id, Math.min(G.x0 + G.w - 60, Math.max(G.x0 + 60, x)), y - 30)
+        }
+      }
       if (dead) { ctx.fillStyle = 'rgba(4,7,14,0.35)'; ctx.fillRect(0, 112, W, H - 112) }
     }
     const drawPerson = (p: Person, t: number) => {
@@ -633,6 +726,21 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
     }
     const step = (dt: number) => {
       const nowMs = Date.now()
+      // v85.2 gym hall: one trainee at a time — live events first, then the report replay in a loop
+      {
+        const g = gymAnim.current
+        if (!g.cur && nowMs > g.gap) {
+          const e = g.liveQ.shift() ?? (g.replay.length ? g.replay[g.i++ % g.replay.length] : null)
+          if (e) { g.cur = { e, x: GYM_ROOM.x0 + 14, st: 0, until: 0, lamps: [null, null, null, null, null] }; setGymNow({ id: e.id, text: e.text, kind: e.kind }) }
+        } else if (g.cur && g.cur.until < nowMs) {
+          const c = g.cur, target = c.st < 5 ? GYM_STATIONS[c.st] : GYM_DOORS[c.e.door] + 10, sp = (reduced ? 400 : 75) * dt
+          if (Math.abs(target - c.x) <= sp) {
+            c.x = target
+            if (c.st < 5) { c.lamps[c.st] = c.e.lamps[c.st]; c.until = nowMs + (reduced ? 0 : 260); c.st++ }
+            else { g.done[c.e.door]++; g.cur = null; g.gap = nowMs + 400 }
+          } else c.x += Math.sign(target - c.x) * sp
+        }
+      }
       for (const p of Object.values(people.current)) {
         if (!p.path.length || p.until > nowMs) continue
         const g = p.path[0], sp = 60 * dt
@@ -704,6 +812,10 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
               </div>
             )
           })}
+          <div className="bh-tag gym" style={{ right: `${100 - ((GYM_ROOM.x0 + GYM_ROOM.w / 2) / W) * 100}%`, top: `${((GYM_ROOM.y0 + 2) / H) * 100}%`, ['--c' as string]: '#f0b44c' }}>
+            חדר הכושר <span dir="ltr">· {gymNow ? gymNow.id : '—'}</span> <span>· {gymNow ? gymNow.text : gym === 'missing' ? 'עדיין לא רץ' : 'טוען…'}</span>
+          </div>
+          {(['trial', 'pass', 'fail'] as const).map((d) => <span key={d} className="bh-door" style={{ right: `${100 - ((GYM_DOORS[d] + 10) / W) * 100}%`, top: `${((GYM_ROOM.floor - 56) / H) * 100}%` }}>{GYM_DOOR_LABEL[d]}</span>)}
         </div>
       </div>
 
@@ -919,6 +1031,8 @@ const CSS = `
 .bh-ov { position:absolute; inset:0; pointer-events:none; }
 .bh-tag { position:absolute; transform:translate(50%,0); pointer-events:auto; cursor:pointer; border:0; border-radius:5px; font-family:inherit; white-space:nowrap; font-size:clamp(8.5px,2.1cqw,12.5px); font-weight:800; color:#f4efe2; background:rgba(8,11,18,0.86); padding:0.15em 0.55em; border-bottom:0.2em solid var(--c); }
 .bh-tag span { font-weight:400; opacity:0.8; } .bh-tag.sel { background:#f0b44c; color:#2a1d08; }
+.bh-tag.gym { cursor:default; max-width:92%; overflow:hidden; text-overflow:ellipsis; }
+.bh-door { position:absolute; transform:translate(50%,0); font-size:clamp(7px,1.7cqw,10px); font-weight:800; color:#f4efe2; background:rgba(8,11,18,0.7); padding:0 0.4em; border-radius:4px; white-space:nowrap; pointer-events:none; }
 .bh-tag:focus-visible, .bh-row:focus-visible, .bh-btn:focus-visible { outline:2px solid #f0b44c; outline-offset:2px; }
 .bh-say { position:absolute; transform:translate(50%,-100%); width:max-content; max-width:min(250px,34cqw); font-size:clamp(8.5px,1.9cqw,12px); line-height:1.4; color:#1d1608; background:#fffaf0; padding:0.35em 0.55em; border-radius:5px; box-shadow:0 0 0 2px #1d1608, 3px 3px 0 rgba(0,0,0,0.35); }
 .bh-list { background:rgba(10,17,29,0.96); border:1px solid rgba(140,170,210,0.14); border-radius:6px; overflow:hidden; }

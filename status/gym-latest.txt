@@ -1,5 +1,21 @@
-GYM 2026-09-24T15:08:36.543Z — 10 coins, 36m of 5m bars (315648 bars, 2023-09-01 → 2026-08-31), 4 IS windows + 20% OOS read once
-tested 1500 genomes: 1500 testable, 0 untestable offline (ob/fr/bs/oi)
-  thin 77 | a negative IS window 1421 | IS t<1 2 | failed OOS 0 | PASSED 0
-PASSED: none — on this data no genome is net-positive in every window AND on the held-out 20%. That is a result, not a failure of the gym.
-NB 5m bars / 10 coins; a pass here only seeds the genome into LIVE TRIAL — it still has to earn oos and live on live data.
+GYM 2026-09-24T15:23:49.107Z — 36m, 4 IS windows + 20% OOS read once
+[5m] 10 coins, 315648 bars 2023-09-01 → 2026-08-31: tested 1500 | thin 77 | a negative IS window 1421 | IS t<1 2 | failed OOS 0 | PASSED 0
+[4h] 40 coins, 6576 bars 2023-09-01 → 2026-08-31: tested 1500 | thin 84 | a negative IS window 1391 | IS t<1 12 | failed OOS 13 | PASSED 0
+[1d] 40 coins, 1096 bars 2023-09-01 → 2026-08-31: tested 1500 | thin 176 | a negative IS window 1288 | IS t<1 15 | failed OOS 21 | PASSED 0
+PASSED: none — on this data no genome is net-positive in every window AND on the held-out 20%, at any timeframe. That is a result, not a failure of the gym.
+near misses (all IS windows positive, OOS short of 2):
+  gd_rsi70p6r_btc150p4f                1d h=4320m  IS t 1.96  OOS 166.46bps t=1.23
+  gd_xm70p6f_z202p5f                   1d h=1440m  IS t 2.22  OOS 66.6bps t=1.03
+  gd_z202p5f_btc150p2f                 1d h=2880m  IS t 1.76  OOS 78.86bps t=0.6
+  g4_vw300p1r_rsi280p2f                4h h=1440m  IS t 1.97  OOS 26.98bps t=0.46
+  gd_xm140p8f_rsi70p2r                 1d h=4320m  IS t 1.32  OOS 46.93bps t=0.42
+  gd_vr1r_r602f                        1d h=10080m  IS t 1.93  OOS 148.15bps t=0.41
+  gd_rsi280p1f_r100p4r                 1d h=4320m  IS t 1.18  OOS 19.41bps t=0.27
+  gd_btc50p4f_z602p5f                  1d h=10080m  IS t 1.3  OOS 40.08bps t=0.14
+all IS windows positive but IS t < 1:
+  gd_r50p4f_btc50p2r                   1d h=4320m  IS 17.71 / 101.24 / 84.89 / 9.68  IS t 0.98  OOS t=-2.33
+  gd_r50p8f_btc50p2r                   1d h=4320m  IS 31.47 / 100.94 / 81.57 / 4.5  IS t 0.95  OOS t=-2.33
+  g4_z202p5f_btc150p2f                 4h h=1440m  IS 0.64 / 82.04 / 12.97 / 36.77  IS t 0.94  OOS t=-0.24
+  g4_z202p5f_r301p2f                   4h h=1440m  IS 6.58 / 65.47 / 2.74 / 52.53  IS t 0.92  OOS t=-0.36
+  g4_btc150p4f_r151r                   4h h=2880m  IS 43.79 / 23.84 / 51.87 / 23.66  IS t 0.92  OOS t=-0.08
+NB a pass here only seeds the genome into LIVE TRIAL (on its own timeframe) — it still has to earn oos and live on live data.
