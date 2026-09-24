@@ -18,7 +18,7 @@ export function balancePicks<T extends { side: number }>(picks: readonly T[], op
   }
   return out
 }
-export interface Bar { t:number; o:number; h:number; l:number; c:number; v:number }
+export interface Bar { t:number; o:number; h:number; l:number; c:number; v:number; q?:number; n?:number }   // v85.5: q = taker-buy base volume, n = trades (Binance klines; absent on OKX)
 export interface Quote { bid:number; ask:number; ts:number; imbalance:number; source:string }
 export interface Vote { who:string; says:string; vote:string; checked_at:string }
 // Public context, each item carrying where it came from and when.

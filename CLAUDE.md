@@ -61,6 +61,29 @@ Answered with the real state instead. Live, v80.2 (56cd826d) paper true / live f
 $5,000 (-3.3%). Book: 8 open, all planned 240 min (proven agents' best horizon is now
 4h), 5 LONG / 3 SHORT, cash $51. No non-SCALP rows.
 
+## v85.5 (2026-09-24) — THE VOCABULARY WIDENED TO THE MAXIMUM THE ARCHIVE ALLOWS (owner: "תרחיב את 1 למקסימום, זריז")
+Nine new features, all testable offline AND fed live; only the order book (`ob`) stays untestable:
+  ti5 / ti30  taker-buy imbalance over 5/30 bars — from the klines' own taker-buy column (col 9); v101bt found
+              this real in SHAPE and 50x too small at 15m alone — now it can pair with anything, at any tf
+  nt          trade-count spike (col 8) signed by the 5-bar move
+  dd30        drawdown from the 30-bar high (%)
+  tls / tlr   top-trader long/short POSITION ratio − 1, taker buy/sell VOLUME ratio − 1 (metrics archive, 5-30 min rows)
+  oi1d        24h open-interest change (%), next to the existing 4h `oi`
+  xm60 / xm90 cross-sectional momentum over 60/90 days (ROTA's family, longer)
+  fr / bs / oi (already in the vocabulary) become TESTABLE: fundingRate monthly archive, premiumIndexKlines 1h,
+              metrics OI — `backtest/fetch-aux.sh`: funding + premium for all 289 perps × 72m, metrics for the
+              pinned 40 × 36m (daily files, 40 × 1,095). A coin without an archive = NaN = its genes abstain.
+gym.ts: `TSeries.at(t, maxAge)` (binary search, stale = missing), `loadAux(sym)`, per-row FeatCtx with
+funding (≤9h old), premium, doi/dpx (4h), doi1d (24h), tls/tlr, xm60/90 (daily loop now 7/14/28/60/90);
+loadCSV keeps q/n, aggregate() sums them; `Bar` (scalp.ts + agents.ts) gained optional `q`, `n`.
+LIVE (v85.5): 1m + slow kline mappers carry q/n (OKX has none → NaN); daily closes 30 → 100 days; OI hist
+6 → 30 hourly points (24h change); new hourly cache `ratios` (topLongShortPositionRatio + takerlongshortRatio,
+period 1h) → `InfoData.ratios`; both feature calls receive the widened ctx. Singles per set 60 → 114 (+2 dirs
+each); pairs sample unchanged (1,380) so gen 0 = 1,974 per set.
+Tests: gym suite + widened-vocabulary block (ti/nt/dd sign and dilution, NaN without taker data, aux
+series staleness, every feature labelled); suite green; app tsc clean; smoke with synthetic aux archives.
+STATUS: see the RESULT line below once the run lands.
+
 ## v85.4 (2026-09-24) — GYM: 15m bars, HOUR/DAY GATES, EVOLUTION (owner: short timeframes, "by certain hours or
 ## days", and "automatic agents that improve and come back to the exam better until approved")
 - FOUR sets: 5m/10 coins, **15m/40 coins** (horizons 15m/1h/4h/1d, `fetch-15m.sh`), 4h and 1d on the 289
