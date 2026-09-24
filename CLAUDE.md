@@ -76,7 +76,14 @@ SKIPPED with a log line, never an abort (a weekly set has ~313 bars in 72 months
 Summary prints "FINAL looks: N … luck alone would pass ≈ 0.023·N" so a pass is always read against the
 number of looks. Tests updated (11 rungs, horizons, ids, gate shaping); smoke on 30m/2h/8h/12h synthetic.
 Expect the run to take ~30-45 min (11 caches, 11 × ~2,750 genomes with evolution).
-STATUS: see the RESULT line below once the run lands.
+**v85.8 — the downloads were the wall, not the maths.** The v85.5 run (36025019078) and the ladder run
+(36027403216) both sat in "Download historical data" for 30+ / 15+ minutes: fetch-aux spawned one curl
+per file (~85,000 processes for funding + premium × 289 perps × 72m and metrics × 40 × 1,095 days), and the
+kline fetchers did the same with 16 workers. Both CANCELLED at 16:48 UTC. Rewritten around ONE curl process
+with HTTP/2 multiplexing (`curl -Z --parallel-max 64 --config <url/output pairs>`): fetch-aux.sh,
+fetch-1h.sh (fetch-15m.sh now = `BT_IV=15m fetch-1h.sh`). Smoke from the sandbox: 68 aux files in 3s,
+formats parse (metrics 5-min rows, funding 8h, premium 1h). fetch-5m.sh (360 files) left as is.
+STATUS: see the RESULT line below once the (re-dispatched) ladder run lands.
 
 ## v85.5 (2026-09-24) — THE VOCABULARY WIDENED TO THE MAXIMUM THE ARCHIVE ALLOWS (owner: "תרחיב את 1 למקסימום, זריז")
 Nine new features, all testable offline AND fed live; only the order book (`ob`) stays untestable:
