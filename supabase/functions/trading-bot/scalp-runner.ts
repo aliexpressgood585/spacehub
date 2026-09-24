@@ -224,12 +224,14 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean,rotaS
     const taken=new Set([...retiredIds,...frows.map(r=>r.id)])
     const at=new Date(now).toISOString()
     const parents=after.filter(r=>r.stage!=='trial').map(r=>r.genome)
-    const slots=Math.max(0,Math.min(FACTORY.spawnPerMeeting,FACTORY.pop-after.filter(r=>r.stage!=='live').length))
+    const nonLive=after.filter(r=>r.stage!=='live').length
     let gym:{passed:GymPass[],ran_at:string|null}={passed:[],ran_at:null};try{gym=await gymPassed(db,now)}catch(e:any){fc.gymNote=String(e?.message??e).slice(0,60)}
-    const fromGym=gymPicks(gym.passed,taken,slots).map(g=>({id:g.id,genome:g.genome,stage:'trial' as const,born:at,stage_at:at,h:null,note:g.note}))
+    // v85.9: a gym passer never waits for a random genome to retire — it may take the population up to pop+20
+    const fromGym=gymPicks(gym.passed,taken,Math.max(0,Math.min(FACTORY.spawnPerMeeting,FACTORY.pop+FACTORY.spawnPerMeeting-nonLive))).map(g=>({id:g.id,genome:g.genome,stage:'trial' as const,born:at,stage_at:at,h:null,note:g.note}))
     for(const g of fromGym)taken.add(g.id)
     fc.gym=gym.passed.length;fc.gymSeeded=fromGym.length
-    const born=[...fromGym,...spawn(slots-fromGym.length,Math.floor(now/60000),taken,parents).map(g=>({id:g.id,genome:g.genome,stage:'trial' as const,born:at,stage_at:at,h:null,note:g.parent?`child of ${g.parent}`:null}))]
+    const slots=Math.max(0,Math.min(FACTORY.spawnPerMeeting,FACTORY.pop-nonLive-fromGym.length))
+    const born=[...fromGym,...spawn(slots,Math.floor(now/60000),taken,parents).map(g=>({id:g.id,genome:g.genome,stage:'trial' as const,born:at,stage_at:at,h:null,note:g.parent?`child of ${g.parent}`:null}))]
     if(changed.length||born.length)await db.from('factory_agents').upsert([...changed,...born]).throwOnError()
     if(retiring.length)await db.from('agent_stats').delete().in('agent',retiring.flatMap(r=>statKeys(r.id))).throwOnError()
     for(const r of [...after,...born])fc[r.stage as 'trial'|'oos'|'live']++
@@ -301,7 +303,7 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean,rotaS
     }
     const cnt=(id:string,d:number)=>evaluated.filter(x=>x.dirs[id]===d).length
     say('info',`מידע חדש שהסוכנים האחרים לא רואים — מומנטום ימים (${Object.keys(info.daily).length}/40), Open Interest (${Object.keys(info.oi).length}/40), פרמיית חוזה (${Object.keys(info.premium).length}/40). ${INFO_IDS.map(id=>`${id}: ${cnt(id,1)}↑ ${cnt(id,-1)}↓`).join(' · ')}${infoNote?` · רענון: ${infoNote}`:''}`,'hold')
-    say('factory',factErr?`מפעל הסוכנים לא זמין: ${factErr.slice(0,80)}`:`מפעל סוכנים: ${fc.trial} בניסוי (הצבעת צל בלבד), ${fc.oos} בבדיקה על נתונים שלא ראו, ${fc.live} פעילים ומצביעים. נבדקו עד היום ${fc.trial+fc.oos+fc.live+fc.retired}, נפסלו ${fc.retired}. סוכן מצביע רק אחרי t≥${FACTORY.liveT} על נתונים חדשים; סוכן שנפסל לא נבדק שוב.${fc.moved.length?` עכשיו: ${fc.moved.slice(0,4).join(', ')}.`:''} חדר הכושר (36 חודשים אופליין, 5 דק׳ / 4 שעות / יומי): ${fc.gymNote?`לא זמין (${fc.gymNote})`:`${fc.gym} עברו${fc.gymSeeded?`, ${fc.gymSeeded} נכנסו עכשיו לניסיון`:''}`}${slowTfs.length?`; ${slowTfs.length} סוגי נרות איטיים בלייב${slowNote?` (${slowNote})`:''}`:''}.`,fc.live?'ok':'hold')
+    say('factory',factErr?`מפעל הסוכנים לא זמין: ${factErr.slice(0,80)}`:`מפעל סוכנים: ${fc.trial} בניסוי (הצבעת צל בלבד), ${fc.oos} בבדיקה על נתונים שלא ראו, ${fc.live} פעילים ומצביעים. נבדקו עד היום ${fc.trial+fc.oos+fc.live+fc.retired}, נפסלו ${fc.retired}. סוכן מצביע רק אחרי t≥${FACTORY.liveT} על נתונים חדשים; סוכן שנפסל לא נבדק שוב.${fc.moved.length?` עכשיו: ${fc.moved.slice(0,4).join(', ')}.`:''} חדר הכושר (עד 72 חודשים אופליין, 11 גדלי נרות, 289 מטבעות): ${fc.gymNote?`לא זמין (${fc.gymNote})`:`${fc.gym} עברו${fc.gymSeeded?`, ${fc.gymSeeded} נכנסו עכשיו לניסיון`:''}`}${slowTfs.length?`; ${slowTfs.length} סוגי נרות איטיים בלייב${slowNote?` (${slowNote})`:''}`:''}.`,fc.live?'ok':'hold')
     say('risk',`דמו 1x; עד ${SCALP.maxPositions} פוזיציות, עד ${SCALP.perCoin*100}% למטבע ועד ${SCALP.allocation*100}% הקצאה אחרי עמלות. עצירת כניסות בהפסד יומי 5% או ירידה 15%. ${line('risk')}`,eligible?'ok':'veto')
     say('trader',`ספר פקודות: ${tally('trader')}. מועמדות לביצוע: ${entries.map(e=>`${e.sym} ${e.side}`).join(', ')||'אין הסכמה מתאימה'}. זמן החזקה מתוכנן לפי התנאים: ${entries.map(e=>`${e.sym} ${e.hold_min} דק׳`).join(', ')||'—'} (1–1440, לפי האופק שבו הסוכנים התומכים הוכיחו רווח נטו). בכל ישיבה: סגירה מוקדמת אם הצוות מתהפך, הארכה לעסקה מרוויחה שהצוות עדיין תומך בה.`,entries.length?'ok':'hold')
     say('treasurer',`מזומן צפוי אחרי הפעולות $${cash.toFixed(2)}; ${scalpRows.length+entries.length}/${SCALP.maxPositions} פוזיציות סקאלפ${rotaRows.length?` + ${rotaRows.length} רוטציה`:''}. הביצוע נבדק שוב באותה עסקת מסד נתונים.`)
