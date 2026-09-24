@@ -109,7 +109,21 @@ STATUS: see the RESULT line below once the run lands.
   enumeration counts, ids); suite green; app tsc clean.
 HONEST: evolution multiplies the looks at IS/VAL — that is exactly why FINAL is separate, read once, and
 stays at 2.0. If nothing passes after evolution either, that is the strongest version of the answer so far.
-STATUS: see the RESULT line below once the run lands.
+DEPLOYED 15:49 UTC: PR #59 (668a8197), function v55. Gym run 36023042621 (dispatch, 15:49-16:09, 19 min).
+**RESULT — 0 of 10,160 PASS the FINAL, but for the first time genomes REACH it, and evolution is what got them there:**
+    5m   10 coins  36m: 2,540 tested | 0 pass IS in any generation
+    15m  40 coins  36m: 2,540 | 7 pass IS (all bred, gens 1-4) | 0 pass VAL
+    4h  289 coins  72m: 2,540 | IS passers per gen 34→51→82→67→71 | VAL 0,0,0,1,3 | FINAL reached 4 | pass 0
+    1d  289 coins  72m: 2,540 | IS passers 27→42→55→45→43 | VAL 4,7,8,4,10 | FINAL reached 33 | pass 0
+  Closest: g4_rsi140p6r_r151r_asia (gen 3) and g4_rsi140p6r_r301p2r_asia (gen 4) — RSI-14 extreme faded +
+  15/30-bar return faded, ASIAN HOURS ONLY, 4h bars, hold 8h: IS t 2.51/2.57, VAL t 2.14/2.29, **FINAL +36bps
+  t 1.81 / 1.77** — short of 2.0. 1d: the xm14-fade + short-return family on FRIDAYS reached FINAL at t 0.1-0.25.
+  READ IT HONESTLY: 37 genomes were read at the FINAL; at that many looks a best t of 1.8 is within what luck
+  produces. It is the closest anything has come, it was found by breeding (gen 3/4, not gen 0), and it is not
+  a pass. The bot's factory line stays "0 עברו"; nothing seeded.
+  DEFECT SEEN IN THE OUTPUT: on 1d bars an HOUR gate is meaningless (every bar is 00:00) — gd_…_night /
+  _asia rows are byte-identical to their ungated parent and waste slots. Fixed in v85.6: 1d genomes take
+  day gates only (factory `fitGate`), in enumeration and in mutation.
 
 ## v85.3 (2026-09-24) — GYM: MORE COINS, MORE YEARS (owner: "יותר מטבעות ושנים, זריז, רק מטבעות שנסחרים בבינאנס פיוטרס")
 Universe for the slow sets = every USDT-margined PERPETUAL Binance Futures trades TODAY with >= 2 years

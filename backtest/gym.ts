@@ -23,7 +23,7 @@
 // (rho 0.65 measured live, k = coins voting per event) — comparable to the house league.
 // ob/fr/bs/oi have no archive here and are not enumerated. A pass only seeds the genome into
 // LIVE TRIAL on its own timeframe; it still has to earn oos and live on live data.
-import { FEATURES, features, genomeId, rng, mutate, WHENS, WHEN_KEYS, whenOk, type Genome, type Gene, type Tf, type When } from '../shared/factory.ts'
+import { FEATURES, features, genomeId, rng, mutate, fitGate, WHENS, WHEN_KEYS, whenOk, type Genome, type Gene, type Tf, type When } from '../shared/factory.ts'
 import { xsScore } from '../shared/info.ts'
 import { LEARN } from '../shared/swarm.ts'
 import { CRYPTO_40 } from '../shared/strategy.ts'
@@ -153,7 +153,8 @@ export function enumerateGenomes(tf?: Tf): Genome[] {
   const base = out.length
   guard = 0
   while (out.length < base + GYM.whenSample && guard++ < 100_000) {
-    const src = out[Math.floor(r() * base)], w = WHENS[WHEN_KEYS[Math.floor(r() * WHEN_KEYS.length)]].w
+    const src = out[Math.floor(r() * base)], w = fitGate(tf, WHENS[WHEN_KEYS[Math.floor(r() * WHEN_KEYS.length)]].w)
+    if (!w) continue   // v85.6: an hour gate on daily bars would breed an identical twin under another id
     const g = mk(tf, src.a, src.b, w), id = genomeId(g)
     if (seen.has(id)) continue
     seen.add(id); out.push(g)
