@@ -302,7 +302,7 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean,rotaS
   const decisions:any[]=[]
   const gated=picks.map(p=>{
     const m=data.get(p.sym)!,side=p.side as 1|-1
-    const backers=Object.entries(p.dirs).filter(([a,d])=>d===side&&(W[a]??0)>0).map(([a])=>{const st=stats[hKey(a,H[a]??5)];return {w:W[a]??0,netBps:st?meanBps(st):NaN,n:st?.n??0}})
+    const backers=Object.entries(p.dirs).filter(([a,d])=>d===side&&(W[a]??0)>0).map(([a])=>{const h=H[a]??5,st=stats[hKey(a,h)];return {w:W[a]??0,netBps:st?meanBps(st):NaN,n:st?.n??0,t:st?hT(st,h):0}})
     const eg=expectedGross(backers)
     const n0=Math.min(equity*SCALP.perCoin,equity*SCALP.riskPerTrade*risk.mult/Math.max(0.003,p.stopPct))
     const g=profitGate({grossEdgeBps:eg.bps,edgeN:eg.n,book:m.book,notional:n0,side,holdMin:p.holdMin,funding:ctx?.intel[p.sym]?.funding??null})
