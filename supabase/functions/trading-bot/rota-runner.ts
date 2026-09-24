@@ -101,7 +101,7 @@ export async function runRota(db:any,state:any,lease:string,paper:boolean){
   }
   const note={k:cfg.k,hours:cfg.hours,share:cfg.share,vol_scale:+vs.toFixed(2),ranked:rows.length,failed,kept,skips,longs:targets.filter(t=>t.dir===1).map(t=>t.sym),shorts:targets.filter(t=>t.dir===-1).map(t=>t.sym)}
   // nothing opened only for lack of cash (SCALP still holds its old, larger share): retry in an hour, not in 12
-  const starved=!entries.length&&!closes.length&&tmap.size>0&&[...tmap.keys()].every(sym=>skips.some(k=>k===`${sym}: cash`))
+  const starved=!entries.length&&!closes.length&&skips.some(k=>k.endsWith(': cash'))
   const rebalancedAt=starved?new Date(now-(cfg.hours-1)*3600_000).toISOString():null
   const {data:result}=await db.rpc('rota_commit_cycle',{p_lease:lease,p_closes:closes,p_entries:entries,p_marks:marks,p_share:cfg.share,p_note:{...note,starved},p_rebalanced_at:rebalancedAt}).throwOnError()
   return {due:true,changed:true,...result,...note}
