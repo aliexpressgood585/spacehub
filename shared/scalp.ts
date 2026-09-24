@@ -5,7 +5,7 @@
 // liquidation context that only counts when its source, time and price check out.
 import { AGENTS, NEW_AGENTS, type AgentCtx } from './agents.ts'
 import { SWARM, TEAMS, runSwarm, type Team } from './swarm.ts'
-export const SCALP = { minWeighted: 0.2, maxHoldMs: 240*60_000, minHoldMs: 60_000, meetingMs: 60_000, fee: 0.0005, slip: 0.0003, maxSpread: 0.001, maxPositions: 8, maxEntries: 2, maxSameSide: 6, allocation: 0.99, perCoin: 0.5, newsMaxAgeMs: 60*60_000, liqMaxAgeMs: 10*60_000, liqMaxPxDev: 0.03 } as const
+export const SCALP = { minWeighted: 0.2, maxHoldMs: 1440*60_000, minHoldMs: 60_000, meetingMs: 60_000, fee: 0.0005, slip: 0.0003, maxSpread: 0.001, maxPositions: 8, maxEntries: 2, maxSameSide: 6, allocation: 0.99, perCoin: 0.5, newsMaxAgeMs: 60*60_000, liqMaxAgeMs: 10*60_000, liqMaxPxDev: 0.03 } as const
 // v81.0: direction balance — the strongest picks of a meeting, skipping any that would put
 // more than maxSameSide of the book on one side (an all-long/all-short book is one market bet).
 export function balancePicks<T extends { side: number }>(picks: readonly T[], openSides: readonly number[], limit: number, maxSame: number = SCALP.maxSameSide): T[] {
@@ -160,7 +160,9 @@ export function exitPlan(t:any,q:Quote,now:number,view?:View) {
   }
   return {close,reason,price:px*(1-dir*SCALP.slip),stop:newStop,planned_min:planned/60_000}
 }
-export function allocation(cash:number,equity:number,exposure:number,slots:number):number {
-  if(![cash,equity,exposure,slots].every(Number.isFinite)||slots<=0||cash<=0||equity<=0)return 0
-  return Math.max(0,Math.min(equity*SCALP.perCoin,(equity*SCALP.allocation-exposure)/slots,cash/(1+SCALP.fee)/slots))
+// v83.0: `share` = the slice of equity SCALP may deploy (SCALP.allocation alone, minus ROTA's
+// share when the rotation sleeve runs alongside); `exposure` = SCALP's own open notional.
+export function allocation(cash:number,equity:number,exposure:number,slots:number,share:number=SCALP.allocation):number {
+  if(![cash,equity,exposure,slots,share].every(Number.isFinite)||slots<=0||cash<=0||equity<=0||share<=0)return 0
+  return Math.max(0,Math.min(equity*SCALP.perCoin,(equity*share-exposure)/slots,cash/(1+SCALP.fee)/slots))
 }

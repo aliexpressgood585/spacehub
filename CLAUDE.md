@@ -61,6 +61,29 @@ Answered with the real state instead. Live, v80.2 (56cd826d) paper true / live f
 $5,000 (-3.3%). Book: 8 open, all planned 240 min (proven agents' best horizon is now
 4h), 5 LONG / 3 SHORT, cash $51. No non-SCALP rows.
 
+## v83.0 (2026-09-24) — "all five, to the highest level" (owner). Five upgrades in one release.
+1. LEARNING TO 24h: `LEARN.horizonsMin` + 1440; snapshots kept 26h; `halfLifeFor(h)` = max(12h, 6h·h)
+   so a 24h-horizon score remembers 6 days (12h memory could never judge a 24h call — steady
+   state ~1 independent observation). SCALP holds up to 1440 min (ledger + `SCALP.maxHoldMs`).
+2. ROTA ALONGSIDE SCALP: `rota-runner.ts` + `rota_commit_cycle`. Shim 'SCALP,ROTA' runs the
+   rotation inside the same paper book, before SCALP, under the same lease. Config = the last
+   OOS-validated shape (v104bt): K=2/side, 12h, lookbacks 42/84/168 4h bars, volT 0.5, share 50%
+   of equity (`__ROTA_SHARE`, slot = rotaSlotTarget(equity, w, share/2), so ~14%/slot). ROTA rows:
+   no stop, no team exit, leave only at rebalance (ROTATE / RESIZE). SCALP never closes them, never
+   doubles their coin, counts only its own rows against the 8 cap, sizes to (0.99 − share).
+   First rebalance that finds no cash (SCALP still holds its old share) retries in 1h, not 12.
+   HONEST: v104bt OOS was +1.0% — ~flat, not a money machine; it is simply the only thing with proof.
+3. FACTORY EVOLUTION: `mutate()`; half of every generation descends from promoted (oos/live)
+   genomes — threshold ±1 step, second condition added/replaced/dropped, direction never flips.
+   Children carry `note: child of <parent>` and face the full trial → oos → live gauntlet.
+4. CROSS-COIN CORRECTION: measured on live 5-min returns 2026-09-24: mean corr to market 0.81,
+   pairwise ρ≈0.65. `agent_stats.ev` counts scored snapshots; k = n/ev votes per event;
+   `hT = t / sqrt(h) / sqrt(1+(k−1)ρ)` (kDefault 20 for rows without ev). Conservative on purpose:
+   at 24h with 40 coins a day of data really is ~1 observation, and now the numbers say so.
+5. HOUSE: `Factory` panel (counts per stage, promoted list with notes), info agents in the league,
+   league ranked on best horizon with the horizon column, names for the `info`/`factory` roles.
+Tests: rota-runner.test.ts new; swarm/factory/scalp/scalp-runner updated; suite green; app build OK.
+
 ## v82.0 (2026-09-24) — new-information agents + autonomous AGENT FACTORY (owner: "10,000 agents"; then "both, fast")
 Owner asked for 10,000 agents. Told plainly: 10k x 4 horizons would make ~250 agents look "proven" by
 luck alone, they would all read the same 1-minute candles, and the free-tier function/DB cannot run

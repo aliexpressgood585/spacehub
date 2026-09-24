@@ -74,12 +74,29 @@ function gene(r: () => number, not?: string): Gene {
   const th = FEATURES[k][Math.floor(r() * FEATURES[k].length)]
   return [k, th, r() < 0.5 ? 1 : -1]
 }
-export function spawn(n: number, seed: number, taken: Set<string>): { id: string; genome: Genome }[] {
-  const r = rng(seed), out: { id: string; genome: Genome }[] = []
+// v83.0 EVOLUTION: a promoted parent (oos/live) spawns near variants — the threshold moves one
+// step, a second condition is added, replaced or dropped. Direction never flips (that would be a
+// different hypothesis, not a variant). Mutants face the same trial -> oos -> live gauntlet.
+export function mutate(g: Genome, r: () => number): Genome {
+  const stepTh = (x: Gene): Gene => { const th = FEATURES[x[0]], i = th.indexOf(x[1]), j = Math.max(0, Math.min(th.length - 1, i + (r() < 0.5 ? -1 : 1))); return [x[0], th[j], x[2]] }
+  const roll = r()
+  if (roll < 0.4) return { a: stepTh(g.a), b: g.b }
+  if (roll < 0.6 && g.b) return { a: g.a, b: stepTh(g.b) }
+  if (roll < 0.8) return { a: g.a, b: gene(r, g.a[0]) }
+  return g.b ? { a: g.a } : { a: g.a, b: gene(r, g.a[0]) }
+}
+export function spawn(n: number, seed: number, taken: Set<string>, parents: Genome[] = []): { id: string; genome: Genome; parent?: string }[] {
+  const r = rng(seed), out: { id: string; genome: Genome; parent?: string }[] = []
+  const fromParents = parents.length ? Math.ceil(n / 2) : 0
   for (let tries = 0; out.length < n && tries < n * 50; tries++) {
-    const a = gene(r), g: Genome = r() < 0.5 ? { a } : { a, b: gene(r, a[0]) }, id = genomeId(g)
+    const evolve = out.length < fromParents
+    const p = evolve ? parents[Math.floor(r() * parents.length)] : undefined
+    let g: Genome
+    if (p) { g = mutate(p, r); if (r() < 0.3) g = mutate(g, r) }
+    else { const a = gene(r); g = r() < 0.5 ? { a } : { a, b: gene(r, a[0]) } }
+    const id = genomeId(g)
     if (taken.has(id)) continue
-    taken.add(id); out.push({ id, genome: g })
+    taken.add(id); out.push(p ? { id, genome: g, parent: genomeId(p) } : { id, genome: g })
   }
   return out
 }

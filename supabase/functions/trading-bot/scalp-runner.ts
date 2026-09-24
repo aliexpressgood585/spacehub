@@ -91,7 +91,7 @@ async function market(sym:string, candles:boolean):Promise<{q:Quote,b:Bar[]}> {
     return {q:{bid:+v.bids[0][0],ask:+v.asks[0][0],ts:+v.ts,imbalance:(bs-as)/(bs+as),source:'okx-swap'},b:k.data.filter((x:any)=>x[8]==='1').reverse().map((x:any)=>({t:+x[0],o:+x[1],h:+x[2],l:+x[3],c:+x[4],v:+x[5]}))}
   }
 }
-export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
+export async function runScalp(db:any,state:any,lease:string,paper:boolean,rotaShare:number=0) {  // v83.0: rotaShare>0 = the ROTA sleeve shares this book
   if(!paper)throw new Error('SCALP is paper-only; refusing live execution')
   const {data:open}=await db.from('bot_trades').select('*').eq('status','OPEN').throwOnError()
   if(open.some((t:any)=>t.paper_mode!==true||Number(t.lev)!==1))throw new Error('SCALP transition requires a paper-only 1x book')
@@ -160,7 +160,7 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
         learned.scored++;learned.updated+=rows.length
       }
       await db.from('agent_snapshots').insert({votes,px}).throwOnError()
-      await db.from('agent_snapshots').delete().lt('ts',new Date(now-24*3600_000).toISOString()).throwOnError()
+      await db.from('agent_snapshots').delete().lt('ts',new Date(now-26*3600_000).toISOString()).throwOnError()  // v83.0: keep 26h so the 1440-min horizon can be scored
     }catch(e:any){learnErr=String(e?.message??e)}
   }
   // v82.0 factory lifecycle: judge, retire (and forget their stats), refill the population
@@ -172,7 +172,8 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
     const retiring=changed.filter(r=>r.stage==='retired')
     const taken=new Set([...retiredIds,...frows.map(r=>r.id)])
     const at=new Date(now).toISOString()
-    const born=spawn(Math.max(0,Math.min(FACTORY.spawnPerMeeting,FACTORY.pop-after.filter(r=>r.stage!=='live').length)),Math.floor(now/60000),taken).map(g=>({...g,stage:'trial' as const,born:at,stage_at:at,h:null,note:null}))
+    const parents=after.filter(r=>r.stage!=='trial').map(r=>r.genome)
+    const born=spawn(Math.max(0,Math.min(FACTORY.spawnPerMeeting,FACTORY.pop-after.filter(r=>r.stage!=='live').length)),Math.floor(now/60000),taken,parents).map(g=>({id:g.id,genome:g.genome,stage:'trial' as const,born:at,stage_at:at,h:null,note:g.parent?`child of ${g.parent}`:null}))
     if(changed.length||born.length)await db.from('factory_agents').upsert([...changed,...born]).throwOnError()
     if(retiring.length)await db.from('agent_stats').delete().in('agent',retiring.flatMap(r=>statKeys(r.id))).throwOnError()
     for(const r of [...after,...born])fc[r.stage as 'trial'|'oos'|'live']++
@@ -183,6 +184,8 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
     const m=data.get(t.sym),dir=t.side==='LONG'?1:-1,notional=Number(t.entry_price)*Number(t.size)
     if(!m) {retained.push(t);exposure+=notional;equity+=notional;continue}
     const px=dir===1?m.q.bid:m.q.ask;marks[t.sym]=px
+    // v83.0: a ROTA slot is a foreign position — marked, counted in equity, never touched here
+    if(t.strategy==='ROTA'){retained.push(t);exposure+=notional;continue}
     const plan=exitPlan(t,m.q,now,due?views.get(t.sym):undefined)
     if(t.strategy!=='SCALP'||plan.close) {
       closes.push({id:t.id,price:plan.price,reason:t.strategy!=='SCALP'?'MODE_SWITCH':plan.reason,quote_ts:m.q.ts})
@@ -193,7 +196,10 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
   const closedSyms=new Set(open.filter((t:any)=>closes.some(c=>c.id===t.id)).map((t:any)=>t.sym))
   const picks=evaluated.filter(x=>x.side&&!retained.some(t=>t.sym===x.sym)&&!closedSyms.has(x.sym)).sort((a,b)=>b.score-a.score)
   // Migration must finish before this account starts scalping. Never estimate missing marks into entries.
-  const eligible=failures.length<=Math.floor(UNIVERSE.length*0.2)&&open.every((t:any)=>data.has(String(t.sym)))&&!retained.some(t=>t.strategy!=='SCALP')&&!state.hard_halt_at&&!params.scalp_paused
+  const scalpRows=retained.filter(t=>t.strategy==='SCALP'),rotaRows=retained.filter(t=>t.strategy==='ROTA')
+  const scalpExpo=scalpRows.reduce((s:number,t:any)=>s+Number(t.entry_price)*Number(t.size),0)
+  const scalpShare=Math.max(0,SCALP.allocation-rotaShare)
+  const eligible=failures.length<=Math.floor(UNIVERSE.length*0.2)&&open.every((t:any)=>data.has(String(t.sym)))&&!retained.some(t=>!['SCALP','ROTA'].includes(t.strategy))&&!state.hard_halt_at&&!params.scalp_paused
   // v76.0 whole portfolio: free capital is split among the entries of THIS meeting
   // (not among all 8 slots), capped per coin, so 2 signals use the whole account.
   // v79.0: planned hold = weighted median best-horizon of the agents voting WITH the trade; the stop widens with sqrt(hold)
@@ -206,15 +212,15 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
   }
   // v80.0: concentrate — only the strongest 1-2 signals of this meeting get capital
   // v81.0: ...and never more than SCALP.maxSameSide of the book on one side
-  const take=balancePicks(picks,retained.map((t:any)=>t.side==='LONG'?1:-1),Math.min(SCALP.maxEntries,SCALP.maxPositions-retained.length))
+  const take=balancePicks(picks,scalpRows.map((t:any)=>t.side==='LONG'?1:-1),Math.min(SCALP.maxEntries,SCALP.maxPositions-scalpRows.length))
   if(due&&eligible)for(const p of take){
-    const n=allocation(cash,equity,exposure,take.length-entries.length)
+    const n=allocation(cash,equity,scalpExpo+entries.reduce((s:number,e:any)=>s+e.notional,0),take.length-entries.length,scalpShare)
     if(n<20)continue
     const q=data.get(p.sym)!.q,price=(p.side===1?q.ask:q.bid)*(1+p.side*SCALP.slip)
     entries.push({sym:p.sym,side:p.side===1?'LONG':'SHORT',price,notional:n,stop_pct:p.stopPct,hold_min:p.holdMin,quote_ts:q.ts,source:q.source,votes:p.votes})
     cash-=n*(1+SCALP.fee);exposure+=n
   }
-  const blocked=due?compliance(retained,entries,equity,exposure):[]
+  const blocked=due?compliance(scalpRows,entries,equity,exposure,rotaRows):[]
   if(blocked.length){for(const e of entries){cash+=e.notional*(1+SCALP.fee);exposure-=e.notional}entries.length=0}
   const minutes:Minute[]=[];const say=(who:string,says:string,vote='hold')=>minutes.push({who,says,vote,checked_at:new Date(now).toISOString(),round:1})
   if(due){
@@ -226,7 +232,8 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
     const line=(who:string)=>best?.votes.find(v=>v.who===who)?.says||'אין מספיק נתונים'
     say('scout',`בדקתי ${data.size}/${UNIVERSE.length} חוזים (${[...new Set([...data.values()].map(m=>m.q.source))].join(', ')||'אין'}); חדשות וליקווידציות: ${ctx?.sources.join(', ')||'לא זמין'}${ctx?.failed.length?` · נכשלו: ${ctx.failed.join(', ')}`:''}`,failures.length>Math.floor(UNIVERSE.length*0.2)?'veto':'ok')
     say('regime',`EMA8/21 על ${evaluated.length} מטבעות: ${tally('regime')}. ${line('regime')}`,lead('regime','hold'))
-    say('rota',`מומנטום 3 דקות: ${tally('rota')}. ${line('rota')}`,lead('rota','hold'))
+    const rc=params.rota_cycle
+    say('rota',`מומנטום 3 דקות: ${tally('rota')}. ${line('rota')}${rotaShare>0?` · סבב רוטציה (${Math.round(rotaShare*100)}% מהתיק, K=${rc?.k??'—'} לכל צד, כל ${rc?.hours??'—'} שעות): ${rc?`לונג ${(rc.longs??[]).join(' ')} · שורט ${(rc.shorts??[]).join(' ')} · ${rotaRows.length} פתוחות · עודכן ${new Date(rc.ts).toISOString().slice(11,16)}Z`:'עדיין לא רץ'}`:''}`,lead('rota','hold'))
     say('donch',`אזורי liquidity sweep משוערים: ${tally('donch')}. ${line('donch')}`,lead('donch','hold'))
     for(const k of NEW_AGENTS)say(k,`${AGENTS[k].role} (משקל ${(W[k]??1).toFixed(2)}): ${tally(k)}. ${line(k)}`,lead(k,'hold'))
     for(const t of Object.keys(TEAMS) as Team[]){
@@ -240,8 +247,8 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
     say('info',`מידע חדש שהסוכנים האחרים לא רואים — מומנטום ימים (${Object.keys(info.daily).length}/40), Open Interest (${Object.keys(info.oi).length}/40), פרמיית חוזה (${Object.keys(info.premium).length}/40). ${INFO_IDS.map(id=>`${id}: ${cnt(id,1)}↑ ${cnt(id,-1)}↓`).join(' · ')}${infoNote?` · רענון: ${infoNote}`:''}`,'hold')
     say('factory',factErr?`מפעל הסוכנים לא זמין: ${factErr.slice(0,80)}`:`מפעל סוכנים: ${fc.trial} בניסוי (הצבעת צל בלבד), ${fc.oos} בבדיקה על נתונים שלא ראו, ${fc.live} פעילים ומצביעים. נבדקו עד היום ${fc.trial+fc.oos+fc.live+fc.retired}, נפסלו ${fc.retired}. סוכן מצביע רק אחרי t≥${FACTORY.liveT} על נתונים חדשים; סוכן שנפסל לא נבדק שוב.${fc.moved.length?` עכשיו: ${fc.moved.slice(0,4).join(', ')}.`:''}`,fc.live?'ok':'hold')
     say('risk',`דמו 1x; עד ${SCALP.maxPositions} פוזיציות, עד ${SCALP.perCoin*100}% למטבע ועד ${SCALP.allocation*100}% הקצאה אחרי עמלות. עצירת כניסות בהפסד יומי 5% או ירידה 15%. ${line('risk')}`,eligible?'ok':'veto')
-    say('trader',`ספר פקודות: ${tally('trader')}. מועמדות לביצוע: ${entries.map(e=>`${e.sym} ${e.side}`).join(', ')||'אין הסכמה מתאימה'}. זמן החזקה מתוכנן לפי התנאים: ${entries.map(e=>`${e.sym} ${e.hold_min} דק׳`).join(', ')||'—'} (1–240, לפי האופק שבו הסוכנים התומכים הוכיחו רווח נטו). בכל ישיבה: סגירה מוקדמת אם הצוות מתהפך, הארכה לעסקה מרוויחה שהצוות עדיין תומך בה.`,entries.length?'ok':'hold')
-    say('treasurer',`מזומן צפוי אחרי הפעולות $${cash.toFixed(2)}; ${retained.length+entries.length}/${SCALP.maxPositions} פוזיציות. הביצוע נבדק שוב באותה עסקת מסד נתונים.`)
+    say('trader',`ספר פקודות: ${tally('trader')}. מועמדות לביצוע: ${entries.map(e=>`${e.sym} ${e.side}`).join(', ')||'אין הסכמה מתאימה'}. זמן החזקה מתוכנן לפי התנאים: ${entries.map(e=>`${e.sym} ${e.hold_min} דק׳`).join(', ')||'—'} (1–1440, לפי האופק שבו הסוכנים התומכים הוכיחו רווח נטו). בכל ישיבה: סגירה מוקדמת אם הצוות מתהפך, הארכה לעסקה מרוויחה שהצוות עדיין תומך בה.`,entries.length?'ok':'hold')
+    say('treasurer',`מזומן צפוי אחרי הפעולות $${cash.toFixed(2)}; ${scalpRows.length+entries.length}/${SCALP.maxPositions} פוזיציות סקאלפ${rotaRows.length?` + ${rotaRows.length} רוטציה`:''}. הביצוע נבדק שוב באותה עסקת מסד נתונים.`)
     say('auditor',`עלות מול תנודתיות: ${count('auditor','ok')} עוברים, ${count('auditor','veto')} נחסמים. אסטרטגיה ניסיונית ללא אימות היסטורי; מחקרי העבר מצאו שסקאלפ מתחת לשעה לא עבר עלויות.`,count('auditor','ok')?'ok':'veto')
     say('reporter',`סיכום: ${long} מועמדי לונג, ${short} מועמדי שורט, ${entries.length} כניסות נשלחו לביצוע. בדיקת צוות כל דקה, בדיקת יציאות כל 10 שניות.`)
   }

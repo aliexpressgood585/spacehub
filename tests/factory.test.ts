@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import {FACTORY,FEATURES,features,vote,spawn,step,genomeId,statKeys,OOS,rng,type FactoryRow} from '../shared/factory.ts'
+import {FACTORY,FEATURES,features,vote,spawn,step,genomeId,statKeys,OOS,rng,mutate,type FactoryRow} from '../shared/factory.ts'
 import {LEARN,hKey,type Stat} from '../shared/swarm.ts'
 const now=1_800_000_000_000,iso=(t:number)=>new Date(t).toISOString()
 const bars=(f:(i:number)=>number)=>Array.from({length:65},(_,i)=>{const c=f(i),o=f(i-1);return {t:now-(65-i)*60000,o,h:Math.max(o,c)*1.0002,l:Math.min(o,c)*0.9998,c,v:100+(i>60?300:0)}})
@@ -17,8 +17,13 @@ assert.equal(new Set(s1.map(x=>x.id)).size,50)
 const taken=new Set(s1.map(x=>x.id));const s3=spawn(50,7,taken);assert.ok(s3.every(x=>!s1.some(y=>y.id===x.id)),'a taken (incl. retired) genome is never spawned again')
 assert.ok(s1.every(x=>x.genome.a[0] in FEATURES&&FEATURES[x.genome.a[0]].includes(x.genome.a[1])&&(!x.genome.b||x.genome.b[0]!==x.genome.a[0])))
 const r=rng(1);assert.ok(Array.from({length:100},()=>r()).every(x=>x>=0&&x<1))
+// v83.0 evolution: mutants keep the parent's direction, stay inside the feature grid, and half of a generation descends from parents
+{const p={a:['r5',0.4,1] as const,b:['ob',0.2,-1] as const};const rr=rng(3)
+ for(let i=0;i<200;i++){const m=mutate({a:[...p.a],b:[...p.b]},rr);assert.equal(m.a[2],1,'direction of the first gene never flips');assert.ok(FEATURES[m.a[0]].includes(m.a[1]));if(m.b){assert.ok(FEATURES[m.b[0]].includes(m.b[1]));assert.notEqual(m.b[0],m.a[0])}}
+ const kids=spawn(20,11,new Set(),[{a:[...p.a],b:[...p.b]}]);assert.ok(kids.filter(k=>k.parent).length>=10,'at least half descend from the parent');assert.ok(kids.every(k=>!k.parent||k.genome.a[0]==='r5'||k.genome.b?.[0]==='ob'||k.genome.a[0]==='r5'),'children share genes with the parent')
+ assert.equal(new Set(kids.map(k=>k.id)).size,20)}
 // lifecycle
-const st=(n:number,mean:number,sd=10):Stat=>({agent:'x',n,s:mean*n,s2:(mean*mean+sd*sd)*n,updated_at:iso(now)})
+const st=(n:number,mean:number,sd=10):Stat=>({agent:'x',n,s:mean*n,s2:(mean*mean+sd*sd)*n,ev:n,updated_at:iso(now)})
 const row=(stage:FactoryRow['stage'],h:number|null=null,ageH=1):FactoryRow=>({id:'g_t',genome:{a:['r5',0.4,1]},stage,born:iso(now-ageH*3600e3),stage_at:iso(now-ageH*3600e3),h})
 assert.equal(step(row('trial'),{},now),null,'no evidence yet -> keep waiting')
 assert.equal(step(row('trial',null,FACTORY.trialMaxH+1),{},now)!.stage,'retired','trial timeout')

@@ -453,6 +453,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 // pins both at once.
 import * as S from '../../../shared/strategy.ts'
 import { runScalp } from './scalp-runner.ts'
+import { runRota, rotaConfig } from './rota-runner.ts'
 import { meetingDue, capDecision } from '../../../shared/team-meeting.ts'
 
 const BINANCE_DATA = 'https://data-api.binance.vision/api/v3'
@@ -543,7 +544,7 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v82.0'
+const BOT_VERSION = 'v83.0'
 // v68.0 breakers — owner spec, deliberately NOT env/shim-configurable.
 const DAY_LOSS_HALT = 0.10, DD_HALT = 0.25, LOSS_STREAK = 4, BRK_STREAK_PAUSE_MS = 3_600_000, ERR_HALT = 10
 const RELEASE_SHA = String((globalThis as any).__RELEASE_SHA ?? 'unpinned')
@@ -2677,8 +2678,16 @@ Deno.serve(async (req) => {
     await publishManifest(supabase, paperMode, liveMode, logErr)
 
     if (ENABLED_SLEEVES.includes('SCALP')) {
-      const result = await runScalp(supabase, state, runLeaseUntil, paperMode && !liveMode)
-      return new Response(JSON.stringify({ok:true,version:BOT_VERSION,...result}),{headers:{'Content-Type':'application/json'}})
+      // v83.0: 'SCALP,ROTA' runs the rotation sleeve in the same paper book, before SCALP,
+      // under the same lease. A ROTA failure is logged and never blocks the SCALP cycle.
+      let rota: any = null, scalpState = state
+      if (ROTA_ENABLED) {
+        try { rota = await runRota(supabase, state, runLeaseUntil, paperMode && !liveMode) }
+        catch (e: any) { rota = { error: String(e?.message ?? e) }; await logErr('rota_runner', String(e?.message ?? e)) }
+        if (rota?.changed) { const { data: fresh } = await supabase.from('bot_state').select('*').eq('id', 1).single(); if (fresh) scalpState = fresh }
+      }
+      const result = await runScalp(supabase, scalpState, runLeaseUntil, paperMode && !liveMode, ROTA_ENABLED ? rotaConfig().share : 0)
+      return new Response(JSON.stringify({ok:true,version:BOT_VERSION,...result,rota}),{headers:{'Content-Type':'application/json'}})
     }
 
     // dynamic params from optimizer agent (falls back to hardcoded defaults)
