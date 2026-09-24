@@ -222,3 +222,38 @@ export function teamWeights(stats: Record<string, Stat>, agents: readonly string
   const W = Object.fromEntries(agents.map((a) => [a, Number.isFinite(b[a].t) ? Math.round(Math.min(LEARN.hi, Math.max(0, 1 + (b[a].t - med) / 2)) * 100) / 100 : 1]))
   return { W, H, mode: 'relative', active }
 }
+
+// v86.0 PROMOTION = NET EDGE + UNIQUE CONTRIBUTION + STABILITY.
+// teamWeights() already weights on net-of-cost t at each agent's best horizon. refineWeights() then
+//  (1) STABILITY: in proven mode an agent keeps its vote only if the neighbouring horizon agrees in sign
+//      with its best one (an edge that exists at 60m and flips at 15m and 240m is a fluke of one bucket);
+//  (2) UNIQUE CONTRIBUTION: two voting agents whose recent votes agree on >= dupAgree of the coins either
+//      voted on (>= dupMinOverlap coins) are one signal counted twice — the weaker (lower corrected t) is
+//      set to 0 and labelled a duplicate of the stronger. Measured on the latest stored snapshot's votes.
+export const PROMO = { dupAgree: 0.9, dupMinOverlap: 8 } as const
+export type AgentStatus = 'proven' | 'active' | 'relative' | 'duplicate' | 'unstable' | 'benched' | 'learning'
+export function refineWeights(stats: Record<string, Stat>, tw: { W: Record<string, number>; H: Record<string, number>; mode: 'proven' | 'relative' }, votes: Record<string, Record<string, number>>): { W: Record<string, number>; status: Record<string, AgentStatus>; dupOf: Record<string, string> } {
+  const W = { ...tw.W }, status: Record<string, AgentStatus> = {}, dupOf: Record<string, string> = {}
+  const tOf = (a: string) => { const h = tw.H[a] ?? 5, st = stats[hKey(a, h)]; return st ? hT(st, h) : -Infinity }
+  for (const a of Object.keys(W)) {
+    const h = tw.H[a] ?? 5, st = stats[hKey(a, h)]
+    status[a] = !st || st.n < LEARN.minN ? 'learning' : W[a] === 0 ? 'benched' : tw.mode === 'proven' ? 'proven' : 'relative'
+    if (tw.mode === 'proven' && W[a] > 0) {
+      const i = LEARN.horizonsMin.indexOf(h as any), nb = [LEARN.horizonsMin[i - 1], LEARN.horizonsMin[i + 1]].filter((x) => x !== undefined) as number[]
+      const agree = nb.some((x) => { const s2 = stats[hKey(a, x)]; return !!s2 && s2.n >= LEARN.minN && Math.sign(meanBps(s2)) === Math.sign(meanBps(st)) })
+      if (!agree) { W[a] = 0; status[a] = 'unstable' }
+    }
+  }
+  const coins = Object.keys(votes)
+  const live = Object.keys(W).filter((a) => W[a] > 0).sort((x, y) => tOf(y) - tOf(x))   // strongest first: it keeps its vote
+  for (let i = 0; i < live.length; i++) {
+    const a = live[i]; if (W[a] === 0) continue
+    for (let j = i + 1; j < live.length; j++) {
+      const b = live[j]; if (W[b] === 0) continue
+      let both = 0, same = 0
+      for (const c of coins) { const va = votes[c]?.[a] ?? 0, vb = votes[c]?.[b] ?? 0; if (!va && !vb) continue; both++; if (va === vb) same++ }
+      if (both >= PROMO.dupMinOverlap && same / both >= PROMO.dupAgree) { W[b] = 0; status[b] = 'duplicate'; dupOf[b] = a }
+    }
+  }
+  return { W, status, dupOf }
+}

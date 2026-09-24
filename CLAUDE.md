@@ -61,6 +61,45 @@ Answered with the real state instead. Live, v80.2 (56cd826d) paper true / live f
 $5,000 (-3.3%). Book: 8 open, all planned 240 min (proven agents' best horizon is now
 4h), 5 LONG / 3 SHORT, cash $51. No non-SCALP rows.
 
+## v86.0 (2026-09-24) — PROFIT GATE + ONE COST MODEL + MICROSTRUCTURE + NET/UNIQUE/STABLE PROMOTION + GRADED RISK
+Owner brief (full autonomy, migrate don't rebuild): gate every entry on NET edge after fees, slippage and funding
+with one realistic cost model; real Binance microstructure, observed vs inferred labelled; promotion on net,
+unique contribution and stability, de-duplicated; continuous opportunity ranking; active intraday 5m-4h, many
+parallel positions sized by risk with portfolio/correlation management; NO global loss kill switch (graded
+risk reduction only, full stop only on severe technical faults); dashboard showing the real engine live.
+BEFORE (last 24h, v85.x, measured 17:57 UTC): 283 SCALP closes, WR 44.5%, GROSS +$38.29, FEES $166.22,
+NET −$127.93, −7.8 bps/trade, avg hold 26 min — fees were 4.3× the gross edge.
+- `shared/costs.ts` — THE cost model: taker 5bps/side (paper never assumes maker), per-side slippage =
+  max(3bps floor, observed half-spread + impact k·size/depth±10bps) capped 50bps, funding at the PUBLISHED
+  rate × planned hold (sign-correct: shorts receive positive funding), exit assumed = entry cost (inferred).
+  Unknown depth (OKX contract sizes) → 10bps/side, labelled inferred. `profitGate()` → pass only if expected
+  GROSS − total cost ≥ 2bps margin; reasons: net_edge / costs_exceed_edge / no_gross_edge / no_edge_estimate
+  / book_too_thin / no_book. `expectedGross()` = weighted mean of backers' measured net edge + the learning
+  round trip (16 = 2×(fee+floor), asserted == LEARN.costBps == SCALP fee/slip). `riskScale()` graded
+  (DD 5/10/15/25% → 0.75/0.5/0.3/0.15; day 3/5/8% → 0.75/0.5/0.3; floor 0.1), `corrScale()` (1m-return
+  correlation with same-side book, floor 0.3).
+- Runner: 20-level Binance depth → `Book`; every sided candidate is gated and RANKED by expected net;
+  survivors sized min(allocation, 0.5% equity at stop × riskScale × corrScale), entry fill = touch ×
+  (1 ± model slippage); exit fill re-measures slippage; closes pass the observed funding rate; each meeting
+  journals ALL ranked candidates to `trade_decisions` (decision, reason, gross/cost/net, cost breakdown,
+  OBSERVED {spread, depth±10 bid/ask USD, imbalance, funding, premium, OI 4h} vs INFERRED {expected gross,
+  impact, labels}); 48h retention.
+- Promotion: `refineWeights()` after teamWeights — STABILITY (proven agents keep a vote only if a
+  neighbouring horizon agrees in sign) + UNIQUE CONTRIBUTION (agents agreeing ≥90% on ≥8 coins of the latest
+  stored votes: the weaker is 'duplicate', weight 0). Status changes → `agent_events`.
+- SCALP limits: holds 5–240 min (was 1–1440), 16 positions (8), 4 entries/meeting (2), 25%/coin (50%), 10/side (6).
+- Ledger migration `20260924180000_profit_gate.sql`: paused := hard_halt_at only (the day −5% / DD −15%
+  loss pause REMOVED); rmult graded in SQL (same tiers); risk budget eq·0.005·rmult/stop; costs, expected
+  gross/net, risk/corr multipliers stored in scalp_meta; funding at the observed rate (default 0.01%/8h,
+  marked); 16 / 25% / 5–240. Tables `trade_decisions`, `agent_events` (RLS, anon read).
+- House: `GatePanel` — latest meeting's ranked decisions with reasons and full cost breakdown, observed vs
+  inferred, reason histogram, executed trades with gross/fees/funding/net vs expected, agent events.
+- RULE CONFLICT RECORDED: the gate rejects trades without net edge — standing rule 5 ("never reduce trade
+  count") yields to the owner's explicit instruction here. Expect FAR fewer entries while agents show no
+  measured edge (currently relative mode, best corrected t ≈ 0.4): that is the gate doing its job.
+- Tests: tests/costs.test.ts new; scalp / scalp-runner (no-edge → 0 entries + decisions journalled;
+  measured edge → entries with positive net after full cost) / desk updated. Suite green, app builds.
+
 ## v85.7 (2026-09-24) — THE TIMEFRAME LADDER: 11 distinct bar sizes (owner: "נרחיב את סוגי הנרות ל־150")
 NOT 150, and told the owner why: 150 resamplings of the same prices are 150 LOOKS at one piece of information,
 not 150 sources — at that count the 3-stage gauntlet passes dozens of genomes by luck alone, and sub-hour
