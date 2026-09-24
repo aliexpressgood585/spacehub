@@ -5,7 +5,19 @@
 // liquidation context that only counts when its source, time and price check out.
 import { AGENTS, NEW_AGENTS, type AgentCtx } from './agents.ts'
 import { SWARM, TEAMS, runSwarm, type Team } from './swarm.ts'
-export const SCALP = { minWeighted: 0.2, maxHoldMs: 240*60_000, minHoldMs: 60_000, meetingMs: 60_000, fee: 0.0005, slip: 0.0003, maxSpread: 0.001, maxPositions: 8, maxEntries: 2, allocation: 0.99, perCoin: 0.5, newsMaxAgeMs: 60*60_000, liqMaxAgeMs: 10*60_000, liqMaxPxDev: 0.03 } as const
+export const SCALP = { minWeighted: 0.2, maxHoldMs: 240*60_000, minHoldMs: 60_000, meetingMs: 60_000, fee: 0.0005, slip: 0.0003, maxSpread: 0.001, maxPositions: 8, maxEntries: 2, maxSameSide: 6, allocation: 0.99, perCoin: 0.5, newsMaxAgeMs: 60*60_000, liqMaxAgeMs: 10*60_000, liqMaxPxDev: 0.03 } as const
+// v81.0: direction balance — the strongest picks of a meeting, skipping any that would put
+// more than maxSameSide of the book on one side (an all-long/all-short book is one market bet).
+export function balancePicks<T extends { side: number }>(picks: readonly T[], openSides: readonly number[], limit: number, maxSame: number = SCALP.maxSameSide): T[] {
+  const cnt = { 1: openSides.filter((s) => s === 1).length, [-1]: openSides.filter((s) => s === -1).length } as Record<number, number>
+  const out: T[] = []
+  for (const p of picks) {
+    if (out.length >= limit) break
+    if ((cnt[p.side] ?? 0) >= maxSame) continue
+    cnt[p.side] = (cnt[p.side] ?? 0) + 1; out.push(p)
+  }
+  return out
+}
 export interface Bar { t:number; o:number; h:number; l:number; c:number; v:number }
 export interface Quote { bid:number; ask:number; ts:number; imbalance:number; source:string }
 export interface Vote { who:string; says:string; vote:string; checked_at:string }

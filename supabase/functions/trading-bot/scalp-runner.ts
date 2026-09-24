@@ -1,4 +1,4 @@
-import {SCALP,assess,allocation,exitPlan,validQuote,type Quote,type Bar,type Vote,type Intel,type NewsItem,type LiqEvent} from '../../../shared/scalp.ts'
+import {SCALP,assess,allocation,balancePicks,exitPlan,validQuote,type Quote,type Bar,type Vote,type Intel,type NewsItem,type LiqEvent} from '../../../shared/scalp.ts'
 import {attribution,execStats,compliance,debate,hitPct,type Minute} from '../../../shared/desk.ts'
 import {AGENTS,NEW_AGENTS} from '../../../shared/agents.ts'
 import {SWARM,TEAMS,decayStat,scoreSnapshot,learnedWeight,meanBps,tStat,LEARN,teamWeights,bestHorizon,hKey,type Stat,type Team} from '../../../shared/swarm.ts'
@@ -139,7 +139,8 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
     p.stopPct=Math.min(0.04,p.stopPct*Math.sqrt(Math.max(1,p.holdMin/5)))
   }
   // v80.0: concentrate — only the strongest 1-2 signals of this meeting get capital
-  const take=picks.slice(0,Math.min(SCALP.maxEntries,SCALP.maxPositions-retained.length))
+  // v81.0: ...and never more than SCALP.maxSameSide of the book on one side
+  const take=balancePicks(picks,retained.map((t:any)=>t.side==='LONG'?1:-1),Math.min(SCALP.maxEntries,SCALP.maxPositions-retained.length))
   if(due&&eligible)for(const p of take){
     const n=allocation(cash,equity,exposure,take.length-entries.length)
     if(n<20)continue
@@ -181,7 +182,7 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
     const reasons=Object.entries(ex.reasons).map(([k,v])=>`${k} ${v}`).join(', ')
     say('execution',`מרווח ממוצע ${spreads.length?(spreads.reduce((a,b)=>a+b,0)/spreads.length).toFixed(1):'—'} נק׳ בסיס; ביצוע דמו במחיר ה-ask/bid עם החלקה ${(SCALP.slip*1e4).toFixed(0)} נק׳. ${ex.n?`${ex.n} עסקאות אחרונות: החזקה ממוצעת ${ex.avgHoldMin?.toFixed(1)} דק׳, סיבות יציאה: ${reasons}, עמלות $${ex.fees.toFixed(2)}, נטו $${ex.net.toFixed(2)}.`:'אין עדיין עסקאות סגורות.'}`,spreads.some(x=>x>SCALP.maxSpread*1e4)?'veto':'ok')
     minutes[minutes.length-1].data={spread_bps:spreads,...ex}
-    say('compliance',blocked.length?`חסימה: ${blocked.join(', ')}.`:`בדקתי את התוכנית: דמו 1x, עד ${SCALP.maxPositions} פוזיציות, ללא מטבע כפול, עד ${SCALP.perCoin*100}% למטבע, חשיפה עד ${SCALP.allocation*100}%. תקין.`,blocked.length?'veto':'ok')
+    say('compliance',blocked.length?`חסימה: ${blocked.join(', ')}.`:`בדקתי את התוכנית: דמו 1x, עד ${SCALP.maxPositions} פוזיציות, ללא מטבע כפול, עד ${SCALP.perCoin*100}% למטבע, עד ${SCALP.maxSameSide} באותו כיוון, חשיפה עד ${SCALP.allocation*100}%. תקין.`,blocked.length?'veto':'ok')
     const top=[...evaluated].sort((a,c)=>c.score-a.score)[0]
     const best=evaluated.find(x=>x.sym===entries[0]?.sym)||picks[0]||top
     minutes.push(...debate(best,att,entries.length>0,blocked,now,!!best&&retained.some((t:any)=>t.sym===best.sym),W))

@@ -54,6 +54,9 @@ assert.ok(meanBps(tiny.t)<0&&learnedWeight(tiny.t)<1,'a 5bps right call does not
  const up:any={};for(const k of ['a','b','c','d','e','f'])up[k]=mk(300,10)
  const ta=teamWeights(up,['a','b','c','d','e','f']);assert.equal(ta.mode,'proven');assert.equal(ta.active,6)
  const mix:any={...S,b:mk(300,10),c:mk(300,10)};const tm=teamWeights(mix,['a','b','c','d','e','f']);assert.equal(tm.mode,'proven','a, b, c proven');assert.equal(tm.W.d,0,'unproven agents get no vote');assert.ok(tm.W.b>=1&&tm.W.a>=1)
+ // v81.0: t~1.7 is no longer "proven" (multiple-testing guard)
+ const weak:any={};for(const k of ['a','b','c','d','e','f'])weak[k]=mk(300,1);assert.equal(teamWeights(weak,['a','b','c','d','e','f']).mode,'relative','t=1.7 < provenT')
+ assert.equal(LEARN.provenT,2.5)
  assert.equal(hKey('a',5),'a');assert.equal(hKey('a',60),'a@60')
  const sx=scoreSnapshot({},{BTC:{a:1}},{BTC:100},{BTC:101},now,16,'@60');assert.ok(sx['a@60']&&Math.abs(sx['a@60'].s-84)<1e-6,'100bps move minus 16 = 84 net')}
 console.log('Swarm: 60 agents in 6 teams, shadow learning, decay and benching passed')
