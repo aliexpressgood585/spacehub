@@ -61,6 +61,18 @@ Answered with the real state instead. Live, v80.2 (56cd826d) paper true / live f
 $5,000 (-3.3%). Book: 8 open, all planned 240 min (proven agents' best horizon is now
 4h), 5 LONG / 3 SHORT, cash $51. No non-SCALP rows.
 
+## 2026-09-24 ~10:55 UTC — FLIP-exit replay (owner: "check it"): NO CHANGE
+Since v81.1 (08:25): 39 closes, WR 26%, net -$29.35 (fees $23.37); FLIP 36 closes WR 19% -$56.86,
+STOP 3 closes +$27.51. Replayed every FLIP close on agent_snapshots mids (net of 16bps):
+    era      n    actual   min-hold 15m  min-hold 30m  no-FLIP (hold to plan, stop only)
+    before  101  +0.324%     +0.236%       +0.192%      +0.599%  (92/101 full paths)
+    v81.1    36  -0.399%     -0.572%       -0.584%      -0.595%  (0 full paths yet)
+A minimum hold before FLIP is WORSE in both eras -> rejected. No-FLIP flips sign between eras
+(better before, worse now) -> no consistent evidence, not changed. Reading: in v81.1 the FLIP
+exits cut losers early; the losses come from the ENTRIES (relative mode = no proven edge),
+not the exit rule. A "stronger opposite majority" variant was not replayable (per-minute team
+scores are not stored). Bot unchanged.
+
 ## v81.1 (2026-09-24) — overlap-corrected learning t (owner: "yes" after being told funding@240 t=22.8 looked inflated)
 Each snapshot is scored every ~1-min meeting, so an h-minute return overlaps the next h-1
 snapshots and naive t is inflated by ~sqrt(h). `hT(st,h) = tStat/sqrt(h/LEARN.meetingMin)`
