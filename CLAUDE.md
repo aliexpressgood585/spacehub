@@ -98,6 +98,12 @@ ev = n/20` (kDefault prior — converges to the measured k as new events accumul
 add a parity test asserting the agent_stats select includes ev. Redeploy as v83.2.
 Reported to the owner in the same turn. Do not read ANY t / weight / league number from 12:24 onward
 as evidence about the agents until this is fixed.
+**FIXED — v83.2 (owner: "צא לדרך", then "תתקן זריז אבל").** PR #54 (5507b36d), function v52, manifest
+v83.2 first_seen 14:48:01 UTC, paper true / live false, 0 errors. Parity test §8 asserts every Stat field
+round-trips through the agent_stats select (40/40). ev reset `set ev = n/20` (kDefault prior) — NB the
+first run at 14:47 was half overwritten by v83.1's final scoring cycle (345/734 rows survived), re-run at
+14:50 under v83.2 (378 rows). Learning numbers 12:24-14:48 are VOID; the league becomes meaningful again
+as ev accumulates (k converges to the real votes-per-event within ~a day as old n decays).
 
 ## v83.0 (2026-09-24) — "all five, to the highest level" (owner). Five upgrades in one release.
 1. LEARNING TO 24h: `LEARN.horizonsMin` + 1440; snapshots kept 26h; `halfLifeFor(h)` = max(12h, 6h·h)
