@@ -29,6 +29,16 @@ import { CRYPTO_40 } from '../shared/strategy.ts'
 import type { Bar } from '../shared/scalp.ts'
 
 export interface GymSet { tf: Tf | '5m'; coins: readonly string[]; source: '5m' | '1h'; barMin: number; horizonsBars: readonly number[]; horizonsMin: readonly number[]; fundingBpPerHour: number }
+// v85.3: the slow sets run on EVERY USDT perpetual Binance Futures trades today with >= 2y of history when
+// backtest/binance-perps.sh has produced the list (a coin joins the grid when its data starts; BTC is the
+// grid); otherwise the pinned 40. Read at call time so the module stays importable without Deno.
+export function slowCoins(): readonly string[] {
+  try {
+    const names = Deno.readTextFileSync('backtest/data/perps.txt').split('\n').map((s) => s.trim()).filter(Boolean)
+    if (names.length >= 40 && names.includes('BTC')) return names
+  } catch { /* no list: pinned universe */ }
+  return CRYPTO_40
+}
 export const GYM = {
   sets: [
     { tf: '5m', coins: ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT'], source: '5m', barMin: 5, horizonsBars: [1, 3, 12, 48], horizonsMin: [5, 15, 60, 240], fundingBpPerHour: 0 },
@@ -197,12 +207,16 @@ export function runGymSet(set: GymSet, series: Bar[][], months: number): { rows:
   return { rows, report: { tf: set.tf, coins: [...set.coins], bars: N, from: new Date(grid[0]).toISOString().slice(0, 10), to: new Date(grid[N - 1]).toISOString().slice(0, 10), counts: { tested: rows.length, passed: rows.filter((r) => r.pass).length } } }
 }
 
-export function runGym(months: number, sha: string | null = null, sets: readonly GymSet[] = GYM.sets): GymReport {
+export function runGym(months: number, sha: string | null = null, sets0: readonly GymSet[] = GYM.sets): GymReport {
   const rows: GymRow[] = [], reps: GymSetReport[] = []
-  for (const set of sets) {
-    const series = set.coins.map((c) => set.source === '5m' ? loadCSV(c, '5m') : aggregate(loadCSV(c, '1h'), 60, set.barMin))
-    const missing = set.coins.filter((_, i) => series[i].length < GYM.window * 4)
-    if (missing.length > set.coins.length / 4) throw new Error(`gym ${set.tf}: ${missing.length}/${set.coins.length} coins without data (${missing.slice(0, 5).join(' ')})`)
+  const wide = slowCoins()
+  const sets = sets0.map((s) => (s.source === '1h' ? { ...s, coins: wide } : s))
+  for (const set0 of sets) {
+    const all = set0.coins.map((c) => set0.source === '5m' ? loadCSV(c, '5m') : aggregate(loadCSV(c, '1h'), 60, set0.barMin))
+    // a coin with too little data is dropped from THIS set (young perpetuals), never a reason to abort
+    const keep = set0.coins.map((_, i) => all[i].length >= GYM.window * 4)
+    const set: GymSet = { ...set0, coins: set0.coins.filter((_, i) => keep[i]) }, series = all.filter((_, i) => keep[i])
+    if (set.coins.length < 8 || !set.coins.includes('BTC')) throw new Error(`gym ${set.tf}: only ${set.coins.length} coins with data (need BTC + 8)`)
     const r = runGymSet(set, series, months); rows.push(...r.rows); reps.push(r.report)
   }
   return {
