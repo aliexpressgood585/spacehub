@@ -5,7 +5,7 @@ import {SWARM,TEAMS,decayStat,scoreSnapshot,learnedWeight,meanBps,tStat,hT,LEARN
 import {DIRECTIONAL} from '../../../shared/desk.ts'
 import {CRYPTO_40} from '../../../shared/strategy.ts'
 import {INFO_IDS,infoVotes,xsScore,retOver,oiMove,type InfoData} from '../../../shared/info.ts'
-import {FACTORY,features,vote,spawn,step,statKeys,OOS,gymPicks,type FactoryRow,type GymPass} from '../../../shared/factory.ts'
+import {FACTORY,features,vote,spawn,step,statKeys,OOS,gymPicks,type FactoryRow,type GymPass,type Tf} from '../../../shared/factory.ts'
 // v85.0 gym: genomes that passed the offline 36m walk-forward (status/gym-latest.json, committed by the
 // backtest workflow) are seeded into live TRIAL ahead of random spawns. Cached hourly in market_cache;
 // any failure = no gym picks this meeting, never an error that blocks trading.
@@ -16,6 +16,26 @@ async function gymPassed(db:any,now:number):Promise<{passed:GymPass[],ran_at:str
   const r=await fetch(GYM_URL,{signal:AbortSignal.timeout(6000)});if(r.status===404)return {passed:[],ran_at:null};if(!r.ok)throw new Error(`gym ${r.status}`)
   const j=await r.json();const passed:GymPass[]=(j.genomes??[]).filter((g:any)=>g.pass).map((g:any)=>({id:g.id,genome:g.genome,h:g.h,oos_t:g.oos_t,is:g.is}))
   const data={passed,ran_at:j.ran_at??null};await db.from('market_cache').upsert({key:'gym',data,ts:new Date(now).toISOString()}).throwOnError();return data
+}
+// v85.1: completed 4h / 1d bars for the gym's slow genomes (tf '4h' | '1d'), refreshed hourly and cached
+// in market_cache (`bars_4h` / `bars_1d`). Binance USDT-M first (PEPE via 1000PEPE, per-coin units), OKX swap fallback.
+async function slowBars(db:any,now:number,tfs:Tf[]):Promise<Partial<Record<Tf,Record<string,Bar[]>>>>{
+  const out:Partial<Record<Tf,Record<string,Bar[]>>>={}
+  if(!tfs.length)return out
+  const {data:rows}=await db.from('market_cache').select('key,data,ts').in('key',tfs.map(t=>`bars_${t}`)).throwOnError()
+  for(const tf of tfs){
+    const c=(rows??[]).find((r:any)=>r.key===`bars_${tf}`)
+    if(c&&now-Date.parse(c.ts)<3600_000){out[tf]=c.data;continue}
+    const fresh:Record<string,Bar[]>={}
+    await pool([...UNIVERSE],8,async sym=>{
+      const {s,k}=bsym(sym)
+      try{const r=await json(`https://fapi.binance.com/fapi/v1/klines?symbol=${s}&interval=${tf}&limit=100`);const b:Bar[]=r.filter((x:any)=>Number(x[6])<now).map((x:any)=>({t:+x[0],o:+x[1]/k,h:+x[2]/k,l:+x[3]/k,c:+x[4]/k,v:+x[5]*k}));if(b.length<85)throw new Error('short');fresh[sym]=b}
+      catch{try{const r=await json(`https://www.okx.com/api/v5/market/candles?instId=${sym}-USDT-SWAP&bar=${tf==='4h'?'4H':'1Dutc'}&limit=100`);if(r.code!=='0')throw new Error('okx');const b:Bar[]=r.data.filter((x:any)=>x[8]==='1').reverse().map((x:any)=>({t:+x[0],o:+x[1],h:+x[2],l:+x[3],c:+x[4],v:+x[5]}));if(b.length>=85)fresh[sym]=b}catch{}}
+    })
+    if(Object.keys(fresh).length>=20){out[tf]=fresh;await db.from('market_cache').upsert({key:`bars_${tf}`,data:fresh,ts:new Date(now).toISOString()}).throwOnError()}
+    else out[tf]=c?.data??{}
+  }
+  return out
 }
 // v77.0: the validated 40-coin universe (standing rule 2), priced from Binance USDT-M futures first.
 export const UNIVERSE:string[]=[...CRYPTO_40]
@@ -132,12 +152,18 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean,rotaS
   if(due)try{const {data:fr}=await db.from('factory_agents').select('id,genome,stage,born,stage_at,h,note').throwOnError();for(const r of fr??[]){if(r.stage==='retired')retiredIds.push(r.id);else frows.push(r)}}catch(e:any){factErr=String(e?.message??e)}
   const liveF=frows.filter(r=>r.stage==='live')
   const factVotes:Record<string,Record<string,number>>={}
+  // v85.1: slow (4h / 1d) genomes read their own bars; a missing slow feed = those genomes abstain, nothing else changes
+  const slowTfs=[...new Set(frows.map(r=>r.genome.tf).filter((t):t is Tf=>!!t))]
+  let slow:Partial<Record<Tf,Record<string,Bar[]>>>={},slowNote=''
+  if(due&&slowTfs.length)try{slow=await slowBars(db,Date.now(),slowTfs)}catch(e:any){slowNote=String(e?.message??e).slice(0,60)}
   if(due&&frows.length)for(const sym of UNIVERSE){
     const m=data.get(sym);if(!m)continue
     const {doi,dpx}=oiMove(info.oi[sym])
     const f=features(m.b,{imbalance:m.q.imbalance,funding:ctx?.intel[sym]?.funding,premium:info.premium[sym],xm7:xm7[sym],xm14:xm14[sym],xm28:xm28[sym],doi,dpx,btc:sym==='BTC'?undefined:data.get('BTC')?.b})
+    const fs:Partial<Record<Tf,Record<string,number>>>={}
+    for(const tf of slowTfs){const b=slow[tf]?.[sym];if(b&&b.length>=65)fs[tf]=features(b,{xm7:xm7[sym],xm14:xm14[sym],xm28:xm28[sym],btc:sym==='BTC'?undefined:slow[tf]?.BTC})}
     const v:Record<string,number>={}
-    for(const r of frows){let d=0;try{d=vote(r.genome,f)}catch{d=0}if(d){v[r.id]=d;if(r.stage!=='trial')v[OOS(r.id)]=d}}
+    for(const r of frows){let d=0;try{const ff=r.genome.tf?fs[r.genome.tf]:f;d=ff?vote(r.genome,ff):0}catch{d=0}if(d){v[r.id]=d;if(r.stage!=='trial')v[OOS(r.id)]=d}}
     factVotes[sym]=v
   }
   const VOTERS=[...DIRECTIONAL,...SWARM.map(x=>x.id),...INFO_IDS,...liveF.map(r=>OOS(r.id))]
@@ -262,7 +288,7 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean,rotaS
     }
     const cnt=(id:string,d:number)=>evaluated.filter(x=>x.dirs[id]===d).length
     say('info',`מידע חדש שהסוכנים האחרים לא רואים — מומנטום ימים (${Object.keys(info.daily).length}/40), Open Interest (${Object.keys(info.oi).length}/40), פרמיית חוזה (${Object.keys(info.premium).length}/40). ${INFO_IDS.map(id=>`${id}: ${cnt(id,1)}↑ ${cnt(id,-1)}↓`).join(' · ')}${infoNote?` · רענון: ${infoNote}`:''}`,'hold')
-    say('factory',factErr?`מפעל הסוכנים לא זמין: ${factErr.slice(0,80)}`:`מפעל סוכנים: ${fc.trial} בניסוי (הצבעת צל בלבד), ${fc.oos} בבדיקה על נתונים שלא ראו, ${fc.live} פעילים ומצביעים. נבדקו עד היום ${fc.trial+fc.oos+fc.live+fc.retired}, נפסלו ${fc.retired}. סוכן מצביע רק אחרי t≥${FACTORY.liveT} על נתונים חדשים; סוכן שנפסל לא נבדק שוב.${fc.moved.length?` עכשיו: ${fc.moved.slice(0,4).join(', ')}.`:''} חדר הכושר (36 חודשים אופליין): ${fc.gymNote?`לא זמין (${fc.gymNote})`:`${fc.gym} עברו${fc.gymSeeded?`, ${fc.gymSeeded} נכנסו עכשיו לניסיון`:''}`}.`,fc.live?'ok':'hold')
+    say('factory',factErr?`מפעל הסוכנים לא זמין: ${factErr.slice(0,80)}`:`מפעל סוכנים: ${fc.trial} בניסוי (הצבעת צל בלבד), ${fc.oos} בבדיקה על נתונים שלא ראו, ${fc.live} פעילים ומצביעים. נבדקו עד היום ${fc.trial+fc.oos+fc.live+fc.retired}, נפסלו ${fc.retired}. סוכן מצביע רק אחרי t≥${FACTORY.liveT} על נתונים חדשים; סוכן שנפסל לא נבדק שוב.${fc.moved.length?` עכשיו: ${fc.moved.slice(0,4).join(', ')}.`:''} חדר הכושר (36 חודשים אופליין, 5 דק׳ / 4 שעות / יומי): ${fc.gymNote?`לא זמין (${fc.gymNote})`:`${fc.gym} עברו${fc.gymSeeded?`, ${fc.gymSeeded} נכנסו עכשיו לניסיון`:''}`}${slowTfs.length?`; ${slowTfs.length} סוגי נרות איטיים בלייב${slowNote?` (${slowNote})`:''}`:''}.`,fc.live?'ok':'hold')
     say('risk',`דמו 1x; עד ${SCALP.maxPositions} פוזיציות, עד ${SCALP.perCoin*100}% למטבע ועד ${SCALP.allocation*100}% הקצאה אחרי עמלות. עצירת כניסות בהפסד יומי 5% או ירידה 15%. ${line('risk')}`,eligible?'ok':'veto')
     say('trader',`ספר פקודות: ${tally('trader')}. מועמדות לביצוע: ${entries.map(e=>`${e.sym} ${e.side}`).join(', ')||'אין הסכמה מתאימה'}. זמן החזקה מתוכנן לפי התנאים: ${entries.map(e=>`${e.sym} ${e.hold_min} דק׳`).join(', ')||'—'} (1–1440, לפי האופק שבו הסוכנים התומכים הוכיחו רווח נטו). בכל ישיבה: סגירה מוקדמת אם הצוות מתהפך, הארכה לעסקה מרוויחה שהצוות עדיין תומך בה.`,entries.length?'ok':'hold')
     say('treasurer',`מזומן צפוי אחרי הפעולות $${cash.toFixed(2)}; ${scalpRows.length+entries.length}/${SCALP.maxPositions} פוזיציות סקאלפ${rotaRows.length?` + ${rotaRows.length} רוטציה`:''}. הביצוע נבדק שוב באותה עסקת מסד נתונים.`)
