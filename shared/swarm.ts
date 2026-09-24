@@ -131,7 +131,7 @@ export function runSwarm(b: Bar[], x: { btc?: Bar[] }): Record<string, number> {
 // merely pointed the right way). costBps = 2 x (taker fee + slippage) of SCALP,
 // asserted equal in tests (not imported: scalp.ts imports this module).
 // Sums are exponentially decayed (half-life 12h) so scores follow the current market.
-export const LEARN = { horizonMs: 5 * 60_000, halfLifeMs: 12 * 3600_000, minN: 100, lo: 0, hi: 2.5, benchT: -2, costBps: 16, horizonsMin: [5, 15, 60, 240] as readonly number[], minActive: 3, provenT: 2.5 } as const
+export const LEARN = { horizonMs: 5 * 60_000, halfLifeMs: 12 * 3600_000, minN: 100, lo: 0, hi: 2.5, benchT: -2, costBps: 16, horizonsMin: [5, 15, 60, 240] as readonly number[], minActive: 3, provenT: 2.5, meetingMin: 1 } as const
 // v81.0 provenT 1 -> 2.5: 75 agents x 4 horizons = 300 tests and each agent keeps its BEST
 // horizon, so at t>=1 dozens pass by luck alone; at 2.5 (one-sided p~0.006) ~2 would.
 // Live at the change: 10 agents at t>=1, 7 at t>=2.5, so proven mode stays on.
@@ -175,15 +175,21 @@ export const meanBps = (st: Stat | undefined) => (st && st.n > 0 ? st.s / st.n :
 // is judged on its best horizon, and that horizon becomes the trade's planned hold.
 export const hKey = (agent: string, h: number) => (h === LEARN.horizonsMin[0] ? agent : `${agent}@${h}`)
 export function bestHorizon(stats: Record<string, Stat>, agent: string): { h: number; st: Stat | undefined; t: number } {
-  let best = { h: LEARN.horizonsMin[0], st: stats[agent], t: stats[agent] && stats[agent].n >= LEARN.minN ? tStat(stats[agent]) : -Infinity }
+  let best = { h: LEARN.horizonsMin[0], st: stats[agent], t: stats[agent] && stats[agent].n >= LEARN.minN ? hT(stats[agent], LEARN.horizonsMin[0]) : -Infinity }
   for (const h of LEARN.horizonsMin) {
     const st = stats[hKey(agent, h)]
     if (!st || st.n < LEARN.minN) continue
-    const t = tStat(st)
+    const t = hT(st, h)
     if (t > best.t) best = { h, st, t }
   }
   return best
 }
+// v81.1 OVERLAP CORRECTION: a snapshot is scored every ~1-minute meeting, so an h-minute
+// return overlaps the next h-1 snapshots' returns — the same move is counted ~h times and
+// the naive t is inflated by ~sqrt(h). Live example at the change: funding@240 raw t=22.8,
+// corrected 1.47. Dividing by sqrt(h / meeting minutes) is the standard overlapping-returns
+// adjustment (conservative: it assumes full overlap). Cross-coin correlation is NOT corrected.
+export const hT = (st: Stat | undefined, h: number) => tStat(st) / Math.sqrt(Math.max(1, h / LEARN.meetingMin))
 // v80.0 PROVEN mode: once >= minActive agents have net t >= provenT on their best
 // horizon, ONLY those agents vote (everyone else weight 0) — entries happen only
 // when agents that already beat the fees agree. With fewer proven agents the team

@@ -14,7 +14,7 @@ import { TEAM_INTERVAL_MS } from '../../../shared/team-meeting'
 import { SCALP } from '../../../shared/scalp'
 import { CRYPTO_40 } from '../../../shared/strategy'
 import { AGENTS, NEW_AGENTS } from '../../../shared/agents'
-import { SWARM, TEAMS, LEARN, learnedWeight, tStat, meanBps, decayStat, type Stat, type Team } from '../../../shared/swarm'
+import { SWARM, TEAMS, LEARN, learnedWeight, hT, meanBps, decayStat, type Stat, type Team } from '../../../shared/swarm'
 const CYCLE_LABEL = `${String(Math.floor(TEAM_INTERVAL_MS / 60_000)).padStart(2, '0')}:${String((TEAM_INTERVAL_MS / 1000) % 60).padStart(2, '0')}`
 
 type Id = 'scout' | 'regime' | 'rota' | 'donch' | 'risk' | 'trader' | 'treasurer' | 'reporter' | 'auditor' | 'pm' | 'quant' | 'compliance' | 'execution' | 'rsi' | 'vwap' | 'breakout' | 'volume' | 'macd' | 'bollinger' | 'htf' | 'btclead' | 'candle' | 'funding' | 'trendDesk' | 'momDesk' | 'revDesk' | 'brkDesk' | 'flowDesk' | 'comboDesk'
@@ -996,7 +996,7 @@ function League({ snap }: { snap: Snap | null }) {
   const [all, setAll] = useState(false)
   const st = snap?.agentStats ?? {}
   const ids = Object.keys(LABEL)
-  const rows = ids.map((id) => ({ id, st: st[id], w: learnedWeight(st[id]), t: tStat(st[id]), m: meanBps(st[id]) }))
+  const rows = ids.map((id) => ({ id, st: st[id], w: learnedWeight(st[id]), t: hT(st[id], LEARN.horizonsMin[0]), m: meanBps(st[id]) }))
     .sort((a, b) => (b.st && b.st.n >= LEARN.minN ? b.t : -99) - (a.st && a.st.n >= LEARN.minN ? a.t : -99) || (b.st?.n ?? 0) - (a.st?.n ?? 0))
   const ready = rows.filter((r) => r.st && r.st.n >= LEARN.minN), bench = ready.filter((r) => r.w === 0).length
   return <section className="bh-meet">
