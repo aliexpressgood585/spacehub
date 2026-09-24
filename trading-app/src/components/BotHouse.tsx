@@ -39,6 +39,8 @@ interface Snap {
   curve: Row[]
   agentStats: Record<string, Stat>
   factory: Row[]
+  decisions?: Row[]
+  agentEvents?: Row[]
 }
 interface Status { working: boolean; asleep?: boolean; alarm?: boolean; line: string; action?: string; at?: number; reviewed?: boolean }
 
@@ -391,7 +393,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
       if (loading) return
       loading = true
       try {
-        const [st, rg, eq, op, cl, sk, er, dl, mf, rb, ca, cv, mt, ag, fa] = await Promise.all([
+        const [st, rg, eq, op, cl, sk, er, dl, mf, rb, ca, cv, mt, ag, fa, td, ae] = await Promise.all([
           supa.from('bot_state').select('*').eq('id', 1).maybeSingle(),
           supa.from('market_regime').select('*').order('created_at', { ascending: false }).limit(1),
           supa.from('bot_equity').select('*').order('ts', { ascending: false }).limit(2),
@@ -407,6 +409,8 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
           supa.from('team_meetings').select('*').order('ts', { ascending: false }).limit(12),
           supa.from('agent_stats').select('*'),
           supa.from('factory_agents').select('id,genome,stage,born,stage_at,h,note').order('stage_at', { ascending: false }).limit(400),
+          supa.from('trade_decisions').select('*').order('ts', { ascending: false }).limit(300),
+          supa.from('agent_events').select('*').order('ts', { ascending: false }).limit(40),
         ])
         const firstErr = [st, rg, eq, op, cl, sk, er, dl, mf, rb, ca, cv, mt].find((r) => r.error)?.error
         if (firstErr) throw new Error(firstErr.message)
@@ -414,7 +418,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
         const batches: number[] = []
         for (const r of (rb.data ?? []) as Row[]) { const t = ts(r.opened_at); if (!batches.length || batches[batches.length - 1] - t > 10 * 60_000) batches.push(t) }
         if (!alive) return
-        setSnap({ at: Date.now(), factory: (fa.data ?? []) as Row[], meetings: (mt.data ?? []) as Row[], state: (st.data as Row) ?? null, regime: (rg.data?.[0] as Row) ?? null, equity: (eq.data ?? []) as Row[], open: (op.data ?? []) as Row[], closed: (cl.data ?? []) as Row[], skips: (sk.data ?? []) as Row[], errors: (er.data ?? []) as Row[], daily: (dl.data?.[0] as Row) ?? null, manifest: (mf.data?.[0] as Row) ?? null, rotaBatches: batches, closedAll: (ca.data ?? []) as Row[], curve: (cv.data ?? []) as Row[], agentStats: Object.fromEntries(((ag.data ?? []) as Row[]).map((r) => [String(r.agent), decayStat({ agent: String(r.agent), n: num(r.n), s: num(r.s), s2: num(r.s2), updated_at: String(r.updated_at) }, String(r.agent), Date.now())])) })
+        setSnap({ at: Date.now(), decisions: (td.data ?? []) as Row[], agentEvents: (ae.data ?? []) as Row[], factory: (fa.data ?? []) as Row[], meetings: (mt.data ?? []) as Row[], state: (st.data as Row) ?? null, regime: (rg.data?.[0] as Row) ?? null, equity: (eq.data ?? []) as Row[], open: (op.data ?? []) as Row[], closed: (cl.data ?? []) as Row[], skips: (sk.data ?? []) as Row[], errors: (er.data ?? []) as Row[], daily: (dl.data?.[0] as Row) ?? null, manifest: (mf.data?.[0] as Row) ?? null, rotaBatches: batches, closedAll: (ca.data ?? []) as Row[], curve: (cv.data ?? []) as Row[], agentStats: Object.fromEntries(((ag.data ?? []) as Row[]).map((r) => [String(r.agent), decayStat({ agent: String(r.agent), n: num(r.n), s: num(r.s), s2: num(r.s2), updated_at: String(r.updated_at) }, String(r.agent), Date.now())])) })
         setErr(null)
       } catch (e) { if (alive) setErr(e instanceof Error ? e.message : String(e)) } finally { loading = false }
     }
@@ -820,6 +824,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
       </div>
 
       <Wall snap={snap} status={status} />
+      <GatePanel snap={snap} />
       <GymWall gym={gym} snap={snap} />
       {String(snap?.manifest?.enabled_sleeves ?? '').includes('SCALP') && <section className="bh-meet">
         <h2>מסחר דמו אוטונומי · {(snap?.open ?? []).filter(t=>t.strategy==='SCALP').length}/{SCALP.maxPositions} פוזיציות · כל דקה · החזקה 1–240 דקות לפי אופק הסוכנים</h2>
@@ -1102,6 +1107,8 @@ const CSS = `
 .bh-card-h { display:flex; align-items:center; gap:6px; min-width:0; } .bh-card-h b { color:#fff; font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
 .bh-card-r { color:#8fa3bf; font-size:10.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .bh-card-s { color:#9cb1c9; font-size:10.5px; line-height:1.4; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+.bh-h3 { color:#dbe7f5; font-size:13px; margin:10px 0 4px; }
+.bh-evl { list-style:none; padding:0; margin:0; display:grid; gap:3px; font-size:11.5px; color:#c9d1de; } .bh-evl time { color:#8fa3bf; }
 .bh-win { display:flex; gap:4px; flex-wrap:wrap; } .bh-win span { font-size:10px; padding:1px 5px; border-radius:6px; background:#12203a; color:#9cb1c9; direction:ltr; font-variant-numeric:tabular-nums; }
 .bh-win .up { color:#31c48d; background:#0f2a22; } .bh-win .dn { color:#ff7b7b; background:#2a1414; }
 .bh-cchip { font-size:9.5px; font-weight:800; border-radius:10px; padding:1px 6px; border:1px solid #56607a; color:#8fa3bf; white-space:nowrap; }
@@ -1174,6 +1181,46 @@ function Factory({ snap }: { snap: Snap | null }) {
     {promoted.length ? <div className="bh-mx-wrap"><table className="bh-mx bh-lg"><thead><tr><th>סוכן</th><th>שלב</th><th>אופק</th><th>מאז</th><th>הערה</th></tr></thead>
       <tbody>{promoted.map((r) => <tr key={r.id}><th dir="ltr">{r.id}</th><td><span className={`bh-chipd ${r.stage === 'live' ? 'l' : ''}`}>{r.stage === 'live' ? 'פעיל' : 'בבדיקה'}</span></td><td className="n" dir="ltr">{r.h ? `${r.h}m` : '—'}</td><td className="n">{ago(ts(r.stage_at), nowT)}</td><td dir="ltr">{r.note ?? ''}</td></tr>)}</tbody></table></div>
       : <p className="bh-mnote">עדיין אין סוכן שעבר את שלב הניסוי. {recent.length ? `אחרונים: ${recent.map((r) => `${r.id} — ${r.note}`).slice(0, 3).join(' · ')}` : ''}</p>}
+  </section>
+}
+
+// v86.0: the profit gate, live — every ranked candidate of the latest meeting with its decision and reason, the
+// cost breakdown (fees / spread / impact / funding), observed market data kept apart from inferred estimates,
+// executed SCALP trades with their real costs and net, and agent promotions / demotions / duplicates.
+const GATE_REASON: Record<string, string> = { taken: 'בוצע', net_edge: 'יתרון נטו', costs_exceed_edge: 'העלויות גדולות מהיתרון', no_gross_edge: 'אין יתרון ברוטו', no_edge_estimate: 'אין הערכת יתרון (סוכנים לא נמדדו)', book_too_thin: 'ספר דק מדי', no_book: 'אין ספר פקודות', ranked_below_cut: 'מתחת לקו הדירוג', no_capital: 'אין הון פנוי', engine_not_eligible: 'המנוע לא כשיר (נתונים/עצירה)' }
+const STATUS_HE: Record<string, string> = { proven: 'מוכח', relative: 'יחסי', duplicate: 'כפיל', unstable: 'לא יציב', benched: 'ספסל', learning: 'לומד', active: 'פעיל' }
+function GatePanel({ snap }: { snap: Snap | null }) {
+  const all = (snap?.decisions ?? []) as Row[]
+  const lastTs = all[0] ? String(all[0].ts).slice(0, 16) : ''
+  const cur = all.filter((d) => String(d.ts).slice(0, 16) === lastTs).sort((a, b) => num(a.rank) - num(b.rank))
+  const day = all.length
+  const acc = all.filter((d) => d.decision === 'accepted').length
+  const byReason = Object.entries(all.reduce((m: Record<string, number>, d) => { const k = String(d.reason); m[k] = (m[k] ?? 0) + 1; return m }, {})).sort((a, b) => b[1] - a[1])
+  const execs = ((snap?.closed ?? []) as Row[]).filter((t) => t.strategy === 'SCALP').slice(0, 8)
+  const ev = (snap?.agentEvents ?? []) as Row[]
+  const f2 = (v: unknown) => (Number.isFinite(num(v)) ? num(v).toFixed(1) : '—')
+  const rm = (snap?.state?.bot_params as Row | undefined)?.scalp_risk_mult
+  return <section className="bh-meet">
+    <div className="bh-mtop"><h2>שער רווח · יתרון נטו לפני כל כניסה</h2><span className="bh-dec">{cur.length ? `ישיבה ${lastTs.slice(11)}Z · ${cur.filter((d) => d.decision === 'accepted').length}/${cur.length} בוצעו` : 'ממתין לישיבה ראשונה עם השער'} · {day} החלטות אחרונות, {acc} בוצעו · מכפיל סיכון {rm ?? '—'}</span></div>
+    <p className="bh-mnote">כל מועמד מתומחר במודל עלויות אחד: עמלת טייקר בשני הצדדים (10 נק׳), חצי מרווח שנצפה, השפעת שוק לפי עומק הספר ±10 נק׳ שנצפה, ומימון לפי השיעור שפורסם ולאורך ההחזקה המתוכננת. היתרון הצפוי ברוטו = הממוצע המשוקלל של מה שהסוכנים התומכים הוכיחו (נטו + 16). נכנס רק מה שנשאר חיובי אחרי הכל (עם מרווח ביטחון 2 נק׳). <b>נצפה</b> = נמדד מבינאנס; <b>מוסק</b> = הערכה.</p>
+    {byReason.length > 0 && <p className="bh-mnote">סיבות: {byReason.map(([k, v]) => `${GATE_REASON[k] ?? k} ${v}`).join(' · ')}</p>}
+    {cur.length ? <div className="bh-mx-wrap"><table className="bh-mx bh-lg"><thead><tr><th>#</th><th>מטבע</th><th>החלטה</th><th>ברוטו צפוי</th><th>עלות</th><th>נטו צפוי</th><th>עמלה/מרווח/השפעה/מימון</th><th>נצפה: מרווח · עומק ±10 · מימון · OI 4ש׳</th></tr></thead>
+      <tbody>{cur.map((d) => { const c = (d.inferred as Row | undefined)?.cost as Row | undefined, o = (d.observed ?? {}) as Row; return <tr key={String(d.id)}>
+        <td className="n">{String(d.rank)}</td><th dir="ltr">{String(d.sym)} {d.side === 'LONG' ? '▲' : '▼'}</th>
+        <td><span className={`bh-chipd ${d.decision === 'accepted' ? 'l' : ''}`}>{GATE_REASON[String(d.reason)] ?? String(d.reason)}</span></td>
+        <td className="n" dir="ltr">{f2(d.gross_bps)}</td><td className="n" dir="ltr">{f2(d.cost_bps)}</td><td className="n" dir="ltr">{f2(d.net_bps)}</td>
+        <td className="n" dir="ltr">{c ? `${f2(c.fee_bps)} / ${f2(c.spread_bps)} / ${f2(c.impact_bps)} / ${f2(c.funding_bps)}` : '—'}</td>
+        <td className="n" dir="ltr">{f2(o.spread_bps)} · {o.bid_depth10_usd != null ? `$${Math.round(num(o.bid_depth10_usd) / 1000)}k/$${Math.round(num(o.ask_depth10_usd) / 1000)}k` : 'לא נצפה'} · {o.funding != null ? `${(num(o.funding) * 1e4).toFixed(2)}bp` : '—'} · {o.oi_4h != null ? `${(num(o.oi_4h) * 100).toFixed(1)}%` : '—'}</td>
+      </tr> })}</tbody></table></div> : <p className="bh-mnote">עוד אין החלטות שער. הן נכתבות בכל ישיבה (כל דקה) מרגע שהגרסה החדשה רצה.</p>}
+    <h3 className="bh-h3">ביצוע אמיתי (דמו) · עלויות ונטו</h3>
+    {execs.length ? <div className="bh-mx-wrap"><table className="bh-mx bh-lg"><thead><tr><th>מטבע</th><th>יציאה</th><th>ברוטו $</th><th>עמלות $</th><th>מימון $</th><th>נטו $</th><th>נטו צפוי בכניסה</th></tr></thead>
+      <tbody>{execs.map((t) => { const m = (t.scalp_meta ?? {}) as Row, fee = num(t.fee) + num(m.exit_fee); return <tr key={String(t.id)}>
+        <th dir="ltr">{String(t.sym)} {t.side === 'LONG' ? '▲' : '▼'}</th><td>{String(m.exit_reason ?? t.status)}</td>
+        <td className="n" dir="ltr">{Number.isFinite(num(m.gross_pnl)) ? num(m.gross_pnl).toFixed(2) : '—'}</td><td className="n" dir="ltr">{Number.isFinite(fee) ? fee.toFixed(2) : '—'}</td>
+        <td className="n" dir="ltr">{Number.isFinite(num(m.funding_model)) ? num(m.funding_model).toFixed(2) : '—'}{m.funding_observed === true ? '' : m.funding_observed === false ? ' (בסיס)' : ''}</td>
+        <td className="n" dir="ltr">{num(t.pnl).toFixed(2)}</td><td className="n" dir="ltr">{m.net_bps_expected != null ? `${f2(m.net_bps_expected)} נק׳` : 'לפני השער'}</td></tr> })}</tbody></table></div> : <p className="bh-mnote">אין עסקאות סגורות.</p>}
+    <h3 className="bh-h3">קידומים והורדות של סוכנים</h3>
+    {ev.length ? <ul className="bh-evl">{ev.slice(0, 20).map((e) => <li key={String(e.id)}><time>{String(e.ts).slice(11, 16)}Z</time> <b dir="ltr">{String(e.agent)}</b> {STATUS_HE[String(e.from_status)] ?? String(e.from_status ?? '—')} → <b>{STATUS_HE[String(e.to_status)] ?? String(e.to_status)}</b>{e.t != null ? ` · t ${num(e.t).toFixed(2)}` : ''}{e.horizon_min ? ` @${e.horizon_min}m` : ''}{e.detail ? ` · ${String(e.detail)}` : ''}</li>)}</ul> : <p className="bh-mnote">אין עדיין שינויי סטטוס. קידום = נטו אחרי עלויות, יציבות בין אופקים, ותרומה ייחודית (סוכן שמצביע כמו סוכן חזק ממנו ב־90% מהמקרים מסומן "כפיל" ולא נספר פעמיים).</p>}
   </section>
 }
 // v85.0: the gym — every genome the offline 36-month walk-forward examined, one card each.

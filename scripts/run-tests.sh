@@ -40,6 +40,7 @@ run "info agents"           tests/info.test.ts
 run "agent factory"         tests/factory.test.ts
 run "rota runner"           tests/rota-runner.test.ts
 run "gym"                   tests/gym.test.ts
+run "costs + profit gate"   tests/costs.test.ts
 run "strategy rules"        tests/strategy.test.ts
 run "live/backtest parity"  tests/parity.test.ts
 run "portfolio simulator"   tests/portfolio.test.ts

@@ -24,7 +24,7 @@ assert.equal(allocation(0,1000,0,4),0)
 assert.equal(allocation(100,1000,1000,1),0)
 assert.equal(allocation(100,1000,0,0),0)
 for(let c=0;c<1000;c+=7){const n=allocation(c,1000,900,1);assert.ok(n>=0&&n*1.0005<=c+1e-9&&n<=90)}
-assert.equal(SCALP.maxPositions,8);assert.equal(SCALP.meetingMs,60000);assert.equal(SCALP.maxHoldMs,1440*60000)
+assert.equal(SCALP.maxPositions,16);assert.equal(SCALP.meetingMs,60000);assert.equal(SCALP.maxHoldMs,240*60000)
 // trailing only ratchets after the 1-minute minimum hold; the hard stop still fires at once
 assert.equal(exitPlan({...t,opened_at:new Date(now-30000).toISOString()},{...q,bid:102},now).stop,99)
 assert.equal(exitPlan({...t,opened_at:new Date(now-30000).toISOString()},{...q,bid:98},now).reason,'STOP')
@@ -49,8 +49,8 @@ assert.equal(liqCheck([L('long',99),L('short',101)],100,now).dir,0)
 assert.equal(liqCheck([L('long',50),L('long',50)],100,now).valid,0)
 assert.equal(liqCheck([L('long',99,now-3600000),L('long',99)],100,now).dir,0)
 assert.equal(allocation(1000,1000,0,8),123.75)
-// v76.0 whole portfolio: fewer entries -> bigger tickets, capped at 50% per coin
-assert.equal(allocation(1000,1000,0,1),500); assert.equal(allocation(1000,1000,0,2),495); assert.equal(allocation(1000,1000,500,1),490)
+// v76.0 whole portfolio: fewer entries -> bigger tickets; v86.0: capped at 25% per coin (many parallel positions)
+assert.equal(allocation(1000,1000,0,1),250); assert.equal(allocation(1000,1000,0,2),250); assert.equal(allocation(1000,1000,800,1),190)
 // v74.0 adaptive hold
 assert.equal(planHold(1,0.2,0,0.001),5); assert.equal(planHold(1,0.5,1,0.001),13); assert.equal(planHold(1,0.2,-1,0.003),1)
 assert.equal(planHold(-1,-0.5,-1,0.0005),13); assert.ok(planHold(1,1,1,0)<=15)
@@ -62,8 +62,8 @@ assert.equal(exitPlan(h5,{...q,bid:100.5},now,{side:1,weighted:0.3}).reason,'EXT
 assert.equal(exitPlan(h5,{...q,bid:100.5},now,{side:0,weighted:0}).reason,'PLANNED')   // winner nobody backs: out
 assert.equal(exitPlan({...h5,opened_at:at(2)},{...q,bid:100.5},now,{side:-1,weighted:-0.3}).reason,'FLIP') // team flips: out early
 assert.equal(exitPlan({...h5,opened_at:at(0.5)},{...q,bid:100.5},now,{side:-1,weighted:-0.3}).close,false) // never inside the first minute
-assert.equal(exitPlan({...h5,opened_at:at(241)},{...q,bid:100.5},now,{side:1,weighted:0.9}).reason,'EXTEND') // v83.0: a backed winner may run past 4h
-assert.equal(exitPlan({...h5,opened_at:at(1441)},{...q,bid:100.5},now,{side:1,weighted:0.9}).reason,'TIMEOUT') // 1440 min is the hard cap
+assert.equal(exitPlan({...h5,opened_at:at(239)},{...q,bid:100.5},now,{side:1,weighted:0.9}).reason,'EXTEND') // a backed winner may run up to 4h
+assert.equal(exitPlan({...h5,opened_at:at(241)},{...q,bid:100.5},now,{side:1,weighted:0.9}).reason,'TIMEOUT') // v86.0: 240 min is the hard cap (5m-4h)
 assert.equal(exitPlan({...h5,opened_at:at(0.2)},{...q,bid:98},now).reason,'STOP')      // stop always fires
 assert.equal(exitPlan({...h5,scalp_meta:{stop_pct:.004,hold_min:1},opened_at:at(1.1)},{...q,bid:99.95},now).reason,'PLANNED') // a 1-minute trade
 console.log('Scalp signal, timing, trailing and cash invariants passed')
@@ -82,11 +82,11 @@ assert.ok(readFileSync(`supabase/migrations/${mig}`,'utf8').includes('between 0.
 assert.ok(readFileSync('shared/scalp.ts','utf8').includes("intel.mode==='proven'||trend!==-raw"),'EMA veto is lifted only in proven mode')
 // v81.0: direction balance — at most maxSameSide of the book on one side, strongest first
 {const P=[{side:1,k:'a'},{side:1,k:'b'},{side:-1,k:'c'}]
- assert.deepEqual(balancePicks(P,[1,1,1,1,1],2).map(x=>x.k),['a','c'],'5 longs open + cap 6 -> one more long, then the short')
- assert.deepEqual(balancePicks(P,[1,1,1,1,1,1],2).map(x=>x.k),['c'],'6 longs open -> no more longs')
+ assert.deepEqual(balancePicks(P,Array(SCALP.maxSameSide-1).fill(1),2).map(x=>x.k),['a','c'],'one below the side cap -> one more long, then the short')
+ assert.deepEqual(balancePicks(P,Array(SCALP.maxSameSide).fill(1),2).map(x=>x.k),['c'],'at the side cap -> no more longs')
  assert.deepEqual(balancePicks(P,[],2).map(x=>x.k),['a','b'],'balanced book keeps the two strongest')
- assert.equal(SCALP.maxSameSide,6)}
+ assert.equal(SCALP.maxSameSide,10)}
 // v83.0: allocation honours a reserved share (ROTA alongside)
-assert.ok(allocation(1000,1000,0,1,0.49)<=490+1e-9&&allocation(1000,1000,0,1,0.49)>=489,'49% share -> at most 49% of equity');assert.equal(allocation(1000,1000,0,1,0),0)
+assert.ok(allocation(1000,1000,0,2,0.2)<=100+1e-9&&allocation(1000,1000,0,2,0.2)>=99,'20% share over 2 slots -> 10% each (below the 25% coin cap)');assert.equal(allocation(1000,1000,0,1,0),0)
 assert.ok(allocation(1000,1000,400,1,0.49)<=90+1e-9,'own exposure is subtracted from the share')
-assert.equal(SCALP.maxHoldMs,1440*60_000)
+assert.equal(SCALP.maxHoldMs,240*60_000)
