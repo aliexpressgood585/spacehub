@@ -21,7 +21,9 @@ assert.ok(roundTrip(deep,1000,-1,480,0.0001).funding_bps<0,'shorts RECEIVE posit
 assert.ok(rt.observed.includes('depth ±10bps')&&rt.inferred.some(x=>x.startsWith('impact')),'observed and inferred are labelled apart')
 // the gate
 assert.equal(profitGate({grossEdgeBps:30,edgeN:500,book:deep,notional:1000,side:1,holdMin:60,funding:0.0001}).pass,true)
-assert.equal(profitGate({grossEdgeBps:17,edgeN:500,book:deep,notional:1000,side:1,holdMin:60,funding:0.0001}).reason,'costs_exceed_edge','16.1bp costs + 2bp margin > 17')
+assert.equal(profitGate({grossEdgeBps:16.4,edgeN:500,book:deep,notional:1000,side:1,holdMin:60,funding:0.0001}).reason,'costs_exceed_edge','16.1bp costs + 0.5bp margin > 16.4 (v87.0 softened margin)')
+assert.equal(profitGate({grossEdgeBps:17,edgeN:500,book:deep,notional:1000,side:1,holdMin:60,funding:0.0001}).pass,true,'v87.0: 17bp gross clears 16.1bp costs + 0.5bp margin')
+assert.equal(COST.marginBps,0.5)
 assert.equal(profitGate({grossEdgeBps:-3,edgeN:500,book:deep,notional:1000,side:1,holdMin:60,funding:0}).reason,'no_gross_edge')
 assert.equal(profitGate({grossEdgeBps:NaN,edgeN:0,book:deep,notional:1000,side:1,holdMin:60,funding:0}).reason,'no_edge_estimate')
 assert.equal(profitGate({grossEdgeBps:500,edgeN:500,book:thin,notional:1e6,side:1,holdMin:60,funding:0}).reason,'book_too_thin')
@@ -48,7 +50,10 @@ assert.ok(corrScale(r,1,[{ret:r,side:1,weight:0.2}]).mult<1&&corrScale(r,1,[{ret
 {const mig=readdirSync('supabase/migrations').filter(f=>readFileSync(`supabase/migrations/${f}`,'utf8').includes('scalp_commit_cycle')).sort().pop()!,m=readFileSync(`supabase/migrations/${mig}`,'utf8')
  assert.ok(m.includes('paused:=s.hard_halt_at is not null;')&&!m.includes('eq<=pk*0.85'),'no P&L-based pause in the ledger')
  assert.ok(m.includes("eq*0.005*rmult/stop")&&m.includes("'costs',x->'costs'")&&m.includes("x->>'funding_rate'"))
- assert.ok(m.includes('create table if not exists public.trade_decisions')&&m.includes('create table if not exists public.agent_events'))}
+ const all=readdirSync('supabase/migrations').map(f=>readFileSync(`supabase/migrations/${f}`,'utf8')).join('\n')
+ assert.ok(all.includes('create table if not exists public.trade_decisions')&&all.includes('create table if not exists public.agent_events'))
+ assert.ok(m.includes("raise exception 'entry without profit gate'")&&m.includes(`<${COST.marginBps} `),'v87.0: the ledger refuses entries that did not pass the gate at the live margin')
+ assert.ok(m.includes(`eq*${SCALP.allocation}-expo`),'ledger exposure cap == SCALP.allocation')}
 console.log('Costs: one model, profit gate, graded risk, correlation, de-dup/stability, ledger migration passed')
 // v86.2 hysteresis: a pair at 85% agreement is not a NEW duplicate, but an existing duplicate stays one
 {const mk=(n:number,m:number):Stat=>({agent:'x',n,s:m*n,s2:(m*m+25)*n,ev:n,updated_at:new Date().toISOString()})

@@ -30,7 +30,7 @@ try{
  assert.ok(writes.includes('upsert:factory_agents'),'factory spawns its first generation')
  assert.ok(request.p_minutes.find((m:any)=>m.who==='factory').says.includes('בניסוי'))
  assert.equal(request.p_minutes[request.p_minutes.length-1].who,'pm');assert.equal(request.p_minutes[request.p_minutes.length-1].round,3)
- assert.ok(request.p_minutes.find((m:any)=>m.who==='risk').says.includes(`עד ${SCALP.maxPositions} פוזיציות`)&&request.p_minutes.find((m:any)=>m.who==='risk').says.includes('שער רווח'))
+ assert.ok(request.p_minutes.find((m:any)=>m.who==='risk').says.includes(`עד ${SCALP.maxPositions} פוזיציות`)&&request.p_minutes.find((m:any)=>m.who==='risk').says.includes('שער הרווח'))
 
  // v86.0: every voter measured at +40 bps net (5m and 15m agree) -> gross 56 bps vs ~16 bps cost: the gate passes, entries carry their costs
  {const at=new Date().toISOString(),ids=[...DIRECTIONAL,...SWARM.map(x=>x.id),...INFO_IDS]
@@ -38,7 +38,7 @@ try{
   writes.length=0
   await runScalp(db,{balance:1000,bot_params:{}},new Date(Date.now()+50000).toISOString(),true,0.5)
   assert.ok(request.p_entries.length>0&&request.p_entries.length<=SCALP.maxEntries,`edge measured -> entries (${request.p_entries.length})`)
-  for(const e of request.p_entries){assert.ok(e.costs&&e.costs.total_bps>=16&&e.net_bps>=2&&e.gross_bps>e.costs.total_bps,'every entry carries a positive net after the full cost model');assert.ok(e.notional<=1000*SCALP.perCoin+1e-6);assert.ok(e.hold_min>=SCALP.minHoldMin&&e.hold_min<=240)}
+  for(const e of request.p_entries){assert.ok(e.costs&&e.costs.total_bps>=16&&e.net_bps>=2&&e.gross_bps>e.costs.total_bps,'every entry carries a positive net after the full cost model');assert.ok(e.notional<=1100*SCALP.perCoin+1e-6,"per-coin cap on equity (cash + the ROTA row)");assert.equal(e.profit_gate,"passed");assert.ok(e.score>=0.5);assert.ok(e.hold_min>=SCALP.minHoldMin&&e.hold_min<=240)}
   assert.ok(request.p_entries.reduce((a:number,x:any)=>a+x.notional,0)<=1100*0.49+1,'SCALP keeps to its share when ROTA runs alongside')
   statRows=[]}
  const rss=parseRss('<rss><item><title><![CDATA[Bitcoin jumps]]></title><link>https://x/y</link><pubDate>Wed, 23 Sep 2026 14:52:11 +0000</pubDate></item><item><title>no date</title></item></rss>','test')
