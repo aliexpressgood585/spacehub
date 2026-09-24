@@ -351,7 +351,9 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
       ])
       if (bn.status === 'fulfilled' && Array.isArray(bn.value)) {
         const bySym = new Map((bn.value as { symbol: string; lastPrice: string; priceChangePercent: string; closeTime: number }[]).map((x) => [x.symbol, x]))
-        for (const c of UNIVERSE) { const m = BN_K[c] ?? { s: `${c}USDT`, k: 1 }; const x = bySym.get(m.s); if (x) got[c] = { px: Number(x.lastPrice) / m.k, chg: Number(x.priceChangePercent) / 100, t: x.closeTime, src: 'Binance Futures' } }
+        // v88.0: the bot trades any liquid USDT perp, so every USDT contract is priced (1000PEPE -> PEPE per coin, others as listed)
+        const rev = Object.fromEntries(Object.entries(BN_K).map(([c, m]) => [m.s, { c, k: m.k }]))
+        for (const [sym, x] of bySym) { if (!sym.endsWith('USDT')) continue; const r = rev[sym] ?? { c: sym.slice(0, -4), k: 1 }; got[r.c] = { px: Number(x.lastPrice) / r.k, chg: Number(x.priceChangePercent) / 100, t: x.closeTime, src: 'Binance Futures' } }
       }
       if (ok.status === 'fulfilled' && ok.value?.code === '0') for (const x of ok.value.data as { instId: string; last: string; sodUtc0: string; ts: string }[]) {
         const m = /^([A-Z0-9]+)-USDT-SWAP$/.exec(x.instId); if (!m || !UNIVERSE.includes(m[1]) || got[m[1]]) continue
