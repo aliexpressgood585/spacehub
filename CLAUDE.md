@@ -356,6 +356,25 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v87.0 (2026-09-24 22:46 UTC) — AGGRESSIVE DEMO (owner full prompt: more opportunities, costs kept, gate softened not removed)
+`shared/opportunity.ts` + runner rewrite of the gate block. Candidates = every coin x side an EVIDENCED agent backs
+(positive net at its best horizon, corrected t >= 1, credit (t-0.5)/2 capped at t 2.5; evidenced opponents subtract) —
+v86 averaged ALL backers and the ~90% with negative edge buried everything. Profit gate margin 2 -> 0.5 bps (full cost
+model unchanged). Team majority / EMA / spread / range / imbalance = score penalties, never vetoes (bonuses rank only).
+Top-N by expected net $/hour (favours 5/15m), 3/2/1/1 per meeting by risk tier. Portfolio manager: 8 positions (was 16),
+5 per side, gross 90% (was 99%), net 60%, corr load >= 1.5 rejected. Sizing = risk at ATR stop x tier x edge x exposure
+x corr, 25%/coin. TTL: quote <= 20 s, last 1m bar closed <= 150 s. NO BYPASS: ledger raises 'entry without profit gate'
+unless profit_gate='passed' and net/score >= 0.5; ROTA (ungated) never runs; legacy engine `LEGACY_ENGINE_ALLOWED=false`.
+trade_decisions + score, missing; house GatePanel shows the funnel (generated -> fresh -> passed -> entered), who/why,
+what is missing. Tests: tests/opportunity.test.ts + updated suites, 390 assertions, acceptance PASS, app build OK.
+BEFORE (replay of v86 decisions vs real prices from agent_snapshots): 3,318 candidates in 6h, all rejected, best net
+-25.6; they would have realised about -17 bps net at 15 min and -41 at 60 min, so the v86 gate was RIGHT.
+DEPLOYED: migration `20260924230000_aggressive_demo.sql` first, PR #68 (472e873b), function v64, manifest v87.0 SCALP
+paper true / live false, 0 errors. First meetings: 31 candidates, all `no_edge_estimate`, 0 trades. REASON: the only
+agents with t >= 1 are FACTORY TRIAL genomes (g_rsi280p4r@15 t 2.8 etc.), which by design never vote until they pass
+OOS (n>=300 trial -> oos n>=200 t>=2.5 -> live). No live voter has proven edge -> no trade, correctly.
+NB heavy vote-level replays on agent_snapshots exhausted the free DB's temp disk (no bot impact) — keep replays light.
+
 ## v84.0 (2026-09-24) — "אורביטל": the house in 3D (owner: "3D, out of this world, real actions behind every agent";
 ## and: NO bot changes until they decide). Dashboard only; the bot, its shim and the DB are untouched.
 `trading-app/src/components/Orbital.tsx`, page `house3d.html` (+ link from house.html). three.js via
