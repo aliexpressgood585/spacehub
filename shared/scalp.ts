@@ -24,7 +24,7 @@ export interface Vote { who:string; says:string; vote:string; checked_at:string 
 // Public context, each item carrying where it came from and when.
 export interface NewsItem { title:string; source:string; url:string; ts:number }
 export interface LiqEvent { side:'long'|'short'; px:number; sz:number; ts:number; source:string }
-export interface Intel { news:NewsItem[]; liqs:LiqEvent[]; btc?:Bar[]; funding?:number|null; weights?:Record<string,number>; mode?:'proven'|'relative' }
+export interface Intel { news:NewsItem[]; liqs:LiqEvent[]; btc?:Bar[]; funding?:number|null; weights?:Record<string,number>; mode?:'proven'|'relative'; extra?:Record<string,number> }
 export function validQuote(q: Quote, now:number): boolean {
   return [q.bid,q.ask,q.ts,q.imbalance].every(Number.isFinite) && q.bid>0 && q.ask>=q.bid && now-q.ts>=-5000 && now-q.ts<20_000
 }
@@ -89,7 +89,7 @@ export function assess(sym:string,b:Bar[],q:Quote,now:number,intel:Intel={news:[
   // v73.0: 15 directional agents, each weighted by its live record (weights.ts rules).
   // v75.0: + the 50-agent swarm; weights come from shadow learning (swarm.ts).
   const sw=runSwarm(b,{btc:intel.btc})
-  const dirs:Record<string,number>={regime:trend,rota:momentum,donch:sweep.dir,trader:flow,risk:Math.sign(nw.dir+lq.dir),...Object.fromEntries(NEW_AGENTS.map(k=>[k,Math.sign(extra[k].dir)])),...sw}
+  const dirs:Record<string,number>={regime:trend,rota:momentum,donch:sweep.dir,trader:flow,risk:Math.sign(nw.dir+lq.dir),...Object.fromEntries(NEW_AGENTS.map(k=>[k,Math.sign(extra[k].dir)])),...sw,...Object.fromEntries(Object.entries(intel.extra??{}).map(([k,d])=>[k,Math.sign(d)]))}  // v82.0: info agents + live factory agents
   const w=(k:string)=>intel.weights?.[k]??1
   let S=0,Wt=0,pro=0,con=0
   for(const [k,d] of Object.entries(dirs)){S+=w(k)*d;Wt+=w(k)}

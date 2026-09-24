@@ -61,6 +61,28 @@ Answered with the real state instead. Live, v80.2 (56cd826d) paper true / live f
 $5,000 (-3.3%). Book: 8 open, all planned 240 min (proven agents' best horizon is now
 4h), 5 LONG / 3 SHORT, cash $51. No non-SCALP rows.
 
+## v82.0 (2026-09-24) — new-information agents + autonomous AGENT FACTORY (owner: "10,000 agents"; then "both, fast")
+Owner asked for 10,000 agents. Told plainly: 10k x 4 horizons would make ~250 agents look "proven" by
+luck alone, they would all read the same 1-minute candles, and the free-tier function/DB cannot run
+400k votes a minute. Offered (1) agents on NEW information and (2) a factory that explores many agents
+over time but promotes only on out-of-sample evidence. Owner chose both.
+(1) `shared/info.ts`, 6 voters: xmom7/14/28/ens = cross-sectional momentum over DAYS (top 8 of 40
+long, bottom 8 short — the one edge the 36m research measured, ROTA); oi4h = open interest +2% over
+4h read with the price move; basis = perpetual premium ranked across coins, faded. Data: Binance
+daily klines (OKX fallback) refreshed hourly and openInterestHist hourly (15-min refresh), cached in
+new table `market_cache`; premium from the premiumIndex call already made. Missing data = abstain.
+They are ordinary voters: same shadow learning, same weights.
+(2) `shared/factory.ts` + table `factory_agents`: random genomes (1 or 2 agreeing conditions over 23
+features incl. the new data; ~100k possible). Population 100 (20 spawned per meeting). trial = shadow
+only; after n>=300 on its best horizon: t>=1 -> oos, t<0 -> retired, 12h timeout. oos = votes ALSO
+scored under a fresh alias `id#o` on the ONE promoted horizon; n>=200 and t>=2.5 -> live, t<0 or 24h ->
+retired. live = the alias joins the voters; dropped if its OOS t falls below 1. Retired genomes are
+kept (never re-tested) and their agent_stats rows deleted. Trial/oos NEVER affect trading.
+All t are overlap-corrected (hT). Meeting gains 2 roles: `info`, `factory` (house shows them in the
+minutes under their ids; no rooms yet). Tests: tests/info.test.ts, tests/factory.test.ts.
+HONEST: this is selection with a holdout, not a guarantee; if no agent has an edge the factory will
+simply keep retiring them, which is the correct answer.
+
 ## 2026-09-24 ~10:55 UTC — FLIP-exit replay (owner: "check it"): NO CHANGE
 Since v81.1 (08:25): 39 closes, WR 26%, net -$29.35 (fees $23.37); FLIP 36 closes WR 19% -$56.86,
 STOP 3 closes +$27.51. Replayed every FLIP close on agent_snapshots mids (net of 16bps):
