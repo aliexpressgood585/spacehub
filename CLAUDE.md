@@ -61,6 +61,20 @@ Answered with the real state instead. Live, v80.2 (56cd826d) paper true / live f
 $5,000 (-3.3%). Book: 8 open, all planned 240 min (proven agents' best horizon is now
 4h), 5 LONG / 3 SHORT, cash $51. No non-SCALP rows.
 
+## v85.2 (2026-09-24) — THE GYM HALL inside the pixel house (owner: more windows for the gym, see each agent's
+## movement and whether it "came out acquitted"). Dashboard only; no bot change.
+New bottom floor in the canvas scene (H 980 -> 1130): a hall with a running mat, five stations (the four
+in-sample windows + the held-out test) and three doors — grey "לניסיון" (live trial / thin), green "עבר",
+red "נפסל". One trainee at a time walks in from the left; at each station a lamp lights green/red from THAT
+genome's real window sign / OOS t; it then walks out through the door its verdict earned. Queue = the gym
+report replayed (passers first, then by held-out t, looping); LIVE factory changes (new trial row incl.
+gym-seeded / child, trial->oos, oos->live, ->retired) are diffed from `factory_agents` on every poll and
+jump the queue with a green live marker. Hat colour = timeframe (amber 4h, purple 1d, cyan live 1m).
+Scoreboard on the wall: pass/fail/thin bars from the report + a tally of who walked through while the
+page was open. Overlay tag shows the current id + verdict text; door labels in Hebrew. Reduced-motion
+users get instant transitions. Nothing computed — every lamp is a number from gym-latest.json or a
+stage already written by the bot.
+
 ## v85.1 (2026-09-24) — GYM ON 4h AND 1d BARS (owner: "תרחיב את חדר הכושר ל־4 שעות ויומי, זריז")
 Three sets in one run: 5m/10 coins (as v85.0), **4h/40 coins** (horizons 4h/8h/1d/2d/7d) and **1d/40
 coins** (1d/2d/3d/7d), the slow bars aggregated UTC-aligned from the 1h archive (`aggregate()`, complete
@@ -72,7 +86,19 @@ own bars — `slowBars()` caches completed 4h/1d klines for the 40 coins hourly 
 GymWall groups verdict × timeframe with a timeframe chip per card and per-set counts. Tests:
 `tests/gym.test.ts` (aggregation, costs, three sets, deterministic ids); factory +3. Smoke on synthetic
 data: 3 sets × 1,500 genomes in ~4s, JSON ~1MB.
-STATUS: see the DEPLOYED/RESULT line below once run #100 lands.
+DEPLOYED 15:19 UTC: PR #56 (27b35ff4), function v54, manifest v85.1 paper true / live false. NB the merge did
+NOT trigger the backtest workflow (its push trigger is path-filtered to `.run-request`, which was unchanged) —
+dispatched by hand (`actions_run_trigger` mode gym / 36) = run #100, ran 15:20-15:23, result committed.
+**RESULT — 0 of 4,500 PASS at any timeframe.**
+    5m  10 coins 315,648 bars: 1,500 tested | thin 77 | neg. IS window 1,421 | IS t<1 2 | failed OOS 0 | PASS 0
+    4h  40 coins   6,576 bars: 1,500 tested | thin 84 | neg. IS window 1,391 | IS t<1 12 | failed OOS 13 | PASS 0
+    1d  40 coins   1,096 bars: 1,500 tested | thin 176 | neg. IS window 1,288 | IS t<1 15 | failed OOS 21 | PASS 0
+Slow bars DO get further than 5m (34 genomes clear all four IS windows with IS t>=1 vs 0 at 5m) and then
+fail the held-out 20%: best gd_rsi70p6r_btc150p4f @3d IS t 1.96 / OOS t 1.23; gd_xm70p6f_z202p5f @1d
+IS t 2.22 / OOS t 1.03. Reading: on 36 months the slow vocabulary shows the shape of an edge in-sample and
+does not confirm it out-of-sample at the 2.0 bar — consistent with v104bt (ROTA OOS +1.0%, ~flat). The
+bot's factory line now reads "0 עברו" for all three sets; nothing was seeded. Honest next step if wanted:
+this is where a larger sample (more coins, more years) would decide; NOT a lower bar.
 
 ## v85.0 (2026-09-24) — THE GYM: offline 36-month walk-forward for factory genomes (owner: "תבנה אבל זריז", show every agent in the house)
 Owner lifted the freeze for this. WHY: the live factory judges ~100 random genomes on hours of shadow
