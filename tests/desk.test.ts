@@ -16,7 +16,7 @@ assert.ok(compliance([{...ok,lev:2}],[],1000,0).length)
 assert.ok(compliance([],[{sym:'ETH',notional:300}],1000,300).some(x=>x.includes('25%')))
 assert.deepEqual(compliance([],[{sym:'ETH',notional:250}],1000,250),[])
 assert.ok(compliance(Array.from({length:SCALP.maxPositions},(_,i)=>({...ok,sym:'S'+i})),[{sym:'ETH',notional:10}],1000,100).some(x=>x.includes(String(SCALP.maxPositions))))
-assert.ok(compliance([],[],1000,995).some(x=>x.includes('99%')))
+assert.ok(compliance([],[],1000,995).some(x=>x.includes(`${SCALP.allocation*100}%`)))
 const best={sym:'BTC',side:1,score:3,votes:[v('regime','long'),v('rota','long'),v('trader','short'),v('donch','hold'),v('auditor','ok')]}
 const a9=attribution([...closed,...closed,...closed])
 const d=debate(best,a9,true,[],0)

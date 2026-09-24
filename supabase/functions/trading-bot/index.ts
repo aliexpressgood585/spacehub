@@ -544,7 +544,10 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v86.2'
+const BOT_VERSION = 'v87.0'
+// v87.0: the pre-SCALP engine (DONCH4H / standalone ROTA) opens trades without the profit gate; it stays in the file
+// for its exit/record code history but may never open a trade. Changing this needs the gate wired in first.
+const LEGACY_ENGINE_ALLOWED = false
 // v68.0 breakers — owner spec, deliberately NOT env/shim-configurable.
 const DAY_LOSS_HALT = 0.10, DD_HALT = 0.25, LOSS_STREAK = 4, BRK_STREAK_PAUSE_MS = 3_600_000, ERR_HALT = 10
 const RELEASE_SHA = String((globalThis as any).__RELEASE_SHA ?? 'unpinned')
@@ -2680,15 +2683,16 @@ Deno.serve(async (req) => {
     if (ENABLED_SLEEVES.includes('SCALP')) {
       // v83.0: 'SCALP,ROTA' runs the rotation sleeve in the same paper book, before SCALP,
       // under the same lease. A ROTA failure is logged and never blocks the SCALP cycle.
-      let rota: any = null, scalpState = state
-      if (ROTA_ENABLED) {
-        try { rota = await runRota(supabase, state, runLeaseUntil, paperMode && !liveMode) }
-        catch (e: any) { rota = { error: String(e?.message ?? e) }; await logErr('rota_runner', String(e?.message ?? e)) }
-        if (rota?.changed) { const { data: fresh } = await supabase.from('bot_state').select('*').eq('id', 1).single(); if (fresh) scalpState = fresh }
-      }
-      const result = await runScalp(supabase, scalpState, runLeaseUntil, paperMode && !liveMode, ROTA_ENABLED ? rotaConfig().share : 0)
+      // v87.0: ROTA opens trades WITHOUT the profit gate (no per-trade cost/edge check), so it no longer runs at all,
+      // even if a shim lists it: every entry must go through the gated SCALP path. Re-enabling ROTA means gating it first.
+      const rota: any = ROTA_ENABLED ? { skipped: 'v87.0: ROTA is not gated by the profit gate — disabled' } : null
+      const result = await runScalp(supabase, state, runLeaseUntil, paperMode && !liveMode, 0)
       return new Response(JSON.stringify({ok:true,version:BOT_VERSION,...result,rota}),{headers:{'Content-Type':'application/json'}})
     }
+
+    // v87.0: the legacy DONCH4H/ROTA engine below opens trades without the cost layer / profit gate. It may not trade:
+    // without the gated SCALP engine enabled, the bot refuses to open anything (heartbeat and manifest above still run).
+    if (!LEGACY_ENGINE_ALLOWED) return new Response(JSON.stringify({ ok: false, version: BOT_VERSION, error: 'v87.0: only the gated SCALP engine may open trades; enable SCALP' }), { headers: { 'Content-Type': 'application/json' } })
 
     // dynamic params from optimizer agent (falls back to hardcoded defaults)
     const _bp   = (state.bot_params ?? {}) as Record<string,any>

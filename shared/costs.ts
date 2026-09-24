@@ -19,7 +19,7 @@ export const COST = {
                              // v86.0 applied k×f as a raw FRACTION — $890 into $18k of depth priced at 50 bps instead of 0.25)
   maxImpact: 0.005,          // cap, 50 bps: beyond this the book is too thin and the gate says so
   fundingHours: 8,           // Binance funding interval
-  marginBps: 2,              // safety margin: net edge must exceed costs by at least this
+  marginBps: 0.5,            // v87.0 softened (was 2): net edge must still exceed ALL costs, by at least this
   learnRoundTripBps: 16,     // what shadow learning charges per vote (2 × (fee 5 + minSlip 3)); asserted below
 } as const
 

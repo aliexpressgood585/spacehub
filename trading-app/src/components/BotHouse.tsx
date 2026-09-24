@@ -965,7 +965,7 @@ function Meeting({ snap, now, shown, replaying }: { snap: Snap | null; now: numb
         {replaying && shown < all.length && <div className="bh-typing"><span className="bh-av sm" style={{ background: who(all[shown].who)?.color }}>{who(all[shown].who)?.name?.[0]}</span> {who(all[shown].who)?.name} מקליד/ה<i>.</i><i>.</i><i>.</i></div>}
       </div>
       <p className="bh-mnote">
-        {String(snap?.manifest?.enabled_sleeves ?? '').includes('SCALP') ? `בכל ישיבה (כל דקה) המנוע בוחן פתיחות דמו לפי ההצבעות, היתרה ומגבלות התיק. עד ${SCALP.maxPositions} פוזיציות ללא מינוף (1x) ועד 99% הקצאה. רק פעולות שנשמרו מופיעות כבוצעו.` : <>הצוות נפגש בתוך הבוט כל דקה. כל אחד בודק רק את התחום שלו בנתונים האמיתיים ומצביע. הצוות יכול לקבל לבד החלטה אחת בלבד: להקטין את הפוזיציות כששניים או יותר מצביעים "להקטין", ולחזור לגודל הרגיל לאחר 24 שעות מההקטנה ובדיקה תקינה ללא הצבעות להקטנה. התקרה חלה על גודל הרוטציה הבאה; היא לא סוגרת עסקאות קיימות. אין הגדלה מעבר להגדרות הפריסה.
+        {String(snap?.manifest?.enabled_sleeves ?? '').includes('SCALP') ? `בכל ישיבה (כל דקה) המנוע בוחן פתיחות דמו לפי ההצבעות, היתרה ומגבלות התיק. עד ${SCALP.maxPositions} פוזיציות ללא מינוף (1x) ועד ${Math.round(SCALP.allocation * 100)}% הקצאה, כל כניסה אחרי שער הרווח. רק פעולות שנשמרו מופיעות כבוצעו.` : <>הצוות נפגש בתוך הבוט כל דקה. כל אחד בודק רק את התחום שלו בנתונים האמיתיים ומצביע. הצוות יכול לקבל לבד החלטה אחת בלבד: להקטין את הפוזיציות כששניים או יותר מצביעים "להקטין", ולחזור לגודל הרגיל לאחר 24 שעות מההקטנה ובדיקה תקינה ללא הצבעות להקטנה. התקרה חלה על גודל הרוטציה הבאה; היא לא סוגרת עסקאות קיימות. אין הגדלה מעבר להגדרות הפריסה.
         {cap ? ` כרגע: פוזיציות מוקטנות (יעד ${cap}).` : ' כרגע: גודל רגיל.'}</>}
       </p>
     </div>
@@ -1109,6 +1109,7 @@ const CSS = `
 .bh-card-s { color:#9cb1c9; font-size:10.5px; line-height:1.4; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
 .bh-h3 { color:#dbe7f5; font-size:13px; margin:10px 0 4px; }
 .bh-evl { list-style:none; padding:0; margin:0; display:grid; gap:3px; font-size:11.5px; color:#c9d1de; } .bh-evl time { color:#8fa3bf; }
+.bh-funnel { display:flex; flex-wrap:wrap; gap:6px 12px; align-items:baseline; font-size:12.5px; color:#c9d1de; margin:4px 0 8px; } .bh-funnel b { color:#fff; font-size:15px; } .bh-funnel em { flex-basis:100%; font-style:normal; color:#8fa3bf; font-size:11.5px; }
 .bh-win { display:flex; gap:4px; flex-wrap:wrap; } .bh-win span { font-size:10px; padding:1px 5px; border-radius:6px; background:#12203a; color:#9cb1c9; direction:ltr; font-variant-numeric:tabular-nums; }
 .bh-win .up { color:#31c48d; background:#0f2a22; } .bh-win .dn { color:#ff7b7b; background:#2a1414; }
 .bh-cchip { font-size:9.5px; font-weight:800; border-radius:10px; padding:1px 6px; border:1px solid #56607a; color:#8fa3bf; white-space:nowrap; }
@@ -1187,7 +1188,9 @@ function Factory({ snap }: { snap: Snap | null }) {
 // v86.0: the profit gate, live — every ranked candidate of the latest meeting with its decision and reason, the
 // cost breakdown (fees / spread / impact / funding), observed market data kept apart from inferred estimates,
 // executed SCALP trades with their real costs and net, and agent promotions / demotions / duplicates.
-const GATE_REASON: Record<string, string> = { taken: 'בוצע', net_edge: 'יתרון נטו', costs_exceed_edge: 'העלויות גדולות מהיתרון', no_gross_edge: 'אין יתרון ברוטו', no_edge_estimate: 'אין הערכת יתרון (סוכנים לא נמדדו)', book_too_thin: 'ספר דק מדי', no_book: 'אין ספר פקודות', ranked_below_cut: 'מתחת לקו הדירוג', no_capital: 'אין הון פנוי', engine_not_eligible: 'המנוע לא כשיר (נתונים/עצירה)' }
+const GATE_REASON: Record<string, string> = { taken: 'בוצע', net_edge: 'יתרון נטו', costs_exceed_edge: 'העלויות גדולות מהיתרון', no_gross_edge: 'אין יתרון ברוטו', no_edge_estimate: 'אין הערכת יתרון (סוכנים לא נמדדו)', book_too_thin: 'ספר דק מדי', no_book: 'אין ספר פקודות', ranked_below_cut: 'מתחת לקו הדירוג', no_capital: 'אין הון פנוי', engine_not_eligible: 'המנוע לא כשיר (נתונים/עצירה)', weak_score: 'ציון חלש אחרי קנסות', stale_signal: 'אות פג תוקף', correlated_book: 'קורלציה מסוכנת לתיק', book_full: 'התיק מלא', same_side_cap: 'יותר מדי באותו כיוון', exposure_cap: 'תקרת חשיפה', other_side_taken: 'הצד השני נבחר' }
+// v87.0 funnel stages: which reasons stop a candidate before the gate, at the gate, or at the portfolio manager
+const FUNNEL: Record<string, 'data' | 'gate' | 'book' | 'taken'> = { stale_signal: 'data', no_book: 'data', engine_not_eligible: 'data', no_edge_estimate: 'gate', no_gross_edge: 'gate', costs_exceed_edge: 'gate', book_too_thin: 'gate', weak_score: 'gate', correlated_book: 'book', book_full: 'book', same_side_cap: 'book', exposure_cap: 'book', ranked_below_cut: 'book', no_capital: 'book', other_side_taken: 'book', taken: 'taken' }
 const STATUS_HE: Record<string, string> = { proven: 'מוכח', relative: 'יחסי', duplicate: 'כפיל', unstable: 'לא יציב', benched: 'ספסל', learning: 'לומד', active: 'פעיל' }
 function GatePanel({ snap }: { snap: Snap | null }) {
   const all = (snap?.decisions ?? []) as Row[]
@@ -1200,15 +1203,26 @@ function GatePanel({ snap }: { snap: Snap | null }) {
   const ev = (snap?.agentEvents ?? []) as Row[]
   const f2 = (v: unknown) => (Number.isFinite(num(v)) ? num(v).toFixed(1) : '—')
   const rm = (snap?.state?.bot_params as Row | undefined)?.scalp_risk_mult
+  const stage = (rows: Row[]) => { const c = { data: 0, gate: 0, book: 0, taken: 0 }; for (const d of rows) c[FUNNEL[String(d.reason)] ?? 'gate']++; return c }
+  const fc = stage(cur), fa = stage(all)
+  const who = (rows: Row[]) => Object.entries(rows.filter((d) => d.decision !== 'accepted').reduce((m: Record<string, string[]>, d) => { const k = String(d.reason); (m[k] ??= []).push(`${d.sym}${d.side === 'LONG' ? '▲' : '▼'}`); return m }, {})).sort((a, b) => b[1].length - a[1].length)
+  const funnel = (c: { data: number; gate: number; book: number; taken: number }, n: number) => <div className="bh-funnel">
+    <span><b>{n}</b> נוצרו</span><span>→ <b>{n - c.data}</b> טריים ותקינים</span><span>→ <b>{n - c.data - c.gate}</b> עברו שער רווח + ציון</span><span>→ <b>{c.taken}</b> נכנסו</span>
+    <em>נפסלו: {c.data} נתונים/תוקף · {c.gate} שער רווח · {c.book} מנהל תיק</em></div>
   return <section className="bh-meet">
     <div className="bh-mtop"><h2>שער רווח · יתרון נטו לפני כל כניסה</h2><span className="bh-dec">{cur.length ? `ישיבה ${lastTs.slice(11)}Z · ${cur.filter((d) => d.decision === 'accepted').length}/${cur.length} בוצעו` : 'ממתין לישיבה ראשונה עם השער'} · {day} החלטות אחרונות, {acc} בוצעו · מכפיל סיכון {rm ?? '—'}</span></div>
-    <p className="bh-mnote">כל מועמד מתומחר במודל עלויות אחד: עמלת טייקר בשני הצדדים (10 נק׳), חצי מרווח שנצפה, השפעת שוק לפי עומק הספר ±10 נק׳ שנצפה, ומימון לפי השיעור שפורסם ולאורך ההחזקה המתוכננת. היתרון הצפוי ברוטו = הממוצע המשוקלל של מה שהסוכנים התומכים הוכיחו (נטו + 16). נכנס רק מה שנשאר חיובי אחרי הכל (עם מרווח ביטחון 2 נק׳). <b>נצפה</b> = נמדד מבינאנס; <b>מוסק</b> = הערכה.</p>
+    <h3 className="bh-h3">משפך הזדמנויות · הישיבה האחרונה</h3>
+    {cur.length ? funnel(fc, cur.length) : null}
+    {cur.length ? <ul className="bh-evl">{who(cur).map(([k, v]) => <li key={k}><b>{GATE_REASON[k] ?? k}</b> ({v.length}): <span dir="ltr">{v.join(' ')}</span></li>)}</ul> : null}
+    <h3 className="bh-h3">משפך · {all.length} ההחלטות האחרונות</h3>
+    {all.length ? funnel(fa, all.length) : null}
+    <p className="bh-mnote">דמו אגרסיבי (v87): מועמד = כל מטבע×צד שסוכן עם יתרון נטו מוכח (t≥1, מתוקן לחפיפה ולמתאם) תומך בו, גם אם רוב הצוות נגד. כל מועמד מתומחר במודל עלויות אחד: עמלת טייקר בשני הצדדים (10 נק׳), חצי מרווח שנצפה, השפעת שוק לפי עומק הספר ±10 נק׳, ומימון לפי השיעור שפורסם ולאורך ההחזקה. שער הרווח רוכך ולא בוטל: נטו צפוי חייב להיות לפחות 0.5 נק׳ בסיס אחרי הכל (היה 2). פילטרים משניים (רוב הצוות, מגמת EMA, מרווח, טווח, חוסר איזון בספר) הם קנסות בציון ולא חסימה. הטובות נבחרות לפי רווח נטו צפוי לשעה (עד 3 בישיבה, פחות בירידה), עד 8 פוזיציות, עד 5 באותו כיוון, חשיפה עד 90%, קורלציה מסוכנת נפסלת. אות תקף רק אם הציטוט בן פחות מ־20 שניות והנר האחרון נסגר לפני פחות מ־2.5 דקות. <b>נצפה</b> = נמדד מבינאנס; <b>מוסק</b> = הערכה.</p>
     {byReason.length > 0 && <p className="bh-mnote">סיבות: {byReason.map(([k, v]) => `${GATE_REASON[k] ?? k} ${v}`).join(' · ')}</p>}
-    {cur.length ? <div className="bh-mx-wrap"><table className="bh-mx bh-lg"><thead><tr><th>#</th><th>מטבע</th><th>החלטה</th><th>ברוטו צפוי</th><th>עלות</th><th>נטו צפוי</th><th>עמלה/מרווח/השפעה/מימון</th><th>נצפה: מרווח · עומק ±10 · מימון · OI 4ש׳</th></tr></thead>
+    {cur.length ? <div className="bh-mx-wrap"><table className="bh-mx bh-lg"><thead><tr><th>#</th><th>מטבע</th><th>החלטה</th><th>ברוטו צפוי</th><th>עלות</th><th>נטו צפוי</th><th>ציון</th><th>מה חסר כדי לעבור</th><th>עמלה/מרווח/השפעה/מימון</th><th>נצפה: מרווח · עומק ±10 · מימון · OI 4ש׳</th></tr></thead>
       <tbody>{cur.map((d) => { const c = (d.inferred as Row | undefined)?.cost as Row | undefined, o = (d.observed ?? {}) as Row; return <tr key={String(d.id)}>
         <td className="n">{String(d.rank)}</td><th dir="ltr">{String(d.sym)} {d.side === 'LONG' ? '▲' : '▼'}</th>
         <td><span className={`bh-chipd ${d.decision === 'accepted' ? 'l' : ''}`}>{GATE_REASON[String(d.reason)] ?? String(d.reason)}</span></td>
-        <td className="n" dir="ltr">{f2(d.gross_bps)}</td><td className="n" dir="ltr">{f2(d.cost_bps)}</td><td className="n" dir="ltr">{f2(d.net_bps)}</td>
+        <td className="n" dir="ltr">{f2(d.gross_bps)}</td><td className="n" dir="ltr">{f2(d.cost_bps)}</td><td className="n" dir="ltr">{f2(d.net_bps)}</td><td className="n" dir="ltr">{f2(d.score)}</td><td>{d.missing ? String(d.missing) : d.decision === 'accepted' ? '—' : ''}</td>
         <td className="n" dir="ltr">{c ? `${f2(c.fee_bps)} / ${f2(c.spread_bps)} / ${f2(c.impact_bps)} / ${f2(c.funding_bps)}` : '—'}</td>
         <td className="n" dir="ltr">{f2(o.spread_bps)} · {o.bid_depth10_usd != null ? `$${Math.round(num(o.bid_depth10_usd) / 1000)}k/$${Math.round(num(o.ask_depth10_usd) / 1000)}k` : 'לא נצפה'} · {o.funding != null ? `${(num(o.funding) * 1e4).toFixed(2)}bp` : '—'} · {o.oi_4h != null ? `${(num(o.oi_4h) * 100).toFixed(1)}%` : '—'}</td>
       </tr> })}</tbody></table></div> : <p className="bh-mnote">עוד אין החלטות שער. הן נכתבות בכל ישיבה (כל דקה) מרגע שהגרסה החדשה רצה.</p>}

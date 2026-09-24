@@ -8,7 +8,7 @@ import { SWARM, TEAMS, runSwarm, type Team } from './swarm.ts'
 // v86.0: holds 5 min - 4 h (owner: timeframes 5m to 4h); many parallel positions sized by RISK (0.5% of equity
 // at the stop per trade, × graded risk scale × correlation scale), up to 16 open, 25% per coin, 10 per side.
 // fee and slip mirror shared/costs.ts (COST.takerFee / COST.minSlip) — asserted in tests.
-export const SCALP = { minWeighted: 0.2, maxHoldMs: 240*60_000, minHoldMin: 5, minHoldMs: 60_000, meetingMs: 60_000, fee: 0.0005, slip: 0.0003, maxSpread: 0.001, maxPositions: 16, maxEntries: 4, maxSameSide: 10, allocation: 0.99, perCoin: 0.25, riskPerTrade: 0.005, newsMaxAgeMs: 60*60_000, liqMaxAgeMs: 10*60_000, liqMaxPxDev: 0.03 } as const
+export const SCALP = { minWeighted: 0.2, maxHoldMs: 240*60_000, minHoldMin: 5, minHoldMs: 60_000, meetingMs: 60_000, fee: 0.0005, slip: 0.0003, maxSpread: 0.001, maxPositions: 8, maxEntries: 3, maxSameSide: 5, allocation: 0.9, perCoin: 0.25, riskPerTrade: 0.005, newsMaxAgeMs: 60*60_000, liqMaxAgeMs: 10*60_000, liqMaxPxDev: 0.03 } as const
 // v81.0: direction balance — the strongest picks of a meeting, skipping any that would put
 // more than maxSameSide of the book on one side (an all-long/all-short book is one market bet).
 export function balancePicks<T extends { side: number }>(picks: readonly T[], openSides: readonly number[], limit: number, maxSame: number = SCALP.maxSameSide): T[] {
@@ -121,7 +121,7 @@ export function assess(sym:string,b:Bar[],q:Quote,now:number,intel:Intel={news:[
   }
   say('auditor',`${sym}: טווח תנודתיות ${(atr*250).toFixed(2)}%, אומדן עלות הלוך־חזור ${(cost*100).toFixed(2)}%; זה אינו אומדן רווח`,rangeOk?'ok':'veto')
   return {sym,side:liquid&&rangeOk?side:0,stopPct:Math.min(0.01,Math.max(0.003,atr*1.5)),holdMin:planHold(side,Wt?S/Wt:0,Math.sign(extra.htf.dir),atr),votes,score:Math.abs(direction),weighted:Wt?S/Wt:0,pro,con,
-    signals:{trend,momentum,flow,sweep:sweep.dir,news:nw.dir,liq:lq.dir,news_title:nw.item?.title??null,news_source:nw.item?.source??null,news_ts:nw.item?.ts??null,news_verified:nw.verified,spread_bps:spread*1e4,liq_valid:lq.valid,liq_rejected:lq.rejected,...Object.fromEntries(NEW_AGENTS.map(k=>[k,Math.sign(extra[k].dir)])),...Object.fromEntries(Object.entries(team).map(([k,v])=>['team_'+k,v])),weighted:Wt?S/Wt:0},dirs,mid}
+    signals:{trend,momentum,flow,sweep:sweep.dir,news:nw.dir,liq:lq.dir,news_title:nw.item?.title??null,news_source:nw.item?.source??null,news_ts:nw.item?.ts??null,news_verified:nw.verified,spread_bps:spread*1e4,liq_valid:lq.valid,liq_rejected:lq.rejected,range_ok:rangeOk,liquid,...Object.fromEntries(NEW_AGENTS.map(k=>[k,Math.sign(extra[k].dir)])),...Object.fromEntries(Object.entries(team).map(([k,v])=>['team_'+k,v])),weighted:Wt?S/Wt:0},dirs,mid}
 }
 // v74.0: adaptive hold, 1-15 minutes. The planned hold is set at entry by the
 // team (planHold); at every meeting the current view can close early (FLIP),

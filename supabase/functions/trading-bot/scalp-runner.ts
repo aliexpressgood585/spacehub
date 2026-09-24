@@ -3,6 +3,7 @@ import {attribution,execStats,compliance,debate,hitPct,type Minute} from '../../
 import {AGENTS,NEW_AGENTS} from '../../../shared/agents.ts'
 import {refineWeights,type AgentStatus} from '../../../shared/swarm.ts'
 import {COST,profitGate,expectedGross,bookFrom,riskScale,corrScale,slipPerSide,type Book,type GateResult} from '../../../shared/costs.ts'
+import {OPP,evidenceEdge,adjustments,signalAge,sizeFor,portfolioPlan,missingFor,type EdgeBacker} from '../../../shared/opportunity.ts'
 import {SWARM,TEAMS,decayStat,scoreSnapshot,learnedWeight,meanBps,tStat,hT,LEARN,teamWeights,bestHorizon,hKey,type Stat,type Team} from '../../../shared/swarm.ts'
 import {DIRECTIONAL} from '../../../shared/desk.ts'
 import {CRYPTO_40} from '../../../shared/strategy.ts'
@@ -283,59 +284,78 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean,rotaS
   const scalpExpo=scalpRows.reduce((s:number,t:any)=>s+Number(t.entry_price)*Number(t.size),0)
   const scalpShare=Math.max(0,SCALP.allocation-rotaShare)
   const eligible=failures.length<=Math.floor(UNIVERSE.length*0.2)&&open.every((t:any)=>data.has(String(t.sym)))&&!retained.some(t=>!['SCALP','ROTA'].includes(t.strategy))&&!state.hard_halt_at&&!params.scalp_paused
-  // v76.0 whole portfolio: free capital is split among the entries of THIS meeting
-  // (not among all 8 slots), capped per coin, so 2 signals use the whole account.
-  // v79.0: planned hold = weighted median best-horizon of the agents voting WITH the trade; the stop widens with sqrt(hold)
-  for(const p of picks){
-    const backers=Object.entries(p.dirs).filter(([a,d])=>d===p.side&&(W[a]??1)>0).map(([a])=>({h:H[a]??5,w:W[a]??1})).sort((a,b)=>a.h-b.h)
-    const tot=backers.reduce((x,b)=>x+b.w,0);let acc=0,hold=p.holdMin
-    for(const b of backers){acc+=b.w;if(acc>=tot/2){hold=b.h;break}}
-    p.holdMin=Math.max(SCALP.minHoldMin,Math.min(SCALP.maxHoldMs/60_000,hold))   // v86.0: 5 min - 4 h
-    p.stopPct=Math.min(0.04,p.stopPct*Math.sqrt(Math.max(1,p.holdMin/5)))
-  }
-  // v80.0: concentrate — only the strongest 1-2 signals of this meeting get capital
-  // v81.0: ...and never more than SCALP.maxSameSide of the book on one side
-  // v86.0 PROFIT GATE + continuous opportunity ranking. Every candidate with a side is priced with ONE cost model
-  // (taker fees, quoted spread, depth-based impact, funding over the planned hold) against the expected GROSS edge
-  // of its backers (their measured net edge + the learning round trip). Only net-positive (beyond a margin) survive;
-  // survivors are ranked by expected net and sized by RISK (0.5% at the stop) × graded risk scale × correlation scale.
+  // v87.0: holds and stops are planned per candidate below (evidence horizon, ATR stop x sqrt(hold/5)); nothing mutates `evaluated` here.
+  // v87.0 AGGRESSIVE DEMO (shared/opportunity.ts): candidates = every coin x side an EVIDENCED agent backs; the full
+  // cost model + a SOFTENED profit gate (net >= COST.marginBps) prices each; former hard filters are score adjustments;
+  // survivors are ranked by expected net $/hour and a portfolio risk manager takes the top N the risk tier allows.
+  // There is NO other entry path: `entries` is filled only below, only from candidates that passed the gate.
   const today=new Date(now).toISOString().slice(0,10)
   const peak=Math.max(Number(params.scalp_peak)||equity,equity),dayStart=params.scalp_day===today?(Number(params.scalp_day_equity)||equity):equity
   const risk=riskScale(equity,peak,dayStart)
   const rets=(sym:string)=>{const b=data.get(sym)?.b??[];return b.slice(1).map((x,i)=>x.c/b[i].c-1)}
   const decisions:any[]=[]
-  const gated=picks.map(p=>{
-    const m=data.get(p.sym)!,side=p.side as 1|-1
-    const backers=Object.entries(p.dirs).filter(([a,d])=>d===side&&(W[a]??0)>0).map(([a])=>{const h=H[a]??5,st=stats[hKey(a,h)];return {w:W[a]??0,netBps:st?meanBps(st):NaN,n:st?.n??0,t:st?hT(st,h):0}})
-    const eg=expectedGross(backers)
-    const n0=Math.min(equity*SCALP.perCoin,equity*SCALP.riskPerTrade*risk.mult/Math.max(0.003,p.stopPct))
-    const g=profitGate({grossEdgeBps:eg.bps,edgeN:eg.n,book:m.book,notional:n0,side,holdMin:p.holdMin,funding:ctx?.intel[p.sym]?.funding??null})
-    return {p,g,eg,n0}
-  }).sort((a,b)=>(Number.isFinite(b.g.net_bps)?b.g.net_bps:-1e9)-(Number.isFinite(a.g.net_bps)?a.g.net_bps:-1e9))
-  const passed=gated.filter(x=>x.g.pass)
-  const take=balancePicks(passed.map(x=>x.p),scalpRows.map((t:any)=>t.side==='LONG'?1:-1),Math.min(SCALP.maxEntries,SCALP.maxPositions-scalpRows.length))
+  const off=new Set(['duplicate','unstable','benched'])
+  const backer=(a:string):EdgeBacker|null=>{const h=H[a]??5,st=stats[hKey(a,h)];if(!st||st.n<LEARN.minN)return null;return {agent:a,w:off.has(String((ref.status as any)[a]))?0:1,netBps:meanBps(st),t:hT(st,h),h}}
   const bookRet=scalpRows.map((t:any)=>({ret:rets(t.sym),side:t.side==='LONG'?1:-1,weight:equity>0?Number(t.entry_price)*Number(t.size)/equity:0}))
+  const held=new Set([...retained.map((t:any)=>t.sym),...closedSyms])
+  const cands:any[]=[]
+  for(const x of evaluated){
+    if(held.has(x.sym)||!Number.isFinite(x.mid))continue
+    const m=data.get(x.sym)!
+    for(const side of [1,-1] as const){
+      const pro:EdgeBacker[]=[],con:EdgeBacker[]=[]
+      for(const [a,d] of Object.entries(x.dirs)){if(!d)continue;const b=backer(a);if(!b)continue;(d===side?pro:con).push(b)}
+      const ev=evidenceEdge(pro,con)
+      // a side nobody evidenced backs is not an opportunity; it is still counted as "generated" when the team voted it
+      if(!ev.n&&x.side!==side)continue
+      const holdMin=Math.max(SCALP.minHoldMin,Math.min(SCALP.maxHoldMs/60_000,ev.holdMin||x.holdMin||SCALP.minHoldMin))
+      const stopPct=Math.min(0.04,x.stopPct*Math.sqrt(Math.max(1,holdMin/5)))
+      const age=signalAge(now,m.q.ts,m.b[m.b.length-1]?.t??NaN)
+      const cs=corrScale(rets(x.sym),side,bookRet)
+      const sz=sizeFor({equity,stopPct,riskMult:risk.mult,netBps:5,exposure,corrMult:cs.mult,perCoin:SCALP.perCoin,riskPerTrade:SCALP.riskPerTrade})
+      const g=profitGate({grossEdgeBps:ev.bps,edgeN:ev.n,book:m.book,notional:sz.notional,side,holdMin,funding:ctx?.intel[x.sym]?.funding??null})
+      const sig:any=x.signals??{}
+      const adj=adjustments({weighted:x.weighted,side,trend:Number(sig.trend)||0,spreadBps:Number(sig.spread_bps)||0,rangeOk:sig.range_ok!==false,imbalance:m.q.imbalance})
+      const score=Number.isFinite(g.net_bps)?+(g.net_bps+Math.min(0,adj.bps)).toFixed(2):NaN   // penalties only; bonuses rank, never rescue
+      let reason=!age.fresh?'stale_signal':!g.pass?g.reason:score<COST.marginBps?'weak_score':'net_edge'
+      const size=reason==='net_edge'?sizeFor({equity,stopPct,riskMult:risk.mult,netBps:g.net_bps,exposure,corrMult:cs.mult,perCoin:SCALP.perCoin,riskPerTrade:SCALP.riskPerTrade}):sz
+      const perHour=Number.isFinite(score)?(score+Math.max(0,adj.bps))*size.notional/1e4/(holdMin/60):-Infinity
+      cands.push({sym:x.sym,side,x,m,ev,g,adj,score,reason,age,cs,size,holdMin,stopPct,perHour})
+    }
+  }
+  cands.sort((a,b)=>b.perHour-a.perHour)
+  const ok=cands.filter(c=>c.reason==='net_edge')
+  const limit=Math.min(OPP.entriesByTier[risk.tier]??0,SCALP.maxEntries)
+  const plan=portfolioPlan(ok.map(c=>({key:`${c.sym}:${c.side}`,side:c.side,notional:c.size.notional,corrLoad:c.cs.load})),scalpRows.map((t:any)=>({side:t.side==='LONG'?1:-1,notional:Number(t.entry_price)*Number(t.size)})),equity,limit)
+  const planned=new Map(ok.map(c=>[`${c.sym}:${c.side}`,c]))
   const takenWhy=new Map<string,string>()
-  if(due&&eligible)for(const p of take){
-    const G=passed.find(x=>x.p===p)!,cs=corrScale(rets(p.sym),p.side,bookRet)
-    const n=Math.min(allocation(cash,equity,scalpExpo+entries.reduce((s:number,e:any)=>s+e.notional,0),take.length-entries.length,scalpShare),G.n0*cs.mult)
-    if(n<20){takenWhy.set(p.sym,'no_capital');continue}
-    const m=data.get(p.sym)!,q=m.q,sl=slipPerSide(m.book,n,p.side as 1|-1).slip,price=(p.side===1?q.ask:q.bid)*(1+p.side*sl)
-    entries.push({sym:p.sym,side:p.side===1?'LONG':'SHORT',price,notional:n,stop_pct:p.stopPct,hold_min:p.holdMin,quote_ts:q.ts,source:q.source,votes:p.votes,
-      costs:G.g.cost,gross_bps:G.g.gross_bps,net_bps:G.g.net_bps,risk_mult:risk.mult,corr_mult:cs.mult})
-    bookRet.push({ret:rets(p.sym),side:p.side,weight:equity>0?n/equity:0})
-    takenWhy.set(p.sym,'taken');cash-=n*(1+SCALP.fee);exposure+=n
+  if(due&&eligible)for(const c of ok){
+    const k=`${c.sym}:${c.side}`,pl=plan.get(k)
+    if(!pl?.ok||takenWhy.has(c.sym))continue   // one side per coin per meeting (the better-ranked one)
+    const n=Math.min(allocation(cash,equity,scalpExpo+entries.reduce((s:number,e:any)=>s+e.notional,0),1,scalpShare),c.size.notional)
+    if(n<20){takenWhy.set(k,'no_capital');continue}
+    const q=c.m.q,sl=slipPerSide(c.m.book,n,c.side).slip,price=(c.side===1?q.ask:q.bid)*(1+c.side*sl)
+    entries.push({sym:c.sym,side:c.side===1?'LONG':'SHORT',price,notional:n,stop_pct:c.stopPct,hold_min:c.holdMin,quote_ts:q.ts,source:q.source,votes:c.x.votes,
+      costs:c.g.cost,gross_bps:c.g.gross_bps,net_bps:c.g.net_bps,score:c.score,profit_gate:'passed',risk_mult:risk.mult,corr_mult:c.cs.mult,edge_mult:c.size.edgeMult,evidence:c.ev.agents})
+    bookRet.push({ret:rets(c.sym),side:c.side,weight:equity>0?n/equity:0})
+    takenWhy.set(k,'taken');takenWhy.set(c.sym,'taken');cash-=n*(1+SCALP.fee);exposure+=n
   }
-  for(const [i,x] of gated.entries()){
-    const why=!x.g.pass?x.g.reason:!eligible?'engine_not_eligible':takenWhy.get(x.p.sym)??(take.includes(x.p)?'no_capital':'ranked_below_cut')
-    const m=data.get(x.p.sym)!,b=m.book,mid=(b.bid+b.ask)/2
-    decisions.push({sym:x.p.sym,side:x.p.side===1?'LONG':'SHORT',decision:why==='taken'?'accepted':'rejected',reason:why,rank:i+1,
-      gross_bps:Number.isFinite(x.g.gross_bps)?x.g.gross_bps:null,cost_bps:x.g.cost?.total_bps??null,net_bps:Number.isFinite(x.g.net_bps)?x.g.net_bps:null,
-      hold_min:x.p.holdMin,notional:+x.n0.toFixed(2),backers:x.eg.n?Object.entries(x.p.dirs).filter(([a,d])=>d===x.p.side&&(W[a]??0)>0).length:0,risk_mult:risk.mult,
+  for(const [i,c] of cands.entries()){
+    const k=`${c.sym}:${c.side}`
+    const why=c.reason!=='net_edge'?c.reason:!eligible?'engine_not_eligible':takenWhy.get(k)??(plan.get(k)?.ok?(takenWhy.get(c.sym)==='taken'?'other_side_taken':'no_capital'):plan.get(k)?.reason??'ranked_below_cut')
+    const missing=why==='taken'?'':why==='engine_not_eligible'?'מנוע לא זמין (נתונים חסרים או עצירה טכנית)':why==='no_capital'?'אין מזומן פנוי':why==='other_side_taken'?'הצד השני של אותו מטבע נבחר':plan.get(k)?.missing||missingFor(why,{netBps:why==='weak_score'?c.score:c.g.net_bps,costBps:c.g.cost?.total_bps,age:c.age.why})
+    const b=c.m.book,mid=(b.bid+b.ask)/2
+    decisions.push({sym:c.sym,side:c.side===1?'LONG':'SHORT',decision:why==='taken'?'accepted':'rejected',reason:why,rank:i+1,
+      gross_bps:Number.isFinite(c.g.gross_bps)?c.g.gross_bps:null,cost_bps:c.g.cost?.total_bps??null,net_bps:Number.isFinite(c.g.net_bps)?c.g.net_bps:null,
+      score:Number.isFinite(c.score)?c.score:null,missing:missing||null,
+      hold_min:c.holdMin,notional:+c.size.notional.toFixed(2),backers:c.ev.n,risk_mult:risk.mult,
       observed:{source:b.source,bid:b.bid,ask:b.ask,spread_bps:mid>0?+((b.ask-b.bid)/mid*1e4).toFixed(2):null,bid_depth10_usd:Number.isFinite(b.bidDepth10)?Math.round(b.bidDepth10):null,ask_depth10_usd:Number.isFinite(b.askDepth10)?Math.round(b.askDepth10):null,
-        imbalance:+m.q.imbalance.toFixed(3),funding:ctx?.intel[x.p.sym]?.funding??null,premium:info.premium[x.p.sym]??null,oi_4h:(()=>{const o=oiMove(info.oi[x.p.sym]);return Number.isFinite(o.doi)?+o.doi.toFixed(4):null})()},
-      inferred:{expected_gross_bps:Number.isFinite(x.eg.bps)?x.eg.bps:null,cost:x.g.cost,labels:x.g.cost?.inferred??['no book']}})
+        imbalance:+c.m.q.imbalance.toFixed(3),funding:ctx?.intel[c.sym]?.funding??null,premium:info.premium[c.sym]??null,oi_4h:(()=>{const o=oiMove(info.oi[c.sym]);return Number.isFinite(o.doi)?+o.doi.toFixed(4):null})(),
+        quote_age_ms:Math.round(c.age.quoteMs),bar_age_ms:Math.round(c.age.barMs),team_side:c.x.side,team_weighted:+c.x.weighted.toFixed(3)},
+      inferred:{expected_gross_bps:Number.isFinite(c.ev.bps)?c.ev.bps:null,evidence:c.ev.agents,against:c.ev.nCon,adjustments:c.adj.parts,cost:c.g.cost,corr_load:c.cs.load,
+        size:{edge_mult:c.size.edgeMult,expo_mult:c.size.expoMult,corr_mult:c.cs.mult,risk_mult:risk.mult},labels:c.g.cost?.inferred??['no book']}})
   }
+  const gated=cands,passed=ok   // kept for the minutes below
   if(due&&decisions.length)try{await db.from('trade_decisions').insert(decisions).throwOnError();await db.from('trade_decisions').delete().lt('ts',new Date(now-48*3600_000).toISOString()).throwOnError()}catch{}
   const blocked=due?compliance(scalpRows,entries,equity,exposure,rotaRows):[]
   if(blocked.length){for(const e of entries){cash+=e.notional*(1+SCALP.fee);exposure-=e.notional}entries.length=0}
@@ -363,7 +383,7 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean,rotaS
     const cnt=(id:string,d:number)=>evaluated.filter(x=>x.dirs[id]===d).length
     say('info',`מידע חדש שהסוכנים האחרים לא רואים — מומנטום ימים (${Object.keys(info.daily).length}/40), Open Interest (${Object.keys(info.oi).length}/40), פרמיית חוזה (${Object.keys(info.premium).length}/40). ${INFO_IDS.map(id=>`${id}: ${cnt(id,1)}↑ ${cnt(id,-1)}↓`).join(' · ')}${infoNote?` · רענון: ${infoNote}`:''}`,'hold')
     say('factory',factErr?`מפעל הסוכנים לא זמין: ${factErr.slice(0,80)}`:`מפעל סוכנים: ${fc.trial} בניסוי (הצבעת צל בלבד), ${fc.oos} בבדיקה על נתונים שלא ראו, ${fc.live} פעילים ומצביעים. נבדקו עד היום ${fc.trial+fc.oos+fc.live+fc.retired}, נפסלו ${fc.retired}. סוכן מצביע רק אחרי t≥${FACTORY.liveT} על נתונים חדשים; סוכן שנפסל לא נבדק שוב.${fc.moved.length?` עכשיו: ${fc.moved.slice(0,4).join(', ')}.`:''} חדר הכושר (עד 72 חודשים אופליין, 11 גדלי נרות, 289 מטבעות): ${fc.gymNote?`לא זמין (${fc.gymNote})`:`${fc.gym} עברו${fc.gymSeeded?`, ${fc.gymSeeded} נכנסו עכשיו לניסיון`:''}`}${slowTfs.length?`; ${slowTfs.length} סוגי נרות איטיים בלייב${slowNote?` (${slowNote})`:''}`:''}.`,fc.live?'ok':'hold')
-    say('risk',`דמו 1x; עד ${SCALP.maxPositions} פוזיציות, עד ${SCALP.perCoin*100}% למטבע ועד ${SCALP.allocation*100}% הקצאה אחרי עמלות. הפחתת סיכון מדורגת (בלי עצירה גורפת): מכפיל ${risk.mult} (${risk.tier}; ירידה מהשיא ${(risk.dd*100).toFixed(1)}%, הפסד היום ${(risk.day*100).toFixed(1)}%). שער רווח: ${passed.length}/${gated.length} מועמדים עם יתרון נטו אחרי עמלות, מרווח, השפעה ומימון. אירועי קידום/הורדה: ${agentEv}. ${line('risk')}`,eligible?'ok':'veto')
+    say('risk',`דמו 1x; עד ${SCALP.maxPositions} פוזיציות, עד ${SCALP.perCoin*100}% למטבע ועד ${SCALP.allocation*100}% הקצאה אחרי עמלות. הפחתת סיכון מדורגת (בלי עצירה גורפת): מכפיל ${risk.mult} (${risk.tier}; ירידה מהשיא ${(risk.dd*100).toFixed(1)}%, הפסד היום ${(risk.day*100).toFixed(1)}%). דמו אגרסיבי v87: ${gated.length} הזדמנויות נסרקו (כל מטבע×צד שסוכן עם יתרון מוכח תומך בו), ${passed.length} עברו את שער הרווח המרוכך (נטו ≥ ${COST.marginBps} נק׳ בסיס אחרי עמלות, מרווח, השפעה ומימון) ואת ציון הקנסות המשניים; נבחרות עד ${limit} הטובות לפי רווח נטו צפוי לשעה, עד ${SCALP.maxSameSide} באותו כיוון, עומס קורלציה < ${OPP.maxCorrLoad}; ${entries.length} נכנסו. אירועי קידום/הורדה: ${agentEv}. ${line('risk')}`,eligible?'ok':'veto')
     say('trader',`ספר פקודות: ${tally('trader')}. מועמדות לביצוע: ${entries.map(e=>`${e.sym} ${e.side}`).join(', ')||'אין הסכמה מתאימה'}. זמן החזקה מתוכנן לפי התנאים: ${entries.map(e=>`${e.sym} ${e.hold_min} דק׳`).join(', ')||'—'} (5–240 דק׳, לפי האופק שבו הסוכנים התומכים הוכיחו רווח נטו; כל כניסה עברה את שער הרווח). בכל ישיבה: סגירה מוקדמת אם הצוות מתהפך, הארכה לעסקה מרוויחה שהצוות עדיין תומך בה.`,entries.length?'ok':'hold')
     say('treasurer',`מזומן צפוי אחרי הפעולות $${cash.toFixed(2)}; ${scalpRows.length+entries.length}/${SCALP.maxPositions} פוזיציות סקאלפ${rotaRows.length?` + ${rotaRows.length} רוטציה`:''}. הביצוע נבדק שוב באותה עסקת מסד נתונים.`)
     say('auditor',`עלות מול תנודתיות: ${count('auditor','ok')} עוברים, ${count('auditor','veto')} נחסמים. אסטרטגיה ניסיונית ללא אימות היסטורי; מחקרי העבר מצאו שסקאלפ מתחת לשעה לא עבר עלויות.`,count('auditor','ok')?'ok':'veto')
