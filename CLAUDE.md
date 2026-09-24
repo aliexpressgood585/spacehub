@@ -82,6 +82,23 @@ Bot verified UNCHANGED at the same minute: manifest v83.1 cbeb829a paper true / 
 STANDING INSTRUCTION (owner, 2026-09-24): NO bot/trading changes until they decide otherwise —
 display-only work is allowed, anything touching the bot, shim, ledger or DB waits.
 
+## ⚠ OPEN DEFECT found 2026-09-24 14:50 UTC (v83.0, mine) — `agent_stats.ev` never accumulates. NOT FIXED: owner froze bot changes.
+Found while answering "the agents": every agent_stats row has ev = 0 or 1. Cause: scalp-runner.ts:109
+`select('agent,n,s,s2,updated_at')` omits `ev`, so each cycle decayStat starts ev at 0, scoreSnapshot
+sets it to 1 and the upsert writes 1 back. Effect: k = n/ev = n (e.g. vwap30r@60 n=7379 -> k=7379),
+so `hT` divides by sqrt(1+(k-1)*0.65) ≈ 69x and EVERY corrected t collapses to ~0 (best original agent
+oi4h@15 t=0.04; factory rows born with ev=0 fall back to kDefault=20 and read 0.2-0.4, which is why the
+quant board is topped by factory agents). Consequences since 12:24 UTC: (1) no agent can ever reach
+provenT 2.5 -> RELATIVE mode with near-equal weights (t all ≈0), i.e. equal-weight voting; (2) the
+factory's oos gate needs ev>=60 -> unreachable, so trial agents only ever retire on the 12h timeout,
+NEVER promote, and evolution never gets a parent; (3) the house league shows t≈0 for everyone.
+Trading itself is unaffected (entries/exits/sizing/paper lock untouched); the LEARNING is blind.
+FIX WHEN THE OWNER SAYS GO (5 min): add `ev` to that select; one-time SQL `update agent_stats set
+ev = n/20` (kDefault prior — converges to the measured k as new events accumulate and old n decays);
+add a parity test asserting the agent_stats select includes ev. Redeploy as v83.2.
+Reported to the owner in the same turn. Do not read ANY t / weight / league number from 12:24 onward
+as evidence about the agents until this is fixed.
+
 ## v83.0 (2026-09-24) — "all five, to the highest level" (owner). Five upgrades in one release.
 1. LEARNING TO 24h: `LEARN.horizonsMin` + 1440; snapshots kept 26h; `halfLifeFor(h)` = max(12h, 6h·h)
    so a 24h-horizon score remembers 6 days (12h memory could never judge a 24h call — steady
