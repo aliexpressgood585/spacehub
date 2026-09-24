@@ -107,6 +107,15 @@ size/depth. Same release: EVIDENCE WEIGHTING in expectedGross — a backer's pos
 0,1) (corrected t), so an unproven agent contributes breakeven gross and can never push a trade through; the
 first live candidates showed gross 35–46 bps from relative-mode agents with t≈0.4 — noise the old formula
 would have traded on. Regression tests for both.
+v86.1 DEPLOYED 18:11 UTC: PR #66 (4ac841bb), function v61, manifest v86.1 paper true / live false.
+AFTER (first 3 min, 21 decisions): cost 16.6 bps avg (15.5–21.3) = fees 10 + spread 1.9 + impact 4.6 + funding
+0.1 — matches the measured reality; **0 accepted, all `no_gross_edge`** (best evidence-weighted gross −20.7 bps):
+no agent currently has a positive edge backed by evidence, so the gate trades nothing. That is the honest state,
+versus BEFORE: 283 trades/24h paying $166 fees to lose $128. Promotion diff on the first meetings: 61 events
+(41 → relative, 20 → duplicate: one in five voting agents was a copy of a stronger one). Book unchanged (6 SCALP
++ 3 ROTA open from before, managed by the same exits). Risk mult 1. Meetings ~0.75/min (unchanged). One
+`stale scalp lease` at 18:09:26 during the v86.0 cold start — not recurring after 18:11; watch it (lease 50s,
+the runner now does 3 more small DB round trips per meeting).
 
 ## v85.7 (2026-09-24) — THE TIMEFRAME LADDER: 11 distinct bar sizes (owner: "נרחיב את סוגי הנרות ל־150")
 NOT 150, and told the owner why: 150 resamplings of the same prices are 150 LOOKS at one piece of information,
