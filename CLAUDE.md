@@ -68,6 +68,9 @@ now drives `bestHorizon` (so proven/relative + weights), the quant top-3 line an
 league. RESULT, told plainly: after correction NO agent is proven (best funding@240 1.47,
 next vwap30r@240 0.51) -> bot drops to RELATIVE mode, EMA8/21 veto back on. The v81.0
 "7 proven" were largely the overlap artefact. Cross-coin correlation still not corrected.
+DEPLOYED: PR #49 (726bb3f7), function v48, manifest v81.1 paper true / live false, 0 errors;
+quant line: 0 net-positive, RELATIVE mode, leaders funding@240 t=1.0, rsi14r@60 0.9, vwap30r@240 0.9.
+Book at deploy: 8 open, $4,829 notional (opened under v81.0 proven mode, left to run).
 
 ## v81.0 (2026-09-24) — owner: "all of it, fast" (after "what else can be improved")
 MEASURED FIRST (143 closes since 2nd reset, by exit reason): FLIP 80 closes WR 83% +$189;
