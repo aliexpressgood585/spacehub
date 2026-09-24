@@ -82,6 +82,10 @@ All t are overlap-corrected (hT). Meeting gains 2 roles: `info`, `factory` (hous
 minutes under their ids; no rooms yet). Tests: tests/info.test.ts, tests/factory.test.ts.
 HONEST: this is selection with a holdout, not a guarantee; if no agent has an edge the factory will
 simply keep retiring them, which is the correct answer.
+DEPLOYED 11:07 UTC: migration applied first, PR #50 (d6e90d92), function v49, manifest v82.0 paper true /
+live false, 0 errors. Verified 11:10: market_cache daily 40/40 + oi 40/40, premium 40/40; info votes
+(xmom* 8 long / 8 short each, basis 8/8, oi4h 1 short); factory 60 in trial after 3 meetings (+20 each),
+snapshots carry ~490 factory votes (6.6KB/row). First oos promotions need n>=300 -> hours, not minutes.
 
 ## 2026-09-24 ~10:55 UTC — FLIP-exit replay (owner: "check it"): NO CHANGE
 Since v81.1 (08:25): 39 closes, WR 26%, net -$29.35 (fees $23.37); FLIP 36 closes WR 19% -$56.86,
