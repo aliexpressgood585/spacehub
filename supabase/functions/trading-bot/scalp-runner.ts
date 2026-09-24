@@ -1,7 +1,7 @@
 import {SCALP,assess,allocation,balancePicks,exitPlan,validQuote,type Quote,type Bar,type Vote,type Intel,type NewsItem,type LiqEvent} from '../../../shared/scalp.ts'
 import {attribution,execStats,compliance,debate,hitPct,type Minute} from '../../../shared/desk.ts'
 import {AGENTS,NEW_AGENTS} from '../../../shared/agents.ts'
-import {SWARM,TEAMS,decayStat,scoreSnapshot,learnedWeight,meanBps,tStat,LEARN,teamWeights,bestHorizon,hKey,type Stat,type Team} from '../../../shared/swarm.ts'
+import {SWARM,TEAMS,decayStat,scoreSnapshot,learnedWeight,meanBps,tStat,hT,LEARN,teamWeights,bestHorizon,hKey,type Stat,type Team} from '../../../shared/swarm.ts'
 import {DIRECTIONAL} from '../../../shared/desk.ts'
 import {CRYPTO_40} from '../../../shared/strategy.ts'
 // v77.0: the validated 40-coin universe (standing rule 2), priced from Binance USDT-M futures first.
@@ -189,7 +189,8 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean) {
     const q=minutes.find(m=>m.who==='quant')
     if(q){
       const all=Object.values(stats).filter(x=>x.n>=LEARN.minN), benchN=all.filter(x=>learnedWeight(x)===0).length
-      const topL=[...all].sort((a,c)=>tStat(c)-tStat(a)).slice(0,3).map(x=>`${x.agent} t=${tStat(x).toFixed(1)}`)
+      const hOf=(k:string)=>Number(k.split('@')[1]??LEARN.horizonsMin[0]),tc=(x:Stat)=>hT(x,hOf(x.agent))
+      const topL=[...all].sort((a,c)=>tc(c)-tc(a)).slice(0,3).map(x=>`${x.agent} t=${tc(x).toFixed(1)}`)
       q.says+=` למידת צל נטו אחרי עמלות, אופקים 5/15/60/240 דק׳: ${team.active} סוכנים מרוויחים נטו באופק הטוב שלהם — מצב ${team.mode==='proven'?`מוכחים בלבד (רק ${team.active} הסוכנים שעברו את העמלות מצביעים; מקסימום ${SCALP.maxEntries} כניסות לישיבה)`:'יחסי (פחות מ-3 מוכחים — הולכים אחרי הטובים ביותר כדי לא לעצור)'}; ${all.length} מדדים עם מספיק נתונים, ${benchN} בספסל${topL.length?`, מובילים: ${topL.join(', ')}`:''}.${learnErr?` שגיאת למידה: ${learnErr.slice(0,80)}`:learned.scored?` עודכנו ${learned.updated} סוכנים.`:''}`
       q.data={...att,hit:Object.fromEntries(Object.entries(att).map(([k,v])=>[k,hitPct(v)])),weights:W,horizons:H,mode:team.mode,active:team.active}
     }
