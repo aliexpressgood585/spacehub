@@ -13,6 +13,7 @@ export interface InfoData {
   daily: Record<string, number[]>                    // daily closes, oldest first
   oi: Record<string, { oi: number[]; px: number[] }> // hourly open interest + price, oldest first
   premium: Record<string, number>                    // mark / index - 1
+  ratios?: Record<string, { tls: number; tlr: number }> // v85.5: top-trader long/short - 1, taker buy/sell - 1 (hourly)
 }
 export const INFO_AGENTS: { id: string; label: string }[] = [
   { id: 'xmom7', label: 'מומנטום 7 ימים (דירוג 40 מטבעות)' },

@@ -61,6 +61,12 @@ export const FEATURES: Record<string, number[]> = {
   fr: [0.5, 1, 3], bs: [2, 5, 10],
   xm7: [0.3, 0.6, 0.8], xm14: [0.3, 0.6, 0.8], xm28: [0.3, 0.6, 0.8],
   oi: [1, 2, 5], btc5: [0.1, 0.2, 0.4], btc15: [0.2, 0.4, 0.8],
+  // v85.5 — the widened vocabulary (owner: "expand to the maximum"): taker flow and trade count from the
+  // klines themselves, top-trader and taker long/short ratios and 24h OI change from the metrics archive,
+  // 60/90-day cross-sectional momentum, drawdown from the 30-bar high. All testable offline except `ob`.
+  ti5: [0.1, 0.2, 0.4], ti30: [0.05, 0.1, 0.2], nt: [0.5, 1, 2],
+  tls: [0.1, 0.2, 0.4], tlr: [0.1, 0.2, 0.4], oi1d: [2, 5, 10],
+  xm60: [0.3, 0.6, 0.8], xm90: [0.3, 0.6, 0.8], dd30: [1, 2, 4],
 }
 export const FEATURE_KEYS = Object.keys(FEATURES)
 // v85.0: plain-Hebrew names for the house (gym cards spell a genome out as a rule)
@@ -68,7 +74,10 @@ export const FEATURE_LABEL: Record<string, string> = {
   r3: 'שינוי 3 נרות', r5: 'שינוי 5 נרות', r10: 'שינוי 10 נרות', r15: 'שינוי 15 נרות', r30: 'שינוי 30 נרות', r60: 'שינוי 60 נרות',
   rsi7: 'RSI 7', rsi14: 'RSI 14', rsi28: 'RSI 28', z20: 'Z-score 20', z60: 'Z-score 60', vw30: 'סטייה מ־VWAP 30', vw60: 'סטייה מ־VWAP 60',
   vr: 'קפיצת נפח', ob: 'חוסר איזון בספר', fr: 'פאנדינג', bs: 'פרמיית הפרפטואל', xm7: 'מומנטום יחסי 7 ימים', xm14: 'מומנטום יחסי 14 ימים', xm28: 'מומנטום יחסי 28 ימים',
-  oi: 'שינוי ריבית פתוחה', btc5: 'ביטקוין 5 נרות', btc15: 'ביטקוין 15 נרות',
+  oi: 'שינוי ריבית פתוחה 4 שעות', btc5: 'ביטקוין 5 נרות', btc15: 'ביטקוין 15 נרות',
+  ti5: 'זרימת קונים/מוכרים 5 נרות', ti30: 'זרימת קונים/מוכרים 30 נרות', nt: 'קפיצת מספר עסקאות',
+  tls: 'יחס לונג/שורט של הסוחרים הגדולים', tlr: 'יחס נפח קונים/מוכרים', oi1d: 'שינוי ריבית פתוחה 24 שעות',
+  xm60: 'מומנטום יחסי 60 ימים', xm90: 'מומנטום יחסי 90 ימים', dd30: 'ירידה מהשיא של 30 נרות',
 }
 export const geneText = (g: Gene) => `${FEATURE_LABEL[g[0]] ?? g[0]} ≥ ${g[1]} → ${g[2] > 0 ? 'עם הכיוון' : 'נגד הכיוון'}`
 export const genomeText = (g: Genome) => `${g.b ? `${geneText(g.a)} וגם ${geneText(g.b)}` : geneText(g.a)}${g.when ? `, רק ב${whenText(g.when)}` : ''}${g.tf ? ` (נרות ${TF_LABEL[g.tf]})` : ''}`
@@ -87,10 +96,18 @@ const z = (b: Bar[], n: number) => { if (b.length < n) return NaN; const c = C(b
 const vw = (b: Bar[], n: number) => { const w = b.slice(-n), vv = w.reduce((a, x) => a + x.v, 0); if (!(vv > 0)) return NaN; return (b[b.length - 1].c / (w.reduce((a, x) => a + ((x.h + x.l + x.c) / 3) * x.v, 0) / vv) - 1) * 100 }
 const vr = (b: Bar[]) => { if (b.length < 40) return NaN; const s = b.slice(-60, -5).map((x) => x.v).sort((a, c) => a - c), m = s[Math.floor(s.length / 2)], r = b.slice(-5).reduce((a, x) => a + x.v, 0) / 5; return m > 0 ? Math.sign(ret(b, 5)) * (r / m - 1) : NaN }
 
-export interface FeatCtx { imbalance?: number; funding?: number | null; premium?: number; xm7?: number; xm14?: number; xm28?: number; doi?: number; dpx?: number; btc?: Bar[] }
+export interface FeatCtx { imbalance?: number; funding?: number | null; premium?: number; xm7?: number; xm14?: number; xm28?: number; xm60?: number; xm90?: number; doi?: number; dpx?: number; doi1d?: number; tls?: number; tlr?: number; btc?: Bar[] }
+// taker imbalance over the last n bars: (buy - sell) / total, [-1, 1]; NaN when the feed carries no taker volume
+const ti = (b: Bar[], n: number) => { const w = b.slice(-n); let q = 0, v = 0; for (const x of w) { if (x.q === undefined) return NaN; q += x.q; v += x.v } return v > 0 ? (2 * q - v) / v : NaN }
+// trade-count spike: last 5 bars vs the median of the 55 before, signed by the 5-bar move (like vr)
+const nt = (b: Bar[]) => { if (b.length < 40 || b[b.length - 1].n === undefined) return NaN; const s = b.slice(-60, -5).map((x) => x.n ?? NaN).filter(Number.isFinite).sort((a, c) => a - c); if (s.length < 20) return NaN; const m = s[Math.floor(s.length / 2)], r = b.slice(-5).reduce((a, x) => a + (x.n ?? 0), 0) / 5; return m > 0 ? Math.sign(ret(b, 5)) * (r / m - 1) : NaN }
+// drawdown from the 30-bar high, %, negative = below the high (a gene with dir -1 fades it, +1 follows it)
+const dd = (b: Bar[], n: number) => { if (b.length < n) return NaN; let hi = 0; for (const x of b.slice(-n)) hi = Math.max(hi, x.h); return hi > 0 ? (b[b.length - 1].c / hi - 1) * 100 : NaN }
 export function features(b: Bar[], x: FeatCtx): Record<string, number> {
   const btc = x.btc && x.btc !== b ? x.btc : undefined
   return {
+    ti5: ti(b, 5), ti30: ti(b, 30), nt: nt(b), dd30: dd(b, 30),
+    tls: x.tls ?? NaN, tlr: x.tlr ?? NaN, oi1d: Number.isFinite(x.doi1d) ? x.doi1d! * 100 : NaN, xm60: x.xm60 ?? NaN, xm90: x.xm90 ?? NaN,
     r3: ret(b, 3), r5: ret(b, 5), r10: ret(b, 10), r15: ret(b, 15), r30: ret(b, 30), r60: ret(b, 60),
     rsi7: rsiC(b, 7), rsi14: rsiC(b, 14), rsi28: rsiC(b, 28), z20: z(b, 20), z60: z(b, 60), vw30: vw(b, 30), vw60: vw(b, 60), vr: vr(b),
     ob: x.imbalance ?? NaN, fr: x.funding == null ? NaN : x.funding * 1e4, bs: x.premium == null ? NaN : x.premium * 1e4,

@@ -39,3 +39,17 @@ assert.equal(vote({a:['r5',0.4,1],when:WHENS.eu.w},{r5:0.5},sat23),0,'gated geno
 const st={n:1000,s:5000,s2:1000*(25+100)}
 assert.ok(corrT(st,1,1)>corrT(st,12,1)&&corrT(st,1,1)>corrT(st,1,40))
 console.log('Gym: aggregation, costs, four timeframes, time gates, mutation, deterministic enumeration passed')
+// v85.5 widened vocabulary: taker flow / trade count from the klines, drawdown, and the aux-fed features
+{const {features,FEATURES,FEATURE_LABEL,FEATURE_KEYS}=await import('../shared/factory.ts')
+ const bars=Array.from({length:80},(_,i)=>({t:i*60000,o:100+i*0.1,h:100.2+i*0.1,l:99.9+i*0.1,c:100.1+i*0.1,v:100,q:i>=75?90:50,n:i>=75?400:100}))
+ const f=features(bars,{tls:0.25,tlr:-0.3,doi1d:0.07,xm60:0.5,xm90:-0.5})
+ assert.ok(f.ti5>0.7&&f.ti5<=1,'last 5 bars 90% taker-buy -> strongly positive');assert.ok(Math.abs(f.ti30)<f.ti5,'30-bar imbalance is diluted')
+ assert.ok(f.nt>2,'trade count 4x the median, signed by the up-move');assert.ok(f.dd30<=0&&f.dd30>-1,'at/near the 30-bar high')
+ assert.equal(f.tls,0.25);assert.equal(f.tlr,-0.3);assert.ok(Math.abs(f.oi1d-7)<1e-9,'24h OI change in %');assert.equal(f.xm60,0.5);assert.equal(f.xm90,-0.5)
+ const noq=features(bars.map(({q:_q,n:_n,...b})=>b),{});assert.ok(Number.isNaN(noq.ti5)&&Number.isNaN(noq.nt),'no taker/trade data (OKX) -> NaN -> those genes abstain')
+ assert.ok(FEATURE_KEYS.every(k=>FEATURE_KEYS.length&&FEATURE_LABEL[k]&&FEATURES[k].length>=3),'every feature has thresholds and a Hebrew label')
+ assert.deepEqual([...GYM.offlineNA],['ob'],'only the order book stays untestable offline')}
+{const {TSeries,loadAux}=await import('../backtest/gym.ts')
+ const s=new TSeries([100,200,300],[1,2,3]);assert.equal(s.at(250),2);assert.equal(s.at(50),NaN);assert.equal(s.at(1000,100),NaN,'stale value is missing');assert.equal(s.at(300),3)
+ assert.deepEqual(loadAux('NOPE_COIN'),{},'no aux files -> empty, never a throw')}
+console.log('Gym v85.5: widened vocabulary and aux series passed')
