@@ -30,6 +30,9 @@ assert.equal(step(row('trial',null,FACTORY.trialMaxH+1),{},now)!.stage,'retired'
 const pr=step(row('trial'),{[hKey('g_t',60)]:st(400,6)},now)!;assert.equal(pr.stage,'oos');assert.equal(pr.h,60,'promoted on its best horizon')
 assert.equal(step(row('trial'),{g_t:st(400,-3)},now)!.stage,'retired','negative in trial')
 assert.equal(step(row('trial'),{g_t:st(400,0.2)},now),null,'weak but positive -> keep testing')
+assert.equal(step(row('trial'),{g_t:st(400,-0.3)},now),null,'v83.1: slightly negative is not yet a verdict')
+assert.equal(step(row('trial'),{g_t:{...st(400,-3),ev:30}},now),null,'v83.1: 400 coin-votes in 30 snapshots is not an hour of evidence')
+assert.equal(step(row('oos',60),{[hKey(OOS('g_t'),60)]:{...st(300,15),ev:50}},now),null,'v83.1: oos needs two hours of snapshots')
 // OOS judged ONLY on the alias at the fixed horizon; trial evidence does not count
 assert.equal(step(row('oos',60),{[hKey('g_t',60)]:st(5000,20)},now),null,'great trial stats alone never make it live')
 assert.equal(step(row('oos',60),{[hKey(OOS('g_t'),60)]:st(300,15)},now)!.stage,'live')
