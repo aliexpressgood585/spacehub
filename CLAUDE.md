@@ -51,6 +51,16 @@ So the +38.8% incumbent, the 6bps columns and v84bt's rows all predate both. v85
 part A re-anchors them. Do not quote those numbers until it lands.
 **v84bt (Wyckoff) is VOID** — see below; its part B contradicts its own part A.
 
+## 2026-09-24 06:22 UTC — check-in (two routines fired)
+00:10 routine (breaker reset) and 06:06 routine ("first ROTA-only rotation") both fired.
+The 06:06 one is OBSOLETE: it was written for the v62.0 ROTA era; since 09-22 the bot runs
+SCALP only (enabled_sleeves SCALP), there is no ROTA rotation or ROTA kill-switch to watch.
+Answered with the real state instead. Live, v80.2 (56cd826d) paper true / live false,
+0 bot_errors in 6h, heartbeat current, not paused. Since the second reset (~23:30 UTC):
+143 closed, WR 49%, net -$163.05, fees $95.73 (59% of the loss). Equity $4,834.74 on
+$5,000 (-3.3%). Book: 8 open, all planned 240 min (proven agents' best horizon is now
+4h), 5 LONG / 3 SHORT, cash $51. No non-SCALP rows.
+
 ## v80.3 (2026-09-24) — PEPE showed "0.00000" everywhere (display only)
 Owner: "why is PEPE without market data". Data was fine (bot entry 0.00000432, source
 binance-futures); the house's `fmtPx` printed sub-$1 prices with toFixed(5), so PEPE's
