@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import {SCALP,validQuote,assess,exitPlan,allocation,liquiditySweep,newsCheck,liqCheck,planHold} from '../shared/scalp.ts'
+import {SCALP,validQuote,assess,exitPlan,allocation,liquiditySweep,newsCheck,liqCheck,planHold,balancePicks} from '../shared/scalp.ts'
 const now=1800000000000, q={bid:100,ask:100.02,ts:now,imbalance:0.4,source:'test'}
 assert.equal(validQuote(q,now),true)
 assert.equal(validQuote({...q,ts:now-21000},now),false)
@@ -79,3 +79,9 @@ console.log(`DB ledger cap matches SCALP.maxPositions (${mig})`)
 assert.ok(readFileSync(`supabase/migrations/${mig}`,'utf8').includes(`least(${SCALP.maxHoldMs/60000},`),`latest ledger migration ${mig} must cap hold at ${SCALP.maxHoldMs/60000}`)
 assert.ok(readFileSync(`supabase/migrations/${mig}`,'utf8').includes('between 0.003 and 0.04'),'ledger stop band must allow the widened long-hold stop (runner clamps to 4%)')
 assert.ok(readFileSync('shared/scalp.ts','utf8').includes("intel.mode==='proven'||trend!==-raw"),'EMA veto is lifted only in proven mode')
+// v81.0: direction balance — at most maxSameSide of the book on one side, strongest first
+{const P=[{side:1,k:'a'},{side:1,k:'b'},{side:-1,k:'c'}]
+ assert.deepEqual(balancePicks(P,[1,1,1,1,1],2).map(x=>x.k),['a','c'],'5 longs open + cap 6 -> one more long, then the short')
+ assert.deepEqual(balancePicks(P,[1,1,1,1,1,1],2).map(x=>x.k),['c'],'6 longs open -> no more longs')
+ assert.deepEqual(balancePicks(P,[],2).map(x=>x.k),['a','b'],'balanced book keeps the two strongest')
+ assert.equal(SCALP.maxSameSide,6)}

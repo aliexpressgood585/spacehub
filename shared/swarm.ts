@@ -131,7 +131,10 @@ export function runSwarm(b: Bar[], x: { btc?: Bar[] }): Record<string, number> {
 // merely pointed the right way). costBps = 2 x (taker fee + slippage) of SCALP,
 // asserted equal in tests (not imported: scalp.ts imports this module).
 // Sums are exponentially decayed (half-life 12h) so scores follow the current market.
-export const LEARN = { horizonMs: 5 * 60_000, halfLifeMs: 12 * 3600_000, minN: 100, lo: 0, hi: 2.5, benchT: -2, costBps: 16, horizonsMin: [5, 15, 60, 240] as readonly number[], minActive: 3, provenT: 1 } as const
+export const LEARN = { horizonMs: 5 * 60_000, halfLifeMs: 12 * 3600_000, minN: 100, lo: 0, hi: 2.5, benchT: -2, costBps: 16, horizonsMin: [5, 15, 60, 240] as readonly number[], minActive: 3, provenT: 2.5 } as const
+// v81.0 provenT 1 -> 2.5: 75 agents x 4 horizons = 300 tests and each agent keeps its BEST
+// horizon, so at t>=1 dozens pass by luck alone; at 2.5 (one-sided p~0.006) ~2 would.
+// Live at the change: 10 agents at t>=1, 7 at t>=2.5, so proven mode stays on.
 export interface Stat { agent: string; n: number; s: number; s2: number; updated_at: string }
 export function decayStat(st: Stat | undefined, agent: string, now: number): Stat {
   if (!st) return { agent, n: 0, s: 0, s2: 0, updated_at: new Date(now).toISOString() }
