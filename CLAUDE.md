@@ -70,7 +70,12 @@ avg cost 16.7 bps; 0 new trades; 6 pre-gate SCALP closes net +$9.08 (4 wins); eq
 marks); 2 `stale scalp lease` (18:26, 19:12 — one lost cycle each, ~1%); gym passer still trial (n=186).
 BUG: agent_events 889 in 4h (duplicate 450 / relative 439) — duplicate status flapped every meeting because it was
 judged on ONE snapshot. v86.2: agreement pooled over the latest 10 snapshots + hysteresis (enter ≥90%, stay ≥80%).
-OPEN QUESTION PUT TO THE OWNER: ROTA entries bypass the profit gate and hold 12h (outside the 5m–4h brief). Gating
+22:15 UTC OWNER: "if a trade causes confusion, close it" → the three ROTA rows closed by SQL at the bot's own
+Binance mid (scalp_candidates, 22:12:51) − 3bps floor slip, 5bps exit fee, baseline funding 0.01%/8h, exit_reason
+OWNER_CLOSE, in one transaction under the bot_state lock: ARB LONG +$3.16, CRV SHORT −$4.60, TRX SHORT −$0.30
+(net −$1.74); cash $4,872.45, 0 positions open. ROTA DISABLED so it does not reopen at 00:55: shim
+`__ENABLED_SLEEVES='SCALP'` (function v63, same sha 05c67234). ROLLBACK: redeploy the shim with 'SCALP,ROTA'.
+(Superseded) OPEN QUESTION PUT TO THE OWNER: ROTA entries bypass the profit gate and hold 12h (outside the 5m–4h brief). Gating
 ROTA with its own measured edge (the xmom info agents, t≈0) would almost certainly stop it — the only sleeve with
 any OOS evidence. Not changed without the owner's call.
 
