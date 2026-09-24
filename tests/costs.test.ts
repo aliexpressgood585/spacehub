@@ -13,6 +13,7 @@ const pe=bookFrom([['4.0','1000']],[['4.001','1000']],1,'t',1000);assert.ok(Math
 // slippage: half spread + impact, floored; thin book -> capped impact
 const deep:Book={bid:100,ask:100.01,bidDepth10:5e6,askDepth10:5e6,ts:0,source:'t'},thin:Book={...deep,bidDepth10:1000,askDepth10:1000}
 assert.equal(slipPerSide(deep,1000,1).slip,COST.minSlip,'tiny order on a deep, tight book pays the floor');assert.equal(slipPerSide(thin,1e6,1).impact,COST.maxImpact)
+assert.ok(Math.abs(slipPerSide({...deep,askDepth10:18115},890,1).impact-0.5*0.001*890/18115)<1e-12&&slipPerSide({...deep,askDepth10:18115},890,1).impact<0.00003,'v86.1: $890 into $18k of ±10bp depth ≈ 0.25 bps, not 50')
 assert.ok(slipPerSide({...deep,askDepth10:NaN},1000,1).impact===0.001,'unknown depth -> 10bps inferred, never 0')
 // round trip: 10 bps fees + 2 × slip + funding in the direction that pays
 const rt=roundTrip(deep,1000,1,480,0.0001);assert.equal(rt.fee_bps,10);assert.ok(Math.abs(rt.funding_bps-1)<1e-9,'8h long at +1bp/8h pays 1bp');assert.ok(Math.abs(rt.total_bps-(10+6+1))<1e-6)
@@ -27,6 +28,8 @@ assert.equal(profitGate({grossEdgeBps:500,edgeN:500,book:thin,notional:1e6,side:
 assert.equal(profitGate({grossEdgeBps:50,edgeN:500,book:null,notional:1000,side:1,holdMin:60,funding:0}).reason,'no_book')
 // expected gross: weighted net + the learning round trip; unmeasured backers add nothing
 assert.deepEqual(expectedGross([{w:2,netBps:4,n:300},{w:1,netBps:-2,n:200},{w:1,netBps:NaN,n:0}]),{bps:+((2*20+1*14)/3).toFixed(2),n:500})
+assert.equal(expectedGross([{w:1,netBps:30,n:500,t:0.4}]).bps,+(30*0.2+16).toFixed(2),'t 0.4 -> 20% credit');assert.equal(expectedGross([{w:1,netBps:30,n:500,t:-1}]).bps,16,'no evidence -> breakeven gross');assert.equal(expectedGross([{w:1,netBps:-5,n:500,t:-3}]).bps,11,'negative edges count in full')
+assert.equal(profitGate({grossEdgeBps:expectedGross([{w:1,netBps:40,n:500,t:0}]).bps,edgeN:500,book:deep,notional:1000,side:1,holdMin:60,funding:0}).pass,false,'unproven edge never clears the gate')
 assert.equal(expectedGross([]).n,0)
 // graded risk, never zero on losses; no kill switch
 assert.equal(riskScale(1000,1000,1000).mult,1);assert.equal(riskScale(920,1000,1000).mult,0.75*0.5,'8% DD and 8% day');assert.ok(riskScale(300,1000,1000).mult>=0.1,'deep loss -> minimal, not zero')

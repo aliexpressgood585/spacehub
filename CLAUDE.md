@@ -99,6 +99,14 @@ NET −$127.93, −7.8 bps/trade, avg hold 26 min — fees were 4.3× the gross 
   measured edge (currently relative mode, best corrected t ≈ 0.4): that is the gate doing its job.
 - Tests: tests/costs.test.ts new; scalp / scalp-runner (no-edge → 0 entries + decisions journalled;
   measured edge → entries with positive net after full cost) / desk updated. Suite green, app builds.
+DEPLOYED 18:06 UTC: migration applied first, PR #65 (7cca7168), function v60, manifest v86.0 paper true / live
+false, 0 errors, risk mult 1, 24 agent events on the first diff. **FIRST LIVE READ CAUGHT MY BUG:** every
+candidate cost ~110 bps and was rejected `book_too_thin` — impact used k×size/depth as a raw FRACTION (PEPE
+$890 into $18k of ±10bps depth priced at 50 bps/side; correct ≈ 0.25 bps). **v86.1**: impact = k × 10bps ×
+size/depth. Same release: EVIDENCE WEIGHTING in expectedGross — a backer's positive net edge counts × clamp(t/2,
+0,1) (corrected t), so an unproven agent contributes breakeven gross and can never push a trade through; the
+first live candidates showed gross 35–46 bps from relative-mode agents with t≈0.4 — noise the old formula
+would have traded on. Regression tests for both.
 
 ## v85.7 (2026-09-24) — THE TIMEFRAME LADDER: 11 distinct bar sizes (owner: "נרחיב את סוגי הנרות ל־150")
 NOT 150, and told the owner why: 150 resamplings of the same prices are 150 LOOKS at one piece of information,

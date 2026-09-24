@@ -14,7 +14,9 @@ export const COST = {
   takerFee: 0.0005,          // Binance USDT-M taker, per side
   makerFee: 0.0002,          // listed for reference; the paper engine does not assume maker fills
   minSlip: 0.0003,           // floor per side: a market order never fills better than 3 bps beyond the touch
-  impactK: 0.5,              // impact per side ≈ k × (order notional / depth within 10 bps), in fractions
+  impactK: 0.5,              // impact per side ≈ k × 10 bps × (order notional / depth within ±10 bps): eating a fraction f of the
+                             // liquidity inside 10 bps moves the average fill by ~f×5 bps; beyond f=1 extrapolated linearly (v86.1 fix:
+                             // v86.0 applied k×f as a raw FRACTION — $890 into $18k of depth priced at 50 bps instead of 0.25)
   maxImpact: 0.005,          // cap, 50 bps: beyond this the book is too thin and the gate says so
   fundingHours: 8,           // Binance funding interval
   marginBps: 2,              // safety margin: net edge must exceed costs by at least this
@@ -34,7 +36,7 @@ export function slipPerSide(book: Book, notional: number, side: 1 | -1): { slip:
   const half = mid > 0 ? (book.ask - book.bid) / 2 / mid : 0
   const depth = side === 1 ? book.askDepth10 : book.bidDepth10
   // depth unknown (e.g. OKX sizes are contracts, not coins) -> a conservative 10 bps per side, marked inferred
-  const impact = !Number.isFinite(depth) ? 0.001 : depth > 0 ? Math.min(COST.maxImpact, COST.impactK * notional / depth) : COST.maxImpact
+  const impact = !Number.isFinite(depth) ? 0.001 : depth > 0 ? Math.min(COST.maxImpact, COST.impactK * 0.001 * notional / depth) : COST.maxImpact
   return { slip: Math.max(COST.minSlip, half + impact), half, impact }
 }
 
@@ -71,11 +73,15 @@ export function profitGate(x: GateInput): GateResult {
 // Expected GROSS edge of a trade: the weighted mean of its backers' measured edge at their best
 // horizon. Shadow learning stores it NET of `learnRoundTripBps`; adding that back gives the gross
 // the gate then re-charges with the live, trade-specific cost. Unmeasured backers contribute nothing.
-export function expectedGross(backers: { w: number; netBps: number; n: number }[]): { bps: number; n: number } {
+// v86.1 EVIDENCE WEIGHTING: a backer's measured net edge counts in proportion to its evidence — × clamp(t/2, 0, 1)
+// with t the overlap/cross-coin corrected t at its horizon. No evidence (t≤0) -> its gross is exactly the learning
+// round trip, i.e. breakeven, which never clears a real cost + margin. Negative measured edges count in full.
+export function expectedGross(backers: { w: number; netBps: number; n: number; t?: number }[]): { bps: number; n: number } {
   const b = backers.filter((x) => x.w > 0 && x.n > 0 && Number.isFinite(x.netBps))
   const W = b.reduce((s, x) => s + x.w, 0)
   if (!(W > 0)) return { bps: NaN, n: 0 }
-  return { bps: +(b.reduce((s, x) => s + x.w * (x.netBps + COST.learnRoundTripBps), 0) / W).toFixed(2), n: b.reduce((s, x) => s + x.n, 0) }
+  const cred = (x: { netBps: number; t?: number }) => x.netBps <= 0 || x.t === undefined ? x.netBps : x.netBps * Math.max(0, Math.min(1, x.t / 2))
+  return { bps: +(b.reduce((s, x) => s + x.w * (cred(x) + COST.learnRoundTripBps), 0) / W).toFixed(2), n: b.reduce((s, x) => s + x.n, 0) }
 }
 
 // Book summary from a Binance/OKX depth snapshot ([price, qty] strings), depth within ±10 bps of mid in quote currency.
