@@ -29,7 +29,7 @@ async function slowBars(db:any,now:number,tfs:Tf[]):Promise<Partial<Record<Tf,Re
     const fresh:Record<string,Bar[]>={}
     await pool([...UNIVERSE],8,async sym=>{
       const {s,k}=bsym(sym)
-      try{const r=await json(`https://fapi.binance.com/fapi/v1/klines?symbol=${s}&interval=${tf}&limit=100`);const b:Bar[]=r.filter((x:any)=>Number(x[6])<now).map((x:any)=>({t:+x[0],o:+x[1]/k,h:+x[2]/k,l:+x[3]/k,c:+x[4]/k,v:+x[5]*k}));if(b.length<85)throw new Error('short');fresh[sym]=b}
+      try{const r=await json(`https://fapi.binance.com/fapi/v1/klines?symbol=${s}&interval=${tf}&limit=100`);const b:Bar[]=r.filter((x:any)=>Number(x[6])<now).map((x:any)=>({t:+x[0],o:+x[1]/k,h:+x[2]/k,l:+x[3]/k,c:+x[4]/k,v:+x[5]*k,q:+x[9]*k,n:+x[8]}));if(b.length<85)throw new Error('short');fresh[sym]=b}
       catch{try{const r=await json(`https://www.okx.com/api/v5/market/candles?instId=${sym}-USDT-SWAP&bar=${tf==='4h'?'4H':tf==='1d'?'1Dutc':'15m'}&limit=100`);if(r.code!=='0')throw new Error('okx');const b:Bar[]=r.data.filter((x:any)=>x[8]==='1').reverse().map((x:any)=>({t:+x[0],o:+x[1],h:+x[2],l:+x[3],c:+x[4],v:+x[5]}));if(b.length>=85)fresh[sym]=b}catch{}}
     })
     if(Object.keys(fresh).length>=20){out[tf]=fresh;await db.from('market_cache').upsert({key:`bars_${tf}`,data:fresh,ts:new Date(now).toISOString()}).throwOnError()}
@@ -80,7 +80,7 @@ async function intel(syms:string[]):Promise<{intel:Record<string,Intel>,news:New
 // v82.0 slow public data for the info agents + factory: daily closes (hourly refresh) and
 // hourly open interest (15-min refresh), cached in market_cache. Failures = those agents abstain.
 const CACHE={dailyMs:3600_000,oiMs:15*60_000}
-async function slowData(db:any,now:number):Promise<{daily:InfoData['daily'],oi:InfoData['oi'],notes:string[]}> {
+async function slowData(db:any,now:number):Promise<{daily:InfoData['daily'],oi:InfoData['oi'],notes:string[],ratios:InfoData['ratios']}> {
   const notes:string[]=[]
   const {data:rows}=await db.from('market_cache').select('key,data,ts').throwOnError()
   const get=(k:string)=>(rows??[]).find((r:any)=>r.key===k)
@@ -89,8 +89,8 @@ async function slowData(db:any,now:number):Promise<{daily:InfoData['daily'],oi:I
   if(age('daily')>=CACHE.dailyMs){
     const fresh:InfoData['daily']={}
     await pool(UNIVERSE,8,async sym=>{
-      try{const k=await json(`https://fapi.binance.com/fapi/v1/klines?symbol=${bsym(sym).s}&interval=1d&limit=30`);const c=k.filter((x:any)=>Number(x[6])<now).map((x:any)=>+x[4]).filter((x:number)=>x>0);if(c.length<15)throw new Error('short');fresh[sym]=c}
-      catch{try{const k=await json(`https://www.okx.com/api/v5/market/candles?instId=${sym}-USDT-SWAP&bar=1Dutc&limit=30`);if(k.code!=='0')throw new Error('okx');const c=k.data.filter((x:any)=>x[8]==='1').reverse().map((x:any)=>+x[4]).filter((x:number)=>x>0);if(c.length>=15)fresh[sym]=c}catch{}}
+      try{const k=await json(`https://fapi.binance.com/fapi/v1/klines?symbol=${bsym(sym).s}&interval=1d&limit=100`);const c=k.filter((x:any)=>Number(x[6])<now).map((x:any)=>+x[4]).filter((x:number)=>x>0);if(c.length<15)throw new Error('short');fresh[sym]=c}
+      catch{try{const k=await json(`https://www.okx.com/api/v5/market/candles?instId=${sym}-USDT-SWAP&bar=1Dutc&limit=100`);if(k.code!=='0')throw new Error('okx');const c=k.data.filter((x:any)=>x[8]==='1').reverse().map((x:any)=>+x[4]).filter((x:number)=>x>0);if(c.length>=15)fresh[sym]=c}catch{}}
     })
     notes.push(`ימים ${Object.keys(fresh).length}/${UNIVERSE.length}`)
     if(Object.keys(fresh).length>=32){daily=fresh;await db.from('market_cache').upsert({key:'daily',data:fresh,ts:new Date(now).toISOString()}).throwOnError()}
@@ -98,12 +98,23 @@ async function slowData(db:any,now:number):Promise<{daily:InfoData['daily'],oi:I
   if(age('oi')>=CACHE.oiMs){
     const fresh:InfoData['oi']={}
     await pool(UNIVERSE,8,async sym=>{
-      try{const k=await json(`https://fapi.binance.com/futures/data/openInterestHist?symbol=${bsym(sym).s}&period=1h&limit=6`);const r=(k??[]).map((x:any)=>({oi:+x.sumOpenInterest,v:+x.sumOpenInterestValue})).filter((x:any)=>x.oi>0&&x.v>0);if(r.length>=5)fresh[sym]={oi:r.map((x:any)=>x.oi),px:r.map((x:any)=>x.v/x.oi)}}catch{}
+      try{const k=await json(`https://fapi.binance.com/futures/data/openInterestHist?symbol=${bsym(sym).s}&period=1h&limit=30`);const r=(k??[]).map((x:any)=>({oi:+x.sumOpenInterest,v:+x.sumOpenInterestValue})).filter((x:any)=>x.oi>0&&x.v>0);if(r.length>=5)fresh[sym]={oi:r.map((x:any)=>x.oi),px:r.map((x:any)=>x.v/x.oi)}}catch{}
     })
     notes.push(`OI ${Object.keys(fresh).length}/${UNIVERSE.length}`)
     if(Object.keys(fresh).length>=20){oi=fresh;await db.from('market_cache').upsert({key:'oi',data:fresh,ts:new Date(now).toISOString()}).throwOnError()}
   }
-  return {daily,oi,notes}
+  // v85.5: top-trader long/short (positions) and taker buy/sell volume ratios, hourly — feed the tls / tlr genes
+  let ratios:InfoData['ratios']=get('ratios')?.data??{}
+  if(age('ratios')>=CACHE.dailyMs){
+    const fresh:NonNullable<InfoData['ratios']>={}
+    await pool(UNIVERSE,8,async sym=>{
+      try{const [a,b]=await Promise.all([json(`https://fapi.binance.com/futures/data/topLongShortPositionRatio?symbol=${bsym(sym).s}&period=1h&limit=1`),json(`https://fapi.binance.com/futures/data/takerlongshortRatio?symbol=${bsym(sym).s}&period=1h&limit=1`)])
+        const tls=Number(a?.[0]?.longShortRatio),tlr=Number(b?.[0]?.buySellRatio);if(Number.isFinite(tls)&&Number.isFinite(tlr))fresh[sym]={tls:tls-1,tlr:tlr-1}}catch{}
+    })
+    notes.push(`יחסים ${Object.keys(fresh).length}/${UNIVERSE.length}`)
+    if(Object.keys(fresh).length>=20){ratios=fresh;await db.from('market_cache').upsert({key:'ratios',data:fresh,ts:new Date(now).toISOString()}).throwOnError()}
+  }
+  return {daily,oi,notes,ratios}
 }
 async function market(sym:string, candles:boolean):Promise<{q:Quote,b:Bar[]}> {
   // Perpetual-contract sources only; never silently substitute spot prices.
@@ -113,7 +124,7 @@ async function market(sym:string, candles:boolean):Promise<{q:Quote,b:Bar[]}> {
     const bid=Number(d.bids[0][0])/K,ask=Number(d.asks[0][0])/K,bs=d.bids.reduce((s:number,x:any)=>s+Number(x[1]),0),as=d.asks.reduce((s:number,x:any)=>s+Number(x[1]),0)
     const q={bid,ask,ts:Number(d.E),imbalance:(bs-as)/(bs+as),source:'binance-futures'}
     if(!validQuote(q,Date.now()))throw new Error('stale Binance quote')
-    return {q,b:k.filter((x:any)=>Number(x[6])<Date.now()).map((x:any)=>({t:+x[0],o:+x[1]/K,h:+x[2]/K,l:+x[3]/K,c:+x[4]/K,v:+x[5]*K}))}
+    return {q,b:k.filter((x:any)=>Number(x[6])<Date.now()).map((x:any)=>({t:+x[0],o:+x[1]/K,h:+x[2]/K,l:+x[3]/K,c:+x[4]/K,v:+x[5]*K,q:+x[9]*K,n:+x[8]}))}   // v85.5: taker-buy volume + trades feed ti5/ti30/nt
   } catch {
     const inst=`${sym}-USDT-SWAP`
     const [d,k]=await Promise.all([json(`https://www.okx.com/api/v5/market/books?instId=${inst}&sz=5`),candles?json(`https://www.okx.com/api/v5/market/candles?instId=${inst}&bar=1m&limit=65`):Promise.resolve({data:[]})])
@@ -143,10 +154,10 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean,rotaS
   // v79.0: each agent is weighted on its best horizon (5/15/60/240 min, net of costs); weights never all hit zero.
   // v82.0 info agents (days-long momentum, open interest, basis) — data no 1-minute agent sees
   let info:InfoData={daily:{},oi:{},premium:ctx?.premium??{}},infoNote=''
-  if(due)try{const sd=await slowData(db,Date.now());info={...info,daily:sd.daily,oi:sd.oi};infoNote=sd.notes.join(', ')}catch(e:any){infoNote=`מטמון: ${String(e?.message??e).slice(0,60)}`}
+  if(due)try{const sd=await slowData(db,Date.now());info={...info,daily:sd.daily,oi:sd.oi,ratios:sd.ratios};infoNote=sd.notes.join(', ')}catch(e:any){infoNote=`מטמון: ${String(e?.message??e).slice(0,60)}`}
   const infoV=due?infoVotes(UNIVERSE,info):{}
   const xs=(d:number)=>xsScore(Object.fromEntries(UNIVERSE.map(s=>[s,retOver(info.daily[s],d)])))
-  const xm7=xs(7),xm14=xs(14),xm28=xs(28)
+  const xm7=xs(7),xm14=xs(14),xm28=xs(28),xm60=xs(60),xm90=xs(90)
   // v82.0 agent factory: trial / oos candidates vote in SHADOW only; live ones (their post-selection alias) join the team
   let frows:FactoryRow[]=[],retiredIds:string[]=[],factErr=''
   if(due)try{const {data:fr}=await db.from('factory_agents').select('id,genome,stage,born,stage_at,h,note').throwOnError();for(const r of fr??[]){if(r.stage==='retired')retiredIds.push(r.id);else frows.push(r)}}catch(e:any){factErr=String(e?.message??e)}
@@ -158,10 +169,11 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean,rotaS
   if(due&&slowTfs.length)try{slow=await slowBars(db,Date.now(),slowTfs)}catch(e:any){slowNote=String(e?.message??e).slice(0,60)}
   if(due&&frows.length)for(const sym of UNIVERSE){
     const m=data.get(sym);if(!m)continue
-    const {doi,dpx}=oiMove(info.oi[sym])
-    const f=features(m.b,{imbalance:m.q.imbalance,funding:ctx?.intel[sym]?.funding,premium:info.premium[sym],xm7:xm7[sym],xm14:xm14[sym],xm28:xm28[sym],doi,dpx,btc:sym==='BTC'?undefined:data.get('BTC')?.b})
+    const {doi,dpx}=oiMove(info.oi[sym]),doi1d=oiMove(info.oi[sym],24).doi,rt=info.ratios?.[sym]
+    const more={xm60:xm60[sym],xm90:xm90[sym],doi1d,tls:rt?.tls,tlr:rt?.tlr}
+    const f=features(m.b,{imbalance:m.q.imbalance,funding:ctx?.intel[sym]?.funding,premium:info.premium[sym],xm7:xm7[sym],xm14:xm14[sym],xm28:xm28[sym],doi,dpx,...more,btc:sym==='BTC'?undefined:data.get('BTC')?.b})
     const fs:Partial<Record<Tf,Record<string,number>>>={}
-    for(const tf of slowTfs){const b=slow[tf]?.[sym];if(b&&b.length>=65)fs[tf]=features(b,{xm7:xm7[sym],xm14:xm14[sym],xm28:xm28[sym],btc:sym==='BTC'?undefined:slow[tf]?.BTC})}
+    for(const tf of slowTfs){const b=slow[tf]?.[sym];if(b&&b.length>=65)fs[tf]=features(b,{xm7:xm7[sym],xm14:xm14[sym],xm28:xm28[sym],funding:ctx?.intel[sym]?.funding,premium:info.premium[sym],doi,dpx,...more,btc:sym==='BTC'?undefined:slow[tf]?.BTC})}
     const v:Record<string,number>={}
     for(const r of frows){let d=0;try{const ff=r.genome.tf?fs[r.genome.tf]:f;d=ff?vote(r.genome,ff,Date.now()):0}catch{d=0}if(d){v[r.id]=d;if(r.stage!=='trial')v[OOS(r.id)]=d}}   // v85.4: `now` applies a genome's hour/day gate
     factVotes[sym]=v

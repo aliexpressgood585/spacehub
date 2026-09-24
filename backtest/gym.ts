@@ -48,7 +48,7 @@ export const GYM = {
     { tf: '4h', coins: CRYPTO_40, source: '1h', barMin: 240, horizonsBars: [1, 2, 6, 12, 42], horizonsMin: [240, 480, 1440, 2880, 10080], fundingBpPerHour: 0.125, maxMonths: 120 },
     { tf: '1d', coins: CRYPTO_40, source: '1h', barMin: 1440, horizonsBars: [1, 2, 3, 7], horizonsMin: [1440, 2880, 4320, 10080], fundingBpPerHour: 0.125, maxMonths: 120 },
   ] as readonly GymSet[],
-  offlineNA: ['ob', 'fr', 'bs', 'oi'],          // no historical archive -> not enumerated
+  offlineNA: ['ob'],                              // v85.5: funding, basis and OI now come from the archive; only the order book has none
   window: 80,                                     // bars of history a feature may read
   isWindows: 4, isShare: 0.6, valShare: 0.2,      // FINAL = the remaining 20%
   minIsN: 300, minValN: 80, minFinalN: 80, isT: 1.0, valT: 1.5, oosT: 2.0,
@@ -83,6 +83,7 @@ function loadCSV(sym: string, interval: string): Bar[] {
     if (!line || line[0] < '0' || line[0] > '9') continue
     const f = line.split(','); let t = Number(f[0]); if (t > 1e14) t = Math.floor(t / 1000)
     const b: Bar = { t, o: +f[1], h: +f[2], l: +f[3], c: +f[4], v: +f[5] }
+    if (f.length > 9) { const q = +f[9], n = +f[8]; if (Number.isFinite(q)) b.q = q; if (Number.isFinite(n)) b.n = n }   // taker-buy base volume, trades
     if (Number.isFinite(b.c) && b.c > 0) out.push(b)
   }
   out.sort((a, b) => a.t - b.t)
@@ -96,10 +97,35 @@ export function aggregate(bars: Bar[], fromMin: number, barMin: number): Bar[] {
   let cur: Bar | null = null, cnt = 0, bucket = -1
   for (const b of bars) {
     const k = Math.floor(b.t / ms)
-    if (k !== bucket) { if (cur && cnt === per) out.push(cur); bucket = k; cur = { t: k * ms, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v }; cnt = 1; continue }
-    cur!.h = Math.max(cur!.h, b.h); cur!.l = Math.min(cur!.l, b.l); cur!.c = b.c; cur!.v += b.v; cnt++
+    if (k !== bucket) { if (cur && cnt === per) out.push(cur); bucket = k; cur = { t: k * ms, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v, ...(b.q !== undefined ? { q: b.q } : {}), ...(b.n !== undefined ? { n: b.n } : {}) }; cnt = 1; continue }
+    cur!.h = Math.max(cur!.h, b.h); cur!.l = Math.min(cur!.l, b.l); cur!.c = b.c; cur!.v += b.v; if (cur!.q !== undefined && b.q !== undefined) cur!.q += b.q; if (cur!.n !== undefined && b.n !== undefined) cur!.n += b.n; cnt++
   }
   if (cur && cnt === per) out.push(cur)
+  return out
+}
+// ── v85.5 auxiliary archives (backtest/fetch-aux.sh): funding, premium index, metrics (OI, long/short ratios) ──
+// Each is a time-sorted series; `at(t)` = last value known at t, `back(t, ms)` = value ms earlier.
+export class TSeries {
+  t: number[]; v: number[]
+  constructor(t: number[], v: number[]) { this.t = t; this.v = v }
+  private ix(tm: number): number { let lo = 0, hi = this.t.length - 1, ans = -1; while (lo <= hi) { const m = (lo + hi) >> 1; if (this.t[m] <= tm) { ans = m; lo = m + 1 } else hi = m - 1 } return ans }
+  at(tm: number, maxAgeMs = Infinity): number { const i = this.ix(tm); return i >= 0 && tm - this.t[i] <= maxAgeMs ? this.v[i] : NaN }
+  get size() { return this.t.length }
+}
+const readRows = (path: string): string[][] => { let txt = ''; try { txt = Deno.readTextFileSync(path) } catch { return [] } return txt.split('\n').filter((l) => l && l[0] >= '0' && l[0] <= '9').map((l) => l.split(',')) }
+const sorted = (pairs: [number, number][]): TSeries => { pairs.sort((a, b) => a[0] - b[0]); const t: number[] = [], v: number[] = []; let last = -1; for (const [a, b] of pairs) { if (a === last || !Number.isFinite(b)) continue; t.push(a); v.push(b); last = a } return new TSeries(t, v) }
+export interface Aux { fr?: TSeries; bs?: TSeries; oi?: TSeries; tls?: TSeries; tlr?: TSeries }
+export function loadAux(sym: string): Aux {
+  const out: Aux = {}
+  const f = readRows(`backtest/data/${sym}-funding.csv`); if (f.length) out.fr = sorted(f.map((r) => [Number(r[0]), Number(r[2])] as [number, number]))          // calc_time, interval, rate (fraction per interval)
+  const p = readRows(`backtest/data/${sym}-premium.csv`); if (p.length) out.bs = sorted(p.map((r) => [Number(r[0]), Number(r[4])] as [number, number]))          // 1h premium-index kline close (fraction)
+  const m = readRows(`backtest/data/${sym}-metrics.csv`)
+  if (m.length) {
+    const tm = (r: string[]) => Date.parse(r[0].replace(' ', 'T') + 'Z')
+    out.oi = sorted(m.map((r) => [tm(r), Number(r[2])] as [number, number]))
+    out.tls = sorted(m.map((r) => [tm(r), Number(r[5]) - 1] as [number, number]))   // sum top-trader long/short ratio, centred at 0
+    out.tlr = sorted(m.map((r) => [tm(r), Number(r[7]) - 1] as [number, number]))   // sum taker buy/sell volume ratio, centred at 0
+  }
   return out
 }
 // round trip (fee 5 + slip 3, both sides) plus perpetual funding for the hours held
@@ -160,12 +186,14 @@ function buildCache(set: GymSet, series: Bar[][], months: number): Cache {
   const rowCoin = new Int16Array(rows), rowBar = new Int32Array(rows), rowHour = new Uint8Array(rows), rowDow = new Uint8Array(rows), votes = new Int8Array(rows * GN)
   const win: Bar[][] = set.coins.map(() => []), dc: Map<number, number>[] = set.coins.map(() => new Map())
   let lastDay = -1; const xm: Record<string, number>[] = set.coins.map(() => ({}))
+  const aux = set.coins.map((c) => loadAux(c)), barMs = set.barMin * 60_000, back4h = Math.max(1, Math.round(240 / set.barMin)), back1d = Math.max(1, Math.round(1440 / set.barMin))
+  const fresh = Math.max(barMs * 2, 3 * 3600_000)   // an aux value older than this is treated as missing
   let r = 0
   for (let i = 0; i < N; i++) {
     const t = grid[i], day = Math.floor(t / 864e5), d0 = new Date(t), hr = d0.getUTCHours(), dw = d0.getUTCDay()
     if (day !== lastDay) {
       lastDay = day; const d = day - 1
-      for (const L of [7, 14, 28] as const) {
+      for (const L of [7, 14, 28, 60, 90] as const) {
         const rets: Record<string, number> = {}
         set.coins.forEach((c, ci) => { const a = dc[ci].get(d), b = dc[ci].get(d - L); if (a && b) rets[c] = a / b - 1 })
         const sc = xsScore(rets)
@@ -177,7 +205,14 @@ function buildCache(set: GymSet, series: Bar[][], months: number): Cache {
       const wv = win[ci]; wv.push(b); if (wv.length > GYM.window) wv.shift()
       dc[ci].set(day, b.c)
       if (wv.length < GYM.window) continue
-      const f = features(wv, { xm7: xm[ci].xm7, xm14: xm[ci].xm14, xm28: xm[ci].xm28, btc: ci === btcIdx ? undefined : win[btcIdx] })
+      const A = aux[ci], c0 = close[ci][i], c4 = i >= back4h ? close[ci][i - back4h] : NaN, c1d = i >= back1d ? close[ci][i - back1d] : NaN
+      const oiNow = A.oi ? A.oi.at(t, fresh) : NaN, oi4 = A.oi ? A.oi.at(t - 4 * 3600_000, fresh) : NaN, oi1d = A.oi ? A.oi.at(t - 24 * 3600_000, fresh) : NaN
+      const f = features(wv, {
+        xm7: xm[ci].xm7, xm14: xm[ci].xm14, xm28: xm[ci].xm28, xm60: xm[ci].xm60, xm90: xm[ci].xm90, btc: ci === btcIdx ? undefined : win[btcIdx],
+        funding: A.fr ? (Number.isFinite(A.fr.at(t, 9 * 3600_000)) ? A.fr.at(t, 9 * 3600_000) : null) : null, premium: A.bs ? A.bs.at(t, fresh) : undefined,
+        doi: oiNow > 0 && oi4 > 0 ? oiNow / oi4 - 1 : NaN, dpx: c4 > 0 ? c0 / c4 - 1 : NaN, doi1d: oiNow > 0 && oi1d > 0 ? oiNow / oi1d - 1 : NaN,
+        tls: A.tls ? A.tls.at(t, fresh) : undefined, tlr: A.tlr ? A.tlr.at(t, fresh) : undefined,
+      })
       rowCoin[r] = ci; rowBar[r] = i; rowHour[r] = hr; rowDow[r] = dw
       const base = r * GN
       for (let j = 0; j < GN; j++) { const g = genes[j], v = f[g[0]]; votes[base + j] = Number.isFinite(v) && Math.abs(v) >= g[1] ? g[2] * Math.sign(v) : 0 }

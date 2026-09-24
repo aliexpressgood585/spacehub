@@ -4,7 +4,7 @@
 // no network, no randomness. NONE of these has been walk-forward validated on
 // 1-minute data; v76bt-v105bt found no sub-hour edge after costs. They are demo
 // agents whose value is measured live by the quant's attribution below.
-export interface Bar { t: number; o: number; h: number; l: number; c: number; v: number }
+export interface Bar { t: number; o: number; h: number; l: number; c: number; v: number; q?: number; n?: number }   // v85.5: q = taker-buy base volume, n = trades (Binance klines; absent on OKX)
 export interface AgentCtx { btc?: Bar[]; funding?: number | null }
 export interface AgentView { dir: number; says: string }
 
