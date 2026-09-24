@@ -131,20 +131,26 @@ export function runSwarm(b: Bar[], x: { btc?: Bar[] }): Record<string, number> {
 // merely pointed the right way). costBps = 2 x (taker fee + slippage) of SCALP,
 // asserted equal in tests (not imported: scalp.ts imports this module).
 // Sums are exponentially decayed (half-life 12h) so scores follow the current market.
-export const LEARN = { horizonMs: 5 * 60_000, halfLifeMs: 12 * 3600_000, minN: 100, lo: 0, hi: 2.5, benchT: -2, costBps: 16, horizonsMin: [5, 15, 60, 240] as readonly number[], minActive: 3, provenT: 2.5, meetingMin: 1 } as const
+export const LEARN = { horizonMs: 5 * 60_000, halfLifeMs: 12 * 3600_000, minN: 100, lo: 0, hi: 2.5, benchT: -2, costBps: 16, horizonsMin: [5, 15, 60, 240, 1440] as readonly number[], minActive: 3, provenT: 2.5, meetingMin: 1, rho: 0.65, kDefault: 20 } as const
+// v83.0: a 24h horizon (1440) so the days-momentum agents are judged where their edge lives.
+// halfLifeFor(h): evidence at a long horizon must outlive the horizon itself — 12h memory can
+// never judge a 24h call (steady-state ~1 independent observation). 12h below 2h, 6 x h above.
+export const horizonOf = (key: string) => Number(key.split('@')[1] ?? LEARN.horizonsMin[0]) || LEARN.horizonsMin[0]
+export const halfLifeFor = (h: number) => Math.max(LEARN.halfLifeMs, 6 * h * 60_000)
 // v81.0 provenT 1 -> 2.5: 75 agents x 4 horizons = 300 tests and each agent keeps its BEST
 // horizon, so at t>=1 dozens pass by luck alone; at 2.5 (one-sided p~0.006) ~2 would.
 // Live at the change: 10 agents at t>=1, 7 at t>=2.5, so proven mode stays on.
-export interface Stat { agent: string; n: number; s: number; s2: number; updated_at: string }
+export interface Stat { agent: string; n: number; s: number; s2: number; updated_at: string; ev?: number }  // ev = scored snapshots (v83.0)
 export function decayStat(st: Stat | undefined, agent: string, now: number): Stat {
-  if (!st) return { agent, n: 0, s: 0, s2: 0, updated_at: new Date(now).toISOString() }
-  const dt = Math.max(0, now - Date.parse(st.updated_at)), f = Number.isFinite(dt) ? Math.pow(0.5, dt / LEARN.halfLifeMs) : 1
-  return { agent, n: st.n * f, s: st.s * f, s2: st.s2 * f, updated_at: new Date(now).toISOString() }
+  if (!st) return { agent, n: 0, s: 0, s2: 0, ev: 0, updated_at: new Date(now).toISOString() }
+  const dt = Math.max(0, now - Date.parse(st.updated_at)), f = Number.isFinite(dt) ? Math.pow(0.5, dt / halfLifeFor(horizonOf(agent))) : 1
+  return { agent, n: st.n * f, s: st.s * f, s2: st.s2 * f, ev: (st.ev ?? 0) * f, updated_at: new Date(now).toISOString() }
 }
 // snapshot: votes[sym][agent] = dir, px0[sym] = mid then; px1[sym] = mid now
 export function scoreSnapshot(stats: Record<string, Stat>, votes: Record<string, Record<string, number>>, px0: Record<string, number>, px1: Record<string, number>, now: number, costBps: number = LEARN.costBps, suffix = ''): Record<string, Stat> {
   const out: Record<string, Stat> = {}
   const touch = (a: string) => (out[a + suffix] ??= decayStat(stats[a + suffix], a + suffix, now))
+  const seen = new Set<string>()
   for (const [sym, vs] of Object.entries(votes)) {
     const r = px1[sym] / px0[sym] - 1
     if (!Number.isFinite(r)) continue
@@ -152,6 +158,7 @@ export function scoreSnapshot(stats: Record<string, Stat>, votes: Record<string,
       if (!d) continue
       const st = touch(a), e = d * r * 1e4 - costBps   // basis points, net of the round trip
       st.n += 1; st.s += e; st.s2 += e * e
+      if (!seen.has(a)) { seen.add(a); st.ev = (st.ev ?? 0) + 1 }   // one EVENT per snapshot, however many coins
     }
   }
   return out
@@ -189,7 +196,15 @@ export function bestHorizon(stats: Record<string, Stat>, agent: string): { h: nu
 // the naive t is inflated by ~sqrt(h). Live example at the change: funding@240 raw t=22.8,
 // corrected 1.47. Dividing by sqrt(h / meeting minutes) is the standard overlapping-returns
 // adjustment (conservative: it assumes full overlap). Cross-coin correlation is NOT corrected.
-export const hT = (st: Stat | undefined, h: number) => tStat(st) / Math.sqrt(Math.max(1, h / LEARN.meetingMin))
+// v83.0 CROSS-COIN CORRECTION: the 40 coins move together (measured 2026-09-24 on live 5-min
+// returns: mean correlation to the market 0.81, pairwise rho ~0.65). k votes in one snapshot
+// are therefore ~k/(1+(k-1)rho) independent observations, not k. k = n/ev (votes per event);
+// rows written before ev existed use kDefault. Both corrections are conservative by design.
+export const hT = (st: Stat | undefined, h: number) => {
+  if (!st) return 0
+  const k = st.ev && st.ev > 0 ? Math.max(1, st.n / st.ev) : LEARN.kDefault
+  return tStat(st) / Math.sqrt(Math.max(1, h / LEARN.meetingMin)) / Math.sqrt(1 + (k - 1) * LEARN.rho)
+}
 // v80.0 PROVEN mode: once >= minActive agents have net t >= provenT on their best
 // horizon, ONLY those agents vote (everyone else weight 0) — entries happen only
 // when agents that already beat the fees agree. With fewer proven agents the team

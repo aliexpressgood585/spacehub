@@ -14,7 +14,9 @@ import { TEAM_INTERVAL_MS } from '../../../shared/team-meeting'
 import { SCALP } from '../../../shared/scalp'
 import { CRYPTO_40 } from '../../../shared/strategy'
 import { AGENTS, NEW_AGENTS } from '../../../shared/agents'
-import { SWARM, TEAMS, LEARN, learnedWeight, hT, meanBps, decayStat, type Stat, type Team } from '../../../shared/swarm'
+import { SWARM, TEAMS, LEARN, learnedWeight, hT, meanBps, decayStat, bestHorizon, type Stat, type Team } from '../../../shared/swarm'
+import { INFO_AGENTS } from '../../../shared/info'
+import { FACTORY } from '../../../shared/factory'
 const CYCLE_LABEL = `${String(Math.floor(TEAM_INTERVAL_MS / 60_000)).padStart(2, '0')}:${String((TEAM_INTERVAL_MS / 1000) % 60).padStart(2, '0')}`
 
 type Id = 'scout' | 'regime' | 'rota' | 'donch' | 'risk' | 'trader' | 'treasurer' | 'reporter' | 'auditor' | 'pm' | 'quant' | 'compliance' | 'execution' | 'rsi' | 'vwap' | 'breakout' | 'volume' | 'macd' | 'bollinger' | 'htf' | 'btclead' | 'candle' | 'funding' | 'trendDesk' | 'momDesk' | 'revDesk' | 'brkDesk' | 'flowDesk' | 'comboDesk'
@@ -36,6 +38,7 @@ interface Snap {
   closedAll: Row[]
   curve: Row[]
   agentStats: Record<string, Stat>
+  factory: Row[]
 }
 interface Status { working: boolean; asleep?: boolean; alarm?: boolean; line: string; action?: string; at?: number; reviewed?: boolean }
 
@@ -108,6 +111,9 @@ const ROOM: Record<Id, { x0: number; y0: number; w: number; h: number; floor: nu
   funding: { x0: 380, y0: 696, w: 92, h: 134, floor: 826 },
 }
 const IDS = Object.keys(ROSTER) as Id[]
+// v83.0: meeting roles without a room of their own (rendered in the minutes and the panels only)
+const EXTRA: Record<string, { name: string; role: string; color: string }> = { info: { name: 'מידע חדש', role: 'מומנטום ימים · Open Interest · פרמיה', color: '#7bd389' }, factory: { name: 'מפעל הסוכנים', role: 'ניסוי → בדיקה → פעיל', color: '#e0b04c' } }
+const who = (id: string) => ROSTER[id as Id] ?? EXTRA[id]
 const LOOK: Record<Id, { skin: string; hair: string; shirt: string; pants: string; style: number; glasses: boolean }> = {
   comboDesk: { skin: '#dca577', hair: '#161616', shirt: '#ff9f6b', pants: '#1d2433', style: 0, glasses: true },
   trendDesk: { skin: '#f3c9a2', hair: '#161616', shirt: '#9ad0ff', pants: '#1d2433', style: 2, glasses: false },
@@ -354,7 +360,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
       if (loading) return
       loading = true
       try {
-        const [st, rg, eq, op, cl, sk, er, dl, mf, rb, ca, cv, mt, ag] = await Promise.all([
+        const [st, rg, eq, op, cl, sk, er, dl, mf, rb, ca, cv, mt, ag, fa] = await Promise.all([
           supa.from('bot_state').select('*').eq('id', 1).maybeSingle(),
           supa.from('market_regime').select('*').order('created_at', { ascending: false }).limit(1),
           supa.from('bot_equity').select('*').order('ts', { ascending: false }).limit(2),
@@ -369,6 +375,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
           supa.from('bot_equity').select('equity,ts').order('ts', { ascending: false }).limit(2000),
           supa.from('team_meetings').select('*').order('ts', { ascending: false }).limit(12),
           supa.from('agent_stats').select('*'),
+          supa.from('factory_agents').select('id,genome,stage,born,stage_at,h,note').order('stage_at', { ascending: false }).limit(400),
         ])
         const firstErr = [st, rg, eq, op, cl, sk, er, dl, mf, rb, ca, cv, mt].find((r) => r.error)?.error
         if (firstErr) throw new Error(firstErr.message)
@@ -376,7 +383,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
         const batches: number[] = []
         for (const r of (rb.data ?? []) as Row[]) { const t = ts(r.opened_at); if (!batches.length || batches[batches.length - 1] - t > 10 * 60_000) batches.push(t) }
         if (!alive) return
-        setSnap({ at: Date.now(), meetings: (mt.data ?? []) as Row[], state: (st.data as Row) ?? null, regime: (rg.data?.[0] as Row) ?? null, equity: (eq.data ?? []) as Row[], open: (op.data ?? []) as Row[], closed: (cl.data ?? []) as Row[], skips: (sk.data ?? []) as Row[], errors: (er.data ?? []) as Row[], daily: (dl.data?.[0] as Row) ?? null, manifest: (mf.data?.[0] as Row) ?? null, rotaBatches: batches, closedAll: (ca.data ?? []) as Row[], curve: (cv.data ?? []) as Row[], agentStats: Object.fromEntries(((ag.data ?? []) as Row[]).map((r) => [String(r.agent), decayStat({ agent: String(r.agent), n: num(r.n), s: num(r.s), s2: num(r.s2), updated_at: String(r.updated_at) }, String(r.agent), Date.now())])) })
+        setSnap({ at: Date.now(), factory: (fa.data ?? []) as Row[], meetings: (mt.data ?? []) as Row[], state: (st.data as Row) ?? null, regime: (rg.data?.[0] as Row) ?? null, equity: (eq.data ?? []) as Row[], open: (op.data ?? []) as Row[], closed: (cl.data ?? []) as Row[], skips: (sk.data ?? []) as Row[], errors: (er.data ?? []) as Row[], daily: (dl.data?.[0] as Row) ?? null, manifest: (mf.data?.[0] as Row) ?? null, rotaBatches: batches, closedAll: (ca.data ?? []) as Row[], curve: (cv.data ?? []) as Row[], agentStats: Object.fromEntries(((ag.data ?? []) as Row[]).map((r) => [String(r.agent), decayStat({ agent: String(r.agent), n: num(r.n), s: num(r.s), s2: num(r.s2), updated_at: String(r.updated_at) }, String(r.agent), Date.now())])) })
         setErr(null)
       } catch (e) { if (alive) setErr(e instanceof Error ? e.message : String(e)) } finally { loading = false }
     }
@@ -693,6 +700,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
       </section>}
       <Meeting snap={snap} now={now} shown={shown} replaying={replaying} />
       <League snap={snap} />
+      <Factory snap={snap} />
 
       {snap && snap.meetings.length > 1 && <details className="bh-history"><summary>היסטוריית החלטות · {snap.meetings.length} סבבים אחרונים</summary>{snap.meetings.slice(1).map((m, i) => <div key={String(m.id ?? i)}><time>{ago(ts(m.ts), now)}</time><b>{DECISION[String(m.decision)] ?? String(m.decision)}</b><p>{String(m.action ?? '')}</p></div>)}</details>}
       <div className="bh-list">
@@ -814,13 +822,13 @@ function Meeting({ snap, now, shown, replaying }: { snap: Snap | null; now: numb
           <div key={i}>
             {(i === 0 || (mins[i - 1].round ?? 1) !== (x.round ?? 1)) && <div className="bh-round">{ROUND[x.round ?? 1]}</div>}
             <div className={`bh-min bh-in${x.round === 3 ? ' pm' : x.round === 2 ? ' r2' : ''}`}>
-              <span className="bh-av sm" style={{ background: ROSTER[x.who]?.color ?? '#888' }}>{ROSTER[x.who]?.name?.[0] ?? '?'}</span>
-              <span><b>{ROSTER[x.who]?.name ?? x.who}</b>{x.to ? <em className="bh-to"> ← ל{ROSTER[x.to as Id]?.name ?? x.to}</em> : null} {x.says}</span>
+              <span className="bh-av sm" style={{ background: who(x.who)?.color ?? '#888' }}>{who(x.who)?.name?.[0] ?? '?'}</span>
+              <span><b>{who(x.who)?.name ?? x.who}</b>{x.to ? <em className="bh-to"> ← ל{ROSTER[x.to as Id]?.name ?? x.to}</em> : null} {x.says}</span>
               <span className="bh-vote" style={{ color: VOTE[x.vote]?.c, borderColor: VOTE[x.vote]?.c }}>{VOTE[x.vote]?.t ?? x.vote}</span>
             </div>
           </div>
         ))}
-        {replaying && shown < all.length && <div className="bh-typing"><span className="bh-av sm" style={{ background: ROSTER[all[shown].who]?.color }}>{ROSTER[all[shown].who]?.name?.[0]}</span> {ROSTER[all[shown].who]?.name} מקליד/ה<i>.</i><i>.</i><i>.</i></div>}
+        {replaying && shown < all.length && <div className="bh-typing"><span className="bh-av sm" style={{ background: who(all[shown].who)?.color }}>{who(all[shown].who)?.name?.[0]}</span> {who(all[shown].who)?.name} מקליד/ה<i>.</i><i>.</i><i>.</i></div>}
       </div>
       <p className="bh-mnote">
         {String(snap?.manifest?.enabled_sleeves ?? '').includes('SCALP') ? `בכל ישיבה (כל דקה) המנוע בוחן פתיחות דמו לפי ההצבעות, היתרה ומגבלות התיק. עד ${SCALP.maxPositions} פוזיציות ללא מינוף (1x) ועד 99% הקצאה. רק פעולות שנשמרו מופיעות כבוצעו.` : <>הצוות נפגש בתוך הבוט כל דקה. כל אחד בודק רק את התחום שלו בנתונים האמיתיים ומצביע. הצוות יכול לקבל לבד החלטה אחת בלבד: להקטין את הפוזיציות כששניים או יותר מצביעים "להקטין", ולחזור לגודל הרגיל לאחר 24 שעות מההקטנה ובדיקה תקינה ללא הצבעות להקטנה. התקרה חלה על גודל הרוטציה הבאה; היא לא סוגרת עסקאות קיימות. אין הגדלה מעבר להגדרות הפריסה.
@@ -992,22 +1000,25 @@ function Intel({ snap, now }: { snap: Snap | null; now: number }) {
 
 // v75.0: every voting agent ranked by its shadow record (agent_stats), as the bot scores it.
 const LABEL: Record<string, string> = { regime: 'נועה · EMA', rota: 'דניאל · מומנטום', donch: 'עומר · sweep', trader: 'רוני · ספר פקודות', risk: 'מיכל · חדשות/ליקווידציות', ...Object.fromEntries(NEW_AGENTS.map((k) => [k, `${AGENTS[k].name} · ${AGENTS[k].role}`])), ...Object.fromEntries(SWARM.map((a) => [a.id, `${a.label} · ${TEAMS[a.team].label}`])) }
+for (const a of INFO_AGENTS) LABEL[a.id] = `מידע · ${a.label}`
 function League({ snap }: { snap: Snap | null }) {
   const [all, setAll] = useState(false)
   const st = snap?.agentStats ?? {}
   const ids = Object.keys(LABEL)
-  const rows = ids.map((id) => ({ id, st: st[id], w: learnedWeight(st[id]), t: hT(st[id], LEARN.horizonsMin[0]), m: meanBps(st[id]) }))
+  // v83.0: ranked on the BEST horizon, overlap- and correlation-corrected, exactly as the bot weighs it
+  const rows = ids.map((id) => { const b = bestHorizon(st, id); return { id, st: b.st ?? st[id], w: learnedWeight(st[id]), t: Number.isFinite(b.t) ? b.t : hT(st[id], LEARN.horizonsMin[0]), h: b.h, m: meanBps(b.st ?? st[id]) } })
     .sort((a, b) => (b.st && b.st.n >= LEARN.minN ? b.t : -99) - (a.st && a.st.n >= LEARN.minN ? a.t : -99) || (b.st?.n ?? 0) - (a.st?.n ?? 0))
   const ready = rows.filter((r) => r.st && r.st.n >= LEARN.minN), bench = ready.filter((r) => r.w === 0).length
   return <section className="bh-meet">
     <div className="bh-mtop"><h2>ליגת הסוכנים · {ids.length} מצביעים</h2><span className="bh-dec">{ready.length} מדורגים · {bench} בספסל · {ids.length - ready.length} לומדים</span></div>
-    <p className="bh-mnote">כל דקה כל סוכן מצביע על 40 המטבעות, ובודקים אם צדק אחרי 5, 15, 60 ו-240 דקות; כל סוכן נמדד באופק הטוב שלו, וזה גם זמן ההחזקה של העסקה. הציון דועך בחצי כל 12 שעות, כך שהוא עוקב אחרי השוק הנוכחי. משקל = 1 + t/2 בטווח 0–2.5, רק אחרי {LEARN.minN} הצבעות; t≤−2 = ספסל (עדיין נבחן וחוזר כשמשתפר). כשיש לפחות 3 סוכנים מוכחים (t≥1 נטו אחרי עמלות) רק הם מצביעים, ורק 1–2 ההזדמנויות החזקות בכל ישיבה מקבלות הון; אחרת הצוות עובר למצב יחסי והולך אחרי הטובים ביותר. הציון נטו: מכל תנועה מורידים {LEARN.costBps} נק׳ בסיס עמלה+החלקה, כך שסוכן מוגבר הוא סוכן שהקריאות שלו היו מכסות את העסקה.</p>
+    <p className="bh-mnote">כל דקה כל סוכן מצביע על 40 המטבעות, ובודקים אם צדק אחרי 5, 15, 60, 240 ו-1440 דקות; כל סוכן נמדד באופק הטוב שלו, וזה גם זמן ההחזקה של העסקה. הציון דועך בחצי כל 12 שעות, כך שהוא עוקב אחרי השוק הנוכחי. משקל = 1 + t/2 בטווח 0–2.5, רק אחרי {LEARN.minN} הצבעות; t≤−2 = ספסל (עדיין נבחן וחוזר כשמשתפר). כשיש לפחות 3 סוכנים מוכחים (t≥1 נטו אחרי עמלות) רק הם מצביעים, ורק 1–2 ההזדמנויות החזקות בכל ישיבה מקבלות הון; אחרת הצוות עובר למצב יחסי והולך אחרי הטובים ביותר. הציון נטו: מכל תנועה מורידים {LEARN.costBps} נק׳ בסיס עמלה+החלקה, כך שסוכן מוגבר הוא סוכן שהקריאות שלו היו מכסות את העסקה.</p>
     <div className="bh-mx-wrap"><table className="bh-mx bh-lg">
-      <thead><tr><th>#</th><th>סוכן</th><th>משקל</th><th>t</th><th>נק׳ בסיס/5ד׳</th><th>הצבעות</th><th>מצב</th></tr></thead>
+      <thead><tr><th>#</th><th>סוכן</th><th>משקל</th><th>t</th><th>אופק</th><th>נק׳ בסיס</th><th>הצבעות</th><th>מצב</th></tr></thead>
       <tbody>{rows.slice(0, all ? rows.length : 15).map((r, i) => { const learning = !r.st || r.st.n < LEARN.minN; return <tr key={r.id}>
         <td className="n">{i + 1}</td><th>{LABEL[r.id]}</th>
         <td className={learning ? 'n' : r.w === 0 ? 'dn' : r.w > 1 ? 'up' : 'n'} dir="ltr">{learning ? '1.00' : r.w.toFixed(2)}</td>
         <td className="n" dir="ltr">{r.st ? r.t.toFixed(1) : '—'}</td>
+        <td className="n" dir="ltr">{r.st ? `${r.h}m` : '—'}</td>
         <td className={r.m > 0 ? 'up' : r.m < 0 ? 'dn' : 'n'} dir="ltr">{r.st ? r.m.toFixed(1) : '—'}</td>
         <td className="n" dir="ltr">{r.st ? r.st.n.toFixed(0) : 0}</td>
         <td><span className={`bh-chipd ${learning ? '' : r.w === 0 ? 's' : 'l'}`}>{learning ? 'לומד' : r.w === 0 ? 'ספסל' : r.w > 1 ? 'מוגבר' : 'פעיל'}</span></td>
@@ -1017,6 +1028,21 @@ function League({ snap }: { snap: Snap | null }) {
   </section>
 }
 
+// v83.0: the agent factory, as the bot records it (factory_agents, anon-readable)
+function Factory({ snap }: { snap: Snap | null }) {
+  const rows = (snap?.factory ?? []) as { id: string; stage: string; born: string; stage_at: string; h: number | null; note: string | null }[]
+  const n = (st: string) => rows.filter((r) => r.stage === st).length
+  const promoted = rows.filter((r) => r.stage === 'oos' || r.stage === 'live')
+  const recent = rows.filter((r) => r.note).slice(0, 8)
+  const nowT = Date.now()
+  return <section className="bh-meet">
+    <div className="bh-mtop"><h2>מפעל הסוכנים · {rows.length} נבדקו</h2><span className="bh-dec">{n('trial')} בניסוי · {n('oos')} בבדיקה · {n('live')} פעילים · {n('retired')} נפסלו</span></div>
+    <p className="bh-mnote">המפעל מגריל סוכנים חדשים כל דקה (עד {FACTORY.pop} במקביל) ומצמיח וריאציות של מי שעבר שלב. סוכן בניסוי מצביע בצל בלבד; אחרי t≥{FACTORY.trialT} הוא נמדד מחדש רק על נתונים שלא ראה, ומצביע באמת רק אחרי t≥{FACTORY.liveT} שם. מי שנפסל לא נבדק שוב.</p>
+    {promoted.length ? <div className="bh-mx-wrap"><table className="bh-mx bh-lg"><thead><tr><th>סוכן</th><th>שלב</th><th>אופק</th><th>מאז</th><th>הערה</th></tr></thead>
+      <tbody>{promoted.map((r) => <tr key={r.id}><th dir="ltr">{r.id}</th><td><span className={`bh-chipd ${r.stage === 'live' ? 'l' : ''}`}>{r.stage === 'live' ? 'פעיל' : 'בבדיקה'}</span></td><td className="n" dir="ltr">{r.h ? `${r.h}m` : '—'}</td><td className="n">{ago(ts(r.stage_at), nowT)}</td><td dir="ltr">{r.note ?? ''}</td></tr>)}</tbody></table></div>
+      : <p className="bh-mnote">עדיין אין סוכן שעבר את שלב הניסוי. {recent.length ? `אחרונים: ${recent.map((r) => `${r.id} — ${r.note}`).slice(0, 3).join(' · ')}` : ''}</p>}
+  </section>
+}
 // v76.2: every agent in its own window — one card each, grouped, laid out in a grid (no overlap).
 const COINS: string[] = [...CRYPTO_40]
 const GROUPS: { title: string; ids: string[] }[] = [

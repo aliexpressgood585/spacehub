@@ -24,7 +24,7 @@ assert.equal(allocation(0,1000,0,4),0)
 assert.equal(allocation(100,1000,1000,1),0)
 assert.equal(allocation(100,1000,0,0),0)
 for(let c=0;c<1000;c+=7){const n=allocation(c,1000,900,1);assert.ok(n>=0&&n*1.0005<=c+1e-9&&n<=90)}
-assert.equal(SCALP.maxPositions,8);assert.equal(SCALP.meetingMs,60000);assert.equal(SCALP.maxHoldMs,240*60000)
+assert.equal(SCALP.maxPositions,8);assert.equal(SCALP.meetingMs,60000);assert.equal(SCALP.maxHoldMs,1440*60000)
 // trailing only ratchets after the 1-minute minimum hold; the hard stop still fires at once
 assert.equal(exitPlan({...t,opened_at:new Date(now-30000).toISOString()},{...q,bid:102},now).stop,99)
 assert.equal(exitPlan({...t,opened_at:new Date(now-30000).toISOString()},{...q,bid:98},now).reason,'STOP')
@@ -62,7 +62,8 @@ assert.equal(exitPlan(h5,{...q,bid:100.5},now,{side:1,weighted:0.3}).reason,'EXT
 assert.equal(exitPlan(h5,{...q,bid:100.5},now,{side:0,weighted:0}).reason,'PLANNED')   // winner nobody backs: out
 assert.equal(exitPlan({...h5,opened_at:at(2)},{...q,bid:100.5},now,{side:-1,weighted:-0.3}).reason,'FLIP') // team flips: out early
 assert.equal(exitPlan({...h5,opened_at:at(0.5)},{...q,bid:100.5},now,{side:-1,weighted:-0.3}).close,false) // never inside the first minute
-assert.equal(exitPlan({...h5,opened_at:at(241)},{...q,bid:100.5},now,{side:1,weighted:0.9}).reason,'TIMEOUT') // 240 min is a hard cap
+assert.equal(exitPlan({...h5,opened_at:at(241)},{...q,bid:100.5},now,{side:1,weighted:0.9}).reason,'EXTEND') // v83.0: a backed winner may run past 4h
+assert.equal(exitPlan({...h5,opened_at:at(1441)},{...q,bid:100.5},now,{side:1,weighted:0.9}).reason,'TIMEOUT') // 1440 min is the hard cap
 assert.equal(exitPlan({...h5,opened_at:at(0.2)},{...q,bid:98},now).reason,'STOP')      // stop always fires
 assert.equal(exitPlan({...h5,scalp_meta:{stop_pct:.004,hold_min:1},opened_at:at(1.1)},{...q,bid:99.95},now).reason,'PLANNED') // a 1-minute trade
 console.log('Scalp signal, timing, trailing and cash invariants passed')
@@ -85,3 +86,7 @@ assert.ok(readFileSync('shared/scalp.ts','utf8').includes("intel.mode==='proven'
  assert.deepEqual(balancePicks(P,[1,1,1,1,1,1],2).map(x=>x.k),['c'],'6 longs open -> no more longs')
  assert.deepEqual(balancePicks(P,[],2).map(x=>x.k),['a','b'],'balanced book keeps the two strongest')
  assert.equal(SCALP.maxSameSide,6)}
+// v83.0: allocation honours a reserved share (ROTA alongside)
+assert.ok(allocation(1000,1000,0,1,0.49)<=490+1e-9&&allocation(1000,1000,0,1,0.49)>=489,'49% share -> at most 49% of equity');assert.equal(allocation(1000,1000,0,1,0),0)
+assert.ok(allocation(1000,1000,400,1,0.49)<=90+1e-9,'own exposure is subtracted from the share')
+assert.equal(SCALP.maxHoldMs,1440*60_000)

@@ -40,11 +40,11 @@ export function execStats(closed: any[]) {
 }
 
 // Compliance: the hard limits, checked on the plan before it is sent to the ledger.
-export function compliance(open: any[], entries: { sym: string; notional: number }[], equity: number, exposure: number): string[] {
+export function compliance(open: any[], entries: { sym: string; notional: number }[], equity: number, exposure: number, others: any[] = []): string[] {  // v83.0: `others` = positions of other sleeves (duplicate-coin check only)
   const bad: string[] = []
   if (open.some((t) => t.paper_mode !== true || Number(t.lev) !== 1)) bad.push('פוזיציה שאינה דמו 1x')
   if (open.length + entries.length > SCALP.maxPositions) bad.push(`יותר מ-${SCALP.maxPositions} פוזיציות`)
-  const syms = [...open.map((t) => String(t.sym)), ...entries.map((e) => e.sym)]
+  const syms = [...open.map((t) => String(t.sym)), ...others.map((t) => String(t.sym)), ...entries.map((e) => e.sym)]
   if (new Set(syms).size !== syms.length) bad.push('מטבע כפול')
   if (entries.some((e) => !(e.notional > 0) || e.notional > equity * SCALP.perCoin + 1e-6)) bad.push(`חריגה מ-${SCALP.perCoin * 100}% למטבע`)
   if (exposure > equity * SCALP.allocation + 1e-6) bad.push(`חשיפה מעל ${SCALP.allocation * 100}%`)
