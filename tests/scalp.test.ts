@@ -73,7 +73,10 @@ const mig=readdirSync('supabase/migrations').filter(f=>readFileSync(`supabase/mi
 assert.ok(readFileSync(`supabase/migrations/${mig}`,'utf8').includes(`countopen>=${SCALP.maxPositions}`),`latest ledger migration ${mig} must cap at ${SCALP.maxPositions}`)
 assert.ok(readFileSync(`supabase/migrations/${mig}`,'utf8').includes(`eq*${SCALP.perCoin}`),`latest ledger migration ${mig} must cap each coin at ${SCALP.perCoin}`)
 import {CRYPTO_40} from '../shared/strategy.ts'
-for(const c of CRYPTO_40)assert.ok(readFileSync(`supabase/migrations/${mig}`,'utf8').includes(`'${c}'`),`ledger whitelist must include ${c}`)
+{const m=readFileSync(`supabase/migrations/${mig}`,'utf8'),re=/x->>'sym' !~ '(\^\[A-Z0-9\]\{2,16\}\$)'/.exec(m)
+ assert.ok(re,'v88.0: ledger accepts any well-formed base (dynamic universe)');const rx=new RegExp('^[A-Z0-9]{2,16}$')
+ for(const c of [...CRYPTO_40,'1000SHIB','TAO','HYPE'])assert.ok(rx.test(c),`ledger symbol rule admits ${c}`)
+ for(const c of ['USDC','PAXG','TSLA','XAU'])assert.ok(m.includes(`'${c}'`),`ledger refuses ${c} (stable / non-crypto)`)}
 console.log(`DB ledger cap matches SCALP.maxPositions (${mig})`)
 
 // v79.0: the ledger honours holds up to the new cap
