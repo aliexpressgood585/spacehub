@@ -40,6 +40,22 @@ export const FEATURES: Record<string, number[]> = {
   oi: [1, 2, 5], btc5: [0.1, 0.2, 0.4], btc15: [0.2, 0.4, 0.8],
 }
 export const FEATURE_KEYS = Object.keys(FEATURES)
+// v85.0: plain-Hebrew names for the house (gym cards spell a genome out as a rule)
+export const FEATURE_LABEL: Record<string, string> = {
+  r3: 'שינוי 3 נרות', r5: 'שינוי 5 נרות', r10: 'שינוי 10 נרות', r15: 'שינוי 15 נרות', r30: 'שינוי 30 נרות', r60: 'שינוי 60 נרות',
+  rsi7: 'RSI 7', rsi14: 'RSI 14', rsi28: 'RSI 28', z20: 'Z-score 20', z60: 'Z-score 60', vw30: 'סטייה מ־VWAP 30', vw60: 'סטייה מ־VWAP 60',
+  vr: 'קפיצת נפח', ob: 'חוסר איזון בספר', fr: 'פאנדינג', bs: 'פרמיית הפרפטואל', xm7: 'מומנטום יחסי 7 ימים', xm14: 'מומנטום יחסי 14 ימים', xm28: 'מומנטום יחסי 28 ימים',
+  oi: 'שינוי ריבית פתוחה', btc5: 'ביטקוין 5 נרות', btc15: 'ביטקוין 15 נרות',
+}
+export const geneText = (g: Gene) => `${FEATURE_LABEL[g[0]] ?? g[0]} ≥ ${g[1]} → ${g[2] > 0 ? 'עם הכיוון' : 'נגד הכיוון'}`
+export const genomeText = (g: Genome) => g.b ? `${geneText(g.a)} וגם ${geneText(g.b)}` : geneText(g.a)
+// v85.0 gym: a genome that passed the offline walk-forward (status/gym-latest.json) is seeded
+// into live TRIAL ahead of random spawns — never past it. Retired ids stay retired (`taken`).
+export interface GymPass { id: string; genome: Genome; h: number | null; oos_t: number | null; is: number[] }
+export function gymPicks(passed: GymPass[], taken: Set<string>, slots: number): { id: string; genome: Genome; note: string }[] {
+  return passed.filter((p) => !taken.has(p.id)).sort((a, b) => (b.oos_t ?? 0) - (a.oos_t ?? 0)).slice(0, Math.max(0, slots))
+    .map((p) => ({ id: p.id, genome: p.genome, note: `gym: ${p.is.length}/${p.is.length} windows, oos t=${(p.oos_t ?? 0).toFixed(1)} @${p.h}m` }))
+}
 
 const C = (b: Bar[]) => b.map((x) => x.c)
 const ret = (b: Bar[], n: number) => (b.length > n ? (b[b.length - 1].c / b[b.length - 1 - n].c - 1) * 100 : NaN)

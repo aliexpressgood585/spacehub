@@ -27,6 +27,7 @@
 // ─────────────────────────────────────────────────────────────
 import * as S from '../shared/strategy.ts'
 import * as PF from './portfolio.ts'
+import { gymMain } from './gym.ts'
 
 type Bar = S.Bar
 
@@ -8838,6 +8839,12 @@ function runV94bt() {
 }
 
 function main() {
+  // v85.0 gym: walk-forward the factory's genome vocabulary over 36m of 5m bars (see backtest/gym.ts)
+  if (Deno.env.get('BT_MODE') === 'gym') {
+    console.log('████ GYM — factory genomes, 36m walk-forward, 4 IS windows + 20% OOS read once ████')
+    gymMain(Number(Deno.env.get('BT_MONTHS') ?? 36) || 36)
+    return
+  }
   // BT_MODE=explore → higher-TF walk-forward research (loads only 15m/1h)
   if (Deno.env.get('BT_MODE') === 'explore') {
     console.log(`████ EXPLORE — 15m/1h mean-reversion, 6 months, real fees, walk-forward ████`)
