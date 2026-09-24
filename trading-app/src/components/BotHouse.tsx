@@ -116,7 +116,7 @@ const IDS = Object.keys(ROSTER) as Id[]
 // and leaves through the door its verdict earned. Live factory events (seeded, promoted, retired)
 // jump the queue so a real change is seen the minute it happens. Display only — nothing computed here.
 const GYM_ROOM = { x0: 8, y0: 986, w: 464, h: 136, floor: 1116 }
-const GYM_STATIONS = [76, 146, 216, 286, 356]           // 4 IS windows + the held-out test
+const GYM_STATIONS = [62, 118, 174, 230, 286, 344]      // 4 IS windows + the validation slice + the final held-out test
 const GYM_DOORS: Record<'trial' | 'pass' | 'fail', number> = { trial: 386, pass: 414, fail: 442 }
 const GYM_DOOR_LABEL: Record<'trial' | 'pass' | 'fail', string> = { trial: 'לניסיון', pass: 'עבר', fail: 'נפסל' }
 type GymEvt = { id: string; text: string; kind: 'replay' | 'live'; lamps: (boolean | null)[]; door: 'trial' | 'pass' | 'fail'; tf: string }
@@ -437,9 +437,9 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
     const rows = [...gym.genomes].sort((a, b) => (b.pass ? 1 : 0) - (a.pass ? 1 : 0) || (b.oos_t ?? -99) - (a.oos_t ?? -99))
     g.replay = rows.map((r) => ({
       id: r.id, kind: 'replay', tf: r.tf ?? '5m',
-      lamps: r.h ? [...r.is.map((x) => x > 0), r.oos_t == null ? null : r.oos_t >= 2] : [null, null, null, null, null],
+      lamps: r.h ? [...r.is.map((x) => x > 0), r.val_t == null ? null : r.val_t >= 1.5, r.oos_t == null ? null : r.oos_t >= 2] : [null, null, null, null, null, null],
       door: r.pass ? 'pass' : r.why === 'thin' || r.why === 'untestable' ? 'trial' : 'fail',
-      text: `${GYM_WHY[r.why]?.[0] ?? r.why} · נרות ${TF_LABEL[r.tf ?? '5m'] ?? r.tf}${r.h ? ` · אופק ${fmtH(r.h)} · חוץ t ${r.oos_t ?? '—'}` : ''}`,
+      text: `${GYM_WHY[r.why]?.[0] ?? r.why} · נרות ${TF_LABEL[r.tf ?? '5m'] ?? r.tf}${r.gen ? ` · דור ${r.gen}` : ''}${r.h ? ` · אופק ${fmtH(r.h)} · ביניים t ${r.val_t ?? '—'} · סופי t ${r.oos_t ?? '—'}` : ''}`,
     }))
   }, [gym])
   // v85.2: live factory changes jump the gym queue — seeded / promoted / retired agents are seen as they happen
@@ -454,10 +454,10 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
         if (was === st) continue
         const tf = String((r.genome as Row | undefined)?.tf ?? '1m'), note = String(r.note ?? '')
         const ev: GymEvt | null =
-          !was && st === 'trial' ? { id, kind: 'live', tf, lamps: [null, null, null, null, null], door: 'trial', text: note.startsWith('gym') ? `נכנס לניסיון חי מחדר הכושר (${note})` : note.startsWith('child') ? `נולד מסוכן שעבר שלב (${note}) — לניסיון חי` : 'סוכן חדש — לניסיון חי' }
-          : st === 'oos' ? { id, kind: 'live', tf, lamps: [true, true, true, true, null], door: 'pass', text: 'עבר את הניסיון החי — עולה לבדיקה על נתונים שלא ראה' }
-          : st === 'live' ? { id, kind: 'live', tf, lamps: [true, true, true, true, true], door: 'pass', text: 'עבר גם את מבחן החוץ החי — מצביע מעכשיו' }
-          : st === 'retired' ? { id, kind: 'live', tf, lamps: [false, false, false, false, false], door: 'fail', text: was === 'oos' ? 'נפסל במבחן החוץ החי' : 'נפסל בניסיון החי' }
+          !was && st === 'trial' ? { id, kind: 'live', tf, lamps: [null, null, null, null, null, null], door: 'trial', text: note.startsWith('gym') ? `נכנס לניסיון חי מחדר הכושר (${note})` : note.startsWith('child') ? `נולד מסוכן שעבר שלב (${note}) — לניסיון חי` : 'סוכן חדש — לניסיון חי' }
+          : st === 'oos' ? { id, kind: 'live', tf, lamps: [true, true, true, true, true, null], door: 'pass', text: 'עבר את הניסיון החי — עולה לבדיקה על נתונים שלא ראה' }
+          : st === 'live' ? { id, kind: 'live', tf, lamps: [true, true, true, true, true, true], door: 'pass', text: 'עבר גם את מבחן החוץ החי — מצביע מעכשיו' }
+          : st === 'retired' ? { id, kind: 'live', tf, lamps: [false, false, false, false, false, false], door: 'fail', text: was === 'oos' ? 'נפסל במבחן החוץ החי' : 'נפסל בניסיון החי' }
           : null
         if (ev) g.liveQ.push(ev)
       }
@@ -652,10 +652,10 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
       {
         const G = GYM_ROOM, ga = gymAnim.current, gr = gymRef.current
         px(G.x0, G.y0, G.w, G.h, '#1b2433'); px(G.x0, G.floor, G.w, 6, '#5a3d27'); for (let x = G.x0; x < G.x0 + G.w; x += 14) px(x, G.floor, 1, 6, 'rgba(0,0,0,0.3)')
-        px(G.x0 + 16, G.floor - 4, GYM_STATIONS[4] - G.x0, 4, '#26344a')   // running mat
+        px(G.x0 + 16, G.floor - 4, GYM_STATIONS[5] - G.x0, 4, '#26344a')   // running mat
         for (let i = 0; i < 5; i++) px(G.x0 + 40 + i * 44, G.y0 + 10, 3, 3, '#f0b44c')   // wall lights
         GYM_STATIONS.forEach((sx, i) => {
-          px(sx - 12, G.floor - 12, 24, 12, i === 4 ? '#3a3050' : '#2c3c56'); px(sx - 12, G.floor - 12, 24, 2, '#4a6084')
+          px(sx - 12, G.floor - 12, 24, 12, i === 5 ? '#3a3050' : i === 4 ? '#3a3320' : '#2c3c56'); px(sx - 12, G.floor - 12, 24, 2, '#4a6084')
           const l = ga.cur?.lamps[i]
           px(sx - 4, G.floor - 20, 8, 7, l === true ? '#00d492' : l === false ? '#ff4d6a' : '#56607a')
           if (l === true && !reduced && Math.floor(t * 6) % 2) px(sx - 6, G.floor - 22, 12, 11, 'rgba(0,212,146,0.25)')
@@ -731,12 +731,12 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
         const g = gymAnim.current
         if (!g.cur && nowMs > g.gap) {
           const e = g.liveQ.shift() ?? (g.replay.length ? g.replay[g.i++ % g.replay.length] : null)
-          if (e) { g.cur = { e, x: GYM_ROOM.x0 + 14, st: 0, until: 0, lamps: [null, null, null, null, null] }; setGymNow({ id: e.id, text: e.text, kind: e.kind }) }
+          if (e) { g.cur = { e, x: GYM_ROOM.x0 + 14, st: 0, until: 0, lamps: [null, null, null, null, null, null] }; setGymNow({ id: e.id, text: e.text, kind: e.kind }) }
         } else if (g.cur && g.cur.until < nowMs) {
-          const c = g.cur, target = c.st < 5 ? GYM_STATIONS[c.st] : GYM_DOORS[c.e.door] + 10, sp = (reduced ? 400 : 75) * dt
+          const c = g.cur, target = c.st < 6 ? GYM_STATIONS[c.st] : GYM_DOORS[c.e.door] + 10, sp = (reduced ? 400 : 75) * dt
           if (Math.abs(target - c.x) <= sp) {
             c.x = target
-            if (c.st < 5) { c.lamps[c.st] = c.e.lamps[c.st]; c.until = nowMs + (reduced ? 0 : 260); c.st++ }
+            if (c.st < 6) { c.lamps[c.st] = c.e.lamps[c.st]; c.until = nowMs + (reduced ? 0 : 240); c.st++ }
             else { g.done[c.e.door]++; g.cur = null; g.gap = nowMs + 400 }
           } else c.x += Math.sign(target - c.x) * sp
         }
@@ -1179,13 +1179,13 @@ function Factory({ snap }: { snap: Snap | null }) {
 // v85.0: the gym — every genome the offline 36-month walk-forward examined, one card each.
 // Read from the public JSON the backtest workflow commits; nothing is computed here.
 const GYM_URL = 'https://raw.githubusercontent.com/aliexpressgood585/spacehub/main/status/gym-latest.json'
-type GymG = { id: string; genome: Genome; tf: string; testable: boolean; h: number | null; n: number; k: number; is: number[]; is_t: number | null; oos_bps: number | null; oos_t: number | null; oos_n: number; pass: boolean; why: string }
+type GymG = { id: string; genome: Genome; tf: string; testable: boolean; gen?: number; parent?: string | null; h: number | null; n: number; k: number; is: number[]; is_t: number | null; val_bps?: number | null; val_t?: number | null; oos_bps: number | null; oos_t: number | null; oos_n: number; pass: boolean; why: string }
 type GymSetRep = { tf: string; coins: string[]; bars: number; from: string; to: string; counts: { tested: number; passed: number } }
-type GymRep = { ran_at: string; sha: string | null; data: { months: number; windows: number; oos_share: number; sets: GymSetRep[] }; counts: { tested: number; testable: number; passed: number }; genomes: GymG[] }
+type GymRep = { ran_at: string; sha: string | null; data: { months: number; windows: number; is_share?: number; val_share?: number; oos_share: number; sets: GymSetRep[] }; counts: { tested: number; testable: number; passed: number }; genomes: GymG[] }
 const GYM_TF_ORDER = ['4h', '1d', '5m']
 const fmtH = (m: number) => m >= 1440 ? `${m / 1440} ימים` : m >= 60 ? `${m / 60} שעות` : `${m} דק׳`
-const GYM_WHY: Record<string, [string, string]> = { pass: ['עבר', 'ok'], oos: ['נכשל במבחן החוץ', 'bad'], window: ['חלון שלילי', 'bad'], is_t: ['חלש בתוך המדגם', 'bad'], thin: ['מעט דגימות', ''], untestable: ['לא נבחן אופליין', ''] }
-const GYM_ORDER = ['pass', 'oos', 'window', 'is_t', 'thin', 'untestable']
+const GYM_WHY: Record<string, [string, string]> = { pass: ['עבר', 'ok'], oos: ['נכשל במבחן הסופי', 'bad'], val: ['נכשל בבדיקת הביניים', 'bad'], window: ['חלון שלילי', 'bad'], is_t: ['חלש בתוך המדגם', 'bad'], thin: ['מעט דגימות', ''], untestable: ['לא נבחן אופליין', ''] }
+const GYM_ORDER = ['pass', 'oos', 'val', 'window', 'is_t', 'thin', 'untestable']
 const GYM_STAGE: Record<string, string> = { trial: 'בניסיון חי', oos: 'בבדיקה חיה', live: 'מצביע', retired: 'נפסל בלייב' }
 function GymWall({ gym, snap }: { gym: GymRep | null | 'missing'; snap: Snap | null }) {
   const [open, setOpen] = useState<Record<string, boolean>>({ pass: true })
@@ -1198,7 +1198,7 @@ function GymWall({ gym, snap }: { gym: GymRep | null | 'missing'; snap: Snap | n
   const groups = GYM_ORDER.flatMap((w) => sets.map((s) => ({ key: `${w}|${s.tf}`, w, tf: s.tf, rows: gym.genomes.filter((g) => g.why === w && (g.tf ?? '5m') === s.tf).sort((a, b) => (b.oos_t ?? -99) - (a.oos_t ?? -99)) }))).filter((g) => g.rows.length)
   return <section className="bh-wall">
     {head}
-    <p className="bh-mnote">{sets.map((s) => `${TF_LABEL[s.tf] ?? s.tf}: ${s.coins.length} מטבעות, ${s.bars.toLocaleString()} נרות ${s.from} → ${s.to}, ${s.counts.passed} עברו מ־${s.counts.tested}`).join(' · ')}. {gym.data.windows} חלונות בתוך המדגם + {Math.round(gym.data.oos_share * 100)}% מוחזקים בחוץ. ציון = נקודות בסיס לעסקה אחרי 16 נק׳ עמלות (ומימון לפי משך ההחזקה ב־4 שעות/יומי); t מתוקן לחפיפה ולמתאם בין מטבעות (כמו בליגה). עובר = חיובי בכל {gym.data.windows} החלונות וגם t≥2 בחוץ. סוכן שעבר נכנס לניסיון החי על הנרות שלו ומסומן כאן בשלב שלו.</p>
+    <p className="bh-mnote">{sets.map((s) => `${TF_LABEL[s.tf] ?? s.tf}: ${s.coins.length} מטבעות, ${s.bars.toLocaleString()} נרות ${s.from} → ${s.to}, ${s.counts.passed} עברו מ־${s.counts.tested}`).join(' · ')}. {gym.data.windows} חלונות לימוד ({Math.round((gym.data.is_share ?? 0.8) * 100)}%) → בדיקת ביניים ({Math.round((gym.data.val_share ?? 0) * 100)}%, t≥1.5) → מבחן סופי ({Math.round(gym.data.oos_share * 100)}%, t≥2, נקרא פעם אחת). ציון = נקודות בסיס לעסקה אחרי 16 נק׳ עמלות (ומימון לפי משך ההחזקה); t מתוקן לחפיפה ולמתאם בין מטבעות (כמו בליגה). האבולוציה מגדלת צאצאים רק מסוכנים שעברו את הלימוד והביניים — המבחן הסופי לעולם לא בוחר הורים. סוכן שעבר נכנס לניסיון החי על הנרות שלו ומסומן כאן בשלב שלו.</p>
     {groups.map((g) => {
       const isOpen = open[g.key] ?? (g.w === 'pass'), lim = shown[g.key] ?? 120
       return <div key={g.key} className="bh-grp">
@@ -1209,8 +1209,8 @@ function GymWall({ gym, snap }: { gym: GymRep | null | 'missing'; snap: Snap | n
             <div className="bh-card-h"><b dir="ltr" title={r.id}>{r.id}</b><span className="bh-cchip">{TF_LABEL[r.tf ?? '5m'] ?? r.tf}</span><span className={`bh-cchip ${GYM_WHY[r.why]?.[1] ?? ''}`}>{GYM_WHY[r.why]?.[0] ?? r.why}</span>{st && <span className="bh-cchip ok">{GYM_STAGE[st] ?? st}</span>}</div>
             <small className="bh-card-r" title={genomeText(r.genome)}>{genomeText(r.genome)}</small>
             {r.testable && r.h ? <>
-              <div className="bh-win" title={`${gym.data.windows} חלונות בתוך המדגם, ואז החוץ`}>{r.is.map((x, i) => <span key={i} className={x > 0 ? 'up' : 'dn'}>{x > 0 ? '+' : ''}{x.toFixed(1)}</span>)}<span className={(r.oos_t ?? -9) >= 2 ? 'up' : 'dn'}>חוץ {r.oos_bps ?? '—'} · t {r.oos_t ?? '—'}</span></div>
-              <small className="bh-card-s" dir="rtl">אופק {fmtH(r.h)} · {r.n.toLocaleString()} הצבעות · t בפנים {r.is_t} · {r.k} מטבעות לאירוע</small>
+              <div className="bh-win" title={`${gym.data.windows} חלונות בתוך המדגם, בדיקת ביניים, מבחן סופי`}>{r.is.map((x, i) => <span key={i} className={x > 0 ? 'up' : 'dn'}>{x > 0 ? '+' : ''}{x.toFixed(1)}</span>)}{r.val_t !== undefined && <span className={(r.val_t ?? -9) >= 1.5 ? 'up' : 'dn'}>ביניים t {r.val_t ?? '—'}</span>}<span className={(r.oos_t ?? -9) >= 2 ? 'up' : 'dn'}>סופי {r.oos_bps ?? '—'} · t {r.oos_t ?? '—'}</span></div>
+              <small className="bh-card-s" dir="rtl">אופק {fmtH(r.h)} · {r.n.toLocaleString()} הצבעות · t בפנים {r.is_t} · {r.k} מטבעות לאירוע{r.gen ? ` · דור ${r.gen}` : ''}{r.parent ? ` · צאצא של ${r.parent}` : ''}</small>
             </> : r.testable ? <small className="bh-card-s">פחות מ־300 הצבעות ב־36 חודשים — אין מה למדוד</small>
               : <small className="bh-card-s">צריך נתונים בלי ארכיון (ספר פקודות / פאנדינג / פרמיה / ריבית פתוחה) — נבחן רק בלייב</small>}
           </div>
