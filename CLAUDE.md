@@ -61,6 +61,18 @@ Answered with the real state instead. Live, v80.2 (56cd826d) paper true / live f
 $5,000 (-3.3%). Book: 8 open, all planned 240 min (proven agents' best horizon is now
 4h), 5 LONG / 3 SHORT, cash $51. No non-SCALP rows.
 
+## v81.0 (2026-09-24) — owner: "all of it, fast" (after "what else can be improved")
+MEASURED FIRST (143 closes since 2nd reset, by exit reason): FLIP 80 closes WR 83% +$189;
+STOP 51 WR 4% -$337 (hit after ~17 min of ~82 planned); PLANNED 12 -$15.
+Replay of every closed trade on agent_snapshots mids: holding the STOPPED trades to plan
+(4% emergency stop) = -1.13% net avg vs -0.98% actual, only 16% would end green ->
+THE STOP IS RIGHT, those entries were simply wrong; no stop change. FLIP already exits
+losers when the team turns, so "earlier team exit" was already in place. No change there.
+SHIPPED: (a) `LEARN.provenT` 1 -> 2.5 (multiple testing: 75 agents x 4 horizons, best kept;
+live 10 at t>=1, 7 at t>=2.5, so proven mode stays on); (b) `SCALP.maxSameSide` 6 via
+`balancePicks` — no more than 6 of 8 open on one side (entries only, runner-side, no ledger
+change); (c) daily Hebrew report routine. Tests added in swarm/scalp suites.
+
 ## v80.3 (2026-09-24) — PEPE showed "0.00000" everywhere (display only)
 Owner: "why is PEPE without market data". Data was fine (bot entry 0.00000432, source
 binance-futures); the house's `fmtPx` printed sub-$1 prices with toFixed(5), so PEPE's
