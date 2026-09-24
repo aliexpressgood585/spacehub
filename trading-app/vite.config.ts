@@ -10,6 +10,7 @@ export default defineConfig({
       input: {
         main: 'index.html',
         house: 'house.html',
+        house3d: 'house3d.html',
       },
     },
   },

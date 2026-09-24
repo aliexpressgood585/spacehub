@@ -61,6 +61,22 @@ Answered with the real state instead. Live, v80.2 (56cd826d) paper true / live f
 $5,000 (-3.3%). Book: 8 open, all planned 240 min (proven agents' best horizon is now
 4h), 5 LONG / 3 SHORT, cash $51. No non-SCALP rows.
 
+## v84.0 (2026-09-24) — "אורביטל": the house in 3D (owner: "3D, out of this world, real actions behind every agent";
+## and: NO bot changes until they decide). Dashboard only; the bot, its shim and the DB are untouched.
+`trading-app/src/components/Orbital.tsx`, page `house3d.html` (+ link from house.html). three.js via
+@react-three/fiber 8 / drei 9 (React 18). Same rule as the 2D house: every value read with the anon key,
+nothing computed that the bot does not compute, missing = "—". Scene: decision core (colour = last PM
+decision, pulse fades over the minute), pillars for open positions (height = share of equity, colour =
+side, gold octahedron = ROTA), five rotating rings (house 11 / desk 3 / analysts 10 / swarm 60 in six
+team arcs / info 6), node size = learned weight, colour = learning/active/boosted/benched, halo when the
+agent voted this minute (green/red by majority), line to the core when it argued with the PM (round 2),
+factory nebula (trial dim / oos amber / live green / retired below). Click = panel with the agent's real
+record: weight, corrected t, best horizon, bps, n, last-minute votes, 40-coin grid, its line in the last
+meeting and any round-2 argument. HUD: version/sleeves, paper, heartbeat, mode, equity + sparkline, cash,
+positions; footer: last meeting action, legend. Verified headless (Chromium/swiftshader): canvas + 31
+labels render, no page errors (DB unreachable from the sandbox, so data shows "—" there). Build 887KB
+(242KB gz). NOT a bot change.
+
 ## v83.0 (2026-09-24) — "all five, to the highest level" (owner). Five upgrades in one release.
 1. LEARNING TO 24h: `LEARN.horizonsMin` + 1440; snapshots kept 26h; `halfLifeFor(h)` = max(12h, 6h·h)
    so a 24h-horizon score remembers 6 days (12h memory could never judge a 24h call — steady
