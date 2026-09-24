@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import {FACTORY,FEATURES,features,vote,spawn,step,genomeId,statKeys,OOS,rng,mutate,type FactoryRow} from '../shared/factory.ts'
+import {FACTORY,FEATURES,FEATURE_LABEL,FEATURE_KEYS,features,vote,spawn,step,genomeId,statKeys,OOS,rng,mutate,gymPicks,genomeText,type FactoryRow} from '../shared/factory.ts'
 import {LEARN,hKey,type Stat} from '../shared/swarm.ts'
 const now=1_800_000_000_000,iso=(t:number)=>new Date(t).toISOString()
 const bars=(f:(i:number)=>number)=>Array.from({length:65},(_,i)=>{const c=f(i),o=f(i-1);return {t:now-(65-i)*60000,o,h:Math.max(o,c)*1.0002,l:Math.min(o,c)*0.9998,c,v:100+(i>60?300:0)}})
@@ -42,4 +42,10 @@ assert.equal(step(row('live',60),{[hKey(OOS('g_t'),60)]:st(300,1)},now)!.stage,'
 assert.equal(step(row('live',60),{[hKey(OOS('g_t'),60)]:st(300,15)},now),null,'live and still good -> stays')
 assert.equal(statKeys('g_t').length,LEARN.horizonsMin.length*2)
 assert.ok(FACTORY.liveT>=LEARN.provenT,'live bar is at least the proven bar')
-console.log('Agent factory: features, genomes, deterministic spawn, no re-test, trial -> oos -> live lifecycle passed')
+// v85.0 gym seeding: passers ahead of random spawns, best held-out t first, retired ids never re-enter, slots respected
+{const P=[{id:'g_a',genome:{a:['r5',0.4,1] as [string,number,1|-1]},h:60,oos_t:2.1,is:[1,2,3,4]},{id:'g_b',genome:{a:['r5',0.8,1] as [string,number,1|-1]},h:15,oos_t:3.4,is:[1,1,1,1]},{id:'g_c',genome:{a:['z20',2,-1] as [string,number,1|-1]},h:240,oos_t:2.6,is:[2,2,2,2]}]
+ const picks=gymPicks(P,new Set(['g_c']),5);assert.deepEqual(picks.map(p=>p.id),['g_b','g_a'],'retired/taken excluded, best OOS t first')
+ assert.ok(picks[0].note.startsWith('gym: 4/4 windows, oos t=3.4 @15m'),picks[0].note)
+ assert.equal(gymPicks(P,new Set(),1).length,1,'slots respected');assert.equal(gymPicks(P,new Set(),0).length,0)
+ assert.ok(FEATURE_KEYS.every(k=>FEATURE_LABEL[k]),'every feature has a Hebrew label');assert.ok(genomeText({a:['rsi14',0.4,-1],b:['vr',1,1]}).includes('וגם'))}
+console.log('Agent factory: features, genomes, deterministic spawn, no re-test, trial -> oos -> live lifecycle, gym seeding passed')
