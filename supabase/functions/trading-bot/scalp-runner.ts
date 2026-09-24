@@ -25,12 +25,12 @@ async function slowBars(db:any,now:number,tfs:Tf[]):Promise<Partial<Record<Tf,Re
   const {data:rows}=await db.from('market_cache').select('key,data,ts').in('key',tfs.map(t=>`bars_${t}`)).throwOnError()
   for(const tf of tfs){
     const c=(rows??[]).find((r:any)=>r.key===`bars_${tf}`)
-    if(c&&now-Date.parse(c.ts)<3600_000){out[tf]=c.data;continue}
+    if(c&&now-Date.parse(c.ts)<(tf==='15m'?15*60_000:3600_000)){out[tf]=c.data;continue}   // a 15m genome needs fresher bars
     const fresh:Record<string,Bar[]>={}
     await pool([...UNIVERSE],8,async sym=>{
       const {s,k}=bsym(sym)
       try{const r=await json(`https://fapi.binance.com/fapi/v1/klines?symbol=${s}&interval=${tf}&limit=100`);const b:Bar[]=r.filter((x:any)=>Number(x[6])<now).map((x:any)=>({t:+x[0],o:+x[1]/k,h:+x[2]/k,l:+x[3]/k,c:+x[4]/k,v:+x[5]*k}));if(b.length<85)throw new Error('short');fresh[sym]=b}
-      catch{try{const r=await json(`https://www.okx.com/api/v5/market/candles?instId=${sym}-USDT-SWAP&bar=${tf==='4h'?'4H':'1Dutc'}&limit=100`);if(r.code!=='0')throw new Error('okx');const b:Bar[]=r.data.filter((x:any)=>x[8]==='1').reverse().map((x:any)=>({t:+x[0],o:+x[1],h:+x[2],l:+x[3],c:+x[4],v:+x[5]}));if(b.length>=85)fresh[sym]=b}catch{}}
+      catch{try{const r=await json(`https://www.okx.com/api/v5/market/candles?instId=${sym}-USDT-SWAP&bar=${tf==='4h'?'4H':tf==='1d'?'1Dutc':'15m'}&limit=100`);if(r.code!=='0')throw new Error('okx');const b:Bar[]=r.data.filter((x:any)=>x[8]==='1').reverse().map((x:any)=>({t:+x[0],o:+x[1],h:+x[2],l:+x[3],c:+x[4],v:+x[5]}));if(b.length>=85)fresh[sym]=b}catch{}}
     })
     if(Object.keys(fresh).length>=20){out[tf]=fresh;await db.from('market_cache').upsert({key:`bars_${tf}`,data:fresh,ts:new Date(now).toISOString()}).throwOnError()}
     else out[tf]=c?.data??{}
@@ -163,7 +163,7 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean,rotaS
     const fs:Partial<Record<Tf,Record<string,number>>>={}
     for(const tf of slowTfs){const b=slow[tf]?.[sym];if(b&&b.length>=65)fs[tf]=features(b,{xm7:xm7[sym],xm14:xm14[sym],xm28:xm28[sym],btc:sym==='BTC'?undefined:slow[tf]?.BTC})}
     const v:Record<string,number>={}
-    for(const r of frows){let d=0;try{const ff=r.genome.tf?fs[r.genome.tf]:f;d=ff?vote(r.genome,ff):0}catch{d=0}if(d){v[r.id]=d;if(r.stage!=='trial')v[OOS(r.id)]=d}}
+    for(const r of frows){let d=0;try{const ff=r.genome.tf?fs[r.genome.tf]:f;d=ff?vote(r.genome,ff,Date.now()):0}catch{d=0}if(d){v[r.id]=d;if(r.stage!=='trial')v[OOS(r.id)]=d}}   // v85.4: `now` applies a genome's hour/day gate
     factVotes[sym]=v
   }
   const VOTERS=[...DIRECTIONAL,...SWARM.map(x=>x.id),...INFO_IDS,...liveF.map(r=>OOS(r.id))]

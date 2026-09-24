@@ -25,9 +25,28 @@ export type Stage = 'trial' | 'oos' | 'live' | 'retired'
 export type Gene = [key: string, th: number, dir: 1 | -1]
 // v85.1: `tf` = the bars the genome reads. Absent = the live 1-minute bars (gym-tested on 5m);
 // '4h' / '1d' genomes come from the gym's slow sets and are evaluated live on 4h / 1d bars.
-export type Tf = '4h' | '1d'
-export interface Genome { a: Gene; b?: Gene; tf?: Tf }
-export const TF_LABEL: Record<string, string> = { '5m': '5 דק׳', '1m': 'דקה', '4h': '4 שעות', '1d': 'יומי' }
+export type Tf = '15m' | '4h' | '1d'
+// v85.4: an optional TIME GATE — the genome votes only inside a UTC hour window and/or on given weekdays.
+// It is a condition of the genome (judged by the same gym / live gauntlet), not a filter on the bot.
+export interface When { h?: [number, number]; d?: number[] }
+export interface Genome { a: Gene; b?: Gene; tf?: Tf; when?: When }
+export const TF_LABEL: Record<string, string> = { '5m': '5 דק׳', '1m': 'דקה', '15m': '15 דק׳', '4h': '4 שעות', '1d': 'יומי' }
+export const WHENS: Record<string, { w: When; label: string }> = {
+  asia: { w: { h: [0, 8] }, label: 'שעות אסיה 00–08' }, eu: { w: { h: [8, 16] }, label: 'שעות אירופה 08–16' }, us: { w: { h: [16, 24] }, label: 'שעות ארה״ב 16–24' },
+  usopen: { w: { h: [13, 21] }, label: 'פתיחת ארה״ב 13–21' }, night: { w: { h: [22, 6] }, label: 'לילה 22–06' },
+  wkd: { w: { d: [1, 2, 3, 4, 5] }, label: 'ימי חול' }, wke: { w: { d: [0, 6] }, label: 'סוף שבוע' }, mon: { w: { d: [1] }, label: 'יום שני' }, fri: { w: { d: [5] }, label: 'יום שישי' },
+  euwkd: { w: { h: [8, 16], d: [1, 2, 3, 4, 5] }, label: 'אירופה, ימי חול' }, uswkd: { w: { h: [16, 24], d: [1, 2, 3, 4, 5] }, label: 'ארה״ב, ימי חול' },
+}
+export const WHEN_KEYS = Object.keys(WHENS)
+export function whenOk(w: When | undefined, t: number): boolean {
+  if (!w) return true
+  const d = new Date(t), hr = d.getUTCHours(), dw = d.getUTCDay()
+  if (w.d && !w.d.includes(dw)) return false
+  if (w.h) { const [a, b] = w.h; if (a <= b ? (hr < a || hr >= b) : (hr < a && hr >= b)) return false }
+  return true
+}
+const whenId = (w?: When) => { if (!w) return ''; const k = WHEN_KEYS.find((k) => JSON.stringify(WHENS[k].w) === JSON.stringify(w)); return '_' + (k ?? `h${w.h?.join('-') ?? ''}d${w.d?.join('') ?? ''}`) }
+export const whenText = (w?: When) => { if (!w) return ''; const k = WHEN_KEYS.find((k) => JSON.stringify(WHENS[k].w) === JSON.stringify(w)); return k ? WHENS[k].label : `${w.h ? `שעות ${w.h[0]}–${w.h[1]} UTC` : ''}${w.d ? ` ימים ${w.d.join(',')}` : ''}` }
 export interface FactoryRow { id: string; genome: Genome; stage: Stage; born: string; stage_at: string; h: number | null; note?: string | null }
 export const OOS = (id: string) => `${id}#o`
 
@@ -52,7 +71,7 @@ export const FEATURE_LABEL: Record<string, string> = {
   oi: 'שינוי ריבית פתוחה', btc5: 'ביטקוין 5 נרות', btc15: 'ביטקוין 15 נרות',
 }
 export const geneText = (g: Gene) => `${FEATURE_LABEL[g[0]] ?? g[0]} ≥ ${g[1]} → ${g[2] > 0 ? 'עם הכיוון' : 'נגד הכיוון'}`
-export const genomeText = (g: Genome) => `${g.b ? `${geneText(g.a)} וגם ${geneText(g.b)}` : geneText(g.a)}${g.tf ? ` (נרות ${TF_LABEL[g.tf]})` : ''}`
+export const genomeText = (g: Genome) => `${g.b ? `${geneText(g.a)} וגם ${geneText(g.b)}` : geneText(g.a)}${g.when ? `, רק ב${whenText(g.when)}` : ''}${g.tf ? ` (נרות ${TF_LABEL[g.tf]})` : ''}`
 // v85.0 gym: a genome that passed the offline walk-forward (status/gym-latest.json) is seeded
 // into live TRIAL ahead of random spawns — never past it. Retired ids stay retired (`taken`).
 export interface GymPass { id: string; genome: Genome; h: number | null; oos_t: number | null; is: number[] }
@@ -82,12 +101,14 @@ export function features(b: Bar[], x: FeatCtx): Record<string, number> {
 }
 const geneVote = (g: Gene, f: Record<string, number>) => { const v = f[g[0]]; return Number.isFinite(v) && Math.abs(v) >= g[1] ? g[2] * Math.sign(v) : 0 }
 // one condition, or two that must agree
-export function vote(g: Genome, f: Record<string, number>): number {
+// `t` (ms) lets a time-gated genome abstain outside its window; without it the gate is ignored.
+export function vote(g: Genome, f: Record<string, number>, t?: number): number {
+  if (g.when && t !== undefined && !whenOk(g.when, t)) return 0
   const a = geneVote(g.a, f); if (!g.b) return a
   const b = geneVote(g.b, f); return a && a === b ? a : 0
 }
 const gid = (g: Gene) => `${g[0]}${String(g[1]).replace('.', 'p')}${g[2] > 0 ? 'f' : 'r'}`
-export const genomeId = (g: Genome) => `${g.tf === '4h' ? 'g4' : g.tf === '1d' ? 'gd' : 'g'}_${gid(g.a)}${g.b ? '_' + gid(g.b) : ''}`
+export const genomeId = (g: Genome) => `${g.tf === '4h' ? 'g4' : g.tf === '1d' ? 'gd' : g.tf === '15m' ? 'g15' : 'g'}_${gid(g.a)}${g.b ? '_' + gid(g.b) : ''}${whenId(g.when)}`
 
 // mulberry32 — deterministic, so a run can be reproduced from its seed
 export function rng(seed: number) { let s = seed >>> 0; return () => { s = (s + 0x6d2b79f5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296 } }
@@ -102,11 +123,16 @@ function gene(r: () => number, not?: string): Gene {
 // different hypothesis, not a variant). Mutants face the same trial -> oos -> live gauntlet.
 export function mutate(g: Genome, r: () => number): Genome {
   const stepTh = (x: Gene): Gene => { const th = FEATURES[x[0]], i = th.indexOf(x[1]), j = Math.max(0, Math.min(th.length - 1, i + (r() < 0.5 ? -1 : 1))); return [x[0], th[j], x[2]] }
+  const keep = { ...(g.tf ? { tf: g.tf } : {}), ...(g.when ? { when: g.when } : {}) }   // timeframe and gate travel with the child
   const roll = r()
-  if (roll < 0.4) return { a: stepTh(g.a), b: g.b }
-  if (roll < 0.6 && g.b) return { a: g.a, b: stepTh(g.b) }
-  if (roll < 0.8) return { a: g.a, b: gene(r, g.a[0]) }
-  return g.b ? { a: g.a } : { a: g.a, b: gene(r, g.a[0]) }
+  if (roll < 0.35) return { ...keep, a: stepTh(g.a), ...(g.b ? { b: g.b } : {}) }
+  if (roll < 0.5 && g.b) return { ...keep, a: g.a, b: stepTh(g.b) }
+  if (roll < 0.65) return { ...keep, a: g.a, b: gene(r, g.a[0]) }
+  if (roll < 0.8) return g.b ? { ...keep, a: g.a } : { ...keep, a: g.a, b: gene(r, g.a[0]) }
+  // v85.4: the gate mutates too — gain one, change it, or drop it
+  const { when: _drop, ...rest } = keep
+  if (roll < 0.9 || !g.when) return { ...rest, when: WHENS[WHEN_KEYS[Math.floor(r() * WHEN_KEYS.length)]].w, a: g.a, ...(g.b ? { b: g.b } : {}) }
+  return { ...rest, a: g.a, ...(g.b ? { b: g.b } : {}) }
 }
 export function spawn(n: number, seed: number, taken: Set<string>, parents: Genome[] = []): { id: string; genome: Genome; parent?: string }[] {
   const r = rng(seed), out: { id: string; genome: Genome; parent?: string }[] = []
