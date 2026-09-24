@@ -11,6 +11,8 @@ assert.equal(vote({a:['r5',0.4,1]},f),1);assert.equal(vote({a:['r5',0.4,-1]},f),
 assert.equal(vote({a:['r5',0.4,1],b:['ob',0.2,1]},f),1,'two agreeing conditions');assert.equal(vote({a:['r5',0.4,1],b:['ob',0.2,-1]},f),0,'disagreeing -> no vote')
 assert.equal(vote({a:['oi',1,1]},f),0,'missing data abstains')
 assert.equal(genomeId({a:['r5',0.4,1],b:['ob',0.2,-1]}),'g_r50p4f_ob0p2r')
+assert.equal(genomeId({a:['r5',0.4,1],tf:'4h'}),'g4_r50p4f');assert.equal(genomeId({a:['r5',0.4,1],tf:'1d'}),'gd_r50p4f')
+assert.equal(vote({a:['r5',0.4,1],tf:'4h'},{r5:0.5}),1,'tf does not change the vote')
 // spawn: deterministic, unique, never re-tests a taken genome
 const s1=spawn(50,7,new Set()),s2=spawn(50,7,new Set());assert.deepEqual(s1,s2,'same seed -> same generation')
 assert.equal(new Set(s1.map(x=>x.id)).size,50)
