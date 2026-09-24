@@ -106,8 +106,9 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean,rotaS
   const closedHist:any[]=due?((await db.from('bot_trades').select('sym,side,pnl,fee,opened_at,closed_at,scalp_meta').eq('strategy','SCALP').neq('status','OPEN').order('closed_at',{ascending:false}).limit(200).throwOnError()).data??[]):[]
   // v75.0 shadow learning: every agent's weight comes from how its votes did over the next 5 minutes.
   let learnErr=''
-  const statRows:Stat[]=due?await Promise.resolve(db.from('agent_stats').select('agent,n,s,s2,updated_at').throwOnError()).then((r:any)=>r.data??[],(e:any)=>{learnErr=String(e?.message??e);return []}):[]
-  const stats:Record<string,Stat>=Object.fromEntries(statRows.map(r=>[r.agent,decayStat({...r,n:+r.n,s:+r.s,s2:+r.s2},r.agent,Date.now())]))
+  const statRows:Stat[]=due?await Promise.resolve(db.from('agent_stats').select('agent,n,s,s2,ev,updated_at').throwOnError()).then((r:any)=>r.data??[],(e:any)=>{learnErr=String(e?.message??e);return []}):[]
+  // v83.2: `ev` MUST be read back — without it every cycle restarted the event count at 0, wrote 1, and k=n/ev deflated every t to ~0
+  const stats:Record<string,Stat>=Object.fromEntries(statRows.map(r=>[r.agent,decayStat({...r,n:+r.n,s:+r.s,s2:+r.s2,ev:+(r.ev??0)},r.agent,Date.now())]))
   // v79.0: each agent is weighted on its best horizon (5/15/60/240 min, net of costs); weights never all hit zero.
   // v82.0 info agents (days-long momentum, open interest, basis) — data no 1-minute agent sees
   let info:InfoData={daily:{},oi:{},premium:ctx?.premium??{}},infoNote=''
