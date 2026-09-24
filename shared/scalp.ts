@@ -5,7 +5,10 @@
 // liquidation context that only counts when its source, time and price check out.
 import { AGENTS, NEW_AGENTS, type AgentCtx } from './agents.ts'
 import { SWARM, TEAMS, runSwarm, type Team } from './swarm.ts'
-export const SCALP = { minWeighted: 0.2, maxHoldMs: 1440*60_000, minHoldMs: 60_000, meetingMs: 60_000, fee: 0.0005, slip: 0.0003, maxSpread: 0.001, maxPositions: 8, maxEntries: 2, maxSameSide: 6, allocation: 0.99, perCoin: 0.5, newsMaxAgeMs: 60*60_000, liqMaxAgeMs: 10*60_000, liqMaxPxDev: 0.03 } as const
+// v86.0: holds 5 min - 4 h (owner: timeframes 5m to 4h); many parallel positions sized by RISK (0.5% of equity
+// at the stop per trade, × graded risk scale × correlation scale), up to 16 open, 25% per coin, 10 per side.
+// fee and slip mirror shared/costs.ts (COST.takerFee / COST.minSlip) — asserted in tests.
+export const SCALP = { minWeighted: 0.2, maxHoldMs: 240*60_000, minHoldMin: 5, minHoldMs: 60_000, meetingMs: 60_000, fee: 0.0005, slip: 0.0003, maxSpread: 0.001, maxPositions: 16, maxEntries: 4, maxSameSide: 10, allocation: 0.99, perCoin: 0.25, riskPerTrade: 0.005, newsMaxAgeMs: 60*60_000, liqMaxAgeMs: 10*60_000, liqMaxPxDev: 0.03 } as const
 // v81.0: direction balance — the strongest picks of a meeting, skipping any that would put
 // more than maxSameSide of the book on one side (an all-long/all-short book is one market bet).
 export function balancePicks<T extends { side: number }>(picks: readonly T[], openSides: readonly number[], limit: number, maxSame: number = SCALP.maxSameSide): T[] {
