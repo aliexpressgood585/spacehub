@@ -91,6 +91,10 @@ v83.1 (same hour): (a) `starved` = any cash skip -> retry in 1h (the 12:26 cycle
 too, so the all-cash test missed it; rebalanced_at set back by SQL to retry within the hour);
 (b) factory judges on SNAPSHOTS not coin-votes: trialMinEv 60 (1h), oosMinEv 120 (2h),
 trialRetireT -0.5 — 46 retirements in 90 min were noise on ~10-minute samples.
+DEPLOYED 12:31 UTC: PR #52 (cbeb829a), function v51, manifest v83.1 SCALP,ROTA paper true / live
+false. Verified 12:50: 0 errors, heartbeat current, 8 meetings/10 min; SCALP already down to its
+share — cash $2,460 (was $32) as 4h holds closed and re-entries capped at 49%; equity $4,841.97;
+next ROTA attempt ~13:31 UTC (rebalanced_at set back to 01:31). Factory 100 trial / 50 retired.
 
 ## v82.0 (2026-09-24) — new-information agents + autonomous AGENT FACTORY (owner: "10,000 agents"; then "both, fast")
 Owner asked for 10,000 agents. Told plainly: 10k x 4 horizons would make ~250 agents look "proven" by
