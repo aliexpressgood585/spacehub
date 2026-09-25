@@ -356,6 +356,17 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v90.0 (2026-09-25) — factory retires a trial genome only after it fails on ALL horizons (owner: "כן")
+`shared/factory.ts`: `promisingHorizons()` = immature horizons with n>=30 and corrected t>0; a trial genome is retired
+on t only when none is pending (note "trial t=… (all horizons)"); the 12h timeout applies only when nothing is pending;
+hard cap `trialHardMaxH` 36h. Tests +6. DEPLOYED: PR #71 (3cedf24b), function v67, manifest v90.0 first_seen 06:45:25
+UTC, paper true / live false, 0 bot_errors in 30 min; first retirement under the new rule "trial t=-0.62 (all horizons)".
+Factory 98 trial / 2 oos. No trades expected from this alone: a genome must still pass OOS (n>=200, t>=2.5).
+FOUND 07:00 (owner asked about the gym passer): `g2h_vr2f_dd301r_wkd` (the only gym PASS, 2h bars, weekdays, hold 8h)
+was RETIRED 2026-09-25 05:50 with note "trial timeout" — 12h after seeding, with n=1 scored vote (@240). A 2h-bar,
+weekday-only genome cannot reach n>=300 in 12h, nor in v90's 36h; it was never judged, only timed out. Not fixed yet:
+slow-bar genomes need a timeout scaled to their bar size (and re-seeding of this one). Put to the owner.
+
 ## v89.0 (2026-09-25 06:29 UTC) — AGGRESSIVE-DEMO CALIBRATION + live funnel (owner full prompt, autonomy)
 ANALYSIS FIRST (since v87 22:46 UTC): 8,755 gate decisions over 376 meetings, 100% `no_edge_estimate` (evidence
 gate); 0 SCALP entries since the gate went live 09-24 18:06 (the owner's "3 positions" were the pre-close ROTA
