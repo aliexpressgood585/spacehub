@@ -303,7 +303,7 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean,rotaS
     if(!m) {retained.push(t);exposure+=notional;equity+=notional;continue}
     const px=dir===1?m.q.bid:m.q.ask;marks[t.sym]=px
     // v83.0: a ROTA slot is a foreign position — marked, counted in equity, never touched here
-    if(t.strategy==='ROTA'){retained.push(t);exposure+=notional;continue}
+    if(t.strategy==='ROTA'||t.strategy==='BRKV'){retained.push(t);exposure+=notional;continue}   // v93.0: BRKV is foreign too
     const plan=exitPlan(t,m.q,now,due?views.get(t.sym):undefined)
     if(t.strategy!=='SCALP'||plan.close) {
       // v86.0 one cost model: the exit pays the depth-based slippage measured NOW, beyond the fixed floor exitPlan already applied
@@ -319,7 +319,7 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean,rotaS
   const scalpRows=retained.filter(t=>t.strategy==='SCALP'),rotaRows=retained.filter(t=>t.strategy==='ROTA')
   const scalpExpo=scalpRows.reduce((s:number,t:any)=>s+Number(t.entry_price)*Number(t.size),0)
   const scalpShare=Math.max(0,SCALP.allocation-rotaShare)
-  const eligible=failures.length<=Math.floor(Math.max(1,SCAN.length)*0.2)&&open.every((t:any)=>data.has(String(t.sym)))&&!retained.some(t=>!['SCALP','ROTA'].includes(t.strategy))&&!state.hard_halt_at&&!params.scalp_paused
+  const eligible=failures.length<=Math.floor(Math.max(1,SCAN.length)*0.2)&&open.every((t:any)=>data.has(String(t.sym)))&&!retained.some(t=>!['SCALP','ROTA','BRKV'].includes(t.strategy))&&!state.hard_halt_at&&!params.scalp_paused
   // v87.0: holds and stops are planned per candidate below (evidence horizon, ATR stop x sqrt(hold/5)); nothing mutates `evaluated` here.
   // v87.0 AGGRESSIVE DEMO (shared/opportunity.ts): candidates = every coin x side an EVIDENCED agent backs; the full
   // cost model + a SOFTENED profit gate (net >= COST.marginBps) prices each; former hard filters are score adjustments;

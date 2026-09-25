@@ -23,8 +23,8 @@ export function rotaConfig(){
 }
 export const BINANCE_SYM:Record<string,{s:string,k:number}>={PEPE:{s:'1000PEPEUSDT',k:1000}}
 const bsym=(sym:string)=>BINANCE_SYM[sym]??{s:`${sym}USDT`,k:1}
-async function json(url:string){const r=await fetch(url,{signal:AbortSignal.timeout(4000)});if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json()}
-async function pool<T>(items:T[],n:number,fn:(x:T)=>Promise<void>){let i=0;await Promise.all(Array.from({length:Math.min(n,items.length)},async()=>{while(i<items.length)await fn(items[i++])}))}
+export async function json(url:string){const r=await fetch(url,{signal:AbortSignal.timeout(4000)});if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json()}
+export async function pool<T>(items:T[],n:number,fn:(x:T)=>Promise<void>){let i=0;await Promise.all(Array.from({length:Math.min(n,items.length)},async()=>{while(i<items.length)await fn(items[i++])}))}
 // completed 4h closes, oldest first (Binance USDT-M first, OKX swap fallback)
 async function closes4h(sym:string,need:number,now:number):Promise<number[]>{
   try{
@@ -35,7 +35,7 @@ async function closes4h(sym:string,need:number,now:number):Promise<number[]>{
   if(r.code!=='0')throw new Error('okx 4h')
   return r.data.filter((x:any)=>x[8]==='1').reverse().map((x:any)=>+x[4]).filter((x:number)=>x>0)
 }
-async function quote(sym:string):Promise<Quote>{
+export async function quote(sym:string):Promise<Quote>{
   try{const {s,k}=bsym(sym);const d=await json(`https://fapi.binance.com/fapi/v1/depth?symbol=${s}&limit=5`);const q={bid:+d.bids[0][0]/k,ask:+d.asks[0][0]/k,ts:+d.E,imbalance:0,source:'binance-futures'};if(validQuote(q,Date.now()))return q}catch{}
   const d=await json(`https://www.okx.com/api/v5/market/books?instId=${sym}-USDT-SWAP&sz=5`);if(d.code!=='0'||!d.data?.[0])throw new Error(`no quote ${sym}`)
   const v=d.data[0];return {bid:+v.bids[0][0],ask:+v.asks[0][0],ts:+v.ts,imbalance:0,source:'okx-swap'}
