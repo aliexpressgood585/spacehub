@@ -17,6 +17,11 @@ assert.equal(exitPlan(t,{...q,bid:98},now).close,true)
 assert.ok(exitPlan(t,{...q,bid:102},now).stop>99)
 assert.equal(exitPlan({...t,trail_sl:101},{...q,bid:100.9},now).reason,'STOP')
 const sh={...t,side:'SHORT',trail_sl:101}
+// v91.1: an exploration trade is not FLIPped by the team; it leaves at its planned hold (or its stop)
+{ const ex={...t,opened_at:new Date(now-5*60000).toISOString(),scalp_meta:{stop_pct:.004,hold_min:60,evidence:{tier:'explore',agents:['a']}}},against={side:-1,weighted:-0.9} as any
+  assert.equal(exitPlan(ex,q,now,against).close,false,'no FLIP on exploration')
+  assert.equal(exitPlan({...ex,scalp_meta:{...ex.scalp_meta,evidence:{tier:'evidence'}}},q,now,against).reason,'FLIP','evidence trades keep FLIP')
+  assert.equal(exitPlan({...ex,opened_at:new Date(now-61*60000).toISOString()},{...q,bid:100.5},now,{side:1,weighted:0.9} as any).reason,'PLANNED','exploration is not extended past plan') }
 assert.equal(exitPlan(sh,{...q,ask:102},now).close,true)
 assert.ok(exitPlan(sh,{...q,ask:98},now).stop<101)
 assert.equal(allocation(1000,1000,0,4),225)  // v87.0: 90% allocation / 4

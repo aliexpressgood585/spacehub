@@ -331,7 +331,7 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean,rotaS
   const rets=(sym:string)=>{const b=data.get(sym)?.b??[];return b.slice(1).map((x,i)=>x.c/b[i].c-1)}
   const decisions:any[]=[]
   const off=new Set(['duplicate','unstable','benched'])
-  const backer=(a:string):EdgeBacker|null=>{const h=H[a]??5,st=stats[hKey(a,h)];if(!st||st.n<LEARN.minN)return null;return {agent:a,w:off.has(String((ref.status as any)[a]))?0:1,netBps:meanBps(st),t:hT(st,h),tg:hT({...st,s:st.s+16*st.n,s2:st.s2+32*st.s+256*st.n},h),to:tStat({...st,s:st.s+16*st.n,s2:st.s2+32*st.s+256*st.n})/Math.sqrt(Math.max(1,h/LEARN.meetingMin)),h}}   // v89.0: tg = corrected t of the GROSS mean (net + the 16bp learning round trip, exact)
+  const backer=(a:string):EdgeBacker|null=>{const h=H[a]??5,st=stats[hKey(a,h)];if(!st||st.n<LEARN.minN)return null;return {agent:a,w:off.has(String((ref.status as any)[a]))?0:1,netBps:meanBps(st),t:hT(st,h),tg:hT({...st,s:st.s+16*st.n,s2:st.s2+32*st.s+256*st.n},h),to:tStat({...st,s:st.s+16*st.n,s2:st.s2+32*st.s+256*st.n})/Math.sqrt(Math.max(1,h/LEARN.meetingMin)),ind:(st.ev??0)*LEARN.meetingMin/h,h}}   // v89.0: tg = corrected t of the GROSS mean (net + the 16bp learning round trip, exact)
   const bookRet=scalpRows.map((t:any)=>({ret:rets(t.sym),side:t.side==='LONG'?1:-1,weight:equity>0?Number(t.entry_price)*Number(t.size)/equity:0}))
   const held=new Set([...retained.map((t:any)=>t.sym),...closedSyms])
   const cands:any[]=[]
