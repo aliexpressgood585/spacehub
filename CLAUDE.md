@@ -370,6 +370,16 @@ CAVEATS, not yet cleared: (1) IS window 1 negative -> fails the all-windows rule
 period that may simply have been bearish; (3) t treats trades as independent though breakouts cluster on the same days;
 (4) no concurrency cap. -> v108bt queued (72 months, per calendar year incl. long/short split, parameter neighbours for
 plateau vs spike, 10-slot portfolio in time order, t on DAILY sums). Nothing deployed until it lands.
+**v108bt RESULT (72m, 2020-09 .. 2026-08, 69 coins) — REJECTED. The v107bt OOS pass was the bear-ish 2026 period.**
+    ALL   n=10,004  +0.111%/trade  t(daily) 0.68   | LONG -0.218% (t -1.85)  | SHORT +0.512% (t 1.53)
+    by year: 2020 +0.17 | 2021 -0.52 (-$7.5k; shorts -0.77) | 2022 +0.03 | 2023 -0.07 | 2024 +0.52 | 2025 +0.09 | 2026 +0.64
+    neighbours: flat low plateau (-0.08 .. +0.24%/trade, every t(daily) <= 1.08) — no spike, but no edge either
+    10-slot portfolio: -0.073%/trade, **-44.4% total, maxDD 76.1%** at 10%/slot (longs -0.33%/trade, t -3.31)
+Long breakouts on volume LOSE over six years; shorts are positive in 6 of 7 years (not 2021) but t(daily) 1.53 all-history
+and the short-only cut was chosen AFTER seeing this data — a hypothesis, not a result. NOT DEPLOYED.
+v93.0 BRKV sleeve BUILT behind the shim (shared/breakout.ts, brkv-runner.ts, migration 20260925150000_brkv_sleeve.sql —
+NOT applied, tests/breakout.test.ts) and NOT enabled: live stays v92.0 cf88adbd (SCALP,ROTA). Enabling it would need the
+migration applied, 'BRKV' in __ENABLED_SLEEVES and a redeploy — only on new evidence (e.g. short-only on data not seen here).
 
 ## v92.0 (2026-09-25 14:41 UTC) — ROTA back at 50% of the book; the rest stays SCALP (owner: "ROTA 50%, the rest aggressive intraday, no need to ask")
 index.ts: `runRota` restored behind `ROTA_ENABLED` (v83 path; SCALP sizes to 0.9 - share and keeps its profit gate).
