@@ -356,6 +356,23 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v92.0 (2026-09-25 14:41 UTC) — ROTA back at 50% of the book; the rest stays SCALP (owner: "ROTA 50%, the rest aggressive intraday, no need to ask")
+index.ts: `runRota` restored behind `ROTA_ENABLED` (v83 path; SCALP sizes to 0.9 - share and keeps its profit gate).
+Shim: `__ENABLED_SLEEVES='SCALP,ROTA'`, `__ROTA_SHARE='0.5'`, `__ROTA_VOL_TARGET='5'` (= vol damping OFF so the book
+actually reaches ~50%; v104bt's validated config had volT 0.5 which sized ROTA to ~12-20%). HONEST: no-volT is the
+row v104bt did NOT select (volT was what made OOS +1.0%); owner asked for 50% exposure. v106bt measures both.
+ROLLBACK: shim `__ENABLED_SLEEVES='SCALP'` or `__ROTA_VOL_TARGET='0.5'`.
+DEPLOYED: PR #74 (cf88adbd), function v70, manifest v92.0 SCALP,ROTA paper true / live false 14:41:33, 0 errors.
+First basket 14:41:35: NEAR LONG $659, ARB LONG $553, CRV SHORT $197, TRX SHORT $679 = $2,088 (~43%), cash $2,760.
+Intraday: checked again — agents with gross > 10 bps and overlap t >= 1 all have < 1 independent period (one market
+move); none with real evidence clears the ~16 bps round trip. Exploration stays as is (net > 0 required).
+COST QUESTION (owner): 16 bps = 0.16% of the ticket, independent of the coin's price: $1,000 ticket -> ~$1.60 round
+trip (fees 0.05% x 2 = $1.00 + spread/impact ~$0.60, measured from the real book). Verified on closed rows: INJ
+$1,218 ticket paid $1.22 in fees (5 bps each side), slippage is inside the fill prices.
+v106bt QUEUED (PR #75, 73a001ac): ROTA + RSI agreement — `S.rotaTargetsOsc` (exhaust 70/30, 75/25, 80/20; confirm
+RSI14>50, RSI6>50; rejected names replaced by the next in rank) on the live v92 shape, with and without volT 0.5,
+4 IS windows + 20% OOS once. RESULT: see status/bt-latest.txt; record here when it lands.
+
 ## 2026-09-25 14:35 UTC — 5 hours of v91.1: 0 trades, and the data says why (owner: "5 hours, no good opportunities")
 09:25-14:33: 0 bot_errors, ~51 meetings/h, 0 new trades, cash $4,849.22. Decisions: no_edge_estimate 4,610 (evidence
 tier), exploration priced 3,099 candidates -> ALL costs_exceed_edge, 223 no_gross_edge. Best candidate of 5 hours:
