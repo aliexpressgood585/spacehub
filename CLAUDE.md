@@ -356,6 +356,18 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v91.1 (2026-09-25 ~09:25 UTC) — exploration fixed after its first hour (owner: "fix it if something is wrong")
+FIRST HOUR OF v91.0 (08:14-09:18): 12 exploration trades opened, 10 closed: 1 win (INJ +$9.74), net ≈ -$18 on
+~$700-1,200 tickets. Two defects, both mine:
+1. The backers were MARKET BETA, not edge. Without the cross-coin factor, c_multi_tf@60 (57 snapshots = under ONE
+   independent hour, raw t 15 because 40 coins moved together, "gross" 79 bps) and obv10 / keltner / pressure10 @60
+   (1 snapshot each) passed `to >= 1`; expected nets of 30-98 bps were fiction. Fix: `OPP.explore.minIndep 20` —
+   backer needs >= 20 independent periods (ev x meetingMin / h): 5 h of snapshots at 15m, 20 h at 60m.
+2. 6 of 10 closes were team FLIPs after 1-12 minutes on 60-minute theses (paying full costs, no hold). Fix: exitPlan
+   exempts tier 'explore' from FLIP and closes it at the planned hold (no EXTEND); stop + cap unchanged.
+Tests: opportunity (one-market-move backer rejected) + scalp (no FLIP / PLANNED / evidence keeps FLIP). Suite green.
+DEPLOYED: PR #73 (d84881a6), function v69, v91.1.
+
 ## v91.0 (2026-09-25 08:14 UTC) — EXPLORATION TIER + slow-genome clocks (owner: "yes, fix it, and loosen a bit so trades open")
 MEASURED FIRST: of 87 live voter rows (n>=100) 0 have fully-corrected GROSS t > 0.5. Best: rsi14r@15 gross +19.9 bps,
 raw t 5.19, corrected 0.49 (overlap sqrt(15) x cross-coin sqrt(1+10·0.65) ≈ 10.6x); stoch14r@15 +9.3 bps, raw 4.71.
