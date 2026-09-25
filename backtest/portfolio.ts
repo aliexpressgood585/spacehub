@@ -207,6 +207,8 @@ export interface SimConfig {
   breakers?: Pick<RiskProfile, 'dayLossHalt' | 'ddHalt' | 'lossStreak' | 'streakPauseMs'> | null
   /** v104bt: live `ROTA_SLOT_SCALE` (slot target and per-coin cap multiplier) */
   rotaSlotScale?: number
+  /** v106bt: oscillator agreement for ROTA slots (see S.rotaTargetsOsc) */
+  rotaOsc?: { mode: 'exhaust' | 'confirm'; len: number; hi: number; lo: number } | null
   /** v104bt: momentum = mean of simple returns over these lookbacks (4h bars) */
   rotaLbs?: number[]
   /** v104bt: scale ROTA slots by min(1, target / annualised mean 14d realised
@@ -830,9 +832,11 @@ export function runPortfolio(
         if (ms.length !== cfg.rotaLbs.length) continue
         st.mom = ms.reduce((a, b) => a + b, 0) / ms.length
       }
+      if (st && cfg.rotaOsc) st.rsi = S.rsiOf(completed.map(b => b.close), cfg.rotaOsc.len)
       if (st) rows.push(st)
     }
-    const targets = S.rotaTargets(rows, cfg.rotaK ?? S.ROTA_K, cfg.rotaSide ?? 'both')
+    const targets = cfg.rotaOsc ? S.rotaTargetsOsc(rows, cfg.rotaK ?? S.ROTA_K, cfg.rotaOsc.mode, cfg.rotaOsc.hi, cfg.rotaOsc.lo)
+      : S.rotaTargets(rows, cfg.rotaK ?? S.ROTA_K, cfg.rotaSide ?? 'both')
     if (targets.length === 0) return
     // v104bt: annualised mean realised vol of the names being traded (no
     // feedback from the book's own sizing, unlike an equity-curve estimate)
