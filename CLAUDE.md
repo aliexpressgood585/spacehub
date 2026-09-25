@@ -356,6 +356,36 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v89.0 (2026-09-25 06:29 UTC) — AGGRESSIVE-DEMO CALIBRATION + live funnel (owner full prompt, autonomy)
+ANALYSIS FIRST (since v87 22:46 UTC): 8,755 gate decisions over 376 meetings, 100% `no_edge_estimate` (evidence
+gate); 0 SCALP entries since the gate went live 09-24 18:06 (the owner's "3 positions" were the pre-close ROTA
+basket). All 69 live voters: 0 with corrected GROSS t > 1 (before any cost); with the overlap-only correction 2 of
+69 > 1, 0 > 2; best NET +2.4 bps (z30r@15) vs a 16.6 bps round trip. The only strong rows were factory genomes
+(g_rsi280p4r family @15, t 2.6-2.8) retired at 14:49 on their matured 5m horizon — the 15m horizon was immature.
+MAIN BLOCKER = no measured edge among the voters, not an over-strict threshold. No threshold relaxation that keeps
+"expected net > 0" produces trades from these agents.
+SHIPPED (calibration + visibility, no edge claim):
+- `shared/opportunity.ts`: evidence + shrinkage on the GROSS t (tg = hT of s+16n, exact), James-Stein 1-1/tg^2
+  (1 -> 0, 1.5 -> .56, 2 -> .75). v87 shrank gross by a NET-t credit = the round trip charged twice. Estimate =
+  weighted average (not a sum; agents are correlated), opposition subtracts. `conf` = mean shrink.
+- 4h trend context (observed 4h closes vs 20-bar mean; +0.5 agree / -1 oppose, never a veto; '4h' always in
+  slowTfs, pinned 40 only, null elsewhere). `rankValue` = net $/h x confidence x execution quality (spread).
+- decisions: inferred.gate / rank / plan {entry, sl, tp:null, exit} / votes {pro, con, evidenced}; observed.trend_4h;
+  risk minute carries data.funnel {scanned, universe, signals, candidates, approved, submitted, rejected, by_reason}.
+- House GatePanel: live funnel Scanned -> Signals -> Candidates -> Rejected -> Approved -> Executed; Top Rejection
+  Reasons (count and % over 1h/6h/24h, gate per reason, a warning when one gate >= 80%); per-candidate gross / fees /
+  spread / slippage-impact / funding / net / score / size / entry-SL-TP / votes / final reason.
+- Migration `20260925070000_decision_reasons_view.sql`: view `trade_decision_reasons` (security_invoker, anon read).
+Thresholds unchanged: margin 0.5 bps, 8 positions, 5/side, 90%/60% exposure, corr 1.5, TTL 20 s / 150 s.
+BEFORE / AFTER, measured only: before the gate (09-23 23:25 -> 09-24 17:58) 291 SCALP closes, WR 44.7%, gross
++$11.01, fees $168.94, net -$125.81, PF 0.81, expectancy -$0.43/trade (funding and slippage were not recorded
+separately for those rows). After the gate: 0 trades, so no P&L to measure; approval rate 0%.
+DEPLOYED: PR #70 (a9b6c6f7), view applied, function v66, manifest v89.0 SCALP paper true / live false, 0 errors.
+First 4 meetings: scanned 60/106, signals 16-27, candidates 0, approved 0, executed 0; all `no_edge_estimate`
+(evidence gate) — the dashboard now shows exactly that. Next real lever (not done, needs the owner's call): the
+factory retires trial genomes on the FIRST horizon to mature (5m) even when a slower horizon (15m) is still
+promising; judging on all horizons before retiring would let more candidates reach the OOS holdout.
+
 ## v88.0 (2026-09-24/25) — DYNAMIC UNIVERSE: every liquid USDT perp on Binance Futures (owner, full autonomy)
 Standing rule 2 AMENDED by the owner: the 40-coin pin no longer limits TRADING; crypto-only still holds.
 `shared/universe.ts`: `buildUniverse(exchangeInfo, ticker/24hr, bookTicker)` keeps PERPETUAL + USDT + TRADING,
