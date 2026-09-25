@@ -356,6 +356,30 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v88.0 (2026-09-24/25) — DYNAMIC UNIVERSE: every liquid USDT perp on Binance Futures (owner, full autonomy)
+Standing rule 2 AMENDED by the owner: the 40-coin pin no longer limits TRADING; crypto-only still holds.
+`shared/universe.ts`: `buildUniverse(exchangeInfo, ticker/24hr, bookTicker)` keeps PERPETUAL + USDT + TRADING,
+underlyingType COIN, no stock/equity/TradFi/metal/index/FX tags or known non-crypto/stable bases, 24h quote
+volume >= $20M, spread <= 10 bps, listed >= 3 days, well-formed symbol; sorted by NAME (no fame/volume bias).
+Cached hourly in market_cache 'universe'; failed refresh keeps the last list; none -> pinned 40 (FALLBACK);
+< 20 pairs is treated as a failed refresh. `scanSlice`: each meeting evaluates 60 pairs in depth = held + BTC +
+a stateless rotation (offset = minute x room), so every liquid pair is evaluated every ~2 min. Units: 1000PEPE
+stays PEPE (k 1000, legacy); other 1000x contracts trade as listed (e.g. '1000SHIB', k 1). New pairs are
+Binance-only (no OKX fallback); OKX liquidations / funding fallback stay on the pinned 40; info + factory slow
+caches (daily, OI, ratios, slow bars) stay on the 40 — elsewhere those agents abstain. LEARNING: one
+bookTicker call per meeting prices every pair, so votes on a coin rotated out of the scan are still scored.
+Profit gate, weighted score, portfolio manager, 8 positions, correlation rule: unchanged (v87.0).
+Ledger `20260925000000_dynamic_universe.sql`: the 40-name whitelist replaced by `^[A-Z0-9]{2,16}$` + a
+stablecoin / non-crypto deny list (applied live as an exact in-place replace of the function text).
+House: prices every USDT contract. Tests: tests/universe.test.ts (listing, crypto-only, liquidity, units,
+even rotation, fallback) + runner scenario (new pair scanned, equity perp never scanned) + ledger assertions.
+DEPLOYED: PR #69 (2893a151), function v65, manifest v88.0 SCALP paper true / live false, 0 errors.
+VERIFIED 2026-09-25 ~05:50 UTC: universe 106 liquid pairs of 658 listed USDT perps (excluded: illiquid 395,
+not_trading 131, bad_symbol 18, not_crypto 4, stablecoin 3, wide_spread 1); 60/60 evaluated per meeting from
+binance-futures, every pair ~every 2 min. Candidates 55 in 3 min over 42 coins, ALL `no_edge_estimate`, 0 trades:
+the same reason as v87 — no LIVE voter has proven net edge (the evidenced agents are factory trials). A wider
+universe multiplies opportunities to test; it cannot create an edge the agents do not have.
+
 ## v87.0 (2026-09-24 22:46 UTC) — AGGRESSIVE DEMO (owner full prompt: more opportunities, costs kept, gate softened not removed)
 `shared/opportunity.ts` + runner rewrite of the gate block. Candidates = every coin x side an EVIDENCED agent backs
 (positive net at its best horizon, corrected t >= 1, credit (t-0.5)/2 capped at t 2.5; evidenced opponents subtract) —
