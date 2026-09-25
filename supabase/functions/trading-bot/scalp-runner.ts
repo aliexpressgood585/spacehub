@@ -3,7 +3,7 @@ import {attribution,execStats,compliance,debate,hitPct,type Minute} from '../../
 import {AGENTS,NEW_AGENTS} from '../../../shared/agents.ts'
 import {refineWeights,type AgentStatus} from '../../../shared/swarm.ts'
 import {COST,profitGate,expectedGross,bookFrom,riskScale,corrScale,slipPerSide,type Book,type GateResult} from '../../../shared/costs.ts'
-import {OPP,evidenceEdge,adjustments,signalAge,sizeFor,portfolioPlan,missingFor,type EdgeBacker} from '../../../shared/opportunity.ts'
+import {OPP,evidenceEdge,adjustments,signalAge,sizeFor,portfolioPlan,missingFor,rankValue,GATE_OF,type EdgeBacker} from '../../../shared/opportunity.ts'
 import {SWARM,TEAMS,decayStat,scoreSnapshot,learnedWeight,meanBps,tStat,hT,LEARN,teamWeights,bestHorizon,hKey,type Stat,type Team} from '../../../shared/swarm.ts'
 import {DIRECTIONAL} from '../../../shared/desk.ts'
 import {CRYPTO_40} from '../../../shared/strategy.ts'
@@ -204,7 +204,7 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean,rotaS
   const liveF=frows.filter(r=>r.stage==='live')
   const factVotes:Record<string,Record<string,number>>={}
   // v85.1: slow (4h / 1d) genomes read their own bars; a missing slow feed = those genomes abstain, nothing else changes
-  const slowTfs=[...new Set(frows.map(r=>r.genome.tf).filter((t):t is Tf=>!!t))]
+  const slowTfs=[...new Set<Tf>(['4h',...frows.map(r=>r.genome.tf).filter((t):t is Tf=>!!t)])]   // v89.0: 4h always (trend context for the ranking)
   let slow:Partial<Record<Tf,Record<string,Bar[]>>>={},slowNote=''
   if(due&&slowTfs.length)try{slow=await slowBars(db,Date.now(),slowTfs)}catch(e:any){slowNote=String(e?.message??e).slice(0,60)}
   if(due&&frows.length)for(const sym of SCAN){
@@ -331,7 +331,7 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean,rotaS
   const rets=(sym:string)=>{const b=data.get(sym)?.b??[];return b.slice(1).map((x,i)=>x.c/b[i].c-1)}
   const decisions:any[]=[]
   const off=new Set(['duplicate','unstable','benched'])
-  const backer=(a:string):EdgeBacker|null=>{const h=H[a]??5,st=stats[hKey(a,h)];if(!st||st.n<LEARN.minN)return null;return {agent:a,w:off.has(String((ref.status as any)[a]))?0:1,netBps:meanBps(st),t:hT(st,h),h}}
+  const backer=(a:string):EdgeBacker|null=>{const h=H[a]??5,st=stats[hKey(a,h)];if(!st||st.n<LEARN.minN)return null;return {agent:a,w:off.has(String((ref.status as any)[a]))?0:1,netBps:meanBps(st),t:hT(st,h),tg:hT({...st,s:st.s+16*st.n,s2:st.s2+32*st.s+256*st.n},h),h}}   // v89.0: tg = corrected t of the GROSS mean (net + the 16bp learning round trip, exact)
   const bookRet=scalpRows.map((t:any)=>({ret:rets(t.sym),side:t.side==='LONG'?1:-1,weight:equity>0?Number(t.entry_price)*Number(t.size)/equity:0}))
   const held=new Set([...retained.map((t:any)=>t.sym),...closedSyms])
   const cands:any[]=[]
@@ -351,12 +351,14 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean,rotaS
       const sz=sizeFor({equity,stopPct,riskMult:risk.mult,netBps:5,exposure,corrMult:cs.mult,perCoin:SCALP.perCoin,riskPerTrade:SCALP.riskPerTrade})
       const g=profitGate({grossEdgeBps:ev.bps,edgeN:ev.n,book:m.book,notional:sz.notional,side,holdMin,funding:ctx?.intel[x.sym]?.funding??null})
       const sig:any=x.signals??{}
-      const adj=adjustments({weighted:x.weighted,side,trend:Number(sig.trend)||0,spreadBps:Number(sig.spread_bps)||0,rangeOk:sig.range_ok!==false,imbalance:m.q.imbalance})
+      const b4=slow['4h']?.[x.sym],trend4h=b4&&b4.length>=21?Math.sign(b4[b4.length-1].c-b4.slice(-20).reduce((q,y)=>q+y.c,0)/20):0   // observed 4h closes; absent = 0 (no context)
+      const adj=adjustments({weighted:x.weighted,side,trend:Number(sig.trend)||0,spreadBps:Number(sig.spread_bps)||0,rangeOk:sig.range_ok!==false,imbalance:m.q.imbalance,trend4h})
       const score=Number.isFinite(g.net_bps)?+(g.net_bps+Math.min(0,adj.bps)).toFixed(2):NaN   // penalties only; bonuses rank, never rescue
       let reason=!age.fresh?'stale_signal':!g.pass?g.reason:score<COST.marginBps?'weak_score':'net_edge'
       const size=reason==='net_edge'?sizeFor({equity,stopPct,riskMult:risk.mult,netBps:g.net_bps,exposure,corrMult:cs.mult,perCoin:SCALP.perCoin,riskPerTrade:SCALP.riskPerTrade}):sz
-      const perHour=Number.isFinite(score)?(score+Math.max(0,adj.bps))*size.notional/1e4/(holdMin/60):-Infinity
-      cands.push({sym:x.sym,side,x,m,ev,g,adj,score,reason,age,cs,size,holdMin,stopPct,perHour})
+      const rk=rankValue({scoreBps:score,bonusBps:adj.bps,notional:size.notional,holdMin,conf:ev.conf,spreadBps:Number(sig.spread_bps)||0}),perHour=rk.value
+      const pro_n=Object.values(x.dirs).filter(d=>d===side).length,con_n=Object.values(x.dirs).filter(d=>d===-side).length
+      cands.push({sym:x.sym,side,x,m,ev,g,adj,score,reason,age,cs,size,holdMin,stopPct,perHour,rk,trend4h,has4h:!!b4,pro_n,con_n})
     }
   }
   cands.sort((a,b)=>b.perHour-a.perHour)
@@ -387,8 +389,10 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean,rotaS
       hold_min:c.holdMin,notional:+c.size.notional.toFixed(2),backers:c.ev.n,risk_mult:risk.mult,
       observed:{source:b.source,bid:b.bid,ask:b.ask,spread_bps:mid>0?+((b.ask-b.bid)/mid*1e4).toFixed(2):null,bid_depth10_usd:Number.isFinite(b.bidDepth10)?Math.round(b.bidDepth10):null,ask_depth10_usd:Number.isFinite(b.askDepth10)?Math.round(b.askDepth10):null,
         imbalance:+c.m.q.imbalance.toFixed(3),funding:ctx?.intel[c.sym]?.funding??null,premium:info.premium[c.sym]??null,oi_4h:(()=>{const o=oiMove(info.oi[c.sym]);return Number.isFinite(o.doi)?+o.doi.toFixed(4):null})(),
-        quote_age_ms:Math.round(c.age.quoteMs),bar_age_ms:Math.round(c.age.barMs),team_side:c.x.side,team_weighted:+c.x.weighted.toFixed(3)},
-      inferred:{expected_gross_bps:Number.isFinite(c.ev.bps)?c.ev.bps:null,evidence:c.ev.agents,against:c.ev.nCon,adjustments:c.adj.parts,cost:c.g.cost,corr_load:c.cs.load,
+        quote_age_ms:Math.round(c.age.quoteMs),bar_age_ms:Math.round(c.age.barMs),team_side:c.x.side,team_weighted:+c.x.weighted.toFixed(3),trend_4h:c.has4h?c.trend4h:null},
+      inferred:{gate:GATE_OF[why]??'other',rank:{value:Number.isFinite(c.rk.value)?+c.rk.value.toFixed(4):null,per_hour_usd:Number.isFinite(c.rk.perHour)?c.rk.perHour:null,confidence:c.ev.conf,exec_quality:c.rk.exec},
+        plan:{entry:+((c.side===1?b.ask:b.bid)*(1+c.side*(c.g.cost?.slip_per_side??SCALP.slip))).toPrecision(8),sl:+((c.side===1?b.ask:b.bid)*(1-c.side*c.stopPct)).toPrecision(8),tp:null,exit:'planned hold / team flip / trailing stop',stop_pct:+c.stopPct.toFixed(4)},
+        votes:{pro:c.pro_n,con:c.con_n,evidenced_pro:c.ev.n,evidenced_con:c.ev.nCon},expected_gross_bps:Number.isFinite(c.ev.bps)?c.ev.bps:null,evidence:c.ev.agents,against:c.ev.nCon,adjustments:c.adj.parts,cost:c.g.cost,corr_load:c.cs.load,
         size:{edge_mult:c.size.edgeMult,expo_mult:c.size.expoMult,corr_mult:c.cs.mult,risk_mult:risk.mult},labels:c.g.cost?.inferred??['no book']}})
   }
   const gated=cands,passed=ok   // kept for the minutes below
@@ -419,7 +423,9 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean,rotaS
     const cnt=(id:string,d:number)=>evaluated.filter(x=>x.dirs[id]===d).length
     say('info',`מידע חדש שהסוכנים האחרים לא רואים — מומנטום ימים (${Object.keys(info.daily).length}/40), Open Interest (${Object.keys(info.oi).length}/40), פרמיית חוזה (${Object.keys(info.premium).length}/40). ${INFO_IDS.map(id=>`${id}: ${cnt(id,1)}↑ ${cnt(id,-1)}↓`).join(' · ')}${infoNote?` · רענון: ${infoNote}`:''}`,'hold')
     say('factory',factErr?`מפעל הסוכנים לא זמין: ${factErr.slice(0,80)}`:`מפעל סוכנים: ${fc.trial} בניסוי (הצבעת צל בלבד), ${fc.oos} בבדיקה על נתונים שלא ראו, ${fc.live} פעילים ומצביעים. נבדקו עד היום ${fc.trial+fc.oos+fc.live+fc.retired}, נפסלו ${fc.retired}. סוכן מצביע רק אחרי t≥${FACTORY.liveT} על נתונים חדשים; סוכן שנפסל לא נבדק שוב.${fc.moved.length?` עכשיו: ${fc.moved.slice(0,4).join(', ')}.`:''} חדר הכושר (עד 72 חודשים אופליין, 11 גדלי נרות, 289 מטבעות): ${fc.gymNote?`לא זמין (${fc.gymNote})`:`${fc.gym} עברו${fc.gymSeeded?`, ${fc.gymSeeded} נכנסו עכשיו לניסיון`:''}`}${slowTfs.length?`; ${slowTfs.length} סוגי נרות איטיים בלייב${slowNote?` (${slowNote})`:''}`:''}.`,fc.live?'ok':'hold')
-    say('risk',`דמו 1x; עד ${SCALP.maxPositions} פוזיציות, עד ${SCALP.perCoin*100}% למטבע ועד ${SCALP.allocation*100}% הקצאה אחרי עמלות. הפחתת סיכון מדורגת (בלי עצירה גורפת): מכפיל ${risk.mult} (${risk.tier}; ירידה מהשיא ${(risk.dd*100).toFixed(1)}%, הפסד היום ${(risk.day*100).toFixed(1)}%). דמו אגרסיבי v87: ${gated.length} הזדמנויות נסרקו (כל מטבע×צד שסוכן עם יתרון מוכח תומך בו), ${passed.length} עברו את שער הרווח המרוכך (נטו ≥ ${COST.marginBps} נק׳ בסיס אחרי עמלות, מרווח, השפעה ומימון) ואת ציון הקנסות המשניים; נבחרות עד ${limit} הטובות לפי רווח נטו צפוי לשעה, עד ${SCALP.maxSameSide} באותו כיוון, עומס קורלציה < ${OPP.maxCorrLoad}; ${entries.length} נכנסו. אירועי קידום/הורדה: ${agentEv}. ${line('risk')}`,eligible?'ok':'veto')
+    say('risk',`דמו 1x; עד ${SCALP.maxPositions} פוזיציות, עד ${SCALP.perCoin*100}% למטבע ועד ${SCALP.allocation*100}% הקצאה אחרי עמלות. הפחתת סיכון מדורגת (בלי עצירה גורפת): מכפיל ${risk.mult} (${risk.tier}; ירידה מהשיא ${(risk.dd*100).toFixed(1)}%, הפסד היום ${(risk.day*100).toFixed(1)}%). דמו אגרסיבי v89: ${data.size} שווקים נסרקו לעומק, ${gated.length} אותות (כל מטבע×צד שסוכן עם יתרון מוכח תומך בו), ${passed.length} עברו את שער הרווח המרוכך (נטו ≥ ${COST.marginBps} נק׳ בסיס אחרי עמלות, מרווח, השפעה ומימון) ואת ציון הקנסות המשניים; נבחרות עד ${limit} הטובות לפי רווח נטו צפוי לשעה, עד ${SCALP.maxSameSide} באותו כיוון, עומס קורלציה < ${OPP.maxCorrLoad}; ${entries.length} נכנסו. אירועי קידום/הורדה: ${agentEv}. ${line('risk')}`,eligible?'ok':'veto')
+    {const byReason:Record<string,number>={};for(const d of decisions)byReason[d.reason]=(byReason[d.reason]??0)+1
+     minutes[minutes.length-1].data={funnel:{scanned:data.size,universe:uni.pairs.length,signals:cands.length,candidates:cands.filter(c=>Number.isFinite(c.g.net_bps)).length,approved:decisions.filter(d=>d.decision==='accepted').length,submitted:entries.length,rejected:decisions.filter(d=>d.decision!=='accepted').length,by_reason:byReason}}}
     say('trader',`ספר פקודות: ${tally('trader')}. מועמדות לביצוע: ${entries.map(e=>`${e.sym} ${e.side}`).join(', ')||'אין הסכמה מתאימה'}. זמן החזקה מתוכנן לפי התנאים: ${entries.map(e=>`${e.sym} ${e.hold_min} דק׳`).join(', ')||'—'} (5–240 דק׳, לפי האופק שבו הסוכנים התומכים הוכיחו רווח נטו; כל כניסה עברה את שער הרווח). בכל ישיבה: סגירה מוקדמת אם הצוות מתהפך, הארכה לעסקה מרוויחה שהצוות עדיין תומך בה.`,entries.length?'ok':'hold')
     say('treasurer',`מזומן צפוי אחרי הפעולות $${cash.toFixed(2)}; ${scalpRows.length+entries.length}/${SCALP.maxPositions} פוזיציות סקאלפ${rotaRows.length?` + ${rotaRows.length} רוטציה`:''}. הביצוע נבדק שוב באותה עסקת מסד נתונים.`)
     say('auditor',`עלות מול תנודתיות: ${count('auditor','ok')} עוברים, ${count('auditor','veto')} נחסמים. אסטרטגיה ניסיונית ללא אימות היסטורי; מחקרי העבר מצאו שסקאלפ מתחת לשעה לא עבר עלויות.`,count('auditor','ok')?'ok':'veto')

@@ -40,6 +40,7 @@ interface Snap {
   agentStats: Record<string, Stat>
   factory: Row[]
   decisions?: Row[]
+  reasons?: Row[]
   agentEvents?: Row[]
 }
 interface Status { working: boolean; asleep?: boolean; alarm?: boolean; line: string; action?: string; at?: number; reviewed?: boolean }
@@ -395,7 +396,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
       if (loading) return
       loading = true
       try {
-        const [st, rg, eq, op, cl, sk, er, dl, mf, rb, ca, cv, mt, ag, fa, td, ae] = await Promise.all([
+        const [st, rg, eq, op, cl, sk, er, dl, mf, rb, ca, cv, mt, ag, fa, td, ae, rr] = await Promise.all([
           supa.from('bot_state').select('*').eq('id', 1).maybeSingle(),
           supa.from('market_regime').select('*').order('created_at', { ascending: false }).limit(1),
           supa.from('bot_equity').select('*').order('ts', { ascending: false }).limit(2),
@@ -413,6 +414,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
           supa.from('factory_agents').select('id,genome,stage,born,stage_at,h,note').order('stage_at', { ascending: false }).limit(400),
           supa.from('trade_decisions').select('*').order('ts', { ascending: false }).limit(300),
           supa.from('agent_events').select('*').order('ts', { ascending: false }).limit(40),
+          supa.from('trade_decision_reasons').select('*'),   // v89.0: reason counts over 1h / 6h / 24h (aggregated view)
         ])
         const firstErr = [st, rg, eq, op, cl, sk, er, dl, mf, rb, ca, cv, mt].find((r) => r.error)?.error
         if (firstErr) throw new Error(firstErr.message)
@@ -420,7 +422,7 @@ export default function BotHouse({ onBack }: { onBack?: () => void }) {
         const batches: number[] = []
         for (const r of (rb.data ?? []) as Row[]) { const t = ts(r.opened_at); if (!batches.length || batches[batches.length - 1] - t > 10 * 60_000) batches.push(t) }
         if (!alive) return
-        setSnap({ at: Date.now(), decisions: (td.data ?? []) as Row[], agentEvents: (ae.data ?? []) as Row[], factory: (fa.data ?? []) as Row[], meetings: (mt.data ?? []) as Row[], state: (st.data as Row) ?? null, regime: (rg.data?.[0] as Row) ?? null, equity: (eq.data ?? []) as Row[], open: (op.data ?? []) as Row[], closed: (cl.data ?? []) as Row[], skips: (sk.data ?? []) as Row[], errors: (er.data ?? []) as Row[], daily: (dl.data?.[0] as Row) ?? null, manifest: (mf.data?.[0] as Row) ?? null, rotaBatches: batches, closedAll: (ca.data ?? []) as Row[], curve: (cv.data ?? []) as Row[], agentStats: Object.fromEntries(((ag.data ?? []) as Row[]).map((r) => [String(r.agent), decayStat({ agent: String(r.agent), n: num(r.n), s: num(r.s), s2: num(r.s2), updated_at: String(r.updated_at) }, String(r.agent), Date.now())])) })
+        setSnap({ at: Date.now(), reasons: (rr.data ?? []) as Row[], decisions: (td.data ?? []) as Row[], agentEvents: (ae.data ?? []) as Row[], factory: (fa.data ?? []) as Row[], meetings: (mt.data ?? []) as Row[], state: (st.data as Row) ?? null, regime: (rg.data?.[0] as Row) ?? null, equity: (eq.data ?? []) as Row[], open: (op.data ?? []) as Row[], closed: (cl.data ?? []) as Row[], skips: (sk.data ?? []) as Row[], errors: (er.data ?? []) as Row[], daily: (dl.data?.[0] as Row) ?? null, manifest: (mf.data?.[0] as Row) ?? null, rotaBatches: batches, closedAll: (ca.data ?? []) as Row[], curve: (cv.data ?? []) as Row[], agentStats: Object.fromEntries(((ag.data ?? []) as Row[]).map((r) => [String(r.agent), decayStat({ agent: String(r.agent), n: num(r.n), s: num(r.s), s2: num(r.s2), updated_at: String(r.updated_at) }, String(r.agent), Date.now())])) })
         setErr(null)
       } catch (e) { if (alive) setErr(e instanceof Error ? e.message : String(e)) } finally { loading = false }
     }
@@ -1190,8 +1192,9 @@ function Factory({ snap }: { snap: Snap | null }) {
 // v86.0: the profit gate, live — every ranked candidate of the latest meeting with its decision and reason, the
 // cost breakdown (fees / spread / impact / funding), observed market data kept apart from inferred estimates,
 // executed SCALP trades with their real costs and net, and agent promotions / demotions / duplicates.
-const GATE_REASON: Record<string, string> = { taken: 'בוצע', net_edge: 'יתרון נטו', costs_exceed_edge: 'העלויות גדולות מהיתרון', no_gross_edge: 'אין יתרון ברוטו', no_edge_estimate: 'אין הערכת יתרון (סוכנים לא נמדדו)', book_too_thin: 'ספר דק מדי', no_book: 'אין ספר פקודות', ranked_below_cut: 'מתחת לקו הדירוג', no_capital: 'אין הון פנוי', engine_not_eligible: 'המנוע לא כשיר (נתונים/עצירה)', weak_score: 'ציון חלש אחרי קנסות', stale_signal: 'אות פג תוקף', correlated_book: 'קורלציה מסוכנת לתיק', book_full: 'התיק מלא', same_side_cap: 'יותר מדי באותו כיוון', exposure_cap: 'תקרת חשיפה', other_side_taken: 'הצד השני נבחר' }
+const GATE_REASON: Record<string, string> = { taken: 'בוצע', net_edge: 'יתרון נטו', costs_exceed_edge: 'העלויות גדולות מהיתרון', no_gross_edge: 'אין יתרון ברוטו', no_edge_estimate: 'אין סוכן עם יתרון ברוטו מוכח', book_too_thin: 'ספר דק מדי', no_book: 'אין ספר פקודות', ranked_below_cut: 'מתחת לקו הדירוג', no_capital: 'אין הון פנוי', engine_not_eligible: 'המנוע לא כשיר (נתונים/עצירה)', weak_score: 'ציון חלש אחרי קנסות', stale_signal: 'אות פג תוקף', correlated_book: 'קורלציה מסוכנת לתיק', book_full: 'התיק מלא', same_side_cap: 'יותר מדי באותו כיוון', exposure_cap: 'תקרת חשיפה', other_side_taken: 'הצד השני נבחר' }
 // v87.0 funnel stages: which reasons stop a candidate before the gate, at the gate, or at the portfolio manager
+const GATE_OF_UI: Record<string, string> = { stale_signal: 'data', no_book: 'data', engine_not_eligible: 'engine', no_edge_estimate: 'evidence', no_gross_edge: 'profit_gate', costs_exceed_edge: 'profit_gate', book_too_thin: 'profit_gate', weak_score: 'score', correlated_book: 'portfolio', book_full: 'portfolio', same_side_cap: 'portfolio', exposure_cap: 'portfolio', ranked_below_cut: 'top_n', no_capital: 'portfolio', other_side_taken: 'portfolio' }
 const FUNNEL: Record<string, 'data' | 'gate' | 'book' | 'taken'> = { stale_signal: 'data', no_book: 'data', engine_not_eligible: 'data', no_edge_estimate: 'gate', no_gross_edge: 'gate', costs_exceed_edge: 'gate', book_too_thin: 'gate', weak_score: 'gate', correlated_book: 'book', book_full: 'book', same_side_cap: 'book', exposure_cap: 'book', ranked_below_cut: 'book', no_capital: 'book', other_side_taken: 'book', taken: 'taken' }
 const STATUS_HE: Record<string, string> = { proven: 'מוכח', relative: 'יחסי', duplicate: 'כפיל', unstable: 'לא יציב', benched: 'ספסל', learning: 'לומד', active: 'פעיל' }
 function GatePanel({ snap }: { snap: Snap | null }) {
@@ -1205,6 +1208,13 @@ function GatePanel({ snap }: { snap: Snap | null }) {
   const ev = (snap?.agentEvents ?? []) as Row[]
   const f2 = (v: unknown) => (Number.isFinite(num(v)) ? num(v).toFixed(1) : '—')
   const rm = (snap?.state?.bot_params as Row | undefined)?.scalp_risk_mult
+  const riskMin = ((snap?.meetings ?? []) as Row[])[0]?.minutes as Row[] | undefined
+  const liveFunnel = (riskMin ?? []).find((m) => m.who === 'risk')?.data?.funnel as { scanned: number; universe: number; signals: number; candidates: number; approved: number; submitted: number; rejected: number } | undefined
+  const mts = ts(((snap?.meetings ?? []) as Row[])[0]?.ts)
+  const executedNow = [...((snap?.open ?? []) as Row[]), ...((snap?.closed ?? []) as Row[])].filter((t) => t.strategy === 'SCALP' && Math.abs(ts(t.opened_at) - mts) < 90_000).length
+  const reasonRows = ((snap?.reasons ?? []) as Row[]).map((r) => ({ reason: String(r.reason), h1: num(r.h1), h6: num(r.h6), h24: num(r.h24) })).filter((r) => r.reason !== 'taken').sort((a, b) => b.h6 - a.h6)
+  const tot = reasonRows.reduce((t, r) => ({ h1: t.h1 + r.h1, h6: t.h6 + r.h6, h24: t.h24 + r.h24 }), { h1: 0, h6: 0, h24: 0 })
+  const pct = (a: number, b: number) => (b > 0 ? `${(100 * a / b).toFixed(1)}%` : '—')
   const stage = (rows: Row[]) => { const c = { data: 0, gate: 0, book: 0, taken: 0 }; for (const d of rows) c[FUNNEL[String(d.reason)] ?? 'gate']++; return c }
   const fc = stage(cur), fa = stage(all)
   const who = (rows: Row[]) => Object.entries(rows.filter((d) => d.decision !== 'accepted').reduce((m: Record<string, string[]>, d) => { const k = String(d.reason); (m[k] ??= []).push(`${d.sym}${d.side === 'LONG' ? '▲' : '▼'}`); return m }, {})).sort((a, b) => b[1].length - a[1].length)
@@ -1213,21 +1223,29 @@ function GatePanel({ snap }: { snap: Snap | null }) {
     <em>נפסלו: {c.data} נתונים/תוקף · {c.gate} שער רווח · {c.book} מנהל תיק</em></div>
   return <section className="bh-meet">
     <div className="bh-mtop"><h2>שער רווח · יתרון נטו לפני כל כניסה</h2><span className="bh-dec">{cur.length ? `ישיבה ${lastTs.slice(11)}Z · ${cur.filter((d) => d.decision === 'accepted').length}/${cur.length} בוצעו` : 'ממתין לישיבה ראשונה עם השער'} · {day} החלטות אחרונות, {acc} בוצעו · מכפיל סיכון {rm ?? '—'}</span></div>
-    <h3 className="bh-h3">משפך הזדמנויות · הישיבה האחרונה</h3>
-    {cur.length ? funnel(fc, cur.length) : null}
-    {cur.length ? <ul className="bh-evl">{who(cur).map(([k, v]) => <li key={k}><b>{GATE_REASON[k] ?? k}</b> ({v.length}): <span dir="ltr">{v.join(' ')}</span></li>)}</ul> : null}
-    <h3 className="bh-h3">משפך · {all.length} ההחלטות האחרונות</h3>
-    {all.length ? funnel(fa, all.length) : null}
-    <p className="bh-mnote">דמו אגרסיבי (v87): מועמד = כל מטבע×צד שסוכן עם יתרון נטו מוכח (t≥1, מתוקן לחפיפה ולמתאם) תומך בו, גם אם רוב הצוות נגד. כל מועמד מתומחר במודל עלויות אחד: עמלת טייקר בשני הצדדים (10 נק׳), חצי מרווח שנצפה, השפעת שוק לפי עומק הספר ±10 נק׳, ומימון לפי השיעור שפורסם ולאורך ההחזקה. שער הרווח רוכך ולא בוטל: נטו צפוי חייב להיות לפחות 0.5 נק׳ בסיס אחרי הכל (היה 2). פילטרים משניים (רוב הצוות, מגמת EMA, מרווח, טווח, חוסר איזון בספר) הם קנסות בציון ולא חסימה. הטובות נבחרות לפי רווח נטו צפוי לשעה (עד 3 בישיבה, פחות בירידה), עד 8 פוזיציות, עד 5 באותו כיוון, חשיפה עד 90%, קורלציה מסוכנת נפסלת. אות תקף רק אם הציטוט בן פחות מ־20 שניות והנר האחרון נסגר לפני פחות מ־2.5 דקות. <b>נצפה</b> = נמדד מבינאנס; <b>מוסק</b> = הערכה.</p>
+    <h3 className="bh-h3">משפך חי · הישיבה האחרונה</h3>
+    {(() => { const f = liveFunnel; if (!f) return <p className="bh-mnote">ממתין לישיבה עם נתוני משפך (v89).</p>
+      const st = [['שווקים שנסרקו', f.scanned, `מתוך ${f.universe} זוגות נזילים`], ['אותות', f.signals, 'מטבע×צד שהצוות או סוכן מוכח מצביע בו'], ['מועמדים', f.candidates, 'הגיעו לשער הרווח עם הערכת יתרון'], ['נדחו', f.rejected, 'בכל שער'], ['אושרו', f.approved, 'עברו שער, ציון ומנהל תיק'], ['בוצעו', executedNow, 'נפתחו בפועל בספר']] as [string, number, string][]
+      return <div className="bh-funnel">{st.map(([k, v, h], i) => <span key={k} title={h}>{i ? '→ ' : ''}<b>{Number.isFinite(v) ? v : '—'}</b> {k}</span>)}</div> })()}
+    <h3 className="bh-h3">סיבות הדחייה המובילות</h3>
+    {reasonRows.length ? <div className="bh-mx-wrap"><table className="bh-mx bh-lg"><thead><tr><th>סיבה (reason code)</th><th>שער</th><th>שעה</th><th>%</th><th>6 שעות</th><th>%</th><th>24 שעות</th><th>%</th></tr></thead>
+      <tbody>{reasonRows.map((r) => <tr key={r.reason}><th>{GATE_REASON[r.reason] ?? r.reason} <small dir="ltr">{r.reason}</small></th><td dir="ltr">{GATE_OF_UI[r.reason] ?? 'other'}</td>
+        <td className="n">{r.h1}</td><td className="n">{pct(r.h1, tot.h1)}</td><td className="n">{r.h6}</td><td className="n">{pct(r.h6, tot.h6)}</td><td className="n">{r.h24}</td><td className="n">{pct(r.h24, tot.h24)}</td></tr>)}</tbody></table></div>
+      : <p className="bh-mnote">אין עדיין נתוני דחייה מצטברים.</p>}
+    {reasonRows.length && reasonRows[0].h6 / Math.max(1, tot.h6) >= 0.8 ? <p className="bh-mnote"><b>שער אחד חונק את המערכת:</b> {GATE_REASON[reasonRows[0].reason] ?? reasonRows[0].reason} ({pct(reasonRows[0].h6, tot.h6)} מהדחיות ב־6 השעות האחרונות, שער {GATE_OF_UI[reasonRows[0].reason] ?? 'other'}).</p> : null}
     {byReason.length > 0 && <p className="bh-mnote">סיבות: {byReason.map(([k, v]) => `${GATE_REASON[k] ?? k} ${v}`).join(' · ')}</p>}
-    {cur.length ? <div className="bh-mx-wrap"><table className="bh-mx bh-lg"><thead><tr><th>#</th><th>מטבע</th><th>החלטה</th><th>ברוטו צפוי</th><th>עלות</th><th>נטו צפוי</th><th>ציון</th><th>מה חסר כדי לעבור</th><th>עמלה/מרווח/השפעה/מימון</th><th>נצפה: מרווח · עומק ±10 · מימון · OI 4ש׳</th></tr></thead>
-      <tbody>{cur.map((d) => { const c = (d.inferred as Row | undefined)?.cost as Row | undefined, o = (d.observed ?? {}) as Row; return <tr key={String(d.id)}>
+    {cur.length ? <div className="bh-mx-wrap"><table className="bh-mx bh-lg"><thead><tr><th>#</th><th>מטבע</th><th>החלטה · שער</th><th>ברוטו צפוי</th><th>עמלות</th><th>מרווח</th><th>החלקה/השפעה</th><th>מימון</th><th>נטו צפוי</th><th>ציון</th><th>גודל $</th><th>כניסה / סטופ / יעד</th><th>הצבעות בעד/נגד (מוכחים)</th><th>מה חסר / סיבה סופית</th><th>נצפה: מרווח · עומק ±10 · מימון · מגמת 4ש׳</th></tr></thead>
+      <tbody>{cur.map((d) => { const inf = (d.inferred ?? {}) as Row, c = inf.cost as Row | undefined, o = (d.observed ?? {}) as Row, pl = (inf.plan ?? {}) as Row, vo = (inf.votes ?? {}) as Row; return <tr key={String(d.id)}>
         <td className="n">{String(d.rank)}</td><th dir="ltr">{String(d.sym)} {d.side === 'LONG' ? '▲' : '▼'}</th>
-        <td><span className={`bh-chipd ${d.decision === 'accepted' ? 'l' : ''}`}>{GATE_REASON[String(d.reason)] ?? String(d.reason)}</span></td>
-        <td className="n" dir="ltr">{f2(d.gross_bps)}</td><td className="n" dir="ltr">{f2(d.cost_bps)}</td><td className="n" dir="ltr">{f2(d.net_bps)}</td><td className="n" dir="ltr">{f2(d.score)}</td><td>{d.missing ? String(d.missing) : d.decision === 'accepted' ? '—' : ''}</td>
-        <td className="n" dir="ltr">{c ? `${f2(c.fee_bps)} / ${f2(c.spread_bps)} / ${f2(c.impact_bps)} / ${f2(c.funding_bps)}` : '—'}</td>
-        <td className="n" dir="ltr">{f2(o.spread_bps)} · {o.bid_depth10_usd != null ? `$${Math.round(num(o.bid_depth10_usd) / 1000)}k/$${Math.round(num(o.ask_depth10_usd) / 1000)}k` : 'לא נצפה'} · {o.funding != null ? `${(num(o.funding) * 1e4).toFixed(2)}bp` : '—'} · {o.oi_4h != null ? `${(num(o.oi_4h) * 100).toFixed(1)}%` : '—'}</td>
+        <td><span className={`bh-chipd ${d.decision === 'accepted' ? 'l' : ''}`}>{GATE_REASON[String(d.reason)] ?? String(d.reason)}</span> <small dir="ltr">{String(inf.gate ?? GATE_OF_UI[String(d.reason)] ?? '')}</small></td>
+        <td className="n" dir="ltr">{f2(d.gross_bps)}</td><td className="n" dir="ltr">{c ? f2(c.fee_bps) : '—'}</td><td className="n" dir="ltr">{c ? f2(c.spread_bps) : '—'}</td><td className="n" dir="ltr">{c ? f2(c.impact_bps) : '—'}</td><td className="n" dir="ltr">{c ? f2(c.funding_bps) : '—'}</td>
+        <td className="n" dir="ltr">{f2(d.net_bps)}</td><td className="n" dir="ltr">{f2(d.score)}</td><td className="n" dir="ltr">{Number.isFinite(num(d.notional)) ? num(d.notional).toFixed(0) : '—'}</td>
+        <td className="n" dir="ltr">{pl.entry != null ? `${fmtPx(num(pl.entry))} / ${fmtPx(num(pl.sl))} / ${pl.tp != null ? fmtPx(num(pl.tp)) : 'אין (החזקה מתוכננת)'}` : '—'}</td>
+        <td className="n" dir="ltr">{vo.pro != null ? `${vo.pro}/${vo.con} (${vo.evidenced_pro ?? 0}/${vo.evidenced_con ?? 0})` : '—'}</td>
+        <td>{d.missing ? String(d.missing) : d.decision === 'accepted' ? 'נכנס: עבר שער רווח, ציון ומנהל תיק' : ''}</td>
+        <td className="n" dir="ltr">{f2(o.spread_bps)} · {o.bid_depth10_usd != null ? `$${Math.round(num(o.bid_depth10_usd) / 1000)}k/$${Math.round(num(o.ask_depth10_usd) / 1000)}k` : 'לא נצפה'} · {o.funding != null ? `${(num(o.funding) * 1e4).toFixed(2)}bp` : '—'} · {o.trend_4h == null ? '—' : num(o.trend_4h) > 0 ? '▲' : num(o.trend_4h) < 0 ? '▼' : '='}</td>
       </tr> })}</tbody></table></div> : <p className="bh-mnote">עוד אין החלטות שער. הן נכתבות בכל ישיבה (כל דקה) מרגע שהגרסה החדשה רצה.</p>}
+    <p className="bh-mnote">עלויות: עמלות, מרווח והחלקה/השפעה נמדדים מהספר האמיתי של בינאנס (<b>נצפה</b>); היתרון הצפוי, השפעת השוק על הגודל ויציאה בעלות זהה לכניסה הם הערכות (<b>מוסק</b>). לסקאלפ אין יעד מחיר קבוע: היציאה לפי זמן ההחזקה המתוכנן, היפוך הצוות או סטופ נגרר.</p>
     <h3 className="bh-h3">ביצוע אמיתי (דמו) · עלויות ונטו</h3>
     {execs.length ? <div className="bh-mx-wrap"><table className="bh-mx bh-lg"><thead><tr><th>מטבע</th><th>יציאה</th><th>ברוטו $</th><th>עמלות $</th><th>מימון $</th><th>נטו $</th><th>נטו צפוי בכניסה</th></tr></thead>
       <tbody>{execs.map((t) => { const m = (t.scalp_meta ?? {}) as Row, fee = num(t.fee) + num(m.exit_fee); return <tr key={String(t.id)}>
