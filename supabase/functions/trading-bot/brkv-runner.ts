@@ -9,8 +9,12 @@ import {SCALP,type Quote} from '../../../shared/scalp.ts'
 import {BRKV,brkvSignal,brkvExit,lastClose4h,type Bar4} from '../../../shared/breakout.ts'
 import {json,pool,quote,BINANCE_SYM} from './rota-runner.ts'
 const g=()=>globalThis as any
+// v93.0 (owner: "yes" to a small short-only experiment): v108bt found long breakouts LOSE over 72 months (-0.22%/trade)
+// and shorts positive in 6 of 7 years (+0.51%, t 1.53, chosen after seeing the data). Default: SHORT only, 20% of equity
+// over 10 slots (~2% each). '__BRKV_SIDE'='both' restores the tested long+short rule.
 export function brkvConfig(){
-  const x=Number(g().__BRKV_SHARE);return {share:Number.isFinite(x)&&x>0?Math.min(0.6,Math.max(0.05,x)):0.3}
+  const x=Number(g().__BRKV_SHARE),side=String(g().__BRKV_SIDE??'short')==='both'?'both':'short'
+  return {share:Number.isFinite(x)&&x>0?Math.min(0.6,Math.max(0.05,x)):0.2,side} as {share:number,side:'both'|'short'}
 }
 const bsym=(sym:string)=>BINANCE_SYM[sym]??{s:`${sym}USDT`,k:1}
 // completed 4h bars with volume, oldest first (Binance USDT-M, OKX swap fallback; OKX volume is in contracts —
@@ -61,6 +65,7 @@ export async function runBrkv(db:any,state:any,lease:string,paper:boolean){
     const slot=equity*cfg.share/BRKV.maxOpen
     for(const f of found){
       signals.push(`${f.sym} ${f.dir>0?'LONG':'SHORT'}`)
+      if(cfg.side==='short'&&f.dir>0)continue
       if(entries.length>=room||held.has(f.sym))continue
       let qq:Quote;try{qq=await quote(f.sym)}catch{continue}
       if(cash<slot*(1+SCALP.fee))break
@@ -69,7 +74,7 @@ export async function runBrkv(db:any,state:any,lease:string,paper:boolean){
       cash-=slot*(1+SCALP.fee)
     }
   }
-  const note={share:cfg.share,bar:new Date(bar).toISOString(),entry_due:entryDue,signals,failed,open:mine.length}
+  const note={share:cfg.share,side:cfg.side,bar:new Date(bar).toISOString(),entry_due:entryDue,signals,failed,open:mine.length}
   const {data:result}=await db.rpc('brkv_commit_cycle',{p_lease:lease,p_closes:closes,p_entries:entries,p_marks:marks,p_share:cfg.share,p_note:note,p_bar:entryDue?new Date(bar).toISOString():null}).throwOnError()
   return {changed:closes.length>0||entries.length>0||entryDue,...result,...note}
 }
