@@ -356,6 +356,16 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## 2026-09-25 14:35 UTC — 5 hours of v91.1: 0 trades, and the data says why (owner: "5 hours, no good opportunities")
+09:25-14:33: 0 bot_errors, ~51 meetings/h, 0 new trades, cash $4,849.22. Decisions: no_edge_estimate 4,610 (evidence
+tier), exploration priced 3,099 candidates -> ALL costs_exceed_edge, 223 no_gross_edge. Best candidate of 5 hours:
+XMR SHORT gross 12.0 vs cost 16.0 = net -4.0 bps (bb10r). Voters with >= 20 independent periods and positive gross:
+best xmom28@15 +3.0 bps gross (t_overlap 0.93), then roc5r +1.7, xmom14 +0.9 — i.e. the measured 5-60 min edge of
+every live agent is ~5x smaller than the ~16 bps round trip. Same answer as v76-v105bt and the gym (5m median
+net -15.9 bps). The gate is correct; lowering it further = the pre-gate era (-$126/day). No code change. Options put
+to the owner: keep as is / re-enable ROTA (only OOS-measured edge, 4h+ momentum, 12h holds, v104bt OOS +1.0%) /
+nothing else honest on public 1-60 min data.
+
 ## v91.1 (2026-09-25 ~09:25 UTC) — exploration fixed after its first hour (owner: "fix it if something is wrong")
 FIRST HOUR OF v91.0 (08:14-09:18): 12 exploration trades opened, 10 closed: 1 win (INJ +$9.74), net ≈ -$18 on
 ~$700-1,200 tickets. Two defects, both mine:
