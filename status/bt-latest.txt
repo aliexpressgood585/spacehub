@@ -1,30 +1,37 @@
-backtest 2026-09-25T14:49Z mode=v106bt months=36
-████ V106BT — ROTA + RSI agreement (exhaust / confirm), live v92 shape, 36m, 80/20 OOS ████
-  39 coins, span 1096 days
-  in-sample 2023-09-01 .. 2026-01-24 (4 windows)   OOS 2026-01-24 .. 2026-08-31
+backtest 2026-09-25T15:00Z mode=v107bt months=36
+████ V107BT — breakout + volume, target +7% / stop -4%, 70 coins, 36m, IS/OOS ████
+  69 coins, span 1096 days
+  in-sample 2023-09-01 .. 2026-01-24 (4 windows)   OOS .. 2026-08-31
 
-── IN-SAMPLE (selection happens here, and only here) — K2, 12h, 1x, ROTA 50% of the book, breakers on ──
-  config                          trades   net%   maxDD  Sharpe   PF  cost/gross  LIQ  stop/tgt  dayH strk ddH  per-window
-  LIVE v92 (no volT)               1125   138.3   24.9%  -0.13  1.03       18%    0       0/0    0   40   2  +149 -24 -8 +21
-  v104 volT50%                     5068   -10.2   22.8%  -0.53  0.99      123%    0       0/0    0  242   0  +13 -19 -9 +4
-  noVT exhaust rsi14 70/30         2003    32.1   23.7%   0.39  1.08       61%    0       0/0    0   72   0  +50 -17 -2 +2
-  noVT exhaust rsi14 75/25         1677    33.9   24.8%   0.24  1.06       56%    0       0/0    0   59   1  +50 -22 +3 +3
-  noVT exhaust rsi14 80/20         1431    36.6   25.1%   0.03  1.08       49%    0       0/0    0   56   2  +66 -24 -10 +4
-  noVT confirm rsi14>50            2107    59.3   24.5%   0.77  1.10       47%    0       0/0    0  114   0  +52 -2 -2 +11
-  noVT confirm rsi6>50             2107    10.7   25.1%  -0.05  1.02       83%    0       0/0    0  116   2  +26 -21 -11 +17
-  volT50 exhaust rsi14 70/30       4857   -26.8   20.4%  -1.26  0.97      203%    0       0/0    0  216   0  +18 -19 -13 -12
-  volT50 exhaust rsi14 75/25       5043   -30.5   21.0%  -1.32  0.96      230%    0       0/0    0  228   0  +10 -20 -12 -9
-  volT50 exhaust rsi14 80/20       5063   -30.0   18.8%  -1.31  0.97      229%    0       0/0    0  239   0  +10 -15 -13 -12
-  volT50 confirm rsi14>50          4330    -9.6   17.4%  -0.36  1.01      124%    0       0/0    0  201   0  +9 -11 -6 -1
-  volT50 confirm rsi6>50           4215   -13.8   15.4%  -0.55  1.00      139%    0       0/0    0  217   0  +0 -9 -10 +4
+  bracket: target +7%, stop -4% -> break-even win rate before costs = 4/11 = 36.4%; costs ~0.2-0.3% per round trip
 
-  SELECTED on in-sample (fewest DD halts, most positive windows, then return): noVT confirm rsi14>50
+── IN-SAMPLE (selection happens here only) ──
+  config                        trades   WR%  hit7%  hit-4%  hold h  gross%  net%/trade    t     $ at $1k/trade   per-window $
+  CONTROL random side, daily     30563  35.6   35.4    64.3      35    0.01     -0.287  -9.53         -87582   -26425 -13447 -22627 -25082
+  1h N20 vol>=2x long+short      25538  38.0   37.7    62.0      32    0.27     -0.028  -0.84          -7118   -22891 +14683 +2397 -1307
+  1h N20 vol>=2x long only       13422  36.0   35.8    63.9      34    0.06     -0.284  -6.25         -38074   +2718 -14485 -17203 -9104
+  1h N20 vol>=3x long+short      16114  39.1   38.8    60.8      33    0.39      0.102   2.41          16396   -18541 +13795 +12881 +8261
+  1h N20 vol>=3x long only        7753  36.8   36.4    63.1      33    0.13     -0.204  -3.41         -15839   +675 -5898 -5670 -4947
+  1h N50 vol>=2x long+short      19620  37.9   37.7    62.0      31    0.27     -0.030  -0.79          -5894   -22182 +6220 +16335 -6267
+  1h N50 vol>=2x long only        9720  36.5   36.2    63.4      32    0.11     -0.230  -4.29         -22314   -193 -8015 -3695 -10411
+  1h N50 vol>=3x long+short      12960  39.4   39.1    60.5      31    0.42      0.132   2.81          17163   -15231 +7602 +17390 +7401
+  1h N50 vol>=3x long only        6026  37.3   36.9    62.5      32    0.19     -0.148  -2.17          -8905   -1789 -2880 -1681 -2555
+  4h N20 vol>=2x long+short       9241  39.4   39.1    60.5      32    0.42      0.129   2.31          11916   -5223 +8204 +4264 +4671
+  4h N20 vol>=2x long only        4528  38.7   38.3    61.2      31    0.34      0.005   0.06            228   +182 -404 +1171 -721
+  4h N20 vol>=3x long+short       4490  40.6   40.1    59.4      32    0.54      0.254   3.16          11408   -4064 +8726 +4902 +1844
+  4h N20 vol>=3x long only        2144  38.2   37.7    61.8      28    0.28     -0.055  -0.48          -1182   +110 -93 +127 -1325
+  4h N50 vol>=2x long+short       6397  38.6   38.4    61.2      28    0.34      0.048   0.71           3048   -6836 +4616 +545 +4723
+  4h N50 vol>=2x long only        3218  38.3   38.0    61.6      26    0.30     -0.031  -0.33           -998   -2596 -606 +987 +1218
+  4h N50 vol>=3x long+short       3501  39.3   39.0    60.5      27    0.42      0.124   1.36           4326   -3156 +7080 +1595 -1193
+  4h N50 vol>=3x long only        1740  38.4   38.1    61.4      23    0.32     -0.008  -0.06           -136   -909 -165 +1804 -866
 
-── OUT-OF-SAMPLE, run once ──
-  config                          trades   net%   maxDD  Sharpe   PF  cost/gross  LIQ  stop/tgt  dayH strk ddH  per-window
-  noVT confirm rsi14>50             599   -11.8   16.2%  -0.84  0.92      723%    0       0/0    0   27   0  -12
-  LIVE v92 (no volT)                360     5.2   16.5%   0.47  1.06       65%    0       0/0    0   16   0  +5
-  v104 volT50%                     1153    -9.1   12.3%  -1.29  0.94      292%    0       0/0    0   48   0  -9
-  noVT confirm rsi14>50 @10bps      599   -17.9   22.2%  -1.38  0.87      991%    0       0/0    0   31   0  -18
+  SELECTED on in-sample (most positive windows, then net per trade): 4h N20 vol>=3x long+short
 
-  RSI on completed 4h closes; a rejected name is replaced by the next in rank (pool 3K per side).
+── OUT-OF-SAMPLE, read once ──
+  config                        trades   WR%  hit7%  hit-4%  hold h  gross%  net%/trade    t     $ at $1k/trade   per-window $
+  4h N20 vol>=3x long+short       1067  42.9   42.0    56.7      36    0.79      0.499   3.01           5325
+  CONTROL random side, daily      5740  35.8   34.7    63.7      50   -0.00     -0.292  -4.23         -16785
+    of which LONG                  565  41.1   40.2    58.6      30    0.58      0.247   1.09           1398
+    of which SHORT                 502  45.0   44.0    54.6      43    1.02      0.782   3.21           3927
+
+  $ = sum of net % x $1,000 per trade (no compounding, no position limit across coins).
