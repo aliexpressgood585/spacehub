@@ -41,27 +41,36 @@ export const OPP = {
   entriesByTier: { full: 3, reduced: 2, defensive: 1, minimal: 1, unknown: 0 } as Record<string, number>,
 } as const
 
-export interface EdgeBacker { agent: string; w: number; netBps: number; t: number; h: number }
-export const credit = (t: number) => Math.max(0, Math.min(1, (t - 0.5) / (OPP.tFull - 0.5)))
-export const evidenced = (b: EdgeBacker) => b.w > 0 && Number.isFinite(b.netBps) && b.netBps > 0 && b.t >= OPP.tMin
+// v89.0 CALIBRATION FIX: v87 shrank each backer's GROSS edge by a credit computed from its NET t (and required a
+// positive NET edge first), i.e. it charged the round trip twice — once inside the evidence test and again in the
+// profit gate. Now the evidence test and the shrinkage both work on the GROSS edge (the thing the gate prices), with
+// the standard James-Stein factor 1 - 1/tg^2 (tg = overlap- and cross-coin-corrected t of the GROSS mean): gross t 1
+// -> 0 (no evidence), 1.5 -> 0.56, 2 -> 0.75, 3 -> 0.89. The profit gate then charges the real, trade-specific cost
+// ONCE. `tg` falls back to the net t shifted by the learning round trip only if a caller cannot supply it.
+export interface EdgeBacker { agent: string; w: number; netBps: number; t: number; h: number; tg?: number }
+export const grossT = (b: EdgeBacker) => (Number.isFinite(b.tg) ? (b.tg as number) : b.t)
+export const shrink = (tg: number) => (Number.isFinite(tg) && tg > OPP.tMin ? Math.min(1, 1 - 1 / (tg * tg)) : 0)
+export const credit = (t: number) => shrink(t)   // kept for callers/tests: the credit of a GROSS t
+export const evidenced = (b: EdgeBacker) => b.w > 0 && Number.isFinite(b.netBps) && b.netBps + COST.learnRoundTripBps > 0 && grossT(b) > OPP.tMin
 
 // Expected GROSS edge of one coin x side from evidenced agents only. Learning stores NET of the learning round trip,
 // so gross = net + learnRoundTripBps; the live, trade-specific cost is charged afterwards by the profit gate.
-export function evidenceEdge(pro: EdgeBacker[], con: EdgeBacker[]): { bps: number; n: number; nCon: number; holdMin: number; agents: string[] } {
+export function evidenceEdge(pro: EdgeBacker[], con: EdgeBacker[]): { bps: number; n: number; nCon: number; holdMin: number; agents: string[]; conf: number } {
   const P = pro.filter(evidenced), C = con.filter(evidenced)
-  if (!P.length) return { bps: NaN, n: 0, nCon: C.length, holdMin: 0, agents: [] }
-  const val = (b: EdgeBacker) => b.w * credit(b.t) * (b.netBps + COST.learnRoundTripBps)
-  const W = [...P, ...C].reduce((s, b) => s + b.w * credit(b.t), 0)
+  if (!P.length) return { bps: NaN, n: 0, nCon: C.length, holdMin: 0, agents: [], conf: 0 }
+  const val = (b: EdgeBacker) => b.w * shrink(grossT(b)) * (b.netBps + COST.learnRoundTripBps)
+  const W = [...P, ...C].reduce((s, b) => s + b.w, 0)   // average (agents are correlated — never a sum), opposition subtracts
   const bps = W > 0 ? (P.reduce((s, b) => s + val(b), 0) - C.reduce((s, b) => s + val(b), 0)) / W : NaN
   // planned hold: weighted median horizon of the evidenced backers
-  const byH = [...P].sort((a, b) => a.h - b.h), tot = byH.reduce((s, b) => s + b.w * credit(b.t), 0)
+  const byH = [...P].sort((a, b) => a.h - b.h), tot = byH.reduce((s, b) => s + b.w * shrink(grossT(b)), 0)
   let acc = 0, holdMin = byH[0].h
-  for (const b of byH) { acc += b.w * credit(b.t); if (acc >= tot / 2) { holdMin = b.h; break } }
-  return { bps: +bps.toFixed(2), n: P.length, nCon: C.length, holdMin, agents: P.map((b) => b.agent) }
+  for (const b of byH) { acc += b.w * shrink(grossT(b)); if (acc >= tot / 2) { holdMin = b.h; break } }
+  const conf = +(P.reduce((s, b) => s + shrink(grossT(b)), 0) / P.length).toFixed(3)
+  return { bps: +bps.toFixed(2), n: P.length, nCon: C.length, holdMin, agents: P.map((b) => b.agent), conf }
 }
 
 // Secondary filters as score adjustments (bps). Positive = helps, negative = hurts. None of them can block alone.
-export interface Secondary { weighted: number; side: 1 | -1; trend: number; spreadBps: number; rangeOk: boolean; imbalance: number }
+export interface Secondary { weighted: number; side: 1 | -1; trend: number; spreadBps: number; rangeOk: boolean; imbalance: number; trend4h?: number }
 export function adjustments(x: Secondary): { bps: number; parts: Record<string, number> } {
   const agree = Math.sign(x.weighted) === x.side ? Math.abs(x.weighted) : -Math.abs(x.weighted)
   const parts: Record<string, number> = {
@@ -70,6 +79,7 @@ export function adjustments(x: Secondary): { bps: number; parts: Record<string, 
     spread: x.spreadBps > 10 ? -+(x.spreadBps - 10).toFixed(2) : 0,          // beyond 10 bps quoted spread (cost already charged)
     range: x.rangeOk ? 0 : -2,                                               // 1-minute range too small for the round trip
     flow: Math.abs(x.imbalance) >= 0.1 ? (Math.sign(x.imbalance) === x.side ? 0.5 : -0.5) : 0, // book imbalance
+    trend4h: !x.trend4h ? 0 : x.trend4h === x.side ? 0.5 : -1,                // v89.0: 4h context (confirmation, never a veto)
   }
   return { bps: +Object.values(parts).reduce((s, v) => s + v, 0).toFixed(2), parts }
 }
@@ -122,4 +132,21 @@ export function missingFor(reason: string, x: { netBps?: number; costBps?: numbe
     case 'stale_signal': return `האות פג תוקף: ${x.age ?? ''}`
     default: return ''
   }
+}
+
+// v89.0 Top-N ranking value: expected net $ per hour of capital x confidence (mean evidence shrinkage of the backers)
+// x execution quality (a wide quoted spread is worse execution even after its cost is charged). Components are
+// journalled so the dashboard can show why one candidate outranked another.
+export function rankValue(x: { scoreBps: number; bonusBps: number; notional: number; holdMin: number; conf: number; spreadBps: number }): { value: number; perHour: number; exec: number } {
+  if (!Number.isFinite(x.scoreBps) || !(x.notional > 0) || !(x.holdMin > 0)) return { value: -Infinity, perHour: -Infinity, exec: 0 }
+  const perHour = (x.scoreBps + Math.max(0, x.bonusBps)) * x.notional / 1e4 / (x.holdMin / 60)
+  const exec = 1 / (1 + Math.max(0, x.spreadBps) / 10)
+  return { value: perHour * Math.max(0.1, x.conf) * exec, perHour: +perHour.toFixed(4), exec: +exec.toFixed(3) }
+}
+// Which gate a reason code belongs to (dashboard: "Top Rejection Reasons").
+export const GATE_OF: Record<string, string> = {
+  stale_signal: 'data', no_book: 'data', engine_not_eligible: 'engine', no_edge_estimate: 'evidence',
+  no_gross_edge: 'profit_gate', costs_exceed_edge: 'profit_gate', book_too_thin: 'profit_gate', weak_score: 'score',
+  correlated_book: 'portfolio', book_full: 'portfolio', same_side_cap: 'portfolio', exposure_cap: 'portfolio',
+  ranked_below_cut: 'top_n', no_capital: 'portfolio', other_side_taken: 'portfolio', taken: 'executed',
 }
