@@ -8186,7 +8186,7 @@ function runV104bt() {
 //   C. a portfolio with at most 10 concurrent positions, taken in time order across all coins, and a t on
 //      DAILY sums (clustered), which is the honest significance when trades move together
 // Same cost model as v107bt: taker 5 bps + slippage 5/10 bps per side, funding 0.01%/8h (longs pay).
-function runV108bt() {
+function runV108bt(coinsOverride?: string[], shortOnly = false) {
   const HR = 3600000, TIMEOUT = 14 * 24 * HR, DAY = 86400000
   const MAJ = new Set(['BTC', 'ETH'])
   const to4h = (a: Bar[]): Bar[] => {
@@ -8200,7 +8200,7 @@ function runV108bt() {
   }
   const data: Record<string, { h1: Bar[]; h4: Bar[]; idx: Map<number, number> }> = {}
   let t0 = Infinity, t1 = -Infinity
-  for (const c of COINS) {
+  for (const c of coinsOverride ?? COINS) {
     const h = loadCSV(c, '1h'); if (h.length < 2000) continue
     const idx = new Map<number, number>(); h.forEach((b, i) => idx.set(b.t, i))
     data[c] = { h1: h, h4: to4h(h), idx }
@@ -8239,7 +8239,7 @@ function runV108bt() {
         for (let k = i - N; k < i; k++) { const p = bars[k]; if (p.high > hi) hi = p.high; if (p.low < lo) lo = p.low; v += p.vol }
         if (!(v > 0) || b.vol < M * v / N) continue
         const side = b.close > hi ? 1 : b.close < lo ? -1 : 0
-        if (side) out.push({ c, side, t: bars[i + 1].t, raw: bars[i + 1].open })
+        if (side && !(shortOnly && side > 0)) out.push({ c, side, t: bars[i + 1].t, raw: bars[i + 1].open })
       }
     }
     return out.sort((a, b) => a.t - b.t)
@@ -9384,6 +9384,19 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v105bt') {
     console.log('████ V105BT — short-term reversal + BTC lead-lag, 36m, 40 coins ████')
     runV105bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v109bt') {
+    // v109bt — the BRKV SHORT-ONLY rule (chosen after v108bt saw 69 coins) on the Binance perps v108bt NEVER saw:
+    // every USDT perp trading today with >= 2y history (backtest/binance-perps.sh) minus the 69 research coins.
+    console.log('████ V109BT — BRKV short-only on UNSEEN coins (289 perps minus the 69 of v108bt), 72m ████')
+    let perps: string[] = []
+    try { perps = Deno.readTextFileSync('backtest/data/perps.txt').split('\n').map(x => x.trim()).filter(Boolean) } catch { /* none */ }
+    const seen = new Set(COINS.map(c => c === 'PEPE' ? '1000PEPE' : c))
+    const unseen = perps.filter(c => !seen.has(c))
+    console.log(`  perps listed ${perps.length}, unseen ${unseen.length}`)
+    if (unseen.length < 50) { console.log('  ABORT: fewer than 50 unseen coins'); return }
+    runV108bt(unseen, true)
     return
   }
   if (Deno.env.get('BT_MODE') === 'v108bt') {
