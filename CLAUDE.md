@@ -365,8 +365,8 @@ live run is the unseen data that can confirm or kill it. `__BRKV_SIDE='short'` (
 14 days. SCALP treats BRKV rows as foreign; foreign share = ROTA 0.5 + BRKV 0.2 -> SCALP sizes to the remaining 0.2.
 DEPLOYED: migration `20260925150000_brkv_sleeve.sql` applied first, commit 61ae46b3, function v71, shim
 `__ENABLED_SLEEVES='SCALP,ROTA,BRKV'`, manifest v93.0 first_seen 15:22:52 paper true / live false, 0 new bot_errors.
-First entry window: the 16:00 UTC 4h close. ROLLBACK: shim back to 'SCALP,ROTA' (open BRKV rows would then be closed by
-SCALP as MODE_SWITCH — close them deliberately first if rolling back). Judge it on >= 30 closed trades, not days.
+First entry window: the 16:00 UTC 4h close. ROLLBACK: shim back to 'SCALP,ROTA' — but SCALP treats BRKV rows as foreign
+and never exits them, so CLOSE open BRKV rows first or they sit with no stop. Judge it on >= 30 closed trades, not days.
 
 ## v107bt / v108bt (2026-09-25 15:00 UTC) — OWNER'S IDEA: breakout WITH volume, target +7% / stop -4%. FIRST OOS PASS IN A LONG TIME.
 Owner: "a $1,000 trade that moves 5-10% makes $50-100, the fee is negligible" — correct arithmetic; the question is
