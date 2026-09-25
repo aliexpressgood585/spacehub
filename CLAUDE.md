@@ -356,6 +356,18 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v93.0 (2026-09-25 15:22 UTC) — BRKV SHORT-ONLY EXPERIMENT, live on paper (owner: "כן" to the offered small test)
+Owner accepted the offer made after v108bt: run the short side of the breakout+volume rule on paper, small, labelled an
+experiment. NOT validated: short-only was chosen after seeing v108bt (+0.51%/trade, t(daily) 1.53, lost in 2021); this
+live run is the unseen data that can confirm or kill it. `__BRKV_SIDE='short'` (default; 'both' = the tested L+S rule),
+`__BRKV_SHARE='0.2'` = 20% of equity over 10 slots (~2% each, ~$97 at $4.85k). Entries once per 4h bar in the first
+30 min after the close, pinned 40, close below the 20-bar low on >= 3x average volume; exits every cycle at -4% / +7% /
+14 days. SCALP treats BRKV rows as foreign; foreign share = ROTA 0.5 + BRKV 0.2 -> SCALP sizes to the remaining 0.2.
+DEPLOYED: migration `20260925150000_brkv_sleeve.sql` applied first, commit 61ae46b3, function v71, shim
+`__ENABLED_SLEEVES='SCALP,ROTA,BRKV'`, manifest v93.0 first_seen 15:22:52 paper true / live false, 0 new bot_errors.
+First entry window: the 16:00 UTC 4h close. ROLLBACK: shim back to 'SCALP,ROTA' (open BRKV rows would then be closed by
+SCALP as MODE_SWITCH — close them deliberately first if rolling back). Judge it on >= 30 closed trades, not days.
+
 ## v107bt / v108bt (2026-09-25 15:00 UTC) — OWNER'S IDEA: breakout WITH volume, target +7% / stop -4%. FIRST OOS PASS IN A LONG TIME.
 Owner: "a $1,000 trade that moves 5-10% makes $50-100, the fee is negligible" — correct arithmetic; the question is
 whether direction can be called. v107bt: 69 coins, 36m, 1h/4h bars, close beyond the N-bar high/low with volume >= M x
