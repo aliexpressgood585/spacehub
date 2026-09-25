@@ -8176,6 +8176,139 @@ function runV104bt() {
   row(pick.tag + ' @10/15bps', agg(oos, { ...pick.cfg, slipBps: 10 }))
   console.log(`\n  Breakers as live: day -10%, DD 25% (flatten + stop for the window), 4 losses -> 1h.`)
 }
+// v107bt — owner's idea: breakout WITH volume, fixed target +7% / stop -4%, all 70 research coins, 36m.
+// Signal on a completed bar (1h or 4h): close beyond the highest high / lowest low of the prior N bars AND
+// volume >= M x the average of those N bars. Entry at the NEXT bar's open (never the signal close),
+// managed on 1h bars: stop checked first when a bar touches both, 14-day timeout at the close.
+// Costs per side: taker 5 bps + slippage 5 (BTC/ETH) / 10 bps (alts); funding 0.01%/8h paid by longs,
+// received by shorts (INFERRED: the historical sign is mostly positive). One position per coin.
+// Control: the SAME 7/4 bracket entered on a fixed clock with a seeded random side — it shows what the
+// bracket alone earns, so a breakout row only means something if it beats the control.
+// Selection on the 4 in-sample windows only; the last 20% is read once.
+function runV107bt() {
+  const HR = 3600000, TGT = 0.07, STP = 0.04, TIMEOUT = 14 * 24 * HR
+  const MAJ = new Set(['BTC', 'ETH'])
+  const to4h = (a: Bar[]): Bar[] => {
+    const out: Bar[] = []; let cur: Bar | null = null, bk = -1
+    for (const b of a) {
+      const k = Math.floor(b.t / (4 * HR))
+      if (k !== bk) { if (cur) out.push(cur); bk = k; cur = { t: k * 4 * HR, open: b.open, high: b.high, low: b.low, close: b.close, vol: b.vol } }
+      else if (cur) { cur.high = Math.max(cur.high, b.high); cur.low = Math.min(cur.low, b.low); cur.close = b.close; cur.vol += b.vol }
+    }
+    if (cur) out.push(cur); return out
+  }
+  const data: Record<string, { h1: Bar[]; h4: Bar[]; idx: Map<number, number> }> = {}
+  let t0 = Infinity, t1 = -Infinity
+  for (const c of COINS) {
+    const h = loadCSV(c, '1h'); if (h.length < 2000) continue
+    const idx = new Map<number, number>(); h.forEach((b, i) => idx.set(b.t, i))
+    data[c] = { h1: h, h4: to4h(h), idx }
+    t0 = Math.min(t0, h[0].t); t1 = Math.max(t1, h[h.length - 1].t)
+  }
+  const syms = Object.keys(data)
+  const span = t1 - t0
+  console.log(`  ${syms.length} coins, span ${(span / 86400000).toFixed(0)} days`)
+  if (span < 900 * 86400000) { console.log('  ABORT: need >= 900 days of 1h data'); return }
+  const oosFrom = t0 + span * 0.8, isW = (oosFrom - t0) / 4
+  console.log(`  in-sample ${new Date(t0).toISOString().slice(0, 10)} .. ${new Date(oosFrom).toISOString().slice(0, 10)} (4 windows)   OOS .. ${new Date(t1).toISOString().slice(0, 10)}`)
+  type Tr = { t: number; side: number; net: number; gross: number; win: boolean; tgt: boolean; stp: boolean; hrs: number }
+  // manage one trade on 1h bars from entry time; returns exit
+  const manage = (c: string, side: number, entryT: number, entryPx: number) => {
+    const d = data[c], i0 = d.idx.get(entryT); if (i0 === undefined) return null
+    const up = entryPx * (1 + side * TGT), dn = entryPx * (1 - side * STP)
+    for (let i = i0; i < d.h1.length; i++) {
+      const b = d.h1[i]
+      const hitStop = side > 0 ? b.low <= dn : b.high >= dn
+      const hitTgt = side > 0 ? b.high >= up : b.low <= up
+      if (hitStop) return { px: dn, t: b.t + HR, why: 's' }
+      if (hitTgt) return { px: up, t: b.t + HR, why: 't' }
+      if (b.t + HR - entryT >= TIMEOUT) return { px: b.close, t: b.t + HR, why: 'x' }
+    }
+    return null
+  }
+  const book = (c: string, side: number, entryT: number, raw: number, out: Tr[]) => {
+    const slip = (MAJ.has(c) ? 5 : 10) / 10000, fee = 5 / 10000
+    const entryPx = raw * (1 + side * slip)
+    const x = manage(c, side, entryT, entryPx); if (!x) return Infinity
+    const exitPx = x.px * (1 - side * slip)
+    const hrs = (x.t - entryT) / HR
+    const gross = side * (x.px / raw - 1) * 100
+    const net = side * (exitPx / entryPx - 1) * 100 - 2 * fee * 100 - side * 0.01 * hrs / 8
+    out.push({ t: entryT, side, net, gross, win: net > 0, tgt: x.why === 't', stp: x.why === 's', hrs })
+    return x.t
+  }
+  const runCfg = (tf: '1h' | '4h', N: number, M: number, longOnly: boolean): Tr[] => {
+    const out: Tr[] = []
+    for (const c of syms) {
+      const bars = tf === '1h' ? data[c].h1 : data[c].h4
+      let freeAt = -Infinity
+      for (let i = N; i + 1 < bars.length; i++) {
+        const b = bars[i], nx = bars[i + 1]
+        if (nx.t < freeAt) continue
+        let hi = -Infinity, lo = Infinity, v = 0
+        for (let k = i - N; k < i; k++) { const p = bars[k]; if (p.high > hi) hi = p.high; if (p.low < lo) lo = p.low; v += p.vol }
+        const avg = v / N; if (!(avg > 0) || b.vol < M * avg) continue
+        const side = b.close > hi ? 1 : (!longOnly && b.close < lo ? -1 : 0)
+        if (!side) continue
+        const end = book(c, side, nx.t, nx.open, out)
+        if (end === Infinity) break
+        freeAt = end
+      }
+    }
+    return out
+  }
+  let seed = 107
+  const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296
+  const runCtl = (every: number): Tr[] => {
+    const out: Tr[] = []
+    for (const c of syms) {
+      const bars = data[c].h1; let freeAt = -Infinity
+      for (let i = 50; i < bars.length; i += every) {
+        if (bars[i].t < freeAt) continue
+        const end = book(c, rnd() < 0.5 ? 1 : -1, bars[i].t, bars[i].open, out)
+        if (end === Infinity) break
+        freeAt = end
+      }
+    }
+    return out
+  }
+  const stat = (a: Tr[]) => {
+    const n = a.length, m = a.reduce((x, y) => x + y.net, 0) / Math.max(1, n)
+    const sd = Math.sqrt(a.reduce((x, y) => x + (y.net - m) ** 2, 0) / Math.max(1, n - 1))
+    return { n, wr: a.filter(x => x.win).length / Math.max(1, n) * 100, net: m, gross: a.reduce((x, y) => x + y.gross, 0) / Math.max(1, n),
+      t: n > 1 ? m / (sd / Math.sqrt(n)) : 0, usd: a.reduce((x, y) => x + y.net, 0) * 10,
+      tg: a.filter(x => x.tgt).length / Math.max(1, n) * 100, st: a.filter(x => x.stp).length / Math.max(1, n) * 100,
+      hrs: a.reduce((x, y) => x + y.hrs, 0) / Math.max(1, n) }
+  }
+  const win = (a: Tr[]) => [0, 1, 2, 3].map(w => stat(a.filter(x => x.t >= t0 + w * isW && x.t < t0 + (w + 1) * isW)).usd)
+  const hdr = () => console.log(`  config                        trades   WR%  hit7%  hit-4%  hold h  gross%  net%/trade    t     $ at $1k/trade   per-window $`)
+  const row = (tag: string, a: Tr[], ws?: number[]) => {
+    const s = stat(a)
+    console.log(`  ${tag.padEnd(28)} ${String(s.n).padStart(7)} ${s.wr.toFixed(1).padStart(5)} ${s.tg.toFixed(1).padStart(6)} ${s.st.toFixed(1).padStart(7)} ` +
+      `${s.hrs.toFixed(0).padStart(7)} ${s.gross.toFixed(2).padStart(7)} ${s.net.toFixed(3).padStart(10)} ${s.t.toFixed(2).padStart(6)} ${s.usd.toFixed(0).padStart(14)}` +
+      (ws ? '   ' + ws.map(x => (x >= 0 ? '+' : '') + x.toFixed(0)).join(' ') : ''))
+  }
+  const IS = (a: Tr[]) => a.filter(x => x.t < oosFrom), OOS = (a: Tr[]) => a.filter(x => x.t >= oosFrom)
+  console.log(`\n  bracket: target +7%, stop -4% -> break-even win rate before costs = 4/11 = 36.4%; costs ~0.2-0.3% per round trip`)
+  console.log(`\n── IN-SAMPLE (selection happens here only) ──`)
+  hdr()
+  const ctl = runCtl(24)
+  row('CONTROL random side, daily', IS(ctl), win(ctl))
+  const res: { tag: string; a: Tr[]; ws: number[] }[] = []
+  for (const tf of ['1h', '4h'] as const) for (const N of [20, 50]) for (const M of [2, 3]) for (const lo of [false, true]) {
+    const a = runCfg(tf, N, M, lo), tag = `${tf} N${N} vol>=${M}x ${lo ? 'long only' : 'long+short'}`
+    const ws = win(a); res.push({ tag, a, ws }); row(tag, IS(a), ws)
+  }
+  const pick = res.slice().sort((x, y) => (y.ws.filter(v => v > 0).length - x.ws.filter(v => v > 0).length) || (stat(IS(y.a)).net - stat(IS(x.a)).net))[0]
+  console.log(`\n  SELECTED on in-sample (most positive windows, then net per trade): ${pick.tag}`)
+  console.log(`\n── OUT-OF-SAMPLE, read once ──`)
+  hdr()
+  row(pick.tag, OOS(pick.a))
+  row('CONTROL random side, daily', OOS(ctl))
+  const longs = OOS(pick.a).filter(x => x.side > 0), shorts = OOS(pick.a).filter(x => x.side < 0)
+  if (shorts.length) { row('  of which LONG', longs); row('  of which SHORT', shorts) }
+  console.log(`\n  $ = sum of net % x $1,000 per trade (no compounding, no position limit across coins).`)
+}
 // v106bt — ROTA with an oscillator agreement rule (owner: most precise ROTA trades), live v92 shape.
 // v104bt — make the one working engine survive: vol targeting + momentum ensemble.
 function runV106bt() {
@@ -9139,6 +9272,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v105bt') {
     console.log('████ V105BT — short-term reversal + BTC lead-lag, 36m, 40 coins ████')
     runV105bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v107bt') {
+    console.log('████ V107BT — breakout + volume, target +7% / stop -4%, 70 coins, 36m, IS/OOS ████')
+    runV107bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v106bt') {
