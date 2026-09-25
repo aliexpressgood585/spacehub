@@ -20,7 +20,7 @@ assert.ok(Number.isNaN(evidenceEdge([B('a', 40, 0.9)], []).bps))
   assert.equal(profitGate({ grossEdgeBps: e.bps, edgeN: 1, book: deep, notional: 1000, side: 1, holdMin: 15, funding: 0.0001 }).reason, 'costs_exceed_edge', '... and the gate, not the evidence test, rejects it') }
 
 // v91.0 exploration tier: overlap-only t >= 1, gross unshrunk, used only when the evidence test passes nobody
-{ const X = (agent: string, netBps: number, tg: number, to: number, h = 15): EdgeBacker => ({ agent, w: 1, netBps, t: tg, tg, to, h })
+{ const X = (agent: string, netBps: number, tg: number, to: number, h = 15, ind = 40): EdgeBacker => ({ agent, w: 1, netBps, t: tg, tg, to, h, ind })
   const r = X('rsi14r', 3.9, 0.49, 1.34)                     // the live case on 2026-09-25: gross 19.9 bps, raw t 5.2
   assert.equal(evidenceEdge([r], []).n, 0, 'fails the full evidence test')
   const e = exploreEdge([r], []); assert.equal(e.n, 1); assert.equal(e.bps, 19.9, 'gross unshrunk'); assert.equal(e.holdMin, 15)
@@ -29,6 +29,8 @@ assert.ok(Number.isNaN(evidenceEdge([B('a', 40, 0.9)], []).bps))
   assert.equal(exploreEdge([r], [X('c', 3.9, 0.49, 1.34)]).bps, 0, 'opposition cancels')
   const deep: Book = { bid: 100, ask: 100.01, bidDepth10: 5e6, askDepth10: 5e6, ts: 0, source: 't' }
   assert.equal(profitGate({ grossEdgeBps: 12, edgeN: 1, book: deep, notional: 250, side: 1, holdMin: 15, funding: 0.0001 }).pass, false, 'the profit gate still charges the full cost to exploration')
+  assert.equal(exploreEdge([X('c_multi_tf', 63, 0.44, 1.94, 60, 57 / 60)], []).n, 0, 'v91.1: one market move (57 snapshots at 60m < 1 independent period) is not evidence')
+  assert.equal(OPP.explore.minIndep, 20)
   assert.equal(OPP.explore.sizeMult, 0.25); assert.equal(OPP.explore.maxOpen, 2)
   const run = readFileSync('supabase/functions/trading-bot/scalp-runner.ts', 'utf8')
   assert.ok(run.includes('if(!ev.n){const ex=exploreEdge(pro,con)'), 'exploration only when the evidence test is empty')

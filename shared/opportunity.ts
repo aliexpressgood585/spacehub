@@ -44,7 +44,10 @@ export const OPP = {
   // (not for the cross-coin correlation) is >= tMin; its measured gross edge is used UNSHRUNK. The full cost model
   // and the profit gate are unchanged (net >= COST.marginBps), but size is a quarter of normal and at most maxOpen
   // exploration positions are open at once, so a wrong estimate costs little while live fills are measured.
-  explore: { tMin: 1, sizeMult: 0.25, maxOpen: 2 },
+  // v91.1: plus >= minIndep INDEPENDENT periods behind the estimate (scored snapshots x meeting minutes / horizon).
+  // The first hour of v91.0 traded agents whose whole record was 1-57 snapshots of ONE market move (c_multi_tf@60:
+  // 57 snapshots = under one independent hour, raw t 15 from 40 coins moving together) — market beta, not edge.
+  explore: { tMin: 1, sizeMult: 0.25, maxOpen: 2, minIndep: 20 },
 } as const
 
 // v89.0 CALIBRATION FIX: v87 shrank each backer's GROSS edge by a credit computed from its NET t (and required a
@@ -53,7 +56,7 @@ export const OPP = {
 // the standard James-Stein factor 1 - 1/tg^2 (tg = overlap- and cross-coin-corrected t of the GROSS mean): gross t 1
 // -> 0 (no evidence), 1.5 -> 0.56, 2 -> 0.75, 3 -> 0.89. The profit gate then charges the real, trade-specific cost
 // ONCE. `tg` falls back to the net t shifted by the learning round trip only if a caller cannot supply it.
-export interface EdgeBacker { agent: string; w: number; netBps: number; t: number; h: number; tg?: number; to?: number }
+export interface EdgeBacker { agent: string; w: number; netBps: number; t: number; h: number; tg?: number; to?: number; ind?: number }
 export const grossT = (b: EdgeBacker) => (Number.isFinite(b.tg) ? (b.tg as number) : b.t)
 export const shrink = (tg: number) => (Number.isFinite(tg) && tg > OPP.tMin ? Math.min(1, 1 - 1 / (tg * tg)) : 0)
 export const credit = (t: number) => shrink(t)   // kept for callers/tests: the credit of a GROSS t
@@ -76,7 +79,7 @@ export function evidenceEdge(pro: EdgeBacker[], con: EdgeBacker[]): { bps: numbe
 }
 
 // v91.0 exploration estimate (see OPP.explore). `to` = overlap-corrected t of the GROSS mean, no cross-coin factor.
-export const explorable = (b: EdgeBacker) => b.w > 0 && Number.isFinite(b.netBps) && b.netBps + COST.learnRoundTripBps > 0 && Number.isFinite(b.to) && (b.to as number) >= OPP.explore.tMin
+export const explorable = (b: EdgeBacker) => b.w > 0 && Number.isFinite(b.netBps) && b.netBps + COST.learnRoundTripBps > 0 && Number.isFinite(b.to) && (b.to as number) >= OPP.explore.tMin && (b.ind ?? 0) >= OPP.explore.minIndep
 export function exploreEdge(pro: EdgeBacker[], con: EdgeBacker[]): { bps: number; n: number; nCon: number; holdMin: number; agents: string[]; conf: number } {
   const P = pro.filter(explorable), C = con.filter(explorable)
   if (!P.length) return { bps: NaN, n: 0, nCon: C.length, holdMin: 0, agents: [], conf: 0 }
