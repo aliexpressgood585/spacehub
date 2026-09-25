@@ -371,7 +371,22 @@ trip (fees 0.05% x 2 = $1.00 + spread/impact ~$0.60, measured from the real book
 $1,218 ticket paid $1.22 in fees (5 bps each side), slippage is inside the fill prices.
 v106bt QUEUED (PR #75, 73a001ac): ROTA + RSI agreement — `S.rotaTargetsOsc` (exhaust 70/30, 75/25, 80/20; confirm
 RSI14>50, RSI6>50; rejected names replaced by the next in rank) on the live v92 shape, with and without volT 0.5,
-4 IS windows + 20% OOS once. RESULT: see status/bt-latest.txt; record here when it lands.
+4 IS windows + 20% OOS once. RESULT (run 36149531599, 14:49 UTC) — **RSI FILTER REJECTED; live v92 stays as is.**
+    in-sample (2023-09 .. 2026-01)       trades  net%    maxDD  windows
+    LIVE v92 (no volT)                    1125  +138.3  24.9%  +149 -24 -8 +21   (one window carries it)
+    v104 volT50%                          5068   -10.2  22.8%
+    noVT confirm rsi14>50  [SELECTED]     2107   +59.3  24.5%  +52 -2 -2 +11     (fewest bad windows)
+    noVT exhaust 70/30 / 75/25 / 80/20          +32 / +34 / +37
+    every volT50 + RSI row                       -10 .. -31
+    OUT-OF-SAMPLE, once (2026-01 .. 2026-08):
+    noVT confirm rsi14>50                  599   -11.8  16.2%  (@10bps -17.9)
+    LIVE v92 (no volT)                     360    +5.2  16.5%  PF 1.06
+    v104 volT50%                          1153    -9.1  12.3%
+The in-sample winner flipped to a loss out-of-sample — the multiple-testing pattern the holdout exists to catch.
+Live v92 (ROTA 50%, vol damping off) is the only row positive OOS, so the owner's 50% setting is kept and NOTHING
+is deployed. HONEST: +5.2% over 7 months on 360 trades is thin, and v92's in-sample total rests on one +149% window.
+NB volT50 here is -9.1% OOS vs v104bt's +1.0%: different share/book shape (50% of equity vs 1.75x slots) — the
+vol-target result does not transfer, so restoring `__ROTA_VOL_TARGET='0.5'` is NOT indicated.
 
 ## 2026-09-25 14:35 UTC — 5 hours of v91.1: 0 trades, and the data says why (owner: "5 hours, no good opportunities")
 09:25-14:33: 0 bot_errors, ~51 meetings/h, 0 new trades, cash $4,849.22. Decisions: no_edge_estimate 4,610 (evidence
