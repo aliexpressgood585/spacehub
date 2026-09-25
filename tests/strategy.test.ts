@@ -630,4 +630,11 @@ if (failures.length) {
   console.log('')
   process.exit(1)
 }
+// v106bt: oscillator-agreement ROTA ranking replaces a rejected name with the next in rank
+{ const rows = Array.from({ length: 40 }, (_, i) => ({ sym: 'C' + i, mom: 1 - i / 10, price: 1, vol: 0.02, rsi: i === 0 ? 85 : i === 39 ? 15 : 50 }))
+  const t = (S as any).rotaTargetsOsc(rows, 2, 'exhaust', 70, 30)
+  const longs = t.filter((x: any) => x.dir === 1).map((x: any) => x.sym), shorts = t.filter((x: any) => x.dir === -1).map((x: any) => x.sym)
+  if (JSON.stringify(longs) !== JSON.stringify(['C1', 'C2'])) throw new Error('osc: overbought leader must be replaced by the next in rank')
+  if (JSON.stringify(shorts) !== JSON.stringify(['C38', 'C37'])) throw new Error('osc: oversold laggard must be replaced')
+  if (!(Math.abs((S as any).rsiOf([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], 14) - 100) < 1e-9)) throw new Error('rsiOf all-up = 100') }
 console.log('  OK\n')
