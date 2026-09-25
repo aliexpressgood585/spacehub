@@ -39,6 +39,12 @@ export const OPP = {
   quoteTtlMs: 20_000,   // a signal priced on a quote older than this has expired (the ledger enforces the same 20 s)
   barTtlMs: 150_000,    // the newest closed 1-minute bar must have closed within 2.5 min
   entriesByTier: { full: 3, reduced: 2, defensive: 1, minimal: 1, unknown: 0 } as Record<string, number>,
+  // v91.0 EXPLORATION tier (owner, 2026-09-25: "loosen it a bit so trades happen"). Used only when NO agent passes
+  // the full evidence test. An agent counts when its GROSS edge is positive and its t corrected for OVERLAP only
+  // (not for the cross-coin correlation) is >= tMin; its measured gross edge is used UNSHRUNK. The full cost model
+  // and the profit gate are unchanged (net >= COST.marginBps), but size is a quarter of normal and at most maxOpen
+  // exploration positions are open at once, so a wrong estimate costs little while live fills are measured.
+  explore: { tMin: 1, sizeMult: 0.25, maxOpen: 2 },
 } as const
 
 // v89.0 CALIBRATION FIX: v87 shrank each backer's GROSS edge by a credit computed from its NET t (and required a
@@ -47,7 +53,7 @@ export const OPP = {
 // the standard James-Stein factor 1 - 1/tg^2 (tg = overlap- and cross-coin-corrected t of the GROSS mean): gross t 1
 // -> 0 (no evidence), 1.5 -> 0.56, 2 -> 0.75, 3 -> 0.89. The profit gate then charges the real, trade-specific cost
 // ONCE. `tg` falls back to the net t shifted by the learning round trip only if a caller cannot supply it.
-export interface EdgeBacker { agent: string; w: number; netBps: number; t: number; h: number; tg?: number }
+export interface EdgeBacker { agent: string; w: number; netBps: number; t: number; h: number; tg?: number; to?: number }
 export const grossT = (b: EdgeBacker) => (Number.isFinite(b.tg) ? (b.tg as number) : b.t)
 export const shrink = (tg: number) => (Number.isFinite(tg) && tg > OPP.tMin ? Math.min(1, 1 - 1 / (tg * tg)) : 0)
 export const credit = (t: number) => shrink(t)   // kept for callers/tests: the credit of a GROSS t
@@ -66,6 +72,21 @@ export function evidenceEdge(pro: EdgeBacker[], con: EdgeBacker[]): { bps: numbe
   let acc = 0, holdMin = byH[0].h
   for (const b of byH) { acc += b.w * shrink(grossT(b)); if (acc >= tot / 2) { holdMin = b.h; break } }
   const conf = +(P.reduce((s, b) => s + shrink(grossT(b)), 0) / P.length).toFixed(3)
+  return { bps: +bps.toFixed(2), n: P.length, nCon: C.length, holdMin, agents: P.map((b) => b.agent), conf }
+}
+
+// v91.0 exploration estimate (see OPP.explore). `to` = overlap-corrected t of the GROSS mean, no cross-coin factor.
+export const explorable = (b: EdgeBacker) => b.w > 0 && Number.isFinite(b.netBps) && b.netBps + COST.learnRoundTripBps > 0 && Number.isFinite(b.to) && (b.to as number) >= OPP.explore.tMin
+export function exploreEdge(pro: EdgeBacker[], con: EdgeBacker[]): { bps: number; n: number; nCon: number; holdMin: number; agents: string[]; conf: number } {
+  const P = pro.filter(explorable), C = con.filter(explorable)
+  if (!P.length) return { bps: NaN, n: 0, nCon: C.length, holdMin: 0, agents: [], conf: 0 }
+  const val = (b: EdgeBacker) => b.w * (b.netBps + COST.learnRoundTripBps)
+  const W = [...P, ...C].reduce((s, b) => s + b.w, 0)
+  const bps = (P.reduce((s, b) => s + val(b), 0) - C.reduce((s, b) => s + val(b), 0)) / W
+  const byH = [...P].sort((a, b) => a.h - b.h), tot = byH.reduce((s, b) => s + b.w, 0)
+  let acc = 0, holdMin = byH[0].h
+  for (const b of byH) { acc += b.w; if (acc >= tot / 2) { holdMin = b.h; break } }
+  const conf = +(P.reduce((s, b) => s + Math.min(1, Math.max(0, 1 - 1 / ((b.to as number) ** 2))), 0) / P.length).toFixed(3)
   return { bps: +bps.toFixed(2), n: P.length, nCon: C.length, holdMin, agents: P.map((b) => b.agent), conf }
 }
 
@@ -124,7 +145,7 @@ export function portfolioPlan(cands: RankedCand[], book: BookPos[], equity: numb
 // What would it take to pass: a short, honest line for the dashboard.
 export function missingFor(reason: string, x: { netBps?: number; costBps?: number; nEvidence?: number; age?: string }): string {
   switch (reason) {
-    case 'no_edge_estimate': return `אין סוכן עם יתרון נטו מוכח (t≥${OPP.tMin}) שתומך בצד הזה`
+    case 'no_edge_estimate': return `אין סוכן עם יתרון מוכח (t≥${OPP.tMin}) וגם לא ברף החקירה (t חפיפה ≥${OPP.explore.tMin}) שתומך בצד הזה`
     case 'no_gross_edge': case 'costs_exceed_edge': return `חסרים ${Math.max(0, COST.marginBps - (x.netBps ?? 0)).toFixed(1)} נק׳ בסיס נטו (עלות ${x.costBps ?? '—'})`
     case 'weak_score': return `ציון אחרי קנסות משניים חסר ${Math.max(0, COST.marginBps - (x.netBps ?? 0)).toFixed(1)} נק׳ בסיס`
     case 'book_too_thin': return 'עומק הספר לא מספיק לגודל הזה'
@@ -148,5 +169,5 @@ export const GATE_OF: Record<string, string> = {
   stale_signal: 'data', no_book: 'data', engine_not_eligible: 'engine', no_edge_estimate: 'evidence',
   no_gross_edge: 'profit_gate', costs_exceed_edge: 'profit_gate', book_too_thin: 'profit_gate', weak_score: 'score',
   correlated_book: 'portfolio', book_full: 'portfolio', same_side_cap: 'portfolio', exposure_cap: 'portfolio',
-  ranked_below_cut: 'top_n', no_capital: 'portfolio', other_side_taken: 'portfolio', taken: 'executed',
+  ranked_below_cut: 'top_n', no_capital: 'portfolio', other_side_taken: 'portfolio', explore_cap: 'portfolio', taken: 'executed',
 }

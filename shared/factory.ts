@@ -191,9 +191,13 @@ export function promisingHorizons(stats: Record<string, Stat>, id: string): numb
   return LEARN.horizonsMin.filter((h) => { const st = stats[hKey(id, h)]; if (!st || st.n < FACTORY.promisingMinN) return false
     const mature = st.n >= FACTORY.trialMinN && (st.ev ?? 0) >= FACTORY.trialMinEv; return !mature && hT(st, h) > 0 })
 }
+// v91.0: a slow-bar genome (gym-seeded, tf >= 30m) fires far less often than a 1-minute one, so its clocks scale with
+// its bar size: x (bar minutes / 15), between 1 and 28. 2h bars -> x8 (trial 96h, hard 12 days, oos 8 days).
+// The evidence bars (n, ev, t) are NOT scaled — only the time a genome is given to reach them.
+export const clockMult = (g: Genome | undefined) => (g?.tf ? Math.max(1, Math.min(28, (TF_MIN[g.tf] ?? 15) / 15)) : 1)
 // one lifecycle step for one row; returns the changed row or null
 export function step(row: FactoryRow, stats: Record<string, Stat>, now: number): FactoryRow | null {
-  const ageH = (now - Date.parse(row.stage_at)) / 3600_000, at = new Date(now).toISOString()
+  const ageH = (now - Date.parse(row.stage_at)) / 3600_000, cm = clockMult(row.genome), at = new Date(now).toISOString()
   if (row.stage === 'trial') {
     const b = trialBest(stats, row.id)
     if (Number.isFinite(b.t) && b.t >= FACTORY.trialT) return { ...row, stage: 'oos', stage_at: at, h: b.h, note: `trial t=${b.t.toFixed(2)} @${b.h}m n=${Math.round(b.n)}` }
@@ -203,8 +207,8 @@ export function step(row: FactoryRow, stats: Record<string, Stat>, now: number):
     // (n >= promisingMinN, corrected t > 0) postpones both the t-retirement and the clock, up to a hard cap.
     const pending = promisingHorizons(stats, row.id)
     if (Number.isFinite(b.t) && b.t <= FACTORY.trialRetireT && !pending.length) return { ...row, stage: 'retired', stage_at: at, note: `trial t=${b.t.toFixed(2)} (all horizons)` }
-    if (ageH >= FACTORY.trialHardMaxH) return { ...row, stage: 'retired', stage_at: at, note: 'trial hard timeout' }
-    if (ageH >= FACTORY.trialMaxH && !pending.length) return { ...row, stage: 'retired', stage_at: at, note: 'trial timeout' }
+    if (ageH >= FACTORY.trialHardMaxH * cm) return { ...row, stage: 'retired', stage_at: at, note: 'trial hard timeout' }
+    if (ageH >= FACTORY.trialMaxH * cm && !pending.length) return { ...row, stage: 'retired', stage_at: at, note: 'trial timeout' }
     return null
   }
   if (row.stage === 'oos' || row.stage === 'live') {
@@ -212,7 +216,7 @@ export function step(row: FactoryRow, stats: Record<string, Stat>, now: number):
     if (row.stage === 'oos') {
       if (enough && t >= FACTORY.liveT) return { ...row, stage: 'live', stage_at: at, note: `oos t=${t.toFixed(2)} @${h}m n=${Math.round(n)}` }
       if (enough && t < 0) return { ...row, stage: 'retired', stage_at: at, note: `oos t=${t.toFixed(2)}` }
-      if (ageH >= FACTORY.oosMaxH) return { ...row, stage: 'retired', stage_at: at, note: `oos timeout t=${Number.isFinite(t) ? t.toFixed(2) : '—'} n=${Math.round(n)}` }
+      if (ageH >= FACTORY.oosMaxH * cm) return { ...row, stage: 'retired', stage_at: at, note: `oos timeout t=${Number.isFinite(t) ? t.toFixed(2) : '—'} n=${Math.round(n)}` }
       return null
     }
     if (enough && t < FACTORY.liveDropT) return { ...row, stage: 'retired', stage_at: at, note: `live dropped t=${t.toFixed(2)}` }

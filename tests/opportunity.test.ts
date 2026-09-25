@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { OPP, credit, evidenceEdge, adjustments, signalAge, sizeFor, portfolioPlan, missingFor, type EdgeBacker } from '../shared/opportunity.ts'
+import { OPP, credit, evidenceEdge, exploreEdge, adjustments, signalAge, sizeFor, portfolioPlan, missingFor, type EdgeBacker } from '../shared/opportunity.ts'
 import { COST, profitGate, type Book } from '../shared/costs.ts'
 import { SCALP } from '../shared/scalp.ts'
 import { readFileSync } from 'node:fs'
@@ -18,6 +18,21 @@ assert.ok(Number.isNaN(evidenceEdge([B('a', 40, 0.9)], []).bps))
 { const e = evidenceEdge([B('a', -2, 3)], []); assert.ok(e.n === 1 && e.bps > 12 && e.bps < 14, `gross-evidenced, net-negative -> priced (${e.bps})`)
   const deep: Book = { bid: 100, ask: 100.01, bidDepth10: 5e6, askDepth10: 5e6, ts: 0, source: 't' }
   assert.equal(profitGate({ grossEdgeBps: e.bps, edgeN: 1, book: deep, notional: 1000, side: 1, holdMin: 15, funding: 0.0001 }).reason, 'costs_exceed_edge', '... and the gate, not the evidence test, rejects it') }
+
+// v91.0 exploration tier: overlap-only t >= 1, gross unshrunk, used only when the evidence test passes nobody
+{ const X = (agent: string, netBps: number, tg: number, to: number, h = 15): EdgeBacker => ({ agent, w: 1, netBps, t: tg, tg, to, h })
+  const r = X('rsi14r', 3.9, 0.49, 1.34)                     // the live case on 2026-09-25: gross 19.9 bps, raw t 5.2
+  assert.equal(evidenceEdge([r], []).n, 0, 'fails the full evidence test')
+  const e = exploreEdge([r], []); assert.equal(e.n, 1); assert.equal(e.bps, 19.9, 'gross unshrunk'); assert.equal(e.holdMin, 15)
+  assert.equal(exploreEdge([X('a', 3, 0.3, 0.9)], []).n, 0, 'overlap t below 1 -> not even exploration')
+  assert.equal(exploreEdge([X('a', -20, 2, 3)], []).n, 0, 'negative gross never explores')
+  assert.equal(exploreEdge([r], [X('c', 3.9, 0.49, 1.34)]).bps, 0, 'opposition cancels')
+  const deep: Book = { bid: 100, ask: 100.01, bidDepth10: 5e6, askDepth10: 5e6, ts: 0, source: 't' }
+  assert.equal(profitGate({ grossEdgeBps: 12, edgeN: 1, book: deep, notional: 250, side: 1, holdMin: 15, funding: 0.0001 }).pass, false, 'the profit gate still charges the full cost to exploration')
+  assert.equal(OPP.explore.sizeMult, 0.25); assert.equal(OPP.explore.maxOpen, 2)
+  const run = readFileSync('supabase/functions/trading-bot/scalp-runner.ts', 'utf8')
+  assert.ok(run.includes('if(!ev.n){const ex=exploreEdge(pro,con)'), 'exploration only when the evidence test is empty')
+  assert.ok(run.includes("riskMult:risk.mult*xm") && run.includes("exploreOpen>=OPP.explore.maxOpen"), 'quarter size + open cap wired') }
 
 // secondary filters are adjustments, never vetoes
 { const a = adjustments({ weighted: -0.4, side: 1, trend: -1, spreadBps: 12, rangeOk: false, imbalance: -0.3 })
@@ -78,4 +93,4 @@ assert.ok(missingFor('no_edge_estimate', {}).includes('t≥1'))
   assert.equal((r.match(/entries\.push\(/g) ?? []).length, 1, 'exactly one place fills entries'); assert.ok(r.includes("profit_gate:'passed'"))
   assert.ok(i.includes('const LEGACY_ENGINE_ALLOWED = false') && i.includes('if (!LEGACY_ENGINE_ALLOWED) return'), 'legacy ungated engine cannot trade')
   assert.ok(!/await runRota\(/.test(i), 'ROTA (ungated) is never run') }
-console.log('Opportunity v87.0: evidence, weighted score, TTL, dynamic sizing, portfolio manager, no-bypass passed')
+console.log('Opportunity v91.0 (exploration tier): evidence, weighted score, TTL, dynamic sizing, portfolio manager, no-bypass passed')
