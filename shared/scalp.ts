@@ -150,10 +150,14 @@ export function exitPlan(t:any,q:Quote,now:number,view?:View) {
   const candidate=px*(1-dir*stopPct*0.6)
   const newStop=active?(dir===1?Math.max(stop,candidate):Math.min(stop,candidate)):stop
   let reason=timeout?'TIMEOUT':stopped?'STOP':'TRAIL', close=timeout||stopped
+  // v91.1: an EXPLORATION trade is judged on its backer's horizon — the team (which has no measured edge) cannot
+  // FLIP it out after a few minutes, and it is not extended past plan; only the stop, the plan and the cap end it
+  const explore=meta.evidence?.tier==='explore'
   if(!close&&held>=SCALP.minHoldMs){
     const against=!!view&&(view.side===-dir||view.weighted*dir<=-SCALP.minWeighted)
     const backs=!!view&&(view.side===dir||view.weighted*dir>=SCALP.minWeighted)
-    if(against){close=true;reason='FLIP'}
+    if(against&&!explore){close=true;reason='FLIP'}
+    else if(held>=planned&&explore){close=true;reason='PLANNED'}
     else if(held>=planned){
       // a loser or an unbacked trade leaves at the planned time; a winner the
       // team still backs is extended; without a fresh view a winner waits for the next meeting
