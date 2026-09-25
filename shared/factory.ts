@@ -20,7 +20,7 @@ import type { Bar } from './agents.ts'
 // v83.1: minEv = scored SNAPSHOTS (≈ minutes), not coin-votes — 300 coin-votes arrive in ~10 minutes and
 // a coin-flip agent is then retired or promoted on noise; an hour (trial) / two (oos) is the floor.
 // trialRetireT: a trial agent is dropped at t <= -0.5, not at the first negative reading.
-export const FACTORY = { pop: 100, spawnPerMeeting: 20, trialMinN: 300, trialMinEv: 60, trialT: 1.0, trialRetireT: -0.5, trialMaxH: 12, oosMinN: 200, oosMinEv: 120, liveT: 2.5, oosMaxH: 24, liveDropT: 1.0 } as const
+export const FACTORY = { pop: 100, spawnPerMeeting: 20, trialMinN: 300, trialMinEv: 60, trialT: 1.0, trialRetireT: -0.5, trialMaxH: 12, trialHardMaxH: 36, promisingMinN: 30, oosMinN: 200, oosMinEv: 120, liveT: 2.5, oosMaxH: 24, liveDropT: 1.0 } as const
 export type Stage = 'trial' | 'oos' | 'live' | 'retired'
 export type Gene = [key: string, th: number, dir: 1 | -1]
 // v85.1: `tf` = the bars the genome reads. Absent = the live 1-minute bars (gym-tested on 5m);
@@ -186,14 +186,25 @@ function trialBest(stats: Record<string, Stat>, id: string): { h: number; t: num
   for (const h of LEARN.horizonsMin) { const st = stats[hKey(id, h)]; if (!st || st.n < FACTORY.trialMinN || (st.ev ?? 0) < FACTORY.trialMinEv) continue; const t = hT(st, h); if (t > best.t) best = { h, t, n: st.n } }
   return best
 }
+// v90.0: horizons not yet mature (n < trialMinN or too few snapshots) whose corrected t is already positive
+export function promisingHorizons(stats: Record<string, Stat>, id: string): number[] {
+  return LEARN.horizonsMin.filter((h) => { const st = stats[hKey(id, h)]; if (!st || st.n < FACTORY.promisingMinN) return false
+    const mature = st.n >= FACTORY.trialMinN && (st.ev ?? 0) >= FACTORY.trialMinEv; return !mature && hT(st, h) > 0 })
+}
 // one lifecycle step for one row; returns the changed row or null
 export function step(row: FactoryRow, stats: Record<string, Stat>, now: number): FactoryRow | null {
   const ageH = (now - Date.parse(row.stage_at)) / 3600_000, at = new Date(now).toISOString()
   if (row.stage === 'trial') {
     const b = trialBest(stats, row.id)
     if (Number.isFinite(b.t) && b.t >= FACTORY.trialT) return { ...row, stage: 'oos', stage_at: at, h: b.h, note: `trial t=${b.t.toFixed(2)} @${b.h}m n=${Math.round(b.n)}` }
-    if (Number.isFinite(b.t) && b.t <= FACTORY.trialRetireT) return { ...row, stage: 'retired', stage_at: at, note: `trial t=${b.t.toFixed(2)}` }
-    if (ageH >= FACTORY.trialMaxH) return { ...row, stage: 'retired', stage_at: at, note: 'trial timeout' }
+    // v90.0 (owner: "yes"): a genome is retired only after failing on EVERY horizon. v83-v89 retired on the first
+    // horizon to mature (usually 5m) while a slower one was still accumulating — e.g. the g_rsi280p4r family, retired
+    // at 5m t=-1.15 with its 15m horizon at t 2.7 on n=120. Now a horizon that is still immature but already positive
+    // (n >= promisingMinN, corrected t > 0) postpones both the t-retirement and the clock, up to a hard cap.
+    const pending = promisingHorizons(stats, row.id)
+    if (Number.isFinite(b.t) && b.t <= FACTORY.trialRetireT && !pending.length) return { ...row, stage: 'retired', stage_at: at, note: `trial t=${b.t.toFixed(2)} (all horizons)` }
+    if (ageH >= FACTORY.trialHardMaxH) return { ...row, stage: 'retired', stage_at: at, note: 'trial hard timeout' }
+    if (ageH >= FACTORY.trialMaxH && !pending.length) return { ...row, stage: 'retired', stage_at: at, note: 'trial timeout' }
     return null
   }
   if (row.stage === 'oos' || row.stage === 'live') {
