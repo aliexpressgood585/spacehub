@@ -356,6 +356,20 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v91.0 (2026-09-25 08:14 UTC) — EXPLORATION TIER + slow-genome clocks (owner: "yes, fix it, and loosen a bit so trades open")
+MEASURED FIRST: of 87 live voter rows (n>=100) 0 have fully-corrected GROSS t > 0.5. Best: rsi14r@15 gross +19.9 bps,
+raw t 5.19, corrected 0.49 (overlap sqrt(15) x cross-coin sqrt(1+10·0.65) ≈ 10.6x); stoch14r@15 +9.3 bps, raw 4.71.
+So no honest shrinkage lets anything clear the ~16 bps cost; loosening = trading on weaker evidence, said to the owner.
+- `OPP.explore {tMin 1, sizeMult 0.25, maxOpen 2}` + `exploreEdge()`: ONLY when evidenceEdge finds nobody, an agent
+  counts if gross > 0 and OVERLAP-only corrected gross t (`to`) >= 1; gross used UNSHRUNK; profit gate + full cost
+  model UNCHANGED (net >= 0.5 bps); size x0.25; <= 2 exploration positions open ('explore_cap'). Tier journalled in
+  trade_decisions.inferred.tier and scalp_meta.evidence {tier, agents}; house shows "חקירה (¼ גודל)".
+- Factory `clockMult(g)` = bar minutes / 15 clamped 1..28 scales trialMaxH / trialHardMaxH / oosMaxH (2h -> x8:
+  96h trial, 12 days hard). Evidence bars unchanged. `g2h_vr2f_dd301r_wkd` re-seeded to trial by SQL 08:14:31.
+DEPLOYED: PR #72 (ebc90a31), function v68, manifest v91.0 first_seen 08:14:33 paper true / live false, 0 errors.
+First meeting: 13 exploration candidates, all stoch14r (gross 8.6 vs cost ~16) -> costs_exceed_edge, correctly.
+Only rsi14r@15 (gross ~19.9 vs ~16 cost, expected net ~+3 bps) can pass; it votes only at RSI extremes.
+
 ## v90.0 (2026-09-25) — factory retires a trial genome only after it fails on ALL horizons (owner: "כן")
 `shared/factory.ts`: `promisingHorizons()` = immature horizons with n>=30 and corrected t>0; a trial genome is retired
 on t only when none is pending (note "trial t=… (all horizons)"); the 12h timeout applies only when nothing is pending;
