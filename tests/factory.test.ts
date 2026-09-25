@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import * as F from '../shared/factory.ts'
 import {promisingHorizons,FACTORY,FEATURES,FEATURE_LABEL,FEATURE_KEYS,features,vote,spawn,step,genomeId,statKeys,OOS,rng,mutate,gymPicks,genomeText,type FactoryRow} from '../shared/factory.ts'
 import {LEARN,hKey,type Stat} from '../shared/swarm.ts'
 const now=1_800_000_000_000,iso=(t:number)=>new Date(t).toISOString()
@@ -58,4 +59,12 @@ assert.ok(FACTORY.liveT>=LEARN.provenT,'live bar is at least the proven bar')
  assert.ok(picks[0].note.startsWith('gym: 4/4 windows, oos t=3.4 @15m'),picks[0].note)
  assert.equal(gymPicks(P,new Set(),1).length,1,'slots respected');assert.equal(gymPicks(P,new Set(),0).length,0)
  assert.ok(FEATURE_KEYS.every(k=>FEATURE_LABEL[k]),'every feature has a Hebrew label');assert.ok(genomeText({a:['rsi14',0.4,-1],b:['vr',1,1]}).includes('וגם'))}
+// v91.0: slow-bar genomes get clocks scaled to their bars; evidence bars unchanged
+{ const g2: any = { a: ['vr', 2, 1], b: ['dd30', 1, -1], tf: '2h', when: { d: [1, 2, 3, 4, 5] } }
+  assert.equal(F.clockMult(g2), 8); assert.equal(F.clockMult({ a: ['r5', 0.3, 1] } as any), 1); assert.equal(F.clockMult({ a: ['r5', 0.3, 1], tf: '1w' } as any), 28)
+  const born = '2026-09-24T17:49:00Z', row: any = { id: 'g2h_x', genome: g2, stage: 'trial', born, stage_at: born, h: null }
+  assert.equal(F.step(row, {}, Date.parse(born) + 13 * 3600_000), null, 'a 2h genome is not timed out at 12h')
+  assert.equal(F.step(row, {}, Date.parse(born) + 97 * 3600_000)?.note, 'trial timeout', '... but is at 8 x 12h')
+  const r1: any = { ...row, genome: { a: ['r5', 0.3, 1] } }
+  assert.equal(F.step(r1, {}, Date.parse(born) + 13 * 3600_000)?.note, 'trial timeout', '1-minute genomes keep the 12h clock') }
 console.log('Agent factory: features, genomes, deterministic spawn, no re-test, trial -> oos -> live lifecycle, gym seeding passed')
