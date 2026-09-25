@@ -1,37 +1,39 @@
-backtest 2026-09-25T15:00Z mode=v107bt months=36
-████ V107BT — breakout + volume, target +7% / stop -4%, 70 coins, 36m, IS/OOS ████
-  69 coins, span 1096 days
-  in-sample 2023-09-01 .. 2026-01-24 (4 windows)   OOS .. 2026-08-31
+backtest 2026-09-25T15:10Z mode=v108bt months=72
+████ V108BT — robustness of the v107bt pass: years, neighbours, 10-slot portfolio, daily-clustered t ████
+  69 coins, 2020-09-01 .. 2026-08-31 (2191 days)
 
-  bracket: target +7%, stop -4% -> break-even win rate before costs = 4/11 = 36.4%; costs ~0.2-0.3% per round trip
+── A. the chosen rule (4h N20 vol>=3x, +7/-4), one position per coin, by calendar year ──
+  ALL                            n= 10004  WR  39.3%  net/trade   0.111%  t(daily)   0.68  $ at $1k    11091
+    LONG                         n=  5497  WR  36.6%  net/trade  -0.218%  t(daily)  -1.85  $ at $1k   -11978
+    SHORT                        n=  4507  WR  42.6%  net/trade   0.512%  t(daily)   1.53  $ at $1k    23069
+  2020  n=  283  net/trade   0.172%  $     486   long   0.165% (n 203)   short   0.188% (n 80)
+  2021  n= 1451  net/trade  -0.519%  $   -7530   long  -0.426% (n 1055)   short  -0.768% (n 396)
+  2022  n= 1337  net/trade   0.028%  $     368   long  -0.717% (n 740)   short   0.951% (n 597)
+  2023  n= 1989  net/trade  -0.074%  $   -1474   long  -0.181% (n 1248)   short   0.106% (n 741)
+  2024  n= 1924  net/trade   0.516%  $    9933   long   0.016% (n 903)   short   0.959% (n 1021)
+  2025  n= 1816  net/trade   0.092%  $    1666   long  -0.211% (n 700)   short   0.282% (n 1116)
+  2026  n= 1204  net/trade   0.635%  $    7642   long   0.166% (n 648)   short   1.181% (n 556)
 
-── IN-SAMPLE (selection happens here only) ──
-  config                        trades   WR%  hit7%  hit-4%  hold h  gross%  net%/trade    t     $ at $1k/trade   per-window $
-  CONTROL random side, daily     30563  35.6   35.4    64.3      35    0.01     -0.287  -9.53         -87582   -26425 -13447 -22627 -25082
-  1h N20 vol>=2x long+short      25538  38.0   37.7    62.0      32    0.27     -0.028  -0.84          -7118   -22891 +14683 +2397 -1307
-  1h N20 vol>=2x long only       13422  36.0   35.8    63.9      34    0.06     -0.284  -6.25         -38074   +2718 -14485 -17203 -9104
-  1h N20 vol>=3x long+short      16114  39.1   38.8    60.8      33    0.39      0.102   2.41          16396   -18541 +13795 +12881 +8261
-  1h N20 vol>=3x long only        7753  36.8   36.4    63.1      33    0.13     -0.204  -3.41         -15839   +675 -5898 -5670 -4947
-  1h N50 vol>=2x long+short      19620  37.9   37.7    62.0      31    0.27     -0.030  -0.79          -5894   -22182 +6220 +16335 -6267
-  1h N50 vol>=2x long only        9720  36.5   36.2    63.4      32    0.11     -0.230  -4.29         -22314   -193 -8015 -3695 -10411
-  1h N50 vol>=3x long+short      12960  39.4   39.1    60.5      31    0.42      0.132   2.81          17163   -15231 +7602 +17390 +7401
-  1h N50 vol>=3x long only        6026  37.3   36.9    62.5      32    0.19     -0.148  -2.17          -8905   -1789 -2880 -1681 -2555
-  4h N20 vol>=2x long+short       9241  39.4   39.1    60.5      32    0.42      0.129   2.31          11916   -5223 +8204 +4264 +4671
-  4h N20 vol>=2x long only        4528  38.7   38.3    61.2      31    0.34      0.005   0.06            228   +182 -404 +1171 -721
-  4h N20 vol>=3x long+short       4490  40.6   40.1    59.4      32    0.54      0.254   3.16          11408   -4064 +8726 +4902 +1844
-  4h N20 vol>=3x long only        2144  38.2   37.7    61.8      28    0.28     -0.055  -0.48          -1182   +110 -93 +127 -1325
-  4h N50 vol>=2x long+short       6397  38.6   38.4    61.2      28    0.34      0.048   0.71           3048   -6836 +4616 +545 +4723
-  4h N50 vol>=2x long only        3218  38.3   38.0    61.6      26    0.30     -0.031  -0.33           -998   -2596 -606 +987 +1218
-  4h N50 vol>=3x long+short       3501  39.3   39.0    60.5      27    0.42      0.124   1.36           4326   -3156 +7080 +1595 -1193
-  4h N50 vol>=3x long only        1740  38.4   38.1    61.4      23    0.32     -0.008  -0.06           -136   -909 -165 +1804 -866
+── B. neighbours (plateau or spike?) — all history, one position per coin ──
+  N15 vol>=2.5x +7/-4            n= 15490  WR  39.0%  net/trade   0.073%  t(daily)   0.53  $ at $1k    11304
+  N15 vol>=3x +7/-4              n= 10599  WR  39.0%  net/trade   0.078%  t(daily)   0.49  $ at $1k     8253
+  N15 vol>=4x +7/-4              n=  5524  WR  37.6%  net/trade  -0.075%  t(daily)  -0.37  $ at $1k    -4123
+  N20 vol>=2.5x +7/-4            n= 14403  WR  39.3%  net/trade   0.114%  t(daily)   0.79  $ at $1k    16412
+  N20 vol>=3x +7/-4              n= 10004  WR  39.3%  net/trade   0.111%  t(daily)   0.68  $ at $1k    11091
+  N20 vol>=4x +7/-4              n=  5377  WR  38.3%  net/trade   0.004%  t(daily)   0.02  $ at $1k      235
+  N30 vol>=2.5x +7/-4            n= 12861  WR  39.5%  net/trade   0.133%  t(daily)   0.89  $ at $1k    17085
+  N30 vol>=3x +7/-4              n=  9151  WR  39.3%  net/trade   0.116%  t(daily)   0.69  $ at $1k    10607
+  N30 vol>=4x +7/-4              n=  4981  WR  38.5%  net/trade   0.024%  t(daily)   0.11  $ at $1k     1197
+  N20 vol>=3x +6/-4              n= 10201  WR  42.1%  net/trade   0.009%  t(daily)   0.06  $ at $1k      938
+  N20 vol>=3x +8/-4              n=  9807  WR  36.6%  net/trade   0.177%  t(daily)   1.00  $ at $1k    17366
+  N20 vol>=3x +7.000000000000001/-3 n= 10104  WR  32.4%  net/trade   0.033%  t(daily)   0.24  $ at $1k     3371
+  N20 vol>=3x +7.000000000000001/-5 n=  9936  WR  44.5%  net/trade   0.131%  t(daily)   0.71  $ at $1k    13023
+  N20 vol>=3x +10/-5             n=  9312  WR  36.8%  net/trade   0.244%  t(daily)   1.08  $ at $1k    22703
 
-  SELECTED on in-sample (most positive windows, then net per trade): 4h N20 vol>=3x long+short
+── C. portfolio: at most 10 positions at once across all coins, taken in time order ──
+  cap 10 ALL                     n=  6750  WR  37.7%  net/trade  -0.073%  t(daily)  -0.73  $ at $1k    -4910
+  cap 10 LONG                    n=  4767  WR  35.6%  net/trade  -0.326%  t(daily)  -3.31  $ at $1k   -15537
+  cap 10 SHORT                   n=  1983  WR  42.9%  net/trade   0.536%  t(daily)   2.21  $ at $1k    10627
+  equity at 10% of the account per position (10 slots = fully invested): -44.4% total, max drawdown 76.1%
 
-── OUT-OF-SAMPLE, read once ──
-  config                        trades   WR%  hit7%  hit-4%  hold h  gross%  net%/trade    t     $ at $1k/trade   per-window $
-  4h N20 vol>=3x long+short       1067  42.9   42.0    56.7      36    0.79      0.499   3.01           5325
-  CONTROL random side, daily      5740  35.8   34.7    63.7      50   -0.00     -0.292  -4.23         -16785
-    of which LONG                  565  41.1   40.2    58.6      30    0.58      0.247   1.09           1398
-    of which SHORT                 502  45.0   44.0    54.6      43    1.02      0.782   3.21           3927
-
-  $ = sum of net % x $1,000 per trade (no compounding, no position limit across coins).
+  t(daily) = t-stat of DAILY summed net %, i.e. trades on the same day counted as one observation.
