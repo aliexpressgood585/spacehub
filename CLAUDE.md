@@ -356,6 +356,21 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v107bt / v108bt (2026-09-25 15:00 UTC) — OWNER'S IDEA: breakout WITH volume, target +7% / stop -4%. FIRST OOS PASS IN A LONG TIME.
+Owner: "a $1,000 trade that moves 5-10% makes $50-100, the fee is negligible" — correct arithmetic; the question is
+whether direction can be called. v107bt: 69 coins, 36m, 1h/4h bars, close beyond the N-bar high/low with volume >= M x
+the N-bar average, entry at the NEXT bar's open, managed on 1h bars (stop first when both touch), 14-day timeout, taker
+5 + slip 5/10 bps per side, funding 0.01%/8h. Break-even WR before costs = 4/11 = 36.4%. CONTROL = same bracket,
+random side, daily: WR 35.6%, -0.29%/trade (costs only — confirms the bracket alone is worth nothing).
+  in-sample: long+short rows with vol>=3x are positive (1h N50 +0.13%, 4h N20 +0.25%/trade); LONG-ONLY rows are all ~0
+  or negative. Selected: **4h N20 vol>=3x long+short** — IS windows -4,064 / +8,726 / +4,902 / +1,844 $ (at $1k/trade).
+  OUT-OF-SAMPLE (2026-01-24 .. 08-31, read once): n=1,067, WR 42.9% (random 35.8%), **+0.50% net/trade, t 3.01**,
+  +$5,325 at $1k/trade; LONG +0.25% (n 565, t 1.09), SHORT +0.78% (n 502, t 3.21).
+CAVEATS, not yet cleared: (1) IS window 1 negative -> fails the all-windows rule; (2) OOS money is mostly SHORTS in a
+period that may simply have been bearish; (3) t treats trades as independent though breakouts cluster on the same days;
+(4) no concurrency cap. -> v108bt queued (72 months, per calendar year incl. long/short split, parameter neighbours for
+plateau vs spike, 10-slot portfolio in time order, t on DAILY sums). Nothing deployed until it lands.
+
 ## v92.0 (2026-09-25 14:41 UTC) — ROTA back at 50% of the book; the rest stays SCALP (owner: "ROTA 50%, the rest aggressive intraday, no need to ask")
 index.ts: `runRota` restored behind `ROTA_ENABLED` (v83 path; SCALP sizes to 0.9 - share and keeps its profit gate).
 Shim: `__ENABLED_SLEEVES='SCALP,ROTA'`, `__ROTA_SHARE='0.5'`, `__ROTA_VOL_TARGET='5'` (= vol damping OFF so the book
