@@ -4,15 +4,20 @@ import { COST, profitGate, type Book } from '../shared/costs.ts'
 import { SCALP } from '../shared/scalp.ts'
 import { readFileSync } from 'node:fs'
 
-const B = (agent: string, netBps: number, t: number, h = 15, w = 1): EdgeBacker => ({ agent, w, netBps, t, h })
-// evidence: only positive net with t >= 1 counts, shrunk until the proven bar
-assert.equal(credit(0.9), 0.2); assert.equal(credit(2.5), 1); assert.equal(credit(5), 1); assert.equal(credit(0.4), 0)
-assert.equal(evidenceEdge([B('a', 40, 0.9), B('b', -10, 3)], []).n, 0, 'no evidenced backer -> no estimate')
+const B = (agent: string, netBps: number, tg: number, h = 15, w = 1): EdgeBacker => ({ agent, w, netBps, t: tg, tg, h })
+// v89.0 evidence: GROSS t (corrected) > 1, shrunk by James-Stein 1 - 1/tg^2 — the cost is charged ONCE, by the gate
+assert.equal(credit(0.9), 0); assert.equal(credit(1), 0); assert.equal(credit(2), 0.75); assert.ok(Math.abs(credit(1.5) - 0.5556) < 1e-3); assert.equal(credit(0.4), 0)
+assert.equal(evidenceEdge([B('a', 40, 0.9), B('b', -20, 3)], []).n, 0, 'gross t below 1 or negative gross (net < -16) -> no evidence')
 assert.ok(Number.isNaN(evidenceEdge([B('a', 40, 0.9)], []).bps))
-{ const e = evidenceEdge([B('a', 40, 2.5)], []); assert.equal(e.bps, 56, 'fully proven: net 40 + learning round trip 16'); assert.equal(e.holdMin, 15) }
-{ const e = evidenceEdge([B('a', 40, 2.5), B('noise', -30, 0.2), B('bad', -50, 3)], []); assert.equal(e.bps, 56, 'v87: unevidenced / negative backers no longer dilute an evidenced edge') }
-{ const e = evidenceEdge([B('a', 40, 2.5)], [B('c', 40, 2.5)]); assert.equal(e.bps, 0, 'equal evidence against cancels it'); assert.equal(e.nCon, 1) }
+{ const e = evidenceEdge([B('a', 40, 2)], []); assert.equal(e.bps, 42, 'gross 56 x (1 - 1/4)'); assert.equal(e.holdMin, 15); assert.equal(e.conf, 0.75) }
+{ const e = evidenceEdge([B('a', 40, 2), B('noise', -30, 0.2), B('bad', -50, 3)], []); assert.equal(e.bps, 42, 'unevidenced / negative-gross backers do not dilute an evidenced edge') }
+{ const e = evidenceEdge([B('a', 40, 2)], [B('c', 40, 2)]); assert.equal(e.bps, 0, 'equal evidence against cancels it'); assert.equal(e.nCon, 1) }
 { const e = evidenceEdge([B('a', 40, 1.5, 5), B('b', 20, 2.5, 60)], []); assert.equal(e.holdMin, 60, 'weighted median horizon of the evidence'); assert.ok(e.bps > 16) }
+// the v87 double count, fixed: an agent whose NET edge is slightly negative but whose GROSS edge is strongly evidenced
+// is now priced (gross 14 x 0.89) and left to the profit gate, which rejects it on the real cost — not on a proxy
+{ const e = evidenceEdge([B('a', -2, 3)], []); assert.ok(e.n === 1 && e.bps > 12 && e.bps < 14, `gross-evidenced, net-negative -> priced (${e.bps})`)
+  const deep: Book = { bid: 100, ask: 100.01, bidDepth10: 5e6, askDepth10: 5e6, ts: 0, source: 't' }
+  assert.equal(profitGate({ grossEdgeBps: e.bps, edgeN: 1, book: deep, notional: 1000, side: 1, holdMin: 15, funding: 0.0001 }).reason, 'costs_exceed_edge', '... and the gate, not the evidence test, rejects it') }
 
 // secondary filters are adjustments, never vetoes
 { const a = adjustments({ weighted: -0.4, side: 1, trend: -1, spreadBps: 12, rangeOk: false, imbalance: -0.3 })
