@@ -39,6 +39,7 @@ run "swarm + learning"      tests/swarm.test.ts
 run "info agents"           tests/info.test.ts
 run "agent factory"         tests/factory.test.ts
 run "rota runner"           tests/rota-runner.test.ts
+run "breakout BRKV v93"     tests/breakout.test.ts
 run "gym"                   tests/gym.test.ts
 run "costs + profit gate"   tests/costs.test.ts
 run "opportunity v87 (aggressive demo)" tests/opportunity.test.ts
