@@ -8176,6 +8176,118 @@ function runV104bt() {
   row(pick.tag + ' @10/15bps', agg(oos, { ...pick.cfg, slipBps: 10 }))
   console.log(`\n  Breakers as live: day -10%, DD 25% (flatten + stop for the window), 4 losses -> 1h.`)
 }
+// v108bt — robustness of v107bt's out-of-sample pass (4h, N20, volume >= 3x, long+short, +7% / -4%).
+// v107bt read OOS +0.50% net/trade (t 3.01, n 1,067) but: window 1 of 4 in-sample was negative, most of
+// the OOS money came from shorts, and its t treated every trade as independent although breakouts cluster
+// on the same days. This run asks the three questions that decide whether it is real:
+//   A. every calendar year of the longest history the archive has (72m where coins exist), long/short split
+//   B. neighbours of the chosen parameters (N 15/20/30, volume 2.5/3/4x, target/stop 6/4, 7/4, 8/4, 7/3, 7/5)
+//      — a real effect is a plateau, a lucky pick is a spike
+//   C. a portfolio with at most 10 concurrent positions, taken in time order across all coins, and a t on
+//      DAILY sums (clustered), which is the honest significance when trades move together
+// Same cost model as v107bt: taker 5 bps + slippage 5/10 bps per side, funding 0.01%/8h (longs pay).
+function runV108bt() {
+  const HR = 3600000, TIMEOUT = 14 * 24 * HR, DAY = 86400000
+  const MAJ = new Set(['BTC', 'ETH'])
+  const to4h = (a: Bar[]): Bar[] => {
+    const out: Bar[] = []; let cur: Bar | null = null, bk = -1
+    for (const b of a) {
+      const k = Math.floor(b.t / (4 * HR))
+      if (k !== bk) { if (cur) out.push(cur); bk = k; cur = { t: k * 4 * HR, open: b.open, high: b.high, low: b.low, close: b.close, vol: b.vol } }
+      else if (cur) { cur.high = Math.max(cur.high, b.high); cur.low = Math.min(cur.low, b.low); cur.close = b.close; cur.vol += b.vol }
+    }
+    if (cur) out.push(cur); return out
+  }
+  const data: Record<string, { h1: Bar[]; h4: Bar[]; idx: Map<number, number> }> = {}
+  let t0 = Infinity, t1 = -Infinity
+  for (const c of COINS) {
+    const h = loadCSV(c, '1h'); if (h.length < 2000) continue
+    const idx = new Map<number, number>(); h.forEach((b, i) => idx.set(b.t, i))
+    data[c] = { h1: h, h4: to4h(h), idx }
+    t0 = Math.min(t0, h[0].t); t1 = Math.max(t1, h[h.length - 1].t)
+  }
+  const syms = Object.keys(data)
+  console.log(`  ${syms.length} coins, ${new Date(t0).toISOString().slice(0, 10)} .. ${new Date(t1).toISOString().slice(0, 10)} (${((t1 - t0) / DAY).toFixed(0)} days)`)
+  if (t1 - t0 < 900 * DAY) { console.log('  ABORT: need >= 900 days of 1h data'); return }
+  type Tr = { c: string; t: number; end: number; side: number; net: number }
+  const trade = (c: string, side: number, entryT: number, raw: number, TGT: number, STP: number): Tr | null => {
+    const d = data[c], i0 = d.idx.get(entryT); if (i0 === undefined) return null
+    const slip = (MAJ.has(c) ? 5 : 10) / 10000, fee = 5 / 10000
+    const e = raw * (1 + side * slip), up = e * (1 + side * TGT), dn = e * (1 - side * STP)
+    for (let i = i0; i < d.h1.length; i++) {
+      const b = d.h1[i]
+      let px = NaN
+      if (side > 0 ? b.low <= dn : b.high >= dn) px = dn
+      else if (side > 0 ? b.high >= up : b.low <= up) px = up
+      else if (b.t + HR - entryT >= TIMEOUT) px = b.close
+      if (Number.isFinite(px)) {
+        const hrs = (b.t + HR - entryT) / HR
+        const net = side * (px * (1 - side * slip) / e - 1) * 100 - 2 * fee * 100 - side * 0.01 * hrs / 8
+        return { c, t: entryT, end: b.t + HR, side, net }
+      }
+    }
+    return null
+  }
+  // all signals, no blocking; blocking happens in the per-coin or portfolio pass
+  const signals = (N: number, M: number) => {
+    const out: { c: string; side: number; t: number; raw: number }[] = []
+    for (const c of syms) {
+      const bars = data[c].h4
+      for (let i = N; i + 1 < bars.length; i++) {
+        const b = bars[i]
+        let hi = -Infinity, lo = Infinity, v = 0
+        for (let k = i - N; k < i; k++) { const p = bars[k]; if (p.high > hi) hi = p.high; if (p.low < lo) lo = p.low; v += p.vol }
+        if (!(v > 0) || b.vol < M * v / N) continue
+        const side = b.close > hi ? 1 : b.close < lo ? -1 : 0
+        if (side) out.push({ c, side, t: bars[i + 1].t, raw: bars[i + 1].open })
+      }
+    }
+    return out.sort((a, b) => a.t - b.t)
+  }
+  const run = (N: number, M: number, TGT: number, STP: number, cap = Infinity) => {
+    const out: Tr[] = [], busy = new Map<string, number>(), open: number[] = []
+    for (const s of signals(N, M)) {
+      if ((busy.get(s.c) ?? -Infinity) > s.t) continue
+      for (let k = open.length - 1; k >= 0; k--) if (open[k] <= s.t) open.splice(k, 1)
+      if (open.length >= cap) continue
+      const tr = trade(s.c, s.side, s.t, s.raw, TGT, STP); if (!tr) continue
+      out.push(tr); busy.set(s.c, tr.end); open.push(tr.end)
+    }
+    return out
+  }
+  const st = (a: Tr[]) => {
+    const n = a.length, m = a.reduce((x, y) => x + y.net, 0) / Math.max(1, n)
+    const days = new Map<number, number>(); for (const x of a) { const d = Math.floor(x.t / DAY); days.set(d, (days.get(d) ?? 0) + x.net) }
+    const dv = [...days.values()], dm = dv.reduce((x, y) => x + y, 0) / Math.max(1, dv.length)
+    const dsd = Math.sqrt(dv.reduce((x, y) => x + (y - dm) ** 2, 0) / Math.max(1, dv.length - 1))
+    return { n, wr: a.filter(x => x.net > 0).length / Math.max(1, n) * 100, m, usd: a.reduce((x, y) => x + y.net, 0) * 10,
+      tDay: dv.length > 1 ? dm / (dsd / Math.sqrt(dv.length)) : 0 }
+  }
+  const line = (tag: string, a: Tr[]) => { const s = st(a)
+    console.log(`  ${tag.padEnd(30)} n=${String(s.n).padStart(6)}  WR ${s.wr.toFixed(1).padStart(5)}%  net/trade ${s.m.toFixed(3).padStart(7)}%  t(daily) ${s.tDay.toFixed(2).padStart(6)}  $ at $1k ${s.usd.toFixed(0).padStart(8)}`) }
+
+  console.log(`\n── A. the chosen rule (4h N20 vol>=3x, +7/-4), one position per coin, by calendar year ──`)
+  const base = run(20, 3, 0.07, 0.04)
+  line('ALL', base); line('  LONG', base.filter(x => x.side > 0)); line('  SHORT', base.filter(x => x.side < 0))
+  const y0 = new Date(t0).getUTCFullYear(), y1 = new Date(t1).getUTCFullYear()
+  for (let y = y0; y <= y1; y++) {
+    const a = base.filter(x => new Date(x.t).getUTCFullYear() === y); if (!a.length) continue
+    const s = st(a), sl = st(a.filter(x => x.side > 0)), ss = st(a.filter(x => x.side < 0))
+    console.log(`  ${y}  n=${String(s.n).padStart(5)}  net/trade ${s.m.toFixed(3).padStart(7)}%  $ ${s.usd.toFixed(0).padStart(7)}   long ${sl.m.toFixed(3).padStart(7)}% (n ${sl.n})   short ${ss.m.toFixed(3).padStart(7)}% (n ${ss.n})`)
+  }
+  console.log(`\n── B. neighbours (plateau or spike?) — all history, one position per coin ──`)
+  for (const N of [15, 20, 30]) for (const M of [2.5, 3, 4]) line(`N${N} vol>=${M}x +7/-4`, run(N, M, 0.07, 0.04))
+  for (const [tg, sp] of [[0.06, 0.04], [0.08, 0.04], [0.07, 0.03], [0.07, 0.05], [0.10, 0.05]]) line(`N20 vol>=3x +${tg * 100}/-${sp * 100}`, run(20, 3, tg, sp))
+  console.log(`\n── C. portfolio: at most 10 positions at once across all coins, taken in time order ──`)
+  const pf = run(20, 3, 0.07, 0.04, 10)
+  line('cap 10 ALL', pf); line('cap 10 LONG', pf.filter(x => x.side > 0)); line('cap 10 SHORT', pf.filter(x => x.side < 0))
+  const eq = (a: Tr[], per: number) => { let e = 1, peak = 1, dd = 0
+    for (const x of a.slice().sort((p, q) => p.end - q.end)) { e *= 1 + per * x.net / 100; peak = Math.max(peak, e); dd = Math.max(dd, 1 - e / peak) }
+    return { ret: (e - 1) * 100, dd: dd * 100 } }
+  const q = eq(pf, 0.1)
+  console.log(`  equity at 10% of the account per position (10 slots = fully invested): ${q.ret.toFixed(1)}% total, max drawdown ${q.dd.toFixed(1)}%`)
+  console.log(`\n  t(daily) = t-stat of DAILY summed net %, i.e. trades on the same day counted as one observation.`)
+}
 // v107bt — owner's idea: breakout WITH volume, fixed target +7% / stop -4%, all 70 research coins, 36m.
 // Signal on a completed bar (1h or 4h): close beyond the highest high / lowest low of the prior N bars AND
 // volume >= M x the average of those N bars. Entry at the NEXT bar's open (never the signal close),
@@ -9272,6 +9384,11 @@ function main() {
   if (Deno.env.get('BT_MODE') === 'v105bt') {
     console.log('████ V105BT — short-term reversal + BTC lead-lag, 36m, 40 coins ████')
     runV105bt()
+    return
+  }
+  if (Deno.env.get('BT_MODE') === 'v108bt') {
+    console.log('████ V108BT — robustness of the v107bt pass: years, neighbours, 10-slot portfolio, daily-clustered t ████')
+    runV108bt()
     return
   }
   if (Deno.env.get('BT_MODE') === 'v107bt') {
