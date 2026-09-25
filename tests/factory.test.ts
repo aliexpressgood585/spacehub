@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import {FACTORY,FEATURES,FEATURE_LABEL,FEATURE_KEYS,features,vote,spawn,step,genomeId,statKeys,OOS,rng,mutate,gymPicks,genomeText,type FactoryRow} from '../shared/factory.ts'
+import {promisingHorizons,FACTORY,FEATURES,FEATURE_LABEL,FEATURE_KEYS,features,vote,spawn,step,genomeId,statKeys,OOS,rng,mutate,gymPicks,genomeText,type FactoryRow} from '../shared/factory.ts'
 import {LEARN,hKey,type Stat} from '../shared/swarm.ts'
 const now=1_800_000_000_000,iso=(t:number)=>new Date(t).toISOString()
 const bars=(f:(i:number)=>number)=>Array.from({length:65},(_,i)=>{const c=f(i),o=f(i-1);return {t:now-(65-i)*60000,o,h:Math.max(o,c)*1.0002,l:Math.min(o,c)*0.9998,c,v:100+(i>60?300:0)}})
@@ -31,6 +31,14 @@ assert.equal(step(row('trial'),{},now),null,'no evidence yet -> keep waiting')
 assert.equal(step(row('trial',null,FACTORY.trialMaxH+1),{},now)!.stage,'retired','trial timeout')
 const pr=step(row('trial'),{[hKey('g_t',60)]:st(400,6)},now)!;assert.equal(pr.stage,'oos');assert.equal(pr.h,60,'promoted on its best horizon')
 assert.equal(step(row('trial'),{g_t:st(400,-3)},now)!.stage,'retired','negative in trial')
+// v90.0: never retired while a slower horizon is still immature but positive; the hard cap still applies
+{const mixed={g_t:st(400,-3),[hKey('g_t',15)]:{...st(120,40,20),ev:120}}
+ assert.deepEqual(promisingHorizons(mixed,'g_t'),[15])
+ assert.equal(step(row('trial'),mixed,now),null,'5m negative but 15m immature and positive -> keep testing')
+ assert.equal(step(row('trial',null,FACTORY.trialMaxH+1),mixed,now),null,'the 12h clock waits for the promising horizon')
+ assert.equal(step(row('trial',null,FACTORY.trialHardMaxH+1),mixed,now)!.stage,'retired','hard cap')
+ assert.equal(step(row('trial'),{g_t:st(400,-3),[hKey('g_t',15)]:{...st(120,-40,20),ev:120}},now)!.stage,'retired','immature but negative does not save it')
+ assert.equal(step(row('trial'),{g_t:st(400,-3),[hKey('g_t',15)]:{...st(10,40,20),ev:10}},now)!.stage,'retired','too few samples to count as promising')}
 assert.equal(step(row('trial'),{g_t:st(400,0.2)},now),null,'weak but positive -> keep testing')
 assert.equal(step(row('trial'),{g_t:st(400,-0.3)},now),null,'v83.1: slightly negative is not yet a verdict')
 assert.equal(step(row('trial'),{g_t:{...st(400,-3),ev:30}},now),null,'v83.1: 400 coin-votes in 30 snapshots is not an hour of evidence')
