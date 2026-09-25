@@ -597,7 +597,7 @@ export function ladderStep(
 // ROTA
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface RotaRow { sym: string; mom: number; price: number; vol: number }
+export interface RotaRow { sym: string; mom: number; price: number; vol: number; rsi?: number }
 
 /**
  * 14-day momentum and realised vol from COMPLETED 4h bars. `completed` must end
@@ -655,6 +655,33 @@ export function rotaTargets(rows: RotaRow[], k: number = ROTA_K, side: 'both' | 
   if (rs !== -1) for (const x of longs) out.push({ sym: x.sym, dir: 1, price: x.price, weight: longInv > 0 ? (1 / x.vol) / longInv : 1 / k })
   if (rs !== 1) for (const x of shorts) out.push({ sym: x.sym, dir: -1, price: x.price, weight: shortInv > 0 ? (1 / x.vol) / shortInv : 1 / k })
   return out
+}
+
+/** v106bt: Wilder RSI of the last `len` closes (0..100); NaN when the history is too short. */
+export function rsiOf(closes: number[], len = 14): number {
+  if (closes.length < len + 1) return NaN
+  let g = 0, l = 0
+  for (let i = closes.length - len; i < closes.length; i++) { const d = closes[i] - closes[i - 1]; if (d > 0) g += d; else l -= d }
+  return l === 0 ? 100 : 100 - 100 / (1 + g / l)
+}
+/**
+ * v106bt (owner, 2026-09-25: "the most precise ROTA trades, with oscillators"): the same momentum ranking, but a
+ * name only takes a slot if its RSI agrees with the thesis; a rejected name is REPLACED by the next in rank (the
+ * pool is the top/bottom 3K), so the basket keeps its size where it can.
+ *   'exhaust'  skip longs with RSI > hi and shorts with RSI < lo (do not buy the top of a spike / sell a flush)
+ *   'confirm'  longs need RSI > 50, shorts RSI < 50 (short-term momentum agrees with the 7-28d momentum)
+ * Rows without an RSI are treated as passing. Weights are inverse-vol within each side, as in rotaTargets.
+ */
+export function rotaTargetsOsc(rows: RotaRow[], k: number, mode: 'exhaust' | 'confirm', hi = 70, lo = 30): RotaTarget[] {
+  if (rows.length < ROTA_K * 4) return []
+  const sorted = [...rows].sort((a, b) => b.mom - a.mom), pool = Math.min(sorted.length >> 1, 3 * k)
+  const okL = (r: RotaRow) => !Number.isFinite(r.rsi) || (mode === 'exhaust' ? (r.rsi as number) <= hi : (r.rsi as number) > 50)
+  const okS = (r: RotaRow) => !Number.isFinite(r.rsi) || (mode === 'exhaust' ? (r.rsi as number) >= lo : (r.rsi as number) < 50)
+  const longs = sorted.slice(0, pool).filter(okL).slice(0, k)
+  const shorts = sorted.slice(-pool).reverse().filter(okS).slice(0, k)
+  const li = longs.reduce((a, x) => a + 1 / x.vol, 0), si = shorts.reduce((a, x) => a + 1 / x.vol, 0)
+  return [...longs.map(x => ({ sym: x.sym, dir: 1 as const, price: x.price, weight: li > 0 ? (1 / x.vol) / li : 1 / k })),
+          ...shorts.map(x => ({ sym: x.sym, dir: -1 as const, price: x.price, weight: si > 0 ? (1 / x.vol) / si : 1 / k }))]
 }
 
 /** Target notional for one rotation slot, before the per-coin cap.
