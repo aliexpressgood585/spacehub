@@ -94,5 +94,5 @@ assert.ok(missingFor('no_edge_estimate', {}).includes('t≥1'))
 { const r = readFileSync('supabase/functions/trading-bot/scalp-runner.ts', 'utf8'), i = readFileSync('supabase/functions/trading-bot/index.ts', 'utf8')
   assert.equal((r.match(/entries\.push\(/g) ?? []).length, 1, 'exactly one place fills entries'); assert.ok(r.includes("profit_gate:'passed'"))
   assert.ok(i.includes('const LEGACY_ENGINE_ALLOWED = false') && i.includes('if (!LEGACY_ENGINE_ALLOWED) return'), 'legacy ungated engine cannot trade')
-  assert.ok(!/await runRota\(/.test(i), 'ROTA (ungated) is never run') }
+  assert.ok(/if \(ROTA_ENABLED\) \{\s*try \{ rota = await runRota\(/.test(i), 'v92.0: ROTA runs only when the deploy shim enables it (owner, OOS-validated sleeve)') }
 console.log('Opportunity v91.0 (exploration tier): evidence, weighted score, TTL, dynamic sizing, portfolio manager, no-bypass passed')

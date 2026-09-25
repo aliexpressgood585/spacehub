@@ -544,7 +544,7 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v91.1'
+const BOT_VERSION = 'v92.0'
 // v87.0: the pre-SCALP engine (DONCH4H / standalone ROTA) opens trades without the profit gate; it stays in the file
 // for its exit/record code history but may never open a trade. Changing this needs the gate wired in first.
 const LEGACY_ENGINE_ALLOWED = false
@@ -2683,10 +2683,16 @@ Deno.serve(async (req) => {
     if (ENABLED_SLEEVES.includes('SCALP')) {
       // v83.0: 'SCALP,ROTA' runs the rotation sleeve in the same paper book, before SCALP,
       // under the same lease. A ROTA failure is logged and never blocks the SCALP cycle.
-      // v87.0: ROTA opens trades WITHOUT the profit gate (no per-trade cost/edge check), so it no longer runs at all,
-      // even if a shim lists it: every entry must go through the gated SCALP path. Re-enabling ROTA means gating it first.
-      const rota: any = ROTA_ENABLED ? { skipped: 'v87.0: ROTA is not gated by the profit gate — disabled' } : null
-      const result = await runScalp(supabase, state, runLeaseUntil, paperMode && !liveMode, 0)
+      // v92.0 (owner, 2026-09-25: "give ROTA 50% of the book, the rest to intraday"): ROTA runs again when the shim
+      // lists it. It is the one sleeve with a 36-month out-of-sample record (v104bt), so it is judged on that, not on
+      // the per-trade live-learning gate the SCALP agents need; SCALP keeps its profit gate and sizes to the rest.
+      let rota: any = null, scalpState = state
+      if (ROTA_ENABLED) {
+        try { rota = await runRota(supabase, state, runLeaseUntil, paperMode && !liveMode) }
+        catch (e: any) { rota = { error: String(e?.message ?? e) }; await logErr('rota_runner', String(e?.message ?? e)) }
+        if (rota?.changed) { const { data: fresh } = await supabase.from('bot_state').select('*').eq('id', 1).single(); if (fresh) scalpState = fresh }
+      }
+      const result = await runScalp(supabase, scalpState, runLeaseUntil, paperMode && !liveMode, ROTA_ENABLED ? rotaConfig().share : 0)
       return new Response(JSON.stringify({ok:true,version:BOT_VERSION,...result,rota}),{headers:{'Content-Type':'application/json'}})
     }
 
