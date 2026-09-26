@@ -367,6 +367,14 @@ DEPLOYED: commit 36c48e56, function v76, migration applied, 0 bot_errors, trail 
 LIVE since the reset (17:13): JUP -$6.72 (1x), GRASS LONG 50x +$1,179.09 (TARGET, +1.85R), RAYSOL LONG 50x -$714.74
 (STOP); FIL + HYPE still open at 1x. ROLLBACK: set FAST_TRAIL.on false.
 
+## 2026-09-26 ~22:15 UTC — owner: "golden method + a few oscillators together?" — REJECTED on 3y (15m) / 6y (1h), 40 coins
+backtest/research/v95_9_golden_fib.ts -> status/golden-fib.txt. Fibonacci golden pocket (touch 0.618, hold 0.786, close back
+through 0.618) after a >= 4 ATR impulse, entry next open, stop beyond 0.786, target = swing extreme (or 1.272), stop-first,
+full costs. Stacked: + golden/death cross (EMA50/200), + RSI(14) on the pullback side of 50, + volume dry-up.
+  15m OOS: pocket −0.202% | + cross −0.190 | + RSI −0.210 | + volume −0.216 | 1.272 target −0.182  (n 9k-24k, all t(daily) < −4)
+  1h  OOS: −0.278 | −0.342 | −0.230 | −0.272 | −0.186                                       (n 4k-12k, all t < −1.5)
+Adding filters trims trades but never flips the sign; same answer as v47bt limit-retest (Fibonacci = retest entry). Nothing deployed.
+
 ## 2026-09-26 ~22:00 UTC — owner: "give me another strategy for quick trades" — two new fast ideas tested, both REJECTED
 backtest/research/v95_9_fast_alternatives_1m.ts -> status/fast-alternatives-1m.txt (1m, 10 coins, 12m, IS 70/OOS 30, full costs):
   BTC LEAD-LAG at 1 minute (BTC 3-min burst |z|>3, alt still < 30% of BTC's move -> follow): OOS −0.187% (1.5R) / −0.189%
