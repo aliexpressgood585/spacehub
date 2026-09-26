@@ -5,6 +5,7 @@
 import * as S from '../../../shared/strategy.ts'
 import { FAST, FAST_RT, FAST_TRAIL, fastSignal, fastSignalRT, fastLevels, fastLiq, resolveExit, walkBook, liqCap, FAST_LIQ, type AggTrade } from '../../../shared/fast.ts'
 import { labInd, slipFor, type LBar } from '../../../shared/lab.ts'
+import { FAST_ENTRY, confirmFastEntry } from '../../../shared/fast-entry.ts'
 import { json, pool } from './rota-runner.ts'
 type Pair = { sym: string; s: string; k: number }
 const g = () => globalThis as any
@@ -122,12 +123,27 @@ export async function runFast(db: any, state: any, lease: string, paper: boolean
     let cash = Number(state.balance)
     const equity = cash + open.reduce((s: number, t: any) => s + Number(t.entry_price) * Number(t.size) / Math.max(1, Number(t.lev) || 1), 0)   // margin, not notional
     const held = new Set(open.filter((t: any) => !closes.some((c) => c.id === t.id)).map((t: any) => String(t.sym)))
-    for (const { sym, sig } of sigs) {
+    for (const candidate of sigs) {
+      const sym = candidate.sym
+      let sig = candidate.sig
       const side = sig.dir > 0 ? 'LONG' : 'SHORT', rec = (decision: string, reason: string, extra: any = {}) => decisions.push({ sym, side, decision, reason, z: sig.z, volRatio: sig.volRatio, imb: sig.imb, ...extra })
       if (held.has(sym)) { rec('rejected', 'coin_held'); continue }
       if (openN >= FAST.maxOpen) { rec('rejected', 'fast_full'); continue }
       if (dayN >= FAST.maxPerDay) { rec('rejected', 'daily_cap_20'); continue }
-      let bk: Awaited<ReturnType<typeof book>>; try { bk = await book(pairOf(sym)) } catch { rec('rejected', 'no_quote'); continue }
+      let bk: Awaited<ReturnType<typeof book>>, entryCheck: any = null, entryBtcUp = btcUp
+      try {
+        if (rt) {
+          // The universe scan is discovery only. Re-read this coin and BTC just
+          // before its book: a signal may have vanished while other pairs loaded.
+          const started = Date.now(), P = pairOf(sym)
+          const [fresh, freshBtc] = await Promise.all([bars1mLive(P), sym === 'BTC' ? Promise.resolve(null) : bars1mLive(pairOf('BTC'))])
+          bk = await book(P)
+          const check = confirmFastEntry(fresh, freshBtc ?? fresh, sym === 'BTC', sig.dir,
+            bk.bids[0][0], bk.asks[0][0], bk.E, started, Date.now())
+          if (!check.ok) { rec('rejected', check.reason); continue }
+          sig = check.sig; entryBtcUp = check.btcUp; entryCheck = check.detail
+        } else bk = await book(pairOf(sym))
+      } catch { rec('rejected', 'no_fresh_entry_data'); continue }
       const want = Math.min(equity * FAST.perTrade * cfg.share, cash / (1 + cfg.lev * 0.0005)) * cfg.lev
       if (want / cfg.lev < 5) { rec('rejected', 'no_cash'); continue }
       const touch = sig.dir > 0 ? bk.asks[0][0] : bk.bids[0][0]
@@ -146,21 +162,31 @@ export async function runFast(db: any, state: any, lease: string, paper: boolean
         { k: 'burst', v: sig.z, thr: thr.zMin, op: '>', ok: Math.abs(sig.z) > thr.zMin },
         { k: 'volume', v: sig.volRatio, thr: thr.volMult, op: '>=', ok: sig.volRatio >= thr.volMult },
         { k: 'flow', v: sig.imb, thr: thr.imbMin, op: '>', ok: sig.dir * sig.imb > thr.imbMin },
-        { k: 'btc', v: btcUp === null ? null : btcUp ? 1 : 0, thr: null, op: 'side', ok: sym === 'BTC' || (btcUp !== null && btcUp === (sig.dir > 0)) },
+        { k: 'btc', v: entryBtcUp === null ? null : entryBtcUp ? 1 : 0, thr: null, op: 'side', ok: sym === 'BTC' || (entryBtcUp !== null && entryBtcUp === (sig.dir > 0)) },
       ]
       entries.push({ sym, side, price: px, notional, lev: cfg.lev, quote_ts: bk.E, source: 'binance-futures',
         fast: { stop: lv.stop, target: lv.target, r: lv.r, best: px, chk: bk.E, trail: FAST_TRAIL.on, stop_pct: lv.r / px, lev: cfg.lev, margin, liq: fastLiq(sig.dir, px, cfg.lev), mode: cfg.mode, hold_min: rt ? FAST_RT.holdMin : FAST.holdBars * 5,
-          z: sig.z, vol_ratio: sig.volRatio, imb: sig.imb, checks, btc_up: btcUp, spread_bps: +spreadBps.toFixed(2), bar: new Date(bar).toISOString(),
+          z: sig.z, vol_ratio: sig.volRatio, imb: sig.imb, checks, btc_up: entryBtcUp, entry_check: entryCheck, spread_bps: +spreadBps.toFixed(2), bar: new Date(bar).toISOString(),
           entry_fill: { model: 'book_walk', want: Math.round(want), liq_cap: Math.round(cap), capped: cap < want, max_impact_bps: +(FAST_LIQ.impactOfR * rFrac * 1e4).toFixed(2), touch, vwap: w.vwap, impact_bps: +(Math.abs(px / touch - 1) * 1e4).toFixed(2), depth_usd: Math.round(w.depthUsd), beyond_book: w.beyond } } })
-      rec('accepted', 'taken', { notional })
+      rec('accepted', 'taken', { notional, entry_check: entryCheck })
       held.add(sym); openN++; dayN++; cash -= margin + notional * 0.0005
     }
   }
-  const note = { fill_model: 'aggTrades+book_walk', mode: cfg.mode, bar: new Date(bar).toISOString(), due, scanned, universe: pairs.length, failed: failed.length, signals: decisions.length, opened: entries.length, closed: closes.length }
+  // A later candidate's slow network request must not turn earlier fresh quotes
+  // into stale fills (or make the SQL transaction reject otherwise valid exits).
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const e = entries[i], check = e.fast.entry_check
+    if (check && (Date.now() - check.snapshot_started_at > FAST_ENTRY.maxAgeMs || Date.now() - e.quote_ts > FAST_ENTRY.maxAgeMs)) {
+      entries.splice(i, 1)
+      const d = decisions.find(x => x.sym === e.sym && x.decision === 'accepted')
+      if (d) { d.decision = 'rejected'; d.reason = 'entry_expired_before_commit'; d.notional = null }
+    }
+  }
+  const note = { entry_model: FAST_ENTRY.version, fill_model: 'aggTrades+book_walk', mode: cfg.mode, bar: new Date(bar).toISOString(), due, scanned, universe: pairs.length, failed: failed.length, signals: decisions.length, opened: entries.length, closed: closes.length }
   const { data: result } = await db.rpc('fast_commit_cycle', { p_lease: lease, p_closes: closes, p_entries: entries, p_marks: marks, p_share: cfg.share, p_note: note, p_bar: due ? new Date(bar).toISOString() : null }).throwOnError()
   if (decisions.length) {
     try { await db.from('trade_decisions').insert(decisions.slice(0, 100).map((d, k) => ({ sym: d.sym, side: d.side, decision: d.decision, reason: d.reason, rank: k + 1, notional: d.notional ?? null, score: +(Math.abs(d.z) * d.volRatio).toFixed(3),
-      observed: { z3: d.z, vol_ratio: d.volRatio, taker_imbalance_3: d.imb }, inferred: { sleeve: 'FAST', note: 'owner all-in intraday rule, not validated' } }))) } catch { /* journal only */ }
+      observed: { z3: d.z, vol_ratio: d.volRatio, taker_imbalance_3: d.imb, entry_check: d.entry_check ?? null }, inferred: { sleeve: 'FAST', note: 'owner all-in intraday rule, not validated' } }))) } catch { /* journal only */ }
   }
   return { changed: true, ...result, ...note }
 }
