@@ -19,7 +19,7 @@ export interface TradeMetrics {
 const n = (x: unknown) => (x === null || x === undefined || x === '' ? NaN : Number(x))
 export function tradeMetrics(t: TradeRow, markIn: number, now = Date.now()): TradeMetrics {
   const dir: 1 | -1 = t.side === 'LONG' ? 1 : -1, entry = n(t.entry_price), size = n(t.size), lev = Math.max(1, n(t.lev) || 1)
-  const f = t.scalp_meta?.fast ?? t.scalp_meta?.lab ?? {}, open = t.status === 'OPEN'
+  const f = t.scalp_meta?.fast ?? t.scalp_meta?.lab ?? t.scalp_meta?.chan ?? {}, open = t.status === 'OPEN'
   const mark = open ? markIn : n(t.exit_price), notional = entry * size, margin = notional / lev
   const stop = n(f.stop ?? t.trail_sl), target = f.trail ? NaN : n(f.target ?? t.scalp_meta?.target_px)
   // initial risk: stored r, else the risk booked at entry (risk_usd / size), else the distance to the current stop

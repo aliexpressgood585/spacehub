@@ -7,7 +7,7 @@ import { FAST, FAST_RT, FAST_TRAIL, WYCKOFF, wyckoffSignal, PSYCH, psychState, p
 import { labInd, slipFor, type LBar } from '../../../shared/lab.ts'
 import { FAST_ENTRY, confirmFastEntry } from '../../../shared/fast-entry.ts'
 import { json, pool } from './rota-runner.ts'
-type Pair = { sym: string; s: string; k: number }
+export type Pair = { sym: string; s: string; k: number }
 const g = () => globalThis as any
 export function fastConfig() { const x = Number(g().__FAST_SHARE), l = Number(g().__FAST_LEV)
   return { share: Number.isFinite(x) && x > 0 ? Math.min(1, Math.max(0.05, x)) : 1, lev: Number.isFinite(l) && l >= 1 ? Math.min(FAST.levMax, Math.floor(l)) : FAST.levDefault, mode: modeOf(String(g().__FAST_MODE ?? 'rt')) } }
@@ -31,7 +31,7 @@ async function bars1mLive(p: Pair): Promise<LBar[]> {
   return r.map((x: any) => ({ t: +x[0], open: +x[1] / p.k, high: +x[2] / p.k, low: +x[3] / p.k, close: +x[4] / p.k, vol: +x[5] * p.k, tb: +x[9] * p.k }))
 }
 // aggregated trades since `from` (ms), oldest first, paginated; complete=false if the window had more than 5,000 prints
-async function aggTrades(p: Pair, from: number, to: number): Promise<{ trades: AggTrade[]; complete: boolean }> {
+export async function aggTrades(p: Pair, from: number, to: number): Promise<{ trades: AggTrade[]; complete: boolean }> {
   const out: AggTrade[] = []
   let url = `https://fapi.binance.com/fapi/v1/aggTrades?symbol=${p.s}&startTime=${from}&endTime=${to}&limit=1000`
   for (let page = 0; page < 5; page++) {
@@ -42,7 +42,7 @@ async function aggTrades(p: Pair, from: number, to: number): Promise<{ trades: A
   }
   return { trades: out.filter((x) => x.T <= to), complete: false }
 }
-async function book(p: Pair): Promise<{ bids: [number, number][]; asks: [number, number][]; E: number }> {
+export async function book(p: Pair): Promise<{ bids: [number, number][]; asks: [number, number][]; E: number }> {
   const d = await json(`https://fapi.binance.com/fapi/v1/depth?symbol=${p.s}&limit=100`)
   const lv = (a: any[]) => a.map((x: any) => [+x[0] / p.k, +x[1] * p.k] as [number, number])
   const b = { bids: lv(d.bids), asks: lv(d.asks), E: +d.E }

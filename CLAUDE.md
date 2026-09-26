@@ -356,6 +356,40 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v97.0 (2026-09-26 23:42 UTC) — CHAN sleeve: the quant/ regime router trades on PAPER (owner: "run the system in demo the way Chan said, as if he were trading")
+Owner's call, after being told that the Phase-1 verdict is NO-GO and Chan himself would not trade it. Labelled
+experimental / validated:false everywhere (rows, decisions, trade page).
+- `shared/chan.ts` = line-for-line TS port of quant/ (ADF with MacKinnon p, Hurst, OU half-life, z, momentum t-test,
+  Wilder ATR, regime labels) + the risk layer:
+  - half-Kelly on the component's OWN live record: 0.25% default until 30 trades, 0 when negative, cap 1%;
+  - 3x; daily -3% and 5-loss -> pause to 00:00 UTC; -10% from peak -> close all + hard_halt_at; max 5 open;
+  - a stop closer than 3x the round-trip cost is refused.
+- Params = the Python walk-forward's choice for the router (RG_MR entry 2.5 / exit 0 / stop 3.5; RG_MOM breakout 144 /
+  hold 12), asserted equal to quant/reports/backtest-5m.json.
+- `tests/chan.test.ts` checks parity against a fixture written by the Python code (`quant/tools/chan_fixture.py`):
+  ADF p, Hurst, half-life, momentum t, ATR, z, vol, to 1e-6..1e-12.
+- `chan-runner.ts`, every cycle:
+  - stops on the Binance aggTrades tape (FAST's fill model, exported helpers);
+  - time exits; marks; risk state;
+  - kill -> close all at a book walk + p_halt.
+- `chan-runner.ts`, once per closed 5m bar (first 2 min): 9,000 closed candles per coin, regime + both strategies,
+  MR signal exits, entries (book walk, liquidity cap, 3x isolated).
+- `tests/chan-runner.test.ts` replays the live path on a mocked exchange + db: MR entry at 0.25% risk; bar dedup;
+  a stop filled on the tape; the kill switch; mixed/live books refused.
+- Ledger `20260926240000_chan_sleeve.sql` (`chan_commit_cycle`, applied) re-checks every limit in SQL:
+  - 10-coin universe; stop on the loss side; lev <= 3; notional <= 3x equity; risk <= 1% equity; <= 5 open;
+  - nothing opens while halted;
+  - writes a bot_equity snapshot per bar and bot_params.chan_risk / chan_cycle / chan_bar.
+- index.ts routes `__ENABLED_SLEEVES='CHAN'` to runChan (only CHAN rows allowed in the book).
+- Dashboard: tradeMetrics reads scalp_meta.chan; TradeView explains the 4 Chan conditions in Hebrew with the NO-GO warning.
+DEPLOYED: commit 0c1e8adf, function v85, shim `__ENABLED_SLEEVES='CHAN'`, `__LEVERAGE='1'`. Manifest v97.0 CHAN at
+23:42:48, paper true. Account $5,000 (reset 23:30).
+FIRST BAR 23:45 UTC: scanned 10/10, 0 failed, 0 bot_errors. Regimes: ETH MEAN_REVERT; ADA / XRP / DOGE / LINK
+HIGH_VOL (flat); the rest NEUTRAL (flat). 0 entries, correctly: nothing met its entry conditions. 23:50 bar: same regimes, 0 errors, equity snapshots writing.
+NB the bar scan (60 kline pages) holds the run lease for most of a minute; exits are replayed from the tape, so a
+stop is never missed. Watch for 'stale chan lease' errors if Binance is slow.
+ROLLBACK: shim `__ENABLED_SLEEVES='OFF'` (flat, no engine). Close open CHAN rows first, or re-enable CHAN to manage them.
+
 ## 2026-09-26 23:30 UTC — OWNER: "go with the prompt to the end, rely ONLY on it, reset the account"
 DONE:
 - trading-bot shim `__ENABLED_SLEEVES='OFF'`, `__LEVERAGE='1'`: function v84, sha 1f4e1e17, manifest enabled_sleeves OFF,

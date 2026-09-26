@@ -40,6 +40,23 @@ function Reasons({ t }: { t: Row }) {
       <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}><b>{title}</b><span dir="ltr" style={{ color: C.acc, fontVariantNumeric: 'tabular-nums' }}>{value}</span></div>
         <div style={{ color: C.dim, fontSize: 13, marginTop: 2 }}>{rule}</div><div style={{ fontSize: 13, marginTop: 4 }}>{explain}</div></div>
     </div>)
+  if (t.strategy === 'CHAN' && m.chan) {
+    const c = m.chan, mr = c.comp === 'RG_MR', f2 = (x: unknown, d = 2) => (Number.isFinite(Number(x)) ? Number(x).toFixed(d) : '—')
+    const regimeHe: Record<string, string> = { MEAN_REVERT: 'חוזר לממוצע', TREND: 'מגמה', HIGH_VOL: 'תנודתיות קיצונית', NEUTRAL: 'ניטרלי' }
+    return <>
+      {row(true, '1. מצב השוק (מסנן מצב שוק)', `${regimeHe[c.regime] ?? c.regime} · Hurst ${f2(c.hurst, 3)}`, 'Hurst מתחת ל־0.45 = חוזר לממוצע, מעל 0.55 = מגמה; תנודתיות מעל אחוזון 90 = לא סוחרים',
+        mr ? 'השוק התנהג כמו שוק שחוזר לממוצע — לכן הופעלה אסטרטגיית החזרה לממוצע.' : 'השוק התנהג כמו שוק במגמה — לכן הופעלה אסטרטגיית המומנטום.')}
+      {mr ? <>
+        {row(true, '2. מהירות החזרה לממוצע (half-life)', `${f2(c.halflife, 1)} נרות`, 'תנאי: בין 5 ל־300 נרות; קובע את אורך הממוצע', `המחיר נוטה לחזור חצי מהדרך לממוצע תוך כ־${f2(c.halflife, 0)} נרות של 5 דקות.`)}
+        {row(true, '3. סטייה מהממוצע (z)', `z = ${f2(c.z)}`, `תנאי: |z| לפחות 2.5`, `המחיר רחוק ${f2(Math.abs(Number(c.z)))} סטיות תקן מהממוצע — נכנסים בכיוון החזרה, יוצאים כשחוזר לממוצע.`)}
+      </> : <>
+        {row(true, '2. מובהקות המומנטום', `t = ${f2(c.t_sig)}`, 'תנאי: t לפחות 2 — התשואה של 144 הנרות הקודמים ניבאה את 12 הבאים בנתונים האחרונים', 'רק כשהמומנטום מובהק סטטיסטית — לא לפי תחושה.')}
+        {row(true, '3. פריצה', t.side === 'LONG' ? `מעל ${f2(c.hh, 4)}` : `מתחת ${f2(c.ll, 4)}`, 'תנאי: סגירה מעבר לשיא/שפל 144 הנרות הקודמים', 'יציאה אחרי 12 נרות (שעה) או בסטופ.')}
+      </>}
+      {row(true, '4. גודל לפי חצי־Kelly', `${(Number(c.risk_frac) * 100).toFixed(2)}% מההון בסיכון`, 'חצי־Kelly על הרקורד החי של האסטרטגיה, תקרה 1%; לפני 30 עסקאות: 0.25%', `${c.kelly_why ?? ''} · מינוף עד ×3 · סטופ חובה ${f2(c.stop, 4)}`)}
+      <div style={{ color: C.warn, fontSize: 12, marginTop: 8 }}>מערכת צ׳אן (quant/) · במבחן ההיסטורי קיבלה NO-GO — רצה בדמו לבקשתך, לא עברה אימות · נר {String(c.bar ?? '').slice(11, 19)} UTC</div>
+    </>
+  }
   if (t.strategy === 'FAST' && m.fast?.mode === 'wyckoff') {
     const f = m.fast, w = f.wyckoff ?? {}, ck = Object.fromEntries((f.checks ?? []).map((c: any) => [c.k, c]))
     const ok = (k: string) => ck[k]?.ok === true, px = (x: unknown) => (Number.isFinite(Number(x)) ? Number(x).toPrecision(6) : '—')
