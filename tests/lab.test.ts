@@ -68,7 +68,7 @@ assert.ok(runner.includes("if (!paper) throw new Error('LAB is paper-only"), 'ru
 assert.ok(runner.includes("c.p.tier === 'explore' && eliteTaken()"), 'explore trades only when no elite trade was taken')
 assert.ok(runner.includes('labState.demoted[p.spec.id]') && runner.includes('ROLLBACK ${id}'), 'demoted specs never enter again (rollback)')
 const sr = readFileSync('supabase/functions/trading-bot/scalp-runner.ts', 'utf8')
-assert.ok(sr.includes("t.strategy==='LAB'") && sr.includes("['SCALP','ROTA','BRKV','LAB']"), 'SCALP never closes LAB rows')
+assert.ok(sr.includes("t.strategy==='LAB'") && sr.includes("['SCALP','ROTA','BRKV','LAB','FAST']"), 'SCALP never closes LAB rows')
 const idx = readFileSync('supabase/functions/trading-bot/index.ts', 'utf8')
 assert.ok(idx.includes('if (LAB_ENABLED) {') && idx.includes('runLab(supabase, scalpState, runLeaseUntil, paperMode && !liveMode)'), 'index gates LAB on the shim and passes paper')
 const wf = readFileSync('.github/workflows/backtest.yml', 'utf8')
