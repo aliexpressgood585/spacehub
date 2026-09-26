@@ -356,6 +356,27 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v96.0 (2026-09-26 ~22:00 UTC) — DATA COLLECTORS + ACCOUNT RESET to $5,000 (owner: "add the data sources and reset")
+New edge function `data-collector` (cron job 5, every minute, NEVER trades or touches trading tables), with parsers in
+`shared/collect.ts` and tests in `tests/collect.test.ts`. Migration `20260926230000_market_collectors.sql` (applied) adds 4
+tables, all with RLS and anon read:
+  mkt_liquidations  Binance `!forceOrder@arr` websocket held ~45 s per run + OKX liquidation-orders for the pinned 40
+                    (OKX contracts × ctVal from the instruments call; unknown ctVal is dropped, never guessed); deduplicated
+                    on a unique key
+  mkt_derivs        every 5 min: Binance OI (coins/USD), funding, mark/index premium for the pinned 40
+  mkt_options       every 5 min: Deribit BTC/ETH DVOL, ATM IV, ±10% moneyness skew on the nearest expiry ≥ 7 days,
+                    put/call OI and volume
+  mkt_news          every 5 min: cointelegraph / coindesk / decrypt RSS items, published time + the pinned coins named
+Retention: `mkt_retention(90)` runs hourly. On-chain exchange flows are NOT collected (every source found is paid/keyed).
+PURPOSE: these sources have no historical archive, so they can only be backtested on data recorded from now on.
+Earliest honest test is in ~2–3 weeks. Nothing trades on them.
+RESET 21:58 UTC, one transaction under the bot_state lock. The v95.8 era was archived to `archive_v95_8era_bot_trades` (20
+rows) and `archive_v95_8era_bot_equity` (144 rows); git summary in migration/export-v95_8era/. The era closed 20 trades, 0
+open, realised −$1,771.73. After the reset: balance/peak 5000, halt cleared, scalp/fast day keys removed. Strategy
+UNCHANGED: v95.8 FAST ×50 with fixed stop / 1.5R target (the owner did not pick the 4h-momentum alternative). The FAST
+daily cap counts bot_trades, so FAST resumes immediately.
+ROLLBACK for the collector: `select cron.unschedule('data-collector')`.
+
 ## v95.5 (2026-09-26 18:08 UTC) — FAST TRAILING STOP (owner, after GRASS hit its 1.5R target and kept running)
 Tested first (sandbox, FAST 5m signal, 10 coins, 36m, ~29k trades each, full costs): fixed 1.5R target -0.202%/trade
 PF 0.39 | trail 1R behind the best after +1R, no target -0.184% PF 0.42 (both halves better: -0.196 / -0.174) | 3R +
