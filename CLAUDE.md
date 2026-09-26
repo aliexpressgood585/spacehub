@@ -367,6 +367,25 @@ DEPLOYED: commit 36c48e56, function v76, migration applied, 0 bot_errors, trail 
 LIVE since the reset (17:13): JUP -$6.72 (1x), GRASS LONG 50x +$1,179.09 (TARGET, +1.85R), RAYSOL LONG 50x -$714.74
 (STOP); FIL + HYPE still open at 1x. ROLLBACK: set FAST_TRAIL.on false.
 
+## 2026-09-26 18:45 UTC — review of the 50x FAST trades (owner: "understand what happened, what to improve")
+FIRST CLOSES UNDER v95.6: HYPE #652 SHORT stop — trigger print 91.76 at 18:26:20.155 (stop 91.7597), detected 4.2 s later,
+book $797k deep -> 5 bps floor, fill 91.806, −$410.20: CORRECT. ORDI #654 (opened AND closed under v95.6) −$611.50 in 1.6 s.
+BUG (mine, the v95.6 cut-over): CC #653 was opened pre-v95.6 and had no chk; the first v95.6 cycle replayed its tape FROM THE
+OPEN against its ALREADY-TRAILED stop (0.13451, below the 0.13521 original) and booked the print 1 s after entry: −$576.40 at
+18:26. Look-ahead. CORRECTED by SQL under the bot_state lock: every aggTrade from the open replayed with the original stop and
+per-trade trailing -> the trail stop 0.134323 was hit at 18:22:06.574 (print 0.13433); same 48.79 bps book impact -> fill
+0.134985, pnl −$340.38 (+$236.02 to cash); old values kept in scalp_meta.fill. Guard: a row without chk is resolved only from
+now (fast-runner), test added. Only rows open at the deploy could hit it; none are left.
+THE REAL PROBLEM — SIZE vs ORDER BOOK: 50x × 1/3 of equity = $65k-$103k per trade on thin alts. Measured impact per side:
+ORDI entry 41 bps (book walk, $75k) vs a 47 bps stop -> the stop sat 6 bps from the market after our own sell; stopped 1.6 s
+later, exit impact 22 bps: the whole loss is our own market impact. CC exit 49 bps (beyond the visible book) vs 44 bps stop;
+RAYSOL $103k vs $46k on 50 levels. On these coins the round-trip impact alone is 1-1.3R. HYPE (deep book) paid only 5 bps.
+Leveraged record so far: GRASS +$1,179 (pre-v95.6, target overfill ~$240), RAYSOL −$715 (pre-v95.6), HYPE −$410, CC −$340
+(corrected), ORDI −$611; PEPE #655 open.
+RECOMMENDED, NOT ENABLED (owner's call — it trims the all-in size): liquidity cap — notional such that the book-walk impact
+stays <= ~25% of the stop distance (and never beyond the visible book); leverage stays 50x, less margin is posted on thin
+books. Also noted: re-entry cooldown counts from opened_at (HYPE re-shorted 9 s after its previous HYPE close).
+
 ## v95.6 (2026-09-26 18:26 UTC) — FAST fill realism + honest trade page (owner: RAYSOL stop overshoot, ❌ on an open trade, card vs chart)
 FOUND (measured on Binance aggTrades / depth fetched via pg_net):
 - RAYSOL #651: stop 2.050820 first traded 18:06:25.588; the cycle that saw it ran ~9 s later (overlapping 5 s cron calls are

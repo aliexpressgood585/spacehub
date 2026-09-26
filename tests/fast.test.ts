@@ -38,7 +38,7 @@ assert.equal(fastExit(1, 97, 103, 98.4, 0, fastLiq(1, 100, 50)), 'LIQUIDATION', 
 assert.equal(fastExit(1, 99.7, 100.45, 99.6, 0, fastLiq(1, 100, 50)), 'STOP')
 // paper replay of the live runner
 let rpc: any = null
-const openRow = { id: 3, sym: 'ETH', side: 'LONG', strategy: 'FAST', lev: 1, paper_mode: true, entry_price: 100, size: 10, opened_at: new Date(NOW - 20 * 60e3).toISOString(), scalp_meta: { fast: { stop: 99.7, target: 100.45 } } }
+const openRow = { id: 3, sym: 'ETH', side: 'LONG', strategy: 'FAST', lev: 1, paper_mode: true, entry_price: 100, size: 10, opened_at: new Date(NOW - 20 * 60e3).toISOString(), scalp_meta: { fast: { stop: 99.7, target: 100.45, chk: NOW - 60e3 } } }
 const pairs = [{ sym: 'BTC', s: 'BTCUSDT', k: 1 }, { sym: 'SOL', s: 'SOLUSDT', k: 1 }, { sym: 'ETH', s: 'ETHUSDT', k: 1 }, ...Array.from({ length: 20 }, (_, i) => ({ sym: `CX${i}`, s: `CX${i}USDT`, k: 1 }))]
 const db = { from: (table: string) => { const b: any = new Proxy({}, { get: (_t, k: string) => {
   if (k === 'throwOnError') return async () => ({ data: table === 'market_cache' ? [{ data: { pairs } }] : table === 'bot_trades' ? [openRow] : [] })
@@ -98,6 +98,7 @@ assert.ok(tsql.includes("(t.side='LONG' and st<old) or (t.side='SHORT' and st>ol
   const w = walkBook([[100, 5], [100.1, 5], [100.2, 5]], 1000.5)
   assert.ok(Math.abs(w.vwap - 1000.5 / (5 + 500.5 / 100.1)) < 1e-9 && !w.beyond && w.impact > 0, 'book walk VWAP across levels')
   assert.ok(walkBook([[100, 1]], 300).beyond && walkBook([[100, 1], [101, 1]], 1000).vwap > 101, 'an order bigger than the visible book is priced beyond it (INFERRED) and flagged') }
+assert.ok(readFileSync('supabase/functions/trading-bot/fast-runner.ts', 'utf8').includes(': now - 20_000) + 1'), 'a pre-v95.6 row (no chk) is never replayed from its open with a trailed stop')
 const fsql = readFileSync('supabase/migrations/20260926220000_fast_fill.sql', 'utf8')
 assert.ok(fsql.includes("'{fast,chk}'") && fsql.includes("''fill'',coalesce(x->''fill''") && fsql.includes("(t.side='LONG' and st<old)"), 'fill ledger: chk persisted, fill provenance stored, trail still favourable-only')
 console.log('fast (v95.0): rule, levels, exits, paper replay of the live path, ledger caps passed')

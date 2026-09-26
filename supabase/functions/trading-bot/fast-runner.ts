@@ -63,7 +63,10 @@ export async function runFast(db: any, state: any, lease: string, paper: boolean
       if (!m) return
       const entry = Number(t.entry_price), size = Number(t.size), lev = Math.max(1, Number(t.lev) || 1), liq = fastLiq(dir, entry, lev)
       // Binance serves at most a 1h aggTrades window; FAST holds <= 30 min, so this only bites after a long outage
-      const from = Math.max(Date.parse(t.opened_at), Number(m.chk) || 0, now - 3_500_000) + 1
+      // a row with no chk predates v95.6: its stored stop may already be trailed, so replaying its tape from the open would
+      // test early prints against a later stop (look-ahead — this booked CC #653 at a print 1 s after entry). Such rows
+      // are resolved only from now on.
+      const from = (Number(m.chk) > 0 ? Math.max(Date.parse(t.opened_at), Number(m.chk), now - 3_500_000) : now - 20_000) + 1
       const tr = await aggTrades(P, from, now)
       const st = { dir, entry, r: Number(m.r), stop: Number(m.stop), target: m.trail ? null : Number(m.target), liq, best: Number(m.best ?? entry), trail: !!m.trail || FAST_TRAIL.on }
       const res = resolveExit(st, tr.trades)
