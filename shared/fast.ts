@@ -59,10 +59,22 @@ export function fastSignal(b: LBar[], btcUp: boolean | null, isBtc: boolean): Fa
   if (!isBtc && (btcUp === null || (dir > 0) !== btcUp)) return null
   return { dir, z, volRatio, imb, atr: I.atr[i], strength: Math.abs(z) * volRatio }
 }
+// v95.5 TRAILING EXIT (owner: "wouldn't a trailing stop have made more?"). Tested first, same FAST signal, 10 coins,
+// 5m, 36 months, ~29k trades: fixed 1.5R target -0.202%/trade PF 0.39 | trail 1R behind the best price after +1R, no
+// target -0.184% PF 0.42 (1st half -0.196, 2nd half -0.174 — better in BOTH halves) | 3R + trail -0.194 | BE + 3R -0.194.
+// A consistent but small improvement; the rule still loses after costs. No fixed target: the far "target" (10R) only
+// exists because the ledger requires levels on both sides; the exit is the trailing stop or the time limit.
+export const FAST_TRAIL = { on: true, afterR: 1, distR: 1, farTargetR: 10 } as const
 // stop and target from the entry fill
 export function fastLevels(dir: 1 | -1, entry: number, atr: number) {
   const r = Math.max(FAST.stopAtr * atr, entry * FAST.stopMinPct)
-  return { stop: entry - dir * r, target: entry + dir * FAST.targetR * r, r }
+  return { stop: entry - dir * r, target: entry + dir * (FAST_TRAIL.on ? FAST_TRAIL.farTargetR : FAST.targetR) * r, r }
+}
+// ratchet: once the best price is >= afterR beyond the entry, the stop trails distR behind the best; never loosens
+export function fastTrail(dir: 1 | -1, entry: number, r: number, best: number, stop: number): number {
+  if (!(r > 0) || dir * (best - entry) < FAST_TRAIL.afterR * r) return stop
+  const ns = best - dir * FAST_TRAIL.distR * r
+  return dir * (ns - stop) > 0 ? ns : stop
 }
 // live exit on an executable mark (bid for a long, ask for a short)
 export function fastExit(dir: 1 | -1, stop: number, target: number, mark: number, heldMs: number, liq = dir > 0 ? 0 : Infinity, holdMs: number = FAST.holdBars * FAST.barMs): 'LIQUIDATION' | 'STOP' | 'TARGET' | 'TIMEOUT' | null {

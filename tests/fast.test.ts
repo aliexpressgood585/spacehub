@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { FAST, FAST_RT, fastSignal, fastSignalRT, fastLevels, fastExit, fastLiq } from '../shared/fast.ts'
+import { FAST, FAST_RT, FAST_TRAIL, fastTrail, fastSignal, fastSignalRT, fastLevels, fastExit, fastLiq } from '../shared/fast.ts'
 ;(globalThis as any).__FAST_MODE = 'bar'   // the runner replay below exercises the 5m-close mode; real-time is unit-tested here
 import { runFast } from '../supabase/functions/trading-bot/fast-runner.ts'
 import type { LBar } from '../shared/lab.ts'
@@ -19,7 +19,9 @@ assert.equal(fastSignal(series(0), true, false), null, 'no burst = no trade')
 const dn = fastSignal(series(-1), false, false); assert.ok(dn && dn.dir === -1, 'mirror SHORT')
 assert.ok(fastSignal(series(1), null, true), 'BTC itself skips the BTC condition')
 assert.equal(fastSignal(series(1).map((b) => ({ ...b, tb: NaN })), true, false), null, 'no taker data = no trade (never inferred)')
-const lv = fastLevels(1, 100, 0.1); assert.equal(lv.r, 0.3, 'stop floored at 0.3%'); assert.ok(Math.abs(lv.target - 100.45) < 1e-9)
+const lv = fastLevels(1, 100, 0.1); assert.equal(lv.r, 0.3, 'stop floored at 0.3%'); assert.ok(Math.abs(lv.target - (100 + 0.3 * FAST_TRAIL.farTargetR)) < 1e-9, 'trailing mode: far target, the trail does the exit')
+assert.equal(fastTrail(1, 100, 1, 100.9, 99), 99, 'no trail before +1R'); assert.equal(fastTrail(1, 100, 1, 102.5, 99), 101.5, 'after +1R the stop sits 1R behind the best')
+assert.equal(fastTrail(1, 100, 1, 101.2, 101.5), 101.5, 'never loosens'); assert.equal(fastTrail(-1, 100, 1, 97, 101), 98, 'short mirror')
 assert.equal(fastExit(1, 99.7, 100.45, 99.6, 0), 'STOP'); assert.equal(fastExit(-1, 100.3, 99.55, 99.5, 0), 'TARGET'); assert.equal(fastExit(1, 99.7, 100.45, 100.1, 12 * M5), 'TIMEOUT')
 // real-time mode: the forming minute counts
 const rt = (burst: 1 | -1 | 0, buyers = 0.8): LBar[] => { const out: LBar[] = []; let px = 100
@@ -58,7 +60,7 @@ try {
   assert.equal(rpc.args.p_closes.length, 1); assert.equal(rpc.args.p_closes[0].reason, 'STOP', 'ETH below its stop is closed')
   const e = rpc.args.p_entries
   assert.ok(e.length === 1 && e[0].sym === 'SOL' && e[0].side === 'LONG', 'the SOL burst is the one entry')
-  assert.ok(e[0].fast.stop < e[0].price && e[0].fast.target > e[0].price)
+  assert.ok(e[0].fast.stop < e[0].price && e[0].fast.target > e[0].price && e[0].fast.trail === true && e[0].fast.best === e[0].price)
   assert.equal(e[0].lev, FAST.levDefault, 'default leverage 50x')
   assert.ok(Math.abs(e[0].fast.margin - 5000 / 3) < 1e-6 && Math.abs(e[0].notional - 5000 / 3 * FAST.levDefault) < 1e-6, 'one third of equity as margin x 50 = notional')
   assert.ok(e[0].fast.liq > e[0].price === false && e[0].fast.liq < e[0].price, 'long liquidation price below the entry')
@@ -73,4 +75,6 @@ assert.ok(sql.includes('cnt>=3 or dayn>=20') && sql.includes('eq*0.34') && sql.i
 assert.ok(sql.includes('ret:=greatest(0,mg+gross-exitfee-funding)') && sql.includes('cash:=cash-mg-n*0.0005'), 'isolated margin: posts margin + fee, never loses more than the margin')
 assert.ok(sql.includes("execute replace(f,'select cash+coalesce(sum(entry_price*size+((case','select cash+coalesce(sum(entry_price*size/greatest(lev,1)+((case')"), 'the equity snapshot counts margin, not notional')
 assert.ok(sql.includes("'TSLA'") && sql.includes("'^[A-Z0-9]{2,16}$'"), 'crypto only')
+const tsql = readFileSync('supabase/migrations/20260926210000_fast_trail.sql', 'utf8')
+assert.ok(tsql.includes("(t.side='LONG' and st<old) or (t.side='SHORT' and st>old)") && tsql.includes('stale fast lease'), 'trail ledger: favourable-only, lease-checked')
 console.log('fast (v95.0): rule, levels, exits, paper replay of the live path, ledger caps passed')
