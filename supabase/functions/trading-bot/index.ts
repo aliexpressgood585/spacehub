@@ -457,6 +457,7 @@ import { runRota, rotaConfig } from './rota-runner.ts'
 import { runBrkv, brkvConfig } from './brkv-runner.ts'
 import { runLab, labConfig } from './lab-runner.ts'
 import { runFast, fastConfig } from './fast-runner.ts'
+import { runChan } from './chan-runner.ts'
 import { meetingDue, capDecision } from '../../../shared/team-meeting.ts'
 
 const BINANCE_DATA = 'https://data-api.binance.vision/api/v3'
@@ -547,7 +548,7 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v95.0'
+const BOT_VERSION = 'v97.0'
 // v87.0: the pre-SCALP engine (DONCH4H / standalone ROTA) opens trades without the profit gate; it stays in the file
 // for its exit/record code history but may never open a trade. Changing this needs the gate wired in first.
 const LEGACY_ENGINE_ALLOWED = false
@@ -2685,6 +2686,15 @@ Deno.serve(async (req) => {
 
     // v56.8: record which build is actually running, once per cold start
     await publishManifest(supabase, paperMode, liveMode, logErr)
+
+    // v97.0 (owner, 2026-09-26: "run the trading system in demo the way Chan said"): the quant/ regime router, alone in
+    // the paper book, with the prompt's hard risk limits. It excludes every other sleeve (runChan refuses a mixed book).
+    if (ENABLED_SLEEVES.includes('CHAN')) {
+      let chan: any = null
+      try { chan = await runChan(supabase, state, runLeaseUntil, paperMode && !liveMode) }
+      catch (e: any) { chan = { error: String(e?.message ?? e) }; await logErr('chan_runner', String(e?.message ?? e)) }
+      return new Response(JSON.stringify({ ok: !chan?.error, version: BOT_VERSION, chan }), { status: chan?.error ? 500 : 200, headers: { 'Content-Type': 'application/json' } })
+    }
 
     if (ENABLED_SLEEVES.includes('SCALP')) {
       // v83.0: 'SCALP,ROTA' runs the rotation sleeve in the same paper book, before SCALP,

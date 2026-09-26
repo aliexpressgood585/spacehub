@@ -41,6 +41,8 @@ run "agent factory"         tests/factory.test.ts
 run "rota runner"           tests/rota-runner.test.ts
 run "breakout BRKV v93"     tests/breakout.test.ts
 run "data collectors v96"   tests/collect.test.ts
+run "chan parity v97"       tests/chan.test.ts
+run "chan runner v97"       tests/chan-runner.test.ts
 run "lab v94 (research grid + LAB sleeve)" tests/lab.test.ts
 run "lab runner v94 (paper replay)" tests/lab-runner.test.ts
 run "fast v95 (all-in intraday)" tests/fast.test.ts
@@ -97,6 +99,7 @@ tc shared/strategy.ts
 tc shared/lab.ts
 tc shared/fast.ts
 tc shared/fast-entry.ts
+tc shared/chan.ts
 tc backtest/backtest.ts
 tc backtest/portfolio.ts
 tc supabase/functions/trading-bot/index.ts
