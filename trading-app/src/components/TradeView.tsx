@@ -78,7 +78,7 @@ export default function TradeView({ id }: { id: string }) {
     if (!t) return null
     const m = t.scalp_meta ?? {}, f = m.fast ?? m.lab ?? {}
     const stop = Number(f.stop ?? (t.strategy === 'ROTA' ? NaN : t.trail_sl)), target = Number(f.target ?? m.target_px ?? NaN)
-    return { entry: Number(t.entry_price), stop: stop > 0 && stop < Number(t.entry_price) * 50 ? stop : NaN, target: target > 0 ? target : NaN, holdMs: Number(f.hold_min ?? m.hold_min ?? NaN) * 60e3 || (f.hold ? Number(f.hold) * TF_MS[tf] : NaN) }
+    return { entry: Number(t.entry_price), stop: stop > 0 && stop < Number(t.entry_price) * 50 ? stop : NaN, target: target > 0 && !f.trail ? target : NaN, trail: !!f.trail, holdMs: Number(f.hold_min ?? m.hold_min ?? NaN) * 60e3 || (f.hold ? Number(f.hold) * TF_MS[tf] : NaN) }
   }, [t, tf])
   // chart
   useEffect(() => {
@@ -92,7 +92,7 @@ export default function TradeView({ id }: { id: string }) {
     const e = ch.addLineSeries({ color: '#9b8cff', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false })
     cs.current = c; vs.current = v; es.current = e
     const pl = (price: number, color: string, title: string, style = LineStyle.Solid) => { if (Number.isFinite(price)) c.createPriceLine({ price, color, lineWidth: 2, lineStyle: style, axisLabelVisible: true, title }) }
-    pl(lv.entry, C.acc, 'כניסה'); pl(lv.stop, C.neg, 'סטופ', LineStyle.Dashed); pl(lv.target, C.pos, 'יעד', LineStyle.Dashed)
+    pl(lv.entry, C.acc, 'כניסה'); pl(lv.stop, C.neg, lv.trail ? 'סטופ נגרר' : 'סטופ', LineStyle.Dashed); pl(lv.target, C.pos, 'יעד', LineStyle.Dashed)
     if (t.exit_price) pl(Number(t.exit_price), C.warn, 'יציאה', LineStyle.Dotted)
     let alive = true
     const paint = (k: K[]) => {
@@ -133,7 +133,7 @@ export default function TradeView({ id }: { id: string }) {
         {stat(isOpen ? 'מחיר עכשיו' : 'מחיר יציאה', fmt(mark))}
         {stat('כניסה', fmt(lv.entry), C.acc)}
         {stat('סטופ', Number.isFinite(lv.stop) ? `${fmt(lv.stop)} (${pct(dir * (lv.stop - mark) / mark * 100)})` : 'אין', C.neg)}
-        {stat('יעד', Number.isFinite(lv.target) ? `${fmt(lv.target)} (${pct(dir * (lv.target - mark) / mark * 100)})` : 'אין', C.pos)}
+        {stat('יעד', lv.trail ? 'ללא יעד — סטופ נגרר' : Number.isFinite(lv.target) ? `${fmt(lv.target)} (${pct(dir * (lv.target - mark) / mark * 100)})` : 'אין', C.pos)}
         {stat(isOpen ? 'R עכשיו' : 'R סופי', Number.isFinite(rNow) ? `${rNow >= 0 ? '+' : ''}${rNow.toFixed(2)}R` : '—', rNow >= 0 ? C.pos : C.neg)}
         {stat(lev > 1 ? `גודל · ביטחון · מינוף` : 'גודל', lev > 1 ? `$${notional.toFixed(0)} · $${base.toFixed(0)} · ×${lev}` : `$${notional.toFixed(0)}`)}
         {stat(isOpen ? 'זמן בעסקה / מקסימום' : 'משך', Number.isFinite(lv.holdMs) ? `${mmss(held)} / ${mmss(lv.holdMs)}` : mmss(held))}
@@ -146,7 +146,7 @@ export default function TradeView({ id }: { id: string }) {
       </section>
       <section style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 10, padding: 12, fontSize: 14, lineHeight: 1.7 }}>
         <h2 style={{ fontSize: 17, marginBottom: 4 }}>איך הוא ייצא</h2>
-        {t.strategy === 'FAST' ? <>סטופ: {fmt(lv.stop)} · יעד: {fmt(lv.target)} (פי 1.5 מהסיכון) · אם אף אחד לא נפגע — יוצא אחרי {t.scalp_meta?.fast?.hold_min ?? 60} דקות בכל מחיר.{Number(t.lev) > 1 ? ` מינוף ×${t.lev}: חיסול ב־${fmt(Number(t.scalp_meta?.fast?.liq))} — מפסיד את כל הביטחון ($${Number(t.scalp_meta?.fast?.margin ?? 0).toFixed(0)}).` : ''} עמלות: 0.05% בכל צד על כל הגודל + מרווח.</> : 'לפי כללי האסטרטגיה (ראו הרמות על הגרף).'}
+        {t.strategy === 'FAST' ? <>{lv.trail ? <>סטופ נגרר: {fmt(lv.stop)} · אין יעד קבוע — אחרי רווח של פי 1 מהסיכון הסטופ עולה אחרי המחיר (במרחק פי 1 מהסיכון מהשיא) ולא יורד לעולם ·</> : <>סטופ: {fmt(lv.stop)} · יעד: {fmt(lv.target)} (פי 1.5 מהסיכון) ·</>} אם אף אחד לא נפגע — יוצא אחרי {t.scalp_meta?.fast?.hold_min ?? 60} דקות בכל מחיר.{Number(t.lev) > 1 ? ` מינוף ×${t.lev}: חיסול ב־${fmt(Number(t.scalp_meta?.fast?.liq))} — מפסיד את כל הביטחון ($${Number(t.scalp_meta?.fast?.margin ?? 0).toFixed(0)}).` : ''} עמלות: 0.05% בכל צד על כל הגודל + מרווח.</> : 'לפי כללי האסטרטגיה (ראו הרמות על הגרף).'}
       </section>
     </div>)
 }

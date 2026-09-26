@@ -3,7 +3,7 @@
 // 'universe', pinned 40 as fallback), rank the signals, enter the strongest within the 5-open / 20-per-day limits.
 // Books through `fast_commit_cycle` (paper 1x; caps enforced again in SQL). Decisions go to trade_decisions.
 import * as S from '../../../shared/strategy.ts'
-import { FAST, FAST_RT, fastSignal, fastSignalRT, fastLevels, fastExit, fastLiq } from '../../../shared/fast.ts'
+import { FAST, FAST_RT, FAST_TRAIL, fastSignal, fastSignalRT, fastLevels, fastExit, fastLiq, fastTrail } from '../../../shared/fast.ts'
 import { labInd, slipFor, type LBar } from '../../../shared/lab.ts'
 import { json, pool } from './rota-runner.ts'
 type Pair = { sym: string; s: string; k: number }
@@ -42,7 +42,7 @@ export async function runFast(db: any, state: any, lease: string, paper: boolean
   const pairs = await universe(db), byS = new Map(pairs.map((p) => [p.sym, p]))
   const pairOf = (sym: string): Pair => byS.get(sym) ?? { sym, s: `${sym}USDT`, k: 1 }
   // exits
-  const closes: any[] = [], marks: Record<string, number> = {}
+  const closes: any[] = [], marks: Record<string, number> = {}, trails: any[] = []
   await pool<any>(mine, 6, async (t) => {
     try {
       const q = await quoteP(pairOf(t.sym)), dir = t.side === 'LONG' ? 1 : -1, m = t.scalp_meta?.fast
@@ -51,6 +51,11 @@ export async function runFast(db: any, state: any, lease: string, paper: boolean
       const why = m ? fastExit(dir as 1 | -1, Number(m.stop), Number(m.target), mark, now - Date.parse(t.opened_at), liq, (Number(m.hold_min) || FAST.holdBars * 5) * 60_000) : null
       // a liquidation settles at the liquidation price (the exchange takes the whole isolated margin), not at the mark
       if (why) closes.push({ id: t.id, price: why === 'LIQUIDATION' ? liq : mark * (1 - dir * slipFor(t.sym)), reason: why, quote_ts: q.ts })
+      else if (m && (m.trail || FAST_TRAIL.on)) {   // v95.5: ratchet the stop behind the best price seen
+        const best0 = Number(m.best ?? t.entry_price), best = dir > 0 ? Math.max(best0, mark) : Math.min(best0, mark)
+        const ns = fastTrail(dir as 1 | -1, Number(t.entry_price), Number(m.r), best, Number(m.stop))
+        if (ns !== Number(m.stop) || best !== best0) trails.push({ id: t.id, stop: ns, best })
+      }
     } catch { /* no quote: held until the next cycle */ }
   })
   // entries: once per completed 5m bar
@@ -58,7 +63,8 @@ export async function runFast(db: any, state: any, lease: string, paper: boolean
   const done = Number(params.fast_bar) || 0
   const bar = cfg.mode === 'bar' ? Math.floor(now / FAST.barMs) * FAST.barMs : now
   const due = (cfg.mode === 'bar' ? bar > done && now - bar <= FAST.entryWindowMs : now - done >= FAST_RT.scanEveryMs) && !state.hard_halt_at
-  if (!due && !closes.length) return { changed: false, open: mine.length }
+  if (trails.length) { try { await db.rpc('fast_trail', { p_lease: lease, p_updates: trails }).throwOnError() } catch { /* next cycle retries */ } }
+  if (!due && !closes.length) return { changed: trails.length > 0, open: mine.length, trailed: trails.length }
   const entries: any[] = [], decisions: any[] = [], failed: string[] = []
   let scanned = 0
   if (due) {
@@ -93,7 +99,7 @@ export async function runFast(db: any, state: any, lease: string, paper: boolean
       const margin = Math.min(equity * FAST.perTrade * cfg.share, cash / (1 + cfg.lev * 0.0005)), notional = margin * cfg.lev
       if (margin < 5) { rec('rejected', 'no_cash'); continue }
       entries.push({ sym, side, price: px, notional, lev: cfg.lev, quote_ts: q.ts, source: q.source,
-        fast: { stop: lv.stop, target: lv.target, r: lv.r, stop_pct: lv.r / px, lev: cfg.lev, margin, liq: fastLiq(sig.dir, px, cfg.lev), mode: cfg.mode, hold_min: rt ? FAST_RT.holdMin : FAST.holdBars * 5, z: +sig.z.toFixed(2), vol_ratio: +sig.volRatio.toFixed(2), imb: +sig.imb.toFixed(3), btc_up: btcUp, spread_bps: +((q.ask - q.bid) / ((q.ask + q.bid) / 2) * 1e4).toFixed(2), bar: new Date(bar).toISOString() } })
+        fast: { stop: lv.stop, target: lv.target, r: lv.r, best: px, trail: FAST_TRAIL.on, stop_pct: lv.r / px, lev: cfg.lev, margin, liq: fastLiq(sig.dir, px, cfg.lev), mode: cfg.mode, hold_min: rt ? FAST_RT.holdMin : FAST.holdBars * 5, z: +sig.z.toFixed(2), vol_ratio: +sig.volRatio.toFixed(2), imb: +sig.imb.toFixed(3), btc_up: btcUp, spread_bps: +((q.ask - q.bid) / ((q.ask + q.bid) / 2) * 1e4).toFixed(2), bar: new Date(bar).toISOString() } })
       rec('accepted', 'taken', { notional })
       held.add(sym); openN++; dayN++; cash -= margin + notional * 0.0005
     }
