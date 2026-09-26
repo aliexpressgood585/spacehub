@@ -356,6 +356,17 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v95.1 (2026-09-26) — trade page: every position opens a live TradingView-style chart (dashboard only)
+Owner: click an open trade -> live chart with entry/stop/target and every indicator that made the bot enter, in Hebrew.
+`trading-app/src/components/TradeView.tsx`, page `trade.html?id=<bot_trades.id>` (lightweight-charts 4.2, TradingView's
+open-source library). House position cards and trade-tape rows now link to it. Candles at the trade's timeframe (FAST 5m,
+LAB its tf, SCALP 1m) from Binance Futures, OKX fallback (then no taker data, labelled), refreshed every 2.5 s; price
+lines entry/stop/target (+exit when closed), markers for the signal bar / entry / exit, EMA20 and volume coloured by
+taker-buy share for READING only. "למה הבוט נכנס" shows the values the bot STORED at entry (scalp_meta.fast: z, volume
+ratio, taker imbalance, BTC side) against each threshold — nothing recomputed. Live P&L, R, distance to stop/target,
+time held / max hold. Verified headless (sandbox Chromium, JUP 647 + FIL 648): renders, no page errors (Binance CORS-
+blocked from the sandbox -> OKX fallback worked). No bot change.
+
 ## v95.0 (2026-09-26 17:13 UTC) — ACCOUNT RESET to $5,000 + FAST: the owner's all-in intraday rule, live on paper
 Owner, after the v94.0 lab found no edge: "the most aggressive thing, 20 trades a day, scanning every coin, the whole
 account, nothing kept aside; reset now, keep the history, let's see it live". Told plainly first: the lab tested exactly
