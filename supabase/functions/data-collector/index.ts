@@ -33,7 +33,7 @@ function binanceWs(ms: number): Promise<{ liqs: C.Liq[]; note: string }> {
     let note = 'ok', done = false, opened = false, frames = 0
     const finish = () => { if (done) return; done = true; try { ws.close() } catch { /* already closed */ } resolve({ liqs, note: `${note}, opened ${opened}, frames ${frames}` }) }
     let ws: WebSocket
-    try { ws = new WebSocket('wss://fstream.binance.com/ws/!forceOrder@arr') } catch (e) { resolve({ liqs, note: `open failed: ${e}` }); return }
+    try { ws = new WebSocket('wss://fstream.binance.com/stream?streams=!forceOrder@arr') } catch (e) { resolve({ liqs, note: `open failed: ${e}` }); return }
     ws.onopen = () => { opened = true }
     ws.onmessage = ev => { frames++; try { const l = C.parseForceOrder(JSON.parse(String(ev.data))); if (l) liqs.push(l) } catch { /* bad frame */ } }
     ws.onerror = () => { note = 'error'; finish() }

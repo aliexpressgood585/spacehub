@@ -375,6 +375,12 @@ rows) and `archive_v95_8era_bot_equity` (144 rows); git summary in migration/exp
 open, realised −$1,771.73. After the reset: balance/peak 5000, halt cleared, scalp/fast day keys removed. Strategy
 UNCHANGED: v95.8 FAST ×50 with fixed stop / 1.5R target (the owner did not pick the 4h-momentum alternative). The FAST
 daily cap counts bot_trades, so FAST resumes immediately.
+VERIFIED 22:00-22:03 UTC: OKX liquidations ~2,100 rows in, derivs 40/40, options BTC (DVOL 34.9, ATM 31.9, skew10 +4.8,
+P/C OI 0.52) + ETH (DVOL 48.7), news 109 items (32 tagged with a coin). **Binance liquidation websocket: connects and
+receives ZERO frames** on 4 runs, on both /ws and /stream URLs, while OKX shows liquidations in the same minutes. That
+looks like a silent geo-block of the stream from Supabase egress. It is left running (harmless) and will record if the
+block lifts; until then liquidation data = OKX only. After the reset FAST reopened at once: NEAR LONG open, TIA LONG
+stopped −$121.54.
 ROLLBACK for the collector: `select cron.unschedule('data-collector')`.
 
 ## v95.5 (2026-09-26 18:08 UTC) — FAST TRAILING STOP (owner, after GRASS hit its 1.5R target and kept running)
