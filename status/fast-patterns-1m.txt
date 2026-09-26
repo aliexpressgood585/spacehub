@@ -1,0 +1,25 @@
+FAST rt rule on closed 1m bars, 10 coins, 2025-09-01..2026-08-31, IS 70% / OOS 30% (from 2026-05-14)
+
+── IN-SAMPLE ──
+A baseline (live rule)             n 17530 WR 27.8% net  -0.174% R -0.541 PF 0.40 t -15.98 | stress -0.351%
+B volume spike < 8x                n 16731 WR 27.4% net  -0.174% R -0.546 PF 0.40 t -15.57 | stress -0.352%
+C volume spike >= 8x (climax)      n  1712 WR 31.6% net  -0.169% R -0.473 PF 0.45 t -8.59 | stress -0.340%
+D LONG only                        n  8692 WR 27.6% net  -0.176% R -0.540 PF 0.37 t -19.53 | stress -0.354%
+E SHORT only                       n  8961 WR 27.7% net  -0.171% R -0.543 PF 0.42 t -8.91 | stress -0.349%
+F stop floor 0.6%                  n 16416 WR 26.3% net  -0.180% R -0.305 PF 0.43 t -14.05 | stress -0.368%
+G stop 4 ATR                       n 16779 WR 27.2% net  -0.178% R -0.428 PF 0.45 t -13.25 | stress -0.363%
+H FADE (opposite side)             n 18953 WR 29.4% net  -0.175% R -0.535 PF 0.37 t -16.42 | stress -0.357%
+I confirm: next 1m bar closes with the move n  8546 WR 27.9% net  -0.173% R -0.549 PF 0.41 t -12.41 | stress -0.350%
+
+IS-selected: C volume spike >= 8x (climax) (IS -0.169%/trade)
+
+── OUT-OF-SAMPLE (read once) ──
+A baseline (live rule)             n  7542 WR 26.0% net  -0.177% R -0.548 PF 0.35 t -19.11 | stress -0.357%
+B volume spike < 8x                n  7092 WR 26.2% net  -0.171% R -0.538 PF 0.35 t -18.87 | stress -0.351%
+C volume spike >= 8x (climax)      n   984 WR 27.2% net  -0.205% R -0.578 PF 0.35 t -8.41 | stress -0.381%
+D LONG only                        n  3836 WR 26.6% net  -0.166% R -0.527 PF 0.36 t -13.59 | stress -0.346%
+E SHORT only                       n  3787 WR 25.1% net  -0.188% R -0.572 PF 0.33 t -13.95 | stress -0.368%
+F stop floor 0.6%                  n  6992 WR 24.9% net  -0.179% R -0.293 PF 0.38 t -15.08 | stress -0.369%
+G stop 4 ATR                       n  7250 WR 25.3% net  -0.184% R -0.465 PF 0.38 t -15.70 | stress -0.370%
+H FADE (opposite side)             n  8007 WR 28.0% net  -0.167% R -0.534 PF 0.35 t -19.03 | stress -0.351%
+I confirm: next 1m bar closes with the move n  3519 WR 26.0% net  -0.169% R -0.535 PF 0.35 t -15.38 | stress -0.350%
