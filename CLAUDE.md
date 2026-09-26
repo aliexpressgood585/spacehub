@@ -356,6 +356,48 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## quant/ v1 (2026-09-26 ~23:30 UTC) — Chan-style Python stack + honest Phase-1 backtest: ALL NO-GO
+Owner brief (senior-quant prompt):
+- rebuild with Ernest Chan's methodology in Python (ccxt / pandas / statsmodels);
+- mean reversion gated by ADF + Hurst, with the OU half-life as look-back;
+- momentum gated by significance;
+- a Hurst + volatility regime router;
+- an honest backtest (fees, slippage, funding, walk-forward + untouched holdout, overfit flags);
+- hard risk limits: half-Kelly capped at 1%, 3x, daily -3%, DD -10% kill, 5-loss stop, exchange-side stops;
+- Phase gates: backtest -> testnet 3 weeks -> live only on manual approval;
+- Telegram, SQLite/CSV journal, tests.
+BUILT in `quant/`, next to the TS bot, which is untouched:
+- structure strategies / backtest / risk / execution / data + config.yaml;
+- 43 pytest tests (risk limits, stats, look-ahead invariance of every signal, engine fills and costs, a portfolio kill
+  switch, execution vs a fake exchange: mandatory stop, partial fill, retries, rejection, reconcile, the live gate,
+  key redaction, runner halt/persistence);
+- `quant/AUDIT.md` = keep/replace list; `quant/README.md` = plan + status;
+- `quant/reports/BACKTEST_REPORT.md` = the Phase-1 report (+ backtest-5m/1m.json).
+RESULT on the untouched holdout, after all costs (10 coins, 5m × 36 months with holdout 2026-01-24..08-31; 1m × 12 months):
+  every strategy x timeframe NO-GO. The raw signal edge before costs is noise and the costs are the loss:
+    MR 5m     gross -3.1 bps / costs 9.2 / net -12.3 (n 414, t -5.9)
+    MOM 5m    gross  0.0 / 20.5 / -20.5 (n 318)
+    router 5m gross -9.4 / 19.8 / -29.2 (n 601)
+    MR 1m     +4.0 / 7.3 / -3.3 (n 294, t -2.2)
+    MOM 1m    +13.9 / 19.1 / -5.2 (n 52, t -0.3)
+    router 1m +2.3 / 17.7 / -15.4 (n 610)
+  The ADF + Hurst stationarity gate is open about 5% of the time on single-coin 5m prices: Chan's point that prices
+  rarely mean-revert (his MR edge is in spreads/cointegration).
+  Half-Kelly correctly refused to size strategies whose own record was negative (0 holdout trades for MR/MOM).
+  The router's momentum leg sized at 1% from a +0.46R average over only 30 training trades, lost, and the -10% kill
+  switch fired (-10.3%). Recommendation: kelly_min_trades >= 100.
+  The same ~0.15-0.2% round-trip wall as v76-v105bt, the gym, the lab and FAST.
+EXECUTION verified against the real testnet from the sandbox:
+- ccxt + testnet.binancefuture.com public data OK; a private call is rejected only for the dummy key (-2014);
+- ccxt deprecates the futures sandbox, so `disableFuturesSandboxWarning` is set; venue 'demo' is optional;
+- `QUANT_CA_BUNDLE` for TLS proxies (ccxt ignores the env CA by default).
+NOT DONE, by the owner's own gates:
+- Phase 2 (nothing passed Phase 1; the runner refuses a NO-GO plan except `--allow-no-go` on the testnet for
+  plumbing tests; it needs testnet keys + an always-on host);
+- Phase 3.
+OPEN FOR THE OWNER: the live TS paper bot still runs FAST Wyckoff at 50x with none of the new hard limits. It was
+not changed, because the owner set it deliberately. Put to them: pause it, or cap it to the quant limits.
+
 ## v96.2 (2026-09-26 ~22:28 UTC) — TRADING PSYCHOLOGY layer on FAST/Wyckoff (owner: "add trading psychology, combined")
 TESTED (backtest/research/v96_2_psychology.ts -> status/wyckoff-psychology.txt; the live Wyckoff rule, 5m, 10 coins, 36m,
 IS 70% / OOS 30%). Baseline OOS: -0.144%/trade, n 6,490, sum -936%.
