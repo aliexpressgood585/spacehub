@@ -85,3 +85,50 @@ export function fastExit(dir: 1 | -1, stop: number, target: number, mark: number
   if (heldMs >= holdMs) return 'TIMEOUT'
   return null
 }
+
+// ── v95.6 FILL REALISM ──────────────────────────────────────────────────────────────────────────────
+// Found 2026-09-26 on two live trades: (1) RAYSOL's stop (2.050820) first traded at 18:06:25.6 but the cycle that saw
+// it ran at 18:06:30-34 (overlapping cycles skip; real checks ~10-15 s apart), so it "filled" at the bid then, 2.0476
+// - slip = 2.046576, 0.21% beyond the stop; (2) GRASS's 1.5R target first traded at 18:02:54.0 and the close used the
+// bid 5 s later, 0.5581 > target 0.5565 — a real limit take-profit fills AT the target. Both were artefacts of polling.
+// Fix: exits are resolved against Binance aggTrades since the last check, in time order, as the exchange would run a
+// resting order: the trailing stop ratchets on each trade (exchange-side trailing), a stop-market triggers on the first
+// trade at/through the stop and fills at THAT trade's price (gap-inclusive) minus book impact; a take-profit limit fills
+// at the target only when a trade prints strictly beyond it; liquidation at the liquidation price. No look-ahead: each
+// trade only sees the stop set by the trades before it.
+export interface AggTrade { p: number; T: number }
+export interface ExitState { dir: 1 | -1; entry: number; r: number; stop: number; target: number | null; liq: number; best: number; trail: boolean }
+export type ExitWhy = 'LIQUIDATION' | 'STOP' | 'TARGET'
+export function resolveExit(s: ExitState, trades: AggTrade[]): { why: ExitWhy; px: number; T: number; best: number; stop: number } | { why: null; best: number; stop: number; lastT: number | null } {
+  let best = s.best, stop = s.stop, lastT: number | null = null
+  const d = s.dir
+  for (const t of trades) {
+    const p = t.p
+    if (!(p > 0)) continue
+    lastT = t.T
+    if (d * (p - s.liq) <= 0) return { why: 'LIQUIDATION', px: s.liq, T: t.T, best, stop }
+    if (d * (p - stop) <= 0) return { why: 'STOP', px: p, T: t.T, best, stop }
+    if (s.target !== null && d * (p - s.target) > 0) return { why: 'TARGET', px: s.target, T: t.T, best, stop }
+    if (d * (p - best) > 0) best = p
+    if (s.trail) stop = fastTrail(d, s.entry, s.r, best, stop)   // applies from the NEXT trade on
+  }
+  return { why: null, best, stop, lastT }
+}
+// Walk the visible order book for a market order of `notional` USD. levels = [[price, qty], ...] best first (asks for a
+// buy, bids for a sell). Returns the VWAP and the impact vs the best level. If the visible book is too thin, the rest is
+// priced one more "book depth" beyond the worst level (INFERRED — the real cost of sweeping past the visible book is
+// unknown and at least this bad).
+export function walkBook(levels: [number, number][], notional: number): { vwap: number; impact: number; depthUsd: number; beyond: boolean } {
+  const best = levels[0]?.[0]
+  if (!(best > 0) || !(notional > 0)) return { vwap: NaN, impact: NaN, depthUsd: 0, beyond: true }
+  let left = notional, qty = 0, spent = 0, depthUsd = 0, worst = best
+  for (const [px, q] of levels) {
+    const lvUsd = px * q; depthUsd += lvUsd; worst = px
+    if (left <= 0) continue
+    const take = Math.min(left, lvUsd); spent += take; qty += take / px; left -= take
+  }
+  const beyond = left > 1e-9
+  if (beyond) { const px = worst + (worst - best); qty += left / px; spent += left }
+  const vwap = spent / qty
+  return { vwap, impact: Math.abs(vwap / best - 1), depthUsd, beyond }
+}

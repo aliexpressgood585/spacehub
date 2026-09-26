@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { FAST, FAST_RT, FAST_TRAIL, fastTrail, fastSignal, fastSignalRT, fastLevels, fastExit, fastLiq } from '../shared/fast.ts'
+import { FAST, FAST_RT, FAST_TRAIL, fastTrail, fastSignal, fastSignalRT, fastLevels, fastExit, fastLiq, resolveExit, walkBook } from '../shared/fast.ts'
+import { slipFor } from '../shared/lab.ts'
 ;(globalThis as any).__FAST_MODE = 'bar'   // the runner replay below exercises the 5m-close mode; real-time is unit-tested here
 import { runFast } from '../supabase/functions/trading-bot/fast-runner.ts'
 import type { LBar } from '../shared/lab.ts'
@@ -52,13 +53,18 @@ try {
     const sym = /symbol=([A-Z0-9]+)USDT/.exec(url)?.[1] ?? ''
     if (url.includes('/klines')) { const b = sym === 'SOL' ? series(1) : series(0); const bb = sym === 'BTC' ? b.map((x, i) => ({ ...x, close: x.close * (1 + i * 0.001) })) : b
       return new Response(JSON.stringify(bb.map((x) => [x.t, x.open, x.high, x.low, x.close, x.vol, x.t + M5 - 1, 0, 0, x.tb, 0]))) }
+    if (url.includes('/aggTrades')) return new Response(JSON.stringify(sym === 'ETH' ? [{ a: 1, p: '99.9', T: NOW - 10e3 }, { a: 2, p: '99.65', T: NOW - 6e3 }, { a: 3, p: '99.5', T: NOW - 1e3 }] : []))
     const mid = sym === 'ETH' ? 99.5 : 100
     return new Response(JSON.stringify({ bids: [[mid * 0.9999, 1]], asks: [[mid * 1.0001, 1]], E: NOW }))
   }) as typeof fetch
   await runFast(db, { balance: 4000, bot_params: {} }, new Date(NOW + 50e3).toISOString(), true)
   assert.equal(rpc.name, 'fast_commit_cycle')
   assert.equal(rpc.args.p_closes.length, 1); assert.equal(rpc.args.p_closes[0].reason, 'STOP', 'ETH below its stop is closed')
+  const c0 = rpc.args.p_closes[0]
+  assert.ok(Math.abs(c0.price - 99.65 * (1 - slipFor('ETH'))) < 1e-9, 'the stop fills at the FIRST trade through it (99.65) less impact, not at the later mark (99.5)')
+  assert.ok(c0.fill.trigger_ts === NOW - 6e3 && c0.fill.lag_ms === 6e3 && c0.fill.model === 'aggTrades', 'fill provenance: trigger time and detection lag')
   const e = rpc.args.p_entries
+  assert.ok(e[0].fast.checks.every((c: any) => c.ok) && e[0].fast.checks.length === 4 && Number.isFinite(e[0].fast.z) && e[0].fast.entry_fill.model === 'book_walk', 'raw values + the engine verdicts are stored')
   assert.ok(e.length === 1 && e[0].sym === 'SOL' && e[0].side === 'LONG', 'the SOL burst is the one entry')
   assert.ok(e[0].fast.stop < e[0].price && e[0].fast.target > e[0].price && e[0].fast.trail === true && e[0].fast.best === e[0].price)
   assert.equal(e[0].lev, FAST.levDefault, 'default leverage 50x')
@@ -77,4 +83,21 @@ assert.ok(sql.includes("execute replace(f,'select cash+coalesce(sum(entry_price*
 assert.ok(sql.includes("'TSLA'") && sql.includes("'^[A-Z0-9]{2,16}$'"), 'crypto only')
 const tsql = readFileSync('supabase/migrations/20260926210000_fast_trail.sql', 'utf8')
 assert.ok(tsql.includes("(t.side='LONG' and st<old) or (t.side='SHORT' and st>old)") && tsql.includes('stale fast lease'), 'trail ledger: favourable-only, lease-checked')
+// v95.6 fill realism: exits resolved on the trade tape
+{ const base = { dir: 1 as const, entry: 2.058829, r: 0.008009, stop: 2.05082, target: null, liq: 0, best: 2.058829, trail: true }
+  const r = resolveExit(base, [{ p: 2.0560, T: 1 }, { p: 2.0508, T: 2 }, { p: 2.0476, T: 3 }])
+  assert.ok(r.why === 'STOP' && r.px === 2.0508 && r.T === 2, 'RAYSOL replay: the stop fills at the first print through it, not at a later cycle')
+  const g = resolveExit({ ...base, target: 2.07, trail: false }, [{ p: 2.07, T: 1 }, { p: 2.0701, T: 2 }, { p: 2.08, T: 3 }])
+  assert.ok(g.why === 'TARGET' && g.px === 2.07 && g.T === 2, 'take-profit fills AT the target, only once a print trades strictly beyond it (no GRASS overfill)')
+  const t = resolveExit(base, [{ p: 2.0670, T: 1 }, { p: 2.0665, T: 2 }, { p: 2.0589, T: 3 }])
+  assert.ok(t.why === 'STOP' && Math.abs(t.stop - (2.067 - 0.008009)) < 1e-12 && t.px === 2.0589, 'trailing ratchets per trade and is hit by a later trade')
+  const n = resolveExit(base, [{ p: 2.06, T: 5 }])
+  assert.ok(n.why === null && n.lastT === 5 && n.best === 2.06, 'no exit: best and last checked time carried forward')
+  const sh = resolveExit({ ...base, dir: -1, stop: 2.0668, best: 2.058829, liq: Infinity }, [{ p: 2.0669, T: 1 }])
+  assert.ok(sh.why === 'STOP' && sh.px === 2.0669, 'short mirror')
+  const w = walkBook([[100, 5], [100.1, 5], [100.2, 5]], 1000.5)
+  assert.ok(Math.abs(w.vwap - 1000.5 / (5 + 500.5 / 100.1)) < 1e-9 && !w.beyond && w.impact > 0, 'book walk VWAP across levels')
+  assert.ok(walkBook([[100, 1]], 300).beyond && walkBook([[100, 1], [101, 1]], 1000).vwap > 101, 'an order bigger than the visible book is priced beyond it (INFERRED) and flagged') }
+const fsql = readFileSync('supabase/migrations/20260926220000_fast_fill.sql', 'utf8')
+assert.ok(fsql.includes("'{fast,chk}'") && fsql.includes("''fill'',coalesce(x->''fill''") && fsql.includes("(t.side='LONG' and st<old)"), 'fill ledger: chk persisted, fill provenance stored, trail still favourable-only')
 console.log('fast (v95.0): rule, levels, exits, paper replay of the live path, ledger caps passed')

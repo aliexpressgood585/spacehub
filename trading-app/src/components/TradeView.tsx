@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createChart, ColorType, CrosshairMode, LineStyle, type IChartApi, type ISeriesApi, type UTCTimestamp, type SeriesMarker, type Time } from 'lightweight-charts'
 import { SUPA_URL, SUPA_KEY } from '../supa'
+import { tradeMetrics, fmtR, fmtPctSigned } from '../tradeMetrics'
 
 type Row = Record<string, any>
 type K = { t: number; o: number; h: number; l: number; c: number; v: number; tb: number }
@@ -41,15 +42,23 @@ function Reasons({ t }: { t: Row }) {
     </div>)
   if (t.strategy === 'FAST' && m.fast) {
     const f = m.fast, z = Number(f.z), vr = Number(f.vol_ratio), imb = Number(f.imb), rtm = f.mode === 'rt', zMin = rtm ? 2 : 1.5
+    // v95.6: the verdict is the ENGINE's (stored at entry with the raw values). Older rows stored values rounded to 2-3
+    // decimals, so re-checking them here could show ✗ on a condition the engine passed (RAYSOL: z 2.0309 stored as 2.00
+    // vs "> 2"). A row exists only because the engine passed all four, so a legacy row shows ✓ and says it is rounded.
+    const ck = Array.isArray(f.checks) ? Object.fromEntries(f.checks.map((c: any) => [c.k, c])) : null
+    const okOf = (k: string) => (ck ? ck[k]?.ok === true : true)
+    const legacy = ck ? '' : ' (ערך מעוגל)'
+    const zs = ck ? z.toFixed(4) : z.toFixed(2)
     return <>
-      {row(Math.abs(z) > zMin && Math.sign(z) === side, '1. קפיצת מחיר חדה', `z = ${z.toFixed(2)}`, rtm ? 'תנאי: המחיר ברגע הכניסה מול לפני 3 דקות — יותר מפי 2 מהתנודה הרגילה (בזמן אמת)' : 'תנאי: תנועה ב־3 הנרות האחרונים (15 דק׳) גדולה מפי 1.5 מהתנודה הרגילה',
-        `המחיר זז ב${sideHe} בעוצמה של פי ${Math.abs(z).toFixed(1)} מהרגיל — מומנטום חזק לכיוון העסקה.`)}
-      {row(vr >= 2, '2. נפח מסחר חריג', `×${vr.toFixed(2)}`, rtm ? 'תנאי: נפח 3 הדקות האחרונות לפחות פי 2 מהרגיל' : 'תנאי: נפח הנר האחרון לפחות פי 2 מהממוצע של 20 הנרות',
+      {row(okOf('burst'), '1. קפיצת מחיר חדה', `z = ${zs}${legacy}`, rtm ? `תנאי: המחיר ברגע הכניסה מול לפני 3 דקות — יותר מפי ${zMin} מהתנודה הרגילה (בזמן אמת)` : `תנאי: תנועה ב־3 הנרות האחרונים (15 דק׳) גדולה מפי ${zMin} מהתנודה הרגילה`,
+        `המחיר זז ב${sideHe} בעוצמה של פי ${Math.abs(z).toFixed(2)} מהרגיל${Math.abs(z) - zMin < 0.1 ? ` — בקושי מעל הסף (${zMin}); אות גבולי` : ' — מומנטום חזק לכיוון העסקה'}.`)}
+      {row(okOf('volume'), '2. נפח מסחר חריג', `×${ck ? vr.toFixed(3) : vr.toFixed(2)}${legacy}`, rtm ? 'תנאי: נפח 3 הדקות האחרונות לפחות פי 2 מהרגיל' : 'תנאי: נפח הנר האחרון לפחות פי 2 מהממוצע של 20 הנרות',
         `נסחר פי ${vr.toFixed(1)} מהרגיל — הרבה כסף נכנס לתנועה הזאת, לא תזוזה "ריקה".`)}
-      {row(side * imb > 0.1, side > 0 ? '3. קונים אגרסיביים שולטים' : '3. מוכרים אגרסיביים שולטים', `${(imb * 100).toFixed(1)}%`, rtm ? 'תנאי: פער בין קונים למוכרים בשוק (Taker) מעל 10% ב־3 הדקות האחרונות' : 'תנאי: פער בין קונים למוכרים בשוק (Taker) מעל 10% ב־3 הנרות',
-        `${side > 0 ? 'הקונים האגרסיביים' : 'המוכרים האגרסיביים'} (שקנו/מכרו במחיר השוק) היו ${((1 + side * imb) / 2 * 100).toFixed(0)}% מהנפח — נתון אמיתי מ־Binance.`)}
-      {row(f.btc_up === null || f.btc_up === undefined ? t.sym === 'BTC' : (f.btc_up === true) === (side > 0), '4. ביטקוין באותו כיוון', f.btc_up === true ? 'BTC מעל EMA20' : f.btc_up === false ? 'BTC מתחת EMA20' : '—',
+      {row(okOf('flow'), side > 0 ? '3. קונים אגרסיביים שולטים' : '3. מוכרים אגרסיביים שולטים', `${(imb * 100).toFixed(ck ? 2 : 1)}%${legacy}`, rtm ? 'תנאי: פער בין קונים למוכרים בשוק (Taker) מעל 10% ב־3 הדקות האחרונות' : 'תנאי: פער בין קונים למוכרים בשוק (Taker) מעל 10% ב־3 הנרות',
+        `${side > 0 ? 'הקונים האגרסיביים' : 'המוכרים האגרסיביים'} (שקנו/מכרו במחיר השוק) היו ${((1 + side * imb) / 2 * 100).toFixed(0)}% מהנפח — נתון אמיתי מ־Binance. לחץ קנייה/מכירה לא מבטיח שהמחיר ימשיך לזוז.`)}
+      {row(ck ? okOf('btc') : true, '4. ביטקוין באותו כיוון', f.btc_up === true ? 'BTC מעל EMA20' : f.btc_up === false ? 'BTC מתחת EMA20' : '—',
         `תנאי: ביטקוין (${rtm ? 'דקה' : '5 דק׳'}) מעל הממוצע שלו לעסקת קנייה / מתחת לעסקת מכירה`, 'כל השוק זז לאותו צד — פחות סיכוי שהתנועה תתהפך מיד.')}
+      {!ck && <div style={{ color: C.warn, fontSize: 12, marginTop: 6 }}>עסקה ישנה: הערכים נשמרו מעוגלים; ה־✓ הוא החלטת המנוע (כל ארבעת התנאים עברו על הערכים המקוריים — אחרת העסקה לא הייתה נפתחת).</div>}
       <div style={{ color: C.dim, fontSize: 12, marginTop: 8 }}>ערכים שנשמרו ברגע הכניסה ({rtm ? 'זמן אמת, ' : 'נר '}{String(f.bar ?? '').slice(11, 19)} UTC) · מרווח קנייה/מכירה בכניסה {Number(f.spread_bps).toFixed(1)} bps · הכלל לא עבר בדיקה היסטורית (ניסוי דמו)</div>
     </>
   }
@@ -115,10 +124,8 @@ export default function TradeView({ id }: { id: string }) {
   }, [t?.id, t?.closed_at, lv?.stop, lv?.target, tf, sym])
   if (err && !t) return <div style={{ color: C.neg, padding: 16 }}>{err}</div>
   if (!t || !lv) return <div style={{ color: C.dim, padding: 16 }}>טוען עסקה…</div>
-  const dir = t.side === 'LONG' ? 1 : -1, size = Number(t.size), notional = lv.entry * size, isOpen = t.status === 'OPEN', lev = Math.max(1, Number(t.lev) || 1), base = notional / lev   // % on the margin actually posted
-  const mark = isOpen ? last : Number(t.exit_price)
-  const upnl = isOpen ? dir * (mark - lv.entry) * size - Number(t.fee ?? 0) : Number(t.pnl)
-  const r = Math.abs(lv.entry - lv.stop), rNow = Number.isFinite(r) && r > 0 ? dir * (mark - lv.entry) / r : NaN
+  const isOpen = t.status === 'OPEN', mark = isOpen ? last : Number(t.exit_price)
+  const M = tradeMetrics(t, mark, now), { dir, notional, lev } = M
   const held = (isOpen ? now : Date.parse(t.closed_at)) - Date.parse(t.opened_at)
   const stat = (label: string, value: string, color = C.text) => <div style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 10, padding: '8px 10px' }}><div style={{ color: C.dim, fontSize: 12 }}>{label}</div><div dir="ltr" style={{ color, fontWeight: 700, fontSize: 17, fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>{value}</div></div>
   return (
@@ -129,13 +136,15 @@ export default function TradeView({ id }: { id: string }) {
         <span style={{ color: C.dim }}>{t.strategy} · נרות {tf} · {isOpen ? <b style={{ color: C.pos }}>● פתוחה בלייב</b> : `נסגרה (${t.scalp_meta?.exit_reason ?? t.status})`}</span>
       </header>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8 }}>
-        {stat(isOpen ? 'רווח/הפסד עכשיו' : 'רווח/הפסד סופי', Number.isFinite(upnl) ? `${usd(upnl)} (${pct(upnl / base * 100)})` : '—', upnl >= 0 ? C.pos : C.neg)}
+        {stat(isOpen ? 'רווח/הפסד נטו (משוער)' : 'רווח/הפסד נטו', Number.isFinite(M.net) ? usd(M.net) : '—', M.net >= 0 ? C.pos : C.neg)}
+        {stat('תנועה מהכניסה', fmtPctSigned(M.movePct, 3), M.movePct >= 0 ? C.pos : C.neg)}
+        {stat('R ברוטו · נטו', `${fmtR(M.grossR)} · ${fmtR(M.netR)}`, M.netR >= 0 ? C.pos : C.neg)}
         {stat(isOpen ? 'מחיר עכשיו' : 'מחיר יציאה', fmt(mark))}
-        {stat('כניסה', fmt(lv.entry), C.acc)}
-        {stat('סטופ', Number.isFinite(lv.stop) ? `${fmt(lv.stop)} (${pct(dir * (lv.stop - mark) / mark * 100)})` : 'אין', C.neg)}
-        {stat('יעד', lv.trail ? 'ללא יעד — סטופ נגרר' : Number.isFinite(lv.target) ? `${fmt(lv.target)} (${pct(dir * (lv.target - mark) / mark * 100)})` : 'אין', C.pos)}
-        {stat(isOpen ? 'R עכשיו' : 'R סופי', Number.isFinite(rNow) ? `${rNow >= 0 ? '+' : ''}${rNow.toFixed(2)}R` : '—', rNow >= 0 ? C.pos : C.neg)}
-        {stat(lev > 1 ? `גודל · ביטחון · מינוף` : 'גודל', lev > 1 ? `$${notional.toFixed(0)} · $${base.toFixed(0)} · ×${lev}` : `$${notional.toFixed(0)}`)}
+        {stat('כניסה', fmt(M.entry), C.acc)}
+        {stat(lv.trail ? 'סטופ נגרר (מהכניסה)' : 'סטופ (מהכניסה)', Number.isFinite(M.stop) ? `${fmt(M.stop)} (${fmtPctSigned(M.stopPct, 3)})` : 'אין', C.neg)}
+        {stat('יעד (מהכניסה)', lv.trail ? 'ללא יעד — סטופ נגרר' : Number.isFinite(M.target) ? `${fmt(M.target)} (${fmtPctSigned(M.targetPct, 3)})` : 'אין', C.pos)}
+        {lev > 1 && stat('על הביטחון (ממונף)', fmtPctSigned(M.marginPct, 1), M.marginPct >= 0 ? C.pos : C.neg)}
+        {stat(lev > 1 ? `גודל · ביטחון · מינוף` : 'גודל', lev > 1 ? `$${notional.toFixed(0)} · $${M.margin.toFixed(0)} · ×${lev}` : `$${notional.toFixed(0)}`)}
         {stat(isOpen ? 'זמן בעסקה / מקסימום' : 'משך', Number.isFinite(lv.holdMs) ? `${mmss(held)} / ${mmss(lv.holdMs)}` : mmss(held))}
       </div>
       <div ref={box} style={{ height: 'min(62vh, 520px)', minHeight: 320, borderRadius: 10, overflow: 'hidden', border: `1px solid ${C.line}` }} />
@@ -147,6 +156,11 @@ export default function TradeView({ id }: { id: string }) {
       <section style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 10, padding: 12, fontSize: 14, lineHeight: 1.7 }}>
         <h2 style={{ fontSize: 17, marginBottom: 4 }}>איך הוא ייצא</h2>
         {t.strategy === 'FAST' ? <>{lv.trail ? <>סטופ נגרר: {fmt(lv.stop)} · אין יעד קבוע — אחרי רווח של פי 1 מהסיכון הסטופ עולה אחרי המחיר (במרחק פי 1 מהסיכון מהשיא) ולא יורד לעולם ·</> : <>סטופ: {fmt(lv.stop)} · יעד: {fmt(lv.target)} (פי 1.5 מהסיכון) ·</>} אם אף אחד לא נפגע — יוצא אחרי {t.scalp_meta?.fast?.hold_min ?? 60} דקות בכל מחיר.{Number(t.lev) > 1 ? ` מינוף ×${t.lev}: חיסול ב־${fmt(Number(t.scalp_meta?.fast?.liq))} — מפסיד את כל הביטחון ($${Number(t.scalp_meta?.fast?.margin ?? 0).toFixed(0)}).` : ''} עמלות: 0.05% בכל צד על כל הגודל + מרווח.</> : 'לפי כללי האסטרטגיה (ראו הרמות על הגרף).'}
+        {!isOpen && t.strategy === 'FAST' && (() => { const fl = t.scalp_meta?.fill, why = t.scalp_meta?.exit_reason, xp = Number(t.exit_price)
+          if (fl) return <div style={{ marginTop: 6 }}>ביצוע היציאה: {fl.trigger_ts ? <>המחיר נגע ברמה ב־{new Date(fl.trigger_ts).toISOString().slice(11, 23)} UTC ({fmt(Number(fl.trigger_px))}), זוהה אחרי {(Number(fl.lag_ms) / 1000).toFixed(1)} שנ׳ · </> : null}{fl.impact_bps !== undefined ? <>החלקה לפי עומק הספר {Number(fl.impact_bps).toFixed(1)} bps{fl.beyond_book ? ' (הפוזיציה גדולה מהספר הנראה — הערכה, INFERRED)' : ''} · </> : null}מקור: {fl.model}</div>
+          // legacy rows (before v95.6): say plainly when the booked fill was worse than a resting stop / better than a limit target
+          const off = why === 'STOP' && Number.isFinite(M.stop) ? dir * (xp - M.stop) / M.entry : why === 'TARGET' && Number.isFinite(M.target) ? dir * (xp - M.target) / M.entry : NaN
+          return Number.isFinite(off) && Math.abs(off) > 0.0005 ? <div style={{ marginTop: 6, color: C.warn }}>הערה: עסקה מלפני תיקון המילוי (v95.6). היציאה נרשמה {fmtPctSigned(off, 3)} {why === 'STOP' ? 'מעבר לסטופ — הבדיקה רצה באיחור של כמה שניות ומילאה במחיר של אז' : 'מעבר ליעד — פקודת יעד אמיתית הייתה מתמלאת בדיוק ביעד'}. מאז, יציאות נקבעות לפי העסקאות האמיתיות בבורסה.</div> : null })()}
       </section>
     </div>)
 }
