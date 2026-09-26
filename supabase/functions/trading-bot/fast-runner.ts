@@ -3,12 +3,13 @@
 // 'universe', pinned 40 as fallback), rank the signals, enter the strongest within the 5-open / 20-per-day limits.
 // Books through `fast_commit_cycle` (paper 1x; caps enforced again in SQL). Decisions go to trade_decisions.
 import * as S from '../../../shared/strategy.ts'
-import { FAST, fastSignal, fastLevels, fastExit } from '../../../shared/fast.ts'
+import { FAST, fastSignal, fastLevels, fastExit, fastLiq } from '../../../shared/fast.ts'
 import { labInd, slipFor, type LBar } from '../../../shared/lab.ts'
 import { json, pool } from './rota-runner.ts'
 type Pair = { sym: string; s: string; k: number }
 const g = () => globalThis as any
-export function fastConfig() { const x = Number(g().__FAST_SHARE); return { share: Number.isFinite(x) && x > 0 ? Math.min(1, Math.max(0.05, x)) : 1 } }
+export function fastConfig() { const x = Number(g().__FAST_SHARE), l = Number(g().__FAST_LEV)
+  return { share: Number.isFinite(x) && x > 0 ? Math.min(1, Math.max(0.05, x)) : 1, lev: Number.isFinite(l) && l >= 1 ? Math.min(FAST.levMax, Math.floor(l)) : FAST.levDefault } }
 async function universe(db: any): Promise<Pair[]> {
   try {
     const { data } = await db.from('market_cache').select('data').eq('key', 'universe').throwOnError()
@@ -31,7 +32,7 @@ export async function runFast(db: any, state: any, lease: string, paper: boolean
   if (!paper) throw new Error('FAST is paper-only; refusing live execution')
   const cfg = fastConfig(), now = Date.now(), params = state.bot_params || {}
   const { data: open } = await db.from('bot_trades').select('*').eq('status', 'OPEN').throwOnError()
-  if (open.some((t: any) => t.paper_mode !== true || Number(t.lev) !== 1)) throw new Error('FAST requires a paper-only 1x book')
+  if (open.some((t: any) => t.paper_mode !== true || (t.strategy !== 'FAST' && Number(t.lev) !== 1))) throw new Error('FAST requires a paper-only book (only FAST rows may be leveraged)')
   const mine = open.filter((t: any) => t.strategy === 'FAST')
   const pairs = await universe(db), byS = new Map(pairs.map((p) => [p.sym, p]))
   const pairOf = (sym: string): Pair => byS.get(sym) ?? { sym, s: `${sym}USDT`, k: 1 }
@@ -41,8 +42,10 @@ export async function runFast(db: any, state: any, lease: string, paper: boolean
     try {
       const q = await quoteP(pairOf(t.sym)), dir = t.side === 'LONG' ? 1 : -1, m = t.scalp_meta?.fast
       const mark = dir > 0 ? q.bid : q.ask; marks[t.sym] = mark
-      const why = m ? fastExit(dir as 1 | -1, Number(m.stop), Number(m.target), mark, now - Date.parse(t.opened_at)) : null
-      if (why) closes.push({ id: t.id, price: mark * (1 - dir * slipFor(t.sym)), reason: why, quote_ts: q.ts })
+      const lev = Math.max(1, Number(t.lev) || 1), liq = fastLiq(dir as 1 | -1, Number(t.entry_price), lev)
+      const why = m ? fastExit(dir as 1 | -1, Number(m.stop), Number(m.target), mark, now - Date.parse(t.opened_at), liq) : null
+      // a liquidation settles at the liquidation price (the exchange takes the whole isolated margin), not at the mark
+      if (why) closes.push({ id: t.id, price: why === 'LIQUIDATION' ? liq : mark * (1 - dir * slipFor(t.sym)), reason: why, quote_ts: q.ts })
     } catch { /* no quote: held until the next cycle */ }
   })
   // entries: once per completed 5m bar
@@ -64,7 +67,7 @@ export async function runFast(db: any, state: any, lease: string, paper: boolean
     const { count: today } = await db.from('bot_trades').select('id', { count: 'exact', head: true }).eq('strategy', 'FAST').gte('opened_at', dayStart.toISOString())
     let openN = mine.length - closes.length, dayN = Number(today) || 0
     let cash = Number(state.balance)
-    const equity = cash + open.reduce((s: number, t: any) => s + Number(t.entry_price) * Number(t.size), 0)
+    const equity = cash + open.reduce((s: number, t: any) => s + Number(t.entry_price) * Number(t.size) / Math.max(1, Number(t.lev) || 1), 0)   // margin, not notional
     const held = new Set(open.filter((t: any) => !closes.some((c) => c.id === t.id)).map((t: any) => String(t.sym)))
     for (const { sym, sig } of sigs) {
       const side = sig.dir > 0 ? 'LONG' : 'SHORT', rec = (decision: string, reason: string, extra: any = {}) => decisions.push({ sym, side, decision, reason, z: sig.z, volRatio: sig.volRatio, imb: sig.imb, ...extra })
@@ -74,12 +77,12 @@ export async function runFast(db: any, state: any, lease: string, paper: boolean
       let q: any; try { q = await quoteP(pairOf(sym)) } catch { rec('rejected', 'no_quote'); continue }
       const px = (sig.dir > 0 ? q.ask : q.bid) * (1 + sig.dir * slipFor(sym))
       const lv = fastLevels(sig.dir, px, sig.atr)
-      const notional = Math.min(equity * FAST.perTrade * cfg.share, cash / 1.0005)
-      if (notional < 20) { rec('rejected', 'no_cash'); continue }
-      entries.push({ sym, side, price: px, notional, quote_ts: q.ts, source: q.source,
-        fast: { stop: lv.stop, target: lv.target, r: lv.r, stop_pct: lv.r / px, hold_min: FAST.holdBars * 5, z: +sig.z.toFixed(2), vol_ratio: +sig.volRatio.toFixed(2), imb: +sig.imb.toFixed(3), btc_up: btcUp, spread_bps: +((q.ask - q.bid) / ((q.ask + q.bid) / 2) * 1e4).toFixed(2), bar: new Date(bar).toISOString() } })
+      const margin = Math.min(equity * FAST.perTrade * cfg.share, cash / (1 + cfg.lev * 0.0005)), notional = margin * cfg.lev
+      if (margin < 5) { rec('rejected', 'no_cash'); continue }
+      entries.push({ sym, side, price: px, notional, lev: cfg.lev, quote_ts: q.ts, source: q.source,
+        fast: { stop: lv.stop, target: lv.target, r: lv.r, stop_pct: lv.r / px, lev: cfg.lev, margin, liq: fastLiq(sig.dir, px, cfg.lev), hold_min: FAST.holdBars * 5, z: +sig.z.toFixed(2), vol_ratio: +sig.volRatio.toFixed(2), imb: +sig.imb.toFixed(3), btc_up: btcUp, spread_bps: +((q.ask - q.bid) / ((q.ask + q.bid) / 2) * 1e4).toFixed(2), bar: new Date(bar).toISOString() } })
       rec('accepted', 'taken', { notional })
-      held.add(sym); openN++; dayN++; cash -= notional * 1.0005
+      held.add(sym); openN++; dayN++; cash -= margin + notional * 0.0005
     }
   }
   const note = { bar: new Date(bar).toISOString(), due, scanned, universe: pairs.length, failed: failed.length, signals: decisions.length, opened: entries.length, closed: closes.length }

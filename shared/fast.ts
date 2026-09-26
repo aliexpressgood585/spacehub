@@ -9,11 +9,16 @@
 //  3. aggressive buyers: taker-buy imbalance over the last 3 bars > +0.10 (observed Binance column)
 //  4. BTC agrees: BTC's 5m close above its EMA20 (below for SHORT); BTC itself skips this condition
 // Exit: stop 1 ATR (at least 0.3%), target 1.5R, or out after 12 bars (60 min). Stop before target.
-// Book: <= 5 positions, one per coin, each = 1/5 of equity (all five open = the whole account), <= 20 entries per
-// UTC day, strongest signals first (strength = move z x volume ratio). Paper, 1x-margined.
+// Book (v95.2): <= 3 positions x 1/3 of equity as margin at up to 100x (see FAST below), <= 20 entries per UTC day,
+// strongest signals first (strength = move z x volume ratio). Paper only.
 import { labInd, type LBar } from './lab.ts'
+// v95.2 (owner: "the most aggressive there is — 400% / 1000% a day, wipe the account if it must, it's a demo"):
+// ISOLATED LEVERAGE. <= 3 open, each posts 1/3 of equity as margin, notional = margin x lev (default 50x, shim
+// __FAST_LEV, clamped 1..100). A position is LIQUIDATED when the adverse move reaches 1/lev - 0.5% maintenance: it loses
+// its whole margin. Binance's real per-coin leverage caps (often 20-75x on alts) are NOT enforced here — INFERRED.
 export const FAST = { tf: '5m', barMs: 300_000, zMin: 1.5, volMult: 2, imbMin: 0.10, stopAtr: 1, stopMinPct: 0.003, targetR: 1.5, holdBars: 12,
-  maxOpen: 5, perTrade: 0.2, maxPerDay: 20, entryWindowMs: 120_000 } as const
+  maxOpen: 3, perTrade: 1 / 3, maxPerDay: 20, entryWindowMs: 120_000, levDefault: 50, levMax: 100, maint: 0.005 } as const
+export const fastLiq = (dir: 1 | -1, entry: number, lev: number) => (lev > 1 ? entry * (1 - dir * (1 / lev - FAST.maint)) : dir > 0 ? 0 : Infinity)
 export interface FastSig { dir: 1 | -1; z: number; volRatio: number; imb: number; atr: number; strength: number }
 export function fastSignal(b: LBar[], btcUp: boolean | null, isBtc: boolean): FastSig | null {
   const i = b.length - 1
@@ -37,8 +42,9 @@ export function fastLevels(dir: 1 | -1, entry: number, atr: number) {
   return { stop: entry - dir * r, target: entry + dir * FAST.targetR * r, r }
 }
 // live exit on an executable mark (bid for a long, ask for a short)
-export function fastExit(dir: 1 | -1, stop: number, target: number, mark: number, heldMs: number): 'STOP' | 'TARGET' | 'TIMEOUT' | null {
+export function fastExit(dir: 1 | -1, stop: number, target: number, mark: number, heldMs: number, liq = dir > 0 ? 0 : Infinity): 'LIQUIDATION' | 'STOP' | 'TARGET' | 'TIMEOUT' | null {
   if (!(mark > 0)) return null
+  if (dir * (mark - liq) <= 0) return 'LIQUIDATION'
   if (dir * (mark - stop) <= 0) return 'STOP'
   if (dir * (mark - target) >= 0) return 'TARGET'
   if (heldMs >= FAST.holdBars * FAST.barMs) return 'TIMEOUT'

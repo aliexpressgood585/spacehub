@@ -171,7 +171,7 @@ async function market(sym:string, candles:boolean):Promise<{q:Quote,b:Bar[],book
 export async function runScalp(db:any,state:any,lease:string,paper:boolean,rotaShare:number=0) {  // v83.0: rotaShare>0 = the ROTA sleeve shares this book
   if(!paper)throw new Error('SCALP is paper-only; refusing live execution')
   const {data:open}=await db.from('bot_trades').select('*').eq('status','OPEN').throwOnError()
-  if(open.some((t:any)=>t.paper_mode!==true||Number(t.lev)!==1))throw new Error('SCALP transition requires a paper-only 1x book')
+  if(open.some((t:any)=>t.paper_mode!==true||(t.strategy!=='FAST'&&Number(t.lev)!==1)))throw new Error('SCALP transition requires a paper-only 1x book (v95.2: only FAST rows may be leveraged)')
   const {data:meetings}=await db.from('team_meetings').select('ts').order('ts',{ascending:false}).limit(1).throwOnError()
   const params=state.bot_params||{}
   const due=!params.scalp_started||!meetings?.length||Date.now()-Date.parse(meetings[0].ts)>=SCALP.meetingMs
@@ -300,7 +300,7 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean,rotaS
   }catch(e:any){factErr=String(e?.message??e)}
   for(const t of open) {
     const m=data.get(t.sym),dir=t.side==='LONG'?1:-1,notional=Number(t.entry_price)*Number(t.size)
-    if(!m) {retained.push(t);exposure+=notional;equity+=notional;continue}
+    if(!m) {retained.push(t);exposure+=notional;equity+=notional/Math.max(1,Number(t.lev)||1);continue}
     const px=dir===1?m.q.bid:m.q.ask;marks[t.sym]=px
     // v83.0: a ROTA slot is a foreign position — marked, counted in equity, never touched here
     if(t.strategy==='ROTA'||t.strategy==='BRKV'||t.strategy==='LAB'||t.strategy==='FAST'){retained.push(t);exposure+=notional;continue}   // v93.0: BRKV is foreign too; v94.0: LAB too
@@ -312,7 +312,7 @@ export async function runScalp(db:any,state:any,lease:string,paper:boolean,rotaS
       cash+=notional+(xp-Number(t.entry_price))*Number(t.size)*dir-xp*Number(t.size)*SCALP.fee
     } else {retained.push(t);exposure+=notional;updates.push({id:t.id,stop:plan.stop})}
   }
-  equity=cash+retained.reduce((s:number,t:any)=>s+Number(t.entry_price)*Number(t.size)+(marks[t.sym]?((t.side==='LONG'?1:-1)*(marks[t.sym]-Number(t.entry_price))*Number(t.size)):0),0)
+  equity=cash+retained.reduce((s:number,t:any)=>s+Number(t.entry_price)*Number(t.size)/Math.max(1,Number(t.lev)||1)+(marks[t.sym]?((t.side==='LONG'?1:-1)*(marks[t.sym]-Number(t.entry_price))*Number(t.size)):0),0)
   const closedSyms=new Set(open.filter((t:any)=>closes.some(c=>c.id===t.id)).map((t:any)=>t.sym))
   const picks=evaluated.filter(x=>x.side&&!retained.some(t=>t.sym===x.sym)&&!closedSyms.has(x.sym)).sort((a,b)=>b.score-a.score)
   // Migration must finish before this account starts scalping. Never estimate missing marks into entries.
