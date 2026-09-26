@@ -356,6 +356,17 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v95.5 (2026-09-26 18:08 UTC) — FAST TRAILING STOP (owner, after GRASS hit its 1.5R target and kept running)
+Tested first (sandbox, FAST 5m signal, 10 coins, 36m, ~29k trades each, full costs): fixed 1.5R target -0.202%/trade
+PF 0.39 | trail 1R behind the best after +1R, no target -0.184% PF 0.42 (both halves better: -0.196 / -0.174) | 3R +
+trail -0.194 | BE + 3R -0.194. Small, consistent improvement; the rule still loses after costs (told to the owner).
+`FAST_TRAIL` + `fastTrail()` (shared/fast.ts): no fixed target (a far 10R level only because the ledger needs one),
+the runner ratchets the stop every cycle via new ledger fn `fast_trail` (migration 20260926210000_fast_trail.sql:
+lease-checked, favourable-only); applies to open FAST rows too. Trade page: "סטופ נגרר", no target line.
+DEPLOYED: commit 36c48e56, function v76, migration applied, 0 bot_errors, trail tracking live (FIL/HYPE best updating).
+LIVE since the reset (17:13): JUP -$6.72 (1x), GRASS LONG 50x +$1,179.09 (TARGET, +1.85R), RAYSOL LONG 50x -$714.74
+(STOP); FIL + HYPE still open at 1x. ROLLBACK: set FAST_TRAIL.on false.
+
 ## v95.4 (2026-09-26 17:50 UTC) — FAST REAL-TIME mode (owner: "yes" to entries at any moment)
 `fastSignalRT` (shared/fast.ts): every scan (<= every 10 s) on Binance 1m klines INCLUDING the forming minute — price now
 vs 3 minutes ago > 2 ATR(1m) x sqrt(3), last-3-minute volume (not extrapolated) >= 2x the 3-minute average, taker
