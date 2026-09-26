@@ -356,6 +356,24 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## 2026-09-26 16:15 UTC — owner away 26h: watch summary + v109bt
+HEALTH: v93.0 61ae46b3 SCALP,ROTA,BRKV paper true / live false; heartbeat current; **0 bot_errors since the 15:22 deploy**;
+no hard halt. Equity **$4,805.83** vs $4,849 at the 14:41 v92 start (-$43, -0.9%, mostly ROTA marks); cash $2,490.
+ROTA: rotated once, 2 closes (-$5.87 / +$4.33), 4 open ($2,356 notional). SCALP: 0 trades (gate, as expected).
+BRKV short-only: runner evaluates every 4h window cleanly (last 16:00 bar: 0 failed feeds) — **0 short signals in 25h**;
+the only signals were LONG (16:00: DYDX, FIL, RUNE), skipped by design. No trades, so nothing to judge yet.
+NB the check-ins at 19:35/23:35/05:35/11:35 fired but were not acted on at the time (my miss); this is the catch-up.
+The 04:30 "PRE-ARM ROTA kill-switch" routine is OBSOLETE (v62.0 era): the v83+ ROTA runner has no last-30 kill-switch.
+**v109bt RESULT — BRKV short-only on the 219 perps v108bt never saw, 72m (a genuine cross-coin holdout):**
+    ALL shorts  n=8,868  WR 40.9%  **+0.319%/trade**  t(daily) 0.86
+    by year: 2020 -0.22 | 2021 **-1.35** | 2022 +0.45 | 2023 -0.32 | 2024 +0.82 | 2025 +0.23 | 2026 +0.46
+    neighbours: ALL 14 positive (+0.22 .. +0.62%/trade), t(daily) 0.67 .. 1.24 — a real plateau, no spike
+    10-slot portfolio: +0.252%/trade, t(daily) 1.33, **+104% over 6 years, maxDD 49%**
+READING: the short-side effect REPLICATES in sign and size on unseen coins (v108bt +0.51, here +0.32) and every
+neighbour is positive — the strongest robustness evidence any fast-ish rule has had here. It is NOT significant
+(best t 1.33 < 2), loses in bull years (2021 -1.35%/trade) and a 49% drawdown is severe. Verdict: keep the small paper
+experiment exactly as is (20% share, short-only); no size increase. Candidate for later: +10/-5 bracket (best neighbour).
+
 ## v93.0 (2026-09-25 15:22 UTC) — BRKV SHORT-ONLY EXPERIMENT, live on paper (owner: "כן" to the offered small test)
 Owner accepted the offer made after v108bt: run the short side of the breakout+volume rule on paper, small, labelled an
 experiment. NOT validated: short-only was chosen after seeing v108bt (+0.51%/trade, t(daily) 1.53, lost in 2021); this
