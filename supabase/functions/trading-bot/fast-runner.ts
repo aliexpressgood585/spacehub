@@ -3,7 +3,7 @@
 // 'universe', pinned 40 as fallback), rank the signals, enter the strongest within the 5-open / 20-per-day limits.
 // Books through `fast_commit_cycle` (paper 1x; caps enforced again in SQL). Decisions go to trade_decisions.
 import * as S from '../../../shared/strategy.ts'
-import { FAST, FAST_RT, FAST_TRAIL, WYCKOFF, wyckoffSignal, fastSignal, fastSignalRT, fastLevels, fastLiq, resolveExit, walkBook, liqCap, FAST_LIQ, type AggTrade } from '../../../shared/fast.ts'
+import { FAST, FAST_RT, FAST_TRAIL, WYCKOFF, wyckoffSignal, PSYCH, psychState, psychBlock, fastSignal, fastSignalRT, fastLevels, fastLiq, resolveExit, walkBook, liqCap, FAST_LIQ, type AggTrade } from '../../../shared/fast.ts'
 import { labInd, slipFor, type LBar } from '../../../shared/lab.ts'
 import { FAST_ENTRY, confirmFastEntry } from '../../../shared/fast-entry.ts'
 import { json, pool } from './rota-runner.ts'
@@ -121,6 +121,9 @@ export async function runFast(db: any, state: any, lease: string, paper: boolean
     sigs.sort((a, b) => b.sig.strength - a.sig.strength)
     const dayStart = new Date(now); dayStart.setUTCHours(0, 0, 0, 0)
     const { count: today } = await db.from('bot_trades').select('id', { count: 'exact', head: true }).eq('strategy', 'FAST').gte('opened_at', dayStart.toISOString())
+    // v96.2 trader psychology (discipline) on FAST closes of the last 26h, plus the closes booked in THIS cycle
+    const { data: pc } = await db.from('bot_trades').select('sym,pnl,closed_at').eq('strategy', 'FAST').neq('status', 'OPEN').gte('closed_at', new Date(now - 26 * 3600_000).toISOString())
+    const psy = psychState((pc ?? []).map((x: any) => ({ sym: String(x.sym), pnl: Number(x.pnl), closedAt: Date.parse(x.closed_at) })), now)
     let openN = mine.length - closes.length, dayN = Number(today) || 0
     let cash = Number(state.balance)
     const equity = cash + open.reduce((s: number, t: any) => s + Number(t.entry_price) * Number(t.size) / Math.max(1, Number(t.lev) || 1), 0)   // margin, not notional
@@ -132,6 +135,7 @@ export async function runFast(db: any, state: any, lease: string, paper: boolean
       if (held.has(sym)) { rec('rejected', 'coin_held'); continue }
       if (openN >= FAST.maxOpen) { rec('rejected', 'fast_full'); continue }
       if (dayN >= FAST.maxPerDay) { rec('rejected', 'daily_cap_20'); continue }
+      const pb = psychBlock(psy, sym, now); if (pb) { rec('rejected', pb, { streak: psy.streak, day_losses: psy.dayLosses }); continue }
       let bk: Awaited<ReturnType<typeof book>>, entryCheck: any = null, entryBtcUp = btcUp
       try {
         if (rt) {
@@ -146,7 +150,7 @@ export async function runFast(db: any, state: any, lease: string, paper: boolean
           sig = check.sig; entryBtcUp = check.btcUp; entryCheck = check.detail
         } else bk = await book(pairOf(sym))
       } catch { rec('rejected', 'no_fresh_entry_data'); continue }
-      const want = Math.min(equity * FAST.perTrade * cfg.share, cash / (1 + cfg.lev * 0.0005)) * cfg.lev
+      const want = Math.min(equity * FAST.perTrade * cfg.share * psy.sizeMult, cash / (1 + cfg.lev * 0.0005)) * cfg.lev
       if (want / cfg.lev < 5) { rec('rejected', 'no_cash'); continue }
       const touch = sig.dir > 0 ? bk.asks[0][0] : bk.bids[0][0]
       // v95.7: never a ticket the book cannot carry — impact on entry AND exit side <= FAST_LIQ.impactOfR of the stop distance
@@ -174,7 +178,7 @@ export async function runFast(db: any, state: any, lease: string, paper: boolean
         { k: 'btc', v: entryBtcUp === null ? null : entryBtcUp ? 1 : 0, thr: null, op: 'side', ok: sym === 'BTC' || (entryBtcUp !== null && entryBtcUp === (sig.dir > 0)) },
       ]
       entries.push({ sym, side, price: px, notional, lev: cfg.lev, quote_ts: bk.E, source: 'binance-futures',
-        fast: { stop: lv.stop, target: lv.target, r: lv.r, best: px, chk: bk.E, trail: FAST_TRAIL.on, stop_pct: lv.r / px, lev: cfg.lev, margin, liq: fastLiq(sig.dir, px, cfg.lev), mode: cfg.mode, hold_min: rt ? FAST_RT.holdMin : wy ? WYCKOFF.holdMin : FAST.holdBars * 5, wyckoff: wy ? { lo: ws.lo, hi: ws.hi, height: ws.height, ext: ws.ext, stop_px: ws.stopPx } : undefined,
+        fast: { stop: lv.stop, target: lv.target, r: lv.r, best: px, chk: bk.E, trail: FAST_TRAIL.on, stop_pct: lv.r / px, lev: cfg.lev, margin, liq: fastLiq(sig.dir, px, cfg.lev), mode: cfg.mode, hold_min: rt ? FAST_RT.holdMin : wy ? WYCKOFF.holdMin : FAST.holdBars * 5, wyckoff: wy ? { lo: ws.lo, hi: ws.hi, height: ws.height, ext: ws.ext, stop_px: ws.stopPx, trapped: ws.trapped } : undefined, psych: { streak: psy.streak, day_losses: psy.dayLosses, size_mult: psy.sizeMult },
           z: sig.z, vol_ratio: sig.volRatio, imb: sig.imb, checks, btc_up: entryBtcUp, entry_check: entryCheck, spread_bps: +spreadBps.toFixed(2), bar: new Date(bar).toISOString(),
           entry_fill: { model: 'book_walk', want: Math.round(want), liq_cap: Math.round(cap), capped: cap < want, max_impact_bps: +(FAST_LIQ.impactOfR * rFrac * 1e4).toFixed(2), touch, vwap: w.vwap, impact_bps: +(Math.abs(px / touch - 1) * 1e4).toFixed(2), depth_usd: Math.round(w.depthUsd), beyond_book: w.beyond } } })
       rec('accepted', 'taken', { notional, entry_check: entryCheck })

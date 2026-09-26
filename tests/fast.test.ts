@@ -133,3 +133,23 @@ console.log('fast (v95.0): rule, levels, exits, paper replay of the live path, l
   assert.ok(src.includes("wy ? wyckoffSignal(b)") && src.includes("modeOf"), 'runner wires the wyckoff mode')
 }
 console.log('wyckoff: ok')
+// v96.2 trading psychology (discipline)
+{
+  const { psychState, psychBlock, PSYCH } = await import('../shared/fast.ts')
+  const T0 = Date.UTC(2026, 8, 26, 12), m = 60_000
+  const s1 = psychState([{ sym: 'SOL', pnl: -10, closedAt: T0 }], T0 + 30 * m)
+  assert.equal(psychBlock(s1, 'SOL', T0 + 30 * m), 'psych_no_revenge', 'no revenge trade on the coin that just lost')
+  assert.equal(psychBlock(s1, 'ETH', T0 + 30 * m), null, 'another coin is fine'); assert.equal(psychBlock(s1, 'SOL', T0 + 61 * m), null, 'after 60 min it is fine')
+  assert.equal(s1.sizeMult, 1)
+  const two = psychState([{ sym: 'A', pnl: -1, closedAt: T0 }, { sym: 'B', pnl: -1, closedAt: T0 + m }], T0 + 2 * m)
+  assert.equal(two.sizeMult, PSYCH.halfMult, 'half size after 2 losses in a row')
+  const three = [{ sym: 'A', pnl: 5, closedAt: T0 - 10 * m }, { sym: 'A', pnl: -1, closedAt: T0 }, { sym: 'B', pnl: -1, closedAt: T0 + m }, { sym: 'C', pnl: -1, closedAt: T0 + 2 * m }]
+  assert.equal(psychBlock(psychState(three, T0 + 30 * m), 'Z', T0 + 30 * m), 'psych_day_stop', '3 losses today = done for the day')
+  const tomorrow = Date.UTC(2026, 8, 27, 0, 30)
+  assert.equal(psychBlock(psychState(three.map(x => ({ ...x, closedAt: x.closedAt + 11.5 * 3600e3 })), tomorrow), 'Z', tomorrow), 'psych_tilt_pause', 'losing streak across midnight -> 2h pause')
+  const win = psychState([...three, { sym: 'D', pnl: 3, closedAt: T0 + 3 * m }], T0 + 4 * m)
+  assert.equal(win.streak, 0); assert.equal(win.sizeMult, 1, 'a win resets the streak and the size')
+  const src = readFileSync('supabase/functions/trading-bot/fast-runner.ts', 'utf8')
+  assert.ok(src.includes('psychBlock(psy, sym, now)') && src.includes('psy.sizeMult'), 'runner applies the discipline')
+}
+console.log('psychology: ok')

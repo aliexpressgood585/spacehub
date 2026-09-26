@@ -162,7 +162,7 @@ export function liqCap(entrySide: [number, number][], exitSide: [number, number]
 // LOSES about -0.15 .. -0.21% per trade in-sample AND out-of-sample (this exact rule: 5m OOS -0.156%, n 7,306, WR 33%).
 // Same shape as FAST: gross ~0, the round trip is the loss. Built on the owner's instruction, labelled NOT VALIDATED.
 export const WYCKOFF = { rangeBars: 48, maxHeightAtr: 12, maxVolRatio: 1, bufferAtr: 0.1, holdMin: 480 } as const
-export interface WyckoffSig extends FastSig { lo: number; hi: number; height: number; ext: number; stopPx: number }
+export interface WyckoffSig extends FastSig { lo: number; hi: number; height: number; ext: number; stopPx: number; trapped: number }
 export function wyckoffSignal(b: LBar[]): WyckoffSig | null {
   const i = b.length - 1, N = WYCKOFF.rangeBars
   if (i < N + 20) return null
@@ -179,6 +179,43 @@ export function wyckoffSignal(b: LBar[]): WyckoffSig | null {
   const ext = dir > 0 ? x.low : x.high, stopPx = ext - dir * WYCKOFF.bufferAtr * A
   const dist = dir * (x.close - stopPx)
   if (!(dist > 0)) return null
+  // trapped = share of the spring bar's volume that was aggressive in the FAILED direction (sellers on a spring) — INFO only
+  const tb = x.tb, trapped = tb !== undefined && Number.isFinite(tb) && x.vol > 0 ? (dir > 0 ? 1 - tb / x.vol : tb / x.vol) : NaN
   // z = how far the spring pierced the range, in ATR; strength ranks the tightest ranges first
-  return { dir, z: dir * (dir > 0 ? lo - ext : ext - hi) / A, volRatio, imb: 0, atr: dist, strength: 1 / height, lo, hi, height, ext, stopPx }
+  return { dir, z: dir * (dir > 0 ? lo - ext : ext - hi) / A, volRatio, imb: 0, atr: dist, strength: 1 / height, lo, hi, height, ext, stopPx, trapped }
+}
+
+// v96.2 TRADING PSYCHOLOGY (owner: "add trading psychology, combined"). Two parts were tested on the Wyckoff rule
+// (backtest/research/v96_2_psychology.ts -> status/wyckoff-psychology.txt, 5m, 10 coins, 36m, IS 70% / OOS 30%):
+//  MARKET psychology (the crowd): trapped aggressive traders on the spring bar, crowd funding against us, very quiet
+//    springs — NONE changes the per-trade result (OOS -0.12 .. -0.15% vs -0.144% alone). Not used as filters; the trapped
+//    share is journalled per trade as information.
+//  TRADER psychology (discipline) — used, because it cuts the DAMAGE: OOS total -936% -> -189% (sum of %/trade at 1x)
+//    with all four rules together. It does NOT create an edge: every trade that is still taken loses on average
+//    (-0.106%/trade OOS). It trades less (6,490 -> 1,779 OOS) and smaller after losses. This cuts trades — standing rule 5
+//    yields to the owner's explicit request, and the trades cut are negative-expectancy.
+//  1. no revenge trade: no entry on a coin within 60 min of a LOSING close on that coin
+//  2. tilt break: 3 losing closes in a row -> no entries for 120 min after the last one
+//  3. daily stop: 3 losing closes in the UTC day -> no more entries that day
+//  4. after 2 losses in a row, half size until a win
+export const PSYCH = { coinCoolMin: 60, streak: 3, pauseMin: 120, dayLosses: 3, halfAfter: 2, halfMult: 0.5 } as const
+export interface Closed { sym: string; pnl: number; closedAt: number }
+export function psychState(closed: Closed[], now: number) {
+  const c = [...closed].filter(x => x.closedAt <= now).sort((a, b) => a.closedAt - b.closedAt)
+  let streak = 0
+  for (let i = c.length - 1; i >= 0 && c[i].pnl < 0; i--) streak++
+  const day = new Date(now); day.setUTCHours(0, 0, 0, 0)
+  const dayLosses = c.filter(x => x.closedAt >= day.getTime() && x.pnl < 0).length
+  const last = c.length ? c[c.length - 1].closedAt : 0
+  const pausedUntil = streak >= PSYCH.streak ? last + PSYCH.pauseMin * 60_000 : 0
+  const lastLoss: Record<string, number> = {}
+  for (const x of c) if (x.pnl < 0) lastLoss[x.sym] = x.closedAt
+  return { streak, dayLosses, pausedUntil, lastLoss, sizeMult: streak >= PSYCH.halfAfter ? PSYCH.halfMult : 1 }
+}
+// null = allowed; otherwise the reason the "disciplined trader" skips this entry
+export function psychBlock(st: ReturnType<typeof psychState>, sym: string, now: number): string | null {
+  if (st.dayLosses >= PSYCH.dayLosses) return 'psych_day_stop'
+  if (now < st.pausedUntil) return 'psych_tilt_pause'
+  if (st.lastLoss[sym] && now - st.lastLoss[sym] < PSYCH.coinCoolMin * 60_000) return 'psych_no_revenge'
+  return null
 }
