@@ -1,40 +1,59 @@
-backtest 2026-09-25T15:29Z mode=v109bt months=72
-████ V109BT — BRKV short-only on UNSEEN coins (289 perps minus the 69 of v108bt), 72m ████
-  perps listed 289, unseen 219
-  219 coins, 2020-09-01 .. 2026-08-31 (2191 days)
+backtest 2026-09-26T17:00Z mode=lab months=72
+████ LAB — 41,400 specs, 5 timeframes, walk-forward IS/VAL + OOS read once, 25%/day stress ████
+LAB 2026-09-26T16:58:21.830Z — 23 rules x 2 sides x 36 exits x 5 gates per timeframe; IS 60% (4 windows) | VAL 20% | OOS 20% read once
+costs/trade: taker 5bps x2 + slippage 3/5bps x2 + REAL funding (archive; 0.01%/8h INFERRED only without an archive)
+[5m] 10 coins, 2023-09-01 → 2026-09-01, 104,070,771 simulated trades | specs 8280 | passed IS+VAL screen 0 | IS daily t>=1.5 -> reached OOS 0 | ELITE 0 (luck alone ≈ 0.0)
+[15m] 40 coins, 2023-09-01 → 2026-09-01, 112,723,914 simulated trades | specs 8280 | passed IS+VAL screen 0 | IS daily t>=1.5 -> reached OOS 0 | ELITE 0 (luck alone ≈ 0.0)
+[1h] 40 coins, 2020-09-01 → 2026-09-01, 37,704,121 simulated trades | specs 8280 | passed IS+VAL screen 86 | IS daily t>=1.5 -> reached OOS 23 | ELITE 0 (luck alone ≈ 0.5)
+[2h] 40 coins, 2020-09-01 → 2026-09-01, 17,726,230 simulated trades | specs 8280 | passed IS+VAL screen 237 | IS daily t>=1.5 -> reached OOS 75 | ELITE 0 (luck alone ≈ 1.7)
+[4h] 40 coins, 2020-09-01 → 2026-09-01, 8,568,351 simulated trades | specs 8280 | passed IS+VAL screen 412 | IS daily t>=1.5 -> reached OOS 136 | ELITE 0 (luck alone ≈ 3.1)
 
-── A. the chosen rule (4h N20 vol>=3x, +7/-4), one position per coin, by calendar year ──
-  ALL                            n=  8868  WR  40.9%  net/trade   0.319%  t(daily)   0.86  $ at $1k    28274
-    LONG                         n=     0  WR   0.0%  net/trade   0.000%  t(daily)   0.00  $ at $1k        0
-    SHORT                        n=  8868  WR  40.9%  net/trade   0.319%  t(daily)   0.86  $ at $1k    28274
-  2020  n=   50  net/trade  -0.220%  $    -110   long   0.000% (n 0)   short  -0.220% (n 50)
-  2021  n=  369  net/trade  -1.353%  $   -4994   long   0.000% (n 0)   short  -1.353% (n 369)
-  2022  n=  581  net/trade   0.445%  $    2586   long   0.000% (n 0)   short   0.445% (n 581)
-  2023  n= 1127  net/trade  -0.319%  $   -3595   long   0.000% (n 0)   short  -0.319% (n 1127)
-  2024  n= 2755  net/trade   0.821%  $   22618   long   0.000% (n 0)   short   0.821% (n 2755)
-  2025  n= 2856  net/trade   0.231%  $    6596   long   0.000% (n 0)   short   0.231% (n 2856)
-  2026  n= 1130  net/trade   0.458%  $    5173   long   0.000% (n 0)   short   0.458% (n 1130)
+TOTAL: 41,400 specs · 234 reached OOS · ELITE 0 · luck alone would pass ≈ 5.4 · explore-eligible (OOS>0, not significant) 110
 
-── B. neighbours (plateau or spike?) — all history, one position per coin ──
-  N15 vol>=2.5x +7/-4            n= 14143  WR  40.8%  net/trade   0.308%  t(daily)   1.06  $ at $1k    43504
-  N15 vol>=3x +7/-4              n=  9483  WR  40.9%  net/trade   0.327%  t(daily)   0.92  $ at $1k    31001
-  N15 vol>=4x +7/-4              n=  4664  WR  42.9%  net/trade   0.542%  t(daily)   1.04  $ at $1k    25269
-  N20 vol>=2.5x +7/-4            n= 13026  WR  40.5%  net/trade   0.275%  t(daily)   0.90  $ at $1k    35816
-  N20 vol>=3x +7/-4              n=  8868  WR  40.9%  net/trade   0.319%  t(daily)   0.86  $ at $1k    28274
-  N20 vol>=4x +7/-4              n=  4507  WR  42.2%  net/trade   0.468%  t(daily)   0.89  $ at $1k    21085
-  N30 vol>=2.5x +7/-4            n= 11420  WR  40.9%  net/trade   0.324%  t(daily)   1.02  $ at $1k    36945
-  N30 vol>=3x +7/-4              n=  7971  WR  40.8%  net/trade   0.311%  t(daily)   0.82  $ at $1k    24789
-  N30 vol>=4x +7/-4              n=  4190  WR  41.4%  net/trade   0.370%  t(daily)   0.69  $ at $1k    15485
-  N20 vol>=3x +6/-4              n=  8958  WR  44.0%  net/trade   0.220%  t(daily)   0.67  $ at $1k    19732
-  N20 vol>=3x +8/-4              n=  8754  WR  38.7%  net/trade   0.466%  t(daily)   1.16  $ at $1k    40801
-  N20 vol>=3x +7.000000000000001/-3 n=  8895  WR  34.1%  net/trade   0.230%  t(daily)   0.74  $ at $1k    20465
-  N20 vol>=3x +7.000000000000001/-5 n=  8839  WR  46.4%  net/trade   0.390%  t(daily)   0.94  $ at $1k    34493
-  N20 vol>=3x +10/-5             n=  8430  WR  39.0%  net/trade   0.623%  t(daily)   1.24  $ at $1k    52551
+TOP 15 BY OOS t (net % per trade after all costs; t = daily-clustered):
+        4h_L_mom62_s2t3m1h6_btc_up               IS 1.205% t2.35 (4/4) | VAL 1.413% n265 | OOS 1.257% t1.22 PF 1.608 n239 WR 41%  [gross 1.443 fee 0.100 slip 0.100 fund -0.013]
+        4h_L_mom62_s2t3m1h6_hi_vol               IS 1.213% t1.78 (3/4) | VAL 0.883% n152 | OOS 1.488% t1.22 PF 1.602 n198 WR 38%  [gross 1.656 fee 0.100 slip 0.100 fund -0.032]
+        4h_L_mom62_s2t3m2h6_btc_up               IS 1.009% t2.11 (4/4) | VAL 1.453% n270 | OOS 1.301% t1.17 PF 1.639 n246 WR 52%  [gross 1.487 fee 0.100 slip 0.100 fund -0.013]
+        4h_L_mom62_s2t3m2h6_all                  IS 1.095% t2.32 (4/4) | VAL 1.396% n287 | OOS 1.089% t1.08 PF 1.47 n286 WR 50%  [gross 1.270 fee 0.100 slip 0.100 fund -0.019]
+        4h_L_mom62_s2t2m1h6_btc_up               IS 1.298% t2.65 (4/4) | VAL 1.451% n278 | OOS 0.944% t1.01 PF 1.461 n255 WR 43%  [gross 1.124 fee 0.100 slip 0.099 fund -0.020]
+        4h_L_mom62_s2t3m1h6_all                  IS 1.259% t2.45 (4/4) | VAL 1.318% n282 | OOS 0.948% t1.01 PF 1.402 n277 WR 39%  [gross 1.127 fee 0.100 slip 0.100 fund -0.020]
+        4h_L_mom62_s2t2m1h6_hi_vol               IS 1.204% t2 (3/4) | VAL 0.941% n165 | OOS 1.106% t1 PF 1.461 n214 WR 41%  [gross 1.268 fee 0.100 slip 0.100 fund -0.038]
+        4h_L_mom62_s2t3m2h24_hi_vol              IS 1.229% t1.87 (4/4) | VAL 1.370% n153 | OOS 1.419% t0.99 PF 1.455 n205 WR 51%  [gross 1.561 fee 0.100 slip 0.100 fund -0.058]
+        4h_L_mom62_s2t2m2h6_btc_up               IS 1.204% t2.57 (4/4) | VAL 1.472% n280 | OOS 0.929% t0.97 PF 1.455 n256 WR 52%  [gross 1.108 fee 0.100 slip 0.099 fund -0.020]
+        4h_L_mom62_s2t3m1h24_btc_up              IS 1.348% t2.41 (4/4) | VAL 2.047% n262 | OOS 1.223% t0.97 PF 1.438 n238 WR 31%  [gross 1.375 fee 0.100 slip 0.099 fund -0.047]
+        4h_L_mom62_s2t3m0h6_hi_vol               IS 1.472% t2.11 (3/4) | VAL 1.486% n150 | OOS 1.133% t0.95 PF 1.379 n197 WR 43%  [gross 1.301 fee 0.100 slip 0.100 fund -0.032]
+        4h_L_mom62_s2t2m2h6_hi_vol               IS 1.157% t2.03 (4/4) | VAL 0.903% n167 | OOS 1.042% t0.94 PF 1.435 n216 WR 52%  [gross 1.205 fee 0.100 slip 0.100 fund -0.037]
+        4h_L_mom62_s2t3m1h24_hi_vol              IS 1.237% t1.69 (3/4) | VAL 1.331% n149 | OOS 1.287% t0.92 PF 1.406 n197 WR 32%  [gross 1.407 fee 0.100 slip 0.100 fund -0.079]
+        4h_L_mom62_s2t2m1h24_hi_vol              IS 1.277% t1.99 (3/4) | VAL 1.597% n163 | OOS 1.065% t0.89 PF 1.354 n214 WR 38%  [gross 1.194 fee 0.100 slip 0.100 fund -0.070]
+        4h_L_mom62_s2t3m2h24_btc_up              IS 1.184% t2.37 (4/4) | VAL 1.732% n266 | OOS 1.085% t0.88 PF 1.394 n244 WR 49%  [gross 1.251 fee 0.100 slip 0.099 fund -0.034]
 
-── C. portfolio: at most 10 positions at once across all coins, taken in time order ──
-  cap 10 ALL                     n=  3008  WR  40.3%  net/trade   0.252%  t(daily)   1.33  $ at $1k     7576
-  cap 10 LONG                    n=     0  WR   0.0%  net/trade   0.000%  t(daily)   0.00  $ at $1k        0
-  cap 10 SHORT                   n=  3008  WR  40.3%  net/trade   0.252%  t(daily)   1.33  $ at $1k     7576
-  equity at 10% of the account per position (10 slots = fully invested): 104.2% total, max drawdown 49.0%
+BY SIDE (specs that reached OOS):
+  LONG     reached  206 · OOS>0  102 · mean OOS 0.072%/trade · best OOS t 1.22
+  SHORT    reached   28 · OOS>0    8 · mean OOS -0.269%/trade · best OOS t 0.75
 
-  t(daily) = t-stat of DAILY summed net %, i.e. trades on the same day counted as one observation.
+BY FAMILY (specs that reached OOS):
+  mom      reached  174 · OOS>0   96 · mean OOS 0.119%/trade · best OOS t 1.22
+  flow     reached   24 · OOS>0    8 · mean OOS -0.095%/trade · best OOS t 0.75
+  brk      reached   33 · OOS>0    6 · mean OOS -0.279%/trade · best OOS t 0.23
+  rsi      reached    1 · OOS>0    0 · mean OOS -0.591%/trade · best OOS t -1.14
+  sweep    reached    2 · OOS>0    0 · mean OOS -0.651%/trade · best OOS t -1.20
+
+BY TIMEFRAME (specs that reached OOS):
+  4h       reached  136 · OOS>0   84 · mean OOS 0.142%/trade · best OOS t 1.22
+  2h       reached   75 · OOS>0   25 · mean OOS -0.111%/trade · best OOS t 0.76
+  1h       reached   23 · OOS>0    1 · mean OOS -0.158%/trade · best OOS t 0.10
+
+PORTFOLIO (EXPLORE (not OOS-significant — NOT a supported edge), 12 specs, <= 8 open, 1 per coin): IS+VAL n 850 mean 1.109% | OOS n 237 mean 0.834% t 1.12 PF 1.35 · mean daily sum of R: IS 0.065 / OOS 0.098
+  risk/trade | OOS mean daily | median | geometric | maxDD | liquidations | ruin | peak position leverage
+    0.25%   |    0.024% |   0.000% |   0.024% |   4.2% |    0 | no | 1.7x
+    0.50%   |    0.049% |   0.000% |   0.046% |   8.2% |    0 | no | 3.3x
+    1.00%   |    0.098% |   0.000% |   0.088% |  16.1% |    0 | no | 6.6x
+    2.00%   |    0.196% |   0.000% |   0.157% |  30.6% |    0 | no | 13.3x
+    5.00%   |    0.490% |   0.000% |   0.279% |  63.9% |    0 | no | 33.2x
+   10.00%   |    0.977% |   0.000% |   0.248% |  91.5% |    1 | no | 66.5x
+   20.00%   |   -0.061% |   0.000% | -100.000% | 100.0% |  121 | RUIN | 133.0x
+  paper replay, last 30 days of OOS (35 trades): explore size 0.1%/trade -> 0.1363%/day, maxDD 0.24% | elite size 0.5%/trade -> 0.6614%/day, maxDD 1.20%
+
+25%/DAY STRESS: mean daily sum of R on IS+VAL = 0.065 -> risk per trade needed for +25%/day ≈ 386.3%
+  at that risk OOS: mean daily -2.61%, geometric -100.00%/day, maxDD 100.0%, liquidations 21, RUIN, peak position leverage 352x
+  growth-optimal risk chosen on IS+VAL: 8.67%/trade (IS geo 0.285%/day) -> OOS geo 0.285%/day, maxDD 86.8%; half of it OOS geo 0.262%/day, maxDD 57.8%
