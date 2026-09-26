@@ -356,6 +356,26 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v95.0 (2026-09-26 17:13 UTC) — ACCOUNT RESET to $5,000 + FAST: the owner's all-in intraday rule, live on paper
+Owner, after the v94.0 lab found no edge: "the most aggressive thing, 20 trades a day, scanning every coin, the whole
+account, nothing kept aside; reset now, keep the history, let's see it live". Told plainly first: the lab tested exactly
+this class (5m/15m, ~216M simulated trades) and 0 specs passed even the IS screen; at 20 trades/day the round trip alone
+is ~3.2%/day of turnover. The owner chose to run it anyway on paper — their call, recorded as NOT VALIDATED.
+- `shared/fast.ts`: completed 5m bar, all four at once — 3-bar move > 1.5 ATR x sqrt(3), bar volume >= 2x 20-bar avg,
+  taker-buy imbalance over 3 bars beyond +/-0.10 (observed column), BTC 5m on the same side of its EMA20 (BTC skips it).
+  Stop 1 ATR (floor 0.3%), target 1.5R, out after 60 min. <= 5 open x 20% of equity = the whole account, <= 20 entries
+  per UTC day, strongest first (|z| x volume ratio), one per coin. 1x-margined (the ledger has no margin model).
+- `fast-runner.ts` scans the dynamic universe (market_cache 'universe', ~100 liquid USDT perps; pinned 40 fallback) once
+  per 5m bar (first 2 min), exits every cycle; ledger `20260926190000_fast_sleeve.sql` (5 open / 20 per day / 21% per
+  trade / 100% gross / crypto-only deny list / paper 1x). Tests: tests/fast.test.ts incl. a paper replay of the live path.
+- RESET (one transaction under the bot_state lock, 17:13:21): full copies kept in the DB as `archive_v94era_bot_trades`
+  (312 rows) and `archive_v94era_bot_equity` (3,865 rows), RLS on; git copy migration/export-v94era/ (closed: SCALP 303
+  net -$149.04, ROTA 5 net -$3.28; 4 ROTA positions were open and are archived as OPEN). bot_trades / bot_equity /
+  snapshots cleared, balance/peak/day-start 5000, halt cleared, sleeve state keys removed. agent learning kept.
+- DEPLOYED: commit 404d42c2, function v73, shim `__ENABLED_SLEEVES='SCALP,FAST'`, `__FAST_SHARE='1'` (ROTA, BRKV, LAB OFF;
+  SCALP keeps its meetings and profit gate with 0 capital), manifest v95.0 first_seen 17:13:01 paper true / live false.
+  ROLLBACK: shim back to 'SCALP,ROTA,BRKV,LAB' at a3f4b5c5 (close FAST rows first). Judge it on real closes, not hours.
+
 ## v94.0 (2026-09-26) — THE LAB: 41,400-spec research grid + LAB sleeve (ELITE pool / EXPLORE) + controlled learning
 Owner brief: aggressive DEMO engine maximising net daily return; research whether 25%/day is reachable; no forced trades,
 no invented edge; big grid 5m..4h, LONG/SHORT separately, all families, TP/SL/trail/BE/hold; walk-forward + OOS; ELITE

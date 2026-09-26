@@ -456,6 +456,7 @@ import { runScalp } from './scalp-runner.ts'
 import { runRota, rotaConfig } from './rota-runner.ts'
 import { runBrkv, brkvConfig } from './brkv-runner.ts'
 import { runLab, labConfig } from './lab-runner.ts'
+import { runFast, fastConfig } from './fast-runner.ts'
 import { meetingDue, capDecision } from '../../../shared/team-meeting.ts'
 
 const BINANCE_DATA = 'https://data-api.binance.vision/api/v3'
@@ -546,7 +547,7 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v94.0'
+const BOT_VERSION = 'v95.0'
 // v87.0: the pre-SCALP engine (DONCH4H / standalone ROTA) opens trades without the profit gate; it stays in the file
 // for its exit/record code history but may never open a trade. Changing this needs the gate wired in first.
 const LEGACY_ENGINE_ALLOWED = false
@@ -2673,6 +2674,7 @@ Deno.serve(async (req) => {
     const ROTA_ENABLED  = ENABLED_SLEEVES.includes('ROTA')
     const BRKV_ENABLED  = ENABLED_SLEEVES.includes('BRKV')
     const LAB_ENABLED   = ENABLED_SLEEVES.includes('LAB')
+    const FAST_ENABLED  = ENABLED_SLEEVES.includes('FAST')
     const paperMode = !ALLOW_LIVE || url.searchParams.get('paper')==='1' || state.paper_mode===true
     // v55: live mode was triple-locked; v58.0 makes it quadruple — the env flag
     // above must ALSO be explicitly 'true'. It is not set anywhere in this repo.
@@ -2710,9 +2712,16 @@ Deno.serve(async (req) => {
         catch (e: any) { lab = { error: String(e?.message ?? e) }; await logErr('lab_runner', String(e?.message ?? e)) }
         if (lab?.changed) { const { data: fresh } = await supabase.from('bot_state').select('*').eq('id', 1).single(); if (fresh) scalpState = fresh }
       }
-      const foreign = (ROTA_ENABLED ? rotaConfig().share : 0) + (BRKV_ENABLED ? brkvConfig().share : 0) + (LAB_ENABLED ? labConfig().share : 0)
+      // v95.0: FAST (owner's all-in intraday rule, 5m, every liquid pair) runs after LAB, before SCALP, same book and lease.
+      let fast: any = null
+      if (FAST_ENABLED) {
+        try { fast = await runFast(supabase, scalpState, runLeaseUntil, paperMode && !liveMode) }
+        catch (e: any) { fast = { error: String(e?.message ?? e) }; await logErr('fast_runner', String(e?.message ?? e)) }
+        if (fast?.changed) { const { data: fresh } = await supabase.from('bot_state').select('*').eq('id', 1).single(); if (fresh) scalpState = fresh }
+      }
+      const foreign = (ROTA_ENABLED ? rotaConfig().share : 0) + (BRKV_ENABLED ? brkvConfig().share : 0) + (LAB_ENABLED ? labConfig().share : 0) + (FAST_ENABLED ? fastConfig().share : 0)
       const result = await runScalp(supabase, scalpState, runLeaseUntil, paperMode && !liveMode, foreign)
-      return new Response(JSON.stringify({ok:true,version:BOT_VERSION,...result,rota,brkv,lab}),{headers:{'Content-Type':'application/json'}})
+      return new Response(JSON.stringify({ok:true,version:BOT_VERSION,...result,rota,brkv,lab,fast}),{headers:{'Content-Type':'application/json'}})
     }
 
     // v87.0: the legacy DONCH4H/ROTA engine below opens trades without the cost layer / profit gate. It may not trade:
