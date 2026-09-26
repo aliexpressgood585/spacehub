@@ -47,7 +47,7 @@ assert.ok(corrScale(r,1,[{ret:r,side:1,weight:0.2}]).mult<1&&corrScale(r,1,[{ret
  assert.equal(r.status.b,'duplicate');assert.equal(r.dupOf.b,'a','the weaker twin loses its vote');assert.equal(r.W.b,0)
  assert.equal(r.status.c,'unstable','60m edge contradicted at 15m and 240m');assert.equal(r.W.c,0);assert.ok(r.W.a>0)}
 // ledger: no loss kill switch, graded risk, observed funding, costs stored
-{const mig=readdirSync('supabase/migrations').filter(f=>readFileSync(`supabase/migrations/${f}`,'utf8').includes('scalp_commit_cycle')).sort().pop()!,m=readFileSync(`supabase/migrations/${mig}`,'utf8')
+{const mig=readdirSync('supabase/migrations').filter(f=>readFileSync(`supabase/migrations/${f}`,'utf8').includes('create or replace function public.scalp_commit_cycle')).sort().pop()!,m=readFileSync(`supabase/migrations/${mig}`,'utf8')
  assert.ok(m.includes('paused:=s.hard_halt_at is not null;')&&!m.includes('eq<=pk*0.85'),'no P&L-based pause in the ledger')
  assert.ok(m.includes("eq*0.005*rmult/stop")&&m.includes("'costs',x->'costs'")&&m.includes("x->>'funding_rate'"))
  const all=readdirSync('supabase/migrations').map(f=>readFileSync(`supabase/migrations/${f}`,'utf8')).join('\n')

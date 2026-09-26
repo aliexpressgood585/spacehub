@@ -74,7 +74,7 @@ assert.equal(exitPlan({...h5,scalp_meta:{stop_pct:.004,hold_min:1},opened_at:at(
 console.log('Scalp signal, timing, trailing and cash invariants passed')
 // DB guard, edge function and UI must agree on the position cap.
 import {readFileSync,readdirSync} from 'node:fs'
-const mig=readdirSync('supabase/migrations').filter(f=>readFileSync(`supabase/migrations/${f}`,'utf8').includes('scalp_commit_cycle')).sort().pop()!
+const mig=readdirSync('supabase/migrations').filter(f=>readFileSync(`supabase/migrations/${f}`,'utf8').includes('create or replace function public.scalp_commit_cycle')).sort().pop()!
 assert.ok(readFileSync(`supabase/migrations/${mig}`,'utf8').includes(`countopen>=${SCALP.maxPositions}`),`latest ledger migration ${mig} must cap at ${SCALP.maxPositions}`)
 assert.ok(readFileSync(`supabase/migrations/${mig}`,'utf8').includes(`eq*${SCALP.perCoin}`),`latest ledger migration ${mig} must cap each coin at ${SCALP.perCoin}`)
 import {CRYPTO_40} from '../shared/strategy.ts'
