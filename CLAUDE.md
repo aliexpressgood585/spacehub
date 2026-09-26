@@ -356,6 +356,32 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v96.2 (2026-09-26 ~22:28 UTC) — TRADING PSYCHOLOGY layer on FAST/Wyckoff (owner: "add trading psychology, combined")
+TESTED (backtest/research/v96_2_psychology.ts -> status/wyckoff-psychology.txt; the live Wyckoff rule, 5m, 10 coins, 36m,
+IS 70% / OOS 30%). Baseline OOS: -0.144%/trade, n 6,490, sum -936%.
+  MARKET psychology (crowd) filters, none of which changes the per-trade result (OOS -0.12 .. -0.15):
+    - trapped aggressive traders on the spring bar (>=55% / >=60%)
+    - funding paying us / crowded against us
+    - very quiet springs
+  TRADER psychology (discipline):
+    - no revenge on a coin 60 min after a loss: -0.146
+    - 3-loss streak -> 2h pause: -0.138
+    - 3 losses/day -> stop: -0.143
+    - half size after 2 losses: -0.106
+    - ALL FOUR: -0.106%/trade, n 1,779, sum -189% (vs -936%)
+  Reading: discipline cuts the DAMAGE about 5x by trading less and smaller after losses. It creates NO edge: every trade
+  still taken loses on average. Standing rule 5 (never cut trades) yields to the owner's explicit request; the trades cut
+  are negative-expectancy.
+BUILT: `PSYCH`, `psychState`, `psychBlock` in shared/fast.ts, applied in fast-runner to every FAST entry (any mode).
+  - Inputs: FAST closes of the last 26h.
+  - Rejections are journalled: psych_no_revenge / psych_tilt_pause / psych_day_stop.
+  - Size x0.5 while the streak is >= 2.
+  - Rows store fast.psych {streak, day_losses, size_mult} and fast.wyckoff.trapped (info).
+  - Trade page shows both.
+DEPLOYED commit 1da95750, function v83 (same shim, wyckoff, 50x), manifest 22:21:49. VERIFIED on the 22:30 bar: the only
+signal (AKE, which had lost at 22:23) was rejected `psych_no_revenge`; 0 bot_errors. Book at 22:31: AAVE + BNB SHORT open;
+closed since the reset: GRASS −$416.66, AKE −$31.64, so the next entries go at half size. ROLLBACK: redeploy 9869041d.
+
 ## v96.1 (2026-09-26 22:10 UTC) — FAST switched to WYCKOFF intraday + RESET to $5,000 (owner: "Wyckoff intraday, reset, keep the leverage")
 TESTED FIRST (backtest/research/v96_1_wyckoff.ts -> status/wyckoff-5m.txt / wyckoff-15m.txt): spring / upthrust out of
 a 4h or 8h trading range (height <= 12 ATR). The bar pierces the range, closes back inside, entry at the next open, stop at the
