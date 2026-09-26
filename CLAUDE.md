@@ -356,6 +356,24 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v96.1 (2026-09-26 22:10 UTC) — FAST switched to WYCKOFF intraday + RESET to $5,000 (owner: "Wyckoff intraday, reset, keep the leverage")
+TESTED FIRST (backtest/research/v96_1_wyckoff.ts -> status/wyckoff-5m.txt / wyckoff-15m.txt): spring / upthrust out of
+a 4h or 8h trading range (height <= 12 ATR). The bar pierces the range, closes back inside, entry at the next open, stop at the
+extreme + 0.1 ATR, target 1.5R or the opposite side of the range. Volume variants: any, low < 1x, climax >= 2x. Tested on 5m
+(10 coins, 36m) and 15m (40 coins, 36m), IS 70% / OOS 30%, taker + slippage. EVERY row loses about -0.15 .. -0.21% per trade,
+both IS and OOS (t −7 .. −90). Same shape as FAST: gross ≈ 0, and the round trip is the whole loss. Told to the owner.
+BUILT ANYWAY on instruction: `wyckoffSignal` + `WYCKOFF` in shared/fast.ts, mode `__FAST_MODE='wyckoff'` in fast-runner.ts.
+The rule: 5m close, 48-bar range, spring volume < the range average (classic "no supply"). Stop at the spring extreme +
+0.1 ATR (floor 0.3%), 1.5R target, max hold 8h. Everything else is unchanged: 50x isolated, <= 3 open x 1/3 of equity as margin,
+20 entries per UTC day, liquidity cap, aggTrades fills. Trade page explains the 4 Wyckoff conditions. Rows store
+fast.mode 'wyckoff' + fast.wyckoff {lo, hi, height, ext, stop_px}.
+DEPLOYED: commit 9869041d, function v82, shim `__FAST_MODE='wyckoff'`. RESET 22:11 UTC under the lock: archive
+`archive_v96_0era_bot_trades` (4 rows: 2 closed −$915.59, 2 open burst-mode rows archived as OPEN) + `_bot_equity`;
+balance/peak 5000, fast_bar cleared. ROLLBACK: `__FAST_MODE='rt'`.
+VERIFIED 22:16 UTC: manifest sha 9869041d (BOT_VERSION string still reads v95.0), fast_cycle mode 'wyckoff', 99/99 pairs
+scanned, 0 bot_errors. First Wyckoff trades: GRASS SHORT (22:10 bar) stopped in 2 min, −$416.66; 22:15 bar opened AAVE
+SHORT, AKE LONG, BNB SHORT (stops at the 0.3% floor, 50x).
+
 ## v96.0 (2026-09-26 ~22:00 UTC) — DATA COLLECTORS + ACCOUNT RESET to $5,000 (owner: "add the data sources and reset")
 New edge function `data-collector` (cron job 5, every minute, NEVER trades or touches trading tables), with parsers in
 `shared/collect.ts` and tests in `tests/collect.test.ts`. Migration `20260926230000_market_collectors.sql` (applied) adds 4

@@ -113,3 +113,23 @@ assert.ok(src.includes("or(`opened_at.gte.${since},closed_at.gte.${since}`)"), '
 const fsql = readFileSync('supabase/migrations/20260926220000_fast_fill.sql', 'utf8')
 assert.ok(fsql.includes("'{fast,chk}'") && fsql.includes("''fill'',coalesce(x->''fill''") && fsql.includes("(t.side='LONG' and st<old)"), 'fill ledger: chk persisted, fill provenance stored, trail still favourable-only')
 console.log('fast (v95.0): rule, levels, exits, paper replay of the live path, ledger caps passed')
+// v96.1 WYCKOFF spring / upthrust
+{
+  const { wyckoffSignal, WYCKOFF } = await import('../shared/fast.ts')
+  const mk = (last: Partial<LBar>, vol = 500): LBar[] => { const out: LBar[] = []
+    for (let i = 0; i < 80; i++) { const c = 100 + (i % 2 ? 0.5 : -0.5); out.push({ t: i * M5, open: 100, high: Math.max(100, c) + 0.3, low: Math.min(100, c) - 0.3, close: c, vol: 1000, tb: 500 }) }
+    out.push({ t: 80 * M5, open: 99.5, high: 100, low: 99, close: 99.5, vol, tb: vol / 2, ...last }); return out }
+  const sp = wyckoffSignal(mk({ low: 98.8, close: 99.6 }))!
+  assert.ok(sp && sp.dir === 1 && sp.lo === 99.2 && sp.stopPx < 98.8 && sp.volRatio < 1, 'spring below the range low, closed back inside, low volume = LONG')
+  const ut = wyckoffSignal(mk({ open: 100.5, high: 101.2, low: 100.3, close: 100.4 }))!
+  assert.ok(ut && ut.dir === -1 && ut.stopPx > 101.2, 'upthrust = SHORT, stop beyond the high')
+  assert.equal(wyckoffSignal(mk({ low: 98.8, close: 99.6 }, 1500)), null, 'spring on above-average volume = no trade (supply present)')
+  assert.equal(wyckoffSignal(mk({ low: 98.8, close: 99.0 })), null, 'closed below the range = breakdown, not a spring')
+  assert.equal(wyckoffSignal(mk({ low: 99.3, close: 99.6 })), null, 'no pierce = no spring')
+  const trend = mk({ low: 98.8, close: 99.6 }).map((x, i) => i < 80 ? { ...x, high: x.high + i * 0.5, low: x.low + i * 0.5, close: x.close + i * 0.5, open: x.open + i * 0.5 } : x)
+  assert.equal(wyckoffSignal(trend), null, 'a trend is not a trading range')
+  assert.equal(WYCKOFF.holdMin, 480)
+  const src = readFileSync('supabase/functions/trading-bot/fast-runner.ts', 'utf8')
+  assert.ok(src.includes("wy ? wyckoffSignal(b)") && src.includes("modeOf"), 'runner wires the wyckoff mode')
+}
+console.log('wyckoff: ok')
