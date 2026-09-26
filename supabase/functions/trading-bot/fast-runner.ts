@@ -3,7 +3,7 @@
 // 'universe', pinned 40 as fallback), rank the signals, enter the strongest within the 5-open / 20-per-day limits.
 // Books through `fast_commit_cycle` (paper 1x; caps enforced again in SQL). Decisions go to trade_decisions.
 import * as S from '../../../shared/strategy.ts'
-import { FAST, FAST_RT, FAST_TRAIL, fastSignal, fastSignalRT, fastLevels, fastLiq, resolveExit, walkBook, type AggTrade } from '../../../shared/fast.ts'
+import { FAST, FAST_RT, FAST_TRAIL, fastSignal, fastSignalRT, fastLevels, fastLiq, resolveExit, walkBook, liqCap, FAST_LIQ, type AggTrade } from '../../../shared/fast.ts'
 import { labInd, slipFor, type LBar } from '../../../shared/lab.ts'
 import { json, pool } from './rota-runner.ts'
 type Pair = { sym: string; s: string; k: number }
@@ -111,7 +111,8 @@ export async function runFast(db: any, state: any, lease: string, paper: boolean
     if (btc) { const bb = rt ? btc.slice(0, -1) : btc, bi = labInd(bb), k = bb.length - 1; if (bi.ema20[k] > 0) btcUp = bb[k].close > bi.ema20[k] }
     // real-time: one entry per coin per FAST_RT.cooldownMs
     const recent = new Set<string>()
-    if (rt) { const { data: rr } = await db.from('bot_trades').select('sym').eq('strategy', 'FAST').gte('opened_at', new Date(now - FAST_RT.cooldownMs).toISOString()); for (const x of rr ?? []) recent.add(String(x.sym)) }
+    if (rt) { const since = new Date(now - FAST_RT.cooldownMs).toISOString()   // v95.7: from the last open OR close of the coin
+      const { data: rr } = await db.from('bot_trades').select('sym').eq('strategy', 'FAST').or(`opened_at.gte.${since},closed_at.gte.${since}`); for (const x of rr ?? []) recent.add(String(x.sym)) }
     const sigs: { sym: string; sig: NonNullable<ReturnType<typeof fastSignal>> }[] = []
     for (const [sym, b] of data) { if (recent.has(sym)) continue; const sg = rt ? fastSignalRT(b, btcUp, sym === 'BTC') : fastSignal(b, btcUp, sym === 'BTC'); if (sg) sigs.push({ sym, sig: sg }) }
     sigs.sort((a, b) => b.sig.strength - a.sig.strength)
@@ -127,10 +128,16 @@ export async function runFast(db: any, state: any, lease: string, paper: boolean
       if (openN >= FAST.maxOpen) { rec('rejected', 'fast_full'); continue }
       if (dayN >= FAST.maxPerDay) { rec('rejected', 'daily_cap_20'); continue }
       let bk: Awaited<ReturnType<typeof book>>; try { bk = await book(pairOf(sym)) } catch { rec('rejected', 'no_quote'); continue }
-      const margin = Math.min(equity * FAST.perTrade * cfg.share, cash / (1 + cfg.lev * 0.0005)), notional = margin * cfg.lev
-      if (margin < 5) { rec('rejected', 'no_cash'); continue }
+      const want = Math.min(equity * FAST.perTrade * cfg.share, cash / (1 + cfg.lev * 0.0005)) * cfg.lev
+      if (want / cfg.lev < 5) { rec('rejected', 'no_cash'); continue }
+      const touch = sig.dir > 0 ? bk.asks[0][0] : bk.bids[0][0]
+      // v95.7: never a ticket the book cannot carry — impact on entry AND exit side <= FAST_LIQ.impactOfR of the stop distance
+      const rFrac = Math.max(sig.atr, touch * FAST.stopMinPct) / touch
+      const cap = liqCap(sig.dir > 0 ? bk.asks : bk.bids, sig.dir > 0 ? bk.bids : bk.asks, FAST_LIQ.impactOfR * rFrac)
+      const notional = Math.min(want, cap), margin = notional / cfg.lev
+      if (margin < 5) { rec('rejected', 'book_too_thin', { want, cap }); continue }
       // v95.6: a market order of this size walks the real book; never better than the old fixed-slippage fill
-      const w = walkBook(sig.dir > 0 ? bk.asks : bk.bids, notional), touch = sig.dir > 0 ? bk.asks[0][0] : bk.bids[0][0]
+      const w = walkBook(sig.dir > 0 ? bk.asks : bk.bids, notional)
       const floorPx = touch * (1 + sig.dir * slipFor(sym)), px = sig.dir > 0 ? Math.max(w.vwap, floorPx) : Math.min(w.vwap, floorPx)
       const lv = fastLevels(sig.dir, px, sig.atr), spreadBps = (bk.asks[0][0] - bk.bids[0][0]) / ((bk.asks[0][0] + bk.bids[0][0]) / 2) * 1e4
       // v95.6: the RAW values the engine decided on, plus the engine's own verdict per condition (no re-derivation on screen)
@@ -144,7 +151,7 @@ export async function runFast(db: any, state: any, lease: string, paper: boolean
       entries.push({ sym, side, price: px, notional, lev: cfg.lev, quote_ts: bk.E, source: 'binance-futures',
         fast: { stop: lv.stop, target: lv.target, r: lv.r, best: px, chk: bk.E, trail: FAST_TRAIL.on, stop_pct: lv.r / px, lev: cfg.lev, margin, liq: fastLiq(sig.dir, px, cfg.lev), mode: cfg.mode, hold_min: rt ? FAST_RT.holdMin : FAST.holdBars * 5,
           z: sig.z, vol_ratio: sig.volRatio, imb: sig.imb, checks, btc_up: btcUp, spread_bps: +spreadBps.toFixed(2), bar: new Date(bar).toISOString(),
-          entry_fill: { model: 'book_walk', touch, vwap: w.vwap, impact_bps: +(Math.abs(px / touch - 1) * 1e4).toFixed(2), depth_usd: Math.round(w.depthUsd), beyond_book: w.beyond } } })
+          entry_fill: { model: 'book_walk', want: Math.round(want), liq_cap: Math.round(cap), capped: cap < want, max_impact_bps: +(FAST_LIQ.impactOfR * rFrac * 1e4).toFixed(2), touch, vwap: w.vwap, impact_bps: +(Math.abs(px / touch - 1) * 1e4).toFixed(2), depth_usd: Math.round(w.depthUsd), beyond_book: w.beyond } } })
       rec('accepted', 'taken', { notional })
       held.add(sym); openN++; dayN++; cash -= margin + notional * 0.0005
     }

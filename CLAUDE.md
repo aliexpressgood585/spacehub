@@ -367,6 +367,17 @@ DEPLOYED: commit 36c48e56, function v76, migration applied, 0 bot_errors, trail 
 LIVE since the reset (17:13): JUP -$6.72 (1x), GRASS LONG 50x +$1,179.09 (TARGET, +1.85R), RAYSOL LONG 50x -$714.74
 (STOP); FIL + HYPE still open at 1x. ROLLBACK: set FAST_TRAIL.on false.
 
+## v95.7 (2026-09-26) — FAST liquidity cap + close-based cooldown (owner: "כן" to both recommendations; leverage unchanged 50x)
+- `liqCap()` + `FAST_LIQ.impactOfR 0.25` (shared/fast.ts): the notional is capped so that walking the real Binance book (depth
+  limit 100) costs at most 25% of the stop distance on the ENTRY side AND on the side the exit will hit, and never goes beyond
+  the visible book; below $5 margin -> rejected `book_too_thin` (want / cap journalled). Leverage stays 50x: on a thin book
+  less margin is posted, on a deep one (HYPE, XRP, PEPE) nothing changes. entry_fill stores want / liq_cap / capped /
+  max_impact_bps. No ledger change (fast_commit_cycle already sizes margin = notional / lev).
+- Cooldown: one entry per coin per 15 min counted from the coin's last OPEN or CLOSE (was open only — HYPE re-shorted 9 s
+  after its previous close).
+Tests: liqCap on deep / thin / exit-side-binding / ORDI-like books; cooldown source assertion; runner replay mock book deepened.
+NOT a claim of edge: it removes self-inflicted impact losses; the FAST signal itself still tested negative (v95.6 experiments).
+
 ## 2026-09-26 18:45 UTC — review of the 50x FAST trades (owner: "understand what happened, what to improve")
 FIRST CLOSES UNDER v95.6: HYPE #652 SHORT stop — trigger print 91.76 at 18:26:20.155 (stop 91.7597), detected 4.2 s later,
 book $797k deep -> 5 bps floor, fill 91.806, −$410.20: CORRECT. ORDI #654 (opened AND closed under v95.6) −$611.50 in 1.6 s.
