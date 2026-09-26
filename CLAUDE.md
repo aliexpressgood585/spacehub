@@ -356,6 +356,17 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v95.4 (2026-09-26 17:50 UTC) — FAST REAL-TIME mode (owner: "yes" to entries at any moment)
+`fastSignalRT` (shared/fast.ts): every scan (<= every 10 s) on Binance 1m klines INCLUDING the forming minute — price now
+vs 3 minutes ago > 2 ATR(1m) x sqrt(3), last-3-minute volume (not extrapolated) >= 2x the 3-minute average, taker
+imbalance over those 3 minutes beyond +/-0.10, BTC's last closed 1m bar on the same side of its EMA20. Stop 2 ATR(1m)
+(floor 0.3%), target 1.5R, out after 30 min (hold stored per trade), one entry per coin per 15 min; caps / 50x isolated
+leverage / ledger unchanged (3 open, 20 per UTC day). NOT BACKTESTED (no 1m archive run; the owner asked for speed).
+Shim `__FAST_MODE='rt'` ('bar' = the 5m-close rule). Trade page: 1m candles and rt wording for rt trades, P&L % on the
+margin, size / margin / leverage card, liquidation price in "how it exits". Tests extended; suite + acceptance green.
+DEPLOYED: commit e479997d, function v75, first scan 17:50:43 (97/97 pairs, 0 signals), 0 bot_errors.
+ROLLBACK: `__FAST_MODE='bar'`.
+
 ## v95.3 (2026-09-26 17:45 UTC) — bot cron every 5 s (owner: "scan every 5 seconds")
 Measured first: at 10 s, 29 of 29 calls in 5 min ran, 0 skipped by the lease (5 pg_net timeouts are the 5 s HTTP
 timeout of the caller, the cycle still runs). `cron.alter_job(1, schedule := '5 seconds')`, recorded as
