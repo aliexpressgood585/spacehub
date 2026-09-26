@@ -404,7 +404,12 @@ RESULT (real archives, run in the sandbox 16:51 UTC, same code as CI) — **0 EL
     25%/DAY: needs ~386% risk per trade (352x position leverage) -> OOS RUIN (21 liquidations). Growth-optimal risk on
     IS+VAL 8.7%/trade -> OOS +0.285%/day geometric with maxDD 86.8%; half-Kelly +0.26%/day, DD 58%; 0.5%/trade
     +0.046%/day, DD 8.2%. The 25%/day target has NO support; nothing in the grid is OOS-significant.
-DEPLOY: see the line below this entry.
+DEPLOYED 16:54 UTC: migration `lab_sleeve` applied first, commit a3f4b5c5, function v72, shim
+`__ENABLED_SLEEVES='SCALP,ROTA,BRKV,LAB'`, `__LAB_SHARE='0.25'`, `__LAB_MAX_LEV='1'` (rest unchanged), manifest v94.0
+first_seen 16:54:32 paper true / live false, 0 bot_errors; pool cached "elite 0, explore 12" (all explore specs are 4h ->
+first possible LAB entries in the 20:00 UTC window, explore size only). Dashboard: trading-app `lab.html` (LabBoard,
+linked from house.html). CI reproduction of the grid queued via .run-request "lab 72" (commits status/lab-latest.*).
+ROLLBACK: shim without 'LAB' — but CLOSE open LAB rows first (SCALP treats them as foreign and never exits them).
 
 ## 2026-09-26 16:15 UTC — owner away 26h: watch summary + v109bt
 HEALTH: v93.0 61ae46b3 SCALP,ROTA,BRKV paper true / live false; heartbeat current; **0 bot_errors since the 15:22 deploy**;

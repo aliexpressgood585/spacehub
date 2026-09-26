@@ -11,6 +11,7 @@ export default defineConfig({
         main: 'index.html',
         house: 'house.html',
         house3d: 'house3d.html',
+        lab: 'lab.html',
       },
     },
   },
