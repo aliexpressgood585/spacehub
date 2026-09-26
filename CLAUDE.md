@@ -356,6 +356,13 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v95.3 (2026-09-26 17:45 UTC) — bot cron every 5 s (owner: "scan every 5 seconds")
+Measured first: at 10 s, 29 of 29 calls in 5 min ran, 0 skipped by the lease (5 pg_net timeouts are the 5 s HTTP
+timeout of the caller, the cycle still runs). `cron.alter_job(1, schedule := '5 seconds')`, recorded as
+migration 20260926174500_bot_cron_5s.sql. Effect: FAST exits (stop / target / liquidation) checked ~every 5 s, entries
+land ~5 s after each 5m close. It does NOT add signals — the FAST rule reads COMPLETED 5m bars (told to the owner).
+ROLLBACK: `select cron.alter_job(1, schedule := '10 seconds')`.
+
 ## v95.2 (2026-09-26 17:40 UTC) — FAST at ISOLATED 50x (owner: "most aggressive, 400%/1000% a day, fine if it wipes")
 Owner asked for maximum aggression on paper, accepting a wipe. Also tested first (sandbox, 10 coins 5m 36m, ~30k trades
 each): FAST follow -0.20%/trade PF 0.39, FADE (owner's idea) -0.19% PF 0.42, +breakeven -0.20/-0.19 — gross ~0 either
