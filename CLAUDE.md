@@ -367,6 +367,14 @@ DEPLOYED: commit 36c48e56, function v76, migration applied, 0 bot_errors, trail 
 LIVE since the reset (17:13): JUP -$6.72 (1x), GRASS LONG 50x +$1,179.09 (TARGET, +1.85R), RAYSOL LONG 50x -$714.74
 (STOP); FIL + HYPE still open at 1x. ROLLBACK: set FAST_TRAIL.on false.
 
+## 2026-09-26 ~22:00 UTC — owner: "give me another strategy for quick trades" — two new fast ideas tested, both REJECTED
+backtest/research/v95_9_fast_alternatives_1m.ts -> status/fast-alternatives-1m.txt (1m, 10 coins, 12m, IS 70/OOS 30, full costs):
+  BTC LEAD-LAG at 1 minute (BTC 3-min burst |z|>3, alt still < 30% of BTC's move -> follow): OOS −0.187% (1.5R) / −0.189%
+  (trail), WR 15%, n 776. The alts do not catch up after costs.
+  FAST ONLY WHEN THE STOP IS WIDE (>= 0.8% / >= 1.2% of price, so costs are small vs the move): IS +0.00% / +0.63% (n 101)
+  -> OOS −0.32% / −0.57% (n 96 / 30). The IS winner flipped negative OOS — the multiple-testing pattern again.
+Nothing deployed. Every quick (1-30 min) rule tested here now loses the round trip; the owner's reset waits on their choice.
+
 ## 2026-09-26 ~21:45 UTC — the 20 v95.8 trades dissected + their "patterns" tested on 12 months (owner: "what would we do not to lose, learn from the winners")
 LIVE 20 (6 W / 14 L, −$1,772): 6 losers were stopped within 0-1 minute of entry (SEI, SPELL, GALA, FARTCOIN, UNI, LDO) =
 entry at the top of the burst; 5 of 6 extreme-volume entries (vol >= 10x) lost; stops at the 0.30% floor; longs 3/7 won,

@@ -1,0 +1,15 @@
+FAST rt rule on closed 1m bars, 10 coins, 2025-09-01..2026-08-31, IS 70% / OOS 30% (from 2026-05-14)
+
+── IN-SAMPLE ──
+A1 BTC lead-lag, 1.5R/stop 2ATR    n   612 WR 20.3% net  -0.197% R -0.653 PF 0.20 t -4.28 | stress -0.386%
+A2 BTC lead-lag, trail             n   610 WR 18.9% net  -0.196% R -0.649 PF 0.19 t -4.37 | stress -0.396%
+B FAST only when stop >= 0.8%      n   317 WR 34.7% net   0.001% R -0.266 PF 1.00 t  0.00 | stress -0.168%
+B2 FAST only when stop >= 1.2%     n   101 WR 34.7% net   0.634% R -0.192 PF 1.37 t  0.42 | stress 0.467%
+
+IS-selected: B2 FAST only when stop >= 1.2% (IS 0.634%/trade)
+
+── OUT-OF-SAMPLE (read once) ──
+A1 BTC lead-lag, 1.5R/stop 2ATR    n   776 WR 15.2% net  -0.187% R -0.617 PF 0.15 t -3.33 | stress -0.380%
+A2 BTC lead-lag, trail             n   777 WR 14.2% net  -0.189% R -0.625 PF 0.14 t -3.35 | stress -0.389%
+B FAST only when stop >= 0.8%      n    96 WR 40.6% net  -0.320% R -0.199 PF 0.63 t -2.11 | stress -0.492%
+B2 FAST only when stop >= 1.2%     n    30 WR 36.7% net  -0.573% R -0.173 PF 0.60 t -2.18 | stress -0.743%
