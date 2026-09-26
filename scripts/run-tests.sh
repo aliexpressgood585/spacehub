@@ -40,6 +40,7 @@ run "info agents"           tests/info.test.ts
 run "agent factory"         tests/factory.test.ts
 run "rota runner"           tests/rota-runner.test.ts
 run "breakout BRKV v93"     tests/breakout.test.ts
+run "data collectors v96"   tests/collect.test.ts
 run "lab v94 (research grid + LAB sleeve)" tests/lab.test.ts
 run "lab runner v94 (paper replay)" tests/lab-runner.test.ts
 run "fast v95 (all-in intraday)" tests/fast.test.ts
