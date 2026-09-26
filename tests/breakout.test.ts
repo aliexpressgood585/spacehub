@@ -24,7 +24,7 @@ assert.ok(sql.includes('px*0.96')&&sql.includes('px*1.07')&&sql.includes('px*0.9
 const runner=readFileSync('supabase/functions/trading-bot/brkv-runner.ts','utf8')
 assert.ok(runner.includes("if(!paper)throw new Error('BRKV is paper-only"),'runner refuses live execution')
 const sr=readFileSync('supabase/functions/trading-bot/scalp-runner.ts','utf8')
-assert.ok(sr.includes("t.strategy==='ROTA'||t.strategy==='BRKV'")&&sr.includes("['SCALP','ROTA','BRKV']"),'SCALP never closes BRKV rows')
+assert.ok(sr.includes("t.strategy==='ROTA'||t.strategy==='BRKV'")&&sr.includes("['SCALP','ROTA','BRKV','LAB']"),'SCALP never closes BRKV rows')
 const idx=readFileSync('supabase/functions/trading-bot/index.ts','utf8')
 assert.ok(idx.includes("if (BRKV_ENABLED) {")&&idx.includes("runBrkv(supabase, scalpState, runLeaseUntil, paperMode && !liveMode)"),'index gates BRKV on the shim and passes paper')
 assert.ok(runner.includes("if(cfg.side==='short'&&f.dir>0)continue")&&runner.includes("__BRKV_SIDE??'short'"),'default BRKV is short-only')

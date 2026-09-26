@@ -28,6 +28,7 @@
 import * as S from '../shared/strategy.ts'
 import * as PF from './portfolio.ts'
 import { gymMain } from './gym.ts'
+import { labMain } from './lab.ts'
 
 type Bar = S.Bar
 
@@ -9184,6 +9185,12 @@ function runV94bt() {
 }
 
 function main() {
+  // v94.0 lab: the research grid (backtest/lab.ts) -> status/lab-latest.json, the ELITE pool the live LAB sleeve trades
+  if (Deno.env.get('BT_MODE') === 'lab') {
+    console.log('████ LAB — 41,400 specs, 5 timeframes, walk-forward IS/VAL + OOS read once, 25%/day stress ████')
+    labMain()
+    return
+  }
   // v85.0 gym: walk-forward the factory's genome vocabulary over 36m of 5m bars (see backtest/gym.ts)
   if (Deno.env.get('BT_MODE') === 'gym') {
     console.log('████ GYM — factory genomes, 36m walk-forward, 4 IS windows + 20% OOS read once ████')
