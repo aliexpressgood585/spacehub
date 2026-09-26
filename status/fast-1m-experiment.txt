@@ -1,0 +1,43 @@
+FAST rt rule on closed 1m bars, 10 coins, 2025-09-01..2026-08-31, IS 70% / OOS 30% (from 2026-05-14)
+
+── IN-SAMPLE ──
+A immediate      | fix15           n 17530 WR 27.8% net  -0.174% R -0.541 PF 0.40 t -15.98 | stress -0.351%
+A immediate      | part            n 16440 WR 33.4% net  -0.177% R -0.561 PF 0.32 t -16.04 | stress -0.361%
+A immediate      | trail           n 16440 WR 23.5% net  -0.178% R -0.575 PF 0.34 t -11.63 | stress -0.378%
+B pullback 0.382+cont | fix15      n  2858 WR 26.7% net  -0.180% R -0.566 PF 0.39 t -8.73 | stress -0.358%
+B pullback 0.382+cont | part       n  2845 WR 32.9% net  -0.169% R -0.570 PF 0.38 t -5.53 | stress -0.353%
+B pullback 0.382+cont | trail      n  2845 WR 23.1% net  -0.155% R -0.581 PF 0.44 t -3.24 | stress -0.355%
+B pullback 0.5+cont | fix15        n  1314 WR 27.6% net  -0.175% R -0.522 PF 0.37 t -11.13 | stress -0.352%
+B pullback 0.5+cont | part         n  1314 WR 33.2% net  -0.184% R -0.546 PF 0.29 t -13.11 | stress -0.368%
+B pullback 0.5+cont | trail        n  1314 WR 24.1% net  -0.190% R -0.557 PF 0.29 t -12.47 | stress -0.390%
+C clv<0.5 (absorbed) | fix15       n    54 WR 44.4% net  -0.040% R -0.081 PF 0.87 t -0.27 | stress -0.205%
+C clv<0.5 (absorbed) | part        n    54 WR 50.0% net  -0.090% R -0.149 PF 0.69 t -0.68 | stress -0.266%
+C clv<0.5 (absorbed) | trail       n    54 WR 38.9% net  -0.090% R -0.135 PF 0.70 t -0.65 | stress -0.290%
+C clv>=0.5       | fix15           n 17506 WR 27.7% net  -0.174% R -0.542 PF 0.40 t -16.17 | stress -0.352%
+C clv>=0.5       | part            n 16416 WR 33.4% net  -0.177% R -0.562 PF 0.32 t -16.17 | stress -0.361%
+C clv>=0.5       | trail           n 16416 WR 23.4% net  -0.178% R -0.575 PF 0.34 t -11.72 | stress -0.378%
+C clv>=0.7       | fix15           n 16908 WR 27.8% net  -0.174% R -0.543 PF 0.39 t -18.86 | stress -0.351%
+C clv>=0.7       | part            n 15898 WR 33.3% net  -0.176% R -0.563 PF 0.32 t -16.66 | stress -0.361%
+C clv>=0.7       | trail           n 15898 WR 23.4% net  -0.177% R -0.576 PF 0.34 t -12.03 | stress -0.377%
+
+IS-selected: C clv<0.5 (absorbed) | fix15 (IS -0.040%/trade)
+
+── OUT-OF-SAMPLE (read once) ──
+A immediate      | fix15           n  7542 WR 26.0% net  -0.177% R -0.548 PF 0.35 t -19.11 | stress -0.357%
+A immediate      | part            n  7104 WR 30.7% net  -0.181% R -0.568 PF 0.28 t -19.50 | stress -0.367%
+A immediate      | trail           n  7104 WR 22.6% net  -0.181% R -0.578 PF 0.30 t -15.07 | stress -0.381%
+B pullback 0.382+cont | fix15      n  1240 WR 27.4% net  -0.155% R -0.493 PF 0.37 t -10.67 | stress -0.334%
+B pullback 0.382+cont | part       n  1234 WR 32.5% net  -0.167% R -0.532 PF 0.28 t -12.33 | stress -0.352%
+B pullback 0.382+cont | trail      n  1234 WR 24.1% net  -0.175% R -0.552 PF 0.27 t -12.26 | stress -0.375%
+B pullback 0.5+cont | fix15        n   600 WR 27.0% net  -0.158% R -0.504 PF 0.36 t -8.26 | stress -0.337%
+B pullback 0.5+cont | part         n   599 WR 32.4% net  -0.166% R -0.529 PF 0.28 t -9.35 | stress -0.351%
+B pullback 0.5+cont | trail        n   599 WR 24.2% net  -0.172% R -0.545 PF 0.27 t -9.12 | stress -0.372%
+C clv<0.5 (absorbed) | fix15       n    39 WR 23.1% net  -0.321% R -0.504 PF 0.20 t -2.51 | stress -0.501%
+C clv<0.5 (absorbed) | part        n    39 WR 30.8% net  -0.332% R -0.548 PF 0.11 t -2.69 | stress -0.518%
+C clv<0.5 (absorbed) | trail       n    39 WR 20.5% net  -0.358% R -0.625 PF 0.05 t -2.94 | stress -0.558%
+C clv>=0.5       | fix15           n  7528 WR 26.0% net  -0.176% R -0.548 PF 0.35 t -18.72 | stress -0.356%
+C clv>=0.5       | part            n  7089 WR 30.7% net  -0.180% R -0.568 PF 0.28 t -18.79 | stress -0.366%
+C clv>=0.5       | trail           n  7089 WR 22.6% net  -0.181% R -0.578 PF 0.30 t -14.43 | stress -0.381%
+C clv>=0.7       | fix15           n  7202 WR 26.0% net  -0.175% R -0.548 PF 0.35 t -17.96 | stress -0.356%
+C clv>=0.7       | part            n  6791 WR 30.7% net  -0.179% R -0.569 PF 0.28 t -17.66 | stress -0.365%
+C clv>=0.7       | trail           n  6791 WR 22.6% net  -0.180% R -0.580 PF 0.30 t -13.59 | stress -0.380%

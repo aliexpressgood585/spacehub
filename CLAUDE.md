@@ -367,6 +367,39 @@ DEPLOYED: commit 36c48e56, function v76, migration applied, 0 bot_errors, trail 
 LIVE since the reset (17:13): JUP -$6.72 (1x), GRASS LONG 50x +$1,179.09 (TARGET, +1.85R), RAYSOL LONG 50x -$714.74
 (STOP); FIL + HYPE still open at 1x. ROLLBACK: set FAST_TRAIL.on false.
 
+## v95.6 (2026-09-26 18:26 UTC) — FAST fill realism + honest trade page (owner: RAYSOL stop overshoot, ❌ on an open trade, card vs chart)
+FOUND (measured on Binance aggTrades / depth fetched via pg_net):
+- RAYSOL #651: stop 2.050820 first traded 18:06:25.588; the cycle that saw it ran ~9 s later (overlapping 5 s cron calls are
+  skipped, real checks ~10-15 s apart) and closed at that moment's bid − 5 bps = 2.046576 (−0.21% beyond the stop). Also its
+  $102k notional vs $46k on 50 bid levels — the flat 5 bps slippage was optimistic.
+- GRASS #650: 1.5R target 0.5565 first traded 18:02:54.0; closed at 0.5581 (above the target) — an optimistic fill (~$240).
+- ❌ on "burst": the engine used z = 2.0309 > 2 (reconstructed exactly from the stored r); the row stored z ROUNDED to 2.00 and
+  the page re-checked 2.00 > 2 → ❌. Display/logging bug, not an engine bug. The signal WAS borderline.
+- card vs page: the card showed P&L / notional, the page P&L / margin (50x apart), stop % was relative to the mark, and R used
+  the CURRENT (trailed) stop.
+FIXED: `resolveExit` (shared/fast.ts) walks Binance aggTrades since the last check in time order — stop-market fills at the
+first print through the stop less book impact, take-profit exactly at the target, trailing per trade, no look-ahead; `walkBook`
+prices market fills by VWAP over the real depth (limit 100; beyond the visible book = INFERRED, flagged). Entry = max(book VWAP,
+touch + old slip). Rows store raw z / vol_ratio / imb + the engine's verdicts `checks[]` and `entry_fill`; closes store
+`scalp_meta.fill` {trigger_ts, trigger_px, lag_ms, impact_bps, depth_usd, beyond_book}. Ledger `20260926220000_fast_fill.sql`
+(fast_trail persists chk; fast_commit_cycle stores fill). Dashboard: `src/tradeMetrics.ts` = ONE definition for the house cards
+and the trade page: move % vs entry, stop/target % vs entry, gross R and net R on the INITIAL risk (open: est. exit fee + 5 bps
+slip, INFERRED), margin % labelled "ממונף"; legacy rows show the engine's ✓ "(ערך מעוגל)" and a note when the booked exit was
+beyond the stop / target. Leverage unchanged (50x). Tests: RAYSOL/GRASS/trailing/short replays, book walk, runner replay
+(stop fills at the first print, not the later mark). DEPLOYED: commit f3648dab, function v77, migration applied and verified,
+manifest paper true / live false, first cycle 97/97 pairs, fill_model aggTrades+book_walk, 0 errors. Not yet exercised on a
+live close (no FAST position open at deploy).
+EXPERIMENTS (backtest/research/v95_6_fast_1m.ts, output status/fast-1m-experiment.txt): the rt rule on CLOSED 1m bars, 10 coins,
+12 months, IS 70% / OOS 30% read once, taker 5 bps + slip per market fill, funding, stop-first intrabar:
+    OOS  immediate      fix 1.5R −0.177%/trade (n 7,542) | 50% at 1R + BE + trail −0.181% | trail only −0.181%
+    OOS  pullback 38.2% holding the burst + continuation: −0.155 / −0.167 / −0.175 (n ~1,240)  | 50%: −0.158 / −0.166 / −0.172
+    CLV absorption filter (burst window must close in its top half / 70%): removes <4% of signals, no change (the z>2 condition
+    already excludes bursts that did not advance price); the "absorbed" subset n=54 was the IS winner (−0.04%) and went to −0.32% OOS.
+    Stressed impact (+10 bps per market fill, INFERRED): every row ≈ −0.34..−0.38%.
+READING: nothing is positive in-sample or out-of-sample; gross ≈ 0 and the round trip is the loss. The pullback entry is ~0.02%
+less bad (inside noise vs costs); exit shapes differ by < 0.01%. NO STRATEGY CHANGE deployed (would be fitting noise, and
+certainly not to two trades). At 50x each −0.18% ≈ −9% of the posted margin per trade.
+
 ## v95.4 (2026-09-26 17:50 UTC) — FAST REAL-TIME mode (owner: "yes" to entries at any moment)
 `fastSignalRT` (shared/fast.ts): every scan (<= every 10 s) on Binance 1m klines INCLUDING the forming minute — price now
 vs 3 minutes ago > 2 ATR(1m) x sqrt(3), last-3-minute volume (not extrapolated) >= 2x the 3-minute average, taker

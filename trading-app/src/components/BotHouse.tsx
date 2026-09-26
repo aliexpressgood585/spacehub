@@ -10,6 +10,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { SUPA_URL, SUPA_KEY } from '../supa'
+import { tradeMetrics, fmtR } from '../tradeMetrics'
 import { TEAM_INTERVAL_MS } from '../../../shared/team-meeting'
 import { SCALP } from '../../../shared/scalp'
 import { CRYPTO_40 } from '../../../shared/strategy'
@@ -899,11 +900,11 @@ function Floor({ snap, ticks, now }: { snap: Snap | null; ticks: Record<string, 
   let upnl = 0, marked = 0
   const rows = open.map((t) => {
     const dir = t.side === 'LONG' ? 1 : -1, e = num(t.entry_price), sz = num(t.size), k = ticks[String(t.sym)]
-    const mark = k?.px ?? NaN, u = Number.isFinite(mark) ? dir * (mark - e) * sz - num(t.fee || 0) : NaN
+    const mark = k?.px ?? NaN, M = tradeMetrics(t, mark, now), u = Number.isFinite(mark) ? M.net : NaN   // v95.6: same numbers as the trade page
     if (Number.isFinite(u)) { upnl += u; marked++ }
     const held = now - ts(t.opened_at), stop = num(t.trail_sl)
-    const toStop = Number.isFinite(mark) && stop > 0 ? (dir * (mark - stop)) / mark : NaN
-    return { t, dir, e, mark, u, up: Number.isFinite(u) ? u / (e * sz) : NaN, held, stop, toStop }
+    const toStop = M.stopPct
+    return { t, dir, e, mark, u, up: M.movePct, M, held, stop, toStop }
   })
   const cv = (snap?.curve ?? []).slice(0, 360).map((c) => num(c.equity)).filter(Number.isFinite).reverse()
   let path = '', up = true
@@ -919,10 +920,10 @@ function Floor({ snap, ticks, now }: { snap: Snap | null; ticks: Record<string, 
     </div>
     {path && <svg className="bh-spark" viewBox="0 0 300 48" preserveAspectRatio="none" aria-label="עקומת הון"><path d={path} fill="none" stroke={up ? '#00d492' : '#ff4d6a'} strokeWidth="1.6" vectorEffect="non-scaling-stroke" /></svg>}
     <div className="bh-blot">
-      {rows.length ? rows.map(({ t, dir, e, mark, u, up: upc, held, stop, toStop }) => (
+      {rows.length ? rows.map(({ t, dir, e, mark, u, up: upc, M, held, stop, toStop }) => (
         <a key={String(t.id)} href={`trade.html?id=${encodeURIComponent(String(t.id))}`} title="פתח גרף חי של העסקה" style={{ display: 'block', color: 'inherit', textDecoration: 'none', cursor: 'pointer' }} className={`bh-pos ${Number.isFinite(u) ? (u >= 0 ? 'win' : 'lose') : ''}`}>
-          <div className="bh-pos-top"><b>{String(t.sym)}</b><span className={dir > 0 ? 'bh-l' : 'bh-s'}>{dir > 0 ? 'LONG' : 'SHORT'}</span><em>{String(t.strategy)}</em><strong dir="ltr">{Number.isFinite(u) ? `${usd(u)} (${pct(upc)})` : 'טוען מחיר…'}</strong></div>
-          <div className="bh-pos-mid" dir="ltr"><span>entry {fmtPx(e)}</span><span>mark {fmtPx(mark)}{ticks[String(t.sym)] ? ` · ${ticks[String(t.sym)].src}${now - ticks[String(t.sym)].t > 30_000 ? ` · ${Math.round((now - ticks[String(t.sym)].t) / 1000)}s` : ''}` : ''}</span>{t.strategy === 'ROTA' ? <span>ללא סטופ — רוטציה: יוצא/מתעדכן רק בסבב הבא{snap?.state?.rebalanced_at ? ` (${new Date(ts(snap.state.rebalanced_at) + 12 * 3600_000).toISOString().slice(11, 16)}Z)` : ''} · פתוח {Math.round((now - ts(t.opened_at)) / 3600_000)} ש׳</span> : <span>stop {fmtPx(stop)}{Number.isFinite(toStop) ? ` (${pct(toStop)})` : ''}</span>}</div>
+          <div className="bh-pos-top"><b>{String(t.sym)}</b><span className={dir > 0 ? 'bh-l' : 'bh-s'}>{dir > 0 ? 'LONG' : 'SHORT'}</span><em>{String(t.strategy)}</em><strong dir="ltr" title="נטו משוער (אחרי עמלות והחלקה ביציאה) · תנועה מהכניסה · R ברוטו/נטו">{Number.isFinite(u) ? `${usd(u)} · ${pct(upc, 3)} · ${fmtR(M.grossR)}/${fmtR(M.netR)}` : 'טוען מחיר…'}</strong></div>
+          <div className="bh-pos-mid" dir="ltr"><span>entry {fmtPx(e)}</span><span>mark {fmtPx(mark)}{ticks[String(t.sym)] ? ` · ${ticks[String(t.sym)].src}${now - ticks[String(t.sym)].t > 30_000 ? ` · ${Math.round((now - ticks[String(t.sym)].t) / 1000)}s` : ''}` : ''}</span>{t.strategy === 'ROTA' ? <span>ללא סטופ — רוטציה: יוצא/מתעדכן רק בסבב הבא{snap?.state?.rebalanced_at ? ` (${new Date(ts(snap.state.rebalanced_at) + 12 * 3600_000).toISOString().slice(11, 16)}Z)` : ''} · פתוח {Math.round((now - ts(t.opened_at)) / 3600_000)} ש׳</span> : <span>stop {fmtPx(stop)}{Number.isFinite(toStop) ? ` (${pct(toStop, 3)} from entry)` : ''}</span>}</div>
           {t.strategy === 'SCALP' && (() => { const plan = Math.max(1, Math.min(SCALP.maxHoldMs / 60_000, num((t.scalp_meta as Row | null)?.hold_min) || 15)) * 60_000; const over = held > plan; return <div className={`bh-bar${over ? ' ext' : ''}`}><i style={{ width: `${Math.min(100, (held / plan) * 100)}%` }} /><span>{over ? 'הוארך · ' : ''}<b dir="ltr">{Math.floor(held / 60_000)}:{String(Math.floor((held % 60_000) / 1000)).padStart(2, '0')} / {plan / 60_000}:00</b>{over ? ` (עד ${SCALP.maxHoldMs / 60_000} דק׳)` : ' מתוכנן'}</span></div> })()}
         </a>)) : <p className="bh-mnote">אין פוזיציות פתוחות כרגע. הסיבה מופיעה בהחלטת מנהלת התיק בישיבה.</p>}
     </div>
