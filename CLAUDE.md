@@ -356,6 +356,22 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## 2026-09-26 23:30 UTC — OWNER: "go with the prompt to the end, rely ONLY on it, reset the account"
+DONE:
+- trading-bot shim `__ENABLED_SLEEVES='OFF'`, `__LEVERAGE='1'`: function v84, sha 1f4e1e17, manifest enabled_sleeves OFF,
+  paper true / live false.
+  - Without SCALP in the list the code refuses to open anything (the v87 `LEGACY_ENGINE_ALLOWED=false` path) and
+    answers "only the gated SCALP engine may open trades".
+  - FAST / Wyckoff / psychology / SCALP / LAB / ROTA / BRKV are all OFF.
+- RESET under the lock: archive `archive_v96_2era_bot_trades` (5 rows: 4 closed −$273.33, BNB SHORT open, archived as
+  OPEN) + `_bot_equity`; git note migration/export-v96_2era/. Balance/peak 5000, 0 trades, 0 bot_errors.
+- data-collector keeps recording (it never trades).
+THE ONLY ENGINE IS NOW `quant/`, and by its own Phase-1 gate nothing trades: every strategy is NO-GO.
+- To move on, a strategy must pass Phase 1 (`python -m quant.run_backtest` + `make_report`, verdict GO).
+- Then Phase 2 needs testnet keys (env) and an always-on host running `python -m quant.run_live`.
+ROLLBACK to the old bot: redeploy the shim with the previous sleeves (e.g. `'SCALP,FAST'` + `__FAST_MODE='wyckoff'`,
+`__FAST_LEV='50'` at 1da95750).
+
 ## quant/ v1 (2026-09-26 ~23:30 UTC) — Chan-style Python stack + honest Phase-1 backtest: ALL NO-GO
 Owner brief (senior-quant prompt):
 - rebuild with Ernest Chan's methodology in Python (ccxt / pandas / statsmodels);
