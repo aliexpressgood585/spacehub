@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { FAST, FAST_RT, FAST_TRAIL, fastTrail, fastSignal, fastSignalRT, fastLevels, fastExit, fastLiq, resolveExit, walkBook } from '../shared/fast.ts'
+import { FAST, FAST_RT, FAST_TRAIL, fastTrail, fastSignal, fastSignalRT, fastLevels, fastExit, fastLiq, resolveExit, walkBook, liqCap, FAST_LIQ } from '../shared/fast.ts'
 import { slipFor } from '../shared/lab.ts'
 ;(globalThis as any).__FAST_MODE = 'bar'   // the runner replay below exercises the 5m-close mode; real-time is unit-tested here
 import { runFast } from '../supabase/functions/trading-bot/fast-runner.ts'
@@ -55,7 +55,8 @@ try {
       return new Response(JSON.stringify(bb.map((x) => [x.t, x.open, x.high, x.low, x.close, x.vol, x.t + M5 - 1, 0, 0, x.tb, 0]))) }
     if (url.includes('/aggTrades')) return new Response(JSON.stringify(sym === 'ETH' ? [{ a: 1, p: '99.9', T: NOW - 10e3 }, { a: 2, p: '99.65', T: NOW - 6e3 }, { a: 3, p: '99.5', T: NOW - 1e3 }] : []))
     const mid = sym === 'ETH' ? 99.5 : 100
-    return new Response(JSON.stringify({ bids: [[mid * 0.9999, 1]], asks: [[mid * 1.0001, 1]], E: NOW }))
+    const thin = sym === 'CX0'
+    return new Response(JSON.stringify({ bids: [[mid * 0.9999, thin ? 1 : 1e6]], asks: [[mid * 1.0001, thin ? 1 : 1e6]], E: NOW }))
   }) as typeof fetch
   await runFast(db, { balance: 4000, bot_params: {} }, new Date(NOW + 50e3).toISOString(), true)
   assert.equal(rpc.name, 'fast_commit_cycle')
@@ -99,6 +100,16 @@ assert.ok(tsql.includes("(t.side='LONG' and st<old) or (t.side='SHORT' and st>ol
   assert.ok(Math.abs(w.vwap - 1000.5 / (5 + 500.5 / 100.1)) < 1e-9 && !w.beyond && w.impact > 0, 'book walk VWAP across levels')
   assert.ok(walkBook([[100, 1]], 300).beyond && walkBook([[100, 1], [101, 1]], 1000).vwap > 101, 'an order bigger than the visible book is priced beyond it (INFERRED) and flagged') }
 assert.ok(readFileSync('supabase/functions/trading-bot/fast-runner.ts', 'utf8').includes(': now - 20_000) + 1'), 'a pre-v95.6 row (no chk) is never replayed from its open with a trailed stop')
+// v95.7 liquidity cap
+{ const deep: [number, number][] = [[100, 1e5], [100.01, 1e5]], thinA: [number, number][] = Array.from({ length: 50 }, (_, i) => [100 + i * 0.02, 10] as [number, number])
+  assert.ok(liqCap(deep, deep, 0.001) > 1e7, 'a deep book does not cap a normal ticket')
+  const c = liqCap(thinA, deep, 0.0012); const w = walkBook(thinA, c)
+  assert.ok(c > 0 && c < 50_000 && w.impact <= 0.0012 + 1e-12 && !w.beyond, 'a thin book caps the ticket at the allowed impact, inside the visible book')
+  assert.equal(liqCap(deep, thinA, 0.0012), c, 'the exit side binds too')
+  assert.equal(FAST_LIQ.impactOfR, 0.25)
+  const ordi = liqCap(thinA, thinA, 0.25 * 0.0047); assert.ok(walkBook(thinA, ordi).impact <= 0.25 * 0.0047, 'ORDI-like: impact capped to a quarter of a 47 bps stop') }
+const src = readFileSync('supabase/functions/trading-bot/fast-runner.ts', 'utf8')
+assert.ok(src.includes("or(`opened_at.gte.${since},closed_at.gte.${since}`)"), 'cooldown counts from the last open OR close')
 const fsql = readFileSync('supabase/migrations/20260926220000_fast_fill.sql', 'utf8')
 assert.ok(fsql.includes("'{fast,chk}'") && fsql.includes("''fill'',coalesce(x->''fill''") && fsql.includes("(t.side='LONG' and st<old)"), 'fill ledger: chk persisted, fill provenance stored, trail still favourable-only')
 console.log('fast (v95.0): rule, levels, exits, paper replay of the live path, ledger caps passed')

@@ -132,3 +132,20 @@ export function walkBook(levels: [number, number][], notional: number): { vwap: 
   const vwap = spent / qty
   return { vwap, impact: Math.abs(vwap / best - 1), depthUsd, beyond }
 }
+// v95.7 LIQUIDITY CAP (owner: "כן", 2026-09-26, after ORDI #654 lost $611 in 1.6 s to its own 41 bps entry impact against
+// a 47 bps stop). Leverage is unchanged; the NOTIONAL is capped so that walking the real book costs at most `impactOfR` of
+// the stop distance on BOTH sides (entry side and the side the exit will sell/buy into) and never goes beyond the visible
+// book. On a deep book (HYPE, XRP) nothing changes; on a thin one less margin is posted.
+export const FAST_LIQ = { impactOfR: 0.25 } as const
+export function liqCap(entrySide: [number, number][], exitSide: [number, number][], maxImpact: number): number {
+  const one = (lv: [number, number][]) => {
+    const depth = lv.reduce((s, [p, q]) => s + p * q, 0)
+    if (!(depth > 0) || !(maxImpact > 0)) return 0
+    const ok = (n: number) => { const w = walkBook(lv, n); return !w.beyond && w.impact <= maxImpact }
+    if (ok(depth * 0.999)) return depth * 0.999
+    let lo = 0, hi = depth
+    for (let k = 0; k < 40; k++) { const mid = (lo + hi) / 2; if (ok(mid)) lo = mid; else hi = mid }
+    return lo
+  }
+  return Math.min(one(entrySide), one(exitSide))
+}
