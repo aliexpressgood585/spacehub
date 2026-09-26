@@ -367,6 +367,17 @@ DEPLOYED: commit 36c48e56, function v76, migration applied, 0 bot_errors, trail 
 LIVE since the reset (17:13): JUP -$6.72 (1x), GRASS LONG 50x +$1,179.09 (TARGET, +1.85R), RAYSOL LONG 50x -$714.74
 (STOP); FIL + HYPE still open at 1x. ROLLBACK: set FAST_TRAIL.on false.
 
+## 2026-09-26 ~21:45 UTC — the 20 v95.8 trades dissected + their "patterns" tested on 12 months (owner: "what would we do not to lose, learn from the winners")
+LIVE 20 (6 W / 14 L, −$1,772): 6 losers were stopped within 0-1 minute of entry (SEI, SPELL, GALA, FARTCOIN, UNI, LDO) =
+entry at the top of the burst; 5 of 6 extreme-volume entries (vol >= 10x) lost; stops at the 0.30% floor; longs 3/7 won,
+shorts 3/13. Winners needed 1-10 min to reach 1.5R.
+TESTED ON 12 MONTHS OF 1m DATA (backtest/research/v95_9_fast_patterns_1m.ts -> status/fast-patterns-1m.txt), fixed 1.5R,
+full costs, IS 70% / OOS 30%: baseline −0.177%/trade OOS | vol < 8x −0.171 | climax >= 8x −0.205 | LONG only −0.166 |
+SHORT only −0.188 | stop floor 0.6% −0.179 | stop 4 ATR −0.184 | FADE (opposite side) −0.167 | wait one 1m confirmation bar
+−0.169. EVERY variant ≈ −0.17%/trade: gross ≈ 0 and the round trip (fees + spread + slip ≈ 0.17%) is the whole loss.
+The live "patterns" are noise at n=20 — none moves the 12-month result. At 50x one trade ≈ −8.5% of its margin ≈ −3% of the
+account on average. NOTHING DEPLOYED; options put to the owner (stop FAST / lower leverage / move to the 4h momentum family).
+
 ## 2026-09-26 21:31 UTC — check-in (routine "v95.0 FAST first 3h check", written for the 17:13 era; answered for v95.8)
 LIVE: sha 5fbe6e7f (v95.8 fixed stop/1.5R target + PR #76 "fresh-v1" entry revalidation from the other session, merged into
 main before the v95.8 deploy), 0 bot_errors in 1h, fast_cycle every ~5 s, 99/99 pairs, fill_model aggTrades+book_walk.
