@@ -1,0 +1,85 @@
+# quant/ — Chan-style research + execution stack. Every number here is a default; the code reads nothing else.
+mode: backtest            # backtest | testnet | live.  'live' is refused unless the manual-approval gate passes
+                          # (execution/gate.py). Nothing ever switches mode automatically.
+
+exchange:
+  id: binanceusdm
+  paper_venue: testnet    # testnet (testnet.binancefuture.com) | demo (Binance Demo Trading, demo-fapi.binance.com)
+  live_approved: false    # flip by hand only, after Phase 2. Also requires env QUANT_LIVE_APPROVAL (see gate.py)
+  recv_window_ms: 5000
+  order_timeout_s: 20     # a market order not fully filled after this is reconciled (partial fill handling)
+
+universe: [BTC, ETH, SOL, BNB, XRP, DOGE, ADA, AVAX, LINK, DOT]
+
+data:
+  dir: ../backtest/data   # Binance USDT-M archives (data.binance.vision): {SYM}-{tf}.csv klines, {SYM}-funding.csv
+
+costs:
+  taker_fee: 0.0005       # Binance USDT-M VIP0 taker
+  maker_fee: 0.0002       # Binance USDT-M VIP0 maker
+  slippage:               # per MARKET fill, adverse: base + range_frac x previous bar's (high-low)/close
+    base_bps: {BTC: 1.0, ETH: 1.0, default: 3.0}
+    range_frac: 0.05
+  funding: archive        # the real 8h funding prints from the archive, sign-correct
+
+risk:
+  kelly_fraction: 0.5     # half-Kelly
+  risk_per_trade_cap: 0.01
+  kelly_min_trades: 30    # below this many past trades of the strategy, use default_risk
+  default_risk: 0.0025
+  max_leverage: 3
+  daily_loss_limit: 0.03  # realised loss >= 3% of the UTC day's opening equity -> no entries until 00:00 UTC
+  max_drawdown_kill: 0.10 # equity 10% below its peak -> close everything, halt (manual restart only)
+  max_consecutive_losses: 5   # -> no entries until 00:00 UTC
+  max_open_positions: 5
+  min_stop_to_cost: 3.0     # refuse a trade whose stop is closer than 3x its own round-trip cost (it cannot pay)
+
+strategies:
+  mean_reversion:
+    enabled: true
+    stat_window: {5m: 2016, 1m: 2880}      # bars used for ADF / Hurst / half-life (7 days of 5m, 2 days of 1m)
+    recompute_every: {5m: 288, 1m: 1440}   # re-estimate once a day (uses only bars already closed)
+    adf_pvalue: 0.05
+    hurst_max: 0.45
+    halflife_min: 5
+    halflife_max: 300
+    max_hold_halflives: 3
+    grid:
+      entry_z: [1.5, 2.0, 2.5]
+      exit_z: [0.0, 0.5]
+      stop_z: [3.5]
+      scale_in: [false, true]              # linear scaling-in: layers at entry_z, entry_z+0.5, entry_z+1.0
+  momentum:
+    enabled: true
+    sig_window: {5m: 4032, 1m: 4320}       # bars used to test whether past returns predict future returns
+    recompute_every: {5m: 288, 1m: 1440}
+    t_min: 2.0
+    stop_atr: 2.0
+    grid:
+      kind: [tsmom, breakout]
+      lookback: [12, 48, 144]
+      hold: [12, 48]
+  regime:
+    enabled: true
+    window: {5m: 2016, 1m: 2880}
+    recompute_every: {5m: 288, 1m: 1440}
+    hurst_mr: 0.45
+    hurst_trend: 0.55
+    vol_pct_high: 0.90                     # realised vol above its trailing 90th percentile = high-vol -> flat
+
+backtest:
+  holdout_frac: 0.20        # the last 20% of the timeline is read ONCE, after every choice is frozen
+  wf_train_days: {5m: 180, 1m: 90}
+  wf_test_days: {5m: 60, 1m: 30}
+  initial_equity: 10000
+
+gates:
+  phase1: {min_sharpe: 1.5, max_drawdown: 0.15, min_trades: 200}
+  phase2: {min_days: 21}
+
+alerts:
+  telegram: true            # needs env TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID; silently disabled without them
+
+journal:
+  sqlite: reports/journal.sqlite
+  csv_dir: reports/journal
