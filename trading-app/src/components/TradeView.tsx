@@ -101,13 +101,15 @@ export default function TradeView({ id }: { id: string }) {
       v.setData(k.map((b) => { const buy = Number.isFinite(b.tb) && b.v > 0 ? b.tb / b.v : 0.5; return { time: T(b.t), value: b.v, color: buy >= 0.5 ? `rgba(0,212,146,${0.25 + Math.min(0.6, (buy - 0.5) * 3)})` : `rgba(255,77,106,${0.25 + Math.min(0.6, (0.5 - buy) * 3)})` } }))
       const em = ema(k.map((b) => b.c), 20); e.setData(k.map((b, i) => ({ time: T(b.t), value: em[i] })).slice(20))
       const bar = TF_MS[tf], open = Date.parse(t.opened_at), dir = t.side === 'LONG' ? 1 : -1
-      const mk: SeriesMarker<Time>[] = [{ time: T(Math.floor(open / bar) * bar), position: dir > 0 ? 'belowBar' : 'aboveBar', color: C.acc, shape: dir > 0 ? 'arrowUp' : 'arrowDown', text: `כניסה ${dir > 0 ? 'LONG' : 'SHORT'}` }]
-      if (t.strategy === 'FAST') mk.unshift({ time: T(Math.floor(open / bar) * bar - bar), position: dir > 0 ? 'aboveBar' : 'belowBar', color: C.warn, shape: 'circle', text: 'נר האות' })
-      if (t.closed_at) mk.push({ time: T(Math.floor(Date.parse(t.closed_at) / bar) * bar), position: dir > 0 ? 'aboveBar' : 'belowBar', color: C.warn, shape: 'square', text: `יציאה ${t.scalp_meta?.exit_reason ?? ''}` })
+      const mk: SeriesMarker<Time>[] = [{ time: T(Math.floor(open / bar) * bar), position: dir > 0 ? 'belowBar' : 'aboveBar', color: C.acc, shape: dir > 0 ? 'arrowUp' : 'arrowDown', text: 'כניסה' }]
+      if (t.strategy === 'FAST') mk.unshift({ time: T(Math.floor(open / bar) * bar - bar), position: dir > 0 ? 'aboveBar' : 'belowBar', color: C.warn, shape: 'circle', text: 'אות' })
+      if (t.closed_at) { const xp = Number(t.exit_price), up = xp >= Number(t.entry_price)   // the exit sits on the side the price went
+        mk.push({ time: T(Math.floor(Date.parse(t.closed_at) / bar) * bar), position: up ? 'aboveBar' : 'belowBar', color: C.warn, shape: up ? 'arrowDown' : 'arrowUp', text: ({ STOP: 'סטופ', TARGET: 'יעד', TIMEOUT: 'זמן' } as Record<string, string>)[t.scalp_meta?.exit_reason] ?? 'יציאה' }) }
       c.setMarkers(mk.sort((a, b) => Number(a.time) - Number(b.time)))
       setLast(k[k.length - 1].c)
     }
-    ;(async () => { try { const r = await klines(sym, tf, 300); if (!alive) return; setSrc(r.src); paint(r.k); ch.timeScale().setVisibleLogicalRange({ from: Math.max(0, r.k.length - 90), to: r.k.length + 6 }) } catch { setErr('אין נרות מ־Binance או OKX') } })()
+    ;(async () => { try { const r = await klines(sym, tf, 300); if (!alive) return; setSrc(r.src); paint(r.k); { const bar = TF_MS[tf], e0 = Math.floor(Date.parse(t.opened_at) / bar) * bar, ie = Math.max(0, r.k.findIndex((b) => b.t >= e0)), ix = t.closed_at ? r.k.findIndex((b) => b.t >= Math.floor(Date.parse(t.closed_at) / bar) * bar) : -1
+      ch.timeScale().setVisibleLogicalRange({ from: Math.max(0, ie - 30), to: (ix >= 0 ? Math.max(ix + 12, ie + 20) : Math.max(r.k.length, ie + 20)) + 3 }) } } catch { setErr('אין נרות מ־Binance או OKX') } })()
     const tick = setInterval(async () => { try { const r = await klines(sym, tf, 300); if (alive) { setSrc(r.src); paint(r.k) } } catch { /* keep last */ } }, 2500)
     return () => { alive = false; clearInterval(tick); ch.remove(); chart.current = null }
   }, [t?.id, t?.closed_at, lv?.stop, lv?.target, tf, sym])
@@ -128,11 +130,11 @@ export default function TradeView({ id }: { id: string }) {
       </header>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8 }}>
         {stat(isOpen ? 'רווח/הפסד עכשיו' : 'רווח/הפסד סופי', Number.isFinite(upnl) ? `${usd(upnl)} (${pct(upnl / notional * 100)})` : '—', upnl >= 0 ? C.pos : C.neg)}
-        {stat('מחיר עכשיו', fmt(mark))}
+        {stat(isOpen ? 'מחיר עכשיו' : 'מחיר יציאה', fmt(mark))}
         {stat('כניסה', fmt(lv.entry), C.acc)}
         {stat('סטופ', Number.isFinite(lv.stop) ? `${fmt(lv.stop)} (${pct(dir * (lv.stop - mark) / mark * 100)})` : 'אין', C.neg)}
         {stat('יעד', Number.isFinite(lv.target) ? `${fmt(lv.target)} (${pct(dir * (lv.target - mark) / mark * 100)})` : 'אין', C.pos)}
-        {stat('R עכשיו', Number.isFinite(rNow) ? `${rNow >= 0 ? '+' : ''}${rNow.toFixed(2)}R` : '—', rNow >= 0 ? C.pos : C.neg)}
+        {stat(isOpen ? 'R עכשיו' : 'R סופי', Number.isFinite(rNow) ? `${rNow >= 0 ? '+' : ''}${rNow.toFixed(2)}R` : '—', rNow >= 0 ? C.pos : C.neg)}
         {stat('גודל', `$${notional.toFixed(0)}`)}
         {stat(isOpen ? 'זמן בעסקה / מקסימום' : 'משך', Number.isFinite(lv.holdMs) ? `${mmss(held)} / ${mmss(lv.holdMs)}` : mmss(held))}
       </div>
