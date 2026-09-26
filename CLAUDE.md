@@ -364,6 +364,7 @@ BRKV short-only: runner evaluates every 4h window cleanly (last 16:00 bar: 0 fai
 the only signals were LONG (16:00: DYDX, FIL, RUNE), skipped by design. No trades, so nothing to judge yet.
 NB the check-ins at 19:35/23:35/05:35/11:35 fired but were not acted on at the time (my miss); this is the catch-up.
 The 04:30 "PRE-ARM ROTA kill-switch" routine is OBSOLETE (v62.0 era): the v83+ ROTA runner has no last-30 kill-switch.
+DELETED 2026-09-26 16:25 UTC on the owner's "כן תמחק" (trig_01PmK1Zjf7EowX8USYa12KNQ). Live at 16:19: equity $4,809.95, 4 ROTA open, 0 BRKV, 0 errors.
 **v109bt RESULT — BRKV short-only on the 219 perps v108bt never saw, 72m (a genuine cross-coin holdout):**
     ALL shorts  n=8,868  WR 40.9%  **+0.319%/trade**  t(daily) 0.86
     by year: 2020 -0.22 | 2021 **-1.35** | 2022 +0.45 | 2023 -0.32 | 2024 +0.82 | 2025 +0.23 | 2026 +0.46
