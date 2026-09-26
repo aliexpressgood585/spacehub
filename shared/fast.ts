@@ -64,7 +64,8 @@ export function fastSignal(b: LBar[], btcUp: boolean | null, isBtc: boolean): Fa
 // target -0.184% PF 0.42 (1st half -0.196, 2nd half -0.174 — better in BOTH halves) | 3R + trail -0.194 | BE + 3R -0.194.
 // A consistent but small improvement; the rule still loses after costs. No fixed target: the far "target" (10R) only
 // exists because the ledger requires levels on both sides; the exit is the trailing stop or the time limit.
-export const FAST_TRAIL = { on: true, afterR: 1, distR: 1, farTargetR: 10 } as const
+// v95.8 (owner, 2026-09-26): trailing OFF — fixed stop and fixed 1.5R take-profit set at entry (FAST.targetR).
+export const FAST_TRAIL = { on: false, afterR: 1, distR: 1, farTargetR: 10 } as const
 // stop and target from the entry fill
 export function fastLevels(dir: 1 | -1, entry: number, atr: number) {
   const r = Math.max(FAST.stopAtr * atr, entry * FAST.stopMinPct)

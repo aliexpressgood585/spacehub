@@ -367,6 +367,13 @@ DEPLOYED: commit 36c48e56, function v76, migration applied, 0 bot_errors, trail 
 LIVE since the reset (17:13): JUP -$6.72 (1x), GRASS LONG 50x +$1,179.09 (TARGET, +1.85R), RAYSOL LONG 50x -$714.74
 (STOP); FIL + HYPE still open at 1x. ROLLBACK: set FAST_TRAIL.on false.
 
+## v95.8 (2026-09-26 ~19:45 UTC) — ACCOUNT RESET to $5,000 + FAST fixed stop / fixed 1.5R target (owner: "reset, fixed stop, not trailing, TP")
+`FAST_TRAIL.on = false`: stop and 1.5R take-profit fixed at entry (FAST.targetR); everything else unchanged (rt mode, 50x,
+liquidity cap, cooldown, aggTrades fills). Commit 5fbe6e7f, function v81. RESET under the bot_state lock: archive tables
+`archive_v95era_bot_trades` (17) / `archive_v95era_bot_equity` (137), git summary migration/export-v95era/; era closed 16,
+realised −$1,832.33 (ETH #662 open at reset, archived as open). bot_trades/equity/snapshots cleared, balance + peak 5000,
+halt cleared, scalp day/peak/pause keys removed.
+
 ## v95.7 (2026-09-26) — FAST liquidity cap + close-based cooldown (owner: "כן" to both recommendations; leverage unchanged 50x)
 - `liqCap()` + `FAST_LIQ.impactOfR 0.25` (shared/fast.ts): the notional is capped so that walking the real Binance book (depth
   limit 100) costs at most 25% of the stop distance on the ENTRY side AND on the side the exit will hit, and never goes beyond

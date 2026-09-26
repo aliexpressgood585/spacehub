@@ -43,6 +43,7 @@ run "breakout BRKV v93"     tests/breakout.test.ts
 run "lab v94 (research grid + LAB sleeve)" tests/lab.test.ts
 run "lab runner v94 (paper replay)" tests/lab-runner.test.ts
 run "fast v95 (all-in intraday)" tests/fast.test.ts
+run "fast fresh entry"       tests/fast-entry.test.ts
 run "gym"                   tests/gym.test.ts
 run "costs + profit gate"   tests/costs.test.ts
 run "opportunity v87 (aggressive demo)" tests/opportunity.test.ts
@@ -94,6 +95,7 @@ tc() {
 tc shared/strategy.ts
 tc shared/lab.ts
 tc shared/fast.ts
+tc shared/fast-entry.ts
 tc backtest/backtest.ts
 tc backtest/portfolio.ts
 tc supabase/functions/trading-bot/index.ts
