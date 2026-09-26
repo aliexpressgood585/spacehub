@@ -40,6 +40,19 @@ function Reasons({ t }: { t: Row }) {
       <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}><b>{title}</b><span dir="ltr" style={{ color: C.acc, fontVariantNumeric: 'tabular-nums' }}>{value}</span></div>
         <div style={{ color: C.dim, fontSize: 13, marginTop: 2 }}>{rule}</div><div style={{ fontSize: 13, marginTop: 4 }}>{explain}</div></div>
     </div>)
+  if (t.strategy === 'FAST' && m.fast?.mode === 'wyckoff') {
+    const f = m.fast, w = f.wyckoff ?? {}, ck = Object.fromEntries((f.checks ?? []).map((c: any) => [c.k, c]))
+    const ok = (k: string) => ck[k]?.ok === true, px = (x: unknown) => (Number.isFinite(Number(x)) ? Number(x).toPrecision(6) : '—')
+    return <>
+      {row(ok('range'), '1. טווח מסחר (דשדוש)', `${Number(w.height).toFixed(1)} ATR`, 'תנאי: 48 הנרות האחרונים (4 שעות) בטווח של עד 12 ATR — שוק בצבירה/פיזור, לא במגמה',
+        `הטווח: ${px(w.lo)} עד ${px(w.hi)}.`)}
+      {row(ok('spring'), side > 0 ? '2. ספרינג — ניעור מתחת לתחתית' : '2. אפ־ת׳ראסט — פריצת שווא מעל התקרה', `${Number(f.z).toFixed(2)} ATR`, side > 0 ? 'תנאי: הנר ירד מתחת לתחתית הטווח' : 'תנאי: הנר עלה מעל תקרת הטווח',
+        `הקצה של הנר: ${px(w.ext)}. לפי וויקוף — ניעור של סטופים לפני תנועה ${side > 0 ? 'למעלה' : 'למטה'}.`)}
+      {row(ok('reclaim'), '3. חזרה לתוך הטווח', side > 0 ? `סגירה מעל ${px(w.lo)}` : `סגירה מתחת ${px(w.hi)}`, 'תנאי: הנר נסגר בחזרה בתוך הטווח', 'הפריצה נכשלה — הצד השני לא הצליח להחזיק את המחיר מחוץ לטווח.')}
+      {row(ok('volume'), '4. נפח נמוך בניעור', `×${Number(f.vol_ratio).toFixed(2)}`, 'תנאי: נפח הנר מתחת לממוצע הטווח', side > 0 ? 'אין היצע אמיתי — מעט מוכרים דחפו מתחת לתחתית.' : 'אין ביקוש אמיתי — מעט קונים דחפו מעל התקרה.')}
+      <div style={{ color: C.dim, fontSize: 12, marginTop: 8 }}>ערכים שנשמרו ברגע הכניסה (נר {String(f.bar ?? '').slice(11, 19)} UTC) · סטופ מעבר לקצה הניעור ({px(w.stop_px)}), יעד 1.5R, עד 8 שעות · בבדיקה היסטורית (36 חודשים) הכלל הפסיד כ־0.16% לעסקה אחרי עלויות — ניסוי דמו</div>
+    </>
+  }
   if (t.strategy === 'FAST' && m.fast) {
     const f = m.fast, z = Number(f.z), vr = Number(f.vol_ratio), imb = Number(f.imb), rtm = f.mode === 'rt', zMin = rtm ? 2 : 1.5
     // v95.6: the verdict is the ENGINE's (stored at entry with the raw values). Older rows stored values rounded to 2-3

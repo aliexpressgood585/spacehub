@@ -150,3 +150,35 @@ export function liqCap(entrySide: [number, number][], exitSide: [number, number]
   }
   return Math.min(one(entrySide), one(exitSide))
 }
+// v96.1 WYCKOFF intraday (owner, 2026-09-26: "trade Wyckoff intraday, reset, keep the leverage, let's see").
+// The codeable core of a Wyckoff trade on COMPLETED 5m bars: a SPRING (long) / UPTHRUST (short) out of a trading range.
+//  1. range  = the 48 bars (4h) before the signal bar; it must be a range, not a trend: height <= 12 ATR
+//  2. spring = the signal bar trades BELOW the range low and CLOSES back inside it (upthrust: above the high, back inside)
+//  3. no supply / no demand: the spring bar's volume is BELOW the range's average volume (classic Wyckoff spring)
+// Entry at market after the close; stop just beyond the spring extreme (0.1 ATR buffer, floor 0.3%); target 1.5R; out
+// after 8h. Phase labels (PS/SC/AR/ST/SOS/LPS) are NOT coded: they are not objectively definable (see CLAUDE.md v84bt).
+// TESTED BEFORE BUILDING (backtest/research/v96_1_wyckoff.ts): 5m / 10 coins / 36m and 15m / 40 coins / 36m, IS 70% ->
+// OOS 30%, taker 5 bps/side + slippage. Every variant (range 4h/8h, any / low / climax volume, 1.5R / range target)
+// LOSES about -0.15 .. -0.21% per trade in-sample AND out-of-sample (this exact rule: 5m OOS -0.156%, n 7,306, WR 33%).
+// Same shape as FAST: gross ~0, the round trip is the loss. Built on the owner's instruction, labelled NOT VALIDATED.
+export const WYCKOFF = { rangeBars: 48, maxHeightAtr: 12, maxVolRatio: 1, bufferAtr: 0.1, holdMin: 480 } as const
+export interface WyckoffSig extends FastSig { lo: number; hi: number; height: number; ext: number; stopPx: number }
+export function wyckoffSignal(b: LBar[]): WyckoffSig | null {
+  const i = b.length - 1, N = WYCKOFF.rangeBars
+  if (i < N + 20) return null
+  const I = labInd(b), A = I.atr[i - 1]
+  if (!(A > 0)) return null
+  let hi = -Infinity, lo = Infinity, vs = 0
+  for (let k = i - N; k < i; k++) { hi = Math.max(hi, b[k].high); lo = Math.min(lo, b[k].low); vs += b[k].vol }
+  const height = (hi - lo) / A, av = vs / N, x = b[i], volRatio = av > 0 ? x.vol / av : NaN
+  if (!(height <= WYCKOFF.maxHeightAtr) || !(volRatio < WYCKOFF.maxVolRatio)) return null
+  let dir: 1 | -1
+  if (x.low < lo && x.close > lo) dir = 1
+  else if (x.high > hi && x.close < hi) dir = -1
+  else return null
+  const ext = dir > 0 ? x.low : x.high, stopPx = ext - dir * WYCKOFF.bufferAtr * A
+  const dist = dir * (x.close - stopPx)
+  if (!(dist > 0)) return null
+  // z = how far the spring pierced the range, in ATR; strength ranks the tightest ranges first
+  return { dir, z: dir * (dir > 0 ? lo - ext : ext - hi) / A, volRatio, imb: 0, atr: dist, strength: 1 / height, lo, hi, height, ext, stopPx }
+}
