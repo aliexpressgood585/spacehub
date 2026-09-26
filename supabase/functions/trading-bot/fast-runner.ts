@@ -3,13 +3,13 @@
 // 'universe', pinned 40 as fallback), rank the signals, enter the strongest within the 5-open / 20-per-day limits.
 // Books through `fast_commit_cycle` (paper 1x; caps enforced again in SQL). Decisions go to trade_decisions.
 import * as S from '../../../shared/strategy.ts'
-import { FAST, fastSignal, fastLevels, fastExit, fastLiq } from '../../../shared/fast.ts'
+import { FAST, FAST_RT, fastSignal, fastSignalRT, fastLevels, fastExit, fastLiq } from '../../../shared/fast.ts'
 import { labInd, slipFor, type LBar } from '../../../shared/lab.ts'
 import { json, pool } from './rota-runner.ts'
 type Pair = { sym: string; s: string; k: number }
 const g = () => globalThis as any
 export function fastConfig() { const x = Number(g().__FAST_SHARE), l = Number(g().__FAST_LEV)
-  return { share: Number.isFinite(x) && x > 0 ? Math.min(1, Math.max(0.05, x)) : 1, lev: Number.isFinite(l) && l >= 1 ? Math.min(FAST.levMax, Math.floor(l)) : FAST.levDefault } }
+  return { share: Number.isFinite(x) && x > 0 ? Math.min(1, Math.max(0.05, x)) : 1, lev: Number.isFinite(l) && l >= 1 ? Math.min(FAST.levMax, Math.floor(l)) : FAST.levDefault, mode: String(g().__FAST_MODE ?? 'rt') === 'bar' ? 'bar' as const : 'rt' as const } }
 async function universe(db: any): Promise<Pair[]> {
   try {
     const { data } = await db.from('market_cache').select('data').eq('key', 'universe').throwOnError()
@@ -21,6 +21,11 @@ async function universe(db: any): Promise<Pair[]> {
 async function bars5m(p: Pair, now: number): Promise<LBar[]> {
   const r = await json(`https://fapi.binance.com/fapi/v1/klines?symbol=${p.s}&interval=5m&limit=80`)
   return r.filter((x: any) => Number(x[6]) < now).map((x: any) => ({ t: +x[0], open: +x[1] / p.k, high: +x[2] / p.k, low: +x[3] / p.k, close: +x[4] / p.k, vol: +x[5] * p.k, tb: +x[9] * p.k }))
+}
+// 1m klines INCLUDING the forming minute (real-time mode)
+async function bars1mLive(p: Pair): Promise<LBar[]> {
+  const r = await json(`https://fapi.binance.com/fapi/v1/klines?symbol=${p.s}&interval=1m&limit=45`)
+  return r.map((x: any) => ({ t: +x[0], open: +x[1] / p.k, high: +x[2] / p.k, low: +x[3] / p.k, close: +x[4] / p.k, vol: +x[5] * p.k, tb: +x[9] * p.k }))
 }
 async function quoteP(p: Pair) {
   const d = await json(`https://fapi.binance.com/fapi/v1/depth?symbol=${p.s}&limit=5`)
@@ -43,25 +48,33 @@ export async function runFast(db: any, state: any, lease: string, paper: boolean
       const q = await quoteP(pairOf(t.sym)), dir = t.side === 'LONG' ? 1 : -1, m = t.scalp_meta?.fast
       const mark = dir > 0 ? q.bid : q.ask; marks[t.sym] = mark
       const lev = Math.max(1, Number(t.lev) || 1), liq = fastLiq(dir as 1 | -1, Number(t.entry_price), lev)
-      const why = m ? fastExit(dir as 1 | -1, Number(m.stop), Number(m.target), mark, now - Date.parse(t.opened_at), liq) : null
+      const why = m ? fastExit(dir as 1 | -1, Number(m.stop), Number(m.target), mark, now - Date.parse(t.opened_at), liq, (Number(m.hold_min) || FAST.holdBars * 5) * 60_000) : null
       // a liquidation settles at the liquidation price (the exchange takes the whole isolated margin), not at the mark
       if (why) closes.push({ id: t.id, price: why === 'LIQUIDATION' ? liq : mark * (1 - dir * slipFor(t.sym)), reason: why, quote_ts: q.ts })
     } catch { /* no quote: held until the next cycle */ }
   })
   // entries: once per completed 5m bar
-  const bar = Math.floor(now / FAST.barMs) * FAST.barMs, done = Number(params.fast_bar) || 0
-  const due = bar > done && now - bar <= FAST.entryWindowMs && !state.hard_halt_at
+  // bar mode: once per completed 5m bar; real-time mode: a fresh scan every FAST_RT.scanEveryMs (fast_bar = last scan time)
+  const done = Number(params.fast_bar) || 0
+  const bar = cfg.mode === 'bar' ? Math.floor(now / FAST.barMs) * FAST.barMs : now
+  const due = (cfg.mode === 'bar' ? bar > done && now - bar <= FAST.entryWindowMs : now - done >= FAST_RT.scanEveryMs) && !state.hard_halt_at
   if (!due && !closes.length) return { changed: false, open: mine.length }
   const entries: any[] = [], decisions: any[] = [], failed: string[] = []
   let scanned = 0
   if (due) {
     const data = new Map<string, LBar[]>()
-    await pool(pairs, 10, async (p) => { try { const b = await bars5m(p, now); if (b.length && b[b.length - 1].t + FAST.barMs === bar) data.set(p.sym, b); else failed.push(p.sym) } catch { failed.push(p.sym) } })
+    const rt = cfg.mode === 'rt'
+    await pool(pairs, 12, async (p) => { try {
+      const b = rt ? await bars1mLive(p) : await bars5m(p, now)
+      if (rt ? b.length >= 40 && now - b[b.length - 1].t < 120_000 : b.length && b[b.length - 1].t + FAST.barMs === bar) data.set(p.sym, b); else failed.push(p.sym) } catch { failed.push(p.sym) } })
     scanned = data.size
     const btc = data.get('BTC'); let btcUp: boolean | null = null
-    if (btc) { const bi = labInd(btc), k = btc.length - 1; if (bi.ema20[k] > 0) btcUp = btc[k].close > bi.ema20[k] }
+    if (btc) { const bb = rt ? btc.slice(0, -1) : btc, bi = labInd(bb), k = bb.length - 1; if (bi.ema20[k] > 0) btcUp = bb[k].close > bi.ema20[k] }
+    // real-time: one entry per coin per FAST_RT.cooldownMs
+    const recent = new Set<string>()
+    if (rt) { const { data: rr } = await db.from('bot_trades').select('sym').eq('strategy', 'FAST').gte('opened_at', new Date(now - FAST_RT.cooldownMs).toISOString()); for (const x of rr ?? []) recent.add(String(x.sym)) }
     const sigs: { sym: string; sig: NonNullable<ReturnType<typeof fastSignal>> }[] = []
-    for (const [sym, b] of data) { const sg = fastSignal(b, btcUp, sym === 'BTC'); if (sg) sigs.push({ sym, sig: sg }) }
+    for (const [sym, b] of data) { if (recent.has(sym)) continue; const sg = rt ? fastSignalRT(b, btcUp, sym === 'BTC') : fastSignal(b, btcUp, sym === 'BTC'); if (sg) sigs.push({ sym, sig: sg }) }
     sigs.sort((a, b) => b.sig.strength - a.sig.strength)
     const dayStart = new Date(now); dayStart.setUTCHours(0, 0, 0, 0)
     const { count: today } = await db.from('bot_trades').select('id', { count: 'exact', head: true }).eq('strategy', 'FAST').gte('opened_at', dayStart.toISOString())
@@ -80,12 +93,12 @@ export async function runFast(db: any, state: any, lease: string, paper: boolean
       const margin = Math.min(equity * FAST.perTrade * cfg.share, cash / (1 + cfg.lev * 0.0005)), notional = margin * cfg.lev
       if (margin < 5) { rec('rejected', 'no_cash'); continue }
       entries.push({ sym, side, price: px, notional, lev: cfg.lev, quote_ts: q.ts, source: q.source,
-        fast: { stop: lv.stop, target: lv.target, r: lv.r, stop_pct: lv.r / px, lev: cfg.lev, margin, liq: fastLiq(sig.dir, px, cfg.lev), hold_min: FAST.holdBars * 5, z: +sig.z.toFixed(2), vol_ratio: +sig.volRatio.toFixed(2), imb: +sig.imb.toFixed(3), btc_up: btcUp, spread_bps: +((q.ask - q.bid) / ((q.ask + q.bid) / 2) * 1e4).toFixed(2), bar: new Date(bar).toISOString() } })
+        fast: { stop: lv.stop, target: lv.target, r: lv.r, stop_pct: lv.r / px, lev: cfg.lev, margin, liq: fastLiq(sig.dir, px, cfg.lev), mode: cfg.mode, hold_min: rt ? FAST_RT.holdMin : FAST.holdBars * 5, z: +sig.z.toFixed(2), vol_ratio: +sig.volRatio.toFixed(2), imb: +sig.imb.toFixed(3), btc_up: btcUp, spread_bps: +((q.ask - q.bid) / ((q.ask + q.bid) / 2) * 1e4).toFixed(2), bar: new Date(bar).toISOString() } })
       rec('accepted', 'taken', { notional })
       held.add(sym); openN++; dayN++; cash -= margin + notional * 0.0005
     }
   }
-  const note = { bar: new Date(bar).toISOString(), due, scanned, universe: pairs.length, failed: failed.length, signals: decisions.length, opened: entries.length, closed: closes.length }
+  const note = { mode: cfg.mode, bar: new Date(bar).toISOString(), due, scanned, universe: pairs.length, failed: failed.length, signals: decisions.length, opened: entries.length, closed: closes.length }
   const { data: result } = await db.rpc('fast_commit_cycle', { p_lease: lease, p_closes: closes, p_entries: entries, p_marks: marks, p_share: cfg.share, p_note: note, p_bar: due ? new Date(bar).toISOString() : null }).throwOnError()
   if (decisions.length) {
     try { await db.from('trade_decisions').insert(decisions.slice(0, 100).map((d, k) => ({ sym: d.sym, side: d.side, decision: d.decision, reason: d.reason, rank: k + 1, notional: d.notional ?? null, score: +(Math.abs(d.z) * d.volRatio).toFixed(3),

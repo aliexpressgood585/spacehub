@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { FAST, fastSignal, fastLevels, fastExit, fastLiq } from '../shared/fast.ts'
+import { FAST, FAST_RT, fastSignal, fastSignalRT, fastLevels, fastExit, fastLiq } from '../shared/fast.ts'
+;(globalThis as any).__FAST_MODE = 'bar'   // the runner replay below exercises the 5m-close mode; real-time is unit-tested here
 import { runFast } from '../supabase/functions/trading-bot/fast-runner.ts'
 import type { LBar } from '../shared/lab.ts'
 // v95.0 FAST — the owner's all-in intraday rule + a paper replay of the live path
@@ -20,6 +21,14 @@ assert.ok(fastSignal(series(1), null, true), 'BTC itself skips the BTC condition
 assert.equal(fastSignal(series(1).map((b) => ({ ...b, tb: NaN })), true, false), null, 'no taker data = no trade (never inferred)')
 const lv = fastLevels(1, 100, 0.1); assert.equal(lv.r, 0.3, 'stop floored at 0.3%'); assert.ok(Math.abs(lv.target - 100.45) < 1e-9)
 assert.equal(fastExit(1, 99.7, 100.45, 99.6, 0), 'STOP'); assert.equal(fastExit(-1, 100.3, 99.55, 99.5, 0), 'TARGET'); assert.equal(fastExit(1, 99.7, 100.45, 100.1, 12 * M5), 'TIMEOUT')
+// real-time mode: the forming minute counts
+const rt = (burst: 1 | -1 | 0, buyers = 0.8): LBar[] => { const out: LBar[] = []; let px = 100
+  for (let i = 44; i >= 0; i--) { const o = px; const hot = i < 3 && burst !== 0; px = o * (hot ? 1 + burst * 0.004 : 1 + (((i * 7) % 5) - 2) * 0.0002)
+    const v = hot ? 3000 : 1000; out.push({ t: i, open: o, high: Math.max(o, px) * 1.0002, low: Math.min(o, px) * 0.9998, close: px, vol: v, tb: hot ? v * (burst > 0 ? buyers : 1 - buyers) : v / 2 }) }
+  return out }
+const r1 = fastSignalRT(rt(1), true, false); assert.ok(r1 && r1.dir === 1 && r1.volRatio >= 2, 'real-time: a burst in the last 3 minutes incl. the forming one = LONG')
+assert.equal(fastSignalRT(rt(1), false, false), null, 'real-time: BTC against = nothing'); assert.equal(fastSignalRT(rt(0), true, false), null, 'real-time: no burst = nothing')
+assert.ok(fastSignalRT(rt(-1), false, false)?.dir === -1, 'real-time SHORT mirror'); assert.equal(FAST_RT.holdMin, 30); assert.equal(fastExit(1, 90, 110, 100, 30 * 60e3, 0, 30 * 60e3), 'TIMEOUT', 'hold comes from the trade')
 assert.ok(Math.abs(FAST.maxOpen * FAST.perTrade - 1) < 1e-12, 'three slots of margin = the whole account'); assert.equal(FAST.maxPerDay, 20)
 assert.ok(Math.abs(fastLiq(1, 100, 50) - 98.5) < 1e-9 && Math.abs(fastLiq(-1, 100, 50) - 101.5) < 1e-9, '50x isolated: liquidated 1.5% against (2% - 0.5% maintenance)')
 assert.equal(fastExit(1, 97, 103, 98.4, 0, fastLiq(1, 100, 50)), 'LIQUIDATION', 'a mark beyond the liquidation price liquidates before the stop')

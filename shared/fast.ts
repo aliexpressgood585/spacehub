@@ -18,6 +18,29 @@ import { labInd, type LBar } from './lab.ts'
 // its whole margin. Binance's real per-coin leverage caps (often 20-75x on alts) are NOT enforced here — INFERRED.
 export const FAST = { tf: '5m', barMs: 300_000, zMin: 1.5, volMult: 2, imbMin: 0.10, stopAtr: 1, stopMinPct: 0.003, targetR: 1.5, holdBars: 12,
   maxOpen: 3, perTrade: 1 / 3, maxPerDay: 20, entryWindowMs: 120_000, levDefault: 50, levMax: 100, maint: 0.005 } as const
+// v95.4 REAL-TIME mode (owner: "yes" to entries at any moment, not only at a 5m close). Evaluated every cycle (~5-10 s)
+// on 1m klines INCLUDING the minute still forming (Binance's forming bar carries its own taker-buy volume):
+//  1. the price now vs the close 3 minutes ago is > 2 ATR(1m) x sqrt(3) away
+//  2. volume of the last 3 minutes (2 closed + the forming one, NOT extrapolated) >= 2x the 3-minute average of the 20 closed
+//  3. taker imbalance over those 3 minutes beyond +/-0.10     4. BTC's last closed 1m bar on the same side of its EMA20
+// Stop 2 ATR(1m) (floor 0.3%), target 1.5R, out after 30 min; one entry per coin per 15 min. NOT BACKTESTED (no 1m archive
+// run was made — the owner asked for speed); same costs, same caps, same isolated leverage as the bar mode.
+export const FAST_RT = { zMin: 2, volMult: 2, imbMin: 0.10, stopAtr: 2, holdMin: 30, cooldownMs: 15 * 60_000, scanEveryMs: 10_000 } as const
+export function fastSignalRT(b: LBar[], btcUp: boolean | null, isBtc: boolean): FastSig | null {
+  const n = b.length
+  if (n < 40) return null
+  const closed = b.slice(0, -1), I = labInd(closed), k = closed.length - 1
+  const ap = I.atrPct[k], av = I.av20[k], cur = b[n - 1]
+  if (!(ap > 0) || !(av > 0) || !(cur.close > 0)) return null
+  const z = (cur.close / b[n - 4].close - 1) / (ap * Math.sqrt(3))
+  let v3 = 0, fb = 0
+  for (let j = n - 3; j < n; j++) { const tb = b[j].tb; if (tb === undefined || !Number.isFinite(tb)) return null; v3 += b[j].vol; fb += 2 * tb - b[j].vol }
+  if (!(v3 > 0)) return null
+  const volRatio = v3 / (3 * av), imb = fb / v3, dir: 1 | -1 = z > 0 ? 1 : -1
+  if (Math.abs(z) <= FAST_RT.zMin || volRatio < FAST_RT.volMult || dir * imb <= FAST_RT.imbMin) return null
+  if (!isBtc && (btcUp === null || (dir > 0) !== btcUp)) return null
+  return { dir, z, volRatio, imb, atr: FAST_RT.stopAtr * ap * cur.close, strength: Math.abs(z) * volRatio }
+}
 export const fastLiq = (dir: 1 | -1, entry: number, lev: number) => (lev > 1 ? entry * (1 - dir * (1 / lev - FAST.maint)) : dir > 0 ? 0 : Infinity)
 export interface FastSig { dir: 1 | -1; z: number; volRatio: number; imb: number; atr: number; strength: number }
 export function fastSignal(b: LBar[], btcUp: boolean | null, isBtc: boolean): FastSig | null {
@@ -42,11 +65,11 @@ export function fastLevels(dir: 1 | -1, entry: number, atr: number) {
   return { stop: entry - dir * r, target: entry + dir * FAST.targetR * r, r }
 }
 // live exit on an executable mark (bid for a long, ask for a short)
-export function fastExit(dir: 1 | -1, stop: number, target: number, mark: number, heldMs: number, liq = dir > 0 ? 0 : Infinity): 'LIQUIDATION' | 'STOP' | 'TARGET' | 'TIMEOUT' | null {
+export function fastExit(dir: 1 | -1, stop: number, target: number, mark: number, heldMs: number, liq = dir > 0 ? 0 : Infinity, holdMs: number = FAST.holdBars * FAST.barMs): 'LIQUIDATION' | 'STOP' | 'TARGET' | 'TIMEOUT' | null {
   if (!(mark > 0)) return null
   if (dir * (mark - liq) <= 0) return 'LIQUIDATION'
   if (dir * (mark - stop) <= 0) return 'STOP'
   if (dir * (mark - target) >= 0) return 'TARGET'
-  if (heldMs >= FAST.holdBars * FAST.barMs) return 'TIMEOUT'
+  if (heldMs >= holdMs) return 'TIMEOUT'
   return null
 }

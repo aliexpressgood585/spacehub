@@ -13,7 +13,7 @@ const C = { bg: '#04070E', card: '#0B1220', line: '#1E2A44', dim: '#8A97B2', tex
 const TF_MS: Record<string, number> = { '1m': 60e3, '5m': 300e3, '15m': 900e3, '1h': 3600e3, '2h': 7200e3, '4h': 14400e3 }
 const OKX_BAR: Record<string, string> = { '1m': '1m', '5m': '5m', '15m': '15m', '1h': '1H', '2h': '2H', '4h': '4H' }
 const bsym = (sym: string) => (sym === 'PEPE' ? { s: '1000PEPEUSDT', k: 1000 } : { s: `${sym}USDT`, k: 1 })
-const tfOf = (t: Row) => t.strategy === 'FAST' ? '5m' : t.strategy === 'LAB' ? String(t.scalp_meta?.lab?.tf ?? '1h') : t.strategy === 'SCALP' ? '1m' : t.strategy === 'BRKV' ? '4h' : t.strategy === 'ROTA' ? '1h' : '5m'
+const tfOf = (t: Row) => t.strategy === 'FAST' ? (t.scalp_meta?.fast?.mode === 'rt' ? '1m' : '5m') : t.strategy === 'LAB' ? String(t.scalp_meta?.lab?.tf ?? '1h') : t.strategy === 'SCALP' ? '1m' : t.strategy === 'BRKV' ? '4h' : t.strategy === 'ROTA' ? '1h' : '5m'
 const fmt = (x: number) => (!Number.isFinite(x) ? '—' : Math.abs(x) >= 1000 ? x.toFixed(2) : Number(x.toPrecision(5)).toString())
 const usd = (x: number) => `${x < 0 ? '−' : '+'}$${Math.abs(x).toFixed(2)}`
 const pct = (x: number, d = 2) => `${x < 0 ? '−' : '+'}${Math.abs(x).toFixed(d)}%`
@@ -40,17 +40,17 @@ function Reasons({ t }: { t: Row }) {
         <div style={{ color: C.dim, fontSize: 13, marginTop: 2 }}>{rule}</div><div style={{ fontSize: 13, marginTop: 4 }}>{explain}</div></div>
     </div>)
   if (t.strategy === 'FAST' && m.fast) {
-    const f = m.fast, z = Number(f.z), vr = Number(f.vol_ratio), imb = Number(f.imb)
+    const f = m.fast, z = Number(f.z), vr = Number(f.vol_ratio), imb = Number(f.imb), rtm = f.mode === 'rt', zMin = rtm ? 2 : 1.5
     return <>
-      {row(Math.abs(z) > 1.5 && Math.sign(z) === side, '1. קפיצת מחיר חדה', `z = ${z.toFixed(2)}`, 'תנאי: תנועה ב־3 הנרות האחרונים (15 דק׳) גדולה מפי 1.5 מהתנודה הרגילה',
+      {row(Math.abs(z) > zMin && Math.sign(z) === side, '1. קפיצת מחיר חדה', `z = ${z.toFixed(2)}`, rtm ? 'תנאי: המחיר ברגע הכניסה מול לפני 3 דקות — יותר מפי 2 מהתנודה הרגילה (בזמן אמת)' : 'תנאי: תנועה ב־3 הנרות האחרונים (15 דק׳) גדולה מפי 1.5 מהתנודה הרגילה',
         `המחיר זז ב${sideHe} בעוצמה של פי ${Math.abs(z).toFixed(1)} מהרגיל — מומנטום חזק לכיוון העסקה.`)}
-      {row(vr >= 2, '2. נפח מסחר חריג', `×${vr.toFixed(2)}`, 'תנאי: נפח הנר האחרון לפחות פי 2 מהממוצע של 20 הנרות',
+      {row(vr >= 2, '2. נפח מסחר חריג', `×${vr.toFixed(2)}`, rtm ? 'תנאי: נפח 3 הדקות האחרונות לפחות פי 2 מהרגיל' : 'תנאי: נפח הנר האחרון לפחות פי 2 מהממוצע של 20 הנרות',
         `נסחר פי ${vr.toFixed(1)} מהרגיל — הרבה כסף נכנס לתנועה הזאת, לא תזוזה "ריקה".`)}
-      {row(side * imb > 0.1, side > 0 ? '3. קונים אגרסיביים שולטים' : '3. מוכרים אגרסיביים שולטים', `${(imb * 100).toFixed(1)}%`, 'תנאי: פער בין קונים למוכרים בשוק (Taker) מעל 10% ב־3 הנרות',
+      {row(side * imb > 0.1, side > 0 ? '3. קונים אגרסיביים שולטים' : '3. מוכרים אגרסיביים שולטים', `${(imb * 100).toFixed(1)}%`, rtm ? 'תנאי: פער בין קונים למוכרים בשוק (Taker) מעל 10% ב־3 הדקות האחרונות' : 'תנאי: פער בין קונים למוכרים בשוק (Taker) מעל 10% ב־3 הנרות',
         `${side > 0 ? 'הקונים האגרסיביים' : 'המוכרים האגרסיביים'} (שקנו/מכרו במחיר השוק) היו ${((1 + side * imb) / 2 * 100).toFixed(0)}% מהנפח — נתון אמיתי מ־Binance.`)}
       {row(f.btc_up === null || f.btc_up === undefined ? t.sym === 'BTC' : (f.btc_up === true) === (side > 0), '4. ביטקוין באותו כיוון', f.btc_up === true ? 'BTC מעל EMA20' : f.btc_up === false ? 'BTC מתחת EMA20' : '—',
-        'תנאי: ביטקוין (5 דק׳) מעל הממוצע שלו לעסקת קנייה / מתחת לעסקת מכירה', 'כל השוק זז לאותו צד — פחות סיכוי שהתנועה תתהפך מיד.')}
-      <div style={{ color: C.dim, fontSize: 12, marginTop: 8 }}>ערכים שנשמרו ברגע הכניסה (נר {String(f.bar ?? '').slice(11, 16)} UTC) · מרווח קנייה/מכירה בכניסה {Number(f.spread_bps).toFixed(1)} bps · הכלל לא עבר בדיקה היסטורית (ניסוי דמו)</div>
+        `תנאי: ביטקוין (${rtm ? 'דקה' : '5 דק׳'}) מעל הממוצע שלו לעסקת קנייה / מתחת לעסקת מכירה`, 'כל השוק זז לאותו צד — פחות סיכוי שהתנועה תתהפך מיד.')}
+      <div style={{ color: C.dim, fontSize: 12, marginTop: 8 }}>ערכים שנשמרו ברגע הכניסה ({rtm ? 'זמן אמת, ' : 'נר '}{String(f.bar ?? '').slice(11, 19)} UTC) · מרווח קנייה/מכירה בכניסה {Number(f.spread_bps).toFixed(1)} bps · הכלל לא עבר בדיקה היסטורית (ניסוי דמו)</div>
     </>
   }
   if (t.strategy === 'LAB' && m.lab) return <div style={{ fontSize: 14, lineHeight: 1.7 }}>אסטרטגיית מעבדה <b dir="ltr">{m.lab.spec}</b> ({m.lab.tier === 'elite' ? 'מובחרת' : 'חקירה'}) · OOS: {m.lab.oos?.mean}% לעסקה, t={m.lab.oos?.t}, PF {m.lab.oos?.pf} · רווח נטו צפוי {m.lab.exp_net_bps} bps</div>
@@ -115,7 +115,7 @@ export default function TradeView({ id }: { id: string }) {
   }, [t?.id, t?.closed_at, lv?.stop, lv?.target, tf, sym])
   if (err && !t) return <div style={{ color: C.neg, padding: 16 }}>{err}</div>
   if (!t || !lv) return <div style={{ color: C.dim, padding: 16 }}>טוען עסקה…</div>
-  const dir = t.side === 'LONG' ? 1 : -1, size = Number(t.size), notional = lv.entry * size, isOpen = t.status === 'OPEN'
+  const dir = t.side === 'LONG' ? 1 : -1, size = Number(t.size), notional = lv.entry * size, isOpen = t.status === 'OPEN', lev = Math.max(1, Number(t.lev) || 1), base = notional / lev   // % on the margin actually posted
   const mark = isOpen ? last : Number(t.exit_price)
   const upnl = isOpen ? dir * (mark - lv.entry) * size - Number(t.fee ?? 0) : Number(t.pnl)
   const r = Math.abs(lv.entry - lv.stop), rNow = Number.isFinite(r) && r > 0 ? dir * (mark - lv.entry) / r : NaN
@@ -129,13 +129,13 @@ export default function TradeView({ id }: { id: string }) {
         <span style={{ color: C.dim }}>{t.strategy} · נרות {tf} · {isOpen ? <b style={{ color: C.pos }}>● פתוחה בלייב</b> : `נסגרה (${t.scalp_meta?.exit_reason ?? t.status})`}</span>
       </header>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8 }}>
-        {stat(isOpen ? 'רווח/הפסד עכשיו' : 'רווח/הפסד סופי', Number.isFinite(upnl) ? `${usd(upnl)} (${pct(upnl / notional * 100)})` : '—', upnl >= 0 ? C.pos : C.neg)}
+        {stat(isOpen ? 'רווח/הפסד עכשיו' : 'רווח/הפסד סופי', Number.isFinite(upnl) ? `${usd(upnl)} (${pct(upnl / base * 100)})` : '—', upnl >= 0 ? C.pos : C.neg)}
         {stat(isOpen ? 'מחיר עכשיו' : 'מחיר יציאה', fmt(mark))}
         {stat('כניסה', fmt(lv.entry), C.acc)}
         {stat('סטופ', Number.isFinite(lv.stop) ? `${fmt(lv.stop)} (${pct(dir * (lv.stop - mark) / mark * 100)})` : 'אין', C.neg)}
         {stat('יעד', Number.isFinite(lv.target) ? `${fmt(lv.target)} (${pct(dir * (lv.target - mark) / mark * 100)})` : 'אין', C.pos)}
         {stat(isOpen ? 'R עכשיו' : 'R סופי', Number.isFinite(rNow) ? `${rNow >= 0 ? '+' : ''}${rNow.toFixed(2)}R` : '—', rNow >= 0 ? C.pos : C.neg)}
-        {stat('גודל', `$${notional.toFixed(0)}`)}
+        {stat(lev > 1 ? `גודל · ביטחון · מינוף` : 'גודל', lev > 1 ? `$${notional.toFixed(0)} · $${base.toFixed(0)} · ×${lev}` : `$${notional.toFixed(0)}`)}
         {stat(isOpen ? 'זמן בעסקה / מקסימום' : 'משך', Number.isFinite(lv.holdMs) ? `${mmss(held)} / ${mmss(lv.holdMs)}` : mmss(held))}
       </div>
       <div ref={box} style={{ height: 'min(62vh, 520px)', minHeight: 320, borderRadius: 10, overflow: 'hidden', border: `1px solid ${C.line}` }} />
@@ -146,7 +146,7 @@ export default function TradeView({ id }: { id: string }) {
       </section>
       <section style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 10, padding: 12, fontSize: 14, lineHeight: 1.7 }}>
         <h2 style={{ fontSize: 17, marginBottom: 4 }}>איך הוא ייצא</h2>
-        {t.strategy === 'FAST' ? <>סטופ: {fmt(lv.stop)} (תנודה רגילה אחת נגדנו, מינימום 0.3%) · יעד: {fmt(lv.target)} (פי 1.5 מהסיכון) · אם אף אחד לא נפגע — יוצא אחרי 60 דקות בכל מחיר. עמלות: 0.05% בכל צד + מרווח.</> : 'לפי כללי האסטרטגיה (ראו הרמות על הגרף).'}
+        {t.strategy === 'FAST' ? <>סטופ: {fmt(lv.stop)} · יעד: {fmt(lv.target)} (פי 1.5 מהסיכון) · אם אף אחד לא נפגע — יוצא אחרי {t.scalp_meta?.fast?.hold_min ?? 60} דקות בכל מחיר.{Number(t.lev) > 1 ? ` מינוף ×${t.lev}: חיסול ב־${fmt(Number(t.scalp_meta?.fast?.liq))} — מפסיד את כל הביטחון ($${Number(t.scalp_meta?.fast?.margin ?? 0).toFixed(0)}).` : ''} עמלות: 0.05% בכל צד על כל הגודל + מרווח.</> : 'לפי כללי האסטרטגיה (ראו הרמות על הגרף).'}
       </section>
     </div>)
 }
