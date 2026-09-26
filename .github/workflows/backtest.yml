@@ -3,6 +3,7 @@ name: Strategy Backtest
 on:
   schedule:
     - cron: '0 6 1 * *'   # monthly edge-decay regression (1st of month, 06:00 UTC)
+    - cron: '17 3 * * 0'  # v94.0 weekly LAB research grid (Sundays 03:17 UTC) -> status/lab-latest.json, read by the live LAB sleeve
   # A push to backtest/.run-request runs whatever that file asks for. The repo
   # already uses this shape for status-ping, and it exists for the same reason:
   # a session without the GitHub connector cannot call workflow_dispatch, but it
@@ -42,6 +43,7 @@ jobs:
           set -euo pipefail
           MODE='${{ github.event.inputs.mode }}'
           MONTHS='${{ github.event.inputs.months }}'
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "${{ github.event.schedule }}" = "17 3 * * 0" ]; then MODE=lab; MONTHS=72; fi
           if [ -z "$MODE" ] && [ -f backtest/.run-request ]; then
             # first non-comment, non-empty line: "MODE [MONTHS]"
             REQ=$(grep -vE '^\s*(#|$)' backtest/.run-request | head -1)
@@ -74,6 +76,7 @@ jobs:
           case "$MODE" in
             explore|refine|validate|range|freq|rota|v43bt|v44bt|v45bt|v46bt|v47bt|v48bt|v49bt|v50bt|v51bt|v52bt|v53bt|v54bt|v55bt|v56bt|v57bt|v58bt|v59bt|v60bt|v61bt|v62bt|v63bt|v64bt|v65bt|v66bt|v67bt|v68bt|v69bt|v70bt|v71bt|v72bt|v73bt|v74bt|v75bt|v76bt|v77bt|v78bt|v79bt|v80bt|v81bt|v82bt|v83bt|v84bt|v85bt|v86bt|v87bt|v88bt|v89bt|v90bt|v91bt|v92bt|v93bt|v94bt|v95bt|v96bt|v97bt|v98bt|v99bt|v100bt|v101bt|v102bt|v103bt|v104bt|v105bt|v106bt|v107bt|v108bt) bash backtest/fetch-explore.sh ;;
             v109bt) bash backtest/binance-perps.sh; BT_MONTHS=$MONTHS bash backtest/fetch-1h.sh ;;
+            lab) BT_MONTHS=36 bash backtest/fetch-5m.sh; BT_MONTHS=36 bash backtest/fetch-15m.sh; BT_MONTHS=72 bash backtest/fetch-1h.sh; BT_MONTHS=72 bash backtest/fetch-funding.sh ;;
             gym) bash backtest/binance-perps.sh; BT_MONTHS=36 bash backtest/fetch-5m.sh; BT_MONTHS=36 bash backtest/fetch-15m.sh; BT_MONTHS=$MONTHS bash backtest/fetch-1h.sh; BT_MONTHS=$MONTHS bash backtest/fetch-aux.sh ;;
             *) bash backtest/fetch.sh ;;
           esac
@@ -94,19 +97,20 @@ jobs:
       # was simply gone. Same failure family as the 45-day v78bt fetch: the run
       # reports success while producing nothing usable.
       - name: Commit result snapshot (dispatch + .run-request pushes)
-        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || env.MODE == 'lab'
         run: |
           mkdir -p status
           { echo "backtest $(date -u +%Y-%m-%dT%H:%MZ) mode=$MODE months=$MONTHS"; tail -250 /tmp/bt.log; } > status/bt-latest.txt
           git config user.name "backtest-bot"; git config user.email "actions@github.com"
           git add status/bt-latest.txt
           git add status/gym-latest.json status/gym-latest.txt 2>/dev/null || true
+          git add status/lab-latest.json status/lab-latest.txt 2>/dev/null || true
           git commit -m "status: backtest result [skip ci]" || echo "no changes"
           git pull --rebase origin main || true
           git push || echo "push failed (non-fatal)"
 
       - name: Commit regression report (scheduled runs)
-        if: github.event_name == 'schedule'
+        if: github.event_name == 'schedule' && env.MODE != 'lab'
         run: |
           mkdir -p status
           { echo "monthly regression $(date -u +%Y-%m-%d) mode=$MODE months=$MONTHS"; tail -60 /tmp/bt.log; } > status/regression.txt

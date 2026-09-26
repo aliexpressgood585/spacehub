@@ -356,6 +356,56 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v94.0 (2026-09-26) — THE LAB: 41,400-spec research grid + LAB sleeve (ELITE pool / EXPLORE) + controlled learning
+Owner brief: aggressive DEMO engine maximising net daily return; research whether 25%/day is reachable; no forced trades,
+no invented edge; big grid 5m..4h, LONG/SHORT separately, all families, TP/SL/trail/BE/hold; walk-forward + OOS; ELITE
+pool only from proven net expectancy; explore small when no elite; 6-8 positions; dynamic sizing/leverage; weighted
+ranking not AND-gates; versioned auto-learning with shadow/OOS promotion + automatic rollback; dashboard; 25%/day stress.
+ANALYSIS, live 72h (09-23 23:25 -> 09-26 16:20): 58,386 gate decisions — no_edge_estimate 47,773 (82%), costs_exceed_edge
+5,211 (best net +0.4 bps), no_gross_edge 3,746, ranked_below_cut 1,449, accepted 12. Closed 308: SCALP pre-gate 291 net
+-$125.81 (fees $84.44, PF 0.81), explore 12 net -$23.23 (PF 0.31), ROTA 5 net -$3.28; since 09-25 09:20 zero SCALP trades.
+Equity 5,020 -> 4,809 (-4.2%; days -2.94% / -0.72% / -0.56%), maxDD 4.9%. MAIN PROBLEM: no live agent has a measured
+edge larger than the ~16 bps round trip at 5-60 min holds, so the gate (correctly) trades nothing and the pre-gate trades
+lost to fees. It is not a threshold problem.
+BUILT:
+- `shared/lab.ts` — ONE vocabulary for backtest + live: 23 rules (momentum, breakout +/- volume, reversal, trend
+  pullback, liquidity sweep [stop cluster INFERRED], mean reversion z, RSI fade, taker order-flow [observed column]) x
+  LONG/SHORT x 36 exits (stop 1/2 ATR x target 1/2/3R x plain/breakeven/trail x hold 6/24 bars) x 5 regime gates
+  (all, BTC above/below EMA50, high/low vol); indicators, exit state machine (stop first, gap fills at open, management
+  from the next bar), sizing (`labSize`: risk at the stop x evidence x vol x correlation, caps per trade / liquidity /
+  gross / cash; reports implied leverage), live verdict (`labVerdict`: demote at t<=-1 on >=12 closes or 4% spec DD;
+  promote explore->elite at t>=2 on >=30 closes).
+- `backtest/lab.ts` (mode `lab`): 5m (10 coins 36m), 15m (40, 36m), 1h/2h/4h (40, 72m); taker 5 bps x2 + slippage 3/5 bps
+  x2 + REAL funding from the Binance fundingRate archive (`backtest/fetch-funding.sh`); IS 60% (4 windows) -> VAL 20% ->
+  OOS 20% read once; ELITE = OOS net>0, daily-clustered t>=2, PF>=1.15, n>=50; luck count printed. OOS portfolio (8 slots,
+  1 per coin) + 25%/day stress (risk needed, leverage, liquidations at isolated margin, ruin; risk chosen on IS+VAL, read
+  OOS). Output status/lab-latest.json (+ .txt). Workflow: mode `lab`, WEEKLY schedule Sun 03:17 UTC.
+- LAB sleeve `lab-runner.ts` + ledger `20260926170000_lab_sleeve.sql`: pool from lab-latest.json (hourly cache); exits
+  every cycle with the shared state machine (stop ratchets persisted, favourable-only in SQL); entries at each bar close
+  of a spec's tf (first third, <= 20 min), live cost check (observed spread beyond modelled slip charged vs OOS net),
+  ranked elite > explore, OOS t, expectancy; <= 8 LAB open, <= 5 per side, explore <= 3 open and only when no elite trade
+  was taken; elite 0.5% risk (<= 15% eq), explore 0.1% risk (<= 2% eq); decisions journalled to trade_decisions
+  (inferred.sleeve='LAB'). Paper 1x only: `__LAB_MAX_LEV` defaults 1 — the 25%/day stress shows leverage is not supported,
+  so dynamic leverage is computed and journalled (lev_eff) but not applied. Controlled learning in bot_params.lab_state.
+- Tests: tests/lab.test.ts, tests/lab-runner.test.ts (paper replay of the LIVE path with a mocked exchange: stop exit,
+  momentum entry with 3R levels, sizing caps, explore rule, bar de-dup, rollback). Suite + typecheck green.
+RESULT (real archives, run in the sandbox 16:51 UTC, same code as CI) — **0 ELITE of 41,400 specs.**
+    5m  10 coins 104.1M sim. trades: 0 pass the IS+VAL screen
+    15m 40 coins 112.7M: 0 pass the screen
+    1h  40 coins 72m 37.7M: 86 screened, 23 reached OOS, best OOS t 0.10
+    2h  17.7M: 237 screened, 75 reached OOS, best OOS t 0.76
+    4h  8.6M: 412 screened, 136 reached OOS, best OOS t 1.22
+    234 reached OOS; luck alone would pass ~5.4; ELITE 0. LONG 102/206 OOS-positive (mean +0.072%/trade), SHORT 8/28
+    (mean -0.269%). Only the MOMENTUM family is net-positive OOS on average (+0.119%/trade, 96/174).
+    Best: 4h LONG mom(6 bars, 2 ATR) stop 2 ATR, target 3R, BE, 6 bars, btc_up — IS +1.21% t2.35 4/4, VAL +1.41%,
+    OOS +1.26%/trade t1.22 PF 1.61 n239 (gross 1.44, fees 0.10, slip 0.10, funding -0.01). Its neighbours agree
+    (OOS +0.9..+1.5%, PF 1.35-1.64) = a plateau, but t~1: NOT proven, could be long beta in a rising OOS.
+    Portfolio of the 12 explore specs OOS: n237, +0.834%/trade, t1.12, PF 1.35, mean 0.098 R/day.
+    25%/DAY: needs ~386% risk per trade (352x position leverage) -> OOS RUIN (21 liquidations). Growth-optimal risk on
+    IS+VAL 8.7%/trade -> OOS +0.285%/day geometric with maxDD 86.8%; half-Kelly +0.26%/day, DD 58%; 0.5%/trade
+    +0.046%/day, DD 8.2%. The 25%/day target has NO support; nothing in the grid is OOS-significant.
+DEPLOY: see the line below this entry.
+
 ## 2026-09-26 16:15 UTC — owner away 26h: watch summary + v109bt
 HEALTH: v93.0 61ae46b3 SCALP,ROTA,BRKV paper true / live false; heartbeat current; **0 bot_errors since the 15:22 deploy**;
 no hard halt. Equity **$4,805.83** vs $4,849 at the 14:41 v92 start (-$43, -0.9%, mostly ROTA marks); cash $2,490.
