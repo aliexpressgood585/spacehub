@@ -367,6 +367,18 @@ DEPLOYED: commit 36c48e56, function v76, migration applied, 0 bot_errors, trail 
 LIVE since the reset (17:13): JUP -$6.72 (1x), GRASS LONG 50x +$1,179.09 (TARGET, +1.85R), RAYSOL LONG 50x -$714.74
 (STOP); FIL + HYPE still open at 1x. ROLLBACK: set FAST_TRAIL.on false.
 
+## 2026-09-26 21:31 UTC — check-in (routine "v95.0 FAST first 3h check", written for the 17:13 era; answered for v95.8)
+LIVE: sha 5fbe6e7f (v95.8 fixed stop/1.5R target + PR #76 "fresh-v1" entry revalidation from the other session, merged into
+main before the v95.8 deploy), 0 bot_errors in 1h, fast_cycle every ~5 s, 99/99 pairs, fill_model aggTrades+book_walk.
+SINCE THE 19:45 RESET: 20 closed, 0 open, WR 30% (6/20), net −$1,771.72, fees $933 (53% of the loss). Exits: TARGET 5
+(all winners, +$61..+$334), STOP 10 (all losers, worst FARTCOIN −$612), TIMEOUT 5 (1 winner). Balance = equity $3,228.27
+(−35.4%). The 20-per-UTC-day cap is REACHED (20 entries since the reset) -> no FAST entries until 00:00 UTC: the cap held.
+Liquidity cap bit on 11 of 20 entries (thin books), not on BTC/ETH/BNB/DOGE/PEPE/ZEC/PUMP/FARTCOIN/UNI.
+NB bot_equity's latest row still reads $5,030.85 — the equity snapshot writer lives in scalp_commit_cycle and SCALP
+has not committed a snapshot since; displays reading bot_equity lag. Not fixed in this check-in (display only).
+CI 'lab 72' committed status/lab-latest.* at 17:00 UTC (backtest-bot 6c01fcc): identical to the sandbox run — 41,400 specs,
+234 reached OOS, ELITE 0, luck ≈ 5.4.
+
 ## v95.8 (2026-09-26 ~19:45 UTC) — ACCOUNT RESET to $5,000 + FAST fixed stop / fixed 1.5R target (owner: "reset, fixed stop, not trailing, TP")
 `FAST_TRAIL.on = false`: stop and 1.5R take-profit fixed at entry (FAST.targetR); everything else unchanged (rt mode, 50x,
 liquidity cap, cooldown, aggTrades fills). Commit 5fbe6e7f, function v81. RESET under the bot_state lock: archive tables
