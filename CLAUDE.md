@@ -356,6 +356,24 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v95.2 (2026-09-26 17:40 UTC) — FAST at ISOLATED 50x (owner: "most aggressive, 400%/1000% a day, fine if it wipes")
+Owner asked for maximum aggression on paper, accepting a wipe. Also tested first (sandbox, 10 coins 5m 36m, ~30k trades
+each): FAST follow -0.20%/trade PF 0.39, FADE (owner's idea) -0.19% PF 0.42, +breakeven -0.20/-0.19 — gross ~0 either
+way, the round trip is the whole loss; told to the owner. Built anyway on instruction:
+- shared/fast.ts: <= 3 open x 1/3 of equity as MARGIN, notional = margin x lev (shim `__FAST_LEV`, default 50, clamp
+  1..100); `fastLiq` = entry x (1 -/+ (1/lev - 0.5%)); `fastExit` checks LIQUIDATION before the stop. Binance's real
+  per-coin max leverage is NOT enforced (INFERRED; many alts cap at 20-75x).
+- ledger `20260926200000_fast_leverage.sql`: posts margin + taker fee on notional; close returns margin + P&L floored at
+  0 (isolated); pnl_pct on margin; FAST sleeve caps on margin; lev <= 100. SAME MIGRATION patches scalp_commit_cycle's
+  equity (the bot_equity snapshot writer) to count entry*size/lev — the v67.2 bug family. scalp-runner: only FAST rows may
+  be leveraged; its equity divides by lev. tests: fast (liquidation, margin sizing, ledger), costs/scalp now select the
+  migration that DEFINES scalp_commit_cycle (not one that merely mentions it). Suite + acceptance green.
+- MATHS told to the owner: 50x x 1/3 margin = ~16.7x equity per trade; a 0.5% stop = ~8% of the account, target +12%;
+  costs ~0.18% x 16.7 = ~3% of the account per trade. A 1.5% adverse spike between checks = liquidation of that third.
+DEPLOYED: commit f7eee513, function v74, shim adds `__FAST_LEV='50'` (BOT_VERSION string still reads v95.0 — the sha is
+the provenance), migration applied, scalp equity patch verified, 0 bot_errors; 17:40 scan 97/97 pairs. Open at the switch:
+FIL + HYPE SHORT at 1x (pre-switch), closed JUP -$6.72. ROLLBACK: `__FAST_LEV='1'`.
+
 ## v95.1 (2026-09-26) — trade page: every position opens a live TradingView-style chart (dashboard only)
 Owner: click an open trade -> live chart with entry/stop/target and every indicator that made the bot enter, in Hebrew.
 `trading-app/src/components/TradeView.tsx`, page `trade.html?id=<bot_trades.id>` (lightweight-charts 4.2, TradingView's
