@@ -30,11 +30,12 @@ async function saveLiqs(rows: C.Liq[]) {
 function binanceWs(ms: number): Promise<{ liqs: C.Liq[]; note: string }> {
   return new Promise(resolve => {
     const liqs: C.Liq[] = []
-    let note = 'ok', done = false
-    const finish = () => { if (done) return; done = true; try { ws.close() } catch { /* already closed */ } resolve({ liqs, note }) }
+    let note = 'ok', done = false, opened = false, frames = 0
+    const finish = () => { if (done) return; done = true; try { ws.close() } catch { /* already closed */ } resolve({ liqs, note: `${note}, opened ${opened}, frames ${frames}` }) }
     let ws: WebSocket
     try { ws = new WebSocket('wss://fstream.binance.com/ws/!forceOrder@arr') } catch (e) { resolve({ liqs, note: `open failed: ${e}` }); return }
-    ws.onmessage = ev => { try { const l = C.parseForceOrder(JSON.parse(String(ev.data))); if (l) liqs.push(l) } catch { /* bad frame */ } }
+    ws.onopen = () => { opened = true }
+    ws.onmessage = ev => { frames++; try { const l = C.parseForceOrder(JSON.parse(String(ev.data))); if (l) liqs.push(l) } catch { /* bad frame */ } }
     ws.onerror = () => { note = 'error'; finish() }
     ws.onclose = () => { if (!done) note = liqs.length ? 'closed early' : 'closed'; finish() }
     setTimeout(finish, ms)
@@ -47,9 +48,11 @@ async function okxLiqs(): Promise<{ n: number; failed: number }> {
   for (const x of inst?.data ?? []) if (x.settleCcy === 'USDT' && x.ctValCcy) ctVal[x.ctValCcy] = Number(x.ctVal)
   const rows: C.Liq[] = []
   let failed = 0
-  await pool([...S.CRYPTO_40], 4, async coin => {
+  await pool([...S.CRYPTO_40], 3, async coin => {
     try {
-      const d = await json(`https://www.okx.com/api/v5/public/liquidation-orders?instType=SWAP&instFamily=${coin}-USDT&state=filled&limit=100`, 5000)
+      const url = `https://www.okx.com/api/v5/public/liquidation-orders?instType=SWAP&instFamily=${coin}-USDT&state=filled&limit=100`
+      let d = await json(url, 5000).catch(() => null)
+      if (!d || d.code !== '0') { await new Promise(r => setTimeout(r, 700)); d = await json(url, 5000) }
       rows.push(...C.parseOkxLiqs(d, coin, ctVal[coin]))
     } catch { failed++ }
   })

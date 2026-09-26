@@ -41,9 +41,9 @@ end $$;
 
 create or replace function public.mkt_retention(days int default 90) returns void
 language sql security definer set search_path = public as $$
-  delete from public.mkt_liquidations where ts < now() - make_interval(days => days);
-  delete from public.mkt_derivs where ts < now() - make_interval(days => days);
-  delete from public.mkt_options where ts < now() - make_interval(days => days);
-  delete from public.mkt_news where published_at < now() - make_interval(days => days);
+  delete from public.mkt_liquidations where ts < now() - $1 * interval '1 day';
+  delete from public.mkt_derivs where ts < now() - $1 * interval '1 day';
+  delete from public.mkt_options where ts < now() - $1 * interval '1 day';
+  delete from public.mkt_news where published_at < now() - $1 * interval '1 day';
 $$;
 revoke all on function public.mkt_retention(int) from public, anon, authenticated;
