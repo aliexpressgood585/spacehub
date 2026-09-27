@@ -356,6 +356,23 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v97.3 house (2026-09-27 ~05:45 UTC) — the pixel house shows ONLY the live CHAN engine (owner: "no scenery, the bot's real activity")
+The old house (89 SCALP-era agents, the gym and the desk) described engines that are all OFF since 09-26 23:30, so it was scenery.
+- New `trading-app/src/components/ChanHouse.tsx`; house.html and `#house` route to it. BotHouse.tsx is kept in git but no longer routed.
+- The house3d / lab links were removed from the house page.
+- Eight rooms, one per step of chan-runner.ts:
+  - scanner: chan_scan / chan_cycle progress per 5m bar, universe, Binance weight;
+  - regime detector: chan_daily counts;
+  - mean reversion and momentum: their trade_decisions with reasons;
+  - risk: DD / day loss / streak / open vs the limits, Kelly per component;
+  - execution: open rows with a live Binance/OKX mark (display only), stop, R, hold;
+  - journal: closes with reason and R;
+  - research collector: freshness + forward-test COUNTS from forward-status.json.
+- A resident animates only when its own data is fresh; stale -> asleep, a fault -> alarm.
+- Also: a coin grid of every scanned coin coloured by today's regime (click = Hurst / half-life / vol pct / t / last decision), and a session log that lists only real events as they appear.
+- DB: migration `20260927090000_house_chan_read.sql`, applied. It adds anon SELECT on market_cache limited by RLS to the keys 'chan_daily' and 'universe', plus `grant select` (the table had no anon grant).
+- Verified headless at 400px: live data renders, 97/97 scanned, 57 neutral / 17 MR / 3 trend / 24 high-vol, 0 errors.
+
 ## PRE-REGISTRATION (2026-09-27 05:10 UTC, commit 77a03e3) — forward tests, rules FROZEN, T0 = 2026-09-28 00:00 UTC
 Owner:
 - keep CHAN on paper as an infrastructure test (unchanged, not evidence);

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import CryptoTradingDashboard from './components/CryptoTradingDashboard'
-import BotHouse from './components/BotHouse'
+import ChanHouse from './components/ChanHouse'
 
 // '#house' opens the bot's house (a read-only view of what the server bot is doing); anything else is the dashboard.
 const isHouse = () => window.location.hash === '#house'
@@ -21,7 +21,7 @@ export default function App() {
     }}>
       <div style={{ width: '100%', maxWidth: 960 }}>
         {house
-          ? <BotHouse onBack={() => { window.location.hash = '' }} />
+          ? <ChanHouse onBack={() => { window.location.hash = '' }} />
           : <CryptoTradingDashboard />}
       </div>
     </div>
