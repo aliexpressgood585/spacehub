@@ -4,7 +4,7 @@ Sizing: half-Kelly on the strategy's own past R-multiples, capped at 1% of equit
   With a fixed fraction f of equity risked per trade and outcomes r (in R), expected log growth is
   g(f) = E[log(1 + f r)] ~= f E[r] - f^2 E[r^2] / 2  ->  f* = E[r] / E[r^2].  We use kelly_fraction * f*, capped.
   No positive edge on the evidence (E[r] <= 0) -> size 0 -> no trade. Too few past trades -> a small default risk.
-Limits (all from config, none optional):
+Limits (from config; daily_loss_limit=0 disables only the daily pause):
   - max leverage: total open notional <= max_leverage x equity (a new trade is trimmed to fit, or refused)
   - daily loss limit: realised loss today >= limit x the day's opening equity -> no entries until 00:00 UTC
   - max drawdown kill switch: equity <= (1 - limit) x peak -> close everything, HALT (manual reset only)
@@ -109,7 +109,7 @@ class RiskManager:
         ev = self.mark(now_ms, equity_after)
         if ev:
             return ev
-        if self.state.day_realised <= -self.daily_loss_limit * self.state.day_open_equity and self.state.paused_until_day == -1:
+        if self.daily_loss_limit > 0 and self.state.day_realised <= -self.daily_loss_limit * self.state.day_open_equity and self.state.paused_until_day == -1:
             self.state.paused_until_day = self.state.day + 1
             return "DAILY_STOP"
         if self.state.consecutive_losses >= self.max_consec and self.state.paused_until_day == -1:
@@ -123,7 +123,7 @@ class RiskManager:
         if self.state.halted:
             return False, "halted: " + self.state.halt_reason
         if self.state.paused_until_day != -1:
-            why = "daily loss limit" if self.state.day_realised <= -self.daily_loss_limit * self.state.day_open_equity else "consecutive losses"
+            why = "daily loss limit" if self.daily_loss_limit > 0 and self.state.day_realised <= -self.daily_loss_limit * self.state.day_open_equity else "consecutive losses"
             return False, f"paused until next UTC day ({why})"
         if open_positions >= self.max_open:
             return False, "max open positions"

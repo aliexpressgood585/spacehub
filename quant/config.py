@@ -40,7 +40,9 @@ def validate(cfg: dict) -> None:
         raise ValueError("risk.kelly_fraction must be in (0, 1]")
     if not 1 <= r["max_leverage"] <= 20:
         raise ValueError("risk.max_leverage must be in [1, 20]")
-    for k in ("daily_loss_limit", "max_drawdown_kill"):
+    if not 0 <= r["daily_loss_limit"] < 1:
+        raise ValueError("risk.daily_loss_limit must be in [0, 1); 0 disables it")
+    for k in ("max_drawdown_kill",):
         if not 0 < r[k] < 1:
             raise ValueError(f"risk.{k} must be a fraction in (0, 1)")
     if int(r["max_consecutive_losses"]) < 1:

@@ -1,13 +1,12 @@
-// v97.0 CHAN — the live (paper) port of quant/ (Ernest Chan's method). Pure functions only; the runner is
-// supabase/functions/trading-bot/chan-runner.ts. Every number mirrors quant/config.yaml and every function mirrors its
-// Python twin (quant/strategies/*.py, quant/risk/manager.py); tests/chan.test.ts checks parity against fixtures
-// produced by the Python code.
+// CHAN paper engine. Numeric functions retain Python fixture parity.
+// v97.7 live change (owner requested): ADF + complete-volatility entry gates, rolling
+// closed-bar regime statistics refreshed on a 15s scan, daily-loss pause disabled.
+// Historical quant strategy reports predate these gates/cadence and do NOT validate this version.
 //
 // STATUS, stated where it matters: the Python walk-forward + holdout rated EVERY strategy NO-GO (quant/reports/
 // BACKTEST_REPORT.md). The owner chose to run the regime router live on paper anyway (2026-09-26: "run the system in
 // demo the way Chan said, as if he were trading"). The risk layer is the prompt's, unchanged: half-Kelly on the
-// strategy's OWN live record (default 0.25% until 30 trades, 0 when the record is negative), capped at 1%; 3x; daily
-// -3% -> pause to 00:00 UTC; -10% from peak -> close all + halt; 50 losses in a row -> pause to 00:00 UTC; max 5 open.
+// strategy's OWN live record (default 0.25% until 30 trades, 0 when the record is negative), capped at 1%; 3x; no daily-loss pause; -10% from peak -> close all + halt; 50 losses in a row -> pause to 00:00 UTC; max 5 open.
 
 export const CHAN = {
   tf: '5m', barMs: 300_000, bars: 4300,
@@ -15,17 +14,15 @@ export const CHAN = {
   // 'universe': every active USDT perpetual, crypto only, >= $20M/24h, spread <= 10 bps; ~100 pairs). These 10 are the
   // fallback and the coins the Python backtest was run on — the others were NEVER backtested.
   universe: ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT'] as const,
-  // v97.2 scan: every bar needs only the last 320 candles per coin (weight 2); the slow statistics (Hurst, half-life, vol
-  // percentile, regime, momentum t) are recomputed once per UTC day per coin from 4,300 candles (weight 30), as the Python
-  // code re-estimates them once a day, and persisted in market_cache 'chan_daily'; the daily vol history
-  // (market_cache 'chan_vols') is bootstrapped once per coin from 9,000 candles.
-  scan: { perCycle: 120, heavyPerCycle: 12, deepPerCycle: 3, deepBars: 9000, weightBudget: 1700, windowMs: 180_000 },
+  // Refresh market data every 15s; rolling histories are persisted once per new closed bar.
+  // Bootstrap work is bounded; coins without fresh complete statistics cannot enter.
+  scan: { refreshMs: 15_000, perCycle: 120, heavyPerCycle: 12, deepPerCycle: 3, deepBars: 9000, weightBudget: 1700, windowMs: 180_000 },
   mr: { statWindow: 2016, hurstMax: 0.45, adfP: 0.05, hlMin: 5, hlMax: 300, maxHoldHalflives: 3 },
   mom: { sigWindow: 4032, tMin: 2.0, stopAtr: 2.0 },
   regime: { window: 2016, every: 288, hurstMr: 0.45, hurstTrend: 0.55, volPctHigh: 0.90, minHist: 20, maxHist: 90 },
   // the parameters the Python walk-forward chose for the regime router on the WF region (quant/reports/backtest-5m.json)
   params: { RG_MR: { entryZ: 2.5, exitZ: 0.0, stopZ: 3.5 }, RG_MOM: { kind: 'breakout' as const, lookback: 144, hold: 12 } },
-  risk: { kellyFraction: 0.5, cap: 0.01, kellyMinTrades: 30, defaultRisk: 0.0025, maxLeverage: 3, dailyLoss: 0.03,
+  risk: { kellyFraction: 0.5, cap: 0.01, kellyMinTrades: 30, defaultRisk: 0.0025, maxLeverage: 3, dailyLoss: 0,
     maxDD: 0.10, maxConsec: 50, maxOpen: 5, minStopToCost: 3.0 },
   costs: { taker: 0.0005, maker: 0.0002 },
   entryWindowMs: 180_000,
@@ -128,15 +125,15 @@ export function momentumT(logp: ArrayLike<number>, L: number, H: number, window:
 // ---------- the regime + the two routed strategies, evaluated at the LAST CLOSED bar ------------------------------
 export interface Bar { t: number; o: number; h: number; l: number; c: number }
 export interface ChanView {
-  regime: number; hurst: number; volPct: number; vol: number
+  regime: number; hurst: number; volPct: number; vol: number; adf: number
   mr: { hl: number; z: number; mean: number; std: number; gate: boolean; side: 0 | 1 | -1; exitLong: boolean; exitShort: boolean; stopLong: number; stopShort: number; maxHold: number }
   mom: { t: number; gate: boolean; side: 0 | 1 | -1; atr: number; stopLong: number; stopShort: number; hh: number; ll: number }
 }
-// v97.2 — the SLOW statistics, as in the Python code (quant/strategies: stat_window / recompute_every = once a day):
+// Rolling closed-bar statistics (function name retained for existing callers):
 // Hurst, OU half-life, realised vol + its percentile vs past daily estimates, the regime label and the momentum t-test.
-// Estimated on the window that ends at the last bar of `bars`; live they are recomputed once per UTC day per coin and
-// persisted (market_cache 'chan_daily'), so each 5m bar only needs the recent candles (barView).
-export interface Daily { hurst: number; hl: number; vol: number; volPct: number; regime: number; t: number }
+// Estimated on the window ending at the last CLOSED bar; live they are recomputed on each new closed bar and
+// persisted (legacy key chan_daily); the 15s refresh verifies the latest candles are still current.
+export interface Daily { adf: number; hurst: number; hl: number; vol: number; volPct: number; regime: number; t: number }
 export function dailyStats(bars: Bar[], pastVols?: number[]): Daily | null {
   const n = bars.length, W = CHAN.regime.window
   if (n < Math.max(W, CHAN.mom.sigWindow) + 1) return null
@@ -154,9 +151,9 @@ export function dailyStats(bars: Bar[], pastVols?: number[]): Daily | null {
   if (Number.isFinite(H) && H < CHAN.regime.hurstMr) regime = MEAN_REVERT
   if (Number.isFinite(H) && H > CHAN.regime.hurstTrend) regime = TREND
   if (Number.isFinite(volPct) && volPct > CHAN.regime.volPctHigh) regime = HIGH_VOL
-  if (!Number.isFinite(H)) regime = NEUTRAL
+  if (!Number.isFinite(H) || !Number.isFinite(volPct)) regime = NEUTRAL
   const q = CHAN.params.RG_MOM
-  return { hurst: H, hl: halfLife(win), vol, volPct, regime, t: momentumT(logp, q.lookback, q.hold, CHAN.mom.sigWindow) }
+  return { adf: adfPvalue(win), hurst: H, hl: halfLife(win), vol, volPct, regime, t: momentumT(logp, q.lookback, q.hold, CHAN.mom.sigWindow) }
 }
 // Daily realised-vol estimates at UTC-midnight anchors (the Python regime filter re-estimates on a fixed daily grid):
 // for each bar that CLOSES at 00:00 UTC with a full window behind it, the std of the window's log returns.
@@ -182,16 +179,17 @@ export function barView(bars: Bar[], d: Daily): ChanView | null {
   if (Number.isFinite(L) && n >= L) {
     const w = bars.slice(n - L).map(b => Math.log(b.c)); mu = mean(w); sd = Math.sqrt(w.reduce((s, v) => s + (v - mu) ** 2, 0) / (L - 1)); z = (Math.log(bars[n - 1].c) - mu) / sd
   }
-  const mrGate = d.regime === MEAN_REVERT && hlOk && Number.isFinite(z) && sd > 0
+  const dataReady = Number.isFinite(d.volPct) && d.volPct >= 0 && d.volPct <= CHAN.regime.volPctHigh
+  const mrGate = dataReady && Number.isFinite(d.adf) && d.adf < CHAN.mr.adfP && d.regime === MEAN_REVERT && hlOk && Number.isFinite(z) && sd > 0
   const mrSide: 0 | 1 | -1 = mrGate && z <= -p.entryZ ? 1 : mrGate && z >= p.entryZ ? -1 : 0
   const maxHold = Number.isFinite(hlRaw) ? Math.ceil(CHAN.mr.maxHoldHalflives * Math.min(CHAN.mr.hlMax, Math.max(1, hlRaw))) : 0
   let hh = -Infinity, ll = Infinity; for (let k = n - 1 - q.lookback; k < n - 1; k++) { hh = Math.max(hh, bars[k].h); ll = Math.min(ll, bars[k].l) }
   const atr = atrLast(bars.map(b => b.h), bars.map(b => b.l), bars.map(b => b.c), 14)
   const c = bars[n - 1].c
-  const momGate = d.regime === TREND && Number.isFinite(d.t) && d.t >= CHAN.mom.tMin && Number.isFinite(atr)
+  const momGate = dataReady && d.regime === TREND && Number.isFinite(d.t) && d.t >= CHAN.mom.tMin && Number.isFinite(atr)
   const momSide: 0 | 1 | -1 = momGate && c > hh ? 1 : momGate && c < ll ? -1 : 0
   return {
-    regime: d.regime, hurst: d.hurst, volPct: d.volPct, vol: d.vol,
+    regime: d.regime, hurst: d.hurst, volPct: d.volPct, vol: d.vol, adf: d.adf,
     mr: { hl: hlRaw, z, mean: mu, std: sd, gate: mrGate, side: mrSide, exitLong: Number.isFinite(z) && z >= -p.exitZ, exitShort: Number.isFinite(z) && z <= p.exitZ,
       stopLong: Math.exp(mu - p.stopZ * sd), stopShort: Math.exp(mu + p.stopZ * sd), maxHold },
     mom: { t: d.t, gate: momGate, side: momSide, atr, stopLong: c - CHAN.mom.stopAtr * atr, stopShort: c + CHAN.mom.stopAtr * atr, hh, ll },
@@ -212,7 +210,7 @@ export function kellyRisk(rs: number[]): { f: number; why: string } {
   const f = Math.max(0, Math.min(r.cap, r.kellyFraction * full))
   return { f, why: f > 0 ? `half-Kelly ${(r.kellyFraction * full).toFixed(4)} capped ${r.cap}` : 'half-Kelly <= 0 (no positive edge in its own record)' }
 }
-export interface RiskState { peak: number; day: number; dayOpen: number; pausedUntilDay: number; streakFrom: number; halted: boolean; haltReason: string }
+export interface RiskState { peak: number; day: number; dayOpen: number; pausedUntilDay: number; streakFrom: number; halted: boolean; haltReason: string; pauseReason?: string }
 export interface Closed { pnl: number; closedAt: number }
 // Rebuild the day / streak / pause state for `now` from the persisted state + the closed CHAN trades. Returns the new
 // state and an event ('KILL' | 'DAILY_STOP' | 'CONSEC_STOP' | null).
@@ -221,20 +219,30 @@ export function riskStep(st: RiskState, now: number, equity: number, closed: Clo
   const day = Math.floor(now / DAY_MS)
   if (day !== s.day) {
     s.day = day; s.dayOpen = equity
-    if (s.pausedUntilDay !== -1 && day >= s.pausedUntilDay) { s.pausedUntilDay = -1; s.streakFrom = now }
+    if (s.pausedUntilDay !== -1 && day >= s.pausedUntilDay) { s.pausedUntilDay = -1; s.streakFrom = now; s.pauseReason = undefined }
   }
   if (equity > s.peak) s.peak = equity
   if (!s.halted && equity <= s.peak * (1 - r.maxDD)) {
     s.halted = true; s.haltReason = `max drawdown ${r.maxDD * 100}% hit: equity ${equity.toFixed(2)} vs peak ${s.peak.toFixed(2)}`
     return { st: s, ev: 'KILL' }
   }
+  // Release only a legacy daily-loss pause after the owner disabled that limit.
+  // Preserve streak pauses and hard halts; old releases did not persist a pause reason.
+  if (r.dailyLoss === 0 && s.pausedUntilDay !== -1 && !s.halted) {
+    const recent = closed.filter(x => x.closedAt > s.streakFrom).sort((a, b) => a.closedAt - b.closedAt)
+    let streak = 0; for (let i = recent.length - 1; i >= 0 && recent[i].pnl < 0; i--) streak++
+    const realised = closed.filter(x => Math.floor(x.closedAt / DAY_MS) === s.day).reduce((sum, x) => sum + x.pnl, 0)
+    if (s.pauseReason === 'DAILY_STOP' || (!s.pauseReason && realised <= -0.03 * s.dayOpen && streak < r.maxConsec)) {
+      s.pausedUntilDay = -1; s.pauseReason = undefined
+    }
+  }
   if (s.pausedUntilDay === -1) {
     const today = closed.filter(x => Math.floor(x.closedAt / DAY_MS) === day)
     const realised = today.reduce((a, x) => a + x.pnl, 0)
-    if (realised <= -r.dailyLoss * s.dayOpen && today.length) { s.pausedUntilDay = day + 1; return { st: s, ev: 'DAILY_STOP' } }
+    if (r.dailyLoss > 0 && realised <= -r.dailyLoss * s.dayOpen && today.length) { s.pausedUntilDay = day + 1; s.pauseReason = 'DAILY_STOP'; return { st: s, ev: 'DAILY_STOP' } }
     const recent = closed.filter(x => x.closedAt > s.streakFrom).sort((a, b) => a.closedAt - b.closedAt)
     let streak = 0; for (let i = recent.length - 1; i >= 0 && recent[i].pnl < 0; i--) streak++
-    if (streak >= r.maxConsec) { s.pausedUntilDay = day + 1; return { st: s, ev: 'CONSEC_STOP' } }
+    if (streak >= r.maxConsec) { s.pausedUntilDay = day + 1; s.pauseReason = 'CONSEC_STOP'; return { st: s, ev: 'CONSEC_STOP' } }
   }
   return { st: s, ev: null }
 }

@@ -50,6 +50,7 @@ def test_min_stop_to_cost(cfg):
 
 
 def test_daily_loss_limit_pauses_until_next_day(cfg):
+    cfg["risk"]["daily_loss_limit"] = 0.03  # optional legacy configuration remains supported
     rm = RiskManager(cfg, 10_000)
     rm.mark(T0 + 1000, 10_000)
     eq = 10_000
@@ -104,3 +105,11 @@ def test_config_rejects_risk_above_1pct(tmp_path):
     from quant.config import ROOT, load_config
     with pytest.raises(ValueError):
         load_config(ROOT / "config.yaml", {"risk": {"risk_per_trade_cap": 0.02}})
+
+
+def test_daily_loss_disabled(cfg):
+    assert cfg["risk"]["daily_loss_limit"] == 0
+    rm = RiskManager(cfg, 10_000)
+    rm.mark(T0, 10_000)
+    assert rm.on_trade_closed(T0 + 100, -400, -1, "S", 9600) is None
+    assert rm.can_open(T0 + 101, 9600, 0)[0]

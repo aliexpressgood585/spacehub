@@ -28,7 +28,7 @@ risk:
   kelly_min_trades: 30    # below this many past trades of the strategy, use default_risk
   default_risk: 0.0025
   max_leverage: 3
-  daily_loss_limit: 0.03  # realised loss >= 3% of the UTC day's opening equity -> no entries until 00:00 UTC
+  daily_loss_limit: 0     # disabled by owner, 2026-09-27; drawdown / streak limits remain
   max_drawdown_kill: 0.10 # equity 10% below its peak -> close everything, halt (manual restart only)
   max_consecutive_losses: 50   # -> no entries until 00:00 UTC
   max_open_positions: 5
