@@ -356,6 +356,17 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v97.6 (2026-09-27 ~10:40 UTC) — CHAN demo funding = Binance's ACTUAL settlements (owner)
+- `shared/chan.ts` `fundingCharge` computes, for every settlement the position held (open < fundingTime <= close), rate × size × mark / k.
+  - Sign by side: a positive rate means the long pays.
+  - Rows are de-duplicated on fundingTime, and funding is charged once, at the close.
+  - With no history: amount 0 and complete = false. A row with no mark falls back to the entry price and is flagged.
+- `chan-runner.ts` reads `fapi/v1/fundingRate` at each close (before the book, so the quote stays fresh) and sends `funding` with the close.
+- Ledger migration `20260927120000_chan_real_funding.sql` books that amount (`funding_inferred` false). It falls back to the old 0.01%/8h model with `funding_missing` true only when the runner sends none. Based on the live function text (identical to 20260927000000 except comments).
+- Book-walk fills and every rule are unchanged; past trades are untouched.
+- Tests: tests/chan.test.ts covers long, short (mirror), duplicate row, before-open / after-close / at-open settlements, PEPE ×1000, missing mark, no history, and a ledger assertion. Suite green.
+- NB the dashboard's estimate for OPEN trades (tradeMetrics FUNDING_8H) is still the 0.01%/8h model, labelled an estimate. Closed rows carry the real amount.
+
 ## CHAN book candidates (2026-09-27 ~11:00 UTC) — owner: "improve CHAN inspired by Chan's Algorithmic Trading; shadow first, demo only on an established improvement"
 `quant/strategies/chan_book.py` + `quant/run_chan_book.py` (tests: `quant/tests/test_chan_book.py`, look-ahead invariance).
 - The rules:

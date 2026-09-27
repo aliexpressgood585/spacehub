@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { CHAN, adfPvalue, atrLast, canOpen, chanSize, chanView, halfLife, hurst, kellyRisk, mackinnonP, momentumT, normCdf, riskStep, DAY_MS, MEAN_REVERT, TREND, type Bar, type RiskState } from '../shared/chan.ts'
+import { CHAN, fundingCharge, adfPvalue, atrLast, canOpen, chanSize, chanView, halfLife, hurst, kellyRisk, mackinnonP, momentumT, normCdf, riskStep, DAY_MS, MEAN_REVERT, TREND, type Bar, type RiskState } from '../shared/chan.ts'
 // v97.0 CHAN — the live TS port must reproduce the Python quant/ code it was validated with
 const near = (a: number, b: number, tol: number, what: string) => assert.ok(Math.abs(a - b) <= tol * Math.max(1, Math.abs(b)), `${what}: ${a} vs ${b}`)
 near(normCdf(1.96), 0.9750021, 1e-6, 'normCdf')
@@ -80,3 +80,29 @@ console.log('chan: parity with quant/ + risk + ledger ok')
   }
   console.log('chan: 320-bar view == full-history view')
 }
+
+// v97.6 funding from the exchange's actual settlements
+{
+  const H = 3_600_000, open = 10 * H, close = 30 * H
+  const rows = [{ fundingTime: 8 * H, fundingRate: '0.001', markPrice: '100' },     // before the open: not held
+    { fundingTime: 16 * H, fundingRate: '0.0001', markPrice: '110' },              // held
+    { fundingTime: 16 * H, fundingRate: '0.0001', markPrice: '110' },              // duplicate row: charged once
+    { fundingTime: 24 * H, fundingRate: '-0.0002', markPrice: '120' },             // held, negative rate
+    { fundingTime: 32 * H, fundingRate: '0.005', markPrice: '130' }]               // after the close: not held
+  const L = fundingCharge('LONG', 2, 1, 100, open, close, rows)
+  near(L.amount, 2 * 0.0001 * 110 + 2 * -0.0002 * 120, 1e-12, 'long pays positive rates, receives negative')
+  assert.equal(L.events.length, 2, 'only settlements held, each once')
+  assert.ok(L.complete)
+  const S = fundingCharge('SHORT', 2, 1, 100, open, close, rows)
+  near(S.amount, -L.amount, 1e-12, 'short is the mirror image')
+  const P = fundingCharge('LONG', 1000, 1000, 0.00001, open, close, [{ fundingTime: 16 * H, fundingRate: '0.0001', markPrice: '0.01' }])
+  near(P.amount, 1000 * 0.0001 * 0.00001, 1e-15, '1000PEPE mark is per 1000 coins')
+  const M = fundingCharge('LONG', 1, 1, 100, open, close, [{ fundingTime: 16 * H, fundingRate: '0.0001' }])
+  assert.ok(!M.complete && M.missingMark === 1, 'a row without a mark price is flagged')
+  const N = fundingCharge('LONG', 1, 1, 100, open, close, null)
+  assert.ok(!N.complete && N.amount === 0, 'no history -> flagged, not guessed')
+  assert.equal(fundingCharge('LONG', 1, 1, 100, 16 * H, close, rows).events.length, 1, 'a settlement at the open instant is not charged')
+  const mig = readFileSync('supabase/migrations/20260927120000_chan_real_funding.sql', 'utf8')
+  assert.ok(mig.includes("funding := (x->'funding'->>'amount')::numeric") && mig.includes("'funding_missing'"), 'ledger books the runner amount and flags a fallback')
+}
+console.log('chan funding: ok')

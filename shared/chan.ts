@@ -254,3 +254,29 @@ export function chanSize(f: number, equity: number, entry: number, stop: number,
   if (room <= 0) return { notional: 0, why: 'max leverage reached' }
   return { notional: Math.min(equity * f / dist, room), why: 'ok' }
 }
+
+// ---------- funding (v97.6): Binance's ACTUAL settlements, charged once, at the close ------------------------------
+// Binance charges funding at each settlement to whoever HOLDS the position at that instant: payment = position size x
+// mark price at the settlement x rate; a positive rate means longs pay shorts. Settlement times differ per contract (8h,
+// 4h or 1h), so they are taken from the exchange's own history (fapi/v1/fundingRate), never assumed.
+// Rows are de-duplicated on fundingTime, and only settlements strictly after the open and at/before the close count,
+// so a settlement can never be charged twice and one the position did not hold is never charged.
+// Returns the amount the POSITION PAYS (negative = it received). `complete` is false when the history could not be
+// read or a row had no mark price (then the entry price is used for that row and it is flagged).
+export interface FundingRow { fundingTime: number; fundingRate: string | number; markPrice?: string | number }
+export function fundingCharge(side: 'LONG' | 'SHORT', size: number, k: number, entry: number, openedAt: number, closedAt: number, rows: FundingRow[] | null) {
+  if (!rows) return { amount: 0, events: [] as { t: number; rate: number; mark: number; paid: number }[], complete: false, missingMark: 0 }
+  const dir = side === 'LONG' ? 1 : -1, seen = new Set<number>(), events: { t: number; rate: number; mark: number; paid: number }[] = []
+  let amount = 0, missingMark = 0
+  for (const r of [...rows].sort((a, b) => Number(a.fundingTime) - Number(b.fundingTime))) {
+    const t = Number(r.fundingTime), rate = Number(r.fundingRate)
+    if (!(t > openedAt && t <= closedAt) || seen.has(t) || !Number.isFinite(rate)) continue
+    seen.add(t)
+    let mark = Number(r.markPrice) / k
+    if (!(mark > 0)) { mark = entry; missingMark++ }
+    const paid = dir * rate * size * mark
+    amount += paid
+    events.push({ t, rate, mark, paid })
+  }
+  return { amount, events, complete: missingMark === 0, missingMark }
+}

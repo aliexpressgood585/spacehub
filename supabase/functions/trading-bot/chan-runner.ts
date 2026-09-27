@@ -13,7 +13,7 @@
 //   - entries sized by half-Kelly on the component's own live record (cap 1%) at the mandatory stop, 3x isolated
 // Binance request weight is metered from the X-MBX-USED-WEIGHT-1M header and new downloads stop near the budget.
 // Books through chan_commit_cycle, which re-checks every limit in SQL.
-import { CHAN, DAY_MS, RECENT_BARS, barView, canOpen, chanSize, dailyStats, dayVols, kellyRisk, riskStep, type Bar, type Daily, type RiskState } from '../../../shared/chan.ts'
+import { CHAN, DAY_MS, RECENT_BARS, barView, canOpen, chanSize, dailyStats, dayVols, fundingCharge, kellyRisk, riskStep, type Bar, type Daily, type RiskState } from '../../../shared/chan.ts'
 import { fastLiq, liqCap, resolveExit, walkBook } from '../../../shared/fast.ts'
 import { slipFor } from '../../../shared/lab.ts'
 import { UNIV, buildUniverse } from '../../../shared/universe.ts'
@@ -33,6 +33,16 @@ async function kl(p: Pair, limit: number, endTime?: number): Promise<any[]> {
 }
 const weightLeft = () => (Date.now() - weightAt > 60_000 ? CHAN.scan.weightBudget : CHAN.scan.weightBudget - usedWeight)
 const toBar = (p: Pair) => (x: any): Bar => ({ t: +x[0], o: +x[1] / p.k, h: +x[2] / p.k, l: +x[3] / p.k, c: +x[4] / p.k })
+
+// v97.6: the exchange's own funding settlements for a held position (null = could not be read -> flagged, not guessed)
+async function fundingRows(p: Pair, from: number, to: number): Promise<any[] | null> {
+  try { const r = await json(`https://fapi.binance.com/fapi/v1/fundingRate?symbol=${p.s}&startTime=${from}&endTime=${to}&limit=1000`); return Array.isArray(r) ? r : null } catch { return null }
+}
+async function fundingFor(t: any, P: Pair, closedAt: number) {
+  const f = fundingCharge(t.side, Number(t.size), P.k, Number(t.entry_price), Date.parse(t.opened_at), closedAt, await fundingRows(P, Date.parse(t.opened_at), closedAt))
+  return { amount: f.amount, source: 'binance_fundingRate', complete: f.complete, missing_mark: f.missingMark, events: f.events.length,
+    ...(f.complete ? {} : { missing: 'funding history unavailable or mark price missing — flagged, see ledger' }) }
+}
 
 export async function closedBars(p: Pair, now: number, n: number = CHAN.bars): Promise<Bar[]> {
   const out = new Map<number, Bar>()
@@ -88,11 +98,12 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
   const pairOf = (sym: string): Pair => bySym.get(sym) ?? (sym === 'PEPE' ? { sym, s: '1000PEPEUSDT', k: 1000 } : { sym, s: `${sym}USDT`, k: 1 })
   const closes: any[] = [], marks: Record<string, number> = {}, updates: any[] = [], closing = new Set<number>()
   const bookClose = async (t: any, reason: string, extra: any = {}) => {
+    const fu = await fundingFor(t, pairOf(t.sym), Date.now())   // before the book, so the quote stays fresh for the ledger
     const dir = t.side === 'LONG' ? 1 : -1, bk = await book(pairOf(t.sym))
     const top = dir > 0 ? bk.bids[0][0] : bk.asks[0][0], w = walkBook(dir > 0 ? bk.bids : bk.asks, Number(t.entry_price) * Number(t.size))
     const imp = Math.max(Number.isFinite(w.impact) ? w.impact : 0, slipFor(t.sym))
     marks[t.sym] = top
-    closes.push({ id: t.id, price: top * (1 - dir * imp), reason, quote_ts: bk.E, fill: { model: 'book_walk', impact_bps: +(imp * 1e4).toFixed(2), depth_usd: Math.round(w.depthUsd), beyond_book: w.beyond, ...extra } })
+    closes.push({ id: t.id, price: top * (1 - dir * imp), reason, quote_ts: bk.E, funding: fu, fill: { model: 'book_walk', impact_bps: +(imp * 1e4).toFixed(2), depth_usd: Math.round(w.depthUsd), beyond_book: w.beyond, ...extra } })
     closing.add(t.id)
   }
   // 1. exchange-side stop, replayed on the real trade tape since the last check; time exits
@@ -105,10 +116,11 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       const tr = await aggTrades(P, from, now)
       const res = resolveExit({ dir, entry, r: Number(m.r), stop: Number(m.stop), target: null, liq: fastLiq(dir, entry, Number(t.lev) || 1), best: Number(m.best ?? entry), trail: false }, tr.trades)
       if (res.why) {
+        const fu = await fundingFor(t, P, res.T)
         const bk = await book(P), w = walkBook(dir > 0 ? bk.bids : bk.asks, entry * Number(t.size))
         const imp = Math.max(Number.isFinite(w.impact) ? w.impact : 0, slipFor(t.sym))
         const price = res.why === 'STOP' ? res.px * (1 - dir * imp) : res.px
-        closes.push({ id: t.id, price, reason: res.why, quote_ts: Date.now(), fill: { model: tr.complete ? 'aggTrades' : 'aggTrades_truncated', trigger_ts: res.T, trigger_px: res.px, lag_ms: now - res.T, impact_bps: +(imp * 1e4).toFixed(2) } })
+        closes.push({ id: t.id, price, reason: res.why, quote_ts: Date.now(), funding: fu, fill: { model: tr.complete ? 'aggTrades' : 'aggTrades_truncated', trigger_ts: res.T, trigger_px: res.px, lag_ms: now - res.T, impact_bps: +(imp * 1e4).toFixed(2) } })
         closing.add(t.id); marks[t.sym] = price
         return
       }
