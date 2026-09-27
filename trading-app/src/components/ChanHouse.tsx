@@ -295,7 +295,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
             <div><span className="ch-k">מזומן</span><b><N>{fmt$(Number.isFinite(cash) ? cash : null)}</N></b></div>
             <div><span className="ch-k">שיא</span><b><N>{fmt$(peak)}</N></b></div>
             <div><span className="ch-k">מהשיא</span><b className={dd && dd > 0.05 ? 'neg' : ''}><N>{dd == null ? '—' : `-${(dd * 100).toFixed(2)}%`}</N></b></div>
-            <div><span className="ch-k">פתוחות</span><b><N>{openN} / {CHAN.risk.maxOpen}</N></b></div>
+            <div><span className="ch-k">פתוחות</span><b><N>{openN}</N> · ללא תקרה</b></div>
             <div><span className="ch-k">הנר הבא</span><b><N>{hm(nextBar)}</N> · עוד <N>{Math.floor(Math.max(0, nextBar - now) / 60000)}:{String(Math.floor((Math.max(0, nextBar - now) % 60000) / 1000)).padStart(2, '0')}</N></b></div>
           </div>
           <Spark pts={eqPts} />
@@ -334,9 +334,9 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
           <Room title="5 · מנהל סיכונים" who="חצי־קלי · מפסקים" shirt="#ef4444" hair="#78350f" mood={moodRisk}
             status={halted ? `עצירה קשיחה: ${risk?.haltReason || snap?.state?.hard_halt_reason || ''}` : paused ? 'מושהה עד חצות UTC' : 'מאשר כניסות'}>
             <Meter label="ירידה מהשיא (עצירה ב־10%)" v={dd} limit={CHAN.risk.maxDD} fmt={(x) => `${(x * 100).toFixed(1)}%`} />
-            <Meter label="הפסד ממומש היום (השהיה ב־3%)" v={dayLoss} limit={CHAN.risk.dailyLoss} fmt={(x) => `${(x * 100).toFixed(1)}%`} />
-            <Meter label="הפסדים ברצף (השהיה ב־50)" v={streak} limit={CHAN.risk.maxConsec} fmt={(x) => String(Math.round(x))} />
-            <Meter label="פוזיציות פתוחות" v={openN} limit={CHAN.risk.maxOpen} fmt={(x) => String(Math.round(x))} />
+            <div className="ch-kv"><span>הפסד ממומש היום</span><b><N>{dayLoss == null ? '—' : `${(dayLoss * 100).toFixed(1)}%`}</N> · ללא השהיה</b></div>
+            <div className="ch-kv"><span>הפסדים ברצף</span><b><N>{streak ?? '—'}</N> · ללא השהיה</b></div>
+            <div className="ch-kv"><span>פוזיציות פתוחות</span><b><N>{openN}</N> · ללא תקרה (מוגבל רק במינוף ×3 ובמזומן)</b></div>
             {(['RG_MR', 'RG_MOM'] as const).map((c) => { const k = kellyOf(c); return (
               <div key={c} className="ch-kv"><span>סיכון לעסקה · {COMP[c]}</span><b>{k ? `${(Number(k.kelly_f) * 100).toFixed(2)}% (${nComp(c)}/${CHAN.risk.kellyMinTrades} עסקאות לקלי)` : `${CHAN.risk.defaultRisk * 100}% ברירת מחדל`}</b></div>
             ) })}

@@ -2,7 +2,7 @@
 // NO-GO status).
 // Every cycle (~5 s):
 //   - stops resolved on the Binance aggTrades tape since the last check (exchange-side stop semantics, FAST's fill model)
-//   - time exits, marks, and the risk state machine: daily -3% or 50 losses -> pause to 00:00 UTC; -10% from peak ->
+//   - time exits, marks, and the risk state machine: (v97.7: no daily / streak pause, no open cap); -10% from peak ->
 //     close everything + hard halt
 // Once per CLOSED 5m bar, over the whole dynamic universe (~100 liquid USDT perps), in batches across the cycles of
 // the first 3 minutes (v97.2):

@@ -37,25 +37,24 @@ let r = riskStep(s0, T0 + 1000, 9899, [])
 assert.equal(r.ev, null)
 r = riskStep(s0, T0 + 1000, 9000, [])
 assert.equal(r.ev, 'KILL'); assert.equal(canOpen(r.st, 0).ok, false)
+// v97.7: no daily pause, no loss-streak pause, no open-position cap (owner); the -10% kill stays
 r = riskStep(s0, T0 + 5000, 9690, [{ pnl: -310, closedAt: T0 + 4000 }])
-assert.equal(r.ev, 'DAILY_STOP'); assert.equal(canOpen(r.st, 0).ok, false)
-const next = riskStep(r.st, T0 + DAY_MS + 10, 9690, [{ pnl: -310, closedAt: T0 + 4000 }])
-assert.equal(canOpen(next.st, 0).ok, true, 'the pause lifts at 00:00 UTC')
-const losses = Array.from({ length: 50 }, (_, k) => ({ pnl: -1, closedAt: T0 + k + 1 }))
-for (const n of [5, 49]) assert.equal(riskStep(s0, T0 + 100, 10000 - n, losses.slice(0, n)).ev, null)
-r = riskStep(s0, T0 + 100, 9950, losses)
-assert.equal(r.ev, 'CONSEC_STOP')
-const lifted = riskStep(r.st, T0 + DAY_MS + 1, 9950, losses)
-assert.equal(canOpen(lifted.st, 0).ok, true); assert.equal(riskStep(lifted.st, T0 + DAY_MS + 2, 9950, losses).ev, null, 'the streak restarts after the pause')
-assert.equal(canOpen(s0, CHAN.risk.maxOpen).ok, false, 'max 5 open')
+assert.equal(r.ev, null, 'no daily stop'); assert.equal(canOpen(r.st, 0).ok, true)
+const losses = Array.from({ length: 500 }, (_, k) => ({ pnl: -1, closedAt: T0 + k + 1 }))
+assert.equal(riskStep(s0, T0 + 1000, 9950, losses).ev, null, 'no loss-streak stop')
+assert.equal(canOpen(s0, 1000).ok, true, 'no open-position cap')
+// a pause persisted before v97.7 still lifts at 00:00 UTC
+const old = { ...s0, pausedUntilDay: 20001 }
+assert.equal(canOpen(old, 0).ok, false); assert.equal(canOpen(riskStep(old, T0 + DAY_MS + 10, 9690, []).st, 0).ok, true)
 // ledger re-checks the limits
-const sql = readFileSync('supabase/migrations/20260927000000_chan_all_coins.sql', 'utf8')
-for (const k of ["least(3,", "3 * eq - open_notional", "0.0101 * eq", "cnt >= 5", "hard_halt_at", "chan stop on the wrong side", "'USDC','FDUSD'", "'PAXG','XAUT'", "'TSLA','AAPL'", "chan_scan"])
+const sql = readFileSync('supabase/migrations/20260927140000_chan_no_trade_limit.sql', 'utf8')
+for (const k of ["least(3,", "3 * eq - open_notional", "0.0101 * eq", "hard_halt_at", "chan stop on the wrong side", "'USDC','FDUSD'", "'PAXG','XAUT'", "'TSLA','AAPL'", "chan_scan", "x->'funding'->>'amount'"])
   assert.ok(sql.includes(k), `ledger enforces: ${k}`)
-// the config numbers match quant/config.yaml
+assert.ok(!sql.includes('cnt >= 5'), 'ledger has no open-position cap')
+// the remaining config numbers match quant/config.yaml (the daily / streak limits are live-off, backtest-on)
 const yml = readFileSync('quant/config.yaml', 'utf8')
-for (const [k, v] of [['risk_per_trade_cap', CHAN.risk.cap], ['max_leverage', CHAN.risk.maxLeverage], ['daily_loss_limit', CHAN.risk.dailyLoss], ['max_drawdown_kill', CHAN.risk.maxDD],
-  ['max_consecutive_losses', CHAN.risk.maxConsec], ['kelly_fraction', CHAN.risk.kellyFraction], ['kelly_min_trades', CHAN.risk.kellyMinTrades], ['default_risk', CHAN.risk.defaultRisk]] as const)
+for (const [k, v] of [['risk_per_trade_cap', CHAN.risk.cap], ['max_leverage', CHAN.risk.maxLeverage], ['max_drawdown_kill', CHAN.risk.maxDD],
+  ['kelly_fraction', CHAN.risk.kellyFraction], ['kelly_min_trades', CHAN.risk.kellyMinTrades], ['default_risk', CHAN.risk.defaultRisk]] as const)
   assert.equal(Number(new RegExp(`\\n\\s+${k}:\\s*([0-9.]+)`).exec(yml)![1]), v, `config ${k}`)
 const rep = JSON.parse(readFileSync('quant/reports/backtest-5m.json', 'utf8')).strategies.regime_router.chosen_final
 assert.equal(rep.RG_MR.entry_z, CHAN.params.RG_MR.entryZ); assert.equal(rep.RG_MR.stop_z, CHAN.params.RG_MR.stopZ); assert.equal(rep.RG_MR.exit_z, CHAN.params.RG_MR.exitZ)

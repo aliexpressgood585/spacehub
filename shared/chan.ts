@@ -25,8 +25,11 @@ export const CHAN = {
   regime: { window: 2016, every: 288, hurstMr: 0.45, hurstTrend: 0.55, volPctHigh: 0.90, minHist: 20, maxHist: 90 },
   // the parameters the Python walk-forward chose for the regime router on the WF region (quant/reports/backtest-5m.json)
   params: { RG_MR: { entryZ: 2.5, exitZ: 0.0, stopZ: 3.5 }, RG_MOM: { kind: 'breakout' as const, lookback: 144, hold: 12 } },
-  risk: { kellyFraction: 0.5, cap: 0.01, kellyMinTrades: 30, defaultRisk: 0.0025, maxLeverage: 3, dailyLoss: 0.03,
-    maxDD: 0.10, maxConsec: 50, maxOpen: 5, minStopToCost: 3.0 },
+  // v97.7 (owner, 2026-09-27: "no trade limit at all"): the daily -3% pause, the loss-streak pause and the open-position
+  // cap are OFF (Infinity) on the live paper bot. quant/config.yaml keeps the backtested 3% / 5 values. What still bounds
+  // the book: -10% from peak kill, <= 1% risk per trade, total notional <= 3x equity, cash, one position per coin.
+  risk: { kellyFraction: 0.5, cap: 0.01, kellyMinTrades: 30, defaultRisk: 0.0025, maxLeverage: 3, dailyLoss: Infinity,
+    maxDD: 0.10, maxConsec: Infinity, maxOpen: Infinity, minStopToCost: 3.0 },
   costs: { taker: 0.0005, maker: 0.0002 },
   entryWindowMs: 180_000,
 } as const

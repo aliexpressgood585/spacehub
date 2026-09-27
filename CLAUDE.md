@@ -356,6 +356,13 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v97.7 (2026-09-27 ~16:00 UTC) — CHAN: NO trade limit (owner: "שלא תהיה מגבלה בכלל")
+- OFF on the live paper bot: the daily −3% pause, the loss-streak pause (was 50) and the 5-open-position cap (runner `CHAN.risk` = Infinity; ledger migration `20260927140000_chan_no_trade_limit.sql` drops `cnt >= 5`, applied).
+- KEPT, because they set position SIZE, not trade count: −10% from peak -> close all + hard_halt_at, ≤1% risk per trade, total notional ≤3x equity, cash, one position per coin. quant/config.yaml keeps the backtested 3% / 5 values.
+- House: "ללא תקרה / ללא השהיה" instead of meters.
+- FUNDING CHECK (first close under v97.6): XMR #699 LONG 08:35:51→13:00:54 booked 0, 0 events. Binance confirmed: XMRUSDT has an 8h interval (fundingInfo), settlements at 08:00 and 16:00 (0.01%), none inside the hold. So 0 is correct, and the old model would have charged ~$0.5. Charged once: the ledger has a single funding term.
+- STILL ESTIMATED: equity, and so the −10% kill and the 3x cap, ignore funding accrued on open positions until close, ≈0.03% of equity per 8h at normal rates.
+
 ## v97.6 (2026-09-27 ~10:40 UTC) — CHAN demo funding = Binance's ACTUAL settlements (owner)
 - `shared/chan.ts` `fundingCharge` computes, for every settlement the position held (open < fundingTime <= close), rate × size × mark / k.
   - Sign by side: a positive rate means the long pays.
