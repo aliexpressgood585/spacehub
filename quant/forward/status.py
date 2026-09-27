@@ -186,7 +186,7 @@ def main():
             out[k] = f(now) if now >= T0 else {"events": 0}
         except Exception as e:
             out[k] = {"events": None, "error": str(e)[:200]}
-    out["ready"] = [k for k in ("H1_funding", "H2_liquidation_fade", "H3_options_skew", "H4_news_momentum", "H5_donchian_1h")
+    out["ready"] = [k for k in ("H1_funding", "H2_liquidation_fade", "H3_options_skew", "H4_news_momentum")   # H5 failed validation: counted, never ready
                     if (out[k].get("events") or 0) >= READY]
     (ROOT / "quant/reports/forward-status.json").write_text(json.dumps(out, indent=1))
     print(json.dumps(out, indent=1))

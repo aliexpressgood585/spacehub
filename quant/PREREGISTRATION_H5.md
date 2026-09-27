@@ -1,3 +1,5 @@
+> **STATUS 2026-09-27: FAILED VALIDATION — not a candidate, never to be enabled in the bot.** Walk-forward before the holdout: 3 of 15 folds positive, −14.7% compounded, maxDD 32.6%, Sharpe −0.15. Its positive holdout is one period. The rule below is kept only as the record of what was tested. There is NO live shadow trading; only a trade count in `forward/status.py`, which can never make it "ready".
+
 # Pre-registration H5 — Donchian breakout on 1h bars (shadow forward test)
 
 **Written 2026-09-27. Forward window starts 2026-09-28 00:00:00 UTC (T0).**

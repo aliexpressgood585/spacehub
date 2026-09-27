@@ -367,7 +367,7 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   - DON 5m: net −23.5 bps/trade (router −29.2), DECAY.
   - DON 1h (N 168, 3 ATR): +28.9 bps/trade on n=531, PF 1.13; fixed-risk portfolio 201 trades, +11.6%, PF 1.29, DD 10.3%, Sharpe 0.64. It LOST in-sample (NO_EDGE_IN_SAMPLE, DEFLATED) and fails Sharpe 1.5.
 - Not an established improvement, so nothing was deployed; live CHAN is unchanged (50-loss pause, leverage, balance and history untouched).
-- Shadow: `quant/PREREGISTRATION_H5.md` (frozen rule, T0 2026-09-28, N = 24 for DSR), counted by `forward/status.py` `h5_donchian`:
+- **H5 FAILED VALIDATION (owner, 2026-09-27):** walk-forward 3/15 folds positive, −14.7%, DD 32.6%, Sharpe −0.15. Never enable it; there is NO live shadow trading; do not tune further on the exposed period. Kept as a record in `quant/PREREGISTRATION_H5.md`; `forward/status.py` still counts it but excludes it from `ready`. Former text:
   - count-only, from the Binance daily 1h archive;
   - plumbing check on pre-T0 data gave 21 closes in ~17 days, so ~3–5 months to 200.
 

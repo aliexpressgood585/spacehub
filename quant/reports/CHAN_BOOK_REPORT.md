@@ -25,5 +25,6 @@
 ## Reading
 - **Z-score mean reversion:** no edge before costs at either timeframe (gross ≈ 0).
 - **5m breakout:** negative per trade. Its positive fixed-risk portfolio comes from the risk layer's selection of 150 of 2,238 signals. Walk-forward DECAY shows it does not hold.
-- **DON 1h:** the one candidate positive on the holdout. It lost in-sample and fails Sharpe > 1.5 and DSR, so this is not an established improvement. It is pre-registered as H5 (`PREREGISTRATION_H5.md`, T0 2026-09-28) and tracked count-only in `forward/status.py`, as a shadow.
+- **DON 1h — FAILED VALIDATION:** walk-forward (15 folds of 360 training / 90 test days, before the holdout) had 3 of 15 folds positive, −14.7% compounded, maxDD 32.6%, Sharpe −0.15. Its positive holdout (+28.9 bps/trade) is one period. **There is no live shadow trading.** `PREREGISTRATION_H5.md` is kept as a record only; `forward/status.py` counts its trades and never marks it ready. No further tuning is done on the exposed period.
+- **Where the loss comes from** (holdout edge stats): the ZMR gross is ≈ 0, so costs are its whole loss. The live router 5m is gross −9.4 bps with costs of 19.8 bps, so about two-thirds of its loss is costs and the signal is also negative before costs. Entries and exits cannot be separated with the existing data: gross mixes both, and no alternative-exit test was run on the same entries.
 - **Live CHAN is unchanged.**
