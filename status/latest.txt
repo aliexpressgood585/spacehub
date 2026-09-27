@@ -1,4 +1,4 @@
-generated_at: 2026-08-07T15:07:42Z
+generated_at: 2026-08-08T20:51:09Z
 === BOT STATE ===
 {"message":"Unauthorized"}
 === FEED HEALTH (per-source, v54.1) ===
@@ -24,21 +24,20 @@ generated_at: 2026-08-07T15:07:42Z
   ⚠️ SUPABASE ERROR (not rows): {"message": "Unauthorized"}
   TOTAL unrealized: $+0.00 on $0 notional
 === BREAKOUT CHECK (OKX 4h, independent) ===
-  SOL: SHORT breakout on bar -5 close=72.76 adx=10 [adx<=22 -> correctly skipped]
-  BNB: SHORT breakout on bar -2 close=585.1 adx=47 [WOULD ENTER]
-  XRP: SHORT breakout on bar -3 close=1.0207 adx=18 [adx<=22 -> correctly skipped]
-  XRP: SHORT breakout on bar -5 close=1.0343 adx=18 [adx<=22 -> correctly skipped]
-  ADA: LONG breakout on bar -6 close=0.2087 adx=61 [WOULD ENTER]
-  LTC: LONG breakout on bar -6 close=45.65 adx=29 [WOULD ENTER]
-  NEAR: SHORT breakout on bar -3 close=1.643 adx=11 [adx<=22 -> correctly skipped]
-  NEAR: SHORT breakout on bar -5 close=1.657 adx=11 [adx<=22 -> correctly skipped]
-  INJ: SHORT breakout on bar -3 close=4.494 adx=19 [adx<=22 -> correctly skipped]
-  INJ: SHORT breakout on bar -4 close=4.574 adx=19 [adx<=22 -> correctly skipped]
-  HBAR: SHORT breakout on bar -5 close=0.06807 adx=5 [adx<=22 -> correctly skipped]
-  WLD: SHORT breakout on bar -5 close=0.3003 adx=25 [WOULD ENTER]
+  SOL: LONG breakout on bar -2 close=76.35 adx=11 [adx<=22 -> correctly skipped]
+  SOL: LONG breakout on bar -3 close=75.55 adx=11 [adx<=22 -> correctly skipped]
+  SOL: LONG breakout on bar -5 close=74.81 adx=11 [adx<=22 -> correctly skipped]
+  BNB: LONG breakout on bar -2 close=605.0 adx=30 [WOULD ENTER]
+  DOGE: LONG breakout on bar -2 close=0.07112 adx=13 [adx<=22 -> correctly skipped]
+  ATOM: LONG breakout on bar -3 close=1.398 adx=13 [adx<=22 -> correctly skipped]
+  ICP: LONG breakout on bar -1 close=2.219 adx=9 [adx<=22 -> correctly skipped]
+  ICP: LONG breakout on bar -2 close=2.133 adx=10 [adx<=22 -> correctly skipped]
+  APT: LONG breakout on bar -2 close=0.6104 adx=8 [adx<=22 -> correctly skipped]
+  SUI: LONG breakout on bar -2 close=0.7004 adx=13 [adx<=22 -> correctly skipped]
+  INJ: SHORT breakout on bar -3 close=4.391 adx=19 [adx<=22 -> correctly skipped]
 === LIVE BOT DONCH4H EVAL (what the bot itself sees right now) ===
-{"ok":true,"fapi_status":451,"universe":11,"fetch_source":"spot","breakouts":[],"checked_at":"2026-08-07T15:07:53.460Z"}
+{"ok":true,"fapi_status":451,"universe":35,"fetch_source":"okx","breakouts":[],"checked_at":"2026-08-08T20:51:20.152Z"}
 === BOT LIVENESS (HTTP probe, no mgmt API) ===
   edge_function_http=200
-  response_head={"ok":true,"v":28,"openCount":0,"maxOpen":30,"streakPaused":false,"streak":0,"btcBias":"BEAR","btcRegime":"RANGING","kelly":1,"fearGreed":29,"adaptMinScore":2,"adaptVpocDist":0.035,"adaptSideFilter":"SHORT","session":"US","sessionSizeMult":1,"equityGuardMult":1,"equity":"10202.64","lockedNotional":"
+  response_head={"ok":true,"v":28,"openCount":0,"maxOpen":30,"streakPaused":false,"streak":0,"btcBias":"BULL","btcRegime":"RANGING","kelly":1,"fearGreed":30,"adaptMinScore":2,"adaptVpocDist":0.035,"adaptSideFilter":"SHORT","session":"US","sessionSizeMult":1,"equityGuardMult":1,"equity":"10202.64","lockedNotional":"
   ⚠️ ANON_KEY EMPTY — management API/token problem
