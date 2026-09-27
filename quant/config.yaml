@@ -83,3 +83,16 @@ alerts:
 journal:
   sqlite: reports/journal.sqlite
   csv_dir: reports/journal
+
+# AFML layer (Lopez de Prado): meta-labeling on top of the CHAN router. OFF until its own gate passes.
+# Research only: `python -m quant.run_meta` writes reports/META_REPORT.md. Nothing here changes plain CHAN.
+afml:
+  enabled: false            # the live filter refuses to load a model unless this is true AND the report gate PASSED
+  labels: {vol_span: 100, barrier_mult: [1.0, 2.0]}   # triple barrier: pt = sl = k x EWMA vol x sqrt(max_hold)
+  models: [rf, lgbm]
+  thresholds: [0.50, 0.55, 0.60]
+  sizing: [false, true]     # true = bet size from probability (can only SHRINK a trade; all risk caps still apply)
+  cv: {n_splits: 6, cpcv_groups: 6, cpcv_test_groups: 2, embargo_days: 1}
+  eval_risk_per_trade: 0.0025   # fixed risk per trade used to turn R into daily returns for the comparison
+  gate: {min_dsr: 0.95}     # meta must beat plain CHAN on the holdout after costs AND have DSR > 0.95
+  retrain: weekly           # on archived data only; never on live trades in real time
