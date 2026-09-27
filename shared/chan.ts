@@ -10,8 +10,15 @@
 // -3% -> pause to 00:00 UTC; -10% from peak -> close all + halt; 5 losses in a row -> pause to 00:00 UTC; max 5 open.
 
 export const CHAN = {
-  tf: '5m', barMs: 300_000, bars: 9000,
+  tf: '5m', barMs: 300_000, bars: 4300,
+  // v97.1 (owner: "all the coins traded on Binance Futures"): the scan covers the dynamic universe (market_cache
+  // 'universe': every active USDT perpetual, crypto only, >= $20M/24h, spread <= 10 bps; ~100 pairs). These 10 are the
+  // fallback and the coins the Python backtest was run on — the others were NEVER backtested.
   universe: ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT'] as const,
+  // batched scan so ~100 coins fit Binance's 2,400 request-weight per minute: bars are kept in memory between cycles
+  // (one light request per coin per bar when warm), a cold coin needs 3 pages (weight 30), the daily volatility history
+  // for the regime filter is persisted (market_cache 'chan_vols') and bootstrapped once per coin from 9,000 bars.
+  scan: { perCycle: 30, fullPerCycle: 10, deepPerCycle: 3, deepBars: 9000, weightBudget: 1700, windowMs: 180_000 },
   mr: { statWindow: 2016, hurstMax: 0.45, adfP: 0.05, hlMin: 5, hlMax: 300, maxHoldHalflives: 3 },
   mom: { sigWindow: 4032, tMin: 2.0, stopAtr: 2.0 },
   regime: { window: 2016, every: 288, hurstMr: 0.45, hurstTrend: 0.55, volPctHigh: 0.90, minHist: 20, maxHist: 90 },
@@ -20,10 +27,11 @@ export const CHAN = {
   risk: { kellyFraction: 0.5, cap: 0.01, kellyMinTrades: 30, defaultRisk: 0.0025, maxLeverage: 3, dailyLoss: 0.03,
     maxDD: 0.10, maxConsec: 5, maxOpen: 5, minStopToCost: 3.0 },
   costs: { taker: 0.0005, maker: 0.0002 },
-  entryWindowMs: 120_000,
+  entryWindowMs: 180_000,
 } as const
 
 export const MEAN_REVERT = 1, TREND = 2, HIGH_VOL = 3, NEUTRAL = 0
+export const DAY_MS = 86_400_000
 
 // ---------- numerics ----------------------------------------------------------------------------------------------
 const mean = (a: ArrayLike<number>) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i]; return s / a.length }
@@ -123,15 +131,28 @@ export interface ChanView {
   mr: { hl: number; z: number; mean: number; std: number; gate: boolean; side: 0 | 1 | -1; exitLong: boolean; exitShort: boolean; stopLong: number; stopShort: number; maxHold: number }
   mom: { t: number; gate: boolean; side: 0 | 1 | -1; atr: number; stopLong: number; stopShort: number; hh: number; ll: number }
 }
-export function chanView(bars: Bar[]): ChanView | null {
+// Daily realised-vol estimates at UTC-midnight anchors (the Python regime filter re-estimates on a fixed daily grid):
+// for each bar that CLOSES at 00:00 UTC with a full window behind it, the std of the window's log returns.
+export function dayVols(bars: Bar[]): { d: number; v: number }[] {
+  const W = CHAN.regime.window, out: { d: number; v: number }[] = []
+  const logp = bars.map(b => Math.log(b.c))
+  for (let e = W - 1; e < bars.length; e++) {
+    const close = bars[e].t + CHAN.barMs
+    if (close % DAY_MS !== 0) continue
+    const w = logp.slice(e - W + 1, e + 1)
+    out.push({ d: close / DAY_MS, v: stdPop(w.slice(1).map((x, i) => x - w[i])) })
+  }
+  return out
+}
+export function chanView(bars: Bar[], pastVols?: number[]): ChanView | null {
   const n = bars.length, W = CHAN.regime.window
   if (n < Math.max(W, CHAN.mom.sigWindow) + 1) return null
   const logp = bars.map(b => Math.log(b.c))
   const win = logp.slice(n - W)
   // regime: Hurst + vol, vol percentile vs PAST daily estimates (windows ending every 288 bars back, up to 90)
   const H = hurst(win), vol = stdPop(win.slice(1).map((v, i) => v - win[i]))
-  const past: number[] = []
-  for (let k = 1; k <= CHAN.regime.maxHist; k++) {
+  const past: number[] = pastVols ? pastVols.slice(-CHAN.regime.maxHist) : []
+  if (!pastVols) for (let k = 1; k <= CHAN.regime.maxHist; k++) {
     const e = n - 1 - k * CHAN.regime.every
     if (e - W + 1 < 0) break
     const w = logp.slice(e - W + 1, e + 1); past.push(stdPop(w.slice(1).map((v, i) => v - w[i])))
@@ -177,7 +198,6 @@ export function kellyRisk(rs: number[]): { f: number; why: string } {
   return { f, why: f > 0 ? `half-Kelly ${(r.kellyFraction * full).toFixed(4)} capped ${r.cap}` : 'half-Kelly <= 0 (no positive edge in its own record)' }
 }
 export interface RiskState { peak: number; day: number; dayOpen: number; pausedUntilDay: number; streakFrom: number; halted: boolean; haltReason: string }
-export const DAY_MS = 86_400_000
 export interface Closed { pnl: number; closedAt: number }
 // Rebuild the day / streak / pause state for `now` from the persisted state + the closed CHAN trades. Returns the new
 // state and an event ('KILL' | 'DAILY_STOP' | 'CONSEC_STOP' | null).

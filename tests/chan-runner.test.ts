@@ -33,10 +33,10 @@ function mockFetch() {
     return { ok: true, json: async () => body } as any
   }) as any
 }
-function mockDb(open: any[], closed: any[] = []) {
+function mockDb(open: any[], closed: any[] = [], cache: any[] = []) {
   return { from: (table: string) => { const q: any = { _t: table, _open: false }
       const api: any = new Proxy(q, { get: (_o, k: string) => {
-        if (k === 'throwOnError') return async () => ({ data: table === 'bot_trades' ? (q._neq ? closed : open) : [] })
+        if (k === 'throwOnError') return async () => ({ data: table === 'bot_trades' ? (q._neq ? closed : open) : table === 'market_cache' ? cache : [] })
         if (k === 'neq') return () => { q._neq = true; return api }
         if (k === 'insert') return async () => ({})
         return () => api } })
@@ -70,7 +70,20 @@ try {
     new Date(NOW + 50e3).toISOString(), true)
   assert.ok(rpc.args.p_halt && /drawdown/.test(rpc.args.p_halt), 'kill switch fires')
   assert.equal(rpc.args.p_closes[0].reason, 'KILL'); assert.equal(rpc.args.p_entries.length, 0)
-  // 5. a mixed book or a live account are refused
+  // 5. the whole universe (here 25 coins) in batches: <= 10 cold downloads per cycle, the bar closes only when all are done
+  const syms = Array.from({ length: 25 }, (_, k) => `C${k}X`)
+  syms.forEach((x, k) => { series[x] = ouBars(9000, false, 500 + k) })
+  const uniCache = [{ data: { pairs: syms.map(x => ({ sym: x, s: `${x}USDT`, k: 1 })) }, ts: new Date(NOW).toISOString() }]
+  let params: any = {}, cycles = 0
+  do {
+    await runChan(mockDb([], [], uniCache), { balance: 5000, bot_params: params }, new Date(NOW + 50e3).toISOString(), true)
+    const n = rpc.args.p_note
+    params = { chan_scan: n.scan, chan_risk: n.risk_state, ...(rpc.args.p_bar ? { chan_bar: BAR } : {}) }
+    cycles++
+    assert.ok(n.cold_fetches <= CHAN.scan.fullPerCycle, 'cold downloads per cycle are capped')
+  } while (!rpc.args.p_bar && cycles < 10)
+  assert.equal(cycles, 3, '25 cold coins at <= 10 per cycle -> 3 cycles'); assert.equal(rpc.args.p_note.scanned, 25); assert.equal(rpc.args.p_note.complete, true)
+  // 6. a mixed book or a live account are refused
   await assert.rejects(() => runChan(mockDb([{ ...pos, strategy: 'FAST' }]), { balance: 1, bot_params: {} }, 'x', true), /CHAN rows only/)
   await assert.rejects(() => runChan(mockDb([]), { balance: 1, bot_params: {} }, 'x', false), /paper-only/)
 } finally { globalThis.fetch = original; Date.now = realNow }

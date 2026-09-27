@@ -48,8 +48,8 @@ const lifted = riskStep(r.st, T0 + DAY_MS + 1, 9950, five)
 assert.equal(canOpen(lifted.st, 0).ok, true); assert.equal(riskStep(lifted.st, T0 + DAY_MS + 2, 9950, five).ev, null, 'the streak restarts after the pause')
 assert.equal(canOpen(s0, CHAN.risk.maxOpen).ok, false, 'max 5 open')
 // ledger re-checks the limits
-const sql = readFileSync('supabase/migrations/20260926240000_chan_sleeve.sql', 'utf8')
-for (const k of ["least(3,", "3 * eq - open_notional", "0.0101 * eq", "cnt >= 5", "hard_halt_at", "chan stop on the wrong side", "'BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','DOT'"])
+const sql = readFileSync('supabase/migrations/20260927000000_chan_all_coins.sql', 'utf8')
+for (const k of ["least(3,", "3 * eq - open_notional", "0.0101 * eq", "cnt >= 5", "hard_halt_at", "chan stop on the wrong side", "'USDC','FDUSD'", "'PAXG','XAUT'", "'TSLA','AAPL'", "chan_scan"])
   assert.ok(sql.includes(k), `ledger enforces: ${k}`)
 // the config numbers match quant/config.yaml
 const yml = readFileSync('quant/config.yaml', 'utf8')
@@ -59,4 +59,11 @@ for (const [k, v] of [['risk_per_trade_cap', CHAN.risk.cap], ['max_leverage', CH
 const rep = JSON.parse(readFileSync('quant/reports/backtest-5m.json', 'utf8')).strategies.regime_router.chosen_final
 assert.equal(rep.RG_MR.entry_z, CHAN.params.RG_MR.entryZ); assert.equal(rep.RG_MR.stop_z, CHAN.params.RG_MR.stopZ); assert.equal(rep.RG_MR.exit_z, CHAN.params.RG_MR.exitZ)
 assert.equal(rep.RG_MOM.kind, CHAN.params.RG_MOM.kind); assert.equal(rep.RG_MOM.lookback, CHAN.params.RG_MOM.lookback); assert.equal(rep.RG_MOM.hold, CHAN.params.RG_MOM.hold)
+// daily vol anchors: one per bar that closes at 00:00 UTC with a full window behind it
+{
+  const { dayVols } = await import('../shared/chan.ts')
+  const bars: Bar[] = Array.from({ length: 2016 + 288 * 3 }, (_, i) => ({ t: 1790000000000 - (1790000000000 % 86400000) + (i - 2016) * 300000, o: 100, h: 100, l: 100, c: 100 * Math.exp(0.001 * Math.sin(i)) }))
+  const dv = dayVols(bars)
+  assert.ok(dv.length >= 3 && dv.every(x => Number.isInteger(x.d) && x.v > 0), 'daily anchors at UTC midnight')
+}
 console.log('chan: parity with quant/ + risk + ledger ok')
