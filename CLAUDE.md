@@ -356,6 +356,24 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## quant Phase 1b (2026-09-27 ~05:00 UTC) — 1h/4h, maker-only, pairs (Johansen), extreme funding: ALL NO-GO
+Owner: run the same OOS pipeline (same gates, same costs) on four candidates before any live trading.
+Code:
+- `quant/run_phase1b.py` -> reports/PHASE1B_REPORT.md + phase1b.json.
+- `strategies/pairs.py` (rolling Johansen, hedged index built on 5m so the extremes are real, both legs costed).
+- `strategies/funding.py` (take the receiving side after an extreme settlement).
+- The engine gains an optional post-only maker entry (a fill only if the next bar trades THROUGH the limit; a miss = no trade; `execution.entry`, default taker so nothing old changes).
+- 4h is aggregated from the 1h archive; the config has 1h/4h windows.
+- tests/test_phase1b.py; suite 61 passed.
+RESULTS (holdout = the last 20%, read once; gate unchanged: Sharpe > 1.5, DD < 15%, ≥ 200 trades, no DECAY/FLIP):
+- A. 1h/4h router gross −5 / −7 bps, net −15 / −23 (t −3.6 / −1.8). ADF+Hurst almost never opens on 1h/4h single coins (MR n = 2 on the 4h holdout).
+- B. Maker fill rate 93–99.6% (adverse selection). It saves ~10 bps of fees, but the gross gets worse; 5m router net −18.9 vs −29.2 taker.
+- C. Pairs cointegrated ~15% of the time. All 45 pairs: IS −170 bps (t −7.6), holdout −113. BTC/ETH spread kept diverging 58 bps after |z| ≥ 1.5.
+- D. Funding: the chosen set (≥ 0.10%, 72h) LOST in-sample (t −2.07) and then +353 bps on 118 holdout trades (t 2.75).
+  - That is a flip, not evidence; Kelly gives it 0; fixed-risk holdout Sharpe +0.26.
+  - Watch it on new data only.
+Live bot unchanged (paper, CHAN).
+
 ## quant/afml (2026-09-27 ~04:15 UTC) — López de Prado layer on CHAN: built, tested, gate FAILED -> keep plain CHAN
 Owner asked for AFML methods on top of CHAN. Built in `quant/afml/` as an optional layer, `afml.enabled: false`
 (plan and fit in `quant/afml/PLAN.md`).

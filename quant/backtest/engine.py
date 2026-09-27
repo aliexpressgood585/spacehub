@@ -64,6 +64,8 @@ def simulate(bars: Bars, sig: Signals, cfg: dict, strategy: str, funding: Fundin
     min_stop = float(cfg["risk"].get("min_stop_to_cost", 0.0))
     rng = np.concatenate([[0.0], (h - l)[:-1] / c[:-1]])          # previous bar's range, known at the open of i
     slip = base + rf * rng
+    maker_entry = cfg.get("execution", {}).get("entry", "taker") == "maker"
+    stats = sig.info.setdefault("fills", {"attempted": 0, "filled": 0}) if maker_entry else None
     cand = np.flatnonzero(sig.side != 0)
     trades: list[Trade] = []
     nl = max(1, int(sig.n_layers))
@@ -79,7 +81,17 @@ def simulate(bars: Bars, sig: Signals, cfg: dict, strategy: str, funding: Fundin
         d = int(sig.side[i])
         stop = float(sig.stop_long[i] if d > 0 else sig.stop_short[i])
         tp = float(sig.tp_long[i] if d > 0 else sig.tp_short[i])
-        e1 = o[j] * (1 + d * slip[j])
+        if maker_entry:
+            # post-only limit at the signal close, valid for bar j only; filled only if bar j trades THROUGH it
+            stats["attempted"] += 1
+            lim = c[i]
+            if not ((l[j] < lim) if d > 0 else (h[j] > lim)):
+                i_next = i + 1          # missed fill: no trade (never chased with a market order)
+                continue
+            stats["filled"] += 1
+            e1 = float(lim)
+        else:
+            e1 = o[j] * (1 + d * slip[j])
         if not np.isfinite(stop) or d * (e1 - stop) <= 0 or sig.max_hold[i] <= 0:
             i_next = i + 1          # no valid mandatory stop -> no trade
             continue
@@ -120,6 +132,7 @@ def simulate(bars: Bars, sig: Signals, cfg: dict, strategy: str, funding: Fundin
             xp, xfee, t_exit = tp, maker, int(t[b] + tf_ms)
         # layers (scale-in): layer k fills at the open after the first close with units >= k, strictly before the exit
         fills = [(j, e1)]
+        efee = maker if maker_entry else taker
         if sig.units is not None and nl > 1:
             last_ok = b - 1 if reason == "SIGNAL" else b
             for k in range(2, nl + 1):
@@ -132,10 +145,10 @@ def simulate(bars: Bars, sig: Signals, cfg: dict, strategy: str, funding: Fundin
         gross = fees = fund = slp = 0.0
         for fb, ep in fills:
             gross += w * d * (xp - ep)
-            fees += w * (taker * ep + xfee * xp)
+            fees += w * ((efee if fb == j else taker) * ep + xfee * xp)
             if funding is not None and len(funding.t):
                 fund += w * d * float(funding.between(int(t[fb]), t_exit).sum()) * ep
-            slp += w * (d * (ep - o[fb]) + d * (raw - xp))
+            slp += w * ((0.0 if (maker_entry and fb == j) else d * (ep - o[fb])) + d * (raw - xp))
         pnl = gross - fees - fund
         trades.append(Trade(bars.symbol, strategy, d, int(t[j]), t_exit, float(e1), float(xp), stop, len(fills), nl,
                             float(pnl), float(gross), float(fees), float(fund), float(slp), float(abs(e1 - stop)), reason))

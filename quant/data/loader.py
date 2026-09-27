@@ -12,7 +12,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-TF_MS = {"1m": 60_000, "5m": 300_000, "15m": 900_000, "1h": 3_600_000}
+TF_MS = {"1m": 60_000, "5m": 300_000, "15m": 900_000, "1h": 3_600_000, "4h": 14_400_000}
 
 
 @dataclass
@@ -40,8 +40,23 @@ def archive_name(symbol: str) -> str:
     return "1000PEPE" if symbol == "PEPE" else symbol
 
 
+def aggregate(b: Bars, tf: str) -> Bars:
+    """UTC-aligned buckets of `tf` from finer bars; only COMPLETE buckets are kept (no partial last bar)."""
+    step = TF_MS[tf]
+    per = step // TF_MS[b.tf]
+    key = b.t // step
+    starts = np.flatnonzero(np.concatenate([[True], np.diff(key) != 0]))
+    ends = np.append(starts[1:], len(b.t))
+    full = (ends - starts == per) & (b.t[starts] % step == 0)
+    s, e = starts[full], ends[full] - 1
+    return Bars(b.symbol, tf, b.t[s], b.open[s], np.maximum.reduceat(b.high, starts)[full],
+                np.minimum.reduceat(b.low, starts)[full], b.close[e], np.add.reduceat(b.volume, starts)[full])
+
+
 def load_bars(data_dir: str | Path, symbol: str, tf: str) -> Bars:
     p = Path(data_dir) / f"{archive_name(symbol)}-{tf}.csv"
+    if tf == "4h" and not p.exists():
+        return aggregate(load_bars(data_dir, symbol, "1h"), "4h")
     df = pd.read_csv(p, header=None, usecols=[0, 1, 2, 3, 4, 5], names=["t", "o", "h", "l", "c", "v"],
                      dtype={"t": "int64"}, on_bad_lines="skip")
     df = df.drop_duplicates("t").sort_values("t")

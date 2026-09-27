@@ -37,8 +37,8 @@ risk:
 strategies:
   mean_reversion:
     enabled: true
-    stat_window: {5m: 2016, 1m: 2880}      # bars used for ADF / Hurst / half-life (7 days of 5m, 2 days of 1m)
-    recompute_every: {5m: 288, 1m: 1440}   # re-estimate once a day (uses only bars already closed)
+    stat_window: {5m: 2016, 1m: 2880, 1h: 720, 4h: 180}      # bars used for ADF / Hurst / half-life (7 days of 5m, 2 days of 1m)
+    recompute_every: {5m: 288, 1m: 1440, 1h: 24, 4h: 6}   # re-estimate once a day (uses only bars already closed)
     adf_pvalue: 0.05
     hurst_max: 0.45
     halflife_min: 5
@@ -51,8 +51,8 @@ strategies:
       scale_in: [false, true]              # linear scaling-in: layers at entry_z, entry_z+0.5, entry_z+1.0
   momentum:
     enabled: true
-    sig_window: {5m: 4032, 1m: 4320}       # bars used to test whether past returns predict future returns
-    recompute_every: {5m: 288, 1m: 1440}
+    sig_window: {5m: 4032, 1m: 4320, 1h: 1440, 4h: 540}       # bars used to test whether past returns predict future returns
+    recompute_every: {5m: 288, 1m: 1440, 1h: 24, 4h: 6}
     t_min: 2.0
     stop_atr: 2.0
     grid:
@@ -61,16 +61,39 @@ strategies:
       hold: [12, 48]
   regime:
     enabled: true
-    window: {5m: 2016, 1m: 2880}
-    recompute_every: {5m: 288, 1m: 1440}
+    window: {5m: 2016, 1m: 2880, 1h: 720, 4h: 180}
+    recompute_every: {5m: 288, 1m: 1440, 1h: 24, 4h: 6}
     hurst_mr: 0.45
     hurst_trend: 0.55
     vol_pct_high: 0.90                     # realised vol above its trailing 90th percentile = high-vol -> flat
 
+execution:
+  entry: taker              # taker | maker. maker = post-only limit at the signal bar's close, valid for ONE bar, filled
+                            # only if the next bar trades strictly through it (touch = no fill); a miss = no trade.
+                            # Stops and time exits are always market (taker); take-profits are always resting limits.
+
+pairs:                      # Chan ch. 3-4: cointegrated pairs, the spread traded by z-score (Johansen gate)
+  pairs_named: [[BTC, ETH], [ETH, SOL], [BTC, SOL]]
+  window: {1h: 720, 4h: 180, 5m: 2016}       # bars in each rolling Johansen test (30 days)
+  recompute_every: {1h: 24, 4h: 6, 5m: 288}
+  halflife_min: 3
+  halflife_max: 300
+  max_hold_halflives: 3
+  grid:
+    entry_z: [1.5, 2.0, 2.5]
+    exit_z: [0.0, 0.5]
+    stop_z: [3.5, 4.5]
+
+funding:                    # fade crowded positioning: take the side that RECEIVES funding when the last print is extreme
+  grid:
+    threshold: [0.0003, 0.0005, 0.0010]      # |last settled rate| per 8h
+    hold_h: [8, 24, 72]
+    stop_atr: [3.0]
+
 backtest:
   holdout_frac: 0.20        # the last 20% of the timeline is read ONCE, after every choice is frozen
-  wf_train_days: {5m: 180, 1m: 90}
-  wf_test_days: {5m: 60, 1m: 30}
+  wf_train_days: {5m: 180, 1m: 90, 1h: 360, 4h: 540}
+  wf_test_days: {5m: 60, 1m: 30, 1h: 90, 4h: 120}
   initial_equity: 10000
 
 gates:
