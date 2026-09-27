@@ -18,7 +18,7 @@ for (const f of fx) {
   if (f.z !== null) { near(v.mr.z, f.z, 1e-7, `${f.name} z`); near(v.mr.mean, f.mu, 1e-12, `${f.name} mean`); near(v.mr.std, f.sd, 1e-9, `${f.name} std`) }
   near(v.vol, f.vol, 1e-12, `${f.name} vol`)
 }
-const [ou, rw, tr] = fx.map((f: any) => chanView(f.c.map((c: number, i: number) => ({ t: i * 300000, o: c, h: f.h[i], l: f.l[i], c }))))
+const [ou, rw, tr] = fx.map((f: any) => chanView(f.c.map((c: number, i: number) => ({ t: i * 300000, o: c, h: f.h[i], l: f.l[i], c })), Array(20).fill(f.vol * 2)))
 assert.equal(ou!.regime, MEAN_REVERT, 'OU series -> mean-reverting regime')
 assert.equal(tr!.regime, TREND, 'persistent series -> trend regime')
 assert.ok(rw!.regime !== MEAN_REVERT && rw!.regime !== TREND || Math.abs(rw!.hurst - 0.5) < 0.06, 'random walk sits in the middle')
@@ -38,7 +38,7 @@ assert.equal(r.ev, null)
 r = riskStep(s0, T0 + 1000, 9000, [])
 assert.equal(r.ev, 'KILL'); assert.equal(canOpen(r.st, 0).ok, false)
 r = riskStep(s0, T0 + 5000, 9690, [{ pnl: -310, closedAt: T0 + 4000 }])
-assert.equal(r.ev, 'DAILY_STOP'); assert.equal(canOpen(r.st, 0).ok, false)
+assert.equal(r.ev, null); assert.equal(canOpen(r.st, 0).ok, true, 'daily loss pause disabled')
 const next = riskStep(r.st, T0 + DAY_MS + 10, 9690, [{ pnl: -310, closedAt: T0 + 4000 }])
 assert.equal(canOpen(next.st, 0).ok, true, 'the pause lifts at 00:00 UTC')
 const losses = Array.from({ length: 50 }, (_, k) => ({ pnl: -1, closedAt: T0 + k + 1 }))
@@ -106,3 +106,40 @@ console.log('chan: parity with quant/ + risk + ledger ok')
   assert.ok(mig.includes("funding := (x->'funding'->>'amount')::numeric") && mig.includes("'funding_missing'"), 'ledger books the runner amount and flags a fallback')
 }
 console.log('chan funding: ok')
+
+// Owner-requested entry gates: missing data fails closed without suppressing exits.
+{
+  const { dailyStats, barView } = await import('../shared/chan.ts')
+  const f = fx[0], bars = f.c.map((c: number, i: number) => ({ t: i * 300000, o: c, h: f.h[i], l: f.l[i], c }))
+  const d = dailyStats(bars, Array(20).fill(f.vol * 2))!
+  assert.ok(d.adf < CHAN.mr.adfP)
+  const good = barView(bars, d)!
+  assert.ok(good.mr.gate)
+  for (const bad of [{ ...d, adf: NaN }, { ...d, adf: 0.06 }, { ...d, volPct: NaN }, { ...d, volPct: null as any }]) {
+    const v = barView(bars, bad)!
+    assert.equal(v.mr.gate, false); assert.equal(v.mr.side, 0)
+    assert.equal(v.mr.exitLong, good.mr.exitLong); assert.equal(v.mr.exitShort, good.mr.exitShort)
+  }
+  assert.equal(barView(bars, { ...d, regime: TREND, t: 3, volPct: NaN })!.mom.gate, false)
+  assert.equal(dailyStats(bars, [])!.regime, 0, 'no volatility baseline -> neutral')
+  const paused = { ...s0, pausedUntilDay: s0.day + 1, pauseReason: 'DAILY_STOP' }
+  assert.equal(canOpen(riskStep(paused, T0 + 5000, 9690, [{ pnl: -310, closedAt: T0 + 4000 }]).st, 0).ok, true)
+  assert.equal(canOpen(riskStep({ ...paused, pauseReason: 'CONSEC_STOP' }, T0 + 5000, 9690, []).st, 0).ok, false)
+  assert.equal(canOpen(riskStep({ ...paused, halted: true }, T0 + 5000, 9690, []).st, 0).ok, false)
+}
+// Rolling history refuses gaps / forming candles and survives persisted JSON round-trips.
+{
+  const { mergeHistory, historyBars } = await import('../shared/chan-history.ts')
+  const end = 21000 * DAY_MS
+  const bars = Array.from({ length: CHAN.bars }, (_, i) => ({ t: end - (CHAN.bars - i) * CHAN.barMs, o: 100, h: 101, l: 99, c: 100 + i / 1000 }))
+  const h = mergeHistory(undefined, bars, end)!
+  assert.equal(h.closes.length, CHAN.bars)
+  assert.deepEqual(mergeHistory(JSON.parse(JSON.stringify(h)), bars.slice(-320), end), h)
+  const nextBar = { t: end, o: 104, h: 106, l: 103, c: 105 }
+  assert.deepEqual(mergeHistory(h, [nextBar], end), h, 'forming bar is excluded')
+  const next = mergeHistory(h, [nextBar], end + CHAN.barMs)!
+  assert.equal(next.last, end); assert.equal(next.closes.at(-1), 105)
+  assert.equal(historyBars(next).length, CHAN.bars)
+  assert.equal(mergeHistory(undefined, bars.filter((_, i) => i !== 150), end), null)
+  assert.equal(mergeHistory(h, [{ ...nextBar, t: end + CHAN.barMs }], end + 2 * CHAN.barMs), null, 'gap never bridged with invented prices')
+}

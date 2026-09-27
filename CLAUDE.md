@@ -1,3 +1,18 @@
+## 2026-09-27 — v97.7 owner-requested CHAN changes (Codex)
+Owner explicitly requested ADF entry confirmation, missing-volatility rejection, 15-second data refresh,
+and removal of the daily 3% pause; merge + deployment authorized. This specific instruction supersedes
+older trade-count / daily-stop rules for this demo change. No claim of validated profitability.
+- Entries require finite volatility percentile; MR also requires ADF p < 0.05.
+- Refresh every 15s; statistics roll on each new CLOSED 5m candle, not on an intrabar candle or daily label.
+  Compact rolling close history in market_cache chan_history:<symbol>; chan_daily retained for UI compatibility.
+  Bootstrap / rate limits fail closed. Stops still run every cron cycle, entry decisions once per coin/bar.
+- dailyLoss / daily_loss_limit = 0 (disabled); drawdown 10%, loss streak 50, sizing, leverage, exits remain.
+- Historical strategy backtests predate the new live cadence/gates; do not present them as this release's results.
+- No balance/history reset; no SQL permissions changes or database migration required.
+- Validation: acceptance-check and strategy suite pass (existing three legacy TS diagnostics unchanged);
+  13 Python risk tests pass; dashboard production build passes. New tests cover ADF/missing volatility,
+  15s refresh without duplicate entries, rolling closed-bar history/gaps, and retained stop/drawdown limits.
+
 # SpaceHub Trading Bot — Session Handoff (read this first)
 
 ## ⏱ RESUME HERE — for a session that wakes cold (2026-09-19 16:35 UTC)

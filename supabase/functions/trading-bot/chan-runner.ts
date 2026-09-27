@@ -2,18 +2,17 @@
 // NO-GO status).
 // Every cycle (~5 s):
 //   - stops resolved on the Binance aggTrades tape since the last check (exchange-side stop semantics, FAST's fill model)
-//   - time exits, marks, and the risk state machine: daily -3% or 50 losses -> pause to 00:00 UTC; -10% from peak ->
+//   - time exits, marks, and the risk state machine: 50 losses -> pause to 00:00 UTC; -10% from peak ->
 //     close everything + hard halt
-// Once per CLOSED 5m bar, over the whole dynamic universe (~100 liquid USDT perps), in batches across the cycles of
-// the first 3 minutes (v97.2):
-//   - per bar only the last 320 candles per coin; the slow statistics (Hurst, half-life, vol percentile, regime,
-//     momentum t) once per UTC day per coin from 4,300 candles, as the Python code re-estimates them daily, persisted
-//     in market_cache 'chan_daily'; the daily vol history in 'chan_vols'
-//   - regime + both strategies at the last closed bar; mean-reversion signal exits
-//   - entries sized by half-Kelly on the component's own live record (cap 1%) at the mandatory stop, 3x isolated
+// Refresh closed-bar data every 15 seconds; stops still run every cron cycle.
+// Hurst / ADF / half-life / momentum / current volatility roll on each new CLOSED 5m bar.
+// A compact persisted price history avoids downloading 4,300 bars on every refresh / cold start.
+// Only the comparison distribution of daily volatility keeps UTC daily anchors.
+// Entry decisions remain once per coin per bar, within the existing 3-minute window.
 // Binance request weight is metered from the X-MBX-USED-WEIGHT-1M header and new downloads stop near the budget.
 // Books through chan_commit_cycle, which re-checks every limit in SQL.
 import { CHAN, DAY_MS, RECENT_BARS, barView, canOpen, chanSize, dailyStats, dayVols, fundingCharge, kellyRisk, riskStep, type Bar, type Daily, type RiskState } from '../../../shared/chan.ts'
+import { historyBars, mergeHistory, type ChanHistory } from '../../../shared/chan-history.ts'
 import { fastLiq, liqCap, resolveExit, walkBook } from '../../../shared/fast.ts'
 import { slipFor } from '../../../shared/lab.ts'
 import { UNIV, buildUniverse } from '../../../shared/universe.ts'
@@ -21,17 +20,24 @@ import { aggTrades, book, type Pair } from './fast-runner.ts'
 import { json, pool } from './rota-runner.ts'
 
 const REGIME = ['NEUTRAL', 'MEAN_REVERT', 'TREND', 'HIGH_VOL']
-let usedWeight = 0, weightAt = 0
+let usedWeight = 0, weightMinute = -1
+const historyMemory = new Map<string, ChanHistory>()
+const klineWeight = (n: number) => n < 100 ? 1 : n < 500 ? 2 : n <= 1000 ? 5 : 10
 
 async function kl(p: Pair, limit: number, endTime?: number): Promise<any[]> {
+  const minute = Math.floor(Date.now() / 60_000)
+  if (minute !== weightMinute) { usedWeight = 0; weightMinute = minute }
+  const cost = klineWeight(limit)
+  if (usedWeight + cost > CHAN.scan.weightBudget - 100) throw new Error('chan kline weight budget')
+  usedWeight += cost // reserve before awaiting, including parallel calls
   const url = `https://fapi.binance.com/fapi/v1/klines?symbol=${p.s}&interval=5m&limit=${limit}${endTime ? `&endTime=${endTime}` : ''}`
   const r = await fetch(url, { signal: AbortSignal.timeout(6000) })
   const w = Number(r.headers?.get?.('x-mbx-used-weight-1m'))
-  if (Number.isFinite(w)) { usedWeight = w; weightAt = Date.now() }
+  if (Number.isFinite(w) && minute === weightMinute) usedWeight = Math.max(usedWeight, w)
   if (!r.ok) throw new Error(`klines HTTP ${r.status}`)
   return r.json()
 }
-const weightLeft = () => (Date.now() - weightAt > 60_000 ? CHAN.scan.weightBudget : CHAN.scan.weightBudget - usedWeight)
+const weightLeft = () => (Math.floor(Date.now() / 60_000) !== weightMinute ? CHAN.scan.weightBudget : CHAN.scan.weightBudget - usedWeight)
 const toBar = (p: Pair) => (x: any): Bar => ({ t: +x[0], o: +x[1] / p.k, h: +x[2] / p.k, l: +x[3] / p.k, c: +x[4] / p.k })
 
 // v97.6: the exchange's own funding settlements for a held position (null = could not be read -> flagged, not guessed)
@@ -82,7 +88,7 @@ async function loadUniverse(db: any, now: number): Promise<{ pairs: Pair[]; note
 function initRisk(st: any, equity: number): RiskState {
   return { peak: Number(st?.peak) || equity, day: Number.isFinite(st?.day) ? st.day : -1, dayOpen: Number(st?.dayOpen) || equity,
     pausedUntilDay: Number.isFinite(st?.pausedUntilDay) ? st.pausedUntilDay : -1, streakFrom: Number(st?.streakFrom) || 0,
-    halted: !!st?.halted, haltReason: String(st?.haltReason ?? '') }
+    halted: !!st?.halted, haltReason: String(st?.haltReason ?? ''), pauseReason: st?.pauseReason }
 }
 
 export async function runChan(db: any, state: any, lease: string, paper: boolean) {
@@ -145,45 +151,67 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
   const bar = Math.floor(now / CHAN.barMs) * CHAN.barMs
   const lastBar = Number(params.chan_bar) || 0
   const scan0 = params.chan_scan?.bar === bar ? params.chan_scan : { bar, done: [] as string[], skipped: 0, fetched: 0 }
+  const refreshDue = now - Number(params.chan_scan?.refreshed_at ?? 0) >= CHAN.scan.refreshMs && !st.halted && !state.hard_halt_at
+  const evaluated = new Set<string>(scan0.done)
+  const historyWrites: any[] = []
   const inWindow = bar > lastBar && now - bar <= CHAN.scan.windowMs && !st.halted && !state.hard_halt_at
   const entries: any[] = [], decisions: any[] = [], views: Record<string, any> = {}, failed: string[] = []
   const done = new Set<string>(scan0.done), heldSyms = stillOpen.map((t: any) => String(t.sym))
+  let refreshCursor = Number(params.chan_scan?.refresh_cursor) || 0
   let heavy = 0, deep = 0, finished = false, volsChanged = false, dailyChanged = false, staleDaily = 0
-  let vols: Record<string, { d: number; v: number }[]> = {}, daily: Record<string, Daily & { day: number }> = {}
-  if (inWindow) {
+  let vols: Record<string, { d: number; v: number }[]> = {}, daily: Record<string, Daily & { day: number; bar?: number; checked_at?: number }> = {}
+  if (refreshDue) {
     const { data: vc } = await db.from('market_cache').select('key,data').in('key', ['chan_vols', 'chan_daily']).throwOnError()
     vols = (vc ?? []).find((x: any) => x.key === 'chan_vols')?.data ?? {}
     daily = (vc ?? []).find((x: any) => x.key === 'chan_daily')?.data ?? {}
-    const today = Math.floor(bar / DAY_MS)          // the slow stats are anchored at today's 00:00 UTC close
+    const today = Math.floor(bar / DAY_MS)
     const universe = [...new Set([...heldSyms, ...uni.pairs.map(p => p.sym)])]
-    const todo = universe.filter(s => !done.has(s)).slice(0, CHAN.scan.perCycle)
+    const cursor = Number(params.chan_scan?.refresh_cursor) || 0
+    const todo = universe.slice(cursor, cursor + CHAN.scan.perCycle)
+    refreshCursor = cursor + todo.length >= universe.length ? 0 : cursor + todo.length
+    // Fetch persisted compact histories only when a new closed bar needs statistics and this worker is cold.
+    const missing = todo.filter(sym => daily[sym]?.bar !== bar && !historyMemory.has(sym))
+    if (missing.length) {
+      const { data: saved } = await db.from('market_cache').select('key,data').in('key', missing.map(sym => 'chan_history:' + sym)).throwOnError()
+      for (const row of saved ?? []) if (row.key?.startsWith('chan_history:') && historyBars(row.data).length === CHAN.bars) historyMemory.set(row.key.slice(13), row.data)
+    }
     await pool(todo, 10, async (sym) => {
       const P = pairOf(sym)
       try {
         let d = daily[sym]
-        if ((!d || d.day < today) && heavy < CHAN.scan.heavyPerCycle && weightLeft() > 80) {
-          heavy++
-          const hb = await closedBars(P, today * DAY_MS)            // the window ending at today's midnight close
-          let h = vols[sym] ?? []
-          const known = new Set(h.map(x => x.d))
-          for (const x of dayVols(hb)) if (!known.has(x.d)) h.push(x)
-          if (h.filter(x => x.d > 0).length < CHAN.regime.minHist + 1 && deep < CHAN.scan.deepPerCycle && !h.some(x => x.d < 0) && weightLeft() > 120) {
-            deep++                                   // one-time deeper history so the high-volatility filter works from day one
-            const d9 = await closedBars(P, today * DAY_MS, CHAN.scan.deepBars)
-            const k2 = new Set(h.map(x => x.d))
-            for (const x of dayVols(d9)) if (!k2.has(x.d)) h.push(x)
-            if (h.filter(x => x.d > 0).length < CHAN.regime.minHist + 1) h.push({ d: -1, v: NaN })   // young listing: tried
-          }
-          h = h.sort((a, b) => a.d - b.d).slice(-(CHAN.regime.maxHist + 3))
-          vols[sym] = h; volsChanged = true
-          const ds = hb.length && hb[hb.length - 1].t + CHAN.barMs === today * DAY_MS
-            ? dailyStats(hb, h.filter(x => x.d > 0 && x.d < today && Number.isFinite(x.v)).map(x => x.v)) : null
-          if (ds) { d = { ...ds, day: today }; daily[sym] = d; dailyChanged = true }
-        }
-        if (!d) { if (heavy >= CHAN.scan.heavyPerCycle || weightLeft() <= 80) return; done.add(sym); return }   // no stats yet: retry / too young
-        if (d.day < today) staleDaily++              // yesterday's stats until today's are computed (<= a few minutes)
         const bars = await recentBars(P, now)
-        if (!bars.length || bars[bars.length - 1].t + CHAN.barMs !== bar) { failed.push(sym); done.add(sym); return }   // stale feed: never trade on it
+        if (!bars.length || bars[bars.length - 1].t + CHAN.barMs !== bar) { failed.push(sym); return }
+        if (!d || d.bar !== bar || !Number.isFinite(d.adf)) {
+          let h = mergeHistory(historyMemory.get(sym), bars, bar)
+          if (!h) {
+            if (heavy >= CHAN.scan.heavyPerCycle || weightLeft() < 180) { staleDaily++; return }
+            heavy++
+            h = mergeHistory(undefined, await closedBars(P, bar), bar)
+          }
+          if (!h) { staleDaily++; return } // gaps / insufficient history: fail closed, never reuse yesterday's label
+          const hb = historyBars(h)
+          let vh = vols[sym] ?? []
+          const known = new Set(vh.map(x => x.d))
+          for (const x of dayVols(hb)) if (!known.has(x.d)) vh.push(x)
+          // Keep the comparison distribution on daily anchors, even though the current estimate now rolls each bar.
+          if (vh.filter(x => x.d > 0).length < CHAN.regime.minHist + 1 && deep < CHAN.scan.deepPerCycle &&
+              !vh.some(x => x.d === -today) && weightLeft() > 220) {
+            deep++
+            const d9 = await closedBars(P, bar, CHAN.scan.deepBars)
+            const k2 = new Set(vh.map(x => x.d))
+            for (const x of dayVols(d9)) if (!k2.has(x.d)) vh.push(x)
+            if (vh.filter(x => x.d > 0).length < CHAN.regime.minHist + 1) vh.push({ d: -today, v: NaN })
+          }
+          vh = vh.sort((a, b) => a.d - b.d).slice(-(CHAN.regime.maxHist + 3))
+          vols[sym] = vh; volsChanged = true
+          const ds = dailyStats(hb, vh.filter(x => x.d > 0 && x.d < today && Number.isFinite(x.v)).map(x => x.v))
+          if (!ds) { staleDaily++; return }
+          d = { ...ds, day: today, bar, checked_at: now }
+          historyMemory.set(sym, h)
+          historyWrites.push({ key: 'chan_history:' + sym, data: h, ts: new Date(now).toISOString() })
+        }
+        d = { ...d, checked_at: now }
+        daily[sym] = d; dailyChanged = true
         const v = barView(bars, d)
         if (v) views[sym] = v
         done.add(sym)
@@ -198,6 +226,14 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
         try { await bookClose(t, 'SIGNAL', { z: v.mr.z }) } catch { /* retried next bar */ }
       }
     }
+    // Explain safety-gate rejections once per closed bar, including a missing volatility baseline.
+    if (inWindow) for (const [sym, v] of Object.entries(views) as [string, any][]) {
+      if (evaluated.has(sym) || !Number.isFinite(v.mr.z) || Math.abs(v.mr.z) < CHAN.params.RG_MR.entryZ) continue
+      const reason = !Number.isFinite(v.volPct) ? 'missing_volatility'
+        : v.regime === 1 && (!Number.isFinite(v.adf) || v.adf >= CHAN.mr.adfP) ? 'adf_rejected' : null
+      if (reason) decisions.push({ sym, comp: 'RG_MR', side: v.mr.z < 0 ? 'LONG' : 'SHORT', decision: 'rejected', reason,
+        regime: REGIME[v.regime], hurst: v.hurst, vol_pct: v.volPct, z: v.mr.z, hl: v.mr.hl, adf: v.adf, data_checked_at: now, t_sig: v.mom.t })
+    }
     // entries: this batch's candidates, strongest first
     let openN = stillOpen.filter((t: any) => !closing.has(t.id)).length
     let openNotional = stillOpen.filter((t: any) => !closing.has(t.id)).reduce((s: number, t: any) => s + Number(t.entry_price) * Number(t.size), 0)
@@ -211,8 +247,9 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
     }).filter(Boolean).sort((a: any, b: any) => b.strength - a.strength) as any[]
     for (const cand of cands) {
       const { sym, v } = cand
+      if (!inWindow || evaluated.has(sym)) continue // at most one entry decision per coin per closed bar
       const side = cand.side > 0 ? 'LONG' : 'SHORT'
-      const rec = (decision: string, reason: string, extra: any = {}) => decisions.push({ sym, comp: cand.comp, side, decision, reason, regime: REGIME[v.regime], hurst: v.hurst, vol_pct: v.volPct, z: v.mr.z, hl: v.mr.hl, t_sig: v.mom.t, ...extra })
+      const rec = (decision: string, reason: string, extra: any = {}) => decisions.push({ sym, comp: cand.comp, side, decision, reason, regime: REGIME[v.regime], hurst: v.hurst, vol_pct: v.volPct, z: v.mr.z, hl: v.mr.hl, adf: v.adf, data_checked_at: now, t_sig: v.mom.t, ...extra })
       if (held.has(sym)) { rec('rejected', 'coin_held'); continue }
       const co = canOpen(st, openN)
       if (!co.ok) { rec('rejected', co.why); continue }
@@ -234,7 +271,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       const r = Math.abs(px - cand.stop)
       entries.push({ sym, side, price: px, notional, lev: CHAN.risk.maxLeverage, quote_ts: bk.E, source: 'binance-futures',
         chan: { comp: cand.comp, stop: cand.stop, r, best: px, chk: bk.E, max_hold_bars: cand.maxHold, bar: new Date(bar).toISOString(),
-          regime: REGIME[v.regime], hurst: v.hurst, vol_pct: v.volPct, halflife: v.mr.hl, z: v.mr.z, mr_mean: v.mr.mean, mr_std: v.mr.std,
+          regime: REGIME[v.regime], hurst: v.hurst, adf: v.adf, data_checked_at: now, stats_bar: bar, vol_pct: v.volPct, halflife: v.mr.hl, z: v.mr.z, mr_mean: v.mr.mean, mr_std: v.mr.std,
           t_sig: v.mom.t, atr: v.mom.atr, hh: v.mom.hh, ll: v.mom.ll, kelly_f: k.f, kelly_why: k.why, kelly_n: rsOf(cand.comp).length,
           risk_usd: notional * r / px, risk_frac: notional * r / px / equity, equity, backtested_coin: (CHAN.universe as readonly string[]).includes(sym),
           entry_fill: { model: 'book_walk', touch, vwap: w.vwap, impact_bps: +(Math.abs(px / touch - 1) * 1e4).toFixed(2), want: Math.round(sz.notional), liq_cap: Math.round(cap) } } })
@@ -242,22 +279,24 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       held.add(sym); openN++; openNotional += notional; cash -= notional / CHAN.risk.maxLeverage + notional * CHAN.costs.taker
     }
     if (volsChanged || dailyChanged) {
-      try { await db.from('market_cache').upsert([{ key: 'chan_vols', data: vols, ts: new Date(now).toISOString() }, { key: 'chan_daily', data: daily, ts: new Date(now).toISOString() }]).throwOnError() } catch { /* rebuilt next cycle */ }
+      await db.from('market_cache').upsert([{ key: 'chan_vols', data: vols, ts: new Date(now).toISOString() }, { key: 'chan_daily', data: daily, ts: new Date(now).toISOString() }, ...historyWrites]).throwOnError()
     }
   }
   const closeBar = bar > lastBar && (finished || now - bar > CHAN.scan.windowMs)   // done, or out of time for this bar
+  for (const sym of historyMemory.keys()) if (!bySym.has(sym) && !heldSyms.includes(sym)) historyMemory.delete(sym)
   const regimes = Object.fromEntries(Object.entries(views).map(([s, v]: any) => [s, REGIME[v.regime]]))
   const note = { strategy: 'regime_router', validated: false, phase1: 'NO-GO', universe: uni.pairs.length, universe_note: uni.note || undefined, bar: new Date(bar).toISOString(),
-    in_window: inWindow, batch: Object.keys(views).length, scanned: done.size, complete: finished, failed: failed.length, daily_refresh: heavy, deep_fetches: deep, stale_daily: staleDaily,
+    refresh_ms: CHAN.scan.refreshMs, refreshed: refreshDue, last_refresh: refreshDue ? now : params.chan_scan?.refreshed_at ?? null,
+    daily_loss_enabled: CHAN.risk.dailyLoss > 0, in_window: inWindow, batch: Object.keys(views).length, scanned: done.size, complete: finished, failed: failed.length, daily_refresh: heavy, deep_fetches: deep, stale_daily: staleDaily,
     weight_1m: usedWeight, regime_counts: Object.values(regimes).reduce((a: any, r: any) => ({ ...a, [r]: (a[r] ?? 0) + 1 }), {}),
     equity, event: ev, opened: entries.length, closed: closes.length, risk_state: st,
     marks, marks_ts: new Date(now).toISOString(),   // v97.4: the server's Binance mark per open position (dashboard fallback)
-    scan: { bar, done: [...done], skipped: scan0.skipped ?? 0, fetched: (scan0.fetched ?? 0) + heavy } }
+    scan: { bar, refresh_cursor: refreshCursor, refreshed_at: refreshDue ? now : params.chan_scan?.refreshed_at ?? 0, done: [...done], skipped: scan0.skipped ?? 0, fetched: (scan0.fetched ?? 0) + heavy } }
   const { data: result } = await db.rpc('chan_commit_cycle', { p_lease: lease, p_closes: closes, p_entries: entries, p_marks: marks, p_updates: updates,
     p_note: note, p_bar: closeBar ? new Date(bar).toISOString() : null, p_halt: halt }).throwOnError()
   if (decisions.length) {
     try { await db.from('trade_decisions').insert(decisions.slice(0, 100).map((d, k) => ({ sym: d.sym, side: d.side, decision: d.decision, reason: d.reason, rank: k + 1, notional: d.notional ?? null,
-      observed: { regime: d.regime, hurst: d.hurst, vol_pct: d.vol_pct, z: d.z, halflife: d.hl, t_sig: d.t_sig }, inferred: { sleeve: 'CHAN', comp: d.comp, kelly_f: d.kelly_f ?? null, note: 'Chan regime router, Phase-1 NO-GO, demo on the owner\'s instruction' } }))) } catch { /* journal only */ }
+      observed: { regime: d.regime, hurst: d.hurst, adf: d.adf, data_checked_at: d.data_checked_at, vol_pct: d.vol_pct, z: d.z, halflife: d.hl, t_sig: d.t_sig }, inferred: { sleeve: 'CHAN', comp: d.comp, kelly_f: d.kelly_f ?? null, note: 'Chan regime router, Phase-1 NO-GO, demo on the owner\'s instruction' } }))) } catch { /* journal only */ }
   }
   return { changed: true, ...result, ...note, risk_state: undefined, scan: undefined }
 }

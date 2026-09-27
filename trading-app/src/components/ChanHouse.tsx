@@ -31,7 +31,7 @@ const to = () => (typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal
 
 const REGIMES = ['NEUTRAL', 'MEAN_REVERT', 'TREND', 'HIGH_VOL'] as const
 const REG: Record<string, { he: string; c: string; what: string }> = {
-  MEAN_REVERT: { he: 'חוזר לממוצע', c: '#22d3ee', what: 'Hurst < 0.45 — אסטרטגיית ההיפוך רשאית לפעול' },
+  MEAN_REVERT: { he: 'חוזר לממוצע', c: '#22d3ee', what: 'Hurst < 0.45 · נדרש גם ADF < 0.05 ונתוני תנודתיות' },
   TREND: { he: 'מגמה', c: '#a78bfa', what: 'Hurst > 0.55 — אסטרטגיית המומנטום רשאית לפעול' },
   HIGH_VOL: { he: 'תנודתי מדי', c: '#f87171', what: 'תנודתיות מעל אחוזון 90 — לא נסחר' },
   NEUTRAL: { he: 'ניטרלי', c: '#64748b', what: 'אין משטר ברור — לא נסחר' },
@@ -41,9 +41,11 @@ const EXIT: Record<string, string> = { STOP: 'סטופ', TIMEOUT: 'תום זמן
 function reasonHe(r: string): string {
   if (!r) return '—'
   if (r === 'taken') return 'נכנס'
+  if (r === 'missing_volatility') return 'חסרים נתוני תנודתיות — אין כניסה'
+  if (r === 'adf_rejected') return 'בדיקת ADF לא אישרה חזרה לממוצע'
   if (r === 'coin_held') return 'כבר מחזיק את המטבע'
   if (r === 'max open positions') return 'כבר 5 פוזיציות פתוחות'
-  if (r.startsWith('paused')) return 'מושהה עד חצות UTC (‎-3% יומי / 50 הפסדים)'
+  if (r.startsWith('paused')) return 'מושהה עד חצות UTC (50 הפסדים רצופים)'
   if (r.startsWith('halted')) return 'עצירה קשיחה (‎-10% מהשיא)'
   if (r.startsWith('half-Kelly <= 0')) return 'קלי 0 — הרקורד של הרכיב שלילי'
   if (r === 'no_book') return 'אין ספר פקודות'
@@ -143,7 +145,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
           q("trade_decisions?select=ts,sym,side,decision,reason,observed,inferred,notional&inferred->>sleeve=eq.CHAN&order=ts.desc&limit=40"),
           q(`bot_errors?select=ts,scope,message&ts=gte.${new Date(Date.now() - 3_600_000).toISOString()}&order=ts.desc&limit=10`),
         ])
-        if (!slow || Date.now() - slowAt > 60_000) {
+        if (!slow || Date.now() - slowAt >= CHAN.scan.refreshMs) {
           slowAt = Date.now()
           const since = new Date(Date.now() - 36 * 3_600_000).toISOString()
           const [mc, man, eq, liq, opt, news] = await Promise.all([
@@ -310,12 +312,12 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
             <div className="ch-kv"><span>משקל בינאנס/דקה</span><b><N>{cyc?.weight_1m ?? '—'} / {CHAN.scan.weightBudget}</N></b></div>
             <div className="ch-kv"><span>הנר האחרון שהושלם</span><b>{hm(lastBar)}</b></div>
           </Room>
-          <Room title="2 · מזהה משטר" who="Hurst · תנודתיות · פעם ביום" shirt="#a78bfa" hair="#7c2d12" mood={moodReg}
-            status={snap?.dailyTs ? `הסטטיסטיקה היומית עודכנה ${ago(snap.dailyTs, now)}` : 'אין עדיין נתונים'}>
+          <Room title="2 · מזהה משטר" who="Hurst · ADF · רענון כל 15 שניות" shirt="#a78bfa" hair="#7c2d12" mood={moodReg}
+            status={snap?.dailyTs ? `בדיקת הנתונים האחרונה ${ago(snap.dailyTs, now)}` : 'אין עדיין נתונים'}>
             {REGIMES.map((r) => (
               <div key={r} className="ch-kv"><span><i className="ch-sq" style={{ background: REG[r].c }} />{REG[r].he}</span><b>{regCount[r] ?? 0}</b></div>
             ))}
-            <div className="ch-muted">סף: Hurst &lt; {CHAN.regime.hurstMr} היפוך · &gt; {CHAN.regime.hurstTrend} מגמה · אחוזון תנודתיות &gt; {CHAN.regime.volPctHigh * 100}% לא נסחר</div>
+            <div className="ch-muted">נתונים נבדקים כל 15 שנ׳; סטטיסטיקה על כל נר 5 דקות סגור. חסר אחוזון תנודתיות — אין כניסה. סף: Hurst &lt; {CHAN.regime.hurstMr} היפוך · &gt; {CHAN.regime.hurstTrend} מגמה · אחוזון תנודתיות &gt; {CHAN.regime.volPctHigh * 100}% לא נסחר</div>
           </Room>
         </div>
 
@@ -334,7 +336,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
           <Room title="5 · מנהל סיכונים" who="חצי־קלי · מפסקים" shirt="#ef4444" hair="#78350f" mood={moodRisk}
             status={halted ? `עצירה קשיחה: ${risk?.haltReason || snap?.state?.hard_halt_reason || ''}` : paused ? 'מושהה עד חצות UTC' : 'מאשר כניסות'}>
             <Meter label="ירידה מהשיא (עצירה ב־10%)" v={dd} limit={CHAN.risk.maxDD} fmt={(x) => `${(x * 100).toFixed(1)}%`} />
-            <Meter label="הפסד ממומש היום (השהיה ב־3%)" v={dayLoss} limit={CHAN.risk.dailyLoss} fmt={(x) => `${(x * 100).toFixed(1)}%`} />
+            <div className="ch-kv"><span>הפסד ממומש היום · ללא עצירה יומית</span><b>{dayLoss == null ? '—' : `${(dayLoss * 100).toFixed(1)}%`}</b></div>
             <Meter label="הפסדים ברצף (השהיה ב־50)" v={streak} limit={CHAN.risk.maxConsec} fmt={(x) => String(Math.round(x))} />
             <Meter label="פוזיציות פתוחות" v={openN} limit={CHAN.risk.maxOpen} fmt={(x) => String(Math.round(x))} />
             {(['RG_MR', 'RG_MOM'] as const).map((c) => { const k = kellyOf(c); return (
@@ -379,7 +381,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
       </div>
 
       <section className="ch-panel">
-        <h2>כל המטבעות שהבוט סורק — המשטר של היום</h2>
+        <h2>כל המטבעות שהבוט סורק — מצב השוק העדכני</h2>
         <div className="ch-legend">{REGIMES.map((r) => <span key={r}><i className="ch-sq" style={{ background: REG[r].c }} />{REG[r].he} · {REG[r].what}</span>)}<span><i className="ch-sq held" />מוחזק כרגע</span></div>
         <div className="ch-grid">
           {coins.map((c) => {
