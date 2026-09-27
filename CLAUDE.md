@@ -356,6 +356,26 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## quant TREND sleeve (2026-09-27 ~06:00 UTC) — Clenow-style daily trend following, second strategy: NO-GO, trend.enabled false
+Owner: an independent second strategy (Clenow, "Following the Trend" / "Stocks on the Move"), CHAN untouched, same gates.
+Plan: `quant/TREND_PLAN.md`. Code:
+- `strategies/trend.py`;
+- `backtest/trend_sim.py` (daily, vol parity, exchange-side 3×ATR trailing stop, weekly rebalance, real funding);
+- `run_trend.py` + `trend_report.py`;
+- `backtest/fetch-daily-all.sh` (1d klines + funding for EVERY USDT perp ever listed, delisted included: 854 symbols, 286 ever in the monthly top-40);
+- config sections `trend` (enabled: false, 50% sleeve, own risk: daily −3%, sleeve kill −15%) and `portfolio` (10% kill across both);
+- tests/test_trend.py; suite 67 passed; no CHAN file modified.
+RESULT:
+- Split: usable 2020-07-18 .. 2026-08-31, holdout from 2025-06-10; 6 variants (breakout / momentum-10 / momentum-20 × long / L+S).
+- Dev Sharpe −0.42 .. +0.71; every dev run hit its 15% kill.
+- Selected momentum20_long: holdout Sharpe −0.18, return −5.0%, DD 19.4%, 86 trades, gross before costs −$432.
+- WF-OOS Sharpe −0.27 on 469 trades; DSR dev 0.65; PBO 0.05. Gate fails on Sharpe, DD, trades, DSR, flip.
+- Kill switch OFF (info only): dev Sharpe 0.10–0.29 with DD 20–41%, so the kill is not the cause.
+- CHAN + trend 50/50 over CHAN's 36m:
+  - with kills: both sleeves halted early (CHAN 2023-10-12, trend 2024-01-22);
+  - kills off: correlation +0.01 (truly independent) but both negative (CHAN −$760, trend −$739 on $5k each).
+Report: reports/TREND_REPORT.md + trend.json. Live bot unchanged.
+
 ## quant Phase 1b (2026-09-27 ~05:00 UTC) — 1h/4h, maker-only, pairs (Johansen), extreme funding: ALL NO-GO
 Owner: run the same OOS pipeline (same gates, same costs) on four candidates before any live trading.
 Code:

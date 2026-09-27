@@ -119,3 +119,36 @@ afml:
   eval_risk_per_trade: 0.0025   # fixed risk per trade used to turn R into daily returns for the comparison
   gate: {min_dsr: 0.95}     # meta must beat plain CHAN on the holdout after costs AND have DSR > 0.95
   retrain: weekly           # on archived data only; never on live trades in real time
+
+# Trend sleeve (Clenow-style daily trend following). Independent of CHAN: own universe, capital, limits.
+# OFF until it passes the same Phase-1 gates (python -m quant.run_trend -> reports/TREND_REPORT.md).
+trend:
+  enabled: false
+  capital_share: 0.5          # of the paper account; CHAN gets the rest. Sleeves never net or close each other
+  data_dir: ../backtest/data/daily   # 1d klines + funding for EVERY USDT perp ever listed (delisted included)
+  universe_top: 40            # by mean quote volume of the previous 30 days, recomputed monthly
+  min_history: 120            # days of data a coin needs before it can enter the universe
+  atr_days: 20
+  ma_fast: 50
+  ma_slow: 100
+  breakout: 50
+  mom_window: 90
+  regime_ma: 200              # no new longs while BTC closes below its 200-day average
+  stop_atr: 3.0               # trailing stop from the best close, placed on the exchange
+  risk_factor: 0.002          # vol parity: each position moves the sleeve ~0.2% on an average (1 ATR) day
+  variants:                   # the COMPLETE list of variants tried (N for the deflated Sharpe = its length)
+    - {kind: breakout, shorts: false, n: 0}
+    - {kind: breakout, shorts: true,  n: 0}
+    - {kind: momentum, shorts: false, n: 10}
+    - {kind: momentum, shorts: true,  n: 10}
+    - {kind: momentum, shorts: false, n: 20}
+    - {kind: momentum, shorts: true,  n: 20}
+  risk:
+    max_pos: 0.20             # notional per position <= 20% of the sleeve
+    max_leverage: 3
+    daily_loss: 0.03          # a day losing >= 3% blocks the next rebalance's entries
+    max_drawdown_kill: 0.15   # sleeve kill switch: flatten + halt (manual restart)
+  wf: {train_days: 730, test_days: 182}
+
+portfolio:
+  max_drawdown_kill: 0.10     # across BOTH sleeves: flatten everything + halt

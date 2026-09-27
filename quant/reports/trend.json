@@ -1,0 +1,580 @@
+{
+ "generated_utc": "2026-09-27T04:48:47",
+ "symbols_total": 806,
+ "ever_in_universe": 286,
+ "funding_archives": 286,
+ "usable_from": "2020-07-18",
+ "holdout_from": "2025-06-10",
+ "to": "2026-08-31",
+ "n_variants": 6,
+ "dev": {
+  "breakout_long": {
+   "sharpe": 0.18789961490410007,
+   "return_pct": 7.815522041375744,
+   "max_dd": 0.15080630816639295,
+   "n_trades": 125,
+   "win_rate": 0.288,
+   "avg_r": 0.1328222604193336,
+   "profit_factor": 1.1728115752477764,
+   "fees": 34.67941680761036,
+   "slippage": 52.35989579821525,
+   "funding": 1133.433053306498,
+   "gross_before_costs": 2002.0500146721358,
+   "funding_inferred_position_days": 0,
+   "killed": true,
+   "exits": {
+    "STOP": 121,
+    "REBALANCE": 0,
+    "UNIVERSE": 4,
+    "DELISTED": 0,
+    "KILL": 0
+   }
+  },
+  "breakout_ls": {
+   "sharpe": 0.1541060216708931,
+   "return_pct": 5.693388005479916,
+   "max_dd": 0.153928235943392,
+   "n_trades": 142,
+   "win_rate": 0.2746478873239437,
+   "avg_r": 0.09362841523798407,
+   "profit_factor": 1.120577230525444,
+   "fees": 37.56546397538865,
+   "slippage": 54.82995227099033,
+   "funding": 1107.0254954472312,
+   "gross_before_costs": 1768.7837327008601,
+   "funding_inferred_position_days": 0,
+   "killed": true,
+   "exits": {
+    "STOP": 132,
+    "REBALANCE": 0,
+    "UNIVERSE": 7,
+    "DELISTED": 0,
+    "KILL": 3
+   }
+  },
+  "momentum10_long": {
+   "sharpe": 0.49375976668432664,
+   "return_pct": 30.247864502973364,
+   "max_dd": 0.15154443650077265,
+   "n_trades": 239,
+   "win_rate": 0.38493723849372385,
+   "avg_r": 0.1938095794764743,
+   "profit_factor": 1.55201905723008,
+   "fees": 61.56415868515402,
+   "slippage": 77.89242241963933,
+   "funding": 1331.1395264360804,
+   "gross_before_costs": 4495.429317267993,
+   "funding_inferred_position_days": 0,
+   "killed": true,
+   "exits": {
+    "STOP": 193,
+    "REBALANCE": 37,
+    "UNIVERSE": 0,
+    "DELISTED": 0,
+    "KILL": 9
+   }
+  },
+  "momentum10_ls": {
+   "sharpe": -0.42257624773567093,
+   "return_pct": -11.599253154035683,
+   "max_dd": 0.16467629805729267,
+   "n_trades": 90,
+   "win_rate": 0.2111111111111111,
+   "avg_r": -0.22025810982079502,
+   "profit_factor": 0.5582959975345254,
+   "fees": 27.24087970162601,
+   "slippage": 28.93484136687326,
+   "funding": 121.04920930618638,
+   "gross_before_costs": -982.6991625966555,
+   "funding_inferred_position_days": 0,
+   "killed": true,
+   "exits": {
+    "STOP": 87,
+    "REBALANCE": 0,
+    "UNIVERSE": 0,
+    "DELISTED": 0,
+    "KILL": 3
+   }
+  },
+  "momentum20_long": {
+   "sharpe": 0.7117683064434166,
+   "return_pct": 64.63559169519048,
+   "max_dd": 0.1517753624402387,
+   "n_trades": 184,
+   "win_rate": 0.3967391304347826,
+   "avg_r": 0.5228417451851588,
+   "profit_factor": 2.405105649817455,
+   "fees": 49.67573598411971,
+   "slippage": 69.3521807915048,
+   "funding": 2255.990129446784,
+   "gross_before_costs": 8838.631524186789,
+   "funding_inferred_position_days": 0,
+   "killed": true,
+   "exits": {
+    "STOP": 180,
+    "REBALANCE": 4,
+    "UNIVERSE": 0,
+    "DELISTED": 0,
+    "KILL": 0
+   }
+  },
+  "momentum20_ls": {
+   "sharpe": -0.1593029911272688,
+   "return_pct": -6.951272455203039,
+   "max_dd": 0.15186431521970523,
+   "n_trades": 77,
+   "win_rate": 0.2857142857142857,
+   "avg_r": -0.14847273756346835,
+   "profit_factor": 0.6640965788168331,
+   "fees": 24.22554974608677,
+   "slippage": 21.90232214958014,
+   "funding": 282.4780861987825,
+   "gross_before_costs": -366.5180969845005,
+   "funding_inferred_position_days": 0,
+   "killed": true,
+   "exits": {
+    "STOP": 57,
+    "REBALANCE": 0,
+    "UNIVERSE": 0,
+    "DELISTED": 0,
+    "KILL": 20
+   }
+  }
+ },
+ "wf_oos": {
+  "sharpe": -0.27110190490714386,
+  "trades": 469,
+  "return_pct": -14.399435070301813,
+  "max_dd": 0.23181789686046028,
+  "folds": [
+   {
+    "train": [
+     "2020-07-18",
+     "2022-07-18"
+    ],
+    "chosen": "momentum20_long",
+    "train_sharpe": 1.1150612847306363,
+    "test_sharpe": -1.4200614724846805,
+    "test_return_pct": -0.22747862594216794,
+    "test_trades": 0
+   },
+   {
+    "train": [
+     "2021-01-16",
+     "2023-01-16"
+    ],
+    "chosen": "momentum20_ls",
+    "train_sharpe": 0.9905754245337509,
+    "test_sharpe": -0.34196295007399996,
+    "test_return_pct": -5.9538162462169915,
+    "test_trades": 161
+   },
+   {
+    "train": [
+     "2021-07-17",
+     "2023-07-17"
+    ],
+    "chosen": "momentum10_ls",
+    "train_sharpe": 0.4016820176926163,
+    "test_sharpe": 0.8959376912374152,
+    "test_return_pct": 7.650220399022145,
+    "test_trades": 101
+   },
+   {
+    "train": [
+     "2022-01-15",
+     "2024-01-15"
+    ],
+    "chosen": "momentum20_ls",
+    "train_sharpe": 0.6891323695996143,
+    "test_sharpe": -0.5874148786341451,
+    "test_return_pct": -6.35529274550739,
+    "test_trades": 115
+   },
+   {
+    "train": [
+     "2022-07-16",
+     "2024-07-15"
+    ],
+    "chosen": "momentum10_ls",
+    "train_sharpe": 0.07372697569119685,
+    "test_sharpe": -1.7161487148297212,
+    "test_return_pct": -9.50463283240227,
+    "test_trades": 92
+   }
+  ]
+ },
+ "selected": "momentum20_long",
+ "holdout": {
+  "sharpe": -0.18188221038871474,
+  "return_pct": -5.04203670751383,
+  "max_dd": 0.19427594772740187,
+  "n_trades": 86,
+  "win_rate": 0.3023255813953488,
+  "avg_r": -0.08025551194588147,
+  "profit_factor": 0.731077952898638,
+  "fees": 25.28004024544913,
+  "slippage": 21.271584768857426,
+  "funding": 25.173438908030693,
+  "gross_before_costs": -432.4736744932893,
+  "funding_inferred_position_days": 0,
+  "killed": true,
+  "exits": {
+   "STOP": 82,
+   "REBALANCE": 4,
+   "UNIVERSE": 0,
+   "DELISTED": 0,
+   "KILL": 0
+  }
+ },
+ "holdout_all_variants": {
+  "breakout_long": {
+   "sharpe": -0.5315610813329609,
+   "return_pct": -3.689305490884376,
+   "max_dd": 0.06948811164213109,
+   "n_trades": 23,
+   "win_rate": 0.34782608695652173,
+   "avg_r": -0.3015954554382965,
+   "profit_factor": 0.3687987031132691,
+   "fees": 9.299892056441442,
+   "slippage": 9.715680399319492,
+   "funding": 22.42496322269887,
+   "gross_before_costs": -371.83555520337706,
+   "funding_inferred_position_days": 0,
+   "killed": false,
+   "exits": {
+    "STOP": 23,
+    "REBALANCE": 0,
+    "UNIVERSE": 0,
+    "DELISTED": 0,
+    "KILL": 0
+   }
+  },
+  "breakout_ls": {
+   "sharpe": -0.1329204448973608,
+   "return_pct": -3.773962543956022,
+   "max_dd": 0.13910516326018874,
+   "n_trades": 112,
+   "win_rate": 0.4732142857142857,
+   "avg_r": -0.06082838966430743,
+   "profit_factor": 0.7446707388443088,
+   "fees": 29.679066338257893,
+   "slippage": 31.370552374473654,
+   "funding": 38.4790974981591,
+   "gross_before_costs": -323.9630865245014,
+   "funding_inferred_position_days": 0,
+   "killed": false,
+   "exits": {
+    "STOP": 89,
+    "REBALANCE": 0,
+    "UNIVERSE": 23,
+    "DELISTED": 0,
+    "KILL": 0
+   }
+  },
+  "momentum10_long": {
+   "sharpe": 0.04824132146532862,
+   "return_pct": -0.07212602451334149,
+   "max_dd": 0.1299832203674155,
+   "n_trades": 63,
+   "win_rate": 0.3492063492063492,
+   "avg_r": 0.006173523359221636,
+   "profit_factor": 0.9829702609804308,
+   "fees": 16.464739718971877,
+   "slippage": 15.254028057703664,
+   "funding": -50.611771565585705,
+   "gross_before_costs": -40.92569595903452,
+   "funding_inferred_position_days": 0,
+   "killed": false,
+   "exits": {
+    "STOP": 50,
+    "REBALANCE": 13,
+    "UNIVERSE": 0,
+    "DELISTED": 0,
+    "KILL": 0
+   }
+  },
+  "momentum10_ls": {
+   "sharpe": 0.6247421250790981,
+   "return_pct": 10.962658955280835,
+   "max_dd": 0.08818443763354977,
+   "n_trades": 232,
+   "win_rate": 0.41810344827586204,
+   "avg_r": 0.06878227533763494,
+   "profit_factor": 1.2075536722051168,
+   "fees": 67.83455796583658,
+   "slippage": 64.88729228628156,
+   "funding": -56.76127801087704,
+   "gross_before_costs": 965.6328526362255,
+   "funding_inferred_position_days": 0,
+   "killed": false,
+   "exits": {
+    "STOP": 174,
+    "REBALANCE": 58,
+    "UNIVERSE": 0,
+    "DELISTED": 0,
+    "KILL": 0
+   }
+  },
+  "momentum20_long": {
+   "sharpe": -0.18188221038871474,
+   "return_pct": -5.04203670751383,
+   "max_dd": 0.19427594772740187,
+   "n_trades": 86,
+   "win_rate": 0.3023255813953488,
+   "avg_r": -0.08025551194588147,
+   "profit_factor": 0.731077952898638,
+   "fees": 25.28004024544913,
+   "slippage": 21.271584768857426,
+   "funding": 25.173438908030693,
+   "gross_before_costs": -432.4736744932893,
+   "funding_inferred_position_days": 0,
+   "killed": true,
+   "exits": {
+    "STOP": 82,
+    "REBALANCE": 4,
+    "UNIVERSE": 0,
+    "DELISTED": 0,
+    "KILL": 0
+   }
+  },
+  "momentum20_ls": {
+   "sharpe": -0.5226063383801546,
+   "return_pct": -7.555773190531423,
+   "max_dd": 0.1662184992066521,
+   "n_trades": 152,
+   "win_rate": 0.3157894736842105,
+   "avg_r": -0.08403942427904512,
+   "profit_factor": 0.7643659204797413,
+   "fees": 41.45896453421575,
+   "slippage": 37.05281032056998,
+   "funding": 2.58632827373274,
+   "gross_before_costs": -674.4783432661716,
+   "funding_inferred_position_days": 0,
+   "killed": true,
+   "exits": {
+    "STOP": 116,
+    "REBALANCE": 15,
+    "UNIVERSE": 0,
+    "DELISTED": 0,
+    "KILL": 21
+   }
+  }
+ },
+ "cost_stress": {
+  "x2.0": {
+   "sharpe": -0.19124157535650707,
+   "return_pct": -5.222749285241912,
+   "max_dd": 0.1955540082424232,
+   "n_trades": 86,
+   "win_rate": 0.3023255813953488,
+   "avg_r": -0.08391538289389719,
+   "profit_factor": 0.723003875262241,
+   "fees": 25.262051621710494,
+   "slippage": 42.50279186646488,
+   "funding": 25.169103606934794,
+   "gross_before_costs": -429.321264542226,
+   "funding_inferred_position_days": 0,
+   "killed": true,
+   "exits": {
+    "STOP": 82,
+    "REBALANCE": 4,
+    "UNIVERSE": 0,
+    "DELISTED": 0,
+    "KILL": 0
+   }
+  },
+  "x5.0": {
+   "sharpe": 0.040879465033330585,
+   "return_pct": -0.6581521425759962,
+   "max_dd": 0.15600725354638734,
+   "n_trades": 88,
+   "win_rate": 0.3068181818181818,
+   "avg_r": 0.0018323259640958848,
+   "profit_factor": 0.954484747018433,
+   "fees": 26.182562238159353,
+   "slippage": 110.30621400032571,
+   "funding": 24.44141551552369,
+   "gross_before_costs": 95.2450035182008,
+   "funding_inferred_position_days": 0,
+   "killed": true,
+   "exits": {
+    "STOP": 67,
+    "REBALANCE": 4,
+    "UNIVERSE": 0,
+    "DELISTED": 0,
+    "KILL": 17
+   }
+  }
+ },
+ "dsr_dev": 0.6467816080089641,
+ "dsr_holdout": 0.21145925874801563,
+ "pbo": {
+  "pbo": 0.04871794871794872,
+  "n_combinations": 12870,
+  "median_logit": 0.9162907318741551
+ },
+ "flags": [
+  "DECAY: WF-OOS Sharpe -0.27 vs mean in-sample 0.65",
+  "HOLDOUT_FLIP",
+  "UNSTABLE: the chosen variant changed in most folds"
+ ],
+ "gate": {
+  "holdout_sharpe>1.5": "False",
+  "max_dd<15%": false,
+  "trades>=200": false,
+  "dsr_dev>=0.95": false,
+  "pbo<0.5": true,
+  "no_decay_or_flip": false
+ },
+ "verdict": "NO-GO",
+ "combined": {
+  "span": [
+   "2023-09-03",
+   "2026-08-31"
+  ],
+  "trend_variant": "momentum20_long",
+  "capital_share_trend": 0.5,
+  "correlation_daily": -6.86190418277675e-05,
+  "chan_alone": {
+   "pnl": 15.021849705674867,
+   "sharpe": 0.04600308096454847,
+   "max_dd": 0.10018627102057964,
+   "trades": 73
+  },
+  "trend_alone": {
+   "pnl": 879.0301583486353,
+   "sharpe": 0.5439425985149902,
+   "max_dd": 0.1624688439530646,
+   "trades": 80
+  },
+  "combined_full": {
+   "return_pct": 8.940520080543092,
+   "sharpe": 0.45446961891430265,
+   "max_dd": 0.0947647496485452,
+   "chan_pnl": 15.021849705674867,
+   "trend_pnl": 879.0301583486353
+  },
+  "combined_chan_holdout": {
+   "return_pct": 0.0,
+   "sharpe": 0.0,
+   "max_dd": 0.0,
+   "chan_pnl": 0.0,
+   "trend_pnl": 0.0
+  },
+  "portfolio_kill": null,
+  "note": "CHAN's parameters were chosen on its own first 80% (Phase 1), so the part of this span before 2026-01-24 is in-sample for CHAN; the trend variant was chosen on its own development period.",
+  "kill_dates": {
+   "trend": "2024-01-22",
+   "chan": "2023-10-12"
+  }
+ },
+ "runtime_s": 103,
+ "info_no_kill": {
+  "breakout_long": {
+   "dev": {
+    "sharpe": 0.18039851530195825,
+    "return_pct": 8.132543534326842,
+    "max_dd": 0.20038921967792211,
+    "n_trades": 236
+   },
+   "holdout": {
+    "sharpe": -0.5315610813329609,
+    "return_pct": -3.689305490884376,
+    "max_dd": 0.06948811164213109,
+    "n_trades": 23
+   }
+  },
+  "breakout_ls": {
+   "dev": {
+    "sharpe": 0.09762908163321794,
+    "return_pct": 0.1660911535536158,
+    "max_dd": 0.27034961060833995,
+    "n_trades": 457
+   },
+   "holdout": {
+    "sharpe": -0.1329204448973608,
+    "return_pct": -3.773962543956022,
+    "max_dd": 0.13910516326018874,
+    "n_trades": 112
+   }
+  },
+  "momentum10_long": {
+   "dev": {
+    "sharpe": 0.17081908100947168,
+    "return_pct": 7.326394491391097,
+    "max_dd": 0.3167957196745168,
+    "n_trades": 490
+   },
+   "holdout": {
+    "sharpe": 0.04824132146532862,
+    "return_pct": -0.07212602451334149,
+    "max_dd": 0.1299832203674155,
+    "n_trades": 63
+   }
+  },
+  "momentum10_ls": {
+   "dev": {
+    "sharpe": 0.18337772535091598,
+    "return_pct": 8.58043198435363,
+    "max_dd": 0.2852089486746674,
+    "n_trades": 1031
+   },
+   "holdout": {
+    "sharpe": 0.6247421250790981,
+    "return_pct": 10.962658955280835,
+    "max_dd": 0.08818443763354977,
+    "n_trades": 232
+   }
+  },
+  "momentum20_long": {
+   "dev": {
+    "sharpe": 0.29227329428224824,
+    "return_pct": 22.588855051109945,
+    "max_dd": 0.39151106566593663,
+    "n_trades": 748
+   },
+   "holdout": {
+    "sharpe": -0.2666994656860007,
+    "return_pct": -6.7715292749327975,
+    "max_dd": 0.22026085775549442,
+    "n_trades": 94
+   }
+  },
+  "momentum20_ls": {
+   "dev": {
+    "sharpe": 0.25954666030661966,
+    "return_pct": 17.31747479694874,
+    "max_dd": 0.4116111282918037,
+    "n_trades": 1522
+   },
+   "holdout": {
+    "sharpe": 0.5846449687544002,
+    "return_pct": 15.583114352383465,
+    "max_dd": 0.1657907944873238,
+    "n_trades": 337
+   }
+  }
+ },
+ "combined_no_kill_info": {
+  "correlation_daily": 0.007558206476870438,
+  "chan_trades": 142,
+  "trend_trades": 428,
+  "chan_sharpe": -0.6863204525015819,
+  "trend_sharpe": -0.13374051450048635,
+  "full": {
+   "chan_pnl": -760.0730177486803,
+   "trend_pnl": -739.0070496469634,
+   "return_pct": -14.99080067395644,
+   "sharpe": -0.3668975271928898,
+   "max_dd": 0.2788863262172919
+  },
+  "chan_holdout": {
+   "chan_pnl": -577.6114699995569,
+   "trend_pnl": 32.21885909899265,
+   "return_pct": -6.028894185091427,
+   "sharpe": -2.4677259790074033,
+   "max_dd": 0.06702336937601361
+  }
+ }
+}
