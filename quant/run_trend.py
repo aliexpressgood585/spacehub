@@ -141,9 +141,9 @@ def main(argv=None):
     if len(picks) > 2 and sum(picks[i] != picks[i - 1] for i in range(1, len(picks))) > (len(picks) - 1) / 2:
         flags.append("UNSTABLE: the chosen variant changed in most folds")
     g = cfg["gates"]["phase1"]
-    checks = {"holdout_sharpe>1.5": hs["sharpe"] > g["min_sharpe"], "max_dd<15%": hs["max_dd"] < g["max_drawdown"],
-              "trades>=200": hs["n_trades"] >= g["min_trades"], "dsr_dev>=0.95": bool(np.isfinite(d_dev) and d_dev >= 0.95),
-              "pbo<0.5": pb["pbo"] < 0.5, "no_decay_or_flip": not any(f.startswith(("DECAY", "HOLDOUT_FLIP")) for f in flags)}
+    checks = {"holdout_sharpe>1.5": bool(hs["sharpe"] > g["min_sharpe"]), "max_dd<15%": bool(hs["max_dd"] < g["max_drawdown"]),
+              "trades>=200": bool(hs["n_trades"] >= g["min_trades"]), "dsr_dev>=0.95": bool(np.isfinite(d_dev) and d_dev >= 0.95),
+              "pbo<0.5": bool(pb["pbo"] < 0.5), "no_decay_or_flip": not any(f.startswith(("DECAY", "HOLDOUT_FLIP")) for f in flags)}
     verdict = "GO" if all(checks.values()) else "NO-GO"
     print(f"selected {sel}: holdout Sharpe {hs['sharpe']:+.2f} ret {hs['return_pct']:+.1f}% DD {hs['max_dd']:.1%} trades {hs['n_trades']}; "
           f"WF-OOS Sharpe {wf['sharpe']:+.2f} ({oos_trades} trades); DSR dev {d_dev:.2f} / holdout {d_ho:.2f}; PBO {pb['pbo']:.2f} -> {verdict}")

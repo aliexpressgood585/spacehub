@@ -6,7 +6,7 @@ Generated 2026-09-27T04:48:47 UTC. Universe: 806 USDT perpetuals ever listed on 
 
 | check | pass |
 |---|---|
-| holdout_sharpe>1.5 | ✅ |
+| holdout_sharpe>1.5 | ❌ |
 | max_dd<15% | ❌ |
 | trades>=200 | ❌ |
 | dsr_dev>=0.95 | ❌ |

@@ -14,7 +14,7 @@ def write(o: dict, path) -> None:
          f"{o['funding_archives']} of them. Usable {o['usable_from']} → {o['to']}; holdout (read once) from {o['holdout_from']}. "
          f"Variants tried: **{o['n_variants']}** (all in config; N for the deflated Sharpe).\n",
          "## Gate (unchanged)\n", "| check | pass |", "|---|---|"]
-    L += [f"| {k} | {'✅' if v else '❌'} |" for k, v in o["gate"].items()]
+    L += [f"| {k} | {'✅' if v is True or v == 'True' else '❌'} |" for k, v in o["gate"].items()]
     h = o["holdout"]
     L += ["", f"Selected on development: **{o['selected']}**. Deflated Sharpe: dev {o['dsr_dev']:.2f}, holdout {o['dsr_holdout']:.2f}. "
           f"PBO {o['pbo']['pbo']:.2f}. Flags: {', '.join(o['flags']) or '—'}.\n",
