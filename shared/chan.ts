@@ -7,7 +7,7 @@
 // BACKTEST_REPORT.md). The owner chose to run the regime router live on paper anyway (2026-09-26: "run the system in
 // demo the way Chan said, as if he were trading"). The risk layer is the prompt's, unchanged: half-Kelly on the
 // strategy's OWN live record (default 0.25% until 30 trades, 0 when the record is negative), capped at 1%; 3x; daily
-// -3% -> pause to 00:00 UTC; -10% from peak -> close all + halt; 5 losses in a row -> pause to 00:00 UTC; max 5 open.
+// -3% -> pause to 00:00 UTC; -10% from peak -> close all + halt; 50 losses in a row -> pause to 00:00 UTC; max 5 open.
 
 export const CHAN = {
   tf: '5m', barMs: 300_000, bars: 4300,
@@ -26,7 +26,7 @@ export const CHAN = {
   // the parameters the Python walk-forward chose for the regime router on the WF region (quant/reports/backtest-5m.json)
   params: { RG_MR: { entryZ: 2.5, exitZ: 0.0, stopZ: 3.5 }, RG_MOM: { kind: 'breakout' as const, lookback: 144, hold: 12 } },
   risk: { kellyFraction: 0.5, cap: 0.01, kellyMinTrades: 30, defaultRisk: 0.0025, maxLeverage: 3, dailyLoss: 0.03,
-    maxDD: 0.10, maxConsec: 5, maxOpen: 5, minStopToCost: 3.0 },
+    maxDD: 0.10, maxConsec: 50, maxOpen: 5, minStopToCost: 3.0 },
   costs: { taker: 0.0005, maker: 0.0002 },
   entryWindowMs: 180_000,
 } as const
