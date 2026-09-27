@@ -380,7 +380,9 @@ Retention fixed so the data survives long enough:
   - raw liquidations and derivs: 90 days.
 - Before this, the collector deleted everything after 90 days, which would have destroyed H3's data before it could reach 200 trades.
 Expected time to 200: H1 ~10-14 months, H3 ~2+ years, H2/H4 unknown (counts will tell).
-A weekly routine runs the status and notifies the owner ONLY when a hypothesis has >= 200 events.
+A weekly routine runs the status and notifies the owner ONLY when a hypothesis has >= 200 events:
+- `trig_01PCN6JxxU8hNhqHKTdBfFKr`, Mondays 07:14 UTC, fresh session, no connectors (anon REST only);
+- it also alerts if `mkt_liq_15m` / `mkt_options` have gone >24h without rows.
 
 ## quant TREND sleeve (2026-09-27 ~06:00 UTC) — Clenow-style daily trend following, second strategy: NO-GO, trend.enabled false
 Owner: an independent second strategy (Clenow, "Following the Trend" / "Stocks on the Move"), CHAN untouched, same gates.

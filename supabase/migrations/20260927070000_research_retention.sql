@@ -18,7 +18,7 @@ language sql security definer set search_path = public as $$
   insert into public.mkt_liq_15m (bucket, source, symbol, side, usd, n)
     select to_timestamp(floor(extract(epoch from ts) / 900) * 900), source, symbol, side, sum(usd), count(*)
     from public.mkt_liquidations
-    where ts > now() - interval '89 days' and ts < to_timestamp(floor(extract(epoch from now()) / 900) * 900)
+    where to_timestamp(floor(extract(epoch from ts) / 900) * 900) > now() - interval '89 days' and ts < to_timestamp(floor(extract(epoch from now()) / 900) * 900)
     group by 1, 2, 3, 4
   on conflict (bucket, source, symbol, side) do update set usd = excluded.usd, n = excluded.n;
   delete from public.mkt_liquidations where ts < now() - $1 * interval '1 day';
