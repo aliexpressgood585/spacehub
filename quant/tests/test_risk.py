@@ -64,11 +64,13 @@ def test_daily_loss_limit_pauses_until_next_day(cfg):
 def test_consecutive_losses(cfg):
     rm = RiskManager(cfg, 100_000)
     ev = None
-    for k in range(5):
+    for k in range(50):
         ev = rm.on_trade_closed(T0 + k, -10, -0.1, "S", 100_000 - 10 * (k + 1))
+        if k < 49:
+            assert ev is None
     assert ev == "CONSEC_STOP"
-    assert rm.can_open(T0 + 10, 99_950, 0)[0] is False
-    assert rm.can_open(T0 + DAY_MS, 99_950, 0)[0] is True
+    assert rm.can_open(T0 + 100, 99_500, 0)[0] is False
+    assert rm.can_open(T0 + DAY_MS, 99_500, 0)[0] is True
 
 
 def test_win_resets_streak(cfg):

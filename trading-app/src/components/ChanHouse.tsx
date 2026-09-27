@@ -41,7 +41,7 @@ function reasonHe(r: string): string {
   if (r === 'taken') return 'נכנס'
   if (r === 'coin_held') return 'כבר מחזיק את המטבע'
   if (r === 'max open positions') return 'כבר 5 פוזיציות פתוחות'
-  if (r.startsWith('paused')) return 'מושהה עד חצות UTC (‎-3% יומי / 5 הפסדים)'
+  if (r.startsWith('paused')) return 'מושהה עד חצות UTC (‎-3% יומי / 50 הפסדים)'
   if (r.startsWith('halted')) return 'עצירה קשיחה (‎-10% מהשיא)'
   if (r.startsWith('half-Kelly <= 0')) return 'קלי 0 — הרקורד של הרכיב שלילי'
   if (r === 'no_book') return 'אין ספר פקודות'
@@ -342,7 +342,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
             status={halted ? `עצירה קשיחה: ${risk?.haltReason || snap?.state?.hard_halt_reason || ''}` : paused ? 'מושהה עד חצות UTC' : 'מאשר כניסות'}>
             <Meter label="ירידה מהשיא (עצירה ב־10%)" v={dd} limit={CHAN.risk.maxDD} fmt={(x) => `${(x * 100).toFixed(1)}%`} />
             <Meter label="הפסד ממומש היום (השהיה ב־3%)" v={dayLoss} limit={CHAN.risk.dailyLoss} fmt={(x) => `${(x * 100).toFixed(1)}%`} />
-            <Meter label="הפסדים ברצף (השהיה ב־5)" v={streak} limit={CHAN.risk.maxConsec} fmt={(x) => String(Math.round(x))} />
+            <Meter label="הפסדים ברצף (השהיה ב־50)" v={streak} limit={CHAN.risk.maxConsec} fmt={(x) => String(Math.round(x))} />
             <Meter label="פוזיציות פתוחות" v={openN} limit={CHAN.risk.maxOpen} fmt={(x) => String(Math.round(x))} />
             {(['RG_MR', 'RG_MOM'] as const).map((c) => { const k = kellyOf(c); return (
               <div key={c} className="ch-kv"><span>סיכון לעסקה · {COMP[c]}</span><b>{k ? `${(Number(k.kelly_f) * 100).toFixed(2)}% (${nComp(c)}/${CHAN.risk.kellyMinTrades} עסקאות לקלי)` : `${CHAN.risk.defaultRisk * 100}% ברירת מחדל`}</b></div>
