@@ -356,6 +356,32 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## PRE-REGISTRATION (2026-09-27 05:10 UTC, commit 77a03e3) — forward tests, rules FROZEN, T0 = 2026-09-28 00:00 UTC
+Owner:
+- keep CHAN on paper as an infrastructure test (unchanged, not evidence);
+- forward-test the funding rule frozen;
+- keep collecting liquidations / options / news, but DO NOT evaluate before >= 200 OOS trades;
+- write the hypotheses down first;
+- report only when something is ready.
+`quant/PREREGISTRATION.md`:
+- H1 extreme funding: >= 0.10%/8h, receive side, 72h, 3×ATR(1h), 40 coins;
+- H2 OKX liquidation-cascade fade: 15m bucket >= max($250k, 5× the 7-day median), 4h hold, 2×ATR, pinned 10;
+- H3 options skew fade: BTC/ETH, 00:00 skew10 z(30d) at |z| >= 1.5, 24h hold;
+- H4 news momentum: pinned-10 coin named and a 60-minute move >= 1%, follow, 4h hold;
+- gate unchanged: >= 200 trades, Sharpe > 1.5, DD < 15%, DSR >= 0.95 with N = 4, gross > costs;
+- DO NOT EDIT THESE RULES — a change needs a new file with a new T0.
+Before 200 trades ONLY counts may be read:
+- `python -m quant.forward.status` (count-only, anon REST + Binance archive, no prices, no P&L) -> reports/forward-status.json.
+Retention fixed so the data survives long enough:
+- migration `20260927070000_research_retention.sql`, applied:
+  - liquidations -> `mkt_liq_15m` 15-minute buckets, kept forever;
+  - options: hourly snapshots kept forever;
+  - news: kept forever;
+  - raw liquidations and derivs: 90 days.
+- Before this, the collector deleted everything after 90 days, which would have destroyed H3's data before it could reach 200 trades.
+Expected time to 200: H1 ~10-14 months, H3 ~2+ years, H2/H4 unknown (counts will tell).
+A weekly routine runs the status and notifies the owner ONLY when a hypothesis has >= 200 events.
+
 ## quant TREND sleeve (2026-09-27 ~06:00 UTC) — Clenow-style daily trend following, second strategy: NO-GO, trend.enabled false
 Owner: an independent second strategy (Clenow, "Following the Trend" / "Stocks on the Move"), CHAN untouched, same gates.
 Plan: `quant/TREND_PLAN.md`. Code:
