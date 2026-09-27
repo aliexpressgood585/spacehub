@@ -16,6 +16,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { SUPA_KEY, SUPA_URL } from '../supa'
 import { CHAN } from '../../../shared/chan'
 import { useLivePrices, tickDir, type LiveTick } from '../livePrices'
+import { tradeMetrics, fmtR, fmtPctSigned } from '../tradeMetrics'
 
 type J = any
 const REST = `${SUPA_URL}/rest/v1/`
@@ -430,16 +431,18 @@ function DecList({ ds, now, metric }: { ds: J[]; now: number; metric: (d: J) => 
 }
 
 function Position({ t, mark, now }: { t: J; mark?: LiveTick; now: number }) {
-  const m = t.scalp_meta?.chan ?? {}, dir = t.side === 'LONG' ? 1 : -1, entry = Number(t.entry_price), size = Number(t.size)
+  // the SAME numbers as the trade page (tradeMetrics = one definition): net P&L after the entry fee, the estimated exit
+  // fee + slippage and funding; R on the initial risk; stop % measured from the entry
+  const m = t.scalp_meta?.chan ?? {}
   const px = mark && now - mark.t < 60_000 ? mark.px : null
-  const pnl = px != null ? dir * (px - entry) * size : null
-  const r = px != null && Number(m.r) > 0 ? (dir * (px - entry)) / Number(m.r) : null
+  const M = px != null ? tradeMetrics(t, px, now) : null
   const heldMin = (now - Date.parse(t.opened_at)) / 60_000, maxMin = Number(m.max_hold_bars) * 5
-  const toStop = px != null ? Math.abs(px - Number(m.stop)) / px : null
+  const stopPct = tradeMetrics(t, Number(t.entry_price), now).stopPct
   return (
     <div className="ch-pos">
-      <div className="ch-row"><b>{t.sym} {t.side === 'LONG' ? '▲ לונג' : '▼ שורט'}</b><span>{COMP[m.comp] ?? m.comp}</span><span className={pnl == null ? 'ch-muted' : pnl >= 0 ? 'pos' : 'neg'}>{pnl == null ? 'אין מחיר חי' : <N className={`ch-flash ${tickDir(mark)}`} key={pnl.toFixed(2)}>{`${fmt$(pnl)} · ${r!.toFixed(2)}R`}</N>}</span></div>
-      <div className="ch-row ch-muted"><span>כניסה {fmtPx(entry)}</span><span>עכשיו <N className={`ch-flash ${tickDir(mark)}`} key={px ?? 'x'}>{fmtPx(px)}</N></span><span>סטופ {fmtPx(Number(m.stop))} ({toStop == null ? '—' : `${(toStop * 100).toFixed(2)}%`})</span></div>
+      <div className="ch-row"><b>{t.sym} {t.side === 'LONG' ? '▲ לונג' : '▼ שורט'}</b><span>{COMP[m.comp] ?? m.comp}</span><span className={M == null ? 'ch-muted' : M.net >= 0 ? 'pos' : 'neg'}>{M == null ? 'אין מחיר חי' : <N className={`ch-flash ${tickDir(mark)}`} key={M.net.toFixed(2)}>{`נטו ${fmt$(M.net)} · ${fmtR(M.netR)}`}</N>}</span></div>
+      <div className="ch-row ch-muted"><span>כניסה {fmtPx(Number(t.entry_price))}</span><span>עכשיו <N className={`ch-flash ${tickDir(mark)}`} key={px ?? 'x'}>{fmtPx(px)}</N></span><span>סטופ {fmtPx(Number(m.stop))} (<N>{fmtPctSigned(stopPct, 3)}</N> מהכניסה)</span></div>
+      {M && <div className="ch-row ch-muted"><span>ברוטו <N>{fmt$(M.gross)} · {fmtR(M.grossR)}</N></span><span>עמלות וההחלקה <N>{fmt$(M.costs)}</N> (הערכה)</span><span>תנועה <N>{fmtPctSigned(M.movePct, 3)}</N></span></div>}
       <div className="ch-bar"><i style={{ width: `${Math.min(100, (heldMin / maxMin) * 100)}%`, background: '#38bdf8' }} /></div>
       <div className="ch-row ch-muted"><span>מוחזק {Math.round(heldMin)} דק׳ מתוך {Math.round(maxMin)}</span><span>נכנס על z {Number(m.z).toFixed(2)} · {m.regime}</span><span><a href={`trade.html?id=${t.id}`}>גרף ←</a></span></div>
     </div>

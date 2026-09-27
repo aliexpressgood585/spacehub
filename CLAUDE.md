@@ -356,6 +356,14 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v97.5 (2026-09-27 ~09:55 UTC) — house card vs trade page P&L mismatch (owner screenshots: $20.60 vs $16.08)
+The house card showed GROSS P&L and a stop % measured from the current price. The trade page showed NET (tradeMetrics: entry fee + estimated exit fee/slip + funding) and a stop % measured from the entry. Both were correct, but they were different quantities.
+The house Position now uses `tradeMetrics`, the one definition:
+- headline: net $ · net R;
+- a line with gross $ · gross R, estimated costs and the move;
+- stop % measured from the entry.
+Verified side by side headless on XMR #699: house net $16.38 +1.19R, trade page net +$16.38, R +1.50 · +1.19, px 558.51, stop −0.489%. Identical.
+
 ## v97.4 live prices (2026-09-27 ~09:45 UTC) — owner: "every price, P&L and chart should move every second, like an exchange"
 Also: the 5-loss pause was already raised to 50 by PR #77 (864b18be, deployed 08:03), and the persisted pause was cleared. The owner asked again ("without limit"); no further change was made. Daily −3% and the −10% kill remain.
 `trading-app/src/livePrices.ts` = ONE shared live feed (`useLivePrices(symbols)`), display only:
