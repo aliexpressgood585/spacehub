@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo, type CSSProperties } from 'react'
 import { SCALP } from '../../../shared/scalp'
+import { useLivePrices } from '../livePrices'
 import { createClient } from '@supabase/supabase-js'
 
 import { SUPA_URL, SUPA_KEY } from '../supa'
@@ -709,42 +710,24 @@ export default function CryptoTradingDashboard() {
     load()
   },[])
 
-  // Single WS — COINS + dynamic extraWsSyms in one connection (Spot stream; price diff vs futures <0.1%)
+  // v97.4: the shared live feed (Binance USDT-M futures stream = the bot's venue, OKX stream as fallback) moves every
+  // price, position P&L and the forming candle with each change on the exchange. Replaces the Binance SPOT socket,
+  // which was both the wrong market (spot, not the futures the bot trades) and geo-blocked on some phones.
+  const liveFeed=useLivePrices(useMemo(()=>[...COINS.map(c=>c.sym),...extraWsSyms],[extraWsSyms]))
+  const seenTick=useRef<Record<string,number>>({})
   useEffect(()=>{
-    let dead=false
-    function connect(){
-      if(dead)return
-      setWsStatus('connecting')
-      const knownSet=new Set(COINS.map(c=>c.sym))
-      const extraStreams=extraWsSyms.filter(s=>!knownSet.has(s)).map(s=>s.toLowerCase()+'usdt@miniTicker')
-      const streams=[...COINS.map(c=>c.ws+'@miniTicker'),...extraStreams].join('/')
-      const ws=new WebSocket(`wss://stream.binance.com:9443/stream?streams=${streams}`)
-      ws.onopen=()=>setWsStatus('live')
-      ws.onerror=()=>setWsStatus('error')
-      ws.onclose=()=>{if(!dead){setWsStatus('error');setTimeout(connect,3000)}}
-      ws.onmessage=(e)=>{
-        try{
-          const msg=JSON.parse(e.data);const d=msg.data||msg
-          const wsName=(d.s||'').toLowerCase()
-          const price=parseFloat(d.c),open24=parseFloat(d.o)
-          const coin=COINS.find(c=>c.ws===wsName)
-          if(coin){
-            setPrices(p=>({...p,[coin.sym]:{price,change:((price-open24)/open24)*100}}))
-            processTick(coin.sym,price,parseFloat(d.v||'0'))
-          } else {
-            const sym=(d.s||'').replace('USDT','')
-            if(sym){
-              setPrices(p=>({...p,[sym]:{price,change:open24>0?((price-open24)/open24)*100:0}}))
-              processTick(sym,price,parseFloat(d.v||'0'))
-            }
-          }
-        }catch{}
-      }
-      return ws
+    const upd:Record<string,{price:number;change:number}>={}
+    for(const [sym,tk] of Object.entries(liveFeed)){
+      if(seenTick.current[sym]===tk.t)continue
+      seenTick.current[sym]=tk.t
+      upd[sym]={price:tk.px,change:tk.chg24!=null?tk.chg24*100:NaN}
+      processTick(sym,tk.px,0)
     }
-    const ws=connect()
-    return ()=>{dead=true;ws?.close()}
-  },[processTick,extraWsSyms])
+    if(Object.keys(upd).length){
+      setPrices(p=>{const m={...p};for(const [k,v] of Object.entries(upd))m[k]={price:v.price,change:Number.isFinite(v.change)?v.change:(p[k]?.change??0)};return m})
+      setWsStatus('live')
+    }
+  },[liveFeed,processTick])
 
   // ── v61.0: OKX price fallback ───────────────────────────────────────────────
   // The Binance WebSocket is geo-blocked in some regions — the same 451 the BOT

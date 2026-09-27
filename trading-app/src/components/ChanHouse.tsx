@@ -15,6 +15,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { SUPA_KEY, SUPA_URL } from '../supa'
 import { CHAN } from '../../../shared/chan'
+import { useLivePrices, tickDir, type LiveTick } from '../livePrices'
 
 type J = any
 const REST = `${SUPA_URL}/rest/v1/`
@@ -123,7 +124,6 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
   const [snap, setSnap] = useState<Snap | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [now, setNow] = useState(Date.now())
-  const [marks, setMarks] = useState<Record<string, { px: number; src: string; t: number }>>({})
   const [fwd, setFwd] = useState<J | null | 'missing'>(null)
   const [log, setLog] = useState<{ t: number; text: string; kind: string }[]>([])
   const [coinSel, setCoinSel] = useState<string | null>(null)
@@ -179,31 +179,9 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
     return () => { alive = false; clearInterval(iv) }
   }, [])
 
-  // live marks for the OPEN positions only (display; the bot books on its own Binance book walk)
-  const heldKey = (snap?.open ?? []).map((t) => t.sym).sort().join(',')
-  useEffect(() => {
-    if (!heldKey) return
-    let alive = true
-    const syms = heldKey.split(',')
-    const pull = async () => {
-      const got: Record<string, { px: number; src: string; t: number }> = {}
-      const [bn, ok] = await Promise.allSettled([
-        fetch('https://fapi.binance.com/fapi/v1/ticker/price', { signal: to() }).then((r) => (r.ok ? r.json() : null)),
-        fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP', { signal: to() }).then((r) => (r.ok ? r.json() : null)),
-      ])
-      if (ok.status === 'fulfilled' && ok.value?.code === '0') for (const x of ok.value.data as J[]) {
-        const m = /^(.+)-USDT-SWAP$/.exec(x.instId); if (m && syms.includes(m[1])) got[m[1]] = { px: Number(x.last), src: 'OKX', t: Number(x.ts) }
-      }
-      if (bn.status === 'fulfilled' && Array.isArray(bn.value)) for (const x of bn.value as J[]) {
-        const s = String(x.symbol); if (!s.endsWith('USDT')) continue
-        const c = s === '1000PEPEUSDT' ? 'PEPE' : s.slice(0, -4), k = s === '1000PEPEUSDT' ? 1000 : 1
-        if (syms.includes(c)) got[c] = { px: Number(x.price) / k, src: 'Binance', t: Number(x.time) || Date.now() }
-      }
-      if (alive && Object.keys(got).length) setMarks((m) => ({ ...m, ...got }))
-    }
-    void pull(); const iv = setInterval(pull, 4000)
-    return () => { alive = false; clearInterval(iv) }
-  }, [heldKey])
+  // live marks for the OPEN positions: the shared exchange feed (Binance futures stream, OKX stream fallback),
+  // updated as the market moves — display only; the bot books on its own Binance book walk
+  const marks = useLivePrices((snap?.open ?? []).map((t) => String(t.sym)))
 
   const p = snap?.state?.bot_params ?? {}
   const cyc = p.chan_cycle ?? null, scan = p.chan_scan ?? null, risk = p.chan_risk ?? null
@@ -267,6 +245,20 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
   const openN = snap?.open.length ?? 0
   const cash = Number(snap?.state?.balance)
   const eqPts = (snap?.equity ?? []).map((x) => Number(x.equity)).filter(Number.isFinite)
+  // account value at the live marks: cash + margin posted + unrealised (the ledger's own definition); a position
+  // without a fresh live price counts at the bot's last valuation, so a missing tick never invents a move
+  const liveEq = useMemo(() => {
+    const open = snap?.open ?? []
+    if (!Number.isFinite(cash) || !open.length || !open.some((t) => marks[t.sym])) return { v: null as number | null, dir: '' }
+    let v = cash, up = 0
+    for (const t of open) {
+      const e = Number(t.entry_price), sz = Number(t.size), lev = Math.max(1, Number(t.lev) || 1), m = marks[t.sym]
+      const d = t.side === 'LONG' ? 1 : -1
+      v += e * sz / lev + (m ? d * (m.px - e) * sz : 0)
+      if (m) up += d * (m.px - m.prev) * sz
+    }
+    return { v, dir: up > 0 ? 'up' : up < 0 ? 'down' : '' }
+  }, [snap?.open, marks, cash])
 
   const moodScan: Mood = !fresh ? 'sleep' : halted ? 'sleep' : scanning ? 'work' : 'wait'
   const moodReg: Mood = !snap?.dailyTs ? 'sleep' : now - snap.dailyTs < 26 * 3_600_000 ? (now - snap.dailyTs < 10 * 60_000 ? 'work' : 'wait') : 'alarm'
@@ -298,7 +290,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
       <div className="ch-house">
         <div className="ch-roof">
           <div className="ch-roof-in">
-            <div><span className="ch-k">הון</span><b><N>{fmt$(equity)}</N></b></div>
+            <div><span className="ch-k">הון חי</span><b><N className={`ch-flash ${liveEq.dir}`} key={liveEq.v?.toFixed(2)}>{fmt$(liveEq.v ?? equity)}</N></b></div>
             <div><span className="ch-k">מזומן</span><b><N>{fmt$(Number.isFinite(cash) ? cash : null)}</N></b></div>
             <div><span className="ch-k">שיא</span><b><N>{fmt$(peak)}</N></b></div>
             <div><span className="ch-k">מהשיא</span><b className={dd && dd > 0.05 ? 'neg' : ''}><N>{dd == null ? '—' : `-${(dd * 100).toFixed(2)}%`}</N></b></div>
@@ -420,7 +412,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
         {log.length ? log.map((e, i) => <div key={i} className={`ch-log ${e.kind}`}><span>{hm(e.t)}</span>{e.text}</div>)
           : <div className="ch-muted">עוד לא קרה כלום מאז שנפתח הדף. כל אירוע אמיתי — סריקה שהסתיימה, מועמד שנבדק, עסקה שנפתחה או נסגרה — יופיע כאן כשהוא קורה.</div>}
       </section>
-      <div className="ch-foot">כל מספר בדף נקרא מהטבלאות שהבוט עצמו כותב, ומתעדכן כל 5 שניות. מחירים חיים של פוזיציות: {Object.values(marks)[0]?.src ?? '—'} (תצוגה בלבד).</div>
+      <div className="ch-foot">כל מספר בדף נקרא מהטבלאות שהבוט עצמו כותב, ומתעדכן כל 5 שניות. מחירים, רווח/הפסד והון חי זזים עם כל שינוי מחיר בבורסה ({Object.values(marks)[0]?.src ?? '—'}, תצוגה בלבד).</div>
     </div>
   )
 }
@@ -437,7 +429,7 @@ function DecList({ ds, now, metric }: { ds: J[]; now: number; metric: (d: J) => 
   ))}</>
 }
 
-function Position({ t, mark, now }: { t: J; mark?: { px: number; src: string; t: number }; now: number }) {
+function Position({ t, mark, now }: { t: J; mark?: LiveTick; now: number }) {
   const m = t.scalp_meta?.chan ?? {}, dir = t.side === 'LONG' ? 1 : -1, entry = Number(t.entry_price), size = Number(t.size)
   const px = mark && now - mark.t < 60_000 ? mark.px : null
   const pnl = px != null ? dir * (px - entry) * size : null
@@ -446,8 +438,8 @@ function Position({ t, mark, now }: { t: J; mark?: { px: number; src: string; t:
   const toStop = px != null ? Math.abs(px - Number(m.stop)) / px : null
   return (
     <div className="ch-pos">
-      <div className="ch-row"><b>{t.sym} {t.side === 'LONG' ? '▲ לונג' : '▼ שורט'}</b><span>{COMP[m.comp] ?? m.comp}</span><span className={pnl == null ? 'ch-muted' : pnl >= 0 ? 'pos' : 'neg'}>{pnl == null ? 'אין מחיר חי' : <N>{`${fmt$(pnl)} · ${r!.toFixed(2)}R`}</N>}</span></div>
-      <div className="ch-row ch-muted"><span>כניסה {fmtPx(entry)}</span><span>עכשיו {fmtPx(px)}</span><span>סטופ {fmtPx(Number(m.stop))} ({toStop == null ? '—' : `${(toStop * 100).toFixed(2)}%`})</span></div>
+      <div className="ch-row"><b>{t.sym} {t.side === 'LONG' ? '▲ לונג' : '▼ שורט'}</b><span>{COMP[m.comp] ?? m.comp}</span><span className={pnl == null ? 'ch-muted' : pnl >= 0 ? 'pos' : 'neg'}>{pnl == null ? 'אין מחיר חי' : <N className={`ch-flash ${tickDir(mark)}`} key={pnl.toFixed(2)}>{`${fmt$(pnl)} · ${r!.toFixed(2)}R`}</N>}</span></div>
+      <div className="ch-row ch-muted"><span>כניסה {fmtPx(entry)}</span><span>עכשיו <N className={`ch-flash ${tickDir(mark)}`} key={px ?? 'x'}>{fmtPx(px)}</N></span><span>סטופ {fmtPx(Number(m.stop))} ({toStop == null ? '—' : `${(toStop * 100).toFixed(2)}%`})</span></div>
       <div className="ch-bar"><i style={{ width: `${Math.min(100, (heldMin / maxMin) * 100)}%`, background: '#38bdf8' }} /></div>
       <div className="ch-row ch-muted"><span>מוחזק {Math.round(heldMin)} דק׳ מתוך {Math.round(maxMin)}</span><span>נכנס על z {Number(m.z).toFixed(2)} · {m.regime}</span><span><a href={`trade.html?id=${t.id}`}>גרף ←</a></span></div>
     </div>
@@ -507,6 +499,9 @@ const CSS = `
 .ch-pos{border:1px solid #1e3a5f;border-radius:8px;padding:6px;margin-bottom:6px}
 .ch-pos a{color:#5aa9ff}
 .pos{color:#34d399}.neg{color:#f87171}
+.ch-flash.up{animation:chup .9s ease-out}.ch-flash.down{animation:chdn .9s ease-out}
+@keyframes chup{0%{background:#16a34a;color:#fff}100%{background:transparent}}
+@keyframes chdn{0%{background:#dc2626;color:#fff}100%{background:transparent}}
 .ch-panel{margin-top:12px;background:#0b1220;border:1px solid #1e293b;border-radius:12px;padding:10px}
 .ch-panel h2{font-size:15px;margin:0 0 8px}
 .ch-legend{display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:#94a3b8;margin-bottom:8px}
