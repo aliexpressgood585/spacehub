@@ -356,6 +356,41 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v97.2 (2026-09-27) — CHAN daily stats cache: every coin scanned every bar
+The v97.1 in-memory bar cache did not survive between calls (~30 of 99 coins scanned per bar). The slow statistics
+(ADF / Hurst / half-life / vol history) are now recomputed once per UTC day per coin and stored in market_cache
+'chan_daily' (at most 12 refreshes per cycle). Each bar needs only the last 320 bars (`dailyStats` + `barView`).
+DEPLOYED: commit e6b09fd9, function v87, same shim ('CHAN').
+VERIFIED 03:54 UTC: 95/95 scanned, 0 failed, stale_daily 0, 0 bot_errors in 20 min, equity $5,022.16.
+COSTS (owner asked): each trade is charged taker 0.05% on both sides. Entry = a VWAP walk of the real Binance book,
+never better than touch + slip. Stops fill at the first aggTrade print through the stop, less book impact. Funding
+0.01%/8h is INFERRED (not the published rate). The liquidity cap keeps impact <= 25% of the stop. A stop closer than
+3x the round trip is refused.
+
+## v97.1 (2026-09-27 ~00:15 UTC) — CHAN over EVERY liquid Binance USDT perpetual (owner: "all the coins traded on Binance Futures")
+Universe = market_cache 'universe' (the v88 builder):
+- active USDT perpetuals, crypto only, >= $20M/24h, spread <= 10 bps, listed >= 3 days;
+- 99 pairs of ~658 listed; the illiquid rest is excluded because spread + impact eat any trade;
+- CHAN refreshes the list hourly itself, since SCALP (which used to) is off;
+- the 10 backtested coins remain the fallback; every other coin was NEVER backtested (rows carry chan.backtested_coin).
+Scaling so ~100 coins fit Binance's 2,400 weight/min:
+- closed 5m bars kept in memory between cycles (a warm coin = one `limit=25` request, weight 1);
+- a cold coin = 3 pages (4,300 bars), at most 10 per cycle; weight metered from X-MBX-USED-WEIGHT-1M, budget 1,700;
+- the bar scan runs in batches of 30 coins over the cycles of the first 3 minutes after each close
+  (bot_params.chan_scan {bar, done}); the bar is closed (chan_bar) when every coin is done or the window ends;
+- entries in a batch are ranked by strength (|z| for MR, t for momentum).
+Regime vol percentile:
+- now against daily estimates at UTC-midnight anchors (`dayVols`), persisted in market_cache 'chan_vols'
+  (closer to the Python fixed daily grid than the v97.0 relative windows);
+- bootstrapped once per coin from 9,000 bars (<= 3 per cycle); with < 20 estimates there is no HIGH_VOL (as in Python's warm-up).
+Ledger `20260927000000_chan_all_coins.sql` (applied as an exact in-place edit and verified):
+- any well-formed crypto symbol, with the stablecoin / non-crypto deny list; stores chan_scan;
+- every limit unchanged (lev <= 3, notional <= 3x equity, risk <= 1%, <= 5 open, stop mandatory, halt).
+Tests: runner replay + 25-coin batch (3 cycles, <= 10 cold fetches each); parity unchanged; daily anchors.
+NB a first commit (610d94ce) was pushed with a typecheck error because a `;` let the chain continue after the failing
+suite. Fixed in b270b51e before any deploy. Deploy chains must use `&&` after the test run.
+DEPLOYED: commit b270b51e, function v86, shim `__ENABLED_SLEEVES='CHAN'`.
+
 ## v97.0 (2026-09-26 23:42 UTC) — CHAN sleeve: the quant/ regime router trades on PAPER (owner: "run the system in demo the way Chan said, as if he were trading")
 Owner's call, after being told that the Phase-1 verdict is NO-GO and Chan himself would not trade it. Labelled
 experimental / validated:false everywhere (rows, decisions, trade page).
