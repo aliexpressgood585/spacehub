@@ -356,6 +356,14 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## 10m bars (2026-09-27 ~06:10 UTC) — owner: "by the book, maybe 10m cycles" -> tested first: NO-GO, live unchanged
+Same Phase-1 pipeline; 10m aggregated from the 5m archive (loader + config windows at the 5m calendar spans). Report: quant/reports/TEN_MIN_REPORT.md.
+- Router holdout signal edge: gross −2.9 bps / costs 9.7 / net −12.6 (n 1,710, t −7.4), vs 5m −9.4 / 19.8 / −29.2.
+- Flags: NO_EDGE_IN_SAMPLE, UNSTABLE, DSR 0.13. Half-Kelly sized the router to 0.
+- Momentum: DECAY + HOLDOUT_FLIP. Mean reversion: no edge in-sample.
+- Low-slippage sensitivity: the same verdict.
+Less bad than 5m, still negative before costs. CHAN stays on 5m; nothing deployed.
+
 ## v97.3 house (2026-09-27 ~05:45 UTC) — the pixel house shows ONLY the live CHAN engine (owner: "no scenery, the bot's real activity")
 The old house (89 SCALP-era agents, the gym and the desk) described engines that are all OFF since 09-26 23:30, so it was scenery.
 - New `trading-app/src/components/ChanHouse.tsx`; house.html and `#house` route to it. BotHouse.tsx is kept in git but no longer routed.
