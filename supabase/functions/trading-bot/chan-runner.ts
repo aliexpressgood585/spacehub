@@ -33,7 +33,7 @@ async function kl(p: Pair, limit: number, endTime?: number): Promise<any[]> {
 const weightLeft = () => (Date.now() - weightAt > 60_000 ? CHAN.scan.weightBudget : CHAN.scan.weightBudget - usedWeight)
 const toBar = (p: Pair) => (x: any): Bar => ({ t: +x[0], o: +x[1] / p.k, h: +x[2] / p.k, l: +x[3] / p.k, c: +x[4] / p.k })
 
-export async function closedBars(p: Pair, now: number, n = CHAN.bars): Promise<Bar[]> {
+export async function closedBars(p: Pair, now: number, n: number = CHAN.bars): Promise<Bar[]> {
   const out = new Map<number, Bar>()
   let end = now
   for (let page = 0; page < Math.ceil(n / 1500) + 1 && out.size < n; page++) {
