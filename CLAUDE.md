@@ -356,6 +356,29 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## quant/afml (2026-09-27 ~04:15 UTC) — López de Prado layer on CHAN: built, tested, gate FAILED -> keep plain CHAN
+Owner asked for AFML methods on top of CHAN. Built in `quant/afml/` as an optional layer, `afml.enabled: false`
+(plan and fit in `quant/afml/PLAN.md`).
+- Modules:
+  - triple-barrier labels (k × EWMA vol × √hold, net of costs) + uniqueness weights;
+  - meta-labeling (RF / LightGBM, 21 features incl. Hurst/ADF/z/vol/funding/taker imbalance/FFD/time) + bet sizing;
+  - FFD (d from the development period only; 0.2–0.3);
+  - volume/dollar bars from 1m;
+  - purged K-fold + embargo, CPCV (15 splits / 5 paths);
+  - DSR, PSR, PBO (CSCV);
+  - MDA/MDI importance;
+  - `MetaFilter` = pass-through unless enabled AND gate PASS.
+- `python -m quant.run_meta [--bars-study]` -> reports/META_REPORT.md + meta-5m.json.
+- Tests: tests/test_afml.py, suite 57 passed.
+- Also added: requirements (scikit-learn, lightgbm).
+RESULT (5m, 10 coins, 36m; 33,904 CHAN signals; holdout last 20% read once):
+- OOS AUC 0.46–0.48 in every config = NO predictive power.
+- Plain holdout: 601 trades, gross −9.4 bps, costs 19.8, net −29.2, Sharpe −4.72.
+- The dev-selected variant (rf k1 t0.60 size) trades 2× in dev and 0× in the holdout -> DSR 0.00.
+- PBO 0.00 is an artefact (every trading variant loses, so the least-trading one wins every split).
+- Dollar/volume bars: much closer to normal than time bars (Jarque-Bera ~40× lower), but plain CHAN is worse on them (net −29 / −33 vs −24 bps).
+VERDICT: KEEP PLAIN CHAN. The live bot is unchanged; the layer stays OFF.
+
 ## v97.2 (2026-09-27) — CHAN daily stats cache: every coin scanned every bar
 The v97.1 in-memory bar cache did not survive between calls (~30 of 99 coins scanned per bar). The slow statistics
 (ADF / Hurst / half-life / vol history) are now recomputed once per UTC day per coin and stored in market_cache
