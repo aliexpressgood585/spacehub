@@ -1,0 +1,1495 @@
+{
+ "tf": "1h",
+ "symbols": [
+  "BTC",
+  "ETH",
+  "SOL",
+  "BNB",
+  "XRP",
+  "DOGE",
+  "ADA",
+  "AVAX",
+  "LINK",
+  "DOT"
+ ],
+ "strategies": {
+  "DON_breakout": {
+   "name": "DON_breakout",
+   "folds": [
+    {
+     "train": [
+      1599004800000,
+      1630108800000
+     ],
+     "test": [
+      1630108800000,
+      1637884800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 168,
+       "stop_atr": 3.0
+      }
+     },
+     "test_sharpe": -0.5489005468449859,
+     "test_trades": 9,
+     "test_return_pct": -4.069198093987925
+    },
+    {
+     "train": [
+      1606780800000,
+      1637884800000
+     ],
+     "test": [
+      1637884800000,
+      1645660800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 72,
+       "stop_atr": 3.0
+      }
+     },
+     "test_sharpe": -0.30633763279141407,
+     "test_trades": 29,
+     "test_return_pct": -2.5063201257953582
+    },
+    {
+     "train": [
+      1614556800000,
+      1645660800000
+     ],
+     "test": [
+      1645660800000,
+      1653436800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 168,
+       "stop_atr": 3.0
+      }
+     },
+     "test_sharpe": -5.069939335470411,
+     "test_trades": 21,
+     "test_return_pct": -10.21885861157229
+    },
+    {
+     "train": [
+      1622332800000,
+      1653436800000
+     ],
+     "test": [
+      1653436800000,
+      1661212800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 168,
+       "stop_atr": 2.0
+      }
+     },
+     "test_sharpe": -1.2351038154790013,
+     "test_trades": 87,
+     "test_return_pct": -4.334500645121386
+    },
+    {
+     "train": [
+      1630108800000,
+      1661212800000
+     ],
+     "test": [
+      1661212800000,
+      1668988800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 24,
+       "stop_atr": 3.0
+      }
+     },
+     "test_sharpe": 0.0,
+     "test_trades": 0,
+     "test_return_pct": 0.0
+    },
+    {
+     "train": [
+      1637884800000,
+      1668988800000
+     ],
+     "test": [
+      1668988800000,
+      1676764800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 72,
+       "stop_atr": 2.0
+      }
+     },
+     "test_sharpe": 0.0,
+     "test_trades": 0,
+     "test_return_pct": 0.0
+    },
+    {
+     "train": [
+      1645660800000,
+      1676764800000
+     ],
+     "test": [
+      1676764800000,
+      1684540800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 168,
+       "stop_atr": 3.0
+      }
+     },
+     "test_sharpe": -0.05571465405983831,
+     "test_trades": 33,
+     "test_return_pct": -1.09971285710464
+    },
+    {
+     "train": [
+      1653436800000,
+      1684540800000
+     ],
+     "test": [
+      1684540800000,
+      1692316800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 24,
+       "stop_atr": 3.0
+      }
+     },
+     "test_sharpe": 0.0,
+     "test_trades": 0,
+     "test_return_pct": 0.0
+    },
+    {
+     "train": [
+      1661212800000,
+      1692316800000
+     ],
+     "test": [
+      1692316800000,
+      1700092800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 24,
+       "stop_atr": 3.0
+      }
+     },
+     "test_sharpe": 0.0,
+     "test_trades": 0,
+     "test_return_pct": 0.0
+    },
+    {
+     "train": [
+      1668988800000,
+      1700092800000
+     ],
+     "test": [
+      1700092800000,
+      1707868800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 168,
+       "stop_atr": 2.0
+      }
+     },
+     "test_sharpe": 0.4366901006550242,
+     "test_trades": 25,
+     "test_return_pct": 2.377789844946787
+    },
+    {
+     "train": [
+      1676764800000,
+      1707868800000
+     ],
+     "test": [
+      1707868800000,
+      1715644800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 72,
+       "stop_atr": 3.0
+      }
+     },
+     "test_sharpe": 0.0,
+     "test_trades": 0,
+     "test_return_pct": 0.0
+    },
+    {
+     "train": [
+      1684540800000,
+      1715644800000
+     ],
+     "test": [
+      1715644800000,
+      1723420800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 168,
+       "stop_atr": 2.0
+      }
+     },
+     "test_sharpe": 0.23846815652091075,
+     "test_trades": 26,
+     "test_return_pct": 0.7324390275338377
+    },
+    {
+     "train": [
+      1692316800000,
+      1723420800000
+     ],
+     "test": [
+      1723420800000,
+      1731196800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 72,
+       "stop_atr": 3.0
+      }
+     },
+     "test_sharpe": 1.7607069381401566,
+     "test_trades": 120,
+     "test_return_pct": 8.538597842534145
+    },
+    {
+     "train": [
+      1700092800000,
+      1731196800000
+     ],
+     "test": [
+      1731196800000,
+      1738972800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 24,
+       "stop_atr": 2.0
+      }
+     },
+     "test_sharpe": 0.0,
+     "test_trades": 0,
+     "test_return_pct": 0.0
+    },
+    {
+     "train": [
+      1707868800000,
+      1738972800000
+     ],
+     "test": [
+      1738972800000,
+      1746748800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 168,
+       "stop_atr": 2.0
+      }
+     },
+     "test_sharpe": -1.123805281564614,
+     "test_trades": 87,
+     "test_return_pct": -4.0371314753737675
+    }
+   ],
+   "wf_oos": {
+    "sharpe": -0.14625280706391033,
+    "trades": 437,
+    "compounded_return_pct": -14.663449632499825,
+    "max_dd": 0.32611647465744353,
+    "win_rate": 0.22654462242562928,
+    "folds": 15,
+    "positive_folds": 3
+   },
+   "holdout": {
+    "net_pnl": -727.2423916601656,
+    "return_pct": -7.272423916601656,
+    "sharpe": -0.9710288641235357,
+    "sortino": -1.0697730515058086,
+    "max_dd": 0.107111525829788,
+    "profit_factor": 0.023532227033995157,
+    "win_rate": 0.05555555555555555,
+    "avg_trade": -40.40235509223142,
+    "avg_r": -0.5261453967487619,
+    "n_trades": 18,
+    "exposure": 0.034741338394907416,
+    "gross_pnl_before_costs": -336.6654714059328,
+    "fees": 37.41015367265734,
+    "slippage": 69.17129175929375,
+    "funding": 12.57629663399989,
+    "days": 438,
+    "kill_events": [
+     [
+      1751616000000,
+      "KILL",
+      "DOGE"
+     ]
+    ],
+    "skipped": {
+     "max open positions": 8,
+     "halted": 505
+    },
+    "period": [
+     1750291200000,
+     1788217200000
+    ]
+   },
+   "in_sample": {
+    "net_pnl": 310.4467069531165,
+    "return_pct": 3.1044670695311583,
+    "sharpe": 0.13146194343246861,
+    "sortino": 0.18919181525084638,
+    "max_dd": 0.10142280780857382,
+    "profit_factor": 1.202965645733585,
+    "win_rate": 0.2830188679245283,
+    "avg_trade": 5.857485036851266,
+    "avg_r": 0.4673557480779851,
+    "n_trades": 53,
+    "exposure": 0.05239862935465448,
+    "gross_pnl_before_costs": 563.3668515611162,
+    "fees": 55.04117115543716,
+    "slippage": 162.15272977474763,
+    "funding": 70.75790109926581,
+    "days": 1751,
+    "kill_events": [
+     [
+      1607799600000,
+      "KILL",
+      "BTC"
+     ]
+    ],
+    "skipped": {
+     "max open positions": 17,
+     "half-Kelly <= 0 (no positive edge in the strategy's own record)": 44,
+     "halted": 1962
+    },
+    "deflated_sharpe_prob": 0.41105614719893024
+   },
+   "chosen_final": {
+    "DON": {
+     "N": 168,
+     "stop_atr": 3.0
+    }
+   },
+   "flags": [
+    "NO_EDGE_IN_SAMPLE: even the best in-sample parameter sets average Sharpe -0.11",
+    "UNSTABLE: chosen parameters changed in 13 of 14 fold transitions",
+    "DEFLATED: probability the in-sample winner beats 6 null trials = 0.41 (< 0.95)",
+    "HOLDOUT_FLIP: positive in-sample, negative on the untouched holdout"
+   ],
+   "gate": {
+    "sharpe": {
+     "value": -0.9710288641235357,
+     "pass": false
+    },
+    "max_dd": {
+     "value": 0.107111525829788,
+     "pass": true
+    },
+    "trades": {
+     "value": 18,
+     "pass": false
+    }
+   },
+   "edge": {
+    "in_sample": {
+     "n": 2076,
+     "avg_r": 0.2736763539227385,
+     "win_rate": 0.24470134874759153,
+     "gross_bps_before_costs": 131.17897697959594,
+     "costs_bps": 65.78499498227566,
+     "net_bps": 65.39398199732024,
+     "t_stat_net": 1.4217799587666613,
+     "exits": {
+      "STOP": 1308,
+      "TARGET": 0,
+      "SIGNAL": 758,
+      "TIMEOUT": 10
+     }
+    },
+    "holdout": {
+     "n": 531,
+     "avg_r": 0.23171599047100166,
+     "win_rate": 0.2806026365348399,
+     "gross_bps_before_costs": 67.57017275596931,
+     "costs_bps": 38.641730368040825,
+     "net_bps": 28.928442387928484,
+     "t_stat_net": 0.8876877619850466,
+     "exits": {
+      "STOP": 331,
+      "TARGET": 0,
+      "SIGNAL": 192,
+      "TIMEOUT": 8
+     },
+     "profit_factor": 1.125888072203074
+    }
+   },
+   "holdout_fixed_risk": {
+    "net_pnl": 1162.2069898185546,
+    "return_pct": 11.62206989818555,
+    "sharpe": 0.6449652586635161,
+    "sortino": 1.0682145743586053,
+    "max_dd": 0.10282113848397045,
+    "profit_factor": 1.285879971080039,
+    "win_rate": 0.2835820895522388,
+    "avg_trade": 5.782124327455504,
+    "avg_r": 0.2553884173106615,
+    "n_trades": 201,
+    "exposure": 0.5801613668570331,
+    "gross_pnl_before_costs": 1840.92658095925,
+    "fees": 186.62346948053315,
+    "slippage": 438.97354594226505,
+    "funding": 84.18565199034178,
+    "days": 438,
+    "kill_events": [
+     [
+      1773846000000,
+      "KILL",
+      "AVAX"
+     ]
+    ],
+    "skipped": {
+     "max open positions": 121,
+     "halted": 209
+    }
+   },
+   "verdict": "NO-GO",
+   "notes": []
+  },
+  "ZMR_zscore": {
+   "name": "ZMR_zscore",
+   "folds": [
+    {
+     "train": [
+      1599004800000,
+      1630108800000
+     ],
+     "test": [
+      1630108800000,
+      1637884800000
+     ],
+     "chosen": {
+      "ZMR": {
+       "W": 72,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 3.0
+      }
+     },
+     "test_sharpe": 0.0,
+     "test_trades": 0,
+     "test_return_pct": 0.0
+    },
+    {
+     "train": [
+      1606780800000,
+      1637884800000
+     ],
+     "test": [
+      1637884800000,
+      1645660800000
+     ],
+     "chosen": {
+      "ZMR": {
+       "W": 72,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 3.0
+      }
+     },
+     "test_sharpe": 0.0,
+     "test_trades": 0,
+     "test_return_pct": 0.0
+    },
+    {
+     "train": [
+      1614556800000,
+      1645660800000
+     ],
+     "test": [
+      1645660800000,
+      1653436800000
+     ],
+     "chosen": {
+      "ZMR": {
+       "W": 168,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 3.0
+      }
+     },
+     "test_sharpe": 0.0,
+     "test_trades": 0,
+     "test_return_pct": 0.0
+    },
+    {
+     "train": [
+      1622332800000,
+      1653436800000
+     ],
+     "test": [
+      1653436800000,
+      1661212800000
+     ],
+     "chosen": {
+      "ZMR": {
+       "W": 24,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 3.0
+      }
+     },
+     "test_sharpe": 0.0,
+     "test_trades": 0,
+     "test_return_pct": 0.0
+    },
+    {
+     "train": [
+      1630108800000,
+      1661212800000
+     ],
+     "test": [
+      1661212800000,
+      1668988800000
+     ],
+     "chosen": {
+      "ZMR": {
+       "W": 24,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 4.0
+      }
+     },
+     "test_sharpe": 0.0,
+     "test_trades": 0,
+     "test_return_pct": 0.0
+    },
+    {
+     "train": [
+      1637884800000,
+      1668988800000
+     ],
+     "test": [
+      1668988800000,
+      1676764800000
+     ],
+     "chosen": {
+      "ZMR": {
+       "W": 168,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 3.0
+      }
+     },
+     "test_sharpe": 0.0,
+     "test_trades": 0,
+     "test_return_pct": 0.0
+    },
+    {
+     "train": [
+      1645660800000,
+      1676764800000
+     ],
+     "test": [
+      1676764800000,
+      1684540800000
+     ],
+     "chosen": {
+      "ZMR": {
+       "W": 168,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 3.0
+      }
+     },
+     "test_sharpe": 0.0,
+     "test_trades": 0,
+     "test_return_pct": 0.0
+    },
+    {
+     "train": [
+      1653436800000,
+      1684540800000
+     ],
+     "test": [
+      1684540800000,
+      1692316800000
+     ],
+     "chosen": {
+      "ZMR": {
+       "W": 24,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 3.0
+      }
+     },
+     "test_sharpe": 0.0,
+     "test_trades": 0,
+     "test_return_pct": 0.0
+    },
+    {
+     "train": [
+      1661212800000,
+      1692316800000
+     ],
+     "test": [
+      1692316800000,
+      1700092800000
+     ],
+     "chosen": {
+      "ZMR": {
+       "W": 24,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 4.0
+      }
+     },
+     "test_sharpe": 0.0,
+     "test_trades": 0,
+     "test_return_pct": 0.0
+    },
+    {
+     "train": [
+      1668988800000,
+      1700092800000
+     ],
+     "test": [
+      1700092800000,
+      1707868800000
+     ],
+     "chosen": {
+      "ZMR": {
+       "W": 168,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 3.0
+      }
+     },
+     "test_sharpe": 0.0,
+     "test_trades": 0,
+     "test_return_pct": 0.0
+    },
+    {
+     "train": [
+      1676764800000,
+      1707868800000
+     ],
+     "test": [
+      1707868800000,
+      1715644800000
+     ],
+     "chosen": {
+      "ZMR": {
+       "W": 168,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 3.0
+      }
+     },
+     "test_sharpe": 0.0,
+     "test_trades": 0,
+     "test_return_pct": 0.0
+    },
+    {
+     "train": [
+      1684540800000,
+      1715644800000
+     ],
+     "test": [
+      1715644800000,
+      1723420800000
+     ],
+     "chosen": {
+      "ZMR": {
+       "W": 168,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 3.0
+      }
+     },
+     "test_sharpe": 0.0,
+     "test_trades": 0,
+     "test_return_pct": 0.0
+    },
+    {
+     "train": [
+      1692316800000,
+      1723420800000
+     ],
+     "test": [
+      1723420800000,
+      1731196800000
+     ],
+     "chosen": {
+      "ZMR": {
+       "W": 72,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 3.0
+      }
+     },
+     "test_sharpe": 0.0,
+     "test_trades": 0,
+     "test_return_pct": 0.0
+    },
+    {
+     "train": [
+      1700092800000,
+      1731196800000
+     ],
+     "test": [
+      1731196800000,
+      1738972800000
+     ],
+     "chosen": {
+      "ZMR": {
+       "W": 168,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 3.0
+      }
+     },
+     "test_sharpe": 0.0,
+     "test_trades": 0,
+     "test_return_pct": 0.0
+    },
+    {
+     "train": [
+      1707868800000,
+      1738972800000
+     ],
+     "test": [
+      1738972800000,
+      1746748800000
+     ],
+     "chosen": {
+      "ZMR": {
+       "W": 72,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 4.0
+      }
+     },
+     "test_sharpe": 0.0,
+     "test_trades": 0,
+     "test_return_pct": 0.0
+    }
+   ],
+   "wf_oos": {
+    "sharpe": 0.0,
+    "trades": 0,
+    "compounded_return_pct": 0.0,
+    "max_dd": 0.0,
+    "win_rate": 0.0,
+    "folds": 15,
+    "positive_folds": 0
+   },
+   "holdout": {
+    "net_pnl": 0.0,
+    "return_pct": 0.0,
+    "sharpe": 0.0,
+    "sortino": 0.0,
+    "max_dd": 0.0,
+    "profit_factor": 0.0,
+    "win_rate": 0.0,
+    "avg_trade": 0.0,
+    "avg_r": 0.0,
+    "n_trades": 0,
+    "exposure": 0.0,
+    "gross_pnl_before_costs": 0.0,
+    "fees": 0.0,
+    "slippage": 0.0,
+    "funding": 0.0,
+    "days": 438,
+    "kill_events": [],
+    "skipped": {
+     "half-Kelly <= 0 (no positive edge in the strategy's own record)": 3520
+    },
+    "period": [
+     1750291200000,
+     1788217200000
+    ]
+   },
+   "in_sample": {
+    "net_pnl": -233.7384646250921,
+    "return_pct": -2.3373846462509174,
+    "sharpe": -0.3005460090940662,
+    "sortino": -0.3227202673600033,
+    "max_dd": 0.04666467432407717,
+    "profit_factor": 0.6379170096729516,
+    "win_rate": 0.2647058823529412,
+    "avg_trade": -6.874660724267373,
+    "avg_r": -0.2703654407478462,
+    "n_trades": 34,
+    "exposure": 0.004235674852465258,
+    "gross_pnl_before_costs": -101.51527721957306,
+    "fees": 29.487892204869205,
+    "slippage": 106.83974301062851,
+    "funding": -4.10444780998026,
+    "days": 1751,
+    "kill_events": [],
+    "skipped": {
+     "max open positions": 13,
+     "half-Kelly <= 0 (no positive edge in the strategy's own record)": 15384
+    },
+    "deflated_sharpe_prob": 0.09853291624901456
+   },
+   "chosen_final": {
+    "ZMR": {
+     "W": 72,
+     "entry_z": 2.0,
+     "exit_z": 0.0,
+     "stop_z": 3.0
+    }
+   },
+   "flags": [
+    "NO_EDGE_IN_SAMPLE: even the best in-sample parameter sets average Sharpe -0.09",
+    "UNSTABLE: chosen parameters changed in 10 of 14 fold transitions",
+    "DEFLATED: probability the in-sample winner beats 6 null trials = 0.10 (< 0.95)"
+   ],
+   "gate": {
+    "sharpe": {
+     "value": 0.0,
+     "pass": false
+    },
+    "max_dd": {
+     "value": 0.0,
+     "pass": true
+    },
+    "trades": {
+     "value": 0,
+     "pass": false
+    }
+   },
+   "edge": {
+    "in_sample": {
+     "n": 15431,
+     "avg_r": -0.2970661679815438,
+     "win_rate": 0.23387985224547989,
+     "gross_bps_before_costs": -17.422466638757726,
+     "costs_bps": 35.11484970884703,
+     "net_bps": -52.53731634760476,
+     "t_stat_net": -16.683459839313745,
+     "exits": {
+      "STOP": 11793,
+      "TARGET": 0,
+      "SIGNAL": 3603,
+      "TIMEOUT": 35
+     }
+    },
+    "holdout": {
+     "n": 3520,
+     "avg_r": -0.2144248158100089,
+     "win_rate": 0.2715909090909091,
+     "gross_bps_before_costs": -0.7212407516145044,
+     "costs_bps": 28.79025031118137,
+     "net_bps": -29.511491062795873,
+     "t_stat_net": -6.812878181728737,
+     "exits": {
+      "STOP": 2558,
+      "TARGET": 0,
+      "SIGNAL": 955,
+      "TIMEOUT": 7
+     },
+     "profit_factor": 0.7571817318324918
+    }
+   },
+   "holdout_fixed_risk": {
+    "net_pnl": -1087.042796063839,
+    "return_pct": -10.870427960638384,
+    "sharpe": -1.1418817692339127,
+    "sortino": -1.2920755907882249,
+    "max_dd": 0.10870427960638385,
+    "profit_factor": 0.5425065232790778,
+    "win_rate": 0.2542372881355932,
+    "avg_trade": -9.212227085286736,
+    "avg_r": -0.3823652540456289,
+    "n_trades": 118,
+    "exposure": 0.0351210251533217,
+    "gross_pnl_before_costs": -502.2657736663063,
+    "fees": 230.5972691568224,
+    "slippage": 364.87044643926953,
+    "funding": -7.7059239651626275,
+    "days": 438,
+    "kill_events": [
+     [
+      1752166800000,
+      "KILL",
+      "BTC"
+     ]
+    ],
+    "skipped": {
+     "max open positions": 42,
+     "paused until next UTC day": 15,
+     "halted": 3345
+    }
+   },
+   "verdict": "NO-GO",
+   "notes": []
+  },
+  "BOOK_both": {
+   "name": "BOOK_both",
+   "folds": [
+    {
+     "train": [
+      1599004800000,
+      1630108800000
+     ],
+     "test": [
+      1630108800000,
+      1637884800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 168,
+       "stop_atr": 3.0
+      },
+      "ZMR": {
+       "W": 72,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 3.0
+      }
+     },
+     "test_sharpe": -0.5489005468449859,
+     "test_trades": 9,
+     "test_return_pct": -4.069198093987925
+    },
+    {
+     "train": [
+      1606780800000,
+      1637884800000
+     ],
+     "test": [
+      1637884800000,
+      1645660800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 72,
+       "stop_atr": 3.0
+      },
+      "ZMR": {
+       "W": 72,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 3.0
+      }
+     },
+     "test_sharpe": -0.30633763279141407,
+     "test_trades": 29,
+     "test_return_pct": -2.5063201257953582
+    },
+    {
+     "train": [
+      1614556800000,
+      1645660800000
+     ],
+     "test": [
+      1645660800000,
+      1653436800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 168,
+       "stop_atr": 3.0
+      },
+      "ZMR": {
+       "W": 168,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 3.0
+      }
+     },
+     "test_sharpe": -5.069939335470411,
+     "test_trades": 21,
+     "test_return_pct": -10.21885861157229
+    },
+    {
+     "train": [
+      1622332800000,
+      1653436800000
+     ],
+     "test": [
+      1653436800000,
+      1661212800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 168,
+       "stop_atr": 2.0
+      },
+      "ZMR": {
+       "W": 24,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 3.0
+      }
+     },
+     "test_sharpe": -1.2351038154790013,
+     "test_trades": 87,
+     "test_return_pct": -4.334500645121386
+    },
+    {
+     "train": [
+      1630108800000,
+      1661212800000
+     ],
+     "test": [
+      1661212800000,
+      1668988800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 24,
+       "stop_atr": 3.0
+      },
+      "ZMR": {
+       "W": 24,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 4.0
+      }
+     },
+     "test_sharpe": 0.0,
+     "test_trades": 0,
+     "test_return_pct": 0.0
+    },
+    {
+     "train": [
+      1637884800000,
+      1668988800000
+     ],
+     "test": [
+      1668988800000,
+      1676764800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 72,
+       "stop_atr": 2.0
+      },
+      "ZMR": {
+       "W": 168,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 3.0
+      }
+     },
+     "test_sharpe": 0.0,
+     "test_trades": 0,
+     "test_return_pct": 0.0
+    },
+    {
+     "train": [
+      1645660800000,
+      1676764800000
+     ],
+     "test": [
+      1676764800000,
+      1684540800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 168,
+       "stop_atr": 3.0
+      },
+      "ZMR": {
+       "W": 168,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 3.0
+      }
+     },
+     "test_sharpe": -0.05571465405983831,
+     "test_trades": 33,
+     "test_return_pct": -1.09971285710464
+    },
+    {
+     "train": [
+      1653436800000,
+      1684540800000
+     ],
+     "test": [
+      1684540800000,
+      1692316800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 24,
+       "stop_atr": 3.0
+      },
+      "ZMR": {
+       "W": 24,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 3.0
+      }
+     },
+     "test_sharpe": 0.0,
+     "test_trades": 0,
+     "test_return_pct": 0.0
+    },
+    {
+     "train": [
+      1661212800000,
+      1692316800000
+     ],
+     "test": [
+      1692316800000,
+      1700092800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 24,
+       "stop_atr": 3.0
+      },
+      "ZMR": {
+       "W": 24,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 4.0
+      }
+     },
+     "test_sharpe": 0.0,
+     "test_trades": 0,
+     "test_return_pct": 0.0
+    },
+    {
+     "train": [
+      1668988800000,
+      1700092800000
+     ],
+     "test": [
+      1700092800000,
+      1707868800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 168,
+       "stop_atr": 2.0
+      },
+      "ZMR": {
+       "W": 168,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 3.0
+      }
+     },
+     "test_sharpe": 0.4366901006550242,
+     "test_trades": 25,
+     "test_return_pct": 2.377789844946787
+    },
+    {
+     "train": [
+      1676764800000,
+      1707868800000
+     ],
+     "test": [
+      1707868800000,
+      1715644800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 72,
+       "stop_atr": 3.0
+      },
+      "ZMR": {
+       "W": 168,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 3.0
+      }
+     },
+     "test_sharpe": 0.0,
+     "test_trades": 0,
+     "test_return_pct": 0.0
+    },
+    {
+     "train": [
+      1684540800000,
+      1715644800000
+     ],
+     "test": [
+      1715644800000,
+      1723420800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 168,
+       "stop_atr": 2.0
+      },
+      "ZMR": {
+       "W": 168,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 3.0
+      }
+     },
+     "test_sharpe": 0.23846815652091075,
+     "test_trades": 26,
+     "test_return_pct": 0.7324390275338377
+    },
+    {
+     "train": [
+      1692316800000,
+      1723420800000
+     ],
+     "test": [
+      1723420800000,
+      1731196800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 72,
+       "stop_atr": 3.0
+      },
+      "ZMR": {
+       "W": 72,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 3.0
+      }
+     },
+     "test_sharpe": 1.7607069381401566,
+     "test_trades": 120,
+     "test_return_pct": 8.538597842534145
+    },
+    {
+     "train": [
+      1700092800000,
+      1731196800000
+     ],
+     "test": [
+      1731196800000,
+      1738972800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 24,
+       "stop_atr": 2.0
+      },
+      "ZMR": {
+       "W": 168,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 3.0
+      }
+     },
+     "test_sharpe": 0.0,
+     "test_trades": 0,
+     "test_return_pct": 0.0
+    },
+    {
+     "train": [
+      1707868800000,
+      1738972800000
+     ],
+     "test": [
+      1738972800000,
+      1746748800000
+     ],
+     "chosen": {
+      "DON": {
+       "N": 168,
+       "stop_atr": 2.0
+      },
+      "ZMR": {
+       "W": 72,
+       "entry_z": 2.0,
+       "exit_z": 0.0,
+       "stop_z": 4.0
+      }
+     },
+     "test_sharpe": -1.123805281564614,
+     "test_trades": 87,
+     "test_return_pct": -4.0371314753737675
+    }
+   ],
+   "wf_oos": {
+    "sharpe": -0.14625280706391033,
+    "trades": 437,
+    "compounded_return_pct": -14.663449632499825,
+    "max_dd": 0.32611647465744353,
+    "win_rate": 0.22654462242562928,
+    "folds": 15,
+    "positive_folds": 3
+   },
+   "holdout": {
+    "net_pnl": -727.2423916601656,
+    "return_pct": -7.272423916601656,
+    "sharpe": -0.9710288641235357,
+    "sortino": -1.0697730515058086,
+    "max_dd": 0.107111525829788,
+    "profit_factor": 0.023532227033995157,
+    "win_rate": 0.05555555555555555,
+    "avg_trade": -40.40235509223142,
+    "avg_r": -0.5261453967487619,
+    "n_trades": 18,
+    "exposure": 0.034741338394907416,
+    "gross_pnl_before_costs": -336.6654714059328,
+    "fees": 37.41015367265734,
+    "slippage": 69.17129175929375,
+    "funding": 12.57629663399989,
+    "days": 438,
+    "kill_events": [
+     [
+      1751616000000,
+      "KILL",
+      "DOGE"
+     ]
+    ],
+    "skipped": {
+     "half-Kelly <= 0 (no positive edge in the strategy's own record)": 43,
+     "symbol_busy": 45,
+     "max open positions": 51,
+     "halted": 3894
+    },
+    "period": [
+     1750291200000,
+     1788217200000
+    ]
+   },
+   "in_sample": {
+    "net_pnl": 69.44106352975905,
+    "return_pct": 0.6944106352975821,
+    "sharpe": 0.054819588241566304,
+    "sortino": 0.07715340738747684,
+    "max_dd": 0.10142280780857393,
+    "profit_factor": 1.03245914320717,
+    "win_rate": 0.27586206896551724,
+    "avg_trade": 0.7981731440201543,
+    "avg_r": 0.1790509156632924,
+    "n_trades": 87,
+    "exposure": 0.056324957167332955,
+    "gross_pnl_before_costs": 448.67737067951265,
+    "fees": 83.24197349840915,
+    "slippage": 265.1994782431682,
+    "funding": 65.00765139937639,
+    "days": 1751,
+    "kill_events": [
+     [
+      1607799600000,
+      "KILL",
+      "BTC"
+     ]
+    ],
+    "skipped": {
+     "max open positions": 130,
+     "half-Kelly <= 0 (no positive edge in the strategy's own record)": 492,
+     "symbol_busy": 264,
+     "halted": 16534
+    },
+    "deflated_sharpe_prob": 0.2086401505788339
+   },
+   "chosen_final": {
+    "DON": {
+     "N": 168,
+     "stop_atr": 3.0
+    },
+    "ZMR": {
+     "W": 72,
+     "entry_z": 2.0,
+     "exit_z": 0.0,
+     "stop_z": 3.0
+    }
+   },
+   "flags": [
+    "NO_EDGE_IN_SAMPLE: even the best in-sample parameter sets average Sharpe -0.10",
+    "UNSTABLE: chosen parameters changed in 14 of 14 fold transitions",
+    "DEFLATED: probability the in-sample winner beats 12 null trials = 0.21 (< 0.95)",
+    "HOLDOUT_FLIP: positive in-sample, negative on the untouched holdout"
+   ],
+   "gate": {
+    "sharpe": {
+     "value": -0.9710288641235357,
+     "pass": false
+    },
+    "max_dd": {
+     "value": 0.107111525829788,
+     "pass": true
+    },
+    "trades": {
+     "value": 18,
+     "pass": false
+    }
+   },
+   "edge": {
+    "in_sample": {
+     "n": 17507,
+     "avg_r": -0.22938686967382177,
+     "win_rate": 0.23516307762609243,
+     "gross_bps_before_costs": 0.1988617985360497,
+     "costs_bps": 38.751750467837034,
+     "net_bps": -38.55288866930097,
+     "t_stat_net": -6.293858066406221,
+     "exits": {
+      "STOP": 13101,
+      "TARGET": 0,
+      "SIGNAL": 4361,
+      "TIMEOUT": 45
+     }
+    },
+    "holdout": {
+     "n": 4051,
+     "avg_r": -0.1559452383883311,
+     "win_rate": 0.272772155023451,
+     "gross_bps_before_costs": 8.230312092751582,
+     "costs_bps": 30.08156996316665,
+     "net_bps": -21.851257870415072,
+     "t_stat_net": -3.834150245120101,
+     "exits": {
+      "STOP": 2889,
+      "TARGET": 0,
+      "SIGNAL": 1147,
+      "TIMEOUT": 15
+     },
+     "profit_factor": 0.8390065583882985
+    }
+   },
+   "holdout_fixed_risk": {
+    "net_pnl": -826.6641465246666,
+    "return_pct": -8.266641465246671,
+    "sharpe": -0.9692661845863857,
+    "sortino": -1.1194733793978213,
+    "max_dd": 0.09906474217237704,
+    "profit_factor": 0.7862698671905356,
+    "win_rate": 0.23655913978494625,
+    "avg_trade": -4.4444308952938885,
+    "avg_r": -0.1803275234910497,
+    "n_trades": 186,
+    "exposure": 0.09131466539863643,
+    "gross_pnl_before_costs": 60.98729907874042,
+    "fees": 324.27229539945586,
+    "slippage": 584.2498605755973,
+    "funding": 1.13758144658645,
+    "days": 438,
+    "kill_events": [
+     [
+      1754006400000,
+      "KILL",
+      "ADA"
+     ]
+    ],
+    "skipped": {
+     "symbol_busy": 110,
+     "max open positions": 133,
+     "paused until next UTC day": 5,
+     "halted": 3617
+    }
+   },
+   "verdict": "NO-GO",
+   "notes": []
+  }
+ }
+}

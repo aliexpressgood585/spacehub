@@ -130,17 +130,63 @@ def h4_news(now) -> dict:
     return {"events": n, "note": "UPPER BOUND: coin-tagged items; the >= 1% 60-minute move condition needs prices and is applied only at evaluation"}
 
 
+T0_H5 = T0   # PREREGISTRATION_H5.md
+
+
+def _kl_1h_daily(sym: str, day: pd.Timestamp) -> pd.DataFrame | None:
+    url = f"https://data.binance.vision/data/futures/um/daily/klines/{sym}USDT/1h/{sym}USDT-1h-{day:%Y-%m-%d}.zip"
+    try:
+        raw = urllib.request.urlopen(url, timeout=20).read()
+    except Exception:
+        return None
+    with zipfile.ZipFile(io.BytesIO(raw)) as z:
+        df = pd.read_csv(z.open(z.namelist()[0]), header=None, usecols=[0, 2, 3, 4], names=["t", "h", "l", "c"], on_bad_lines="skip")
+    return df[pd.to_numeric(df["t"], errors="coerce").notna()].astype(float)
+
+
+def h5_donchian(now) -> dict:
+    """COUNT of H5 closed trades after T0 (no prices or P&L reported): the frozen rule replayed on the daily 1h archive."""
+    N, M, CAP, K = 168, 84, 672, 3.0
+    days = pd.date_range((T0_H5 - pd.Timedelta(days=9)).normalize(), (now - pd.Timedelta(days=1)).normalize(), freq="D")
+    closed, missing = 0, 0
+    for sym in PINNED10:
+        parts = [d for d in (_kl_1h_daily(sym, day) for day in days) if d is not None]
+        missing += len(days) - len(parts)
+        if not parts:
+            continue
+        b = pd.concat(parts).drop_duplicates("t").sort_values("t").reset_index(drop=True)
+        h, l, c, t = b["h"].to_numpy(), b["l"].to_numpy(), b["c"].to_numpy(), b["t"].to_numpy()
+        tr = np.maximum(h[1:] - l[1:], np.maximum(abs(h[1:] - c[:-1]), abs(l[1:] - c[:-1])))
+        atr = pd.Series(np.concatenate([[np.nan], tr])).ewm(alpha=1 / 14, adjust=False).mean().to_numpy()
+        pos, i = None, N
+        while i < len(c) - 1:
+            if pos is None:
+                hh, ll = h[i - N:i].max(), l[i - N:i].min()
+                d = 1 if c[i] > hh else -1 if c[i] < ll else 0
+                if d and t[i] >= T0_H5.value // 10**6 and np.isfinite(atr[i]):
+                    pos = (d, c[i] - d * K * atr[i], i + 1)
+                i += 1
+                continue
+            d, stop, j = pos
+            if (l[i] <= stop if d > 0 else h[i] >= stop) or i - j >= CAP - 1 or \
+               (c[i] < l[i - M:i].min() if d > 0 else c[i] > h[i - M:i].max()):
+                closed += 1
+                pos = None
+            i += 1
+    return {"events": closed, "missing_daily_files": missing}
+
+
 def main():
     now = pd.Timestamp.now(tz="UTC")
     out = {"checked_utc": now.isoformat(timespec="seconds"), "T0": T0.isoformat(), "ready_at": READY}
     if now < T0:
         out["note"] = "forward window has not started"
-    for k, f in (("H1_funding", h1_funding), ("H2_liquidation_fade", h2_liq), ("H3_options_skew", h3_options), ("H4_news_momentum", h4_news)):
+    for k, f in (("H1_funding", h1_funding), ("H2_liquidation_fade", h2_liq), ("H3_options_skew", h3_options), ("H4_news_momentum", h4_news), ("H5_donchian_1h", h5_donchian)):
         try:
             out[k] = f(now) if now >= T0 else {"events": 0}
         except Exception as e:
             out[k] = {"events": None, "error": str(e)[:200]}
-    out["ready"] = [k for k in ("H1_funding", "H2_liquidation_fade", "H3_options_skew", "H4_news_momentum")
+    out["ready"] = [k for k in ("H1_funding", "H2_liquidation_fade", "H3_options_skew", "H4_news_momentum", "H5_donchian_1h")
                     if (out[k].get("events") or 0) >= READY]
     (ROOT / "quant/reports/forward-status.json").write_text(json.dumps(out, indent=1))
     print(json.dumps(out, indent=1))

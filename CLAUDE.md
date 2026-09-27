@@ -356,6 +356,21 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## CHAN book candidates (2026-09-27 ~11:00 UTC) — owner: "improve CHAN inspired by Chan's Algorithmic Trading; shadow first, demo only on an established improvement"
+`quant/strategies/chan_book.py` + `quant/run_chan_book.py` (tests: `quant/tests/test_chan_book.py`, look-ahead invariance).
+- The rules:
+  - DON: N-bar close breakout, k·ATR stop, opposite N/2 break, 4N cap.
+  - ZMR: ungated rolling z ±2 → 0, 3/4 σ stop, W cap.
+- Run through the unchanged Phase-1 pipeline on 5m and 1h. Report: `quant/reports/CHAN_BOOK_REPORT.md`, plus chan-book-5m/1h.json.
+- Holdout vs the live router:
+  - ZMR: gross ≈ 0 on both timeframes.
+  - DON 5m: net −23.5 bps/trade (router −29.2), DECAY.
+  - DON 1h (N 168, 3 ATR): +28.9 bps/trade on n=531, PF 1.13; fixed-risk portfolio 201 trades, +11.6%, PF 1.29, DD 10.3%, Sharpe 0.64. It LOST in-sample (NO_EDGE_IN_SAMPLE, DEFLATED) and fails Sharpe 1.5.
+- Not an established improvement, so nothing was deployed; live CHAN is unchanged (50-loss pause, leverage, balance and history untouched).
+- Shadow: `quant/PREREGISTRATION_H5.md` (frozen rule, T0 2026-09-28, N = 24 for DSR), counted by `forward/status.py` `h5_donchian`:
+  - count-only, from the Binance daily 1h archive;
+  - plumbing check on pre-T0 data gave 21 closes in ~17 days, so ~3–5 months to 200.
+
 ## v97.5 (2026-09-27 ~09:55 UTC) — house card vs trade page P&L mismatch (owner screenshots: $20.60 vs $16.08)
 The house card showed GROSS P&L and a stop % measured from the current price. The trade page showed NET (tradeMetrics: entry fee + estimated exit fee/slip + funding) and a stop % measured from the entry. Both were correct, but they were different quantities.
 The house Position now uses `tradeMetrics`, the one definition:
