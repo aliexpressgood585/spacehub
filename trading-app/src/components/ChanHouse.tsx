@@ -333,7 +333,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
         <div className="ch-floor">
           <Room title="5 · מנהל סיכונים" who="חצי־קלי · מפסקים" shirt="#ef4444" hair="#78350f" mood={moodRisk}
             status={halted ? `עצירה קשיחה: ${risk?.haltReason || snap?.state?.hard_halt_reason || ''}` : paused ? 'מושהה עד חצות UTC' : 'מאשר כניסות'}>
-            <Meter label="ירידה מהשיא (עצירה ב־10%)" v={dd} limit={CHAN.risk.maxDD} fmt={(x) => `${(x * 100).toFixed(1)}%`} />
+            <div className="ch-kv"><span>ירידה מהשיא</span><b><N>{dd == null ? '—' : `${(dd * 100).toFixed(1)}%`}</N> · ללא עצירה</b></div>
             <div className="ch-kv"><span>הפסד ממומש היום</span><b><N>{dayLoss == null ? '—' : `${(dayLoss * 100).toFixed(1)}%`}</N> · ללא השהיה</b></div>
             <div className="ch-kv"><span>הפסדים ברצף</span><b><N>{streak ?? '—'}</N> · ללא השהיה</b></div>
             <div className="ch-kv"><span>פוזיציות פתוחות</span><b><N>{openN}</N> · ללא תקרה (מוגבל רק במינוף ×3 ובמזומן)</b></div>

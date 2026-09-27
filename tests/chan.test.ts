@@ -35,9 +35,10 @@ const T0 = 20000 * DAY_MS
 const s0: RiskState = { peak: 10000, day: 20000, dayOpen: 10000, pausedUntilDay: -1, streakFrom: 0, halted: false, haltReason: '' }
 let r = riskStep(s0, T0 + 1000, 9899, [])
 assert.equal(r.ev, null)
-r = riskStep(s0, T0 + 1000, 9000, [])
-assert.equal(r.ev, 'KILL'); assert.equal(canOpen(r.st, 0).ok, false)
-// v97.7: no daily pause, no loss-streak pause, no open-position cap (owner); the -10% kill stays
+r = riskStep(s0, T0 + 1000, 1000, [])
+assert.equal(r.ev, null, 'v97.8: no drawdown kill (owner)'); assert.equal(canOpen(r.st, 0).ok, true)
+assert.equal(canOpen({ ...s0, halted: true, haltReason: 'x' }, 0).ok, false, 'a halt persisted before v97.8 still blocks until cleared')
+// v97.7: no daily pause, no loss-streak pause, no open-position cap (owner)
 r = riskStep(s0, T0 + 5000, 9690, [{ pnl: -310, closedAt: T0 + 4000 }])
 assert.equal(r.ev, null, 'no daily stop'); assert.equal(canOpen(r.st, 0).ok, true)
 const losses = Array.from({ length: 500 }, (_, k) => ({ pnl: -1, closedAt: T0 + k + 1 }))
@@ -53,7 +54,7 @@ for (const k of ["least(3,", "3 * eq - open_notional", "0.0101 * eq", "hard_halt
 assert.ok(!sql.includes('cnt >= 5'), 'ledger has no open-position cap')
 // the remaining config numbers match quant/config.yaml (the daily / streak limits are live-off, backtest-on)
 const yml = readFileSync('quant/config.yaml', 'utf8')
-for (const [k, v] of [['risk_per_trade_cap', CHAN.risk.cap], ['max_leverage', CHAN.risk.maxLeverage], ['max_drawdown_kill', CHAN.risk.maxDD],
+for (const [k, v] of [['risk_per_trade_cap', CHAN.risk.cap], ['max_leverage', CHAN.risk.maxLeverage],
   ['kelly_fraction', CHAN.risk.kellyFraction], ['kelly_min_trades', CHAN.risk.kellyMinTrades], ['default_risk', CHAN.risk.defaultRisk]] as const)
   assert.equal(Number(new RegExp(`\\n\\s+${k}:\\s*([0-9.]+)`).exec(yml)![1]), v, `config ${k}`)
 const rep = JSON.parse(readFileSync('quant/reports/backtest-5m.json', 'utf8')).strategies.regime_router.chosen_final

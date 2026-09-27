@@ -65,12 +65,12 @@ try {
   await runChan(mockDb([pos]), { balance: 4700, bot_params: { chan_bar: BAR } }, new Date(NOW + 50e3).toISOString(), true)
   assert.equal(rpc.args.p_closes.length, 1); assert.equal(rpc.args.p_closes[0].reason, 'STOP')
   assert.ok(rpc.args.p_closes[0].price < 98.9 && rpc.args.p_closes[0].price > 98.8, 'fills at the first print through the stop, less impact')
-  // 4. drawdown kill: equity 10% under the recorded peak -> everything closed, halt sent, no entries
+  // 4. v97.8 (owner: "never stop trading"): equity far under the recorded peak -> NO kill, no halt, the position stays open
   tape = {}
   await runChan(mockDb([{ ...pos, scalp_meta: { chan: { ...pos.scalp_meta.chan, stop: 50 } } }]), { balance: 3000, bot_params: { chan_risk: { peak: 5000, day: Math.floor(NOW / 86400000), dayOpen: 5000, pausedUntilDay: -1, streakFrom: 0, halted: false, haltReason: '' } } },
     new Date(NOW + 50e3).toISOString(), true)
-  assert.ok(rpc.args.p_halt && /drawdown/.test(rpc.args.p_halt), 'kill switch fires')
-  assert.equal(rpc.args.p_closes[0].reason, 'KILL'); assert.equal(rpc.args.p_entries.length, 0)
+  assert.ok(!rpc.args.p_halt, 'no drawdown kill')
+  assert.equal(rpc.args.p_closes.length, 0)
   // 5. the whole universe (here 25 coins) in batches: <= 12 daily-statistics downloads per cycle, the bar closes only when all are done
   const syms = Array.from({ length: 25 }, (_, k) => `C${k}X`)
   syms.forEach((x, k) => { series[x] = ouBars(9000, false, 500 + k) })

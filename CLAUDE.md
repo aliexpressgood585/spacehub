@@ -356,6 +356,12 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v97.8 (2026-09-27 ~16:10 UTC) — CHAN: no drawdown kill either (owner: "שלא יהיה עצירה בכלל במסחר, שתמיד יסחור")
+- `CHAN.risk.maxDD` = Infinity: the −10% from peak close-all + hard halt is OFF. The bot never pauses or halts on losses.
+- Still bounding SIZE only: ≤1% risk per trade at its stop, total notional ≤3x equity, cash, one position per coin, a mandatory stop on every trade.
+- An existing hard_halt_at (none now) would still block until cleared by hand.
+- Paper only, unchanged. The account can now fall without any automatic stop, and the owner was told so.
+
 ## v97.7 (2026-09-27 ~16:00 UTC) — CHAN: NO trade limit (owner: "שלא תהיה מגבלה בכלל")
 - OFF on the live paper bot: the daily −3% pause, the loss-streak pause (was 50) and the 5-open-position cap (runner `CHAN.risk` = Infinity; ledger migration `20260927140000_chan_no_trade_limit.sql` drops `cnt >= 5`, applied).
 - KEPT, because they set position SIZE, not trade count: −10% from peak -> close all + hard_halt_at, ≤1% risk per trade, total notional ≤3x equity, cash, one position per coin. quant/config.yaml keeps the backtested 3% / 5 values.
