@@ -27,9 +27,15 @@ async function klines(sym: string, tf: string, limit: number): Promise<{ k: K[];
     const r = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${s}&interval=${tf}&limit=${limit}`, { signal: AbortSignal.timeout(4000) })
     if (r.ok) { const d = await r.json(); return { src: 'Binance Futures', k: d.map((x: any[]) => ({ t: +x[0], o: +x[1] / k, h: +x[2] / k, l: +x[3] / k, c: +x[4] / k, v: +x[5] * k, tb: +x[9] * k })) } }
   } catch { /* fallback */ }
-  const r = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${sym}-USDT-SWAP&bar=${OKX_BAR[tf] ?? '5m'}&limit=${Math.min(300, limit)}`, { signal: AbortSignal.timeout(4000) })
-  const d = await r.json(); if (d.code !== '0') throw new Error('no candles')
-  return { src: 'OKX (ללא נתוני קונים/מוכרים)', k: d.data.map((x: string[]) => ({ t: +x[0], o: +x[1], h: +x[2], l: +x[3], c: +x[4], v: +x[5], tb: NaN })).reverse() }
+  try {
+    const r = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${sym}-USDT-SWAP&bar=${OKX_BAR[tf] ?? '5m'}&limit=${Math.min(300, limit)}`, { signal: AbortSignal.timeout(4000) })
+    const d = await r.json(); if (d.code === '0' && d.data?.length) return { src: 'OKX (ללא נתוני קונים/מוכרים)', k: d.data.map((x: string[]) => ({ t: +x[0], o: +x[1], h: +x[2], l: +x[3], c: +x[4], v: +x[5], tb: NaN })).reverse() }
+  } catch { /* fallback */ }
+  // v97.4: Bybit linear perpetuals — covers coins OKX does not list (e.g. XMR)
+  const { s, k } = bsym(sym), iv = ({ '1m': '1', '5m': '5', '15m': '15', '30m': '30', '1h': '60', '2h': '120', '4h': '240', '1d': 'D' } as Record<string, string>)[tf] ?? '5'
+  const r = await fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${s}&interval=${iv}&limit=${Math.min(1000, limit)}`, { signal: AbortSignal.timeout(4000) })
+  const d = await r.json(); if (d.retCode !== 0 || !d.result?.list?.length) throw new Error('no candles')
+  return { src: 'Bybit (ללא נתוני קונים/מוכרים)', k: d.result.list.map((x: string[]) => ({ t: +x[0], o: +x[1] / k, h: +x[2] / k, l: +x[3] / k, c: +x[4] / k, v: +x[5] * k, tb: NaN })).reverse() }
 }
 const ema = (xs: number[], p: number) => { const k = 2 / (p + 1); let e = xs[0]; return xs.map((x, i) => (e = i ? x * k + e * (1 - k) : x)) }
 
@@ -104,7 +110,7 @@ export default function TradeView({ id }: { id: string }) {
   const [t, setT] = useState<Row | null>(null), [err, setErr] = useState<string | null>(null)
   const [last, setLast] = useState<number>(NaN), [src, setSrc] = useState(''), [now, setNow] = useState(Date.now())
   const box = useRef<HTMLDivElement>(null), chart = useRef<IChartApi | null>(null)
-  const lastBar = useRef<K | null>(null)
+  const lastBar = useRef<K | null>(null), liveRef = useRef(false)
   const cs = useRef<ISeriesApi<'Candlestick'> | null>(null), vs = useRef<ISeriesApi<'Histogram'> | null>(null), es = useRef<ISeriesApi<'Line'> | null>(null)
   // the trade row, refreshed (stop ratchets / close)
   useEffect(() => {
@@ -121,13 +127,15 @@ export default function TradeView({ id }: { id: string }) {
   const ticks = useLivePrices(t && t.status === 'OPEN' ? [sym] : [])
   const tk = ticks[sym]
   useEffect(() => {
-    if (!tk || !cs.current || !lastBar.current) return
+    if (!tk) return
+    liveRef.current = true
+    setLast(tk.px)                       // the cards move even while the chart has no candles
+    if (!cs.current || !lastBar.current) return
     const bar = TF_MS[tf], b0 = Math.floor(tk.t / bar) * bar, lb = lastBar.current
     if (b0 < lb.t) return
     const nb: K = b0 === lb.t ? { ...lb, c: tk.px, h: Math.max(lb.h, tk.px), l: Math.min(lb.l, tk.px) } : { t: b0, o: lb.c, h: Math.max(lb.c, tk.px), l: Math.min(lb.c, tk.px), c: tk.px, v: 0, tb: NaN }
     lastBar.current = nb
     try { cs.current.update({ time: Math.floor(nb.t / 1000) as UTCTimestamp, open: nb.o, high: nb.h, low: nb.l, close: nb.c }) } catch { /* chart rebuilding */ }
-    setLast(tk.px)
   }, [tk?.px, tk?.t, tf])
   const lv = useMemo(() => {
     if (!t) return null
@@ -162,7 +170,7 @@ export default function TradeView({ id }: { id: string }) {
         mk.push({ time: T(Math.floor(Date.parse(t.closed_at) / bar) * bar), position: up ? 'aboveBar' : 'belowBar', color: C.warn, shape: up ? 'arrowDown' : 'arrowUp', text: ({ STOP: 'סטופ', TARGET: 'יעד', TIMEOUT: 'זמן' } as Record<string, string>)[t.scalp_meta?.exit_reason] ?? 'יציאה' }) }
       c.setMarkers(mk.sort((a, b) => Number(a.time) - Number(b.time)))
       lastBar.current = k[k.length - 1]
-      setLast(k[k.length - 1].c)
+      setLast((prev) => (liveRef.current ? prev : k[k.length - 1].c))
     }
     ;(async () => { try { const r = await klines(sym, tf, 300); if (!alive) return; setSrc(r.src); paint(r.k); { const bar = TF_MS[tf], e0 = Math.floor(Date.parse(t.opened_at) / bar) * bar, ie = Math.max(0, r.k.findIndex((b) => b.t >= e0)), ix = t.closed_at ? r.k.findIndex((b) => b.t >= Math.floor(Date.parse(t.closed_at) / bar) * bar) : -1
       ch.timeScale().setVisibleLogicalRange({ from: Math.max(0, ie - 30), to: (ix >= 0 ? Math.max(ix + 12, ie + 20) : Math.max(r.k.length, ie + 20)) + 3 }) } } catch { setErr('אין נרות מ־Binance או OKX') } })()
@@ -196,7 +204,7 @@ export default function TradeView({ id }: { id: string }) {
         {stat(isOpen ? 'זמן בעסקה / מקסימום' : 'משך', Number.isFinite(lv.holdMs) ? `${mmss(held)} / ${mmss(lv.holdMs)}` : mmss(held))}
       </div>
       <div ref={box} style={{ height: 'min(62vh, 520px)', minHeight: 320, borderRadius: 10, overflow: 'hidden', border: `1px solid ${C.line}` }} />
-      <div style={{ color: C.dim, fontSize: 12 }}><style>{'.tv-flash.up{animation:tvu .9s ease-out}.tv-flash.down{animation:tvd .9s ease-out}@keyframes tvu{0%{background:#16a34a;color:#fff}100%{background:transparent}}@keyframes tvd{0%{background:#dc2626;color:#fff}100%{background:transparent}}'}</style>נרות: {src || '—'} · מחיר חי: {isOpen ? (tk ? `${tk.src}, זז עם כל עסקה בבורסה` : 'מתחבר…') : 'העסקה סגורה'} · קו סגול = ממוצע נע 20 (לתצוגה) · עמודות נפח: ירוק = קונים אגרסיביים שלטו בנר, אדום = מוכרים · הבוט סוגר לפי המחיר שלו בשרת, ייתכנו הבדלים קטנים</div>
+      <div style={{ color: C.dim, fontSize: 12 }}><style>{'.tv-flash.up{animation:tvu .9s ease-out}.tv-flash.down{animation:tvd .9s ease-out}@keyframes tvu{0%{background:#16a34a;color:#fff}100%{background:transparent}}@keyframes tvd{0%{background:#dc2626;color:#fff}100%{background:transparent}}'}</style>נרות: {src || '—'} · מחיר חי: {isOpen ? (tk ? (tk.src === 'הבוט' ? 'מחיר הבוט מהשרת (כל ~5 שנ׳ — הבורסות חסומות בדפדפן הזה)' : `${tk.src}, זז עם כל שינוי בבורסה`) : 'מתחבר…') : 'העסקה סגורה'} · קו סגול = ממוצע נע 20 (לתצוגה) · עמודות נפח: ירוק = קונים אגרסיביים שלטו בנר, אדום = מוכרים · הבוט סוגר לפי המחיר שלו בשרת, ייתכנו הבדלים קטנים</div>
       <section style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 10, padding: 12 }}>
         <h2 style={{ fontSize: 17, marginBottom: 4 }}>למה הבוט נכנס לעסקה</h2>
         <Reasons t={t} />

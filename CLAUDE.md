@@ -356,6 +356,21 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v97.4 live prices (2026-09-27 ~09:45 UTC) — owner: "every price, P&L and chart should move every second, like an exchange"
+Also: the 5-loss pause was already raised to 50 by PR #77 (864b18be, deployed 08:03), and the persisted pause was cleared. The owner asked again ("without limit"); no further change was made. Daily −3% and the −10% kill remain.
+`trading-app/src/livePrices.ts` = ONE shared live feed (`useLivePrices(symbols)`), display only:
+- Binance USDT-M futures `<sym>@miniTicker` stream (1 s) > Bybit linear `tickers` stream > OKX `tickers` stream.
+- The best venue wins while its last tick is < 5 s old, so the price does not jitter between venues.
+- REST fallback every 2 s: OKX tickers, then the BOT's own server mark (bot_params.chan_cycle.marks, written every ~5 s cycle, readable with anon).
+- Flushed to React at most 4×/s.
+- PEPE is per ONE coin (1000PEPEUSDT/1000, as the bot quotes it); OKX '1000X' = 1000 × X.
+Wired into:
+- ChanHouse: position price / P&L / R, and "הון חי" = cash + margin + unrealised at the live marks, with a green/red flash per tick.
+- TradeView: stat cards and the forming candle via series.update. REST candles repaint every 5 s without overwriting a newer live price. Bybit kline fallback added (XMR is not listed on OKX).
+- CryptoTradingDashboard: the Binance SPOT socket was replaced by the futures feed. It was the wrong market and blocked on some phones.
+Bot (chan-runner): the cycle note carries `marks` + `marks_ts`. No ledger change. Deployed 452286a8, function v89, manifest verified, 0 errors.
+Verified headless: the sandbox blocks every exchange socket (Binance 451, Bybit 400/CloudFront, OKX ws silent), so only the bot-mark fallback could be exercised there (price + P&L move every ~5 s). The per-second socket path is unverifiable from this sandbox.
+
 ## 10m bars (2026-09-27 ~06:10 UTC) — owner: "by the book, maybe 10m cycles" -> tested first: NO-GO, live unchanged
 Same Phase-1 pipeline; 10m aggregated from the 5m archive (loader + config windows at the 5m calendar spans). Report: quant/reports/TEN_MIN_REPORT.md.
 - Router holdout signal edge: gross −2.9 bps / costs 9.7 / net −12.6 (n 1,710, t −7.4), vs 5m −9.4 / 19.8 / −29.2.
