@@ -4,14 +4,16 @@
 //   - stops resolved on the Binance aggTrades tape since the last check (exchange-side stop semantics, FAST's fill model)
 //   - time exits, marks, and the risk state machine: daily -3% or 5 losses -> pause to 00:00 UTC; -10% from peak ->
 //     close everything + hard halt
-// Once per CLOSED 5m bar, v97.1: over the whole dynamic universe (~100 liquid USDT perps), in batches across the
-// cycles of the first 3 minutes:
-//   - bars kept in memory between cycles; the daily volatility history persisted in market_cache 'chan_vols'
+// Once per CLOSED 5m bar, over the whole dynamic universe (~100 liquid USDT perps), in batches across the cycles of
+// the first 3 minutes (v97.2):
+//   - per bar only the last 320 candles per coin; the slow statistics (Hurst, half-life, vol percentile, regime,
+//     momentum t) once per UTC day per coin from 4,300 candles, as the Python code re-estimates them daily, persisted
+//     in market_cache 'chan_daily'; the daily vol history in 'chan_vols'
 //   - regime + both strategies at the last closed bar; mean-reversion signal exits
 //   - entries sized by half-Kelly on the component's own live record (cap 1%) at the mandatory stop, 3x isolated
 // Binance request weight is metered from the X-MBX-USED-WEIGHT-1M header and new downloads stop near the budget.
 // Books through chan_commit_cycle, which re-checks every limit in SQL.
-import { CHAN, DAY_MS, canOpen, chanSize, chanView, dayVols, kellyRisk, riskStep, type Bar, type RiskState } from '../../../shared/chan.ts'
+import { CHAN, DAY_MS, RECENT_BARS, barView, canOpen, chanSize, dailyStats, dayVols, kellyRisk, riskStep, type Bar, type Daily, type RiskState } from '../../../shared/chan.ts'
 import { fastLiq, liqCap, resolveExit, walkBook } from '../../../shared/fast.ts'
 import { slipFor } from '../../../shared/lab.ts'
 import { UNIV, buildUniverse } from '../../../shared/universe.ts'
@@ -19,7 +21,6 @@ import { aggTrades, book, type Pair } from './fast-runner.ts'
 import { json, pool } from './rota-runner.ts'
 
 const REGIME = ['NEUTRAL', 'MEAN_REVERT', 'TREND', 'HIGH_VOL']
-const BARS = new Map<string, Bar[]>()          // warm-instance cache: last CHAN.bars closed 5m bars per coin
 let usedWeight = 0, weightAt = 0
 
 async function kl(p: Pair, limit: number, endTime?: number): Promise<any[]> {
@@ -45,20 +46,9 @@ export async function closedBars(p: Pair, now: number, n: number = CHAN.bars): P
   }
   return [...out.values()].sort((a, b) => a.t - b.t).slice(-n)
 }
-// warm: fetch only the newest candles and append; cold: the full history (budgeted by the caller)
-async function barsFor(p: Pair, now: number, bar: number): Promise<{ bars: Bar[]; full: boolean }> {
-  const have = BARS.get(p.sym)
-  if (have && have.length >= CHAN.bars - 5 && bar - have[have.length - 1].t <= 20 * CHAN.barMs) {
-    const r = await kl(p, 25)
-    const m = new Map(have.slice(-60).map(b => [b.t, b]))
-    for (const x of r) if (Number(x[6]) < now) m.set(+x[0], toBar(p)(x))
-    const merged = [...have.slice(0, -60), ...[...m.values()].sort((a, b) => a.t - b.t)].slice(-CHAN.bars)
-    BARS.set(p.sym, merged)
-    return { bars: merged, full: false }
-  }
-  const b = await closedBars(p, now)
-  BARS.set(p.sym, b)
-  return { bars: b, full: true }
+async function recentBars(p: Pair, now: number): Promise<Bar[]> {
+  const r = await kl(p, RECENT_BARS + 2)
+  return r.filter((x: any) => Number(x[6]) < now).map(toBar(p)).slice(-RECENT_BARS)   // CLOSED candles only
 }
 
 async function loadUniverse(db: any, now: number): Promise<{ pairs: Pair[]; note: string }> {
@@ -146,34 +136,43 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
   const inWindow = bar > lastBar && now - bar <= CHAN.scan.windowMs && !st.halted && !state.hard_halt_at
   const entries: any[] = [], decisions: any[] = [], views: Record<string, any> = {}, failed: string[] = []
   const done = new Set<string>(scan0.done), heldSyms = stillOpen.map((t: any) => String(t.sym))
-  let full = 0, deep = 0, finished = false, volsChanged = false
-  let vols: Record<string, { d: number; v: number }[]> = {}
+  let heavy = 0, deep = 0, finished = false, volsChanged = false, dailyChanged = false, staleDaily = 0
+  let vols: Record<string, { d: number; v: number }[]> = {}, daily: Record<string, Daily & { day: number }> = {}
   if (inWindow) {
-    const { data: vc } = await db.from('market_cache').select('data').eq('key', 'chan_vols').throwOnError()
-    vols = vc?.[0]?.data ?? {}
+    const { data: vc } = await db.from('market_cache').select('key,data').in('key', ['chan_vols', 'chan_daily']).throwOnError()
+    vols = (vc ?? []).find((x: any) => x.key === 'chan_vols')?.data ?? {}
+    daily = (vc ?? []).find((x: any) => x.key === 'chan_daily')?.data ?? {}
+    const today = Math.floor(bar / DAY_MS)          // the slow stats are anchored at today's 00:00 UTC close
     const universe = [...new Set([...heldSyms, ...uni.pairs.map(p => p.sym)])]
     const todo = universe.filter(s => !done.has(s)).slice(0, CHAN.scan.perCycle)
-    await pool(todo, 8, async (sym) => {
-      const P = pairOf(sym), warm = BARS.has(sym)
-      if (!warm) { if (full >= CHAN.scan.fullPerCycle || weightLeft() < 60) return; full++ }
+    await pool(todo, 10, async (sym) => {
+      const P = pairOf(sym)
       try {
-        const { bars } = await barsFor(P, now, bar)
-        if (!bars.length || bars[bars.length - 1].t + CHAN.barMs !== bar) { failed.push(sym); return }   // stale feed: never trade on it
-        let h = vols[sym] ?? []
-        const known = new Set(h.map(x => x.d))
-        for (const x of dayVols(bars)) if (!known.has(x.d)) { h.push(x); volsChanged = true }
-        if (h.length < CHAN.regime.minHist && deep < CHAN.scan.deepPerCycle && weightLeft() > 120 && !h.some(x => x.d < 0)) {
-          deep++                                   // one-time deeper history so the high-volatility filter works from day one
-          const d9 = await closedBars(P, now, CHAN.scan.deepBars)
-          const k2 = new Set(h.map(x => x.d))
-          for (const x of dayVols(d9)) if (!k2.has(x.d)) h.push(x)
-          if (h.length < CHAN.regime.minHist) h.push({ d: -1, v: NaN })   // marker: deep history attempted (young listing)
-          volsChanged = true
+        let d = daily[sym]
+        if ((!d || d.day < today) && heavy < CHAN.scan.heavyPerCycle && weightLeft() > 80) {
+          heavy++
+          const hb = await closedBars(P, today * DAY_MS)            // the window ending at today's midnight close
+          let h = vols[sym] ?? []
+          const known = new Set(h.map(x => x.d))
+          for (const x of dayVols(hb)) if (!known.has(x.d)) h.push(x)
+          if (h.filter(x => x.d > 0).length < CHAN.regime.minHist + 1 && deep < CHAN.scan.deepPerCycle && !h.some(x => x.d < 0) && weightLeft() > 120) {
+            deep++                                   // one-time deeper history so the high-volatility filter works from day one
+            const d9 = await closedBars(P, today * DAY_MS, CHAN.scan.deepBars)
+            const k2 = new Set(h.map(x => x.d))
+            for (const x of dayVols(d9)) if (!k2.has(x.d)) h.push(x)
+            if (h.filter(x => x.d > 0).length < CHAN.regime.minHist + 1) h.push({ d: -1, v: NaN })   // young listing: tried
+          }
+          h = h.sort((a, b) => a.d - b.d).slice(-(CHAN.regime.maxHist + 3))
+          vols[sym] = h; volsChanged = true
+          const ds = hb.length && hb[hb.length - 1].t + CHAN.barMs === today * DAY_MS
+            ? dailyStats(hb, h.filter(x => x.d > 0 && x.d < today && Number.isFinite(x.v)).map(x => x.v)) : null
+          if (ds) { d = { ...ds, day: today }; daily[sym] = d; dailyChanged = true }
         }
-        h = h.sort((a, b) => a.d - b.d).slice(-(CHAN.regime.maxHist + 2))
-        vols[sym] = h
-        // PAST anchors only: an anchor whose window ends at the current bar is the current estimate, not history
-        const v = chanView(bars, h.filter(x => x.d > 0 && x.d * DAY_MS < bar && Number.isFinite(x.v)).map(x => x.v))
+        if (!d) { if (heavy >= CHAN.scan.heavyPerCycle || weightLeft() <= 80) return; done.add(sym); return }   // no stats yet: retry / too young
+        if (d.day < today) staleDaily++              // yesterday's stats until today's are computed (<= a few minutes)
+        const bars = await recentBars(P, now)
+        if (!bars.length || bars[bars.length - 1].t + CHAN.barMs !== bar) { failed.push(sym); done.add(sym); return }   // stale feed: never trade on it
+        const v = barView(bars, d)
         if (v) views[sym] = v
         done.add(sym)
       } catch { failed.push(sym) }
@@ -230,15 +229,17 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       rec('accepted', 'taken', { notional, kelly_f: k.f })
       held.add(sym); openN++; openNotional += notional; cash -= notional / CHAN.risk.maxLeverage + notional * CHAN.costs.taker
     }
-    if (volsChanged) { try { await db.from('market_cache').upsert({ key: 'chan_vols', data: vols, ts: new Date(now).toISOString() }).throwOnError() } catch { /* rebuilt next cycle */ } }
+    if (volsChanged || dailyChanged) {
+      try { await db.from('market_cache').upsert([{ key: 'chan_vols', data: vols, ts: new Date(now).toISOString() }, { key: 'chan_daily', data: daily, ts: new Date(now).toISOString() }]).throwOnError() } catch { /* rebuilt next cycle */ }
+    }
   }
   const closeBar = bar > lastBar && (finished || now - bar > CHAN.scan.windowMs)   // done, or out of time for this bar
   const regimes = Object.fromEntries(Object.entries(views).map(([s, v]: any) => [s, REGIME[v.regime]]))
   const note = { strategy: 'regime_router', validated: false, phase1: 'NO-GO', universe: uni.pairs.length, universe_note: uni.note || undefined, bar: new Date(bar).toISOString(),
-    in_window: inWindow, batch: Object.keys(views).length, scanned: done.size, complete: finished, failed: failed.length, cold_fetches: full, deep_fetches: deep,
+    in_window: inWindow, batch: Object.keys(views).length, scanned: done.size, complete: finished, failed: failed.length, daily_refresh: heavy, deep_fetches: deep, stale_daily: staleDaily,
     weight_1m: usedWeight, regime_counts: Object.values(regimes).reduce((a: any, r: any) => ({ ...a, [r]: (a[r] ?? 0) + 1 }), {}),
     equity, event: ev, opened: entries.length, closed: closes.length, risk_state: st,
-    scan: { bar, done: [...done], skipped: scan0.skipped ?? 0, fetched: (scan0.fetched ?? 0) + full } }
+    scan: { bar, done: [...done], skipped: scan0.skipped ?? 0, fetched: (scan0.fetched ?? 0) + heavy } }
   const { data: result } = await db.rpc('chan_commit_cycle', { p_lease: lease, p_closes: closes, p_entries: entries, p_marks: marks, p_updates: updates,
     p_note: note, p_bar: closeBar ? new Date(bar).toISOString() : null, p_halt: halt }).throwOnError()
   if (decisions.length) {

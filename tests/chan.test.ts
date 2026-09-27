@@ -67,3 +67,15 @@ assert.equal(rep.RG_MOM.kind, CHAN.params.RG_MOM.kind); assert.equal(rep.RG_MOM.
   assert.ok(dv.length >= 3 && dv.every(x => Number.isInteger(x.d) && x.v > 0), 'daily anchors at UTC midnight')
 }
 console.log('chan: parity with quant/ + risk + ledger ok')
+// v97.2: the per-bar view from only the last 320 candles + the daily stats equals the full-history view
+{
+  const { dailyStats, barView, RECENT_BARS } = await import('../shared/chan.ts')
+  for (const f of fx) {
+    const bars: Bar[] = f.c.map((c: number, i: number) => ({ t: i * 300000, o: c, h: f.h[i], l: f.l[i], c }))
+    const full = chanView(bars)!, d = dailyStats(bars)!, part = barView(bars.slice(-RECENT_BARS), d)!
+    for (const k of ['z', 'mean', 'std', 'stopLong', 'stopShort'] as const) if (Number.isFinite(full.mr[k])) near(part.mr[k], full.mr[k], 1e-9, `${f.name} recent-bars mr.${k}`)
+    near(part.mom.atr, full.mom.atr, 1e-6, `${f.name} recent-bars ATR (Wilder warm-up)`)
+    assert.equal(part.mom.hh, full.mom.hh); assert.equal(part.mom.ll, full.mom.ll); assert.equal(part.mr.side, full.mr.side); assert.equal(part.mom.side, full.mom.side)
+  }
+  console.log('chan: 320-bar view == full-history view')
+}

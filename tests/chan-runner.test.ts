@@ -25,7 +25,8 @@ function mockFetch() {
     const u = new URL(url), sym = (u.searchParams.get('symbol') ?? '').replace('USDT', '')
     let body: any
     if (u.pathname.endsWith('/klines')) {
-      const end = Number(u.searchParams.get('endTime')), rows = series[sym].filter(b => b.t <= end).slice(-1500)
+      const e = u.searchParams.get('endTime'), end = e ? Number(e) : Infinity, lim = Number(u.searchParams.get('limit') ?? 500)
+      const rows = series[sym].filter(b => b.t <= end).slice(-lim)
       body = rows.map(b => [b.t, String(b.o), String(b.h), String(b.l), String(b.c), '1', b.t + M5 - 1])
     } else if (u.pathname.endsWith('/aggTrades')) body = (tape[sym] ?? []).map((x, k) => ({ a: k, p: String(x.p), T: x.T }))
     else if (u.pathname.endsWith('/depth')) body = book(series[sym][series[sym].length - 1].c)
@@ -70,7 +71,7 @@ try {
     new Date(NOW + 50e3).toISOString(), true)
   assert.ok(rpc.args.p_halt && /drawdown/.test(rpc.args.p_halt), 'kill switch fires')
   assert.equal(rpc.args.p_closes[0].reason, 'KILL'); assert.equal(rpc.args.p_entries.length, 0)
-  // 5. the whole universe (here 25 coins) in batches: <= 10 cold downloads per cycle, the bar closes only when all are done
+  // 5. the whole universe (here 25 coins) in batches: <= 12 daily-statistics downloads per cycle, the bar closes only when all are done
   const syms = Array.from({ length: 25 }, (_, k) => `C${k}X`)
   syms.forEach((x, k) => { series[x] = ouBars(9000, false, 500 + k) })
   const uniCache = [{ data: { pairs: syms.map(x => ({ sym: x, s: `${x}USDT`, k: 1 })) }, ts: new Date(NOW).toISOString() }]
@@ -80,9 +81,9 @@ try {
     const n = rpc.args.p_note
     params = { chan_scan: n.scan, chan_risk: n.risk_state, ...(rpc.args.p_bar ? { chan_bar: BAR } : {}) }
     cycles++
-    assert.ok(n.cold_fetches <= CHAN.scan.fullPerCycle, 'cold downloads per cycle are capped')
+    assert.ok(n.daily_refresh <= CHAN.scan.heavyPerCycle, 'daily-statistics downloads per cycle are capped')
   } while (!rpc.args.p_bar && cycles < 10)
-  assert.equal(cycles, 3, '25 cold coins at <= 10 per cycle -> 3 cycles'); assert.equal(rpc.args.p_note.scanned, 25); assert.equal(rpc.args.p_note.complete, true)
+  assert.equal(cycles, 3, '25 coins needing daily stats at <= 12 per cycle -> 3 cycles'); assert.equal(rpc.args.p_note.scanned, 25); assert.equal(rpc.args.p_note.complete, true)
   // 6. a mixed book or a live account are refused
   await assert.rejects(() => runChan(mockDb([{ ...pos, strategy: 'FAST' }]), { balance: 1, bot_params: {} }, 'x', true), /CHAN rows only/)
   await assert.rejects(() => runChan(mockDb([]), { balance: 1, bot_params: {} }, 'x', false), /paper-only/)

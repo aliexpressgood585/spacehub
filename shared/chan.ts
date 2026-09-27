@@ -15,10 +15,11 @@ export const CHAN = {
   // 'universe': every active USDT perpetual, crypto only, >= $20M/24h, spread <= 10 bps; ~100 pairs). These 10 are the
   // fallback and the coins the Python backtest was run on — the others were NEVER backtested.
   universe: ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT'] as const,
-  // batched scan so ~100 coins fit Binance's 2,400 request-weight per minute: bars are kept in memory between cycles
-  // (one light request per coin per bar when warm), a cold coin needs 3 pages (weight 30), the daily volatility history
-  // for the regime filter is persisted (market_cache 'chan_vols') and bootstrapped once per coin from 9,000 bars.
-  scan: { perCycle: 30, fullPerCycle: 10, deepPerCycle: 3, deepBars: 9000, weightBudget: 1700, windowMs: 180_000 },
+  // v97.2 scan: every bar needs only the last 320 candles per coin (weight 2); the slow statistics (Hurst, half-life, vol
+  // percentile, regime, momentum t) are recomputed once per UTC day per coin from 4,300 candles (weight 30), as the Python
+  // code re-estimates them once a day, and persisted in market_cache 'chan_daily'; the daily vol history
+  // (market_cache 'chan_vols') is bootstrapped once per coin from 9,000 candles.
+  scan: { perCycle: 120, heavyPerCycle: 12, deepPerCycle: 3, deepBars: 9000, weightBudget: 1700, windowMs: 180_000 },
   mr: { statWindow: 2016, hurstMax: 0.45, adfP: 0.05, hlMin: 5, hlMax: 300, maxHoldHalflives: 3 },
   mom: { sigWindow: 4032, tMin: 2.0, stopAtr: 2.0 },
   regime: { window: 2016, every: 288, hurstMr: 0.45, hurstTrend: 0.55, volPctHigh: 0.90, minHist: 20, maxHist: 90 },
@@ -131,25 +132,16 @@ export interface ChanView {
   mr: { hl: number; z: number; mean: number; std: number; gate: boolean; side: 0 | 1 | -1; exitLong: boolean; exitShort: boolean; stopLong: number; stopShort: number; maxHold: number }
   mom: { t: number; gate: boolean; side: 0 | 1 | -1; atr: number; stopLong: number; stopShort: number; hh: number; ll: number }
 }
-// Daily realised-vol estimates at UTC-midnight anchors (the Python regime filter re-estimates on a fixed daily grid):
-// for each bar that CLOSES at 00:00 UTC with a full window behind it, the std of the window's log returns.
-export function dayVols(bars: Bar[]): { d: number; v: number }[] {
-  const W = CHAN.regime.window, out: { d: number; v: number }[] = []
-  const logp = bars.map(b => Math.log(b.c))
-  for (let e = W - 1; e < bars.length; e++) {
-    const close = bars[e].t + CHAN.barMs
-    if (close % DAY_MS !== 0) continue
-    const w = logp.slice(e - W + 1, e + 1)
-    out.push({ d: close / DAY_MS, v: stdPop(w.slice(1).map((x, i) => x - w[i])) })
-  }
-  return out
-}
-export function chanView(bars: Bar[], pastVols?: number[]): ChanView | null {
+// v97.2 — the SLOW statistics, as in the Python code (quant/strategies: stat_window / recompute_every = once a day):
+// Hurst, OU half-life, realised vol + its percentile vs past daily estimates, the regime label and the momentum t-test.
+// Estimated on the window that ends at the last bar of `bars`; live they are recomputed once per UTC day per coin and
+// persisted (market_cache 'chan_daily'), so each 5m bar only needs the recent candles (barView).
+export interface Daily { hurst: number; hl: number; vol: number; volPct: number; regime: number; t: number }
+export function dailyStats(bars: Bar[], pastVols?: number[]): Daily | null {
   const n = bars.length, W = CHAN.regime.window
   if (n < Math.max(W, CHAN.mom.sigWindow) + 1) return null
   const logp = bars.map(b => Math.log(b.c))
   const win = logp.slice(n - W)
-  // regime: Hurst + vol, vol percentile vs PAST daily estimates (windows ending every 288 bars back, up to 90)
   const H = hurst(win), vol = stdPop(win.slice(1).map((v, i) => v - win[i]))
   const past: number[] = pastVols ? pastVols.slice(-CHAN.regime.maxHist) : []
   if (!pastVols) for (let k = 1; k <= CHAN.regime.maxHist; k++) {
@@ -163,29 +155,52 @@ export function chanView(bars: Bar[], pastVols?: number[]): ChanView | null {
   if (Number.isFinite(H) && H > CHAN.regime.hurstTrend) regime = TREND
   if (Number.isFinite(volPct) && volPct > CHAN.regime.volPctHigh) regime = HIGH_VOL
   if (!Number.isFinite(H)) regime = NEUTRAL
-  // A. mean reversion (router: gate = regime MEAN_REVERT, i.e. Hurst < 0.45, + half-life in range)
-  const p = CHAN.params.RG_MR, hlRaw = halfLife(win)
-  const hlOk = hlRaw >= CHAN.mr.hlMin && hlRaw <= CHAN.mr.hlMax
+  const q = CHAN.params.RG_MOM
+  return { hurst: H, hl: halfLife(win), vol, volPct, regime, t: momentumT(logp, q.lookback, q.hold, CHAN.mom.sigWindow) }
+}
+// Daily realised-vol estimates at UTC-midnight anchors (the Python regime filter re-estimates on a fixed daily grid):
+// for each bar that CLOSES at 00:00 UTC with a full window behind it, the std of the window's log returns.
+export function dayVols(bars: Bar[]): { d: number; v: number }[] {
+  const W = CHAN.regime.window, out: { d: number; v: number }[] = []
+  const logp = bars.map(b => Math.log(b.c))
+  for (let e = W - 1; e < bars.length; e++) {
+    const close = bars[e].t + CHAN.barMs
+    if (close % DAY_MS !== 0) continue
+    const w = logp.slice(e - W + 1, e + 1)
+    out.push({ d: close / DAY_MS, v: stdPop(w.slice(1).map((x, i) => x - w[i])) })
+  }
+  return out
+}
+export const RECENT_BARS = 320   // >= the longest look-back used per bar: z over L <= 300, 144-bar breakout, ATR(14) warm-up
+// the FAST part, every closed 5m bar: z on the half-life look-back, breakout of the prior 144 bars, ATR(14), stops
+export function barView(bars: Bar[], d: Daily): ChanView | null {
+  const n = bars.length, q = CHAN.params.RG_MOM, p = CHAN.params.RG_MR
+  if (n < q.lookback + 2) return null
+  const hlRaw = d.hl, hlOk = hlRaw >= CHAN.mr.hlMin && hlRaw <= CHAN.mr.hlMax
   const L = Number.isFinite(hlRaw) ? Math.min(CHAN.mr.hlMax, Math.max(CHAN.mr.hlMin, Math.round(hlRaw))) : NaN
   let z = NaN, mu = NaN, sd = NaN
-  if (Number.isFinite(L)) { const w = logp.slice(n - L); mu = mean(w); sd = Math.sqrt(w.reduce((s, v) => s + (v - mu) ** 2, 0) / (L - 1)); z = (logp[n - 1] - mu) / sd }
-  const mrGate = regime === MEAN_REVERT && hlOk && Number.isFinite(z) && sd > 0
+  if (Number.isFinite(L) && n >= L) {
+    const w = bars.slice(n - L).map(b => Math.log(b.c)); mu = mean(w); sd = Math.sqrt(w.reduce((s, v) => s + (v - mu) ** 2, 0) / (L - 1)); z = (Math.log(bars[n - 1].c) - mu) / sd
+  }
+  const mrGate = d.regime === MEAN_REVERT && hlOk && Number.isFinite(z) && sd > 0
   const mrSide: 0 | 1 | -1 = mrGate && z <= -p.entryZ ? 1 : mrGate && z >= p.entryZ ? -1 : 0
   const maxHold = Number.isFinite(hlRaw) ? Math.ceil(CHAN.mr.maxHoldHalflives * Math.min(CHAN.mr.hlMax, Math.max(1, hlRaw))) : 0
-  // B. momentum breakout (router: gate = regime TREND + significance t >= 2)
-  const q = CHAN.params.RG_MOM
-  const t = momentumT(logp, q.lookback, q.hold, CHAN.mom.sigWindow)
   let hh = -Infinity, ll = Infinity; for (let k = n - 1 - q.lookback; k < n - 1; k++) { hh = Math.max(hh, bars[k].h); ll = Math.min(ll, bars[k].l) }
   const atr = atrLast(bars.map(b => b.h), bars.map(b => b.l), bars.map(b => b.c), 14)
   const c = bars[n - 1].c
-  const momGate = regime === TREND && Number.isFinite(t) && t >= CHAN.mom.tMin && Number.isFinite(atr)
+  const momGate = d.regime === TREND && Number.isFinite(d.t) && d.t >= CHAN.mom.tMin && Number.isFinite(atr)
   const momSide: 0 | 1 | -1 = momGate && c > hh ? 1 : momGate && c < ll ? -1 : 0
   return {
-    regime, hurst: H, volPct, vol,
+    regime: d.regime, hurst: d.hurst, volPct: d.volPct, vol: d.vol,
     mr: { hl: hlRaw, z, mean: mu, std: sd, gate: mrGate, side: mrSide, exitLong: Number.isFinite(z) && z >= -p.exitZ, exitShort: Number.isFinite(z) && z <= p.exitZ,
       stopLong: Math.exp(mu - p.stopZ * sd), stopShort: Math.exp(mu + p.stopZ * sd), maxHold },
-    mom: { t, gate: momGate, side: momSide, atr, stopLong: c - CHAN.mom.stopAtr * atr, stopShort: c + CHAN.mom.stopAtr * atr, hh, ll },
+    mom: { t: d.t, gate: momGate, side: momSide, atr, stopLong: c - CHAN.mom.stopAtr * atr, stopShort: c + CHAN.mom.stopAtr * atr, hh, ll },
   }
+}
+// both at the last bar (tests, and any caller that has the full history)
+export function chanView(bars: Bar[], pastVols?: number[]): ChanView | null {
+  const d = dailyStats(bars, pastVols)
+  return d && barView(bars, d)
 }
 
 // ---------- risk (quant/risk/manager.py) --------------------------------------------------------------------------
