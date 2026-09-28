@@ -12,8 +12,9 @@ import { useLivePrices, tickDir } from '../livePrices'
 type Row = Record<string, any>
 type K = { t: number; o: number; h: number; l: number; c: number; v: number; tb: number }
 const C = { bg: '#04070E', card: '#0B1220', line: '#1E2A44', dim: '#8A97B2', text: '#E8EEF9', pos: '#00d492', neg: '#ff4d6a', acc: '#5aa9ff', warn: '#ffb454' }
-const TF_MS: Record<string, number> = { '1m': 60e3, '5m': 300e3, '15m': 900e3, '1h': 3600e3, '2h': 7200e3, '4h': 14400e3 }
-const OKX_BAR: Record<string, string> = { '1m': '1m', '5m': '5m', '15m': '15m', '1h': '1H', '2h': '2H', '4h': '4H' }
+const TF_MS: Record<string, number> = { '1m':60e3,'3m':180e3,'5m':300e3,'15m':900e3,'30m':1800e3,'1h':3600e3,'2h':7200e3,'4h':14400e3,'6h':21600e3,'8h':28800e3,'12h':43200e3,'1d':86400e3,'3d':259200e3,'1w':604800e3,'1M':2592000e3 }
+const OKX_BAR: Record<string, string> = { '1m':'1m','3m':'3m','5m':'5m','15m':'15m','30m':'30m','1h':'1H','2h':'2H','4h':'4H','6h':'6H','12h':'12H','1d':'1D','3d':'3D','1w':'1W' }
+const TF_CHOICES = [['1m','1ד'],['3m','3ד'],['5m','5ד'],['15m','15ד'],['30m','30ד'],['1h','1ש'],['2h','2ש'],['4h','4ש'],['6h','6ש'],['8h','8ש'],['12h','12ש'],['1d','1י'],['3d','3י'],['1w','1שב'],['1M','1ח']] as const
 const bsym = (sym: string) => (sym === 'PEPE' ? { s: '1000PEPEUSDT', k: 1000 } : { s: `${sym}USDT`, k: 1 })
 const tfOf = (t: Row) => t.strategy === 'FAST' ? (t.scalp_meta?.fast?.mode === 'rt' ? '1m' : '5m') : t.strategy === 'LAB' ? String(t.scalp_meta?.lab?.tf ?? '1h') : t.strategy === 'SCALP' ? '1m' : t.strategy === 'BRKV' ? '4h' : t.strategy === 'ROTA' ? '1h' : '5m'
 const fmt = (x: number) => (!Number.isFinite(x) ? '—' : Math.abs(x) >= 1000 ? x.toFixed(2) : Number(x.toPrecision(5)).toString())
@@ -109,6 +110,7 @@ function Reasons({ t }: { t: Row }) {
 export default function TradeView({ id }: { id: string }) {
   const [t, setT] = useState<Row | null>(null), [err, setErr] = useState<string | null>(null)
   const [last, setLast] = useState<number>(NaN), [src, setSrc] = useState(''), [now, setNow] = useState(Date.now())
+  const [tf, setTf] = useState('5m')
   const box = useRef<HTMLDivElement>(null), chart = useRef<IChartApi | null>(null)
   const lastBar = useRef<K | null>(null), liveRef = useRef(false)
   const cs = useRef<ISeriesApi<'Candlestick'> | null>(null), vs = useRef<ISeriesApi<'Histogram'> | null>(null), es = useRef<ISeriesApi<'Line'> | null>(null)
@@ -122,7 +124,8 @@ export default function TradeView({ id }: { id: string }) {
     load(); const i = setInterval(load, 10_000); const c = setInterval(() => setNow(Date.now()), 1000)
     return () => { live = false; clearInterval(i); clearInterval(c) }
   }, [id])
-  const tf = t ? tfOf(t) : '5m', sym = t ? String(t.sym) : ''
+  useEffect(() => { if (t?.id) setTf(tfOf(t)) }, [t?.id])
+  const sym = t ? String(t.sym) : ''
   // v97.4: the live exchange feed moves the price, the P&L and the forming candle with every trade (display only)
   const ticks = useLivePrices(t && t.status === 'OPEN' ? [sym] : [])
   const tk = ticks[sym]
@@ -141,13 +144,25 @@ export default function TradeView({ id }: { id: string }) {
     if (!t) return null
     const m = t.scalp_meta ?? {}, f = m.fast ?? m.lab ?? m.chan ?? {}
     const stop = Number(f.stop ?? (t.strategy === 'ROTA' ? NaN : t.trail_sl)), target = Number(f.target ?? m.target_px ?? NaN)
-    return { entry: Number(t.entry_price), stop: stop > 0 && stop < Number(t.entry_price) * 50 ? stop : NaN, target: target > 0 && !f.trail ? target : NaN, trail: !!f.trail, holdMs: Number(f.hold_min ?? m.hold_min ?? NaN) * 60e3 || (f.hold ? Number(f.hold) * TF_MS[tf] : NaN) }
+    const entry = Number(t.entry_price), dir = t.side === 'LONG' ? 1 : -1, lev = Math.max(1, Number(t.lev) || 1)
+    const liqStored = Number(f.liq ?? m.liq ?? NaN)
+    const liq = Number.isFinite(liqStored) ? liqStored : (lev > 1 ? entry * (1 - dir * (1 / lev - 0.005)) : NaN)
+    return { entry, stop: stop > 0 && stop < entry * 50 ? stop : NaN, target: target > 0 && !f.trail ? target : NaN, liq, trail: !!f.trail, holdMs: Number(f.hold_min ?? m.hold_min ?? NaN) * 60e3 || (f.hold ? Number(f.hold) * TF_MS[tf] : NaN) }
   }, [t, tf])
   // chart
   useEffect(() => {
     if (!box.current || !t || !lv) return
-    const ch = createChart(box.current, { layout: { background: { type: ColorType.Solid, color: C.bg }, textColor: C.dim, fontFamily: 'system-ui' }, grid: { vertLines: { color: '#0f1830' }, horzLines: { color: '#0f1830' } },
-      crosshair: { mode: CrosshairMode.Normal }, rightPriceScale: { borderColor: C.line }, timeScale: { borderColor: C.line, timeVisible: true, secondsVisible: false }, autoSize: true })
+    const ch = createChart(box.current, {
+      layout: { background: { type: ColorType.Solid, color: C.bg }, textColor: C.dim, fontFamily: 'system-ui' },
+      grid: { vertLines: { color: '#0f1830' }, horzLines: { color: '#0f1830' } },
+      crosshair: { mode: CrosshairMode.Normal },
+      rightPriceScale: { borderColor: C.line, autoScale: true },
+      timeScale: { borderColor: C.line, timeVisible: true, secondsVisible: tf === '1m' || tf === '3m', rightOffset: 8, barSpacing: 7, minBarSpacing: 0.8 },
+      handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
+      handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true },
+      kineticScroll: { touch: true, mouse: true },
+      autoSize: true
+    })
     chart.current = ch
     const c = ch.addCandlestickSeries({ upColor: C.pos, downColor: C.neg, wickUpColor: C.pos, wickDownColor: C.neg, borderVisible: false, priceFormat: { type: 'price', precision: 6, minMove: 0.000001 } })
     const v = ch.addHistogramSeries({ priceScaleId: 'vol', priceFormat: { type: 'volume' } })
@@ -155,7 +170,7 @@ export default function TradeView({ id }: { id: string }) {
     const e = ch.addLineSeries({ color: '#9b8cff', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false })
     cs.current = c; vs.current = v; es.current = e
     const pl = (price: number, color: string, title: string, style = LineStyle.Solid) => { if (Number.isFinite(price)) c.createPriceLine({ price, color, lineWidth: 2, lineStyle: style, axisLabelVisible: true, title }) }
-    pl(lv.entry, C.acc, 'כניסה'); pl(lv.stop, C.neg, lv.trail ? 'סטופ נגרר' : 'סטופ', LineStyle.Dashed); pl(lv.target, C.pos, 'יעד', LineStyle.Dashed)
+    pl(lv.entry, C.acc, 'כניסה'); pl(lv.stop, C.neg, lv.trail ? 'סטופ נגרר' : 'סטופ', LineStyle.Dashed); pl(lv.target, C.pos, 'יעד', LineStyle.Dashed); pl(lv.liq, '#c084fc', 'מימוש / ליקווידציה', LineStyle.Dashed)
     if (t.exit_price) pl(Number(t.exit_price), C.warn, 'יציאה', LineStyle.Dotted)
     let alive = true
     const paint = (k: K[]) => {
@@ -199,11 +214,20 @@ export default function TradeView({ id }: { id: string }) {
         {stat('כניסה', fmt(M.entry), C.acc)}
         {stat(lv.trail ? 'סטופ נגרר (מהכניסה)' : 'סטופ (מהכניסה)', Number.isFinite(M.stop) ? `${fmt(M.stop)} (${fmtPctSigned(M.stopPct, 3)})` : 'אין', C.neg)}
         {stat('יעד (מהכניסה)', lv.trail ? 'ללא יעד — סטופ נגרר' : Number.isFinite(M.target) ? `${fmt(M.target)} (${fmtPctSigned(M.targetPct, 3)})` : 'אין', C.pos)}
+        {lev > 1 && stat('מחיר מימוש / ליקווידציה', Number.isFinite(lv.liq) ? fmt(lv.liq) : '—', '#c084fc')}
         {lev > 1 && stat('על הביטחון (ממונף)', fmtPctSigned(M.marginPct, 1), M.marginPct >= 0 ? C.pos : C.neg)}
         {stat(lev > 1 ? `גודל · ביטחון · מינוף` : 'גודל', lev > 1 ? `$${notional.toFixed(0)} · $${M.margin.toFixed(0)} · ×${lev}` : `$${notional.toFixed(0)}`)}
         {stat(isOpen ? 'זמן בעסקה / מקסימום' : 'משך', Number.isFinite(lv.holdMs) ? `${mmss(held)} / ${mmss(lv.holdMs)}` : mmss(held))}
       </div>
-      <div ref={box} style={{ height: 'min(62vh, 520px)', minHeight: 320, borderRadius: 10, overflow: 'hidden', border: `1px solid ${C.line}` }} />
+      <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap', background:C.card, border:`1px solid ${C.line}`, borderRadius:10, padding:8 }}>
+        <b style={{ fontSize:12, marginLeft:4 }}>טווח:</b>
+        {TF_CHOICES.map(([id,label]) => <button key={id} onClick={()=>setTf(id)} style={{ border:`1px solid ${tf===id?C.acc:C.line}`, background:tf===id?'#102442':'#07101b', color:tf===id?'#fff':C.dim, borderRadius:7, padding:'5px 8px', fontWeight:tf===id?800:500 }}>{label}</button>)}
+        <span style={{ flex:1 }} />
+        <button onClick={()=>chart.current?.timeScale().fitContent()} style={{ border:`1px solid ${C.line}`, background:'#07101b', color:C.text, borderRadius:7, padding:'5px 9px' }}>התאם הכל</button>
+        <button onClick={()=>chart.current?.timeScale().scrollToRealTime()} style={{ border:`1px solid ${C.line}`, background:'#07101b', color:C.text, borderRadius:7, padding:'5px 9px' }}>חזור ללייב</button>
+      </div>
+      <div style={{ color:C.dim, fontSize:11 }}>אפשר לגרור את הגרף, לגלול/לצבוט כדי להתקרב ולהתרחק, ולגרור את ציר המחיר לשינוי קנה מידה.</div>
+      <div ref={box} style={{ height: 'calc(100vh - 355px)', minHeight: 480, borderRadius: 10, overflow: 'hidden', border: `1px solid ${C.line}`, touchAction:'pan-y' }} />
       <div style={{ color: C.dim, fontSize: 12 }}><style>{'.tv-flash.up{animation:tvu .9s ease-out}.tv-flash.down{animation:tvd .9s ease-out}@keyframes tvu{0%{background:#16a34a;color:#fff}100%{background:transparent}}@keyframes tvd{0%{background:#dc2626;color:#fff}100%{background:transparent}}'}</style>נרות: {src || '—'} · מחיר חי: {isOpen ? (tk ? (tk.src === 'הבוט' ? 'מחיר הבוט מהשרת (כל ~5 שנ׳ — הבורסות חסומות בדפדפן הזה)' : `${tk.src}, זז עם כל שינוי בבורסה`) : 'מתחבר…') : 'העסקה סגורה'} · קו סגול = ממוצע נע 20 (לתצוגה) · עמודות נפח: ירוק = קונים אגרסיביים שלטו בנר, אדום = מוכרים · הבוט סוגר לפי המחיר שלו בשרת, ייתכנו הבדלים קטנים</div>
       <section style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 10, padding: 12 }}>
         <h2 style={{ fontSize: 17, marginBottom: 4 }}>למה הבוט נכנס לעסקה</h2>
