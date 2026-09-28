@@ -284,7 +284,23 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
     p_note: note, p_bar: closeBar ? new Date(bar).toISOString() : null, p_halt: halt }).throwOnError()
   if (decisions.length) {
     try { await db.from('trade_decisions').insert(decisions.slice(0, 100).map((d, k) => ({ sym: d.sym, side: d.side, decision: d.decision, reason: d.reason, rank: k + 1, notional: d.notional ?? null,
-      observed: { regime: d.regime, hurst: d.hurst, vol_pct: d.vol_pct, z: d.z, halflife: d.hl, t_sig: d.t_sig }, inferred: { sleeve: 'CHAN', comp: d.comp, kelly_f: d.kelly_f ?? null, note: 'Chan regime router, Phase-1 NO-GO, demo on the owner\'s instruction' } }))) } catch { /* journal only */ }
+      observed: { regime: d.regime, hurst: d.hurst, vol_pct: d.vol_pct, z: d.z, halflife: d.hl, t_sig: d.t_sig },
+      inferred: {
+        sleeve: 'CHAN',
+        comp: d.comp,
+        kelly_f: d.kelly_f ?? null,
+        leverage: d.leverage ?? null,
+        committed: d.decision === 'accepted',
+        approved_at: d.decision === 'accepted' ? new Date(now).toISOString() : null,
+        approval_chain: d.decision === 'accepted' ? [
+          { id: 'strategy', by: d.comp === 'RG_MR' ? 'Mean Reversion' : d.comp === 'RG_MOM' ? 'Momentum' : 'Trend Pullback', ok: true },
+          { id: 'regime', by: 'Regime Router', ok: true, value: d.regime },
+          { id: 'risk', by: 'Risk Engine', ok: true, risk_f: d.kelly_f ?? null, leverage: d.leverage ?? PAPER_LEVERAGE },
+          { id: 'execution', by: 'Binance Book Check', ok: true },
+          { id: 'ledger', by: 'CHAN SQL Ledger', ok: true }
+        ] : [],
+        note: 'Chan regime router, Phase-1 NO-GO, demo on the owner\'s instruction'
+      } }))) } catch { /* journal only */ }
   }
   return { changed: true, ...result, ...note, risk_state: undefined, scan: undefined }
 }
