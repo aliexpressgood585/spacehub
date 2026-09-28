@@ -216,8 +216,13 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       if (held.has(sym)) { rec('rejected', 'coin_held'); continue }
       const co = canOpen(st, openN)
       if (!co.ok) { rec('rejected', co.why); continue }
-      const k = kellyRisk(rsOf(cand.comp))
-      if (!(k.f > 0)) { rec('rejected', k.why); continue }
+      const estimated = kellyRisk(rsOf(cand.comp))
+      // Owner requested continuous PAPER trading after losses (2026-09-28).
+      // runChan refuses live execution; retain signal, data, stop and cash checks.
+      const k = Number.isFinite(estimated.f) && estimated.f <= 0
+        ? { f: Math.min(CHAN.risk.defaultRisk, CHAN.risk.cap), why: `paper continuation fallback; ${estimated.why}` }
+        : estimated
+      if (!(Number.isFinite(k.f) && k.f > 0)) { rec('rejected', k.why); continue }
       let bk: Awaited<ReturnType<typeof book>>
       try { bk = await book(pairOf(sym)) } catch { rec('rejected', 'no_book'); continue }
       const touch = cand.side > 0 ? bk.asks[0][0] : bk.bids[0][0]
