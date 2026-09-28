@@ -4,6 +4,7 @@ import { SUPA_KEY, SUPA_URL } from '../supa'
 type J = any
 const REST = `${SUPA_URL}/rest/v1/`
 const H = { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` }
+const DEFAULT_TAKER = 0.0005
 
 async function q<T = J>(path: string): Promise<T> {
   const r = await fetch(REST + path, { headers: H, cache: 'no-store' })
@@ -14,6 +15,13 @@ async function q<T = J>(path: string): Promise<T> {
 const fmt$ = (v: number | null | undefined) =>
   v == null || !Number.isFinite(v) ? '—' :
   `${v < 0 ? '-' : ''}$${Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+const fmtPx = (v: number | null | undefined) => {
+  if (v == null || !Number.isFinite(v)) return '—'
+  if (Math.abs(v) >= 1000) return v.toLocaleString('en-US', { maximumFractionDigits: 2 })
+  if (Math.abs(v) >= 1) return v.toLocaleString('en-US', { maximumFractionDigits: 5 })
+  return v.toLocaleString('en-US', { maximumFractionDigits: 8 })
+}
 
 const pct = (v: number | null | undefined) =>
   v == null || !Number.isFinite(v) ? '—' : `${(v * 100).toFixed(2)}%`
@@ -33,7 +41,7 @@ function clock(t: string | number | null | undefined) {
 }
 
 const COMP: Record<string,string> = {
-  RG_MR: 'היפוך לממוצע',
+  RG_MR: 'חזרה לממוצע',
   RG_MOM: 'מומנטום',
   RG_TREND_PULLBACK: 'פריצה ותיקון',
 }
@@ -69,6 +77,30 @@ function fallbackChain(d: J) {
   ]
 }
 
+function economics(t: J, cyc: J) {
+  const live = cyc?.open_live?.[String(t.id)]
+  if (live) return live
+  const m = t.scalp_meta?.chan ?? {}
+  const entry = Number(t.entry_price), size = Number(t.size), lev = Math.max(1, Number(t.lev) || 1)
+  const mark = Number(cyc?.marks?.[t.sym] ?? entry)
+  const dir = t.side === 'LONG' ? 1 : -1
+  const notional = entry * size
+  const entryFee = Number(t.scalp_meta?.entry_fee ?? t.fee ?? notional * DEFAULT_TAKER)
+  const exitFee = mark * size * DEFAULT_TAKER
+  const gross = dir * (mark - entry) * size
+  const margin = notional / lev
+  const net = gross - entryFee - exitFee
+  return {
+    id:t.id, sym:t.sym, side:t.side, comp:m.comp, opened_at:t.opened_at, leverage:lev, size, notional, margin,
+    entry, mark, est_exit:mark, stop:Number(m.stop), target:m.target == null ? null : Number(m.target),
+    liq: entry * (1 - dir * (1/lev - 0.005)), regime:m.regime, z:m.z, t_sig:m.t_sig,
+    gross_mark_pnl:gross, gross_exec_pnl:gross, net_pnl_to_close:net, roe_net:margin > 0 ? net/margin : null,
+    entry_fee:entryFee, exit_fee_est:exitFee, entry_slippage_usd:0, exit_slippage_usd:0,
+    entry_impact_bps:Number(m.entry_fill?.impact_bps ?? 0), exit_impact_bps:0,
+    fee_rate_taker:DEFAULT_TAKER, quote_ts:cyc?.marks_ts, kelly_f:m.kelly_f, risk_usd:m.risk_usd, kelly_why:m.kelly_why,
+  }
+}
+
 export default function ChanHouse({ onBack }: { onBack?: () => void }) {
   const [state, setState] = useState<J | null>(null)
   const [open, setOpen] = useState<J[]>([])
@@ -77,6 +109,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
   const [decisions, setDecisions] = useState<J[]>([])
   const [err, setErr] = useState('')
   const [now, setNow] = useState(Date.now())
+  const [chartId, setChartId] = useState<number | null>(null)
 
   useEffect(() => {
     const iv = setInterval(() => setNow(Date.now()), 1000)
@@ -92,7 +125,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
           q<J[]>('bot_trades?select=id,sym,side,status,strategy,lev,entry_price,size,fee,opened_at,scalp_meta&status=eq.OPEN&strategy=eq.CHAN&order=opened_at.desc'),
           q<J[]>('deployment_manifest?select=sha,enabled_sleeves&order=first_seen.desc&limit=1').catch(() => []),
           q<J[]>(`bot_errors?select=ts,scope,message&ts=gte.${new Date(Date.now()-3_600_000).toISOString()}&order=ts.desc&limit=20`).catch(() => []),
-          q<J[]>('trade_decisions?select=ts,sym,side,decision,reason,notional,observed,inferred&inferred->>sleeve=eq.CHAN&order=ts.desc&limit=40').catch(() => []),
+          q<J[]>('trade_decisions?select=ts,sym,side,decision,reason,notional,observed,inferred&inferred->>sleeve=eq.CHAN&order=ts.desc&limit=60').catch(() => []),
         ])
         if (!alive) return
         setState(st[0] ?? null)
@@ -119,14 +152,28 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
   const latest = decisions[0] ?? null
   const latestAccepted = decisions.find((d) => d.decision === 'accepted') ?? null
   const counts = cyc?.regime_counts ?? {}
-  const scanning = fresh && cyc?.complete !== true
+  const liveScan = cyc?.live_scan ?? {}
+  const scanning = fresh && liveScan?.status === 'continuous'
+
+  const econ = useMemo(() => open.map(t => ({ trade:t, live:economics(t,cyc) })), [open,cyc])
+  const startCapital = ['1','2'].reduce((s,id)=>s+Number(wallets?.[id]?.initial ?? 0),0) || 5000
+  const realised = ['1','2'].reduce((s,id)=>s+Number(wallets?.[id]?.realised ?? 0),0)
+  const feesPaid = ['1','2'].reduce((s,id)=>s+Number(wallets?.[id]?.fees ?? 0),0)
+  const fundingPaid = ['1','2'].reduce((s,id)=>s+Number(wallets?.[id]?.funding ?? 0),0)
+  const marginUsed = econ.reduce((s,x)=>s+Number(x.live.margin ?? 0),0)
+  const exposure = econ.reduce((s,x)=>s+Number(x.live.notional ?? 0),0)
+  const openNet = econ.reduce((s,x)=>s+Number(x.live.net_pnl_to_close ?? 0),0)
+  const exitFees = econ.reduce((s,x)=>s+Number(x.live.exit_fee_est ?? 0),0)
+  const exitSlip = econ.reduce((s,x)=>s+Number(x.live.exit_slippage_usd ?? 0),0)
+  const modeledEquity = startCapital + realised + openNet
+  const freeCollateral = Number(state?.balance ?? 0)
 
   const robots = useMemo(() => [
     {
-      id:'scanner', icon:'⌁', title:'רובוט סריקה', active:fresh,
-      status: fresh ? (cyc?.complete ? 'סריקה הושלמה' : 'סורק עכשיו') : 'ממתין למחזור',
-      detail: `${Number(cyc?.scanned ?? 0)} / ${Number(cyc?.universe ?? 0)} חוזים`,
-      foot: cycT ? `מחזור ${ago(cycT, now)}` : 'אין מחזור',
+      id:'scanner', icon:'⌁', title:'רובוט סריקה', active:scanning,
+      status: scanning ? 'סורק ברצף ללא עצירה' : 'ממתין לנתון',
+      detail: liveScan?.checked?.length ? liveScan.checked.map((x:J)=>x.sym).slice(0,6).join(' · ') : `${Number(cyc?.scanned ?? 0)} / ${Number(cyc?.universe ?? 0)} חוזים`,
+      foot: liveScan?.ts ? `סבב #${Number(liveScan.loop ?? 0)+1} · ${ago(Date.parse(liveScan.ts),now)}` : (cycT ? `מחזור ${ago(cycT,now)}` : 'אין מחזור'),
     },
     {
       id:'regime', icon:'◫', title:'רובוט משטר שוק', active:fresh,
@@ -143,7 +190,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
     {
       id:'risk', icon:'◆', title:'רובוט סיכון', active:!!latestAccepted,
       status: latestAccepted ? 'אישור גודל וחשיפה' : 'ממתין לאות',
-      detail: latestAccepted ? `סיכון ${pct(Number(latestAccepted.inferred?.kelly_f))} · ${latestAccepted.inferred?.leverage ? latestAccepted.inferred.leverage+'×' : '50× בפוזיציות החדשות'}` : 'אין אישור חדש',
+      detail: latestAccepted ? `סיכון ${pct(Number(latestAccepted.inferred?.kelly_f))} · ${latestAccepted.inferred?.leverage ? latestAccepted.inferred.leverage+'×' : '50×'}` : 'אין אישור חדש',
       foot: state?.paper_mode === false ? 'LIVE — לא צפוי' : 'PAPER · סטופ חובה',
     },
     {
@@ -155,10 +202,10 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
     {
       id:'ledger', icon:'▤', title:'רובוט ספר חשבונות', active:fresh && !activeErrors,
       status: activeErrors ? `${activeErrors} שגיאות פעילות` : 'המחזור נרשם',
-      detail: `הון ${fmt$(Number(state?.balance))} · פתוחות ${open.length}`,
+      detail: `הון נטו ${fmt$(modeledEquity)} · פתוחות ${open.length}`,
       foot: manifest ? `build ${String(manifest.sha ?? '').slice(0,7)}` : '—',
     },
-  ], [fresh, cyc, cycT, now, latest, latestAccepted, open, state, activeErrors, manifest])
+  ], [scanning,liveScan,cyc,cycT,now,counts,fresh,latest,latestAccepted,open,state,activeErrors,manifest,modeledEquity])
 
   return <div className="ch" dir="rtl">
     <style>{CSS}</style>
@@ -172,12 +219,26 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
       <span className={`chip ${activeErrors ? 'bad' : 'ok'}`}>{activeErrors ? `${activeErrors} שגיאות פעילות` : '0 שגיאות פעילות'}</span>
     </div>
 
-    <div className="warn">מנוע ניסיוני: בבדיקה ההיסטורית (Phase 1) כל האסטרטגיות קיבלו NO-GO. הוא רץ על נייר כבדיקת תשתית בלבד — מה שקורה כאן איננו ראיה לרווחיות.</div>
+    <div className="warn">סימולציית PAPER: נתוני מחיר/ספר פקודות מגיעים מ־Binance Futures, עמלת taker במודל היא 0.05%, והחלקה מחושבת לפי ספר הפקודות. הנחות VIP/BNB של חשבון אמיתי אינן מחוברות ולכן אינן יכולות להיות זהות לחשבון אישי.</div>
     {err && <div className="readerr">שגיאת קריאה: {err}</div>}
+
+    <section className="accountStrip">
+      <Stat k="הון פתיחה" v={fmt$(startCapital)} />
+      <Stat k="הון נטו אם סוגרים עכשיו" v={fmt$(modeledEquity)} cls={modeledEquity>=startCapital?'pos':'neg'} />
+      <Stat k="בטחונות בשימוש" v={fmt$(marginUsed)} />
+      <Stat k="בטחונות פנויים" v={fmt$(freeCollateral)} />
+      <Stat k="חשיפה נומינלית" v={fmt$(exposure)} />
+      <Stat k="ממומש" v={fmt$(realised)} cls={realised>=0?'pos':'neg'} />
+      <Stat k="פתוח נטו" v={fmt$(openNet)} cls={openNet>=0?'pos':'neg'} />
+      <Stat k="עמלות ששולמו" v={fmt$(feesPaid)} />
+      <Stat k="עמלת סגירה משוערת" v={fmt$(exitFees)} />
+      <Stat k="החלקה לסגירה משוערת" v={fmt$(exitSlip)} />
+      <Stat k="Funding" v={fmt$(fundingPaid)} />
+    </section>
 
     <section className="panel">
       <h2>ניסוי 50/50 · שני תקציבים עצמאיים</h2>
-      <p className="muted">מסלול 1: האסטרטגיות הקיימות · מסלול 2: פריצה ותיקון. חצי מההון בתחילת הניסוי לכל מסלול; הרווחים וההפסדים נשארים במסלול שלהם.</p>
+      <p className="muted">מסלול 1: חזרה לממוצע ומומנטום · מסלול 2: פריצה ותיקון. החישוב למטה נשאר נפרד לכל מסלול.</p>
       <div className="grid">
         {(['1','2'] as const).map((id) => {
           const w = wallets[id]
@@ -199,13 +260,33 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
       </div>
     </section>
 
+    <section className="positions">
+      <div className="sectionHead">
+        <div><h2>פוזיציות פתוחות · P&L חי</h2><p>הרווח/הפסד נטו כולל עמלת פתיחה, עמלת סגירה משוערת והחלקת יציאה לפי ספר הפקודות.</p></div>
+        <span className="countBadge">{open.length} פתוחות</span>
+      </div>
+      {econ.length === 0 ? <div className="emptyPos">אין כרגע פוזיציות פתוחות.</div> :
+        <div className="positionGrid">
+          {econ.map(({trade,live}) => <PositionCard key={trade.id} t={trade} live={live} expanded={chartId===trade.id} onChart={()=>setChartId(chartId===trade.id?null:trade.id)} />)}
+        </div>
+      }
+    </section>
+
     <section className="factory">
       <div className="factoryHead">
         <div>
           <h2>בית הבקרה החי · מה הבוט עושה מאחורי הקלעים</h2>
-          <p>כל חדר מחובר לנתון אמיתי של CHAN. אין כאן אנימציה שממציאה פעולה — רובוט זז רק כשיש נתון טרי.</p>
+          <p>סריקת השוק הקלה רצה ברצף בכל מחזור; החלטת כניסה עדיין מבוססת על נר 5 דקות סגור כדי לא לסחור על נר חלקי.</p>
         </div>
         <span className={`liveBadge ${fresh ? 'on' : ''}`}><i />{fresh ? 'LIVE' : 'STALE'}</span>
+      </div>
+
+      <div className="scanTicker">
+        <b>סריקה רציפה</b>
+        <span>סבב #{Number(liveScan?.loop ?? 0)+1}</span>
+        <span>{Number(liveScan?.batch_size ?? 0)} נבדקו במחזור</span>
+        <span>{Number(liveScan?.total ?? cyc?.universe ?? 0)} ביקום</span>
+        <div className="symbols">{(liveScan?.checked ?? []).map((x:J)=><em key={x.sym}>{x.sym}<small>{x.spread_bps==null?'':' '+x.spread_bps+'bp'}</small></em>)}</div>
       </div>
 
       <div className="pipeline">
@@ -217,7 +298,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
           <div className="subHead"><b>שרשרת אישורים בזמן אמת</b><span>{decisions.length} החלטות אחרונות</span></div>
           <div className="decisionList">
             {decisions.length === 0 && <div className="empty">עדיין אין החלטות CHAN חדשות.</div>}
-            {decisions.slice(0,14).map((d,idx) => {
+            {decisions.slice(0,18).map((d,idx) => {
               const ok = d.decision === 'accepted'
               const chain: any[] = Array.isArray(d.inferred?.approval_chain) && d.inferred.approval_chain.length
                 ? d.inferred.approval_chain.map((x:J) => x.by)
@@ -250,9 +331,10 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
         </div>
 
         <div className="liveDesk">
-          <div className="subHead"><b>לוח עבודה עכשיו</b><span>{scanning ? 'סריקה פעילה' : 'מחזור אחרון'}</span></div>
-          <DeskRow k="נר נבדק" v={cyc?.bar ? clock(cyc.bar) : '—'} />
-          <DeskRow k="חוזים שנסרקו" v={`${Number(cyc?.scanned ?? 0)} / ${Number(cyc?.universe ?? 0)}`} />
+          <div className="subHead"><b>לוח עבודה עכשיו</b><span>{scanning ? 'סריקה רציפה פעילה' : 'מחזור אחרון'}</span></div>
+          <DeskRow k="נר החלטה" v={cyc?.bar ? clock(cyc.bar) : '—'} />
+          <DeskRow k="חוזים שנסרקו בנר" v={`${Number(cyc?.scanned ?? 0)} / ${Number(cyc?.universe ?? 0)}`} />
+          <DeskRow k="סריקת שוק רציפה" v={liveScan?.ts ? ago(Date.parse(liveScan.ts),now) : '—'} />
           <DeskRow k="החלטה אחרונה" v={latest ? `${latest.sym} · ${latest.decision === 'accepted' ? 'אושר' : 'נדחה'}` : '—'} />
           <DeskRow k="פתוחות כרגע" v={String(open.length)} />
           <DeskRow k="מינוף בפוזיציות" v={open.length ? open.map(t=>`${t.sym} ${Number(t.lev)}×`).join(' · ') : '—'} />
@@ -266,13 +348,104 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
   </div>
 }
 
-function Row({k,v,cls=''}:{k:string;v:string;cls?:string}) {
-  return <div className="row"><span>{k}</span><bdi dir="ltr" className={cls}>{v}</bdi></div>
+function PositionCard({t,live,expanded,onChart}:{t:J;live:J;expanded:boolean;onChart:()=>void}) {
+  const m=t.scalp_meta?.chan ?? {}
+  const net=Number(live.net_pnl_to_close ?? 0), good=net>=0
+  const dir=t.side==='LONG'?1:-1
+  const stop=Number(live.stop), target=live.target==null?null:Number(live.target)
+  const stopNet=Number.isFinite(stop) ? dir*(stop-Number(live.entry))*Number(live.size)-Number(live.entry_fee)-stop*Number(live.size)*Number(live.fee_rate_taker ?? DEFAULT_TAKER) : null
+  const targetNet=target!=null&&Number.isFinite(target) ? dir*(target-Number(live.entry))*Number(live.size)-Number(live.entry_fee)-target*Number(live.size)*Number(live.fee_rate_taker ?? DEFAULT_TAKER) : null
+  return <article className={`posCard ${good?'profit':'loss'}`}>
+    <div className="posTop">
+      <div><b>{t.sym}</b><span className={t.side==='LONG'?'long':'short'}>{t.side}</span><span>{Number(t.lev)}×</span></div>
+      <div className={`bigPnl ${good?'pos':'neg'}`}>{fmt$(net)}<small>{pct(Number(live.roe_net))} על הבטוחה</small></div>
+    </div>
+    <div className="posMetrics">
+      <Mini k="כניסה" v={fmtPx(Number(live.entry))}/>
+      <Mini k="מחיר חי" v={fmtPx(Number(live.mark))}/>
+      <Mini k="יציאה אם סוגרים עכשיו" v={fmtPx(Number(live.est_exit))}/>
+      <Mini k="בטוחה" v={fmt$(Number(live.margin))}/>
+      <Mini k="חשיפה" v={fmt$(Number(live.notional))}/>
+      <Mini k="P&L ברוטו" v={fmt$(Number(live.gross_mark_pnl))} cls={Number(live.gross_mark_pnl)>=0?'pos':'neg'}/>
+      <Mini k="עמלת פתיחה" v={fmt$(Number(live.entry_fee))}/>
+      <Mini k="עמלת סגירה משוערת" v={fmt$(Number(live.exit_fee_est))}/>
+      <Mini k="החלקת פתיחה" v={fmt$(Number(live.entry_slippage_usd))}/>
+      <Mini k="החלקת סגירה משוערת" v={fmt$(Number(live.exit_slippage_usd))}/>
+      <Mini k="סטופ" v={fmtPx(stop)}/>
+      <Mini k="ליקווידציה מודלית" v={fmtPx(Number(live.liq))}/>
+      <Mini k="הפסד נטו אם סטופ" v={fmt$(stopNet)} cls="neg"/>
+      {target!=null&&<Mini k="יעד" v={fmtPx(target)}/>}
+      {targetNet!=null&&<Mini k="רווח נטו אם יעד" v={fmt$(targetNet)} cls="pos"/>}
+    </div>
+    <div className="why">
+      <b>למה נפתחה?</b>
+      <span>{COMP[m.comp] ?? m.comp ?? 'CHAN'} · משטר {m.regime ?? '—'}{Number.isFinite(Number(m.z))?` · Z ${Number(m.z).toFixed(2)}`:''}</span>
+      <small>{m.kelly_why ?? 'האות עבר אסטרטגיה, סיכון, ספר פקודות ולדג׳ר.'}</small>
+      <small>עדכון מחיר אחרון: {clock(live.quote_ts)} · החלקת יציאה {Number(live.exit_impact_bps ?? 0).toFixed(2)}bp</small>
+    </div>
+    <button className="chartBtn" onClick={onChart}>{expanded?'סגור גרף':'פתח גרף ניתוח'}</button>
+    {expanded&&<TradeChart t={t} live={live}/>}
+  </article>
 }
 
-function DeskRow({k,v,bad=false}:{k:string;v:string;bad?:boolean}) {
-  return <div className="deskRow"><span>{k}</span><b className={bad?'badText':''}>{v}</b></div>
+function TradeChart({t,live}:{t:J;live:J}) {
+  const [bars,setBars]=useState<J[]>([])
+  const [e,setE]=useState('')
+  useEffect(()=>{
+    let ok=true
+    const symbol=t.sym==='PEPE'?'1000PEPEUSDT':`${t.sym}USDT`
+    fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${encodeURIComponent(symbol)}&interval=5m&limit=72`,{cache:'no-store'})
+      .then(r=>{if(!r.ok)throw new Error('Binance '+r.status);return r.json()})
+      .then(x=>{if(ok)setBars(Array.isArray(x)?x:[])})
+      .catch(x=>{if(ok)setE(String(x?.message??x))})
+    return()=>{ok=false}
+  },[t.id,t.sym])
+
+  const rows=bars.map(x=>({t:+x[0],o:+x[1],h:+x[2],l:+x[3],c:+x[4]})).filter(x=>Number.isFinite(x.c))
+  const levels=[
+    {name:'כניסה',v:Number(live.entry),cls:'entry'},
+    {name:'מחיר/יציאה',v:Number(live.est_exit),cls:Number(live.net_pnl_to_close)>=0?'green':'red'},
+    {name:'סטופ',v:Number(live.stop),cls:'red'},
+    {name:'יעד',v:live.target==null?NaN:Number(live.target),cls:'green'},
+    {name:'ליקווידציה',v:Number(live.liq),cls:'liq'},
+  ].filter(x=>Number.isFinite(x.v))
+  const all=[...rows.flatMap(x=>[x.h,x.l]),...levels.map(x=>x.v)]
+  if(e)return <div className="chartError">הגרף לא נטען מ־Binance: {e}</div>
+  if(!rows.length)return <div className="chartLoading">טוען נרות Binance Futures…</div>
+  let min=Math.min(...all),max=Math.max(...all); const pad=(max-min||Math.abs(max)||1)*.08; min-=pad;max+=pad
+  const W=900,Ht=350,left=10,right=110,top=12,bottom=28
+  const plotW=W-left-right,plotH=Ht-top-bottom
+  const y=(v:number)=>top+(max-v)/(max-min)*plotH
+  const cw=Math.max(2,plotW/rows.length*.55)
+  const x=(i:number)=>left+(i+.5)*plotW/rows.length
+  const entryY=y(Number(live.entry)), curY=y(Number(live.est_exit))
+  const bandY=Math.min(entryY,curY),bandH=Math.abs(entryY-curY)
+  return <div className="chartBox">
+    <div className="chartTitle"><b>{t.sym}USDT · 5m</b><span>כניסה / מחיר חי / סטופ / יעד / ליקווידציה</span></div>
+    <svg viewBox={`0 0 ${W} ${Ht}`} role="img" aria-label={`גרף ${t.sym}`}>
+      <rect x={left} y={top} width={plotW} height={plotH} className="chartBg"/>
+      <rect x={left} y={bandY} width={plotW} height={Math.max(1,bandH)} className={Number(live.net_pnl_to_close)>=0?'profitBand':'lossBand'}/>
+      {[0,.25,.5,.75,1].map((k,i)=><line key={i} x1={left} x2={left+plotW} y1={top+k*plotH} y2={top+k*plotH} className="gridLine"/>)}
+      {rows.map((b,i)=>{
+        const up=b.c>=b.o
+        return <g key={b.t}><line x1={x(i)} x2={x(i)} y1={y(b.h)} y2={y(b.l)} className={up?'wickUp':'wickDown'}/><rect x={x(i)-cw/2} y={Math.min(y(b.o),y(b.c))} width={cw} height={Math.max(1,Math.abs(y(b.o)-y(b.c)))} className={up?'candleUp':'candleDown'}/></g>
+      })}
+      {levels.map((l,i)=><g key={l.name}><line x1={left} x2={left+plotW} y1={y(l.v)} y2={y(l.v)} className={`lvl ${l.cls}`}/><text x={left+plotW+6} y={y(l.v)+4} className={`lvlText ${l.cls}`}>{l.name} {fmtPx(l.v)}</text></g>)}
+      <text x={left} y={Ht-7} className="axisText">{clock(rows[0]?.t)}</text>
+      <text x={left+plotW-55} y={Ht-7} className="axisText">{clock(rows[rows.length-1]?.t)}</text>
+    </svg>
+    <div className="chartLegend">
+      <span>נטו עכשיו <b className={Number(live.net_pnl_to_close)>=0?'pos':'neg'}>{fmt$(Number(live.net_pnl_to_close))}</b></span>
+      <span>עמלות פתיחה+סגירה <b>{fmt$(Number(live.entry_fee)+Number(live.exit_fee_est))}</b></span>
+      <span>החלקה מודלית <b>{fmt$(Number(live.entry_slippage_usd)+Number(live.exit_slippage_usd))}</b></span>
+    </div>
+  </div>
 }
+
+function Row({k,v,cls=''}:{k:string;v:string;cls?:string}) { return <div className="row"><span>{k}</span><bdi dir="ltr" className={cls}>{v}</bdi></div> }
+function Mini({k,v,cls=''}:{k:string;v:string;cls?:string}) { return <div className="mini"><span>{k}</span><bdi dir="ltr" className={cls}>{v}</bdi></div> }
+function Stat({k,v,cls=''}:{k:string;v:string;cls?:string}) { return <div className="stat"><span>{k}</span><bdi dir="ltr" className={cls}>{v}</bdi></div> }
+function DeskRow({k,v,bad=false}:{k:string;v:string;bad?:boolean}) { return <div className="deskRow"><span>{k}</span><b className={bad?'badText':''}>{v}</b></div> }
 
 function RobotRoom({icon,title,active,status,detail,foot,last}:{icon:string;title:string;active:boolean;status:string;detail:string;foot:string;last:boolean}) {
   return <div className="robotWrap">
@@ -294,59 +467,37 @@ function RobotRoom({icon,title,active,status,detail,foot,last}:{icon:string;titl
 const CSS = `
 .ch{color:#e2e8f0;font-family:system-ui,sans-serif;font-size:15px;padding:4px}
 .top{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
-h1{font-size:24px;margin:0 8px 0 0}
-.back{background:none;border:1px solid #223150;color:#94a3b8;border-radius:999px;padding:7px 14px}
-.chip{border:1px solid #223150;border-radius:999px;padding:6px 12px;color:#94a3b8}
-.chip.ok{color:#34d399;border-color:#166534}.chip.bad{color:#f87171;border-color:#991b1b}
-.warn{background:#2a1a05;border:1px solid #92400e;color:#fbbf24;border-radius:16px;padding:15px 18px;margin-bottom:18px;font-size:16px;line-height:1.55}
-.readerr{color:#f87171;margin-bottom:10px}
-.panel,.factory{background:#0b1220;border:1px solid #1e293b;border-radius:18px;padding:18px}
-.panel{margin-bottom:18px}
-.panel h2,.factory h2{font-size:23px;text-align:center;margin:0 0 8px}
-.muted{color:#64748b;text-align:center;line-height:1.45;margin:0 0 16px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
-.card{background:#0b1220;border:2px solid;border-radius:18px;padding:16px 22px}
-.card.c1{border-color:#22d3ee}.card.c2{border-color:#fbbf24}
-.card h3{font-size:22px;margin:0 0 12px}.card.c1 h3{color:#22d3ee}.card.c2 h3{color:#fbbf24}
-.row{display:flex;justify-content:space-between;gap:16px;padding:7px 0;border-bottom:1px dashed #243047;font-size:17px}
-.row span{color:#94a3b8}.row bdi{font-variant-numeric:tabular-nums}.pos{color:#34d399}.neg{color:#f87171}
+h1{font-size:24px;margin:0 8px 0 0}.back{background:none;border:1px solid #223150;color:#94a3b8;border-radius:999px;padding:7px 14px}
+.chip{border:1px solid #223150;border-radius:999px;padding:6px 12px;color:#94a3b8}.chip.ok{color:#34d399;border-color:#166534}.chip.bad{color:#f87171;border-color:#991b1b}
+.warn{background:#2a1a05;border:1px solid #92400e;color:#fbbf24;border-radius:16px;padding:15px 18px;margin-bottom:18px;font-size:15px;line-height:1.55}
+.readerr{color:#f87171;margin-bottom:10px}.pos{color:#34d399!important}.neg{color:#f87171!important}
+.accountStrip{display:grid;grid-template-columns:repeat(6,minmax(130px,1fr));gap:9px;margin-bottom:18px}.stat{background:#09121f;border:1px solid #1e293b;border-radius:13px;padding:11px 12px;display:flex;flex-direction:column;gap:5px}.stat span{font-size:11px;color:#64748b}.stat bdi{font-size:17px;font-weight:800;font-variant-numeric:tabular-nums}
+.panel,.factory,.positions{background:#0b1220;border:1px solid #1e293b;border-radius:18px;padding:18px}.panel,.positions{margin-bottom:18px}
+.panel h2,.factory h2,.positions h2{font-size:23px;text-align:center;margin:0 0 8px}.muted{color:#64748b;text-align:center;line-height:1.45;margin:0 0 16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}.card{background:#0b1220;border:2px solid;border-radius:18px;padding:16px 22px}.card.c1{border-color:#22d3ee}.card.c2{border-color:#fbbf24}.card h3{font-size:22px;margin:0 0 12px}.card.c1 h3{color:#22d3ee}.card.c2 h3{color:#fbbf24}
+.row{display:flex;justify-content:space-between;gap:16px;padding:7px 0;border-bottom:1px dashed #243047;font-size:17px}.row span{color:#94a3b8}.row bdi{font-variant-numeric:tabular-nums}
 
-.factory{background:linear-gradient(180deg,#08111f,#0b1220 42%,#08111f)}
-.factoryHead{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:18px}
-.factoryHead h2{text-align:right;margin:0 0 5px}.factoryHead p{margin:0;color:#64748b;line-height:1.5}
-.liveBadge{display:flex;align-items:center;gap:7px;border:1px solid #334155;border-radius:999px;padding:7px 12px;color:#64748b;font-weight:800}
-.liveBadge i{width:8px;height:8px;border-radius:50%;background:#475569}.liveBadge.on{color:#34d399;border-color:#166534}.liveBadge.on i{background:#34d399;box-shadow:0 0 14px #34d399;animation:pulse 1.2s infinite}
+.sectionHead{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:14px}.sectionHead h2{text-align:right;margin:0}.sectionHead p{margin:4px 0 0;color:#64748b;font-size:13px}.countBadge{border:1px solid #334155;border-radius:999px;padding:6px 11px;color:#cbd5e1;white-space:nowrap}
+.emptyPos{padding:28px;text-align:center;color:#64748b;border:1px dashed #243047;border-radius:14px}.positionGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px}
+.posCard{background:#07101b;border:1px solid #243047;border-right:4px solid #475569;border-radius:16px;padding:14px;min-width:0}.posCard.profit{border-right-color:#10b981}.posCard.loss{border-right-color:#ef4444}
+.posTop{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.posTop>div:first-child{display:flex;gap:7px;align-items:center}.posTop b{font-size:22px}.posTop span{font-size:11px;border:1px solid #334155;border-radius:999px;padding:3px 7px}.posTop .long{color:#34d399;border-color:#166534}.posTop .short{color:#f87171;border-color:#991b1b}
+.bigPnl{font-size:24px;font-weight:900;text-align:left}.bigPnl small{display:block;font-size:11px;color:#64748b;font-weight:500;margin-top:2px}
+.posMetrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:13px}.mini{background:#0b1624;border:1px solid #16253a;border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:3px;min-width:0}.mini span{color:#64748b;font-size:10px}.mini bdi{font-size:13px;font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.why{margin-top:11px;background:#0a1421;border:1px solid #1e2d41;border-radius:11px;padding:10px;display:flex;flex-direction:column;gap:4px}.why b{color:#cbd5e1}.why span{font-size:12px;color:#94a3b8}.why small{font-size:11px;color:#5f7088;line-height:1.4}
+.chartBtn{margin-top:10px;width:100%;background:#0e7490;border:0;color:white;border-radius:10px;padding:10px;font-weight:800}.chartBtn:active{transform:scale(.99)}
+.chartBox{margin-top:10px;border:1px solid #203149;border-radius:13px;background:#050b13;padding:8px;overflow:hidden}.chartTitle{display:flex;justify-content:space-between;gap:8px;padding:5px 3px 8px}.chartTitle span{color:#64748b;font-size:11px}.chartBox svg{width:100%;height:auto;display:block}.chartBg{fill:#07101a}.gridLine{stroke:#142338;stroke-width:1}.profitBand{fill:rgba(16,185,129,.08)}.lossBand{fill:rgba(239,68,68,.08)}.wickUp{stroke:#34d399;stroke-width:1}.wickDown{stroke:#f87171;stroke-width:1}.candleUp{fill:#34d399}.candleDown{fill:#f87171}.lvl{stroke-width:1.5;stroke-dasharray:5 4}.lvl.entry{stroke:#60a5fa}.lvl.green{stroke:#34d399}.lvl.red{stroke:#f87171}.lvl.liq{stroke:#c084fc}.lvlText{font-size:10px;font-weight:700}.lvlText.entry{fill:#60a5fa}.lvlText.green{fill:#34d399}.lvlText.red{fill:#f87171}.lvlText.liq{fill:#c084fc}.axisText{fill:#475569;font-size:9px}.chartLegend{display:flex;gap:10px;flex-wrap:wrap;padding:5px}.chartLegend span{font-size:11px;color:#64748b}.chartLegend b{color:#cbd5e1}.chartLoading,.chartError{padding:18px;color:#64748b;text-align:center}.chartError{color:#fca5a5}
 
-.pipeline{display:grid;grid-template-columns:repeat(6,minmax(150px,1fr));gap:12px;align-items:stretch;margin-bottom:18px;overflow-x:auto;padding-bottom:6px}
-.robotWrap{display:flex;align-items:center;min-width:150px}
-.robotRoom{width:100%;min-height:186px;border:1px solid #23314a;border-radius:16px;background:#09111d;box-shadow:inset 0 0 0 1px rgba(255,255,255,.015);padding:12px;transition:.25s}
-.robotRoom.active{border-color:#155e75;box-shadow:0 0 22px rgba(34,211,238,.08),inset 0 0 25px rgba(34,211,238,.03)}
-.roomTitle{display:flex;gap:7px;align-items:center;font-weight:800;color:#cbd5e1;font-size:13px}
-.roomLed{width:7px;height:7px;border-radius:50%;background:#334155}.roomLed.on{background:#22d3ee;box-shadow:0 0 10px #22d3ee}
-.robotBody{display:flex;gap:11px;align-items:center;margin-top:20px}
-.robot{width:54px;min-width:54px;position:relative;filter:grayscale(.45);opacity:.65}.robot.working{filter:none;opacity:1;animation:bob 1.8s ease-in-out infinite}
-.antenna{height:11px;width:2px;background:#64748b;margin:auto;position:relative}.antenna i{position:absolute;width:6px;height:6px;border-radius:50%;background:#64748b;top:-4px;left:-2px}.working .antenna i{background:#34d399;box-shadow:0 0 9px #34d399}
-.robotHead{height:39px;border:2px solid #475569;border-radius:10px;background:#111c2d;position:relative;display:flex;justify-content:center;align-items:center;color:#22d3ee}.robotHead>span{position:absolute;top:2px;font-size:10px;color:#64748b}.robotHead i{width:8px;height:8px;border-radius:50%;background:#64748b;margin:9px 4px 0}.working .robotHead i{background:#22d3ee;box-shadow:0 0 7px #22d3ee}
-.robotTorso{width:42px;height:28px;border:2px solid #475569;border-top:0;border-radius:0 0 8px 8px;background:#0f172a;margin:auto;display:flex;align-items:center;justify-content:center}.robotTorso b{font-size:9px;color:#64748b}.working .robotTorso b{color:#34d399}
-.robotText{min-width:0;display:flex;flex-direction:column;gap:5px}.robotText strong{font-size:13px;color:#e2e8f0}.robotText span{font-size:12px;color:#94a3b8;line-height:1.35}.robotText small{font-size:11px;color:#475569}
-.pipe{width:12px;min-width:12px;height:3px;background:#1e293b;margin:0 -1px;display:flex;justify-content:space-around}.pipe i{width:3px;height:3px;border-radius:50%;background:#334155}.pipe.flow i{background:#22d3ee;animation:flow 1.1s infinite}.pipe.flow i:nth-child(2){animation-delay:.2s}.pipe.flow i:nth-child(3){animation-delay:.4s}
-
-.controlGrid{display:grid;grid-template-columns:minmax(0,2fr) minmax(260px,1fr);gap:16px}
-.approval,.liveDesk{border:1px solid #1e293b;border-radius:16px;background:#07101b;overflow:hidden}
-.subHead{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:13px 15px;border-bottom:1px solid #1e293b}.subHead b{font-size:16px}.subHead span{font-size:12px;color:#64748b}
-.decisionList{max-height:540px;overflow:auto}.empty{padding:24px;color:#64748b;text-align:center}
-.decision{padding:13px 15px;border-bottom:1px solid #111d2e}.decision:last-child{border-bottom:0}.decision.yes{background:linear-gradient(90deg,rgba(16,185,129,.05),transparent 45%)}.decision.no{background:linear-gradient(90deg,rgba(239,68,68,.035),transparent 45%)}
-.decisionTop{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.decisionTop time{margin-right:auto;color:#64748b;font-size:12px;font-variant-numeric:tabular-nums}.decisionTop>span{font-size:12px;color:#94a3b8}.decisionTop .comp{color:#cbd5e1}
-.decisionDot{width:8px;height:8px;border-radius:50%}.decisionDot.yes{background:#34d399;box-shadow:0 0 8px #34d399}.decisionDot.no{background:#f87171}
-.approvedText{color:#34d399;margin:8px 16px 6px 0;font-size:13px}.rejectedText{color:#fca5a5;margin:8px 16px 4px 0;font-size:13px}
-.chain{display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-right:16px}.chain span{display:flex;align-items:center;gap:4px;font-size:11px;color:#94a3b8;background:#0d1726;border:1px solid #1f3349;border-radius:999px;padding:3px 7px}.chain span i{color:#34d399;font-style:normal}.chain span b{color:#334155}
-.tiny{font-size:11px;color:#526074;margin:6px 16px 0 0}
+.factory{background:linear-gradient(180deg,#08111f,#0b1220 42%,#08111f)}.factoryHead{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:14px}.factoryHead h2{text-align:right;margin:0 0 5px}.factoryHead p{margin:0;color:#64748b;line-height:1.5}
+.liveBadge{display:flex;align-items:center;gap:7px;border:1px solid #334155;border-radius:999px;padding:7px 12px;color:#64748b;font-weight:800}.liveBadge i{width:8px;height:8px;border-radius:50%;background:#475569}.liveBadge.on{color:#34d399;border-color:#166534}.liveBadge.on i{background:#34d399;box-shadow:0 0 14px #34d399;animation:pulse 1.2s infinite}
+.scanTicker{border:1px solid #1e3348;background:#07111d;border-radius:13px;padding:10px 12px;margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}.scanTicker>b{color:#22d3ee}.scanTicker>span{font-size:11px;color:#64748b}.symbols{display:flex;gap:5px;flex-wrap:wrap;width:100%}.symbols em{font-style:normal;font-size:10px;background:#0c1b2a;border:1px solid #17334a;border-radius:999px;padding:3px 7px;color:#cbd5e1}.symbols small{color:#64748b}
+.pipeline{display:grid;grid-template-columns:repeat(6,minmax(150px,1fr));gap:12px;align-items:stretch;margin-bottom:18px;overflow-x:auto;padding-bottom:6px}.robotWrap{display:flex;align-items:center;min-width:150px}.robotRoom{width:100%;min-height:186px;border:1px solid #23314a;border-radius:16px;background:#09111d;box-shadow:inset 0 0 0 1px rgba(255,255,255,.015);padding:12px;transition:.25s}.robotRoom.active{border-color:#155e75;box-shadow:0 0 22px rgba(34,211,238,.08),inset 0 0 25px rgba(34,211,238,.03)}
+.roomTitle{display:flex;gap:7px;align-items:center;font-weight:800;color:#cbd5e1;font-size:13px}.roomLed{width:7px;height:7px;border-radius:50%;background:#334155}.roomLed.on{background:#22d3ee;box-shadow:0 0 10px #22d3ee}.robotBody{display:flex;gap:11px;align-items:center;margin-top:20px}.robot{width:54px;min-width:54px;position:relative;filter:grayscale(.45);opacity:.65}.robot.working{filter:none;opacity:1;animation:bob 1.8s ease-in-out infinite}
+.antenna{height:11px;width:2px;background:#64748b;margin:auto;position:relative}.antenna i{position:absolute;width:6px;height:6px;border-radius:50%;background:#64748b;top:-4px;left:-2px}.working .antenna i{background:#34d399;box-shadow:0 0 9px #34d399}.robotHead{height:39px;border:2px solid #475569;border-radius:10px;background:#111c2d;position:relative;display:flex;justify-content:center;align-items:center;color:#22d3ee}.robotHead>span{position:absolute;top:2px;font-size:10px;color:#64748b}.robotHead i{width:8px;height:8px;border-radius:50%;background:#64748b;margin:9px 4px 0}.working .robotHead i{background:#22d3ee;box-shadow:0 0 7px #22d3ee}.robotTorso{width:42px;height:28px;border:2px solid #475569;border-top:0;border-radius:0 0 8px 8px;background:#0f172a;margin:auto;display:flex;align-items:center;justify-content:center}.robotTorso b{font-size:9px;color:#64748b}.working .robotTorso b{color:#34d399}
+.robotText{min-width:0;display:flex;flex-direction:column;gap:5px}.robotText strong{font-size:13px;color:#e2e8f0}.robotText span{font-size:12px;color:#94a3b8;line-height:1.35}.robotText small{font-size:11px;color:#475569}.pipe{width:12px;min-width:12px;height:3px;background:#1e293b;margin:0 -1px;display:flex;justify-content:space-around}.pipe i{width:3px;height:3px;border-radius:50%;background:#334155}.pipe.flow i{background:#22d3ee;animation:flow 1.1s infinite}.pipe.flow i:nth-child(2){animation-delay:.2s}.pipe.flow i:nth-child(3){animation-delay:.4s}
+.controlGrid{display:grid;grid-template-columns:minmax(0,2fr) minmax(260px,1fr);gap:16px}.approval,.liveDesk{border:1px solid #1e293b;border-radius:16px;background:#07101b;overflow:hidden}.subHead{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:13px 15px;border-bottom:1px solid #1e293b}.subHead b{font-size:16px}.subHead span{font-size:12px;color:#64748b}.decisionList{max-height:540px;overflow:auto}.empty{padding:24px;color:#64748b;text-align:center}.decision{padding:13px 15px;border-bottom:1px solid #111d2e}.decision:last-child{border-bottom:0}.decision.yes{background:linear-gradient(90deg,rgba(16,185,129,.05),transparent 45%)}.decision.no{background:linear-gradient(90deg,rgba(239,68,68,.035),transparent 45%)}
+.decisionTop{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.decisionTop time{margin-right:auto;color:#64748b;font-size:12px;font-variant-numeric:tabular-nums}.decisionTop>span{font-size:12px;color:#94a3b8}.decisionTop .comp{color:#cbd5e1}.decisionDot{width:8px;height:8px;border-radius:50%}.decisionDot.yes{background:#34d399;box-shadow:0 0 8px #34d399}.decisionDot.no{background:#f87171}.approvedText{color:#34d399;margin:8px 16px 6px 0;font-size:13px}.rejectedText{color:#fca5a5;margin:8px 16px 4px 0;font-size:13px}.chain{display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-right:16px}.chain span{display:flex;align-items:center;gap:4px;font-size:11px;color:#94a3b8;background:#0d1726;border:1px solid #1f3349;border-radius:999px;padding:3px 7px}.chain span i{color:#34d399;font-style:normal}.chain span b{color:#334155}.tiny{font-size:11px;color:#526074;margin:6px 16px 0 0}
 .liveDesk{padding-bottom:5px}.deskRow{display:flex;justify-content:space-between;gap:12px;padding:11px 15px;border-bottom:1px dashed #1c293a}.deskRow span{color:#64748b}.deskRow b{font-size:13px;color:#dbeafe;text-align:left}.badText{color:#f87171!important}
-
-@keyframes pulse{0%,100%{opacity:.45;transform:scale(.85)}50%{opacity:1;transform:scale(1.15)}}
-@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
-@keyframes flow{0%{opacity:.15;transform:translateX(0)}50%{opacity:1}100%{opacity:.15;transform:translateX(-4px)}}
-
-@media(max-width:900px){.pipeline{grid-template-columns:repeat(6,190px)}.controlGrid{grid-template-columns:1fr}.factoryHead{align-items:center}}
-@media(max-width:640px){.ch{font-size:13px}.panel,.factory{padding:12px}.grid{grid-template-columns:1fr}.row{font-size:15px}.card h3{font-size:19px}.panel h2,.factory h2{font-size:20px}h1{font-size:22px}.factoryHead p{font-size:12px}.pipeline{grid-template-columns:repeat(6,175px);margin-left:-4px;margin-right:-4px}.decisionTop time{width:100%;margin:0}.chain{margin-right:0}.approvedText,.rejectedText,.tiny{margin-right:0}}
+@keyframes pulse{0%,100%{opacity:.45;transform:scale(.85)}50%{opacity:1;transform:scale(1.15)}}@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}@keyframes flow{0%{opacity:.15;transform:translateX(0)}50%{opacity:1}100%{opacity:.15;transform:translateX(-4px)}}
+@media(max-width:1000px){.accountStrip{grid-template-columns:repeat(3,1fr)}.pipeline{grid-template-columns:repeat(6,190px)}.controlGrid{grid-template-columns:1fr}.factoryHead{align-items:center}}
+@media(max-width:640px){.ch{font-size:13px}.panel,.factory,.positions{padding:12px}.grid{grid-template-columns:1fr}.row{font-size:15px}.card h3{font-size:19px}.panel h2,.factory h2,.positions h2{font-size:20px}h1{font-size:22px}.factoryHead p{font-size:12px}.pipeline{grid-template-columns:repeat(6,175px);margin-left:-4px;margin-right:-4px}.decisionTop time{width:100%;margin:0}.chain{margin-right:0}.approvedText,.rejectedText,.tiny{margin-right:0}.accountStrip{grid-template-columns:repeat(2,1fr)}.positionGrid{grid-template-columns:1fr}.posMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}.sectionHead{align-items:flex-start}.chartTitle{flex-direction:column}.stat bdi{font-size:15px}}
 `
