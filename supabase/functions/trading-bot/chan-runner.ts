@@ -21,8 +21,9 @@ import { aggTrades, book, type Pair } from './fast-runner.ts'
 import { json, pool } from './rota-runner.ts'
 
 import { trendPullback } from '../../../shared/trend-pullback.ts'
+import { loadChanIntel } from './chan-intel.ts'
 
-const sleeveOf = (comp: string) => comp === 'RG_TREND_PULLBACK' ? '2' : '1'
+const sleeveOf = (comp: string) => (comp === 'RG_TREND_PULLBACK' || comp === 'RG_LIQ_SQUEEZE') ? '2' : '1'
 const PAPER_LEVERAGE = 50
 const PAPER_RISK_MIN = 0.01
 const PAPER_RISK_MAX = 0.02
@@ -122,6 +123,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
   // Continuous light market sweep: every bot cycle rotates across the entire Futures universe.
   // Entry signals still use CLOSED 5m bars; this sweep never invents entries and never stops between bars.
   let liveScan: any = { status: 'continuous', ts: new Date(now).toISOString(), total: uni.pairs.length, checked: [] }
+  let intelState: any = params.chan_cycle?.liquidity_intel ?? { ts: 0, news_risk: 0, top_pressure: [], headlines: [], sources: [], failed: [], by_sym: {} }
   try {
     const rows = await json('https://fapi.binance.com/fapi/v1/ticker/bookTicker')
     const tick = new Map<string, any>((Array.isArray(rows) ? rows : []).map((x: any) => [String(x.symbol), x]))
@@ -161,7 +163,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       const entry = Number(t.entry_price), P = pairOf(t.sym)
       const from = Math.max(Date.parse(t.opened_at), Number(m.chk) || 0, now - 3_500_000) + 1
       const tr = await aggTrades(P, from, now)
-      const res = resolveExit({ dir, entry, r: Number(m.r), stop: Number(m.stop), target: m.comp === 'RG_TREND_PULLBACK' ? Number(m.target) : null, liq: fastLiq(dir, entry, Number(t.lev) || 1), best: Number(m.best ?? entry), trail: false }, tr.trades)
+      const res = resolveExit({ dir, entry, r: Number(m.r), stop: Number(m.stop), target: (m.comp === 'RG_TREND_PULLBACK' || m.comp === 'RG_LIQ_SQUEEZE') ? Number(m.target) : null, liq: fastLiq(dir, entry, Number(t.lev) || 1), best: Number(m.best ?? entry), trail: false }, tr.trades)
       if (res.why) {
         const fu = await fundingFor(t, P, res.T)
         const bk = await book(P), w = walkBook(dir > 0 ? bk.bids : bk.asks, entry * Number(t.size))
@@ -272,6 +274,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
         if (v) {
           const last = bars[bars.length - 1]?.c, prev = bars[bars.length - 2]?.c
           views[sym] = { ...v,
+            last_close: Number(last),
             ret5: Number.isFinite(last) && Number.isFinite(prev) && prev > 0 ? last / prev - 1 : NaN,
             pullback: Number.isFinite(d.volPct) && d.volPct <= CHAN.regime.volPctHigh ? trendPullback(bars) : null
           }
@@ -324,6 +327,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
     }
     const strongSignal = (cand:any, strict=false) => {
       const v=cand.v, z=Math.abs(Number(v.mr.z)), t=Math.abs(Number(v.mom.t)), h=Number(v.hurst)
+      if (cand.comp==='RG_LIQ_SQUEEZE') return Number(cand.intelScore) >= (strict ? 84 : 76)
       if (cand.comp==='RG_MR') return z >= (strict ? 3.2 : 3.0)
       if (cand.comp==='RG_MOM') return t >= (strict ? 2.6 : 2.25)
       return h >= (strict ? 0.53 : 0.50) && (t >= (strict ? 1.25 : 0.9) || z >= (strict ? 2.5 : 2.0))
@@ -361,6 +365,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
     }
     const strongEnoughWhenCrowded = (cand:any) => {
       const v = cand.v, regime = REGIME[v.regime]
+      if (cand.comp === 'RG_LIQ_SQUEEZE') return Number(cand.intelScore) >= 84
       if (cand.comp === 'RG_MR') return Math.abs(Number(v.mr.z)) >= 3
       if (cand.comp === 'RG_MOM') return Math.abs(Number(v.mom.t)) >= 2
       // Trend-pullback: require actual persistence when the portfolio is already crowded.
@@ -376,20 +381,67 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
     const prioritiseOpposite = !!initialDominant &&
       directionBook[initialDominant].count >= CROWD_MIN_POSITIONS && initialDomShare >= CROWD_NOTIONAL_SHARE
 
-    const cands = Object.entries(views).flatMap(([sym, v]: [string, any]) => {
+    const technicalCands = Object.entries(views).flatMap(([sym, v]: [string, any]) => {
       const c = v.mr.side ? { comp: 'RG_MR', side: v.mr.side, stop: v.mr.side > 0 ? v.mr.stopLong : v.mr.stopShort, maxHold: v.mr.maxHold, strength: Math.abs(v.mr.z) }
         : v.mom.side ? { comp: 'RG_MOM', side: v.mom.side, stop: v.mom.side > 0 ? v.mom.stopLong : v.mom.stopShort, maxHold: CHAN.params.RG_MOM.hold, strength: v.mom.t } : null
       const extra = v.pullback ? { comp: 'RG_TREND_PULLBACK', side: v.pullback.side, stop: v.pullback.stop,
         maxHold: 48, strength: 1, level: v.pullback.level, breakoutAt: v.pullback.breakoutAt } : null
       return [c,extra].filter(Boolean).map(c => ({sym,v,...c}))
-    }).filter(Boolean).sort((a: any, b: any) => {
+    }).filter(Boolean) as any[]
+
+    const ret5Map = Object.fromEntries(Object.entries(views).map(([s,v]:any)=>[s,Number.isFinite(Number(v.ret5))?Number(v.ret5):null]))
+    const intelRequested = [...new Set<string>([
+      ...technicalCands.map((x:any)=>String(x.sym)),
+      ...heldSyms,
+      'BTC','ETH'
+    ])]
+    const intelDue = now-Number(intelState?.ts ?? 0) >= 60_000 || Number(intelState?.bar ?? 0) !== bar
+    if (intelDue) {
+      try {
+        const freshIntel = await loadChanIntel(db,now,uni.pairs,intelRequested,ret5Map)
+        intelState = {
+          ts:freshIntel.ts, bar, news_risk:freshIntel.news_risk,
+          top_pressure:freshIntel.top_pressure,
+          headlines:freshIntel.news.slice(0,8),
+          sources:freshIntel.sources, failed:freshIntel.failed,
+          by_sym:freshIntel.by_sym
+        }
+      } catch (e:any) {
+        intelState = { ...intelState, bar, error:String(e?.message ?? e).slice(0,100) }
+      }
+    }
+
+    const squeezeCands = Object.entries(views).flatMap(([sym,v]:any)=>{
+      const x=intelState?.by_sym?.[sym]
+      if(!x || Number(x.confidence)<66) return []
+      const longScore=Number(x.short_squeeze), shortScore=Number(x.long_squeeze)
+      let side:1|-1|0=0, score=0
+      if(longScore>=76 && longScore-shortScore>=16){side=1;score=longScore}
+      if(shortScore>=76 && shortScore-longScore>=16 && shortScore>score){side=-1;score=shortScore}
+      if(!side) return []
+      const close=Number(v.last_close), atr=Number(v.mom?.atr)
+      if(!(close>0)) return []
+      const frac=Math.max(0.0025,Math.min(0.006,Number.isFinite(atr)&&atr>0?0.8*atr/close:0.004))
+      const stop=close*(1-side*frac)
+      return [{sym,v,comp:'RG_LIQ_SQUEEZE',side,stop,maxHold:12,strength:score/25,intelScore:score}]
+    })
+
+    const intelWeight=(cand:any)=>{
+      const x=intelState?.by_sym?.[cand.sym]
+      if(!x) return 1
+      const aligned=cand.side>0?Number(x.short_squeeze):Number(x.long_squeeze)
+      const against=cand.side>0?Number(x.long_squeeze):Number(x.short_squeeze)
+      return Math.max(0.75,Math.min(1.25,1+(aligned-against)/400))
+    }
+
+    const cands = [...technicalCands,...squeezeCands].sort((a: any, b: any) => {
       if (prioritiseOpposite && initialDominant) {
         const ao = (a.side > 0 ? 'LONG' : 'SHORT') !== initialDominant ? 1 : 0
         const bo = (b.side > 0 ? 'LONG' : 'SHORT') !== initialDominant ? 1 : 0
         if (ao !== bo) return bo - ao
       }
-      const aw = learnedQuality(a, a.sym, a.side > 0 ? 'LONG' : 'SHORT').weight
-      const bw = learnedQuality(b, b.sym, b.side > 0 ? 'LONG' : 'SHORT').weight
+      const aw = learnedQuality(a, a.sym, a.side > 0 ? 'LONG' : 'SHORT').weight * intelWeight(a)
+      const bw = learnedQuality(b, b.sym, b.side > 0 ? 'LONG' : 'SHORT').weight * intelWeight(b)
       return (b.strength*bw) - (a.strength*aw)
     }) as any[]
     for (const cand of cands) {
@@ -429,6 +481,22 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       if (!mc.ok && !strongSignal(cand,true)) {
         rec('rejected','market_breadth_against',{ breadth_share:mc.share, breadth_n:mc.n, majors_agree:mc.majors })
         continue
+      }
+
+      const ix = intelState?.by_sym?.[sym]
+      if (ix) {
+        const aligned = cand.side > 0 ? Number(ix.short_squeeze) : Number(ix.long_squeeze)
+        const against = cand.side > 0 ? Number(ix.long_squeeze) : Number(ix.short_squeeze)
+        if (Number(ix.confidence) >= 66 && against >= 78 && against-aligned >= 18 && !strongSignal(cand,true)) {
+          rec('rejected','leveraged_flow_against',{ leverage_against:against, leverage_aligned:aligned, intel_confidence:ix.confidence,
+            funding:ix.funding, oi_delta:ix.oi_delta, taker_ratio:ix.taker_ratio })
+          continue
+        }
+        const symbolNewsRisk = Number(ix.news_risk ?? 0)
+        if (symbolNewsRisk >= 65 && !strongSignal(cand,true)) {
+          rec('rejected','news_event_risk',{ news_risk:symbolNewsRisk })
+          continue
+        }
       }
 
       const crowd = crowdState(side)
@@ -500,7 +568,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
 
       entries.push({ sym, side, price: px, notional, lev: PAPER_LEVERAGE, quote_ts: bk.E, source: 'binance-futures',
         chan: { comp: cand.comp, sleeve: bucket, level: cand.level ?? null, breakout_at: cand.breakoutAt ?? null,
-          target: cand.comp === 'RG_TREND_PULLBACK' ? px + cand.side * 2 * r : null, stop: cand.stop, r, best: px, chk: bk.E, max_hold_bars: cand.maxHold, bar: new Date(bar).toISOString(),
+          target: (cand.comp === 'RG_TREND_PULLBACK' || cand.comp === 'RG_LIQ_SQUEEZE') ? px + cand.side * 2 * r : null, stop: cand.stop, r, best: px, chk: bk.E, max_hold_bars: cand.maxHold, bar: new Date(bar).toISOString(),
           regime: REGIME[v.regime], hurst: v.hurst, vol_pct: v.volPct, halflife: v.mr.hl, z: v.mr.z, mr_mean: v.mr.mean, mr_std: v.mr.std,
           t_sig: v.mom.t, atr: v.mom.atr, hh: v.mom.hh, ll: v.mom.ll, kelly_f: aggressiveRisk, kelly_why: `aggressive paper 50x; base=${k.f}; ${k.why}`, kelly_n: rsOf(cand.comp).length,
           risk_usd: notional * r / px, risk_frac: notional * r / px / budget.equity, equity: budget.equity, backtested_coin: (CHAN.universe as readonly string[]).includes(sym),
@@ -509,13 +577,21 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
             learning_weight: learned.weight, learning_samples: learned.samples,
             cooldown_active: cd.active, breadth_share: mc.share, breadth_n: mc.n,
             liq_stop_share: liqStopShare, net_rr: netRR, reward_net: rewardNet, stop_loss_net: lossNet,
-            reference_target: referenceTarget, exit_impact_bps: +(exitImpact*1e4).toFixed(2)
+            reference_target: referenceTarget, exit_impact_bps: +(exitImpact*1e4).toFixed(2),
+            public_intel: ix ? {
+              funding:ix.funding, premium:ix.premium, oi_delta:ix.oi_delta, oi_value_delta:ix.oi_value_delta,
+              top_ratio:ix.top_ratio, global_ratio:ix.global_ratio, taker_ratio:ix.taker_ratio,
+              long_squeeze:ix.long_squeeze, short_squeeze:ix.short_squeeze, flow_bias:ix.flow_bias,
+              confidence:ix.confidence, long_liq_count:ix.long_liq_count, short_liq_count:ix.short_liq_count
+            } : null
           },
           entry_fill: { model: 'book_walk', touch, vwap: w.vwap, impact_bps: +(Math.abs(px / touch - 1) * 1e4).toFixed(2), want: Math.round(sz.notional), liq_cap: Math.round(cap) } } })
       rec('accepted', 'taken', { notional, kelly_f: aggressiveRisk, leverage: PAPER_LEVERAGE,
         crowd_side: side, crowd_count: crowd.count, crowd_share: crowd.share,
         learning_weight: learned.weight, learning_samples: learned.samples, breadth_share: mc.share,
-        liq_stop_share: liqStopShare, net_rr: netRR })
+        liq_stop_share: liqStopShare, net_rr: netRR,
+        intel_confidence: ix?.confidence ?? null, funding: ix?.funding ?? null, oi_delta: ix?.oi_delta ?? null,
+        taker_ratio: ix?.taker_ratio ?? null, long_squeeze: ix?.long_squeeze ?? null, short_squeeze: ix?.short_squeeze ?? null })
       held.add(bucket + ':' + sym); openN++; openNotional += notional;
       directionBook[side].count++; directionBook[side].notional += notional;
       const debit = notional / PAPER_LEVERAGE + notional * CHAN.costs.taker
@@ -540,6 +616,15 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       crowd_min_positions: CROWD_MIN_POSITIONS, crowd_share: CROWD_NOTIONAL_SHARE
     },
     market_breadth: breadth,
+    liquidity_intel: {
+      ts: Number(intelState?.ts ?? 0), bar: Number(intelState?.bar ?? 0),
+      news_risk: Number(intelState?.news_risk ?? 0),
+      top_pressure: Array.isArray(intelState?.top_pressure) ? intelState.top_pressure.slice(0,8) : [],
+      headlines: Array.isArray(intelState?.headlines) ? intelState.headlines.slice(0,6) : [],
+      sources: intelState?.sources ?? [], failed: intelState?.failed ?? [],
+      watched: Object.keys(intelState?.by_sym ?? {}).length,
+      error: intelState?.error ?? null
+    },
     quality_gates: {
       liq_stop_max_share: LIQ_STOP_MAX_SHARE, min_net_rr: MIN_NET_REWARD_RISK,
       symbol_cooldown_bars: SYMBOL_COOLDOWN_BARS, breadth_min_share: BREADTH_MIN_SHARE
@@ -566,12 +651,16 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
           liq_px: d.liq_px ?? null, stop_liq_share: d.stop_liq_share ?? d.liq_stop_share ?? null,
           net_rr: d.net_rr ?? null, min_net_rr: d.min_net_rr ?? null,
           reward_net: d.reward_net ?? null, loss_net: d.loss_net ?? null,
-          gate_t: d.gate_t ?? null, gate_z: d.gate_z ?? null
+          gate_t: d.gate_t ?? null, gate_z: d.gate_z ?? null,
+          intel_confidence: d.intel_confidence ?? null, funding: d.funding ?? null, oi_delta: d.oi_delta ?? null,
+          taker_ratio: d.taker_ratio ?? null, long_squeeze: d.long_squeeze ?? null, short_squeeze: d.short_squeeze ?? null,
+          leverage_against: d.leverage_against ?? null, leverage_aligned: d.leverage_aligned ?? null,
+          news_risk: d.news_risk ?? null
         },
         committed: d.decision === 'accepted',
         approved_at: d.decision === 'accepted' ? new Date(now).toISOString() : null,
         approval_chain: d.decision === 'accepted' ? [
-          { id: 'strategy', by: d.comp === 'RG_MR' ? 'Mean Reversion' : d.comp === 'RG_MOM' ? 'Momentum' : 'Trend Pullback', ok: true },
+          { id: 'strategy', by: d.comp === 'RG_MR' ? 'Mean Reversion' : d.comp === 'RG_MOM' ? 'Momentum' : d.comp === 'RG_LIQ_SQUEEZE' ? 'Leverage / Liquidation Squeeze' : 'Trend Pullback', ok: true },
           { id: 'regime', by: 'Regime Router', ok: true, value: d.regime },
           { id: 'risk', by: 'Risk Engine', ok: true, risk_f: d.kelly_f ?? null, leverage: d.leverage ?? PAPER_LEVERAGE },
           { id: 'execution', by: 'Binance Book Check', ok: true },
