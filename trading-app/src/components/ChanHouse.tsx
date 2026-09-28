@@ -77,27 +77,50 @@ function fallbackChain(d: J) {
   ]
 }
 
-function economics(t: J, cyc: J) {
-  const live = cyc?.open_live?.[String(t.id)]
-  if (live) return live
+function economics(t: J, cyc: J, quote?: J) {
+  const backend = cyc?.open_live?.[String(t.id)] ?? null
   const m = t.scalp_meta?.chan ?? {}
-  const entry = Number(t.entry_price), size = Number(t.size), lev = Math.max(1, Number(t.lev) || 1)
-  const mark = Number(cyc?.marks?.[t.sym] ?? entry)
+  const entry = Number(backend?.entry ?? t.entry_price)
+  const size = Number(backend?.size ?? t.size)
+  const lev = Math.max(1, Number(backend?.leverage ?? t.lev) || 1)
   const dir = t.side === 'LONG' ? 1 : -1
   const notional = entry * size
-  const entryFee = Number(t.scalp_meta?.entry_fee ?? t.fee ?? notional * DEFAULT_TAKER)
-  const exitFee = mark * size * DEFAULT_TAKER
-  const gross = dir * (mark - entry) * size
+  const fallbackMark = Number(backend?.mark ?? cyc?.marks?.[t.sym] ?? entry)
+  const liveTop = quote && Number(quote.bid) > 0 && Number(quote.ask) > 0
+    ? (dir > 0 ? Number(quote.bid) : Number(quote.ask))
+    : fallbackMark
+  const impactBps = Math.max(0, Number(backend?.exit_impact_bps ?? 0))
+  const impact = impactBps / 1e4
+  const estExit = liveTop * (1 - dir * impact)
+  const entryFee = Number(backend?.entry_fee ?? t.scalp_meta?.entry_fee ?? t.fee ?? notional * DEFAULT_TAKER)
+  const taker = Number(backend?.fee_rate_taker ?? cyc?.cost_model?.taker ?? DEFAULT_TAKER)
+  const exitFee = estExit * size * taker
+  const grossMark = dir * (liveTop - entry) * size
+  const grossExec = dir * (estExit - entry) * size
   const margin = notional / lev
-  const net = gross - entryFee - exitFee
+  const net = grossExec - entryFee - exitFee
+  const exitSlip = Math.abs(liveTop - estExit) * size
   return {
-    id:t.id, sym:t.sym, side:t.side, comp:m.comp, opened_at:t.opened_at, leverage:lev, size, notional, margin,
-    entry, mark, est_exit:mark, stop:Number(m.stop), target:m.target == null ? null : Number(m.target),
-    liq: entry * (1 - dir * (1/lev - 0.005)), regime:m.regime, z:m.z, t_sig:m.t_sig,
-    gross_mark_pnl:gross, gross_exec_pnl:gross, net_pnl_to_close:net, roe_net:margin > 0 ? net/margin : null,
-    entry_fee:entryFee, exit_fee_est:exitFee, entry_slippage_usd:0, exit_slippage_usd:0,
-    entry_impact_bps:Number(m.entry_fill?.impact_bps ?? 0), exit_impact_bps:0,
-    fee_rate_taker:DEFAULT_TAKER, quote_ts:cyc?.marks_ts, kelly_f:m.kelly_f, risk_usd:m.risk_usd, kelly_why:m.kelly_why,
+    ...(backend ?? {}),
+    id:t.id, sym:t.sym, side:t.side, comp:backend?.comp ?? m.comp, opened_at:t.opened_at,
+    leverage:lev, size, notional, margin,
+    entry, mark:liveTop, est_exit:estExit,
+    stop:Number(backend?.stop ?? m.stop),
+    target:(backend?.target ?? m.target) == null ? null : Number(backend?.target ?? m.target),
+    liq:Number(backend?.liq ?? entry * (1 - dir * (1/lev - 0.005))),
+    regime:backend?.regime ?? m.regime, z:backend?.z ?? m.z, t_sig:backend?.t_sig ?? m.t_sig,
+    gross_mark_pnl:grossMark, gross_exec_pnl:grossExec, net_pnl_to_close:net,
+    roe_net:margin > 0 ? net / margin : null,
+    entry_fee:entryFee, exit_fee_est:exitFee,
+    entry_slippage_usd:Number(backend?.entry_slippage_usd ?? 0),
+    exit_slippage_usd:exitSlip,
+    entry_impact_bps:Number(backend?.entry_impact_bps ?? m.entry_fill?.impact_bps ?? 0),
+    exit_impact_bps:impactBps,
+    fee_rate_taker:taker,
+    quote_ts:quote?.ts ?? backend?.quote_ts ?? cyc?.marks_ts,
+    quote_source:quote ? 'BINANCE_WS' : (backend ? 'BOT_BOOK' : 'FALLBACK'),
+    kelly_f:backend?.kelly_f ?? m.kelly_f, risk_usd:backend?.risk_usd ?? m.risk_usd,
+    kelly_why:backend?.kelly_why ?? m.kelly_why,
   }
 }
 
@@ -108,6 +131,8 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
   const [errors, setErrors] = useState<J[]>([])
   const [decisions, setDecisions] = useState<J[]>([])
   const [recentClosed, setRecentClosed] = useState<J[]>([])
+  const [liveQuotes, setLiveQuotes] = useState<Record<string,J>>({})
+  const [wsLive, setWsLive] = useState(false)
   const [err, setErr] = useState('')
   const [now, setNow] = useState(Date.now())
   const [chartId, setChartId] = useState<number | null>(null)
@@ -146,6 +171,45 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
     return () => { alive = false; clearInterval(iv) }
   }, [])
 
+  useEffect(() => {
+    if (!open.length) { setWsLive(false); setLiveQuotes({}); return }
+    let dead = false
+    let ws: WebSocket | null = null
+    let retry: ReturnType<typeof setTimeout> | null = null
+    const binanceSym = (sym:string) => sym === 'PEPE' ? '1000PEPEUSDT' : `${sym}USDT`
+    const reverse = new Map(open.map(t => [binanceSym(String(t.sym)).toUpperCase(), String(t.sym)]))
+    const streams = [...reverse.keys()].map(s => `${s.toLowerCase()}@bookTicker`).join('/')
+
+    const connect = () => {
+      if (dead || !streams) return
+      ws = new WebSocket(`wss://fstream.binance.com/stream?streams=${streams}`)
+      ws.onopen = () => { if (!dead) setWsLive(true) }
+      ws.onmessage = (ev) => {
+        if (dead) return
+        try {
+          const msg = JSON.parse(ev.data)
+          const d = msg?.data ?? msg
+          const sym = reverse.get(String(d?.s ?? '').toUpperCase())
+          const bid = Number(d?.b), ask = Number(d?.a)
+          if (!sym || !(bid > 0) || !(ask > 0)) return
+          setLiveQuotes(prev => ({ ...prev, [sym]: { bid, ask, ts: Number(d?.E ?? Date.now()) } }))
+        } catch {}
+      }
+      ws.onerror = () => { if (!dead) setWsLive(false) }
+      ws.onclose = () => {
+        if (dead) return
+        setWsLive(false)
+        retry = setTimeout(connect, 1000)
+      }
+    }
+    connect()
+    return () => {
+      dead = true
+      if (retry) clearTimeout(retry)
+      try { ws?.close() } catch {}
+    }
+  }, [open.map(t => `${t.sym}:${t.id}`).join('|')])
+
   const p = state?.bot_params ?? {}
   const cyc = p.chan_cycle ?? {}
   const cycT = cyc?.ts ? Date.parse(cyc.ts) : null
@@ -158,7 +222,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
   const liveScan = cyc?.live_scan ?? {}
   const scanning = fresh && liveScan?.status === 'continuous'
 
-  const econ = useMemo(() => open.map(t => ({ trade:t, live:economics(t,cyc) })), [open,cyc])
+  const econ = useMemo(() => open.map(t => ({ trade:t, live:economics(t,cyc,liveQuotes[t.sym]) })), [open,cyc,liveQuotes])
   const startCapital = ['1','2'].reduce((s,id)=>s+Number(wallets?.[id]?.initial ?? 0),0) || 5000
   const realised = ['1','2'].reduce((s,id)=>s+Number(wallets?.[id]?.realised ?? 0),0)
   const feesPaid = ['1','2'].reduce((s,id)=>s+Number(wallets?.[id]?.fees ?? 0),0)
@@ -195,7 +259,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
         : reasonHe(d.reason)
     })
     for (const t of open) {
-      const l=economics(t,cyc)
+      const l=economics(t,cyc,liveQuotes[t.sym])
       items.push({
         ts:l.quote_ts ?? cyc.ts ?? t.opened_at, kind:'mark', robot:'רובוט ביצוע', icon:'↯',
         title:`${t.sym} · פוזיציה פתוחה עודכנה`,
@@ -220,7 +284,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
       .filter(x => x.ts)
       .sort((a,b)=>Date.parse(b.ts)-Date.parse(a.ts))
       .slice(0,80)
-  }, [cyc,cycT,liveScan,decisions,open,recentClosed,errors])
+  }, [cyc,cycT,liveScan,decisions,open,recentClosed,errors,liveQuotes])
 
   const robots = useMemo(() => [
     {
@@ -271,6 +335,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
       <span className="chip">{state?.paper_mode === false ? 'לא נייר!' : 'נייר בלבד'}</span>
       <span className="chip">{manifest ? `${manifest.enabled_sleeves ?? 'CHAN'} · ${String(manifest.sha ?? '').slice(0,7)}` : 'CHAN'}</span>
       <span className={`chip ${activeErrors ? 'bad' : 'ok'}`}>{activeErrors ? `${activeErrors} שגיאות פעילות` : '0 שגיאות פעילות'}</span>
+      <span className={`chip ${open.length ? (wsLive ? 'ok' : 'bad') : ''}`}>{open.length ? (wsLive ? '● Binance WS חי' : '○ Binance WS מתחבר') : 'Binance WS בהמתנה'}</span>
     </div>
 
     {err && <div className="readerr">שגיאת קריאה: {err}</div>}
@@ -324,7 +389,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
 
       <div className="opsWall">
         <div className="opsHead">
-          <div><b>LIVE OPERATIONS · כל מה שקורה בפועל</b><span>מתעדכן כל 2.5 שניות · ללא אירועים מדומים</span></div>
+          <div><b>LIVE OPERATIONS · כל מה שקורה בפועל</b><span>מחירי פוזיציות משתנים בכל Tick של Binance · נתוני מערכת מתרעננים כל 2.5 שניות</span></div>
           <div className="heartbeat"><i className={fresh?'on':''}/><span>Heartbeat {cycT ? ago(cycT,now) : '—'}</span></div>
         </div>
         <div className="opsGrid">
@@ -467,7 +532,7 @@ function PositionCard({t,live,expanded,onChart}:{t:J;live:J;expanded:boolean;onC
       <b>למה נפתחה?</b>
       <span>{COMP[m.comp] ?? m.comp ?? 'CHAN'} · משטר {m.regime ?? '—'}{Number.isFinite(Number(m.z))?` · Z ${Number(m.z).toFixed(2)}`:''}</span>
       <small>{m.kelly_why ?? 'האות עבר אסטרטגיה, סיכון, ספר פקודות ולדג׳ר.'}</small>
-      <small>עדכון מחיר אחרון: {clock(live.quote_ts)} · החלקת יציאה {Number(live.exit_impact_bps ?? 0).toFixed(2)}bp</small>
+      <small>עדכון מחיר אחרון: {clock(live.quote_ts)} · {live.quote_source === 'BINANCE_WS' ? 'Binance WebSocket חי' : 'מחזור הבוט'} · החלקת יציאה {Number(live.exit_impact_bps ?? 0).toFixed(2)}bp</small>
     </div>
     <button className="chartBtn" onClick={onChart}>{expanded?'סגור גרף':'פתח גרף ניתוח'}</button>
     {expanded&&<TradeChart t={t} live={live}/>}
@@ -557,7 +622,7 @@ h1{font-size:24px;margin:0 8px 0 0}.back{background:none;border:1px solid #22315
 .chip{border:1px solid #223150;border-radius:999px;padding:6px 12px;color:#94a3b8}.chip.ok{color:#34d399;border-color:#166534}.chip.bad{color:#f87171;border-color:#991b1b}
 .warn{background:#2a1a05;border:1px solid #92400e;color:#fbbf24;border-radius:16px;padding:15px 18px;margin-bottom:18px;font-size:15px;line-height:1.55}
 .readerr{color:#f87171;margin-bottom:10px}.pos{color:#34d399!important}.neg{color:#f87171!important}
-.accountStrip{display:grid;grid-template-columns:repeat(6,minmax(130px,1fr));gap:9px;margin-bottom:18px}.stat{background:#09121f;border:1px solid #1e293b;border-radius:13px;padding:11px 12px;display:flex;flex-direction:column;gap:5px}.stat span{font-size:11px;color:#64748b}.stat bdi{font-size:17px;font-weight:800;font-variant-numeric:tabular-nums}
+.accountStrip{display:grid;grid-template-columns:repeat(6,minmax(130px,1fr));gap:9px;margin-bottom:18px}.stat{background:#09121f;border:1px solid #1e293b;border-radius:13px;padding:11px 12px;display:flex;flex-direction:column;gap:5px}.stat span{font-size:11px;color:#64748b}.stat bdi{font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;transition:color .12s ease,transform .12s ease}
 .panel,.factory,.positions{background:#0b1220;border:1px solid #1e293b;border-radius:18px;padding:18px}.panel,.positions{margin-bottom:18px}
 .panel h2,.factory h2,.positions h2{font-size:23px;text-align:center;margin:0 0 8px}.muted{color:#64748b;text-align:center;line-height:1.45;margin:0 0 16px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}.card{background:#0b1220;border:2px solid;border-radius:18px;padding:16px 22px}.card.c1{border-color:#22d3ee}.card.c2{border-color:#fbbf24}.card h3{font-size:22px;margin:0 0 12px}.card.c1 h3{color:#22d3ee}.card.c2 h3{color:#fbbf24}
@@ -567,7 +632,7 @@ h1{font-size:24px;margin:0 8px 0 0}.back{background:none;border:1px solid #22315
 .emptyPos{padding:28px;text-align:center;color:#64748b;border:1px dashed #243047;border-radius:14px}.positionGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px}
 .posCard{background:#07101b;border:1px solid #243047;border-right:4px solid #475569;border-radius:16px;padding:14px;min-width:0}.posCard.profit{border-right-color:#10b981}.posCard.loss{border-right-color:#ef4444}
 .posTop{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.posTop>div:first-child{display:flex;gap:7px;align-items:center}.posTop b{font-size:22px}.posTop span{font-size:11px;border:1px solid #334155;border-radius:999px;padding:3px 7px}.posTop .long{color:#34d399;border-color:#166534}.posTop .short{color:#f87171;border-color:#991b1b}
-.bigPnl{font-size:24px;font-weight:900;text-align:left}.bigPnl small{display:block;font-size:11px;color:#64748b;font-weight:500;margin-top:2px}
+.bigPnl{font-size:24px;font-weight:900;text-align:left;font-variant-numeric:tabular-nums;transition:color .1s ease}.bigPnl small{display:block;font-size:11px;color:#64748b;font-weight:500;margin-top:2px}
 .posMetrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:13px}.mini{background:#0b1624;border:1px solid #16253a;border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:3px;min-width:0}.mini span{color:#64748b;font-size:10px}.mini bdi{font-size:13px;font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .why{margin-top:11px;background:#0a1421;border:1px solid #1e2d41;border-radius:11px;padding:10px;display:flex;flex-direction:column;gap:4px}.why b{color:#cbd5e1}.why span{font-size:12px;color:#94a3b8}.why small{font-size:11px;color:#5f7088;line-height:1.4}
 .chartBtn{margin-top:10px;width:100%;background:#0e7490;border:0;color:white;border-radius:10px;padding:10px;font-weight:800}.chartBtn:active{transform:scale(.99)}
