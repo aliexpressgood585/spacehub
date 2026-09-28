@@ -22,8 +22,9 @@ import { json, pool } from './rota-runner.ts'
 
 import { trendPullback } from '../../../shared/trend-pullback.ts'
 import { loadChanIntel } from './chan-intel.ts'
+import { chanOpportunityMeta } from '../../../shared/chan-opportunity.ts'
 
-const sleeveOf = (comp: string) => (comp === 'RG_TREND_PULLBACK' || comp === 'RG_LIQ_SQUEEZE') ? '2' : '1'
+const sleeveOf = (comp: string) => ['RG_TREND_PULLBACK','RG_LIQ_SQUEEZE','RG_BREADTH_MOMENTUM','RG_VOL_BREAKOUT'].includes(comp) ? '2' : '1'
 const PAPER_LEVERAGE = 50
 const PAPER_RISK_MIN = 0.01
 const PAPER_RISK_MAX = 0.02
@@ -38,6 +39,9 @@ const MIN_NET_REWARD_RISK = 1.20         // still positive after taker fees + mo
 const SYMBOL_COOLDOWN_BARS = 2           // shorter PAPER cooldown after two consecutive losses
 const BREADTH_MIN_SHARE = 0.42           // ordinary directional entry; BTC/ETH agreement can still override
 const PAPER_MIN_STOP_TO_COST = 2.0       // default CHAN remains 3x; PAPER runner accepts a wider opportunity set
+const BREADTH_IMPULSE_SHARE = 0.72
+const SOFT_QUALITY_MIN = 50
+const MICRO_MAX_CHECKS = 10
 const REGIME = ['NEUTRAL', 'MEAN_REVERT', 'TREND', 'HIGH_VOL']
 let usedWeight = 0, weightAt = 0
 
@@ -48,6 +52,34 @@ async function kl(p: Pair, limit: number, endTime?: number): Promise<any[]> {
   if (Number.isFinite(w)) { usedWeight = w; weightAt = Date.now() }
   if (!r.ok) throw new Error(`klines HTTP ${r.status}`)
   return r.json()
+}
+async function microExecution(p:Pair, side:1|-1, now:number) {
+  const one=async(tf:'1m'|'3m')=>{
+    const u=`https://fapi.binance.com/fapi/v1/klines?symbol=${p.s}&interval=${tf}&limit=12`
+    const r=await fetch(u,{signal:AbortSignal.timeout(4500)})
+    const w=Number(r.headers?.get?.('x-mbx-used-weight-1m'))
+    if(Number.isFinite(w)){usedWeight=w;weightAt=Date.now()}
+    if(!r.ok) throw new Error('micro '+tf+' HTTP '+r.status)
+    const xs=(await r.json()).filter((x:any)=>Number(x[6])<now)
+    if(xs.length<4) return {ret:0,taker:1}
+    const a=Number(xs[xs.length-4][4]), z=Number(xs[xs.length-1][4])
+    let buy=0,vol=0
+    for(const x of xs.slice(-4)){ buy+=Number(x[9]??0); vol+=Number(x[5]??0) }
+    return {ret:a>0?z/a-1:0,taker:vol>buy&&vol>0?buy/(vol-buy):1}
+  }
+  const [m1,m3]=await Promise.all([one('1m'),one('3m')])
+  let score=50
+  const aligned=(x:number)=>side*x
+  score += aligned(m1.ret)>0?10:aligned(m1.ret)<0?-8:0
+  score += aligned(m3.ret)>0?12:aligned(m3.ret)<0?-10:0
+  const flow=side>0?m1.taker-1:1-m1.taker
+  const flow3=side>0?m3.taker-1:1-m3.taker
+  score += Math.max(-10,Math.min(10,flow*10))
+  score += Math.max(-8,Math.min(8,flow3*8))
+  // Small pullback in the 1m tape while 3m remains aligned is a better entry than chasing.
+  const pullback=aligned(m1.ret)<0 && aligned(m3.ret)>0
+  if(pullback) score+=6
+  return {score:Math.max(0,Math.min(100,score)),ret1m:m1.ret,ret3m:m3.ret,taker1m:m1.taker,taker3m:m3.taker,pullback}
 }
 const weightLeft = () => (Date.now() - weightAt > 60_000 ? CHAN.scan.weightBudget : CHAN.scan.weightBudget - usedWeight)
 const toBar = (p: Pair) => (x: any): Bar => ({ t: +x[0], o: +x[1] / p.k, h: +x[2] / p.k, l: +x[3] / p.k, c: +x[4] / p.k })
@@ -292,7 +324,8 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
           views[sym] = { ...v,
             last_close: Number(last),
             ret5: Number.isFinite(last) && Number.isFinite(prev) && prev > 0 ? last / prev - 1 : NaN,
-            pullback: Number.isFinite(d.volPct) && d.volPct <= CHAN.regime.volPctHigh ? trendPullback(bars) : null
+            pullback: Number.isFinite(d.volPct) && d.volPct <= CHAN.regime.volPctHigh ? trendPullback(bars) : null,
+            opp: chanOpportunityMeta(bars,Number(v.mom?.atr))
           }
         }
         done.add(sym)
@@ -344,6 +377,8 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
     const strongSignal = (cand:any, strict=false) => {
       const v=cand.v, z=Math.abs(Number(v.mr.z)), t=Math.abs(Number(v.mom.t)), h=Number(v.hurst)
       if (cand.comp==='RG_LIQ_SQUEEZE') return Number(cand.intelScore) >= (strict ? 80 : 70)
+      if (cand.comp==='RG_BREADTH_MOMENTUM') return Number(cand.breadthScore) >= (strict ? 88 : 78)
+      if (cand.comp==='RG_VOL_BREAKOUT') return Number(cand.breakoutScore) >= (strict ? 2.4 : 1.8)
       if (cand.comp==='RG_MR') return z >= (strict ? 3.2 : 3.0)
       if (cand.comp==='RG_MOM') return t >= (strict ? 2.6 : 2.25)
       return h >= (strict ? 0.53 : 0.50) && (t >= (strict ? 1.25 : 0.9) || z >= (strict ? 2.5 : 2.0))
@@ -382,6 +417,8 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
     const strongEnoughWhenCrowded = (cand:any) => {
       const v = cand.v, regime = REGIME[v.regime]
       if (cand.comp === 'RG_LIQ_SQUEEZE') return Number(cand.intelScore) >= 80
+      if (cand.comp === 'RG_BREADTH_MOMENTUM') return Number(cand.breadthScore) >= 86
+      if (cand.comp === 'RG_VOL_BREAKOUT') return Number(cand.breakoutScore) >= 2.2
       if (cand.comp === 'RG_MR') return Math.abs(Number(v.mr.z)) >= 2.8
       if (cand.comp === 'RG_MOM') return Math.abs(Number(v.mom.t)) >= 1.8
       // Trend-pullback: require actual persistence when the portfolio is already crowded.
@@ -401,13 +438,40 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       const c = v.mr.side ? { comp: 'RG_MR', side: v.mr.side, stop: v.mr.side > 0 ? v.mr.stopLong : v.mr.stopShort, maxHold: v.mr.maxHold, strength: Math.abs(v.mr.z) }
         : v.mom.side ? { comp: 'RG_MOM', side: v.mom.side, stop: v.mom.side > 0 ? v.mom.stopLong : v.mom.stopShort, maxHold: CHAN.params.RG_MOM.hold, strength: v.mom.t } : null
       const extra = v.pullback ? { comp: 'RG_TREND_PULLBACK', side: v.pullback.side, stop: v.pullback.stop,
-        maxHold: 48, strength: 1, level: v.pullback.level, breakoutAt: v.pullback.breakoutAt } : null
+        maxHold: 48, strength: 1 + Math.min(2,Math.abs(Number(v.mom?.t)||0)/2), level: v.pullback.level, breakoutAt: v.pullback.breakoutAt } : null
       return [c,extra].filter(Boolean).map(c => ({sym,v,...c}))
     }).filter(Boolean) as any[]
+
+    const breadthSide:1|-1|0 =
+      breadth.n>=40 && breadth.up_share>=BREADTH_IMPULSE_SHARE && Number(breadth.btc_ret5)>0 && Number(breadth.eth_ret5)>0 ? 1 :
+      breadth.n>=40 && breadth.down_share>=BREADTH_IMPULSE_SHARE && Number(breadth.btc_ret5)<0 && Number(breadth.eth_ret5)<0 ? -1 : 0
+    const alignedReturns = Object.values(views).map((v:any)=>breadthSide*Number(v.ret5)).filter((x:number)=>Number.isFinite(x)&&x>0).sort((a:number,b:number)=>a-b)
+    const relThreshold = alignedReturns.length ? alignedReturns[Math.max(0,Math.floor(alignedReturns.length*.70)-1)] : Infinity
+    const breadthCands = breadthSide ? Object.entries(views).flatMap(([sym,v]:any)=>{
+      const rel=breadthSide*Number(v.ret5), close=Number(v.last_close), atr=Number(v.mom?.atr), mtf=Number(v.opp?.mtf_side??0)
+      if(!(rel>0) || rel<relThreshold || !(close>0) || mtf===-breadthSide) return []
+      const frac=Math.max(0.0025,Math.min(0.0085,Number.isFinite(atr)&&atr>0?0.65*atr/close:0.004))
+      const breadthPct=100*(breadthSide>0?breadth.up_share:breadth.down_share)
+      const score=Math.min(100,breadthPct + Math.min(12,rel*2500) + (mtf===breadthSide?5:0))
+      return [{sym,v,comp:'RG_BREADTH_MOMENTUM',side:breadthSide,stop:close*(1-breadthSide*frac),
+        maxHold:18,strength:1.5+Math.min(2,rel*300),breadthScore:score}]
+    }) : []
+
+    const breakoutCands = Object.entries(views).flatMap(([sym,v]:any)=>{
+      const side=Number(v.opp?.breakout_side??0) as 1|-1|0
+      if(!side || Number(v.opp?.mtf_side??0)===-side) return []
+      const stop=side>0?Number(v.opp?.breakout_stop_long):Number(v.opp?.breakout_stop_short)
+      if(!(stop>0)) return []
+      return [{sym,v,comp:'RG_VOL_BREAKOUT',side,stop,maxHold:24,
+        strength:Number(v.opp?.breakout_strength??0),breakoutScore:Number(v.opp?.breakout_strength??0),
+        compression:v.opp?.compression??null}]
+    })
 
     const ret5Map = Object.fromEntries(Object.entries(views).map(([s,v]:any)=>[s,Number.isFinite(Number(v.ret5))?Number(v.ret5):null]))
     const intelRequested = [...new Set<string>([
       ...technicalCands.map((x:any)=>String(x.sym)),
+      ...breadthCands.map((x:any)=>String(x.sym)),
+      ...breakoutCands.map((x:any)=>String(x.sym)),
       ...heldSyms,
       'BTC','ETH'
     ])]
@@ -451,7 +515,9 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       return Math.max(0.75,Math.min(1.25,1+(aligned-against)/400))
     }
 
-    const cands = [...technicalCands,...squeezeCands].sort((a: any, b: any) => {
+    let microChecks=0
+    const microCache=new Map<string,any>()
+    const cands = [...technicalCands,...squeezeCands,...breadthCands,...breakoutCands].sort((a: any, b: any) => {
       if (prioritiseOpposite && initialDominant) {
         const ao = (a.side > 0 ? 'LONG' : 'SHORT') !== initialDominant ? 1 : 0
         const bo = (b.side > 0 ? 'LONG' : 'SHORT') !== initialDominant ? 1 : 0
@@ -468,61 +534,64 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       const bucket = sleeveOf(cand.comp), budget = budgets[bucket]
       if (held.has(bucket + ':' + sym)) { rec('rejected', 'coin_held'); continue }
 
-      // 1) Trend-pullback must not behave like a trend strategy inside a mean-reverting regime
-      // unless both the momentum statistic and the mean-reversion location strongly agree with the direction.
-      if (cand.comp === 'RG_TREND_PULLBACK' && REGIME[v.regime] === 'MEAN_REVERT') {
-        const z = Number(v.mr.z), t = Math.abs(Number(v.mom.t))
-        const locationSupports = Number.isFinite(z) && (-cand.side * z) >= 1.15
-        if (!(t >= 1.25 && locationSupports)) {
-          rec('rejected','regime_mismatch_trend_in_mean_revert',{ gate_t:t, gate_z:z })
-          continue
-        }
-      }
-
-      // 4) Two consecutive symbol losses trigger only a temporary stronger-signal requirement.
+      // Soft quality stack: regime, breadth, learning, crowding and public leverage/news
+      // contribute to one score instead of any single secondary filter vetoing a trade.
       const cd = cooldownState(sym)
-      if (cd.active && !strongSignal(cand,true)) {
-        rec('rejected','symbol_cooldown_weak_signal',{ cooldown_bars_left: SYMBOL_COOLDOWN_BARS-cd.bars, recent_symbol_losses:cd.losses })
-        continue
-      }
-
-      // 6) Live learning is deliberately shrinkage-heavy so a tiny sample cannot overfit the bot.
       const learned = learnedQuality(cand,sym,side)
-      if (learned.samples >= 8 && learned.weight < 0.84 && !strongSignal(cand,true)) {
-        rec('rejected','adaptive_quality_weak',{ learning_weight:learned.weight, learning_samples:learned.samples })
-        continue
-      }
-
-      // 5) If the candidate fights broad 5m participation + BTC/ETH, demand an exceptional signal.
       const mc = marketConfirm(cand)
-      if (!mc.ok && !strongSignal(cand,true)) {
-        rec('rejected','market_breadth_against',{ breadth_share:mc.share, breadth_n:mc.n, majors_agree:mc.majors })
-        continue
-      }
-
       const ix = intelState?.by_sym?.[sym]
-      if (ix) {
-        const aligned = cand.side > 0 ? Number(ix.short_squeeze) : Number(ix.long_squeeze)
-        const against = cand.side > 0 ? Number(ix.long_squeeze) : Number(ix.short_squeeze)
-        if (Number(ix.confidence) >= 66 && against >= 82 && against-aligned >= 22 && !strongSignal(cand,true)) {
-          rec('rejected','leveraged_flow_against',{ leverage_against:against, leverage_aligned:aligned, intel_confidence:ix.confidence,
-            funding:ix.funding, oi_delta:ix.oi_delta, taker_ratio:ix.taker_ratio })
-          continue
-        }
-        const symbolNewsRisk = Number(ix.news_risk ?? 0)
-        if (symbolNewsRisk >= 65 && !strongSignal(cand,true)) {
-          rec('rejected','news_event_risk',{ news_risk:symbolNewsRisk })
-          continue
-        }
-      }
-
       const crowd = crowdState(side)
-      if (crowd.active && !strongEnoughWhenCrowded(cand)) {
-        rec('rejected', 'direction_crowding_weak_signal', {
-          crowd_side: side, crowd_count: crowd.count, crowd_share: crowd.share,
-          crowd_rule: cand.comp === 'RG_TREND_PULLBACK'
-            ? 'TREND H>=0.48 or NEUTRAL H>=0.53'
-            : cand.comp === 'RG_MR' ? '|Z|>=2.8' : '|t|>=1.8'
+      const softReasons:string[]=[]
+      let qualityScore = 50 + Math.min(10,Math.max(0,Number(cand.strength))*2)
+
+      if (cand.comp === 'RG_TREND_PULLBACK' && REGIME[v.regime] === 'MEAN_REVERT') {
+        const z=Number(v.mr.z), t=Math.abs(Number(v.mom.t))
+        const locationSupports=Number.isFinite(z)&&(-cand.side*z)>=1.15
+        if(!(t>=1.25&&locationSupports)){qualityScore-=12;softReasons.push('regime_mismatch')}
+        else qualityScore+=4
+      }
+      if(cd.active){qualityScore-=7;softReasons.push('cooldown')}
+      if(learned.samples>=8){
+        const adj=Math.max(-10,Math.min(8,(learned.weight-1)*40))
+        qualityScore+=adj
+        if(adj<0)softReasons.push('adaptive')
+      }
+      if(mc.ok) qualityScore+=6
+      else {qualityScore-=11;softReasons.push('breadth_against')}
+      const mtf=Number(v.opp?.mtf_side??0)
+      if(mtf===cand.side) qualityScore+=9
+      else if(mtf===-cand.side){qualityScore-=7;softReasons.push('mtf_against')}
+      if(ix){
+        const aligned=cand.side>0?Number(ix.short_squeeze):Number(ix.long_squeeze)
+        const against=cand.side>0?Number(ix.long_squeeze):Number(ix.short_squeeze)
+        if(Number(ix.confidence)>=66&&against>=82&&against-aligned>=22){qualityScore-=12;softReasons.push('leverage_against')}
+        else if(Number(ix.confidence)>=66&&aligned-against>=15) qualityScore+=6
+        const symbolNewsRisk=Number(ix.news_risk??0)
+        if(symbolNewsRisk>=65){qualityScore-=9;softReasons.push('news_risk')}
+      }
+      if(crowd.active&&!strongEnoughWhenCrowded(cand)){qualityScore-=9;softReasons.push('crowding')}
+      if(cand.comp==='RG_BREADTH_MOMENTUM') qualityScore+=8
+      if(cand.comp==='RG_VOL_BREAKOUT') qualityScore+=8
+      if(cand.comp==='RG_LIQ_SQUEEZE') qualityScore+=6
+
+      let micro:any=null
+      const mk=sym+':'+side
+      if(microCache.has(mk)) micro=microCache.get(mk)
+      else if(microChecks<MICRO_MAX_CHECKS){
+        microChecks++
+        try{micro=await microExecution(pairOf(sym),cand.side,now);microCache.set(mk,micro)}
+        catch{micro={score:50,error:true};microCache.set(mk,micro)}
+      }
+      if(micro){
+        qualityScore += Math.max(-9,Math.min(9,(Number(micro.score)-50)*0.18))
+        if(Number(micro.score)<40)softReasons.push('micro_against')
+      }
+      qualityScore=Math.max(0,Math.min(100,qualityScore))
+      if(qualityScore<SOFT_QUALITY_MIN && !strongSignal(cand,true)){
+        rec('rejected','soft_quality_too_low',{
+          quality_score:qualityScore,quality_min:SOFT_QUALITY_MIN,soft_reasons:softReasons,
+          learning_weight:learned.weight,learning_samples:learned.samples,breadth_share:mc.share,breadth_n:mc.n,
+          micro_score:micro?.score??null,mtf_side:mtf
         })
         continue
       }
@@ -585,7 +654,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
 
       entries.push({ sym, side, price: px, notional, lev: PAPER_LEVERAGE, quote_ts: bk.E, source: 'binance-futures',
         chan: { comp: cand.comp, sleeve: bucket, level: cand.level ?? null, breakout_at: cand.breakoutAt ?? null,
-          target: (cand.comp === 'RG_TREND_PULLBACK' || cand.comp === 'RG_LIQ_SQUEEZE') ? px + cand.side * 2 * r : null, stop: cand.stop, r, best: px, chk: bk.E, max_hold_bars: cand.maxHold, bar: new Date(bar).toISOString(),
+          target: ['RG_TREND_PULLBACK','RG_LIQ_SQUEEZE','RG_BREADTH_MOMENTUM','RG_VOL_BREAKOUT'].includes(cand.comp) ? px + cand.side * 2 * r : null, stop: cand.stop, r, best: px, chk: bk.E, max_hold_bars: cand.maxHold, bar: new Date(bar).toISOString(),
           regime: REGIME[v.regime], hurst: v.hurst, vol_pct: v.volPct, halflife: v.mr.hl, z: v.mr.z, mr_mean: v.mr.mean, mr_std: v.mr.std,
           t_sig: v.mom.t, atr: v.mom.atr, hh: v.mom.hh, ll: v.mom.ll, kelly_f: aggressiveRisk, kelly_why: `aggressive paper 50x; base=${k.f}; ${k.why}`, kelly_n: rsOf(cand.comp).length,
           risk_usd: notional * r / px, risk_frac: notional * r / px / budget.equity, equity: budget.equity, backtested_coin: (CHAN.universe as readonly string[]).includes(sym),
@@ -593,6 +662,10 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
           quality_gates: {
             learning_weight: learned.weight, learning_samples: learned.samples,
             cooldown_active: cd.active, breadth_share: mc.share, breadth_n: mc.n,
+            quality_score: qualityScore, quality_min: SOFT_QUALITY_MIN, soft_reasons: softReasons,
+            mtf: v.opp ? { side:v.opp.mtf_side, trend15:v.opp.mtf15, trend60:v.opp.mtf60, ret15:v.opp.ret15, ret60:v.opp.ret60 } : null,
+            micro_execution: micro,
+            opportunity: { breadth_score:cand.breadthScore??null, breakout_score:cand.breakoutScore??null, compression:cand.compression??null },
             liq_stop_share: liqStopShare, net_rr: netRR, reward_net: rewardNet, stop_loss_net: lossNet,
             reference_target: referenceTarget, exit_impact_bps: +(exitImpact*1e4).toFixed(2),
             public_intel: ix ? {
@@ -607,6 +680,8 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       rec('accepted', 'taken', { notional, kelly_f: aggressiveRisk, leverage: PAPER_LEVERAGE,
         crowd_side: side, crowd_count: crowd.count, crowd_share: crowd.share,
         learning_weight: learned.weight, learning_samples: learned.samples, breadth_share: mc.share,
+        quality_score:qualityScore, quality_min:SOFT_QUALITY_MIN, soft_reasons:softReasons,
+        micro_score:micro?.score??null, mtf_side:Number(v.opp?.mtf_side??0),
         liq_stop_share: liqStopShare, net_rr: netRR,
         intel_confidence: ix?.confidence ?? null, funding: ix?.funding ?? null, oi_delta: ix?.oi_delta ?? null,
         taker_ratio: ix?.taker_ratio ?? null, long_squeeze: ix?.long_squeeze ?? null, short_squeeze: ix?.short_squeeze ?? null })
@@ -648,6 +723,8 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
     quality_gates: {
       liq_stop_max_share: LIQ_STOP_MAX_SHARE, min_net_rr: MIN_NET_REWARD_RISK,
       symbol_cooldown_bars: SYMBOL_COOLDOWN_BARS, breadth_min_share: BREADTH_MIN_SHARE, paper_min_stop_to_cost: PAPER_MIN_STOP_TO_COST,
+      soft_quality_min: SOFT_QUALITY_MIN, breadth_impulse_share: BREADTH_IMPULSE_SHARE,
+      opportunity_engines: ['RG_MR','RG_MOM','RG_TREND_PULLBACK','RG_LIQ_SQUEEZE','RG_BREADTH_MOMENTUM','RG_VOL_BREAKOUT'],
       profile: 'relaxed_aggressive_paper'
     },
     cost_model: { taker: CHAN.costs.taker, maker: CHAN.costs.maker, slippage: 'live order-book walk + symbol floor' },
@@ -676,12 +753,14 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
           intel_confidence: d.intel_confidence ?? null, funding: d.funding ?? null, oi_delta: d.oi_delta ?? null,
           taker_ratio: d.taker_ratio ?? null, long_squeeze: d.long_squeeze ?? null, short_squeeze: d.short_squeeze ?? null,
           leverage_against: d.leverage_against ?? null, leverage_aligned: d.leverage_aligned ?? null,
-          news_risk: d.news_risk ?? null
+          news_risk: d.news_risk ?? null,
+          quality_score: d.quality_score ?? null, quality_min: d.quality_min ?? null,
+          soft_reasons: d.soft_reasons ?? null, micro_score: d.micro_score ?? null, mtf_side: d.mtf_side ?? null
         },
         committed: d.decision === 'accepted',
         approved_at: d.decision === 'accepted' ? new Date(now).toISOString() : null,
         approval_chain: d.decision === 'accepted' ? [
-          { id: 'strategy', by: d.comp === 'RG_MR' ? 'Mean Reversion' : d.comp === 'RG_MOM' ? 'Momentum' : d.comp === 'RG_LIQ_SQUEEZE' ? 'Leverage / Liquidation Squeeze' : 'Trend Pullback', ok: true },
+          { id: 'strategy', by: d.comp === 'RG_MR' ? 'Mean Reversion' : d.comp === 'RG_MOM' ? 'Momentum' : d.comp === 'RG_LIQ_SQUEEZE' ? 'Leverage / Liquidation Squeeze' : d.comp === 'RG_BREADTH_MOMENTUM' ? 'Breadth Momentum' : d.comp === 'RG_VOL_BREAKOUT' ? 'Volatility Breakout' : 'Trend Pullback', ok: true },
           { id: 'regime', by: 'Regime Router', ok: true, value: d.regime },
           { id: 'risk', by: 'Risk Engine', ok: true, risk_f: d.kelly_f ?? null, leverage: d.leverage ?? PAPER_LEVERAGE },
           { id: 'execution', by: 'Binance Book Check', ok: true },
