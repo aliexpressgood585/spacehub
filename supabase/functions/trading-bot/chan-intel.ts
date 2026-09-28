@@ -192,7 +192,7 @@ export async function loadChanIntel(
     const premium=mark!=null&&index!=null&&index>0?mark/index-1:null
     if(funding!=null) src.push('funding')
 
-    let oiDelta:number|null=null, oiValueDelta:number|null=null
+    let oiDelta:number|null=null, oiValueDelta:number|null=null, oiPriceDelta:number|null=null
     let topRatio:number|null=null, globalRatio:number|null=null, takerRatio:number|null=null
     let longLiq=0,shortLiq=0
 
@@ -203,6 +203,10 @@ export async function loadChanIntel(
         const ao=Number(a.sumOpenInterest),bo=Number(b.sumOpenInterest),av=Number(a.sumOpenInterestValue),bv=Number(b.sumOpenInterestValue)
         if(ao>0&&bo>0) oiDelta=bo/ao-1
         if(av>0&&bv>0) oiValueDelta=bv/av-1
+        if(ao>0&&bo>0&&av>0&&bv>0) {
+          const ap=av/ao,bp=bv/bo
+          if(ap>0&&bp>0) oiPriceDelta=bp/ap-1
+        }
       }
       src.push('oi')
     }catch{failed.push('oi:'+sym)}
@@ -234,7 +238,7 @@ export async function loadChanIntel(
       }
     }catch{}
 
-    const rv=ret5[sym]??null
+    const rv=ret5[sym]??oiPriceDelta??null
     const sq=squeezeScores({funding,oiDelta,topRatio,globalRatio,takerRatio,ret5:rv,longLiq,shortLiq})
     by[sym]={
       sym,ts:now,funding,premium,oi_delta:oiDelta,oi_value_delta:oiValueDelta,
