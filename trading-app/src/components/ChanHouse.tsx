@@ -175,8 +175,12 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
     let dead = false
     let ws: WebSocket | null = null
     let retry: ReturnType<typeof setTimeout> | null = null
-    const binanceSym = (sym:string) => sym === 'PEPE' ? '1000PEPEUSDT' : `${sym}USDT`
-    const reverse = new Map(open.map(t => [binanceSym(String(t.sym)).toUpperCase(), String(t.sym)]))
+    // Binance lists PEPE as 1000PEPEUSDT while the bot stores PEPE per single coin.
+    // Keep the display/portfolio quote in the SAME unit as entry_price/stop/target.
+    const binanceMeta = (sym:string) => sym === 'PEPE'
+      ? { stream: '1000PEPEUSDT', divisor: 1000 }
+      : { stream: `${sym}USDT`, divisor: 1 }
+    const reverse = new Map(open.map(t => [binanceMeta(String(t.sym)).stream.toUpperCase(), String(t.sym)]))
     const streams = [...reverse.keys()].map(s => `${s.toLowerCase()}@bookTicker`).join('/')
 
     const connect = () => {
@@ -188,10 +192,14 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
         try {
           const msg = JSON.parse(ev.data)
           const d = msg?.data ?? msg
-          const sym = reverse.get(String(d?.s ?? '').toUpperCase())
-          const bid = Number(d?.b), ask = Number(d?.a)
-          if (!sym || !(bid > 0) || !(ask > 0)) return
-          setLiveQuotes(prev => ({ ...prev, [sym]: { bid, ask, ts: Number(d?.E ?? Date.now()) } }))
+          const streamSym = String(d?.s ?? '').toUpperCase()
+          const sym = reverse.get(streamSym)
+          if (!sym) return
+          const meta = binanceMeta(sym)
+          const bid = Number(d?.b) / meta.divisor
+          const ask = Number(d?.a) / meta.divisor
+          if (!(bid > 0) || !(ask > 0)) return
+          setLiveQuotes(prev => ({ ...prev, [sym]: { bid, ask, ts: Number(d?.E ?? Date.now()), source: streamSym } }))
         } catch {}
       }
       ws.onerror = () => { if (!dead) setWsLive(false) }
