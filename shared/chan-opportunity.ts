@@ -12,6 +12,8 @@ export type ChanOpportunityMeta = {
   breakout_strength:number
   breakout_stop_long:number|null
   breakout_stop_short:number|null
+  swing_low:number|null
+  swing_high:number|null
 }
 
 function ema(xs:number[], n:number):number {
@@ -71,10 +73,14 @@ export function chanOpportunityMeta(bars:Bar[], atr:number):ChanOpportunityMeta 
     }
   }
   const frac=Math.max(0.0025,Math.min(0.009,Number.isFinite(atr)&&atr>0&&last>0?0.70*atr/last:0.0045))
+  const swingBars=n>=8?bars.slice(n-7,n-1):[]
+  const swingLow=swingBars.length?Math.min(...swingBars.map(b=>b.l)):null
+  const swingHigh=swingBars.length?Math.max(...swingBars.map(b=>b.h)):null
   return {
     ret15:ret(3),ret60:ret(12),mtf15,mtf60,mtf_side:mtfSide,mtf_strength:mtfStrength,
     compression,breakout_side:breakoutSide,breakout_strength:breakoutStrength,
     breakout_stop_long:last>0?last*(1-frac):null,
-    breakout_stop_short:last>0?last*(1+frac):null
+    breakout_stop_short:last>0?last*(1+frac):null,
+    swing_low:swingLow,swing_high:swingHigh
   }
 }
