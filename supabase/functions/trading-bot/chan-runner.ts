@@ -27,6 +27,11 @@ const PAPER_LEVERAGE = 50
 const PAPER_RISK_MIN = 0.01
 const PAPER_RISK_MAX = 0.02
 const PAPER_RISK_MULT = 4
+// Portfolio crowding guard: it never halts scanning/trading. Once one direction owns
+// most of the live book, additional same-side entries need a materially stronger signal;
+// opposite-side candidates remain unrestricted and are prioritised.
+const CROWD_MIN_POSITIONS = 6
+const CROWD_NOTIONAL_SHARE = 0.72
 const REGIME = ['NEUTRAL', 'MEAN_REVERT', 'TREND', 'HIGH_VOL']
 let usedWeight = 0, weightAt = 0
 
@@ -272,19 +277,70 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
         notional: positions.reduce((s: number,t: any)=>s+Number(t.entry_price)*Number(t.size),0) }]
     }))
     const rsOf = (comp: string) => closedAll.filter((x: any) => x.comp === comp).map((x: any) => x.r).reverse()
+
+    const directionBook: Record<'LONG'|'SHORT', { count:number; notional:number }> = {
+      LONG: { count: 0, notional: 0 }, SHORT: { count: 0, notional: 0 }
+    }
+    for (const t of stillOpen.filter((t:any)=>!closing.has(t.id))) {
+      const s = t.side === 'LONG' ? 'LONG' : 'SHORT'
+      directionBook[s].count++
+      directionBook[s].notional += Number(t.entry_price) * Number(t.size)
+    }
+    const crowdState = (side:'LONG'|'SHORT') => {
+      const gross = directionBook.LONG.notional + directionBook.SHORT.notional
+      const row = directionBook[side]
+      const share = gross > 0 ? row.notional / gross : 0
+      return { active: row.count >= CROWD_MIN_POSITIONS && share >= CROWD_NOTIONAL_SHARE, count: row.count, share, gross }
+    }
+    const strongEnoughWhenCrowded = (cand:any) => {
+      const v = cand.v, regime = REGIME[v.regime]
+      if (cand.comp === 'RG_MR') return Math.abs(Number(v.mr.z)) >= 3
+      if (cand.comp === 'RG_MOM') return Math.abs(Number(v.mom.t)) >= 2
+      // Trend-pullback: require actual persistence when the portfolio is already crowded.
+      // A TREND regime with Hurst >= .50, or a strong persistent NEUTRAL regime, is accepted.
+      const h = Number(v.hurst)
+      return (regime === 'TREND' && h >= .50) || (regime === 'NEUTRAL' && h >= .55)
+    }
+
+    const initialGross = directionBook.LONG.notional + directionBook.SHORT.notional
+    const initialDominant: 'LONG'|'SHORT'|null = initialGross <= 0 ? null :
+      directionBook.LONG.notional >= directionBook.SHORT.notional ? 'LONG' : 'SHORT'
+    const initialDomShare = initialDominant ? directionBook[initialDominant].notional / initialGross : 0
+    const prioritiseOpposite = !!initialDominant &&
+      directionBook[initialDominant].count >= CROWD_MIN_POSITIONS && initialDomShare >= CROWD_NOTIONAL_SHARE
+
     const cands = Object.entries(views).flatMap(([sym, v]: [string, any]) => {
       const c = v.mr.side ? { comp: 'RG_MR', side: v.mr.side, stop: v.mr.side > 0 ? v.mr.stopLong : v.mr.stopShort, maxHold: v.mr.maxHold, strength: Math.abs(v.mr.z) }
         : v.mom.side ? { comp: 'RG_MOM', side: v.mom.side, stop: v.mom.side > 0 ? v.mom.stopLong : v.mom.stopShort, maxHold: CHAN.params.RG_MOM.hold, strength: v.mom.t } : null
       const extra = v.pullback ? { comp: 'RG_TREND_PULLBACK', side: v.pullback.side, stop: v.pullback.stop,
         maxHold: 48, strength: 1, level: v.pullback.level, breakoutAt: v.pullback.breakoutAt } : null
       return [c,extra].filter(Boolean).map(c => ({sym,v,...c}))
-    }).filter(Boolean).sort((a: any, b: any) => b.strength - a.strength) as any[]
+    }).filter(Boolean).sort((a: any, b: any) => {
+      if (prioritiseOpposite && initialDominant) {
+        const ao = (a.side > 0 ? 'LONG' : 'SHORT') !== initialDominant ? 1 : 0
+        const bo = (b.side > 0 ? 'LONG' : 'SHORT') !== initialDominant ? 1 : 0
+        if (ao !== bo) return bo - ao
+      }
+      return b.strength - a.strength
+    }) as any[]
     for (const cand of cands) {
       const { sym, v } = cand
       const side = cand.side > 0 ? 'LONG' : 'SHORT'
       const rec = (decision: string, reason: string, extra: any = {}) => decisions.push({ sym, comp: cand.comp, side, decision, reason, regime: REGIME[v.regime], hurst: v.hurst, vol_pct: v.volPct, z: v.mr.z, hl: v.mr.hl, t_sig: v.mom.t, ...extra })
       const bucket = sleeveOf(cand.comp), budget = budgets[bucket]
       if (held.has(bucket + ':' + sym)) { rec('rejected', 'coin_held'); continue }
+
+      const crowd = crowdState(side)
+      if (crowd.active && !strongEnoughWhenCrowded(cand)) {
+        rec('rejected', 'direction_crowding_weak_signal', {
+          crowd_side: side, crowd_count: crowd.count, crowd_share: crowd.share,
+          crowd_rule: cand.comp === 'RG_TREND_PULLBACK'
+            ? 'TREND H>=0.50 or NEUTRAL H>=0.55'
+            : cand.comp === 'RG_MR' ? '|Z|>=3' : '|t|>=2'
+        })
+        continue
+      }
+
       const co = canOpen(st, openN)
       if (!co.ok) { rec('rejected', co.why); continue }
       const estimated = kellyRisk(rsOf(cand.comp))
@@ -315,9 +371,12 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
           regime: REGIME[v.regime], hurst: v.hurst, vol_pct: v.volPct, halflife: v.mr.hl, z: v.mr.z, mr_mean: v.mr.mean, mr_std: v.mr.std,
           t_sig: v.mom.t, atr: v.mom.atr, hh: v.mom.hh, ll: v.mom.ll, kelly_f: aggressiveRisk, kelly_why: `aggressive paper 50x; base=${k.f}; ${k.why}`, kelly_n: rsOf(cand.comp).length,
           risk_usd: notional * r / px, risk_frac: notional * r / px / budget.equity, equity: budget.equity, backtested_coin: (CHAN.universe as readonly string[]).includes(sym),
+          direction_crowding: { active: crowd.active, same_side_count: crowd.count, same_side_share: crowd.share },
           entry_fill: { model: 'book_walk', touch, vwap: w.vwap, impact_bps: +(Math.abs(px / touch - 1) * 1e4).toFixed(2), want: Math.round(sz.notional), liq_cap: Math.round(cap) } } })
-      rec('accepted', 'taken', { notional, kelly_f: aggressiveRisk, leverage: PAPER_LEVERAGE })
+      rec('accepted', 'taken', { notional, kelly_f: aggressiveRisk, leverage: PAPER_LEVERAGE,
+        crowd_side: side, crowd_count: crowd.count, crowd_share: crowd.share })
       held.add(bucket + ':' + sym); openN++; openNotional += notional;
+      directionBook[side].count++; directionBook[side].notional += notional;
       const debit = notional / PAPER_LEVERAGE + notional * CHAN.costs.taker
       cash -= debit; budget.cash -= debit; budget.notional += notional; budget.equity -= notional * CHAN.costs.taker
     }
@@ -334,6 +393,11 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
     marks, marks_ts: new Date(now).toISOString(),
     open_live: openLive,
     live_scan: liveScan,
+    direction_exposure: {
+      long_count: directionBook.LONG.count, short_count: directionBook.SHORT.count,
+      long_notional: directionBook.LONG.notional, short_notional: directionBook.SHORT.notional,
+      crowd_min_positions: CROWD_MIN_POSITIONS, crowd_share: CROWD_NOTIONAL_SHARE
+    },
     cost_model: { taker: CHAN.costs.taker, maker: CHAN.costs.maker, slippage: 'live order-book walk + symbol floor' },
     scan: { bar, done: [...done], skipped: scan0.skipped ?? 0, fetched: (scan0.fetched ?? 0) + heavy } }
   const { data: result } = await db.rpc('chan_commit_cycle', { p_lease: lease, p_closes: closes, p_entries: entries, p_marks: marks, p_updates: updates,
@@ -346,6 +410,9 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
         comp: d.comp,
         kelly_f: d.kelly_f ?? null,
         leverage: d.leverage ?? null,
+        direction_crowding: d.crowd_side ? {
+          side: d.crowd_side, count: d.crowd_count ?? null, share: d.crowd_share ?? null, rule: d.crowd_rule ?? null
+        } : null,
         committed: d.decision === 'accepted',
         approved_at: d.decision === 'accepted' ? new Date(now).toISOString() : null,
         approval_chain: d.decision === 'accepted' ? [
