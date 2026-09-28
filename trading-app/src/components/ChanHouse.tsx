@@ -44,6 +44,7 @@ const COMP: Record<string,string> = {
   RG_MR: 'חזרה לממוצע',
   RG_MOM: 'מומנטום',
   RG_TREND_PULLBACK: 'פריצה ותיקון',
+  RG_LIQ_SQUEEZE: 'מינוף / Liquidation Squeeze',
 }
 
 function reasonHe(r: string) {
@@ -61,6 +62,8 @@ function reasonHe(r: string) {
   if (r === 'market_breadth_against') return 'השוק הרחב / BTC / ETH לא מאשרים את הכיוון'
   if (r === 'stop_too_close_to_liquidation') return 'הסטופ קרוב מדי למחיר המימוש'
   if (r === 'net_reward_risk_too_low') return 'הרווח נטו הצפוי נמוך מדי ביחס להפסד אחרי עלויות'
+  if (r === 'leveraged_flow_against') return 'Funding / OI / זרימת Taker מצביעים על סיכון Squeeze נגד העסקה'
+  if (r === 'news_event_risk') return 'אירוע חדשותי ציבורי חריג במטבע — נדרש אות חזק יותר'
   if (r?.startsWith('stop closer than')) return 'הסטופ קרוב מדי ביחס לעלות'
   if (r?.startsWith('paused')) return 'נעצר בשער הסיכון'
   if (r?.startsWith('halted')) return 'נעצר בשער הסיכון'
@@ -77,6 +80,8 @@ function stopper(r: string) {
   if (r === 'market_breadth_against') return 'Market Breadth'
   if (r === 'stop_too_close_to_liquidation') return 'Liquidation Guard'
   if (r === 'net_reward_risk_too_low') return 'Profit Gate'
+  if (r === 'leveraged_flow_against') return 'Leverage Intelligence'
+  if (r === 'news_event_risk') return 'News Risk'
   if (r === 'max leverage reached' || r?.startsWith('stop closer') || r?.startsWith('paused') || r?.startsWith('halted') || r?.startsWith('half-Kelly')) return 'רובוט סיכון'
   return 'רובוט האסטרטגיה'
 }
@@ -279,6 +284,11 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
         detail:`Bid ${fmtPx(Number(x.bid))} · Ask ${fmtPx(Number(x.ask))} · Spread ${x.spread_bps == null ? '—' : Number(x.spread_bps).toFixed(2)+'bp'}`
       })
     }
+    for (const n of (cyc?.liquidity_intel?.headlines ?? []).slice(0,6)) items.push({
+      ts:n.ts, kind:Number(n.risk ?? 0)>=50?'error':'scan', robot:'News Radar', icon:'N',
+      title:`${n.source ?? 'news'} · ${String(n.title ?? '').slice(0,110)}`,
+      detail:`מקור ציבורי · Risk ${Number(n.risk ?? 0).toFixed(0)}/100`
+    })
     for (const d of decisions) items.push({
       ts:d.ts, kind:d.decision === 'accepted' ? 'approved' : 'rejected',
       robot:d.decision === 'accepted' ? 'שרשרת אישורים' : stopper(d.reason),
@@ -328,6 +338,14 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
       status: fresh ? 'מסווג את השוק' : 'ממתין לנתונים',
       detail: `חזרה ${counts.MEAN_REVERT ?? 0} · מגמה ${counts.TREND ?? 0} · תנודתי ${counts.HIGH_VOL ?? 0}`,
       foot: `ניטרלי ${counts.NEUTRAL ?? 0}`,
+    },
+    {
+      id:'intel', icon:'◎', title:'Leverage / News Intel', active:!!cyc?.liquidity_intel?.ts,
+      status: cyc?.liquidity_intel?.top_pressure?.length
+        ? `${cyc.liquidity_intel.top_pressure[0].sym} · ${cyc.liquidity_intel.top_pressure[0].side} squeeze ${Number(cyc.liquidity_intel.top_pressure[0].score).toFixed(0)}`
+        : 'אוסף Funding · OI · Positioning · Taker · Liquidations',
+      detail: `חדשות Risk ${Number(cyc?.liquidity_intel?.news_risk ?? 0).toFixed(0)}/100 · ${Number(cyc?.liquidity_intel?.watched ?? 0)} מטבעות במודיעין`,
+      foot: Array.isArray(cyc?.liquidity_intel?.sources) ? cyc.liquidity_intel.sources.slice(0,4).join(' · ') : 'מקורות ציבוריים בלבד',
     },
     {
       id:'signal', icon:'⌁', title:'רובוט איתות', active:!!latest,
@@ -479,6 +497,9 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
             <DeskRow k="כיוון SHORT" v={`${Number(cyc?.direction_exposure?.short_count ?? open.filter(t=>t.side==='SHORT').length)} · ${fmt$(Number(cyc?.direction_exposure?.short_notional ?? econ.filter(x=>x.trade.side==='SHORT').reduce((s,x)=>s+Number(x.live.notional),0)))}`} />
             <DeskRow k="מסנן עומס כיוון" v={`פעיל מ-${Math.round(100*Number(cyc?.direction_exposure?.crowd_share ?? .72))}% / ${Number(cyc?.direction_exposure?.crowd_min_positions ?? 6)} פוזיציות`} />
             <DeskRow k="Market Breadth 5m" v={cyc?.market_breadth?.n ? `↑ ${(100*Number(cyc.market_breadth.up_share)).toFixed(0)}% · ↓ ${(100*Number(cyc.market_breadth.down_share)).toFixed(0)}% · n=${cyc.market_breadth.n}` : '—'} />
+            <DeskRow k="Leverage Intel" v={cyc?.liquidity_intel?.top_pressure?.[0] ? `${cyc.liquidity_intel.top_pressure[0].sym} · ${cyc.liquidity_intel.top_pressure[0].side} · score ${Number(cyc.liquidity_intel.top_pressure[0].score).toFixed(0)}` : 'אוסף נתונים'} />
+            <DeskRow k="News Risk ציבורי" v={`${Number(cyc?.liquidity_intel?.news_risk ?? 0).toFixed(0)} / 100`} bad={Number(cyc?.liquidity_intel?.news_risk ?? 0)>=65} />
+            <DeskRow k="מקורות Intel" v={Array.isArray(cyc?.liquidity_intel?.sources) && cyc.liquidity_intel.sources.length ? cyc.liquidity_intel.sources.slice(0,5).join(' · ') : 'Binance + RSS ציבורי'} />
             <DeskRow k="Profit Gate" v={`Net R:R ≥ ${Number(cyc?.quality_gates?.min_net_rr ?? 1.35).toFixed(2)}`} />
             <DeskRow k="Liquidation Guard" v={`סטופ ≤ ${Math.round(100*Number(cyc?.quality_gates?.liq_stop_max_share ?? .60))}% מהמרחק למימוש`} />
             <DeskRow k="Cooldown למטבע" v={`${Number(cyc?.quality_gates?.symbol_cooldown_bars ?? 3)} נרות אחרי 2 הפסדים`} />
@@ -518,6 +539,8 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
                     {d.inferred?.kelly_f != null && <>סיכון: {pct(Number(d.inferred.kelly_f))} · </>}
                     {d.inferred?.leverage != null && <>מינוף: {Number(d.inferred.leverage)}× · </>}
                     {d.observed?.regime && <>משטר: {d.observed.regime}</>}
+                    {d.inferred?.quality_gates?.intel_confidence != null && <> · Intel {Number(d.inferred.quality_gates.intel_confidence).toFixed(0)}%</>}
+                    {d.inferred?.quality_gates?.net_rr != null && <> · Net R:R {Number(d.inferred.quality_gates.net_rr).toFixed(2)}</>}
                   </div>
                 </> : <>
                   <div className="rejectedText">נדחה אצל <b>{stopper(d.reason)}</b> · {reasonHe(d.reason)}</div>
@@ -536,6 +559,8 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
           <DeskRow k="החלטה אחרונה" v={latest ? `${latest.sym} · ${latest.decision === 'accepted' ? 'אושר' : 'נדחה'}` : '—'} />
           <DeskRow k="פתוחות כרגע" v={String(open.length)} />
           <DeskRow k="מינוף בפוזיציות" v={open.length ? open.map(t=>`${t.sym} ${Number(t.lev)}×`).join(' · ') : '—'} />
+          <DeskRow k="Intel מוביל" v={cyc?.liquidity_intel?.top_pressure?.[0] ? `${cyc.liquidity_intel.top_pressure[0].sym} ${cyc.liquidity_intel.top_pressure[0].side} · ${Number(cyc.liquidity_intel.top_pressure[0].score).toFixed(0)}` : '—'} />
+          <DeskRow k="כותרת חדשות אחרונה" v={cyc?.liquidity_intel?.headlines?.[0]?.title ? String(cyc.liquidity_intel.headlines[0].title).slice(0,90) : '—'} />
           <DeskRow k="נפתחו במחזור" v={String(Number(cyc?.opened ?? 0))} />
           <DeskRow k="נסגרו במחזור" v={String(Number(cyc?.closed ?? 0))} />
           <DeskRow k="שגיאות פעילות" v={String(activeErrors)} bad={activeErrors>0} />
