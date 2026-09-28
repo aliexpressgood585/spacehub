@@ -105,7 +105,32 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
   const uni = await loadUniverse(db, now)
   const bySym = new Map(uni.pairs.map(p => [p.sym, p]))
   const pairOf = (sym: string): Pair => bySym.get(sym) ?? (sym === 'PEPE' ? { sym, s: '1000PEPEUSDT', k: 1000 } : { sym, s: `${sym}USDT`, k: 1 })
-  const closes: any[] = [], marks: Record<string, number> = {}, updates: any[] = [], closing = new Set<number>()
+
+  // Continuous light market sweep: every bot cycle rotates across the entire Futures universe.
+  // Entry signals still use CLOSED 5m bars; this sweep never invents entries and never stops between bars.
+  let liveScan: any = { status: 'continuous', ts: new Date(now).toISOString(), total: uni.pairs.length, checked: [] }
+  try {
+    const rows = await json('https://fapi.binance.com/fapi/v1/ticker/bookTicker')
+    const tick = new Map<string, any>((Array.isArray(rows) ? rows : []).map((x: any) => [String(x.symbol), x]))
+    const total = Math.max(1, uni.pairs.length), prev = params.chan_cycle?.live_scan ?? {}
+    const cursor = Math.max(0, Number(prev.cursor) || 0) % total
+    const batchSize = Math.min(24, total)
+    const checked = Array.from({ length: batchSize }, (_, i) => uni.pairs[(cursor + i) % total]).map(P => {
+      const x: any = tick.get(P.s), bid = Number(x?.bidPrice) / P.k, ask = Number(x?.askPrice) / P.k
+      const mid = bid > 0 && ask > 0 ? (bid + ask) / 2 : NaN
+      return { sym: P.sym, bid, ask, spread_bps: Number.isFinite(mid) && mid > 0 ? +((ask - bid) / mid * 1e4).toFixed(2) : null }
+    })
+    const rawNext = cursor + batchSize
+    liveScan = {
+      status: 'continuous', ts: new Date(now).toISOString(), total, checked,
+      cursor: rawNext % total, batch_size: batchSize,
+      loop: (Number(prev.loop) || 0) + (rawNext >= total ? 1 : 0)
+    }
+  } catch (e: any) {
+    liveScan = { ...liveScan, error: String(e?.message ?? e).slice(0, 100) }
+  }
+
+  const closes: any[] = [], marks: Record<string, number> = {}, openLive: Record<string, any> = {}, updates: any[] = [], closing = new Set<number>()
   const bookClose = async (t: any, reason: string, extra: any = {}) => {
     const fu = await fundingFor(t, pairOf(t.sym), Date.now())   // before the book, so the quote stays fresh for the ledger
     const dir = t.side === 'LONG' ? 1 : -1, bk = await book(pairOf(t.sym))
@@ -134,7 +159,35 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
         return
       }
       if (now - Date.parse(t.opened_at) >= Number(m.max_hold_bars) * CHAN.barMs) { await bookClose(t, 'TIMEOUT'); return }
-      const bk = await book(P); marks[t.sym] = dir > 0 ? bk.bids[0][0] : bk.asks[0][0]
+      const bk = await book(P)
+      const mark = dir > 0 ? bk.bids[0][0] : bk.asks[0][0]
+      marks[t.sym] = mark
+      const size = Number(t.size), lev = Math.max(1, Number(t.lev) || 1), notional = entry * size
+      const w = walkBook(dir > 0 ? bk.bids : bk.asks, notional)
+      const impact = Math.max(Number.isFinite(w.impact) ? w.impact : 0, slipFor(t.sym))
+      const estExit = mark * (1 - dir * impact)
+      const grossMark = dir * (mark - entry) * size
+      const grossExec = dir * (estExit - entry) * size
+      const entryFee = Number(t.scalp_meta?.entry_fee ?? t.fee ?? notional * CHAN.costs.taker)
+      const exitFee = estExit * size * CHAN.costs.taker
+      const exitSlipUsd = Math.abs(mark - estExit) * size
+      const entryImpactBps = Number(m.entry_fill?.impact_bps ?? 0)
+      const entrySlipUsd = Number.isFinite(entryImpactBps) ? notional * Math.max(0, entryImpactBps) / 1e4 : 0
+      const mg = notional / lev
+      const netToClose = grossExec - entryFee - exitFee
+      openLive[String(t.id)] = {
+        id: t.id, sym: t.sym, side: t.side, comp: m.comp, opened_at: t.opened_at,
+        leverage: lev, size, notional, margin: mg, entry, mark, est_exit: estExit,
+        stop: Number(m.stop), target: m.target == null ? null : Number(m.target),
+        liq: fastLiq(dir, entry, lev), regime: m.regime, z: m.z, t_sig: m.t_sig,
+        gross_mark_pnl: grossMark, gross_exec_pnl: grossExec, net_pnl_to_close: netToClose,
+        roe_net: mg > 0 ? netToClose / mg : null,
+        entry_fee: entryFee, exit_fee_est: exitFee,
+        entry_slippage_usd: entrySlipUsd, exit_slippage_usd: exitSlipUsd,
+        entry_impact_bps: entryImpactBps, exit_impact_bps: +(impact * 1e4).toFixed(2),
+        fee_rate_taker: CHAN.costs.taker, quote_ts: bk.E, depth_usd: Math.round(w.depthUsd),
+        kelly_f: m.kelly_f, risk_usd: m.risk_usd, kelly_why: m.kelly_why
+      }
       if (res.lastT && res.lastT > (Number(m.chk) || 0)) updates.push({ id: t.id, chk: res.lastT })
     } catch { /* no data this cycle: the next one re-reads every trade since the last check */ }
   })
@@ -278,7 +331,10 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
     in_window: inWindow, batch: Object.keys(views).length, scanned: done.size, complete: finished, failed: failed.length, daily_refresh: heavy, deep_fetches: deep, stale_daily: staleDaily,
     weight_1m: usedWeight, regime_counts: Object.values(regimes).reduce((a: any, r: any) => ({ ...a, [r]: (a[r] ?? 0) + 1 }), {}),
     equity, event: ev, opened: entries.length, closed: closes.length, risk_state: st,
-    marks, marks_ts: new Date(now).toISOString(),   // v97.4: the server's Binance mark per open position (dashboard fallback)
+    marks, marks_ts: new Date(now).toISOString(),
+    open_live: openLive,
+    live_scan: liveScan,
+    cost_model: { taker: CHAN.costs.taker, maker: CHAN.costs.maker, slippage: 'live order-book walk + symbol floor' },
     scan: { bar, done: [...done], skipped: scan0.skipped ?? 0, fetched: (scan0.fetched ?? 0) + heavy } }
   const { data: result } = await db.rpc('chan_commit_cycle', { p_lease: lease, p_closes: closes, p_entries: entries, p_marks: marks, p_updates: updates,
     p_note: note, p_bar: closeBar ? new Date(bar).toISOString() : null, p_halt: halt }).throwOnError()
