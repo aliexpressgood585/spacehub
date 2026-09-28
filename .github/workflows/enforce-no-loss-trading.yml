@@ -1,4 +1,4 @@
-name: Enforce No-Loss Trading
+name: Enforce CHAN Paper Runtime
 
 on:
   workflow_dispatch:
@@ -14,14 +14,14 @@ permissions:
   contents: read
 
 concurrency:
-  group: enforce-no-loss-trading
+  group: enforce-chan-paper-runtime
   cancel-in-progress: true
 
 env:
   PROJECT_REF: adxgadwghgkwmntsnrar
 
 jobs:
-  deploy-no-loss-fast:
+  deploy-chan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,96 +35,26 @@ jobs:
       - name: Login to Supabase
         run: supabase login --token '${{ secrets.SUPABASE_ACCESS_TOKEN }}'
 
-      - name: Remove loss-based FAST entry blocks before deploy
+      - name: Prepare pinned CHAN release shim
         shell: bash
         run: |
-          python - <<'PY'
-          from pathlib import Path
-          p = Path('supabase/functions/trading-bot/fast-runner.ts')
-          s = p.read_text()
+          SHA="$(git rev-parse HEAD)"
+          cat > supabase/functions/trading-bot/index.ts <<EOF
+          const g = globalThis as any;
+          g.__RELEASE_SHA = '${SHA}';
+          g.__ENABLED_SLEEVES = 'CHAN';
+          g.__LEVERAGE = '1';
+          await import('https://raw.githubusercontent.com/aliexpressgood585/spacehub/${SHA}/supabase/functions/trading-bot/index.ts');
+          export {};
+          EOF
+          echo "Prepared CHAN shim for ${SHA}"
 
-          old_block = "      const pb = psychBlock(psy, sym, now); if (pb) { rec('rejected', pb, { streak: psy.streak, day_losses: psy.dayLosses }); continue }\n"
-          if old_block in s:
-              s = s.replace(old_block, "      // Losses are analytics only: never pause/block a valid entry after losses.\n")
-          elif 'psychBlock(psy, sym, now)' in s:
-              raise SystemExit('FAST psychology gate changed shape; refusing silent partial patch')
-
-          old_size = 'FAST.perTrade * cfg.share * psy.sizeMult'
-          if old_size in s:
-              s = s.replace(old_size, 'FAST.perTrade * cfg.share')
-          elif 'psy.sizeMult' in s and 'const want =' in s:
-              raise SystemExit('FAST loss size multiplier changed shape; refusing silent partial patch')
-
-          p.write_text(s)
-          print('FAST loss-based pause/block and loss-size reduction disabled for deployment')
-          PY
-
-      - name: Relax SCALP profit gate but keep net edge positive
-        shell: bash
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          import json
-
-          costs = Path('shared/costs.ts')
-          s = costs.read_text()
-          old_margin = 'marginBps: 0.5,'
-          if old_margin not in s:
-              raise SystemExit('profit margin constant changed shape; refusing silent patch')
-          s = s.replace(old_margin, 'marginBps: 0.1,', 1)
-          costs.write_text(s)
-
-          mig = Path('supabase/migrations/20260925000000_dynamic_universe.sql')
-          q = mig.read_text()
-          old_gate = "if x->>'profit_gate' is distinct from 'passed' or coalesce(nullif(x->>'net_bps','')::numeric,-1)<0.5 or coalesce(nullif(x->>'score','')::numeric,-1)<0.5 then raise exception 'entry without profit gate'; end if;"
-          new_gate = "if x->>'profit_gate' is distinct from 'passed' or coalesce(nullif(x->>'net_bps','')::numeric,-1)<0.1 or coalesce(nullif(x->>'score','')::numeric,-1)<0.1 then raise exception 'entry without profit gate'; end if;"
-          if old_gate not in q:
-              raise SystemExit('ledger profit gate changed shape; refusing silent patch')
-          q = q.replace(old_gate, new_gate, 1)
-          q = q.replace('נטו ≥ 0.5 נק׳ בסיס', 'נטו ≥ 0.1 נק׳ בסיס')
-          mig.write_text(q)
-          Path('/tmp/scalp_gate_payload.json').write_text(json.dumps({'query': q}))
-          print('SCALP gate patched for deployment: net/score >= 0.1 bps after full modeled costs')
-          PY
-
-          curl -sS --fail-with-body -X POST \
-            "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
-            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
-            -H "Content-Type: application/json" \
-            --data-binary @/tmp/scalp_gate_payload.json | tee /tmp/scalp_gate_result.json
-
-          if grep -q '"message"' /tmp/scalp_gate_result.json; then
-            echo '::error::failed to apply SCALP gate SQL'; cat /tmp/scalp_gate_result.json; exit 1
-          fi
-
-      - name: Verify live database profit gate
-        shell: bash
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          import json
-          sql = "select strpos(pg_get_functiondef('public.scalp_commit_cycle(timestamptz,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb)'::regprocedure), $$<0.1$$) > 0 as gate_01;"
-          Path('/tmp/verify_gate_payload.json').write_text(json.dumps({'query': sql}))
-          PY
-          curl -sS --fail-with-body -X POST \
-            "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
-            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
-            -H "Content-Type: application/json" \
-            --data-binary @/tmp/verify_gate_payload.json | tee /tmp/verify_gate_result.json
-          grep -q '"gate_01":true' /tmp/verify_gate_result.json
-          echo 'Live database profit gate verified at 0.1 bps'
-
-      - name: Deploy trading-bot with no loss-based halt
+      - name: Deploy CHAN paper bot
         run: supabase functions deploy trading-bot --project-ref '${{ env.PROJECT_REF }}' --no-verify-jwt
 
-      - name: Verify deployment patches
+      - name: Verify no-loss CHAN source settings
         run: |
-          ! grep -q "const pb = psychBlock(psy, sym, now)" supabase/functions/trading-bot/fast-runner.ts
-          ! grep -q "FAST.perTrade \* cfg.share \* psy.sizeMult" supabase/functions/trading-bot/fast-runner.ts
-          grep -q "marginBps: 0.1" shared/costs.ts
-          grep -q "net_bps','')::numeric,-1)<0.1" supabase/migrations/20260925000000_dynamic_universe.sql
-          echo 'No-loss + positive-net relaxed gate deployment verified'
+          grep -q "dailyLoss: Infinity" shared/chan.ts
+          grep -q "maxConsec: Infinity" shared/chan.ts
+          grep -q "maxOpen: Infinity" shared/chan.ts
+          echo 'CHAN no daily/streak/open-count stop verified'
