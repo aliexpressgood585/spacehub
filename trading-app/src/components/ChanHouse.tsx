@@ -503,9 +503,10 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
               : cyc?.liquidity_intel?.bykaranteli?.status === 'error' ? 'שגיאת API — Binance/OKX ממשיכים' : 'מוכן · ממתין למפתח Free API'} />
             <DeskRow k="News Risk ציבורי" v={`${Number(cyc?.liquidity_intel?.news_risk ?? 0).toFixed(0)} / 100`} bad={Number(cyc?.liquidity_intel?.news_risk ?? 0)>=65} />
             <DeskRow k="מקורות Intel" v={Array.isArray(cyc?.liquidity_intel?.sources) && cyc.liquidity_intel.sources.length ? cyc.liquidity_intel.sources.slice(0,5).join(' · ') : 'Binance + RSS ציבורי'} />
-            <DeskRow k="Profit Gate" v={`Net R:R ≥ ${Number(cyc?.quality_gates?.min_net_rr ?? 1.35).toFixed(2)}`} />
-            <DeskRow k="Liquidation Guard" v={`סטופ ≤ ${Math.round(100*Number(cyc?.quality_gates?.liq_stop_max_share ?? .60))}% מהמרחק למימוש`} />
-            <DeskRow k="Cooldown למטבע" v={`${Number(cyc?.quality_gates?.symbol_cooldown_bars ?? 3)} נרות אחרי 2 הפסדים`} />
+            <DeskRow k="פרופיל כניסה" v={cyc?.quality_gates?.profile === 'relaxed_aggressive_paper' ? 'אגרסיבי מרוכך · PAPER' : 'CHAN'} />
+            <DeskRow k="Profit Gate" v={`Net R:R ≥ ${Number(cyc?.quality_gates?.min_net_rr ?? 1.20).toFixed(2)}`} />
+            <DeskRow k="Liquidation Guard" v={`סטופ ≤ ${Math.round(100*Number(cyc?.quality_gates?.liq_stop_max_share ?? .75))}% מהמרחק למימוש`} />
+            <DeskRow k="Cooldown למטבע" v={`${Number(cyc?.quality_gates?.symbol_cooldown_bars ?? 2)} נרות אחרי 2 הפסדים`} />
             <DeskRow k="P&L פתוח נטו" v={fmt$(openNet)} bad={openNet<0} />
             <DeskRow k="בטחונות בשימוש" v={fmt$(marginUsed)} />
             <DeskRow k="חשיפה" v={fmt$(exposure)} />
