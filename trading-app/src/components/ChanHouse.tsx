@@ -54,6 +54,7 @@ function reasonHe(r: string) {
   if (r === 'max leverage reached') return 'אין יותר קיבולת חשיפה'
   if (r === 'too_small_or_book_too_thin') return 'ספר דק מדי / גודל לא מספיק'
   if (r === 'fill_beyond_stop') return 'המילוי הצפוי היה מעבר לסטופ'
+  if (r === 'direction_crowding_weak_signal') return 'עומס באותו כיוון — נדרש אות חזק יותר'
   if (r?.startsWith('stop closer than')) return 'הסטופ קרוב מדי ביחס לעלות'
   if (r?.startsWith('paused')) return 'נעצר בשער הסיכון'
   if (r?.startsWith('halted')) return 'נעצר בשער הסיכון'
@@ -63,6 +64,7 @@ function reasonHe(r: string) {
 function stopper(r: string) {
   if (r === 'coin_held') return 'מנהל הפורטפוליו'
   if (r === 'no_book' || r === 'too_small_or_book_too_thin' || r === 'fill_beyond_stop' || r === 'stop_on_wrong_side_of_market') return 'רובוט ביצוע'
+  if (r === 'direction_crowding_weak_signal') return 'מנהל חשיפה כיוונית'
   if (r === 'max leverage reached' || r?.startsWith('stop closer') || r?.startsWith('paused') || r?.startsWith('halted') || r?.startsWith('half-Kelly')) return 'רובוט סיכון'
   return 'רובוט האסטרטגיה'
 }
@@ -461,6 +463,9 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
             <DeskRow k="Cursor" v={`${Number(liveScan?.cursor ?? 0)} / ${Number(liveScan?.total ?? cyc?.universe ?? 0)}`} />
             <DeskRow k="Batch אחרון" v={String(Number(liveScan?.batch_size ?? 0))} />
             <DeskRow k="פוזיציות פתוחות" v={String(open.length)} />
+            <DeskRow k="כיוון LONG" v={`${Number(cyc?.direction_exposure?.long_count ?? open.filter(t=>t.side==='LONG').length)} · ${fmt$(Number(cyc?.direction_exposure?.long_notional ?? econ.filter(x=>x.trade.side==='LONG').reduce((s,x)=>s+Number(x.live.notional),0)))}`} />
+            <DeskRow k="כיוון SHORT" v={`${Number(cyc?.direction_exposure?.short_count ?? open.filter(t=>t.side==='SHORT').length)} · ${fmt$(Number(cyc?.direction_exposure?.short_notional ?? econ.filter(x=>x.trade.side==='SHORT').reduce((s,x)=>s+Number(x.live.notional),0)))}`} />
+            <DeskRow k="מסנן עומס כיוון" v={`פעיל מ-${Math.round(100*Number(cyc?.direction_exposure?.crowd_share ?? .72))}% / ${Number(cyc?.direction_exposure?.crowd_min_positions ?? 6)} פוזיציות`} />
             <DeskRow k="P&L פתוח נטו" v={fmt$(openNet)} bad={openNet<0} />
             <DeskRow k="בטחונות בשימוש" v={fmt$(marginUsed)} />
             <DeskRow k="חשיפה" v={fmt$(exposure)} />
