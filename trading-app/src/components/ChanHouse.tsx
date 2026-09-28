@@ -498,6 +498,9 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
             <DeskRow k="מסנן עומס כיוון" v={`פעיל מ-${Math.round(100*Number(cyc?.direction_exposure?.crowd_share ?? .72))}% / ${Number(cyc?.direction_exposure?.crowd_min_positions ?? 6)} פוזיציות`} />
             <DeskRow k="Market Breadth 5m" v={cyc?.market_breadth?.n ? `↑ ${(100*Number(cyc.market_breadth.up_share)).toFixed(0)}% · ↓ ${(100*Number(cyc.market_breadth.down_share)).toFixed(0)}% · n=${cyc.market_breadth.n}` : '—'} />
             <DeskRow k="Leverage Intel" v={cyc?.liquidity_intel?.top_pressure?.[0] ? `${cyc.liquidity_intel.top_pressure[0].sym} · ${cyc.liquidity_intel.top_pressure[0].side} · score ${Number(cyc.liquidity_intel.top_pressure[0].score).toFixed(0)}` : 'אוסף נתונים'} />
+            <DeskRow k="ByKaranteli LiqMap" v={cyc?.liquidity_intel?.bykaranteli?.status === 'ok'
+              ? `פעיל · ${cyc.liquidity_intel.bykaranteli.last_symbol ?? '—'} · 24H`
+              : cyc?.liquidity_intel?.bykaranteli?.status === 'error' ? 'שגיאת API — Binance/OKX ממשיכים' : 'מוכן · ממתין למפתח Free API'} />
             <DeskRow k="News Risk ציבורי" v={`${Number(cyc?.liquidity_intel?.news_risk ?? 0).toFixed(0)} / 100`} bad={Number(cyc?.liquidity_intel?.news_risk ?? 0)>=65} />
             <DeskRow k="מקורות Intel" v={Array.isArray(cyc?.liquidity_intel?.sources) && cyc.liquidity_intel.sources.length ? cyc.liquidity_intel.sources.slice(0,5).join(' · ') : 'Binance + RSS ציבורי'} />
             <DeskRow k="Profit Gate" v={`Net R:R ≥ ${Number(cyc?.quality_gates?.min_net_rr ?? 1.35).toFixed(2)}`} />
@@ -560,12 +563,16 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
           <DeskRow k="פתוחות כרגע" v={String(open.length)} />
           <DeskRow k="מינוף בפוזיציות" v={open.length ? open.map(t=>`${t.sym} ${Number(t.lev)}×`).join(' · ') : '—'} />
           <DeskRow k="Intel מוביל" v={cyc?.liquidity_intel?.top_pressure?.[0] ? `${cyc.liquidity_intel.top_pressure[0].sym} ${cyc.liquidity_intel.top_pressure[0].side} · ${Number(cyc.liquidity_intel.top_pressure[0].score).toFixed(0)}` : '—'} />
+          <DeskRow k="LiqMap חיצוני" v={cyc?.liquidity_intel?.bykaranteli?.status === 'ok' ? `ByKaranteli · ${cyc.liquidity_intel.bykaranteli.last_symbol ?? '—'}` : 'ByKaranteli · ממתין להפעלה'} />
           <DeskRow k="כותרת חדשות אחרונה" v={cyc?.liquidity_intel?.headlines?.[0]?.title ? String(cyc.liquidity_intel.headlines[0].title).slice(0,90) : '—'} />
           <DeskRow k="נפתחו במחזור" v={String(Number(cyc?.opened ?? 0))} />
           <DeskRow k="נסגרו במחזור" v={String(Number(cyc?.closed ?? 0))} />
           <DeskRow k="שגיאות פעילות" v={String(activeErrors)} bad={activeErrors>0} />
           <DeskRow k="חתימת מחזור" v={cycT ? clock(cycT) : '—'} />
         </div>
+      </div>
+      <div className="muted" style={{marginTop:8,fontSize:11}}>
+        נתוני LiqMap חיצוניים, כאשר פעילים: <a href="https://bykaranteli.com" target="_blank" rel="noreferrer">ByKaranteli</a> · Public 24H
       </div>
     </section>
 
