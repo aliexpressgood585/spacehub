@@ -266,7 +266,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
         kelly_f: m.kelly_f, risk_usd: m.risk_usd, kelly_why: m.kelly_why
       }
       if ((managed.lastT && managed.lastT > (Number(m.chk) || 0)) || managed.stop!==Number(m.stop) || managed.mfeR!==Number(m.mfe_r??0) || managed.maeR!==Number(m.mae_r??0)) {
-        updates.push({ id:t.id, chk:managed.lastT??Number(m.chk)||0, ...management })
+        updates.push({ id:t.id, chk:managed.lastT ?? (Number(m.chk)||0), ...management })
       }
     } catch { /* no data this cycle: the next one re-reads every trade since the last check */ }
   })
