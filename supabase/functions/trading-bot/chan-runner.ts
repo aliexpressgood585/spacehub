@@ -20,6 +20,9 @@ import { UNIV, buildUniverse } from '../../../shared/universe.ts'
 import { aggTrades, book, type Pair } from './fast-runner.ts'
 import { json, pool } from './rota-runner.ts'
 
+import { trendPullback } from '../../../shared/trend-pullback.ts'
+
+const sleeveOf = (comp: string) => comp === 'RG_TREND_PULLBACK' ? '2' : '1'
 const REGIME = ['NEUTRAL', 'MEAN_REVERT', 'TREND', 'HIGH_VOL']
 let usedWeight = 0, weightAt = 0
 
@@ -88,6 +91,8 @@ function initRisk(st: any, equity: number): RiskState {
 export async function runChan(db: any, state: any, lease: string, paper: boolean) {
   if (!paper) throw new Error('CHAN is paper-only; refusing live execution')
   const now = Date.now(), params = state.bot_params || {}
+  const wallets = params.chan_split?.wallets
+  if (!wallets?.['1'] || !wallets?.['2']) throw new Error('CHAN split wallets missing')
   const { data: open } = await db.from('bot_trades').select('*').eq('status', 'OPEN').throwOnError()
   if (open.some((t: any) => t.paper_mode !== true || t.strategy !== 'CHAN')) throw new Error('CHAN requires a paper book with CHAN rows only')
   const { data: hist } = await db.from('bot_trades').select('pnl,risk_usd,closed_at,scalp_meta').eq('strategy', 'CHAN').neq('status', 'OPEN')
@@ -114,12 +119,12 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       const entry = Number(t.entry_price), P = pairOf(t.sym)
       const from = Math.max(Date.parse(t.opened_at), Number(m.chk) || 0, now - 3_500_000) + 1
       const tr = await aggTrades(P, from, now)
-      const res = resolveExit({ dir, entry, r: Number(m.r), stop: Number(m.stop), target: null, liq: fastLiq(dir, entry, Number(t.lev) || 1), best: Number(m.best ?? entry), trail: false }, tr.trades)
+      const res = resolveExit({ dir, entry, r: Number(m.r), stop: Number(m.stop), target: m.comp === 'RG_TREND_PULLBACK' ? Number(m.target) : null, liq: fastLiq(dir, entry, Number(t.lev) || 1), best: Number(m.best ?? entry), trail: false }, tr.trades)
       if (res.why) {
         const fu = await fundingFor(t, P, res.T)
         const bk = await book(P), w = walkBook(dir > 0 ? bk.bids : bk.asks, entry * Number(t.size))
         const imp = Math.max(Number.isFinite(w.impact) ? w.impact : 0, slipFor(t.sym))
-        const price = res.why === 'STOP' ? res.px * (1 - dir * imp) : res.px
+        const price = (res.why === 'STOP' || res.why === 'TARGET') ? res.px * (1 - dir * imp) : res.px
         closes.push({ id: t.id, price, reason: res.why, quote_ts: Date.now(), funding: fu, fill: { model: tr.complete ? 'aggTrades' : 'aggTrades_truncated', trigger_ts: res.T, trigger_px: res.px, lag_ms: now - res.T, impact_bps: +(imp * 1e4).toFixed(2) } })
         closing.add(t.id); marks[t.sym] = price
         return
@@ -185,7 +190,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
         const bars = await recentBars(P, now)
         if (!bars.length || bars[bars.length - 1].t + CHAN.barMs !== bar) { failed.push(sym); done.add(sym); return }   // stale feed: never trade on it
         const v = barView(bars, d)
-        if (v) views[sym] = v
+        if (v) views[sym] = { ...v, pullback: Number.isFinite(d.volPct) && d.volPct <= CHAN.regime.volPctHigh ? trendPullback(bars) : null }
         done.add(sym)
       } catch { failed.push(sym) }
     })
@@ -202,18 +207,27 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
     let openN = stillOpen.filter((t: any) => !closing.has(t.id)).length
     let openNotional = stillOpen.filter((t: any) => !closing.has(t.id)).reduce((s: number, t: any) => s + Number(t.entry_price) * Number(t.size), 0)
     let cash = Number(state.balance)
-    const held = new Set(heldSyms)
+    const held = new Set(stillOpen.filter((t: any) => !closing.has(t.id)).map((t: any) => sleeveOf(t.scalp_meta?.chan?.comp) + ':' + t.sym))
+    const budgets = Object.fromEntries(['1','2'].map(bucket => {
+      const positions = stillOpen.filter((t: any) => sleeveOf(t.scalp_meta?.chan?.comp) === bucket)
+      const walletCash = Number(wallets[bucket].cash)
+      return [bucket, { cash: walletCash, equity: walletCash + positions.reduce((s: number,t: any)=>s+margin(t)+unreal(t),0),
+        notional: positions.reduce((s: number,t: any)=>s+Number(t.entry_price)*Number(t.size),0) }]
+    }))
     const rsOf = (comp: string) => closedAll.filter((x: any) => x.comp === comp).map((x: any) => x.r).reverse()
-    const cands = Object.entries(views).map(([sym, v]: [string, any]) => {
+    const cands = Object.entries(views).flatMap(([sym, v]: [string, any]) => {
       const c = v.mr.side ? { comp: 'RG_MR', side: v.mr.side, stop: v.mr.side > 0 ? v.mr.stopLong : v.mr.stopShort, maxHold: v.mr.maxHold, strength: Math.abs(v.mr.z) }
         : v.mom.side ? { comp: 'RG_MOM', side: v.mom.side, stop: v.mom.side > 0 ? v.mom.stopLong : v.mom.stopShort, maxHold: CHAN.params.RG_MOM.hold, strength: v.mom.t } : null
-      return c && { sym, v, ...c }
+      const extra = v.pullback ? { comp: 'RG_TREND_PULLBACK', side: v.pullback.side, stop: v.pullback.stop,
+        maxHold: 48, strength: 1, level: v.pullback.level, breakoutAt: v.pullback.breakoutAt } : null
+      return [c,extra].filter(Boolean).map(c => ({sym,v,...c}))
     }).filter(Boolean).sort((a: any, b: any) => b.strength - a.strength) as any[]
     for (const cand of cands) {
       const { sym, v } = cand
       const side = cand.side > 0 ? 'LONG' : 'SHORT'
       const rec = (decision: string, reason: string, extra: any = {}) => decisions.push({ sym, comp: cand.comp, side, decision, reason, regime: REGIME[v.regime], hurst: v.hurst, vol_pct: v.volPct, z: v.mr.z, hl: v.mr.hl, t_sig: v.mom.t, ...extra })
-      if (held.has(sym)) { rec('rejected', 'coin_held'); continue }
+      const bucket = sleeveOf(cand.comp), budget = budgets[bucket]
+      if (held.has(bucket + ':' + sym)) { rec('rejected', 'coin_held'); continue }
       const co = canOpen(st, openN)
       if (!co.ok) { rec('rejected', co.why); continue }
       const estimated = kellyRisk(rsOf(cand.comp))
@@ -227,24 +241,27 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       try { bk = await book(pairOf(sym)) } catch { rec('rejected', 'no_book'); continue }
       const touch = cand.side > 0 ? bk.asks[0][0] : bk.bids[0][0]
       if (!(cand.side * (touch - cand.stop) > 0)) { rec('rejected', 'stop_on_wrong_side_of_market'); continue }
-      const sz = chanSize(k.f, equity, touch, cand.stop, openNotional)
+      const sz = chanSize(k.f, budget.equity, touch, cand.stop, budget.notional)
       if (!(sz.notional > 0)) { rec('rejected', sz.why); continue }
       const dist = Math.abs(touch - cand.stop) / touch
       const cap = liqCap(cand.side > 0 ? bk.asks : bk.bids, cand.side > 0 ? bk.bids : bk.asks, 0.25 * dist)
-      const notional = Math.min(sz.notional, cap, cash * CHAN.risk.maxLeverage / (1 + CHAN.risk.maxLeverage * CHAN.costs.taker))
+      const notional = Math.min(sz.notional, cap, Math.max(0, equity * CHAN.risk.maxLeverage - openNotional), Math.max(0, Math.min(cash, budget.cash)) * CHAN.risk.maxLeverage / (1 + CHAN.risk.maxLeverage * CHAN.costs.taker))
       if (notional / CHAN.risk.maxLeverage < 5) { rec('rejected', 'too_small_or_book_too_thin', { want: sz.notional, liq_cap: cap }); continue }
       const w = walkBook(cand.side > 0 ? bk.asks : bk.bids, notional)
       const floorPx = touch * (1 + cand.side * slipFor(sym)), px = cand.side > 0 ? Math.max(w.vwap, floorPx) : Math.min(w.vwap, floorPx)
       if (!(cand.side * (px - cand.stop) > 0)) { rec('rejected', 'fill_beyond_stop'); continue }
       const r = Math.abs(px - cand.stop)
       entries.push({ sym, side, price: px, notional, lev: CHAN.risk.maxLeverage, quote_ts: bk.E, source: 'binance-futures',
-        chan: { comp: cand.comp, stop: cand.stop, r, best: px, chk: bk.E, max_hold_bars: cand.maxHold, bar: new Date(bar).toISOString(),
+        chan: { comp: cand.comp, sleeve: bucket, level: cand.level ?? null, breakout_at: cand.breakoutAt ?? null,
+          target: cand.comp === 'RG_TREND_PULLBACK' ? px + cand.side * 2 * r : null, stop: cand.stop, r, best: px, chk: bk.E, max_hold_bars: cand.maxHold, bar: new Date(bar).toISOString(),
           regime: REGIME[v.regime], hurst: v.hurst, vol_pct: v.volPct, halflife: v.mr.hl, z: v.mr.z, mr_mean: v.mr.mean, mr_std: v.mr.std,
           t_sig: v.mom.t, atr: v.mom.atr, hh: v.mom.hh, ll: v.mom.ll, kelly_f: k.f, kelly_why: k.why, kelly_n: rsOf(cand.comp).length,
-          risk_usd: notional * r / px, risk_frac: notional * r / px / equity, equity, backtested_coin: (CHAN.universe as readonly string[]).includes(sym),
+          risk_usd: notional * r / px, risk_frac: notional * r / px / budget.equity, equity: budget.equity, backtested_coin: (CHAN.universe as readonly string[]).includes(sym),
           entry_fill: { model: 'book_walk', touch, vwap: w.vwap, impact_bps: +(Math.abs(px / touch - 1) * 1e4).toFixed(2), want: Math.round(sz.notional), liq_cap: Math.round(cap) } } })
       rec('accepted', 'taken', { notional, kelly_f: k.f })
-      held.add(sym); openN++; openNotional += notional; cash -= notional / CHAN.risk.maxLeverage + notional * CHAN.costs.taker
+      held.add(bucket + ':' + sym); openN++; openNotional += notional;
+      const debit = notional / CHAN.risk.maxLeverage + notional * CHAN.costs.taker
+      cash -= debit; budget.cash -= debit; budget.notional += notional; budget.equity -= notional * CHAN.costs.taker
     }
     if (volsChanged || dailyChanged) {
       try { await db.from('market_cache').upsert([{ key: 'chan_vols', data: vols, ts: new Date(now).toISOString() }, { key: 'chan_daily', data: daily, ts: new Date(now).toISOString() }]).throwOnError() } catch { /* rebuilt next cycle */ }

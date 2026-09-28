@@ -36,7 +36,9 @@ const REG: Record<string, { he: string; c: string; what: string }> = {
   HIGH_VOL: { he: 'תנודתי מדי', c: '#f87171', what: 'תנודתיות מעל אחוזון 90 — לא נסחר' },
   NEUTRAL: { he: 'ניטרלי', c: '#64748b', what: 'אין משטר ברור — לא נסחר' },
 }
-const COMP: Record<string, string> = { RG_MR: 'היפוך לממוצע', RG_MOM: 'מומנטום' }
+const COMP: Record<string, string> = { RG_MR: 'היפוך לממוצע', RG_MOM: 'מומנטום', RG_TREND_PULLBACK: 'פריצה ותיקון' }
+const sleeveId = (comp: string) => comp === 'RG_TREND_PULLBACK' ? '2' : '1'
+function SleeveTag({comp}: {comp: string}) { const id = sleeveId(comp); return <span style={{color:id==='1'?'#22d3ee':'#fbbf24',border:'1px solid currentColor',borderRadius:6,padding:'2px 6px',whiteSpace:'nowrap'}}>מסלול {id}</span> }
 const EXIT: Record<string, string> = { STOP: 'סטופ', TIMEOUT: 'תום זמן החזקה', SIGNAL: 'חזרה לממוצע (z≈0)', KILL: 'מפסק ‎-10%', TARGET: 'יעד' }
 function reasonHe(r: string): string {
   if (!r) return '—'
@@ -288,6 +290,24 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
       <div className="ch-warn">מנוע ניסיוני: בבדיקה ההיסטורית (Phase 1) כל האסטרטגיות קיבלו NO-GO. הוא רץ על נייר כבדיקת תשתית בלבד — מה שקורה כאן איננו ראיה לרווחיות.</div>
       {err && <div className="ch-err">שגיאת קריאה: {err}</div>}
 
+      <section className="ch-panel">
+        <h2>ניסוי 50/50 · שני תקציבים עצמאיים</h2>
+        <p className="ch-muted">מסלול 1: האסטרטגיות הקיימות · מסלול 2: פריצה ותיקון. חצי מההון בתחילת הניסוי לכל מסלול; הרווחים וההפסדים נשארים במסלול שלהם.</p>
+        {p.chan_split?.wallets ? <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))',gap:12}}>
+          {(['1','2'] as const).map(id => { const w=p.chan_split.wallets[id]; const eq=Number(w.equity), initial=Number(w.initial); return <div key={id} style={{border:`1px solid ${id==='1'?'#22d3ee':'#fbbf24'}`,borderRadius:10,padding:14}}>
+            <h3 style={{color:id==='1'?'#22d3ee':'#fbbf24'}}>מסלול {id} · {id==='1'?'קיים — חזרה לממוצע ומומנטום':'חדש — פריצה ותיקון'}</h3>
+            <div className="ch-kv"><span>הון בתחילת הניסוי</span><N>{fmt$(initial)}</N></div>
+            <div className="ch-kv"><span>הון לפי מחזור הבוט</span><N>{fmt$(eq)}</N></div>
+            <div className="ch-kv"><span>רווח / הפסד כולל פתוחות</span><N className={eq>=initial?'pos':'neg'}>{fmt$(eq-initial)}</N></div>
+            <div className="ch-kv"><span>מזומן פנוי</span><N>{fmt$(Number(w.cash))}</N></div>
+            <div className="ch-kv"><span>עסקאות סגורות / הצלחה</span><N>{w.closed} / {Number(w.closed)>0?`${(100*Number(w.wins)/Number(w.closed)).toFixed(1)}%`:'—'}</N></div>
+            <div className="ch-kv"><span>עמלות ששולמו</span><N>{fmt$(Number(w.fees))}</N></div>
+            <div className="ch-kv"><span>ירידה מרבית שנמדדה</span><N>{(100*Number(w.max_dd)).toFixed(2)}%</N></div>
+            <div className="ch-kv"><span>פוזיציות פתוחות</span><N>{(snap?.open??[]).filter(t=>sleeveId(t.scalp_meta?.chan?.comp)===id).length}</N></div>
+          </div>})}
+        </div> : <p>הניסוי עדיין לא אותחל בשרת.</p>}
+        <p className="ch-muted">תוצאות מהפעלת הניסוי בלבד; ההיסטוריה הקודמת נשמרת. הון כולל רווח לא ממומש, לפני עלויות יציאה עתידיות. מסלול 2 ניסיוני וטרם הוכחה רווחיותו.</p>
+      </section>
       <div className="ch-house">
         <div className="ch-roof">
           <div className="ch-roof-in">
@@ -337,7 +357,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
             <div className="ch-kv"><span>הפסד ממומש היום</span><b><N>{dayLoss == null ? '—' : `${(dayLoss * 100).toFixed(1)}%`}</N> · ללא השהיה</b></div>
             <div className="ch-kv"><span>הפסדים ברצף</span><b><N>{streak ?? '—'}</N> · ללא השהיה</b></div>
             <div className="ch-kv"><span>פוזיציות פתוחות</span><b><N>{openN}</N> · ללא תקרה (מוגבל רק במינוף ×3 ובמזומן)</b></div>
-            {(['RG_MR', 'RG_MOM'] as const).map((c) => { const k = kellyOf(c); return (
+            {(['RG_MR', 'RG_MOM', 'RG_TREND_PULLBACK'] as const).map((c) => { const k = kellyOf(c); return (
               <div key={c} className="ch-kv"><span>סיכון לעסקה · {COMP[c]}</span><b>{k ? `${(Number(k.kelly_f) * 100).toFixed(2)}% (${nComp(c)}/${CHAN.risk.kellyMinTrades} עסקאות לקלי)` : `${CHAN.risk.defaultRisk * 100}% ברירת מחדל`}</b></div>
             ) })}
           </Room>
@@ -354,7 +374,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
             {(snap?.closed ?? []).slice(0, 6).map((t) => (
               <div key={t.id} className="ch-row">
                 <N className={Number(t.pnl) >= 0 ? 'pos' : 'neg'}>{fmt$(Number(t.pnl))}</N>
-                <span>{t.sym} {t.side === 'LONG' ? '▲' : '▼'}</span>
+                <span>{t.sym} {t.side === 'LONG' ? '▲' : '▼'}</span><SleeveTag comp={t.scalp_meta?.chan?.comp} />
                 <span>{EXIT[t.scalp_meta?.exit_reason] ?? t.scalp_meta?.exit_reason ?? t.status}</span>
                 <span className="ch-muted">{Number.isFinite(Number(t.scalp_meta?.r_multiple)) ? `${Number(t.scalp_meta.r_multiple).toFixed(2)}R` : ''} · {hm(t.closed_at)}</span>
               </div>
@@ -379,7 +399,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
       </div>
 
       <section className="ch-panel">
-        <h2>כל המטבעות שהבוט סורק — המשטר של היום</h2>
+        <h2>כל המטבעות שהבוט סורק — סיווג מסלול 1</h2>
         <div className="ch-legend">{REGIMES.map((r) => <span key={r}><i className="ch-sq" style={{ background: REG[r].c }} />{REG[r].he} · {REG[r].what}</span>)}<span><i className="ch-sq held" />מוחזק כרגע</span></div>
         <div className="ch-grid">
           {coins.map((c) => {
@@ -440,7 +460,7 @@ function Position({ t, mark, now }: { t: J; mark?: LiveTick; now: number }) {
   const stopPct = tradeMetrics(t, Number(t.entry_price), now).stopPct
   return (
     <div className="ch-pos">
-      <div className="ch-row"><b>{t.sym} {t.side === 'LONG' ? '▲ לונג' : '▼ שורט'}</b><span>{COMP[m.comp] ?? m.comp}</span><span className={M == null ? 'ch-muted' : M.net >= 0 ? 'pos' : 'neg'}>{M == null ? 'אין מחיר חי' : <N className={`ch-flash ${tickDir(mark)}`} key={M.net.toFixed(2)}>{`נטו ${fmt$(M.net)} · ${fmtR(M.netR)}`}</N>}</span></div>
+      <div className="ch-row"><b>{t.sym} {t.side === 'LONG' ? '▲ לונג' : '▼ שורט'}</b><SleeveTag comp={m.comp} /><span>{COMP[m.comp] ?? m.comp}</span><span className={M == null ? 'ch-muted' : M.net >= 0 ? 'pos' : 'neg'}>{M == null ? 'אין מחיר חי' : <N className={`ch-flash ${tickDir(mark)}`} key={M.net.toFixed(2)}>{`נטו ${fmt$(M.net)} · ${fmtR(M.netR)}`}</N>}</span></div>
       <div className="ch-row ch-muted"><span>כניסה {fmtPx(Number(t.entry_price))}</span><span>עכשיו <N className={`ch-flash ${tickDir(mark)}`} key={px ?? 'x'}>{fmtPx(px)}</N></span><span>סטופ {fmtPx(Number(m.stop))} (<N>{fmtPctSigned(stopPct, 3)}</N> מהכניסה)</span></div>
       {M && <div className="ch-row ch-muted"><span>ברוטו <N>{fmt$(M.gross)} · {fmtR(M.grossR)}</N></span><span>עמלות וההחלקה <N>{fmt$(M.costs)}</N> (הערכה)</span><span>תנועה <N>{fmtPctSigned(M.movePct, 3)}</N></span></div>}
       <div className="ch-bar"><i style={{ width: `${Math.min(100, (heldMin / maxMin) * 100)}%`, background: '#38bdf8' }} /></div>
