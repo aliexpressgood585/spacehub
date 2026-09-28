@@ -92,6 +92,20 @@ jobs:
             echo "no exchange keys — paper mode"
           fi
 
+      - name: Prepare pinned CHAN release shim
+        shell: bash
+        run: |
+          SHA="$(git rev-parse HEAD)"
+          cat > supabase/functions/trading-bot/index.ts <<EOF
+          const g = globalThis as any;
+          g.__RELEASE_SHA = '${SHA}';
+          g.__ENABLED_SLEEVES = 'CHAN';
+          g.__LEVERAGE = '1';
+          await import('https://raw.githubusercontent.com/aliexpressgood585/spacehub/${SHA}/supabase/functions/trading-bot/index.ts');
+          export {};
+          EOF
+          echo "Prepared CHAN shim for ${SHA}"
+
       - name: Deploy trading-bot function
         run: supabase functions deploy trading-bot --project-ref ${{ env.PROJECT_REF }} --no-verify-jwt
 
