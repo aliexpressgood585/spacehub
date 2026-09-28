@@ -273,7 +273,6 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
       <span className={`chip ${activeErrors ? 'bad' : 'ok'}`}>{activeErrors ? `${activeErrors} שגיאות פעילות` : '0 שגיאות פעילות'}</span>
     </div>
 
-    <div className="warn">סימולציית PAPER: נתוני מחיר/ספר פקודות מגיעים מ־Binance Futures, עמלת taker במודל היא 0.05%, והחלקה מחושבת לפי ספר הפקודות. הנחות VIP/BNB של חשבון אמיתי אינן מחוברות ולכן אינן יכולות להיות זהות לחשבון אישי.</div>
     {err && <div className="readerr">שגיאת קריאה: {err}</div>}
 
     <section className="accountStrip">
