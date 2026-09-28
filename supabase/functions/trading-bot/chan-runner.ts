@@ -189,7 +189,10 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
     const top = dir > 0 ? bk.bids[0][0] : bk.asks[0][0], w = walkBook(dir > 0 ? bk.bids : bk.asks, Number(t.entry_price) * Number(t.size))
     const imp = Math.max(Number.isFinite(w.impact) ? w.impact : 0, slipFor(t.sym))
     marks[t.sym] = top
-    closes.push({ id: t.id, price: top * (1 - dir * imp), reason, quote_ts: bk.E, funding: fu, fill: { model: 'book_walk', impact_bps: +(imp * 1e4).toFixed(2), depth_usd: Math.round(w.depthUsd), beyond_book: w.beyond, ...extra } })
+    const management=extra?.management??null
+    const fillExtra={...extra}; delete fillExtra.management
+    closes.push({ id: t.id, price: top * (1 - dir * imp), reason, quote_ts: bk.E, funding: fu, management,
+      fill: { model: 'book_walk', impact_bps: +(imp * 1e4).toFixed(2), depth_usd: Math.round(w.depthUsd), beyond_book: w.beyond, ...fillExtra } })
     closing.add(t.id)
   }
   // 1. exchange-side stop, replayed on the real trade tape since the last check; time exits
