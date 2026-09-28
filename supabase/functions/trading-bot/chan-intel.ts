@@ -12,6 +12,23 @@ export type NewsItem = {
   risk:number
 }
 
+export type LiqMapIntel = {
+  provider:'ByKaranteli'
+  status:'ok'|'needs_key'|'error'
+  sym?:string
+  ts?:number
+  current_price?:number|null
+  long_cluster_price?:number|null
+  short_cluster_price?:number|null
+  long_cluster_notional?:number|null
+  short_cluster_notional?:number|null
+  long_cluster_distance?:number|null
+  short_cluster_distance?:number|null
+  bias?:'LONG_FLUSH'|'SHORT_SQUEEZE'|'BALANCED'|null
+  source?:string
+  error?:string
+}
+
 export type SymbolIntel = {
   sym:string
   ts:number
@@ -30,6 +47,7 @@ export type SymbolIntel = {
   flow_bias:number
   confidence:number
   sources:string[]
+  liqmap?:LiqMapIntel
 }
 
 export type ChanIntel = {
@@ -40,10 +58,12 @@ export type ChanIntel = {
   top_pressure:Array<{sym:string;side:'LONG'|'SHORT';score:number;funding:number|null;oi_delta:number|null;taker_ratio:number|null}>
   sources:string[]
   failed:string[]
+  bykaranteli:{status:'ok'|'needs_key'|'error'; last_symbol?:string; last_at?:number; source?:string; error?:string}
 }
 
 const NEWS_TTL = 120_000
 const INTEL_TTL = 120_000
+const BYKARANTELI_TTL = 5*60_000
 const NEWS_FEEDS:[string,string][] = [
   ['cointelegraph','https://cointelegraph.com/rss'],
   ['coindesk','https://www.coindesk.com/arc/outboundfeeds/rss/'],
@@ -66,6 +86,112 @@ async function txt(url:string) {
   const r = await fetch(url,{signal:AbortSignal.timeout(4500),redirect:'follow'})
   if(!r.ok) throw new Error('HTTP '+r.status)
   return r.text()
+}
+async function bykaranteliKey(db:any):Promise<string> {
+  try {
+    const env=(globalThis as any)?.Deno?.env?.get?.('BYKARANTELI_API_KEY')
+    if(typeof env==='string'&&env.trim()) return env.trim()
+  } catch {}
+  try {
+    const {data,error}=await db.rpc('chan_get_bykaranteli_key')
+    if(!error&&typeof data==='string'&&data.trim()) return data.trim()
+  } catch {}
+  return ''
+}
+
+async function bykaranteliJson(path:string,key:string) {
+  const r=await fetch('https://bykaranteli.com'+path,{
+    signal:AbortSignal.timeout(8000),
+    redirect:'follow',
+    headers:{
+      accept:'application/json',
+      authorization:'Bearer '+key,
+      'user-agent':'spacehub-chan-paper/1.0 (+https://github.com/aliexpressgood585/spacehub)'
+    }
+  })
+  if(!r.ok){
+    const body=(await r.text().catch(()=>'' )).replace(/\s+/g,' ').slice(0,240)
+    throw new Error('ByKaranteli HTTP '+r.status+(body?': '+body:''))
+  }
+  return r.json()
+}
+
+function objectRows(x:any,path='root',out:Array<{path:string;v:any}>=[]) {
+  if(!x||typeof x!=='object') return out
+  if(!Array.isArray(x)) out.push({path,v:x})
+  if(Array.isArray(x)) x.forEach((v,i)=>objectRows(v,path+'['+i+']',out))
+  else Object.entries(x).forEach(([k,v])=>objectRows(v,path+'.'+k,out))
+  return out
+}
+function fieldNum(v:any,names:string[]):number|null {
+  if(!v||typeof v!=='object') return null
+  for(const name of names){
+    const hit=Object.entries(v).find(([k])=>k.toLowerCase().replace(/[^a-z0-9]/g,'')===name)
+    if(hit){const z=Number(hit[1]);if(Number.isFinite(z))return z}
+  }
+  return null
+}
+function parseByKaranteliLiqMap(raw:any,sym:string,now:number):LiqMapIntel {
+  const rows=objectRows(raw)
+  const currentNames=['currentprice','lastprice','markprice','price']
+  let current:number|null=null
+  for(const {path,v} of rows){
+    const p=path.toLowerCase()
+    if(!/(current|last|mark|snapshot)/.test(p)&&path!=='root') continue
+    const z=fieldNum(v,currentNames); if(z!=null&&z>0){current=z;break}
+  }
+  if(current==null) current=fieldNum(raw,currentNames)
+
+  const candidates:Array<{kind:'long'|'short';price:number;notional:number|null;dist:number|null;score:number}>=[]
+  for(const {path,v} of rows){
+    const p=path.toLowerCase()
+    const side=String(v?.side??v?.position_side??v?.positionSide??v?.kind??'').toLowerCase()
+    const longish=side.includes('long')||p.includes('long')
+    const shortish=side.includes('short')||p.includes('short')
+    if(!longish&&!shortish) continue
+    if(!/(cluster|level|zone|nearest|liquid)/.test(p+side)) continue
+    const price=fieldNum(v,['price','px','level','liquidationprice','clusterprice'])
+    if(price==null||price<=0) continue
+    const notional=fieldNum(v,['notional','usd','value','amount','sizeusd','totalusd'])
+    const distRaw=fieldNum(v,['distancepct','distancepercent','distance','pctaway'])
+    const dist=distRaw==null?(current&&current>0?Math.abs(price/current-1):null):(Math.abs(distRaw)>1?Math.abs(distRaw)/100:Math.abs(distRaw))
+    const near=p.includes('nearest')?4:0, hasUsd=notional!=null?2:0
+    if(longish)candidates.push({kind:'long',price,notional,dist,score:near+hasUsd+(dist!=null?1:0)})
+    if(shortish)candidates.push({kind:'short',price,notional,dist,score:near+hasUsd+(dist!=null?1:0)})
+  }
+  const choose=(kind:'long'|'short')=>candidates.filter(x=>x.kind===kind).sort((a,b)=>{
+    if(a.score!==b.score)return b.score-a.score
+    return (a.dist??Infinity)-(b.dist??Infinity)
+  })[0]
+  const L=choose('long'), S=choose('short')
+  const ld=L?.dist??null, sd=S?.dist??null
+  let bias:'LONG_FLUSH'|'SHORT_SQUEEZE'|'BALANCED'|null=null
+  if(ld!=null||sd!=null){
+    if(ld!=null&&(sd==null||ld+0.002<sd))bias='LONG_FLUSH'
+    else if(sd!=null&&(ld==null||sd+0.002<ld))bias='SHORT_SQUEEZE'
+    else bias='BALANCED'
+  }
+  return {
+    provider:'ByKaranteli',status:'ok',sym,ts:now,current_price:current,
+    long_cluster_price:L?.price??null,short_cluster_price:S?.price??null,
+    long_cluster_notional:L?.notional??null,short_cluster_notional:S?.notional??null,
+    long_cluster_distance:ld,short_cluster_distance:sd,bias,
+    source:'https://bykaranteli.com/liqmap/'+sym.toLowerCase()
+  }
+}
+
+function liqMapBoost(x:LiqMapIntel|undefined) {
+  if(!x||x.status!=='ok') return {longSqueeze:0,shortSqueeze:0}
+  const boost=(dist:number|null|undefined,usd:number|null|undefined)=>{
+    if(dist==null||!Number.isFinite(dist)||dist>0.06)return 0
+    const proximity=clamp((0.06-dist)/0.06)
+    const size=usd==null?0.6:clamp(Math.log10(Math.max(1,usd))/6,0.35,1)
+    return 18*proximity*size
+  }
+  return {
+    longSqueeze:boost(x.long_cluster_distance,x.long_cluster_notional),
+    shortSqueeze:boost(x.short_cluster_distance,x.short_cluster_notional)
+  }
 }
 async function pool<T>(xs:T[], workers:number, fn:(x:T)=>Promise<void>) {
   let i=0
@@ -257,10 +383,55 @@ export async function loadChanIntel(
     if(symbolRisk>0&&by[sym]) (by[sym] as any).news_risk=symbolRisk
   }
 
-  const topPressure=Object.values(by).filter(x=>now-x.ts<10*60_000&&x.confidence>=50).flatMap(x=>[
+  let topPressure=Object.values(by).filter(x=>now-x.ts<10*60_000&&x.confidence>=50).flatMap(x=>[
     {sym:x.sym,side:'SHORT' as const,score:x.long_squeeze,funding:x.funding,oi_delta:x.oi_delta,taker_ratio:x.taker_ratio},
     {sym:x.sym,side:'LONG' as const,score:x.short_squeeze,funding:x.funding,oi_delta:x.oi_delta,taker_ratio:x.taker_ratio},
   ]).sort((a,b)=>b.score-a.score).slice(0,12)
+
+  // Free-plan quota guard: only one LiqMap request globally every 5 minutes (~8.6k/month).
+  // The selected symbol is the strongest current leverage-pressure candidate that is stale.
+  let bykaranteli:ChanIntel['bykaranteli']={status:'needs_key'}
+  try{
+    const key=await bykaranteliKey(db)
+    if(key){
+      const {data:bkRows}=await db.from('market_cache').select('data,ts').eq('key','chan_bykaranteli').throwOnError()
+      const bkCache=bkRows?.[0]?.data??{by_sym:{}}
+      const lastAt=Number(bkCache.last_at??0)
+      const poolSyms=[...new Set(topPressure.map(x=>x.sym).concat(watch))].filter(s=>by[s])
+      let selected=poolSyms.find(s=>now-Number(bkCache.by_sym?.[s]?.ts??0)>=15*60_000)??poolSyms[0]
+      if(selected&&now-lastAt>=BYKARANTELI_TTL){
+        try{
+          const raw=await bykaranteliJson('/api/liqmap/public?symbol='+encodeURIComponent(selected+'USDT')+'&timeframe=24h',key)
+          const parsed=parseByKaranteliLiqMap(raw,selected,now)
+          bkCache.by_sym={...(bkCache.by_sym??{}),[selected]:parsed}
+          bkCache.last_at=now;bkCache.last_symbol=selected
+          await db.from('market_cache').upsert({key:'chan_bykaranteli',data:bkCache,ts:new Date(now).toISOString()}).throwOnError()
+        }catch(e:any){
+          bkCache.last_at=now;bkCache.last_symbol=selected;bkCache.last_error=String(e?.message??e).slice(0,180)
+          try{await db.from('market_cache').upsert({key:'chan_bykaranteli',data:bkCache,ts:new Date(now).toISOString()}).throwOnError()}catch{}
+        }
+      }
+      for(const [sym,lm] of Object.entries(bkCache.by_sym??{})){
+        if(by[sym]&&now-Number((lm as any)?.ts??0)<60*60_000){
+          by[sym].liqmap=lm as LiqMapIntel
+          const b=liqMapBoost(by[sym].liqmap)
+          by[sym].long_squeeze=+Math.min(100,by[sym].long_squeeze+b.longSqueeze).toFixed(1)
+          by[sym].short_squeeze=+Math.min(100,by[sym].short_squeeze+b.shortSqueeze).toFixed(1)
+          by[sym].sources=[...new Set(by[sym].sources.concat(['ByKaranteli-LiqMap']))]
+        }
+      }
+      bykaranteli=bkCache.last_error
+        ? {status:'error',last_symbol:bkCache.last_symbol,last_at:bkCache.last_at,error:bkCache.last_error,source:'https://bykaranteli.com'}
+        : {status:'ok',last_symbol:bkCache.last_symbol,last_at:bkCache.last_at,source:'https://bykaranteli.com'}
+      sources.push('ByKaranteli-LiqMap')
+      topPressure=Object.values(by).filter(x=>now-x.ts<10*60_000&&x.confidence>=50).flatMap(x=>[
+        {sym:x.sym,side:'SHORT' as const,score:x.long_squeeze,funding:x.funding,oi_delta:x.oi_delta,taker_ratio:x.taker_ratio},
+        {sym:x.sym,side:'LONG' as const,score:x.short_squeeze,funding:x.funding,oi_delta:x.oi_delta,taker_ratio:x.taker_ratio},
+      ]).sort((a,b)=>b.score-a.score).slice(0,12)
+    }
+  }catch(e:any){
+    bykaranteli={status:'error',error:String(e?.message??e).slice(0,180),source:'https://bykaranteli.com'}
+  }
 
   const out:ChanIntel={
     ts:now,
@@ -269,7 +440,8 @@ export async function loadChanIntel(
     by_sym:by,
     top_pressure:topPressure,
     sources:[...new Set(sources.concat(['binance-oi','binance-positioning','binance-taker-flow']))],
-    failed:[...new Set(failed)].slice(0,40)
+    failed:[...new Set(failed)].slice(0,40),
+    bykaranteli
   }
   try{await db.from('market_cache').upsert({key:'chan_intel',data:out,ts:new Date(now).toISOString()}).throwOnError()}catch{}
   return out
