@@ -104,7 +104,7 @@ function economics(t: J, cyc: J, quote?: J) {
     ...(backend ?? {}),
     id:t.id, sym:t.sym, side:t.side, comp:backend?.comp ?? m.comp, opened_at:t.opened_at,
     leverage:lev, size, notional, margin,
-    entry, mark:liveTop, est_exit:estExit,
+    entry, bid:Number(quote?.bid ?? liveTop), ask:Number(quote?.ask ?? liveTop), mark:liveTop, est_exit:estExit,
     stop:Number(backend?.stop ?? m.stop),
     target:(backend?.target ?? m.target) == null ? null : Number(backend?.target ?? m.target),
     liq:Number(backend?.liq ?? entry * (1 - dir * (1/lev - 0.005))),
@@ -152,7 +152,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
           q<J[]>('deployment_manifest?select=sha,enabled_sleeves&order=first_seen.desc&limit=1').catch(() => []),
           q<J[]>(`bot_errors?select=ts,scope,message&ts=gte.${new Date(Date.now()-3_600_000).toISOString()}&order=ts.desc&limit=20`).catch(() => []),
           q<J[]>('trade_decisions?select=ts,sym,side,decision,reason,notional,observed,inferred&inferred->>sleeve=eq.CHAN&order=ts.desc&limit=80').catch(() => []),
-          q<J[]>('bot_trades?select=id,sym,side,status,lev,pnl,fee,opened_at,closed_at,exit_price,scalp_meta&strategy=eq.CHAN&status=neq.OPEN&closed_at=not.is.null&order=closed_at.desc&limit=30').catch(() => []),
+          q<J[]>('bot_trades?select=id,sym,side,status,lev,entry_price,exit_price,size,pnl,pnl_pct,fee,opened_at,closed_at,scalp_meta&strategy=eq.CHAN&status=neq.OPEN&closed_at=not.is.null&order=closed_at.desc&limit=1000').catch(() => []),
         ])
         if (!alive) return
         setState(st[0] ?? null)
@@ -223,6 +223,13 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
   const scanning = fresh && liveScan?.status === 'continuous'
 
   const econ = useMemo(() => open.map(t => ({ trade:t, live:economics(t,cyc,liveQuotes[t.sym]) })), [open,cyc,liveQuotes])
+  const closedTrades = useMemo(() => recentClosed.filter(t => t.status !== 'RESET' && Number.isFinite(Number(t.pnl))), [recentClosed])
+  const closedWins = closedTrades.filter(t => Number(t.pnl) > 0).length
+  const closedLosses = closedTrades.filter(t => Number(t.pnl) < 0).length
+  const closedFlat = closedTrades.length - closedWins - closedLosses
+  const winRate = closedTrades.length ? closedWins / closedTrades.length : null
+  const chartPos = chartId == null ? null : econ.find(x => x.trade.id === chartId) ?? null
+
   const startCapital = ['1','2'].reduce((s,id)=>s+Number(wallets?.[id]?.initial ?? 0),0) || 5000
   const realised = ['1','2'].reduce((s,id)=>s+Number(wallets?.[id]?.realised ?? 0),0)
   const feesPaid = ['1','2'].reduce((s,id)=>s+Number(wallets?.[id]?.fees ?? 0),0)
@@ -352,6 +359,8 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
       <Stat k="עמלת סגירה משוערת" v={fmt$(exitFees)} />
       <Stat k="החלקה לסגירה משוערת" v={fmt$(exitSlip)} />
       <Stat k="Funding" v={fmt$(fundingPaid)} />
+      <Stat k="Win Rate" v={winRate == null ? '—' : `${(winRate*100).toFixed(1)}%`} cls={winRate != null && winRate >= .5 ? 'pos' : ''} />
+      <Stat k="עסקאות סגורות" v={`${closedTrades.length} · W ${closedWins} / L ${closedLosses}${closedFlat ? ' / F '+closedFlat : ''}`} />
     </section>
 
     <section className="positions">
@@ -361,9 +370,43 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
       </div>
       {econ.length === 0 ? <div className="emptyPos">אין כרגע פוזיציות פתוחות.</div> :
         <div className="positionGrid">
-          {econ.map(({trade,live}) => <PositionCard key={trade.id} t={trade} live={live} expanded={chartId===trade.id} onChart={()=>setChartId(chartId===trade.id?null:trade.id)} />)}
+          {econ.map(({trade,live}) => <PositionCard key={trade.id} t={trade} live={live} onChart={()=>setChartId(trade.id)} />)}
         </div>
       }
+    </section>
+
+    <section className="closedTrades">
+      <div className="sectionHead">
+        <div><h2>עסקאות שנסגרו</h2><p>כל עסקאות CHAN מאז האיפוס, ללא עסקת RESET טכנית. ה־P&L הוא הערך שנרשם בפועל בסימולציה.</p></div>
+        <span className="countBadge">{closedTrades.length} סגורות · {winRate == null ? 'Win Rate —' : `Win Rate ${(winRate*100).toFixed(1)}%`}</span>
+      </div>
+      {closedTrades.length === 0 ? <div className="emptyPos">עדיין אין עסקאות סגורות.</div> :
+      <div className="closedTableWrap">
+        <table className="closedTable">
+          <thead><tr>
+            <th>זמן סגירה</th><th>מטבע</th><th>צד</th><th>תוצאה</th><th>P&L נטו</th><th>גודל</th><th>שווי פוזיציה</th><th>כניסה</th><th>יציאה</th><th>מינוף</th><th>עמלות</th><th>סיבה</th>
+          </tr></thead>
+          <tbody>
+            {closedTrades.map(t => {
+              const pnl=Number(t.pnl), qty=Number(t.size), entry=Number(t.entry_price), exit=Number(t.exit_price), lev=Math.max(1,Number(t.lev)||1)
+              return <tr key={t.id} className={pnl>=0?'winRow':'lossRow'}>
+                <td><bdi dir="ltr">{clock(t.closed_at)}</bdi></td>
+                <td><b>{t.sym}</b></td>
+                <td>{t.side}</td>
+                <td>{t.status}</td>
+                <td className={pnl>=0?'pos':'neg'}>{fmt$(pnl)}</td>
+                <td><bdi dir="ltr">{qty.toLocaleString('en-US',{maximumFractionDigits:8})}</bdi></td>
+                <td>{fmt$(entry*qty)}</td>
+                <td><bdi dir="ltr">{fmtPx(entry)}</bdi></td>
+                <td><bdi dir="ltr">{fmtPx(exit)}</bdi></td>
+                <td>{lev}×</td>
+                <td>{fmt$(Number(t.fee))}</td>
+                <td>{t.scalp_meta?.exit_reason ?? t.status}</td>
+              </tr>
+            })}
+          </tbody>
+        </table>
+      </div>}
     </section>
 
     <section className="factory">
@@ -495,10 +538,11 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
       </div>
     </section>
 
+    {chartPos && <FullScreenTradeChart t={chartPos.trade} live={chartPos.live} onClose={()=>setChartId(null)} />}
   </div>
 }
 
-function PositionCard({t,live,expanded,onChart}:{t:J;live:J;expanded:boolean;onChart:()=>void}) {
+function PositionCard({t,live,onChart}:{t:J;live:J;onChart:()=>void}) {
   const m=t.scalp_meta?.chan ?? {}
   const net=Number(live.net_pnl_to_close ?? 0), good=net>=0
   const dir=t.side==='LONG'?1:-1
@@ -512,6 +556,8 @@ function PositionCard({t,live,expanded,onChart}:{t:J;live:J;expanded:boolean;onC
     </div>
     <div className="posMetrics">
       <Mini k="כניסה" v={fmtPx(Number(live.entry))}/>
+      <Mini k="Bid חי" v={fmtPx(Number(live.bid))}/>
+      <Mini k="Ask חי" v={fmtPx(Number(live.ask))}/>
       <Mini k="מחיר חי" v={fmtPx(Number(live.mark))}/>
       <Mini k="יציאה אם סוגרים עכשיו" v={fmtPx(Number(live.est_exit))}/>
       <Mini k="בטוחה" v={fmt$(Number(live.margin))}/>
@@ -523,7 +569,7 @@ function PositionCard({t,live,expanded,onChart}:{t:J;live:J;expanded:boolean;onC
       <Mini k="החלקת פתיחה" v={fmt$(Number(live.entry_slippage_usd))}/>
       <Mini k="החלקת סגירה משוערת" v={fmt$(Number(live.exit_slippage_usd))}/>
       <Mini k="סטופ" v={fmtPx(stop)}/>
-      <Mini k="ליקווידציה מודלית" v={fmtPx(Number(live.liq))}/>
+      <Mini k="מחיר מימוש / ליקווידציה" v={fmtPx(Number(live.liq))}/>
       <Mini k="הפסד נטו אם סטופ" v={fmt$(stopNet)} cls="neg"/>
       {target!=null&&<Mini k="יעד" v={fmtPx(target)}/>}
       {targetNet!=null&&<Mini k="רווח נטו אם יעד" v={fmt$(targetNet)} cls="pos"/>}
@@ -534,61 +580,123 @@ function PositionCard({t,live,expanded,onChart}:{t:J;live:J;expanded:boolean;onC
       <small>{m.kelly_why ?? 'האות עבר אסטרטגיה, סיכון, ספר פקודות ולדג׳ר.'}</small>
       <small>עדכון מחיר אחרון: {clock(live.quote_ts)} · {live.quote_source === 'BINANCE_WS' ? 'Binance WebSocket חי' : 'מחזור הבוט'} · החלקת יציאה {Number(live.exit_impact_bps ?? 0).toFixed(2)}bp</small>
     </div>
-    <button className="chartBtn" onClick={onChart}>{expanded?'סגור גרף':'פתח גרף ניתוח'}</button>
-    {expanded&&<TradeChart t={t} live={live}/>}
+    <button className="chartBtn" onClick={onChart}>פתח גרף מסך מלא</button>
   </article>
 }
 
-function TradeChart({t,live}:{t:J;live:J}) {
+const TF = [
+  ['1m','1 דק׳'],['3m','3 דק׳'],['5m','5 דק׳'],['15m','15 דק׳'],['30m','30 דק׳'],
+  ['1h','1 ש׳'],['2h','2 ש׳'],['4h','4 ש׳'],['6h','6 ש׳'],['8h','8 ש׳'],['12h','12 ש׳'],
+  ['1d','יום'],['3d','3 ימים'],['1w','שבוע'],['1M','חודש']
+] as const
+
+function FullScreenTradeChart({t,live,onClose}:{t:J;live:J;onClose:()=>void}) {
+  const [tf,setTf]=useState<string>('5m')
   const [bars,setBars]=useState<J[]>([])
   const [e,setE]=useState('')
-  useEffect(()=>{
-    let ok=true
-    const symbol=t.sym==='PEPE'?'1000PEPEUSDT':`${t.sym}USDT`
-    fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${encodeURIComponent(symbol)}&interval=5m&limit=72`,{cache:'no-store'})
-      .then(r=>{if(!r.ok)throw new Error('Binance '+r.status);return r.json()})
-      .then(x=>{if(ok)setBars(Array.isArray(x)?x:[])})
-      .catch(x=>{if(ok)setE(String(x?.message??x))})
-    return()=>{ok=false}
-  },[t.id,t.sym])
+  const [kLive,setKLive]=useState(false)
+  const symbol=t.sym==='PEPE'?'1000PEPEUSDT':`${t.sym}USDT`
 
-  const rows=bars.map(x=>({t:+x[0],o:+x[1],h:+x[2],l:+x[3],c:+x[4]})).filter(x=>Number.isFinite(x.c))
+  useEffect(()=>{
+    let dead=false
+    let ws:WebSocket|null=null
+    setE(''); setBars([]); setKLive(false)
+    fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(tf)}&limit=300`,{cache:'no-store'})
+      .then(r=>{if(!r.ok)throw new Error('Binance '+r.status);return r.json()})
+      .then(x=>{
+        if(dead)return
+        const initial=(Array.isArray(x)?x:[]).map((a:J)=>({t:+a[0],o:+a[1],h:+a[2],l:+a[3],c:+a[4],v:+a[5]}))
+        setBars(initial)
+        ws=new WebSocket(`wss://fstream.binance.com/ws/${symbol.toLowerCase()}@kline_${tf}`)
+        ws.onopen=()=>{if(!dead)setKLive(true)}
+        ws.onmessage=(ev)=>{
+          if(dead)return
+          try{
+            const d=JSON.parse(ev.data)?.k
+            if(!d)return
+            const b={t:+d.t,o:+d.o,h:+d.h,l:+d.l,c:+d.c,v:+d.v}
+            setBars(prev=>{
+              const p=prev.slice(-299)
+              const i=p.findIndex(x=>x.t===b.t)
+              if(i>=0){const n=[...p];n[i]=b;return n}
+              return [...p,b].slice(-300)
+            })
+          }catch{}
+        }
+        ws.onclose=()=>{if(!dead)setKLive(false)}
+        ws.onerror=()=>{if(!dead)setKLive(false)}
+      })
+      .catch(x=>{if(!dead)setE(String(x?.message??x))})
+    return()=>{dead=true;try{ws?.close()}catch{}}
+  },[t.id,t.sym,tf])
+
+  const rows=bars.filter(x=>Number.isFinite(x.c))
   const levels=[
     {name:'כניסה',v:Number(live.entry),cls:'entry'},
-    {name:'מחיר/יציאה',v:Number(live.est_exit),cls:Number(live.net_pnl_to_close)>=0?'green':'red'},
+    {name:'Bid',v:Number(live.bid),cls:'cyan'},
+    {name:'Ask',v:Number(live.ask),cls:'orange'},
+    {name:'מחיר חי',v:Number(live.mark),cls:Number(live.net_pnl_to_close)>=0?'green':'red'},
+    {name:'סגירה עכשיו',v:Number(live.est_exit),cls:'cyan'},
     {name:'סטופ',v:Number(live.stop),cls:'red'},
     {name:'יעד',v:live.target==null?NaN:Number(live.target),cls:'green'},
-    {name:'ליקווידציה',v:Number(live.liq),cls:'liq'},
+    {name:'מימוש/ליקווידציה',v:Number(live.liq),cls:'liq'},
   ].filter(x=>Number.isFinite(x.v))
   const all=[...rows.flatMap(x=>[x.h,x.l]),...levels.map(x=>x.v)]
-  if(e)return <div className="chartError">הגרף לא נטען מ־Binance: {e}</div>
-  if(!rows.length)return <div className="chartLoading">טוען נרות Binance Futures…</div>
-  let min=Math.min(...all),max=Math.max(...all); const pad=(max-min||Math.abs(max)||1)*.08; min-=pad;max+=pad
-  const W=900,Ht=350,left=10,right=110,top=12,bottom=28
+  let min=all.length?Math.min(...all):0,max=all.length?Math.max(...all):1
+  const pad=(max-min||Math.abs(max)||1)*.07;min-=pad;max+=pad
+  const W=1500,Ht=720,left=12,right=185,top=18,bottom=34
   const plotW=W-left-right,plotH=Ht-top-bottom
   const y=(v:number)=>top+(max-v)/(max-min)*plotH
-  const cw=Math.max(2,plotW/rows.length*.55)
-  const x=(i:number)=>left+(i+.5)*plotW/rows.length
-  const entryY=y(Number(live.entry)), curY=y(Number(live.est_exit))
+  const cw=Math.max(1.5,plotW/Math.max(1,rows.length)*.58)
+  const x=(i:number)=>left+(i+.5)*plotW/Math.max(1,rows.length)
+  const entryY=y(Number(live.entry)),curY=y(Number(live.est_exit))
   const bandY=Math.min(entryY,curY),bandH=Math.abs(entryY-curY)
-  return <div className="chartBox">
-    <div className="chartTitle"><b>{t.sym}USDT · 5m</b><span>כניסה / מחיר חי / סטופ / יעד / ליקווידציה</span></div>
-    <svg viewBox={`0 0 ${W} ${Ht}`} role="img" aria-label={`גרף ${t.sym}`}>
-      <rect x={left} y={top} width={plotW} height={plotH} className="chartBg"/>
-      <rect x={left} y={bandY} width={plotW} height={Math.max(1,bandH)} className={Number(live.net_pnl_to_close)>=0?'profitBand':'lossBand'}/>
-      {[0,.25,.5,.75,1].map((k,i)=><line key={i} x1={left} x2={left+plotW} y1={top+k*plotH} y2={top+k*plotH} className="gridLine"/>)}
-      {rows.map((b,i)=>{
-        const up=b.c>=b.o
-        return <g key={b.t}><line x1={x(i)} x2={x(i)} y1={y(b.h)} y2={y(b.l)} className={up?'wickUp':'wickDown'}/><rect x={x(i)-cw/2} y={Math.min(y(b.o),y(b.c))} width={cw} height={Math.max(1,Math.abs(y(b.o)-y(b.c)))} className={up?'candleUp':'candleDown'}/></g>
-      })}
-      {levels.map((l,i)=><g key={l.name}><line x1={left} x2={left+plotW} y1={y(l.v)} y2={y(l.v)} className={`lvl ${l.cls}`}/><text x={left+plotW+6} y={y(l.v)+4} className={`lvlText ${l.cls}`}>{l.name} {fmtPx(l.v)}</text></g>)}
-      <text x={left} y={Ht-7} className="axisText">{clock(rows[0]?.t)}</text>
-      <text x={left+plotW-55} y={Ht-7} className="axisText">{clock(rows[rows.length-1]?.t)}</text>
-    </svg>
-    <div className="chartLegend">
-      <span>נטו עכשיו <b className={Number(live.net_pnl_to_close)>=0?'pos':'neg'}>{fmt$(Number(live.net_pnl_to_close))}</b></span>
-      <span>עמלות פתיחה+סגירה <b>{fmt$(Number(live.entry_fee)+Number(live.exit_fee_est))}</b></span>
-      <span>החלקה מודלית <b>{fmt$(Number(live.entry_slippage_usd)+Number(live.exit_slippage_usd))}</b></span>
+
+  return <div className="chartModal" dir="rtl">
+    <div className="chartModalTop">
+      <div className="chartIdentity">
+        <button onClick={onClose}>✕</button>
+        <b>{t.sym}USDT</b><span className={t.side==='LONG'?'longText':'shortText'}>{t.side}</span><span>{Number(t.lev)}×</span>
+        <i className={kLive?'on':''}/><small>{kLive?'KLINE LIVE':'מתחבר'}</small>
+      </div>
+      <div className="chartLivePrices">
+        <span>Bid <b>{fmtPx(Number(live.bid))}</b></span>
+        <span>Ask <b>{fmtPx(Number(live.ask))}</b></span>
+        <span>מחיר חי <b>{fmtPx(Number(live.mark))}</b></span>
+        <span>כניסה <b>{fmtPx(Number(live.entry))}</b></span>
+        <span>סטופ <b>{fmtPx(Number(live.stop))}</b></span>
+        <span>מימוש <b>{fmtPx(Number(live.liq))}</b></span>
+      </div>
+    </div>
+
+    <div className="tfBar">{TF.map(([id,label])=><button key={id} className={tf===id?'active':''} onClick={()=>setTf(id)}>{label}</button>)}</div>
+
+    <div className="fullChartArea">
+      {e ? <div className="chartError">הגרף לא נטען: {e}</div> : !rows.length ? <div className="chartLoading">טוען נתוני Binance Futures…</div> :
+      <svg viewBox={`0 0 ${W} ${Ht}`} preserveAspectRatio="none">
+        <rect x={left} y={top} width={plotW} height={plotH} className="chartBg"/>
+        <rect x={left} y={bandY} width={plotW} height={Math.max(1,bandH)} className={Number(live.net_pnl_to_close)>=0?'profitBand':'lossBand'}/>
+        {[0,.2,.4,.6,.8,1].map((k,i)=><line key={i} x1={left} x2={left+plotW} y1={top+k*plotH} y2={top+k*plotH} className="gridLine"/>)}
+        {rows.map((b,i)=>{
+          const up=b.c>=b.o
+          return <g key={b.t}><line x1={x(i)} x2={x(i)} y1={y(b.h)} y2={y(b.l)} className={up?'wickUp':'wickDown'}/><rect x={x(i)-cw/2} y={Math.min(y(b.o),y(b.c))} width={cw} height={Math.max(1,Math.abs(y(b.o)-y(b.c)))} className={up?'candleUp':'candleDown'}/></g>
+        })}
+        {levels.map(l=><g key={l.name}><line x1={left} x2={left+plotW} y1={y(l.v)} y2={y(l.v)} className={`lvl ${l.cls}`}/><rect x={left+plotW+4} y={y(l.v)-11} width="176" height="22" rx="5" className={`priceTagBg ${l.cls}`}/><text x={left+plotW+10} y={y(l.v)+4} className={`lvlText ${l.cls}`}>{l.name} {fmtPx(l.v)}</text></g>)}
+        <text x={left} y={Ht-8} className="axisText">{clock(rows[0]?.t)}</text>
+        <text x={left+plotW-60} y={Ht-8} className="axisText">{clock(rows[rows.length-1]?.t)}</text>
+      </svg>}
+    </div>
+
+    <div className="chartMoneyBar">
+      <Stat k="גודל" v={`${Number(live.size).toLocaleString('en-US',{maximumFractionDigits:8})} ${t.sym}`} />
+      <Stat k="שווי פוזיציה" v={fmt$(Number(live.notional))} />
+      <Stat k="בטוחה" v={fmt$(Number(live.margin))} />
+      <Stat k="P&L ברוטו" v={fmt$(Number(live.gross_mark_pnl))} cls={Number(live.gross_mark_pnl)>=0?'pos':'neg'} />
+      <Stat k="עמלת פתיחה" v={fmt$(Number(live.entry_fee))} />
+      <Stat k="עמלת סגירה משוערת" v={fmt$(Number(live.exit_fee_est))} />
+      <Stat k="החלקה משוערת" v={fmt$(Number(live.entry_slippage_usd)+Number(live.exit_slippage_usd))} />
+      <Stat k="P&L נטו אם סוגרים עכשיו" v={fmt$(Number(live.net_pnl_to_close))} cls={Number(live.net_pnl_to_close)>=0?'pos':'neg'} />
+      <Stat k="ROE נטו" v={pct(Number(live.roe_net))} cls={Number(live.roe_net)>=0?'pos':'neg'} />
     </div>
   </div>
 }
@@ -622,7 +730,7 @@ h1{font-size:24px;margin:0 8px 0 0}.back{background:none;border:1px solid #22315
 .chip{border:1px solid #223150;border-radius:999px;padding:6px 12px;color:#94a3b8}.chip.ok{color:#34d399;border-color:#166534}.chip.bad{color:#f87171;border-color:#991b1b}
 .warn{background:#2a1a05;border:1px solid #92400e;color:#fbbf24;border-radius:16px;padding:15px 18px;margin-bottom:18px;font-size:15px;line-height:1.55}
 .readerr{color:#f87171;margin-bottom:10px}.pos{color:#34d399!important}.neg{color:#f87171!important}
-.accountStrip{display:grid;grid-template-columns:repeat(6,minmax(130px,1fr));gap:9px;margin-bottom:18px}.stat{background:#09121f;border:1px solid #1e293b;border-radius:13px;padding:11px 12px;display:flex;flex-direction:column;gap:5px}.stat span{font-size:11px;color:#64748b}.stat bdi{font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;transition:color .12s ease,transform .12s ease}
+.accountStrip{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:9px;margin-bottom:18px}.stat{background:#09121f;border:1px solid #1e293b;border-radius:13px;padding:11px 12px;display:flex;flex-direction:column;gap:5px}.stat span{font-size:11px;color:#64748b}.stat bdi{font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;transition:color .12s ease,transform .12s ease}
 .panel,.factory,.positions{background:#0b1220;border:1px solid #1e293b;border-radius:18px;padding:18px}.panel,.positions{margin-bottom:18px}
 .panel h2,.factory h2,.positions h2{font-size:23px;text-align:center;margin:0 0 8px}.muted{color:#64748b;text-align:center;line-height:1.45;margin:0 0 16px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}.card{background:#0b1220;border:2px solid;border-radius:18px;padding:16px 22px}.card.c1{border-color:#22d3ee}.card.c2{border-color:#fbbf24}.card h3{font-size:22px;margin:0 0 12px}.card.c1 h3{color:#22d3ee}.card.c2 h3{color:#fbbf24}
@@ -638,6 +746,9 @@ h1{font-size:24px;margin:0 8px 0 0}.back{background:none;border:1px solid #22315
 .chartBtn{margin-top:10px;width:100%;background:#0e7490;border:0;color:white;border-radius:10px;padding:10px;font-weight:800}.chartBtn:active{transform:scale(.99)}
 .chartBox{margin-top:10px;border:1px solid #203149;border-radius:13px;background:#050b13;padding:8px;overflow:hidden}.chartTitle{display:flex;justify-content:space-between;gap:8px;padding:5px 3px 8px}.chartTitle span{color:#64748b;font-size:11px}.chartBox svg{width:100%;height:auto;display:block}.chartBg{fill:#07101a}.gridLine{stroke:#142338;stroke-width:1}.profitBand{fill:rgba(16,185,129,.08)}.lossBand{fill:rgba(239,68,68,.08)}.wickUp{stroke:#34d399;stroke-width:1}.wickDown{stroke:#f87171;stroke-width:1}.candleUp{fill:#34d399}.candleDown{fill:#f87171}.lvl{stroke-width:1.5;stroke-dasharray:5 4}.lvl.entry{stroke:#60a5fa}.lvl.green{stroke:#34d399}.lvl.red{stroke:#f87171}.lvl.liq{stroke:#c084fc}.lvlText{font-size:10px;font-weight:700}.lvlText.entry{fill:#60a5fa}.lvlText.green{fill:#34d399}.lvlText.red{fill:#f87171}.lvlText.liq{fill:#c084fc}.axisText{fill:#475569;font-size:9px}.chartLegend{display:flex;gap:10px;flex-wrap:wrap;padding:5px}.chartLegend span{font-size:11px;color:#64748b}.chartLegend b{color:#cbd5e1}.chartLoading,.chartError{padding:18px;color:#64748b;text-align:center}.chartError{color:#fca5a5}
 
+.closedTrades{background:#0b1220;border:1px solid #1e293b;border-radius:18px;padding:18px;margin-bottom:18px}.closedTrades h2{font-size:23px;text-align:right;margin:0}.closedTableWrap{overflow:auto;max-height:520px;border:1px solid #18273a;border-radius:12px}.closedTable{width:100%;border-collapse:collapse;min-width:1120px;font-size:12px}.closedTable th{position:sticky;top:0;background:#0a1421;color:#64748b;padding:9px;text-align:right;z-index:1}.closedTable td{padding:9px;border-top:1px solid #142236;white-space:nowrap}.closedTable .winRow{background:rgba(16,185,129,.025)}.closedTable .lossRow{background:rgba(239,68,68,.025)}
+
+.chartModal{position:fixed;inset:0;z-index:9999;background:#030811;color:#e2e8f0;display:flex;flex-direction:column;padding:10px;overflow:auto}.chartModalTop{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:4px 4px 9px;border-bottom:1px solid #15243a}.chartIdentity{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.chartIdentity button{border:1px solid #334155;background:#0b1220;color:#e2e8f0;border-radius:9px;width:34px;height:34px;font-size:18px}.chartIdentity>b{font-size:21px}.chartIdentity>span{font-size:12px;border:1px solid #334155;border-radius:999px;padding:4px 8px}.longText{color:#34d399}.shortText{color:#f87171}.chartIdentity i{width:7px;height:7px;border-radius:50%;background:#475569}.chartIdentity i.on{background:#34d399;box-shadow:0 0 9px #34d399}.chartIdentity small{color:#64748b}.chartLivePrices{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}.chartLivePrices span{font-size:10px;color:#64748b}.chartLivePrices b{display:block;color:#e2e8f0;font-size:13px;font-variant-numeric:tabular-nums}.tfBar{display:flex;gap:5px;overflow-x:auto;padding:8px 2px}.tfBar button{border:1px solid #26384f;background:#08111d;color:#94a3b8;border-radius:7px;padding:6px 10px;white-space:nowrap}.tfBar button.active{background:#0e7490;color:white;border-color:#0891b2}.fullChartArea{flex:1;min-height:430px;border:1px solid #16263a;border-radius:10px;overflow:hidden;background:#050b13}.fullChartArea svg{width:100%;height:100%;min-height:430px;display:block}.priceTagBg{fill:#0b1220;stroke-width:1}.priceTagBg.entry{stroke:#60a5fa}.priceTagBg.green{stroke:#34d399}.priceTagBg.red{stroke:#f87171}.priceTagBg.liq{stroke:#c084fc}.priceTagBg.cyan{stroke:#22d3ee}.priceTagBg.orange{stroke:#f59e0b}.lvl.cyan{stroke:#22d3ee}.lvl.orange{stroke:#f59e0b}.lvlText.cyan{fill:#22d3ee}.lvlText.orange{fill:#f59e0b}.chartMoneyBar{display:grid;grid-template-columns:repeat(9,minmax(120px,1fr));gap:7px;padding-top:8px}
 .factory{background:linear-gradient(180deg,#08111f,#0b1220 42%,#08111f)}.factoryHead{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:14px}.factoryHead h2{text-align:right;margin:0 0 5px}.factoryHead p{margin:0;color:#64748b;line-height:1.5}
 .liveBadge{display:flex;align-items:center;gap:7px;border:1px solid #334155;border-radius:999px;padding:7px 12px;color:#64748b;font-weight:800}.liveBadge i{width:8px;height:8px;border-radius:50%;background:#475569}.liveBadge.on{color:#34d399;border-color:#166534}.liveBadge.on i{background:#34d399;box-shadow:0 0 14px #34d399;animation:pulse 1.2s infinite}
 .scanTicker{border:1px solid #1e3348;background:#07111d;border-radius:13px;padding:10px 12px;margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}.scanTicker>b{color:#22d3ee}.scanTicker>span{font-size:11px;color:#64748b}.symbols{display:flex;gap:5px;flex-wrap:wrap;width:100%}.symbols em{font-style:normal;font-size:10px;background:#0c1b2a;border:1px solid #17334a;border-radius:999px;padding:3px 7px;color:#cbd5e1}.symbols small{color:#64748b}
@@ -651,5 +762,5 @@ h1{font-size:24px;margin:0 8px 0 0}.back{background:none;border:1px solid #22315
 .liveDesk{padding-bottom:5px}.deskRow{display:flex;justify-content:space-between;gap:12px;padding:11px 15px;border-bottom:1px dashed #1c293a}.deskRow span{color:#64748b}.deskRow b{font-size:13px;color:#dbeafe;text-align:left}.badText{color:#f87171!important}
 @keyframes pulse{0%,100%{opacity:.45;transform:scale(.85)}50%{opacity:1;transform:scale(1.15)}}@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}@keyframes flow{0%{opacity:.15;transform:translateX(0)}50%{opacity:1}100%{opacity:.15;transform:translateX(-4px)}}
 @media(max-width:1000px){.accountStrip{grid-template-columns:repeat(3,1fr)}.pipeline{grid-template-columns:repeat(6,190px)}.controlGrid{grid-template-columns:1fr}.opsGrid{grid-template-columns:1fr}.opsFeed{border-left:0;border-bottom:1px solid #14263a}.factoryHead{align-items:center}}
-@media(max-width:640px){.op{grid-template-columns:58px 24px 1fr;padding:8px 7px}.opTime bdi{font-size:10px}.opsHead{align-items:flex-start}.heartbeat{flex-direction:column;align-items:flex-end}.ch{font-size:13px}.panel,.factory,.positions{padding:12px}.grid{grid-template-columns:1fr}.row{font-size:15px}.card h3{font-size:19px}.panel h2,.factory h2,.positions h2{font-size:20px}h1{font-size:22px}.factoryHead p{font-size:12px}.pipeline{grid-template-columns:repeat(6,175px);margin-left:-4px;margin-right:-4px}.decisionTop time{width:100%;margin:0}.chain{margin-right:0}.approvedText,.rejectedText,.tiny{margin-right:0}.accountStrip{grid-template-columns:repeat(2,1fr)}.positionGrid{grid-template-columns:1fr}.posMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}.sectionHead{align-items:flex-start}.chartTitle{flex-direction:column}.stat bdi{font-size:15px}}
+@media(max-width:640px){.chartModal{padding:4px}.chartModalTop{align-items:flex-start;flex-direction:column}.chartLivePrices{justify-content:flex-start}.fullChartArea{min-height:58vh}.fullChartArea svg{min-height:58vh}.chartMoneyBar{grid-template-columns:repeat(2,minmax(0,1fr))}.op{grid-template-columns:58px 24px 1fr;padding:8px 7px}.opTime bdi{font-size:10px}.opsHead{align-items:flex-start}.heartbeat{flex-direction:column;align-items:flex-end}.ch{font-size:13px}.panel,.factory,.positions{padding:12px}.grid{grid-template-columns:1fr}.row{font-size:15px}.card h3{font-size:19px}.panel h2,.factory h2,.positions h2{font-size:20px}h1{font-size:22px}.factoryHead p{font-size:12px}.pipeline{grid-template-columns:repeat(6,175px);margin-left:-4px;margin-right:-4px}.decisionTop time{width:100%;margin:0}.chain{margin-right:0}.approvedText,.rejectedText,.tiny{margin-right:0}.accountStrip{grid-template-columns:repeat(2,1fr)}.positionGrid{grid-template-columns:1fr}.posMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}.sectionHead{align-items:flex-start}.chartTitle{flex-direction:column}.stat bdi{font-size:15px}}
 `
