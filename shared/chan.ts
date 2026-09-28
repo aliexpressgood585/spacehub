@@ -249,7 +249,7 @@ export function canOpen(st: RiskState, open: number): { ok: boolean; why: string
   return { ok: true, why: 'ok' }
 }
 // notional for a risk fraction f of equity at the stop, capped by leverage room; 0 with a reason when refused
-export function chanSize(f: number, equity: number, entry: number, stop: number, openNotional: number, maxLeverage = CHAN.risk.maxLeverage): { notional: number; why: string } {
+export function chanSize(f: number, equity: number, entry: number, stop: number, openNotional: number, maxLeverage: number = CHAN.risk.maxLeverage): { notional: number; why: string } {
   const dist = Math.abs(entry - stop) / entry
   if (!(dist > 0) || !(entry > 0)) return { notional: 0, why: 'invalid stop' }
   if (dist < CHAN.risk.minStopToCost * 2 * CHAN.costs.taker) return { notional: 0, why: 'stop closer than 3x the round-trip cost' }
