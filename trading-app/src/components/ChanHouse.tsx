@@ -365,7 +365,8 @@ function PositionCard({t,live,expanded,onChart}:{t:J;live:J;expanded:boolean;onC
       <Mini k="מחיר חי" v={fmtPx(Number(live.mark))}/>
       <Mini k="יציאה אם סוגרים עכשיו" v={fmtPx(Number(live.est_exit))}/>
       <Mini k="בטוחה" v={fmt$(Number(live.margin))}/>
-      <Mini k="חשיפה" v={fmt$(Number(live.notional))}/>
+      <Mini k="גודל פוזיציה" v={`${Number(live.size).toLocaleString('en-US',{maximumFractionDigits:8})} ${t.sym}`}/>
+      <Mini k="שווי פוזיציה" v={fmt$(Number(live.notional))}/>
       <Mini k="P&L ברוטו" v={fmt$(Number(live.gross_mark_pnl))} cls={Number(live.gross_mark_pnl)>=0?'pos':'neg'}/>
       <Mini k="עמלת פתיחה" v={fmt$(Number(live.entry_fee))}/>
       <Mini k="עמלת סגירה משוערת" v={fmt$(Number(live.exit_fee_est))}/>
