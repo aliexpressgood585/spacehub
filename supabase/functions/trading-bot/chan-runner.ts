@@ -225,6 +225,21 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
   const inWindow = bar > lastBar && now - bar <= CHAN.scan.windowMs && !st.halted && !state.hard_halt_at
   const entries: any[] = [], decisions: any[] = [], views: Record<string, any> = {}, failed: string[] = []
   const done = new Set<string>(scan0.done), heldSyms = stillOpen.map((t: any) => String(t.sym))
+
+  // Public leverage/news heartbeat keeps collecting even between 5m decision windows.
+  if (now-Number(intelState?.ts ?? 0) >= 60_000) {
+    try {
+      const freshIntel = await loadChanIntel(db,now,uni.pairs,[...new Set([...heldSyms,'BTC','ETH'])],{})
+      intelState = {
+        ts:freshIntel.ts, bar:Number(intelState?.bar ?? 0), news_risk:freshIntel.news_risk,
+        top_pressure:freshIntel.top_pressure, headlines:freshIntel.news.slice(0,8),
+        sources:freshIntel.sources, failed:freshIntel.failed, by_sym:freshIntel.by_sym
+      }
+    } catch (e:any) {
+      intelState = { ...intelState, error:String(e?.message ?? e).slice(0,100) }
+    }
+  }
+
   let heavy = 0, deep = 0, finished = false, volsChanged = false, dailyChanged = false, staleDaily = 0
   let vols: Record<string, { d: number; v: number }[]> = {}, daily: Record<string, Daily & { day: number }> = {}
   let breadth: any = { n:0, up_share:0.5, down_share:0.5, btc_ret5:null, eth_ret5:null }
@@ -623,6 +638,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       headlines: Array.isArray(intelState?.headlines) ? intelState.headlines.slice(0,6) : [],
       sources: intelState?.sources ?? [], failed: intelState?.failed ?? [],
       watched: Object.keys(intelState?.by_sym ?? {}).length,
+      by_sym: Object.fromEntries(Object.entries(intelState?.by_sym ?? {}).filter(([,x]:any)=>now-Number(x?.ts ?? 0)<10*60_000).slice(0,30)),
       error: intelState?.error ?? null
     },
     quality_gates: {
