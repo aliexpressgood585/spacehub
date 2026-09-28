@@ -225,6 +225,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
   const done = new Set<string>(scan0.done), heldSyms = stillOpen.map((t: any) => String(t.sym))
   let heavy = 0, deep = 0, finished = false, volsChanged = false, dailyChanged = false, staleDaily = 0
   let vols: Record<string, { d: number; v: number }[]> = {}, daily: Record<string, Daily & { day: number }> = {}
+  let breadth: any = { n:0, up_share:0.5, down_share:0.5, btc_ret5:null, eth_ret5:null }
   const directionBook: Record<'LONG'|'SHORT', { count:number; notional:number }> = {
     LONG: { count: 0, notional: 0 }, SHORT: { count: 0, notional: 0 }
   }
@@ -336,12 +337,12 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
 
     const breadthRows = Object.values(views).filter((v:any)=>Number.isFinite(v.ret5)) as any[]
     const up = breadthRows.filter((v:any)=>v.ret5>0).length, down = breadthRows.filter((v:any)=>v.ret5<0).length
-    const breadth = {
+    breadth = {
       n: breadthRows.length,
       up_share: breadthRows.length ? up/breadthRows.length : 0.5,
       down_share: breadthRows.length ? down/breadthRows.length : 0.5,
-      btc_ret5: Number((views as any).BTC?.ret5),
-      eth_ret5: Number((views as any).ETH?.ret5)
+      btc_ret5: Number.isFinite(Number((views as any).BTC?.ret5)) ? Number((views as any).BTC?.ret5) : null,
+      eth_ret5: Number.isFinite(Number((views as any).ETH?.ret5)) ? Number((views as any).ETH?.ret5) : null
     }
     const marketConfirm = (cand:any) => {
       if (breadth.n < 20) return { ok:true, share:0.5, majors:0, n:breadth.n }
