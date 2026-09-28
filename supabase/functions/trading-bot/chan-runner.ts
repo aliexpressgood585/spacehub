@@ -233,7 +233,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       intelState = {
         ts:freshIntel.ts, bar:Number(intelState?.bar ?? 0), news_risk:freshIntel.news_risk,
         top_pressure:freshIntel.top_pressure, headlines:freshIntel.news.slice(0,8),
-        sources:freshIntel.sources, failed:freshIntel.failed, by_sym:freshIntel.by_sym
+        sources:freshIntel.sources, failed:freshIntel.failed, bykaranteli:freshIntel.bykaranteli, by_sym:freshIntel.by_sym
       }
     } catch (e:any) {
       intelState = { ...intelState, error:String(e?.message ?? e).slice(0,100) }
@@ -419,6 +419,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
           top_pressure:freshIntel.top_pressure,
           headlines:freshIntel.news.slice(0,8),
           sources:freshIntel.sources, failed:freshIntel.failed,
+          bykaranteli:freshIntel.bykaranteli,
           by_sym:freshIntel.by_sym
         }
       } catch (e:any) {
@@ -597,7 +598,8 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
               funding:ix.funding, premium:ix.premium, oi_delta:ix.oi_delta, oi_value_delta:ix.oi_value_delta,
               top_ratio:ix.top_ratio, global_ratio:ix.global_ratio, taker_ratio:ix.taker_ratio,
               long_squeeze:ix.long_squeeze, short_squeeze:ix.short_squeeze, flow_bias:ix.flow_bias,
-              confidence:ix.confidence, long_liq_count:ix.long_liq_count, short_liq_count:ix.short_liq_count
+              confidence:ix.confidence, long_liq_count:ix.long_liq_count, short_liq_count:ix.short_liq_count,
+              liqmap:ix.liqmap ?? null
             } : null
           },
           entry_fill: { model: 'book_walk', touch, vwap: w.vwap, impact_bps: +(Math.abs(px / touch - 1) * 1e4).toFixed(2), want: Math.round(sz.notional), liq_cap: Math.round(cap) } } })
@@ -637,6 +639,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       top_pressure: Array.isArray(intelState?.top_pressure) ? intelState.top_pressure.slice(0,8) : [],
       headlines: Array.isArray(intelState?.headlines) ? intelState.headlines.slice(0,6) : [],
       sources: intelState?.sources ?? [], failed: intelState?.failed ?? [],
+      bykaranteli: intelState?.bykaranteli ?? { status:'needs_key' },
       watched: Object.keys(intelState?.by_sym ?? {}).length,
       by_sym: Object.fromEntries(Object.entries(intelState?.by_sym ?? {}).filter(([,x]:any)=>now-Number(x?.ts ?? 0)<10*60_000).slice(0,30)),
       error: intelState?.error ?? null
