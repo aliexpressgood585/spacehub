@@ -67,6 +67,7 @@ function reasonHe(r: string) {
   if (r === 'leveraged_flow_against') return 'Funding / OI / זרימת Taker מצביעים על סיכון Squeeze נגד העסקה'
   if (r === 'news_event_risk') return 'אירוע חדשותי ציבורי חריג במטבע — נדרש אות חזק יותר'
   if (r === 'soft_quality_too_low') return 'הציון המשולב של האות נמוך מדי אחרי Regime, Breadth, MTF, Micro ו-Leverage'
+  if (r === 'reentry_reset_wait') return 'הפסד אחרון עדיין בתקופת Reset — כניסה חוזרת דורשת נר חדש ואישור Micro חזק'
   if (r?.startsWith('stop closer than')) return 'הסטופ קרוב מדי ביחס לעלות'
   if (r?.startsWith('paused')) return 'נעצר בשער הסיכון'
   if (r?.startsWith('halted')) return 'נעצר בשער הסיכון'
@@ -86,6 +87,7 @@ function stopper(r: string) {
   if (r === 'leveraged_flow_against') return 'Leverage Intelligence'
   if (r === 'news_event_risk') return 'News Risk'
   if (r === 'soft_quality_too_low') return 'Soft Quality Score'
+  if (r === 'reentry_reset_wait') return 'Re-entry Guard'
   if (r === 'max leverage reached' || r?.startsWith('stop closer') || r?.startsWith('paused') || r?.startsWith('halted') || r?.startsWith('half-Kelly')) return 'רובוט סיכון'
   return 'רובוט האסטרטגיה'
 }
@@ -147,6 +149,11 @@ function economics(t: J, cyc: J, quote?: J) {
     quote_source:quote ? 'BINANCE_WS' : (backend ? 'BOT_BOOK' : 'FALLBACK'),
     kelly_f:backend?.kelly_f ?? m.kelly_f, risk_usd:backend?.risk_usd ?? m.risk_usd,
     kelly_why:backend?.kelly_why ?? m.kelly_why,
+    mfe_r:Number(backend?.mfe_r ?? m.mfe_r ?? 0), mae_r:Number(backend?.mae_r ?? m.mae_r ?? 0),
+    stop_phase:backend?.stop_phase ?? m.stop_phase ?? 'initial',
+    be_armed:Boolean(backend?.be_armed ?? m.be_armed), trail_active:Boolean(backend?.trail_active ?? m.trail_active),
+    target_r:backend?.target_r ?? m.target_r ?? null, age_bars:backend?.age_bars ?? null,
+    stop_engine:m.stop_engine ?? cyc?.quality_gates?.stop_engine ?? 'V1',
   }
 }
 
@@ -429,7 +436,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
       <div className="closedTableWrap">
         <table className="closedTable">
           <thead><tr>
-            <th>זמן סגירה</th><th>מטבע</th><th>צד</th><th>תוצאה</th><th>P&L נטו</th><th>גודל</th><th>שווי פוזיציה</th><th>כניסה</th><th>יציאה</th><th>מינוף</th><th>עמלות</th><th>סיבה</th>
+            <th>זמן סגירה</th><th>מטבע</th><th>צד</th><th>תוצאה</th><th>P&L נטו</th><th>MFE</th><th>MAE</th><th>גודל</th><th>שווי פוזיציה</th><th>כניסה</th><th>יציאה</th><th>מינוף</th><th>עמלות</th><th>סיבה</th>
           </tr></thead>
           <tbody>
             {closedTrades.map(t => {
@@ -440,6 +447,8 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
                 <td>{t.side}</td>
                 <td>{t.status}</td>
                 <td className={pnl>=0?'pos':'neg'}>{fmt$(pnl)}</td>
+                <td>{Number.isFinite(Number(t.scalp_meta?.chan?.mfe_r)) ? `${Number(t.scalp_meta.chan.mfe_r).toFixed(2)}R` : '—'}</td>
+                <td>{Number.isFinite(Number(t.scalp_meta?.chan?.mae_r)) ? `${Number(t.scalp_meta.chan.mae_r).toFixed(2)}R` : '—'}</td>
                 <td><bdi dir="ltr">{qty.toLocaleString('en-US',{maximumFractionDigits:8})}</bdi></td>
                 <td>{fmt$(entry*qty)}</td>
                 <td><bdi dir="ltr">{fmtPx(entry)}</bdi></td>
@@ -508,6 +517,10 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
             <DeskRow k="News Risk ציבורי" v={`${Number(cyc?.liquidity_intel?.news_risk ?? 0).toFixed(0)} / 100`} bad={Number(cyc?.liquidity_intel?.news_risk ?? 0)>=65} />
             <DeskRow k="מקורות Intel" v={Array.isArray(cyc?.liquidity_intel?.sources) && cyc.liquidity_intel.sources.length ? cyc.liquidity_intel.sources.slice(0,5).join(' · ') : 'Binance + RSS ציבורי'} />
             <DeskRow k="פרופיל כניסה" v={cyc?.quality_gates?.profile === 'relaxed_aggressive_paper' ? 'אגרסיבי מרוכך · PAPER' : 'CHAN'} />
+            <DeskRow k="Stop Engine" v={cyc?.quality_gates?.stop_engine === 'V2' ? 'V2 · Structure + ATR + Break-even + Profit Lock' : 'V1'} />
+            <DeskRow k="MFE / MAE Learning" v={cyc?.quality_gates?.mfe_mae_learning ? 'פעיל' : '—'} />
+            <DeskRow k="Re-entry" v={cyc?.quality_gates?.controlled_reentry ? 'Reset מבוקר פעיל' : 'רגיל'} />
+            <DeskRow k="Targets" v={String(cyc?.quality_gates?.dynamic_targets ?? 'קבוע')} />
             <DeskRow k="מנועי הזדמנות" v={Array.isArray(cyc?.quality_gates?.opportunity_engines) ? String(cyc.quality_gates.opportunity_engines.length) : '6'} />
             <DeskRow k="Soft Quality" v={`ציון ≥ ${Number(cyc?.quality_gates?.soft_quality_min ?? 50).toFixed(0)}`} />
             <DeskRow k="Breadth Impulse" v={`≥ ${Math.round(100*Number(cyc?.quality_gates?.breadth_impulse_share ?? .72))}% + BTC/ETH`} />
@@ -646,7 +659,13 @@ function PositionCard({t,live,onChart}:{t:J;live:J;onChart:()=>void}) {
       <Mini k="עמלת סגירה משוערת" v={fmt$(Number(live.exit_fee_est))}/>
       <Mini k="החלקת פתיחה" v={fmt$(Number(live.entry_slippage_usd))}/>
       <Mini k="החלקת סגירה משוערת" v={fmt$(Number(live.exit_slippage_usd))}/>
-      <Mini k="סטופ" v={fmtPx(stop)}/>
+      <Mini k="סטופ חי · Stop Engine V2" v={fmtPx(stop)}/>
+      <Mini k="שלב סטופ" v={String(live.stop_phase ?? 'initial')}/>
+      <Mini k="MFE · מקס׳ רווח" v={Number.isFinite(Number(live.mfe_r)) ? `+${Number(live.mfe_r).toFixed(2)}R` : '—'} cls="pos"/>
+      <Mini k="MAE · מקס׳ ירידה" v={Number.isFinite(Number(live.mae_r)) ? `-${Number(live.mae_r).toFixed(2)}R` : '—'} cls="neg"/>
+      <Mini k="Break-even" v={live.be_armed ? 'מופעל' : 'ממתין'}/>
+      <Mini k="Trailing / Profit Lock" v={live.trail_active ? 'פעיל' : 'ממתין'}/>
+      {live.target_r!=null&&<Mini k="Target R דינמי" v={`${Number(live.target_r).toFixed(2)}R`}/>}
       <Mini k="מחיר מימוש / ליקווידציה" v={fmtPx(Number(live.liq))}/>
       <Mini k="הפסד נטו אם סטופ" v={fmt$(stopNet)} cls="neg"/>
       {target!=null&&<Mini k={live.target_dynamic ? "יעד דינמי · ממוצע Z=0" : "יעד"} v={fmtPx(target)}/>}
