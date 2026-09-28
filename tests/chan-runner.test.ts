@@ -51,14 +51,14 @@ function mockDb(open: any[], closed: any[] = [], cache: any[] = []) {
 }
 try {
   Date.now = () => NOW; mockFetch()
-  // 1. flat book, fresh bar -> SOL mean-reversion long, sized by the default 0.25% risk (no live record yet), 3x
+  // 1. flat book, fresh bar -> SOL mean-reversion long, aggressive paper allocation at fixed 50x
   await runChan(mockDb([]), { balance: 5000, bot_params: {} }, new Date(NOW + 50e3).toISOString(), true)
   assert.equal(rpc.name, 'chan_commit_cycle')
   const e = rpc.args.p_entries
-  assert.equal(e.length, 1); assert.equal(e[0].sym, 'SOL'); assert.equal(e[0].side, 'LONG'); assert.equal(e[0].lev, 3)
+  assert.equal(e.length, 1); assert.equal(e[0].sym, 'SOL'); assert.equal(e[0].side, 'LONG'); assert.equal(e[0].lev, 50)
   assert.equal(e[0].chan.comp, 'RG_MR'); assert.ok(e[0].chan.stop < e[0].price, 'mandatory stop below a long')
-  assert.ok(Math.abs(e[0].chan.risk_frac - 0.0025) < 2e-4, `risk at the stop = default 0.25% of equity (${e[0].chan.risk_frac})`)
-  assert.ok(e[0].notional <= 3 * 2500, '<= 3x own wallet equity'); assert.ok(rpc.args.p_bar, 'bar marked processed')
+  assert.ok(Math.abs(e[0].chan.risk_frac - 0.01) < 5e-4, `risk at the stop = aggressive paper 1% minimum (${e[0].chan.risk_frac})`)
+  assert.ok(e[0].notional <= 50 * 2500, '<= 50x own wallet equity'); assert.ok(rpc.args.p_bar, 'bar marked processed')
   assert.equal(rpc.args.p_halt, null)
   // 2. the same bar again -> nothing new
   await runChan(mockDb([]), { balance: 5000, bot_params: { chan_bar: BAR } }, new Date(NOW + 50e3).toISOString(), true)
