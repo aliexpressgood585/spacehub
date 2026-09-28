@@ -17,7 +17,7 @@ import { labInd, type LBar } from './lab.ts'
 // __FAST_LEV, clamped 1..100). A position is LIQUIDATED when the adverse move reaches 1/lev - 0.5% maintenance: it loses
 // its whole margin. Binance's real per-coin leverage caps (often 20-75x on alts) are NOT enforced here — INFERRED.
 export const FAST = { tf: '5m', barMs: 300_000, zMin: 1.5, volMult: 2, imbMin: 0.10, stopAtr: 1, stopMinPct: 0.003, targetR: 1.5, holdBars: 12,
-  maxOpen: 3, perTrade: 1 / 3, maxPerDay: 20, entryWindowMs: 120_000, levDefault: 50, levMax: 100, maint: 0.005 } as const
+  maxOpen: 15, perTrade: 1 / 15, maxPerDay: 20, entryWindowMs: 120_000, levDefault: 10, levMax: 100, maint: 0.005 } as const
 // v95.4 REAL-TIME mode (owner: "yes" to entries at any moment, not only at a 5m close). Evaluated every cycle (~5-10 s)
 // on 1m klines INCLUDING the minute still forming (Binance's forming bar carries its own taker-buy volume):
 //  1. the price now vs the close 3 minutes ago is > 2 ATR(1m) x sqrt(3) away
@@ -25,7 +25,7 @@ export const FAST = { tf: '5m', barMs: 300_000, zMin: 1.5, volMult: 2, imbMin: 0
 //  3. taker imbalance over those 3 minutes beyond +/-0.10     4. BTC's last closed 1m bar on the same side of its EMA20
 // Stop 2 ATR(1m) (floor 0.3%), target 1.5R, out after 30 min; one entry per coin per 15 min. NOT BACKTESTED (no 1m archive
 // run was made — the owner asked for speed); same costs, same caps, same isolated leverage as the bar mode.
-export const FAST_RT = { zMin: 2, volMult: 2, imbMin: 0.10, stopAtr: 2, holdMin: 30, cooldownMs: 15 * 60_000, scanEveryMs: 10_000 } as const
+export const FAST_RT = { zMin: 2, volMult: 2, imbMin: 0.10, stopAtr: 2, holdMin: 15, cooldownMs: 15 * 60_000, scanEveryMs: 10_000 } as const
 export function fastSignalRT(b: LBar[], btcUp: boolean | null, isBtc: boolean): FastSig | null {
   const n = b.length
   if (n < 40) return null
