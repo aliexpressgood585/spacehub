@@ -187,6 +187,8 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
   const marks = useLivePrices((snap?.open ?? []).map((t) => String(t.sym)))
 
   const p = snap?.state?.bot_params ?? {}
+  const eraStart = p.chan_split?.started_at ? Date.parse(p.chan_split.started_at) : 0
+  const closedEra = (snap?.closed ?? []).filter((t) => !eraStart || Date.parse(t.closed_at) >= eraStart)
   const cyc = p.chan_cycle ?? null, scan = p.chan_scan ?? null, risk = p.chan_risk ?? null
   const cycT = cyc?.ts ? Date.parse(cyc.ts) : null
   const lastBar = Number(p.chan_bar) || null
@@ -238,13 +240,13 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
   const dd = equity && peak ? Math.max(0, 1 - equity / peak) : null
   const dayOpen = Number(risk?.dayOpen) || null
   const dayMs = Math.floor(now / 86_400_000) * 86_400_000
-  const realisedToday = (snap?.closed ?? []).filter((t) => Date.parse(t.closed_at) >= dayMs).reduce((s, t) => s + Number(t.pnl), 0)
+  const realisedToday = closedEra.filter((t) => Date.parse(t.closed_at) >= dayMs).reduce((s, t) => s + Number(t.pnl), 0)
   const dayLoss = dayOpen ? Math.max(0, -realisedToday / dayOpen) : null
   const streakFrom = Number(risk?.streakFrom) || 0
   let streak = 0
-  for (const t of snap?.closed ?? []) { if (Date.parse(t.closed_at) < streakFrom) break; if (Number(t.pnl) < 0) streak++; else break }
-  const nComp = (c: string) => (snap?.closed ?? []).filter((t) => t.scalp_meta?.chan?.comp === c).length
-  const kellyOf = (c: string) => { const t = (snap?.open ?? []).concat(snap?.closed ?? []).find((x) => x.scalp_meta?.chan?.comp === c); return t?.scalp_meta?.chan }
+  for (const t of closedEra) { if (Date.parse(t.closed_at) < streakFrom) break; if (Number(t.pnl) < 0) streak++; else break }
+  const nComp = (c: string) => closedEra.filter((t) => t.scalp_meta?.chan?.comp === c).length
+  const kellyOf = (c: string) => { const t = (snap?.open ?? []).concat(closedEra).find((x) => x.scalp_meta?.chan?.comp === c); return t?.scalp_meta?.chan }
   const openN = snap?.open.length ?? 0
   const cash = Number(snap?.state?.balance)
   const eqPts = (snap?.equity ?? []).map((x) => Number(x.equity)).filter(Number.isFinite)
@@ -270,11 +272,11 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
   const moodMOM: Mood = halted ? 'sleep' : recentDec('RG_MOM') ? 'work' : 'wait'
   const moodRisk: Mood = halted ? 'alarm' : paused ? 'sleep' : fresh ? 'work' : 'sleep'
   const moodExec: Mood = !fresh ? 'sleep' : openN > 0 ? 'work' : 'wait'
-  const lastClose = snap?.closed[0] ? Date.parse(snap.closed[0].closed_at) : null
+  const lastClose = closedEra[0] ? Date.parse(closedEra[0].closed_at) : null
   const moodLog: Mood = lastClose && now - lastClose < 15 * 60_000 ? 'work' : 'wait'
   const collFresh = (t: number | null, maxMs: number) => t != null && now - t < maxMs
   const moodColl: Mood = collFresh(snap?.collector.options ?? null, 30 * 60_000) ? 'work' : 'alarm'
-  const errs = snap?.errors.length ?? 0
+  const errs = (snap?.errors ?? []).filter((e) => cycT == null || Date.parse(e.ts) > cycT).length
 
   return (
     <div className="ch" dir="rtl">
@@ -285,7 +287,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
         <span className={`ch-chip ${fresh ? 'ok' : 'bad'}`}>{fresh ? `● חי · מחזור ${ago(cycT, now)}` : `○ אין מחזור ${ago(cycT, now)}`}</span>
         <span className="ch-chip">{snap?.state?.paper_mode === false ? 'לא נייר!' : 'נייר בלבד'}</span>
         <span className="ch-chip">{snap?.manifest ? `${snap.manifest.enabled_sleeves ?? '—'} · ${String(snap.manifest.sha ?? '').slice(0, 7)}` : '—'}</span>
-        <span className={`ch-chip ${errs ? 'bad' : 'ok'}`}>{errs ? `${errs} שגיאות בשעה` : '0 שגיאות בשעה'}</span>
+        <span className={`ch-chip ${errs ? 'bad' : 'ok'}`}>{errs ? `${errs} שגיאות מאז המחזור האחרון` : '0 שגיאות פעילות'}</span>
       </div>
       <div className="ch-warn">מנוע ניסיוני: בבדיקה ההיסטורית (Phase 1) כל האסטרטגיות קיבלו NO-GO. הוא רץ על נייר כבדיקת תשתית בלבד — מה שקורה כאן איננו ראיה לרווחיות.</div>
       {err && <div className="ch-err">שגיאת קריאה: {err}</div>}
@@ -306,7 +308,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
             <div className="ch-kv"><span>פוזיציות פתוחות</span><N>{(snap?.open??[]).filter(t=>sleeveId(t.scalp_meta?.chan?.comp)===id).length}</N></div>
           </div>})}
         </div> : <p>הניסוי עדיין לא אותחל בשרת.</p>}
-        <p className="ch-muted">תוצאות מהפעלת הניסוי בלבד; ההיסטוריה הקודמת נשמרת. הון כולל רווח לא ממומש, לפני עלויות יציאה עתידיות. מסלול 2 ניסיוני וטרם הוכחה רווחיותו.</p>
+        <p className="ch-muted">הנתונים בכרטיסים נספרים מנקודת האיפוס האחרונה בלבד ({p.chan_split?.started_at ? new Date(p.chan_split.started_at).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '—'}); היסטוריית העסקאות הישנה נשמרת במסד. הון כולל רווח לא ממומש, לפני עלויות יציאה עתידיות.</p>
       </section>
       <div className="ch-house">
         <div className="ch-roof">
@@ -370,8 +372,8 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
 
         <div className="ch-floor">
           <Room title="7 · יומן" who="עסקאות שנסגרו" shirt="#f59e0b" hair="#3f3f46" mood={moodLog}
-            status={snap?.closed.length ? <>{snap.closed.length} אחרונות · נטו <N>{fmt$(snap.closed.reduce((s, t) => s + Number(t.pnl), 0))}</N></> : 'עוד לא נסגרה עסקה'}>
-            {(snap?.closed ?? []).slice(0, 6).map((t) => (
+            status={closedEra.length ? <>{closedEra.length} מאז האיפוס · נטו <N>{fmt$(closedEra.reduce((s, t) => s + Number(t.pnl), 0))}</N></> : 'עוד לא נסגרה עסקה מאז האיפוס'}>
+            {closedEra.slice(0, 6).map((t) => (
               <div key={t.id} className="ch-row">
                 <N className={Number(t.pnl) >= 0 ? 'pos' : 'neg'}>{fmt$(Number(t.pnl))}</N>
                 <span>{t.sym} {t.side === 'LONG' ? '▲' : '▼'}</span><SleeveTag comp={t.scalp_meta?.chan?.comp} />
