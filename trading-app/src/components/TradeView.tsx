@@ -21,6 +21,24 @@ const fmt = (x: number) => (!Number.isFinite(x) ? '—' : Math.abs(x) >= 1000 ? 
 const usd = (x: number) => `${x < 0 ? '−' : '+'}$${Math.abs(x).toFixed(2)}`
 const pct = (x: number, d = 2) => `${x < 0 ? '−' : '+'}${Math.abs(x).toFixed(d)}%`
 const mmss = (ms: number) => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` }
+const candleCloseAt = (tf: string, now: number) => {
+  if (tf === '1M') { const d = new Date(now); return Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1) }
+  if (tf === '1w') {
+    const d = new Date(now), day = d.getUTCDay(), days = day === 0 ? 1 : 8 - day
+    return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + days)
+  }
+  const ms = TF_MS[tf] ?? 60_000
+  return Math.floor(now / ms) * ms + ms
+}
+const candleLeft = (tf: string, now: number) => {
+  let s = Math.max(0, Math.ceil((candleCloseAt(tf, now) - now) / 1000))
+  const d = Math.floor(s / 86400); s %= 86400
+  const h = Math.floor(s / 3600); s %= 3600
+  const m = Math.floor(s / 60), sec = s % 60
+  return d ? `${d}י ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
+    : h ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
+    : `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
+}
 
 async function klines(sym: string, tf: string, limit: number): Promise<{ k: K[]; src: string }> {
   try {
@@ -61,7 +79,7 @@ function Reasons({ t }: { t: Row }) {
         {row(true, '2. מובהקות המומנטום', `t = ${f2(c.t_sig)}`, 'תנאי: t לפחות 2 — התשואה של 144 הנרות הקודמים ניבאה את 12 הבאים בנתונים האחרונים', 'רק כשהמומנטום מובהק סטטיסטית — לא לפי תחושה.')}
         {row(true, '3. פריצה', t.side === 'LONG' ? `מעל ${f2(c.hh, 4)}` : `מתחת ${f2(c.ll, 4)}`, 'תנאי: סגירה מעבר לשיא/שפל 144 הנרות הקודמים', 'יציאה אחרי 12 נרות (שעה) או בסטופ.')}
       </>}
-      {row(true, '4. גודל לפי חצי־Kelly', `${(Number(c.risk_frac) * 100).toFixed(2)}% מההון בסיכון`, 'חצי־Kelly על הרקורד החי של האסטרטגיה, תקרה 1%; לפני 30 עסקאות: 0.25%', `${c.kelly_why ?? ''} · מינוף עד ×3 · סטופ חובה ${f2(c.stop, 4)}`)}
+      {row(true, '4. גודל לפי חצי־Kelly', `${(Number(c.risk_frac) * 100).toFixed(2)}% מההון בסיכון`, 'חצי־Kelly על הרקורד החי של האסטרטגיה, תקרה 1%; לפני 30 עסקאות: 0.25%', `${c.kelly_why ?? ''} · מינוף ×${Number(t.lev) || 1} · סטופ חובה ${f2(c.stop, 4)}`)}
       <div style={{ color: C.warn, fontSize: 12, marginTop: 8 }}>מערכת צ׳אן (quant/) · במבחן ההיסטורי קיבלה NO-GO — רצה בדמו לבקשתך, לא עברה אימות · נר {String(c.bar ?? '').slice(11, 19)} UTC</div>
     </>
   }
@@ -111,7 +129,9 @@ export default function TradeView({ id }: { id: string }) {
   const [t, setT] = useState<Row | null>(null), [err, setErr] = useState<string | null>(null)
   const [last, setLast] = useState<number>(NaN), [src, setSrc] = useState(''), [now, setNow] = useState(Date.now())
   const [tf, setTf] = useState('5m')
+  const [probe, setProbe] = useState<{ price:number; net:number; marginPct:number; time?:unknown } | null>(null)
   const box = useRef<HTMLDivElement>(null), chart = useRef<IChartApi | null>(null)
+  const barSpacing = useRef(7)
   const lastBar = useRef<K | null>(null), liveRef = useRef(false)
   const cs = useRef<ISeriesApi<'Candlestick'> | null>(null), vs = useRef<ISeriesApi<'Histogram'> | null>(null), es = useRef<ISeriesApi<'Line'> | null>(null)
   // the trade row, refreshed (stop ratchets / close)
@@ -143,11 +163,15 @@ export default function TradeView({ id }: { id: string }) {
   const lv = useMemo(() => {
     if (!t) return null
     const m = t.scalp_meta ?? {}, f = m.fast ?? m.lab ?? m.chan ?? {}
-    const stop = Number(f.stop ?? (t.strategy === 'ROTA' ? NaN : t.trail_sl)), target = Number(f.target ?? m.target_px ?? NaN)
+    const stop = Number(f.stop ?? (t.strategy === 'ROTA' ? NaN : t.trail_sl))
+    const fixedTarget = Number(f.target ?? m.target_px ?? NaN)
+    const mrTarget = t.strategy === 'CHAN' && f.comp === 'RG_MR' && Number.isFinite(Number(f.mr_mean)) ? Math.exp(Number(f.mr_mean)) : NaN
+    const target = Number.isFinite(fixedTarget) ? fixedTarget : mrTarget
+    const targetDynamic = !Number.isFinite(fixedTarget) && Number.isFinite(mrTarget)
     const entry = Number(t.entry_price), dir = t.side === 'LONG' ? 1 : -1, lev = Math.max(1, Number(t.lev) || 1)
     const liqStored = Number(f.liq ?? m.liq ?? NaN)
     const liq = Number.isFinite(liqStored) ? liqStored : (lev > 1 ? entry * (1 - dir * (1 / lev - 0.005)) : NaN)
-    return { entry, stop: stop > 0 && stop < entry * 50 ? stop : NaN, target: target > 0 && !f.trail ? target : NaN, liq, trail: !!f.trail, holdMs: Number(f.hold_min ?? m.hold_min ?? NaN) * 60e3 || (f.hold ? Number(f.hold) * TF_MS[tf] : NaN) }
+    return { entry, stop: stop > 0 && stop < entry * 50 ? stop : NaN, target: target > 0 && !f.trail ? target : NaN, targetDynamic, liq, trail: !!f.trail, holdMs: Number(f.hold_min ?? m.hold_min ?? NaN) * 60e3 || (f.hold ? Number(f.hold) * TF_MS[tf] : NaN) }
   }, [t, tf])
   // chart
   useEffect(() => {
@@ -157,7 +181,7 @@ export default function TradeView({ id }: { id: string }) {
       grid: { vertLines: { color: '#0f1830' }, horzLines: { color: '#0f1830' } },
       crosshair: { mode: CrosshairMode.Normal },
       rightPriceScale: { borderColor: C.line, autoScale: true },
-      timeScale: { borderColor: C.line, timeVisible: true, secondsVisible: tf === '1m' || tf === '3m', rightOffset: 8, barSpacing: 7, minBarSpacing: 0.8 },
+      timeScale: { borderColor: C.line, timeVisible: true, secondsVisible: tf === '1m' || tf === '3m', rightOffset: 8, barSpacing: barSpacing.current, minBarSpacing: 0.8 },
       handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
       handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true },
       kineticScroll: { touch: true, mouse: true },
@@ -170,8 +194,21 @@ export default function TradeView({ id }: { id: string }) {
     const e = ch.addLineSeries({ color: '#9b8cff', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false })
     cs.current = c; vs.current = v; es.current = e
     const pl = (price: number, color: string, title: string, style = LineStyle.Solid) => { if (Number.isFinite(price)) c.createPriceLine({ price, color, lineWidth: 2, lineStyle: style, axisLabelVisible: true, title }) }
-    pl(lv.entry, C.acc, 'כניסה'); pl(lv.stop, C.neg, lv.trail ? 'סטופ נגרר' : 'סטופ', LineStyle.Dashed); pl(lv.target, C.pos, 'יעד', LineStyle.Dashed); pl(lv.liq, '#c084fc', 'מימוש / ליקווידציה', LineStyle.Dashed)
+    const netAt = (price:number) => Number.isFinite(price) ? tradeMetrics(t, price, Date.now()).net : NaN
+    pl(lv.entry, C.acc, 'כניסה')
+    pl(lv.stop, C.neg, `${lv.trail ? 'סטופ נגרר' : 'סטופ'} ${Number.isFinite(netAt(lv.stop)) ? usd(netAt(lv.stop)) : ''}`, LineStyle.Dashed)
+    pl(lv.target, C.pos, `${lv.targetDynamic ? 'יעד דינמי' : 'יעד'} ${Number.isFinite(netAt(lv.target)) ? usd(netAt(lv.target)) : ''}`, LineStyle.Dashed)
+    pl(lv.liq, '#c084fc', 'מימוש / ליקווידציה', LineStyle.Dashed)
     if (t.exit_price) pl(Number(t.exit_price), C.warn, 'יציאה', LineStyle.Dotted)
+
+    const crosshair = (param:any) => {
+      if (!param?.point) { setProbe(null); return }
+      const price = Number(c.coordinateToPrice(param.point.y))
+      if (!Number.isFinite(price) || price <= 0) { setProbe(null); return }
+      const pm = tradeMetrics(t, price, Date.now())
+      setProbe({ price, net: pm.net, marginPct: pm.marginPct, time: param.time })
+    }
+    ch.subscribeCrosshairMove(crosshair)
     let alive = true
     const paint = (k: K[]) => {
       const T = (x: number) => Math.floor(x / 1000) as UTCTimestamp
@@ -190,13 +227,20 @@ export default function TradeView({ id }: { id: string }) {
     ;(async () => { try { const r = await klines(sym, tf, 300); if (!alive) return; setSrc(r.src); paint(r.k); { const bar = TF_MS[tf], e0 = Math.floor(Date.parse(t.opened_at) / bar) * bar, ie = Math.max(0, r.k.findIndex((b) => b.t >= e0)), ix = t.closed_at ? r.k.findIndex((b) => b.t >= Math.floor(Date.parse(t.closed_at) / bar) * bar) : -1
       ch.timeScale().setVisibleLogicalRange({ from: Math.max(0, ie - 30), to: (ix >= 0 ? Math.max(ix + 12, ie + 20) : Math.max(r.k.length, ie + 20)) + 3 }) } } catch { setErr('אין נרות מ־Binance או OKX') } })()
     const tick = setInterval(async () => { try { const r = await klines(sym, tf, 300); if (alive) { setSrc(r.src); paint(r.k) } } catch { /* keep last */ } }, 5000)
-    return () => { alive = false; clearInterval(tick); ch.remove(); chart.current = null; cs.current = null; lastBar.current = null }
-  }, [t?.id, t?.closed_at, lv?.stop, lv?.target, tf, sym])
+    return () => { alive = false; clearInterval(tick); try { ch.unsubscribeCrosshairMove(crosshair) } catch {} ; ch.remove(); chart.current = null; cs.current = null; lastBar.current = null; setProbe(null) }
+  }, [t?.id, t?.closed_at, lv?.stop, lv?.target, lv?.liq, tf, sym])
   if (err && !t) return <div style={{ color: C.neg, padding: 16 }}>{err}</div>
   if (!t || !lv) return <div style={{ color: C.dim, padding: 16 }}>טוען עסקה…</div>
   const isOpen = t.status === 'OPEN', mark = isOpen ? last : Number(t.exit_price)
   const M = tradeMetrics(t, mark, now), { dir, notional, lev } = M
+  const targetM = Number.isFinite(lv.target) ? tradeMetrics(t, lv.target, now) : null
+  const targetPct = Number.isFinite(lv.target) && M.entry > 0 ? dir * (lv.target - M.entry) / M.entry : NaN
   const held = (isOpen ? now : Date.parse(t.closed_at)) - Date.parse(t.opened_at)
+  const changeBarWidth = (mul:number) => {
+    const next = Math.max(0.8, Math.min(40, barSpacing.current * mul))
+    barSpacing.current = next
+    try { chart.current?.timeScale().applyOptions({ barSpacing: next }) } catch {}
+  }
   const fl = isOpen ? tickDir(tk) : ''
   const stat = (label: string, value: string, color = C.text, live = false) => <div style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 10, padding: '8px 10px' }}><div style={{ color: C.dim, fontSize: 12 }}>{label}</div><div key={live ? value : undefined} className={live ? `tv-flash ${fl}` : undefined} dir="ltr" style={{ color, fontWeight: 700, fontSize: 17, fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>{value}</div></div>
   return (
@@ -213,7 +257,8 @@ export default function TradeView({ id }: { id: string }) {
         {stat(isOpen ? 'מחיר עכשיו' : 'מחיר יציאה', fmt(mark), C.text, true)}
         {stat('כניסה', fmt(M.entry), C.acc)}
         {stat(lv.trail ? 'סטופ נגרר (מהכניסה)' : 'סטופ (מהכניסה)', Number.isFinite(M.stop) ? `${fmt(M.stop)} (${fmtPctSigned(M.stopPct, 3)})` : 'אין', C.neg)}
-        {stat('יעד (מהכניסה)', lv.trail ? 'ללא יעד — סטופ נגרר' : Number.isFinite(M.target) ? `${fmt(M.target)} (${fmtPctSigned(M.targetPct, 3)})` : 'אין', C.pos)}
+        {stat(lv.targetDynamic ? 'יעד דינמי · ממוצע Z=0' : 'יעד (מהכניסה)', lv.trail ? 'ללא יעד — סטופ נגרר' : Number.isFinite(lv.target) ? `${fmt(lv.target)} (${fmtPctSigned(targetPct, 3)})` : 'אין', C.pos)}
+        {targetM && stat(lv.targetDynamic ? 'רווח נטו משוער בממוצע' : 'רווח נטו אם יעד', usd(targetM.net), targetM.net >= 0 ? C.pos : C.neg)}
         {lev > 1 && stat('מחיר מימוש / ליקווידציה', Number.isFinite(lv.liq) ? fmt(lv.liq) : '—', '#c084fc')}
         {lev > 1 && stat('על הביטחון (ממונף)', fmtPctSigned(M.marginPct, 1), M.marginPct >= 0 ? C.pos : C.neg)}
         {stat(lev > 1 ? `גודל · ביטחון · מינוף` : 'גודל', lev > 1 ? `$${notional.toFixed(0)} · $${M.margin.toFixed(0)} · ×${lev}` : `$${notional.toFixed(0)}`)}
@@ -221,13 +266,30 @@ export default function TradeView({ id }: { id: string }) {
       </div>
       <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap', background:C.card, border:`1px solid ${C.line}`, borderRadius:10, padding:8 }}>
         <b style={{ fontSize:12, marginLeft:4 }}>טווח:</b>
-        {TF_CHOICES.map(([id,label]) => <button key={id} onClick={()=>setTf(id)} style={{ border:`1px solid ${tf===id?C.acc:C.line}`, background:tf===id?'#102442':'#07101b', color:tf===id?'#fff':C.dim, borderRadius:7, padding:'5px 8px', fontWeight:tf===id?800:500 }}>{label}</button>)}
+        {TF_CHOICES.map(([id,label]) => <button key={id} onClick={()=>setTf(id)} style={{ display:'grid', gap:1, minWidth:48, border:`1px solid ${tf===id?C.acc:C.line}`, background:tf===id?'#102442':'#07101b', color:tf===id?'#fff':C.dim, borderRadius:7, padding:'4px 7px', fontWeight:tf===id?800:500 }}>
+          <span>{label}</span><small style={{fontSize:9,color:tf===id?'#8fd3ff':'#53627a',fontVariantNumeric:'tabular-nums'}}>{candleLeft(id,now)}</small>
+        </button>)}
         <span style={{ flex:1 }} />
+        <button onClick={()=>changeBarWidth(0.75)} style={{ border:`1px solid ${C.line}`, background:'#07101b', color:C.text, borderRadius:7, padding:'5px 9px' }}>− רוחב נרות</button>
+        <button onClick={()=>changeBarWidth(1.35)} style={{ border:`1px solid ${C.line}`, background:'#07101b', color:C.text, borderRadius:7, padding:'5px 9px' }}>+ רוחב נרות</button>
         <button onClick={()=>chart.current?.timeScale().fitContent()} style={{ border:`1px solid ${C.line}`, background:'#07101b', color:C.text, borderRadius:7, padding:'5px 9px' }}>התאם הכל</button>
         <button onClick={()=>chart.current?.timeScale().scrollToRealTime()} style={{ border:`1px solid ${C.line}`, background:'#07101b', color:C.text, borderRadius:7, padding:'5px 9px' }}>חזור ללייב</button>
       </div>
-      <div style={{ color:C.dim, fontSize:11 }}>אפשר לגרור את הגרף, לגלול/לצבוט כדי להתקרב ולהתרחק, ולגרור את ציר המחיר לשינוי קנה מידה.</div>
-      <div ref={box} style={{ height: 'calc(100vh - 355px)', minHeight: 480, borderRadius: 10, overflow: 'hidden', border: `1px solid ${C.line}`, touchAction:'pan-y' }} />
+      <div style={{ display:'flex',justifyContent:'space-between',gap:8,flexWrap:'wrap',color:C.dim,fontSize:11 }}>
+        <span>אפשר לגרור, לצבוט/לגלול ולהרחיב או לצמצם את רוחב הנרות.</span>
+        <b style={{color:C.acc,fontVariantNumeric:'tabular-nums'}}>נר {tf} נסגר בעוד {candleLeft(tf,now)}</b>
+      </div>
+      <div style={{ position:'relative' }}>
+        <div ref={box} style={{ height: 'calc(100vh - 390px)', minHeight: 480, borderRadius: 10, overflow: 'hidden', border: `1px solid ${C.line}`, touchAction:'none' }} />
+        <div style={{ position:'absolute',top:8,left:8,zIndex:3,minWidth:190,background:'rgba(4,7,14,.90)',border:`1px solid ${probe ? (probe.net>=0?C.pos:C.neg) : C.line}`,borderRadius:9,padding:'7px 9px',pointerEvents:'none',boxShadow:'0 6px 20px rgba(0,0,0,.25)' }}>
+          {probe ? <>
+            <div style={{fontSize:10,color:C.dim}}>נקודת הסמן</div>
+            <div dir="ltr" style={{fontWeight:800,fontVariantNumeric:'tabular-nums'}}>מחיר {fmt(probe.price)}</div>
+            <div dir="ltr" style={{fontWeight:900,fontSize:17,color:probe.net>=0?C.pos:C.neg}}>P&L נטו {usd(probe.net)}</div>
+            <div dir="ltr" style={{fontSize:11,color:probe.marginPct>=0?C.pos:C.neg}}>על הבטוחה {fmtPctSigned(probe.marginPct,1)}</div>
+          </> : <div style={{fontSize:11,color:C.dim}}>הזז את הסמן/האצבע לכל מחיר כדי לראות רווח או הפסד נטו באותה נקודה.</div>}
+        </div>
+      </div>
       <div style={{ color: C.dim, fontSize: 12 }}><style>{'.tv-flash.up{animation:tvu .9s ease-out}.tv-flash.down{animation:tvd .9s ease-out}@keyframes tvu{0%{background:#16a34a;color:#fff}100%{background:transparent}}@keyframes tvd{0%{background:#dc2626;color:#fff}100%{background:transparent}}'}</style>נרות: {src || '—'} · מחיר חי: {isOpen ? (tk ? (tk.src === 'הבוט' ? 'מחיר הבוט מהשרת (כל ~5 שנ׳ — הבורסות חסומות בדפדפן הזה)' : `${tk.src}, זז עם כל שינוי בבורסה`) : 'מתחבר…') : 'העסקה סגורה'} · קו סגול = ממוצע נע 20 (לתצוגה) · עמודות נפח: ירוק = קונים אגרסיביים שלטו בנר, אדום = מוכרים · הבוט סוגר לפי המחיר שלו בשרת, ייתכנו הבדלים קטנים</div>
       <section style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 10, padding: 12 }}>
         <h2 style={{ fontSize: 17, marginBottom: 4 }}>למה הבוט נכנס לעסקה</h2>
@@ -235,7 +297,7 @@ export default function TradeView({ id }: { id: string }) {
       </section>
       <section style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 10, padding: 12, fontSize: 14, lineHeight: 1.7 }}>
         <h2 style={{ fontSize: 17, marginBottom: 4 }}>איך הוא ייצא</h2>
-        {t.strategy === 'FAST' ? <>{lv.trail ? <>סטופ נגרר: {fmt(lv.stop)} · אין יעד קבוע — אחרי רווח של פי 1 מהסיכון הסטופ עולה אחרי המחיר (במרחק פי 1 מהסיכון מהשיא) ולא יורד לעולם ·</> : <>סטופ: {fmt(lv.stop)} · יעד: {fmt(lv.target)} (פי 1.5 מהסיכון) ·</>} אם אף אחד לא נפגע — יוצא אחרי {t.scalp_meta?.fast?.hold_min ?? 60} דקות בכל מחיר.{Number(t.lev) > 1 ? ` מינוף ×${t.lev}: חיסול ב־${fmt(Number(t.scalp_meta?.fast?.liq))} — מפסיד את כל הביטחון ($${Number(t.scalp_meta?.fast?.margin ?? 0).toFixed(0)}).` : ''} עמלות: 0.05% בכל צד על כל הגודל + מרווח.</> : 'לפי כללי האסטרטגיה (ראו הרמות על הגרף).'}
+        {t.strategy === 'FAST' ? <>{lv.trail ? <>סטופ נגרר: {fmt(lv.stop)} · אין יעד קבוע — אחרי רווח של פי 1 מהסיכון הסטופ עולה אחרי המחיר (במרחק פי 1 מהסיכון מהשיא) ולא יורד לעולם ·</> : <>סטופ: {fmt(lv.stop)} · יעד: {fmt(lv.target)} (פי 1.5 מהסיכון) ·</>} אם אף אחד לא נפגע — יוצא אחרי {t.scalp_meta?.fast?.hold_min ?? 60} דקות בכל מחיר.{Number(t.lev) > 1 ? ` מינוף ×${t.lev}: חיסול ב־${fmt(Number(t.scalp_meta?.fast?.liq))} — מפסיד את כל הביטחון ($${Number(t.scalp_meta?.fast?.margin ?? 0).toFixed(0)}).` : ''} עמלות: 0.05% בכל צד על כל הגודל + מרווח.</> : t.strategy === 'CHAN' ? <>סטופ: {fmt(lv.stop)} · {Number.isFinite(lv.target) ? <>{lv.targetDynamic ? 'יעד דינמי Z=0 (ממוצע נוכחי)' : 'יעד'}: {fmt(lv.target)}{targetM ? <> · נטו משוער ביעד {usd(targetM.net)}</> : null}</> : 'אין יעד מחיר קבוע'} · מימוש/ליקווידציה: {fmt(lv.liq)}. באסטרטגיית חזרה לממוצע היעד הדינמי הוא קו Z=0, והוא יכול להתעדכן בנר הסגור הבא.</> : 'לפי כללי האסטרטגיה (ראו הרמות על הגרף).'}
         {!isOpen && t.strategy === 'FAST' && (() => { const fl = t.scalp_meta?.fill, why = t.scalp_meta?.exit_reason, xp = Number(t.exit_price)
           if (fl) return <div style={{ marginTop: 6 }}>ביצוע היציאה: {fl.trigger_ts ? <>המחיר נגע ברמה ב־{new Date(fl.trigger_ts).toISOString().slice(11, 23)} UTC ({fmt(Number(fl.trigger_px))}), זוהה אחרי {(Number(fl.lag_ms) / 1000).toFixed(1)} שנ׳ · </> : null}{fl.impact_bps !== undefined ? <>החלקה לפי עומק הספר {Number(fl.impact_bps).toFixed(1)} bps{fl.beyond_book ? ' (הפוזיציה גדולה מהספר הנראה — הערכה, INFERRED)' : ''} · </> : null}מקור: {fl.model}</div>
           // legacy rows (before v95.6): say plainly when the booked fill was worse than a resting stop / better than a limit target
