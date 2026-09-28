@@ -101,6 +101,10 @@ jobs:
           g.__RELEASE_SHA = '${SHA}';
           g.__ENABLED_SLEEVES = 'CHAN';
           g.__LEVERAGE = '1';
+          try {
+            Deno.env.set('ENABLED_SLEEVES', 'CHAN');
+            Deno.env.set('LEVERAGE', '1');
+          } catch {}
           await import('https://raw.githubusercontent.com/aliexpressgood585/spacehub/${SHA}/supabase/functions/trading-bot/index.ts');
           export {};
           EOF
