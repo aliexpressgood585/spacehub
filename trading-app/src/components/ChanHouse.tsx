@@ -135,7 +135,6 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
   const [wsLive, setWsLive] = useState(false)
   const [err, setErr] = useState('')
   const [now, setNow] = useState(Date.now())
-  const [chartId, setChartId] = useState<number | null>(null)
 
   useEffect(() => {
     const iv = setInterval(() => setNow(Date.now()), 1000)
@@ -228,7 +227,6 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
   const closedLosses = closedTrades.filter(t => Number(t.pnl) < 0).length
   const closedFlat = closedTrades.length - closedWins - closedLosses
   const winRate = closedTrades.length ? closedWins / closedTrades.length : null
-  const chartPos = chartId == null ? null : econ.find(x => x.trade.id === chartId) ?? null
 
   const startCapital = ['1','2'].reduce((s,id)=>s+Number(wallets?.[id]?.initial ?? 0),0) || 5000
   const realised = ['1','2'].reduce((s,id)=>s+Number(wallets?.[id]?.realised ?? 0),0)
@@ -370,7 +368,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
       </div>
       {econ.length === 0 ? <div className="emptyPos">אין כרגע פוזיציות פתוחות.</div> :
         <div className="positionGrid">
-          {econ.map(({trade,live}) => <PositionCard key={trade.id} t={trade} live={live} onChart={()=>setChartId(trade.id)} />)}
+          {econ.map(({trade,live}) => <PositionCard key={trade.id} t={trade} live={live} onChart={()=>window.open(`trade.html?id=${encodeURIComponent(String(trade.id))}`,'_blank','noopener,noreferrer')} />)}
         </div>
       }
     </section>
@@ -538,7 +536,6 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
       </div>
     </section>
 
-    {chartPos && <FullScreenTradeChart t={chartPos.trade} live={chartPos.live} onClose={()=>setChartId(null)} />}
   </div>
 }
 
