@@ -217,6 +217,14 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
   const done = new Set<string>(scan0.done), heldSyms = stillOpen.map((t: any) => String(t.sym))
   let heavy = 0, deep = 0, finished = false, volsChanged = false, dailyChanged = false, staleDaily = 0
   let vols: Record<string, { d: number; v: number }[]> = {}, daily: Record<string, Daily & { day: number }> = {}
+  const directionBook: Record<'LONG'|'SHORT', { count:number; notional:number }> = {
+    LONG: { count: 0, notional: 0 }, SHORT: { count: 0, notional: 0 }
+  }
+  for (const t of stillOpen.filter((t:any)=>!closing.has(t.id))) {
+    const s = t.side === 'LONG' ? 'LONG' : 'SHORT'
+    directionBook[s].count++
+    directionBook[s].notional += Number(t.entry_price) * Number(t.size)
+  }
   if (inWindow) {
     const { data: vc } = await db.from('market_cache').select('key,data').in('key', ['chan_vols', 'chan_daily']).throwOnError()
     vols = (vc ?? []).find((x: any) => x.key === 'chan_vols')?.data ?? {}
@@ -278,14 +286,6 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
     }))
     const rsOf = (comp: string) => closedAll.filter((x: any) => x.comp === comp).map((x: any) => x.r).reverse()
 
-    const directionBook: Record<'LONG'|'SHORT', { count:number; notional:number }> = {
-      LONG: { count: 0, notional: 0 }, SHORT: { count: 0, notional: 0 }
-    }
-    for (const t of stillOpen.filter((t:any)=>!closing.has(t.id))) {
-      const s = t.side === 'LONG' ? 'LONG' : 'SHORT'
-      directionBook[s].count++
-      directionBook[s].notional += Number(t.entry_price) * Number(t.size)
-    }
     const crowdState = (side:'LONG'|'SHORT') => {
       const gross = directionBook.LONG.notional + directionBook.SHORT.notional
       const row = directionBook[side]
