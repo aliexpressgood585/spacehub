@@ -196,7 +196,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       const entry = Number(t.entry_price), P = pairOf(t.sym)
       const from = Math.max(Date.parse(t.opened_at), Number(m.chk) || 0, now - 3_500_000) + 1
       const tr = await aggTrades(P, from, now)
-      const res = resolveExit({ dir, entry, r: Number(m.r), stop: Number(m.stop), target: (m.comp === 'RG_TREND_PULLBACK' || m.comp === 'RG_LIQ_SQUEEZE') ? Number(m.target) : null, liq: fastLiq(dir, entry, Number(t.lev) || 1), best: Number(m.best ?? entry), trail: false }, tr.trades)
+      const res = resolveExit({ dir, entry, r: Number(m.r), stop: Number(m.stop), target: ['RG_TREND_PULLBACK','RG_LIQ_SQUEEZE','RG_BREADTH_MOMENTUM','RG_VOL_BREAKOUT'].includes(String(m.comp)) ? Number(m.target) : null, liq: fastLiq(dir, entry, Number(t.lev) || 1), best: Number(m.best ?? entry), trail: false }, tr.trades)
       if (res.why) {
         const fu = await fundingFor(t, P, res.T)
         const bk = await book(P), w = walkBook(dir > 0 ? bk.bids : bk.asks, entry * Number(t.size))
