@@ -107,6 +107,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
   const [manifest, setManifest] = useState<J | null>(null)
   const [errors, setErrors] = useState<J[]>([])
   const [decisions, setDecisions] = useState<J[]>([])
+  const [recentClosed, setRecentClosed] = useState<J[]>([])
   const [err, setErr] = useState('')
   const [now, setNow] = useState(Date.now())
   const [chartId, setChartId] = useState<number | null>(null)
@@ -120,12 +121,13 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
     let alive = true
     const load = async () => {
       try {
-        const [st, op, man, er, dec] = await Promise.all([
+        const [st, op, man, er, dec, cl] = await Promise.all([
           q<J[]>('bot_state?select=balance,bot_params,paper_mode,updated_at&limit=1'),
           q<J[]>('bot_trades?select=id,sym,side,status,strategy,lev,entry_price,size,fee,opened_at,scalp_meta&status=eq.OPEN&strategy=eq.CHAN&order=opened_at.desc'),
           q<J[]>('deployment_manifest?select=sha,enabled_sleeves&order=first_seen.desc&limit=1').catch(() => []),
           q<J[]>(`bot_errors?select=ts,scope,message&ts=gte.${new Date(Date.now()-3_600_000).toISOString()}&order=ts.desc&limit=20`).catch(() => []),
-          q<J[]>('trade_decisions?select=ts,sym,side,decision,reason,notional,observed,inferred&inferred->>sleeve=eq.CHAN&order=ts.desc&limit=60').catch(() => []),
+          q<J[]>('trade_decisions?select=ts,sym,side,decision,reason,notional,observed,inferred&inferred->>sleeve=eq.CHAN&order=ts.desc&limit=80').catch(() => []),
+          q<J[]>('bot_trades?select=id,sym,side,status,lev,pnl,fee,opened_at,closed_at,exit_price,scalp_meta&strategy=eq.CHAN&status=neq.OPEN&closed_at=not.is.null&order=closed_at.desc&limit=30').catch(() => []),
         ])
         if (!alive) return
         setState(st[0] ?? null)
@@ -133,13 +135,14 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
         setManifest(man[0] ?? null)
         setErrors(er ?? [])
         setDecisions(dec ?? [])
+        setRecentClosed(cl ?? [])
         setErr('')
       } catch (e: any) {
         if (alive) setErr(String(e?.message ?? e))
       }
     }
     void load()
-    const iv = setInterval(load, 5000)
+    const iv = setInterval(load, 2500)
     return () => { alive = false; clearInterval(iv) }
   }, [])
 
@@ -167,6 +170,57 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
   const exitSlip = econ.reduce((s,x)=>s+Number(x.live.exit_slippage_usd ?? 0),0)
   const modeledEquity = startCapital + realised + openNet
   const freeCollateral = Number(state?.balance ?? 0)
+
+  const activities = useMemo(() => {
+    const items:J[] = []
+    if (cycT) items.push({
+      ts: cyc.ts, kind:'cycle', robot:'CHAN Engine', icon:'◉',
+      title:'מחזור מנוע נחתם',
+      detail:`נפתחו ${Number(cyc.opened ?? 0)} · נסגרו ${Number(cyc.closed ?? 0)} · הון מחזור ${fmt$(Number(cyc.equity))}`
+    })
+    if (liveScan?.ts && Array.isArray(liveScan.checked)) {
+      for (const x of liveScan.checked) items.push({
+        ts: liveScan.ts, kind:'scan', robot:'רובוט סריקה', icon:'⌁',
+        title:`${x.sym} נבדק מול Binance Futures`,
+        detail:`Bid ${fmtPx(Number(x.bid))} · Ask ${fmtPx(Number(x.ask))} · Spread ${x.spread_bps == null ? '—' : Number(x.spread_bps).toFixed(2)+'bp'}`
+      })
+    }
+    for (const d of decisions) items.push({
+      ts:d.ts, kind:d.decision === 'accepted' ? 'approved' : 'rejected',
+      robot:d.decision === 'accepted' ? 'שרשרת אישורים' : stopper(d.reason),
+      icon:d.decision === 'accepted' ? '✓' : '×',
+      title:`${d.sym} ${d.side} · ${d.decision === 'accepted' ? 'אושר' : 'נדחה'}`,
+      detail:d.decision === 'accepted'
+        ? `${COMP[d.inferred?.comp] ?? d.inferred?.comp ?? 'CHAN'} · חשיפה ${d.notional ? fmt$(Number(d.notional)) : '—'} · ${d.inferred?.leverage ? Number(d.inferred.leverage)+'×' : '50×'}`
+        : reasonHe(d.reason)
+    })
+    for (const t of open) {
+      const l=economics(t,cyc)
+      items.push({
+        ts:l.quote_ts ?? cyc.ts ?? t.opened_at, kind:'mark', robot:'רובוט ביצוע', icon:'↯',
+        title:`${t.sym} · פוזיציה פתוחה עודכנה`,
+        detail:`מחיר ${fmtPx(Number(l.mark))} · נטו אם סוגרים עכשיו ${fmt$(Number(l.net_pnl_to_close))} · ${Number(t.lev)}×`
+      })
+      items.push({
+        ts:t.opened_at, kind:'opened', robot:'CHAN SQL Ledger', icon:'+',
+        title:`${t.sym} ${t.side} נפתחה`,
+        detail:`כמות ${Number(t.size).toLocaleString('en-US',{maximumFractionDigits:8})} · שווי ${fmt$(Number(t.entry_price)*Number(t.size))} · בטוחה ${fmt$(Number(t.entry_price)*Number(t.size)/Math.max(1,Number(t.lev)))}`
+      })
+    }
+    for (const t of recentClosed) items.push({
+      ts:t.closed_at, kind:Number(t.pnl)>=0?'closedWin':'closedLoss', robot:'רובוט יציאה', icon:'■',
+      title:`${t.sym} · פוזיציה נסגרה · ${t.status}`,
+      detail:`P&L נטו ${fmt$(Number(t.pnl))} · סיבה ${t.scalp_meta?.exit_reason ?? '—'} · מחיר יציאה ${fmtPx(Number(t.exit_price))}`
+    })
+    for (const e of errors) items.push({
+      ts:e.ts, kind:'error', robot:e.scope || 'מערכת', icon:'!',
+      title:'שגיאת מערכת', detail:String(e.message ?? '').slice(0,180)
+    })
+    return items
+      .filter(x => x.ts)
+      .sort((a,b)=>Date.parse(b.ts)-Date.parse(a.ts))
+      .slice(0,80)
+  }, [cyc,cycT,liveScan,decisions,open,recentClosed,errors])
 
   const robots = useMemo(() => [
     {
@@ -236,30 +290,6 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
       <Stat k="Funding" v={fmt$(fundingPaid)} />
     </section>
 
-    <section className="panel">
-      <h2>ניסוי 50/50 · שני תקציבים עצמאיים</h2>
-      <p className="muted">מסלול 1: חזרה לממוצע ומומנטום · מסלול 2: פריצה ותיקון. החישוב למטה נשאר נפרד לכל מסלול.</p>
-      <div className="grid">
-        {(['1','2'] as const).map((id) => {
-          const w = wallets[id]
-          if (!w) return <div key={id} className={`card c${id}`}>טוען…</div>
-          const eq = Number(w.equity), initial = Number(w.initial), closed = Number(w.closed), wins = Number(w.wins)
-          const nOpen = open.filter((t) => (t.scalp_meta?.chan?.sleeve ?? (t.scalp_meta?.chan?.comp === 'RG_TREND_PULLBACK' ? '2' : '1')) === id).length
-          return <div key={id} className={`card c${id}`}>
-            <h3>מסלול {id} · {id === '1' ? 'קיים — חזרה לממוצע ומומנטום' : 'חדש — פריצה ותיקון'}</h3>
-            <Row k="הון בתחילת הניסוי" v={fmt$(initial)} />
-            <Row k="הון לפי מחזור הבוט" v={fmt$(eq)} />
-            <Row k="רווח / הפסד כולל פתוחות" v={fmt$(eq-initial)} cls={eq >= initial ? 'pos' : 'neg'} />
-            <Row k="מזומן פנוי" v={fmt$(Number(w.cash))} />
-            <Row k="עסקאות סגורות / הצלחה" v={closed > 0 ? `${closed} / ${(100*wins/closed).toFixed(1)}%` : '0 / —'} />
-            <Row k="עמלות ששולמו" v={fmt$(Number(w.fees))} />
-            <Row k="ירידה מרבית שנמדדה" v={`${(100*Number(w.max_dd ?? 0)).toFixed(2)}%`} />
-            <Row k="פוזיציות פתוחות" v={String(nOpen)} />
-          </div>
-        })}
-      </div>
-    </section>
-
     <section className="positions">
       <div className="sectionHead">
         <div><h2>פוזיציות פתוחות · P&L חי</h2><p>הרווח/הפסד נטו כולל עמלת פתיחה, עמלת סגירה משוערת והחלקת יציאה לפי ספר הפקודות.</p></div>
@@ -291,6 +321,37 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
 
       <div className="pipeline">
         {robots.map((r,i) => <RobotRoom key={r.id} {...r} last={i===robots.length-1} />)}
+      </div>
+
+      <div className="opsWall">
+        <div className="opsHead">
+          <div><b>LIVE OPERATIONS · כל מה שקורה בפועל</b><span>מתעדכן כל 2.5 שניות · ללא אירועים מדומים</span></div>
+          <div className="heartbeat"><i className={fresh?'on':''}/><span>Heartbeat {cycT ? ago(cycT,now) : '—'}</span></div>
+        </div>
+        <div className="opsGrid">
+          <div className="opsFeed">
+            {activities.length === 0 && <div className="empty">אין עדיין אירועים מתועדים.</div>}
+            {activities.slice(0,35).map((a,idx)=><div className={`op ${a.kind}`} key={`${a.ts}-${a.title}-${idx}`}>
+              <div className="opTime"><bdi dir="ltr">{clock(a.ts)}</bdi><small>{ago(Date.parse(a.ts),now)}</small></div>
+              <div className="opRail"><i>{a.icon}</i><span/></div>
+              <div className="opBody"><div><b>{a.title}</b><em>{a.robot}</em></div><p>{a.detail}</p></div>
+            </div>)}
+          </div>
+          <div className="machineState">
+            <div className="machineTitle"><b>מצב מכונה עכשיו</b><span>{fresh?'מחובר':'לא טרי'}</span></div>
+            <DeskRow k="מחזור אחרון" v={cycT?clock(cycT):'—'} />
+            <DeskRow k="סריקה רציפה" v={liveScan?.ts?clock(liveScan.ts):'—'} />
+            <DeskRow k="סבב סריקה" v={'#'+String(Number(liveScan?.loop ?? 0)+1)} />
+            <DeskRow k="Cursor" v={`${Number(liveScan?.cursor ?? 0)} / ${Number(liveScan?.total ?? cyc?.universe ?? 0)}`} />
+            <DeskRow k="Batch אחרון" v={String(Number(liveScan?.batch_size ?? 0))} />
+            <DeskRow k="פוזיציות פתוחות" v={String(open.length)} />
+            <DeskRow k="P&L פתוח נטו" v={fmt$(openNet)} bad={openNet<0} />
+            <DeskRow k="בטחונות בשימוש" v={fmt$(marginUsed)} />
+            <DeskRow k="חשיפה" v={fmt$(exposure)} />
+            <DeskRow k="החלטות בזיכרון" v={String(decisions.length)} />
+            <DeskRow k="שגיאות פעילות" v={String(activeErrors)} bad={activeErrors>0} />
+          </div>
+        </div>
       </div>
 
       <div className="controlGrid">
@@ -345,6 +406,31 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
         </div>
       </div>
     </section>
+
+    <section className="panel">
+      <h2>ניסוי 50/50 · שני תקציבים עצמאיים</h2>
+      <p className="muted">מסלול 1: חזרה לממוצע ומומנטום · מסלול 2: פריצה ותיקון. החישוב למטה נשאר נפרד לכל מסלול.</p>
+      <div className="grid">
+        {(['1','2'] as const).map((id) => {
+          const w = wallets[id]
+          if (!w) return <div key={id} className={`card c${id}`}>טוען…</div>
+          const eq = Number(w.equity), initial = Number(w.initial), closed = Number(w.closed), wins = Number(w.wins)
+          const nOpen = open.filter((t) => (t.scalp_meta?.chan?.sleeve ?? (t.scalp_meta?.chan?.comp === 'RG_TREND_PULLBACK' ? '2' : '1')) === id).length
+          return <div key={id} className={`card c${id}`}>
+            <h3>מסלול {id} · {id === '1' ? 'קיים — חזרה לממוצע ומומנטום' : 'חדש — פריצה ותיקון'}</h3>
+            <Row k="הון בתחילת הניסוי" v={fmt$(initial)} />
+            <Row k="הון לפי מחזור הבוט" v={fmt$(eq)} />
+            <Row k="רווח / הפסד כולל פתוחות" v={fmt$(eq-initial)} cls={eq >= initial ? 'pos' : 'neg'} />
+            <Row k="מזומן פנוי" v={fmt$(Number(w.cash))} />
+            <Row k="עסקאות סגורות / הצלחה" v={closed > 0 ? `${closed} / ${(100*wins/closed).toFixed(1)}%` : '0 / —'} />
+            <Row k="עמלות ששולמו" v={fmt$(Number(w.fees))} />
+            <Row k="ירידה מרבית שנמדדה" v={`${(100*Number(w.max_dd ?? 0)).toFixed(2)}%`} />
+            <Row k="פוזיציות פתוחות" v={String(nOpen)} />
+          </div>
+        })}
+      </div>
+    </section>
+
   </div>
 }
 
@@ -495,10 +581,11 @@ h1{font-size:24px;margin:0 8px 0 0}.back{background:none;border:1px solid #22315
 .roomTitle{display:flex;gap:7px;align-items:center;font-weight:800;color:#cbd5e1;font-size:13px}.roomLed{width:7px;height:7px;border-radius:50%;background:#334155}.roomLed.on{background:#22d3ee;box-shadow:0 0 10px #22d3ee}.robotBody{display:flex;gap:11px;align-items:center;margin-top:20px}.robot{width:54px;min-width:54px;position:relative;filter:grayscale(.45);opacity:.65}.robot.working{filter:none;opacity:1;animation:bob 1.8s ease-in-out infinite}
 .antenna{height:11px;width:2px;background:#64748b;margin:auto;position:relative}.antenna i{position:absolute;width:6px;height:6px;border-radius:50%;background:#64748b;top:-4px;left:-2px}.working .antenna i{background:#34d399;box-shadow:0 0 9px #34d399}.robotHead{height:39px;border:2px solid #475569;border-radius:10px;background:#111c2d;position:relative;display:flex;justify-content:center;align-items:center;color:#22d3ee}.robotHead>span{position:absolute;top:2px;font-size:10px;color:#64748b}.robotHead i{width:8px;height:8px;border-radius:50%;background:#64748b;margin:9px 4px 0}.working .robotHead i{background:#22d3ee;box-shadow:0 0 7px #22d3ee}.robotTorso{width:42px;height:28px;border:2px solid #475569;border-top:0;border-radius:0 0 8px 8px;background:#0f172a;margin:auto;display:flex;align-items:center;justify-content:center}.robotTorso b{font-size:9px;color:#64748b}.working .robotTorso b{color:#34d399}
 .robotText{min-width:0;display:flex;flex-direction:column;gap:5px}.robotText strong{font-size:13px;color:#e2e8f0}.robotText span{font-size:12px;color:#94a3b8;line-height:1.35}.robotText small{font-size:11px;color:#475569}.pipe{width:12px;min-width:12px;height:3px;background:#1e293b;margin:0 -1px;display:flex;justify-content:space-around}.pipe i{width:3px;height:3px;border-radius:50%;background:#334155}.pipe.flow i{background:#22d3ee;animation:flow 1.1s infinite}.pipe.flow i:nth-child(2){animation-delay:.2s}.pipe.flow i:nth-child(3){animation-delay:.4s}
+.opsWall{margin:4px 0 18px;border:1px solid #18324a;border-radius:16px;background:#050d17;overflow:hidden}.opsHead{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 15px;border-bottom:1px solid #16283b;background:linear-gradient(90deg,rgba(34,211,238,.05),transparent)}.opsHead>div:first-child{display:flex;flex-direction:column;gap:3px}.opsHead b{font-size:15px;color:#dbeafe}.opsHead span{font-size:11px;color:#64748b}.heartbeat{display:flex;align-items:center;gap:7px}.heartbeat i{width:8px;height:8px;border-radius:50%;background:#475569}.heartbeat i.on{background:#22c55e;box-shadow:0 0 12px #22c55e;animation:pulse 1s infinite}.opsGrid{display:grid;grid-template-columns:minmax(0,2fr) minmax(250px,1fr)}.opsFeed{max-height:620px;overflow:auto;border-left:1px solid #14263a}.op{display:grid;grid-template-columns:72px 28px 1fr;gap:8px;padding:10px 12px;border-bottom:1px solid #101e2e;min-height:58px}.opTime{display:flex;flex-direction:column;gap:2px;text-align:left}.opTime bdi{font-size:11px;color:#94a3b8;font-variant-numeric:tabular-nums}.opTime small{font-size:9px;color:#475569}.opRail{display:flex;flex-direction:column;align-items:center}.opRail i{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:#102033;border:1px solid #28435d;color:#94a3b8;font-style:normal;font-size:11px;font-weight:900;z-index:1}.opRail span{width:1px;flex:1;background:#1e344a}.op.approved .opRail i,.op.opened .opRail i,.op.closedWin .opRail i{color:#34d399;border-color:#166534;background:#082019}.op.rejected .opRail i,.op.closedLoss .opRail i,.op.error .opRail i{color:#f87171;border-color:#7f1d1d;background:#250b0b}.op.scan .opRail i,.op.mark .opRail i,.op.cycle .opRail i{color:#22d3ee;border-color:#155e75;background:#071d25}.opBody{min-width:0}.opBody>div{display:flex;gap:7px;align-items:center;flex-wrap:wrap}.opBody b{font-size:12px;color:#e2e8f0}.opBody em{font-size:9px;font-style:normal;color:#64748b;border:1px solid #25364b;border-radius:999px;padding:2px 6px}.opBody p{font-size:11px;color:#718096;margin:5px 0 0;line-height:1.45;word-break:break-word}.machineState{background:#07111c}.machineTitle{display:flex;justify-content:space-between;padding:13px 15px;border-bottom:1px solid #14263a}.machineTitle b{font-size:14px}.machineTitle span{font-size:10px;color:#34d399}.panel{margin-top:18px}
 .controlGrid{display:grid;grid-template-columns:minmax(0,2fr) minmax(260px,1fr);gap:16px}.approval,.liveDesk{border:1px solid #1e293b;border-radius:16px;background:#07101b;overflow:hidden}.subHead{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:13px 15px;border-bottom:1px solid #1e293b}.subHead b{font-size:16px}.subHead span{font-size:12px;color:#64748b}.decisionList{max-height:540px;overflow:auto}.empty{padding:24px;color:#64748b;text-align:center}.decision{padding:13px 15px;border-bottom:1px solid #111d2e}.decision:last-child{border-bottom:0}.decision.yes{background:linear-gradient(90deg,rgba(16,185,129,.05),transparent 45%)}.decision.no{background:linear-gradient(90deg,rgba(239,68,68,.035),transparent 45%)}
 .decisionTop{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.decisionTop time{margin-right:auto;color:#64748b;font-size:12px;font-variant-numeric:tabular-nums}.decisionTop>span{font-size:12px;color:#94a3b8}.decisionTop .comp{color:#cbd5e1}.decisionDot{width:8px;height:8px;border-radius:50%}.decisionDot.yes{background:#34d399;box-shadow:0 0 8px #34d399}.decisionDot.no{background:#f87171}.approvedText{color:#34d399;margin:8px 16px 6px 0;font-size:13px}.rejectedText{color:#fca5a5;margin:8px 16px 4px 0;font-size:13px}.chain{display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-right:16px}.chain span{display:flex;align-items:center;gap:4px;font-size:11px;color:#94a3b8;background:#0d1726;border:1px solid #1f3349;border-radius:999px;padding:3px 7px}.chain span i{color:#34d399;font-style:normal}.chain span b{color:#334155}.tiny{font-size:11px;color:#526074;margin:6px 16px 0 0}
 .liveDesk{padding-bottom:5px}.deskRow{display:flex;justify-content:space-between;gap:12px;padding:11px 15px;border-bottom:1px dashed #1c293a}.deskRow span{color:#64748b}.deskRow b{font-size:13px;color:#dbeafe;text-align:left}.badText{color:#f87171!important}
 @keyframes pulse{0%,100%{opacity:.45;transform:scale(.85)}50%{opacity:1;transform:scale(1.15)}}@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}@keyframes flow{0%{opacity:.15;transform:translateX(0)}50%{opacity:1}100%{opacity:.15;transform:translateX(-4px)}}
-@media(max-width:1000px){.accountStrip{grid-template-columns:repeat(3,1fr)}.pipeline{grid-template-columns:repeat(6,190px)}.controlGrid{grid-template-columns:1fr}.factoryHead{align-items:center}}
-@media(max-width:640px){.ch{font-size:13px}.panel,.factory,.positions{padding:12px}.grid{grid-template-columns:1fr}.row{font-size:15px}.card h3{font-size:19px}.panel h2,.factory h2,.positions h2{font-size:20px}h1{font-size:22px}.factoryHead p{font-size:12px}.pipeline{grid-template-columns:repeat(6,175px);margin-left:-4px;margin-right:-4px}.decisionTop time{width:100%;margin:0}.chain{margin-right:0}.approvedText,.rejectedText,.tiny{margin-right:0}.accountStrip{grid-template-columns:repeat(2,1fr)}.positionGrid{grid-template-columns:1fr}.posMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}.sectionHead{align-items:flex-start}.chartTitle{flex-direction:column}.stat bdi{font-size:15px}}
+@media(max-width:1000px){.accountStrip{grid-template-columns:repeat(3,1fr)}.pipeline{grid-template-columns:repeat(6,190px)}.controlGrid{grid-template-columns:1fr}.opsGrid{grid-template-columns:1fr}.opsFeed{border-left:0;border-bottom:1px solid #14263a}.factoryHead{align-items:center}}
+@media(max-width:640px){.op{grid-template-columns:58px 24px 1fr;padding:8px 7px}.opTime bdi{font-size:10px}.opsHead{align-items:flex-start}.heartbeat{flex-direction:column;align-items:flex-end}.ch{font-size:13px}.panel,.factory,.positions{padding:12px}.grid{grid-template-columns:1fr}.row{font-size:15px}.card h3{font-size:19px}.panel h2,.factory h2,.positions h2{font-size:20px}h1{font-size:22px}.factoryHead p{font-size:12px}.pipeline{grid-template-columns:repeat(6,175px);margin-left:-4px;margin-right:-4px}.decisionTop time{width:100%;margin:0}.chain{margin-right:0}.approvedText,.rejectedText,.tiny{margin-right:0}.accountStrip{grid-template-columns:repeat(2,1fr)}.positionGrid{grid-template-columns:1fr}.posMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}.sectionHead{align-items:flex-start}.chartTitle{flex-direction:column}.stat bdi{font-size:15px}}
 `
