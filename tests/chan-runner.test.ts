@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict'
 import { CHAN, chanView, type Bar } from '../shared/chan.ts'
-import { runChan } from '../supabase/functions/trading-bot/chan-runner.ts'
+import { runChan as rawRunChan } from '../supabase/functions/trading-bot/chan-runner.ts'
+// Give each test the same independent wallet state as the SQL initializer.
+async function runChan(db: any, state: any, lease: string, paper: boolean) {
+  const wallets = { '1': {cash:state.balance/2}, '2': {cash:state.balance/2} }
+  return rawRunChan(db,{...state,bot_params:{chan_split:{wallets},...state.bot_params}},lease,paper)
+}
 // v97.0 — the live CHAN path replayed against a mocked Binance + database
 const M5 = 300_000, NOW = Math.floor(Date.UTC(2026, 8, 27, 10, 0) / M5) * M5 + 40_000, BAR = Math.floor(NOW / M5) * M5
 let seed = 7; const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648 }
@@ -53,7 +58,7 @@ try {
   assert.equal(e.length, 1); assert.equal(e[0].sym, 'SOL'); assert.equal(e[0].side, 'LONG'); assert.equal(e[0].lev, 3)
   assert.equal(e[0].chan.comp, 'RG_MR'); assert.ok(e[0].chan.stop < e[0].price, 'mandatory stop below a long')
   assert.ok(Math.abs(e[0].chan.risk_frac - 0.0025) < 2e-4, `risk at the stop = default 0.25% of equity (${e[0].chan.risk_frac})`)
-  assert.ok(e[0].notional <= 3 * 5000, '<= 3x equity'); assert.ok(rpc.args.p_bar, 'bar marked processed')
+  assert.ok(e[0].notional <= 3 * 2500, '<= 3x own wallet equity'); assert.ok(rpc.args.p_bar, 'bar marked processed')
   assert.equal(rpc.args.p_halt, null)
   // 2. the same bar again -> nothing new
   await runChan(mockDb([]), { balance: 5000, bot_params: { chan_bar: BAR } }, new Date(NOW + 50e3).toISOString(), true)
@@ -84,7 +89,27 @@ try {
     assert.ok(n.daily_refresh <= CHAN.scan.heavyPerCycle, 'daily-statistics downloads per cycle are capped')
   } while (!rpc.args.p_bar && cycles < 10)
   assert.equal(cycles, 3, '25 coins needing daily stats at <= 12 per cycle -> 3 cycles'); assert.equal(rpc.args.p_note.scanned, 25); assert.equal(rpc.args.p_note.complete, true)
-  // 6. a mixed book or a live account are refused
+  // 6. independent trend sleeve may hold SOL even while the old sleeve holds SOL.
+  const trendBars = Array.from({length:160},(_,i)=>({t:i*M5,o:100+i*.05-.02,h:100+i*.05+.08,l:100+i*.05-.08,c:100+i*.05}))
+  trendBars.push({t:160*M5,o:108,h:108.3,l:107.95,c:108.2},{t:161*M5,o:108.15,h:108.2,l:107.97,c:108.02},{t:162*M5,o:108.03,h:108.18,l:108,c:108.14})
+  series.SOL=trendBars.map((b,i)=>({...b,t:BAR-(trendBars.length-i)*M5}))
+  const trendCache=[
+    {key:'universe',ts:new Date(NOW).toISOString(),data:{pairs:[{sym:'SOL',s:'SOLUSDT',k:1}]}},
+    {key:'chan_daily',data:{SOL:{day:Math.floor(NOW/86400000),regime:0,hurst:.5,hl:60,t:0,vol:.001,volPct:.5}}},
+    {key:'chan_vols',data:{}}
+  ]
+  tape={}
+  const existing={...pos,sym:'SOL',scalp_meta:{chan:{...pos.scalp_meta.chan,stop:50}}}
+  await runChan(mockDb([existing],[],trendCache),{balance:5000,bot_params:{}},new Date(NOW+50e3).toISOString(),true)
+  assert.equal(rpc.args.p_entries.length,1,'second sleeve can enter an independently held symbol')
+  const te=rpc.args.p_entries[0]
+  assert.equal(te.chan.comp,'RG_TREND_PULLBACK');assert.equal(te.chan.sleeve,'2')
+  assert.equal(te.chan.equity,2500,'uses its own wallet equity')
+  assert.ok(Math.abs(te.chan.target-(te.price+2*te.chan.r))<1e-8,'target uses actual fill risk')
+  await runChan(mockDb([existing],[],trendCache),{balance:5000,bot_params:{chan_split:{wallets:{'1':{cash:5000},'2':{cash:0}}}}},new Date(NOW+50e3).toISOString(),true)
+  assert.equal(rpc.args.p_entries.length,0,'empty second wallet cannot borrow first wallet cash')
+  await assert.rejects(()=>rawRunChan(mockDb([]),{balance:5000,bot_params:{}},'x',true),/split wallets missing/)
+  // 7. a mixed book or a live account are refused
   await assert.rejects(() => runChan(mockDb([{ ...pos, strategy: 'FAST' }]), { balance: 1, bot_params: {} }, 'x', true), /CHAN rows only/)
   await assert.rejects(() => runChan(mockDb([]), { balance: 1, bot_params: {} }, 'x', false), /paper-only/)
 } finally { globalThis.fetch = original; Date.now = realNow }
