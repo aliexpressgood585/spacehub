@@ -10,7 +10,7 @@
 //     momentum t) once per UTC day per coin from 4,300 candles, as the Python code re-estimates them daily, persisted
 //     in market_cache 'chan_daily'; the daily vol history in 'chan_vols'
 //   - regime + both strategies at the last closed bar; mean-reversion signal exits
-//   - entries sized by half-Kelly on the component's own live record (cap 1%) at the mandatory stop, 3x isolated
+//   - paper entries keep the same signal gates/stops, but run an aggressive 1-2% stop-risk allocation at fixed 50x isolated
 // Binance request weight is metered from the X-MBX-USED-WEIGHT-1M header and new downloads stop near the budget.
 // Books through chan_commit_cycle, which re-checks every limit in SQL.
 import { CHAN, DAY_MS, RECENT_BARS, barView, canOpen, chanSize, dailyStats, dayVols, fundingCharge, kellyRisk, riskStep, type Bar, type Daily, type RiskState } from '../../../shared/chan.ts'
@@ -23,6 +23,10 @@ import { json, pool } from './rota-runner.ts'
 import { trendPullback } from '../../../shared/trend-pullback.ts'
 
 const sleeveOf = (comp: string) => comp === 'RG_TREND_PULLBACK' ? '2' : '1'
+const PAPER_LEVERAGE = 50
+const PAPER_RISK_MIN = 0.01
+const PAPER_RISK_MAX = 0.02
+const PAPER_RISK_MULT = 4
 const REGIME = ['NEUTRAL', 'MEAN_REVERT', 'TREND', 'HIGH_VOL']
 let usedWeight = 0, weightAt = 0
 
@@ -241,26 +245,27 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       try { bk = await book(pairOf(sym)) } catch { rec('rejected', 'no_book'); continue }
       const touch = cand.side > 0 ? bk.asks[0][0] : bk.bids[0][0]
       if (!(cand.side * (touch - cand.stop) > 0)) { rec('rejected', 'stop_on_wrong_side_of_market'); continue }
-      const sz = chanSize(k.f, budget.equity, touch, cand.stop, budget.notional)
+      const aggressiveRisk = Math.min(PAPER_RISK_MAX, Math.max(PAPER_RISK_MIN, k.f * PAPER_RISK_MULT))
+      const sz = chanSize(aggressiveRisk, budget.equity, touch, cand.stop, budget.notional, PAPER_LEVERAGE)
       if (!(sz.notional > 0)) { rec('rejected', sz.why); continue }
       const dist = Math.abs(touch - cand.stop) / touch
       const cap = liqCap(cand.side > 0 ? bk.asks : bk.bids, cand.side > 0 ? bk.bids : bk.asks, 0.25 * dist)
-      const notional = Math.min(sz.notional, cap, Math.max(0, equity * CHAN.risk.maxLeverage - openNotional), Math.max(0, Math.min(cash, budget.cash)) * CHAN.risk.maxLeverage / (1 + CHAN.risk.maxLeverage * CHAN.costs.taker))
-      if (notional / CHAN.risk.maxLeverage < 5) { rec('rejected', 'too_small_or_book_too_thin', { want: sz.notional, liq_cap: cap }); continue }
+      const notional = Math.min(sz.notional, cap, Math.max(0, equity * PAPER_LEVERAGE - openNotional), Math.max(0, Math.min(cash, budget.cash)) * PAPER_LEVERAGE / (1 + PAPER_LEVERAGE * CHAN.costs.taker))
+      if (notional / PAPER_LEVERAGE < 5) { rec('rejected', 'too_small_or_book_too_thin', { want: sz.notional, liq_cap: cap }); continue }
       const w = walkBook(cand.side > 0 ? bk.asks : bk.bids, notional)
       const floorPx = touch * (1 + cand.side * slipFor(sym)), px = cand.side > 0 ? Math.max(w.vwap, floorPx) : Math.min(w.vwap, floorPx)
       if (!(cand.side * (px - cand.stop) > 0)) { rec('rejected', 'fill_beyond_stop'); continue }
       const r = Math.abs(px - cand.stop)
-      entries.push({ sym, side, price: px, notional, lev: CHAN.risk.maxLeverage, quote_ts: bk.E, source: 'binance-futures',
+      entries.push({ sym, side, price: px, notional, lev: PAPER_LEVERAGE, quote_ts: bk.E, source: 'binance-futures',
         chan: { comp: cand.comp, sleeve: bucket, level: cand.level ?? null, breakout_at: cand.breakoutAt ?? null,
           target: cand.comp === 'RG_TREND_PULLBACK' ? px + cand.side * 2 * r : null, stop: cand.stop, r, best: px, chk: bk.E, max_hold_bars: cand.maxHold, bar: new Date(bar).toISOString(),
           regime: REGIME[v.regime], hurst: v.hurst, vol_pct: v.volPct, halflife: v.mr.hl, z: v.mr.z, mr_mean: v.mr.mean, mr_std: v.mr.std,
-          t_sig: v.mom.t, atr: v.mom.atr, hh: v.mom.hh, ll: v.mom.ll, kelly_f: k.f, kelly_why: k.why, kelly_n: rsOf(cand.comp).length,
+          t_sig: v.mom.t, atr: v.mom.atr, hh: v.mom.hh, ll: v.mom.ll, kelly_f: aggressiveRisk, kelly_why: `aggressive paper 50x; base=${k.f}; ${k.why}`, kelly_n: rsOf(cand.comp).length,
           risk_usd: notional * r / px, risk_frac: notional * r / px / budget.equity, equity: budget.equity, backtested_coin: (CHAN.universe as readonly string[]).includes(sym),
           entry_fill: { model: 'book_walk', touch, vwap: w.vwap, impact_bps: +(Math.abs(px / touch - 1) * 1e4).toFixed(2), want: Math.round(sz.notional), liq_cap: Math.round(cap) } } })
-      rec('accepted', 'taken', { notional, kelly_f: k.f })
+      rec('accepted', 'taken', { notional, kelly_f: aggressiveRisk, leverage: PAPER_LEVERAGE })
       held.add(bucket + ':' + sym); openN++; openNotional += notional;
-      const debit = notional / CHAN.risk.maxLeverage + notional * CHAN.costs.taker
+      const debit = notional / PAPER_LEVERAGE + notional * CHAN.costs.taker
       cash -= debit; budget.cash -= debit; budget.notional += notional; budget.equity -= notional * CHAN.costs.taker
     }
     if (volsChanged || dailyChanged) {
