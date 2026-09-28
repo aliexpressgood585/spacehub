@@ -45,6 +45,8 @@ const COMP: Record<string,string> = {
   RG_MOM: 'מומנטום',
   RG_TREND_PULLBACK: 'פריצה ותיקון',
   RG_LIQ_SQUEEZE: 'מינוף / Liquidation Squeeze',
+  RG_BREADTH_MOMENTUM: 'Breadth Momentum',
+  RG_VOL_BREAKOUT: 'Volatility Breakout',
 }
 
 function reasonHe(r: string) {
@@ -64,6 +66,7 @@ function reasonHe(r: string) {
   if (r === 'net_reward_risk_too_low') return 'הרווח נטו הצפוי נמוך מדי ביחס להפסד אחרי עלויות'
   if (r === 'leveraged_flow_against') return 'Funding / OI / זרימת Taker מצביעים על סיכון Squeeze נגד העסקה'
   if (r === 'news_event_risk') return 'אירוע חדשותי ציבורי חריג במטבע — נדרש אות חזק יותר'
+  if (r === 'soft_quality_too_low') return 'הציון המשולב של האות נמוך מדי אחרי Regime, Breadth, MTF, Micro ו-Leverage'
   if (r?.startsWith('stop closer than')) return 'הסטופ קרוב מדי ביחס לעלות'
   if (r?.startsWith('paused')) return 'נעצר בשער הסיכון'
   if (r?.startsWith('halted')) return 'נעצר בשער הסיכון'
@@ -82,6 +85,7 @@ function stopper(r: string) {
   if (r === 'net_reward_risk_too_low') return 'Profit Gate'
   if (r === 'leveraged_flow_against') return 'Leverage Intelligence'
   if (r === 'news_event_risk') return 'News Risk'
+  if (r === 'soft_quality_too_low') return 'Soft Quality Score'
   if (r === 'max leverage reached' || r?.startsWith('stop closer') || r?.startsWith('paused') || r?.startsWith('halted') || r?.startsWith('half-Kelly')) return 'רובוט סיכון'
   return 'רובוט האסטרטגיה'
 }
@@ -504,6 +508,9 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
             <DeskRow k="News Risk ציבורי" v={`${Number(cyc?.liquidity_intel?.news_risk ?? 0).toFixed(0)} / 100`} bad={Number(cyc?.liquidity_intel?.news_risk ?? 0)>=65} />
             <DeskRow k="מקורות Intel" v={Array.isArray(cyc?.liquidity_intel?.sources) && cyc.liquidity_intel.sources.length ? cyc.liquidity_intel.sources.slice(0,5).join(' · ') : 'Binance + RSS ציבורי'} />
             <DeskRow k="פרופיל כניסה" v={cyc?.quality_gates?.profile === 'relaxed_aggressive_paper' ? 'אגרסיבי מרוכך · PAPER' : 'CHAN'} />
+            <DeskRow k="מנועי הזדמנות" v={Array.isArray(cyc?.quality_gates?.opportunity_engines) ? String(cyc.quality_gates.opportunity_engines.length) : '6'} />
+            <DeskRow k="Soft Quality" v={`ציון ≥ ${Number(cyc?.quality_gates?.soft_quality_min ?? 50).toFixed(0)}`} />
+            <DeskRow k="Breadth Impulse" v={`≥ ${Math.round(100*Number(cyc?.quality_gates?.breadth_impulse_share ?? .72))}% + BTC/ETH`} />
             <DeskRow k="Profit Gate" v={`Net R:R ≥ ${Number(cyc?.quality_gates?.min_net_rr ?? 1.20).toFixed(2)}`} />
             <DeskRow k="Liquidation Guard" v={`סטופ ≤ ${Math.round(100*Number(cyc?.quality_gates?.liq_stop_max_share ?? .75))}% מהמרחק למימוש`} />
             <DeskRow k="Cooldown למטבע" v={`${Number(cyc?.quality_gates?.symbol_cooldown_bars ?? 2)} נרות אחרי 2 הפסדים`} />
@@ -545,6 +552,8 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
                     {d.observed?.regime && <>משטר: {d.observed.regime}</>}
                     {d.inferred?.quality_gates?.intel_confidence != null && <> · Intel {Number(d.inferred.quality_gates.intel_confidence).toFixed(0)}%</>}
                     {d.inferred?.quality_gates?.net_rr != null && <> · Net R:R {Number(d.inferred.quality_gates.net_rr).toFixed(2)}</>}
+                    {d.inferred?.quality_gates?.quality_score != null && <> · Quality {Number(d.inferred.quality_gates.quality_score).toFixed(0)}</>}
+                    {d.inferred?.quality_gates?.micro_score != null && <> · Micro {Number(d.inferred.quality_gates.micro_score).toFixed(0)}</>}
                   </div>
                 </> : <>
                   <div className="rejectedText">נדחה אצל <b>{stopper(d.reason)}</b> · {reasonHe(d.reason)}</div>
