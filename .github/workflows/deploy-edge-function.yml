@@ -100,10 +100,10 @@ jobs:
           const g = globalThis as any;
           g.__RELEASE_SHA = '${SHA}';
           g.__ENABLED_SLEEVES = 'CHAN';
-          g.__LEVERAGE = '1';
+          g.__LEVERAGE = '50';
           try {
             Deno.env.set('ENABLED_SLEEVES', 'CHAN');
-            Deno.env.set('LEVERAGE', '1');
+            Deno.env.set('LEVERAGE', '50');
           } catch {}
           await import('https://raw.githubusercontent.com/aliexpressgood585/spacehub/${SHA}/supabase/functions/trading-bot/index.ts');
           export {};
