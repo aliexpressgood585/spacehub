@@ -106,7 +106,10 @@ function economics(t: J, cyc: J, quote?: J) {
     leverage:lev, size, notional, margin,
     entry, bid:Number(quote?.bid ?? liveTop), ask:Number(quote?.ask ?? liveTop), mark:liveTop, est_exit:estExit,
     stop:Number(backend?.stop ?? m.stop),
-    target:(backend?.target ?? m.target) == null ? null : Number(backend?.target ?? m.target),
+    target:(backend?.target ?? m.target) != null
+      ? Number(backend?.target ?? m.target)
+      : (m.comp === 'RG_MR' && Number.isFinite(Number(m.mr_mean)) ? Math.exp(Number(m.mr_mean)) : null),
+    target_dynamic:(backend?.target ?? m.target) == null && m.comp === 'RG_MR' && Number.isFinite(Number(m.mr_mean)),
     liq:Number(backend?.liq ?? entry * (1 - dir * (1/lev - 0.005))),
     regime:backend?.regime ?? m.regime, z:backend?.z ?? m.z, t_sig:backend?.t_sig ?? m.t_sig,
     gross_mark_pnl:grossMark, gross_exec_pnl:grossExec, net_pnl_to_close:net,
@@ -552,8 +555,15 @@ function PositionCard({t,live,onChart}:{t:J;live:J;onChart:()=>void}) {
   const net=Number(live.net_pnl_to_close ?? 0), good=net>=0
   const dir=t.side==='LONG'?1:-1
   const stop=Number(live.stop), target=live.target==null?null:Number(live.target)
-  const stopNet=Number.isFinite(stop) ? dir*(stop-Number(live.entry))*Number(live.size)-Number(live.entry_fee)-stop*Number(live.size)*Number(live.fee_rate_taker ?? DEFAULT_TAKER) : null
-  const targetNet=target!=null&&Number.isFinite(target) ? dir*(target-Number(live.entry))*Number(live.size)-Number(live.entry_fee)-target*Number(live.size)*Number(live.fee_rate_taker ?? DEFAULT_TAKER) : null
+  const feeRate=Number(live.fee_rate_taker ?? DEFAULT_TAKER)
+  const impact=Math.max(0,Number(live.exit_impact_bps ?? 0))/1e4
+  const netAt=(px:number)=>{
+    if(!Number.isFinite(px)) return null
+    const fill=px*(1-dir*impact)
+    return dir*(fill-Number(live.entry))*Number(live.size)-Number(live.entry_fee)-fill*Number(live.size)*feeRate
+  }
+  const stopNet=netAt(stop)
+  const targetNet=target==null?null:netAt(target)
   return <article className={`posCard ${good?'profit':'loss'}`}>
     <div className="posTop">
       <div><b>{t.sym}</b><span className={t.side==='LONG'?'long':'short'}>{t.side}</span><span>{Number(t.lev)}×</span></div>
@@ -576,8 +586,9 @@ function PositionCard({t,live,onChart}:{t:J;live:J;onChart:()=>void}) {
       <Mini k="סטופ" v={fmtPx(stop)}/>
       <Mini k="מחיר מימוש / ליקווידציה" v={fmtPx(Number(live.liq))}/>
       <Mini k="הפסד נטו אם סטופ" v={fmt$(stopNet)} cls="neg"/>
-      {target!=null&&<Mini k="יעד" v={fmtPx(target)}/>}
-      {targetNet!=null&&<Mini k="רווח נטו אם יעד" v={fmt$(targetNet)} cls="pos"/>}
+      {target!=null&&<Mini k={live.target_dynamic ? "יעד דינמי · ממוצע Z=0" : "יעד"} v={fmtPx(target)}/>}
+      {targetNet!=null&&<Mini k={live.target_dynamic ? "רווח נטו משוער בממוצע" : "רווח נטו אם יעד"} v={fmt$(targetNet)} cls={targetNet>=0?"pos":"neg"}/>}
+
     </div>
     <div className="why">
       <b>למה נפתחה?</b>
