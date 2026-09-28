@@ -31,12 +31,13 @@ const PAPER_RISK_MULT = 4
 // Portfolio crowding guard: it never halts scanning/trading. Once one direction owns
 // most of the live book, additional same-side entries need a materially stronger signal;
 // opposite-side candidates remain unrestricted and are prioritised.
-const CROWD_MIN_POSITIONS = 6
-const CROWD_NOTIONAL_SHARE = 0.72
-const LIQ_STOP_MAX_SHARE = 0.60          // stop must sit inside 60% of the entry->liquidation distance
-const MIN_NET_REWARD_RISK = 1.35         // after taker fees + modeled entry/exit slippage
-const SYMBOL_COOLDOWN_BARS = 3           // after two consecutive losses on the same symbol
-const BREADTH_MIN_SHARE = 0.45            // broad 5m participation needed for an ordinary directional entry
+const CROWD_MIN_POSITIONS = 7
+const CROWD_NOTIONAL_SHARE = 0.80
+const LIQ_STOP_MAX_SHARE = 0.75          // relaxed PAPER profile: stop may use up to 75% of entry->liquidation distance
+const MIN_NET_REWARD_RISK = 1.20         // still positive after taker fees + modeled entry/exit slippage
+const SYMBOL_COOLDOWN_BARS = 2           // shorter PAPER cooldown after two consecutive losses
+const BREADTH_MIN_SHARE = 0.42           // ordinary directional entry; BTC/ETH agreement can still override
+const PAPER_MIN_STOP_TO_COST = 2.0       // default CHAN remains 3x; PAPER runner accepts a wider opportunity set
 const REGIME = ['NEUTRAL', 'MEAN_REVERT', 'TREND', 'HIGH_VOL']
 let usedWeight = 0, weightAt = 0
 
@@ -342,7 +343,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
     }
     const strongSignal = (cand:any, strict=false) => {
       const v=cand.v, z=Math.abs(Number(v.mr.z)), t=Math.abs(Number(v.mom.t)), h=Number(v.hurst)
-      if (cand.comp==='RG_LIQ_SQUEEZE') return Number(cand.intelScore) >= (strict ? 84 : 76)
+      if (cand.comp==='RG_LIQ_SQUEEZE') return Number(cand.intelScore) >= (strict ? 80 : 70)
       if (cand.comp==='RG_MR') return z >= (strict ? 3.2 : 3.0)
       if (cand.comp==='RG_MOM') return t >= (strict ? 2.6 : 2.25)
       return h >= (strict ? 0.53 : 0.50) && (t >= (strict ? 1.25 : 0.9) || z >= (strict ? 2.5 : 2.0))
@@ -380,13 +381,13 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
     }
     const strongEnoughWhenCrowded = (cand:any) => {
       const v = cand.v, regime = REGIME[v.regime]
-      if (cand.comp === 'RG_LIQ_SQUEEZE') return Number(cand.intelScore) >= 84
-      if (cand.comp === 'RG_MR') return Math.abs(Number(v.mr.z)) >= 3
-      if (cand.comp === 'RG_MOM') return Math.abs(Number(v.mom.t)) >= 2
+      if (cand.comp === 'RG_LIQ_SQUEEZE') return Number(cand.intelScore) >= 80
+      if (cand.comp === 'RG_MR') return Math.abs(Number(v.mr.z)) >= 2.8
+      if (cand.comp === 'RG_MOM') return Math.abs(Number(v.mom.t)) >= 1.8
       // Trend-pullback: require actual persistence when the portfolio is already crowded.
       // A TREND regime with Hurst >= .50, or a strong persistent NEUTRAL regime, is accepted.
       const h = Number(v.hurst)
-      return (regime === 'TREND' && h >= .50) || (regime === 'NEUTRAL' && h >= .55)
+      return (regime === 'TREND' && h >= .48) || (regime === 'NEUTRAL' && h >= .53)
     }
 
     const initialGross = directionBook.LONG.notional + directionBook.SHORT.notional
@@ -432,8 +433,8 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       if(!x || Number(x.confidence)<66) return []
       const longScore=Number(x.short_squeeze), shortScore=Number(x.long_squeeze)
       let side:1|-1|0=0, score=0
-      if(longScore>=76 && longScore-shortScore>=16){side=1;score=longScore}
-      if(shortScore>=76 && shortScore-longScore>=16 && shortScore>score){side=-1;score=shortScore}
+      if(longScore>=70 && longScore-shortScore>=12){side=1;score=longScore}
+      if(shortScore>=70 && shortScore-longScore>=12 && shortScore>score){side=-1;score=shortScore}
       if(!side) return []
       const close=Number(v.last_close), atr=Number(v.mom?.atr)
       if(!(close>0)) return []
@@ -471,8 +472,8 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       // unless both the momentum statistic and the mean-reversion location strongly agree with the direction.
       if (cand.comp === 'RG_TREND_PULLBACK' && REGIME[v.regime] === 'MEAN_REVERT') {
         const z = Number(v.mr.z), t = Math.abs(Number(v.mom.t))
-        const locationSupports = Number.isFinite(z) && (-cand.side * z) >= 1.5
-        if (!(t >= 1.5 && locationSupports)) {
+        const locationSupports = Number.isFinite(z) && (-cand.side * z) >= 1.15
+        if (!(t >= 1.25 && locationSupports)) {
           rec('rejected','regime_mismatch_trend_in_mean_revert',{ gate_t:t, gate_z:z })
           continue
         }
@@ -487,7 +488,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
 
       // 6) Live learning is deliberately shrinkage-heavy so a tiny sample cannot overfit the bot.
       const learned = learnedQuality(cand,sym,side)
-      if (learned.samples >= 6 && learned.weight < 0.88 && !strongSignal(cand,true)) {
+      if (learned.samples >= 8 && learned.weight < 0.84 && !strongSignal(cand,true)) {
         rec('rejected','adaptive_quality_weak',{ learning_weight:learned.weight, learning_samples:learned.samples })
         continue
       }
@@ -503,7 +504,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       if (ix) {
         const aligned = cand.side > 0 ? Number(ix.short_squeeze) : Number(ix.long_squeeze)
         const against = cand.side > 0 ? Number(ix.long_squeeze) : Number(ix.short_squeeze)
-        if (Number(ix.confidence) >= 66 && against >= 78 && against-aligned >= 18 && !strongSignal(cand,true)) {
+        if (Number(ix.confidence) >= 66 && against >= 82 && against-aligned >= 22 && !strongSignal(cand,true)) {
           rec('rejected','leveraged_flow_against',{ leverage_against:against, leverage_aligned:aligned, intel_confidence:ix.confidence,
             funding:ix.funding, oi_delta:ix.oi_delta, taker_ratio:ix.taker_ratio })
           continue
@@ -520,8 +521,8 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
         rec('rejected', 'direction_crowding_weak_signal', {
           crowd_side: side, crowd_count: crowd.count, crowd_share: crowd.share,
           crowd_rule: cand.comp === 'RG_TREND_PULLBACK'
-            ? 'TREND H>=0.50 or NEUTRAL H>=0.55'
-            : cand.comp === 'RG_MR' ? '|Z|>=3' : '|t|>=2'
+            ? 'TREND H>=0.48 or NEUTRAL H>=0.53'
+            : cand.comp === 'RG_MR' ? '|Z|>=2.8' : '|t|>=1.8'
         })
         continue
       }
@@ -540,7 +541,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       const touch = cand.side > 0 ? bk.asks[0][0] : bk.bids[0][0]
       if (!(cand.side * (touch - cand.stop) > 0)) { rec('rejected', 'stop_on_wrong_side_of_market'); continue }
       const aggressiveRisk = Math.min(PAPER_RISK_MAX, Math.max(PAPER_RISK_MIN, k.f * PAPER_RISK_MULT))
-      const sz = chanSize(aggressiveRisk, budget.equity, touch, cand.stop, budget.notional, PAPER_LEVERAGE)
+      const sz = chanSize(aggressiveRisk, budget.equity, touch, cand.stop, budget.notional, PAPER_LEVERAGE, PAPER_MIN_STOP_TO_COST)
       if (!(sz.notional > 0)) { rec('rejected', sz.why); continue }
       const dist = Math.abs(touch - cand.stop) / touch
       const cap = liqCap(cand.side > 0 ? bk.asks : bk.bids, cand.side > 0 ? bk.bids : bk.asks, 0.25 * dist)
@@ -646,7 +647,8 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
     },
     quality_gates: {
       liq_stop_max_share: LIQ_STOP_MAX_SHARE, min_net_rr: MIN_NET_REWARD_RISK,
-      symbol_cooldown_bars: SYMBOL_COOLDOWN_BARS, breadth_min_share: BREADTH_MIN_SHARE
+      symbol_cooldown_bars: SYMBOL_COOLDOWN_BARS, breadth_min_share: BREADTH_MIN_SHARE, paper_min_stop_to_cost: PAPER_MIN_STOP_TO_COST,
+      profile: 'relaxed_aggressive_paper'
     },
     cost_model: { taker: CHAN.costs.taker, maker: CHAN.costs.maker, slippage: 'live order-book walk + symbol floor' },
     scan: { bar, done: [...done], skipped: scan0.skipped ?? 0, fetched: (scan0.fetched ?? 0) + heavy } }
