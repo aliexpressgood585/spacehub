@@ -359,6 +359,14 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
       foot: Array.isArray(cyc?.liquidity_intel?.sources) ? cyc.liquidity_intel.sources.slice(0,4).join(' · ') : 'מקורות ציבוריים בלבד',
     },
     {
+      id:'autonomy', icon:'✦', title:'CHAN Autonomous Lab', active:cyc?.autonomous_lab?.status==='ACTIVE',
+      status: cyc?.autonomous_lab?.status==='ACTIVE' ? '8 סוכנים אוטונומיים פעילים' : 'ממתין לטלמטריה',
+      detail: cyc?.autonomous_lab?.governor
+        ? Object.values(cyc.autonomous_lab.governor).slice(0,3).map((x:any)=>`${COMP[x.comp]??x.comp}: ${x.mode} ×${Number(x.sizeMult??1).toFixed(2)}`).join(' · ')
+        : 'Governor · Exit Intelligence · Forensics · Execution',
+      foot: `Partial ${Number(cyc?.autonomous_lab?.partials_applied ?? cyc?.autonomous_lab?.partials_planned ?? 0)} · Champion/Challenger`,
+    },
+    {
       id:'signal', icon:'⌁', title:'רובוט איתות', active:!!latest,
       status: latest ? `${latest.sym} · ${COMP[latest.inferred?.comp] ?? latest.inferred?.comp ?? 'בדיקה'}` : 'ממתין למועמד',
       detail: latest ? `${latest.side === 'LONG' ? 'לונג' : 'שורט'} · ${latest.decision === 'accepted' ? 'אושר' : 'נדחה'}` : 'אין החלטה חדשה',
@@ -463,6 +471,30 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
       </div>}
     </section>
 
+    <section className="closedTrades">
+      <div className="sectionHead">
+        <div><h2>CHAN Autonomous Lab</h2><p>המנוע משנה גודל, יציאות ועלויות לפי ביצועים חיים. הוא לא מעביר את הבוט למסחר אמיתי — PAPER בלבד.</p></div>
+        <span className="countBadge">{cyc?.autonomous_lab?.status === 'ACTIVE' ? 'ACTIVE · 8 agents' : 'ממתין'}</span>
+      </div>
+      <div className="positionGrid">
+        {Object.values(cyc?.autonomous_lab?.governor ?? {}).map((g:any)=><article className="posCard" key={g.comp}>
+          <div className="posTop"><div><b>{COMP[g.comp] ?? g.comp}</b><span>{g.mode}</span></div><div><b>×{Number(g.sizeMult ?? 1).toFixed(2)}</b><small>Bandit ×{Number(g.banditWeight ?? 1).toFixed(2)}</small></div></div>
+          <div className="posMetrics">
+            <Mini k="עסקאות" v={String(Number(g.n ?? 0))}/>
+            <Mini k="Win Rate" v={`${(100*Number(g.win ?? .5)).toFixed(1)}%`}/>
+            <Mini k="Avg R" v={`${Number(g.avgR ?? 0).toFixed(2)}R`} cls={Number(g.avgR)>=0?'pos':'neg'}/>
+            <Mini k="Recent Avg R" v={`${Number(g.recentAvgR ?? 0).toFixed(2)}R`} cls={Number(g.recentAvgR)>=0?'pos':'neg'}/>
+            <Mini k="Capture" v={g.capture==null?'—':`${(100*Number(g.capture)).toFixed(0)}%`}/>
+          </div>
+        </article>)}
+      </div>
+      {!!cyc?.autonomous_lab?.forensics?.length && <div className="why" style={{marginTop:12}}>
+        <b>Post-Trade Forensics</b>
+        <span>{cyc.autonomous_lab.forensics.slice(0,6).map((x:any)=>`${x.reason}: ${x.n}`).join(' · ')}</span>
+        <small>Champion/Challenger רץ ב־Shadow ומציע שינויי גודל/יציאה לפי הטלמטריה המצטברת.</small>
+      </div>}
+    </section>
+
     <section className="factory">
       <div className="factoryHead">
         <div>
@@ -517,6 +549,12 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
             <DeskRow k="News Risk ציבורי" v={`${Number(cyc?.liquidity_intel?.news_risk ?? 0).toFixed(0)} / 100`} bad={Number(cyc?.liquidity_intel?.news_risk ?? 0)>=65} />
             <DeskRow k="מקורות Intel" v={Array.isArray(cyc?.liquidity_intel?.sources) && cyc.liquidity_intel.sources.length ? cyc.liquidity_intel.sources.slice(0,5).join(' · ') : 'Binance + RSS ציבורי'} />
             <DeskRow k="פרופיל כניסה" v={cyc?.quality_gates?.profile === 'relaxed_aggressive_paper' ? 'אגרסיבי מרוכך · PAPER' : 'CHAN'} />
+            <DeskRow k="Autonomous Lab" v={cyc?.autonomous_lab?.status === 'ACTIVE' ? 'ACTIVE · 8 Agents' : '—'} />
+            <DeskRow k="Strategy Governor" v={cyc?.quality_gates?.autonomous_governor ? 'פעיל · גודל משתנה לפי Edge' : '—'} />
+            <DeskRow k="Contextual Bandit" v={cyc?.quality_gates?.contextual_bandit ? 'פעיל' : '—'} />
+            <DeskRow k="Execution Optimizer" v={cyc?.quality_gates?.execution_optimizer ? 'פעיל · עלות/R' : '—'} />
+            <DeskRow k="Correlation Cluster" v={cyc?.quality_gates?.correlation_cluster ? 'פעיל · מפחית חשיפה דומה' : '—'} />
+            <DeskRow k="Partial Profit" v={cyc?.quality_gates?.partial_profit ? `פעיל · ${Number(cyc?.autonomous_lab?.partials_applied ?? 0)} במחזור` : '—'} />
             <DeskRow k="Stop Engine" v={cyc?.quality_gates?.stop_engine === 'V2' ? 'V2 · Structure + ATR + Break-even + Profit Lock' : 'V1'} />
             <DeskRow k="MFE / MAE Learning" v={cyc?.quality_gates?.mfe_mae_learning ? 'פעיל' : '—'} />
             <DeskRow k="Re-entry" v={cyc?.quality_gates?.controlled_reentry ? 'Reset מבוקר פעיל' : 'רגיל'} />
