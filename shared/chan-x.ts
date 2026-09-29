@@ -112,3 +112,51 @@ export function profitCaptureDirective(x:{mfeR:number;currentR:number;partialDon
   if(x.mfeR>=.80&&giveback>=.32) return {tightenR:Math.max(.12,x.currentR-.06),partialNow:!x.partialDone,reason:'giveback'}
   return {tightenR:null,partialNow:false,reason:null}
 }
+
+
+export function portfolioProfitabilityGovernor(rows:XHistory[]){
+  const xs=rows.filter(x=>Number.isFinite(Number(x.r))).slice(0,60)
+  const recent20=xs.slice(0,20), recent40=xs.slice(0,40)
+  const stats=(a:XHistory[])=>{
+    const rs=a.map(x=>Number(x.r)||0)
+    const pos=a.filter(x=>Number(x.pnl)>0).reduce((s,x)=>s+Number(x.pnl||0),0)
+    const neg=Math.abs(a.filter(x=>Number(x.pnl)<0).reduce((s,x)=>s+Number(x.pnl||0),0))
+    return {n:a.length,avgR:mean(rs),win:a.length?a.filter(x=>Number(x.pnl)>0).length/a.length:.5,pf:neg>0?pos/neg:(pos>0?9:1)}
+  }
+  const a=stats(recent20), b=stats(recent40)
+  let mode:'DEFENSE'|'RECOVERY'|'NORMAL'|'ATTACK'='NORMAL'
+  let minQuality=56, entryCap=4, riskMult=.85, allowBurst=false
+  if(a.n>=10 && (a.avgR<-.15 || a.pf<.85)){
+    mode='DEFENSE';minQuality=66;entryCap=2;riskMult=.45;allowBurst=false
+  } else if(a.n>=10 && a.avgR<.05){
+    mode='RECOVERY';minQuality=61;entryCap=3;riskMult=.65;allowBurst=false
+  } else if(a.n>=15 && a.avgR>=.18 && a.pf>=1.25 && b.avgR>=0){
+    mode='ATTACK';minQuality=54;entryCap=6;riskMult=1.05;allowBurst=true
+  } else {
+    mode='NORMAL';minQuality=57;entryCap=4;riskMult=.85;allowBurst=a.avgR>.08&&a.pf>=1.05
+  }
+  return {mode,recent20:a,recent40:b,min_quality:minQuality,entry_cap:entryCap,risk_mult:riskMult,allow_burst:allowBurst}
+}
+
+export function strategyProfitabilityGate(rows:XHistory[],comp:string,now:number){
+  const xs=rows.filter(x=>x.comp===comp&&Number.isFinite(Number(x.r))).slice(0,50)
+  const recent=xs.slice(0,12)
+  const avgR=mean(xs.map(x=>Number(x.r)||0)), recentAvgR=mean(recent.map(x=>Number(x.r)||0))
+  const win=xs.length?xs.filter(x=>Number(x.pnl)>0).length/xs.length:.5
+  const lastClosed=Math.max(0,...xs.map((x:any)=>Number((x as any).closedAt)||0))
+  let mode:'LIVE'|'PROBE'|'SHADOW'='LIVE',size_mult=1,min_quality=56,reason='edge_ok'
+  if(xs.length<8){
+    mode='PROBE';size_mult=.30;min_quality=68;reason='discovery_probe'
+  } else if((avgR<=-.25&&recentAvgR<=-.12)||(xs.length>=15&&avgR<=-.18&&win<.42)){
+    const probeDue=lastClosed>0&&now-lastClosed>=60*60_000
+    mode=probeDue?'PROBE':'SHADOW'
+    size_mult=probeDue?.12:0
+    min_quality=probeDue?74:100
+    reason=probeDue?'hourly_recovery_probe':'negative_expectancy_quarantine'
+  } else if(avgR<-.08||recentAvgR<-.10){
+    mode='PROBE';size_mult=.35;min_quality=68;reason='weak_expectancy_probe'
+  } else if(avgR>=.12&&recentAvgR>=.08&&xs.length>=12){
+    mode='LIVE';size_mult=1.05;min_quality=55;reason='positive_expectancy'
+  }
+  return {comp,n:xs.length,avgR,recentAvgR,win,lastClosed,mode,size_mult,min_quality,reason}
+}
