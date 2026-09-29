@@ -147,13 +147,21 @@ export function strategyProfitabilityGate(rows:XHistory[],comp:string,now:number
   let mode:'LIVE'|'PROBE'|'SHADOW'='LIVE',size_mult=1,min_quality=56,reason='edge_ok'
   if(xs.length<8){
     // A brand-new era needs controlled observations before expectancy can be estimated.
-    // Keep size small, but do not demand the recovery threshold used for a proven loser.
     mode='PROBE'
-    // PAPER clean-era probes must be large enough to produce economically meaningful P&L,
-    // while remaining below the established-edge 1%-2% risk band.
     size_mult=xs.length<4?.85:.70
     min_quality=xs.length<4?58:62
     reason=xs.length===0?'new_era_discovery':xs.length<4?'early_discovery':'discovery_probe'
+  } else if(comp==='RG_VOL_BREAKOUT' && xs.length>=12 && avgR<0 && recentAvgR<0){
+    // Volatility Breakout has enough clean-era evidence and is still negative.
+    // Keep it out of the funded book; allow only a rare, tiny recovery probe.
+    const probeDue=lastClosed>0&&now-lastClosed>=6*60*60_000
+    mode=probeDue?'PROBE':'SHADOW'
+    size_mult=probeDue?.05:0
+    min_quality=probeDue?80:100
+    reason=probeDue?'vol_breakout_recovery_probe':'vol_breakout_quarantine'
+  } else if(comp==='RG_BREADTH_MOMENTUM' && xs.length>=20 && avgR>=.15 && recentAvgR>=.08 && win>=.60){
+    // Reward an edge only after a meaningful clean-era sample.
+    mode='LIVE';size_mult=1.20;min_quality=54;reason='breadth_positive_edge_boost'
   } else if((avgR<=-.25&&recentAvgR<=-.12)||(xs.length>=15&&avgR<=-.18&&win<.42)){
     const probeDue=lastClosed>0&&now-lastClosed>=60*60_000
     mode=probeDue?'PROBE':'SHADOW'
