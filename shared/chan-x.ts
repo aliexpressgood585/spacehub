@@ -159,7 +159,7 @@ export function strategyProfitabilityGate(rows:XHistory[],comp:string,now:number
     size_mult=probeDue?.05:0
     min_quality=probeDue?80:100
     reason=probeDue?'vol_breakout_recovery_probe':'vol_breakout_quarantine'
-  } else if(comp==='RG_BREADTH_MOMENTUM' && xs.length>=20 && avgR>=.15 && recentAvgR>=.08 && win>=.60){
+  } else if(comp==='RG_BREADTH_MOMENTUM' && xs.length>=20 && avgR>=.15 && recentAvgR>=.05 && win>=.60){
     // Reward an edge only after a meaningful clean-era sample.
     mode='LIVE';size_mult=1.20;min_quality=54;reason='breadth_positive_edge_boost'
   } else if((avgR<=-.25&&recentAvgR<=-.12)||(xs.length>=15&&avgR<=-.18&&win<.42)){
