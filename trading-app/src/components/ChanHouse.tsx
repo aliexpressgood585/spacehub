@@ -499,6 +499,10 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
             <Mini k="כניסות / חלון" v={String(Number(cyc?.autonomous_lab?.profitability_governor?.entry_cap ?? 0))}/>
             <Mini k="Risk Mult" v={`×${Number(cyc?.autonomous_lab?.profitability_governor?.risk_mult ?? 1).toFixed(2)}`}/>
             <Mini k="Forced Trading" v={cyc?.quality_gates?.no_forced_trading ? 'כבוי' : 'פעיל'}/>
+            <Mini k="Learning Scope" v={String(cyc?.autonomous_lab?.learning_scope ?? '—')}/>
+            <Mini k="מצב Discovery" v={String(cyc?.autonomous_lab?.discovery_mode ?? '—')}/>
+            <Mini k="עסקאות Era" v={String(Number(cyc?.autonomous_lab?.era_closed ?? 0))}/>
+            <Mini k="Archive" v={String(Number(cyc?.autonomous_lab?.archived_closed ?? 0))}/>
           </div>
         </article>
         <article className="posCard">
