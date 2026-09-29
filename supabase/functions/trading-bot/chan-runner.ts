@@ -951,6 +951,8 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       era_id:params.chan_era_id ?? null,
       era_closed:learningRows.length,
       archived_closed:archiveRows.length,
+      discovery_mode:learningRows.length<8?'CONTROLLED_DISCOVERY':'EVIDENCE_DRIVEN',
+      archive_influences_live:false,
       governor:autonomyGovernor,
       auction:auctionWeights,
       exit_policies:exitPolicies,
