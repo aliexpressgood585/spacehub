@@ -263,14 +263,17 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
   const fresh = cycT != null && now - cycT < 90_000
   const activeErrors = errors.filter((e) => !cycT || Date.parse(e.ts) > cycT).length
   const wallets = p.chan_split?.wallets ?? {}
-  const latest = decisions[0] ?? null
-  const latestAccepted = decisions.find((d) => d.decision === 'accepted') ?? null
+  const resetAt = p?.chan_reset_at ? Date.parse(String(p.chan_reset_at)) : 0
+  const eraDecisions = useMemo(() => decisions.filter(d => !resetAt || Date.parse(String(d.ts)) >= resetAt), [decisions, resetAt])
+  const eraClosed = useMemo(() => recentClosed.filter(t => !resetAt || Date.parse(String(t.closed_at)) >= resetAt), [recentClosed, resetAt])
+  const latest = eraDecisions[0] ?? null
+  const latestAccepted = eraDecisions.find((d) => d.decision === 'accepted') ?? null
   const counts = cyc?.regime_counts ?? {}
   const liveScan = cyc?.live_scan ?? {}
   const scanning = fresh && liveScan?.status === 'continuous'
 
   const econ = useMemo(() => open.map(t => ({ trade:t, live:economics(t,cyc,liveQuotes[t.sym]) })), [open,cyc,liveQuotes])
-  const closedTrades = useMemo(() => recentClosed.filter(t => t.status !== 'RESET' && Number.isFinite(Number(t.pnl))), [recentClosed])
+  const closedTrades = useMemo(() => eraClosed.filter(t => t.status !== 'RESET' && Number.isFinite(Number(t.pnl))), [eraClosed])
   const closedWins = closedTrades.filter(t => Number(t.pnl) > 0).length
   const closedLosses = closedTrades.filter(t => Number(t.pnl) < 0).length
   const closedFlat = closedTrades.length - closedWins - closedLosses
@@ -307,7 +310,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
       title:`${n.source ?? 'news'} · ${String(n.title ?? '').slice(0,110)}`,
       detail:`מקור ציבורי · Risk ${Number(n.risk ?? 0).toFixed(0)}/100`
     })
-    for (const d of decisions) items.push({
+    for (const d of eraDecisions) items.push({
       ts:d.ts, kind:d.decision === 'accepted' ? 'approved' : 'rejected',
       robot:d.decision === 'accepted' ? 'שרשרת אישורים' : stopper(d.reason),
       icon:d.decision === 'accepted' ? '✓' : '×',
@@ -329,7 +332,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
         detail:`כמות ${Number(t.size).toLocaleString('en-US',{maximumFractionDigits:8})} · שווי ${fmt$(Number(t.entry_price)*Number(t.size))} · בטוחה ${fmt$(Number(t.entry_price)*Number(t.size)/Math.max(1,Number(t.lev)))}`
       })
     }
-    for (const t of recentClosed) items.push({
+    for (const t of eraClosed) items.push({
       ts:t.closed_at, kind:Number(t.pnl)>=0?'closedWin':'closedLoss', robot:'רובוט יציאה', icon:'■',
       title:`${t.sym} · פוזיציה נסגרה · ${t.status}`,
       detail:`P&L נטו ${fmt$(Number(t.pnl))} · סיבה ${t.scalp_meta?.exit_reason ?? '—'} · מחיר יציאה ${fmtPx(Number(t.exit_price))}`
@@ -342,7 +345,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
       .filter(x => x.ts)
       .sort((a,b)=>Date.parse(b.ts)-Date.parse(a.ts))
       .slice(0,80)
-  }, [cyc,cycT,liveScan,decisions,open,recentClosed,errors,liveQuotes])
+  }, [cyc,cycT,liveScan,eraDecisions,open,eraClosed,errors,liveQuotes])
 
   const robots = useMemo(() => [
     {
@@ -412,6 +415,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
       <span className="chip">{manifest ? `${manifest.enabled_sleeves ?? 'CHAN'} · ${String(manifest.sha ?? '').slice(0,7)}` : 'CHAN'}</span>
       <span className={`chip ${activeErrors ? 'bad' : 'ok'}`}>{activeErrors ? `${activeErrors} שגיאות פעילות` : '0 שגיאות פעילות'}</span>
       <span className={`chip ${open.length ? (wsLive ? 'ok' : 'bad') : ''}`}>{open.length ? (wsLive ? '● Binance WS חי' : '○ Binance WS מתחבר') : 'Binance WS בהמתנה'}</span>
+      {p?.chan_era_id && <span className="chip">סבב חדש · {String(p.chan_era_id)}</span>}
     </div>
 
     {err && <div className="readerr">שגיאת קריאה: {err}</div>}
@@ -619,7 +623,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
             <DeskRow k="P&L פתוח נטו" v={fmt$(openNet)} bad={openNet<0} />
             <DeskRow k="בטחונות בשימוש" v={fmt$(marginUsed)} />
             <DeskRow k="חשיפה" v={fmt$(exposure)} />
-            <DeskRow k="החלטות בזיכרון" v={String(decisions.length)} />
+            <DeskRow k="החלטות בסבב החדש" v={String(eraDecisions.length)} />
             <DeskRow k="שגיאות פעילות" v={String(activeErrors)} bad={activeErrors>0} />
           </div>
         </div>
@@ -627,10 +631,10 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
 
       <div className="controlGrid">
         <div className="approval">
-          <div className="subHead"><b>שרשרת אישורים בזמן אמת</b><span>{decisions.length} החלטות אחרונות</span></div>
+          <div className="subHead"><b>שרשרת אישורים בזמן אמת</b><span>{eraDecisions.length} החלטות בסבב החדש</span></div>
           <div className="decisionList">
-            {decisions.length === 0 && <div className="empty">עדיין אין החלטות CHAN חדשות.</div>}
-            {decisions.slice(0,18).map((d,idx) => {
+            {eraDecisions.length === 0 && <div className="empty">עדיין אין החלטות CHAN חדשות בסבב הזה.</div>}
+            {eraDecisions.slice(0,18).map((d,idx) => {
               const ok = d.decision === 'accepted'
               const chain: any[] = Array.isArray(d.inferred?.approval_chain) && d.inferred.approval_chain.length
                 ? d.inferred.approval_chain.map((x:J) => x.by)
