@@ -146,7 +146,12 @@ export function strategyProfitabilityGate(rows:XHistory[],comp:string,now:number
   const lastClosed=Math.max(0,...xs.map((x:any)=>Number((x as any).closedAt)||0))
   let mode:'LIVE'|'PROBE'|'SHADOW'='LIVE',size_mult=1,min_quality=56,reason='edge_ok'
   if(xs.length<8){
-    mode='PROBE';size_mult=.30;min_quality=68;reason='discovery_probe'
+    // A brand-new era needs controlled observations before expectancy can be estimated.
+    // Keep size small, but do not demand the recovery threshold used for a proven loser.
+    mode='PROBE'
+    size_mult=xs.length<4?.35:.30
+    min_quality=xs.length<4?58:62
+    reason=xs.length===0?'new_era_discovery':xs.length<4?'early_discovery':'discovery_probe'
   } else if((avgR<=-.25&&recentAvgR<=-.12)||(xs.length>=15&&avgR<=-.18&&win<.42)){
     const probeDue=lastClosed>0&&now-lastClosed>=60*60_000
     mode=probeDue?'PROBE':'SHADOW'
