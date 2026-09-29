@@ -72,6 +72,9 @@ function reasonHe(r: string) {
   if (r === 'profitability_quality_gate') return 'האות לא עבר את רף האיכות של מצב הרווחיות הנוכחי'
   if (r === 'sniper_dropped_below_profitability_gate') return 'ה-Entry Sniper הוריד את ציון האות מתחת לרף הרווחיות'
   if (r === 'kelly_no_positive_edge') return 'Kelly לא מזהה כרגע Edge חיובי — לא מכריחים עסקה'
+  if (r === 'vol_breakout_quarantine') return 'Vol Breakout הועבר ל-Shadow בגלל Expectancy שלילי'
+  if (r === 'vol_breakout_recovery_probe') return 'Vol Breakout מקבל רק Probe נדיר וזעיר לבדיקת התאוששות'
+  if (r === 'breadth_positive_edge_boost') return 'Breadth Momentum קיבל Boost בגלל Edge חיובי במדגם החדש'
   if (r?.startsWith('stop closer than')) return 'הסטופ קרוב מדי ביחס לעלות'
   if (r?.startsWith('paused')) return 'נעצר בשער הסיכון'
   if (r?.startsWith('halted')) return 'נעצר בשער הסיכון'
@@ -95,6 +98,8 @@ function stopper(r: string) {
   if (r === 'negative_expectancy_quarantine') return 'Profitability Governor'
   if (r === 'profitability_quality_gate' || r === 'sniper_dropped_below_profitability_gate') return 'Profitability Gate'
   if (r === 'kelly_no_positive_edge') return 'Kelly Edge Gate'
+  if (r === 'vol_breakout_quarantine' || r === 'vol_breakout_recovery_probe') return 'Vol Breakout Governor'
+  if (r === 'breadth_positive_edge_boost') return 'Breadth Edge Boost'
   if (r === 'max leverage reached' || r?.startsWith('stop closer') || r?.startsWith('paused') || r?.startsWith('halted') || r?.startsWith('half-Kelly')) return 'רובוט סיכון'
   return 'רובוט האסטרטגיה'
 }
