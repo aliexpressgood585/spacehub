@@ -804,7 +804,8 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       const auctionMult=Number(auctionWeights[String(cand.comp)]??1)
       const burstMult=profitabilityGovernor.allow_burst&&profitGate.mode==='LIVE'&&burst.active&&Number(cand.side)===Number(burst.side)&&qualityScore>=requiredQuality+3?Number(burst.risk_mult??1):1
       const sniperMult=Number(sniper.score)>=68?1.08:Number(sniper.score)<40?.82:1
-      const strategySizeMult=Math.max(.05,Math.min(1.25,
+      const strategySizeCap=profitGate.reason==='breadth_positive_edge_boost'?1.35:1.25
+      const strategySizeMult=Math.max(.05,Math.min(strategySizeCap,
         Math.min(legacyMult,Number(gov.sizeMult))*Number(gov.banditWeight)*cluster.mult*auctionMult*Number(pattern.size_mult??1)*burstMult*sniperMult*Number(profitGate.size_mult??1)
       ))
       const desiredNotional=sz.notional*strategySizeMult
@@ -883,6 +884,8 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
             profitability_mode:profitabilityGovernor.mode, profitability_risk_mult:profitabilityGovernor.risk_mult,
             strategy_profit_mode:profitGate.mode, strategy_profit_reason:profitGate.reason,
             strategy_avg_r:profitGate.avgR, strategy_recent_avg_r:profitGate.recentAvgR, strategy_profit_size_mult:profitGate.size_mult,
+        strategy_size_cap:strategySizeCap,
+            strategy_size_cap:strategySizeCap,
             mtf: v.opp ? { side:v.opp.mtf_side, trend15:v.opp.mtf15, trend60:v.opp.mtf60, ret15:v.opp.ret15, ret60:v.opp.ret60 } : null,
             micro_execution: micro,
             opportunity: { breadth_score:cand.breadthScore??null, breakout_score:cand.breakoutScore??null, compression:cand.compression??null },
