@@ -25,7 +25,7 @@ import { loadChanIntel } from './chan-intel.ts'
 import { chanOpportunityMeta } from '../../../shared/chan-opportunity.ts'
 import { initialStopV2, liquidationStopLimitV2, manageStopV2, stalledExitV2, strategySizeMultV2, targetRV2 } from '../../../shared/chan-stop-v2.ts'
 import { challengerLab, clusterMultiplier, executionMultiplier, exitPolicyFromHistory, forensicSummary, strategyGovernor } from '../../../shared/chan-autonomy.ts'
-import { eliteBreadthCandidates, marketBurstMode, patternMemory, portfolioBrainRank, profitCaptureDirective, promotedExitPolicy, shadowSwarm, strategyAuction } from '../../../shared/chan-x.ts'
+import { eliteBreadthCandidates, marketBurstMode, patternMemory, portfolioBrainRank, profitCaptureDirective, promotedExitPolicy, shadowSwarm, strategyAuction, portfolioProfitabilityGovernor, strategyProfitabilityGate } from '../../../shared/chan-x.ts'
 
 const sleeveOf = (comp: string) => ['RG_TREND_PULLBACK','RG_LIQ_SQUEEZE','RG_BREADTH_MOMENTUM','RG_VOL_BREAKOUT'].includes(comp) ? '2' : '1'
 const PAPER_LEVERAGE = 50
@@ -199,6 +199,8 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
   const shadowLabs = Object.fromEntries(AUTO_COMPS.map(comp=>[comp,shadowSwarm(closedAll,comp)]))
   const baseExitPolicies = Object.fromEntries(AUTO_COMPS.map(comp=>[comp,exitPolicyFromHistory(closedAll,comp)]))
   const exitPolicies = Object.fromEntries(AUTO_COMPS.map(comp=>[comp,promotedExitPolicy(baseExitPolicies[comp],shadowLabs[comp])]))
+  const profitabilityGovernor = portfolioProfitabilityGovernor(closedAll)
+  const strategyProfitability = Object.fromEntries(AUTO_COMPS.map(comp=>[comp,strategyProfitabilityGate(closedAll,comp,now)]))
   const uni = await loadUniverse(db, now)
   const bySym = new Map(uni.pairs.map(p => [p.sym, p]))
   const pairOf = (sym: string): Pair => bySym.get(sym) ?? (sym === 'PEPE' ? { sym, s: '1000PEPEUSDT', k: 1000 } : { sym, s: `${sym}USDT`, k: 1 })
@@ -644,7 +646,8 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       return bs-as
     }) as any[]
     for (const cand of cands) {
-      if(entries.length>=Number(burst.entry_cap??5)) break
+      const liveEntryCap=Math.max(1,Math.min(Number(burst.entry_cap??5),Number(profitabilityGovernor.entry_cap??4)))
+      if(entries.length>=liveEntryCap) break
       const { sym, v } = cand
       cand.stop = initialStopV2({
         comp:String(cand.comp),side:cand.side>0?1:-1,close:Number(v.last_close),atr:Number(v.mom?.atr),proposed:Number(cand.stop),
@@ -654,6 +657,16 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       const rec = (decision: string, reason: string, extra: any = {}) => decisions.push({ sym, comp: cand.comp, side, decision, reason, regime: REGIME[v.regime], hurst: v.hurst, vol_pct: v.volPct, z: v.mr.z, hl: v.mr.hl, t_sig: v.mom.t, ...extra })
       const bucket = sleeveOf(cand.comp), budget = budgets[bucket]
       if (held.has(bucket + ':' + sym)) { rec('rejected', 'coin_held'); continue }
+      const profitGate:any = strategyProfitability[String(cand.comp)] ?? {mode:'PROBE',size_mult:.25,min_quality:70,reason:'unknown_edge'}
+      if(profitGate.mode==='SHADOW'){
+        rec('shadow','negative_expectancy_quarantine',{
+          profitability_mode:profitabilityGovernor.mode,
+          strategy_profit_mode:profitGate.mode,
+          strategy_avg_r:profitGate.avgR,strategy_recent_avg_r:profitGate.recentAvgR,
+          strategy_win:profitGate.win,strategy_samples:profitGate.n
+        })
+        continue
+      }
 
       // Soft quality stack: regime, breadth, learning, crowding and public leverage/news
       // contribute to one score instead of any single secondary filter vetoing a trade.
@@ -715,9 +728,12 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       if(Number(pattern.penalty)<0) softReasons.push('pattern_memory')
       if(burst.active&&Number(cand.side)===Number(burst.side)) qualityScore += Number(burst.quality_relief||0)
       qualityScore=Math.max(0,Math.min(100,qualityScore))
-      if(qualityScore<SOFT_QUALITY_MIN && !strongSignal(cand,true)){
-        rec('rejected','soft_quality_too_low',{
-          quality_score:qualityScore,quality_min:SOFT_QUALITY_MIN,soft_reasons:softReasons,
+      const requiredQuality=Math.max(SOFT_QUALITY_MIN,Number(profitabilityGovernor.min_quality??56),Number(profitGate.min_quality??56))
+      if(qualityScore<requiredQuality){
+        rec('rejected','profitability_quality_gate',{
+          quality_score:qualityScore,quality_min:requiredQuality,soft_reasons:softReasons,
+          profitability_mode:profitabilityGovernor.mode,strategy_profit_mode:profitGate.mode,
+          strategy_avg_r:profitGate.avgR,strategy_recent_avg_r:profitGate.recentAvgR,
           learning_weight:learned.weight,learning_samples:learned.samples,breadth_share:mc.share,breadth_n:mc.n,
           micro_score:micro?.score??null,mtf_side:mtf,pattern_state:pattern.state,pattern_n:pattern.n,pattern_avg_r:pattern.avgR
         })
@@ -737,13 +753,12 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
 
       const co = canOpen(st, openN)
       if (!co.ok) { rec('rejected', co.why); continue }
-      const estimated = kellyRisk(rsOf(cand.comp))
-      // Owner requested continuous PAPER trading after losses (2026-09-28).
-      // runChan refuses live execution; retain signal, data, stop and cash checks.
-      const k = Number.isFinite(estimated.f) && estimated.f <= 0
-        ? { f: Math.min(CHAN.risk.defaultRisk, CHAN.risk.cap), why: `paper continuation fallback; ${estimated.why}` }
-        : estimated
-      if (!(Number.isFinite(k.f) && k.f > 0)) { rec('rejected', k.why); continue }
+      const k = kellyRisk(rsOf(cand.comp))
+      // Profitability-first mode: never manufacture risk when Kelly says the sampled edge is non-positive.
+      if (!(Number.isFinite(k.f) && k.f > 0)) {
+        rec('rejected','kelly_no_positive_edge',{kelly_f:k.f,kelly_why:k.why,profitability_mode:profitabilityGovernor.mode,strategy_profit_mode:profitGate.mode})
+        continue
+      }
       let bk: Awaited<ReturnType<typeof book>>
       try { bk = await book(pairOf(sym)) } catch { rec('rejected', 'no_book'); continue }
       const touch = cand.side > 0 ? bk.asks[0][0] : bk.bids[0][0]
@@ -757,7 +772,12 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
         continue
       }
       qualityScore=Math.max(0,Math.min(100,qualityScore+Math.max(-6,Math.min(8,(Number(sniper.score)-50)*.16))))
-      const aggressiveRisk = Math.min(PAPER_RISK_MAX, Math.max(PAPER_RISK_MIN, k.f * PAPER_RISK_MULT))
+      if(qualityScore<requiredQuality){
+        rec('rejected','sniper_dropped_below_profitability_gate',{quality_score:qualityScore,quality_min:requiredQuality,sniper_score:sniper.score})
+        continue
+      }
+      const baseAggressiveRisk = Math.min(PAPER_RISK_MAX, Math.max(PAPER_RISK_MIN, k.f * PAPER_RISK_MULT))
+      const aggressiveRisk = Math.max(0.001,Math.min(PAPER_RISK_MAX,baseAggressiveRisk*Number(profitabilityGovernor.risk_mult??1)))
       const sz = chanSize(aggressiveRisk, budget.equity, touch, cand.stop, budget.notional, PAPER_LEVERAGE, PAPER_MIN_STOP_TO_COST)
       if (!(sz.notional > 0)) { rec('rejected', sz.why); continue }
       const compPerf=perfGroup(closedAll.filter((x:any)=>x.comp===cand.comp))
@@ -769,10 +789,10 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       })
       const cluster=clusterMultiplier({side:cand.side>0?1:-1,candidate:{ret5:Number(v.ret5),ret15:Number(v.opp?.ret15),ret60:Number(v.opp?.ret60)},peers})
       const auctionMult=Number(auctionWeights[String(cand.comp)]??1)
-      const burstMult=burst.active&&Number(cand.side)===Number(burst.side)&&qualityScore>=58?Number(burst.risk_mult??1):1
+      const burstMult=profitabilityGovernor.allow_burst&&profitGate.mode==='LIVE'&&burst.active&&Number(cand.side)===Number(burst.side)&&qualityScore>=requiredQuality+3?Number(burst.risk_mult??1):1
       const sniperMult=Number(sniper.score)>=68?1.08:Number(sniper.score)<40?.82:1
-      const strategySizeMult=Math.max(.18,Math.min(1.25,
-        Math.min(legacyMult,Number(gov.sizeMult))*Number(gov.banditWeight)*cluster.mult*auctionMult*Number(pattern.size_mult??1)*burstMult*sniperMult
+      const strategySizeMult=Math.max(.05,Math.min(1.25,
+        Math.min(legacyMult,Number(gov.sizeMult))*Number(gov.banditWeight)*cluster.mult*auctionMult*Number(pattern.size_mult??1)*burstMult*sniperMult*Number(profitGate.size_mult??1)
       ))
       const desiredNotional=sz.notional*strategySizeMult
       const dist = Math.abs(touch - cand.stop) / touch
@@ -845,7 +865,10 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
           quality_gates: {
             learning_weight: learned.weight, learning_samples: learned.samples,
             cooldown_active: cd.active, breadth_share: mc.share, breadth_n: mc.n,
-            quality_score: qualityScore, quality_min: SOFT_QUALITY_MIN, soft_reasons: softReasons,
+            quality_score: qualityScore, quality_min: requiredQuality, soft_reasons: softReasons,
+            profitability_mode:profitabilityGovernor.mode, profitability_risk_mult:profitabilityGovernor.risk_mult,
+            strategy_profit_mode:profitGate.mode, strategy_profit_reason:profitGate.reason,
+            strategy_avg_r:profitGate.avgR, strategy_recent_avg_r:profitGate.recentAvgR, strategy_profit_size_mult:profitGate.size_mult,
             mtf: v.opp ? { side:v.opp.mtf_side, trend15:v.opp.mtf15, trend60:v.opp.mtf60, ret15:v.opp.ret15, ret60:v.opp.ret60 } : null,
             micro_execution: micro,
             opportunity: { breadth_score:cand.breadthScore??null, breakout_score:cand.breakoutScore??null, compression:cand.compression??null },
@@ -869,7 +892,9 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       rec('accepted', 'taken', { notional, kelly_f: aggressiveRisk, leverage: PAPER_LEVERAGE,
         crowd_side: side, crowd_count: crowd.count, crowd_share: crowd.share,
         learning_weight: learned.weight, learning_samples: learned.samples, breadth_share: mc.share,
-        quality_score:qualityScore, quality_min:SOFT_QUALITY_MIN, soft_reasons:softReasons,
+        quality_score:qualityScore, quality_min:requiredQuality, soft_reasons:softReasons,
+        profitability_mode:profitabilityGovernor.mode, strategy_profit_mode:profitGate.mode,
+        strategy_avg_r:profitGate.avgR, strategy_recent_avg_r:profitGate.recentAvgR, strategy_profit_size_mult:profitGate.size_mult,
         micro_score:micro?.score??null, mtf_side:Number(v.opp?.mtf_side??0),
         liq_stop_share: liqStopShare, liq_stop_max:liqStopMax, net_rr: netRR, target_r:Number.isFinite(targetR)?targetR:null,
         strategy_size_mult:strategySizeMult, governor_mode:gov.mode, governor_size_mult:gov.sizeMult, bandit_weight:gov.banditWeight,
@@ -915,7 +940,9 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       breadth_elite:{raw:breadthCandsRaw.length,selected:breadthCands.length,cap:Number(burst.breadth_cap??3)},
       sniper:{checks:sniperChecks,max:SNIPER_MAX_CHECKS},
       pattern_memory:true,
-      portfolio_brain:{entry_cap:Number(burst.entry_cap??5),ranked:cands.length},
+      portfolio_brain:{entry_cap:Math.max(1,Math.min(Number(burst.entry_cap??5),Number(profitabilityGovernor.entry_cap??4))),ranked:cands.length},
+      profitability_governor:profitabilityGovernor,
+      strategy_profitability:strategyProfitability,
       partials_planned:partials.length,
       agents:['Strategy Governor','Exit Intelligence','Partial Profit','Post-Trade Forensics','Execution Optimizer','Correlation Cluster','Contextual Bandit','Champion/Challenger','Entry Sniper','Portfolio Brain','Pattern Memory','Strategy Auction','Shadow Swarm','Burst Controller','Profit Capture AI']
     },
@@ -937,8 +964,9 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       stop_engine:'V2', break_even_r:'adaptive', profit_lock:true, partial_profit:true, mfe_mae_learning:true, controlled_reentry:true, dynamic_targets:'1.6R-3.0R',
       autonomous_governor:true, contextual_bandit:true, execution_optimizer:true, correlation_cluster:true,
       entry_sniper:true, portfolio_brain:true, pattern_memory:true, strategy_auction:true, shadow_swarm:true, dynamic_burst:true, breadth_elite_top5:true, profit_capture_ai:true,
+      profitability_first:true, no_forced_trading:true, negative_expectancy_quarantine:true,
       opportunity_engines: ['RG_MR','RG_MOM','RG_TREND_PULLBACK','RG_LIQ_SQUEEZE','RG_BREADTH_MOMENTUM','RG_VOL_BREAKOUT'],
-      profile: 'relaxed_aggressive_paper'
+      profile: 'profitability_first_paper'
     },
     cost_model: { taker: CHAN.costs.taker, maker: CHAN.costs.maker, slippage: 'live order-book walk + symbol floor' },
     scan: { bar, done: [...done], skipped: scan0.skipped ?? 0, fetched: (scan0.fetched ?? 0) + heavy } }
@@ -1013,6 +1041,8 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
           governor_mode:d.governor_mode??null, governor_size_mult:d.governor_size_mult??null, bandit_weight:d.bandit_weight??null,
           cluster_mult:d.cluster_mult??null, auction_mult:d.auction_mult??null, burst_mult:d.burst_mult??null, burst_active:d.burst_active??null,
           pattern_state:d.pattern_state??null, pattern_n:d.pattern_n??null, pattern_avg_r:d.pattern_avg_r??null,
+          profitability_mode:d.profitability_mode??null, strategy_profit_mode:d.strategy_profit_mode??null,
+          strategy_avg_r:d.strategy_avg_r??null, strategy_recent_avg_r:d.strategy_recent_avg_r??null,
           sniper_score:d.sniper_score??null, sniper_cvd:d.sniper_cvd??null, sniper_imbalance:d.sniper_imbalance??null,
           execution_mult:d.execution_mult??null, execution_state:d.execution_state??null, execution_cost_r:d.execution_cost_r??null
         },
