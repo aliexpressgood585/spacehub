@@ -726,7 +726,8 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       const liqPx = fastLiq(cand.side > 0 ? 1 : -1, px, PAPER_LEVERAGE)
       const liqDist = Math.abs(liqPx-px), stopDist = Math.abs(cand.stop-px)
       const liqStopShare = liqDist > 0 ? stopDist/liqDist : Infinity
-      const liqStopMax=liquidationStopLimitV2(Number(v.volPct),qualityScore)
+      const dynamicLiqStopMax=liquidationStopLimitV2(Number(v.volPct),qualityScore)
+      const liqStopMax=cand.comp==='RG_MR'?Math.max(LIQ_STOP_MAX_SHARE,dynamicLiqStopMax):dynamicLiqStopMax
       if (!(Number.isFinite(liqStopShare) && liqStopShare <= liqStopMax)) {
         rec('rejected','stop_too_close_to_liquidation',{ liq_px:liqPx, stop_liq_share:liqStopShare, max_share:liqStopMax })
         continue
