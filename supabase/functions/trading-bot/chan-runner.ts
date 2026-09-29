@@ -24,6 +24,7 @@ import { trendPullback } from '../../../shared/trend-pullback.ts'
 import { loadChanIntel } from './chan-intel.ts'
 import { chanOpportunityMeta } from '../../../shared/chan-opportunity.ts'
 import { initialStopV2, liquidationStopLimitV2, manageStopV2, stalledExitV2, strategySizeMultV2, targetRV2 } from '../../../shared/chan-stop-v2.ts'
+import { challengerLab, clusterMultiplier, executionMultiplier, exitPolicyFromHistory, forensicSummary, strategyGovernor } from '../../../shared/chan-autonomy.ts'
 
 const sleeveOf = (comp: string) => ['RG_TREND_PULLBACK','RG_LIQ_SQUEEZE','RG_BREADTH_MOMENTUM','RG_VOL_BREAKOUT'].includes(comp) ? '2' : '1'
 const PAPER_LEVERAGE = 50
@@ -44,6 +45,7 @@ const BREADTH_IMPULSE_SHARE = 0.72
 const SOFT_QUALITY_MIN = 50
 const MICRO_MAX_CHECKS = 10
 const REGIME = ['NEUTRAL', 'MEAN_REVERT', 'TREND', 'HIGH_VOL']
+const AUTO_COMPS = ['RG_MR','RG_MOM','RG_TREND_PULLBACK','RG_LIQ_SQUEEZE','RG_BREADTH_MOMENTUM','RG_VOL_BREAKOUT']
 let usedWeight = 0, weightAt = 0
 
 async function kl(p: Pair, limit: number, endTime?: number): Promise<any[]> {
@@ -151,8 +153,15 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
     comp: x.scalp_meta?.chan?.comp, regime: x.scalp_meta?.chan?.regime,
     exitReason: x.scalp_meta?.exit_reason ?? null,
     mfeR: Number(x.scalp_meta?.chan?.mfe_r ?? NaN),
-    maeR: Number(x.scalp_meta?.chan?.mae_r ?? NaN)
+    maeR: Number(x.scalp_meta?.chan?.mae_r ?? NaN),
+    entryImpactBps: Number(x.scalp_meta?.chan?.entry_fill?.impact_bps ?? NaN),
+    exitImpactBps: Number(x.scalp_meta?.fill?.impact_bps ?? x.scalp_meta?.chan?.quality_gates?.exit_impact_bps ?? NaN),
+    quality: Number(x.scalp_meta?.chan?.quality_gates?.quality_score ?? NaN)
   }))
+  const autonomyGovernor = strategyGovernor(closedAll,AUTO_COMPS)
+  const autonomyForensics = forensicSummary(closedAll)
+  const autonomyChallengers = challengerLab(closedAll,autonomyGovernor)
+  const exitPolicies = Object.fromEntries(AUTO_COMPS.map(comp=>[comp,exitPolicyFromHistory(closedAll,comp)]))
   const uni = await loadUniverse(db, now)
   const bySym = new Map(uni.pairs.map(p => [p.sym, p]))
   const pairOf = (sym: string): Pair => bySym.get(sym) ?? (sym === 'PEPE' ? { sym, s: '1000PEPEUSDT', k: 1000 } : { sym, s: `${sym}USDT`, k: 1 })
@@ -182,7 +191,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
     liveScan = { ...liveScan, error: String(e?.message ?? e).slice(0, 100) }
   }
 
-  const closes: any[] = [], marks: Record<string, number> = {}, openLive: Record<string, any> = {}, updates: any[] = [], closing = new Set<number>()
+  const closes: any[] = [], partials:any[] = [], marks: Record<string, number> = {}, openLive: Record<string, any> = {}, updates: any[] = [], closing = new Set<number>()
   const bookClose = async (t: any, reason: string, extra: any = {}) => {
     const fu = await fundingFor(t, pairOf(t.sym), Date.now())   // before the book, so the quote stays fresh for the ledger
     const dir = t.side === 'LONG' ? 1 : -1, bk = await book(pairOf(t.sym))
@@ -208,14 +217,17 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       const entryImpact0 = Number(m.entry_fill?.impact_bps ?? 0)
       const exitImpact0 = Number(m.quality_gates?.exit_impact_bps ?? 0)
       const costFrac = 2*CHAN.costs.taker + (Math.max(0,entryImpact0)+Math.max(0,exitImpact0))/1e4
+      const exitPolicy=exitPolicies[String(m.comp)] ?? exitPolicyFromHistory(closedAll,String(m.comp))
       const managed = manageStopV2({
         comp:String(m.comp),dir,entry,r:r0,stop:Number(m.stop),target:target0,
         liq:fastLiq(dir,entry,Number(t.lev)||1),best:Number(m.best??entry),worst:Number(m.worst??entry),
-        mfeR:Number(m.mfe_r??0),maeR:Number(m.mae_r??0),costFrac
+        mfeR:Number(m.mfe_r??0),maeR:Number(m.mae_r??0),costFrac,
+        policy:{be:exitPolicy.be,trail:exitPolicy.trail,gap:exitPolicy.gap,lock1:exitPolicy.lock1,lock2:exitPolicy.lock2}
       },tr.trades)
       const management = {
         stop:managed.stop,best:managed.best,worst:managed.worst,mfe_r:managed.mfeR,mae_r:managed.maeR,
-        be_armed:managed.beArmed,trail_active:managed.trailActive,stop_phase:managed.phase,stop_engine:'V2'
+        be_armed:managed.beArmed,trail_active:managed.trailActive,stop_phase:managed.phase,stop_engine:'V2',
+        exit_policy:exitPolicy
       }
       if (managed.why) {
         const fu = await fundingFor(t, P, Number(managed.T))
@@ -249,6 +261,22 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       const netToClose = grossExec - entryFee - exitFee
       const ageBars=Math.floor((now-Date.parse(t.opened_at))/CHAN.barMs)
       const currentR=dir*(estExit-entry)/r0
+
+      // Autonomous partial-profit capture. One partial only; the remainder keeps the learned Stop V2 runner.
+      if(!m.partial_1_done && managed.mfeR>=Number(exitPolicy.partialAt) && currentR>=Math.max(.45,Number(exitPolicy.partialAt)*.60) && netToClose>0){
+        const partFrac=Math.max(.15,Math.min(.45,Number(exitPolicy.partialFraction)||.30))
+        const partQty=size*partFrac
+        if(partQty>0 && partQty<size*.50){
+          const fuPart=await fundingFor({...t,size:partQty},P,now)
+          partials.push({
+            id:t.id,qty:partQty,price:estExit,quote_ts:bk.E,funding:fuPart,reason:'AUTONOMOUS_PARTIAL',
+            policy:{partial_at_r:exitPolicy.partialAt,fraction:partFrac,current_r:currentR,mfe_r:managed.mfeR}
+          })
+          management.partial_planned=true
+          management.partial_fraction=partFrac
+        }
+      }
+
       if(stalledExitV2({comp:String(m.comp),ageBars,mfeR:managed.mfeR,currentR})){
         await bookClose(t,'STALLED',{management:{...management,stall_age_bars:ageBars,stall_current_r:currentR}})
         return
@@ -662,16 +690,37 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       const sz = chanSize(aggressiveRisk, budget.equity, touch, cand.stop, budget.notional, PAPER_LEVERAGE, PAPER_MIN_STOP_TO_COST)
       if (!(sz.notional > 0)) { rec('rejected', sz.why); continue }
       const compPerf=perfGroup(closedAll.filter((x:any)=>x.comp===cand.comp))
-      const strategySizeMult=strategySizeMultV2(String(cand.comp),compPerf)
+      const legacyMult=strategySizeMultV2(String(cand.comp),compPerf)
+      const gov=autonomyGovernor[String(cand.comp)] ?? {sizeMult:1,banditWeight:1,mode:'ACTIVE'}
+      const peers=stillOpen.filter((x:any)=>!closing.has(x.id)).map((x:any)=>{
+        const pv=views[String(x.sym)]
+        return {side:(x.side==='LONG'?1:-1) as 1|-1,ret5:Number(pv?.ret5),ret15:Number(pv?.opp?.ret15),ret60:Number(pv?.opp?.ret60),notional:Number(x.entry_price)*Number(x.size)}
+      })
+      const cluster=clusterMultiplier({side:cand.side>0?1:-1,candidate:{ret5:Number(v.ret5),ret15:Number(v.opp?.ret15),ret60:Number(v.opp?.ret60)},peers})
+      const strategySizeMult=Math.max(.20,Math.min(1.20,Math.min(legacyMult,Number(gov.sizeMult))*Number(gov.banditWeight)*cluster.mult))
       const desiredNotional=sz.notional*strategySizeMult
       const dist = Math.abs(touch - cand.stop) / touch
       const cap = liqCap(cand.side > 0 ? bk.asks : bk.bids, cand.side > 0 ? bk.bids : bk.asks, 0.25 * dist)
-      const notional = Math.min(desiredNotional, cap, Math.max(0, equity * PAPER_LEVERAGE - openNotional), Math.max(0, Math.min(cash, budget.cash)) * PAPER_LEVERAGE / (1 + PAPER_LEVERAGE * CHAN.costs.taker))
+      let notional = Math.min(desiredNotional, cap, Math.max(0, equity * PAPER_LEVERAGE - openNotional), Math.max(0, Math.min(cash, budget.cash)) * PAPER_LEVERAGE / (1 + PAPER_LEVERAGE * CHAN.costs.taker))
       if (notional / PAPER_LEVERAGE < 5) { rec('rejected', 'too_small_or_book_too_thin', { want: sz.notional, liq_cap: cap }); continue }
-      const w = walkBook(cand.side > 0 ? bk.asks : bk.bids, notional)
-      const floorPx = touch * (1 + cand.side * slipFor(sym)), px = cand.side > 0 ? Math.max(w.vwap, floorPx) : Math.min(w.vwap, floorPx)
+      let w = walkBook(cand.side > 0 ? bk.asks : bk.bids, notional)
+      let floorPx = touch * (1 + cand.side * slipFor(sym)), px = cand.side > 0 ? Math.max(w.vwap, floorPx) : Math.min(w.vwap, floorPx)
       if (!(cand.side * (px - cand.stop) > 0)) { rec('rejected', 'fill_beyond_stop'); continue }
-      const r = Math.abs(px - cand.stop)
+      let r = Math.abs(px - cand.stop)
+
+      // Execution optimizer scales expensive fills instead of blindly paying a large part of R in fees/impact.
+      const exitProbe=walkBook(cand.side > 0 ? bk.bids : bk.asks,notional)
+      const probeExitImpact=Math.max(Number.isFinite(exitProbe.impact)?exitProbe.impact:0,slipFor(sym))
+      const probeEntryImpact=Math.max(Number.isFinite(w.impact)?w.impact:0,slipFor(sym))
+      const costR=(2*CHAN.costs.taker+probeEntryImpact+probeExitImpact)/Math.max(1e-9,r/px)
+      const execOpt=executionMultiplier(costR,Math.max(probeEntryImpact,probeExitImpact)*1e4)
+      if(execOpt.mult<1){
+        notional*=execOpt.mult
+        if(notional/PAPER_LEVERAGE<5){rec('rejected','execution_cost_too_high',{cost_r:costR,execution_state:execOpt.state});continue}
+        w=walkBook(cand.side>0?bk.asks:bk.bids,notional)
+        floorPx=touch*(1+cand.side*slipFor(sym)); px=cand.side>0?Math.max(w.vwap,floorPx):Math.min(w.vwap,floorPx)
+        r=Math.abs(px-cand.stop)
+      }
 
       // 2) At 50x a stop too near liquidation is not a meaningful stop. Keep a hard buffer.
       const liqPx = fastLiq(cand.side > 0 ? 1 : -1, px, PAPER_LEVERAGE)
@@ -724,7 +773,10 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
             micro_execution: micro,
             opportunity: { breadth_score:cand.breadthScore??null, breakout_score:cand.breakoutScore??null, compression:cand.compression??null },
             liq_stop_share: liqStopShare, liq_stop_max:liqStopMax, net_rr: netRR, reward_net: rewardNet, stop_loss_net: lossNet,
-            strategy_size_mult:strategySizeMult, target_r:Number.isFinite(targetR)?targetR:null,
+            strategy_size_mult:strategySizeMult, governor_mode:gov.mode, governor_size_mult:gov.sizeMult, bandit_weight:gov.banditWeight,
+            cluster_mult:cluster.mult, cluster_similar:cluster.similar, cluster_share:cluster.share,
+            execution_mult:execOpt.mult, execution_state:execOpt.state, execution_cost_r:costR,
+            target_r:Number.isFinite(targetR)?targetR:null,
             reference_target: referenceTarget, exit_impact_bps: +(exitImpact*1e4).toFixed(2),
             public_intel: ix ? {
               funding:ix.funding, premium:ix.premium, oi_delta:ix.oi_delta, oi_value_delta:ix.oi_value_delta,
@@ -741,7 +793,8 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
         quality_score:qualityScore, quality_min:SOFT_QUALITY_MIN, soft_reasons:softReasons,
         micro_score:micro?.score??null, mtf_side:Number(v.opp?.mtf_side??0),
         liq_stop_share: liqStopShare, liq_stop_max:liqStopMax, net_rr: netRR, target_r:Number.isFinite(targetR)?targetR:null,
-        strategy_size_mult:strategySizeMult,
+        strategy_size_mult:strategySizeMult, governor_mode:gov.mode, governor_size_mult:gov.sizeMult, bandit_weight:gov.banditWeight,
+        cluster_mult:cluster.mult, execution_mult:execOpt.mult, execution_state:execOpt.state, execution_cost_r:costR,
         intel_confidence: ix?.confidence ?? null, funding: ix?.funding ?? null, oi_delta: ix?.oi_delta ?? null,
         taker_ratio: ix?.taker_ratio ?? null, long_squeeze: ix?.long_squeeze ?? null, short_squeeze: ix?.short_squeeze ?? null })
       held.add(bucket + ':' + sym); openN++; openNotional += notional;
@@ -768,6 +821,15 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       crowd_min_positions: CROWD_MIN_POSITIONS, crowd_share: CROWD_NOTIONAL_SHARE
     },
     market_breadth: breadth,
+    autonomous_lab: {
+      status:'ACTIVE', version:'v1',
+      governor:autonomyGovernor,
+      exit_policies:exitPolicies,
+      forensics:autonomyForensics.slice(0,10),
+      challengers:autonomyChallengers,
+      partials_planned:partials.length,
+      agents:['Strategy Governor','Exit Intelligence','Partial Profit','Post-Trade Forensics','Execution Optimizer','Correlation Cluster','Contextual Bandit','Champion/Challenger']
+    },
     liquidity_intel: {
       ts: Number(intelState?.ts ?? 0), bar: Number(intelState?.bar ?? 0),
       news_risk: Number(intelState?.news_risk ?? 0),
@@ -783,12 +845,23 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       liq_stop_max_share: LIQ_STOP_MAX_SHARE, min_net_rr: MIN_NET_REWARD_RISK,
       symbol_cooldown_bars: SYMBOL_COOLDOWN_BARS, breadth_min_share: BREADTH_MIN_SHARE, paper_min_stop_to_cost: PAPER_MIN_STOP_TO_COST,
       soft_quality_min: SOFT_QUALITY_MIN, breadth_impulse_share: BREADTH_IMPULSE_SHARE,
-      stop_engine:'V2', break_even_r:'0.8-1.1', profit_lock:true, mfe_mae_learning:true, controlled_reentry:true, dynamic_targets:'1.6R-3.0R',
+      stop_engine:'V2', break_even_r:'adaptive', profit_lock:true, partial_profit:true, mfe_mae_learning:true, controlled_reentry:true, dynamic_targets:'1.6R-3.0R',
+      autonomous_governor:true, contextual_bandit:true, execution_optimizer:true, correlation_cluster:true,
       opportunity_engines: ['RG_MR','RG_MOM','RG_TREND_PULLBACK','RG_LIQ_SQUEEZE','RG_BREADTH_MOMENTUM','RG_VOL_BREAKOUT'],
       profile: 'relaxed_aggressive_paper'
     },
     cost_model: { taker: CHAN.costs.taker, maker: CHAN.costs.maker, slippage: 'live order-book walk + symbol floor' },
     scan: { bar, done: [...done], skipped: scan0.skipped ?? 0, fetched: (scan0.fetched ?? 0) + heavy } }
+  let partialResult:any=null
+  if(partials.length){
+    try {
+      const {data}=await db.rpc('chan_apply_partials',{p_lease:lease,p_partials:partials}).throwOnError()
+      partialResult=data
+      ;(note as any).autonomous_lab.partials_applied=Number(data?.applied??0)
+    } catch(e:any) {
+      ;(note as any).autonomous_lab.partial_error=String(e?.message??e).slice(0,120)
+    }
+  }
   const { data: result } = await db.rpc('chan_commit_cycle', { p_lease: lease, p_closes: closes, p_entries: entries, p_marks: marks, p_updates: updates,
     p_note: note, p_bar: closeBar ? new Date(bar).toISOString() : null, p_halt: halt }).throwOnError()
   if (decisions.length) {
@@ -817,7 +890,9 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
           quality_score: d.quality_score ?? null, quality_min: d.quality_min ?? null,
           soft_reasons: d.soft_reasons ?? null, micro_score: d.micro_score ?? null, mtf_side: d.mtf_side ?? null,
           target_r:d.target_r??null, strategy_size_mult:d.strategy_size_mult??null, liq_stop_max:d.liq_stop_max??null,
-          reentry_bars_since:d.reentry_bars_since??null
+          reentry_bars_since:d.reentry_bars_since??null,
+          governor_mode:d.governor_mode??null, governor_size_mult:d.governor_size_mult??null, bandit_weight:d.bandit_weight??null,
+          cluster_mult:d.cluster_mult??null, execution_mult:d.execution_mult??null, execution_state:d.execution_state??null, execution_cost_r:d.execution_cost_r??null
         },
         committed: d.decision === 'accepted',
         approved_at: d.decision === 'accepted' ? new Date(now).toISOString() : null,
