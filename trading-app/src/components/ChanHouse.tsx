@@ -68,6 +68,10 @@ function reasonHe(r: string) {
   if (r === 'news_event_risk') return 'אירוע חדשותי ציבורי חריג במטבע — נדרש אות חזק יותר'
   if (r === 'soft_quality_too_low') return 'הציון המשולב של האות נמוך מדי אחרי Regime, Breadth, MTF, Micro ו-Leverage'
   if (r === 'reentry_reset_wait') return 'הפסד אחרון עדיין בתקופת Reset — כניסה חוזרת דורשת נר חדש ואישור Micro חזק'
+  if (r === 'negative_expectancy_quarantine') return 'האסטרטגיה בהפסד סטטיסטי ולכן הועברה ל-Shadow ולא מקבלת הון'
+  if (r === 'profitability_quality_gate') return 'האות לא עבר את רף האיכות של מצב הרווחיות הנוכחי'
+  if (r === 'sniper_dropped_below_profitability_gate') return 'ה-Entry Sniper הוריד את ציון האות מתחת לרף הרווחיות'
+  if (r === 'kelly_no_positive_edge') return 'Kelly לא מזהה כרגע Edge חיובי — לא מכריחים עסקה'
   if (r?.startsWith('stop closer than')) return 'הסטופ קרוב מדי ביחס לעלות'
   if (r?.startsWith('paused')) return 'נעצר בשער הסיכון'
   if (r?.startsWith('halted')) return 'נעצר בשער הסיכון'
@@ -88,6 +92,9 @@ function stopper(r: string) {
   if (r === 'news_event_risk') return 'News Risk'
   if (r === 'soft_quality_too_low') return 'Soft Quality Score'
   if (r === 'reentry_reset_wait') return 'Re-entry Guard'
+  if (r === 'negative_expectancy_quarantine') return 'Profitability Governor'
+  if (r === 'profitability_quality_gate' || r === 'sniper_dropped_below_profitability_gate') return 'Profitability Gate'
+  if (r === 'kelly_no_positive_edge') return 'Kelly Edge Gate'
   if (r === 'max leverage reached' || r?.startsWith('stop closer') || r?.startsWith('paused') || r?.startsWith('halted') || r?.startsWith('half-Kelly')) return 'רובוט סיכון'
   return 'רובוט האסטרטגיה'
 }
@@ -360,13 +367,13 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
     },
     {
       id:'autonomy', icon:'✦', title:'CHAN X · Autonomous Lab', active:cyc?.autonomous_lab?.status==='ACTIVE',
-      status: cyc?.autonomous_lab?.status==='ACTIVE' ? '15 סוכנים אוטונומיים פעילים' : 'ממתין לטלמטריה',
-      detail: cyc?.autonomous_lab?.burst?.active
-        ? `BURST ${Number(cyc.autonomous_lab.burst.side)>0?'LONG':'SHORT'} · ${(100*Number(cyc.autonomous_lab.burst.share??0)).toFixed(0)}% Breadth`
-        : (cyc?.autonomous_lab?.governor
-          ? Object.values(cyc.autonomous_lab.governor).slice(0,3).map((x:any)=>`${COMP[x.comp]??x.comp}: ${x.mode} ×${Number(x.sizeMult??1).toFixed(2)}`).join(' · ')
-          : 'Governor · Sniper · Portfolio Brain · Shadow Swarm'),
-      foot: `Sniper ${Number(cyc?.autonomous_lab?.sniper?.checks ?? 0)}/${Number(cyc?.autonomous_lab?.sniper?.max ?? 10)} · Partial ${Number(cyc?.autonomous_lab?.partials_applied ?? cyc?.autonomous_lab?.partials_planned ?? 0)}`,
+      status: cyc?.autonomous_lab?.status==='ACTIVE'
+        ? `15 סוכנים · Profit ${cyc?.autonomous_lab?.profitability_governor?.mode ?? '—'}`
+        : 'ממתין לטלמטריה',
+      detail: cyc?.autonomous_lab?.profitability_governor
+        ? `PF ${Number(cyc.autonomous_lab.profitability_governor.recent20?.pf ?? 0).toFixed(2)} · AvgR ${Number(cyc.autonomous_lab.profitability_governor.recent20?.avgR ?? 0).toFixed(2)} · Quality ≥ ${Number(cyc.autonomous_lab.profitability_governor.min_quality ?? 0)}`
+        : 'Governor · Sniper · Portfolio Brain · Shadow Swarm',
+      foot: `Cap ${Number(cyc?.autonomous_lab?.profitability_governor?.entry_cap ?? 0)} · Risk ×${Number(cyc?.autonomous_lab?.profitability_governor?.risk_mult ?? 1).toFixed(2)} · Sniper ${Number(cyc?.autonomous_lab?.sniper?.checks ?? 0)}/${Number(cyc?.autonomous_lab?.sniper?.max ?? 10)}`,
     },
     {
       id:'signal', icon:'⌁', title:'רובוט איתות', active:!!latest,
@@ -480,6 +487,17 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
       </div>
       <div className="positionGrid">
         <article className="posCard">
+          <div className="posTop"><div><b>Profitability Governor</b><span>{String(cyc?.autonomous_lab?.profitability_governor?.mode ?? '—')}</span></div><div><b>PF {Number(cyc?.autonomous_lab?.profitability_governor?.recent20?.pf ?? 0).toFixed(2)}</b><small>20 עסקאות אחרונות</small></div></div>
+          <div className="posMetrics">
+            <Mini k="Avg R" v={`${Number(cyc?.autonomous_lab?.profitability_governor?.recent20?.avgR ?? 0).toFixed(2)}R`} cls={Number(cyc?.autonomous_lab?.profitability_governor?.recent20?.avgR)>=0?'pos':'neg'}/>
+            <Mini k="Win Rate" v={`${(100*Number(cyc?.autonomous_lab?.profitability_governor?.recent20?.win ?? 0)).toFixed(1)}%`}/>
+            <Mini k="Quality מינ׳" v={String(Number(cyc?.autonomous_lab?.profitability_governor?.min_quality ?? 0))}/>
+            <Mini k="כניסות / חלון" v={String(Number(cyc?.autonomous_lab?.profitability_governor?.entry_cap ?? 0))}/>
+            <Mini k="Risk Mult" v={`×${Number(cyc?.autonomous_lab?.profitability_governor?.risk_mult ?? 1).toFixed(2)}`}/>
+            <Mini k="Forced Trading" v={cyc?.quality_gates?.no_forced_trading ? 'כבוי' : 'פעיל'}/>
+          </div>
+        </article>
+        <article className="posCard">
           <div className="posTop"><div><b>Dynamic Burst</b><span>{cyc?.autonomous_lab?.burst?.active ? 'ACTIVE' : 'STANDBY'}</span></div><div><b>{cyc?.autonomous_lab?.burst?.active ? (Number(cyc.autonomous_lab.burst.side)>0?'LONG':'SHORT') : '—'}</b><small>Entry cap {Number(cyc?.autonomous_lab?.portfolio_brain?.entry_cap ?? 5)}</small></div></div>
           <div className="posMetrics">
             <Mini k="Breadth" v={`${(100*Number(cyc?.autonomous_lab?.burst?.share ?? .5)).toFixed(0)}%`}/>
@@ -569,6 +587,12 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
             <DeskRow k="מקורות Intel" v={Array.isArray(cyc?.liquidity_intel?.sources) && cyc.liquidity_intel.sources.length ? cyc.liquidity_intel.sources.slice(0,5).join(' · ') : 'Binance + RSS ציבורי'} />
             <DeskRow k="פרופיל כניסה" v={cyc?.quality_gates?.profile === 'relaxed_aggressive_paper' ? 'אגרסיבי מרוכך · PAPER' : 'CHAN'} />
             <DeskRow k="Autonomous Lab" v={cyc?.autonomous_lab?.status === 'ACTIVE' ? `${cyc?.autonomous_lab?.version ?? 'CHAN-X'} · 15 Agents` : '—'} />
+            <DeskRow k="Profitability Mode" v={String(cyc?.autonomous_lab?.profitability_governor?.mode ?? '—')} bad={cyc?.autonomous_lab?.profitability_governor?.mode === 'DEFENSE'} />
+            <DeskRow k="Profit Factor · 20" v={Number(cyc?.autonomous_lab?.profitability_governor?.recent20?.pf ?? 0).toFixed(2)} bad={Number(cyc?.autonomous_lab?.profitability_governor?.recent20?.pf ?? 0)<1} />
+            <DeskRow k="Avg R · 20" v={`${Number(cyc?.autonomous_lab?.profitability_governor?.recent20?.avgR ?? 0).toFixed(2)}R`} bad={Number(cyc?.autonomous_lab?.profitability_governor?.recent20?.avgR ?? 0)<0} />
+            <DeskRow k="Quality רווחיות" v={`≥ ${Number(cyc?.autonomous_lab?.profitability_governor?.min_quality ?? 0)}`} />
+            <DeskRow k="מקס׳ כניסות לחלון" v={String(Number(cyc?.autonomous_lab?.profitability_governor?.entry_cap ?? 0))} />
+            <DeskRow k="Forced Trading" v={cyc?.quality_gates?.no_forced_trading ? 'כבוי · רק Edge חיובי' : 'פעיל'} />
             <DeskRow k="Entry Sniper" v={cyc?.quality_gates?.entry_sniper ? 'Tape + Depth · CVD + Imbalance' : '—'} />
             <DeskRow k="Portfolio Brain" v={cyc?.quality_gates?.portfolio_brain ? `פעיל · cap ${Number(cyc?.autonomous_lab?.portfolio_brain?.entry_cap ?? 5)}` : '—'} />
             <DeskRow k="Pattern Memory" v={cyc?.quality_gates?.pattern_memory ? 'פעיל · fingerprint להפסדים/רווחים' : '—'} />
