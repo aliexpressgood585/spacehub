@@ -386,6 +386,8 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
   let heavy = 0, deep = 0, finished = false, volsChanged = false, dailyChanged = false, staleDaily = 0
   let vols: Record<string, { d: number; v: number }[]> = {}, daily: Record<string, Daily & { day: number }> = {}
   let breadth: any = { n:0, up_share:0.5, down_share:0.5, btc_ret5:null, eth_ret5:null }
+  let burst:any = marketBurstMode(breadth,intelState)
+  let breadthCandsRaw:any[] = [], breadthCands:any[] = [], cands:any[] = [], sniperChecks=0
   const directionBook: Record<'LONG'|'SHORT', { count:number; notional:number }> = {
     LONG: { count: 0, notional: 0 }, SHORT: { count: 0, notional: 0 }
   }
@@ -557,7 +559,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       breadth.n>=40 && breadth.down_share>=BREADTH_IMPULSE_SHARE && Number(breadth.btc_ret5)<0 && Number(breadth.eth_ret5)<0 ? -1 : 0
     const alignedReturns = Object.values(views).map((v:any)=>breadthSide*Number(v.ret5)).filter((x:number)=>Number.isFinite(x)&&x>0).sort((a:number,b:number)=>a-b)
     const relThreshold = alignedReturns.length ? alignedReturns[Math.max(0,Math.floor(alignedReturns.length*.70)-1)] : Infinity
-    const breadthCandsRaw = breadthSide ? Object.entries(views).flatMap(([sym,v]:any)=>{
+    breadthCandsRaw = breadthSide ? Object.entries(views).flatMap(([sym,v]:any)=>{
       const rel=breadthSide*Number(v.ret5), close=Number(v.last_close), atr=Number(v.mom?.atr), mtf=Number(v.opp?.mtf_side??0)
       if(!(rel>0) || rel<relThreshold || !(close>0) || mtf===-breadthSide) return []
       const frac=Math.max(0.0025,Math.min(0.0085,Number.isFinite(atr)&&atr>0?0.65*atr/close:0.004))
@@ -602,8 +604,8 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       }
     }
 
-    const burst = marketBurstMode(breadth,intelState)
-    const breadthCands = eliteBreadthCandidates(breadthCandsRaw,Number(burst.breadth_cap??3))
+    burst = marketBurstMode(breadth,intelState)
+    breadthCands = eliteBreadthCandidates(breadthCandsRaw,Number(burst.breadth_cap??3))
 
     const squeezeCands = Object.entries(views).flatMap(([sym,v]:any)=>{
       const x=intelState?.by_sym?.[sym]
@@ -628,9 +630,9 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       return Math.max(0.75,Math.min(1.25,1+(aligned-against)/400))
     }
 
-    let microChecks=0, sniperChecks=0
+    let microChecks=0; sniperChecks=0
     const microCache=new Map<string,any>(), sniperCache=new Map<string,any>()
-    const cands = [...technicalCands,...squeezeCands,...breadthCands,...breakoutCands].sort((a: any, b: any) => {
+    cands = [...technicalCands,...squeezeCands,...breadthCands,...breakoutCands].sort((a: any, b: any) => {
       if (prioritiseOpposite && initialDominant) {
         const ao = (a.side > 0 ? 'LONG' : 'SHORT') !== initialDominant ? 1 : 0
         const bo = (b.side > 0 ? 'LONG' : 'SHORT') !== initialDominant ? 1 : 0
