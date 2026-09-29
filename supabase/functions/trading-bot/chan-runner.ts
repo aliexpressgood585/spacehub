@@ -192,15 +192,20 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
     microScore: Number(x.scalp_meta?.chan?.quality_gates?.micro_execution?.score ?? NaN),
     breadthShare: Number(x.scalp_meta?.chan?.quality_gates?.breadth_share ?? NaN)
   }))
-  const autonomyGovernor = strategyGovernor(closedAll,AUTO_COMPS)
-  const autonomyForensics = forensicSummary(closedAll)
-  const autonomyChallengers = challengerLab(closedAll,autonomyGovernor)
+  const resetTs = Date.parse(String(params.chan_reset_at ?? ''))
+  const learningRows = Number.isFinite(resetTs) ? closedAll.filter((x:any)=>x.closedAt>=resetTs) : closedAll
+  const archiveRows = Number.isFinite(resetTs) ? closedAll.filter((x:any)=>x.closedAt<resetTs) : []
+  // Live adaptation is ERA-ONLY. The archive remains queryable for research/forensics,
+  // but it cannot lower Kelly, quality thresholds, weights, cooldowns or strategy allocation in the new evaluation.
+  const autonomyGovernor = strategyGovernor(learningRows,AUTO_COMPS)
+  const autonomyForensics = forensicSummary(learningRows)
+  const autonomyChallengers = challengerLab(learningRows,autonomyGovernor)
   const auctionWeights = strategyAuction(autonomyGovernor)
-  const shadowLabs = Object.fromEntries(AUTO_COMPS.map(comp=>[comp,shadowSwarm(closedAll,comp)]))
-  const baseExitPolicies = Object.fromEntries(AUTO_COMPS.map(comp=>[comp,exitPolicyFromHistory(closedAll,comp)]))
+  const shadowLabs = Object.fromEntries(AUTO_COMPS.map(comp=>[comp,shadowSwarm(learningRows,comp)]))
+  const baseExitPolicies = Object.fromEntries(AUTO_COMPS.map(comp=>[comp,exitPolicyFromHistory(learningRows,comp)]))
   const exitPolicies = Object.fromEntries(AUTO_COMPS.map(comp=>[comp,promotedExitPolicy(baseExitPolicies[comp],shadowLabs[comp])]))
-  const profitabilityGovernor = portfolioProfitabilityGovernor(closedAll)
-  const strategyProfitability = Object.fromEntries(AUTO_COMPS.map(comp=>[comp,strategyProfitabilityGate(closedAll,comp,now)]))
+  const profitabilityGovernor = portfolioProfitabilityGovernor(learningRows)
+  const strategyProfitability = Object.fromEntries(AUTO_COMPS.map(comp=>[comp,strategyProfitabilityGate(learningRows,comp,now)]))
   const uni = await loadUniverse(db, now)
   const bySym = new Map(uni.pairs.map(p => [p.sym, p]))
   const pairOf = (sym: string): Pair => bySym.get(sym) ?? (sym === 'PEPE' ? { sym, s: '1000PEPEUSDT', k: 1000 } : { sym, s: `${sym}USDT`, k: 1 })
@@ -256,7 +261,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       const entryImpact0 = Number(m.entry_fill?.impact_bps ?? 0)
       const exitImpact0 = Number(m.quality_gates?.exit_impact_bps ?? 0)
       const costFrac = 2*CHAN.costs.taker + (Math.max(0,entryImpact0)+Math.max(0,exitImpact0))/1e4
-      const exitPolicy=exitPolicies[String(m.comp)] ?? exitPolicyFromHistory(closedAll,String(m.comp))
+      const exitPolicy=exitPolicies[String(m.comp)] ?? exitPolicyFromHistory(learningRows,String(m.comp))
       const managed = manageStopV2({
         comp:String(m.comp),dir,entry,r:r0,stop:Number(m.stop),target:target0,
         liq:fastLiq(dir,entry,Number(t.lev)||1),best:Number(m.best??entry),worst:Number(m.worst??entry),
@@ -357,7 +362,8 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
   const margin = (t: any) => Number(t.entry_price) * Number(t.size) / Math.max(1, Number(t.lev) || 1)
   const closedMargin = closes.reduce((s, c) => { const t = open.find((x: any) => x.id === c.id); return s + (t ? margin(t) + (t.side === 'LONG' ? 1 : -1) * (c.price - Number(t.entry_price)) * Number(t.size) : 0) }, 0)
   const equity = Number(state.balance) + closedMargin + stillOpen.reduce((s: number, t: any) => s + margin(t) + unreal(t), 0)
-  const { st, ev } = riskStep(initRisk(params.chan_risk, equity), now, equity, closedAll)
+  const riskSeed = params.chan_risk_era === params.chan_era_id ? params.chan_risk : null
+  const { st, ev } = riskStep(initRisk(riskSeed, equity), now, equity, learningRows)
   let halt: string | null = null
   if (ev === 'KILL') {
     for (const t of stillOpen) { try { await bookClose(t, 'KILL') } catch { /* the ledger halts entries regardless */ } }
@@ -465,7 +471,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       return [bucket, { cash: walletCash, equity: walletCash + positions.reduce((s: number,t: any)=>s+margin(t)+unreal(t),0),
         notional: positions.reduce((s: number,t: any)=>s+Number(t.entry_price)*Number(t.size),0) }]
     }))
-    const rsOf = (comp: string) => closedAll.filter((x: any) => x.comp === comp).map((x: any) => x.r).reverse()
+    const rsOf = (comp: string) => learningRows.filter((x: any) => x.comp === comp).map((x: any) => x.r).reverse()
 
     const perfGroup = (rows:any[]) => {
       const good = rows.filter(x=>Number.isFinite(x.r)), n = good.length
@@ -478,11 +484,11 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
     const learnedQuality = (cand:any, sym:string, side:'LONG'|'SHORT') => {
       const regime = REGIME[cand.v.regime]
       const groups = [
-        [0.30, closedAll.filter((x:any)=>x.comp===cand.comp)],
-        [0.20, closedAll.filter((x:any)=>x.comp===cand.comp && x.side===side)],
-        [0.20, closedAll.filter((x:any)=>x.comp===cand.comp && x.regime===regime)],
-        [0.15, closedAll.filter((x:any)=>x.sym===sym)],
-        [0.15, closedAll.filter((x:any)=>x.comp===cand.comp && x.side===side && x.regime===regime && x.sym===sym)]
+        [0.30, learningRows.filter((x:any)=>x.comp===cand.comp)],
+        [0.20, learningRows.filter((x:any)=>x.comp===cand.comp && x.side===side)],
+        [0.20, learningRows.filter((x:any)=>x.comp===cand.comp && x.regime===regime)],
+        [0.15, learningRows.filter((x:any)=>x.sym===sym)],
+        [0.15, learningRows.filter((x:any)=>x.comp===cand.comp && x.side===side && x.regime===regime && x.sym===sym)]
       ] as const
       let signal=0, samples=0
       for (const [w,rows] of groups) { const g=perfGroup(rows as any[]); signal += w*g.signal; samples += g.n }
@@ -498,7 +504,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       return h >= (strict ? 0.53 : 0.50) && (t >= (strict ? 1.25 : 0.9) || z >= (strict ? 2.5 : 2.0))
     }
     const cooldownState = (sym:string) => {
-      const rows = closedAll.filter((x:any)=>x.sym===sym)
+      const rows = learningRows.filter((x:any)=>x.sym===sym)
       if (rows.length < 2 || !(rows[0].pnl < 0 && rows[1].pnl < 0)) return { active:false, bars:Infinity, losses:0 }
       const bars = Math.floor((now - rows[0].closedAt)/CHAN.barMs)
       return { active: bars < SYMBOL_COOLDOWN_BARS, bars, losses:2 }
@@ -720,7 +726,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
         qualityScore += Math.max(-9,Math.min(9,(Number(micro.score)-50)*0.18))
         if(Number(micro.score)<40)softReasons.push('micro_against')
       }
-      const pattern=patternMemory(closedAll,{
+      const pattern=patternMemory(learningRows,{
         comp:String(cand.comp),regime:String(REGIME[v.regime]),side,
         volPct:Number(v.volPct),mtfSide:Number(v.opp?.mtf_side??0),microScore:Number(micro?.score??50)
       })
@@ -742,7 +748,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
 
       // Controlled re-entry: never jump straight back in after a stopped/liq loss.
       // One full 5m reset bar is mandatory; the next bar needs stronger quality + micro confirmation.
-      const priorLoss=closedAll.find((x:any)=>x.sym===sym&&x.comp===cand.comp&&x.pnl<0&&['STOP','LIQUIDATION'].includes(String(x.exitReason)))
+      const priorLoss=learningRows.find((x:any)=>x.sym===sym&&x.comp===cand.comp&&x.pnl<0&&['STOP','LIQUIDATION'].includes(String(x.exitReason)))
       if(priorLoss){
         const barsSince=Math.floor((now-priorLoss.closedAt)/CHAN.barMs)
         if(barsSince<1 || (barsSince<2 && !(qualityScore>=65&&Number(micro?.score??50)>=55))){
@@ -753,10 +759,15 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
 
       const co = canOpen(st, openN)
       if (!co.ok) { rec('rejected', co.why); continue }
-      const k = kellyRisk(rsOf(cand.comp))
-      // Profitability-first mode: never manufacture risk when Kelly says the sampled edge is non-positive.
+      const eraRs = rsOf(cand.comp)
+      const estimatedKelly = kellyRisk(eraRs)
+      const discoveryBootstrap = eraRs.length < 8 && profitGate.mode === 'PROBE'
+      const k = discoveryBootstrap && !(Number.isFinite(estimatedKelly.f) && estimatedKelly.f > 0)
+        ? { f: 0.003, why: `new-era discovery bootstrap; n=${eraRs.length}; quality gates still required` }
+        : estimatedKelly
+      // Once an engine has enough new-era observations, Kelly must be genuinely positive.
       if (!(Number.isFinite(k.f) && k.f > 0)) {
-        rec('rejected','kelly_no_positive_edge',{kelly_f:k.f,kelly_why:k.why,profitability_mode:profitabilityGovernor.mode,strategy_profit_mode:profitGate.mode})
+        rec('rejected','kelly_no_positive_edge',{kelly_f:k.f,kelly_why:k.why,kelly_n:eraRs.length,profitability_mode:profitabilityGovernor.mode,strategy_profit_mode:profitGate.mode})
         continue
       }
       let bk: Awaited<ReturnType<typeof book>>
@@ -776,11 +787,13 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
         rec('rejected','sniper_dropped_below_profitability_gate',{quality_score:qualityScore,quality_min:requiredQuality,sniper_score:sniper.score})
         continue
       }
-      const baseAggressiveRisk = Math.min(PAPER_RISK_MAX, Math.max(PAPER_RISK_MIN, k.f * PAPER_RISK_MULT))
+      const baseAggressiveRisk = discoveryBootstrap
+        ? Math.max(0.002,Math.min(0.005,Number(k.f)))
+        : Math.min(PAPER_RISK_MAX, Math.max(PAPER_RISK_MIN, k.f * PAPER_RISK_MULT))
       const aggressiveRisk = Math.max(0.001,Math.min(PAPER_RISK_MAX,baseAggressiveRisk*Number(profitabilityGovernor.risk_mult??1)))
       const sz = chanSize(aggressiveRisk, budget.equity, touch, cand.stop, budget.notional, PAPER_LEVERAGE, PAPER_MIN_STOP_TO_COST)
       if (!(sz.notional > 0)) { rec('rejected', sz.why); continue }
-      const compPerf=perfGroup(closedAll.filter((x:any)=>x.comp===cand.comp))
+      const compPerf=perfGroup(learningRows.filter((x:any)=>x.comp===cand.comp))
       const legacyMult=strategySizeMultV2(String(cand.comp),compPerf)
       const gov=autonomyGovernor[String(cand.comp)] ?? {sizeMult:1,banditWeight:1,mode:'ACTIVE'}
       const peers=stillOpen.filter((x:any)=>!closing.has(x.id)).map((x:any)=>{
@@ -860,7 +873,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
           stop: cand.stop, initial_stop:cand.stop, r, best:px, worst:px, mfe_r:0, mae_r:0, be_armed:false, trail_active:false, stop_phase:'initial', stop_engine:'V2',
           chk: bk.E, max_hold_bars: cand.maxHold, bar: new Date(bar).toISOString(),
           regime: REGIME[v.regime], hurst: v.hurst, vol_pct: v.volPct, halflife: v.mr.hl, z: v.mr.z, mr_mean: v.mr.mean, mr_std: v.mr.std,
-          t_sig: v.mom.t, atr: v.mom.atr, hh: v.mom.hh, ll: v.mom.ll, kelly_f: aggressiveRisk, kelly_why: `aggressive paper 50x; base=${k.f}; ${k.why}`, kelly_n: rsOf(cand.comp).length,
+          t_sig: v.mom.t, atr: v.mom.atr, hh: v.mom.hh, ll: v.mom.ll, kelly_f: aggressiveRisk, kelly_why: `aggressive paper 50x; base=${k.f}; ${k.why}`, kelly_n: eraRs.length,
           risk_usd: notional * r / px, risk_frac: notional * r / px / budget.equity, equity: budget.equity, backtested_coin: (CHAN.universe as readonly string[]).includes(sym),
           direction_crowding: { active: crowd.active, same_side_count: crowd.count, same_side_share: crowd.share },
           quality_gates: {
@@ -922,6 +935,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
     in_window: inWindow, batch: Object.keys(views).length, scanned: done.size, complete: finished, failed: failed.length, daily_refresh: heavy, deep_fetches: deep, stale_daily: staleDaily,
     weight_1m: usedWeight, regime_counts: Object.values(regimes).reduce((a: any, r: any) => ({ ...a, [r]: (a[r] ?? 0) + 1 }), {}),
     equity, event: ev, opened: entries.length, closed: closes.length, risk_state: st,
+    risk_era: params.chan_era_id ?? null,
     marks, marks_ts: new Date(now).toISOString(),
     open_live: openLive,
     live_scan: liveScan,
@@ -933,6 +947,10 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
     market_breadth: breadth,
     autonomous_lab: {
       status:'ACTIVE', version:'CHAN-X',
+      learning_scope:'ERA_ONLY',
+      era_id:params.chan_era_id ?? null,
+      era_closed:learningRows.length,
+      archived_closed:archiveRows.length,
       governor:autonomyGovernor,
       auction:auctionWeights,
       exit_policies:exitPolicies,
@@ -968,6 +986,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       autonomous_governor:true, contextual_bandit:true, execution_optimizer:true, correlation_cluster:true,
       entry_sniper:true, portfolio_brain:true, pattern_memory:true, strategy_auction:true, shadow_swarm:true, dynamic_burst:true, breadth_elite_top5:true, profit_capture_ai:true,
       profitability_first:true, no_forced_trading:true, negative_expectancy_quarantine:true,
+      learning_scope:'ERA_ONLY', discovery_bootstrap_max_n:8, discovery_risk:'0.2%-0.5% before portfolio multiplier',
       opportunity_engines: ['RG_MR','RG_MOM','RG_TREND_PULLBACK','RG_LIQ_SQUEEZE','RG_BREADTH_MOMENTUM','RG_VOL_BREAKOUT'],
       profile: 'profitability_first_paper'
     },
