@@ -25,6 +25,7 @@ import { loadChanIntel } from './chan-intel.ts'
 import { chanOpportunityMeta } from '../../../shared/chan-opportunity.ts'
 import { initialStopV2, liquidationStopLimitV2, manageStopV2, stalledExitV2, strategySizeMultV2, targetRV2 } from '../../../shared/chan-stop-v2.ts'
 import { challengerLab, clusterMultiplier, executionMultiplier, exitPolicyFromHistory, forensicSummary, strategyGovernor } from '../../../shared/chan-autonomy.ts'
+import { eliteBreadthCandidates, marketBurstMode, patternMemory, portfolioBrainRank, profitCaptureDirective, promotedExitPolicy, shadowSwarm, strategyAuction } from '../../../shared/chan-x.ts'
 
 const sleeveOf = (comp: string) => ['RG_TREND_PULLBACK','RG_LIQ_SQUEEZE','RG_BREADTH_MOMENTUM','RG_VOL_BREAKOUT'].includes(comp) ? '2' : '1'
 const PAPER_LEVERAGE = 50
@@ -44,6 +45,7 @@ const PAPER_MIN_STOP_TO_COST = 2.0       // default CHAN remains 3x; PAPER runne
 const BREADTH_IMPULSE_SHARE = 0.72
 const SOFT_QUALITY_MIN = 50
 const MICRO_MAX_CHECKS = 10
+const SNIPER_MAX_CHECKS = 10
 const REGIME = ['NEUTRAL', 'MEAN_REVERT', 'TREND', 'HIGH_VOL']
 const AUTO_COMPS = ['RG_MR','RG_MOM','RG_TREND_PULLBACK','RG_LIQ_SQUEEZE','RG_BREADTH_MOMENTUM','RG_VOL_BREAKOUT']
 let usedWeight = 0, weightAt = 0
@@ -83,6 +85,34 @@ async function microExecution(p:Pair, side:1|-1, now:number) {
   const pullback=aligned(m1.ret)<0 && aligned(m3.ret)>0
   if(pullback) score+=6
   return {score:Math.max(0,Math.min(100,score)),ret1m:m1.ret,ret3m:m3.ret,taker1m:m1.taker,taker3m:m3.taker,pullback}
+}
+async function entrySniper(p:Pair,side:1|-1,bk:any,now:number){
+  try{
+    const r=await fetch(`https://fapi.binance.com/fapi/v1/aggTrades?symbol=${p.s}&limit=220`,{signal:AbortSignal.timeout(3500)})
+    const w=Number(r.headers?.get?.('x-mbx-used-weight-1m'))
+    if(Number.isFinite(w)){usedWeight=w;weightAt=Date.now()}
+    if(!r.ok) throw new Error('sniper aggTrades HTTP '+r.status)
+    const rows=(await r.json()).filter((x:any)=>now-Number(x.T??0)<=90_000)
+    let buy=0,sell=0
+    for(const x of rows){
+      const q=Math.max(0,Number(x.q??0))
+      if(x.m===true) sell+=q
+      else if(x.m===false) buy+=q
+    }
+    const vol=buy+sell,cvd=vol>0?(buy-sell)/vol:0
+    const bn=(bk?.bids??[]).slice(0,12).reduce((s:number,x:any)=>s+Number(x[0])*Number(x[1]),0)
+    const an=(bk?.asks??[]).slice(0,12).reduce((s:number,x:any)=>s+Number(x[0])*Number(x[1]),0)
+    const imbalance=bn+an>0?(bn-an)/(bn+an):0
+    const p0=rows.length?Number(rows[0].p):NaN,p1=rows.length?Number(rows[rows.length-1].p):NaN
+    const tapeRet=Number.isFinite(p0)&&p0>0&&Number.isFinite(p1)?p1/p0-1:0
+    const alignedCvd=side*cvd,alignedImb=side*imbalance,alignedRet=side*tapeRet
+    let score=50+alignedCvd*24+alignedImb*20+Math.max(-12,Math.min(12,alignedRet*5000))
+    const velocity=rows.length/90
+    if(velocity>=1.2&&alignedRet>0) score+=4
+    return {score:Math.max(0,Math.min(100,score)),cvd,imbalance,tape_ret:tapeRet,trades:rows.length,velocity,source:'Binance aggTrades + depth'}
+  }catch(e:any){
+    return {score:50,cvd:0,imbalance:0,tape_ret:0,trades:0,velocity:0,source:'neutral-fallback',error:String(e?.message??e).slice(0,80)}
+  }
 }
 const weightLeft = () => (Date.now() - weightAt > 60_000 ? CHAN.scan.weightBudget : CHAN.scan.weightBudget - usedWeight)
 const toBar = (p: Pair) => (x: any): Bar => ({ t: +x[0], o: +x[1] / p.k, h: +x[2] / p.k, l: +x[3] / p.k, c: +x[4] / p.k })
@@ -156,12 +186,19 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
     maeR: Number(x.scalp_meta?.chan?.mae_r ?? NaN),
     entryImpactBps: Number(x.scalp_meta?.chan?.entry_fill?.impact_bps ?? NaN),
     exitImpactBps: Number(x.scalp_meta?.fill?.impact_bps ?? x.scalp_meta?.chan?.quality_gates?.exit_impact_bps ?? NaN),
-    quality: Number(x.scalp_meta?.chan?.quality_gates?.quality_score ?? NaN)
+    quality: Number(x.scalp_meta?.chan?.quality_gates?.quality_score ?? NaN),
+    volPct: Number(x.scalp_meta?.chan?.vol_pct ?? NaN),
+    mtfSide: Number(x.scalp_meta?.chan?.quality_gates?.mtf?.side ?? NaN),
+    microScore: Number(x.scalp_meta?.chan?.quality_gates?.micro_execution?.score ?? NaN),
+    breadthShare: Number(x.scalp_meta?.chan?.quality_gates?.breadth_share ?? NaN)
   }))
   const autonomyGovernor = strategyGovernor(closedAll,AUTO_COMPS)
   const autonomyForensics = forensicSummary(closedAll)
   const autonomyChallengers = challengerLab(closedAll,autonomyGovernor)
-  const exitPolicies = Object.fromEntries(AUTO_COMPS.map(comp=>[comp,exitPolicyFromHistory(closedAll,comp)]))
+  const auctionWeights = strategyAuction(autonomyGovernor)
+  const shadowLabs = Object.fromEntries(AUTO_COMPS.map(comp=>[comp,shadowSwarm(closedAll,comp)]))
+  const baseExitPolicies = Object.fromEntries(AUTO_COMPS.map(comp=>[comp,exitPolicyFromHistory(closedAll,comp)]))
+  const exitPolicies = Object.fromEntries(AUTO_COMPS.map(comp=>[comp,promotedExitPolicy(baseExitPolicies[comp],shadowLabs[comp])]))
   const uni = await loadUniverse(db, now)
   const bySym = new Map(uni.pairs.map(p => [p.sym, p]))
   const pairOf = (sym: string): Pair => bySym.get(sym) ?? (sym === 'PEPE' ? { sym, s: '1000PEPEUSDT', k: 1000 } : { sym, s: `${sym}USDT`, k: 1 })
@@ -261,9 +298,20 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       const netToClose = grossExec - entryFee - exitFee
       const ageBars=Math.floor((now-Date.parse(t.opened_at))/CHAN.barMs)
       const currentR=dir*(estExit-entry)/r0
+      const captureAI=profitCaptureDirective({mfeR:managed.mfeR,currentR,partialDone:!!m.partial_1_done})
+      if(captureAI.tightenR!=null){
+        const aiStop=entry+dir*Number(captureAI.tightenR)*r0
+        management.stop=dir>0?Math.max(Number(management.stop),aiStop):Math.min(Number(management.stop),aiStop)
+        management.stop_phase='profit_capture_ai'
+        management.capture_ai={...captureAI,current_r:currentR}
+        if(dir*(mark-Number(management.stop))<=0){
+          await bookClose(t,'PROFIT_CAPTURE',{management})
+          return
+        }
+      }
 
       // Autonomous partial-profit capture. One partial only; the remainder keeps the learned Stop V2 runner.
-      if(!m.partial_1_done && managed.mfeR>=Number(exitPolicy.partialAt) && currentR>=Math.max(.45,Number(exitPolicy.partialAt)*.60) && netToClose>0){
+      if(!m.partial_1_done && (managed.mfeR>=Number(exitPolicy.partialAt) || captureAI.partialNow) && currentR>=Math.max(.35,Number(exitPolicy.partialAt)*.50) && netToClose>0){
         const partFrac=Math.max(.15,Math.min(.45,Number(exitPolicy.partialFraction)||.30))
         const partQty=size*partFrac
         if(partQty>0 && partQty<size*.50){
@@ -509,7 +557,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       breadth.n>=40 && breadth.down_share>=BREADTH_IMPULSE_SHARE && Number(breadth.btc_ret5)<0 && Number(breadth.eth_ret5)<0 ? -1 : 0
     const alignedReturns = Object.values(views).map((v:any)=>breadthSide*Number(v.ret5)).filter((x:number)=>Number.isFinite(x)&&x>0).sort((a:number,b:number)=>a-b)
     const relThreshold = alignedReturns.length ? alignedReturns[Math.max(0,Math.floor(alignedReturns.length*.70)-1)] : Infinity
-    const breadthCands = breadthSide ? Object.entries(views).flatMap(([sym,v]:any)=>{
+    const breadthCandsRaw = breadthSide ? Object.entries(views).flatMap(([sym,v]:any)=>{
       const rel=breadthSide*Number(v.ret5), close=Number(v.last_close), atr=Number(v.mom?.atr), mtf=Number(v.opp?.mtf_side??0)
       if(!(rel>0) || rel<relThreshold || !(close>0) || mtf===-breadthSide) return []
       const frac=Math.max(0.0025,Math.min(0.0085,Number.isFinite(atr)&&atr>0?0.65*atr/close:0.004))
@@ -532,7 +580,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
     const ret5Map = Object.fromEntries(Object.entries(views).map(([s,v]:any)=>[s,Number.isFinite(Number(v.ret5))?Number(v.ret5):null]))
     const intelRequested = [...new Set<string>([
       ...technicalCands.map((x:any)=>String(x.sym)),
-      ...breadthCands.map((x:any)=>String(x.sym)),
+      ...breadthCandsRaw.map((x:any)=>String(x.sym)),
       ...breakoutCands.map((x:any)=>String(x.sym)),
       ...heldSyms,
       'BTC','ETH'
@@ -553,6 +601,9 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
         intelState = { ...intelState, bar, error:String(e?.message ?? e).slice(0,100) }
       }
     }
+
+    const burst = marketBurstMode(breadth,intelState)
+    const breadthCands = eliteBreadthCandidates(breadthCandsRaw,Number(burst.breadth_cap??3))
 
     const squeezeCands = Object.entries(views).flatMap(([sym,v]:any)=>{
       const x=intelState?.by_sym?.[sym]
@@ -577,19 +628,21 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       return Math.max(0.75,Math.min(1.25,1+(aligned-against)/400))
     }
 
-    let microChecks=0
-    const microCache=new Map<string,any>()
+    let microChecks=0, sniperChecks=0
+    const microCache=new Map<string,any>(), sniperCache=new Map<string,any>()
     const cands = [...technicalCands,...squeezeCands,...breadthCands,...breakoutCands].sort((a: any, b: any) => {
       if (prioritiseOpposite && initialDominant) {
         const ao = (a.side > 0 ? 'LONG' : 'SHORT') !== initialDominant ? 1 : 0
         const bo = (b.side > 0 ? 'LONG' : 'SHORT') !== initialDominant ? 1 : 0
         if (ao !== bo) return bo - ao
       }
-      const aw = learnedQuality(a, a.sym, a.side > 0 ? 'LONG' : 'SHORT').weight * intelWeight(a)
-      const bw = learnedQuality(b, b.sym, b.side > 0 ? 'LONG' : 'SHORT').weight * intelWeight(b)
-      return (b.strength*bw) - (a.strength*aw)
+      const al = learnedQuality(a, a.sym, a.side > 0 ? 'LONG' : 'SHORT').weight, bl = learnedQuality(b, b.sym, b.side > 0 ? 'LONG' : 'SHORT').weight
+      const as=portfolioBrainRank(a,{learned:al,intel:intelWeight(a),auction:Number(auctionWeights[a.comp]??1),pattern:0,burst})
+      const bs=portfolioBrainRank(b,{learned:bl,intel:intelWeight(b),auction:Number(auctionWeights[b.comp]??1),pattern:0,burst})
+      return bs-as
     }) as any[]
     for (const cand of cands) {
+      if(entries.length>=Number(burst.entry_cap??5)) break
       const { sym, v } = cand
       cand.stop = initialStopV2({
         comp:String(cand.comp),side:cand.side>0?1:-1,close:Number(v.last_close),atr:Number(v.mom?.atr),proposed:Number(cand.stop),
@@ -652,12 +705,19 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
         qualityScore += Math.max(-9,Math.min(9,(Number(micro.score)-50)*0.18))
         if(Number(micro.score)<40)softReasons.push('micro_against')
       }
+      const pattern=patternMemory(closedAll,{
+        comp:String(cand.comp),regime:String(REGIME[v.regime]),side,
+        volPct:Number(v.volPct),mtfSide:Number(v.opp?.mtf_side??0),microScore:Number(micro?.score??50)
+      })
+      qualityScore += Number(pattern.penalty||0)
+      if(Number(pattern.penalty)<0) softReasons.push('pattern_memory')
+      if(burst.active&&Number(cand.side)===Number(burst.side)) qualityScore += Number(burst.quality_relief||0)
       qualityScore=Math.max(0,Math.min(100,qualityScore))
       if(qualityScore<SOFT_QUALITY_MIN && !strongSignal(cand,true)){
         rec('rejected','soft_quality_too_low',{
           quality_score:qualityScore,quality_min:SOFT_QUALITY_MIN,soft_reasons:softReasons,
           learning_weight:learned.weight,learning_samples:learned.samples,breadth_share:mc.share,breadth_n:mc.n,
-          micro_score:micro?.score??null,mtf_side:mtf
+          micro_score:micro?.score??null,mtf_side:mtf,pattern_state:pattern.state,pattern_n:pattern.n,pattern_avg_r:pattern.avgR
         })
         continue
       }
@@ -686,6 +746,15 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       try { bk = await book(pairOf(sym)) } catch { rec('rejected', 'no_book'); continue }
       const touch = cand.side > 0 ? bk.asks[0][0] : bk.bids[0][0]
       if (!(cand.side * (touch - cand.stop) > 0)) { rec('rejected', 'stop_on_wrong_side_of_market'); continue }
+      const sk=sym+':'+side
+      let sniper:any=sniperCache.get(sk)
+      if(!sniper&&sniperChecks<SNIPER_MAX_CHECKS){sniperChecks++;sniper=await entrySniper(pairOf(sym),cand.side,bk,now);sniperCache.set(sk,sniper)}
+      if(!sniper) sniper={score:50,source:'budget-neutral'}
+      if(Number(sniper.score)<30 && qualityScore<72){
+        rec('rejected','sniper_flow_against',{sniper_score:sniper.score,sniper_cvd:sniper.cvd,sniper_imbalance:sniper.imbalance})
+        continue
+      }
+      qualityScore=Math.max(0,Math.min(100,qualityScore+Math.max(-6,Math.min(8,(Number(sniper.score)-50)*.16))))
       const aggressiveRisk = Math.min(PAPER_RISK_MAX, Math.max(PAPER_RISK_MIN, k.f * PAPER_RISK_MULT))
       const sz = chanSize(aggressiveRisk, budget.equity, touch, cand.stop, budget.notional, PAPER_LEVERAGE, PAPER_MIN_STOP_TO_COST)
       if (!(sz.notional > 0)) { rec('rejected', sz.why); continue }
@@ -697,7 +766,12 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
         return {side:(x.side==='LONG'?1:-1) as 1|-1,ret5:Number(pv?.ret5),ret15:Number(pv?.opp?.ret15),ret60:Number(pv?.opp?.ret60),notional:Number(x.entry_price)*Number(x.size)}
       })
       const cluster=clusterMultiplier({side:cand.side>0?1:-1,candidate:{ret5:Number(v.ret5),ret15:Number(v.opp?.ret15),ret60:Number(v.opp?.ret60)},peers})
-      const strategySizeMult=Math.max(.20,Math.min(1.20,Math.min(legacyMult,Number(gov.sizeMult))*Number(gov.banditWeight)*cluster.mult))
+      const auctionMult=Number(auctionWeights[String(cand.comp)]??1)
+      const burstMult=burst.active&&Number(cand.side)===Number(burst.side)&&qualityScore>=58?Number(burst.risk_mult??1):1
+      const sniperMult=Number(sniper.score)>=68?1.08:Number(sniper.score)<40?.82:1
+      const strategySizeMult=Math.max(.18,Math.min(1.25,
+        Math.min(legacyMult,Number(gov.sizeMult))*Number(gov.banditWeight)*cluster.mult*auctionMult*Number(pattern.size_mult??1)*burstMult*sniperMult
+      ))
       const desiredNotional=sz.notional*strategySizeMult
       const dist = Math.abs(touch - cand.stop) / touch
       const cap = liqCap(cand.side > 0 ? bk.asks : bk.bids, cand.side > 0 ? bk.bids : bk.asks, 0.25 * dist)
@@ -776,6 +850,8 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
             liq_stop_share: liqStopShare, liq_stop_max:liqStopMax, net_rr: netRR, reward_net: rewardNet, stop_loss_net: lossNet,
             strategy_size_mult:strategySizeMult, governor_mode:gov.mode, governor_size_mult:gov.sizeMult, bandit_weight:gov.banditWeight,
             cluster_mult:cluster.mult, cluster_similar:cluster.similar, cluster_share:cluster.share,
+            auction_mult:auctionMult, burst_mult:burstMult, burst_active:burst.active, pattern_memory:pattern,
+            sniper, sniper_mult:sniperMult,
             execution_mult:execOpt.mult, execution_state:execOpt.state, execution_cost_r:costR,
             target_r:Number.isFinite(targetR)?targetR:null,
             reference_target: referenceTarget, exit_impact_bps: +(exitImpact*1e4).toFixed(2),
@@ -795,7 +871,10 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
         micro_score:micro?.score??null, mtf_side:Number(v.opp?.mtf_side??0),
         liq_stop_share: liqStopShare, liq_stop_max:liqStopMax, net_rr: netRR, target_r:Number.isFinite(targetR)?targetR:null,
         strategy_size_mult:strategySizeMult, governor_mode:gov.mode, governor_size_mult:gov.sizeMult, bandit_weight:gov.banditWeight,
-        cluster_mult:cluster.mult, execution_mult:execOpt.mult, execution_state:execOpt.state, execution_cost_r:costR,
+        cluster_mult:cluster.mult, auction_mult:auctionMult, burst_mult:burstMult, burst_active:burst.active,
+        pattern_state:pattern.state, pattern_n:pattern.n, pattern_avg_r:pattern.avgR,
+        sniper_score:sniper.score, sniper_cvd:sniper.cvd, sniper_imbalance:sniper.imbalance,
+        execution_mult:execOpt.mult, execution_state:execOpt.state, execution_cost_r:costR,
         intel_confidence: ix?.confidence ?? null, funding: ix?.funding ?? null, oi_delta: ix?.oi_delta ?? null,
         taker_ratio: ix?.taker_ratio ?? null, long_squeeze: ix?.long_squeeze ?? null, short_squeeze: ix?.short_squeeze ?? null })
       held.add(bucket + ':' + sym); openN++; openNotional += notional;
@@ -823,13 +902,20 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
     },
     market_breadth: breadth,
     autonomous_lab: {
-      status:'ACTIVE', version:'v1',
+      status:'ACTIVE', version:'CHAN-X',
       governor:autonomyGovernor,
+      auction:auctionWeights,
       exit_policies:exitPolicies,
       forensics:autonomyForensics.slice(0,10),
       challengers:autonomyChallengers,
+      shadow_swarm:shadowLabs,
+      burst,
+      breadth_elite:{raw:breadthCandsRaw.length,selected:breadthCands.length,cap:Number(burst.breadth_cap??3)},
+      sniper:{checks:sniperChecks,max:SNIPER_MAX_CHECKS},
+      pattern_memory:true,
+      portfolio_brain:{entry_cap:Number(burst.entry_cap??5),ranked:cands.length},
       partials_planned:partials.length,
-      agents:['Strategy Governor','Exit Intelligence','Partial Profit','Post-Trade Forensics','Execution Optimizer','Correlation Cluster','Contextual Bandit','Champion/Challenger']
+      agents:['Strategy Governor','Exit Intelligence','Partial Profit','Post-Trade Forensics','Execution Optimizer','Correlation Cluster','Contextual Bandit','Champion/Challenger','Entry Sniper','Portfolio Brain','Pattern Memory','Strategy Auction','Shadow Swarm','Burst Controller','Profit Capture AI']
     },
     liquidity_intel: {
       ts: Number(intelState?.ts ?? 0), bar: Number(intelState?.bar ?? 0),
@@ -848,6 +934,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       soft_quality_min: SOFT_QUALITY_MIN, breadth_impulse_share: BREADTH_IMPULSE_SHARE,
       stop_engine:'V2', break_even_r:'adaptive', profit_lock:true, partial_profit:true, mfe_mae_learning:true, controlled_reentry:true, dynamic_targets:'1.6R-3.0R',
       autonomous_governor:true, contextual_bandit:true, execution_optimizer:true, correlation_cluster:true,
+      entry_sniper:true, portfolio_brain:true, pattern_memory:true, strategy_auction:true, shadow_swarm:true, dynamic_burst:true, breadth_elite_top5:true, profit_capture_ai:true,
       opportunity_engines: ['RG_MR','RG_MOM','RG_TREND_PULLBACK','RG_LIQ_SQUEEZE','RG_BREADTH_MOMENTUM','RG_VOL_BREAKOUT'],
       profile: 'relaxed_aggressive_paper'
     },
@@ -893,7 +980,10 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
           target_r:d.target_r??null, strategy_size_mult:d.strategy_size_mult??null, liq_stop_max:d.liq_stop_max??null,
           reentry_bars_since:d.reentry_bars_since??null,
           governor_mode:d.governor_mode??null, governor_size_mult:d.governor_size_mult??null, bandit_weight:d.bandit_weight??null,
-          cluster_mult:d.cluster_mult??null, execution_mult:d.execution_mult??null, execution_state:d.execution_state??null, execution_cost_r:d.execution_cost_r??null
+          cluster_mult:d.cluster_mult??null, auction_mult:d.auction_mult??null, burst_mult:d.burst_mult??null, burst_active:d.burst_active??null,
+          pattern_state:d.pattern_state??null, pattern_n:d.pattern_n??null, pattern_avg_r:d.pattern_avg_r??null,
+          sniper_score:d.sniper_score??null, sniper_cvd:d.sniper_cvd??null, sniper_imbalance:d.sniper_imbalance??null,
+          execution_mult:d.execution_mult??null, execution_state:d.execution_state??null, execution_cost_r:d.execution_cost_r??null
         },
         committed: d.decision === 'accepted',
         approved_at: d.decision === 'accepted' ? new Date(now).toISOString() : null,
