@@ -20,9 +20,13 @@ export function strategyGovernor(rows:AutoRow[], comps:string[]):Record<string,G
     const wins=xs.filter(x=>x.pnl>0).length, avgR=mean(xs.map(x=>x.r)), recentAvgR=mean(recent.map(x=>x.r))
     const pnl=xs.reduce((s,x)=>s+(Number.isFinite(x.pnl)?x.pnl:0),0)
     const capRows=xs.filter(x=>Number.isFinite(Number(x.mfeR))&&Number(x.mfeR)>0)
-    const capture=capRows.length?mean(capRows.map(x=>clamp(x.r/Math.max(.05,Number(x.mfeR)), -2, 2))):null
+    const capture=capRows.length?mean(capRows.map(x=>clamp(x.r/Math.max(.05,Number(x.mfeR)), -1, 1.5))):null
     let mode:GovernorCell['mode']='ACTIVE', sizeMult=1
-    if(xs.length<8){mode='DISCOVERY';sizeMult=.75}
+    if(xs.length<8){
+      if(xs.length>=5 && avgR<=-.70){mode='DEFENSIVE';sizeMult=.35}
+      else if(xs.length>=4 && avgR>=.40){mode='ACTIVE';sizeMult=1}
+      else {mode='DISCOVERY';sizeMult=.75}
+    }
     else if(avgR<-.55 || (xs.length>=12&&wins/xs.length<.22)){mode='DEFENSIVE';sizeMult=.25}
     else if(avgR<-.12 || recentAvgR<-.25){mode='REDUCED';sizeMult=.5}
     else if(avgR>.25&&recentAvgR>0){sizeMult=1.12}
