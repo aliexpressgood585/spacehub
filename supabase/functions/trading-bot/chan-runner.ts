@@ -854,7 +854,8 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       }
 
       entries.push({ sym, side, price: px, notional, lev: PAPER_LEVERAGE, quote_ts: bk.E, source: 'binance-futures',
-        chan: { comp: cand.comp, sleeve: bucket, level: cand.level ?? null, breakout_at: cand.breakoutAt ?? null,
+        chan: { comp: cand.comp, sleeve: bucket, era_id: params.chan_era_id ?? null, reset_at: params.chan_reset_at ?? null,
+          level: cand.level ?? null, breakout_at: cand.breakoutAt ?? null,
           target: cand.comp === 'RG_MR' ? null : px + cand.side * targetR * r, target_r:Number.isFinite(targetR)?targetR:null,
           stop: cand.stop, initial_stop:cand.stop, r, best:px, worst:px, mfe_r:0, mae_r:0, be_armed:false, trail_active:false, stop_phase:'initial', stop_engine:'V2',
           chk: bk.E, max_hold_bars: cand.maxHold, bar: new Date(bar).toISOString(),
@@ -915,7 +916,9 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
   }
   const closeBar = bar > lastBar && (finished || now - bar > CHAN.scan.windowMs)   // done, or out of time for this bar
   const regimes = Object.fromEntries(Object.entries(views).map(([s, v]: any) => [s, REGIME[v.regime]]))
-  const note = { strategy: 'regime_router', validated: false, phase1: 'NO-GO', universe: uni.pairs.length, universe_note: uni.note || undefined, bar: new Date(bar).toISOString(),
+  const note = { strategy: 'regime_router', validated: false, phase1: 'NO-GO',
+    era_id: params.chan_era_id ?? null, reset_at: params.chan_reset_at ?? null,
+    universe: uni.pairs.length, universe_note: uni.note || undefined, bar: new Date(bar).toISOString(),
     in_window: inWindow, batch: Object.keys(views).length, scanned: done.size, complete: finished, failed: failed.length, daily_refresh: heavy, deep_fetches: deep, stale_daily: staleDaily,
     weight_1m: usedWeight, regime_counts: Object.values(regimes).reduce((a: any, r: any) => ({ ...a, [r]: (a[r] ?? 0) + 1 }), {}),
     equity, event: ev, opened: entries.length, closed: closes.length, risk_state: st,
