@@ -763,7 +763,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       const estimatedKelly = kellyRisk(eraRs)
       const discoveryBootstrap = eraRs.length < 8 && profitGate.mode === 'PROBE'
       const k = discoveryBootstrap && !(Number.isFinite(estimatedKelly.f) && estimatedKelly.f > 0)
-        ? { f: 0.005, why: `new-era discovery bootstrap; n=${eraRs.length}; quality gates still required` }
+        ? { f: 0.010, why: `new-era discovery bootstrap; n=${eraRs.length}; meaningful PAPER sizing; quality gates still required` }
         : estimatedKelly
       // Once an engine has enough new-era observations, Kelly must be genuinely positive.
       if (!(Number.isFinite(k.f) && k.f > 0)) {
@@ -788,7 +788,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
         continue
       }
       const baseAggressiveRisk = discoveryBootstrap
-        ? Math.max(0.002,Math.min(0.005,Number(k.f)))
+        ? Math.max(0.0075,Math.min(0.010,Number(k.f)))
         : Math.min(PAPER_RISK_MAX, Math.max(PAPER_RISK_MIN, k.f * PAPER_RISK_MULT))
       const aggressiveRisk = Math.max(0.001,Math.min(PAPER_RISK_MAX,baseAggressiveRisk*Number(profitabilityGovernor.risk_mult??1)))
       const sz = chanSize(aggressiveRisk, budget.equity, touch, cand.stop, budget.notional, PAPER_LEVERAGE, PAPER_MIN_STOP_TO_COST)
@@ -988,7 +988,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       autonomous_governor:true, contextual_bandit:true, execution_optimizer:true, correlation_cluster:true,
       entry_sniper:true, portfolio_brain:true, pattern_memory:true, strategy_auction:true, shadow_swarm:true, dynamic_burst:true, breadth_elite_top5:true, profit_capture_ai:true,
       profitability_first:true, no_forced_trading:true, negative_expectancy_quarantine:true,
-      learning_scope:'ERA_ONLY', discovery_bootstrap_max_n:8, discovery_risk:'0.2%-0.5% before portfolio multiplier',
+      learning_scope:'ERA_ONLY', discovery_bootstrap_max_n:8, discovery_risk:'0.75%-1.0% before portfolio multiplier',
       opportunity_engines: ['RG_MR','RG_MOM','RG_TREND_PULLBACK','RG_LIQ_SQUEEZE','RG_BREADTH_MOMENTUM','RG_VOL_BREAKOUT'],
       profile: 'profitability_first_paper'
     },
