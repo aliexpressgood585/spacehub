@@ -763,7 +763,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       const estimatedKelly = kellyRisk(eraRs)
       const discoveryBootstrap = eraRs.length < 8 && profitGate.mode === 'PROBE'
       const k = discoveryBootstrap && !(Number.isFinite(estimatedKelly.f) && estimatedKelly.f > 0)
-        ? { f: 0.003, why: `new-era discovery bootstrap; n=${eraRs.length}; quality gates still required` }
+        ? { f: 0.005, why: `new-era discovery bootstrap; n=${eraRs.length}; quality gates still required` }
         : estimatedKelly
       // Once an engine has enough new-era observations, Kelly must be genuinely positive.
       if (!(Number.isFinite(k.f) && k.f > 0)) {
