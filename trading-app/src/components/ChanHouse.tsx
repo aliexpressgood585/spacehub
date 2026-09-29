@@ -359,12 +359,14 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
       foot: Array.isArray(cyc?.liquidity_intel?.sources) ? cyc.liquidity_intel.sources.slice(0,4).join(' · ') : 'מקורות ציבוריים בלבד',
     },
     {
-      id:'autonomy', icon:'✦', title:'CHAN Autonomous Lab', active:cyc?.autonomous_lab?.status==='ACTIVE',
-      status: cyc?.autonomous_lab?.status==='ACTIVE' ? '8 סוכנים אוטונומיים פעילים' : 'ממתין לטלמטריה',
-      detail: cyc?.autonomous_lab?.governor
-        ? Object.values(cyc.autonomous_lab.governor).slice(0,3).map((x:any)=>`${COMP[x.comp]??x.comp}: ${x.mode} ×${Number(x.sizeMult??1).toFixed(2)}`).join(' · ')
-        : 'Governor · Exit Intelligence · Forensics · Execution',
-      foot: `Partial ${Number(cyc?.autonomous_lab?.partials_applied ?? cyc?.autonomous_lab?.partials_planned ?? 0)} · Champion/Challenger`,
+      id:'autonomy', icon:'✦', title:'CHAN X · Autonomous Lab', active:cyc?.autonomous_lab?.status==='ACTIVE',
+      status: cyc?.autonomous_lab?.status==='ACTIVE' ? '15 סוכנים אוטונומיים פעילים' : 'ממתין לטלמטריה',
+      detail: cyc?.autonomous_lab?.burst?.active
+        ? `BURST ${Number(cyc.autonomous_lab.burst.side)>0?'LONG':'SHORT'} · ${(100*Number(cyc.autonomous_lab.burst.share??0)).toFixed(0)}% Breadth`
+        : (cyc?.autonomous_lab?.governor
+          ? Object.values(cyc.autonomous_lab.governor).slice(0,3).map((x:any)=>`${COMP[x.comp]??x.comp}: ${x.mode} ×${Number(x.sizeMult??1).toFixed(2)}`).join(' · ')
+          : 'Governor · Sniper · Portfolio Brain · Shadow Swarm'),
+      foot: `Sniper ${Number(cyc?.autonomous_lab?.sniper?.checks ?? 0)}/${Number(cyc?.autonomous_lab?.sniper?.max ?? 10)} · Partial ${Number(cyc?.autonomous_lab?.partials_applied ?? cyc?.autonomous_lab?.partials_planned ?? 0)}`,
     },
     {
       id:'signal', icon:'⌁', title:'רובוט איתות', active:!!latest,
@@ -473,10 +475,26 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
 
     <section className="closedTrades">
       <div className="sectionHead">
-        <div><h2>CHAN Autonomous Lab</h2><p>המנוע משנה גודל, יציאות ועלויות לפי ביצועים חיים. הוא לא מעביר את הבוט למסחר אמיתי — PAPER בלבד.</p></div>
-        <span className="countBadge">{cyc?.autonomous_lab?.status === 'ACTIVE' ? 'ACTIVE · 8 agents' : 'ממתין'}</span>
+        <div><h2>CHAN X · Autonomous Lab</h2><p>15 סוכנים: Sniper, Portfolio Brain, Pattern Memory, Strategy Auction, Shadow Swarm, Burst Controller וניהול יציאה אדפטיבי — PAPER בלבד.</p></div>
+        <span className="countBadge">{cyc?.autonomous_lab?.status === 'ACTIVE' ? `${cyc?.autonomous_lab?.version ?? 'CHAN-X'} · ${Array.isArray(cyc?.autonomous_lab?.agents)?cyc.autonomous_lab.agents.length:15} agents` : 'ממתין'}</span>
       </div>
       <div className="positionGrid">
+        <article className="posCard">
+          <div className="posTop"><div><b>Dynamic Burst</b><span>{cyc?.autonomous_lab?.burst?.active ? 'ACTIVE' : 'STANDBY'}</span></div><div><b>{cyc?.autonomous_lab?.burst?.active ? (Number(cyc.autonomous_lab.burst.side)>0?'LONG':'SHORT') : '—'}</b><small>Entry cap {Number(cyc?.autonomous_lab?.portfolio_brain?.entry_cap ?? 5)}</small></div></div>
+          <div className="posMetrics">
+            <Mini k="Breadth" v={`${(100*Number(cyc?.autonomous_lab?.burst?.share ?? .5)).toFixed(0)}%`}/>
+            <Mini k="Risk Mult" v={`×${Number(cyc?.autonomous_lab?.burst?.risk_mult ?? 1).toFixed(2)}`}/>
+            <Mini k="Breadth Elite" v={`${Number(cyc?.autonomous_lab?.breadth_elite?.selected ?? 0)} / ${Number(cyc?.autonomous_lab?.breadth_elite?.raw ?? 0)}`}/>
+          </div>
+        </article>
+        <article className="posCard">
+          <div className="posTop"><div><b>Entry Sniper</b><span>Binance Tape + Depth</span></div><div><b>{Number(cyc?.autonomous_lab?.sniper?.checks ?? 0)}</b><small>checks this cycle</small></div></div>
+          <div className="posMetrics">
+            <Mini k="Pattern Memory" v={cyc?.autonomous_lab?.pattern_memory ? 'ACTIVE' : '—'}/>
+            <Mini k="Strategy Auction" v={cyc?.autonomous_lab?.auction ? 'ACTIVE' : '—'}/>
+            <Mini k="Shadow Swarm" v={cyc?.autonomous_lab?.shadow_swarm ? 'ACTIVE' : '—'}/>
+          </div>
+        </article>
         {Object.values(cyc?.autonomous_lab?.governor ?? {}).map((g:any)=><article className="posCard" key={g.comp}>
           <div className="posTop"><div><b>{COMP[g.comp] ?? g.comp}</b><span>{g.mode}</span></div><div><b>×{Number(g.sizeMult ?? 1).toFixed(2)}</b><small>Bandit ×{Number(g.banditWeight ?? 1).toFixed(2)}</small></div></div>
           <div className="posMetrics">
@@ -491,7 +509,8 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
       {!!cyc?.autonomous_lab?.forensics?.length && <div className="why" style={{marginTop:12}}>
         <b>Post-Trade Forensics</b>
         <span>{cyc.autonomous_lab.forensics.slice(0,6).map((x:any)=>`${x.reason}: ${x.n}`).join(' · ')}</span>
-        <small>Champion/Challenger רץ ב־Shadow ומציע שינויי גודל/יציאה לפי הטלמטריה המצטברת.</small>
+        <small>Champion/Challenger + Shadow Swarm בודקים וריאציות; פרמטר מקודם רק אם הוא משפר גם Train וגם OOS, ונופל חזרה אוטומטית כשהיתרון נעלם.</small>
+        <small>{Object.values(cyc?.autonomous_lab?.shadow_swarm ?? {}).filter((x:any)=>x?.status==='PROMOTED').length} וריאציות Shadow מקודמות כרגע.</small>
       </div>}
     </section>
 
@@ -549,7 +568,15 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
             <DeskRow k="News Risk ציבורי" v={`${Number(cyc?.liquidity_intel?.news_risk ?? 0).toFixed(0)} / 100`} bad={Number(cyc?.liquidity_intel?.news_risk ?? 0)>=65} />
             <DeskRow k="מקורות Intel" v={Array.isArray(cyc?.liquidity_intel?.sources) && cyc.liquidity_intel.sources.length ? cyc.liquidity_intel.sources.slice(0,5).join(' · ') : 'Binance + RSS ציבורי'} />
             <DeskRow k="פרופיל כניסה" v={cyc?.quality_gates?.profile === 'relaxed_aggressive_paper' ? 'אגרסיבי מרוכך · PAPER' : 'CHAN'} />
-            <DeskRow k="Autonomous Lab" v={cyc?.autonomous_lab?.status === 'ACTIVE' ? 'ACTIVE · 8 Agents' : '—'} />
+            <DeskRow k="Autonomous Lab" v={cyc?.autonomous_lab?.status === 'ACTIVE' ? `${cyc?.autonomous_lab?.version ?? 'CHAN-X'} · 15 Agents` : '—'} />
+            <DeskRow k="Entry Sniper" v={cyc?.quality_gates?.entry_sniper ? 'Tape + Depth · CVD + Imbalance' : '—'} />
+            <DeskRow k="Portfolio Brain" v={cyc?.quality_gates?.portfolio_brain ? `פעיל · cap ${Number(cyc?.autonomous_lab?.portfolio_brain?.entry_cap ?? 5)}` : '—'} />
+            <DeskRow k="Pattern Memory" v={cyc?.quality_gates?.pattern_memory ? 'פעיל · fingerprint להפסדים/רווחים' : '—'} />
+            <DeskRow k="Strategy Auction" v={cyc?.quality_gates?.strategy_auction ? 'פעיל · הון לפי Edge' : '—'} />
+            <DeskRow k="Shadow Swarm" v={cyc?.quality_gates?.shadow_swarm ? 'פעיל · Train/OOS + rollback' : '—'} />
+            <DeskRow k="Dynamic Burst" v={cyc?.autonomous_lab?.burst?.active ? `ACTIVE · ${Number(cyc.autonomous_lab.burst.side)>0?'LONG':'SHORT'}` : 'STANDBY'} />
+            <DeskRow k="Breadth Elite" v={cyc?.quality_gates?.breadth_elite_top5 ? 'Top 3–5 בלבד' : '—'} />
+            <DeskRow k="Profit Capture AI" v={cyc?.quality_gates?.profit_capture_ai ? 'פעיל · Giveback aware' : '—'} />
             <DeskRow k="Strategy Governor" v={cyc?.quality_gates?.autonomous_governor ? 'פעיל · גודל משתנה לפי Edge' : '—'} />
             <DeskRow k="Contextual Bandit" v={cyc?.quality_gates?.contextual_bandit ? 'פעיל' : '—'} />
             <DeskRow k="Execution Optimizer" v={cyc?.quality_gates?.execution_optimizer ? 'פעיל · עלות/R' : '—'} />
