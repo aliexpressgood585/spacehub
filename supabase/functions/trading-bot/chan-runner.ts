@@ -942,6 +942,35 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
     },
     cost_model: { taker: CHAN.costs.taker, maker: CHAN.costs.maker, slippage: 'live order-book walk + symbol floor' },
     scan: { bar, done: [...done], skipped: scan0.skipped ?? 0, fetched: (scan0.fetched ?? 0) + heavy } }
+  // Quotes are validated by the SQL ledger at commit time. Exit management runs before the
+  // full market scan, so refresh "close-now" fills and partials here; tape-triggered STOP/TARGET/LIQ
+  // keeps its historical trigger price, with trigger_ts retained in fill telemetry.
+  const triggerReasons=new Set(['STOP','TARGET','LIQUIDATION'])
+  await pool<any>(closes,5,async(x:any)=>{
+    if(triggerReasons.has(String(x.reason))){x.quote_ts=Date.now();return}
+    const t=open.find((z:any)=>z.id===x.id)
+    if(!t)return
+    try{
+      const dir=t.side==='LONG'?1:-1,P=pairOf(t.sym),bk=await book(P)
+      const top=dir>0?bk.bids[0][0]:bk.asks[0][0]
+      const w=walkBook(dir>0?bk.bids:bk.asks,Number(t.entry_price)*Number(t.size))
+      const imp=Math.max(Number.isFinite(w.impact)?w.impact:0,slipFor(t.sym))
+      x.price=top*(1-dir*imp);x.quote_ts=bk.E
+      x.fill={...(x.fill??{}),model:'book_walk_refresh',impact_bps:+(imp*1e4).toFixed(2),depth_usd:Math.round(w.depthUsd),beyond_book:w.beyond}
+    }catch{x.quote_ts=Date.now()}
+  })
+  await pool<any>(partials,5,async(x:any)=>{
+    const t=open.find((z:any)=>z.id===x.id)
+    if(!t)return
+    try{
+      const dir=t.side==='LONG'?1:-1,P=pairOf(t.sym),bk=await book(P)
+      const top=dir>0?bk.bids[0][0]:bk.asks[0][0]
+      const w=walkBook(dir>0?bk.bids:bk.asks,Number(t.entry_price)*Number(x.qty))
+      const imp=Math.max(Number.isFinite(w.impact)?w.impact:0,slipFor(t.sym))
+      x.price=top*(1-dir*imp);x.quote_ts=bk.E
+    }catch{x.quote_ts=Date.now()}
+  })
+
   let partialResult:any=null
   if(partials.length){
     try {
