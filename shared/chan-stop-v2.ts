@@ -2,6 +2,9 @@ import type { AggTrade } from './fast.ts'
 
 export type StopV2Exit = 'LIQUIDATION'|'STOP'|'TARGET'
 
+export interface StopV2Policy {
+  be:number; trail:number; gap:number; lock1:number; lock2:number
+}
 export interface StopV2State {
   comp:string
   dir:1|-1
@@ -15,6 +18,7 @@ export interface StopV2State {
   mfeR:number
   maeR:number
   costFrac:number
+  policy?:StopV2Policy|null
 }
 
 export interface StopV2Result {
@@ -100,7 +104,7 @@ function profile(comp:string){
 export function manageStopV2(s:StopV2State,trades:AggTrade[]):StopV2Result {
   let stop=s.stop,best=s.best,worst=s.worst,mfeR=Math.max(0,s.mfeR||0),maeR=Math.max(0,s.maeR||0)
   let lastT:number|null=null,beArmed=false,trailActive=false,phase='initial'
-  const d=s.dir,p=profile(s.comp)
+  const d=s.dir,p=s.policy?{...profile(s.comp),...s.policy}:profile(s.comp)
   for(const t of trades){
     const px=Number(t.p)
     if(!(px>0)) continue
