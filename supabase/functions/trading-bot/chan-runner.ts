@@ -224,7 +224,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
         mfeR:Number(m.mfe_r??0),maeR:Number(m.mae_r??0),costFrac,
         policy:{be:exitPolicy.be,trail:exitPolicy.trail,gap:exitPolicy.gap,lock1:exitPolicy.lock1,lock2:exitPolicy.lock2}
       },tr.trades)
-      const management = {
+      const management:any = {
         stop:managed.stop,best:managed.best,worst:managed.worst,mfe_r:managed.mfeR,mae_r:managed.maeR,
         be_armed:managed.beArmed,trail_active:managed.trailActive,stop_phase:managed.phase,stop_engine:'V2',
         exit_policy:exitPolicy
