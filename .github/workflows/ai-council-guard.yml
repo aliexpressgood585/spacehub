@@ -1,0 +1,77 @@
+name: AI Council Guard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'shared/chan*.ts'
+      - 'shared/trend-pullback.ts'
+      - 'supabase/functions/trading-bot/**'
+      - 'supabase/migrations/**'
+      - 'ai-council/STATE.md'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'shared/chan*.ts'
+      - 'shared/trend-pullback.ts'
+      - 'supabase/functions/trading-bot/**'
+      - 'supabase/migrations/**'
+      - 'ai-council/STATE.md'
+
+jobs:
+  council:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine changed files
+        id: diff
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+            if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+              BASE="$(git rev-parse HEAD^ 2>/dev/null || echo HEAD)"
+            fi
+          fi
+          git diff --name-only "$BASE" "${{ github.sha }}" | tee /tmp/changed.txt
+          if grep -Eq '^(shared/chan.*\.ts|shared/trend-pullback\.ts|supabase/functions/trading-bot/|supabase/migrations/)' /tmp/changed.txt; then
+            echo "material=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "material=false" >> "$GITHUB_OUTPUT"
+          fi
+          if grep -Fxq 'ai-council/STATE.md' /tmp/changed.txt; then
+            echo "state_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "state_changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Require GPT + Claude council review
+        if: steps.diff.outputs.material == 'true'
+        shell: bash
+        run: |
+          test "${{ steps.diff.outputs.state_changed }}" = "true" || {
+            echo "::error::Material trading change requires ai-council/STATE.md in the same change set."
+            exit 1
+          }
+          grep -Fq 'Claude acknowledgement: **ACKNOWLEDGED**' ai-council/STATE.md || {
+            echo "::error::Claude has not acknowledged the AI Council yet."
+            exit 1
+          }
+          grep -Fq 'GPT review: APPROVED' ai-council/STATE.md || {
+            echo "::error::Missing GPT review approval in ai-council/STATE.md."
+            exit 1
+          }
+          grep -Fq 'Claude review: APPROVED' ai-council/STATE.md || {
+            echo "::error::Missing Claude review approval in ai-council/STATE.md."
+            exit 1
+          }
+          grep -Eq 'Status: (REVIEWED|PAPER_TEST|ACCEPTED)' ai-council/STATE.md || {
+            echo "::error::Council status is not ready for a material trading change."
+            exit 1
+          }
+          echo "AI Council dual-review gate passed."
