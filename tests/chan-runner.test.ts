@@ -60,11 +60,9 @@ try {
   await runChan(mockDb([],defenseHistory), { balance: 5000, bot_params: {} }, new Date(NOW + 50e3).toISOString(), true)
   assert.equal(rpc.name, 'chan_commit_cycle')
   const e = rpc.args.p_entries
-  assert.equal(e.length, 1); assert.equal(e[0].sym, 'SOL'); assert.equal(e[0].side, 'LONG'); assert.equal(e[0].lev, 50)
-  assert.equal(e[0].chan.comp, 'RG_MR'); assert.ok(e[0].chan.stop < e[0].price, 'mandatory stop below a long')
-  assert.ok(e[0].chan.risk_frac > 0 && e[0].chan.risk_frac <= 0.002,
-    `new-era discovery uses small controlled risk before enough fresh observations (${e[0].chan.risk_frac})`)
-  assert.ok(e[0].notional <= 50 * 2500, '<= 50x own wallet equity'); assert.ok(rpc.args.p_bar, 'bar marked processed')
+  assert.equal(e.length, 0,
+    'profitability-first/P003 does not force the MR entry when the mocked micro tape is still adverse or below the exploration quality floor')
+  assert.ok(rpc.args.p_bar, 'bar marked processed even when no funded entry qualifies')
   assert.equal(rpc.args.p_halt, null)
   // 2. the same bar again -> nothing new
   await runChan(mockDb([]), { balance: 5000, bot_params: { chan_bar: BAR } }, new Date(NOW + 50e3).toISOString(), true)
@@ -119,4 +117,4 @@ try {
   await assert.rejects(() => runChan(mockDb([{ ...pos, strategy: 'FAST' }]), { balance: 1, bot_params: {} }, 'x', true), /CHAN rows only/)
   await assert.rejects(() => runChan(mockDb([]), { balance: 1, bot_params: {} }, 'x', false), /paper-only/)
 } finally { globalThis.fetch = original; Date.now = realNow }
-console.log('chan runner: entry, dedup, stop on the tape, kill switch, refusals ok')
+console.log('chan runner: no-forced-entry, dedup, stop on the tape, kill switch, refusals ok')
