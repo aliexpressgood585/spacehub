@@ -146,18 +146,22 @@ export function strategyProfitabilityGate(rows:XHistory[],comp:string,now:number
   const win=xs.length?xs.filter(x=>Number(x.pnl)>0).length/xs.length:.5
   const lastClosed=Math.max(0,...xs.map((x:any)=>Number((x as any).closedAt)||0))
   const clusters=(()=>{
-    const m=new Map<number,{r:number;n:number}>()
+    // Cluster = same engine + side + opening hour. Its R is the SUM of the
+    // trades in that basket; recent-cluster metrics average those basket sums.
+    const m=new Map<string,{hour:number;side:string;r:number;n:number}>()
     for(const x of xs){
       const t=Number(x.openedAt)
       if(!Number.isFinite(t)||t<=0) continue
-      const h=Math.floor(t/3_600_000)
-      const z=m.get(h)??{r:0,n:0}
-      z.r+=Number(x.r)||0;z.n+=1;m.set(h,z)
+      const hour=Math.floor(t/3_600_000), side=String(x.side??'')
+      const key=`${hour}:${side}`, z=m.get(key)??{hour,side,r:0,n:0}
+      z.r+=Number(x.r)||0;z.n+=1;m.set(key,z)
     }
-    return [...m.entries()].sort((a,b)=>b[0]-a[0]).map(([hour,z])=>({hour,r:z.r,n:z.n}))
+    return [...m.values()].sort((a,b)=>b.hour-a.hour)
   })()
-  const recentClusters=clusters.slice(0,4)
-  const recentClusterAvgR=mean(recentClusters.map(x=>x.r))
+  const recent4=clusters.slice(0,4), recent6=clusters.slice(0,6), recent12c=clusters.slice(0,12)
+  const recentClusterAvgR=mean(recent4.map(x=>x.r))
+  const recoveryClusterAvgR=mean(recent6.map(x=>x.r))
+  const strongClusterAvgR=mean(recent12c.map(x=>x.r))
   let mode:'LIVE'|'PROBE'|'SHADOW'='LIVE',size_mult=1,min_quality=56,reason='edge_ok'
   if(xs.length<8){
     mode='PROBE'
@@ -170,11 +174,20 @@ export function strategyProfitabilityGate(rows:XHistory[],comp:string,now:number
     size_mult=probeDue?.05:0
     min_quality=probeDue?80:100
     reason=probeDue?'vol_breakout_recovery_probe':'vol_breakout_quarantine'
-  } else if(comp==='RG_BREADTH_MOMENTUM' && xs.length>=30 &&
-    (recentAvgR<=-.35 || (recentClusters.length>=4&&recentClusterAvgR<=-.50))){
-    // Council P001-R1: do not hard-quarantine until shadow outcomes are measurable.
-    // Keep only a tiny funded probe with a hard dollar-risk cap in the runner.
-    mode='PROBE';size_mult=.10;min_quality=72;reason='breadth_degraded_probe'
+  } else if(comp==='RG_BREADTH_MOMENTUM' && xs.length>=30){
+    const degraded=recentAvgR<=-.35 || (recent4.length>=4&&recentClusterAvgR<=-.50)
+    const recoveryReady=recentAvgR>=0 && recent6.length>=6 && recoveryClusterAvgR>=0
+    const fullReady=recoveryReady && recent12c.length>=12 && strongClusterAvgR>=.05 && avgR>=.12 && recentAvgR>=.08
+    // P001 hysteresis: degraded Breadth stays measurable at x0.10. It can only
+    // step to x0.35 after 6 non-negative new side/hour clusters plus recent12 >= 0.
+    // Full size needs a second, stronger 12-cluster confirmation; no direct jump.
+    if(degraded || !recoveryReady){
+      mode='PROBE';size_mult=.10;min_quality=72;reason='breadth_degraded_probe'
+    } else if(!fullReady){
+      mode='PROBE';size_mult=.35;min_quality=68;reason='breadth_recovery_probe'
+    } else {
+      mode='LIVE';size_mult=1.05;min_quality=55;reason='positive_expectancy'
+    }
   } else if((avgR<=-.25&&recentAvgR<=-.12)||(xs.length>=15&&avgR<=-.18&&win<.42)){
     const probeDue=lastClosed>0&&now-lastClosed>=60*60_000
     mode=probeDue?'PROBE':'SHADOW'
@@ -184,9 +197,8 @@ export function strategyProfitabilityGate(rows:XHistory[],comp:string,now:number
   } else if(avgR<-.08||recentAvgR<-.10){
     mode='PROBE';size_mult=.35;min_quality=68;reason='weak_expectancy_probe'
   } else if(avgR>=.12&&recentAvgR>=.08&&xs.length>=12){
-    // No special Breadth boost: normal positive-edge promotion only.
     mode='LIVE';size_mult=1.05;min_quality=55;reason='positive_expectancy'
   }
   return {comp,n:xs.length,avgR,recentAvgR,win,lastClosed,mode,size_mult,min_quality,reason,
-    cluster_n:clusters.length,recent_cluster_avg_r:recentClusterAvgR}
+    cluster_n:clusters.length,recent_cluster_avg_r:recentClusterAvgR,recovery_cluster_avg_r:recoveryClusterAvgR}
 }
