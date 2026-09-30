@@ -396,6 +396,17 @@ Nothing deployed from this.
 - Change: aggressive mode no longer revives RG_VOL_BREAKOUT (`aggressive_engine_disabled`); cap 2 same-side entries per 5m bar in ALL modes (`same_side_bar_cap`). NB DONCH4H history shows the opposite (3+ simultaneous 4h breakouts were its best), so the cap is CHAN/5m-specific.
 - Rollback: revert this commit.
 
+## v112bt (2026-09-30 ~23:00 UTC) — owner: "short at range highs, long at range lows, many times, on coins that fit": REJECTED, 0 of 16
+`backtest/research/v112_range_fade.mjs` -> `status/range-fade-v112.txt`.
+- Setup: 40 coins, 15m and 1h bars, 36 months. Range = previous N bars (48/96), traded only when sideways (efficiency ratio < 0.3) and at least 1% high.
+  - Entry: limit orders 10% inside the edges, filled only when traded through, maker fees.
+  - Stop 25% of range height beyond the edge; target mid-range or the opposite zone; time stop.
+  - "Coins that fit": each month trade only the top-10 coins by the previous 3 months' rule result (walk-forward).
+- Results: every row negative IS and OOS (avgR −0.04 .. −0.11, e.g. 1h N48 mid top10: OOS −0.044R on 2,994 trades).
+- Coin selection does not help; top10 is no better than all 40.
+- BEFORE COSTS: gross avgR −0.07 .. +0.003 (OOS t within ±0.8). There is no edge at the range edges to begin with; costs only make it worse.
+- Same family as 4h BB-fade, v100bt, ZMR and pairs. Nothing built into the bot.
+
 ## v111bt (2026-09-30 ~22:45 UTC) — owner: "trade in grids so we also earn in a neutral market": REJECTED, 0 of 16 pass
 `backtest/research/v111_grid.mjs` (+ `v111_grid_hold.mjs`) -> `status/grid-v111.txt`.
 - Setup: neutral futures grid on 10 coins, 1m bars, 12 months. Maker 2 bps, filled only when price trades through the level. Stop = one step beyond the outer level, closed at taker + slip, then re-centered. Funding 0.01%/8h. IS 70% / OOS 30%.
