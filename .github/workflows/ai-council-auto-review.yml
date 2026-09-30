@@ -1,0 +1,57 @@
+name: AI Council Auto Review
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'shared/chan*.ts'
+      - 'shared/trend-pullback.ts'
+      - 'supabase/functions/trading-bot/**'
+      - 'supabase/migrations/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build review diff
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git diff "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" > /tmp/council.diff
+          else
+            git diff HEAD^ HEAD > /tmp/council.diff || true
+          fi
+
+      - name: Ask GPT + Claude
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
+          ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL }}
+          COUNCIL_DIFF: /tmp/council.diff
+          COUNCIL_OUT: ai-council/AUTO_REVIEW.md
+        run: node scripts/ai-council-review.mjs
+
+      - name: Publish council review
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if ! grep -Fq 'AUTO_REVIEW_ACTIVE=true' ai-council/AUTO_REVIEW.md; then
+            echo "API council is scaffolded but inactive until OPENAI_API_KEY and ANTHROPIC_API_KEY are configured."
+            exit 0
+          fi
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            gh pr comment "${{ github.event.pull_request.number }}" --body-file ai-council/AUTO_REVIEW.md
+          fi
+          gh issue comment 79 --body-file ai-council/AUTO_REVIEW.md
