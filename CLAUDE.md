@@ -396,6 +396,15 @@ Nothing deployed from this.
 - Change: aggressive mode no longer revives RG_VOL_BREAKOUT (`aggressive_engine_disabled`); cap 2 same-side entries per 5m bar in ALL modes (`same_side_bar_cap`). NB DONCH4H history shows the opposite (3+ simultaneous 4h breakouts were its best), so the cap is CHAN/5m-specific.
 - Rollback: revert this commit.
 
+## P004 (2026-09-30 ~21:00 UTC) — read-only replay, regime+micro+OI/funding candidate: REJECT
+- `backtest/research/p004_replay.py` -> `status/p004-replay.txt`. Input: 323 closed CHAN trades from 09-28 17:36 to 09-30 20:36, with entry-time fields and a point-in-time `mkt_derivs` join.
+- Baseline: −$1,464.58, PF 0.51, avgR −0.292.
+- Candidate (REGIME + MICRO + MTF + OIFUND + CLUSTER), ALL: n=44, +$15.95, but avgR −0.184. Fold 1 carries the whole result.
+- Candidate OOS: n=4, −$43.56. Complete-case per-trade result is worse than baseline.
+- Reading: the dollar gain comes from trading 86% less, not from edge.
+- Posted to Issue #79 (comment 5919552347). No bot change.
+- Committed only to `claude/hebrew-greeting-dynjyk` (2e3f75a); main was left alone so no shim redeploy fires.
+
 ## v98.1 (2026-09-30 ~19:15 UTC) — CHAN paper leverage 50x -> 20x for NEW entries (owner: "כן")
 - Why: at 50x most candidates were rejected `stop_too_close_to_liquidation`. The owner was told plainly that leverage does NOT change risk per trade (2%, set by the stop) and does NOT make the $100k/month target reachable (avgR is negative); this only lets more wide-stop trades through, to gather data.
 - Runner: `PAPER_LEVERAGE` = shim `__CHAN_LEV` (1..50, default 50). Both CI shim workflows set `__CHAN_LEV='20'`.
