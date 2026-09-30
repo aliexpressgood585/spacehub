@@ -69,7 +69,9 @@ try {
   assert.ok(e.length === 1 && e[0].sym === 'SOL' && e[0].side === 'LONG', 'the SOL burst is the one entry')
   assert.ok(e[0].fast.stop < e[0].price && e[0].fast.target > e[0].price && e[0].fast.trail === false && Math.abs((e[0].fast.target - e[0].price) / (e[0].price - e[0].fast.stop) - FAST.targetR) < 1e-9 && e[0].fast.best === e[0].price)
   assert.equal(e[0].lev, FAST.levDefault, 'default leverage 50x')
-  assert.ok(Math.abs(e[0].fast.margin - 5000 / 3) < 1e-6 && Math.abs(e[0].notional - 5000 / 3 * FAST.levDefault) < 1e-6, 'one third of equity as margin x 50 = notional')
+  assert.ok(Math.abs(e[0].fast.margin - 5000 * FAST.perTrade) < 1e-6 &&
+    Math.abs(e[0].notional - 5000 * FAST.perTrade * FAST.levDefault) < 1e-6,
+    'FAST entry allocation follows the current slot fraction and default leverage')
   assert.ok(e[0].fast.liq > e[0].price === false && e[0].fast.liq < e[0].price, 'long liquidation price below the entry')
   assert.ok(rpc.args.p_bar, 'the bar is marked processed')
   rpc = null
