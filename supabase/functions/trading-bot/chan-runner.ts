@@ -175,10 +175,11 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
   if (!wallets?.['1'] || !wallets?.['2']) throw new Error('CHAN split wallets missing')
   const { data: open } = await db.from('bot_trades').select('*').eq('status', 'OPEN').throwOnError()
   if (open.some((t: any) => t.paper_mode !== true || t.strategy !== 'CHAN')) throw new Error('CHAN requires a paper book with CHAN rows only')
-  const { data: hist } = await db.from('bot_trades').select('sym,side,pnl,risk_usd,closed_at,status,scalp_meta').eq('strategy', 'CHAN').neq('status', 'OPEN')
+  const { data: hist } = await db.from('bot_trades').select('sym,side,pnl,risk_usd,opened_at,closed_at,status,scalp_meta').eq('strategy', 'CHAN').neq('status', 'OPEN')
     .order('closed_at', { ascending: false }).limit(1000).throwOnError()
   const closedAll = (hist ?? []).filter((x:any)=>x.status !== 'RESET').map((x: any) => ({
-    sym: String(x.sym ?? ''), side: String(x.side ?? ''), pnl: Number(x.pnl), closedAt: Date.parse(x.closed_at),
+    sym: String(x.sym ?? ''), side: String(x.side ?? ''), pnl: Number(x.pnl),
+    openedAt: Date.parse(x.opened_at), closedAt: Date.parse(x.closed_at),
     r: Number(x.risk_usd) > 0 ? Number(x.pnl) / Number(x.risk_usd) : 0,
     comp: x.scalp_meta?.chan?.comp, regime: x.scalp_meta?.chan?.regime,
     exitReason: x.scalp_meta?.exit_reason ?? null,
@@ -804,14 +805,20 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       const auctionMult=Number(auctionWeights[String(cand.comp)]??1)
       const burstMult=profitabilityGovernor.allow_burst&&profitGate.mode==='LIVE'&&burst.active&&Number(cand.side)===Number(burst.side)&&qualityScore>=requiredQuality+3?Number(burst.risk_mult??1):1
       const sniperMult=Number(sniper.score)>=68?1.08:Number(sniper.score)<40?.82:1
-      const strategySizeCap=profitGate.reason==='breadth_positive_edge_boost'?1.35:1.25
+      const strategySizeCap=1.25
       const strategySizeMult=Math.max(.05,Math.min(strategySizeCap,
         Math.min(legacyMult,Number(gov.sizeMult))*Number(gov.banditWeight)*cluster.mult*auctionMult*Number(pattern.size_mult??1)*burstMult*sniperMult*Number(profitGate.size_mult??1)
       ))
       const desiredNotional=sz.notional*strategySizeMult
       const dist = Math.abs(touch - cand.stop) / touch
       const cap = liqCap(cand.side > 0 ? bk.asks : bk.bids, cand.side > 0 ? bk.bids : bk.asks, 0.25 * dist)
-      let notional = Math.min(desiredNotional, cap, Math.max(0, equity * PAPER_LEVERAGE - openNotional), Math.max(0, Math.min(cash, budget.cash)) * PAPER_LEVERAGE / (1 + PAPER_LEVERAGE * CHAN.costs.taker))
+      // Council P001-R1: Breadth recent deterioration is allowed to keep producing evidence,
+      // but stop-risk is capped at $20 so sizing asymmetry cannot dominate portfolio P&L.
+      const breadthRiskCapUsd = cand.comp==='RG_BREADTH_MOMENTUM' ? Math.min(20,Math.max(8,Number(budget.equity)*0.008)) : Infinity
+      const riskCapNotional = Number.isFinite(breadthRiskCapUsd)
+        ? breadthRiskCapUsd * touch / Math.max(1e-9,Math.abs(touch-cand.stop))
+        : Infinity
+      let notional = Math.min(desiredNotional, riskCapNotional, cap, Math.max(0, equity * PAPER_LEVERAGE - openNotional), Math.max(0, Math.min(cash, budget.cash)) * PAPER_LEVERAGE / (1 + PAPER_LEVERAGE * CHAN.costs.taker))
       if (notional / PAPER_LEVERAGE < 5) { rec('rejected', 'too_small_or_book_too_thin', { want: sz.notional, liq_cap: cap }); continue }
       let w = walkBook(cand.side > 0 ? bk.asks : bk.bids, notional)
       let floorPx = touch * (1 + cand.side * slipFor(sym)), px = cand.side > 0 ? Math.max(w.vwap, floorPx) : Math.min(w.vwap, floorPx)
@@ -884,8 +891,9 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
             profitability_mode:profitabilityGovernor.mode, profitability_risk_mult:profitabilityGovernor.risk_mult,
             strategy_profit_mode:profitGate.mode, strategy_profit_reason:profitGate.reason,
             strategy_avg_r:profitGate.avgR, strategy_recent_avg_r:profitGate.recentAvgR, strategy_profit_size_mult:profitGate.size_mult,
-        strategy_size_cap:strategySizeCap,
             strategy_size_cap:strategySizeCap,
+            strategy_risk_cap_usd:Number.isFinite(breadthRiskCapUsd)?breadthRiskCapUsd:null,
+            cluster_n:profitGate.cluster_n??null, recent_cluster_avg_r:profitGate.recent_cluster_avg_r??null,
             mtf: v.opp ? { side:v.opp.mtf_side, trend15:v.opp.mtf15, trend60:v.opp.mtf60, ret15:v.opp.ret15, ret60:v.opp.ret60 } : null,
             micro_execution: micro,
             opportunity: { breadth_score:cand.breadthScore??null, breakout_score:cand.breakoutScore??null, compression:cand.compression??null },

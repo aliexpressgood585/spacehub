@@ -1,5 +1,6 @@
 export type XHistory = {
   comp?:string; regime?:string; side?:string; r:number; pnl:number;
+  openedAt?:number; closedAt?:number;
   volPct?:number; mtfSide?:number; microScore?:number; breadthShare?:number;
   quality?:number; mfeR?:number; maeR?:number
 }
@@ -144,24 +145,49 @@ export function strategyProfitabilityGate(rows:XHistory[],comp:string,now:number
   const avgR=mean(xs.map(x=>Number(x.r)||0)), recentAvgR=mean(recent.map(x=>Number(x.r)||0))
   const win=xs.length?xs.filter(x=>Number(x.pnl)>0).length/xs.length:.5
   const lastClosed=Math.max(0,...xs.map((x:any)=>Number((x as any).closedAt)||0))
+  const clusters=(()=>{
+    // Cluster = same engine + side + opening hour. Its R is the SUM of the
+    // trades in that basket; recent-cluster metrics average those basket sums.
+    const m=new Map<string,{hour:number;side:string;r:number;n:number}>()
+    for(const x of xs){
+      const t=Number(x.openedAt)
+      if(!Number.isFinite(t)||t<=0) continue
+      const hour=Math.floor(t/3_600_000), side=String(x.side??'')
+      const key=`${hour}:${side}`, z=m.get(key)??{hour,side,r:0,n:0}
+      z.r+=Number(x.r)||0;z.n+=1;m.set(key,z)
+    }
+    return [...m.values()].sort((a,b)=>b.hour-a.hour)
+  })()
+  const recent4=clusters.slice(0,4), recent6=clusters.slice(0,6), recent12c=clusters.slice(0,12)
+  const recentClusterAvgR=mean(recent4.map(x=>x.r))
+  const recoveryClusterAvgR=mean(recent6.map(x=>x.r))
+  const strongClusterAvgR=mean(recent12c.map(x=>x.r))
   let mode:'LIVE'|'PROBE'|'SHADOW'='LIVE',size_mult=1,min_quality=56,reason='edge_ok'
   if(xs.length<8){
-    // A brand-new era needs controlled observations before expectancy can be estimated.
     mode='PROBE'
     size_mult=xs.length<4?.85:.70
     min_quality=xs.length<4?58:62
     reason=xs.length===0?'new_era_discovery':xs.length<4?'early_discovery':'discovery_probe'
   } else if(comp==='RG_VOL_BREAKOUT' && xs.length>=12 && avgR<0 && recentAvgR<0){
-    // Volatility Breakout has enough clean-era evidence and is still negative.
-    // Keep it out of the funded book; allow only a rare, tiny recovery probe.
     const probeDue=lastClosed>0&&now-lastClosed>=6*60*60_000
     mode=probeDue?'PROBE':'SHADOW'
     size_mult=probeDue?.05:0
     min_quality=probeDue?80:100
     reason=probeDue?'vol_breakout_recovery_probe':'vol_breakout_quarantine'
-  } else if(comp==='RG_BREADTH_MOMENTUM' && xs.length>=20 && avgR>=.15 && recentAvgR>=.05 && win>=.60){
-    // Reward an edge only after a meaningful clean-era sample.
-    mode='LIVE';size_mult=1.20;min_quality=54;reason='breadth_positive_edge_boost'
+  } else if(comp==='RG_BREADTH_MOMENTUM' && xs.length>=30){
+    const degraded=recentAvgR<=-.35 || (recent4.length>=4&&recentClusterAvgR<=-.50)
+    const recoveryReady=recentAvgR>=0 && recent6.length>=6 && recoveryClusterAvgR>=0
+    const fullReady=recoveryReady && recent12c.length>=12 && strongClusterAvgR>=.05 && avgR>=.12 && recentAvgR>=.08
+    // P001 hysteresis: degraded Breadth stays measurable at x0.10. It can only
+    // step to x0.35 after 6 non-negative new side/hour clusters plus recent12 >= 0.
+    // Full size needs a second, stronger 12-cluster confirmation; no direct jump.
+    if(degraded || !recoveryReady){
+      mode='PROBE';size_mult=.10;min_quality=72;reason='breadth_degraded_probe'
+    } else if(!fullReady){
+      mode='PROBE';size_mult=.35;min_quality=68;reason='breadth_recovery_probe'
+    } else {
+      mode='LIVE';size_mult=1.05;min_quality=55;reason='positive_expectancy'
+    }
   } else if((avgR<=-.25&&recentAvgR<=-.12)||(xs.length>=15&&avgR<=-.18&&win<.42)){
     const probeDue=lastClosed>0&&now-lastClosed>=60*60_000
     mode=probeDue?'PROBE':'SHADOW'
@@ -173,5 +199,6 @@ export function strategyProfitabilityGate(rows:XHistory[],comp:string,now:number
   } else if(avgR>=.12&&recentAvgR>=.08&&xs.length>=12){
     mode='LIVE';size_mult=1.05;min_quality=55;reason='positive_expectancy'
   }
-  return {comp,n:xs.length,avgR,recentAvgR,win,lastClosed,mode,size_mult,min_quality,reason}
+  return {comp,n:xs.length,avgR,recentAvgR,win,lastClosed,mode,size_mult,min_quality,reason,
+    cluster_n:clusters.length,recent_cluster_avg_r:recentClusterAvgR,recovery_cluster_avg_r:recoveryClusterAvgR}
 }
