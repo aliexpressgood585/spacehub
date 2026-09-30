@@ -175,7 +175,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
   if (!wallets?.['1'] || !wallets?.['2']) throw new Error('CHAN split wallets missing')
   const { data: open } = await db.from('bot_trades').select('*').eq('status', 'OPEN').throwOnError()
   if (open.some((t: any) => t.paper_mode !== true || t.strategy !== 'CHAN')) throw new Error('CHAN requires a paper book with CHAN rows only')
-  const { data: hist } = await db.from('bot_trades').select('sym,side,pnl,risk_usd,closed_at,status,scalp_meta').eq('strategy', 'CHAN').neq('status', 'OPEN')
+  const { data: hist } = await db.from('bot_trades').select('sym,side,pnl,risk_usd,opened_at,closed_at,status,scalp_meta').eq('strategy', 'CHAN').neq('status', 'OPEN')
     .order('closed_at', { ascending: false }).limit(1000).throwOnError()
   const closedAll = (hist ?? []).filter((x:any)=>x.status !== 'RESET').map((x: any) => ({
     sym: String(x.sym ?? ''), side: String(x.side ?? ''), pnl: Number(x.pnl),
@@ -891,9 +891,6 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
             profitability_mode:profitabilityGovernor.mode, profitability_risk_mult:profitabilityGovernor.risk_mult,
             strategy_profit_mode:profitGate.mode, strategy_profit_reason:profitGate.reason,
             strategy_avg_r:profitGate.avgR, strategy_recent_avg_r:profitGate.recentAvgR, strategy_profit_size_mult:profitGate.size_mult,
-        strategy_size_cap:strategySizeCap,
-        strategy_risk_cap_usd:Number.isFinite(breadthRiskCapUsd)?breadthRiskCapUsd:null,
-        cluster_n:profitGate.cluster_n??null, recent_cluster_avg_r:profitGate.recent_cluster_avg_r??null,
             strategy_size_cap:strategySizeCap,
             strategy_risk_cap_usd:Number.isFinite(breadthRiskCapUsd)?breadthRiskCapUsd:null,
             cluster_n:profitGate.cluster_n??null, recent_cluster_avg_r:profitGate.recent_cluster_avg_r??null,
