@@ -51,6 +51,11 @@ const SOFT_QUALITY_MIN = 50
 // Hard gates (book, stop side, liquidation buffer, costs, net R/R, re-entry) stay. PAPER ONLY.
 const AGGRESSIVE = (globalThis as any).__CHAN_AGGRESSIVE === '1'
 const AGGRESSIVE_MAX_OPEN = 8
+// v98.2 (owner, from the all-history scan of 314 CHAN closes): Vol Breakout lost at every cluster size
+// (77 closes, PF 0.14), so the aggressive override no longer revives it; and 3+ same-side entries in one
+// 5m bar were one market bet (6+/bar: 86 closes, -$748, 63% of all CHAN losses). Cap = 2 per side per bar.
+const AGGRESSIVE_DISABLED = new Set(['RG_VOL_BREAKOUT'])
+const SIDE_PER_BAR_CAP = 2
 const MICRO_MAX_CHECKS = 10
 const SNIPER_MAX_CHECKS = 10
 const REGIME = ['NEUTRAL', 'MEAN_REVERT', 'TREND', 'HIGH_VOL']
@@ -679,6 +684,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       const bucket = sleeveOf(cand.comp), budget = budgets[bucket]
       if (held.has(bucket + ':' + sym)) { rec('rejected', 'coin_held'); continue }
       const profitGate:any = strategyProfitability[String(cand.comp)] ?? {mode:'PROBE',size_mult:.25,min_quality:70,reason:'unknown_edge'}
+      if(AGGRESSIVE && AGGRESSIVE_DISABLED.has(String(cand.comp))){ rec('rejected','aggressive_engine_disabled'); continue }
       if(profitGate.mode==='SHADOW'){
         rec('shadow','negative_expectancy_quarantine',{
           profitability_mode:profitabilityGovernor.mode,
@@ -775,6 +781,8 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       const co = canOpen(st, openN)
       if (!co.ok) { rec('rejected', co.why); continue }
       if (AGGRESSIVE && openN >= AGGRESSIVE_MAX_OPEN) { rec('rejected', 'aggressive_max_open', { open: openN, max_open: AGGRESSIVE_MAX_OPEN }); continue }
+      const sideThisBar = stillOpen.filter((x:any)=>!closing.has(x.id)&&x.side===side&&Date.parse(x.opened_at)>=bar).length + entries.filter((x:any)=>x.side===side).length
+      if (sideThisBar >= SIDE_PER_BAR_CAP) { rec('rejected', 'same_side_bar_cap', { same_side_this_bar: sideThisBar, cap: SIDE_PER_BAR_CAP }); continue }
       const eraRs = rsOf(cand.comp)
       const estimatedKelly = kellyRisk(eraRs)
       const discoveryBootstrap = eraRs.length < 8 && profitGate.mode === 'PROBE'
