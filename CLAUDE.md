@@ -396,6 +396,17 @@ Nothing deployed from this.
 - Change: aggressive mode no longer revives RG_VOL_BREAKOUT (`aggressive_engine_disabled`); cap 2 same-side entries per 5m bar in ALL modes (`same_side_bar_cap`). NB DONCH4H history shows the opposite (3+ simultaneous 4h breakouts were its best), so the cap is CHAN/5m-specific.
 - Rollback: revert this commit.
 
+## P005 / S1 shadow (2026-09-30 ~22:30 UTC) — owner: "more exposure, but accuracy matters" -> shadow test first (owner's choice)
+- Live at ask time: since v98.2, 26 closes −$289 (10 wins); last 24h, 79 closes −$537; open notional $20k ≈ 4.5x equity.
+- Built:
+  - `shared/chan-shadow.ts` (S1 = P004 filters + 12 open);
+  - runner journal to `chan_shadow` (live + virtual rows; never trades);
+  - migration `20260930220000_chan_shadow_s1.sql` (NOT applied);
+  - `tests/chan-shadow.test.ts` (22 assertions);
+  - `quant/PREREGISTRATION_S1.md`;
+  - `backtest/research/s1_evaluate.py` (counts only until 100 taken).
+- Status: PR opened, awaiting GPT review (council rule 6/7). Nothing deployed. Suite: same 3 pre-existing failures, 0 new; chan-runner typecheck clean.
+
 ## P004 (2026-09-30 ~21:00 UTC) — read-only replay, regime+micro+OI/funding candidate: REJECT
 - `backtest/research/p004_replay.py` -> `status/p004-replay.txt`. Input: 323 closed CHAN trades from 09-28 17:36 to 09-30 20:36, with entry-time fields and a point-in-time `mkt_derivs` join.
 - Baseline: −$1,464.58, PF 0.51, avgR −0.292.
