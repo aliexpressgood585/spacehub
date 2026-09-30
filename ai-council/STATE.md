@@ -9,10 +9,10 @@ Last established: 2026-09-30 UTC
 - Shared issue: #79
 
 ## Council
-- Status: **IDLE / onboarding Claude**
+- Status: **IDLE**
 - GPT role: telemetry + validation + risk/ledger + implementation review
 - Claude role: strategy challenger + research + code review
-- Claude acknowledgement: **PENDING**
+- Claude acknowledgement: **ACKNOWLEDGED** (2026-09-30 UTC, role: Research / Strategy Challenger; PAPER ONLY; no strategy change made during onboarding)
 - Dual-review policy: **ACTIVE for material trading changes**
 - Automatic API bridge: **SCAFFOLDED**
 - Automatic API bridge secrets: **PENDING** (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`; never place them in chat or commits)
