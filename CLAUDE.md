@@ -405,7 +405,7 @@ Nothing deployed from this.
   - `tests/chan-shadow.test.ts` (22 assertions);
   - `quant/PREREGISTRATION_S1.md`;
   - `backtest/research/s1_evaluate.py` (counts only until 100 taken).
-- Status: PR opened, awaiting GPT review (council rule 6/7). Nothing deployed. Suite: same 3 pre-existing failures, 0 new; chan-runner typecheck clean.
+- GPT APPROVED shadow-only (PR #82). DEPLOYED 22:23 UTC: migration applied first, merge b4355437, CI run #263, manifest verified. First row 22:25:56 (live FET LONG, s1_take). Live unchanged (8 cap, 20x, 2%), 0 errors. Previously: Suite: same 3 pre-existing failures, 0 new; chan-runner typecheck clean.
 
 ## P004 (2026-09-30 ~21:00 UTC) — read-only replay, regime+micro+OI/funding candidate: REJECT
 - `backtest/research/p004_replay.py` -> `status/p004-replay.txt`. Input: 323 closed CHAN trades from 09-28 17:36 to 09-30 20:36, with entry-time fields and a point-in-time `mkt_derivs` join.
