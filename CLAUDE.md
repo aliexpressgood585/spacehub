@@ -396,6 +396,13 @@ Nothing deployed from this.
 - Change: aggressive mode no longer revives RG_VOL_BREAKOUT (`aggressive_engine_disabled`); cap 2 same-side entries per 5m bar in ALL modes (`same_side_bar_cap`). NB DONCH4H history shows the opposite (3+ simultaneous 4h breakouts were its best), so the cap is CHAN/5m-specific.
 - Rollback: revert this commit.
 
+## Forward-test lab + H6 (2026-09-30 ~23:40 UTC) — owner: "an agent that tests trades forward"
+- `shared/forward.ts`: data-collector opens and closes VIRTUAL trades from frozen rules and books net P&L at live mark prices. Table `fwd_trades` (migration 20260930233000, RLS, kept forever).
+- First hypotheses: H6a / H6b, funding-settlement capture (quant/PREREGISTRATION_H6.md). Counts only until 200 closed trades each.
+- Tests: tests/forward.test.ts (13 assertions); chan-runner and shared typecheck clean (verified with --ignoreConfig).
+- Status: PR opened for GPT review; NOT deployed.
+- data-collector is not in the CI deploy list, so after approval: apply the migration first, then deploy data-collector via the MCP shim.
+
 ## v113bt (2026-09-30 ~23:20 UTC) — owner: "another idea, intraday": funding-settlement capture + CME weekend gap
 `backtest/research/v113_funding_cme.mjs`, `v113b_funding_robust.mjs`, `v113c_funding_predicted.mjs` -> `status/funding-cme-v113.txt`.
 - **CME gap fill (BTC/ETH, 1h, 72m): REJECTED.** Gross before costs is −44 bps.
