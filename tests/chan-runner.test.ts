@@ -52,7 +52,12 @@ function mockDb(open: any[], closed: any[] = [], cache: any[] = []) {
 try {
   Date.now = () => NOW; mockFetch()
   // 1. flat book, fresh bar -> SOL mean-reversion long, aggressive paper allocation at fixed 50x
-  await runChan(mockDb([]), { balance: 5000, bot_params: {} }, new Date(NOW + 50e3).toISOString(), true)
+  const defenseHistory = Array.from({length:10},(_,i)=>({
+    sym:`LOSS${i}`,side:'LONG',pnl:-1,risk_usd:1,status:'SL',
+    closed_at:new Date(NOW-(i+1)*M5).toISOString(),
+    scalp_meta:{chan:{comp:'RG_TREND_PULLBACK'},exit_reason:'STOP'}
+  }))
+  await runChan(mockDb([],defenseHistory), { balance: 5000, bot_params: {} }, new Date(NOW + 50e3).toISOString(), true)
   assert.equal(rpc.name, 'chan_commit_cycle')
   const e = rpc.args.p_entries
   assert.equal(e.length, 1); assert.equal(e[0].sym, 'SOL'); assert.equal(e[0].side, 'LONG'); assert.equal(e[0].lev, 50)
