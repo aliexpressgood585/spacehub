@@ -31,8 +31,8 @@ const rt = (burst: 1 | -1 | 0, buyers = 0.8): LBar[] => { const out: LBar[] = []
   return out }
 const r1 = fastSignalRT(rt(1), true, false); assert.ok(r1 && r1.dir === 1 && r1.volRatio >= 2, 'real-time: a burst in the last 3 minutes incl. the forming one = LONG')
 assert.equal(fastSignalRT(rt(1), false, false), null, 'real-time: BTC against = nothing'); assert.equal(fastSignalRT(rt(0), true, false), null, 'real-time: no burst = nothing')
-assert.ok(fastSignalRT(rt(-1), false, false)?.dir === -1, 'real-time SHORT mirror'); assert.equal(FAST_RT.holdMin, 30); assert.equal(fastExit(1, 90, 110, 100, 30 * 60e3, 0, 30 * 60e3), 'TIMEOUT', 'hold comes from the trade')
-assert.ok(Math.abs(FAST.maxOpen * FAST.perTrade - 1) < 1e-12, 'three slots of margin = the whole account'); assert.equal(FAST.maxPerDay, 20)
+assert.ok(fastSignalRT(rt(-1), false, false)?.dir === -1, 'real-time SHORT mirror'); assert.equal(FAST_RT.holdMin, 15); assert.equal(fastExit(1, 90, 110, 100, FAST_RT.holdMin * 60e3, 0, FAST_RT.holdMin * 60e3), 'TIMEOUT', 'hold comes from the current FAST_RT config')
+assert.ok(Math.abs(FAST.maxOpen * FAST.perTrade - 1) < 1e-12, 'configured FAST slots consume the whole account margin budget'); assert.equal(FAST.maxPerDay, 20)
 assert.ok(Math.abs(fastLiq(1, 100, 50) - 98.5) < 1e-9 && Math.abs(fastLiq(-1, 100, 50) - 101.5) < 1e-9, '50x isolated: liquidated 1.5% against (2% - 0.5% maintenance)')
 assert.equal(fastExit(1, 97, 103, 98.4, 0, fastLiq(1, 100, 50)), 'LIQUIDATION', 'a mark beyond the liquidation price liquidates before the stop')
 assert.equal(fastExit(1, 99.7, 100.45, 99.6, 0, fastLiq(1, 100, 50)), 'STOP')
