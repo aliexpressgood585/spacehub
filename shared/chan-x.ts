@@ -179,13 +179,21 @@ export function strategyProfitabilityGate(rows:XHistory[],comp:string,now:number
 
 export function defenseExplorationFloor(x:{
   portfolioMode:string; strategyMode:string; strategyN:number;
-  quality:number; requiredQuality:number; microScore:number;
+  quality:number; requiredQuality:number; microScore:number|null;
   softReasons:string[]; openExploration:number
 }){
   const severe=new Set(['leverage_against','news_risk','regime_mismatch'])
   const discovery=x.portfolioMode==='DEFENSE'&&x.strategyMode==='PROBE'&&x.strategyN<8
   const qualityFloor=Math.max(54,x.requiredQuality-10)
   const severeHit=x.softReasons.some(r=>severe.has(r))
-  const eligible=discovery&&x.openExploration<2&&x.quality>=qualityFloor&&x.microScore>=42&&!severeHit
-  return {eligible,discovery,quality_floor:qualityFloor,risk_usd_cap:5,max_open:2,severe_hit:severeHit}
+  const microOk=Number.isFinite(Number(x.microScore))&&Number(x.microScore)>=42
+  const eligible=discovery&&x.openExploration<2&&x.quality>=qualityFloor&&microOk&&!severeHit
+  return {eligible,discovery,quality_floor:qualityFloor,risk_usd_cap:5,max_open:2,severe_hit:severeHit,micro_ok:microOk}
+}
+
+export function capNotionalToStopRisk(notional:number,px:number,stop:number,capUsd:number){
+  if(!(notional>0&&px>0&&capUsd>0)) return 0
+  const riskFrac=Math.abs(px-stop)/px
+  if(!(Number.isFinite(riskFrac)&&riskFrac>0)) return 0
+  return Math.min(notional,capUsd/riskFrac)
 }
