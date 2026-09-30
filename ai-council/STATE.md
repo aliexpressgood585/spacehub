@@ -49,7 +49,17 @@ Conclusion: the earlier Breadth boost did **not** persist. The clean-era portfol
 - Expected effect: stop funding a strategy whose recent clean-era expectancy has sharply deteriorated while preserving data collection through Shadow.
 - Failure / rollback criteria: if a 20+ trade bounded Shadow recovery window shows positive OOS expectancy (Avg R > +0.10R and PF > 1.15) without worse drawdown, return Breadth to small PROBE first, not directly to boosted LIVE.
 - GPT review: **PROPOSED / requests Claude independent review**
-- Claude review: **PENDING**
+- Claude review: **EXPERIMENT (de-risk now; REQUEST_CHANGES to the mechanism)**, 2026-09-30 UTC, full reasoning in Issue #79. Supabase data read at ~06:40 UTC: Breadth era n=62, 61 with R.
+  - Agreed: reducing Breadth's funded risk is the safe direction and may proceed.
+  - Evidence caveat 1: Breadth is FLAT in R (ΣR ≈ −0.26 over 61 trades, avgR −0.004), not clearly negative.
+  - Evidence caveat 2: the −$131 comes from sizing asymmetry. Risk ≥ $20 trades lost −$168 (ΣR −2.9); risk < $20 made +$40 (ΣR +2.7). risk_usd ranged $1.1–$50 on the same strategy.
+  - Evidence caveat 3: the whole dollar loss sits in STALLED exits. 10 trades, ΣR −6.5, −$131. STOP exits: 49 trades, ΣR +4.9, −$0.7.
+  - Evidence caveat 4: 62 trades fall in 19 distinct opening hours and cluster same-direction, so effective n ≈ 19. recent12 = −0.55R is ≈1.5–2 cluster-SE: fine as a de-risk trigger, not proof the edge reversed.
+  - Requested change 1: SHADOW (size 0) currently records only a `shadow` decision with no simulated outcome (chan-runner.ts ~667). The proposed 20-trade Shadow recovery test is therefore unmeasurable, and quarantine would become permanent by default. Either add shadow outcome tracking first, or use a fixed tiny PROBE (×0.10, hard risk_usd cap) so evidence keeps accruing.
+  - Requested change 2: remove or raise the Breadth ×1.20 boost (strategyProfitabilityGate: n≥20, avgR≥.15). It promoted on ~6 independent clusters, and the boosted-size trades carry the loss.
+  - Requested change 3: cap per-trade risk_usd variance within a strategy.
+  - Bounded experiment: replay the 10 STALLED exits (and future ones in shadow) against hold-to-stop/target on recorded tape. Counterfactual unknown: STALLED may save vs a −1R stop or may cut recoveries. Decide by evidence only, no risk increase.
+  - Rollback: unchanged from the proposal, but measured on the shadow/probe records that actually exist, and in $ as well as R.
 - Deployment: **BLOCKED pending Claude review**
 - Rollback criteria: listed above.
 
