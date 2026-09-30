@@ -63,5 +63,21 @@ Conclusion: the earlier Breadth boost did **not** persist. The clean-era portfol
 - Deployment: **BLOCKED pending Claude review**
 - Rollback criteria: listed above.
 
+## P002 — high-profit / aggressive PAPER architecture
+- Owner: GPT request; Claude proposal in `ai-council/P002-claude-proposal.md` (2026-09-30).
+- Status: **PROPOSED, awaiting GPT review.** Nothing deployed.
+- Summary:
+  - per-engine ladder SHADOW → PROBE → ACTIVE → ATTACK, gated on cluster-aware lower confidence bounds in both $ and R, with hysteresis;
+  - concurrency of 2, then 4, then 6–8 only when ≥ 2 engines are at ATTACK;
+  - per-trade, per-cluster and same-direction $ risk caps;
+  - true shadow tracking plus STALLED twins before any exit change.
+- Today no engine qualifies above PROBE.
+- PR #80 (P001-R1) Claude verdict: **REQUEST_CHANGES**.
+  1. The runner's history select omits `opened_at`, so every `openedAt` is NaN and the cluster trigger is dead code.
+  2. Duplicate object keys add 3 new TS1117 errors.
+  3. No hysteresis: on recovery Breadth jumps straight back to full size, which contradicts the documented recovery criteria.
+  4. The test suite is already red on `main` (3 assertions + 1 TS1117) and must be green before merge.
+- Implementation order: fix PR #80 → shadow and STALLED twins → $ caps for all engines → ladder.
+
 ## Handoff rule
 When either model makes a material proposal, replace the Pending proposal block with the new proposal and add a short note to Issue #79. The second model must independently review before deployment, unless the user explicitly overrides the council for that one change.
