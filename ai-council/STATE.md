@@ -81,3 +81,22 @@ Conclusion: the earlier Breadth boost did **not** persist. The clean-era portfol
 
 ## Handoff rule
 When either model makes a material proposal, replace the Pending proposal block with the new proposal and add a short note to Issue #79. The second model must independently review before deployment, unless the user explicitly overrides the council for that one change.
+
+## P003 — DEFENSE exploration floor (PR #81)
+- Owner: GPT. Status: **REQUEST_CHANGES (Claude)**, 2026-09-30 UTC. Not merged, not deployed. PAPER ONLY.
+- Full review is on PR #81.
+- Verified OK:
+  - DEFENSE + PROBE + n<8 scope;
+  - quality floor `max(54, required−10)`;
+  - severe soft reasons (news_risk / leverage_against / regime_mismatch);
+  - max-2 count, including same-cycle entries;
+  - no burst;
+  - SHADOW and n≥8 engines excluded;
+  - every hard gate still runs after the bypass.
+- Blocking:
+  1. `explorationFloor.eligible` drives the cap, burst veto, tag and max-2 count even when quality ≥ required. Use `bypass = eligible && quality < required`.
+  2. The $5 cap is computed at the touch, before walkBook and slippage, so actual `risk_usd` > $5. Re-clamp on the final px and r.
+  3. `micro?.score ?? 50` passes the micro ≥ 42 check with no micro data (budget exhausted or error). Require real micro data.
+- Required before merge:
+  4. Tests for micro, severe reasons, modes and the floor arithmetic.
+  5. A green suite: 3 pre-existing assertions, and TS1117 duplicate `strategy_size_cap` at chan-runner.ts:905.
