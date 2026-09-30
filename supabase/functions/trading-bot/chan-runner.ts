@@ -25,7 +25,7 @@ import { loadChanIntel } from './chan-intel.ts'
 import { chanOpportunityMeta } from '../../../shared/chan-opportunity.ts'
 import { initialStopV2, liquidationStopLimitV2, manageStopV2, stalledExitV2, strategySizeMultV2, targetRV2 } from '../../../shared/chan-stop-v2.ts'
 import { challengerLab, clusterMultiplier, executionMultiplier, exitPolicyFromHistory, forensicSummary, strategyGovernor } from '../../../shared/chan-autonomy.ts'
-import { eliteBreadthCandidates, marketBurstMode, patternMemory, portfolioBrainRank, profitCaptureDirective, promotedExitPolicy, shadowSwarm, strategyAuction, portfolioProfitabilityGovernor, strategyProfitabilityGate, defenseExplorationFloor } from '../../../shared/chan-x.ts'
+import { eliteBreadthCandidates, marketBurstMode, patternMemory, portfolioBrainRank, profitCaptureDirective, promotedExitPolicy, shadowSwarm, strategyAuction, portfolioProfitabilityGovernor, strategyProfitabilityGate, defenseExplorationFloor, capNotionalToStopRisk } from '../../../shared/chan-x.ts'
 
 const sleeveOf = (comp: string) => ['RG_TREND_PULLBACK','RG_LIQ_SQUEEZE','RG_BREADTH_MOMENTUM','RG_VOL_BREAKOUT'].includes(comp) ? '2' : '1'
 const PAPER_LEVERAGE = 50
@@ -728,7 +728,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       }
       const pattern=patternMemory(learningRows,{
         comp:String(cand.comp),regime:String(REGIME[v.regime]),side,
-        volPct:Number(v.volPct),mtfSide:Number(v.opp?.mtf_side??0),microScore:Number(micro?.score??50)
+        volPct:Number(v.volPct),mtfSide:Number(v.opp?.mtf_side??0),microScore:micro&&!micro.error&&Number.isFinite(Number(micro.score))?Number(micro.score):null
       })
       qualityScore += Number(pattern.penalty||0)
       if(Number(pattern.penalty)<0) softReasons.push('pattern_memory')
@@ -740,7 +740,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
         entries.filter((x:any)=>x?.chan?.exploration_floor===true).length
       let explorationFloor=defenseExplorationFloor({
         portfolioMode:String(profitabilityGovernor.mode),strategyMode:String(profitGate.mode),strategyN:Number(profitGate.n??0),
-        quality:qualityScore,requiredQuality,microScore:Number(micro?.score??50),softReasons,openExploration:explorationOpen
+        quality:qualityScore,requiredQuality,microScore:micro&&!micro.error&&Number.isFinite(Number(micro.score))?Number(micro.score):null,softReasons,openExploration:explorationOpen
       })
       if(qualityScore<requiredQuality&&!explorationFloor.eligible){
         rec('rejected','profitability_quality_gate',{
@@ -752,7 +752,8 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
         })
         continue
       }
-      if(explorationFloor.eligible&&qualityScore<requiredQuality){
+      let explorationQualityBypass=explorationFloor.eligible&&qualityScore<requiredQuality
+      if(explorationQualityBypass){
         rec('probe','defense_exploration_floor_quality_bypass',{quality_score:qualityScore,quality_min:requiredQuality,quality_floor:explorationFloor.quality_floor,risk_cap_usd:5})
       }
 
@@ -772,14 +773,21 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       const eraRs = rsOf(cand.comp)
       const estimatedKelly = kellyRisk(eraRs)
       const discoveryBootstrap = eraRs.length < 8 && profitGate.mode === 'PROBE'
-      const k = discoveryBootstrap && !(Number.isFinite(estimatedKelly.f) && estimatedKelly.f > 0)
+      let k = discoveryBootstrap && !(Number.isFinite(estimatedKelly.f) && estimatedKelly.f > 0)
         ? { f: 0.010, why: `new-era discovery bootstrap; n=${eraRs.length}; meaningful PAPER sizing; quality gates still required` }
         : estimatedKelly
-      // Once an engine has enough new-era observations, Kelly must be genuinely positive.
+      // In DEFENSE, a young PROBE engine may collect tiny funded evidence even if Kelly is not yet positive.
       if (!(Number.isFinite(k.f) && k.f > 0)) {
-        rec('rejected','kelly_no_positive_edge',{kelly_f:k.f,kelly_why:k.why,kelly_n:eraRs.length,profitability_mode:profitabilityGovernor.mode,strategy_profit_mode:profitGate.mode})
-        continue
+        if(explorationFloor.eligible){
+          explorationKellyBypass=true
+          k={f:0.002,why:`DEFENSE exploration floor; n=${eraRs.length}; hard $5 stop-risk cap`}
+          rec('probe','defense_exploration_floor_kelly_bypass',{kelly_n:eraRs.length,risk_cap_usd:5})
+        }else{
+          rec('rejected','kelly_no_positive_edge',{kelly_f:k.f,kelly_why:k.why,kelly_n:eraRs.length,profitability_mode:profitabilityGovernor.mode,strategy_profit_mode:profitGate.mode})
+          continue
+        }
       }
+      const explorationBypass=explorationQualityBypass||explorationKellyBypass
       let bk: Awaited<ReturnType<typeof book>>
       try { bk = await book(pairOf(sym)) } catch { rec('rejected', 'no_book'); continue }
       const touch = cand.side > 0 ? bk.asks[0][0] : bk.bids[0][0]
@@ -795,12 +803,14 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       qualityScore=Math.max(0,Math.min(100,qualityScore+Math.max(-6,Math.min(8,(Number(sniper.score)-50)*.16))))
       explorationFloor=defenseExplorationFloor({
         portfolioMode:String(profitabilityGovernor.mode),strategyMode:String(profitGate.mode),strategyN:Number(profitGate.n??0),
-        quality:qualityScore,requiredQuality,microScore:Number(micro?.score??50),softReasons,openExploration:explorationOpen
+        quality:qualityScore,requiredQuality,microScore:micro&&!micro.error&&Number.isFinite(Number(micro.score))?Number(micro.score):null,softReasons,openExploration:explorationOpen
       })
       if(qualityScore<requiredQuality&&!explorationFloor.eligible){
         rec('rejected','sniper_dropped_below_profitability_gate',{quality_score:qualityScore,quality_min:requiredQuality,sniper_score:sniper.score})
         continue
       }
+      explorationQualityBypass=explorationFloor.eligible&&qualityScore<requiredQuality
+      let explorationKellyBypass=false
       const baseAggressiveRisk = discoveryBootstrap
         ? Math.max(0.0075,Math.min(0.010,Number(k.f)))
         : Math.min(PAPER_RISK_MAX, Math.max(PAPER_RISK_MIN, k.f * PAPER_RISK_MULT))
@@ -816,7 +826,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       })
       const cluster=clusterMultiplier({side:cand.side>0?1:-1,candidate:{ret5:Number(v.ret5),ret15:Number(v.opp?.ret15),ret60:Number(v.opp?.ret60)},peers})
       const auctionMult=Number(auctionWeights[String(cand.comp)]??1)
-      const burstMult=!explorationFloor.eligible&&profitabilityGovernor.allow_burst&&profitGate.mode==='LIVE'&&burst.active&&Number(cand.side)===Number(burst.side)&&qualityScore>=requiredQuality+3?Number(burst.risk_mult??1):1
+      const burstMult=!explorationBypass&&profitabilityGovernor.allow_burst&&profitGate.mode==='LIVE'&&burst.active&&Number(cand.side)===Number(burst.side)&&qualityScore>=requiredQuality+3?Number(burst.risk_mult??1):1
       const sniperMult=Number(sniper.score)>=68?1.08:Number(sniper.score)<40?.82:1
       const strategySizeCap=profitGate.reason==='breadth_positive_edge_boost'?1.35:1.25
       const strategySizeMult=Math.max(.05,Math.min(strategySizeCap,
@@ -825,8 +835,8 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       const desiredNotional=sz.notional*strategySizeMult
       const dist = Math.abs(touch - cand.stop) / touch
       const cap = liqCap(cand.side > 0 ? bk.asks : bk.bids, cand.side > 0 ? bk.bids : bk.asks, 0.25 * dist)
-      const explorationRiskNotional=explorationFloor.eligible
-        ? 5*touch/Math.max(1e-9,Math.abs(touch-cand.stop))
+      const explorationRiskNotional=explorationBypass
+        ? capNotionalToStopRisk(desiredNotional,touch,cand.stop,5)
         : Infinity
       let notional = Math.min(desiredNotional, explorationRiskNotional, cap, Math.max(0, equity * PAPER_LEVERAGE - openNotional), Math.max(0, Math.min(cash, budget.cash)) * PAPER_LEVERAGE / (1 + PAPER_LEVERAGE * CHAN.costs.taker))
       if (notional / PAPER_LEVERAGE < 5) { rec('rejected', 'too_small_or_book_too_thin', { want: sz.notional, liq_cap: cap }); continue }
@@ -847,6 +857,32 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
         w=walkBook(cand.side>0?bk.asks:bk.bids,notional)
         floorPx=touch*(1+cand.side*slipFor(sym)); px=cand.side>0?Math.max(w.vwap,floorPx):Math.min(w.vwap,floorPx)
         r=Math.abs(px-cand.stop)
+      }
+
+      // P003: if the exploration floor was actually used, enforce the $5 cap on the
+      // final modeled fill (after book walk / slippage / execution resizing), not at touch.
+      if(explorationBypass){
+        for(let i=0;i<3;i++){
+          const capped=capNotionalToStopRisk(notional,px,cand.stop,5)
+          if(!(capped>0)){rec('rejected','exploration_risk_cap_invalid');notional=0;break}
+          if(capped>=notional*(1-1e-9)) break
+          notional=capped
+          if(notional/PAPER_LEVERAGE<5){break}
+          w=walkBook(cand.side>0?bk.asks:bk.bids,notional)
+          floorPx=touch*(1+cand.side*slipFor(sym))
+          px=cand.side>0?Math.max(w.vwap,floorPx):Math.min(w.vwap,floorPx)
+          if(!(cand.side*(px-cand.stop)>0)){break}
+          r=Math.abs(px-cand.stop)
+        }
+        if(!(notional>0&&notional/PAPER_LEVERAGE>=5&&cand.side*(px-cand.stop)>0)){
+          rec('rejected','exploration_too_small_after_hard_risk_cap',{risk_cap_usd:5})
+          continue
+        }
+        const finalExplorationRisk=notional*r/px
+        if(finalExplorationRisk>5.0001){
+          rec('rejected','exploration_risk_cap_exceeded',{risk_usd:finalExplorationRisk,risk_cap_usd:5})
+          continue
+        }
       }
 
       // 2) At 50x a stop too near liquidation is not a meaningful stop. Keep a hard buffer.
@@ -892,7 +928,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
           chk: bk.E, max_hold_bars: cand.maxHold, bar: new Date(bar).toISOString(),
           regime: REGIME[v.regime], hurst: v.hurst, vol_pct: v.volPct, halflife: v.mr.hl, z: v.mr.z, mr_mean: v.mr.mean, mr_std: v.mr.std,
           t_sig: v.mom.t, atr: v.mom.atr, hh: v.mom.hh, ll: v.mom.ll, kelly_f: aggressiveRisk, kelly_why: `aggressive paper 50x; base=${k.f}; ${k.why}`, kelly_n: eraRs.length,
-          risk_usd: notional * r / px, risk_frac: notional * r / px / budget.equity, exploration_floor:explorationFloor.eligible, exploration_risk_cap_usd:explorationFloor.eligible?5:null, equity: budget.equity, backtested_coin: (CHAN.universe as readonly string[]).includes(sym),
+          risk_usd: notional * r / px, risk_frac: notional * r / px / budget.equity, exploration_floor:explorationBypass, exploration_risk_cap_usd:explorationBypass?5:null, equity: budget.equity, backtested_coin: (CHAN.universe as readonly string[]).includes(sym),
           direction_crowding: { active: crowd.active, same_side_count: crowd.count, same_side_share: crowd.share },
           quality_gates: {
             learning_weight: learned.weight, learning_samples: learned.samples,
@@ -928,6 +964,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
         learning_weight: learned.weight, learning_samples: learned.samples, breadth_share: mc.share,
         quality_score:qualityScore, quality_min:requiredQuality, soft_reasons:softReasons,
         profitability_mode:profitabilityGovernor.mode, strategy_profit_mode:profitGate.mode,
+        exploration_floor:explorationBypass, exploration_risk_cap_usd:explorationBypass?5:null,
         strategy_avg_r:profitGate.avgR, strategy_recent_avg_r:profitGate.recentAvgR, strategy_profit_size_mult:profitGate.size_mult,
         micro_score:micro?.score??null, mtf_side:Number(v.opp?.mtf_side??0),
         liq_stop_share: liqStopShare, liq_stop_max:liqStopMax, net_rr: netRR, target_r:Number.isFinite(targetR)?targetR:null,
