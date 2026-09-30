@@ -396,6 +396,17 @@ Nothing deployed from this.
 - Change: aggressive mode no longer revives RG_VOL_BREAKOUT (`aggressive_engine_disabled`); cap 2 same-side entries per 5m bar in ALL modes (`same_side_bar_cap`). NB DONCH4H history shows the opposite (3+ simultaneous 4h breakouts were its best), so the cap is CHAN/5m-specific.
 - Rollback: revert this commit.
 
+## v111bt (2026-09-30 ~22:45 UTC) — owner: "trade in grids so we also earn in a neutral market": REJECTED, 0 of 16 pass
+`backtest/research/v111_grid.mjs` (+ `v111_grid_hold.mjs`) -> `status/grid-v111.txt`.
+- Setup: neutral futures grid on 10 coins, 1m bars, 12 months. Maker 2 bps, filled only when price trades through the level. Stop = one step beyond the outer level, closed at taker + slip, then re-centered. Funding 0.01%/8h. IS 70% / OOS 30%.
+- Accounting checked on synthetic data: a sine wave inside the range earns the expected round trips; a trend loses.
+- Results, every row negative both IS and OOS:
+  - tight grids (0.2% steps): about 1M fills and 31k stops in a year, heavily negative;
+  - best row (1.5% steps, N=10, efficiency-ratio gate): IS −22%, OOS −5.6% of capital, maxDD 38%.
+- Classic hold-no-stop grid: −30..−47% of capital in 12 months, only BNB/BTC near flat. The inventory becomes a long position in falling alts.
+- Reading: the grid earns small round trips in ranges and gives them back, plus more, at every range break. It is the same mean-reversion bet as 4h BB-fade, v100bt, ZMR and pairs, which all failed here.
+- Nothing built into the bot.
+
 ## P005 / S1 shadow (2026-09-30 ~22:30 UTC) — owner: "more exposure, but accuracy matters" -> shadow test first (owner's choice)
 - Live at ask time: since v98.2, 26 closes −$289 (10 wins); last 24h, 79 closes −$537; open notional $20k ≈ 4.5x equity.
 - Built:
