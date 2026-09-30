@@ -375,6 +375,24 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v98.0 (2026-09-30) — CHAN-X AGGRESSIVE owner override (owner: "5,000 -> 100,000 in a month, high risk")
+- The owner explicitly OVERRODE the AI Council for this one change (AskUserQuestion: "אגרסיבי מלא, עוקף Council").
+- They were told first:
+  - x20 in 30 days means +10.5%/day compounded.
+  - The last 24h were 50 closes at −$261.
+  - Raising risk on a negative per-trade edge only loses faster (v89bt, v94 25%/day stress = ruin).
+- Shim flag `__CHAN_AGGRESSIVE='1'` (chan-runner.ts). Behaviour when it is on:
+  - fixed 2% risk per trade, sized at the ledger's 2% cap; strategy size multipliers forced to 1;
+  - up to 8 open and 8 entries per cycle;
+  - quality floor 50;
+  - the portfolio governor reports mode AGGRESSIVE (was DEFENSE);
+  - SHADOW engines trade as PROBE;
+  - the Kelly veto is not used.
+- Kept: book/liquidity cap, correct-side stop, re-entry reset, sniper hard reject, liquidation buffer, execution cost, net R/R, ledger checks. PAPER ONLY.
+- Also removed the duplicate `strategy_size_cap` key (TS1117).
+- The suite still has the same 3 pre-existing assertion failures as main (fast-entry and others). They are not caused by this change.
+- ROLLBACK: redeploy the shim without `__CHAN_AGGRESSIVE`. No code or DB change is needed.
+
 ## v97.8 (2026-09-27 ~16:10 UTC) — CHAN: no drawdown kill either (owner: "שלא יהיה עצירה בכלל במסחר, שתמיד יסחור")
 - `CHAN.risk.maxDD` = Infinity: the −10% from peak close-all + hard halt is OFF. The bot never pauses or halts on losses.
 - Still bounding SIZE only: ≤1% risk per trade at its stop, total notional ≤3x equity, cash, one position per coin, a mandatory stop on every trade.

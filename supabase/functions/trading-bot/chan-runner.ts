@@ -44,6 +44,11 @@ const BREADTH_MIN_SHARE = 0.42           // ordinary directional entry; BTC/ETH 
 const PAPER_MIN_STOP_TO_COST = 2.0       // default CHAN remains 3x; PAPER runner accepts a wider opportunity set
 const BREADTH_IMPULSE_SHARE = 0.72
 const SOFT_QUALITY_MIN = 50
+// Owner override 2026-09-30 (council bypassed for this one change): shim `__CHAN_AGGRESSIVE='1'`.
+// Fixed 2% risk per trade, up to 8 open, quality floor 50, no DEFENSE, no SHADOW/Kelly veto.
+// Hard gates (book, stop side, liquidation buffer, costs, net R/R, re-entry) stay. PAPER ONLY.
+const AGGRESSIVE = (globalThis as any).__CHAN_AGGRESSIVE === '1'
+const AGGRESSIVE_MAX_OPEN = 8
 const MICRO_MAX_CHECKS = 10
 const SNIPER_MAX_CHECKS = 10
 const REGIME = ['NEUTRAL', 'MEAN_REVERT', 'TREND', 'HIGH_VOL']
@@ -204,8 +209,16 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
   const shadowLabs = Object.fromEntries(AUTO_COMPS.map(comp=>[comp,shadowSwarm(learningRows,comp)]))
   const baseExitPolicies = Object.fromEntries(AUTO_COMPS.map(comp=>[comp,exitPolicyFromHistory(learningRows,comp)]))
   const exitPolicies = Object.fromEntries(AUTO_COMPS.map(comp=>[comp,promotedExitPolicy(baseExitPolicies[comp],shadowLabs[comp])]))
-  const profitabilityGovernor = portfolioProfitabilityGovernor(learningRows)
-  const strategyProfitability = Object.fromEntries(AUTO_COMPS.map(comp=>[comp,strategyProfitabilityGate(learningRows,comp,now)]))
+  const baseGovernor = portfolioProfitabilityGovernor(learningRows)
+  const profitabilityGovernor:any = AGGRESSIVE
+    ? { ...baseGovernor, mode: 'AGGRESSIVE', base_mode: baseGovernor.mode, min_quality: SOFT_QUALITY_MIN, entry_cap: AGGRESSIVE_MAX_OPEN, risk_mult: 1, allow_burst: false }
+    : baseGovernor
+  const strategyProfitability = Object.fromEntries(AUTO_COMPS.map(comp=>{
+    const g:any = strategyProfitabilityGate(learningRows,comp,now)
+    return [comp, AGGRESSIVE
+      ? { ...g, mode: g.mode === 'SHADOW' ? 'PROBE' : g.mode, base_mode: g.mode, size_mult: 1, min_quality: SOFT_QUALITY_MIN, reason: g.reason + '|aggressive_override' }
+      : g]
+  }))
   const uni = await loadUniverse(db, now)
   const bySym = new Map(uni.pairs.map(p => [p.sym, p]))
   const pairOf = (sym: string): Pair => bySym.get(sym) ?? (sym === 'PEPE' ? { sym, s: '1000PEPEUSDT', k: 1000 } : { sym, s: `${sym}USDT`, k: 1 })
@@ -652,7 +665,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       return bs-as
     }) as any[]
     for (const cand of cands) {
-      const liveEntryCap=Math.max(1,Math.min(Number(burst.entry_cap??5),Number(profitabilityGovernor.entry_cap??4)))
+      const liveEntryCap=AGGRESSIVE?AGGRESSIVE_MAX_OPEN:Math.max(1,Math.min(Number(burst.entry_cap??5),Number(profitabilityGovernor.entry_cap??4)))
       if(entries.length>=liveEntryCap) break
       const { sym, v } = cand
       cand.stop = initialStopV2({
@@ -759,10 +772,13 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
 
       const co = canOpen(st, openN)
       if (!co.ok) { rec('rejected', co.why); continue }
+      if (AGGRESSIVE && openN >= AGGRESSIVE_MAX_OPEN) { rec('rejected', 'aggressive_max_open', { open: openN, max_open: AGGRESSIVE_MAX_OPEN }); continue }
       const eraRs = rsOf(cand.comp)
       const estimatedKelly = kellyRisk(eraRs)
       const discoveryBootstrap = eraRs.length < 8 && profitGate.mode === 'PROBE'
-      const k = discoveryBootstrap && !(Number.isFinite(estimatedKelly.f) && estimatedKelly.f > 0)
+      const k = AGGRESSIVE
+        ? { f: PAPER_RISK_MAX, why: `owner aggressive override: fixed ${PAPER_RISK_MAX*100}% risk; Kelly ${estimatedKelly.f} (${estimatedKelly.why}) not used` }
+        : discoveryBootstrap && !(Number.isFinite(estimatedKelly.f) && estimatedKelly.f > 0)
         ? { f: 0.010, why: `new-era discovery bootstrap; n=${eraRs.length}; meaningful PAPER sizing; quality gates still required` }
         : estimatedKelly
       // Once an engine has enough new-era observations, Kelly must be genuinely positive.
@@ -787,7 +803,9 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
         rec('rejected','sniper_dropped_below_profitability_gate',{quality_score:qualityScore,quality_min:requiredQuality,sniper_score:sniper.score})
         continue
       }
-      const baseAggressiveRisk = discoveryBootstrap
+      const baseAggressiveRisk = AGGRESSIVE
+        ? PAPER_RISK_MAX
+        : discoveryBootstrap
         ? Math.max(0.0075,Math.min(0.010,Number(k.f)))
         : Math.min(PAPER_RISK_MAX, Math.max(PAPER_RISK_MIN, k.f * PAPER_RISK_MULT))
       const aggressiveRisk = Math.max(0.001,Math.min(PAPER_RISK_MAX,baseAggressiveRisk*Number(profitabilityGovernor.risk_mult??1)))
@@ -805,7 +823,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       const burstMult=profitabilityGovernor.allow_burst&&profitGate.mode==='LIVE'&&burst.active&&Number(cand.side)===Number(burst.side)&&qualityScore>=requiredQuality+3?Number(burst.risk_mult??1):1
       const sniperMult=Number(sniper.score)>=68?1.08:Number(sniper.score)<40?.82:1
       const strategySizeCap=profitGate.reason==='breadth_positive_edge_boost'?1.35:1.25
-      const strategySizeMult=Math.max(.05,Math.min(strategySizeCap,
+      const strategySizeMult=AGGRESSIVE?1:Math.max(.05,Math.min(strategySizeCap,
         Math.min(legacyMult,Number(gov.sizeMult))*Number(gov.banditWeight)*cluster.mult*auctionMult*Number(pattern.size_mult??1)*burstMult*sniperMult*Number(profitGate.size_mult??1)
       ))
       const desiredNotional=sz.notional*strategySizeMult
@@ -884,7 +902,6 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
             profitability_mode:profitabilityGovernor.mode, profitability_risk_mult:profitabilityGovernor.risk_mult,
             strategy_profit_mode:profitGate.mode, strategy_profit_reason:profitGate.reason,
             strategy_avg_r:profitGate.avgR, strategy_recent_avg_r:profitGate.recentAvgR, strategy_profit_size_mult:profitGate.size_mult,
-        strategy_size_cap:strategySizeCap,
             strategy_size_cap:strategySizeCap,
             mtf: v.opp ? { side:v.opp.mtf_side, trend15:v.opp.mtf15, trend60:v.opp.mtf60, ret15:v.opp.ret15, ret60:v.opp.ret60 } : null,
             micro_execution: micro,
