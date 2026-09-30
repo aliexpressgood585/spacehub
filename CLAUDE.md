@@ -2,6 +2,7 @@
 
 Before touching CHAN-X strategy, risk, execution, sizing, stops/targets, portfolio allocation, or deployment behavior:
 
+0. Use a branch + pull request for material trading changes; do not normally push them directly to main.
 1. Read `docs/AI_COUNCIL.md`.
 2. Read `ai-council/STATE.md`.
 3. Read GitHub Issue #79: **AI Council — GPT ↔ Claude coordination hub**.
