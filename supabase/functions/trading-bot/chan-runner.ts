@@ -25,7 +25,7 @@ import { loadChanIntel } from './chan-intel.ts'
 import { chanOpportunityMeta } from '../../../shared/chan-opportunity.ts'
 import { initialStopV2, liquidationStopLimitV2, manageStopV2, stalledExitV2, strategySizeMultV2, targetRV2 } from '../../../shared/chan-stop-v2.ts'
 import { challengerLab, clusterMultiplier, executionMultiplier, exitPolicyFromHistory, forensicSummary, strategyGovernor } from '../../../shared/chan-autonomy.ts'
-import { eliteBreadthCandidates, marketBurstMode, patternMemory, portfolioBrainRank, profitCaptureDirective, promotedExitPolicy, shadowSwarm, strategyAuction, portfolioProfitabilityGovernor, strategyProfitabilityGate } from '../../../shared/chan-x.ts'
+import { eliteBreadthCandidates, marketBurstMode, patternMemory, portfolioBrainRank, profitCaptureDirective, promotedExitPolicy, shadowSwarm, strategyAuction, portfolioProfitabilityGovernor, strategyProfitabilityGate, defenseExplorationFloor } from '../../../shared/chan-x.ts'
 
 const sleeveOf = (comp: string) => ['RG_TREND_PULLBACK','RG_LIQ_SQUEEZE','RG_BREADTH_MOMENTUM','RG_VOL_BREAKOUT'].includes(comp) ? '2' : '1'
 const PAPER_LEVERAGE = 50
@@ -735,7 +735,14 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       if(burst.active&&Number(cand.side)===Number(burst.side)) qualityScore += Number(burst.quality_relief||0)
       qualityScore=Math.max(0,Math.min(100,qualityScore))
       const requiredQuality=Math.max(SOFT_QUALITY_MIN,Number(profitabilityGovernor.min_quality??56),Number(profitGate.min_quality??56))
-      if(qualityScore<requiredQuality){
+      const explorationOpen =
+        stillOpen.filter((x:any)=>x?.scalp_meta?.chan?.exploration_floor===true && !closing.has(x.id)).length +
+        entries.filter((x:any)=>x?.chan?.exploration_floor===true).length
+      let explorationFloor=defenseExplorationFloor({
+        portfolioMode:String(profitabilityGovernor.mode),strategyMode:String(profitGate.mode),strategyN:Number(profitGate.n??0),
+        quality:qualityScore,requiredQuality,microScore:Number(micro?.score??50),softReasons,openExploration:explorationOpen
+      })
+      if(qualityScore<requiredQuality&&!explorationFloor.eligible){
         rec('rejected','profitability_quality_gate',{
           quality_score:qualityScore,quality_min:requiredQuality,soft_reasons:softReasons,
           profitability_mode:profitabilityGovernor.mode,strategy_profit_mode:profitGate.mode,
@@ -744,6 +751,9 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
           micro_score:micro?.score??null,mtf_side:mtf,pattern_state:pattern.state,pattern_n:pattern.n,pattern_avg_r:pattern.avgR
         })
         continue
+      }
+      if(explorationFloor.eligible&&qualityScore<requiredQuality){
+        rec('probe','defense_exploration_floor_quality_bypass',{quality_score:qualityScore,quality_min:requiredQuality,quality_floor:explorationFloor.quality_floor,risk_cap_usd:5})
       }
 
       // Controlled re-entry: never jump straight back in after a stopped/liq loss.
@@ -783,7 +793,11 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
         continue
       }
       qualityScore=Math.max(0,Math.min(100,qualityScore+Math.max(-6,Math.min(8,(Number(sniper.score)-50)*.16))))
-      if(qualityScore<requiredQuality){
+      explorationFloor=defenseExplorationFloor({
+        portfolioMode:String(profitabilityGovernor.mode),strategyMode:String(profitGate.mode),strategyN:Number(profitGate.n??0),
+        quality:qualityScore,requiredQuality,microScore:Number(micro?.score??50),softReasons,openExploration:explorationOpen
+      })
+      if(qualityScore<requiredQuality&&!explorationFloor.eligible){
         rec('rejected','sniper_dropped_below_profitability_gate',{quality_score:qualityScore,quality_min:requiredQuality,sniper_score:sniper.score})
         continue
       }
@@ -802,7 +816,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       })
       const cluster=clusterMultiplier({side:cand.side>0?1:-1,candidate:{ret5:Number(v.ret5),ret15:Number(v.opp?.ret15),ret60:Number(v.opp?.ret60)},peers})
       const auctionMult=Number(auctionWeights[String(cand.comp)]??1)
-      const burstMult=profitabilityGovernor.allow_burst&&profitGate.mode==='LIVE'&&burst.active&&Number(cand.side)===Number(burst.side)&&qualityScore>=requiredQuality+3?Number(burst.risk_mult??1):1
+      const burstMult=!explorationFloor.eligible&&profitabilityGovernor.allow_burst&&profitGate.mode==='LIVE'&&burst.active&&Number(cand.side)===Number(burst.side)&&qualityScore>=requiredQuality+3?Number(burst.risk_mult??1):1
       const sniperMult=Number(sniper.score)>=68?1.08:Number(sniper.score)<40?.82:1
       const strategySizeCap=profitGate.reason==='breadth_positive_edge_boost'?1.35:1.25
       const strategySizeMult=Math.max(.05,Math.min(strategySizeCap,
@@ -811,7 +825,10 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       const desiredNotional=sz.notional*strategySizeMult
       const dist = Math.abs(touch - cand.stop) / touch
       const cap = liqCap(cand.side > 0 ? bk.asks : bk.bids, cand.side > 0 ? bk.bids : bk.asks, 0.25 * dist)
-      let notional = Math.min(desiredNotional, cap, Math.max(0, equity * PAPER_LEVERAGE - openNotional), Math.max(0, Math.min(cash, budget.cash)) * PAPER_LEVERAGE / (1 + PAPER_LEVERAGE * CHAN.costs.taker))
+      const explorationRiskNotional=explorationFloor.eligible
+        ? 5*touch/Math.max(1e-9,Math.abs(touch-cand.stop))
+        : Infinity
+      let notional = Math.min(desiredNotional, explorationRiskNotional, cap, Math.max(0, equity * PAPER_LEVERAGE - openNotional), Math.max(0, Math.min(cash, budget.cash)) * PAPER_LEVERAGE / (1 + PAPER_LEVERAGE * CHAN.costs.taker))
       if (notional / PAPER_LEVERAGE < 5) { rec('rejected', 'too_small_or_book_too_thin', { want: sz.notional, liq_cap: cap }); continue }
       let w = walkBook(cand.side > 0 ? bk.asks : bk.bids, notional)
       let floorPx = touch * (1 + cand.side * slipFor(sym)), px = cand.side > 0 ? Math.max(w.vwap, floorPx) : Math.min(w.vwap, floorPx)
@@ -875,7 +892,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
           chk: bk.E, max_hold_bars: cand.maxHold, bar: new Date(bar).toISOString(),
           regime: REGIME[v.regime], hurst: v.hurst, vol_pct: v.volPct, halflife: v.mr.hl, z: v.mr.z, mr_mean: v.mr.mean, mr_std: v.mr.std,
           t_sig: v.mom.t, atr: v.mom.atr, hh: v.mom.hh, ll: v.mom.ll, kelly_f: aggressiveRisk, kelly_why: `aggressive paper 50x; base=${k.f}; ${k.why}`, kelly_n: eraRs.length,
-          risk_usd: notional * r / px, risk_frac: notional * r / px / budget.equity, equity: budget.equity, backtested_coin: (CHAN.universe as readonly string[]).includes(sym),
+          risk_usd: notional * r / px, risk_frac: notional * r / px / budget.equity, exploration_floor:explorationFloor.eligible, exploration_risk_cap_usd:explorationFloor.eligible?5:null, equity: budget.equity, backtested_coin: (CHAN.universe as readonly string[]).includes(sym),
           direction_crowding: { active: crowd.active, same_side_count: crowd.count, same_side_share: crowd.share },
           quality_gates: {
             learning_weight: learned.weight, learning_samples: learned.samples,

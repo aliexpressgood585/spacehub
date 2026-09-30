@@ -175,3 +175,17 @@ export function strategyProfitabilityGate(rows:XHistory[],comp:string,now:number
   }
   return {comp,n:xs.length,avgR,recentAvgR,win,lastClosed,mode,size_mult,min_quality,reason}
 }
+
+
+export function defenseExplorationFloor(x:{
+  portfolioMode:string; strategyMode:string; strategyN:number;
+  quality:number; requiredQuality:number; microScore:number;
+  softReasons:string[]; openExploration:number
+}){
+  const severe=new Set(['leverage_against','news_risk','regime_mismatch'])
+  const discovery=x.portfolioMode==='DEFENSE'&&x.strategyMode==='PROBE'&&x.strategyN<8
+  const qualityFloor=Math.max(54,x.requiredQuality-10)
+  const severeHit=x.softReasons.some(r=>severe.has(r))
+  const eligible=discovery&&x.openExploration<2&&x.quality>=qualityFloor&&x.microScore>=42&&!severeHit
+  return {eligible,discovery,quality_floor:qualityFloor,risk_usd_cap:5,max_open:2,severe_hit:severeHit}
+}
