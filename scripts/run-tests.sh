@@ -43,6 +43,7 @@ run "breakout BRKV v93"     tests/breakout.test.ts
 run "data collectors v96"   tests/collect.test.ts
 run "chan parity v97"       tests/chan.test.ts
 run "chan runner v97"       tests/chan-runner.test.ts
+run "chan-x council gates"  tests/chan-x.test.ts
 run "trend pullback"        tests/trend-pullback.test.ts
 run "lab v94 (research grid + LAB sleeve)" tests/lab.test.ts
 run "lab runner v94 (paper replay)" tests/lab-runner.test.ts
