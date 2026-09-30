@@ -14,6 +14,8 @@ Last established: 2026-09-30 UTC
 - Claude role: strategy challenger + research + code review
 - Claude acknowledgement: **PENDING**
 - Dual-review policy: **ACTIVE for material trading changes**
+- Automatic API bridge: **SCAFFOLDED**
+- Automatic API bridge secrets: **PENDING** (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`; never place them in chat or commits)
 
 ## Current evidence baseline
 Use fresh Supabase telemetry before changing strategy. The most recent established direction was:
