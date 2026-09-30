@@ -375,6 +375,12 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v98.1 (2026-09-30 ~19:15 UTC) — CHAN paper leverage 50x -> 20x for NEW entries (owner: "כן")
+- Why: at 50x most candidates were rejected `stop_too_close_to_liquidation`. The owner was told plainly that leverage does NOT change risk per trade (2%, set by the stop) and does NOT make the $100k/month target reachable (avgR is negative); this only lets more wide-stop trades through, to gather data.
+- Runner: `PAPER_LEVERAGE` = shim `__CHAN_LEV` (1..50, default 50). Both CI shim workflows set `__CHAN_LEV='20'`.
+- Ledger: migration `20260930190000_chan_entry_leverage.sql` (applied) — `chan_commit_cycle` takes `lv` from the entry's `lev`, clamped 1..50 (was a fixed 50). Open rows keep their own `lev`.
+- Rollback: `__CHAN_LEV='50'` (or remove the line) in both workflows + redeploy.
+
 ## v98.0 (2026-09-30) — CHAN-X AGGRESSIVE owner override (owner: "5,000 -> 100,000 in a month, high risk")
 - The owner explicitly OVERRODE the AI Council for this one change (AskUserQuestion: "אגרסיבי מלא, עוקף Council").
 - They were told first:

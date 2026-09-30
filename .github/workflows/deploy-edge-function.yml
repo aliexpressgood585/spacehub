@@ -101,6 +101,7 @@ jobs:
           g.__RELEASE_SHA = '${SHA}';
           g.__ENABLED_SLEEVES = 'CHAN';
           g.__LEVERAGE = '50';
+          g.__CHAN_LEV = '20'; // v98.1 paper leverage for new CHAN entries (1..50)
           g.__CHAN_AGGRESSIVE = '1'; // v98.0 owner override (paper only); remove to roll back
           try {
             Deno.env.set('ENABLED_SLEEVES', 'CHAN');

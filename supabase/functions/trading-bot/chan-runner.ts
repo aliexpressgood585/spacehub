@@ -28,7 +28,9 @@ import { challengerLab, clusterMultiplier, executionMultiplier, exitPolicyFromHi
 import { eliteBreadthCandidates, marketBurstMode, patternMemory, portfolioBrainRank, profitCaptureDirective, promotedExitPolicy, shadowSwarm, strategyAuction, portfolioProfitabilityGovernor, strategyProfitabilityGate } from '../../../shared/chan-x.ts'
 
 const sleeveOf = (comp: string) => ['RG_TREND_PULLBACK','RG_LIQ_SQUEEZE','RG_BREADTH_MOMENTUM','RG_VOL_BREAKOUT'].includes(comp) ? '2' : '1'
-const PAPER_LEVERAGE = 50
+// Paper leverage for NEW entries. Shim `__CHAN_LEV` (1..50), default 50. Open rows keep their own `lev`.
+// v98.1 (owner, 2026-09-30): 20x so wider stops pass the liquidation-buffer gate. Risk per trade is set by the stop, not by this.
+const PAPER_LEVERAGE = Math.max(1, Math.min(50, Math.round(Number((globalThis as any).__CHAN_LEV ?? 50)) || 50))
 const PAPER_RISK_MIN = 0.01
 const PAPER_RISK_MAX = 0.02
 const PAPER_RISK_MULT = 4
