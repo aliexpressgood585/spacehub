@@ -1,0 +1,116 @@
+v110bt — 164 variants tried (looks). Cost 16 bps/round trip. IS=first 70%, OOS=last 30%.
+Luck alone: at OOS t>=2 expect ~3.8 false passes among 164 looks.
+
+== family A: 60 variants
+  ADA us_session first60->last60                            
+     IS  n=  543 gross=   +4.2 net=  -11.8bps t=-2.51 tot=  -63.9%
+     OOS n=  232 gross=   -0.3 net=  -16.3bps t=-2.98 tot=  -37.9%
+  SOL utc_day first60->last60                               
+     IS  n=  764 gross=   +3.5 net=  -12.5bps t=-4.61 tot=  -95.4%
+     OOS n=  327 gross=   +6.3 net=   -9.7bps t=-2.43 tot=  -31.6%
+  LINK utc_day first60->last60                              
+     IS  n=  765 gross=   +3.2 net=  -12.8bps t=-4.54 tot=  -97.8%
+     OOS n=  324 gross=   +0.2 net=  -15.8bps t=-3.69 tot=  -51.2%
+  XRP us_session first60->last60                            
+     IS  n=  544 gross=   +2.9 net=  -13.1bps t=-3.06 tot=  -71.2%
+     OOS n=  233 gross=   +4.8 net=  -11.2bps t=-2.38 tot=  -26.1%
+  DOGE utc_day first60->last60                              
+     IS  n=  763 gross=   +2.7 net=  -13.3bps t=-4.97 tot= -101.6%
+     OOS n=  326 gross=   +0.4 net=  -15.6bps t=-3.67 tot=  -50.7%
+  BTC utc_day first60->last60                               
+     IS  n=  767 gross=   +2.4 net=  -13.6bps t=-9.72 tot= -104.5%
+     OOS n=  328 gross=   -0.7 net=  -16.7bps t=-6.46 tot=  -54.6%
+  AVAX us_session first60->last30                           
+     IS  n=  546 gross=   +2.3 net=  -13.7bps t=-3.92 tot=  -74.6%
+     OOS n=  235 gross=   -1.3 net=  -17.3bps t=-4.86 tot=  -40.6%
+  ADA us_session first60->last30                            
+     IS  n=  543 gross=   +2.2 net=  -13.8bps t=-4.26 tot=  -75.0%
+     OOS n=  232 gross=   -2.4 net=  -18.4bps t=-5.19 tot=  -42.6%
+  LINK utc_day first60->last30                              
+     IS  n=  765 gross=   +2.1 net=  -13.9bps t=-7.24 tot= -106.5%
+     OOS n=  324 gross=   -2.3 net=  -18.3bps t=-6.38 tot=  -59.2%
+  DOT utc_day first60->last60                               
+     IS  n=  755 gross=   +1.9 net=  -14.1bps t=-5.36 tot= -106.6%
+     OOS n=  319 gross=   -2.2 net=  -18.2bps t=-3.52 tot=  -58.0%
+  BNB utc_day first60->last60                               
+     IS  n=  766 gross=   +1.8 net=  -14.2bps t=-8.10 tot= -108.6%
+     OOS n=  327 gross=   +0.1 net=  -15.9bps t=-5.61 tot=  -52.0%
+  SOL utc_day first60->last30                               
+     IS  n=  764 gross=   +1.8 net=  -14.2bps t=-7.41 tot= -108.4%
+     OOS n=  327 gross=   +2.2 net=  -13.8bps t=-5.24 tot=  -45.2%
+== family B: 12 variants
+  ETH short worst1 hours [1]                                
+     IS  n= 1534 gross=   +4.8 net=  -11.2bps t=-5.70 tot= -171.6%
+     OOS n=  657 gross=   -0.3 net=  -16.3bps t=-6.73 tot= -107.0%
+  ETH long best1 hours [20]                                 
+     IS  n= 1533 gross=   +4.6 net=  -11.4bps t=-5.09 tot= -175.0%
+     OOS n=  658 gross=   +6.2 net=   -9.8bps t=-3.41 tot=  -64.8%
+  ETH long best2 hours [23, 20]                             
+     IS  n= 3066 gross=   +4.3 net=  -11.7bps t=-6.96 tot= -358.8%
+     OOS n= 1315 gross=   +2.1 net=  -13.9bps t=-7.26 tot= -183.3%
+  ETH short worst2 hours [1, 2]                             
+     IS  n= 3068 gross=   +4.0 net=  -12.0bps t=-8.03 tot= -366.6%
+     OOS n= 1314 gross=   -1.7 net=  -17.7bps t=-10.47 tot= -232.9%
+  ETH long best3 hours [14, 23, 20]                         
+     IS  n= 4600 gross=   +4.0 net=  -12.0bps t=-8.88 tot= -551.2%
+     OOS n= 1972 gross=   +1.4 net=  -14.6bps t=-8.04 tot= -288.9%
+  BTC long best1 hours [20]                                 
+     IS  n= 1533 gross=   +3.8 net=  -12.2bps t=-7.05 tot= -186.5%
+     OOS n=  658 gross=   +2.6 net=  -13.4bps t=-7.68 tot=  -88.4%
+  BTC long best2 hours [21, 20]                             
+     IS  n= 3066 gross=   +3.7 net=  -12.3bps t=-10.46 tot= -377.5%
+     OOS n= 1316 gross=   +2.5 net=  -13.5bps t=-10.97 tot= -177.5%
+  ETH short worst3 hours [1, 2, 13]                         
+     IS  n= 4602 gross=   +3.4 net=  -12.6bps t=-9.20 tot= -578.6%
+     OOS n= 1971 gross=   -0.9 net=  -16.9bps t=-9.73 tot= -333.9%
+  BTC long best3 hours [23, 21, 20]                         
+     IS  n= 4599 gross=   +3.4 net=  -12.6bps t=-12.51 tot= -579.2%
+     OOS n= 1973 gross=   +1.4 net=  -14.6bps t=-15.76 tot= -288.6%
+  BTC short worst1 hours [1]                                
+     IS  n= 1534 gross=   +3.0 net=  -13.0bps t=-8.40 tot= -200.0%
+     OOS n=  657 gross=   -0.2 net=  -16.2bps t=-9.24 tot= -106.7%
+  BTC short worst2 hours [1, 13]                            
+     IS  n= 3068 gross=   +2.7 net=  -13.3bps t=-9.39 tot= -409.5%
+     OOS n= 1314 gross=   -1.0 net=  -17.0bps t=-10.18 tot= -223.6%
+  BTC short worst3 hours [1, 13, 2]                         
+     IS  n= 4602 gross=   +2.5 net=  -13.5bps t=-12.12 tot= -622.5%
+     OOS n= 1971 gross=   -1.1 net=  -17.1bps t=-14.04 tot= -336.6%
+== family C: 92 variants
+  GOLD day move>=1% -> ETH next 24h (FADE)                  
+     IS  n=  254 gross=  +21.9 net=   +5.9bps t=+0.24 tot=  +14.9%
+     OOS n=  195 gross=   -2.9 net=  -18.9bps t=-0.67 tot=  -36.8%
+  NDX day move>=1% -> BTC next 24h (FADE)                   
+     IS  n=  463 gross=  +17.7 net=   +1.7bps t=+0.11 tot=   +7.9%
+     OOS n=  161 gross=  +20.0 net=   +4.0bps t=+0.18 tot=   +6.4%
+  TNX day move>=1% -> BTC next 24h (FADE)                   
+     IS  n=  693 gross=  +17.1 net=   +1.1bps t=+0.09 tot=   +7.7%
+     OOS n=  148 gross=  -17.1 net=  -33.1bps t=-1.72 tot=  -49.0%
+  GOLD 1h move>=2sd -> BTC next 4h (FADE)                   
+     IS  n=  256 gross=  +14.8 net=   -1.2bps t=-0.12 tot=   -3.0%
+     OOS n=  330 gross=   -4.7 net=  -20.7bps t=-3.94 tot=  -68.2%
+  SPX day move>=1% -> BTC next 24h (FADE)                   
+     IS  n=  314 gross=  +14.1 net=   -1.9bps t=-0.11 tot=   -6.1%
+     OOS n=  102 gross=  +36.8 net=  +20.8bps t=+0.80 tot=  +21.3%
+  GOLD day move>=1% -> BTC next 24h (FADE)                  
+     IS  n=  254 gross=  +13.6 net=   -2.4bps t=-0.11 tot=   -6.1%
+     OOS n=  195 gross=   -7.7 net=  -23.7bps t=-1.33 tot=  -46.2%
+  SPX 1h move>=2sd -> BTC next 1h (follow)                  
+     IS  n=  165 gross=  +12.3 net=   -3.7bps t=-0.65 tot=   -6.0%
+     OOS n=   76 gross=  -10.1 net=  -26.1bps t=-3.15 tot=  -19.8%
+  DXY day move>=0% -> ETH next 24h (FADE)                   
+     IS  n= 1055 gross=  +12.1 net=   -3.9bps t=-0.32 tot=  -40.9%
+     OOS n=  452 gross=  +15.1 net=   -0.9bps t=-0.05 tot=   -4.1%
+  TNX day move>=0% -> ETH next 24h (FADE)                   
+     IS  n= 1055 gross=  +11.3 net=   -4.7bps t=-0.38 tot=  -49.3%
+     OOS n=  450 gross=  +16.9 net=   +0.9bps t=+0.05 tot=   +4.0%
+  TNX day move>=1% -> ETH next 24h (FADE)                   
+     IS  n=  693 gross=  +10.4 net=   -5.6bps t=-0.36 tot=  -38.5%
+     OOS n=  148 gross=  +27.7 net=  +11.7bps t=+0.39 tot=  +17.3%
+  SPX 1h move>=2sd -> BTC next 4h (follow)                  
+     IS  n=  165 gross=  +10.0 net=   -6.0bps t=-0.54 tot=   -9.9%
+     OOS n=   76 gross=   +5.5 net=  -10.5bps t=-0.76 tot=   -8.0%
+  VIX day move>=1% -> ETH next 24h (follow risk-on)         
+     IS  n=  907 gross=   +9.7 net=   -6.3bps t=-0.47 tot=  -57.4%
+     OOS n=  388 gross=  -22.2 net=  -38.2bps t=-1.91 tot= -148.2%
+
+PASS (IS net>0, OOS net>0, OOS t>=2, n>=30): 0

@@ -375,6 +375,17 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v110bt (2026-09-30 ~20:45 UTC) — "find the short-term formula" (owner): 0 of 164 PASS
+`backtest/research/v110_short_formula.py` -> status/short-formula-v110.txt. Rules fixed before reading results: 16 bps round trip,
+IS first 70% / OOS last 30%, t on daily sums, PASS = IS net>0 & OOS net>0 & OOS t>=2. Luck alone ~3.8 false passes; got 0.
+- A. Intraday time-series momentum (the published Bitcoin result; first 30/60 min of UTC day or US session -> last 30/60 min), 10 coins, 36m 5m:
+  best gross +2..+6 bps vs 16 bps cost; BTC utc first60->last60 IS gross +2.4 / OOS -0.7 bps. The paper's effect is ~1/6 of costs here.
+- B. Hour-of-day seasonality (BTC/ETH 72m 1h): best hours gross +2..+6 bps, every row net negative IS and OOS.
+- C. Cross-market lead-lag from Yahoo (NDX, SPX, DXY, gold, VIX, 10y; daily 10y + hourly 2y) -> BTC/ETH next 1h/4h/24h:
+  best IS rows net +1..+6 bps (t~0.1-0.2) and flip or stay ~0 OOS. No usable lead-lag.
+Reading: the same wall as v76-v109bt, the gym, the lab, quant/: on public price data, sub-day crypto moves do not pay 16 bps.
+Nothing deployed from this.
+
 ## v98.2 (2026-09-30 ~20:10 UTC) — stop the bleeding found by the all-history scan (owner: "תהפוך את העולם")
 - Scan of every stored close: 1,028 trades across all eras (DB 668 + git exports 360). Nothing profitable overall; the only positive live record is DONCH4H (4h, 53 closes, +$188).
 - CHAN (314 closes, -$1,190, fees $287):
