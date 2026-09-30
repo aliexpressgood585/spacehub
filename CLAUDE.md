@@ -396,6 +396,20 @@ Nothing deployed from this.
 - Change: aggressive mode no longer revives RG_VOL_BREAKOUT (`aggressive_engine_disabled`); cap 2 same-side entries per 5m bar in ALL modes (`same_side_bar_cap`). NB DONCH4H history shows the opposite (3+ simultaneous 4h breakouts were its best), so the cap is CHAN/5m-specific.
 - Rollback: revert this commit.
 
+## v113bt (2026-09-30 ~23:20 UTC) — owner: "another idea, intraday": funding-settlement capture + CME weekend gap
+`backtest/research/v113_funding_cme.mjs`, `v113b_funding_robust.mjs`, `v113c_funding_predicted.mjs` -> `status/funding-cme-v113.txt`.
+- **CME gap fill (BTC/ETH, 1h, 72m): REJECTED.** Gross before costs is −44 bps.
+- **Funding capture (40 coins, 15m, 36m):** take the receiving side around the 8h settlement, 16 bps round-trip cost.
+  - The first pass looked positive (|f| ≥ 0.10%, enter −60m / exit +15m: IS +27, OOS +37 bps). It was LOOK-AHEAD: it used the realised rate, and the edge grew the earlier the entry.
+  - Signal from the previous (known) rate: IS −6.5, OOS +0.7 bps → nothing.
+  - HONEST version: signal = the rate PREDICTABLE at T−60m, reconstructed from premiumIndex 1h klines (corr 0.88 with realised; /tmp download, not committed).
+    - pre-registered row (|pred| ≥ 0.10%, −60/+15): IS +5.4 (t 0.25), OOS +6.7 bps (t 0.74), n 738/625;
+    - neighbours: all small positive (+7..+23 bps), one OOS t 2.85 (−60/+0) with IS t 0.47;
+    - |pred| ≥ 0.05%: negative.
+- Reading: a weak, consistent, NOT significant plateau. The best intraday candidate found, but not proven.
+- Honest next step: forward test on new data. Live, the bot/collector already records Binance's own predicted funding (mkt_derivs, every 5 min, pinned 40, since 09-26), but raw mkt_derivs is kept only 90 days, and ~1.2 events/day needs ~6 months to reach 200.
+- Nothing built into the bot.
+
 ## v112bt (2026-09-30 ~23:00 UTC) — owner: "short at range highs, long at range lows, many times, on coins that fit": REJECTED, 0 of 16
 `backtest/research/v112_range_fade.mjs` -> `status/range-fade-v112.txt`.
 - Setup: 40 coins, 15m and 1h bars, 36 months. Range = previous N bars (48/96), traded only when sideways (efficiency ratio < 0.3) and at least 1% high.
