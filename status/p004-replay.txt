@@ -1,0 +1,60 @@
+P004 replay — 323 closed CHAN trades, 2026-09-28 17:36 .. 2026-09-30 20:36 UTC; IS < 2026-09-30 05:18 (292), OOS (31)
+P&L = ledger net (fees + book-walk slippage + real funding). Rules abstain on missing input.
+
+== field coverage (trades with the entry-time input present)
+  REGIME    321/323
+  MICRO     201/323
+  MTF       290/323
+  OIFUND    300/323
+  mkt_derivs point-in-time row (collector, pinned 40 only): 136/323
+  liquidation / order-book history per trade: NOT AVAILABLE (not recorded at entry; not reconstructed)
+
+== ALL
+  BASELINE (actual engine)           n= 323  net=$ -1464.58  PF= 0.51  avgR=-0.292  WR= 43.3%  maxDD=$ 1530.92
+  REGIME                             n= 167  net=$  -667.90  PF= 0.62  avgR=-0.268  WR= 42.5%  maxDD=$  835.54
+  MICRO                              n= 233  net=$ -1124.28  PF= 0.51  avgR=-0.341  WR= 39.1%  maxDD=$ 1190.62
+  MTF                                n= 234  net=$ -1097.92  PF= 0.54  avgR=-0.258  WR= 41.9%  maxDD=$ 1164.27
+  OIFUND                             n= 162  net=$  -589.52  PF= 0.61  avgR=-0.322  WR= 40.7%  maxDD=$  655.87
+  CLUSTER                            n= 214  net=$  -675.44  PF= 0.65  avgR=-0.206  WR= 46.7%  maxDD=$  741.79
+  REGIME+MICRO                       n= 121  net=$  -568.91  PF= 0.62  avgR=-0.357  WR= 35.5%  maxDD=$  736.55
+  MICRO+OIFUND                       n= 118  net=$  -560.18  PF= 0.56  avgR=-0.415  WR= 34.7%  maxDD=$  626.53
+  CANDIDATE (all five)               n=  44  net=$   +15.95  PF= 1.03  avgR=-0.184  WR= 40.9%  maxDD=$  159.40
+
+== IN-SAMPLE 70%
+  BASELINE (actual engine)           n= 292  net=$ -1055.83  PF= 0.56  avgR=-0.283  WR= 44.5%  maxDD=$ 1123.67
+  REGIME                             n= 146  net=$  -328.29  PF= 0.75  avgR=-0.239  WR= 44.5%  maxDD=$  519.46
+  MICRO                              n= 209  net=$  -707.66  PF= 0.59  avgR=-0.334  WR= 40.2%  maxDD=$  799.96
+  MTF                                n= 207  net=$  -680.82  PF= 0.62  avgR=-0.235  WR= 44.0%  maxDD=$  748.67
+  OIFUND                             n= 148  net=$  -464.55  PF= 0.64  avgR=-0.324  WR= 40.5%  maxDD=$  532.39
+  CLUSTER                            n= 193  net=$  -424.72  PF= 0.72  avgR=-0.185  WR= 48.7%  maxDD=$  492.57
+  REGIME+MICRO                       n= 103  net=$  -241.16  PF= 0.77  avgR=-0.347  WR= 36.9%  maxDD=$  408.80
+  MICRO+OIFUND                       n= 109  net=$  -398.29  PF= 0.63  avgR=-0.413  WR= 34.9%  maxDD=$  466.14
+  CANDIDATE (all five)               n=  40  net=$   +59.51  PF= 1.13  avgR=-0.175  WR= 40.0%  maxDD=$  159.40
+
+== OUT-OF-SAMPLE 30%
+  BASELINE (actual engine)           n=  31  net=$  -408.75  PF= 0.35  avgR=-0.374  WR= 32.3%  maxDD=$  521.40
+  REGIME                             n=  21  net=$  -339.60  PF= 0.26  avgR=-0.466  WR= 28.6%  maxDD=$  426.00
+  MICRO                              n=  24  net=$  -416.61  PF= 0.26  avgR=-0.399  WR= 29.2%  maxDD=$  516.13
+  MTF                                n=  27  net=$  -417.10  PF= 0.28  avgR=-0.434  WR= 25.9%  maxDD=$  471.85
+  OIFUND                             n=  14  net=$  -124.98  PF= 0.49  avgR=-0.304  WR= 42.9%  maxDD=$  201.64
+  CLUSTER                            n=  21  net=$  -250.72  PF= 0.38  avgR=-0.390  WR= 28.6%  maxDD=$  349.15
+  REGIME+MICRO                       n=  18  net=$  -327.75  PF= 0.27  avgR=-0.409  WR= 27.8%  maxDD=$  427.27
+  MICRO+OIFUND                       n=   9  net=$  -161.89  PF= 0.23  avgR=-0.442  WR= 33.3%  maxDD=$  189.29
+  CANDIDATE (all five)               n=   4  net=$   -43.56  PF= 0.52  avgR=-0.273  WR= 50.0%  maxDD=$   91.53
+
+== walk-forward: 4 equal time folds, BASELINE vs CANDIDATE (all five)
+  fold1 2026-09-28 17:36  base n=195 $ -884.97  cand n= 29 $ +145.78  avgR -0.384 -> -0.019
+  fold2 2026-09-29 06:21  base n= 54 $  -19.16  cand n=  6 $  -23.55  avgR -0.027 -> -0.411
+  fold3 2026-09-29 19:06  base n= 43 $ -151.70  cand n=  5 $  -62.73  avgR -0.154 -> -0.734
+  fold4 2026-09-30 07:51  base n= 31 $ -408.75  cand n=  4 $  -43.56  avgR -0.374 -> -0.273
+
+== complete-case (only trades where ALL four inputs exist)
+  ALL baseline                       n= 201  net=$  -864.58  PF= 0.48  avgR=-0.214  WR= 49.3%  maxDD=$  864.58
+  ALL candidate                      n=  20  net=$  -160.40  PF= 0.31  avgR=-0.460  WR= 35.0%  maxDD=$  160.40
+  IS baseline                        n= 174  net=$  -613.47  PF= 0.48  avgR=-0.200  WR= 51.1%  maxDD=$  614.98
+  IS candidate                       n=  16  net=$  -116.84  PF= 0.17  avgR=-0.507  WR= 31.2%  maxDD=$  116.84
+  OOS baseline                       n=  27  net=$  -251.10  PF= 0.47  avgR=-0.304  WR= 37.0%  maxDD=$  363.75
+  OOS candidate                      n=   4  net=$   -43.56  PF= 0.52  avgR=-0.273  WR= 50.0%  maxDD=$   91.53
+
+== what the candidate removed (ALL): the rejected trades themselves
+  rejected by candidate              n= 279  net=$ -1480.52  PF= 0.40  avgR=-0.308  WR= 43.7%  maxDD=$ 1480.52
