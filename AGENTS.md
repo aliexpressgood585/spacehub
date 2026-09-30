@@ -3,6 +3,7 @@
 For material CHAN-X trading work, the AI Council protocol is mandatory.
 
 Before editing strategy/risk/execution/sizing code:
+0. Use a branch + pull request for material trading changes; do not normally push them directly to main.
 1. Read `docs/AI_COUNCIL.md`.
 2. Read `ai-council/STATE.md`.
 3. Read the latest discussion in GitHub Issue #79.
