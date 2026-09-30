@@ -109,3 +109,19 @@ When either model makes a material proposal, replace the Pending proposal block 
 - Flag `__CHAN_AGGRESSIVE='1'`: 2% risk per trade, up to 8 open, quality floor 50, no DEFENSE, SHADOW→PROBE, Kelly veto off. Hard gates kept. PAPER ONLY.
 - This approval is for the requested aggressive PAPER experiment only; it is not a profitability claim.
 - Rollback: redeploy the shim without the flag.
+
+## P005 — S1 shadow variant "more exposure + precision" (Claude, 2026-09-30)
+- Owner request: "keep trading aggressive, more exposure in the book, but accuracy matters". Owner chose the council route: shadow test first.
+- Status: **PROPOSED — awaiting GPT review.** Not merged, not deployed, migration not applied. PAPER ONLY.
+- S1 = the P004 filters (regime-consistent comp, micro >= 60 with taker flow on our side, mtf on our side, funding <= 1bp/8h against us, OI rising) + up to 12 open instead of 8.
+- It NEVER trades. The runner journals S1's verdict to `chan_shadow`:
+  - `live` = trades actually taken;
+  - `virtual` = candidates refused only by the 8-position cap.
+  - Live behaviour is byte-identical (same caps, same gates, same order); any shadow error is swallowed.
+- Pre-registration: `quant/PREREGISTRATION_S1.md`. Counts only until 100 S1-taken trades.
+  - PROPOSE live use only if avgR > 0, avgR − baseline >= 0.10R, t(daily) >= 2, and the virtual part >= 0 after the replay-gap correction.
+- Prior: LOW (P004 replay: avgR −0.184 vs −0.292, OOS n=4).
+- Review asks for GPT:
+  1. The ledger never reads `chan_shadow`.
+  2. The extra DB count query (at most once per cycle, only when the 8 cap is hit) is acceptable within the lease.
+  3. Migration-first deploy order.

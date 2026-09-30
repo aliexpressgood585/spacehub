@@ -22,6 +22,7 @@ import { json, pool } from './rota-runner.ts'
 
 import { trendPullback } from '../../../shared/trend-pullback.ts'
 import { loadChanIntel } from './chan-intel.ts'
+import { S1, s1HasRoom, s1Verdict } from '../../../shared/chan-shadow.ts'
 import { chanOpportunityMeta } from '../../../shared/chan-opportunity.ts'
 import { initialStopV2, liquidationStopLimitV2, manageStopV2, stalledExitV2, strategySizeMultV2, targetRV2 } from '../../../shared/chan-stop-v2.ts'
 import { challengerLab, clusterMultiplier, executionMultiplier, exitPolicyFromHistory, forensicSummary, strategyGovernor } from '../../../shared/chan-autonomy.ts'
@@ -395,6 +396,9 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
   const scan0 = params.chan_scan?.bar === bar ? params.chan_scan : { bar, done: [] as string[], skipped: 0, fetched: 0 }
   const inWindow = bar > lastBar && now - bar <= CHAN.scan.windowMs && !st.halted && !state.hard_halt_at
   const entries: any[] = [], decisions: any[] = [], views: Record<string, any> = {}, failed: string[] = []
+  // Shadow variant S1 (journal only, never trades): see shared/chan-shadow.ts + quant/PREREGISTRATION_S1.md
+  const shadowRows: any[] = []
+  let s1Virtual: number | null = null
   const done = new Set<string>(scan0.done), heldSyms = stillOpen.map((t: any) => String(t.sym))
 
   // Public leverage/news heartbeat keeps collecting even between 5m decision windows.
@@ -780,8 +784,28 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
 
       const co = canOpen(st, openN)
       if (!co.ok) { rec('rejected', co.why); continue }
-      if (AGGRESSIVE && openN >= AGGRESSIVE_MAX_OPEN) { rec('rejected', 'aggressive_max_open', { open: openN, max_open: AGGRESSIVE_MAX_OPEN }); continue }
       const sideThisBar = stillOpen.filter((x:any)=>!closing.has(x.id)&&x.side===side&&Date.parse(x.opened_at)>=bar).length + entries.filter((x:any)=>x.side===side).length
+      const s1 = s1Verdict({ comp:String(cand.comp), side:cand.side>0?1:-1, regime:String(REGIME[v.regime]), micro:micro?.score??null,
+        taker3m:micro?.taker3m??null, mtf, funding:ix?.funding??null, oiDelta:ix?.oi_delta??null })
+      const s1Row = (kind: string, take: boolean, fails: string[]) => shadowRows.push({ variant: S1.id, kind, sym, side, comp: cand.comp,
+        bar: new Date(bar).toISOString(), ref_px: Number(v.last_close), stop: Number(cand.stop), max_hold_bars: Number(cand.maxHold),
+        expires_at: new Date(now + Number(cand.maxHold) * CHAN.barMs).toISOString(), live_open: openN, s1_take: take, s1_fails: fails,
+        s1_missing: s1.missing, regime: REGIME[v.regime], quality: qualityScore, micro: micro?.score ?? null, taker3m: micro?.taker3m ?? null,
+        mtf, funding: ix?.funding ?? null, oi_delta: ix?.oi_delta ?? null })
+      if (AGGRESSIVE && openN >= AGGRESSIVE_MAX_OPEN) {
+        try {
+          if (s1Virtual === null) {
+            const { count } = await db.from('chan_shadow').select('id', { count: 'exact', head: true })
+              .eq('variant', S1.id).eq('kind', 'virtual').eq('s1_take', true).gt('expires_at', new Date(now).toISOString())
+            s1Virtual = Number(count ?? 0)
+          }
+          const s1Side = shadowRows.filter((x:any)=>x.kind==='virtual'&&x.s1_take&&x.side===side).length
+          const fails = [...s1.fails, ...(s1HasRoom(openN, s1Virtual) ? [] : ['max_open']), ...(sideThisBar + s1Side >= SIDE_PER_BAR_CAP ? ['side_cap'] : [])]
+          if (!fails.length) s1Virtual++
+          s1Row('virtual', !fails.length, fails)
+        } catch { /* shadow journal must never affect trading */ }
+        rec('rejected', 'aggressive_max_open', { open: openN, max_open: AGGRESSIVE_MAX_OPEN }); continue
+      }
       if (sideThisBar >= SIDE_PER_BAR_CAP) { rec('rejected', 'same_side_bar_cap', { same_side_this_bar: sideThisBar, cap: SIDE_PER_BAR_CAP }); continue }
       const eraRs = rsOf(cand.comp)
       const estimatedKelly = kellyRisk(eraRs)
@@ -933,6 +957,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
             } : null
           },
           entry_fill: { model: 'book_walk', touch, vwap: w.vwap, impact_bps: +(Math.abs(px / touch - 1) * 1e4).toFixed(2), want: Math.round(desiredNotional), raw_want:Math.round(sz.notional), liq_cap: Math.round(cap) } } })
+      s1Row('live', s1.take, s1.fails)
       rec('accepted', 'taken', { notional, kelly_f: aggressiveRisk, leverage: PAPER_LEVERAGE,
         crowd_side: side, crowd_count: crowd.count, crowd_share: crowd.share,
         learning_weight: learned.weight, learning_samples: learned.samples, breadth_share: mc.share,
@@ -1065,6 +1090,9 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
   }
   const { data: result } = await db.rpc('chan_commit_cycle', { p_lease: lease, p_closes: closes, p_entries: entries, p_marks: marks, p_updates: updates,
     p_note: note, p_bar: closeBar ? new Date(bar).toISOString() : null, p_halt: halt }).throwOnError()
+  if (shadowRows.length) {
+    try { await db.from('chan_shadow').insert(shadowRows) } catch { /* shadow only */ }
+  }
   if (decisions.length) {
     try { await db.from('trade_decisions').insert(decisions.slice(0, 100).map((d, k) => ({ sym: d.sym, side: d.side, decision: d.decision, reason: d.reason, rank: k + 1, notional: d.notional ?? null,
       observed: { regime: d.regime, hurst: d.hurst, vol_pct: d.vol_pct, z: d.z, halflife: d.hl, t_sig: d.t_sig },
