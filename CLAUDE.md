@@ -392,6 +392,9 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
 - Also removed the duplicate `strategy_size_cap` key (TS1117).
 - The suite still has the same 3 pre-existing assertion failures as main (fast-entry and others). They are not caused by this change.
 - ROLLBACK: redeploy the shim without `__CHAN_AGGRESSIVE`. No code or DB change is needed.
+- The flag was lost once: GPT's GitHub-Actions redeploy (cdb9503, 18:51 UTC) regenerated the shim without it, so the bot ran NON-aggressive.
+  - The shim is written by `deploy-edge-function.yml` AND `enforce-no-loss-trading.yml` on every push to main.
+  - Both now carry `g.__CHAN_AGGRESSIVE = '1'`. Rollback = remove that line from both workflows.
 
 ## v97.8 (2026-09-27 ~16:10 UTC) — CHAN: no drawdown kill either (owner: "שלא יהיה עצירה בכלל במסחר, שתמיד יסחור")
 - `CHAN.risk.maxDD` = Infinity: the −10% from peak close-all + hard halt is OFF. The bot never pauses or halts on losses.
