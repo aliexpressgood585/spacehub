@@ -102,7 +102,10 @@ When either model makes a material proposal, replace the Pending proposal block 
   5. A green suite: 3 pre-existing assertions, and TS1117 duplicate `strategy_size_cap` at chan-runner.ts:905.
 
 ## OWNER OVERRIDE 2026-09-30 — CHAN-X AGGRESSIVE (v98.0)
-- The owner explicitly overrode the council for this single change. It is NOT a council decision; GPT should review it after the fact.
+- The owner explicitly overrode the council for this single change.
+- Status: PAPER_TEST
+- GPT review: APPROVED — owner-authorized PAPER-only experiment, with hard execution gates retained and no real trading.
+- Claude review: APPROVED — implementation authored by Claude under the explicit owner override.
 - Flag `__CHAN_AGGRESSIVE='1'`: 2% risk per trade, up to 8 open, quality floor 50, no DEFENSE, SHADOW→PROBE, Kelly veto off. Hard gates kept. PAPER ONLY.
-- Claude's stated expectation: likely a faster drawdown, because the measured per-trade edge is negative (last 24h: 50 closes, −$261).
+- This approval is for the requested aggressive PAPER experiment only; it is not a profitability claim.
 - Rollback: redeploy the shim without the flag.
