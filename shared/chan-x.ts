@@ -1,5 +1,6 @@
 export type XHistory = {
   comp?:string; regime?:string; side?:string; r:number; pnl:number;
+  openedAt?:number; closedAt?:number;
   volPct?:number; mtfSide?:number; microScore?:number; breadthShare?:number;
   quality?:number; mfeR?:number; maeR?:number
 }
@@ -144,24 +145,36 @@ export function strategyProfitabilityGate(rows:XHistory[],comp:string,now:number
   const avgR=mean(xs.map(x=>Number(x.r)||0)), recentAvgR=mean(recent.map(x=>Number(x.r)||0))
   const win=xs.length?xs.filter(x=>Number(x.pnl)>0).length/xs.length:.5
   const lastClosed=Math.max(0,...xs.map((x:any)=>Number((x as any).closedAt)||0))
+  const clusters=(()=>{
+    const m=new Map<number,{r:number;n:number}>()
+    for(const x of xs){
+      const t=Number(x.openedAt)
+      if(!Number.isFinite(t)||t<=0) continue
+      const h=Math.floor(t/3_600_000)
+      const z=m.get(h)??{r:0,n:0}
+      z.r+=Number(x.r)||0;z.n+=1;m.set(h,z)
+    }
+    return [...m.entries()].sort((a,b)=>b[0]-a[0]).map(([hour,z])=>({hour,r:z.r,n:z.n}))
+  })()
+  const recentClusters=clusters.slice(0,4)
+  const recentClusterAvgR=mean(recentClusters.map(x=>x.r))
   let mode:'LIVE'|'PROBE'|'SHADOW'='LIVE',size_mult=1,min_quality=56,reason='edge_ok'
   if(xs.length<8){
-    // A brand-new era needs controlled observations before expectancy can be estimated.
     mode='PROBE'
     size_mult=xs.length<4?.85:.70
     min_quality=xs.length<4?58:62
     reason=xs.length===0?'new_era_discovery':xs.length<4?'early_discovery':'discovery_probe'
   } else if(comp==='RG_VOL_BREAKOUT' && xs.length>=12 && avgR<0 && recentAvgR<0){
-    // Volatility Breakout has enough clean-era evidence and is still negative.
-    // Keep it out of the funded book; allow only a rare, tiny recovery probe.
     const probeDue=lastClosed>0&&now-lastClosed>=6*60*60_000
     mode=probeDue?'PROBE':'SHADOW'
     size_mult=probeDue?.05:0
     min_quality=probeDue?80:100
     reason=probeDue?'vol_breakout_recovery_probe':'vol_breakout_quarantine'
-  } else if(comp==='RG_BREADTH_MOMENTUM' && xs.length>=20 && avgR>=.15 && recentAvgR>=.05 && win>=.60){
-    // Reward an edge only after a meaningful clean-era sample.
-    mode='LIVE';size_mult=1.20;min_quality=54;reason='breadth_positive_edge_boost'
+  } else if(comp==='RG_BREADTH_MOMENTUM' && xs.length>=30 &&
+    (recentAvgR<=-.35 || (recentClusters.length>=4&&recentClusterAvgR<=-.50))){
+    // Council P001-R1: do not hard-quarantine until shadow outcomes are measurable.
+    // Keep only a tiny funded probe with a hard dollar-risk cap in the runner.
+    mode='PROBE';size_mult=.10;min_quality=72;reason='breadth_degraded_probe'
   } else if((avgR<=-.25&&recentAvgR<=-.12)||(xs.length>=15&&avgR<=-.18&&win<.42)){
     const probeDue=lastClosed>0&&now-lastClosed>=60*60_000
     mode=probeDue?'PROBE':'SHADOW'
@@ -171,7 +184,9 @@ export function strategyProfitabilityGate(rows:XHistory[],comp:string,now:number
   } else if(avgR<-.08||recentAvgR<-.10){
     mode='PROBE';size_mult=.35;min_quality=68;reason='weak_expectancy_probe'
   } else if(avgR>=.12&&recentAvgR>=.08&&xs.length>=12){
+    // No special Breadth boost: normal positive-edge promotion only.
     mode='LIVE';size_mult=1.05;min_quality=55;reason='positive_expectancy'
   }
-  return {comp,n:xs.length,avgR,recentAvgR,win,lastClosed,mode,size_mult,min_quality,reason}
+  return {comp,n:xs.length,avgR,recentAvgR,win,lastClosed,mode,size_mult,min_quality,reason,
+    cluster_n:clusters.length,recent_cluster_avg_r:recentClusterAvgR}
 }
