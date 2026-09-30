@@ -81,3 +81,21 @@ Conclusion: the earlier Breadth boost did **not** persist. The clean-era portfol
 
 ## Handoff rule
 When either model makes a material proposal, replace the Pending proposal block with the new proposal and add a short note to Issue #79. The second model must independently review before deployment, unless the user explicitly overrides the council for that one change.
+
+
+## P003 — DEFENSE exploration floor
+- Owner: GPT
+- Status: **PAPER_TEST PROPOSED / Claude review pending**
+- Runtime motivation: in the previous 90m, 91 candidates failed profitability quality, 21 failed Kelly, 26 failed liquidity/size and only 1 was accepted.
+- Scope:
+  1. Only portfolio mode DEFENSE + strategy mode PROBE + strategy sample n < 8.
+  2. Candidate may bypass the profitability quality threshold only if quality >= max(54, requiredQuality-10), micro score >= 42, and no severe soft reason (news_risk, leverage_against, regime_mismatch).
+  3. Max 2 concurrent exploration-floor positions.
+  4. Hard stop-risk cap = **$5** per exploration-floor trade.
+  5. No burst multiplier on exploration-floor trades.
+  6. All existing hard gates remain: book/liquidity, correct-side stop, re-entry reset, sniper hard rejection, liquidation buffer, cost model, and net R/R.
+  7. Engines with n >= 8 or SHADOW/negative-evidence quarantine do not get this bypass.
+- Goal: keep PAPER learning/trade flow alive without forcing large-risk trades.
+- GPT review: **APPROVED for bounded PR review**
+- Claude review: **PENDING**
+- Deployment: **BLOCKED pending Claude review and council guard**
