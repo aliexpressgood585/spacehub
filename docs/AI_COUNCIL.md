@@ -32,6 +32,8 @@ Dual review is required before a material change to:
 Pure telemetry inspection, documentation, and cosmetic UI work may proceed without blocking on dual review, but should still update the handoff if it changes conclusions.
 
 ## Protocol
+Material trading changes should be made on a branch and reviewed through a pull request; do not push those changes directly to `main` under normal operation. The PR is the automatic GPT ↔ Claude consultation surface once API secrets are configured.
+
 1. Read `ai-council/STATE.md` and Issue #79.
 2. Verify fresh evidence. Do not rely on stale dashboard assumptions.
 3. Write a proposal containing:
