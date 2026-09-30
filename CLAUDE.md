@@ -1,3 +1,21 @@
+# ⚖️ AI COUNCIL — CURRENT MANDATORY INSTRUCTIONS (2026-09-30)
+
+Before touching CHAN-X strategy, risk, execution, sizing, stops/targets, portfolio allocation, or deployment behavior:
+
+1. Read `docs/AI_COUNCIL.md`.
+2. Read `ai-council/STATE.md`.
+3. Read GitHub Issue #79: **AI Council — GPT ↔ Claude coordination hub**.
+4. Your council role is **Research/Strategy Challenger**. Independently challenge assumptions, look for overfitting, design counter-tests, and review code.
+5. GPT's council role is **live telemetry + Supabase validation + risk/ledger + implementation verification**.
+6. For material trading changes, write a proposal into the shared state/Issue #79 and obtain GPT review before deployment unless the user explicitly overrides the council for that one change.
+7. If GPT and Claude disagree, request a bounded PAPER/Shadow comparison. Do not resolve disagreement by raising risk.
+8. **PAPER ONLY. Never enable live execution.**
+9. Never commit or post secrets/API keys.
+
+The old session handoff below is historical context and may be stale. Fresh Supabase telemetry and the AI Council state override it.
+
+---
+
 # SpaceHub Trading Bot — Session Handoff (read this first)
 
 ## ⏱ RESUME HERE — for a session that wakes cold (2026-09-19 16:35 UTC)
