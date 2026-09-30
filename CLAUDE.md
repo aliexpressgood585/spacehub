@@ -396,6 +396,49 @@ Nothing deployed from this.
 - Change: aggressive mode no longer revives RG_VOL_BREAKOUT (`aggressive_engine_disabled`); cap 2 same-side entries per 5m bar in ALL modes (`same_side_bar_cap`). NB DONCH4H history shows the opposite (3+ simultaneous 4h breakouts were its best), so the cap is CHAN/5m-specific.
 - Rollback: revert this commit.
 
+## Forward-test lab + H6 (2026-09-30 ~23:40 UTC) — owner: "an agent that tests trades forward"
+- `shared/forward.ts`: data-collector opens and closes VIRTUAL trades from frozen rules and books net P&L at live mark prices. Table `fwd_trades` (migration 20260930233000, RLS, kept forever).
+- First hypotheses: H6a / H6b, funding-settlement capture (quant/PREREGISTRATION_H6.md). Counts only until 200 closed trades each.
+- Tests: tests/forward.test.ts (13 assertions); chan-runner and shared typecheck clean (verified with --ignoreConfig).
+- Status: PR opened for GPT review; NOT deployed.
+- data-collector is not in the CI deploy list, so after approval: apply the migration first, then deploy data-collector via the MCP shim.
+
+## v113bt (2026-09-30 ~23:20 UTC) — owner: "another idea, intraday": funding-settlement capture + CME weekend gap
+`backtest/research/v113_funding_cme.mjs`, `v113b_funding_robust.mjs`, `v113c_funding_predicted.mjs` -> `status/funding-cme-v113.txt`.
+- **CME gap fill (BTC/ETH, 1h, 72m): REJECTED.** Gross before costs is −44 bps.
+- **Funding capture (40 coins, 15m, 36m):** take the receiving side around the 8h settlement, 16 bps round-trip cost.
+  - The first pass looked positive (|f| ≥ 0.10%, enter −60m / exit +15m: IS +27, OOS +37 bps). It was LOOK-AHEAD: it used the realised rate, and the edge grew the earlier the entry.
+  - Signal from the previous (known) rate: IS −6.5, OOS +0.7 bps → nothing.
+  - HONEST version: signal = the rate PREDICTABLE at T−60m, reconstructed from premiumIndex 1h klines (corr 0.88 with realised; /tmp download, not committed).
+    - pre-registered row (|pred| ≥ 0.10%, −60/+15): IS +5.4 (t 0.25), OOS +6.7 bps (t 0.74), n 738/625;
+    - neighbours: all small positive (+7..+23 bps), one OOS t 2.85 (−60/+0) with IS t 0.47;
+    - |pred| ≥ 0.05%: negative.
+- Reading: a weak, consistent, NOT significant plateau. The best intraday candidate found, but not proven.
+- Honest next step: forward test on new data. Live, the bot/collector already records Binance's own predicted funding (mkt_derivs, every 5 min, pinned 40, since 09-26), but raw mkt_derivs is kept only 90 days, and ~1.2 events/day needs ~6 months to reach 200.
+- Nothing built into the bot.
+
+## v112bt (2026-09-30 ~23:00 UTC) — owner: "short at range highs, long at range lows, many times, on coins that fit": REJECTED, 0 of 16
+`backtest/research/v112_range_fade.mjs` -> `status/range-fade-v112.txt`.
+- Setup: 40 coins, 15m and 1h bars, 36 months. Range = previous N bars (48/96), traded only when sideways (efficiency ratio < 0.3) and at least 1% high.
+  - Entry: limit orders 10% inside the edges, filled only when traded through, maker fees.
+  - Stop 25% of range height beyond the edge; target mid-range or the opposite zone; time stop.
+  - "Coins that fit": each month trade only the top-10 coins by the previous 3 months' rule result (walk-forward).
+- Results: every row negative IS and OOS (avgR −0.04 .. −0.11, e.g. 1h N48 mid top10: OOS −0.044R on 2,994 trades).
+- Coin selection does not help; top10 is no better than all 40.
+- BEFORE COSTS: gross avgR −0.07 .. +0.003 (OOS t within ±0.8). There is no edge at the range edges to begin with; costs only make it worse.
+- Same family as 4h BB-fade, v100bt, ZMR and pairs. Nothing built into the bot.
+
+## v111bt (2026-09-30 ~22:45 UTC) — owner: "trade in grids so we also earn in a neutral market": REJECTED, 0 of 16 pass
+`backtest/research/v111_grid.mjs` (+ `v111_grid_hold.mjs`) -> `status/grid-v111.txt`.
+- Setup: neutral futures grid on 10 coins, 1m bars, 12 months. Maker 2 bps, filled only when price trades through the level. Stop = one step beyond the outer level, closed at taker + slip, then re-centered. Funding 0.01%/8h. IS 70% / OOS 30%.
+- Accounting checked on synthetic data: a sine wave inside the range earns the expected round trips; a trend loses.
+- Results, every row negative both IS and OOS:
+  - tight grids (0.2% steps): about 1M fills and 31k stops in a year, heavily negative;
+  - best row (1.5% steps, N=10, efficiency-ratio gate): IS −22%, OOS −5.6% of capital, maxDD 38%.
+- Classic hold-no-stop grid: −30..−47% of capital in 12 months, only BNB/BTC near flat. The inventory becomes a long position in falling alts.
+- Reading: the grid earns small round trips in ranges and gives them back, plus more, at every range break. It is the same mean-reversion bet as 4h BB-fade, v100bt, ZMR and pairs, which all failed here.
+- Nothing built into the bot.
+
 ## P005 / S1 shadow (2026-09-30 ~22:30 UTC) — owner: "more exposure, but accuracy matters" -> shadow test first (owner's choice)
 - Live at ask time: since v98.2, 26 closes −$289 (10 wins); last 24h, 79 closes −$537; open notional $20k ≈ 4.5x equity.
 - Built:
@@ -405,7 +448,7 @@ Nothing deployed from this.
   - `tests/chan-shadow.test.ts` (22 assertions);
   - `quant/PREREGISTRATION_S1.md`;
   - `backtest/research/s1_evaluate.py` (counts only until 100 taken).
-- Status: PR opened, awaiting GPT review (council rule 6/7). Nothing deployed. Suite: same 3 pre-existing failures, 0 new; chan-runner typecheck clean.
+- GPT APPROVED shadow-only (PR #82). DEPLOYED 22:23 UTC: migration applied first, merge b4355437, CI run #263, manifest verified. First row 22:25:56 (live FET LONG, s1_take). Live unchanged (8 cap, 20x, 2%), 0 errors. Previously: Suite: same 3 pre-existing failures, 0 new; chan-runner typecheck clean.
 
 ## P004 (2026-09-30 ~21:00 UTC) — read-only replay, regime+micro+OI/funding candidate: REJECT
 - `backtest/research/p004_replay.py` -> `status/p004-replay.txt`. Input: 323 closed CHAN trades from 09-28 17:36 to 09-30 20:36, with entry-time fields and a point-in-time `mkt_derivs` join.

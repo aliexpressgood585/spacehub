@@ -1,0 +1,38 @@
+v113bt — funding-settlement capture + CME weekend gap fill (cost 16 bps round trip)
+looks 11 -> luck ~0.25 false passes at t>=2; PASS: 0
+
+A. funding-settlement capture, 40 coins, 15m, 2023-09-01 .. 2026-08-31, IS < 2025-10-06
+|f|>=0.03% enter -15m exit +15m    IS n  8099 net   -10.4 bps WR 42.7% t  -2.56 | OOS n  2285 net   -18.9 bps WR 36.7% t  -5.14 | gross(before costs, all) 3.7 bps
+|f|>=0.03% enter -60m exit +15m    IS n  8099 net   -10.1 bps WR 45.9% t  -1.64 | OOS n  2285 net    -9.5 bps WR 41.8% t  -1.25 | gross(before costs, all) 6.0 bps
+|f|>=0.03% enter -15m exit +60m    IS n  8099 net   -21.9 bps WR 42.9% t  -3.31 | OOS n  2285 net   -17.3 bps WR 40.5% t  -3.26 | gross(before costs, all) -4.9 bps
+|f|>=0.05% enter -15m exit +15m    IS n  3310 net    -8.2 bps WR 44.0% t  -1.27 | OOS n  1149 net   -16.4 bps WR 38.5% t  -3.20 | gross(before costs, all) 5.7 bps
+|f|>=0.05% enter -60m exit +15m    IS n  3310 net    -8.8 bps WR 46.4% t  -0.90 | OOS n  1149 net     6.7 bps WR 45.2% t   0.57 | gross(before costs, all) 11.2 bps
+|f|>=0.05% enter -15m exit +60m    IS n  3310 net   -33.7 bps WR 40.9% t  -3.21 | OOS n  1149 net   -14.5 bps WR 41.8% t  -1.91 | gross(before costs, all) -12.8 bps
+|f|>=0.10% enter -15m exit +15m    IS n   401 net    -2.1 bps WR 50.6% t  -0.13 | OOS n   471 net   -15.8 bps WR 42.0% t  -1.49 | gross(before costs, all) 6.5 bps
+|f|>=0.10% enter -60m exit +15m    IS n   401 net    26.9 bps WR 58.1% t   0.90 | OOS n   471 net    36.8 bps WR 50.7% t   1.54 | gross(before costs, all) 48.2 bps
+|f|>=0.10% enter -15m exit +60m    IS n   401 net   -52.4 bps WR 44.1% t  -2.18 | OOS n   471 net   -15.6 bps WR 42.3% t  -1.06 | gross(before costs, all) -16.5 bps
+
+B. CME weekend gap fill, BTC + ETH, 1h, 72m
+gap >= 1% fade to Friday close     IS n   278 net   -82.9 bps WR 46.8% t  -2.72 | OOS n   106 net    -0.4 bps WR 61.3% t  -0.01 | gross(before costs, all) -44.1 bps
+gap >= 2% fade to Friday close     IS n   176 net  -101.7 bps WR 43.8% t  -2.18 | OOS n    64 net    33.2 bps WR 65.6% t   0.52 | gross(before costs, all) -49.7 bps
+
+v113b robustness of |f|>=0.10% (diagnostic looks, not a new search):
+realised rate, -60/+15 (v113 row)        IS n  400 net   28.9 bps t  0.97 | OOS n  471 net   36.8 bps t  1.54
+PREVIOUS rate (no look-ahead), -60/+15   IS n  401 net   -6.5 bps t -0.19 | OOS n  470 net    0.7 bps t  0.06
+realised rate, -30/+15                   IS n  400 net   -8.4 bps t -0.48 | OOS n  471 net    3.2 bps t  0.31
+realised rate, -45/+15                   IS n  400 net   20.5 bps t  0.77 | OOS n  471 net   24.2 bps t  1.20
+realised rate, -90/+15                   IS n  400 net   54.2 bps t  1.84 | OOS n  471 net   96.2 bps t  1.76
+realised rate, -120/+15                  IS n  400 net   74.6 bps t  1.82 | OOS n  471 net   79.9 bps t  2.44
+realised rate, -60/+0                    IS n  400 net   31.0 bps t  1.41 | OOS n  471 net   51.9 bps t  2.98
+realised rate, -60/+30                   IS n  400 net   17.2 bps t  0.79 | OOS n  471 net   26.3 bps t  1.04
+PREVIOUS rate, -30/+15                   IS n  401 net  -17.4 bps t -0.70 | OOS n  470 net    2.2 bps t  0.24
+PREVIOUS rate, -90/+15                   IS n  401 net   -9.3 bps t -0.26 | OOS n  470 net   24.3 bps t  1.71
+PREVIOUS rate, -60/+0                    IS n  401 net   -8.0 bps t -0.46 | OOS n  470 net   19.6 bps t  2.30
+
+v113c — signal = funding PREDICTED at T-60m from premium-index klines (no look-ahead):
+|pred|>=0.10% enter -60m exit +15m       IS n  738 net    5.4 bps t  0.25 | OOS n  625 net    6.7 bps t  0.74
+|pred|>=0.10% enter -60m exit +0m        IS n  738 net    6.9 bps t  0.47 | OOS n  625 net   21.0 bps t  2.85
+|pred|>=0.10% enter -90m exit +15m       IS n  738 net    8.1 bps t  0.36 | OOS n  625 net   22.9 bps t  1.62
+|pred|>=0.10% enter -120m exit +15m      IS n  836 net   16.6 bps t  0.59 | OOS n  708 net   10.2 bps t  0.83
+|pred|>=0.05% enter -60m exit +15m       IS n 4818 net   -8.2 bps t -1.06 | OOS n 2009 net   -9.9 bps t -1.70
+reconstruction check: corr(pred, realised) = 0.880 on 142506 settlements; realised |f|>=0.10%: 763, predicted too: 627

@@ -112,7 +112,7 @@ When either model makes a material proposal, replace the Pending proposal block 
 
 ## P005 — S1 shadow variant "more exposure + precision" (Claude, 2026-09-30)
 - Owner request: "keep trading aggressive, more exposure in the book, but accuracy matters". Owner chose the council route: shadow test first.
-- Status: **PROPOSED — awaiting GPT review.** Not merged, not deployed, migration not applied. PAPER ONLY.
+- Status: **SHADOW LIVE.** GPT APPROVED shadow-only (PR #82); migration applied, merged b4355437, deployed 22:23 UTC, first journal row 22:25:56, live caps unchanged, 0 errors. Counts only until 100 S1 trades. PAPER ONLY.
 - S1 = the P004 filters (regime-consistent comp, micro >= 60 with taker flow on our side, mtf on our side, funding <= 1bp/8h against us, OI rising) + up to 12 open instead of 8.
 - It NEVER trades. The runner journals S1's verdict to `chan_shadow`:
   - `live` = trades actually taken;

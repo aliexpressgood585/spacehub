@@ -5,10 +5,12 @@
 //   3. every 5 min: Binance OI + funding + premium for the pinned 40, Deribit options summary + DVOL (BTC, ETH)
 //   4. every 5 min: news RSS (published timestamp + coins named)
 //   5. once an hour: retention (90 days)
+//   6. every run: forward-test lab (shared/forward.ts) — VIRTUAL positions only, table fwd_trades
 // Every source fails independently; the response lists what worked.
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import * as S from '../../../shared/strategy.ts'
 import * as C from '../../../shared/collect.ts'
+import * as F from '../../../shared/forward.ts'
 
 const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } })
 const WS_MS = 45_000
@@ -114,12 +116,43 @@ async function news(now: number): Promise<string[]> {
   return out
 }
 
+// Forward-test lab: never trades. Opens/closes virtual rows from pre-registered rules (quant/PREREGISTRATION_H6.md).
+async function forward(now: number): Promise<string> {
+  const prem: F.Prem[] = await json('https://fapi.binance.com/fapi/v1/premiumIndex')
+  const bySym = new Map(prem.map(p => [p.symbol, p]))
+  let uni = new Set<string>(S.CRYPTO_40.map(bsym))
+  try { const { data } = await db.from('market_cache').select('data').eq('key', 'universe').maybeSingle()
+    const pairs = (data as any)?.data?.pairs; if (Array.isArray(pairs) && pairs.length >= 20) uni = new Set<string>(pairs.map((x: any) => String(x.s))) } catch { /* pinned 40 */ }
+  const { data: recent, error: e1 } = await db.from('fwd_trades').select('hyp,symbol,settle_at').gt('settle_at', iso(now - 3 * 3600e3))
+  if (e1) throw new Error(e1.message)
+  const taken = new Set<string>((recent ?? []).map((r: any) => `${r.hyp}:${r.symbol}:${Date.parse(r.settle_at)}`))
+  const opens = F.entries(prem, uni, now, taken)
+  if (opens.length) { const { error } = await db.from('fwd_trades').upsert(opens.map(o => ({ ...o, entry_ts: iso(now), status: 'open' })), { onConflict: 'hyp,symbol,settle_at', ignoreDuplicates: true }); if (error) throw new Error(error.message) }
+  const { data: due, error: e2 } = await db.from('fwd_trades').select('id,hyp,symbol,settle_at,side,entry_px,exit_due').eq('status', 'open').lte('exit_due', iso(now)).limit(200)
+  if (e2) throw new Error(e2.message)
+  let closed = 0
+  await pool(due ?? [], 6, async (r: any) => {
+    const h = F.HYPS.find(x => x.id === r.hyp), px = Number(bySym.get(r.symbol)?.markPrice), T = Date.parse(r.settle_at)
+    if (!h || !(px > 0)) return
+    let realised: number | null = null
+    try { const f = await json(`https://fapi.binance.com/fapi/v1/fundingRate?symbol=${r.symbol}&startTime=${T - 60e3}&endTime=${T + 5 * 60e3}`, 5000)
+      if (Array.isArray(f) && f.length) realised = Number(f[0].fundingRate) } catch { /* retry next run */ }
+    if (realised === null && now < Date.parse(r.exit_due) + 30 * 60e3) return   // wait for the settlement to publish
+    const net = realised === null ? null : F.netOf(Number(r.side), Number(r.entry_px), px, realised, h.costRt)
+    const { error } = await db.from('fwd_trades').update({ status: 'closed', exit_ts: iso(now), exit_px: px, realised, net,
+      funding_missing: realised === null }).eq('id', r.id).eq('status', 'open')
+    if (!error) closed++
+  })
+  return `opened ${opens.length}, closed ${closed}, due ${(due ?? []).length}`
+}
+
 Deno.serve(async () => {
   const now = Date.now(), minute = Math.floor(now / 60_000)
   const report: Record<string, unknown> = { at: iso(now) }
   const step = async (k: string, f: () => Promise<unknown>) => { try { report[k] = await f() } catch (e) { report[k] = `fail: ${String(e).slice(0, 120)}` } }
   const ws = binanceWs(WS_MS) // runs while the REST sources below are fetched
   await step('okx_liqs', okxLiqs)
+  await step('forward', () => forward(Date.now()))
   if (minute % 5 === 0) {
     await step('derivs', () => derivs(now))
     await step('options', () => options(now))
