@@ -728,7 +728,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       }
       const pattern=patternMemory(learningRows,{
         comp:String(cand.comp),regime:String(REGIME[v.regime]),side,
-        volPct:Number(v.volPct),mtfSide:Number(v.opp?.mtf_side??0),microScore:micro&&!micro.error&&Number.isFinite(Number(micro.score))?Number(micro.score):null
+        volPct:Number(v.volPct),mtfSide:Number(v.opp?.mtf_side??0),microScore:Number(micro?.score??50)
       })
       qualityScore += Number(pattern.penalty||0)
       if(Number(pattern.penalty)<0) softReasons.push('pattern_memory')
@@ -773,6 +773,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
       const eraRs = rsOf(cand.comp)
       const estimatedKelly = kellyRisk(eraRs)
       const discoveryBootstrap = eraRs.length < 8 && profitGate.mode === 'PROBE'
+      let explorationKellyBypass=false
       let k = discoveryBootstrap && !(Number.isFinite(estimatedKelly.f) && estimatedKelly.f > 0)
         ? { f: 0.010, why: `new-era discovery bootstrap; n=${eraRs.length}; meaningful PAPER sizing; quality gates still required` }
         : estimatedKelly
@@ -787,7 +788,6 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
           continue
         }
       }
-      const explorationBypass=explorationQualityBypass||explorationKellyBypass
       let bk: Awaited<ReturnType<typeof book>>
       try { bk = await book(pairOf(sym)) } catch { rec('rejected', 'no_book'); continue }
       const touch = cand.side > 0 ? bk.asks[0][0] : bk.bids[0][0]
@@ -810,7 +810,7 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
         continue
       }
       explorationQualityBypass=explorationFloor.eligible&&qualityScore<requiredQuality
-      let explorationKellyBypass=false
+      const explorationBypass=explorationQualityBypass||explorationKellyBypass
       const baseAggressiveRisk = discoveryBootstrap
         ? Math.max(0.0075,Math.min(0.010,Number(k.f)))
         : Math.min(PAPER_RISK_MAX, Math.max(PAPER_RISK_MIN, k.f * PAPER_RISK_MULT))
@@ -937,7 +937,6 @@ export async function runChan(db: any, state: any, lease: string, paper: boolean
             profitability_mode:profitabilityGovernor.mode, profitability_risk_mult:profitabilityGovernor.risk_mult,
             strategy_profit_mode:profitGate.mode, strategy_profit_reason:profitGate.reason,
             strategy_avg_r:profitGate.avgR, strategy_recent_avg_r:profitGate.recentAvgR, strategy_profit_size_mult:profitGate.size_mult,
-        strategy_size_cap:strategySizeCap,
             strategy_size_cap:strategySizeCap,
             mtf: v.opp ? { side:v.opp.mtf_side, trend15:v.opp.mtf15, trend60:v.opp.mtf60, ret15:v.opp.ret15, ret60:v.opp.ret60 } : null,
             micro_execution: micro,
