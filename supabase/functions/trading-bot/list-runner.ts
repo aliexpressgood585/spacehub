@@ -25,6 +25,11 @@ export async function runList(db:any,state:any,lease:string,paper:boolean){
     const why=listExit(Number(t.entry_price),qq.ask,Date.parse(t.opened_at),now)
     if(why)closes.push({id:t.id,price:qq.ask*(1+SCALP.slip),reason:why,quote_ts:qq.ts})
   }
+  // v99.1: publish the bot's own marks every cycle so the house shows live P&L even where exchange sockets are blocked
+  if(Object.keys(marks).length&&!closes.length&&!scanDue){
+    try{await db.rpc('list_marks',{p_lease:lease,p_marks:marks}).throwOnError()}catch{}
+    return {changed:false,open:open.length,marks:Object.keys(marks).length}
+  }
   if(!closes.length&&!scanDue)return {changed:false,open:open.length}
   // entries: hourly scan of fresh listings
   const entries:any[]=[],cands:any[]=[];let scanErr:string|null=null
@@ -50,7 +55,7 @@ export async function runList(db:any,state:any,lease:string,paper:boolean){
       }
     }catch(e:any){scanErr=String(e?.message??e)}
   }
-  const note={scan_due:scanDue,candidates:cands.slice(0,20),scan_error:scanErr,open:open.length}
+  const note={marks,marks_ts:new Date().toISOString(),scan_due:scanDue,candidates:cands.slice(0,20),scan_error:scanErr,open:open.length}
   const {data:result}=await db.rpc('list_commit_cycle',{p_lease:lease,p_closes:closes,p_entries:entries,p_marks:marks,p_note:note,p_scan:scanDue&&!scanErr}).throwOnError()
   return {changed:closes.length>0||entries.length>0||scanDue,...result,...note}
 }

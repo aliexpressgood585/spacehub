@@ -16,7 +16,7 @@ const TF_MS: Record<string, number> = { '1m':60e3,'3m':180e3,'5m':300e3,'15m':90
 const OKX_BAR: Record<string, string> = { '1m':'1m','3m':'3m','5m':'5m','15m':'15m','30m':'30m','1h':'1H','2h':'2H','4h':'4H','6h':'6H','12h':'12H','1d':'1D','3d':'3D','1w':'1W' }
 const TF_CHOICES = [['1m','1ד'],['3m','3ד'],['5m','5ד'],['15m','15ד'],['30m','30ד'],['1h','1ש'],['2h','2ש'],['4h','4ש'],['6h','6ש'],['8h','8ש'],['12h','12ש'],['1d','1י'],['3d','3י'],['1w','1שב'],['1M','1ח']] as const
 const bsym = (sym: string) => (sym === 'PEPE' ? { s: '1000PEPEUSDT', k: 1000 } : { s: `${sym}USDT`, k: 1 })
-const tfOf = (t: Row) => t.strategy === 'FAST' ? (t.scalp_meta?.fast?.mode === 'rt' ? '1m' : '5m') : t.strategy === 'LAB' ? String(t.scalp_meta?.lab?.tf ?? '1h') : t.strategy === 'SCALP' ? '1m' : t.strategy === 'BRKV' ? '4h' : t.strategy === 'ROTA' ? '1h' : '5m'
+const tfOf = (t: Row) => t.strategy === 'FAST' ? (t.scalp_meta?.fast?.mode === 'rt' ? '1m' : '5m') : t.strategy === 'LAB' ? String(t.scalp_meta?.lab?.tf ?? '1h') : t.strategy === 'SCALP' ? '1m' : t.strategy === 'BRKV' ? '4h' : t.strategy === 'LIST' ? '1h' : t.strategy === 'ROTA' ? '1h' : '5m'
 const fmt = (x: number) => (!Number.isFinite(x) ? '—' : Math.abs(x) >= 1000 ? x.toFixed(2) : Number(x.toPrecision(5)).toString())
 const usd = (x: number) => `${x < 0 ? '−' : '+'}$${Math.abs(x).toFixed(2)}`
 const pct = (x: number, d = 2) => `${x < 0 ? '−' : '+'}${Math.abs(x).toFixed(d)}%`
@@ -122,6 +122,7 @@ function Reasons({ t }: { t: Row }) {
   }
   if (t.strategy === 'LAB' && m.lab) return <div style={{ fontSize: 14, lineHeight: 1.7 }}>אסטרטגיית מעבדה <b dir="ltr">{m.lab.spec}</b> ({m.lab.tier === 'elite' ? 'מובחרת' : 'חקירה'}) · OOS: {m.lab.oos?.mean}% לעסקה, t={m.lab.oos?.t}, PF {m.lab.oos?.pf} · רווח נטו צפוי {m.lab.exp_net_bps} bps</div>
   if (t.strategy === 'SCALP') return <div style={{ fontSize: 14, lineHeight: 1.7 }}>סוכנים שתמכו: {(m.evidence?.agents ?? []).join(', ') || '—'} · רווח צפוי {m.net_bps ?? '—'} bps אחרי עלויות {m.costs?.total_bps ?? '—'} bps</div>
+  if (t.strategy === 'LIST') return <div style={{ fontSize: 14, lineHeight: 1.7 }}>שורט על מטבע חדש בבינאנס פיוצ'רס: נכנס לרשימה לפני <b>{m.age_days != null ? Number(m.age_days).toFixed(1) : '—'}</b> ימים, מחזור 24ש׳ ${m.quote_vol_24h ? (Number(m.quote_vol_24h) / 1e6).toFixed(1) + 'M' : '—'}. יציאה: ‎+20% סטופ, ‎-30% יעד, או אחרי 21 יום. <span style={{ color: C.warn }}>ניסוי שלא נבדק לאחור.</span></div>
   return <div style={{ color: C.dim }}>{t.strategy === 'ROTA' ? 'רוטציית מומנטום: המטבע דורג בין החזקים/החלשים ביותר ב־7/14/28 ימים. אין סטופ — יוצא בסבב הבא.' : 'אין פירוט שמור לעסקה הזאת.'}</div>
 }
 

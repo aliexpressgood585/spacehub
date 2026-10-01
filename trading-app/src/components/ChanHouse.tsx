@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { SUPA_KEY, SUPA_URL } from '../supa'
 import { useLivePrices } from '../livePrices'
 
@@ -216,6 +216,28 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
   const open = trades.filter(t => t.status === 'OPEN')
   const closed = trades.filter(t => t.status !== 'OPEN' && t.closed_at)
   const ticks = useLivePrices(open.map(t => String(t.sym)))
+  const [ws, setWs] = useState<Record<string, { bid: number; ask: number; ts: number }>>({})
+  const [wsOn, setWsOn] = useState(false)
+  const openKey = open.map(t => String(t.sym)).sort().join(',')
+  useEffect(() => {
+    const syms = openKey ? openKey.split(',') : []
+    if (!syms.length) { setWsOn(false); return }
+    let dead = false, sock: WebSocket | null = null, retry: ReturnType<typeof setTimeout> | null = null
+    const meta = (s: string) => s === 'PEPE' ? { st: '1000PEPEUSDT', k: 1000 } : { st: `${s}USDT`, k: 1 }
+    const rev = new Map(syms.map(s => [meta(s).st, s]))
+    const connect = () => {
+      if (dead) return
+      sock = new WebSocket(`wss://fstream.binance.com/stream?streams=${[...rev.keys()].map(x => x.toLowerCase() + '@bookTicker').join('/')}`)
+      sock.onopen = () => { if (!dead) setWsOn(true) }
+      sock.onmessage = (ev) => { try { const d = JSON.parse(ev.data)?.data; const sym = rev.get(String(d?.s ?? '').toUpperCase()); if (!sym) return
+        const k = meta(sym).k, bid = Number(d.b) / k, ask = Number(d.a) / k; if (bid > 0 && ask > 0) setWs(w => ({ ...w, [sym]: { bid, ask, ts: Date.now() } })) } catch {} }
+      sock.onclose = () => { if (dead) return; setWsOn(false); retry = setTimeout(connect, 1500) }
+      sock.onerror = () => { try { sock?.close() } catch {} }
+    }
+    connect()
+    return () => { dead = true; if (retry) clearTimeout(retry); try { sock?.close() } catch {} }
+  }, [openKey])
+  const prevPx = useRef<Record<string, number>>({})
   const p = state?.bot_params ?? {}
   const cyc = p.list_cycle ?? {}
   const lease = state?.lock_until ? Date.parse(state.lock_until) : null
@@ -226,14 +248,19 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
 
   const rows = open.map(t => {
     const entry = Number(t.entry_price), size = Number(t.size), m = t.scalp_meta ?? {}
-    const tk = ticks[String(t.sym)], mark = tk?.px ?? null
+    const sym = String(t.sym), w = ws[sym], tk = ticks[sym]
+    const botM = p.list_marks?.marks?.[sym] ?? p.list_cycle?.marks?.[sym]
+    const botTs = Date.parse(p.list_marks?.ts ?? p.list_cycle?.marks_ts ?? '') || 0
+    // a short closes at the ask: prefer the live Binance ask, then the shared feed, then the bot's own last mark
+    const mark: number | null = w && now - w.ts < 15_000 ? w.ask : tk?.px ? tk.px : Number(botM) > 0 ? Number(botM) : null
+    const src = w && now - w.ts < 15_000 ? 'Binance WS' : tk?.px ? String(tk.src) : Number(botM) > 0 ? `הבוט · ${ago(botTs, now)}` : undefined
     const notional = entry * size
     const hours = (now - Date.parse(t.opened_at)) / 3_600_000
     const funding = notional * 0.0001 * hours / 8 * -1
     const gross = mark != null ? (entry - mark) * size : null
     const exitFee = mark != null ? mark * size * 0.0005 : null
     const net = gross != null ? gross - Number(t.fee ?? 0) - exitFee! - funding : null
-    return { t, m, mark, src: tk?.src, notional, gross, net, pctMove: mark != null ? (entry / mark - 1) : null,
+    return { t, m, mark, src, notional, gross, net, pctMove: mark != null ? (entry / mark - 1) : null,
       toStop: mark != null ? Number(m.stop_px) / mark - 1 : null, toTarget: mark != null ? 1 - Number(m.target_px) / mark : null }
   })
   const start = 5000
@@ -247,6 +274,15 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
   const wins = closed.filter(t => Number(t.pnl) > 0).length
   const cands: J[] = Array.isArray(cyc.candidates) ? cyc.candidates : []
   const heldOrTraded = new Set(trades.map(t => String(t.sym)))
+  const events = useMemo(() => {
+    const ev: { ts: string; title: string; detail: string; cls: string }[] = []
+    for (const t of trades) {
+      ev.push({ ts: t.opened_at, title: `נפתח שורט ${t.sym}`, detail: `כניסה ${fmtPx(Number(t.entry_price))} · ${fmt$(Number(t.entry_price) * Number(t.size))} · מטבע בן ${t.scalp_meta?.age_days != null ? Number(t.scalp_meta.age_days).toFixed(1) : '—'} ימים`, cls: 'open' })
+      if (t.closed_at && t.status !== 'OPEN') ev.push({ ts: t.closed_at, title: `נסגר ${t.sym} · ${REASON_HE[String(t.scalp_meta?.exit_reason)] ?? t.scalp_meta?.exit_reason ?? ''}`, detail: `יציאה ${fmtPx(Number(t.exit_price))} · ${fmt$(Number(t.pnl))}`, cls: Number(t.pnl) >= 0 ? 'win' : 'loss' })
+    }
+    if (cyc.ts) ev.push({ ts: cyc.ts, title: cyc.scan_due ? 'סריקת מטבעות חדשים' : 'מחזור ספר חשבונות', detail: `${Array.isArray(cyc.candidates) ? cyc.candidates.length : 0} מועמדים · נפתחו ${Number(cyc.opened ?? 0)} · נסגרו ${Number(cyc.closed ?? 0)}`, cls: 'scan' })
+    return ev.sort((a, b) => Date.parse(b.ts) - Date.parse(a.ts))
+  }, [trades, cyc])
 
   return <div className="ch" dir="rtl">
     <style>{CSS}</style>
@@ -257,6 +293,7 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
       <span className="chip">{state?.paper_mode === false ? 'לא נייר!' : 'נייר בלבד'}</span>
       <span className="chip">{manifest ? `${manifest.enabled_sleeves} · ${String(manifest.sha ?? '').slice(0,7)}` : 'LIST'}</span>
       <span className={`chip ${activeErrors ? 'bad' : 'ok'}`}>{activeErrors ? `${activeErrors} שגיאות פעילות` : '0 שגיאות פעילות'}</span>
+      <span className={`chip ${open.length ? (wsOn ? 'ok' : 'bad') : ''}`}>{open.length ? (wsOn ? '● Binance WS חי' : '○ Binance WS מתחבר · מחיר מהבוט') : 'Binance WS בהמתנה'}</span>
       <span className="chip">סריקה אחרונה {ago(lastScan || null, now)}{nextScan ? ` · הבאה ${new Date(nextScan).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}` : ''}</span>
     </div>
     {err && <div className="readerr">שגיאת קריאה: {err}</div>}
@@ -283,21 +320,33 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
         <span className="countBadge">{open.length} / 10</span>
       </div>
       {rows.length === 0 ? <div className="emptyPos">אין כרגע פוזיציות פתוחות.</div> :
-      <div className="closedTableWrap"><table className="closedTable" style={{minWidth:900}}>
-        <thead><tr><th>מטבע</th><th>כניסה</th><th>מחיר חי</th><th>תנועה</th><th>P&L נטו</th><th>שווי</th><th>לסטופ</th><th>ליעד</th><th>גיל בכניסה</th><th>נפתח</th></tr></thead>
-        <tbody>{rows.map(r => <tr key={r.t.id} className={(r.net ?? 0)>=0?'winRow':'lossRow'}>
-          <td><b>{r.t.sym}</b> SHORT</td>
-          <td><bdi dir="ltr">{fmtPx(Number(r.t.entry_price))}</bdi></td>
-          <td><bdi dir="ltr">{fmtPx(r.mark)}</bdi>{r.src ? <small style={{color:'#64748b'}}> {r.src}</small> : null}</td>
-          <td><bdi dir="ltr" className={(r.pctMove ?? 0)>=0?'pos':'neg'}>{pct(r.pctMove)}</bdi></td>
-          <td><bdi dir="ltr" className={(r.net ?? 0)>=0?'pos':'neg'}>{fmt$(r.net)}</bdi></td>
-          <td><bdi dir="ltr">{fmt$(r.notional)}</bdi></td>
-          <td><bdi dir="ltr">{pct(r.toStop)}</bdi></td>
-          <td><bdi dir="ltr">{pct(r.toTarget)}</bdi></td>
-          <td>{r.m.age_days != null ? `${Number(r.m.age_days).toFixed(1)} ימים` : '—'}</td>
-          <td>{clock(r.t.opened_at)}</td>
-        </tr>)}</tbody>
-      </table></div>}
+      <div className="positionGrid">{rows.map(r => {
+        const stop = Number(r.m.stop_px), target = Number(r.m.target_px), entry = Number(r.t.entry_price)
+        // progress from stop (0%) through entry to target (100%); for a short, lower is better
+        const prog = r.mark != null ? Math.max(0, Math.min(100, (stop - r.mark) / (stop - target) * 100)) : null
+        const entryPos = (stop - entry) / (stop - target) * 100
+        const last = prevPx.current[r.t.sym]; if (r.mark != null) prevPx.current[r.t.sym] = r.mark
+        const flash = r.mark != null && last != null && r.mark !== last ? (r.mark < last ? 'pos' : 'neg') : ''
+        const held = (now - Date.parse(r.t.opened_at)) / 86_400_000
+        return <div key={r.t.id} className="lcard">
+          <div className="lhead"><b>{r.t.sym}</b><span className="lside">SHORT</span><span className="lsrc">{r.src ?? 'ממתין למחיר'}</span></div>
+          <div className="lpx"><bdi dir="ltr" className={flash}>{fmtPx(r.mark)}</bdi><bdi dir="ltr" className={(r.net ?? 0)>=0?'pos':'neg'}>{fmt$(r.net)} · {pct(r.pctMove)}</bdi></div>
+          <div className="lbar"><div className="lfill" style={{width:`${prog ?? 0}%`}}/><div className="lentry" style={{left:`${entryPos}%`}}/></div>
+          <div className="llabels"><span>סטופ <bdi dir="ltr">{fmtPx(stop)}</bdi></span><span>כניסה <bdi dir="ltr">{fmtPx(entry)}</bdi></span><span>יעד <bdi dir="ltr">{fmtPx(target)}</bdi></span></div>
+          <div className="lgrid">
+            <Mini k="שווי" v={fmt$(r.notional)} /><Mini k="לסטופ" v={pct(r.toStop)} /><Mini k="ליעד" v={pct(r.toTarget)} />
+            <Mini k="מוחזק" v={`${held.toFixed(held < 1 ? 2 : 1)} ימים / 21`} /><Mini k="גיל בכניסה" v={r.m.age_days != null ? `${Number(r.m.age_days).toFixed(1)} ימים` : '—'} /><Mini k="נפתח" v={clock(r.t.opened_at)} />
+          </div>
+          <button className="lchart" onClick={()=>window.open(`trade.html?id=${encodeURIComponent(String(r.t.id))}`,'_blank','noopener,noreferrer')}>גרף חי ←</button>
+        </div>
+      })}</div>}
+    </section>
+
+    <section className="closedTrades">
+      <div className="sectionHead"><div><h2>יומן חי</h2><p>כל פתיחה, סגירה וסריקה של הבוט, החדש למעלה.</p></div><span className="countBadge">{events.length}</span></div>
+      {events.length === 0 ? <div className="emptyPos">עדיין אין אירועים.</div> :
+      <div className="lfeed">{events.slice(0,40).map((e,i) => <div key={i} className={`lev ${e.cls}`}>
+        <time>{clock(e.ts)}</time><b>{e.title}</b><span>{e.detail}</span></div>)}</div>}
     </section>
 
     <section className="closedTrades">
@@ -1099,7 +1148,7 @@ const CSS = `
 h1{font-size:24px;margin:0 8px 0 0}.back{background:none;border:1px solid #223150;color:#94a3b8;border-radius:999px;padding:7px 14px}
 .chip{border:1px solid #223150;border-radius:999px;padding:6px 12px;color:#94a3b8}.chip.ok{color:#34d399;border-color:#166534}.chip.bad{color:#f87171;border-color:#991b1b}
 .warn{background:#2a1a05;border:1px solid #92400e;color:#fbbf24;border-radius:16px;padding:15px 18px;margin-bottom:18px;font-size:15px;line-height:1.55}
-.readerr{color:#f87171;margin-bottom:10px}.pos{color:#34d399!important}.neg{color:#f87171!important}
+.readerr{color:#f87171;margin-bottom:10px}.lcard{background:#09121f;border:1px solid #1e293b;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px}.lhead{display:flex;gap:8px;align-items:center}.lhead b{font-size:20px}.lside{color:#f87171;border:1px solid #7f1d1d;border-radius:8px;padding:2px 8px;font-size:12px}.lsrc{margin-inline-start:auto;color:#64748b;font-size:11px}.lpx{display:flex;justify-content:space-between;align-items:baseline;gap:8px}.lpx bdi:first-child{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}.lpx bdi:last-child{font-size:16px;font-weight:700}.lbar{position:relative;height:10px;background:linear-gradient(90deg,#3b0d14,#0d2a1f);border-radius:6px;overflow:visible}.lfill{position:absolute;inset:0 auto 0 0;background:rgba(52,211,153,.45);border-radius:6px;transition:width .3s}.lentry{position:absolute;top:-4px;width:2px;height:18px;background:#e2e8f0}.llabels{display:flex;justify-content:space-between;font-size:11px;color:#64748b}.lgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.lgrid .mini{background:#0b1626;border-radius:10px;padding:6px 8px;display:flex;flex-direction:column;font-size:11px;color:#64748b}.lgrid .mini bdi{color:#e2e8f0;font-size:13px;font-weight:700}.lchart{background:#13233b;color:#93c5fd;border:1px solid #1e3a5f;border-radius:10px;padding:8px;font-size:14px;cursor:pointer}.lfeed{display:flex;flex-direction:column;gap:6px;max-height:420px;overflow:auto}.lev{display:grid;grid-template-columns:70px 1fr;gap:2px 10px;padding:8px 10px;border-radius:10px;background:#09121f;border-inline-start:3px solid #334155}.lev time{grid-row:span 2;color:#64748b;font-size:12px}.lev span{color:#94a3b8;font-size:12px}.lev.open{border-color:#f59e0b}.lev.win{border-color:#10b981}.lev.loss{border-color:#ef4444}.lev.scan{border-color:#3b82f6}.pos{color:#34d399!important}.neg{color:#f87171!important}
 .accountStrip{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:9px;margin-bottom:18px}.stat{background:#09121f;border:1px solid #1e293b;border-radius:13px;padding:11px 12px;display:flex;flex-direction:column;gap:5px}.stat span{font-size:11px;color:#64748b}.stat bdi{font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;transition:color .12s ease,transform .12s ease}
 .panel,.factory,.positions{background:#0b1220;border:1px solid #1e293b;border-radius:18px;padding:18px}.panel,.positions{margin-bottom:18px}
 .panel h2,.factory h2,.positions h2{font-size:23px;text-align:center;margin:0 0 8px}.muted{color:#64748b;text-align:center;line-height:1.45;margin:0 0 16px}
