@@ -396,6 +396,11 @@ Nothing deployed from this.
 - Change: aggressive mode no longer revives RG_VOL_BREAKOUT (`aggressive_engine_disabled`); cap 2 same-side entries per 5m bar in ALL modes (`same_side_bar_cap`). NB DONCH4H history shows the opposite (3+ simultaneous 4h breakouts were its best), so the cap is CHAN/5m-specific.
 - Rollback: revert this commit.
 
+## v99.3 (2026-10-01 ~17:30 UTC) — dashboard and house show ONE number, live every second (owner: screenshots $5,079 vs $5,043.77)
+- Cause: the dashboard used last price and subtracted only the entry fee (which cash had already paid), with no exit fee and no funding; the house used Binance bid/ask, exit fee and the funding estimate. ARK's price also differed between the two pages at the moment of the screenshots.
+- Fix: `useExitMarks` in livePrices.ts (Binance bookTicker bid for longs / ask for shorts > shared feed > bot marks from list_marks/fund_marks/chan_cycle, re-evaluated every 1 s) and `tradeMetrics` / `closeValue` (FUND funding = predicted settlement received). Both pages use them for account value, open P&L and position cards. The dashboard's equity line ends at the live value.
+- Display only; no bot or ledger change.
+
 ## v99.2 FUND (2026-10-01) — H6a funding capture traded in the paper book next to LIST (owner: "תשלב עוד אסטרטגיות" -> "more aggressive intraday", allocation "aggressive")
 - COUNCIL OVERRIDE by the owner (same as LIST). NOT VALIDATED: v113c measured H6a at IS +5.4 / OOS +6.7 bps (t 0.25 / 0.74), not significant.
 - Rule = H6a exactly (`shared/fundcap.ts` reuses `shared/forward.ts`):
