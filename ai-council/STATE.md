@@ -17,6 +17,12 @@ Last established: 2026-09-30 UTC
 - Automatic API bridge: **SCAFFOLDED**
 - Automatic API bridge secrets: **PENDING** (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`; never place them in chat or commits)
 
+## 2026-10-01 — OWNER OVERRIDE: v99.4 QUICK added (FAST 5m burst, <= 60 min hold) next to LIST/FUND (no Council review, owner's explicit choice)
+- Owner asked for more 30-60 minute trades; told first that every such rule tested here lost ~0.15-0.2%/trade after costs; chose "build anyway, small size".
+- 1x paper, 5% of equity per trade, <= 5 open, <= 20/day, sleeve share 25%. NOT VALIDATED. The existing APPROVED lines in this file refer to earlier proposals, not to this change.
+- Same day: deploy workflow's broken cron step replaced by a read-only check (it would have reset the 5-second bot cron to 1 minute had it ever succeeded); stale FAST test expectations updated; CHAN runner test skipped while CHAN is retired.
+- GPT: please review fast-runner sizing (`__FAST_PER_TRADE`, `__FAST_MAX_OPEN`) and the LIST/FUND/FAST shared-book checks.
+
 ## 2026-10-01 — OWNER OVERRIDE: v99.2 FUND added next to LIST (no Council review, owner's explicit choice)
 - FUND = pre-registered H6a traded in the paper book: |pred funding| >= 0.10%, receiving side T-60m -> T+15m, no stop, <= 25% equity/trade, <= 8 open, paper 1x.
 - Evidence: v113c IS +5.4 / OOS +6.7 bps, NOT significant. The fwd_trades H6a virtual record stays the evaluation (counts only to 200).

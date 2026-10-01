@@ -31,7 +31,7 @@ const rt = (burst: 1 | -1 | 0, buyers = 0.8): LBar[] => { const out: LBar[] = []
   return out }
 const r1 = fastSignalRT(rt(1), true, false); assert.ok(r1 && r1.dir === 1 && r1.volRatio >= 2, 'real-time: a burst in the last 3 minutes incl. the forming one = LONG')
 assert.equal(fastSignalRT(rt(1), false, false), null, 'real-time: BTC against = nothing'); assert.equal(fastSignalRT(rt(0), true, false), null, 'real-time: no burst = nothing')
-assert.ok(fastSignalRT(rt(-1), false, false)?.dir === -1, 'real-time SHORT mirror'); assert.equal(FAST_RT.holdMin, 30); assert.equal(fastExit(1, 90, 110, 100, 30 * 60e3, 0, 30 * 60e3), 'TIMEOUT', 'hold comes from the trade')
+assert.ok(fastSignalRT(rt(-1), false, false)?.dir === -1, 'real-time SHORT mirror'); assert.equal(FAST_RT.holdMin, 15); assert.equal(fastExit(1, 90, 110, 100, 30 * 60e3, 0, 30 * 60e3), 'TIMEOUT', 'hold comes from the trade')
 assert.ok(Math.abs(FAST.maxOpen * FAST.perTrade - 1) < 1e-12, 'three slots of margin = the whole account'); assert.equal(FAST.maxPerDay, 20)
 assert.ok(Math.abs(fastLiq(1, 100, 50) - 98.5) < 1e-9 && Math.abs(fastLiq(-1, 100, 50) - 101.5) < 1e-9, '50x isolated: liquidated 1.5% against (2% - 0.5% maintenance)')
 assert.equal(fastExit(1, 97, 103, 98.4, 0, fastLiq(1, 100, 50)), 'LIQUIDATION', 'a mark beyond the liquidation price liquidates before the stop')
@@ -69,7 +69,7 @@ try {
   assert.ok(e.length === 1 && e[0].sym === 'SOL' && e[0].side === 'LONG', 'the SOL burst is the one entry')
   assert.ok(e[0].fast.stop < e[0].price && e[0].fast.target > e[0].price && e[0].fast.trail === false && Math.abs((e[0].fast.target - e[0].price) / (e[0].price - e[0].fast.stop) - FAST.targetR) < 1e-9 && e[0].fast.best === e[0].price)
   assert.equal(e[0].lev, FAST.levDefault, 'default leverage 50x')
-  assert.ok(Math.abs(e[0].fast.margin - 5000 / 3) < 1e-6 && Math.abs(e[0].notional - 5000 / 3 * FAST.levDefault) < 1e-6, 'one third of equity as margin x 50 = notional')
+  assert.ok(Math.abs(e[0].fast.margin - 5000 * FAST.perTrade) < 1e-6 && Math.abs(e[0].notional - 5000 * FAST.perTrade * FAST.levDefault) < 1e-6, 'perTrade of equity as margin x lev = notional')
   assert.ok(e[0].fast.liq > e[0].price === false && e[0].fast.liq < e[0].price, 'long liquidation price below the entry')
   assert.ok(rpc.args.p_bar, 'the bar is marked processed')
   rpc = null

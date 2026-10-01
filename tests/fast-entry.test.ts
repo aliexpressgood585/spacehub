@@ -76,7 +76,7 @@ try {
       assert.equal(e.lev, FAST.levDefault)
       assert.equal(e.fast.entry_check.version, FAST_ENTRY.version)
       assert.ok(e.fast.checks.every((c: any) => c.ok))
-      assert.ok(Math.abs(e.notional - 5000 / 3 * 50) < 1e-6, 'full original allocation on a deep book')
+      assert.ok(Math.abs(e.notional - 5000 * FAST.perTrade * FAST.levDefault) < 1e-6, 'full original allocation on a deep book')
       assert.equal(journal[0].observed.entry_check.version, FAST_ENTRY.version)
     } else {
       assert.equal(commit.p_entries.length, 0)
