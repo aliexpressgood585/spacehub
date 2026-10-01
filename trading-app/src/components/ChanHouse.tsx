@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { SUPA_KEY, SUPA_URL } from '../supa'
+import { useLivePrices } from '../livePrices'
 
 type J = any
 const REST = `${SUPA_URL}/rest/v1/`
@@ -169,7 +170,176 @@ function economics(t: J, cyc: J, quote?: J) {
   }
 }
 
+// v99.0: the house follows the sleeve that is actually deployed. LIST (short fresh listings) gets its own view; every
+// other build keeps the CHAN house unchanged.
 export default function ChanHouse({ onBack }: { onBack?: () => void }) {
+  const [sleeve, setSleeve] = useState<string | null>(null)
+  useEffect(() => {
+    let alive = true
+    const load = () => q<J[]>('deployment_manifest?select=enabled_sleeves&order=first_seen.desc&limit=1')
+      .then(r => { if (alive) setSleeve(String(r[0]?.enabled_sleeves ?? 'CHAN')) }).catch(() => { if (alive) setSleeve(s => s ?? 'CHAN') })
+    void load(); const iv = setInterval(load, 30_000)
+    return () => { alive = false; clearInterval(iv) }
+  }, [])
+  if (sleeve == null) return <div className="ch" dir="rtl"><style>{CSS}</style><div className="emptyPos">טוען…</div></div>
+  return sleeve.split(',').includes('LIST') ? <ListHouse onBack={onBack} /> : <ChanHouseView onBack={onBack} />
+}
+
+const REASON_HE: Record<string,string> = { STOP: 'סטופ +20%', TARGET: 'יעד ‎-30%', TIMEOUT: '21 יום' }
+
+function ListHouse({ onBack }: { onBack?: () => void }) {
+  const [state, setState] = useState<J | null>(null)
+  const [trades, setTrades] = useState<J[]>([])
+  const [manifest, setManifest] = useState<J | null>(null)
+  const [errors, setErrors] = useState<J[]>([])
+  const [err, setErr] = useState('')
+  const [now, setNow] = useState(Date.now())
+  useEffect(() => { const iv = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(iv) }, [])
+  useEffect(() => {
+    let alive = true
+    const load = async () => {
+      try {
+        const [st, tr, man, er] = await Promise.all([
+          q<J[]>('bot_state?select=balance,bot_params,paper_mode,lock_until,updated_at,hard_halt_at&limit=1'),
+          q<J[]>('bot_trades?select=id,sym,side,status,lev,entry_price,exit_price,size,pnl,fee,opened_at,closed_at,scalp_meta&strategy=eq.LIST&order=opened_at.desc&limit=500'),
+          q<J[]>('deployment_manifest?select=sha,enabled_sleeves,bot_version&order=first_seen.desc&limit=1').catch(() => []),
+          q<J[]>(`bot_errors?select=ts,scope,message&ts=gte.${new Date(Date.now()-3_600_000).toISOString()}&order=ts.desc&limit=20`).catch(() => []),
+        ])
+        if (!alive) return
+        setState(st[0] ?? null); setTrades(tr ?? []); setManifest(man[0] ?? null); setErrors(er ?? []); setErr('')
+      } catch (e: any) { if (alive) setErr(String(e?.message ?? e)) }
+    }
+    void load(); const iv = setInterval(load, 3000)
+    return () => { alive = false; clearInterval(iv) }
+  }, [])
+
+  const open = trades.filter(t => t.status === 'OPEN')
+  const closed = trades.filter(t => t.status !== 'OPEN' && t.closed_at)
+  const ticks = useLivePrices(open.map(t => String(t.sym)))
+  const p = state?.bot_params ?? {}
+  const cyc = p.list_cycle ?? {}
+  const lease = state?.lock_until ? Date.parse(state.lock_until) : null
+  const alive = lease != null && now - lease < 120_000
+  const lastScan = Number(p.list_scan) || (cyc.ts ? Date.parse(cyc.ts) : 0)
+  const nextScan = lastScan ? lastScan + 3_600_000 : null
+  const activeErrors = errors.filter(e => !lastScan || Date.parse(e.ts) > lastScan).length
+
+  const rows = open.map(t => {
+    const entry = Number(t.entry_price), size = Number(t.size), m = t.scalp_meta ?? {}
+    const tk = ticks[String(t.sym)], mark = tk?.px ?? null
+    const notional = entry * size
+    const hours = (now - Date.parse(t.opened_at)) / 3_600_000
+    const funding = notional * 0.0001 * hours / 8 * -1
+    const gross = mark != null ? (entry - mark) * size : null
+    const exitFee = mark != null ? mark * size * 0.0005 : null
+    const net = gross != null ? gross - Number(t.fee ?? 0) - exitFee! - funding : null
+    return { t, m, mark, src: tk?.src, notional, gross, net, pctMove: mark != null ? (entry / mark - 1) : null,
+      toStop: mark != null ? Number(m.stop_px) / mark - 1 : null, toTarget: mark != null ? 1 - Number(m.target_px) / mark : null }
+  })
+  const start = 5000
+  const exposure = rows.reduce((s, r) => s + r.notional, 0)
+  const openNet = rows.reduce((s, r) => s + (r.net ?? 0), 0)
+  const realised = closed.reduce((s, t) => s + Number(t.pnl ?? 0), 0)
+  const fees = trades.reduce((s, t) => s + Number(t.fee ?? 0) + Number(t.scalp_meta?.exit_fee ?? 0), 0)
+  const funding = closed.reduce((s, t) => s + Number(t.scalp_meta?.funding_model ?? 0), 0)
+  const cash = Number(state?.balance ?? 0)
+  const equity = cash + exposure + openNet + rows.reduce((s, r) => s + Number(r.t.fee ?? 0), 0)
+  const wins = closed.filter(t => Number(t.pnl) > 0).length
+  const cands: J[] = Array.isArray(cyc.candidates) ? cyc.candidates : []
+  const heldOrTraded = new Set(trades.map(t => String(t.sym)))
+
+  return <div className="ch" dir="rtl">
+    <style>{CSS}</style>
+    <div className="top">
+      {onBack && <button className="back" onClick={onBack}>→ חזרה</button>}
+      <h1>בית הבוט · LIST</h1>
+      <span className={`chip ${alive ? 'ok' : 'bad'}`}>{alive ? `● חי · מחזור ${ago(lease, now)}` : `○ אין מחזור ${ago(lease, now)}`}</span>
+      <span className="chip">{state?.paper_mode === false ? 'לא נייר!' : 'נייר בלבד'}</span>
+      <span className="chip">{manifest ? `${manifest.enabled_sleeves} · ${String(manifest.sha ?? '').slice(0,7)}` : 'LIST'}</span>
+      <span className={`chip ${activeErrors ? 'bad' : 'ok'}`}>{activeErrors ? `${activeErrors} שגיאות פעילות` : '0 שגיאות פעילות'}</span>
+      <span className="chip">סריקה אחרונה {ago(lastScan || null, now)}{nextScan ? ` · הבאה ${new Date(nextScan).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}` : ''}</span>
+    </div>
+    {err && <div className="readerr">שגיאת קריאה: {err}</div>}
+    <div className="emptyPos" style={{textAlign:'right',padding:'12px 14px',marginBottom:14,borderStyle:'solid',color:'#fbbf24'}}>
+      ניסוי שלא נבדק: שורט על מטבעות שנכנסו לבינאנס פיוצ'רס לפני 3–30 יום · סטופ ‎+20% · יעד ‎-30% · עד 21 יום · עד 10 עסקאות של ~10% · נייר, בלי מינוף.
+    </div>
+
+    <section className="accountStrip">
+      <Stat k="הון פתיחה" v={fmt$(start)} />
+      <Stat k="הון נטו אם סוגרים עכשיו" v={fmt$(equity)} cls={equity>=start?'pos':'neg'} />
+      <Stat k="מזומן פנוי" v={fmt$(cash)} />
+      <Stat k="חשיפה (שורט)" v={fmt$(exposure)} />
+      <Stat k="ממומש" v={fmt$(realised)} cls={realised>=0?'pos':'neg'} />
+      <Stat k="פתוח נטו" v={fmt$(openNet)} cls={openNet>=0?'pos':'neg'} />
+      <Stat k="עמלות" v={fmt$(fees)} />
+      <Stat k="Funding (סגורות)" v={fmt$(-funding)} />
+      <Stat k="Win Rate" v={closed.length ? `${(wins/closed.length*100).toFixed(1)}%` : '—'} />
+      <Stat k="עסקאות" v={`${open.length} פתוחות · ${closed.length} סגורות`} />
+    </section>
+
+    <section className="positions">
+      <div className="sectionHead">
+        <div><h2>פוזיציות פתוחות · P&L חי</h2><p>שורט. P&L נטו כולל עמלת פתיחה, עמלת סגירה משוערת ו-Funding משוער (0.01% ל-8 שעות).</p></div>
+        <span className="countBadge">{open.length} / 10</span>
+      </div>
+      {rows.length === 0 ? <div className="emptyPos">אין כרגע פוזיציות פתוחות.</div> :
+      <div className="closedTableWrap"><table className="closedTable" style={{minWidth:900}}>
+        <thead><tr><th>מטבע</th><th>כניסה</th><th>מחיר חי</th><th>תנועה</th><th>P&L נטו</th><th>שווי</th><th>לסטופ</th><th>ליעד</th><th>גיל בכניסה</th><th>נפתח</th></tr></thead>
+        <tbody>{rows.map(r => <tr key={r.t.id} className={(r.net ?? 0)>=0?'winRow':'lossRow'}>
+          <td><b>{r.t.sym}</b> SHORT</td>
+          <td><bdi dir="ltr">{fmtPx(Number(r.t.entry_price))}</bdi></td>
+          <td><bdi dir="ltr">{fmtPx(r.mark)}</bdi>{r.src ? <small style={{color:'#64748b'}}> {r.src}</small> : null}</td>
+          <td><bdi dir="ltr" className={(r.pctMove ?? 0)>=0?'pos':'neg'}>{pct(r.pctMove)}</bdi></td>
+          <td><bdi dir="ltr" className={(r.net ?? 0)>=0?'pos':'neg'}>{fmt$(r.net)}</bdi></td>
+          <td><bdi dir="ltr">{fmt$(r.notional)}</bdi></td>
+          <td><bdi dir="ltr">{pct(r.toStop)}</bdi></td>
+          <td><bdi dir="ltr">{pct(r.toTarget)}</bdi></td>
+          <td>{r.m.age_days != null ? `${Number(r.m.age_days).toFixed(1)} ימים` : '—'}</td>
+          <td>{clock(r.t.opened_at)}</td>
+        </tr>)}</tbody>
+      </table></div>}
+    </section>
+
+    <section className="closedTrades">
+      <div className="sectionHead">
+        <div><h2>מועמדים בסריקה האחרונה</h2><p>מטבעות נזילים שנכנסו לפני 3–30 יום. שורט אחד בלבד לכל מטבע.</p></div>
+        <span className="countBadge">{cands.length}</span>
+      </div>
+      {cands.length === 0 ? <div className="emptyPos">אין מועמדים בסריקה האחרונה.</div> :
+      <div className="closedTableWrap"><table className="closedTable" style={{minWidth:520}}>
+        <thead><tr><th>מטבע</th><th>גיל (ימים)</th><th>מחזור 24ש׳</th><th>מרווח</th><th>מצב</th></tr></thead>
+        <tbody>{cands.map((c,i) => <tr key={i}><td><b>{c.sym}</b></td><td>{Number(c.age_d).toFixed(1)}</td><td>${Number(c.qv_m).toFixed(1)}M</td><td>{Number(c.spread_bps).toFixed(2)}bp</td>
+          <td>{heldOrTraded.has(String(c.sym)) ? 'נסחר' : 'ממתין למקום'}</td></tr>)}</tbody>
+      </table></div>}
+      {cyc.scan_error && <div className="readerr">שגיאת סריקה: {String(cyc.scan_error)}</div>}
+    </section>
+
+    <section className="closedTrades">
+      <div className="sectionHead">
+        <div><h2>עסקאות שנסגרו</h2><p>כל עסקאות LIST מאז האיפוס ב-1.10.2026.</p></div>
+        <span className="countBadge">{closed.length} סגורות</span>
+      </div>
+      {closed.length === 0 ? <div className="emptyPos">עדיין אין עסקאות סגורות.</div> :
+      <div className="closedTableWrap"><table className="closedTable" style={{minWidth:760}}>
+        <thead><tr><th>נסגר</th><th>מטבע</th><th>כניסה</th><th>יציאה</th><th>P&L נטו</th><th>סיבה</th><th>מוחזק</th></tr></thead>
+        <tbody>{closed.map(t => <tr key={t.id} className={Number(t.pnl)>=0?'winRow':'lossRow'}>
+          <td>{new Date(t.closed_at).toLocaleString('he-IL')}</td><td><b>{t.sym}</b></td>
+          <td><bdi dir="ltr">{fmtPx(Number(t.entry_price))}</bdi></td><td><bdi dir="ltr">{fmtPx(Number(t.exit_price))}</bdi></td>
+          <td><bdi dir="ltr" className={Number(t.pnl)>=0?'pos':'neg'}>{fmt$(Number(t.pnl))}</bdi></td>
+          <td>{REASON_HE[String(t.scalp_meta?.exit_reason)] ?? t.scalp_meta?.exit_reason ?? '—'}</td>
+          <td>{((Date.parse(t.closed_at)-Date.parse(t.opened_at))/86_400_000).toFixed(1)} ימים</td>
+        </tr>)}</tbody>
+      </table></div>}
+    </section>
+
+    {errors.length > 0 && <section className="closedTrades">
+      <div className="sectionHead"><div><h2>שגיאות בשעה האחרונה</h2></div><span className="countBadge">{errors.length}</span></div>
+      {errors.slice(0,8).map((e,i) => <div key={i} className="readerr">{clock(e.ts)} · {e.scope} · {e.message}</div>)}
+    </section>}
+  </div>
+}
+
+function ChanHouseView({ onBack }: { onBack?: () => void }) {
   const [state, setState] = useState<J | null>(null)
   const [open, setOpen] = useState<J[]>([])
   const [manifest, setManifest] = useState<J | null>(null)
