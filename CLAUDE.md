@@ -411,6 +411,7 @@ Nothing deployed from this.
 - The virtual H7 record in fwd_trades is untouched and stays the evaluation.
 - Shim (both CI workflows): `__ENABLED_SLEEVES='LIST,FUND,FAST,EVT'`, `__EVT_PER_TRADE='0.25'`, `__EVT_MAX_OPEN='4'`.
 - ROLLBACK: both workflows back to 'LIST,FUND,FAST' — but close open EVT rows first (LIST/FUND accept them in the book, nothing else exits them).
+- DEPLOYED 19:16:49 UTC: commit 5a5ad27, manifest v99.5 LIST,FUND,FAST,EVT paper true / live false. VERIFIED 19:22: evt_cycle polls the CMS every ~20 s from the bot with poll_error null, 0 bot_errors, no fresh announcement yet (0 EVT trades). Book: PONS LIST short + ARK FUND long.
 
 ## H7 (2026-10-01 19:06 UTC) — virtual forward test of Binance listing / delisting announcements (owner: "build and find a way to profit from fast trading")
 - `shared/events.ts` (tests/events.test.ts), pre-registered in `quant/PREREGISTRATION_H7.md`. VIRTUAL ONLY (fwd_trades), never trades.
