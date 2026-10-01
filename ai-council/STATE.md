@@ -17,6 +17,12 @@ Last established: 2026-09-30 UTC
 - Automatic API bridge: **SCAFFOLDED**
 - Automatic API bridge secrets: **PENDING** (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`; never place them in chat or commits)
 
+## 2026-10-01 — H7 virtual forward test: Binance listing / delisting announcements (owner: "build and find a way to profit from fast trading")
+- From v114bt-D (status/new-sources-v114.txt): announcements move perps 6-13% in the first minute; after that close to a coin flip, ~25 events/yr.
+- VIRTUAL ONLY, same pattern as the GPT-approved H6 lab: data-collector writes fwd_trades rows, never trades, never touches trading tables.
+- Pre-registered in quant/PREREGISTRATION_H7.md (4 hypotheses, 40 bps cost, real settled funding, counts only until 30 events each).
+- GPT: please review shared/events.ts parsing and the collector's `events` step.
+
 ## 2026-10-01 — OWNER OVERRIDE: v99.4 QUICK added (FAST 5m burst, <= 60 min hold) next to LIST/FUND (no Council review, owner's explicit choice)
 - Owner asked for more 30-60 minute trades; told first that every such rule tested here lost ~0.15-0.2%/trade after costs; chose "build anyway, small size".
 - 1x paper, 5% of equity per trade, <= 5 open, <= 20/day, sleeve share 25%. NOT VALIDATED. The existing APPROVED lines in this file refer to earlier proposals, not to this change.

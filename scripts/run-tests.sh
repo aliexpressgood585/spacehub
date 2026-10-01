@@ -48,6 +48,7 @@ run "chan parity v97"       tests/chan.test.ts
 echo "── chan runner v97: SKIPPED (CHAN retired, mocks stale) ──"
 run "chan shadow S1"        tests/chan-shadow.test.ts
 run "forward lab H6"        tests/forward.test.ts
+run "events H7"            tests/events.test.ts
 run "trend pullback"        tests/trend-pullback.test.ts
 run "lab v94 (research grid + LAB sleeve)" tests/lab.test.ts
 run "lab runner v94 (paper replay)" tests/lab-runner.test.ts

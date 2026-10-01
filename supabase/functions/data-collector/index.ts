@@ -6,11 +6,13 @@
 //   4. every 5 min: news RSS (published timestamp + coins named)
 //   5. once an hour: retention (90 days)
 //   6. every run: forward-test lab (shared/forward.ts) — VIRTUAL positions only, table fwd_trades
+//   7. every run: H7 announcement events (shared/events.ts) — Binance listing/delisting news, VIRTUAL only, fwd_trades
 // Every source fails independently; the response lists what worked.
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import * as S from '../../../shared/strategy.ts'
 import * as C from '../../../shared/collect.ts'
 import * as F from '../../../shared/forward.ts'
+import * as E from '../../../shared/events.ts'
 
 const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } })
 const WS_MS = 45_000
@@ -146,6 +148,42 @@ async function forward(now: number): Promise<string> {
   return `opened ${opens.length}, closed ${closed}, due ${(due ?? []).length}`
 }
 
+// H7 (quant/PREREGISTRATION_H7.md): poll Binance's listing / delisting announcements; a fresh one (<= 10 min old)
+// opens VIRTUAL rows on the coin's USDT-M perp at the live mark; due rows close at the mark with the funding paid.
+async function events(now: number): Promise<string> {
+  const arts: E.Article[] = []
+  for (const cat of E.EV_CATALOGS) {
+    const r = await fetch(`https://www.binance.com/bapi/composite/v1/public/cms/article/list/query?type=1&catalogId=${cat}&pageNo=1&pageSize=10`,
+      { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(6000) })
+    if (!r.ok) throw new Error(`cms ${cat} HTTP ${r.status}`)
+    const d = await r.json(); for (const c of d?.data?.catalogs ?? []) for (const a of c.articles ?? []) arts.push({ releaseDate: Number(a.releaseDate), title: String(a.title) })
+  }
+  const prem: F.Prem[] = await json('https://fapi.binance.com/fapi/v1/premiumIndex')
+  const marks = new Map<string, number>(prem.map(p => [p.symbol, Number(p.markPrice)]))
+  const hyps = E.EV_HYPS.map(h => h.id)
+  const { data: recent, error: e1 } = await db.from('fwd_trades').select('hyp,symbol,settle_at').in('hyp', hyps).gt('settle_at', iso(now - 24 * 3600e3))
+  if (e1) throw new Error(e1.message)
+  const taken = new Set<string>((recent ?? []).map((r: any) => `${r.hyp}:${r.symbol}:${Date.parse(r.settle_at)}`))
+  const opens = E.eventEntries(arts, marks, now, taken)
+  if (opens.length) { const { error } = await db.from('fwd_trades').upsert(opens.map(o => ({ ...o, entry_ts: iso(now), status: 'open' })), { onConflict: 'hyp,symbol,settle_at', ignoreDuplicates: true }); if (error) throw new Error(error.message) }
+  const { data: due, error: e2 } = await db.from('fwd_trades').select('id,hyp,symbol,side,entry_px,entry_ts,exit_due').in('hyp', hyps).eq('status', 'open').lte('exit_due', iso(now)).limit(100)
+  if (e2) throw new Error(e2.message)
+  let closed = 0
+  await pool(due ?? [], 6, async (r: any) => {
+    const h = E.EV_HYPS.find(x => x.id === r.hyp), px = Number(marks.get(r.symbol))
+    if (!h || !(px > 0)) return
+    let fsum: number | null = null
+    try { const f = await json(`https://fapi.binance.com/fapi/v1/fundingRate?symbol=${r.symbol}&startTime=${Date.parse(r.entry_ts)}&endTime=${now}&limit=100`, 5000)
+      if (Array.isArray(f)) fsum = f.reduce((s: number, x: any) => s + Number(x.fundingRate || 0), 0) } catch { /* retry next run */ }
+    if (fsum === null && now < Date.parse(r.exit_due) + 30 * 60e3) return
+    const net = E.eventNet(Number(r.side), Number(r.entry_px), px, fsum ?? 0, h.costRt)
+    const { error } = await db.from('fwd_trades').update({ status: 'closed', exit_ts: iso(now), exit_px: px, realised: fsum, net, funding_missing: fsum === null })
+      .eq('id', r.id).eq('status', 'open')
+    if (!error) closed++
+  })
+  return `articles ${arts.length}, opened ${opens.length}, closed ${closed}, due ${(due ?? []).length}`
+}
+
 Deno.serve(async () => {
   const now = Date.now(), minute = Math.floor(now / 60_000)
   const report: Record<string, unknown> = { at: iso(now) }
@@ -153,6 +191,7 @@ Deno.serve(async () => {
   const ws = binanceWs(WS_MS) // runs while the REST sources below are fetched
   await step('okx_liqs', okxLiqs)
   await step('forward', () => forward(Date.now()))
+  await step('events', () => events(Date.now()))
   if (minute % 5 === 0) {
     await step('derivs', () => derivs(now))
     await step('options', () => options(now))
