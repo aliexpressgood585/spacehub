@@ -6,6 +6,7 @@
 import {SCALP,type Quote} from '../../../shared/scalp.ts'
 import {FUND,fundEntries,fundingPaid} from '../../../shared/fundcap.ts'
 import {json,pool,quote} from './rota-runner.ts'
+import {sleeveOff} from '../../../shared/sleeves.ts'
 
 export async function runFund(db:any,state:any,lease:string,paper:boolean){
   if(!paper)throw new Error('FUND is paper-only; refusing live execution')
@@ -14,7 +15,8 @@ export async function runFund(db:any,state:any,lease:string,paper:boolean){
   if(open.some((t:any)=>t.paper_mode!==true||Number(t.lev)!==1||!['LIST','FUND','FAST','EVT'].includes(t.strategy)))throw new Error('FUND requires a paper-only 1x book of LIST/FUND/FAST/EVT rows')
   const mine=open.filter((t:any)=>t.strategy==='FUND')
   const hour=Math.floor(now/3_600_000),minute=new Date(now).getUTCMinutes()
-  const scanDue=minute<FUND.scanMinute&&Number(params.fund_hour)!==hour&&!state.hard_halt_at
+  // v99.6: sleeves_off.FUND (the supervisor's brake) stops entries; exits below still run
+  const scanDue=minute<FUND.scanMinute&&Number(params.fund_hour)!==hour&&!state.hard_halt_at&&!sleeveOff(params,'FUND')
   const due=mine.filter((t:any)=>now>=Date.parse(t.scalp_meta?.exit_due??t.opened_at))
   if(!due.length&&!scanDue){
     // publish the bot's own marks for the house (live P&L even where exchange sockets are blocked)

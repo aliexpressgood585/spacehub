@@ -17,6 +17,12 @@ Last established: 2026-09-30 UTC
 - Automatic API bridge: **SCAFFOLDED**
 - Automatic API bridge secrets: **PENDING** (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`; never place them in chat or commits)
 
+## 2026-10-01 — OWNER OVERRIDE: autonomous supervisor may change strategies without asking (v99.6 brake + hourly guardian)
+- Owner: "scan the market and the open and closed positions and change strategies on your own, without my approval, at a professional level" (asked for every 5 min; the routine minimum and the sensible decision cadence is hourly — the bot itself scans every 5 s).
+- v99.6: `bot_params.sleeves_off.<SLEEVE>` stops a sleeve's ENTRIES only (exits keep running). Safe direction only: it cannot start a sleeve or raise size; the runnable set stays in the deploy-time shim.
+- Guardian routine (hourly, fresh session, Supabase connector) with fixed rules: fix technical faults; brake a sleeve after >= 30 closes with net < 0; brake all on -20% equity; NEVER raise size / leverage / open caps, never reset, never live, never other Supabase projects. Every action recorded here and in CLAUDE.md.
+- GPT: the guardian's actions are owner-authorised; please audit them from this file and Issue #79.
+
 ## 2026-10-01 — OWNER OVERRIDE: v99.5 EVT — the H7 announcement rule traded in the paper book at HIGH exposure (no Council review, owner's explicit choice)
 - Owner: "I want it in the account too, with high exposure". Told first: ~54% win rate in 27 months of history, fat tails both ways, ~10-25 events a year, NOT proven.
 - Rule = H7L240 / H7D240 exactly (shared/events.ts): announcement <= 10 min old -> LONG the perp on a spot listing, SHORT each perp on a spot delisting; out after 240 min at the touch; Binance's settled funding booked; no stop.

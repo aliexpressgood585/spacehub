@@ -7,6 +7,7 @@
 import { SCALP, type Quote } from '../../../shared/scalp.ts'
 import { EV_CATALOGS, eventEntries, type Article } from '../../../shared/events.ts'
 import { json, pool, quote } from './rota-runner.ts'
+import { sleeveOff } from '../../../shared/sleeves.ts'
 
 const g = () => globalThis as any
 export function evtConfig() {
@@ -25,7 +26,8 @@ export async function runEvt(db: any, state: any, lease: string, paper: boolean)
   if (open.some((t: any) => t.paper_mode !== true || Number(t.lev) !== 1 || !['LIST', 'FUND', 'FAST', 'EVT'].includes(t.strategy)))
     throw new Error('EVT requires a paper-only 1x book of LIST/FUND/FAST/EVT rows')
   const mine = open.filter((t: any) => t.strategy === 'EVT')
-  const pollDue = now - (Number(params.evt_poll) || 0) >= cfg.pollMs && !state.hard_halt_at
+  // v99.6: sleeves_off.EVT (the supervisor's brake) stops polling for entries; open rows still exit on time
+  const pollDue = now - (Number(params.evt_poll) || 0) >= cfg.pollMs && !state.hard_halt_at && !sleeveOff(params, 'EVT')
   const due = mine.filter((t: any) => now >= Date.parse(t.scalp_meta?.exit_due ?? t.opened_at))
   if (!due.length && !pollDue) {
     if (mine.length) { const marks: Record<string, number> = {}

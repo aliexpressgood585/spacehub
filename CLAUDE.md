@@ -396,6 +396,14 @@ Nothing deployed from this.
 - Change: aggressive mode no longer revives RG_VOL_BREAKOUT (`aggressive_engine_disabled`); cap 2 same-side entries per 5m bar in ALL modes (`same_side_bar_cap`). NB DONCH4H history shows the opposite (3+ simultaneous 4h breakouts were its best), so the cap is CHAN/5m-specific.
 - Rollback: revert this commit.
 
+## v99.6 (2026-10-01 ~19:50 UTC) — autonomous SUPERVISOR: per-sleeve entry brake + hourly guardian routine (owner: "every 5 min scan the market and the open/closed positions and change strategies on your own, no approval, professional level")
+- Owner was told: the bot already scans every 5 s; strategy decisions every 5 min would chase noise, and routines run at most hourly. Built: hourly supervisor with FIXED rules.
+- `shared/sleeves.ts` `sleeveOff(params, sleeve)`: `bot_state.bot_params.sleeves_off = {SLEEVE: {at, by, why}}` stops that sleeve's ENTRIES; its open rows keep exiting normally. Gated in list-runner (entries loop; the hourly scan still refreshes universe/equity), fund-runner (scanDue), fast-runner (due), evt-runner (pollDue). Safe direction only: index.ts never reads it, so it cannot start a sleeve; the runnable set stays the deploy-time shim.
+- Set / clear (SQL, no deploy): `update bot_state set bot_params = bot_params || jsonb_build_object('sleeves_off', coalesce(bot_params->'sleeves_off','{}') || '{"FAST":{"by":"guardian","why":"..."}}') where id=1;` — clear with `... || '{"FAST":null}'`.
+- House: shows the guardian's last run (`bot_params.guardian {ts, summary}`) and any braked sleeve in red.
+- Tests: tests/sleeves.test.ts (semantics + every runner gates entries only) and an EVT replay (brake: no entry, due exit still closes). Suite: ALL TESTS PASSED.
+- GUARDIAN RULES (the routine prompt carries them verbatim): health + fault fixing; brake a sleeve once it has >= 30 closes since the 2026-10-01 13:29 reset with net P&L < 0; brake ALL sleeves if equity <= $4,000 (-20%); never raise per-trade size, leverage, max open, never reset the account, never delete trades, never touch any Supabase project except adxgadwghgkwmntsnrar, paper only; writes `bot_params.guardian` every run; records every action here and in ai-council/STATE.md; reports to the owner in Hebrew only when something happened.
+
 ## v99.5 EVT (2026-10-01 ~19:40 UTC) — the H7 announcement rule traded in the paper book, HIGH exposure (owner: "I want it in the account too, with high exposure")
 - COUNCIL OVERRIDE by the owner (same as LIST/FUND/QUICK). NOT VALIDATED: v114bt-D had ~24 listings in 27 months, win rate ~54%, fat tails both ways (e.g. one listing −39%).
 - Rule = H7L240 / H7D240 exactly (`shared/events.ts`, runner `evt-runner.ts`):

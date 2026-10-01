@@ -7,6 +7,7 @@ import {SCALP,type Quote} from '../../../shared/scalp.ts'
 import {buildUniverse} from '../../../shared/universe.ts'
 import {LIST,freshListings,listExit} from '../../../shared/listing.ts'
 import {json,pool,quote} from './rota-runner.ts'
+import {sleeveOff} from '../../../shared/sleeves.ts'
 
 export async function runList(db:any,state:any,lease:string,paper:boolean){
   if(!paper)throw new Error('LIST is paper-only; refusing live execution')
@@ -50,8 +51,10 @@ export async function runList(db:any,state:any,lease:string,paper:boolean){
       let cash=Number(state.balance)
       const equity=cash+openAll.reduce((s:number,t:any)=>s+Number(t.entry_price)*Number(t.size),0)
       const slot=equity*LIST.share/LIST.maxOpen
+      // v99.6: the supervisor's brake stops entries only (the hourly scan still refreshes the universe and equity)
+      const off=sleeveOff(params,'LIST')
       for(const f of fresh){
-        if(entries.length>=room)break
+        if(off||entries.length>=room)break
         let qq:Quote;try{qq=await quote(f.sym)}catch{continue}
         if(cash<slot*(1+SCALP.fee))break
         entries.push({sym:f.sym,side:'SHORT',price:qq.bid*(1-SCALP.slip),notional:slot,quote_ts:qq.ts,source:qq.source,age_days:f.ageDays,qv:f.qv})
@@ -59,7 +62,7 @@ export async function runList(db:any,state:any,lease:string,paper:boolean){
       }
     }catch(e:any){scanErr=String(e?.message??e)}
   }
-  const note={marks,marks_ts:new Date().toISOString(),scan_due:scanDue,candidates:cands.slice(0,20),scan_error:scanErr,open:open.length}
+  const note={entries_off:sleeveOff(params,'LIST'),marks,marks_ts:new Date().toISOString(),scan_due:scanDue,candidates:cands.slice(0,20),scan_error:scanErr,open:open.length}
   const {data:result}=await db.rpc('list_commit_cycle',{p_lease:lease,p_closes:closes,p_entries:entries,p_marks:marks,p_note:note,p_scan:scanDue&&!scanErr}).throwOnError()
   return {changed:closes.length>0||entries.length>0||scanDue,...result,...note}
 }

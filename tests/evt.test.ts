@@ -88,6 +88,16 @@ try {
   await runEvt(db, state(5000, { evt_poll: now - 5_000 }), 'L', true); assert.equal(commit, null, 'waits for funding')
   now += 31 * 60e3; await runEvt(db, state(5000, { evt_poll: now - 5_000 }), 'L', true)
   assert.equal(commit.p_closes[0].funding_missing, true)
+
+  // v99.6 brake: sleeves_off.EVT -> a fresh announcement opens nothing, but a due position still exits
+  const off = { sleeves_off: { EVT: { by: 'guardian', why: 'test' } } }
+  now = T + 30_000; open = []; funding = []; commit = null
+  arts = { 48: [{ releaseDate: T, title: 'Binance Will List Hyperliquid (HYPE)' }], 161: [] }
+  const r3: any = await runEvt(db, state(5000, off), 'L', true)
+  assert.equal(commit, null, 'brake: no poll, no entry'); assert.equal(r3.changed, false)
+  open = [{ id: 9, sym: 'HYPE', strategy: 'EVT', side: 'LONG', paper_mode: true, lev: 1, entry_price: 40, size: 25, opened_at: new Date(now - 4 * 3600e3).toISOString(), scalp_meta: { symbol: 'HYPEUSDT', exit_due: new Date(now - 1000).toISOString() } }]
+  await runEvt(db, state(5000, off), 'L', true)
+  assert.equal(commit.p_closes.length, 1, 'brake keeps exits'); assert.equal(commit.p_entries.length, 0)
 } finally { globalThis.fetch = realFetch; Date.now = realNow }
 
 // the ledger re-checks the limits
