@@ -396,6 +396,22 @@ Nothing deployed from this.
 - Change: aggressive mode no longer revives RG_VOL_BREAKOUT (`aggressive_engine_disabled`); cap 2 same-side entries per 5m bar in ALL modes (`same_side_bar_cap`). NB DONCH4H history shows the opposite (3+ simultaneous 4h breakouts were its best), so the cap is CHAN/5m-specific.
 - Rollback: revert this commit.
 
+## v99.5 EVT (2026-10-01 ~19:40 UTC) — the H7 announcement rule traded in the paper book, HIGH exposure (owner: "I want it in the account too, with high exposure")
+- COUNCIL OVERRIDE by the owner (same as LIST/FUND/QUICK). NOT VALIDATED: v114bt-D had ~24 listings in 27 months, win rate ~54%, fat tails both ways (e.g. one listing −39%).
+- Rule = H7L240 / H7D240 exactly (`shared/events.ts`, runner `evt-runner.ts`):
+  - polls the Binance CMS (catalogs 48 listings / 161 delistings) every 20 s from the bot cycle, with a browser User-Agent (the CMS refuses without one);
+  - an announcement at most 10 min old -> LONG the USDT-M perp on "Binance Will List X (SYM)", SHORT each perp on "Binance Will Delist A, B and C on <date>"; coins with no perp are skipped;
+  - exit after 240 min at the touch; funding = sum of Binance's settled rates over the hold (waits up to 30 min, else funding_missing); no stop;
+  - 25% of equity per position (`__EVT_PER_TRADE`, cap 0.34), <= 4 open (`__EVT_MAX_OPEN`, cap 8), paper 1x;
+  - symbols: PEPE keeps its legacy unit; other 1000x contracts trade as listed ('1000SATS').
+- Runs FIRST in the LIST/FUND/FAST cycle so a fresh announcement gets the cash. A full delisting batch can put up to 100% of equity short at once.
+- Ledger `20261001210000_evt_sleeve.sql` (applied before the push): `evt_commit_cycle` (paper, 1x, entry <= 11 min after the release, hold <= 4h05m, one trade per coin per announcement, cash-bound) + `sleeve_marks` now also accepts 'evt_marks'.
+- LIST / FUND runners accept EVT rows in the shared book. House: EVT cards (announcement time, entry lag, countdown to exit, the title), EVT events in the live log and the last CMS check; trade page explains EVT.
+- Tests: tests/evt.test.ts (paper replay with a mocked exchange + db: listing long, delisting batch short, 1000x unit, never twice, cash and open caps, too-late skip, marks between polls, exit with settled funding, funding-missing wait; ledger + shim assertions). Suite: ALL TESTS PASSED.
+- The virtual H7 record in fwd_trades is untouched and stays the evaluation.
+- Shim (both CI workflows): `__ENABLED_SLEEVES='LIST,FUND,FAST,EVT'`, `__EVT_PER_TRADE='0.25'`, `__EVT_MAX_OPEN='4'`.
+- ROLLBACK: both workflows back to 'LIST,FUND,FAST' — but close open EVT rows first (LIST/FUND accept them in the book, nothing else exits them).
+
 ## H7 (2026-10-01 19:06 UTC) — virtual forward test of Binance listing / delisting announcements (owner: "build and find a way to profit from fast trading")
 - `shared/events.ts` (tests/events.test.ts), pre-registered in `quant/PREREGISTRATION_H7.md`. VIRTUAL ONLY (fwd_trades), never trades.
 - data-collector step `events`: polls Binance CMS catalogs 48 / 161 every minute; an announcement <= 10 min old opens H7L60/H7L240 (LONG on spot listing of a coin with a perp) or H7D60/H7D240 (SHORT on spot delisting) at the perp mark; closes at the mark after 60 / 240 min; net = move - funding paid - 40 bps. `fwd_trades.note` = detection lag + title (migration 20261001200000, applied).

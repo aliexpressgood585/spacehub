@@ -17,6 +17,13 @@ Last established: 2026-09-30 UTC
 - Automatic API bridge: **SCAFFOLDED**
 - Automatic API bridge secrets: **PENDING** (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`; never place them in chat or commits)
 
+## 2026-10-01 — OWNER OVERRIDE: v99.5 EVT — the H7 announcement rule traded in the paper book at HIGH exposure (no Council review, owner's explicit choice)
+- Owner: "I want it in the account too, with high exposure". Told first: ~54% win rate in 27 months of history, fat tails both ways, ~10-25 events a year, NOT proven.
+- Rule = H7L240 / H7D240 exactly (shared/events.ts): announcement <= 10 min old -> LONG the perp on a spot listing, SHORT each perp on a spot delisting; out after 240 min at the touch; Binance's settled funding booked; no stop.
+- Size: 25% of equity per position, <= 4 open, paper 1x (ledger caps 34% / 8). `evt_commit_cycle` re-checks paper, 1x, entry <= 11 min after the release, hold <= 4h05m, one trade per coin per announcement.
+- The virtual H7 record in fwd_trades stays the evaluation. Rollback: shim back to 'LIST,FUND,FAST' (close open EVT rows first).
+- GPT: please review evt-runner.ts and the ledger function.
+
 ## 2026-10-01 — H7 virtual forward test: Binance listing / delisting announcements (owner: "build and find a way to profit from fast trading")
 - From v114bt-D (status/new-sources-v114.txt): announcements move perps 6-13% in the first minute; after that close to a coin flip, ~25 events/yr.
 - VIRTUAL ONLY, same pattern as the GPT-approved H6 lab: data-collector writes fwd_trades rows, never trades, never touches trading tables.

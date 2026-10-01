@@ -183,10 +183,10 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
     return () => { alive = false; clearInterval(iv) }
   }, [])
   if (sleeve == null) return <div className="ch" dir="rtl"><style>{CSS}</style><div className="emptyPos">טוען…</div></div>
-  return ['LIST','FUND','FAST'].some(x => sleeve.split(',').includes(x)) ? <ListHouse onBack={onBack} /> : <ChanHouseView onBack={onBack} />
+  return ['LIST','FUND','FAST','EVT'].some(x => sleeve.split(',').includes(x)) ? <ListHouse onBack={onBack} /> : <ChanHouseView onBack={onBack} />
 }
 
-const REASON_HE: Record<string,string> = { STOP: 'סטופ', TARGET: 'יעד', TIMEOUT: 'תום זמן', SETTLED: 'אחרי סליקת funding' }
+const REASON_HE: Record<string,string> = { STOP: 'סטופ', TARGET: 'יעד', TIMEOUT: 'תום זמן', SETTLED: 'אחרי סליקת funding', HOLD_END: 'תום 4 שעות' }
 
 function ListHouse({ onBack }: { onBack?: () => void }) {
   const [state, setState] = useState<J | null>(null)
@@ -202,7 +202,7 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
       try {
         const [st, tr, man, er] = await Promise.all([
           q<J[]>('bot_state?select=balance,bot_params,paper_mode,lock_until,updated_at,hard_halt_at&limit=1'),
-          q<J[]>('bot_trades?select=id,sym,side,status,strategy,lev,entry_price,exit_price,size,pnl,fee,opened_at,closed_at,scalp_meta&strategy=in.(LIST,FUND,FAST)&order=opened_at.desc&limit=500'),
+          q<J[]>('bot_trades?select=id,sym,side,status,strategy,lev,entry_price,exit_price,size,pnl,fee,opened_at,closed_at,scalp_meta&strategy=in.(LIST,FUND,FAST,EVT)&order=opened_at.desc&limit=500'),
           q<J[]>('deployment_manifest?select=sha,enabled_sleeves,bot_version&order=first_seen.desc&limit=1').catch(() => []),
           q<J[]>(`bot_errors?select=ts,scope,message&ts=gte.${new Date(Date.now()-3_600_000).toISOString()}&order=ts.desc&limit=20`).catch(() => []),
         ])
@@ -253,14 +253,17 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
     const ev: { ts: string; title: string; detail: string; cls: string }[] = []
     for (const t of trades) {
       const f = t.strategy === 'FUND'
-      ev.push({ ts: t.opened_at, title: `${f ? 'FUND · ' : t.strategy === 'FAST' ? 'QUICK · ' : ''}נפתח ${t.side === 'LONG' ? 'לונג' : 'שורט'} ${t.sym}`, detail: `כניסה ${fmtPx(Number(t.entry_price))} · ${fmt$(Number(t.entry_price) * Number(t.size))} · ${f ? `funding צפוי ${(Number(t.scalp_meta?.pred_rate ?? 0) * 100).toFixed(3)}% · יציאה ${clock(t.scalp_meta?.exit_due)}` : `מטבע בן ${t.scalp_meta?.age_days != null ? Number(t.scalp_meta.age_days).toFixed(1) : '—'} ימים`}`, cls: 'open' })
+      if (t.strategy === 'EVT') ev.push({ ts: t.opened_at, title: `EVT · נפתח ${t.side === 'LONG' ? 'לונג' : 'שורט'} ${t.sym}`, detail: `כניסה ${fmtPx(Number(t.entry_price))} · ${fmt$(Number(t.entry_price) * Number(t.size))} · ${String(t.scalp_meta?.note ?? '').slice(0, 90)} · יציאה ${clock(t.scalp_meta?.exit_due)}`, cls: 'open' })
+      else ev.push({ ts: t.opened_at, title: `${f ? 'FUND · ' : t.strategy === 'FAST' ? 'QUICK · ' : ''}נפתח ${t.side === 'LONG' ? 'לונג' : 'שורט'} ${t.sym}`, detail: `כניסה ${fmtPx(Number(t.entry_price))} · ${fmt$(Number(t.entry_price) * Number(t.size))} · ${f ? `funding צפוי ${(Number(t.scalp_meta?.pred_rate ?? 0) * 100).toFixed(3)}% · יציאה ${clock(t.scalp_meta?.exit_due)}` : `מטבע בן ${t.scalp_meta?.age_days != null ? Number(t.scalp_meta.age_days).toFixed(1) : '—'} ימים`}`, cls: 'open' })
       if (t.closed_at && t.status !== 'OPEN') ev.push({ ts: t.closed_at, title: `נסגר ${t.sym} · ${REASON_HE[String(t.scalp_meta?.exit_reason)] ?? t.scalp_meta?.exit_reason ?? ''}`, detail: `יציאה ${fmtPx(Number(t.exit_price))} · ${fmt$(Number(t.pnl))}`, cls: Number(t.pnl) >= 0 ? 'win' : 'loss' })
     }
+    const ec = p.evt_cycle ?? {}
+    if (ec.ts && (Number(ec.opened) || Number(ec.closed) || ec.poll_error)) ev.push({ ts: ec.ts, title: 'EVT · הודעות בינאנס', detail: `נפתחו ${Number(ec.opened ?? 0)} · נסגרו ${Number(ec.closed ?? 0)}${ec.poll_error ? ` · שגיאה: ${ec.poll_error}` : ''}`, cls: 'scan' })
     const fc = p.fund_cycle ?? {}
     if (fc.ts && fc.scan_due) ev.push({ ts: fc.ts, title: 'FUND · סריקת funding', detail: `${Array.isArray(fc.candidates) ? fc.candidates.length : 0} מועמדים · נפתחו ${Number(fc.opened ?? 0)} · נסגרו ${Number(fc.closed ?? 0)}${fc.scan_error ? ` · שגיאה: ${fc.scan_error}` : ''}`, cls: 'scan' })
     if (cyc.ts) ev.push({ ts: cyc.ts, title: cyc.scan_due ? 'סריקת מטבעות חדשים' : 'מחזור ספר חשבונות', detail: `${Array.isArray(cyc.candidates) ? cyc.candidates.length : 0} מועמדים · נפתחו ${Number(cyc.opened ?? 0)} · נסגרו ${Number(cyc.closed ?? 0)}`, cls: 'scan' })
     return ev.sort((a, b) => Date.parse(b.ts) - Date.parse(a.ts))
-  }, [trades, cyc, p.fund_cycle])
+  }, [trades, cyc, p.fund_cycle, p.evt_cycle])
 
   return <div className="ch" dir="rtl">
     <style>{CSS}</style>
@@ -279,6 +282,8 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
       ניסויים שלא נבדקו, נייר בלי מינוף. LIST: שורט על מטבעות שנכנסו לבינאנס פיוצ'רס לפני 3–30 יום · סטופ ‎+20% · יעד ‎-30% · עד 21 יום · עד 10 של ~10%.
       FUND: שעה לפני סליקת funding של ‎0.10%+ נכנסים לצד שמקבל אותה, יוצאים 15 דקות אחרי · בלי סטופ · עד 25% מההון לעסקה, עד 8.
       QUICK: פריצה עם נפח בנר 5 דקות · סטופ ATR · יעד 1.5R · עד 60 דקות · 5% מההון לעסקה, עד 5 (בבדיקה לאחור הפסיד כ-0.2% לעסקה).
+      EVT: הודעת בינאנס על ליסטינג (לונג) או דיליסטינג (שורט), כניסה עד 10 דקות מההודעה, יציאה אחרי 4 שעות · בלי סטופ · 25% מההון לעסקה, עד 4 (בהיסטוריה: כ-54% הצלחה עם זנבות עבים לשני הכיוונים).
+      {(() => { const ec = p.evt_cycle ?? {}; return <div style={{marginTop:6,color:'#94a3b8'}}>EVT: בדיקת הודעות אחרונה {ago(ec.ts ? Date.parse(ec.ts) : null, now)}{ec.poll_error ? ` · שגיאה: ${ec.poll_error}` : ''}{Array.isArray(ec.seen) && ec.seen.length ? ` · נראו: ${ec.seen.map((x: J) => `${x.side} ${x.sym}`).join(', ')}` : ' · אין הודעה טרייה'}</div> })()}
     </div>
 
     <section className="accountStrip">
@@ -296,7 +301,7 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
 
     <section className="positions">
       <div className="sectionHead">
-        <div><h2>פוזיציות פתוחות · P&L חי</h2><p>P&L נטו אם סוגרים עכשיו: עמלת פתיחה, עמלת סגירה והחלקה משוערות, ו-Funding משוער (FUND: הסליקה החזויה; LIST: 0.01% ל-8 שעות). אותה נוסחה ואותו מחיר כמו בדשבורד, מתעדכן כל שנייה.</p></div>
+        <div><h2>פוזיציות פתוחות · P&L חי</h2><p>P&L נטו אם סוגרים עכשיו: עמלת פתיחה, עמלת סגירה והחלקה משוערות, ו-Funding משוער (FUND: הסליקה החזויה; LIST/QUICK/EVT: 0.01% ל-8 שעות). אותה נוסחה ואותו מחיר כמו בדשבורד, מתעדכן כל שנייה.</p></div>
         <span className="countBadge">{open.length} פתוחות</span>
       </div>
       {rows.length === 0 ? <div className="emptyPos">אין כרגע פוזיציות פתוחות.</div> :
@@ -321,6 +326,23 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
               <Mini k="שווי" v={fmt$(r.notional)} /><Mini k="לסטופ" v={r.mark != null ? pct(Math.abs(st / r.mark - 1)) : '—'} /><Mini k="ליעד" v={r.mark != null ? pct(Math.abs(tg / r.mark - 1)) : '—'} />
               <Mini k="מוחזק" v={`${mins.toFixed(0)} / ${Number(f.hold_min) || 60} דק׳`} /><Mini k="פרץ" v={Number.isFinite(Number(f.z)) ? `z ${Number(f.z).toFixed(2)}` : '—'} /><Mini k="נפתח" v={clock(r.t.opened_at)} />
             </div>
+            <button className="lchart" onClick={()=>window.open(`trade.html?id=${encodeURIComponent(String(r.t.id))}`,'_blank','noopener,noreferrer')}>גרף חי ←</button>
+          </div>
+        }
+        if (r.t.strategy === 'EVT') {
+          const due = Date.parse(r.m.exit_due), opened = Date.parse(r.t.opened_at)
+          const done = Math.max(0, Math.min(100, (now - opened) / (due - opened) * 100))
+          const left = due - now, lag = (opened - Date.parse(r.m.announced_at)) / 1000
+          return <div key={r.t.id} className="lcard">
+            <div className="lhead"><b>{r.t.sym}</b><span className="lside">EVT · {r.t.side === 'LONG' ? 'ליסטינג · LONG' : 'דיליסטינג · SHORT'}</span><span className="lsrc">{r.src ?? 'ממתין למחיר'}</span></div>
+            <div className="lpx"><bdi dir="ltr" className={flash}>{fmtPx(r.mark)}</bdi><bdi dir="ltr" className={(r.net ?? 0)>=0?'pos':'neg'}>{fmt$(r.net)} · {pct(r.pctMove)}</bdi></div>
+            <div className="lbar"><div className="lfill" style={{width:`${done}%`}}/></div>
+            <div className="llabels"><span>הודעה {clock(r.m.announced_at)}</span><span>כניסה {clock(r.t.opened_at)}</span><span>יציאה {clock(r.m.exit_due)}</span></div>
+            <div className="lgrid">
+              <Mini k="שווי" v={fmt$(r.notional)} /><Mini k="איחור כניסה" v={Number.isFinite(lag) ? `${Math.round(lag)} שנ׳` : '—'} /><Mini k="עד יציאה" v={left > 0 ? `${Math.floor(left / 3_600_000)}:${String(Math.floor(left / 60_000) % 60).padStart(2, '0')}` : 'עכשיו'} />
+              <Mini k="כניסה" v={fmtPx(entry)} /><Mini k="סטופ" v="אין" /><Mini k="נפתח" v={clock(r.t.opened_at)} />
+            </div>
+            <div style={{fontSize:12,color:'#94a3b8',margin:'6px 0'}}>{String(r.m.note ?? '').replace(/^lag \d+s · /, '')}</div>
             <button className="lchart" onClick={()=>window.open(`trade.html?id=${encodeURIComponent(String(r.t.id))}`,'_blank','noopener,noreferrer')}>גרף חי ←</button>
           </div>
         }
@@ -377,7 +399,7 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
 
     <section className="closedTrades">
       <div className="sectionHead">
-        <div><h2>עסקאות שנסגרו</h2><p>כל עסקאות LIST, FUND ו-QUICK מאז האיפוס ב-1.10.2026.</p></div>
+        <div><h2>עסקאות שנסגרו</h2><p>כל עסקאות LIST, FUND, QUICK ו-EVT מאז האיפוס ב-1.10.2026.</p></div>
         <span className="countBadge">{closed.length} סגורות</span>
       </div>
       {closed.length === 0 ? <div className="emptyPos">עדיין אין עסקאות סגורות.</div> :

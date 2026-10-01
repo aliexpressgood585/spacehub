@@ -460,6 +460,7 @@ import { runFast, fastConfig } from './fast-runner.ts'
 import { runChan } from './chan-runner.ts'
 import { runList } from './list-runner.ts'
 import { runFund } from './fund-runner.ts'
+import { runEvt } from './evt-runner.ts'
 import { meetingDue, capDecision } from '../../../shared/team-meeting.ts'
 
 const BINANCE_DATA = 'https://data-api.binance.vision/api/v3'
@@ -550,7 +551,7 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v99.4'
+const BOT_VERSION = 'v99.5'
 // v87.0: the pre-SCALP engine (DONCH4H / standalone ROTA) opens trades without the profit gate; it stays in the file
 // for its exit/record code history but may never open a trade. Changing this needs the gate wired in first.
 const LEGACY_ENGINE_ALLOWED = false
@@ -2695,9 +2696,17 @@ Deno.serve(async (req) => {
     // in the paper book (runList refuses a mixed book). NOT VALIDATED; owner override of the Council for this change.
     // v99.2: FUND (H6a funding capture, owner: "more aggressive intraday") shares the same paper book after LIST.
     if (ENABLED_SLEEVES.includes('LIST') || ENABLED_SLEEVES.includes('FUND')) {
-      let list: any = null, fund: any = null, st2 = state
+      let list: any = null, fund: any = null, evt: any = null, st2 = state
+      // v99.5 (owner: "the announcements strategy in the account too, high exposure"): EVT = Binance listing / delisting
+      // announcements (H7L240 / H7D240 rules), 25% of equity per position, <= 4 open, paper 1x. Runs FIRST so a fresh
+      // announcement gets the cash before the other sleeves. NOT VALIDATED; owner override of the Council.
+      if (ENABLED_SLEEVES.includes('EVT')) {
+        try { evt = await runEvt(supabase, state, runLeaseUntil, paperMode && !liveMode) }
+        catch (e: any) { evt = { error: String(e?.message ?? e) }; await logErr('evt_runner', String(e?.message ?? e)) }
+        if (evt?.changed || evt?.poll_due) { const { data: fresh } = await supabase.from('bot_state').select('*').eq('id', 1).single(); if (fresh) st2 = fresh }
+      }
       if (ENABLED_SLEEVES.includes('LIST')) {
-        try { list = await runList(supabase, state, runLeaseUntil, paperMode && !liveMode) }
+        try { list = await runList(supabase, st2, runLeaseUntil, paperMode && !liveMode) }
         catch (e: any) { list = { error: String(e?.message ?? e) }; await logErr('list_runner', String(e?.message ?? e)) }
         if (list?.changed || list?.marks) { const { data: fresh } = await supabase.from('bot_state').select('*').eq('id', 1).single(); if (fresh) st2 = fresh }
       }
@@ -2712,8 +2721,8 @@ Deno.serve(async (req) => {
         try { const { data: fresh } = await supabase.from('bot_state').select('*').eq('id', 1).single(); fast = await runFast(supabase, fresh ?? st2, runLeaseUntil, paperMode && !liveMode) }
         catch (e: any) { fast = { error: String(e?.message ?? e) }; await logErr('fast_runner', String(e?.message ?? e)) }
       }
-      const bad = !!(list?.error || fund?.error || fast?.error)
-      return new Response(JSON.stringify({ ok: !bad, version: BOT_VERSION, list, fund, fast }), { status: bad ? 500 : 200, headers: { 'Content-Type': 'application/json' } })
+      const bad = !!(list?.error || fund?.error || fast?.error || evt?.error)
+      return new Response(JSON.stringify({ ok: !bad, version: BOT_VERSION, evt, list, fund, fast }), { status: bad ? 500 : 200, headers: { 'Content-Type': 'application/json' } })
     }
 
     if (ENABLED_SLEEVES.includes('CHAN')) {

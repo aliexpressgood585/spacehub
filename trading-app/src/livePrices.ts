@@ -159,11 +159,11 @@ export const tickDir = (t?: LiveTick) => (!t || t.px === t.prev ? '' : t.px > t.
 
 // v99.3 — the bot's own server-side marks for its open positions (every sleeve that publishes them), sym -> {px, ts}
 export async function botMarks(): Promise<Record<string, { px: number; ts: number }>> {
-  const r = await fetch(`${SUPA_URL}/rest/v1/bot_state?select=c:bot_params->chan_cycle,l:bot_params->list_marks,f:bot_params->fund_marks&limit=1`,
+  const r = await fetch(`${SUPA_URL}/rest/v1/bot_state?select=c:bot_params->chan_cycle,l:bot_params->list_marks,f:bot_params->fund_marks,e:bot_params->evt_marks&limit=1`,
     { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` }, cache: 'no-store' })
   const row = (await r.json())?.[0] ?? {}, out: Record<string, { px: number; ts: number }> = {}
   const add = (marks: any, ts: number) => { if (marks && ts) for (const [k, v] of Object.entries(marks)) if (Number(v) > 0 && !(out[k]?.ts > ts)) out[k] = { px: Number(v), ts } }
-  add(row.c?.marks, Date.parse(row.c?.marks_ts ?? '')); add(row.l?.marks, Date.parse(row.l?.ts ?? '')); add(row.f?.marks, Date.parse(row.f?.ts ?? ''))
+  add(row.c?.marks, Date.parse(row.c?.marks_ts ?? '')); add(row.l?.marks, Date.parse(row.l?.ts ?? '')); add(row.f?.marks, Date.parse(row.f?.ts ?? '')); add(row.e?.marks, Date.parse(row.e?.ts ?? ''))
   return out
 }
 
