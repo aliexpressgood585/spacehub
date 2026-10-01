@@ -400,8 +400,11 @@ Nothing deployed from this.
 - `shared/forward.ts`: data-collector opens and closes VIRTUAL trades from frozen rules and books net P&L at live mark prices. Table `fwd_trades` (migration 20260930233000, RLS, kept forever).
 - First hypotheses: H6a / H6b, funding-settlement capture (quant/PREREGISTRATION_H6.md). Counts only until 200 closed trades each.
 - Tests: tests/forward.test.ts (13 assertions); chan-runner and shared typecheck clean (verified with --ignoreConfig).
-- Status: PR opened for GPT review; NOT deployed.
-- data-collector is not in the CI deploy list, so after approval: apply the migration first, then deploy data-collector via the MCP shim.
+- GPT APPROVED virtual-only (Issue #79). DEPLOYED 2026-09-30 22:53 UTC, in order: migration, merge PR #83 (27bc6d47), data-collector via MCP shim (function v41). CI also redeployed trading-bot unchanged (shim still aggressive, 20x, 0 errors).
+- VERIFIED: the first entries were in the 23:00 window (ARK, LYN, ESPORTS, NMR x H6a/H6b). Exits fired at 00:00 / 00:15 with exit price and realised funding filled in, and none missing.
+- By 05:00 UTC 2026-10-01: 16 closed (8 per hypothesis), 2 open.
+- Coins with 1h funding intervals (e.g. ARK) qualify every hour; the rules are unchanged, and this is noted for the eventual evaluation (per-coin clustering).
+- Per the pre-registration, only counts are reported until 200 per hypothesis. A manual call from the sandbox got HTTP 451 (geo-block); the cron runs are not blocked.
 
 ## v113bt (2026-09-30 ~23:20 UTC) — owner: "another idea, intraday": funding-settlement capture + CME weekend gap
 `backtest/research/v113_funding_cme.mjs`, `v113b_funding_robust.mjs`, `v113c_funding_predicted.mjs` -> `status/funding-cme-v113.txt`.
