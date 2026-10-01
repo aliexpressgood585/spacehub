@@ -196,6 +196,14 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
   const [err, setErr] = useState('')
   const [now, setNow] = useState(Date.now())
   useEffect(() => { const iv = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(iv) }, [])
+  // v99.6: the hourly guardian has no database access; it publishes its status to a file on its own branch
+  const [guard, setGuard] = useState<J | null>(null)
+  useEffect(() => {
+    let alive = true
+    const load = async () => { try { const r = await fetch(`https://raw.githubusercontent.com/aliexpressgood585/spacehub/claude/guardian-status/status/guardian.json?t=${Date.now()}`, { cache: 'no-store' }); if (r.ok && alive) setGuard(await r.json()) } catch { /* not published yet */ } }
+    void load(); const iv = setInterval(load, 60_000)
+    return () => { alive = false; clearInterval(iv) }
+  }, [])
   useEffect(() => {
     let alive = true
     const load = async () => {
@@ -284,7 +292,8 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
       QUICK: פריצה עם נפח בנר 5 דקות · סטופ ATR · יעד 1.5R · עד 60 דקות · 5% מההון לעסקה, עד 5 (בבדיקה לאחור הפסיד כ-0.2% לעסקה).
       EVT: הודעת בינאנס על ליסטינג (לונג) או דיליסטינג (שורט), כניסה עד 10 דקות מההודעה, יציאה אחרי 4 שעות · בלי סטופ · 25% מההון לעסקה, עד 4 (בהיסטוריה: כ-54% הצלחה עם זנבות עבים לשני הכיוונים).
       {(() => { const ec = p.evt_cycle ?? {}; return <div style={{marginTop:6,color:'#94a3b8'}}>EVT: בדיקת הודעות אחרונה {ago(ec.ts ? Date.parse(ec.ts) : null, now)}{ec.poll_error ? ` · שגיאה: ${ec.poll_error}` : ''}{Array.isArray(ec.seen) && ec.seen.length ? ` · נראו: ${ec.seen.map((x: J) => `${x.side} ${x.sym}`).join(', ')}` : ' · אין הודעה טרייה'}</div> })()}
-      {(() => { const so: J = p.sleeves_off ?? {}, ks = Object.keys(so).filter(k => so[k]), gd: J = p.guardian ?? {}; return <div style={{marginTop:6,color:ks.length?'#f87171':'#94a3b8'}}>מפקח אוטונומי: בדיקה אחרונה {ago(gd.ts ? Date.parse(gd.ts) : null, now)}{gd.summary ? ` · ${gd.summary}` : ''}{ks.length ? ` · בלם על כניסות: ${ks.map(k => `${k}${so[k]?.why ? ` (${so[k].why})` : ''}`).join(', ')}` : ' · כל האסטרטגיות פתוחות לכניסה'}</div> })()}
+      {(() => { const so: J = { ...(p.sleeves_off ?? {}) }; for (const k of (Array.isArray(guard?.sleeves_off) ? guard!.sleeves_off : [])) so[k] = so[k] ?? { why: 'guardian' }
+        const ks = Object.keys(so).filter(k => so[k]), dbg: J = p.guardian ?? {}, gd: J = (guard?.ts && (!dbg.ts || Date.parse(guard.ts) > Date.parse(dbg.ts))) ? guard : dbg; return <div style={{marginTop:6,color:ks.length?'#f87171':'#94a3b8'}}>מפקח אוטונומי: בדיקה אחרונה {ago(gd.ts ? Date.parse(gd.ts) : null, now)}{gd.summary ? ` · ${gd.summary}` : ''}{ks.length ? ` · בלם על כניסות: ${ks.map(k => `${k}${so[k]?.why ? ` (${so[k].why})` : ''}`).join(', ')}` : ' · כל האסטרטגיות פתוחות לכניסה'}</div> })()}
     </div>
 
     <section className="accountStrip">

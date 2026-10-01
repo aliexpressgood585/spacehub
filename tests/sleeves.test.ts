@@ -10,6 +10,16 @@ assert.equal(sleeveOff({ sleeves_off: { FAST: { by: 'guardian' } } }, 'EVT'), fa
 assert.equal(sleeveOff({ sleeves_off: { FAST: null } }, 'FAST'), false, 'a cleared entry means on')
 assert.equal(sleeveOff({ sleeves_off: 'FAST' }, 'FAST'), false, 'malformed value never matches')
 assert.deepEqual([...SLEEVES], ['LIST', 'FUND', 'FAST', 'EVT'])
+// shim brake (the guardian's lever): comma list, case-insensitive, entries only
+const g = globalThis as any
+g.__SLEEVES_OFF = 'fast, EVT'
+assert.equal(sleeveOff({}, 'FAST'), true); assert.equal(sleeveOff({}, 'EVT'), true); assert.equal(sleeveOff({}, 'LIST'), false)
+g.__SLEEVES_OFF = ''
+assert.equal(sleeveOff({}, 'FAST'), false)
+delete g.__SLEEVES_OFF
+assert.equal(sleeveOff({}, 'FAST'), false)
+for (const wf of ['deploy-edge-function.yml', 'enforce-no-loss-trading.yml'])
+  assert.ok(readFileSync(`.github/workflows/${wf}`, 'utf8').includes("g.__SLEEVES_OFF = '';"), `${wf} carries the brake line`)
 
 // every runner gates its ENTRY path (not its exits) on the brake
 const src = (f: string) => readFileSync(`supabase/functions/trading-bot/${f}`, 'utf8')
