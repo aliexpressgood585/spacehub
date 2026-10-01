@@ -9,8 +9,11 @@ import { FAST_ENTRY, confirmFastEntry } from '../../../shared/fast-entry.ts'
 import { json, pool } from './rota-runner.ts'
 export type Pair = { sym: string; s: string; k: number }
 const g = () => globalThis as any
-export function fastConfig() { const x = Number(g().__FAST_SHARE), l = Number(g().__FAST_LEV)
-  return { share: Number.isFinite(x) && x > 0 ? Math.min(1, Math.max(0.05, x)) : 1, lev: Number.isFinite(l) && l >= 1 ? Math.min(FAST.levMax, Math.floor(l)) : FAST.levDefault, mode: modeOf(String(g().__FAST_MODE ?? 'rt')) } }
+export function fastConfig() { const x = Number(g().__FAST_SHARE), l = Number(g().__FAST_LEV), mo = Number(g().__FAST_MAX_OPEN), pt = Number(g().__FAST_PER_TRADE)
+  return { share: Number.isFinite(x) && x > 0 ? Math.min(1, Math.max(0.05, x)) : 1, lev: Number.isFinite(l) && l >= 1 ? Math.min(FAST.levMax, Math.floor(l)) : FAST.levDefault, mode: modeOf(String(g().__FAST_MODE ?? 'rt')),
+    // v99.4: optional per-trade fraction of equity and open cap (QUICK sleeve next to LIST/FUND: 5% x <= 5)
+    maxOpen: Number.isFinite(mo) && mo >= 1 ? Math.min(FAST.maxOpen, Math.floor(mo)) : FAST.maxOpen,
+    perTrade: Number.isFinite(pt) && pt > 0 ? Math.min(0.34, pt) : null as number | null } }
 // 'rt' = real-time burst (v95.4), 'bar' = 5m-close burst (v95.0), 'wyckoff' = 5m-close spring / upthrust (v96.1)
 const modeOf = (m: string): 'rt' | 'bar' | 'wyckoff' => (m === 'bar' || m === 'wyckoff' ? m : 'rt')
 async function universe(db: any): Promise<Pair[]> {
@@ -133,7 +136,7 @@ export async function runFast(db: any, state: any, lease: string, paper: boolean
       let sig = candidate.sig
       const side = sig.dir > 0 ? 'LONG' : 'SHORT', rec = (decision: string, reason: string, extra: any = {}) => decisions.push({ sym, side, decision, reason, z: sig.z, volRatio: sig.volRatio, imb: sig.imb, ...extra })
       if (held.has(sym)) { rec('rejected', 'coin_held'); continue }
-      if (openN >= FAST.maxOpen) { rec('rejected', 'fast_full'); continue }
+      if (openN >= cfg.maxOpen) { rec('rejected', 'fast_full'); continue }
       if (dayN >= FAST.maxPerDay) { rec('rejected', 'daily_cap_20'); continue }
       const pb = psychBlock(psy, sym, now); if (pb) { rec('rejected', pb, { streak: psy.streak, day_losses: psy.dayLosses }); continue }
       let bk: Awaited<ReturnType<typeof book>>, entryCheck: any = null, entryBtcUp = btcUp
@@ -150,7 +153,7 @@ export async function runFast(db: any, state: any, lease: string, paper: boolean
           sig = check.sig; entryBtcUp = check.btcUp; entryCheck = check.detail
         } else bk = await book(pairOf(sym))
       } catch { rec('rejected', 'no_fresh_entry_data'); continue }
-      const want = Math.min(equity * FAST.perTrade * cfg.share * psy.sizeMult, cash / (1 + cfg.lev * 0.0005)) * cfg.lev
+      const want = Math.min(equity * (cfg.perTrade ?? FAST.perTrade * cfg.share) * psy.sizeMult, cash / (1 + cfg.lev * 0.0005)) * cfg.lev
       if (want / cfg.lev < 5) { rec('rejected', 'no_cash'); continue }
       const touch = sig.dir > 0 ? bk.asks[0][0] : bk.bids[0][0]
       // v95.7: never a ticket the book cannot carry — impact on entry AND exit side <= FAST_LIQ.impactOfR of the stop distance

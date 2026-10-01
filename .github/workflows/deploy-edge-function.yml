@@ -99,12 +99,12 @@ jobs:
           cat > supabase/functions/trading-bot/index.ts <<EOF
           const g = globalThis as any;
           g.__RELEASE_SHA = '${SHA}';
-          g.__ENABLED_SLEEVES = 'LIST,FUND'; // v99.0 owner override 2026-10-01: short fresh listings; rollback = 'CHAN'
+          g.__ENABLED_SLEEVES = 'LIST,FUND,FAST'; g.__FAST_MODE = 'bar'; g.__FAST_LEV = '1'; g.__FAST_SHARE = '0.25'; g.__FAST_PER_TRADE = '0.05'; g.__FAST_MAX_OPEN = '5'; // v99.0 owner override 2026-10-01: short fresh listings; rollback = 'CHAN'
           g.__LEVERAGE = '1';
           g.__CHAN_LEV = '20'; // v98.1 paper leverage for new CHAN entries (1..50)
           g.__CHAN_AGGRESSIVE = '1'; // v98.0 owner override (paper only); remove to roll back
           try {
-            Deno.env.set('ENABLED_SLEEVES', 'LIST,FUND');
+            Deno.env.set('ENABLED_SLEEVES', 'LIST,FUND,FAST');
             Deno.env.set('LEVERAGE', '1');
           } catch {}
           await import('https://raw.githubusercontent.com/aliexpressgood585/spacehub/${SHA}/supabase/functions/trading-bot/index.ts');

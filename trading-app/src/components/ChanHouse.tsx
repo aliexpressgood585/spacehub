@@ -183,10 +183,10 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
     return () => { alive = false; clearInterval(iv) }
   }, [])
   if (sleeve == null) return <div className="ch" dir="rtl"><style>{CSS}</style><div className="emptyPos">טוען…</div></div>
-  return (sleeve.split(',').includes('LIST') || sleeve.split(',').includes('FUND')) ? <ListHouse onBack={onBack} /> : <ChanHouseView onBack={onBack} />
+  return ['LIST','FUND','FAST'].some(x => sleeve.split(',').includes(x)) ? <ListHouse onBack={onBack} /> : <ChanHouseView onBack={onBack} />
 }
 
-const REASON_HE: Record<string,string> = { STOP: 'סטופ +20%', TARGET: 'יעד ‎-30%', TIMEOUT: '21 יום', SETTLED: 'אחרי סליקת funding' }
+const REASON_HE: Record<string,string> = { STOP: 'סטופ', TARGET: 'יעד', TIMEOUT: 'תום זמן', SETTLED: 'אחרי סליקת funding' }
 
 function ListHouse({ onBack }: { onBack?: () => void }) {
   const [state, setState] = useState<J | null>(null)
@@ -202,7 +202,7 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
       try {
         const [st, tr, man, er] = await Promise.all([
           q<J[]>('bot_state?select=balance,bot_params,paper_mode,lock_until,updated_at,hard_halt_at&limit=1'),
-          q<J[]>('bot_trades?select=id,sym,side,status,strategy,lev,entry_price,exit_price,size,pnl,fee,opened_at,closed_at,scalp_meta&strategy=in.(LIST,FUND)&order=opened_at.desc&limit=500'),
+          q<J[]>('bot_trades?select=id,sym,side,status,strategy,lev,entry_price,exit_price,size,pnl,fee,opened_at,closed_at,scalp_meta&strategy=in.(LIST,FUND,FAST)&order=opened_at.desc&limit=500'),
           q<J[]>('deployment_manifest?select=sha,enabled_sleeves,bot_version&order=first_seen.desc&limit=1').catch(() => []),
           q<J[]>(`bot_errors?select=ts,scope,message&ts=gte.${new Date(Date.now()-3_600_000).toISOString()}&order=ts.desc&limit=20`).catch(() => []),
         ])
@@ -253,7 +253,7 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
     const ev: { ts: string; title: string; detail: string; cls: string }[] = []
     for (const t of trades) {
       const f = t.strategy === 'FUND'
-      ev.push({ ts: t.opened_at, title: `${f ? 'FUND · ' : ''}נפתח ${t.side === 'LONG' ? 'לונג' : 'שורט'} ${t.sym}`, detail: `כניסה ${fmtPx(Number(t.entry_price))} · ${fmt$(Number(t.entry_price) * Number(t.size))} · ${f ? `funding צפוי ${(Number(t.scalp_meta?.pred_rate ?? 0) * 100).toFixed(3)}% · יציאה ${clock(t.scalp_meta?.exit_due)}` : `מטבע בן ${t.scalp_meta?.age_days != null ? Number(t.scalp_meta.age_days).toFixed(1) : '—'} ימים`}`, cls: 'open' })
+      ev.push({ ts: t.opened_at, title: `${f ? 'FUND · ' : t.strategy === 'FAST' ? 'QUICK · ' : ''}נפתח ${t.side === 'LONG' ? 'לונג' : 'שורט'} ${t.sym}`, detail: `כניסה ${fmtPx(Number(t.entry_price))} · ${fmt$(Number(t.entry_price) * Number(t.size))} · ${f ? `funding צפוי ${(Number(t.scalp_meta?.pred_rate ?? 0) * 100).toFixed(3)}% · יציאה ${clock(t.scalp_meta?.exit_due)}` : `מטבע בן ${t.scalp_meta?.age_days != null ? Number(t.scalp_meta.age_days).toFixed(1) : '—'} ימים`}`, cls: 'open' })
       if (t.closed_at && t.status !== 'OPEN') ev.push({ ts: t.closed_at, title: `נסגר ${t.sym} · ${REASON_HE[String(t.scalp_meta?.exit_reason)] ?? t.scalp_meta?.exit_reason ?? ''}`, detail: `יציאה ${fmtPx(Number(t.exit_price))} · ${fmt$(Number(t.pnl))}`, cls: Number(t.pnl) >= 0 ? 'win' : 'loss' })
     }
     const fc = p.fund_cycle ?? {}
@@ -278,6 +278,7 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
     <div className="emptyPos" style={{textAlign:'right',padding:'12px 14px',marginBottom:14,borderStyle:'solid',color:'#fbbf24'}}>
       ניסויים שלא נבדקו, נייר בלי מינוף. LIST: שורט על מטבעות שנכנסו לבינאנס פיוצ'רס לפני 3–30 יום · סטופ ‎+20% · יעד ‎-30% · עד 21 יום · עד 10 של ~10%.
       FUND: שעה לפני סליקת funding של ‎0.10%+ נכנסים לצד שמקבל אותה, יוצאים 15 דקות אחרי · בלי סטופ · עד 25% מההון לעסקה, עד 8.
+      QUICK: פריצה עם נפח בנר 5 דקות · סטופ ATR · יעד 1.5R · עד 60 דקות · 5% מההון לעסקה, עד 5 (בבדיקה לאחור הפסיד כ-0.2% לעסקה).
     </div>
 
     <section className="accountStrip">
@@ -307,6 +308,22 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
         const last = prevPx.current[r.t.sym]; if (r.mark != null) prevPx.current[r.t.sym] = r.mark
         const flash = r.mark != null && last != null && r.mark !== last ? (r.mark < last ? 'pos' : 'neg') : ''
         const held = (now - Date.parse(r.t.opened_at)) / 86_400_000
+        if (r.t.strategy === 'FAST') {
+          const f = r.m.fast ?? {}, st = Number(f.stop), tg = Number(f.target), en = Number(r.t.entry_price)
+          const p2 = r.mark != null ? Math.max(0, Math.min(100, (st - r.mark) / (st - tg) * 100)) : null
+          const ep = (st - en) / (st - tg) * 100, mins = (now - Date.parse(r.t.opened_at)) / 60_000
+          return <div key={r.t.id} className="lcard">
+            <div className="lhead"><b>{r.t.sym}</b><span className="lside">QUICK · {r.t.side}</span><span className="lsrc">{r.src ?? 'ממתין למחיר'}</span></div>
+            <div className="lpx"><bdi dir="ltr" className={flash}>{fmtPx(r.mark)}</bdi><bdi dir="ltr" className={(r.net ?? 0)>=0?'pos':'neg'}>{fmt$(r.net)} · {pct(r.pctMove)}</bdi></div>
+            <div className="lbar"><div className="lfill" style={{width:`${p2 ?? 0}%`}}/><div className="lentry" style={{left:`${ep}%`}}/></div>
+            <div className="llabels"><span>סטופ <bdi dir="ltr">{fmtPx(st)}</bdi></span><span>כניסה <bdi dir="ltr">{fmtPx(en)}</bdi></span><span>יעד <bdi dir="ltr">{fmtPx(tg)}</bdi></span></div>
+            <div className="lgrid">
+              <Mini k="שווי" v={fmt$(r.notional)} /><Mini k="לסטופ" v={r.mark != null ? pct(Math.abs(st / r.mark - 1)) : '—'} /><Mini k="ליעד" v={r.mark != null ? pct(Math.abs(tg / r.mark - 1)) : '—'} />
+              <Mini k="מוחזק" v={`${mins.toFixed(0)} / ${Number(f.hold_min) || 60} דק׳`} /><Mini k="פרץ" v={Number.isFinite(Number(f.z)) ? `z ${Number(f.z).toFixed(2)}` : '—'} /><Mini k="נפתח" v={clock(r.t.opened_at)} />
+            </div>
+            <button className="lchart" onClick={()=>window.open(`trade.html?id=${encodeURIComponent(String(r.t.id))}`,'_blank','noopener,noreferrer')}>גרף חי ←</button>
+          </div>
+        }
         if (r.isFund) {
           const due = Date.parse(r.m.exit_due), settle = Date.parse(r.m.settle_at)
           const tot = due - Date.parse(r.t.opened_at), done = Math.max(0, Math.min(100, (now - Date.parse(r.t.opened_at)) / tot * 100))
@@ -360,7 +377,7 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
 
     <section className="closedTrades">
       <div className="sectionHead">
-        <div><h2>עסקאות שנסגרו</h2><p>כל עסקאות LIST ו-FUND מאז האיפוס ב-1.10.2026.</p></div>
+        <div><h2>עסקאות שנסגרו</h2><p>כל עסקאות LIST, FUND ו-QUICK מאז האיפוס ב-1.10.2026.</p></div>
         <span className="countBadge">{closed.length} סגורות</span>
       </div>
       {closed.length === 0 ? <div className="emptyPos">עדיין אין עסקאות סגורות.</div> :
@@ -371,7 +388,7 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
           <td><bdi dir="ltr">{fmtPx(Number(t.entry_price))}</bdi></td><td><bdi dir="ltr">{fmtPx(Number(t.exit_price))}</bdi></td>
           <td><bdi dir="ltr" className={Number(t.pnl)>=0?'pos':'neg'}>{fmt$(Number(t.pnl))}</bdi></td>
           <td>{REASON_HE[String(t.scalp_meta?.exit_reason)] ?? t.scalp_meta?.exit_reason ?? '—'}</td>
-          <td>{t.strategy === 'FUND' ? `${Math.round((Date.parse(t.closed_at)-Date.parse(t.opened_at))/60_000)} דק׳` : `${((Date.parse(t.closed_at)-Date.parse(t.opened_at))/86_400_000).toFixed(1)} ימים`}</td>
+          <td>{t.strategy !== 'LIST' ? `${Math.round((Date.parse(t.closed_at)-Date.parse(t.opened_at))/60_000)} דק׳` : `${((Date.parse(t.closed_at)-Date.parse(t.opened_at))/86_400_000).toFixed(1)} ימים`}</td>
         </tr>)}</tbody>
       </table></div>}
     </section>

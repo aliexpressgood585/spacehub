@@ -20,7 +20,7 @@ assert.ok(sql.includes("x->>'side'<>'SHORT'")&&sql.includes('px*1.20')&&sql.incl
 assert.ok(sql.includes("exists(select 1 from bot_trades where strategy='LIST' and sym=x->>'sym')"),'ledger: one short per coin ever')
 const runner=readFileSync('supabase/functions/trading-bot/list-runner.ts','utf8')
 assert.ok(runner.includes("if(!paper)throw new Error('LIST is paper-only"),'runner refuses live execution')
-assert.ok(runner.includes("['LIST','FUND'].includes(t.strategy)"),'runner refuses any other sleeve in the book')
+assert.ok(runner.includes("['LIST','FUND','FAST'].includes(t.strategy)"),'runner refuses any other sleeve in the book')
 const idx=readFileSync('supabase/functions/trading-bot/index.ts','utf8')
 assert.ok(idx.includes("runList(supabase, state, runLeaseUntil, paperMode && !liveMode)"),'index passes paper to LIST')
 // v99.2 FUND = H6a exactly

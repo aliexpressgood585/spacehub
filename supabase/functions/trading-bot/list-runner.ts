@@ -14,7 +14,7 @@ export async function runList(db:any,state:any,lease:string,paper:boolean){
   const {data:openAll}=await db.from('bot_trades').select('*').eq('status','OPEN').throwOnError()
   const open=openAll.filter((t:any)=>t.strategy==='LIST')
   const all=openAll
-  if(all.some((t:any)=>t.paper_mode!==true||Number(t.lev)!==1||!['LIST','FUND'].includes(t.strategy)))throw new Error('LIST requires a paper-only 1x book of LIST/FUND rows')
+  if(all.some((t:any)=>t.paper_mode!==true||Number(t.lev)!==1||!['LIST','FUND','FAST'].includes(t.strategy)))throw new Error('LIST requires a paper-only 1x book of LIST/FUND/FAST rows')
   const scanDue=now-(Number(params.list_scan)||0)>=LIST.scanMs&&!state.hard_halt_at
   if(!open.length&&!scanDue)return {changed:false,open:0}
   // exits

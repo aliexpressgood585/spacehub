@@ -550,7 +550,7 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v99.2'
+const BOT_VERSION = 'v99.4'
 // v87.0: the pre-SCALP engine (DONCH4H / standalone ROTA) opens trades without the profit gate; it stays in the file
 // for its exit/record code history but may never open a trade. Changing this needs the gate wired in first.
 const LEGACY_ENGINE_ALLOWED = false
@@ -2705,8 +2705,15 @@ Deno.serve(async (req) => {
         try { fund = await runFund(supabase, st2, runLeaseUntil, paperMode && !liveMode) }
         catch (e: any) { fund = { error: String(e?.message ?? e) }; await logErr('fund_runner', String(e?.message ?? e)) }
       }
-      const bad = !!(list?.error || fund?.error)
-      return new Response(JSON.stringify({ ok: !bad, version: BOT_VERSION, list, fund }), { status: bad ? 500 : 200, headers: { 'Content-Type': 'application/json' } })
+      // v99.4 (owner: "more trades, 30-60 minute holds", small size): FAST bar mode (5m burst, <= 60 min hold) at 1x,
+      // 5% of equity per trade, <= 5 open, in the same paper book. NOT VALIDATED: tested at about -0.2%/trade after costs.
+      let fast: any = null
+      if (ENABLED_SLEEVES.includes('FAST')) {
+        try { const { data: fresh } = await supabase.from('bot_state').select('*').eq('id', 1).single(); fast = await runFast(supabase, fresh ?? st2, runLeaseUntil, paperMode && !liveMode) }
+        catch (e: any) { fast = { error: String(e?.message ?? e) }; await logErr('fast_runner', String(e?.message ?? e)) }
+      }
+      const bad = !!(list?.error || fund?.error || fast?.error)
+      return new Response(JSON.stringify({ ok: !bad, version: BOT_VERSION, list, fund, fast }), { status: bad ? 500 : 200, headers: { 'Content-Type': 'application/json' } })
     }
 
     if (ENABLED_SLEEVES.includes('CHAN')) {
