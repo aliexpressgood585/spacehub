@@ -182,10 +182,10 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
     return () => { alive = false; clearInterval(iv) }
   }, [])
   if (sleeve == null) return <div className="ch" dir="rtl"><style>{CSS}</style><div className="emptyPos">טוען…</div></div>
-  return sleeve.split(',').includes('LIST') ? <ListHouse onBack={onBack} /> : <ChanHouseView onBack={onBack} />
+  return (sleeve.split(',').includes('LIST') || sleeve.split(',').includes('FUND')) ? <ListHouse onBack={onBack} /> : <ChanHouseView onBack={onBack} />
 }
 
-const REASON_HE: Record<string,string> = { STOP: 'סטופ +20%', TARGET: 'יעד ‎-30%', TIMEOUT: '21 יום' }
+const REASON_HE: Record<string,string> = { STOP: 'סטופ +20%', TARGET: 'יעד ‎-30%', TIMEOUT: '21 יום', SETTLED: 'אחרי סליקת funding' }
 
 function ListHouse({ onBack }: { onBack?: () => void }) {
   const [state, setState] = useState<J | null>(null)
@@ -201,7 +201,7 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
       try {
         const [st, tr, man, er] = await Promise.all([
           q<J[]>('bot_state?select=balance,bot_params,paper_mode,lock_until,updated_at,hard_halt_at&limit=1'),
-          q<J[]>('bot_trades?select=id,sym,side,status,lev,entry_price,exit_price,size,pnl,fee,opened_at,closed_at,scalp_meta&strategy=eq.LIST&order=opened_at.desc&limit=500'),
+          q<J[]>('bot_trades?select=id,sym,side,status,strategy,lev,entry_price,exit_price,size,pnl,fee,opened_at,closed_at,scalp_meta&strategy=in.(LIST,FUND)&order=opened_at.desc&limit=500'),
           q<J[]>('deployment_manifest?select=sha,enabled_sleeves,bot_version&order=first_seen.desc&limit=1').catch(() => []),
           q<J[]>(`bot_errors?select=ts,scope,message&ts=gte.${new Date(Date.now()-3_600_000).toISOString()}&order=ts.desc&limit=20`).catch(() => []),
         ])
@@ -249,18 +249,20 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
   const rows = open.map(t => {
     const entry = Number(t.entry_price), size = Number(t.size), m = t.scalp_meta ?? {}
     const sym = String(t.sym), w = ws[sym], tk = ticks[sym]
-    const botM = p.list_marks?.marks?.[sym] ?? p.list_cycle?.marks?.[sym]
-    const botTs = Date.parse(p.list_marks?.ts ?? p.list_cycle?.marks_ts ?? '') || 0
-    // a short closes at the ask: prefer the live Binance ask, then the shared feed, then the bot's own last mark
-    const mark: number | null = w && now - w.ts < 15_000 ? w.ask : tk?.px ? tk.px : Number(botM) > 0 ? Number(botM) : null
+    const isFund = t.strategy === 'FUND', dir = t.side === 'LONG' ? 1 : -1
+    const botM = isFund ? p.fund_marks?.marks?.[sym] : (p.list_marks?.marks?.[sym] ?? p.list_cycle?.marks?.[sym])
+    const botTs = Date.parse(isFund ? (p.fund_marks?.ts ?? '') : (p.list_marks?.ts ?? p.list_cycle?.marks_ts ?? '')) || 0
+    // a short closes at the ask, a long at the bid: prefer the live Binance quote, then the shared feed, then the bot's own last mark
+    const mark: number | null = w && now - w.ts < 15_000 ? (dir === 1 ? w.bid : w.ask) : tk?.px ? tk.px : Number(botM) > 0 ? Number(botM) : null
     const src = w && now - w.ts < 15_000 ? 'Binance WS' : tk?.px ? String(tk.src) : Number(botM) > 0 ? `הבוט · ${ago(botTs, now)}` : undefined
     const notional = entry * size
     const hours = (now - Date.parse(t.opened_at)) / 3_600_000
-    const funding = notional * 0.0001 * hours / 8 * -1
-    const gross = mark != null ? (entry - mark) * size : null
+    // FUND: the predicted settlement (receiving side -> negative = received); LIST: the 0.01%/8h model
+    const funding = isFund ? -Math.abs(Number(m.pred_rate ?? 0)) * notional : notional * 0.0001 * hours / 8 * -1
+    const gross = mark != null ? (mark - entry) * size * dir : null
     const exitFee = mark != null ? mark * size * 0.0005 : null
     const net = gross != null ? gross - Number(t.fee ?? 0) - exitFee! - funding : null
-    return { t, m, mark, src, notional, gross, net, pctMove: mark != null ? (entry / mark - 1) : null,
+    return { t, m, mark, src, notional, gross, net, isFund, pctMove: mark != null ? (dir === 1 ? mark / entry - 1 : entry / mark - 1) : null,
       toStop: mark != null ? Number(m.stop_px) / mark - 1 : null, toTarget: mark != null ? 1 - Number(m.target_px) / mark : null }
   })
   const start = 5000
@@ -268,7 +270,7 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
   const openNet = rows.reduce((s, r) => s + (r.net ?? 0), 0)
   const realised = closed.reduce((s, t) => s + Number(t.pnl ?? 0), 0)
   const fees = trades.reduce((s, t) => s + Number(t.fee ?? 0) + Number(t.scalp_meta?.exit_fee ?? 0), 0)
-  const funding = closed.reduce((s, t) => s + Number(t.scalp_meta?.funding_model ?? 0), 0)
+  const funding = closed.reduce((s, t) => s + Number(t.scalp_meta?.funding_paid ?? t.scalp_meta?.funding_model ?? 0), 0)
   const cash = Number(state?.balance ?? 0)
   const equity = cash + exposure + openNet + rows.reduce((s, r) => s + Number(r.t.fee ?? 0), 0)
   const wins = closed.filter(t => Number(t.pnl) > 0).length
@@ -277,18 +279,21 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
   const events = useMemo(() => {
     const ev: { ts: string; title: string; detail: string; cls: string }[] = []
     for (const t of trades) {
-      ev.push({ ts: t.opened_at, title: `נפתח שורט ${t.sym}`, detail: `כניסה ${fmtPx(Number(t.entry_price))} · ${fmt$(Number(t.entry_price) * Number(t.size))} · מטבע בן ${t.scalp_meta?.age_days != null ? Number(t.scalp_meta.age_days).toFixed(1) : '—'} ימים`, cls: 'open' })
+      const f = t.strategy === 'FUND'
+      ev.push({ ts: t.opened_at, title: `${f ? 'FUND · ' : ''}נפתח ${t.side === 'LONG' ? 'לונג' : 'שורט'} ${t.sym}`, detail: `כניסה ${fmtPx(Number(t.entry_price))} · ${fmt$(Number(t.entry_price) * Number(t.size))} · ${f ? `funding צפוי ${(Number(t.scalp_meta?.pred_rate ?? 0) * 100).toFixed(3)}% · יציאה ${clock(t.scalp_meta?.exit_due)}` : `מטבע בן ${t.scalp_meta?.age_days != null ? Number(t.scalp_meta.age_days).toFixed(1) : '—'} ימים`}`, cls: 'open' })
       if (t.closed_at && t.status !== 'OPEN') ev.push({ ts: t.closed_at, title: `נסגר ${t.sym} · ${REASON_HE[String(t.scalp_meta?.exit_reason)] ?? t.scalp_meta?.exit_reason ?? ''}`, detail: `יציאה ${fmtPx(Number(t.exit_price))} · ${fmt$(Number(t.pnl))}`, cls: Number(t.pnl) >= 0 ? 'win' : 'loss' })
     }
+    const fc = p.fund_cycle ?? {}
+    if (fc.ts && fc.scan_due) ev.push({ ts: fc.ts, title: 'FUND · סריקת funding', detail: `${Array.isArray(fc.candidates) ? fc.candidates.length : 0} מועמדים · נפתחו ${Number(fc.opened ?? 0)} · נסגרו ${Number(fc.closed ?? 0)}${fc.scan_error ? ` · שגיאה: ${fc.scan_error}` : ''}`, cls: 'scan' })
     if (cyc.ts) ev.push({ ts: cyc.ts, title: cyc.scan_due ? 'סריקת מטבעות חדשים' : 'מחזור ספר חשבונות', detail: `${Array.isArray(cyc.candidates) ? cyc.candidates.length : 0} מועמדים · נפתחו ${Number(cyc.opened ?? 0)} · נסגרו ${Number(cyc.closed ?? 0)}`, cls: 'scan' })
     return ev.sort((a, b) => Date.parse(b.ts) - Date.parse(a.ts))
-  }, [trades, cyc])
+  }, [trades, cyc, p.fund_cycle])
 
   return <div className="ch" dir="rtl">
     <style>{CSS}</style>
     <div className="top">
       {onBack && <button className="back" onClick={onBack}>→ חזרה</button>}
-      <h1>בית הבוט · LIST</h1>
+      <h1>בית הבוט · {manifest?.enabled_sleeves ?? 'LIST'}</h1>
       <span className={`chip ${alive ? 'ok' : 'bad'}`}>{alive ? `● חי · מחזור ${ago(lease, now)}` : `○ אין מחזור ${ago(lease, now)}`}</span>
       <span className="chip">{state?.paper_mode === false ? 'לא נייר!' : 'נייר בלבד'}</span>
       <span className="chip">{manifest ? `${manifest.enabled_sleeves} · ${String(manifest.sha ?? '').slice(0,7)}` : 'LIST'}</span>
@@ -298,14 +303,15 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
     </div>
     {err && <div className="readerr">שגיאת קריאה: {err}</div>}
     <div className="emptyPos" style={{textAlign:'right',padding:'12px 14px',marginBottom:14,borderStyle:'solid',color:'#fbbf24'}}>
-      ניסוי שלא נבדק: שורט על מטבעות שנכנסו לבינאנס פיוצ'רס לפני 3–30 יום · סטופ ‎+20% · יעד ‎-30% · עד 21 יום · עד 10 עסקאות של ~10% · נייר, בלי מינוף.
+      ניסויים שלא נבדקו, נייר בלי מינוף. LIST: שורט על מטבעות שנכנסו לבינאנס פיוצ'רס לפני 3–30 יום · סטופ ‎+20% · יעד ‎-30% · עד 21 יום · עד 10 של ~10%.
+      FUND: שעה לפני סליקת funding של ‎0.10%+ נכנסים לצד שמקבל אותה, יוצאים 15 דקות אחרי · בלי סטופ · עד 25% מההון לעסקה, עד 8.
     </div>
 
     <section className="accountStrip">
       <Stat k="הון פתיחה" v={fmt$(start)} />
       <Stat k="הון נטו אם סוגרים עכשיו" v={fmt$(equity)} cls={equity>=start?'pos':'neg'} />
       <Stat k="מזומן פנוי" v={fmt$(cash)} />
-      <Stat k="חשיפה (שורט)" v={fmt$(exposure)} />
+      <Stat k="חשיפה" v={fmt$(exposure)} />
       <Stat k="ממומש" v={fmt$(realised)} cls={realised>=0?'pos':'neg'} />
       <Stat k="פתוח נטו" v={fmt$(openNet)} cls={openNet>=0?'pos':'neg'} />
       <Stat k="עמלות" v={fmt$(fees)} />
@@ -317,7 +323,7 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
     <section className="positions">
       <div className="sectionHead">
         <div><h2>פוזיציות פתוחות · P&L חי</h2><p>שורט. P&L נטו כולל עמלת פתיחה, עמלת סגירה משוערת ו-Funding משוער (0.01% ל-8 שעות).</p></div>
-        <span className="countBadge">{open.length} / 10</span>
+        <span className="countBadge">{open.length} פתוחות</span>
       </div>
       {rows.length === 0 ? <div className="emptyPos">אין כרגע פוזיציות פתוחות.</div> :
       <div className="positionGrid">{rows.map(r => {
@@ -328,6 +334,22 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
         const last = prevPx.current[r.t.sym]; if (r.mark != null) prevPx.current[r.t.sym] = r.mark
         const flash = r.mark != null && last != null && r.mark !== last ? (r.mark < last ? 'pos' : 'neg') : ''
         const held = (now - Date.parse(r.t.opened_at)) / 86_400_000
+        if (r.isFund) {
+          const due = Date.parse(r.m.exit_due), settle = Date.parse(r.m.settle_at)
+          const tot = due - Date.parse(r.t.opened_at), done = Math.max(0, Math.min(100, (now - Date.parse(r.t.opened_at)) / tot * 100))
+          const mins = (x: number) => x > 0 ? `${Math.floor(x / 60_000)}:${String(Math.floor(x / 1000) % 60).padStart(2, '0')}` : 'עכשיו'
+          return <div key={r.t.id} className="lcard">
+            <div className="lhead"><b>{r.t.sym}</b><span className="lside">FUND · {r.t.side}</span><span className="lsrc">{r.src ?? 'ממתין למחיר'}</span></div>
+            <div className="lpx"><bdi dir="ltr" className={flash}>{fmtPx(r.mark)}</bdi><bdi dir="ltr" className={(r.net ?? 0)>=0?'pos':'neg'}>{fmt$(r.net)} · {pct(r.pctMove)}</bdi></div>
+            <div className="lbar"><div className="lfill" style={{width:`${done}%`}}/></div>
+            <div className="llabels"><span>כניסה {clock(r.t.opened_at)}</span><span>סליקה {clock(r.m.settle_at)}</span><span>יציאה {clock(r.m.exit_due)}</span></div>
+            <div className="lgrid">
+              <Mini k="שווי" v={fmt$(r.notional)} /><Mini k="funding צפוי" v={`${(Number(r.m.pred_rate ?? 0) * 100).toFixed(3)}%`} /><Mini k="לקבל (משוער)" v={fmt$(Math.abs(Number(r.m.pred_rate ?? 0)) * r.notional)} />
+              <Mini k="עד סליקה" v={mins(settle - now)} /><Mini k="עד יציאה" v={mins(due - now)} /><Mini k="כניסה" v={fmtPx(entry)} />
+            </div>
+            <button className="lchart" onClick={()=>window.open(`trade.html?id=${encodeURIComponent(String(r.t.id))}`,'_blank','noopener,noreferrer')}>גרף חי ←</button>
+          </div>
+        }
         return <div key={r.t.id} className="lcard">
           <div className="lhead"><b>{r.t.sym}</b><span className="lside">SHORT</span><span className="lsrc">{r.src ?? 'ממתין למחיר'}</span></div>
           <div className="lpx"><bdi dir="ltr" className={flash}>{fmtPx(r.mark)}</bdi><bdi dir="ltr" className={(r.net ?? 0)>=0?'pos':'neg'}>{fmt$(r.net)} · {pct(r.pctMove)}</bdi></div>
@@ -365,18 +387,18 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
 
     <section className="closedTrades">
       <div className="sectionHead">
-        <div><h2>עסקאות שנסגרו</h2><p>כל עסקאות LIST מאז האיפוס ב-1.10.2026.</p></div>
+        <div><h2>עסקאות שנסגרו</h2><p>כל עסקאות LIST ו-FUND מאז האיפוס ב-1.10.2026.</p></div>
         <span className="countBadge">{closed.length} סגורות</span>
       </div>
       {closed.length === 0 ? <div className="emptyPos">עדיין אין עסקאות סגורות.</div> :
       <div className="closedTableWrap"><table className="closedTable" style={{minWidth:760}}>
         <thead><tr><th>נסגר</th><th>מטבע</th><th>כניסה</th><th>יציאה</th><th>P&L נטו</th><th>סיבה</th><th>מוחזק</th></tr></thead>
         <tbody>{closed.map(t => <tr key={t.id} className={Number(t.pnl)>=0?'winRow':'lossRow'}>
-          <td>{new Date(t.closed_at).toLocaleString('he-IL')}</td><td><b>{t.sym}</b></td>
+          <td>{new Date(t.closed_at).toLocaleString('he-IL')}</td><td><b>{t.sym}</b> <small>{t.strategy} {t.side}</small></td>
           <td><bdi dir="ltr">{fmtPx(Number(t.entry_price))}</bdi></td><td><bdi dir="ltr">{fmtPx(Number(t.exit_price))}</bdi></td>
           <td><bdi dir="ltr" className={Number(t.pnl)>=0?'pos':'neg'}>{fmt$(Number(t.pnl))}</bdi></td>
           <td>{REASON_HE[String(t.scalp_meta?.exit_reason)] ?? t.scalp_meta?.exit_reason ?? '—'}</td>
-          <td>{((Date.parse(t.closed_at)-Date.parse(t.opened_at))/86_400_000).toFixed(1)} ימים</td>
+          <td>{t.strategy === 'FUND' ? `${Math.round((Date.parse(t.closed_at)-Date.parse(t.opened_at))/60_000)} דק׳` : `${((Date.parse(t.closed_at)-Date.parse(t.opened_at))/86_400_000).toFixed(1)} ימים`}</td>
         </tr>)}</tbody>
       </table></div>}
     </section>

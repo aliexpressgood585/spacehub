@@ -11,8 +11,10 @@ import {json,pool,quote} from './rota-runner.ts'
 export async function runList(db:any,state:any,lease:string,paper:boolean){
   if(!paper)throw new Error('LIST is paper-only; refusing live execution')
   const now=Date.now(),params=state.bot_params||{}
-  const {data:open}=await db.from('bot_trades').select('*').eq('status','OPEN').throwOnError()
-  if(open.some((t:any)=>t.paper_mode!==true||Number(t.lev)!==1||t.strategy!=='LIST'))throw new Error('LIST requires a paper-only 1x book of LIST rows')
+  const {data:openAll}=await db.from('bot_trades').select('*').eq('status','OPEN').throwOnError()
+  const open=openAll.filter((t:any)=>t.strategy==='LIST')
+  const all=openAll
+  if(all.some((t:any)=>t.paper_mode!==true||Number(t.lev)!==1||!['LIST','FUND'].includes(t.strategy)))throw new Error('LIST requires a paper-only 1x book of LIST/FUND rows')
   const scanDue=now-(Number(params.list_scan)||0)>=LIST.scanMs&&!state.hard_halt_at
   if(!open.length&&!scanDue)return {changed:false,open:0}
   // exits
@@ -38,13 +40,15 @@ export async function runList(db:any,state:any,lease:string,paper:boolean){
       const [info,tick,book]=await Promise.all([json('https://fapi.binance.com/fapi/v1/exchangeInfo'),
         json('https://fapi.binance.com/fapi/v1/ticker/24hr'),json('https://fapi.binance.com/fapi/v1/ticker/bookTicker')])
       const {pairs}=buildUniverse(info,tick,book,now,{minQuoteVol:LIST.minQuoteVol,maxSpreadBps:LIST.maxSpreadBps,minAgeDays:LIST.minAgeDays})
+      // v99.2: keep the shared universe cache fresh (FUND and the forward lab read it; CHAN used to refresh it)
+      try{const u=buildUniverse(info,tick,book,now);if(u.pairs.length>=20)await db.from('market_cache').upsert({key:'universe',data:u,ts:new Date(now).toISOString()}).throwOnError()}catch{}
       const {data:past}=await db.from('bot_trades').select('sym').eq('strategy','LIST').throwOnError()
       const traded=new Set<string>((past??[]).map((r:any)=>String(r.sym)))
       const fresh=freshListings(pairs,info,now,traded)
       cands.push(...fresh.map(f=>({sym:f.sym,age_d:f.ageDays,qv_m:+(f.qv/1e6).toFixed(1),spread_bps:f.spreadBps})))
       const room=LIST.maxOpen-(open.length-closes.length)
       let cash=Number(state.balance)
-      const equity=cash+open.reduce((s:number,t:any)=>s+Number(t.entry_price)*Number(t.size),0)
+      const equity=cash+openAll.reduce((s:number,t:any)=>s+Number(t.entry_price)*Number(t.size),0)
       const slot=equity*LIST.share/LIST.maxOpen
       for(const f of fresh){
         if(entries.length>=room)break
