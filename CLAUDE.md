@@ -396,6 +396,20 @@ Nothing deployed from this.
 - Change: aggressive mode no longer revives RG_VOL_BREAKOUT (`aggressive_engine_disabled`); cap 2 same-side entries per 5m bar in ALL modes (`same_side_bar_cap`). NB DONCH4H history shows the opposite (3+ simultaneous 4h breakouts were its best), so the cap is CHAN/5m-specific.
 - Rollback: revert this commit.
 
+## v99.0 LIST (2026-10-01 13:25 UTC) — RESET to $5,000 + SHORT fresh Binance perp listings (owner: "reset and open trades with something new, very profitable")
+- Owner was told plainly that nothing tested is proven profitable. Offered a test first; they chose "reset and run now", an explicit COUNCIL OVERRIDE for this one change (no backtest, no GPT review). NOT VALIDATED; every row carries experimental:true, validated:false.
+- Rule (`shared/listing.ts`, frozen):
+  - universe = `buildUniverse` (crypto-only, >= $20M/24h, spread <= 10 bps), onboardDate 3..30 days ago;
+  - SHORT, youngest first, one short per coin ever;
+  - stop +20%, target -30%, timeout 21 days;
+  - <= 10 open at ~10% of equity each, paper 1x;
+  - entry scan hourly, exits every cycle.
+- `list-runner.ts` refuses a mixed book; ledger `list_commit_cycle` (migration 20261001090000_list_sleeve.sql, applied) re-checks: paper, short only, <= 10 open, <= 11%/trade, one short per coin, and writes bot_equity on each scan. Tests: tests/listing.test.ts. Suite: same 3 pre-existing failures, 0 new.
+- Shim (both CI workflows): `__ENABLED_SLEEVES='LIST'`, `__LEVERAGE='1'`. Deployed 6853815f, manifest v99.0 LIST paper true / live false, 13:25:47.
+- RESET 13:29: CHAN era archived to `archive_v98era_bot_trades` (495 rows: 488 closed, realised -$2,495.70, 7 open archived as OPEN) and `archive_v98era_bot_equity` (810); bot_trades/equity/snapshots cleared, balance/peak 5000. 4 `list_runner` mixed-book errors 13:25-13:28 were the gap between deploy and reset (expected).
+- First scan 13:29:47: 1 candidate, PONS (25.3 days, $49M/24h) -> SHORT $500 @0.53144. Liquid fresh listings are RARE, so expect few trades and mostly idle cash.
+- ROLLBACK: both workflows back to `'CHAN'` + `__LEVERAGE='50'`, and close LIST rows first (runChan refuses a mixed book).
+
 ## Forward-test lab + H6 (2026-09-30 ~23:40 UTC) — owner: "an agent that tests trades forward"
 - `shared/forward.ts`: data-collector opens and closes VIRTUAL trades from frozen rules and books net P&L at live mark prices. Table `fwd_trades` (migration 20260930233000, RLS, kept forever).
 - First hypotheses: H6a / H6b, funding-settlement capture (quant/PREREGISTRATION_H6.md). Counts only until 200 closed trades each.

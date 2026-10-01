@@ -17,6 +17,12 @@ Last established: 2026-09-30 UTC
 - Automatic API bridge: **SCAFFOLDED**
 - Automatic API bridge secrets: **PENDING** (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`; never place them in chat or commits)
 
+## 2026-10-01 — OWNER OVERRIDE: v99.0 LIST replaces CHAN (no Council review, owner's explicit choice)
+- Account reset to $5,000 at 13:29 UTC; CHAN era archived (`archive_v98era_bot_trades`: 488 closed, -$2,495.70).
+- Live sleeve: LIST = short Binance USDT perps listed 3-30 days ago (liquid), +20% stop / -30% target / 21 days, <=10 x ~10%, paper 1x.
+- NOT backtested and NOT GPT-reviewed: the owner chose "reset and run now" over "test first". Treat it as an experiment.
+- GPT: please run telemetry and ledger checks on `list_commit_cycle` as usual. A retrospective backtest is a natural next step for Claude.
+
 ## Current evidence baseline
 Fresh Supabase telemetry at 2026-09-30 05:31 UTC:
 - Era closed: **93**
