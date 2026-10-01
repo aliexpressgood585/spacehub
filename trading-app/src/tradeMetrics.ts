@@ -29,7 +29,10 @@ export function tradeMetrics(t: TradeRow, markIn: number, now = Date.now()): Tra
   let net: number, costs: number
   if (open) {
     const hours = Math.max(0, now - Date.parse(t.opened_at)) / 3600_000
-    costs = n(t.fee || 0) + mark * size * (EXIT_FEE + EXIT_SLIP_EST) + dir * notional * FUNDING_8H * hours / 8
+    // funding: FUND rows hold the RECEIVING side through one settlement -> the predicted rate is received (estimate);
+    // every other sleeve pays/receives the 0.01%/8h model
+    const funding = t.strategy === 'FUND' ? -Math.abs(n(t.scalp_meta?.pred_rate) || 0) * notional : dir * notional * FUNDING_8H * hours / 8
+    costs = n(t.fee || 0) + mark * size * (EXIT_FEE + EXIT_SLIP_EST) + funding
     net = gross - costs
   } else { net = n(t.pnl); costs = gross - net }
   const rel = (x: number) => (Number.isFinite(x) && entry > 0 ? dir * (x - entry) / entry : NaN)
@@ -39,3 +42,11 @@ export function tradeMetrics(t: TradeRow, markIn: number, now = Date.now()): Tra
 }
 export const fmtR = (x: number) => (Number.isFinite(x) ? `${x >= 0 ? '+' : '−'}${Math.abs(x).toFixed(2)}R` : '—')
 export const fmtPctSigned = (x: number, d = 2) => (Number.isFinite(x) ? `${x >= 0 ? '+' : '−'}${Math.abs(x * 100).toFixed(d)}%` : '—')
+
+// v99.3 — what an OPEN position is worth to the account if it were closed now: the cash it returns (margin + net P&L
+// since entry, with the entry fee added back because the ledger already took it from cash). Account value = cash +
+// sum(closeValue). The house and the dashboard both use this, so their totals can only differ by the mark they see.
+export function closeValue(t: TradeRow, mark: number, now = Date.now()): number {
+  const m = tradeMetrics(t, mark, now)
+  return m.margin + m.net + n(t.fee || 0)
+}

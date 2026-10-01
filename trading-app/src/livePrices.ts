@@ -140,9 +140,7 @@ export function useLivePrices(symbols: string[]): Ticks {
       const still = stale.filter((s) => !store.current[s] || Date.now() - store.current[s].t > PREFER_MS)
       if (!still.length) return
       try {
-        const r = await fetch(`${SUPA_URL}/rest/v1/bot_state?select=bot_params->chan_cycle&limit=1`, { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` }, cache: 'no-store' })
-        const c = (await r.json())?.[0]?.chan_cycle, ts = Date.parse(c?.marks_ts ?? '')
-        if (c?.marks && Date.now() - ts < 30_000) for (const s of still) if (Number(c.marks[s]) > 0) put(s, Number(c.marks[s]), null, 'הבוט', ts)
+        for (const [s, m] of Object.entries(await botMarks())) if (still.includes(s) && Date.now() - m.ts < 30_000) put(s, m.px, null, 'הבוט', m.ts)
       } catch { /* offline */ }
     }, 2000)
 
@@ -158,3 +156,57 @@ export function useLivePrices(symbols: string[]): Ticks {
 
 // '▲' / '▼' / '' for the last move, used to flash a price green or red like an exchange board
 export const tickDir = (t?: LiveTick) => (!t || t.px === t.prev ? '' : t.px > t.prev ? 'up' : 'down')
+
+// v99.3 — the bot's own server-side marks for its open positions (every sleeve that publishes them), sym -> {px, ts}
+export async function botMarks(): Promise<Record<string, { px: number; ts: number }>> {
+  const r = await fetch(`${SUPA_URL}/rest/v1/bot_state?select=c:bot_params->chan_cycle,l:bot_params->list_marks,f:bot_params->fund_marks&limit=1`,
+    { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` }, cache: 'no-store' })
+  const row = (await r.json())?.[0] ?? {}, out: Record<string, { px: number; ts: number }> = {}
+  const add = (marks: any, ts: number) => { if (marks && ts) for (const [k, v] of Object.entries(marks)) if (Number(v) > 0 && !(out[k]?.ts > ts)) out[k] = { px: Number(v), ts } }
+  add(row.c?.marks, Date.parse(row.c?.marks_ts ?? '')); add(row.l?.marks, Date.parse(row.l?.ts ?? '')); add(row.f?.marks, Date.parse(row.f?.ts ?? ''))
+  return out
+}
+
+// v99.3 — ONE exit mark for every open position, shared by the house and the dashboard (owner: "both screens must
+// show the same number, updated every second"). A position closes on the opposite side of the book, so the mark is
+// the Binance USDT-M BID for a long and the ASK for a short (bookTicker stream, pushed on every change); when that
+// socket is silent for > 5 s it falls back to the shared last-price feed, then to the bot's own server-side mark.
+export interface ExitMark { mark: number | null; src?: string }
+export function useExitMarks(rows: { sym: string; side: string }[]): { marks: Record<string, ExitMark>; wsOn: boolean } {
+  const key = [...new Set(rows.map(r => `${r.sym}:${r.side}`))].sort().join(',')
+  const syms = [...new Set(rows.map(r => r.sym))]
+  const feed = useLivePrices(syms)
+  const [book, setBook] = useState<Record<string, { bid: number; ask: number; ts: number }>>({})
+  const [bot, setBot] = useState<Record<string, { px: number; ts: number }>>({})
+  const [wsOn, setWsOn] = useState(false)
+  const [, setTick] = useState(0)
+  useEffect(() => { const iv = setInterval(() => setTick(x => x + 1), 1000); return () => clearInterval(iv) }, [])
+  useEffect(() => {
+    const list = [...new Set(key ? key.split(',').map(k => k.split(':')[0]) : [])]
+    if (!list.length) { setWsOn(false); return }
+    let dead = false, sock: WebSocket | null = null, retry: ReturnType<typeof setTimeout> | null = null
+    const rev = new Map(list.map(s => [bn(s).s, s]))
+    const connect = () => {
+      if (dead) return
+      sock = new WebSocket(`wss://fstream.binance.com/stream?streams=${[...rev.keys()].map(x => x.toLowerCase() + '@bookTicker').join('/')}`)
+      sock.onopen = () => { if (!dead) setWsOn(true) }
+      sock.onmessage = (ev) => { try { const d = JSON.parse(String(ev.data))?.data; const sym = rev.get(String(d?.s ?? '').toUpperCase()); if (!sym) return
+        const k = bn(sym).k, bid = Number(d.b) / k, ask = Number(d.a) / k; if (bid > 0 && ask > 0) setBook(w => ({ ...w, [sym]: { bid, ask, ts: Date.now() } })) } catch { /* bad frame */ } }
+      sock.onclose = () => { if (dead) return; setWsOn(false); retry = setTimeout(connect, 1500) }
+      sock.onerror = () => { try { sock?.close() } catch { /* closing */ } }
+    }
+    connect()
+    const poll = async () => { try { const m = await botMarks(); if (!dead) setBot(m) } catch { /* offline */ } }
+    void poll(); const iv = setInterval(poll, 2000)
+    return () => { dead = true; clearInterval(iv); if (retry) clearTimeout(retry); try { sock?.close() } catch { /* closing */ } }
+  }, [key])
+  const now = Date.now(), marks: Record<string, ExitMark> = {}
+  for (const r of rows) {
+    const w = book[r.sym], tk = feed[r.sym], b = bot[r.sym]
+    marks[`${r.sym}:${r.side}`] = w && now - w.ts < PREFER_MS ? { mark: r.side === 'LONG' ? w.bid : w.ask, src: 'Binance WS' }
+      : tk?.px && now - tk.t < 30_000 ? { mark: tk.px, src: String(tk.src) }
+      : b && b.px > 0 ? { mark: b.px, src: `הבוט · ${Math.max(0, Math.round((now - b.ts) / 1000))}ש׳` }
+      : { mark: null }
+  }
+  return { marks, wsOn }
+}

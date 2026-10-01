@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { SUPA_KEY, SUPA_URL } from '../supa'
-import { useLivePrices } from '../livePrices'
+import { useLivePrices, useExitMarks } from '../livePrices'
+import { tradeMetrics, closeValue } from '../tradeMetrics'
 
 type J = any
 const REST = `${SUPA_URL}/rest/v1/`
@@ -215,28 +216,8 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
 
   const open = trades.filter(t => t.status === 'OPEN')
   const closed = trades.filter(t => t.status !== 'OPEN' && t.closed_at)
-  const ticks = useLivePrices(open.map(t => String(t.sym)))
-  const [ws, setWs] = useState<Record<string, { bid: number; ask: number; ts: number }>>({})
-  const [wsOn, setWsOn] = useState(false)
-  const openKey = open.map(t => String(t.sym)).sort().join(',')
-  useEffect(() => {
-    const syms = openKey ? openKey.split(',') : []
-    if (!syms.length) { setWsOn(false); return }
-    let dead = false, sock: WebSocket | null = null, retry: ReturnType<typeof setTimeout> | null = null
-    const meta = (s: string) => s === 'PEPE' ? { st: '1000PEPEUSDT', k: 1000 } : { st: `${s}USDT`, k: 1 }
-    const rev = new Map(syms.map(s => [meta(s).st, s]))
-    const connect = () => {
-      if (dead) return
-      sock = new WebSocket(`wss://fstream.binance.com/stream?streams=${[...rev.keys()].map(x => x.toLowerCase() + '@bookTicker').join('/')}`)
-      sock.onopen = () => { if (!dead) setWsOn(true) }
-      sock.onmessage = (ev) => { try { const d = JSON.parse(ev.data)?.data; const sym = rev.get(String(d?.s ?? '').toUpperCase()); if (!sym) return
-        const k = meta(sym).k, bid = Number(d.b) / k, ask = Number(d.a) / k; if (bid > 0 && ask > 0) setWs(w => ({ ...w, [sym]: { bid, ask, ts: Date.now() } })) } catch {} }
-      sock.onclose = () => { if (dead) return; setWsOn(false); retry = setTimeout(connect, 1500) }
-      sock.onerror = () => { try { sock?.close() } catch {} }
-    }
-    connect()
-    return () => { dead = true; if (retry) clearTimeout(retry); try { sock?.close() } catch {} }
-  }, [openKey])
+  // v99.3: one exit mark per position (Binance bid/ask > shared feed > bot mark), shared with the dashboard
+  const { marks: exitMarks, wsOn } = useExitMarks(open.map(t => ({ sym: String(t.sym), side: String(t.side) })))
   const prevPx = useRef<Record<string, number>>({})
   const p = state?.bot_params ?? {}
   const cyc = p.list_cycle ?? {}
@@ -247,22 +228,14 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
   const activeErrors = errors.filter(e => !lastScan || Date.parse(e.ts) > lastScan).length
 
   const rows = open.map(t => {
-    const entry = Number(t.entry_price), size = Number(t.size), m = t.scalp_meta ?? {}
-    const sym = String(t.sym), w = ws[sym], tk = ticks[sym]
-    const isFund = t.strategy === 'FUND', dir = t.side === 'LONG' ? 1 : -1
-    const botM = isFund ? p.fund_marks?.marks?.[sym] : (p.list_marks?.marks?.[sym] ?? p.list_cycle?.marks?.[sym])
-    const botTs = Date.parse(isFund ? (p.fund_marks?.ts ?? '') : (p.list_marks?.ts ?? p.list_cycle?.marks_ts ?? '')) || 0
-    // a short closes at the ask, a long at the bid: prefer the live Binance quote, then the shared feed, then the bot's own last mark
-    const mark: number | null = w && now - w.ts < 15_000 ? (dir === 1 ? w.bid : w.ask) : tk?.px ? tk.px : Number(botM) > 0 ? Number(botM) : null
-    const src = w && now - w.ts < 15_000 ? 'Binance WS' : tk?.px ? String(tk.src) : Number(botM) > 0 ? `הבוט · ${ago(botTs, now)}` : undefined
-    const notional = entry * size
-    const hours = (now - Date.parse(t.opened_at)) / 3_600_000
-    // FUND: the predicted settlement (receiving side -> negative = received); LIST: the 0.01%/8h model
-    const funding = isFund ? -Math.abs(Number(m.pred_rate ?? 0)) * notional : notional * 0.0001 * hours / 8 * -1
-    const gross = mark != null ? (mark - entry) * size * dir : null
-    const exitFee = mark != null ? mark * size * 0.0005 : null
-    const net = gross != null ? gross - Number(t.fee ?? 0) - exitFee! - funding : null
-    return { t, m, mark, src, notional, gross, net, isFund, pctMove: mark != null ? (dir === 1 ? mark / entry - 1 : entry / mark - 1) : null,
+    const m = t.scalp_meta ?? {}, isFund = t.strategy === 'FUND', dir = t.side === 'LONG' ? 1 : -1
+    const em = exitMarks[`${t.sym}:${t.side}`] ?? { mark: null }, mark = em.mark, src = em.src
+    // v99.3: the ONE definition (tradeMetrics): gross − entry fee − est. exit fee + slip − funding estimate
+    const tm = mark != null ? tradeMetrics(t, mark, now) : null
+    const entry = Number(t.entry_price), notional = entry * Number(t.size)
+    return { t, m, mark, src, notional, gross: tm ? tm.gross : null, net: tm ? tm.net : null,
+      value: mark != null ? closeValue(t, mark, now) : notional, isFund,
+      pctMove: mark != null ? (dir === 1 ? mark / entry - 1 : entry / mark - 1) : null,
       toStop: mark != null ? Number(m.stop_px) / mark - 1 : null, toTarget: mark != null ? 1 - Number(m.target_px) / mark : null }
   })
   const start = 5000
@@ -272,7 +245,7 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
   const fees = trades.reduce((s, t) => s + Number(t.fee ?? 0) + Number(t.scalp_meta?.exit_fee ?? 0), 0)
   const funding = closed.reduce((s, t) => s + Number(t.scalp_meta?.funding_paid ?? t.scalp_meta?.funding_model ?? 0), 0)
   const cash = Number(state?.balance ?? 0)
-  const equity = cash + exposure + openNet + rows.reduce((s, r) => s + Number(r.t.fee ?? 0), 0)
+  const equity = cash + rows.reduce((s, r) => s + r.value, 0)
   const wins = closed.filter(t => Number(t.pnl) > 0).length
   const cands: J[] = Array.isArray(cyc.candidates) ? cyc.candidates : []
   const heldOrTraded = new Set(trades.map(t => String(t.sym)))
@@ -322,7 +295,7 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
 
     <section className="positions">
       <div className="sectionHead">
-        <div><h2>פוזיציות פתוחות · P&L חי</h2><p>שורט. P&L נטו כולל עמלת פתיחה, עמלת סגירה משוערת ו-Funding משוער (0.01% ל-8 שעות).</p></div>
+        <div><h2>פוזיציות פתוחות · P&L חי</h2><p>P&L נטו אם סוגרים עכשיו: עמלת פתיחה, עמלת סגירה והחלקה משוערות, ו-Funding משוער (FUND: הסליקה החזויה; LIST: 0.01% ל-8 שעות). אותה נוסחה ואותו מחיר כמו בדשבורד, מתעדכן כל שנייה.</p></div>
         <span className="countBadge">{open.length} פתוחות</span>
       </div>
       {rows.length === 0 ? <div className="emptyPos">אין כרגע פוזיציות פתוחות.</div> :

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, type CSSProperties } from 'react'
 import { SCALP } from '../../../shared/scalp'
-import { useLivePrices } from '../livePrices'
+import { useLivePrices, useExitMarks } from '../livePrices'
+import { tradeMetrics, closeValue } from '../tradeMetrics'
 import { createClient } from '@supabase/supabase-js'
 
 import { SUPA_URL, SUPA_KEY } from '../supa'
@@ -23,6 +24,7 @@ interface Trade {
   riskUsd?:number
   slPct?:number; tpPct?:number
   partialDone?:boolean; closedTs?:number
+  raw?:Record<string,unknown>
 }
 interface PriceInfo { price:number; change:number }
 interface OptimizerRun {
@@ -104,7 +106,7 @@ const COINS = [
 // The strategy indicators that matter now are computed server-side, in the bot.
 function calcSharpe(trades:Trade[]):number{const cl=trades.filter(t=>t.pnlPct!==undefined);if(cl.length<3)return 0;const r=cl.map(t=>t.pnlPct!);const m=r.reduce((a,b)=>a+b,0)/r.length;const s=Math.sqrt(r.reduce((a,b)=>a+(b-m)**2,0)/r.length)||1e-9;return(m/s)*Math.sqrt(252)}
 function calcMaxDD(trades:Trade[]):number{let bal=INIT_BAL,peak=INIT_BAL,mx=0;for(const t of trades){if(t.pnl){bal+=t.pnl;if(bal>peak)peak=bal;mx=Math.max(mx,(peak-bal)/peak)}}return mx*100}
-function mapDbTrade(t:Record<string,unknown>):Trade{return{id:t.id as number,sym:t.sym as string,side:t.side as 'LONG'|'SHORT',entry:Number(t.entry_price),exit:t.exit_price!=null?Number(t.exit_price):undefined,size:Number(t.size),pnl:t.pnl!=null?Number(t.pnl):undefined,pnlPct:t.pnl_pct!=null?Number(t.pnl_pct):undefined,ts:new Date(t.opened_at as string).getTime(),closedTs:t.closed_at?new Date(t.closed_at as string).getTime():undefined,status:t.status as 'OPEN'|'TP'|'SL'|'TRAIL',hi:Number(t.hi),lo:Number(t.lo),trailSL:Number(t.trail_sl),fee:Number(t.fee),strategy:(t.strategy as string)||'LEGACY',riskUsd:t.risk_usd!=null?Number(t.risk_usd):undefined,lev:Math.max(1,Number(t.lev)||1)}}
+function mapDbTrade(t:Record<string,unknown>):Trade{return{id:t.id as number,sym:t.sym as string,side:t.side as 'LONG'|'SHORT',entry:Number(t.entry_price),exit:t.exit_price!=null?Number(t.exit_price):undefined,size:Number(t.size),pnl:t.pnl!=null?Number(t.pnl):undefined,pnlPct:t.pnl_pct!=null?Number(t.pnl_pct):undefined,ts:new Date(t.opened_at as string).getTime(),closedTs:t.closed_at?new Date(t.closed_at as string).getTime():undefined,status:t.status as 'OPEN'|'TP'|'SL'|'TRAIL',hi:Number(t.hi),lo:Number(t.lo),trailSL:Number(t.trail_sl),fee:Number(t.fee),strategy:(t.strategy as string)||'LEGACY',riskUsd:t.risk_usd!=null?Number(t.risk_usd):undefined,lev:Math.max(1,Number(t.lev)||1),raw:t}}
 
 // ─── canvas renderers ─────────────────────────────────────────────────────────
 // v57.0: price only. The EMA9/21 lines, the Bollinger band fill and the BUY/SELL
@@ -900,7 +902,6 @@ export default function CryptoTradingDashboard() {
     const f=equityHist.filter(p=>new Date(p.ts).getTime()>=cut)
     return f.length>=2?f:equityHist
   })()
-  useEffect(()=>{if(scopeRef.current&&eqView.length>=2)drawScope(scopeRef.current,eqView)},[eqView])
   useEffect(()=>{if(bubRef.current)drawBubbles(bubRef.current,posBySym,prices)},[posBySym,prices])
 
   // v56.8 — these three controls write to bot_state with the ANON key, which RLS has
@@ -938,9 +939,18 @@ export default function CryptoTradingDashboard() {
   const eraWins     = eraClosed.filter(t=>(t.pnl||0)>0).length
   const winRate     = closed.length>0?(wins/closed.length*100):0
   const realizedPnl = closed.reduce((a,t)=>a+(t.pnl||0),0)
+  // v99.3: the SAME exit mark (Binance bid/ask > shared feed > bot mark) and the SAME formula (tradeMetrics) as the
+  // house, re-evaluated every second, so both screens always show one number: net P&L if the position closed now
+  // (entry fee, est. exit fee + slip, funding estimate). A position with no price yet counts at entry, flat.
+  const {marks:exitMarks}=useExitMarks(useMemo(()=>openTrades.map(t=>({sym:t.sym,side:t.side})),[openTrades.map(t=>t.id).join(',')]))
+  const nowSec=Date.now()
+  const openRow=(t:Trade)=>t.raw??{side:t.side,entry_price:t.entry,size:t.size,fee:t.fee,lev:t.lev,status:'OPEN',opened_at:new Date(t.ts).toISOString(),strategy:t.strategy}
+  const markOf=(t:Trade)=>exitMarks[`${t.sym}:${t.side}`]?.mark ?? null
+  // per-position card numbers from the same source (net if closed now; % = price move in the trade's favour)
+  const livePos:Record<number,{cur:number;pnl:number;pct:number}>={}
+  for(const t of openTrades){const m=markOf(t);if(m!=null){const tm=tradeMetrics(openRow(t),m,nowSec);livePos[t.id]={cur:m,pnl:tm.net,pct:tm.movePct*100}}}
   const unrealizedPnl = openTrades.reduce((a,t)=>{
-    const cur=prices[t.sym]?.price||t.entry
-    return a+(t.side==='LONG'?(cur-t.entry):(t.entry-cur))*t.size-t.fee
+    const m=markOf(t); return m==null?a:a+tradeMetrics(openRow(t),m,nowSec).net
   },0)
   const totalPnl       = realizedPnl+unrealizedPnl
   const stratStats = (name:string) => {
@@ -1007,8 +1017,13 @@ export default function CryptoTradingDashboard() {
   })()
   // v67.2: collateral actually posted (notional / leverage), not the full
   // notional — at 2x the old sum booked the borrowed half as account value.
+  // account value = cash + what each open position returns if closed now (margin + net + entry fee already paid)
   const lockedNotional = openTrades.reduce((a,t)=>a+t.entry*t.size/(t.lev||1),0)
-  const totalValue     = balance+lockedNotional+unrealizedPnl
+  const totalValue     = balance+openTrades.reduce((a,t)=>{const m=markOf(t);return a+(m==null?t.entry*t.size/(t.lev||1):closeValue(openRow(t),m,nowSec))},0)
+  // v99.3: the equity line ends at the live account value (moves every second); the stored points are the bot's snapshots
+  const tvCents=Math.round(totalValue*100)
+  const eqLive=useMemo(()=>eqView.length>=2?[...eqView,{ts:new Date().toISOString(),equity:tvCents/100}]:eqView,[eqView,tvCents])
+  useEffect(()=>{if(scopeRef.current&&eqLive.length>=2)drawScope(scopeRef.current,eqLive)},[eqLive])
   const sharpe         = calcSharpe(trades)
   const maxDD          = calcMaxDD(trades)
   const selInfo        = prices[selected]
@@ -1381,7 +1396,7 @@ export default function CryptoTradingDashboard() {
               if(held.length===0)return '\u2014 הבוט לא מחזיק'
               const side=held[0].side==='LONG'?'\u25b2 לונג':'\u25bc שורט'
               const strat=[...new Set(held.map(t=>t.strategy))].join(' + ')
-              const pnl=held.reduce((a,t)=>a+(livePositions[t.id]?.pnl??0),0)
+              const pnl=held.reduce((a,t)=>a+(livePos[t.id]?.pnl??0),0)
               return `${side} · ${strat}${held.length>1?` \u00d7${held.length}`:''} · ${pnl>=0?'+':''}${pnl.toFixed(2)}$`
             })()}
           </div>
@@ -1400,7 +1415,7 @@ export default function CryptoTradingDashboard() {
           </div>
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(170px,1fr))',gap:'6px'}}>
             {openTrades.map(t=>(
-              <LivePosition key={t.id} t={t} live={livePositions[t.id]} fmtP={fmtP}
+              <LivePosition key={t.id} t={t} live={livePos[t.id]} fmtP={fmtP}
                 /* v56.8: manual close is owner-only now — close-trade requires the
                    service-role key, which a public page cannot hold. Hiding the
                    button rather than leaving one that always 403s. */
@@ -1453,7 +1468,7 @@ export default function CryptoTradingDashboard() {
                   const held=openTrades.filter(t=>t.sym===c.sym)
                   const side=held[0]?.side
                   const sigCol=side==='LONG'?C.green:side==='SHORT'?C.red:undefined
-                  const pnl=held.reduce((a,t)=>a+(livePositions[t.id]?.pnl??0),0)
+                  const pnl=held.reduce((a,t)=>a+(livePos[t.id]?.pnl??0),0)
                   const strat=[...new Set(held.map(t=>t.strategy))].join('+')
                   return (
                     <tr key={c.sym} className="nx-row" onClick={()=>setSelected(c.sym)} style={{
