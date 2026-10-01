@@ -396,6 +396,19 @@ Nothing deployed from this.
 - Change: aggressive mode no longer revives RG_VOL_BREAKOUT (`aggressive_engine_disabled`); cap 2 same-side entries per 5m bar in ALL modes (`same_side_bar_cap`). NB DONCH4H history shows the opposite (3+ simultaneous 4h breakouts were its best), so the cap is CHAN/5m-specific.
 - Rollback: revert this commit.
 
+## v114bt (2026-10-01 ~19:30 UTC) — owner: "find us a new data source": 3 sources tested, none proven
+`backtest/research/v114/` -> `status/new-sources-v114.txt`. Rules fixed before reading results; 16 bps round trip; IS 70% / OOS 30%; t on daily sums.
+Reachable from the sandbox with history: Binance spot archive, Coinbase 1m REST, Upbit 1m REST, Kraken, Binance announcements (CMS API).
+Blocked: Bybit (CloudFront 403), Upbit announcements (Cloudflare). Hyperliquid has no deep 1m history.
+- A. Binance SPOT taker flow vs FUTURES taker flow (10 coins, 12m, 1m): gross -4..+4 bps, 0 of 12 pass. Spot-led vs leverage-led moves carry no signal.
+- B. Coinbase premium (BTC/ETH, 12m, 1m): gross +0.1..+2 bps, same sign IS and OOS = a REAL but ~8x-too-small effect. 0 of 6 pass.
+- D. Binance listing/delisting announcements (2024-06 .. 2026-09, event study on USDT-M perps, entry at minute +2):
+  - the FIRST minute does most of the move (median: spot listing +6.5%, spot delist -12.6%), before any polling bot can act;
+  - after entry: SPOT_LIST long mean +84..+554 bps IS / +173..+438 OOS (24 events), but win rate 54%, median +65 bps @60m, driven by a few huge winners (GIGGLE +75%, AVNT +33%) and big losers (BANK -39%, CHEEMS -15%); t <= 1.05;
+  - SPOT_DELIST short @240m IS +175 (t 0.25) / OOS +711 bps (t 3.3) — formally 1 PASS of 9, but the 15/60m rows flip sign between halves, 8 OOS announcements, and funding on crowded shorts after delist news is NOT modelled. Read as noise until forward-tested.
+- Reading: price-derived sources (A, B) hit the same wall as v76-v113: gross edges of 0-5 bps vs 16 bps costs. Announcements are the first source with moves 20-50x larger than costs, but the direction after the first minute is close to a coin flip and there are ~10-25 events a year. Not tradable on this evidence; the honest next step is a pre-registered VIRTUAL forward test (data-collector polls the CMS API every minute), after checking the API is reachable from Supabase egress.
+- Nothing deployed.
+
 ## v99.4 QUICK (2026-10-01 18:12 UTC) — FAST 5m burst next to LIST/FUND (owner: "more trades, 30-60 minute holds"; AskUserQuestion: "build anyway, small size")
 - Owner was told first: every 30-60 min rule tested here lost ~0.15-0.2%/trade after costs. NOT VALIDATED; owner override (paper).
 - Rule = existing FAST bar mode: completed 5m bar, 3-bar burst > 1.5 ATR·√3, volume >= 2x, taker imbalance > 0.10, BTC on the same side of EMA20; stop 1 ATR (floor 0.3%), target 1.5R, out after 60 min; psych layer; <= 20/day.

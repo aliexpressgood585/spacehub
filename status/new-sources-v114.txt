@@ -1,0 +1,51 @@
+v114bt — new data sources (2026-10-01). Data in /tmp, not committed; scripts in backtest/research/v114/.
+
+== A: Binance SPOT taker flow vs FUTURES taker flow (10 coins, 12m, 1m) ==
+IS days 254, OOS days 110, cost 16 bps
+test                   L   H  | IS n  gross  net   t    | OOS n  gross  net   t   | PASS
+A1 divergence          15  15 | 24383  -0.40 -16.40-35.90 | 14070   0.17 -15.83-28.64 | -
+A2 spot-led follow     15  15 | 17241  -0.83 -16.83-20.16 |  6435  -0.58 -16.58-12.82 | -
+A3 perp-led fade       15  15 |  8588   1.09 -14.91-17.55 |  3968   0.73 -15.27-15.69 | -
+A1 divergence          15  60 | 24383  -0.40 -16.40-26.53 | 14069   0.90 -15.10-20.90 | -
+A2 spot-led follow     15  60 | 17241  -0.70 -16.70-10.81 |  6435  -2.19 -18.19 -9.37 | -
+A3 perp-led fade       15  60 |  8588  -1.26 -17.26-10.44 |  3968   1.56 -14.44 -7.41 | -
+A1 divergence          60  15 | 24380   0.04 -15.96-32.76 | 13502   0.24 -15.76-26.68 | -
+A2 spot-led follow     60  15 | 17494  -0.31 -16.31-15.80 |  6654   0.36 -15.64-15.19 | -
+A3 perp-led fade       60  15 |  8668  -0.23 -16.23-16.23 |  4012   1.49 -14.51-11.37 | -
+A1 divergence          60  60 | 24380   0.26 -15.74-20.32 | 13493   1.36 -14.64-15.44 | -
+A2 spot-led follow     60  60 | 17494   0.30 -15.70 -7.16 |  6654  -3.18 -19.18 -7.65 | -
+A3 perp-led fade       60  60 |  8668  -4.10 -20.10 -8.50 |  4010   4.24 -11.76 -4.39 | -
+
+== B: Coinbase premium (BTC, ETH, 12m, 1m) ==
+IS days 255, OOS days 110, cost 16 bps (BTC+ETH pooled)
+test                 L   H  | IS n  gross  net    t   | OOS n  gross  net    t   | PASS
+B1 prem change       15  15 |  4886   0.26 -15.74 -18.69 |  1822   0.98 -15.02 -15.27 | -
+B1 prem change       60  15 |  4886   0.78 -15.22 -19.20 |  1762   0.53 -15.47 -14.52 | -
+B2 prem level z>=2    0  15 |  4403   0.94 -15.06 -17.40 |  1886   1.64 -14.36 -13.33 | -
+B1 prem change       15  60 |  4886   0.93 -15.07 -13.59 |  1822   0.13 -15.87 -12.60 | -
+B1 prem change       60  60 |  4886   0.31 -15.69  -9.20 |  1762   0.07 -15.93  -7.46 | -
+B2 prem level z>=2    0  60 |  4403   2.01 -13.99  -7.67 |  1886   1.90 -14.10  -7.58 | -
+
+== D: Binance announcements, 2024-06 .. 2026-09 (event study on USDT-M perps, 1m) ==
+kind
+PERP_DELIST    24
+SPOT_DELIST    59
+SPOT_LIST      24
+
+move already done BEFORE a bot can enter (announcement -> entry, signed, bps):
+             react_1m  pre_entry
+kind                            
+PERP_DELIST     140.7      346.3
+SPOT_DELIST    1258.4     1220.4
+SPOT_LIST       653.9      628.6
+
+kind          H  | IS ann  gross   net16  net40   t   | OOS ann  gross   net16  net40   t   | PASS
+SPOT_LIST     15 |   15     84.3    68.3   44.3  0.18 |     9    172.8   156.8  132.8  1.03 | -
+SPOT_LIST     60 |   15    529.8   513.8  489.8  0.79 |     9    318.8   302.8  278.8  1.05 | -
+SPOT_LIST    240 |   15    553.9   537.9  513.9  0.85 |     9    438.1   422.1  398.1  0.85 | -
+SPOT_DELIST   15 |   13   -347.9  -363.9 -387.9 -0.91 |     8    147.9   131.9  107.9  1.06 | -
+SPOT_DELIST   60 |   13   -776.0  -792.0 -816.0 -0.74 |     8    262.6   246.6  222.6  0.97 | -
+SPOT_DELIST  240 |   13    174.8   158.8  134.8  0.25 |     8    711.0   695.0  671.0  3.30 | PASS
+PERP_DELIST   15 |   15    257.4   241.4  217.4  0.59 |     2   -257.6  -273.6 -297.6   nan | -
+PERP_DELIST   60 |   15    464.6   448.6  424.6  0.63 |     2  -1150.7 -1166.7-1190.7   nan | -
+PERP_DELIST  240 |   15  -1285.8 -1301.8-1325.8 -0.46 |     2  -1181.4 -1197.4-1221.4   nan | -
