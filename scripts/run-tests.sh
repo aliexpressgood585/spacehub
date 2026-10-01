@@ -40,6 +40,7 @@ run "info agents"           tests/info.test.ts
 run "agent factory"         tests/factory.test.ts
 run "rota runner"           tests/rota-runner.test.ts
 run "breakout BRKV v93"     tests/breakout.test.ts
+run "listing LIST v99"      tests/listing.test.ts
 run "data collectors v96"   tests/collect.test.ts
 run "chan parity v97"       tests/chan.test.ts
 run "chan runner v97"       tests/chan-runner.test.ts
