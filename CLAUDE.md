@@ -396,6 +396,13 @@ Nothing deployed from this.
 - Change: aggressive mode no longer revives RG_VOL_BREAKOUT (`aggressive_engine_disabled`); cap 2 same-side entries per 5m bar in ALL modes (`same_side_bar_cap`). NB DONCH4H history shows the opposite (3+ simultaneous 4h breakouts were its best), so the cap is CHAN/5m-specific.
 - Rollback: revert this commit.
 
+## H7 (2026-10-01 19:06 UTC) — virtual forward test of Binance listing / delisting announcements (owner: "build and find a way to profit from fast trading")
+- `shared/events.ts` (tests/events.test.ts), pre-registered in `quant/PREREGISTRATION_H7.md`. VIRTUAL ONLY (fwd_trades), never trades.
+- data-collector step `events`: polls Binance CMS catalogs 48 / 161 every minute; an announcement <= 10 min old opens H7L60/H7L240 (LONG on spot listing of a coin with a perp) or H7D60/H7D240 (SHORT on spot delisting) at the perp mark; closes at the mark after 60 / 240 min; net = move - funding paid - 40 bps. `fwd_trades.note` = detection lag + title (migration 20261001200000, applied).
+- DEPLOYED: commit 77e0970, data-collector v46 (MCP shim). First runs 19:06 UTC: "articles 20, opened 0" (nothing fresh), forward H6 unchanged.
+- NB a manual POST from the sandbox routes to a region Binance blocks (HTTP 451 on fapi); the cron runs from the DB are fine.
+- Evaluation: counts only until 30 closed events per hypothesis (~1 year for listings).
+
 ## v114bt (2026-10-01 ~19:30 UTC) — owner: "find us a new data source": 3 sources tested, none proven
 `backtest/research/v114/` -> `status/new-sources-v114.txt`. Rules fixed before reading results; 16 bps round trip; IS 70% / OOS 30%; t on daily sums.
 Reachable from the sandbox with history: Binance spot archive, Coinbase 1m REST, Upbit 1m REST, Kraken, Binance announcements (CMS API).
