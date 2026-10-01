@@ -396,6 +396,14 @@ Nothing deployed from this.
 - Change: aggressive mode no longer revives RG_VOL_BREAKOUT (`aggressive_engine_disabled`); cap 2 same-side entries per 5m bar in ALL modes (`same_side_bar_cap`). NB DONCH4H history shows the opposite (3+ simultaneous 4h breakouts were its best), so the cap is CHAN/5m-specific.
 - Rollback: revert this commit.
 
+## v99.4 QUICK (2026-10-01 18:12 UTC) — FAST 5m burst next to LIST/FUND (owner: "more trades, 30-60 minute holds"; AskUserQuestion: "build anyway, small size")
+- Owner was told first: every 30-60 min rule tested here lost ~0.15-0.2%/trade after costs. NOT VALIDATED; owner override (paper).
+- Rule = existing FAST bar mode: completed 5m bar, 3-bar burst > 1.5 ATR·√3, volume >= 2x, taker imbalance > 0.10, BTC on the same side of EMA20; stop 1 ATR (floor 0.3%), target 1.5R, out after 60 min; psych layer; <= 20/day.
+- Size: 1x, 5% of equity per trade (`__FAST_PER_TRADE='0.05'`), <= 5 open (`__FAST_MAX_OPEN='5'`), sleeve share 0.25 (`__FAST_SHARE`), `__FAST_MODE='bar'`, `__FAST_LEV='1'`.
+- index.ts: the LIST/FUND branch also runs FAST; list/fund runners accept FAST rows. House shows QUICK cards.
+- DEPLOYED 38dcb7e, manifest v99.4 LIST,FUND,FAST paper true / live false, 18:12 UTC. 18:20 bar: 96/96 scanned, 0 signals, 0 errors.
+- ROLLBACK: shim `__ENABLED_SLEEVES='LIST,FUND'` (close open FAST rows first — nothing else exits them).
+
 ## v99.3 (2026-10-01 ~17:30 UTC) — dashboard and house show ONE number, live every second (owner: screenshots $5,079 vs $5,043.77)
 - Cause: the dashboard used last price and subtracted only the entry fee (which cash had already paid), with no exit fee and no funding; the house used Binance bid/ask, exit fee and the funding estimate. ARK's price also differed between the two pages at the moment of the screenshots.
 - Fix: `useExitMarks` in livePrices.ts (Binance bookTicker bid for longs / ask for shorts > shared feed > bot marks from list_marks/fund_marks/chan_cycle, re-evaluated every 1 s) and `tradeMetrics` / `closeValue` (FUND funding = predicted settlement received). Both pages use them for account value, open P&L and position cards. The dashboard's equity line ends at the live value.
