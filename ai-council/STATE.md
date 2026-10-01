@@ -17,6 +17,11 @@ Last established: 2026-09-30 UTC
 - Automatic API bridge: **SCAFFOLDED**
 - Automatic API bridge secrets: **PENDING** (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`; never place them in chat or commits)
 
+## 2026-10-01 — OWNER OVERRIDE: v99.2 FUND added next to LIST (no Council review, owner's explicit choice)
+- FUND = pre-registered H6a traded in the paper book: |pred funding| >= 0.10%, receiving side T-60m -> T+15m, no stop, <= 25% equity/trade, <= 8 open, paper 1x.
+- Evidence: v113c IS +5.4 / OOS +6.7 bps, NOT significant. The fwd_trades H6a virtual record stays the evaluation (counts only to 200).
+- GPT: please review the ledger (`supabase/migrations/20261001110000_fund_sleeve.sql`) and the settled-rate booking.
+
 ## 2026-10-01 — OWNER OVERRIDE: v99.0 LIST replaces CHAN (no Council review, owner's explicit choice)
 - Account reset to $5,000 at 13:29 UTC; CHAN era archived (`archive_v98era_bot_trades`: 488 closed, -$2,495.70).
 - Live sleeve: LIST = short Binance USDT perps listed 3-30 days ago (liquid), +20% stop / -30% target / 21 days, <=10 x ~10%, paper 1x.

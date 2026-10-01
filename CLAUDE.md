@@ -396,6 +396,19 @@ Nothing deployed from this.
 - Change: aggressive mode no longer revives RG_VOL_BREAKOUT (`aggressive_engine_disabled`); cap 2 same-side entries per 5m bar in ALL modes (`same_side_bar_cap`). NB DONCH4H history shows the opposite (3+ simultaneous 4h breakouts were its best), so the cap is CHAN/5m-specific.
 - Rollback: revert this commit.
 
+## v99.2 FUND (2026-10-01) — H6a funding capture traded in the paper book next to LIST (owner: "תשלב עוד אסטרטגיות" -> "more aggressive intraday", allocation "aggressive")
+- COUNCIL OVERRIDE by the owner (same as LIST). NOT VALIDATED: v113c measured H6a at IS +5.4 / OOS +6.7 bps (t 0.25 / 0.74), not significant.
+- Rule = H6a exactly (`shared/fundcap.ts` reuses `shared/forward.ts`):
+  - entry in minutes :00-:05: |predicted funding| >= 0.10%, receiving side, ~60 min before settlement;
+  - exit 15 min after the settlement at the touch; funding booked = Binance's ACTUAL settled rate (fapi/v1/fundingRate, waits up to 30 min; else funding_missing);
+  - no stop; up to 25% of equity per trade, <= 8 open, paper 1x.
+- Ledger `20261001110000_fund_sleeve.sql` (applied): `fund_commit_cycle` (both sides, cnt<8, eq*0.25, hold <= 3h, implausible-funding guard) + `sleeve_marks` (list_marks / fund_marks).
+- index.ts: shim 'LIST,FUND' runs LIST, then FUND, same lease. LIST scan now refreshes market_cache 'universe' (FUND + forward lab read it; CHAN used to).
+- The virtual H6a record in fwd_trades is untouched and stays the evaluation (counts only to 200).
+- House: FUND cards (side, predicted rate, settlement/exit countdown, bot fund_marks fallback), FUND events in the live log; trade page explains FUND.
+- v99.1 (same day): LIST publishes marks every cycle (list_marks RPC, migration 20261001100000), house shows live position cards, Binance WS prices, a live log.
+- ROLLBACK: both workflows `__ENABLED_SLEEVES='LIST'` (open FUND rows: close them first — runList refuses non-LIST/FUND rows, but nothing would exit them).
+
 ## v99.0 LIST (2026-10-01 13:25 UTC) — RESET to $5,000 + SHORT fresh Binance perp listings (owner: "reset and open trades with something new, very profitable")
 - Owner was told plainly that nothing tested is proven profitable. Offered a test first; they chose "reset and run now", an explicit COUNCIL OVERRIDE for this one change (no backtest, no GPT review). NOT VALIDATED; every row carries experimental:true, validated:false.
 - Rule (`shared/listing.ts`, frozen):
