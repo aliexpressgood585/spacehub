@@ -375,6 +375,17 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v119bt / v120 ENGINE (2026-10-02) — owner: "simple oscillators alone or in pairs", then a full spec for a crypto engine (backtest + WFO over 16 indicator combos, auto-pick per regime / coin / timeframe): 0 PASS, nothing deployed
+- v119bt (`v119_oscillators.mjs` -> `status/oscillators-v119.txt`): 14 oscillators alone (follow/fade) and in pairs, 94 coins, 5m/15m/1h/4h: 0 of 952 (luck ~22). Median OOS gross ~0 bps.
+- v120 engine (`backtest/research/engine/` -> `status/engine-v120.txt`; indicators.mjs / strategies.mjs / engine.mjs [SHARD/NSHARD/ONLY] / report.mjs):
+  - 18 families (the owner's 16 + Ichimoku alone + VWAP chase/retest), 8-12 param points, filters base / higher-timeframe trend / taker-flow (CVD proxy).
+  - 248 series: majors at 1m-30m (12m) and 1h/4h/1D (72m); 84 other perps at 15m/1h. Real fees, slippage 2/5 bps, funding; next-bar-open entry; no look-ahead (confirmed pivots, Ichimoku displaced).
+  - Anchored walk-forward (4 folds, plateau-median parameter choice) + untouched last-20% holdout + Monte Carlo + remove-best + sensitivity + bull/bear/sideways split + regime meta-selector.
+  - RESULT: STABLE EDGE 0 of 13,212 series x family x filter; POOLED PASS 0 of 522 (luck ~12); regime meta-selector holdout net -22.9 bps/trade (t -4.25).
+  - Shape: 1m-15m gross 0-3 bps vs ~14 bps cost (every coin negative). 4h/1D trend families are gross-positive (+20..+300 bps) but no row reaches t>=2 in both WFO and holdout, and they lose in BTC bear months (e.g. 1D CCIT bear t -3.97). Same wall as v76-v119.
+  - OI / liquidations / L-S ratio / order book have no minute history here -> not tested. Survivorship: today's coin list.
+- Owner said "if you find good things, deploy and merge without asking": nothing met the pre-registered bar, so nothing was deployed.
+
 ## v116bt / v117b / v118bt (2026-10-02) — owner: "all coins", "3 long 4 short and every option", "Fibonacci + EMA + RSI + volume together": ALL 0 PASS
 - v116bt (`v116_all_coins.mjs` -> `status/all-coins-v116.txt`): the v115 rules on 94 of the 96 liquid perps in the live universe (MARSCOIN/PONS have no archive), holds 3m..24h: 0 of 98. OOS gross -19..+10 bps vs 16 cost; 3-15 min rows gross -1..+2 bps. Survivorship caveat: today's liquid list.
 - v117b (`v117_baskets.mjs` ALL=1 -> `status/baskets-all-v117b.txt`): every nL/nS in 1..5 x 1..5 on the 10 majors, rank by 4h/24h/7d, rebalance 4h/24h, MOM/REV = 300 rows: 0 PASS (luck ~7); positive IS 7, positive OOS 67, positive in BOTH 0. Every OOS winner (daily momentum, up to +0.21%/day OOS) LOST in-sample.

@@ -19,7 +19,7 @@ const tfName = tf => tf >= 1440 ? '1D' : tf >= 60 ? `${tf / 60}h` : `${tf}m`
 
 // BTC 30-day return per day (bull > +10%, bear < -10%, else sideways) from the 72-month 1h archive
 const btc = new Map(); { const closes = []; for (const s of fs.readFileSync('/home/user/spacehub/backtest/data/h1/BTC-1h.csv', 'utf8').split('\n')) { if (!s) continue; const f = s.split(','); if (+f[0] % 864e5 === 82800000) closes.push([Math.floor(+f[0] / 864e5), +f[4]]) }
-  for (let i = 30; i < closes.length; i++) btc.set(closes[i][0] + 1, closes[i - 1][1] / closes[i - 31][1] - 1) }   // known at the day's open
+  for (let i = 31; i < closes.length; i++) btc.set(closes[i][0] + 1, closes[i - 1][1] / closes[i - 31][1] - 1) }   // known at the day's open
 const mkt = d => { const r = btc.get(d); return r === undefined ? 'n/a' : r > 0.1 ? 'bull' : r < -0.1 ? 'bear' : 'side' }
 
 let tested = 0, stable = []

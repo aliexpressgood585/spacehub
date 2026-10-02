@@ -1,0 +1,176 @@
+v120 — crypto strategy engine: 18 indicator families x 8-12 parameter points x 3 filters, walk-forward + holdout, regime selector
+series: 248 (majors 80: 1m 3m 5m 15m 30m on 12 months, 1h 4h 1D on 72 months; other liquid perps 168 at 15m/1h on 12 months)
+costs: taker 5 bps/side, maker 2 bps on mean-reversion targets, slippage 2 bps majors / 5 bps others per side, funding 0.01%/8h; entry at next bar open
+not testable here (no minute history): open interest, liquidations, long/short ratio, order book. Taker flow (CVD proxy) tested as the cvd filter.
+combinations judged (series x family x filter): 13212; at a 2.3% false-pass rate luck alone would mark ~304 as passing ONE t>=2 test
+
+== STABLE EDGE on a single series (all 6 conditions): 0 of 13212
+coin     tf   family filter  WFO n    net      t folds | HOLD n    net      t | rmBest  MC   PF   maxDD%
+
+== majors 1m (10 coins) — top 8 of 54 by pooled walk-forward t   [pooled PASS: 0]
+family filter   WFO n  gross    net      t |  HOLD n  gross    net      t | coins hold>0
+BBMR   htf        324    1.2  -11.3 -6.04 |      79   -0.2  -12.8 -2.81 | 0/10
+BBMR   cvd        453    0.2  -11.8 -8.95 |     256    0.4  -11.9 -8.20 | 0/10
+BBMR   base       714    0.1  -12.3 -9.23 |     296   -0.5  -12.9 -5.99 | 0/10
+VWC    htf       3240    1.3  -12.8-10.29 |    1884   -1.1  -15.2-16.00 | 0/10
+VWC    cvd       3749    1.2  -12.9-11.21 |    1991   -1.9  -15.9-17.78 | 0/10
+VWC    base      5405    0.7  -13.3-12.57 |    2997   -1.0  -15.1-17.77 | 0/10
+VWR    htf       4554    0.4  -13.6-13.14 |    2428   -0.8  -14.9-13.42 | 0/10
+VWR    cvd       3283    0.1  -13.9-13.22 |    1672   -0.8  -14.9-15.81 | 0/10
+   gross per trade across all 54 rows (WFO): min -0.7 / median 0.2 / max 1.3 bps; round-trip cost ~14 bps + funding
+
+== majors 3m (10 coins) — top 8 of 54 by pooled walk-forward t   [pooled PASS: 0]
+family filter   WFO n  gross    net      t |  HOLD n  gross    net      t | coins hold>0
+BBMR   base       330    1.3  -11.1 -2.87 |     144   -0.8  -13.4 -2.61 | 2/10
+BBMR   htf        411    2.5   -9.7 -3.21 |     178   -2.1  -14.6 -4.00 | 1/10
+BBMR   cvd        114   -6.8  -19.1 -4.23 |      85    3.4   -8.4 -1.73 | 2/8
+VWR    cvd       1832    0.7  -13.4 -5.63 |     906    1.6  -12.5 -4.83 | 0/10
+VWR    htf       3090    1.1  -13.0 -7.13 |    1571    1.5  -12.6 -4.83 | 0/10
+MSTR   cvd       5745   -0.9  -15.0 -7.20 |    2919    0.1  -14.0 -5.46 | 0/10
+SQZ    cvd       2682   -1.6  -15.7 -7.25 |    1165    0.1  -14.0 -4.75 | 0/10
+DON    cvd       5901   -1.1  -15.1 -7.33 |    2989   -0.0  -14.1 -5.65 | 0/10
+   gross per trade across all 54 rows (WFO): min -6.8 / median -0.7 / max 2.5 bps; round-trip cost ~14 bps + funding
+
+== majors 5m (10 coins) — top 8 of 54 by pooled walk-forward t   [pooled PASS: 0]
+family filter   WFO n  gross    net      t |  HOLD n  gross    net      t | coins hold>0
+BBMR   cvd         36   -1.1  -13.1 -1.96 |      36    9.2   -2.8 -0.29 | 3/5
+VWC    cvd       1000    5.9   -8.2 -2.50 |     518    0.4  -13.7 -2.98 | 1/10
+MSTR   cvd       3436    0.0  -14.1 -3.57 |    1715    0.7  -13.4 -3.88 | 0/10
+MSTR   htf       3199   -1.1  -15.3 -3.63 |    1660    1.3  -12.8 -3.34 | 0/10
+MSTR   base      3672    0.1  -14.1 -3.65 |    1862    1.2  -12.9 -3.65 | 0/10
+DON    cvd       3630    0.1  -14.0 -3.67 |    1808    0.1  -14.0 -4.14 | 0/10
+STRC   htf       2781   -0.8  -14.9 -3.80 |    1417   -1.7  -15.9 -3.91 | 0/10
+DON    base      3883   -0.0  -14.2 -3.81 |    1962    0.7  -13.4 -3.89 | 0/10
+   gross per trade across all 54 rows (WFO): min -4.7 / median -1.1 / max 5.9 bps; round-trip cost ~14 bps + funding
+
+== majors 15m (10 coins) — top 8 of 54 by pooled walk-forward t   [pooled PASS: 0]
+family filter   WFO n  gross    net      t |  HOLD n  gross    net      t | coins hold>0
+BBMR   htf         17   32.2   20.6  1.08 |      38   -8.3  -21.2 -1.59 | 1/6
+BBMR   cvd          0    0.0    0.0  0.00 |       0    0.0    0.0  0.00 | 0/0
+VWC    cvd        583    9.7   -4.8 -0.49 |     327    3.7  -10.7 -1.34 | 4/10
+VWR    cvd       1117    8.6   -5.9 -0.55 |     529   -6.2  -20.7 -2.38 | 1/10
+MSTR   cvd       1311    5.3   -9.2 -0.93 |     588   -8.4  -22.7 -3.30 | 0/10
+DON    cvd       1396    5.0   -9.5 -0.94 |     671   -4.1  -18.5 -2.43 | 1/10
+SRSI   cvd       2649    7.3   -7.3 -0.97 |    1343   -0.5  -15.0 -2.48 | 1/10
+VWR    htf       1436    5.8   -8.8 -1.04 |     614    2.0  -12.5 -1.13 | 3/10
+   gross per trade across all 54 rows (WFO): min -4.2 / median 2.5 / max 32.2 bps; round-trip cost ~14 bps + funding
+
+== majors 30m (10 coins) — top 8 of 54 by pooled walk-forward t   [pooled PASS: 0]
+family filter   WFO n  gross    net      t |  HOLD n  gross    net      t | coins hold>0
+STRC   cvd        774   32.3   17.5  1.20 |     303   -2.4  -17.0 -1.75 | 4/10
+VWR    cvd        897   30.0   15.0  1.03 |     396    6.4   -8.6 -0.51 | 3/10
+STRC   base       814   28.8   13.9  0.89 |     321    9.4   -5.6 -0.38 | 5/10
+STRC   htf        563   30.1   15.3  0.86 |     226   14.0   -0.7 -0.05 | 4/10
+VWR    htf       1050   23.1    8.0  0.65 |     498   20.3    5.3  0.22 | 5/10
+VWR    base      1126   20.2    5.1  0.42 |     536   16.5    1.4  0.06 | 5/10
+SQZ    cvd        395   25.2   10.3  0.33 |     197   -7.4  -22.2 -1.56 | 3/10
+EMAM   base      1514   18.6    3.5  0.27 |     717    2.5  -12.5 -0.95 | 3/10
+   gross per trade across all 54 rows (WFO): min -16.6 / median 10.0 / max 32.3 bps; round-trip cost ~14 bps + funding
+
+== majors 1h (10 coins) — top 8 of 54 by pooled walk-forward t   [pooled PASS: 0]
+family filter   WFO n  gross    net      t |  HOLD n  gross    net      t | coins hold>0
+SQZ    base      1110   15.3    0.2  0.02 |     591   28.8   13.8  0.79 | 6/10
+DON    cvd       1962   14.7   -0.7 -0.06 |    1044    7.3   -8.1 -0.52 | 2/10
+DON    htf       2352   13.4   -2.0 -0.19 |    1137    9.4   -6.0 -0.38 | 3/10
+EMAM   htf       4147   13.3   -2.6 -0.28 |    2053   13.2   -2.7 -0.20 | 4/10
+EMAM   base      4930   12.9   -3.0 -0.37 |    2456   13.0   -3.0 -0.25 | 4/10
+MACDX  htf       4111   12.5   -3.1 -0.38 |    2020    8.1   -7.6 -0.62 | 3/10
+MSTR   cvd       2206   11.6   -4.0 -0.38 |    1052    8.6   -6.8 -0.42 | 4/10
+DON    base      2446    9.6   -5.8 -0.56 |    1171   11.7   -3.7 -0.23 | 3/10
+   gross per trade across all 54 rows (WFO): min -58.9 / median 6.4 / max 15.3 bps; round-trip cost ~14 bps + funding
+
+== majors 4h (10 coins) — top 8 of 54 by pooled walk-forward t   [pooled PASS: 0]
+family filter   WFO n  gross    net      t |  HOLD n  gross    net      t | coins hold>0
+ICH    htf        844   67.9   46.1  1.37 |     417   22.0    0.9  0.02 | 5/10
+EMAM   base      1246   43.3   23.6  0.94 |     607   49.8   30.7  0.99 | 8/10
+ICH    base      1439   41.5   20.3  0.85 |     727   18.7   -2.0 -0.06 | 5/10
+EMAM   cvd        828   47.5   26.5  0.84 |     478   24.4    5.0  0.16 | 5/10
+CCIT   cvd       1060   40.1   20.8  0.82 |     692    7.3  -10.8 -0.39 | 5/10
+ICHM   htf        957   44.9   24.1  0.80 |     505   34.2   14.7  0.37 | 8/10
+SRSI   cvd        990   42.6   22.1  0.78 |     560   84.6   63.8  1.65 | 9/10
+MHM    cvd        925   37.2   18.2  0.72 |     584   -7.6  -26.0 -0.85 | 1/10
+   gross per trade across all 54 rows (WFO): min -124.0 / median 22.4 / max 67.9 bps; round-trip cost ~14 bps + funding
+
+== majors 1D (10 coins) — top 8 of 36 by pooled walk-forward t   [pooled PASS: 0]
+family filter   WFO n  gross    net      t |  HOLD n  gross    net      t | coins hold>0
+CCIT   base       240  242.1  201.7  2.02 |      90  189.3  126.1  0.66 | 8/10
+OBVB   base       206  327.8  287.4  1.67 |      75  255.0  199.2  1.23 | 7/10
+MHM    base       294  279.9  233.8  1.37 |     126  100.7   46.5  0.39 | 6/10
+OBVB   cvd         26  216.4  180.7  0.90 |      63  119.0   76.2  0.48 | 5/8
+ICHM   base       221  195.4  142.9  0.88 |     105  149.7   95.3  0.67 | 7/10
+STRC   base         9  814.5  781.2  0.71 |      23  204.3  156.9  0.63 | 2/4
+ICH    base       217  175.1  121.8  0.59 |     101  113.4   52.1  0.34 | 6/10
+MSTR   base       210   94.0   60.2  0.56 |      72  199.5  147.9  0.86 | 7/10
+   gross per trade across all 36 rows (WFO): min -444.0 / median 0.0 / max 814.5 bps; round-trip cost ~14 bps + funding
+
+== others 15m (84 coins) — top 8 of 54 by pooled walk-forward t   [pooled PASS: 0]
+family filter   WFO n  gross    net      t |  HOLD n  gross    net      t | coins hold>0
+BBMR   htf         73   15.8   -0.9 -0.06 |     206    8.9   -8.5 -0.86 | 14/37
+BBMR   cvd          6 -139.3 -158.1 -1.85 |      36   -9.8  -26.8 -1.15 | 1/6
+BBMR   base      2500    4.8  -12.1 -2.59 |    1408   11.3   -5.5 -0.94 | 33/81
+VWC    cvd       4769    2.1  -18.3 -2.69 |    2694    5.8  -14.7 -1.93 | 20/84
+SRSI   cvd      19877    3.6  -16.9 -3.13 |    9963   -6.4  -26.9 -5.11 | 9/84
+MSTR   htf      11104   -1.5  -21.9 -3.18 |    4872   -8.6  -29.1 -4.33 | 15/84
+STRC   cvd       9686    2.0  -18.4 -3.23 |    4507  -16.7  -37.1 -6.07 | 9/84
+MSTR   base     11816   -2.6  -23.1 -3.27 |    5530  -14.7  -35.1 -5.72 | 14/84
+   gross per trade across all 54 rows (WFO): min -139.3 / median -1.4 / max 15.8 bps; round-trip cost ~20 bps + funding
+
+== others 1h (84 coins) — top 8 of 54 by pooled walk-forward t   [pooled PASS: 0]
+family filter   WFO n  gross    net      t |  HOLD n  gross    net      t | coins hold>0
+BBMR   htf          0    0.0    0.0  0.00 |       0    0.0    0.0  0.00 | 0/0
+BBMR   cvd          0    0.0    0.0  0.00 |       0    0.0    0.0  0.00 | 0/0
+SQZ    base      1250   10.9  -10.2 -0.45 |     687  -54.4  -75.6 -4.87 | 16/80
+SQZ    cvd        663    6.2  -14.9 -0.77 |     496  -27.5  -48.6 -2.36 | 23/77
+DON    cvd       2253   -0.5  -21.5 -0.89 |    1060  -11.2  -32.3 -1.48 | 26/81
+MSTR   cvd       3042    0.3  -20.9 -1.02 |    1308   -8.0  -29.2 -1.27 | 28/83
+BBMR   base        41  -17.8  -35.8 -1.04 |     114   13.1   -4.7 -0.24 | 14/25
+EMAM   cvd       4655    4.4  -17.1 -1.14 |    2308  -24.9  -46.3 -2.61 | 24/83
+   gross per trade across all 54 rows (WFO): min -39.3 / median -5.3 / max 10.9 bps; round-trip cost ~20 bps + funding
+
+== POOLED PASS (timeframe x family x filter across coins): 0 of 522 (luck ~12.0)
+
+== per coin (majors) — best row by walk-forward t among rows positive in BOTH walk-forward and holdout
+coin  tf   family filter params    WFO n    net      t | HOLD n    net      t |  PF   WR   avgW   avgL  Sharpe Sortino maxDD% Calmar rmBest  MC
+BTC   4h   SUPT   cvd    p=20 S=1.5 T=3.5    76   86.4  1.34 |    43   55.4  0.76 | 1.60  33%  610.5  185.8  2.72  8.58   17.7  1.46   48.4 0.06
+ETH   4h   VWC    htf    p=2 S=1.5 T=2    44   58.1  0.85 |    19  180.5  1.35 | 1.76  43%  512.0  217.7  3.70  9.50   14.8  1.17   72.4 0.07
+SOL   30m  STRC   base   p=25 S=1.5 T=3.5    80   48.7  1.43 |    28   36.5  0.85 | 1.70  36%  307.2  102.4  3.21  9.57   10.9  7.72   29.3 0.04
+BNB   1D   ICHM   base   p=0 S=1.5 T=2    31  153.9  0.90 |    12  367.2  1.31 | 1.91  42% 1067.4  401.5  4.28 11.24   34.3  0.87  141.0 0.05
+XRP   4h   ICH    cvd    p=20 S=1.5 T=2    93   83.7  1.40 |    54   57.8  0.94 | 1.58  41%  493.1  214.8  2.68  7.43   31.4  1.00   48.2 0.03
+DOGE  4h   CCIT   cvd    p=100 S=1.5 T=2   111   57.9  1.12 |    81   17.2  0.38 | 1.28  38%  493.9  231.1  1.59  3.59   42.2  0.54   26.5 0.12
+ADA   4h   OBVB   base   p=0.05 S=1.5 T=2   154   67.3  1.49 |    93   70.6  1.15 | 1.45  40%  551.9  254.7  2.30  5.62   53.5  0.91   58.2 0.00
+AVAX  4h   DON    cvd    p=20 S=1.5 T=2    43  185.3  1.96 |    26    7.2  0.06 | 1.71  48%  596.2  320.1  3.72  8.95   27.2  0.90   87.8 0.04
+LINK  4h   VWC    cvd    p=2 S=1.5 T=3.5    32  161.2  1.04 |     9  593.1  2.08 | 2.35  46%  960.4  352.4  5.54 16.85   30.7  1.05  187.7 0.03
+SUI   4h   EMAM   base   p=20 S=1.5 T=3.5    60  149.4  1.01 |    32   45.8  0.31 | 1.42  34% 1141.7  409.2  2.08  5.88   47.4  1.17   58.5 0.20
+   (picked as the best of ~432 rows per coin — read every one of these against the luck line above)
+
+== per regime — each family traded ONLY in that regime (signal-bar label), pooled over all series, holdout
+regime      DON    EMAM   MHM    ICHM   ICH    SUPT   BBMR   SQZ    VWC    VWR    ROCR   MACDX  SRSI   CCIT   MFIO   OBVB   STRC   MSTR      <- holdout net bps per trade (t)
+TREND       -20(-6.5)-20(-5.7)-21(-7.5)-21(-7.4)-19(-6.5)-19(-6.8)-      -23(-4.8)-17(-3.8)-26(-5.2)-20(-7.1)-24(-7.0)-17(-6.0)-22(-7.6)-20(-7.6)-21(-7.3)-21(-6.2)-20(-6.1)
+RANGE       -      -      -18(-6.1)-18(-7.4)-18(-7.6)-      -4(-0.8)-16(-3.5)-21(-5.6)-      -17(-6.5)-      -17(-6.2)-18(-6.9)-18(-6.6)-20(-7.1)-      -19(-6.1)
+HIGHVOL     -11(-1.5)-14(-2.1)-15(-1.9)-17(-3.0)-22(-4.5)-16(-2.8)-11(-2.6)-6(-0.8)-22(-3.9)0(0.0) -17(-3.4)-14(-3.1)-10(-1.2)-13(-2.0)-21(-3.8)-16(-2.4)-12(-1.6)-12(-1.5)
+COMPRESSION -26(-5.4)-24(-4.2)-22(-4.7)-24(-4.8)-21(-4.3)-21(-4.6)-      -      -22(-3.1)-14(-2.1)-22(-4.9)-26(-4.9)-23(-4.8)-24(-5.7)-25(-5.6)-26(-5.7)-26(-4.5)-36(-5.6)
+NEUTRAL     -30(-5.2)-28(-5.1)-20(-6.5)-21(-7.1)-18(-6.1)-25(-5.1)-      -22(-6.1)-22(-4.5)-29(-5.2)-19(-6.7)-24(-5.1)-16(-5.4)-19(-6.9)-20(-7.3)-21(-7.2)-28(-5.1)-27(-4.6)
+regime META-SELECTOR (per series and regime, the family with the best train plateau; holdout only): n 23409, gross -4.6, net -22.9 bps, t -4.25
+   most-chosen: RANGE:VWC 50, RANGE:BBMR 35, TREND:SQZ 33, NEUTRAL:VWC 33, NEUTRAL:VWR 29, HIGHVOL:VWC 29, RANGE:SRSI 29, COMPRESSION:VWC 27, COMPRESSION:VWR 27, NEUTRAL:SQZ 26
+
+== robustness of the 6 best pooled rows (by WFO t + holdout t)
+majors 1D OBVB base: WFO t 1.67 net 287.4 | hold t 1.23 net 199.2 | coins hold>0 7/10
+   market: bull n 95 net 606.3 t 1.79 | bear n 20 net -362.9 t -1.46 | side n 166 net 143.4 t 1.24
+   parameter sensitivity: 51/80 grid points positive on holdout | remove-best-trade positive on 7/10 coins | median MC P(loss) 0.19
+majors 1D CCIT base: WFO t 2.02 net 201.7 | hold t 0.66 net 126.1 | coins hold>0 8/10
+   market: bull n 81 net 315.6 t 1.59 | bear n 41 net -483.4 t -3.97 | side n 208 net 259.7 t 2.09
+   parameter sensitivity: 35/80 grid points positive on holdout | remove-best-trade positive on 6/10 coins | median MC P(loss) 0.24
+majors 4h SRSI cvd: WFO t 0.78 net 22.1 | hold t 1.65 net 63.8 | coins hold>0 9/10
+   market: bull n 139 net 83.1 t 1.30 | bear n 435 net 24.9 t 0.52 | side n 976 net 36.1 t 1.24
+   parameter sensitivity: 61/80 grid points positive on holdout | remove-best-trade positive on 7/10 coins | median MC P(loss) 0.24
+majors 1D EMAM base: WFO t 0.10 net 9.2 | hold t 1.95 net 295.7 | coins hold>0 7/10
+   market: bull n 71 net 147.3 t 1.11 | bear n 37 net -275.9 t -2.81 | side n 133 net 169.9 t 1.33
+   parameter sensitivity: 65/80 grid points positive on holdout | remove-best-trade positive on 3/10 coins | median MC P(loss) 0.39
+majors 4h EMAM base: WFO t 0.94 net 23.6 | hold t 0.99 net 30.7 | coins hold>0 8/10
+   market: bull n 475 net 45.6 t 1.24 | bear n 219 net -48.5 t -0.92 | side n 1159 net 31.9 t 1.20
+   parameter sensitivity: 64/80 grid points positive on holdout | remove-best-trade positive on 6/10 coins | median MC P(loss) 0.36
+majors 4h SQZ base: WFO t 0.56 net 25.4 | hold t 1.25 net 89.8 | coins hold>0 7/10
+   market: bull n 116 net 41.9 t 0.52 | bear n 46 net -13.8 t -0.15 | side n 246 net 61.9 t 1.24
+   parameter sensitivity: 58/80 grid points positive on holdout | remove-best-trade positive on 4/10 coins | median MC P(loss) 0.34
+
+VERDICT: single-series STABLE EDGE 0 of 13212; pooled PASS 0 of 522. A handful of isolated single-series passes among 13212 looks is what selection alone produces; an edge is only credible if it repeats across coins (pooled) and timeframes.
