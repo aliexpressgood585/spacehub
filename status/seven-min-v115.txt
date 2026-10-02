@@ -1,0 +1,43 @@
+v115bt — <= 7-minute trades, Binance USDT-M 1m, 10 coins, 2025-09-01 .. 2026-08-31
+costs: taker 5 bps + slip 3 bps per side (16 bps round trip); stress slip 5 bps (20). IS 70% / OOS 30%. bps per trade, t on daily sums.
+PASS = IS net>0 & OOS net>0 & OOS t>=2. 36 rows -> luck alone ~0.8.
+
+rule | hold | exit                  IS n     gross   net    t   | OOS n    gross   net    t   stress  verdict
+R1 burst follow | 3m | bracket       31716    -0.5  -16.5 -48.7 |  12777    -0.8  -16.8 -34.0   -20.8  -
+R1 burst follow | 3m | time          30126    -0.6  -16.6 -37.1 |  12196    -0.5  -16.5 -22.4   -20.5  -
+R1 burst follow | 5m | bracket       30505    -0.6  -16.6 -41.7 |  12279    -0.4  -16.4 -29.7   -20.4  -
+R1 burst follow | 5m | time          28702    -0.1  -16.1 -26.8 |  11650    -0.4  -16.4 -21.7   -20.4  -
+R1 burst follow | 7m | bracket       29575    -0.2  -16.2 -35.3 |  11948    -0.9  -16.9 -24.9   -20.9  -
+R1 burst follow | 7m | time          27775    -0.4  -16.4 -28.2 |  11271    -1.0  -17.0 -22.5   -21.0  -
+R2 burst fade | 3m | bracket         31716     0.5  -15.5 -36.6 |  12777     0.8  -15.2 -26.8   -19.2  -
+R2 burst fade | 3m | time            30126     0.6  -15.4 -32.5 |  12196     0.5  -15.5 -20.7   -19.5  -
+R2 burst fade | 5m | bracket         30505     0.6  -15.4 -33.2 |  12279     0.4  -15.6 -23.0   -19.6  -
+R2 burst fade | 5m | time            28702     0.1  -15.9 -23.8 |  11650     0.4  -15.6 -19.3   -19.6  -
+R2 burst fade | 7m | bracket         29575     0.2  -15.8 -30.1 |  11948     0.9  -15.1 -18.7   -19.1  -
+R2 burst fade | 7m | time            27775     0.4  -15.6 -25.7 |  11271     1.0  -15.0 -18.6   -19.0  -
+R3 wick reject | 3m | bracket         4681    -1.0  -17.0 -14.1 |   2226     1.2  -14.8 -14.6   -18.8  -
+R3 wick reject | 3m | time            4639    -4.2  -20.2  -5.6 |   2199     1.8  -14.2 -13.4   -18.2  -
+R3 wick reject | 5m | bracket         4631    -2.2  -18.2 -12.2 |   2194     1.4  -14.6 -12.7   -18.6  -
+R3 wick reject | 5m | time            4568    -3.9  -19.9  -7.5 |   2166     1.8  -14.2 -11.6   -18.2  -
+R3 wick reject | 7m | bracket         4586    -2.7  -18.7 -11.5 |   2174     1.9  -14.1 -10.2   -18.1  -
+R3 wick reject | 7m | time            4511    -4.2  -20.2  -6.7 |   2146     2.8  -13.2  -9.1   -17.2  -
+R4 BTC lead | 3m | bracket            3709     1.4  -14.6 -13.1 |   2145    -0.4  -16.4  -7.5   -20.4  -
+R4 BTC lead | 3m | time               3702     2.5  -13.5  -7.1 |   2142    -0.3  -16.3  -7.5   -20.3  -
+R4 BTC lead | 5m | bracket            3661     1.8  -14.2 -12.1 |   2123    -0.5  -16.5  -7.6   -20.5  -
+R4 BTC lead | 5m | time               3654     2.4  -13.6  -8.8 |   2120    -0.7  -16.7  -7.6   -20.7  -
+R4 BTC lead | 7m | bracket            3628     2.2  -13.8 -10.8 |   2089    -0.9  -16.9  -7.6   -20.9  -
+R4 BTC lead | 7m | time               3618     2.2  -13.8 -10.2 |   2082    -0.9  -16.9  -7.6   -20.9  -
+R6 flow follow | 3m | bracket        32836    -0.1  -16.1 -34.6 |  19543    -0.3  -16.3 -33.4   -20.3  -
+R6 flow follow | 3m | time           32777    -0.1  -16.1 -34.5 |  19513    -0.3  -16.3 -33.3   -20.3  -
+R6 flow follow | 5m | bracket        31610     0.0  -16.0 -34.5 |  18718    -0.3  -16.3 -33.6   -20.3  -
+R6 flow follow | 5m | time           31494    -0.0  -16.0 -34.2 |  18654    -0.4  -16.4 -33.7   -20.4  -
+R6 flow follow | 7m | bracket        30610     0.0  -16.0 -34.9 |  18008    -0.3  -16.3 -34.2   -20.3  -
+R6 flow follow | 7m | time           30468     0.0  -16.0 -34.6 |  17919    -0.4  -16.4 -34.1   -20.4  -
+R7 flow fade | 3m | bracket          32836     0.1  -15.9 -34.9 |  19543     0.3  -15.7 -32.0   -19.7  -
+R7 flow fade | 3m | time             32777     0.1  -15.9 -34.8 |  19513     0.3  -15.7 -31.6   -19.7  -
+R7 flow fade | 5m | bracket          31610    -0.0  -16.0 -35.7 |  18718     0.3  -15.7 -32.3   -19.7  -
+R7 flow fade | 5m | time             31494     0.0  -16.0 -35.2 |  18654     0.4  -15.6 -31.8   -19.6  -
+R7 flow fade | 7m | bracket          30610    -0.0  -16.0 -35.8 |  18008     0.3  -15.7 -32.1   -19.7  -
+R7 flow fade | 7m | time             30468    -0.0  -16.0 -35.3 |  17919     0.4  -15.6 -32.1   -19.6  -
+
+PASS: 0 of 36

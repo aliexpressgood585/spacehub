@@ -375,6 +375,14 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v115bt (2026-10-02 ~01:10 UTC) — owner: "a strategy that finds trades of at most 7 minutes": 0 of 36 PASS, nothing built
+`backtest/research/v115_7min.mjs` -> `status/seven-min-v115.txt`. Pre-registered before reading: Binance USDT-M 1m, 10 coins, 2025-09..2026-08,
+entry next bar open, exit at 3/5/7 min (time or 2.5·σ·√H bracket), taker 5 + slip 3 bps per side (16 bps round trip), IS 70% / OOS 30%, t on daily sums.
+- Rules: burst follow / burst fade (3-min |z|>2.5, vol >= 2x, taker agrees), long-wick rejection, BTC lead (alt lagging), 1m taker-imbalance follow / fade. VWAP-60 fade (|z|>3) never fired.
+- GROSS before costs: every row between -4 and +3 bps per trade (OOS); costs are 16. Net -13 .. -17 bps, OOS t -7 .. -34. 0 PASS (luck ~0.8).
+- Follow and fade of the same signal are mirror images around 0 gross: there is no direction at 3-7 minutes, only the round trip.
+- Same wall as v76-v114, the gym, the lab, quant/. Nothing deployed.
+
 ## v99.7 BRKV (2026-10-02 ~00:55 UTC) — BRKV short-only added to the LIST/FUND/FAST/EVT paper book at 20% (owner: "add another, more aggressive strategy")
 - Owner chose it from 4 options (AskUserQuestion), told first that it is NOT proven: v109bt unseen-coin holdout +0.32%/trade, t(daily) 1.33, maxDD 49%, loses in bull years.
 - Code: index.ts LIST/FUND branch runs `runBrkv` after FUND, before FAST (fresh state, paper only, an error marks the cycle 500); list/fund/evt runners accept BRKV rows; `sleeveOff(params,'BRKV')` gates BRKV entries (exits keep running); SLEEVES += BRKV. Rule and ledger unchanged since v93.0 (`brkv_commit_cycle`, no migration).
