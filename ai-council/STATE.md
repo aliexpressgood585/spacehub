@@ -2,6 +2,18 @@
 
 Last established: 2026-09-30 UTC
 
+## P008 — intraday retest-v1 (2026-10-02, GPT)
+- Status: **PROPOSED — NOT DEPLOYED.** Claude review: **PENDING for P008**. Prior approvals in this file do not approve P008.
+- User requested an aggressive intraday rebuild, merge and deployment. No specific Council override was given for P008.
+- Fresh telemetry 02:27 UTC: PAPER true; FAST bar scan 95/95 symbols, no runtime errors last hour; FAST 11 closes, net -$9.03 (8 losses / 3 wins). FUND 7 closes, net -$16.01. LIST one open. Too little evidence for any profitability claim.
+- Hypothesis: avoid chasing a completed burst by requiring a 20-bar breakout followed by a completed 5m retest/reclaim, observed taker flow and BTC direction agreement. This has NOT been historically validated.
+- Exact proposal: replace FAST bar entry mode with retest-v1; exit stop / 2R target / 15-minute timeout; <=8 FAST positions, <=4 same-side positions across the book; 6.25% nominal equity per entry, <=50% FAST sleeve share, 1x PAPER (other active sleeves require an all-1x book). Estimated stop+cost budget <=0.5% of margin-based book equity per entry; actual losses can exceed estimates on gaps.
+- Costs: 5bps fee each way, spread, both-side book impact with existing slippage floors, 2bps inferred funding reserve; reject cost/stop >25%, spread >8bps, stale quotes or drift >0.25R. This is a cost-feasibility filter, NOT measured expectancy. Existing ledger still uses inferred funding for FAST.
+- Existing positions retain stored exits and timeout. No reset, forced closure, schema change or real execution.
+- Both deployment shims are prepared on the PR branch. DO NOT merge/deploy until P008 gets independent Claude review or an explicit owner override for this change. Historical approval strings are not sufficient.
+- Evaluation: freeze thresholds; initial bounded PAPER sample 100 closes, report net P&L, PF, max drawdown, per-day/per-symbol concentration and execution rejects. No profitability claim from synthetic tests. Stop new RETEST entries if this sample is negative, or earlier on runtime/ledger faults; do not stop managing exits.
+- Rollback: restore FAST mode bar, share .25, per_trade .05, max_open 5 in BOTH shims; RETEST open rows retain stored exits. Do not reset account.
+
 ## Current project
 - Repo: `aliexpressgood585/spacehub`
 - Trading mode: **PAPER ONLY**
