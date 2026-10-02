@@ -105,7 +105,7 @@ export async function runFast(db: any, state: any, lease: string, paper: boolean
   // bar mode: once per completed 5m bar; real-time mode: a fresh scan every FAST_RT.scanEveryMs (fast_bar = last scan time)
   const done = Number(params.fast_bar) || 0
   const bar = cfg.mode !== 'rt' ? Math.floor(now / FAST.barMs) * FAST.barMs : now
-  const due = (cfg.mode !== 'rt' ? bar > done && now - bar <= FAST.entryWindowMs : now - done >= FAST_RT.scanEveryMs) && !state.hard_halt_at && !sleeveOff(params, 'FAST')  // v99.6: supervisor's brake = entries only
+  const due = (cfg.mode === 'retest' ? now - done >= FAST_RT.scanEveryMs : cfg.mode !== 'rt' ? bar > done && now - bar <= FAST.entryWindowMs : now - done >= FAST_RT.scanEveryMs) && !state.hard_halt_at && !sleeveOff(params, 'FAST')  // v99.6: supervisor's brake = entries only
   if (trails.length) { try { await db.rpc('fast_trail', { p_lease: lease, p_updates: trails }).throwOnError() } catch { /* next cycle retries */ } }
   if (!due && !closes.length) return { changed: trails.length > 0, open: mine.length, trailed: trails.length }
   const entries: any[] = [], decisions: any[] = [], failed: string[] = []
