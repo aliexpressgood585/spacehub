@@ -383,6 +383,9 @@ entry next bar open, exit at 3/5/7 min (time or 2.5·σ·√H bracket), taker 5 
 - Follow and fade of the same signal are mirror images around 0 gross: there is no direction at 3-7 minutes, only the round trip.
 - Same wall as v76-v114, the gym, the lab, quant/. Nothing deployed.
 
+v115b (same day, owner: "also 15-30-45"): same rules and costs, holds 15/30/45 min -> `status/fifteen-45-min-v115b.txt`. 0 of 36 PASS.
+OOS gross -1 .. +4 bps per trade (best R3 wick reject 30m +4.2, IS -7.3 = sign flip), net -12 .. -17, OOS t -5 .. -33. Longer holds move gross by a few bps, never near 16.
+
 ## v99.7 BRKV (2026-10-02 ~00:55 UTC) — BRKV short-only added to the LIST/FUND/FAST/EVT paper book at 20% (owner: "add another, more aggressive strategy")
 - Owner chose it from 4 options (AskUserQuestion), told first that it is NOT proven: v109bt unseen-coin holdout +0.32%/trade, t(daily) 1.33, maxDD 49%, loses in bull years.
 - Code: index.ts LIST/FUND branch runs `runBrkv` after FUND, before FAST (fresh state, paper only, an error marks the cycle 500); list/fund/evt runners accept BRKV rows; `sleeveOff(params,'BRKV')` gates BRKV entries (exits keep running); SLEEVES += BRKV. Rule and ledger unchanged since v93.0 (`brkv_commit_cycle`, no migration).

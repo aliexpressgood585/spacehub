@@ -49,7 +49,7 @@ function trade(key, d, i, side, H, bracket, sig) {
   ;(rows[key] ??= []).push({ t: d.t[j], gross, net: gross - 2 * (FEE + SLIP), netS: gross - 2 * (FEE + SLIP_S) })
   return k
 }
-const HOLDS = [3, 5, 7]
+const HOLDS = (process.env.HOLDS ?? '3,5,7').split(',').map(Number)  // v115b: HOLDS=15,30,45
 for (const c of COINS) {
   const d = data[c], { sig, av, vw, r } = S[c], B = data.BTC, SB = S.BTC
   const busy = {}
@@ -60,7 +60,7 @@ for (const c of COINS) {
       const k = trade(key, d, i, side, H, br, sig[i]); if (k > 0) busy[key] = k + 1
     }
   }
-  for (let i = 61; i < d.n - 9; i++) {
+  for (let i = 61; i < d.n - Math.max(...HOLDS) - 2; i++) {
     const sg = sig[i]; if (!(sg > 0) || !(av[i] > 0)) continue
     // R1/R2: 3-minute burst on volume with taker agreement
     const r3 = Math.log(d.c[i] / d.c[i - 3]), z3 = r3 / (sg * Math.sqrt(3))
@@ -98,7 +98,7 @@ function summ(a, f) {
   return { n: a.length, m: a.reduce((s, x) => s + x[f], 0) / a.length * 1e4, t: sd > 0 ? mu / sd * Math.sqrt(v.length) : 0 }
 }
 const out = []
-out.push(`v115bt — <= 7-minute trades, Binance USDT-M 1m, ${COINS.length} coins, ${new Date(T0).toISOString().slice(0, 10)} .. ${new Date(T1).toISOString().slice(0, 10)}`)
+out.push(`v115bt — holds ${HOLDS.join('/')} min, Binance USDT-M 1m, ${COINS.length} coins, ${new Date(T0).toISOString().slice(0, 10)} .. ${new Date(T1).toISOString().slice(0, 10)}`)
 out.push(`costs: taker 5 bps + slip 3 bps per side (16 bps round trip); stress slip 5 bps (20). IS 70% / OOS 30%. bps per trade, t on daily sums.`)
 out.push(`PASS = IS net>0 & OOS net>0 & OOS t>=2. ${Object.keys(rows).length} rows -> luck alone ~${(Object.keys(rows).length * 0.023).toFixed(1)}.`)
 out.push('')
@@ -112,4 +112,4 @@ for (const k of Object.keys(rows).sort()) {
 }
 out.push('', `PASS: ${pass} of ${Object.keys(rows).length}`)
 const txt = out.join('\n'); console.log(txt)
-fs.writeFileSync('/home/user/spacehub/status/seven-min-v115.txt', txt + '\n')
+fs.writeFileSync(process.env.OUT ?? '/home/user/spacehub/status/seven-min-v115.txt', txt + '\n')
