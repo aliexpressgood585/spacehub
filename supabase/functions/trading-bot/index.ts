@@ -552,7 +552,7 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v100.0'
+const BOT_VERSION = 'v100.1'
 // v87.0: the pre-SCALP engine (DONCH4H / standalone ROTA) opens trades without the profit gate; it stays in the file
 // for its exit/record code history but may never open a trade. Changing this needs the gate wired in first.
 const LEGACY_ENGINE_ALLOWED = false
@@ -2703,6 +2703,8 @@ Deno.serve(async (req) => {
       let pro: any = null
       try { pro = await runPro(supabase, state, runLeaseUntil, paperMode && !liveMode) }
       catch (e: any) { pro = { error: String(e?.message ?? e) }; await logErr('pro_runner', String(e?.message ?? e)) }
+      // v100.1: hand the lease back at once, so the next 5 s cron call manages exits instead of waiting out the 50 s lease
+      try { await supabase.from('bot_state').update({ lock_until: new Date().toISOString() }).eq('id', 1).eq('lock_until', runLeaseUntil) } catch { /* expires on its own */ }
       return new Response(JSON.stringify({ ok: !pro?.error, version: BOT_VERSION, pro }), { status: pro?.error ? 500 : 200, headers: { 'Content-Type': 'application/json' } })
     }
 

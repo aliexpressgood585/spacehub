@@ -52,9 +52,10 @@ export async function runPro(db: any, state: any, lease: string, paper: boolean)
         updates.push({ id: t.id, stop: s.stop, best: s.best, reached_1r: s.reached1R })
     } catch { /* no quote: next cycle */ }
   })
-  // ── entries once per closed 1m bar ──
+  // ── entries once per closed 1m bar (v100.1: any time inside the following minute; the data check below
+  // still requires the newest closed 1m bar to be exactly that bar) ──
   const bar = Math.floor(now / 60_000) * 60_000 - 60_000          // open time of the bar that just closed
-  const due = Number(params.pro_bar || 0) < bar && now - (bar + 60_000) <= 40_000 && !state.hard_halt_at && !sleeveOff(params, 'PRO')
+  const due = Number(params.pro_bar || 0) < bar && !state.hard_halt_at && !sleeveOff(params, 'PRO')
   if (!due && !closes.length && !updates.length) {
     if (Object.keys(marks).length && now - Date.parse(params.pro_marks?.ts ?? 0) > 15_000) {
       try { await db.rpc('pro_commit_cycle', { p_lease: lease, p_closes: [], p_updates: [], p_entries: [], p_marks: marks, p_note: { ...(params.pro_cycle ?? {}), marks_only: true }, p_bar: null }).throwOnError() } catch { /* display only */ }
