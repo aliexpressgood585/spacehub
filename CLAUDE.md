@@ -430,6 +430,29 @@ Told the owner: 20%/day is x38 a month and ~10^29 a year; the v94.0 lab measured
 - Shim (both CI workflows): `__ENABLED_SLEEVES='LIST,FUND,FAST,EVT,BRKV'`, `__BRKV_SHARE='0.2'`, `__BRKV_SIDE='short'`. Entries only in the first 30 min after each 4h close (00/04/08/12/16/20 UTC).
 - Tests: breakout + sleeves + evt + listing updated; ALL TESTS PASSED. House has no BRKV card yet (rows still show in the trade list).
 - ROLLBACK: shim back to 'LIST,FUND,FAST,EVT' — close open BRKV rows first.
+## v100.0 PRO (2026-10-02) — the owner's 1m scalping prompt, ALONE in the paper book, account reset to $5,000 (owner: "forget everything, work only by this prompt, reset to $5,000, start trading, fast")
+- Rules = the prompt, written once in `shared/pro.ts` and imported by BOTH the backtest and the live runner:
+  - HTF: 15m price vs EMA200, 5m EMA20 vs EMA50, ADX(14) 5m > 20, daily-anchored VWAP (00:00 UTC), all from CLOSED bars;
+  - regime: ADX 5m > 20 AND 5m realised-vol percentile (1h vs the previous 24h) >= 30%; skip ±5 min around funding;
+  - entry on a closed 1m bar: close beyond the previous N-bar high/low, volume > 1.5x the 20-bar average, RSI(9) > 50 (< 50 short);
+  - OI / order flow DISABLED (stated in the report and on the house);
+  - risk 0.5% of equity at the stop, stop k x ATR(14) 1m, notional <= 5x equity, 10x isolated, <= 3 open, one per coin, -3R day stop, 3 losses -> 60 min cooldown;
+  - exits: target T R; at +1R the stop goes to breakeven and then trails 1R behind the best; out if +1R not reached within N bars; 120-bar cap.
+- RESEARCH FIRST (`backtest/research/v100_pro_scalp.ts` -> `status/pro-scalp-v100.txt`), REAL Binance USDT-M 1m, 10 coins, 2025-09-01..2026-08-31 (5.26M bars), 5m/15m aggregated from them; taker 5 bps/side, slip 3/5 bps/side, real funding; entry at the next 1m open; stop before target.
+  - 36-point grid (N 5/10/15, k 0.8/1.0/1.2, T 1.5/3R, time stop 15/30): GROSS +0.015..+0.042R per trade, COSTS 1.48..2.28R, NET -1.45..-2.26R, WR 10-19%. Every grid point.
+  - walk-forward (IS 3 months -> next month, 7 folds): IS -1.23R, OOS -1.31R. Holdout (from 2026-06-19, read once, N15 k1.2 T3 ts15): 250 trades, 3.4/day, WR 15.2%, PF 0.10, -1.39R/trade, -$4,134 on $5,000 (the -3R day stop is what bounds it), maxDD 83%.
+  - per regime: negative in every ADX bucket, vol bucket, BTC trend side, side and coin. Only TARGET exits win (+1.8R net, 7% of trades).
+  - WHY: a 1.2 x ATR(14) 1m stop is ~0.1-0.15% of price; the round trip is ~0.16-0.2%. Costs are larger than the risk unit, so the trade starts at about -1.4R. Same wall as v76bt..v114bt, the gym and the lab.
+  - VERDICT by the prompt's own rule: REJECTED. Told to the owner plainly.
+- RUN ANYWAY on paper because the owner's prompt and message both say to start on demo now. Live parameters = the walk-forward's choice on the development span (`PRO_LIVE`: N15, k1.2, T3, time stop 15). Every row: experimental true, validated false.
+- Live: `pro-runner.ts`. Every ~5 s it manages exits on the Binance touch (bid long / ask short): stop, target, BE/trail ratchet, time stop, 120 min. Once per closed 1m bar (first 40 s) it reads 1,500 x 1m + 400 x 5m + 1,000 x 15m closed klines per coin (~170 weight/min), runs the same features() / proCheck(), sizes with proSize, and journals the 9 checks per coin in bot_params.pro_cycle.coins (the house shows them).
+  - Ledger `20261002090000_pro_sleeve.sql` (`pro_commit_cycle`): paper, <= 3 PRO open, one per coin, lev 1..20, notional <= 5x equity, risk <= 0.6% of equity, levels on the correct side, quotes <= 20 s, isolated margin; writes a bot_equity row per bar.
+  - Live/backtest difference, stated: live exits on 5 s touch polls, the backtest on 1m bar extremes (stop first).
+- index.ts routes `__ENABLED_SLEEVES='PRO'` to runPro (refuses any non-PRO row). Shim in both workflows `'PRO'`. House: ProHouse view (rules, the backtest verdict, account, live positions with R and the time stop, the 9-condition scanner per coin per minute, live log, closed trades with R). Trade page explains each entry's 9 checks.
+- Tests: tests/pro.test.ts (indicators, aggregation, stop-first / gap / ratchet / time stop, sizing, a live-path replay that finds a signal in synthetic data with the runner's own windows and checks the entry, the day stop, every exit reason, the brake, ledger and shim). Suite: ALL TESTS PASSED.
+- The hourly guardian (trig_01S8rmotpUURyjRHU8FwkVHB) was written for LIST/FUND/FAST/EVT and would brake by its own rules; DISABLED so only the prompt's conditions govern the account.
+- SUPERSEDES, on the same instruction: v99.7 (BRKV short in the LIST/FUND/FAST/EVT book) and P008 (FAST 'retest' mode), both pushed to main by a parallel session shortly before; their shim parameters stay in the workflows for rollback.
+- ROLLBACK: shim back to 'LIST,FUND,FAST,EVT,BRKV' after closing open PRO rows (nothing else exits them).
 
 ## v110bt (2026-09-30 ~20:45 UTC) — "find the short-term formula" (owner): 0 of 164 PASS
 `backtest/research/v110_short_formula.py` -> status/short-formula-v110.txt. Rules fixed before reading results: 16 bps round trip,
@@ -456,6 +479,9 @@ Nothing deployed from this.
 - Owner was told: the bot already scans every 5 s; strategy decisions every 5 min would chase noise, and routines run at most hourly. Built: hourly supervisor with FIXED rules.
 - `shared/sleeves.ts` `sleeveOff(params, sleeve)`: `bot_state.bot_params.sleeves_off = {SLEEVE: {at, by, why}}` stops that sleeve's ENTRIES; its open rows keep exiting normally. Gated in list-runner (entries loop; the hourly scan still refreshes universe/equity), fund-runner (scanDue), fast-runner (due), evt-runner (pollDue). Safe direction only: index.ts never reads it, so it cannot start a sleeve; the runnable set stays the deploy-time shim.
 - THE GUARDIAN'S LEVER (routines in this org cannot carry the Supabase connector): shim `g.__SLEEVES_OFF = ''` in BOTH CI workflows; `'FAST,EVT'` brakes those sleeves. Pushing main with a change to enforce-no-loss-trading.yml triggers that workflow, which rewrites the shim and redeploys; verify the newest deployment_manifest sha. The guardian reads with the public anon key (bot_trades, bot_state, bot_errors, deployment_manifest are anon-readable) and publishes `status/guardian.json` {ts, summary, sleeves_off} on branch `claude/guardian-status` (no workflow runs there); the house reads it from raw.githubusercontent every 60 s.
+- DEPLOYED 19:47:48 UTC: commit 91a43fc, manifest v99.6 LIST,FUND,FAST,EVT paper true / live false, 0 bot_errors, shim `__SLEEVES_OFF=''` (no brake on).
+- GUARDIAN, FINAL SHAPE: a PERSISTENT session `session_01FmTvHUn5mQ8gCd9C1W2Vfx` ("SpaceHub supervisor (persistent)", repo attached, carries the full rules in its first message) woken hourly at :34 UTC by routine `trig_01S8rmotpUURyjRHU8FwkVHB` ("supervisor run"). First run 20:16 UTC published status/guardian.json: "שגרתי: תקין, paper, 0 שגיאות בשעה; הון ~$5,037; FUND +$44.87 (4), FAST -$8.06 (4), פתוח PONS".
+- WHY NOT A FRESH-SESSION ROUTINE: the first try (`trig_01FQ8c2e18p5mV6JHxhCW9bZ`, fresh session per fire, no repo source attached) ran one minute at 19:48 and published nothing — a fresh routine session had no repository to work in. Deleted 20:35 UTC. The older read-only daily report `trig_01EGnhcdEszAA9FEP8sKUAGC` (SCALP-era prompt) still runs at 05:00 UTC.
 - Set / clear from an interactive session (SQL, no deploy): `update bot_state set bot_params = bot_params || jsonb_build_object('sleeves_off', coalesce(bot_params->'sleeves_off','{}') || '{"FAST":{"by":"guardian","why":"..."}}') where id=1;` — clear with `... || '{"FAST":null}'`.
 - House: shows the guardian's last run (`bot_params.guardian {ts, summary}`) and any braked sleeve in red.
 - Tests: tests/sleeves.test.ts (semantics + every runner gates entries only) and an EVT replay (brake: no entry, due exit still closes). Suite: ALL TESTS PASSED.

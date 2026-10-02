@@ -461,6 +461,7 @@ import { runChan } from './chan-runner.ts'
 import { runList } from './list-runner.ts'
 import { runFund } from './fund-runner.ts'
 import { runEvt } from './evt-runner.ts'
+import { runPro } from './pro-runner.ts'
 import { meetingDue, capDecision } from '../../../shared/team-meeting.ts'
 
 const BINANCE_DATA = 'https://data-api.binance.vision/api/v3'
@@ -551,7 +552,7 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v99.7'
+const BOT_VERSION = 'v100.0'
 // v87.0: the pre-SCALP engine (DONCH4H / standalone ROTA) opens trades without the profit gate; it stays in the file
 // for its exit/record code history but may never open a trade. Changing this needs the gate wired in first.
 const LEGACY_ENGINE_ALLOWED = false
@@ -2695,6 +2696,16 @@ Deno.serve(async (req) => {
     // v99.0 (owner, 2026-10-01: "reset and open trades with something new"): LIST = short fresh perp listings, alone
     // in the paper book (runList refuses a mixed book). NOT VALIDATED; owner override of the Council for this change.
     // v99.2: FUND (H6a funding capture, owner: "more aggressive intraday") shares the same paper book after LIST.
+    // v100.0 (owner, 2026-10-02: "forget everything, work only by this prompt, reset to $5,000"): PRO = the owner's 1m
+    // scalping specification (shared/pro.ts), alone in the paper book. v100bt REJECTED it out-of-sample after costs;
+    // it runs on paper on the owner's explicit instruction. runPro refuses any non-PRO row in the book.
+    if (ENABLED_SLEEVES.includes('PRO')) {
+      let pro: any = null
+      try { pro = await runPro(supabase, state, runLeaseUntil, paperMode && !liveMode) }
+      catch (e: any) { pro = { error: String(e?.message ?? e) }; await logErr('pro_runner', String(e?.message ?? e)) }
+      return new Response(JSON.stringify({ ok: !pro?.error, version: BOT_VERSION, pro }), { status: pro?.error ? 500 : 200, headers: { 'Content-Type': 'application/json' } })
+    }
+
     if (ENABLED_SLEEVES.includes('LIST') || ENABLED_SLEEVES.includes('FUND')) {
       let list: any = null, fund: any = null, evt: any = null, st2 = state
       // v99.5 (owner: "the announcements strategy in the account too, high exposure"): EVT = Binance listing / delisting
