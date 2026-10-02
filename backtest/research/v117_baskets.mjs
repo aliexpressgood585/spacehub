@@ -57,7 +57,9 @@ out.push('')
 const COST = 0.0008, FUND_H = 0.0001 / 8
 const rowsOut = []
 let pass = 0, n = 0
-for (const [nL, nS] of [[2, 1], [1, 2], [1, 1], [2, 2]]) for (const L of [4, 24, 168]) for (const R of [4, 24]) for (const mode of ['MOM', 'REV']) {
+const GRID = process.env.ALL ? [1,2,3,4,5].flatMap(a => [1,2,3,4,5].map(b => [a, b])) : [[2, 1], [1, 2], [1, 1], [2, 2]]   // v117b: ALL=1 -> every 1..5 x 1..5
+const sumRows = []
+for (const [nL, nS] of GRID) for (const L of [4, 24, 168]) for (const R of [4, 24]) for (const mode of ['MOM', 'REV']) {
   n++
   const per = [] // {t, gross, net}
   let w = new Array(C.length).fill(0)
@@ -83,11 +85,19 @@ for (const [nL, nS] of [[2, 1], [1, 2], [1, 1], [2, 2]]) for (const L of [4, 24,
   const is = per.filter(x => x.t < CUT), oo = per.filter(x => x.t >= CUT)
   const ig = sm(is, 'gross'), inet = sm(is, 'net'), og = sm(oo, 'gross'), onet = sm(oo, 'net')
   const ok = inet.tot > 0 && onet.tot > 0 && onet.t >= 2; if (ok) pass++
+  sumRows.push({ key: `${mode} ${nL}L/${nS}S L${L}h R${R}h`, is: inet.tot, oos: onet.tot, oday: onet.day, t: onet.t })
   rowsOut.push(`${mode} ${nL}L/${nS}S L${String(L).padStart(3)}h R${String(R).padStart(2)}h`.padEnd(26) +
     `IS gross ${ig.bps.toFixed(1).padStart(6)} net ${inet.bps.toFixed(1).padStart(6)} bps/period, ${inet.tot.toFixed(1).padStart(6)}% total t ${inet.t.toFixed(1).padStart(5)} | ` +
     `OOS gross ${og.bps.toFixed(1).padStart(6)} net ${onet.bps.toFixed(1).padStart(6)}, ${onet.tot.toFixed(1).padStart(6)}% total (${onet.day.toFixed(3)}%/day) t ${onet.t.toFixed(1).padStart(5)}  ${ok ? 'PASS' : '-'}`)
 }
 out.push('B. dollar-neutral baskets, cost 8 bps per side on turnover:')
-out.push(...rowsOut, '', `PASS: ${pass} of ${n} (luck alone ~${(n * 0.023).toFixed(1)})`)
+if (process.env.ALL) {
+  const both = sumRows.filter(r => r.is > 0 && r.oos > 0)
+  out.push(`rows ${n}; positive IS ${sumRows.filter(r => r.is > 0).length}, positive OOS ${sumRows.filter(r => r.oos > 0).length}, positive in BOTH ${both.length}`)
+  out.push('top 15 by OOS total (IS total alongside):')
+  for (const r of [...sumRows].sort((a, b) => b.oos - a.oos).slice(0, 15)) out.push(`  ${r.key.padEnd(26)} IS ${r.is.toFixed(1).padStart(7)}%  OOS ${r.oos.toFixed(1).padStart(7)}% (${r.oday.toFixed(3)}%/day) t ${r.t.toFixed(1)}`)
+  out.push('positive in BOTH halves:'); for (const r of both) out.push(`  ${r.key.padEnd(26)} IS ${r.is.toFixed(1).padStart(7)}%  OOS ${r.oos.toFixed(1).padStart(7)}% t ${r.t.toFixed(1)}`)
+  out.push('', `PASS: ${pass} of ${n} (luck alone ~${(n * 0.023).toFixed(1)})`)
+} else out.push(...rowsOut, '', `PASS: ${pass} of ${n} (luck alone ~${(n * 0.023).toFixed(1)})`)
 const txt = out.join('\n'); console.log(txt)
-fs.writeFileSync('/home/user/spacehub/status/baskets-v117.txt', txt + '\n')
+fs.writeFileSync(process.env.ALL ? '/home/user/spacehub/status/baskets-all-v117b.txt' : '/home/user/spacehub/status/baskets-v117.txt', txt + '\n')

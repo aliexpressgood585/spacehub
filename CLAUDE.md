@@ -375,6 +375,12 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v116bt / v117b / v118bt (2026-10-02) — owner: "all coins", "3 long 4 short and every option", "Fibonacci + EMA + RSI + volume together": ALL 0 PASS
+- v116bt (`v116_all_coins.mjs` -> `status/all-coins-v116.txt`): the v115 rules on 94 of the 96 liquid perps in the live universe (MARSCOIN/PONS have no archive), holds 3m..24h: 0 of 98. OOS gross -19..+10 bps vs 16 cost; 3-15 min rows gross -1..+2 bps. Survivorship caveat: today's liquid list.
+- v117b (`v117_baskets.mjs` ALL=1 -> `status/baskets-all-v117b.txt`): every nL/nS in 1..5 x 1..5 on the 10 majors, rank by 4h/24h/7d, rebalance 4h/24h, MOM/REV = 300 rows: 0 PASS (luck ~7); positive IS 7, positive OOS 67, positive in BOTH 0. Every OOS winner (daily momentum, up to +0.21%/day OOS) LOST in-sample.
+- v118bt (`v118_osc_combo.mjs` -> `status/osc-combo-v118.txt`): EMA20/50 trend + Fibonacci 50-61.8% pullback of a >=3 ATR swing + RSI14 turning + volume >=1.5x on a green/red bar, all 4 and every 3-of-4 + EMA+RSI, 5m/15m, time 6/12/24 bars or 1.5/2.5 ATR bracket, 94 coins: 0 of 48. 5m rows gross ~0; 15m rows flip sign between IS and OOS. Adding conditions cuts trades, never creates edge (same as v95.9 golden-fib).
+- Nothing deployed.
+
 ## v117bt (2026-10-02) — owner: "combine leading coins with opposite correlation, 2 long + 1 short or the reverse": 0 of 48 PASS
 `backtest/research/v117_baskets.mjs` -> `status/baskets-v117.txt`. 10 majors, hourly from 1m, 2025-09..2026-08, pre-registered, 8 bps/side on turnover.
 - A. Correlation: hourly mean 0.79 (lowest 0.69 BTC/DOT), daily mean 0.81 (lowest 0.68); 0 of 48 rolling 30-day windows had ANY negatively correlated pair. Opposite correlation does not exist among the majors.
