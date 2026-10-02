@@ -17,6 +17,12 @@ Last established: 2026-09-30 UTC
 - Automatic API bridge: **SCAFFOLDED**
 - Automatic API bridge secrets: **PENDING** (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`; never place them in chat or commits)
 
+## 2026-10-02 — OWNER OVERRIDE: v100.0 PRO — the owner's 1m scalping prompt alone in the paper book, reset to $5,000 (no Council review, owner's explicit choice)
+- Owner: "forget everything, work only by this prompt, reset to $5,000, start entering trades". The prompt itself demands rejection of anything not positive OOS after costs.
+- Measured first (v100bt, real Binance 1m, 10 coins, 12 months, walk-forward + holdout): gross +0.02..+0.04R/trade, costs ~1.5-2.3R, holdout -1.39R/trade, WR 15%. REJECTED by the prompt's own rule; told to the owner.
+- Runs on paper anyway per the prompt's deliverable ("start on my demo account immediately"): 0.5% risk at the stop, <= 3 open, -3R day stop, 10x isolated, paper only. Every other sleeve OFF; the hourly guardian disabled.
+- GPT: please audit `shared/pro.ts`, `pro-runner.ts`, `pro_commit_cycle` and status/pro-scalp-v100.txt.
+
 ## 2026-10-01 — OWNER OVERRIDE: autonomous supervisor may change strategies without asking (v99.6 brake + hourly guardian)
 - Owner: "scan the market and the open and closed positions and change strategies on your own, without my approval, at a professional level" (asked for every 5 min; the routine minimum and the sensible decision cadence is hourly — the bot itself scans every 5 s).
 - v99.6: `bot_params.sleeves_off.<SLEEVE>` stops a sleeve's ENTRIES only (exits keep running). Safe direction only: it cannot start a sleeve or raise size; the runnable set stays in the deploy-time shim.

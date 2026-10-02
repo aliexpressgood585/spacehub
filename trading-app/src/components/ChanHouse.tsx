@@ -183,10 +183,145 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
     return () => { alive = false; clearInterval(iv) }
   }, [])
   if (sleeve == null) return <div className="ch" dir="rtl"><style>{CSS}</style><div className="emptyPos">טוען…</div></div>
+  if (sleeve.split(',').includes('PRO')) return <ProHouse onBack={onBack} />
   return ['LIST','FUND','FAST','EVT'].some(x => sleeve.split(',').includes(x)) ? <ListHouse onBack={onBack} /> : <ChanHouseView onBack={onBack} />
 }
 
 const REASON_HE: Record<string,string> = { STOP: 'סטופ', TARGET: 'יעד', TIMEOUT: 'תום זמן', SETTLED: 'אחרי סליקת funding', HOLD_END: 'תום 4 שעות' }
+
+// v100.0 — PRO: the owner's 1m scalping spec, alone in the paper book. Every number below is read from the bot's tables.
+const PRO_REASON: Record<string,string> = { STOP: 'סטופ', TRAIL: 'סטופ נגרר', TARGET: 'יעד 3R', TIME: 'לא הגיע ל-1R ב-15 דק׳', MAXHOLD: '120 דק׳' }
+const PRO_CHECK: [string,string][] = [['htf15_ema200','15m מעל/מתחת EMA200'],['ema20_50_5m','5m EMA20/50'],['adx5','ADX 5m>20'],['vwap','VWAP יומי'],['regime_rv','משטר תנודתיות'],['no_funding_window','לא בחלון funding'],['breakout','פריצה 15 נרות'],['volume','נפח >1.5x'],['rsi9','RSI9 מעל/מתחת 50']]
+function ProHouse({ onBack }: { onBack?: () => void }) {
+  const [state, setState] = useState<J | null>(null)
+  const [trades, setTrades] = useState<J[]>([])
+  const [manifest, setManifest] = useState<J | null>(null)
+  const [errors, setErrors] = useState<J[]>([])
+  const [err, setErr] = useState('')
+  const [now, setNow] = useState(Date.now())
+  useEffect(() => { const iv = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(iv) }, [])
+  useEffect(() => {
+    let alive = true
+    const load = async () => {
+      try {
+        const [st, tr, man, er] = await Promise.all([
+          q<J[]>('bot_state?select=balance,bot_params,paper_mode,lock_until,updated_at,hard_halt_at&limit=1'),
+          q<J[]>('bot_trades?select=id,sym,side,status,strategy,lev,entry_price,exit_price,size,pnl,fee,risk_usd,trail_sl,opened_at,closed_at,scalp_meta&strategy=eq.PRO&order=opened_at.desc&limit=500'),
+          q<J[]>('deployment_manifest?select=sha,enabled_sleeves,bot_version&order=first_seen.desc&limit=1').catch(() => []),
+          q<J[]>(`bot_errors?select=ts,scope,message&ts=gte.${new Date(Date.now()-3_600_000).toISOString()}&order=ts.desc&limit=20`).catch(() => []),
+        ])
+        if (!alive) return
+        setState(st[0] ?? null); setTrades(tr ?? []); setManifest(man[0] ?? null); setErrors(er ?? []); setErr('')
+      } catch (e: any) { if (alive) setErr(String(e?.message ?? e)) }
+    }
+    void load(); const iv = setInterval(load, 3000)
+    return () => { alive = false; clearInterval(iv) }
+  }, [])
+  const open = trades.filter(t => t.status === 'OPEN'), closed = trades.filter(t => t.status !== 'OPEN' && t.closed_at)
+  const { marks: exitMarks, wsOn } = useExitMarks(open.map(t => ({ sym: String(t.sym), side: String(t.side) })))
+  const p = state?.bot_params ?? {}, cyc = p.pro_cycle ?? {}
+  const lease = state?.lock_until ? Date.parse(state.lock_until) : null, alive = lease != null && now - lease < 120_000
+  const start = 5000, cash = Number(state?.balance ?? 0)
+  const rows = open.map(t => { const em = exitMarks[`${t.sym}:${t.side}`] ?? { mark: null }; const tm = em.mark != null ? tradeMetrics(t, em.mark, now) : null
+    return { t, m: t.scalp_meta?.pro ?? {}, mark: em.mark, src: em.src, tm, value: em.mark != null ? closeValue(t, em.mark, now) : Number(t.entry_price) * Number(t.size) / Math.max(1, Number(t.lev) || 1) } })
+  const equity = cash + rows.reduce((s, r) => s + r.value, 0)
+  const realised = closed.reduce((s, t) => s + Number(t.pnl ?? 0), 0), wins = closed.filter(t => Number(t.pnl) > 0)
+  const R = (t: J) => Number(t.risk_usd) > 0 ? Number(t.pnl) / Number(t.risk_usd) : 0
+  const lossSum = -closed.filter(t => Number(t.pnl) <= 0).reduce((s, t) => s + Number(t.pnl), 0), pf = lossSum > 0 ? wins.reduce((s, t) => s + Number(t.pnl), 0) / lossSum : null
+  const dayStart = new Date(now); dayStart.setUTCHours(0, 0, 0, 0)
+  const dayR = closed.filter(t => Date.parse(t.closed_at) >= dayStart.getTime()).reduce((s, t) => s + R(t), 0)
+  const fees = trades.reduce((s, t) => s + Number(t.fee ?? 0) + Number(t.scalp_meta?.exit_fee ?? 0), 0)
+  const coins: J[] = Array.isArray(cyc.coins) ? cyc.coins : []
+  const events = useMemo(() => {
+    const ev: { ts: string; title: string; detail: string; cls: string }[] = []
+    for (const t of trades) {
+      const m = t.scalp_meta?.pro ?? {}
+      ev.push({ ts: t.opened_at, title: `נפתח ${t.side === 'LONG' ? 'לונג' : 'שורט'} ${t.sym}`, detail: `כניסה ${fmtPx(Number(t.entry_price))} · סטופ ${fmtPx(Number(m.stop))} · יעד ${fmtPx(Number(m.target))} · סיכון ${fmt$(Number(t.risk_usd))} · נפח ${Number(m.vol_ratio ?? 0).toFixed(1)}x`, cls: 'open' })
+      if (t.closed_at && t.status !== 'OPEN') ev.push({ ts: t.closed_at, title: `נסגר ${t.sym} · ${PRO_REASON[String(t.scalp_meta?.exit_reason)] ?? t.scalp_meta?.exit_reason ?? ''}`, detail: `יציאה ${fmtPx(Number(t.exit_price))} · ${fmt$(Number(t.pnl))} · ${R(t).toFixed(2)}R`, cls: Number(t.pnl) >= 0 ? 'win' : 'loss' })
+    }
+    return ev.sort((a, b) => Date.parse(b.ts) - Date.parse(a.ts))
+  }, [trades])
+  return <div className="ch" dir="rtl">
+    <style>{CSS}</style>
+    <div className="top">
+      {onBack && <button className="back" onClick={onBack}>→ חזרה</button>}
+      <h1>בית הבוט · PRO סקאלפינג 1 דקה</h1>
+      <span className={`chip ${alive ? 'ok' : 'bad'}`}>{alive ? `● חי · מחזור ${ago(lease, now)}` : `○ אין מחזור ${ago(lease, now)}`}</span>
+      <span className="chip">{state?.paper_mode === false ? 'לא נייר!' : 'דמו · נייר בלבד'}</span>
+      <span className="chip">{manifest ? `${manifest.bot_version ?? ''} · ${String(manifest.sha ?? '').slice(0,7)}` : 'PRO'}</span>
+      <span className={`chip ${errors.length ? 'bad' : 'ok'}`}>{errors.length ? `${errors.length} שגיאות בשעה` : '0 שגיאות'}</span>
+      <span className="chip">סריקה אחרונה {ago(cyc.ts ? Date.parse(cyc.ts) : null, now)} · נר {cyc.bar ? clock(cyc.bar) : '—'}</span>
+      {cyc.gate && <span className="chip bad">כניסות עצורות: {String(cyc.gate).startsWith('day_stop') ? 'הפסד יומי 3R' : 'צינון אחרי 3 הפסדים'}</span>}
+    </div>
+    {err && <div className="readerr">שגיאת קריאה: {err}</div>}
+    <div className="emptyPos" style={{textAlign:'right',padding:'12px 14px',marginBottom:14,borderStyle:'solid',color:'#fbbf24'}}>
+      הכללים בדיוק לפי הפרומט: 15m מחיר מול EMA200 · 5m EMA20 מול EMA50 · ADX(14) 5m מעל 20 · VWAP יומי · משטר: ADX + אחוזון תנודתיות ≥30% · פריצה של 15 נרות דקה · נפח מעל 1.5x · RSI(9) מעל 50 (שורט הפוך) · סטופ 1.2×ATR(14) · יעד 3R · ב-1R הסטופ עובר לנקודת הכניסה ואז נגרר 1R · יוצאים אם אין 1R תוך 15 דקות · 0.5% סיכון לעסקה · עד 3 פתוחות · עצירה ב-3R- ביום · 60 דק׳ צינון אחרי 3 הפסדים · מינוף 10x מבודד · OI/Order-flow כבוי.
+      <div style={{marginTop:6,color:'#f87171'}}>בבדיקה לאחור (v100bt, 12 חודשים, 10 מטבעות, נתוני Binance אמיתיים) האסטרטגיה נדחתה: בתקופת ההחזקה הצפויה 3.4- עסקאות ביום, 15% הצלחה, 1.39R- לעסקה אחרי עלויות. לפני עלויות: 0.06R+. העלויות (עמלות+החלקה) הן כ-1.4R לעסקה כי הסטופ קטן (כ-0.1% מהמחיר).</div>
+    </div>
+    <section className="accountStrip">
+      <Stat k="הון פתיחה" v={fmt$(start)} />
+      <Stat k="הון עכשיו" v={fmt$(equity)} cls={equity>=start?'pos':'neg'} />
+      <Stat k="מזומן פנוי" v={fmt$(cash)} />
+      <Stat k="ממומש" v={fmt$(realised)} cls={realised>=0?'pos':'neg'} />
+      <Stat k="עמלות" v={fmt$(fees)} />
+      <Stat k="Win Rate" v={closed.length ? `${(wins.length/closed.length*100).toFixed(1)}%` : '—'} />
+      <Stat k="Profit Factor" v={pf != null ? pf.toFixed(2) : '—'} />
+      <Stat k="ממוצע R" v={closed.length ? `${(closed.reduce((s,t)=>s+R(t),0)/closed.length).toFixed(2)}R` : '—'} />
+      <Stat k="R היום" v={`${dayR.toFixed(2)}R / -3R`} cls={dayR>=0?'pos':'neg'} />
+      <Stat k="עסקאות" v={`${open.length} פתוחות · ${closed.length} סגורות`} />
+    </section>
+    <section className="positions">
+      <div className="sectionHead"><div><h2>פוזיציות פתוחות · חי</h2><p>מחיר Binance (bid ללונג, ask לשורט) כל שנייה{wsOn ? '' : ' · ה-WS מתחבר, מחיר מהבוט'}.</p></div><span className="countBadge">{open.length}/3</span></div>
+      {rows.length === 0 ? <div className="emptyPos">אין פוזיציה פתוחה. הבוט בודק כל נר דקה שנסגר.</div> :
+      <div className="positionGrid">{rows.map(r => {
+        const st = Number(r.m.stop), tg = Number(r.m.target), en = Number(r.t.entry_price), rr = Number(r.m.r), dir = r.t.side === 'LONG' ? 1 : -1
+        const p2 = r.mark != null ? Math.max(0, Math.min(100, (st - r.mark) / (st - tg) * 100)) : null, ep = (st - en) / (st - tg) * 100
+        const mins = (now - Date.parse(r.t.opened_at)) / 60_000, rNow = r.mark != null && rr > 0 ? dir * (r.mark - en) / rr : null
+        return <div key={r.t.id} className="lcard">
+          <div className="lhead"><b>{r.t.sym}</b><span className="lside">PRO · {r.t.side} · {r.t.lev}x</span><span className="lsrc">{r.src ?? 'ממתין למחיר'}</span></div>
+          <div className="lpx"><bdi dir="ltr">{fmtPx(r.mark)}</bdi><bdi dir="ltr" className={(r.tm?.net ?? 0)>=0?'pos':'neg'}>{fmt$(r.tm?.net ?? null)} · {rNow != null ? `${rNow.toFixed(2)}R` : '—'}</bdi></div>
+          <div className="lbar"><div className="lfill" style={{width:`${p2 ?? 0}%`}}/><div className="lentry" style={{left:`${ep}%`}}/></div>
+          <div className="llabels"><span>{r.m.reached_1r ? 'סטופ נגרר' : 'סטופ'} <bdi dir="ltr">{fmtPx(st)}</bdi></span><span>כניסה <bdi dir="ltr">{fmtPx(en)}</bdi></span><span>יעד <bdi dir="ltr">{fmtPx(tg)}</bdi></span></div>
+          <div className="lgrid">
+            <Mini k="שווי" v={fmt$(en * Number(r.t.size))} /><Mini k="סיכון" v={fmt$(Number(r.t.risk_usd))} /><Mini k="הגיע ל-1R" v={r.m.reached_1r ? 'כן' : 'עוד לא'} />
+            <Mini k="מוחזק" v={`${mins.toFixed(1)} דק׳`} /><Mini k="יציאת זמן" v={r.m.reached_1r ? 'בוטל (1R)' : `בעוד ${Math.max(0, 15 - mins).toFixed(1)} דק׳`} /><Mini k="נפח" v={`${Number(r.m.vol_ratio ?? 0).toFixed(1)}x`} />
+          </div>
+          <button className="lchart" onClick={()=>window.open(`trade.html?id=${encodeURIComponent(String(r.t.id))}`,'_blank','noopener,noreferrer')}>גרף חי ←</button>
+        </div>
+      })}</div>}
+    </section>
+    <section className="closedTrades">
+      <div className="sectionHead"><div><h2>הסורק · נר הדקה האחרון</h2><p>9 התנאים לכל מטבע, כפי שהבוט חישב אותם בסגירת הנר {cyc.bar ? clock(cyc.bar) : ''}. עסקה נפתחת רק כשכל ה-9 ירוקים.</p></div><span className="countBadge">{coins.length}/10</span></div>
+      {coins.length === 0 ? <div className="emptyPos">ממתין לסריקה הראשונה.</div> :
+      <div className="closedTableWrap"><table className="closedTable" style={{minWidth:760}}>
+        <thead><tr><th>מטבע</th><th>כיוון</th>{PRO_CHECK.map(([k,h]) => <th key={k} style={{fontSize:11}}>{h}</th>)}<th>סה״כ</th></tr></thead>
+        <tbody>{coins.map(c => <tr key={c.sym} className={c.dir ? 'winRow' : ''}><td><b>{c.sym}</b></td><td>{c.dir > 0 ? 'לונג' : c.dir < 0 ? 'שורט' : '—'}</td>
+          {PRO_CHECK.map(([k]) => <td key={k} style={{textAlign:'center',color:c.checks?.[k] ? '#4ade80' : '#f87171'}}>{c.checks?.[k] ? '✓' : '✗'}</td>)}<td>{c.ok}/{c.of}</td></tr>)}</tbody>
+      </table></div>}
+      {Array.isArray(cyc.failed) && cyc.failed.length > 0 && <div className="readerr">לא נקראו נתונים: {cyc.failed.join(', ')}</div>}
+    </section>
+    <section className="closedTrades">
+      <div className="sectionHead"><div><h2>יומן חי</h2><p>כל פתיחה וסגירה, החדש למעלה.</p></div><span className="countBadge">{events.length}</span></div>
+      {events.length === 0 ? <div className="emptyPos">עדיין אין עסקאות.</div> :
+      <div className="lfeed">{events.slice(0,60).map((e,i) => <div key={i} className={`lev ${e.cls}`}><time>{clock(e.ts)}</time><b>{e.title}</b><span>{e.detail}</span></div>)}</div>}
+    </section>
+    <section className="closedTrades">
+      <div className="sectionHead"><div><h2>עסקאות שנסגרו</h2><p>מאז האיפוס ל-$5,000 ב-2.10.2026.</p></div><span className="countBadge">{closed.length}</span></div>
+      {closed.length === 0 ? <div className="emptyPos">עדיין אין עסקאות סגורות.</div> :
+      <div className="closedTableWrap"><table className="closedTable" style={{minWidth:760}}>
+        <thead><tr><th>נסגר</th><th>מטבע</th><th>כניסה</th><th>יציאה</th><th>P&L נטו</th><th>R</th><th>סיבה</th><th>מוחזק</th></tr></thead>
+        <tbody>{closed.map(t => <tr key={t.id} className={Number(t.pnl)>=0?'winRow':'lossRow'}>
+          <td>{new Date(t.closed_at).toLocaleTimeString('he-IL')}</td><td><b>{t.sym}</b> <small>{t.side}</small></td>
+          <td><bdi dir="ltr">{fmtPx(Number(t.entry_price))}</bdi></td><td><bdi dir="ltr">{fmtPx(Number(t.exit_price))}</bdi></td>
+          <td><bdi dir="ltr" className={Number(t.pnl)>=0?'pos':'neg'}>{fmt$(Number(t.pnl))}</bdi></td><td>{R(t).toFixed(2)}</td>
+          <td>{PRO_REASON[String(t.scalp_meta?.exit_reason)] ?? t.scalp_meta?.exit_reason ?? '—'}</td>
+          <td>{((Date.parse(t.closed_at)-Date.parse(t.opened_at))/60_000).toFixed(1)} דק׳</td></tr>)}</tbody>
+      </table></div>}
+    </section>
+    {errors.length > 0 && <section className="closedTrades"><div className="sectionHead"><div><h2>שגיאות בשעה האחרונה</h2></div></div>
+      {errors.slice(0,8).map((e,i) => <div key={i} className="readerr">{clock(e.ts)} · {e.scope} · {e.message}</div>)}</section>}
+  </div>
+}
 
 function ListHouse({ onBack }: { onBack?: () => void }) {
   const [state, setState] = useState<J | null>(null)

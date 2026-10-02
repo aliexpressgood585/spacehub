@@ -375,6 +375,29 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v100.0 PRO (2026-10-02) — the owner's 1m scalping prompt, ALONE in the paper book, account reset to $5,000 (owner: "forget everything, work only by this prompt, reset to $5,000, start trading, fast")
+- Rules = the prompt, written once in `shared/pro.ts` and imported by BOTH the backtest and the live runner:
+  - HTF: 15m price vs EMA200, 5m EMA20 vs EMA50, ADX(14) 5m > 20, daily-anchored VWAP (00:00 UTC), all from CLOSED bars;
+  - regime: ADX 5m > 20 AND 5m realised-vol percentile (1h vs the previous 24h) >= 30%; skip ±5 min around funding;
+  - entry on a closed 1m bar: close beyond the previous N-bar high/low, volume > 1.5x the 20-bar average, RSI(9) > 50 (< 50 short);
+  - OI / order flow DISABLED (stated in the report and on the house);
+  - risk 0.5% of equity at the stop, stop k x ATR(14) 1m, notional <= 5x equity, 10x isolated, <= 3 open, one per coin, -3R day stop, 3 losses -> 60 min cooldown;
+  - exits: target T R; at +1R the stop goes to breakeven and then trails 1R behind the best; out if +1R not reached within N bars; 120-bar cap.
+- RESEARCH FIRST (`backtest/research/v100_pro_scalp.ts` -> `status/pro-scalp-v100.txt`), REAL Binance USDT-M 1m, 10 coins, 2025-09-01..2026-08-31 (5.26M bars), 5m/15m aggregated from them; taker 5 bps/side, slip 3/5 bps/side, real funding; entry at the next 1m open; stop before target.
+  - 36-point grid (N 5/10/15, k 0.8/1.0/1.2, T 1.5/3R, time stop 15/30): GROSS +0.015..+0.042R per trade, COSTS 1.48..2.28R, NET -1.45..-2.26R, WR 10-19%. Every grid point.
+  - walk-forward (IS 3 months -> next month, 7 folds): IS -1.23R, OOS -1.31R. Holdout (from 2026-06-19, read once, N15 k1.2 T3 ts15): 250 trades, 3.4/day, WR 15.2%, PF 0.10, -1.39R/trade, -$4,134 on $5,000 (the -3R day stop is what bounds it), maxDD 83%.
+  - per regime: negative in every ADX bucket, vol bucket, BTC trend side, side and coin. Only TARGET exits win (+1.8R net, 7% of trades).
+  - WHY: a 1.2 x ATR(14) 1m stop is ~0.1-0.15% of price; the round trip is ~0.16-0.2%. Costs are larger than the risk unit, so the trade starts at about -1.4R. Same wall as v76bt..v114bt, the gym and the lab.
+  - VERDICT by the prompt's own rule: REJECTED. Told to the owner plainly.
+- RUN ANYWAY on paper because the owner's prompt and message both say to start on demo now. Live parameters = the walk-forward's choice on the development span (`PRO_LIVE`: N15, k1.2, T3, time stop 15). Every row: experimental true, validated false.
+- Live: `pro-runner.ts`. Every ~5 s it manages exits on the Binance touch (bid long / ask short): stop, target, BE/trail ratchet, time stop, 120 min. Once per closed 1m bar (first 40 s) it reads 1,500 x 1m + 400 x 5m + 1,000 x 15m closed klines per coin (~170 weight/min), runs the same features() / proCheck(), sizes with proSize, and journals the 9 checks per coin in bot_params.pro_cycle.coins (the house shows them).
+  - Ledger `20261002090000_pro_sleeve.sql` (`pro_commit_cycle`): paper, <= 3 PRO open, one per coin, lev 1..20, notional <= 5x equity, risk <= 0.6% of equity, levels on the correct side, quotes <= 20 s, isolated margin; writes a bot_equity row per bar.
+  - Live/backtest difference, stated: live exits on 5 s touch polls, the backtest on 1m bar extremes (stop first).
+- index.ts routes `__ENABLED_SLEEVES='PRO'` to runPro (refuses any non-PRO row). Shim in both workflows `'PRO'`. House: ProHouse view (rules, the backtest verdict, account, live positions with R and the time stop, the 9-condition scanner per coin per minute, live log, closed trades with R). Trade page explains each entry's 9 checks.
+- Tests: tests/pro.test.ts (indicators, aggregation, stop-first / gap / ratchet / time stop, sizing, a live-path replay that finds a signal in synthetic data with the runner's own windows and checks the entry, the day stop, every exit reason, the brake, ledger and shim). Suite: ALL TESTS PASSED.
+- The hourly guardian (trig_01S8rmotpUURyjRHU8FwkVHB) was written for LIST/FUND/FAST/EVT and would brake by its own rules; DISABLED so only the prompt's conditions govern the account.
+- ROLLBACK: shim back to 'LIST,FUND,FAST,EVT' after closing open PRO rows (nothing else exits them).
+
 ## v110bt (2026-09-30 ~20:45 UTC) — "find the short-term formula" (owner): 0 of 164 PASS
 `backtest/research/v110_short_formula.py` -> status/short-formula-v110.txt. Rules fixed before reading results: 16 bps round trip,
 IS first 70% / OOS last 30%, t on daily sums, PASS = IS net>0 & OOS net>0 & OOS t>=2. Luck alone ~3.8 false passes; got 0.
