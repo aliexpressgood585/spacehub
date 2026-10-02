@@ -386,6 +386,10 @@ entry next bar open, exit at 3/5/7 min (time or 2.5·σ·√H bracket), taker 5 
 v115b (same day, owner: "also 15-30-45"): same rules and costs, holds 15/30/45 min -> `status/fifteen-45-min-v115b.txt`. 0 of 36 PASS.
 OOS gross -1 .. +4 bps per trade (best R3 wick reject 30m +4.2, IS -7.3 = sign flip), net -12 .. -17, OOS t -5 .. -33. Longer holds move gross by a few bps, never near 16.
 
+v115c (owner: "test all horizons, goal 20% a day"): same rules, holds 1h/4h/24h -> `status/long-holds-v115c.txt`. 0 of 36 PASS.
+Gross grows with the hold (24h rows reach +10..+22 bps) but flips sign between IS and OOS (e.g. BTC lead 24h bracket IS +22 / OOS -1); best OOS net -0.9 bps, t -0.1.
+Told the owner: 20%/day is x38 a month and ~10^29 a year; the v94.0 lab measured the best OOS portfolio at +0.29%/day with 87% maxDD at growth-optimal risk, and 25%/day = ruin. No target change made.
+
 ## v99.7 BRKV (2026-10-02 ~00:55 UTC) — BRKV short-only added to the LIST/FUND/FAST/EVT paper book at 20% (owner: "add another, more aggressive strategy")
 - Owner chose it from 4 options (AskUserQuestion), told first that it is NOT proven: v109bt unseen-coin holdout +0.32%/trade, t(daily) 1.33, maxDD 49%, loses in bull years.
 - Code: index.ts LIST/FUND branch runs `runBrkv` after FUND, before FAST (fresh state, paper only, an error marks the cycle 500); list/fund/evt runners accept BRKV rows; `sleeveOff(params,'BRKV')` gates BRKV entries (exits keep running); SLEEVES += BRKV. Rule and ledger unchanged since v93.0 (`brkv_commit_cycle`, no migration).
