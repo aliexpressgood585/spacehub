@@ -31,6 +31,10 @@ export const PRO = {
 }
 // the parameters the live paper runner trades: the walk-forward's choice on the whole development span (v100bt part C).
 // v100bt REJECTED this rule (holdout net -1.39R/trade); it runs on paper on the owner's explicit instruction only.
+// v100.3 (owner 2026-10-02: "cancel the trading limit", after the -3R day stop halted entries at -5.71R): the live
+// runner no longer stops for the day at -3R nor pauses 60 min after 3 losses. Sizing is unchanged (0.5% risk at the
+// stop, <= 3 open, one per coin, <= 5x notional). The backtest (v100bt) keeps both limits, as it was run.
+export const PRO_LIVE_LIMITS = { dayStop: false, lossCooldown: false }
 export const PRO_LIVE: Params = { breakoutN: 15, stopAtr: 1.2, targetR: 3, timeStopBars: 15 }
 export interface Params { breakoutN: number; stopAtr: number; targetR: number; timeStopBars: number }
 export interface Bar { t: number; open: number; high: number; low: number; close: number; vol: number }

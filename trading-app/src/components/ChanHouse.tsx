@@ -255,7 +255,7 @@ function ProHouse({ onBack }: { onBack?: () => void }) {
     </div>
     {err && <div className="readerr">שגיאת קריאה: {err}</div>}
     <div className="emptyPos" style={{textAlign:'right',padding:'12px 14px',marginBottom:14,borderStyle:'solid',color:'#fbbf24'}}>
-      הכללים בדיוק לפי הפרומט: 15m מחיר מול EMA200 · 5m EMA20 מול EMA50 · ADX(14) 5m מעל 20 · VWAP יומי · משטר: ADX + אחוזון תנודתיות ≥30% · פריצה של 15 נרות דקה · נפח מעל 1.5x · RSI(9) מעל 50 (שורט הפוך) · סטופ 1.2×ATR(14) · יעד 3R · ב-1R הסטופ עובר לנקודת הכניסה ואז נגרר 1R · יוצאים אם אין 1R תוך 15 דקות · 0.5% סיכון לעסקה · עד 3 פתוחות · עצירה ב-3R- ביום · 60 דק׳ צינון אחרי 3 הפסדים · מינוף 10x מבודד · OI/Order-flow כבוי.
+      הכללים בדיוק לפי הפרומט: 15m מחיר מול EMA200 · 5m EMA20 מול EMA50 · ADX(14) 5m מעל 20 · VWAP יומי · משטר: ADX + אחוזון תנודתיות ≥30% · פריצה של 15 נרות דקה · נפח מעל 1.5x · RSI(9) מעל 50 (שורט הפוך) · סטופ 1.2×ATR(14) · יעד 3R · ב-1R הסטופ עובר לנקודת הכניסה ואז נגרר 1R · יוצאים אם אין 1R תוך 15 דקות · 0.5% סיכון לעסקה · עד 3 פתוחות · בלי עצירה יומית ובלי צינון אחרי הפסדים (בוטל לבקשתך) · מינוף 10x מבודד · OI/Order-flow כבוי.
       <div style={{marginTop:6,color:'#f87171'}}>בבדיקה לאחור (v100bt, 12 חודשים, 10 מטבעות גדולים, נתוני Binance אמיתיים; שאר המטבעות לא נבדקו לאחור) האסטרטגיה נדחתה: בתקופת ההחזקה הצפויה 3.4- עסקאות ביום, 15% הצלחה, 1.39R- לעסקה אחרי עלויות. לפני עלויות: 0.06R+. העלויות (עמלות+החלקה) הן כ-1.4R לעסקה כי הסטופ קטן (כ-0.1% מהמחיר).</div>
     </div>
     <section className="accountStrip">
@@ -267,7 +267,7 @@ function ProHouse({ onBack }: { onBack?: () => void }) {
       <Stat k="Win Rate" v={closed.length ? `${(wins.length/closed.length*100).toFixed(1)}%` : '—'} />
       <Stat k="Profit Factor" v={pf != null ? pf.toFixed(2) : '—'} />
       <Stat k="ממוצע R" v={closed.length ? `${(closed.reduce((s,t)=>s+R(t),0)/closed.length).toFixed(2)}R` : '—'} />
-      <Stat k="R היום" v={`${dayR.toFixed(2)}R / -3R`} cls={dayR>=0?'pos':'neg'} />
+      <Stat k="R היום" v={`${dayR.toFixed(2)}R`} cls={dayR>=0?'pos':'neg'} />
       <Stat k="עסקאות" v={`${open.length} פתוחות · ${closed.length} סגורות`} />
     </section>
     <section className="positions">

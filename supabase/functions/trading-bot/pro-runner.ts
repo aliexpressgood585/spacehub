@@ -5,7 +5,7 @@
 // closed 1m, 400 closed 5m, 1,000 closed 15m bars — and the same features() / proCheck() the backtest ran; entries sized
 // at 0.5% of equity at the stop. Books through `pro_commit_cycle`. The backtest covered 10 coins; the rest are untested.
 // NOT VALIDATED: v100bt rejected the rule out-of-sample after costs (status/pro-scalp-v100.txt).
-import { PRO, PRO_LIVE, features, proCheck, openPos, ratchet, proSize, proSlip, type Bar } from '../../../shared/pro.ts'
+import { PRO, PRO_LIVE, PRO_LIVE_LIMITS, features, proCheck, openPos, ratchet, proSize, proSlip, type Bar } from '../../../shared/pro.ts'
 import { json, pool, quote } from './rota-runner.ts'
 import { sleeveOff } from '../../../shared/sleeves.ts'
 import { buildUniverse, FALLBACK, type Pair } from '../../../shared/universe.ts'
@@ -103,8 +103,8 @@ export async function runPro(db: any, state: any, lease: string, paper: boolean)
     const rs = (pc ?? []).map((x: any) => ({ R: Number(x.risk_usd) > 0 ? Number(x.pnl) / Number(x.risk_usd) : Math.sign(Number(x.pnl)), t: Date.parse(x.closed_at) }))
     const dayR = rs.filter((x) => x.t >= dayStart.getTime()).reduce((s, x) => s + x.R, 0)
     const last = rs.slice(-PRO.lossStreak)
-    if (dayR <= -PRO.dayLossR) gate = `day_stop_${dayR.toFixed(2)}R`
-    else if (last.length === PRO.lossStreak && last.every((x) => x.R < 0) && now < last[last.length - 1].t + PRO.cooldownMin * 60_000) gate = 'loss_streak_cooldown'
+    if (PRO_LIVE_LIMITS.dayStop && dayR <= -PRO.dayLossR) gate = `day_stop_${dayR.toFixed(2)}R`
+    else if (PRO_LIVE_LIMITS.lossCooldown && last.length === PRO.lossStreak && last.every((x) => x.R < 0) && now < last[last.length - 1].t + PRO.cooldownMin * 60_000) gate = 'loss_streak_cooldown'
     const sigs: any[] = [], { pairs, src } = await universe(db, now)
     uni = { size: pairs.length, src }
     const pre: { p: Pair; volRatio: number; dir: number; close: number }[] = []

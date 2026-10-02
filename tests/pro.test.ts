@@ -112,9 +112,9 @@ try {
   assert.equal(inserted[0].decision, 'accepted'); assert.ok(res.changed)
   // the same bar is not scanned twice
   commit = null; await runPro(db, state({ pro_bar: all[sig].t }), 'L', true); assert.equal(commit, null, 'no second scan of one bar')
-  // day stop: -3R realised today blocks entries
+  // v100.3: the -3R day stop and the 3-loss cooldown are OFF live (owner) — the entry still goes through
   past = [1, 2, 3].map((k) => ({ pnl: -25, risk_usd: 25, closed_at: new Date(now - k * 600_000).toISOString() }))
-  await runPro(db, state(), 'L', true); assert.equal(commit.p_entries.length, 0); assert.match(commit.p_note.gate, /day_stop/); past = []
+  await runPro(db, state(), 'L', true); assert.equal(commit.p_entries.length, 1, 'no day stop live'); assert.equal(commit.p_note.gate, null); past = []
   // exits on the live touch
   const row = (meta: any) => ({ id: 9, sym: 'BTC', side: 'LONG', strategy: 'PRO', paper_mode: true, lev: 10, entry_price: 100, size: 10, opened_at: new Date(now - 5 * 60_000).toISOString(), scalp_meta: { pro: { stop: 99, target: 103, r: 1, best: 100, reached_1r: false, ...meta } } })
   const st2 = state({ pro_bar: all[sig].t })
