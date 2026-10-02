@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { PRO, PRO_LIVE, aggregate, features, proCheck, openPos, stepBar, ratchet, proSize, ema, rsi, adx, inFundingWindow, type Bar } from '../shared/pro.ts'
-import { runPro } from '../supabase/functions/trading-bot/pro-runner.ts'
+import { runPro, prescreen } from '../supabase/functions/trading-bot/pro-runner.ts'
+import { FALLBACK } from '../shared/universe.ts'
 
 // v100.0 PRO: the rule module and a replay of the live runner with a mocked exchange and database.
 const near = (a: number, b: number, e = 1e-9) => Math.abs(a - b) < e
@@ -38,6 +39,12 @@ assert.ok(near(proSize(5000, 5000, 100, 0.5), 5000), '0.5% stop -> $25 risk -> $
 assert.ok(near(proSize(5000, 5000, 100, 0.05), 25000), 'a tiny stop is capped at 5x equity')
 assert.ok(proSize(5000, 10, 100, 0.5) < 101, 'cash posts the margin at 10x')
 
+// ── pre-screen: breakout + volume from the previous 15 / 20 bars only (60 bars give the same answer as 1,500) ──
+{ const b: Bar[] = Array.from({ length: 60 }, (_, i) => ({ t: i * 60_000, open: 100, high: 100.1, low: 99.9, close: 100, vol: 10 }))
+  assert.equal(prescreen(b, 15).pass, false)
+  b[59] = { ...b[59], close: 100.2, high: 100.25, vol: 16 }; assert.deepEqual(prescreen(b, 15), { pass: true, volRatio: 1.6, dir: 1 })
+  b[59] = { ...b[59], vol: 15 }; assert.equal(prescreen(b, 15).pass, false, 'volume must be ABOVE 1.5x')
+  b[59] = { ...b[59], close: 99.8, low: 99.7, vol: 20 }; assert.equal(prescreen(b, 15).dir, -1) }
 // ── a live signal: synthetic uptrend with a volume breakout, searched with the runner's own windows ──
 const T0 = Date.UTC(2026, 8, 20, 0, 0)
 let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
@@ -100,7 +107,8 @@ try {
   assert.ok(near(Math.abs(e.price - e.pro.stop), PRO_LIVE.stopAtr * F.atr1[F.n - 1], 1e-6), 'stop = k x ATR(14) 1m')
   assert.ok(near(Math.abs(e.pro.target - e.price), PRO_LIVE.targetR * Math.abs(e.price - e.pro.stop), 1e-6), 'target = 3R')
   assert.ok(e.notional <= 5000 * PRO.maxNotionalEq + 1e-6 && Math.abs(e.notional * e.pro.stop_pct - 25) < 1e-6 || e.notional >= 5000 * PRO.maxNotionalEq - 1e-6, 'risk $25 at the stop unless capped at 5x')
-  assert.equal(commit.p_note.failed.length, 9, 'the other nine coins had no data and are reported as failed')
+  assert.equal(commit.p_note.failed_n, FALLBACK.length - 1, 'no universe cache and no exchangeInfo -> the pinned 40; the 39 without data are reported as failed')
+  assert.equal(commit.p_note.universe.src, 'fallback_40'); assert.equal(commit.p_note.full, 1, 'only the pre-screened pair is read in full')
   assert.equal(inserted[0].decision, 'accepted'); assert.ok(res.changed)
   // the same bar is not scanned twice
   commit = null; await runPro(db, state({ pro_bar: all[sig].t }), 'L', true); assert.equal(commit, null, 'no second scan of one bar')

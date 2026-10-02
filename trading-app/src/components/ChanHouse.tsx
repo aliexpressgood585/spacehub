@@ -250,13 +250,13 @@ function ProHouse({ onBack }: { onBack?: () => void }) {
       <span className="chip">{state?.paper_mode === false ? 'לא נייר!' : 'דמו · נייר בלבד'}</span>
       <span className="chip">{manifest ? `${manifest.bot_version ?? ''} · ${String(manifest.sha ?? '').slice(0,7)}` : 'PRO'}</span>
       <span className={`chip ${errors.length ? 'bad' : 'ok'}`}>{errors.length ? `${errors.length} שגיאות בשעה` : '0 שגיאות'}</span>
-      <span className="chip">סריקה אחרונה {ago(cyc.ts ? Date.parse(cyc.ts) : null, now)} · נר {cyc.bar ? clock(cyc.bar) : '—'}</span>
+      <span className="chip">סריקה אחרונה {ago(cyc.ts ? Date.parse(cyc.ts) : null, now)} · נר {cyc.bar ? clock(cyc.bar) : '—'} · {cyc.universe?.size ?? '—'} מטבעות</span>
       {cyc.gate && <span className="chip bad">כניסות עצורות: {String(cyc.gate).startsWith('day_stop') ? 'הפסד יומי 3R' : 'צינון אחרי 3 הפסדים'}</span>}
     </div>
     {err && <div className="readerr">שגיאת קריאה: {err}</div>}
     <div className="emptyPos" style={{textAlign:'right',padding:'12px 14px',marginBottom:14,borderStyle:'solid',color:'#fbbf24'}}>
       הכללים בדיוק לפי הפרומט: 15m מחיר מול EMA200 · 5m EMA20 מול EMA50 · ADX(14) 5m מעל 20 · VWAP יומי · משטר: ADX + אחוזון תנודתיות ≥30% · פריצה של 15 נרות דקה · נפח מעל 1.5x · RSI(9) מעל 50 (שורט הפוך) · סטופ 1.2×ATR(14) · יעד 3R · ב-1R הסטופ עובר לנקודת הכניסה ואז נגרר 1R · יוצאים אם אין 1R תוך 15 דקות · 0.5% סיכון לעסקה · עד 3 פתוחות · עצירה ב-3R- ביום · 60 דק׳ צינון אחרי 3 הפסדים · מינוף 10x מבודד · OI/Order-flow כבוי.
-      <div style={{marginTop:6,color:'#f87171'}}>בבדיקה לאחור (v100bt, 12 חודשים, 10 מטבעות, נתוני Binance אמיתיים) האסטרטגיה נדחתה: בתקופת ההחזקה הצפויה 3.4- עסקאות ביום, 15% הצלחה, 1.39R- לעסקה אחרי עלויות. לפני עלויות: 0.06R+. העלויות (עמלות+החלקה) הן כ-1.4R לעסקה כי הסטופ קטן (כ-0.1% מהמחיר).</div>
+      <div style={{marginTop:6,color:'#f87171'}}>בבדיקה לאחור (v100bt, 12 חודשים, 10 מטבעות גדולים, נתוני Binance אמיתיים; שאר המטבעות לא נבדקו לאחור) האסטרטגיה נדחתה: בתקופת ההחזקה הצפויה 3.4- עסקאות ביום, 15% הצלחה, 1.39R- לעסקה אחרי עלויות. לפני עלויות: 0.06R+. העלויות (עמלות+החלקה) הן כ-1.4R לעסקה כי הסטופ קטן (כ-0.1% מהמחיר).</div>
     </div>
     <section className="accountStrip">
       <Stat k="הון פתיחה" v={fmt$(start)} />
@@ -291,14 +291,14 @@ function ProHouse({ onBack }: { onBack?: () => void }) {
       })}</div>}
     </section>
     <section className="closedTrades">
-      <div className="sectionHead"><div><h2>הסורק · נר הדקה האחרון</h2><p>9 התנאים לכל מטבע, כפי שהבוט חישב אותם בסגירת הנר {cyc.bar ? clock(cyc.bar) : ''}. עסקה נפתחת רק כשכל ה-9 ירוקים.</p></div><span className="countBadge">{coins.length}/10</span></div>
-      {coins.length === 0 ? <div className="emptyPos">ממתין לסריקה הראשונה.</div> :
+      <div className="sectionHead"><div><h2>הסורק · נר הדקה האחרון</h2><p>כל {cyc.universe?.size ?? '—'} החוזים הנזילים בבינאנס פיוצ'רס (USDT-M, מעל $20M ביום, מרווח עד 10bp) נבדקים בכל נר דקה {cyc.bar ? `(${clock(cyc.bar)})` : ''}: {Number(cyc.prescanned ?? 0)} נקראו, ומי שפרץ עם נפח מעל 1.5x נבדק בכל 9 התנאים — הם בטבלה. עסקה נפתחת רק כשכל ה-9 ירוקים.</p></div><span className="countBadge">{coins.length} נבדקו במלואם</span></div>
+      {coins.length === 0 ? <div className="emptyPos">{cyc.ts ? 'בנר האחרון אף מטבע לא פרץ עם נפח — אין מה לבדוק לעומק.' : 'ממתין לסריקה הראשונה.'}</div> :
       <div className="closedTableWrap"><table className="closedTable" style={{minWidth:760}}>
         <thead><tr><th>מטבע</th><th>כיוון</th>{PRO_CHECK.map(([k,h]) => <th key={k} style={{fontSize:11}}>{h}</th>)}<th>סה״כ</th></tr></thead>
         <tbody>{coins.map(c => <tr key={c.sym} className={c.dir ? 'winRow' : ''}><td><b>{c.sym}</b></td><td>{c.dir > 0 ? 'לונג' : c.dir < 0 ? 'שורט' : '—'}</td>
           {PRO_CHECK.map(([k]) => <td key={k} style={{textAlign:'center',color:c.checks?.[k] ? '#4ade80' : '#f87171'}}>{c.checks?.[k] ? '✓' : '✗'}</td>)}<td>{c.ok}/{c.of}</td></tr>)}</tbody>
       </table></div>}
-      {Array.isArray(cyc.failed) && cyc.failed.length > 0 && <div className="readerr">לא נקראו נתונים: {cyc.failed.join(', ')}</div>}
+      {Number(cyc.failed_n ?? 0) > 0 && <div className="readerr">לא נקראו נתונים ל-{cyc.failed_n} חוזים{Array.isArray(cyc.failed) ? `: ${cyc.failed.slice(0, 12).join(', ')}` : ''}</div>}
     </section>
     <section className="closedTrades">
       <div className="sectionHead"><div><h2>יומן חי</h2><p>כל פתיחה וסגירה, החדש למעלה.</p></div><span className="countBadge">{events.length}</span></div>
