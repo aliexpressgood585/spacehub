@@ -1,0 +1,15 @@
+{"id": "v76bt", "hypothesis": "5m Donchian / RSI mean reversion", "result": "no gross edge (Donchian negative at fee 0; RSI +0.011R vs 0.33R cost)", "verdict": "rejected"}
+{"id": "v77bt", "hypothesis": "15m/30m/45m Donchian", "result": "fails window 1 at every lookback; gross rises with timeframe", "verdict": "rejected"}
+{"id": "v90-92bt", "hypothesis": "15m regime-switch breakout/fade; coin selection; same engine at 4h", "result": "gross negative at 15m; selection +0.033R but ~12x too small; 4h net -0.05R", "verdict": "rejected"}
+{"id": "v96-100bt", "hypothesis": "1-5m breakout scalps, maker-only MR scalp", "result": "gross ~0; maker fills adversely selected", "verdict": "rejected"}
+{"id": "v101-103bt", "hypothesis": "taker-flow imbalance 5-60m, slowed 1-24h; L2 order-book imbalance", "result": "real shape, ~0.5 bps vs >=4-20 bps cost; flips sign when slowed; OBI only beta", "verdict": "rejected"}
+{"id": "v104-106bt", "hypothesis": "ROTA momentum ensemble, vol target, RSI confirm", "result": "OOS ~flat (+1.0% / +5.2%); RSI filter flips", "verdict": "rejected"}
+{"id": "v105bt", "hypothesis": "1h short-term reversal, BTC lead-lag basket", "result": "reversal gross +-10 vs 28 cost; BTC>=2% lead flips OOS", "verdict": "rejected"}
+{"id": "v107-109bt", "hypothesis": "4h breakout+volume +7/-4 bracket", "result": "longs lose over 6y; shorts +0.3-0.5%/trade, t<=1.5, DD 49%", "verdict": "rejected"}
+{"id": "v110bt", "hypothesis": "intraday TS momentum, hour-of-day, cross-market lead-lag", "result": "gross 2-6 bps vs 16", "verdict": "rejected"}
+{"id": "v111-113bt", "hypothesis": "grids, range fade, funding capture, CME gap", "result": "negative / not significant (funding +5-7 bps t<1)", "verdict": "rejected"}
+{"id": "v114bt", "hypothesis": "spot vs futures flow, Coinbase premium, listing announcements", "result": "0-5 bps; announcements large but coin-flip direction", "verdict": "rejected"}
+{"id": "v115-119bt", "hypothesis": "<=7m to 24h holds, 94 coins, baskets 1..5x1..5, Fib+EMA+RSI+vol, 14 oscillators x pairs", "result": "0 PASS in every set", "verdict": "rejected"}
+{"id": "v120", "hypothesis": "18 indicator families x WFO x regime meta-selector, 248 series", "result": "0 stable of 13,212; 0 pooled of 522", "verdict": "rejected"}
+{"id": "gym/lab v85-v94", "hypothesis": "factory genomes on 11 timeframes, 41,400-spec lab", "result": "1 pass of 28,732 (< luck); 0 elite", "verdict": "rejected"}
+{"id": "quant/ Phase 1/1b/afml/trend", "hypothesis": "Chan router, pairs, maker, funding, meta-labelling, Clenow trend", "result": "all NO-GO; meta-label AUC 0.46-0.48", "verdict": "rejected"}
