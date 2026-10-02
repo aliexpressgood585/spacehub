@@ -1,7 +1,11 @@
 """v121 quant lab — report from experiments.jsonl -> status/quantlab-v121.txt"""
 import json, collections, numpy as np
 from lib import DB
-rows = [json.loads(l) for l in open(DB)]
+rows, _seen = [], set()
+for l in open(DB):
+    r = json.loads(l); k = (r['family'], r['name'], r.get('H'), r.get('dir'), r.get('mode'))
+    if k in _seen and r['family'] != 'stage2': continue
+    _seen.add(k); rows.append(r)
 out = []; P = out.append
 COST = 18.0
 P('v121 QUANT LAB — search for a real edge after costs. 94 Binance USDT-M perps, 5-minute panel, 2025-09-01..2026-08-31.')

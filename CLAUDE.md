@@ -375,6 +375,16 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v121 QUANT LAB (2026-10-02) — owner: full quant research brief (20 families, microstructure, liquidations, sweeps, regimes, time-of-day, lag, scoring, ML, exits, filters, top-N): 0 ACCEPTED, nothing deployed
+- Code `backtest/research/quantlab/` (panel.py -> backtest/data/panel5m.npz; lib.py numba simulator + stats; run.py sections; report.py) -> `status/quantlab-v121.txt`; experiment DB `experiments-v121.jsonl` + `prior_experiments.jsonl` (v76-v120 summary, so nothing is re-run).
+- Data: 94 perps, 5m, 2025-09..2026-08, klines + Binance metrics archive (5-min OI, top-trader & global L/S, taker ratio) + funding (`backtest/data/aux12/`, gitignored). Liquidation prints / order book have no history -> proxied (OI drop + big candle).
+- Splits fixed in advance: TRAIN 50% / VALIDATION 20% / OOS 30%; costs 14 bps majors / 20 bps others + funding; next-bar-open entry.
+- RESULT: ~770 unique experiments, 0 screen passes; verdicts mostly no_gross_edge / gross_below_cost; sign flips for the TRAIN winners (positioning fades, regime-conditioned fades, weekday effects).
+  - ML (logistic + LightGBM, triple barrier 1.5 ATR / 4h, monthly walk-forward, 27 features incl. OI/LS/funding): AUC 0.500 / 0.500.
+  - BTC -> alt lag: corr 0.51 same bar, 0.03 one 5m bar later, ~0 after -> nothing exploitable at bar resolution.
+  - Stage 2 (12 best by TRAIN+VAL t, exits/dynamic TP-SL/filters chosen on TRAIN+VAL): every one rejected; exit optimisation never beat plain time exits.
+- Owner said deploy only if real: nothing qualified; live paper bot unchanged.
+
 ## v119bt / v120 ENGINE (2026-10-02) — owner: "simple oscillators alone or in pairs", then a full spec for a crypto engine (backtest + WFO over 16 indicator combos, auto-pick per regime / coin / timeframe): 0 PASS, nothing deployed
 - v119bt (`v119_oscillators.mjs` -> `status/oscillators-v119.txt`): 14 oscillators alone (follow/fade) and in pairs, 94 coins, 5m/15m/1h/4h: 0 of 952 (luck ~22). Median OOS gross ~0 bps.
 - v120 engine (`backtest/research/engine/` -> `status/engine-v120.txt`; indicators.mjs / strategies.mjs / engine.mjs [SHARD/NSHARD/ONLY] / report.mjs):

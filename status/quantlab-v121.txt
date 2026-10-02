@@ -1,0 +1,197 @@
+v121 QUANT LAB — search for a real edge after costs. 94 Binance USDT-M perps, 5-minute panel, 2025-09-01..2026-08-31.
+Data: klines (OHLCV + taker buy volume) + futures metrics archive (5-min open interest, top-trader and global long/short ratio,
+taker buy/sell ratio) + settled funding. NOT available historically: liquidation prints, order book (only 70 days, tested in v103bt).
+Splits fixed in advance: TRAIN first 50% (Sep-Feb), VALIDATION next 20% (Mar-May), OUT-OF-SAMPLE last 30% (May-Aug), read once.
+Costs per round trip: majors 14 bps (taker 5 + slip 2 per side), others 20 bps (taker 5 + slip 5); funding by side; entry next bar open.
+Screen PASS = TRAIN net>0 & VALIDATION net>0 & OOS net>0 & OOS t>=2 (daily sums) & PF>1. Direction (follow/fade) chosen on TRAIN only.
+ACCEPT (stage 2) = OOS n>=100, net>0, PF>1, net after removing best 1% >0, >=5 coins, top coin <40% of profit, >=50% coins positive,
+         both OOS halves positive, Monte Carlo P(loss)<10%, >=60% of neighbouring exit parameters positive OOS.
+
+experiments run: 752 (+ 12 stage-2 candidates); luck alone at a 2.3% false-positive rate: ~17 single-test passes
+verdicts: no_gross_edge 471, gross_below_cost 160, sign_flip 52, not_significant 38, decay_oos 19, fails_validation 8, too_few 4
+
+== TREND  (56 experiments)  verdicts: no_gross_edge 44, gross_below_cost 10, decay_oos 1, sign_flip 1
+   median gross per trade: TRAIN 2.5 bps, OOS 0.7 bps (round-trip cost ~14-20 bps)
+   best 6 by OOS net:  name | H | dir | TRAIN n/gross/net/t | VAL net/t | OOS n/gross/net/t/PF | verdict
+     break48+volexp                                 H288  follow           9572/   1.3/ -17.8/-0.79 |  -16.4/-0.65 |   6373/  22.5/   3.0/ 0.16/1.01 | no_gross_edge
+     d50 q0.02                                      H288  fade            10980/   8.4/ -10.8/-0.64 |   -3.3/-0.19 |   7039/  14.0/  -5.3/-0.33/0.97 | gross_below_cost
+     donpos q0.02                                   H288  fade            14154/   2.7/ -16.5/-1.70 |   -7.8/-0.61 |   8966/  13.0/  -6.3/-0.55/0.97 | no_gross_edge
+     adx_dir q0.02                                  H48   fade            12167/   5.8/ -13.6/-1.15 |  -22.6/-3.04 |   8111/  12.1/  -7.3/-0.94/0.92 | no_gross_edge
+     d50 q0.1                                       H288  follow          14465/   0.8/ -18.6/-1.63 |  -29.3/-2.20 |   9246/  10.3/  -9.1/-0.77/0.95 | no_gross_edge
+     r288 q0.02                                     H48   fade             7973/   5.7/ -13.6/-1.24 |    1.9/ 0.21 |   4778/   9.4/ -10.1/-0.79/0.92 | no_gross_edge
+   WHY IT FAILED: no movement to capture (|gross| < 30% of cost).  LEARNED / NEXT: trend at 5m-24h holds is gross 5-35 bps; only multi-day horizons (v120 4h/1D) clear costs in gross -> next: daily trend with vol targeting on the 72-month set.
+
+== MEANREV  (32 experiments)  verdicts: no_gross_edge 26, gross_below_cost 6
+   median gross per trade: TRAIN 1.4 bps, OOS -0.5 bps (round-trip cost ~14-20 bps)
+   best 6 by OOS net:  name | H | dir | TRAIN n/gross/net/t | VAL net/t | OOS n/gross/net/t/PF | verdict
+     dvwap q0.1                                     H288  fade            12928/   3.7/ -15.3/-0.93 |    5.9/ 0.29 |   8205/  15.7/  -3.4/-0.20/0.98 | no_gross_edge
+     dvwap q0.02                                    H48   fade            10466/   5.0/ -14.2/-1.49 |  -16.5/-1.90 |   6123/   6.4/ -13.0/-1.89/0.85 | no_gross_edge
+     exmove q0.1                                    H288  follow          15375/  11.3/  -8.1/-1.11 |  -12.8/-1.46 |   9783/   5.5/ -13.8/-1.99/0.93 | gross_below_cost
+     spike q0.1                                     H288  fade            15371/  -0.1/ -19.3/-2.53 |  -21.9/-2.55 |   9788/   5.3/ -14.1/-2.19/0.93 | no_gross_edge
+     dvwap q0.1                                     H12   fade           103196/   0.7/ -18.6/-8.01 |  -18.1/-9.52 |  63386/   5.0/ -14.4/-8.64/0.70 | no_gross_edge
+     dvwap q0.02                                    H288  fade             6132/  18.4/  -0.3/-0.01 |    3.0/ 0.11 |   3540/   3.7/ -15.0/-0.58/0.93 | gross_below_cost
+   WHY IT FAILED: no movement to capture (|gross| < 30% of cost).  LEARNED / NEXT: fades of VWAP/BB/ATR extremes capture 3-15 bps; maker-only entry would halve cost but v100bt showed adverse fills -> next: only with real queue data.
+
+== MOMENTUM  (40 experiments)  verdicts: no_gross_edge 31, gross_below_cost 9
+   median gross per trade: TRAIN 2.3 bps, OOS -1.0 bps (round-trip cost ~14-20 bps)
+   best 6 by OOS net:  name | H | dir | TRAIN n/gross/net/t | VAL net/t | OOS n/gross/net/t/PF | verdict
+     r12 q0.1                                       H288  fade            14524/  16.9/  -2.3/-0.18 |  -17.5/-1.64 |   9374/  14.0/  -5.4/-0.58/0.97 | gross_below_cost
+     r3 q0.1                                        H288  follow          14984/   2.7/ -16.8/-1.92 |  -36.9/-3.84 |   9629/   4.7/ -14.6/-2.21/0.92 | no_gross_edge
+     accel q0.02                                    H12   follow          60666/   1.5/ -17.8/-6.27 |  -21.4/-9.31 |  39367/   4.3/ -15.1/-7.18/0.73 | no_gross_edge
+     r12 q0.1                                       H12   fade           156262/   2.2/ -17.1/-9.48 |  -17.5/-13.16 | 103281/   3.5/ -15.8/-13.14/0.68 | no_gross_edge
+     r3 q0.02                                       H12   fade            69505/   1.8/ -17.5/-4.44 |  -20.8/-8.45 |  46073/   2.9/ -16.4/-9.34/0.71 | no_gross_edge
+     accel q0.02                                    H288  follow          12350/   6.0/ -13.2/-0.98 |    0.2/ 0.01 |   7967/   2.2/ -17.0/-1.55/0.91 | gross_below_cost
+   WHY IT FAILED: no movement to capture (|gross| < 30% of cost).  LEARNED / NEXT: time-series momentum/acceleration at 15m-24h: gross 2-17 bps, sign unstable -> no further variants of the same price-only feature.
+
+== VOLATILITY  (24 experiments)  verdicts: no_gross_edge 14, gross_below_cost 4, too_few 4, sign_flip 2
+   median gross per trade: TRAIN 1.2 bps, OOS 1.1 bps (round-trip cost ~14-20 bps)
+   best 6 by OOS net:  name | H | dir | TRAIN n/gross/net/t | VAL net/t | OOS n/gross/net/t/PF | verdict
+     squeeze->break48                               H288  fade             7041/  -0.1/ -19.1/-1.46 |  -12.2/-1.00 |   4610/  17.8/  -1.6/-0.12/0.99 | no_gross_edge
+     bbwp q0.1                                      H288  fade            13978/   1.0/ -18.4/-1.58 |  -38.8/-3.18 |   8979/   9.8/  -9.7/-0.75/0.95 | no_gross_edge
+     atrr q0.02                                     H12   follow          20879/   2.2/ -17.1/-2.92 |   -9.7/-2.50 |  12994/   9.0/ -10.5/-3.01/0.83 | no_gross_edge
+     bbwp q0.1                                      H48   follow          56114/   1.2/ -18.1/-4.13 |  -10.6/-3.00 |  36806/   3.6/ -15.7/-5.08/0.81 | no_gross_edge
+     squeeze->break48                               H12   fade            15068/   0.6/ -18.6/-8.41 |  -17.8/-7.07 |   9963/   2.9/ -16.5/-6.73/0.62 | no_gross_edge
+     atrr q0.02                                     H3    follow          51462/   9.7/  -9.6/-1.49 |  -17.6/-11.15 |  32048/   2.7/ -16.8/-12.02/0.59 | gross_below_cost
+   WHY IT FAILED: no movement to capture (|gross| < 30% of cost).  LEARNED / NEXT: squeezes/expansions predict SIZE of the next move, not direction -> next: use as a sizing/regime input only, not as a signal.
+
+== VOLUME  (28 experiments)  verdicts: no_gross_edge 24, gross_below_cost 3, sign_flip 1
+   median gross per trade: TRAIN 1.1 bps, OOS -0.6 bps (round-trip cost ~14-20 bps)
+   best 6 by OOS net:  name | H | dir | TRAIN n/gross/net/t | VAL net/t | OOS n/gross/net/t/PF | verdict
+     break48+rvol>2                                 H288  fade            13575/   5.7/ -13.5/-1.26 |   -6.1/-0.48 |   8857/  10.9/  -8.3/-0.65/0.96 | no_gross_edge
+     pvdiv q0.02                                    H12   follow          30621/   0.8/ -18.5/-3.02 |  -21.6/-5.00 |  20263/   6.8/ -12.6/-4.92/0.79 | no_gross_edge
+     vtrend_dir q0.02                               H288  fade             8598/   2.0/ -17.4/-1.19 |  -22.1/-1.58 |   5733/   5.2/ -14.1/-1.21/0.93 | no_gross_edge
+     rvol_dir q0.02                                 H288  follow          13483/   2.4/ -16.9/-2.12 |   -7.6/-0.82 |   8752/   4.5/ -14.8/-1.64/0.92 | no_gross_edge
+     vtrend_dir q0.02                               H12   fade            25889/   0.2/ -19.2/-5.25 |  -22.2/-8.02 |  18117/   3.7/ -15.6/-6.95/0.68 | no_gross_edge
+     pvdiv q0.02                                    H3    follow          61216/   7.8/ -11.6/-2.05 |  -18.0/-8.70 |  40346/   2.5/ -16.9/-13.12/0.58 | gross_below_cost
+   WHY IT FAILED: no movement to capture (|gross| < 30% of cost).  LEARNED / NEXT: volume features add no direction beyond the price move they accompany (same as v54bt/v68bt).
+
+== MICRO  (88 experiments)  verdicts: no_gross_edge 67, gross_below_cost 10, decay_oos 6, sign_flip 3, not_significant 1, fails_validation 1
+   median gross per trade: TRAIN 1.5 bps, OOS 0.2 bps (round-trip cost ~14-20 bps)
+   best 6 by OOS net:  name | H | dir | TRAIN n/gross/net/t | VAL net/t | OOS n/gross/net/t/PF | verdict
+     oi48_dir q0.02                                 H288  follow           4500/   8.1/ -12.0/-0.43 |  -19.0/-0.63 |   1968/  34.7/  15.0/ 0.64/1.07 | gross_below_cost
+     fund q0.02                                     H288  fade             7484/  47.0/  33.5/ 1.45 |   -1.9/-0.09 |   4900/  22.7/   6.3/ 0.30/1.03 | fails_validation
+     fundz q0.02                                    H288  fade             1902/  30.6/  27.1/ 1.21 |    5.0/ 0.19 |   1383/  14.9/   3.3/ 0.14/1.01 | not_significant
+     fundz q0.1                                     H288  fade             6113/  15.8/   4.1/ 0.28 |    0.9/ 0.06 |   4104/  13.2/  -1.3/-0.08/0.99 | decay_oos
+     oi48_dir q0.02                                 H48   follow           8526/  11.4/  -8.1/-0.47 |   -7.1/-0.77 |   3721/  14.0/  -5.4/-0.64/0.96 | gross_below_cost
+     fund q0.1                                      H288  fade            10714/  27.2/  13.0/ 0.80 |   -7.7/-0.51 |   6763/  10.7/  -5.9/-0.38/0.97 | decay_oos
+   WHY IT FAILED: no movement to capture (|gross| < 30% of cost).  LEARNED / NEXT: OI / long-short / taker ratio / funding: the strongest TRAIN gross (positioning fades 40-170 bps at 4-24h) but it did not survive validation/OOS -> next: forward-record and re-test on a second year.
+
+== XSECTION  (297 experiments)  verdicts: no_gross_edge 147, gross_below_cost 78, sign_flip 31, not_significant 29, decay_oos 9, fails_validation 3
+   median gross per trade: TRAIN 2.1 bps, OOS -0.3 bps (round-trip cost ~14-20 bps)
+   best 6 by OOS net:  name | H | dir | TRAIN n/gross/net/t | VAL net/t | OOS n/gross/net/t/PF | verdict
+     rank cvd12 long N3                             H288  strong            182/ -19.0/ -38.1/-1.08 |  -17.9/-0.49 |    108/ 137.3/ 118.1/ 1.27/2.07 | not_significant
+     rank tlsz long N5                              H288  weak-as-strong    182/   7.2/  -3.9/-0.11 |   36.4/ 0.62 |    108/  87.9/  74.4/ 1.11/1.53 | gross_below_cost
+     rank cvd12 long N5                             H288  strong            182/ -23.6/ -41.7/-1.35 |   42.1/ 1.11 |    108/  67.0/  48.1/ 0.81/1.41 | not_significant
+     rank tlsz long N10                             H288  weak-as-strong    182/ -12.7/ -22.7/-0.69 |   61.7/ 1.44 |    108/  50.0/  38.8/ 0.95/1.36 | not_significant
+     rank tlsz ls N5                                H288  weak-as-strong    182/  30.0/  16.9/ 1.40 |   -3.0/-0.11 |    108/  50.8/  37.2/ 1.12/1.51 | fails_validation
+     rank rvol long N10                             H288  weak-as-strong    182/ -10.1/ -24.4/-0.72 |   33.1/ 0.91 |    108/  53.2/  35.7/ 1.21/1.36 | not_significant
+   WHY IT FAILED: no movement to capture (|gross| < 30% of cost).  LEARNED / NEXT: cross-sectional ranking (long strongest / short weakest): turnover cost dominates at 1-4h; daily is ROTA's family -> next: daily-only, 72-month.
+
+== LIQUIDATION  (32 experiments)  verdicts: no_gross_edge 18, not_significant 7, gross_below_cost 5, sign_flip 2
+   median gross per trade: TRAIN 1.5 bps, OOS 2.8 bps (round-trip cost ~14-20 bps)
+   best 6 by OOS net:  name | H | dir | TRAIN n/gross/net/t | VAL net/t | OOS n/gross/net/t/PF | verdict
+     cascade reversal (immediate)                   H48   follow           7140/  -9.0/ -28.0/-2.65 |   -3.1/-0.21 |   4282/  30.5/  11.3/ 1.27/1.12 | not_significant
+     cascade reversal after reclaim + vol           H48   follow           2333/  -2.2/ -20.9/-1.34 |    1.8/ 0.06 |   1226/  25.5/   6.6/ 0.48/1.07 | no_gross_edge
+     cascade reversal after reclaim                 H48   follow           4345/  -4.8/ -23.7/-2.24 |   -8.9/-0.49 |   2631/  20.9/   1.7/ 0.18/1.02 | no_gross_edge
+     cascade reversal (immediate)                   H12   follow           7915/  -2.3/ -21.4/-2.39 |  -15.2/-1.98 |   4796/  14.4/  -4.8/-0.93/0.92 | no_gross_edge
+     cascade reversal after reclaim + vol           H12   follow           2386/   4.2/ -14.6/-0.75 |  -22.6/-1.73 |   1259/  13.9/  -5.0/-0.49/0.93 | no_gross_edge
+     cascade reversal after reclaim                 H12   follow           4594/   2.0/ -17.0/-1.58 |  -19.1/-2.26 |   2783/  11.6/  -7.5/-1.09/0.88 | no_gross_edge
+   WHY IT FAILED: no movement to capture (|gross| < 30% of cost).  LEARNED / NEXT: OI-drop + big candle cascades: few events, both continuation and reclaim-reversal near zero after costs -> next: needs real liquidation prints (forward collector).
+
+== SWEEP  (28 experiments)  verdicts: no_gross_edge 26, not_significant 1, gross_below_cost 1
+   median gross per trade: TRAIN 1.2 bps, OOS 6.2 bps (round-trip cost ~14-20 bps)
+   best 6 by OOS net:  name | H | dir | TRAIN n/gross/net/t | VAL net/t | OOS n/gross/net/t/PF | verdict
+     sweep prev 1d + reclaim + rvol>1.5             H48   follow          22270/  -4.0/ -23.2/-3.08 |  -20.0/-3.11 |  14439/  14.2/  -5.0/-0.82/0.95 | no_gross_edge
+     sweep prev 1d high/low + reclaim               H48   follow          25834/  -4.2/ -23.4/-3.26 |  -18.5/-3.16 |  16166/  13.3/  -6.0/-1.00/0.94 | no_gross_edge
+     sweep prev 1d + 2-bar confirmed reclaim        H48   follow          23911/  -5.4/ -24.6/-3.56 |  -19.3/-3.18 |  14948/  11.5/  -7.8/-1.27/0.92 | no_gross_edge
+     sweep prev 4h high/low + reclaim               H288  follow          14267/  -6.3/ -25.5/-2.87 |   -3.9/-0.37 |   9304/  11.0/  -8.2/-0.77/0.96 | not_significant
+     sweep prev 4h + reclaim + rvol>1.5             H48   follow          47243/  -2.0/ -21.2/-5.12 |  -20.4/-5.58 |  31326/  10.5/  -8.8/-2.53/0.90 | no_gross_edge
+     sweep prev 4h + 2-bar confirmed reclaim        H288  follow          13988/  -3.9/ -23.1/-2.49 |   -5.3/-0.51 |   9129/   9.5/  -9.7/-0.82/0.95 | no_gross_edge
+   WHY IT FAILED: no movement to capture (|gross| < 30% of cost).  LEARNED / NEXT: sweeps of prior highs/lows with reclaim: gross ~0 (stop-hunts are not exploitable on 5m closes).
+
+== TIME  (43 experiments)  verdicts: no_gross_edge 27, gross_below_cost 11, sign_flip 3, fails_validation 1, decay_oos 1
+   median gross per trade: TRAIN 4.7 bps, OOS -1.9 bps (round-trip cost ~14-20 bps)
+   best 6 by OOS net:  name | H | dir | TRAIN n/gross/net/t | VAL net/t | OOS n/gross/net/t/PF | verdict
+     weekday 1 long-all 24h                         H288  fade             2218/  26.3/   6.1/ 0.09 | -101.6/-1.26 |   1394/  92.0/  73.1/ 1.36/1.50 | fails_validation
+     weekday 2 long-all 24h                         H288  follow           2219/   5.9/ -13.0/-0.19 |   -5.8/-0.07 |   1394/  91.1/  71.3/ 0.90/1.39 | gross_below_cost
+     weekday 5 long-all 24h                         H288  follow           2229/  23.2/   4.8/ 0.10 |  -90.6/-1.61 |   1487/  15.2/  -4.4/-0.09/0.97 | decay_oos
+     hour 12UTC long-all                            H12   follow          15567/   1.5/ -17.8/-3.95 |  -18.3/-3.38 |  10225/  12.9/  -6.5/-1.19/0.85 | no_gross_edge
+     session asia 00-08 follow prior 8h             H96   fade            15448/  15.7/  -3.5/-0.32 |  -23.9/-2.28 |  10063/   8.5/ -10.9/-1.13/0.90 | gross_below_cost
+     session europe 07-16 follow prior 8h           H108  follow          15475/   1.6/ -17.6/-1.29 |   -9.2/-0.79 |  10077/   8.3/ -11.0/-1.00/0.91 | no_gross_edge
+   WHY IT FAILED: no movement to capture (|gross| < 30% of cost).  LEARNED / NEXT: hour/session/weekday effects: small and unstable between periods.
+
+== LAG  (30 experiments)  verdicts: no_gross_edge 19, gross_below_cost 11
+   median gross per trade: TRAIN 3.7 bps, OOS 1.3 bps (round-trip cost ~14-20 bps)
+   best 6 by OOS net:  name | H | dir | TRAIN n/gross/net/t | VAL net/t | OOS n/gross/net/t/PF | verdict
+     BTC 5m move |z|>=2.0 -> alts follow            H12   follow         103265/   2.8/ -16.6/-4.54 |  -17.9/-5.70 |  72269/   3.6/ -15.8/-5.83/0.69 | no_gross_edge
+     ETH 5m move |z|>=3.0 -> alts follow            H12   fade            45154/   1.0/ -18.5/-2.65 |  -24.5/-4.54 |  30911/   3.2/ -16.2/-3.63/0.70 | no_gross_edge
+     ETH 5m move |z|>=3.0 -> alts follow (alt laggi H3    follow          13435/   3.3/ -16.5/-2.49 |  -17.0/-6.35 |  13746/   2.8/ -17.1/-6.85/0.53 | no_gross_edge
+     BTC 5m move |z|>=3.0 -> alts follow            H1    follow          68100/   9.8/  -9.6/-1.29 |  -17.7/-9.55 |  47636/   2.1/ -17.3/-9.91/0.35 | gross_below_cost
+     BTC 5m move |z|>=2.0 -> alts follow            H3    follow         167043/   3.3/ -16.0/-5.29 |  -21.1/-11.19 | 111331/   2.1/ -17.3/-10.88/0.48 | no_gross_edge
+     BTC 5m move |z|>=3.0 -> alts follow (alt laggi H1    follow          15701/   8.8/ -11.0/-1.89 |  -18.7/-9.26 |  15468/   2.3/ -17.5/-8.29/0.34 | gross_below_cost
+   WHY IT FAILED: no movement to capture (|gross| < 30% of cost).  LEARNED / NEXT: BTC/ETH lead -> alts: the lagged correlation is ~0 after one 5m bar; no exploitable delay at bar resolution.
+
+== REGIME  (11 experiments)  verdicts: sign_flip 6, fails_validation 3, decay_oos 2
+   median gross per trade: TRAIN 32.3 bps, OOS -0.3 bps (round-trip cost ~14-20 bps)
+   best 6 by OOS net:  name | H | dir | TRAIN n/gross/net/t | VAL net/t | OOS n/gross/net/t/PF | verdict
+     dvwap q0.1 fade only in PANIC                  H12                     514/  57.9/  38.6/ 0.45 |   -3.6/-0.10 |    289/  39.3/  19.9/ 1.02/1.34 | fails_validation
+     bbz q0.1 fade only in PANIC                    H48                     394/  26.2/   7.2/ 0.17 |  -49.5/-1.48 |    229/  39.3/  19.8/ 0.67/1.17 | fails_validation
+     r48 q0.1 fade only in PANIC                    H48                     723/  66.3/  47.0/ 1.73 |  -19.1/-0.43 |    473/  25.6/   6.1/ 0.32/1.06 | fails_validation
+     r48 q0.1 fade only in PANIC                    H12                    1113/  34.8/  15.5/ 1.08 |   12.4/ 0.70 |    698/  18.7/  -0.6/-0.05/0.99 | decay_oos
+     r12 q0.1 fade only in PANIC                    H48                     679/  44.8/  25.6/ 0.94 |  -80.3/-2.14 |    406/   3.8/ -15.6/-0.69/0.86 | decay_oos
+     r12 q0.1 fade only in PANIC                    H12                    1479/  32.3/  13.1/ 1.14 |  -26.0/-1.97 |    899/  -0.3/ -19.8/-2.15/0.76 | sign_flip
+   WHY IT FAILED: TRAIN edge reverses out-of-sample (selection noise).  LEARNED / NEXT: conditioning on regimes chosen in TRAIN does not carry to OOS.
+
+== SCORE  (15 experiments)  verdicts: no_gross_edge 8, gross_below_cost 4, sign_flip 3
+   median gross per trade: TRAIN 5.2 bps, OOS 2.1 bps (round-trip cost ~14-20 bps)
+   best 6 by OOS net:  name | H | dir | TRAIN n/gross/net/t | VAL net/t | OOS n/gross/net/t/PF | verdict
+     composite score q0.02                          H288                  11404/  13.4/  -4.5/-0.33 |  -15.0/-0.82 |   7693/   8.9/  -9.6/-0.62/0.95 | gross_below_cost
+     composite score q0.1                           H288                  14717/   9.2/  -8.8/-0.93 |  -10.8/-0.82 |   9646/   7.6/ -11.0/-0.92/0.94 | gross_below_cost
+     top-1 per bar by |score| >= p98                H48                    8071/  -0.4/ -19.1/-3.96 |   -6.7/-0.89 |   5894/   7.6/ -11.7/-2.09/0.88 | no_gross_edge
+     top-3 per bar by |score| >= p98                H12                   19709/   2.6/ -16.5/-6.19 |  -20.0/-6.99 |  15786/   6.1/ -13.2/-6.87/0.77 | no_gross_edge
+     top-1 per bar by |score| >= p98                H12                   12589/   3.3/ -16.0/-5.37 |  -17.8/-5.15 |   9763/   4.5/ -15.0/-6.15/0.76 | no_gross_edge
+     composite score q0.1                           H12                  191820/   1.4/ -17.9/-11.95 |  -17.9/-15.39 | 131261/   3.1/ -16.3/-16.79/0.68 | no_gross_edge
+   WHY IT FAILED: no movement to capture (|gross| < 30% of cost).  LEARNED / NEXT: composite scores inherit the components' weakness; top-N selection reduces trades, not cost share.
+
+== ML  (4 experiments)  verdicts: no_gross_edge 4
+   median gross per trade: TRAIN -1.5 bps, OOS -0.2 bps (round-trip cost ~14-20 bps)
+   best 6 by OOS net:  name | H | dir | TRAIN n/gross/net/t | VAL net/t | OOS n/gross/net/t/PF | verdict
+     lgbm triple-barrier 1.5ATR/48 bars, top/bottom H48                   16226/  -2.6/ -21.8/-6.41 |  -18.6/-9.00 |   8356/   0.3/ -19.0/-7.61/0.67 | no_gross_edge
+     lgbm triple-barrier 1.5ATR/48 bars, top/bottom H48                   55602/  -1.6/ -20.9/-13.96 |  -19.3/-24.40 |  56617/   0.2/ -19.1/-22.74/0.60 | no_gross_edge
+     logit triple-barrier 1.5ATR/48 bars, top/botto H48                   17461/  -1.3/ -20.6/-6.00 |  -14.6/-6.79 |   7571/  -0.5/ -19.7/-5.93/0.68 | no_gross_edge
+     logit triple-barrier 1.5ATR/48 bars, top/botto H48                   57743/  -0.7/ -20.0/-10.26 |  -18.2/-23.36 |  53470/  -1.3/ -20.6/-17.18/0.58 | no_gross_edge
+   WHY IT FAILED: no movement to capture (|gross| < 30% of cost).  LEARNED / NEXT: logistic / LightGBM triple-barrier: see AUC; ~0.5 = no predictive power after features above.
+
+== STAT  (24 experiments)  verdicts: no_gross_edge 16, gross_below_cost 8
+   median gross per trade: TRAIN 3.3 bps, OOS 1.1 bps (round-trip cost ~14-20 bps)
+   best 6 by OOS net:  name | H | dir | TRAIN n/gross/net/t | VAL net/t | OOS n/gross/net/t/PF | verdict
+     ac1_mom q0.02                                  H288  follow           8803/  13.2/  -6.1/-0.38 |  -12.8/-0.74 |   5427/  21.2/   1.9/ 0.16/1.01 | gross_below_cost
+     z288 q0.1                                      H288  fade            12516/   8.5/ -10.6/-0.65 |   -4.0/-0.21 |   8074/  19.7/   0.5/ 0.03/1.00 | gross_below_cost
+     rpct q0.1                                      H288  fade            14488/  11.7/  -7.5/-0.61 |  -24.2/-2.28 |   9340/  16.8/  -2.6/-0.31/0.99 | gross_below_cost
+     ac1_mom q0.1                                   H288  follow          13378/   9.8/  -9.3/-0.92 |  -11.3/-1.28 |   8435/   4.6/ -14.7/-1.81/0.92 | gross_below_cost
+     rpct q0.02                                     H288  follow          11101/  11.4/  -8.3/-0.53 |  -16.5/-0.91 |   7274/   4.2/ -15.1/-1.15/0.92 | gross_below_cost
+     rpct q0.1                                      H12   fade           156576/   1.9/ -17.4/-9.64 |  -18.2/-13.85 | 100089/   3.3/ -16.0/-13.58/0.67 | no_gross_edge
+   WHY IT FAILED: no movement to capture (|gross| < 30% of cost).  LEARNED / NEXT: -
+
+info: corr BTC 5m return -> alt return L bars later (TRAIN, mean over alts): {"corr": {"0": 0.5108721173381674, "1": 0.027748706048900208, "2": -0.015998178478694898, "3": -0.026749941489515816, "6": -0.013890000369189859}}
+info: regime shares: {"shares": {"TREND": 0.312016926727446, "BREAKOUT": 0.02730771536760029, "HIGHVOL": 0.07703419121278983, "LOWVOL": 0.16529792572270696, "PANIC": 0.0017928052660360857, "RANGE": 0.4165504357034208}}
+info: lgbm feature importance (last month model): {"imp": [["dvwap", 163], ["r288", 160], ["ac1", 147], ["r1", 137], ["atrr", 136], ["r48", 135], ["donpos", 126], ["r3", 122], ["d200", 119], ["rpct", 118]]}
+ML AUC (walk-forward, out-of-model months): logit 0.5004, lgbm 0.5
+
+== STAGE 2 — the 12 strongest candidates (by TRAIN+VALIDATION t): exits / dynamic TP-SL / filters chosen on TRAIN+VALIDATION, then OOS once
+   name | src | exit (mode,H,a,b) | TRAIN+VAL n/net/t | OOS n/gross/net/t/PF/WR/rm1% | coins +/traded, top share | OOS halves | MC | neigh+ | dyn OOS | filter OOS | verdict
+   r288 q0.02                         trend    (0,288,0,0) 5232/23.1/0.90 | 2199/-18.9/-37.7/-1.05/0.85/52%/-71.0 | 32/91 0.25 | 1/-78 | 0.85 | 0.00 | -18.4 | rvol>1 -43.2 | rejected
+   lsrz q0.02                         micro    (0,288,0,0) 3328/41.1/1.04 | 1380/-4.0/-22.8/-0.65/0.90/45%/-69.1 | 37/91 0.28 | -38/-8 | 0.75 | 0.00 | 6.9 | liquid (qv>train median) -26.0 | rejected
+   fundz q0.02                        micro    (0,288,0,0) 2727/20.4/1.17 | 1383/14.9/3.3/0.14/1.01/49%/-36.7 | 40/89 0.18 | 8/-4 | 0.44 | 0.00 | -33.5 | BTC calm (atrr<1.3) -0.1 | rejected
+   fund q0.02                         micro    (0,288,0,0) 10666/22.9/1.32 | 4900/22.7/6.3/0.30/1.03/52%/-31.3 | 36/90 0.21 | 46/-26 | 0.37 | 0.00 | -6.6 | BTC calm (atrr<1.3) 4.5 | rejected
+   weekday 3 long-all 24h             time     (0,288,0,0) 3224/106.4/1.63 | 1394/-40.2/-59.2/-0.66/0.76/47%/-81.9 | 35/94 0.13 | 3/-112 | 0.76 | 0.25 | 7.9 | BTC calm (atrr<1.3) -25.8 | rejected
+   bbwp q0.02                         volatili (0,288,0,0) 14152/8.2/0.68 | 6469/-18.3/-37.5/-2.50/0.81/47%/-63.1 | 26/91 0.09 | -62/-12 | 0.99 | 0.00 | -12.3 | BTC calm (atrr<1.3) -46.9 | rejected
+   tlsz q0.02                         micro    (0,288,0,0) 3318/99.8/1.11 | 1582/0.2/-18.2/-0.77/0.92/47%/-65.3 | 36/91 0.14 | -38/3 | 0.79 | 0.00 | -12.5 | adx>20 -19.6 | rejected
+   weekday 6 long-all 24h             time     (0,288,0,0) 3140/36.4/0.67 | 1488/-20.4/-39.1/-0.83/0.77/49%/-59.0 | 30/94 0.23 | -50/-29 | 0.80 | 0.00 | -33.6 | adx>20 -27.6 | rejected
+   weekday 4 long-all 24h             time     (0,48,0,0) 3134/19.5/0.94 | 1487/-26.4/-45.9/-1.53/0.55/39%/-55.4 | 15/94 0.27 | -75/-18 | 0.95 | 0.00 | -35.2 | rvol>1 -41.1 | rejected
+   pvdiv q0.02                        volume   (0,288,0,0) 14577/8.6/0.59 | 6690/-16.1/-35.3/-2.26/0.83/48%/-61.0 | 31/91 0.11 | -36/-35 | 0.99 | 0.00 | 4.7 | |fundz|<2 -37.5 | rejected
+   weekday 1 long-all 24h             time     (0,96,0,0) 3219/38.2/1.13 | 1394/27.1/7.9/0.29/1.09/54%/-3.6 | 59/94 0.09 | 55/-45 | 0.38 | 0.25 | 16.0 | liquid (qv>train median) -6.1 | rejected
+   weekday 5 long-all 24h             time     (0,48,0,0) 3139/4.0/0.27 | 1487/31.8/12.4/0.31/1.16/47%/-4.6 | 58/94 0.14 | -29/53 | 0.39 | 0.00 | -37.5 | liquid (qv>train median) 29.6 | rejected
+
+== ACCEPTED STRATEGIES: 0
+   NONE. No strategy met the acceptance rules; nothing is presented as a winner.
