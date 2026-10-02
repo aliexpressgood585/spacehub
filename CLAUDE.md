@@ -375,6 +375,13 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v117bt (2026-10-02) — owner: "combine leading coins with opposite correlation, 2 long + 1 short or the reverse": 0 of 48 PASS
+`backtest/research/v117_baskets.mjs` -> `status/baskets-v117.txt`. 10 majors, hourly from 1m, 2025-09..2026-08, pre-registered, 8 bps/side on turnover.
+- A. Correlation: hourly mean 0.79 (lowest 0.69 BTC/DOT), daily mean 0.81 (lowest 0.68); 0 of 48 rolling 30-day windows had ANY negatively correlated pair. Opposite correlation does not exist among the majors.
+- B. Dollar-neutral baskets (2L/1S, 1L/2S, 1L/1S, 2L/2S; rank by 4h/24h/7d return; rebalance 4h/24h; momentum and reversal): 0 PASS.
+  4h rebalancing = -13 bps/period (costs). The only OOS-positive rows are daily MOMENTUM (e.g. 1L/1S 24h/24h OOS +0.21%/day t 1.7) but every one was NEGATIVE in-sample -> a flip, the ROTA family again (v104bt/v106bt), not proven.
+- Nothing deployed.
+
 ## v115bt (2026-10-02 ~01:10 UTC) — owner: "a strategy that finds trades of at most 7 minutes": 0 of 36 PASS, nothing built
 `backtest/research/v115_7min.mjs` -> `status/seven-min-v115.txt`. Pre-registered before reading: Binance USDT-M 1m, 10 coins, 2025-09..2026-08,
 entry next bar open, exit at 3/5/7 min (time or 2.5·σ·√H bracket), taker 5 + slip 3 bps per side (16 bps round trip), IS 70% / OOS 30%, t on daily sums.
