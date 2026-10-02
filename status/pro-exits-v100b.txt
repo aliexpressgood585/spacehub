@@ -1,0 +1,44 @@
+v100b — PRO exit variants, entries unchanged (live signal N=15), 10 coins 1m, holdout from 2026-06-19
+stop r = max(k x ATR14(1m), minPct x price); target T x r; at +be R the stop moves to BE and trails be R behind; out at ts bars if +be R not reached; live limits (no day stop / cooldown)
+
+DEVELOPMENT SPAN (first 80%), top 25 by return + the live config
+variant                                 n     WR    netR   return  maxDD
+k3_min0.8%_T3_be1.5_ts60            10488  31.1%  -0.219  -100.0% 100.0%
+k2_min0.8%_T3_be1.5_ts60            10613  31.1%  -0.219  -100.0% 100.0%
+k1.2_min0.8%_T3_be1.5_ts60          10638  31.1%  -0.220  -100.0% 100.0%
+k3_min0.8%_T3_be1_ts60              10641  31.7%  -0.223  -100.0% 100.0%
+k3_min0.8%_T2_be1.5_ts60            11070  31.2%  -0.219  -100.0% 100.0%
+k2_min0.8%_T3_be1_ts60              10814  31.6%  -0.226  -100.0% 100.0%
+k3_min0.8%_T2_be1_ts60              11110  31.6%  -0.221  -100.0% 100.0%
+k1.2_min0.8%_T3_be1_ts60            10839  31.6%  -0.227  -100.0% 100.0%
+k2_min0.8%_T2_be1.5_ts60            11214  31.1%  -0.223  -100.0% 100.0%
+k1.2_min0.8%_T2_be1.5_ts60          11247  31.0%  -0.223  -100.0% 100.0%
+k2_min0.8%_T2_be1_ts60              11279  31.6%  -0.226  -100.0% 100.0%
+k1.2_min0.8%_T2_be1_ts60            11317  31.6%  -0.227  -100.0% 100.0%
+k3_min0.8%_T3_be1.5_ts30            14228  27.8%  -0.227  -100.0% 100.0%
+k3_min0.6%_T3_be1.5_ts60            11114  29.8%  -0.289  -100.0% 100.0%
+k3_min0.8%_T3_be1_ts30              14098  27.3%  -0.231  -100.0% 100.0%
+k2_min0.8%_T3_be1.5_ts30            14311  27.6%  -0.230  -100.0% 100.0%
+k1.2_min0.8%_T3_be1.5_ts30          14331  27.6%  -0.231  -100.0% 100.0%
+k2_min0.8%_T3_be1_ts30              14214  27.3%  -0.235  -100.0% 100.0%
+k3_min0.8%_T2_be1_ts30              14533  27.5%  -0.230  -100.0% 100.0%
+k1.2_min0.8%_T3_be1_ts30            14239  27.3%  -0.235  -100.0% 100.0%
+k3_min0.8%_T2_be1.5_ts30            14726  28.0%  -0.228  -100.0% 100.0%
+k3_min0.6%_T3_be1_ts60              11564  31.3%  -0.291  -100.0% 100.0%
+k2_min0.8%_T2_be1_ts30              14652  27.5%  -0.233  -100.0% 100.0%
+k2_min0.6%_T3_be1.5_ts60            11456  29.6%  -0.296  -100.0% 100.0%
+k2_min0.8%_T2_be1.5_ts30            14836  27.9%  -0.231  -100.0% 100.0%
+LIVE k1.2_min0.0%_T3_be1_ts15       28907  13.7%  -1.302  -100.0% 100.0%
+
+by stop floor (best of the rest of the grid per floor, dev span):
+  floor 0.0% best k1.2_min0.0%_T2_be1_ts15  30581  15.0%  -1.303  -100.0% 100.0%
+  floor 0.4% best k3_min0.4%_T3_be1.5_ts60  12322  27.9%  -0.400  -100.0% 100.0%
+  floor 0.6% best k3_min0.6%_T3_be1.5_ts60  11114  29.8%  -0.289  -100.0% 100.0%
+  floor 0.8% best k3_min0.8%_T3_be1.5_ts60  10488  31.1%  -0.219  -100.0% 100.0%
+
+HOLDOUT (read once): chosen k3_min0.8%_T3_be1.5_ts60 vs live k1.2_min0.0%_T3_be1_ts15
+chosen dev                          10488  31.1%  -0.219  -100.0% 100.0%
+chosen HOLDOUT                       2854  28.5%  -0.230   -96.4%  96.4%
+live dev                            28907  13.7%  -1.302  -100.0% 100.0%
+live HOLDOUT                         8424  10.8%  -1.481  -100.0% 100.0%
+holdout exits (chosen, candidate trades): TIME n8869 -0.24R | STOP n2754 -1.18R | TRAIL n728 0.46R | MAXHOLD n251 1.23R | TARGET n555 2.82R

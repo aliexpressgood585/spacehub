@@ -5,7 +5,7 @@
 // closed 1m, 400 closed 5m, 1,000 closed 15m bars — and the same features() / proCheck() the backtest ran; entries sized
 // at 0.5% of equity at the stop. Books through `pro_commit_cycle`. The backtest covered 10 coins; the rest are untested.
 // NOT VALIDATED: v100bt rejected the rule out-of-sample after costs (status/pro-scalp-v100.txt).
-import { PRO, PRO_LIVE, PRO_LIVE_LIMITS, features, proCheck, openPos, ratchet, proSize, proSlip, type Bar } from '../../../shared/pro.ts'
+import { PRO, PRO_LIVE, PRO_V100, PRO_LIVE_LIMITS, features, proCheck, openPos, ratchet, proSize, proSlip, type Bar } from '../../../shared/pro.ts'
 import { json, pool, quote } from './rota-runner.ts'
 import { sleeveOff } from '../../../shared/sleeves.ts'
 import { buildUniverse, FALLBACK, type Pair } from '../../../shared/universe.ts'
@@ -68,13 +68,13 @@ export async function runPro(db: any, state: any, lease: string, paper: boolean)
       const dir = (t.side === 'LONG' ? 1 : -1) as 1 | -1, q = await quote(String(t.sym)), px = dir > 0 ? q.bid : q.ask, slip = proSlip(t.sym)
       marks[t.sym] = px
       const s = { dir, entry: Number(t.entry_price), r: Number(m.r), stop: Number(m.stop), target: Number(m.target), best: Number(m.best ?? t.entry_price), bars: 0, reached1R: !!m.reached_1r }
-      const held = (now - Date.parse(t.opened_at)) / 60_000
+      const held = (now - Date.parse(t.opened_at)) / 60_000, tp = (m.params ?? PRO_V100) as typeof P   // each row exits by the rules it opened with
       let why: string | null = null
       if (dir * (px - s.stop) <= 0) why = s.reached1R ? 'TRAIL' : 'STOP'
       else if (dir * (px - s.target) >= 0) why = 'TARGET'
       else {
-        ratchet(s, px)
-        if (!s.reached1R && held >= P.timeStopBars) why = 'TIME'
+        ratchet(s, px, tp)
+        if (!s.reached1R && held >= tp.timeStopBars) why = 'TIME'
         else if (held >= PRO.maxHoldBars) why = 'MAXHOLD'
       }
       if (why) {

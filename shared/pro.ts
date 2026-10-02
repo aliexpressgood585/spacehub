@@ -35,8 +35,16 @@ export const PRO = {
 // runner no longer stops for the day at -3R nor pauses 60 min after 3 losses. Sizing is unchanged (0.5% risk at the
 // stop, <= 3 open, one per coin, <= 5x notional). The backtest (v100bt) keeps both limits, as it was run.
 export const PRO_LIVE_LIMITS = { dayStop: false, lossCooldown: false }
-export const PRO_LIVE: Params = { breakoutN: 15, stopAtr: 1.2, targetR: 3, timeStopBars: 15 }
-export interface Params { breakoutN: number; stopAtr: number; targetR: number; timeStopBars: number }
+// v100.4 (owner 2026-10-02: "review every trade and improve, same intraday format, do not limit openings"): the first
+// 59 live PRO trades lost -0.62R each; the stop median was 0.42% of price and trades with a stop < 0.3% paid 0.53R in fees
+// alone. v100b (backtest/research/v100b_pro_exits.ts, ENTRIES UNCHANGED) floors the stop at 2% of price and moves the
+// breakeven/trail to 1.5R: development net -0.095R/trade vs -1.302R, holdout (read once) -0.090R vs -1.481R. Still
+// negative: the signal has no gross edge; the floor only shrinks the notional (risk 0.5% / 2% stop = 0.25x equity) so
+// costs are a small share of each trade.
+export const PRO_LIVE: Params = { breakoutN: 15, stopAtr: 3, targetR: 3, timeStopBars: 15, minStopPct: 0.02, beR: 1.5 }
+export const PRO_V100: Params = { breakoutN: 15, stopAtr: 1.2, targetR: 3, timeStopBars: 15 }
+// minStopPct: the stop is never closer than this share of the entry price; beR: breakeven trigger AND trail distance in R
+export interface Params { breakoutN: number; stopAtr: number; targetR: number; timeStopBars: number; minStopPct?: number; beR?: number }
 export interface Bar { t: number; open: number; high: number; low: number; close: number; vol: number }
 export const proSlip = (sym: string) => (sym === 'BTC' || sym === 'ETH' ? PRO.slipMajor : PRO.slipAlt)
 
@@ -149,7 +157,7 @@ export function proCheck(m1: Bar[], f: Feat, i: number, N: number): { dir: 1 | -
 // ── exits: one state machine for both consumers ──────────────────────────────────────────────────
 export interface Pos { dir: 1 | -1; entry: number; r: number; stop: number; target: number; best: number; bars: number; reached1R: boolean }
 export function openPos(dir: 1 | -1, entry: number, atr1: number, p: Params): Pos {
-  const r = p.stopAtr * atr1
+  const r = Math.max(p.stopAtr * atr1, (p.minStopPct ?? 0) * entry)
   return { dir, entry, r, stop: entry - dir * r, target: entry + dir * p.targetR * r, best: entry, bars: 0, reached1R: false }
 }
 // one completed 1m bar after entry: stop first (if both touch), then target; then ratchet; then time stops.
@@ -161,18 +169,19 @@ export function stepBar(s: Pos, b: Bar, p: Params): { px: number; why: string } 
   if ((d > 0 ? b.low : b.high) * d <= s.stop * d) return { px: s.stop, why: s.reached1R ? 'TRAIL' : 'STOP' }
   if (d * (b.open - s.target) >= 0) return { px: b.open, why: 'TARGET' }
   if ((d > 0 ? b.high : b.low) * d >= s.target * d) return { px: s.target, why: 'TARGET' }
-  ratchet(s, d > 0 ? b.high : b.low)
+  ratchet(s, d > 0 ? b.high : b.low, p)
   if (!s.reached1R && s.bars >= p.timeStopBars) return { px: b.close, why: 'TIME' }
   if (s.bars >= PRO.maxHoldBars) return { px: b.close, why: 'MAXHOLD' }
   return null
 }
 // at +1R the stop moves to breakeven, then trails trailR behind the best price; never loosens
-export function ratchet(s: Pos, px: number) {
-  const d = s.dir
+// (v100.4: p.beR replaces both 1R distances when set; reached1R then means "reached the breakeven trigger")
+export function ratchet(s: Pos, px: number, p?: Params) {
+  const d = s.dir, be = p?.beR ?? PRO.beAtR, tr = p?.beR ?? PRO.trailR
   if (d * (px - s.best) > 0) s.best = px
-  if (d * (s.best - s.entry) >= PRO.beAtR * s.r) {
+  if (d * (s.best - s.entry) >= be * s.r) {
     s.reached1R = true
-    const ns = s.best - d * PRO.trailR * s.r
+    const ns = s.best - d * tr * s.r
     if (d * (ns - s.stop) > 0) s.stop = ns
   }
 }

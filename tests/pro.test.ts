@@ -34,6 +34,13 @@ for (let k = 0; k < 2; k++) assert.equal(stepBar(s, { t: 0, open: 100, high: 100
 assert.deepEqual(stepBar(s, { t: 0, open: 100, high: 100.3, low: 99.7, close: 100.1, vol: 1 }, P), { px: 100.1, why: 'TIME' }, 'no +1R within T bars -> out')
 const r = openPos(-1, 100, 1, P); ratchet(r, 98.5); assert.ok(near(r.stop, 99.5) && r.reached1R, 'short ratchet mirrors')
 ratchet(r, 99.9); assert.ok(near(r.stop, 99.5), 'the stop never loosens')
+// ── v100.4: stop floor at a share of price, breakeven / trail at beR ──
+const P4 = { ...P, stopAtr: 3, minStopPct: 0.02, beR: 1.5 }
+const q4 = openPos(1, 100, 0.1, P4); assert.ok(near(q4.r, 2) && near(q4.stop, 98) && near(q4.target, 103), 'floor 2% beats 3 x ATR 0.3')
+ratchet(q4, 102.5, P4); assert.ok(!q4.reached1R && near(q4.stop, 98), 'no ratchet before +1.5R')
+ratchet(q4, 103.2, P4); assert.ok(q4.reached1R && near(q4.stop, 100.2), 'at +1.6R the stop trails 1.5R behind the best')
+assert.ok(near(openPos(1, 100, 1, P4).r, 3), '3 x ATR when wider than the floor')
+assert.ok(PRO_LIVE.minStopPct === 0.02 && PRO_LIVE.beR === 1.5 && PRO_LIVE.stopAtr === 3 && PRO_LIVE.timeStopBars === 15, 'live = v100b choice')
 // ── sizing: 0.5% of equity at the stop, capped at 5x equity and by cash ──
 assert.ok(near(proSize(5000, 5000, 100, 0.5), 5000), '0.5% stop -> $25 risk -> $5,000 notional')
 assert.ok(near(proSize(5000, 5000, 100, 0.05), 25000), 'a tiny stop is capped at 5x equity')
@@ -104,7 +111,8 @@ try {
   assert.equal(e.sym, 'BTC'); assert.equal(e.side, ck.checks[6].v < W.m1[W.m1.length - 1].close ? 'LONG' : 'SHORT')
   const dir = e.side === 'LONG' ? 1 : -1, ent = dir > 0 ? ask * 1.0003 : bid * (1 - 0.0003)
   assert.ok(near(e.price, ent, 1e-6), 'entry at the touch plus slippage')
-  assert.ok(near(Math.abs(e.price - e.pro.stop), PRO_LIVE.stopAtr * F.atr1[F.n - 1], 1e-6), 'stop = k x ATR(14) 1m')
+  assert.ok(near(Math.abs(e.price - e.pro.stop), Math.max(PRO_LIVE.stopAtr * F.atr1[F.n - 1], PRO_LIVE.minStopPct! * e.price), 1e-6), 'stop = max(k x ATR(14) 1m, 2% of price)')
+  assert.ok(e.pro.stop_pct >= 0.02 - 1e-12 && e.pro.params.beR === 1.5, 'v100.4 params travel with the row')
   assert.ok(near(Math.abs(e.pro.target - e.price), PRO_LIVE.targetR * Math.abs(e.price - e.pro.stop), 1e-6), 'target = 3R')
   assert.ok(e.notional <= 5000 * PRO.maxNotionalEq + 1e-6 && Math.abs(e.notional * e.pro.stop_pct - 25) < 1e-6 || e.notional >= 5000 * PRO.maxNotionalEq - 1e-6, 'risk $25 at the stop unless capped at 5x')
   assert.equal(commit.p_note.failed_n, FALLBACK.length - 1, 'no universe cache and no exchangeInfo -> the pinned 40; the 39 without data are reported as failed')

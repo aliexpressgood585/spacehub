@@ -190,7 +190,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
 const REASON_HE: Record<string,string> = { STOP: 'סטופ', TARGET: 'יעד', TIMEOUT: 'תום זמן', SETTLED: 'אחרי סליקת funding', HOLD_END: 'תום 4 שעות' }
 
 // v100.0 — PRO: the owner's 1m scalping spec, alone in the paper book. Every number below is read from the bot's tables.
-const PRO_REASON: Record<string,string> = { STOP: 'סטופ', TRAIL: 'סטופ נגרר', TARGET: 'יעד 3R', TIME: 'לא הגיע ל-1R ב-15 דק׳', MAXHOLD: '120 דק׳' }
+const PRO_REASON: Record<string,string> = { STOP: 'סטופ', TRAIL: 'סטופ נגרר', TARGET: 'יעד 3R', TIME: 'לא הגיע לנקודת האיזון ב-15 דק׳', MAXHOLD: '120 דק׳' }
 const PRO_CHECK: [string,string][] = [['htf15_ema200','15m מעל/מתחת EMA200'],['ema20_50_5m','5m EMA20/50'],['adx5','ADX 5m>20'],['vwap','VWAP יומי'],['regime_rv','משטר תנודתיות'],['no_funding_window','לא בחלון funding'],['breakout','פריצה 15 נרות'],['volume','נפח >1.5x'],['rsi9','RSI9 מעל/מתחת 50']]
 function ProHouse({ onBack }: { onBack?: () => void }) {
   const [state, setState] = useState<J | null>(null)
@@ -255,7 +255,7 @@ function ProHouse({ onBack }: { onBack?: () => void }) {
     </div>
     {err && <div className="readerr">שגיאת קריאה: {err}</div>}
     <div className="emptyPos" style={{textAlign:'right',padding:'12px 14px',marginBottom:14,borderStyle:'solid',color:'#fbbf24'}}>
-      הכללים בדיוק לפי הפרומט: 15m מחיר מול EMA200 · 5m EMA20 מול EMA50 · ADX(14) 5m מעל 20 · VWAP יומי · משטר: ADX + אחוזון תנודתיות ≥30% · פריצה של 15 נרות דקה · נפח מעל 1.5x · RSI(9) מעל 50 (שורט הפוך) · סטופ 1.2×ATR(14) · יעד 3R · ב-1R הסטופ עובר לנקודת הכניסה ואז נגרר 1R · יוצאים אם אין 1R תוך 15 דקות · 0.5% סיכון לעסקה · עד 3 פתוחות · בלי עצירה יומית ובלי צינון אחרי הפסדים (בוטל לבקשתך) · מינוף 10x מבודד · OI/Order-flow כבוי.
+      הכללים בדיוק לפי הפרומט: 15m מחיר מול EMA200 · 5m EMA20 מול EMA50 · ADX(14) 5m מעל 20 · VWAP יומי · משטר: ADX + אחוזון תנודתיות ≥30% · פריצה של 15 נרות דקה · נפח מעל 1.5x · RSI(9) מעל 50 (שורט הפוך) · סטופ 3×ATR(14) ולא פחות מ-2% מהמחיר (v100.4, אחרי בדיקת 59 העסקאות: עמלות אכלו את הסטופים הצרים) · יעד 3R · ב-1.5R הסטופ עובר לכניסה ואז נגרר 1.5R · יוצאים אם אין 1.5R תוך 15 דקות · 0.5% סיכון לעסקה · עד 3 פתוחות · בלי עצירה יומית ובלי צינון אחרי הפסדים (בוטל לבקשתך) · מינוף 10x מבודד · OI/Order-flow כבוי.
       <div style={{marginTop:6,color:'#f87171'}}>בבדיקה לאחור (v100bt, 12 חודשים, 10 מטבעות גדולים, נתוני Binance אמיתיים; שאר המטבעות לא נבדקו לאחור) האסטרטגיה נדחתה: בתקופת ההחזקה הצפויה 3.4- עסקאות ביום, 15% הצלחה, 1.39R- לעסקה אחרי עלויות. לפני עלויות: 0.06R+. העלויות (עמלות+החלקה) הן כ-1.4R לעסקה כי הסטופ קטן (כ-0.1% מהמחיר).</div>
     </div>
     <section className="accountStrip">
@@ -283,8 +283,8 @@ function ProHouse({ onBack }: { onBack?: () => void }) {
           <div className="lbar"><div className="lfill" style={{width:`${p2 ?? 0}%`}}/><div className="lentry" style={{left:`${ep}%`}}/></div>
           <div className="llabels"><span>{r.m.reached_1r ? 'סטופ נגרר' : 'סטופ'} <bdi dir="ltr">{fmtPx(st)}</bdi></span><span>כניסה <bdi dir="ltr">{fmtPx(en)}</bdi></span><span>יעד <bdi dir="ltr">{fmtPx(tg)}</bdi></span></div>
           <div className="lgrid">
-            <Mini k="שווי" v={fmt$(en * Number(r.t.size))} /><Mini k="סיכון" v={fmt$(Number(r.t.risk_usd))} /><Mini k="הגיע ל-1R" v={r.m.reached_1r ? 'כן' : 'עוד לא'} />
-            <Mini k="מוחזק" v={`${mins.toFixed(1)} דק׳`} /><Mini k="יציאת זמן" v={r.m.reached_1r ? 'בוטל (1R)' : `בעוד ${Math.max(0, 15 - mins).toFixed(1)} דק׳`} /><Mini k="נפח" v={`${Number(r.m.vol_ratio ?? 0).toFixed(1)}x`} />
+            <Mini k="שווי" v={fmt$(en * Number(r.t.size))} /><Mini k="סיכון" v={fmt$(Number(r.t.risk_usd))} /><Mini k="הגיע לאיזון" v={r.m.reached_1r ? 'כן' : 'עוד לא'} />
+            <Mini k="מוחזק" v={`${mins.toFixed(1)} דק׳`} /><Mini k="יציאת זמן" v={r.m.reached_1r ? 'בוטל' : `בעוד ${Math.max(0, 15 - mins).toFixed(1)} דק׳`} /><Mini k="נפח" v={`${Number(r.m.vol_ratio ?? 0).toFixed(1)}x`} />
           </div>
           <button className="lchart" onClick={()=>window.open(`trade.html?id=${encodeURIComponent(String(r.t.id))}`,'_blank','noopener,noreferrer')}>גרף חי ←</button>
         </div>
