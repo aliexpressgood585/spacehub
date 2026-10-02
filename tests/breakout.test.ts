@@ -29,3 +29,19 @@ const idx=readFileSync('supabase/functions/trading-bot/index.ts','utf8')
 assert.ok(idx.includes("if (BRKV_ENABLED) {")&&idx.includes("runBrkv(supabase, scalpState, runLeaseUntil, paperMode && !liveMode)"),'index gates BRKV on the shim and passes paper')
 assert.ok(runner.includes("if(cfg.side==='short'&&f.dir>0)continue")&&runner.includes("__BRKV_SIDE??'short'"),'default BRKV is short-only')
 console.log('breakout (BRKV) tests passed')
+
+// v99.7: BRKV joins the LIST/FUND/FAST/EVT paper book (owner 2026-10-02), short-only at 20%
+{
+  const idx7=readFileSync('supabase/functions/trading-bot/index.ts','utf8')
+  const li=idx7.indexOf("if (ENABLED_SLEEVES.includes('LIST') || ENABLED_SLEEVES.includes('FUND'))"),ci=idx7.indexOf("if (ENABLED_SLEEVES.includes('CHAN'))")
+  const branch=idx7.slice(li,ci)
+  assert.ok(branch.includes('if (BRKV_ENABLED) {')&&branch.includes('runBrkv(supabase, fresh ?? st2, runLeaseUntil, paperMode && !liveMode)'),'LIST/FUND branch runs BRKV, paper only')
+  assert.ok(branch.includes('brkv?.error'),'a BRKV failure marks the cycle bad')
+  for(const f of ['list-runner.ts','fund-runner.ts','evt-runner.ts'])
+    assert.ok(/\['LIST', ?'FUND', ?'FAST', ?'EVT', ?'BRKV'\]\.includes\(t\.strategy\)/.test(readFileSync(`supabase/functions/trading-bot/${f}`,'utf8')),`${f} accepts BRKV rows in the shared book`)
+  for(const wf of ['deploy-edge-function.yml','enforce-no-loss-trading.yml']){
+    const w=readFileSync(`.github/workflows/${wf}`,'utf8')
+    assert.ok(w.includes("g.__ENABLED_SLEEVES = 'LIST,FUND,FAST,EVT,BRKV';")&&w.includes("g.__BRKV_SHARE = '0.2'; g.__BRKV_SIDE = 'short';"),`${wf} shim enables BRKV short-only at 20%`)
+  }
+}
+console.log('breakout v99.7: BRKV wired into the LIST/FUND book')

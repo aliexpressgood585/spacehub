@@ -23,8 +23,8 @@ export async function runEvt(db: any, state: any, lease: string, paper: boolean)
   if (!paper) throw new Error('EVT is paper-only; refusing live execution')
   const cfg = evtConfig(), now = Date.now(), params = state.bot_params || {}
   const { data: open } = await db.from('bot_trades').select('*').eq('status', 'OPEN').throwOnError()
-  if (open.some((t: any) => t.paper_mode !== true || Number(t.lev) !== 1 || !['LIST', 'FUND', 'FAST', 'EVT'].includes(t.strategy)))
-    throw new Error('EVT requires a paper-only 1x book of LIST/FUND/FAST/EVT rows')
+  if (open.some((t: any) => t.paper_mode !== true || Number(t.lev) !== 1 || !['LIST', 'FUND', 'FAST', 'EVT', 'BRKV'].includes(t.strategy)))
+    throw new Error('EVT requires a paper-only 1x book of LIST/FUND/FAST/EVT/BRKV rows')
   const mine = open.filter((t: any) => t.strategy === 'EVT')
   // v99.6: sleeves_off.EVT (the supervisor's brake) stops polling for entries; open rows still exit on time
   const pollDue = now - (Number(params.evt_poll) || 0) >= cfg.pollMs && !state.hard_halt_at && !sleeveOff(params, 'EVT')

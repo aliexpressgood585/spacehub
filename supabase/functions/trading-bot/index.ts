@@ -551,7 +551,7 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v99.6'
+const BOT_VERSION = 'v99.7'
 // v87.0: the pre-SCALP engine (DONCH4H / standalone ROTA) opens trades without the profit gate; it stays in the file
 // for its exit/record code history but may never open a trade. Changing this needs the gate wired in first.
 const LEGACY_ENGINE_ALLOWED = false
@@ -2714,6 +2714,14 @@ Deno.serve(async (req) => {
         try { fund = await runFund(supabase, st2, runLeaseUntil, paperMode && !liveMode) }
         catch (e: any) { fund = { error: String(e?.message ?? e) }; await logErr('fund_runner', String(e?.message ?? e)) }
       }
+      // v99.7 (owner 2026-10-02: "add another, more aggressive strategy" -> BRKV short-only, 20%): the v93.0 BRKV runner
+      // (4h close below the 20-bar low on >= 3x volume, -4% / +7%, 14 days) in the same paper book, after FUND.
+      // NOT VALIDATED: v109bt +0.32%/trade on unseen coins, t 1.33, maxDD 49%. Owner override of the Council.
+      let brkv: any = null
+      if (BRKV_ENABLED) {
+        try { const { data: fresh } = await supabase.from('bot_state').select('*').eq('id', 1).single(); brkv = await runBrkv(supabase, fresh ?? st2, runLeaseUntil, paperMode && !liveMode) }
+        catch (e: any) { brkv = { error: String(e?.message ?? e) }; await logErr('brkv_runner', String(e?.message ?? e)) }
+      }
       // v99.4 (owner: "more trades, 30-60 minute holds", small size): FAST bar mode (5m burst, <= 60 min hold) at 1x,
       // 5% of equity per trade, <= 5 open, in the same paper book. NOT VALIDATED: tested at about -0.2%/trade after costs.
       let fast: any = null
@@ -2721,8 +2729,8 @@ Deno.serve(async (req) => {
         try { const { data: fresh } = await supabase.from('bot_state').select('*').eq('id', 1).single(); fast = await runFast(supabase, fresh ?? st2, runLeaseUntil, paperMode && !liveMode) }
         catch (e: any) { fast = { error: String(e?.message ?? e) }; await logErr('fast_runner', String(e?.message ?? e)) }
       }
-      const bad = !!(list?.error || fund?.error || fast?.error || evt?.error)
-      return new Response(JSON.stringify({ ok: !bad, version: BOT_VERSION, evt, list, fund, fast }), { status: bad ? 500 : 200, headers: { 'Content-Type': 'application/json' } })
+      const bad = !!(list?.error || fund?.error || fast?.error || evt?.error || brkv?.error)
+      return new Response(JSON.stringify({ ok: !bad, version: BOT_VERSION, evt, list, fund, brkv, fast }), { status: bad ? 500 : 200, headers: { 'Content-Type': 'application/json' } })
     }
 
     if (ENABLED_SLEEVES.includes('CHAN')) {

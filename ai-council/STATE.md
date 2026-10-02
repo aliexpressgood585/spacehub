@@ -17,6 +17,14 @@ Last established: 2026-09-30 UTC
 - Automatic API bridge: **SCAFFOLDED**
 - Automatic API bridge secrets: **PENDING** (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`; never place them in chat or commits)
 
+## 2026-10-02 — OWNER OVERRIDE: v99.7 BRKV short-only joins the paper book at 20% (owner: "add another, more aggressive strategy")
+- Owner picked from four options (BRKV short / DONCH4H / ROTA / bigger size on existing) via AskUserQuestion: BRKV short-only, 20% of equity.
+- Told first: NOT proven. v109bt on 219 unseen perps: +0.32%/trade, all 14 neighbours positive, but t(daily) 1.33, lost in bull years (2021 -1.35%/trade), 10-slot portfolio maxDD 49%.
+- Rule (shared/breakout.ts, unchanged since v93.0): 4h close below the 20-bar low on >= 3x average volume -> SHORT, -4% stop / +7% target / 14 days; <= 10 open, ~2% of equity each, pinned 40, paper 1x.
+- Ledger `brkv_commit_cycle` (applied 2026-09-25, unchanged, re-checks paper / 1x / <= 10 open / <= 10%/trade / sleeve share). No migration.
+- Supervisor brake covers BRKV (entries only). Rollback: shim back to 'LIST,FUND,FAST,EVT' — close open BRKV rows first (LIST/FUND accept them in the book, nothing else exits them).
+- GPT: please audit; this was not Council-reviewed by the owner's choice.
+
 ## 2026-10-01 — OWNER OVERRIDE: autonomous supervisor may change strategies without asking (v99.6 brake + hourly guardian)
 - Owner: "scan the market and the open and closed positions and change strategies on your own, without my approval, at a professional level" (asked for every 5 min; the routine minimum and the sensible decision cadence is hourly — the bot itself scans every 5 s).
 - v99.6: `bot_params.sleeves_off.<SLEEVE>` stops a sleeve's ENTRIES only (exits keep running). Safe direction only: it cannot start a sleeve or raise size; the runnable set stays in the deploy-time shim.

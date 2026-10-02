@@ -8,6 +8,7 @@ import * as S from '../../../shared/strategy.ts'
 import {SCALP,type Quote} from '../../../shared/scalp.ts'
 import {BRKV,brkvSignal,brkvExit,lastClose4h,type Bar4} from '../../../shared/breakout.ts'
 import {json,pool,quote,BINANCE_SYM} from './rota-runner.ts'
+import {sleeveOff} from '../../../shared/sleeves.ts'
 const g=()=>globalThis as any
 // v93.0 (owner: "yes" to a small short-only experiment): v108bt found long breakouts LOSE over 72 months (-0.22%/trade)
 // and shorts positive in 6 of 7 years (+0.51%, t 1.53, chosen after seeing the data). Default: SHORT only, 20% of equity
@@ -36,7 +37,7 @@ export async function runBrkv(db:any,state:any,lease:string,paper:boolean){
   if(open.some((t:any)=>t.paper_mode!==true||Number(t.lev)!==1))throw new Error('BRKV requires a paper-only 1x book')
   const mine=open.filter((t:any)=>t.strategy==='BRKV')
   const bar=lastClose4h(now),doneBar=Number(params.brkv_bar)||0
-  const entryDue=bar>doneBar&&now-bar<=BRKV.entryWindowMs&&!state.hard_halt_at
+  const entryDue=bar>doneBar&&now-bar<=BRKV.entryWindowMs&&!state.hard_halt_at&&!sleeveOff(params,'BRKV')   // v99.7: supervisor's brake = entries only
   if(!mine.length&&!entryDue)return {changed:false,open:0,next_bar:new Date(bar+BRKV.barMs).toISOString()}
   // exits
   const q=new Map<string,Quote>()

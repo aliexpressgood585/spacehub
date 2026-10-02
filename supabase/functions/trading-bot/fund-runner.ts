@@ -12,7 +12,7 @@ export async function runFund(db:any,state:any,lease:string,paper:boolean){
   if(!paper)throw new Error('FUND is paper-only; refusing live execution')
   const now=Date.now(),params=state.bot_params||{}
   const {data:open}=await db.from('bot_trades').select('*').eq('status','OPEN').throwOnError()
-  if(open.some((t:any)=>t.paper_mode!==true||Number(t.lev)!==1||!['LIST','FUND','FAST','EVT'].includes(t.strategy)))throw new Error('FUND requires a paper-only 1x book of LIST/FUND/FAST/EVT rows')
+  if(open.some((t:any)=>t.paper_mode!==true||Number(t.lev)!==1||!['LIST','FUND','FAST','EVT','BRKV'].includes(t.strategy)))throw new Error('FUND requires a paper-only 1x book of LIST/FUND/FAST/EVT/BRKV rows')
   const mine=open.filter((t:any)=>t.strategy==='FUND')
   const hour=Math.floor(now/3_600_000),minute=new Date(now).getUTCMinutes()
   // v99.6: sleeves_off.FUND (the supervisor's brake) stops entries; exits below still run

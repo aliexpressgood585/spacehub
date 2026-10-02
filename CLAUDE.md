@@ -375,6 +375,13 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v99.7 BRKV (2026-10-02 ~00:55 UTC) — BRKV short-only added to the LIST/FUND/FAST/EVT paper book at 20% (owner: "add another, more aggressive strategy")
+- Owner chose it from 4 options (AskUserQuestion), told first that it is NOT proven: v109bt unseen-coin holdout +0.32%/trade, t(daily) 1.33, maxDD 49%, loses in bull years.
+- Code: index.ts LIST/FUND branch runs `runBrkv` after FUND, before FAST (fresh state, paper only, an error marks the cycle 500); list/fund/evt runners accept BRKV rows; `sleeveOff(params,'BRKV')` gates BRKV entries (exits keep running); SLEEVES += BRKV. Rule and ledger unchanged since v93.0 (`brkv_commit_cycle`, no migration).
+- Shim (both CI workflows): `__ENABLED_SLEEVES='LIST,FUND,FAST,EVT,BRKV'`, `__BRKV_SHARE='0.2'`, `__BRKV_SIDE='short'`. Entries only in the first 30 min after each 4h close (00/04/08/12/16/20 UTC).
+- Tests: breakout + sleeves + evt + listing updated; ALL TESTS PASSED. House has no BRKV card yet (rows still show in the trade list).
+- ROLLBACK: shim back to 'LIST,FUND,FAST,EVT' — close open BRKV rows first.
+
 ## v110bt (2026-09-30 ~20:45 UTC) — "find the short-term formula" (owner): 0 of 164 PASS
 `backtest/research/v110_short_formula.py` -> status/short-formula-v110.txt. Rules fixed before reading results: 16 bps round trip,
 IS first 70% / OOS last 30%, t on daily sums, PASS = IS net>0 & OOS net>0 & OOS t>=2. Luck alone ~3.8 false passes; got 0.
