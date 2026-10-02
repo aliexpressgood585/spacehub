@@ -7,6 +7,7 @@ import { FAST, FAST_RT, FAST_TRAIL, WYCKOFF, wyckoffSignal, PSYCH, psychState, p
 import { labInd, slipFor, type LBar } from '../../../shared/lab.ts'
 import { FAST_ENTRY, confirmFastEntry } from '../../../shared/fast-entry.ts'
 import { json, pool } from './rota-runner.ts'
+import { RETEST, retestSignal, retestLevels, retestExecution, type RetestSig } from '../../../shared/intraday-retest.ts'
 import { sleeveOff } from '../../../shared/sleeves.ts'
 export type Pair = { sym: string; s: string; k: number }
 const g = () => globalThis as any
@@ -16,7 +17,7 @@ export function fastConfig() { const x = Number(g().__FAST_SHARE), l = Number(g(
     maxOpen: Number.isFinite(mo) && mo >= 1 ? Math.min(FAST.maxOpen, Math.floor(mo)) : FAST.maxOpen,
     perTrade: Number.isFinite(pt) && pt > 0 ? Math.min(0.34, pt) : null as number | null } }
 // 'rt' = real-time burst (v95.4), 'bar' = 5m-close burst (v95.0), 'wyckoff' = 5m-close spring / upthrust (v96.1)
-const modeOf = (m: string): 'rt' | 'bar' | 'wyckoff' => (m === 'bar' || m === 'wyckoff' ? m : 'rt')
+const modeOf = (m: string): 'rt' | 'bar' | 'wyckoff' | 'retest' => (m === 'bar' || m === 'wyckoff' || m === 'retest' ? m : 'rt')
 async function universe(db: any): Promise<Pair[]> {
   try {
     const { data } = await db.from('market_cache').select('data').eq('key', 'universe').throwOnError()
@@ -56,6 +57,8 @@ export async function book(p: Pair): Promise<{ bids: [number, number][]; asks: [
 export async function runFast(db: any, state: any, lease: string, paper: boolean) {
   if (!paper) throw new Error('FAST is paper-only; refusing live execution')
   const cfg = fastConfig(), now = Date.now(), params = state.bot_params || {}
+  const retest = cfg.mode === 'retest'
+  if (retest) { cfg.lev = Math.min(cfg.lev, RETEST.maxLeverage); cfg.maxOpen = Math.min(cfg.maxOpen, RETEST.maxOpen) }
   const { data: open } = await db.from('bot_trades').select('*').eq('status', 'OPEN').throwOnError()
   if (open.some((t: any) => t.paper_mode !== true || (t.strategy !== 'FAST' && Number(t.lev) !== 1))) throw new Error('FAST requires a paper-only book (only FAST rows may be leveraged)')
   const mine = open.filter((t: any) => t.strategy === 'FAST')
@@ -121,7 +124,7 @@ export async function runFast(db: any, state: any, lease: string, paper: boolean
     if (rt) { const since = new Date(now - FAST_RT.cooldownMs).toISOString()   // v95.7: from the last open OR close of the coin
       const { data: rr } = await db.from('bot_trades').select('sym').eq('strategy', 'FAST').or(`opened_at.gte.${since},closed_at.gte.${since}`); for (const x of rr ?? []) recent.add(String(x.sym)) }
     const sigs: { sym: string; sig: NonNullable<ReturnType<typeof fastSignal>> }[] = []
-    for (const [sym, b] of data) { if (recent.has(sym)) continue; const sg = rt ? fastSignalRT(b, btcUp, sym === 'BTC') : wy ? wyckoffSignal(b) : fastSignal(b, btcUp, sym === 'BTC'); if (sg) sigs.push({ sym, sig: sg }) }
+    for (const [sym, b] of data) { if (recent.has(sym)) continue; const sg = rt ? fastSignalRT(b, btcUp, sym === 'BTC') : wy ? wyckoffSignal(b) : retest ? retestSignal(b, btcUp, sym === 'BTC') : fastSignal(b, btcUp, sym === 'BTC'); if (sg) sigs.push({ sym, sig: sg }) }
     sigs.sort((a, b) => b.sig.strength - a.sig.strength)
     const dayStart = new Date(now); dayStart.setUTCHours(0, 0, 0, 0)
     const { count: today } = await db.from('bot_trades').select('id', { count: 'exact', head: true }).eq('strategy', 'FAST').gte('opened_at', dayStart.toISOString())
@@ -132,10 +135,13 @@ export async function runFast(db: any, state: any, lease: string, paper: boolean
     let cash = Number(state.balance)
     const equity = cash + open.reduce((s: number, t: any) => s + Number(t.entry_price) * Number(t.size) / Math.max(1, Number(t.lev) || 1), 0)   // margin, not notional
     const held = new Set(open.filter((t: any) => !closes.some((c) => c.id === t.id)).map((t: any) => String(t.sym)))
+    const sideCounts: Record<string, number> = { LONG: 0, SHORT: 0 }
+    for (const t of open) if (!closes.some(c => c.id === t.id)) sideCounts[t.side] = (sideCounts[t.side] || 0) + 1
     for (const candidate of sigs) {
       const sym = candidate.sym
       let sig = candidate.sig
       const side = sig.dir > 0 ? 'LONG' : 'SHORT', rec = (decision: string, reason: string, extra: any = {}) => decisions.push({ sym, side, decision, reason, z: sig.z, volRatio: sig.volRatio, imb: sig.imb, ...extra })
+      if (retest && sideCounts[side] >= RETEST.maxSameSide) { rec('rejected', 'retest_direction_cap'); continue }
       if (held.has(sym)) { rec('rejected', 'coin_held'); continue }
       if (openN >= cfg.maxOpen) { rec('rejected', 'fast_full'); continue }
       if (dayN >= FAST.maxPerDay) { rec('rejected', 'daily_cap_20'); continue }
@@ -160,17 +166,36 @@ export async function runFast(db: any, state: any, lease: string, paper: boolean
       // v95.7: never a ticket the book cannot carry — impact on entry AND exit side <= FAST_LIQ.impactOfR of the stop distance
       const rFrac = Math.max(sig.atr, touch * FAST.stopMinPct) / touch
       const cap = liqCap(sig.dir > 0 ? bk.asks : bk.bids, sig.dir > 0 ? bk.bids : bk.asks, FAST_LIQ.impactOfR * rFrac)
-      const notional = Math.min(want, cap), margin = notional / cfg.lev
+      let notional = Math.min(want, cap)
+      if (retest) {
+        const rs = sig as RetestSig
+        const conservativeR = Math.max(sig.dir * (touch - rs.stopPx), touch * 0.003) / touch + 0.002
+        notional = Math.min(notional, equity * RETEST.riskFraction / conservativeR)
+      }
+      let margin = notional / cfg.lev
       if (margin < 5) { rec('rejected', 'book_too_thin', { want, cap }); continue }
       // v95.6: a market order of this size walks the real book; never better than the old fixed-slippage fill
       const w = walkBook(sig.dir > 0 ? bk.asks : bk.bids, notional)
       const floorPx = touch * (1 + sig.dir * slipFor(sym)), px = sig.dir > 0 ? Math.max(w.vwap, floorPx) : Math.min(w.vwap, floorPx)
-      const lv = wy ? fastLevels(sig.dir, px, Math.max(sig.dir * (px - (sig as any).stopPx), 0)) : fastLevels(sig.dir, px, sig.atr),   // wyckoff: stop at the spring extreme + buffer (floor 0.3%)
+      const lv = retest ? retestLevels(sig as RetestSig, px) : wy ? fastLevels(sig.dir, px, Math.max(sig.dir * (px - (sig as any).stopPx), 0)) : fastLevels(sig.dir, px, sig.atr),   // wyckoff: stop at the spring extreme + buffer (floor 0.3%)
         spreadBps = (bk.asks[0][0] - bk.bids[0][0]) / ((bk.asks[0][0] + bk.bids[0][0]) / 2) * 1e4
+      if (retest) {
+        const exitBook = walkBook(sig.dir > 0 ? bk.bids : bk.asks, notional)
+        const check = retestExecution(sig as RetestSig, px, bk.bids[0][0], bk.asks[0][0], bk.E, Date.now(),
+          slipFor(sym), Math.abs(px / touch - 1), exitBook.impact)
+        if (!check.ok || w.beyond || exitBook.beyond) { rec('rejected', check.ok ? 'retest_book_depth' : check.reason); continue }
+        notional = Math.min(notional, equity * RETEST.riskFraction / (lv.r / px + check.costFraction!))
+        margin = notional / cfg.lev
+        if (margin < 5) { rec('rejected', 'retest_risk_budget'); continue }
+        entryCheck = { version: RETEST.version, snapshot_started_at: bk.E, cost_fraction: check.costFraction, signal_time: (sig as RetestSig).signalTime }
+      }
       // v95.6: the RAW values the engine decided on, plus the engine's own verdict per condition (no re-derivation on screen)
       const thr = rt ? FAST_RT : FAST
       const ws = sig as any
-      const checks = wy ? [
+      const checks = retest ? [
+        { k: 'retest', v: (sig as RetestSig).level, thr: null, op: 'closed_reclaim', ok: true },
+        { k: 'cost_fraction', v: entryCheck.cost_fraction, thr: RETEST.maxCostR * lv.r / px, op: '<=', ok: true },
+      ] : wy ? [
         { k: 'range', v: ws.height, thr: WYCKOFF.maxHeightAtr, op: '<=', ok: ws.height <= WYCKOFF.maxHeightAtr },
         { k: 'spring', v: sig.z, thr: 0, op: '>', ok: sig.z > 0 },
         { k: 'reclaim', v: sig.dir > 0 ? ws.lo : ws.hi, thr: null, op: 'close_inside', ok: true },
@@ -182,11 +207,11 @@ export async function runFast(db: any, state: any, lease: string, paper: boolean
         { k: 'btc', v: entryBtcUp === null ? null : entryBtcUp ? 1 : 0, thr: null, op: 'side', ok: sym === 'BTC' || (entryBtcUp !== null && entryBtcUp === (sig.dir > 0)) },
       ]
       entries.push({ sym, side, price: px, notional, lev: cfg.lev, quote_ts: bk.E, source: 'binance-futures',
-        fast: { stop: lv.stop, target: lv.target, r: lv.r, best: px, chk: bk.E, trail: FAST_TRAIL.on, stop_pct: lv.r / px, lev: cfg.lev, margin, liq: fastLiq(sig.dir, px, cfg.lev), mode: cfg.mode, hold_min: rt ? FAST_RT.holdMin : wy ? WYCKOFF.holdMin : FAST.holdBars * 5, wyckoff: wy ? { lo: ws.lo, hi: ws.hi, height: ws.height, ext: ws.ext, stop_px: ws.stopPx, trapped: ws.trapped } : undefined, psych: { streak: psy.streak, day_losses: psy.dayLosses, size_mult: psy.sizeMult },
+        fast: { stop: lv.stop, target: lv.target, r: lv.r, best: px, chk: bk.E, trail: FAST_TRAIL.on, stop_pct: lv.r / px, lev: cfg.lev, margin, liq: fastLiq(sig.dir, px, cfg.lev), mode: cfg.mode, hold_min: retest ? RETEST.holdMin : rt ? FAST_RT.holdMin : wy ? WYCKOFF.holdMin : FAST.holdBars * 5, wyckoff: wy ? { lo: ws.lo, hi: ws.hi, height: ws.height, ext: ws.ext, stop_px: ws.stopPx, trapped: ws.trapped } : undefined, psych: { streak: psy.streak, day_losses: psy.dayLosses, size_mult: psy.sizeMult },
           z: sig.z, vol_ratio: sig.volRatio, imb: sig.imb, checks, btc_up: entryBtcUp, entry_check: entryCheck, spread_bps: +spreadBps.toFixed(2), bar: new Date(bar).toISOString(),
           entry_fill: { model: 'book_walk', want: Math.round(want), liq_cap: Math.round(cap), capped: cap < want, max_impact_bps: +(FAST_LIQ.impactOfR * rFrac * 1e4).toFixed(2), touch, vwap: w.vwap, impact_bps: +(Math.abs(px / touch - 1) * 1e4).toFixed(2), depth_usd: Math.round(w.depthUsd), beyond_book: w.beyond } } })
       rec('accepted', 'taken', { notional, entry_check: entryCheck })
-      held.add(sym); openN++; dayN++; cash -= margin + notional * 0.0005
+      held.add(sym); sideCounts[side]++; openN++; dayN++; cash -= margin + notional * 0.0005
     }
   }
   // A later candidate's slow network request must not turn earlier fresh quotes
@@ -203,7 +228,7 @@ export async function runFast(db: any, state: any, lease: string, paper: boolean
   const { data: result } = await db.rpc('fast_commit_cycle', { p_lease: lease, p_closes: closes, p_entries: entries, p_marks: marks, p_share: cfg.share, p_note: note, p_bar: due ? new Date(bar).toISOString() : null }).throwOnError()
   if (decisions.length) {
     try { await db.from('trade_decisions').insert(decisions.slice(0, 100).map((d, k) => ({ sym: d.sym, side: d.side, decision: d.decision, reason: d.reason, rank: k + 1, notional: d.notional ?? null, score: +(Math.abs(d.z) * d.volRatio).toFixed(3),
-      observed: { z3: d.z, vol_ratio: d.volRatio, taker_imbalance_3: d.imb, entry_check: d.entry_check ?? null }, inferred: { sleeve: 'FAST', mode: cfg.mode, note: cfg.mode === 'wyckoff' ? 'owner Wyckoff spring/upthrust rule, tested negative OOS, not validated' : 'owner all-in intraday rule, not validated' } }))) } catch { /* journal only */ }
+      observed: { z3: d.z, vol_ratio: d.volRatio, taker_imbalance_3: d.imb, entry_check: d.entry_check ?? null }, inferred: { sleeve: 'FAST', mode: cfg.mode, note: retest ? 'retest-v1 paper hypothesis; unvalidated; no historical profitability claim' : cfg.mode === 'wyckoff' ? 'owner Wyckoff spring/upthrust rule, tested negative OOS, not validated' : 'owner all-in intraday rule, not validated' } }))) } catch { /* journal only */ }
   }
   return { changed: true, ...result, ...note }
 }

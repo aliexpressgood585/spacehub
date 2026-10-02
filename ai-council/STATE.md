@@ -2,6 +2,18 @@
 
 Last established: 2026-09-30 UTC
 
+## P008 — intraday retest-v1 (2026-10-02, GPT)
+- Status: PAPER_TEST — OWNER AUTHORIZED, deployment pending verification. GPT review: APPROVED for this bounded PAPER experiment only. Claude review: WAIVED by explicit owner override for P008 (2026-10-02 02:35 UTC); not independently reviewed.
+- Owner explicitly answered YES to waiving Claude review for this change and merging/deploying PR #85 as a PAPER experiment. This override applies only to P008.
+- Fresh telemetry 02:27 UTC: PAPER true; FAST bar scan 95/95 symbols, no runtime errors last hour; FAST 11 closes, net -$9.03 (8 losses / 3 wins). FUND 7 closes, net -$16.01. LIST one open. Too little evidence for any profitability claim.
+- Hypothesis: avoid chasing a completed burst by requiring a 20-bar breakout followed by a completed 5m retest/reclaim, observed taker flow and BTC direction agreement. This has NOT been historically validated.
+- Exact proposal: replace FAST bar entry mode with retest-v1; exit stop / 2R target / 15-minute timeout; <=8 FAST positions, <=4 same-side positions across the book; 6.25% nominal equity per entry, <=50% FAST sleeve share, 1x PAPER (other active sleeves require an all-1x book). Estimated stop+cost budget <=0.5% of margin-based book equity per entry; actual losses can exceed estimates on gaps.
+- Costs: 5bps fee each way, spread, both-side book impact with existing slippage floors, 2bps inferred funding reserve; reject cost/stop >25%, spread >8bps, stale quotes or drift >0.25R. This is a cost-feasibility filter, NOT measured expectancy. Existing ledger still uses inferred funding for FAST.
+- Existing positions retain stored exits and timeout. No reset, forced closure, schema change or real execution.
+- Both deployment shims are prepared. P008-specific owner override recorded above authorizes merge/deployment. GitHub CI, tests and local acceptance checks passed; 3 pre-existing TS2345 diagnostics remain explicitly allowed by the repository test gate.
+- Evaluation: freeze thresholds; initial bounded PAPER sample 100 closes, report net P&L, PF, max drawdown, per-day/per-symbol concentration and execution rejects. No profitability claim from synthetic tests. Stop new RETEST entries if this sample is negative, or earlier on runtime/ledger faults; do not stop managing exits.
+- Rollback: restore FAST mode bar, share .25, per_trade .05, max_open 5 in BOTH shims; RETEST open rows retain stored exits. Do not reset account.
+
 ## Current project
 - Repo: `aliexpressgood585/spacehub`
 - Trading mode: **PAPER ONLY**
