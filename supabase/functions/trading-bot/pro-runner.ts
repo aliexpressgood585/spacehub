@@ -4,7 +4,7 @@
 // breakeven/trailing ratchet, the time stop and the 120-minute cap. Once per CLOSED 1m bar: every liquid USDT-M perp is
 // pre-screened on its last 60 closed 1m bars (breakout + volume, exact); the pairs that pass get the full read — 1,500
 // closed 1m, 400 closed 5m, 1,000 closed 15m bars — and the same features() / proCheck() the backtest ran; entries sized
-// at 0.5% of equity at the stop. Books through `pro_commit_cycle`. The backtest covered 10 coins; the rest are untested.
+// at PRO_LIVE.riskPct of equity at the stop (v100.6: 5%). Books through `pro_commit_cycle`. The backtest covered 10 coins; the rest are untested.
 // NOT VALIDATED: v100bt rejected the rule out-of-sample after costs (status/pro-scalp-v100.txt).
 import { PRO, PRO_LIVE, PRO_V100, PRO_LIVE_LIMITS, TF_INTERVAL, tfOf, features, proCheck, openPos, ratchet, proSize, proSlip, type Bar } from '../../../shared/pro.ts'
 import { json, pool, quote } from './rota-runner.ts'
@@ -139,10 +139,10 @@ export async function runPro(db: any, state: any, lease: string, paper: boolean)
       if (openN >= PRO.maxOpen) { rec('rejected', 'max_open_3'); continue }
       let q; try { q = await quote(sg.sym) } catch { rec('rejected', 'no_quote'); continue }
       const entry = sg.dir > 0 ? q.ask * (1 + proSlip(sg.sym)) : q.bid * (1 - proSlip(sg.sym)), s = openPos(sg.dir, entry, sg.atr1, P)
-      const notional = proSize(equity, cash, entry, s.r)
+      const notional = proSize(equity, cash, entry, s.r, P.riskPct ?? PRO.riskPct)
       if (notional < 10) { rec('rejected', 'no_cash'); continue }
       entries.push({ sym: sg.sym, side, price: entry, notional, lev: PRO.lev, quote_ts: q.ts, source: q.source,
-        pro: { stop: s.stop, target: s.target, r: s.r, best: entry, reached_1r: false, atr1: sg.atr1, stop_pct: s.r / entry, risk_pct: PRO.riskPct,
+        pro: { stop: s.stop, target: s.target, r: s.r, best: entry, reached_1r: false, atr1: sg.atr1, stop_pct: s.r / entry, risk_pct: P.riskPct ?? PRO.riskPct,
           symbol: sg.symbol, k: sg.k, params: P, bar: new Date(bar).toISOString(), vol_ratio: sg.volRatio, adx5: sg.adx5, rv5: sg.rv5, checks: sg.checks } })
       rec('accepted', 'taken', { notional })
       held.add(sg.sym); openN++; cash -= notional / PRO.lev + notional * PRO.fee

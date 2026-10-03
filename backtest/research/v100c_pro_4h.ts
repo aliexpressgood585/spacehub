@@ -8,7 +8,7 @@
 import fs from 'node:fs'
 import { PRO, TF, aggregate, features, proCheck, openPos, stepBar, proSize, proSlip, type Bar, type Params } from '../../shared/pro.ts'
 import { CRYPTO_40 } from '../../shared/strategy.ts'
-const DATA = new URL('../data/', import.meta.url).pathname, tf = TF['4h']
+const DATA = new URL('../data/', import.meta.url).pathname, tf = TF['4h'], RISK = Number(process.env.RISK ?? PRO.riskPct)   // RISK=0.05 for the v100.6 run
 const file = (c: string) => (c === 'PEPE' ? '1000PEPE' : c)
 const load = (s: string): Bar[] => fs.readFileSync(`${DATA}${file(s)}-1h.csv`, 'utf8').split('\n').filter((l) => l && l[0] >= '0' && l[0] <= '9').map((l) => { const f = l.split(','); return { t: +f[0], open: +f[1], high: +f[2], low: +f[3], close: +f[4], vol: +f[5] } })
 const loadF = (s: string) => { const p = `${DATA}${file(s)}-funding.csv`; return fs.existsSync(p) ? fs.readFileSync(p, 'utf8').split('\n').filter((l) => l && l[0] >= '0' && l[0] <= '9').map((l) => { const f = l.split(','); return { t: +f[0], r: +f[2] } }).sort((a, b) => a.t - b.t) : [] }
@@ -44,7 +44,7 @@ function book(ts: Tr[], a: number, b: number) {
   const settle = (u: number) => { open.sort((x, y) => x.t1 - y.t1); while (open.length && open[0].t1 <= u) { const o = open.shift()!; eq += o.usd; peak = Math.max(peak, eq); dd = Math.max(dd, 1 - eq / peak); const d = Math.floor(o.t1 / 864e5); days.set(d, (days.get(d) ?? 0) + o.usd) } }
   for (const t of ts) { if (t.t0 < a || t.t0 >= b) continue; settle(t.t0)
     if (open.length >= PRO.maxOpen || open.some((o) => o.coin === t.coin)) continue
-    const risk = eq * PRO.riskPct, notional = proSize(eq, eq, 1, t.rFrac), usd = t.net * notional
+    const risk = eq * RISK, notional = proSize(eq, eq, 1, t.rFrac, RISK), usd = t.net * notional
     open.push({ coin: t.coin, t1: t.t1, usd }); n++; if (usd > 0) w++; sR += usd / risk; sG += t.gross * notional / risk }
   settle(Infinity)
   const dv = [...days.values()], m = dv.reduce((s, x) => s + x, 0) / Math.max(1, dv.length), sd = Math.sqrt(dv.reduce((s, x) => s + (x - m) ** 2, 0) / Math.max(1, dv.length))
@@ -54,7 +54,7 @@ const hold = span0 + 0.8 * (span1 - span0), f = (x: number, d = 3) => x.toFixed(
 const pr = (l: string, d: ReturnType<typeof book>) => out.push(`${l.padEnd(34)} ${String(d.n).padStart(6)} ${(f(d.wr * 100, 1) + '%').padStart(6)} ${f(d.G).padStart(7)} ${f(d.R).padStart(7)} ${(f(d.ret * 100, 1) + '%').padStart(8)} ${(f(d.dd * 100, 1) + '%').padStart(6)} ${f(d.t, 2).padStart(6)}`)
 const H = `${'variant'.padEnd(34)} ${'n'.padStart(6)} ${'WR'.padStart(6)} ${'grossR'.padStart(7)} ${'netR'.padStart(7)} ${'return'.padStart(8)} ${'maxDD'.padStart(6)} ${'t'.padStart(6)}`
 out.push(`v100c — PRO rule on the 4h ladder (base 4h / mid 1d / high 1d EMA200 / weekly VWAP), CRYPTO_40, ${new Date(span0).toISOString().slice(0, 10)} .. ${new Date(span1).toISOString().slice(0, 10)}, holdout from ${new Date(hold).toISOString().slice(0, 10)}`)
-out.push(`signals (all N): ${sigN}; costs taker ${PRO.fee * 1e4} bps + slip 3/5 bps per side + real funding; 0.5% risk, <= 3 open, one per coin, no day stop; t on daily P&L`)
+out.push(`signals (all N): ${sigN}; costs taker ${PRO.fee * 1e4} bps + slip 3/5 bps per side + real funding; ${RISK * 100}% risk, <= 3 open, one per coin, no day stop; t on daily P&L`)
 out.push('')
 const rows = GRID.map((p) => ({ p, d: book(trades.get(key(p))!, span0, hold) })).filter((x) => x.d.n >= 200).sort((x, y) => y.d.R - x.d.R)
 out.push('DEVELOPMENT (first 80%), top 20 by net R per trade'); out.push(H)

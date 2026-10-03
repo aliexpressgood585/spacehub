@@ -47,11 +47,14 @@ export const PRO_V104: Params = { breakoutN: 15, stopAtr: 3, targetR: 3, timeSto
 // the first 80% by net R): N20 k3 T3 ts15 BE/trail 1.5R, development +0.071R/trade (gross +0.100, costs 0.03R, t 1.65,
 // 144/216 rows positive), HOLDOUT (read once) -0.035R/trade (gross -0.003, t -0.55, n 205). Costs are no longer the
 // problem at 4h; the edge is not proven either (positive 2021/2022/2024, negative 2025). Paper only.
-export const PRO_LIVE: Params = { breakoutN: 20, stopAtr: 3, targetR: 3, timeStopBars: 15, beR: 1.5, tf: '4h', maxHoldBars: 60 }
+// v100.6 (owner, same day: "if the expected profit is low, use high leverage" -> chose 5% risk per trade from the offered
+// 0.5 / 1 / 2 / 5%): leverage alone changes nothing (size is set by the risk at the stop), so the risk per trade is what
+// was raised. v100c at 5% risk: see status/pro-4h-v100c-risk5.txt. Ledger cap raised to 5.1% (migration 20261003090000).
+export const PRO_LIVE: Params = { breakoutN: 20, stopAtr: 3, targetR: 3, timeStopBars: 15, beR: 1.5, tf: '4h', maxHoldBars: 60, riskPct: 0.05 }
 export const PRO_V100: Params = { breakoutN: 15, stopAtr: 1.2, targetR: 3, timeStopBars: 15 }
 // minStopPct: the stop is never closer than this share of the entry price; beR: breakeven trigger AND trail distance in R;
 // tf: the timeframe ladder the rule runs on (absent = the original 1m / 5m / 15m); maxHoldBars: hard cap in base bars
-export interface Params { breakoutN: number; stopAtr: number; targetR: number; timeStopBars: number; minStopPct?: number; beR?: number; tf?: TfName; maxHoldBars?: number }
+export interface Params { breakoutN: number; stopAtr: number; targetR: number; timeStopBars: number; minStopPct?: number; beR?: number; tf?: TfName; maxHoldBars?: number; riskPct?: number }
 
 // ── timeframe ladder: the SAME nine conditions, scaled. base = the entry bar, mid = the EMA20/50 + ADX + realised-vol
 // regime bar, high = the EMA200 trend bar; VWAP anchored per day (1m) or per week (4h, Monday 00:00 UTC). The ±5 min
@@ -208,7 +211,7 @@ export function ratchet(s: Pos, px: number, p?: Params) {
   }
 }
 // position size: risk at the stop, capped by notional <= maxNotionalEq x equity and by the margin cash can post
-export function proSize(equity: number, cash: number, entry: number, r: number): number {
-  const byRisk = equity * PRO.riskPct / (r / entry), cap = equity * PRO.maxNotionalEq, byCash = Math.max(0, cash) * PRO.lev / (1 + PRO.lev * PRO.fee)
+export function proSize(equity: number, cash: number, entry: number, r: number, riskPct: number = PRO.riskPct): number {
+  const byRisk = equity * riskPct / (r / entry), cap = equity * PRO.maxNotionalEq, byCash = Math.max(0, cash) * PRO.lev / (1 + PRO.lev * PRO.fee)
   return Math.max(0, Math.min(byRisk, cap, byCash))
 }

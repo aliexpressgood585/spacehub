@@ -121,7 +121,8 @@ try {
   assert.ok(near(Math.abs(e.price - e.pro.stop), Math.max(PRO_LIVE.stopAtr * F.atr1[F.n - 1], (PRO_LIVE.minStopPct ?? 0) * e.price), 1e-6), 'stop = 3 x ATR(14) on 4h')
   assert.ok(e.pro.params.tf === '4h' && e.pro.params.beR === 1.5 && e.pro.bar === new Date(all[sig].t).toISOString(), 'v100.5 params travel with the row')
   assert.ok(near(Math.abs(e.pro.target - e.price), PRO_LIVE.targetR * Math.abs(e.price - e.pro.stop), 1e-6), 'target = 3R')
-  assert.ok(e.notional <= 5000 * PRO.maxNotionalEq + 1e-6 && Math.abs(e.notional * e.pro.stop_pct - 25) < 1e-6 || e.notional >= 5000 * PRO.maxNotionalEq - 1e-6, 'risk $25 at the stop unless capped at 5x')
+  assert.ok(e.notional <= 5000 * PRO.maxNotionalEq + 1e-6 && Math.abs(e.notional * e.pro.stop_pct - 250) < 1e-6 || e.notional >= 5000 * PRO.maxNotionalEq - 1e-6, 'v100.6: risk $250 (5%) at the stop unless capped at 5x')
+  assert.equal(e.pro.risk_pct, 0.05)
   assert.equal(commit.p_note.failed_n, FALLBACK.length - 1, 'no universe cache and no exchangeInfo -> the pinned 40; the 39 without data are reported as failed')
   assert.equal(commit.p_note.universe.src, 'fallback_40'); assert.equal(commit.p_note.full, 1, 'only the pre-screened pair is read in full')
   assert.equal(inserted[0].decision, 'accepted'); assert.ok(res.changed)
@@ -154,8 +155,9 @@ try {
 } finally { globalThis.fetch = realFetch; Date.now = realNow }
 
 // ── ledger and shim ──
-const sql = readFileSync(new URL('../supabase/migrations/20261002090000_pro_sleeve.sql', import.meta.url), 'utf8')
-assert.match(sql, /cnt>=3/, 'ledger: <= 3 open'); assert.match(sql, /eq\*5/, 'ledger: notional <= 5x equity'); assert.match(sql, /eq\*0\.006/, 'ledger: risk <= 0.6%')
+const sql = readFileSync(new URL('../supabase/migrations/20261003090000_pro_risk5.sql', import.meta.url), 'utf8')
+assert.match(sql, /cnt>=3/, 'ledger: <= 3 open'); assert.match(sql, /eq\*5/, 'ledger: notional <= 5x equity'); assert.match(sql, /eq\*0\.051/, 'ledger: risk <= 5.1%'); assert.ok(sql.split('eq*0.051').length === 3 && !sql.includes('eq*0.006'))
+assert.equal(PRO_LIVE.riskPct, 0.05, 'live risk 5% per trade (owner)'); assert.ok(near(proSize(5000, 5000, 100, 5, 0.05), 5000), '5% risk / 5% stop = 1x equity')
 assert.match(sql, /not s\.paper_mode/, 'ledger: paper only'); assert.match(sql, /strategy='PRO'/)
 for (const w of ['deploy-edge-function.yml', 'enforce-no-loss-trading.yml']) {
   const y = readFileSync(new URL(`../.github/workflows/${w}`, import.meta.url), 'utf8')
