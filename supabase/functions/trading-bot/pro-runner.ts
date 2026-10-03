@@ -1,3 +1,4 @@
+// v100.5: the base bar is PRO_LIVE.tf (now 4h: base 4h / mid 1d / high 1d); everything below scales with it.
 // v100.0 — PRO sleeve runner: the owner's 1m scalping specification (shared/pro.ts), alone in the paper book.
 // Every cycle (~5 s): exits for open PRO rows on the live touch (bid for a long, ask for a short) — stop, target, the
 // breakeven/trailing ratchet, the time stop and the 120-minute cap. Once per CLOSED 1m bar: every liquid USDT-M perp is
@@ -5,7 +6,7 @@
 // closed 1m, 400 closed 5m, 1,000 closed 15m bars — and the same features() / proCheck() the backtest ran; entries sized
 // at 0.5% of equity at the stop. Books through `pro_commit_cycle`. The backtest covered 10 coins; the rest are untested.
 // NOT VALIDATED: v100bt rejected the rule out-of-sample after costs (status/pro-scalp-v100.txt).
-import { PRO, PRO_LIVE, PRO_V100, PRO_LIVE_LIMITS, features, proCheck, openPos, ratchet, proSize, proSlip, type Bar } from '../../../shared/pro.ts'
+import { PRO, PRO_LIVE, PRO_V100, PRO_LIVE_LIMITS, TF_INTERVAL, tfOf, features, proCheck, openPos, ratchet, proSize, proSlip, type Bar } from '../../../shared/pro.ts'
 import { json, pool, quote } from './rota-runner.ts'
 import { sleeveOff } from '../../../shared/sleeves.ts'
 import { buildUniverse, FALLBACK, type Pair } from '../../../shared/universe.ts'
@@ -57,7 +58,7 @@ async function fundingPaid(symbol: string, dir: 1 | -1, notional: number, from: 
 
 export async function runPro(db: any, state: any, lease: string, paper: boolean) {
   if (!paper) throw new Error('PRO is paper-only; refusing live execution')
-  const now = Date.now(), params = state.bot_params || {}, P = PRO_LIVE
+  const now = Date.now(), params = state.bot_params || {}, P = PRO_LIVE, tf = tfOf(P), baseMs = tf.base * 60_000
   const { data: open } = await db.from('bot_trades').select('*').eq('status', 'OPEN').throwOnError()
   if (open.some((t: any) => t.paper_mode !== true || t.strategy !== 'PRO')) throw new Error('PRO requires a paper-only book of PRO rows')
   // ── exits on the live touch ──
@@ -68,14 +69,14 @@ export async function runPro(db: any, state: any, lease: string, paper: boolean)
       const dir = (t.side === 'LONG' ? 1 : -1) as 1 | -1, q = await quote(String(t.sym)), px = dir > 0 ? q.bid : q.ask, slip = proSlip(t.sym)
       marks[t.sym] = px
       const s = { dir, entry: Number(t.entry_price), r: Number(m.r), stop: Number(m.stop), target: Number(m.target), best: Number(m.best ?? t.entry_price), bars: 0, reached1R: !!m.reached_1r }
-      const held = (now - Date.parse(t.opened_at)) / 60_000, tp = (m.params ?? PRO_V100) as typeof P   // each row exits by the rules it opened with
+      const tp = (m.params ?? PRO_V100) as typeof P, held = (now - Date.parse(t.opened_at)) / 60_000 / tfOf(tp).base   // in its own base bars; each row exits by the rules it opened with
       let why: string | null = null
       if (dir * (px - s.stop) <= 0) why = s.reached1R ? 'TRAIL' : 'STOP'
       else if (dir * (px - s.target) >= 0) why = 'TARGET'
       else {
         ratchet(s, px, tp)
         if (!s.reached1R && held >= tp.timeStopBars) why = 'TIME'
-        else if (held >= PRO.maxHoldBars) why = 'MAXHOLD'
+        else if (held >= (tp.maxHoldBars ?? PRO.maxHoldBars)) why = 'MAXHOLD'
       }
       if (why) {
         const notional = Number(t.entry_price) * Number(t.size), f = await fundingPaid(String(m.symbol ?? `${t.sym}USDT`), dir, notional, Date.parse(t.opened_at), now)
@@ -86,7 +87,7 @@ export async function runPro(db: any, state: any, lease: string, paper: boolean)
   })
   // ── entries once per closed 1m bar (v100.1: any time inside the following minute; the data check below
   // still requires the newest closed 1m bar to be exactly that bar) ──
-  const bar = Math.floor(now / 60_000) * 60_000 - 60_000          // open time of the bar that just closed
+  const bar = Math.floor(now / baseMs) * baseMs - baseMs          // open time of the base bar that just closed (1m or 4h)
   const due = Number(params.pro_bar || 0) < bar && !state.hard_halt_at && !sleeveOff(params, 'PRO')
   if (!due && !closes.length && !updates.length) {
     if (Object.keys(marks).length && now - Date.parse(params.pro_marks?.ts ?? 0) > 15_000) {
@@ -110,18 +111,18 @@ export async function runPro(db: any, state: any, lease: string, paper: boolean)
     const pre: { p: Pair; volRatio: number; dir: number; close: number }[] = []
     await pool(pairs, 12, async (p) => {
       try {
-        const m1 = await closed(p, '1m', 60, now)
+        const m1 = await closed(p, TF_INTERVAL[tf.base], 60, now)
         if (!m1.length || m1[m1.length - 1].t !== bar) { failed.push(p.sym); return }
         const ps = prescreen(m1, P.breakoutN); prescanned++
         if (ps.pass) pre.push({ p, volRatio: ps.volRatio, dir: ps.dir, close: m1[m1.length - 1].close })
       } catch { failed.push(p.sym) }
     })
     pre.sort((a, b) => b.volRatio - a.volRatio)
-    await pool(pre.slice(0, PRO_MAX_FULL), 5, async ({ p }) => {
+    await pool(pre.slice(0, tf.base >= 240 ? 40 : PRO_MAX_FULL), 5, async ({ p }) => {
       try {
-        const [m1, m5, m15] = await Promise.all([closed(p, '1m', 1500, now), closed(p, '5m', 400, now), closed(p, '15m', 1000, now)])
+        const [m1, m5, m15] = await Promise.all([closed(p, TF_INTERVAL[tf.base], 1500, now), closed(p, TF_INTERVAL[tf.mid], 400, now), tf.high === tf.mid ? Promise.resolve(null) : closed(p, TF_INTERVAL[tf.high], 1000, now)])
         if (!m1.length || m1[m1.length - 1].t !== bar) { failed.push(p.sym); return }
-        const F = features(m1, m5, m15), i = m1.length - 1, sg = proCheck(m1, F, i, P.breakoutN)
+        const F = features(m1, m5, m15 ?? m5, tf), i = m1.length - 1, sg = proCheck(m1, F, i, P.breakoutN, tf)
         coins.push({ sym: p.sym, close: m1[i].close, dir: sg.dir, ok: sg.checks.filter((x) => x.ok).length, of: sg.checks.length, checks: Object.fromEntries(sg.checks.map((x) => [x.k, x.ok])) })
         if (sg.dir) sigs.push({ sym: p.sym, symbol: p.s, k: p.k, dir: sg.dir, atr1: F.atr1[i], volRatio: m1[i].vol / F.vAvg[i], checks: sg.checks, adx5: F.adx5[i], rv5: F.rv5[i] })
       } catch { failed.push(p.sym) }
@@ -153,7 +154,7 @@ export async function runPro(db: any, state: any, lease: string, paper: boolean)
     p_note: due ? note : { ...(params.pro_cycle ?? {}), closed: closes.length }, p_bar: due ? bar : null }).throwOnError()
   if (decisions.length) {
     try { await db.from('trade_decisions').insert(decisions.map((d, k) => ({ sym: d.sym, side: d.side, decision: d.decision, reason: d.reason, rank: k + 1, notional: d.notional ?? null, score: +d.volRatio.toFixed(3),
-      observed: { vol_ratio: d.volRatio }, inferred: { sleeve: 'PRO', note: 'owner 1m scalping spec, rejected out-of-sample by v100bt, paper only' } }))) } catch { /* journal only */ }
+      observed: { vol_ratio: d.volRatio }, inferred: { sleeve: 'PRO', tf: tf.name, note: tf.name === '4h' ? 'owner PRO rule on 4h (v100c holdout -0.035R), paper only' : 'owner 1m scalping spec, rejected out-of-sample by v100bt, paper only' } }))) } catch { /* journal only */ }
   }
   return { changed: true, ...result, ...(due ? { universe: uni, prescanned, full: coins.length, failed: failed.length, gate, signals: decisions.length } : {}) }
 }

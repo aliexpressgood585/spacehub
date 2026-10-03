@@ -36,6 +36,10 @@ Last established: 2026-09-30 UTC
 - Ledger `brkv_commit_cycle` (applied 2026-09-25, unchanged, re-checks paper / 1x / <= 10 open / <= 10%/trade / sleeve share). No migration.
 - Supervisor brake covers BRKV (entries only). Rollback: shim back to 'LIST,FUND,FAST,EVT' — close open BRKV rows first (LIST/FUND accept them in the book, nothing else exits them).
 - GPT: please audit; this was not Council-reviewed by the owner's choice.
+## 2026-10-03 — v100.5 PRO on the 4h ladder + account reset (owner instruction)
+- Same nine conditions, base 4h / mid 1d / high 1d. v100c (CRYPTO_40, 72m): dev +0.071R/trade, holdout -0.035R (t -0.55). Costs ~0.03R per trade. Not proven; paper only.
+- Account reset to $5,000; the v100 1m era archived (archive_v100era_*). Council review waived by the owner.
+
 ## 2026-10-02 — v100.4 PRO exit change (owner: review the trades and improve without asking; no entry limits)
 - 59 live PRO closes: -$791.75, -0.62R/trade, gross negative before costs, fees $371. Tight stops paid ~0.5R in fees.
 - v100b (entries unchanged): stop floored at 2% of price, k 3 x ATR, BE/trail 1.5R. Dev -0.095R vs -1.302R; holdout -0.090R vs -1.481R. Still negative; less loss per trade, not an edge.

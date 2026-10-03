@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { PRO, PRO_LIVE, aggregate, features, proCheck, openPos, stepBar, ratchet, proSize, ema, rsi, adx, inFundingWindow, type Bar } from '../shared/pro.ts'
+import { PRO, PRO_LIVE, PRO_V104, TF, aggregate, features, proCheck, openPos, stepBar, ratchet, proSize, ema, rsi, adx, inFundingWindow, type Bar } from '../shared/pro.ts'
 import { runPro, prescreen } from '../supabase/functions/trading-bot/pro-runner.ts'
 import { FALLBACK } from '../shared/universe.ts'
 
@@ -40,7 +40,13 @@ const q4 = openPos(1, 100, 0.1, P4); assert.ok(near(q4.r, 2) && near(q4.stop, 98
 ratchet(q4, 102.5, P4); assert.ok(!q4.reached1R && near(q4.stop, 98), 'no ratchet before +1.5R')
 ratchet(q4, 103.2, P4); assert.ok(q4.reached1R && near(q4.stop, 100.2), 'at +1.6R the stop trails 1.5R behind the best')
 assert.ok(near(openPos(1, 100, 1, P4).r, 3), '3 x ATR when wider than the floor')
-assert.ok(PRO_LIVE.minStopPct === 0.02 && PRO_LIVE.beR === 1.5 && PRO_LIVE.stopAtr === 3 && PRO_LIVE.timeStopBars === 15, 'live = v100b choice')
+assert.ok(PRO_V104.minStopPct === 0.02 && PRO_V104.beR === 1.5 && PRO_V104.stopAtr === 3 && PRO_V104.timeStopBars === 15, 'v100.4 = v100b choice')
+assert.ok(PRO_LIVE.tf === '4h' && PRO_LIVE.breakoutN === 20 && PRO_LIVE.stopAtr === 3 && PRO_LIVE.targetR === 3 && PRO_LIVE.beR === 1.5 && PRO_LIVE.maxHoldBars === 60, 'live = v100c choice on 4h')
+// ── 4h ladder: aggregation from 1h, weekly VWAP anchor, no funding skip ──
+{ const h: Bar[] = Array.from({ length: 48 }, (_, i) => ({ t: Date.UTC(2026, 8, 21) + i * 3600_000, open: i, high: i + 1, low: i - 1, close: i + 0.5, vol: 1 }))
+  const b4 = aggregate(h, 240, 60); assert.equal(b4.length, 12); assert.deepEqual([b4[0].open, b4[0].high, b4[0].low, b4[0].close, b4[0].vol], [0, 4, -1, 3.5, 4])
+  assert.equal(aggregate(h, 1440, 60).length, 2, 'two complete days')
+  assert.ok(TF['4h'].fundingSkip === false && TF['4h'].vwap === 'week' && TF['4h'].mid === 1440) }
 // ── sizing: 0.5% of equity at the stop, capped at 5x equity and by cash ──
 assert.ok(near(proSize(5000, 5000, 100, 0.5), 5000), '0.5% stop -> $25 risk -> $5,000 notional')
 assert.ok(near(proSize(5000, 5000, 100, 0.05), 25000), 'a tiny stop is capped at 5x equity')
@@ -52,24 +58,25 @@ assert.ok(proSize(5000, 10, 100, 0.5) < 101, 'cash posts the margin at 10x')
   b[59] = { ...b[59], close: 100.2, high: 100.25, vol: 16 }; assert.deepEqual(prescreen(b, 15), { pass: true, volRatio: 1.6, dir: 1 })
   b[59] = { ...b[59], vol: 15 }; assert.equal(prescreen(b, 15).pass, false, 'volume must be ABOVE 1.5x')
   b[59] = { ...b[59], close: 99.8, low: 99.7, vol: 20 }; assert.equal(prescreen(b, 15).dir, -1) }
-// ── a live signal: synthetic uptrend with a volume breakout, searched with the runner's own windows ──
-const T0 = Date.UTC(2026, 8, 20, 0, 0)
+// ── a live signal on the 4h ladder: synthetic uptrend with volume breakouts, searched with the runner's own windows ──
+const T0 = Date.UTC(2023, 0, 2, 0, 0), B = 240 * 60_000
 let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
 const all: Bar[] = []; let px = 100
-for (let i = 0; i < 16_000; i++) {
-  const o = px; px *= 1 + 0.00008 + (rnd() - 0.5) * 0.002 * (1 + Math.sin(i / 300))
-  all.push({ t: T0 + i * 60_000, open: o, high: Math.max(o, px) * (1 + rnd() * 0.0005), low: Math.min(o, px) * (1 - rnd() * 0.0005), close: px, vol: 10 + rnd() * 10 + (rnd() < 0.05 ? 40 : 0) })
+for (let i = 0; i < 6_000; i++) {
+  const o = px; px *= 1 + 0.0012 + (rnd() - 0.5) * 0.03 * (1 + Math.sin(i / 120))
+  all.push({ t: T0 + i * B, open: o, high: Math.max(o, px) * (1 + rnd() * 0.005), low: Math.min(o, px) * (1 - rnd() * 0.005), close: px, vol: 10 + rnd() * 10 + (rnd() < 0.05 ? 40 : 0) })
 }
+const tf4 = TF['4h']
 const win = (i: number) => { const c1 = all.slice(Math.max(0, i - 1499), i + 1), upto = all.slice(0, i + 1)
-  return { m1: c1, m5: aggregate(upto, 5).slice(-400), m15: aggregate(upto, 15).slice(-1000) } }
+  return { m1: c1, m5: aggregate(upto, 1440, 240).slice(-400), m15: aggregate(upto, 1440, 240).slice(-400) } }
 let sig = -1
-for (let i = 15_999; i > 15_000 && sig < 0; i--) { const w = win(i); const F = features(w.m1, w.m5, w.m15); if (proCheck(w.m1, F, w.m1.length - 1, PRO_LIVE.breakoutN).dir) sig = i }
+for (let i = 5_999; i > 3_000 && sig < 0; i--) { const w = win(i); const F = features(w.m1, w.m5, w.m15, tf4); if (proCheck(w.m1, F, w.m1.length - 1, PRO_LIVE.breakoutN, tf4).dir) sig = i }
 assert.ok(sig > 0, 'the synthetic series produces at least one signal')
-const W = win(sig), F = features(W.m1, W.m5, W.m15), ck = proCheck(W.m1, F, W.m1.length - 1, PRO_LIVE.breakoutN)
+const W = win(sig), F = features(W.m1, W.m5, W.m15, tf4), ck = proCheck(W.m1, F, W.m1.length - 1, PRO_LIVE.breakoutN, tf4)
 assert.equal(ck.checks.length, 9); assert.ok(ck.checks.every((c) => c.ok))
 
 const realFetch = globalThis.fetch, realNow = Date.now
-let now = all[sig].t + 60_000 + 5_000
+let now = all[sig].t + B + 5_000
 Date.now = () => now
 let open: any[] = [], past: any[] = [], commit: any = null, inserted: any[] = []
 const db = {
@@ -92,10 +99,10 @@ globalThis.fetch = (async (url: string) => {
   const sym = /symbol=([A-Z0-9]+)/.exec(url)?.[1]
   if (url.includes('/klines')) {
     if (sym !== 'BTCUSDT') return { ok: false, status: 400, json: async () => ({}) }   // only BTC has data in this replay
-    const iv = /interval=(\w+)/.exec(url)![1], ms = iv === '1m' ? 60_000 : iv === '5m' ? 300_000 : 900_000
-    const src = iv === '1m' ? W.m1 : iv === '5m' ? W.m5 : W.m15
-    const forming = { ...all[sig + 1], t: all[sig + 1].t }
-    return ok([...src.map((b) => kline(b, ms)), kline(forming, 60_000)])
+    const iv = /interval=(\w+)/.exec(url)![1], ms = iv === '4h' ? B : 86_400_000
+    if (iv !== '4h' && iv !== '1d') return { ok: false, status: 400, json: async () => ({}) }
+    const src = iv === '4h' ? W.m1 : W.m5
+    return ok([...src.map((b) => kline(b, ms)), kline(all[sig + 1], B)])
   }
   if (url.includes('/depth')) return ok({ bids: [[String(bid)]], asks: [[String(ask)]], E: now })
   if (url.includes('fundingRate')) return ok([{ fundingRate: '0.0001' }])
@@ -111,8 +118,8 @@ try {
   assert.equal(e.sym, 'BTC'); assert.equal(e.side, ck.checks[6].v < W.m1[W.m1.length - 1].close ? 'LONG' : 'SHORT')
   const dir = e.side === 'LONG' ? 1 : -1, ent = dir > 0 ? ask * 1.0003 : bid * (1 - 0.0003)
   assert.ok(near(e.price, ent, 1e-6), 'entry at the touch plus slippage')
-  assert.ok(near(Math.abs(e.price - e.pro.stop), Math.max(PRO_LIVE.stopAtr * F.atr1[F.n - 1], PRO_LIVE.minStopPct! * e.price), 1e-6), 'stop = max(k x ATR(14) 1m, 2% of price)')
-  assert.ok(e.pro.stop_pct >= 0.02 - 1e-12 && e.pro.params.beR === 1.5, 'v100.4 params travel with the row')
+  assert.ok(near(Math.abs(e.price - e.pro.stop), Math.max(PRO_LIVE.stopAtr * F.atr1[F.n - 1], (PRO_LIVE.minStopPct ?? 0) * e.price), 1e-6), 'stop = 3 x ATR(14) on 4h')
+  assert.ok(e.pro.params.tf === '4h' && e.pro.params.beR === 1.5 && e.pro.bar === new Date(all[sig].t).toISOString(), 'v100.5 params travel with the row')
   assert.ok(near(Math.abs(e.pro.target - e.price), PRO_LIVE.targetR * Math.abs(e.price - e.pro.stop), 1e-6), 'target = 3R')
   assert.ok(e.notional <= 5000 * PRO.maxNotionalEq + 1e-6 && Math.abs(e.notional * e.pro.stop_pct - 25) < 1e-6 || e.notional >= 5000 * PRO.maxNotionalEq - 1e-6, 'risk $25 at the stop unless capped at 5x')
   assert.equal(commit.p_note.failed_n, FALLBACK.length - 1, 'no universe cache and no exchangeInfo -> the pinned 40; the 39 without data are reported as failed')
@@ -135,8 +142,13 @@ try {
   open = [row({})]; bid = 103.1; ask = 103.2; await runPro(db, st2, 'L', true); assert.equal(commit.p_closes[0].reason, 'TARGET')
   open = [{ ...row({}), opened_at: new Date(now - 16 * 60_000).toISOString() }]; bid = 100.2; ask = 100.3; await runPro(db, st2, 'L', true)
   assert.equal(commit.p_closes[0].reason, 'TIME', 'no +1R after 15 bars')
+  { const H8 = 8 * 3600_000, crossed = Math.floor((now - 16 * 60_000) / H8) !== Math.floor(now / H8)
+    assert.ok(near(commit.p_closes[0].funding, crossed ? 1000 * 0.0001 : 0), 'funding charged only when an 8h settlement fell inside the hold') }
+  // a 4h row: 16 minutes is nothing; 15 bars = 60 hours
+  const r4 = (h: number) => ({ ...row({ params: PRO_LIVE }), opened_at: new Date(now - h * 3600_000).toISOString() })
+  open = [r4(0.3)]; bid = 100.2; ask = 100.3; await runPro(db, st2, 'L', true); assert.equal(commit.p_closes.length, 0, '4h row: no time stop after minutes')
+  open = [r4(61)]; await runPro(db, st2, 'L', true); assert.equal(commit.p_closes[0].reason, 'TIME', '4h row: out after 15 x 4h without +1.5R')
   // funding is queried only when an 8h settlement fell inside the hold
-  assert.equal(commit.p_closes[0].funding, 0)
   // the brake stops entries only
   open = []; commit = null; await runPro(db, state({ sleeves_off: { PRO: { by: 'test' } } }), 'L', true); assert.equal(commit, null, 'braked: no scan')
 } finally { globalThis.fetch = realFetch; Date.now = realNow }

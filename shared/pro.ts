@@ -41,10 +41,29 @@ export const PRO_LIVE_LIMITS = { dayStop: false, lossCooldown: false }
 // breakeven/trail to 1.5R: development net -0.095R/trade vs -1.302R, holdout (read once) -0.090R vs -1.481R. Still
 // negative: the signal has no gross edge; the floor only shrinks the notional (risk 0.5% / 2% stop = 0.25x equity) so
 // costs are a small share of each trade.
-export const PRO_LIVE: Params = { breakoutN: 15, stopAtr: 3, targetR: 3, timeStopBars: 15, minStopPct: 0.02, beR: 1.5 }
+export const PRO_V104: Params = { breakoutN: 15, stopAtr: 3, targetR: 3, timeStopBars: 15, minStopPct: 0.02, beR: 1.5 }
+// v100.5 (owner 2026-10-03: "move to the 4 hour range and reset the account"): the same nine conditions on the 4h
+// ladder (TF['4h']). v100c (backtest/research/v100c_pro_4h.ts, CRYPTO_40, 2020-09..2026-08, 216-point grid, chosen on
+// the first 80% by net R): N20 k3 T3 ts15 BE/trail 1.5R, development +0.071R/trade (gross +0.100, costs 0.03R, t 1.65,
+// 144/216 rows positive), HOLDOUT (read once) -0.035R/trade (gross -0.003, t -0.55, n 205). Costs are no longer the
+// problem at 4h; the edge is not proven either (positive 2021/2022/2024, negative 2025). Paper only.
+export const PRO_LIVE: Params = { breakoutN: 20, stopAtr: 3, targetR: 3, timeStopBars: 15, beR: 1.5, tf: '4h', maxHoldBars: 60 }
 export const PRO_V100: Params = { breakoutN: 15, stopAtr: 1.2, targetR: 3, timeStopBars: 15 }
-// minStopPct: the stop is never closer than this share of the entry price; beR: breakeven trigger AND trail distance in R
-export interface Params { breakoutN: number; stopAtr: number; targetR: number; timeStopBars: number; minStopPct?: number; beR?: number }
+// minStopPct: the stop is never closer than this share of the entry price; beR: breakeven trigger AND trail distance in R;
+// tf: the timeframe ladder the rule runs on (absent = the original 1m / 5m / 15m); maxHoldBars: hard cap in base bars
+export interface Params { breakoutN: number; stopAtr: number; targetR: number; timeStopBars: number; minStopPct?: number; beR?: number; tf?: TfName; maxHoldBars?: number }
+
+// ── timeframe ladder: the SAME nine conditions, scaled. base = the entry bar, mid = the EMA20/50 + ADX + realised-vol
+// regime bar, high = the EMA200 trend bar; VWAP anchored per day (1m) or per week (4h, Monday 00:00 UTC). The ±5 min
+// funding skip only exists at 1m: at 4h every other bar closes on a settlement, and funding is charged in full anyway.
+export type TfName = '1m' | '4h'
+export interface Tf { name: TfName; base: number; mid: number; high: number; vwap: 'day' | 'week'; fundingSkip: boolean; rvLen: number; rvLookback: number }
+export const TF: Record<TfName, Tf> = {
+  '1m': { name: '1m', base: 1, mid: 5, high: 15, vwap: 'day', fundingSkip: true, rvLen: 12, rvLookback: 288 },
+  '4h': { name: '4h', base: 240, mid: 1440, high: 1440, vwap: 'week', fundingSkip: false, rvLen: 12, rvLookback: 288 },
+}
+export const tfOf = (p?: Params): Tf => TF[p?.tf ?? '1m']
+export const TF_INTERVAL: Record<number, string> = { 1: '1m', 5: '5m', 15: '15m', 240: '4h', 1440: '1d' }
 export interface Bar { t: number; open: number; high: number; low: number; close: number; vol: number }
 export const proSlip = (sym: string) => (sym === 'BTC' || sym === 'ETH' ? PRO.slipMajor : PRO.slipAlt)
 
@@ -87,22 +106,23 @@ export function adx(b: Bar[], n: number): Float64Array {
   return o
 }
 // 5m realised-vol percentile: stdev of the last rvLen log returns, ranked within the previous rvLookback values
-export function rvPct(b: Bar[]): Float64Array {
-  const n = b.length, rv = new Float64Array(n).fill(NaN), o = new Float64Array(n).fill(NaN), L = PRO.rvLen
+export function rvPct(b: Bar[], tf: Tf = TF['1m']): Float64Array {
+  const n = b.length, rv = new Float64Array(n).fill(NaN), o = new Float64Array(n).fill(NaN), L = tf.rvLen, LB = tf.rvLookback
   for (let i = L; i < n; i++) { let s = 0, s2 = 0; for (let j = i - L + 1; j <= i; j++) { const r = Math.log(b[j].close / b[j - 1].close); s += r; s2 += r * r }
     rv[i] = Math.sqrt(Math.max(0, s2 / L - (s / L) ** 2)) }
-  for (let i = L + PRO.rvLookback; i < n; i++) { let c = 0; for (let j = i - PRO.rvLookback; j < i; j++) if (rv[j] <= rv[i]) c++; o[i] = c / PRO.rvLookback }
+  for (let i = L + LB; i < n; i++) { let c = 0; for (let j = i - LB; j < i; j++) if (rv[j] <= rv[i]) c++; o[i] = c / LB }
   return o
 }
 // complete UTC-aligned buckets of `min` minutes from 1m bars (exactly Binance's own 5m / 15m bars)
-export function aggregate(m1: Bar[], min: number): Bar[] {
-  const ms = min * 60_000, out: Bar[] = []; let cur: Bar | null = null, cnt = 0
+// srcMin: the bar size of the input (1 = 1m bars; 60 = aggregate 1h archive bars into 4h / 1d)
+export function aggregate(m1: Bar[], min: number, srcMin = 1): Bar[] {
+  const ms = min * 60_000, need = min / srcMin, out: Bar[] = []; let cur: Bar | null = null, cnt = 0
   for (const x of m1) {
     const t = Math.floor(x.t / ms) * ms
-    if (!cur || cur.t !== t) { if (cur && cnt === min) out.push(cur); cur = { t, open: x.open, high: x.high, low: x.low, close: x.close, vol: x.vol }; cnt = 1 }
+    if (!cur || cur.t !== t) { if (cur && cnt === need) out.push(cur); cur = { t, open: x.open, high: x.high, low: x.low, close: x.close, vol: x.vol }; cnt = 1 }
     else { cur.high = Math.max(cur.high, x.high); cur.low = Math.min(cur.low, x.low); cur.close = x.close; cur.vol += x.vol; cnt++ }
   }
-  if (cur && cnt === min) out.push(cur)
+  if (cur && cnt === need) out.push(cur)
   return out
 }
 
@@ -111,22 +131,24 @@ export interface Feat {
   n: number; atr1: Float64Array; rsi9: Float64Array; vAvg: Float64Array; vwap: Float64Array
   up15: Int8Array; trend5: Int8Array; adx5: Float64Array; rv5: Float64Array; ema200: Float64Array
 }
-export function features(m1: Bar[], m5: Bar[], m15: Bar[]): Feat {
+export function features(m1: Bar[], m5: Bar[], m15: Bar[], tf: Tf = TF['1m']): Feat {
   const n = m1.length, c1 = m1.map((x) => x.close)
   const atr1 = atr(m1, PRO.atrLen), rsi9 = rsi(c1, PRO.rsiLen), vAvg = new Float64Array(n).fill(NaN), vwap = new Float64Array(n).fill(NaN)
   let vs = 0
   for (let i = 0; i < n; i++) { if (i >= PRO.volLen) vAvg[i] = vs / PRO.volLen; vs += m1[i].vol; if (i >= PRO.volLen) vs -= m1[i - PRO.volLen].vol }
   let day = -1, pv = 0, vv = 0
-  for (let i = 0; i < n; i++) { const d = Math.floor(m1[i].t / 86_400_000); if (d !== day) { day = d; pv = 0; vv = 0 }
+  const anchor = (t: number) => tf.vwap === 'day' ? Math.floor(t / 86_400_000) : Math.floor((t - 4 * 86_400_000) / 604_800_000)   // epoch + 4 days = Monday
+  for (let i = 0; i < n; i++) { const d = anchor(m1[i].t); if (d !== day) { day = d; pv = 0; vv = 0 }
     const x = m1[i]; pv += (x.high + x.low + x.close) / 3 * x.vol; vv += x.vol; vwap[i] = vv > 0 ? pv / vv : x.close }
   const e200 = ema(m15.map((x) => x.close), PRO.ema15)
-  const c5 = m5.map((x) => x.close), e20 = ema(c5, PRO.emaFast5), e50 = ema(c5, PRO.emaSlow5), a5 = adx(m5, PRO.adxLen), r5 = rvPct(m5)
+  const c5 = m5.map((x) => x.close), e20 = ema(c5, PRO.emaFast5), e50 = ema(c5, PRO.emaSlow5), a5 = adx(m5, PRO.adxLen), r5 = rvPct(m5, tf)
   const up15 = new Int8Array(n), trend5 = new Int8Array(n), adx5 = new Float64Array(n).fill(NaN), rv5 = new Float64Array(n).fill(NaN), ema200 = new Float64Array(n).fill(NaN)
   let j5 = -1, j15 = -1
+  const bMs = tf.base * 60_000, mMs = tf.mid * 60_000, hMs = tf.high * 60_000
   for (let i = 0; i < n; i++) {
-    const T = m1[i].t + 60_000   // the moment bar i closes
-    while (j5 + 1 < m5.length && m5[j5 + 1].t + 300_000 <= T) j5++
-    while (j15 + 1 < m15.length && m15[j15 + 1].t + 900_000 <= T) j15++
+    const T = m1[i].t + bMs   // the moment bar i closes
+    while (j5 + 1 < m5.length && m5[j5 + 1].t + mMs <= T) j5++
+    while (j15 + 1 < m15.length && m15[j15 + 1].t + hMs <= T) j15++
     if (j15 >= 0 && e200[j15] > 0) { ema200[i] = e200[j15]; up15[i] = m1[i].close > e200[j15] ? 1 : -1 }
     if (j5 >= 0 && e50[j5] > 0) { trend5[i] = e20[j5] > e50[j5] ? 1 : -1; adx5[i] = a5[j5]; rv5[i] = r5[j5] }
   }
@@ -135,7 +157,7 @@ export function features(m1: Bar[], m5: Bar[], m15: Bar[]): Feat {
 export const inFundingWindow = (T: number) => { const m = (T / 60_000) % 480; return m < PRO.fundingSkipMin || m > 480 - PRO.fundingSkipMin }
 export const regimeOk = (f: Feat, i: number) => f.adx5[i] > PRO.adxMin && f.rv5[i] >= PRO.rvPctMin
 // why the bar at i is not a trade (null = signal); same order the dashboard prints
-export function proCheck(m1: Bar[], f: Feat, i: number, N: number): { dir: 1 | -1 | 0; checks: { k: string; v: number; ok: boolean }[] } {
+export function proCheck(m1: Bar[], f: Feat, i: number, N: number, tf: Tf = TF['1m']): { dir: 1 | -1 | 0; checks: { k: string; v: number; ok: boolean }[] } {
   const x = m1[i]
   if (i < Math.max(N, PRO.volLen) + 1 || !(f.atr1[i] > 0)) return { dir: 0, checks: [] }
   let hi = -Infinity, lo = Infinity; for (let j = i - N; j < i; j++) { if (m1[j].high > hi) hi = m1[j].high; if (m1[j].low < lo) lo = m1[j].low }
@@ -146,7 +168,7 @@ export function proCheck(m1: Bar[], f: Feat, i: number, N: number): { dir: 1 | -
     { k: 'adx5', v: f.adx5[i], ok: f.adx5[i] > PRO.adxMin },
     { k: 'vwap', v: f.vwap[i], ok: dir * (x.close - f.vwap[i]) > 0 },
     { k: 'regime_rv', v: f.rv5[i], ok: f.rv5[i] >= PRO.rvPctMin },
-    { k: 'no_funding_window', v: 0, ok: !inFundingWindow(x.t + 60_000) },
+    { k: 'no_funding_window', v: 0, ok: !tf.fundingSkip || !inFundingWindow(x.t + tf.base * 60_000) },
     { k: 'breakout', v: dir > 0 ? hi : lo, ok: dir > 0 ? x.close > hi : x.close < lo },
     { k: 'volume', v: f.vAvg[i] > 0 ? x.vol / f.vAvg[i] : 0, ok: x.vol > PRO.volMult * f.vAvg[i] },
     { k: 'rsi9', v: f.rsi9[i], ok: dir * (f.rsi9[i] - PRO.rsiMid) > 0 },
@@ -171,7 +193,7 @@ export function stepBar(s: Pos, b: Bar, p: Params): { px: number; why: string } 
   if ((d > 0 ? b.high : b.low) * d >= s.target * d) return { px: s.target, why: 'TARGET' }
   ratchet(s, d > 0 ? b.high : b.low, p)
   if (!s.reached1R && s.bars >= p.timeStopBars) return { px: b.close, why: 'TIME' }
-  if (s.bars >= PRO.maxHoldBars) return { px: b.close, why: 'MAXHOLD' }
+  if (s.bars >= (p.maxHoldBars ?? PRO.maxHoldBars)) return { px: b.close, why: 'MAXHOLD' }
   return null
 }
 // at +1R the stop moves to breakeven, then trails trailR behind the best price; never loosens

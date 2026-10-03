@@ -5,13 +5,13 @@
 // Selection on the first 80% (portfolio net $, live limits: no day stop, no cooldown), holdout read once.
 // Run: node --max-old-space-size=8192 --experimental-strip-types backtest/research/v100b_pro_exits.ts > status/pro-exits-v100b.txt
 import fs from 'node:fs'
-import { PRO, PRO_LIVE, aggregate, features, proCheck, proSize, proSlip, type Bar } from '../../shared/pro.ts'
+import { PRO, PRO_V100, aggregate, features, proCheck, proSize, proSlip, type Bar } from '../../shared/pro.ts'
 const DATA = new URL('../data/', import.meta.url).pathname
 const load = (s: string): Bar[] => fs.readFileSync(`${DATA}${s}-1m.csv`, 'utf8').split('\n').filter((l) => l && l[0] >= '0' && l[0] <= '9').map((l) => { const f = l.split(','); return { t: +f[0], open: +f[1], high: +f[2], low: +f[3], close: +f[4], vol: +f[5] } })
 const loadF = (s: string) => { const p = `${DATA}${s}-funding.csv`; return fs.existsSync(p) ? fs.readFileSync(p, 'utf8').split('\n').filter((l) => l && l[0] >= '0' && l[0] <= '9').map((l) => { const f = l.split(','); return { t: +f[0], r: +f[2] } }).sort((a, b) => a.t - b.t) : [] }
 const fsum = (F: { t: number; r: number }[], a: number, b: number) => { let s = 0; for (const x of F) if (x.t > a && x.t <= b) s += x.r; return s }
 interface V { k: number; minPct: number; T: number; be: number; ts: number; trail: number }
-const V0: V = { k: PRO_LIVE.stopAtr, minPct: 0, T: PRO_LIVE.targetR, be: 1, ts: PRO_LIVE.timeStopBars, trail: 1 }
+const V0: V = { k: PRO_V100.stopAtr, minPct: 0, T: PRO_V100.targetR, be: 1, ts: PRO_V100.timeStopBars, trail: 1 }
 const VS: V[] = []
 if (process.env.FINAL) { VS.push({ k: 3, minPct: 0.02, T: 3, be: 1.5, ts: 15, trail: 1.5 }); VS.push(V0) }
 else if (process.env.EXT) { for (const minPct of [0.008, 0.01, 0.012, 0.015, 0.02]) for (const ts of [15, 30, 60]) VS.push({ k: 3, minPct, T: 3, be: 1.5, ts, trail: 1.5 }); VS.push(V0) }
@@ -39,7 +39,7 @@ for (const coin of PRO.coins) {
   const m1 = load(coin), F = features(m1, aggregate(m1, 5), aggregate(m1, 15)), fund = loadF(coin), slip = proSlip(coin)
   span0 = Math.min(span0, m1[0].t); span1 = Math.max(span1, m1[m1.length - 1].t)
   for (let i = 300; i < m1.length - 2; i++) {
-    const sg = proCheck(m1, F, i, PRO_LIVE.breakoutN); if (!sg.dir) continue
+    const sg = proCheck(m1, F, i, PRO_V100.breakoutN); if (!sg.dir) continue
     const dir = sg.dir, e0 = m1[i + 1].open, entry = e0 * (1 + dir * slip)
     for (const v of VS) {
       const r = Math.max(v.k * F.atr1[i], v.minPct * entry)
@@ -64,7 +64,7 @@ function book(ts: Tr[], a: number, b: number) {
 const hold = span0 + 0.8 * (span1 - span0)
 const f = (x: number, d = 3) => x.toFixed(d)
 const out: string[] = []
-out.push(`v100b — PRO exit variants, entries unchanged (live signal N=${PRO_LIVE.breakoutN}), ${PRO.coins.length} coins 1m, holdout from ${new Date(hold).toISOString().slice(0, 10)}`)
+out.push(`v100b — PRO exit variants, entries unchanged (live signal N=${PRO_V100.breakoutN}), ${PRO.coins.length} coins 1m, holdout from ${new Date(hold).toISOString().slice(0, 10)}`)
 out.push(`stop r = max(k x ATR14(1m), minPct x price); target T x r; at +be R the stop moves to BE and trails be R behind; out at ts bars if +be R not reached; live limits (no day stop / cooldown)`)
 out.push('')
 const rows = VS.map((v) => ({ v, d: book(trades.get(vk(v))!, span0, hold) })).sort((x, y) => y.d.R - x.d.R)   // every row compounds to ruin at these losses; rank by net R per trade
