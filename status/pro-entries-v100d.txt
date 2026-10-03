@@ -1,0 +1,31 @@
+v100d — entry variants for the live 4h PRO rule (exits fixed: N20 k3 T3 ts15 BE/trail 1.5R), CRYPTO_40, 2020-09-01 .. 2026-08-31, holdout from 2025-06-19
+signals: 4135; taker 5 bps + slip 3/5 bps per side, limit entries maker 2 bps no slip, real funding; 0.5% risk (results in R do not depend on it), <= 3 open, one per coin
+
+DEVELOPMENT (first 80%)
+variant                     n     WR  grossR    netR   return  maxDD      t
+E0 base                   783  47.1%   0.100   0.071    30.0%  11.6%   1.65
+E1 retest                 654  44.3%   0.032   0.013     3.0%  11.9%   0.20
+E2 dip 0.5 ATR            692  46.2%   0.025   0.005     0.7%  15.9%   0.05
+E3 confirm                695  46.0%   0.061   0.032    10.3%  12.8%   0.71
+E4 btc aligned            636  47.3%   0.104   0.074    24.8%   9.9%   1.57
+E5 strong close           657  46.4%   0.089   0.060    20.3%   8.9%   1.26
+E6 volume 2.5x            508  44.1%   0.043   0.014     2.6%  11.7%   0.20
+E7 not extended           721  48.7%   0.115   0.086    34.7%   7.9%   1.93
+
+CHOSEN on development: E7 not extended
+
+HOLDOUT (read once)
+variant                     n     WR  grossR    netR   return  maxDD      t
+E0 base                   205  45.4%  -0.003  -0.035    -3.9%   5.2%  -0.55
+E7 not extended           188  46.3%   0.003  -0.030    -3.0%   5.0%  -0.51
+
+ALL variants on the holdout (INFO ONLY, not used to choose — reading them is 8 looks)
+variant                     n     WR  grossR    netR   return  maxDD      t
+E0 base                   205  45.4%  -0.003  -0.035    -3.9%   5.2%  -0.55
+E1 retest                 183  43.7%   0.015  -0.005    -0.7%   5.6%  -0.10
+E2 dip 0.5 ATR            187  42.8%  -0.034  -0.053    -5.2%   6.6%  -0.77
+E3 confirm                175  45.7%  -0.022  -0.055    -5.0%   6.3%  -0.79
+E4 btc aligned            171  42.7%   0.009  -0.024    -2.4%   7.0%  -0.34
+E5 strong close           173  44.5%  -0.045  -0.075    -6.6%   7.8%  -0.99
+E6 volume 2.5x            124  34.7%  -0.093  -0.125    -7.7%   8.7%  -1.35
+E7 not extended           188  46.3%   0.003  -0.030    -3.0%   5.0%  -0.51

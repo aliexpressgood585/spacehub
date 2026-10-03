@@ -40,6 +40,7 @@ Last established: 2026-09-30 UTC
 - Same nine conditions, base 4h / mid 1d / high 1d. v100c (CRYPTO_40, 72m): dev +0.071R/trade, holdout -0.035R (t -0.55). Costs ~0.03R per trade. Not proven; paper only.
 - Account reset to $5,000; the v100 1m era archived (archive_v100era_*). Council review waived by the owner.
 - v100.6: risk per trade 5% (owner's choice after being shown the numbers). v100c at 5%: dev +278% maxDD 76%, holdout -49%.
+- v100d: 7 entry variants for 4h PRO (retest, dip, confirm, BTC-aligned, strong close, volume 2.5x, not extended). Best on dev (not extended) holdout -0.030R vs live -0.035R = noise. Nothing deployed.
 
 ## 2026-10-02 — v100.4 PRO exit change (owner: review the trades and improve without asking; no entry limits)
 - 59 live PRO closes: -$791.75, -0.62R/trade, gross negative before costs, fees $371. Tight stops paid ~0.5R in fees.
