@@ -1,5 +1,12 @@
 # AI Council State
 
+## Q15 deployment repair — 2026-10-04
+- Owner requested completing the interrupted deployment. No new strategy or risk changes.
+- Restored index.ts byte-for-byte from intact local commit 8db5e77 (blob 2c9d37dc085b2cc6b830463e7104ff7be019b72d); the prior upload contained terminal truncation markers and lost the handler.
+- Both deploy workflows now statically import local release settings followed by the complete source, preserving initialization order and bundling dependencies.
+- GPT review: APPROVED for restoring the previously authorized PAPER implementation. No new Claude review claimed. Runtime smoke pending.
+
+
 Last established: 2026-09-30 UTC
 
 ## P-Q15 — completed 15m scans (2026-10-04, GPT)
