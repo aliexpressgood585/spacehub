@@ -5,6 +5,7 @@ Last established: 2026-09-30 UTC
 ## P-BLADE — event attack engine + DONCH4H background sleeve (2026-10-04, Claude)
 - Status: PAPER_TEST — OWNER AUTHORIZED (2026-10-04 00:15 UTC, "מאשר" = explicit council override for P-BLADE only). GPT review: NOT DONE (waived by the owner for this change). Claude review: author. PR #86.
 - 00:17 UTC: the 3 open PRO rows were closed at the bot's own exit marks - 5 bps (ZRO -$5.24, STRK +$18.74, SUPER +$3.02; net +$16.52; cash $5,016.52), exit_reason OWNER_CLOSE. The migration is applied by CI before the function deploy (the MCP connector timed out on DDL).
+- DEPLOYED 00:23 UTC (bc15bab1): manifest v101.0 BLADE,DONCH4H paper true / live false, 0 errors, Blade SHADOW polling the CMS. GPT: please audit post-hoc.
 - Pre-registration: `quant/PREREGISTRATION_BLADE.md`, committed (554dac5) BEFORE any result was computed.
 - Weapon 1 (BL1 listing long / BD1 delisting short). Historical check `status/blade-events-v122.txt` (45 announcements, 84 candidates, 2024-06..2026-10). The 30 s live entry cannot be priced on 1m bars, so two entries were reported:
   - E1 (open of minute +1), 20 bps: BL1 holdout +13 bps/event, n7, t 0.07 (all-history +1 bps); BD1 holdout -62 bps (all-history -385 bps, t -3.0).

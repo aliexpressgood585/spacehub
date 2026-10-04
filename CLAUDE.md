@@ -402,6 +402,7 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   - maker post-only measured virtually (90 s window).
 - Shim in the PR: `__ENABLED_SLEEVES='BLADE,DONCH4H'`, `__BLADE_MAX_LEVEL='SHADOW'`, PRO off.
 - 2026-10-04 00:15 UTC OWNER APPROVED ("מאשר", council override for this change). 00:17: PRO rows closed at the bot exit marks - 5 bps (net +$16.52, cash $5,016.52). DDL through the Supabase MCP connector timed out 3x (nothing persisted, no locks), so both CI workflows now apply 20261004090000_blade_sleeve.sql via the management API before the function deploy (fail closed, idempotent).
+- DEPLOYED 2026-10-04 00:23 UTC: PR #86 merged (bc15bab1), CI applied the migration and deployed the function. Manifest v101.0 BLADE,DONCH4H paper true / live false, 0 bot_errors. First Blade cycle at 00:24 polled 20 CMS articles: level SHADOW (earned SHADOW, cap SHADOW), no fresh announcement. DONCH4H's first entry window is the 04:00 UTC 4h close. 0 open rows, cash $5,016.52.
 - ROLLBACK: shims back to 'PRO'.
 
 ## v121 QUANT LAB (2026-10-02) — owner: full quant research brief (20 families, microstructure, liquidations, sweeps, regimes, time-of-day, lag, scoring, ML, exits, filters, top-N): 0 ACCEPTED, nothing deployed
