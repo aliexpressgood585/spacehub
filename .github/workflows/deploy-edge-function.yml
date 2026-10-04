@@ -69,6 +69,15 @@ jobs:
             echo "Migration applied successfully"
           fi
 
+      - name: Apply BLADE ledger migration (v101.0, idempotent)
+        run: |
+          jq -Rs '{query: .}' supabase/migrations/20261004090000_blade_sleeve.sql > /tmp/blade_mig.json
+          curl -s -X POST "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" -H "Content-Type: application/json" \
+            --data @/tmp/blade_mig.json | tee /tmp/blade_mig_result.json
+          if grep -q '"error"\|"message"' /tmp/blade_mig_result.json; then echo "::error::BLADE migration failed"; cat /tmp/blade_mig_result.json; exit 1; fi
+          echo "BLADE migration applied"
+
       - name: Set optimizer secrets
         run: |
           supabase secrets set \

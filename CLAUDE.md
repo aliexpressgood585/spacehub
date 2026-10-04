@@ -401,7 +401,7 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   - validated rule, 1.25% base x ADX tier, 1x, ladder on aggTrades, no pyramiding;
   - maker post-only measured virtually (90 s window).
 - Shim in the PR: `__ENABLED_SLEEVES='BLADE,DONCH4H'`, `__BLADE_MAX_LEVEL='SHADOW'`, PRO off.
-- Before merge: close the 3 open PRO rows, then apply the migration. Council: GPT review PENDING (P-BLADE in STATE.md).
+- 2026-10-04 00:15 UTC OWNER APPROVED ("מאשר", council override for this change). 00:17: PRO rows closed at the bot exit marks - 5 bps (net +$16.52, cash $5,016.52). DDL through the Supabase MCP connector timed out 3x (nothing persisted, no locks), so both CI workflows now apply 20261004090000_blade_sleeve.sql via the management API before the function deploy (fail closed, idempotent).
 - ROLLBACK: shims back to 'PRO'.
 
 ## v121 QUANT LAB (2026-10-02) — owner: full quant research brief (20 families, microstructure, liquidations, sweeps, regimes, time-of-day, lag, scoring, ML, exits, filters, top-N): 0 ACCEPTED, nothing deployed
