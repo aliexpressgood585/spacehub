@@ -1,3 +1,4 @@
+// P-Q15 deploy smoke trigger: paper-only cycle after edge deployment.
 // P-Q15: completed 15m scans; pure signal and cost rules in shared/q15.ts.
 import { Q15,q15Signal,q15Levels,q15Config,q15Edge,q15Gate } from '../../../shared/q15.ts'
 import { labInd,type LBar } from '../../../shared/lab.ts'
