@@ -375,6 +375,20 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v102.0 P-AGG2 LEVEL 2 (2026-10-04, branch agg2/fast-evt-donch, PR — NOT merged until the owner says) — owner override: "level 2, more aggressive and risky; no lotto, no 50x, no PRO"
+- Sleeves FAST + EVT + DONCH4H; PRO, LIST, FUND, BRKV, CHAN, SCALP, ROTA, LAB and BLADE are off. New index.ts branch: EVT2, then FAST, then DONCH4H, then the ~1 s CMS watch.
+- FAST: rt mode, 10x isolated, 5%/trade, <= 8 open, share <= 50%, 20/day; PSYCH off in rt.
+  - PROFIT GATE ON: the measured gross of FAST's own signals (fast_shadow) minus the costs.ts model must be >= 2 bps.
+  - No measurement means no entry. Expect it to refuse almost everything at first.
+- EVT2 = Blade BL1/BD1 rules at 8% margin x 10x, <= 3 open, no gate (quant/PREREGISTRATION_EVT2.md).
+  - v122 measured BD1 at minute +1 at -385 bps per event (t -3.0).
+- DONCH4H: 1x forced in SQL; pyramid ON (gate 0.6R / 1.0R, max 3). The 20% per-coin cap usually leaves no room for a 2nd unit.
+- Brake: agg2_day, -12% from the UTC day start. It stops NEW entries in every sleeve until the next UTC day; exits keep running.
+- Ledger 20261004120000_agg2.sql is applied by both CI workflows after the Blade ledger.
+- Local Postgres tests: tests/sql/run.sh (schema replica + 30 checks).
+- HOTFIX on main (9da68dd): blade_commit_cycle full closes raised "column reference fee is ambiguous". The variable is renamed v_fee.
+  - The deploy workflow does not fire on a migration-only change. It was dispatched by hand to apply the fix.
+
 ## v101.2 (2026-10-04) — position history page with every fee (owner: "show fees, a separate page, position history like before, all the data")
 - `trading-app/history.html` -> `HistoryPage.tsx`, display only. It reads all of bot_trades (every era still in the table: PRO, V100_PRO, V99_*, DONCH4H, BLADE), filterable by strategy / open-closed / coin, shown as phone-friendly cards. Linked from the Blade house (chip "היסטוריית פוזיציות ועמלות").
 - Per trade: entry fee (t.fee), partial-exit fees (scalp_meta.legs px x qty x 5 bps), exit fee (scalp_meta.exit_fee), funding (scalp_meta.funding_paid), gross = pnl + fees + funding, net, R, hold, reason, legs, and a link to trade.html. Open rows show fees paid so far plus a live mark (useExitMarks).

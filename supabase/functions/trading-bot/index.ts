@@ -460,7 +460,7 @@ import { runFast, fastConfig } from './fast-runner.ts'
 import { runChan } from './chan-runner.ts'
 import { runList } from './list-runner.ts'
 import { runFund } from './fund-runner.ts'
-import { runEvt } from './evt-runner.ts'
+import { runEvt, runEvt2 } from './evt-runner.ts'
 import { runPro } from './pro-runner.ts'
 import { runBlade, runDonch, cmsWatch, BLADE_SCAN } from './blade-runner.ts'
 import { meetingDue, capDecision } from '../../../shared/team-meeting.ts'
@@ -553,7 +553,7 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v101.1'
+const BOT_VERSION = 'v102.0'
 // v87.0: the pre-SCALP engine (DONCH4H / standalone ROTA) opens trades without the profit gate; it stays in the file
 // for its exit/record code history but may never open a trade. Changing this needs the gate wired in first.
 const LEGACY_ENGINE_ALLOWED = false
@@ -2729,6 +2729,37 @@ Deno.serve(async (req) => {
       try { await supabase.from('bot_state').update({ lock_until: new Date().toISOString() }).eq('id', 1).eq('lock_until', runLeaseUntil) } catch { /* expires on its own */ }
       const bad = !!(blade?.error || donch?.error)
       return new Response(JSON.stringify({ ok: !bad, version: BOT_VERSION, blade, donch }), { status: bad ? 500 : 200, headers: { 'Content-Type': 'application/json' } })
+    }
+
+    // P-AGG2 (owner override 2026-10-04, PAPER ONLY): Level 2 = FAST real-time (10x isolated, 5%/trade, <= 8 open, profit
+    // gate ON) + EVT2 (listing / delisting, 10x isolated, 8%/event, <= 3 open, no profit gate) + DONCH4H (1x, 1.25% risk,
+    // pyramiding). One paper book; each runner touches only its own rows. The only brake is the account -12% UTC-day halt
+    // (agg2_day in every commit function). Leverage never reaches DONCH4H: the global LEVERAGE stays 1 and the ledger
+    // forces DONCH4H rows to 1x. Order: EVT first (fresh announcements get the cash), FAST, DONCH4H, then the ~1 s CMS
+    // watch until just before the next 5 s cron call (a new article re-runs EVT at once).
+    if (ENABLED_SLEEVES.includes('FAST') && ENABLED_SLEEVES.includes('EVT') && !ENABLED_SLEEVES.includes('LIST') && !ENABLED_SLEEVES.includes('FUND') && !ENABLED_SLEEVES.includes('PRO')) {
+      const cycleStart = Date.now(), paperOnly = paperMode && !liveMode
+      let evt: any = null, fast: any = null, donch: any = null
+      const fresh = async () => { const { data } = await supabase.from('bot_state').select('*').eq('id', 1).single(); return data ?? state }
+      try { evt = await runEvt2(supabase, state, runLeaseUntil, paperOnly) }
+      catch (e: any) { evt = { error: String(e?.message ?? e) }; await logErr('evt2_runner', String(e?.message ?? e)) }
+      try { fast = await runFast(supabase, await fresh(), runLeaseUntil, paperOnly) }
+      catch (e: any) { fast = { error: String(e?.message ?? e) }; await logErr('fast_runner', String(e?.message ?? e)) }
+      if (ENABLED_SLEEVES.includes('DONCH4H')) {
+        try { donch = await runDonch(supabase, await fresh(), runLeaseUntil, paperOnly) }
+        catch (e: any) { donch = { error: String(e?.message ?? e) }; await logErr('donch_runner', String(e?.message ?? e)) }
+      }
+      try {
+        const st = await fresh(), seenKeys = new Set(Object.keys(st?.bot_params?.evt2_cycle?.seen ?? {}))
+        if (seenKeys.size) {
+          const w = await cmsWatch(seenKeys, cycleStart + BLADE_SCAN.watchUntilMs)
+          if (w.hit) evt = { first: evt, rerun: await runEvt2(supabase, await fresh(), runLeaseUntil, paperOnly), watch: w }
+          else if (evt && typeof evt === 'object') evt.watch = w
+        }
+      } catch (e: any) { await logErr('evt2_watch', String(e?.message ?? e)) }
+      try { await supabase.from('bot_state').update({ lock_until: new Date().toISOString() }).eq('id', 1).eq('lock_until', runLeaseUntil) } catch { /* expires on its own */ }
+      const bad = !!(evt?.error || fast?.error || donch?.error)
+      return new Response(JSON.stringify({ ok: !bad, version: BOT_VERSION, evt, fast, donch }), { status: bad ? 500 : 200, headers: { 'Content-Type': 'application/json' } })
     }
 
     if (ENABLED_SLEEVES.includes('PRO')) {

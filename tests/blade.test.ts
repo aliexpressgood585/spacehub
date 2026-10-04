@@ -174,6 +174,22 @@ try {
   const e = cp.p_entries[0]
   assert.equal(e.side, 'SHORT'); assert.equal(e.lev, 5); assert.ok(Math.abs(e.notional - 5000 * 0.02 * 5) < 1e-6); assert.ok(Math.abs(e.stop / e.price - 1.04) < 1e-9, 'stop +4% for the short')
   assert.equal(e.meta.blade.rule, 'BD1'); assert.equal(upserts.at(-1).mode, 'paper')
+  // P-AGG2 EVT2: the same engine as sleeve EVT — no levels, no profit gate, 8% margin x isolated 10x, <= 3 open
+  const { evt2Profile } = await import('../supabase/functions/trading-bot/evt-runner.ts')
+  const seenE = { ...commits.at(-1).p_note.seen }
+  now = T + 130_000; arts[48].unshift({ releaseDate: now - 4_000, title: 'Binance Will List Hyper Two (HYPE)', code: 'e' })
+  const evDay = new Date(now).toISOString().slice(0, 10)
+  await runBlade(db, st({ evt2_cycle: { seen: seenE, poll_ts: 0 }, agg_day: { day: evDay, halted: true } }), 'L', true, evt2Profile())
+  assert.equal(upserts.at(-1).gate, 'day_halt', 'the account day halt blocks EVT entries'); assert.equal(commits.at(-1).p_entries.length, 0)
+  now = T + 131_000; arts[48].unshift({ releaseDate: now - 3_000, title: 'Binance Will List Hyper Three (HYPE)', code: 'f' })
+  await runBlade(db, st({ evt2_cycle: { seen: { ...commits.at(-1).p_note.seen }, poll_ts: 0 } }), 'L', true, evt2Profile())
+  const ce2 = commits.at(-1), e2 = ce2.p_entries[0]
+  assert.equal(ce2.p_sleeve, 'EVT'); assert.equal(ce2.p_level, 'EVT'); assert.equal(ce2.p_max_open, 3); assert.equal(ce2.p_entries.length, 1, 'EVT enters with no record and no profit gate')
+  assert.equal(e2.lev, 10); assert.ok(Math.abs(e2.notional - 5000 * 0.08 * 10) < 1e-6, '8% margin x 10'); assert.ok(Math.abs(e2.stop / e2.price - 0.96) < 1e-9, 'stop -4% long')
+  assert.equal(upserts.at(-1).mode, 'paper'); assert.ok(upserts.at(-1).detect_lag_ms === 3000, 'lag journalled'); assert.ok(e2.meta.blade.pos.liq < e2.stop, 'liquidation (10x) beyond the 4% stop')
+  g.__EVT_PER_TRADE = '0.5'; g.__EVT_MAX_OPEN = '9'
+  assert.deepEqual([evt2Profile().marginFrac, evt2Profile().maxOpen, evt2Profile().lev], [0.08, 3, 10], 'shim cannot raise EVT above 8% / 3 / 10x')
+  delete g.__EVT_PER_TRADE; delete g.__EVT_MAX_OPEN
   // isolation: a Blade cycle with a DONCH4H row open never closes it; a DONCH4H cycle never closes a BLADE row
   g.__BLADE_MAX_LEVEL = undefined
   open = [{ id: 7, strategy: 'DONCH4H', sym: 'BTC', side: 'LONG', entry_price: 100, size: 5, lev: 1, paper_mode: true, opened_at: new Date(T).toISOString(), scalp_meta: { ladder: { stage: 0, stopPx: 98, sizeOrig: 5, sizeLeft: 5, origSlDist: 2, chk: T } } },

@@ -12,3 +12,7 @@ export function sleeveOff(params: any, sleeve: string): boolean {
   const m = params?.sleeves_off
   return !!(m && typeof m === 'object' && m[sleeve]) || shimOff().includes(sleeve)
 }
+// P-AGG2 (owner override 2026-10-04): Level 2 runs exactly these sleeves (index.ts AGG2 branch); every other is off
+export const AGG2_SLEEVES = ['FAST', 'EVT', 'DONCH4H'] as const
+export const isAgg2 = (enabled: string) => { const e = enabled.toUpperCase().split(',').map(s => s.trim()).filter(Boolean)
+  return e.includes('FAST') && e.includes('EVT') && !e.some(x => ['LIST', 'FUND', 'PRO'].includes(x)) }

@@ -12,11 +12,17 @@ import { BLADE, bladeCandidates, bladeGate, bladeSize, bladeOpen, bladeStep, fil
 import { EV_CATALOGS, perpOf, detectLag } from '../../../shared/events.ts'
 import { walkBook } from '../../../shared/fast.ts'
 import { json, pool } from './rota-runner.ts'
-import { aggTrades, book, type Pair } from './fast-runner.ts'
+import { aggTrades, book, aggHalted, type Pair } from './fast-runner.ts'
 import { sleeveOff } from '../../../shared/sleeves.ts'
 
 const g = () => globalThis as any
-export const BLADE_SLEEVES = ['BLADE', 'DONCH4H']
+export const BLADE_SLEEVES = ['BLADE', 'DONCH4H', 'FAST', 'EVT']   // P-AGG2: FAST/EVT rows may share the book; each runner touches only its own
+// P-AGG2: the same event engine runs as sleeve EVT (owner override 2026-10-04): BL1/BD1 rules unchanged (30 s age, 8 bps
+// spread, walked impact <= 25% of the expected move, stop 4%, half at +3% then 1.5 ATR trail, 15 min; delist 4% / 7% /
+// 240 min), but no SHADOW/PROBE/ATTACK levels and no Blade-only halt: paper at margin = perTrade x equity, isolated
+// lev 10, <= 3 open. The account -12% day halt (agg2_day) is the only brake. No profit gate.
+export interface BladeProfile { sleeve: 'BLADE' | 'EVT'; noteKey: string; lev: number; marginFrac: number | null; maxOpen: number | null }
+export const BLADE_PROFILE: BladeProfile = { sleeve: 'BLADE', noteKey: 'blade_cycle', lev: BLADE.lev, marginFrac: null, maxOpen: null }
 const pairOf = (sym: string): Pair => (sym === 'PEPE' ? { sym, s: '1000PEPEUSDT', k: 1000 } : { sym, s: `${sym}USDT`, k: 1 })
 // bot symbol for a perp: PEPE keeps its legacy unit; other 1000x contracts trade as listed (same as EVT)
 const symOfPerp = (perp: string) => (perp === '1000PEPEUSDT' ? 'PEPE' : perp.slice(0, -4))
@@ -69,10 +75,10 @@ export async function cmsWatch(seenKeys: Set<string>, untilMs: number, fetcher =
   return { hit, polls, errors, lastOk, err }
 }
 
-export async function runBlade(db: any, state: any, lease: string, paper: boolean) {
-  if (!paper) throw new Error('BLADE is paper-only; refusing live execution')
-  const now = Date.now(), params = state.bot_params || {}, prev = params.blade_cycle || {}
-  const open = await openBook(db), mine = open.filter(t => t.strategy === 'BLADE')
+export async function runBlade(db: any, state: any, lease: string, paper: boolean, prof: BladeProfile = BLADE_PROFILE) {
+  if (!paper) throw new Error(`${prof.sleeve} is paper-only; refusing live execution`)
+  const evt = prof.sleeve === 'EVT', now = Date.now(), params = state.bot_params || {}, prev = params[prof.noteKey] || {}
+  const open = await openBook(db), mine = open.filter(t => t.strategy === prof.sleeve)
   const closes: any[] = [], legs: any[] = [], ratchets: any[] = [], entries: any[] = [], marks: Record<string, number> = {}
   // 1a. paper exits
   await pool<any>(mine, 3, async t => {
@@ -96,7 +102,7 @@ export async function runBlade(db: any, state: any, lease: string, paper: boolea
     } catch { /* next cycle */ }
   })
   // 1b. shadow virtual exits (journal only, no money)
-  const { data: shadows } = await db.from('blade_events').select('*').eq('status', 'open').eq('mode', 'shadow').throwOnError()
+  const { data: shadows } = evt ? { data: [] as any[] } : await db.from('blade_events').select('*').eq('status', 'open').eq('mode', 'shadow').throwOnError()
   await pool<any>(shadows ?? [], 3, async (e: any) => {
     const pos: BladePos = e.pos, P = pairOfPerp(e.perp)
     try {
@@ -110,15 +116,17 @@ export async function runBlade(db: any, state: any, lease: string, paper: boolea
   })
   // 2. level from the record
   const { data: past } = await db.from('blade_events').select('mode,net,closed_at,detect_lag_ms,rule,ann_key').in('status', ['closed']).order('closed_at').limit(500).throwOnError()
-  const { data: paperRows } = await db.from('bot_trades').select('pnl,closed_at,scalp_meta').eq('strategy', 'BLADE').neq('status', 'OPEN').order('closed_at').limit(500).throwOnError()
+  const { data: paperRows } = await db.from('bot_trades').select('pnl,closed_at,scalp_meta').eq('strategy', prof.sleeve).neq('status', 'OPEN').order('closed_at').limit(500).throwOnError()
   const evts: BladeEvt[] = [...(past ?? []).filter((e: any) => e.mode === 'shadow').map((e: any) => ({ net: Number(e.net), closedAt: Date.parse(e.closed_at), paper: false })),
     ...(paperRows ?? []).map((t: any) => ({ net: Number(t.pnl) / Math.max(1, Number(t.scalp_meta?.notional0) || 1), closedAt: Date.parse(t.closed_at), paper: true }))]
   const day0 = new Date(now); day0.setUTCHours(0, 0, 0, 0)
   const paperToday = (paperRows ?? []).filter((t: any) => Date.parse(t.closed_at) >= day0.getTime()).reduce((s: number, t: any) => s + Number(t.pnl || 0), 0)
   const cash = Number(state.balance), equity = cash + open.reduce((s, t) => s + marginOf(t), 0)
-  const halt = haltReason(paperToday, equity, lossStreak((paperRows ?? []).map((t: any) => Number(t.pnl))))
+  const halt = evt ? null : haltReason(paperToday, equity, lossStreak((paperRows ?? []).map((t: any) => Number(t.pnl))))
+  const dayHalt = aggHalted(params, now)   // P-AGG2 account halt (the ledger enforces it again)
   const lags: number[] = Array.isArray(prev.list_lags) ? prev.list_lags : []
-  const lvl = effectiveLevel(earnedLevel(evts), bladeShimMax(), lags, halt)
+  const lvl: { level: BladeLevel; why: string } = evt ? { level: 'EVT' as BladeLevel, why: `P-AGG2: paper ${((prof.marginFrac ?? 0) * 100).toFixed(0)}% margin x ${prof.lev}x, <= ${prof.maxOpen} open; only the account -12% day halt` } : effectiveLevel(earnedLevel(evts), bladeShimMax(), lags, halt)
+  const maxOpenNow = evt ? (prof.maxOpen ?? 0) : BLADE.maxOpen[lvl.level]
   // 3. detection
   let seen: Record<string, any> = prev.seen && typeof prev.seen === 'object' ? { ...prev.seen } : {}
   const seeded = Object.keys(seen).length > 0
@@ -142,7 +150,7 @@ export async function runBlade(db: any, state: any, lease: string, paper: boolea
     let perps = new Set<string>(), liquid = new Set<string>()
     try { const prem = await json('https://fapi.binance.com/fapi/v1/premiumIndex'); perps = new Set(prem.map((p: any) => String(p.symbol))) } catch (e: any) { pollErr = `premiumIndex: ${e?.message ?? e}` }
     try { const { data } = await db.from('market_cache').select('data').eq('key', 'universe').throwOnError(); for (const p of data?.[0]?.data?.pairs ?? []) liquid.add(String(p.s)) } catch { /* empty = no delist shorts */ }
-    let room = BLADE.maxOpen[lvl.level] - mine.length + closes.length, cashLeft = cash
+    let room = maxOpenNow - mine.length + closes.length, cashLeft = cash
     for (const a of fresh) {
       const cands = bladeCandidates(a.title, a.releaseDate, c => perpOf(c, perps), p => liquid.has(p))
       if (cands.length && cands[0].kind === 'LIST') newLags.push(detectLag(a.firstSeen, a.releaseDate))
@@ -156,20 +164,22 @@ export async function runBlade(db: any, state: any, lease: string, paper: boolea
           const b = k.slice(0, -1).map((x: any) => ({ h: +x[2] / P.k, l: +x[3] / P.k, c: +x[4] / P.k })); let s = 0
           for (let i = 1; i < b.length; i++) s += Math.max(b[i].h - b[i].l, Math.abs(b[i].h - b[i - 1].c), Math.abs(b[i].l - b[i - 1].c)); atr1m = s / Math.max(1, b.length - 1) } catch { /* trail 0 = hard stop only */ }
         // gate at the size ATTACK would trade, so the book is tested at real size even while sizing is 0
-        const attack = bladeSize('ATTACK', c.id, equity, Math.max(cash, equity)), used = bladeSize(lvl.level, c.id, equity, cashLeft)
+        const evtSize = (cashAvail: number) => { const m = Math.max(0, Math.min(equity * (prof.marginFrac ?? 0), cashAvail / (1 + prof.lev * BLADE.fee))); return { margin: m, notional: m * prof.lev } }
+        const attack = evt ? evtSize(Math.max(cash, equity)) : bladeSize('ATTACK', c.id, equity, Math.max(cash, equity)), used = evt ? evtSize(cashLeft) : bladeSize(lvl.level, c.id, equity, cashLeft)
         const lvSide = c.side > 0 ? bk?.asks : bk?.bids, w = lvSide ? walkBook(lvSide, Math.max(attack.notional, 100)) : { vwap: NaN, impact: NaN, depthUsd: 0, beyond: true }
-        const gate = sleeveOff(params, 'BLADE') ? 'brake' : bladeGate({ kind: c.kind, releaseDate: c.releaseDate, now: Date.now(), quoteTs: bk?.E ?? 0, bid: bk?.bids?.[0]?.[0] ?? 0, ask: bk?.asks?.[0]?.[0] ?? 0, walkImpact: w.impact, walkBeyond: w.beyond })
+        const gate = sleeveOff(params, prof.sleeve) ? 'brake' : evt && dayHalt ? 'day_halt' : bladeGate({ kind: c.kind, releaseDate: c.releaseDate, now: Date.now(), quoteTs: bk?.E ?? 0, bid: bk?.bids?.[0]?.[0] ?? 0, ask: bk?.asks?.[0]?.[0] ?? 0, walkImpact: w.impact, walkBeyond: w.beyond })
         const wUsed = lvSide && used.notional > 0 ? walkBook(lvSide, used.notional) : w
-        const entry = wUsed.vwap, pos = Number.isFinite(entry) ? bladeOpen(c.id, c.side, entry, atr1m, Date.now()) : null
+        const entry = wUsed.vwap, pos = Number.isFinite(entry) ? bladeOpen(c.id, c.side, entry, atr1m, Date.now(), prof.lev) : null
         const note = { spread_bps: bk ? +((bk.asks[0][0] / bk.bids[0][0] - 1) * 1e4).toFixed(2) : null, impact_bps: Number.isFinite(w.impact) ? +(w.impact * 1e4).toFixed(1) : null,
           depth_usd: Math.round(w.depthUsd), atr1m, level_why: lvl.why, attack_notional: Math.round(attack.notional) }
         if (gate || !pos) { decisions.push({ ...base, gate: gate ?? 'no_price', mode: 'skipped', status: 'skipped', note }); continue }
-        if ((lvl.level === 'PROBE' || lvl.level === 'ATTACK') && used.notional >= 20 && room > 0 && !open.some(t => t.sym === sym)) {
-          entries.push({ sym, side: c.side > 0 ? 'LONG' : 'SHORT', price: entry, notional: used.notional, lev: BLADE.lev, stop: pos.stop, target: pos.target, quote_ts: bk.E, source: 'binance-futures',
+        if ((evt || lvl.level === 'PROBE' || lvl.level === 'ATTACK') && used.notional >= 20 && room > 0 && !open.some(t => t.sym === sym)) {
+          entries.push({ sym, side: c.side > 0 ? 'LONG' : 'SHORT', price: entry, notional: used.notional, lev: prof.lev, stop: pos.stop, target: pos.target, quote_ts: bk.E, source: 'binance-futures',
             release_at: base.release_at, meta: { blade: { rule: c.id, ann_key: base.ann_key, perp: c.perp, pos, chk: bk.E, title: c.title.slice(0, 160), detect_lag_ms: base.detect_lag_ms } } })
           decisions.push({ ...base, gate: null, mode: 'paper', status: 'closed', entry_px: entry, pos, note: { ...note, paper_notional: Math.round(used.notional) } })
-          room--; cashLeft -= used.margin * (1 + BLADE.lev * BLADE.fee)
-        } else decisions.push({ ...base, gate: null, mode: 'shadow', status: 'open', entry_px: entry, pos, chk: bk.E, note })
+          room--; cashLeft -= used.margin * (1 + prof.lev * BLADE.fee)
+        } else if (evt) decisions.push({ ...base, gate: open.some(t => t.sym === sym) ? 'coin_held' : room <= 0 ? 'evt_full' : 'no_cash', mode: 'skipped', status: 'skipped', entry_px: entry, note })
+        else decisions.push({ ...base, gate: null, mode: 'shadow', status: 'open', entry_px: entry, pos, chk: bk.E, note })
       }
     }
   }
@@ -179,10 +189,10 @@ export async function runBlade(db: any, state: any, lease: string, paper: boolea
   if (!changed && !beat) return { changed: false, level: lvl.level, open: mine.length }
   const lagsOut = newLags.filter(Number.isFinite).slice(-BLADE.lagWindow)
   const w = lastWatch, ownPoll = pollDue && !pollErr ? now : Number(prev.poll_ts) || 0
-  const note = { ts_ms: now, poll_ts: Math.max(ownPoll, w?.lastOk ?? 0) || null, poll_error: pollErr ?? w?.err ?? null, scan_ms: BLADE_SCAN.watchGapMs, watch: w ? { polls: w.polls, errors: w.errors, at: w.at } : null, articles, seen, marks, marks_ts: new Date(now).toISOString(), list_lags: lagsOut, level_why: lvl.why, halt, shadow_open: (shadows ?? []).length,
+  const note = { ts_ms: now, poll_ts: Math.max(ownPoll, w?.lastOk ?? 0) || null, poll_error: pollErr ?? w?.err ?? null, scan_ms: BLADE_SCAN.watchGapMs, watch: w ? { polls: w.polls, errors: w.errors, at: w.at } : null, articles, seen, marks, marks_ts: new Date(now).toISOString(), list_lags: lagsOut, level_why: lvl.why, halt, day_halt: dayHalt, lev: prof.lev, max_open: maxOpenNow, shadow_open: (shadows ?? []).length,
     decisions: decisions.map(d => ({ rule: d.rule, coin: d.coin, gate: d.gate, mode: d.mode, lag: d.detect_lag_ms })) }
-  const { data: result } = await db.rpc('blade_commit_cycle', { p_lease: lease, p_sleeve: 'BLADE', p_closes: closes, p_legs: legs, p_ratchets: ratchets, p_entries: entries,
-    p_marks: marks, p_note: note, p_level: lvl.level, p_max_open: BLADE.maxOpen[lvl.level], p_snapshot: false }).throwOnError()
+  const { data: result } = await db.rpc('blade_commit_cycle', { p_lease: lease, p_sleeve: prof.sleeve, p_closes: closes, p_legs: legs, p_ratchets: ratchets, p_entries: entries,
+    p_marks: marks, p_note: note, p_level: lvl.level, p_max_open: maxOpenNow, p_snapshot: false }).throwOnError()
   return { changed, level: lvl.level, ...result, fresh: fresh.length, decisions: note.decisions, poll_error: pollErr }
 }
 
@@ -235,7 +245,7 @@ export async function runDonch(db: any, state: any, lease: string, paper: boolea
   })
   // entries: once per 4h bar, first 15 minutes after the close
   const bar = Math.floor(now / DONCHX.barMs) * DONCHX.barMs
-  const due = now - bar < DONCHX.entryWindowMs && Number(prev.bar) !== bar && !state.hard_halt_at && !sleeveOff(params, 'DONCH4H')
+  const due = now - bar < DONCHX.entryWindowMs && Number(prev.bar) !== bar && !state.hard_halt_at && !aggHalted(params, now) && !sleeveOff(params, 'DONCH4H')
   const decisions: any[] = []
   if (due) {
     const cash0 = Number(state.balance), equity = cash0 + open.reduce((s, t) => s + marginOf(t), 0)
@@ -243,9 +253,13 @@ export async function runDonch(db: any, state: any, lease: string, paper: boolea
     let longExp = mine.filter(t => t.side === 'LONG').reduce((s, t) => s + Number(t.entry_price) * Number(t.size), 0)
     let shortExp = mine.filter(t => t.side === 'SHORT').reduce((s, t) => s + Number(t.entry_price) * Number(t.size), 0)
     const held = new Set(open.map(t => String(t.sym)))
+    // P-AGG2: pyramiding ON (shared/strategy.ts pyramidGateOk: a 2nd unit on a same-side winner >= 0.6R, a 3rd only when
+    // every open unit is >= 1.0R, max 3). A coin held by another sleeve is never stacked on.
+    const donchUnits = (coin: string) => mine.filter(t => t.sym === coin && !closes.some(c => c.id === t.id))
     for (const coin of S.CRYPTO_40) {
       if (entries.length >= S.MAX_NEW_ENTRIES_PER_SCAN) break
-      if (held.has(coin)) continue
+      const units = donchUnits(coin)
+      if (held.has(coin) && (units.length === 0 || units.length >= S.PYRAMID_MAX || open.some(t => t.sym === coin && t.strategy !== 'DONCH4H'))) continue
       const P = pairOf(coin)
       try {
         const k = await json(`https://fapi.binance.com/fapi/v1/klines?symbol=${P.s}&interval=4h&limit=100`)
@@ -254,10 +268,13 @@ export async function runDonch(db: any, state: any, lease: string, paper: boolea
         const sig = S.donchSignal(completed); if (!sig) continue
         const adx = S.gateAdx(completed); if (!(adx > S.ADX_GATE)) { decisions.push({ coin, why: 'adx_gate', adx: +adx.toFixed(1) }); continue }
         const bk = await book(P), touch = sig.side === 'LONG' ? bk.asks[0][0] : bk.bids[0][0]
+        const pyramid = units.length > 0
+        if (pyramid && !S.pyramidGateOk(units.map(t => ({ side: t.side as S.Side, entry: Number(t.entry_price), origSlDist: Number(t.scalp_meta?.ladder?.origSlDist) })), sig.side, touch)) { decisions.push({ coin, why: 'pyramid_gate', units: units.length }); continue }
+        const symExposure = units.reduce((a, t) => a + Number(t.entry_price) * Number(t.size), 0)
         const atr = S.entryAtr(completed), sl = S.stopDistance(atr, touch), slPct = sl / touch
         if (slPct > S.SL_MAX_PCT) { decisions.push({ coin, why: 'stop_too_wide' }); continue }
-        const sz = S.sizeBreakout({ portfolio: equity, balance: cash, openExposure: openExp, heatCommitted: committed, longExposure: longExp, shortExposure: shortExp, symExposure: 0,
-          adx, slPct, side: sig.side, quoteVol24h: 0, riskMult: DONCHX.riskMult })
+        const sz = S.sizeBreakout({ portfolio: equity, balance: cash, openExposure: openExp, heatCommitted: committed, longExposure: longExp, shortExposure: shortExp,
+          adx, slPct, side: sig.side, quoteVol24h: 0, riskMult: DONCHX.riskMult, symExposure })
         if (!sz.ok) { decisions.push({ coin, why: sz.reason }); continue }
         const w = walkBook(sig.side === 'LONG' ? bk.asks : bk.bids, sz.notional)
         if (w.beyond) { decisions.push({ coin, why: 'beyond_book' }); continue }
@@ -267,8 +284,8 @@ export async function runDonch(db: any, state: any, lease: string, paper: boolea
         entries.push({ sym: coin, side: sig.side, price: entry, notional: sz.notional, stop, target: entry + dirM * sl * S.LADDER_TP_R, quote_ts: bk.E, source: 'binance-futures',
           meta: { donch: { adx: +adx.toFixed(2), hiN: sig.hiN, loN: sig.loN, atr, sl_pct: +slPct.toFixed(5), tier: S.adxTierMult(adx), bar: new Date(bar - DONCHX.barMs).toISOString(), impact_bps: +(w.impact * 1e4).toFixed(2) },
             ladder: { stage: 0, stopPx: stop, sizeOrig: size, sizeLeft: size, origSlDist: sl, chk: bk.E } as Ladder,
-            maker: { limit: sig.side === 'LONG' ? bk.bids[0][0] : bk.asks[0][0], t0: bk.E, filled: null, T: null } } })
-        decisions.push({ coin, why: 'entry', side: sig.side, adx: +adx.toFixed(1), notional: Math.round(sz.notional) })
+            maker: { limit: sig.side === 'LONG' ? bk.bids[0][0] : bk.asks[0][0], t0: bk.E, filled: null, T: null }, ...(pyramid ? { pyramid: { unit: units.length + 1, on: units.map(t => t.id) } } : {}) } })
+        decisions.push({ coin, why: pyramid ? `pyramid_${units.length + 1}` : 'entry', side: sig.side, adx: +adx.toFixed(1), notional: Math.round(sz.notional) })
         held.add(coin); committed += sz.notional; cash -= sz.notional * (1 + S.FEE_TAKER)
         if (sig.side === 'LONG') longExp += sz.notional; else shortExp += sz.notional
       } catch (e: any) { decisions.push({ coin, why: 'feed_error', err: String(e?.message ?? e).slice(0, 60) }) }
