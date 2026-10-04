@@ -93,15 +93,16 @@ try {
 const src = (f: string) => readFileSync(f, 'utf8')
 for (const wf of ['.github/workflows/deploy-edge-function.yml', '.github/workflows/enforce-no-loss-trading.yml']) {
   const w = src(wf)
-  for (const kv of ["g.__ENABLED_SLEEVES = 'FAST,EVT,DONCH4H'", "g.__SLEEVES_OFF = ''", "g.__LEVERAGE = '1'", "g.__FAST_MODE = 'rt'", "g.__FAST_LEV = '10'", "g.__FAST_SHARE = '0.50'",
-    "g.__FAST_PER_TRADE = '0.05'", "g.__FAST_MAX_OPEN = '8'", "g.__EVT_PER_TRADE = '0.08'", "g.__EVT_MAX_OPEN = '3'", "Deno.env.set('ENABLED_SLEEVES', 'FAST,EVT,DONCH4H')", "Deno.env.set('LEVERAGE', '1')"])
+  // P-Q15 replaced FAST with Q15 in the shim; the P-AGG2 FAST values stay documented in the shim comment for rollback
+  for (const kv of ["g.__ENABLED_SLEEVES = 'Q15,EVT,DONCH4H'", "g.__SLEEVES_OFF = ''", "g.__LEVERAGE = '1'", "__FAST_MODE='rt' __FAST_LEV='10' __FAST_SHARE='0.50' __FAST_PER_TRADE='0.05' __FAST_MAX_OPEN='8'",
+    "g.__EVT_PER_TRADE = '0.08'", "g.__EVT_MAX_OPEN = '3'", "Deno.env.set('ENABLED_SLEEVES', 'Q15,EVT,DONCH4H')", "Deno.env.set('LEVERAGE', '1')"])
     assert.ok(w.includes(kv), `${wf}: ${kv}`)
   assert.ok(!/__ENABLED_SLEEVES = '[^']*PRO/.test(w), `${wf}: PRO not enabled`)
   assert.ok(!w.includes('ALLOW_LIVE_EXECUTION'), `${wf}: never sets ALLOW_LIVE_EXECUTION`)
   assert.ok(w.indexOf('20261004120000_agg2.sql') > w.indexOf('20261004090000_blade_sleeve.sql'), `${wf}: AGG2 ledger applied after the Blade ledger`)
 }
 const idx = src('supabase/functions/trading-bot/index.ts'), br = src('supabase/functions/trading-bot/blade-runner.ts'), mig = src('supabase/migrations/20261004120000_agg2.sql')
-assert.ok(idx.includes("ENABLED_SLEEVES.includes('FAST') && ENABLED_SLEEVES.includes('EVT') && !ENABLED_SLEEVES.includes('LIST')") && idx.includes('runEvt2(supabase'), 'AGG2 branch routes EVT2 + FAST + DONCH4H')
+assert.ok(idx.includes("(ENABLED_SLEEVES.includes('FAST') || ENABLED_SLEEVES.includes('Q15')) && ENABLED_SLEEVES.includes('EVT') && !ENABLED_SLEEVES.includes('LIST')") && idx.includes('runEvt2(supabase'), 'AGG2 branch routes EVT2 + FAST + DONCH4H')
 assert.ok(idx.indexOf('P-AGG2 (owner override') < idx.indexOf("if (ENABLED_SLEEVES.includes('PRO')) {"), 'AGG2 branch precedes PRO')
 assert.ok(!br.includes('profitGate'), 'EVT has no profit gate'); assert.ok(src('supabase/functions/trading-bot/fast-runner.ts').includes('profitGate({'), 'FAST calls the profit gate')
 assert.ok(mig.includes("else\n   lv:=1;") && mig.includes("lev>case when strategy='BLADE' then 5 else 1 end"), 'DONCH4H is forced to 1x and a leveraged DONCH4H row is refused')

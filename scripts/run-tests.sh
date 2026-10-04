@@ -54,6 +54,7 @@ run "sleeve brake v99.6"   tests/sleeves.test.ts
 run "PRO scalp v100.0"     tests/pro.test.ts
 run "BLADE event engine"    tests/blade.test.ts
 run "P-AGG2 level 2"        tests/agg2.test.ts
+run "P-Q15 every 15m"        tests/q15.test.ts
 run "trend pullback"        tests/trend-pullback.test.ts
 run "lab v94 (research grid + LAB sleeve)" tests/lab.test.ts
 run "lab runner v94 (paper replay)" tests/lab-runner.test.ts
@@ -116,6 +117,8 @@ tc shared/intraday-retest.ts
 tc shared/chan.ts
 tc shared/trend-pullback.ts
 tc shared/blade.ts
+tc shared/q15.ts
+tc supabase/functions/trading-bot/q15-runner.ts
 tc supabase/functions/trading-bot/blade-runner.ts
 tc supabase/functions/trading-bot/fast-runner.ts
 tc supabase/functions/trading-bot/evt-runner.ts
@@ -124,7 +127,7 @@ tc backtest/portfolio.ts
 tc supabase/functions/trading-bot/index.ts
 
 echo ""
-echo "P-AGG2 ledger (local Postgres)"
+echo "P-AGG2 + P-Q15 ledger (local Postgres)"
 bash tests/sql/run.sh | tail -1 | grep -q "all checks passed\|SKIPPED" && bash tests/sql/run.sh | tail -1 || fail=1
 
 echo ""

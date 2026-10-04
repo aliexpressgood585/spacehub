@@ -461,6 +461,7 @@ import { runChan } from './chan-runner.ts'
 import { runList } from './list-runner.ts'
 import { runFund } from './fund-runner.ts'
 import { runEvt, runEvt2 } from './evt-runner.ts'
+import { runQ15 } from './q15-runner.ts'
 import { runPro } from './pro-runner.ts'
 import { runBlade, runDonch, cmsWatch, BLADE_SCAN } from './blade-runner.ts'
 import { meetingDue, capDecision } from '../../../shared/team-meeting.ts'
@@ -553,7 +554,7 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v102.0'
+const BOT_VERSION = 'v103.0'
 // v87.0: the pre-SCALP engine (DONCH4H / standalone ROTA) opens trades without the profit gate; it stays in the file
 // for its exit/record code history but may never open a trade. Changing this needs the gate wired in first.
 const LEGACY_ENGINE_ALLOWED = false
@@ -2737,14 +2738,22 @@ Deno.serve(async (req) => {
     // (agg2_day in every commit function). Leverage never reaches DONCH4H: the global LEVERAGE stays 1 and the ledger
     // forces DONCH4H rows to 1x. Order: EVT first (fresh announcements get the cash), FAST, DONCH4H, then the ~1 s CMS
     // watch until just before the next 5 s cron call (a new article re-runs EVT at once).
-    if (ENABLED_SLEEVES.includes('FAST') && ENABLED_SLEEVES.includes('EVT') && !ENABLED_SLEEVES.includes('LIST') && !ENABLED_SLEEVES.includes('FUND') && !ENABLED_SLEEVES.includes('PRO')) {
+    // P-Q15 (owner override 2026-10-04, PAPER ONLY): the same branch runs Q15 (scan every completed 15m bar, 10x isolated,
+    // 5%/trade, <= 8 open, share 50%, profit gate ON) in place of FAST when the shim lists 'Q15,EVT,DONCH4H'.
+    if ((ENABLED_SLEEVES.includes('FAST') || ENABLED_SLEEVES.includes('Q15')) && ENABLED_SLEEVES.includes('EVT') && !ENABLED_SLEEVES.includes('LIST') && !ENABLED_SLEEVES.includes('FUND') && !ENABLED_SLEEVES.includes('PRO')) {
       const cycleStart = Date.now(), paperOnly = paperMode && !liveMode
-      let evt: any = null, fast: any = null, donch: any = null
+      let evt: any = null, fast: any = null, donch: any = null, q15: any = null
       const fresh = async () => { const { data } = await supabase.from('bot_state').select('*').eq('id', 1).single(); return data ?? state }
       try { evt = await runEvt2(supabase, state, runLeaseUntil, paperOnly) }
       catch (e: any) { evt = { error: String(e?.message ?? e) }; await logErr('evt2_runner', String(e?.message ?? e)) }
-      try { fast = await runFast(supabase, await fresh(), runLeaseUntil, paperOnly) }
-      catch (e: any) { fast = { error: String(e?.message ?? e) }; await logErr('fast_runner', String(e?.message ?? e)) }
+      if (ENABLED_SLEEVES.includes('Q15')) {
+        try { q15 = await runQ15(supabase, await fresh(), runLeaseUntil, paperOnly) }
+        catch (e: any) { q15 = { error: String(e?.message ?? e) }; await logErr('q15_runner', String(e?.message ?? e)) }
+      }
+      if (ENABLED_SLEEVES.includes('FAST')) {
+        try { fast = await runFast(supabase, await fresh(), runLeaseUntil, paperOnly) }
+        catch (e: any) { fast = { error: String(e?.message ?? e) }; await logErr('fast_runner', String(e?.message ?? e)) }
+      }
       if (ENABLED_SLEEVES.includes('DONCH4H')) {
         try { donch = await runDonch(supabase, await fresh(), runLeaseUntil, paperOnly) }
         catch (e: any) { donch = { error: String(e?.message ?? e) }; await logErr('donch_runner', String(e?.message ?? e)) }
@@ -2758,8 +2767,8 @@ Deno.serve(async (req) => {
         }
       } catch (e: any) { await logErr('evt2_watch', String(e?.message ?? e)) }
       try { await supabase.from('bot_state').update({ lock_until: new Date().toISOString() }).eq('id', 1).eq('lock_until', runLeaseUntil) } catch { /* expires on its own */ }
-      const bad = !!(evt?.error || fast?.error || donch?.error)
-      return new Response(JSON.stringify({ ok: !bad, version: BOT_VERSION, evt, fast, donch }), { status: bad ? 500 : 200, headers: { 'Content-Type': 'application/json' } })
+      const bad = !!(evt?.error || fast?.error || donch?.error || q15?.error)
+      return new Response(JSON.stringify({ ok: !bad, version: BOT_VERSION, evt, q15, fast, donch }), { status: bad ? 500 : 200, headers: { 'Content-Type': 'application/json' } })
     }
 
     if (ENABLED_SLEEVES.includes('PRO')) {

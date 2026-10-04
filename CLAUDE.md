@@ -375,6 +375,16 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v103.0 P-Q15 (2026-10-04, branch q15/aggressive-scan, PR — NOT merged until the owner says) — owner: "trade aggressively every 15 minutes, and be profitable"
+- Sleeves Q15 + EVT + DONCH4H (shim 'Q15,EVT,DONCH4H', Q15 10x / 5% / 8 / share 50%). FAST, PRO, LIST, FUND, BRKV, CHAN, SCALP, ROTA off. Same index.ts level-2 branch (Q15 runs where FAST ran).
+- Q15 = the FAST burst rule on COMPLETED 15m bars (preregistered: quant/PREREGISTRATION_Q15.md). Profit gate ON, from q15_shadow: every signal is scored by the exact bracket (1.5 ATR >= 0.4% / 2R / 8 bars) on 1m bars. Below 30 signal bars there is no estimate, so no entry.
+- A quiet bar gives 0 entries (tested). Entries come only in the first 3 min after the close. Rejected if the spread is > 8 bps, the impact is > 25% of the stop, the order goes beyond the book, or the quote is stale.
+- OFFLINE READ (status/q15-check.txt, 40 coins x 36m, measurement only): gross -1.25 bps, net -17.5 bps/trade, t(day) -6.1; OOS gross +0.78 vs 16 cost. 91% of 15m bars have no signal. EXPECT THE GATE TO REFUSE ~EVERYTHING.
+- Ledger 20261004150000_q15.sql (CI step after AGG2): q15_commit_cycle + q15_shadow; blade_commit_cycle patched in place to accept Q15 rows (fails closed if the text moved). DONCH4H stays 1x.
+- Tests: tests/q15.test.ts, tests/sql/q15.test.sql. ALL TESTS PASSED.
+- House: Q15 panel shows the last 15m scan, signals / candidates / fills, rejection reasons, scan time, gate and halt.
+- ROLLBACK: the P-AGG2 shim (values kept in the shim comment), after closing Q15 rows.
+
 ## v102.0 P-AGG2 LEVEL 2 (2026-10-04, branch agg2/fast-evt-donch, PR — NOT merged until the owner says) — owner override: "level 2, more aggressive and risky; no lotto, no 50x, no PRO"
 - Sleeves FAST + EVT + DONCH4H; PRO, LIST, FUND, BRKV, CHAN, SCALP, ROTA, LAB and BLADE are off. New index.ts branch: EVT2, then FAST, then DONCH4H, then the ~1 s CMS watch.
 - FAST: rt mode, 10x isolated, 5%/trade, <= 8 open, share <= 50%, 20/day; PSYCH off in rt.

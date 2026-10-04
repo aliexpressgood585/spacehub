@@ -16,7 +16,7 @@ import { aggTrades, book, aggHalted, type Pair } from './fast-runner.ts'
 import { sleeveOff } from '../../../shared/sleeves.ts'
 
 const g = () => globalThis as any
-export const BLADE_SLEEVES = ['BLADE', 'DONCH4H', 'FAST', 'EVT']   // P-AGG2: FAST/EVT rows may share the book; each runner touches only its own
+export const BLADE_SLEEVES = ['BLADE', 'DONCH4H', 'FAST', 'EVT', 'Q15']   // P-AGG2: FAST/EVT rows may share the book; each runner touches only its own
 // P-AGG2: the same event engine runs as sleeve EVT (owner override 2026-10-04): BL1/BD1 rules unchanged (30 s age, 8 bps
 // spread, walked impact <= 25% of the expected move, stop 4%, half at +3% then 1.5 ATR trail, 15 min; delist 4% / 7% /
 // 240 min), but no SHADOW/PROBE/ATTACK levels and no Blade-only halt: paper at margin = perTrade x equity, isolated

@@ -241,3 +241,27 @@ Detection cadence only: no rule, size, level or risk change. The cron stays at 5
 - Failure criteria: 30 EVT2 events with PF < 1 -> propose EVT off; FAST gate never opens -> FAST is effectively off (report it,
   do not loosen); median detect lag > 15 s -> no EVT size increase.
 - 2026-10-04 09:05 UTC: OWNER APPROVED THE MERGE ("מאשר למיזוג"), the council override for P-AGG2. PR #87 merged (94c1beb5) and deployed: v102.0 FAST,EVT,DONCH4H, paper true / live false, 0 errors. Status: PAPER_TEST LIVE.
+
+## P-Q15 — "trade aggressively every fifteen minutes, and be profitable" (owner override 2026-10-04)
+- Status: PAPER_TEST pending merge. Branch q15/aggressive-scan, one PR; the owner decides the merge. PAPER ONLY; no live
+  orders; no account reset. Owner override of the council for THIS change only.
+- Hypothesis (preregistered, quant/PREREGISTRATION_Q15.md): the FAST burst rule on COMPLETED 15m bars, gated by its own
+  measured gross. NOT a new edge. Offline read of the frozen rule on 36m x 40 coins (status/q15-check.txt): n 25,826,
+  gross -1.25 bps, net -17.5 bps/trade (t(day) -6.1); OOS gross +0.78 vs 16 bps cost. Expect the gate to refuse almost all.
+  91% of 15m bars have no signal at all (quiet bar = 0 entries, by design).
+- Exact change:
+  - Shim (both CI workflows): `__ENABLED_SLEEVES='Q15,EVT,DONCH4H'`, `__SLEEVES_OFF=''`, `__LEVERAGE='1'`, `__Q15_LEV='10'`,
+    `__Q15_PER_TRADE='0.05'`, `__Q15_MAX_OPEN='8'`, `__Q15_SHARE='0.50'`, `__EVT_PER_TRADE='0.08'`, `__EVT_MAX_OPEN='3'`.
+    FAST, PRO, LIST, FUND, BRKV, CHAN, SCALP, ROTA off.
+  - Q15 (shared/q15.ts + q15-runner.ts): 3-bar move > 1.5 ATR(15m)·√3, volume >= 2x 20-bar avg, taker imbalance > 0.10
+    (missing -> skip), BTC vs EMA20, profit gate (q15_shadow: every signal scored by the same bracket on 1m bars, clustered
+    by bar, evidence weighted, >= 30 bars; full cost model; net >= 2 bps). Entry in the first 3 min after the close, walkBook;
+    reject spread > 8 bps, entry/exit impact > 25% of the stop, beyond the visible book, stale quote. Stop 1.5 ATR (>= 0.4%),
+    2R, 8 bars, aggTrades exits. 10x isolated, 5%, <= 8, share 50%, <= 20/UTC day. PSYCH off.
+  - Ledger 20261004150000_q15.sql: q15_commit_cycle (paper lock, lev 1..10, 5%, 8, 50%, 20/day, stop >= 0.4%, refuses an
+    ungated entry and any leveraged non-Q15/EVT row, agg2_day -12% halt) + q15_shadow; blade_commit_cycle patched in place to
+    accept Q15 rows (DONCH4H stays forced to 1x). Verified on local Postgres 16 (tests/sql/q15.test.sql).
+  - EVT (10x, 8%, 3, no gate, 30 s age, detect_lag_ms) and DONCH4H (1x, 1.25%, pyramid) carried over unchanged from P-AGG2.
+- Rollback: shim back to the P-AGG2 values (kept in the shim comment) after closing open Q15 rows.
+- Failure criteria: 100 closed Q15 trades with net <= 0 or t < 2 -> propose Q15 off. Gate never opens -> Q15 is effectively
+  off; report it, do not loosen the gate.

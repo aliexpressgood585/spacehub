@@ -13,4 +13,6 @@ P="psql -h $D -p 55433 -U postgres -v ON_ERROR_STOP=1 -q -d postgres"
 $P -f tests/sql/schema.sql >/dev/null
 $P -f supabase/migrations/20261004090000_blade_sleeve.sql >/dev/null 2>&1
 $P -f supabase/migrations/20261004120000_agg2.sql >/dev/null 2>&1
+$P -f supabase/migrations/20261004150000_q15.sql >/dev/null 2>&1
 $P -t -f tests/sql/agg2.test.sql 2>&1 | grep -v '^\s*$' | grep -v '^ *$' | tail -12
+$P -t -f tests/sql/q15.test.sql 2>&1 | grep -v '^\s*$' | tail -6

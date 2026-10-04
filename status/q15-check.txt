@@ -1,0 +1,16 @@
+Q15 offline sanity read — FROZEN rule (quant/PREREGISTRATION_Q15.md), measurement only
+data: 40 coins, Binance USDT-M 15m, 2023-09-01 .. 2026-08-31 (1096 days); IS < 2025-10-07 <= OOS
+costs: 16 bps round trip + funding 0.25 bps; bracket on 15m bars, stop first; entry next 15m open
+
+ALL            n  25826  gross   -1.25 bps  net  -17.50 bps  WR 37.4%  t(bar) -13.12  t(day)  -6.14
+IS 70%         n  16794  gross   -2.33 bps  net  -18.58 bps  WR 37.1%  t(bar) -10.61  t(day)  -5.39
+OOS 30%        n   9032  gross    0.78 bps  net  -15.47 bps  WR 38.1%  t(bar)  -7.78  t(day)  -3.07
+LONG           n  10769  gross   -1.39 bps  net  -17.64 bps  WR 35.9%  t(bar) -11.64  t(day)  -8.21
+SHORT          n  15057  gross   -1.14 bps  net  -17.39 bps  WR 38.5%  t(bar)  -6.70  t(day)  -3.79
+STOP           n  11527  gross -115.34 bps  net -131.59 bps  WR 0.0%  t(bar) -136.39  t(day) -22.15
+TARGET         n   5104  gross  210.36 bps  net  194.11 bps  WR 100.0%  t(bar)  89.72  t(day)  17.26
+TIMEOUT        n   9195  gross   24.33 bps  net    8.08 bps  WR 49.6%  t(bar)   7.01  t(day)   4.86
+
+15m bars in span 105215; bars with >= 1 signal 9479 (9.0%) -> quiet bars 91.0%
+signals per active bar: mean 2.72, max 39; trades/day 23.56
+NB 40 coins vs a live universe of ~100; the live profit gate reads its own forward measurement, not this file.
