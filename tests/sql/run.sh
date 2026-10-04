@@ -6,7 +6,7 @@ B=$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | tail -1 || true)
 if [ -z "$B" ] || [ ! -x "$B/initdb" ]; then echo "  sql ledger tests: SKIPPED (no local Postgres)"; exit 0; fi
 D=$(mktemp -d /var/tmp/agg2pg.XXXX); RUN=""; [ "$(id -u)" = 0 ] && { chown postgres "$D"; RUN="su postgres -c"; }
 sh_() { if [ -n "$RUN" ]; then $RUN "$1"; else bash -c "$1"; fi; }
-sh_ "$B/initdb -D $D/data -A trust >/dev/null && $B/pg_ctl -D $D/data -o '-p 55433 -k $D' -l $D/log start >/dev/null"
+sh_ "$B/initdb -D $D/data -U postgres -A trust >/dev/null && $B/pg_ctl -D $D/data -o '-p 55433 -k $D' -l $D/log start >/dev/null"
 trap 'sh_ "$B/pg_ctl -D $D/data stop -m immediate >/dev/null" || true; rm -rf "$D"' EXIT
 sleep 2
 P="psql -h $D -p 55433 -U postgres -v ON_ERROR_STOP=1 -q -d postgres"

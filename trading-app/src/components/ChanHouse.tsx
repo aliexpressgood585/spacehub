@@ -261,6 +261,8 @@ function BladeHouse({ onBack, agg = false, q15 = false }: { onBack?: () => void;
     {q15 && <div className="emptyPos" style={{textAlign:'right',padding:'12px 14px',marginBottom:14,borderStyle:'solid',color:'#fbbf24'}}>
       Q15 · נייר בלבד: סריקה בכל נר 15 דקות שהושלם. כניסה רק כשהאות ושער הרווח עוברים; גם אפס כניסות הוא תקין. מינוף 10 מבודד, מרג׳ין 5% לעסקה, עד 8 פתוחות ו־20 כניסות ביום. EVT עד 30 שניות מההודעה, 10x ומרג׳ין 8%, עד 3. DONCH4H במינוף 1 וסיכון עד 1.25%, פירמידה 0.6R / 1R.
       <div style={{marginTop:6}}>סריקה אחרונה: {fc.scanned_at ? clock(fc.scanned_at) : 'טרם נסרק'} · נר: {fc.bar ? clock(fc.bar) : '—'} · נסרקו {fc.scanned ?? 0}/{fc.universe ?? 0} · מועמדים {fc.candidates ?? 0} · כניסות {fc.fills ?? 0} · השהיה {fc.scan_lag_ms ?? '—'} ms</div>
+      {fc.scanned_at && now - Number(fc.scanned_at) > 17*60*1000 && <div role="alert">אזהרה: סריקת Q15 לא התעדכנה מעל 17 דקות.</div>}
+      {!!fc.exit_errors?.length && <div role="alert">שגיאת ניהול יציאות: {fc.exit_errors.join(' · ')}</div>}
       <div>סיבות שער: {Object.entries(fc.reasons ?? {}).map(([reason,count]) => `${reason}: ${count}`).join(' · ') || '—'}</div>
       <div>מדידת Q15: LONG {fc.edge?.long?.n ?? 0} אותות / {fc.edge?.long?.days ?? 0} ימים; SHORT {fc.edge?.short?.n ?? 0} / {fc.edge?.short?.days ?? 0}. נדרשים 100 אותות סגורים ב־20 ימים לכל כיוון; ללא מדידה אין כניסות. אין הבטחת רווח.</div>
       {p.q15_marks_blocked && <div>כניסות חסומות: חסרים מחירי הון עדכניים. יציאות ממשיכות.</div>}
@@ -1017,7 +1019,7 @@ function ChanHouseView({ onBack }: { onBack?: () => void }) {
                 <td><bdi dir="ltr">{clock(t.closed_at)}</bdi></td>
                 <td><b>{t.sym}</b></td>
                 <td>{t.side}</td>
-                <td>{t.status}</td>
+                <td>{t.scalp_meta?.exit_reason ?? t.status}</td>
                 <td className={pnl>=0?'pos':'neg'}>{fmt$(pnl)}</td>
                 <td>{Number.isFinite(Number(t.scalp_meta?.chan?.mfe_r)) ? `${Number(t.scalp_meta.chan.mfe_r).toFixed(2)}R` : '—'}</td>
                 <td>{Number.isFinite(Number(t.scalp_meta?.chan?.mae_r)) ? `${Number(t.scalp_meta.chan.mae_r).toFixed(2)}R` : '—'}</td>

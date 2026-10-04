@@ -62,6 +62,12 @@ jobs:
           if grep -q '"error"\|"message"' /tmp/q15_mig_result.json; then echo "::error::P-Q15 migration failed"; cat /tmp/q15_mig_result.json; exit 1; fi
           echo "P-Q15 migration applied"
 
+      - name: Verify complete handler before bundling
+        run: |
+          node --experimental-strip-types --check supabase/functions/trading-bot/index.ts
+          grep -q 'Deno.serve' supabase/functions/trading-bot/index.ts
+          if grep -q 'Warning: truncated output' supabase/functions/trading-bot/index.ts; then exit 1; fi
+
       - name: Prepare pinned local release shim
         shell: bash
         run: |

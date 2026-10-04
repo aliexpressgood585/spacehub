@@ -62,15 +62,15 @@ try{
  }) as typeof fetch
  await assert.rejects(()=>runQ15(db,{},'',false),/paper-only/)
  await run();assert.equal(journal.length,pairs.length,'all-failing bar -> N journal rows, including >100 universe');assert.equal(commits.at(-1).p_entries.length,0,'no forced fill');assert.equal(kcalls,pairs.length)
- hot=true;await run();assert.equal(journal.find(x=>x.sym==='SOL').reason,'taken');assert.equal(shadows.length,1)
- history=evidence(14);await run();assert.equal(commits.at(-1).p_entries.length,1,'immediate mode does not depend on historical evidence')
+ hot=true;g.__Q15_IMMEDIATE='true';await run();assert.equal(journal.find(x=>x.sym==='SOL').reason,'no_edge_estimate');assert.equal(commits.at(-1).p_entries.length,0,'legacy override cannot fabricate edge');assert.equal(shadows.length,1)
+ history=evidence(14);await run();assert.equal(commits.at(-1).p_entries.length,0,'measured edge must cover full costs')
  history=evidence();await run();assert.equal(commits.at(-1).p_entries.length,1);const e=commits.at(-1).p_entries[0];assert.equal(e.lev,10);assert.equal(e.notional,2500);assert.equal(journal.find(x=>x.sym==='SOL').reason,'taken')
  halted=true;await run();assert.equal(commits.at(-1).p_entries.length,0);assert.equal(journal.find(x=>x.sym==='SOL').reason,'day_or_owner_halt');assert.equal(kcalls,pairs.length,'halt still scans and journals');halted=false
  await run({q15_bar:BAR});assert.equal(kcalls,0,'same completed bar is never re-scanned')
  Date.now=()=>BAR+60001;await run();assert.equal(commits.at(-1).p_entries.length,0);assert.equal(journal.find(x=>x.sym==='SOL').reason,'missed_open_window');Date.now=()=>NOW
  open=[{paper_mode:true,strategy:'DONCH4H',lev:10}];await assert.rejects(()=>run(),/non-isolated/);open=[]
  tape=[{p:'100',T:NOW-1,a:1},{p:'50',T:NOW+1,a:2}];const t=await q15Tape(pairs[0],NOW-10,NOW);assert.deepEqual(t.trades,[{p:100,T:NOW-1}],'future tape never resolves an exit')
-}finally{globalThis.fetch=realFetch;Date.now=realNow;delete g.__Q15_LEV;delete g.__LEVERAGE}
+}finally{globalThis.fetch=realFetch;Date.now=realNow;delete g.__Q15_LEV;delete g.__LEVERAGE;delete g.__Q15_IMMEDIATE}
 const read=(p:string)=>readFileSync(p,'utf8')
 for(const f of ['deploy-edge-function','enforce-no-loss-trading']){const s=read(`.github/workflows/${f}.yml`);for(const kv of ["__ENABLED_SLEEVES = 'Q15,EVT,DONCH4H'","__LEVERAGE = '1'","__Q15_LEV = '10'","__Q15_PER_TRADE = '0.05'","__Q15_MAX_OPEN = '8'","__Q15_SHARE = '0.50'","__EVT_PER_TRADE = '0.08'","__EVT_MAX_OPEN = '3'"])assert.ok(s.includes(kv));assert.ok(!s.includes('ALLOW_LIVE_EXECUTION'))}
 assert.ok(read('supabase/functions/trading-bot/blade-runner.ts').includes('lev: 1, price: entry'),'DONCH entry explicitly 1x regardless of shim')

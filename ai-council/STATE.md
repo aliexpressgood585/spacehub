@@ -1,5 +1,12 @@
 # AI Council State
 
+## Q15 measured gate repair — owner authorized 2026-10-04
+- Status: REVIEWED. Owner requested fixes, merge and paper deployment while preserving aggressive sizing.
+- GPT review: APPROVED. Remove fabricated cost+2bps expected return even when a legacy immediate flag exists. Shadow collection continues; existing positions still exit normally. No new Claude review claimed.
+- Preserve Q15 10x / 5% / 8 positions / 50% share, EVT settings, DONCH 1x and daily halt. Until sufficient measured evidence, Q15 entries may remain zero. No profitability claim.
+- Show actual exit reason, stale scan and exit errors. Repair local Postgres test role initialization.
+
+
 ## Q15 deployment repair — 2026-10-04
 - Owner requested completing the interrupted deployment. No new strategy or risk changes.
 - Restored index.ts byte-for-byte from intact local commit 8db5e77 (blob 2c9d37dc085b2cc6b830463e7104ff7be019b72d); the prior upload contained terminal truncation markers and lost the handler.
