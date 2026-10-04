@@ -1,3 +1,4 @@
+// P-Q15 log query trigger; paper-only.
 // P-Q15 debug smoke trigger; paper-only.
 // P-Q15 final deploy trigger; paper-only.
 // P-Q15 deploy smoke trigger: paper-only cycle after edge deployment.
