@@ -62,10 +62,11 @@ jobs:
           if grep -q '"error"\|"message"' /tmp/q15_mig_result.json; then echo "::error::P-Q15 migration failed"; cat /tmp/q15_mig_result.json; exit 1; fi
           echo "P-Q15 migration applied"
 
-      - name: Prepare pinned CHAN release shim
+      - name: Prepare pinned local release shim
         shell: bash
         run: |
           SHA="$(git rev-parse HEAD)"
+          cp supabase/functions/trading-bot/index.ts supabase/functions/trading-bot/index.source.ts
           cat > supabase/functions/trading-bot/index.ts <<EOF
           const g = globalThis as any;
           g.__RELEASE_SHA = '${SHA}';
@@ -77,7 +78,7 @@ jobs:
             Deno.env.set('ENABLED_SLEEVES', 'Q15,EVT,DONCH4H');
             Deno.env.set('LEVERAGE', '1');
           } catch {}
-          await import('https://raw.githubusercontent.com/aliexpressgood585/spacehub/${SHA}/supabase/functions/trading-bot/index.ts');
+          await import('./index.source.ts');
           export {};
           EOF
           echo "Prepared CHAN shim for ${SHA}"
