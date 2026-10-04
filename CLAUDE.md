@@ -375,6 +375,20 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v101.1 (2026-10-04) — Blade reads the Binance CMS about once a second; the house shows live position cards (owner: "why is the data not showing, scan every second")
+- Most blank fields were genuinely empty: no listing or delisting since activation, so no detection lag, no shadow events, no closed trades. One real display defect: the open-positions table (minWidth 700) was cut off on a phone and showed no live price or P&L.
+- Scan: the cron stays at 5 s, so edge invocations do NOT grow (~17k/day; 1 s cron would be ~86k/day, above the free plan).
+  - Each cycle polls the CMS once, then `cmsWatch()` polls both catalogs in parallel every 1 s until ~4.3 s after the cycle start, with no DB write per poll.
+  - An unseen article re-runs runBlade at once; its poll gate dropped 3 s -> 0.9 s.
+  - Watch stats (polls, errors, last ok) go into the next blade_cycle note (`watch`, `scan_ms`).
+  - Heartbeat write 60 s -> 10 s, so "last check" on the house is at most ~10 s stale.
+  - Detection is still bounded by when Binance publishes to the CMS.
+  - RISK: about 2 CMS requests/s from Supabase egress; a 429 shows up as poll_error and in `watch.errors`.
+- Marks: both runners publish `marks` + `marks_ts` in donch_cycle / blade_cycle; `botMarks()` reads them as the fallback after the Binance socket.
+- House BladeHouse: positions are cards (live mark via useExitMarks, net $ and R via tradeMetrics, stop and distance %, ladder stage, risk, age); new stat "open P&L"; live equity includes unrealised P&L.
+- Tests: cmsWatch (4 polls in the window, stops on a new key, errors reported and never thrown) plus the index.ts wiring. ALL TESTS PASSED. BOT_VERSION v101.1.
+- ROLLBACK: revert this commit (the cron was never changed).
+
 ## v101.0 BLADE (2026-10-04, branch `blade/event-engine`, PR — NOT deployed) — owner brief: "aggressive + profitable + fast", event-driven, silent the rest of the time
 - Pre-registration FIRST: `quant/PREREGISTRATION_BLADE.md` (commit 554dac5), before any number was computed.
 - Code:

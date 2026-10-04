@@ -36,6 +36,39 @@ async function fundingSum(s: string, from: number, to: number): Promise<number |
 }
 
 // ───────────────────────────────────────────── BLADE ─────────────────────────────────────────────
+// v101.1 (owner: "scan every second"): the CMS is read about once a second. The 5 s cron cycle polls once itself, then
+// cmsWatch() keeps polling every ~1 s until just before the next cron call, holding the lease, with NO database write per
+// poll. A key the bot has not seen yet ends the watch and index.ts re-runs runBlade at once, so a fresh announcement is
+// acted on within ~1 s of Binance publishing it to the CMS (the CMS itself remains the bound on detection).
+export const BLADE_SCAN = { pollGapMs: 900, watchGapMs: 1000, watchUntilMs: 4300, beatMs: 10_000 } as const
+export async function cmsArticles(): Promise<{ rel: number; key: string; title: string }[]> {
+  const out: { rel: number; key: string; title: string }[] = []
+  const res = await Promise.all(EV_CATALOGS.map(async cat => {
+    const r = await fetch(`https://www.binance.com/bapi/composite/v1/public/cms/article/list/query?type=1&catalogId=${cat}&pageNo=1&pageSize=10`,
+      { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(2500) })
+    if (!r.ok) throw new Error(`cms ${cat} HTTP ${r.status}`)
+    return r.json()
+  }))
+  for (const d of res) for (const c of d?.data?.catalogs ?? []) for (const a of c.articles ?? []) {
+    const rel = Number(a.releaseDate)
+    out.push({ rel, key: `${rel}:${String(a.code ?? a.title).slice(0, 40)}`, title: String(a.title) })
+  }
+  return out
+}
+// stats of the last watch in this isolate; the next runBlade reports them (warm isolates at a 5 s cadence)
+let lastWatch: { polls: number; errors: number; lastOk: number; err: string | null; at: number } | null = null
+export async function cmsWatch(seenKeys: Set<string>, untilMs: number, fetcher = cmsArticles, sleep = (ms: number) => new Promise(r => setTimeout(r, ms))) {
+  let polls = 0, errors = 0, lastOk = 0, err: string | null = null, hit = false
+  while (Date.now() + BLADE_SCAN.watchGapMs <= untilMs) {
+    await sleep(BLADE_SCAN.watchGapMs)
+    polls++
+    try { const arts = await fetcher(); lastOk = Date.now(); err = null; if (arts.some(a => !seenKeys.has(a.key))) { hit = true; break } }
+    catch (e: any) { errors++; err = String(e?.message ?? e) }
+  }
+  lastWatch = { polls, errors, lastOk, err, at: Date.now() }
+  return { hit, polls, errors, lastOk, err }
+}
+
 export async function runBlade(db: any, state: any, lease: string, paper: boolean) {
   if (!paper) throw new Error('BLADE is paper-only; refusing live execution')
   const now = Date.now(), params = state.bot_params || {}, prev = params.blade_cycle || {}
@@ -89,22 +122,15 @@ export async function runBlade(db: any, state: any, lease: string, paper: boolea
   // 3. detection
   let seen: Record<string, any> = prev.seen && typeof prev.seen === 'object' ? { ...prev.seen } : {}
   const seeded = Object.keys(seen).length > 0
-  const pollDue = now - (Number(prev.poll_ts) || 0) >= 3_000
+  const pollDue = now - (Number(prev.poll_ts) || 0) >= BLADE_SCAN.pollGapMs
   let pollErr: string | null = null, fresh: { releaseDate: number; title: string; firstSeen: number }[] = [], articles = 0
   if (pollDue) {
     try {
-      for (const cat of EV_CATALOGS) {
-        const r = await fetch(`https://www.binance.com/bapi/composite/v1/public/cms/article/list/query?type=1&catalogId=${cat}&pageNo=1&pageSize=10`,
-          { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(2500) })
-        if (!r.ok) throw new Error(`cms ${cat} HTTP ${r.status}`)
-        const d = await r.json()
-        for (const c of d?.data?.catalogs ?? []) for (const a of c.articles ?? []) {
-          articles++
-          const rel = Number(a.releaseDate), key = `${rel}:${String(a.code ?? a.title).slice(0, 40)}`
-          if (seen[key]) continue
-          seen[key] = { first: now, rel, lag: seeded ? detectLag(now, rel) : null, title: String(a.title).slice(0, 120) }
-          if (seeded) fresh.push({ releaseDate: rel, title: String(a.title), firstSeen: now })
-        }
+      for (const a of await cmsArticles()) {
+        articles++
+        if (seen[a.key]) continue
+        seen[a.key] = { first: now, rel: a.rel, lag: seeded ? detectLag(now, a.rel) : null, title: a.title.slice(0, 120) }
+        if (seeded) fresh.push({ releaseDate: a.rel, title: a.title, firstSeen: now })
       }
     } catch (e: any) { pollErr = String(e?.message ?? e) }
     const keys = Object.keys(seen).sort((a, b) => seen[b].rel - seen[a].rel).slice(0, 60); seen = Object.fromEntries(keys.map(k => [k, seen[k]]))
@@ -149,10 +175,11 @@ export async function runBlade(db: any, state: any, lease: string, paper: boolea
   }
   if (decisions.length) await db.from('blade_events').upsert(decisions, { onConflict: 'ann_key,rule', ignoreDuplicates: true })
   const changed = closes.length + legs.length + entries.length > 0 || fresh.length > 0 || ratchets.length > 0
-  const beat = now - (Number(prev.ts_ms) || 0) >= 60_000
+  const beat = now - (Number(prev.ts_ms) || 0) >= BLADE_SCAN.beatMs
   if (!changed && !beat) return { changed: false, level: lvl.level, open: mine.length }
   const lagsOut = newLags.filter(Number.isFinite).slice(-BLADE.lagWindow)
-  const note = { ts_ms: now, poll_ts: pollDue && !pollErr ? now : prev.poll_ts ?? null, poll_error: pollErr, articles, seen, list_lags: lagsOut, level_why: lvl.why, halt, shadow_open: (shadows ?? []).length,
+  const w = lastWatch, ownPoll = pollDue && !pollErr ? now : Number(prev.poll_ts) || 0
+  const note = { ts_ms: now, poll_ts: Math.max(ownPoll, w?.lastOk ?? 0) || null, poll_error: pollErr ?? w?.err ?? null, scan_ms: BLADE_SCAN.watchGapMs, watch: w ? { polls: w.polls, errors: w.errors, at: w.at } : null, articles, seen, marks, marks_ts: new Date(now).toISOString(), list_lags: lagsOut, level_why: lvl.why, halt, shadow_open: (shadows ?? []).length,
     decisions: decisions.map(d => ({ rule: d.rule, coin: d.coin, gate: d.gate, mode: d.mode, lag: d.detect_lag_ms })) }
   const { data: result } = await db.rpc('blade_commit_cycle', { p_lease: lease, p_sleeve: 'BLADE', p_closes: closes, p_legs: legs, p_ratchets: ratchets, p_entries: entries,
     p_marks: marks, p_note: note, p_level: lvl.level, p_max_open: BLADE.maxOpen[lvl.level], p_snapshot: false }).throwOnError()
@@ -250,7 +277,7 @@ export async function runDonch(db: any, state: any, lease: string, paper: boolea
   const snap = now - (Number(params.blade_eq_ts) || 0) >= DONCHX.snapshotMs
   const changed = closes.length + legs.length + entries.length + ratchets.length > 0
   if (!changed && !due && !snap) return { changed: false, open: mine.length }
-  const note = { bar: due ? bar : prev.bar ?? null, scanned_at: due ? now : prev.scanned_at ?? null, decisions: due ? decisions.slice(0, 60) : prev.decisions ?? [] }
+  const note = { bar: due ? bar : prev.bar ?? null, scanned_at: due ? now : prev.scanned_at ?? null, marks, marks_ts: new Date(now).toISOString(), decisions: due ? decisions.slice(0, 60) : prev.decisions ?? [] }
   const { data: result } = await db.rpc('blade_commit_cycle', { p_lease: lease, p_sleeve: 'DONCH4H', p_closes: closes, p_legs: legs, p_ratchets: ratchets, p_entries: entries,
     p_marks: marks, p_note: note, p_level: 'DONCH', p_max_open: 30, p_snapshot: snap }).throwOnError()
   return { changed, ...result, due, entries: entries.length }

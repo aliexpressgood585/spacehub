@@ -226,8 +226,13 @@ function BladeHouse({ onBack }: { onBack?: () => void }) {
   const lags: number[] = (Array.isArray(bc.list_lags) ? bc.list_lags : []).filter((x: number) => Number.isFinite(x))
   const lagMed = lags.length ? [...lags].sort((a, b) => a - b)[Math.floor(lags.length / 2)] : null
   const shadowClosed = events.filter(e => e.mode === 'shadow' && e.status === 'closed'), shadowNet = shadowClosed.reduce((s, e) => s + Number(e.net ?? 0), 0)
+  const { marks: exitMarks } = useExitMarks(open.map(t => ({ sym: String(t.sym), side: String(t.side) })))
+  const posRows = open.map(t => { const em = exitMarks[`${t.sym}:${t.side}`] ?? { mark: null }
+    return { t, mark: em.mark, src: em.src, tm: em.mark != null ? tradeMetrics(t, em.mark, now) : null,
+      value: em.mark != null ? closeValue(t, em.mark, now) : Number(t.entry_price) * Number(t.size) / Math.max(1, Number(t.lev) || 1) } })
+  const openPnl = posRows.reduce((s, r) => s + (r.tm?.net ?? 0), 0)
   const realised = closed.reduce((s, t) => s + Number(t.pnl ?? 0), 0), cash = Number(state?.balance ?? 0)
-  const equity = cash + open.reduce((s, t) => s + Number(t.entry_price) * Number(t.size) / Math.max(1, Number(t.lev) || 1), 0)
+  const equity = cash + posRows.reduce((s, r) => s + r.value, 0)
   const makers = trades.filter(t => t.strategy === 'DONCH4H' && t.scalp_meta?.maker && t.scalp_meta.maker.filled !== null)
   const makerRate = makers.length ? makers.filter(t => t.scalp_meta.maker.filled).length / makers.length : null
   return <div className="ch" dir="rtl">
@@ -247,12 +252,13 @@ function BladeHouse({ onBack }: { onBack?: () => void }) {
       <div style={{marginTop:6}}>הרמה בשימוש: {String(bc.level_why ?? '—')}{bc.halt ? ` · עצירה: ${bc.halt}` : ''}</div>
     </div>
     <section className="accountStrip">
-      <Stat k="הון (מרג׳ין + מזומן)" v={fmt$(equity)} />
+      <Stat k="הון חי (כולל רווח פתוח)" v={fmt$(equity)} />
+      <Stat k="רווח/הפסד פתוח" v={fmt$(openPnl)} cls={openPnl>=0?'pos':'neg'} />
       <Stat k="מזומן פנוי" v={fmt$(cash)} />
       <Stat k="ממומש" v={fmt$(realised)} cls={realised>=0?'pos':'neg'} />
       <Stat k="השהיית זיהוי (חציון 10 אחרונות)" v={lagMed != null ? `${(lagMed/1000).toFixed(1)} שנ׳` : 'עוד לא נמדד'} cls={lagMed != null && lagMed > 15000 ? 'neg' : ''} />
       <Stat k="אירועי צל סגורים" v={`${shadowClosed.length} · ${(shadowNet*100).toFixed(2)}%`} cls={shadowNet>=0?'pos':'neg'} />
-      <Stat k="בדיקת CMS אחרונה" v={ago(bc.poll_ts ?? null, now)} />
+      <Stat k="סריקת הודעות Binance" v={`כל ${((Number(bc.scan_ms) || 5000)/1000).toFixed(0)} שנ׳ · ${ago(bc.poll_ts ?? null, now)}`} />
       <Stat k="DONCH סריקה" v={dc.scanned_at ? `${ago(dc.scanned_at, now)} · נר ${dc.bar ? clock(dc.bar) : '—'}` : '—'} />
       <Stat k="Maker fill (ניסוי)" v={makerRate != null ? `${(makerRate*100).toFixed(0)}% מתוך ${makers.length}` : '—'} />
     </section>
@@ -273,13 +279,24 @@ function BladeHouse({ onBack }: { onBack?: () => void }) {
     <section className="closedTrades">
       <div className="sectionHead"><div><h2>פוזיציות פתוחות</h2><p>DONCH4H: שליש ב-0.6R (סטופ לכניסה), שליש ב-1.0R, השליש האחרון נגרר 2.5 ATR. Blade: סטופ 4%, חצי ב-3%+, השאר נגרר.</p></div><span className="countBadge">{open.length}</span></div>
       {open.length === 0 ? <div className="emptyPos">אין פוזיציה פתוחה.</div> :
-      <div className="closedTableWrap"><table className="closedTable" style={{minWidth:700}}>
-        <thead><tr><th>נפתח</th><th>שרוול</th><th>מטבע</th><th>כניסה</th><th>סטופ</th><th>שלב</th><th>סיכון</th><th>מינוף</th></tr></thead>
-        <tbody>{open.map(t => <tr key={t.id}><td>{clock(t.opened_at)}</td><td>{t.strategy}</td><td><b>{t.sym}</b> <small>{t.side}</small></td>
-          <td><bdi dir="ltr">{fmtPx(Number(t.entry_price))}</bdi></td><td><bdi dir="ltr">{fmtPx(Number(t.trail_sl))}</bdi></td>
-          <td>{t.strategy === 'DONCH4H' ? `${t.scalp_meta?.ladder?.stage ?? 0}/2` : t.scalp_meta?.blade?.pos?.scaled ? 'חצי נסגר' : 'מלא'}</td>
-          <td>{fmt$(Number(t.risk_usd))}</td><td>{t.lev}x</td></tr>)}</tbody>
-      </table></div>}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:10}}>
+        {posRows.map(({ t, mark, src, tm }) => { const entry = Number(t.entry_price), stop = Number(t.trail_sl), dir = t.side === 'LONG' ? 1 : -1
+          const stopPct = mark != null && stop > 0 ? dir * (mark - stop) / mark * 100 : null, net = tm?.net ?? null
+          return <div key={t.id} className="emptyPos" style={{textAlign:'right',borderStyle:'solid',padding:'10px 12px',color:'inherit'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',gap:8}}>
+              <b style={{fontSize:16}}>{t.sym} <small style={{color:dir>0?'#4ade80':'#f87171'}}>{t.side === 'LONG' ? 'לונג' : 'שורט'}</small></b>
+              <small>{t.strategy} · {t.lev}x</small></div>
+            <div style={{fontSize:22,fontWeight:700,margin:'4px 0'}} className={net == null ? '' : net >= 0 ? 'pos' : 'neg'}>
+              <bdi dir="ltr">{net == null ? '—' : fmt$(net)}</bdi>{tm && Number.isFinite(tm.netR) ? <small style={{fontSize:13}}> · <bdi dir="ltr">{tm.netR.toFixed(2)}R</bdi></small> : null}</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'2px 10px',fontSize:13}}>
+              <span>כניסה</span><bdi dir="ltr">{fmtPx(entry)}</bdi>
+              <span>מחיר עכשיו</span><bdi dir="ltr">{mark != null ? fmtPx(mark) : 'טוען…'}{src ? <small> · {src}</small> : null}</bdi>
+              <span>סטופ</span><bdi dir="ltr">{fmtPx(stop)}{stopPct != null ? ` (${stopPct.toFixed(2)}% מהמחיר)` : ''}</bdi>
+              <span>שלב</span><span>{t.strategy === 'DONCH4H' ? `${t.scalp_meta?.ladder?.stage ?? 0}/2 שלבי סולם` : t.scalp_meta?.blade?.pos?.scaled ? 'חצי נסגר' : 'מלא'}</span>
+              <span>סיכון בכניסה</span><span>{fmt$(Number(t.risk_usd))}</span>
+              <span>נפתח</span><span>{clock(t.opened_at)} · {ago(Date.parse(t.opened_at), now)}</span>
+            </div></div> })}
+      </div>}
     </section>
     <section className="closedTrades">
       <div className="sectionHead"><div><h2>עסקאות שנסגרו</h2></div><span className="countBadge">{closed.length}</span></div>

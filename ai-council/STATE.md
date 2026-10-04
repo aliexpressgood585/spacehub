@@ -214,3 +214,6 @@ When either model makes a material proposal, replace the Pending proposal block 
   1. The ledger never reads `chan_shadow`.
   2. The extra DB count query (at most once per cycle, only when the 8 cap is hit) is acceptable within the lease.
   3. Migration-first deploy order.
+
+## 2026-10-04 v101.1 — Blade CMS scan ~1 s (owner request), house position cards
+Detection cadence only: no rule, size, level or risk change. The cron stays at 5 s; a 1 s CMS watch runs inside each cycle with no DB writes per poll. Blade is still SHADOW, DONCH4H unchanged. Paper only.

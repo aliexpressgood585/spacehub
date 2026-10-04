@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { parseAnnouncementV2, parseAnnouncement, announcementAge, detectLag, median } from '../shared/events.ts'
 import { BLADE, bladeCandidates, bladeGate, bladeSize, bladeOpen, bladeStep, fillNet, earnedLevel, effectiveLevel, haltReason, lossStreak, liqClusters, makerFilled, bladeLiq, type BladeEvt } from '../shared/blade.ts'
-import { runBlade, runDonch, bladeShimMax, DONCHX } from '../supabase/functions/trading-bot/blade-runner.ts'
+import { runBlade, runDonch, bladeShimMax, DONCHX, cmsWatch, BLADE_SCAN } from '../supabase/functions/trading-bot/blade-runner.ts'
 import * as S from '../shared/strategy.ts'
 
 // ── parsing: Blade's parser is tolerant; the frozen H7 parser is untouched ──
@@ -204,4 +204,23 @@ try {
   await runDonch(db, st({ donch_cycle: { bar } }), 'L', true)
   assert.equal(commits.at(-1).p_entries?.length ?? 0, 0, 'one scan per bar')
 } finally { globalThis.fetch = realFetch; Date.now = realNow; delete g.__BLADE_MAX_LEVEL }
+
+// ── v101.1: CMS watch polls about once a second until the deadline, stops on an unseen key, no DB involved ──
+{
+  const realNow2 = Date.now; let clock = 1_000_000; Date.now = () => clock
+  const sleep = async (ms: number) => { clock += ms }
+  try {
+    let calls = 0
+    const quiet = await cmsWatch(new Set(['a']), clock + BLADE_SCAN.watchUntilMs, async () => { calls++; return [{ rel: 1, key: 'a', title: 'x' }] }, sleep)
+    assert.equal(quiet.hit, false); assert.equal(quiet.polls, 4, '4 polls ~1 s apart inside a 4.3 s window'); assert.equal(calls, 4)
+    let n = 0
+    const hit = await cmsWatch(new Set(['a']), clock + BLADE_SCAN.watchUntilMs, async () => (++n === 2 ? [{ rel: 2, key: 'b', title: 'Binance Will List X (X)' }] : [{ rel: 1, key: 'a', title: 'x' }]), sleep)
+    assert.equal(hit.hit, true, 'a new article ends the watch'); assert.equal(hit.polls, 2)
+    const bad = await cmsWatch(new Set(['a']), clock + 2_500, async () => { throw new Error('cms 48 HTTP 429') }, sleep)
+    assert.equal(bad.hit, false); assert.equal(bad.errors, 2); assert.match(String(bad.err), /429/, 'errors are reported, never thrown')
+    assert.ok(BLADE_SCAN.pollGapMs < 1000 && BLADE_SCAN.watchGapMs === 1000, 'scan about once a second')
+  } finally { Date.now = realNow2 }
+  const idx = readFileSync(new URL('../supabase/functions/trading-bot/index.ts', import.meta.url), 'utf8')
+  assert.match(idx, /cmsWatch\(seenKeys, cycleStart \+ BLADE_SCAN\.watchUntilMs\)/, 'index.ts runs the watch inside the BLADE branch')
+}
 console.log('blade: all assertions passed')

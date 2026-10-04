@@ -462,7 +462,7 @@ import { runList } from './list-runner.ts'
 import { runFund } from './fund-runner.ts'
 import { runEvt } from './evt-runner.ts'
 import { runPro } from './pro-runner.ts'
-import { runBlade, runDonch } from './blade-runner.ts'
+import { runBlade, runDonch, cmsWatch, BLADE_SCAN } from './blade-runner.ts'
 import { meetingDue, capDecision } from '../../../shared/team-meeting.ts'
 
 const BINANCE_DATA = 'https://data-api.binance.vision/api/v3'
@@ -553,7 +553,7 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v101.0'
+const BOT_VERSION = 'v101.1'
 // v87.0: the pre-SCALP engine (DONCH4H / standalone ROTA) opens trades without the profit gate; it stays in the file
 // for its exit/record code history but may never open a trade. Changing this needs the gate wired in first.
 const LEGACY_ENGINE_ALLOWED = false
@@ -2705,12 +2705,26 @@ Deno.serve(async (req) => {
     // trade at is capped by the deploy-time shim __BLADE_MAX_LEVEL (default SHADOW = journal only, size 0).
     if (ENABLED_SLEEVES.includes('BLADE')) {
       let blade: any = null, donch: any = null
+      const cycleStart = Date.now()
       try { blade = await runBlade(supabase, state, runLeaseUntil, paperMode && !liveMode) }
       catch (e: any) { blade = { error: String(e?.message ?? e) }; await logErr('blade_runner', String(e?.message ?? e)) }
       if (ENABLED_SLEEVES.includes('DONCH4H')) {
         try { const { data: fresh } = await supabase.from('bot_state').select('*').eq('id', 1).single(); donch = await runDonch(supabase, fresh ?? state, runLeaseUntil, paperMode && !liveMode) }
         catch (e: any) { donch = { error: String(e?.message ?? e) }; await logErr('donch_runner', String(e?.message ?? e)) }
       }
+      // v101.1: keep reading the CMS about once a second until just before the next 5 s cron call; a new article
+      // re-runs Blade at once (its own poll gate is 0.9 s). No DB write per poll.
+      try {
+        const { data: st } = await supabase.from('bot_state').select('bot_params').eq('id', 1).single()
+        const seenKeys = new Set(Object.keys(st?.bot_params?.blade_cycle?.seen ?? {}))
+        if (seenKeys.size) {
+          const w = await cmsWatch(seenKeys, cycleStart + BLADE_SCAN.watchUntilMs)
+          if (w.hit) {
+            const { data: st2 } = await supabase.from('bot_state').select('*').eq('id', 1).single()
+            blade = { first: blade, rerun: await runBlade(supabase, st2 ?? state, runLeaseUntil, paperMode && !liveMode), watch: w }
+          } else if (blade && typeof blade === 'object') blade.watch = w
+        }
+      } catch (e: any) { await logErr('blade_watch', String(e?.message ?? e)) }
       // hand the lease back at once so the next 5 s cron call resolves exits (same as PRO, v100.1)
       try { await supabase.from('bot_state').update({ lock_until: new Date().toISOString() }).eq('id', 1).eq('lock_until', runLeaseUntil) } catch { /* expires on its own */ }
       const bad = !!(blade?.error || donch?.error)
