@@ -125,7 +125,7 @@ jobs:
         run: |
           SHA="$(git rev-parse HEAD)"
           cp supabase/functions/trading-bot/index.ts supabase/functions/trading-bot/index.source.ts
-          cat > supabase/functions/trading-bot/index.ts <<EOF
+          cat > supabase/functions/trading-bot/release-config.ts <<EOF
           const g = globalThis as any;
           g.__RELEASE_SHA = '${SHA}';
           g.__ENABLED_SLEEVES = 'Q15,EVT,DONCH4H'; g.__SLEEVES_OFF = ''; g.__LEVERAGE = '1'; g.__Q15_LEV = '10'; g.__Q15_PER_TRADE = '0.05'; g.__Q15_MAX_OPEN = '8'; g.__Q15_SHARE = '0.50'; g.__EVT_PER_TRADE = '0.08'; g.__EVT_MAX_OPEN = '3'; // P-Q15 owner 2026-10-04. Rollback = previous shim; close Q15 rows first.
@@ -136,10 +136,10 @@ jobs:
             Deno.env.set('ENABLED_SLEEVES', 'Q15,EVT,DONCH4H');
             Deno.env.set('LEVERAGE', '1');
           } catch {}
-          await import('./index.source.ts');
           export {};
           EOF
-          echo "Prepared CHAN shim for ${SHA}"
+          printf "import './release-config.ts';\nimport './index.source.ts';\n" > supabase/functions/trading-bot/index.ts
+          echo "Prepared local static bundle for ${SHA}"
 
       - name: Deploy trading-bot function
         run: supabase functions deploy trading-bot --project-ref ${{ env.PROJECT_REF }} --no-verify-jwt
