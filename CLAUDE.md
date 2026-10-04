@@ -375,6 +375,35 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v101.0 BLADE (2026-10-04, branch `blade/event-engine`, PR — NOT deployed) — owner brief: "aggressive + profitable + fast", event-driven, silent the rest of the time
+- Pre-registration FIRST: `quant/PREREGISTRATION_BLADE.md` (commit 554dac5), before any number was computed.
+- Code:
+  - `shared/blade.ts`, pure: gates, size per level, exits on aggTrades, levels, halt, liquidation clusters, maker check;
+  - `shared/events.ts` gains `parseAnnouncementV2`, `announcementAge`, `detectLag` (the frozen H7 parser is untouched);
+  - `supabase/functions/trading-bot/blade-runner.ts` holds `runBlade` + `runDonch`, routed in index.ts when the shim lists BLADE;
+  - ledger `blade_commit_cycle` + table `blade_events` (migration 20261004090000), NOT applied;
+  - tests/blade.test.ts; house BladeHouse; BOT_VERSION v101.0.
+- Weapon 1 = listing long BL1 / delisting short BD1:
+  - entry only if the announcement is <= 30 s old, spread <= 8 bps, walked impact <= 25% of the expected first-minute move;
+  - BL1: stop 4%, half off at +3%, rest trails 1.5x ATR(1m), 15 min max;
+  - BD1: stop 4%, target 7%, 240 min max;
+  - 5x isolated paper; levels SHADOW -> PROBE -> ATTACK, HALT;
+  - level in use = min(earned, `__BLADE_MAX_LEVEL`); default SHADOW; capped at PROBE while median detect lag > 15 s.
+- v122 historical check (`backtest/research/v122_blade_events.ts` -> `status/blade-events-v122.txt`), 45 announcements / 84 candidates, 2024-06..2026-10, 20 bps:
+  - E1 (minute +1): BL1 all +1 bps/event, holdout +13 (n7, t 0.07); BD1 all -385 bps (t -3.0), holdout -62;
+  - E2 (minute +2): BL1 holdout -103; BD1 holdout +223 (n7, t 1.55), all-history -66;
+  - neither passes under both entries -> SHADOW;
+  - shorting in the first minute after delist news loses; the dump overshoots and bounces;
+  - the only large move is the first minute (median +651 / -1,258 bps), which 1m data cannot show a bot capturing.
+- Detection lag: n = 0. No qualifying announcement since 2026-10-01 (last listing HYPE 2026-09-24).
+- Weapon 2 = liquidation squeeze: about 250 clean OKX clusters in 8 days (185 on BTC/ETH). The collector polls once a minute, so the 30 s reclaim cannot be traded live. Record only.
+- Weapon 3 = DONCH4H runner:
+  - validated rule, 1.25% base x ADX tier, 1x, ladder on aggTrades, no pyramiding;
+  - maker post-only measured virtually (90 s window).
+- Shim in the PR: `__ENABLED_SLEEVES='BLADE,DONCH4H'`, `__BLADE_MAX_LEVEL='SHADOW'`, PRO off.
+- 2026-10-04 00:15 UTC OWNER APPROVED ("מאשר", council override for this change). 00:17: PRO rows closed at the bot exit marks - 5 bps (net +$16.52, cash $5,016.52). DDL through the Supabase MCP connector timed out 3x (nothing persisted, no locks), so both CI workflows now apply 20261004090000_blade_sleeve.sql via the management API before the function deploy (fail closed, idempotent).
+- ROLLBACK: shims back to 'PRO'.
+
 ## v121 QUANT LAB (2026-10-02) — owner: full quant research brief (20 families, microstructure, liquidations, sweeps, regimes, time-of-day, lag, scoring, ML, exits, filters, top-N): 0 ACCEPTED, nothing deployed
 - Code `backtest/research/quantlab/` (panel.py -> backtest/data/panel5m.npz; lib.py numba simulator + stats; run.py sections; report.py) -> `status/quantlab-v121.txt`; experiment DB `experiments-v121.jsonl` + `prior_experiments.jsonl` (v76-v120 summary, so nothing is re-run).
 - Data: 94 perps, 5m, 2025-09..2026-08, klines + Binance metrics archive (5-min OI, top-trader & global L/S, taker ratio) + funding (`backtest/data/aux12/`, gitignored). Liquidation prints / order book have no history -> proxied (OI drop + big candle).

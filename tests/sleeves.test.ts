@@ -9,7 +9,7 @@ assert.equal(sleeveOff({ sleeves_off: { FAST: { by: 'guardian' } } }, 'FAST'), t
 assert.equal(sleeveOff({ sleeves_off: { FAST: { by: 'guardian' } } }, 'EVT'), false)
 assert.equal(sleeveOff({ sleeves_off: { FAST: null } }, 'FAST'), false, 'a cleared entry means on')
 assert.equal(sleeveOff({ sleeves_off: 'FAST' }, 'FAST'), false, 'malformed value never matches')
-assert.deepEqual([...SLEEVES], ['LIST', 'FUND', 'FAST', 'EVT', 'BRKV', 'PRO'])
+assert.deepEqual([...SLEEVES], ['LIST', 'FUND', 'FAST', 'EVT', 'BRKV', 'PRO', 'BLADE', 'DONCH4H'])
 // shim brake (the guardian's lever): comma list, case-insensitive, entries only
 const g = globalThis as any
 g.__SLEEVES_OFF = 'fast, EVT'
@@ -28,6 +28,7 @@ assert.ok(src('fund-runner.ts').includes("&&!state.hard_halt_at&&!sleeveOff(para
 assert.ok(src('fast-runner.ts').includes("&& !state.hard_halt_at && !sleeveOff(params, 'FAST')"), 'FAST entries gated')
 assert.ok(src('evt-runner.ts').includes("&& !state.hard_halt_at && !sleeveOff(params, 'EVT')"), 'EVT polling gated')
 assert.ok(src('brkv-runner.ts').includes("&&!state.hard_halt_at&&!sleeveOff(params,'BRKV')"), 'BRKV entries gated (v99.7)')
+assert.ok(src('blade-runner.ts').includes("sleeveOff(params, 'BLADE') ? 'brake'") && src('blade-runner.ts').includes("!state.hard_halt_at && !sleeveOff(params, 'DONCH4H')"), 'BLADE / DONCH4H entries gated')
 assert.ok(src('brkv-runner.ts').includes('if(!mine.length&&!entryDue)return'), 'BRKV exits still run while braked')
 // the brake can never ENABLE a sleeve: the runner set is still chosen by the deploy-time shim
 const idx = src('index.ts')

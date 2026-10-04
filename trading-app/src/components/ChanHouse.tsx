@@ -183,8 +183,116 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
     return () => { alive = false; clearInterval(iv) }
   }, [])
   if (sleeve == null) return <div className="ch" dir="rtl"><style>{CSS}</style><div className="emptyPos">טוען…</div></div>
+  if (sleeve.split(',').includes('BLADE')) return <BladeHouse onBack={onBack} />
   if (sleeve.split(',').includes('PRO')) return <ProHouse onBack={onBack} />
   return ['LIST','FUND','FAST','EVT'].some(x => sleeve.split(',').includes(x)) ? <ListHouse onBack={onBack} /> : <ChanHouseView onBack={onBack} />
+}
+
+// v101.0 — BLADE (quant/PREREGISTRATION_BLADE.md): event engine (Binance listing / delisting announcements) + DONCH4H
+// background sleeve. Everything below is read from blade_events, bot_trades and bot_params; nothing is computed here
+// that the bot does not compute.
+const BLADE_GATE: Record<string,string> = { too_old: 'ישן מ-30 שנ׳', stale_quote: 'מחיר לא עדכני', wide_spread: 'מרווח מעל 8bp', beyond_book: 'מעבר לספר', impact_too_high: 'השפעה גבוהה מדי', bad_release_time: 'זמן פרסום שגוי', brake: 'בלם', no_price: 'אין מחיר' }
+const LEVEL_HE: Record<string,string> = { SHADOW: 'צל (יומן בלבד, גודל 0)', PROBE: 'בדיקה (2% מרג׳ין)', ATTACK: 'התקפה (8%/5% מרג׳ין)', HALT: 'עצירה' }
+function BladeHouse({ onBack }: { onBack?: () => void }) {
+  const [state, setState] = useState<J | null>(null)
+  const [events, setEvents] = useState<J[]>([])
+  const [trades, setTrades] = useState<J[]>([])
+  const [manifest, setManifest] = useState<J | null>(null)
+  const [errors, setErrors] = useState<J[]>([])
+  const [err, setErr] = useState('')
+  const [now, setNow] = useState(Date.now())
+  useEffect(() => { const iv = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(iv) }, [])
+  useEffect(() => {
+    let alive = true
+    const load = async () => {
+      try {
+        const [st, ev, tr, man, er] = await Promise.all([
+          q<J[]>('bot_state?select=balance,bot_params,paper_mode,lock_until&limit=1'),
+          q<J[]>('blade_events?select=*&order=decided_at.desc&limit=200').catch(() => []),
+          q<J[]>('bot_trades?select=id,sym,side,status,strategy,lev,entry_price,exit_price,size,pnl,fee,risk_usd,trail_sl,opened_at,closed_at,legs_banked,exit_stage,scalp_meta&strategy=in.(BLADE,DONCH4H)&order=opened_at.desc&limit=300'),
+          q<J[]>('deployment_manifest?select=sha,enabled_sleeves,bot_version&order=first_seen.desc&limit=1').catch(() => []),
+          q<J[]>(`bot_errors?select=ts,scope,message&ts=gte.${new Date(Date.now()-3_600_000).toISOString()}&order=ts.desc&limit=20`).catch(() => []),
+        ])
+        if (!alive) return
+        setState(st[0] ?? null); setEvents(ev ?? []); setTrades(tr ?? []); setManifest(man[0] ?? null); setErrors(er ?? []); setErr('')
+      } catch (e: any) { if (alive) setErr(String(e?.message ?? e)) }
+    }
+    void load(); const iv = setInterval(load, 5000)
+    return () => { alive = false; clearInterval(iv) }
+  }, [])
+  const p = state?.bot_params ?? {}, bc = p.blade_cycle ?? {}, dc = p.donch_cycle ?? {}
+  const lease = state?.lock_until ? Date.parse(state.lock_until) : null, live = lease != null && now - lease < 120_000
+  const open = trades.filter(t => t.status === 'OPEN'), closed = trades.filter(t => t.status !== 'OPEN' && t.closed_at)
+  const lags: number[] = (Array.isArray(bc.list_lags) ? bc.list_lags : []).filter((x: number) => Number.isFinite(x))
+  const lagMed = lags.length ? [...lags].sort((a, b) => a - b)[Math.floor(lags.length / 2)] : null
+  const shadowClosed = events.filter(e => e.mode === 'shadow' && e.status === 'closed'), shadowNet = shadowClosed.reduce((s, e) => s + Number(e.net ?? 0), 0)
+  const realised = closed.reduce((s, t) => s + Number(t.pnl ?? 0), 0), cash = Number(state?.balance ?? 0)
+  const equity = cash + open.reduce((s, t) => s + Number(t.entry_price) * Number(t.size) / Math.max(1, Number(t.lev) || 1), 0)
+  const makers = trades.filter(t => t.strategy === 'DONCH4H' && t.scalp_meta?.maker && t.scalp_meta.maker.filled !== null)
+  const makerRate = makers.length ? makers.filter(t => t.scalp_meta.maker.filled).length / makers.length : null
+  return <div className="ch" dir="rtl">
+    <style>{CSS}</style>
+    <div className="top">
+      {onBack && <button className="back" onClick={onBack}>→ חזרה</button>}
+      <h1>בית הבוט · BLADE + DONCH4H</h1>
+      <span className={`chip ${live ? 'ok' : 'bad'}`}>{live ? `● חי · מחזור ${ago(lease, now)}` : `○ אין מחזור ${ago(lease, now)}`}</span>
+      <span className="chip">{state?.paper_mode === false ? 'לא נייר!' : 'דמו · נייר בלבד'}</span>
+      <span className="chip">{manifest ? `${manifest.bot_version ?? ''} · ${String(manifest.sha ?? '').slice(0,7)}` : 'BLADE'}</span>
+      <span className={`chip ${bc.level === 'HALT' ? 'bad' : ''}`}>רמת Blade: {LEVEL_HE[String(bc.level)] ?? '—'}</span>
+      <span className={`chip ${errors.length ? 'bad' : 'ok'}`}>{errors.length ? `${errors.length} שגיאות בשעה` : '0 שגיאות'}</span>
+    </div>
+    {err && <div className="readerr">שגיאת קריאה: {err}</div>}
+    <div className="emptyPos" style={{textAlign:'right',padding:'12px 14px',marginBottom:14,borderStyle:'solid',color:'#fbbf24'}}>
+      Blade שקט כמעט כל הזמן ופועל רק על הודעות listing / delisting של Binance (בערך 1-3 בחודש). כניסה רק אם ההודעה בת פחות מ-30 שניות, מרווח עד 8bp, וההשפעה על הספר עד רבע מהתנועה הצפויה. בבדיקה ההיסטורית (v122) אף אחד משני הכללים לא עבר את הסף שנרשם מראש, ולכן Blade ברמת צל: רושם עסקאות וירטואליות בגודל 0. DONCH4H הוא העבודה היומית: פריצת 15 נרות 4 שעות, ADX מעל 22, סיכון 1.25%, מינוף 1.
+      <div style={{marginTop:6}}>הרמה בשימוש: {String(bc.level_why ?? '—')}{bc.halt ? ` · עצירה: ${bc.halt}` : ''}</div>
+    </div>
+    <section className="accountStrip">
+      <Stat k="הון (מרג׳ין + מזומן)" v={fmt$(equity)} />
+      <Stat k="מזומן פנוי" v={fmt$(cash)} />
+      <Stat k="ממומש" v={fmt$(realised)} cls={realised>=0?'pos':'neg'} />
+      <Stat k="השהיית זיהוי (חציון 10 אחרונות)" v={lagMed != null ? `${(lagMed/1000).toFixed(1)} שנ׳` : 'עוד לא נמדד'} cls={lagMed != null && lagMed > 15000 ? 'neg' : ''} />
+      <Stat k="אירועי צל סגורים" v={`${shadowClosed.length} · ${(shadowNet*100).toFixed(2)}%`} cls={shadowNet>=0?'pos':'neg'} />
+      <Stat k="בדיקת CMS אחרונה" v={ago(bc.poll_ts ?? null, now)} />
+      <Stat k="DONCH סריקה" v={dc.scanned_at ? `${ago(dc.scanned_at, now)} · נר ${dc.bar ? clock(dc.bar) : '—'}` : '—'} />
+      <Stat k="Maker fill (ניסוי)" v={makerRate != null ? `${(makerRate*100).toFixed(0)}% מתוך ${makers.length}` : '—'} />
+    </section>
+    {bc.poll_error && <div className="readerr">CMS: {bc.poll_error}</div>}
+    <section className="closedTrades">
+      <div className="sectionHead"><div><h2>אירועי Blade</h2><p>כל הודעה שזוהתה: מתי פורסמה, תוך כמה זמן ראינו אותה, מה השער החליט, ומה קרה לעסקה הווירטואלית.</p></div><span className="countBadge">{events.length}</span></div>
+      {events.length === 0 ? <div className="emptyPos">עדיין לא הייתה הודעת listing / delisting מאז ההפעלה.</div> :
+      <div className="closedTableWrap"><table className="closedTable" style={{minWidth:760}}>
+        <thead><tr><th>פורסם</th><th>כלל</th><th>מטבע</th><th>השהיה</th><th>שער</th><th>מצב</th><th>כניסה</th><th>יציאות</th><th>נטו</th></tr></thead>
+        <tbody>{events.map(e => <tr key={e.id} className={e.net != null ? (Number(e.net) >= 0 ? 'winRow' : 'lossRow') : ''}>
+          <td>{clock(e.release_at)}</td><td>{e.rule === 'BL1' ? 'listing לונג' : 'delisting שורט'}</td><td><b>{e.coin}</b></td>
+          <td>{e.detect_lag_ms != null ? `${(Number(e.detect_lag_ms)/1000).toFixed(1)} שנ׳` : '—'}</td>
+          <td>{e.gate ? (BLADE_GATE[e.gate] ?? e.gate) : 'עבר'}</td><td>{e.mode === 'shadow' ? 'צל' : e.mode === 'paper' ? 'נייר' : 'דולג'} · {e.status}</td>
+          <td><bdi dir="ltr">{fmtPx(e.entry_px)}</bdi></td><td>{Array.isArray(e.fills) ? e.fills.map((f: J) => f.why).join('+') : '—'}</td>
+          <td><bdi dir="ltr">{e.net != null ? `${(Number(e.net)*100).toFixed(2)}%` : '—'}</bdi></td></tr>)}</tbody>
+      </table></div>}
+    </section>
+    <section className="closedTrades">
+      <div className="sectionHead"><div><h2>פוזיציות פתוחות</h2><p>DONCH4H: שליש ב-0.6R (סטופ לכניסה), שליש ב-1.0R, השליש האחרון נגרר 2.5 ATR. Blade: סטופ 4%, חצי ב-3%+, השאר נגרר.</p></div><span className="countBadge">{open.length}</span></div>
+      {open.length === 0 ? <div className="emptyPos">אין פוזיציה פתוחה.</div> :
+      <div className="closedTableWrap"><table className="closedTable" style={{minWidth:700}}>
+        <thead><tr><th>נפתח</th><th>שרוול</th><th>מטבע</th><th>כניסה</th><th>סטופ</th><th>שלב</th><th>סיכון</th><th>מינוף</th></tr></thead>
+        <tbody>{open.map(t => <tr key={t.id}><td>{clock(t.opened_at)}</td><td>{t.strategy}</td><td><b>{t.sym}</b> <small>{t.side}</small></td>
+          <td><bdi dir="ltr">{fmtPx(Number(t.entry_price))}</bdi></td><td><bdi dir="ltr">{fmtPx(Number(t.trail_sl))}</bdi></td>
+          <td>{t.strategy === 'DONCH4H' ? `${t.scalp_meta?.ladder?.stage ?? 0}/2` : t.scalp_meta?.blade?.pos?.scaled ? 'חצי נסגר' : 'מלא'}</td>
+          <td>{fmt$(Number(t.risk_usd))}</td><td>{t.lev}x</td></tr>)}</tbody>
+      </table></div>}
+    </section>
+    <section className="closedTrades">
+      <div className="sectionHead"><div><h2>עסקאות שנסגרו</h2></div><span className="countBadge">{closed.length}</span></div>
+      {closed.length === 0 ? <div className="emptyPos">עדיין אין עסקאות סגורות.</div> :
+      <div className="closedTableWrap"><table className="closedTable" style={{minWidth:700}}>
+        <thead><tr><th>נסגר</th><th>שרוול</th><th>מטבע</th><th>P&L נטו</th><th>R</th><th>סיבה</th></tr></thead>
+        <tbody>{closed.map(t => <tr key={t.id} className={Number(t.pnl)>=0?'winRow':'lossRow'}><td>{clock(t.closed_at)}</td><td>{t.strategy}</td><td><b>{t.sym}</b> <small>{t.side}</small></td>
+          <td><bdi dir="ltr" className={Number(t.pnl)>=0?'pos':'neg'}>{fmt$(Number(t.pnl))}</bdi></td><td>{Number(t.risk_usd) > 0 ? (Number(t.pnl)/Number(t.risk_usd)).toFixed(2) : '—'}</td><td>{t.scalp_meta?.exit_reason ?? '—'}</td></tr>)}</tbody>
+      </table></div>}
+    </section>
+    {errors.length > 0 && <section className="closedTrades"><div className="sectionHead"><div><h2>שגיאות בשעה האחרונה</h2></div></div>
+      {errors.slice(0,8).map((e,i) => <div key={i} className="readerr">{clock(e.ts)} · {e.scope} · {e.message}</div>)}</section>}
+  </div>
 }
 
 const REASON_HE: Record<string,string> = { STOP: 'סטופ', TARGET: 'יעד', TIMEOUT: 'תום זמן', SETTLED: 'אחרי סליקת funding', HOLD_END: 'תום 4 שעות' }

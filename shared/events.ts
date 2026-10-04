@@ -67,3 +67,35 @@ export function eventEntries(arts: Article[], marks: Map<string, number>, now: n
 export function eventNet(side: number, entry: number, exit: number, fundingSum: number, costRt: number): number {
   return side * (exit / entry - 1) - side * fundingSum - costRt
 }
+
+// ── BLADE additions (quant/PREREGISTRATION_BLADE.md). The H7 parser above is FROZEN by its own pre-registration and is
+// left byte-for-byte as it was; Blade uses the stricter, more tolerant parser below. ────────────────────────────────
+// Tolerates non-breaking / repeated spaces, a trailing period, and the Oxford comma ("A, B, and C"). Still refuses
+// "Binance Futures Will Delist ..." (perp delisting) and "Notice of Removal ..." (pair removal).
+export function parseAnnouncementV2(title: string): { kind: EventKind; syms: string[] } | null {
+  const t = String(title ?? '').replace(/[  -​]/g, ' ').replace(/\s+/g, ' ').trim()
+  const l = t.match(/^Binance Will List [^()]+? \(([A-Z0-9]{2,15})\)/)
+  if (l) return { kind: 'LIST', syms: [l[1]] }
+  const d = t.match(/^Binance Will Delist (.+?) on \d{4}-\d{2}-\d{2}/)
+  if (d) {
+    const syms = d[1].split(/\s*,\s*(?:and\s+)?|\s+and\s+/).map(s => s.trim()).filter(s => /^[A-Z0-9]{2,15}$/.test(s))
+    return syms.length ? { kind: 'DELIST', syms } : null
+  }
+  return null
+}
+// age of an announcement at the decision moment (ms); NaN when the release time is missing or in the future
+export function announcementAge(releaseDate: number, now: number): number {
+  const T = Number(releaseDate)
+  return T > 0 && T <= now + 1000 ? Math.max(0, now - T) : NaN
+}
+// detect_lag_ms: first moment OUR process saw the article minus its release time. firstSeen is remembered across
+// cycles (an article seen again later keeps its first lag), so the number measures the detector, not the decision.
+export function detectLag(firstSeen: number, releaseDate: number): number {
+  const T = Number(releaseDate), s = Number(firstSeen)
+  return T > 0 && s > 0 ? Math.max(0, s - T) : NaN
+}
+export function median(xs: number[]): number {
+  const a = xs.filter(Number.isFinite).sort((p, q) => p - q)
+  if (!a.length) return NaN
+  return a.length % 2 ? a[(a.length - 1) / 2] : (a[a.length / 2 - 1] + a[a.length / 2]) / 2
+}

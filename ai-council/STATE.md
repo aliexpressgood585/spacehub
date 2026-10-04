@@ -2,6 +2,22 @@
 
 Last established: 2026-09-30 UTC
 
+## P-BLADE — event attack engine + DONCH4H background sleeve (2026-10-04, Claude)
+- Status: PAPER_TEST — OWNER AUTHORIZED (2026-10-04 00:15 UTC, "מאשר" = explicit council override for P-BLADE only). GPT review: NOT DONE (waived by the owner for this change). Claude review: author. PR #86.
+- 00:17 UTC: the 3 open PRO rows were closed at the bot's own exit marks - 5 bps (ZRO -$5.24, STRK +$18.74, SUPER +$3.02; net +$16.52; cash $5,016.52), exit_reason OWNER_CLOSE. The migration is applied by CI before the function deploy (the MCP connector timed out on DDL).
+- Pre-registration: `quant/PREREGISTRATION_BLADE.md`, committed (554dac5) BEFORE any result was computed.
+- Weapon 1 (BL1 listing long / BD1 delisting short). Historical check `status/blade-events-v122.txt` (45 announcements, 84 candidates, 2024-06..2026-10). The 30 s live entry cannot be priced on 1m bars, so two entries were reported:
+  - E1 (open of minute +1), 20 bps: BL1 holdout +13 bps/event, n7, t 0.07 (all-history +1 bps); BD1 holdout -62 bps (all-history -385 bps, t -3.0).
+  - E2 (minute +2), 20 bps: BL1 holdout -103 bps; BD1 holdout +223 bps, n7, t 1.55 (all-history -66 bps).
+  - Neither rule passes under both entries -> both stay SHADOW. Shorting right after delist news loses: the first-minute dump overshoots and bounces.
+- Detection lag: n = 0. No fresh listing/delisting since the H7 collector started (2026-10-01). Last qualifying listing was HYPE on 2026-09-24. `detect_lag_ms` is logged on every parsed article from the first Blade cycle.
+- Weapon 2 (liquidation squeeze): OKX tape since 2026-09-25 holds about 250 clean clusters (>= $250k in 10 s, >= 70% one side, 7 coins, 185 on BTC/ETH). The collector polls OKX once a minute, so the 30 s reclaim rule cannot be acted on live. Record only.
+- Weapon 3: DONCH4H re-enabled as its own runner (shared/strategy.ts rules, 1.25% base risk x ADX tier, 1x, ladder on aggTrades, no pyramiding). Maker-post is measured virtually only.
+- Levels: SHADOW -> PROBE (10 shadow events, net > 0) -> ATTACK (30 paper events, PF >= 1.2, maxDD < 15%); HALT at day -6% or 5 losers in a row. Level in use = min(earned, `__BLADE_MAX_LEVEL`, deploy default SHADOW); capped at PROBE while median lag > 15 s. Blade 5x isolated paper; DONCH4H 1x.
+- Ledger `blade_commit_cycle` (migration 20261004090000): each call touches only its own sleeve's rows; paper only; SHADOW/HALT never book; Blade margin <= 2%/8%; DONCH risk / heat 95% / net 70% enforced again. Compiled against the live schema in a rolled-back transaction.
+- Deploy plan if approved: (1) close the 3 open PRO rows; (2) apply the migration; (3) merge (both shims -> `BLADE,DONCH4H`, `__BLADE_MAX_LEVEL='SHADOW'`, PRO off). Rollback: shims back to 'PRO' after closing BLADE/DONCH4H rows.
+- Honest expectation: Blade will log ~1-3 events a month at size 0 until it earns PROBE; DONCH4H does the daily work.
+
 ## P008 — intraday retest-v1 (2026-10-02, GPT)
 - Status: PAPER_TEST — OWNER AUTHORIZED, deployment pending verification. GPT review: APPROVED for this bounded PAPER experiment only. Claude review: WAIVED by explicit owner override for P008 (2026-10-02 02:35 UTC); not independently reviewed.
 - Owner explicitly answered YES to waiving Claude review for this change and merging/deploying PR #85 as a PAPER experiment. This override applies only to P008.

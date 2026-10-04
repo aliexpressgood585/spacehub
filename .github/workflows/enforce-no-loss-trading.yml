@@ -35,6 +35,15 @@ jobs:
       - name: Login to Supabase
         run: supabase login --token '${{ secrets.SUPABASE_ACCESS_TOKEN }}'
 
+      - name: Apply BLADE ledger migration (v101.0, idempotent)
+        run: |
+          jq -Rs '{query: .}' supabase/migrations/20261004090000_blade_sleeve.sql > /tmp/blade_mig.json
+          curl -s -X POST "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" -H "Content-Type: application/json" \
+            --data @/tmp/blade_mig.json | tee /tmp/blade_mig_result.json
+          if grep -q '"error"\|"message"' /tmp/blade_mig_result.json; then echo "::error::BLADE migration failed"; cat /tmp/blade_mig_result.json; exit 1; fi
+          echo "BLADE migration applied"
+
       - name: Prepare pinned CHAN release shim
         shell: bash
         run: |
@@ -42,12 +51,12 @@ jobs:
           cat > supabase/functions/trading-bot/index.ts <<EOF
           const g = globalThis as any;
           g.__RELEASE_SHA = '${SHA}';
-          g.__ENABLED_SLEEVES = 'PRO'; g.__EVT_PER_TRADE = '0.25'; g.__EVT_MAX_OPEN = '4'; g.__BRKV_SHARE = '0.2'; g.__BRKV_SIDE = 'short'; g.__SLEEVES_OFF = ''; g.__FAST_MODE = 'retest'; g.__FAST_LEV = '1'; g.__FAST_SHARE = '0.50'; g.__FAST_PER_TRADE = '0.0625'; g.__FAST_MAX_OPEN = '8'; // v100.0 owner 2026-10-02: only the 1m scalping spec (PRO), reset to $5,000; rollback = 'LIST,FUND,FAST,EVT,BRKV' (close PRO rows first)
+          g.__ENABLED_SLEEVES = 'BLADE,DONCH4H'; g.__BLADE_MAX_LEVEL = 'SHADOW'; g.__EVT_PER_TRADE = '0.25'; g.__EVT_MAX_OPEN = '4'; g.__BRKV_SHARE = '0.2'; g.__BRKV_SIDE = 'short'; g.__SLEEVES_OFF = ''; g.__FAST_MODE = 'retest'; g.__FAST_LEV = '1'; g.__FAST_SHARE = '0.50'; g.__FAST_PER_TRADE = '0.0625'; g.__FAST_MAX_OPEN = '8'; // v101.0 BLADE (quant/PREREGISTRATION_BLADE.md): Blade SHADOW + DONCH4H 1.25% paper; PRO off. Rollback = 'PRO' (close BLADE/DONCH4H rows first; close PRO rows BEFORE this deploy)
           g.__LEVERAGE = '1';
           g.__CHAN_LEV = '20'; // v98.1 paper leverage for new CHAN entries (1..50)
           g.__CHAN_AGGRESSIVE = '1'; // v98.0 owner override (paper only); remove to roll back
           try {
-            Deno.env.set('ENABLED_SLEEVES', 'PRO');
+            Deno.env.set('ENABLED_SLEEVES', 'BLADE,DONCH4H');
             Deno.env.set('LEVERAGE', '1');
           } catch {}
           await import('https://raw.githubusercontent.com/aliexpressgood585/spacehub/${SHA}/supabase/functions/trading-bot/index.ts');
