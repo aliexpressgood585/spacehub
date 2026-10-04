@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'supabase/functions/**'
+      - '.github/workflows/deploy-edge-function.yml'
   workflow_dispatch:
 
 env:
@@ -119,10 +120,11 @@ jobs:
             echo "no exchange keys — paper mode"
           fi
 
-      - name: Prepare pinned CHAN release shim
+      - name: Prepare pinned local release shim
         shell: bash
         run: |
           SHA="$(git rev-parse HEAD)"
+          cp supabase/functions/trading-bot/index.ts supabase/functions/trading-bot/index.source.ts
           cat > supabase/functions/trading-bot/index.ts <<EOF
           const g = globalThis as any;
           g.__RELEASE_SHA = '${SHA}';
@@ -134,7 +136,7 @@ jobs:
             Deno.env.set('ENABLED_SLEEVES', 'Q15,EVT,DONCH4H');
             Deno.env.set('LEVERAGE', '1');
           } catch {}
-          await import('https://raw.githubusercontent.com/aliexpressgood585/spacehub/${SHA}/supabase/functions/trading-bot/index.ts');
+          await import('./index.source.ts');
           export {};
           EOF
           echo "Prepared CHAN shim for ${SHA}"
