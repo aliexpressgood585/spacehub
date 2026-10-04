@@ -107,5 +107,7 @@ export function evt2Profile(): BladeProfile {
 }
 export async function runEvt2(db: any, state: any, lease: string, paper: boolean) {
   if (!paper) throw new Error('EVT is paper-only; refusing live execution')
-  return runBlade(db, state, lease, paper, evt2Profile())
+  const prof = evt2Profile()
+  prof.lev = Math.max(1, Math.min(10, prof.lev))
+  return runBlade(db, state, lease, paper, prof)
 }

@@ -99,3 +99,10 @@ export function median(xs: number[]): number {
   if (!a.length) return NaN
   return a.length % 2 ? a[(a.length - 1) / 2] : (a[a.length / 2 - 1] + a[a.length / 2]) / 2
 }
+
+// P-Q15: age at execution, not just when the CMS poll started.
+export const EVT_EXECUTION_MAX_AGE_MS = 30_000
+export function freshEvent(release: number, now: number) {
+ const age = announcementAge(release, now)
+ return Number.isFinite(age) && release <= now && age <= EVT_EXECUTION_MAX_AGE_MS
+}

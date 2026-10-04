@@ -9,7 +9,7 @@ assert.equal(sleeveOff({ sleeves_off: { FAST: { by: 'guardian' } } }, 'FAST'), t
 assert.equal(sleeveOff({ sleeves_off: { FAST: { by: 'guardian' } } }, 'EVT'), false)
 assert.equal(sleeveOff({ sleeves_off: { FAST: null } }, 'FAST'), false, 'a cleared entry means on')
 assert.equal(sleeveOff({ sleeves_off: 'FAST' }, 'FAST'), false, 'malformed value never matches')
-assert.deepEqual([...SLEEVES], ['LIST', 'FUND', 'FAST', 'EVT', 'BRKV', 'PRO', 'BLADE', 'DONCH4H'])
+assert.deepEqual([...SLEEVES], ['Q15', 'LIST', 'FUND', 'FAST', 'EVT', 'BRKV', 'PRO', 'BLADE', 'DONCH4H'])
 // shim brake (the guardian's lever): comma list, case-insensitive, entries only
 const g = globalThis as any
 g.__SLEEVES_OFF = 'fast, EVT'

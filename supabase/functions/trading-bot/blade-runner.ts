@@ -9,14 +9,15 @@
 //    tier, 1x, taker at the walked book; a virtual post-only limit at the touch is recorded and judged after 90 s.
 import * as S from '../../../shared/strategy.ts'
 import { BLADE, bladeCandidates, bladeGate, bladeSize, bladeOpen, bladeStep, fillNet, earnedLevel, effectiveLevel, haltReason, lossStreak, makerFilled, type BladeLevel, type BladePos, type BladeEvt } from '../../../shared/blade.ts'
-import { EV_CATALOGS, perpOf, detectLag } from '../../../shared/events.ts'
+import { EV_CATALOGS, perpOf, detectLag, freshEvent } from '../../../shared/events.ts'
+import { COST } from '../../../shared/costs.ts'
 import { walkBook } from '../../../shared/fast.ts'
 import { json, pool } from './rota-runner.ts'
 import { aggTrades, book, aggHalted, type Pair } from './fast-runner.ts'
 import { sleeveOff } from '../../../shared/sleeves.ts'
 
 const g = () => globalThis as any
-export const BLADE_SLEEVES = ['BLADE', 'DONCH4H', 'FAST', 'EVT']   // P-AGG2: FAST/EVT rows may share the book; each runner touches only its own
+export const BLADE_SLEEVES = ['BLADE', 'DONCH4H', 'FAST', 'EVT', 'Q15']   // P-AGG2: FAST/EVT rows may share the book; each runner touches only its own
 // P-AGG2: the same event engine runs as sleeve EVT (owner override 2026-10-04): BL1/BD1 rules unchanged (30 s age, 8 bps
 // spread, walked impact <= 25% of the expected move, stop 4%, half at +3% then 1.5 ATR trail, 15 min; delist 4% / 7% /
 // 240 min), but no SHADOW/PROBE/ATTACK levels and no Blade-only halt: paper at margin = perTrade x equity, isolated
@@ -38,7 +39,7 @@ async function openBook(db: any) {
 const marginOf = (t: any) => Number(t.entry_price) * Number(t.size) / Math.max(1, Number(t.lev) || 1)
 async function fundingSum(s: string, from: number, to: number): Promise<number | null> {
   try { const f = await json(`https://fapi.binance.com/fapi/v1/fundingRate?symbol=${s}&startTime=${from}&endTime=${to}&limit=1000`)
-    return Array.isArray(f) ? f.reduce((a: number, x: any) => a + Number(x.fundingRate || 0), 0) : null } catch { return null }
+    return Array.isArray(f) && f.length<1000 && f.every((x:any)=>Number.isFinite(Number(x.fundingRate))) ? f.reduce((a: number, x: any) => a + Number(x.fundingRate || 0), 0) : null } catch { return null }
 }
 
 // ───────────────────────────────────────────── BLADE ─────────────────────────────────────────────
@@ -89,6 +90,19 @@ export async function runBlade(db: any, state: any, lease: string, paper: boolea
       if (now - pos.openedAt >= pos.maxMs) { const bk = await book(P); mark = pos.side > 0 ? bk.bids[0][0] : bk.asks[0][0]; qts = bk.E }
       const r = bladeStep(pos, tr.trades, now, mark), sizeOrig = Number(t.scalp_meta?.notional0) / Number(t.entry_price)
       const chk = tr.trades.at(-1)?.T ?? m.chk ?? pos.openedAt
+      if (evt && r.fills.length) {
+        // Published settlement mark prices and remaining quantity; missing funding retries the exit.
+        const bk=await book(P),half=(bk.asks[0][0]-bk.bids[0][0])/(bk.asks[0][0]+bk.bids[0][0]),out:any[]=[]
+        for(const f of r.fills){
+          const qty=sizeOrig*f.frac, w=walkBook(pos.side>0?bk.bids:bk.asks,Number(t.entry_price)*qty)
+          const fs=await json(`https://fapi.binance.com/fapi/v1/fundingRate?symbol=${P.s}&startTime=${pos.openedAt}&endTime=${f.T}&limit=1000`)
+          if(!Array.isArray(fs)||fs.length>=1000||fs.some((x:any)=>!Number.isFinite(+x.fundingRate)||!(+x.markPrice>0)))throw new Error('missing_settled_funding')
+          const funding=pos.side*qty*fs.reduce((a:number,x:any)=>a+(+x.fundingRate)*(+x.markPrice)/P.k,0)
+          out.push({id:t.id,qty,price:f.px*(1-pos.side*(half+Math.max(COST.minSlip,w.impact))),reason:f.why,quote_ts:bk.E,funding,funding_complete:true,
+            fill:{model:'aggTrades+walkBook',trigger_ts:f.T,lag_ms:now-f.T,impact_bps:w.impact*1e4}})
+        }
+        for(const f of out)if(f.reason==='SCALE')legs.push({...f,stage:1,stop_after:r.pos.stop,meta:r.done?undefined:{blade:{...m,pos:r.pos,chk}}});else closes.push(f)
+      } else {
       for (const f of r.fills) if (f.why === 'SCALE')
         legs.push({ id: t.id, qty: sizeOrig * f.frac, price: f.px, reason: 'SCALE', quote_ts: f.T, stage: 1, stop_after: r.pos.stop, meta: r.done ? undefined : { blade: { ...m, pos: r.pos, chk } } })
       const last = r.fills.at(-1)
@@ -98,6 +112,7 @@ export async function runBlade(db: any, state: any, lease: string, paper: boolea
         closes.push({ id: t.id, price: px, reason: last.why, quote_ts: last.why === 'TIMEOUT' ? qts : last.T, funding: fs === null ? 0 : pos.side * fs * Number(t.entry_price) * Number(t.size), funding_missing: fs === null,
           fill: { model: tr.complete ? 'aggTrades' : 'aggTrades_truncated', trigger_ts: last.T, trigger_px: last.px, lag_ms: now - last.T } })
       } else if (!r.fills.length) ratchets.push({ id: t.id, stop: r.pos.stop, meta: { blade: { ...m, pos: r.pos, chk } } })
+      }
       marks[t.sym] = tr.trades.at(-1)?.p ?? Number(t.entry_price)
     } catch { /* next cycle */ }
   })
@@ -123,7 +138,7 @@ export async function runBlade(db: any, state: any, lease: string, paper: boolea
   const paperToday = (paperRows ?? []).filter((t: any) => Date.parse(t.closed_at) >= day0.getTime()).reduce((s: number, t: any) => s + Number(t.pnl || 0), 0)
   const cash = Number(state.balance), equity = cash + open.reduce((s, t) => s + marginOf(t), 0)
   const halt = evt ? null : haltReason(paperToday, equity, lossStreak((paperRows ?? []).map((t: any) => Number(t.pnl))))
-  const dayHalt = aggHalted(params, now)   // P-AGG2 account halt (the ledger enforces it again)
+  const dayHalt = !!state.hard_halt_at || aggHalted(params, now)   // P-AGG2 account halt (the ledger enforces it again)
   const lags: number[] = Array.isArray(prev.list_lags) ? prev.list_lags : []
   const lvl: { level: BladeLevel; why: string } = evt ? { level: 'EVT' as BladeLevel, why: `P-AGG2: paper ${((prof.marginFrac ?? 0) * 100).toFixed(0)}% margin x ${prof.lev}x, <= ${prof.maxOpen} open; only the account -12% day halt` } : effectiveLevel(earnedLevel(evts), bladeShimMax(), lags, halt)
   const maxOpenNow = evt ? (prof.maxOpen ?? 0) : BLADE.maxOpen[lvl.level]
@@ -167,9 +182,9 @@ export async function runBlade(db: any, state: any, lease: string, paper: boolea
         const evtSize = (cashAvail: number) => { const m = Math.max(0, Math.min(equity * (prof.marginFrac ?? 0), cashAvail / (1 + prof.lev * BLADE.fee))); return { margin: m, notional: m * prof.lev } }
         const attack = evt ? evtSize(Math.max(cash, equity)) : bladeSize('ATTACK', c.id, equity, Math.max(cash, equity)), used = evt ? evtSize(cashLeft) : bladeSize(lvl.level, c.id, equity, cashLeft)
         const lvSide = c.side > 0 ? bk?.asks : bk?.bids, w = lvSide ? walkBook(lvSide, Math.max(attack.notional, 100)) : { vwap: NaN, impact: NaN, depthUsd: 0, beyond: true }
-        const gate = sleeveOff(params, prof.sleeve) ? 'brake' : evt && dayHalt ? 'day_halt' : bladeGate({ kind: c.kind, releaseDate: c.releaseDate, now: Date.now(), quoteTs: bk?.E ?? 0, bid: bk?.bids?.[0]?.[0] ?? 0, ask: bk?.asks?.[0]?.[0] ?? 0, walkImpact: w.impact, walkBeyond: w.beyond })
+        const gate = evt && !freshEvent(c.releaseDate, Date.now()) ? 'too_old' : sleeveOff(params, prof.sleeve) ? 'brake' : evt && dayHalt ? 'day_halt' : bladeGate({ kind: c.kind, releaseDate: c.releaseDate, now: Date.now(), quoteTs: bk?.E ?? 0, bid: bk?.bids?.[0]?.[0] ?? 0, ask: bk?.asks?.[0]?.[0] ?? 0, walkImpact: w.impact, walkBeyond: w.beyond })
         const wUsed = lvSide && used.notional > 0 ? walkBook(lvSide, used.notional) : w
-        const entry = wUsed.vwap, pos = Number.isFinite(entry) ? bladeOpen(c.id, c.side, entry, atr1m, Date.now(), prof.lev) : null
+        const entry = evt && lvSide ? (c.side>0?Math.max(wUsed.vwap,lvSide[0][0]*(1+COST.minSlip)):Math.min(wUsed.vwap,lvSide[0][0]*(1-COST.minSlip))) : wUsed.vwap, pos = Number.isFinite(entry) ? bladeOpen(c.id, c.side, entry, atr1m, Date.now(), prof.lev) : null
         const note = { spread_bps: bk ? +((bk.asks[0][0] / bk.bids[0][0] - 1) * 1e4).toFixed(2) : null, impact_bps: Number.isFinite(w.impact) ? +(w.impact * 1e4).toFixed(1) : null,
           depth_usd: Math.round(w.depthUsd), atr1m, level_why: lvl.why, attack_notional: Math.round(attack.notional) }
         if (gate || !pos) { decisions.push({ ...base, gate: gate ?? 'no_price', mode: 'skipped', status: 'skipped', note }); continue }
@@ -249,7 +264,7 @@ export async function runDonch(db: any, state: any, lease: string, paper: boolea
   const decisions: any[] = []
   if (due) {
     const cash0 = Number(state.balance), equity = cash0 + open.reduce((s, t) => s + marginOf(t), 0)
-    let openExp = open.reduce((s, t) => s + Number(t.entry_price) * Number(t.size), 0), committed = 0, cash = cash0
+    let openExp = open.reduce((s, t) => s + marginOf(t), 0), committed = 0, cash = cash0
     let longExp = mine.filter(t => t.side === 'LONG').reduce((s, t) => s + Number(t.entry_price) * Number(t.size), 0)
     let shortExp = mine.filter(t => t.side === 'SHORT').reduce((s, t) => s + Number(t.entry_price) * Number(t.size), 0)
     const held = new Set(open.map(t => String(t.sym)))
@@ -274,14 +289,14 @@ export async function runDonch(db: any, state: any, lease: string, paper: boolea
         const atr = S.entryAtr(completed), sl = S.stopDistance(atr, touch), slPct = sl / touch
         if (slPct > S.SL_MAX_PCT) { decisions.push({ coin, why: 'stop_too_wide' }); continue }
         const sz = S.sizeBreakout({ portfolio: equity, balance: cash, openExposure: openExp, heatCommitted: committed, longExposure: longExp, shortExposure: shortExp,
-          adx, slPct, side: sig.side, quoteVol24h: 0, riskMult: DONCHX.riskMult, symExposure })
+          adx, slPct, side: sig.side, quoteVol24h: 0, riskMult: DONCHX.riskMult / S.adxTierMult(adx), symExposure })
         if (!sz.ok) { decisions.push({ coin, why: sz.reason }); continue }
         const w = walkBook(sig.side === 'LONG' ? bk.asks : bk.bids, sz.notional)
         if (w.beyond) { decisions.push({ coin, why: 'beyond_book' }); continue }
         // taker at the walked book, never better than the touch plus the model slip
         const dirM = sig.side === 'LONG' ? 1 : -1, entry = dirM > 0 ? Math.max(w.vwap, touch * (1 + S.SLIP)) : Math.min(w.vwap, touch * (1 - S.SLIP))
         const stop = entry - dirM * sl, size = sz.notional / entry
-        entries.push({ sym: coin, side: sig.side, price: entry, notional: sz.notional, stop, target: entry + dirM * sl * S.LADDER_TP_R, quote_ts: bk.E, source: 'binance-futures',
+        entries.push({ sym: coin, side: sig.side, lev: 1, price: entry, notional: sz.notional, stop, target: entry + dirM * sl * S.LADDER_TP_R, quote_ts: bk.E, source: 'binance-futures',
           meta: { donch: { adx: +adx.toFixed(2), hiN: sig.hiN, loN: sig.loN, atr, sl_pct: +slPct.toFixed(5), tier: S.adxTierMult(adx), bar: new Date(bar - DONCHX.barMs).toISOString(), impact_bps: +(w.impact * 1e4).toFixed(2) },
             ladder: { stage: 0, stopPx: stop, sizeOrig: size, sizeLeft: size, origSlDist: sl, chk: bk.E } as Ladder,
             maker: { limit: sig.side === 'LONG' ? bk.bids[0][0] : bk.asks[0][0], t0: bk.E, filled: null, T: null }, ...(pyramid ? { pyramid: { unit: units.length + 1, on: units.map(t => t.id) } } : {}) } })
