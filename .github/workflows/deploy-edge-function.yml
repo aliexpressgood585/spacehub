@@ -120,6 +120,12 @@ jobs:
             echo "no exchange keys — paper mode"
           fi
 
+      - name: Verify complete handler before bundling
+        run: |
+          node --experimental-strip-types --check supabase/functions/trading-bot/index.ts
+          grep -q 'Deno.serve' supabase/functions/trading-bot/index.ts
+          if grep -q 'Warning: truncated output' supabase/functions/trading-bot/index.ts; then exit 1; fi
+
       - name: Prepare pinned local release shim
         shell: bash
         run: |
@@ -161,6 +167,7 @@ jobs:
               --data-urlencode "iso_timestamp_end=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
             exit 1
           fi
+          printf '%s\n' "$BODY" | sed '/^HTTP_STATUS:/d' | jq -e '.ok == true or .skipped == true' >/dev/null
           echo "Paper smoke cycle completed (HTTP $STATUS)"
 
       - name: Deploy trading-optimizer function

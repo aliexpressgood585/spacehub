@@ -45,7 +45,7 @@ async function exitRow(t:any,now:number){
 }
 export async function runQ15(db:any,state:any,lease:string,paper:boolean){
  if(!paper)throw new Error('Q15 is paper-only; refusing live execution')
- const now=Date.now(),cfg=q15Config(),params=state.bot_params??{},immediate=String((globalThis as any).__Q15_IMMEDIATE??'true')==='true',bar=Math.floor(now/Q15.barMs)*Q15.barMs
+ const now=Date.now(),cfg=q15Config(),params=state.bot_params??{},bar=Math.floor(now/Q15.barMs)*Q15.barMs
  const {data:open}=await db.from('bot_trades').select('*').eq('status','OPEN').throwOnError()
  if(open.some((t:any)=>t.paper_mode!==true||!['Q15','EVT','DONCH4H'].includes(t.strategy)||Number(t.lev)<1||Number(t.lev)>(t.strategy==='DONCH4H'?1:10)))throw new Error('Q15 incompatible or non-isolated paper book')
  const closes:any[]=[],updates:any[]=[],errors:string[]=[],marks:Record<string,number>={}
@@ -101,10 +101,10 @@ export async function runQ15(db:any,state:any,lease:string,paper:boolean){
    const price=sig.dir>0?Math.max(w.vwap,touch*(1+COST.minSlip)):Math.min(w.vwap,touch*(1-COST.minSlip)),lv=q15Levels(sig.dir,price,sig.atr),f=funding.get(p.s),e=sig.dir>0?edge.long:edge.short
    const input={book:bookFrom(bk.bids,bk.asks,bk.E,'binance-futures'),now:Date.now(),notional,dir:sig.dir,rFrac:lv.r/price,entryImpact:w.impact,exitImpact:ew.impact,beyond:w.beyond||ew.beyond,funding:f?.rate??null,fundingHours:f?.hours??0,grossBps:e.bps}
    // Check execution feasibility before shadowing; no_edge/costs are expected during measurement.
-   const gate=immediate?q15Gate({...input,grossBps:q15Gate({...input,grossBps:100}).costBps+Q15.minNetBps}):q15Gate(input),feasible=q15Gate({...input,grossBps:0})
-   rec.observed={...rec.observed,z:sig.z,vol_ratio:sig.volRatio,imb:sig.imb,gate,edge:e,immediate}
+   const gate=q15Gate(input),feasible=q15Gate({...input,grossBps:0})
+   rec.observed={...rec.observed,z:sig.z,vol_ratio:sig.volRatio,imb:sig.imb,gate,edge:e,gate_mode:'measured'}
    if(!['costs_exceed_edge','passed'].includes(feasible.reason)){rec.reason=feasible.reason;continue}
-   const m={...lv,chk:bk.E,pair:p,bar,atr:sig.atr,hold_ms:Q15.holdMs,gate,lag_ms:Date.now()-bar,immediate}
+   const m={...lv,chk:bk.E,pair:p,bar,atr:sig.atr,hold_ms:Q15.holdMs,gate,lag_ms:Date.now()-bar,gate_mode:'measured'}
    shadows.push({sym:p.sym,side:sig.dir,t0:bar,payload:{id:0,sym:p.sym,side:sig.dir>0?'LONG':'SHORT',entry_price:price,size:notional/price,lev:cfg.lev,opened_at:new Date(bk.E).toISOString(),scalp_meta:{q15:m}}})
    if(!gate.pass){rec.reason=gate.reason;continue}
    if(halted||state.hard_halt_at||sleeveOff(params,'Q15')){rec.reason='day_or_owner_halt';continue}
