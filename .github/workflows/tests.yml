@@ -14,6 +14,7 @@ on:
       - 'tests/**'
       - 'backtest/**'
       - 'supabase/functions/**'
+      - 'supabase/migrations/**'
       - 'scripts/run-tests.sh'
       - 'scripts/acceptance-check.sh'
       - '.github/workflows/tests.yml'
@@ -23,6 +24,7 @@ on:
       - 'tests/**'
       - 'backtest/**'
       - 'supabase/functions/**'
+      - 'supabase/migrations/**'
       - 'scripts/run-tests.sh'
       - 'scripts/acceptance-check.sh'
       - '.github/workflows/tests.yml'
@@ -45,6 +47,11 @@ jobs:
 
       - name: Strategy + parity suites, and the typecheck
         run: bash scripts/run-tests.sh
+
+      - name: Q15 ledger transactions (PostgreSQL WASM)
+        run: |
+          npm install --prefix "$RUNNER_TEMP/q15-ledger" --no-audit --no-fund @electric-sql/pglite@0.5.8
+          PGLITE_MODULE="$RUNNER_TEMP/q15-ledger/node_modules/@electric-sql/pglite/dist/index.js" node tests/sql/q15.test.mjs
 
       - name: Acceptance gate
         # The same script that must pass before any deploy. Running it here means

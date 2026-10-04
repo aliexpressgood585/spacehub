@@ -53,6 +53,15 @@ jobs:
           if grep -q '"error"\|"message"' /tmp/agg2_mig_result.json; then echo "::error::P-AGG2 migration failed"; cat /tmp/agg2_mig_result.json; exit 1; fi
           echo "P-AGG2 migration applied"
 
+      - name: Apply P-Q15 ledger migration (owner 2026-10-04, idempotent; after the BLADE ledger, which it extends)
+        run: |
+          jq -Rs '{query: .}' supabase/migrations/20261004120001_q15_sleeve.sql > /tmp/q15_mig.json
+          curl -s -X POST "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" -H "Content-Type: application/json" \
+            --data @/tmp/q15_mig.json | tee /tmp/q15_mig_result.json
+          if grep -q '"error"\|"message"' /tmp/q15_mig_result.json; then echo "::error::P-Q15 migration failed"; cat /tmp/q15_mig_result.json; exit 1; fi
+          echo "P-Q15 migration applied"
+
       - name: Prepare pinned CHAN release shim
         shell: bash
         run: |
@@ -60,12 +69,12 @@ jobs:
           cat > supabase/functions/trading-bot/index.ts <<EOF
           const g = globalThis as any;
           g.__RELEASE_SHA = '${SHA}';
-          g.__ENABLED_SLEEVES = 'FAST,EVT,DONCH4H'; g.__SLEEVES_OFF = ''; g.__LEVERAGE = '1'; g.__FAST_MODE = 'rt'; g.__FAST_LEV = '10'; g.__FAST_SHARE = '0.50'; g.__FAST_PER_TRADE = '0.05'; g.__FAST_MAX_OPEN = '8'; g.__EVT_PER_TRADE = '0.08'; g.__EVT_MAX_OPEN = '3'; g.__BLADE_MAX_LEVEL = 'SHADOW'; g.__BRKV_SHARE = '0.2'; g.__BRKV_SIDE = 'short'; // P-AGG2 owner 2026-10-04 (paper, owner override of the council for this change only): FAST rt 10x isolated 5%/trade <= 8 open (profit gate on), EVT2 10x isolated 8%/event <= 3 open, DONCH4H 1x 1.25% + pyramid; account -12% UTC-day halt in SQL. PRO/LIST/FUND/BRKV/BLADE off. Rollback = previous shim 'BLADE,DONCH4H' / 'PRO' after closing FAST/EVT/DONCH4H rows first
+          g.__ENABLED_SLEEVES = 'Q15,EVT,DONCH4H'; g.__SLEEVES_OFF = ''; g.__LEVERAGE = '1'; g.__Q15_LEV = '10'; g.__Q15_PER_TRADE = '0.05'; g.__Q15_MAX_OPEN = '8'; g.__Q15_SHARE = '0.50'; g.__EVT_PER_TRADE = '0.08'; g.__EVT_MAX_OPEN = '3'; // P-Q15 owner 2026-10-04. Rollback = previous shim; close Q15 rows first.
           g.__LEVERAGE = '1';
           g.__CHAN_LEV = '20'; // v98.1 paper leverage for new CHAN entries (1..50)
           g.__CHAN_AGGRESSIVE = '1'; // v98.0 owner override (paper only); remove to roll back
           try {
-            Deno.env.set('ENABLED_SLEEVES', 'FAST,EVT,DONCH4H');
+            Deno.env.set('ENABLED_SLEEVES', 'Q15,EVT,DONCH4H');
             Deno.env.set('LEVERAGE', '1');
           } catch {}
           await import('https://raw.githubusercontent.com/aliexpressgood585/spacehub/${SHA}/supabase/functions/trading-bot/index.ts');

@@ -93,8 +93,8 @@ try {
 const src = (f: string) => readFileSync(f, 'utf8')
 for (const wf of ['.github/workflows/deploy-edge-function.yml', '.github/workflows/enforce-no-loss-trading.yml']) {
   const w = src(wf)
-  for (const kv of ["g.__ENABLED_SLEEVES = 'FAST,EVT,DONCH4H'", "g.__SLEEVES_OFF = ''", "g.__LEVERAGE = '1'", "g.__FAST_MODE = 'rt'", "g.__FAST_LEV = '10'", "g.__FAST_SHARE = '0.50'",
-    "g.__FAST_PER_TRADE = '0.05'", "g.__FAST_MAX_OPEN = '8'", "g.__EVT_PER_TRADE = '0.08'", "g.__EVT_MAX_OPEN = '3'", "Deno.env.set('ENABLED_SLEEVES', 'FAST,EVT,DONCH4H')", "Deno.env.set('LEVERAGE', '1')"])
+  for (const kv of ["g.__ENABLED_SLEEVES = 'Q15,EVT,DONCH4H'", "g.__SLEEVES_OFF = ''", "g.__LEVERAGE = '1'", "g.__Q15_LEV = '10'", "g.__Q15_SHARE = '0.50'",
+    "g.__Q15_PER_TRADE = '0.05'", "g.__Q15_MAX_OPEN = '8'", "g.__EVT_PER_TRADE = '0.08'", "g.__EVT_MAX_OPEN = '3'", "Deno.env.set('ENABLED_SLEEVES', 'Q15,EVT,DONCH4H')", "Deno.env.set('LEVERAGE', '1')"])
     assert.ok(w.includes(kv), `${wf}: ${kv}`)
   assert.ok(!/__ENABLED_SLEEVES = '[^']*PRO/.test(w), `${wf}: PRO not enabled`)
   assert.ok(!w.includes('ALLOW_LIVE_EXECUTION'), `${wf}: never sets ALLOW_LIVE_EXECUTION`)

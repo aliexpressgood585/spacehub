@@ -112,7 +112,7 @@ const idx = readFileSync('supabase/functions/trading-bot/index.ts', 'utf8')
 assert.ok(idx.includes("evt = await runEvt(supabase, state, runLeaseUntil, paperMode && !liveMode)"), 'index passes paper to EVT')
 for (const wf of ['deploy-edge-function.yml', 'enforce-no-loss-trading.yml']) {
   const w = readFileSync(`.github/workflows/${wf}`, 'utf8')
-  assert.ok(w.includes("g.__ENABLED_SLEEVES = 'FAST,EVT,DONCH4H';") && w.includes("g.__EVT_PER_TRADE = '0.08'; g.__EVT_MAX_OPEN = '3';"), `${wf} shim (P-AGG2: EVT2 8% x 3)`)
+  assert.ok(w.includes("g.__ENABLED_SLEEVES = 'Q15,EVT,DONCH4H';") && w.includes("g.__EVT_PER_TRADE = '0.08'; g.__EVT_MAX_OPEN = '3';"), `${wf} shim (P-Q15: EVT2 8% x 3)`)
   assert.ok(w.includes("g.__LEVERAGE = '1'") || w.includes("__LEVERAGE='1'") || w.includes("g.__LEVERAGE='1'"), `${wf} 1x`)
 }
 console.log('EVT v99.5: all assertions passed')

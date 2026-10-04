@@ -53,6 +53,7 @@ run "EVT sleeve v99.5"     tests/evt.test.ts
 run "sleeve brake v99.6"   tests/sleeves.test.ts
 run "PRO scalp v100.0"     tests/pro.test.ts
 run "BLADE event engine"    tests/blade.test.ts
+run "P-Q15 completed bars" tests/q15.test.ts
 run "P-AGG2 level 2"        tests/agg2.test.ts
 run "trend pullback"        tests/trend-pullback.test.ts
 run "lab v94 (research grid + LAB sleeve)" tests/lab.test.ts
@@ -111,6 +112,8 @@ tc() {
 tc shared/strategy.ts
 tc shared/lab.ts
 tc shared/fast.ts
+tc shared/q15.ts
+tc supabase/functions/trading-bot/q15-runner.ts
 tc shared/fast-entry.ts
 tc shared/intraday-retest.ts
 tc shared/chan.ts

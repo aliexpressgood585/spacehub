@@ -161,7 +161,7 @@ assert.equal(PRO_LIVE.riskPct, 0.05, 'live risk 5% per trade (owner)'); assert.o
 assert.match(sql, /not s\.paper_mode/, 'ledger: paper only'); assert.match(sql, /strategy='PRO'/)
 for (const w of ['deploy-edge-function.yml', 'enforce-no-loss-trading.yml']) {
   const y = readFileSync(new URL(`../.github/workflows/${w}`, import.meta.url), 'utf8')
-  assert.match(y, /g\.__ENABLED_SLEEVES = 'FAST,EVT,DONCH4H';/, `${w}: P-AGG2 shim runs FAST + EVT + DONCH4H; PRO off`)
-  assert.match(y, /Deno\.env\.set\('ENABLED_SLEEVES', 'FAST,EVT,DONCH4H'\)/)
+  assert.match(y, /g\.__ENABLED_SLEEVES = 'Q15,EVT,DONCH4H';/, `${w}: P-Q15 shim runs Q15 + EVT + DONCH4H; PRO off`)
+  assert.match(y, /Deno\.env\.set\('ENABLED_SLEEVES', 'Q15,EVT,DONCH4H'\)/)
 }
 console.log('PRO: all assertions passed')
