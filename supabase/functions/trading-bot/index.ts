@@ -462,6 +462,7 @@ import { runList } from './list-runner.ts'
 import { runFund } from './fund-runner.ts'
 import { runEvt } from './evt-runner.ts'
 import { runPro } from './pro-runner.ts'
+import { runBlade, runDonch } from './blade-runner.ts'
 import { meetingDue, capDecision } from '../../../shared/team-meeting.ts'
 
 const BINANCE_DATA = 'https://data-api.binance.vision/api/v3'
@@ -552,7 +553,7 @@ const STABLE_EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|DAI|USDS|USD1|USDP|GUSD|FRAX|USDD
 // over on globalThis; the bot republishes it into `deployment_manifest` and into
 // every diagnostic response, so the chain is verifiable from the public anon key
 // alone. Anything that cannot state its SHA is, by definition, unattributable.
-const BOT_VERSION = 'v100.6'
+const BOT_VERSION = 'v101.0'
 // v87.0: the pre-SCALP engine (DONCH4H / standalone ROTA) opens trades without the profit gate; it stays in the file
 // for its exit/record code history but may never open a trade. Changing this needs the gate wired in first.
 const LEGACY_ENGINE_ALLOWED = false
@@ -2699,6 +2700,23 @@ Deno.serve(async (req) => {
     // v100.0 (owner, 2026-10-02: "forget everything, work only by this prompt, reset to $5,000"): PRO = the owner's 1m
     // scalping specification (shared/pro.ts), alone in the paper book. v100bt REJECTED it out-of-sample after costs;
     // it runs on paper on the owner's explicit instruction. runPro refuses any non-PRO row in the book.
+    // BLADE (quant/PREREGISTRATION_BLADE.md): event attack engine (listing / delisting announcements) + the DONCH4H
+    // background sleeve, together in one paper book (both runners refuse any other strategy in it). The level Blade may
+    // trade at is capped by the deploy-time shim __BLADE_MAX_LEVEL (default SHADOW = journal only, size 0).
+    if (ENABLED_SLEEVES.includes('BLADE')) {
+      let blade: any = null, donch: any = null
+      try { blade = await runBlade(supabase, state, runLeaseUntil, paperMode && !liveMode) }
+      catch (e: any) { blade = { error: String(e?.message ?? e) }; await logErr('blade_runner', String(e?.message ?? e)) }
+      if (ENABLED_SLEEVES.includes('DONCH4H')) {
+        try { const { data: fresh } = await supabase.from('bot_state').select('*').eq('id', 1).single(); donch = await runDonch(supabase, fresh ?? state, runLeaseUntil, paperMode && !liveMode) }
+        catch (e: any) { donch = { error: String(e?.message ?? e) }; await logErr('donch_runner', String(e?.message ?? e)) }
+      }
+      // hand the lease back at once so the next 5 s cron call resolves exits (same as PRO, v100.1)
+      try { await supabase.from('bot_state').update({ lock_until: new Date().toISOString() }).eq('id', 1).eq('lock_until', runLeaseUntil) } catch { /* expires on its own */ }
+      const bad = !!(blade?.error || donch?.error)
+      return new Response(JSON.stringify({ ok: !bad, version: BOT_VERSION, blade, donch }), { status: bad ? 500 : 200, headers: { 'Content-Type': 'application/json' } })
+    }
+
     if (ENABLED_SLEEVES.includes('PRO')) {
       let pro: any = null
       try { pro = await runPro(supabase, state, runLeaseUntil, paperMode && !liveMode) }

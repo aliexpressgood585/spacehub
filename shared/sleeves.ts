@@ -4,7 +4,7 @@
 //    access, so it brakes by editing the shim and pushing main (CI redeploys);
 //  - bot_state.bot_params.sleeves_off = {"<SLEEVE>": {at, by, why}}: set by SQL from an interactive session.
 // Safe direction only: neither can start a sleeve or raise size — the runnable set stays __ENABLED_SLEEVES.
-export const SLEEVES = ['LIST', 'FUND', 'FAST', 'EVT', 'BRKV', 'PRO'] as const
+export const SLEEVES = ['LIST', 'FUND', 'FAST', 'EVT', 'BRKV', 'PRO', 'BLADE', 'DONCH4H'] as const
 export function shimOff(): string[] {
   return String((globalThis as any).__SLEEVES_OFF ?? '').toUpperCase().split(',').map(s => s.trim()).filter(Boolean)
 }
