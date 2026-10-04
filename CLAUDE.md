@@ -375,6 +375,13 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v101.2 (2026-10-04) — position history page with every fee (owner: "show fees, a separate page, position history like before, all the data")
+- `trading-app/history.html` -> `HistoryPage.tsx`, display only. It reads all of bot_trades (every era still in the table: PRO, V100_PRO, V99_*, DONCH4H, BLADE), filterable by strategy / open-closed / coin, shown as phone-friendly cards. Linked from the Blade house (chip "היסטוריית פוזיציות ועמלות").
+- Per trade: entry fee (t.fee), partial-exit fees (scalp_meta.legs px x qty x 5 bps), exit fee (scalp_meta.exit_fee), funding (scalp_meta.funding_paid), gross = pnl + fees + funding, net, R, hold, reason, legs, and a link to trade.html. Open rows show fees paid so far plus a live mark (useExitMarks).
+- Totals: net, gross, fees split by entry / partial / exit, funding, fees in bps of turnover, fees as % of gross, PF.
+- Checked against the DB: on all 324 closed rows, gross = price move x size exactly (0 mismatches). V100_PRO: 293 closes, gross -$557.77, fees $619.94, net -$1,178.06.
+- House: "fees paid" stat, and a fee line on each position card. Slippage stays inside the fill prices (not a separate number).
+
 ## v101.1 (2026-10-04) — Blade reads the Binance CMS about once a second; the house shows live position cards (owner: "why is the data not showing, scan every second")
 - Most blank fields were genuinely empty: no listing or delisting since activation, so no detection lag, no shadow events, no closed trades. One real display defect: the open-positions table (minWidth 700) was cut off on a phone and showed no live price or P&L.
 - Scan: the cron stays at 5 s, so edge invocations do NOT grow (~17k/day; 1 s cron would be ~86k/day, above the free plan).

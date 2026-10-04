@@ -13,6 +13,7 @@ export default defineConfig({
         house3d: 'house3d.html',
         lab: 'lab.html',
         trade: 'trade.html',
+        history: 'history.html',
       },
     },
   },

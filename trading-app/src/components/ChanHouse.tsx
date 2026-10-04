@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { SUPA_KEY, SUPA_URL } from '../supa'
 import { useLivePrices, useExitMarks } from '../livePrices'
 import { tradeMetrics, closeValue } from '../tradeMetrics'
+import { tradeCosts } from './HistoryPage'
 
 type J = any
 const REST = `${SUPA_URL}/rest/v1/`
@@ -245,6 +246,7 @@ function BladeHouse({ onBack }: { onBack?: () => void }) {
       <span className="chip">{manifest ? `${manifest.bot_version ?? ''} · ${String(manifest.sha ?? '').slice(0,7)}` : 'BLADE'}</span>
       <span className={`chip ${bc.level === 'HALT' ? 'bad' : ''}`}>רמת Blade: {LEVEL_HE[String(bc.level)] ?? '—'}</span>
       <span className={`chip ${errors.length ? 'bad' : 'ok'}`}>{errors.length ? `${errors.length} שגיאות בשעה` : '0 שגיאות'}</span>
+      <a className="chip" href="./history.html" style={{color:'#93c5fd',textDecoration:'none'}}>📜 היסטוריית פוזיציות ועמלות</a>
     </div>
     {err && <div className="readerr">שגיאת קריאה: {err}</div>}
     <div className="emptyPos" style={{textAlign:'right',padding:'12px 14px',marginBottom:14,borderStyle:'solid',color:'#fbbf24'}}>
@@ -254,6 +256,7 @@ function BladeHouse({ onBack }: { onBack?: () => void }) {
     <section className="accountStrip">
       <Stat k="הון חי (כולל רווח פתוח)" v={fmt$(equity)} />
       <Stat k="רווח/הפסד פתוח" v={fmt$(openPnl)} cls={openPnl>=0?'pos':'neg'} />
+      <Stat k="עמלות ששולמו" v={fmt$(trades.reduce((s, t) => s + tradeCosts(t).fees, 0))} cls="neg" />
       <Stat k="מזומן פנוי" v={fmt$(cash)} />
       <Stat k="ממומש" v={fmt$(realised)} cls={realised>=0?'pos':'neg'} />
       <Stat k="השהיית זיהוי (חציון 10 אחרונות)" v={lagMed != null ? `${(lagMed/1000).toFixed(1)} שנ׳` : 'עוד לא נמדד'} cls={lagMed != null && lagMed > 15000 ? 'neg' : ''} />
@@ -294,6 +297,7 @@ function BladeHouse({ onBack }: { onBack?: () => void }) {
               <span>סטופ</span><bdi dir="ltr">{fmtPx(stop)}{stopPct != null ? ` (${stopPct.toFixed(2)}% מהמחיר)` : ''}</bdi>
               <span>שלב</span><span>{t.strategy === 'DONCH4H' ? `${t.scalp_meta?.ladder?.stage ?? 0}/2 שלבי סולם` : t.scalp_meta?.blade?.pos?.scaled ? 'חצי נסגר' : 'מלא'}</span>
               <span>סיכון בכניסה</span><span>{fmt$(Number(t.risk_usd))}</span>
+              <span>עמלות ששולמו</span><span className="neg">{fmt$(-tradeCosts(t).fees)}</span>
               <span>נפתח</span><span>{clock(t.opened_at)} · {ago(Date.parse(t.opened_at), now)}</span>
             </div></div> })}
       </div>}
