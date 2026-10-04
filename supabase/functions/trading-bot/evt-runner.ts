@@ -8,6 +8,7 @@ import { SCALP, type Quote } from '../../../shared/scalp.ts'
 import { EV_CATALOGS, eventEntries, type Article } from '../../../shared/events.ts'
 import { json, pool, quote } from './rota-runner.ts'
 import { sleeveOff } from '../../../shared/sleeves.ts'
+import { runBlade, type BladeProfile } from './blade-runner.ts'
 
 const g = () => globalThis as any
 export function evtConfig() {
@@ -85,4 +86,26 @@ export async function runEvt(db: any, state: any, lease: string, paper: boolean)
   const { data: result } = await db.rpc('evt_commit_cycle', { p_lease: lease, p_closes: closes, p_entries: entries, p_note: note,
     p_poll: pollDue && !pollErr ? now : null, p_per_trade: cfg.perTrade, p_max_open: cfg.maxOpen }).throwOnError()
   return { changed: closes.length > 0 || entries.length > 0, ...result, ...note }
+}
+
+// ── P-AGG2 (owner override 2026-10-04, PAPER): EVT2 ────────────────────────────────────────────────────────────────────
+// Level 2 replaces the H7 240-minute hold above with the BL1 / BD1 rules of quant/PREREGISTRATION_BLADE.md, traded at size
+// (quant/PREREGISTRATION_EVT2.md): announcement age <= 30 s (detect_lag_ms journalled for every article, traded or not),
+// spread <= 8 bps, walked impact <= 25% of the expected first-minute move, quotes <= 5 s, never beyond the visible book;
+// LIST long: stop 4%, half off at +3%, rest trails 1.5 x ATR(1m), 15 min; DELIST short: stop 4%, target 7%, 240 min.
+// Size: margin = __EVT_PER_TRADE x equity (default 8%, capped 8%), isolated 10x, <= __EVT_MAX_OPEN open (default 3,
+// capped 3); liquidation at entry x (1 -/+ (1/10 - 0.5%)) is checked before the stop. NO profit gate (the event move is
+// 6-13% in minute one; real costs are still charged on every fill). The engine is runBlade with an EVT profile, so the
+// rules are the ones tests/blade.test.ts already pins; blade_commit_cycle(p_sleeve 'EVT') re-checks every cap.
+// The old runEvt (H7 240-min hold, 1x) stays for the LIST/FUND configuration and rollback.
+export const EVT2 = { lev: 10, perTradeMax: 0.08, maxOpenMax: 3 } as const
+export function evt2Profile(): BladeProfile {
+  const pt = Number(g().__EVT_PER_TRADE), mo = Number(g().__EVT_MAX_OPEN)
+  return { sleeve: 'EVT', noteKey: 'evt2_cycle', lev: EVT2.lev,
+    marginFrac: Number.isFinite(pt) && pt > 0 ? Math.min(EVT2.perTradeMax, pt) : EVT2.perTradeMax,
+    maxOpen: Number.isFinite(mo) && mo >= 1 ? Math.min(EVT2.maxOpenMax, Math.floor(mo)) : EVT2.maxOpenMax }
+}
+export async function runEvt2(db: any, state: any, lease: string, paper: boolean) {
+  if (!paper) throw new Error('EVT is paper-only; refusing live execution')
+  return runBlade(db, state, lease, paper, evt2Profile())
 }

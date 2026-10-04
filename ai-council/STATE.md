@@ -217,3 +217,26 @@ When either model makes a material proposal, replace the Pending proposal block 
 
 ## 2026-10-04 v101.1 — Blade CMS scan ~1 s (owner request), house position cards
 Detection cadence only: no rule, size, level or risk change. The cron stays at 5 s; a 1 s CMS watch runs inside each cycle with no DB writes per poll. Blade is still SHADOW, DONCH4H unchanged. Paper only.
+
+## P-AGG2 — Level 2 "more aggressive and risky; no lotto, no 50x, no PRO" (owner override 2026-10-04)
+- Status: PAPER_TEST pending merge. Branch agg2/fast-evt-donch, one PR. The owner explicitly overrides the council for THIS
+  change only and may waive GPT review before merge. PAPER ONLY; no live orders; no account reset.
+- Hypothesis: larger bets on the same book with one brake left. NOT a new edge. FAST is expected negative after costs unless
+  its own measured gross clears the gate; EVT is the convexity; DONCH4H is the only historically surviving sleeve.
+- Exact change:
+  - Shim (both CI workflows): `__ENABLED_SLEEVES='FAST,EVT,DONCH4H'`, `__LEVERAGE='1'`, `__FAST_MODE='rt'`, `__FAST_LEV='10'`,
+    `__FAST_SHARE='0.50'`, `__FAST_PER_TRADE='0.05'`, `__FAST_MAX_OPEN='8'`, `__EVT_PER_TRADE='0.08'`, `__EVT_MAX_OPEN='3'`, `__SLEEVES_OFF=''`.
+  - FAST: real-time burst rule unchanged (4 conditions, 2 ATR(1m) stop with 0.3% floor, 1.5R, 15 min, aggTrades exits, walkBook
+    + liqCap entries, 20 entries/UTC day). PSYCH off in rt mode. PROFIT GATE ON: expected gross = measured gross of FAST's own
+    confirmed RT signals (fast_shadow, scored at the hold horizon, 15-min clustered, evidence-weighted, >= 30 buckets), full
+    cost model from shared/costs.ts, net >= 2 bps. No measurement -> no entry.
+  - EVT2: BL1/BD1 rules (quant/PREREGISTRATION_EVT2.md), 8% margin x isolated 10x, <= 3 open, no profit gate.
+  - DONCH4H: 1x forced in SQL, 1.25% risk x ADX tier, pyramid ON (2nd >= 0.6R, 3rd all units >= 1.0R, max 3, per-coin 20%).
+  - Ledger 20261004120000_agg2.sql: agg2_day (-12% from the UTC day start -> no new entries in any sleeve until the next UTC
+    day; exits keep running), FAST lev <= 10 / margin <= 5% / <= 8 open / share <= 50%, EVT lev <= 10 / margin <= 8% / <= 3,
+    DONCH lev 1, paper lock in both commit functions. Verified on a local Postgres 16 (tests/sql).
+- Found and fixed on the way (hotfix pushed to main separately): blade_commit_cycle full closes failed with "column reference
+  fee is ambiguous", so the open AXS DONCH4H row could not have exited at its stop.
+- Rollback: shim back to 'BLADE,DONCH4H' (or 'PRO') after closing FAST/EVT rows; DONCH4H rows are managed by both configs.
+- Failure criteria: 30 EVT2 events with PF < 1 -> propose EVT off; FAST gate never opens -> FAST is effectively off (report it,
+  do not loosen); median detect lag > 15 s -> no EVT size increase.

@@ -42,11 +42,14 @@ assert.ok(confirmFastEntry(up, [], true, 1, up.at(-1)!.close, up.at(-1)!.close, 
 const realFetch = globalThis.fetch, realNow = Date.now, g = globalThis as any, oldMode = g.__FAST_MODE
 const pairs = ['BTC', 'SOL', ...Array.from({ length: 20 }, (_, i) => `CX${i}`)].map(sym => ({ sym, s: `${sym}USDT`, k: 1 }))
 let commit: any, journal: any[] = [], scenario = 'valid', solFetches = 0
+// P-AGG2: the real-time profit gate reads FAST's own scored signals (fast_shadow). This replay supplies 40 buckets of a
+// clearly positive measured gross so the entry mechanics below are exercised; tests/agg2.test.ts covers the refusals.
+const shadowRows = Array.from({ length: 40 }, (_, i) => ({ sym: 'ZZZ', t0: NOW - (i + 1) * 20 * 60_000, gross_bps: 60 + (i % 5) }))
 const db = {
   from(table: string) {
     const q: any = new Proxy({}, { get(_t, key) {
       if (key === 'throwOnError') return async () => ({ data: table === 'market_cache' ? [{ data: { pairs } }] : [] })
-      if (key === 'then') return (resolve: any) => resolve({ data: [], count: 0 })
+      if (key === 'then') return (resolve: any) => resolve({ data: table === 'fast_shadow' ? shadowRows : [], count: 0 })
       if (key === 'insert') return async (rows: any[]) => { journal.push(...rows); return {} }
       return () => q
     } }); return q

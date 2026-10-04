@@ -17,7 +17,7 @@ import { labInd, type LBar } from './lab.ts'
 // __FAST_LEV, clamped 1..100). A position is LIQUIDATED when the adverse move reaches 1/lev - 0.5% maintenance: it loses
 // its whole margin. Binance's real per-coin leverage caps (often 20-75x on alts) are NOT enforced here — INFERRED.
 export const FAST = { tf: '5m', barMs: 300_000, zMin: 1.5, volMult: 2, imbMin: 0.10, stopAtr: 1, stopMinPct: 0.003, targetR: 1.5, holdBars: 12,
-  maxOpen: 15, perTrade: 1 / 15, maxPerDay: 20, entryWindowMs: 120_000, levDefault: 10, levMax: 100, maint: 0.005 } as const
+  maxOpen: 15, perTrade: 1 / 15, maxPerDay: 20, entryWindowMs: 120_000, levDefault: 10, levMax: 10, maint: 0.005 } as const   // P-AGG2: lev max 100 -> 10 (SQL clamps again)
 // v95.4 REAL-TIME mode (owner: "yes" to entries at any moment, not only at a 5m close). Evaluated every cycle (~5-10 s)
 // on 1m klines INCLUDING the minute still forming (Binance's forming bar carries its own taker-buy volume):
 //  1. the price now vs the close 3 minutes ago is > 2 ATR(1m) x sqrt(3) away
@@ -219,3 +219,25 @@ export function psychBlock(st: ReturnType<typeof psychState>, sym: string, now: 
   if (st.lastLoss[sym] && now - st.lastLoss[sym] < PSYCH.coinCoolMin * 60_000) return 'psych_no_revenge'
   return null
 }
+
+// ── P-AGG2 (owner override 2026-10-04, PAPER): FAST real-time at 10x x 5% x <= 8, PROFIT GATE ON ───────────────────────
+// The gate needs an expected GROSS edge per trade. Nothing is invented: it is the measured gross of FAST's own confirmed
+// real-time signals, each scored at its hold horizon (fast_shadow: entry = last price when the signal fired, exit = the
+// 1m close at t0 + hold). Signals cluster in time (one market burst fires many coins), so the t-stat is computed on
+// 15-minute buckets (bucket mean), not on signals. Evidence weighting as in shared/costs.ts expectedGross: a positive mean
+// counts x clamp(t/2, 0, 1); a negative mean counts in full. Fewer than 30 buckets -> no estimate -> the gate refuses
+// ('no_edge_estimate'). Then the full cost model (taker 5 bps x 2 + observed spread + walked impact + published funding)
+// must leave >= 2 bps. History says the RT rule's gross is ~0 (v95.6 1m experiment: OOS -0.177%/trade NET of ~0.17%
+// costs), so EXPECT THIS GATE TO REFUSE ALMOST EVERYTHING. That is the gate doing its job, not a bug.
+export const FAST_GATE = { minNetBps: 2, minBuckets: 30, bucketMs: 15 * 60_000, window: 400 } as const
+export function fastEdge(rows: { t0: number; gross_bps: number }[]): { bps: number; n: number; buckets: number; mean: number; t: number } {
+  const ok = rows.filter(r => Number.isFinite(r.gross_bps) && Number.isFinite(r.t0)).slice(-FAST_GATE.window)
+  const by = new Map<number, number[]>()
+  for (const r of ok) { const k = Math.floor(r.t0 / FAST_GATE.bucketMs); if (!by.has(k)) by.set(k, []); by.get(k)!.push(r.gross_bps) }
+  const xs = [...by.values()].map(v => v.reduce((a, b) => a + b, 0) / v.length), B = xs.length
+  if (B < FAST_GATE.minBuckets) return { bps: NaN, n: 0, buckets: B, mean: NaN, t: NaN }
+  const m = xs.reduce((a, b) => a + b, 0) / B, sd = Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / (B - 1)), t = sd > 0 ? m / sd * Math.sqrt(B) : 0
+  return { bps: +(m <= 0 ? m : m * Math.max(0, Math.min(1, t / 2))).toFixed(2), n: ok.length, buckets: B, mean: +m.toFixed(2), t: +t.toFixed(2) }
+}
+// PSYCH (v96.2 discipline rules) is OFF in real-time mode (owner, P-AGG2); the other modes keep it
+export const fastPsychOn = (mode: string) => mode !== 'rt'

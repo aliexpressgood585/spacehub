@@ -185,6 +185,8 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
   }, [])
   if (sleeve == null) return <div className="ch" dir="rtl"><style>{CSS}</style><div className="emptyPos">טוען…</div></div>
   if (sleeve.split(',').includes('BLADE')) return <BladeHouse onBack={onBack} />
+  // P-AGG2 (owner 2026-10-04): FAST + EVT + DONCH4H without LIST/FUND -> the same house with the level-2 panel
+  if (['FAST','EVT'].every(x => sleeve.split(',').includes(x)) && !['LIST','FUND','PRO'].some(x => sleeve.split(',').includes(x))) return <BladeHouse onBack={onBack} agg />
   if (sleeve.split(',').includes('PRO')) return <ProHouse onBack={onBack} />
   return ['LIST','FUND','FAST','EVT'].some(x => sleeve.split(',').includes(x)) ? <ListHouse onBack={onBack} /> : <ChanHouseView onBack={onBack} />
 }
@@ -194,7 +196,7 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
 // that the bot does not compute.
 const BLADE_GATE: Record<string,string> = { too_old: 'ישן מ-30 שנ׳', stale_quote: 'מחיר לא עדכני', wide_spread: 'מרווח מעל 8bp', beyond_book: 'מעבר לספר', impact_too_high: 'השפעה גבוהה מדי', bad_release_time: 'זמן פרסום שגוי', brake: 'בלם', no_price: 'אין מחיר' }
 const LEVEL_HE: Record<string,string> = { SHADOW: 'צל (יומן בלבד, גודל 0)', PROBE: 'בדיקה (2% מרג׳ין)', ATTACK: 'התקפה (8%/5% מרג׳ין)', HALT: 'עצירה' }
-function BladeHouse({ onBack }: { onBack?: () => void }) {
+function BladeHouse({ onBack, agg = false }: { onBack?: () => void; agg?: boolean }) {
   const [state, setState] = useState<J | null>(null)
   const [events, setEvents] = useState<J[]>([])
   const [trades, setTrades] = useState<J[]>([])
@@ -210,7 +212,7 @@ function BladeHouse({ onBack }: { onBack?: () => void }) {
         const [st, ev, tr, man, er] = await Promise.all([
           q<J[]>('bot_state?select=balance,bot_params,paper_mode,lock_until&limit=1'),
           q<J[]>('blade_events?select=*&order=decided_at.desc&limit=200').catch(() => []),
-          q<J[]>('bot_trades?select=id,sym,side,status,strategy,lev,entry_price,exit_price,size,pnl,fee,risk_usd,trail_sl,opened_at,closed_at,legs_banked,exit_stage,scalp_meta&strategy=in.(BLADE,DONCH4H)&order=opened_at.desc&limit=300'),
+          q<J[]>('bot_trades?select=id,sym,side,status,strategy,lev,entry_price,exit_price,size,pnl,fee,risk_usd,trail_sl,opened_at,closed_at,legs_banked,exit_stage,scalp_meta&strategy=in.(BLADE,DONCH4H,FAST,EVT)&order=opened_at.desc&limit=500'),
           q<J[]>('deployment_manifest?select=sha,enabled_sleeves,bot_version&order=first_seen.desc&limit=1').catch(() => []),
           q<J[]>(`bot_errors?select=ts,scope,message&ts=gte.${new Date(Date.now()-3_600_000).toISOString()}&order=ts.desc&limit=20`).catch(() => []),
         ])
@@ -221,7 +223,8 @@ function BladeHouse({ onBack }: { onBack?: () => void }) {
     void load(); const iv = setInterval(load, 5000)
     return () => { alive = false; clearInterval(iv) }
   }, [])
-  const p = state?.bot_params ?? {}, bc = p.blade_cycle ?? {}, dc = p.donch_cycle ?? {}
+  const p = state?.bot_params ?? {}, bc = (agg ? p.evt2_cycle : p.blade_cycle) ?? {}, dc = p.donch_cycle ?? {}, fc = p.fast_cycle ?? {}, ad = p.agg_day ?? {}
+  const today = new Date(now).toISOString().slice(0, 10), haltOn = agg && ad.day === today && ad.halted === true
   const lease = state?.lock_until ? Date.parse(state.lock_until) : null, live = lease != null && now - lease < 120_000
   const open = trades.filter(t => t.status === 'OPEN'), closed = trades.filter(t => t.status !== 'OPEN' && t.closed_at)
   const lags: number[] = (Array.isArray(bc.list_lags) ? bc.list_lags : []).filter((x: number) => Number.isFinite(x))
@@ -240,19 +243,24 @@ function BladeHouse({ onBack }: { onBack?: () => void }) {
     <style>{CSS}</style>
     <div className="top">
       {onBack && <button className="back" onClick={onBack}>→ חזרה</button>}
-      <h1>בית הבוט · BLADE + DONCH4H</h1>
+      <h1>{agg ? 'בית הבוט · דרגה 2 · FAST + EVT + DONCH4H' : 'בית הבוט · BLADE + DONCH4H'}</h1>
       <span className={`chip ${live ? 'ok' : 'bad'}`}>{live ? `● חי · מחזור ${ago(lease, now)}` : `○ אין מחזור ${ago(lease, now)}`}</span>
       <span className="chip">{state?.paper_mode === false ? 'לא נייר!' : 'דמו · נייר בלבד'}</span>
       <span className="chip">{manifest ? `${manifest.bot_version ?? ''} · ${String(manifest.sha ?? '').slice(0,7)}` : 'BLADE'}</span>
-      <span className={`chip ${bc.level === 'HALT' ? 'bad' : ''}`}>רמת Blade: {LEVEL_HE[String(bc.level)] ?? '—'}</span>
+      {agg ? <span className={`chip ${haltOn ? 'bad' : 'ok'}`}>{haltOn ? 'עצירת יום פעילה: אין כניסות חדשות עד חצות UTC' : `עצירת יום: לא · ${ad.day === today && Number.isFinite(Number(ad.dd)) ? `${(Number(ad.dd)*100).toFixed(1)}% מתחילת היום (סף 12%)` : 'סף 12%'}`}</span>
+        : <span className={`chip ${bc.level === 'HALT' ? 'bad' : ''}`}>רמת Blade: {LEVEL_HE[String(bc.level)] ?? '—'}</span>}
       <span className={`chip ${errors.length ? 'bad' : 'ok'}`}>{errors.length ? `${errors.length} שגיאות בשעה` : '0 שגיאות'}</span>
       <a className="chip" href="./history.html" style={{color:'#93c5fd',textDecoration:'none'}}>📜 היסטוריית פוזיציות ועמלות</a>
     </div>
     {err && <div className="readerr">שגיאת קריאה: {err}</div>}
-    <div className="emptyPos" style={{textAlign:'right',padding:'12px 14px',marginBottom:14,borderStyle:'solid',color:'#fbbf24'}}>
+    {agg && <div className="emptyPos" style={{textAlign:'right',padding:'12px 14px',marginBottom:14,borderStyle:'solid',color:'#fbbf24'}}>
+      דרגה 2 (נייר בלבד): FAST בזמן אמת במינוף 10 מבודד, 5% מההון לעסקה, עד 8 פתוחות, ורק אם שער הרווח עובר (הרווח הגולמי שנמדד לאותות FAST עצמם, פחות כל העלויות, לפחות 2bp). EVT על הודעות listing / delisting במינוף 10 מבודד, 8% לאירוע, עד 3 פתוחות, בלי שער רווח. DONCH4H במינוף 1, סיכון 1.25%, עם פירמידה. הבלם היחיד: ירידה של 12% מתחילת היום (UTC) עוצרת כניסות חדשות עד חצות; יציאות ממשיכות.
+      <div style={{marginTop:6}}>שער FAST: {fc.gate?.edge ? (fc.gate.edge.n > 0 ? `רווח גולמי נמדד ${fc.gate.edge.mean} bp (t ${fc.gate.edge.t}, ${fc.gate.edge.buckets} חלונות) → בשימוש ${fc.gate.edge.bps} bp` : `אין עדיין מדידה (${fc.gate.edge.buckets ?? 0} מתוך 30 חלונות של 15 דק׳) — FAST לא נכנס`) : '—'} · מינוף FAST {fc.lev ?? '—'}x · אותות שנרשמו בסבב {fc.shadows ?? 0}</div>
+    </div>}
+    {!agg && <div className="emptyPos" style={{textAlign:'right',padding:'12px 14px',marginBottom:14,borderStyle:'solid',color:'#fbbf24'}}>
       Blade שקט כמעט כל הזמן ופועל רק על הודעות listing / delisting של Binance (בערך 1-3 בחודש). כניסה רק אם ההודעה בת פחות מ-30 שניות, מרווח עד 8bp, וההשפעה על הספר עד רבע מהתנועה הצפויה. בבדיקה ההיסטורית (v122) אף אחד משני הכללים לא עבר את הסף שנרשם מראש, ולכן Blade ברמת צל: רושם עסקאות וירטואליות בגודל 0. DONCH4H הוא העבודה היומית: פריצת 15 נרות 4 שעות, ADX מעל 22, סיכון 1.25%, מינוף 1.
       <div style={{marginTop:6}}>הרמה בשימוש: {String(bc.level_why ?? '—')}{bc.halt ? ` · עצירה: ${bc.halt}` : ''}</div>
-    </div>
+    </div>}
     <section className="accountStrip">
       <Stat k="הון חי (כולל רווח פתוח)" v={fmt$(equity)} />
       <Stat k="רווח/הפסד פתוח" v={fmt$(openPnl)} cls={openPnl>=0?'pos':'neg'} />
@@ -264,6 +272,9 @@ function BladeHouse({ onBack }: { onBack?: () => void }) {
       <Stat k="סריקת הודעות Binance" v={`כל ${((Number(bc.scan_ms) || 5000)/1000).toFixed(0)} שנ׳ · ${ago(bc.poll_ts ?? null, now)}`} />
       <Stat k="DONCH סריקה" v={dc.scanned_at ? `${ago(dc.scanned_at, now)} · נר ${dc.bar ? clock(dc.bar) : '—'}` : '—'} />
       <Stat k="Maker fill (ניסוי)" v={makerRate != null ? `${(makerRate*100).toFixed(0)}% מתוך ${makers.length}` : '—'} />
+      {agg && ['FAST','EVT','DONCH4H'].map(sl => { const c = closed.filter(t => t.strategy === sl), pnl = c.reduce((a, t) => a + Number(t.pnl ?? 0), 0)
+        return <Stat key={sl} k={`${sl} · ${sl === 'DONCH4H' ? '1x' : '10x'}`} v={`${fmt$(pnl)} · ${c.length} סגורות`} cls={pnl >= 0 ? 'pos' : 'neg'} /> })}
+      {agg && <Stat k="P&L פתוח לפי שרוול" v={['FAST','EVT','DONCH4H'].map(sl => `${sl} ${fmt$(posRows.filter(r => r.t.strategy === sl).reduce((a, r) => a + (r.tm?.net ?? 0), 0))}`).join(' · ')} />}
     </section>
     {bc.poll_error && <div className="readerr">CMS: {bc.poll_error}</div>}
     <section className="closedTrades">
