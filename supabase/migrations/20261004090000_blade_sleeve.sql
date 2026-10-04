@@ -30,7 +30,7 @@ returns jsonb language plpgsql security invoker set search_path = public,pg_temp
 declare
  s public.bot_state%rowtype; t public.bot_trades%rowtype; x jsonb; cfg jsonb; m jsonb;
  cash numeric; eq numeric; gross_open numeric; net_open numeric; px numeric; q numeric; n numeric; mg numeric; lv numeric; st numeric; old numeric;
- dir integer; gross numeric; fee numeric; funding numeric; ret numeric; mshare numeric; v_pnl numeric; risk numeric;
+ dir integer; gross numeric; v_fee numeric; funding numeric; ret numeric; mshare numeric; v_pnl numeric; risk numeric;
  opens integer:=0; closes integer:=0; legs integer:=0; rat integer:=0; cnt integer;
 begin
  if p_sleeve not in ('BLADE','DONCH4H') then raise exception 'unknown sleeve %', p_sleeve; end if;
@@ -48,8 +48,8 @@ begin
   if px is null or px<=0 or q is null or q<=0 or q>=t.size then raise exception 'invalid leg'; end if;
   if (x->>'quote_ts') is null or abs(extract(epoch from clock_timestamp())*1000-(x->>'quote_ts')::numeric)>3600000 then raise exception 'stale leg quote'; end if;
   dir:=case when t.side='LONG' then 1 else -1 end; lv:=greatest(t.lev,1);
-  mshare:=t.entry_price*q/lv; gross:=dir*(px-t.entry_price)*q; fee:=px*q*0.0005;
-  ret:=greatest(0,mshare+gross-fee); cash:=cash+ret;
+  mshare:=t.entry_price*q/lv; gross:=dir*(px-t.entry_price)*q; v_fee:=px*q*0.0005;
+  ret:=greatest(0,mshare+gross-v_fee); cash:=cash+ret;
   m:=coalesce(t.scalp_meta,'{}')||coalesce(x->'meta','{}')||jsonb_build_object('legs',coalesce(t.scalp_meta->'legs','[]'::jsonb)||jsonb_build_array(jsonb_build_object('px',px,'qty',q,'reason',x->>'reason','at',now(),'ret',ret-mshare)));
   update bot_trades set size=t.size-q,legs_banked=coalesce(t.legs_banked,0)+ret-mshare,exit_stage=coalesce((x->>'stage')::int,t.exit_stage),
    trail_sl=coalesce((x->>'stop_after')::numeric,t.trail_sl),partial_done=true,scalp_meta=m where id=t.id;
@@ -65,12 +65,12 @@ begin
   if (x->>'quote_ts') is null or abs(extract(epoch from clock_timestamp())*1000-(x->>'quote_ts')::numeric)>3600000 then raise exception 'stale close quote'; end if;
   if abs(funding)>t.entry_price*t.size*0.2 then raise exception 'implausible funding'; end if;
   dir:=case when t.side='LONG' then 1 else -1 end; lv:=greatest(t.lev,1);
-  mshare:=t.entry_price*t.size/lv; gross:=dir*(px-t.entry_price)*t.size; fee:=px*t.size*0.0005;
-  ret:=greatest(0,mshare+gross-fee-funding); cash:=cash+ret;
+  mshare:=t.entry_price*t.size/lv; gross:=dir*(px-t.entry_price)*t.size; v_fee:=px*t.size*0.0005;
+  ret:=greatest(0,mshare+gross-v_fee-funding); cash:=cash+ret;
   v_pnl:=coalesce(t.legs_banked,0)+ret-mshare-coalesce(t.fee,0);
   update bot_trades set status=case when v_pnl>=0 then 'TP' else 'SL' end,exit_price=px,pnl=v_pnl,
    pnl_pct=v_pnl/nullif(coalesce((t.scalp_meta->>'notional0')::numeric,t.entry_price*t.size)/lv,0),closed_at=now(),
-   scalp_meta=coalesce(t.scalp_meta,'{}')||jsonb_build_object('exit_reason',x->>'reason','exit_fee',fee,'funding_paid',funding,
+   scalp_meta=coalesce(t.scalp_meta,'{}')||jsonb_build_object('exit_reason',x->>'reason','exit_fee',v_fee,'funding_paid',funding,
     'funding_missing',coalesce((x->>'funding_missing')::boolean,false),'fill',x->'fill',
     'r_mult',case when coalesce(t.risk_usd,0)>0 then v_pnl/t.risk_usd else null end) where id=t.id;
   closes:=closes+1;
