@@ -142,6 +142,20 @@ jobs:
       - name: Deploy trading-bot function
         run: supabase functions deploy trading-bot --project-ref ${{ env.PROJECT_REF }} --no-verify-jwt
 
+      - name: Smoke run paper bot after deploy
+        run: |
+          ANON_KEY=$(curl -s \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/api-keys" \
+            | grep -o '"anon"[^}]*"apiKey":"[^"]*"' | grep -o '"apiKey":"[^"]*"' | cut -d'"' -f4)
+          if [ -z "$ANON_KEY" ]; then echo "::error::could not resolve Supabase anon key"; exit 1; fi
+          curl -fsS -X POST \
+            "https://${{ env.PROJECT_REF }}.supabase.co/functions/v1/trading-bot" \
+            -H "apikey: $ANON_KEY" -H "Authorization: Bearer $ANON_KEY" \
+            -H "Content-Type: application/json" -d '{}' | tee /tmp/q15_smoke.json
+          echo
+          echo "Paper smoke cycle completed"
+
       - name: Deploy trading-optimizer function
         run: supabase functions deploy trading-optimizer --project-ref ${{ env.PROJECT_REF }} --no-verify-jwt
 
