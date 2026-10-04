@@ -144,11 +144,14 @@ jobs:
 
       - name: Smoke run paper bot after deploy
         run: |
-          curl -fsS -X POST \
+          set +e
+          BODY=$(curl -sS -X POST \
             "https://${{ env.PROJECT_REF }}.supabase.co/functions/v1/trading-bot" \
-            -H "Content-Type: application/json" -d '{}' | tee /tmp/q15_smoke.json
-          echo
-          echo "Paper smoke cycle completed"
+            -H "Content-Type: application/json" -d '{}' -w '\nHTTP_STATUS:%{http_code}')
+          STATUS=$(printf '%s' "$BODY" | sed -n 's/^HTTP_STATUS://p' | tail -1)
+          printf '%s\n' "$BODY"
+          if [ "$STATUS" -ge 400 ]; then echo "::error::paper smoke returned HTTP $STATUS"; exit 1; fi
+          echo "Paper smoke cycle completed (HTTP $STATUS)"
 
       - name: Deploy trading-optimizer function
         run: supabase functions deploy trading-optimizer --project-ref ${{ env.PROJECT_REF }} --no-verify-jwt
