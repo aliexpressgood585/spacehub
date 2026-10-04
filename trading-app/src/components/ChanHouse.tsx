@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 35046)
-Total output lines: 1512
-
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { SUPA_KEY, SUPA_URL } from '../supa'
 import { useLivePrices, useExitMarks } from '../livePrices'
@@ -635,7 +632,311 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
             <div className="lbar"><div className="lfill" style={{width:`${done}%`}}/></div>
             <div className="llabels"><span>הודעה {clock(r.m.announced_at)}</span><span>כניסה {clock(r.t.opened_at)}</span><span>יציאה {clock(r.m.exit_due)}</span></div>
             <div className="lgrid">
-              <Mini k="שווי" v={fmt$(r.notional)} /><Mini k="איחור כניסה" v={Number.isFinite(lag) ? `${Math.round(lag)} שנ׳` : '—'} /><Mini k="עד יציאה" v={left > 0 ? `${Math.floor(left / 3_600_000)}:${String(Math.floor(left / 60_000)…5046 tokens truncated…testAccepted,
+              <Mini k="שווי" v={fmt$(r.notional)} /><Mini k="איחור כניסה" v={Number.isFinite(lag) ? `${Math.round(lag)} שנ׳` : '—'} /><Mini k="עד יציאה" v={left > 0 ? `${Math.floor(left / 3_600_000)}:${String(Math.floor(left / 60_000) % 60).padStart(2, '0')}` : 'עכשיו'} />
+              <Mini k="כניסה" v={fmtPx(entry)} /><Mini k="סטופ" v="אין" /><Mini k="נפתח" v={clock(r.t.opened_at)} />
+            </div>
+            <div style={{fontSize:12,color:'#94a3b8',margin:'6px 0'}}>{String(r.m.note ?? '').replace(/^lag \d+s · /, '')}</div>
+            <button className="lchart" onClick={()=>window.open(`trade.html?id=${encodeURIComponent(String(r.t.id))}`,'_blank','noopener,noreferrer')}>גרף חי ←</button>
+          </div>
+        }
+        if (r.isFund) {
+          const due = Date.parse(r.m.exit_due), settle = Date.parse(r.m.settle_at)
+          const tot = due - Date.parse(r.t.opened_at), done = Math.max(0, Math.min(100, (now - Date.parse(r.t.opened_at)) / tot * 100))
+          const mins = (x: number) => x > 0 ? `${Math.floor(x / 60_000)}:${String(Math.floor(x / 1000) % 60).padStart(2, '0')}` : 'עכשיו'
+          return <div key={r.t.id} className="lcard">
+            <div className="lhead"><b>{r.t.sym}</b><span className="lside">FUND · {r.t.side}</span><span className="lsrc">{r.src ?? 'ממתין למחיר'}</span></div>
+            <div className="lpx"><bdi dir="ltr" className={flash}>{fmtPx(r.mark)}</bdi><bdi dir="ltr" className={(r.net ?? 0)>=0?'pos':'neg'}>{fmt$(r.net)} · {pct(r.pctMove)}</bdi></div>
+            <div className="lbar"><div className="lfill" style={{width:`${done}%`}}/></div>
+            <div className="llabels"><span>כניסה {clock(r.t.opened_at)}</span><span>סליקה {clock(r.m.settle_at)}</span><span>יציאה {clock(r.m.exit_due)}</span></div>
+            <div className="lgrid">
+              <Mini k="שווי" v={fmt$(r.notional)} /><Mini k="funding צפוי" v={`${(Number(r.m.pred_rate ?? 0) * 100).toFixed(3)}%`} /><Mini k="לקבל (משוער)" v={fmt$(Math.abs(Number(r.m.pred_rate ?? 0)) * r.notional)} />
+              <Mini k="עד סליקה" v={mins(settle - now)} /><Mini k="עד יציאה" v={mins(due - now)} /><Mini k="כניסה" v={fmtPx(entry)} />
+            </div>
+            <button className="lchart" onClick={()=>window.open(`trade.html?id=${encodeURIComponent(String(r.t.id))}`,'_blank','noopener,noreferrer')}>גרף חי ←</button>
+          </div>
+        }
+        return <div key={r.t.id} className="lcard">
+          <div className="lhead"><b>{r.t.sym}</b><span className="lside">SHORT</span><span className="lsrc">{r.src ?? 'ממתין למחיר'}</span></div>
+          <div className="lpx"><bdi dir="ltr" className={flash}>{fmtPx(r.mark)}</bdi><bdi dir="ltr" className={(r.net ?? 0)>=0?'pos':'neg'}>{fmt$(r.net)} · {pct(r.pctMove)}</bdi></div>
+          <div className="lbar"><div className="lfill" style={{width:`${prog ?? 0}%`}}/><div className="lentry" style={{left:`${entryPos}%`}}/></div>
+          <div className="llabels"><span>סטופ <bdi dir="ltr">{fmtPx(stop)}</bdi></span><span>כניסה <bdi dir="ltr">{fmtPx(entry)}</bdi></span><span>יעד <bdi dir="ltr">{fmtPx(target)}</bdi></span></div>
+          <div className="lgrid">
+            <Mini k="שווי" v={fmt$(r.notional)} /><Mini k="לסטופ" v={pct(r.toStop)} /><Mini k="ליעד" v={pct(r.toTarget)} />
+            <Mini k="מוחזק" v={`${held.toFixed(held < 1 ? 2 : 1)} ימים / 21`} /><Mini k="גיל בכניסה" v={r.m.age_days != null ? `${Number(r.m.age_days).toFixed(1)} ימים` : '—'} /><Mini k="נפתח" v={clock(r.t.opened_at)} />
+          </div>
+          <button className="lchart" onClick={()=>window.open(`trade.html?id=${encodeURIComponent(String(r.t.id))}`,'_blank','noopener,noreferrer')}>גרף חי ←</button>
+        </div>
+      })}</div>}
+    </section>
+
+    <section className="closedTrades">
+      <div className="sectionHead"><div><h2>יומן חי</h2><p>כל פתיחה, סגירה וסריקה של הבוט, החדש למעלה.</p></div><span className="countBadge">{events.length}</span></div>
+      {events.length === 0 ? <div className="emptyPos">עדיין אין אירועים.</div> :
+      <div className="lfeed">{events.slice(0,40).map((e,i) => <div key={i} className={`lev ${e.cls}`}>
+        <time>{clock(e.ts)}</time><b>{e.title}</b><span>{e.detail}</span></div>)}</div>}
+    </section>
+
+    <section className="closedTrades">
+      <div className="sectionHead">
+        <div><h2>מועמדים בסריקה האחרונה</h2><p>מטבעות נזילים שנכנסו לפני 3–30 יום. שורט אחד בלבד לכל מטבע.</p></div>
+        <span className="countBadge">{cands.length}</span>
+      </div>
+      {cands.length === 0 ? <div className="emptyPos">אין מועמדים בסריקה האחרונה.</div> :
+      <div className="closedTableWrap"><table className="closedTable" style={{minWidth:520}}>
+        <thead><tr><th>מטבע</th><th>גיל (ימים)</th><th>מחזור 24ש׳</th><th>מרווח</th><th>מצב</th></tr></thead>
+        <tbody>{cands.map((c,i) => <tr key={i}><td><b>{c.sym}</b></td><td>{Number(c.age_d).toFixed(1)}</td><td>${Number(c.qv_m).toFixed(1)}M</td><td>{Number(c.spread_bps).toFixed(2)}bp</td>
+          <td>{heldOrTraded.has(String(c.sym)) ? 'נסחר' : 'ממתין למקום'}</td></tr>)}</tbody>
+      </table></div>}
+      {cyc.scan_error && <div className="readerr">שגיאת סריקה: {String(cyc.scan_error)}</div>}
+    </section>
+
+    <section className="closedTrades">
+      <div className="sectionHead">
+        <div><h2>עסקאות שנסגרו</h2><p>כל עסקאות LIST, FUND, QUICK ו-EVT מאז האיפוס ב-1.10.2026.</p></div>
+        <span className="countBadge">{closed.length} סגורות</span>
+      </div>
+      {closed.length === 0 ? <div className="emptyPos">עדיין אין עסקאות סגורות.</div> :
+      <div className="closedTableWrap"><table className="closedTable" style={{minWidth:760}}>
+        <thead><tr><th>נסגר</th><th>מטבע</th><th>כניסה</th><th>יציאה</th><th>P&L נטו</th><th>סיבה</th><th>מוחזק</th></tr></thead>
+        <tbody>{closed.map(t => <tr key={t.id} className={Number(t.pnl)>=0?'winRow':'lossRow'}>
+          <td>{new Date(t.closed_at).toLocaleString('he-IL')}</td><td><b>{t.sym}</b> <small>{t.strategy} {t.side}</small></td>
+          <td><bdi dir="ltr">{fmtPx(Number(t.entry_price))}</bdi></td><td><bdi dir="ltr">{fmtPx(Number(t.exit_price))}</bdi></td>
+          <td><bdi dir="ltr" className={Number(t.pnl)>=0?'pos':'neg'}>{fmt$(Number(t.pnl))}</bdi></td>
+          <td>{REASON_HE[String(t.scalp_meta?.exit_reason)] ?? t.scalp_meta?.exit_reason ?? '—'}</td>
+          <td>{t.strategy !== 'LIST' ? `${Math.round((Date.parse(t.closed_at)-Date.parse(t.opened_at))/60_000)} דק׳` : `${((Date.parse(t.closed_at)-Date.parse(t.opened_at))/86_400_000).toFixed(1)} ימים`}</td>
+        </tr>)}</tbody>
+      </table></div>}
+    </section>
+
+    {errors.length > 0 && <section className="closedTrades">
+      <div className="sectionHead"><div><h2>שגיאות בשעה האחרונה</h2></div><span className="countBadge">{errors.length}</span></div>
+      {errors.slice(0,8).map((e,i) => <div key={i} className="readerr">{clock(e.ts)} · {e.scope} · {e.message}</div>)}
+    </section>}
+  </div>
+}
+
+function ChanHouseView({ onBack }: { onBack?: () => void }) {
+  const [state, setState] = useState<J | null>(null)
+  const [open, setOpen] = useState<J[]>([])
+  const [manifest, setManifest] = useState<J | null>(null)
+  const [errors, setErrors] = useState<J[]>([])
+  const [decisions, setDecisions] = useState<J[]>([])
+  const [recentClosed, setRecentClosed] = useState<J[]>([])
+  const [liveQuotes, setLiveQuotes] = useState<Record<string,J>>({})
+  const [wsLive, setWsLive] = useState(false)
+  const [err, setErr] = useState('')
+  const [now, setNow] = useState(Date.now())
+
+  useEffect(() => {
+    const iv = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(iv)
+  }, [])
+
+  useEffect(() => {
+    let alive = true
+    const load = async () => {
+      try {
+        const [st, op, man, er, dec, cl] = await Promise.all([
+          q<J[]>('bot_state?select=balance,bot_params,paper_mode,updated_at&limit=1'),
+          q<J[]>('bot_trades?select=id,sym,side,status,strategy,lev,entry_price,size,fee,opened_at,scalp_meta&status=eq.OPEN&strategy=eq.CHAN&order=opened_at.desc'),
+          q<J[]>('deployment_manifest?select=sha,enabled_sleeves&order=first_seen.desc&limit=1').catch(() => []),
+          q<J[]>(`bot_errors?select=ts,scope,message&ts=gte.${new Date(Date.now()-3_600_000).toISOString()}&order=ts.desc&limit=20`).catch(() => []),
+          q<J[]>('trade_decisions?select=ts,sym,side,decision,reason,notional,observed,inferred&inferred->>sleeve=eq.CHAN&order=ts.desc&limit=80').catch(() => []),
+          q<J[]>('bot_trades?select=id,sym,side,status,lev,entry_price,exit_price,size,pnl,pnl_pct,fee,opened_at,closed_at,scalp_meta&strategy=eq.CHAN&status=neq.OPEN&closed_at=not.is.null&order=closed_at.desc&limit=1000').catch(() => []),
+        ])
+        if (!alive) return
+        setState(st[0] ?? null)
+        setOpen(op ?? [])
+        setManifest(man[0] ?? null)
+        setErrors(er ?? [])
+        setDecisions(dec ?? [])
+        setRecentClosed(cl ?? [])
+        setErr('')
+      } catch (e: any) {
+        if (alive) setErr(String(e?.message ?? e))
+      }
+    }
+    void load()
+    const iv = setInterval(load, 2500)
+    return () => { alive = false; clearInterval(iv) }
+  }, [])
+
+  useEffect(() => {
+    if (!open.length) { setWsLive(false); setLiveQuotes({}); return }
+    let dead = false
+    let ws: WebSocket | null = null
+    let retry: ReturnType<typeof setTimeout> | null = null
+    // Binance lists PEPE as 1000PEPEUSDT while the bot stores PEPE per single coin.
+    // Keep the display/portfolio quote in the SAME unit as entry_price/stop/target.
+    const binanceMeta = (sym:string) => sym === 'PEPE'
+      ? { stream: '1000PEPEUSDT', divisor: 1000 }
+      : { stream: `${sym}USDT`, divisor: 1 }
+    const reverse = new Map(open.map(t => [binanceMeta(String(t.sym)).stream.toUpperCase(), String(t.sym)]))
+    const streams = [...reverse.keys()].map(s => `${s.toLowerCase()}@bookTicker`).join('/')
+
+    const connect = () => {
+      if (dead || !streams) return
+      ws = new WebSocket(`wss://fstream.binance.com/stream?streams=${streams}`)
+      ws.onopen = () => { if (!dead) setWsLive(true) }
+      ws.onmessage = (ev) => {
+        if (dead) return
+        try {
+          const msg = JSON.parse(ev.data)
+          const d = msg?.data ?? msg
+          const streamSym = String(d?.s ?? '').toUpperCase()
+          const sym = reverse.get(streamSym)
+          if (!sym) return
+          const meta = binanceMeta(sym)
+          const bid = Number(d?.b) / meta.divisor
+          const ask = Number(d?.a) / meta.divisor
+          if (!(bid > 0) || !(ask > 0)) return
+          setLiveQuotes(prev => ({ ...prev, [sym]: { bid, ask, ts: Number(d?.E ?? Date.now()), source: streamSym } }))
+        } catch {}
+      }
+      ws.onerror = () => { if (!dead) setWsLive(false) }
+      ws.onclose = () => {
+        if (dead) return
+        setWsLive(false)
+        retry = setTimeout(connect, 1000)
+      }
+    }
+    connect()
+    return () => {
+      dead = true
+      if (retry) clearTimeout(retry)
+      try { ws?.close() } catch {}
+    }
+  }, [open.map(t => `${t.sym}:${t.id}`).join('|')])
+
+  const p = state?.bot_params ?? {}
+  const cyc = p.chan_cycle ?? {}
+  const cycT = cyc?.ts ? Date.parse(cyc.ts) : null
+  const fresh = cycT != null && now - cycT < 90_000
+  const activeErrors = errors.filter((e) => !cycT || Date.parse(e.ts) > cycT).length
+  const wallets = p.chan_split?.wallets ?? {}
+  const resetAt = p?.chan_reset_at ? Date.parse(String(p.chan_reset_at)) : 0
+  const eraDecisions = useMemo(() => decisions.filter(d => !resetAt || Date.parse(String(d.ts)) >= resetAt), [decisions, resetAt])
+  const eraClosed = useMemo(() => recentClosed.filter(t => !resetAt || Date.parse(String(t.closed_at)) >= resetAt), [recentClosed, resetAt])
+  const latest = eraDecisions[0] ?? null
+  const latestAccepted = eraDecisions.find((d) => d.decision === 'accepted') ?? null
+  const counts = cyc?.regime_counts ?? {}
+  const liveScan = cyc?.live_scan ?? {}
+  const scanning = fresh && liveScan?.status === 'continuous'
+
+  const econ = useMemo(() => open.map(t => ({ trade:t, live:economics(t,cyc,liveQuotes[t.sym]) })), [open,cyc,liveQuotes])
+  const closedTrades = useMemo(() => eraClosed.filter(t => t.status !== 'RESET' && Number.isFinite(Number(t.pnl))), [eraClosed])
+  const closedWins = closedTrades.filter(t => Number(t.pnl) > 0).length
+  const closedLosses = closedTrades.filter(t => Number(t.pnl) < 0).length
+  const closedFlat = closedTrades.length - closedWins - closedLosses
+  const winRate = closedTrades.length ? closedWins / closedTrades.length : null
+
+  const startCapital = ['1','2'].reduce((s,id)=>s+Number(wallets?.[id]?.initial ?? 0),0) || 5000
+  const realised = ['1','2'].reduce((s,id)=>s+Number(wallets?.[id]?.realised ?? 0),0)
+  const feesPaid = ['1','2'].reduce((s,id)=>s+Number(wallets?.[id]?.fees ?? 0),0)
+  const fundingPaid = ['1','2'].reduce((s,id)=>s+Number(wallets?.[id]?.funding ?? 0),0)
+  const marginUsed = econ.reduce((s,x)=>s+Number(x.live.margin ?? 0),0)
+  const exposure = econ.reduce((s,x)=>s+Number(x.live.notional ?? 0),0)
+  const openNet = econ.reduce((s,x)=>s+Number(x.live.net_pnl_to_close ?? 0),0)
+  const exitFees = econ.reduce((s,x)=>s+Number(x.live.exit_fee_est ?? 0),0)
+  const exitSlip = econ.reduce((s,x)=>s+Number(x.live.exit_slippage_usd ?? 0),0)
+  const modeledEquity = startCapital + realised + openNet
+  const freeCollateral = Number(state?.balance ?? 0)
+
+  const activities = useMemo(() => {
+    const items:J[] = []
+    if (cycT) items.push({
+      ts: cyc.ts, kind:'cycle', robot:'CHAN Engine', icon:'◉',
+      title:'מחזור מנוע נחתם',
+      detail:`נפתחו ${Number(cyc.opened ?? 0)} · נסגרו ${Number(cyc.closed ?? 0)} · הון מחזור ${fmt$(Number(cyc.equity))}`
+    })
+    if (liveScan?.ts && Array.isArray(liveScan.checked)) {
+      for (const x of liveScan.checked) items.push({
+        ts: liveScan.ts, kind:'scan', robot:'רובוט סריקה', icon:'⌁',
+        title:`${x.sym} נבדק מול Binance Futures`,
+        detail:`Bid ${fmtPx(Number(x.bid))} · Ask ${fmtPx(Number(x.ask))} · Spread ${x.spread_bps == null ? '—' : Number(x.spread_bps).toFixed(2)+'bp'}`
+      })
+    }
+    for (const n of (cyc?.liquidity_intel?.headlines ?? []).slice(0,6)) items.push({
+      ts:n.ts, kind:Number(n.risk ?? 0)>=50?'error':'scan', robot:'News Radar', icon:'N',
+      title:`${n.source ?? 'news'} · ${String(n.title ?? '').slice(0,110)}`,
+      detail:`מקור ציבורי · Risk ${Number(n.risk ?? 0).toFixed(0)}/100`
+    })
+    for (const d of eraDecisions) items.push({
+      ts:d.ts, kind:d.decision === 'accepted' ? 'approved' : 'rejected',
+      robot:d.decision === 'accepted' ? 'שרשרת אישורים' : stopper(d.reason),
+      icon:d.decision === 'accepted' ? '✓' : '×',
+      title:`${d.sym} ${d.side} · ${d.decision === 'accepted' ? 'אושר' : 'נדחה'}`,
+      detail:d.decision === 'accepted'
+        ? `${COMP[d.inferred?.comp] ?? d.inferred?.comp ?? 'CHAN'} · חשיפה ${d.notional ? fmt$(Number(d.notional)) : '—'} · ${d.inferred?.leverage ? Number(d.inferred.leverage)+'×' : '50×'}`
+        : reasonHe(d.reason)
+    })
+    for (const t of open) {
+      const l=economics(t,cyc,liveQuotes[t.sym])
+      items.push({
+        ts:l.quote_ts ?? cyc.ts ?? t.opened_at, kind:'mark', robot:'רובוט ביצוע', icon:'↯',
+        title:`${t.sym} · פוזיציה פתוחה עודכנה`,
+        detail:`מחיר ${fmtPx(Number(l.mark))} · נטו אם סוגרים עכשיו ${fmt$(Number(l.net_pnl_to_close))} · ${Number(t.lev)}×`
+      })
+      items.push({
+        ts:t.opened_at, kind:'opened', robot:'CHAN SQL Ledger', icon:'+',
+        title:`${t.sym} ${t.side} נפתחה`,
+        detail:`כמות ${Number(t.size).toLocaleString('en-US',{maximumFractionDigits:8})} · שווי ${fmt$(Number(t.entry_price)*Number(t.size))} · בטוחה ${fmt$(Number(t.entry_price)*Number(t.size)/Math.max(1,Number(t.lev)))}`
+      })
+    }
+    for (const t of eraClosed) items.push({
+      ts:t.closed_at, kind:Number(t.pnl)>=0?'closedWin':'closedLoss', robot:'רובוט יציאה', icon:'■',
+      title:`${t.sym} · פוזיציה נסגרה · ${t.status}`,
+      detail:`P&L נטו ${fmt$(Number(t.pnl))} · סיבה ${t.scalp_meta?.exit_reason ?? '—'} · מחיר יציאה ${fmtPx(Number(t.exit_price))}`
+    })
+    for (const e of errors) items.push({
+      ts:e.ts, kind:'error', robot:e.scope || 'מערכת', icon:'!',
+      title:'שגיאת מערכת', detail:String(e.message ?? '').slice(0,180)
+    })
+    return items
+      .filter(x => x.ts)
+      .sort((a,b)=>Date.parse(b.ts)-Date.parse(a.ts))
+      .slice(0,80)
+  }, [cyc,cycT,liveScan,eraDecisions,open,eraClosed,errors,liveQuotes])
+
+  const robots = useMemo(() => [
+    {
+      id:'scanner', icon:'⌁', title:'רובוט סריקה', active:scanning,
+      status: scanning ? 'סורק ברצף ללא עצירה' : 'ממתין לנתון',
+      detail: liveScan?.checked?.length ? liveScan.checked.map((x:J)=>x.sym).slice(0,6).join(' · ') : `${Number(cyc?.scanned ?? 0)} / ${Number(cyc?.universe ?? 0)} חוזים`,
+      foot: liveScan?.ts ? `סבב #${Number(liveScan.loop ?? 0)+1} · ${ago(Date.parse(liveScan.ts),now)}` : (cycT ? `מחזור ${ago(cycT,now)}` : 'אין מחזור'),
+    },
+    {
+      id:'regime', icon:'◫', title:'רובוט משטר שוק', active:fresh,
+      status: fresh ? 'מסווג את השוק' : 'ממתין לנתונים',
+      detail: `חזרה ${counts.MEAN_REVERT ?? 0} · מגמה ${counts.TREND ?? 0} · תנודתי ${counts.HIGH_VOL ?? 0}`,
+      foot: `ניטרלי ${counts.NEUTRAL ?? 0}`,
+    },
+    {
+      id:'intel', icon:'◎', title:'Leverage / News Intel', active:!!cyc?.liquidity_intel?.ts,
+      status: cyc?.liquidity_intel?.top_pressure?.length
+        ? `${cyc.liquidity_intel.top_pressure[0].sym} · ${cyc.liquidity_intel.top_pressure[0].side} squeeze ${Number(cyc.liquidity_intel.top_pressure[0].score).toFixed(0)}`
+        : 'אוסף Funding · OI · Positioning · Taker · Liquidations',
+      detail: `חדשות Risk ${Number(cyc?.liquidity_intel?.news_risk ?? 0).toFixed(0)}/100 · ${Number(cyc?.liquidity_intel?.watched ?? 0)} מטבעות במודיעין`,
+      foot: Array.isArray(cyc?.liquidity_intel?.sources) ? cyc.liquidity_intel.sources.slice(0,4).join(' · ') : 'מקורות ציבוריים בלבד',
+    },
+    {
+      id:'autonomy', icon:'✦', title:'CHAN X · Autonomous Lab', active:cyc?.autonomous_lab?.status==='ACTIVE',
+      status: cyc?.autonomous_lab?.status==='ACTIVE'
+        ? `15 סוכנים · Profit ${cyc?.autonomous_lab?.profitability_governor?.mode ?? '—'}`
+        : 'ממתין לטלמטריה',
+      detail: cyc?.autonomous_lab?.profitability_governor
+        ? `PF ${Number(cyc.autonomous_lab.profitability_governor.recent20?.pf ?? 0).toFixed(2)} · AvgR ${Number(cyc.autonomous_lab.profitability_governor.recent20?.avgR ?? 0).toFixed(2)} · Quality ≥ ${Number(cyc.autonomous_lab.profitability_governor.min_quality ?? 0)}`
+        : 'Governor · Sniper · Portfolio Brain · Shadow Swarm',
+      foot: `Cap ${Number(cyc?.autonomous_lab?.profitability_governor?.entry_cap ?? 0)} · Risk ×${Number(cyc?.autonomous_lab?.profitability_governor?.risk_mult ?? 1).toFixed(2)} · Sniper ${Number(cyc?.autonomous_lab?.sniper?.checks ?? 0)}/${Number(cyc?.autonomous_lab?.sniper?.max ?? 10)}`,
+    },
+    {
+      id:'signal', icon:'⌁', title:'רובוט איתות', active:!!latest,
+      status: latest ? `${latest.sym} · ${COMP[latest.inferred?.comp] ?? latest.inferred?.comp ?? 'בדיקה'}` : 'ממתין למועמד',
+      detail: latest ? `${latest.side === 'LONG' ? 'לונג' : 'שורט'} · ${latest.decision === 'accepted' ? 'אושר' : 'נדחה'}` : 'אין החלטה חדשה',
+      foot: latest ? clock(latest.ts) : '—',
+    },
+    {
+      id:'risk', icon:'◆', title:'רובוט סיכון', active:!!latestAccepted,
       status: latestAccepted ? 'אישור גודל וחשיפה' : 'ממתין לאות',
       detail: latestAccepted ? `סיכון ${pct(Number(latestAccepted.inferred?.kelly_f))} · ${latestAccepted.inferred?.leverage ? latestAccepted.inferred.leverage+'×' : '50×'}` : 'אין אישור חדש',
       foot: state?.paper_mode === false ? 'LIVE — לא צפוי' : 'PAPER · סטופ חובה',
