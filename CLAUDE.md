@@ -386,6 +386,10 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
 - Brake: agg2_day, -12% from the UTC day start. It stops NEW entries in every sleeve until the next UTC day; exits keep running.
 - Ledger 20261004120000_agg2.sql is applied by both CI workflows after the Blade ledger.
 - Local Postgres tests: tests/sql/run.sh (schema replica + 30 checks).
+- **OWNER APPROVED THE MERGE 2026-10-04 ("מאשר למיזוג"), council override for P-AGG2. DEPLOYED 09:05:50 UTC**: PR #87 merged (94c1beb5), CI applied the Blade + AGG2 ledgers. Manifest v102.0 FAST,EVT,DONCH4H paper true / live false, 0 bot_errors.
+  - First cycles: EVT2 at level EVT, FAST scanning 84 pairs. The FAST gate has no measurement yet (0 buckets), so FAST takes no entries; 1 shadow signal is journalled. agg_day start $5,059.30, not halted. Book: AXS DONCH4H 1x.
+  - FINDING: a cycle that runs a FAST scan takes > 4.3 s, so the ~1 s CMS watch gets 0 polls in those cycles and 3 polls in the others. Effective CMS cadence is ~1-5 s, not 1 s.
+- ROLLBACK: both shims back to 'BLADE,DONCH4H' after closing FAST/EVT rows.
 - HOTFIX on main (9da68dd): blade_commit_cycle full closes raised "column reference fee is ambiguous". The variable is renamed v_fee.
   - The deploy workflow does not fire on a migration-only change. It was dispatched by hand to apply the fix.
 

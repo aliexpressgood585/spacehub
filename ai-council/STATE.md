@@ -240,3 +240,4 @@ Detection cadence only: no rule, size, level or risk change. The cron stays at 5
 - Rollback: shim back to 'BLADE,DONCH4H' (or 'PRO') after closing FAST/EVT rows; DONCH4H rows are managed by both configs.
 - Failure criteria: 30 EVT2 events with PF < 1 -> propose EVT off; FAST gate never opens -> FAST is effectively off (report it,
   do not loosen); median detect lag > 15 s -> no EVT size increase.
+- 2026-10-04 09:05 UTC: OWNER APPROVED THE MERGE ("מאשר למיזוג"), the council override for P-AGG2. PR #87 merged (94c1beb5) and deployed: v102.0 FAST,EVT,DONCH4H, paper true / live false, 0 errors. Status: PAPER_TEST LIVE.
