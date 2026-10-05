@@ -41,3 +41,24 @@ export function flowExit(b:Depth,side:1|-1,qty:number,now:number){
  if(left>1e-10)return null
  return flowFill(b,side,notional,now)
 }
+// v1.1 transport (2026-10-05): Binance WebSocket streams deliver ZERO frames from Supabase egress (first live session:
+// 54 ticks, 0 frames; the Binance liquidation stream has recorded nothing in 3 days), while Binance REST works there.
+// So books and tape are POLLED: depth20 every second (weight 2 x 6), recent trades per symbol every 3 seconds (weight 5
+// x 6 / 3). ~1,320 weight/min, guarded by the X-MBX-USED-WEIGHT-1M header so the trading bot keeps its share of the
+// 2,400/min budget. The signal rule is unchanged; the tape is up to ~3 s old, so the frozen 2 s staleness check now
+// rejects some ticks as 'stale_tape' (journalled, never relaxed).
+export const FLOW_REST = { depthEveryMs:1000, tradesEveryMs:3000, guardTrades:1500, guardAll:1900, timeoutMs:2500 } as const
+export function depthFrom(d:any):Depth|null {
+ const E=Number(d?.E),lv=(a:any)=>Array.isArray(a)?a.map((x:any)=>[Number(x[0]),Number(x[1])] as [number,number]):[]
+ if(!Number.isFinite(E))return null
+ return {ts:E,bids:lv(d.bids),asks:lv(d.asks)}
+}
+// Merge /fapi/v1/trades rows (oldest first) into the tape: new ids only, nothing from the future, keep 6 s.
+// gap = the oldest returned id is beyond last+1, i.e. prints were missed between polls (journalled, not invented).
+export function mergeTrades(tape:Print[],last:number,rows:any[],now:number){
+ const ok=(Array.isArray(rows)?rows:[]).filter(r=>Number.isFinite(Number(r?.id))&&Number(r.time)<=now+1000)
+ const fresh=ok.filter(r=>Number(r.id)>last)
+ const gap=last>=0&&fresh.length>0&&Math.min(...fresh.map(r=>Number(r.id)))>last+1
+ const next=[...tape.filter(x=>x.ts>=now-6000),...fresh.map(r=>({ts:Number(r.time),usd:Number(r.quoteQty)||Number(r.price)*Number(r.qty),buy:r.isBuyerMaker===false}))].slice(-10000)
+ return {tape:next,last:fresh.length?Math.max(last,...fresh.map(r=>Number(r.id))):last,gap}
+}
