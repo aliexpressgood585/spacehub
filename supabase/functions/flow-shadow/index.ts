@@ -1,10 +1,10 @@
 // Observation-only service. Never imports an order adapter or touches trading tables.
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { FLOW, flowSignal, flowFill, flowExit, flowResult, validBook, type Depth, type Print } from '../../../shared/flow-shadow.ts'
+import { FLOW, FLOW_REST, depthFrom, mergeTrades, flowSignal, flowFill, flowExit, flowResult, validBook, type Depth, type Print } from '../../../shared/flow-shadow.ts'
 const db=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false}})
 async function collect(token:string){
  const started=Date.now(),books=new Map<string,Depth>(),tapes=new Map<string,Print[]>(),mids=new Map<string,{ts:number;mid:number}[]>(),ids=new Map<string,number>(),funding=new Map<string,number>(),reasons:Record<string,number>={},lastEntry=new Map<string,number>()
- let ws:WebSocket|undefined,timer:ReturnType<typeof setInterval>|undefined,frames=0,ticks=0,readyTicks=0,error:string|null=null,pending:any[]=[],outcomes:any[]=[],busy=false
+ let pollTimer:ReturnType<typeof setInterval>|undefined,lastPollErr:string|null=null,timer:ReturnType<typeof setInterval>|undefined,frames=0,ticks=0,readyTicks=0,error:string|null=null,pending:any[]=[],outcomes:any[]=[],busy=false
  const count=(r:string)=>{reasons[r]=(reasons[r]??0)+1}
  try{
   const {data:old,error:e}=await db.from('flow_shadow').select('*').eq('status','open');if(e)throw e;pending=old??[]
@@ -12,20 +12,25 @@ async function collect(token:string){
   for(const r of recent??[])lastEntry.set(r.symbol,Math.max(lastEntry.get(r.symbol)??0,r.t0))
   const f=await fetch('https://fapi.binance.com/fapi/v1/premiumIndex',{signal:AbortSignal.timeout(5000)});if(!f.ok)throw new Error('funding schedule HTTP '+f.status)
   for(const r of await f.json())funding.set(r.symbol,Number(r.nextFundingTime))
-  const streams=FLOW.symbols.flatMap(s=>[`${s.toLowerCase()}@depth20@250ms`,`${s.toLowerCase()}@aggTrade`]).join('/')
-  ws=new WebSocket('wss://fstream.binance.com/stream?streams='+streams)
-  ws.onerror=()=>{error='websocket_error'}
-  ws.onclose=()=>{if(Date.now()-started<53000)error='websocket_closed'}
-  ws.onmessage=e=>{try{
-   const d=JSON.parse(e.data).data,s=d.s,now=Date.now();if(!FLOW.symbols.includes(s))return;frames++
-   if(d.e==='depthUpdate'){
-    if(Number(d.E)>now+1000||Number(d.E)<(books.get(s)?.ts??0))return
-    books.set(s,{ts:Number(d.E),bids:d.b.map((x:string[])=>x.map(Number)),asks:d.a.map((x:string[])=>x.map(Number))})
-   }else if(d.e==='aggTrade'){
-    if(d.a<=(ids.get(s)??-1)||d.T>now+1000)return;ids.set(s,d.a)
-    tapes.set(s,[...(tapes.get(s)??[]).filter(x=>x.ts>=now-6000),{ts:Number(d.T),usd:Number(d.p)*Number(d.q),buy:d.m===false}].slice(-10000))
-   }
-  }catch{count('invalid_frame')}}
+  // v1.1: REST polling (Binance WebSocket streams are silent from Supabase egress; see shared/flow-shadow.ts)
+  let weight=0,lastTrades=0
+  const get=async(url:string)=>{const r=await fetch(url,{signal:AbortSignal.timeout(FLOW_REST.timeoutMs)});const w=Number(r.headers.get('x-mbx-used-weight-1m'));if(Number.isFinite(w)&&w>0)weight=w;if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}
+  const poll=async()=>{
+   const now=Date.now()
+   if(weight>=FLOW_REST.guardAll){count('weight_guard');return}
+   const doTrades=now-lastTrades>=FLOW_REST.tradesEveryMs&&weight<FLOW_REST.guardTrades
+   if(doTrades)lastTrades=now;else if(now-lastTrades>=FLOW_REST.tradesEveryMs)count('weight_guard_trades')
+   await Promise.all(FLOW.symbols.map(async s=>{
+    try{const d=depthFrom(await get(`https://fapi.binance.com/fapi/v1/depth?symbol=${s}&limit=20`)),t=Date.now()
+     if(d&&d.ts<=t+1000&&d.ts>=(books.get(s)?.ts??0)){books.set(s,d);frames++}}catch(e){count('depth_poll_error');lastPollErr='depth '+String(e)}
+    if(!doTrades)return
+    try{const m=mergeTrades(tapes.get(s)??[],ids.get(s)??-1,await get(`https://fapi.binance.com/fapi/v1/trades?symbol=${s}&limit=1000`),Date.now())
+     tapes.set(s,m.tape);ids.set(s,m.last);frames++;if(m.gap)count('tape_gap')}catch(e){count('trades_poll_error');lastPollErr='trades '+String(e)}
+   }))
+  }
+  let polling=false
+  pollTimer=setInterval(()=>{if(polling)return;polling=true;poll().finally(()=>{polling=false})},FLOW_REST.depthEveryMs)
+  polling=true;await poll().finally(()=>{polling=false})
   const step=()=>{
    if(busy)return;busy=true
    try{
@@ -54,7 +59,7 @@ async function collect(token:string){
   timer=setInterval(step,1000)
   await new Promise(r=>setTimeout(r,Math.max(0,55000-(Date.now()-started))))
  }catch(e){error=String(e)}finally{
-  if(timer)clearInterval(timer);if(ws){ws.onclose=null;ws.close()}
+  if(timer)clearInterval(timer);if(pollTimer)clearInterval(pollTimer);if(!frames&&lastPollErr&&!error)error=lastPollErr
   try{
    if(pending.length||outcomes.length){const {error:e}=await db.from('flow_shadow').upsert([...pending,...outcomes],{onConflict:'symbol,t0'});if(e)throw e}
    const {error:e}=await db.from('flow_sessions').insert({started_at:new Date(started).toISOString(),finished_at:new Date().toISOString(),ticks,ready_ticks:readyTicks,frames,reasons,error,symbols:FLOW.symbols,mode:'SHADOW'});if(e)throw e
@@ -63,7 +68,7 @@ async function collect(token:string){
  }
 }
 Deno.serve(async(req:Request)=>{
- if(req.method!=='POST')return Response.json({mode:'SHADOW',orders:false,symbols:FLOW.symbols,session_seconds:55,tick_ms:1000})
+ if(req.method!=='POST')return Response.json({mode:'SHADOW',orders:false,transport:'rest',symbols:FLOW.symbols,session_seconds:55,tick_ms:1000})
  const {data,error}=await db.rpc('flow_claim')
  if(error)return Response.json({ok:false,error:error.message},{status:500})
  if(!data)return Response.json({ok:true,skipped:true})
