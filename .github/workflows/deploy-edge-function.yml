@@ -124,6 +124,14 @@ jobs:
       - name: Deploy trading-bot function
         run: supabase functions deploy trading-bot --project-ref ${{ env.PROJECT_REF }} --no-verify-jwt
 
+      - name: Activate owner-authorized DDDDD paper experiment once
+        run: |
+          jq -Rs '{query: .}' scripts/activate-ddddd-paper.sql > /tmp/ddddd-reset.json
+          curl --fail-with-body -sS -X POST "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" -H "Content-Type: application/json" \
+            --data @/tmp/ddddd-reset.json > /tmp/ddddd-result.json
+          jq -e 'type == "array"' /tmp/ddddd-result.json >/dev/null || { cat /tmp/ddddd-result.json; exit 1; }
+
       - name: Verify actual autonomous paper cycle after deploy
         run: python3 scripts/smoke-paper-bot.py "https://${{ env.PROJECT_REF }}.supabase.co/functions/v1/trading-bot"
 

@@ -11,6 +11,7 @@ MIGRATIONS = (
     "20261005120000_close_donch_ada_sei.sql",
     "20261005140628_q15_autonomous_reliability.sql",
     "20261005163138_paper_daily_halt_optional.sql",
+    "20261005193450_ddddd_paper_strategy.sql",
 )
 
 def payload(root=Path(".")):

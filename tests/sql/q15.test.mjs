@@ -64,5 +64,22 @@ await db.exec("update bot_state set balance=4000,bot_params=jsonb_set(bot_params
 assert.equal((await q([entry()])).halted,true,'re-enable restores loss brake');
 await db.exec(read('supabase/migrations/20261005163138_paper_daily_halt_optional.sql'));
 assert.equal((await q([entry()])).halted,true,'redeployment preserves explicit re-enable');
+// The DDDDD mode uses the same atomic ledger but exclusively long 1%/1% levels.
+await db.exec(read('supabase/migrations/20261005193450_ddddd_paper_strategy.sql').replaceAll('clock_timestamp()', 'public.q15_test_clock()').replaceAll('now()', 'public.q15_test_clock()'));
+await reset();await db.exec("update bot_state set bot_params='{\"paper_strategy\":\"DDDDD\",\"daily_loss_halt_enabled\":false}'");
+const de={...entry('DD',25),q15:{hold_ms:0,stop:99,target:101,chk:ms,bar,pattern:'DDDDD'}};
+r=await q([de]);assert.equal(r.opened,1);
+assert.equal((await blade('EVT',[be()])).opened,0,'other sleeves disabled in pattern-only mode');
+assert.equal((await q([{...de,sym:'DD2'}])).opened,1,'next scan batch can commit in same 5m bar');
+const dd=(await rows())[0];await q([],[{id:dd.id,price:101,quote_ts:ms,funding:0,funding_complete:true,reason:'TARGET'}]);
+assert.equal((await q([de])).opened,0,'same pattern cannot re-enter after close');
+await assert.rejects(()=>q([{...de,sym:'BAD',side:'SHORT'}]),/wrong side|DDDDD/);
+await assert.rejects(()=>q([{...de,sym:'BAD',q15:{...de.q15,target:102}}]),/DDDDD/);
+await db.exec("alter table bot_state add peak_balance numeric,add day_start_balance numeric,add day_date date,add hard_halt_reason text,add trade_count integer,add streak integer,add overall_wr numeric,add overall_pf numeric,add coin_weights jsonb;create table bot_trade_snapshots(id bigint,trade_id bigint references bot_trades(id));");
+await db.exec(read('scripts/activate-ddddd-paper.sql'));
+assert.equal(Number((await db.query('select balance from bot_state')).rows[0].balance),5000);assert.equal((await rows()).length,0);
+assert.ok((await db.query("select * from paper_reset_archive where source='bot_trades'")).rows.length>0,'reset archives old trades');
+await db.exec('update bot_state set balance=4321');await db.exec(read('scripts/activate-ddddd-paper.sql'));
+assert.equal(Number((await db.query('select balance from bot_state')).rows[0].balance),4321,'redeploy cannot reset account again');
 await db.close();console.log('q15 SQL: paper lock, caps, isolation, pyramids, halt and exits — all checks passed')
 

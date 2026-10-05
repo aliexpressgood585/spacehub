@@ -1,3 +1,4 @@
+import {d5Signal,d5Pairs,D5} from '../shared/ddddd.ts'
 // Full autonomous paper cycle against a fake exchange/transactional DB.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -7,6 +8,12 @@ import { runQ15,q15Tape,exitRow } from '../supabase/functions/trading-bot/q15-ru
 import type { LBar } from '../shared/lab.ts'
 const BAR=Date.UTC(2026,9,5,9,15),NOW=BAR+2000
 const bars=(dir=0):LBar[]=>{let p=100;return Array.from({length:79},(_,i)=>{const o=p;p+=i>=76?dir*.9:.0001;const vol=i===78&&dir?6000:1000;return{t:BAR-(79-i)*Q15.barMs,open:o,close:p,high:Math.max(o,p)+.02,low:Math.min(o,p)-.02,vol,tb:vol*(dir<0?.1:.9)}})}
+const reds=Array.from({length:5},(_,i)=>({t:BAR-(5-i)*D5.barMs,open:100,close:99,high:101,low:98,vol:1}))
+assert.equal(d5Signal(reds,BAR).sig?.dir,1)
+assert.equal(d5Signal(reds.map((x,i)=>({...x,close:i===3?100:x.close})),BAR).sig,null,'doji breaks pattern')
+assert.equal(d5Signal(reds.slice(1),BAR).sig,null)
+assert.equal(d5Signal(reds,BAR+300000).sig,null,'stale candles rejected')
+assert.equal(d5Pairs({symbols:[{symbol:'BTCUSDT',status:'TRADING',contractType:'PERPETUAL',quoteAsset:'USDT',marginAsset:'USDT',underlyingType:'COIN'}]}).length,1)
 const flat=bars(),up=bars(1),down=bars(-1)
 assert.equal(q15Signal(flat,true,false).sig,null)
 assert.equal(q15Signal(up,false,false).sig?.dir,1,'BTC gate stays disabled')
@@ -32,7 +39,7 @@ learning=learnClosedTrades(learning,[outcome(1,NOW)])
 assert.equal(learning.scores.burst.n,4,'older position can close later')
 assert.equal(loadAutonomy({q15_autonomy:{...learning,version:1}}).scores.burst.n,0,'legacy counts rebuild')
 const pairs=['BTC','SOL',...Array.from({length:105},(_,i)=>`C${i}`)].map(sym=>({sym,s:`${sym}USDT`,k:1}))
-let allHot=false,bookDelay=0,bookCalls=0
+let d5Mock=false,allHot=false,bookDelay=0,bookCalls=0
 let open:any[]=[],closed:any[]=[],journal:any[]=[],commits:any[]=[],halted=false,hot=false,kcalls=0,tape:any[]=[],funding:any[]=[],now=NOW,autonomyWrites=0
 const db={from(table:string){let isClosed=false,isHead=false;const q:any=new Proxy({},{get(_t,k){
  if(k==='then')return (resolve:any)=>resolve({data:null,error:null})
@@ -49,6 +56,8 @@ const position=()=>({id:7,sym:'SOL',side:'LONG',strategy:'Q15',paper_mode:true,e
 try{
  Date.now=()=>now
  globalThis.fetch=(async(url:string)=>{
+  if(url.includes('exchangeInfo'))return new Response(JSON.stringify({symbols:pairs.map(p=>({symbol:p.s,status:'TRADING',contractType:'PERPETUAL',quoteAsset:'USDT',marginAsset:'USDT',underlyingType:'COIN'}))}))
+  if(d5Mock&&url.includes('/klines'))return new Response(JSON.stringify(Array.from({length:6},(_,i)=>[BAR-(5-i)*300000,100,101,98,99,1000,BAR-(4-i)*300000-1,0,0,500])))
   if(url.includes('aggTrades'))return new Response(JSON.stringify(tape))
   if(url.includes('fundingRate'))return new Response(JSON.stringify(funding))
   if(url.includes('/klines')){kcalls++;const b=(allHot||hot&&url.includes('SOLUSDT'))?up:flat;return new Response(JSON.stringify(b.map(x=>[x.t,x.open,x.high,x.low,x.close,x.vol,x.t+Q15.barMs-1,0,0,x.tb])))}
@@ -64,6 +73,14 @@ try{
  assert.equal(bookCalls,6,'unfundable candidates must not delay selected entries')
  assert.ok(commits.at(-1).p_entries.every((e:any)=>now-e.quote_ts<=Q15.quoteMaxMs))
  allHot=false;bookDelay=0;now=NOW
+ d5Mock=true;await run({paper_strategy:'DDDDD'});const d5Entries=commits.at(-1).p_entries
+ assert.equal(d5Entries.length,6);assert.equal(d5Entries[0].q15.pattern,'DDDDD');assert.equal(d5Entries[0].side,'LONG')
+ assert.equal(d5Entries[0].q15.stop,d5Entries[0].price*.99);assert.equal(d5Entries[0].q15.target,d5Entries[0].price*1.01)
+ assert.equal(d5Entries[0].q15.hold_ms,0);assert.equal(commits.at(-1).p_note.d5_scan.cursor,96)
+ assert.equal(commits.at(-1).p_note.d5_scan.done,false)
+ await run({paper_strategy:'DDDDD',d5_scan:{bar:BAR,cursor:96,done:false}});assert.equal(journal.length,11);assert.equal(commits.at(-1).p_note.d5_scan.done,true)
+ await run({paper_strategy:'DDDDD',d5_scan:{bar:BAR,cursor:107,done:true}});assert.equal(commits.length,1,'finished 5m scan only manages exits')
+ d5Mock=false
  hot=true;closed=[outcome(1)];await run();let e=commits.at(-1).p_entries[0]
  assert.equal(e.lev,25);assert.equal(e.notional,18750);assert.equal(journal.find(x=>x.sym==='SOL').reason,'taken')
  assert.equal(commits.at(-1).p_note.q15_autonomy.scores.burst.n,1)

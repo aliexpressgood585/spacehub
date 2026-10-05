@@ -313,3 +313,13 @@ Detection cadence only: no rule, size, level or risk change. The cron stays at 5
 - Verification: actual PostgreSQL/WASM ledger tests cover resuming entries below the old loss threshold, clearing the latch, retained manual stop and fresh-mark checks, live-account rejection, and re-enabling the brake across redeployment.
 - GPT review: APPROVED as an owner-requested paper experiment. Claude review: requested; prior overrides cover PRs #105/#106 only.
 - Rollback: set daily_loss_halt_enabled=true under the existing state row lock; the next ledger cycle reinstates the 12% threshold. Never reset capital or positions.
+
+## P-DDDDD — five red 5m candles, LONG with 1%/1% (2026-10-05)
+- Owner explicitly requested and authorized reset to $5,000, merge, deployment and exclusive operation of this pattern.
+- Definition: five consecutive closed 5-minute candles with close < open; doji breaks the sequence. Long only; stop = entry * .99, target = entry * 1.01. No timeout exit for new pattern positions; retain liquidation and executable stop handling.
+- Scope: every active COIN USDT-margined perpetual from Binance exchangeInfo, in batches of 96 across scheduled cycles. No liquidity-based universe cutoff. Existing cash/position limits and executable-book checks still apply; one open position per symbol, one entry per symbol per five-minute signal. Internal Q15 ledger label retained; pattern metadata records DDDDD.
+- Existing 25x / 15% margin / 20 open / 90% allocation / 200 daily-entry settings retained. Daily loss stop remains disabled. All other trading sleeves and adaptive policy selection bypassed in this mode.
+- Activation occurs after function deployment via an atomic idempotent SQL script: archive old state, trades, snapshots and equity; reset account to $5,000 and set paper_strategy=DDDDD. In-flight leases revoked; re-deploy never resets again. PAPER ONLY.
+- Tests: pattern/doji/stale candles; paginated universe; exact levels; old Q15 regressions; actual PostgreSQL ledger blocks shorts/wrong levels/duplicate signal and other sleeves; archive/reset is idempotent.
+- GPT review: APPROVED as the specified paper experiment, not validated profitability. Independent Claude review requested. Prior scoped waivers were for PRs #105-107; new merge/deploy authorization received at 22:36 Israel time.
+- Failure: unintended sleeve entry, non-paper execution, duplicate reset, wrong levels or stale data execution. Halt publication and fix; never restore the old account without owner direction.
