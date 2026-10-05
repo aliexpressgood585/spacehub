@@ -1,3 +1,4 @@
+import { FlowShadow } from './FlowShadow'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { SUPA_KEY, SUPA_URL } from '../supa'
 import { useLivePrices, useExitMarks } from '../livePrices'
@@ -271,6 +272,7 @@ function BladeHouse({ onBack, agg = false, q15 = false }: { onBack?: () => void;
       Blade שקט כמעט כל הזמן ופועל רק על הודעות listing / delisting של Binance (בערך 1-3 בחודש). כניסה רק אם ההודעה בת פחות מ-30 שניות, מרווח עד 8bp, וההשפעה על הספר עד רבע מהתנועה הצפויה. בבדיקה ההיסטורית (v122) אף אחד משני הכללים לא עבר את הסף שנרשם מראש, ולכן Blade ברמת צל: רושם עסקאות וירטואליות בגודל 0. DONCH4H הוא העבודה היומית: פריצת 15 נרות 4 שעות, ADX מעל 22, סיכון 1.25%, מינוף 1.
       <div style={{marginTop:6}}>הרמה בשימוש: {String(bc.level_why ?? '—')}{bc.halt ? ` · עצירה: ${bc.halt}` : ''}</div>
     </div>}
+    <FlowShadow />
     <section className="accountStrip">
       <Stat k="הון חי (כולל רווח פתוח)" v={fmt$(equity)} />
       <Stat k="רווח/הפסד פתוח" v={fmt$(openPnl)} cls={openPnl>=0?'pos':'neg'} />

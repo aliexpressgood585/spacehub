@@ -2,6 +2,7 @@
 // (tests/blade.test.ts covers its replay), DONCH4H 1x with pyramiding, and the account -12% day halt (tests/sql).
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { FAST, FAST_GATE, fastEdge, fastPsychOn } from '../shared/fast.ts'
 import { runFast, fastConfig, aggHalted } from '../supabase/functions/trading-bot/fast-runner.ts'
 import { AGG2_SLEEVES, isAgg2 } from '../shared/sleeves.ts'
@@ -98,7 +99,14 @@ for (const wf of ['.github/workflows/deploy-edge-function.yml', '.github/workflo
     assert.ok(w.includes(kv), `${wf}: ${kv}`)
   assert.ok(!/__ENABLED_SLEEVES = '[^']*PRO/.test(w), `${wf}: PRO not enabled`)
   assert.ok(!w.includes('ALLOW_LIVE_EXECUTION'), `${wf}: never sets ALLOW_LIVE_EXECUTION`)
-  assert.ok(w.indexOf('20261004120000_agg2.sql') > w.indexOf('20261004090000_blade_sleeve.sql'), `${wf}: AGG2 ledger applied after the Blade ledger`)
+  assert.ok(w.includes('python3 scripts/build-ledger-payload.py'), `${wf}: uses atomic ledger payload`)
+}
+const payload = JSON.parse(execFileSync('python3', ['scripts/build-ledger-payload.py'], {encoding:'utf8'})).query as string
+assert.ok(payload.startsWith('BEGIN;') && payload.trimEnd().endsWith('COMMIT;'), 'ledger definitions commit atomically')
+let previous = -1
+for (const file of ['20261004090000_blade_sleeve.sql','20261004120000_agg2.sql','20261004120001_q15_sleeve.sql']) {
+  const at = payload.indexOf(src(`supabase/migrations/${file}`))
+  assert.ok(at > previous, `complete migration present in order: ${file}`); previous = at
 }
 const idx = src('supabase/functions/trading-bot/index.ts'), br = src('supabase/functions/trading-bot/blade-runner.ts'), mig = src('supabase/migrations/20261004120000_agg2.sql')
 assert.ok(idx.includes("ENABLED_SLEEVES.includes('FAST') && ENABLED_SLEEVES.includes('EVT') && !ENABLED_SLEEVES.includes('LIST')") && idx.includes('runEvt2(supabase'), 'AGG2 branch routes EVT2 + FAST + DONCH4H')
