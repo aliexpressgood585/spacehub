@@ -703,7 +703,7 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
       <div className="closedTableWrap"><table className="closedTable" style={{minWidth:760}}>
         <thead><tr><th>נסגר</th><th>מטבע</th><th>כניסה</th><th>יציאה</th><th>P&L נטו</th><th>סיבה</th><th>מוחזק</th></tr></thead>
         <tbody>{closed.map(t => <tr key={t.id} className={Number(t.pnl)>=0?'winRow':'lossRow'}>
-          <td>{new Date(t.closed_at).toLocaleString('he-IL')}</td><td><b>{t.sym}</b> <small>{t.strategy} {t.side}</small></td>
+          <td>{new Date(t.closed_at).toLocaleString('he-IL')}</td><td><b>{t.sym}</b> <small>{t.scalp_meta?.q15?.pattern ?? t.strategy} {t.side}</small></td>
           <td><bdi dir="ltr">{fmtPx(Number(t.entry_price))}</bdi></td><td><bdi dir="ltr">{fmtPx(Number(t.exit_price))}</bdi></td>
           <td><bdi dir="ltr" className={Number(t.pnl)>=0?'pos':'neg'}>{fmt$(Number(t.pnl))}</bdi></td>
           <td>{REASON_HE[String(t.scalp_meta?.exit_reason)] ?? t.scalp_meta?.exit_reason ?? '—'}</td>
@@ -878,12 +878,12 @@ function ChanHouseView({ onBack }: { onBack?: () => void }) {
       const l=economics(t,cyc,liveQuotes[t.sym])
       items.push({
         ts:l.quote_ts ?? cyc.ts ?? t.opened_at, kind:'mark', robot:'רובוט ביצוע', icon:'↯',
-        title:`${t.sym} · פוזיציה פתוחה עודכנה`,
+        title:`${t.sym} · ${t.scalp_meta?.q15?.pattern ?? t.strategy} · פוזיציה פתוחה עודכנה`,
         detail:`מחיר ${fmtPx(Number(l.mark))} · נטו אם סוגרים עכשיו ${fmt$(Number(l.net_pnl_to_close))} · ${Number(t.lev)}×`
       })
       items.push({
         ts:t.opened_at, kind:'opened', robot:'CHAN SQL Ledger', icon:'+',
-        title:`${t.sym} ${t.side} נפתחה`,
+        title:`${t.sym} ${t.side} · ${t.scalp_meta?.q15?.pattern ?? t.strategy} נפתחה`,
         detail:`כמות ${Number(t.size).toLocaleString('en-US',{maximumFractionDigits:8})} · שווי ${fmt$(Number(t.entry_price)*Number(t.size))} · בטוחה ${fmt$(Number(t.entry_price)*Number(t.size)/Math.max(1,Number(t.lev)))}`
       })
     }
