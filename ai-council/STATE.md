@@ -1,3 +1,10 @@
+## P-MARKET-FALLBACK-2 — Binance Vision public fallback (2026-10-06)
+- Status: PAPER_TEST. The first cross-exchange fallback still left some already-open Binance-only symbols without healthy exit/mark data.
+- GPT review: APPROVED for PAPER resilience. Claude review: APPROVED. Claude acknowledgement: **ACKNOWLEDGED**.
+- Binance Futures REST remains primary. If it returns HTTP 451, public Binance Vision spot klines/depth/aggTrades are tried before Bybit/OKX for the same symbol, preserving the closest available Binance market reference for PAPER continuity.
+- Existing DDDDD/VWAP rules, leverage, sizing, stops, targets and balance are unchanged. No reset and no live exchange execution.
+- Exit fallback remains conservative when exact futures tape is unavailable.
+
 ## P-MARKET-FALLBACK — Binance HTTP 451 resilience (2026-10-06)
 - Status: PAPER_TEST. Owner requested repair after the deployed paper bot could not complete healthy cycles because Binance Futures REST returned HTTP 451 from the Supabase runtime.
 - GPT review: APPROVED for PAPER market-data resiliency. Claude review: APPROVED. Claude acknowledgement: **ACKNOWLEDGED**.
