@@ -20,7 +20,7 @@ type Ticks = Record<string, LiveTick>
 const BN_K: Record<string, { s: string; k: number }> = { PEPE: { s: '1000PEPEUSDT', k: 1000 }, ON: { s: '1000ONUSDT', k: 1000 } }
 const bn = (sym: string) => BN_K[sym] ?? { s: `${sym}USDT`, k: 1 }
 // OKX quotes one coin; a '1000X' contract is 1,000 of them
-const okx = (sym: string) => (/^1000[A-Z]/.test(sym) ? { id: `${sym.slice(4)}-USDT-SWAP`, k: 1000 } : { id: `${sym}-USDT-SWAP`, k: 1 })
+const okx = (sym: string) => (sym === 'ON' ? { id: '__NO_OKX_ON__', k: 1 } : /^1000[A-Z]/.test(sym) ? { id: `${sym.slice(4)}-USDT-SWAP`, k: 1000 } : { id: `${sym}-USDT-SWAP`, k: 1 })
 const PREFER_MS = 5000
 
 export function useLivePrices(symbols: string[]): Ticks {
