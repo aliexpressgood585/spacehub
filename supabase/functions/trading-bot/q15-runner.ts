@@ -36,27 +36,48 @@ const marketBars=async(p:Pair,interval:'1m'|'5m',limit:number,start?:number,end?
  try{return await bybitBars(p,interval,limit,start,end)}catch{}
  return okxBars(p,interval,limit)
 }
-export async function q15Tape(p:Pair,from:number,to:number):Promise<{trades:AggTrade[];complete:boolean;checkedUntil:number}> {
+export async function q15Tape(p:Pair,from:number,to:number,dir:1|-1=1):Promise<{trades:AggTrade[];complete:boolean;checkedUntil:number}> {
  const end=Math.min(to,from+3599999),out:AggTrade[]=[]
- let url=`https://fapi.binance.com/fapi/v1/aggTrades?symbol=${p.s}&startTime=${from}&endTime=${end}&limit=1000`
- for(let page=0;page<5;page++){
-  const rows=await json(url);if(!Array.isArray(rows))throw new Error('invalid_tape')
-  for(const x of rows)if(+x.T>=from&&+x.T<=end)out.push({p:+x.p/p.k,T:+x.T})
-  if(rows.length<1000||+rows.at(-1).T>end)return{trades:out,complete:end===to,checkedUntil:end}
-  url=`https://fapi.binance.com/fapi/v1/aggTrades?symbol=${p.s}&fromId=${+rows.at(-1).a+1}&limit=1000`
+ try{
+  let url=`https://fapi.binance.com/fapi/v1/aggTrades?symbol=${p.s}&startTime=${from}&endTime=${end}&limit=1000`
+  for(let page=0;page<5;page++){
+   const rows=await json(url);if(!Array.isArray(rows))throw new Error('invalid_tape')
+   for(const x of rows)if(+x.T>=from&&+x.T<=end)out.push({p:+x.p/p.k,T:+x.T})
+   if(rows.length<1000||+rows.at(-1).T>end)return{trades:out,complete:end===to,checkedUntil:end}
+   url=`https://fapi.binance.com/fapi/v1/aggTrades?symbol=${p.s}&fromId=${+rows.at(-1).a+1}&limit=1000`
+  }
+  return{trades:out,complete:false,checkedUntil:out.at(-1)?.T??from}
+ }catch{}
+ const bars=(await marketBars(p,'1m',Math.min(1000,Math.ceil((end-from)/60000)+3),from-60000,end+60000)).filter(x=>x.t+60000>=from&&x.t<=end)
+ for(const b of bars){
+  const seq=dir>0?[b.open,b.low,b.high,b.close]:[b.open,b.high,b.low,b.close]
+  const ts=[b.t+1,b.t+20000,b.t+40000,b.t+59999]
+  for(let i=0;i<4;i++)if(ts[i]>=from&&ts[i]<=end&&Number.isFinite(seq[i]))out.push({p:seq[i],T:ts[i]})
  }
- return{trades:out,complete:false,checkedUntil:out.at(-1)?.T??from}
+ return{trades:out,complete:end===to,checkedUntil:end}
 }
 async function settled(p:Pair,from:number,to:number){
- const rows=await json(`https://fapi.binance.com/fapi/v1/fundingRate?symbol=${p.s}&startTime=${from}&endTime=${to}&limit=1000`)
- if(!Array.isArray(rows)||rows.length>=1000||rows.some((r:any)=>!Number.isFinite(+r.fundingRate)||!(Number(r.markPrice)>0)))throw new Error('missing_settled_funding')
- return rows.reduce((s:number,r:any)=>s+Number(r.fundingRate)*Number(r.markPrice)/p.k,0)
+ try{
+  const rows=await json(`https://fapi.binance.com/fapi/v1/fundingRate?symbol=${p.s}&startTime=${from}&endTime=${to}&limit=1000`)
+  if(!Array.isArray(rows)||rows.length>=1000||rows.some((r:any)=>!Number.isFinite(+r.fundingRate)||!(Number(r.markPrice)>0)))throw new Error('missing_settled_funding')
+  return rows.reduce((s:number,r:any)=>s+Number(r.fundingRate)*Number(r.markPrice)/p.k,0)
+ }catch{}
+ const q=new URLSearchParams({category:'linear',symbol:p.s,startTime:String(from),endTime:String(to),limit:'200'})
+ const [fd,tk]:any[]=await Promise.all([
+  json(`https://api.bybit.com/v5/market/funding/history?${q}`),
+  json(`https://api.bybit.com/v5/market/tickers?category=linear&symbol=${p.s}`)
+ ])
+ if(Number(fd?.retCode)!==0||Number(tk?.retCode)!==0)throw new Error('missing_settled_funding')
+ const mark=Number(tk?.result?.list?.[0]?.markPrice)/p.k
+ const rows=fd?.result?.list??[]
+ if(!Number.isFinite(mark)||mark<=0||!Array.isArray(rows))throw new Error('missing_settled_funding')
+ return rows.filter((r:any)=>+r.fundingRateTimestamp>=from&&+r.fundingRateTimestamp<=to).reduce((s:number,r:any)=>s+Number(r.fundingRate)*mark,0)
 }
 export async function exitRow(t:any,now:number){
  const m=t.scalp_meta.q15, p:Pair=m.pair??pairOf(t.sym),entry=Number(t.entry_price),dir:1|-1=t.side==='LONG'?1:-1
  const opened=Date.parse(t.opened_at),deadline=m.pattern==='DDDDD'?Infinity:opened+(Number(m.hold_ms)||Q15.holdMs),until=now,from=Math.max(opened,Number(m.chk)||opened)
  if(![entry,opened,m.r,m.stop,m.target].every(Number.isFinite)||!(entry>0&&m.r>0))throw new Error('invalid_exit_state')
- const tape=await q15Tape(p,from,until)
+ const tape=await q15Tape(p,from,until,dir)
  const res=resolveExit({dir,entry,r:m.r,stop:m.stop,target:m.target,liq:fastLiq(dir,entry,Number(t.lev)||Q15.lev),best:entry,trail:false},tape.trades)
  let reason:string|null=res.why,px='px' in res?res.px:NaN,trigger='T' in res?res.T:now,quote=now,fill:any={model:'aggTrades',trigger_ts:trigger,detected_ts:now,complete:tape.complete}
  if(reason==='STOP'){
