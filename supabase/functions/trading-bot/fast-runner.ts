@@ -49,10 +49,25 @@ export async function aggTrades(p: Pair, from: number, to: number): Promise<{ tr
   return { trades: out.filter((x) => x.T <= to), complete: false }
 }
 export async function book(p: Pair): Promise<{ bids: [number, number][]; asks: [number, number][]; E: number }> {
-  const d = await json(`https://fapi.binance.com/fapi/v1/depth?symbol=${p.s}&limit=100`)
   const lv = (a: any[]) => a.map((x: any) => [+x[0] / p.k, +x[1] * p.k] as [number, number])
-  const b = { bids: lv(d.bids), asks: lv(d.asks), E: +d.E }
-  if (!b.bids.length || !b.asks.length || Math.abs(Date.now() - b.E) > 15_000) throw new Error(`bad book ${p.sym}`)
+  try {
+    const d = await json(`https://fapi.binance.com/fapi/v1/depth?symbol=${p.s}&limit=100`)
+    const b = { bids: lv(d.bids), asks: lv(d.asks), E: +d.E }
+    if (!b.bids.length || !b.asks.length || Math.abs(Date.now() - b.E) > 15_000) throw new Error(`bad book ${p.sym}`)
+    return b
+  } catch {}
+  try {
+    const d:any = await json(`https://api.bybit.com/v5/market/orderbook?category=linear&symbol=${p.s}&limit=200`)
+    const r=d?.result, b={bids:lv(r?.b??[]),asks:lv(r?.a??[]),E:Number(d?.time)||Date.now()}
+    if (!b.bids.length || !b.asks.length || Math.abs(Date.now() - b.E) > 30_000) throw new Error('bad bybit book')
+    return b
+  } catch {}
+  const raw=p.sym.startsWith('1000')?p.sym.slice(4):p.sym, scale=p.sym.startsWith('1000')?1000:1
+  if(raw==='ON')throw new Error(`bad book ${p.sym}`)
+  const d:any=await json(`https://www.okx.com/api/v5/market/books?instId=${raw}-USDT-SWAP&sz=100`)
+  const v=d?.data?.[0], map=(a:any[])=>a.map((x:any)=>[+x[0]*scale,+x[1]/scale] as [number,number])
+  const b={bids:map(v?.bids??[]),asks:map(v?.asks??[]),E:+v?.ts||Date.now()}
+  if(d?.code!=='0'||!b.bids.length||!b.asks.length||Math.abs(Date.now()-b.E)>30_000)throw new Error(`bad book ${p.sym}`)
   return b
 }
 export async function runFast(db: any, state: any, lease: string, paper: boolean) {

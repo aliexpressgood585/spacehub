@@ -11,27 +11,73 @@ import { json,pool } from './rota-runner.ts'
 import { sleeveOff } from '../../../shared/sleeves.ts'
 
 const pairOf=(sym:string):Pair=>sym==='PEPE'?{sym,s:'1000PEPEUSDT',k:1000}:{sym,s:`${sym}USDT`,k:1}
-export async function q15Tape(p:Pair,from:number,to:number):Promise<{trades:AggTrade[];complete:boolean;checkedUntil:number}> {
+const bybitBars=async(p:Pair,interval:'1m'|'5m',limit:number,start?:number,end?:number)=>{
+ const iv=interval==='5m'?'5':'1',q=new URLSearchParams({category:'linear',symbol:p.s,interval:iv,limit:String(Math.min(limit,1000))})
+ if(start!=null)q.set('start',String(start));if(end!=null)q.set('end',String(end))
+ const d:any=await json(`https://api.bybit.com/v5/market/kline?${q}`)
+ if(Number(d?.retCode)!==0||!Array.isArray(d?.result?.list))throw new Error('bybit_kline')
+ return d.result.list.slice().reverse().map((x:any)=>({t:+x[0],open:+x[1]/p.k,high:+x[2]/p.k,low:+x[3]/p.k,close:+x[4]/p.k,vol:+x[5]*p.k,tb:NaN}))
+}
+const okxBars=async(p:Pair,interval:'1m'|'5m',limit:number)=>{
+ const raw=p.sym.startsWith('1000')?p.sym.slice(4):p.sym,scale=p.sym.startsWith('1000')?1000:1
+ if(raw==='ON')throw new Error('okx_symbol_collision')
+ const bar=interval==='5m'?'5m':'1m'
+ const d:any=await json(`https://www.okx.com/api/v5/market/candles?instId=${raw}-USDT-SWAP&bar=${bar}&limit=${Math.min(limit,300)}`)
+ if(d?.code!=='0'||!Array.isArray(d?.data))throw new Error('okx_kline')
+ return d.data.slice().reverse().map((x:any)=>({t:+x[0],open:+x[1]*scale,high:+x[2]*scale,low:+x[3]*scale,close:+x[4]*scale,vol:+x[5]/scale,tb:NaN}))
+}
+const marketBars=async(p:Pair,interval:'1m'|'5m',limit:number,start?:number,end?:number):Promise<LBar[]>=>{
+ try{
+  const qs=new URLSearchParams({symbol:p.s,interval,limit:String(limit)});if(start!=null)qs.set('startTime',String(start));if(end!=null)qs.set('endTime',String(end))
+  const k:any=await json(`https://fapi.binance.com/fapi/v1/klines?${qs}`)
+  if(!Array.isArray(k))throw new Error('binance_kline')
+  return k.map((x:any)=>({t:+x[0],open:+x[1]/p.k,high:+x[2]/p.k,low:+x[3]/p.k,close:+x[4]/p.k,vol:+x[5]*p.k,tb:x[9]==null?NaN:+x[9]*p.k}))
+ }catch{}
+ try{return await bybitBars(p,interval,limit,start,end)}catch{}
+ return okxBars(p,interval,limit)
+}
+export async function q15Tape(p:Pair,from:number,to:number,dir:1|-1=1):Promise<{trades:AggTrade[];complete:boolean;checkedUntil:number}> {
  const end=Math.min(to,from+3599999),out:AggTrade[]=[]
- let url=`https://fapi.binance.com/fapi/v1/aggTrades?symbol=${p.s}&startTime=${from}&endTime=${end}&limit=1000`
- for(let page=0;page<5;page++){
-  const rows=await json(url);if(!Array.isArray(rows))throw new Error('invalid_tape')
-  for(const x of rows)if(+x.T>=from&&+x.T<=end)out.push({p:+x.p/p.k,T:+x.T})
-  if(rows.length<1000||+rows.at(-1).T>end)return{trades:out,complete:end===to,checkedUntil:end}
-  url=`https://fapi.binance.com/fapi/v1/aggTrades?symbol=${p.s}&fromId=${+rows.at(-1).a+1}&limit=1000`
+ try{
+  let url=`https://fapi.binance.com/fapi/v1/aggTrades?symbol=${p.s}&startTime=${from}&endTime=${end}&limit=1000`
+  for(let page=0;page<5;page++){
+   const rows=await json(url);if(!Array.isArray(rows))throw new Error('invalid_tape')
+   for(const x of rows)if(+x.T>=from&&+x.T<=end)out.push({p:+x.p/p.k,T:+x.T})
+   if(rows.length<1000||+rows.at(-1).T>end)return{trades:out,complete:end===to,checkedUntil:end}
+   url=`https://fapi.binance.com/fapi/v1/aggTrades?symbol=${p.s}&fromId=${+rows.at(-1).a+1}&limit=1000`
+  }
+  return{trades:out,complete:false,checkedUntil:out.at(-1)?.T??from}
+ }catch{}
+ const bars=(await marketBars(p,'1m',Math.min(1000,Math.ceil((end-from)/60000)+3),from-60000,end+60000)).filter(x=>x.t+60000>=from&&x.t<=end)
+ for(const b of bars){
+  const seq=dir>0?[b.open,b.low,b.high,b.close]:[b.open,b.high,b.low,b.close]
+  const ts=[b.t+1,b.t+20000,b.t+40000,b.t+59999]
+  for(let i=0;i<4;i++)if(ts[i]>=from&&ts[i]<=end&&Number.isFinite(seq[i]))out.push({p:seq[i],T:ts[i]})
  }
- return{trades:out,complete:false,checkedUntil:out.at(-1)?.T??from}
+ return{trades:out,complete:end===to,checkedUntil:end}
 }
 async function settled(p:Pair,from:number,to:number){
- const rows=await json(`https://fapi.binance.com/fapi/v1/fundingRate?symbol=${p.s}&startTime=${from}&endTime=${to}&limit=1000`)
- if(!Array.isArray(rows)||rows.length>=1000||rows.some((r:any)=>!Number.isFinite(+r.fundingRate)||!(Number(r.markPrice)>0)))throw new Error('missing_settled_funding')
- return rows.reduce((s:number,r:any)=>s+Number(r.fundingRate)*Number(r.markPrice)/p.k,0)
+ try{
+  const rows=await json(`https://fapi.binance.com/fapi/v1/fundingRate?symbol=${p.s}&startTime=${from}&endTime=${to}&limit=1000`)
+  if(!Array.isArray(rows)||rows.length>=1000||rows.some((r:any)=>!Number.isFinite(+r.fundingRate)||!(Number(r.markPrice)>0)))throw new Error('missing_settled_funding')
+  return rows.reduce((s:number,r:any)=>s+Number(r.fundingRate)*Number(r.markPrice)/p.k,0)
+ }catch{}
+ const q=new URLSearchParams({category:'linear',symbol:p.s,startTime:String(from),endTime:String(to),limit:'200'})
+ const [fd,tk]:any[]=await Promise.all([
+  json(`https://api.bybit.com/v5/market/funding/history?${q}`),
+  json(`https://api.bybit.com/v5/market/tickers?category=linear&symbol=${p.s}`)
+ ])
+ if(Number(fd?.retCode)!==0||Number(tk?.retCode)!==0)throw new Error('missing_settled_funding')
+ const mark=Number(tk?.result?.list?.[0]?.markPrice)/p.k
+ const rows=fd?.result?.list??[]
+ if(!Number.isFinite(mark)||mark<=0||!Array.isArray(rows))throw new Error('missing_settled_funding')
+ return rows.filter((r:any)=>+r.fundingRateTimestamp>=from&&+r.fundingRateTimestamp<=to).reduce((s:number,r:any)=>s+Number(r.fundingRate)*mark,0)
 }
 export async function exitRow(t:any,now:number){
  const m=t.scalp_meta.q15, p:Pair=m.pair??pairOf(t.sym),entry=Number(t.entry_price),dir:1|-1=t.side==='LONG'?1:-1
  const opened=Date.parse(t.opened_at),deadline=m.pattern==='DDDDD'?Infinity:opened+(Number(m.hold_ms)||Q15.holdMs),until=now,from=Math.max(opened,Number(m.chk)||opened)
  if(![entry,opened,m.r,m.stop,m.target].every(Number.isFinite)||!(entry>0&&m.r>0))throw new Error('invalid_exit_state')
- const tape=await q15Tape(p,from,until)
+ const tape=await q15Tape(p,from,until,dir)
  const res=resolveExit({dir,entry,r:m.r,stop:m.stop,target:m.target,liq:fastLiq(dir,entry,Number(t.lev)||Q15.lev),best:entry,trail:false},tape.trades)
  let reason:string|null=res.why,px='px' in res?res.px:NaN,trigger='T' in res?res.T:now,quote=now,fill:any={model:'aggTrades',trigger_ts:trigger,detected_ts:now,complete:tape.complete}
  if(reason==='STOP'){
@@ -81,9 +127,9 @@ export async function runQ15(db:any,state:any,lease:string,paper:boolean){
    for(const t of allOpen??[]){
     try{
      const p=pairOf(t.sym)
-     const k=await json(`https://fapi.binance.com/fapi/v1/klines?symbol=${p.s}&interval=1m&startTime=${utc0-60000}&limit=2`)
-     const row=k?.find((x:any)=>+x[0]===utc0-60000)
-     if(row)dayMarks[t.sym]=+row[4]/p.k
+     const k=await marketBars(p,'1m',2,utc0-60000)
+     const row=k?.find((x:any)=>+x.t===utc0-60000)
+     if(row)dayMarks[t.sym]=+row.close
     }catch{}
    }
   }
@@ -122,8 +168,7 @@ export async function runQ15(db:any,state:any,lease:string,paper:boolean){
   if(last.high>=vw*1.005&&last.close<last.open)return{dir:-1 as const,vwap:vw,volMult:last.vol/av}
   return null
  }
- await pool(pairs,12,async p=>{try{const k=await json(`https://fapi.binance.com/fapi/v1/klines?symbol=${p.s}&interval=${d5?'5m':'1m'}&limit=${d5?6:120}`)
-  const b=k.filter((x:any)=>Number(x[6])<bar).map((x:any)=>({t:+x[0],open:+x[1]/p.k,high:+x[2]/p.k,low:+x[3]/p.k,close:+x[4]/p.k,vol:+x[5]*p.k,tb:x[9]==null?NaN:+x[9]*p.k}))
+ await pool(pairs,12,async p=>{try{const b=(await marketBars(p,d5?'5m':'1m',d5?6:120)).filter((x:any)=>x.t<bar)
   if(b.at(-1)?.t!==bar-barMs)throw new Error('bar_lag');data.set(p.sym,b)
  }catch(e:any){failures.set(p.sym,String(e.message))}})
  const btc=data.get('BTC'),btcDiff=btc?btc.at(-1)!.close-labInd(btc).ema20.at(-1)!:NaN
