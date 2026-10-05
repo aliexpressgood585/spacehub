@@ -1,10 +1,10 @@
-// P-Q15 → Q1m LOTTERY: scan every 1 minute (owner 2026-10-05 paper only).
+// Q1m MAX LOTTERY: almost open filters (owner 2026-10-05 paper only).
 import { labInd, type LBar } from './lab.ts'
 import { COST, roundTrip, type Book } from './costs.ts'
-export const Q15 = { barMs: 60000, entryWindowMs: 50000, zMin: 0.8, volMult: 1.2, imbMin: .03,
+export const Q15 = { barMs: 60000, entryWindowMs: 55000, zMin: 0.15, volMult: 0.5, imbMin: -1,
   stopAtr: 1.5, stopFloor: .004, targetR: 2, holdMs: 3600000, lev: 25, perTrade: .15,
-  maxOpen: 20, share: .90, maxPerDay: 200, minNetBps: -999, quoteMaxMs: 8000, spreadMaxBps: 15,
-  impactOfStop: .40, minSamples: 10, minDays: 2 } as const
+  maxOpen: 20, share: .90, maxPerDay: 200, minNetBps: -999, quoteMaxMs: 8000, spreadMaxBps: 20,
+  impactOfStop: .50, minSamples: 10, minDays: 2 } as const
 export interface Q15Sig { dir: 1 | -1; atr: number; z: number; volRatio: number; imb: number; strength: number }
 export function q15Signal(b: LBar[], btcUp: boolean | null, isBtc: boolean): { sig: Q15Sig | null; reason: string } {
   const no = (reason: string) => ({ sig: null, reason })
@@ -16,12 +16,14 @@ export function q15Signal(b: LBar[], btcUp: boolean | null, isBtc: boolean): { s
   const I=labInd(b), i=b.length-1, A=I.atr[i], avg=I.av20[i], last=b[i]
   if (!(A>0 && avg>0)) return no('invalid_indicators')
   const z=(last.close-b[i-3].close)/(A*Math.sqrt(3)), dir:1|-1=z>0?1:-1
+  // LOTTERY: tiny z threshold — almost any move qualifies
   if(Math.abs(z)<=Q15.zMin) return no('burst')
   const volRatio=last.vol/avg
   if(volRatio<Q15.volMult) return no('volume')
-  const v=b.slice(-3).reduce((s,x)=>s+x.vol,0), imb=v>0?b.slice(-3).reduce((s,x)=>s+2*x.tb!-x.vol,0)/v:NaN
+  const v=b.slice(-3).reduce((s,x)=>s+x.vol,0), imb=v>0?b.slice(-3).reduce((s,x)=>s+2*x.tb!-x.vol,0)/v:0
+  // imbMin=-1 → effectively no imbalance filter
   if(!Number.isFinite(imb)||dir*imb<=Q15.imbMin) return no('taker_imbalance')
-  return {sig:{dir,atr:A,z,volRatio,imb,strength:Math.abs(z)*volRatio},reason:'signal'}
+  return {sig:{dir,atr:A,z,volRatio,imb,strength:Math.abs(z)*Math.max(volRatio,0.1)},reason:'signal'}
 }
 export function q15Levels(dir:1|-1,entry:number,atr:number) {
   const r=Math.max(Q15.stopAtr*atr,Q15.stopFloor*entry)
