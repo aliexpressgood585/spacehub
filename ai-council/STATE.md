@@ -1,5 +1,12 @@
 # AI Council State
 
+## Atomic paper deployment repair — 2026-10-05
+- Owner authorized fix, merge and paper deployment. GPT review: APPROVED for deployment consistency; no strategy changes.
+- Both workflows share a non-cancelling deployment lock. Enforcement is manual-only; normal pushes have one deployment path.
+- BLADE, AGG2 and Q15 definitions commit in one SQL transaction with an advisory lock, so cron cannot observe obsolete intermediate sleeve validators. Failed upgrade rolls back all definitions.
+- DONCH exposure review: runner counts only DONCH directional notional and SQL does likewise; cap rejection alone is not evidence of a bug. Existing sizing and caps retained; Q15 remains 10x/5%/8 with measured profit gate, DONCH 1x.
+
+
 ## Q15 measured gate repair — owner authorized 2026-10-04
 - Status: REVIEWED. Owner requested fixes, merge and paper deployment while preserving aggressive sizing.
 - GPT review: APPROVED. Remove fabricated cost+2bps expected return even when a legacy immediate flag exists. Shadow collection continues; existing positions still exit normally. No new Claude review claimed.
