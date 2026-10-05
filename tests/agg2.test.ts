@@ -94,8 +94,8 @@ try {
 const src = (f: string) => readFileSync(f, 'utf8')
 for (const wf of ['.github/workflows/deploy-edge-function.yml', '.github/workflows/enforce-no-loss-trading.yml']) {
   const w = src(wf)
-  for (const kv of ["g.__ENABLED_SLEEVES = 'Q15,EVT,DONCH4H'", "g.__SLEEVES_OFF = ''", "g.__LEVERAGE = '1'", "g.__Q15_LEV = '10'", "g.__Q15_SHARE = '0.50'",
-    "g.__Q15_PER_TRADE = '0.05'", "g.__Q15_MAX_OPEN = '8'", "g.__EVT_PER_TRADE = '0.08'", "g.__EVT_MAX_OPEN = '3'", "Deno.env.set('ENABLED_SLEEVES', 'Q15,EVT,DONCH4H')", "Deno.env.set('LEVERAGE', '1')"])
+  for (const kv of ["g.__ENABLED_SLEEVES = 'Q15,EVT,DONCH4H'", "g.__SLEEVES_OFF = ''", "g.__LEVERAGE = '1'", "g.__Q15_LEV = '25'", "g.__Q15_SHARE = '0.90'",
+    "g.__Q15_PER_TRADE = '0.15'", "g.__Q15_MAX_OPEN = '20'", "g.__EVT_PER_TRADE = '0.15'", "g.__EVT_MAX_OPEN = '8'", "Deno.env.set('ENABLED_SLEEVES', 'Q15,EVT,DONCH4H')", "Deno.env.set('LEVERAGE', '1')"])
     assert.ok(w.includes(kv), `${wf}: ${kv}`)
   assert.ok(!/__ENABLED_SLEEVES = '[^']*PRO/.test(w), `${wf}: PRO not enabled`)
   assert.ok(!w.includes('ALLOW_LIVE_EXECUTION'), `${wf}: never sets ALLOW_LIVE_EXECUTION`)
@@ -117,3 +117,4 @@ assert.ok(mig.includes('lv:=least(10,greatest(1,coalesce((x->>\'lev\')::int,1)))
 assert.ok(mig.includes('eq<=st*0.88') && (mig.match(/public\.agg2_day\(cfg,cash,p_marks\)/g) ?? []).length === 2, 'the -12% halt is evaluated in both commit functions')
 assert.ok((mig.match(/not s\.paper_mode/g) ?? []).length >= 2, 'paper lock in both commit functions')
 console.log('agg2: all assertions passed')
+

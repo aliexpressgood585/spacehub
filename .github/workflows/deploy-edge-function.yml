@@ -5,7 +5,8 @@ on:
     branches: [main]
     paths:
       - 'supabase/functions/**'
-      - 'shared/flow-shadow.ts'
+      - 'shared/**'
+      - 'scripts/smoke-paper-bot.py'
       - '.github/workflows/deploy-edge-function.yml'
       - '.github/workflows/enforce-no-loss-trading.yml'
       - 'scripts/build-ledger-payload.py'
@@ -123,20 +124,8 @@ jobs:
       - name: Deploy trading-bot function
         run: supabase functions deploy trading-bot --project-ref ${{ env.PROJECT_REF }} --no-verify-jwt
 
-      - name: Smoke run paper bot after deploy
-        run: |
-          set +e
-          BODY=$(curl -sS -X POST \
-            "https://${{ env.PROJECT_REF }}.supabase.co/functions/v1/trading-bot" \
-            -H "Content-Type: application/json" -d '{}' -w '\nHTTP_STATUS:%{http_code}')
-          STATUS=$(printf '%s' "$BODY" | sed -n 's/^HTTP_STATUS://p' | tail -1)
-          printf '%s\n' "$BODY"
-          if [ "$STATUS" -ge 400 ]; then
-            echo "::error::paper smoke returned HTTP $STATUS"
-            exit 1
-          fi
-          printf '%s\n' "$BODY" | sed '/^HTTP_STATUS:/d' | jq -e '.ok == true or .skipped == true' >/dev/null
-          echo "Paper smoke cycle completed (HTTP $STATUS)"
+      - name: Verify actual autonomous paper cycle after deploy
+        run: python3 scripts/smoke-paper-bot.py "https://${{ env.PROJECT_REF }}.supabase.co/functions/v1/trading-bot"
 
       - name: Deploy observation-only flow collector
         run: |
@@ -167,3 +156,4 @@ jobs:
 
       - name: Done
         run: echo "Deploy complete"
+

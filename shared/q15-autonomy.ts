@@ -71,7 +71,9 @@ export type PolicyScore = {
 }
 
 export type AutonomyState = {
-  version: 1
+  version: 2
+  learned_at: string | null
+  learned_ids: string[]
   updated_at: string
   /** never written below HARD_FLOOR */
   floor: typeof HARD_FLOOR
@@ -95,7 +97,9 @@ export function defaultAutonomy(now = new Date().toISOString()): AutonomyState {
   const scores = Object.fromEntries(IDS.map(id => [id, emptyScore()])) as Record<PolicyId, PolicyScore>
   const weights = Object.fromEntries(IDS.map(id => [id, 0.25])) as Record<PolicyId, number>
   return {
-    version: 1,
+    version: 2,
+    learned_at: null,
+    learned_ids: [],
     updated_at: now,
     floor: { ...HARD_FLOOR },
     scores,
@@ -108,7 +112,8 @@ export function defaultAutonomy(now = new Date().toISOString()): AutonomyState {
 
 export function loadAutonomy(params: Record<string, unknown> | null | undefined): AutonomyState {
   const raw = (params as any)?.q15_autonomy
-  if (!raw || raw.version !== 1) return defaultAutonomy()
+  // v1 may contain repeatedly counted closes. Rebuild v2 from actual outcomes.
+  if (!raw || raw.version !== 2) return defaultAutonomy()
   // re-assert floor every load — AI/tuner cannot weaken
   return {
     ...raw,
@@ -211,13 +216,31 @@ export function recordTrade(
 export function enforceFloor<T extends Record<string, number>>(cfg: T): T & typeof HARD_FLOOR {
   return {
     ...cfg,
-    lev: HARD_FLOOR.lev,
-    perTrade: HARD_FLOOR.perTrade,
-    maxOpen: HARD_FLOOR.maxOpen,
-    share: HARD_FLOOR.share,
+    ...HARD_FLOOR,
   }
 }
 
 export function policyKnobs(id: PolicyId): PolicySpec {
   return POLICIES[id] ?? POLICIES.spray
+}
+
+/** Incremental close learning; IDs sharing the last millisecond are kept across cycles.
+ * Trade IDs are not a close-time cursor: an older position can close later.
+ */
+export function learnClosedTrades(state: AutonomyState, rows: {
+  id: number | string; closed_at: string; pnl: number | string; scalp_meta?: any
+}[]): AutonomyState {
+  let out = state
+  let at = state.learned_at ? Date.parse(state.learned_at) : -Infinity
+  let ids = new Set(state.learned_ids ?? [])
+  for (const row of [...rows].sort((a, b) => Date.parse(a.closed_at) - Date.parse(b.closed_at))) {
+    const ts = Date.parse(row.closed_at), id = String(row.id)
+    if (!Number.isFinite(ts) || ts < at || (ts === at && ids.has(id))) continue
+    if (ts > at) { at = ts; ids = new Set() }
+    ids.add(id)
+    const policy = row.scalp_meta?.autonomy_policy ?? row.scalp_meta?.q15?.policy
+    if (IDS.includes(policy) && row.pnl !== null && Number.isFinite(Number(row.pnl)))
+      out = recordTrade(out, policy, Number(row.pnl), 'live')
+  }
+  return { ...out, learned_at: Number.isFinite(at) ? new Date(at).toISOString() : null, learned_ids: [...ids] }
 }

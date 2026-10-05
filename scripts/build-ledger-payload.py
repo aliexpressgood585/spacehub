@@ -9,6 +9,7 @@ MIGRATIONS = (
     "20261004120001_q15_sleeve.sql",
     "20261005114000_blade_allow_q15_25x.sql",
     "20261005120000_close_donch_ada_sei.sql",
+    "20261005140628_q15_autonomous_reliability.sql",
 )
 
 def payload(root=Path(".")):
@@ -22,3 +23,4 @@ def payload(root=Path(".")):
 
 if __name__ == "__main__":
     print(json.dumps(payload()))
+

@@ -282,3 +282,16 @@ Detection cadence only: no rule, size, level or risk change. The cron stays at 5
 - Failure criteria: 30 EVT2 events with PF < 1 -> propose EVT off; FAST gate never opens -> FAST is effectively off (report it,
   do not loosen); median detect lag > 15 s -> no EVT size increase.
 - 2026-10-04 09:05 UTC: OWNER APPROVED THE MERGE ("מאשר למיזוג"), the council override for P-AGG2. PR #87 merged (94c1beb5) and deployed: v102.0 FAST,EVT,DONCH4H, paper true / live false, 0 errors. Status: PAPER_TEST LIVE.
+
+
+## P-Q15-RELIABILITY — autonomous execution repairs (2026-10-05)
+- Status: PROPOSED, awaiting independent PR review. PAPER ONLY.
+- Owner request: repair, merge and deploy without reducing aggression; preserve autonomous operation.
+- Fresh evidence at 14:01 UTC: cron active every 5 seconds; four OPEN Q15 rows; every exit returned `trades is not iterable`; 75 entry_data_error rejections in the latest scan; production blade_commit_cycle is a 1,415-character guard-only stub.
+- Exact repairs: use the actual resolveExit/book/walkBook/bookFrom interfaces, settled funding in position dollars, checkpoint complete tape, restore complete Blade/DONCH/EVT transactions, learn each closed Q15 trade once, persist learning inside the leased ledger transaction, and require a completed healthy cycle in deployment smoke verification.
+- Aggression unchanged: Q15 25x, 15% per-trade margin ceiling, 20 open, 90% sleeve allocation, 200 entries/day, all four policies and minNetBps=-999. No account reset and no real exchange execution. Existing stop/target/timeout and daily-halt rules remain.
+- Legacy learning scores are rebuilt from actual closed rows because v1 could multiply-count outcomes.
+- Deployment order: atomic ledger definitions, then pinned function bundle, then actual cycle and fresh telemetry verification.
+- GPT review: APPROVED for these reliability repairs; no profitability claim.
+- Claude review: PENDING via the automatic PR review workflow.
+- Rollback trigger: new ledger exceptions, missing/stale heartbeat, exit errors, or changed effective Q15 aggression; stop publication and correct the regression. Do not restore the known guard-only stub or reset the account.

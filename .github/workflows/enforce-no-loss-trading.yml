@@ -51,7 +51,7 @@ jobs:
           cat > supabase/functions/trading-bot/release-config.ts <<EOF
           const g = globalThis as any;
           g.__RELEASE_SHA = '${SHA}';
-          g.__ENABLED_SLEEVES = 'Q15,EVT,DONCH4H'; g.__SLEEVES_OFF = ''; g.__LEVERAGE = '1'; g.__Q15_LEV = '10'; g.__Q15_PER_TRADE = '0.05'; g.__Q15_MAX_OPEN = '8'; g.__Q15_SHARE = '0.50'; g.__EVT_PER_TRADE = '0.08'; g.__EVT_MAX_OPEN = '3'; // P-Q15 owner 2026-10-04. Rollback = previous shim; close Q15 rows first.
+          g.__ENABLED_SLEEVES = 'Q15,EVT,DONCH4H'; g.__SLEEVES_OFF = ''; g.__LEVERAGE = '1'; g.__Q15_LEV = '25'; g.__Q15_PER_TRADE = '0.15'; g.__Q15_MAX_OPEN = '20'; g.__Q15_SHARE = '0.90'; g.__EVT_PER_TRADE = '0.15'; g.__EVT_MAX_OPEN = '8'; // P-Q15 owner 2026-10-04. Rollback = previous shim; close Q15 rows first.
           g.__LEVERAGE = '1';
           g.__CHAN_LEV = '20'; // v98.1 paper leverage for new CHAN entries (1..50)
           g.__CHAN_AGGRESSIVE = '1'; // v98.0 owner override (paper only); remove to roll back
@@ -73,3 +73,4 @@ jobs:
           grep -q "maxConsec: Infinity" shared/chan.ts
           grep -q "maxOpen: Infinity" shared/chan.ts
           echo 'CHAN no daily/streak/open-count stop verified'
+
