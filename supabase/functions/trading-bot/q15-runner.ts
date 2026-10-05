@@ -3,6 +3,7 @@
 // P-Q15 final deploy trigger; paper-only.
 // P-Q15 deploy smoke trigger: paper-only cycle after edge deployment.
 // P-Q15: completed 15m scans; pure signal and cost rules in shared/q15.ts.
+// LOTTERY mode (owner 2026-10-05): paper lev ceiling 25x.
 import { Q15,q15Signal,q15Levels,q15Config,q15Edge,q15Gate } from '../../../shared/q15.ts'
 import { labInd,type LBar } from '../../../shared/lab.ts'
 import { COST,bookFrom } from '../../../shared/costs.ts'
@@ -47,7 +48,7 @@ export async function runQ15(db:any,state:any,lease:string,paper:boolean){
  if(!paper)throw new Error('Q15 is paper-only; refusing live execution')
  const now=Date.now(),cfg=q15Config(),params=state.bot_params??{},bar=Math.floor(now/Q15.barMs)*Q15.barMs
  const {data:open}=await db.from('bot_trades').select('*').eq('status','OPEN').throwOnError()
- if(open.some((t:any)=>t.paper_mode!==true||!['Q15','EVT','DONCH4H'].includes(t.strategy)||Number(t.lev)<1||Number(t.lev)>(t.strategy==='DONCH4H'?1:10)))throw new Error('Q15 incompatible or non-isolated paper book')
+ if(open.some((t:any)=>t.paper_mode!==true||!['Q15','EVT','DONCH4H'].includes(t.strategy)||Number(t.lev)<1||Number(t.lev)>(t.strategy==='DONCH4H'?1:25)))throw new Error('Q15 incompatible or non-isolated paper book')
  const closes:any[]=[],updates:any[]=[],errors:string[]=[],marks:Record<string,number>={}
  let markHealthy=true
  try{const quotes=await json('https://fapi.binance.com/fapi/v1/ticker/bookTicker')
