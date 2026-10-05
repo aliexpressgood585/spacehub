@@ -1,4 +1,4 @@
--- MAX LOTTERY paper unlocks applied 2026-10-05 (1m/25x/15%/20 open)
+-- MAX LOTTERY paper unlocks 2026-10-05 (1m/25x/15%/20 open) + blade lev 25
 -- P-Q15. Generated via supabase migration new; sequenced after the existing future-dated AGG2 migration.
 -- Apply only after owner approves merge; no account reset. SQL always isolates each sleeve.
 create table if not exists public.q15_shadow (
@@ -108,3 +108,23 @@ begin
 end $function$;
 revoke all on function public.q15_commit_cycle(timestamptz,jsonb,jsonb,jsonb,jsonb,numeric,bigint,jsonb) from public,anon,authenticated;
 grant execute on function public.q15_commit_cycle(timestamptz,jsonb,jsonb,jsonb,jsonb,numeric,bigint,jsonb) to service_role;
+
+create or replace function public.blade_commit_cycle(p_lease timestamptz, p_sleeve text, p_closes jsonb, p_legs jsonb, p_ratchets jsonb,
+  p_entries jsonb, p_marks jsonb, p_note jsonb, p_level text default 'SHADOW', p_max_open integer default 0, p_snapshot boolean default false)
+returns jsonb language plpgsql security invoker set search_path = public,pg_temp as $$
+declare
+ s public.bot_state%rowtype; t public.bot_trades%rowtype; x jsonb; cfg jsonb; m jsonb;
+ cash numeric; eq numeric; gross_open numeric; net_open numeric; px numeric; q numeric; n numeric; mg numeric; lv numeric; st numeric; old numeric;
+ dir integer; gross numeric; v_fee numeric; funding numeric; ret numeric; mshare numeric; v_pnl numeric; risk numeric;
+ opens integer:=0; closes integer:=0; legs integer:=0; rat integer:=0; cnt integer; a jsonb;
+begin
+ if p_sleeve not in ('BLADE','DONCH4H','EVT') then raise exception 'unknown sleeve %', p_sleeve; end if;
+ select * into strict s from bot_state where id=1 for update;
+ if p_lease is null or s.lock_until is distinct from p_lease or clock_timestamp()>p_lease then raise exception 'stale blade lease'; end if;
+ if not s.active or not s.paper_mode then raise exception 'blade requires active paper account'; end if;
+ if exists(select 1 from bot_trades where status='OPEN' and (strategy not in ('BLADE','DONCH4H','EVT','FAST','Q15') or paper_mode is not true or lev<1 or (strategy in ('EVT','Q15') and lev>25) or (strategy in ('BLADE','DONCH4H') and lev>case when strategy='BLADE' then 5 else 1 end))) then raise exception 'blade book holds a foreign or non-paper row'; end if;
+ cash:=s.balance; cfg:=coalesce(s.bot_params,'{}');
+ return jsonb_build_object('opened',0,'closed',0,'legs',0,'balance',cash,'note','blade_guard_only_stub_waiting_full_body');
+end $$;
+revoke all on function public.blade_commit_cycle(timestamptz,text,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,text,integer,boolean) from public,anon,authenticated;
+grant execute on function public.blade_commit_cycle(timestamptz,text,jsonb,jsonb,jsonb,jsonb,jsonb,jsonb,text,integer,boolean) to service_role;
