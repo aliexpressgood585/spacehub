@@ -3,7 +3,7 @@
 // P-Q15 final deploy trigger; paper-only.
 // P-Q15 deploy smoke trigger: paper-only cycle after edge deployment.
 // P-Q15: completed 1m scans; pure signal and cost rules in shared/q15.ts.
-// MAX LOTTERY 1m scan (owner 2026-10-05): every minute; soft filters; paper lev 25x.
+// MAX LOTTERY open filters (owner 2026-10-05): zMin 0.15 / vol 0.5 / imb off; 1m; lev 25x.
 import { Q15,q15Signal,q15Levels,q15Config,q15Edge,q15Gate } from '../../../shared/q15.ts'
 import { labInd,type LBar } from '../../../shared/lab.ts'
 import { COST,bookFrom } from '../../../shared/costs.ts'
