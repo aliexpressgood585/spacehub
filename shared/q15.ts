@@ -1,9 +1,10 @@
 // P-Q15: frozen 15m PAPER hypothesis. See quant/PREREGISTRATION_Q15.md.
+// LOTTERY mode (owner 2026-10-05): raised paper ceilings for high-variance exposure.
 import { labInd, type LBar } from './lab.ts'
 import { COST, roundTrip, type Book } from './costs.ts'
 export const Q15 = { barMs: 900000, entryWindowMs: 60000, zMin: 1.5, volMult: 2, imbMin: .10,
-  stopAtr: 1.5, stopFloor: .004, targetR: 2, holdMs: 7200000, lev: 10, perTrade: .05,
-  maxOpen: 8, share: .5, maxPerDay: 20, minNetBps: 2, quoteMaxMs: 5000, spreadMaxBps: 8,
+  stopAtr: 1.5, stopFloor: .004, targetR: 2, holdMs: 7200000, lev: 20, perTrade: .12,
+  maxOpen: 15, share: .85, maxPerDay: 40, minNetBps: 2, quoteMaxMs: 5000, spreadMaxBps: 8,
   impactOfStop: .25, minSamples: 100, minDays: 20 } as const
 export interface Q15Sig { dir: 1 | -1; atr: number; z: number; volRatio: number; imb: number; strength: number }
 export function q15Signal(b: LBar[], btcUp: boolean | null, isBtc: boolean): { sig: Q15Sig | null; reason: string } {
@@ -30,7 +31,8 @@ export function q15Levels(dir:1|-1,entry:number,atr:number) {
 }
 export function q15Config() {
  const g=globalThis as any, clamp=(v:any,d:number,min:number,max:number)=>Number.isFinite(Number(v))?Math.max(min,Math.min(max,Number(v))):d
- return {lev:Math.floor(clamp(g.__Q15_LEV,10,1,10)),perTrade:clamp(g.__Q15_PER_TRADE,.05,0,.05),maxOpen:Math.floor(clamp(g.__Q15_MAX_OPEN,8,0,8)),share:clamp(g.__Q15_SHARE,.5,0,.5)}
+ // LOTTERY ceilings (paper only): lev up to 25, perTrade 15%, maxOpen 20, share 90%
+ return {lev:Math.floor(clamp(g.__Q15_LEV,20,1,25)),perTrade:clamp(g.__Q15_PER_TRADE,.12,0,.15),maxOpen:Math.floor(clamp(g.__Q15_MAX_OPEN,15,0,20)),share:clamp(g.__Q15_SHARE,.85,0,.90)}
 }
 export function q15Edge(rows:{t0:number;closed_at:string;gross_bps:number;side:number}[],dir:1|-1,now:number) {
  const valid=rows.filter(x=>x.side===dir && Number.isFinite(x.gross_bps) && x.t0<now && Date.parse(x.closed_at)<now)
