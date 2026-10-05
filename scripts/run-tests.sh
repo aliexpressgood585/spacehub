@@ -24,6 +24,8 @@ if [ -z "$TSC_BIN" ] || ! "$TSC_BIN" --version >/dev/null 2>&1; then
 fi
 
 fail=0
+python3 tests/smoke-paper-bot.test.py || fail=1
+node tests/council-review.test.mjs || fail=1
 node --experimental-strip-types tests/flow-shadow.test.ts || fail=1
 run() {
   echo ""

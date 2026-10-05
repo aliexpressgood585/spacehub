@@ -10,13 +10,13 @@ const anthropicModel=process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6';
 const diff=fs.existsSync(diffPath)?fs.readFileSync(diffPath,'utf8'):'';
 const clipped=diff.slice(0,90000);
 
-if(!openaiKey || !anthropicKey){
+if(!openaiKey && !anthropicKey){
   fs.writeFileSync(outPath,[
     '# AI Council auto-review',
     '',
     'AUTO_REVIEW_ACTIVE=false',
     '',
-    'Automatic GPT ↔ Claude API review is not active because one or both API secrets are missing.',
+    'Automatic GPT ↔ Claude API review is not active because both API secrets are missing.',
     'The repository-based council protocol and manual dual-review guard remain active.',
   ].join('\n'));
   process.exit(0);
@@ -67,7 +67,12 @@ async function claudeReview(){
   return (j.content||[]).filter(x=>x.type==='text').map(x=>x.text).join('\n').trim() || '(no text returned)';
 }
 
-const [gpt,claude]=await Promise.allSettled([openaiReview(),claudeReview()]);
+// A missing provider must not suppress the other model's independent review.
+// Missing reviews stay explicit; the final dual-review decision remains manual.
+const [gpt,claude]=await Promise.allSettled([
+  openaiKey ? openaiReview() : Promise.resolve('NOT RUN: OPENAI_API_KEY is unavailable. Refer to the recorded manual GPT review; this is not an API approval.'),
+  anthropicKey ? claudeReview() : Promise.resolve('NOT RUN: ANTHROPIC_API_KEY is unavailable. Independent Claude review is still required.'),
+]);
 const gptText=gpt.status==='fulfilled'?gpt.value:`ERROR: ${gpt.reason?.message||gpt.reason}`;
 const claudeText=claude.status==='fulfilled'?claude.value:`ERROR: ${claude.reason?.message||claude.reason}`;
 

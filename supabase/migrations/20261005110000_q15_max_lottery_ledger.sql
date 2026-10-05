@@ -5,7 +5,7 @@ create or replace function public.q15_commit_cycle(p_lease timestamp with time z
 returns jsonb language plpgsql set search_path to 'public','pg_temp' as $function$
 declare
  s public.bot_state%rowtype; t public.bot_trades%rowtype; x jsonb; cfg jsonb; m jsonb; a jsonb;
- cash numeric; eq numeric; mg numeric; ret numeric; lv integer; px numeric; n numeric; gross numeric; exitfee numeric; funding numeric; v_pnl numeric;
+ cash numeric; eq numeric; mg numeric; ret numeric; lv integer; px numeric; n numeric; gross numeric; exitfee numeric; funding numeric; v_pnl numeric; expo numeric;
  basis jsonb; day_marks jsonb; start_eq numeric; utc_day text:=to_char((now() at time zone 'UTC')::date,'YYYY-MM-DD');
  opens integer:=0; closes integer:=0; cnt integer; dayn integer; accepted jsonb:='[]'::jsonb; share numeric:=least(0.90,greatest(0.05,coalesce(p_share,0.90)));
 begin
@@ -90,3 +90,4 @@ end $function$;
 
 revoke all on function public.q15_commit_cycle(timestamptz,jsonb,jsonb,jsonb,jsonb,numeric,bigint,jsonb) from public,anon,authenticated;
 grant execute on function public.q15_commit_cycle(timestamptz,jsonb,jsonb,jsonb,jsonb,numeric,bigint,jsonb) to service_role;
+
