@@ -285,7 +285,7 @@ Detection cadence only: no rule, size, level or risk change. The cron stays at 5
 
 
 ## P-Q15-RELIABILITY — autonomous execution repairs (2026-10-05)
-- Status: PROPOSED, awaiting independent PR review. PAPER ONLY.
+- Status: PAPER_TEST deployed through PR #105, merge 7efc849f. PAPER ONLY.
 - Owner request: repair, merge and deploy without reducing aggression; preserve autonomous operation.
 - Fresh evidence at 14:01 UTC: cron active every 5 seconds; four OPEN Q15 rows; every exit returned `trades is not iterable`; 75 entry_data_error rejections in the latest scan; production blade_commit_cycle is a 1,415-character guard-only stub.
 - Exact repairs: use the actual resolveExit/book/walkBook/bookFrom interfaces, settled funding in position dollars, checkpoint complete tape, restore complete Blade/DONCH/EVT transactions, learn each closed Q15 trade once, persist learning inside the leased ledger transaction, and require a completed healthy cycle in deployment smoke verification.
@@ -293,5 +293,14 @@ Detection cadence only: no rule, size, level or risk change. The cron stays at 5
 - Legacy learning scores are rebuilt from actual closed rows because v1 could multiply-count outcomes.
 - Deployment order: atomic ledger definitions, then pinned function bundle, then actual cycle and fresh telemetry verification.
 - GPT review: APPROVED for these reliability repairs; no profitability claim.
-- Claude review: PENDING via the automatic PR review workflow.
+- Claude review: unavailable (Anthropic insufficient credit). Owner explicitly waived Claude review for PR #105 on 2026-10-05; no Claude approval claimed.
 - Rollback trigger: new ledger exceptions, missing/stale heartbeat, exit errors, or changed effective Q15 aggression; stop publication and correct the regression. Do not restore the known guard-only stub or reset the account.
+
+## P-Q15-QUOTE-LATENCY — skip unfundable book requests (2026-10-05)
+- Status: PROPOSED. Follow-up to PR #105; owner requested the remaining entry-expiry defect be fixed.
+- Evidence: fresh 15:08 UTC production cycle had 55 no_cash and six expired_before_commit decisions; exits remained healthy. No new entries had been verified after deployment.
+- Cause: candidates exhausted available allocation, but the loop still fetched every later signal's book before checking remaining capital. These requests aged the six funded quotes beyond the existing eight-second limit.
+- Change: calculate the existing margin/notional budget and reject no_cash before the book request. Same candidate order, sizing formula, entry policies, quote-age limit, execution gates, leverage and caps. PAPER ONLY; no reset.
+- Deterministic regression: 107 signalled coins with 250 ms/book; old code drops all six funded entries, fixed code requests six books and submits six fresh entries. Existing exit/autonomy tests pass.
+- GPT review: APPROVED for the minimal ordering fix. Claude review: requested on the follow-up PR; the previous owner override was explicitly scoped to PR #105.
+- Expected result: fresh funded candidates reach the ledger promptly. Failure criterion: entries still expire under ordinary request latency; investigate further without loosening quote freshness.
