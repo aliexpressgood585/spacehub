@@ -8,6 +8,7 @@ MIGRATIONS = (
     "20261004120000_agg2.sql",
     "20261004120001_q15_sleeve.sql",
     "20261005114000_blade_allow_q15_25x.sql",
+    "20261005120000_close_donch_ada_sei.sql",
 )
 
 def payload(root=Path(".")):
