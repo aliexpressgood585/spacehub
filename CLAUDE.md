@@ -375,6 +375,16 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## flow-shadow v1.1 (2026-10-05 09:12 UTC) — PR #103 (parallel session) finished: the collector now actually collects
+- PR #103 (observation-only 1 s order-flow shadow, 6 coins, 30 s virtual observations) deployed but never received data. The CI smoke (US runner) got premiumIndex HTTP 451, and the EU cron sessions ran 54 ticks with 0 WebSocket frames.
+- Binance WebSocket streams are silent from Supabase egress: the Binance liquidation stream has recorded nothing in 3 days; only OKX. Binance REST works.
+- PR #104 (1857029): REST polling of depth20 every 1 s and trades every 3 s per symbol, ~1,320 weight/min.
+  - X-MBX-USED-WEIGHT-1M guard at 1,500 / 1,900.
+  - Rule unchanged.
+- VERIFIED 09:12-09:14: 324/324 ready ticks, 444 frames, 3-13 candidates per session, first 4 closed observations at avg net -13.1 bps (n tiny).
+- Reasons per session: stale_tape ~150 (3 s trade poll vs the frozen 2 s rule), tape_gap 6-7 (missed trade ids, journalled).
+- Bot unaffected: Q15,EVT,DONCH4H paper, 0 errors. Evaluate only at >= 100 resolved observations on >= 20 days (docs/FLOW_SHADOW.md).
+
 ## v102.0 P-AGG2 LEVEL 2 (2026-10-04, branch agg2/fast-evt-donch, PR — NOT merged until the owner says) — owner override: "level 2, more aggressive and risky; no lotto, no 50x, no PRO"
 - Sleeves FAST + EVT + DONCH4H; PRO, LIST, FUND, BRKV, CHAN, SCALP, ROTA, LAB and BLADE are off. New index.ts branch: EVT2, then FAST, then DONCH4H, then the ~1 s CMS watch.
 - FAST: rt mode, 10x isolated, 5%/trade, <= 8 open, share <= 50%, 20/day; PSYCH off in rt.
