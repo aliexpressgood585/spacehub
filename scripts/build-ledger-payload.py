@@ -7,11 +7,15 @@ MIGRATIONS = (
     "20261004090000_blade_sleeve.sql",
     "20261004120000_agg2.sql",
     "20261004120001_q15_sleeve.sql",
+    "20261005114000_blade_allow_q15_25x.sql",
 )
 
 def payload(root=Path(".")):
     sql = ["BEGIN;", "SELECT pg_advisory_xact_lock(7151501);"]
-    sql.extend((root / "supabase/migrations" / name).read_text() for name in MIGRATIONS)
+    for name in MIGRATIONS:
+        path = root / "supabase/migrations" / name
+        if path.exists():
+            sql.append(path.read_text())
     sql.append("COMMIT;")
     return {"query": "\n".join(sql)}
 
