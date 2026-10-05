@@ -172,7 +172,7 @@ export async function botMarks(): Promise<Record<string, { px: number; ts: numbe
 // the Binance USDT-M BID for a long and the ASK for a short (bookTicker stream, pushed on every change); when that
 // socket is silent for > 5 s it falls back to the shared last-price feed, then to the bot's own server-side mark.
 export interface ExitMark { mark: number | null; src?: string }
-export function useExitMarks(rows: { sym: string; side: string }[]): { marks: Record<string, ExitMark>; wsOn: boolean } {
+export function useExitMarks(rows: { sym: string; side: string; entry?: number }[]): { marks: Record<string, ExitMark>; wsOn: boolean } {
   const key = [...new Set(rows.map(r => `${r.sym}:${r.side}`))].sort().join(',')
   const syms = [...new Set(rows.map(r => r.sym))]
   const feed = useLivePrices(syms)
@@ -203,10 +203,15 @@ export function useExitMarks(rows: { sym: string; side: string }[]): { marks: Re
   const now = Date.now(), marks: Record<string, ExitMark> = {}
   for (const r of rows) {
     const w = book[r.sym], tk = feed[r.sym], b = bot[r.sym]
-    marks[`${r.sym}:${r.side}`] = w && now - w.ts < PREFER_MS ? { mark: r.side === 'LONG' ? w.bid : w.ask, src: 'Binance WS' }
+    const raw = w && now - w.ts < PREFER_MS ? { mark: r.side === 'LONG' ? w.bid : w.ask, src: 'Binance WS' }
       : tk?.px && now - tk.t < 30_000 ? { mark: tk.px, src: String(tk.src) }
       : b && b.px > 0 ? { mark: b.px, src: `הבוט · ${Math.max(0, Math.round((now - b.ts) / 1000))}ש׳` }
       : { mark: null }
+    // Never let a bad symbol/unit tick corrupt account P&L/equity. A live perp cannot plausibly
+    // jump 10x from its own entry during one open paper trade; reject such ticks instead.
+    const e = Number(r.entry), m = Number(raw.mark)
+    marks[`${r.sym}:${r.side}`] = Number.isFinite(e) && e > 0 && Number.isFinite(m) && m > 0 && (m / e > 10 || e / m > 10)
+      ? { mark: null, src: 'מחיר חריג נחסם' } : raw
   }
   return { marks, wsOn }
 }
