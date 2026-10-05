@@ -232,7 +232,7 @@ function BladeHouse({ onBack, agg = false, q15 = false }: { onBack?: () => void;
   const lags: number[] = (Array.isArray(bc.list_lags) ? bc.list_lags : []).filter((x: number) => Number.isFinite(x))
   const lagMed = lags.length ? [...lags].sort((a, b) => a - b)[Math.floor(lags.length / 2)] : null
   const shadowClosed = events.filter(e => e.mode === 'shadow' && e.status === 'closed'), shadowNet = shadowClosed.reduce((s, e) => s + Number(e.net ?? 0), 0)
-  const { marks: exitMarks } = useExitMarks(open.map(t => ({ sym: String(t.sym), side: String(t.side) })))
+  const { marks: exitMarks } = useExitMarks(open.map(t => ({ sym: String(t.sym), side: String(t.side), entry: Number(t.entry_price) })))
   const posRows = open.map(t => { const em = exitMarks[`${t.sym}:${t.side}`] ?? { mark: null }
     return { t, mark: em.mark, src: em.src, tm: em.mark != null ? tradeMetrics(t, em.mark, now) : null,
       value: em.mark != null ? closeValue(t, em.mark, now) : Number(t.entry_price) * Number(t.size) / Math.max(1, Number(t.lev) || 1) } })
@@ -370,7 +370,7 @@ function ProHouse({ onBack }: { onBack?: () => void }) {
     return () => { alive = false; clearInterval(iv) }
   }, [])
   const open = trades.filter(t => t.status === 'OPEN'), closed = trades.filter(t => t.status !== 'OPEN' && t.closed_at)
-  const { marks: exitMarks, wsOn } = useExitMarks(open.map(t => ({ sym: String(t.sym), side: String(t.side) })))
+  const { marks: exitMarks, wsOn } = useExitMarks(open.map(t => ({ sym: String(t.sym), side: String(t.side), entry: Number(t.entry_price) })))
   const p = state?.bot_params ?? {}, cyc = p.pro_cycle ?? {}
   const lease = state?.lock_until ? Date.parse(state.lock_until) : null, alive = lease != null && now - lease < 120_000
   const start = 5000, cash = Number(state?.balance ?? 0)
@@ -512,7 +512,7 @@ function ListHouse({ onBack }: { onBack?: () => void }) {
   const open = trades.filter(t => t.status === 'OPEN')
   const closed = trades.filter(t => t.status !== 'OPEN' && t.closed_at)
   // v99.3: one exit mark per position (Binance bid/ask > shared feed > bot mark), shared with the dashboard
-  const { marks: exitMarks, wsOn } = useExitMarks(open.map(t => ({ sym: String(t.sym), side: String(t.side) })))
+  const { marks: exitMarks, wsOn } = useExitMarks(open.map(t => ({ sym: String(t.sym), side: String(t.side), entry: Number(t.entry_price) })))
   const prevPx = useRef<Record<string, number>>({})
   const p = state?.bot_params ?? {}
   const cyc = p.list_cycle ?? {}
