@@ -2737,16 +2737,17 @@ Deno.serve(async (req) => {
     if (ENABLED_SLEEVES.includes('Q15')) {
       const paperOnly = paperMode && !liveMode
       const fresh = async () => { const { data, error } = await supabase.from('bot_state').select('*').eq('id',1).single(); if (error) throw error; return data }
-      let q15: any, evt: any, donch: any
+      const patternOnly=(await fresh()).bot_params?.paper_strategy==='DDDDD'
+      let q15: any, evt: any=patternOnly?{disabled:true}:undefined, donch: any=patternOnly?{disabled:true}:undefined
       try { q15 = await runQ15(supabase, await fresh(), runLeaseUntil, paperOnly) }
       catch (e: any) { q15 = { error: String(e?.message ?? e) }; await logErr('q15_runner', q15.error) }
       // Failure to mark equity blocks entries in the other sleeves; exits continue.
       const next = async () => { const st = await fresh(); return q15?.error ? { ...st, hard_halt_at: new Date().toISOString() } : st }
-      if (ENABLED_SLEEVES.includes('EVT')) try { evt = await runEvt2(supabase, await next(), runLeaseUntil, paperOnly) }
+      if (!patternOnly && ENABLED_SLEEVES.includes('EVT')) try { evt = await runEvt2(supabase, await next(), runLeaseUntil, paperOnly) }
       catch (e: any) { evt = { error: String(e?.message ?? e) }; await logErr('evt2_runner', evt.error) }
-      if (ENABLED_SLEEVES.includes('DONCH4H')) try { donch = await runDonch(supabase, await next(), runLeaseUntil, paperOnly) }
+      if (!patternOnly && ENABLED_SLEEVES.includes('DONCH4H')) try { donch = await runDonch(supabase, await next(), runLeaseUntil, paperOnly) }
       catch (e: any) { donch = { error: String(e?.message ?? e) }; await logErr('donch_runner', donch.error) }
-      if (paperOnly && !q15?.error) try { await settleQ15Shadows(supabase, runLeaseUntil) } catch (e: any) { await logErr('q15_shadow', String(e?.message ?? e)) }
+      if (!patternOnly && paperOnly && !q15?.error) try { await settleQ15Shadows(supabase, runLeaseUntil) } catch (e: any) { await logErr('q15_shadow', String(e?.message ?? e)) }
       try { await supabase.from('bot_state').update({lock_until:new Date().toISOString()}).eq('id',1).eq('lock_until',runLeaseUntil) } catch { /* lease expires */ }
       const bad = !!(q15?.error || evt?.error || donch?.error)
       return new Response(JSON.stringify({ok:!bad,version:BOT_VERSION,q15,evt,donch}),{status:bad?500:200,headers:{'Content-Type':'application/json'}})

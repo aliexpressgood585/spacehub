@@ -1,3 +1,4 @@
+import { D5,d5Signal,d5Pairs } from '../../../shared/ddddd.ts'
 // fix: trade_decisions has no strategy column — journal via observed/inferred
 // AUTONOMY strong layer deploy 2026-10-05: multi-policy bandit, never de-risk.
 import { Q15,q15Signal,q15Levels,q15Config,q15Edge,q15Gate } from '../../../shared/q15.ts'
@@ -28,7 +29,7 @@ async function settled(p:Pair,from:number,to:number){
 }
 export async function exitRow(t:any,now:number){
  const m=t.scalp_meta.q15, p:Pair=m.pair??pairOf(t.sym),entry=Number(t.entry_price),dir:1|-1=t.side==='LONG'?1:-1
- const opened=Date.parse(t.opened_at),deadline=opened+(Number(m.hold_ms)||Q15.holdMs),until=now,from=Math.max(opened,Number(m.chk)||opened)
+ const opened=Date.parse(t.opened_at),deadline=m.pattern==='DDDDD'?Infinity:opened+(Number(m.hold_ms)||Q15.holdMs),until=now,from=Math.max(opened,Number(m.chk)||opened)
  if(![entry,opened,m.r,m.stop,m.target].every(Number.isFinite)||!(entry>0&&m.r>0))throw new Error('invalid_exit_state')
  const tape=await q15Tape(p,from,until)
  const res=resolveExit({dir,entry,r:m.r,stop:m.stop,target:m.target,liq:fastLiq(dir,entry,Number(t.lev)||Q15.lev),best:entry,trail:false},tape.trades)
@@ -53,7 +54,7 @@ export async function exitRow(t:any,now:number){
 }
 export async function runQ15(db:any,state:any,lease:string,paper:boolean){
  if(!paper)throw new Error('Q15 is paper-only; refusing live execution')
- const now=Date.now(),cfg=q15Config(),params=state.bot_params??{},bar=Math.floor(now/Q15.barMs)*Q15.barMs
+ const now=Date.now(),cfg=q15Config(),params=state.bot_params??{},d5=params.paper_strategy==='DDDDD',barMs=d5?D5.barMs:Q15.barMs,bar=Math.floor(now/barMs)*barMs
  let autonomy=loadAutonomy(params)
  const policyId:PolicyId=pickPolicy(autonomy)
  const knobs=policyKnobs(policyId)
@@ -90,15 +91,17 @@ export async function runQ15(db:any,state:any,lease:string,paper:boolean){
  const {data:marked}=await db.rpc('q15_commit_cycle',{p_lease:lease,p_closes:closes,p_entries:[],p_marks:marks,p_updates:updates,p_share:cfg.share,p_note:{exit_errors:errors,marks_fresh:markHealthy,day_start_marks:dayMarks},p_bar:null}).throwOnError()
  const closing=new Set(closes.map(x=>x.id)),remaining=open.filter((t:any)=>!closing.has(t.id))
  const halted=marked?.halted===true||aggHalted(params,now)
- const scan=Number(params.q15_bar)!==bar
+ const scan=d5?(Number(params.d5_scan?.bar)!==bar||params.d5_scan?.done!==true):Number(params.q15_bar)!==bar
  if(!scan)return{changed:closes.length>0,halted,scanned:false,closed:marked?.closed??0,exit_errors:errors,marks_fresh:markHealthy}
  const {data:cache}=await db.from('market_cache').select('data').eq('key','universe').throwOnError()
- const pairs:Pair[]=(cache?.[0]?.data?.pairs??[]).filter((p:any)=>/^[A-Z0-9]+USDT$/.test(p.s)&&Number(p.k)>0)
+ const universe:Pair[]=d5?d5Pairs(await json('https://fapi.binance.com/fapi/v1/exchangeInfo')):(cache?.[0]?.data?.pairs??[]).filter((p:any)=>/^[A-Z0-9]+USDT$/.test(p.s)&&Number(p.k)>0)
+ const cursor=d5&&Number(params.d5_scan?.bar)===bar?Number(params.d5_scan.cursor)||0:0
+ const pairs=d5?universe.slice(cursor,cursor+D5.batch):universe
  if(!pairs.length)throw new Error('Q15 liquid universe unavailable')
  const data=new Map<string,LBar[]>(),failures=new Map<string,string>()
- await pool(pairs,12,async p=>{try{const k=await json(`https://fapi.binance.com/fapi/v1/klines?symbol=${p.s}&interval=1m&limit=120`)
+ await pool(pairs,12,async p=>{try{const k=await json(`https://fapi.binance.com/fapi/v1/klines?symbol=${p.s}&interval=${d5?'5m':'1m'}&limit=${d5?6:120}`)
   const b=k.filter((x:any)=>Number(x[6])<bar).map((x:any)=>({t:+x[0],open:+x[1]/p.k,high:+x[2]/p.k,low:+x[3]/p.k,close:+x[4]/p.k,vol:+x[5]*p.k,tb:x[9]==null?NaN:+x[9]*p.k}))
-  if(b.at(-1)?.t!==bar-Q15.barMs)throw new Error('bar_lag');data.set(p.sym,b)
+  if(b.at(-1)?.t!==bar-barMs)throw new Error('bar_lag');data.set(p.sym,b)
  }catch(e:any){failures.set(p.sym,String(e.message))}})
  const btc=data.get('BTC'),btcDiff=btc?btc.at(-1)!.close-labInd(btc).ema20.at(-1)!:NaN
  const btcUp=Number.isFinite(btcDiff)&&btcDiff!==0?btcDiff>0:null
@@ -114,8 +117,8 @@ export async function runQ15(db:any,state:any,lease:string,paper:boolean){
  let room=Math.max(0,cfg.maxOpen-remaining.length),dayN=Number(today??0),marginUsed=0,candidates=0
  for(const t of remaining)marginUsed+=Number(t.entry_price)*Number(t.size)/Math.max(Number(t.lev),1)
  for(const p of pairs){
-  const b=data.get(p.sym),result=b?q15Signal(b,btcUp,p.sym==='BTC',knobs):{sig:null,reason:failures.get(p.sym)??'no_bars'}
-  const rec:any={ts:new Date(now).toISOString(),sym:p.sym,side:'LONG',decision:'rejected',reason:result.reason,observed:{policy:policyId,sleeve:'Q15'},inferred:{sleeve:'Q15',policy:policyId}}
+  const b=data.get(p.sym),result=b?(d5?d5Signal(b,bar):q15Signal(b,btcUp,p.sym==='BTC',knobs)):{sig:null,reason:failures.get(p.sym)??'no_bars'}
+  const rec:any={ts:new Date(now).toISOString(),sym:p.sym,side:'LONG',decision:'rejected',reason:result.reason,observed:{policy:d5?'DDDDD':policyId,sleeve:'Q15'},inferred:{sleeve:'Q15',policy:d5?'DDDDD':policyId}}
   journal.push(rec)
   const sig=result.sig
   if(!sig)continue
@@ -130,30 +133,33 @@ export async function runQ15(db:any,state:any,lease:string,paper:boolean){
    if(notional<20){rec.reason='no_cash';continue}
   try{
    const bk=await book(p),dir=sig.dir,price=(dir>0?bk.asks:bk.bids)[0][0]
-   const lv=q15Levels(dir,price,sig.atr)
+   const lv=d5?{r:price*.01,stop:price*.99,target:price*1.01}:q15Levels(dir,price,sig.atr)
    const f=funding.get(p.s),fundRate=f?.rate??null,fundHours=f?.hours??8
    const walk=walkBook(dir>0?bk.asks:bk.bids,notional),exitWalk=walkBook(dir>0?bk.bids:bk.asks,notional)
-   const gate=q15Gate({book:bookFrom(bk.bids,bk.asks,bk.E,'binance-futures'),now:Date.now(),notional,dir,rFrac:lv.r/price,entryImpact:walk.impact,exitImpact:exitWalk.impact,beyond:walk.beyond||exitWalk.beyond,funding:fundRate,fundingHours:fundHours,grossBps:edge[dir>0?'long':'short'].bps})
+   const gate=q15Gate({book:bookFrom(bk.bids,bk.asks,bk.E,'binance-futures'),now:Date.now(),notional,dir,rFrac:lv.r/price,entryImpact:walk.impact,exitImpact:exitWalk.impact,beyond:walk.beyond||exitWalk.beyond,funding:fundRate,fundingHours:fundHours,grossBps:d5?0:edge[dir>0?'long':'short'].bps})
    if(!gate.pass){rec.reason=gate.reason;rec.observed.net_bps=gate.netBps;continue}
-   const m={...lv,chk:bk.E,pair:p,bar,atr:sig.atr,hold_ms:Q15.holdMs,gate,lag_ms:Date.now()-bar,gate_mode:'measured',policy:policyId}
-   shadows.push({sym:p.sym,side:sig.dir,t0:bar,payload:{id:0,sym:p.sym,side:sig.dir>0?'LONG':'SHORT',entry_price:price,size:notional/price,lev:cfg.lev,opened_at:new Date(now).toISOString(),scalp_meta:{q15:m}},status:'open'})
+   const m={...lv,chk:bk.E,pair:p,bar,atr:sig.atr,hold_ms:d5?0:Q15.holdMs,...(d5?{pattern:'DDDDD'}:{}),gate,lag_ms:Date.now()-bar,gate_mode:d5?'pattern':'measured',policy:d5?'DDDDD':policyId}
+   if(!d5)shadows.push({sym:p.sym,side:sig.dir,t0:bar,payload:{id:0,sym:p.sym,side:sig.dir>0?'LONG':'SHORT',entry_price:price,size:notional/price,lev:cfg.lev,opened_at:new Date(now).toISOString(),scalp_meta:{q15:m}},status:'open'})
    rec.side=dir>0?'LONG':'SHORT'
-   entries.push({sym:p.sym,side:rec.side,price,notional,lev:cfg.lev,quote_ts:bk.E,q15:{...m,policy:policyId},source:'binance-futures',profit_gate:'passed',net_bps:gate.netBps,autonomy_policy:policyId})
+   entries.push({sym:p.sym,side:rec.side,price,notional,lev:cfg.lev,quote_ts:bk.E,q15:m,source:'binance-futures',profit_gate:'passed',net_bps:gate.netBps,autonomy_policy:d5?'DDDDD':policyId})
    rec.decision='accepted';rec.reason='candidate';held.add(p.sym);room--;dayN++;marginUsed+=margin;cash-=margin+notional*COST.takerFee
   }catch(e:any){rec.reason='entry_data_error';rec.observed.error=String(e.message).slice(0,100)}
  }
  if(shadows.length)await db.from('q15_shadow').upsert(shadows,{onConflict:'sym,t0',ignoreDuplicates:true}).throwOnError()
- const freshEntries=entries.filter(e=>Date.now()-e.quote_ts<=Q15.quoteMaxMs&&Date.now()-bar<=Q15.entryWindowMs)
+ const freshEntries=entries.filter(e=>Date.now()-e.quote_ts<=Q15.quoteMaxMs&&Date.now()-bar<=(d5?D5.entryWindowMs:Q15.entryWindowMs))
  for(const r of journal)if(r.decision==='accepted'&&!freshEntries.some(e=>e.sym===r.sym)){r.decision='rejected';r.reason='expired_before_commit'}
  const reasons:Record<string,number>={};for(const r of journal)reasons[r.reason]=(reasons[r.reason]??0)+1
- try{
+ if(!d5)try{
   let query=db.from('bot_trades').select('id,pnl,scalp_meta,closed_at').eq('strategy','Q15').neq('status','OPEN').not('closed_at','is',null).order('closed_at',{ascending:true}).order('id',{ascending:true}).limit(500)
   if(autonomy.learned_at)query=query.gte('closed_at',autonomy.learned_at)
   const {data:closed}=await query.throwOnError()
   autonomy=learnClosedTrades(autonomy,closed??[])
  }catch(e:any){errors.push('autonomy:'+String(e.message).slice(0,80))}
- const note={bar,scanned_at:now,scan_lag_ms:now-bar,scan_duration_ms:Date.now()-now,universe:pairs.length,scanned:data.size,candidates,fills:0,reasons,edge,halted,marks_fresh:markHealthy,exit_errors:errors,autonomy:{active:policyId,weights:autonomy.weights,floor:HARD_FLOOR}}
- const {data:result}=await db.rpc('q15_commit_cycle',{p_lease:lease,p_closes:[],p_entries:freshEntries,p_updates:[],p_marks:marks,p_share:cfg.share,p_note:{...note,q15_autonomy:autonomy},p_bar:bar}).throwOnError()
+ const firstFailed=d5?pairs.findIndex(p=>failures.has(p.sym)):-1
+ const nextCursor=cursor+(firstFailed<0?pairs.length:firstFailed)
+ const d5Scan={bar,cursor:nextCursor,done:nextCursor>=universe.length}
+ const note={...(d5?{strategy:'DDDDD',d5_scan:d5Scan}:{}),bar,scanned_at:now,scan_lag_ms:now-bar,scan_duration_ms:Date.now()-now,universe:universe.length,scanned:data.size,candidates,fills:0,reasons,edge,halted,marks_fresh:markHealthy,exit_errors:errors,autonomy:d5?{active:'DDDDD',floor:{...HARD_FLOOR,barMs:D5.barMs}}:{active:policyId,weights:autonomy.weights,floor:HARD_FLOOR}}
+ const {data:result}=await db.rpc('q15_commit_cycle',{p_lease:lease,p_closes:[],p_entries:freshEntries,p_updates:[],p_marks:marks,p_share:cfg.share,p_note:{...note,...(d5?{}:{q15_autonomy:autonomy})},p_bar:bar}).throwOnError()
  const accepted=new Set<string>(result?.accepted??[])
  for(const r of journal)if(r.decision==='accepted'){r.decision=accepted.has(r.sym)?'accepted':'rejected';r.reason=accepted.has(r.sym)?'taken':'ledger_rejected'}
  try{for(let i=0;i<journal.length;i+=100)await db.from('trade_decisions').insert(journal.slice(i,i+100))}catch(e:any){errors.push('journal:'+String(e.message).slice(0,80))}
