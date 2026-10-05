@@ -3,7 +3,7 @@
 // P-Q15 final deploy trigger; paper-only.
 // P-Q15 deploy smoke trigger: paper-only cycle after edge deployment.
 // P-Q15: completed 15m scans; pure signal and cost rules in shared/q15.ts.
-// LOTTERY mode (owner 2026-10-05): paper lev ceiling 25x.
+// MAX LOTTERY (owner 2026-10-05): soft filters + many entries; paper lev ceiling 25x.
 import { Q15,q15Signal,q15Levels,q15Config,q15Edge,q15Gate } from '../../../shared/q15.ts'
 import { labInd,type LBar } from '../../../shared/lab.ts'
 import { COST,bookFrom } from '../../../shared/costs.ts'
