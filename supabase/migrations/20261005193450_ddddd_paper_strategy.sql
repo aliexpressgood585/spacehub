@@ -52,7 +52,10 @@ begin
  end loop;
  select cash+coalesce(sum(entry_price*size/greatest(lev,1)+((case when side='LONG' then 1 else -1 end)*(coalesce((p_marks->>sym)::numeric,entry_price)-entry_price)*size)),0) into eq from bot_trades where status='OPEN';
  for x in select value from jsonb_array_elements(coalesce(p_updates,'[]')) loop
-  update bot_trades set scalp_meta=jsonb_set(scalp_meta,'{q15,chk}',x->'chk')
+  update bot_trades set scalp_meta=
+   case when x ? 'be_active'
+    then jsonb_set(jsonb_set(scalp_meta,'{q15,chk}',x->'chk'),'{q15,be_active}',to_jsonb((x->>'be_active')::boolean),true)
+    else jsonb_set(scalp_meta,'{q15,chk}',x->'chk') end
    where id=(x->>'id')::bigint and status='OPEN' and strategy='Q15'
    and (x->>'chk')::numeric>=coalesce((scalp_meta->'q15'->>'chk')::numeric,0);
  end loop;
