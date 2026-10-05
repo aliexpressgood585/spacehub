@@ -106,9 +106,9 @@ export async function runQ15(db:any,state:any,lease:string,paper:boolean){
    for(const t of allOpen??[]){
     try{
      const p=pairOf(t.sym)
-     const k=await json(`https://fapi.binance.com/fapi/v1/klines?symbol=${p.s}&interval=1m&startTime=${utc0-60000}&limit=2`)
-     const row=k?.find((x:any)=>+x[0]===utc0-60000)
-     if(row)dayMarks[t.sym]=+row[4]/p.k
+     const k=await marketBars(p,'1m',2,utc0-60000)
+     const row=k?.find((x:any)=>+x.t===utc0-60000)
+     if(row)dayMarks[t.sym]=+row.close
     }catch{}
    }
   }
@@ -147,8 +147,7 @@ export async function runQ15(db:any,state:any,lease:string,paper:boolean){
   if(last.high>=vw*1.005&&last.close<last.open)return{dir:-1 as const,vwap:vw,volMult:last.vol/av}
   return null
  }
- await pool(pairs,12,async p=>{try{const k=await json(`https://fapi.binance.com/fapi/v1/klines?symbol=${p.s}&interval=${d5?'5m':'1m'}&limit=${d5?6:120}`)
-  const b=k.filter((x:any)=>Number(x[6])<bar).map((x:any)=>({t:+x[0],open:+x[1]/p.k,high:+x[2]/p.k,low:+x[3]/p.k,close:+x[4]/p.k,vol:+x[5]*p.k,tb:x[9]==null?NaN:+x[9]*p.k}))
+ await pool(pairs,12,async p=>{try{const b=(await marketBars(p,d5?'5m':'1m',d5?6:120)).filter((x:any)=>x.t<bar)
   if(b.at(-1)?.t!==bar-barMs)throw new Error('bar_lag');data.set(p.sym,b)
  }catch(e:any){failures.set(p.sym,String(e.message))}})
  const btc=data.get('BTC'),btcDiff=btc?btc.at(-1)!.close-labInd(btc).ema20.at(-1)!:NaN
