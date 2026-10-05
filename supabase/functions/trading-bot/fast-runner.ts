@@ -57,6 +57,12 @@ export async function book(p: Pair): Promise<{ bids: [number, number][]; asks: [
     return b
   } catch {}
   try {
+    const d:any = await json(`https://data-api.binance.vision/api/v3/depth?symbol=${p.s}&limit=100`)
+    const b={bids:lv(d?.bids??[]),asks:lv(d?.asks??[]),E:Date.now()}
+    if (!b.bids.length || !b.asks.length) throw new Error('bad binance spot book')
+    return b
+  } catch {}
+  try {
     const d:any = await json(`https://api.bybit.com/v5/market/orderbook?category=linear&symbol=${p.s}&limit=200`)
     const r=d?.result, b={bids:lv(r?.b??[]),asks:lv(r?.a??[]),E:Number(d?.time)||Date.now()}
     if (!b.bids.length || !b.asks.length || Math.abs(Date.now() - b.E) > 30_000) throw new Error('bad bybit book')

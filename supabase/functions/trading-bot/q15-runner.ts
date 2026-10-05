@@ -33,6 +33,12 @@ const marketBars=async(p:Pair,interval:'1m'|'5m',limit:number,start?:number,end?
   if(!Array.isArray(k))throw new Error('binance_kline')
   return k.map((x:any)=>({t:+x[0],open:+x[1]/p.k,high:+x[2]/p.k,low:+x[3]/p.k,close:+x[4]/p.k,vol:+x[5]*p.k,tb:x[9]==null?NaN:+x[9]*p.k}))
  }catch{}
+ try{
+  const qs=new URLSearchParams({symbol:p.s,interval,limit:String(Math.min(limit,1000))});if(start!=null)qs.set('startTime',String(start));if(end!=null)qs.set('endTime',String(end))
+  const k:any=await json(`https://data-api.binance.vision/api/v3/klines?${qs}`)
+  if(!Array.isArray(k))throw new Error('binance_spot_kline')
+  return k.map((x:any)=>({t:+x[0],open:+x[1]/p.k,high:+x[2]/p.k,low:+x[3]/p.k,close:+x[4]/p.k,vol:+x[5]*p.k,tb:x[9]==null?NaN:+x[9]*p.k}))
+ }catch{}
  try{return await bybitBars(p,interval,limit,start,end)}catch{}
  return okxBars(p,interval,limit)
 }
@@ -47,6 +53,14 @@ export async function q15Tape(p:Pair,from:number,to:number,dir:1|-1=1):Promise<{
    url=`https://fapi.binance.com/fapi/v1/aggTrades?symbol=${p.s}&fromId=${+rows.at(-1).a+1}&limit=1000`
   }
   return{trades:out,complete:false,checkedUntil:out.at(-1)?.T??from}
+ }catch{}
+ try{
+  const q=new URLSearchParams({symbol:p.s,startTime:String(from),endTime:String(end),limit:'1000'})
+  const rows:any=await json(`https://data-api.binance.vision/api/v3/aggTrades?${q}`)
+  if(Array.isArray(rows)){
+   for(const x of rows)if(+x.T>=from&&+x.T<=end)out.push({p:+x.p/p.k,T:+x.T})
+   return{trades:out,complete:end===to,checkedUntil:end}
+  }
  }catch{}
  const bars=(await marketBars(p,'1m',Math.min(1000,Math.ceil((end-from)/60000)+3),from-60000,end+60000)).filter(x=>x.t+60000>=from&&x.t<=end)
  for(const b of bars){
