@@ -99,7 +99,10 @@ export async function runQ15(db:any,state:any,lease:string,paper:boolean){
  if(d5){try{const ex=d5Pairs(await json('https://fapi.binance.com/fapi/v1/exchangeInfo'));if(ex.length)universe=ex}catch{} if(!universe.length)universe=cached}
  const cursor=d5&&Number(params.d5_scan?.bar)===bar?Number(params.d5_scan.cursor)||0:0
  const pairs=d5?universe.slice(cursor,cursor+D5.batch):universe
- if(!pairs.length)throw new Error('Q15 liquid universe unavailable')
+ if(!pairs.length){
+  if(d5&&universe.length&&cursor>=universe.length)return{changed:closes.length>0,halted,scanned:false,closed:marked?.closed??0,exit_errors:errors,marks_fresh:markHealthy}
+  throw new Error('Q15 liquid universe unavailable')
+ }
  const data=new Map<string,LBar[]>(),vwapData=new Map<string,LBar[]>(),failures=new Map<string,string>()
  const vwapBar=Math.floor(now/60000)*60000
  const vwapPairs=vwapRev?universe.slice(0,Math.min(universe.length,80)):[]
