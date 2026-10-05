@@ -54,7 +54,7 @@ export async function exitRow(t:any,now:number){
 }
 export async function runQ15(db:any,state:any,lease:string,paper:boolean){
  if(!paper)throw new Error('Q15 is paper-only; refusing live execution')
- const now=Date.now(),cfg=q15Config(),params=state.bot_params??{},d5=params.paper_strategy==='DDDDD',barMs=d5?D5.barMs:Q15.barMs,bar=Math.floor(now/barMs)*barMs
+ const now=Date.now(),cfg=q15Config(),params=state.bot_params??{},d5=params.paper_strategy==='DDDDD',vwapRev=d5,barMs=d5?D5.barMs:Q15.barMs,bar=Math.floor(now/barMs)*barMs
  let autonomy=loadAutonomy(params)
  const policyId:PolicyId=pickPolicy(autonomy)
  const knobs=policyKnobs(policyId)
@@ -91,14 +91,37 @@ export async function runQ15(db:any,state:any,lease:string,paper:boolean){
  const {data:marked}=await db.rpc('q15_commit_cycle',{p_lease:lease,p_closes:closes,p_entries:[],p_marks:marks,p_updates:updates,p_share:cfg.share,p_note:{exit_errors:errors,marks_fresh:markHealthy,day_start_marks:dayMarks},p_bar:null}).throwOnError()
  const closing=new Set(closes.map(x=>x.id)),remaining=open.filter((t:any)=>!closing.has(t.id))
  const halted=marked?.halted===true||aggHalted(params,now)
- const scan=d5?(Number(params.d5_scan?.bar)!==bar||params.d5_scan?.done!==true):Number(params.q15_bar)!==bar
+ const scan=d5?(Number(params.d5_scan?.bar)!==bar||params.d5_scan?.done!==true||Number(params.vwap_rev_scan?.bar)!==Math.floor(now/60000)*60000):Number(params.q15_bar)!==bar
  if(!scan)return{changed:closes.length>0,halted,scanned:false,closed:marked?.closed??0,exit_errors:errors,marks_fresh:markHealthy}
  const {data:cache}=await db.from('market_cache').select('data').eq('key','universe').throwOnError()
- const universe:Pair[]=d5?d5Pairs(await json('https://fapi.binance.com/fapi/v1/exchangeInfo')):(cache?.[0]?.data?.pairs??[]).filter((p:any)=>/^[A-Z0-9]+USDT$/.test(p.s)&&Number(p.k)>0)
+ const cached:Pair[]=(cache?.[0]?.data?.pairs??[]).filter((p:any)=>/^[A-Z0-9]+USDT$/.test(p.s)&&Number(p.k)>0)
+ let universe:Pair[]=cached
+ if(d5){try{const ex=d5Pairs(await json('https://fapi.binance.com/fapi/v1/exchangeInfo'));if(ex.length)universe=ex}catch{} if(!universe.length)universe=cached}
  const cursor=d5&&Number(params.d5_scan?.bar)===bar?Number(params.d5_scan.cursor)||0:0
  const pairs=d5?universe.slice(cursor,cursor+D5.batch):universe
- if(!pairs.length)throw new Error('Q15 liquid universe unavailable')
- const data=new Map<string,LBar[]>(),failures=new Map<string,string>()
+ if(!pairs.length){
+  if(d5&&universe.length&&cursor>=universe.length)return{changed:closes.length>0,halted,scanned:false,closed:marked?.closed??0,exit_errors:errors,marks_fresh:markHealthy}
+  throw new Error('Q15 liquid universe unavailable')
+ }
+ const data=new Map<string,LBar[]>(),vwapData=new Map<string,LBar[]>(),failures=new Map<string,string>()
+ const vwapBar=Math.floor(now/60000)*60000
+ const vwapPairs=vwapRev?universe.slice(0,Math.min(universe.length,80)):[]
+ if(vwapRev)await pool(vwapPairs,12,async p=>{try{
+  const k=await json(`https://fapi.binance.com/fapi/v1/klines?symbol=${p.s}&interval=1m&limit=240`)
+  const b=k.filter((x:any)=>Number(x[6])<vwapBar).map((x:any)=>({t:+x[0],open:+x[1]/p.k,high:+x[2]/p.k,low:+x[3]/p.k,close:+x[4]/p.k,vol:+x[5]*p.k,tb:x[9]==null?NaN:+x[9]*p.k}))
+  if(b.length>=21)vwapData.set(p.sym,b)
+ }catch{}})
+ function vwapRevSig(b:LBar[]){
+  if(b.length<21)return null
+  const xs=b.slice(-120),last=xs.at(-1)!
+  let pv=0,v=0;for(const x of xs){const tp=(x.high+x.low+x.close)/3;pv+=tp*x.vol;v+=x.vol}
+  if(!(v>0))return null
+  const vw=pv/v,av=b.slice(-21,-1).reduce((s,x)=>s+x.vol,0)/20
+  if(!(av>0)||last.vol<av*1.5)return null
+  if(last.low<=vw*0.995&&last.close>last.open)return{dir:1 as const,vwap:vw,volMult:last.vol/av}
+  if(last.high>=vw*1.005&&last.close<last.open)return{dir:-1 as const,vwap:vw,volMult:last.vol/av}
+  return null
+ }
  await pool(pairs,12,async p=>{try{const k=await json(`https://fapi.binance.com/fapi/v1/klines?symbol=${p.s}&interval=${d5?'5m':'1m'}&limit=${d5?6:120}`)
   const b=k.filter((x:any)=>Number(x[6])<bar).map((x:any)=>({t:+x[0],open:+x[1]/p.k,high:+x[2]/p.k,low:+x[3]/p.k,close:+x[4]/p.k,vol:+x[5]*p.k,tb:x[9]==null?NaN:+x[9]*p.k}))
   if(b.at(-1)?.t!==bar-barMs)throw new Error('bar_lag');data.set(p.sym,b)
@@ -113,11 +136,14 @@ export async function runQ15(db:any,state:any,lease:string,paper:boolean){
  const edge={long:q15Edge(history??[],1,now),short:q15Edge(history??[],-1,now)}
  const {count:today}=await db.from('bot_trades').select('id',{count:'exact',head:true}).eq('strategy','Q15').gte('opened_at',new Date(now).toISOString().slice(0,10)+'T00:00:00Z').throwOnError()
  const entries:any[]=[],journal:any[]=[],shadows:any[]=[],held=new Set((allOpen??[]).filter((t:any)=>!closing.has(t.id)).map((t:any)=>t.sym))
+ const vwapSignals=new Map<string,any>()
+ if(vwapRev)for(const p of vwapPairs){const s=vwapRevSig(vwapData.get(p.sym)??[]);if(s)vwapSignals.set(p.sym,s)}
  let cash=Number(marked?.balance??state.balance),eq=Number(marked?.equity??cash)
  let room=Math.max(0,cfg.maxOpen-remaining.length),dayN=Number(today??0),marginUsed=0,candidates=0
  for(const t of remaining)marginUsed+=Number(t.entry_price)*Number(t.size)/Math.max(Number(t.lev),1)
  for(const p of pairs){
-  const b=data.get(p.sym),result=b?(d5?d5Signal(b,bar):q15Signal(b,btcUp,p.sym==='BTC',knobs)):{sig:null,reason:failures.get(p.sym)??'no_bars'}
+  const b=data.get(p.sym),vs=vwapSignals.get(p.sym),d5r=b?d5Signal(b,bar):{sig:null,reason:failures.get(p.sym)??'no_bars'}
+  const result=d5?(d5r.sig?d5r:(vs?{sig:{dir:vs.dir,atr:0},reason:'vwap_rev_1m'}:d5r)):(b?q15Signal(b,btcUp,p.sym==='BTC',knobs):{sig:null,reason:failures.get(p.sym)??'no_bars'})
   const rec:any={ts:new Date(now).toISOString(),sym:p.sym,side:'LONG',decision:'rejected',reason:result.reason,observed:{policy:d5?'DDDDD':policyId,sleeve:'Q15'},inferred:{sleeve:'Q15',policy:d5?'DDDDD':policyId}}
   journal.push(rec)
   const sig=result.sig
@@ -133,12 +159,12 @@ export async function runQ15(db:any,state:any,lease:string,paper:boolean){
    if(notional<20){rec.reason='no_cash';continue}
   try{
    const bk=await book(p),dir=sig.dir,price=(dir>0?bk.asks:bk.bids)[0][0]
-   const lv=d5?{r:price*.01,stop:price*.99,target:price*1.01}:q15Levels(dir,price,sig.atr)
+   const isVwap=d5&&!!vs&&!d5r.sig; const lv=isVwap?{r:price*.01,stop:dir>0?price*.99:price*1.01,target:dir>0?price*1.005:price*.995}:d5?{r:price*.01,stop:price*.99,target:price*1.01}:q15Levels(dir,price,sig.atr)
    const f=funding.get(p.s),fundRate=f?.rate??null,fundHours=f?.hours??8
    const walk=walkBook(dir>0?bk.asks:bk.bids,notional),exitWalk=walkBook(dir>0?bk.bids:bk.asks,notional)
    const gate=q15Gate({book:bookFrom(bk.bids,bk.asks,bk.E,'binance-futures'),now:Date.now(),notional,dir,rFrac:lv.r/price,entryImpact:walk.impact,exitImpact:exitWalk.impact,beyond:walk.beyond||exitWalk.beyond,funding:fundRate,fundingHours:fundHours,grossBps:d5?0:edge[dir>0?'long':'short'].bps})
    if(!gate.pass){rec.reason=gate.reason;rec.observed.net_bps=gate.netBps;continue}
-   const m={...lv,chk:bk.E,pair:p,bar,atr:sig.atr,hold_ms:d5?0:Q15.holdMs,...(d5?{pattern:'DDDDD'}:{}),gate,lag_ms:Date.now()-bar,gate_mode:d5?'pattern':'measured',policy:d5?'DDDDD':policyId}
+   const m={...lv,chk:bk.E,pair:p,bar:isVwap?vwapBar:bar,atr:sig.atr,hold_ms:isVwap?3600000:d5?0:Q15.holdMs,...(d5?{pattern:isVwap?'VWAP_REV_1M':'DDDDD'}:{}),...(isVwap?{vwap:vs.vwap,vol_mult:vs.volMult}:{}),gate,lag_ms:Date.now()-(isVwap?vwapBar:bar),gate_mode:d5?'pattern':'measured',policy:isVwap?'VWAP_REV_1M':d5?'DDDDD':policyId}
    if(!d5)shadows.push({sym:p.sym,side:sig.dir,t0:bar,payload:{id:0,sym:p.sym,side:sig.dir>0?'LONG':'SHORT',entry_price:price,size:notional/price,lev:cfg.lev,opened_at:new Date(now).toISOString(),scalp_meta:{q15:m}},status:'open'})
    rec.side=dir>0?'LONG':'SHORT'
    entries.push({sym:p.sym,side:rec.side,price,notional,lev:cfg.lev,quote_ts:bk.E,q15:m,source:'binance-futures',profit_gate:'passed',net_bps:gate.netBps,autonomy_policy:d5?'DDDDD':policyId})
@@ -158,7 +184,7 @@ export async function runQ15(db:any,state:any,lease:string,paper:boolean){
  const firstFailed=d5?pairs.findIndex(p=>failures.has(p.sym)):-1
  const nextCursor=cursor+(firstFailed<0?pairs.length:firstFailed)
  const d5Scan={bar,cursor:nextCursor,done:nextCursor>=universe.length}
- const note={...(d5?{strategy:'DDDDD',d5_scan:d5Scan}:{}),bar,scanned_at:now,scan_lag_ms:now-bar,scan_duration_ms:Date.now()-now,universe:universe.length,scanned:data.size,candidates,fills:0,reasons,edge,halted,marks_fresh:markHealthy,exit_errors:errors,autonomy:d5?{active:'DDDDD',floor:{...HARD_FLOOR,barMs:D5.barMs}}:{active:policyId,weights:autonomy.weights,floor:HARD_FLOOR}}
+ const note={...(d5?{strategy:'DDDDD+VWAP_REV_1M',d5_scan:d5Scan,vwap_rev_scan:{bar:vwapBar,signals:vwapSignals.size}}:{}),bar,scanned_at:now,scan_lag_ms:now-bar,scan_duration_ms:Date.now()-now,universe:universe.length,scanned:data.size,candidates,fills:0,reasons,edge,halted,marks_fresh:markHealthy,exit_errors:errors,autonomy:d5?{active:'DDDDD',floor:{...HARD_FLOOR,barMs:D5.barMs}}:{active:policyId,weights:autonomy.weights,floor:HARD_FLOOR}}
  const {data:result}=await db.rpc('q15_commit_cycle',{p_lease:lease,p_closes:[],p_entries:freshEntries,p_updates:[],p_marks:marks,p_share:cfg.share,p_note:{...note,...(d5?{}:{q15_autonomy:autonomy})},p_bar:bar}).throwOnError()
  const accepted=new Set<string>(result?.accepted??[])
  for(const r of journal)if(r.decision==='accepted'){r.decision=accepted.has(r.sym)?'accepted':'rejected';r.reason=accepted.has(r.sym)?'taken':'ledger_rejected'}
