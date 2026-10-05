@@ -2,8 +2,8 @@
 // P-Q15 debug smoke trigger; paper-only.
 // P-Q15 final deploy trigger; paper-only.
 // P-Q15 deploy smoke trigger: paper-only cycle after edge deployment.
-// P-Q15: completed 15m scans; pure signal and cost rules in shared/q15.ts.
-// MAX LOTTERY (owner 2026-10-05): soft filters + many entries; paper lev ceiling 25x.
+// P-Q15: completed 1m scans; pure signal and cost rules in shared/q15.ts.
+// MAX LOTTERY 1m scan (owner 2026-10-05): every minute; soft filters; paper lev 25x.
 import { Q15,q15Signal,q15Levels,q15Config,q15Edge,q15Gate } from '../../../shared/q15.ts'
 import { labInd,type LBar } from '../../../shared/lab.ts'
 import { COST,bookFrom } from '../../../shared/costs.ts'
@@ -75,7 +75,7 @@ export async function runQ15(db:any,state:any,lease:string,paper:boolean){
  const pairs:Pair[]=(cache?.[0]?.data?.pairs??[]).filter((p:any)=>/^[A-Z0-9]+USDT$/.test(p.s)&&Number(p.k)>0)
  if(!pairs.length)throw new Error('Q15 liquid universe unavailable')
  const data=new Map<string,LBar[]>(),failures=new Map<string,string>()
- await pool(pairs,12,async p=>{try{const k=await json(`https://fapi.binance.com/fapi/v1/klines?symbol=${p.s}&interval=15m&limit=80`)
+ await pool(pairs,12,async p=>{try{const k=await json(`https://fapi.binance.com/fapi/v1/klines?symbol=${p.s}&interval=1m&limit=120`)
   const b=k.filter((x:any)=>Number(x[6])<bar).map((x:any)=>({t:+x[0],open:+x[1]/p.k,high:+x[2]/p.k,low:+x[3]/p.k,close:+x[4]/p.k,vol:+x[5]*p.k,tb:x[9]==null?NaN:+x[9]*p.k}))
   if(b.at(-1)?.t!==bar-Q15.barMs)throw new Error('bar_lag');data.set(p.sym,b)
  }catch(e:any){failures.set(p.sym,String(e.message))}})
