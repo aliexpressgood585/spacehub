@@ -64,10 +64,6 @@ jobs:
             -d '{
               "query": "ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS overall_wr NUMERIC(5,4) DEFAULT 0; ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS overall_pf NUMERIC(6,3) DEFAULT 1.0; ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS trade_count INT DEFAULT 0; ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS streak INT DEFAULT 0; ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS bot_params JSONB DEFAULT '"'"'{}'"'"'; ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS last_optimized_at TIMESTAMPTZ; CREATE TABLE IF NOT EXISTS bot_params_history (id BIGSERIAL PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), trade_count INT, overall_wr NUMERIC(5,4), overall_pf NUMERIC(6,3), params_before JSONB, params_after JSONB, reasoning TEXT); ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS market_regime TEXT DEFAULT '"'"'RANGING'"'"'; ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS regime_confidence NUMERIC(4,2) DEFAULT 0.5; ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS regime_updated_at TIMESTAMPTZ; ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS coin_weights JSONB DEFAULT '"'"'{}'"'"'; ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS rebalanced_at TIMESTAMPTZ; CREATE TABLE IF NOT EXISTS market_regime (id BIGSERIAL PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), regime TEXT NOT NULL, confidence NUMERIC(4,2), btc_adx NUMERIC(6,2), btc_atr_pct NUMERIC(8,5), btc_ema_slope NUMERIC(10,6), bb_width_pct NUMERIC(8,5), notes TEXT); CREATE TABLE IF NOT EXISTS rebalance_history (id BIGSERIAL PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), trade_count INT, weights_after JSONB, scores JSONB); ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS peak_balance NUMERIC(12,2) DEFAULT 10000; ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS lock_until TIMESTAMPTZ; CREATE TABLE IF NOT EXISTS bot_trades_log (id BIGSERIAL PRIMARY KEY, date DATE NOT NULL UNIQUE, total_trades INT DEFAULT 0, wins INT DEFAULT 0, losses INT DEFAULT 0, win_rate NUMERIC(5,4) DEFAULT 0, profit NUMERIC(12,2) DEFAULT 0, market_regime TEXT, avg_adx NUMERIC(6,2), avg_confluence_score NUMERIC(6,2), created_at TIMESTAMPTZ DEFAULT now()); CREATE TABLE IF NOT EXISTS bot_trade_snapshots (id BIGSERIAL PRIMARY KEY, trade_id BIGINT REFERENCES bot_trades(id), coin TEXT NOT NULL, side TEXT NOT NULL, confluence_score NUMERIC(5,1), adx NUMERIC(6,2), rsi NUMERIC(5,2), volume_ratio NUMERIC(6,3), hour_utc INT, market_regime TEXT, session TEXT, oi_signal TEXT, fear_greed INT, result TEXT, pnl NUMERIC(12,4), vpoc NUMERIC(18,8), volatility_pct INT, adjusted_sl NUMERIC(18,8), adjusted_tp NUMERIC(18,8), stochastic_k NUMERIC(6,2), stochastic_d NUMERIC(6,2), macd_histogram NUMERIC(10,4), correlation_hedge NUMERIC(4,2), entry_macd_hist NUMERIC(10,4), created_at TIMESTAMPTZ DEFAULT now()); ALTER TABLE bot_trade_snapshots ADD COLUMN IF NOT EXISTS vpoc NUMERIC(18,8); ALTER TABLE bot_trade_snapshots ADD COLUMN IF NOT EXISTS volatility_pct INT; ALTER TABLE bot_trade_snapshots ADD COLUMN IF NOT EXISTS adjusted_sl NUMERIC(18,8); ALTER TABLE bot_trade_snapshots ADD COLUMN IF NOT EXISTS adjusted_tp NUMERIC(18,8); ALTER TABLE bot_trade_snapshots ADD COLUMN IF NOT EXISTS stochastic_k NUMERIC(6,2); ALTER TABLE bot_trade_snapshots ADD COLUMN IF NOT EXISTS stochastic_d NUMERIC(6,2); ALTER TABLE bot_trade_snapshots ADD COLUMN IF NOT EXISTS macd_histogram NUMERIC(10,4); ALTER TABLE bot_trade_snapshots ADD COLUMN IF NOT EXISTS correlation_hedge NUMERIC(4,2); ALTER TABLE bot_trades ADD COLUMN IF NOT EXISTS entry_macd_hist NUMERIC(10,4); ALTER TABLE bot_trades ADD COLUMN IF NOT EXISTS snapshot_recorded BOOLEAN DEFAULT false; CREATE TABLE IF NOT EXISTS bot_market_memory (id BIGSERIAL PRIMARY KEY, condition_key TEXT NOT NULL, win_rate NUMERIC(5,4), trade_count INT, avg_pnl NUMERIC(10,4), last_updated TIMESTAMPTZ DEFAULT now()); CREATE UNIQUE INDEX IF NOT EXISTS idx_bot_market_memory_ck ON bot_market_memory(condition_key); ALTER TABLE bot_trades ADD COLUMN IF NOT EXISTS strategy TEXT DEFAULT '"'"'LEGACY'"'"'; ALTER TABLE bot_trades ADD COLUMN IF NOT EXISTS exit_stage INT DEFAULT 0; CREATE TABLE IF NOT EXISTS bot_equity (id BIGSERIAL PRIMARY KEY, ts TIMESTAMPTZ DEFAULT now(), equity NUMERIC, balance NUMERIC, exposure NUMERIC); ALTER TABLE bot_trades ADD COLUMN IF NOT EXISTS risk_usd NUMERIC; ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS shields JSONB DEFAULT '"'"'{}'"'"'; DROP POLICY IF EXISTS anon_read_bot_equity ON bot_equity; CREATE POLICY anon_read_bot_equity ON bot_equity FOR SELECT TO anon USING (true); DROP POLICY IF EXISTS anon_read_market_regime ON market_regime; CREATE POLICY anon_read_market_regime ON market_regime FOR SELECT TO anon USING (true); DROP POLICY IF EXISTS anon_read_rebalance_history ON rebalance_history; CREATE POLICY anon_read_rebalance_history ON rebalance_history FOR SELECT TO anon USING (true); CREATE TABLE IF NOT EXISTS bot_errors (id BIGSERIAL PRIMARY KEY, ts TIMESTAMPTZ DEFAULT now(), scope TEXT, message TEXT); CREATE INDEX IF NOT EXISTS idx_bot_errors_ts ON bot_errors(ts); ALTER TABLE bot_errors ENABLE ROW LEVEL SECURITY; DROP POLICY IF EXISTS anon_read_bot_errors ON bot_errors; CREATE POLICY anon_read_bot_errors ON bot_errors FOR SELECT TO anon USING (true); CREATE TABLE IF NOT EXISTS bot_skips (id BIGSERIAL PRIMARY KEY, ts TIMESTAMPTZ DEFAULT now(), sym TEXT, strategy TEXT, reason TEXT, detail JSONB DEFAULT '"'"'{}'"'"'); CREATE INDEX IF NOT EXISTS idx_bot_skips_ts ON bot_skips(ts); ALTER TABLE bot_skips ENABLE ROW LEVEL SECURITY; DROP POLICY IF EXISTS anon_read_bot_skips ON bot_skips; CREATE POLICY anon_read_bot_skips ON bot_skips FOR SELECT TO anon USING (true); ALTER TABLE bot_state ADD COLUMN IF NOT EXISTS feed_health JSONB DEFAULT '"'"'{}'"'"'; ALTER TABLE bot_trades ADD COLUMN IF NOT EXISTS legs_banked NUMERIC DEFAULT 0; UPDATE bot_trades SET pnl = COALESCE(pnl,0) + CASE WHEN exit_stage=1 THEN 0.2*risk_usd ELSE 0.5333*risk_usd END, legs_banked = CASE WHEN exit_stage=1 THEN 0.2*risk_usd ELSE 0.5333*risk_usd END WHERE strategy='"'"'DONCH4H'"'"' AND status != '"'"'OPEN'"'"' AND COALESCE(exit_stage,0)>=1 AND COALESCE(legs_banked,0)=0 AND COALESCE(risk_usd,0)>0; UPDATE bot_trades SET legs_banked = CASE WHEN exit_stage=1 THEN 0.2*risk_usd ELSE 0.5333*risk_usd END WHERE strategy='"'"'DONCH4H'"'"' AND status='"'"'OPEN'"'"' AND COALESCE(exit_stage,0)>=1 AND COALESCE(legs_banked,0)=0 AND COALESCE(risk_usd,0)>0;"
             }' | tee /tmp/migration_result.json
-          # Fail closed. This SQL CREATES THE ENTIRE SCHEMA on a fresh project,
-          # so a silent failure here produces an empty database that later steps
-          # and the data restore would hit in a far more confusing place.
-          # "already exists" is the one benign case and is matched explicitly.
           if grep -q '"error"' /tmp/migration_result.json; then
             if grep -qi 'already exists' /tmp/migration_result.json; then
               echo "Migration: objects already present (benign)"
@@ -87,15 +83,22 @@ jobs:
           jq -e 'type == "array"' /tmp/ledger-result.json >/dev/null || { cat /tmp/ledger-result.json; exit 1; }
           echo "Ledger transaction committed"
 
+      - name: Apply Q15 MAX LOTTERY ledger unlock
+        run: |
+          jq -Rs '{query: .}' supabase/migrations/20261005110000_q15_max_lottery_ledger.sql > /tmp/q15_lottery.json
+          curl --fail-with-body -sS -X POST "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" -H "Content-Type: application/json" \
+            --data @/tmp/q15_lottery.json > /tmp/q15_lottery_result.json
+          cat /tmp/q15_lottery_result.json
+          jq -e 'type == "array"' /tmp/q15_lottery_result.json >/dev/null || { echo "::error::Q15 lottery ledger SQL failed"; exit 1; }
+          echo "Q15 MAX LOTTERY ledger applied"
+
       - name: Set optimizer secrets
         run: |
           supabase secrets set \
             ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }} \
             --project-ref ${{ env.PROJECT_REF }}
 
-      # v55: exchange keys for live execution — OPTIONAL. Add BYBIT_API_KEY +
-      # BYBIT_API_SECRET as GitHub repo secrets and LIVE_TRADING=1 as a repo
-      # VARIABLE to arm live mode. Absent secrets → paper mode, untouched.
       - name: Set exchange secrets (live trading, optional)
         env:
           BK: ${{ secrets.BYBIT_API_KEY }}
@@ -126,8 +129,8 @@ jobs:
           g.__RELEASE_SHA = '${SHA}';
           g.__ENABLED_SLEEVES = 'Q15,EVT,DONCH4H'; g.__SLEEVES_OFF = ''; g.__LEVERAGE = '1'; g.__Q15_LEV = '25'; g.__Q15_PER_TRADE = '0.15'; g.__Q15_MAX_OPEN = '20'; g.__Q15_SHARE = '0.90'; g.__EVT_PER_TRADE = '0.15'; g.__EVT_MAX_OPEN = '8'; // MAX LOTTERY owner 2026-10-05 paper only. Rollback = previous shim; close Q15 rows first.
           g.__LEVERAGE = '1';
-          g.__CHAN_LEV = '20'; // v98.1 paper leverage for new CHAN entries (1..50)
-          g.__CHAN_AGGRESSIVE = '1'; // v98.0 owner override (paper only); remove to roll back
+          g.__CHAN_LEV = '20';
+          g.__CHAN_AGGRESSIVE = '1';
           try {
             Deno.env.set('ENABLED_SLEEVES', 'Q15,EVT,DONCH4H');
             Deno.env.set('LEVERAGE', '1');
@@ -150,11 +153,6 @@ jobs:
           printf '%s\n' "$BODY"
           if [ "$STATUS" -ge 400 ]; then
             echo "::error::paper smoke returned HTTP $STATUS"
-            Q="select timestamp, event_message from logs where source = 'function_logs' order by timestamp desc limit 50"
-            curl -sS --get "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/analytics/endpoints/logs" \
-              -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
-              --data-urlencode "sql=$Q" --data-urlencode "iso_timestamp_start=$(date -u -d '10 minutes ago' +%Y-%m-%dT%H:%M:%SZ)" \
-              --data-urlencode "iso_timestamp_end=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
             exit 1
           fi
           printf '%s\n' "$BODY" | sed '/^HTTP_STATUS:/d' | jq -e '.ok == true or .skipped == true' >/dev/null
@@ -185,9 +183,6 @@ jobs:
       - name: Deploy reset-account function
         run: supabase functions deploy reset-account --project-ref ${{ env.PROJECT_REF }} --no-verify-jwt
 
-      # v99.4: CHECK the cron rows instead of (re)scheduling them. The old step posted a multi-line SQL string with raw
-      # newlines inside JSON (always rejected: "Bad control character") and, had it worked, cron.schedule('trading-bot',
-      # '* * * * *') would have silently reset the live 5-second bot schedule to once a minute.
       - name: Verify cron jobs
         run: |
           Q="select jobname, schedule from cron.job where jobname in ('trading-bot','data-collector') order by jobname"
@@ -202,4 +197,4 @@ jobs:
           echo "Cron rows present"
 
       - name: Done
-        run: echo "All 4 functions deployed - bot(1m) optimizer(1m) regime(5m) rebalancer(1h)"
+        run: echo "All functions deployed"
