@@ -304,3 +304,12 @@ Detection cadence only: no rule, size, level or risk change. The cron stays at 5
 - Deterministic regression: 107 signalled coins with 250 ms/book; old code drops all six funded entries, fixed code requests six books and submits six fresh entries. Existing exit/autonomy tests pass.
 - GPT review: APPROVED for the minimal ordering fix. Claude review: requested on the follow-up PR; the previous owner override was explicitly scoped to PR #105.
 - Expected result: fresh funded candidates reach the ledger promptly. Failure criterion: entries still expire under ordinary request latency; investigate further without loosening quote freshness.
+
+## P-PAPER-DAILY-HALT — disable daily loss brake, retain autonomy (2026-10-05)
+- Status: PROPOSED. Owner requested removing the 12% daily stop while remaining autonomous.
+- Evidence at 16:31 UTC: active paper account, daily halt latched since 15:47 UTC; current drawdown about 6.7% after recovery. Entries are blocked by the daily latch, not a stopped scheduler.
+- Change: optional daily_loss_halt_enabled config in agg2_day; migration defaults the existing paper account to false and clears its old loss latch. Opt-out is honored only for a paper account without non-paper open rows. Repeated deployment preserves an explicit re-enable.
+- Autonomy, learning, entry signals, stops/targets/timeouts, hard manual halt, fresh-price requirements, leverage and position caps remain. No balance reset. This allows further paper losses beyond 12%; no profitability claim.
+- Verification: actual PostgreSQL/WASM ledger tests cover resuming entries below the old loss threshold, clearing the latch, retained manual stop and fresh-mark checks, live-account rejection, and re-enabling the brake across redeployment.
+- GPT review: APPROVED as an owner-requested paper experiment. Claude review: requested; prior overrides cover PRs #105/#106 only.
+- Rollback: set daily_loss_halt_enabled=true under the existing state row lock; the next ledger cycle reinstates the 12% threshold. Never reset capital or positions.
