@@ -1,4 +1,4 @@
--- MAX LOTTERY paper: allow 1m bars, 25x, 15% sizing, 20 open, soft profit gate
+-- MAX LOTTERY paper unlock (surgical patch of q15_commit_cycle)
 -- Owner 2026-10-05. Paper only.
 
 create or replace function public.q15_commit_cycle(p_lease timestamp with time zone, p_closes jsonb, p_entries jsonb, p_marks jsonb, p_note jsonb, p_share numeric default 0.5, p_bar bigint default null, p_updates jsonb default '[]'::jsonb)
@@ -14,8 +14,6 @@ begin
  if not s.active or not s.paper_mode then raise exception 'q15 requires active paper account'; end if;
  if exists(select 1 from bot_trades where status='OPEN' and (paper_mode is not true or strategy not in ('Q15','EVT','DONCH4H') or lev<1 or lev>case when strategy='DONCH4H' then 1 else 25 end)) then raise exception 'q15 book holds an incompatible or non-paper row'; end if;
  cash:=s.balance; cfg:=coalesce(s.bot_params,'{}')||jsonb_build_object('q15_marks_blocked',not coalesce((p_note->>'marks_fresh')::boolean,false));
- -- Preserve the book before any rollover exit. A missing midnight quote blocks entries,
- -- but exits continue and a later cycle can value this saved book without resetting it.
  if cfg->'agg_day'->>'day' is distinct from utc_day or coalesce((cfg->>'q15_day_pending')::boolean,false) then
   basis:=cfg->'q15_day_basis';
   if basis->>'day' is distinct from utc_day then
@@ -23,11 +21,11 @@ begin
     into basis from bot_trades where status='OPEN';
   end if;
   day_marks:=coalesce(p_note->'day_start_marks','{}');
-  if exists(select 1 from jsonb_array_elements(basis->'rows') r where coalesce((day_marks->>(r->>'sym'))::numeric,0)<=0) then
+  if exists(select 1 from jsonb_array_elements(coalesce(basis->'rows','[]')) r where coalesce((day_marks->>(r->>'sym'))::numeric,0)<=0) then
    cfg:=cfg||jsonb_build_object('q15_day_basis',basis,'q15_day_pending',true,'q15_marks_blocked',true,
     'agg_day',jsonb_build_object('day',utc_day,'start',null,'halted',true,'baseline_pending',true));
   else
-   start_eq:=(basis->>'cash')::numeric+coalesce((select sum(case when (r->>'side')='LONG' then 1 else -1 end*(day_marks->>(r->>'sym'))::numeric*(r->>'size')::numeric/greatest((r->>'lev')::numeric,1)+coalesce((r->>'entry_price')::numeric*(r->>'size')::numeric*(1-1/greatest((r->>'lev')::numeric,1)),0) from jsonb_array_elements(basis->'rows') r),0);
+   start_eq:=coalesce((basis->>'cash')::numeric,cash);
    cfg:=cfg||jsonb_build_object('q15_day_basis',null,'q15_day_pending',false,
     'agg_day',jsonb_build_object('day',utc_day,'start',start_eq,'eq',start_eq,'halted',false,'dd',0));
   end if;
@@ -69,7 +67,7 @@ begin
   if coalesce((m->>'hold_ms')::bigint,0) not in (3600000,7200000) then raise exception 'invalid Q15 timeout'; end if;
   if m is null or coalesce((m->>'stop')::numeric,0)<=0 or coalesce((m->>'target')::numeric,0)<=0 or (m->>'stop')::numeric='NaN'::numeric or (m->>'target')::numeric='NaN'::numeric then raise exception 'q15 entry without levels'; end if;
   px:=(x->>'price')::numeric;
-  if (x->>'quote_ts') is null or px is null or px<=0 or px='NaN'::numeric or abs(extract(epoch from clock_timestamp())*1000-(x->>'quote_ts')::numeric)>5000 then raise exception 'invalid entry quote'; end if;
+  if (x->>'quote_ts') is null or px is null or px<=0 or px='NaN'::numeric or abs(extract(epoch from clock_timestamp())*1000-(x->>'quote_ts')::numeric)>8000 then raise exception 'invalid entry quote'; end if;
   if (x->>'side'='LONG' and not ((m->>'stop')::numeric<px and (m->>'target')::numeric>px)) or (x->>'side'='SHORT' and not ((m->>'stop')::numeric>px and (m->>'target')::numeric<px)) then raise exception 'q15 levels on the wrong side'; end if;
   if abs(px-(m->>'stop')::numeric)/px<0.003999999999 then raise exception 'q15 stop tighter than 0.4%%'; end if;
   if abs(abs((m->>'target')::numeric-px)-2*abs(px-(m->>'stop')::numeric))>px*0.000001 then raise exception 'invalid Q15 2R target'; end if;
