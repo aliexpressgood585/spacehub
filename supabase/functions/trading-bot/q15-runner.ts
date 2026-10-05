@@ -94,7 +94,9 @@ export async function runQ15(db:any,state:any,lease:string,paper:boolean){
  const scan=d5?(Number(params.d5_scan?.bar)!==bar||params.d5_scan?.done!==true||Number(params.vwap_rev_scan?.bar)!==Math.floor(now/60000)*60000):Number(params.q15_bar)!==bar
  if(!scan)return{changed:closes.length>0,halted,scanned:false,closed:marked?.closed??0,exit_errors:errors,marks_fresh:markHealthy}
  const {data:cache}=await db.from('market_cache').select('data').eq('key','universe').throwOnError()
- const cached:Pair[]=(cache?.[0]?.data?.pairs??[]).filter((p:any)=>/^[A-Z0-9]+USDT$/.test(p.s)&&Number(p.k)>0)\n let universe:Pair[]=cached\n if(d5)try{const ex=d5Pairs(await json('https://fapi.binance.com/fapi/v1/exchangeInfo'));if(ex.length)universe=ex}catch{}
+ const cached:Pair[]=(cache?.[0]?.data?.pairs??[]).filter((p:any)=>/^[A-Z0-9]+USDT$/.test(p.s)&&Number(p.k)>0)
+ let universe:Pair[]=cached
+ if(d5)try{const ex=d5Pairs(await json('https://fapi.binance.com/fapi/v1/exchangeInfo'));if(ex.length)universe=ex}catch{}
  const cursor=d5&&Number(params.d5_scan?.bar)===bar?Number(params.d5_scan.cursor)||0:0
  const pairs=d5?universe.slice(cursor,cursor+D5.batch):universe
  if(!pairs.length)throw new Error('Q15 liquid universe unavailable')
