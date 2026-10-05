@@ -32,6 +32,7 @@ learning=learnClosedTrades(learning,[outcome(1,NOW)])
 assert.equal(learning.scores.burst.n,4,'older position can close later')
 assert.equal(loadAutonomy({q15_autonomy:{...learning,version:1}}).scores.burst.n,0,'legacy counts rebuild')
 const pairs=['BTC','SOL',...Array.from({length:105},(_,i)=>`C${i}`)].map(sym=>({sym,s:`${sym}USDT`,k:1}))
+let allHot=false,bookDelay=0,bookCalls=0
 let open:any[]=[],closed:any[]=[],journal:any[]=[],commits:any[]=[],halted=false,hot=false,kcalls=0,tape:any[]=[],funding:any[]=[],now=NOW,autonomyWrites=0
 const db={from(table:string){let isClosed=false,isHead=false;const q:any=new Proxy({},{get(_t,k){
  if(k==='then')return (resolve:any)=>resolve({data:null,error:null})
@@ -50,14 +51,19 @@ try{
  globalThis.fetch=(async(url:string)=>{
   if(url.includes('aggTrades'))return new Response(JSON.stringify(tape))
   if(url.includes('fundingRate'))return new Response(JSON.stringify(funding))
-  if(url.includes('/klines')){kcalls++;const b=hot&&url.includes('SOLUSDT')?up:flat;return new Response(JSON.stringify(b.map(x=>[x.t,x.open,x.high,x.low,x.close,x.vol,x.t+Q15.barMs-1,0,0,x.tb])))}
+  if(url.includes('/klines')){kcalls++;const b=(allHot||hot&&url.includes('SOLUSDT'))?up:flat;return new Response(JSON.stringify(b.map(x=>[x.t,x.open,x.high,x.low,x.close,x.vol,x.t+Q15.barMs-1,0,0,x.tb])))}
   if(url.includes('fundingInfo'))return new Response('[]')
-  if(url.includes('premiumIndex'))return new Response(JSON.stringify([{symbol:'SOLUSDT',lastFundingRate:'.0001'}]))
-  if(url.includes('/depth'))return new Response(JSON.stringify({bids:[[103,1e7]],asks:[[103.01,1e7]],E:now}))
+  if(url.includes('premiumIndex'))return new Response(JSON.stringify(pairs.map(p=>({symbol:p.s,lastFundingRate:'.0001'}))))
+  if(url.includes('/depth')){bookCalls++;now+=bookDelay;return new Response(JSON.stringify({bids:[[103,1e7]],asks:[[103.01,1e7]],E:now}))}
   throw new Error('unmocked request '+url)
  }) as typeof fetch
  await assert.rejects(()=>runQ15(db,{},'',false),/paper-only/)
  await run();assert.equal(journal.length,pairs.length);assert.equal(kcalls,pairs.length);assert.equal(commits.at(-1).p_entries.length,0)
+ allHot=true;bookDelay=250;bookCalls=0;await run();
+ assert.equal(commits.at(-1).p_entries.length,6,'funded entries survive a large universe with slow books')
+ assert.equal(bookCalls,6,'unfundable candidates must not delay selected entries')
+ assert.ok(commits.at(-1).p_entries.every((e:any)=>now-e.quote_ts<=Q15.quoteMaxMs))
+ allHot=false;bookDelay=0;now=NOW
  hot=true;closed=[outcome(1)];await run();let e=commits.at(-1).p_entries[0]
  assert.equal(e.lev,25);assert.equal(e.notional,18750);assert.equal(journal.find(x=>x.sym==='SOL').reason,'taken')
  assert.equal(commits.at(-1).p_note.q15_autonomy.scores.burst.n,1)

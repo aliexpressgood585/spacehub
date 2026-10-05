@@ -124,12 +124,13 @@ export async function runQ15(db:any,state:any,lease:string,paper:boolean){
   if(room<=0){rec.reason='max_open';continue}
   if(dayN>=HARD_FLOOR.maxPerDay){rec.reason='max_day';continue}
   if(halted||state.hard_halt_at||sleeveOff(params,'Q15')){rec.reason='day_or_owner_halt';continue}
-  try{
-   const bk=await book(p),dir=sig.dir,price=(dir>0?bk.asks:bk.bids)[0][0]
-   const lv=q15Levels(dir,price,sig.atr)
+  // Check remaining capital before network I/O so unfundable signals cannot age funded quotes.
    const margin=Math.min(eq*cfg.perTrade,Math.max(0,eq*cfg.share-marginUsed),cash/(1+cfg.lev*COST.takerFee))
    const notional=margin*cfg.lev
    if(notional<20){rec.reason='no_cash';continue}
+  try{
+   const bk=await book(p),dir=sig.dir,price=(dir>0?bk.asks:bk.bids)[0][0]
+   const lv=q15Levels(dir,price,sig.atr)
    const f=funding.get(p.s),fundRate=f?.rate??null,fundHours=f?.hours??8
    const walk=walkBook(dir>0?bk.asks:bk.bids,notional),exitWalk=walkBook(dir>0?bk.bids:bk.asks,notional)
    const gate=q15Gate({book:bookFrom(bk.bids,bk.asks,bk.E,'binance-futures'),now:Date.now(),notional,dir,rFrac:lv.r/price,entryImpact:walk.impact,exitImpact:exitWalk.impact,beyond:walk.beyond||exitWalk.beyond,funding:fundRate,fundingHours:fundHours,grossBps:edge[dir>0?'long':'short'].bps})
