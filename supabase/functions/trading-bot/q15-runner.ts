@@ -92,9 +92,22 @@ export async function exitRow(t:any,now:number){
  const opened=Date.parse(t.opened_at),deadline=m.pattern==='DDDDD'?Infinity:opened+(Number(m.hold_ms)||Q15.holdMs),until=now,from=Math.max(opened,Number(m.chk)||opened)
  if(![entry,opened,m.r,m.stop,m.target].every(Number.isFinite)||!(entry>0&&m.r>0))throw new Error('invalid_exit_state')
  const tape=await q15Tape(p,from,until,dir)
- const res=resolveExit({dir,entry,r:m.r,stop:m.stop,target:m.target,liq:fastLiq(dir,entry,Number(t.lev)||Q15.lev),best:entry,trail:false},tape.trades)
- let reason:string|null=res.why,px='px' in res?res.px:NaN,trigger='T' in res?res.T:now,quote=now,fill:any={model:'aggTrades',trigger_ts:trigger,detected_ts:now,complete:tape.complete}
- if(reason==='STOP'){
+ let reason:string|null=null,px=NaN,trigger=now
+ let beActive=m.pattern==='DDDDD'&&m.be_active===true
+ if(m.pattern==='DDDDD'&&dir===1){
+  const stop0=Number(m.stop),target=Number(m.target),beTrigger=entry*1.004,beStop=entry*1.001
+  for(const tr of [...tape.trades].sort((a,b)=>a.T-b.T)){
+   const stop=beActive?Math.max(stop0,beStop):stop0
+   if(tr.p<=stop){reason=beActive?'BE_PROTECT':'STOP';px=stop;trigger=tr.T;break}
+   if(tr.p>=target){reason='TARGET';px=target;trigger=tr.T;break}
+   if(!beActive&&tr.p>=beTrigger)beActive=true
+  }
+ }else{
+  const res=resolveExit({dir,entry,r:m.r,stop:m.stop,target:m.target,liq:fastLiq(dir,entry,Number(t.lev)||Q15.lev),best:entry,trail:false},tape.trades)
+  reason=res.why;px='px' in res?res.px:NaN;trigger='T' in res?res.T:now
+ }
+ let quote=now,fill:any={model:'aggTrades',trigger_ts:trigger,detected_ts:now,complete:tape.complete}
+ if(reason==='STOP'||reason==='BE_PROTECT'){
   const bk=await book(p),walk=walkBook(dir>0?bk.bids:bk.asks,entry*Number(t.size))
   px*=1-dir*Math.max(COST.minSlip,walk.impact);quote=bk.E
   fill={...fill,impact_bps:walk.impact*1e4,impact_inferred:true}
@@ -110,7 +123,7 @@ export async function exitRow(t:any,now:number){
   return{close:{id:t.id,price:px,quote_ts:quote,reason,funding,funding_complete:true,fill},update:null,gross:((px-entry)*dir)/entry*1e4}
  }
  const chk=tape.checkedUntil
- return{close:null,update:chk!=null&&chk>from?{chk}:null,gross:null}
+ return{close:null,update:chk!=null&&chk>from?{chk,...(m.pattern==='DDDDD'?{be_active:beActive}:{})}:null,gross:null}
 }
 export async function runQ15(db:any,state:any,lease:string,paper:boolean){
  if(!paper)throw new Error('Q15 is paper-only; refusing live execution')
@@ -127,7 +140,7 @@ export async function runQ15(db:any,state:any,lease:string,paper:boolean){
  await pool(open??[],8,async(t:any)=>{try{
   const r=await exitRow(t,now)
   if(r.close)closes.push(r.close)
-  else if(r.update)updates.push({id:t.id,chk:r.update.chk})
+  else if(r.update)updates.push({id:t.id,...r.update})
  }catch(e:any){errors.push(`${t.sym}:${String(e.message).slice(0,80)}`)}})
  for(const t of allOpen??[]){
   try{
