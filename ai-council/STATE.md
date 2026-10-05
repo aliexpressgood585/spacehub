@@ -1,5 +1,11 @@
 # AI Council State
 
+## FLOW v1 — observation only, 2026-10-05
+- Status: PAPER_TEST (shadow only). Owner authorized building, merging and deploying the proposed one-second flow collector. GPT review: APPROVED for observation; no live or paper entries, no auto-promotion.
+- Preregistered docs/FLOW_SHADOW.md before coding signal/exits. Six instruments, 5s book/taker/momentum alignment, 30s forward horizon, shared taker+walkBook+slip costs. Funding windows skipped; late/missing exits expire without invented prices.
+- Supabase bounded 55s sessions per minute with warmup and gaps, not guaranteed continuous service. Lease bounds concurrent requests; immediate HTTP response protects existing bot cron. Dashboard reports coverage and errors. Existing Q15/EVT/DONCH settings unchanged.
+
+
 ## Atomic paper deployment repair — 2026-10-05
 - Owner authorized fix, merge and paper deployment. GPT review: APPROVED for deployment consistency; no strategy changes.
 - Both workflows share a non-cancelling deployment lock. Enforcement is manual-only; normal pushes have one deployment path.

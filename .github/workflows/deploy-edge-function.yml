@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'supabase/functions/**'
+      - 'shared/flow-shadow.ts'
       - '.github/workflows/deploy-edge-function.yml'
       - '.github/workflows/enforce-no-loss-trading.yml'
       - 'scripts/build-ledger-payload.py'
@@ -158,6 +159,16 @@ jobs:
           fi
           printf '%s\n' "$BODY" | sed '/^HTTP_STATUS:/d' | jq -e '.ok == true or .skipped == true' >/dev/null
           echo "Paper smoke cycle completed (HTTP $STATUS)"
+
+      - name: Deploy observation-only flow collector
+        run: |
+          jq -Rs '{query: .}' supabase/migrations/20261005085327_flow_shadow.sql > /tmp/flow.json
+          curl --fail-with-body -sS -X POST "https://api.supabase.com/v1/projects/${{ env.PROJECT_REF }}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" -H "Content-Type: application/json" \
+            --data @/tmp/flow.json | jq -e 'type == "array"'
+          supabase functions deploy flow-shadow --project-ref ${{ env.PROJECT_REF }} --no-verify-jwt
+          curl --fail-with-body -sS -X POST "https://${{ env.PROJECT_REF }}.supabase.co/functions/v1/flow-shadow" \
+            -H 'Content-Type: application/json' -d '{}' | jq -e '.ok == true'
 
       - name: Deploy trading-optimizer function
         run: supabase functions deploy trading-optimizer --project-ref ${{ env.PROJECT_REF }} --no-verify-jwt

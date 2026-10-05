@@ -24,6 +24,7 @@ if [ -z "$TSC_BIN" ] || ! "$TSC_BIN" --version >/dev/null 2>&1; then
 fi
 
 fail=0
+node --experimental-strip-types tests/flow-shadow.test.ts || fail=1
 run() {
   echo ""
   echo "── $1 ──────────────────────────────────────────────"
@@ -113,6 +114,8 @@ tc shared/strategy.ts
 tc shared/lab.ts
 tc shared/fast.ts
 tc shared/q15.ts
+tc shared/flow-shadow.ts
+tc supabase/functions/flow-shadow/index.ts
 tc supabase/functions/trading-bot/q15-runner.ts
 tc shared/fast-entry.ts
 tc shared/intraday-retest.ts
