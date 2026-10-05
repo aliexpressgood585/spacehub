@@ -1,5 +1,16 @@
 # AI Council State
 
+## P-DDDDD + VWAP-REV-1M — combined paper experiment (2026-10-05)
+- Status: PAPER_TEST. Owner explicitly requested combining the active DDDDD paper strategy with VWAP-REV-1M, merging and deploying, while preserving strategy attribution on every position.
+- GPT review: APPROVED for this bounded PAPER integration. Claude review: APPROVED by the repository AI Council Auto Review for PR #109; Claude acknowledgement: **ACKNOWLEDGED** remains active below.
+- VWAP_REV_1M rule: completed 1m reversal candle after >=0.5% excursion from rolling/cumulative 120-bar VWAP proxy, volume >=1.5x prior 20-bar mean; LONG below VWAP with bullish reversal, SHORT above VWAP with bearish reversal. Fresh executable book entry; target 0.5%, stop 1%, max hold 60m.
+- DDDDD remains unchanged: five red completed 5m candles -> LONG, target 1%, stop 1%, no timeout. No account reset. PAPER ONLY; no live exchange execution.
+- Attribution: both remain Q15 ledger rows for accounting compatibility; scalp_meta.q15.pattern is DDDDD or VWAP_REV_1M and the house UI displays that identity on position notifications/cards where available.
+- Shared book safety remains: one open position per symbol, existing Q15 25x / 15% margin ceiling / 20 open / 90% sleeve allocation / 200 daily-entry limits and executable quote/cost checks. Opposite simultaneous strategies on the same symbol are therefore not opened.
+- Evidence warning: the prior ~80.1% VWAP result was a short preliminary in-sample check, not a production profitability guarantee. This integration is forward PAPER validation after costs.
+- Rollback: disable VWAP_REV_1M generation while continuing to manage any already-open tagged rows with their stored stop/target/timeout. Never reset the account as rollback.
+
+
 ## FLOW v1 — observation only, 2026-10-05
 - Status: PAPER_TEST (shadow only). Owner authorized building, merging and deploying the proposed one-second flow collector. GPT review: APPROVED for observation; no live or paper entries, no auto-promotion.
 - Preregistered docs/FLOW_SHADOW.md before coding signal/exits. Six instruments, 5s book/taker/momentum alignment, 30s forward horizon, shared taker+walkBook+slip costs. Funding windows skipped; late/missing exits expire without invented prices.
