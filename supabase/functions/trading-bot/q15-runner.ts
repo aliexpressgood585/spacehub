@@ -11,6 +11,31 @@ import { json,pool } from './rota-runner.ts'
 import { sleeveOff } from '../../../shared/sleeves.ts'
 
 const pairOf=(sym:string):Pair=>sym==='PEPE'?{sym,s:'1000PEPEUSDT',k:1000}:{sym,s:`${sym}USDT`,k:1}
+const bybitBars=async(p:Pair,interval:'1m'|'5m',limit:number,start?:number,end?:number)=>{
+ const iv=interval==='5m'?'5':'1',q=new URLSearchParams({category:'linear',symbol:p.s,interval:iv,limit:String(Math.min(limit,1000))})
+ if(start!=null)q.set('start',String(start));if(end!=null)q.set('end',String(end))
+ const d:any=await json(`https://api.bybit.com/v5/market/kline?${q}`)
+ if(Number(d?.retCode)!==0||!Array.isArray(d?.result?.list))throw new Error('bybit_kline')
+ return d.result.list.slice().reverse().map((x:any)=>({t:+x[0],open:+x[1]/p.k,high:+x[2]/p.k,low:+x[3]/p.k,close:+x[4]/p.k,vol:+x[5]*p.k,tb:NaN}))
+}
+const okxBars=async(p:Pair,interval:'1m'|'5m',limit:number)=>{
+ const raw=p.sym.startsWith('1000')?p.sym.slice(4):p.sym,scale=p.sym.startsWith('1000')?1000:1
+ if(raw==='ON')throw new Error('okx_symbol_collision')
+ const bar=interval==='5m'?'5m':'1m'
+ const d:any=await json(`https://www.okx.com/api/v5/market/candles?instId=${raw}-USDT-SWAP&bar=${bar}&limit=${Math.min(limit,300)}`)
+ if(d?.code!=='0'||!Array.isArray(d?.data))throw new Error('okx_kline')
+ return d.data.slice().reverse().map((x:any)=>({t:+x[0],open:+x[1]*scale,high:+x[2]*scale,low:+x[3]*scale,close:+x[4]*scale,vol:+x[5]/scale,tb:NaN}))
+}
+const marketBars=async(p:Pair,interval:'1m'|'5m',limit:number,start?:number,end?:number):Promise<LBar[]>=>{
+ try{
+  const qs=new URLSearchParams({symbol:p.s,interval,limit:String(limit)});if(start!=null)qs.set('startTime',String(start));if(end!=null)qs.set('endTime',String(end))
+  const k:any=await json(`https://fapi.binance.com/fapi/v1/klines?${qs}`)
+  if(!Array.isArray(k))throw new Error('binance_kline')
+  return k.map((x:any)=>({t:+x[0],open:+x[1]/p.k,high:+x[2]/p.k,low:+x[3]/p.k,close:+x[4]/p.k,vol:+x[5]*p.k,tb:x[9]==null?NaN:+x[9]*p.k}))
+ }catch{}
+ try{return await bybitBars(p,interval,limit,start,end)}catch{}
+ return okxBars(p,interval,limit)
+}
 export async function q15Tape(p:Pair,from:number,to:number):Promise<{trades:AggTrade[];complete:boolean;checkedUntil:number}> {
  const end=Math.min(to,from+3599999),out:AggTrade[]=[]
  let url=`https://fapi.binance.com/fapi/v1/aggTrades?symbol=${p.s}&startTime=${from}&endTime=${end}&limit=1000`
