@@ -48,5 +48,21 @@ r=await q([entry()],[],{marks_fresh:true,day_start_marks:{NIGHT:100}});assert.eq
 await reset();r=await q([],[],{marks_fresh:true,q15_autonomy:{version:2,learned_at:'test'}});assert.equal((await db.query("select bot_params->'q15_autonomy' as a from bot_state")).rows[0].a.version,2,'learning commits atomically with ledger');
 await reset();await q(Array.from({length:25},(_,i)=>({...entry('CAP'+i,25),notional:250})));assert.equal((await rows()).length,20,'20-position hard cap remains available');
 await reset();await q([entry('Q25',25)]);assert.equal((await blade('EVT',[be('EV')])).opened,1,'restored Blade can transact alongside 25x Q15');
+// Owner can disable only the paper loss brake; existing execution controls still apply.
+await reset();await q([],[],{marks_fresh:true});await db.exec('update bot_state set balance=4000');
+assert.equal((await q()).halted,true);
+await db.exec(read('supabase/migrations/20261005163138_paper_daily_halt_optional.sql'));
+assert.equal((await db.query("select bot_params->'agg_day'->'halted' as h from bot_state")).rows[0].h,false,'migration clears existing loss latch');
+await db.exec("update bot_state set bot_params=bot_params-'q15_bar'");
+r=await q([entry('RESUME')]);assert.equal(r.halted,false);assert.equal(r.opened,1,'paper autonomously resumes below former loss limit');
+await reset();await db.exec("update bot_state set bot_params='{\"daily_loss_halt_enabled\":false}',hard_halt_at=now()");
+assert.equal((await q([entry()])).opened,0,'manual stop remains');
+await db.exec('update bot_state set hard_halt_at=null');assert.equal((await q([entry()],[],{marks_fresh:false})).opened,0,'fresh marks remain required');
+await db.exec("update bot_state set paper_mode=false");await assert.rejects(()=>q([entry()]),/paper account/);
+await reset();await db.exec("update bot_state set bot_params='{\"daily_loss_halt_enabled\":false}'");await q([],[],{marks_fresh:true});
+await db.exec("update bot_state set balance=4000,bot_params=jsonb_set(bot_params,'{daily_loss_halt_enabled}','true')");
+assert.equal((await q([entry()])).halted,true,'re-enable restores loss brake');
+await db.exec(read('supabase/migrations/20261005163138_paper_daily_halt_optional.sql'));
+assert.equal((await q([entry()])).halted,true,'redeployment preserves explicit re-enable');
 await db.close();console.log('q15 SQL: paper lock, caps, isolation, pyramids, halt and exits — all checks passed')
 

@@ -10,6 +10,7 @@ MIGRATIONS = (
     "20261005114000_blade_allow_q15_25x.sql",
     "20261005120000_close_donch_ada_sei.sql",
     "20261005140628_q15_autonomous_reliability.sql",
+    "20261005163138_paper_daily_halt_optional.sql",
 )
 
 def payload(root=Path(".")):
