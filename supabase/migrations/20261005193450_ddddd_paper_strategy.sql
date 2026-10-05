@@ -78,10 +78,17 @@ begin
   if abs(px-(m->>'stop')::numeric)/px<0.003999999999 then raise exception 'q15 stop tighter than 0.4%%'; end if;
   if not d5 and abs(abs((m->>'target')::numeric-px)-2*abs(px-(m->>'stop')::numeric))>px*0.000001 then raise exception 'invalid Q15 2R target'; end if;
   if d5 then
-   if x->>'side' is distinct from 'LONG' or m->>'pattern' is distinct from 'DDDDD' or coalesce((m->>'hold_ms')::bigint,-1)<>0
-      or abs((m->>'stop')::numeric-px*0.99)>px*0.00000001 or abs((m->>'target')::numeric-px*1.01)>px*0.00000001
-      or (m->>'bar')::bigint is distinct from p_bar then raise exception 'invalid DDDDD entry'; end if;
-   if exists(select 1 from bot_trades where sym=x->>'sym' and scalp_meta->'q15'->>'pattern'='DDDDD' and (scalp_meta->'q15'->>'bar')::bigint=p_bar) then continue; end if;
+   if m->>'pattern'='DDDDD' then
+    if x->>'side' is distinct from 'LONG' or coalesce((m->>'hold_ms')::bigint,-1)<>0
+       or abs((m->>'stop')::numeric-px*0.99)>px*0.00000001 or abs((m->>'target')::numeric-px*1.01)>px*0.00000001
+       or (m->>'bar')::bigint is distinct from p_bar then raise exception 'invalid DDDDD entry'; end if;
+   elsif m->>'pattern'='VWAP_REV_1M' then
+    if coalesce((m->>'hold_ms')::bigint,-1)<>3600000
+       or (x->>'side'='LONG' and (abs((m->>'stop')::numeric-px*0.99)>px*0.00000001 or abs((m->>'target')::numeric-px*1.005)>px*0.00000001))
+       or (x->>'side'='SHORT' and (abs((m->>'stop')::numeric-px*1.01)>px*0.00000001 or abs((m->>'target')::numeric-px*0.995)>px*0.00000001))
+       then raise exception 'invalid VWAP_REV_1M entry'; end if;
+   else raise exception 'unknown combined strategy pattern'; end if;
+   if exists(select 1 from bot_trades where sym=x->>'sym' and scalp_meta->'q15'->>'pattern'=m->>'pattern' and (scalp_meta->'q15'->>'bar')::bigint=(m->>'bar')::bigint) then continue; end if;
   end if;
   lv:=least(25,greatest(1,coalesce((x->>'lev')::int,1)));
   mg:=least((x->>'notional')::numeric/lv,eq*0.15,greatest(0,eq*share-expo),greatest(0,cash/(1+lv*0.0005)));
