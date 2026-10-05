@@ -1,0 +1,43 @@
+name: DDDDD Snapshot
+on:
+  push:
+    paths:
+      - '.github/workflows/ddddd-snapshot.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+env:
+  PROJECT_REF: adxgadwghgkwmntsnrar
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Query DDDDD ledger
+        run: |
+          Q="with d as (select id,sym,side,entry_price,exit_price,size,pnl,pnl_pct,status,opened_at,closed_at,lev,scalp_meta from bot_trades where scalp_meta->'q15'->>'pattern'='DDDDD') select json_build_object('generated_at',now(),'total',count(*),'open',count(*) filter(where status='OPEN'),'closed',count(*) filter(where status<>'OPEN'),'wins',count(*) filter(where status<>'OPEN' and coalesce(pnl,0)>0),'losses',count(*) filter(where status<>'OPEN' and coalesce(pnl,0)<=0),'pnl_total',coalesce(sum(pnl) filter(where status<>'OPEN'),0),'avg_pnl',coalesce(avg(pnl) filter(where status<>'OPEN'),0),'avg_pnl_pct',coalesce(avg(pnl_pct) filter(where status<>'OPEN'),0),'rows',coalesce(json_agg(json_build_object('id',id,'sym',sym,'entry_price',entry_price,'exit_price',exit_price,'pnl',pnl,'pnl_pct',pnl_pct,'status',status,'opened_at',opened_at,'closed_at',closed_at,'lev',lev) order by id desc),'[]'::json)) as snapshot from d;"
+          jq -n --arg q "$Q" '{query:$q}' >/tmp/q.json
+          curl --fail-with-body -sS -X POST "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query"             -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" -H "Content-Type: application/json" --data @/tmp/q.json >/tmp/out.json
+          mkdir -p status
+          python3 - <<'PY'
+          import json
+          x=json.load(open('/tmp/out.json'))
+          if isinstance(x,dict):
+              x=x.get('result',x.get('data',x))
+          if isinstance(x,list) and len(x)==1 and isinstance(x[0],dict) and 'snapshot' in x[0]:
+              x=x[0]['snapshot']
+          elif isinstance(x,dict) and 'snapshot' in x:
+              x=x['snapshot']
+          if isinstance(x,str):
+              try:x=json.loads(x)
+              except:pass
+          open('status/ddddd-snapshot.json','w').write(json.dumps(x,indent=2,default=str))
+          print(json.dumps(x,indent=2,default=str))
+          PY
+      - name: Commit snapshot
+        run: |
+          git config user.name "snapshot-bot"; git config user.email "actions@github.com"
+          git add status/ddddd-snapshot.json
+          git commit -m "status: refresh DDDDD snapshot [skip ci]" || true
+          git pull --rebase origin main || true
+          git push || true
