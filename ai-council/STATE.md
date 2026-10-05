@@ -1,3 +1,12 @@
+## P-MARKET-FALLBACK — Binance HTTP 451 resilience (2026-10-06)
+- Status: PAPER_TEST. Owner requested repair after the deployed paper bot could not complete healthy cycles because Binance Futures REST returned HTTP 451 from the Supabase runtime.
+- GPT review: APPROVED for PAPER market-data resiliency. Claude review: APPROVED. Claude acknowledgement: **ACKNOWLEDGED**.
+- Binance remains the primary source. Order books fall back to Bybit linear, then OKX swap where symbol mapping is safe.
+- Q15/DDDDD/VWAP 1m and 5m candles fall back to Bybit linear and then OKX swap. Existing strategy rules, leverage, sizing, stops, targets and account balance are unchanged.
+- Exit replay keeps Binance aggTrades when available; under a Binance outage it reconstructs a conservative adverse-first 1m path from fallback candles so an intrabar stop is never favored behind a same-bar target. Funding falls back to Bybit funding history plus mark price.
+- PAPER ONLY. No account reset, no live exchange execution, no strategy relaxation.
+- Rollback: revert the fallback commits; do not reset the paper account.
+
 # AI Council State
 
 ## P-DDDDD + VWAP-REV-1M — combined paper experiment (2026-10-05)
