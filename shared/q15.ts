@@ -1,10 +1,9 @@
-// P-Q15: frozen 15m PAPER hypothesis. See quant/PREREGISTRATION_Q15.md.
-// MAX LOTTERY mode (owner 2026-10-05): max risk + soft filters so many trades open.
+// P-Q15 → Q1m LOTTERY: scan every 1 minute (owner 2026-10-05 paper only).
 import { labInd, type LBar } from './lab.ts'
 import { COST, roundTrip, type Book } from './costs.ts'
-export const Q15 = { barMs: 900000, entryWindowMs: 180000, zMin: 0.8, volMult: 1.2, imbMin: .03,
-  stopAtr: 1.5, stopFloor: .004, targetR: 2, holdMs: 7200000, lev: 25, perTrade: .15,
-  maxOpen: 20, share: .90, maxPerDay: 80, minNetBps: -999, quoteMaxMs: 8000, spreadMaxBps: 15,
+export const Q15 = { barMs: 60000, entryWindowMs: 50000, zMin: 0.8, volMult: 1.2, imbMin: .03,
+  stopAtr: 1.5, stopFloor: .004, targetR: 2, holdMs: 3600000, lev: 25, perTrade: .15,
+  maxOpen: 20, share: .90, maxPerDay: 200, minNetBps: -999, quoteMaxMs: 8000, spreadMaxBps: 15,
   impactOfStop: .40, minSamples: 10, minDays: 2 } as const
 export interface Q15Sig { dir: 1 | -1; atr: number; z: number; volRatio: number; imb: number; strength: number }
 export function q15Signal(b: LBar[], btcUp: boolean | null, isBtc: boolean): { sig: Q15Sig | null; reason: string } {
@@ -22,7 +21,6 @@ export function q15Signal(b: LBar[], btcUp: boolean | null, isBtc: boolean): { s
   if(volRatio<Q15.volMult) return no('volume')
   const v=b.slice(-3).reduce((s,x)=>s+x.vol,0), imb=v>0?b.slice(-3).reduce((s,x)=>s+2*x.tb!-x.vol,0)/v:NaN
   if(!Number.isFinite(imb)||dir*imb<=Q15.imbMin) return no('taker_imbalance')
-  // LOTTERY: do not require BTC direction alignment — more trades
   return {sig:{dir,atr:A,z,volRatio,imb,strength:Math.abs(z)*volRatio},reason:'signal'}
 }
 export function q15Levels(dir:1|-1,entry:number,atr:number) {
@@ -38,7 +36,7 @@ export function q15Edge(rows:{t0:number;closed_at:string;gross_bps:number;side:n
  const by=new Map<string,number[]>()
  for(const x of valid){const d=new Date(x.t0).toISOString().slice(0,10);by.set(d,[...(by.get(d)??[]),x.gross_bps])}
  const means=[...by.values()].map(a=>a.reduce((s,v)=>s+v,0)/a.length), n=valid.length, days=means.length
- if(n<Q15.minSamples||days<Q15.minDays)return {bps:0,n,days} // LOTTERY: missing edge → 0, do not block
+ if(n<Q15.minSamples||days<Q15.minDays)return {bps:0,n,days}
  const mean=means.reduce((s,v)=>s+v,0)/days, se=Math.sqrt(means.reduce((s,v)=>s+(v-mean)**2,0)/(days-1)/days)
  return {bps:mean-2*se,n,days}
 }
@@ -49,7 +47,7 @@ export function q15Gate(x:{book:Book;now:number;notional:number;dir:1|-1;rFrac:n
  if((b.ask-b.bid)/((b.ask+b.bid)/2)*1e4>Q15.spreadMaxBps)return no('wide_spread')
  if(x.beyond || Math.max(x.entryImpact,x.exitImpact)>Q15.impactOfStop*x.rFrac)return no('thin_book')
  if(x.funding===null||!Number.isFinite(x.funding)||!(x.fundingHours>0))return no('missing_funding')
- const gross=Number.isFinite(x.grossBps)?x.grossBps:0 // LOTTERY: no edge estimate still allowed
+ const gross=Number.isFinite(x.grossBps)?x.grossBps:0
  const cost=roundTrip(b,x.notional,x.dir,120,x.funding*COST.fundingHours/x.fundingHours)
  const spread=(b.ask-b.bid)/((b.ask+b.bid)/2)
  const walked=(2*COST.takerFee+spread+Math.max(COST.minSlip,x.entryImpact)+Math.max(COST.minSlip,x.exitImpact))*1e4+Math.max(0,cost.funding_bps)
