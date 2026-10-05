@@ -93,6 +93,9 @@ try{
  tape=[{p:'98',T:NOW-5000,a:1}];funding=[{fundingRate:'.001',markPrice:'100'}]
  let r=await exitRow(position(),NOW);assert.equal(r.close?.reason,'STOP');assert.equal(r.close?.funding,2,'funding is dollars for full size');assert.equal(r.close?.quote_ts,NOW);assert.equal(r.close?.fill.trigger_ts,NOW-5000)
  tape=[{p:'103',T:NOW-1,a:1}];funding=[];assert.equal((await exitRow(position(),NOW)).close?.reason,'TARGET','resting target fills at target after a crossing print')
+ let d5p=position();d5p.scalp_meta.q15.pattern='DDDDD';d5p.scalp_meta.q15.target=101;d5p.scalp_meta.q15.stop=99;d5p.scalp_meta.q15.r=1
+ tape=[{p:'100.5',T:NOW-1,a:1}];let d5u=await exitRow(d5p,NOW);assert.equal(d5u.close,null);assert.equal(d5u.update?.be_active,true,'DDDDD arms BE after +0.4%')
+ d5p.scalp_meta.q15.be_active=true;tape=[{p:'100.05',T:NOW-1,a:1}];assert.equal((await exitRow(d5p,NOW)).close?.reason,'BE_PROTECT','DDDDD protects an armed winner near fee break-even')
  tape=[{p:'95',T:NOW-1,a:1}];assert.equal((await exitRow(position(),NOW)).close?.reason,'LIQUIDATION')
  tape=[];let t=position();t.scalp_meta.q15.hold_ms=5000;assert.equal((await exitRow(t,NOW)).close?.reason,'TIMEOUT')
  assert.equal((await exitRow(position(),NOW)).update?.chk,NOW,'complete empty tape advances')
