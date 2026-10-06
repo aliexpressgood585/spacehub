@@ -169,11 +169,38 @@ robust_sub.sort(key=lambda x:(min(x["subset_first60"]["avg_bps"],x["subset_last3
 high_wr=[x for x in all_settings if x["subset90"]["n"]>=300 and x["subset90"]["avg_bps"]>0]
 high_wr.sort(key=lambda x:(x["subset90"]["wr"],x["subset90"]["avg_bps"],x["subset90"]["n"]),reverse=True)
 
+top_all=[x for x in all_settings if x["all10"]["n"]>=500]
+top_all.sort(key=lambda x:(x["all10"]["avg_bps"],x["all10"]["pf"],x["all10"]["n"]),reverse=True)
+top_all_wr=[x for x in top_all if x["all10"]["avg_bps"]>0]
+top_all_wr.sort(key=lambda x:(x["all10"]["wr"],x["all10"]["avg_bps"],x["all10"]["n"]),reverse=True)
+
+relaxed=[]
+for pat,side,tp,sl in keys:
+    per=[]
+    for r in res:
+        row=next(x for x in r["rows"] if x["pattern"]==pat and x["side"]==side and x["tp"]==tp and x["sl"]==sl)
+        per.append({"sym":r["sym"],**row})
+    selected=[x for x in per if x["all90"]["n"]>=40 and x["all90"]["avg_bps"]>0]
+    if not selected: continue
+    A=agg(selected,"all90"); F=agg(selected,"first60"); L=agg(selected,"last30")
+    if A["n"]>=150 and A["avg_bps"]>0:
+        relaxed.append({"pattern":pat,"side":side,"tp_pct":round(tp*100,3),"sl_pct":round(sl*100,3),
+          "symbols":[x["sym"] for x in selected],"all90":A,"first60":F,"last30":L})
+relaxed.sort(key=lambda x:(min(x["first60"]["avg_bps"],x["last30"]["avg_bps"]),x["all90"]["avg_bps"],x["all90"]["n"]),reverse=True)
+
+best_symbols=[]
+for r in res:
+    cand=[x for x in r["rows"] if x["all90"]["n"]>=100 and x["all90"]["avg_bps"]>0]
+    cand.sort(key=lambda x:(min(x["first60"]["avg_bps"],x["last30"]["avg_bps"]),x["all90"]["avg_bps"],x["all90"]["n"]),reverse=True)
+    best_symbols.append({"sym":r["sym"],"best":cand[:8]})
+
 report={"generated_at":datetime.now(timezone.utc).isoformat(),"window":"2026-07-08 through 2026-10-05 UTC",
  "symbols":SYMS,"timeframe":"1m","pattern_lengths":[1,2,3],"tp_grid_pct":[x*100 for x in TPS],"sl_grid_pct":[x*100 for x in SLS],
  "fee_roundtrip_pct":FEE*100,"horizon_minutes":HORIZON,
  "method":"entry after completed 1m color pattern; every R/G sequence length 1-3; LONG and SHORT; TP/SL grid; same-bar conflict=SL; unresolved exits at 60m close; per-pattern same-symbol overlap suppressed; fees included",
- "robust_all10":robust_all[:30],"robust_subsets":robust_sub[:40],"highest_wr_profitable_subsets":high_wr[:30]}
+ "robust_all10":robust_all[:30],"robust_subsets":robust_sub[:40],"highest_wr_profitable_subsets":high_wr[:30],
+ "top_all10_by_expectancy":top_all[:30],"top_all10_profitable_by_wr":top_all_wr[:30],
+ "relaxed_profitable_subsets":relaxed[:40],"best_per_symbol":best_symbols}
 
 print("DYN1M_RESULT_START")
 print(json.dumps(report,indent=2))
