@@ -153,7 +153,17 @@ for tf in TFS:
         by[p]={"all90":agg(a90),"first60":agg(a60),"last30":agg(a30),"per_symbol":per}
     ranked=sorted(by.items(),key=lambda kv:(kv[1]["all90"]["wr"],kv[1]["all90"]["n"]),reverse=True)
     robust=[{"pattern":p,**v} for p,v in ranked if v["all90"]["n"]>=150 and v["all90"]["wr"]>=58 and v["all90"]["pf"]>1 and v["first60"]["wr"]>=55 and v["last30"]["wr"]>=55]
-    report["results"][tf]={"robust58":robust[:20],
+    subsets=[]
+    for p,v in ranked:
+        selected=[x for x in v["per_symbol"] if x["all90"]["n"]>=20 and x["first60"]["n"]>=10 and x["last30"]["n"]>=5 and x["all90"]["wr"]>=58 and x["first60"]["wr"]>=58 and x["last30"]["wr"]>=58]
+        if not selected: continue
+        def ag(rows,key):
+            n=sum(x[key]["n"] for x in rows); wins=sum(round(x[key]["n"]*x[key]["wr"]/100) for x in rows); losses=n-wins
+            pos=wins*(TP-COST); neg=losses*(SL+COST)
+            return {"n":n,"wins":wins,"wr":round(100*wins/n,2) if n else 0,"pf":round(pos/neg,3) if neg else 999,"net_pct":round(100*(pos-neg),2)}
+        subsets.append({"pattern":p,"symbols":[x["sym"] for x in selected],"all90":ag(selected,"all90"),"first60":ag(selected,"first60"),"last30":ag(selected,"last30")})
+    subsets.sort(key=lambda x:(x["all90"]["n"]>=100,x["all90"]["wr"],x["all90"]["n"]),reverse=True)
+    report["results"][tf]={"robust58":robust[:20],"subsets58":subsets[:30],
                            "top20":[{"pattern":p,**v} for p,v in ranked[:20]]}
 
 print("MTF_RESULT_START")
