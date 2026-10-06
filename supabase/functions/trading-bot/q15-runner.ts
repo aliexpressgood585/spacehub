@@ -208,6 +208,19 @@ export async function runQ15(db:any,state:any,lease:string,paper:boolean){
  const {data:history}=await db.from('q15_shadow').select('t0,side,gross_bps,closed_at').eq('status','closed').order('closed_at',{ascending:false}).limit(5000).throwOnError()
  const edge={long:q15Edge(history??[],1,now),short:q15Edge(history??[],-1,now)}
  const {count:today}=await db.from('bot_trades').select('id',{count:'exact',head:true}).eq('strategy','Q15').gte('opened_at',new Date(now).toISOString().slice(0,10)+'T00:00:00Z').throwOnError()
+ const coinPerfPause=new Set<string>()
+ if(d5){
+  const {data:perfRows}=await db.from('bot_trades').select('sym,pnl,scalp_meta,closed_at').eq('strategy','Q15').neq('status','OPEN').order('closed_at',{ascending:false}).limit(1500).throwOnError()
+  const by=new Map<string,{n:number,w:number,pnl:number}>()
+  for(const t of perfRows??[]){
+   if(t?.scalp_meta?.q15?.pattern!=='DDDDD')continue
+   const z=by.get(t.sym)??{n:0,w:0,pnl:0}
+   if(z.n>=20)continue
+   const p=Number(t.pnl)||0
+   z.n++; if(p>0)z.w++; z.pnl+=p; by.set(t.sym,z)
+  }
+  for(const [sym,z] of by)if(z.n>=20&&(z.w/z.n<0.55||z.pnl<=0))coinPerfPause.add(sym)
+ }
  const entries:any[]=[],journal:any[]=[],shadows:any[]=[],held=new Set((allOpen??[]).filter((t:any)=>!closing.has(t.id)).map((t:any)=>t.sym))
  const vwapSignals=new Map<string,any>()
  if(vwapRev)for(const p of vwapPairs){const s=vwapRevSig(vwapData.get(p.sym)??[]);if(s)vwapSignals.set(p.sym,s)}
