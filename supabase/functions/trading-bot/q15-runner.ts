@@ -128,7 +128,7 @@ export async function exitRow(t:any,now:number){
 }
 export async function runQ15(db:any,state:any,lease:string,paper:boolean){
  if(!paper)throw new Error('Q15 is paper-only; refusing live execution')
- const now=Date.now(),cfg=q15Config(),params=state.bot_params??{},d5=params.paper_strategy==='DDDDD',vwapRev=d5,barMs=d5?D5.barMs:Q15.barMs,bar=Math.floor(now/barMs)*barMs
+ const now=Date.now(),cfg=q15Config(),params=state.bot_params??{},d5=params.paper_strategy==='DDDDD',vwapRev=false,barMs=d5?D5.barMs:Q15.barMs,bar=Math.floor(now/barMs)*barMs
  let autonomy=loadAutonomy(params)
  const policyId:PolicyId=pickPolicy(autonomy)
  const knobs=policyKnobs(policyId)
