@@ -2,7 +2,7 @@ import csv, io, json, urllib.request, zipfile, concurrent.futures, math
 from datetime import datetime, timezone
 
 SYMS=["ANKRUSDT","ARKUSDT","1000000MOGUSDT","AGTUSDT","SUSHIUSDT","LQTYUSDT","HYPERUSDT","KAVAUSDT","LUMIAUSDT","ALPINEUSDT"]
-TFS={"10m":600000}
+TFS={"30m":1800000}
 START=int(datetime(2026,7,8,tzinfo=timezone.utc).timestamp()*1000)
 END=int(datetime(2026,10,6,tzinfo=timezone.utc).timestamp()*1000)
 SPLIT=int(datetime(2026,9,6,tzinfo=timezone.utc).timestamp()*1000)
