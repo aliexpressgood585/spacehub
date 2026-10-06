@@ -1,5 +1,5 @@
 ## P-DDDDD-EXECUTION-V2 — owner requested merge/deploy (2026-10-06)
-- Status: APPROVED for PAPER deployment under the owner waiver; awaiting PR checks and release verification.
+- Status: PAPER_TEST; merged in PR #114 and deployed as 8c3bd77cd0aa42c5f9183c54e2d26fab89f3be17 (function version 351).
 - Owner explicitly requested proceeding **without Claude** for this change in the current session. This waiver is scoped to P-DDDDD-EXECUTION-V2 and branch `fix/ddddd-execution-quality`; no Claude approval is claimed.
 - GPT review: APPROVED for bounded PAPER execution-quality changes. Strategy, tape, shadow, type checks and PostgreSQL/WASM transaction tests passed locally. Independent GPT risk review completed; it is not a Claude review.
 - Frozen design and evaluation: `docs/DDDDD_EXECUTION_V2.md`.
@@ -8,6 +8,8 @@
 - Scope: tape pagination/source isolation/closed candle gaps; new-entry cost-aware protection and sizing; transactional minute equity samples; independent confirmation-shadow cohorts. Existing-position metadata retained.
 - Rollback: stop new v2 entries and restore a reviewed entry path; continue existing exits. No balance reset or trade deletion.
 - Pre-release 13:07 UTC: active PAPER and the existing reset guard verified; reset timestamp remains 2026-10-06 05:58:53 UTC. No claim of increased win rate before forward evidence.
+- Release verification 13:30 UTC: all PR checks passed; actual autonomous cycle healthy, execution_version=2, fresh marks, no exit errors, six equity observations, unchanged reset timestamp. No new confirmation cohorts yet.
+- GitHub's initial deployment smoke invocation ran outside the project region and lacked IN market data, although the deployed cron and local invocation were healthy. Deployment verification now explicitly uses the existing project/database region eu-central-1; no trading rule is relaxed.
 
 ## P-MARKET-FALLBACK-2 — Binance Vision public fallback (2026-10-06)
 - Status: PAPER_TEST. The first cross-exchange fallback still left some already-open Binance-only symbols without healthy exit/mark data.
