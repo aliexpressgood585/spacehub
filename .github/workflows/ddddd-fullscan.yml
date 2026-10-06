@@ -1,0 +1,123 @@
+name: Binance Futures DDDDD Full Scan
+on:
+  push:
+    paths:
+      - '.github/workflows/ddddd-fullscan.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan every active USDT perpetual
+        run: |
+          mkdir -p status
+          python3 - <<'PY'
+          import json, time, urllib.request, urllib.parse, math
+          from datetime import datetime, timezone, timedelta
+
+          BASE='https://fapi.binance.com'
+          UA={'User-Agent':'spacehub-ddddd-fullscan/1.0'}
+          def get(url,tries=6):
+              for i in range(tries):
+                  try:
+                      req=urllib.request.Request(url,headers=UA)
+                      with urllib.request.urlopen(req,timeout=30) as r:
+                          return json.loads(r.read())
+                  except Exception as e:
+                      if i==tries-1: raise
+                      time.sleep(min(2+i,8))
+          info=get(BASE+'/fapi/v1/exchangeInfo')
+          symbols=[s['symbol'] for s in info.get('symbols',[]) if s.get('status')=='TRADING' and s.get('contractType')=='PERPETUAL' and s.get('quoteAsset')=='USDT' and s.get('marginAsset')=='USDT']
+          symbols=sorted(set(symbols))
+          end=int(datetime.now(timezone.utc).timestamp()*1000)
+          start=end-30*24*60*60*1000
+          BAR=300000
+
+          def fetch_bars(sym):
+              out=[]; cur=start
+              while cur<end:
+                  q=urllib.parse.urlencode({'symbol':sym,'interval':'5m','startTime':cur,'endTime':end,'limit':1500})
+                  rows=get(BASE+'/fapi/v1/klines?'+q)
+                  if not isinstance(rows,list) or not rows: break
+                  out.extend(rows)
+                  nxt=int(rows[-1][0])+BAR
+                  if nxt<=cur: break
+                  cur=nxt
+                  # stay under Binance request-weight budget
+                  time.sleep(0.24)
+                  if len(rows)<1500: break
+              seen=set(); z=[]
+              for r in out:
+                  t=int(r[0])
+                  if t in seen: continue
+                  seen.add(t); z.append(r)
+              return z
+
+          def backtest(rows):
+              n=w=l=amb=0; gross=0.0
+              for i in range(5,len(rows)):
+                  prev=rows[i-5:i]
+                  if not all(float(x[4])<float(x[1]) for x in prev): continue
+                  entry=float(rows[i-1][4]); tp=entry*1.01; sl=entry*0.99
+                  n+=1; result=None
+                  for j in range(i,len(rows)):
+                      hi=float(rows[j][2]); lo=float(rows[j][3])
+                      # conservative intrabar rule: if both touched, count SL
+                      if lo<=sl and hi>=tp:
+                          amb+=1; result='L'; break
+                      if lo<=sl: result='L'; break
+                      if hi>=tp: result='W'; break
+                  if result=='W': w+=1; gross+=0.01
+                  else: l+=1; gross-=0.01
+              wr=100*w/n if n else 0.0
+              # Approx 10 bps round-trip taker fees per trade.
+              net_pct=(gross - n*0.001)*100
+              return {'signals':n,'wins':w,'losses':l,'win_rate':round(wr,2),'ambiguous_bars':amb,'net_unlevered_pct_sum':round(net_pct,3)}
+
+          results=[]; errors=[]
+          for idx,sym in enumerate(symbols,1):
+              try:
+                  rows=fetch_bars(sym)
+                  r=backtest(rows)
+                  r.update({'symbol':sym,'bars':len(rows)})
+                  results.append(r)
+                  print(f"[{idx}/{len(symbols)}] {sym}: n={r['signals']} WR={r['win_rate']}% net={r['net_unlevered_pct_sum']}%",flush=True)
+              except Exception as e:
+                  errors.append({'symbol':sym,'error':str(e)[:200]})
+                  print(f"[{idx}/{len(symbols)}] {sym}: ERROR {e}",flush=True)
+
+          ranked=sorted(results,key=lambda x:(x['win_rate'],x['signals']),reverse=True)
+          qualified=[r for r in ranked if r['signals']>=20 and r['win_rate']>=75 and r['net_unlevered_pct_sum']>0]
+          strong=[r for r in ranked if r['signals']>=20 and r['win_rate']>=65 and r['net_unlevered_pct_sum']>0]
+          report={
+            'generated_at':datetime.now(timezone.utc).isoformat(),
+            'window_days':30,
+            'strategy':'5 red 5m candles -> LONG, TP +1%, SL -1%, conservative same-bar conflict, ~0.10% round-trip fees',
+            'symbols_total':len(symbols),
+            'symbols_scanned':len(results),
+            'errors':errors,
+            'qualified_75_min20':qualified,
+            'strong_65_min20':strong,
+            'all':ranked
+          }
+          with open('status/ddddd-binance-fullscan.json','w') as f: json.dump(report,f,indent=2)
+          with open('status/ddddd-binance-fullscan.csv','w') as f:
+              f.write('symbol,signals,wins,losses,win_rate,net_unlevered_pct_sum,bars,ambiguous_bars\n')
+              for r in ranked:
+                  f.write(f"{r['symbol']},{r['signals']},{r['wins']},{r['losses']},{r['win_rate']},{r['net_unlevered_pct_sum']},{r['bars']},{r['ambiguous_bars']}\n")
+          print('QUALIFIED75',json.dumps(qualified[:50]),flush=True)
+          print('TOP20',json.dumps(ranked[:20]),flush=True)
+          print('SCANNED',len(results),'OF',len(symbols),'ERRORS',len(errors),flush=True)
+          PY
+      - name: Commit results
+        run: |
+          git config user.name "fullscan-bot"
+          git config user.email "actions@github.com"
+          git add status/ddddd-binance-fullscan.json status/ddddd-binance-fullscan.csv
+          git commit -m "status: full Binance Futures DDDDD scan [skip ci]" || true
+          git pull --rebase origin main || true
+          git push || true
