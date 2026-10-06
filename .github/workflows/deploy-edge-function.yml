@@ -133,7 +133,8 @@ jobs:
           jq -e 'type == "array"' /tmp/ddddd-result.json >/dev/null || { cat /tmp/ddddd-result.json; exit 1; }
 
       - name: Verify actual autonomous paper cycle after deploy
-        run: python3 scripts/smoke-paper-bot.py "https://${{ env.PROJECT_REF }}.supabase.co/functions/v1/trading-bot"
+        # Verify in the database/cron region, independent of GitHub runner location.
+        run: python3 scripts/smoke-paper-bot.py "https://${{ env.PROJECT_REF }}.supabase.co/functions/v1/trading-bot?forceFunctionRegion=eu-central-1"
 
       - name: Deploy observation-only flow collector
         run: |
