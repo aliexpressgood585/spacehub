@@ -52,10 +52,17 @@ jobs:
           def fetch(url):
               req=urllib.request.Request(url,headers={'User-Agent':'spacehub-confirm-analysis/1'})
               with urllib.request.urlopen(req,timeout=15) as r:return json.loads(r.read())
-          def pair(sym):
-              return ('1000PEPEUSDT',1000.0) if sym=='PEPE' else (sym+'USDT',1.0)
-          def klines(sym,interval,start,end,limit=1500):
-              s,k=pair(sym); out=[]; cur=start
+          def pair_of(row):
+              sym=str(row.get('sym') or '')
+              m=row.get('scalp_meta') or {}
+              q=m.get('q15') or {} if isinstance(m,dict) else {}
+              p=q.get('pair') or {} if isinstance(q,dict) else {}
+              s=str(p.get('s') or (('1000PEPEUSDT' if sym=='PEPE' else sym+'USDT')))
+              try:k=float(p.get('k') or (1000.0 if sym=='PEPE' else 1.0))
+              except:k=1.0
+              return s,k
+          def klines(row,interval,start,end,limit=1500):
+              s,k=pair_of(row); out=[]; cur=start
               step=60000 if interval=='1m' else 300000
               while cur<=end and len(out)<5000:
                   lim=min(limit,max(1,int((end-cur)/step)+2))
@@ -103,7 +110,7 @@ jobs:
               sym=str(r['sym']); opened=ms(r['opened_at']); closed=ms(r['closed_at'])
               first=(opened//BAR)*BAR
               try:
-                  b5=klines(sym,'5m',first,opened+15*60*1000,50)
+                  b5=klines(r,'5m',first,opened+15*60*1000,50)
               except Exception: b5=[]
               cand=[x for x in b5 if x[0]+BAR>opened and x[0]+BAR<=opened+15*60*1000]
               cand=sorted(cand)
@@ -117,7 +124,7 @@ jobs:
               if conf_ts>=closed:
                   item['reason']='confirmation_after_actual_exit'; results.append(item); continue
               conf_entry=green[4]
-              try: b1=klines(sym,'1m',conf_ts,closed,1500)
+              try: b1=klines(r,'1m',conf_ts,closed,1500)
               except Exception: b1=[]
               b1=[x for x in b1 if x[0]>=conf_ts and x[0]<=closed]
               if not b1:
@@ -148,7 +155,7 @@ jobs:
           actual_pnl=sum(float(r.get('pnl') or 0) for r in rows)
           out={
             'generated_at':datetime.now(timezone.utc).isoformat(),
-            'method':'first green 5m candle within 15m after baseline DDDDD entry; proxy entry at green close; evaluate until original trade close; conservative 1m OHLC stop-first; 10bp round-trip costs',
+            'method':'first green 5m candle within 15m after baseline DDDDD entry; exact stored futures symbol; proxy entry at green close; evaluate until original trade close; conservative 1m OHLC stop-first; 10bp round-trip costs',
             'actual':{'closed':len(rows),'wins':actual_wins,'win_rate_pct':round(100*actual_wins/len(rows),2) if rows else None,'pnl_usd':round(actual_pnl,2)},
             'confirmation':{'eligible':len(ex),'skipped':len(skips),'selection_pct':round(100*len(ex)/len(rows),2) if rows else None},
             'plain_1pct_1pct':summary('plain_net'),
