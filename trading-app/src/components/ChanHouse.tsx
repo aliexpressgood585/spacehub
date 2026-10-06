@@ -1,7 +1,7 @@
 import { FlowShadow } from './FlowShadow'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { SUPA_KEY, SUPA_URL } from '../supa'
-import { useLivePrices, useExitMarks } from '../livePrices'
+import { useLivePrices, useExitMarks, tickDir } from '../livePrices'
 import { tradeMetrics, closeValue } from '../tradeMetrics'
 import { tradeCosts } from './HistoryPage'
 
@@ -232,7 +232,7 @@ function BladeHouse({ onBack, agg = false, q15 = false }: { onBack?: () => void;
   const lags: number[] = (Array.isArray(bc.list_lags) ? bc.list_lags : []).filter((x: number) => Number.isFinite(x))
   const lagMed = lags.length ? [...lags].sort((a, b) => a - b)[Math.floor(lags.length / 2)] : null
   const shadowClosed = events.filter(e => e.mode === 'shadow' && e.status === 'closed'), shadowNet = shadowClosed.reduce((s, e) => s + Number(e.net ?? 0), 0)
-  const { marks: exitMarks } = useExitMarks(open.map(t => ({ sym: String(t.sym), side: String(t.side), entry: Number(t.entry_price) })))
+  const { marks: exitMarks, wsOn: priceWsOn, ticks: liveTicks } = useExitMarks(open.map(t => ({ sym: String(t.sym), side: String(t.side), entry: Number(t.entry_price) })))
   const posRows = open.map(t => { const em = exitMarks[`${t.sym}:${t.side}`] ?? { mark: null }
     return { t, mark: em.mark, src: em.src, tm: em.mark != null ? tradeMetrics(t, em.mark, now) : null,
       value: em.mark != null ? closeValue(t, em.mark, now) : Number(t.entry_price) * Number(t.size) / Math.max(1, Number(t.lev) || 1) } })
@@ -255,6 +255,26 @@ function BladeHouse({ onBack, agg = false, q15 = false }: { onBack?: () => void;
       <a className="chip" href="./history.html" style={{color:'#93c5fd',textDecoration:'none'}}>📜 היסטוריית פוזיציות ועמלות</a>
     </div>
     {err && <div className="readerr">שגיאת קריאה: {err}</div>}
+    <section className="marketTape" aria-label="מחירי שוק חיים">
+      <div className="tapeHead">
+        <div><b>LIVE MARKET TAPE</b><span>זרימה ישירה של המחיר בכל Tick · Binance Futures מועדף, עם Bybit/OKX fallback</span></div>
+        <span className={`tapeStatus ${priceWsOn ? 'on' : ''}`}><i />{priceWsOn ? 'Binance WS מחובר' : 'Fallback חי'}</span>
+      </div>
+      <div className="tapeRows">
+        {open.length === 0 ? <span className="tapeEmpty">אין פוזיציות פתוחות להצגה כרגע</span> :
+          [...new Set(open.map(t => String(t.sym)))].map(sym => {
+            const tk = liveTicks[sym], d = tickDir(tk), age = tk?.t ? Math.max(0, Date.now() - tk.t) : null
+            return <div className={`tapeCell ${d}`} key={sym}>
+              <b>{sym}</b>
+              <bdi dir="ltr" className="tapePrice">{tk ? fmtPx(tk.px) : 'טוען…'}</bdi>
+              <span className={tk?.chg24 == null ? '' : tk.chg24 >= 0 ? 'pos' : 'neg'}>
+                {tk?.chg24 == null ? '—' : `${tk.chg24 >= 0 ? '+' : ''}${(tk.chg24*100).toFixed(2)}%`}
+              </span>
+              <small>{tk?.src ?? 'ממתין'}{age != null ? ` · ${age < 1000 ? '<1ש׳' : Math.round(age/1000)+'ש׳'}` : ''}</small>
+            </div>
+          })}
+      </div>
+    </section>
     {agg && !q15 && <div className="emptyPos" style={{textAlign:'right',padding:'12px 14px',marginBottom:14,borderStyle:'solid',color:'#fbbf24'}}>
       דרגה 2 (נייר בלבד): FAST בזמן אמת במינוף 10 מבודד, 5% מההון לעסקה, עד 8 פתוחות, ורק אם שער הרווח עובר (הרווח הגולמי שנמדד לאותות FAST עצמם, פחות כל העלויות, לפחות 2bp). EVT על הודעות listing / delisting במינוף 10 מבודד, 8% לאירוע, עד 3 פתוחות, בלי שער רווח. DONCH4H במינוף 1, סיכון 1.25%, עם פירמידה. הבלם היחיד: ירידה של 12% מתחילת היום (UTC) עוצרת כניסות חדשות עד חצות; יציאות ממשיכות.
       <div style={{marginTop:6}}>שער FAST: {fc.gate?.edge ? (fc.gate.edge.n > 0 ? `רווח גולמי נמדד ${fc.gate.edge.mean} bp (t ${fc.gate.edge.t}, ${fc.gate.edge.buckets} חלונות) → בשימוש ${fc.gate.edge.bps} bp` : `אין עדיין מדידה (${fc.gate.edge.buckets ?? 0} מתוך 30 חלונות של 15 דק׳) — FAST לא נכנס`) : '—'} · מינוף FAST {fc.lev ?? '—'}x · אותות שנרשמו בסבב {fc.shadows ?? 0}</div>
@@ -1480,6 +1500,7 @@ h1{font-size:24px;margin:0 8px 0 0}.back{background:none;border:1px solid #22315
 .chip{border:1px solid #223150;border-radius:999px;padding:6px 12px;color:#94a3b8}.chip.ok{color:#34d399;border-color:#166534}.chip.bad{color:#f87171;border-color:#991b1b}
 .warn{background:#2a1a05;border:1px solid #92400e;color:#fbbf24;border-radius:16px;padding:15px 18px;margin-bottom:18px;font-size:15px;line-height:1.55}
 .readerr{color:#f87171;margin-bottom:10px}.lcard{background:#09121f;border:1px solid #1e293b;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px}.lhead{display:flex;gap:8px;align-items:center}.lhead b{font-size:20px}.lside{color:#f87171;border:1px solid #7f1d1d;border-radius:8px;padding:2px 8px;font-size:12px}.lsrc{margin-inline-start:auto;color:#64748b;font-size:11px}.lpx{display:flex;justify-content:space-between;align-items:baseline;gap:8px}.lpx bdi:first-child{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}.lpx bdi:last-child{font-size:16px;font-weight:700}.lbar{position:relative;height:10px;background:linear-gradient(90deg,#3b0d14,#0d2a1f);border-radius:6px;overflow:visible}.lfill{position:absolute;inset:0 auto 0 0;background:rgba(52,211,153,.45);border-radius:6px;transition:width .3s}.lentry{position:absolute;top:-4px;width:2px;height:18px;background:#e2e8f0}.llabels{display:flex;justify-content:space-between;font-size:11px;color:#64748b}.lgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.lgrid .mini{background:#0b1626;border-radius:10px;padding:6px 8px;display:flex;flex-direction:column;font-size:11px;color:#64748b}.lgrid .mini bdi{color:#e2e8f0;font-size:13px;font-weight:700}.lchart{background:#13233b;color:#93c5fd;border:1px solid #1e3a5f;border-radius:10px;padding:8px;font-size:14px;cursor:pointer}.lfeed{display:flex;flex-direction:column;gap:6px;max-height:420px;overflow:auto}.lev{display:grid;grid-template-columns:70px 1fr;gap:2px 10px;padding:8px 10px;border-radius:10px;background:#09121f;border-inline-start:3px solid #334155}.lev time{grid-row:span 2;color:#64748b;font-size:12px}.lev span{color:#94a3b8;font-size:12px}.lev.open{border-color:#f59e0b}.lev.win{border-color:#10b981}.lev.loss{border-color:#ef4444}.lev.scan{border-color:#3b82f6}.pos{color:#34d399!important}.neg{color:#f87171!important}
+.marketTape{background:#050d17;border:1px solid #16324a;border-radius:16px;margin:0 0 14px;overflow:hidden}.tapeHead{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 13px;border-bottom:1px solid #14283a}.tapeHead>div{display:flex;flex-direction:column;gap:2px}.tapeHead b{font-size:13px;color:#dbeafe}.tapeHead span{font-size:10px;color:#64748b}.tapeStatus{display:flex!important;align-items:center;gap:6px;white-space:nowrap}.tapeStatus i{width:7px;height:7px;border-radius:50%;background:#f59e0b}.tapeStatus.on{color:#34d399!important}.tapeStatus.on i{background:#34d399;box-shadow:0 0 10px #34d399}.tapeRows{display:flex;gap:1px;overflow-x:auto;background:#101827}.tapeCell{min-width:142px;background:#07111d;padding:9px 10px;display:grid;grid-template-columns:auto 1fr;gap:3px 8px;align-items:baseline;transition:background .12s ease}.tapeCell.up{animation:tickUp .32s ease}.tapeCell.down{animation:tickDown .32s ease}.tapeCell>b{font-size:12px}.tapePrice{font-size:17px;font-weight:900;font-variant-numeric:tabular-nums;text-align:left}.tapeCell>span{font-size:11px;font-weight:750;text-align:left}.tapeCell>small{grid-column:1/-1;color:#526074;font-size:9px}.tapeEmpty{padding:12px;color:#64748b;background:#07111d;width:100%}@keyframes tickUp{0%{background:rgba(16,185,129,.28)}100%{background:#07111d}}@keyframes tickDown{0%{background:rgba(239,68,68,.25)}100%{background:#07111d}}
 .accountStrip{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:9px;margin-bottom:18px}.stat{background:#09121f;border:1px solid #1e293b;border-radius:13px;padding:11px 12px;display:flex;flex-direction:column;gap:5px}.stat span{font-size:11px;color:#64748b}.stat bdi{font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;transition:color .12s ease,transform .12s ease}
 .panel,.factory,.positions{background:#0b1220;border:1px solid #1e293b;border-radius:18px;padding:18px}.panel,.positions{margin-bottom:18px}
 .panel h2,.factory h2,.positions h2{font-size:23px;text-align:center;margin:0 0 8px}.muted{color:#64748b;text-align:center;line-height:1.45;margin:0 0 16px}
