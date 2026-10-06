@@ -60,17 +60,30 @@ export function useLivePrices(symbols: string[]): Ticks {
       ws.onerror = () => { try { ws?.close() } catch { /* closing */ } }
     }
 
-    // Binance futures, one combined stream (a connection carries up to 200 streams)
-    for (let i = 0; i < syms.length; i += 150) {
-      const part = syms.slice(i, i + 150)
+    // Binance futures: bookTicker updates on every best-bid/ask change; miniTicker keeps 24h change.
+    // Both ride the same combined websocket so the dashboard feels like a real exchange tape instead of a 1s poll.
+    for (let i = 0; i < syms.length; i += 120) {
+      const part = syms.slice(i, i + 120)
       open(() => {
-        const ws = new WebSocket(`wss://fstream.binance.com/stream?streams=${part.map((s) => `${bn(s).s.toLowerCase()}@miniTicker`).join('/')}`)
+        const streams = part.flatMap((s) => {
+          const x = bn(s).s.toLowerCase()
+          return [`${x}@bookTicker`, `${x}@miniTicker`]
+        }).join('/')
+        const ws = new WebSocket(`wss://fstream.binance.com/stream?streams=${streams}`)
         ws.onmessage = (e) => {
           try {
-            const d = JSON.parse(String(e.data)).data
+            const wrap = JSON.parse(String(e.data)), d = wrap?.data
             const sym = bnRev.get(String(d?.s)); if (!sym) return
-            const k = bn(sym).k, c = Number(d.c) / k, o = Number(d.o) / k
-            put(sym, c, o > 0 ? (c - o) / o : null, 'Binance', Number(d.E) || Date.now())
+            const k = bn(sym).k
+            if (d?.b !== undefined && d?.a !== undefined) {
+              const bid = Number(d.b) / k, ask = Number(d.a) / k
+              if (bid > 0 && ask > 0) put(sym, (bid + ask) / 2, null, 'Binance', Number(d.E) || Date.now())
+              return
+            }
+            if (d?.c !== undefined) {
+              const last = Number(d.c) / k, o = Number(d.o) / k
+              put(sym, last, o > 0 ? (last - o) / o : null, 'Binance', Number(d.E) || Date.now())
+            }
           } catch { /* malformed frame */ }
         }
         return ws
