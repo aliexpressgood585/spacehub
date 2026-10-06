@@ -4,12 +4,12 @@ BEGIN
  PERFORM pg_advisory_xact_lock(7151501);
  PERFORM id FROM public.bot_state WHERE id=1 FOR UPDATE;
  IF NOT EXISTS(SELECT 1 FROM public.bot_state WHERE id=1 AND paper_mode=true) THEN RAISE EXCEPTION 'paper account required'; END IF;
- IF EXISTS(SELECT 1 FROM public.paper_reset_archive WHERE run_key='DDDDD-20261005') THEN RETURN; END IF;
+ IF EXISTS(SELECT 1 FROM public.paper_reset_archive WHERE run_key='DDDDD-TOP10-25X-20261006') THEN RETURN; END IF;
  -- Revoking the previous lease makes any in-flight old worker fail its next ledger write.
-INSERT INTO public.paper_reset_archive SELECT 'DDDDD-20261005','bot_state',to_jsonb(t),now() FROM public.bot_state t WHERE id=1;
-INSERT INTO public.paper_reset_archive SELECT 'DDDDD-20261005','bot_trades',to_jsonb(t),now() FROM public.bot_trades t;
-INSERT INTO public.paper_reset_archive SELECT 'DDDDD-20261005','bot_trade_snapshots',to_jsonb(t),now() FROM public.bot_trade_snapshots t;
-INSERT INTO public.paper_reset_archive SELECT 'DDDDD-20261005','bot_equity',to_jsonb(t),now() FROM public.bot_equity t;
+INSERT INTO public.paper_reset_archive SELECT 'DDDDD-TOP10-25X-20261006','bot_state',to_jsonb(t),now() FROM public.bot_state t WHERE id=1;
+INSERT INTO public.paper_reset_archive SELECT 'DDDDD-TOP10-25X-20261006','bot_trades',to_jsonb(t),now() FROM public.bot_trades t;
+INSERT INTO public.paper_reset_archive SELECT 'DDDDD-TOP10-25X-20261006','bot_trade_snapshots',to_jsonb(t),now() FROM public.bot_trade_snapshots t;
+INSERT INTO public.paper_reset_archive SELECT 'DDDDD-TOP10-25X-20261006','bot_equity',to_jsonb(t),now() FROM public.bot_equity t;
 DELETE FROM public.bot_trade_snapshots;
 DELETE FROM public.bot_trades;
 DELETE FROM public.bot_equity;
