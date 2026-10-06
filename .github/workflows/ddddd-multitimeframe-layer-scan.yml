@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - name: Optimize TP/SL all active strategies 3y
+      - name: Search robust 3y entry filters
         run: |
           python3 -m pip install --quiet numpy
-          python3 scripts/optimize-3year-tpsl.py
+          python3 scripts/search-3year-entry-filters.py
