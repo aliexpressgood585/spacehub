@@ -3,9 +3,9 @@
 // Bandit + shadow scores; promote = reweight, not de-risk.
 
 export const HARD_FLOOR = {
-  lev: 25,
+  lev: 15,
   perTrade: 0.15,
-  maxOpen: 20,
+  maxOpen: 8,
   share: 0.90,
   maxPerDay: 200,
   barMs: 60_000,
