@@ -39,6 +39,11 @@ jobs:
                 for r in rows: w.writerow([r[0],r[1],r[2],r[3],r[4],r[5]])
               print(out,len(rows))
           PY
+      - name: Search 90pct scenarios
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python quant/search90.py | tee search90.txt
       - name: Run frozen SHORT75 test
         run: PYTHONPATH=. python quant/run_short75.py | tee short75.txt
       - uses: actions/upload-artifact@v4
@@ -46,4 +51,6 @@ jobs:
           name: short75-report
           path: |
             short75.txt
+            search90.txt
             quant/reports/SHORT75_REPORT.json
+            quant/reports/SEARCH90_REPORT.json
