@@ -22,7 +22,7 @@ begin
  select * into strict s from bot_state where id=1 for update;
  if p_lease is null or s.lock_until is distinct from p_lease or clock_timestamp()>p_lease then raise exception 'stale q15 lease'; end if;
  if not s.active or not s.paper_mode then raise exception 'q15 requires active paper account'; end if;
- if exists(select 1 from bot_trades where status='OPEN' and (paper_mode is not true or strategy not in ('Q15','EVT','DONCH4H') or lev<1 or lev>case when strategy='DONCH4H' then 1 else 30 end)) then raise exception 'q15 book holds an incompatible or non-paper row'; end if;
+ if exists(select 1 from bot_trades where status='OPEN' and (paper_mode is not true or strategy not in ('Q15','EVT','DONCH4H') or lev<1 or lev>case when strategy='DONCH4H' then 1 else 35 end)) then raise exception 'q15 book holds an incompatible or non-paper row'; end if;
  d5:=coalesce(s.bot_params->>'paper_strategy','')='DDDDD';
  cash:=s.balance; cfg:=coalesce(s.bot_params,'{}')||jsonb_build_object('q15_marks_blocked',not coalesce((p_note->>'marks_fresh')::boolean,false));
  if p_note->>'execution_version'='2' then cfg:=cfg||jsonb_build_object('d5_execution_version',2); end if;
@@ -169,6 +169,30 @@ begin
        or abs((m->>'stop')::numeric-px*0.99)>px*0.00000001
        or abs((m->>'target')::numeric-px*1.01)>px*0.00000001
        then raise exception 'invalid R6_10M entry'; end if;
+   elsif m->>'pattern'='FALL5_30M' then
+    if x->>'side' is distinct from 'LONG'
+       or coalesce((x->>'lev')::int,0)<>35
+       or coalesce((m->>'execution_version')::int,0)<>2
+       or coalesce((m->'gate'->>'costBps')::numeric,-1) not between 0 and 50
+       or coalesce((m->>'hold_ms')::bigint,-1)<>0
+       or (m->>'bar')::bigint%1800000<>0
+       or extract(epoch from clock_timestamp())*1000-(m->>'bar')::bigint not between 0 and 1800000
+       or x->>'sym'<>'KAVA'
+       or abs((m->>'stop')::numeric-px*0.99)>px*0.00000001
+       or abs((m->>'target')::numeric-px*1.01)>px*0.00000001
+       then raise exception 'invalid FALL5_30M entry'; end if;
+   elsif m->>'pattern'='FALL4_30M' then
+    if x->>'side' is distinct from 'LONG'
+       or coalesce((x->>'lev')::int,0)<>35
+       or coalesce((m->>'execution_version')::int,0)<>2
+       or coalesce((m->'gate'->>'costBps')::numeric,-1) not between 0 and 50
+       or coalesce((m->>'hold_ms')::bigint,-1)<>0
+       or (m->>'bar')::bigint%1800000<>0
+       or extract(epoch from clock_timestamp())*1000-(m->>'bar')::bigint not between 0 and 1800000
+       or x->>'sym'<>'ANKR'
+       or abs((m->>'stop')::numeric-px*0.99)>px*0.00000001
+       or abs((m->>'target')::numeric-px*1.01)>px*0.00000001
+       then raise exception 'invalid FALL4_30M entry'; end if;
    elsif m->>'pattern'='VWAP_REV_1M' then
     if coalesce((m->>'hold_ms')::bigint,-1)<>3600000
        or (x->>'side'='LONG' and (abs((m->>'stop')::numeric-px*0.99)>px*0.00000001 or abs((m->>'target')::numeric-px*1.005)>px*0.00000001))
@@ -177,7 +201,7 @@ begin
    else raise exception 'unknown combined strategy pattern'; end if;
    if exists(select 1 from bot_trades where sym=x->>'sym' and scalp_meta->'q15'->>'pattern'=m->>'pattern' and (scalp_meta->'q15'->>'bar')::bigint=(m->>'bar')::bigint) then continue; end if;
   end if;
-  lv:=least(30,greatest(1,coalesce((x->>'lev')::int,1)));
+  lv:=least(35,greatest(1,coalesce((x->>'lev')::int,1)));
   mg:=least((x->>'notional')::numeric/lv,eq*0.15,greatest(0,eq*share-expo),greatest(0,cash/(1+lv*0.0005)));
   if mg<5 or mg is null or mg='NaN'::numeric then continue; end if;
   n:=mg*lv;
@@ -197,6 +221,7 @@ begin
  if d5 and p_note ? 'd5_scan' then cfg:=cfg||jsonb_build_object('d5_scan',p_note->'d5_scan'); end if;
  if d5 and p_note ? 'r3_scan_bar' then cfg:=cfg||jsonb_build_object('r3_scan_bar',p_note->'r3_scan_bar'); end if;
  if d5 and p_note ? 'l10_scan_bar' then cfg:=cfg||jsonb_build_object('l10_scan_bar',p_note->'l10_scan_bar'); end if;
+ if d5 and p_note ? 'l30_scan_bar' then cfg:=cfg||jsonb_build_object('l30_scan_bar',p_note->'l30_scan_bar'); end if;
  if p_note ? 'q15_autonomy' then cfg:=cfg||jsonb_build_object('q15_autonomy',p_note->'q15_autonomy'); end if;
  if p_bar is not null then cfg:=cfg||jsonb_build_object('q15_bar',p_bar); end if;
  -- Final marked equity and observations commit under the same account lock.
