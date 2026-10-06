@@ -65,3 +65,27 @@ export function red6Signal10m(b:LBar[],bar:number){
     ? {sig:{dir:1 as const,atr:0},reason:'R6_10M'}
     : {sig:null,reason:xs?'not_R6_10M':'invalid_bars'}
 }
+
+
+export const L30 = {
+  barMs: 1_800_000,
+  lev: 35,
+  fall5Symbols: ['KAVAUSDT'] as const,
+  fall4Symbols: ['ANKRUSDT'] as const,
+} as const
+
+function valid30(b:LBar[],bar:number,n:number){
+  const xs=b.slice(-n)
+  return xs.length===n&&xs.every((x,i)=>
+    x.t===bar-(n-i)*L30.barMs&&
+    [x.open,x.close,x.high,x.low].every(Number.isFinite)&&
+    x.low>0&&x.high>=Math.max(x.open,x.close)&&x.low<=Math.min(x.open,x.close)
+  )?xs:null
+}
+
+export function fallSignal30m(b:LBar[],bar:number,n:4|5){
+  const xs=valid30(b,bar,n)
+  return xs&&xs.every((x,i)=>i===0||xs[i-1].close>x.close)
+    ? {sig:{dir:1 as const,atr:0},reason:`FALL${n}_30M`}
+    : {sig:null,reason:xs?`not_FALL${n}_30M`:'invalid_bars'}
+}
