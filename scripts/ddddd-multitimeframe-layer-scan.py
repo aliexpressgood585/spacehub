@@ -2,7 +2,7 @@ import csv, io, json, urllib.request, zipfile, concurrent.futures, math
 from datetime import datetime, timezone
 
 SYMS=["ANKRUSDT","ARKUSDT","1000000MOGUSDT","AGTUSDT","SUSHIUSDT","LQTYUSDT","HYPERUSDT","KAVAUSDT","LUMIAUSDT","ALPINEUSDT"]
-TFS={"3m":180000}
+TFS={"10m":600000}
 START=int(datetime(2026,7,8,tzinfo=timezone.utc).timestamp()*1000)
 END=int(datetime(2026,10,6,tzinfo=timezone.utc).timestamp()*1000)
 SPLIT=int(datetime(2026,9,6,tzinfo=timezone.utc).timestamp()*1000)
@@ -28,8 +28,9 @@ def load_zip(url):
         return []
 
 def load(sym,tf):
-    urls=[f"{BASE}/monthly/klines/{sym}/{tf}/{sym}-{tf}-2026-{m:02d}.zip" for m in (7,8,9)]
-    urls += [f"{BASE}/daily/klines/{sym}/{tf}/{sym}-{tf}-2026-10-{d:02d}.zip" for d in range(1,6)]
+    src="5m" if tf=="10m" else tf
+    urls=[f"{BASE}/monthly/klines/{sym}/{src}/{sym}-{src}-2026-{m:02d}.zip" for m in (7,8,9)]
+    urls += [f"{BASE}/daily/klines/{sym}/{src}/{sym}-{src}-2026-10-{d:02d}.zip" for d in range(1,6)]
     a=[]
     for u in urls: a.extend(load_zip(u))
     a.sort(key=lambda x:x[0])
@@ -37,7 +38,18 @@ def load(sym,tf):
     for x in a:
         if x[0] not in seen:
             seen.add(x[0]); z.append(x)
-    return z
+    if tf!="10m": return z
+    out=[]
+    i=0
+    while i+1<len(z):
+        a,b=z[i],z[i+1]
+        bucket=(a[0]//600000)*600000
+        if a[0]==bucket and b[0]==a[0]+300000:
+            out.append((a[0],a[1],max(a[2],b[2]),min(a[3],b[3]),b[4]))
+            i+=2
+        else:
+            i+=1
+    return out
 
 class Seg:
     def __init__(self,arr,mode):
