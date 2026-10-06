@@ -349,7 +349,7 @@ export async function runQ15(db:any,state:any,lease:string,paper:boolean){
  }catch(e:any){errors.push('autonomy:'+String(e.message).slice(0,80))}
  const firstFailed=d5?pairs.findIndex(p=>failures.has(p.sym)):-1
  const nextCursor=cursor+(firstFailed<0?pairs.length:firstFailed)
- const d5Scan={bar,cursor:nextCursor,done:nextCursor>=universe.length}
+ const d5Scan=d5Due?{bar,cursor:nextCursor,done:nextCursor>=universe.length}:(params.d5_scan??{bar,cursor:universe.length,done:true})
  const note={...(d5?{strategy:'DDDDD',execution_version:D5_EXEC.version,d5_scan:d5Scan,...(r3Due?{r3_scan_bar:bar3}:{})}:{}),bar,scanned_at:now,scan_lag_ms:now-bar,scan_duration_ms:Date.now()-now,universe:universe.length,scanned:data.size,candidates,fills:0,reasons,edge,halted,marks_fresh:markHealthy,exit_errors:errors,autonomy:d5?{active:'DDDDD',floor:{...HARD_FLOOR,barMs:D5.barMs}}:{active:policyId,weights:autonomy.weights,floor:HARD_FLOOR}}
  const {data:result}=await db.rpc('q15_commit_cycle',{p_lease:lease,p_closes:[],p_entries:freshEntries,p_updates:[],p_marks:marks,p_share:cfg.share,p_note:{...note,...(d5?{}:{q15_autonomy:autonomy})},p_bar:bar}).throwOnError()
  const accepted=new Set<string>(result?.accepted??[])
