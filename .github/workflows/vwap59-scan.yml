@@ -1,0 +1,108 @@
+name: VWAP REV 59 Scan
+on:
+  push:
+    paths:
+      - '.github/workflows/vwap59-scan.yml'
+permissions:
+  contents: write
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Backtest VWAP_REV_1M on DDDDD top-59
+        env:
+          SYMBOLS_JSON: '["ALPINEUSDT","BBUSDT","ERAUSDT","WAXPUSDT","HYPERUSDT","FIDAUSDT","LUMIAUSDT","DODOXUSDT","BNBUSDT","ZECUSDT","ARKUSDT","WOOUSDT","FLUXUSDT","LAYERUSDT","LUNA2USDT","INUSDT","1000000MOGUSDT","AIOTUSDT","BATUSDT","REUSDT","POLYXUSDT","SHELLUSDT","ATHUSDT","WETUSDT","TUSDT","CATIUSDT","VELODROMEUSDT","AGTUSDT","ANKRUSDT","SUSHIUSDT","ATOMUSDT","FLUIDUSDT","BEAMXUSDT","ZESTUSDT","ASTRUSDT","PROMUSDT","VTHOUSDT","PROVEUSDT","WLDUSDT","LQTYUSDT","KAVAUSDT","ETHWUSDT","ORDERUSDT","BTRUSDT","ADAUSDT","C98USDT","HOTUSDT","THEUSDT","HIVEUSDT","DOGEUSDT","AUSDT","TRUMPUSDT","MIRAUSDT","EULUSDT","SOMIUSDT","ENSUSDT","AUCTIONUSDT","ZORAUSDT","HUSDT"]'
+        run: |
+          mkdir -p status
+          python3 - <<'PY'
+          import csv,io,json,os,urllib.request,zipfile,concurrent.futures
+          from datetime import datetime,timezone
+          syms=json.loads(os.environ['SYMBOLS_JSON'])
+          START=int(datetime(2026,9,6,tzinfo=timezone.utc).timestamp()*1000)
+          END=int(datetime(2026,10,6,tzinfo=timezone.utc).timestamp()*1000)
+          BASE='https://data.binance.vision/data/futures/um'
+          UA={'User-Agent':'spacehub-vwap59/1.0'}
+          def zread(url):
+              try:
+                  req=urllib.request.Request(url,headers=UA)
+                  with urllib.request.urlopen(req,timeout=25) as r: raw=r.read()
+                  with zipfile.ZipFile(io.BytesIO(raw)) as z: txt=z.read(z.namelist()[0]).decode()
+                  out=[]
+                  for row in csv.reader(io.StringIO(txt)):
+                      if row and row[0].isdigit() and START<=int(row[0])<END: out.append(row)
+                  return out
+              except: return []
+          def bars(sym):
+              urls=[f'{BASE}/monthly/klines/{sym}/1m/{sym}-1m-2026-09.zip']+[f'{BASE}/daily/klines/{sym}/1m/{sym}-1m-2026-10-0{d}.zip' for d in range(1,6)]
+              a=[]
+              for u in urls:a+=zread(u)
+              a.sort(key=lambda r:int(r[0]))
+              seen=set();o=[]
+              for r in a:
+                  t=int(r[0])
+                  if t not in seen:seen.add(t);o.append(r)
+              return o
+          def test(sym):
+              a=bars(sym); n=w=l=timeout=amb=0; gross=0.0
+              # exact live signal: trailing <=120 bars VWAP; last vol >= 1.5x prior-20 avg;
+              # long if low <= VWAP*.995 and green; short mirror. Entry at signal close.
+              for i in range(21,len(a)-1):
+                  xs=a[max(0,i-119):i+1]
+                  last=a[i]
+                  pv=v=0.0
+                  for x in xs:
+                      h,l,c,vol=map(float,[x[2],x[3],x[4],x[5]])
+                      tp=(h+l+c)/3;pv+=tp*vol;v+=vol
+                  if v<=0: continue
+                  vw=pv/v
+                  av=sum(float(x[5]) for x in a[i-20:i])/20
+                  vol=float(last[5])
+                  if av<=0 or vol<av*1.5: continue
+                  o,h,lo,c=map(float,[last[1],last[2],last[3],last[4]])
+                  d=1 if lo<=vw*.995 and c>o else (-1 if h>=vw*1.005 and c<o else 0)
+                  if not d: continue
+                  entry=c; stop=entry*(.99 if d>0 else 1.01); target=entry*(1.005 if d>0 else .995)
+                  n+=1;res=None
+                  endj=min(len(a),i+61)
+                  for j in range(i+1,endj):
+                      hi=float(a[j][2]);low=float(a[j][3])
+                      hitS=low<=stop if d>0 else hi>=stop
+                      hitT=hi>=target if d>0 else low<=target
+                      if hitS and hitT: amb+=1;res='L';break
+                      if hitS:res='L';break
+                      if hitT:res='W';break
+                  if res=='W':w+=1;gross+=.005
+                  elif res=='L':l+=1;gross-=.01
+                  else:
+                      timeout+=1
+                      ex=float(a[endj-1][4])
+                      ret=d*(ex/entry-1)
+                      gross+=ret
+                      if ret>0:w+=1
+                      else:l+=1
+              wr=100*w/n if n else 0
+              net=(gross-n*.001)*100
+              return {'symbol':sym,'bars':len(a),'signals':n,'wins':w,'losses':l,'win_rate':round(wr,2),'timeouts':timeout,'ambiguous':amb,'net_unlevered_pct_sum':round(net,3),'avg_net_per_trade_pct':round(net/n,4) if n else 0}
+          out=[]
+          with concurrent.futures.ThreadPoolExecutor(max_workers=16) as ex:
+              fut={ex.submit(test,s):s for s in syms}
+              for k,f in enumerate(concurrent.futures.as_completed(fut),1):
+                  out.append(f.result())
+                  if k%10==0 or k==len(syms):print('progress',k,'/',len(syms),flush=True)
+          out.sort(key=lambda x:(x['avg_net_per_trade_pct'],x['signals']),reverse=True)
+          totaln=sum(x['signals'] for x in out); totalw=sum(x['wins'] for x in out); totall=sum(x['losses'] for x in out); totalnet=sum(x['net_unlevered_pct_sum'] for x in out)
+          summary={'symbols':len(out),'signals':totaln,'wins':totalw,'losses':totall,'win_rate':round(100*totalw/totaln,2) if totaln else 0,'net_unlevered_pct_sum':round(totalnet,3),'avg_net_per_trade_pct':round(totalnet/totaln,4) if totaln else 0}
+          positive=[x for x in out if x['signals']>=20 and x['avg_net_per_trade_pct']>0]
+          report={'window':'2026-09-06 through 2026-10-05 UTC','summary':summary,'positive_min20':positive,'all':out}
+          json.dump(report,open('status/vwap59-scan.json','w'),indent=2)
+          print('SUMMARY',json.dumps(summary));print('POSITIVE',json.dumps(positive[:30]))
+          PY
+      - name: Commit
+        run: |
+          git config user.name "vwap59-bot"; git config user.email "actions@github.com"
+          git add status/vwap59-scan.json
+          git commit -m "status: VWAP_REV_1M top-59 scan [skip ci]" || true
+          git pull --rebase origin main || true
+          git push || true
