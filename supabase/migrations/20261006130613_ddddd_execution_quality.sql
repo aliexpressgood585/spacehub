@@ -193,6 +193,30 @@ begin
        or abs((m->>'stop')::numeric-px*0.99)>px*0.00000001
        or abs((m->>'target')::numeric-px*1.01)>px*0.00000001
        then raise exception 'invalid FALL4_30M entry'; end if;
+   elsif m->>'pattern'='AGT_GRR_1M' then
+    if x->>'side' is distinct from 'LONG'
+       or coalesce((x->>'lev')::int,0)<>12
+       or coalesce((m->>'execution_version')::int,0)<>2
+       or coalesce((m->'gate'->>'costBps')::numeric,-1) not between 0 and 50
+       or coalesce((m->>'hold_ms')::bigint,-1)<>7200000
+       or (m->>'bar')::bigint%60000<>0
+       or extract(epoch from clock_timestamp())*1000-(m->>'bar')::bigint not between 0 and 60000
+       or x->>'sym'<>'AGT'
+       or abs((m->>'stop')::numeric-px*0.98)>px*0.00000001
+       or abs((m->>'target')::numeric-px*1.005)>px*0.00000001
+       then raise exception 'invalid AGT_GRR_1M entry'; end if;
+   elsif m->>'pattern'='LQTY_RRR_1M' then
+    if x->>'side' is distinct from 'LONG'
+       or coalesce((x->>'lev')::int,0)<>12
+       or coalesce((m->>'execution_version')::int,0)<>2
+       or coalesce((m->'gate'->>'costBps')::numeric,-1) not between 0 and 50
+       or coalesce((m->>'hold_ms')::bigint,-1)<>3600000
+       or (m->>'bar')::bigint%60000<>0
+       or extract(epoch from clock_timestamp())*1000-(m->>'bar')::bigint not between 0 and 60000
+       or x->>'sym'<>'LQTY'
+       or abs((m->>'stop')::numeric-px*0.98)>px*0.00000001
+       or abs((m->>'target')::numeric-px*1.005)>px*0.00000001
+       then raise exception 'invalid LQTY_RRR_1M entry'; end if;
    elsif m->>'pattern'='VWAP_REV_1M' then
     if coalesce((m->>'hold_ms')::bigint,-1)<>3600000
        or (x->>'side'='LONG' and (abs((m->>'stop')::numeric-px*0.99)>px*0.00000001 or abs((m->>'target')::numeric-px*1.005)>px*0.00000001))
@@ -222,6 +246,7 @@ begin
  if d5 and p_note ? 'r3_scan_bar' then cfg:=cfg||jsonb_build_object('r3_scan_bar',p_note->'r3_scan_bar'); end if;
  if d5 and p_note ? 'l10_scan_bar' then cfg:=cfg||jsonb_build_object('l10_scan_bar',p_note->'l10_scan_bar'); end if;
  if d5 and p_note ? 'l30_scan_bar' then cfg:=cfg||jsonb_build_object('l30_scan_bar',p_note->'l30_scan_bar'); end if;
+ if d5 and p_note ? 'm1_scan_bar' then cfg:=cfg||jsonb_build_object('m1_scan_bar',p_note->'m1_scan_bar'); end if;
  if p_note ? 'q15_autonomy' then cfg:=cfg||jsonb_build_object('q15_autonomy',p_note->'q15_autonomy'); end if;
  if p_bar is not null then cfg:=cfg||jsonb_build_object('q15_bar',p_bar); end if;
  -- Final marked equity and observations commit under the same account lock.
