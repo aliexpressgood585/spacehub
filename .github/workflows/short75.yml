@@ -6,11 +6,39 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: {python-version: '3.11'}
+        with:
+          python-version: '3.11'
       - run: pip install numpy pandas
+      - name: Download 30d Binance USD-M historical klines
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p backtest/data
+          python - <<'PY'
+          import io, zipfile, urllib.request, datetime as dt, csv, os
+          syms=["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT"]
+          end=dt.date.today()-dt.timedelta(days=1)
+          days=[end-dt.timedelta(days=i) for i in range(30)]
+          for tf in ("1m","5m"):
+            for s in syms:
+              pair=s+"USDT"; rows=[]
+              for d in reversed(days):
+                u=f"https://data.binance.vision/data/futures/um/daily/klines/{pair}/{tf}/{pair}-{tf}-{d:%Y-%m-%d}.zip"
+                try:
+                  z=zipfile.ZipFile(io.BytesIO(urllib.request.urlopen(u,timeout=30).read()))
+                  raw=list(csv.reader(io.TextIOWrapper(z.open(z.namelist()[0]))))
+                  rows.extend(r for r in raw if r and r[0].isdigit())
+                except Exception as e: print("skip",u,e)
+              out=f"backtest/data/{s}-{tf}.csv"
+              with open(out,"w",newline="") as f:
+                w=csv.writer(f); w.writerow(["t","open","high","low","close","volume"])
+                for r in rows: w.writerow([r[0],r[1],r[2],r[3],r[4],r[5]])
+              print(out,len(rows))
+          PY
       - name: Run frozen SHORT75 test
         run: PYTHONPATH=. python quant/run_short75.py | tee short75.txt
       - uses: actions/upload-artifact@v4
