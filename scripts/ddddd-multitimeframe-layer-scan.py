@@ -41,17 +41,16 @@ def pattern_masks(t,o,c):
     N=len(t); out={}
     col=np.where(c>o,1,np.where(c<o,0,-1))
     for n in (1,2,3):
-        valid=np.ones(N,dtype=bool)
-        for k in range(n-1):
-            valid[n-1:] &= t[n-1-k:N-k-1]-t[n-2-k:N-k-2]==60000
         start=n-1
+        idx=np.arange(start,N)
+        valid=np.zeros(N,dtype=bool); valid[idx]=True
+        for lag in range(n-1):
+            valid[idx] &= (t[idx-lag]-t[idx-lag-1]==60000)
         for code in range(2**n):
             bits=[(code>>(n-1-k))&1 for k in range(n)]
             m=valid.copy()
             for k,b in enumerate(bits):
-                src=np.full(N,-2,dtype=np.int8)
-                src[start:]=col[k:N-n+1+k]
-                m &= src==b
+                m[idx] &= (col[idx-(n-1-k)]==b)
             label=''.join('G' if b else 'R' for b in bits)
             out[label]=m
     return out
@@ -74,10 +73,11 @@ def outcome_arrays(t,o,h,l,c,tp,sl,side):
         if hit.any():
             loss=hit & stop
             win=hit & ~stop & targ
-            net[:n][loss]=-sl-FEE
-            net[:n][win]=tp-FEE
-            ex[:n][hit]=idx[hit]+off
-            unresolved[:n][hit]=False
+            li=idx[loss]; wi=idx[win]; hi=idx[hit]
+            net[li]=-sl-FEE
+            net[wi]=tp-FEE
+            ex[hi]=hi+off
+            unresolved[hi]=False
     remain=np.where(unresolved & (np.arange(N)+HORIZON<N))[0]
     if len(remain):
         endc=c[remain+HORIZON]
@@ -95,12 +95,13 @@ def take_nonoverlap(indices,net,ex):
     return np.array(vals),np.array(times,dtype=np.int32)
 
 def metrics(vals,idx,t):
-    if len(vals)==0:return {"n":0,"wins":0,"wr":0,"pf":0,"net_pct":0,"avg_bps":0}
+    if len(vals)==0:return {"n":0,"wins":0,"wr":0,"pf":0,"net_pct":0,"avg_bps":0,"pos_pct":0,"neg_pct":0}
     wins=int((vals>0).sum()); pos=float(vals[vals>0].sum()); neg=float(-vals[vals<0].sum())
     return {"n":int(len(vals)),"wins":wins,"wr":round(100*wins/len(vals),2),
             "pf":round(pos/neg,3) if neg>0 else 999,
             "net_pct":round(100*float(vals.sum()),2),
-            "avg_bps":round(10000*float(vals.mean()),2)}
+            "avg_bps":round(10000*float(vals.mean()),2),
+            "pos_pct":round(100*pos,4),"neg_pct":round(100*neg,4)}
 
 def scan_symbol(sym):
     b=load(sym)
@@ -139,9 +140,10 @@ def agg(rows,key):
     n=sum(x[key]["n"] for x in rows); wins=sum(x[key]["wins"] for x in rows)
     if not n:return {"n":0,"wins":0,"wr":0,"pf":0,"net_pct":0,"avg_bps":0}
     net=sum(x[key]["net_pct"] for x in rows)
-    # PF aggregated approximately from per-trade reconstruction is not exact with timeouts; use weighted net + direct symbol PF only for screening.
+    pos=sum(x[key]["pos_pct"] for x in rows); neg=sum(x[key]["neg_pct"] for x in rows)
     avg=100*net/n
-    return {"n":n,"wins":wins,"wr":round(100*wins/n,2),"net_pct":round(net,2),"avg_bps":round(avg,2)}
+    return {"n":n,"wins":wins,"wr":round(100*wins/n,2),"pf":round(pos/neg,3) if neg>0 else 999,
+            "net_pct":round(net,2),"avg_bps":round(avg,2)}
 
 all_settings=[]
 for pat,side,tp,sl in keys:
