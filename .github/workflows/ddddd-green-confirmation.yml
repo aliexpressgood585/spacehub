@@ -1,0 +1,162 @@
+name: DDDDD Green Confirmation Analysis
+on:
+  push:
+    paths:
+      - '.github/workflows/ddddd-green-confirmation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  PROJECT_REF: adxgadwghgkwmntsnrar
+jobs:
+  analyse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Query current DDDDD trades
+        shell: bash
+        run: |
+          Q="select id,sym,entry_price,size,pnl,fee,status,opened_at,closed_at,lev,scalp_meta from bot_trades where strategy='Q15' and scalp_meta->'q15'->>'pattern'='DDDDD' and status<>'OPEN' order by id;"
+          jq -n --arg q "$Q" '{query:$q}' >/tmp/q.json
+          curl --fail-with-body -sS -X POST "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" --data @/tmp/q.json >/tmp/trades.json
+      - name: Compare immediate vs green-confirmed entries
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, urllib.request, urllib.parse, time, math, statistics
+          from datetime import datetime, timezone
+
+          def unwrap(x):
+              if isinstance(x,list): return x
+              if isinstance(x,dict):
+                  for k in ('result','data','rows'):
+                      v=x.get(k)
+                      if isinstance(v,list): return v
+                      if isinstance(v,str):
+                          try:
+                              z=json.loads(v)
+                              if isinstance(z,list): return z
+                          except: pass
+              raise RuntimeError('unexpected db response')
+
+          rows=unwrap(json.load(open('/tmp/trades.json')))
+          rows=[r for r in rows if isinstance(r,dict)]
+          BAR=300000
+          FEE_RT=0.001   # approx 10 bps round trip
+          LEV=15
+
+          def ms(s): return int(datetime.fromisoformat(str(s).replace('Z','+00:00')).timestamp()*1000)
+          def fetch(url):
+              req=urllib.request.Request(url,headers={'User-Agent':'spacehub-confirm-analysis/1'})
+              with urllib.request.urlopen(req,timeout=15) as r:return json.loads(r.read())
+          def pair(sym):
+              return ('1000PEPEUSDT',1000.0) if sym=='PEPE' else (sym+'USDT',1.0)
+          def klines(sym,interval,start,end,limit=1500):
+              s,k=pair(sym); out=[]; cur=start
+              step=60000 if interval=='1m' else 300000
+              while cur<=end and len(out)<5000:
+                  lim=min(limit,max(1,int((end-cur)/step)+2))
+                  qs=urllib.parse.urlencode({'symbol':s,'interval':interval,'startTime':cur,'endTime':end,'limit':lim})
+                  data=None
+                  for base in ('https://fapi.binance.com/fapi/v1/klines','https://data-api.binance.vision/api/v3/klines'):
+                      try:
+                          data=fetch(base+'?'+qs)
+                          if isinstance(data,list): break
+                      except Exception: data=None
+                  if not isinstance(data,list) or not data: break
+                  batch=[]
+                  for x in data:
+                      try: batch.append((int(x[0]),float(x[1])/k,float(x[2])/k,float(x[3])/k,float(x[4])/k))
+                      except: pass
+                  if not batch: break
+                  out+=batch
+                  nxt=batch[-1][0]+step
+                  if nxt<=cur: break
+                  cur=nxt
+                  if batch[-1][0]>=end-step: break
+              seen=set(); z=[]
+              for x in out:
+                  if x[0] not in seen: seen.add(x[0]); z.append(x)
+              return z
+
+          # Conservative OHLC simulation: if stop and target are both touched in same 1m bar, stop wins.
+          def sim(entry,bars,be=False):
+              stop0=entry*.99; target=entry*1.01; armed=False
+              for t,o,h,l,c in bars:
+                  stop=max(stop0,entry*1.001) if armed else stop0
+                  if l<=stop:
+                      gross=(stop-entry)/entry
+                      return gross-FEE_RT,'BE' if armed else 'SL'
+                  if h>=target:
+                      return .01-FEE_RT,'TP'
+                  if be and not armed and h>=entry*1.004:
+                      armed=True
+              if not bars:return None,'NO_DATA'
+              gross=(bars[-1][4]-entry)/entry
+              return gross-FEE_RT,'MTM'
+
+          results=[]
+          for r in rows:
+              sym=str(r['sym']); opened=ms(r['opened_at']); closed=ms(r['closed_at'])
+              first=(opened//BAR)*BAR
+              try:
+                  b5=klines(sym,'5m',first,opened+15*60*1000,50)
+              except Exception: b5=[]
+              cand=[x for x in b5 if x[0]+BAR>opened and x[0]+BAR<=opened+15*60*1000]
+              cand=sorted(cand)
+              contiguous=bool(cand) and all(x[0]==first+i*BAR for i,x in enumerate(cand))
+              green=next((x for x in cand if x[4]>x[1]),None) if contiguous else None
+              item={'id':r['id'],'sym':sym,'actual_pnl':float(r.get('pnl') or 0),'confirmed':False}
+              if not green:
+                  item['reason']='no_green_15m' if contiguous else 'data_gap'
+                  results.append(item); continue
+              conf_ts=green[0]+BAR
+              if conf_ts>=closed:
+                  item['reason']='confirmation_after_actual_exit'; results.append(item); continue
+              conf_entry=green[4]
+              try: b1=klines(sym,'1m',conf_ts,closed,1500)
+              except Exception: b1=[]
+              b1=[x for x in b1 if x[0]>=conf_ts and x[0]<=closed]
+              if not b1:
+                  item['reason']='no_post_confirm_data'; results.append(item); continue
+              p0,w0=sim(conf_entry,b1,False); p1,w1=sim(conf_entry,b1,True)
+              item.update({'confirmed':True,'confirm_entry':conf_entry,'confirm_ts':conf_ts,'plain_net':p0,'plain_exit':w0,'be_net':p1,'be_exit':w1})
+              results.append(item)
+
+          ex=[x for x in results if x.get('confirmed') and x.get('plain_net') is not None]
+          skips=[x for x in results if not x.get('confirmed')]
+          def summary(key):
+              a=[x[key] for x in ex]
+              wins=sum(v>0 for v in a); losses=sum(v<0 for v in a)
+              return {
+                'executed':len(a),'wins':wins,'losses':losses,
+                'win_rate_pct':round(100*wins/len(a),2) if a else None,
+                'avg_net_unlevered_pct':round(100*sum(a)/len(a),4) if a else None,
+                'avg_return_on_margin_pct_at_15x':round(100*LEV*sum(a)/len(a),3) if a else None,
+                'expectancy_per_original_signal_unlevered_pct':round(100*sum(a)/len(rows),4) if rows else None,
+                'profit_factor':round(sum(v for v in a if v>0)/abs(sum(v for v in a if v<0)),3) if any(v<0 for v in a) else None,
+                'tp':sum(x[key.replace('_net','_exit')]=='TP' for x in ex),
+                'sl':sum(x[key.replace('_net','_exit')]=='SL' for x in ex),
+                'be':sum(x[key.replace('_net','_exit')]=='BE' for x in ex),
+                'mtm':sum(x[key.replace('_net','_exit')]=='MTM' for x in ex),
+              }
+
+          actual_wins=sum(float(r.get('pnl') or 0)>0 for r in rows)
+          actual_pnl=sum(float(r.get('pnl') or 0) for r in rows)
+          out={
+            'generated_at':datetime.now(timezone.utc).isoformat(),
+            'method':'first green 5m candle within 15m after baseline DDDDD entry; proxy entry at green close; evaluate until original trade close; conservative 1m OHLC stop-first; 10bp round-trip costs',
+            'actual':{'closed':len(rows),'wins':actual_wins,'win_rate_pct':round(100*actual_wins/len(rows),2) if rows else None,'pnl_usd':round(actual_pnl,2)},
+            'confirmation':{'eligible':len(ex),'skipped':len(skips),'selection_pct':round(100*len(ex)/len(rows),2) if rows else None},
+            'plain_1pct_1pct':summary('plain_net'),
+            'be_after_0_4pct':summary('be_net'),
+            'skips':skips,
+            'rows':results,
+          }
+          print('CONFIRMATION_ANALYSIS_JSON_START')
+          print(json.dumps(out,indent=2))
+          print('CONFIRMATION_ANALYSIS_JSON_END')
+          PY
