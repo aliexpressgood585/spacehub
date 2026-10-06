@@ -3,6 +3,7 @@ import { d5Execution,D5_EXEC } from '../../../shared/d5-execution.ts'
 import { pagedTape,candleTape,type Tape } from '../../../shared/q15-tape.ts'
 import { confirmationShadow } from './d5-confirmation-shadow.ts'
 // fix: trade_decisions has no strategy column — journal via observed/inferred
+// DDDDD TOP10 paper cohort: current rules, 25x; green-confirmation remains shadow-only.
 // AUTONOMY strong layer deploy 2026-10-05: multi-policy bandit, never de-risk.
 import { Q15,q15Signal,q15Levels,q15Config,q15Edge,q15Gate } from '../../../shared/q15.ts'
 import { loadAutonomy,pickPolicy,policyKnobs,learnClosedTrades,HARD_FLOOR,type PolicyId } from '../../../shared/q15-autonomy.ts'
