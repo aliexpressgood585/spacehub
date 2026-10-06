@@ -185,7 +185,7 @@ export async function botMarks(): Promise<Record<string, { px: number; ts: numbe
 // the Binance USDT-M BID for a long and the ASK for a short (bookTicker stream, pushed on every change); when that
 // socket is silent for > 5 s it falls back to the shared last-price feed, then to the bot's own server-side mark.
 export interface ExitMark { mark: number | null; src?: string }
-export function useExitMarks(rows: { sym: string; side: string; entry?: number }[]): { marks: Record<string, ExitMark>; wsOn: boolean } {
+export function useExitMarks(rows: { sym: string; side: string; entry?: number }[]): { marks: Record<string, ExitMark>; wsOn: boolean; ticks: Ticks } {
   const key = [...new Set(rows.map(r => `${r.sym}:${r.side}`))].sort().join(',')
   const syms = [...new Set(rows.map(r => r.sym))]
   const feed = useLivePrices(syms)
@@ -226,5 +226,5 @@ export function useExitMarks(rows: { sym: string; side: string; entry?: number }
     marks[`${r.sym}:${r.side}`] = Number.isFinite(e) && e > 0 && Number.isFinite(m) && m > 0 && (m / e > 10 || e / m > 10)
       ? { mark: null, src: 'מחיר חריג נחסם' } : raw
   }
-  return { marks, wsOn }
+  return { marks, wsOn, ticks: feed }
 }
