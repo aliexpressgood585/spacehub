@@ -1,4 +1,5 @@
 import { D5,d5Signal,d5Pairs } from '../../../shared/ddddd.ts'
+import { FALL7_15M,fall7Signal } from '../../../shared/fall7-15m.ts'
 import { d5Execution,D5_EXEC } from '../../../shared/d5-execution.ts'
 import { pagedTape,candleTape,type Tape } from '../../../shared/q15-tape.ts'
 import { confirmationShadow } from './d5-confirmation-shadow.ts'
@@ -16,22 +17,22 @@ import { sleeveOff } from '../../../shared/sleeves.ts'
 
 const D5_TOP60 = new Set<string>(["ANKRUSDT","ARKUSDT","1000000MOGUSDT","AGTUSDT","SUSHIUSDT","LQTYUSDT","HYPERUSDT","KAVAUSDT","LUMIAUSDT","ALPINEUSDT"])
 const pairOf=(sym:string):Pair=>sym==='PEPE'?{sym,s:'1000PEPEUSDT',k:1000}:{sym,s:`${sym}USDT`,k:1}
-const bybitBars=async(p:Pair,interval:'1m'|'5m',limit:number,start?:number,end?:number)=>{
- const iv=interval==='5m'?'5':'1',q=new URLSearchParams({category:'linear',symbol:p.s,interval:iv,limit:String(Math.min(limit,1000))})
+const bybitBars=async(p:Pair,interval:'1m'|'5m'|'15m',limit:number,start?:number,end?:number)=>{
+ const iv=interval==='15m'?'15':interval==='5m'?'5':'1',q=new URLSearchParams({category:'linear',symbol:p.s,interval:iv,limit:String(Math.min(limit,1000))})
  if(start!=null)q.set('start',String(start));if(end!=null)q.set('end',String(end))
  const d:any=await json(`https://api.bybit.com/v5/market/kline?${q}`)
  if(Number(d?.retCode)!==0||!Array.isArray(d?.result?.list))throw new Error('bybit_kline')
  return d.result.list.slice().reverse().map((x:any)=>({t:+x[0],open:+x[1]/p.k,high:+x[2]/p.k,low:+x[3]/p.k,close:+x[4]/p.k,vol:+x[5]*p.k,tb:NaN}))
 }
-const okxBars=async(p:Pair,interval:'1m'|'5m',limit:number)=>{
+const okxBars=async(p:Pair,interval:'1m'|'5m'|'15m',limit:number)=>{
  const raw=p.sym.startsWith('1000')?p.sym.slice(4):p.sym,scale=p.sym.startsWith('1000')?1000:1
  if(raw==='ON')throw new Error('okx_symbol_collision')
- const bar=interval==='5m'?'5m':'1m'
+ const bar=interval==='15m'?'15m':interval==='5m'?'5m':'1m'
  const d:any=await json(`https://www.okx.com/api/v5/market/candles?instId=${raw}-USDT-SWAP&bar=${bar}&limit=${Math.min(limit,300)}`)
  if(d?.code!=='0'||!Array.isArray(d?.data))throw new Error('okx_kline')
  return d.data.slice().reverse().map((x:any)=>({t:+x[0],open:+x[1]*scale,high:+x[2]*scale,low:+x[3]*scale,close:+x[4]*scale,vol:+x[5]/scale,tb:NaN}))
 }
-const marketBars=async(p:Pair,interval:'1m'|'5m',limit:number,start?:number,end?:number):Promise<LBar[]>=>{
+const marketBars=async(p:Pair,interval:'1m'|'5m'|'15m',limit:number,start?:number,end?:number):Promise<LBar[]>=>{
  try{
   const qs=new URLSearchParams({symbol:p.s,interval,limit:String(limit)});if(start!=null)qs.set('startTime',String(start));if(end!=null)qs.set('endTime',String(end))
   const k:any=await json(`https://fapi.binance.com/fapi/v1/klines?${qs}`)
@@ -75,7 +76,7 @@ async function settled(p:Pair,from:number,to:number){
 }
 export async function exitRow(t:any,now:number){
  const m=t.scalp_meta.q15, p:Pair=m.pair??pairOf(t.sym),entry=Number(t.entry_price),dir:1|-1=t.side==='LONG'?1:-1
- const opened=Date.parse(t.opened_at),deadline=m.pattern==='DDDDD'?Infinity:opened+(Number(m.hold_ms)||Q15.holdMs),until=now,from=Math.max(opened,(Number(m.chk)||opened)+1)
+ const opened=Date.parse(t.opened_at),deadline=(m.pattern==='DDDDD'||m.pattern==='FALL7_15M')?Infinity:opened+(Number(m.hold_ms)||Q15.holdMs),until=now,from=Math.max(opened,(Number(m.chk)||opened)+1)
  if(![entry,opened,m.r,m.stop,m.target].every(Number.isFinite)||!(entry>0&&m.r>0))throw new Error('invalid_exit_state')
  const tape=await q15Tape(p,from,until,dir)
  let reason:string|null=null,px=NaN,trigger=now
@@ -121,7 +122,7 @@ export async function runQ15(db:any,state:any,lease:string,paper:boolean){
  const knobs=policyKnobs(policyId)
  autonomy={...autonomy,active:policyId,updated_at:new Date(now).toISOString()}
  const {data:allOpen}=await db.from('bot_trades').select('*').eq('status','OPEN').throwOnError()
- if((allOpen??[]).some((t:any)=>t.paper_mode!==true||!['Q15','EVT','DONCH4H'].includes(t.strategy)||Number(t.lev)<1||Number(t.lev)>(t.strategy==='DONCH4H'?1:25)))throw new Error('Q15 incompatible or non-paper book')
+ if((allOpen??[]).some((t:any)=>t.paper_mode!==true||!['Q15','EVT','DONCH4H'].includes(t.strategy)||Number(t.lev)<1||Number(t.lev)>(t.strategy==='DONCH4H'?1:30)))throw new Error('Q15 incompatible or non-paper book')
  const open=(allOpen??[]).filter((t:any)=>t.strategy==='Q15')
  const closes:any[]=[],updates:any[]=[],errors:string[]=[],marks:Record<string,number>={},dayMarks:Record<string,number>={}
  let markHealthy=true
@@ -251,6 +252,44 @@ export async function runQ15(db:any,state:any,lease:string,paper:boolean){
    entries.push({sym:p.sym,side:rec.side,price,notional,lev:cfg.lev,quote_ts:bk.E,q15:m,source:'binance-futures',profit_gate:'passed',net_bps:gate.netBps,autonomy_policy:d5?'DDDDD':policyId})
    rec.decision='accepted';rec.reason='candidate';held.add(p.sym);room--;dayN++;marginUsed+=margin;cash-=margin+notional*COST.takerFee
   }catch(e:any){rec.reason='entry_data_error';rec.observed.error=String(e.message).slice(0,100)}
+ }
+ if(d5&&bar%FALL7_15M.barMs===0&&room>0&&dayN<HARD_FLOOR.maxPerDay){
+  const layerPairs=universe.filter(p=>(FALL7_15M.symbols as readonly string[]).includes(p.s))
+  const layerData=new Map<string,LBar[]>()
+  await pool(layerPairs,5,async p=>{try{
+   const b=(await marketBars(p,'15m',8)).filter((x:any)=>x.t<bar)
+   if(b.at(-1)?.t!==bar-FALL7_15M.barMs)throw new Error('bar_lag')
+   layerData.set(p.sym,b)
+  }catch(e:any){errors.push('fall7_15m:'+p.sym+':'+String(e.message).slice(0,60))}})
+  for(const p of layerPairs){
+   const sig=fall7Signal(layerData.get(p.sym)??[],bar).sig
+   const rec:any={ts:new Date(now).toISOString(),sym:p.sym,side:'LONG',decision:'rejected',reason:sig?'candidate':'not_FALL7_15M',observed:{policy:'FALL7_15M',sleeve:'Q15'},inferred:{sleeve:'Q15',policy:'FALL7_15M'}}
+   journal.push(rec)
+   if(!sig)continue
+   candidates++
+   if(held.has(p.sym)){rec.reason='coin_held';continue}
+   if(room<=0){rec.reason='max_open';continue}
+   if(dayN>=HARD_FLOOR.maxPerDay){rec.reason='max_day';continue}
+   if(halted||state.hard_halt_at||sleeveOff(params,'Q15')){rec.reason='day_or_owner_halt';continue}
+   const lev=FALL7_15M.lev
+   let margin=Math.min(eq*cfg.perTrade,Math.max(0,eq*cfg.share-marginUsed),cash/(1+lev*COST.takerFee))
+   let notional=margin*lev
+   if(notional<20){rec.reason='no_cash';continue}
+   try{
+    const bk=await book(p),f=funding.get(p.s),fundRate=f?.rate??null,fundHours=f?.hours??8
+    marks[p.sym]=(bk.bids[0][0]+bk.asks[0][0])/2
+    const execution=d5Execution(bk,notional,lev,Date.now(),fundRate,fundHours)
+    if(execution.ok===false){rec.reason=execution.reason;continue}
+    notional=execution.notional;margin=notional/lev
+    const price=execution.price,lv={r:price*.01,stop:price*.99,target:price*1.01}
+    const walk=walkBook(bk.asks,notional),exitWalk=walkBook(bk.bids,notional)
+    const gate=q15Gate({book:bookFrom(bk.bids,bk.asks,bk.E,'binance-futures'),now:Date.now(),notional,dir:1,rFrac:.01,entryImpact:walk.impact,exitImpact:exitWalk.impact,beyond:walk.beyond||exitWalk.beyond,funding:fundRate,fundingHours:fundHours,grossBps:0})
+    if(!gate.pass){rec.reason=gate.reason;rec.observed.net_bps=gate.netBps;continue}
+    const m={...lv,chk:bk.E,pair:p,bar,atr:0,hold_ms:0,pattern:'FALL7_15M',execution_version:D5_EXEC.version,gate,lag_ms:Date.now()-bar,gate_mode:'target_cost_budget',policy:'FALL7_15M'}
+    entries.push({sym:p.sym,side:'LONG',price,notional,lev,quote_ts:bk.E,q15:m,source:'binance-futures',profit_gate:'passed',net_bps:gate.netBps,autonomy_policy:'FALL7_15M'})
+    rec.decision='accepted';rec.reason='candidate';held.add(p.sym);room--;dayN++;marginUsed+=margin;cash-=margin+notional*COST.takerFee
+   }catch(e:any){rec.reason='entry_data_error';rec.observed.error=String(e.message).slice(0,100)}
+  }
  }
  if(shadows.length)await db.from('q15_shadow').upsert(shadows,{onConflict:'sym,t0',ignoreDuplicates:true}).throwOnError()
  const freshEntries=entries.filter(e=>Date.now()-e.quote_ts<=Q15.quoteMaxMs&&Date.now()-bar<=(d5?D5.entryWindowMs:Q15.entryWindowMs))
