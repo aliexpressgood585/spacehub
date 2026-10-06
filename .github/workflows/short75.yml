@@ -5,6 +5,10 @@ on:
     branches: [research/short75]
 jobs:
   test:
+    strategy:
+      fail-fast: false
+      matrix:
+        chunk: [0, 1, 2, 3, 4, 5]
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -13,7 +17,9 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install numpy pandas
-      - name: Download 30d Binance USD-M historical klines
+      - name: Download 5d Binance USD-M historical klines
+        env:
+          CHUNK: ${{ matrix.chunk }}
         shell: bash
         run: |
           set -euo pipefail
@@ -22,7 +28,8 @@ jobs:
           import io, zipfile, urllib.request, datetime as dt, csv, os
           syms=["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","DOT"]
           end=dt.date.today()-dt.timedelta(days=1)
-          days=[end-dt.timedelta(days=i) for i in range(30)]
+          chunk=int(os.environ["CHUNK"])
+          days=[end-dt.timedelta(days=i) for i in range(chunk*5,(chunk+1)*5)]
           for tf in ("1m","5m"):
             for s in syms:
               pair=s+"USDT"; rows=[]
@@ -48,7 +55,7 @@ jobs:
         run: PYTHONPATH=. python quant/run_short75.py | tee short75.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: short75-report
+          name: short75-report-chunk-${{ matrix.chunk }}
           path: |
             short75.txt
             search90.txt
