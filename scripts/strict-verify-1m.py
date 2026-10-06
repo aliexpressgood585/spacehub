@@ -49,10 +49,10 @@ def sma(x,n):
 
 def funding(sym):
  url=f"https://fapi.binance.com/fapi/v1/fundingRate?symbol={sym}&startTime={START}&endTime={END}&limit=1000"
- try:
-  rows=json.loads(get(url).decode())
-  return [(int(x["fundingTime"]),float(x["fundingRate"])) for x in rows]
- except:return []
+ rows=json.loads(get(url).decode())
+ out=[(int(x["fundingTime"]),float(x["fundingRate"])) for x in rows]
+ if len(out)<100: raise RuntimeError(f"funding_history_incomplete:{sym}:{len(out)}")
+ return out
 
 def signal_idx(t,o,c,v,case):
  p=case["pattern"];n=len(p);col=np.where(c>o,"G",np.where(c<o,"R","X"))
@@ -107,5 +107,5 @@ for case in CASES:
  b=load(case["sym"]);a=np.array(b,float);t=a[:,0].astype(np.int64);o=a[:,1];h=a[:,2];l=a[:,3];c=a[:,4];v=a[:,5]
  fs=funding(case["sym"]);tr=simulate(t,o,h,l,c,v,case,fs)
  first=[x for x in tr if t[x[0]]<SPLIT];last=[x for x in tr if t[x[0]]>=SPLIT]
- out.append({"case":case,"assumptions":{"fee_roundtrip_pct":FEE_RT*100,"slippage_roundtrip_pct":SLIP_RT*100,"funding":"actual Binance funding events crossed by each trade","same_bar_tp_sl":"SL first","timeouts":"closed at H-minute close and count as non-TP for strict TP-first rate"},"all90":met(tr,t),"first60":met(first,t),"last30":met(last,t)})
+ out.append({"case":case,"funding_rows":len(fs),"assumptions":{"fee_roundtrip_pct":FEE_RT*100,"slippage_roundtrip_pct":SLIP_RT*100,"funding":"actual Binance funding events crossed by each trade","same_bar_tp_sl":"SL first","timeouts":"closed at H-minute close and count as non-TP for strict TP-first rate"},"all90":met(tr,t),"first60":met(first,t),"last30":met(last,t)})
 print("STRICT_VERIFY_START");print(json.dumps(out,indent=2));print("STRICT_VERIFY_END")
