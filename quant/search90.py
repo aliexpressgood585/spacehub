@@ -9,8 +9,8 @@ for tf in TFS:
  for side in ("LONG","SHORT"):
   for dev in (.001,.002,.003,.005,.0075,.01):
    for vm in (1.,1.5,2.):
-    for tp in (.0025,.005,.0075):
-     for sl in (.005,.01,.015,.02):
+    for tp in (.0015,.002,.0025,.003,.004,.005,.0075,.01,.015,.02):
+     for sl in (.002,.003,.005,.0075,.01,.015,.02,.03):
       rows=[]
       for s,b in data.items():
        o,h,l,c,v=b.open,b.high,b.low,b.close,b.volume;i=23
@@ -32,5 +32,5 @@ for tf in TFS:
       an,aw,ae=S(a);zn,zw,ze=S(z)
       if an>=200 and zn>=50 and ae>0 and ze>0:out.append(dict(tf=tf,side=side,dev=dev,vol=vm,tp=tp,sl=sl,train_n=an,train_wr=round(aw,2),train_exp=round(ae,4),holdout_n=zn,holdout_wr=round(zw,2),holdout_exp=round(ze,4)))
 out.sort(key=lambda x:(x["holdout_wr"],x["holdout_exp"]),reverse=True)
-r={"tested_grid":3*2*6*3*3*4,"qualifying":len(out),"gte90":[x for x in out if x["holdout_wr"]>=90],"top":out[:25]}
+r={"tested_grid":3*2*6*3*10*8,"qualifying":len(out),"gte90":[x for x in out if x["holdout_wr"]>=90],"top":out[:25]}
 Path("quant/reports").mkdir(exist_ok=True);Path("quant/reports/SEARCH90_REPORT.json").write_text(json.dumps(r,indent=2));print(json.dumps(r,indent=2))
