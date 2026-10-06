@@ -57,6 +57,8 @@ run "sleeve brake v99.6"   tests/sleeves.test.ts
 run "PRO scalp v100.0"     tests/pro.test.ts
 run "BLADE event engine"    tests/blade.test.ts
 run "P-Q15 completed bars" tests/q15.test.ts
+run "DDDDD execution quality" tests/d5-quality.test.ts
+run "DDDDD confirmation shadow" tests/d5-shadow.test.ts
 run "P-AGG2 level 2"        tests/agg2.test.ts
 run "trend pullback"        tests/trend-pullback.test.ts
 run "lab v94 (research grid + LAB sleeve)" tests/lab.test.ts

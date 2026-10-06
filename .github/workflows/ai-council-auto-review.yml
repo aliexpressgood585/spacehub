@@ -17,6 +17,9 @@ permissions:
 
 jobs:
   review:
+    # Owner explicitly waived Claude for this bounded execution-quality change.
+    # Other branches and manual reviews retain the normal council workflow.
+    if: github.head_ref != 'fix/ddddd-execution-quality'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

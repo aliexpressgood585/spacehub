@@ -91,20 +91,20 @@ try {
 } finally { globalThis.fetch = realFetch; Date.now = realNow }
 
 // ── structure: shims, DONCH 1x, EVT without gate, routing ──
-const src = (f: string) => readFileSync(f, 'utf8')
+const src = (f: string) => readFileSync(f, 'utf8').replaceAll('\r\n', '\n')
 for (const wf of ['.github/workflows/deploy-edge-function.yml', '.github/workflows/enforce-no-loss-trading.yml']) {
   const w = src(wf)
-  for (const kv of ["g.__ENABLED_SLEEVES = 'Q15,EVT,DONCH4H'", "g.__SLEEVES_OFF = ''", "g.__LEVERAGE = '1'", "g.__Q15_LEV = '25'", "g.__Q15_SHARE = '0.90'",
-    "g.__Q15_PER_TRADE = '0.15'", "g.__Q15_MAX_OPEN = '20'", "g.__EVT_PER_TRADE = '0.15'", "g.__EVT_MAX_OPEN = '8'", "Deno.env.set('ENABLED_SLEEVES', 'Q15,EVT,DONCH4H')", "Deno.env.set('LEVERAGE', '1')"])
+  for (const kv of ["g.__ENABLED_SLEEVES = 'Q15'", "g.__SLEEVES_OFF = 'EVT,DONCH4H,FAST,ROTA,BLADE,PRO,LIST,FUND,CHAN,SCALP'", "g.__LEVERAGE = '1'", "g.__Q15_LEV = '15'", "g.__Q15_SHARE = '0.90'",
+    "g.__Q15_PER_TRADE = '0.15'", "g.__Q15_MAX_OPEN = '8'", "g.__EVT_PER_TRADE = '0.15'", "g.__EVT_MAX_OPEN = '8'", "Deno.env.set('ENABLED_SLEEVES', 'Q15')", "Deno.env.set('LEVERAGE', '1')"])
     assert.ok(w.includes(kv), `${wf}: ${kv}`)
   assert.ok(!/__ENABLED_SLEEVES = '[^']*PRO/.test(w), `${wf}: PRO not enabled`)
   assert.ok(!w.includes('ALLOW_LIVE_EXECUTION'), `${wf}: never sets ALLOW_LIVE_EXECUTION`)
   assert.ok(w.includes('python3 scripts/build-ledger-payload.py'), `${wf}: uses atomic ledger payload`)
 }
-const payload = JSON.parse(execFileSync('python3', ['scripts/build-ledger-payload.py'], {encoding:'utf8'})).query as string
+const payload = JSON.parse(execFileSync(process.env.PYTHON || (process.platform === 'win32' ? 'python' : 'python3'), ['scripts/build-ledger-payload.py'], {encoding:'utf8'})).query as string
 assert.ok(payload.startsWith('BEGIN;') && payload.trimEnd().endsWith('COMMIT;'), 'ledger definitions commit atomically')
 let previous = -1
-for (const file of ['20261004090000_blade_sleeve.sql','20261004120000_agg2.sql','20261004120001_q15_sleeve.sql']) {
+for (const file of ['20261004090000_blade_sleeve.sql','20261004120000_agg2.sql','20261004120001_q15_sleeve.sql','20261006130613_ddddd_execution_quality.sql']) {
   const at = payload.indexOf(src(`supabase/migrations/${file}`))
   assert.ok(at > previous, `complete migration present in order: ${file}`); previous = at
 }
