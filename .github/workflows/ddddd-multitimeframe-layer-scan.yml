@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - name: Strict verify 1m formulas with conservative funding reserve
+      - name: Backtest all active strategies 180d
         run: |
           python3 -m pip install --quiet numpy
-          python3 scripts/strict-verify-1m.py
+          python3 scripts/backtest-halfyear-all-active.py
