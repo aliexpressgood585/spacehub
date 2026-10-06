@@ -1,0 +1,21 @@
+name: SHORT75 research
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/short75]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install numpy pandas
+      - name: Run frozen SHORT75 test
+        run: PYTHONPATH=. python quant/run_short75.py | tee short75.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: short75-report
+          path: |
+            short75.txt
+            quant/reports/SHORT75_REPORT.json
