@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - name: Backtest all active strategies 180d
+      - name: Backtest all active strategies 3y
         run: |
           python3 -m pip install --quiet numpy
-          python3 scripts/backtest-halfyear-all-active.py
+          python3 scripts/backtest-3year-all-active.py
