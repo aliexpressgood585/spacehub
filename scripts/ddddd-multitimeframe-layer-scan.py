@@ -1,16 +1,17 @@
-import csv, io, json, urllib.request, zipfile, concurrent.futures, math
+import csv, io, json, os, urllib.request, zipfile, concurrent.futures
 from datetime import datetime, timezone
+import numpy as np
 
 SYMS=["ANKRUSDT","ARKUSDT","1000000MOGUSDT","AGTUSDT","SUSHIUSDT","LQTYUSDT","HYPERUSDT","KAVAUSDT","LUMIAUSDT","ALPINEUSDT"]
-TFS={"30m":1800000}
 START=int(datetime(2026,7,8,tzinfo=timezone.utc).timestamp()*1000)
 END=int(datetime(2026,10,6,tzinfo=timezone.utc).timestamp()*1000)
 SPLIT=int(datetime(2026,9,6,tzinfo=timezone.utc).timestamp()*1000)
 BASE="https://data.binance.vision/data/futures/um"
-UA={"User-Agent":"spacehub-mtf-layer/1.0"}
-COST=.001
-TP=.01
-SL=.01
+UA={"User-Agent":"spacehub-1m-dynamic/1.0"}
+FEE=.001
+HORIZON=60
+TPS=[.0025,.0035,.005,.0075,.01]
+SLS=[.0025,.005,.0075,.01,.015]
 
 def load_zip(url):
     try:
@@ -21,163 +22,157 @@ def load_zip(url):
         for row in csv.reader(io.StringIO(txt)):
             if not row or not row[0].isdigit(): continue
             t=int(row[0])
-            if START<=t<END:
-                out.append((t,float(row[1]),float(row[2]),float(row[3]),float(row[4])))
+            if START<=t<END: out.append((t,float(row[1]),float(row[2]),float(row[3]),float(row[4])))
         return out
     except Exception:
         return []
 
-def load(sym,tf):
-    src="5m" if tf=="10m" else tf
-    urls=[f"{BASE}/monthly/klines/{sym}/{src}/{sym}-{src}-2026-{m:02d}.zip" for m in (7,8,9)]
-    urls += [f"{BASE}/daily/klines/{sym}/{src}/{sym}-{src}-2026-10-{d:02d}.zip" for d in range(1,6)]
+def load(sym):
+    urls=[f"{BASE}/monthly/klines/{sym}/1m/{sym}-1m-2026-{m:02d}.zip" for m in (7,8,9)]
+    urls += [f"{BASE}/daily/klines/{sym}/1m/{sym}-1m-2026-10-{d:02d}.zip" for d in range(1,6)]
     a=[]
     for u in urls: a.extend(load_zip(u))
-    a.sort(key=lambda x:x[0])
-    z=[]; seen=set()
+    a.sort(key=lambda x:x[0]); z=[]; seen=set()
     for x in a:
-        if x[0] not in seen:
-            seen.add(x[0]); z.append(x)
-    if tf!="10m": return z
-    out=[]
-    i=0
-    while i+1<len(z):
-        a,b=z[i],z[i+1]
-        bucket=(a[0]//600000)*600000
-        if a[0]==bucket and b[0]==a[0]+300000:
-            out.append((a[0],a[1],max(a[2],b[2]),min(a[3],b[3]),b[4]))
-            i+=2
-        else:
-            i+=1
+        if x[0] not in seen: seen.add(x[0]); z.append(x)
+    return z
+
+def pattern_masks(t,o,c):
+    N=len(t); out={}
+    col=np.where(c>o,1,np.where(c<o,0,-1))
+    for n in (1,2,3):
+        valid=np.ones(N,dtype=bool)
+        for k in range(n-1):
+            valid[n-1:] &= t[n-1-k:N-k-1]-t[n-2-k:N-k-2]==60000
+        start=n-1
+        for code in range(2**n):
+            bits=[(code>>(n-1-k))&1 for k in range(n)]
+            m=valid.copy()
+            for k,b in enumerate(bits):
+                src=np.full(N,-2,dtype=np.int8)
+                src[start:]=col[k:N-n+1+k]
+                m &= src==b
+            label=''.join('G' if b else 'R' for b in bits)
+            out[label]=m
     return out
 
-class Seg:
-    def __init__(self,arr,mode):
-        n=1
-        while n<len(arr): n*=2
-        self.n=n; self.mode=mode
-        neutral=-float("inf") if mode=="max" else float("inf")
-        self.t=[neutral]*(2*n)
-        for i,v in enumerate(arr): self.t[n+i]=v
-        fn=max if mode=="max" else min
-        for i in range(n-1,0,-1): self.t[i]=fn(self.t[2*i],self.t[2*i+1])
-    def first(self,l,threshold):
-        # first idx >= l where value >= threshold (max) or <= threshold (min)
-        def ok(v): return v>=threshold if self.mode=="max" else v<=threshold
-        def rec(node,a,b):
-            if b<=l or not ok(self.t[node]): return None
-            if b-a==1: return a
-            m=(a+b)//2
-            x=rec(node*2,a,m)
-            return x if x is not None else rec(node*2+1,m,b)
-        x=rec(1,0,self.n)
-        return x
+def outcome_arrays(t,o,h,l,c,tp,sl,side):
+    N=len(t); net=np.full(N,np.nan); ex=np.full(N,-1,dtype=np.int32)
+    unresolved=np.arange(N)<N-1
+    e=c.copy()
+    for off in range(1,HORIZON+1):
+        n=N-off
+        if n<=0: break
+        idx=np.arange(n)
+        u=unresolved[:n]
+        if not u.any(): continue
+        if side==1:
+            stop=l[off:]<=e[:n]*(1-sl); targ=h[off:]>=e[:n]*(1+tp)
+        else:
+            stop=h[off:]>=e[:n]*(1+sl); targ=l[off:]<=e[:n]*(1-tp)
+        hit=u & (stop|targ)
+        if hit.any():
+            loss=hit & stop
+            win=hit & ~stop & targ
+            net[:n][loss]=-sl-FEE
+            net[:n][win]=tp-FEE
+            ex[:n][hit]=idx[hit]+off
+            unresolved[:n][hit]=False
+    remain=np.where(unresolved & (np.arange(N)+HORIZON<N))[0]
+    if len(remain):
+        endc=c[remain+HORIZON]
+        gross=(endc/e[remain]-1)*side
+        net[remain]=gross-FEE
+        ex[remain]=remain+HORIZON
+        unresolved[remain]=False
+    return net,ex
 
-def sig_at(b,i,n,kind):
-    p=b[i-n:i]
-    if len(p)<n:return False
-    if kind=="red": return all(x[4]<x[1] for x in p)
-    if kind=="green": return all(x[4]>x[1] for x in p)
-    if kind=="fall": return all(p[k][4]>p[k+1][4] for k in range(n-1))
-    if kind=="rise": return all(p[k][4]<p[k+1][4] for k in range(n-1))
-    return False
+def take_nonoverlap(indices,net,ex):
+    vals=[]; times=[]; last=-1
+    for i in indices:
+        if i<=last or ex[i]<0 or not np.isfinite(net[i]): continue
+        vals.append(float(net[i])); times.append(int(i)); last=int(ex[i])
+    return np.array(vals),np.array(times,dtype=np.int32)
 
-PATTERNS=[]
-for n in range(2,9):
-    PATTERNS += [
-      (f"{n}R_LONG","red",n,1),(f"{n}G_SHORT","green",n,-1),
-      (f"{n}R_SHORT","red",n,-1),(f"{n}G_LONG","green",n,1),
-      (f"{n}FALL_LONG","fall",n,1),(f"{n}RISE_SHORT","rise",n,-1),
-      (f"{n}FALL_SHORT","fall",n,-1),(f"{n}RISE_LONG","rise",n,1),
-    ]
+def metrics(vals,idx,t):
+    if len(vals)==0:return {"n":0,"wins":0,"wr":0,"pf":0,"net_pct":0,"avg_bps":0}
+    wins=int((vals>0).sum()); pos=float(vals[vals>0].sum()); neg=float(-vals[vals<0].sum())
+    return {"n":int(len(vals)),"wins":wins,"wr":round(100*wins/len(vals),2),
+            "pf":round(pos/neg,3) if neg>0 else 999,
+            "net_pct":round(100*float(vals.sum()),2),
+            "avg_bps":round(10000*float(vals.mean()),2)}
 
-def one(sym,tf):
-    b=load(sym,tf); step=TFS[tf]
-    if not b:return {"sym":sym,"tf":tf,"bars":0,"rows":[]}
-    hi=[x[2] for x in b]; lo=[x[3] for x in b]
-    mx=Seg(hi,"max"); mn=Seg(lo,"min")
+def scan_symbol(sym):
+    b=load(sym)
+    if len(b)<1000:return {"sym":sym,"bars":len(b),"rows":[]}
+    a=np.array(b,dtype=float); t=a[:,0].astype(np.int64); o=a[:,1]; h=a[:,2]; l=a[:,3]; c=a[:,4]
+    masks=pattern_masks(t,o,c)
     rows=[]
-    for name,kind,n,side in PATTERNS:
-        trades=[]; i=n
-        while i<len(b):
-            # require contiguous trigger bars and next evaluation bar
-            p=b[i-n:i]
-            if len(p)<n or any(p[k][0]!=p[0][0]+k*step for k in range(n)) or b[i][0]!=p[-1][0]+step:
-                i+=1; continue
-            if not sig_at(b,i,n,kind):
-                i+=1; continue
-            e=p[-1][4]
-            if side==1:
-                jt=mx.first(i,e*(1+TP)); js=mn.first(i,e*(1-SL))
-            else:
-                jt=mn.first(i,e*(1-TP)); js=mx.first(i,e*(1+SL))
-            if jt is None and js is None: break
-            if js is not None and (jt is None or js<=jt):
-                out=-SL-COST; exit_i=js; win=False
-            else:
-                out=TP-COST; exit_i=jt; win=True
-            trades.append((p[-1][0]+step,win,out))
-            i=max(i+1,exit_i+1)
-        def met(sel):
-            z=[x for x in trades if sel(x[0])]
-            if not z:return {"n":0,"wr":0,"pf":0,"net_pct":0}
-            w=sum(x[1] for x in z); l=len(z)-w
-            pos=w*(TP-COST); neg=l*(SL+COST)
-            return {"n":len(z),"wr":round(100*w/len(z),2),
-                    "pf":round(pos/neg,3) if neg else 999,
-                    "net_pct":round(100*sum(x[2] for x in z),2)}
-        rows.append({"pattern":name,"all90":met(lambda t:True),
-                     "first60":met(lambda t:t<SPLIT),"last30":met(lambda t:t>=SPLIT)})
-    return {"sym":sym,"tf":tf,"bars":len(b),"rows":rows}
+    for tp in TPS:
+      for sl in SLS:
+       for side in (1,-1):
+        net,ex=outcome_arrays(t,o,h,l,c,tp,sl,side)
+        for pat,m in masks.items():
+            idx=np.where(m & (np.arange(len(t))<len(t)-HORIZON))[0]
+            vals,chosen=take_nonoverlap(idx,net,ex)
+            ts=t[chosen] if len(chosen) else np.array([],dtype=np.int64)
+            first=vals[ts<SPLIT]; firsti=chosen[ts<SPLIT]
+            last=vals[ts>=SPLIT]; lasti=chosen[ts>=SPLIT]
+            rows.append({"pattern":pat,"side":"LONG" if side==1 else "SHORT","tp":tp,"sl":sl,
+              "all90":metrics(vals,chosen,t),"first60":metrics(first,firsti,t),"last30":metrics(last,lasti,t)})
+    return {"sym":sym,"bars":len(b),"rows":rows}
 
-tasks=[(s,t) for t in TFS for s in SYMS]
 res=[]
-with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
-    futs={ex.submit(one,s,t):(s,t) for s,t in tasks}
-    for k,f in enumerate(concurrent.futures.as_completed(futs),1):
-        res.append(f.result())
-        print("progress",k,"/",len(tasks),flush=True)
+with concurrent.futures.ThreadPoolExecutor(max_workers=5) as ex:
+    for k,r in enumerate(ex.map(scan_symbol,SYMS),1):
+        res.append(r); print("progress",k,"/",len(SYMS),r["sym"],r["bars"],flush=True)
 
-report={"generated_at":datetime.now(timezone.utc).isoformat(),
-        "window":"2026-07-08 through 2026-10-05 UTC",
-        "symbols":SYMS,"timeframes":list(TFS),
-        "method":"non-overlapping per-symbol trades; entry after pattern close; TP/SL 1%/1%; 10bp round-trip cost; stop-first on same bar",
-        "results":{}}
+keys=[]
+for n in (1,2,3):
+ for code in range(2**n):
+  pat=''.join('G' if (code>>(n-1-k))&1 else 'R' for k in range(n))
+  for side in ("LONG","SHORT"):
+   for tp in TPS:
+    for sl in SLS: keys.append((pat,side,tp,sl))
 
-for tf in TFS:
-    rr=[x for x in res if x["tf"]==tf]
-    by={}
-    for p,_,_,_ in PATTERNS:
-        a90=[]; a60=[]; a30=[]; per=[]
-        for x in rr:
-            row=next(z for z in x["rows"] if z["pattern"]==p)
-            per.append({"sym":x["sym"],**row})
-            a90.append(row["all90"]); a60.append(row["first60"]); a30.append(row["last30"])
-        def agg(xs):
-            n=sum(x["n"] for x in xs)
-            if not n:return {"n":0,"wr":0,"pf":0,"net_pct":0}
-            # fixed outcome sizes allow reconstructing wins from wr*n with rounding risk; use weighted approx
-            wins=sum(round(x["n"]*x["wr"]/100) for x in xs); losses=n-wins
-            pos=wins*(TP-COST); neg=losses*(SL+COST)
-            return {"n":n,"wins":wins,"wr":round(100*wins/n,2),
-                    "pf":round(pos/neg,3) if neg else 999,
-                    "net_pct":round(100*(pos-neg),2)}
-        by[p]={"all90":agg(a90),"first60":agg(a60),"last30":agg(a30),"per_symbol":per}
-    ranked=sorted(by.items(),key=lambda kv:(kv[1]["all90"]["wr"],kv[1]["all90"]["n"]),reverse=True)
-    robust=[{"pattern":p,**v} for p,v in ranked if v["all90"]["n"]>=150 and v["all90"]["wr"]>=58 and v["all90"]["pf"]>1 and v["first60"]["wr"]>=55 and v["last30"]["wr"]>=55]
-    subsets=[]
-    for p,v in ranked:
-        selected=[x for x in v["per_symbol"] if x["all90"]["n"]>=20 and x["first60"]["n"]>=10 and x["last30"]["n"]>=5 and x["all90"]["wr"]>=58 and x["first60"]["wr"]>=58 and x["last30"]["wr"]>=58]
-        if not selected: continue
-        def ag(rows,key):
-            n=sum(x[key]["n"] for x in rows); wins=sum(round(x[key]["n"]*x[key]["wr"]/100) for x in rows); losses=n-wins
-            pos=wins*(TP-COST); neg=losses*(SL+COST)
-            return {"n":n,"wins":wins,"wr":round(100*wins/n,2) if n else 0,"pf":round(pos/neg,3) if neg else 999,"net_pct":round(100*(pos-neg),2)}
-        subsets.append({"pattern":p,"symbols":[x["sym"] for x in selected],"all90":ag(selected,"all90"),"first60":ag(selected,"first60"),"last30":ag(selected,"last30")})
-    subsets.sort(key=lambda x:(x["all90"]["n"]>=100,x["all90"]["wr"],x["all90"]["n"]),reverse=True)
-    report["results"][tf]={"robust58":robust[:20],"subsets58":subsets[:30],
-                           "top20":[{"pattern":p,**v} for p,v in ranked[:20]]}
+def agg(rows,key):
+    n=sum(x[key]["n"] for x in rows); wins=sum(x[key]["wins"] for x in rows)
+    if not n:return {"n":0,"wins":0,"wr":0,"pf":0,"net_pct":0,"avg_bps":0}
+    net=sum(x[key]["net_pct"] for x in rows)
+    # PF aggregated approximately from per-trade reconstruction is not exact with timeouts; use weighted net + direct symbol PF only for screening.
+    avg=100*net/n
+    return {"n":n,"wins":wins,"wr":round(100*wins/n,2),"net_pct":round(net,2),"avg_bps":round(avg,2)}
 
-print("MTF_RESULT_START")
+all_settings=[]
+for pat,side,tp,sl in keys:
+    per=[]
+    for r in res:
+        row=next(x for x in r["rows"] if x["pattern"]==pat and x["side"]==side and x["tp"]==tp and x["sl"]==sl)
+        per.append({"sym":r["sym"],**row})
+    A=agg(per,"all90"); F=agg(per,"first60"); L=agg(per,"last30")
+    # robust symbol subset: enough observations and positive after fees in both temporal splits.
+    selected=[x for x in per if x["all90"]["n"]>=80 and x["first60"]["n"]>=40 and x["last30"]["n"]>=20
+              and x["all90"]["avg_bps"]>0 and x["first60"]["avg_bps"]>0 and x["last30"]["avg_bps"]>0]
+    S=agg(selected,"all90") if selected else {"n":0,"wins":0,"wr":0,"net_pct":0,"avg_bps":0}
+    SF=agg(selected,"first60") if selected else S.copy(); SL=agg(selected,"last30") if selected else S.copy()
+    breakeven=100*(sl+FEE)/(tp+sl)
+    all_settings.append({"pattern":pat,"side":side,"tp_pct":round(tp*100,3),"sl_pct":round(sl*100,3),
+      "breakeven_wr":round(breakeven,2),"all10":A,"first60":F,"last30":L,
+      "subset_symbols":[x["sym"] for x in selected],"subset90":S,"subset_first60":SF,"subset_last30":SL})
+
+robust_all=[x for x in all_settings if x["all10"]["n"]>=800 and x["all10"]["avg_bps"]>0 and x["first60"]["avg_bps"]>0 and x["last30"]["avg_bps"]>0]
+robust_all.sort(key=lambda x:(min(x["first60"]["avg_bps"],x["last30"]["avg_bps"]),x["all10"]["avg_bps"],x["all10"]["n"]),reverse=True)
+robust_sub=[x for x in all_settings if x["subset90"]["n"]>=300 and x["subset90"]["avg_bps"]>0 and x["subset_first60"]["avg_bps"]>0 and x["subset_last30"]["avg_bps"]>0]
+robust_sub.sort(key=lambda x:(min(x["subset_first60"]["avg_bps"],x["subset_last30"]["avg_bps"]),x["subset90"]["avg_bps"],x["subset90"]["n"]),reverse=True)
+high_wr=[x for x in all_settings if x["subset90"]["n"]>=300 and x["subset90"]["avg_bps"]>0]
+high_wr.sort(key=lambda x:(x["subset90"]["wr"],x["subset90"]["avg_bps"],x["subset90"]["n"]),reverse=True)
+
+report={"generated_at":datetime.now(timezone.utc).isoformat(),"window":"2026-07-08 through 2026-10-05 UTC",
+ "symbols":SYMS,"timeframe":"1m","pattern_lengths":[1,2,3],"tp_grid_pct":[x*100 for x in TPS],"sl_grid_pct":[x*100 for x in SLS],
+ "fee_roundtrip_pct":FEE*100,"horizon_minutes":HORIZON,
+ "method":"entry after completed 1m color pattern; every R/G sequence length 1-3; LONG and SHORT; TP/SL grid; same-bar conflict=SL; unresolved exits at 60m close; per-pattern same-symbol overlap suppressed; fees included",
+ "robust_all10":robust_all[:30],"robust_subsets":robust_sub[:40],"highest_wr_profitable_subsets":high_wr[:30]}
+
+print("DYN1M_RESULT_START")
 print(json.dumps(report,indent=2))
-print("MTF_RESULT_END")
+print("DYN1M_RESULT_END")
