@@ -21,7 +21,7 @@ assert.equal(q15Signal(down,true,false).sig?.dir,-1)
 const missing=up.map(x=>({...x}));delete missing.at(-1)!.tb
 assert.equal(q15Signal(missing,true,false).reason,'missing_taker')
 assert.deepEqual(q15Levels(1,100,.01),{r:.4,stop:99.6,target:100.8})
-assert.deepEqual(q15Config(),{lev:25,perTrade:.15,maxOpen:20,share:.9})
+assert.deepEqual(q15Config(),{lev:15,perTrade:.15,maxOpen:8,share:.9})
 assert.deepEqual(enforceFloor({lev:1}),HARD_FLOOR)
 const input={book:{bid:99.99,ask:100.01,ts:NOW,bidDepth10:1e7,askDepth10:1e7,source:'test'},now:NOW,notional:2500,dir:1 as const,rFrac:.004,entryImpact:0,exitImpact:0,beyond:false,funding:.0001,fundingHours:8,grossBps:NaN}
 assert.equal(q15Gate(input).pass,true,'no new hard profit filter')
@@ -38,7 +38,8 @@ assert.equal(learning.scores.burst.n,3,'same timestamp IDs deduplicate across re
 learning=learnClosedTrades(learning,[outcome(1,NOW)])
 assert.equal(learning.scores.burst.n,4,'older position can close later')
 assert.equal(loadAutonomy({q15_autonomy:{...learning,version:1}}).scores.burst.n,0,'legacy counts rebuild')
-const pairs=['BTC','SOL',...Array.from({length:105},(_,i)=>`C${i}`)].map(sym=>({sym,s:`${sym}USDT`,k:1}))
+const allowed=JSON.parse(readFileSync('supabase/functions/trading-bot/q15-runner.ts','utf8').match(/const D5_TOP60 = new Set<string>\((\[.*?\])\)/)![1]).map((s:string)=>s.slice(0,-4))
+const pairs=['BTC','SOL',...allowed,...Array.from({length:46},(_,i)=>`C${i}`)].map(sym=>({sym,s:`${sym}USDT`,k:1}))
 let d5Mock=false,allHot=false,bookDelay=0,bookCalls=0
 let open:any[]=[],closed:any[]=[],journal:any[]=[],commits:any[]=[],halted=false,hot=false,kcalls=0,tape:any[]=[],funding:any[]=[],now=NOW,autonomyWrites=0
 const db={from(table:string){let isClosed=false,isHead=false;const q:any=new Proxy({},{get(_t,k){
@@ -58,7 +59,7 @@ try{
  globalThis.fetch=(async(url:string)=>{
   if(url.includes('exchangeInfo'))return new Response(JSON.stringify({symbols:pairs.map(p=>({symbol:p.s,status:'TRADING',contractType:'PERPETUAL',quoteAsset:'USDT',marginAsset:'USDT',underlyingType:'COIN'}))}))
   if(d5Mock&&url.includes('/klines'))return new Response(JSON.stringify(Array.from({length:6},(_,i)=>[BAR-(5-i)*300000,100,101,98,99,1000,BAR-(4-i)*300000-1,0,0,500])))
-  if(url.includes('aggTrades'))return new Response(JSON.stringify(tape))
+  if(url.includes('aggTrades')){const start=Number(new URL(url).searchParams.get('fromId')??0);return new Response(JSON.stringify(tape.length===1000?tape.map((x:any,i:number)=>({...x,a:start+i,T:NOW-1001})):tape))}
   if(url.includes('fundingRate'))return new Response(JSON.stringify(funding))
   if(url.includes('/klines')){kcalls++;const b=(allHot||hot&&url.includes('SOLUSDT'))?up:flat;return new Response(JSON.stringify(b.map(x=>[x.t,x.open,x.high,x.low,x.close,x.vol,x.t+Q15.barMs-1,0,0,x.tb])))}
   if(url.includes('fundingInfo'))return new Response('[]')
@@ -76,13 +77,13 @@ try{
  d5Mock=true;await run({paper_strategy:'DDDDD'});const d5Entries=commits.at(-1).p_entries
  assert.equal(d5Entries.length,6);assert.equal(d5Entries[0].q15.pattern,'DDDDD');assert.equal(d5Entries[0].side,'LONG')
  assert.equal(d5Entries[0].q15.stop,d5Entries[0].price*.99);assert.equal(d5Entries[0].q15.target,d5Entries[0].price*1.01)
- assert.equal(d5Entries[0].q15.hold_ms,0);assert.equal(commits.at(-1).p_note.d5_scan.cursor,96)
- assert.equal(commits.at(-1).p_note.d5_scan.done,false)
- await run({paper_strategy:'DDDDD',d5_scan:{bar:BAR,cursor:96,done:false}});assert.equal(journal.length,11);assert.equal(commits.at(-1).p_note.d5_scan.done,true)
- await run({paper_strategy:'DDDDD',d5_scan:{bar:BAR,cursor:107,done:true}});assert.equal(commits.length,1,'finished 5m scan only manages exits')
+ assert.equal(d5Entries[0].q15.hold_ms,0);assert.equal(commits.at(-1).p_note.d5_scan.cursor,56)
+ assert.equal(commits.at(-1).p_note.d5_scan.done,true)
+ assert.equal(d5Entries[0].q15.execution_version,2);assert.ok(d5Entries[0].q15.protection.stop>d5Entries[0].price*1.001)
+ await run({paper_strategy:'DDDDD',d5_scan:{bar:BAR,cursor:56,done:true}});assert.equal(commits.length,1,'finished 5m scan only manages exits')
  d5Mock=false
  hot=true;closed=[outcome(1)];await run();let e=commits.at(-1).p_entries[0]
- assert.equal(e.lev,25);assert.equal(e.notional,18750);assert.equal(journal.find(x=>x.sym==='SOL').reason,'taken')
+ assert.equal(e.lev,15);assert.equal(e.notional,11250);assert.equal(journal.find(x=>x.sym==='SOL').reason,'taken')
  assert.equal(commits.at(-1).p_note.q15_autonomy.scores.burst.n,1)
  const saved=commits.at(-1).p_note.q15_autonomy;await run({q15_autonomy:saved});assert.equal(commits.at(-1).p_note.q15_autonomy.scores.burst.n,1);assert.equal(autonomyWrites,0,'atomic ledger persistence')
  halted=true;await run();assert.equal(commits.at(-1).p_entries.length,0);halted=false
@@ -102,5 +103,5 @@ try{
  tape=Array.from({length:1000},(_,i)=>({p:'100',T:NOW-2000+i,a:i}));t=position();t.scalp_meta.q15.hold_ms=5000;assert.equal((await exitRow(t,NOW)).close,null,'incomplete tape cannot invent timeout')
  tape=[{p:'103',T:NOW-1,a:1}];open=[position()];const cycle=await run();assert.equal(commits[0].p_closes.length,1);assert.equal(cycle.closed,1);assert.equal(commits.at(-1).p_entries.length,1,'close frees coin and capital for next entry')
 }finally{globalThis.fetch=realFetch;Date.now=realNow}
-for(const f of ['deploy-edge-function','enforce-no-loss-trading']){const s=readFileSync(`.github/workflows/${f}.yml`,'utf8');for(const kv of ["__ENABLED_SLEEVES = 'Q15,EVT,DONCH4H'","__Q15_LEV = '25'","__Q15_PER_TRADE = '0.15'","__Q15_MAX_OPEN = '20'","__Q15_SHARE = '0.90'"])assert.ok(s.includes(kv));assert.ok(!s.includes('ALLOW_LIVE_EXECUTION'))}
+for(const f of ['deploy-edge-function','enforce-no-loss-trading']){const s=readFileSync(`.github/workflows/${f}.yml`,'utf8');for(const kv of ["__ENABLED_SLEEVES = 'Q15'","__Q15_LEV = '15'","__Q15_PER_TRADE = '0.15'","__Q15_MAX_OPEN = '8'","__Q15_SHARE = '0.90'"])assert.ok(s.includes(kv));assert.ok(!s.includes('ALLOW_LIVE_EXECUTION'))}
 console.log('q15: autonomy, entries, exits, learning and aggression — all assertions passed')

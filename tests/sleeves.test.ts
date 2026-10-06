@@ -19,7 +19,7 @@ assert.equal(sleeveOff({}, 'FAST'), false)
 delete g.__SLEEVES_OFF
 assert.equal(sleeveOff({}, 'FAST'), false)
 for (const wf of ['deploy-edge-function.yml', 'enforce-no-loss-trading.yml'])
-  assert.ok(readFileSync(`.github/workflows/${wf}`, 'utf8').includes("g.__SLEEVES_OFF = '';"), `${wf} carries the brake line`)
+  assert.ok(readFileSync(`.github/workflows/${wf}`, 'utf8').includes("g.__SLEEVES_OFF = 'EVT,DONCH4H,FAST,ROTA,BLADE,PRO,LIST,FUND,CHAN,SCALP';"), `${wf} carries the brake line`)
 
 // every runner gates its ENTRY path (not its exits) on the brake
 const src = (f: string) => readFileSync(`supabase/functions/trading-bot/${f}`, 'utf8')

@@ -12,6 +12,7 @@ MIGRATIONS = (
     "20261005140628_q15_autonomous_reliability.sql",
     "20261005163138_paper_daily_halt_optional.sql",
     "20261005193450_ddddd_paper_strategy.sql",
+    "20261006130613_ddddd_execution_quality.sql",
 )
 
 def payload(root=Path(".")):
@@ -19,7 +20,7 @@ def payload(root=Path(".")):
     for name in MIGRATIONS:
         path = root / "supabase/migrations" / name
         if path.exists():
-            sql.append(path.read_text())
+            sql.append(path.read_text(encoding="utf-8"))
     sql.append("COMMIT;")
     return {"query": "\n".join(sql)}
 

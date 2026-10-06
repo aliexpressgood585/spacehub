@@ -81,5 +81,29 @@ assert.equal(Number((await db.query('select balance from bot_state')).rows[0].ba
 assert.ok((await db.query("select * from paper_reset_archive where source='bot_trades'")).rows.length>0,'reset archives old trades');
 await db.exec('update bot_state set balance=4321');await db.exec(read('scripts/activate-ddddd-paper.sql'));
 assert.equal(Number((await db.query('select balance from bot_state')).rows[0].balance),4321,'redeploy cannot reset account again');
-await db.close();console.log('q15 SQL: paper lock, caps, isolation, pyramids, halt and exits — all checks passed')
+await db.exec('drop table bot_trade_snapshots');
+// Execution v2: run the final deployed function against real PostgreSQL semantics.
+const {readdirSync}=await import('node:fs')
+const qualityPath=process.env.D5_MIGRATION || 'supabase/migrations/'+readdirSync('supabase/migrations').find(n=>n.endsWith('_ddddd_execution_quality.sql'))
+await db.exec(read(qualityPath).replaceAll('clock_timestamp()', 'public.q15_test_clock()').replaceAll('now()', 'public.q15_test_clock()'));
+await reset();await db.exec("truncate bot_equity,d5_confirmation_shadow;update bot_state set bot_params='{\"paper_strategy\":\"DDDDD\",\"daily_loss_halt_enabled\":false,\"d5_execution_version\":2}'");
+const v2={...de,sym:'V2',lev:15,notional:1000,q15:{...de.q15,pair:{sym:'V2',s:'V2USDT',k:1},execution_version:2,gate:{costBps:25},protection:{version:2,stop:100.15,trigger:100.4,enabled:true}}};
+await assert.rejects(()=>q([{...v2,q15:{...v2.q15,execution_version:1}}]),/v2/);
+await assert.rejects(()=>q([{...v2,q15:{...v2.q15,gate:{costBps:51}}}]),/v2/);
+await assert.rejects(()=>q([{...v2,lev:25}]),/v2/);
+r=await q([v2],[],{marks_fresh:true,execution_version:2},bar,{V2:100});assert.equal(r.opened,1);
+let samples=(await db.query('select * from bot_equity')).rows;
+assert.equal(samples.length,1);assert.equal(Number(samples[0].equity),4999.5);assert.equal(Number(samples[0].exposure),1000,'exposure remains gross notional dollars');
+assert.equal((await db.query('select * from d5_confirmation_shadow')).rows.length,1,'one observation seeded atomically');
+await q([],[],{marks_fresh:true},null,{V2:100});assert.equal((await db.query('select * from bot_equity')).rows.length,1,'same minute throttled');
+await db.exec("update bot_state set bot_params=bot_params-'q15_equity_sample_at'");
+await q([],[],{marks_fresh:false},null,{});assert.equal((await db.query('select * from bot_equity')).rows.length,1,'unhealthy marks not stored');
+await q([],[],{marks_fresh:true},null,{});assert.equal((await db.query('select * from bot_equity')).rows.length,1,'missing position mark not invented');
+first=(await rows())[0];r=await q([],[{id:first.id,price:101,quote_ts:ms,funding:0,funding_complete:true,reason:'TARGET'}],{marks_fresh:true},null,{});
+samples=(await db.query('select * from bot_equity order by id')).rows;
+assert.equal(samples.length,2);assert.ok(Math.abs(Number(samples.at(-1).equity)-5008.995)<1e-8);assert.equal(Number(samples.at(-1).exposure),0);
+assert.equal(Number(samples.at(-1).balance),Number(r.balance),'snapshot uses committed final cash');
+console.log('q15 ledger v2: cost enforcement, no reset, isolated shadow and atomic equity samples passed');
+await db.close();
+console.log('q15 SQL: paper lock, caps, isolation, pyramids, halt and exits — all checks passed')
 

@@ -1,3 +1,14 @@
+## P-DDDDD-EXECUTION-V2 — owner requested merge/deploy (2026-10-06)
+- Status: APPROVED for PAPER deployment under the owner waiver; awaiting PR checks and release verification.
+- Owner explicitly requested proceeding **without Claude** for this change in the current session. This waiver is scoped to P-DDDDD-EXECUTION-V2 and branch `fix/ddddd-execution-quality`; no Claude approval is claimed.
+- GPT review: APPROVED for bounded PAPER execution-quality changes. Strategy, tape, shadow, type checks and PostgreSQL/WASM transaction tests passed locally. Independent GPT risk review completed; it is not a Claude review.
+- Frozen design and evaluation: `docs/DDDDD_EXECUTION_V2.md`.
+- Hypothesis: complete tape coverage, feasible execution costs and versioned protection improve net outcomes. Confirmation rule remains observation only.
+- Fresh pre-edit telemetry 2026-10-06 12:32 UTC: active PAPER, 15x / 8 open ceiling / 15% margin / 90% allocation; equity $4,895.23, no exit errors. No reset and no live execution.
+- Scope: tape pagination/source isolation/closed candle gaps; new-entry cost-aware protection and sizing; transactional minute equity samples; independent confirmation-shadow cohorts. Existing-position metadata retained.
+- Rollback: stop new v2 entries and restore a reviewed entry path; continue existing exits. No balance reset or trade deletion.
+- Pre-release 13:07 UTC: active PAPER and the existing reset guard verified; reset timestamp remains 2026-10-06 05:58:53 UTC. No claim of increased win rate before forward evidence.
+
 ## P-MARKET-FALLBACK-2 — Binance Vision public fallback (2026-10-06)
 - Status: PAPER_TEST. The first cross-exchange fallback still left some already-open Binance-only symbols without healthy exit/mark data.
 - GPT review: APPROVED for PAPER resilience. Claude review: APPROVED. Claude acknowledgement: **ACKNOWLEDGED**.

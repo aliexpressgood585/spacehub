@@ -41,7 +41,7 @@ console.log('breakout (BRKV) tests passed')
     assert.ok(/\['LIST', ?'FUND', ?'FAST', ?'EVT', ?'BRKV'\]\.includes\(t\.strategy\)/.test(readFileSync(`supabase/functions/trading-bot/${f}`,'utf8')),`${f} accepts BRKV rows in the shared book`)
   for(const wf of ['deploy-edge-function.yml','enforce-no-loss-trading.yml']){
     const w=readFileSync(`.github/workflows/${wf}`,'utf8')
-    assert.ok(w.includes("g.__ENABLED_SLEEVES = 'Q15,EVT,DONCH4H';"),`${wf} shim: P-Q15 runs Q15 + EVT + DONCH4H; BRKV disabled`)
+    assert.ok(w.includes("g.__ENABLED_SLEEVES = 'Q15';"),`${wf} shim: P-Q15 runs DDDDD only; BRKV disabled`)
   }
 }
 console.log('breakout v99.7: BRKV wired into the LIST/FUND book')

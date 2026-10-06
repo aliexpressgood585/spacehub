@@ -1,4 +1,7 @@
 import { D5,d5Signal,d5Pairs } from '../../../shared/ddddd.ts'
+import { d5Execution,D5_EXEC } from '../../../shared/d5-execution.ts'
+import { pagedTape,candleTape,type Tape } from '../../../shared/q15-tape.ts'
+import { confirmationShadow } from './d5-confirmation-shadow.ts'
 // fix: trade_decisions has no strategy column — journal via observed/inferred
 // AUTONOMY strong layer deploy 2026-10-05: multi-policy bandit, never de-risk.
 import { Q15,q15Signal,q15Levels,q15Config,q15Edge,q15Gate } from '../../../shared/q15.ts'
@@ -43,33 +46,14 @@ const marketBars=async(p:Pair,interval:'1m'|'5m',limit:number,start?:number,end?
  try{return await bybitBars(p,interval,limit,start,end)}catch{}
  return okxBars(p,interval,limit)
 }
-export async function q15Tape(p:Pair,from:number,to:number,dir:1|-1=1):Promise<{trades:AggTrade[];complete:boolean;checkedUntil:number}> {
- const end=Math.min(to,from+3599999),out:AggTrade[]=[]
- try{
-  let url=`https://fapi.binance.com/fapi/v1/aggTrades?symbol=${p.s}&startTime=${from}&endTime=${end}&limit=1000`
-  for(let page=0;page<5;page++){
-   const rows=await json(url);if(!Array.isArray(rows))throw new Error('invalid_tape')
-   for(const x of rows)if(+x.T>=from&&+x.T<=end)out.push({p:+x.p/p.k,T:+x.T})
-   if(rows.length<1000||+rows.at(-1).T>end)return{trades:out,complete:end===to,checkedUntil:end}
-   url=`https://fapi.binance.com/fapi/v1/aggTrades?symbol=${p.s}&fromId=${+rows.at(-1).a+1}&limit=1000`
-  }
-  return{trades:out,complete:false,checkedUntil:out.at(-1)?.T??from}
- }catch{}
- try{
-  const q=new URLSearchParams({symbol:p.s,startTime:String(from),endTime:String(end),limit:'1000'})
-  const rows:any=await json(`https://data-api.binance.vision/api/v3/aggTrades?${q}`)
-  if(Array.isArray(rows)){
-   for(const x of rows)if(+x.T>=from&&+x.T<=end)out.push({p:+x.p/p.k,T:+x.T})
-   return{trades:out,complete:end===to,checkedUntil:end}
-  }
- }catch{}
- const bars=(await marketBars(p,'1m',Math.min(1000,Math.ceil((end-from)/60000)+3),from-60000,end+60000)).filter(x=>x.t+60000>=from&&x.t<=end)
- for(const b of bars){
-  const seq=dir>0?[b.open,b.low,b.high,b.close]:[b.open,b.high,b.low,b.close]
-  const ts=[b.t+1,b.t+20000,b.t+40000,b.t+59999]
-  for(let i=0;i<4;i++)if(ts[i]>=from&&ts[i]<=end&&Number.isFinite(seq[i]))out.push({p:seq[i],T:ts[i]})
+export async function q15Tape(p:Pair,from:number,to:number,dir:1|-1=1):Promise<Tape> {
+ // Each source owns its buffer; failed partial responses must never contaminate a fallback.
+ for(const base of ['https://fapi.binance.com/fapi/v1/aggTrades','https://data-api.binance.vision/api/v3/aggTrades']){
+  try{return await pagedTape(json,base,p.s,p.k,from,to)}catch{}
  }
- return{trades:out,complete:end===to,checkedUntil:end}
+ const end=Math.min(to,from+3599999)
+ const bars=await marketBars(p,'1m',Math.min(1000,Math.ceil((end-from)/60000)+3),Math.floor(from/60000)*60000,end)
+ return candleTape(bars,from,to,dir,'candle-fallback')
 }
 async function settled(p:Pair,from:number,to:number){
  try{
@@ -90,30 +74,32 @@ async function settled(p:Pair,from:number,to:number){
 }
 export async function exitRow(t:any,now:number){
  const m=t.scalp_meta.q15, p:Pair=m.pair??pairOf(t.sym),entry=Number(t.entry_price),dir:1|-1=t.side==='LONG'?1:-1
- const opened=Date.parse(t.opened_at),deadline=m.pattern==='DDDDD'?Infinity:opened+(Number(m.hold_ms)||Q15.holdMs),until=now,from=Math.max(opened,Number(m.chk)||opened)
+ const opened=Date.parse(t.opened_at),deadline=m.pattern==='DDDDD'?Infinity:opened+(Number(m.hold_ms)||Q15.holdMs),until=now,from=Math.max(opened,(Number(m.chk)||opened)+1)
  if(![entry,opened,m.r,m.stop,m.target].every(Number.isFinite)||!(entry>0&&m.r>0))throw new Error('invalid_exit_state')
  const tape=await q15Tape(p,from,until,dir)
  let reason:string|null=null,px=NaN,trigger=now
  let beActive=m.pattern==='DDDDD'&&m.be_active===true
  if(m.pattern==='DDDDD'&&dir===1){
-  const stop0=Number(m.stop),target=Number(m.target),beTrigger=entry*1.004,beStop=entry*1.001
+  const protection=m.protection,modern=protection?.version===2
+  const stop0=Number(m.stop),target=Number(m.target),beTrigger=modern?Number(protection.trigger):entry*1.004,beStop=modern?Number(protection.stop):entry*1.001
+  const canArm=!modern||protection.enabled===true&&Number.isFinite(beStop)&&Number.isFinite(beTrigger)&&beStop<beTrigger&&beTrigger<target
   for(const tr of [...tape.trades].sort((a,b)=>a.T-b.T)){
    const stop=beActive?Math.max(stop0,beStop):stop0
-   if(tr.p<=stop){reason=beActive?'BE_PROTECT':'STOP';px=stop;trigger=tr.T;break}
+   if(tr.p<=stop){reason=beActive?'BE_PROTECT':'STOP';px=Math.min(stop,tr.p);trigger=tr.T;break}
    if(tr.p>=target){reason='TARGET';px=target;trigger=tr.T;break}
-   if(!beActive&&tr.p>=beTrigger)beActive=true
+   if(!beActive&&canArm&&tr.p>=beTrigger)beActive=true
   }
  }else{
   const res=resolveExit({dir,entry,r:m.r,stop:m.stop,target:m.target,liq:fastLiq(dir,entry,Number(t.lev)||Q15.lev),best:entry,trail:false},tape.trades)
   reason=res.why;px='px' in res?res.px:NaN;trigger='T' in res?res.T:now
  }
- let quote=now,fill:any={model:'aggTrades',trigger_ts:trigger,detected_ts:now,complete:tape.complete}
+ let quote=now,fill:any={model:tape.inferred?'adverse_first_closed_candles':'aggTrades',source:tape.source,inferred:tape.inferred,trigger_ts:trigger,detected_ts:now,complete:tape.complete}
  if(reason==='STOP'||reason==='BE_PROTECT'){
   const bk=await book(p),walk=walkBook(dir>0?bk.bids:bk.asks,entry*Number(t.size))
   px*=1-dir*Math.max(COST.minSlip,walk.impact);quote=bk.E
   fill={...fill,impact_bps:walk.impact*1e4,impact_inferred:true}
  }
- if(!reason&&tape.complete&&now>=deadline){
+ if(!reason&&(tape.complete||tape.inferred&&tape.checkedUntil>=deadline)&&now>=deadline){
   const bk=await book(p),walk=walkBook(dir>0?bk.bids:bk.asks,entry*Number(t.size)),top=(dir>0?bk.bids:bk.asks)[0][0]
   reason='TIMEOUT';px=top*(1-dir*Math.max(COST.minSlip,walk.impact));quote=bk.E;trigger=now
   fill={model:'book_walk',detected_ts:now,impact_bps:walk.impact*1e4}
@@ -165,7 +151,8 @@ export async function runQ15(db:any,state:any,lease:string,paper:boolean){
  const {data:marked}=await db.rpc('q15_commit_cycle',{p_lease:lease,p_closes:closes,p_entries:[],p_marks:marks,p_updates:updates,p_share:cfg.share,p_note:{exit_errors:errors,marks_fresh:markHealthy,day_start_marks:dayMarks},p_bar:null}).throwOnError()
  const closing=new Set(closes.map(x=>x.id)),remaining=open.filter((t:any)=>!closing.has(t.id))
  const halted=marked?.halted===true||aggHalted(params,now)
- const scan=d5?(Number(params.d5_scan?.bar)!==bar||params.d5_scan?.done!==true||Number(params.vwap_rev_scan?.bar)!==Math.floor(now/60000)*60000):Number(params.q15_bar)!==bar
+ if(d5)try{await confirmationShadow(db,now,lease,{bars:p=>marketBars(p,'5m',8),book,exit:exitRow})}catch(e:any){errors.push('confirmation_shadow:'+String(e.message).slice(0,80))}
+ const scan=d5?(Number(params.d5_scan?.bar)!==bar||params.d5_scan?.done!==true):Number(params.q15_bar)!==bar
  if(!scan)return{changed:closes.length>0,halted,scanned:false,closed:marked?.closed??0,exit_errors:errors,marks_fresh:markHealthy}
  const {data:cache}=await db.from('market_cache').select('data').eq('key','universe').throwOnError()
  const cached:Pair[]=(cache?.[0]?.data?.pairs??[]).filter((p:any)=>/^[A-Z0-9]+USDT$/.test(p.s)&&Number(p.k)>0)
@@ -240,17 +227,24 @@ export async function runQ15(db:any,state:any,lease:string,paper:boolean){
   if(dayN>=HARD_FLOOR.maxPerDay){rec.reason='max_day';continue}
   if(halted||state.hard_halt_at||sleeveOff(params,'Q15')){rec.reason='day_or_owner_halt';continue}
   // Check remaining capital before network I/O so unfundable signals cannot age funded quotes.
-   const margin=Math.min(eq*cfg.perTrade,Math.max(0,eq*cfg.share-marginUsed),cash/(1+cfg.lev*COST.takerFee))
-   const notional=margin*cfg.lev
+   let margin=Math.min(eq*cfg.perTrade,Math.max(0,eq*cfg.share-marginUsed),cash/(1+cfg.lev*COST.takerFee))
+   let notional=margin*cfg.lev
    if(notional<20){rec.reason='no_cash';continue}
   try{
-   const bk=await book(p),dir=sig.dir,price=(dir>0?bk.asks:bk.bids)[0][0]
-   const isVwap=d5&&!!vs&&!d5r.sig; const lv=isVwap?{r:price*.01,stop:dir>0?price*.99:price*1.01,target:dir>0?price*1.005:price*.995}:d5?{r:price*.01,stop:price*.99,target:price*1.01}:q15Levels(dir,price,sig.atr)
+   const bk=await book(p),dir=sig.dir
+   marks[p.sym]=(bk.bids[0][0]+bk.asks[0][0])/2
+   let price=(dir>0?bk.asks:bk.bids)[0][0],protection:any=null
    const f=funding.get(p.s),fundRate=f?.rate??null,fundHours=f?.hours??8
+   if(d5&&!vs){
+    const execution=d5Execution(bk,notional,cfg.lev,Date.now(),fundRate,fundHours)
+    if(execution.ok===false){rec.reason=execution.reason;continue}
+    notional=execution.notional;margin=notional/cfg.lev;price=execution.price;protection=execution.protection
+   }
+   const isVwap=d5&&!!vs&&!d5r.sig; const lv=isVwap?{r:price*.01,stop:dir>0?price*.99:price*1.01,target:dir>0?price*1.005:price*.995}:d5?{r:price*.01,stop:price*.99,target:price*1.01}:q15Levels(dir,price,sig.atr)
    const walk=walkBook(dir>0?bk.asks:bk.bids,notional),exitWalk=walkBook(dir>0?bk.bids:bk.asks,notional)
    const gate=q15Gate({book:bookFrom(bk.bids,bk.asks,bk.E,'binance-futures'),now:Date.now(),notional,dir,rFrac:lv.r/price,entryImpact:walk.impact,exitImpact:exitWalk.impact,beyond:walk.beyond||exitWalk.beyond,funding:fundRate,fundingHours:fundHours,grossBps:d5?0:edge[dir>0?'long':'short'].bps})
    if(!gate.pass){rec.reason=gate.reason;rec.observed.net_bps=gate.netBps;continue}
-   const m={...lv,chk:bk.E,pair:p,bar:isVwap?vwapBar:bar,atr:sig.atr,hold_ms:isVwap?3600000:d5?0:Q15.holdMs,...(d5?{pattern:isVwap?'VWAP_REV_1M':'DDDDD'}:{}),...(isVwap?{vwap:vs.vwap,vol_mult:vs.volMult}:{}),gate,lag_ms:Date.now()-(isVwap?vwapBar:bar),gate_mode:d5?'pattern':'measured',policy:isVwap?'VWAP_REV_1M':d5?'DDDDD':policyId}
+   const m={...lv,chk:bk.E,pair:p,bar:isVwap?vwapBar:bar,atr:sig.atr,hold_ms:isVwap?3600000:d5?0:Q15.holdMs,...(d5?{pattern:isVwap?'VWAP_REV_1M':'DDDDD',execution_version:D5_EXEC.version,protection}:{}),...(isVwap?{vwap:vs.vwap,vol_mult:vs.volMult}:{}),gate,lag_ms:Date.now()-(isVwap?vwapBar:bar),gate_mode:d5?'target_cost_budget':'measured',policy:isVwap?'VWAP_REV_1M':d5?'DDDDD':policyId}
    if(!d5)shadows.push({sym:p.sym,side:sig.dir,t0:bar,payload:{id:0,sym:p.sym,side:sig.dir>0?'LONG':'SHORT',entry_price:price,size:notional/price,lev:cfg.lev,opened_at:new Date(now).toISOString(),scalp_meta:{q15:m}},status:'open'})
    rec.side=dir>0?'LONG':'SHORT'
    entries.push({sym:p.sym,side:rec.side,price,notional,lev:cfg.lev,quote_ts:bk.E,q15:m,source:'binance-futures',profit_gate:'passed',net_bps:gate.netBps,autonomy_policy:d5?'DDDDD':policyId})
@@ -270,7 +264,7 @@ export async function runQ15(db:any,state:any,lease:string,paper:boolean){
  const firstFailed=d5?pairs.findIndex(p=>failures.has(p.sym)):-1
  const nextCursor=cursor+(firstFailed<0?pairs.length:firstFailed)
  const d5Scan={bar,cursor:nextCursor,done:nextCursor>=universe.length}
- const note={...(d5?{strategy:'DDDDD+VWAP_REV_1M',d5_scan:d5Scan,vwap_rev_scan:{bar:vwapBar,signals:vwapSignals.size}}:{}),bar,scanned_at:now,scan_lag_ms:now-bar,scan_duration_ms:Date.now()-now,universe:universe.length,scanned:data.size,candidates,fills:0,reasons,edge,halted,marks_fresh:markHealthy,exit_errors:errors,autonomy:d5?{active:'DDDDD',floor:{...HARD_FLOOR,barMs:D5.barMs}}:{active:policyId,weights:autonomy.weights,floor:HARD_FLOOR}}
+ const note={...(d5?{strategy:'DDDDD',execution_version:D5_EXEC.version,d5_scan:d5Scan}:{}),bar,scanned_at:now,scan_lag_ms:now-bar,scan_duration_ms:Date.now()-now,universe:universe.length,scanned:data.size,candidates,fills:0,reasons,edge,halted,marks_fresh:markHealthy,exit_errors:errors,autonomy:d5?{active:'DDDDD',floor:{...HARD_FLOOR,barMs:D5.barMs}}:{active:policyId,weights:autonomy.weights,floor:HARD_FLOOR}}
  const {data:result}=await db.rpc('q15_commit_cycle',{p_lease:lease,p_closes:[],p_entries:freshEntries,p_updates:[],p_marks:marks,p_share:cfg.share,p_note:{...note,...(d5?{}:{q15_autonomy:autonomy})},p_bar:bar}).throwOnError()
  const accepted=new Set<string>(result?.accepted??[])
  for(const r of journal)if(r.decision==='accepted'){r.decision=accepted.has(r.sym)?'accepted':'rejected';r.reason=accepted.has(r.sym)?'taken':'ledger_rejected'}

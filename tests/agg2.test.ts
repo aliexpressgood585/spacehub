@@ -38,83 +38,128 @@ assert.ok(aggHalted({ agg_day: { day, halted: true } }, T0 + 1000) && !aggHalted
 const NOW = Date.UTC(2026, 9, 4, 9, 20, 30)
 function bars(burst = true): LBar[] {
   let p = 100
-  return Array.from({ length: 45 }, (_, i) => { const o = p, hot = burst && i >= 42; p *= 1 + (hot ? 0.004 : 0.0001); const vol = hot ? 3000 : 1000
-    return { t: NOW - 30_000 - (44 - i) * 60_000, open: o, close: p, high: Math.max(o, p) * 1.0002, low: Math.min(o, p) * 0.9998, vol, tb: vol * 0.8 } })
+  return Array.from({ length: 45 }, (_, i) => { const o = p, hot = burst && i >= 42; p *= 1 …6341 tokens truncated…Atr === 3 && PRO_V104.timeStopBars === 15, 'v100.4 = v100b choice')
+assert.ok(PRO_LIVE.tf === '4h' && PRO_LIVE.breakoutN === 20 && PRO_LIVE.stopAtr === 3 && PRO_LIVE.targetR === 3 && PRO_LIVE.beR === 1.5 && PRO_LIVE.maxHoldBars === 60, 'live = v100c choice on 4h')
+// ── 4h ladder: aggregation from 1h, weekly VWAP anchor, no funding skip ──
+{ const h: Bar[] = Array.from({ length: 48 }, (_, i) => ({ t: Date.UTC(2026, 8, 21) + i * 3600_000, open: i, high: i + 1, low: i - 1, close: i + 0.5, vol: 1 }))
+  const b4 = aggregate(h, 240, 60); assert.equal(b4.length, 12); assert.deepEqual([b4[0].open, b4[0].high, b4[0].low, b4[0].close, b4[0].vol], [0, 4, -1, 3.5, 4])
+  assert.equal(aggregate(h, 1440, 60).length, 2, 'two complete days')
+  assert.ok(TF['4h'].fundingSkip === false && TF['4h'].vwap === 'week' && TF['4h'].mid === 1440) }
+// ── sizing: 0.5% of equity at the stop, capped at 5x equity and by cash ──
+assert.ok(near(proSize(5000, 5000, 100, 0.5), 5000), '0.5% stop -> $25 risk -> $5,000 notional')
+assert.ok(near(proSize(5000, 5000, 100, 0.05), 25000), 'a tiny stop is capped at 5x equity')
+assert.ok(proSize(5000, 10, 100, 0.5) < 101, 'cash posts the margin at 10x')
+
+// ── pre-screen: breakout + volume from the previous 15 / 20 bars only (60 bars give the same answer as 1,500) ──
+{ const b: Bar[] = Array.from({ length: 60 }, (_, i) => ({ t: i * 60_000, open: 100, high: 100.1, low: 99.9, close: 100, vol: 10 }))
+  assert.equal(prescreen(b, 15).pass, false)
+  b[59] = { ...b[59], close: 100.2, high: 100.25, vol: 16 }; assert.deepEqual(prescreen(b, 15), { pass: true, volRatio: 1.6, dir: 1 })
+  b[59] = { ...b[59], vol: 15 }; assert.equal(prescreen(b, 15).pass, false, 'volume must be ABOVE 1.5x')
+  b[59] = { ...b[59], close: 99.8, low: 99.7, vol: 20 }; assert.equal(prescreen(b, 15).dir, -1) }
+// ── a live signal on the 4h ladder: synthetic uptrend with volume breakouts, searched with the runner's own windows ──
+const T0 = Date.UTC(2023, 0, 2, 0, 0), B = 240 * 60_000
+let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
+const all: Bar[] = []; let px = 100
+for (let i = 0; i < 6_000; i++) {
+  const o = px; px *= 1 + 0.0012 + (rnd() - 0.5) * 0.03 * (1 + Math.sin(i / 120))
+  all.push({ t: T0 + i * B, open: o, high: Math.max(o, px) * (1 + rnd() * 0.005), low: Math.min(o, px) * (1 - rnd() * 0.005), close: px, vol: 10 + rnd() * 10 + (rnd() < 0.05 ? 40 : 0) })
 }
-const up = bars(), flat = bars(false)
-const pairs = ['BTC', 'SOL', ...Array.from({ length: 20 }, (_, i) => `CX${i}`)].map(sym => ({ sym, s: `${sym}USDT`, k: 1 }))
-let commit: any, journal: any[] = [], shadowRows: any[] = [], closedToday: any[] = [], shadowUpserts: any[] = [], klineCalls = 0
+const tf4 = TF['4h']
+const win = (i: number) => { const c1 = all.slice(Math.max(0, i - 1499), i + 1), upto = all.slice(0, i + 1)
+  return { m1: c1, m5: aggregate(upto, 1440, 240).slice(-400), m15: aggregate(upto, 1440, 240).slice(-400) } }
+let sig = -1
+for (let i = 5_999; i > 3_000 && sig < 0; i--) { const w = win(i); const F = features(w.m1, w.m5, w.m15, tf4); if (proCheck(w.m1, F, w.m1.length - 1, PRO_LIVE.breakoutN, tf4).dir) sig = i }
+assert.ok(sig > 0, 'the synthetic series produces at least one signal')
+const W = win(sig), F = features(W.m1, W.m5, W.m15, tf4), ck = proCheck(W.m1, F, W.m1.length - 1, PRO_LIVE.breakoutN, tf4)
+assert.equal(ck.checks.length, 9); assert.ok(ck.checks.every((c) => c.ok))
+
+const realFetch = globalThis.fetch, realNow = Date.now
+let now = all[sig].t + B + 5_000
+Date.now = () => now
+let open: any[] = [], past: any[] = [], commit: any = null, inserted: any[] = []
 const db = {
   from(table: string) {
+    let pc = false
     const q: any = new Proxy({}, { get(_t, key) {
-      if (key === 'throwOnError') return async () => ({ data: table === 'market_cache' ? [{ data: { pairs } }] : [] })
-      if (key === 'then') return (resolve: any) => resolve({ data: table === 'fast_shadow' ? shadowRows : table === 'bot_trades' ? closedToday : [], count: 0 })
-      if (key === 'insert') return async (r: any[]) => { journal.push(...r); return {} }
-      if (key === 'upsert') return async (r: any[]) => { if (table === 'fast_shadow') shadowUpserts.push(...r); return {} }
+      if (key === 'throwOnError') return async () => ({ data: open })
+      if (key === 'neq') return () => { pc = true; return q }
+      if (key === 'order') return async () => ({ data: pc ? past : open })
+      if (key === 'insert') return async (rows: any) => { if (table === 'trade_decisions') inserted.push(...rows); return { data: null } }
       return () => q
     } }); return q
   },
-  rpc(name: string, args: any) { return { throwOnError: async () => { if (name === 'fast_commit_cycle') commit = args; return { data: {} } } } },
+  rpc(name: string, args: any) { return { throwOnError: async () => { if (name === 'pro_commit_cycle') commit = args; return { data: { opened: args.p_entries?.length ?? 0 } } } } },
 }
-const realFetch = globalThis.fetch, realNow = Date.now
-const run = async (params: any = {}) => { commit = null; journal = []; shadowUpserts = []; klineCalls = 0; await runFast(db, { balance: 5000, bot_params: params }, new Date(NOW + 50_000).toISOString(), true) }
+const kline = (b: Bar, ms: number) => [b.t, b.open, b.high, b.low, b.close, b.vol, b.t + ms - 1]
+let bid = W.m1[W.m1.length - 1].close * 0.9999, ask = W.m1[W.m1.length - 1].close * 1.0001
+globalThis.fetch = (async (url: string) => {
+  const ok = (j: any) => ({ ok: true, status: 200, json: async () => j })
+  const sym = /symbol=([A-Z0-9]+)/.exec(url)?.[1]
+  if (url.includes('/klines')) {
+    if (sym !== 'BTCUSDT') return { ok: false, status: 400, json: async () => ({}) }   // only BTC has data in this replay
+    const iv = /interval=(\w+)/.exec(url)![1], ms = iv === '4h' ? B : 86_400_000
+    if (iv !== '4h' && iv !== '1d') return { ok: false, status: 400, json: async () => ({}) }
+    const src = iv === '4h' ? W.m1 : W.m5
+    return ok([...src.map((b) => kline(b, ms)), kline(all[sig + 1], B)])
+  }
+  if (url.includes('/depth')) return ok({ bids: [[String(bid)]], asks: [[String(ask)]], E: now })
+  if (url.includes('fundingRate')) return ok([{ fundingRate: '0.0001' }])
+  return { ok: false, status: 404, json: async () => ({}) }
+}) as any
+const state = (params: any = {}) => ({ balance: 5000, bot_params: params, hard_halt_at: null })
 try {
-  Date.now = () => NOW
-  globalThis.fetch = (async (url: string) => {
-    const sym = /symbol=([A-Z0-9]+)USDT/.exec(url)?.[1]
-    if (url.includes('/klines')) { klineCalls++; const b = sym === 'SOL' ? up : flat; return new Response(JSON.stringify(b.map(x => [x.t, x.open, x.high, x.low, x.close, x.vol, x.t + 59999, 0, 0, x.tb, 0]))) }
-    if (url.includes('premiumIndex')) return new Response(JSON.stringify([{ symbol: 'SOLUSDT', lastFundingRate: '0.0001' }]))
-    const mid = up.at(-1)!.close
-    return new Response(JSON.stringify({ bids: [[mid * 0.99999, 1e6]], asks: [[mid * 1.00001, 1e6]], E: NOW }))
-  }) as typeof fetch
-  // 1. no measured edge -> the gate refuses (no_edge_estimate); the signal is journalled as a shadow for later scoring
-  shadowRows = []; await run()
-  assert.equal(commit.p_entries.length, 0, 'no measurement -> no FAST entry')
-  const d1 = journal.find((x: any) => x.sym === 'SOL'); assert.equal(d1.decision, 'rejected'); assert.equal(d1.reason, 'no_edge_estimate')
-  assert.equal(shadowUpserts.length, 1); assert.equal(shadowUpserts[0].sym, 'SOL'); assert.equal(shadowUpserts[0].side, 1); assert.equal(shadowUpserts[0].taken, false)
-  // 2. a measured gross that does not pay the round trip -> refused
-  shadowRows = rows(40, i => 8 + (i % 3)).map(r => ({ ...r, sym: 'ZZZ' })); await run()
-  assert.equal(commit.p_entries.length, 0); assert.equal(journal.find((x: any) => x.sym === 'SOL').reason, 'costs_exceed_edge', 'gross ~9 bps < ~16 bps of costs')
-  // 3. a measured edge that pays -> entry at 10x, 5% of equity, gate journalled; PSYCH does not block (3 losses today)
-  shadowRows = rows(40, i => 60 + (i % 5)).map(r => ({ ...r, sym: 'ZZZ' }))
-  closedToday = Array.from({ length: 3 }, (_, i) => ({ sym: 'QQQ', pnl: -10, closed_at: new Date(NOW - (i + 1) * 60_000).toISOString() }))
-  await run()
-  assert.equal(commit.p_entries.length, 1, 'gate passes on a measured edge; PSYCH off in rt')
-  const e = commit.p_entries[0]
-  assert.equal(e.lev, 10); assert.ok(Math.abs(e.notional - 5000 * 0.05 * 10) < 1e-6, '5% margin x 10'); assert.ok(e.fast.gate.pass && e.fast.gate.net_bps >= 2)
-  assert.deepEqual(e.fast.psych, { off: true }); assert.ok(e.fast.stop_pct >= FAST.stopMinPct - 1e-12, 'stop never below 0.3%')
-  assert.equal(commit.p_note.lev, 10); assert.equal(commit.p_note.psych, false); assert.equal(shadowUpserts[0].taken, true)
-  closedToday = []; shadowRows = []
-  // 4. the account day halt: no scan at all (exits would still run)
-  await run({ agg_day: { day: new Date(NOW).toISOString().slice(0, 10), halted: true } })
-  assert.equal(klineCalls, 0, 'halted: no entry scan'); assert.ok(!commit || !commit.p_entries?.length)
+  await assert.rejects(runPro(db, state(), 'L', false), /paper-only/)
+  open = [{ strategy: 'FAST', paper_mode: true, lev: 1 }]; await assert.rejects(runPro(db, state(), 'L', true), /PRO rows/); open = []
+  const res: any = await runPro(db, state(), 'L', true)
+  assert.equal(commit.p_bar, all[sig].t, 'the closed bar is recorded once')
+  assert.equal(commit.p_entries.length, 1); const e = commit.p_entries[0]
+  assert.equal(e.sym, 'BTC'); assert.equal(e.side, ck.checks[6].v < W.m1[W.m1.length - 1].close ? 'LONG' : 'SHORT')
+  const dir = e.side === 'LONG' ? 1 : -1, ent = dir > 0 ? ask * 1.0003 : bid * (1 - 0.0003)
+  assert.ok(near(e.price, ent, 1e-6), 'entry at the touch plus slippage')
+  assert.ok(near(Math.abs(e.price - e.pro.stop), Math.max(PRO_LIVE.stopAtr * F.atr1[F.n - 1], (PRO_LIVE.minStopPct ?? 0) * e.price), 1e-6), 'stop = 3 x ATR(14) on 4h')
+  assert.ok(e.pro.params.tf === '4h' && e.pro.params.beR === 1.5 && e.pro.bar === new Date(all[sig].t).toISOString(), 'v100.5 params travel with the row')
+  assert.ok(near(Math.abs(e.pro.target - e.price), PRO_LIVE.targetR * Math.abs(e.price - e.pro.stop), 1e-6), 'target = 3R')
+  assert.ok(e.notional <= 5000 * PRO.maxNotionalEq + 1e-6 && Math.abs(e.notional * e.pro.stop_pct - 250) < 1e-6 || e.notional >= 5000 * PRO.maxNotionalEq - 1e-6, 'v100.6: risk $250 (5%) at the stop unless capped at 5x')
+  assert.equal(e.pro.risk_pct, 0.05)
+  assert.equal(commit.p_note.failed_n, FALLBACK.length - 1, 'no universe cache and no exchangeInfo -> the pinned 40; the 39 without data are reported as failed')
+  assert.equal(commit.p_note.universe.src, 'fallback_40'); assert.equal(commit.p_note.full, 1, 'only the pre-screened pair is read in full')
+  assert.equal(inserted[0].decision, 'accepted'); assert.ok(res.changed)
+  // the same bar is not scanned twice
+  commit = null; await runPro(db, state({ pro_bar: all[sig].t }), 'L', true); assert.equal(commit, null, 'no second scan of one bar')
+  // v100.3: the -3R day stop and the 3-loss cooldown are OFF live (owner) — the entry still goes through
+  past = [1, 2, 3].map((k) => ({ pnl: -25, risk_usd: 25, closed_at: new Date(now - k * 600_000).toISOString() }))
+  await runPro(db, state(), 'L', true); assert.equal(commit.p_entries.length, 1, 'no day stop live'); assert.equal(commit.p_note.gate, null); past = []
+  // exits on the live touch
+  const row = (meta: any) => ({ id: 9, sym: 'BTC', side: 'LONG', strategy: 'PRO', paper_mode: true, lev: 10, entry_price: 100, size: 10, opened_at: new Date(now - 5 * 60_000).toISOString(), scalp_meta: { pro: { stop: 99, target: 103, r: 1, best: 100, reached_1r: false, ...meta } } })
+  const st2 = state({ pro_bar: all[sig].t })
+  open = [row({})]; bid = 98.9; ask = 99; await runPro(db, st2, 'L', true)
+  assert.equal(commit.p_closes[0].reason, 'STOP'); assert.ok(near(commit.p_closes[0].price, 98.9 * (1 - 0.0003)))
+  open = [row({})]; bid = 101.5; ask = 101.6; await runPro(db, st2, 'L', true)
+  assert.equal(commit.p_closes.length, 0); assert.ok(near(commit.p_updates[0].stop, 100.5) && commit.p_updates[0].reached_1r, '+1.5R: stop trails 1R behind')
+  open = [row({ stop: 100.5, best: 101.5, reached_1r: true })]; bid = 100.4; ask = 100.5; await runPro(db, st2, 'L', true)
+  assert.equal(commit.p_closes[0].reason, 'TRAIL')
+  open = [row({})]; bid = 103.1; ask = 103.2; await runPro(db, st2, 'L', true); assert.equal(commit.p_closes[0].reason, 'TARGET')
+  open = [{ ...row({}), opened_at: new Date(now - 16 * 60_000).toISOString() }]; bid = 100.2; ask = 100.3; await runPro(db, st2, 'L', true)
+  assert.equal(commit.p_closes[0].reason, 'TIME', 'no +1R after 15 bars')
+  { const H8 = 8 * 3600_000, crossed = Math.floor((now - 16 * 60_000) / H8) !== Math.floor(now / H8)
+    assert.ok(near(commit.p_closes[0].funding, crossed ? 1000 * 0.0001 : 0), 'funding charged only when an 8h settlement fell inside the hold') }
+  // a 4h row: 16 minutes is nothing; 15 bars = 60 hours
+  const r4 = (h: number) => ({ ...row({ params: PRO_LIVE }), opened_at: new Date(now - h * 3600_000).toISOString() })
+  open = [r4(0.3)]; bid = 100.2; ask = 100.3; await runPro(db, st2, 'L', true); assert.equal(commit.p_closes.length, 0, '4h row: no time stop after minutes')
+  open = [r4(61)]; await runPro(db, st2, 'L', true); assert.equal(commit.p_closes[0].reason, 'TIME', '4h row: out after 15 x 4h without +1.5R')
+  // funding is queried only when an 8h settlement fell inside the hold
+  // the brake stops entries only
+  open = []; commit = null; await runPro(db, state({ sleeves_off: { PRO: { by: 'test' } } }), 'L', true); assert.equal(commit, null, 'braked: no scan')
 } finally { globalThis.fetch = realFetch; Date.now = realNow }
 
-// ── structure: shims, DONCH 1x, EVT without gate, routing ──
-const src = (f: string) => readFileSync(f, 'utf8')
-for (const wf of ['.github/workflows/deploy-edge-function.yml', '.github/workflows/enforce-no-loss-trading.yml']) {
-  const w = src(wf)
-  for (const kv of ["g.__ENABLED_SLEEVES = 'Q15,EVT,DONCH4H'", "g.__SLEEVES_OFF = ''", "g.__LEVERAGE = '1'", "g.__Q15_LEV = '25'", "g.__Q15_SHARE = '0.90'",
-    "g.__Q15_PER_TRADE = '0.15'", "g.__Q15_MAX_OPEN = '20'", "g.__EVT_PER_TRADE = '0.15'", "g.__EVT_MAX_OPEN = '8'", "Deno.env.set('ENABLED_SLEEVES', 'Q15,EVT,DONCH4H')", "Deno.env.set('LEVERAGE', '1')"])
-    assert.ok(w.includes(kv), `${wf}: ${kv}`)
-  assert.ok(!/__ENABLED_SLEEVES = '[^']*PRO/.test(w), `${wf}: PRO not enabled`)
-  assert.ok(!w.includes('ALLOW_LIVE_EXECUTION'), `${wf}: never sets ALLOW_LIVE_EXECUTION`)
-  assert.ok(w.includes('python3 scripts/build-ledger-payload.py'), `${wf}: uses atomic ledger payload`)
+// ── ledger and shim ──
+const sql = readFileSync(new URL('../supabase/migrations/20261003090000_pro_risk5.sql', import.meta.url), 'utf8')
+assert.match(sql, /cnt>=3/, 'ledger: <= 3 open'); assert.match(sql, /eq\*5/, 'ledger: notional <= 5x equity'); assert.match(sql, /eq\*0\.051/, 'ledger: risk <= 5.1%'); assert.ok(sql.split('eq*0.051').length === 3 && !sql.includes('eq*0.006'))
+assert.equal(PRO_LIVE.riskPct, 0.05, 'live risk 5% per trade (owner)'); assert.ok(near(proSize(5000, 5000, 100, 5, 0.05), 5000), '5% risk / 5% stop = 1x equity')
+assert.match(sql, /not s\.paper_mode/, 'ledger: paper only'); assert.match(sql, /strategy='PRO'/)
+for (const w of ['deploy-edge-function.yml', 'enforce-no-loss-trading.yml']) {
+  const y = readFileSync(new URL(`../.github/workflows/${w}`, import.meta.url), 'utf8')
+  assert.match(y, /g\.__ENABLED_SLEEVES = 'Q15';/, `${w}: P-Q15 shim runs DDDDD only; PRO off`)
+  assert.match(y, /Deno\.env\.set\('ENABLED_SLEEVES', 'Q15'\)/)
 }
-const payload = JSON.parse(execFileSync('python3', ['scripts/build-ledger-payload.py'], {encoding:'utf8'})).query as string
-assert.ok(payload.startsWith('BEGIN;') && payload.trimEnd().endsWith('COMMIT;'), 'ledger definitions commit atomically')
-let previous = -1
-for (const file of ['20261004090000_blade_sleeve.sql','20261004120000_agg2.sql','20261004120001_q15_sleeve.sql']) {
-  const at = payload.indexOf(src(`supabase/migrations/${file}`))
-  assert.ok(at > previous, `complete migration present in order: ${file}`); previous = at
-}
-const idx = src('supabase/functions/trading-bot/index.ts'), br = src('supabase/functions/trading-bot/blade-runner.ts'), mig = src('supabase/migrations/20261004120000_agg2.sql')
-assert.ok(idx.includes("ENABLED_SLEEVES.includes('FAST') && ENABLED_SLEEVES.includes('EVT') && !ENABLED_SLEEVES.includes('LIST')") && idx.includes('runEvt2(supabase'), 'AGG2 branch routes EVT2 + FAST + DONCH4H')
-assert.ok(idx.indexOf('P-AGG2 (owner override') < idx.indexOf("if (ENABLED_SLEEVES.includes('PRO')) {"), 'AGG2 branch precedes PRO')
-assert.ok(!br.includes('profitGate'), 'EVT has no profit gate'); assert.ok(src('supabase/functions/trading-bot/fast-runner.ts').includes('profitGate({'), 'FAST calls the profit gate')
-assert.ok(mig.includes("else\n   lv:=1;") && mig.includes("lev>case when strategy='BLADE' then 5 else 1 end"), 'DONCH4H is forced to 1x and a leveraged DONCH4H row is refused')
-assert.ok(mig.includes('lv:=least(10,greatest(1,coalesce((x->>\'lev\')::int,1)))') && mig.includes("lv:=least(10,greatest(1,coalesce((x->>'lev')::numeric,1)))"), 'FAST and EVT leverage clamped to 10 in SQL')
-assert.ok(mig.includes('eq<=st*0.88') && (mig.match(/public\.agg2_day\(cfg,cash,p_marks\)/g) ?? []).length === 2, 'the -12% halt is evaluated in both commit functions')
-assert.ok((mig.match(/not s\.paper_mode/g) ?? []).length >= 2, 'paper lock in both commit functions')
-console.log('agg2: all assertions passed')
-
+console.log('PRO: all assertions passed')
