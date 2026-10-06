@@ -145,6 +145,30 @@ begin
        or abs((m->>'stop')::numeric-px*0.99)>px*0.00000001
        or abs((m->>'target')::numeric-px*1.01)>px*0.00000001
        then raise exception 'invalid R6_3M entry'; end if;
+   elsif m->>'pattern'='FALL5_10M' then
+    if x->>'side' is distinct from 'LONG'
+       or coalesce((x->>'lev')::int,0)<>29
+       or coalesce((m->>'execution_version')::int,0)<>2
+       or coalesce((m->'gate'->>'costBps')::numeric,-1) not between 0 and 50
+       or coalesce((m->>'hold_ms')::bigint,-1)<>0
+       or (m->>'bar')::bigint%600000<>0
+       or extract(epoch from clock_timestamp())*1000-(m->>'bar')::bigint not between 0 and 600000
+       or x->>'sym'<>'KAVA'
+       or abs((m->>'stop')::numeric-px*0.99)>px*0.00000001
+       or abs((m->>'target')::numeric-px*1.01)>px*0.00000001
+       then raise exception 'invalid FALL5_10M entry'; end if;
+   elsif m->>'pattern'='R6_10M' then
+    if x->>'side' is distinct from 'LONG'
+       or coalesce((x->>'lev')::int,0)<>29
+       or coalesce((m->>'execution_version')::int,0)<>2
+       or coalesce((m->'gate'->>'costBps')::numeric,-1) not between 0 and 50
+       or coalesce((m->>'hold_ms')::bigint,-1)<>0
+       or (m->>'bar')::bigint%600000<>0
+       or extract(epoch from clock_timestamp())*1000-(m->>'bar')::bigint not between 0 and 600000
+       or x->>'sym'<>all(array['KAVA','SUSHI'])
+       or abs((m->>'stop')::numeric-px*0.99)>px*0.00000001
+       or abs((m->>'target')::numeric-px*1.01)>px*0.00000001
+       then raise exception 'invalid R6_10M entry'; end if;
    elsif m->>'pattern'='VWAP_REV_1M' then
     if coalesce((m->>'hold_ms')::bigint,-1)<>3600000
        or (x->>'side'='LONG' and (abs((m->>'stop')::numeric-px*0.99)>px*0.00000001 or abs((m->>'target')::numeric-px*1.005)>px*0.00000001))
@@ -172,6 +196,7 @@ begin
  cfg:=cfg||jsonb_build_object('q15_cycle',coalesce(cfg->'q15_cycle','{}')||coalesce(p_note,'{}')||jsonb_build_object('ts',now(),'opened',opens,'fills',case when p_bar is null then coalesce((cfg->'q15_cycle'->>'fills')::int,0) else opens end,'accepted',accepted,'closed',closes,'halted',(a->>'halted')::boolean));
  if d5 and p_note ? 'd5_scan' then cfg:=cfg||jsonb_build_object('d5_scan',p_note->'d5_scan'); end if;
  if d5 and p_note ? 'r3_scan_bar' then cfg:=cfg||jsonb_build_object('r3_scan_bar',p_note->'r3_scan_bar'); end if;
+ if d5 and p_note ? 'l10_scan_bar' then cfg:=cfg||jsonb_build_object('l10_scan_bar',p_note->'l10_scan_bar'); end if;
  if p_note ? 'q15_autonomy' then cfg:=cfg||jsonb_build_object('q15_autonomy',p_note->'q15_autonomy'); end if;
  if p_bar is not null then cfg:=cfg||jsonb_build_object('q15_bar',p_bar); end if;
  -- Final marked equity and observations commit under the same account lock.
