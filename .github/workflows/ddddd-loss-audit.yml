@@ -1,0 +1,73 @@
+name: DDDDD Loss Audit
+on:
+  push:
+    paths:
+      - '.github/workflows/ddddd-loss-audit.yml'
+permissions:
+  contents: write
+env:
+  PROJECT_REF: adxgadwghgkwmntsnrar
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Query loss causes
+        run: |
+          Q="with d as (
+            select id,sym,side,strategy,entry_price,exit_price,size,pnl,pnl_pct,status,opened_at,closed_at,lev,fee,risk_usd,scalp_meta
+            from bot_trades
+            where strategy='Q15'
+            order by id
+          ),
+          s as (select balance,peak_balance,updated_at from bot_state where id=1)
+          select json_build_object(
+            'state',(select row_to_json(s) from s),
+            'summary',json_build_object(
+              'total',count(*),
+              'closed',count(*) filter(where status<>'OPEN'),
+              'open',count(*) filter(where status='OPEN'),
+              'wins',count(*) filter(where status<>'OPEN' and pnl>0),
+              'losses',count(*) filter(where status<>'OPEN' and pnl<=0),
+              'pnl_closed',coalesce(sum(pnl) filter(where status<>'OPEN'),0),
+              'fees_closed',coalesce(sum(fee) filter(where status<>'OPEN'),0)
+            ),
+            'losses',coalesce(json_agg(json_build_object(
+              'id',id,'sym',sym,'pnl',pnl,'pnl_pct',pnl_pct,'entry',entry_price,'exit',exit_price,'size',size,
+              'lev',lev,'risk_usd',risk_usd,'fee',fee,'opened_at',opened_at,'closed_at',closed_at,
+              'pattern',scalp_meta->'q15'->>'pattern','be_active',scalp_meta->'q15'->>'be_active',
+              'stop',scalp_meta->'q15'->>'stop','target',scalp_meta->'q15'->>'target'
+            ) order by pnl asc) filter(where status<>'OPEN' and pnl<=0),'[]'::json),
+            'wins_top',coalesce(json_agg(json_build_object('id',id,'sym',sym,'pnl',pnl,'pnl_pct',pnl_pct,'lev',lev) order by pnl desc) filter(where status<>'OPEN' and pnl>0),'[]'::json),
+            'open_rows',coalesce(json_agg(json_build_object('id',id,'sym',sym,'entry',entry_price,'size',size,'lev',lev,'opened_at',opened_at,'pattern',scalp_meta->'q15'->>'pattern','be_active',scalp_meta->'q15'->>'be_active')) filter(where status='OPEN'),'[]'::json)
+          ) as audit from d;"
+          jq -n --arg q "$Q" '{query:$q}' >/tmp/q.json
+          curl --fail-with-body -sS -X POST "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query"             -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" -H "Content-Type: application/json" --data @/tmp/q.json >/tmp/out.json
+          python3 - <<'PY'
+          import json,statistics
+          x=json.load(open('/tmp/out.json'))
+          if isinstance(x,list) and x and isinstance(x[0],dict): x=x[0].get('audit',x[0])
+          if isinstance(x,str):
+              try:x=json.loads(x)
+              except:pass
+          losses=x.get('losses',[]) if isinstance(x,dict) else []
+          # derived diagnostics
+          if losses:
+              vals=[float(r.get('pnl') or 0) for r in losses]
+              x['derived']={
+                'largest_loss':min(vals),
+                'top2_loss_share_pct': round(100*sum(sorted(vals)[:2])/sum(vals),2) if sum(vals) else None,
+                'median_loss':statistics.median(vals),
+                'losses_with_be_active':sum(1 for r in losses if str(r.get('be_active')).lower()=='true'),
+                'losses_25x':sum(1 for r in losses if float(r.get('lev') or 0)>=25)
+              }
+          print(json.dumps(x,indent=2,default=str))
+          open('status/ddddd-loss-audit.json','w').write(json.dumps(x,indent=2,default=str))
+          PY
+      - name: Commit report
+        run: |
+          git config user.name "audit-bot"; git config user.email "actions@github.com"
+          git add status/ddddd-loss-audit.json
+          git commit -m "status: DDDDD loss audit [skip ci]" || true
+          git pull --rebase origin main || true
+          git push || true
