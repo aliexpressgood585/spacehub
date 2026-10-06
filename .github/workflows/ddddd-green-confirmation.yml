@@ -11,13 +11,13 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Backtest top 10 over 90 days
+      - name: Backtest all 59 demo symbols over 90 days
         shell: bash
         run: |
           python3 - <<'PY'
           import csv,io,json,urllib.request,zipfile,concurrent.futures
           from datetime import datetime,timezone
-          SYMS=["ANKRUSDT","ARKUSDT","1000000MOGUSDT","AGTUSDT","SUSHIUSDT","LQTYUSDT","HYPERUSDT","KAVAUSDT","LUMIAUSDT","ALPINEUSDT"]
+          SYMS=["ALPINEUSDT","BBUSDT","ERAUSDT","WAXPUSDT","HYPERUSDT","FIDAUSDT","LUMIAUSDT","DODOXUSDT","BNBUSDT","ZECUSDT","ARKUSDT","WOOUSDT","FLUXUSDT","LAYERUSDT","LUNA2USDT","INUSDT","1000000MOGUSDT","AIOTUSDT","BATUSDT","REUSDT","POLYXUSDT","SHELLUSDT","ATHUSDT","WETUSDT","TUSDT","CATIUSDT","VELODROMEUSDT","AGTUSDT","ANKRUSDT","SUSHIUSDT","ATOMUSDT","FLUIDUSDT","BEAMXUSDT","ZESTUSDT","ASTRUSDT","PROMUSDT","VTHOUSDT","PROVEUSDT","WLDUSDT","LQTYUSDT","KAVAUSDT","ETHWUSDT","ORDERUSDT","BTRUSDT","ADAUSDT","C98USDT","HOTUSDT","THEUSDT","HIVEUSDT","DOGEUSDT","AUSDT","TRUMPUSDT","MIRAUSDT","EULUSDT","SOMIUSDT","ENSUSDT","AUCTIONUSDT","ZORAUSDT","HUSDT"]
           START=int(datetime(2026,7,8,tzinfo=timezone.utc).timestamp()*1000)
           END=int(datetime(2026,10,6,tzinfo=timezone.utc).timestamp()*1000)
           SPLIT=int(datetime(2026,9,6,tzinfo=timezone.utc).timestamp()*1000)
@@ -91,7 +91,7 @@ jobs:
               return {'symbol':sym,'bars':len(b),'all90':pack(lambda x:True),
                       'first60':pack(lambda x:x['t']<SPLIT),'last30':pack(lambda x:x['t']>=SPLIT)}
 
-          with concurrent.futures.ThreadPoolExecutor(max_workers=10) as ex:
+          with concurrent.futures.ThreadPoolExecutor(max_workers=16) as ex:
               rs=list(ex.map(scan,SYMS))
           ranked=sorted(rs,key=lambda r:(r['all90']['be']['pf'],r['last30']['be']['pf'],r['all90']['be']['n']),reverse=True)
           print('RESULT_START')
