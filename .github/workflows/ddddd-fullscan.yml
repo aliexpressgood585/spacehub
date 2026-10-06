@@ -9,64 +9,68 @@ permissions:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - name: Scan every active USDT perpetual
+      - name: Scan every active USDT perpetual from Binance archive
+        env:
+          SYMBOLS_JSON: '["0GUSDT","1000000MOGUSDT","1000BONKUSDT","1000CATUSDT","1000CHEEMSUSDT","1000FLOKIUSDT","1000LUNCUSDT","1000PEPEUSDT","1000RATSUSDT","1000SATSUSDT","1000SHIBUSDT","1000XECUSDT","1INCHUSDT","1MBABYDOGEUSDT","2ZUSDT","4USDT","AAVEUSDT","ACEUSDT","ACHUSDT","ACTUSDT","ACUUSDT","ADAUSDT","AEROUSDT","AEVOUSDT","AGLDUSDT","AGTUSDT","AIAUSDT","AIGENSYNUSDT","AINUSDT","AIOTUSDT","AIOUSDT","AIXBTUSDT","AKEUSDT","AKTUSDT","ALCHUSDT","ALGOUSDT","ALICEUSDT","ALLOUSDT","ALLUSDT","ALPINEUSDT","ALTUSDT","ANIMEUSDT","ANKRUSDT","APEUSDT","API3USDT","APRUSDT","APTUSDT","ARBUSDT","ARCUSDT","ARIAUSDT","ARKMUSDT","ARKUSDT","ARPAUSDT","ARUSDT","ARXUSDT","ASRUSDT","ASTERUSDT","ASTRUSDT","ATHUSDT","ATOMUSDT","ATUSDT","AUCTIONUSDT","AUSDT","AVAAIUSDT","AVAUSDT","AVAXUSDT","AVNTUSDT","AWEUSDT","AXLUSDT","AXSUSDT","AZTECUSDT","B2USDT","BABYUSDT","BANANAS31USDT","BANANAUSDT","BANDUSDT","BANKUSDT","BANUSDT","BARDUSDT","BASEDUSDT","BASUSDT","BATUSDT","BBUSDT","BCHUSDT","BEAMXUSDT","BEATUSDT","BELUSDT","BERAUSDT","BICOUSDT","BIGTIMEUSDT","BILLUSDT","BIOUSDT","BIRBUSDT","BLESSUSDT","BLUAIUSDT","BLURUSDT","BMTUSDT","BNBUSDT","BNTUSDT","BOMEUSDT","BRETTUSDT","BREVUSDT","BROCCOLI714USDT","BROCCOLIF3BUSDT","BRUSDT","BSBUSDT","BSVUSDT","BTCDOMUSDT","BTCUSDT","BTRUSDT","BTWUSDT","BULLAUSDT","BUSDT","C98USDT","CAKEUSDT","CAPUSDT","CARVUSDT","CATIUSDT","CCUSDT","CELOUSDT","CELRUSDT","CETUSUSDT","CFGUSDT","CFXUSDT","CGPTUSDT","CHILLGUYUSDT","CHIPUSDT","CHRUSDT","CHZUSDT","CKBUSDT","CLANKERUSDT","CLOUSDT","COAIUSDT","COLLECTUSDT","COMPUSDT","COOKIEUSDT","COTIUSDT","COWUSDT","CROSSUSDT","CRVUSDT","CTKUSDT","CTRUSDT","CTSIUSDT","CTUSDT","CUSDT","CVCUSDT","CVXUSDT","CYBERUSDT","CYSUSDT","DASHUSDT","DATAIPUSDT","DEEPUSDT","DEXEUSDT","DIAUSDT","DODOXUSDT","DOGEUSDT","DOGSUSDT","DOLOUSDT","DOODUSDT","DOSUSDT","DOTUSDT","DRIFTUSDT","DUSKUSDT","DYDXUSDT","DYMUSDT","EDENUSDT","EDGEUSDT","EDUUSDT","EGLDUSDT","EIGENUSDT","ELSAUSDT","ENAUSDT","ENJUSDT","ENSOUSDT","ENSUSDT","EPICUSDT","ERAUSDT","ESPORTSUSDT","ESPUSDT","ETCUSDT","ETHFIUSDT","ETHUSDT","ETHWUSDT","EULUSDT","EVAAUSDT","FARTCOINUSDT","FETUSDT","FFUSDT","FHEUSDT","FIDAUSDT","FIGHTUSDT","FILUSDT","FLOCKUSDT","FLOWUSDT","FLUIDUSDT","FLUXUSDT","FOGOUSDT","FOLKSUSDT","FORMUSDT","FRAXUSDT","FUSDT","GALAUSDT","GASUSDT","GENIUSUSDT","GIGGLEUSDT","GLMUSDT","GMTUSDT","GMXUSDT","GOATUSDT","GPSUSDT","GRAMUSDT","GRASSUSDT","GRIFFAINUSDT","GRTUSDT","GRVTUSDT","GTCUSDT","GUAUSDT","GUNUSDT","GUSDT","GWEIUSDT","HAEDALUSDT","HANAUSDT","HBARUSDT","HEIUSDT","HEMIUSDT","HIVEUSDT","HMSTRUSDT","HOLOUSDT","HOMEUSDT","HOTUSDT","HUMAUSDT","HUSDT","HYPERUSDT","HYPEUSDT","ICNTUSDT","ICPUSDT","IDOLUSDT","IDUSDT","ILVUSDT","IMXUSDT","INITUSDT","INJUSDT","INUSDT","INXUSDT","IOSTUSDT","IOTAUSDT","IOTXUSDT","IOUSDT","IRYSUSDT","JASMYUSDT","JCTUSDT","JELLYJELLYUSDT","JOEUSDT","JSTUSDT","JTOUSDT","JUPUSDT","KAIAUSDT","KAITOUSDT","KASUSDT","KATUSDT","KAVAUSDT","KERNELUSDT","KGENUSDT","KITEUSDT","KMNOUSDT","KNCUSDT","KOMAUSDT","KSMUSDT","LABUSDT","LAUSDT","LAYERUSDT","LDOUSDT","LIGHTUSDT","LINEAUSDT","LINKUSDT","LISTAUSDT","LITUSDT","LPTUSDT","LQTYUSDT","LSKUSDT","LTCUSDT","LUMIAUSDT","LUNA2USDT","LYNUSDT","MAGICUSDT","MAGMAUSDT","MANAUSDT","MANTAUSDT","MANTRAUSDT","MARSCOINUSDT","MASKUSDT","MAVIAUSDT","MAVUSDT","MEGAUSDT","MELANIAUSDT","MEMEUSDT","MERLUSDT","METISUSDT","METUSDT","MEUSDT","MEWUSDT","MINAUSDT","MIRAUSDT","MITOUSDT","MMTUSDT","MOCAUSDT","MONUSDT","MOODENGUSDT","MORPHOUSDT","MOVEUSDT","MOVRUSDT","MTLUSDT","MUBARAKUSDT","MUSDT","MYXUSDT","NAORISUSDT","NEARUSDT","NEIROUSDT","NEOUSDT","NEWTUSDT","NIGHTUSDT","NILUSDT","NMRUSDT","NOMUSDT","NOTUSDT","NXPCUSDT","OGNUSDT","OGUSDT","ONDOUSDT","ONEUSDT","ONGUSDT","ONTUSDT","ONUSDT","OPENUSDT","OPGUSDT","OPNUSDT","OPUSDT","ORCAUSDT","ORDERUSDT","ORDIUSDT","OUSDT","PARTIUSDT","PAXGUSDT","PENDLEUSDT","PENGUUSDT","PEOPLEUSDT","PHAROSUSDT","PHAUSDT","PIEVERSEUSDT","PIPPINUSDT","PIXELUSDT","PLAYUSDT","PLUMEUSDT","PNUTUSDT","POLUSDT","POLYXUSDT","PONSUSDT","POPCATUSDT","PORTALUSDT","POWERUSDT","POWRUSDT","PRLUSDT","PROMUSDT","PROVEUSDT","PTBUSDT","PUMPUSDT","PUNDIXUSDT","PYTHUSDT","QNTUSDT","QTUMUSDT","QUSDT","RAREUSDT","RAVEUSDT","RAYSOLUSDT","RECALLUSDT","REDUSDT","RENDERUSDT","RESOLVUSDT","REUSDT","REZUSDT","RIFUSDT","RIVERUSDT","RLCUSDT","ROBOUSDT","RONINUSDT","ROSEUSDT","RPLUSDT","RSRUSDT","RUNEUSDT","RVNUSDT","SAFEUSDT","SAGAUSDT","SAHARAUSDT","SANDUSDT","SANTOSUSDT","SAPIENUSDT","SCRUSDT","SEIUSDT","SENTUSDT","SFPUSDT","SHELLUSDT","SIGNUSDT","SIRENUSDT","SKLUSDT","SKRUSDT","SKYAIUSDT","SKYUSDT","SLPUSDT","SLXUSDT","SNXUSDT","SOLUSDT","SOLVUSDT","SOMIUSDT","SONICUSDT","SOONUSDT","SOPHUSDT","SPACEUSDT","SPELLUSDT","SPKUSDT","SPORTFUNUSDT","SPXUSDT","SQDUSDT","SSVUSDT","STABLEUSDT","STARUSDT","STBLUSDT","STEEMUSDT","STOUSDT","STRKUSDT","STXUSDT","SUIUSDT","SUNUSDT","SUPERUSDT","SUSDT","SUSHIUSDT","SWARMSUSDT","SXTUSDT","SYNUSDT","SYRUPUSDT","TACUSDT","TAGUSDT","TAIKOUSDT","TAKEUSDT","TAOUSDT","TAUSDT","THETAUSDT","THEUSDT","TIAUSDT","TLMUSDT","TNSRUSDT","TOSHIUSDT","TOWNSUSDT","TRADOORUSDT","TRBUSDT","TREEUSDT","TRIAUSDT","TRUMPUSDT","TRUSTUSDT","TRUTHUSDT","TRXUSDT","TSTUSDT","TURBOUSDT","TURTLEUSDT","TUSDT","TUTUSDT","TWTUSDT","UAIUSDT","UBUSDT","UMAUSDT","UNIUSDT","USDCUSDT","USELESSUSDT","USTCUSDT","USUALUSDT","USUSDT","VANAUSDT","VELODROMEUSDT","VELVETUSDT","VETUSDT","VIRTUALUSDT","VTHOUSDT","VVVUSDT","WALUSDT","WAXPUSDT","WCTUSDT","WETUSDT","WIFUSDT","WLDUSDT","WLFIUSDT","WOOUSDT","WUSDT","XAIUSDT","XANUSDT","XAUTUSDT","XLMUSDT","XMRUSDT","XNYUSDT","XPINUSDT","XPLUSDT","XRPUSDT","XTZUSDT","XVGUSDT","XVSUSDT","YBUSDT","YFIUSDT","YGGUSDT","ZAMAUSDT","ZBTUSDT","ZECUSDT","ZENUSDT","ZEREBROUSDT","ZESTUSDT","ZETAUSDT","ZILUSDT","ZKCUSDT","ZKPUSDT","ZKUSDT","ZORAUSDT","ZROUSDT","ZRXUSDT","哈基米USDT","币安人生USDT","我踏马来了USDT","牛来USDT","龙虾USDT"]'
         run: |
           mkdir -p status
           python3 - <<'PY'
-          import json, time, urllib.request, urllib.parse, math
+          import csv, io, json, os, urllib.request, zipfile, concurrent.futures
           from datetime import datetime, timezone, timedelta
 
-          BASE='https://fapi.binance.com'
-          UA={'User-Agent':'spacehub-ddddd-fullscan/1.0'}
-          def get(url,tries=6):
-              for i in range(tries):
-                  try:
-                      req=urllib.request.Request(url,headers=UA)
-                      with urllib.request.urlopen(req,timeout=30) as r:
-                          return json.loads(r.read())
-                  except Exception as e:
-                      if i==tries-1: raise
-                      time.sleep(min(2+i,8))
-          info=get(BASE+'/fapi/v1/exchangeInfo')
-          symbols=[s['symbol'] for s in info.get('symbols',[]) if s.get('status')=='TRADING' and s.get('contractType')=='PERPETUAL' and s.get('quoteAsset')=='USDT' and s.get('marginAsset')=='USDT']
-          symbols=sorted(set(symbols))
-          end=int(datetime.now(timezone.utc).timestamp()*1000)
-          start=end-30*24*60*60*1000
-          BAR=300000
+          symbols=json.loads(os.environ['SYMBOLS_JSON'])
+          end_date=datetime(2026,10,6,tzinfo=timezone.utc).date()
+          start_dt=datetime(2026,9,6,tzinfo=timezone.utc)
+          end_dt=datetime(2026,10,6,tzinfo=timezone.utc)
+          start_ms=int(start_dt.timestamp()*1000); end_ms=int(end_dt.timestamp()*1000)
+          base='https://data.binance.vision/data/futures/um'
+          UA={'User-Agent':'spacehub-ddddd-fullscan/2.0'}
 
-          def fetch_bars(sym):
-              out=[]; cur=start
-              while cur<end:
-                  q=urllib.parse.urlencode({'symbol':sym,'interval':'5m','startTime':cur,'endTime':end,'limit':1500})
-                  rows=get(BASE+'/fapi/v1/klines?'+q)
-                  if not isinstance(rows,list) or not rows: break
-                  out.extend(rows)
-                  nxt=int(rows[-1][0])+BAR
-                  if nxt<=cur: break
-                  cur=nxt
-                  # stay under Binance request-weight budget
-                  time.sleep(0.24)
-                  if len(rows)<1500: break
-              seen=set(); z=[]
-              for r in out:
+          def load_zip(url):
+              try:
+                  req=urllib.request.Request(url,headers=UA)
+                  with urllib.request.urlopen(req,timeout=25) as r:
+                      raw=r.read()
+                  with zipfile.ZipFile(io.BytesIO(raw)) as z:
+                      name=z.namelist()[0]
+                      txt=z.read(name).decode('utf-8')
+                  rows=[]
+                  for row in csv.reader(io.StringIO(txt)):
+                      if not row or not row[0].isdigit(): continue
+                      t=int(row[0])
+                      if start_ms <= t < end_ms: rows.append(row)
+                  return rows
+              except Exception:
+                  return []
+
+          def scan_symbol(sym):
+              urls=[
+                f'{base}/monthly/klines/{sym}/5m/{sym}-5m-2026-09.zip',
+                f'{base}/daily/klines/{sym}/5m/{sym}-5m-2026-10-01.zip',
+                f'{base}/daily/klines/{sym}/5m/{sym}-5m-2026-10-02.zip',
+                f'{base}/daily/klines/{sym}/5m/{sym}-5m-2026-10-03.zip',
+                f'{base}/daily/klines/{sym}/5m/{sym}-5m-2026-10-04.zip',
+                f'{base}/daily/klines/{sym}/5m/{sym}-5m-2026-10-05.zip'
+              ]
+              rows=[]
+              for u in urls: rows.extend(load_zip(u))
+              rows.sort(key=lambda r:int(r[0]))
+              ded=[]; seen=set()
+              for r in rows:
                   t=int(r[0])
                   if t in seen: continue
-                  seen.add(t); z.append(r)
-              return z
-
-          def backtest(rows):
+                  seen.add(t); ded.append(r)
               n=w=l=amb=0; gross=0.0
-              for i in range(5,len(rows)):
-                  prev=rows[i-5:i]
+              for i in range(5,len(ded)):
+                  prev=ded[i-5:i]
                   if not all(float(x[4])<float(x[1]) for x in prev): continue
-                  entry=float(rows[i-1][4]); tp=entry*1.01; sl=entry*0.99
+                  entry=float(ded[i-1][4]); tp=entry*1.01; sl=entry*0.99
                   n+=1; result=None
-                  for j in range(i,len(rows)):
-                      hi=float(rows[j][2]); lo=float(rows[j][3])
-                      # conservative intrabar rule: if both touched, count SL
+                  for j in range(i,len(ded)):
+                      hi=float(ded[j][2]); lo=float(ded[j][3])
                       if lo<=sl and hi>=tp:
                           amb+=1; result='L'; break
                       if lo<=sl: result='L'; break
@@ -74,44 +78,30 @@ jobs:
                   if result=='W': w+=1; gross+=0.01
                   else: l+=1; gross-=0.01
               wr=100*w/n if n else 0.0
-              # Approx 10 bps round-trip taker fees per trade.
-              net_pct=(gross - n*0.001)*100
-              return {'signals':n,'wins':w,'losses':l,'win_rate':round(wr,2),'ambiguous_bars':amb,'net_unlevered_pct_sum':round(net_pct,3)}
+              net=(gross-n*0.001)*100
+              return {'symbol':sym,'bars':len(ded),'signals':n,'wins':w,'losses':l,'win_rate':round(wr,2),'net_unlevered_pct_sum':round(net,3),'ambiguous_bars':amb}
 
-          results=[]; errors=[]
-          for idx,sym in enumerate(symbols,1):
-              try:
-                  rows=fetch_bars(sym)
-                  r=backtest(rows)
-                  r.update({'symbol':sym,'bars':len(rows)})
-                  results.append(r)
-                  print(f"[{idx}/{len(symbols)}] {sym}: n={r['signals']} WR={r['win_rate']}% net={r['net_unlevered_pct_sum']}%",flush=True)
-              except Exception as e:
-                  errors.append({'symbol':sym,'error':str(e)[:200]})
-                  print(f"[{idx}/{len(symbols)}] {sym}: ERROR {e}",flush=True)
+          results=[]
+          with concurrent.futures.ThreadPoolExecutor(max_workers=24) as ex:
+              futs={ex.submit(scan_symbol,s):s for s in symbols}
+              for k,f in enumerate(concurrent.futures.as_completed(futs),1):
+                  r=f.result(); results.append(r)
+                  if k%25==0 or k==len(symbols):
+                      print(f'progress {k}/{len(symbols)}',flush=True)
 
           ranked=sorted(results,key=lambda x:(x['win_rate'],x['signals']),reverse=True)
           qualified=[r for r in ranked if r['signals']>=20 and r['win_rate']>=75 and r['net_unlevered_pct_sum']>0]
+          q10=[r for r in ranked if r['signals']>=10 and r['win_rate']>=75 and r['net_unlevered_pct_sum']>0]
           strong=[r for r in ranked if r['signals']>=20 and r['win_rate']>=65 and r['net_unlevered_pct_sum']>0]
-          report={
-            'generated_at':datetime.now(timezone.utc).isoformat(),
-            'window_days':30,
-            'strategy':'5 red 5m candles -> LONG, TP +1%, SL -1%, conservative same-bar conflict, ~0.10% round-trip fees',
-            'symbols_total':len(symbols),
-            'symbols_scanned':len(results),
-            'errors':errors,
-            'qualified_75_min20':qualified,
-            'strong_65_min20':strong,
-            'all':ranked
-          }
-          with open('status/ddddd-binance-fullscan.json','w') as f: json.dump(report,f,indent=2)
-          with open('status/ddddd-binance-fullscan.csv','w') as f:
-              f.write('symbol,signals,wins,losses,win_rate,net_unlevered_pct_sum,bars,ambiguous_bars\n')
-              for r in ranked:
-                  f.write(f"{r['symbol']},{r['signals']},{r['wins']},{r['losses']},{r['win_rate']},{r['net_unlevered_pct_sum']},{r['bars']},{r['ambiguous_bars']}\n")
-          print('QUALIFIED75',json.dumps(qualified[:50]),flush=True)
-          print('TOP20',json.dumps(ranked[:20]),flush=True)
-          print('SCANNED',len(results),'OF',len(symbols),'ERRORS',len(errors),flush=True)
+          report={'generated_at':datetime.now(timezone.utc).isoformat(),'window':'2026-09-06 through 2026-10-05 UTC','symbols_total':len(symbols),'symbols_scanned':len(results),'strategy':'5 red 5m candles -> LONG, TP +1%, SL -1%; conservative same-bar conflict; approx 0.10% round-trip taker fees','qualified_75_min20':qualified,'qualified_75_min10':q10,'strong_65_min20':strong,'all':ranked}
+          json.dump(report,open('status/ddddd-binance-fullscan.json','w'),indent=2,ensure_ascii=False)
+          with open('status/ddddd-binance-fullscan.csv','w',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=['symbol','signals','wins','losses','win_rate','net_unlevered_pct_sum','bars','ambiguous_bars'])
+              w.writeheader();w.writerows(ranked)
+          print('SCANNED',len(results),'OF',len(symbols))
+          print('QUALIFIED75_MIN20',json.dumps(qualified[:100],ensure_ascii=False))
+          print('QUALIFIED75_MIN10',json.dumps(q10[:100],ensure_ascii=False))
+          print('TOP20',json.dumps(ranked[:20],ensure_ascii=False))
           PY
       - name: Commit results
         run: |
