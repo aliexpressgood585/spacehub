@@ -22,7 +22,7 @@ begin
  select * into strict s from bot_state where id=1 for update;
  if p_lease is null or s.lock_until is distinct from p_lease or clock_timestamp()>p_lease then raise exception 'stale q15 lease'; end if;
  if not s.active or not s.paper_mode then raise exception 'q15 requires active paper account'; end if;
- if exists(select 1 from bot_trades where status='OPEN' and (paper_mode is not true or strategy not in ('Q15','EVT','DONCH4H') or lev<1 or lev>case when strategy='DONCH4H' then 1 else 25 end)) then raise exception 'q15 book holds an incompatible or non-paper row'; end if;
+ if exists(select 1 from bot_trades where status='OPEN' and (paper_mode is not true or strategy not in ('Q15','EVT','DONCH4H') or lev<1 or lev>case when strategy='DONCH4H' then 1 else 30 end)) then raise exception 'q15 book holds an incompatible or non-paper row'; end if;
  d5:=coalesce(s.bot_params->>'paper_strategy','')='DDDDD';
  cash:=s.balance; cfg:=coalesce(s.bot_params,'{}')||jsonb_build_object('q15_marks_blocked',not coalesce((p_note->>'marks_fresh')::boolean,false));
  if p_note->>'execution_version'='2' then cfg:=cfg||jsonb_build_object('d5_execution_version',2); end if;
@@ -103,12 +103,24 @@ begin
         or coalesce((m->'protection'->>'trigger')::numeric,0)<=(m->'protection'->>'stop')::numeric
         or (m->'protection'->>'trigger')::numeric='NaN'::numeric
         or ((m->'protection'->>'enabled')::boolean and (m->'protection'->>'trigger')::numeric>=(m->>'target')::numeric)
-        or coalesce((x->>'lev')::int,0) not between 1 and 15
+        or coalesce((x->>'lev')::int,0) not between 1 and 25
      then raise exception 'invalid DDDDD v2 cost/protection'; end if;
     end if;
     if x->>'side' is distinct from 'LONG' or coalesce((m->>'hold_ms')::bigint,-1)<>0
        or abs((m->>'stop')::numeric-px*0.99)>px*0.00000001 or abs((m->>'target')::numeric-px*1.01)>px*0.00000001
        or (m->>'bar')::bigint is distinct from p_bar then raise exception 'invalid DDDDD entry'; end if;
+   elsif m->>'pattern'='FALL7_15M' then
+    if x->>'side' is distinct from 'LONG'
+       or coalesce((x->>'lev')::int,0)<>30
+       or coalesce((m->>'execution_version')::int,0)<>2
+       or coalesce((m->'gate'->>'costBps')::numeric,-1) not between 0 and 50
+       or coalesce((m->>'hold_ms')::bigint,-1)<>0
+       or p_bar%900000<>0
+       or (m->>'bar')::bigint is distinct from p_bar
+       or x->>'sym'<>all(array['ANKR','1000000MOG','SUSHI','HYPER','LUMIA'])
+       or abs((m->>'stop')::numeric-px*0.99)>px*0.00000001
+       or abs((m->>'target')::numeric-px*1.01)>px*0.00000001
+       then raise exception 'invalid FALL7_15M entry'; end if;
    elsif m->>'pattern'='VWAP_REV_1M' then
     if coalesce((m->>'hold_ms')::bigint,-1)<>3600000
        or (x->>'side'='LONG' and (abs((m->>'stop')::numeric-px*0.99)>px*0.00000001 or abs((m->>'target')::numeric-px*1.005)>px*0.00000001))
@@ -117,7 +129,7 @@ begin
    else raise exception 'unknown combined strategy pattern'; end if;
    if exists(select 1 from bot_trades where sym=x->>'sym' and scalp_meta->'q15'->>'pattern'=m->>'pattern' and (scalp_meta->'q15'->>'bar')::bigint=(m->>'bar')::bigint) then continue; end if;
   end if;
-  lv:=least(25,greatest(1,coalesce((x->>'lev')::int,1)));
+  lv:=least(30,greatest(1,coalesce((x->>'lev')::int,1)));
   mg:=least((x->>'notional')::numeric/lv,eq*0.15,greatest(0,eq*share-expo),greatest(0,cash/(1+lv*0.0005)));
   if mg<5 or mg is null or mg='NaN'::numeric then continue; end if;
   n:=mg*lv;
