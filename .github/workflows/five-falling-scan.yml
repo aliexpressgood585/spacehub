@@ -1,0 +1,75 @@
+name: Five Falling Closes Full Scan
+on:
+  push:
+    paths:
+      - '.github/workflows/five-falling-scan.yml'
+permissions:
+  contents: write
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare five falling closes to five red candles
+        env:
+          SYMBOLS_JSON: '["ALPINEUSDT","BBUSDT","ERAUSDT","WAXPUSDT","HYPERUSDT","FIDAUSDT","LUMIAUSDT","DODOXUSDT","BNBUSDT","ZECUSDT","ARKUSDT","WOOUSDT","FLUXUSDT","LAYERUSDT","LUNA2USDT","INUSDT","1000000MOGUSDT","AIOTUSDT","BATUSDT","REUSDT","POLYXUSDT","SHELLUSDT","ATHUSDT","WETUSDT","TUSDT","CATIUSDT","VELODROMEUSDT","AGTUSDT","ANKRUSDT","SUSHIUSDT","ATOMUSDT","FLUIDUSDT","BEAMXUSDT","ZESTUSDT","ASTRUSDT","PROMUSDT","VTHOUSDT","PROVEUSDT","WLDUSDT","LQTYUSDT","KAVAUSDT","ETHWUSDT","ORDERUSDT","BTRUSDT","ADAUSDT","C98USDT","HOTUSDT","THEUSDT","HIVEUSDT","DOGEUSDT","AUSDT","TRUMPUSDT","MIRAUSDT","EULUSDT","SOMIUSDT","ENSUSDT","AUCTIONUSDT","ZORAUSDT","HUSDT","TAOUSDT","UMAUSDT","CARVUSDT","ASRUSDT","MAGICUSDT","DOODUSDT","ALLUSDT","ELSAUSDT","QNTUSDT","XVGUSDT","ENSOUSDT","OPGUSDT","BUSDT","JCTUSDT","GPSUSDT","STEEMUSDT","BRETTUSDT","CHIPUSDT","SONICUSDT","ORCAUSDT","CLANKERUSDT","EGLDUSDT","ETCUSDT","EIGENUSDT","AIGENSYNUSDT","PARTIUSDT","BELUSDT","XTZUSDT","ICPUSDT","ZRXUSDT","FARTCOINUSDT","FHEUSDT","ONDOUSDT","LTCUSDT","ARUSDT","NXPCUSDT","DASHUSDT","TAKEUSDT","UAIUSDT","TRUTHUSDT","SPORTFUNUSDT","ICNTUSDT","JUPUSDT","0GUSDT","DEEPUSDT","KAIAUSDT","XLMUSDT","ARPAUSDT","MITOUSDT","WALUSDT","POWRUSDT","MUBARAKUSDT","YGGUSDT","BABYUSDT","TIAUSDT","GUSDT","JASMYUSDT","SLPUSDT","VIRTUALUSDT","RSRUSDT","DOLOUSDT","BTCUSDT","ESPORTSUSDT","CYBERUSDT","GMTUSDT","BERAUSDT","API3USDT","CFGUSDT","2ZUSDT","PIXELUSDT","DYMUSDT","GUNUSDT","TAGUSDT","GMXUSDT","BROCCOLIF3BUSDT","PNUTUSDT","MANTRAUSDT","NMRUSDT","GENIUSUSDT","COAIUSDT","RUNEUSDT","QTUMUSDT","AXLUSDT","OPENUSDT","DUSKUSDT","PUNDIXUSDT","SOLUSDT","USUALUSDT","GRASSUSDT","OGUSDT","MEMEUSDT","BOMEUSDT","BARDUSDT","MOVEUSDT","NEWTUSDT","LPTUSDT","PLUMEUSDT","XPLUSDT","MAVUSDT","PLAYUSDT","SFPUSDT","POPCATUSDT","BTWUSDT","ACTUSDT","METISUSDT","KAITOUSDT","ROBOUSDT","MELANIAUSDT","ACUUSDT","1000BONKUSDT","RPLUSDT","CVCUSDT","AWEUSDT","SOLVUSDT","TRIAUSDT","CHZUSDT","SPELLUSDT","ETHUSDT","SANDUSDT","DOSUSDT","ACEUSDT","AGLDUSDT","COWUSDT","KGENUSDT","ACHUSDT","TURTLEUSDT","ONTUSDT","BCHUSDT","SQDUSDT","BLURUSDT","GASUSDT","OGNUSDT","REZUSDT","GRVTUSDT","APEUSDT","AVNTUSDT","MASKUSDT","FFUSDT","BLESSUSDT","MORPHOUSDT","TREEUSDT","WLFIUSDT","RESOLVUSDT","ZENUSDT","GLMUSDT","AZTECUSDT","APTUSDT","LISTAUSDT","MINAUSDT","MTLUSDT","EDENUSDT","POWERUSDT","MEWUSDT","BIGTIMEUSDT","AIAUSDT","1000SHIBUSDT","ROSEUSDT","DYDXUSDT","CFXUSDT","PYTHUSDT","PUMPUSDT","EPICUSDT","RIFUSDT","IOUSDT","WCTUSDT","RECALLUSDT","FORMUSDT","PHAUSDT","AAVEUSDT","MANTAUSDT","PTBUSDT","MOODENGUSDT","SEIUSDT","FUSDT","CGPTUSDT","QUSDT","CUSDT","1000RATSUSDT","RAYSOLUSDT","SIGNUSDT","PENDLEUSDT","GRTUSDT","PHAROSUSDT","UNIUSDT","1000CHEEMSUSDT","SYRUPUSDT","INITUSDT","NOTUSDT","XANUSDT","KASUSDT","LYNUSDT","ASTERUSDT","SCRUSDT","STARUSDT","IOTXUSDT","KERNELUSDT","AVAUSDT","SKLUSDT","1000PEPEUSDT","1000LUNCUSDT","NOMUSDT","BREVUSDT","HUMAUSDT","COTIUSDT","BANKUSDT","TURBOUSDT","LINKUSDT","BIOUSDT","WUSDT","SWARMSUSDT","CCUSDT","FOGOUSDT","XAIUSDT","SUIUSDT","CTKUSDT","GTCUSDT","BICOUSDT","CELRUSDT","ARIAUSDT","VVVUSDT","SXTUSDT","MERLUSDT","ARKMUSDT","MEUSDT","JELLYJELLYUSDT","SENTUSDT","HAEDALUSDT","OUSDT","TLMUSDT","BASEDUSDT","FOLKSUSDT","SNXUSDT","TRBUSDT","IMXUSDT","ZKUSDT","STRKUSDT","APRUSDT","DOGSUSDT","ALGOUSDT","CHRUSDT","AVAXUSDT","DOTUSDT","VANAUSDT","ARXUSDT","ALTUSDT","BLUAIUSDT","ESPUSDT","VELVETUSDT","COMPUSDT","KSMUSDT","ALICEUSDT","BMTUSDT","OPNUSDT","1MBABYDOGEUSDT","SYNUSDT","STBLUSDT","RIVERUSDT","YBUSDT","AEVOUSDT","CROSSUSDT","HEIUSDT","ARCUSDT","MAGMAUSDT","FILUSDT","REDUSDT","CTRUSDT","MOCAUSDT","XRPUSDT","AXSUSDT","HEMIUSDT","4USDT","FIGHTUSDT","KITEUSDT","AIXBTUSDT","GIGGLEUSDT","EDGEUSDT","USTCUSDT","BRUSDT","BSBUSDT","XNYUSDT","ZROUSDT","GALAUSDT","HBARUSDT","SOPHUSDT","CHILLGUYUSDT","ANIMEUSDT","SAPIENUSDT","SKYAIUSDT","JTOUSDT","DIAUSDT","IOTAUSDT","FLOWUSDT","VETUSDT","1INCHUSDT","NEOUSDT","HYPEUSDT","CAKEUSDT","B2USDT","BANDUSDT","CETUSUSDT","SPKUSDT","TSTUSDT","MMTUSDT","EVAAUSDT","TAUSDT","NEARUSDT","CKBUSDT","USELESSUSDT","AKTUSDT","AKEUSDT","ONGUSDT","SLXUSDT","SUPERUSDT","IOSTUSDT","TRADOORUSDT","KMNOUSDT","BNTUSDT","BEATUSDT","GRAMUSDT","OPUSDT","KOMAUSDT","ORDIUSDT","SUSDT","IDUSDT","MANAUSDT","CTSIUSDT","NEIROUSDT","BROCCOLI714USDT","1000XECUSDT","DRIFTUSDT","AINUSDT","ENJUSDT","BANANAUSDT","BULLAUSDT","LITUSDT","1000SATSUSDT","RENDERUSDT","XVSUSDT","JOEUSDT","FETUSDT","ZKCUSDT","ZKPUSDT","ETHFIUSDT","DEXEUSDT","SKRUSDT","COOKIEUSDT","TOWNSUSDT","SAGAUSDT","NILUSDT","ALCHUSDT","SAHARAUSDT","GOATUSDT","1000FLOKIUSDT","WIFUSDT","MEGAUSDT","ARBUSDT","SPXUSDT","RVNUSDT","ZETAUSDT","USUSDT","CLOUSDT","LINEAUSDT","RLCUSDT","ENAUSDT","PEOPLEUSDT","PIPPINUSDT","SAFEUSDT","TAIKOUSDT","ZAMAUSDT","ATUSDT","SKYUSDT","THETAUSDT","PORTALUSDT","SPACEUSDT","MOVRUSDT","BIRBUSDT","BTCDOMUSDT","PIEVERSEUSDT","SOONUSDT","KATUSDT","TUTUSDT","STXUSDT","LAUSDT","TRUSTUSDT","NAORISUSDT","MAVIAUSDT","BANANAS31USDT","MONUSDT","ZILUSDT","MARSCOINUSDT","SANTOSUSDT","LSKUSDT","METUSDT","TOSHIUSDT","FLOCKUSDT","TACUSDT","ILVUSDT","GRIFFAINUSDT","STOUSDT","MYXUSDT","SIRENUSDT","POLUSDT","ALLOUSDT","YFIUSDT","TNSRUSDT","INJUSDT","KNCUSDT","CAPUSDT","CELOUSDT","RONINUSDT","FRAXUSDT","AEROUSDT","CYSUSDT","ZBTUSDT","GUAUSDT","HANAUSDT","CRVUSDT","BSVUSDT","PONSUSDT","INXUSDT","DATAIPUSDT","CVXUSDT","GWEIUSDT","HOLOUSDT","RAVEUSDT","1000CATUSDT","SUNUSDT","IRYSUSDT","LABUSDT","AVAAIUSDT","TRXUSDT","EDUUSDT","PENGUUSDT","NIGHTUSDT","HOMEUSDT","UBUSDT","COLLECTUSDT","PRLUSDT","MUSDT","AIOUSDT","TWTUSDT","BASUSDT","RAREUSDT","BILLUSDT","LDOUSDT","HMSTRUSDT","ONEUSDT","STABLEUSDT","SSVUSDT","XMRUSDT","XAUTUSDT","ZEREBROUSDT","LIGHTUSDT","BANUSDT","CTUSDT","PAXGUSDT","XPINUSDT","IDOLUSDT","JSTUSDT","ONUSDT","USDCUSDT","哈基米USDT","币安人生USDT","我踏马来了USDT","牛来USDT","龙虾USDT"]'
+        run: |
+          mkdir -p status
+          python3 - <<'PY'
+          import csv,io,json,os,urllib.request,zipfile,concurrent.futures
+          from datetime import datetime,timezone
+          syms=json.loads(os.environ['SYMBOLS_JSON'])
+          START=int(datetime(2026,9,6,tzinfo=timezone.utc).timestamp()*1000)
+          END=int(datetime(2026,10,6,tzinfo=timezone.utc).timestamp()*1000)
+          BASE='https://data.binance.vision/data/futures/um'; UA={'User-Agent':'spacehub-falling5/1.0'}
+          def zr(url):
+           try:
+            req=urllib.request.Request(url,headers=UA)
+            with urllib.request.urlopen(req,timeout=25) as r: raw=r.read()
+            with zipfile.ZipFile(io.BytesIO(raw)) as z: txt=z.read(z.namelist()[0]).decode()
+            return [r for r in csv.reader(io.StringIO(txt)) if r and r[0].isdigit() and START<=int(r[0])<END]
+           except:return []
+          def scan(sym):
+           urls=[f'{BASE}/monthly/klines/{sym}/5m/{sym}-5m-2026-09.zip']+[f'{BASE}/daily/klines/{sym}/5m/{sym}-5m-2026-10-0{d}.zip' for d in range(1,6)]
+           a=[]
+           for u in urls:a+=zr(u)
+           a.sort(key=lambda r:int(r[0])); seen=set(); b=[]
+           for r in a:
+            t=int(r[0])
+            if t not in seen:seen.add(t);b.append(r)
+           def bt(mode):
+            n=w=l=0
+            for i in range(5,len(b)):
+             p=b[i-5:i]
+             ok=all(float(z[4])<float(z[1]) for z in p) if mode=='red' else all(float(p[k][4])>float(p[k+1][4]) for k in range(4))
+             if not ok:continue
+             e=float(p[-1][4]);tp=e*1.01;sl=e*.99;n+=1;res='L'
+             for z in b[i:]:
+              hi=float(z[2]);lo=float(z[3])
+              if lo<=sl:res='L';break
+              if hi>=tp:res='W';break
+             if res=='W':w+=1
+             else:l+=1
+            return {'n':n,'w':w,'l':l,'wr':round(100*w/n,2) if n else 0}
+           return {'symbol':sym,'red':bt('red'),'falling':bt('falling')}
+          out=[]
+          with concurrent.futures.ThreadPoolExecutor(max_workers=24) as ex:
+           for k,r in enumerate(ex.map(scan,syms),1):
+            out.append(r)
+            if k%50==0:print('progress',k,flush=True)
+          def agg(key,cut=0):
+           rows=[r for r in out if r[key]['n']>=20 and r[key]['wr']>=cut]
+           return {'coins':len(rows),'signals':sum(r[key]['n'] for r in rows),'wins':sum(r[key]['w'] for r in rows),'wr_weighted':round(100*sum(r[key]['w'] for r in rows)/max(1,sum(r[key]['n'] for r in rows)),2)}
+          report={'window':'2026-09-06 through 2026-10-05 UTC','symbols':len(out),'red_60plus':agg('red',60),'falling_60plus':agg('falling',60),'red_65plus':agg('red',65),'falling_65plus':agg('falling',65),'falling_top':sorted([{'symbol':r['symbol'],**r['falling']} for r in out],key=lambda z:(z['wr'],z['n']),reverse=True)[:100],'all':out}
+          json.dump(report,open('status/five-falling-scan.json','w'),indent=2)
+          print(json.dumps({k:report[k] for k in ['red_60plus','falling_60plus','red_65plus','falling_65plus']}))
+          print('TOP',json.dumps(report['falling_top'][:20]))
+          PY
+      - name: Commit
+        run: |
+          git config user.name 'falling5-bot'; git config user.email 'actions@github.com'
+          git add status/five-falling-scan.json
+          git commit -m 'status: compare five falling closes [skip ci]' || true
+          git pull --rebase origin main || true
+          git push || true
