@@ -10,6 +10,7 @@ import { book,type Pair,aggHalted } from './fast-runner.ts'
 import { json,pool } from './rota-runner.ts'
 import { sleeveOff } from '../../../shared/sleeves.ts'
 
+const D5_TOP60 = new Set<string>(["ALPINEUSDT","BBUSDT","ERAUSDT","WAXPUSDT","HYPERUSDT","FIDAUSDT","LUMIAUSDT","DODOXUSDT","BNBUSDT","ZECUSDT","ARKUSDT","WOOUSDT","FLUXUSDT","LAYERUSDT","LUNA2USDT","INUSDT","1000000MOGUSDT","AIOTUSDT","BATUSDT","REUSDT","POLYXUSDT","SHELLUSDT","ATHUSDT","WETUSDT","TUSDT","CATIUSDT","VELODROMEUSDT","AGTUSDT","ANKRUSDT","SUSHIUSDT","ATOMUSDT","FLUIDUSDT","BEAMXUSDT","ZESTUSDT","ASTRUSDT","PROMUSDT","VTHOUSDT","PROVEUSDT","WLDUSDT","LQTYUSDT","KAVAUSDT","ETHWUSDT","ORDERUSDT","BTRUSDT","ADAUSDT","C98USDT","HOTUSDT","THEUSDT","HIVEUSDT","DOGEUSDT","AUSDT","TRUMPUSDT","MIRAUSDT","EULUSDT","SOMIUSDT","ENSUSDT","AUCTIONUSDT","ZORAUSDT","HUSDT"])
 const pairOf=(sym:string):Pair=>sym==='PEPE'?{sym,s:'1000PEPEUSDT',k:1000}:{sym,s:`${sym}USDT`,k:1}
 const bybitBars=async(p:Pair,interval:'1m'|'5m',limit:number,start?:number,end?:number)=>{
  const iv=interval==='5m'?'5':'1',q=new URLSearchParams({category:'linear',symbol:p.s,interval:iv,limit:String(Math.min(limit,1000))})
@@ -169,7 +170,7 @@ export async function runQ15(db:any,state:any,lease:string,paper:boolean){
  const {data:cache}=await db.from('market_cache').select('data').eq('key','universe').throwOnError()
  const cached:Pair[]=(cache?.[0]?.data?.pairs??[]).filter((p:any)=>/^[A-Z0-9]+USDT$/.test(p.s)&&Number(p.k)>0)
  let universe:Pair[]=cached
- if(d5){try{const ex=d5Pairs(await json('https://fapi.binance.com/fapi/v1/exchangeInfo'));if(ex.length)universe=ex}catch{} if(!universe.length)universe=cached}
+ if(d5){try{const ex=d5Pairs(await json('https://fapi.binance.com/fapi/v1/exchangeInfo'));if(ex.length)universe=ex}catch{} if(!universe.length)universe=cached; universe=universe.filter(p=>D5_TOP60.has(p.s))}
  const cursor=d5&&Number(params.d5_scan?.bar)===bar?Number(params.d5_scan.cursor)||0:0
  const pairs=d5?universe.slice(cursor,cursor+D5.batch):universe
  if(!pairs.length){
