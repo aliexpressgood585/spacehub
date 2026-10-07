@@ -1,5 +1,5 @@
 """Broad daily factor hunt on liquid Binance USD-M perpetuals. Research only."""
-import json, math, urllib.request, urllib.parse, time
+import json, math, urllib.request, urllib.error, time, io, zipfile, csv
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import numpy as np
@@ -11,30 +11,52 @@ COST=.0016
 UNIVERSE=[
 "BTCUSDT","ETHUSDT","SOLUSDT","ZECUSDT","XRPUSDT","NEARUSDT","DOGEUSDT","SANDUSDT","UNIUSDT","SUIUSDT",
 "BNBUSDT","NMRUSDT","QNTUSDT","AVAXUSDT","ADAUSDT","WLDUSDT","RLCUSDT","1000PEPEUSDT","LINKUSDT","GTCUSDT",
-"FILUSDT","AAVEUSDT","INJUSDT","MINAUSDT","ARBUSDT","LTCUSDT","BCHUSDT","FETUSDT","DOTUSDT","XLMUSDT",
-"APTUSDT","HBARUSDT","1000SHIBUSDT","TRXUSDT","OPUSDT","DASHUSDT","API3USDT","XMRUSDT","ICPUSDT","ETCUSDT",
-"STXUSDT","TRBUSDT","CRVUSDT","MANAUSDT","PENDLEUSDT","MAGICUSDT","LDOUSDT","AXSUSDT","SEIUSDT","GALAUSDT"
+"FILUSDT","AAVEUSDT","INJUSDT","MINAUSDT","ARBUSDT","LTCUSDT","BCHUSDT","FETUSDT","DOTUSDT","XLMUSDT"
 ]
 
-def fetch(sym):
-    qs=urllib.parse.urlencode({"symbol":sym,"interval":"1d","startTime":START-60*86400000,"endTime":END-1,"limit":1500})
-    urls=[
-        "https://fapi.binance.com/fapi/v1/klines?"+qs,
-        "https://fapi1.binance.com/fapi/v1/klines?"+qs,
-    ]
+BASE="https://data.binance.vision/data/futures/um"
+LOAD=START-60*86400000
+
+def read_zip(url):
     last=None
-    for u in urls:
-        for k in range(3):
-            try:
-                req=urllib.request.Request(u,headers={"User-Agent":"spacehub-edge-research/1.0"})
-                with urllib.request.urlopen(req,timeout=30) as r: obj=json.loads(r.read())
-                a=np.array([[int(x[0]),float(x[1]),float(x[2]),float(x[3]),float(x[4]),float(x[7])] for x in obj],float)
-                a=a[(a[:,0]>=START-60*86400000)&(a[:,0]<END)]
-                if len(a)<900: raise RuntimeError(f"{sym}: only {len(a)} daily bars")
-                return a
-            except Exception as e:
-                last=e; time.sleep(1+k)
+    for k in range(3):
+        try:
+            req=urllib.request.Request(url,headers={"User-Agent":"spacehub-edge-research/1.1"})
+            with urllib.request.urlopen(req,timeout=30) as r:raw=r.read()
+            with zipfile.ZipFile(io.BytesIO(raw)) as z:return z.read(z.namelist()[0]).decode()
+        except urllib.error.HTTPError as e:
+            if e.code==404:return None
+            last=e
+        except Exception as e:last=e
+        time.sleep(1+k)
     raise last
+
+def fetch(sym):
+    rows=[]
+    y,m=2023,8
+    while (y,m)<=(2026,9):
+        url=f"{BASE}/monthly/klines/{sym}/1d/{sym}-1d-{y}-{m:02d}.zip"
+        txt=read_zip(url)
+        if txt:
+            for r in csv.reader(io.StringIO(txt)):
+                if not r or not r[0].isdigit():continue
+                t=int(r[0]);t=t//1000 if t>10**14 else t
+                if LOAD<=t<END:rows.append((t,float(r[1]),float(r[2]),float(r[3]),float(r[4]),float(r[7])))
+        m+=1
+        if m==13:y+=1;m=1
+    for day in range(1,7):
+        url=f"{BASE}/daily/klines/{sym}/1d/{sym}-1d-2026-10-{day:02d}.zip"
+        txt=read_zip(url)
+        if txt:
+            for r in csv.reader(io.StringIO(txt)):
+                if r and r[0].isdigit():
+                    t=int(r[0]);t=t//1000 if t>10**14 else t
+                    if LOAD<=t<END:rows.append((t,float(r[1]),float(r[2]),float(r[3]),float(r[4]),float(r[7])))
+    rows=sorted({x[0]:x for x in rows}.values())
+    a=np.array(rows,float)
+    inwin=a[(a[:,0]>=START)&(a[:,0]<END)]
+    if len(inwin)<900:raise RuntimeError(f"{sym}: only {len(inwin)} daily bars")
+    return a
 
 def metrics(v):
     a=np.asarray(v,float);a=a[np.isfinite(a)]
