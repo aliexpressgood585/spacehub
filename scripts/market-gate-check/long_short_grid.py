@@ -139,11 +139,13 @@ def simulate(a, entries, atr_values, side, tp_atr, sl_atr, timeout, start, end):
                 elif l<=target: px=target; reason=2
                 else: continue
                 net=1-px/e-core.COST
-            out[count]=ts,a[j,0],net,reason;count+=1;last=j;found=True;break
+            out[count,0]=ts; out[count,1]=a[j,0]; out[count,2]=net; out[count,3]=reason
+            count+=1;last=j;found=True;break
         if not found and eidx+timeout<=boundary:
             j=eidx+timeout-1; px=a[j,4]
             net=(px/e-1 if side==1 else 1-px/e)-core.COST
-            out[count]=ts,a[j,0],net,3;count+=1;last=j
+            out[count,0]=ts; out[count,1]=a[j,0]; out[count,2]=net; out[count,3]=3
+            count+=1;last=j
     return out[:count]
 
 
