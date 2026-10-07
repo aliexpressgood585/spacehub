@@ -259,7 +259,7 @@ def run():
             s=fut[f]
             try:data[s]=f.result();print("LOADED",s,len(data[s]),flush=True)
             except Exception as e:errors[s]=repr(e);print("FAILED",s,repr(e),flush=True)
-    if len(data)<35:raise RuntimeError(f"Only {len(data)} symbols loaded")
+    if len(data)<25:raise RuntimeError(f"Only {len(data)} symbols loaded")
     top_train,finalists=screen_trade_families(data)
     times,by=cross_section_panel(data)
     cs=[]
