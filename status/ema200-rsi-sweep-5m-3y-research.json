@@ -1,0 +1,4248 @@
+{
+  "schema": "ema200-rsi14-liquidity-sweep-5m/1.0",
+  "window": {
+    "start": "2023-10-08T00:00:00+00:00",
+    "end_exclusive": "2026-10-07T00:00:00+00:00"
+  },
+  "symbols": [
+    "BTCUSDT",
+    "ETHUSDT"
+  ],
+  "base_roundtrip_cost_pct": 0.16,
+  "stress_roundtrip_cost_pct": 0.25,
+  "primary_rule": {
+    "long": "close>EMA200; bar pulls within prox_atr*ATR14 of EMA; prior RSI14<=threshold and current RSI turns up; low sweeps prior N-bar low and closes back above it; green rejection bar with lower wick/body ratio; enter next open",
+    "short": "mirror of long below EMA200",
+    "stop": "trigger low/high +/- ATR buffer",
+    "target": "fixed reward:risk multiple",
+    "same_bar_conflict": "stop first",
+    "time_exit": "2h/4h/8h grid"
+  },
+  "default_config": {
+    "rsi": 30,
+    "prox_atr": 0.5,
+    "sweep_n": 20,
+    "wick_ratio": 2.0,
+    "stop_buffer": 0.15,
+    "rr": 1.5,
+    "hold": 48
+  },
+  "parameter_grid": {
+    "rsi": [
+      25,
+      30,
+      35
+    ],
+    "prox_atr": [
+      0.25,
+      0.5,
+      0.75
+    ],
+    "sweep_n": [
+      10,
+      20,
+      30
+    ],
+    "wick_ratio": [
+      1.5,
+      2.0
+    ],
+    "stop_buffer_atr": [
+      0.05,
+      0.15
+    ],
+    "rr": [
+      1.0,
+      1.5,
+      2.0
+    ],
+    "hold_bars_5m": [
+      24,
+      48,
+      96
+    ]
+  },
+  "method": [
+    "Three-year Binance USD-M 5m archives for BTCUSDT and ETHUSDT.",
+    "Chronological split 60% development / 20% selection / 20% OOS validation.",
+    "Only development+selection can select parameters. OOS is read after one configuration per symbol is frozen.",
+    "All entries occur at the next 5m open after the complete trigger candle; no same-bar signal fill.",
+    "Base round-trip drag 0.16%; OOS stress 0.25%. Funding is not separately joined because intended holding is intraday.",
+    "PASS requires positive OOS expectancy, PF>=1.15, >=15 OOS trades, >=2/3 positive OOS chunks, PF>1 at 0.25% stress, and a positive train parameter neighborhood.",
+    "The default configuration tests the user's stated RSI30/70, EMA200, sweep/rejection, 1:1.5 concept with explicit numerical definitions."
+  ],
+  "pass_count": 0,
+  "passed_symbols": [],
+  "results": [
+    {
+      "symbol": "BTCUSDT",
+      "status": "NO_ROBUST_TRAIN",
+      "data": {
+        "bars": 315360,
+        "first_ms": 1696723200000,
+        "last_ms": 1791330900000,
+        "coverage": 1.0,
+        "manifest": [
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2023-10.zip",
+            "sha256": "41fd943f5349a7417b17684c3d0fd1c13df779fea921a00742f3f4af3986f8ba",
+            "rows": 6912,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2023-11.zip",
+            "sha256": "c386879e037bdac37634b2cfd43d0e00033bcf9eef5d8a42284927314d727cfb",
+            "rows": 8640,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2023-12.zip",
+            "sha256": "2c6f4d22a095de8df65e7661231eaeb8344345674e65c478ba1efa2f1e0fb5c5",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2024-01.zip",
+            "sha256": "b04981f250c65b97b7fc1b4b699401c0f54b46e98c2f2e30bb14a387a45e9a82",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2024-02.zip",
+            "sha256": "1f55bd1995df1173ca96d430b485b721554aca5eaa4d7c644ab4afd695990c2f",
+            "rows": 8352,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2024-03.zip",
+            "sha256": "e58017be4762e3b93511dc5ca255c1ddf7c1c4ccbbbb1c313b174e033e2b891e",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2024-04.zip",
+            "sha256": "ea177b76e07782ae13e2a26f4a262296e89b3ffd549947c3d6d8bd0c07e3fc2b",
+            "rows": 8640,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2024-05.zip",
+            "sha256": "219ce6bc8e85a9fa9088eda56a92f5c56361751dd8301dff5ed9fc1232b5c1a2",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2024-06.zip",
+            "sha256": "f49fdf9f3add26ba70f301cac7d9d3b2e0211eeaaf99f32fa1c92730deae6e8d",
+            "rows": 8640,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2024-07.zip",
+            "sha256": "657f79d55b809ca18f242e950c916bbbe93c3d09697f0e330ba26b5a6a75a4e6",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2024-08.zip",
+            "sha256": "5804758756c980445eb6bbba96f10bd98bb7da471b6041bc31337cb0c7236a16",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2024-09.zip",
+            "sha256": "15ffdcf3d23f9fb6743c54d9d783cdc20373aaf8f60fd949a85653e7bee29170",
+            "rows": 8640,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2024-10.zip",
+            "sha256": "024d574aec22d830443dfe557c12137d24423c18b228e2c10045851cd056434d",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2024-11.zip",
+            "sha256": "bf2ff598c07f5f78a4265c376b3a8f3277e39b42d66bf79610b8b3199a34fa45",
+            "rows": 8640,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2024-12.zip",
+            "sha256": "261ced4d4a389f680ae730c53ba82b42f97f656b630352713e2d7fd738f57b8c",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2025-01.zip",
+            "sha256": "0c99422d64fa3cc58564cf77969fc5a96d6f44783c79ecfcf94b103753bf7570",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2025-02.zip",
+            "sha256": "fdd6fb92b75bae5c02dd583b5be44ca6673d1807ce4b0c08160d3c5cf7677a46",
+            "rows": 8064,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2025-03.zip",
+            "sha256": "46f83773b9cec38a09be429727a5a300ccca6d11c8e8ca5fa9545fad6eda131f",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2025-04.zip",
+            "sha256": "9eda69fd858e9ced7e72cfbb75bffe34458763c37c8ee73910e572b4baba21ed",
+            "rows": 8640,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2025-05.zip",
+            "sha256": "073da284f178e72777abbfbcf79faa99fcf77bd69c4a678938abbf6cd7d14f5b",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2025-06.zip",
+            "sha256": "da39c04e24a90c87406b9030e1aaf376655ad59d4bc0496f38e4162a9babf514",
+            "rows": 8640,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2025-07.zip",
+            "sha256": "2cea4750d51d9c064d674ec8d0d8d1f39448960284272fdc74698562c873bf0f",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2025-08.zip",
+            "sha256": "7f78f6f88ae1946f8bd8312a37d1d74b24e24d6b13bc37d2909ad7c8c0c7e9ae",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2025-09.zip",
+            "sha256": "dbfb8bc2f9343107c7a702acd6919d77060a8f7ea4b25359c71e5fc018a85209",
+            "rows": 8640,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2025-10.zip",
+            "sha256": "fab262ca4318f8f65164ae33a020458439adc6f7bc2e59bbfce1886118d05a48",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2025-11.zip",
+            "sha256": "2759d4be0fe68cc2be3d4d91940fcd95abc69f0c31f25d0b6cb5e0629c625d2d",
+            "rows": 8640,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2025-12.zip",
+            "sha256": "0e923a3d2ac4f6711d8c841220f4e5d2e479c1bdb40b41515eb250e16808304f",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2026-01.zip",
+            "sha256": "c092f3b26036f203bb5b11c28958574aa8501315ed26dd0f8c017051b9fb3abf",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2026-02.zip",
+            "sha256": "8be83befce2cd9bf0959c872d91108debd03e1b51a451bac3a56b8ddca196bb4",
+            "rows": 8064,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2026-03.zip",
+            "sha256": "0302ccef9b3e5e38c35bc8667a1e890138c9136e89145688220eea99b748200e",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2026-04.zip",
+            "sha256": "e2934467bdb6a000124948f4c8fef176e2066520a6b2e5a0522450fed51396f7",
+            "rows": 8640,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2026-05.zip",
+            "sha256": "b1a73378796bb62084c32ca5865903beeaf87d521d950d5e7776343f682dea93",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2026-06.zip",
+            "sha256": "782c555963c852ca768335de21d5743147e5d50bff449600f8fceb9ebe5273de",
+            "rows": 8640,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2026-07.zip",
+            "sha256": "ec750f7aa69c8f842fa1464a90ad4aa92452cfa767df9e8d70dc484e466c8fc3",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2026-08.zip",
+            "sha256": "14fd408e5d2902665c66b701e861b173568b66399e3fa462b94c766d209567d1",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2026-09.zip",
+            "sha256": "3a2d163a2bd28ca614fa0840a92ecbcde0d9c4962b278dd619d5bf81a9918e26",
+            "rows": 8640,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/BTCUSDT/5m/BTCUSDT-5m-2026-10-01.zip",
+            "sha256": "10cd0734819af381d7cd032c84ba4a9a080a57bba1f97e8e71d45a16f27b067e",
+            "rows": 288,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/BTCUSDT/5m/BTCUSDT-5m-2026-10-02.zip",
+            "sha256": "2a492563746eba6c3689b90c00a081bfce3ceab86a06493e80f22c4d55e8c7ea",
+            "rows": 288,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/BTCUSDT/5m/BTCUSDT-5m-2026-10-03.zip",
+            "sha256": "fccefc7f641f37118ba60b6890590da2600db284383815e157ae51f9d743f630",
+            "rows": 288,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/BTCUSDT/5m/BTCUSDT-5m-2026-10-04.zip",
+            "sha256": "c97345f772ec5dd965c0d87c2b32c17a7652ba3820a8eaa99371f83c79f2e487",
+            "rows": 288,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/BTCUSDT/5m/BTCUSDT-5m-2026-10-05.zip",
+            "sha256": "53154ab4fc649a2fe3bf13357fea7b3d2aede3ce47fff2f5dcbc4f6c7c1c1294",
+            "rows": 288,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/BTCUSDT/5m/BTCUSDT-5m-2026-10-06.zip",
+            "sha256": "dea89e33c0ea6df7b9ccb3ff6e0a087cc2c8ebcde55b3bde4c41694399899117",
+            "rows": 288,
+            "missing": false
+          }
+        ]
+      },
+      "default": {
+        "config": {
+          "rsi": 30,
+          "prox_atr": 0.5,
+          "sweep_n": 20,
+          "wick_ratio": 2.0,
+          "stop_buffer": 0.15,
+          "rr": 1.5,
+          "hold": 48
+        },
+        "dev": {
+          "n": 15,
+          "wins": 4,
+          "win_rate_pct": 26.667,
+          "pf": 0.491,
+          "avg_net_bps": -13.6453,
+          "sum_net_pct": -2.0468,
+          "avg_risk_pct": 0.2822,
+          "tp": 5,
+          "sl": 10,
+          "time": 0
+        },
+        "selection": {
+          "n": 5,
+          "wins": 2,
+          "win_rate_pct": 40.0,
+          "pf": 0.3901,
+          "avg_net_bps": -5.8782,
+          "sum_net_pct": -0.2939,
+          "avg_risk_pct": 0.1089,
+          "tp": 3,
+          "sl": 2,
+          "time": 0
+        },
+        "oos": {
+          "n": 7,
+          "wins": 0,
+          "win_rate_pct": 0.0,
+          "pf": 0.0,
+          "avg_net_bps": -26.2437,
+          "sum_net_pct": -1.8371,
+          "avg_risk_pct": 0.1657,
+          "tp": 1,
+          "sl": 5,
+          "time": 1
+        },
+        "oos_stress_025": {
+          "n": 7,
+          "wins": 0,
+          "win_rate_pct": 0.0,
+          "pf": 0.0,
+          "avg_net_bps": -35.2437,
+          "sum_net_pct": -2.4671,
+          "avg_risk_pct": 0.1657,
+          "tp": 1,
+          "sl": 5,
+          "time": 1
+        }
+      },
+      "train_top": [
+        {
+          "config": {
+            "rsi": 30,
+            "prox_atr": 0.25,
+            "sweep_n": 10,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.05,
+            "rr": 2.0,
+            "hold": 96
+          },
+          "dev": {
+            "n": 14,
+            "wins": 4,
+            "win_rate_pct": 28.571,
+            "pf": 0.7387,
+            "avg_net_bps": -6.4692,
+            "sum_net_pct": -0.9057,
+            "avg_risk_pct": 0.264,
+            "tp": 5,
+            "sl": 9,
+            "time": 0
+          },
+          "selection": {
+            "n": 7,
+            "wins": 3,
+            "win_rate_pct": 42.857,
+            "pf": 1.0979,
+            "avg_net_bps": 1.0677,
+            "sum_net_pct": 0.0747,
+            "avg_risk_pct": 0.1432,
+            "tp": 4,
+            "sl": 3,
+            "time": 0
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 10,
+              "wins": 3,
+              "win_rate_pct": 30.0,
+              "pf": 0.9877,
+              "avg_net_bps": -0.2702,
+              "sum_net_pct": -0.027,
+              "avg_risk_pct": 0.2636,
+              "tp": 4,
+              "sl": 6,
+              "time": 0
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 40.859,
+              "avg_net_bps": 25.9692,
+              "sum_net_pct": 0.5194,
+              "avg_risk_pct": 0.2098,
+              "tp": 2,
+              "sl": 0,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 4,
+              "wins": 1,
+              "win_rate_pct": 25.0,
+              "pf": 0.306,
+              "avg_net_bps": -21.9665,
+              "sum_net_pct": -0.8787,
+              "avg_risk_pct": 0.265,
+              "tp": 1,
+              "sl": 3,
+              "time": 0
+            },
+            "selection": {
+              "n": 5,
+              "wins": 2,
+              "win_rate_pct": 40.0,
+              "pf": 0.4072,
+              "avg_net_bps": -8.8929,
+              "sum_net_pct": -0.4446,
+              "avg_risk_pct": 0.1166,
+              "tp": 2,
+              "sl": 3,
+              "time": 0
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 30,
+            "prox_atr": 0.25,
+            "sweep_n": 20,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.05,
+            "rr": 2.0,
+            "hold": 96
+          },
+          "dev": {
+            "n": 14,
+            "wins": 4,
+            "win_rate_pct": 28.571,
+            "pf": 0.7387,
+            "avg_net_bps": -6.4692,
+            "sum_net_pct": -0.9057,
+            "avg_risk_pct": 0.264,
+            "tp": 5,
+            "sl": 9,
+            "time": 0
+          },
+          "selection": {
+            "n": 7,
+            "wins": 3,
+            "win_rate_pct": 42.857,
+            "pf": 1.0979,
+            "avg_net_bps": 1.0677,
+            "sum_net_pct": 0.0747,
+            "avg_risk_pct": 0.1432,
+            "tp": 4,
+            "sl": 3,
+            "time": 0
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 10,
+              "wins": 3,
+              "win_rate_pct": 30.0,
+              "pf": 0.9877,
+              "avg_net_bps": -0.2702,
+              "sum_net_pct": -0.027,
+              "avg_risk_pct": 0.2636,
+              "tp": 4,
+              "sl": 6,
+              "time": 0
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 40.859,
+              "avg_net_bps": 25.9692,
+              "sum_net_pct": 0.5194,
+              "avg_risk_pct": 0.2098,
+              "tp": 2,
+              "sl": 0,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 4,
+              "wins": 1,
+              "win_rate_pct": 25.0,
+              "pf": 0.306,
+              "avg_net_bps": -21.9665,
+              "sum_net_pct": -0.8787,
+              "avg_risk_pct": 0.265,
+              "tp": 1,
+              "sl": 3,
+              "time": 0
+            },
+            "selection": {
+              "n": 5,
+              "wins": 2,
+              "win_rate_pct": 40.0,
+              "pf": 0.4072,
+              "avg_net_bps": -8.8929,
+              "sum_net_pct": -0.4446,
+              "avg_risk_pct": 0.1166,
+              "tp": 2,
+              "sl": 3,
+              "time": 0
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 30,
+            "prox_atr": 0.25,
+            "sweep_n": 30,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.05,
+            "rr": 2.0,
+            "hold": 96
+          },
+          "dev": {
+            "n": 14,
+            "wins": 4,
+            "win_rate_pct": 28.571,
+            "pf": 0.7387,
+            "avg_net_bps": -6.4692,
+            "sum_net_pct": -0.9057,
+            "avg_risk_pct": 0.264,
+            "tp": 5,
+            "sl": 9,
+            "time": 0
+          },
+          "selection": {
+            "n": 7,
+            "wins": 3,
+            "win_rate_pct": 42.857,
+            "pf": 1.0979,
+            "avg_net_bps": 1.0677,
+            "sum_net_pct": 0.0747,
+            "avg_risk_pct": 0.1432,
+            "tp": 4,
+            "sl": 3,
+            "time": 0
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 10,
+              "wins": 3,
+              "win_rate_pct": 30.0,
+              "pf": 0.9877,
+              "avg_net_bps": -0.2702,
+              "sum_net_pct": -0.027,
+              "avg_risk_pct": 0.2636,
+              "tp": 4,
+              "sl": 6,
+              "time": 0
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 40.859,
+              "avg_net_bps": 25.9692,
+              "sum_net_pct": 0.5194,
+              "avg_risk_pct": 0.2098,
+              "tp": 2,
+              "sl": 0,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 4,
+              "wins": 1,
+              "win_rate_pct": 25.0,
+              "pf": 0.306,
+              "avg_net_bps": -21.9665,
+              "sum_net_pct": -0.8787,
+              "avg_risk_pct": 0.265,
+              "tp": 1,
+              "sl": 3,
+              "time": 0
+            },
+            "selection": {
+              "n": 5,
+              "wins": 2,
+              "win_rate_pct": 40.0,
+              "pf": 0.4072,
+              "avg_net_bps": -8.8929,
+              "sum_net_pct": -0.4446,
+              "avg_risk_pct": 0.1166,
+              "tp": 2,
+              "sl": 3,
+              "time": 0
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 30,
+            "prox_atr": 0.5,
+            "sweep_n": 10,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.05,
+            "rr": 2.0,
+            "hold": 96
+          },
+          "dev": {
+            "n": 15,
+            "wins": 4,
+            "win_rate_pct": 26.667,
+            "pf": 0.672,
+            "avg_net_bps": -8.3342,
+            "sum_net_pct": -1.2501,
+            "avg_risk_pct": 0.2587,
+            "tp": 5,
+            "sl": 10,
+            "time": 0
+          },
+          "selection": {
+            "n": 7,
+            "wins": 3,
+            "win_rate_pct": 42.857,
+            "pf": 1.0979,
+            "avg_net_bps": 1.0677,
+            "sum_net_pct": 0.0747,
+            "avg_risk_pct": 0.1432,
+            "tp": 4,
+            "sl": 3,
+            "time": 0
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 11,
+              "wins": 3,
+              "win_rate_pct": 27.273,
+              "pf": 0.854,
+              "avg_net_bps": -3.377,
+              "sum_net_pct": -0.3715,
+              "avg_risk_pct": 0.2564,
+              "tp": 4,
+              "sl": 7,
+              "time": 0
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 40.859,
+              "avg_net_bps": 25.9692,
+              "sum_net_pct": 0.5194,
+              "avg_risk_pct": 0.2098,
+              "tp": 2,
+              "sl": 0,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 4,
+              "wins": 1,
+              "win_rate_pct": 25.0,
+              "pf": 0.306,
+              "avg_net_bps": -21.9665,
+              "sum_net_pct": -0.8787,
+              "avg_risk_pct": 0.265,
+              "tp": 1,
+              "sl": 3,
+              "time": 0
+            },
+            "selection": {
+              "n": 5,
+              "wins": 2,
+              "win_rate_pct": 40.0,
+              "pf": 0.4072,
+              "avg_net_bps": -8.8929,
+              "sum_net_pct": -0.4446,
+              "avg_risk_pct": 0.1166,
+              "tp": 2,
+              "sl": 3,
+              "time": 0
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 30,
+            "prox_atr": 0.5,
+            "sweep_n": 20,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.05,
+            "rr": 2.0,
+            "hold": 96
+          },
+          "dev": {
+            "n": 15,
+            "wins": 4,
+            "win_rate_pct": 26.667,
+            "pf": 0.672,
+            "avg_net_bps": -8.3342,
+            "sum_net_pct": -1.2501,
+            "avg_risk_pct": 0.2587,
+            "tp": 5,
+            "sl": 10,
+            "time": 0
+          },
+          "selection": {
+            "n": 7,
+            "wins": 3,
+            "win_rate_pct": 42.857,
+            "pf": 1.0979,
+            "avg_net_bps": 1.0677,
+            "sum_net_pct": 0.0747,
+            "avg_risk_pct": 0.1432,
+            "tp": 4,
+            "sl": 3,
+            "time": 0
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 11,
+              "wins": 3,
+              "win_rate_pct": 27.273,
+              "pf": 0.854,
+              "avg_net_bps": -3.377,
+              "sum_net_pct": -0.3715,
+              "avg_risk_pct": 0.2564,
+              "tp": 4,
+              "sl": 7,
+              "time": 0
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 40.859,
+              "avg_net_bps": 25.9692,
+              "sum_net_pct": 0.5194,
+              "avg_risk_pct": 0.2098,
+              "tp": 2,
+              "sl": 0,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 4,
+              "wins": 1,
+              "win_rate_pct": 25.0,
+              "pf": 0.306,
+              "avg_net_bps": -21.9665,
+              "sum_net_pct": -0.8787,
+              "avg_risk_pct": 0.265,
+              "tp": 1,
+              "sl": 3,
+              "time": 0
+            },
+            "selection": {
+              "n": 5,
+              "wins": 2,
+              "win_rate_pct": 40.0,
+              "pf": 0.4072,
+              "avg_net_bps": -8.8929,
+              "sum_net_pct": -0.4446,
+              "avg_risk_pct": 0.1166,
+              "tp": 2,
+              "sl": 3,
+              "time": 0
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 30,
+            "prox_atr": 0.5,
+            "sweep_n": 30,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.05,
+            "rr": 2.0,
+            "hold": 96
+          },
+          "dev": {
+            "n": 15,
+            "wins": 4,
+            "win_rate_pct": 26.667,
+            "pf": 0.672,
+            "avg_net_bps": -8.3342,
+            "sum_net_pct": -1.2501,
+            "avg_risk_pct": 0.2587,
+            "tp": 5,
+            "sl": 10,
+            "time": 0
+          },
+          "selection": {
+            "n": 7,
+            "wins": 3,
+            "win_rate_pct": 42.857,
+            "pf": 1.0979,
+            "avg_net_bps": 1.0677,
+            "sum_net_pct": 0.0747,
+            "avg_risk_pct": 0.1432,
+            "tp": 4,
+            "sl": 3,
+            "time": 0
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 11,
+              "wins": 3,
+              "win_rate_pct": 27.273,
+              "pf": 0.854,
+              "avg_net_bps": -3.377,
+              "sum_net_pct": -0.3715,
+              "avg_risk_pct": 0.2564,
+              "tp": 4,
+              "sl": 7,
+              "time": 0
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 40.859,
+              "avg_net_bps": 25.9692,
+              "sum_net_pct": 0.5194,
+              "avg_risk_pct": 0.2098,
+              "tp": 2,
+              "sl": 0,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 4,
+              "wins": 1,
+              "win_rate_pct": 25.0,
+              "pf": 0.306,
+              "avg_net_bps": -21.9665,
+              "sum_net_pct": -0.8787,
+              "avg_risk_pct": 0.265,
+              "tp": 1,
+              "sl": 3,
+              "time": 0
+            },
+            "selection": {
+              "n": 5,
+              "wins": 2,
+              "win_rate_pct": 40.0,
+              "pf": 0.4072,
+              "avg_net_bps": -8.8929,
+              "sum_net_pct": -0.4446,
+              "avg_risk_pct": 0.1166,
+              "tp": 2,
+              "sl": 3,
+              "time": 0
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 30,
+            "prox_atr": 0.75,
+            "sweep_n": 10,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.05,
+            "rr": 2.0,
+            "hold": 96
+          },
+          "dev": {
+            "n": 16,
+            "wins": 5,
+            "win_rate_pct": 31.25,
+            "pf": 0.8381,
+            "avg_net_bps": -3.8556,
+            "sum_net_pct": -0.6169,
+            "avg_risk_pct": 0.2673,
+            "tp": 6,
+            "sl": 10,
+            "time": 0
+          },
+          "selection": {
+            "n": 7,
+            "wins": 3,
+            "win_rate_pct": 42.857,
+            "pf": 1.0979,
+            "avg_net_bps": 1.0677,
+            "sum_net_pct": 0.0747,
+            "avg_risk_pct": 0.1432,
+            "tp": 4,
+            "sl": 3,
+            "time": 0
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 12,
+              "wins": 4,
+              "win_rate_pct": 33.333,
+              "pf": 1.1029,
+              "avg_net_bps": 2.1814,
+              "sum_net_pct": 0.2618,
+              "avg_risk_pct": 0.2681,
+              "tp": 5,
+              "sl": 7,
+              "time": 0
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 40.859,
+              "avg_net_bps": 25.9692,
+              "sum_net_pct": 0.5194,
+              "avg_risk_pct": 0.2098,
+              "tp": 2,
+              "sl": 0,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 4,
+              "wins": 1,
+              "win_rate_pct": 25.0,
+              "pf": 0.306,
+              "avg_net_bps": -21.9665,
+              "sum_net_pct": -0.8787,
+              "avg_risk_pct": 0.265,
+              "tp": 1,
+              "sl": 3,
+              "time": 0
+            },
+            "selection": {
+              "n": 5,
+              "wins": 2,
+              "win_rate_pct": 40.0,
+              "pf": 0.4072,
+              "avg_net_bps": -8.8929,
+              "sum_net_pct": -0.4446,
+              "avg_risk_pct": 0.1166,
+              "tp": 2,
+              "sl": 3,
+              "time": 0
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 30,
+            "prox_atr": 0.75,
+            "sweep_n": 20,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.05,
+            "rr": 2.0,
+            "hold": 96
+          },
+          "dev": {
+            "n": 16,
+            "wins": 5,
+            "win_rate_pct": 31.25,
+            "pf": 0.8381,
+            "avg_net_bps": -3.8556,
+            "sum_net_pct": -0.6169,
+            "avg_risk_pct": 0.2673,
+            "tp": 6,
+            "sl": 10,
+            "time": 0
+          },
+          "selection": {
+            "n": 7,
+            "wins": 3,
+            "win_rate_pct": 42.857,
+            "pf": 1.0979,
+            "avg_net_bps": 1.0677,
+            "sum_net_pct": 0.0747,
+            "avg_risk_pct": 0.1432,
+            "tp": 4,
+            "sl": 3,
+            "time": 0
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 12,
+              "wins": 4,
+              "win_rate_pct": 33.333,
+              "pf": 1.1029,
+              "avg_net_bps": 2.1814,
+              "sum_net_pct": 0.2618,
+              "avg_risk_pct": 0.2681,
+              "tp": 5,
+              "sl": 7,
+              "time": 0
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 40.859,
+              "avg_net_bps": 25.9692,
+              "sum_net_pct": 0.5194,
+              "avg_risk_pct": 0.2098,
+              "tp": 2,
+              "sl": 0,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 4,
+              "wins": 1,
+              "win_rate_pct": 25.0,
+              "pf": 0.306,
+              "avg_net_bps": -21.9665,
+              "sum_net_pct": -0.8787,
+              "avg_risk_pct": 0.265,
+              "tp": 1,
+              "sl": 3,
+              "time": 0
+            },
+            "selection": {
+              "n": 5,
+              "wins": 2,
+              "win_rate_pct": 40.0,
+              "pf": 0.4072,
+              "avg_net_bps": -8.8929,
+              "sum_net_pct": -0.4446,
+              "avg_risk_pct": 0.1166,
+              "tp": 2,
+              "sl": 3,
+              "time": 0
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 30,
+            "prox_atr": 0.75,
+            "sweep_n": 30,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.05,
+            "rr": 2.0,
+            "hold": 96
+          },
+          "dev": {
+            "n": 16,
+            "wins": 5,
+            "win_rate_pct": 31.25,
+            "pf": 0.8381,
+            "avg_net_bps": -3.8556,
+            "sum_net_pct": -0.6169,
+            "avg_risk_pct": 0.2673,
+            "tp": 6,
+            "sl": 10,
+            "time": 0
+          },
+          "selection": {
+            "n": 7,
+            "wins": 3,
+            "win_rate_pct": 42.857,
+            "pf": 1.0979,
+            "avg_net_bps": 1.0677,
+            "sum_net_pct": 0.0747,
+            "avg_risk_pct": 0.1432,
+            "tp": 4,
+            "sl": 3,
+            "time": 0
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 12,
+              "wins": 4,
+              "win_rate_pct": 33.333,
+              "pf": 1.1029,
+              "avg_net_bps": 2.1814,
+              "sum_net_pct": 0.2618,
+              "avg_risk_pct": 0.2681,
+              "tp": 5,
+              "sl": 7,
+              "time": 0
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 40.859,
+              "avg_net_bps": 25.9692,
+              "sum_net_pct": 0.5194,
+              "avg_risk_pct": 0.2098,
+              "tp": 2,
+              "sl": 0,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 4,
+              "wins": 1,
+              "win_rate_pct": 25.0,
+              "pf": 0.306,
+              "avg_net_bps": -21.9665,
+              "sum_net_pct": -0.8787,
+              "avg_risk_pct": 0.265,
+              "tp": 1,
+              "sl": 3,
+              "time": 0
+            },
+            "selection": {
+              "n": 5,
+              "wins": 2,
+              "win_rate_pct": 40.0,
+              "pf": 0.4072,
+              "avg_net_bps": -8.8929,
+              "sum_net_pct": -0.4446,
+              "avg_risk_pct": 0.1166,
+              "tp": 2,
+              "sl": 3,
+              "time": 0
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 30,
+            "prox_atr": 0.25,
+            "sweep_n": 10,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.15,
+            "rr": 2.0,
+            "hold": 96
+          },
+          "dev": {
+            "n": 14,
+            "wins": 5,
+            "win_rate_pct": 35.714,
+            "pf": 0.7898,
+            "avg_net_bps": -5.4536,
+            "sum_net_pct": -0.7635,
+            "avg_risk_pct": 0.2876,
+            "tp": 5,
+            "sl": 9,
+            "time": 0
+          },
+          "selection": {
+            "n": 7,
+            "wins": 3,
+            "win_rate_pct": 42.857,
+            "pf": 0.91,
+            "avg_net_bps": -1.3018,
+            "sum_net_pct": -0.0911,
+            "avg_risk_pct": 0.1534,
+            "tp": 3,
+            "sl": 4,
+            "time": 0
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 10,
+              "wins": 4,
+              "win_rate_pct": 40.0,
+              "pf": 1.0376,
+              "avg_net_bps": 0.8647,
+              "sum_net_pct": 0.0865,
+              "avg_risk_pct": 0.2853,
+              "tp": 4,
+              "sl": 6,
+              "time": 0
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 2.337,
+              "avg_net_bps": 16.1445,
+              "sum_net_pct": 0.3229,
+              "avg_risk_pct": 0.2219,
+              "tp": 1,
+              "sl": 1,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 4,
+              "wins": 1,
+              "win_rate_pct": 25.0,
+              "pf": 0.3618,
+              "avg_net_bps": -21.2493,
+              "sum_net_pct": -0.85,
+              "avg_risk_pct": 0.2932,
+              "tp": 1,
+              "sl": 3,
+              "time": 0
+            },
+            "selection": {
+              "n": 5,
+              "wins": 2,
+              "win_rate_pct": 40.0,
+              "pf": 0.4632,
+              "avg_net_bps": -8.2803,
+              "sum_net_pct": -0.414,
+              "avg_risk_pct": 0.126,
+              "tp": 2,
+              "sl": 3,
+              "time": 0
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 30,
+            "prox_atr": 0.25,
+            "sweep_n": 20,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.15,
+            "rr": 2.0,
+            "hold": 96
+          },
+          "dev": {
+            "n": 14,
+            "wins": 5,
+            "win_rate_pct": 35.714,
+            "pf": 0.7898,
+            "avg_net_bps": -5.4536,
+            "sum_net_pct": -0.7635,
+            "avg_risk_pct": 0.2876,
+            "tp": 5,
+            "sl": 9,
+            "time": 0
+          },
+          "selection": {
+            "n": 7,
+            "wins": 3,
+            "win_rate_pct": 42.857,
+            "pf": 0.91,
+            "avg_net_bps": -1.3018,
+            "sum_net_pct": -0.0911,
+            "avg_risk_pct": 0.1534,
+            "tp": 3,
+            "sl": 4,
+            "time": 0
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 10,
+              "wins": 4,
+              "win_rate_pct": 40.0,
+              "pf": 1.0376,
+              "avg_net_bps": 0.8647,
+              "sum_net_pct": 0.0865,
+              "avg_risk_pct": 0.2853,
+              "tp": 4,
+              "sl": 6,
+              "time": 0
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 2.337,
+              "avg_net_bps": 16.1445,
+              "sum_net_pct": 0.3229,
+              "avg_risk_pct": 0.2219,
+              "tp": 1,
+              "sl": 1,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 4,
+              "wins": 1,
+              "win_rate_pct": 25.0,
+              "pf": 0.3618,
+              "avg_net_bps": -21.2493,
+              "sum_net_pct": -0.85,
+              "avg_risk_pct": 0.2932,
+              "tp": 1,
+              "sl": 3,
+              "time": 0
+            },
+            "selection": {
+              "n": 5,
+              "wins": 2,
+              "win_rate_pct": 40.0,
+              "pf": 0.4632,
+              "avg_net_bps": -8.2803,
+              "sum_net_pct": -0.414,
+              "avg_risk_pct": 0.126,
+              "tp": 2,
+              "sl": 3,
+              "time": 0
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 30,
+            "prox_atr": 0.25,
+            "sweep_n": 30,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.15,
+            "rr": 2.0,
+            "hold": 96
+          },
+          "dev": {
+            "n": 14,
+            "wins": 5,
+            "win_rate_pct": 35.714,
+            "pf": 0.7898,
+            "avg_net_bps": -5.4536,
+            "sum_net_pct": -0.7635,
+            "avg_risk_pct": 0.2876,
+            "tp": 5,
+            "sl": 9,
+            "time": 0
+          },
+          "selection": {
+            "n": 7,
+            "wins": 3,
+            "win_rate_pct": 42.857,
+            "pf": 0.91,
+            "avg_net_bps": -1.3018,
+            "sum_net_pct": -0.0911,
+            "avg_risk_pct": 0.1534,
+            "tp": 3,
+            "sl": 4,
+            "time": 0
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 10,
+              "wins": 4,
+              "win_rate_pct": 40.0,
+              "pf": 1.0376,
+              "avg_net_bps": 0.8647,
+              "sum_net_pct": 0.0865,
+              "avg_risk_pct": 0.2853,
+              "tp": 4,
+              "sl": 6,
+              "time": 0
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 2.337,
+              "avg_net_bps": 16.1445,
+              "sum_net_pct": 0.3229,
+              "avg_risk_pct": 0.2219,
+              "tp": 1,
+              "sl": 1,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 4,
+              "wins": 1,
+              "win_rate_pct": 25.0,
+              "pf": 0.3618,
+              "avg_net_bps": -21.2493,
+              "sum_net_pct": -0.85,
+              "avg_risk_pct": 0.2932,
+              "tp": 1,
+              "sl": 3,
+              "time": 0
+            },
+            "selection": {
+              "n": 5,
+              "wins": 2,
+              "win_rate_pct": 40.0,
+              "pf": 0.4632,
+              "avg_net_bps": -8.2803,
+              "sum_net_pct": -0.414,
+              "avg_risk_pct": 0.126,
+              "tp": 2,
+              "sl": 3,
+              "time": 0
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 30,
+            "prox_atr": 0.5,
+            "sweep_n": 10,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.15,
+            "rr": 2.0,
+            "hold": 96
+          },
+          "dev": {
+            "n": 15,
+            "wins": 5,
+            "win_rate_pct": 33.333,
+            "pf": 0.7174,
+            "avg_net_bps": -7.5313,
+            "sum_net_pct": -1.1297,
+            "avg_risk_pct": 0.2822,
+            "tp": 5,
+            "sl": 10,
+            "time": 0
+          },
+          "selection": {
+            "n": 7,
+            "wins": 3,
+            "win_rate_pct": 42.857,
+            "pf": 0.91,
+            "avg_net_bps": -1.3018,
+            "sum_net_pct": -0.0911,
+            "avg_risk_pct": 0.1534,
+            "tp": 3,
+            "sl": 4,
+            "time": 0
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 11,
+              "wins": 4,
+              "win_rate_pct": 36.364,
+              "pf": 0.8951,
+              "avg_net_bps": -2.5429,
+              "sum_net_pct": -0.2797,
+              "avg_risk_pct": 0.2782,
+              "tp": 4,
+              "sl": 7,
+              "time": 0
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 2.337,
+              "avg_net_bps": 16.1445,
+              "sum_net_pct": 0.3229,
+              "avg_risk_pct": 0.2219,
+              "tp": 1,
+              "sl": 1,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 4,
+              "wins": 1,
+              "win_rate_pct": 25.0,
+              "pf": 0.3618,
+              "avg_net_bps": -21.2493,
+              "sum_net_pct": -0.85,
+              "avg_risk_pct": 0.2932,
+              "tp": 1,
+              "sl": 3,
+              "time": 0
+            },
+            "selection": {
+              "n": 5,
+              "wins": 2,
+              "win_rate_pct": 40.0,
+              "pf": 0.4632,
+              "avg_net_bps": -8.2803,
+              "sum_net_pct": -0.414,
+              "avg_risk_pct": 0.126,
+              "tp": 2,
+              "sl": 3,
+              "time": 0
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 30,
+            "prox_atr": 0.5,
+            "sweep_n": 20,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.15,
+            "rr": 2.0,
+            "hold": 96
+          },
+          "dev": {
+            "n": 15,
+            "wins": 5,
+            "win_rate_pct": 33.333,
+            "pf": 0.7174,
+            "avg_net_bps": -7.5313,
+            "sum_net_pct": -1.1297,
+            "avg_risk_pct": 0.2822,
+            "tp": 5,
+            "sl": 10,
+            "time": 0
+          },
+          "selection": {
+            "n": 7,
+            "wins": 3,
+            "win_rate_pct": 42.857,
+            "pf": 0.91,
+            "avg_net_bps": -1.3018,
+            "sum_net_pct": -0.0911,
+            "avg_risk_pct": 0.1534,
+            "tp": 3,
+            "sl": 4,
+            "time": 0
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 11,
+              "wins": 4,
+              "win_rate_pct": 36.364,
+              "pf": 0.8951,
+              "avg_net_bps": -2.5429,
+              "sum_net_pct": -0.2797,
+              "avg_risk_pct": 0.2782,
+              "tp": 4,
+              "sl": 7,
+              "time": 0
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 2.337,
+              "avg_net_bps": 16.1445,
+              "sum_net_pct": 0.3229,
+              "avg_risk_pct": 0.2219,
+              "tp": 1,
+              "sl": 1,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 4,
+              "wins": 1,
+              "win_rate_pct": 25.0,
+              "pf": 0.3618,
+              "avg_net_bps": -21.2493,
+              "sum_net_pct": -0.85,
+              "avg_risk_pct": 0.2932,
+              "tp": 1,
+              "sl": 3,
+              "time": 0
+            },
+            "selection": {
+              "n": 5,
+              "wins": 2,
+              "win_rate_pct": 40.0,
+              "pf": 0.4632,
+              "avg_net_bps": -8.2803,
+              "sum_net_pct": -0.414,
+              "avg_risk_pct": 0.126,
+              "tp": 2,
+              "sl": 3,
+              "time": 0
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 30,
+            "prox_atr": 0.5,
+            "sweep_n": 30,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.15,
+            "rr": 2.0,
+            "hold": 96
+          },
+          "dev": {
+            "n": 15,
+            "wins": 5,
+            "win_rate_pct": 33.333,
+            "pf": 0.7174,
+            "avg_net_bps": -7.5313,
+            "sum_net_pct": -1.1297,
+            "avg_risk_pct": 0.2822,
+            "tp": 5,
+            "sl": 10,
+            "time": 0
+          },
+          "selection": {
+            "n": 7,
+            "wins": 3,
+            "win_rate_pct": 42.857,
+            "pf": 0.91,
+            "avg_net_bps": -1.3018,
+            "sum_net_pct": -0.0911,
+            "avg_risk_pct": 0.1534,
+            "tp": 3,
+            "sl": 4,
+            "time": 0
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 11,
+              "wins": 4,
+              "win_rate_pct": 36.364,
+              "pf": 0.8951,
+              "avg_net_bps": -2.5429,
+              "sum_net_pct": -0.2797,
+              "avg_risk_pct": 0.2782,
+              "tp": 4,
+              "sl": 7,
+              "time": 0
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 2.337,
+              "avg_net_bps": 16.1445,
+              "sum_net_pct": 0.3229,
+              "avg_risk_pct": 0.2219,
+              "tp": 1,
+              "sl": 1,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 4,
+              "wins": 1,
+              "win_rate_pct": 25.0,
+              "pf": 0.3618,
+              "avg_net_bps": -21.2493,
+              "sum_net_pct": -0.85,
+              "avg_risk_pct": 0.2932,
+              "tp": 1,
+              "sl": 3,
+              "time": 0
+            },
+            "selection": {
+              "n": 5,
+              "wins": 2,
+              "win_rate_pct": 40.0,
+              "pf": 0.4632,
+              "avg_net_bps": -8.2803,
+              "sum_net_pct": -0.414,
+              "avg_risk_pct": 0.126,
+              "tp": 2,
+              "sl": 3,
+              "time": 0
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 30,
+            "prox_atr": 0.75,
+            "sweep_n": 10,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.15,
+            "rr": 2.0,
+            "hold": 96
+          },
+          "dev": {
+            "n": 16,
+            "wins": 5,
+            "win_rate_pct": 31.25,
+            "pf": 0.6247,
+            "avg_net_bps": -10.772,
+            "sum_net_pct": -1.7235,
+            "avg_risk_pct": 0.2916,
+            "tp": 5,
+            "sl": 11,
+            "time": 0
+          },
+          "selection": {
+            "n": 7,
+            "wins": 3,
+            "win_rate_pct": 42.857,
+            "pf": 0.91,
+            "avg_net_bps": -1.3018,
+            "sum_net_pct": -0.0911,
+            "avg_risk_pct": 0.1534,
+            "tp": 3,
+            "sl": 4,
+            "time": 0
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 12,
+              "wins": 4,
+              "win_rate_pct": 33.333,
+              "pf": 0.7321,
+              "avg_net_bps": -7.2796,
+              "sum_net_pct": -0.8735,
+              "avg_risk_pct": 0.2911,
+              "tp": 4,
+              "sl": 8,
+              "time": 0
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 2.337,
+              "avg_net_bps": 16.1445,
+              "sum_net_pct": 0.3229,
+              "avg_risk_pct": 0.2219,
+              "tp": 1,
+              "sl": 1,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 4,
+              "wins": 1,
+              "win_rate_pct": 25.0,
+              "pf": 0.3618,
+              "avg_net_bps": -21.2493,
+              "sum_net_pct": -0.85,
+              "avg_risk_pct": 0.2932,
+              "tp": 1,
+              "sl": 3,
+              "time": 0
+            },
+            "selection": {
+              "n": 5,
+              "wins": 2,
+              "win_rate_pct": 40.0,
+              "pf": 0.4632,
+              "avg_net_bps": -8.2803,
+              "sum_net_pct": -0.414,
+              "avg_risk_pct": 0.126,
+              "tp": 2,
+              "sl": 3,
+              "time": 0
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 30,
+            "prox_atr": 0.75,
+            "sweep_n": 20,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.15,
+            "rr": 2.0,
+            "hold": 96
+          },
+          "dev": {
+            "n": 16,
+            "wins": 5,
+            "win_rate_pct": 31.25,
+            "pf": 0.6247,
+            "avg_net_bps": -10.772,
+            "sum_net_pct": -1.7235,
+            "avg_risk_pct": 0.2916,
+            "tp": 5,
+            "sl": 11,
+            "time": 0
+          },
+          "selection": {
+            "n": 7,
+            "wins": 3,
+            "win_rate_pct": 42.857,
+            "pf": 0.91,
+            "avg_net_bps": -1.3018,
+            "sum_net_pct": -0.0911,
+            "avg_risk_pct": 0.1534,
+            "tp": 3,
+            "sl": 4,
+            "time": 0
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 12,
+              "wins": 4,
+              "win_rate_pct": 33.333,
+              "pf": 0.7321,
+              "avg_net_bps": -7.2796,
+              "sum_net_pct": -0.8735,
+              "avg_risk_pct": 0.2911,
+              "tp": 4,
+              "sl": 8,
+              "time": 0
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 2.337,
+              "avg_net_bps": 16.1445,
+              "sum_net_pct": 0.3229,
+              "avg_risk_pct": 0.2219,
+              "tp": 1,
+              "sl": 1,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 4,
+              "wins": 1,
+              "win_rate_pct": 25.0,
+              "pf": 0.3618,
+              "avg_net_bps": -21.2493,
+              "sum_net_pct": -0.85,
+              "avg_risk_pct": 0.2932,
+              "tp": 1,
+              "sl": 3,
+              "time": 0
+            },
+            "selection": {
+              "n": 5,
+              "wins": 2,
+              "win_rate_pct": 40.0,
+              "pf": 0.4632,
+              "avg_net_bps": -8.2803,
+              "sum_net_pct": -0.414,
+              "avg_risk_pct": 0.126,
+              "tp": 2,
+              "sl": 3,
+              "time": 0
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 30,
+            "prox_atr": 0.75,
+            "sweep_n": 30,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.15,
+            "rr": 2.0,
+            "hold": 96
+          },
+          "dev": {
+            "n": 16,
+            "wins": 5,
+            "win_rate_pct": 31.25,
+            "pf": 0.6247,
+            "avg_net_bps": -10.772,
+            "sum_net_pct": -1.7235,
+            "avg_risk_pct": 0.2916,
+            "tp": 5,
+            "sl": 11,
+            "time": 0
+          },
+          "selection": {
+            "n": 7,
+            "wins": 3,
+            "win_rate_pct": 42.857,
+            "pf": 0.91,
+            "avg_net_bps": -1.3018,
+            "sum_net_pct": -0.0911,
+            "avg_risk_pct": 0.1534,
+            "tp": 3,
+            "sl": 4,
+            "time": 0
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 12,
+              "wins": 4,
+              "win_rate_pct": 33.333,
+              "pf": 0.7321,
+              "avg_net_bps": -7.2796,
+              "sum_net_pct": -0.8735,
+              "avg_risk_pct": 0.2911,
+              "tp": 4,
+              "sl": 8,
+              "time": 0
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 2.337,
+              "avg_net_bps": 16.1445,
+              "sum_net_pct": 0.3229,
+              "avg_risk_pct": 0.2219,
+              "tp": 1,
+              "sl": 1,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 4,
+              "wins": 1,
+              "win_rate_pct": 25.0,
+              "pf": 0.3618,
+              "avg_net_bps": -21.2493,
+              "sum_net_pct": -0.85,
+              "avg_risk_pct": 0.2932,
+              "tp": 1,
+              "sl": 3,
+              "time": 0
+            },
+            "selection": {
+              "n": 5,
+              "wins": 2,
+              "win_rate_pct": 40.0,
+              "pf": 0.4632,
+              "avg_net_bps": -8.2803,
+              "sum_net_pct": -0.414,
+              "avg_risk_pct": 0.126,
+              "tp": 2,
+              "sl": 3,
+              "time": 0
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 30,
+            "prox_atr": 0.25,
+            "sweep_n": 10,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.15,
+            "rr": 1.5,
+            "hold": 24
+          },
+          "dev": {
+            "n": 14,
+            "wins": 4,
+            "win_rate_pct": 28.571,
+            "pf": 0.4631,
+            "avg_net_bps": -14.0188,
+            "sum_net_pct": -1.9626,
+            "avg_risk_pct": 0.2876,
+            "tp": 4,
+            "sl": 9,
+            "time": 1
+          },
+          "selection": {
+            "n": 7,
+            "wins": 3,
+            "win_rate_pct": 42.857,
+            "pf": 0.7061,
+            "avg_net_bps": -3.3968,
+            "sum_net_pct": -0.2378,
+            "avg_risk_pct": 0.1534,
+            "tp": 4,
+            "sl": 3,
+            "time": 0
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 10,
+              "wins": 3,
+              "win_rate_pct": 30.0,
+              "pf": 0.5902,
+              "avg_net_bps": -9.5221,
+              "sum_net_pct": -0.9522,
+              "avg_risk_pct": 0.2853,
+              "tp": 3,
+              "sl": 6,
+              "time": 1
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 10.1568,
+              "avg_net_bps": 17.278,
+              "sum_net_pct": 0.3456,
+              "avg_risk_pct": 0.2219,
+              "tp": 2,
+              "sl": 0,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 4,
+              "wins": 1,
+              "win_rate_pct": 25.0,
+              "pf": 0.2413,
+              "avg_net_bps": -25.2605,
+              "sum_net_pct": -1.0104,
+              "avg_risk_pct": 0.2932,
+              "tp": 1,
+              "sl": 3,
+              "time": 0
+            },
+            "selection": {
+              "n": 5,
+              "wins": 2,
+              "win_rate_pct": 40.0,
+              "pf": 0.2437,
+              "avg_net_bps": -11.6667,
+              "sum_net_pct": -0.5833,
+              "avg_risk_pct": 0.126,
+              "tp": 2,
+              "sl": 3,
+              "time": 0
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 30,
+            "prox_atr": 0.25,
+            "sweep_n": 10,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.15,
+            "rr": 1.5,
+            "hold": 48
+          },
+          "dev": {
+            "n": 14,
+            "wins": 4,
+            "win_rate_pct": 28.571,
+            "pf": 0.5402,
+            "avg_net_bps": -12.0044,
+            "sum_net_pct": -1.6806,
+            "avg_risk_pct": 0.2876,
+            "tp": 5,
+            "sl": 9,
+            "time": 0
+          },
+          "selection": {
+            "n": 7,
+            "wins": 3,
+            "win_rate_pct": 42.857,
+            "pf": 0.7061,
+            "avg_net_bps": -3.3968,
+            "sum_net_pct": -0.2378,
+            "avg_risk_pct": 0.1534,
+            "tp": 4,
+            "sl": 3,
+            "time": 0
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 10,
+              "wins": 3,
+              "win_rate_pct": 30.0,
+              "pf": 0.7116,
+              "avg_net_bps": -6.7019,
+              "sum_net_pct": -0.6702,
+              "avg_risk_pct": 0.2853,
+              "tp": 4,
+              "sl": 6,
+              "time": 0
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 10.1568,
+              "avg_net_bps": 17.278,
+              "sum_net_pct": 0.3456,
+              "avg_risk_pct": 0.2219,
+              "tp": 2,
+              "sl": 0,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 4,
+              "wins": 1,
+              "win_rate_pct": 25.0,
+              "pf": 0.2413,
+              "avg_net_bps": -25.2605,
+              "sum_net_pct": -1.0104,
+              "avg_risk_pct": 0.2932,
+              "tp": 1,
+              "sl": 3,
+              "time": 0
+            },
+            "selection": {
+              "n": 5,
+              "wins": 2,
+              "win_rate_pct": 40.0,
+              "pf": 0.2437,
+              "avg_net_bps": -11.6667,
+              "sum_net_pct": -0.5833,
+              "avg_risk_pct": 0.126,
+              "tp": 2,
+              "sl": 3,
+              "time": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "symbol": "ETHUSDT",
+      "status": "NO_ROBUST_TRAIN",
+      "data": {
+        "bars": 315360,
+        "first_ms": 1696723200000,
+        "last_ms": 1791330900000,
+        "coverage": 1.0,
+        "manifest": [
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2023-10.zip",
+            "sha256": "86f85f8e53cf2ab27f7c06589fede27d4329d78b2c7d23de06caece7664dc995",
+            "rows": 6912,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2023-11.zip",
+            "sha256": "17de88d37e1f3c1c583a2caa2822d9875f6c937470ec05607285854b95a92eb6",
+            "rows": 8640,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2023-12.zip",
+            "sha256": "df31bb309cdecc733892da2317a121af11a05fdeaf134f84de2e64acb661a429",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2024-01.zip",
+            "sha256": "ee18594550f61949407da03e79ff4107c3eb528316b6bba47a395e727b2382c1",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2024-02.zip",
+            "sha256": "a9a23201cd264997e556edce2a043c96935b6a6c36a36ccc20866bb53c7e6bc2",
+            "rows": 8352,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2024-03.zip",
+            "sha256": "7f76bd08e541a8364672afab2446a563a549be51ae5066b806d01fffed3691a6",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2024-04.zip",
+            "sha256": "635ec4eca93d49d9352f13e142f73e706b4823411373fd4d10c862d4fa19bba2",
+            "rows": 8640,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2024-05.zip",
+            "sha256": "c89304e9ea46bb4c164bd239593587d40b7b4ccc8bcf41159f7c035cd4f7e61a",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2024-06.zip",
+            "sha256": "8687fe1dec24ec105776408c1e2009f7bce8f3055067504b7fd8366e8992ed67",
+            "rows": 8640,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2024-07.zip",
+            "sha256": "6232f987221a762ced83e01a342e20efd1c2512006c3179ce720249f4dcae34e",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2024-08.zip",
+            "sha256": "ac7339c51ee1ddfb193a2ed60b94c37f26fd992153697cec5dfd7b3fe8442b7f",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2024-09.zip",
+            "sha256": "eada3d2be75540fcb1b5c460ae54dd8e6d19acf663999d1e74588f540af5c3ac",
+            "rows": 8640,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2024-10.zip",
+            "sha256": "62b30d2d48ce556936a33c7b524dfe2ccf257c514bfd548986da837c4b641e8c",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2024-11.zip",
+            "sha256": "f6d6855da5a73afba5e8e6b349fbeb7dd676ba7799583c1652032843230b9310",
+            "rows": 8640,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2024-12.zip",
+            "sha256": "13f2c88d1a8a110262deae477c45b90550f1dbc3d74e3ad93fdc76232562d763",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2025-01.zip",
+            "sha256": "eca9862b43bf3acaf341334d1b2297f800e62ba083ebdd063fc3e01d1c3416cf",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2025-02.zip",
+            "sha256": "fd6d5b1919b937798227d73f96ee87c33f0181dd279df4652f2c626344ced507",
+            "rows": 8064,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2025-03.zip",
+            "sha256": "9f73747db3c7dd2e48574ddb8696dd2a7b685760ffc62a735d04b758afd09d8b",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2025-04.zip",
+            "sha256": "08402491b8db2e1e7dcb20cef48fb670706640f1ba5345b366de3522a57d3782",
+            "rows": 8640,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2025-05.zip",
+            "sha256": "478f3a5333295e8a28864ed3561f5597acdc9d2017077d2e9850ea30e435d2a6",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2025-06.zip",
+            "sha256": "a546295240e8786b3f48670ae5e24f79381b338af97ed904de02adc73c03ce83",
+            "rows": 8640,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2025-07.zip",
+            "sha256": "fd2af89a8b6dfddd3a2769bb5bd0244454340487a513ba99c86bb7425979c4d6",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2025-08.zip",
+            "sha256": "f2d7687eecda432ce840b1320f868f56ab9ea0c2304b5fc83cefc5684696b344",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2025-09.zip",
+            "sha256": "71ee9f99652c07dcea827cd8f870cce49e77203d4c938f80b1c15ac9a4cef473",
+            "rows": 8640,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2025-10.zip",
+            "sha256": "597747fb89e6a6d2ed8029663a7f6310a5b8044b756cc59f4ce83dd3c34e95b2",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2025-11.zip",
+            "sha256": "49d6fe077f2f2da4febe18952866ff1b607d72a390306cd9fc74863dbfde4b89",
+            "rows": 8640,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2025-12.zip",
+            "sha256": "0723e20236ff44ecc65bc98b7e344fe6d1bcefd204e72684054064c295ca5c5e",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2026-01.zip",
+            "sha256": "c0bd8615649919f64250f8a254b4a282933117e203f8cc9a831d3efd5a4e59d0",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2026-02.zip",
+            "sha256": "606781a505c76025b1be3e7c4a375037f63510293402775efed87a23801398b5",
+            "rows": 8064,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2026-03.zip",
+            "sha256": "ec2694016c1d41b815e9c403519c8971a454ef2276987f4ec5ad949bd33674eb",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2026-04.zip",
+            "sha256": "94c890bf844ef6c289bcf6d126869a39bbc457aac139a5e0b8cebdf2bef2e078",
+            "rows": 8640,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2026-05.zip",
+            "sha256": "3a642e9db105c9002210fc4d7f5a99a527d6b52d63823ae17076c1e2d2578eda",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2026-06.zip",
+            "sha256": "f26819283e11870b0b206acea9e084bcd7e3c6a5fb2abb8800ac5a424959e49d",
+            "rows": 8640,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2026-07.zip",
+            "sha256": "2e9ba157f21fbcb97f108dd263d572cd0b4d6cc1db7cd54446f762f4ce3e6dda",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2026-08.zip",
+            "sha256": "c7ac44cb1ac58dd231b1a94c9d68907e2b3a8079dbf2dd8a5e744a6234766d47",
+            "rows": 8928,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ETHUSDT/5m/ETHUSDT-5m-2026-09.zip",
+            "sha256": "143312487ffcc01c174156343fbf05ea48cbfa4e4602937caafb3e0ad3dbca9a",
+            "rows": 8640,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/ETHUSDT/5m/ETHUSDT-5m-2026-10-01.zip",
+            "sha256": "3dcf98cdbcf8e8a1d5bad7c454509b2e73dba82b34aad841b8c277cbe2be620b",
+            "rows": 288,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/ETHUSDT/5m/ETHUSDT-5m-2026-10-02.zip",
+            "sha256": "531c33307bf9a355cc9f1f364c77d394940f0bca68b4e69f3e3dfac771dcc39b",
+            "rows": 288,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/ETHUSDT/5m/ETHUSDT-5m-2026-10-03.zip",
+            "sha256": "f0343fb95f2edc1f8fa219529ae73d458f73fbe1826780ab132c26e9f3fc21a0",
+            "rows": 288,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/ETHUSDT/5m/ETHUSDT-5m-2026-10-04.zip",
+            "sha256": "8bf2bbcee714e7f8d1055c3ba9409050c7e682431fc9f5614da198b4b07ad775",
+            "rows": 288,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/ETHUSDT/5m/ETHUSDT-5m-2026-10-05.zip",
+            "sha256": "212cedb38e9f8ddcc321f856e0504794799f8fde84d9a9118f1b8f6be4abee29",
+            "rows": 288,
+            "missing": false
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/ETHUSDT/5m/ETHUSDT-5m-2026-10-06.zip",
+            "sha256": "de042e764964c732f4acbdf3d86ed4f2d2a19d3cc0c2d2320cf54428a6680748",
+            "rows": 288,
+            "missing": false
+          }
+        ]
+      },
+      "default": {
+        "config": {
+          "rsi": 30,
+          "prox_atr": 0.5,
+          "sweep_n": 20,
+          "wick_ratio": 2.0,
+          "stop_buffer": 0.15,
+          "rr": 1.5,
+          "hold": 48
+        },
+        "dev": {
+          "n": 10,
+          "wins": 5,
+          "win_rate_pct": 50.0,
+          "pf": 0.8005,
+          "avg_net_bps": -5.6866,
+          "sum_net_pct": -0.5687,
+          "avg_risk_pct": 0.4422,
+          "tp": 4,
+          "sl": 5,
+          "time": 1
+        },
+        "selection": {
+          "n": 4,
+          "wins": 2,
+          "win_rate_pct": 50.0,
+          "pf": 0.0516,
+          "avg_net_bps": -28.857,
+          "sum_net_pct": -1.1543,
+          "avg_risk_pct": 0.2881,
+          "tp": 2,
+          "sl": 2,
+          "time": 0
+        },
+        "oos": {
+          "n": 1,
+          "wins": 0,
+          "win_rate_pct": 0.0,
+          "pf": 0.0,
+          "avg_net_bps": -49.7912,
+          "sum_net_pct": -0.4979,
+          "avg_risk_pct": 0.3379,
+          "tp": 0,
+          "sl": 1,
+          "time": 0
+        },
+        "oos_stress_025": {
+          "n": 1,
+          "wins": 0,
+          "win_rate_pct": 0.0,
+          "pf": 0.0,
+          "avg_net_bps": -58.7912,
+          "sum_net_pct": -0.5879,
+          "avg_risk_pct": 0.3379,
+          "tp": 0,
+          "sl": 1,
+          "time": 0
+        }
+      },
+      "train_top": [
+        {
+          "config": {
+            "rsi": 30,
+            "prox_atr": 0.25,
+            "sweep_n": 10,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.15,
+            "rr": 1.5,
+            "hold": 24
+          },
+          "dev": {
+            "n": 10,
+            "wins": 4,
+            "win_rate_pct": 40.0,
+            "pf": 0.512,
+            "avg_net_bps": -13.4699,
+            "sum_net_pct": -1.347,
+            "avg_risk_pct": 0.52,
+            "tp": 3,
+            "sl": 4,
+            "time": 3
+          },
+          "selection": {
+            "n": 7,
+            "wins": 4,
+            "win_rate_pct": 57.143,
+            "pf": 1.5746,
+            "avg_net_bps": 8.6425,
+            "sum_net_pct": 0.605,
+            "avg_risk_pct": 0.3504,
+            "tp": 4,
+            "sl": 2,
+            "time": 1
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 6,
+              "wins": 3,
+              "win_rate_pct": 50.0,
+              "pf": 0.8147,
+              "avg_net_bps": -4.9128,
+              "sum_net_pct": -0.2948,
+              "avg_risk_pct": 0.555,
+              "tp": 2,
+              "sl": 2,
+              "time": 2
+            },
+            "selection": {
+              "n": 4,
+              "wins": 2,
+              "win_rate_pct": 50.0,
+              "pf": 0.8716,
+              "avg_net_bps": -2.2828,
+              "sum_net_pct": -0.0913,
+              "avg_risk_pct": 0.2544,
+              "tp": 2,
+              "sl": 2,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 4,
+              "wins": 1,
+              "win_rate_pct": 25.0,
+              "pf": 0.1006,
+              "avg_net_bps": -26.3056,
+              "sum_net_pct": -1.0522,
+              "avg_risk_pct": 0.4675,
+              "tp": 1,
+              "sl": 2,
+              "time": 1
+            },
+            "selection": {
+              "n": 3,
+              "wins": 2,
+              "win_rate_pct": 66.667,
+              "pf": 3.0372,
+              "avg_net_bps": 23.2097,
+              "sum_net_pct": 0.6963,
+              "avg_risk_pct": 0.4784,
+              "tp": 2,
+              "sl": 0,
+              "time": 1
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 30,
+            "prox_atr": 0.25,
+            "sweep_n": 20,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.15,
+            "rr": 1.5,
+            "hold": 24
+          },
+          "dev": {
+            "n": 10,
+            "wins": 4,
+            "win_rate_pct": 40.0,
+            "pf": 0.512,
+            "avg_net_bps": -13.4699,
+            "sum_net_pct": -1.347,
+            "avg_risk_pct": 0.52,
+            "tp": 3,
+            "sl": 4,
+            "time": 3
+          },
+          "selection": {
+            "n": 7,
+            "wins": 4,
+            "win_rate_pct": 57.143,
+            "pf": 1.5746,
+            "avg_net_bps": 8.6425,
+            "sum_net_pct": 0.605,
+            "avg_risk_pct": 0.3504,
+            "tp": 4,
+            "sl": 2,
+            "time": 1
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 6,
+              "wins": 3,
+              "win_rate_pct": 50.0,
+              "pf": 0.8147,
+              "avg_net_bps": -4.9128,
+              "sum_net_pct": -0.2948,
+              "avg_risk_pct": 0.555,
+              "tp": 2,
+              "sl": 2,
+              "time": 2
+            },
+            "selection": {
+              "n": 4,
+              "wins": 2,
+              "win_rate_pct": 50.0,
+              "pf": 0.8716,
+              "avg_net_bps": -2.2828,
+              "sum_net_pct": -0.0913,
+              "avg_risk_pct": 0.2544,
+              "tp": 2,
+              "sl": 2,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 4,
+              "wins": 1,
+              "win_rate_pct": 25.0,
+              "pf": 0.1006,
+              "avg_net_bps": -26.3056,
+              "sum_net_pct": -1.0522,
+              "avg_risk_pct": 0.4675,
+              "tp": 1,
+              "sl": 2,
+              "time": 1
+            },
+            "selection": {
+              "n": 3,
+              "wins": 2,
+              "win_rate_pct": 66.667,
+              "pf": 3.0372,
+              "avg_net_bps": 23.2097,
+              "sum_net_pct": 0.6963,
+              "avg_risk_pct": 0.4784,
+              "tp": 2,
+              "sl": 0,
+              "time": 1
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 30,
+            "prox_atr": 0.25,
+            "sweep_n": 30,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.15,
+            "rr": 1.5,
+            "hold": 24
+          },
+          "dev": {
+            "n": 10,
+            "wins": 4,
+            "win_rate_pct": 40.0,
+            "pf": 0.512,
+            "avg_net_bps": -13.4699,
+            "sum_net_pct": -1.347,
+            "avg_risk_pct": 0.52,
+            "tp": 3,
+            "sl": 4,
+            "time": 3
+          },
+          "selection": {
+            "n": 7,
+            "wins": 4,
+            "win_rate_pct": 57.143,
+            "pf": 1.5746,
+            "avg_net_bps": 8.6425,
+            "sum_net_pct": 0.605,
+            "avg_risk_pct": 0.3504,
+            "tp": 4,
+            "sl": 2,
+            "time": 1
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 6,
+              "wins": 3,
+              "win_rate_pct": 50.0,
+              "pf": 0.8147,
+              "avg_net_bps": -4.9128,
+              "sum_net_pct": -0.2948,
+              "avg_risk_pct": 0.555,
+              "tp": 2,
+              "sl": 2,
+              "time": 2
+            },
+            "selection": {
+              "n": 4,
+              "wins": 2,
+              "win_rate_pct": 50.0,
+              "pf": 0.8716,
+              "avg_net_bps": -2.2828,
+              "sum_net_pct": -0.0913,
+              "avg_risk_pct": 0.2544,
+              "tp": 2,
+              "sl": 2,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 4,
+              "wins": 1,
+              "win_rate_pct": 25.0,
+              "pf": 0.1006,
+              "avg_net_bps": -26.3056,
+              "sum_net_pct": -1.0522,
+              "avg_risk_pct": 0.4675,
+              "tp": 1,
+              "sl": 2,
+              "time": 1
+            },
+            "selection": {
+              "n": 3,
+              "wins": 2,
+              "win_rate_pct": 66.667,
+              "pf": 3.0372,
+              "avg_net_bps": 23.2097,
+              "sum_net_pct": 0.6963,
+              "avg_risk_pct": 0.4784,
+              "tp": 2,
+              "sl": 0,
+              "time": 1
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 25,
+            "prox_atr": 0.25,
+            "sweep_n": 10,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.15,
+            "rr": 2.0,
+            "hold": 24
+          },
+          "dev": {
+            "n": 2,
+            "wins": 1,
+            "win_rate_pct": 50.0,
+            "pf": 1.9107,
+            "avg_net_bps": 14.3972,
+            "sum_net_pct": 0.2879,
+            "avg_risk_pct": 0.3731,
+            "tp": 0,
+            "sl": 1,
+            "time": 1
+          },
+          "selection": {
+            "n": 3,
+            "wins": 1,
+            "win_rate_pct": 33.333,
+            "pf": 1.2782,
+            "avg_net_bps": 6.3299,
+            "sum_net_pct": 0.1899,
+            "avg_risk_pct": 0.4089,
+            "tp": 1,
+            "sl": 1,
+            "time": 1
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 1.9107,
+              "avg_net_bps": 14.3972,
+              "sum_net_pct": 0.2879,
+              "avg_risk_pct": 0.3731,
+              "tp": 0,
+              "sl": 1,
+              "time": 1
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 2.5606,
+              "avg_net_bps": 26.584,
+              "sum_net_pct": 0.5317,
+              "avg_risk_pct": 0.3484,
+              "tp": 1,
+              "sl": 1,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 0,
+              "wins": 0,
+              "win_rate_pct": null,
+              "pf": null,
+              "avg_net_bps": null,
+              "sum_net_pct": 0,
+              "avg_risk_pct": null,
+              "tp": 0,
+              "sl": 0,
+              "time": 0
+            },
+            "selection": {
+              "n": 1,
+              "wins": 0,
+              "win_rate_pct": 0.0,
+              "pf": 0.0,
+              "avg_net_bps": -34.1785,
+              "sum_net_pct": -0.3418,
+              "avg_risk_pct": 0.5299,
+              "tp": 0,
+              "sl": 0,
+              "time": 1
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 25,
+            "prox_atr": 0.25,
+            "sweep_n": 20,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.15,
+            "rr": 2.0,
+            "hold": 24
+          },
+          "dev": {
+            "n": 2,
+            "wins": 1,
+            "win_rate_pct": 50.0,
+            "pf": 1.9107,
+            "avg_net_bps": 14.3972,
+            "sum_net_pct": 0.2879,
+            "avg_risk_pct": 0.3731,
+            "tp": 0,
+            "sl": 1,
+            "time": 1
+          },
+          "selection": {
+            "n": 3,
+            "wins": 1,
+            "win_rate_pct": 33.333,
+            "pf": 1.2782,
+            "avg_net_bps": 6.3299,
+            "sum_net_pct": 0.1899,
+            "avg_risk_pct": 0.4089,
+            "tp": 1,
+            "sl": 1,
+            "time": 1
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 1.9107,
+              "avg_net_bps": 14.3972,
+              "sum_net_pct": 0.2879,
+              "avg_risk_pct": 0.3731,
+              "tp": 0,
+              "sl": 1,
+              "time": 1
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 2.5606,
+              "avg_net_bps": 26.584,
+              "sum_net_pct": 0.5317,
+              "avg_risk_pct": 0.3484,
+              "tp": 1,
+              "sl": 1,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 0,
+              "wins": 0,
+              "win_rate_pct": null,
+              "pf": null,
+              "avg_net_bps": null,
+              "sum_net_pct": 0,
+              "avg_risk_pct": null,
+              "tp": 0,
+              "sl": 0,
+              "time": 0
+            },
+            "selection": {
+              "n": 1,
+              "wins": 0,
+              "win_rate_pct": 0.0,
+              "pf": 0.0,
+              "avg_net_bps": -34.1785,
+              "sum_net_pct": -0.3418,
+              "avg_risk_pct": 0.5299,
+              "tp": 0,
+              "sl": 0,
+              "time": 1
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 25,
+            "prox_atr": 0.25,
+            "sweep_n": 30,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.15,
+            "rr": 2.0,
+            "hold": 24
+          },
+          "dev": {
+            "n": 2,
+            "wins": 1,
+            "win_rate_pct": 50.0,
+            "pf": 1.9107,
+            "avg_net_bps": 14.3972,
+            "sum_net_pct": 0.2879,
+            "avg_risk_pct": 0.3731,
+            "tp": 0,
+            "sl": 1,
+            "time": 1
+          },
+          "selection": {
+            "n": 3,
+            "wins": 1,
+            "win_rate_pct": 33.333,
+            "pf": 1.2782,
+            "avg_net_bps": 6.3299,
+            "sum_net_pct": 0.1899,
+            "avg_risk_pct": 0.4089,
+            "tp": 1,
+            "sl": 1,
+            "time": 1
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 1.9107,
+              "avg_net_bps": 14.3972,
+              "sum_net_pct": 0.2879,
+              "avg_risk_pct": 0.3731,
+              "tp": 0,
+              "sl": 1,
+              "time": 1
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 2.5606,
+              "avg_net_bps": 26.584,
+              "sum_net_pct": 0.5317,
+              "avg_risk_pct": 0.3484,
+              "tp": 1,
+              "sl": 1,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 0,
+              "wins": 0,
+              "win_rate_pct": null,
+              "pf": null,
+              "avg_net_bps": null,
+              "sum_net_pct": 0,
+              "avg_risk_pct": null,
+              "tp": 0,
+              "sl": 0,
+              "time": 0
+            },
+            "selection": {
+              "n": 1,
+              "wins": 0,
+              "win_rate_pct": 0.0,
+              "pf": 0.0,
+              "avg_net_bps": -34.1785,
+              "sum_net_pct": -0.3418,
+              "avg_risk_pct": 0.5299,
+              "tp": 0,
+              "sl": 0,
+              "time": 1
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 25,
+            "prox_atr": 0.5,
+            "sweep_n": 10,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.15,
+            "rr": 2.0,
+            "hold": 24
+          },
+          "dev": {
+            "n": 2,
+            "wins": 1,
+            "win_rate_pct": 50.0,
+            "pf": 1.9107,
+            "avg_net_bps": 14.3972,
+            "sum_net_pct": 0.2879,
+            "avg_risk_pct": 0.3731,
+            "tp": 0,
+            "sl": 1,
+            "time": 1
+          },
+          "selection": {
+            "n": 3,
+            "wins": 1,
+            "win_rate_pct": 33.333,
+            "pf": 1.2782,
+            "avg_net_bps": 6.3299,
+            "sum_net_pct": 0.1899,
+            "avg_risk_pct": 0.4089,
+            "tp": 1,
+            "sl": 1,
+            "time": 1
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 1.9107,
+              "avg_net_bps": 14.3972,
+              "sum_net_pct": 0.2879,
+              "avg_risk_pct": 0.3731,
+              "tp": 0,
+              "sl": 1,
+              "time": 1
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 2.5606,
+              "avg_net_bps": 26.584,
+              "sum_net_pct": 0.5317,
+              "avg_risk_pct": 0.3484,
+              "tp": 1,
+              "sl": 1,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 0,
+              "wins": 0,
+              "win_rate_pct": null,
+              "pf": null,
+              "avg_net_bps": null,
+              "sum_net_pct": 0,
+              "avg_risk_pct": null,
+              "tp": 0,
+              "sl": 0,
+              "time": 0
+            },
+            "selection": {
+              "n": 1,
+              "wins": 0,
+              "win_rate_pct": 0.0,
+              "pf": 0.0,
+              "avg_net_bps": -34.1785,
+              "sum_net_pct": -0.3418,
+              "avg_risk_pct": 0.5299,
+              "tp": 0,
+              "sl": 0,
+              "time": 1
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 25,
+            "prox_atr": 0.5,
+            "sweep_n": 20,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.15,
+            "rr": 2.0,
+            "hold": 24
+          },
+          "dev": {
+            "n": 2,
+            "wins": 1,
+            "win_rate_pct": 50.0,
+            "pf": 1.9107,
+            "avg_net_bps": 14.3972,
+            "sum_net_pct": 0.2879,
+            "avg_risk_pct": 0.3731,
+            "tp": 0,
+            "sl": 1,
+            "time": 1
+          },
+          "selection": {
+            "n": 3,
+            "wins": 1,
+            "win_rate_pct": 33.333,
+            "pf": 1.2782,
+            "avg_net_bps": 6.3299,
+            "sum_net_pct": 0.1899,
+            "avg_risk_pct": 0.4089,
+            "tp": 1,
+            "sl": 1,
+            "time": 1
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 1.9107,
+              "avg_net_bps": 14.3972,
+              "sum_net_pct": 0.2879,
+              "avg_risk_pct": 0.3731,
+              "tp": 0,
+              "sl": 1,
+              "time": 1
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 2.5606,
+              "avg_net_bps": 26.584,
+              "sum_net_pct": 0.5317,
+              "avg_risk_pct": 0.3484,
+              "tp": 1,
+              "sl": 1,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 0,
+              "wins": 0,
+              "win_rate_pct": null,
+              "pf": null,
+              "avg_net_bps": null,
+              "sum_net_pct": 0,
+              "avg_risk_pct": null,
+              "tp": 0,
+              "sl": 0,
+              "time": 0
+            },
+            "selection": {
+              "n": 1,
+              "wins": 0,
+              "win_rate_pct": 0.0,
+              "pf": 0.0,
+              "avg_net_bps": -34.1785,
+              "sum_net_pct": -0.3418,
+              "avg_risk_pct": 0.5299,
+              "tp": 0,
+              "sl": 0,
+              "time": 1
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 25,
+            "prox_atr": 0.5,
+            "sweep_n": 30,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.15,
+            "rr": 2.0,
+            "hold": 24
+          },
+          "dev": {
+            "n": 2,
+            "wins": 1,
+            "win_rate_pct": 50.0,
+            "pf": 1.9107,
+            "avg_net_bps": 14.3972,
+            "sum_net_pct": 0.2879,
+            "avg_risk_pct": 0.3731,
+            "tp": 0,
+            "sl": 1,
+            "time": 1
+          },
+          "selection": {
+            "n": 3,
+            "wins": 1,
+            "win_rate_pct": 33.333,
+            "pf": 1.2782,
+            "avg_net_bps": 6.3299,
+            "sum_net_pct": 0.1899,
+            "avg_risk_pct": 0.4089,
+            "tp": 1,
+            "sl": 1,
+            "time": 1
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 1.9107,
+              "avg_net_bps": 14.3972,
+              "sum_net_pct": 0.2879,
+              "avg_risk_pct": 0.3731,
+              "tp": 0,
+              "sl": 1,
+              "time": 1
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 2.5606,
+              "avg_net_bps": 26.584,
+              "sum_net_pct": 0.5317,
+              "avg_risk_pct": 0.3484,
+              "tp": 1,
+              "sl": 1,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 0,
+              "wins": 0,
+              "win_rate_pct": null,
+              "pf": null,
+              "avg_net_bps": null,
+              "sum_net_pct": 0,
+              "avg_risk_pct": null,
+              "tp": 0,
+              "sl": 0,
+              "time": 0
+            },
+            "selection": {
+              "n": 1,
+              "wins": 0,
+              "win_rate_pct": 0.0,
+              "pf": 0.0,
+              "avg_net_bps": -34.1785,
+              "sum_net_pct": -0.3418,
+              "avg_risk_pct": 0.5299,
+              "tp": 0,
+              "sl": 0,
+              "time": 1
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 30,
+            "prox_atr": 0.25,
+            "sweep_n": 10,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.15,
+            "rr": 2.0,
+            "hold": 24
+          },
+          "dev": {
+            "n": 10,
+            "wins": 4,
+            "win_rate_pct": 40.0,
+            "pf": 0.528,
+            "avg_net_bps": -13.03,
+            "sum_net_pct": -1.303,
+            "avg_risk_pct": 0.52,
+            "tp": 2,
+            "sl": 4,
+            "time": 4
+          },
+          "selection": {
+            "n": 7,
+            "wins": 4,
+            "win_rate_pct": 57.143,
+            "pf": 1.2435,
+            "avg_net_bps": 3.662,
+            "sum_net_pct": 0.2563,
+            "avg_risk_pct": 0.3504,
+            "tp": 3,
+            "sl": 2,
+            "time": 2
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 6,
+              "wins": 3,
+              "win_rate_pct": 50.0,
+              "pf": 0.7841,
+              "avg_net_bps": -5.7222,
+              "sum_net_pct": -0.3433,
+              "avg_risk_pct": 0.555,
+              "tp": 1,
+              "sl": 2,
+              "time": 3
+            },
+            "selection": {
+              "n": 4,
+              "wins": 2,
+              "win_rate_pct": 50.0,
+              "pf": 1.3121,
+              "avg_net_bps": 5.5482,
+              "sum_net_pct": 0.2219,
+              "avg_risk_pct": 0.2544,
+              "tp": 2,
+              "sl": 2,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 4,
+              "wins": 1,
+              "win_rate_pct": 25.0,
+              "pf": 0.1797,
+              "avg_net_bps": -23.9917,
+              "sum_net_pct": -0.9597,
+              "avg_risk_pct": 0.4675,
+              "tp": 1,
+              "sl": 2,
+              "time": 1
+            },
+            "selection": {
+              "n": 3,
+              "wins": 2,
+              "win_rate_pct": 66.667,
+              "pf": 1.1007,
+              "avg_net_bps": 1.147,
+              "sum_net_pct": 0.0344,
+              "avg_risk_pct": 0.4784,
+              "tp": 1,
+              "sl": 0,
+              "time": 2
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 30,
+            "prox_atr": 0.25,
+            "sweep_n": 20,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.15,
+            "rr": 2.0,
+            "hold": 24
+          },
+          "dev": {
+            "n": 10,
+            "wins": 4,
+            "win_rate_pct": 40.0,
+            "pf": 0.528,
+            "avg_net_bps": -13.03,
+            "sum_net_pct": -1.303,
+            "avg_risk_pct": 0.52,
+            "tp": 2,
+            "sl": 4,
+            "time": 4
+          },
+          "selection": {
+            "n": 7,
+            "wins": 4,
+            "win_rate_pct": 57.143,
+            "pf": 1.2435,
+            "avg_net_bps": 3.662,
+            "sum_net_pct": 0.2563,
+            "avg_risk_pct": 0.3504,
+            "tp": 3,
+            "sl": 2,
+            "time": 2
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 6,
+              "wins": 3,
+              "win_rate_pct": 50.0,
+              "pf": 0.7841,
+              "avg_net_bps": -5.7222,
+              "sum_net_pct": -0.3433,
+              "avg_risk_pct": 0.555,
+              "tp": 1,
+              "sl": 2,
+              "time": 3
+            },
+            "selection": {
+              "n": 4,
+              "wins": 2,
+              "win_rate_pct": 50.0,
+              "pf": 1.3121,
+              "avg_net_bps": 5.5482,
+              "sum_net_pct": 0.2219,
+              "avg_risk_pct": 0.2544,
+              "tp": 2,
+              "sl": 2,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 4,
+              "wins": 1,
+              "win_rate_pct": 25.0,
+              "pf": 0.1797,
+              "avg_net_bps": -23.9917,
+              "sum_net_pct": -0.9597,
+              "avg_risk_pct": 0.4675,
+              "tp": 1,
+              "sl": 2,
+              "time": 1
+            },
+            "selection": {
+              "n": 3,
+              "wins": 2,
+              "win_rate_pct": 66.667,
+              "pf": 1.1007,
+              "avg_net_bps": 1.147,
+              "sum_net_pct": 0.0344,
+              "avg_risk_pct": 0.4784,
+              "tp": 1,
+              "sl": 0,
+              "time": 2
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 30,
+            "prox_atr": 0.25,
+            "sweep_n": 30,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.15,
+            "rr": 2.0,
+            "hold": 24
+          },
+          "dev": {
+            "n": 10,
+            "wins": 4,
+            "win_rate_pct": 40.0,
+            "pf": 0.528,
+            "avg_net_bps": -13.03,
+            "sum_net_pct": -1.303,
+            "avg_risk_pct": 0.52,
+            "tp": 2,
+            "sl": 4,
+            "time": 4
+          },
+          "selection": {
+            "n": 7,
+            "wins": 4,
+            "win_rate_pct": 57.143,
+            "pf": 1.2435,
+            "avg_net_bps": 3.662,
+            "sum_net_pct": 0.2563,
+            "avg_risk_pct": 0.3504,
+            "tp": 3,
+            "sl": 2,
+            "time": 2
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 6,
+              "wins": 3,
+              "win_rate_pct": 50.0,
+              "pf": 0.7841,
+              "avg_net_bps": -5.7222,
+              "sum_net_pct": -0.3433,
+              "avg_risk_pct": 0.555,
+              "tp": 1,
+              "sl": 2,
+              "time": 3
+            },
+            "selection": {
+              "n": 4,
+              "wins": 2,
+              "win_rate_pct": 50.0,
+              "pf": 1.3121,
+              "avg_net_bps": 5.5482,
+              "sum_net_pct": 0.2219,
+              "avg_risk_pct": 0.2544,
+              "tp": 2,
+              "sl": 2,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 4,
+              "wins": 1,
+              "win_rate_pct": 25.0,
+              "pf": 0.1797,
+              "avg_net_bps": -23.9917,
+              "sum_net_pct": -0.9597,
+              "avg_risk_pct": 0.4675,
+              "tp": 1,
+              "sl": 2,
+              "time": 1
+            },
+            "selection": {
+              "n": 3,
+              "wins": 2,
+              "win_rate_pct": 66.667,
+              "pf": 1.1007,
+              "avg_net_bps": 1.147,
+              "sum_net_pct": 0.0344,
+              "avg_risk_pct": 0.4784,
+              "tp": 1,
+              "sl": 0,
+              "time": 2
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 25,
+            "prox_atr": 0.25,
+            "sweep_n": 10,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.05,
+            "rr": 2.0,
+            "hold": 24
+          },
+          "dev": {
+            "n": 2,
+            "wins": 1,
+            "win_rate_pct": 50.0,
+            "pf": 2.0708,
+            "avg_net_bps": 15.6194,
+            "sum_net_pct": 0.3124,
+            "avg_risk_pct": 0.3472,
+            "tp": 0,
+            "sl": 1,
+            "time": 1
+          },
+          "selection": {
+            "n": 3,
+            "wins": 1,
+            "win_rate_pct": 33.333,
+            "pf": 1.1843,
+            "avg_net_bps": 4.0845,
+            "sum_net_pct": 0.1225,
+            "avg_risk_pct": 0.38,
+            "tp": 1,
+            "sl": 1,
+            "time": 1
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 2.0708,
+              "avg_net_bps": 15.6194,
+              "sum_net_pct": 0.3124,
+              "avg_risk_pct": 0.3472,
+              "tp": 0,
+              "sl": 1,
+              "time": 1
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 2.4372,
+              "avg_net_bps": 23.216,
+              "sum_net_pct": 0.4643,
+              "avg_risk_pct": 0.3184,
+              "tp": 1,
+              "sl": 1,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 0,
+              "wins": 0,
+              "win_rate_pct": null,
+              "pf": null,
+              "avg_net_bps": null,
+              "sum_net_pct": 0,
+              "avg_risk_pct": null,
+              "tp": 0,
+              "sl": 0,
+              "time": 0
+            },
+            "selection": {
+              "n": 1,
+              "wins": 0,
+              "win_rate_pct": 0.0,
+              "pf": 0.0,
+              "avg_net_bps": -34.1785,
+              "sum_net_pct": -0.3418,
+              "avg_risk_pct": 0.5034,
+              "tp": 0,
+              "sl": 0,
+              "time": 1
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 25,
+            "prox_atr": 0.25,
+            "sweep_n": 20,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.05,
+            "rr": 2.0,
+            "hold": 24
+          },
+          "dev": {
+            "n": 2,
+            "wins": 1,
+            "win_rate_pct": 50.0,
+            "pf": 2.0708,
+            "avg_net_bps": 15.6194,
+            "sum_net_pct": 0.3124,
+            "avg_risk_pct": 0.3472,
+            "tp": 0,
+            "sl": 1,
+            "time": 1
+          },
+          "selection": {
+            "n": 3,
+            "wins": 1,
+            "win_rate_pct": 33.333,
+            "pf": 1.1843,
+            "avg_net_bps": 4.0845,
+            "sum_net_pct": 0.1225,
+            "avg_risk_pct": 0.38,
+            "tp": 1,
+            "sl": 1,
+            "time": 1
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 2.0708,
+              "avg_net_bps": 15.6194,
+              "sum_net_pct": 0.3124,
+              "avg_risk_pct": 0.3472,
+              "tp": 0,
+              "sl": 1,
+              "time": 1
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 2.4372,
+              "avg_net_bps": 23.216,
+              "sum_net_pct": 0.4643,
+              "avg_risk_pct": 0.3184,
+              "tp": 1,
+              "sl": 1,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 0,
+              "wins": 0,
+              "win_rate_pct": null,
+              "pf": null,
+              "avg_net_bps": null,
+              "sum_net_pct": 0,
+              "avg_risk_pct": null,
+              "tp": 0,
+              "sl": 0,
+              "time": 0
+            },
+            "selection": {
+              "n": 1,
+              "wins": 0,
+              "win_rate_pct": 0.0,
+              "pf": 0.0,
+              "avg_net_bps": -34.1785,
+              "sum_net_pct": -0.3418,
+              "avg_risk_pct": 0.5034,
+              "tp": 0,
+              "sl": 0,
+              "time": 1
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 25,
+            "prox_atr": 0.25,
+            "sweep_n": 30,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.05,
+            "rr": 2.0,
+            "hold": 24
+          },
+          "dev": {
+            "n": 2,
+            "wins": 1,
+            "win_rate_pct": 50.0,
+            "pf": 2.0708,
+            "avg_net_bps": 15.6194,
+            "sum_net_pct": 0.3124,
+            "avg_risk_pct": 0.3472,
+            "tp": 0,
+            "sl": 1,
+            "time": 1
+          },
+          "selection": {
+            "n": 3,
+            "wins": 1,
+            "win_rate_pct": 33.333,
+            "pf": 1.1843,
+            "avg_net_bps": 4.0845,
+            "sum_net_pct": 0.1225,
+            "avg_risk_pct": 0.38,
+            "tp": 1,
+            "sl": 1,
+            "time": 1
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 2.0708,
+              "avg_net_bps": 15.6194,
+              "sum_net_pct": 0.3124,
+              "avg_risk_pct": 0.3472,
+              "tp": 0,
+              "sl": 1,
+              "time": 1
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 2.4372,
+              "avg_net_bps": 23.216,
+              "sum_net_pct": 0.4643,
+              "avg_risk_pct": 0.3184,
+              "tp": 1,
+              "sl": 1,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 0,
+              "wins": 0,
+              "win_rate_pct": null,
+              "pf": null,
+              "avg_net_bps": null,
+              "sum_net_pct": 0,
+              "avg_risk_pct": null,
+              "tp": 0,
+              "sl": 0,
+              "time": 0
+            },
+            "selection": {
+              "n": 1,
+              "wins": 0,
+              "win_rate_pct": 0.0,
+              "pf": 0.0,
+              "avg_net_bps": -34.1785,
+              "sum_net_pct": -0.3418,
+              "avg_risk_pct": 0.5034,
+              "tp": 0,
+              "sl": 0,
+              "time": 1
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 25,
+            "prox_atr": 0.5,
+            "sweep_n": 10,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.05,
+            "rr": 2.0,
+            "hold": 24
+          },
+          "dev": {
+            "n": 2,
+            "wins": 1,
+            "win_rate_pct": 50.0,
+            "pf": 2.0708,
+            "avg_net_bps": 15.6194,
+            "sum_net_pct": 0.3124,
+            "avg_risk_pct": 0.3472,
+            "tp": 0,
+            "sl": 1,
+            "time": 1
+          },
+          "selection": {
+            "n": 3,
+            "wins": 1,
+            "win_rate_pct": 33.333,
+            "pf": 1.1843,
+            "avg_net_bps": 4.0845,
+            "sum_net_pct": 0.1225,
+            "avg_risk_pct": 0.38,
+            "tp": 1,
+            "sl": 1,
+            "time": 1
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 2.0708,
+              "avg_net_bps": 15.6194,
+              "sum_net_pct": 0.3124,
+              "avg_risk_pct": 0.3472,
+              "tp": 0,
+              "sl": 1,
+              "time": 1
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 2.4372,
+              "avg_net_bps": 23.216,
+              "sum_net_pct": 0.4643,
+              "avg_risk_pct": 0.3184,
+              "tp": 1,
+              "sl": 1,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 0,
+              "wins": 0,
+              "win_rate_pct": null,
+              "pf": null,
+              "avg_net_bps": null,
+              "sum_net_pct": 0,
+              "avg_risk_pct": null,
+              "tp": 0,
+              "sl": 0,
+              "time": 0
+            },
+            "selection": {
+              "n": 1,
+              "wins": 0,
+              "win_rate_pct": 0.0,
+              "pf": 0.0,
+              "avg_net_bps": -34.1785,
+              "sum_net_pct": -0.3418,
+              "avg_risk_pct": 0.5034,
+              "tp": 0,
+              "sl": 0,
+              "time": 1
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 25,
+            "prox_atr": 0.5,
+            "sweep_n": 20,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.05,
+            "rr": 2.0,
+            "hold": 24
+          },
+          "dev": {
+            "n": 2,
+            "wins": 1,
+            "win_rate_pct": 50.0,
+            "pf": 2.0708,
+            "avg_net_bps": 15.6194,
+            "sum_net_pct": 0.3124,
+            "avg_risk_pct": 0.3472,
+            "tp": 0,
+            "sl": 1,
+            "time": 1
+          },
+          "selection": {
+            "n": 3,
+            "wins": 1,
+            "win_rate_pct": 33.333,
+            "pf": 1.1843,
+            "avg_net_bps": 4.0845,
+            "sum_net_pct": 0.1225,
+            "avg_risk_pct": 0.38,
+            "tp": 1,
+            "sl": 1,
+            "time": 1
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 2.0708,
+              "avg_net_bps": 15.6194,
+              "sum_net_pct": 0.3124,
+              "avg_risk_pct": 0.3472,
+              "tp": 0,
+              "sl": 1,
+              "time": 1
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 2.4372,
+              "avg_net_bps": 23.216,
+              "sum_net_pct": 0.4643,
+              "avg_risk_pct": 0.3184,
+              "tp": 1,
+              "sl": 1,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 0,
+              "wins": 0,
+              "win_rate_pct": null,
+              "pf": null,
+              "avg_net_bps": null,
+              "sum_net_pct": 0,
+              "avg_risk_pct": null,
+              "tp": 0,
+              "sl": 0,
+              "time": 0
+            },
+            "selection": {
+              "n": 1,
+              "wins": 0,
+              "win_rate_pct": 0.0,
+              "pf": 0.0,
+              "avg_net_bps": -34.1785,
+              "sum_net_pct": -0.3418,
+              "avg_risk_pct": 0.5034,
+              "tp": 0,
+              "sl": 0,
+              "time": 1
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 25,
+            "prox_atr": 0.5,
+            "sweep_n": 30,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.05,
+            "rr": 2.0,
+            "hold": 24
+          },
+          "dev": {
+            "n": 2,
+            "wins": 1,
+            "win_rate_pct": 50.0,
+            "pf": 2.0708,
+            "avg_net_bps": 15.6194,
+            "sum_net_pct": 0.3124,
+            "avg_risk_pct": 0.3472,
+            "tp": 0,
+            "sl": 1,
+            "time": 1
+          },
+          "selection": {
+            "n": 3,
+            "wins": 1,
+            "win_rate_pct": 33.333,
+            "pf": 1.1843,
+            "avg_net_bps": 4.0845,
+            "sum_net_pct": 0.1225,
+            "avg_risk_pct": 0.38,
+            "tp": 1,
+            "sl": 1,
+            "time": 1
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 2.0708,
+              "avg_net_bps": 15.6194,
+              "sum_net_pct": 0.3124,
+              "avg_risk_pct": 0.3472,
+              "tp": 0,
+              "sl": 1,
+              "time": 1
+            },
+            "selection": {
+              "n": 2,
+              "wins": 1,
+              "win_rate_pct": 50.0,
+              "pf": 2.4372,
+              "avg_net_bps": 23.216,
+              "sum_net_pct": 0.4643,
+              "avg_risk_pct": 0.3184,
+              "tp": 1,
+              "sl": 1,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 0,
+              "wins": 0,
+              "win_rate_pct": null,
+              "pf": null,
+              "avg_net_bps": null,
+              "sum_net_pct": 0,
+              "avg_risk_pct": null,
+              "tp": 0,
+              "sl": 0,
+              "time": 0
+            },
+            "selection": {
+              "n": 1,
+              "wins": 0,
+              "win_rate_pct": 0.0,
+              "pf": 0.0,
+              "avg_net_bps": -34.1785,
+              "sum_net_pct": -0.3418,
+              "avg_risk_pct": 0.5034,
+              "tp": 0,
+              "sl": 0,
+              "time": 1
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 30,
+            "prox_atr": 0.25,
+            "sweep_n": 10,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.15,
+            "rr": 1.5,
+            "hold": 48
+          },
+          "dev": {
+            "n": 10,
+            "wins": 5,
+            "win_rate_pct": 50.0,
+            "pf": 0.6288,
+            "avg_net_bps": -13.4701,
+            "sum_net_pct": -1.347,
+            "avg_risk_pct": 0.52,
+            "tp": 4,
+            "sl": 5,
+            "time": 1
+          },
+          "selection": {
+            "n": 7,
+            "wins": 4,
+            "win_rate_pct": 57.143,
+            "pf": 1.1833,
+            "avg_net_bps": 3.6688,
+            "sum_net_pct": 0.2568,
+            "avg_risk_pct": 0.3504,
+            "tp": 4,
+            "sl": 3,
+            "time": 0
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 6,
+              "wins": 4,
+              "win_rate_pct": 66.667,
+              "pf": 1.4785,
+              "avg_net_bps": 11.671,
+              "sum_net_pct": 0.7003,
+              "avg_risk_pct": 0.555,
+              "tp": 3,
+              "sl": 2,
+              "time": 1
+            },
+            "selection": {
+              "n": 4,
+              "wins": 2,
+              "win_rate_pct": 50.0,
+              "pf": 0.8716,
+              "avg_net_bps": -2.2828,
+              "sum_net_pct": -0.0913,
+              "avg_risk_pct": 0.2544,
+              "tp": 2,
+              "sl": 2,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 4,
+              "wins": 1,
+              "win_rate_pct": 25.0,
+              "pf": 0.0544,
+              "avg_net_bps": -51.1818,
+              "sum_net_pct": -2.0473,
+              "avg_risk_pct": 0.4675,
+              "tp": 1,
+              "sl": 3,
+              "time": 0
+            },
+            "selection": {
+              "n": 3,
+              "wins": 2,
+              "win_rate_pct": 66.667,
+              "pf": 1.5046,
+              "avg_net_bps": 11.6044,
+              "sum_net_pct": 0.3481,
+              "avg_risk_pct": 0.4784,
+              "tp": 2,
+              "sl": 1,
+              "time": 0
+            }
+          }
+        },
+        {
+          "config": {
+            "rsi": 30,
+            "prox_atr": 0.25,
+            "sweep_n": 10,
+            "wick_ratio": 1.5,
+            "stop_buffer": 0.15,
+            "rr": 1.5,
+            "hold": 96
+          },
+          "dev": {
+            "n": 10,
+            "wins": 5,
+            "win_rate_pct": 50.0,
+            "pf": 0.7599,
+            "avg_net_bps": -8.7134,
+            "sum_net_pct": -0.8713,
+            "avg_risk_pct": 0.52,
+            "tp": 5,
+            "sl": 5,
+            "time": 0
+          },
+          "selection": {
+            "n": 7,
+            "wins": 4,
+            "win_rate_pct": 57.143,
+            "pf": 1.1833,
+            "avg_net_bps": 3.6688,
+            "sum_net_pct": 0.2568,
+            "avg_risk_pct": 0.3504,
+            "tp": 4,
+            "sl": 3,
+            "time": 0
+          },
+          "score": -999,
+          "long": {
+            "dev": {
+              "n": 6,
+              "wins": 4,
+              "win_rate_pct": 66.667,
+              "pf": 1.8035,
+              "avg_net_bps": 19.5989,
+              "sum_net_pct": 1.1759,
+              "avg_risk_pct": 0.555,
+              "tp": 4,
+              "sl": 2,
+              "time": 0
+            },
+            "selection": {
+              "n": 4,
+              "wins": 2,
+              "win_rate_pct": 50.0,
+              "pf": 0.8716,
+              "avg_net_bps": -2.2828,
+              "sum_net_pct": -0.0913,
+              "avg_risk_pct": 0.2544,
+              "tp": 2,
+              "sl": 2,
+              "time": 0
+            }
+          },
+          "short": {
+            "dev": {
+              "n": 4,
+              "wins": 1,
+              "win_rate_pct": 25.0,
+              "pf": 0.0544,
+              "avg_net_bps": -51.1818,
+              "sum_net_pct": -2.0473,
+              "avg_risk_pct": 0.4675,
+              "tp": 1,
+              "sl": 3,
+              "time": 0
+            },
+            "selection": {
+              "n": 3,
+              "wins": 2,
+              "win_rate_pct": 66.667,
+              "pf": 1.5046,
+              "avg_net_bps": 11.6044,
+              "sum_net_pct": 0.3481,
+              "avg_risk_pct": 0.4784,
+              "tp": 2,
+              "sl": 1,
+              "time": 0
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
