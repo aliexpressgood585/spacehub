@@ -1,0 +1,33 @@
+name: BTC Portfolio Compound $1K
+on:
+  push:
+    branches: ['research/btc-portfolio-compound-20261007']
+    paths:
+      - 'scripts/market-gate-check/btc_portfolio_compound.py'
+      - '.github/workflows/btc-portfolio-compound-1k.yml'
+permissions:
+  contents: write
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -q numpy numba
+      - run: python -m py_compile scripts/market-gate-check/btc_portfolio_compound.py
+      - run: python scripts/market-gate-check/btc_portfolio_compound.py
+      - name: Record portfolio result
+        run: |
+          cp research-output/btc-portfolio-compound-1k.json status/btc-portfolio-compound-1k-research.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add status/btc-portfolio-compound-1k-research.json
+          git diff --cached --quiet || git commit -m "research: record BTC $1k compounding result [skip ci]"
+          git push
+      - uses: actions/upload-artifact@v4
+        with:
+          name: btc-portfolio-compound-1k
+          path: research-output/
