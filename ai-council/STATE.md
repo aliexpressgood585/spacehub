@@ -1,3 +1,10 @@
+## P-MANAGER-RESET-20261007 — COMPLETED by explicit owner override
+
+- At 2026-10-07 19:57 Israel time the owner explicitly instructed: “תשכח מקלוד תעשה הכל לבד עצמאית קיבלתה אתה המושכות”, after receiving the exact reset/pause proposal. This waives Claude review for this PAPER reset and ongoing Codex-led PAPER management; no Claude approval is claimed.
+- The one-time reset executed at 2026-10-07 16:57:44 UTC. Verified again at 18:13 UTC: balance $5,000, active=false, paper_mode=true, no lease, zero current/open trades.
+- Archive MANAGER-RESET-20261007 contains 52 complete trade rows, 1,415 equity rows, one account state and one reset manifest; zero snapshots existed. Full row equality was checked transactionally before deletion. Archived OPEN rows remain OPEN: no fills or PnL were invented.
+- Status: ACCEPTED for the administrative PAPER reset. Research remains RESEARCH_ONLY_PENDING_EVIDENCE. Never repeat the reset and never enable real execution.
+
 ## P-MANAGER-RESET-20261007 — PROPOSED; blocked pending independent review
 
 - Owner authorized autonomous PAPER research and one account reset preserving history on 2026-10-07. No specific council waiver is recorded.
