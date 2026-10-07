@@ -1,0 +1,1217 @@
+{
+  "window": {
+    "start": "2023-10-08T00:00:00+00:00",
+    "split": "2025-10-07T00:00:00+00:00",
+    "end_exclusive": "2026-10-07T00:00:00+00:00"
+  },
+  "cost_roundtrip_pct": 0.16,
+  "method": "same active LONG strategies and symbol sets as scripts/backtest-3year-all-active.py; non-overlapping same-symbol trades; same-bar TP+SL=SL; BTC gate uses last completed BTCUSDT 5m RSI(14); first 2y train + last 1y holdout",
+  "aggregate": {
+    "baseline": {
+      "train": {
+        "n": 31778,
+        "wins": 17025,
+        "wr": 53.57,
+        "pf": 0.729,
+        "avg_net_bps": -15.05,
+        "net_pct_sum": -4782.6
+      },
+      "holdout": {
+        "n": 17280,
+        "wins": 9794,
+        "wr": 56.68,
+        "pf": 0.776,
+        "avg_net_bps": -11.74,
+        "net_pct_sum": -2027.83
+      },
+      "all3y": {
+        "n": 49058,
+        "wins": 26819,
+        "wr": 54.67,
+        "pf": 0.745,
+        "avg_net_bps": -13.88,
+        "net_pct_sum": -6810.43
+      }
+    },
+    "BTC_RSI5>=45": {
+      "train": {
+        "n": 15232,
+        "wins": 8230,
+        "wr": 54.03,
+        "pf": 0.756,
+        "avg_net_bps": -13.3,
+        "net_pct_sum": -2025.5
+      },
+      "holdout": {
+        "n": 8938,
+        "wins": 5071,
+        "wr": 56.74,
+        "pf": 0.77,
+        "avg_net_bps": -12.07,
+        "net_pct_sum": -1079.07
+      },
+      "all3y": {
+        "n": 24170,
+        "wins": 13301,
+        "wr": 55.03,
+        "pf": 0.761,
+        "avg_net_bps": -12.84,
+        "net_pct_sum": -3104.56
+      }
+    },
+    "BTC_RSI5>=50": {
+      "train": {
+        "n": 9782,
+        "wins": 5271,
+        "wr": 53.88,
+        "pf": 0.748,
+        "avg_net_bps": -13.84,
+        "net_pct_sum": -1354.0
+      },
+      "holdout": {
+        "n": 6238,
+        "wins": 3581,
+        "wr": 57.41,
+        "pf": 0.784,
+        "avg_net_bps": -11.17,
+        "net_pct_sum": -696.96
+      },
+      "all3y": {
+        "n": 16020,
+        "wins": 8852,
+        "wr": 55.26,
+        "pf": 0.761,
+        "avg_net_bps": -12.8,
+        "net_pct_sum": -2050.96
+      }
+    },
+    "BTC_RSI5>=55": {
+      "train": {
+        "n": 5439,
+        "wins": 2974,
+        "wr": 54.68,
+        "pf": 0.763,
+        "avg_net_bps": -12.79,
+        "net_pct_sum": -695.62
+      },
+      "holdout": {
+        "n": 3794,
+        "wins": 2187,
+        "wr": 57.64,
+        "pf": 0.78,
+        "avg_net_bps": -11.34,
+        "net_pct_sum": -430.06
+      },
+      "all3y": {
+        "n": 9233,
+        "wins": 5161,
+        "wr": 55.9,
+        "pf": 0.77,
+        "avg_net_bps": -12.19,
+        "net_pct_sum": -1125.69
+      }
+    }
+  },
+  "results": [
+    {
+      "strategy": "DDDDD_5M",
+      "tf": "5m",
+      "thresholds": {
+        "baseline": {
+          "train": {
+            "n": 15629,
+            "wins": 7847,
+            "wr": 50.21,
+            "pf": 0.73,
+            "avg_net_bps": -15.58,
+            "net_pct_sum": -2435.64
+          },
+          "holdout": {
+            "n": 9293,
+            "wins": 4795,
+            "wr": 51.6,
+            "pf": 0.772,
+            "avg_net_bps": -12.8,
+            "net_pct_sum": -1189.88
+          },
+          "all3y": {
+            "n": 24922,
+            "wins": 12642,
+            "wr": 50.73,
+            "pf": 0.745,
+            "avg_net_bps": -14.55,
+            "net_pct_sum": -3625.52
+          }
+        },
+        "BTC_RSI5>=45": {
+          "train": {
+            "n": 8102,
+            "wins": 4087,
+            "wr": 50.44,
+            "pf": 0.737,
+            "avg_net_bps": -15.11,
+            "net_pct_sum": -1224.32
+          },
+          "holdout": {
+            "n": 5036,
+            "wins": 2569,
+            "wr": 51.01,
+            "pf": 0.754,
+            "avg_net_bps": -13.97,
+            "net_pct_sum": -703.76
+          },
+          "all3y": {
+            "n": 13138,
+            "wins": 6656,
+            "wr": 50.66,
+            "pf": 0.744,
+            "avg_net_bps": -14.68,
+            "net_pct_sum": -1928.08
+          }
+        },
+        "BTC_RSI5>=50": {
+          "train": {
+            "n": 5332,
+            "wins": 2682,
+            "wr": 50.3,
+            "pf": 0.733,
+            "avg_net_bps": -15.4,
+            "net_pct_sum": -821.12
+          },
+          "holdout": {
+            "n": 3549,
+            "wins": 1843,
+            "wr": 51.93,
+            "pf": 0.782,
+            "avg_net_bps": -12.14,
+            "net_pct_sum": -430.84
+          },
+          "all3y": {
+            "n": 8881,
+            "wins": 4525,
+            "wr": 50.95,
+            "pf": 0.752,
+            "avg_net_bps": -14.1,
+            "net_pct_sum": -1251.96
+          }
+        },
+        "BTC_RSI5>=55": {
+          "train": {
+            "n": 3045,
+            "wins": 1565,
+            "wr": 51.4,
+            "pf": 0.766,
+            "avg_net_bps": -13.21,
+            "net_pct_sum": -402.2
+          },
+          "holdout": {
+            "n": 2151,
+            "wins": 1108,
+            "wr": 51.51,
+            "pf": 0.769,
+            "avg_net_bps": -12.98,
+            "net_pct_sum": -279.16
+          },
+          "all3y": {
+            "n": 5196,
+            "wins": 2673,
+            "wr": 51.44,
+            "pf": 0.767,
+            "avg_net_bps": -13.11,
+            "net_pct_sum": -681.36
+          }
+        }
+      }
+    },
+    {
+      "strategy": "R6_3M",
+      "tf": "3m",
+      "thresholds": {
+        "baseline": {
+          "train": {
+            "n": 2764,
+            "wins": 1402,
+            "wr": 50.72,
+            "pf": 0.745,
+            "avg_net_bps": -14.55,
+            "net_pct_sum": -402.24
+          },
+          "holdout": {
+            "n": 874,
+            "wins": 463,
+            "wr": 52.97,
+            "pf": 0.816,
+            "avg_net_bps": -10.05,
+            "net_pct_sum": -87.84
+          },
+          "all3y": {
+            "n": 3638,
+            "wins": 1865,
+            "wr": 51.26,
+            "pf": 0.762,
+            "avg_net_bps": -13.47,
+            "net_pct_sum": -490.08
+          }
+        },
+        "BTC_RSI5>=45": {
+          "train": {
+            "n": 1230,
+            "wins": 633,
+            "wr": 51.46,
+            "pf": 0.768,
+            "avg_net_bps": -13.07,
+            "net_pct_sum": -160.8
+          },
+          "holdout": {
+            "n": 380,
+            "wins": 211,
+            "wr": 55.53,
+            "pf": 0.904,
+            "avg_net_bps": -4.95,
+            "net_pct_sum": -18.8
+          },
+          "all3y": {
+            "n": 1610,
+            "wins": 844,
+            "wr": 52.42,
+            "pf": 0.798,
+            "avg_net_bps": -11.16,
+            "net_pct_sum": -179.6
+          }
+        },
+        "BTC_RSI5>=50": {
+          "train": {
+            "n": 779,
+            "wins": 398,
+            "wr": 51.09,
+            "pf": 0.756,
+            "avg_net_bps": -13.82,
+            "net_pct_sum": -107.64
+          },
+          "holdout": {
+            "n": 248,
+            "wins": 140,
+            "wr": 56.45,
+            "pf": 0.939,
+            "avg_net_bps": -3.1,
+            "net_pct_sum": -7.68
+          },
+          "all3y": {
+            "n": 1027,
+            "wins": 538,
+            "wr": 52.39,
+            "pf": 0.797,
+            "avg_net_bps": -11.23,
+            "net_pct_sum": -115.32
+          }
+        },
+        "BTC_RSI5>=55": {
+          "train": {
+            "n": 407,
+            "wins": 204,
+            "wr": 50.12,
+            "pf": 0.728,
+            "avg_net_bps": -15.75,
+            "net_pct_sum": -64.12
+          },
+          "holdout": {
+            "n": 148,
+            "wins": 81,
+            "wr": 54.73,
+            "pf": 0.875,
+            "avg_net_bps": -6.54,
+            "net_pct_sum": -9.68
+          },
+          "all3y": {
+            "n": 555,
+            "wins": 285,
+            "wr": 51.35,
+            "pf": 0.764,
+            "avg_net_bps": -13.3,
+            "net_pct_sum": -73.8
+          }
+        }
+      }
+    },
+    {
+      "strategy": "R7_3M",
+      "tf": "3m",
+      "thresholds": {
+        "baseline": {
+          "train": {
+            "n": 2010,
+            "wins": 1018,
+            "wr": 50.65,
+            "pf": 0.743,
+            "avg_net_bps": -14.71,
+            "net_pct_sum": -295.6
+          },
+          "holdout": {
+            "n": 789,
+            "wins": 411,
+            "wr": 52.09,
+            "pf": 0.787,
+            "avg_net_bps": -11.82,
+            "net_pct_sum": -93.24
+          },
+          "all3y": {
+            "n": 2799,
+            "wins": 1429,
+            "wr": 51.05,
+            "pf": 0.755,
+            "avg_net_bps": -13.89,
+            "net_pct_sum": -388.84
+          }
+        },
+        "BTC_RSI5>=45": {
+          "train": {
+            "n": 827,
+            "wins": 434,
+            "wr": 52.48,
+            "pf": 0.8,
+            "avg_net_bps": -11.04,
+            "net_pct_sum": -91.32
+          },
+          "holdout": {
+            "n": 399,
+            "wins": 206,
+            "wr": 51.63,
+            "pf": 0.773,
+            "avg_net_bps": -12.74,
+            "net_pct_sum": -50.84
+          },
+          "all3y": {
+            "n": 1226,
+            "wins": 640,
+            "wr": 52.2,
+            "pf": 0.791,
+            "avg_net_bps": -11.6,
+            "net_pct_sum": -142.16
+          }
+        },
+        "BTC_RSI5>=50": {
+          "train": {
+            "n": 507,
+            "wins": 262,
+            "wr": 51.68,
+            "pf": 0.774,
+            "avg_net_bps": -12.65,
+            "net_pct_sum": -64.12
+          },
+          "holdout": {
+            "n": 272,
+            "wins": 142,
+            "wr": 52.21,
+            "pf": 0.791,
+            "avg_net_bps": -11.59,
+            "net_pct_sum": -31.52
+          },
+          "all3y": {
+            "n": 779,
+            "wins": 404,
+            "wr": 51.86,
+            "pf": 0.78,
+            "avg_net_bps": -12.28,
+            "net_pct_sum": -95.64
+          }
+        },
+        "BTC_RSI5>=55": {
+          "train": {
+            "n": 257,
+            "wins": 132,
+            "wr": 51.36,
+            "pf": 0.765,
+            "avg_net_bps": -13.28,
+            "net_pct_sum": -34.12
+          },
+          "holdout": {
+            "n": 162,
+            "wins": 74,
+            "wr": 45.68,
+            "pf": 0.609,
+            "avg_net_bps": -24.64,
+            "net_pct_sum": -39.92
+          },
+          "all3y": {
+            "n": 419,
+            "wins": 206,
+            "wr": 49.16,
+            "pf": 0.7,
+            "avg_net_bps": -17.67,
+            "net_pct_sum": -74.04
+          }
+        }
+      }
+    },
+    {
+      "strategy": "FALL5_10M",
+      "tf": "10m",
+      "thresholds": {
+        "baseline": {
+          "train": {
+            "n": 2229,
+            "wins": 1167,
+            "wr": 52.36,
+            "pf": 0.796,
+            "avg_net_bps": -11.29,
+            "net_pct_sum": -251.64
+          },
+          "holdout": {
+            "n": 690,
+            "wins": 352,
+            "wr": 51.01,
+            "pf": 0.754,
+            "avg_net_bps": -13.97,
+            "net_pct_sum": -96.4
+          },
+          "all3y": {
+            "n": 2919,
+            "wins": 1519,
+            "wr": 52.04,
+            "pf": 0.786,
+            "avg_net_bps": -11.92,
+            "net_pct_sum": -348.04
+          }
+        },
+        "BTC_RSI5>=45": {
+          "train": {
+            "n": 1206,
+            "wins": 648,
+            "wr": 53.73,
+            "pf": 0.841,
+            "avg_net_bps": -8.54,
+            "net_pct_sum": -102.96
+          },
+          "holdout": {
+            "n": 333,
+            "wins": 170,
+            "wr": 51.05,
+            "pf": 0.755,
+            "avg_net_bps": -13.9,
+            "net_pct_sum": -46.28
+          },
+          "all3y": {
+            "n": 1539,
+            "wins": 818,
+            "wr": 53.15,
+            "pf": 0.822,
+            "avg_net_bps": -9.7,
+            "net_pct_sum": -149.24
+          }
+        },
+        "BTC_RSI5>=50": {
+          "train": {
+            "n": 771,
+            "wins": 406,
+            "wr": 52.66,
+            "pf": 0.805,
+            "avg_net_bps": -10.68,
+            "net_pct_sum": -82.36
+          },
+          "holdout": {
+            "n": 218,
+            "wins": 116,
+            "wr": 53.21,
+            "pf": 0.824,
+            "avg_net_bps": -9.58,
+            "net_pct_sum": -20.88
+          },
+          "all3y": {
+            "n": 989,
+            "wins": 522,
+            "wr": 52.78,
+            "pf": 0.809,
+            "avg_net_bps": -10.44,
+            "net_pct_sum": -103.24
+          }
+        },
+        "BTC_RSI5>=55": {
+          "train": {
+            "n": 438,
+            "wins": 229,
+            "wr": 52.28,
+            "pf": 0.793,
+            "avg_net_bps": -11.43,
+            "net_pct_sum": -50.08
+          },
+          "holdout": {
+            "n": 130,
+            "wins": 70,
+            "wr": 53.85,
+            "pf": 0.845,
+            "avg_net_bps": -8.31,
+            "net_pct_sum": -10.8
+          },
+          "all3y": {
+            "n": 568,
+            "wins": 299,
+            "wr": 52.64,
+            "pf": 0.805,
+            "avg_net_bps": -10.72,
+            "net_pct_sum": -60.88
+          }
+        }
+      }
+    },
+    {
+      "strategy": "R6_10M",
+      "tf": "10m",
+      "thresholds": {
+        "baseline": {
+          "train": {
+            "n": 1232,
+            "wins": 650,
+            "wr": 52.76,
+            "pf": 0.809,
+            "avg_net_bps": -10.48,
+            "net_pct_sum": -129.12
+          },
+          "holdout": {
+            "n": 415,
+            "wins": 216,
+            "wr": 52.05,
+            "pf": 0.786,
+            "avg_net_bps": -11.9,
+            "net_pct_sum": -49.4
+          },
+          "all3y": {
+            "n": 1647,
+            "wins": 866,
+            "wr": 52.58,
+            "pf": 0.803,
+            "avg_net_bps": -10.84,
+            "net_pct_sum": -178.52
+          }
+        },
+        "BTC_RSI5>=45": {
+          "train": {
+            "n": 458,
+            "wins": 260,
+            "wr": 56.77,
+            "pf": 0.951,
+            "avg_net_bps": -2.46,
+            "net_pct_sum": -11.28
+          },
+          "holdout": {
+            "n": 152,
+            "wins": 83,
+            "wr": 54.61,
+            "pf": 0.871,
+            "avg_net_bps": -6.79,
+            "net_pct_sum": -10.32
+          },
+          "all3y": {
+            "n": 610,
+            "wins": 343,
+            "wr": 56.23,
+            "pf": 0.93,
+            "avg_net_bps": -3.54,
+            "net_pct_sum": -21.6
+          }
+        },
+        "BTC_RSI5>=50": {
+          "train": {
+            "n": 246,
+            "wins": 134,
+            "wr": 54.47,
+            "pf": 0.866,
+            "avg_net_bps": -7.06,
+            "net_pct_sum": -17.36
+          },
+          "holdout": {
+            "n": 97,
+            "wins": 55,
+            "wr": 56.7,
+            "pf": 0.948,
+            "avg_net_bps": -2.6,
+            "net_pct_sum": -2.52
+          },
+          "all3y": {
+            "n": 343,
+            "wins": 189,
+            "wr": 55.1,
+            "pf": 0.889,
+            "avg_net_bps": -5.8,
+            "net_pct_sum": -19.88
+          }
+        },
+        "BTC_RSI5>=55": {
+          "train": {
+            "n": 113,
+            "wins": 62,
+            "wr": 54.87,
+            "pf": 0.88,
+            "avg_net_bps": -6.27,
+            "net_pct_sum": -7.08
+          },
+          "holdout": {
+            "n": 52,
+            "wins": 30,
+            "wr": 57.69,
+            "pf": 0.987,
+            "avg_net_bps": -0.62,
+            "net_pct_sum": -0.32
+          },
+          "all3y": {
+            "n": 165,
+            "wins": 92,
+            "wr": 55.76,
+            "pf": 0.913,
+            "avg_net_bps": -4.48,
+            "net_pct_sum": -7.4
+          }
+        }
+      }
+    },
+    {
+      "strategy": "FALL7_15M",
+      "tf": "15m",
+      "thresholds": {
+        "baseline": {
+          "train": {
+            "n": 1277,
+            "wins": 636,
+            "wr": 49.8,
+            "pf": 0.718,
+            "avg_net_bps": -16.39,
+            "net_pct_sum": -209.32
+          },
+          "holdout": {
+            "n": 980,
+            "wins": 519,
+            "wr": 52.96,
+            "pf": 0.815,
+            "avg_net_bps": -10.08,
+            "net_pct_sum": -98.8
+          },
+          "all3y": {
+            "n": 2257,
+            "wins": 1155,
+            "wr": 51.17,
+            "pf": 0.759,
+            "avg_net_bps": -13.65,
+            "net_pct_sum": -308.12
+          }
+        },
+        "BTC_RSI5>=45": {
+          "train": {
+            "n": 396,
+            "wins": 202,
+            "wr": 51.01,
+            "pf": 0.754,
+            "avg_net_bps": -13.98,
+            "net_pct_sum": -55.36
+          },
+          "holdout": {
+            "n": 358,
+            "wins": 178,
+            "wr": 49.72,
+            "pf": 0.716,
+            "avg_net_bps": -16.56,
+            "net_pct_sum": -59.28
+          },
+          "all3y": {
+            "n": 754,
+            "wins": 380,
+            "wr": 50.4,
+            "pf": 0.736,
+            "avg_net_bps": -15.2,
+            "net_pct_sum": -114.64
+          }
+        },
+        "BTC_RSI5>=50": {
+          "train": {
+            "n": 215,
+            "wins": 110,
+            "wr": 51.16,
+            "pf": 0.759,
+            "avg_net_bps": -13.67,
+            "net_pct_sum": -29.4
+          },
+          "holdout": {
+            "n": 226,
+            "wins": 107,
+            "wr": 47.35,
+            "pf": 0.651,
+            "avg_net_bps": -21.31,
+            "net_pct_sum": -48.16
+          },
+          "all3y": {
+            "n": 441,
+            "wins": 217,
+            "wr": 49.21,
+            "pf": 0.702,
+            "avg_net_bps": -17.59,
+            "net_pct_sum": -77.56
+          }
+        },
+        "BTC_RSI5>=55": {
+          "train": {
+            "n": 84,
+            "wins": 41,
+            "wr": 48.81,
+            "pf": 0.69,
+            "avg_net_bps": -18.38,
+            "net_pct_sum": -15.44
+          },
+          "holdout": {
+            "n": 129,
+            "wins": 61,
+            "wr": 47.29,
+            "pf": 0.65,
+            "avg_net_bps": -21.43,
+            "net_pct_sum": -27.64
+          },
+          "all3y": {
+            "n": 213,
+            "wins": 102,
+            "wr": 47.89,
+            "pf": 0.665,
+            "avg_net_bps": -20.23,
+            "net_pct_sum": -43.08
+          }
+        }
+      }
+    },
+    {
+      "strategy": "FALL5_30M",
+      "tf": "30m",
+      "thresholds": {
+        "baseline": {
+          "train": {
+            "n": 900,
+            "wins": 472,
+            "wr": 52.44,
+            "pf": 0.799,
+            "avg_net_bps": -11.11,
+            "net_pct_sum": -100.0
+          },
+          "holdout": {
+            "n": 341,
+            "wins": 175,
+            "wr": 51.32,
+            "pf": 0.763,
+            "avg_net_bps": -13.36,
+            "net_pct_sum": -45.56
+          },
+          "all3y": {
+            "n": 1241,
+            "wins": 647,
+            "wr": 52.14,
+            "pf": 0.789,
+            "avg_net_bps": -11.73,
+            "net_pct_sum": -145.56
+          }
+        },
+        "BTC_RSI5>=45": {
+          "train": {
+            "n": 415,
+            "wins": 224,
+            "wr": 53.98,
+            "pf": 0.849,
+            "avg_net_bps": -8.05,
+            "net_pct_sum": -33.4
+          },
+          "holdout": {
+            "n": 161,
+            "wins": 89,
+            "wr": 55.28,
+            "pf": 0.895,
+            "avg_net_bps": -5.44,
+            "net_pct_sum": -8.76
+          },
+          "all3y": {
+            "n": 576,
+            "wins": 313,
+            "wr": 54.34,
+            "pf": 0.862,
+            "avg_net_bps": -7.32,
+            "net_pct_sum": -42.16
+          }
+        },
+        "BTC_RSI5>=50": {
+          "train": {
+            "n": 251,
+            "wins": 134,
+            "wr": 53.39,
+            "pf": 0.829,
+            "avg_net_bps": -9.23,
+            "net_pct_sum": -23.16
+          },
+          "holdout": {
+            "n": 100,
+            "wins": 56,
+            "wr": 56.0,
+            "pf": 0.922,
+            "avg_net_bps": -4.0,
+            "net_pct_sum": -4.0
+          },
+          "all3y": {
+            "n": 351,
+            "wins": 190,
+            "wr": 54.13,
+            "pf": 0.855,
+            "avg_net_bps": -7.74,
+            "net_pct_sum": -27.16
+          }
+        },
+        "BTC_RSI5>=55": {
+          "train": {
+            "n": 124,
+            "wins": 66,
+            "wr": 53.23,
+            "pf": 0.824,
+            "avg_net_bps": -9.55,
+            "net_pct_sum": -11.84
+          },
+          "holdout": {
+            "n": 54,
+            "wins": 29,
+            "wr": 53.7,
+            "pf": 0.84,
+            "avg_net_bps": -8.59,
+            "net_pct_sum": -4.64
+          },
+          "all3y": {
+            "n": 178,
+            "wins": 95,
+            "wr": 53.37,
+            "pf": 0.829,
+            "avg_net_bps": -9.26,
+            "net_pct_sum": -16.48
+          }
+        }
+      }
+    },
+    {
+      "strategy": "FALL4_30M",
+      "tf": "30m",
+      "thresholds": {
+        "baseline": {
+          "train": {
+            "n": 1976,
+            "wins": 936,
+            "wr": 47.37,
+            "pf": 0.652,
+            "avg_net_bps": -21.26,
+            "net_pct_sum": -420.16
+          },
+          "holdout": {
+            "n": 945,
+            "wins": 482,
+            "wr": 51.01,
+            "pf": 0.754,
+            "avg_net_bps": -13.99,
+            "net_pct_sum": -132.2
+          },
+          "all3y": {
+            "n": 2921,
+            "wins": 1418,
+            "wr": 48.55,
+            "pf": 0.683,
+            "avg_net_bps": -18.91,
+            "net_pct_sum": -552.36
+          }
+        },
+        "BTC_RSI5>=45": {
+          "train": {
+            "n": 1016,
+            "wins": 498,
+            "wr": 49.02,
+            "pf": 0.696,
+            "avg_net_bps": -17.97,
+            "net_pct_sum": -182.56
+          },
+          "holdout": {
+            "n": 534,
+            "wins": 266,
+            "wr": 49.81,
+            "pf": 0.719,
+            "avg_net_bps": -16.37,
+            "net_pct_sum": -87.44
+          },
+          "all3y": {
+            "n": 1550,
+            "wins": 764,
+            "wr": 49.29,
+            "pf": 0.704,
+            "avg_net_bps": -17.42,
+            "net_pct_sum": -270.0
+          }
+        },
+        "BTC_RSI5>=50": {
+          "train": {
+            "n": 614,
+            "wins": 314,
+            "wr": 51.14,
+            "pf": 0.758,
+            "avg_net_bps": -13.72,
+            "net_pct_sum": -84.24
+          },
+          "holdout": {
+            "n": 374,
+            "wins": 176,
+            "wr": 47.06,
+            "pf": 0.644,
+            "avg_net_bps": -21.88,
+            "net_pct_sum": -81.84
+          },
+          "all3y": {
+            "n": 988,
+            "wins": 490,
+            "wr": 49.6,
+            "pf": 0.713,
+            "avg_net_bps": -16.81,
+            "net_pct_sum": -166.08
+          }
+        },
+        "BTC_RSI5>=55": {
+          "train": {
+            "n": 319,
+            "wins": 170,
+            "wr": 53.29,
+            "pf": 0.826,
+            "avg_net_bps": -9.42,
+            "net_pct_sum": -30.04
+          },
+          "holdout": {
+            "n": 219,
+            "wins": 114,
+            "wr": 52.05,
+            "pf": 0.786,
+            "avg_net_bps": -11.89,
+            "net_pct_sum": -26.04
+          },
+          "all3y": {
+            "n": 538,
+            "wins": 284,
+            "wr": 52.79,
+            "pf": 0.81,
+            "avg_net_bps": -10.42,
+            "net_pct_sum": -56.08
+          }
+        }
+      }
+    },
+    {
+      "strategy": "AGT_GRR_1M",
+      "tf": "1m",
+      "thresholds": {
+        "baseline": {
+          "train": {
+            "n": 951,
+            "wins": 783,
+            "wr": 82.33,
+            "pf": 0.775,
+            "avg_net_bps": -8.1,
+            "net_pct_sum": -77.05
+          },
+          "holdout": {
+            "n": 2112,
+            "wins": 1742,
+            "wr": 82.48,
+            "pf": 0.78,
+            "avg_net_bps": -7.9,
+            "net_pct_sum": -166.79
+          },
+          "all3y": {
+            "n": 3063,
+            "wins": 2525,
+            "wr": 82.44,
+            "pf": 0.779,
+            "avg_net_bps": -7.96,
+            "net_pct_sum": -243.84
+          }
+        },
+        "BTC_RSI5>=45": {
+          "train": {
+            "n": 557,
+            "wins": 458,
+            "wr": 82.23,
+            "pf": 0.757,
+            "avg_net_bps": -8.96,
+            "net_pct_sum": -49.89
+          },
+          "holdout": {
+            "n": 1312,
+            "wins": 1088,
+            "wr": 82.93,
+            "pf": 0.808,
+            "avg_net_bps": -6.68,
+            "net_pct_sum": -87.61
+          },
+          "all3y": {
+            "n": 1869,
+            "wins": 1546,
+            "wr": 82.72,
+            "pf": 0.793,
+            "avg_net_bps": -7.36,
+            "net_pct_sum": -137.5
+          }
+        },
+        "BTC_RSI5>=50": {
+          "train": {
+            "n": 421,
+            "wins": 345,
+            "wr": 81.95,
+            "pf": 0.749,
+            "avg_net_bps": -9.34,
+            "net_pct_sum": -39.32
+          },
+          "holdout": {
+            "n": 976,
+            "wins": 809,
+            "wr": 82.89,
+            "pf": 0.799,
+            "avg_net_bps": -7.06,
+            "net_pct_sum": -68.94
+          },
+          "all3y": {
+            "n": 1397,
+            "wins": 1154,
+            "wr": 82.61,
+            "pf": 0.784,
+            "avg_net_bps": -7.75,
+            "net_pct_sum": -108.26
+          }
+        },
+        "BTC_RSI5>=55": {
+          "train": {
+            "n": 263,
+            "wins": 214,
+            "wr": 81.37,
+            "pf": 0.703,
+            "avg_net_bps": -11.68,
+            "net_pct_sum": -30.71
+          },
+          "holdout": {
+            "n": 642,
+            "wins": 535,
+            "wr": 83.33,
+            "pf": 0.823,
+            "avg_net_bps": -6.07,
+            "net_pct_sum": -38.99
+          },
+          "all3y": {
+            "n": 905,
+            "wins": 749,
+            "wr": 82.76,
+            "pf": 0.785,
+            "avg_net_bps": -7.7,
+            "net_pct_sum": -69.7
+          }
+        }
+      }
+    },
+    {
+      "strategy": "LQTY_RRR_1M",
+      "tf": "1m",
+      "thresholds": {
+        "baseline": {
+          "train": {
+            "n": 2810,
+            "wins": 2114,
+            "wr": 75.23,
+            "pf": 0.607,
+            "avg_net_bps": -16.44,
+            "net_pct_sum": -461.83
+          },
+          "holdout": {
+            "n": 841,
+            "wins": 639,
+            "wr": 75.98,
+            "pf": 0.76,
+            "avg_net_bps": -8.05,
+            "net_pct_sum": -67.72
+          },
+          "all3y": {
+            "n": 3651,
+            "wins": 2753,
+            "wr": 75.4,
+            "pf": 0.636,
+            "avg_net_bps": -14.5,
+            "net_pct_sum": -529.55
+          }
+        },
+        "BTC_RSI5>=45": {
+          "train": {
+            "n": 1025,
+            "wins": 786,
+            "wr": 76.68,
+            "pf": 0.7,
+            "avg_net_bps": -11.08,
+            "net_pct_sum": -113.61
+          },
+          "holdout": {
+            "n": 273,
+            "wins": 211,
+            "wr": 77.29,
+            "pf": 0.922,
+            "avg_net_bps": -2.19,
+            "net_pct_sum": -5.97
+          },
+          "all3y": {
+            "n": 1298,
+            "wins": 997,
+            "wr": 76.81,
+            "pf": 0.737,
+            "avg_net_bps": -9.21,
+            "net_pct_sum": -119.58
+          }
+        },
+        "BTC_RSI5>=50": {
+          "train": {
+            "n": 646,
+            "wins": 486,
+            "wr": 75.23,
+            "pf": 0.657,
+            "avg_net_bps": -13.2,
+            "net_pct_sum": -85.28
+          },
+          "holdout": {
+            "n": 178,
+            "wins": 137,
+            "wr": 76.97,
+            "pf": 0.988,
+            "avg_net_bps": -0.32,
+            "net_pct_sum": -0.58
+          },
+          "all3y": {
+            "n": 824,
+            "wins": 623,
+            "wr": 75.61,
+            "pf": 0.709,
+            "avg_net_bps": -10.42,
+            "net_pct_sum": -85.86
+          }
+        },
+        "BTC_RSI5>=55": {
+          "train": {
+            "n": 389,
+            "wins": 291,
+            "wr": 74.81,
+            "pf": 0.661,
+            "avg_net_bps": -12.85,
+            "net_pct_sum": -49.99
+          },
+          "holdout": {
+            "n": 107,
+            "wins": 85,
+            "wr": 79.44,
+            "pf": 1.33,
+            "avg_net_bps": 6.66,
+            "net_pct_sum": 7.12
+          },
+          "all3y": {
+            "n": 496,
+            "wins": 376,
+            "wr": 75.81,
+            "pf": 0.747,
+            "avg_net_bps": -8.64,
+            "net_pct_sum": -42.86
+          }
+        }
+      }
+    }
+  ]
+}
