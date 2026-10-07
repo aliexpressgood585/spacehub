@@ -1,5 +1,5 @@
 """Cross-sectional basis/premium + price-volume factor hunt. Research only."""
-import json, urllib.request, urllib.parse, time
+import json, urllib.request, urllib.error, time, io, zipfile, csv
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import numpy as np
@@ -11,32 +11,58 @@ COST=.0016
 UNIVERSE=[
 "BTCUSDT","ETHUSDT","SOLUSDT","ZECUSDT","XRPUSDT","NEARUSDT","DOGEUSDT","SANDUSDT","UNIUSDT","SUIUSDT",
 "BNBUSDT","NMRUSDT","QNTUSDT","AVAXUSDT","ADAUSDT","WLDUSDT","RLCUSDT","1000PEPEUSDT","LINKUSDT","GTCUSDT",
-"FILUSDT","AAVEUSDT","INJUSDT","MINAUSDT","ARBUSDT","LTCUSDT","BCHUSDT","FETUSDT","DOTUSDT","XLMUSDT",
-"APTUSDT","HBARUSDT","1000SHIBUSDT","TRXUSDT","OPUSDT","DASHUSDT","API3USDT","XMRUSDT","ICPUSDT","ETCUSDT",
-"STXUSDT","TRBUSDT","CRVUSDT","MANAUSDT","PENDLEUSDT","MAGICUSDT","LDOUSDT","AXSUSDT","SEIUSDT","GALAUSDT"
+"FILUSDT","AAVEUSDT","INJUSDT","MINAUSDT","ARBUSDT","LTCUSDT","BCHUSDT","FETUSDT","DOTUSDT","XLMUSDT"
 ]
+BASE="https://data.binance.vision/data/futures/um"
+LOAD=START-60*86400000
 
-def get_json(path,params):
-    qs=urllib.parse.urlencode(params)
-    urls=["https://fapi.binance.com"+path+"?"+qs,"https://fapi1.binance.com"+path+"?"+qs]
+def read_zip(url):
     last=None
-    for u in urls:
-        for k in range(3):
-            try:
-                req=urllib.request.Request(u,headers={"User-Agent":"spacehub-basis-research/1.0"})
-                with urllib.request.urlopen(req,timeout=30) as r:return json.loads(r.read())
-            except Exception as e:last=e;time.sleep(1+k)
+    for k in range(3):
+        try:
+            req=urllib.request.Request(url,headers={"User-Agent":"spacehub-basis-research/1.1"})
+            with urllib.request.urlopen(req,timeout=30) as r:raw=r.read()
+            with zipfile.ZipFile(io.BytesIO(raw)) as z:return z.read(z.namelist()[0]).decode()
+        except urllib.error.HTTPError as e:
+            if e.code==404:return None
+            last=e
+        except Exception as e:last=e
+        time.sleep(1+k)
     raise last
 
+def load_kind(sym,kind):
+    rows={}
+    y,m=2023,8
+    while (y,m)<=(2026,9):
+        url=f"{BASE}/monthly/{kind}/{sym}/1d/{sym}-1d-{y}-{m:02d}.zip"
+        txt=read_zip(url)
+        if txt:
+            for r in csv.reader(io.StringIO(txt)):
+                if not r or not r[0].isdigit():continue
+                t=int(r[0]);t=t//1000 if t>10**14 else t
+                if LOAD<=t<END:rows[t]=r
+        m+=1
+        if m==13:y+=1;m=1
+    for day in range(1,7):
+        url=f"{BASE}/daily/{kind}/{sym}/1d/{sym}-1d-2026-10-{day:02d}.zip"
+        txt=read_zip(url)
+        if txt:
+            for r in csv.reader(io.StringIO(txt)):
+                if r and r[0].isdigit():
+                    t=int(r[0]);t=t//1000 if t>10**14 else t
+                    if LOAD<=t<END:rows[t]=r
+    return rows
+
 def fetch(sym):
-    base={"symbol":sym,"interval":"1d","startTime":START-60*86400000,"endTime":END-1,"limit":1500}
-    k=get_json("/fapi/v1/klines",base)
-    p=get_json("/fapi/v1/premiumIndexKlines",base)
-    price={int(x[0]):[float(x[1]),float(x[2]),float(x[3]),float(x[4]),float(x[7])] for x in k}
-    prem={int(x[0]):float(x[4]) for x in p}
-    ts=sorted(set(price)&set(prem))
+    k=load_kind(sym,"klines")
+    p=load_kind(sym,"premiumIndexKlines")
+    ts=sorted(set(k)&set(p))
     if len([t for t in ts if START<=t<END])<900:raise RuntimeError(sym+" insufficient aligned daily data")
-    return {t:{"o":price[t][0],"h":price[t][1],"l":price[t][2],"c":price[t][3],"qv":price[t][4],"premium":prem[t]} for t in ts}
+    out={}
+    for t in ts:
+        x=k[t];z=p[t]
+        out[t]={"o":float(x[1]),"h":float(x[2]),"l":float(x[3]),"c":float(x[4]),"qv":float(x[7]),"premium":float(z[4])}
+    return out
 
 def port_metrics(v):
     a=np.asarray(v,float);a=a[np.isfinite(a)]
