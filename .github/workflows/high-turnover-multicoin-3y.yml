@@ -1,0 +1,33 @@
+name: High Turnover Multicoin 3Y
+on:
+  push:
+    branches: ['research/high-turnover-multicoin-20261008']
+    paths:
+      - 'scripts/market-gate-check/high_turnover_multicoin.py'
+      - '.github/workflows/high-turnover-multicoin-3y.yml'
+permissions:
+  contents: write
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -q numpy numba
+      - run: python -m py_compile scripts/market-gate-check/high_turnover_multicoin.py
+      - run: python scripts/market-gate-check/high_turnover_multicoin.py
+      - name: Record research result
+        run: |
+          cp research-output/high-turnover-multicoin-3y.json status/high-turnover-multicoin-3y-research.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add status/high-turnover-multicoin-3y-research.json
+          git diff --cached --quiet || git commit -m "research: record high-turnover multicoin result [skip ci]"
+          git push
+      - uses: actions/upload-artifact@v4
+        with:
+          name: high-turnover-multicoin-3y
+          path: research-output/
