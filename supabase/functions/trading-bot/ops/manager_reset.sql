@@ -1,4 +1,4 @@
--- P-MANAGER-RESET-20261007. PAPER ONLY. Execute only after independent council review.
+-- P-MANAGER-RESET-20261007. PAPER ONLY. Executed once after explicit owner Claude waiver on 2026-10-07; idempotent guard retained.
 -- Administrative reset, not a trading exit: archived OPEN rows retain OPEN status.
 BEGIN;
 SET LOCAL lock_timeout = '8s';
