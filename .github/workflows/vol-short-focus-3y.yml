@@ -1,0 +1,33 @@
+name: Volatility Short Focus 3Y
+on:
+  push:
+    branches: ['research/vol-short-focus-20261007']
+    paths:
+      - 'scripts/market-gate-check/vol_short_focus.py'
+      - '.github/workflows/vol-short-focus-3y.yml'
+permissions:
+  contents: write
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -q numpy numba
+      - run: python -m py_compile scripts/market-gate-check/vol_short_focus.py
+      - run: python scripts/market-gate-check/vol_short_focus.py
+      - name: Record focused result
+        run: |
+          cp research-output/vol-short-focus-3y.json status/vol-short-focus-3y-research.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add status/vol-short-focus-3y-research.json
+          git diff --cached --quiet || git commit -m "research: record focused volatility short result [skip ci]"
+          git push
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vol-short-focus-3y
+          path: research-output/
