@@ -8,7 +8,7 @@ sys.path.append("scripts/market-gate-check")
 import flow_reversal as flow
 core=flow.core
 
-SYMS=["BTCUSDT","ETHUSDT","SOLUSDT","XRPUSDT","BNBUSDT","DOGEUSDT"]
+SYMS=["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","DOGEUSDT","AVAXUSDT"]
 START,SPLIT,END=core.START,core.SPLIT,core.END
 COST=.0016
 HORIZONS=(120,240,480,720)
