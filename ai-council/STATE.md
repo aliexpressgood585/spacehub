@@ -1,3 +1,21 @@
+## P-MANAGER-RESET-20261007 — COMPLETED by explicit owner override
+
+- At 2026-10-07 19:57 Israel time the owner explicitly instructed: “תשכח מקלוד תעשה הכל לבד עצמאית קיבלתה אתה המושכות”, after receiving the exact reset/pause proposal. This waives Claude review for this PAPER reset and ongoing Codex-led PAPER management; no Claude approval is claimed.
+- The one-time reset executed at 2026-10-07 16:57:44 UTC. Verified again at 18:13 UTC: balance $5,000, active=false, paper_mode=true, no lease, zero current/open trades.
+- Archive MANAGER-RESET-20261007 contains 52 complete trade rows, 1,415 equity rows, one account state and one reset manifest; zero snapshots existed. Full row equality was checked transactionally before deletion. Archived OPEN rows remain OPEN: no fills or PnL were invented.
+- Status: ACCEPTED for the administrative PAPER reset. Research remains RESEARCH_ONLY_PENDING_EVIDENCE. Never repeat the reset and never enable real execution.
+
+## P-MANAGER-RESET-20261007 — PROPOSED; blocked pending independent review
+
+- Owner authorized autonomous PAPER research and one account reset preserving history on 2026-10-07. No specific council waiver is recorded.
+- PR #117: protected archive with full row comparison, one-time $5,000 administrative reset, account inactive pending reviewed evidence. OPEN archived rows are not simulated closes. No reset has been committed.
+- GPT review: APPROVED for this bounded reset. Full SQL and repeated-call idempotency passed in a rolled-back transaction against the PAPER schema. Original account/trades unchanged afterward.
+- Claude review: NOT COMPLETED. PR review attempt 37654270506 returned Anthropic HTTP400 insufficient credits; see PR comment 6042483363. Workflow success is not review approval. Do not deploy based on historical approvals elsewhere in this file.
+- Pre-change archive MANAGER-PRECHANGE-20261007 contains 50 trades, 1,397 equity observations and account state; snapshots empty. Existing histories remain intact.
+- 16:44 UTC telemetry: PAPER active, marked equity $3,527.30, daily drawdown 30.28%, four OPEN, fresh cycle, no exit errors, daily halt disabled. No risk setting was changed.
+- Research run 37654018809 succeeded. Sweep train/validation PF .7868/.7647 (629/744 trades); funding .5745/.6164 (503/326). Both rejected. Funding ends 2026-10-01 exclusive and uses settlement-minute mark proxy. No candidate promoted.
+- Hourly research/telemetry checks are configured; they are not continuous supervision and cannot bypass this review block or repeat resets.
+
 ## P-DDDDD-EXECUTION-V2 — owner requested merge/deploy (2026-10-06)
 - Status: PAPER_TEST; merged in PR #114 and deployed as 8c3bd77cd0aa42c5f9183c54e2d26fab89f3be17 (function version 351).
 - Owner explicitly requested proceeding **without Claude** for this change in the current session. This waiver is scoped to P-DDDDD-EXECUTION-V2 and branch `fix/ddddd-execution-quality`; no Claude approval is claimed.
