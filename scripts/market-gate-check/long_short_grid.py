@@ -154,7 +154,7 @@ def metrics(rows,start,end):
 
 def run_symbol(sym, btc, btc_ft):
     a,cov=load_minutes(sym); b,minute_idx=five_minutes(a); ft=features(b); atr=atr14(b)
-    results={}; led=[]
+    results={}; raw={}
     for family in FAMILIES:
       for side in SIDES:
         sig=raw_signals(b,ft,family,side); base_entry=minute_idx[sig]+5
@@ -164,29 +164,32 @@ def run_symbol(sym, btc, btc_ft):
           for filter_name in FILTERS:
             take=mm[filter_name]; entries=base_entry[take]; av=atr[sig][take]
             key="|".join((family,side,exit_name,filter_name)); results[key]={}
+            raw[key]={}
             for period,(start,end) in PERIODS.items():
                 tr=simulate(a,entries,av,1 if side=="LONG" else -1,ex["tp_atr"],ex["sl_atr"],ex["timeout_min"],start,end)
                 results[key][period]=metrics(tr,start,end)
-                for r in tr: led.append((key,period,r))
+                raw[key][period]=tr
     print("GRID_SYMBOL "+json.dumps({"symbol":sym,"variants":len(results)}),flush=True)
-    return sym,cov,results,led
+    return sym,cov,results,raw
 
 
 def run():
     btc_a,btc_cov=load_minutes("BTCUSDT"); btc,_=five_minutes(btc_a); btc_ft=features(btc)
-    aggregate={}; coverage=[btc_cov]; ledger=[]; by_symbol={}
+    aggregate={}; coverage=[btc_cov]; by_symbol={}; allrows={}
     with ThreadPoolExecutor(max_workers=4) as pool:
-      for sym,cov,res,led in pool.map(lambda s:run_symbol(s,btc,btc_ft),TOP10):
-        coverage.append(cov); by_symbol[sym]=res; ledger.extend((sym,*x) for x in led)
+      for sym,cov,res,raw in pool.map(lambda s:run_symbol(s,btc,btc_ft),TOP10):
+        coverage.append(cov); by_symbol[sym]=res
+        for key,periods in raw.items():
+            target=allrows.setdefault(key,{p:[] for p in PERIODS})
+            for period,rows in periods.items(): target[period].append(rows)
     for family in FAMILIES:
       for side in SIDES:
        for exit_name in EXITS:
         for filter_name in FILTERS:
           key="|".join((family,side,exit_name,filter_name)); aggregate[key]={}
           for period,(start,end) in PERIODS.items():
-            rows=[]
-            for sym,k,p,r in ledger:
-                if k==key and p==period: rows.append(r)
+            chunks=allrows[key][period]
+            rows=np.concatenate(chunks) if chunks else np.empty((0,4))
             aggregate[key][period]=metrics(rows,start,end)
     eligible=[]
     for k,v in aggregate.items():
