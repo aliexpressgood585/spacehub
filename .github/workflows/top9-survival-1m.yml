@@ -1,0 +1,33 @@
+name: Top 9 Survival 1M
+on:
+  push:
+    branches: ['research/top9-survival-1m-20261008']
+    paths:
+      - 'scripts/edge-hunt/top9_survival_1m.py'
+      - '.github/workflows/top9-survival-1m.yml'
+permissions:
+  contents: write
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -q numpy numba
+      - run: python -m py_compile scripts/edge-hunt/top9_survival_1m.py
+      - run: python scripts/edge-hunt/top9_survival_1m.py
+      - name: Record result
+        run: |
+          cp research-output/top9-survival-1m.json status/top9-survival-1m-research.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add status/top9-survival-1m-research.json
+          git diff --cached --quiet || git commit -m "research: record top9 survival result [skip ci]"
+          git push
+      - uses: actions/upload-artifact@v4
+        with:
+          name: top9-survival-1m
+          path: research-output/
