@@ -11,7 +11,7 @@ for side in (1,-1):
     assert len(r)==1 and int(r[0,3])==1 and r[0,2]<0
 
 # Adverse gap must fill at the worse opening price, not at the stop.
-a2=np.array([[0,100,100,100,100,1,.5],[60000,95,96,94,95,1,.5]],float)
-r=g.simulate(a2,np.array([1]),np.array([1.0]),1,1.5,1.0,1,0,120000)
+a2=np.array([[0,100,100,100,100,1,.5],[60000,100,100.5,99.5,100,1,.5],[120000,95,96,94,95,1,.5]],float)
+r=g.simulate(a2,np.array([1]),np.array([1.0]),1,1.5,1.0,2,0,180000)
 assert r[0,2] < -.04
 print("long_short_grid checks passed")
