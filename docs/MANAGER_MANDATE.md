@@ -1,3 +1,7 @@
+## Completed reset and owner authority
+
+The owner explicitly waived Claude for this PAPER management scope on 2026-10-07 at 19:57 Israel time. The one-time reset completed at 16:57:44 UTC and was verified: $5,000, inactive, PAPER, zero current trades. MANAGER-RESET-20261007 preserves 52 trades, 1,415 equity observations, account state and a completion manifest. Never repeat the reset. No strategy is promoted; research remains evidence-gated.
+
 # PAPER strategy management — 2026-10-07
 
 The owner authorized autonomous research, strategy selection, retirement and replacement, and an account reset with history preserved. This is PAPER only. This delegation does not guarantee profit or waive the repository's independent review requirement for a specific material change.
