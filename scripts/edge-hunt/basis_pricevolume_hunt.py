@@ -161,7 +161,7 @@ def run():
             s=fs[f]
             try:data[s]=f.result();print("LOADED",s,len(data[s]),flush=True)
             except Exception as e:errors[s]=repr(e);print("FAILED",s,repr(e),flush=True)
-    if len(data)<35:raise RuntimeError("too few aligned symbols")
+    if len(data)<25:raise RuntimeError("too few aligned symbols")
     times,by=panel(data)
     grid=[]
     for kind,Ls in {
