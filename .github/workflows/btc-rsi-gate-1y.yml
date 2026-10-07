@@ -1,0 +1,33 @@
+name: BTC RSI Gate 1Y Quick
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/backtest-btc-rsi-gate-1y.py'
+      - '.github/workflows/btc-rsi-gate-1y.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -q numpy
+      - name: Run 1y quick validation
+        run: python scripts/backtest-btc-rsi-gate-1y.py | tee /tmp/rsi1y.log
+      - name: Commit result
+        run: |
+          git config user.name "analysis-bot"
+          git config user.email "actions@github.com"
+          git add status/btc-rsi-gate-1y.json
+          git commit -m "status: BTC RSI gate 1y result [skip ci]" || echo "no changes"
+          git pull --rebase origin main || true
+          git push || echo "push failed"
