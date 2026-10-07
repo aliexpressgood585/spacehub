@@ -1,0 +1,2026 @@
+{
+  "window": {
+    "requested_start": "2026-04-01T00:00:00+00:00",
+    "requested_end_exclusive": "2026-10-07T00:00:00+00:00"
+  },
+  "symbols": [
+    "AKEUSDT",
+    "MARSCOINUSDT",
+    "TUTUSDT",
+    "SKYAIUSDT",
+    "ESPORTSUSDT",
+    "HUSDT",
+    "NAORISUSDT",
+    "BROCCOLI714USDT",
+    "CTRUSDT"
+  ],
+  "base_roundtrip_cost_pct": 0.16,
+  "method": [
+    "Independent survival test; the original summary table is treated only as a candidate generator.",
+    "Binance USDT-M 1m archives. Symbols need at least 60 days and >=95% coverage from first to last available bar.",
+    "Per symbol: early development + temporal selection choose one rule; final segment is not used for parameter selection.",
+    "Rules searched: all exact 1-5 candle color patterns in continuation/fade direction, multi-horizon momentum/reversal, RSI, volatility/volume expansion/fade, EMA trend, z-score continuation/reversion.",
+    "Exact exits search TP/SL 0.3%-2.0% and 5-60 minute holds, with stop-first same-bar ordering and 0.16% round-trip cost.",
+    "Survival requires holdout PF>1.10, positive expectancy, >=20 trades, >=2/3 positive holdout chunks, PF>1 under 0.25% cost stress, and a positive train parameter neighborhood.",
+    "The final 'survivor portfolio' is diagnostic because membership uses holdout results; it is not a pristine future performance estimate."
+  ],
+  "pass_count": 0,
+  "passed_symbols": [],
+  "survivor_portfolio_diagnostic": {
+    "start_balance": 1000.0,
+    "final_balance": 1000.0,
+    "return_pct": 0.0,
+    "trades": 0,
+    "wins": 0,
+    "win_rate_pct": null,
+    "max_closed_equity_drawdown_pct": 0.0
+  },
+  "results": [
+    {
+      "symbol": "AKEUSDT",
+      "status": "NO_ROBUST_TRAIN",
+      "data": {
+        "first_ms": 1775001600000,
+        "last_ms": 1791331140000,
+        "bars": 272160,
+        "span_days": 188.99930555555557,
+        "coverage": 1.0,
+        "gap_count": 0,
+        "manifest": [
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/AKEUSDT/1m/AKEUSDT-1m-2026-04.zip",
+            "sha256": "ee9e12954053aa4e472f8cd9110d14cff22dd3793bf3da98c9939e9ac4033983",
+            "rows": 43200
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/AKEUSDT/1m/AKEUSDT-1m-2026-05.zip",
+            "sha256": "e0012404b96a652c92d9a5c3e8cc2b4920b7291e47c71ec2c5089bc7f54e376b",
+            "rows": 44640
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/AKEUSDT/1m/AKEUSDT-1m-2026-06.zip",
+            "sha256": "0da78b22076d99f5b0f2a4de64b2a1c0f69263a687239f8560f4b33d14911b33",
+            "rows": 43200
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/AKEUSDT/1m/AKEUSDT-1m-2026-07.zip",
+            "sha256": "678c61f080e3c60bebec641352fae448d31f469712288287a35b8d9f813fbb47",
+            "rows": 44640
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/AKEUSDT/1m/AKEUSDT-1m-2026-08.zip",
+            "sha256": "c5f7967d53e431f1886fca6aa9cdfb78763dadee2babaf759bfac26828041511",
+            "rows": 44640
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/AKEUSDT/1m/AKEUSDT-1m-2026-09.zip",
+            "sha256": "5c4a8018cbb95fe68716a35e1d834534dea9d07e589332c3ca5fcb12e434bf73",
+            "rows": 43200
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/AKEUSDT/1m/AKEUSDT-1m-2026-10-01.zip",
+            "sha256": "0f262207e766c13d04474b654335132e4a911a9ef4e940ac1de2ea9cb2e622b4",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/AKEUSDT/1m/AKEUSDT-1m-2026-10-02.zip",
+            "sha256": "2e42d012110b96ceb35078b399354f56729f02f4260a7238f522fb89505f2dec",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/AKEUSDT/1m/AKEUSDT-1m-2026-10-03.zip",
+            "sha256": "c45b4cee62082358b8af171a1c1d2446c14227bd98a2e52cfeed848406d2399c",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/AKEUSDT/1m/AKEUSDT-1m-2026-10-04.zip",
+            "sha256": "46729ebcbee4ff428c98123528959a900bf75229535945d6404cb523d33f39df",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/AKEUSDT/1m/AKEUSDT-1m-2026-10-05.zip",
+            "sha256": "99676d297a7a95cf321d253ecc7744b71948cf9424428a147bc339f98d499be8",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/AKEUSDT/1m/AKEUSDT-1m-2026-10-06.zip",
+            "sha256": "70211284753a7c3cc6cf871cae5f23141c0c2c97241f1f8abebe3874ce5f5c23",
+            "rows": 1440
+          }
+        ]
+      },
+      "generated_signals": 346
+    },
+    {
+      "symbol": "MARSCOINUSDT",
+      "status": "SKIP",
+      "data": {
+        "first_ms": 1788255900000,
+        "last_ms": 1791331140000,
+        "bars": 51255,
+        "span_days": 35.59305555555556,
+        "coverage": 1.0,
+        "gap_count": 0,
+        "manifest": [
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/MARSCOINUSDT/1m/MARSCOINUSDT-1m-2026-04.zip",
+            "missing": 404
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/MARSCOINUSDT/1m/MARSCOINUSDT-1m-2026-05.zip",
+            "missing": 404
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/MARSCOINUSDT/1m/MARSCOINUSDT-1m-2026-06.zip",
+            "missing": 404
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/MARSCOINUSDT/1m/MARSCOINUSDT-1m-2026-07.zip",
+            "missing": 404
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/MARSCOINUSDT/1m/MARSCOINUSDT-1m-2026-08.zip",
+            "missing": 404
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/MARSCOINUSDT/1m/MARSCOINUSDT-1m-2026-09.zip",
+            "sha256": "91202aed0ee9f50b2ffc37c79397e518aa1e3d7e0528895dedc66e599632fe8b",
+            "rows": 42615
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/MARSCOINUSDT/1m/MARSCOINUSDT-1m-2026-10-01.zip",
+            "sha256": "e5ca967dc4a56601ecff257b3a828f6900a3b7fb768f2622ed1176fd01afe246",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/MARSCOINUSDT/1m/MARSCOINUSDT-1m-2026-10-02.zip",
+            "sha256": "8e7d0ec86293b10a0a4927fdb66f5a609c82bfa3009f6779873c53343d6a9286",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/MARSCOINUSDT/1m/MARSCOINUSDT-1m-2026-10-03.zip",
+            "sha256": "92f0ed49c2fa7327b4a72743e23f5d3af101b0004a150c5e959cec40e90c8b37",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/MARSCOINUSDT/1m/MARSCOINUSDT-1m-2026-10-04.zip",
+            "sha256": "4726f5440c46c1225ad47d33d9e3c0c646a23a82dedc5f0ee867b506087b9cc6",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/MARSCOINUSDT/1m/MARSCOINUSDT-1m-2026-10-05.zip",
+            "sha256": "d3c24a1c1748a0e4361d4504eeb3d210788c794438aaecb8f3f7b9ac910525fc",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/MARSCOINUSDT/1m/MARSCOINUSDT-1m-2026-10-06.zip",
+            "sha256": "4cb2fc85f2033fafabb6863ead2730a08c8b9292e3b2c1d8bf8b24d2a4f37aed",
+            "rows": 1440
+          }
+        ]
+      }
+    },
+    {
+      "symbol": "TUTUSDT",
+      "status": "NO_ROBUST_TRAIN",
+      "data": {
+        "first_ms": 1775001600000,
+        "last_ms": 1791331140000,
+        "bars": 272160,
+        "span_days": 188.99930555555557,
+        "coverage": 1.0,
+        "gap_count": 0,
+        "manifest": [
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/TUTUSDT/1m/TUTUSDT-1m-2026-04.zip",
+            "sha256": "51cda5d08a770c5cb803ee02baebdf27bb518577cef47448f641ceb2ff943d63",
+            "rows": 43200
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/TUTUSDT/1m/TUTUSDT-1m-2026-05.zip",
+            "sha256": "465c04610baa468799698d9e8baa8ae96bf4b5a5797be9477473ffea97ff2352",
+            "rows": 44640
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/TUTUSDT/1m/TUTUSDT-1m-2026-06.zip",
+            "sha256": "cf3a9f8393729b00911229b60eb441b80785d67c70d6d29fb546096e47d0e379",
+            "rows": 43200
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/TUTUSDT/1m/TUTUSDT-1m-2026-07.zip",
+            "sha256": "879b55443c03b5e01be7b1376baeace7a194fc0e590979adf4c9616cc1f88256",
+            "rows": 44640
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/TUTUSDT/1m/TUTUSDT-1m-2026-08.zip",
+            "sha256": "caf753e4c594943da8f08cc7af5d28816fff7b606a9da81ed12e2c3171840ba6",
+            "rows": 44640
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/TUTUSDT/1m/TUTUSDT-1m-2026-09.zip",
+            "sha256": "cc474b9516b404a5a1188fcdaba253c3770bcca29b18708fea23acacb948a75c",
+            "rows": 43200
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/TUTUSDT/1m/TUTUSDT-1m-2026-10-01.zip",
+            "sha256": "a90960ca3597ced1f45657b4d7886ed58199e35ae2126ec24a0e3a8e14f53b55",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/TUTUSDT/1m/TUTUSDT-1m-2026-10-02.zip",
+            "sha256": "b046a22ac7e2292282b567f6735d6705b1a5e249f4ecdb8e97d29e78eb1fff1e",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/TUTUSDT/1m/TUTUSDT-1m-2026-10-03.zip",
+            "sha256": "93ad162631a15780c87f40b5ba95f3da872177918b73b0ab596999b51ac7fb09",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/TUTUSDT/1m/TUTUSDT-1m-2026-10-04.zip",
+            "sha256": "1d48855e035347c21bc650e6ee4f8d67d51b5e63182f1e5af6cf90b1f169a6b1",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/TUTUSDT/1m/TUTUSDT-1m-2026-10-05.zip",
+            "sha256": "0f5cee6eec47c07c9bb28bf2306c4ac106721896978c8abc66c92e3881e0cbea",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/TUTUSDT/1m/TUTUSDT-1m-2026-10-06.zip",
+            "sha256": "9e2e479537faaf50685f5e46b574af2c6b6468022f4ddfccb3a816a19a06adbb",
+            "rows": 1440
+          }
+        ]
+      },
+      "generated_signals": 346
+    },
+    {
+      "symbol": "SKYAIUSDT",
+      "status": "NO_ROBUST_TRAIN",
+      "data": {
+        "first_ms": 1775001600000,
+        "last_ms": 1791331140000,
+        "bars": 272160,
+        "span_days": 188.99930555555557,
+        "coverage": 1.0,
+        "gap_count": 0,
+        "manifest": [
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/SKYAIUSDT/1m/SKYAIUSDT-1m-2026-04.zip",
+            "sha256": "030b92f23a78aee873088a196a98b7eeeefe6ec9434e6ba66cb20e5458c1aff1",
+            "rows": 43200
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/SKYAIUSDT/1m/SKYAIUSDT-1m-2026-05.zip",
+            "sha256": "97f1e225292844212100a39c1ae3450db64969f561af9d38d7ea24dc796972c2",
+            "rows": 44640
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/SKYAIUSDT/1m/SKYAIUSDT-1m-2026-06.zip",
+            "sha256": "158d4738eef7399be69b1f0852c931fb138260c48b8a3e69fc733d418de294f8",
+            "rows": 43200
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/SKYAIUSDT/1m/SKYAIUSDT-1m-2026-07.zip",
+            "sha256": "6346c0164c95b5fa2edcea189cda931c82c3ae6064ed5097dbb935d085c1120b",
+            "rows": 44640
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/SKYAIUSDT/1m/SKYAIUSDT-1m-2026-08.zip",
+            "sha256": "95debe803e5ae0d05def0427f5bb90e603579f9dfabb918814eeeb7581c47fb9",
+            "rows": 44640
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/SKYAIUSDT/1m/SKYAIUSDT-1m-2026-09.zip",
+            "sha256": "bb24a92645c2decc7792e33cdca2a22d4a29b2e211a2a2bcecb80d40e4ce0f7c",
+            "rows": 43200
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/SKYAIUSDT/1m/SKYAIUSDT-1m-2026-10-01.zip",
+            "sha256": "021d4379f8ecc79cd3b878c85523ff3b10bbcfe03faa45f279bcae1129c4dbd5",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/SKYAIUSDT/1m/SKYAIUSDT-1m-2026-10-02.zip",
+            "sha256": "9b6386025c993647014307773b8a9efbdd016f8c5048e108570317171b36eb4e",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/SKYAIUSDT/1m/SKYAIUSDT-1m-2026-10-03.zip",
+            "sha256": "263b105c1a7d9032d63b742387a4b3ae23bb4275420122cbcd0001fc8ccec180",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/SKYAIUSDT/1m/SKYAIUSDT-1m-2026-10-04.zip",
+            "sha256": "9634e5c4bdca68f0b18cd852b4d098b331d98edea9dd5b33b396da45407605be",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/SKYAIUSDT/1m/SKYAIUSDT-1m-2026-10-05.zip",
+            "sha256": "b1a3a39dc04525d31e63bb1b0066aa9b3805f8d588fd5472f19619baf5e0bdf6",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/SKYAIUSDT/1m/SKYAIUSDT-1m-2026-10-06.zip",
+            "sha256": "68853dc32243c9cecab1d3a0be9a4144c16c5b2d2c1cc17905d4e06bcb81164f",
+            "rows": 1440
+          }
+        ]
+      },
+      "generated_signals": 346
+    },
+    {
+      "symbol": "ESPORTSUSDT",
+      "status": "NO_ROBUST_TRAIN",
+      "data": {
+        "first_ms": 1775001600000,
+        "last_ms": 1791331140000,
+        "bars": 272160,
+        "span_days": 188.99930555555557,
+        "coverage": 1.0,
+        "gap_count": 0,
+        "manifest": [
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ESPORTSUSDT/1m/ESPORTSUSDT-1m-2026-04.zip",
+            "sha256": "f0ec647a7755e277ee79000dcf108f2109e7defc394253642e3dd4f8f4a91b06",
+            "rows": 43200
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ESPORTSUSDT/1m/ESPORTSUSDT-1m-2026-05.zip",
+            "sha256": "8e0adfbed2157aa7c2bc478c55d3d3b8b0791245488f28099f0f1d23fba4e507",
+            "rows": 44640
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ESPORTSUSDT/1m/ESPORTSUSDT-1m-2026-06.zip",
+            "sha256": "64230051d85202213d73c603fc68f31dd297fa9a3eb0e2eda6771f6f97e5d6dc",
+            "rows": 43200
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ESPORTSUSDT/1m/ESPORTSUSDT-1m-2026-07.zip",
+            "sha256": "418aba20a7efe6aa176e6fcf049c88343230e95f99f6544644c1d3c4003a5d56",
+            "rows": 44640
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ESPORTSUSDT/1m/ESPORTSUSDT-1m-2026-08.zip",
+            "sha256": "ae15e36a1147dd4d7f3e29551a0165542277f2846895c3cd81c60976f15d953c",
+            "rows": 44640
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/ESPORTSUSDT/1m/ESPORTSUSDT-1m-2026-09.zip",
+            "sha256": "f1ac514ef9852342c72240cb0df8366ec18689a189ba7835efdf386099a76885",
+            "rows": 43200
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/ESPORTSUSDT/1m/ESPORTSUSDT-1m-2026-10-01.zip",
+            "sha256": "c7b909ea0f0eb45ddaa96f1c96b436271765d142598ca032a5b598117ec78256",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/ESPORTSUSDT/1m/ESPORTSUSDT-1m-2026-10-02.zip",
+            "sha256": "9d7f5e01f6eadd7d90d4253f35eac7e99a4155d804dc8f9c69b16ef7dde65aa7",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/ESPORTSUSDT/1m/ESPORTSUSDT-1m-2026-10-03.zip",
+            "sha256": "ccd9adc105031314c8417a80f33e9bef30391dad7275bccf5c80d228ebee516c",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/ESPORTSUSDT/1m/ESPORTSUSDT-1m-2026-10-04.zip",
+            "sha256": "8a1161826488cf2d052c52f62801b79477855b6dff8710d1dd54410312462ee6",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/ESPORTSUSDT/1m/ESPORTSUSDT-1m-2026-10-05.zip",
+            "sha256": "62e3e815d8ad2d43030ba04323d5eba67495fd29003958cb4ee69394e0d222c1",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/ESPORTSUSDT/1m/ESPORTSUSDT-1m-2026-10-06.zip",
+            "sha256": "4d8516805d0dbdd808e1f126503a465fb9665533cb93882fcefc6b25228d3414",
+            "rows": 1440
+          }
+        ]
+      },
+      "generated_signals": 346
+    },
+    {
+      "symbol": "HUSDT",
+      "status": "NO_ROBUST_TRAIN",
+      "data": {
+        "first_ms": 1775001600000,
+        "last_ms": 1791331140000,
+        "bars": 272160,
+        "span_days": 188.99930555555557,
+        "coverage": 1.0,
+        "gap_count": 0,
+        "manifest": [
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/HUSDT/1m/HUSDT-1m-2026-04.zip",
+            "sha256": "5e368c8e6e1f7c8726dbe7cf34c858147209168e974471a370ada8d99d600cb5",
+            "rows": 43200
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/HUSDT/1m/HUSDT-1m-2026-05.zip",
+            "sha256": "7a469564d83626efe87347c29d5643e01c16cb771476da8b23b60cae4df10b8c",
+            "rows": 44640
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/HUSDT/1m/HUSDT-1m-2026-06.zip",
+            "sha256": "0ed1d6171ced65df2f7acab93f22822af90a2d06a1cc0bfb55c28470ff25ccbf",
+            "rows": 43200
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/HUSDT/1m/HUSDT-1m-2026-07.zip",
+            "sha256": "941ba9446e329c55da6a10394ce848316cafd0dad9098278bbefa6d491a29f25",
+            "rows": 44640
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/HUSDT/1m/HUSDT-1m-2026-08.zip",
+            "sha256": "93928aa0e74a268299193f87e397605893e7f2e81122130806790cba5a45e4f3",
+            "rows": 44640
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/HUSDT/1m/HUSDT-1m-2026-09.zip",
+            "sha256": "e149273d3aea3c119de266648e7e5135d9da02317c7846387649ade7f2e66735",
+            "rows": 43200
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/HUSDT/1m/HUSDT-1m-2026-10-01.zip",
+            "sha256": "4dacf2ee7b2cfa2bf6ec65130e74eae17b14cc41c0a9e2e8112f5c2b992f9792",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/HUSDT/1m/HUSDT-1m-2026-10-02.zip",
+            "sha256": "93e844bad1a7b3f42d038954c4d4ea23b973ec018728fc7c1ac6c844b12040df",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/HUSDT/1m/HUSDT-1m-2026-10-03.zip",
+            "sha256": "53b182e8c6e079f4e0fd887668b796cd26c2d75432cfd0441dc9754d0bacb98e",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/HUSDT/1m/HUSDT-1m-2026-10-04.zip",
+            "sha256": "27c5da886497c9b2cbb75777a0f0519850fa5a78fe97980f20ddf6a3f3cf7ff6",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/HUSDT/1m/HUSDT-1m-2026-10-05.zip",
+            "sha256": "95027cf5cf6a271ef3e02c792e8c0faea7df22dd5d07efd08d1ea574af3af20a",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/HUSDT/1m/HUSDT-1m-2026-10-06.zip",
+            "sha256": "631745cfacc42253c89016206e46f870d6e3c480e7cffd57331810858bc2954f",
+            "rows": 1440
+          }
+        ]
+      },
+      "generated_signals": 346
+    },
+    {
+      "symbol": "NAORISUSDT",
+      "status": "FAIL",
+      "data": {
+        "first_ms": 1775001600000,
+        "last_ms": 1791331140000,
+        "bars": 272160,
+        "span_days": 188.99930555555557,
+        "coverage": 1.0,
+        "gap_count": 0,
+        "manifest": [
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/NAORISUSDT/1m/NAORISUSDT-1m-2026-04.zip",
+            "sha256": "e01178cc1be8b591f8a445670ad3ec13c1af196c9974da82e2633236440513d5",
+            "rows": 43200
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/NAORISUSDT/1m/NAORISUSDT-1m-2026-05.zip",
+            "sha256": "a91e378703828b548433c14c199aa756015910eb626f427200a5d52278560589",
+            "rows": 44640
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/NAORISUSDT/1m/NAORISUSDT-1m-2026-06.zip",
+            "sha256": "5679d80d6d43e9630d0debbc0b8a9c4d5c7aeff9b8e31d3bf578c7c6e1873ddb",
+            "rows": 43200
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/NAORISUSDT/1m/NAORISUSDT-1m-2026-07.zip",
+            "sha256": "6a319801a4e368dddd806aac6f2340566a3bf2fbfac94822c56f05af0d73ca6e",
+            "rows": 44640
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/NAORISUSDT/1m/NAORISUSDT-1m-2026-08.zip",
+            "sha256": "74c0bb9cc6c33867eddca74c938c069ef3d927610a9a50297311217bd63783e9",
+            "rows": 44640
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/NAORISUSDT/1m/NAORISUSDT-1m-2026-09.zip",
+            "sha256": "17c586ca58eaf7d2029711b8e882533ce0f7b86e7a42df15ee6e8e4e8b9b34f6",
+            "rows": 43200
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/NAORISUSDT/1m/NAORISUSDT-1m-2026-10-01.zip",
+            "sha256": "f5f2bf35a4ee952e6594f79e37a54208def63220c6a8baed445b68bc9c3864b4",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/NAORISUSDT/1m/NAORISUSDT-1m-2026-10-02.zip",
+            "sha256": "c5a7b391382232db061992cda1d37b4a085556af8f946c822b780babc846e887",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/NAORISUSDT/1m/NAORISUSDT-1m-2026-10-03.zip",
+            "sha256": "a79643cd19930de6cd59364b171c3fba757ba9afa9bb460e59d957eac09503c5",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/NAORISUSDT/1m/NAORISUSDT-1m-2026-10-04.zip",
+            "sha256": "a749d248fb790e74821201545200cf98c35ab1b54add374912a5294238626f3e",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/NAORISUSDT/1m/NAORISUSDT-1m-2026-10-05.zip",
+            "sha256": "9c67eed91951754e569f65ef4686c6e3e3379d46bccb47db60a95c654bddbe62",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/NAORISUSDT/1m/NAORISUSDT-1m-2026-10-06.zip",
+            "sha256": "c92c0ec49fc6263ebae0ed87ed75052b7030b49019c52819f3ea1594fdb8353f",
+            "rows": 1440
+          }
+        ]
+      },
+      "split": {
+        "start_ms": 1775001600000,
+        "dev_end_ms": 1784799360000,
+        "selection_end_ms": 1788065280000,
+        "end_ms": 1791331200000
+      },
+      "generated_signals": 346,
+      "chosen": {
+        "signal": "rsi_ge_80_rev",
+        "family": "rsi_reversal",
+        "detail": {},
+        "side": "SHORT",
+        "tp_pct": 1.5,
+        "sl_pct": 2.0,
+        "hold_min": 60,
+        "dev": {
+          "n": 334,
+          "wins": 221,
+          "wr": 66.168,
+          "pf": 1.2451,
+          "avg_net_bps": 15.1443,
+          "sum_net_pct": 50.5819
+        },
+        "selection": {
+          "n": 74,
+          "wins": 51,
+          "wr": 68.919,
+          "pf": 1.7959,
+          "avg_net_bps": 26.4372,
+          "sum_net_pct": 19.5636
+        },
+        "train_velocity_score": 0.004460490476190476
+      },
+      "holdout": {
+        "n": 108,
+        "wins": 53,
+        "wr": 49.074,
+        "pf": 0.529,
+        "avg_net_bps": -45.3036,
+        "sum_net_pct": -48.9278
+      },
+      "holdout_chunks": [
+        {
+          "start_ms": 1788065280000,
+          "end_ms": 1789153920000,
+          "n": 42,
+          "wins": 17,
+          "wr": 40.476,
+          "pf": 0.4047,
+          "avg_net_bps": -69.4623,
+          "sum_net_pct": -29.1742
+        },
+        {
+          "start_ms": 1789153920000,
+          "end_ms": 1790242560000,
+          "n": 52,
+          "wins": 27,
+          "wr": 51.923,
+          "pf": 0.5755,
+          "avg_net_bps": -43.0591,
+          "sum_net_pct": -22.3907
+        },
+        {
+          "start_ms": 1790242560000,
+          "end_ms": 1791331200000,
+          "n": 14,
+          "wins": 9,
+          "wr": 64.286,
+          "pf": 2.2416,
+          "avg_net_bps": 18.8362,
+          "sum_net_pct": 2.6371
+        }
+      ],
+      "positive_holdout_chunks": 1,
+      "cost_stress": {
+        "0.0016": {
+          "n": 108,
+          "wins": 53,
+          "wr": 49.074,
+          "pf": 0.529,
+          "avg_net_bps": -45.3036,
+          "sum_net_pct": -48.9278
+        },
+        "0.0025": {
+          "n": 108,
+          "wins": 51,
+          "wr": 47.222,
+          "pf": 0.4615,
+          "avg_net_bps": -54.3036,
+          "sum_net_pct": -58.6478
+        },
+        "0.0035": {
+          "n": 108,
+          "wins": 50,
+          "wr": 46.296,
+          "pf": 0.3942,
+          "avg_net_bps": -64.3036,
+          "sum_net_pct": -69.4478
+        }
+      },
+      "neighbors": [
+        {
+          "tp_pct": 1.0,
+          "sl_pct": 2.0,
+          "hold_min": 60,
+          "train_selection": {
+            "n": 417,
+            "wins": 312,
+            "wr": 74.82,
+            "pf": 1.2922,
+            "avg_net_bps": 13.3088,
+            "sum_net_pct": 55.4976
+          },
+          "holdout": {
+            "n": 110,
+            "wins": 61,
+            "wr": 55.455,
+            "pf": 0.5118,
+            "avg_net_bps": -40.353,
+            "sum_net_pct": -44.3883
+          }
+        },
+        {
+          "tp_pct": 1.5,
+          "sl_pct": 1.5,
+          "hold_min": 60,
+          "train_selection": {
+            "n": 449,
+            "wins": 267,
+            "wr": 59.465,
+            "pf": 1.1468,
+            "avg_net_bps": 8.5629,
+            "sum_net_pct": 38.4473
+          },
+          "holdout": {
+            "n": 115,
+            "wins": 52,
+            "wr": 45.217,
+            "pf": 0.5518,
+            "avg_net_bps": -38.0129,
+            "sum_net_pct": -43.7148
+          }
+        },
+        {
+          "tp_pct": 1.5,
+          "sl_pct": 2.0,
+          "hold_min": 30,
+          "train_selection": {
+            "n": 410,
+            "wins": 250,
+            "wr": 60.976,
+            "pf": 1.1234,
+            "avg_net_bps": 6.7572,
+            "sum_net_pct": 27.7045
+          },
+          "holdout": {
+            "n": 111,
+            "wins": 53,
+            "wr": 47.748,
+            "pf": 0.5227,
+            "avg_net_bps": -40.2344,
+            "sum_net_pct": -44.6602
+          }
+        },
+        {
+          "tp_pct": 1.5,
+          "sl_pct": 2.0,
+          "hold_min": 60,
+          "train_selection": {
+            "n": 408,
+            "wins": 272,
+            "wr": 66.667,
+            "pf": 1.2999,
+            "avg_net_bps": 16.9755,
+            "sum_net_pct": 69.2602
+          },
+          "holdout": {
+            "n": 108,
+            "wins": 53,
+            "wr": 49.074,
+            "pf": 0.529,
+            "avg_net_bps": -45.3036,
+            "sum_net_pct": -48.9278
+          }
+        },
+        {
+          "tp_pct": 2.0,
+          "sl_pct": 2.0,
+          "hold_min": 60,
+          "train_selection": {
+            "n": 404,
+            "wins": 252,
+            "wr": 62.376,
+            "pf": 1.286,
+            "avg_net_bps": 18.1578,
+            "sum_net_pct": 73.3575
+          },
+          "holdout": {
+            "n": 108,
+            "wins": 51,
+            "wr": 47.222,
+            "pf": 0.5901,
+            "avg_net_bps": -39.9701,
+            "sum_net_pct": -43.1677
+          }
+        }
+      ],
+      "positive_train_neighbors": 5,
+      "positive_holdout_neighbors": 0,
+      "holdout_records": [
+        [
+          1788096000000.0,
+          1788096180000.0,
+          0.013400000000000013
+        ],
+        [
+          1788318720000.0,
+          1788322260000.0,
+          0.010164705882352899
+        ],
+        [
+          1788393960000.0,
+          1788397500000.0,
+          -0.006017670682731023
+        ],
+        [
+          1788454200000.0,
+          1788457740000.0,
+          -0.006031909750201468
+        ],
+        [
+          1788458040000.0,
+          1788461580000.0,
+          0.00039680511182109825
+        ],
+        [
+          1788481500000.0,
+          1788485040000.0,
+          0.008779241516966008
+        ],
+        [
+          1788487080000.0,
+          1788490620000.0,
+          -0.002802404809619084
+        ],
+        [
+          1788499320000.0,
+          1788502860000.0,
+          0.004769426751592355
+        ],
+        [
+          1788541200000.0,
+          1788542700000.0,
+          0.013400000000000013
+        ],
+        [
+          1788550320000.0,
+          1788553440000.0,
+          0.013400000000000013
+        ],
+        [
+          1788582420000.0,
+          1788583740000.0,
+          -0.02160000000000002
+        ],
+        [
+          1788587040000.0,
+          1788588180000.0,
+          -0.02160000000000002
+        ],
+        [
+          1788588300000.0,
+          1788588840000.0,
+          -0.02160000000000002
+        ],
+        [
+          1788588900000.0,
+          1788588960000.0,
+          -0.02160000000000002
+        ],
+        [
+          1788589020000.0,
+          1788589020000.0,
+          -0.02160000000000002
+        ],
+        [
+          1788589080000.0,
+          1788589320000.0,
+          -0.02160000000000002
+        ],
+        [
+          1788589380000.0,
+          1788589380000.0,
+          0.013400000000000013
+        ],
+        [
+          1788589920000.0,
+          1788589920000.0,
+          0.013400000000000013
+        ],
+        [
+          1788671400000.0,
+          1788674640000.0,
+          -0.02160000000000002
+        ],
+        [
+          1788681960000.0,
+          1788681960000.0,
+          -0.02160000000000002
+        ],
+        [
+          1788682020000.0,
+          1788683460000.0,
+          0.013400000000000013
+        ],
+        [
+          1788687480000.0,
+          1788687720000.0,
+          -0.02160000000000002
+        ],
+        [
+          1788688320000.0,
+          1788690060000.0,
+          -0.02160000000000002
+        ],
+        [
+          1788700200000.0,
+          1788700200000.0,
+          -0.02160000000000002
+        ],
+        [
+          1788700260000.0,
+          1788700320000.0,
+          0.013399999999999902
+        ],
+        [
+          1788707880000.0,
+          1788707880000.0,
+          -0.02160000000000002
+        ],
+        [
+          1788707940000.0,
+          1788708000000.0,
+          0.013400000000000013
+        ],
+        [
+          1788734040000.0,
+          1788734220000.0,
+          -0.02160000000000002
+        ],
+        [
+          1788734280000.0,
+          1788735240000.0,
+          0.013399999999999902
+        ],
+        [
+          1788764220000.0,
+          1788764280000.0,
+          -0.02160000000000002
+        ],
+        [
+          1788764340000.0,
+          1788764700000.0,
+          0.013400000000000013
+        ],
+        [
+          1788784860000.0,
+          1788784920000.0,
+          -0.02160000000000002
+        ],
+        [
+          1788784980000.0,
+          1788784980000.0,
+          0.013400000000000013
+        ],
+        [
+          1788856740000.0,
+          1788857340000.0,
+          -0.02160000000000002
+        ],
+        [
+          1788857400000.0,
+          1788860760000.0,
+          -0.02160000000000002
+        ],
+        [
+          1788861300000.0,
+          1788862260000.0,
+          -0.02160000000000002
+        ],
+        [
+          1788862500000.0,
+          1788862620000.0,
+          -0.02160000000000002
+        ],
+        [
+          1788912240000.0,
+          1788915720000.0,
+          -0.02160000000000002
+        ],
+        [
+          1788916080000.0,
+          1788916620000.0,
+          0.013400000000000013
+        ],
+        [
+          1788933840000.0,
+          1788935460000.0,
+          -0.02160000000000002
+        ],
+        [
+          1789085880000.0,
+          1789088820000.0,
+          -0.02160000000000002
+        ],
+        [
+          1789135380000.0,
+          1789137240000.0,
+          0.013400000000000124
+        ],
+        [
+          1789161060000.0,
+          1789163580000.0,
+          0.013400000000000124
+        ],
+        [
+          1789179060000.0,
+          1789181580000.0,
+          -0.02160000000000002
+        ],
+        [
+          1789189080000.0,
+          1789189260000.0,
+          0.013399999999999902
+        ],
+        [
+          1789239060000.0,
+          1789242360000.0,
+          0.013399999999999902
+        ],
+        [
+          1789264800000.0,
+          1789267740000.0,
+          -0.02160000000000002
+        ],
+        [
+          1789267860000.0,
+          1789268460000.0,
+          -0.02160000000000002
+        ],
+        [
+          1789268520000.0,
+          1789270080000.0,
+          0.013400000000000124
+        ],
+        [
+          1789283820000.0,
+          1789283820000.0,
+          -0.02160000000000002
+        ],
+        [
+          1789283880000.0,
+          1789284000000.0,
+          -0.02160000000000002
+        ],
+        [
+          1789284060000.0,
+          1789284360000.0,
+          -0.02160000000000002
+        ],
+        [
+          1789284420000.0,
+          1789284420000.0,
+          -0.02160000000000002
+        ],
+        [
+          1789284480000.0,
+          1789284480000.0,
+          -0.02160000000000002
+        ],
+        [
+          1789284540000.0,
+          1789284600000.0,
+          -0.02160000000000002
+        ],
+        [
+          1789284660000.0,
+          1789284720000.0,
+          0.013400000000000013
+        ],
+        [
+          1789307760000.0,
+          1789307940000.0,
+          -0.02160000000000002
+        ],
+        [
+          1789308000000.0,
+          1789308120000.0,
+          -0.02160000000000002
+        ],
+        [
+          1789308180000.0,
+          1789308720000.0,
+          0.013400000000000013
+        ],
+        [
+          1789317540000.0,
+          1789318080000.0,
+          -0.02160000000000002
+        ],
+        [
+          1789399980000.0,
+          1789400040000.0,
+          0.013400000000000124
+        ],
+        [
+          1789403760000.0,
+          1789404900000.0,
+          -0.02160000000000002
+        ],
+        [
+          1789432860000.0,
+          1789432920000.0,
+          0.013400000000000013
+        ],
+        [
+          1789442880000.0,
+          1789443600000.0,
+          0.013400000000000124
+        ],
+        [
+          1789452840000.0,
+          1789455600000.0,
+          0.013400000000000124
+        ],
+        [
+          1789512000000.0,
+          1789515540000.0,
+          -0.01298065289008683
+        ],
+        [
+          1789542000000.0,
+          1789543680000.0,
+          0.013400000000000013
+        ],
+        [
+          1789581900000.0,
+          1789584960000.0,
+          0.013399999999999902
+        ],
+        [
+          1789588620000.0,
+          1789590000000.0,
+          -0.02160000000000002
+        ],
+        [
+          1789590060000.0,
+          1789590300000.0,
+          -0.02160000000000002
+        ],
+        [
+          1789597140000.0,
+          1789600680000.0,
+          0.0020661026508741924
+        ],
+        [
+          1789634520000.0,
+          1789638060000.0,
+          0.00330478938257366
+        ],
+        [
+          1789659780000.0,
+          1789663320000.0,
+          0.00048519511468574496
+        ],
+        [
+          1789688880000.0,
+          1789689480000.0,
+          0.013400000000000124
+        ],
+        [
+          1789717020000.0,
+          1789720200000.0,
+          0.013399999999999902
+        ],
+        [
+          1789734960000.0,
+          1789738500000.0,
+          -0.017684977238239873
+        ],
+        [
+          1789781040000.0,
+          1789781100000.0,
+          -0.02160000000000002
+        ],
+        [
+          1789781160000.0,
+          1789781700000.0,
+          -0.02160000000000002
+        ],
+        [
+          1789781760000.0,
+          1789781760000.0,
+          -0.02160000000000002
+        ],
+        [
+          1789781820000.0,
+          1789781820000.0,
+          0.013400000000000124
+        ],
+        [
+          1789818000000.0,
+          1789819020000.0,
+          0.013400000000000124
+        ],
+        [
+          1789874400000.0,
+          1789875420000.0,
+          0.013399999999999902
+        ],
+        [
+          1789899720000.0,
+          1789903020000.0,
+          -0.02160000000000002
+        ],
+        [
+          1789903260000.0,
+          1789903380000.0,
+          0.013400000000000013
+        ],
+        [
+          1789943520000.0,
+          1789947060000.0,
+          0.008002194787380002
+        ],
+        [
+          1789960500000.0,
+          1789961700000.0,
+          0.013400000000000013
+        ],
+        [
+          1789990980000.0,
+          1789991940000.0,
+          -0.02160000000000002
+        ],
+        [
+          1790055000000.0,
+          1790058540000.0,
+          0.003696610169491456
+        ],
+        [
+          1790113800000.0,
+          1790117340000.0,
+          0.0046034739454094325
+        ],
+        [
+          1790122920000.0,
+          1790122980000.0,
+          -0.02160000000000002
+        ],
+        [
+          1790123040000.0,
+          1790123040000.0,
+          -0.02160000000000002
+        ],
+        [
+          1790123100000.0,
+          1790123100000.0,
+          -0.02160000000000002
+        ],
+        [
+          1790123160000.0,
+          1790123580000.0,
+          0.013400000000000013
+        ],
+        [
+          1790132820000.0,
+          1790133060000.0,
+          0.013400000000000124
+        ],
+        [
+          1790354520000.0,
+          1790358060000.0,
+          0.0023226674138413965
+        ],
+        [
+          1790373960000.0,
+          1790377500000.0,
+          -0.004633645890788694
+        ],
+        [
+          1790396220000.0,
+          1790399760000.0,
+          -0.002421467688937538
+        ],
+        [
+          1790405700000.0,
+          1790409240000.0,
+          -0.0034791946308724937
+        ],
+        [
+          1790439180000.0,
+          1790442720000.0,
+          0.005353730944102565
+        ],
+        [
+          1790526240000.0,
+          1790529780000.0,
+          -0.0016
+        ],
+        [
+          1790612280000.0,
+          1790615820000.0,
+          0.005792075694855116
+        ],
+        [
+          1790771520000.0,
+          1790775060000.0,
+          0.0016534753031646656
+        ],
+        [
+          1790826900000.0,
+          1790830440000.0,
+          0.011496623981373678
+        ],
+        [
+          1790835840000.0,
+          1790839380000.0,
+          0.006584741303712273
+        ],
+        [
+          1790980860000.0,
+          1790984400000.0,
+          -0.009105773672055627
+        ],
+        [
+          1791039180000.0,
+          1791042720000.0,
+          0.003970214013485897
+        ],
+        [
+          1791078960000.0,
+          1791082500000.0,
+          0.0021302725968435536
+        ],
+        [
+          1791214260000.0,
+          1791217800000.0,
+          0.008306934854397974
+        ]
+      ]
+    },
+    {
+      "symbol": "BROCCOLI714USDT",
+      "status": "NO_ROBUST_TRAIN",
+      "data": {
+        "first_ms": 1775001600000,
+        "last_ms": 1791331140000,
+        "bars": 272160,
+        "span_days": 188.99930555555557,
+        "coverage": 1.0,
+        "gap_count": 0,
+        "manifest": [
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BROCCOLI714USDT/1m/BROCCOLI714USDT-1m-2026-04.zip",
+            "sha256": "4721221c95c114fe2ba10c78dd3906833aeac538d479c66e0b790454df1422cc",
+            "rows": 43200
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BROCCOLI714USDT/1m/BROCCOLI714USDT-1m-2026-05.zip",
+            "sha256": "a68de845f3d470cbdffa1c32c0c8d892510ffe79bbb055d56b42a4ef1fd8138c",
+            "rows": 44640
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BROCCOLI714USDT/1m/BROCCOLI714USDT-1m-2026-06.zip",
+            "sha256": "f36cb3f45b06f9f07622b78e3d08db47dc1369f66c45e1d36af3df0edf78e45d",
+            "rows": 43200
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BROCCOLI714USDT/1m/BROCCOLI714USDT-1m-2026-07.zip",
+            "sha256": "600b576df01ed9410da8f1e6c8d1bc8e90d151d9559f03e84b90f906c539cc60",
+            "rows": 44640
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BROCCOLI714USDT/1m/BROCCOLI714USDT-1m-2026-08.zip",
+            "sha256": "83892c7f2daa03eb0671b975042228704d2d75b3536cfd9722470b28739734ac",
+            "rows": 44640
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/BROCCOLI714USDT/1m/BROCCOLI714USDT-1m-2026-09.zip",
+            "sha256": "576d151808496b46f49896df411f70963e01edb251c4fea2eeb4c1060870e622",
+            "rows": 43200
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/BROCCOLI714USDT/1m/BROCCOLI714USDT-1m-2026-10-01.zip",
+            "sha256": "4a2eda30b76c1a22c72f51deeebe0f1ed4ee114fdae36ff4320db39153a49a98",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/BROCCOLI714USDT/1m/BROCCOLI714USDT-1m-2026-10-02.zip",
+            "sha256": "859cbb4099b49e2a3214b55a861fd79439519256deb177510fc364ee11499d95",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/BROCCOLI714USDT/1m/BROCCOLI714USDT-1m-2026-10-03.zip",
+            "sha256": "5523218eab8845889e48f2df350bc57e02950a32212fa91e981330c7b38a774a",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/BROCCOLI714USDT/1m/BROCCOLI714USDT-1m-2026-10-04.zip",
+            "sha256": "a98ebb22b5f2386dc0c375527e8db902d5f75aa985fa379b35cd8855487e99d5",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/BROCCOLI714USDT/1m/BROCCOLI714USDT-1m-2026-10-05.zip",
+            "sha256": "88e5a5ef1e18cf94c79f8e754a3b99ef025ec06579c8351245f457513c146b6e",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/BROCCOLI714USDT/1m/BROCCOLI714USDT-1m-2026-10-06.zip",
+            "sha256": "9719e9b838db6f39649d35cb8e78aac756a52ca26469b44b1d0c52e1ad1b7c71",
+            "rows": 1440
+          }
+        ]
+      },
+      "generated_signals": 346
+    },
+    {
+      "symbol": "CTRUSDT",
+      "status": "FAIL",
+      "data": {
+        "first_ms": 1779960600000,
+        "last_ms": 1791331140000,
+        "bars": 189510,
+        "span_days": 131.60347222222222,
+        "coverage": 1.0,
+        "gap_count": 0,
+        "manifest": [
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/CTRUSDT/1m/CTRUSDT-1m-2026-04.zip",
+            "missing": 404
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/CTRUSDT/1m/CTRUSDT-1m-2026-05.zip",
+            "sha256": "209bebf166acf24a036e2e3e69b5768f3613dadde574c44c250467ed873d60f7",
+            "rows": 5190
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/CTRUSDT/1m/CTRUSDT-1m-2026-06.zip",
+            "sha256": "fa44a784534423219c2b945a707437b733d9eac03a06ca41abb747f07113543b",
+            "rows": 43200
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/CTRUSDT/1m/CTRUSDT-1m-2026-07.zip",
+            "sha256": "142abf4fdafc91caa0bd935027933569973c06f40c76972da50a5bc0f3c42caf",
+            "rows": 44640
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/CTRUSDT/1m/CTRUSDT-1m-2026-08.zip",
+            "sha256": "4409e1ef372ef693e7b7a254d5448c6854171e3dbe09a24e4f504277147c434a",
+            "rows": 44640
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/monthly/klines/CTRUSDT/1m/CTRUSDT-1m-2026-09.zip",
+            "sha256": "4b0f191903343fe428a915328f0d49f3fd92448043111ff7e842b4345cd134ea",
+            "rows": 43200
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/CTRUSDT/1m/CTRUSDT-1m-2026-10-01.zip",
+            "sha256": "4f22c7a3cd5882f25f0511ae99f06244760cae5706e11513b1c8f55678f83af0",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/CTRUSDT/1m/CTRUSDT-1m-2026-10-02.zip",
+            "sha256": "2aced5d6f4994e8e9fa86ba23b9906fcdc1b8b678313086c7b3840049777b26e",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/CTRUSDT/1m/CTRUSDT-1m-2026-10-03.zip",
+            "sha256": "b0d8ef51801864c10cbe810ade91dec270c7027743c747d38798ee585e709438",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/CTRUSDT/1m/CTRUSDT-1m-2026-10-04.zip",
+            "sha256": "e32dcda016176ab9dc55ad0f61123872b98656fc298d5bc3476450303ad3b990",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/CTRUSDT/1m/CTRUSDT-1m-2026-10-05.zip",
+            "sha256": "830457e35ee90d5dc1dc27ace035055ce23bc671391cf28dc3e00729a759d71e",
+            "rows": 1440
+          },
+          {
+            "url": "https://data.binance.vision/data/futures/um/daily/klines/CTRUSDT/1m/CTRUSDT-1m-2026-10-06.zip",
+            "sha256": "57f4d1653e19df583e50461ec86eebf4f098cdbc99484c5c9a754ebb6e18bf99",
+            "rows": 1440
+          }
+        ]
+      },
+      "split": {
+        "start_ms": 1779960600000,
+        "dev_end_ms": 1786782960000,
+        "selection_end_ms": 1789057080000,
+        "end_ms": 1791331200000
+      },
+      "generated_signals": 346,
+      "chosen": {
+        "signal": "rev_5_0.02_up",
+        "family": "reversal",
+        "detail": {
+          "mins": 5,
+          "thr": 0.02
+        },
+        "side": "SHORT",
+        "tp_pct": 2.0,
+        "sl_pct": 1.5,
+        "hold_min": 60,
+        "dev": {
+          "n": 254,
+          "wins": 131,
+          "wr": 51.575,
+          "pf": 1.1643,
+          "avg_net_bps": 12.7275,
+          "sum_net_pct": 32.328
+        },
+        "selection": {
+          "n": 22,
+          "wins": 14,
+          "wr": 63.636,
+          "pf": 1.8636,
+          "avg_net_bps": 46.1442,
+          "sum_net_pct": 10.1517
+        },
+        "train_velocity_score": 0.0038569158777900904
+      },
+      "holdout": {
+        "n": 71,
+        "wins": 27,
+        "wr": 38.028,
+        "pf": 0.6827,
+        "avg_net_bps": -31.64,
+        "sum_net_pct": -22.4644
+      },
+      "holdout_chunks": [
+        {
+          "start_ms": 1789057080000,
+          "end_ms": 1789815120000,
+          "n": 36,
+          "wins": 13,
+          "wr": 36.111,
+          "pf": 0.6265,
+          "avg_net_bps": -39.6111,
+          "sum_net_pct": -14.26
+        },
+        {
+          "start_ms": 1789815120000,
+          "end_ms": 1790573160000,
+          "n": 19,
+          "wins": 7,
+          "wr": 36.842,
+          "pf": 0.6163,
+          "avg_net_bps": -38.496,
+          "sum_net_pct": -7.3142
+        },
+        {
+          "start_ms": 1790573160000,
+          "end_ms": 1791331200000,
+          "n": 16,
+          "wins": 7,
+          "wr": 43.75,
+          "pf": 0.9344,
+          "avg_net_bps": -5.5634,
+          "sum_net_pct": -0.8901
+        }
+      ],
+      "positive_holdout_chunks": 0,
+      "cost_stress": {
+        "0.0016": {
+          "n": 71,
+          "wins": 27,
+          "wr": 38.028,
+          "pf": 0.6827,
+          "avg_net_bps": -31.64,
+          "sum_net_pct": -22.4644
+        },
+        "0.0025": {
+          "n": 71,
+          "wins": 27,
+          "wr": 38.028,
+          "pf": 0.6141,
+          "avg_net_bps": -40.64,
+          "sum_net_pct": -28.8544
+        },
+        "0.0035": {
+          "n": 71,
+          "wins": 27,
+          "wr": 38.028,
+          "pf": 0.5458,
+          "avg_net_bps": -50.64,
+          "sum_net_pct": -35.9544
+        }
+      },
+      "neighbors": [
+        {
+          "tp_pct": 1.5,
+          "sl_pct": 1.5,
+          "hold_min": 60,
+          "train_selection": {
+            "n": 285,
+            "wins": 164,
+            "wr": 57.544,
+            "pf": 1.1186,
+            "avg_net_bps": 8.0292,
+            "sum_net_pct": 22.8832
+          },
+          "holdout": {
+            "n": 77,
+            "wins": 37,
+            "wr": 48.052,
+            "pf": 0.7585,
+            "avg_net_bps": -20.1264,
+            "sum_net_pct": -15.4973
+          }
+        },
+        {
+          "tp_pct": 2.0,
+          "sl_pct": 1.0,
+          "hold_min": 60,
+          "train_selection": {
+            "n": 317,
+            "wins": 130,
+            "wr": 41.009,
+            "pf": 1.068,
+            "avg_net_bps": 4.5668,
+            "sum_net_pct": 14.4768
+          },
+          "holdout": {
+            "n": 80,
+            "wins": 25,
+            "wr": 31.25,
+            "pf": 0.7098,
+            "avg_net_bps": -22.8289,
+            "sum_net_pct": -18.2631
+          }
+        },
+        {
+          "tp_pct": 2.0,
+          "sl_pct": 1.5,
+          "hold_min": 30,
+          "train_selection": {
+            "n": 277,
+            "wins": 145,
+            "wr": 52.347,
+            "pf": 1.1908,
+            "avg_net_bps": 13.6575,
+            "sum_net_pct": 37.8313
+          },
+          "holdout": {
+            "n": 71,
+            "wins": 27,
+            "wr": 38.028,
+            "pf": 0.6753,
+            "avg_net_bps": -31.9497,
+            "sum_net_pct": -22.6843
+          }
+        },
+        {
+          "tp_pct": 2.0,
+          "sl_pct": 1.5,
+          "hold_min": 60,
+          "train_selection": {
+            "n": 276,
+            "wins": 145,
+            "wr": 52.536,
+            "pf": 1.2038,
+            "avg_net_bps": 15.3912,
+            "sum_net_pct": 42.4797
+          },
+          "holdout": {
+            "n": 71,
+            "wins": 27,
+            "wr": 38.028,
+            "pf": 0.6827,
+            "avg_net_bps": -31.64,
+            "sum_net_pct": -22.4644
+          }
+        },
+        {
+          "tp_pct": 2.0,
+          "sl_pct": 2.0,
+          "hold_min": 60,
+          "train_selection": {
+            "n": 257,
+            "wins": 148,
+            "wr": 57.588,
+            "pf": 1.1758,
+            "avg_net_bps": 14.7515,
+            "sum_net_pct": 37.9115
+          },
+          "holdout": {
+            "n": 65,
+            "wins": 31,
+            "wr": 47.692,
+            "pf": 0.7934,
+            "avg_net_bps": -22.3144,
+            "sum_net_pct": -14.5044
+          }
+        }
+      ],
+      "positive_train_neighbors": 5,
+      "positive_holdout_neighbors": 0,
+      "holdout_records": [
+        [
+          1789202160000.0,
+          1789205580000.0,
+          0.018400000000000017
+        ],
+        [
+          1789273860000.0,
+          1789273980000.0,
+          -0.016599999999999903
+        ],
+        [
+          1789274160000.0,
+          1789274400000.0,
+          -0.016599999999999903
+        ],
+        [
+          1789274760000.0,
+          1789274880000.0,
+          -0.016599999999999903
+        ],
+        [
+          1789274940000.0,
+          1789275120000.0,
+          -0.016599999999999903
+        ],
+        [
+          1789275960000.0,
+          1789275960000.0,
+          0.018400000000000017
+        ],
+        [
+          1789276320000.0,
+          1789276380000.0,
+          -0.016599999999999903
+        ],
+        [
+          1789276440000.0,
+          1789277220000.0,
+          -0.016599999999999903
+        ],
+        [
+          1789278780000.0,
+          1789278780000.0,
+          -0.016599999999999903
+        ],
+        [
+          1789278840000.0,
+          1789278900000.0,
+          0.018400000000000017
+        ],
+        [
+          1789279440000.0,
+          1789279440000.0,
+          -0.016599999999999903
+        ],
+        [
+          1789279500000.0,
+          1789279500000.0,
+          -0.016599999999999903
+        ],
+        [
+          1789279560000.0,
+          1789280460000.0,
+          -0.016599999999999903
+        ],
+        [
+          1789280580000.0,
+          1789280640000.0,
+          -0.016599999999999903
+        ],
+        [
+          1789280760000.0,
+          1789280760000.0,
+          0.018399999999999906
+        ],
+        [
+          1789281120000.0,
+          1789281240000.0,
+          0.018400000000000017
+        ],
+        [
+          1789281300000.0,
+          1789281360000.0,
+          0.018400000000000017
+        ],
+        [
+          1789282860000.0,
+          1789284900000.0,
+          -0.016599999999999903
+        ],
+        [
+          1789447080000.0,
+          1789447140000.0,
+          -0.016599999999999903
+        ],
+        [
+          1789447200000.0,
+          1789447200000.0,
+          -0.016599999999999903
+        ],
+        [
+          1789447260000.0,
+          1789447320000.0,
+          -0.016599999999999903
+        ],
+        [
+          1789447380000.0,
+          1789447440000.0,
+          -0.016599999999999903
+        ],
+        [
+          1789447500000.0,
+          1789447500000.0,
+          0.018400000000000017
+        ],
+        [
+          1789447560000.0,
+          1789447560000.0,
+          -0.016599999999999903
+        ],
+        [
+          1789447620000.0,
+          1789447620000.0,
+          0.018400000000000128
+        ],
+        [
+          1789447980000.0,
+          1789447980000.0,
+          0.018400000000000017
+        ],
+        [
+          1789448340000.0,
+          1789448340000.0,
+          0.018400000000000017
+        ],
+        [
+          1789449120000.0,
+          1789449180000.0,
+          0.018400000000000017
+        ],
+        [
+          1789449480000.0,
+          1789449480000.0,
+          0.018400000000000017
+        ],
+        [
+          1789449840000.0,
+          1789450260000.0,
+          -0.016599999999999903
+        ],
+        [
+          1789451340000.0,
+          1789451400000.0,
+          -0.016599999999999903
+        ],
+        [
+          1789451460000.0,
+          1789451520000.0,
+          0.018400000000000017
+        ],
+        [
+          1789451880000.0,
+          1789452060000.0,
+          -0.016599999999999903
+        ],
+        [
+          1789452180000.0,
+          1789452420000.0,
+          -0.016599999999999903
+        ],
+        [
+          1789453020000.0,
+          1789453380000.0,
+          -0.016599999999999903
+        ],
+        [
+          1789453440000.0,
+          1789453800000.0,
+          -0.016599999999999903
+        ],
+        [
+          1789972680000.0,
+          1789976220000.0,
+          -0.008012448700410468
+        ],
+        [
+          1790102640000.0,
+          1790102640000.0,
+          -0.016599999999999903
+        ],
+        [
+          1790102700000.0,
+          1790102820000.0,
+          -0.016599999999999903
+        ],
+        [
+          1790102880000.0,
+          1790103360000.0,
+          0.018400000000000017
+        ],
+        [
+          1790168520000.0,
+          1790168520000.0,
+          -0.016599999999999903
+        ],
+        [
+          1790168580000.0,
+          1790168580000.0,
+          -0.016599999999999903
+        ],
+        [
+          1790168640000.0,
+          1790168640000.0,
+          -0.016599999999999903
+        ],
+        [
+          1790168700000.0,
+          1790168700000.0,
+          -0.016599999999999903
+        ],
+        [
+          1790168760000.0,
+          1790168760000.0,
+          -0.016599999999999903
+        ],
+        [
+          1790168820000.0,
+          1790168820000.0,
+          0.018400000000000017
+        ],
+        [
+          1790447460000.0,
+          1790447700000.0,
+          -0.016599999999999903
+        ],
+        [
+          1790447760000.0,
+          1790448120000.0,
+          0.018400000000000017
+        ],
+        [
+          1790449080000.0,
+          1790449860000.0,
+          0.018400000000000128
+        ],
+        [
+          1790468220000.0,
+          1790468220000.0,
+          -0.016599999999999903
+        ],
+        [
+          1790468280000.0,
+          1790468280000.0,
+          -0.016599999999999903
+        ],
+        [
+          1790468340000.0,
+          1790468400000.0,
+          -0.016599999999999903
+        ],
+        [
+          1790468460000.0,
+          1790468520000.0,
+          0.018400000000000128
+        ],
+        [
+          1790471160000.0,
+          1790474700000.0,
+          0.007070084439083237
+        ],
+        [
+          1790521920000.0,
+          1790522160000.0,
+          0.018400000000000128
+        ],
+        [
+          1790761740000.0,
+          1790762100000.0,
+          -0.016599999999999903
+        ],
+        [
+          1790781360000.0,
+          1790784900000.0,
+          0.016332324964915147
+        ],
+        [
+          1790844000000.0,
+          1790844060000.0,
+          -0.016599999999999903
+        ],
+        [
+          1790844120000.0,
+          1790845620000.0,
+          0.018400000000000017
+        ],
+        [
+          1791058020000.0,
+          1791058020000.0,
+          0.018399999999999906
+        ],
+        [
+          1791058080000.0,
+          1791058140000.0,
+          -0.016599999999999903
+        ],
+        [
+          1791058200000.0,
+          1791058500000.0,
+          -0.016599999999999903
+        ],
+        [
+          1791058560000.0,
+          1791058560000.0,
+          -0.016599999999999903
+        ],
+        [
+          1791058620000.0,
+          1791058620000.0,
+          -0.016599999999999903
+        ],
+        [
+          1791058680000.0,
+          1791058680000.0,
+          -0.016599999999999903
+        ],
+        [
+          1791058740000.0,
+          1791058740000.0,
+          0.018400000000000017
+        ],
+        [
+          1791058800000.0,
+          1791058980000.0,
+          -0.016599999999999903
+        ],
+        [
+          1791059100000.0,
+          1791059640000.0,
+          0.018400000000000017
+        ],
+        [
+          1791127920000.0,
+          1791128520000.0,
+          0.018400000000000017
+        ],
+        [
+          1791219780000.0,
+          1791223320000.0,
+          -0.0028338062924122094
+        ],
+        [
+          1791301140000.0,
+          1791301320000.0,
+          0.018400000000000017
+        ]
+      ]
+    }
+  ]
+}
