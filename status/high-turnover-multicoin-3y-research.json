@@ -1,0 +1,5222 @@
+{
+  "window": {
+    "start": "2023-10-08T00:00:00+00:00",
+    "dev_end": "2025-04-07T00:00:00+00:00",
+    "split": "2025-10-07T00:00:00+00:00",
+    "end_exclusive": "2026-10-07T00:00:00+00:00"
+  },
+  "roundtrip_cost_pct": 0.16,
+  "requested_universe_count": 56,
+  "usable_count": 50,
+  "skipped": [
+    {
+      "symbol": "ORCAUSDT",
+      "reason": "insufficient_history_or_coverage",
+      "first": 1733497200000,
+      "last": 1791330300000,
+      "coverage": 1.0
+    },
+    {
+      "symbol": "TAOUSDT",
+      "reason": "insufficient_history_or_coverage",
+      "first": 1712845800000,
+      "last": 1791330300000,
+      "coverage": 1.0
+    },
+    {
+      "symbol": "TRUMPUSDT",
+      "reason": "insufficient_history_or_coverage",
+      "first": 1737205200000,
+      "last": 1791330300000,
+      "coverage": 1.0
+    },
+    {
+      "symbol": "PENGUUSDT",
+      "reason": "insufficient_history_or_coverage",
+      "first": 1734452100000,
+      "last": 1791330300000,
+      "coverage": 1.0
+    },
+    {
+      "symbol": "ZROUSDT",
+      "reason": "insufficient_history_or_coverage",
+      "first": 1718893800000,
+      "last": 1791330300000,
+      "coverage": 1.0
+    },
+    {
+      "symbol": "RENDERUSDT",
+      "reason": "insufficient_history_or_coverage",
+      "first": 1721988000000,
+      "last": 1791330300000,
+      "coverage": 1.0
+    }
+  ],
+  "candidate_count": 28,
+  "method": [
+    "Research only; no paper/live state changes.",
+    "Crypto-only liquid Binance USDT perpetual universe; symbols without sufficient pre-validation history/coverage are skipped.",
+    "15m/1h/4h; both LONG and SHORT; momentum/reversal, volatility expansion/fade, RSI trend/reversal, trend pullback, z-score, Donchian and streak signals.",
+    "Signal and TP/SL/time-stop are chosen using only pre-validation data, scoring expected return velocity rather than win rate alone.",
+    "Per coin only its single best train-selected strategy survives into the portfolio ranking.",
+    "Portfolio subset size is also chosen on training only. Validation then rotates 100% of equity into one trade at a time; overlapping signals are skipped.",
+    "No leverage. Returns include the inherited 0.16% round-trip cost. Closed-equity drawdown is reported.",
+    "Final-year results have been seen in prior experiments for some symbols, so this is not a pristine untouched holdout."
+  ],
+  "train_subset_tests": [
+    {
+      "k": 3,
+      "score_log_return_per_year": 1.2668994104499094,
+      "stats": {
+        "start_balance": 1000.0,
+        "final_balance": 12579.45,
+        "return_pct": 1157.945,
+        "trades": 1396,
+        "wins": 544,
+        "win_rate_pct": 38.968,
+        "max_closed_equity_drawdown_pct": 54.206
+      }
+    },
+    {
+      "k": 12,
+      "score_log_return_per_year": 0.6805526463026164,
+      "stats": {
+        "start_balance": 1000.0,
+        "final_balance": 3896.87,
+        "return_pct": 289.687,
+        "trades": 1233,
+        "wins": 666,
+        "win_rate_pct": 54.015,
+        "max_closed_equity_drawdown_pct": 71.546
+      }
+    },
+    {
+      "k": 16,
+      "score_log_return_per_year": 0.5254329251669083,
+      "stats": {
+        "start_balance": 1000.0,
+        "final_balance": 2858.07,
+        "return_pct": 185.807,
+        "trades": 1301,
+        "wins": 705,
+        "win_rate_pct": 54.189,
+        "max_closed_equity_drawdown_pct": 69.805
+      }
+    },
+    {
+      "k": 8,
+      "score_log_return_per_year": 0.5148173201514289,
+      "stats": {
+        "start_balance": 1000.0,
+        "final_balance": 2798.07,
+        "return_pct": 179.807,
+        "trades": 1196,
+        "wins": 639,
+        "win_rate_pct": 53.428,
+        "max_closed_equity_drawdown_pct": 74.238
+      }
+    },
+    {
+      "k": 5,
+      "score_log_return_per_year": 0.48469174382856506,
+      "stats": {
+        "start_balance": 1000.0,
+        "final_balance": 2634.57,
+        "return_pct": 163.457,
+        "trades": 975,
+        "wins": 418,
+        "win_rate_pct": 42.872,
+        "max_closed_equity_drawdown_pct": 57.516
+      }
+    },
+    {
+      "k": 20,
+      "score_log_return_per_year": 0.14752042280048114,
+      "stats": {
+        "start_balance": 1000.0,
+        "final_balance": 1342.91,
+        "return_pct": 34.291,
+        "trades": 1342,
+        "wins": 738,
+        "win_rate_pct": 54.993,
+        "max_closed_equity_drawdown_pct": 76.526
+      }
+    }
+  ],
+  "chosen_k_train_only": 3,
+  "chosen_symbols_train_only": [
+    "WIFUSDT",
+    "ARBUSDT",
+    "DOGEUSDT"
+  ],
+  "validation_portfolio_stats": {
+    "start_balance": 1000.0,
+    "final_balance": 671.49,
+    "return_pct": -32.851,
+    "trades": 380,
+    "wins": 134,
+    "win_rate_pct": 35.263,
+    "max_closed_equity_drawdown_pct": 54.01
+  },
+  "validation_portfolio_trades": [
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1759795200000,
+      "exit_ms": 1759820400000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1759924800000,
+      "exit_ms": 1759996800000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1760068800000,
+      "exit_ms": 1760108400000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1760112000000,
+      "exit_ms": 1760126400000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1760140800000,
+      "exit_ms": 1760140800000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1760155200000,
+      "exit_ms": 1760155200000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1760169600000,
+      "exit_ms": 1760169600000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1760176800000,
+      "exit_ms": 1760184000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1760191200000,
+      "exit_ms": 1760209200000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1760256000000,
+      "exit_ms": 1760270400000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1760274000000,
+      "exit_ms": 1760277600000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1760281200000,
+      "exit_ms": 1760281200000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1760284800000,
+      "exit_ms": 1760284800000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1760284800000,
+      "exit_ms": 1760371200000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1760378400000,
+      "exit_ms": 1760414400000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1760468400000,
+      "exit_ms": 1760468400000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1760472000000,
+      "exit_ms": 1760533200000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1760616000000,
+      "exit_ms": 1760616000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1760688000000,
+      "exit_ms": 1760688000000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1760731200000,
+      "exit_ms": 1760868000000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1760875200000,
+      "exit_ms": 1761048000000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1761058800000,
+      "exit_ms": 1761076800000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1761076800000,
+      "exit_ms": 1761076800000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1761080400000,
+      "exit_ms": 1761084000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1761206400000,
+      "exit_ms": 1761278400000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1761296400000,
+      "exit_ms": 1761516000000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1761519600000,
+      "exit_ms": 1761555600000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1761760800000,
+      "exit_ms": 1761760800000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1761764400000,
+      "exit_ms": 1761796800000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1761796800000,
+      "exit_ms": 1761796800000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1761840000000,
+      "exit_ms": 1761912000000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1761994800000,
+      "exit_ms": 1762135200000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1762156800000,
+      "exit_ms": 1762171200000,
+      "net": 0.04840000000000016,
+      "reason": "target"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1762185600000,
+      "exit_ms": 1762185600000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1762200000000,
+      "exit_ms": 1762214400000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1762228800000,
+      "exit_ms": 1762228800000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1762318800000,
+      "exit_ms": 1762329600000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1762329600000,
+      "exit_ms": 1762430400000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1762484400000,
+      "exit_ms": 1762516800000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1762531200000,
+      "exit_ms": 1762531200000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1762531200000,
+      "exit_ms": 1762531200000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1762534800000,
+      "exit_ms": 1762610400000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1762700400000,
+      "exit_ms": 1762768800000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1762815600000,
+      "exit_ms": 1762819200000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1762830000000,
+      "exit_ms": 1762837200000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1762891200000,
+      "exit_ms": 1762948800000,
+      "net": 0.04840000000000016,
+      "reason": "target"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1762948800000,
+      "exit_ms": 1762948800000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1762963200000,
+      "exit_ms": 1763049600000,
+      "net": 0.048399999999999936,
+      "reason": "target"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1763064000000,
+      "exit_ms": 1763136000000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1763208000000,
+      "exit_ms": 1763308800000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1763352000000,
+      "exit_ms": 1763395200000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1763409600000,
+      "exit_ms": 1763424000000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1763445600000,
+      "exit_ms": 1763560800000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1763582400000,
+      "exit_ms": 1763582400000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1763611200000,
+      "exit_ms": 1763654400000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1763668800000,
+      "exit_ms": 1763668800000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1763683200000,
+      "exit_ms": 1763697600000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1763712000000,
+      "exit_ms": 1763726400000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1763769600000,
+      "exit_ms": 1763784000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1763809200000,
+      "exit_ms": 1763870400000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1763874000000,
+      "exit_ms": 1763895600000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1763913600000,
+      "exit_ms": 1763985600000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1764007200000,
+      "exit_ms": 1764061200000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1764100800000,
+      "exit_ms": 1764345600000,
+      "net": -0.0020636068613816934,
+      "reason": "time"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1764547200000,
+      "exit_ms": 1764547200000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1764561600000,
+      "exit_ms": 1764676800000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1764687600000,
+      "exit_ms": 1764687600000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1764691200000,
+      "exit_ms": 1764691200000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1764691200000,
+      "exit_ms": 1764936000000,
+      "net": -0.026600000000000134,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1764964800000,
+      "exit_ms": 1765036800000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1765137600000,
+      "exit_ms": 1765137600000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1765162800000,
+      "exit_ms": 1765202400000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1765206000000,
+      "exit_ms": 1765216800000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1765296000000,
+      "exit_ms": 1765296000000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1765296000000,
+      "exit_ms": 1765396800000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1765468800000,
+      "exit_ms": 1765486800000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1765490400000,
+      "exit_ms": 1765497600000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1765497600000,
+      "exit_ms": 1765540800000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1765598400000,
+      "exit_ms": 1765731600000,
+      "net": -0.026600000000000134,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1765778400000,
+      "exit_ms": 1765810800000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1765814400000,
+      "exit_ms": 1765900800000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1765915200000,
+      "exit_ms": 1765983600000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1766001600000,
+      "exit_ms": 1766059200000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1766066400000,
+      "exit_ms": 1766077200000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1766088000000,
+      "exit_ms": 1766088000000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1766131200000,
+      "exit_ms": 1766156400000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1766163600000,
+      "exit_ms": 1766163600000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1766174400000,
+      "exit_ms": 1766224800000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1766368800000,
+      "exit_ms": 1766422800000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1766746800000,
+      "exit_ms": 1766757600000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1766880000000,
+      "exit_ms": 1767124800000,
+      "net": -0.010046625372053763,
+      "reason": "time"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1767211200000,
+      "exit_ms": 1767268800000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1767283200000,
+      "exit_ms": 1767304800000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1767308400000,
+      "exit_ms": 1767319200000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1767322800000,
+      "exit_ms": 1767355200000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1767355200000,
+      "exit_ms": 1767355200000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1767358800000,
+      "exit_ms": 1767362400000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1767366000000,
+      "exit_ms": 1767369600000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1767369600000,
+      "exit_ms": 1767384000000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1767398400000,
+      "exit_ms": 1767484800000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1767495600000,
+      "exit_ms": 1767495600000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1767499200000,
+      "exit_ms": 1767502800000,
+      "net": -0.026600000000000134,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1767510000000,
+      "exit_ms": 1767528000000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1767531600000,
+      "exit_ms": 1767531600000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1767535200000,
+      "exit_ms": 1767538800000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1767542400000,
+      "exit_ms": 1767585600000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1767636000000,
+      "exit_ms": 1767668400000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1767672000000,
+      "exit_ms": 1767672000000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1767675600000,
+      "exit_ms": 1767679200000,
+      "net": -0.026600000000000134,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1767697200000,
+      "exit_ms": 1767697200000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1767700800000,
+      "exit_ms": 1767704400000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1767708000000,
+      "exit_ms": 1767708000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1767711600000,
+      "exit_ms": 1767711600000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1767718800000,
+      "exit_ms": 1767726000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1767729600000,
+      "exit_ms": 1767744000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1767772800000,
+      "exit_ms": 1767787200000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1767978000000,
+      "exit_ms": 1767978000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1768176000000,
+      "exit_ms": 1768176000000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1768190400000,
+      "exit_ms": 1768204800000,
+      "net": -0.026600000000000134,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1768219200000,
+      "exit_ms": 1768305600000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1768305600000,
+      "exit_ms": 1768334400000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1768345200000,
+      "exit_ms": 1768345200000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1768348800000,
+      "exit_ms": 1768413600000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1768622400000,
+      "exit_ms": 1768708800000,
+      "net": -0.026600000000000134,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1768795200000,
+      "exit_ms": 1768924800000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1768978800000,
+      "exit_ms": 1768996800000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1769025600000,
+      "exit_ms": 1769083200000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1769356800000,
+      "exit_ms": 1769356800000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1769371200000,
+      "exit_ms": 1769385600000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1769414400000,
+      "exit_ms": 1769612400000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1769659200000,
+      "exit_ms": 1769688000000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1769702400000,
+      "exit_ms": 1769846400000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1769875200000,
+      "exit_ms": 1769875200000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1769889600000,
+      "exit_ms": 1769889600000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1769925600000,
+      "exit_ms": 1769958000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1770044400000,
+      "exit_ms": 1770084000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1770134400000,
+      "exit_ms": 1770134400000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1770148800000,
+      "exit_ms": 1770148800000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1770188400000,
+      "exit_ms": 1770210000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1770249600000,
+      "exit_ms": 1770278400000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1770292800000,
+      "exit_ms": 1770292800000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1770307200000,
+      "exit_ms": 1770321600000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1770336000000,
+      "exit_ms": 1770336000000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1770350400000,
+      "exit_ms": 1770350400000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1770375600000,
+      "exit_ms": 1770386400000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1770390000000,
+      "exit_ms": 1770397200000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1770400800000,
+      "exit_ms": 1770400800000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1770404400000,
+      "exit_ms": 1770444000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1770490800000,
+      "exit_ms": 1770523200000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1770652800000,
+      "exit_ms": 1770652800000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1770667200000,
+      "exit_ms": 1770696000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1770868800000,
+      "exit_ms": 1770912000000,
+      "net": -0.026600000000000134,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1770973200000,
+      "exit_ms": 1771056000000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1771059600000,
+      "exit_ms": 1771084800000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1771084800000,
+      "exit_ms": 1771084800000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1771088400000,
+      "exit_ms": 1771102800000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1771106400000,
+      "exit_ms": 1771113600000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1771117200000,
+      "exit_ms": 1771149600000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1771358400000,
+      "exit_ms": 1771430400000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1771444800000,
+      "exit_ms": 1771502400000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1771516800000,
+      "exit_ms": 1771588800000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1771603200000,
+      "exit_ms": 1771718400000,
+      "net": -0.026600000000000134,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1771819200000,
+      "exit_ms": 1771819200000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1771848000000,
+      "exit_ms": 1771862400000,
+      "net": -0.026600000000000134,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1771984800000,
+      "exit_ms": 1771988400000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1771992000000,
+      "exit_ms": 1772020800000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1772024400000,
+      "exit_ms": 1772031600000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1772035200000,
+      "exit_ms": 1772042400000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1772046000000,
+      "exit_ms": 1772046000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1772049600000,
+      "exit_ms": 1772060400000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1772064000000,
+      "exit_ms": 1772103600000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1772168400000,
+      "exit_ms": 1772186400000,
+      "net": -0.026600000000000134,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1772280000000,
+      "exit_ms": 1772280000000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1772308800000,
+      "exit_ms": 1772323200000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1772334000000,
+      "exit_ms": 1772337600000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1772337600000,
+      "exit_ms": 1772352000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1772442000000,
+      "exit_ms": 1772463600000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1772467200000,
+      "exit_ms": 1772470800000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1772474400000,
+      "exit_ms": 1772503200000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1772578800000,
+      "exit_ms": 1772614800000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1772618400000,
+      "exit_ms": 1772622000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1772625600000,
+      "exit_ms": 1772625600000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1772632800000,
+      "exit_ms": 1772640000000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1772640000000,
+      "exit_ms": 1772640000000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1772643600000,
+      "exit_ms": 1772661600000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1772668800000,
+      "exit_ms": 1772726400000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1772773200000,
+      "exit_ms": 1772784000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1772812800000,
+      "exit_ms": 1772985600000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1773028800000,
+      "exit_ms": 1773129600000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1773144000000,
+      "exit_ms": 1773144000000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1773158400000,
+      "exit_ms": 1773158400000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1773172800000,
+      "exit_ms": 1773187200000,
+      "net": -0.026600000000000134,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1773241200000,
+      "exit_ms": 1773241200000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1773252000000,
+      "exit_ms": 1773277200000,
+      "net": -0.026600000000000134,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1773345600000,
+      "exit_ms": 1773403200000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1773403200000,
+      "exit_ms": 1773403200000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1773406800000,
+      "exit_ms": 1773410400000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1773417600000,
+      "exit_ms": 1773417600000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1773547200000,
+      "exit_ms": 1773619200000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1773633600000,
+      "exit_ms": 1773644400000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1773648000000,
+      "exit_ms": 1773658800000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1773662400000,
+      "exit_ms": 1773669600000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1773673200000,
+      "exit_ms": 1773673200000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1773676800000,
+      "exit_ms": 1773835200000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1773892800000,
+      "exit_ms": 1773921600000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1773936000000,
+      "exit_ms": 1773979200000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1773979200000,
+      "exit_ms": 1774123200000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1774137600000,
+      "exit_ms": 1774209600000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1774267200000,
+      "exit_ms": 1774411200000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1774418400000,
+      "exit_ms": 1774479600000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1774555200000,
+      "exit_ms": 1774569600000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1774584000000,
+      "exit_ms": 1774598400000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1774612800000,
+      "exit_ms": 1774814400000,
+      "net": 0.048399999999999936,
+      "reason": "target"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1774843200000,
+      "exit_ms": 1774944000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1775001600000,
+      "exit_ms": 1775088000000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1775192400000,
+      "exit_ms": 1775271600000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1775433600000,
+      "exit_ms": 1775516400000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1775592000000,
+      "exit_ms": 1775599200000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1775602800000,
+      "exit_ms": 1775606400000,
+      "net": -0.026600000000000134,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1775610000000,
+      "exit_ms": 1775656800000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1775757600000,
+      "exit_ms": 1775880000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1775934000000,
+      "exit_ms": 1775955600000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1776110400000,
+      "exit_ms": 1776168000000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1776182400000,
+      "exit_ms": 1776182400000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1776283200000,
+      "exit_ms": 1776427200000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1776438000000,
+      "exit_ms": 1776448800000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1776452400000,
+      "exit_ms": 1776466800000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1776643200000,
+      "exit_ms": 1776643200000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1776686400000,
+      "exit_ms": 1776931200000,
+      "net": 0.016189072426937835,
+      "reason": "time"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1776960000000,
+      "exit_ms": 1777204800000,
+      "net": 0.015248161084857204,
+      "reason": "time"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1777219200000,
+      "exit_ms": 1777435200000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1777449600000,
+      "exit_ms": 1777449600000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1777456800000,
+      "exit_ms": 1777464000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1777464000000,
+      "exit_ms": 1777464000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1777478400000,
+      "exit_ms": 1777593600000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1777608000000,
+      "exit_ms": 1777852800000,
+      "net": 0.03388830811554349,
+      "reason": "time"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1777863600000,
+      "exit_ms": 1777888800000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1777896000000,
+      "exit_ms": 1778011200000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1778025600000,
+      "exit_ms": 1778068800000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1778169600000,
+      "exit_ms": 1778187600000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1778256000000,
+      "exit_ms": 1778500800000,
+      "net": 0.024781560677589676,
+      "reason": "time"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1778515200000,
+      "exit_ms": 1778576400000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1778587200000,
+      "exit_ms": 1778644800000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1778644800000,
+      "exit_ms": 1778774400000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1778774400000,
+      "exit_ms": 1778810400000,
+      "net": -0.026600000000000134,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1778860800000,
+      "exit_ms": 1778918400000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1779019200000,
+      "exit_ms": 1779048000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1779289200000,
+      "exit_ms": 1779490800000,
+      "net": -0.026600000000000134,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1779523200000,
+      "exit_ms": 1779537600000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1779566400000,
+      "exit_ms": 1779631200000,
+      "net": -0.026600000000000134,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1779703200000,
+      "exit_ms": 1779915600000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1779940800000,
+      "exit_ms": 1779984000000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1779994800000,
+      "exit_ms": 1780106400000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1780110000000,
+      "exit_ms": 1780113600000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1780243200000,
+      "exit_ms": 1780257600000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1780282800000,
+      "exit_ms": 1780293600000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1780300800000,
+      "exit_ms": 1780329600000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1780344000000,
+      "exit_ms": 1780362000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1780369200000,
+      "exit_ms": 1780383600000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1780387200000,
+      "exit_ms": 1780401600000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1780416000000,
+      "exit_ms": 1780416000000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1780430400000,
+      "exit_ms": 1780444800000,
+      "net": 0.048399999999999936,
+      "reason": "target"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1780459200000,
+      "exit_ms": 1780459200000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1780470000000,
+      "exit_ms": 1780524000000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1780646400000,
+      "exit_ms": 1780675200000,
+      "net": 0.04840000000000016,
+      "reason": "target"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1780689600000,
+      "exit_ms": 1780689600000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1780765200000,
+      "exit_ms": 1780819200000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1780822800000,
+      "exit_ms": 1780833600000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1780905600000,
+      "exit_ms": 1780963200000,
+      "net": -0.026600000000000134,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1781092800000,
+      "exit_ms": 1781092800000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1781107200000,
+      "exit_ms": 1781121600000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1781164800000,
+      "exit_ms": 1781272800000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1781294400000,
+      "exit_ms": 1781539200000,
+      "net": 0.016367498283359972,
+      "reason": "time"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1781665200000,
+      "exit_ms": 1781672400000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1781676000000,
+      "exit_ms": 1781683200000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1781798400000,
+      "exit_ms": 1781798400000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1781841600000,
+      "exit_ms": 1782086400000,
+      "net": -0.0011171414775469999,
+      "reason": "time"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1782086400000,
+      "exit_ms": 1782086400000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1782129600000,
+      "exit_ms": 1782154800000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1782201600000,
+      "exit_ms": 1782302400000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1782316800000,
+      "exit_ms": 1782360000000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1782360000000,
+      "exit_ms": 1782388800000,
+      "net": -0.026600000000000134,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1782446400000,
+      "exit_ms": 1782662400000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1782716400000,
+      "exit_ms": 1782774000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1782878400000,
+      "exit_ms": 1783065600000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1783080000000,
+      "exit_ms": 1783213200000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1783288800000,
+      "exit_ms": 1783314000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1783468800000,
+      "exit_ms": 1783555200000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1783656000000,
+      "exit_ms": 1783900800000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1784001600000,
+      "exit_ms": 1784163600000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1784318400000,
+      "exit_ms": 1784563200000,
+      "net": -0.008347452492426365,
+      "reason": "time"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1784620800000,
+      "exit_ms": 1784808000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1784822400000,
+      "exit_ms": 1784937600000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1784973600000,
+      "exit_ms": 1785002400000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1785006000000,
+      "exit_ms": 1785160800000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1785168000000,
+      "exit_ms": 1785412800000,
+      "net": 0.01140833543824198,
+      "reason": "time"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1785441600000,
+      "exit_ms": 1785499200000,
+      "net": -0.026600000000000134,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1785499200000,
+      "exit_ms": 1785528000000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1785556800000,
+      "exit_ms": 1785600000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1785657600000,
+      "exit_ms": 1785902400000,
+      "net": -0.009697741156414263,
+      "reason": "time"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1786017600000,
+      "exit_ms": 1786176000000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1786449600000,
+      "exit_ms": 1786564800000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1786564800000,
+      "exit_ms": 1786737600000,
+      "net": 0.048399999999999936,
+      "reason": "target"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1786838400000,
+      "exit_ms": 1786881600000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1787155200000,
+      "exit_ms": 1787169600000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1787176800000,
+      "exit_ms": 1787220000000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1787223600000,
+      "exit_ms": 1787245200000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1787248800000,
+      "exit_ms": 1787248800000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1787252400000,
+      "exit_ms": 1787266800000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1787270400000,
+      "exit_ms": 1787295600000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1787299200000,
+      "exit_ms": 1787306400000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1787310000000,
+      "exit_ms": 1787342400000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1787346000000,
+      "exit_ms": 1787349600000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1787353200000,
+      "exit_ms": 1787353200000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1787356800000,
+      "exit_ms": 1787360400000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1787364000000,
+      "exit_ms": 1787367600000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1787371200000,
+      "exit_ms": 1787371200000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1787371200000,
+      "exit_ms": 1787371200000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1787374800000,
+      "exit_ms": 1787374800000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1787378400000,
+      "exit_ms": 1787378400000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1787382000000,
+      "exit_ms": 1787385600000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1787385600000,
+      "exit_ms": 1787385600000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1787389200000,
+      "exit_ms": 1787392800000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1787443200000,
+      "exit_ms": 1787457600000,
+      "net": -0.026600000000000134,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1787500800000,
+      "exit_ms": 1787540400000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1787587200000,
+      "exit_ms": 1787619600000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1787623200000,
+      "exit_ms": 1787623200000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1787626800000,
+      "exit_ms": 1787630400000,
+      "net": -0.026600000000000134,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1787634000000,
+      "exit_ms": 1787641200000,
+      "net": -0.026600000000000134,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1787644800000,
+      "exit_ms": 1787659200000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1787702400000,
+      "exit_ms": 1787918400000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1788120000000,
+      "exit_ms": 1788120000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1788134400000,
+      "exit_ms": 1788148800000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1788177600000,
+      "exit_ms": 1788310800000,
+      "net": -0.026600000000000134,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1788357600000,
+      "exit_ms": 1788444000000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1788447600000,
+      "exit_ms": 1788523200000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1788591600000,
+      "exit_ms": 1788613200000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1788616800000,
+      "exit_ms": 1788678000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1788786000000,
+      "exit_ms": 1788786000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1788811200000,
+      "exit_ms": 1788868800000,
+      "net": -0.026600000000000134,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1788940800000,
+      "exit_ms": 1788955200000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1788984000000,
+      "exit_ms": 1789070400000,
+      "net": 0.048399999999999936,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1789135200000,
+      "exit_ms": 1789138800000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1789142400000,
+      "exit_ms": 1789300800000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1789344000000,
+      "exit_ms": 1789344000000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1789387200000,
+      "exit_ms": 1789473600000,
+      "net": -0.026600000000000134,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1789614000000,
+      "exit_ms": 1789700400000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1789704000000,
+      "exit_ms": 1789740000000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1789743600000,
+      "exit_ms": 1789772400000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1789776000000,
+      "exit_ms": 1789790400000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1789833600000,
+      "exit_ms": 1789848000000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1789934400000,
+      "exit_ms": 1789977600000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1789984800000,
+      "exit_ms": 1789992000000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1789992000000,
+      "exit_ms": 1789992000000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1789995600000,
+      "exit_ms": 1789999200000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1790002800000,
+      "exit_ms": 1790006400000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1790006400000,
+      "exit_ms": 1790020800000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1790035200000,
+      "exit_ms": 1790049600000,
+      "net": 0.048399999999999825,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1790053200000,
+      "exit_ms": 1790053200000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1790064000000,
+      "exit_ms": 1790064000000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1790067600000,
+      "exit_ms": 1790071200000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1790074800000,
+      "exit_ms": 1790078400000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1790082000000,
+      "exit_ms": 1790082000000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1790085600000,
+      "exit_ms": 1790107200000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1790107200000,
+      "exit_ms": 1790164800000,
+      "net": -0.026600000000000134,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1790218800000,
+      "exit_ms": 1790218800000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1790222400000,
+      "exit_ms": 1790240400000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "entry_ms": 1790265600000,
+      "exit_ms": 1790510400000,
+      "net": 0.011366642267070893,
+      "reason": "time"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1790582400000,
+      "exit_ms": 1790596800000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1790611200000,
+      "exit_ms": 1790611200000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1790625600000,
+      "exit_ms": 1790668800000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1790668800000,
+      "exit_ms": 1790701200000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1790744400000,
+      "exit_ms": 1790766000000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1790769600000,
+      "exit_ms": 1790791200000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1790910000000,
+      "exit_ms": 1790913600000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1790917200000,
+      "exit_ms": 1790920800000,
+      "net": -0.026600000000000023,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1790924400000,
+      "exit_ms": 1790938800000,
+      "net": -0.026600000000000134,
+      "reason": "stop"
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "entry_ms": 1790971200000,
+      "exit_ms": 1790971200000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1791010800000,
+      "exit_ms": 1791183600000,
+      "net": 0.04840000000000005,
+      "reason": "target"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "entry_ms": 1791187200000,
+      "exit_ms": 1791208800000,
+      "net": -0.026599999999999912,
+      "reason": "stop"
+    }
+  ],
+  "robust_validation_survivor_count": 2,
+  "robust_validation_survivors": [
+    {
+      "symbol": "QNTUSDT",
+      "strategy_key": "15m:rev_24h_0.05_dn:L:0.03/0.05/48",
+      "validation": {
+        "n": 128,
+        "wins": 86,
+        "wr": 67.188,
+        "pf": 1.3173,
+        "avg_net_bps": 44.9725,
+        "sum_net_pct": 57.5648
+      },
+      "positive_validation_quarters": 3
+    },
+    {
+      "symbol": "NMRUSDT",
+      "strategy_key": "15m:rev_48h_0.08_dn:L:0.05/0.025/72",
+      "validation": {
+        "n": 100,
+        "wins": 42,
+        "wr": 42.0,
+        "pf": 1.3339,
+        "avg_net_bps": 50.8815,
+        "sum_net_pct": 50.8815
+      },
+      "positive_validation_quarters": 4
+    }
+  ],
+  "candidates": [
+    {
+      "symbol": "WIFUSDT",
+      "strategy_key": "60m:mom_12h_0.03_up:L:0.05/0.025/72",
+      "tf_min": 60,
+      "signal": "mom_12h_0.03_up",
+      "family": "momentum",
+      "side": "LONG",
+      "tp_pct": 5.0,
+      "sl_pct": 2.5,
+      "hold_hours": 72,
+      "dev": {
+        "n": 960,
+        "wins": 355,
+        "wr": 36.979,
+        "pf": 1.0677,
+        "avg_net_bps": 11.3438,
+        "sum_net_pct": 108.9
+      },
+      "selection": {
+        "n": 256,
+        "wins": 102,
+        "wr": 39.844,
+        "pf": 1.1968,
+        "avg_net_bps": 31.4926,
+        "sum_net_pct": 80.6211
+      },
+      "train_velocity_score": 0.7271645396709323,
+      "validation": {
+        "n": 303,
+        "wins": 101,
+        "wr": 33.333,
+        "pf": 0.9135,
+        "avg_net_bps": -15.2681,
+        "sum_net_pct": -46.2623
+      },
+      "validation_quarters": [
+        {
+          "n": 98,
+          "wins": 34,
+          "wr": 34.694,
+          "pf": 0.9666,
+          "avg_net_bps": -5.7959,
+          "sum_net_pct": -5.68
+        },
+        {
+          "n": 66,
+          "wins": 17,
+          "wr": 25.758,
+          "pf": 0.6313,
+          "avg_net_bps": -72.8182,
+          "sum_net_pct": -48.06
+        },
+        {
+          "n": 69,
+          "wins": 18,
+          "wr": 26.087,
+          "pf": 0.6422,
+          "avg_net_bps": -70.3478,
+          "sum_net_pct": -48.54
+        },
+        {
+          "n": 70,
+          "wins": 32,
+          "wr": 45.714,
+          "pf": 1.5666,
+          "avg_net_bps": 80.0253,
+          "sum_net_pct": 56.0177
+        }
+      ],
+      "positive_validation_quarters": 1
+    },
+    {
+      "symbol": "ARBUSDT",
+      "strategy_key": "240m:z2.0_dn_follow:S:0.05/0.025/72",
+      "tf_min": 240,
+      "signal": "z2.0_dn_follow",
+      "family": "z_momentum",
+      "side": "SHORT",
+      "tp_pct": 5.0,
+      "sl_pct": 2.5,
+      "hold_hours": 72,
+      "dev": {
+        "n": 130,
+        "wins": 59,
+        "wr": 45.385,
+        "pf": 1.4675,
+        "avg_net_bps": 67.1214,
+        "sum_net_pct": 87.2578
+      },
+      "selection": {
+        "n": 29,
+        "wins": 14,
+        "wr": 48.276,
+        "pf": 1.6982,
+        "avg_net_bps": 96.069,
+        "sum_net_pct": 27.86
+      },
+      "train_velocity_score": 0.5560583963114755,
+      "validation": {
+        "n": 90,
+        "wins": 31,
+        "wr": 34.444,
+        "pf": 0.9211,
+        "avg_net_bps": -13.7076,
+        "sum_net_pct": -12.3368
+      },
+      "validation_quarters": [
+        {
+          "n": 24,
+          "wins": 6,
+          "wr": 25.0,
+          "pf": 0.6065,
+          "avg_net_bps": -78.5,
+          "sum_net_pct": -18.84
+        },
+        {
+          "n": 26,
+          "wins": 14,
+          "wr": 53.846,
+          "pf": 2.0533,
+          "avg_net_bps": 129.311,
+          "sum_net_pct": 33.6209
+        },
+        {
+          "n": 24,
+          "wins": 6,
+          "wr": 25.0,
+          "pf": 0.6127,
+          "avg_net_bps": -76.4938,
+          "sum_net_pct": -18.3585
+        },
+        {
+          "n": 16,
+          "wins": 5,
+          "wr": 31.25,
+          "pf": 0.7006,
+          "avg_net_bps": -54.7448,
+          "sum_net_pct": -8.7592
+        }
+      ],
+      "positive_validation_quarters": 1
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.05/0.025/72",
+      "tf_min": 240,
+      "signal": "mom_12h_0.01_up",
+      "family": "momentum",
+      "side": "LONG",
+      "tp_pct": 5.0,
+      "sl_pct": 2.5,
+      "hold_hours": 72,
+      "dev": {
+        "n": 476,
+        "wins": 183,
+        "wr": 38.445,
+        "pf": 1.0984,
+        "avg_net_bps": 16.0429,
+        "sum_net_pct": 76.3642
+      },
+      "selection": {
+        "n": 143,
+        "wins": 60,
+        "wr": 41.958,
+        "pf": 1.2933,
+        "avg_net_bps": 44.8574,
+        "sum_net_pct": 64.1461
+      },
+      "train_velocity_score": 0.509909058702011,
+      "validation": {
+        "n": 196,
+        "wins": 66,
+        "wr": 33.673,
+        "pf": 0.814,
+        "avg_net_bps": -31.5496,
+        "sum_net_pct": -61.8372
+      },
+      "validation_quarters": [
+        {
+          "n": 56,
+          "wins": 15,
+          "wr": 26.786,
+          "pf": 0.6404,
+          "avg_net_bps": -67.3965,
+          "sum_net_pct": -37.7421
+        },
+        {
+          "n": 54,
+          "wins": 17,
+          "wr": 31.481,
+          "pf": 0.7541,
+          "avg_net_bps": -44.8115,
+          "sum_net_pct": -24.1982
+        },
+        {
+          "n": 40,
+          "wins": 18,
+          "wr": 45.0,
+          "pf": 1.0744,
+          "avg_net_bps": 10.205,
+          "sum_net_pct": 4.082
+        },
+        {
+          "n": 46,
+          "wins": 16,
+          "wr": 34.783,
+          "pf": 0.9464,
+          "avg_net_bps": -8.6497,
+          "sum_net_pct": -3.9789
+        }
+      ],
+      "positive_validation_quarters": 1
+    },
+    {
+      "symbol": "TRXUSDT",
+      "strategy_key": "15m:rsi_ge_65_long:L:0.03/0.05/48",
+      "tf_min": 15,
+      "signal": "rsi_ge_65_long",
+      "family": "rsi_trend",
+      "side": "LONG",
+      "tp_pct": 3.0,
+      "sl_pct": 5.0,
+      "hold_hours": 48,
+      "dev": {
+        "n": 318,
+        "wins": 185,
+        "wr": 58.176,
+        "pf": 1.2029,
+        "avg_net_bps": 21.9422,
+        "sum_net_pct": 69.7763
+      },
+      "selection": {
+        "n": 90,
+        "wins": 55,
+        "wr": 61.111,
+        "pf": 1.3418,
+        "avg_net_bps": 26.8678,
+        "sum_net_pct": 24.181
+      },
+      "train_velocity_score": 0.46591874934186467,
+      "validation": {
+        "n": 154,
+        "wins": 75,
+        "wr": 48.701,
+        "pf": 0.8208,
+        "avg_net_bps": -13.6533,
+        "sum_net_pct": -21.0261
+      },
+      "validation_quarters": [
+        {
+          "n": 37,
+          "wins": 15,
+          "wr": 40.541,
+          "pf": 0.6751,
+          "avg_net_bps": -32.0109,
+          "sum_net_pct": -11.844
+        },
+        {
+          "n": 38,
+          "wins": 20,
+          "wr": 52.632,
+          "pf": 1.0048,
+          "avg_net_bps": 0.3571,
+          "sum_net_pct": 0.1357
+        },
+        {
+          "n": 39,
+          "wins": 23,
+          "wr": 58.974,
+          "pf": 0.9571,
+          "avg_net_bps": -3.1881,
+          "sum_net_pct": -1.2433
+        },
+        {
+          "n": 40,
+          "wins": 17,
+          "wr": 42.5,
+          "pf": 0.6591,
+          "avg_net_bps": -20.1861,
+          "sum_net_pct": -8.0744
+        }
+      ],
+      "positive_validation_quarters": 1
+    },
+    {
+      "symbol": "ETHFIUSDT",
+      "strategy_key": "240m:z1.5_dn_follow:S:0.05/0.025/72",
+      "tf_min": 240,
+      "signal": "z1.5_dn_follow",
+      "family": "z_momentum",
+      "side": "SHORT",
+      "tp_pct": 5.0,
+      "sl_pct": 2.5,
+      "hold_hours": 72,
+      "dev": {
+        "n": 211,
+        "wins": 86,
+        "wr": 40.758,
+        "pf": 1.2518,
+        "avg_net_bps": 39.6872,
+        "sum_net_pct": 83.74
+      },
+      "selection": {
+        "n": 62,
+        "wins": 25,
+        "wr": 40.323,
+        "pf": 1.2294,
+        "avg_net_bps": 36.4194,
+        "sum_net_pct": 22.58
+      },
+      "train_velocity_score": 0.4506751490163935,
+      "validation": {
+        "n": 153,
+        "wins": 42,
+        "wr": 27.451,
+        "pf": 0.6841,
+        "avg_net_bps": -60.6594,
+        "sum_net_pct": -92.8088
+      },
+      "validation_quarters": [
+        {
+          "n": 53,
+          "wins": 15,
+          "wr": 28.302,
+          "pf": 0.7192,
+          "avg_net_bps": -53.4709,
+          "sum_net_pct": -28.3396
+        },
+        {
+          "n": 39,
+          "wins": 12,
+          "wr": 30.769,
+          "pf": 0.7767,
+          "avg_net_bps": -41.1259,
+          "sum_net_pct": -16.0391
+        },
+        {
+          "n": 34,
+          "wins": 10,
+          "wr": 29.412,
+          "pf": 0.7743,
+          "avg_net_bps": -41.5005,
+          "sum_net_pct": -14.1102
+        },
+        {
+          "n": 27,
+          "wins": 5,
+          "wr": 18.519,
+          "pf": 0.4135,
+          "avg_net_bps": -127.1111,
+          "sum_net_pct": -34.32
+        }
+      ],
+      "positive_validation_quarters": 0
+    },
+    {
+      "symbol": "BTCUSDT",
+      "strategy_key": "240m:mom_48h_0.005_up:L:0.05/0.025/72",
+      "tf_min": 240,
+      "signal": "mom_48h_0.005_up",
+      "family": "momentum",
+      "side": "LONG",
+      "tp_pct": 5.0,
+      "sl_pct": 2.5,
+      "hold_hours": 72,
+      "dev": {
+        "n": 215,
+        "wins": 97,
+        "wr": 45.116,
+        "pf": 1.2287,
+        "avg_net_bps": 30.6745,
+        "sum_net_pct": 65.9502
+      },
+      "selection": {
+        "n": 55,
+        "wins": 24,
+        "wr": 43.636,
+        "pf": 1.403,
+        "avg_net_bps": 39.6637,
+        "sum_net_pct": 21.815
+      },
+      "train_velocity_score": 0.4354066411885245,
+      "validation": {
+        "n": 106,
+        "wins": 45,
+        "wr": 42.453,
+        "pf": 0.8612,
+        "avg_net_bps": -19.3848,
+        "sum_net_pct": -20.5479
+      },
+      "validation_quarters": [
+        {
+          "n": 25,
+          "wins": 10,
+          "wr": 40.0,
+          "pf": 0.7176,
+          "avg_net_bps": -39.9737,
+          "sum_net_pct": -9.9934
+        },
+        {
+          "n": 28,
+          "wins": 11,
+          "wr": 39.286,
+          "pf": 0.811,
+          "avg_net_bps": -28.1895,
+          "sum_net_pct": -7.8931
+        },
+        {
+          "n": 27,
+          "wins": 10,
+          "wr": 37.037,
+          "pf": 0.6684,
+          "avg_net_bps": -51.8927,
+          "sum_net_pct": -14.011
+        },
+        {
+          "n": 26,
+          "wins": 14,
+          "wr": 53.846,
+          "pf": 1.3968,
+          "avg_net_bps": 43.6523,
+          "sum_net_pct": 11.3496
+        }
+      ],
+      "positive_validation_quarters": 1
+    },
+    {
+      "symbol": "SUIUSDT",
+      "strategy_key": "15m:rev_24h_0.02_dn:L:0.03/0.05/48",
+      "tf_min": 15,
+      "signal": "rev_24h_0.02_dn",
+      "family": "reversal",
+      "side": "LONG",
+      "tp_pct": 3.0,
+      "sl_pct": 5.0,
+      "hold_hours": 48,
+      "dev": {
+        "n": 777,
+        "wins": 504,
+        "wr": 64.865,
+        "pf": 1.0415,
+        "avg_net_bps": 7.309,
+        "sum_net_pct": 56.7913
+      },
+      "selection": {
+        "n": 137,
+        "wins": 90,
+        "wr": 65.693,
+        "pf": 1.117,
+        "avg_net_bps": 18.9647,
+        "sum_net_pct": 25.9817
+      },
+      "train_velocity_score": 0.3792118314899452,
+      "validation": {
+        "n": 301,
+        "wins": 173,
+        "wr": 57.475,
+        "pf": 0.8283,
+        "avg_net_bps": -32.7743,
+        "sum_net_pct": -98.6505
+      },
+      "validation_quarters": [
+        {
+          "n": 103,
+          "wins": 57,
+          "wr": 55.34,
+          "pf": 0.7141,
+          "avg_net_bps": -61.4264,
+          "sum_net_pct": -63.2692
+        },
+        {
+          "n": 83,
+          "wins": 45,
+          "wr": 54.217,
+          "pf": 0.7085,
+          "avg_net_bps": -61.1327,
+          "sum_net_pct": -50.7402
+        },
+        {
+          "n": 70,
+          "wins": 43,
+          "wr": 61.429,
+          "pf": 0.9183,
+          "avg_net_bps": -14.8512,
+          "sum_net_pct": -10.3959
+        },
+        {
+          "n": 45,
+          "wins": 28,
+          "wr": 62.222,
+          "pf": 1.4967,
+          "avg_net_bps": 57.2326,
+          "sum_net_pct": 25.7547
+        }
+      ],
+      "positive_validation_quarters": 1
+    },
+    {
+      "symbol": "DYDXUSDT",
+      "strategy_key": "60m:rev_48h_0.08_up:S:0.03/0.05/48",
+      "tf_min": 60,
+      "signal": "rev_48h_0.08_up",
+      "family": "reversal",
+      "side": "SHORT",
+      "tp_pct": 3.0,
+      "sl_pct": 5.0,
+      "hold_hours": 48,
+      "dev": {
+        "n": 256,
+        "wins": 171,
+        "wr": 66.797,
+        "pf": 1.126,
+        "avg_net_bps": 21.0295,
+        "sum_net_pct": 53.8356
+      },
+      "selection": {
+        "n": 51,
+        "wins": 36,
+        "wr": 70.588,
+        "pf": 1.3362,
+        "avg_net_bps": 49.2623,
+        "sum_net_pct": 25.1237
+      },
+      "train_velocity_score": 0.3594775809872029,
+      "validation": {
+        "n": 183,
+        "wins": 113,
+        "wr": 61.749,
+        "pf": 0.8965,
+        "avg_net_bps": -20.2545,
+        "sum_net_pct": -37.0657
+      },
+      "validation_quarters": [
+        {
+          "n": 21,
+          "wins": 14,
+          "wr": 66.667,
+          "pf": 1.2083,
+          "avg_net_bps": 32.6395,
+          "sum_net_pct": 6.8543
+        },
+        {
+          "n": 29,
+          "wins": 23,
+          "wr": 79.31,
+          "pf": 2.1098,
+          "avg_net_bps": 118.4828,
+          "sum_net_pct": 34.36
+        },
+        {
+          "n": 106,
+          "wins": 58,
+          "wr": 54.717,
+          "pf": 0.6651,
+          "avg_net_bps": -78.2642,
+          "sum_net_pct": -82.96
+        },
+        {
+          "n": 27,
+          "wins": 18,
+          "wr": 66.667,
+          "pf": 1.1008,
+          "avg_net_bps": 17.3333,
+          "sum_net_pct": 4.68
+        }
+      ],
+      "positive_validation_quarters": 3
+    },
+    {
+      "symbol": "ETHUSDT",
+      "strategy_key": "240m:4green_follow:L:0.03/0.05/48",
+      "tf_min": 240,
+      "signal": "4green_follow",
+      "family": "streak",
+      "side": "LONG",
+      "tp_pct": 3.0,
+      "sl_pct": 5.0,
+      "hold_hours": 48,
+      "dev": {
+        "n": 110,
+        "wins": 71,
+        "wr": 64.545,
+        "pf": 1.3664,
+        "avg_net_bps": 45.4101,
+        "sum_net_pct": 49.9511
+      },
+      "selection": {
+        "n": 46,
+        "wins": 31,
+        "wr": 67.391,
+        "pf": 1.8209,
+        "avg_net_bps": 83.9074,
+        "sum_net_pct": 38.5974
+      },
+      "train_velocity_score": 0.3335400900822669,
+      "validation": {
+        "n": 61,
+        "wins": 32,
+        "wr": 52.459,
+        "pf": 0.9406,
+        "avg_net_bps": -7.9833,
+        "sum_net_pct": -4.8698
+      },
+      "validation_quarters": [
+        {
+          "n": 16,
+          "wins": 10,
+          "wr": 62.5,
+          "pf": 0.8062,
+          "avg_net_bps": -29.4537,
+          "sum_net_pct": -4.7126
+        },
+        {
+          "n": 17,
+          "wins": 10,
+          "wr": 58.824,
+          "pf": 0.9811,
+          "avg_net_bps": -2.9703,
+          "sum_net_pct": -0.5049
+        },
+        {
+          "n": 10,
+          "wins": 4,
+          "wr": 40.0,
+          "pf": 0.9003,
+          "avg_net_bps": -12.5735,
+          "sum_net_pct": -1.2574
+        },
+        {
+          "n": 18,
+          "wins": 8,
+          "wr": 44.444,
+          "pf": 1.0878,
+          "avg_net_bps": 8.9172,
+          "sum_net_pct": 1.6051
+        }
+      ],
+      "positive_validation_quarters": 1
+    },
+    {
+      "symbol": "BNBUSDT",
+      "strategy_key": "240m:mom_48h_0.02_up:L:0.03/0.05/48",
+      "tf_min": 240,
+      "signal": "mom_48h_0.02_up",
+      "family": "momentum",
+      "side": "LONG",
+      "tp_pct": 3.0,
+      "sl_pct": 5.0,
+      "hold_hours": 48,
+      "dev": {
+        "n": 203,
+        "wins": 125,
+        "wr": 61.576,
+        "pf": 1.1895,
+        "avg_net_bps": 23.6575,
+        "sum_net_pct": 48.0247
+      },
+      "selection": {
+        "n": 57,
+        "wins": 36,
+        "wr": 63.158,
+        "pf": 1.3012,
+        "avg_net_bps": 30.7737,
+        "sum_net_pct": 17.541
+      },
+      "train_velocity_score": 0.3206769800045704,
+      "validation": {
+        "n": 104,
+        "wins": 51,
+        "wr": 49.038,
+        "pf": 0.8643,
+        "avg_net_bps": -18.2906,
+        "sum_net_pct": -19.0222
+      },
+      "validation_quarters": [
+        {
+          "n": 31,
+          "wins": 18,
+          "wr": 58.065,
+          "pf": 0.9175,
+          "avg_net_bps": -12.464,
+          "sum_net_pct": -3.8638
+        },
+        {
+          "n": 21,
+          "wins": 8,
+          "wr": 38.095,
+          "pf": 0.5834,
+          "avg_net_bps": -68.1208,
+          "sum_net_pct": -14.3054
+        },
+        {
+          "n": 27,
+          "wins": 13,
+          "wr": 48.148,
+          "pf": 0.9267,
+          "avg_net_bps": -8.5172,
+          "sum_net_pct": -2.2996
+        },
+        {
+          "n": 25,
+          "wins": 12,
+          "wr": 48.0,
+          "pf": 1.0524,
+          "avg_net_bps": 5.7866,
+          "sum_net_pct": 1.4467
+        }
+      ],
+      "positive_validation_quarters": 1
+    },
+    {
+      "symbol": "ICPUSDT",
+      "strategy_key": "15m:rev_24h_0.05_dn:L:0.03/0.05/48",
+      "tf_min": 15,
+      "signal": "rev_24h_0.05_dn",
+      "family": "reversal",
+      "side": "LONG",
+      "tp_pct": 3.0,
+      "sl_pct": 5.0,
+      "hold_hours": 48,
+      "dev": {
+        "n": 393,
+        "wins": 255,
+        "wr": 64.885,
+        "pf": 1.0676,
+        "avg_net_bps": 11.5477,
+        "sum_net_pct": 45.3826
+      },
+      "selection": {
+        "n": 69,
+        "wins": 46,
+        "wr": 66.667,
+        "pf": 1.2157,
+        "avg_net_bps": 30.0,
+        "sum_net_pct": 20.7
+      },
+      "train_velocity_score": 0.3030337089625229,
+      "validation": {
+        "n": 233,
+        "wins": 143,
+        "wr": 61.373,
+        "pf": 0.9419,
+        "avg_net_bps": -10.6537,
+        "sum_net_pct": -24.8231
+      },
+      "validation_quarters": [
+        {
+          "n": 119,
+          "wins": 77,
+          "wr": 64.706,
+          "pf": 1.009,
+          "avg_net_bps": 1.6471,
+          "sum_net_pct": 1.96
+        },
+        {
+          "n": 53,
+          "wins": 31,
+          "wr": 58.491,
+          "pf": 0.952,
+          "avg_net_bps": -8.1767,
+          "sum_net_pct": -4.3336
+        },
+        {
+          "n": 48,
+          "wins": 27,
+          "wr": 56.25,
+          "pf": 0.758,
+          "avg_net_bps": -50.9991,
+          "sum_net_pct": -24.4796
+        },
+        {
+          "n": 13,
+          "wins": 8,
+          "wr": 61.538,
+          "pf": 1.108,
+          "avg_net_bps": 15.6159,
+          "sum_net_pct": 2.0301
+        }
+      ],
+      "positive_validation_quarters": 2
+    },
+    {
+      "symbol": "APTUSDT",
+      "strategy_key": "15m:rev_24h_0.08_dn:L:0.05/0.025/72",
+      "tf_min": 15,
+      "signal": "rev_24h_0.08_dn",
+      "family": "reversal",
+      "side": "LONG",
+      "tp_pct": 5.0,
+      "sl_pct": 2.5,
+      "hold_hours": 72,
+      "dev": {
+        "n": 263,
+        "wins": 99,
+        "wr": 37.643,
+        "pf": 1.0984,
+        "avg_net_bps": 16.3194,
+        "sum_net_pct": 42.92
+      },
+      "selection": {
+        "n": 33,
+        "wins": 14,
+        "wr": 42.424,
+        "pf": 1.2639,
+        "avg_net_bps": 40.4208,
+        "sum_net_pct": 13.3389
+      },
+      "train_velocity_score": 0.26623060524590164,
+      "validation": {
+        "n": 110,
+        "wins": 37,
+        "wr": 33.636,
+        "pf": 0.935,
+        "avg_net_bps": -11.3169,
+        "sum_net_pct": -12.4485
+      },
+      "validation_quarters": [
+        {
+          "n": 53,
+          "wins": 15,
+          "wr": 28.302,
+          "pf": 0.7182,
+          "avg_net_bps": -53.7358,
+          "sum_net_pct": -28.48
+        },
+        {
+          "n": 23,
+          "wins": 8,
+          "wr": 34.783,
+          "pf": 0.9704,
+          "avg_net_bps": -5.1304,
+          "sum_net_pct": -1.18
+        },
+        {
+          "n": 26,
+          "wins": 10,
+          "wr": 38.462,
+          "pf": 1.1372,
+          "avg_net_bps": 22.4615,
+          "sum_net_pct": 5.84
+        },
+        {
+          "n": 8,
+          "wins": 4,
+          "wr": 50.0,
+          "pf": 2.4235,
+          "avg_net_bps": 142.1433,
+          "sum_net_pct": 11.3715
+        }
+      ],
+      "positive_validation_quarters": 2
+    },
+    {
+      "symbol": "FILUSDT",
+      "strategy_key": "240m:rev_48h_0.08_up:S:0.05/0.025/72",
+      "tf_min": 240,
+      "signal": "rev_48h_0.08_up",
+      "family": "reversal",
+      "side": "SHORT",
+      "tp_pct": 5.0,
+      "sl_pct": 2.5,
+      "hold_hours": 72,
+      "dev": {
+        "n": 167,
+        "wins": 66,
+        "wr": 39.521,
+        "pf": 1.1802,
+        "avg_net_bps": 28.9866,
+        "sum_net_pct": 48.4076
+      },
+      "selection": {
+        "n": 30,
+        "wins": 13,
+        "wr": 43.333,
+        "pf": 1.2856,
+        "avg_net_bps": 43.0518,
+        "sum_net_pct": 12.9155
+      },
+      "train_velocity_score": 0.2577814745901639,
+      "validation": {
+        "n": 114,
+        "wins": 43,
+        "wr": 37.719,
+        "pf": 1.0772,
+        "avg_net_bps": 12.7961,
+        "sum_net_pct": 14.5875
+      },
+      "validation_quarters": [
+        {
+          "n": 34,
+          "wins": 10,
+          "wr": 29.412,
+          "pf": 0.7581,
+          "avg_net_bps": -45.4118,
+          "sum_net_pct": -15.44
+        },
+        {
+          "n": 16,
+          "wins": 8,
+          "wr": 50.0,
+          "pf": 1.8195,
+          "avg_net_bps": 109.0,
+          "sum_net_pct": 17.44
+        },
+        {
+          "n": 23,
+          "wins": 12,
+          "wr": 52.174,
+          "pf": 1.8253,
+          "avg_net_bps": 104.9892,
+          "sum_net_pct": 24.1475
+        },
+        {
+          "n": 41,
+          "wins": 13,
+          "wr": 31.707,
+          "pf": 0.8448,
+          "avg_net_bps": -28.1951,
+          "sum_net_pct": -11.56
+        }
+      ],
+      "positive_validation_quarters": 2
+    },
+    {
+      "symbol": "QNTUSDT",
+      "strategy_key": "15m:rev_24h_0.05_dn:L:0.03/0.05/48",
+      "tf_min": 15,
+      "signal": "rev_24h_0.05_dn",
+      "family": "reversal",
+      "side": "LONG",
+      "tp_pct": 3.0,
+      "sl_pct": 5.0,
+      "hold_hours": 48,
+      "dev": {
+        "n": 266,
+        "wins": 171,
+        "wr": 64.286,
+        "pf": 1.0903,
+        "avg_net_bps": 14.9985,
+        "sum_net_pct": 39.8961
+      },
+      "selection": {
+        "n": 51,
+        "wins": 34,
+        "wr": 66.667,
+        "pf": 1.1549,
+        "avg_net_bps": 24.5975,
+        "sum_net_pct": 12.5447
+      },
+      "train_velocity_score": 0.25038037192622953,
+      "validation": {
+        "n": 128,
+        "wins": 86,
+        "wr": 67.188,
+        "pf": 1.3173,
+        "avg_net_bps": 44.9725,
+        "sum_net_pct": 57.5648
+      },
+      "validation_quarters": [
+        {
+          "n": 48,
+          "wins": 33,
+          "wr": 68.75,
+          "pf": 1.3764,
+          "avg_net_bps": 53.392,
+          "sum_net_pct": 25.6281
+        },
+        {
+          "n": 35,
+          "wins": 24,
+          "wr": 68.571,
+          "pf": 1.5234,
+          "avg_net_bps": 66.9097,
+          "sum_net_pct": 23.4184
+        },
+        {
+          "n": 19,
+          "wins": 10,
+          "wr": 52.632,
+          "pf": 0.8755,
+          "avg_net_bps": -21.2596,
+          "sum_net_pct": -4.0393
+        },
+        {
+          "n": 26,
+          "wins": 19,
+          "wr": 73.077,
+          "pf": 1.3477,
+          "avg_net_bps": 48.2987,
+          "sum_net_pct": 12.5577
+        }
+      ],
+      "positive_validation_quarters": 3
+    },
+    {
+      "symbol": "SOLUSDT",
+      "strategy_key": "240m:mom_12h_0.01_up:L:0.03/0.05/48",
+      "tf_min": 240,
+      "signal": "mom_12h_0.01_up",
+      "family": "momentum",
+      "side": "LONG",
+      "tp_pct": 3.0,
+      "sl_pct": 5.0,
+      "hold_hours": 48,
+      "dev": {
+        "n": 500,
+        "wins": 318,
+        "wr": 63.6,
+        "pf": 1.0428,
+        "avg_net_bps": 7.283,
+        "sum_net_pct": 36.4151
+      },
+      "selection": {
+        "n": 134,
+        "wins": 84,
+        "wr": 62.687,
+        "pf": 1.0585,
+        "avg_net_bps": 9.3849,
+        "sum_net_pct": 12.5758
+      },
+      "train_velocity_score": 0.24315500457038394,
+      "validation": {
+        "n": 210,
+        "wins": 113,
+        "wr": 53.81,
+        "pf": 0.872,
+        "avg_net_bps": -20.8657,
+        "sum_net_pct": -43.818
+      },
+      "validation_quarters": [
+        {
+          "n": 59,
+          "wins": 32,
+          "wr": 54.237,
+          "pf": 0.6658,
+          "avg_net_bps": -71.0639,
+          "sum_net_pct": -41.9277
+        },
+        {
+          "n": 54,
+          "wins": 30,
+          "wr": 55.556,
+          "pf": 0.9414,
+          "avg_net_bps": -9.4881,
+          "sum_net_pct": -5.1236
+        },
+        {
+          "n": 47,
+          "wins": 23,
+          "wr": 48.936,
+          "pf": 0.8681,
+          "avg_net_bps": -19.9128,
+          "sum_net_pct": -9.359
+        },
+        {
+          "n": 50,
+          "wins": 28,
+          "wr": 56.0,
+          "pf": 1.2161,
+          "avg_net_bps": 25.1845,
+          "sum_net_pct": 12.5923
+        }
+      ],
+      "positive_validation_quarters": 1
+    },
+    {
+      "symbol": "AAVEUSDT",
+      "strategy_key": "60m:rev_24h_0.02_dn:L:0.03/0.05/48",
+      "tf_min": 60,
+      "signal": "rev_24h_0.02_dn",
+      "family": "reversal",
+      "side": "LONG",
+      "tp_pct": 3.0,
+      "sl_pct": 5.0,
+      "hold_hours": 48,
+      "dev": {
+        "n": 502,
+        "wins": 324,
+        "wr": 64.542,
+        "pf": 1.0416,
+        "avg_net_bps": 7.1892,
+        "sum_net_pct": 36.0896
+      },
+      "selection": {
+        "n": 127,
+        "wins": 91,
+        "wr": 71.654,
+        "pf": 1.5538,
+        "avg_net_bps": 70.8331,
+        "sum_net_pct": 89.958
+      },
+      "train_velocity_score": 0.24098342972577697,
+      "validation": {
+        "n": 266,
+        "wins": 161,
+        "wr": 60.526,
+        "pf": 0.9362,
+        "avg_net_bps": -11.3872,
+        "sum_net_pct": -30.2898
+      },
+      "validation_quarters": [
+        {
+          "n": 91,
+          "wins": 56,
+          "wr": 61.538,
+          "pf": 0.9311,
+          "avg_net_bps": -12.9399,
+          "sum_net_pct": -11.7753
+        },
+        {
+          "n": 72,
+          "wins": 44,
+          "wr": 61.111,
+          "pf": 0.932,
+          "avg_net_bps": -12.2747,
+          "sum_net_pct": -8.8378
+        },
+        {
+          "n": 60,
+          "wins": 36,
+          "wr": 60.0,
+          "pf": 0.9497,
+          "avg_net_bps": -8.7828,
+          "sum_net_pct": -5.2697
+        },
+        {
+          "n": 43,
+          "wins": 25,
+          "wr": 58.14,
+          "pf": 0.9367,
+          "avg_net_bps": -10.249,
+          "sum_net_pct": -4.4071
+        }
+      ],
+      "positive_validation_quarters": 0
+    },
+    {
+      "symbol": "1000SHIBUSDT",
+      "strategy_key": "240m:4green_follow:L:0.04/0.02/48",
+      "tf_min": 240,
+      "signal": "4green_follow",
+      "family": "streak",
+      "side": "LONG",
+      "tp_pct": 4.0,
+      "sl_pct": 2.0,
+      "hold_hours": 48,
+      "dev": {
+        "n": 127,
+        "wins": 54,
+        "wr": 42.52,
+        "pf": 1.2288,
+        "avg_net_bps": 28.2308,
+        "sum_net_pct": 35.8531
+      },
+      "selection": {
+        "n": 36,
+        "wins": 19,
+        "wr": 52.778,
+        "pf": 1.8443,
+        "avg_net_bps": 82.1724,
+        "sum_net_pct": 29.5821
+      },
+      "train_velocity_score": 0.23940311917733093,
+      "validation": {
+        "n": 56,
+        "wins": 20,
+        "wr": 35.714,
+        "pf": 0.922,
+        "avg_net_bps": -10.3673,
+        "sum_net_pct": -5.8057
+      },
+      "validation_quarters": [
+        {
+          "n": 15,
+          "wins": 9,
+          "wr": 60.0,
+          "pf": 2.9867,
+          "avg_net_bps": 147.8528,
+          "sum_net_pct": 22.1779
+        },
+        {
+          "n": 16,
+          "wins": 4,
+          "wr": 25.0,
+          "pf": 0.456,
+          "avg_net_bps": -88.1307,
+          "sum_net_pct": -14.1009
+        },
+        {
+          "n": 9,
+          "wins": 1,
+          "wr": 11.111,
+          "pf": 0.2434,
+          "avg_net_bps": -132.602,
+          "sum_net_pct": -11.9342
+        },
+        {
+          "n": 16,
+          "wins": 6,
+          "wr": 37.5,
+          "pf": 0.9098,
+          "avg_net_bps": -12.1784,
+          "sum_net_pct": -1.9485
+        }
+      ],
+      "positive_validation_quarters": 1
+    },
+    {
+      "symbol": "UNIUSDT",
+      "strategy_key": "15m:rev_24h_0.01_dn:L:0.03/0.05/48",
+      "tf_min": 15,
+      "signal": "rev_24h_0.01_dn",
+      "family": "reversal",
+      "side": "LONG",
+      "tp_pct": 3.0,
+      "sl_pct": 5.0,
+      "hold_hours": 48,
+      "dev": {
+        "n": 655,
+        "wins": 418,
+        "wr": 63.817,
+        "pf": 1.0335,
+        "avg_net_bps": 5.8129,
+        "sum_net_pct": 38.0748
+      },
+      "selection": {
+        "n": 161,
+        "wins": 104,
+        "wr": 64.596,
+        "pf": 1.043,
+        "avg_net_bps": 7.3277,
+        "sum_net_pct": 11.7977
+      },
+      "train_velocity_score": 0.23546843192622952,
+      "validation": {
+        "n": 350,
+        "wins": 215,
+        "wr": 61.429,
+        "pf": 0.9208,
+        "avg_net_bps": -14.2779,
+        "sum_net_pct": -49.9725
+      },
+      "validation_quarters": [
+        {
+          "n": 119,
+          "wins": 75,
+          "wr": 63.025,
+          "pf": 0.9025,
+          "avg_net_bps": -18.1299,
+          "sum_net_pct": -21.5746
+        },
+        {
+          "n": 92,
+          "wins": 51,
+          "wr": 55.435,
+          "pf": 0.696,
+          "avg_net_bps": -65.3272,
+          "sum_net_pct": -60.1011
+        },
+        {
+          "n": 69,
+          "wins": 43,
+          "wr": 62.319,
+          "pf": 1.0075,
+          "avg_net_bps": 1.2185,
+          "sum_net_pct": 0.8407
+        },
+        {
+          "n": 70,
+          "wins": 46,
+          "wr": 65.714,
+          "pf": 1.3093,
+          "avg_net_bps": 44.0892,
+          "sum_net_pct": 30.8624
+        }
+      ],
+      "positive_validation_quarters": 2
+    },
+    {
+      "symbol": "ADAUSDT",
+      "strategy_key": "60m:mom_12h_0.02_up:L:0.03/0.05/48",
+      "tf_min": 60,
+      "signal": "mom_12h_0.02_up",
+      "family": "momentum",
+      "side": "LONG",
+      "tp_pct": 3.0,
+      "sl_pct": 5.0,
+      "hold_hours": 48,
+      "dev": {
+        "n": 492,
+        "wins": 313,
+        "wr": 63.618,
+        "pf": 1.0942,
+        "avg_net_bps": 15.2134,
+        "sum_net_pct": 74.8501
+      },
+      "selection": {
+        "n": 140,
+        "wins": 87,
+        "wr": 62.143,
+        "pf": 1.0509,
+        "avg_net_bps": 8.2428,
+        "sum_net_pct": 11.5399
+      },
+      "train_velocity_score": 0.23032545245901642,
+      "validation": {
+        "n": 249,
+        "wins": 146,
+        "wr": 58.635,
+        "pf": 0.8284,
+        "avg_net_bps": -32.4774,
+        "sum_net_pct": -80.8687
+      },
+      "validation_quarters": [
+        {
+          "n": 65,
+          "wins": 37,
+          "wr": 56.923,
+          "pf": 0.7194,
+          "avg_net_bps": -60.595,
+          "sum_net_pct": -39.3868
+        },
+        {
+          "n": 62,
+          "wins": 30,
+          "wr": 48.387,
+          "pf": 0.563,
+          "avg_net_bps": -103.4437,
+          "sum_net_pct": -64.1351
+        },
+        {
+          "n": 45,
+          "wins": 28,
+          "wr": 62.222,
+          "pf": 0.9438,
+          "avg_net_bps": -9.1845,
+          "sum_net_pct": -4.133
+        },
+        {
+          "n": 77,
+          "wins": 51,
+          "wr": 66.234,
+          "pf": 1.2424,
+          "avg_net_bps": 34.7873,
+          "sum_net_pct": 26.7862
+        }
+      ],
+      "positive_validation_quarters": 1
+    },
+    {
+      "symbol": "OPUSDT",
+      "strategy_key": "240m:4green_follow:L:0.05/0.025/72",
+      "tf_min": 240,
+      "signal": "4green_follow",
+      "family": "streak",
+      "side": "LONG",
+      "tp_pct": 5.0,
+      "sl_pct": 2.5,
+      "hold_hours": 72,
+      "dev": {
+        "n": 106,
+        "wins": 43,
+        "wr": 40.566,
+        "pf": 1.2056,
+        "avg_net_bps": 32.4968,
+        "sum_net_pct": 34.4466
+      },
+      "selection": {
+        "n": 42,
+        "wins": 17,
+        "wr": 40.476,
+        "pf": 1.2044,
+        "avg_net_bps": 32.3637,
+        "sum_net_pct": 13.5928
+      },
+      "train_velocity_score": 0.23001139985374774,
+      "validation": {
+        "n": 53,
+        "wins": 12,
+        "wr": 22.642,
+        "pf": 0.545,
+        "avg_net_bps": -91.4717,
+        "sum_net_pct": -48.48
+      },
+      "validation_quarters": [
+        {
+          "n": 11,
+          "wins": 2,
+          "wr": 18.182,
+          "pf": 0.4043,
+          "avg_net_bps": -129.6364,
+          "sum_net_pct": -14.26
+        },
+        {
+          "n": 16,
+          "wins": 4,
+          "wr": 25.0,
+          "pf": 0.6065,
+          "avg_net_bps": -78.5,
+          "sum_net_pct": -12.56
+        },
+        {
+          "n": 14,
+          "wins": 3,
+          "wr": 21.429,
+          "pf": 0.5426,
+          "avg_net_bps": -87.4286,
+          "sum_net_pct": -12.24
+        },
+        {
+          "n": 12,
+          "wins": 3,
+          "wr": 25.0,
+          "pf": 0.6065,
+          "avg_net_bps": -78.5,
+          "sum_net_pct": -9.42
+        }
+      ],
+      "positive_validation_quarters": 0
+    },
+    {
+      "symbol": "HBARUSDT",
+      "strategy_key": "60m:mom_8h_0.02_up:L:0.05/0.025/72",
+      "tf_min": 60,
+      "signal": "mom_8h_0.02_up",
+      "family": "momentum",
+      "side": "LONG",
+      "tp_pct": 5.0,
+      "sl_pct": 2.5,
+      "hold_hours": 72,
+      "dev": {
+        "n": 646,
+        "wins": 235,
+        "wr": 36.378,
+        "pf": 1.0262,
+        "avg_net_bps": 4.4076,
+        "sum_net_pct": 28.4729
+      },
+      "selection": {
+        "n": 139,
+        "wins": 59,
+        "wr": 42.446,
+        "pf": 1.3303,
+        "avg_net_bps": 49.5454,
+        "sum_net_pct": 68.8681
+      },
+      "train_velocity_score": 0.1901242836197441,
+      "validation": {
+        "n": 226,
+        "wins": 72,
+        "wr": 31.858,
+        "pf": 0.8396,
+        "avg_net_bps": -28.4699,
+        "sum_net_pct": -64.342
+      },
+      "validation_quarters": [
+        {
+          "n": 80,
+          "wins": 24,
+          "wr": 30.0,
+          "pf": 0.7798,
+          "avg_net_bps": -41.0,
+          "sum_net_pct": -32.8
+        },
+        {
+          "n": 60,
+          "wins": 17,
+          "wr": 28.333,
+          "pf": 0.7595,
+          "avg_net_bps": -43.4309,
+          "sum_net_pct": -26.0585
+        },
+        {
+          "n": 41,
+          "wins": 10,
+          "wr": 24.39,
+          "pf": 0.5438,
+          "avg_net_bps": -89.5575,
+          "sum_net_pct": -36.7186
+        },
+        {
+          "n": 45,
+          "wins": 21,
+          "wr": 46.667,
+          "pf": 1.4929,
+          "avg_net_bps": 69.4114,
+          "sum_net_pct": 31.2351
+        }
+      ],
+      "positive_validation_quarters": 1
+    },
+    {
+      "symbol": "LTCUSDT",
+      "strategy_key": "60m:mom_4h_0.015_up:L:0.03/0.05/48",
+      "tf_min": 60,
+      "signal": "mom_4h_0.015_up",
+      "family": "momentum",
+      "side": "LONG",
+      "tp_pct": 3.0,
+      "sl_pct": 5.0,
+      "hold_hours": 48,
+      "dev": {
+        "n": 424,
+        "wins": 264,
+        "wr": 62.264,
+        "pf": 1.0348,
+        "avg_net_bps": 5.4687,
+        "sum_net_pct": 23.1873
+      },
+      "selection": {
+        "n": 129,
+        "wins": 81,
+        "wr": 62.791,
+        "pf": 1.094,
+        "avg_net_bps": 14.0072,
+        "sum_net_pct": 18.0693
+      },
+      "train_velocity_score": 0.15482919455210237,
+      "validation": {
+        "n": 186,
+        "wins": 96,
+        "wr": 51.613,
+        "pf": 0.7346,
+        "avg_net_bps": -47.7524,
+        "sum_net_pct": -88.8195
+      },
+      "validation_quarters": [
+        {
+          "n": 70,
+          "wins": 36,
+          "wr": 51.429,
+          "pf": 0.6885,
+          "avg_net_bps": -64.1146,
+          "sum_net_pct": -44.8802
+        },
+        {
+          "n": 45,
+          "wins": 22,
+          "wr": 48.889,
+          "pf": 0.6528,
+          "avg_net_bps": -63.9946,
+          "sum_net_pct": -28.7976
+        },
+        {
+          "n": 31,
+          "wins": 11,
+          "wr": 35.484,
+          "pf": 0.3562,
+          "avg_net_bps": -133.5341,
+          "sum_net_pct": -41.3956
+        },
+        {
+          "n": 40,
+          "wins": 27,
+          "wr": 67.5,
+          "pf": 1.6056,
+          "avg_net_bps": 65.6346,
+          "sum_net_pct": 26.2539
+        }
+      ],
+      "positive_validation_quarters": 1
+    },
+    {
+      "symbol": "ATOMUSDT",
+      "strategy_key": "240m:donch50_up_fade:S:0.03/0.05/48",
+      "tf_min": 240,
+      "signal": "donch50_up_fade",
+      "family": "breakout_fade",
+      "side": "SHORT",
+      "tp_pct": 3.0,
+      "sl_pct": 5.0,
+      "hold_hours": 48,
+      "dev": {
+        "n": 59,
+        "wins": 39,
+        "wr": 66.102,
+        "pf": 1.2069,
+        "avg_net_bps": 30.7472,
+        "sum_net_pct": 18.1409
+      },
+      "selection": {
+        "n": 21,
+        "wins": 14,
+        "wr": 66.667,
+        "pf": 1.2339,
+        "avg_net_bps": 32.8136,
+        "sum_net_pct": 6.8909
+      },
+      "train_velocity_score": 0.12113244482632543,
+      "validation": {
+        "n": 36,
+        "wins": 22,
+        "wr": 61.111,
+        "pf": 0.8493,
+        "avg_net_bps": -26.8623,
+        "sum_net_pct": -9.6704
+      },
+      "validation_quarters": [
+        {
+          "n": 6,
+          "wins": 2,
+          "wr": 33.333,
+          "pf": 0.3236,
+          "avg_net_bps": -197.8315,
+          "sum_net_pct": -11.8699
+        },
+        {
+          "n": 6,
+          "wins": 3,
+          "wr": 50.0,
+          "pf": 0.399,
+          "avg_net_bps": -155.0605,
+          "sum_net_pct": -9.3036
+        },
+        {
+          "n": 12,
+          "wins": 10,
+          "wr": 83.333,
+          "pf": 2.3489,
+          "avg_net_bps": 116.0079,
+          "sum_net_pct": 13.921
+        },
+        {
+          "n": 12,
+          "wins": 7,
+          "wr": 58.333,
+          "pf": 0.8838,
+          "avg_net_bps": -20.1488,
+          "sum_net_pct": -2.4179
+        }
+      ],
+      "positive_validation_quarters": 1
+    },
+    {
+      "symbol": "LINKUSDT",
+      "strategy_key": "240m:mom_48h_0.01_up:L:0.05/0.025/72",
+      "tf_min": 240,
+      "signal": "mom_48h_0.01_up",
+      "family": "momentum",
+      "side": "LONG",
+      "tp_pct": 5.0,
+      "sl_pct": 2.5,
+      "hold_hours": 72,
+      "dev": {
+        "n": 404,
+        "wins": 146,
+        "wr": 36.139,
+        "pf": 1.0245,
+        "avg_net_bps": 4.1485,
+        "sum_net_pct": 16.7601
+      },
+      "selection": {
+        "n": 127,
+        "wins": 50,
+        "wr": 39.37,
+        "pf": 1.1779,
+        "avg_net_bps": 28.5876,
+        "sum_net_pct": 36.3063
+      },
+      "train_velocity_score": 0.1119116651736746,
+      "validation": {
+        "n": 174,
+        "wins": 55,
+        "wr": 31.609,
+        "pf": 0.7485,
+        "avg_net_bps": -44.9574,
+        "sum_net_pct": -78.2259
+      },
+      "validation_quarters": [
+        {
+          "n": 49,
+          "wins": 12,
+          "wr": 24.49,
+          "pf": 0.5864,
+          "avg_net_bps": -81.6881,
+          "sum_net_pct": -40.0272
+        },
+        {
+          "n": 40,
+          "wins": 11,
+          "wr": 27.5,
+          "pf": 0.6588,
+          "avg_net_bps": -64.0019,
+          "sum_net_pct": -25.6008
+        },
+        {
+          "n": 38,
+          "wins": 12,
+          "wr": 31.579,
+          "pf": 0.7226,
+          "avg_net_bps": -49.2325,
+          "sum_net_pct": -18.7083
+        },
+        {
+          "n": 47,
+          "wins": 20,
+          "wr": 42.553,
+          "pf": 1.0851,
+          "avg_net_bps": 13.0008,
+          "sum_net_pct": 6.1104
+        }
+      ],
+      "positive_validation_quarters": 1
+    },
+    {
+      "symbol": "RUNEUSDT",
+      "strategy_key": "240m:rsi_ge_65_long:L:0.05/0.025/72",
+      "tf_min": 240,
+      "signal": "rsi_ge_65_long",
+      "family": "rsi_trend",
+      "side": "LONG",
+      "tp_pct": 5.0,
+      "sl_pct": 2.5,
+      "hold_hours": 72,
+      "dev": {
+        "n": 203,
+        "wins": 74,
+        "wr": 36.453,
+        "pf": 1.0438,
+        "avg_net_bps": 7.399,
+        "sum_net_pct": 15.02
+      },
+      "selection": {
+        "n": 44,
+        "wins": 17,
+        "wr": 38.636,
+        "pf": 1.1456,
+        "avg_net_bps": 23.7727,
+        "sum_net_pct": 10.46
+      },
+      "train_velocity_score": 0.10029330973491775,
+      "validation": {
+        "n": 73,
+        "wins": 28,
+        "wr": 38.356,
+        "pf": 0.9844,
+        "avg_net_bps": -2.5517,
+        "sum_net_pct": -1.8627
+      },
+      "validation_quarters": [
+        {
+          "n": 8,
+          "wins": 2,
+          "wr": 25.0,
+          "pf": 0.6065,
+          "avg_net_bps": -78.5,
+          "sum_net_pct": -6.28
+        },
+        {
+          "n": 11,
+          "wins": 5,
+          "wr": 45.455,
+          "pf": 1.1527,
+          "avg_net_bps": 22.1601,
+          "sum_net_pct": 2.4376
+        },
+        {
+          "n": 24,
+          "wins": 7,
+          "wr": 29.167,
+          "pf": 0.6121,
+          "avg_net_bps": -73.0811,
+          "sum_net_pct": -17.5395
+        },
+        {
+          "n": 30,
+          "wins": 14,
+          "wr": 46.667,
+          "pf": 1.4586,
+          "avg_net_bps": 65.0637,
+          "sum_net_pct": 19.5191
+        }
+      ],
+      "positive_validation_quarters": 2
+    },
+    {
+      "symbol": "NMRUSDT",
+      "strategy_key": "15m:rev_48h_0.08_dn:L:0.05/0.025/72",
+      "tf_min": 15,
+      "signal": "rev_48h_0.08_dn",
+      "family": "reversal",
+      "side": "LONG",
+      "tp_pct": 5.0,
+      "sl_pct": 2.5,
+      "hold_hours": 72,
+      "dev": {
+        "n": 385,
+        "wins": 139,
+        "wr": 36.104,
+        "pf": 1.0229,
+        "avg_net_bps": 3.8721,
+        "sum_net_pct": 14.9076
+      },
+      "selection": {
+        "n": 78,
+        "wins": 30,
+        "wr": 38.462,
+        "pf": 1.1372,
+        "avg_net_bps": 22.4615,
+        "sum_net_pct": 17.52
+      },
+      "train_velocity_score": 0.0995428779021938,
+      "validation": {
+        "n": 100,
+        "wins": 42,
+        "wr": 42.0,
+        "pf": 1.3339,
+        "avg_net_bps": 50.8815,
+        "sum_net_pct": 50.8815
+      },
+      "validation_quarters": [
+        {
+          "n": 55,
+          "wins": 21,
+          "wr": 38.182,
+          "pf": 1.1238,
+          "avg_net_bps": 20.3636,
+          "sum_net_pct": 11.2
+        },
+        {
+          "n": 29,
+          "wins": 13,
+          "wr": 44.828,
+          "pf": 1.5468,
+          "avg_net_bps": 76.6949,
+          "sum_net_pct": 22.2415
+        },
+        {
+          "n": 13,
+          "wins": 6,
+          "wr": 46.154,
+          "pf": 1.5596,
+          "avg_net_bps": 80.1538,
+          "sum_net_pct": 10.42
+        },
+        {
+          "n": 3,
+          "wins": 2,
+          "wr": 66.667,
+          "pf": 3.6391,
+          "avg_net_bps": 234.0,
+          "sum_net_pct": 7.02
+        }
+      ],
+      "positive_validation_quarters": 4
+    },
+    {
+      "symbol": "DOTUSDT",
+      "strategy_key": "15m:rev_48h_0.08_dn:L:0.05/0.025/72",
+      "tf_min": 15,
+      "signal": "rev_48h_0.08_dn",
+      "family": "reversal",
+      "side": "LONG",
+      "tp_pct": 5.0,
+      "sl_pct": 2.5,
+      "hold_hours": 72,
+      "dev": {
+        "n": 265,
+        "wins": 98,
+        "wr": 36.981,
+        "pf": 1.0381,
+        "avg_net_bps": 6.38,
+        "sum_net_pct": 16.9069
+      },
+      "selection": {
+        "n": 46,
+        "wins": 17,
+        "wr": 36.957,
+        "pf": 1.0522,
+        "avg_net_bps": 8.6283,
+        "sum_net_pct": 3.969
+      },
+      "train_velocity_score": 0.07921769532786885,
+      "validation": {
+        "n": 133,
+        "wins": 50,
+        "wr": 37.594,
+        "pf": 1.0499,
+        "avg_net_bps": 8.1887,
+        "sum_net_pct": 10.8909
+      },
+      "validation_quarters": [
+        {
+          "n": 69,
+          "wins": 23,
+          "wr": 33.333,
+          "pf": 0.8932,
+          "avg_net_bps": -18.9466,
+          "sum_net_pct": -13.0732
+        },
+        {
+          "n": 33,
+          "wins": 11,
+          "wr": 33.333,
+          "pf": 0.8601,
+          "avg_net_bps": -24.8087,
+          "sum_net_pct": -8.1869
+        },
+        {
+          "n": 19,
+          "wins": 9,
+          "wr": 47.368,
+          "pf": 1.6175,
+          "avg_net_bps": 78.3279,
+          "sum_net_pct": 14.8823
+        },
+        {
+          "n": 12,
+          "wins": 7,
+          "wr": 58.333,
+          "pf": 2.2984,
+          "avg_net_bps": 143.9055,
+          "sum_net_pct": 17.2687
+        }
+      ],
+      "positive_validation_quarters": 2
+    },
+    {
+      "symbol": "SANDUSDT",
+      "strategy_key": "240m:z2.5_up_follow:L:0.04/0.02/48",
+      "tf_min": 240,
+      "signal": "z2.5_up_follow",
+      "family": "z_momentum",
+      "side": "LONG",
+      "tp_pct": 4.0,
+      "sl_pct": 2.0,
+      "hold_hours": 48,
+      "dev": {
+        "n": 53,
+        "wins": 21,
+        "wr": 39.623,
+        "pf": 1.1239,
+        "avg_net_bps": 16.1561,
+        "sum_net_pct": 8.5628
+      },
+      "selection": {
+        "n": 19,
+        "wins": 10,
+        "wr": 52.632,
+        "pf": 1.9753,
+        "avg_net_bps": 99.7895,
+        "sum_net_pct": 18.96
+      },
+      "train_velocity_score": 0.05717620161334552,
+      "validation": {
+        "n": 32,
+        "wins": 9,
+        "wr": 28.125,
+        "pf": 0.6278,
+        "avg_net_bps": -57.7908,
+        "sum_net_pct": -18.493
+      },
+      "validation_quarters": [
+        {
+          "n": 4,
+          "wins": 0,
+          "wr": 0.0,
+          "pf": 0.0,
+          "avg_net_bps": -216.0,
+          "sum_net_pct": -8.64
+        },
+        {
+          "n": 11,
+          "wins": 3,
+          "wr": 27.273,
+          "pf": 0.6667,
+          "avg_net_bps": -52.3636,
+          "sum_net_pct": -5.76
+        },
+        {
+          "n": 12,
+          "wins": 5,
+          "wr": 41.667,
+          "pf": 1.0468,
+          "avg_net_bps": 5.8913,
+          "sum_net_pct": 0.707
+        },
+        {
+          "n": 5,
+          "wins": 1,
+          "wr": 20.0,
+          "pf": 0.4444,
+          "avg_net_bps": -96.0,
+          "sum_net_pct": -4.8
+        }
+      ],
+      "positive_validation_quarters": 1
+    }
+  ]
+}
