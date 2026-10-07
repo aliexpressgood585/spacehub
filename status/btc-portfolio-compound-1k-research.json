@@ -1,0 +1,1057 @@
+{
+  "window": {
+    "start": "2025-10-07T00:00:00+00:00",
+    "end_exclusive": "2026-10-07T00:00:00+00:00"
+  },
+  "starting_balance_usd": 1000.0,
+  "position_sizing": "100% of current equity per trade, no leverage; overlapping signals skipped while a trade is open",
+  "roundtrip_cost_pct": 0.16,
+  "drawdown_definition": "Maximum peak-to-trough drawdown of closed-trade compounded equity. It is not intrabar mark-to-market drawdown.",
+  "method": [
+    "Research only; no account/runtime changes.",
+    "The two strategy definitions and exits are frozen from the prior BTC-only search.",
+    "Each trade uses the full current balance, so returns are compounded multiplicatively.",
+    "No leverage is used. Fees/slippage reserve are represented by the inherited 0.16% round-trip cost.",
+    "Same-bar ambiguity is stop-first, matching the prior backtest."
+  ],
+  "results": [
+    {
+      "strategy": {
+        "name": "BTC_4H_vol_expansion_long",
+        "tf": 240,
+        "signal": "expand_b1.0_v1.5_green",
+        "side": 1,
+        "filter": "trend20_50_up",
+        "tp": 0.02,
+        "sl": 0.015,
+        "hold_hours": 24
+      },
+      "stats": {
+        "start_balance": 1000.0,
+        "final_balance": 1135.19,
+        "net_profit_usd": 135.19,
+        "total_return_pct": 13.519,
+        "trades": 40,
+        "wins": 23,
+        "losses": 17,
+        "win_rate_pct": 57.5,
+        "profit_factor_trade_returns": 1.4975,
+        "avg_trade_pct": 0.3314,
+        "max_closed_equity_drawdown_pct": 7.892,
+        "best_trade_pct": 1.84,
+        "worst_trade_pct": -1.66
+      },
+      "trades": [
+        {
+          "entry_ms": 1761480000000,
+          "exit_ms": 1761508800000,
+          "entry": 113235.1,
+          "exit": 115499.80200000001,
+          "net_return": 0.018400000000000017,
+          "reason": "target",
+          "balance_after": 1018.4,
+          "pnl_usd": 18.4
+        },
+        {
+          "entry_ms": 1765296000000,
+          "exit_ms": 1765296000000,
+          "entry": 92676.9,
+          "exit": 94530.438,
+          "net_return": 0.018400000000000017,
+          "reason": "target",
+          "balance_after": 1037.13856,
+          "pnl_usd": 18.73856
+        },
+        {
+          "entry_ms": 1765497600000,
+          "exit_ms": 1765540800000,
+          "entry": 92477.6,
+          "exit": 91090.436,
+          "net_return": -0.016600000000000014,
+          "reason": "stop",
+          "balance_after": 1019.92206,
+          "pnl_usd": -17.2165
+        },
+        {
+          "entry_ms": 1766980800000,
+          "exit_ms": 1766995200000,
+          "entry": 90091.5,
+          "exit": 88740.1275,
+          "net_return": -0.016600000000000014,
+          "reason": "stop",
+          "balance_after": 1002.991354,
+          "pnl_usd": -16.930706
+        },
+        {
+          "entry_ms": 1767585600000,
+          "exit_ms": 1767643200000,
+          "entry": 92835.3,
+          "exit": 94692.00600000001,
+          "net_return": 0.018400000000000017,
+          "reason": "target",
+          "balance_after": 1021.446395,
+          "pnl_usd": 18.455041
+        },
+        {
+          "entry_ms": 1768190400000,
+          "exit_ms": 1768204800000,
+          "entry": 91766.2,
+          "exit": 90389.707,
+          "net_return": -0.016600000000000014,
+          "reason": "stop",
+          "balance_after": 1004.490384,
+          "pnl_usd": -16.95601
+        },
+        {
+          "entry_ms": 1768233600000,
+          "exit_ms": 1768305600000,
+          "entry": 91618.6,
+          "exit": 93407.9,
+          "net_return": 0.017929877121021055,
+          "reason": "time",
+          "balance_after": 1022.500774,
+          "pnl_usd": 18.010389
+        },
+        {
+          "entry_ms": 1768320000000,
+          "exit_ms": 1768334400000,
+          "entry": 93407.9,
+          "exit": 95276.05799999999,
+          "net_return": 0.018400000000000017,
+          "reason": "target",
+          "balance_after": 1041.314788,
+          "pnl_usd": 18.814014
+        },
+        {
+          "entry_ms": 1768348800000,
+          "exit_ms": 1768406400000,
+          "entry": 95375.2,
+          "exit": 97282.704,
+          "net_return": 0.018400000000000017,
+          "reason": "target",
+          "balance_after": 1060.47498,
+          "pnl_usd": 19.160192
+        },
+        {
+          "entry_ms": 1772640000000,
+          "exit_ms": 1772683200000,
+          "entry": 73339.7,
+          "exit": 72239.6045,
+          "net_return": -0.016599999999999903,
+          "reason": "stop",
+          "balance_after": 1042.871095,
+          "pnl_usd": -17.603885
+        },
+        {
+          "entry_ms": 1773619200000,
+          "exit_ms": 1773619200000,
+          "entry": 72778.8,
+          "exit": 74234.376,
+          "net_return": 0.018400000000000017,
+          "reason": "target",
+          "balance_after": 1062.059923,
+          "pnl_usd": 19.188828
+        },
+        {
+          "entry_ms": 1775606400000,
+          "exit_ms": 1775649600000,
+          "entry": 71890.2,
+          "exit": 70811.847,
+          "net_return": -0.016600000000000014,
+          "reason": "stop",
+          "balance_after": 1044.429729,
+          "pnl_usd": -17.630195
+        },
+        {
+          "entry_ms": 1776096000000,
+          "exit_ms": 1776096000000,
+          "entry": 71823.6,
+          "exit": 73260.072,
+          "net_return": 0.018400000000000017,
+          "reason": "target",
+          "balance_after": 1063.647236,
+          "pnl_usd": 19.217507
+        },
+        {
+          "entry_ms": 1776110400000,
+          "exit_ms": 1776110400000,
+          "entry": 73272.1,
+          "exit": 74737.542,
+          "net_return": 0.018400000000000017,
+          "reason": "target",
+          "balance_after": 1083.218345,
+          "pnl_usd": 19.571109
+        },
+        {
+          "entry_ms": 1776124800000,
+          "exit_ms": 1776168000000,
+          "entry": 74384.9,
+          "exit": 75872.598,
+          "net_return": 0.018400000000000017,
+          "reason": "target",
+          "balance_after": 1103.149562,
+          "pnl_usd": 19.931218
+        },
+        {
+          "entry_ms": 1776441600000,
+          "exit_ms": 1776499200000,
+          "entry": 77736.2,
+          "exit": 76570.15699999999,
+          "net_return": -0.016600000000000014,
+          "reason": "stop",
+          "balance_after": 1084.83728,
+          "pnl_usd": -18.312283
+        },
+        {
+          "entry_ms": 1776830400000,
+          "exit_ms": 1776859200000,
+          "entry": 77488.4,
+          "exit": 79038.16799999999,
+          "net_return": 0.018400000000000017,
+          "reason": "target",
+          "balance_after": 1104.798286,
+          "pnl_usd": 19.961006
+        },
+        {
+          "entry_ms": 1777651200000,
+          "exit_ms": 1777723200000,
+          "entry": 78395.4,
+          "exit": 78449.8,
+          "net_return": -0.000906081734387286,
+          "reason": "time",
+          "balance_after": 1103.797248,
+          "pnl_usd": -1.001038
+        },
+        {
+          "entry_ms": 1777867200000,
+          "exit_ms": 1777881600000,
+          "entry": 80278.7,
+          "exit": 79074.5195,
+          "net_return": -0.016600000000000014,
+          "reason": "stop",
+          "balance_after": 1085.474214,
+          "pnl_usd": -18.323034
+        },
+        {
+          "entry_ms": 1777910400000,
+          "exit_ms": 1777982400000,
+          "entry": 79976.6,
+          "exit": 81576.13200000001,
+          "net_return": 0.018400000000000017,
+          "reason": "target",
+          "balance_after": 1105.446939,
+          "pnl_usd": 19.972726
+        },
+        {
+          "entry_ms": 1778068800000,
+          "exit_ms": 1778068800000,
+          "entry": 82485.3,
+          "exit": 81248.0205,
+          "net_return": -0.016600000000000014,
+          "reason": "stop",
+          "balance_after": 1087.09652,
+          "pnl_usd": -18.350419
+        },
+        {
+          "entry_ms": 1778457600000,
+          "exit_ms": 1778457600000,
+          "entry": 82177.7,
+          "exit": 80945.0345,
+          "net_return": -0.016600000000000014,
+          "reason": "stop",
+          "balance_after": 1069.050718,
+          "pnl_usd": -18.045802
+        },
+        {
+          "entry_ms": 1778774400000,
+          "exit_ms": 1778846400000,
+          "entry": 81245.6,
+          "exit": 80026.916,
+          "net_return": -0.016600000000000125,
+          "reason": "stop",
+          "balance_after": 1051.304476,
+          "pnl_usd": -17.746242
+        },
+        {
+          "entry_ms": 1781481600000,
+          "exit_ms": 1781524800000,
+          "entry": 65702.1,
+          "exit": 67016.142,
+          "net_return": 0.018400000000000017,
+          "reason": "target",
+          "balance_after": 1070.648478,
+          "pnl_usd": 19.344002
+        },
+        {
+          "entry_ms": 1781539200000,
+          "exit_ms": 1781553600000,
+          "entry": 67248.5,
+          "exit": 66239.77249999999,
+          "net_return": -0.016600000000000125,
+          "reason": "stop",
+          "balance_after": 1052.875714,
+          "pnl_usd": -17.772765
+        },
+        {
+          "entry_ms": 1781712000000,
+          "exit_ms": 1781712000000,
+          "entry": 65712.7,
+          "exit": 64727.00949999999,
+          "net_return": -0.016600000000000014,
+          "reason": "stop",
+          "balance_after": 1035.397977,
+          "pnl_usd": -17.477737
+        },
+        {
+          "entry_ms": 1783296000000,
+          "exit_ms": 1783324800000,
+          "entry": 63617.2,
+          "exit": 62662.941999999995,
+          "net_return": -0.016600000000000014,
+          "reason": "stop",
+          "balance_after": 1018.21037,
+          "pnl_usd": -17.187606
+        },
+        {
+          "entry_ms": 1783353600000,
+          "exit_ms": 1783425600000,
+          "entry": 63523.0,
+          "exit": 63910.0,
+          "net_return": 0.004492281535821753,
+          "reason": "time",
+          "balance_after": 1022.784458,
+          "pnl_usd": 4.574088
+        },
+        {
+          "entry_ms": 1784044800000,
+          "exit_ms": 1784116800000,
+          "entry": 64727.4,
+          "exit": 65391.6,
+          "net_return": 0.008661496676832404,
+          "reason": "time",
+          "balance_after": 1031.643302,
+          "pnl_usd": 8.858844
+        },
+        {
+          "entry_ms": 1784548800000,
+          "exit_ms": 1784620800000,
+          "entry": 64970.8,
+          "exit": 66270.216,
+          "net_return": 0.018400000000000017,
+          "reason": "target",
+          "balance_after": 1050.625539,
+          "pnl_usd": 18.982237
+        },
+        {
+          "entry_ms": 1787068800000,
+          "exit_ms": 1787140800000,
+          "entry": 64823.9,
+          "exit": 66120.378,
+          "net_return": 0.018400000000000017,
+          "reason": "target",
+          "balance_after": 1069.957049,
+          "pnl_usd": 19.33151
+        },
+        {
+          "entry_ms": 1787155200000,
+          "exit_ms": 1787169600000,
+          "entry": 68523.7,
+          "exit": 69894.174,
+          "net_return": 0.018400000000000017,
+          "reason": "target",
+          "balance_after": 1089.644259,
+          "pnl_usd": 19.68721
+        },
+        {
+          "entry_ms": 1787184000000,
+          "exit_ms": 1787212800000,
+          "entry": 69310.1,
+          "exit": 70696.30200000001,
+          "net_return": 0.018400000000000017,
+          "reason": "target",
+          "balance_after": 1109.693713,
+          "pnl_usd": 20.049454
+        },
+        {
+          "entry_ms": 1787227200000,
+          "exit_ms": 1787256000000,
+          "entry": 71896.2,
+          "exit": 73334.124,
+          "net_return": 0.018400000000000017,
+          "reason": "target",
+          "balance_after": 1130.112077,
+          "pnl_usd": 20.418364
+        },
+        {
+          "entry_ms": 1787284800000,
+          "exit_ms": 1787284800000,
+          "entry": 74482.9,
+          "exit": 75972.55799999999,
+          "net_return": 0.018400000000000017,
+          "reason": "target",
+          "balance_after": 1150.906139,
+          "pnl_usd": 20.794062
+        },
+        {
+          "entry_ms": 1787299200000,
+          "exit_ms": 1787299200000,
+          "entry": 76310.3,
+          "exit": 77836.50600000001,
+          "net_return": 0.018400000000000017,
+          "reason": "target",
+          "balance_after": 1172.082812,
+          "pnl_usd": 21.176673
+        },
+        {
+          "entry_ms": 1787630400000,
+          "exit_ms": 1787644800000,
+          "entry": 80457.6,
+          "exit": 79250.736,
+          "net_return": -0.016600000000000014,
+          "reason": "stop",
+          "balance_after": 1152.626238,
+          "pnl_usd": -19.456575
+        },
+        {
+          "entry_ms": 1788451200000,
+          "exit_ms": 1788523200000,
+          "entry": 81316.7,
+          "exit": 80096.9495,
+          "net_return": -0.016599999999999903,
+          "reason": "stop",
+          "balance_after": 1133.492642,
+          "pnl_usd": -19.133596
+        },
+        {
+          "entry_ms": 1789992000000,
+          "exit_ms": 1790006400000,
+          "entry": 84849.9,
+          "exit": 86546.898,
+          "net_return": 0.018400000000000017,
+          "reason": "target",
+          "balance_after": 1154.348907,
+          "pnl_usd": 20.856265
+        },
+        {
+          "entry_ms": 1791158400000,
+          "exit_ms": 1791201600000,
+          "entry": 86482.8,
+          "exit": 85185.558,
+          "net_return": -0.016600000000000014,
+          "reason": "stop",
+          "balance_after": 1135.186715,
+          "pnl_usd": -19.162192
+        }
+      ]
+    },
+    {
+      "strategy": {
+        "name": "BTC_4H_momentum_8h_long",
+        "tf": 240,
+        "signal": "ret8h_ge_0.015",
+        "side": 1,
+        "filter": "volume_high",
+        "tp": 0.03,
+        "sl": 0.05,
+        "hold_hours": 48
+      },
+      "stats": {
+        "start_balance": 1000.0,
+        "final_balance": 1151.67,
+        "net_profit_usd": 151.67,
+        "total_return_pct": 15.167,
+        "trades": 58,
+        "wins": 35,
+        "losses": 23,
+        "win_rate_pct": 60.345,
+        "profit_factor_trade_returns": 1.3089,
+        "avg_trade_pct": 0.2742,
+        "max_closed_equity_drawdown_pct": 12.787,
+        "best_trade_pct": 2.84,
+        "worst_trade_pct": -5.16
+      },
+      "trades": [
+        {
+          "entry_ms": 1761062400000,
+          "exit_ms": 1761105600000,
+          "entry": 113355.2,
+          "exit": 107687.43999999999,
+          "net_return": -0.05160000000000004,
+          "reason": "stop",
+          "balance_after": 948.4,
+          "pnl_usd": -51.6
+        },
+        {
+          "entry_ms": 1761480000000,
+          "exit_ms": 1761638400000,
+          "entry": 113235.1,
+          "exit": 114290.7,
+          "net_return": 0.007722197799092269,
+          "reason": "time",
+          "balance_after": 955.723732,
+          "pnl_usd": 7.323732
+        },
+        {
+          "entry_ms": 1762315200000,
+          "exit_ms": 1762473600000,
+          "entry": 102094.8,
+          "exit": 101863.5,
+          "net_return": -0.003865541437957652,
+          "reason": "time",
+          "balance_after": 952.029343,
+          "pnl_usd": -3.69439
+        },
+        {
+          "entry_ms": 1763020800000,
+          "exit_ms": 1763049600000,
+          "entry": 103430.9,
+          "exit": 98259.355,
+          "net_return": -0.05159999999999993,
+          "reason": "stop",
+          "balance_after": 902.904629,
+          "pnl_usd": -49.124714
+        },
+        {
+          "entry_ms": 1763481600000,
+          "exit_ms": 1763640000000,
+          "entry": 92851.5,
+          "exit": 89835.4,
+          "net_return": -0.03408305089309278,
+          "reason": "time",
+          "balance_after": 872.130884,
+          "pnl_usd": -30.773744
+        },
+        {
+          "entry_ms": 1763755200000,
+          "exit_ms": 1763870400000,
+          "entry": 84167.1,
+          "exit": 86692.11300000001,
+          "net_return": 0.028400000000000026,
+          "reason": "target",
+          "balance_after": 896.899401,
+          "pnl_usd": 24.768517
+        },
+        {
+          "entry_ms": 1764014400000,
+          "exit_ms": 1764172800000,
+          "entry": 88277.1,
+          "exit": 89923.3,
+          "net_return": 0.017048097864565116,
+          "reason": "time",
+          "balance_after": 912.18983,
+          "pnl_usd": 15.290429
+        },
+        {
+          "entry_ms": 1764187200000,
+          "exit_ms": 1764331200000,
+          "entry": 89923.3,
+          "exit": 92620.99900000001,
+          "net_return": 0.028400000000000026,
+          "reason": "target",
+          "balance_after": 938.096021,
+          "pnl_usd": 25.906191
+        },
+        {
+          "entry_ms": 1764345600000,
+          "exit_ms": 1764504000000,
+          "entry": 92299.8,
+          "exit": 91405.8,
+          "net_return": -0.011285828138305875,
+          "reason": "time",
+          "balance_after": 927.508831,
+          "pnl_usd": -10.58719
+        },
+        {
+          "entry_ms": 1764691200000,
+          "exit_ms": 1764734400000,
+          "entry": 90809.2,
+          "exit": 93533.476,
+          "net_return": 0.028400000000000026,
+          "reason": "target",
+          "balance_after": 953.850082,
+          "pnl_usd": 26.341251
+        },
+        {
+          "entry_ms": 1765137600000,
+          "exit_ms": 1765296000000,
+          "entry": 91379.8,
+          "exit": 94121.194,
+          "net_return": 0.028400000000000026,
+          "reason": "target",
+          "balance_after": 980.939424,
+          "pnl_usd": 27.089342
+        },
+        {
+          "entry_ms": 1765310400000,
+          "exit_ms": 1765468800000,
+          "entry": 93761.9,
+          "exit": 90793.5,
+          "net_return": -0.03325891476175286,
+          "reason": "time",
+          "balance_after": 948.314443,
+          "pnl_usd": -32.624981
+        },
+        {
+          "entry_ms": 1765497600000,
+          "exit_ms": 1765656000000,
+          "entry": 92477.6,
+          "exit": 90191.3,
+          "net_return": -0.026322743669818415,
+          "reason": "time",
+          "balance_after": 923.352205,
+          "pnl_usd": -24.962238
+        },
+        {
+          "entry_ms": 1765900800000,
+          "exit_ms": 1766059200000,
+          "entry": 87936.3,
+          "exit": 88480.8,
+          "net_return": 0.004591982150715925,
+          "reason": "time",
+          "balance_after": 927.592222,
+          "pnl_usd": 4.240017
+        },
+        {
+          "entry_ms": 1766073600000,
+          "exit_ms": 1766232000000,
+          "entry": 88480.7,
+          "exit": 88134.6,
+          "net_return": -0.005511587498742541,
+          "reason": "time",
+          "balance_after": 922.479716,
+          "pnl_usd": -5.112506
+        },
+        {
+          "entry_ms": 1766980800000,
+          "exit_ms": 1767139200000,
+          "entry": 90091.5,
+          "exit": 88411.5,
+          "net_return": -0.02024770816336725,
+          "reason": "time",
+          "balance_after": 903.801616,
+          "pnl_usd": -18.6781
+        },
+        {
+          "entry_ms": 1767585600000,
+          "exit_ms": 1767744000000,
+          "entry": 92835.3,
+          "exit": 92778.2,
+          "net_return": -0.0022150677597853703,
+          "reason": "time",
+          "balance_after": 901.799634,
+          "pnl_usd": -2.001982
+        },
+        {
+          "entry_ms": 1768320000000,
+          "exit_ms": 1768334400000,
+          "entry": 93407.9,
+          "exit": 96210.137,
+          "net_return": 0.028400000000000026,
+          "reason": "target",
+          "balance_after": 927.410744,
+          "pnl_usd": 25.61111
+        },
+        {
+          "entry_ms": 1768348800000,
+          "exit_ms": 1768507200000,
+          "entry": 95375.2,
+          "exit": 95567.3,
+          "net_return": 0.000414150429042516,
+          "reason": "time",
+          "balance_after": 927.794832,
+          "pnl_usd": 0.384088
+        },
+        {
+          "entry_ms": 1769025600000,
+          "exit_ms": 1769184000000,
+          "entry": 90321.9,
+          "exit": 89938.3,
+          "net_return": -0.005847032004419671,
+          "reason": "time",
+          "balance_after": 922.369986,
+          "pnl_usd": -5.424846
+        },
+        {
+          "entry_ms": 1770998400000,
+          "exit_ms": 1771128000000,
+          "entry": 68652.1,
+          "exit": 70711.66300000002,
+          "net_return": 0.028400000000000026,
+          "reason": "target",
+          "balance_after": 948.565293,
+          "pnl_usd": 26.195308
+        },
+        {
+          "entry_ms": 1772035200000,
+          "exit_ms": 1772035200000,
+          "entry": 67362.4,
+          "exit": 69383.272,
+          "net_return": 0.028400000000000026,
+          "reason": "target",
+          "balance_after": 975.504547,
+          "pnl_usd": 26.939254
+        },
+        {
+          "entry_ms": 1772049600000,
+          "exit_ms": 1772208000000,
+          "entry": 69005.2,
+          "exit": 65554.93999999999,
+          "net_return": -0.05160000000000015,
+          "reason": "stop",
+          "balance_after": 925.168513,
+          "pnl_usd": -50.336035
+        },
+        {
+          "entry_ms": 1772337600000,
+          "exit_ms": 1772452800000,
+          "entry": 67474.8,
+          "exit": 69499.04400000001,
+          "net_return": 0.028400000000000026,
+          "reason": "target",
+          "balance_after": 951.443299,
+          "pnl_usd": 26.274786
+        },
+        {
+          "entry_ms": 1772467200000,
+          "exit_ms": 1772611200000,
+          "entry": 69089.1,
+          "exit": 71161.773,
+          "net_return": 0.028400000000000026,
+          "reason": "target",
+          "balance_after": 978.464288,
+          "pnl_usd": 27.02099
+        },
+        {
+          "entry_ms": 1772625600000,
+          "exit_ms": 1772625600000,
+          "entry": 71082.3,
+          "exit": 73214.769,
+          "net_return": 0.028400000000000026,
+          "reason": "target",
+          "balance_after": 1006.252674,
+          "pnl_usd": 27.788386
+        },
+        {
+          "entry_ms": 1772640000000,
+          "exit_ms": 1772798400000,
+          "entry": 73339.7,
+          "exit": 69672.715,
+          "net_return": -0.05160000000000004,
+          "reason": "stop",
+          "balance_after": 954.330036,
+          "pnl_usd": -51.922638
+        },
+        {
+          "entry_ms": 1773043200000,
+          "exit_ms": 1773100800000,
+          "entry": 67504.9,
+          "exit": 69530.04699999999,
+          "net_return": 0.028400000000000026,
+          "reason": "target",
+          "balance_after": 981.433009,
+          "pnl_usd": 27.102973
+        },
+        {
+          "entry_ms": 1773619200000,
+          "exit_ms": 1773705600000,
+          "entry": 72778.8,
+          "exit": 74962.164,
+          "net_return": 0.028400000000000026,
+          "reason": "target",
+          "balance_after": 1009.305707,
+          "pnl_usd": 27.872697
+        },
+        {
+          "entry_ms": 1774267200000,
+          "exit_ms": 1774425600000,
+          "entry": 70097.2,
+          "exit": 71650.3,
+          "net_return": 0.020556377144878946,
+          "reason": "time",
+          "balance_after": 1030.053375,
+          "pnl_usd": 20.747669
+        },
+        {
+          "entry_ms": 1774929600000,
+          "exit_ms": 1775088000000,
+          "entry": 67670.8,
+          "exit": 66538.4,
+          "net_return": -0.018333953196947705,
+          "reason": "time",
+          "balance_after": 1011.168425,
+          "pnl_usd": -18.88495
+        },
+        {
+          "entry_ms": 1775433600000,
+          "exit_ms": 1775592000000,
+          "entry": 68997.9,
+          "exit": 71067.837,
+          "net_return": 0.028400000000000026,
+          "reason": "target",
+          "balance_after": 1039.885608,
+          "pnl_usd": 28.717183
+        },
+        {
+          "entry_ms": 1775606400000,
+          "exit_ms": 1775764800000,
+          "entry": 71890.2,
+          "exit": 71750.4,
+          "net_return": -0.0035446322308187546,
+          "reason": "time",
+          "balance_after": 1036.199596,
+          "pnl_usd": -3.686012
+        },
+        {
+          "entry_ms": 1776110400000,
+          "exit_ms": 1776168000000,
+          "entry": 73272.1,
+          "exit": 75470.263,
+          "net_return": 0.028400000000000026,
+          "reason": "target",
+          "balance_after": 1065.627665,
+          "pnl_usd": 29.428069
+        },
+        {
+          "entry_ms": 1776441600000,
+          "exit_ms": 1776600000000,
+          "entry": 77736.2,
+          "exit": 75807.6,
+          "net_return": -0.026409548189903664,
+          "reason": "time",
+          "balance_after": 1037.48492,
+          "pnl_usd": -28.142745
+        },
+        {
+          "entry_ms": 1776830400000,
+          "exit_ms": 1776988800000,
+          "entry": 77488.4,
+          "exit": 77690.1,
+          "net_return": 0.001002970251031289,
+          "reason": "time",
+          "balance_after": 1038.525486,
+          "pnl_usd": 1.040567
+        },
+        {
+          "entry_ms": 1777651200000,
+          "exit_ms": 1777809600000,
+          "entry": 78395.4,
+          "exit": 78625.2,
+          "net_return": 0.0013312944381940652,
+          "reason": "time",
+          "balance_after": 1039.908069,
+          "pnl_usd": 1.382583
+        },
+        {
+          "entry_ms": 1777867200000,
+          "exit_ms": 1778025600000,
+          "entry": 80278.7,
+          "exit": 81535.9,
+          "net_return": 0.014060442931935802,
+          "reason": "time",
+          "balance_after": 1054.529637,
+          "pnl_usd": 14.621568
+        },
+        {
+          "entry_ms": 1778774400000,
+          "exit_ms": 1778932800000,
+          "entry": 81245.6,
+          "exit": 78194.1,
+          "net_return": -0.039158957038904214,
+          "reason": "time",
+          "balance_after": 1013.235357,
+          "pnl_usd": -41.294281
+        },
+        {
+          "entry_ms": 1779580800000,
+          "exit_ms": 1779739200000,
+          "entry": 76715.3,
+          "exit": 77281.5,
+          "net_return": 0.005780535564613489,
+          "reason": "time",
+          "balance_after": 1019.0924,
+          "pnl_usd": 5.857043
+        },
+        {
+          "entry_ms": 1781107200000,
+          "exit_ms": 1781265600000,
+          "entry": 62604.7,
+          "exit": 63557.0,
+          "net_return": 0.013611318000086348,
+          "reason": "time",
+          "balance_after": 1032.96359,
+          "pnl_usd": 13.871191
+        },
+        {
+          "entry_ms": 1781481600000,
+          "exit_ms": 1781640000000,
+          "entry": 65702.1,
+          "exit": 65644.8,
+          "net_return": -0.0024721182427959827,
+          "reason": "time",
+          "balance_after": 1030.409982,
+          "pnl_usd": -2.553608
+        },
+        {
+          "entry_ms": 1782921600000,
+          "exit_ms": 1782993600000,
+          "entry": 60118.6,
+          "exit": 61922.158,
+          "net_return": 0.028400000000000026,
+          "reason": "target",
+          "balance_after": 1059.673626,
+          "pnl_usd": 29.263643
+        },
+        {
+          "entry_ms": 1783008000000,
+          "exit_ms": 1783166400000,
+          "entry": 61584.0,
+          "exit": 62908.8,
+          "net_return": 0.019912081060015564,
+          "reason": "time",
+          "balance_after": 1080.773933,
+          "pnl_usd": 21.100307
+        },
+        {
+          "entry_ms": 1783368000000,
+          "exit_ms": 1783526400000,
+          "entry": 63709.9,
+          "exit": 62251.9,
+          "net_return": -0.024484983338539167,
+          "reason": "time",
+          "balance_after": 1054.311201,
+          "pnl_usd": -26.462732
+        },
+        {
+          "entry_ms": 1784044800000,
+          "exit_ms": 1784203200000,
+          "entry": 64727.4,
+          "exit": 64677.7,
+          "net_return": -0.002367835568862729,
+          "reason": "time",
+          "balance_after": 1051.814765,
+          "pnl_usd": -2.496436
+        },
+        {
+          "entry_ms": 1784563200000,
+          "exit_ms": 1784721600000,
+          "entry": 65570.1,
+          "exit": 66014.8,
+          "net_return": 0.005182054625507517,
+          "reason": "time",
+          "balance_after": 1057.265327,
+          "pnl_usd": 5.450562
+        },
+        {
+          "entry_ms": 1785772800000,
+          "exit_ms": 1785931200000,
+          "entry": 63659.5,
+          "exit": 64353.6,
+          "net_return": 0.00930332157808338,
+          "reason": "time",
+          "balance_after": 1067.101406,
+          "pnl_usd": 9.836079
+        },
+        {
+          "entry_ms": 1787155200000,
+          "exit_ms": 1787212800000,
+          "entry": 68523.7,
+          "exit": 70579.411,
+          "net_return": 0.028400000000000026,
+          "reason": "target",
+          "balance_after": 1097.407086,
+          "pnl_usd": 30.30568
+        },
+        {
+          "entry_ms": 1787227200000,
+          "exit_ms": 1787270400000,
+          "entry": 71896.2,
+          "exit": 74053.086,
+          "net_return": 0.028400000000000026,
+          "reason": "target",
+          "balance_after": 1128.573448,
+          "pnl_usd": 31.166361
+        },
+        {
+          "entry_ms": 1787284800000,
+          "exit_ms": 1787284800000,
+          "entry": 74482.9,
+          "exit": 76717.387,
+          "net_return": 0.028400000000000026,
+          "reason": "target",
+          "balance_after": 1160.624933,
+          "pnl_usd": 32.051486
+        },
+        {
+          "entry_ms": 1787299200000,
+          "exit_ms": 1787299200000,
+          "entry": 76310.3,
+          "exit": 78599.60900000001,
+          "net_return": 0.028400000000000026,
+          "reason": "target",
+          "balance_after": 1193.586682,
+          "pnl_usd": 32.961748
+        },
+        {
+          "entry_ms": 1787313600000,
+          "exit_ms": 1787472000000,
+          "entry": 76748.9,
+          "exit": 77296.0,
+          "net_return": 0.005528440928795055,
+          "reason": "time",
+          "balance_after": 1200.185355,
+          "pnl_usd": 6.598673
+        },
+        {
+          "entry_ms": 1787587200000,
+          "exit_ms": 1787745600000,
+          "entry": 79069.3,
+          "exit": 77980.7,
+          "net_return": -0.015367669626517543,
+          "reason": "time",
+          "balance_after": 1181.741303,
+          "pnl_usd": -18.444052
+        },
+        {
+          "entry_ms": 1788451200000,
+          "exit_ms": 1788609600000,
+          "entry": 81316.7,
+          "exit": 79760.2,
+          "net_return": -0.020741209616228894,
+          "reason": "time",
+          "balance_after": 1157.230559,
+          "pnl_usd": -24.510744
+        },
+        {
+          "entry_ms": 1789747200000,
+          "exit_ms": 1789905600000,
+          "entry": 80688.7,
+          "exit": 80871.4,
+          "net_return": 0.0006642575726217195,
+          "reason": "time",
+          "balance_after": 1157.999258,
+          "pnl_usd": 0.768699
+        },
+        {
+          "entry_ms": 1789992000000,
+          "exit_ms": 1790150400000,
+          "entry": 84849.9,
+          "exit": 85622.8,
+          "net_return": 0.007509026645877094,
+          "reason": "time",
+          "balance_after": 1166.694705,
+          "pnl_usd": 8.695447
+        },
+        {
+          "entry_ms": 1791158400000,
+          "exit_ms": 1791316800000,
+          "entry": 86482.8,
+          "exit": 85507.5,
+          "net_return": -0.012877386948618685,
+          "reason": "time",
+          "balance_after": 1151.670726,
+          "pnl_usd": -15.023979
+        }
+      ]
+    }
+  ]
+}
