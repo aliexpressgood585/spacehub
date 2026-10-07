@@ -1,6 +1,13 @@
 name: Long Short Grid 3Y Research
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/market-gate-check/long_short_grid.py'
+      - 'scripts/market-gate-check/check_long_short_grid.py'
+      - 'quant/PREREGISTRATION_LONG_SHORT_GRID.md'
+      - '.github/workflows/long-short-grid-3y.yml'
   push:
     branches: [research/long-short-grid-20261007]
     paths:
