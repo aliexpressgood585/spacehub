@@ -17,10 +17,10 @@ Large idiosyncratic moves in an altcoin relative to its rolling BTC beta partial
 ## Frozen signal and execution
 
 - Compute 5m close-to-close log returns.
-- At each completed 5m bar, estimate each alt's BTC beta from the prior 7 complete days (2,016 five-minute returns), requiring at least 95% paired observations and beta in [0.1, 3.0].
+- At each completed 5m bar, estimate each alt's BTC beta from the prior 14 complete days (4,032 five-minute returns), requiring at least 95% paired observations and beta in [0.1, 3.0].
 - Formation windows: 4h (48 bars) and 12h (144 bars).
 - Residual formation return = alt log return over the formation window minus frozen beta times BTC log return over the same window.
-- Z-score the current residual formation return against prior non-overlapping formation returns inside the same 7-day beta window; require at least 20 observations and nonzero standard deviation.
+- Z-score the current residual formation return against prior non-overlapping formation returns inside the same 14-day beta window; require at least 20 observations and nonzero standard deviation.
 - Thresholds: |z| >= 1.5 or |z| >= 2.0.
 - Mean-reversion pair: z>0 shorts the alt and buys beta-weighted BTC; z<0 buys the alt and shorts beta-weighted BTC.
 - Normalize absolute alt and BTC weights to total gross exposure 1.0. Freeze beta/weights at entry.
