@@ -31,4 +31,23 @@ begin
     raise exception 'foreign balance mutation accepted';
   exception when others then if SQLERRM not like 'Frozen RSI2 paper%' then raise; end if; end;
 end $$;
+
+-- Regression: a winning close must store a 0..1 ratio and must not overflow
+-- bot_state.overall_wr numeric(5,4) when the deferred heartbeat fires.
+select set_config('rsi2.forward_writer','1',true);
+update rsi2_forward_runs set report=report where symbol='MYXUSDT';
+set constraints all immediate;
+do $$
+declare expected numeric; actual numeric;
+begin
+  select 1.0*count(*) filter(where pnl>0)/nullif(count(*),0)
+    into expected from bot_trades where strategy='RSI2_FORWARD_PAPER' and status='CLOSED';
+  select overall_wr into actual from bot_state where id=1;
+  if actual is distinct from round(expected,4) then
+    raise exception 'Heartbeat win-rate mismatch: actual %, expected %',actual,expected;
+  end if;
+  if actual is not null and (actual<0 or actual>1) then
+    raise exception 'Heartbeat win rate must be a 0..1 ratio: %',actual;
+  end if;
+end $$;
 rollback;

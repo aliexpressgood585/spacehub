@@ -1,3 +1,13 @@
+## P-RSI2-HEARTBEAT-131 — owner-requested repair (2026-10-08)
+- Status: PAPER_TEST (repair prepared; runtime verification pending).
+- Owner requested "תסדר" at 12:58 Israel immediately after the concrete PR #131 fault/blocker report. This repair uses the existing explicit autonomous PAPER authority and Claude waiver; no Claude approval is claimed.
+- GPT review: APPROVED for the single accounting-unit correction in PR #131: overall_wr is a fraction (0..1), not a percentage (0..100).
+- Evidence: production numeric(5,4) overflow aborts deferred checkpoints; rollback-only trigger proof asserted 1.0000 after a winning close and restored the original OPEN trade and NULL PnL.
+- Strategy, leverage, size, stops, targets, costs, funding and qualification remain frozen. No reset or history deletion.
+- Full suite currently reports Q15/AGG2/red3m failures outside this SQL-only change; dashboard CI passed. No blanket test success claimed.
+- Rollback/failure criteria: unexpected accounting discrepancy or continued checkpoint errors require investigation; never fabricate a close or reset the account.
+- Historical Claude approvals elsewhere in this file do not constitute review of PR #131.
+
 ## P-RSI2-FORWARD-20X — frozen research observations (2026-10-08)
 - Owner correction at 09:25 Israel: activate on the EXISTING bot/account, not a separate ledger.
 - Follow-up connects simulated journal events to bot_trades and existing cash atomically, with $250 margin x20,
