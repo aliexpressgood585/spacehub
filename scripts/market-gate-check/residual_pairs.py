@@ -66,28 +66,36 @@ def beta_at(ret_btc,ret_alt,i):
     b=float(np.mean((xx-xx.mean())*(yy-yy.mean()))/vx)
     return b if .1<=b<=3 else None
 
-def residual_z(cl_btc,cl_alt,ret_btc,ret_alt,i,formation,beta):
-    vals=[]
-    # Prior non-overlapping formation windows, excluding the current window.
-    for e in range(i-formation,i-BETA_WINDOW+formation-1,-formation):
-        s=e-formation
-        if s<0 or not np.isfinite(cl_btc[[s,e]]).all() or not np.isfinite(cl_alt[[s,e]]).all():continue
-        vals.append(np.log(cl_alt[e]/cl_alt[s])-beta*np.log(cl_btc[e]/cl_btc[s]))
-    if len(vals)<20:return None
-    s=i-formation
-    if s<0 or not np.isfinite(cl_btc[[s,i]]).all() or not np.isfinite(cl_alt[[s,i]]).all():return None
-    cur=float(np.log(cl_alt[i]/cl_alt[s])-beta*np.log(cl_btc[i]/cl_btc[s]));sd=float(np.std(vals,ddof=1))
-    return None if not (sd>0) else (cur-float(np.mean(vals)))/sd
+def rolling_beta(ret_btc,ret_alt):
+    ok=np.isfinite(ret_btc)&np.isfinite(ret_alt);x=np.where(ok,ret_btc,0.);y=np.where(ok,ret_alt,0.)
+    def pref(v):return np.r_[0.,np.cumsum(v)]
+    n=len(x);idx=np.arange(BETA_WINDOW-1,n);lo=idx+1-BETA_WINDOW;hi=idx+1
+    cnt=pref(ok.astype(float))[hi]-pref(ok.astype(float))[lo]
+    sx=pref(x)[hi]-pref(x)[lo];sy=pref(y)[hi]-pref(y)[lo]
+    sxx=pref(x*x)[hi]-pref(x*x)[lo];sxy=pref(x*y)[hi]-pref(x*y)[lo]
+    vx=sxx/cnt-(sx/cnt)**2;cov=sxy/cnt-(sx/cnt)*(sy/cnt);b=cov/vx
+    good=(cnt>=.95*BETA_WINDOW)&(vx>0)&(b>=.1)&(b<=3)
+    out=np.full(n,np.nan);out[idx[good]]=b[good];return out
+
+def residual_z_series(cl_btc,cl_alt,beta,formation):
+    n=len(beta);lb=np.where(np.isfinite(cl_btc)&(cl_btc>0),np.log(cl_btc),np.nan);la=np.where(np.isfinite(cl_alt)&(cl_alt>0),np.log(cl_alt),np.nan)
+    rb=np.full(n,np.nan);ra=np.full(n,np.nan);rb[formation:]=lb[formation:]-lb[:-formation];ra[formation:]=la[formation:]-la[:-formation]
+    cur=ra-beta*rb;count=np.zeros(n);total=np.zeros(n);squares=np.zeros(n)
+    for k in range(1,(BETA_WINDOW-formation)//formation+1):
+        shift=k*formation;pa=np.full(n,np.nan);pb=np.full(n,np.nan);pa[shift:]=ra[:-shift];pb[shift:]=rb[:-shift]
+        v=pa-beta*pb;ok=np.isfinite(v);count+=ok;total+=np.where(ok,v,0.);squares+=np.where(ok,v*v,0.)
+    mean=np.divide(total,count,out=np.full(n,np.nan),where=count>0)
+    correction=np.divide(total*total,count,out=np.zeros(n),where=count>0)
+    var=np.divide(squares-correction,count-1,out=np.full(n,np.nan),where=count>1)
+    z=(cur-mean)/np.sqrt(var);z[(count<20)|(var<=0)]=np.nan;return z
 
 def build_signals(times,cl,formation,zcut):
     ret=np.full_like(cl,np.nan);ret[1:]=np.log(cl[1:]/cl[:-1])
     out=[]
     for j in range(1,cl.shape[1]):
-      for i in range(BETA_WINDOW,len(times)-1):
-        b=beta_at(ret[:,0],ret[:,j],i)
-        if b is None:continue
-        z=residual_z(cl[:,0],cl[:,j],ret[:,0],ret[:,j],i,formation,b)
-        if z is not None and abs(z)>=zcut:out.append((i,j,b,z))
+      beta=rolling_beta(ret[:,0],ret[:,j]);zs=residual_z_series(cl[:,0],cl[:,j],beta,formation)
+      for i in np.flatnonzero((np.abs(zs)>=zcut)&(np.arange(len(times))<len(times)-1)):
+        out.append((int(i),j,float(beta[i]),float(zs[i])))
     return out
 
 def simulate(signals,times,op,cl,hold,start,end):
