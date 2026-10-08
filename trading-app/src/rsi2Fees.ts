@@ -1,4 +1,4 @@
-import { tradeMetrics, type TradeRow } from './tradeMetrics'
+import { tradeMetrics, type TradeRow } from './tradeMetrics.ts'
 
 // Exact cost categories for the frozen RSI2 20x PAPER accounting model.
 // Binance-specific *market* data is real, but these rates are simulated, not
