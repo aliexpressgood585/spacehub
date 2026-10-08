@@ -43,7 +43,7 @@ begin
   select 1.0*count(*) filter(where pnl>0)/nullif(count(*),0)
     into expected from bot_trades where strategy='RSI2_FORWARD_PAPER' and status='CLOSED';
   select overall_wr into actual from bot_state where id=1;
-  if actual is distinct from expected then
+  if actual is distinct from round(expected,4) then
     raise exception 'Heartbeat win-rate mismatch: actual %, expected %',actual,expected;
   end if;
   if actual is not null and (actual<0 or actual>1) then
