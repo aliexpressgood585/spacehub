@@ -1,3 +1,13 @@
+## P-RSI2-FORWARD-20X — frozen research observations (2026-10-08)
+- Status: PAPER_TEST, research simulation only. Owner requested active TRADOORUSDT/MYXUSDT forward observations at 20x.
+- Separate read-only-market collector, no existing bot account/ledger mutation and no qualified bot signals.
+- T0 frozen at 2026-10-08 06:20 UTC. Exact training evidence absent; status INSUFFICIENT_DATA until all gates pass.
+- Both exact contracts verified TRADING / PERPETUAL / quote and margin USDT in hosted runtime. Minute cron active, HTTP 200, initial n=0.
+- Rules and costs frozen in quant/PREREGISTRATION_RSI2_FORWARD_20X.md and SPEC; no tuning, substitution or live exchange calls.
+- GPT implementation checks passed. No Claude review or profitability approval claimed. Independent review remains required
+  for any future change that would route these observations into the bot execution ledger; this collector cannot do that.
+- Old paper account stays paused with $5,000 and zero positions; no reset. Rollback disables only the observation schedule.
+
 ## P-DDDDD-EXECUTION-V2 — owner requested merge/deploy (2026-10-06)
 - Status: PAPER_TEST; merged in PR #114 and deployed as 8c3bd77cd0aa42c5f9183c54e2d26fab89f3be17 (function version 351).
 - Owner explicitly requested proceeding **without Claude** for this change in the current session. This waiver is scoped to P-DDDDD-EXECUTION-V2 and branch `fix/ddddd-execution-quality`; no Claude approval is claimed.
