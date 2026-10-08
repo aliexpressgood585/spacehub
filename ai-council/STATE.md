@@ -1,4 +1,16 @@
 ## P-RSI2-FORWARD-20X — frozen research observations (2026-10-08)
+- Owner correction at 09:25 Israel: activate on the EXISTING bot/account, not a separate ledger.
+- Follow-up connects simulated journal events to bot_trades and existing cash atomically, with $250 margin x20,
+  explicit SIMULATED_TRADE_ONLY/research labels, exact costs, idempotent settlement, and no account reset.
+- Existing trading-bot cron is reassigned to the authenticated read-only-market simulator; standalone cron and optimizer disabled.
+- Legacy ledger/balance writers are blocked while RSI2 mode is active. NOT_QUALIFIED blocks new main-account entries;
+  bounded research observations continue. Exact training is still absent; no qualification or profitability claimed.
+- Existing-account UI follows bot_state strategy and shows the two candidates, same balance and simulated trade journal.
+- Autonomous PAPER authority verified directly in bot_params.manager_authorization: owner instruction 2026-10-07
+  "תשכח מקלוד תעשה הכל לבד עצמאית קיבלתה אתה המושכות", scope "Autonomous PAPER management; Claude waived; preserve history; never repeat reset".
+- GPT review: APPROVED for this owner-requested PAPER integration after SQL rollback tests and dashboard build.
+  Claude review unavailable (insufficient API credit); no Claude approval claimed. Existing owner waiver honored.
+- General edge deployment now filters pure RSI2 changes so this merge cannot invoke the unrelated trading handler.
 - Status: PAPER_TEST, research simulation only. Owner requested active TRADOORUSDT/MYXUSDT forward observations at 20x.
 - Separate read-only-market collector, no existing bot account/ledger mutation and no qualified bot signals.
 - T0 frozen at 2026-10-08 06:20 UTC. Exact training evidence absent; status INSUFFICIENT_DATA until all gates pass.

@@ -93,9 +93,12 @@ Deno.serve(async req => {
         base: F.metrics(s.base), stress: F.metrics(s.stress), roundTripCostPct: .12, stressCostPct: .16,
         fundingIncludedThisRun: fund !== null, fundingNote: fund === null ? 'FUNDING_NOT_INCLUDED' : 'settled funding at reported mark; exit-candle timestamp is simulated bar end',
         observedCandidates: s.observedCandidates, openSimulatedPosition: s.position, pendingSimulatedEntry: s.pending,
+        openFundingCostUsd: s.position ? fund.filter(f => f.t >= s.position!.entryTs && f.t <= now)
+          .reduce((sum,f) => sum+s.position!.side*f.rate*f.mark/s.position!.entry*5000,0) : 0,
         lastClosed5m: s.five.last?.end, lastClosed15m: s.fifteen.last?.end,
+        lastClosePrice: s.five.last?.c,
         drawdownModel: 'closed-trade equity;fixed $250 margin x20=$5000 notional;independent $5000 research account per symbol;no exchange liquidation model',
-        note: 'Research observations continue on failure. No bot/exchange order signals are ever generated. Rules never auto-tune.' }
+        note: 'SIMULATED only. Existing paper account integration records experimental observations; failed qualification blocks new account entries. Rules never auto-tune.' }
       await record(row, s, report, journal); reports.push(report)
     } catch (e) {
       const report = { ...row.report, active: true, symbol: row.symbol, dataStatus: 'MISSING_OR_INVALID_DATA', error: String(e),

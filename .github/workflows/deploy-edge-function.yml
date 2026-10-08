@@ -22,7 +22,41 @@ env:
   PROJECT_REF: adxgadwghgkwmntsnrar
 
 jobs:
+  scope:
+    runs-on: ubuntu-latest
+    outputs:
+      legacy: ${{ steps.scope.outputs.legacy }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          if [ "$EVENT_NAME" = workflow_dispatch ]; then
+            echo 'legacy=true' >> "$GITHUB_OUTPUT"
+          else
+            git diff --name-only "$BEFORE_SHA" "$AFTER_SHA" > /tmp/edge-paths.txt
+            python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          from pathlib import Path
+          paths = Path('/tmp/edge-paths.txt').read_text().splitlines()
+          def legacy(path):
+              if path == 'shared/rsi2-forward.ts' or path.startswith('supabase/functions/rsi2-forward/'):
+                  return False
+              if path.startswith('supabase/migrations/') and 'rsi2' in path:
+                  return False
+              return path.startswith(('shared/', 'supabase/functions/', 'supabase/migrations/')) or path in (
+                  'scripts/smoke-paper-bot.py', 'scripts/build-ledger-payload.py',
+                  '.github/workflows/enforce-no-loss-trading.yml')
+          print('legacy=' + str(any(map(legacy, paths))).lower())
+          PY
+          fi
   deploy:
+    needs: scope
+    if: needs.scope.outputs.legacy == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

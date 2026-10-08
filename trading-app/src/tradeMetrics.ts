@@ -31,8 +31,9 @@ export function tradeMetrics(t: TradeRow, markIn: number, now = Date.now()): Tra
     const hours = Math.max(0, now - Date.parse(t.opened_at)) / 3600_000
     // funding: FUND rows hold the RECEIVING side through one settlement -> the predicted rate is received (estimate);
     // every other sleeve pays/receives the 0.01%/8h model
-    const funding = t.strategy === 'FUND' ? -Math.abs(n(t.scalp_meta?.pred_rate) || 0) * notional : dir * notional * FUNDING_8H * hours / 8
-    costs = n(t.fee || 0) + mark * size * (EXIT_FEE + EXIT_SLIP_EST) + funding
+    const rsi2 = t.strategy === 'RSI2_FORWARD_PAPER'
+    const funding = rsi2 ? Number(t.scalp_meta?.funding_cost ?? 0) : t.strategy === 'FUND' ? -Math.abs(n(t.scalp_meta?.pred_rate) || 0) * notional : dir * notional * FUNDING_8H * hours / 8
+    costs = rsi2 ? notional * .0012 + funding : n(t.fee || 0) + mark * size * (EXIT_FEE + EXIT_SLIP_EST) + funding
     net = gross - costs
   } else { net = n(t.pnl); costs = gross - net }
   const rel = (x: number) => (Number.isFinite(x) && entry > 0 ? dir * (x - entry) / entry : NaN)

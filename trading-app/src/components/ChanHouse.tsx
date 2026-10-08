@@ -1,4 +1,5 @@
 import { FlowShadow } from './FlowShadow'
+import Rsi2House from './Rsi2House'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { SUPA_KEY, SUPA_URL } from '../supa'
 import { useLivePrices, useExitMarks, tickDir } from '../livePrices'
@@ -179,12 +180,15 @@ export default function ChanHouse({ onBack }: { onBack?: () => void }) {
   const [sleeve, setSleeve] = useState<string | null>(null)
   useEffect(() => {
     let alive = true
-    const load = () => q<J[]>('deployment_manifest?select=enabled_sleeves&order=first_seen.desc&limit=1')
-      .then(r => { if (alive) setSleeve(String(r[0]?.enabled_sleeves ?? 'CHAN')) }).catch(() => { if (alive) setSleeve(s => s ?? 'CHAN') })
+    const load = () => Promise.all([
+      q<J[]>('bot_state?select=bot_params&limit=1'),
+      q<J[]>('deployment_manifest?select=enabled_sleeves&order=first_seen.desc&limit=1'),
+    ]).then(([st,r]) => { if (alive) setSleeve(st[0]?.bot_params?.paper_strategy === 'RSI2_FORWARD_20X' ? 'RSI2_FORWARD_20X' : String(r[0]?.enabled_sleeves ?? 'CHAN')) }).catch(() => { if (alive) setSleeve(s => s ?? 'CHAN') })
     void load(); const iv = setInterval(load, 30_000)
     return () => { alive = false; clearInterval(iv) }
   }, [])
   if (sleeve == null) return <div className="ch" dir="rtl"><style>{CSS}</style><div className="emptyPos">טוען…</div></div>
+  if (sleeve === 'RSI2_FORWARD_20X') return <Rsi2House onBack={onBack} />
   if (sleeve.split(',').includes('Q15')) return <BladeHouse onBack={onBack} agg q15 />
   if (sleeve.split(',').includes('BLADE')) return <BladeHouse onBack={onBack} />
   // P-AGG2 (owner 2026-10-04): FAST + EVT + DONCH4H without LIST/FUND -> the same house with the level-2 panel

@@ -1,5 +1,18 @@
 # Frozen RSI2 forward observations — 2026-10-08
 
+## Owner correction: existing bot account
+
+At 09:25 Israel the owner clarified that this must run on the existing bot. Signal rules, indicator states and T0
+remain frozen. The existing bot cron now invokes this simulation engine, and journal triggers mirror simulated
+entries/exits into the existing paper account with fixed $250 margin x20. There is one shared existing cash balance;
+the original per-symbol statistical curves remain normalized research comparisons, not extra spendable accounts.
+Entry costs $3 and margin $250 are reserved; settlement returns margin plus net P&L plus the already charged $3.
+Insufficient cash or failed qualification skips new existing-account entries and preserves research observations.
+All entries are labelled experimental simulated trades, not validated signals. Training evidence is still missing.
+There is no reset or historical trade rewrite. UI reports use existing account cash/positions. Legacy engine writes
+are blocked while this mode is selected. The dedicated observation cron/optimizer are disabled to prevent competition.
+The remainder records the original collector pre-registration; this correction changes account routing only.
+
 Owner authorized active PAPER / DRY-RUN forward observations for TRADOORUSDT and MYXUSDT at 20x.
 This research collector never calls the trading-bot handler or an exchange trading endpoint, nor reads/writes
 the existing account/execution ledger. The old account remains paused, $5,000, no open rows. No keys requested.
