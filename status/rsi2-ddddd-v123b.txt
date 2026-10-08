@@ -1,0 +1,27 @@
+v123b — RSI2 (the current paper strategy) and DDDDD, on all available history; trade level, equal notional per trade
+WR = share of trades with net P&L > 0 after costs. sum = sum of net % per trade (x $10 = what $1,000 a trade made).
+
+A. RSI2 exact (shared/rsi2-forward.ts signal incl. the per-coin filter), full Binance archive, costs 0.12% RT (stress 0.16%) + settled funding
+TRADOORUSDT 2025-09..2026-09   n  1004  WR  70.4% (stress 70.1%)  avgWin 0.67%  avgLoss -1.47%  net    3.2 bps/trade (stress -0.8)  PF 1.07  sum    33%  | L 512 WR 74%  S 492 WR 67%
+   exits: STOP_SIMULATED 284 (0% win, -150 bps) | TARGET_SIMULATED 705 (100% win, 67 bps) | TIMEOUT_SIMULATED 15 (13% win, -68 bps)
+MYXUSDT 2025-06..2026-09       n  1480  WR  69.2% (stress 69.1%)  avgWin 1.01%  avgLoss -2.18%  net    2.8 bps/trade (stress -1.2)  PF 1.04  sum    42%  | L 622 WR 68%  S 858 WR 70%
+   exits: TARGET_SIMULATED 1022 (100% win, 101 bps) | STOP_SIMULATED 444 (0% win, -217 bps) | TIMEOUT_SIMULATED 14 (14% win, -188 bps)
+both contracts                 n  2484  WR  69.7% (stress 69.5%)  avgWin 0.87%  avgLoss -1.90%  net    3.0 bps/trade (stress -1.0)  PF 1.05  sum    74%  | L 1134 WR 71%  S 1350 WR 69%
+   target 1 ATR vs stop 2 ATR: before costs the break-even WR is 66.7%, after costs higher (by cost / 3 ATR)
+
+B. RSI2 core rule (no per-coin filter) on the 10 majors, 5m, 2023-09-01..2026-08-31, same costs
+10 majors, 3 years             n 51735  WR  61.8% (stress 55.3%)  avgWin 0.22%  avgLoss -0.64%  net  -11.0 bps/trade (stress -15.0)  PF 0.55  sum -5672%  | L 26308 WR 61%  S 25427 WR 62%
+   BTC                         n  5148  WR  46.9% (stress 33.4%)  avgWin 0.11%  avgLoss -0.31%  net  -11.3 bps/trade (stress -15.3)  PF 0.31  sum  -580%  | L 2924 WR 46%  S 2224 WR 49%
+   ETH                         n  5014  WR  59.7% (stress 50.3%)  avgWin 0.17%  avgLoss -0.52%  net  -11.2 bps/trade (stress -15.2)  PF 0.47  sum  -563%  | L 2658 WR 59%  S 2356 WR 61%
+   SOL                         n  5160  WR  65.7% (stress 62.2%)  avgWin 0.25%  avgLoss -0.79%  net  -10.6 bps/trade (stress -14.6)  PF 0.61  sum  -547%  | L 2716 WR 66%  S 2444 WR 65%
+   BNB                         n  5307  WR  51.0% (stress 37.9%)  avgWin 0.13%  avgLoss -0.37%  net  -11.6 bps/trade (stress -15.6)  PF 0.36  sum  -615%  | L 3001 WR 50%  S 2306 WR 52%
+   XRP                         n  5042  WR  63.3% (stress 55.0%)  avgWin 0.21%  avgLoss -0.63%  net   -9.8 bps/trade (stress -13.8)  PF 0.58  sum  -492%  | L 2462 WR 64%  S 2580 WR 63%
+   DOGE                        n  5146  WR  64.7% (stress 60.4%)  avgWin 0.26%  avgLoss -0.79%  net  -11.2 bps/trade (stress -15.2)  PF 0.60  sum  -578%  | L 2540 WR 65%  S 2606 WR 65%
+   ADA                         n  5220  WR  67.2% (stress 64.3%)  avgWin 0.25%  avgLoss -0.82%  net  -10.3 bps/trade (stress -14.3)  PF 0.62  sum  -540%  | L 2415 WR 68%  S 2805 WR 67%
+   AVAX                        n  5317  WR  65.6% (stress 62.5%)  avgWin 0.26%  avgLoss -0.83%  net  -11.8 bps/trade (stress -15.8)  PF 0.59  sum  -630%  | L 2564 WR 66%  S 2753 WR 65%
+   LINK                        n  5199  WR  66.6% (stress 63.3%)  avgWin 0.24%  avgLoss -0.81%  net  -11.0 bps/trade (stress -15.0)  PF 0.59  sum  -574%  | L 2653 WR 68%  S 2546 WR 65%
+   DOT                         n  5182  WR  66.8% (stress 63.8%)  avgWin 0.23%  avgLoss -0.79%  net  -10.6 bps/trade (stress -14.6)  PF 0.60  sum  -552%  | L 2375 WR 66%  S 2807 WR 67%
+
+C. DDDDD (five red 5m candles -> long, +1% / -1%), 10 majors, 3 years, taker 5 + slip 3 bps per side + funding
+10 majors, 3 years             n 30202  WR  48.1% (stress 48.1%)  avgWin 0.84%  avgLoss -1.19%  net  -21.6 bps/trade (stress -21.6)  PF 0.65  sum -6510%  | L 30202 WR 48%  S 0 WR -
+   the bracket is symmetric: before costs it needs 50% to break even, after 0.16% round trip about 58%

@@ -1,0 +1,49 @@
+v123 — every codeable strategy the bot has run, ONE window and ONE cost model
+entries 2023-09-01 .. 2026-08-31 (3 years); taker 5 bps/side + slippage 3 bps/side on market fills + real funding; entry at the next bar open; stop before target
+trade level: one position per coin per strategy, equal notional per trade, no portfolio caps. WIN = net after all costs > 0.
+sum% = sum of net % per trade (what $1,000 on every trade would have made, in units of $10). t = daily-clustered t of net P&L.
+
+strategy                 coins      n     WR  avgWin avgLoss gross bps  net bps    PF     sum%  hold h      t
+Q15 15m (v103)              40  27906  37.1%   1.41%  -1.08%      -0.0    -15.5  0.77    -4312     1.2  -5.23
+DONCH4H                     40   7644  65.4%   2.41%  -4.13%      29.4     14.6  1.10     1114    29.2   1.22
+ROTA K8 48h 14d             40   2569  45.7%  11.08%  -7.88%      94.7     77.9  1.18     2000   163.8   2.08
+ROTA K2 12h 7/14/28d        40   1667  43.3%   7.61%  -4.59%      82.0     68.2  1.26     1137    63.1   1.86
+BRKV L+S                    40   3132  43.6%   6.81%  -4.13%      80.2     64.5  1.28     2019    34.7   2.42
+BRKV short-only             40   1702  44.5%   6.83%  -4.12%      90.1     75.0  1.33     1277    38.1   1.68
+PRO 4h (v100.5)             40   1772  42.2%   7.14%  -6.28%     -39.5    -62.0  0.83    -1099    57.3  -1.53
+FAST 5m burst (v95.0)       10  34890  34.3%   0.46%  -0.49%      -1.5    -16.5  0.49    -5765     0.3 -28.60
+Wyckoff 5m (v96.1)          10  26091  37.0%   0.40%  -0.46%       0.6    -14.3  0.51    -3728     0.7 -33.48
+
+by period (n / WR / net bps per trade)
+strategy                            2023-09..12                  2024                  2025           2026-01..08
+Q15 15m (v103)               2618 / 29% / -38.2    8569 / 37% / -17.5     9424 / 41% / -5.4    7295 / 36% / -17.9
+DONCH4H                       733 / 65% / -14.6     2609 / 68% / 23.8     2551 / 63% / 13.0     1751 / 65% / 15.3
+ROTA K8 48h 14d               279 / 44% / 184.5     859 / 43% / 135.0      893 / 46% / 35.4       538 / 49% / 1.9
+ROTA K2 12h 7/14/28d          179 / 44% / 163.7     555 / 43% / 132.3       550 / 43% / 0.3      383 / 44% / 28.3
+BRKV L+S                        358 / 39% / 3.0     1071 / 44% / 70.2      994 / 43% / 53.8     709 / 47% / 101.8
+BRKV short-only               90 / 24% / -158.6      596 / 46% / 96.1      660 / 44% / 67.0     356 / 48% / 113.5
+PRO 4h (v100.5)               214 / 50% / 120.0      673 / 44% / 22.7    629 / 40% / -193.5    256 / 38% / -114.0
+FAST 5m burst (v95.0)        3367 / 30% / -19.7   11054 / 34% / -17.4   11375 / 35% / -16.2    9094 / 34% / -14.8
+Wyckoff 5m (v96.1)           2296 / 37% / -13.9    9064 / 37% / -14.6   10083 / 36% / -14.8    4648 / 39% / -12.8
+
+by side (n / WR / net bps per trade)
+Q15 15m (v103)           LONG  10843  35.3%   -16.4   SHORT  17063  38.3%   -14.9
+DONCH4H                  LONG   3997  64.0%    -0.6   SHORT   3647  66.9%    31.2
+ROTA K8 48h 14d          LONG   1136  42.3%   204.0   SHORT   1433  48.4%   -22.1
+ROTA K2 12h 7/14/28d     LONG    690  40.6%   186.3   SHORT    977  45.1%   -15.2
+BRKV L+S                 LONG   1438  42.6%    51.9   SHORT   1694  44.5%    75.2
+BRKV short-only          LONG      0   0.0%     0.0   SHORT   1702  44.5%    75.0
+PRO 4h (v100.5)          LONG    720  46.0%    74.0   SHORT   1052  39.5%  -155.2
+FAST 5m burst (v95.0)    LONG  16199  34.5%   -15.1   SHORT  18691  34.2%   -17.7
+Wyckoff 5m (v96.1)       LONG  10899  35.9%   -15.3   SHORT  15192  37.8%   -13.6
+
+exits (n / WR / net bps)
+Q15 15m (v103)           TIMEOUT 9626 / 52% / 11.0 | STOP 12896 / 0% / -129.7 | TARGET 5384 / 100% / 210.8
+DONCH4H                  sl 4558 / 42% / -210.8 | trail 3078 / 100% / 346.8 | timeout 8 / 88% / 606.8
+ROTA K8 48h 14d          ROTATE 2569 / 46% / 77.9
+ROTA K2 12h 7/14/28d     ROTATE 1667 / 43% / 68.2
+BRKV L+S                 STOP 1756 / 0% / -413.8 | TIMEOUT 34 / 74% / 118.2 | TARGET 1342 / 100% / 688.9
+BRKV short-only          STOP 937 / 0% / -413.4 | TARGET 745 / 100% / 689.6 | TIMEOUT 20 / 60% / 64.3
+PRO 4h (v100.5)          TIME 1194 / 42% / -91.8 | TARGET 84 / 100% / 2797.2 | STOP 335 / 0% / -986.5 | TRAIL 152 / 99% / 578.3 | MAXHOLD 7 / 100% / 1034.0
+FAST 5m burst (v95.0)    STOP 20012 / 0% / -53.5 | TIMEOUT 3753 / 22% / -11.8 | TARGET 11125 / 100% / 48.3
+Wyckoff 5m (v96.1)       TIMEOUT 121 / 34% / -6.5 | STOP 16351 / 0% / -46.6 | TARGET 9619 / 100% / 40.6

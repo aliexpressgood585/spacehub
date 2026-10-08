@@ -375,6 +375,37 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
+Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
+`backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the
+shared module the bot uses. Entries 2023-09-01..2026-08-31, taker 5 bps + slip 3 bps per side, real funding, next-bar-open
+entry, stop before target. Trade level: one position per coin per strategy, equal notional, no portfolio caps.
+WIN = net after all costs > 0.
+    strategy                 coins      n     WR   net bps/trade   PF    t(daily)
+    DONCH4H                     40   7644  65.4%       +14.6      1.10    1.22
+    ROTA K8 48h 14d             40   2569  45.7%       +77.9      1.18    2.08   (2026 Jan-Aug +1.9 bps; longs +204, shorts -22)
+    ROTA K2 12h 7/14/28d        40   1667  43.3%       +68.2      1.26    1.86
+    BRKV L+S                    40   3132  43.6%       +64.5      1.28    2.42   (NB v108bt: lost in 2021, outside this window)
+    BRKV short-only             40   1702  44.5%       +75.0      1.33    1.68
+    PRO 4h (v100.5)             40   1772  42.2%       -62.0      0.83   -1.53
+    Q15 15m (v103)              40  27906  37.1%       -15.5      0.77   -5.23   (gross 0.0 bps)
+    FAST 5m burst (v95.0)       10  34890  34.3%       -16.5      0.49  -28.6
+    Wyckoff 5m (v96.1)          10  26091  37.0%       -14.3      0.51  -33.5
+    DDDDD 5m (5 red -> long, +1/-1%) 10 majors  30202  48.1%  -21.6   0.65
+    RSI2 core rule, 10 majors 5m              51735  61.8%  -11.0   0.55
+    RSI2 exact, TRADOOR + MYX (ALL history: 2025-06/09..2026-09, not 3y)  2484  69.7%  +3.0 (16 bps RT: -1.0)  1.05
+The parallel session's own 3y run of the DDDDD family on its chosen top-10 (status/btc-rsi-gate-3y.json):
+DDDDD_5M n 24,922 WR 50.7% -14.6 bps, AGT_GRR_1M WR 82.4% -8.0 bps, LQTY_RRR_1M WR 75.4% -14.5 bps; every layer negative.
+READING: a high win rate is not profit. RSI2 wins ~70% and DDDDD-AGT 82% but the losers are 2x the winners; the
+break-even WR for a 1-ATR target vs 2-ATR stop is 66.7% before costs. Every sub-hour rule is negative (gross ~0).
+Only the 4h+ rules (DONCH4H, ROTA, BRKV) are net-positive here, none at t >= 2.5, and ROTA was flat in 2026.
+RSI2 on its two contracts is about break-even (+3 bps at its own 12 bps cost, -1 bps at 16), on 13-16 months of a
+pair chosen after the fact; on 10 coins nobody chose it for, over 3 years, it loses -11 bps/trade.
+LIVE PAPER RECORD (closed trades): DONCH4H 53, WR 62%, +$188 | ROTA 120, WR 47%, -$60 | SCALP 495, WR 36%, -$424 |
+CHAN 484, WR 43.6%, -$2,399 | FAST 57, WR 26%, -$4,899 (50x) | PRO 1m 293, WR 35.5%, -$1,178 | FUND 13, WR 38%, -$251 |
+Q15/DDDDD 25x (10-05..06, status/ddddd-loss-audit.json) 107, WR 28%, -$1,889 | RSI2 1 close +$7.38 so far.
+The Q15 / DDDDD / layer era 10-05..10-08 left no rows in the DB (resets without archive); only the audit json survives.
+
 ## flow-shadow v1.1 (2026-10-05 09:12 UTC) — PR #103 (parallel session) finished: the collector now actually collects
 - PR #103 (observation-only 1 s order-flow shadow, 6 coins, 30 s virtual observations) deployed but never received data. The CI smoke (US runner) got premiumIndex HTTP 451, and the EU cron sessions ran 54 ticks with 0 WebSocket frames.
 - Binance WebSocket streams are silent from Supabase egress: the Binance liquidation stream has recorded nothing in 3 days; only OKX. Binance REST works.
