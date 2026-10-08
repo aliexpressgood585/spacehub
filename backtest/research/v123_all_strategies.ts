@@ -287,3 +287,18 @@ for (const k of order) {
   out.push(`${k.padEnd(24)} ` + [...by].map(([w, a]) => { const s = stats(a); return `${w} ${s.n} / ${pct(s.wr, 0)} / ${bps(s.net)}` }).join(' | '))
 }
 console.log(out.join('\n'))
+
+// per-coin table for the summary page (status/all-strategies-v123.json)
+{
+  const one = (a: Tr[]) => {
+    const w = a.filter((x) => x.net > 0), l = a.filter((x) => x.net <= 0), avg = (b: Tr[]) => (b.length ? b.reduce((s, x) => s + x.net, 0) / b.length * 1e4 : 0)
+    return { n: a.length, wr: a.length ? w.length / a.length : 0, net_bps: avg(a), win_bps: avg(w), loss_bps: avg(l) }
+  }
+  const js: Record<string, unknown> = {}
+  for (const k of order) {
+    const ts = book.get(k) ?? [], coins: Record<string, ReturnType<typeof one>> = {}
+    for (const c of [...new Set(ts.map((t) => t.coin))].sort()) coins[c] = one(ts.filter((t) => t.coin === c))
+    js[k] = { span: '3y', all: one(ts), coins }
+  }
+  fs.writeFileSync(new URL('../../status/all-strategies-v123.json', import.meta.url), JSON.stringify(js, null, 1))
+}

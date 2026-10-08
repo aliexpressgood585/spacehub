@@ -113,17 +113,16 @@ out.push('')
 
 // B + C on the 10 majors, 3 years
 const C10 = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT']
-const allB: R[] = [], allC: { net: number; side: number; gross: number; reason: string }[] = []
+type D = { sym: string; net: number; side: number; gross: number; reason: string; t0: number }
 const COST = 2 * (0.0005 + 0.0003)
-for (const c of C10) {
-  const b5 = local(c), b15 = to15(b5), fund = withMark(localFunding(c), b5)
-  allB.push(...rsi2(c, b5, b15, fund, core, T0, T1))
-  // C. DDDDD: five red closed 5m bars -> long at the next open, +1% / -1% from the fill, stop first, no timeout;
-  // one position at a time. Funding: settled rates over the hold.
+// DDDDD: five red closed 5m bars -> long at the next open, +1% / -1% from the fill, stop first, no timeout;
+// one position at a time. Funding: settled rates over the hold.
+function ddddd(sym: string, b5: Bar[], fund: Funding[], from: number, to: number): D[] {
+  const out: D[] = []
   let busy = 0, fi = 0
   for (let i = 5; i < b5.length - 1; i++) {
     const b = b5[i]
-    if (b.end < T0 || b.end >= T1 || b.t < busy) continue
+    if (b.end < from || b.end >= to || b.t < busy) continue
     const lb = b5.slice(i - 4, i + 1).map((x) => ({ t: x.t, open: x.o, high: x.h, low: x.l, close: x.c, vol: x.v }))
     if (!d5Signal(lb, b.end).sig) continue
     const e0 = b5[i + 1].o, E = e0 * 1.0003, tp = E * 1.01, sl = E * 0.99
@@ -137,9 +136,16 @@ for (const c of C10) {
     if (!why) break
     while (fi < fund.length && fund[fi].t < b5[i + 1].t) fi++
     let fsum = 0; for (let q = fi; q < fund.length && fund[q].t < b5[k].end; q++) fsum += fund[q].rate
-    allC.push({ net: px / E - 1 - COST - fsum, gross: (why === 'TARGET' ? px : px / 0.9997) / e0 - 1, side: 1, reason: why })
+    out.push({ sym, net: px / E - 1 - COST - fsum, gross: (why === 'TARGET' ? px : px / 0.9997) / e0 - 1, side: 1, reason: why, t0: b5[i + 1].t })
     busy = b5[k].end
   }
+  return out
+}
+const allB: R[] = [], allC: D[] = []
+for (const c of C10) {
+  const b5 = local(c), b15 = to15(b5), fund = withMark(localFunding(c), b5)
+  allB.push(...rsi2(c, b5, b15, fund, core, T0, T1))
+  allC.push(...ddddd(c, b5, fund, T0, T1))
 }
 out.push(`B. RSI2 core rule (no per-coin filter) on the 10 majors, 5m, ${new Date(T0).toISOString().slice(0, 10)}..${new Date(T1 - 1).toISOString().slice(0, 10)}, same costs`)
 out.push(line('10 majors, 3 years', allB))
@@ -147,5 +153,38 @@ for (const c of C10) out.push(line(`   ${c}`, allB.filter((r) => r.sym === c)))
 out.push('')
 out.push(`C. DDDDD (five red 5m candles -> long, +1% / -1%), 10 majors, 3 years, taker 5 + slip 3 bps per side + funding`)
 out.push(line('10 majors, 3 years', allC))
+for (const c of C10) out.push(line(`   ${c}`, allC.filter((r) => r.sym === c)))
 out.push(`   the bracket is symmetric: before costs it needs 50% to break even, after ${(COST * 100).toFixed(2)}% round trip about ${pct(0.5 + COST / 0.02, 0)}`)
+out.push('')
+// D. DDDDD on the top-10 list the live paper cohort traded (commit a2f994e, chosen from a 90-day scan), every month of
+// Binance archive each contract has since 2023-09. NB the list was picked on recent data, so the last months are in-sample.
+const TOP10 = ['ANKRUSDT', 'ARKUSDT', '1000000MOGUSDT', 'AGTUSDT', 'SUSHIUSDT', 'LQTYUSDT', 'HYPERUSDT', 'KAVAUSDT', 'LUMIAUSDT', 'ALPINEUSDT']
+const allD: D[] = []
+const spanD: Record<string, string> = {}
+for (const sym of TOP10) {
+  const b5 = archive(sym, '5m').map((f) => toBar(f, M5)); if (!b5.length) continue
+  const fund = withMark(archive(sym, 'fundingRate').map((f) => ({ t: +f[0], rate: +f[2] })), b5)
+  spanD[sym] = `${new Date(b5[0].t).toISOString().slice(0, 7)}..${new Date(b5[b5.length - 1].t).toISOString().slice(0, 7)}`
+  allD.push(...ddddd(sym, b5, fund, T0, Infinity))
+}
+out.push(`D. DDDDD on its own live top-10 list, all archive since 2023-09 (young contracts cover less), same costs`)
+out.push(line('top-10 list', allD))
+for (const sym of TOP10) out.push(line(`   ${sym} ${spanD[sym] ?? 'no archive'}`, allD.filter((r) => r.sym === sym)))
 console.log(out.join('\n'))
+
+// per-coin table for the summary page (status/rsi2-ddddd-v123b.json)
+const agg = (rs: { sym: string; net: number }[]) => {
+  const one = (a: { net: number }[]) => {
+    const w = a.filter((x) => x.net > 0), l = a.filter((x) => x.net <= 0), avg = (b: { net: number }[]) => (b.length ? b.reduce((s, x) => s + x.net, 0) / b.length * 1e4 : 0)
+    return { n: a.length, wr: a.length ? w.length / a.length : 0, net_bps: avg(a), win_bps: avg(w), loss_bps: avg(l) }
+  }
+  const coins: Record<string, ReturnType<typeof one>> = {}
+  for (const c of [...new Set(rs.map((r) => r.sym))]) coins[c.replace(/USDT$/, '')] = one(rs.filter((r) => r.sym === c))
+  return { all: one(rs), coins }
+}
+fs.writeFileSync(new URL('../../status/rsi2-ddddd-v123b.json', import.meta.url), JSON.stringify({
+  'RSI2 exact (TRADOOR, MYX)': { span: 'all history', ...agg(allA) },
+  'RSI2 core, 10 majors': { span: '3y', ...agg(allB) },
+  'DDDDD, 10 majors': { span: '3y', ...agg(allC) },
+  'DDDDD, its live top-10': { span: 'since 2023-09 or listing', spans: spanD, ...agg(allD) },
+}, null, 1))

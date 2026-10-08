@@ -394,6 +394,9 @@ WIN = net after all costs > 0.
     DDDDD 5m (5 red -> long, +1/-1%) 10 majors  30202  48.1%  -21.6   0.65
     RSI2 core rule, 10 majors 5m              51735  61.8%  -11.0   0.55
     RSI2 exact, TRADOOR + MYX (ALL history: 2025-06/09..2026-09, not 3y)  2484  69.7%  +3.0 (16 bps RT: -1.0)  1.05
+DDDDD on its OWN live top-10 list (ANKR, ARK, MOG, AGT, SUSHI, LQTY, HYPER, KAVA, LUMIA, ALPINE), all archive since 2023-09:
+n 25,234, WR 49.0%, -19.7 bps; every one of the 10 coins negative (best ALPINE 52.5% / -12.6). Per-coin tables for every
+strategy: status/all-strategies-v123.json + status/rsi2-ddddd-v123b.json; owner's page https://claude.ai/artifact/QcBuM4VzQTKPAEh4sLuXYj
 The parallel session's own 3y run of the DDDDD family on its chosen top-10 (status/btc-rsi-gate-3y.json):
 DDDDD_5M n 24,922 WR 50.7% -14.6 bps, AGT_GRR_1M WR 82.4% -8.0 bps, LQTY_RRR_1M WR 75.4% -14.5 bps; every layer negative.
 READING: a high win rate is not profit. RSI2 wins ~70% and DDDDD-AGT 82% but the losers are 2x the winners; the
