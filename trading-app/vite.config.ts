@@ -14,6 +14,7 @@ export default defineConfig({
         lab: 'lab.html',
         trade: 'trade.html',
         history: 'history.html',
+        poly: 'poly.html',
       },
     },
   },

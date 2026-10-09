@@ -1,0 +1,61 @@
+markets with history: 7486; in-sample < 1777272254, out-of-sample after (30%)
+cost model: +0.01 on entry price, taker fee 0.03*p*(1-p)/share on fee-enabled markets
+
+CALIBRATION (6h before resolution, any outcome): price bucket -> how often it won
+  [0.05,0.10)  n   397  won   8.6%  (price mid 8%)
+  [0.10,0.20)  n   728  won  18.1%  (price mid 15%)
+  [0.20,0.30)  n   904  won  27.1%  (price mid 25%)
+  [0.30,0.40)  n  1018  won  34.5%  (price mid 35%)
+  [0.40,0.50)  n  4180  won  47.7%  (price mid 45%)
+  [0.50,0.60)  n  4307  won  52.3%  (price mid 55%)
+  [0.60,0.70)  n  1026  won  65.1%  (price mid 65%)
+  [0.70,0.80)  n   920  won  72.9%  (price mid 75%)
+  [0.80,0.90)  n   733  won  81.9%  (price mid 85%)
+  [0.90,1.00)  n  4055  won  98.9%  (price mid 95%)
+  [0.95,1.00)  n  4025  won  99.6%  (price mid 98%)
+
+GRID (choose on in-sample)   H = hours before resolution
+  H  1 [0.50,0.70)  IS n  1130  WR  50.1%  ret/$  -4.90%  t -1.73  |  OOS n   770  WR  49.6%  ret/$  -5.72%  t -1.67
+  H  1 [0.70,0.80)  IS n     2  WR 100.0%  ret/$ +29.89%  t +12.74  |  OOS n     2  WR  50.0%  ret/$ -32.06%  t -0.67
+  H  1 [0.80,0.90)  IS n 0  |  OOS n     1  WR 100.0%  ret/$ +12.61%  t +0.00
+  H  1 [0.85,0.95)  IS n     4  WR 100.0%  ret/$  +6.47%  t +27.21  |  OOS n     4  WR 100.0%  ret/$  +7.22%  t +4.57
+  H  1 [0.90,0.95)  IS n     4  WR 100.0%  ret/$  +6.47%  t +27.21  |  OOS n     3  WR 100.0%  ret/$  +5.42%  t +14.97
+  H  1 [0.90,0.97)  IS n     7  WR 100.0%  ret/$  +4.86%  t +6.65  |  OOS n     4  WR 100.0%  ret/$  +4.82%  t +8.16
+  H  1 [0.93,0.98)  IS n     4  WR 100.0%  ret/$  +3.45%  t +5.04  |  OOS n     5  WR 100.0%  ret/$  +4.09%  t +5.08
+  H  1 [0.95,0.99)  IS n     5  WR 100.0%  ret/$  +1.83%  t +3.47  |  OOS n     6  WR 100.0%  ret/$  +0.99%  t +2.48
+  H  1 [0.05,0.15)  IS n     4  WR   0.0%  ret/$ -100.00%  t +0.00  |  OOS n     4  WR   0.0%  ret/$ -100.00%  t +0.00
+  H  1 [0.15,0.30)  IS n     2  WR   0.0%  ret/$ -100.00%  t +0.00  |  OOS n     2  WR  50.0%  ret/$ +84.61%  t +0.65
+  H  6 [0.50,0.70)  IS n  3253  WR  54.2%  ret/$  -1.68%  t -1.05  |  OOS n  1617  WR  54.1%  ret/$  -1.90%  t -0.84
+  H  6 [0.70,0.80)  IS n   590  WR  73.6%  ret/$  -3.19%  t -1.33  |  OOS n   330  WR  71.8%  ret/$  -5.38%  t -1.65
+  H  6 [0.80,0.90)  IS n   467  WR  82.2%  ret/$  -4.51%  t -2.19  |  OOS n   266  WR  81.2%  ret/$  -5.76%  t -2.07
+  H  6 [0.85,0.95)  IS n   462  WR  89.6%  ret/$  -1.69%  t -1.08  |  OOS n   250  WR  89.6%  ret/$  -1.61%  t -0.76
+  H  6 [0.90,0.95)  IS n   258  WR  90.7%  ret/$  -3.15%  t -1.63  |  OOS n   132  WR  93.2%  ret/$  -0.41%  t -0.17
+  H  6 [0.90,0.97)  IS n   357  WR  92.7%  ret/$  -2.04%  t -1.40  |  OOS n   190  WR  92.6%  ret/$  -2.14%  t -1.06
+  H  6 [0.93,0.98)  IS n   287  WR  96.2%  ret/$  -0.54%  t -0.46  |  OOS n   167  WR  94.6%  ret/$  -2.33%  t -1.29
+  H  6 [0.95,0.99)  IS n   301  WR  98.0%  ret/$  -0.35%  t -0.43  |  OOS n   181  WR  95.6%  ret/$  -2.77%  t -1.78
+  H  6 [0.05,0.15)  IS n   462  WR  10.6%  ret/$  -5.35%  t -0.40  |  OOS n   250  WR  10.0%  ret/$ -12.85%  t -0.75
+  H  6 [0.15,0.30)  IS n   773  WR  24.8%  ret/$  +2.48%  t +0.38  |  OOS n   431  WR  26.9%  ret/$ +10.62%  t +1.18
+  H 24 [0.50,0.70)  IS n  4038  WR  54.2%  ret/$  -2.69%  t -1.89  |  OOS n  1773  WR  54.7%  ret/$  -1.43%  t -0.66
+  H 24 [0.70,0.80)  IS n  1018  WR  71.1%  ret/$  -6.16%  t -3.28  |  OOS n   484  WR  72.3%  ret/$  -4.34%  t -1.61
+  H 24 [0.80,0.90)  IS n   803  WR  81.3%  ret/$  -5.28%  t -3.29  |  OOS n   384  WR  79.2%  ret/$  -7.58%  t -3.13
+  H 24 [0.85,0.95)  IS n   790  WR  86.8%  ret/$  -4.50%  t -3.39  |  OOS n   370  WR  86.8%  ret/$  -4.58%  t -2.35
+  H 24 [0.90,0.95)  IS n   491  WR  88.4%  ret/$  -5.60%  t -3.62  |  OOS n   228  WR  90.8%  ret/$  -3.05%  t -1.49
+  H 24 [0.90,0.97)  IS n   662  WR  90.6%  ret/$  -4.36%  t -3.64  |  OOS n   324  WR  92.0%  ret/$  -3.05%  t -1.91
+  H 24 [0.93,0.98)  IS n   590  WR  94.4%  ret/$  -2.35%  t -2.40  |  OOS n   305  WR  94.8%  ret/$  -2.11%  t -1.60
+  H 24 [0.95,0.99)  IS n   636  WR  95.6%  ret/$  -2.57%  t -3.09  |  OOS n   323  WR  95.7%  ret/$  -2.50%  t -2.17
+  H 24 [0.05,0.15)  IS n   789  WR  13.1%  ret/$ +14.51%  t +1.32  |  OOS n   370  WR  12.7%  ret/$  +7.12%  t +0.47
+  H 24 [0.15,0.30)  IS n  1236  WR  26.9%  ret/$  +9.07%  t +1.73  |  OOS n   593  WR  27.0%  ret/$ +11.35%  t +1.46
+  H 72 [0.50,0.70)  IS n  4224  WR  54.3%  ret/$  -2.41%  t -1.73  |  OOS n  1835  WR  54.8%  ret/$  -1.05%  t -0.49
+  H 72 [0.70,0.80)  IS n  1287  WR  70.4%  ret/$  -7.26%  t -4.32  |  OOS n   565  WR  71.5%  ret/$  -5.52%  t -2.20
+  H 72 [0.80,0.90)  IS n  1049  WR  80.8%  ret/$  -5.61%  t -3.94  |  OOS n   476  WR  81.1%  ret/$  -5.33%  t -2.54
+  H 72 [0.85,0.95)  IS n  1025  WR  86.5%  ret/$  -4.62%  t -3.91  |  OOS n   457  WR  87.3%  ret/$  -3.76%  t -2.18
+  H 72 [0.90,0.95)  IS n   697  WR  89.1%  ret/$  -4.68%  t -3.70  |  OOS n   315  WR  90.2%  ret/$  -3.48%  t -1.93
+  H 72 [0.90,0.97)  IS n   863  WR  90.5%  ret/$  -4.17%  t -3.93  |  OOS n   417  WR  91.4%  ret/$  -3.41%  t -2.34
+  H 72 [0.93,0.98)  IS n   775  WR  93.8%  ret/$  -2.77%  t -3.08  |  OOS n   386  WR  94.3%  ret/$  -2.33%  t -1.90
+  H 72 [0.95,0.99)  IS n   833  WR  95.1%  ret/$  -2.94%  t -3.84  |  OOS n   410  WR  95.6%  ret/$  -2.39%  t -2.31
+  H 72 [0.05,0.15)  IS n  1020  WR  13.2%  ret/$ +10.78%  t +1.16  |  OOS n   461  WR  12.4%  ret/$  +3.15%  t +0.24
+  H 72 [0.15,0.30)  IS n  1513  WR  27.6%  ret/$ +10.99%  t +2.32  |  OOS n   668  WR  26.2%  ret/$  +7.72%  t +1.07
+
+CHOSEN on in-sample: H24 [0.05,0.15)
+  in-sample      n   789  WR  13.1%  ret/$ +14.51%  t +1.32
+  OUT-OF-SAMPLE  n   370  WR  12.7%  ret/$  +7.12%  t +0.47
