@@ -393,6 +393,9 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
 - 2026-10-09 06:45 (owner: "use all cash always, precise, fast"): every open position is topped up each cycle to
   min(equity/open, 15% equity) while its live ask is still in band (same book-walk fill + fee, decision ADD); cycle 15 s
   (measured ~7 s). Test on live state: cash $644 -> $145 (rest waits: 3 positions out of band). Raises concentration.
+- 2026-10-09 06:50 (owner: "add more markets so all cash is invested"): windowH 72 -> 144 (research re-run, same 15-30c rule:
+  H96/120/144 IS +11.9/+11.6/+10.7%, OOS +7.9/+7.2/+7.1% per $, t ~2.5 / ~1.1); maxPerEvent 1 -> 2; Gamma paging to 2,000.
+  Volume floor kept at $20k: the research history only covers markets >= $20k, lower is untested. Test: 19 open, cash $1.
 
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
