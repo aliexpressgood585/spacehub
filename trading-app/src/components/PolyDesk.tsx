@@ -107,7 +107,7 @@ export default function PolyDesk() {
       </div>
       <div style={box}>
         <h2 style={{ fontSize: 17, margin: '0 0 8px' }}>החלטות אחרונות של הבוט</h2>
-        {dec.map((d) => <div key={d.id} style={{ fontSize: 13, padding: '3px 0', borderBottom: '1px solid #142033' }}><span style={lab}>{when(d.ts)}</span> · <b style={{ color: d.decision === 'BUY' ? '#3ddc97' : '#8a97a8' }}>{d.decision === 'BUY' ? 'קנייה' : 'דילוג'}</b> · <span title={d.question}>{d.question_he ?? d.question}</span> · {d.outcome_he ?? d.outcome} @ {c(n(d.price))} · {d.reason}</div>)}
+        {dec.map((d) => <div key={d.id} style={{ fontSize: 13, padding: '3px 0', borderBottom: '1px solid #142033' }}><span style={lab}>{when(d.ts)}</span> · <b style={{ color: d.decision === 'BUY' || d.decision === 'ADD' ? '#3ddc97' : '#8a97a8' }}>{d.decision === 'BUY' ? 'קנייה' : d.decision === 'ADD' ? 'הגדלה' : 'דילוג'}</b> · <span title={d.question}>{d.question_he ?? d.question}</span> · {d.outcome_he ?? d.outcome} @ {c(n(d.price))} · {d.reason}</div>)}
         {dec.length === 0 && <div style={lab}>אין עדיין החלטות.</div>}
       </div>
     </div>

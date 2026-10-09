@@ -46,7 +46,7 @@ const st: State = fs.existsSync(FILE) ? JSON.parse(fs.readFileSync(FILE, 'utf8')
 for (const [k, v] of Object.entries((st as any).he ?? {})) if (typeof v === 'string' && /[\u05D0-\u05EA]/.test(v)) heCache[k] = v
 const now = () => new Date().toISOString()
 const note: any = { at: now() }
-let settled = 0, entered = 0, openValue = 0
+let settled = 0, entered = 0, topped = 0, openValue = 0
 const decisions: any[] = []
 try {
   // 1-2. settle resolved markets, mark the rest at the real best bid
@@ -103,13 +103,38 @@ try {
       }
     }
   }
+  // 4. deploy ALL cash (owner 2026-10-09: "use all cash, always"): every open position is topped up to an equal
+  // share of equity (capped at PM.maxPosFrac) while its live ask is still inside the band and the market is open.
+  // Same fill model as an entry: walk the real ask book now, pay the market's taker fee.
+  {
+    const openNow = st.trades.filter((x) => x.status === 'OPEN')
+    const eq = st.cash + openValue
+    const target = Math.min(eq * PM.maxPosFrac, eq / Math.max(1, openNow.length))
+    const need = openNow.map((t) => ({ t, gap: target - t.cost })).filter((x) => x.gap > 2).sort((a, b) => b.gap - a.gap)
+    for (const { t, gap } of need) {
+      if (st.cash < 2) break
+      if (t.end_time && Date.parse(t.end_time) - Date.now() < 10 * 60_000) continue
+      const b = await book(t.token_id); const ask = b?.asks[0]?.price
+      if (!b || !ask || !inBand(ask)) continue
+      const fs_ = t.meta?.fee_schedule ?? null
+      const fill = walkAsks(b.asks, Math.min(gap, st.cash - 1) / (1 + (fs_ ? fs_.rate : 0)), PM.hi)
+      if (fill.qty < PM.minQty) continue
+      const fee = takerFee(fill.qty, fill.vwap, fs_), cost = fill.spent + fee
+      const q0 = t.qty
+      t.entry_px = (t.entry_px * q0 + fill.vwap * fill.qty) / (q0 + fill.qty)
+      t.qty = q0 + fill.qty; t.entry_fee += fee; t.cost += cost
+      t.meta = { ...(t.meta ?? {}), adds: (t.meta?.adds ?? 0) + 1 }
+      st.cash -= cost; openValue += fill.qty * (b.bids[0]?.price ?? fill.vwap); topped++
+      decisions.push({ ts: now(), market_id: t.market_id, question: t.question, outcome: t.outcome, price: fill.vwap, decision: 'ADD', reason: `השלמה לחלק שווה: +${fill.qty.toFixed(1)} מניות, עמלה $${fee.toFixed(2)}` })
+    }
+  }
 } catch (e) { note.error = String(e) }
 for (const t of st.trades as any[]) { if (!t.question_he || t.question_he === t.question) t.question_he = await he(t.question); if (!t.outcome_he || t.outcome_he === t.outcome) t.outcome_he = await he(t.outcome) }
 for (const d of decisions) { d.question_he = await he(d.question); d.outcome_he = await he(d.outcome) }
 for (const d of st.decisions) { if (!d.question_he || d.question_he === d.question) d.question_he = await he(d.question); if (!d.outcome_he || d.outcome_he === d.outcome) d.outcome_he = await he(d.outcome) }
 ;(st as any).he = Object.fromEntries(Object.entries(heCache).slice(-3000))
 const openCount = st.trades.filter((x) => x.status === 'OPEN').length
-st.strategy = PM; st.last_scan = now(); st.last_note = { ...note, settled, entered }
+st.strategy = PM; st.last_scan = now(); st.last_note = { ...note, settled, entered, topped }
 st.equity.push({ ts: now(), equity: st.cash + openValue, cash: st.cash, open_value: openValue, open_count: openCount })
 if (st.equity.length > 5000) st.equity = st.equity.slice(-5000)
 st.decisions = [...decisions.slice(0, 50), ...st.decisions].slice(0, 200)
