@@ -69,7 +69,7 @@ try {
   if (open.length < PM.maxOpen) {
     const t0 = Date.now()
     const ms: any[] = []
-    for (let off = 0; off < 1000; off += 100) {
+    for (let off = 0; off < 2000; off += 100) {
       const pg: any[] = await j(`${GAMMA}/markets?closed=false&active=true&limit=100&offset=${off}&order=volume&ascending=false&volume_num_min=${PM.minVolume}&end_date_min=${new Date(t0).toISOString()}&end_date_max=${new Date(t0 + PM.windowH * 3600_000).toISOString()}`)
       ms.push(...pg); if (pg.length < 100) break
     }

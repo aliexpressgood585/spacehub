@@ -29,12 +29,12 @@ export const PM = {
   // (H6 +2.5/+10.6, H24 +9.1/+11.4, H72 +11.0/+7.7 %/$, best t 2.3). Chosen for robustness across the grid, not
   // the single best in-sample cell (that was 5-15c, which halved out of sample). Not proven: t < 2.5, ~6 months.
   lo: 0.15, hi: 0.30,         // buy the outcome whose ask sits in this band (an underdog)
-  windowH: 72,                // ... only when the market is due to end within this many hours
+  windowH: 144,               // ... ending within this many hours (v2: 72 -> 144; same rule at H96/120/144: IS +11.9/+11.6/+10.7%, OOS +7.9/+7.2/+7.1% per $)
   minVolume: 20000,           // market volume floor (USDC)
   stakeFrac: 0.03,            // 3% of current equity per position (wins ~27% of the time: small, many)
   maxOpen: 30,
   maxPosFrac: 0.15,           // all cash is deployed: each position topped up to equity/open, never above 15% of equity
-  maxPerEvent: 1,
+  maxPerEvent: 2,             // v2: 1 -> 2 (a risk cap, not a research parameter)
   minQty: 5,                  // Polymarket minimum order size (shares)
 } as const
 
