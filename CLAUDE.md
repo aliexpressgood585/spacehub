@@ -388,6 +388,8 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
 - So the desk runs on GitHub Actions: `scripts/pm-desk.ts` (same rules), `.github/workflows/pm-desk.yml` every 5 min,
   state in `pm/state.json` on branch `pm-desk-data`. Page: https://aliexpressgood585.github.io/spacehub/poly.html
   (live bids from clob.polymarket.com every 5 s). First run 03:50 UTC: 122 markets, 9 entries, paper only.
+- 2026-10-09 06:27 UTC LIVE LOOP: the */5 cron never fired after 03:50 (GitHub cron unreliable). pm-desk.yml now runs one
+  job ~5h45m cycling every 30 s and pushing state every 60 s; hourly cron (:07) restarts it (concurrency queue). Page polls 15 s.
 
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
