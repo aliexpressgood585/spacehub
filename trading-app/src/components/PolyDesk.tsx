@@ -84,8 +84,8 @@ export default function PolyDesk() {
         <div style={{ display: 'grid', gap: 8 }}>
           {open.map((t) => { const m = mark(t), pnl = n(t.qty) * m - n(t.cost); return (
             <a key={t.id} href={`https://polymarket.com/event/${t.event_slug ?? t.slug}`} target="_blank" rel="noreferrer" style={{ ...box, background: '#0e1729', textDecoration: 'none', color: 'inherit', display: 'grid', gap: 4 }}>
-              <div style={{ fontWeight: 600 }}>{t.question}</div>
-              <div style={lab}>קנינו: <b style={{ color: '#e6edf5' }}>{t.outcome}</b> · {n(t.qty).toFixed(1)} מניות · כניסה {c(n(t.entry_px))} · עכשיו {c(m)} {live[t.token_id] != null ? '(חי)' : '(סימון הבוט)'} · נגמר בעוד {left(t.end_time)}</div>
+              <div style={{ fontWeight: 600 }} title={t.question}>{t.question_he ?? t.question}</div>
+              <div style={lab}>קנינו: <b style={{ color: '#e6edf5' }}>{t.outcome_he ?? t.outcome}</b> · {n(t.qty).toFixed(1)} מניות · כניסה {c(n(t.entry_px))} · עכשיו {c(m)} {live[t.token_id] != null ? '(חי)' : '(סימון הבוט)'} · נגמר בעוד {left(t.end_time)}</div>
               <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 14 }}>
                 <span>עלות {$(n(t.cost))}</span><span>עמלה {$(n(t.entry_fee))}</span><span>אם מנצח: {$(n(t.qty))}</span>
                 <span style={{ color: col(pnl) }}>רווח/הפסד עכשיו {$(pnl)}</span>
@@ -99,7 +99,7 @@ export default function PolyDesk() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead><tr style={lab}>{['שוק', 'תוצאה שקנינו', 'כניסה', 'מניות', 'עלות', 'עמלה', 'קיבלנו', 'רווח/הפסד', 'נסגר'].map((h) => <th key={h} style={{ textAlign: 'right', padding: 6, borderBottom: '1px solid #1c2738' }}>{h}</th>)}</tr></thead>
             <tbody>{closed.map((t) => (
-              <tr key={t.id}><td style={{ padding: 6 }}>{t.question}</td><td>{t.outcome} {t.reason === 'RESOLVED_WIN' ? '✓' : '✗'}</td><td>{c(n(t.entry_px))}</td><td>{n(t.qty).toFixed(1)}</td><td>{$(n(t.cost))}</td><td>{$(n(t.entry_fee))}</td><td>{$(n(t.proceeds))}</td><td style={{ color: col(n(t.pnl)) }}>{$(n(t.pnl))}</td><td>{when(t.closed_at)}</td></tr>
+              <tr key={t.id}><td style={{ padding: 6 }} title={t.question}>{t.question_he ?? t.question}</td><td>{t.outcome_he ?? t.outcome} {t.reason === 'RESOLVED_WIN' ? '✓' : '✗'}</td><td>{c(n(t.entry_px))}</td><td>{n(t.qty).toFixed(1)}</td><td>{$(n(t.cost))}</td><td>{$(n(t.entry_fee))}</td><td>{$(n(t.proceeds))}</td><td style={{ color: col(n(t.pnl)) }}>{$(n(t.pnl))}</td><td>{when(t.closed_at)}</td></tr>
             ))}</tbody>
           </table>
           {closed.length === 0 && <div style={lab}>עוד לא נסגרו עסקאות. שווי פוזיציה נקבע רק כשהשוק מוכרע.</div>}
@@ -107,7 +107,7 @@ export default function PolyDesk() {
       </div>
       <div style={box}>
         <h2 style={{ fontSize: 17, margin: '0 0 8px' }}>החלטות אחרונות של הבוט</h2>
-        {dec.map((d) => <div key={d.id} style={{ fontSize: 13, padding: '3px 0', borderBottom: '1px solid #142033' }}><span style={lab}>{when(d.ts)}</span> · <b style={{ color: d.decision === 'BUY' ? '#3ddc97' : '#8a97a8' }}>{d.decision === 'BUY' ? 'קנייה' : 'דילוג'}</b> · {d.question} · {d.outcome} @ {c(n(d.price))} · {d.reason}</div>)}
+        {dec.map((d) => <div key={d.id} style={{ fontSize: 13, padding: '3px 0', borderBottom: '1px solid #142033' }}><span style={lab}>{when(d.ts)}</span> · <b style={{ color: d.decision === 'BUY' ? '#3ddc97' : '#8a97a8' }}>{d.decision === 'BUY' ? 'קנייה' : 'דילוג'}</b> · <span title={d.question}>{d.question_he ?? d.question}</span> · {d.outcome_he ?? d.outcome} @ {c(n(d.price))} · {d.reason}</div>)}
         {dec.length === 0 && <div style={lab}>אין עדיין החלטות.</div>}
       </div>
     </div>
