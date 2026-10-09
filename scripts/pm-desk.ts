@@ -20,15 +20,21 @@ async function book(token: string): Promise<{ bids: Lvl[]; asks: Lvl[] } | null>
 }
 // Hebrew display text (owner: questions in Hebrew). Public Google translate endpoint, cached in the state; a failure keeps English.
 const heCache: Record<string, string> = {}
-async function he(text: string): Promise<string> {
+async function he(text: string): Promise<string | undefined> {
   if (!text) return text
   if (heCache[text]) return heCache[text]
+  const strip = (x: string) => x.replace(/[\u0591-\u05C7]/g, '').trim()
   try {
     const r = await j(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=iw&dt=t&q=${encodeURIComponent(text)}`)
-    const out = (r?.[0] ?? []).map((x: any) => x?.[0] ?? '').join('').replace(/[\u0591-\u05C7]/g, '').trim()
-    if (out) heCache[text] = out
-    return out || text
-  } catch { return text }
+    const out = strip((r?.[0] ?? []).map((x: any) => x?.[0] ?? '').join(''))
+    if (/[\u05D0-\u05EA]/.test(out)) { heCache[text] = out; return out }
+  } catch (e) { note.tr_err = String(e).slice(0, 80) }
+  try {
+    const r = await j(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en%7Che`)
+    const out = strip(String(r?.responseData?.translatedText ?? ''))
+    if (r?.responseStatus == 200 && out && !/MYMEMORY WARNING/i.test(out)) { heCache[text] = out; return out }
+  } catch (e) { note.tr_err2 = String(e).slice(0, 80) }
+  return undefined   // not cached: retried next cycle
 }
 const feeOf = (m: any): FeeSchedule | null => (m.feesEnabled && m.feeSchedule ? { rate: +m.feeSchedule.rate || 0, exponent: +m.feeSchedule.exponent || 1 } : null)
 
@@ -37,7 +43,7 @@ interface State { start_cash: number; cash: number; strategy: any; last_scan: st
 
 const st: State = fs.existsSync(FILE) ? JSON.parse(fs.readFileSync(FILE, 'utf8'))
   : { start_cash: 1000, cash: 1000, strategy: PM, last_scan: null, last_note: null, trades: [], equity: [], decisions: [], next_id: 1 }
-Object.assign(heCache, (st as any).he ?? {})
+for (const [k, v] of Object.entries((st as any).he ?? {})) if (typeof v === 'string' && /[\u05D0-\u05EA]/.test(v)) heCache[k] = v
 const now = () => new Date().toISOString()
 const note: any = { at: now() }
 let settled = 0, entered = 0, openValue = 0
@@ -98,9 +104,9 @@ try {
     }
   }
 } catch (e) { note.error = String(e) }
-for (const t of st.trades as any[]) { if (!t.question_he) t.question_he = await he(t.question); if (!t.outcome_he) t.outcome_he = await he(t.outcome) }
+for (const t of st.trades as any[]) { if (!t.question_he || t.question_he === t.question) t.question_he = await he(t.question); if (!t.outcome_he || t.outcome_he === t.outcome) t.outcome_he = await he(t.outcome) }
 for (const d of decisions) { d.question_he = await he(d.question); d.outcome_he = await he(d.outcome) }
-for (const d of st.decisions) { if (!d.question_he) d.question_he = await he(d.question); if (!d.outcome_he) d.outcome_he = await he(d.outcome) }
+for (const d of st.decisions) { if (!d.question_he || d.question_he === d.question) d.question_he = await he(d.question); if (!d.outcome_he || d.outcome_he === d.outcome) d.outcome_he = await he(d.outcome) }
 ;(st as any).he = Object.fromEntries(Object.entries(heCache).slice(-3000))
 const openCount = st.trades.filter((x) => x.status === 'OPEN').length
 st.strategy = PM; st.last_scan = now(); st.last_note = { ...note, settled, entered }
