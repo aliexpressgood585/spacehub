@@ -18,6 +18,18 @@ async function book(token: string): Promise<{ bids: Lvl[]; asks: Lvl[] } | null>
     return { bids: m(b.bids).sort((a, c) => c.price - a.price), asks: m(b.asks).sort((a, c) => a.price - c.price) }
   } catch { return null }
 }
+// Hebrew display text (owner: questions in Hebrew). Public Google translate endpoint, cached in the state; a failure keeps English.
+const heCache: Record<string, string> = {}
+async function he(text: string): Promise<string> {
+  if (!text) return text
+  if (heCache[text]) return heCache[text]
+  try {
+    const r = await j(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=iw&dt=t&q=${encodeURIComponent(text)}`)
+    const out = (r?.[0] ?? []).map((x: any) => x?.[0] ?? '').join('').replace(/[\u0591-\u05C7]/g, '').trim()
+    if (out) heCache[text] = out
+    return out || text
+  } catch { return text }
+}
 const feeOf = (m: any): FeeSchedule | null => (m.feesEnabled && m.feeSchedule ? { rate: +m.feeSchedule.rate || 0, exponent: +m.feeSchedule.exponent || 1 } : null)
 
 interface Trade { id: number; market_id: string; slug: string; event_slug: string; question: string; outcome: string; token_id: string; end_time: string; qty: number; entry_px: number; entry_fee: number; cost: number; best_ask: number; opened_at: string; status: 'OPEN' | 'CLOSED'; mark_px: number; mark_at: string; exit_px?: number; exit_fee?: number; proceeds?: number; pnl?: number; reason?: string; closed_at?: string; meta?: any }
@@ -25,6 +37,7 @@ interface State { start_cash: number; cash: number; strategy: any; last_scan: st
 
 const st: State = fs.existsSync(FILE) ? JSON.parse(fs.readFileSync(FILE, 'utf8'))
   : { start_cash: 1000, cash: 1000, strategy: PM, last_scan: null, last_note: null, trades: [], equity: [], decisions: [], next_id: 1 }
+Object.assign(heCache, (st as any).he ?? {})
 const now = () => new Date().toISOString()
 const note: any = { at: now() }
 let settled = 0, entered = 0, openValue = 0
@@ -69,22 +82,26 @@ try {
         if (held.has(toks[k]) || !inBand(px[k])) continue
         const b = await book(toks[k]); const ask = b?.asks[0]?.price
         const D = (decision: string, reason: string, price = ask ?? px[k]) => decisions.push({ ts: now(), market_id: m.id, question: m.question, outcome: outs[k], price, decision, reason })
-        if (!b || !ask || !inBand(ask)) { D('skip', `ask ${ask ?? '—'} outside band`); continue }
+        if (!b || !ask || !inBand(ask)) { D('skip', `מחיר ${ask ?? '—'} מחוץ לטווח 15-30¢`); continue }
         const stake = Math.min(equity0 * PM.stakeFrac, st.cash - 1)
-        if (stake < PM.minQty * ask) { D('skip', 'no_cash'); continue }
+        if (stake < PM.minQty * ask) { D('skip', 'אין מספיק מזומן'); continue }
         const fs_ = feeOf(m)
         const fill = walkAsks(b.asks, stake / (1 + (fs_ ? fs_.rate : 0)), PM.hi)
-        if (fill.qty < PM.minQty) { D('skip', 'thin_book'); continue }
+        if (fill.qty < PM.minQty) { D('skip', 'ספר הזמנות דל מדי'); continue }
         const fee = takerFee(fill.qty, fill.vwap, fs_), cost = fill.spent + fee, mk = b.bids[0]?.price ?? fill.vwap
         st.trades.push({ id: st.next_id++, market_id: m.id, slug: m.slug, event_slug: ev, question: m.question, outcome: outs[k], token_id: toks[k], end_time: m.endDate, qty: fill.qty, entry_px: fill.vwap, entry_fee: fee, cost, best_ask: ask, opened_at: now(), status: 'OPEN', mark_px: mk, mark_at: now(), meta: { fee_schedule: fs_, volume: m.volumeNum, spread: m.spread, model_p: px[k] } })
         st.cash -= cost; openValue += fill.qty * mk; slots--; entered++
         events.set(ev, (events.get(ev) ?? 0) + 1); held.add(toks[k])
-        D('BUY', `ask ${ask} in band, ${fill.qty.toFixed(1)} sh, fee $${fee.toFixed(2)}`, fill.vwap)
+        D('BUY', `מחיר ${ask} בטווח, ${fill.qty.toFixed(1)} מניות, עמלה $${fee.toFixed(2)}`, fill.vwap)
         break
       }
     }
   }
 } catch (e) { note.error = String(e) }
+for (const t of st.trades as any[]) { if (!t.question_he) t.question_he = await he(t.question); if (!t.outcome_he) t.outcome_he = await he(t.outcome) }
+for (const d of decisions) { d.question_he = await he(d.question); d.outcome_he = await he(d.outcome) }
+for (const d of st.decisions) { if (!d.question_he) d.question_he = await he(d.question); if (!d.outcome_he) d.outcome_he = await he(d.outcome) }
+;(st as any).he = Object.fromEntries(Object.entries(heCache).slice(-3000))
 const openCount = st.trades.filter((x) => x.status === 'OPEN').length
 st.strategy = PM; st.last_scan = now(); st.last_note = { ...note, settled, entered }
 st.equity.push({ ts: now(), equity: st.cash + openValue, cash: st.cash, open_value: openValue, open_count: openCount })
