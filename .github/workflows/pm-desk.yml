@@ -1,9 +1,11 @@
 name: pm-desk
-# Polymarket PAPER desk ($1,000 demo on real Polymarket prices). Runs scripts/pm-desk.ts every 5 minutes and keeps
-# the account in pm/state.json on the `pm-desk-data` branch (no workflow runs there). Never places a real order.
+# Polymarket PAPER desk ($1,000 demo on real Polymarket prices). LIVE LOOP: one job runs for ~5h45m, running
+# scripts/pm-desk.ts every ~30 s and publishing pm/state.json to the `pm-desk-data` branch every ~60 s. The hourly
+# cron only restarts the loop when the previous job has ended (concurrency queue), so it is always on.
+# Never places a real order.
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '7 * * * *'
   workflow_dispatch:
 concurrency:
   group: pm-desk
@@ -13,30 +15,35 @@ permissions:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 355
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: fetch state
+      - name: live loop
         run: |
-          git fetch origin pm-desk-data || true
-          mkdir -p pm
-          git show origin/pm-desk-data:pm/state.json > pm/state.json 2>/dev/null || rm -f pm/state.json
-      - name: run desk
-        run: node --experimental-strip-types scripts/pm-desk.ts pm/state.json
-      - name: commit state
-        run: |
-          cp pm/state.json /tmp/state.json
+          mkdir -p /tmp/desk/scripts /tmp/desk/shared
+          cp scripts/pm-desk.ts /tmp/desk/scripts/; cp shared/pm.ts /tmp/desk/shared/
           git config user.name pm-desk-bot
           git config user.email actions@github.com
+          git fetch -q origin pm-desk-data || true
           if git rev-parse --verify origin/pm-desk-data >/dev/null 2>&1; then
-            git checkout -B pm-desk-data origin/pm-desk-data
+            git checkout -q -B pm-desk-data origin/pm-desk-data
           else
-            git checkout --orphan pm-desk-data && git rm -rf -q . && git clean -fdq
+            git checkout -q --orphan pm-desk-data && git rm -rf -q . && git clean -fdq
           fi
-          mkdir -p pm && cp /tmp/state.json pm/state.json
-          git add pm/state.json
-          git commit -q -m "pm desk state $(date -u +%FT%TZ)" || exit 0
-          for i in 1 2 3; do git push -q origin pm-desk-data && break; sleep 3; git pull -q --rebase origin pm-desk-data || true; done
+          mkdir -p pm
+          end=$(( $(date +%s) + 345*60 )); last=0
+          while [ $(date +%s) -lt $end ]; do
+            t0=$(date +%s)
+            timeout 240 node --experimental-strip-types /tmp/desk/scripts/pm-desk.ts pm/state.json || echo "cycle failed"
+            if [ $(( t0 - last )) -ge 60 ]; then
+              git add pm/state.json
+              if git commit -q -m "pm desk state $(date -u +%FT%TZ)"; then
+                git push -q origin pm-desk-data || { git pull -q --rebase -X ours origin pm-desk-data && git push -q origin pm-desk-data; } || true
+              fi
+              last=$t0
+            fi
+            s=$(( 30 - ($(date +%s) - t0) )); [ $s -gt 0 ] && sleep $s
+          done

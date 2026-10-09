@@ -25,13 +25,13 @@ export default function PolyDesk() {
     // The desk runs on GitHub Actions every 5 min and commits pm/state.json to the pm-desk-data branch.
     const load = async () => {
       try {
-        const r = await fetch(`${STATE_URL}?t=${Math.floor(Date.now() / 60000)}`, { cache: 'no-store' })
+        const r = await fetch(`${STATE_URL}?t=${Math.floor(Date.now() / 15000)}`, { cache: 'no-store' })
         if (!r.ok) return
         const s = await r.json()
         setSt(s); setTr([...(s.trades ?? [])].reverse()); setEq(s.equity ?? []); setDec((s.decisions ?? []).map((d: J, i: number) => ({ id: i, ...d })))
       } catch { /* keep the last state */ }
     }
-    load(); const id = setInterval(load, 60000); return () => clearInterval(id)
+    load(); const id = setInterval(load, 15000); return () => clearInterval(id)
   }, [])
   const open = tr.filter((t) => t.status === 'OPEN'), closed = tr.filter((t) => t.status === 'CLOSED')
   useEffect(() => {
