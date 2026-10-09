@@ -1,0 +1,42 @@
+name: pm-desk
+# Polymarket PAPER desk ($1,000 demo on real Polymarket prices). Runs scripts/pm-desk.ts every 5 minutes and keeps
+# the account in pm/state.json on the `pm-desk-data` branch (no workflow runs there). Never places a real order.
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+concurrency:
+  group: pm-desk
+  cancel-in-progress: false
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: fetch state
+        run: |
+          git fetch origin pm-desk-data || true
+          mkdir -p pm
+          git show origin/pm-desk-data:pm/state.json > pm/state.json 2>/dev/null || rm -f pm/state.json
+      - name: run desk
+        run: node --experimental-strip-types scripts/pm-desk.ts pm/state.json
+      - name: commit state
+        run: |
+          cp pm/state.json /tmp/state.json
+          git config user.name pm-desk-bot
+          git config user.email actions@github.com
+          if git rev-parse --verify origin/pm-desk-data >/dev/null 2>&1; then
+            git checkout -B pm-desk-data origin/pm-desk-data
+          else
+            git checkout --orphan pm-desk-data && git rm -rf -q . && git clean -fdq
+          fi
+          mkdir -p pm && cp /tmp/state.json pm/state.json
+          git add pm/state.json
+          git commit -q -m "pm desk state $(date -u +%FT%TZ)" || exit 0
+          for i in 1 2 3; do git push -q origin pm-desk-data && break; sleep 3; git pull -q --rebase origin pm-desk-data || true; done

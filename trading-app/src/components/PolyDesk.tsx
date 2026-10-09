@@ -1,12 +1,10 @@
-// Polymarket PAPER desk (owner 2026-10-09). Read-only viewer of the pm-bot edge function: every number comes from
-// pm_state / pm_trades / pm_equity / pm_decisions (anon key). Live prices of open positions are re-read from the
+// Polymarket PAPER desk (owner 2026-10-09). Read-only viewer of scripts/pm-desk.ts (GitHub Actions, every 5 min):
+// every number comes from pm/state.json on the pm-desk-data branch. Live prices of open positions are re-read from the
 // public Polymarket CLOB every 5 s (display only; the bot books its own marks every 2 min).
 import { useEffect, useMemo, useState } from 'react'
-import { SUPA_KEY, SUPA_URL } from '../supa'
 
 type J = Record<string, any>
-const H = { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` }
-const q = async (path: string) => { const r = await fetch(`${SUPA_URL}/rest/v1/${path}`, { headers: H }); return r.ok ? r.json() : [] }
+const STATE_URL = 'https://raw.githubusercontent.com/aliexpressgood585/spacehub/pm-desk-data/pm/state.json'
 const n = (v: any) => (Number.isFinite(Number(v)) ? Number(v) : 0)
 const $ = (v: number) => `${v < 0 ? '−' : ''}$${Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const c = (v: number) => `${(v * 100).toFixed(1)}¢`
@@ -24,11 +22,16 @@ export default function PolyDesk() {
   const [dec, setDec] = useState<J[]>([])
   const [live, setLive] = useState<Record<string, number>>({})
   useEffect(() => {
+    // The desk runs on GitHub Actions every 5 min and commits pm/state.json to the pm-desk-data branch.
     const load = async () => {
-      const [s, t, e, d] = await Promise.all([q('pm_state?id=eq.1'), q('pm_trades?order=opened_at.desc&limit=500'), q('pm_equity?order=ts.desc&limit=2000'), q('pm_decisions?order=ts.desc&limit=40')])
-      setSt(s[0] ?? null); setTr(t); setEq([...e].reverse()); setDec(d)
+      try {
+        const r = await fetch(`${STATE_URL}?t=${Math.floor(Date.now() / 60000)}`, { cache: 'no-store' })
+        if (!r.ok) return
+        const s = await r.json()
+        setSt(s); setTr([...(s.trades ?? [])].reverse()); setEq(s.equity ?? []); setDec((s.decisions ?? []).map((d: J, i: number) => ({ id: i, ...d })))
+      } catch { /* keep the last state */ }
     }
-    load(); const id = setInterval(load, 15000); return () => clearInterval(id)
+    load(); const id = setInterval(load, 60000); return () => clearInterval(id)
   }, [])
   const open = tr.filter((t) => t.status === 'OPEN'), closed = tr.filter((t) => t.status === 'CLOSED')
   useEffect(() => {
@@ -77,7 +80,7 @@ export default function PolyDesk() {
       </div>
       <div style={box}>
         <h2 style={{ fontSize: 17, margin: '0 0 8px' }}>פוזיציות פתוחות ({open.length})</h2>
-        {open.length === 0 && <div style={lab}>אין פוזיציות פתוחות כרגע. הבוט סורק כל 2 דקות.</div>}
+        {open.length === 0 && <div style={lab}>אין פוזיציות פתוחות כרגע. הבוט סורק כל 5 דקות.</div>}
         <div style={{ display: 'grid', gap: 8 }}>
           {open.map((t) => { const m = mark(t), pnl = n(t.qty) * m - n(t.cost); return (
             <a key={t.id} href={`https://polymarket.com/event/${t.event_slug ?? t.slug}`} target="_blank" rel="noreferrer" style={{ ...box, background: '#0e1729', textDecoration: 'none', color: 'inherit', display: 'grid', gap: 4 }}>
