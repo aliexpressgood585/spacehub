@@ -375,6 +375,20 @@ appeared this hour only because the ev fix (v83.2) made promotion possible, not 
 The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: widen the vocabulary
 (daily/4h features, where ROTA's edge lives) rather than re-sampling 5m pairs.
 
+## PM DESK (2026-10-09) — Polymarket PAPER desk, $1,000 on real prices (owner: "find the best strategy yourself, show everything live")
+- Research `backtest/research/pm_research.py` -> `status/pm-research.txt`: 7,486 resolved binary markets (Gamma + CLOB
+  prices-history, 2025-09..2026-10), entry H hours before resolution, +1c slippage, fee 0.03·p(1-p)/share where enabled,
+  70/30 time split. Favourites (0.70-0.99) LOSE 2-7% per $ at every horizon. 15-30c outcomes positive at every horizon in
+  BOTH halves (H72 IS +11.0% t2.3 / OOS +7.7%; H24 +9.1/+11.4). Chosen: buy 15-30c outcomes of markets ending within 72h,
+  hold to resolution, 3% of equity each, <=30 open, 1 per event (`shared/pm.ts`). NOT proven (t<2.5, ~6 months); real fee
+  rates are up to 0.05 on esports, above the research's 0.03.
+- **SUPABASE PROJECT BLOCKED 2026-10-09 ~03:45 UTC: `exceed_egress_quota`** — REST and every edge function answer the
+  restriction message (dashboard + main bot API down). Only the owner can lift it (upgrade / spend cap) or wait for the
+  quota period. pm_* tables + pm-bot function v2 exist there but cannot run.
+- So the desk runs on GitHub Actions: `scripts/pm-desk.ts` (same rules), `.github/workflows/pm-desk.yml` every 5 min,
+  state in `pm/state.json` on branch `pm-desk-data`. Page: https://aliexpressgood585.github.io/spacehub/poly.html
+  (live bids from clob.polymarket.com every 5 s). First run 03:50 UTC: 122 markets, 9 entries, paper only.
+
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the
