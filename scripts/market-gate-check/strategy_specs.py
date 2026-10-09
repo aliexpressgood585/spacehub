@@ -1,0 +1,13 @@
+TOP10=["ANKRUSDT","ARKUSDT","1000000MOGUSDT","AGTUSDT","SUSHIUSDT","LQTYUSDT","HYPERUSDT","KAVAUSDT","LUMIAUSDT","ALPINEUSDT"]
+STRATS=[
+ {"name":"DDDDD_5M","tf":"5m","symbols":TOP10,"kind":"red","n":5,"tp":.01,"sl":.01,"hold":None},
+ {"name":"R6_3M","tf":"3m","symbols":["KAVAUSDT","1000000MOGUSDT"],"kind":"red","n":6,"tp":.01,"sl":.01,"hold":None},
+ {"name":"R7_3M","tf":"3m","symbols":["KAVAUSDT","LQTYUSDT","LUMIAUSDT"],"kind":"red","n":7,"tp":.01,"sl":.01,"hold":None},
+ {"name":"FALL5_10M","tf":"10m","symbols":["KAVAUSDT"],"kind":"fall","n":5,"tp":.01,"sl":.01,"hold":None},
+ {"name":"R6_10M","tf":"10m","symbols":["KAVAUSDT","SUSHIUSDT"],"kind":"red","n":6,"tp":.01,"sl":.01,"hold":None},
+ {"name":"FALL7_15M","tf":"15m","symbols":["ANKRUSDT","1000000MOGUSDT","SUSHIUSDT","HYPERUSDT","LUMIAUSDT"],"kind":"fall","n":7,"tp":.01,"sl":.01,"hold":None},
+ {"name":"FALL5_30M","tf":"30m","symbols":["KAVAUSDT"],"kind":"fall","n":5,"tp":.01,"sl":.01,"hold":None},
+ {"name":"FALL4_30M","tf":"30m","symbols":["ANKRUSDT"],"kind":"fall","n":4,"tp":.01,"sl":.01,"hold":None},
+ {"name":"AGT_GRR_1M","tf":"1m","symbols":["AGTUSDT"],"kind":"agt","n":3,"tp":.005,"sl":.02,"hold":120},
+ {"name":"LQTY_RRR_1M","tf":"1m","symbols":["LQTYUSDT"],"kind":"lqty","n":3,"tp":.005,"sl":.02,"hold":60},
+]

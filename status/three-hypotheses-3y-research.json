@@ -1,0 +1,4944 @@
+{
+  "window": {
+    "start": "2023-10-08T00:00:00+00:00",
+    "split": "2025-10-07T00:00:00+00:00",
+    "end_exclusive": "2026-10-07T00:00:00+00:00"
+  },
+  "cost_roundtrip_pct": 0.16,
+  "run_url": "https://github.com/aliexpressgood585/spacehub/actions/runs/37607891030",
+  "code_commit": "28bc0a5dcca9519c93ef8062e2a630faa355ca90",
+  "rules": {
+    "baseline": "DDDDD LONG TP1% SL1%",
+    "fixed_rr2_control": "DDDDD LONG TP1% SL0.5%",
+    "atr_exits": "DDDDD LONG; TP distance 2*Wilder ATR14, SL distance 1*ATR14; ATR on latest completed 5m signal bar and frozen at entry",
+    "relative_btc": "DDDDD LONG TP1% SL1%, only if synchronous coin simple 60m return minus BTC simple 60m return >0",
+    "failed_short": "After DDDDD, first 1m close above preceding 1m high within 5m, then first close below original 5-bar pattern low within next 10m; SHORT next minute open TP1% SL1%"
+  },
+  "method": [
+    "Fixed definitions committed before running; no parameter grid or symbol selection.",
+    "Same prior 10-symbol universe; BTC data only for relative-strength reference.",
+    "Minute candles, next-open entries, conservative simultaneous-barrier SL, adverse opening stop gaps.",
+    "Independent train/validation starts; no time stop, open positions at period boundaries recorded separately.",
+    "0.10% fees, 0.04% slippage, 0.02% funding reserve; reserve is not actual funding.",
+    "Constant independent notional trades; no portfolio, leverage, compounding or liquidation simulation.",
+    "Validation year already inspected; not a fresh untouched holdout.",
+    "New simulator baseline trade paths exactly reproduced prior simulator, checked for each symbol/period during the run.",
+    "Eligibility requires PF >1.15 and >=300 trades in EACH train and validation."
+  ],
+  "coverage": [
+    {
+      "symbol": "BTCUSDT",
+      "bars": 1620000,
+      "first_ms": 1694131200000,
+      "last_ms": 1791331140000,
+      "gaps": 0
+    },
+    {
+      "symbol": "AGTUSDT",
+      "bars": 726570,
+      "first_ms": 1747737000000,
+      "last_ms": 1791331140000,
+      "gaps": 0
+    },
+    {
+      "symbol": "1000000MOGUSDT",
+      "bars": 1005810,
+      "first_ms": 1730982600000,
+      "last_ms": 1791331140000,
+      "gaps": 0
+    },
+    {
+      "symbol": "ANKRUSDT",
+      "bars": 1620000,
+      "first_ms": 1694131200000,
+      "last_ms": 1791331140000,
+      "gaps": 0
+    },
+    {
+      "symbol": "ARKUSDT",
+      "bars": 1603197,
+      "first_ms": 1695139380000,
+      "last_ms": 1791331140000,
+      "gaps": 0
+    },
+    {
+      "symbol": "HYPERUSDT",
+      "bars": 766740,
+      "first_ms": 1745326800000,
+      "last_ms": 1791331140000,
+      "gaps": 0
+    },
+    {
+      "symbol": "SUSHIUSDT",
+      "bars": 1620000,
+      "first_ms": 1694131200000,
+      "last_ms": 1791331140000,
+      "gaps": 0
+    },
+    {
+      "symbol": "LQTYUSDT",
+      "bars": 1620000,
+      "first_ms": 1694131200000,
+      "last_ms": 1791331140000,
+      "gaps": 0
+    },
+    {
+      "symbol": "KAVAUSDT",
+      "bars": 1620000,
+      "first_ms": 1694131200000,
+      "last_ms": 1791331140000,
+      "gaps": 0
+    },
+    {
+      "symbol": "LUMIAUSDT",
+      "bars": 946830,
+      "first_ms": 1734521400000,
+      "last_ms": 1791331140000,
+      "gaps": 0
+    },
+    {
+      "symbol": "ALPINEUSDT",
+      "bars": 746775,
+      "first_ms": 1746524700000,
+      "last_ms": 1791331140000,
+      "gaps": 0
+    }
+  ],
+  "aggregate": {
+    "baseline": {
+      "train": {
+        "n": 17161,
+        "wins": 8655,
+        "wr": 50.434,
+        "wr_wilson95": [
+          49.686,
+          51.182
+        ],
+        "pf": 0.7367,
+        "avg_net_bps": -15.1413,
+        "sum_net_pct": -2598.4033,
+        "gross_positive": 72.70200000000006,
+        "gross_negative": 98.68603346040717,
+        "avg_winner_bps": 84,
+        "avg_loser_bps": -116.0193,
+        "weekly_block_avg_bps_ci95": [
+          -17.5165,
+          -12.6847
+        ],
+        "avg_holding_minutes": 74.1,
+        "cost_sensitivity_avg_bps": {
+          "10": -9.1413,
+          "16": -15.1413,
+          "20": -19.1413
+        },
+        "trades_per_calendar_day": 23.508
+      },
+      "validation": {
+        "n": 10043,
+        "wins": 5152,
+        "wr": 51.299,
+        "wr_wilson95": [
+          50.322,
+          52.276
+        ],
+        "pf": 0.7623,
+        "avg_net_bps": -13.434,
+        "sum_net_pct": -1349.1732,
+        "gross_positive": 43.27680000000004,
+        "gross_negative": 56.768531809786296,
+        "avg_winner_bps": 84,
+        "avg_loser_bps": -116.0673,
+        "weekly_block_avg_bps_ci95": [
+          -16.7462,
+          -10.1468
+        ],
+        "avg_holding_minutes": 97.87,
+        "cost_sensitivity_avg_bps": {
+          "10": -7.434,
+          "16": -13.434,
+          "20": -17.434
+        },
+        "trades_per_calendar_day": 27.515
+      },
+      "all3y": {
+        "n": 27205,
+        "wins": 13808,
+        "wr": 50.755,
+        "wr_wilson95": [
+          50.161,
+          51.349
+        ],
+        "pf": 0.7461,
+        "avg_net_bps": -14.5074,
+        "sum_net_pct": -3946.7365,
+        "gross_positive": 115.98720000000009,
+        "gross_negative": 155.45456527019346,
+        "avg_winner_bps": 84,
+        "avg_loser_bps": -116.0368,
+        "weekly_block_avg_bps_ci95": [
+          -16.4515,
+          -12.5626
+        ],
+        "avg_holding_minutes": 82.88,
+        "cost_sensitivity_avg_bps": {
+          "10": -8.5074,
+          "16": -14.5074,
+          "20": -18.5074
+        },
+        "trades_per_calendar_day": 24.845
+      }
+    },
+    "fixed_rr2_control": {
+      "train": {
+        "n": 21289,
+        "wins": 7341,
+        "wr": 34.483,
+        "wr_wilson95": [
+          33.847,
+          35.124
+        ],
+        "pf": 0.6696,
+        "avg_net_bps": -14.2892,
+        "sum_net_pct": -3042.0243,
+        "gross_positive": 61.66440000000004,
+        "gross_negative": 92.08464297995363,
+        "avg_winner_bps": 84,
+        "avg_loser_bps": -66.02,
+        "weekly_block_avg_bps_ci95": [
+          -15.5579,
+          -12.8605
+        ],
+        "avg_holding_minutes": 39.52,
+        "cost_sensitivity_avg_bps": {
+          "10": -8.2892,
+          "16": -14.2892,
+          "20": -18.2892
+        },
+        "trades_per_calendar_day": 29.163
+      },
+      "validation": {
+        "n": 12385,
+        "wins": 4262,
+        "wr": 34.413,
+        "wr_wilson95": [
+          33.581,
+          35.254
+        ],
+        "pf": 0.6671,
+        "avg_net_bps": -14.4272,
+        "sum_net_pct": -1786.8034,
+        "gross_positive": 35.800800000000024,
+        "gross_negative": 53.66883427693263,
+        "avg_winner_bps": 84,
+        "avg_loser_bps": -66.0702,
+        "weekly_block_avg_bps_ci95": [
+          -16.4301,
+          -12.4836
+        ],
+        "avg_holding_minutes": 50.87,
+        "cost_sensitivity_avg_bps": {
+          "10": -8.4272,
+          "16": -14.4272,
+          "20": -18.4272
+        },
+        "trades_per_calendar_day": 33.932
+      },
+      "all3y": {
+        "n": 33675,
+        "wins": 11604,
+        "wr": 34.459,
+        "wr_wilson95": [
+          33.953,
+          34.968
+        ],
+        "pf": 0.6688,
+        "avg_net_bps": -14.337,
+        "sum_net_pct": -4827.9877,
+        "gross_positive": 97.47360000000009,
+        "gross_negative": 145.75347725688624,
+        "avg_winner_bps": 84,
+        "avg_loser_bps": -66.0385,
+        "weekly_block_avg_bps_ci95": [
+          -15.4324,
+          -13.2276
+        ],
+        "avg_holding_minutes": 43.69,
+        "cost_sensitivity_avg_bps": {
+          "10": -8.337,
+          "16": -14.337,
+          "20": -18.337
+        },
+        "trades_per_calendar_day": 30.753
+      }
+    },
+    "atr_exits": {
+      "train": {
+        "n": 22249,
+        "wins": 7598,
+        "wr": 34.15,
+        "wr_wilson95": [
+          33.53,
+          34.776
+        ],
+        "pf": 0.6612,
+        "avg_net_bps": -14.9313,
+        "sum_net_pct": -3322.0686,
+        "gross_positive": 64.82854793839365,
+        "gross_negative": 98.04923414118389,
+        "avg_winner_bps": 85.3232,
+        "avg_loser_bps": -66.9232,
+        "weekly_block_avg_bps_ci95": [
+          -16.4468,
+          -13.2975
+        ],
+        "avg_holding_minutes": 26.57,
+        "cost_sensitivity_avg_bps": {
+          "10": -8.9313,
+          "16": -14.9313,
+          "20": -18.9313
+        },
+        "trades_per_calendar_day": 30.478
+      },
+      "validation": {
+        "n": 12965,
+        "wins": 4484,
+        "wr": 34.585,
+        "wr_wilson95": [
+          33.771,
+          35.409
+        ],
+        "pf": 0.6536,
+        "avg_net_bps": -14.8082,
+        "sum_net_pct": -1919.884,
+        "gross_positive": 36.222527908531085,
+        "gross_negative": 55.421367513902595,
+        "avg_winner_bps": 80.7817,
+        "avg_loser_bps": -65.3477,
+        "weekly_block_avg_bps_ci95": [
+          -16.7805,
+          -12.9971
+        ],
+        "avg_holding_minutes": 30.68,
+        "cost_sensitivity_avg_bps": {
+          "10": -8.8082,
+          "16": -14.8082,
+          "20": -18.8082
+        },
+        "trades_per_calendar_day": 35.521
+      },
+      "all3y": {
+        "n": 35215,
+        "wins": 12083,
+        "wr": 34.312,
+        "wr_wilson95": [
+          33.818,
+          34.81
+        ],
+        "pf": 0.6585,
+        "avg_net_bps": -14.8839,
+        "sum_net_pct": -5241.3493,
+        "gross_positive": 101.05710867439998,
+        "gross_negative": 153.47060165508645,
+        "avg_winner_bps": 83.6358,
+        "avg_loser_bps": -66.3456,
+        "weekly_block_avg_bps_ci95": [
+          -16.0056,
+          -13.6812
+        ],
+        "avg_holding_minutes": 28.09,
+        "cost_sensitivity_avg_bps": {
+          "10": -8.8839,
+          "16": -14.8839,
+          "20": -18.8839
+        },
+        "trades_per_calendar_day": 32.16
+      }
+    },
+    "relative_btc": {
+      "train": {
+        "n": 3022,
+        "wins": 1584,
+        "wr": 52.416,
+        "wr_wilson95": [
+          50.633,
+          54.192
+        ],
+        "pf": 0.7975,
+        "avg_net_bps": -11.1787,
+        "sum_net_pct": -337.8191,
+        "gross_positive": 13.305600000000009,
+        "gross_negative": 16.6837911201702,
+        "avg_winner_bps": 84,
+        "avg_loser_bps": -116.0208,
+        "weekly_block_avg_bps_ci95": [
+          -14.9251,
+          -7.0863
+        ],
+        "avg_holding_minutes": 96.1,
+        "cost_sensitivity_avg_bps": {
+          "10": -5.1787,
+          "16": -11.1787,
+          "20": -15.1787
+        },
+        "trades_per_calendar_day": 4.14
+      },
+      "validation": {
+        "n": 2109,
+        "wins": 1103,
+        "wr": 52.3,
+        "wr_wilson95": [
+          50.166,
+          54.425
+        ],
+        "pf": 0.7936,
+        "avg_net_bps": -11.4227,
+        "sum_net_pct": -240.9055,
+        "gross_positive": 9.265200000000005,
+        "gross_negative": 11.674255461802995,
+        "avg_winner_bps": 84,
+        "avg_loser_bps": -116.0463,
+        "weekly_block_avg_bps_ci95": [
+          -17.9668,
+          -4.8588
+        ],
+        "avg_holding_minutes": 120.25,
+        "cost_sensitivity_avg_bps": {
+          "10": -5.4227,
+          "16": -11.4227,
+          "20": -15.4227
+        },
+        "trades_per_calendar_day": 5.778
+      },
+      "all3y": {
+        "n": 5131,
+        "wins": 2687,
+        "wr": 52.368,
+        "wr_wilson95": [
+          51,
+          53.732
+        ],
+        "pf": 0.7959,
+        "avg_net_bps": -11.279,
+        "sum_net_pct": -578.7247,
+        "gross_positive": 22.570800000000013,
+        "gross_negative": 28.3580465819732,
+        "avg_winner_bps": 84,
+        "avg_loser_bps": -116.0313,
+        "weekly_block_avg_bps_ci95": [
+          -14.8005,
+          -7.7922
+        ],
+        "avg_holding_minutes": 106.03,
+        "cost_sensitivity_avg_bps": {
+          "10": -5.279,
+          "16": -11.279,
+          "20": -15.279
+        },
+        "trades_per_calendar_day": 4.686
+      }
+    },
+    "failed_short": {
+      "train": {
+        "n": 6667,
+        "wins": 3319,
+        "wr": 49.783,
+        "wr_wilson95": [
+          48.583,
+          50.982
+        ],
+        "pf": 0.7175,
+        "avg_net_bps": -16.4654,
+        "sum_net_pct": -1097.751,
+        "gross_positive": 27.879600000000018,
+        "gross_negative": 38.85711017687752,
+        "avg_winner_bps": 84,
+        "avg_loser_bps": -116.0607,
+        "weekly_block_avg_bps_ci95": [
+          -19.5034,
+          -13.4661
+        ],
+        "avg_holding_minutes": 77.57,
+        "cost_sensitivity_avg_bps": {
+          "10": -10.4654,
+          "16": -16.4654,
+          "20": -20.4654
+        },
+        "trades_per_calendar_day": 9.133
+      },
+      "validation": {
+        "n": 3620,
+        "wins": 1746,
+        "wr": 48.232,
+        "wr_wilson95": [
+          46.607,
+          49.861
+        ],
+        "pf": 0.6741,
+        "avg_net_bps": -19.588,
+        "sum_net_pct": -709.0866,
+        "gross_positive": 14.66640000000001,
+        "gross_negative": 21.757266396930465,
+        "avg_winner_bps": 84,
+        "avg_loser_bps": -116.1007,
+        "weekly_block_avg_bps_ci95": [
+          -24.4824,
+          -14.7445
+        ],
+        "avg_holding_minutes": 102.87,
+        "cost_sensitivity_avg_bps": {
+          "10": -13.588,
+          "16": -19.588,
+          "20": -23.588
+        },
+        "trades_per_calendar_day": 9.918
+      },
+      "all3y": {
+        "n": 10287,
+        "wins": 5065,
+        "wr": 49.237,
+        "wr_wilson95": [
+          48.271,
+          50.203
+        ],
+        "pf": 0.7019,
+        "avg_net_bps": -17.5643,
+        "sum_net_pct": -1806.8377,
+        "gross_positive": 42.546000000000035,
+        "gross_negative": 60.61437657380799,
+        "avg_winner_bps": 84,
+        "avg_loser_bps": -116.075,
+        "weekly_block_avg_bps_ci95": [
+          -20.3594,
+          -14.9486
+        ],
+        "avg_holding_minutes": 86.47,
+        "cost_sensitivity_avg_bps": {
+          "10": -11.5643,
+          "16": -17.5643,
+          "20": -21.5643
+        },
+        "trades_per_calendar_day": 9.395
+      }
+    }
+  },
+  "results": [
+    {
+      "symbol": "AGTUSDT",
+      "audit": {
+        "signals": 3441,
+        "btc_alignment_rejected": 0,
+        "no_price_bounce": 983,
+        "no_failure": 1614
+      },
+      "variants": {
+        "baseline": {
+          "train": {
+            "n": 629,
+            "wins": 328,
+            "wr": 52.146,
+            "wr_wilson95": [
+              48.241,
+              56.025
+            ],
+            "pf": 0.7891,
+            "avg_net_bps": -11.7093,
+            "sum_net_pct": -73.6515,
+            "gross_positive": 2.755200000000002,
+            "gross_negative": 3.491715184470566,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0038,
+            "weekly_block_avg_bps_ci95": [
+              -18.2384,
+              -5.0751
+            ],
+            "avg_holding_minutes": 30.15,
+            "cost_sensitivity_avg_bps": {
+              "10": -5.7093,
+              "16": -11.7093,
+              "20": -15.7093
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 1555,
+            "wins": 820,
+            "wr": 52.733,
+            "wr_wilson95": [
+              50.248,
+              55.205
+            ],
+            "pf": 0.8075,
+            "avg_net_bps": -10.5563,
+            "sum_net_pct": -164.1505,
+            "gross_positive": 6.8880000000000035,
+            "gross_negative": 8.529504974777469,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0477,
+            "weekly_block_avg_bps_ci95": [
+              -16.1564,
+              -4.7592
+            ],
+            "avg_holding_minutes": 42.13,
+            "cost_sensitivity_avg_bps": {
+              "10": -4.5563,
+              "16": -10.5563,
+              "20": -14.5563
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 2184,
+            "wins": 1148,
+            "wr": 52.564,
+            "wr_wilson95": [
+              50.467,
+              54.652
+            ],
+            "pf": 0.8022,
+            "avg_net_bps": -10.8884,
+            "sum_net_pct": -237.802,
+            "gross_positive": 9.643200000000007,
+            "gross_negative": 12.021220159248031,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0349,
+            "weekly_block_avg_bps_ci95": [
+              -15.171,
+              -6.5404
+            ],
+            "avg_holding_minutes": 38.68,
+            "cost_sensitivity_avg_bps": {
+              "10": -4.8884,
+              "16": -10.8884,
+              "20": -14.8884
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "fixed_rr2_control": {
+          "train": {
+            "n": 755,
+            "wins": 287,
+            "wr": 38.013,
+            "wr_wilson95": [
+              34.62,
+              41.528
+            ],
+            "pf": 0.7804,
+            "avg_net_bps": -8.9838,
+            "sum_net_pct": -67.8275,
+            "gross_positive": 2.4108000000000014,
+            "gross_negative": 3.08907518902761,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.0059,
+            "weekly_block_avg_bps_ci95": [
+              -13.9692,
+              -3.3082
+            ],
+            "avg_holding_minutes": 17.73,
+            "cost_sensitivity_avg_bps": {
+              "10": -2.9838,
+              "16": -8.9838,
+              "20": -12.9838
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 1897,
+            "wins": 665,
+            "wr": 35.055,
+            "wr_wilson95": [
+              32.94,
+              37.231
+            ],
+            "pf": 0.6868,
+            "avg_net_bps": -13.4298,
+            "sum_net_pct": -254.7628,
+            "gross_positive": 5.586000000000004,
+            "gross_negative": 8.133628359662776,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.0197,
+            "weekly_block_avg_bps_ci95": [
+              -17.5639,
+              -9.5191
+            ],
+            "avg_holding_minutes": 23.42,
+            "cost_sensitivity_avg_bps": {
+              "10": -7.4298,
+              "16": -13.4298,
+              "20": -17.4298
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 2652,
+            "wins": 952,
+            "wr": 35.897,
+            "wr_wilson95": [
+              34.093,
+              37.742
+            ],
+            "pf": 0.7126,
+            "avg_net_bps": -12.164,
+            "sum_net_pct": -322.5904,
+            "gross_positive": 7.996800000000004,
+            "gross_negative": 11.222703548690387,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.0159,
+            "weekly_block_avg_bps_ci95": [
+              -15.1131,
+              -8.999
+            ],
+            "avg_holding_minutes": 21.8,
+            "cost_sensitivity_avg_bps": {
+              "10": -6.164,
+              "16": -12.164,
+              "20": -16.164
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "atr_exits": {
+          "train": {
+            "n": 680,
+            "wins": 239,
+            "wr": 35.147,
+            "wr_wilson95": [
+              31.651,
+              38.81
+            ],
+            "pf": 0.7475,
+            "avg_net_bps": -16.2913,
+            "sum_net_pct": -110.7807,
+            "gross_positive": 3.2793147188460328,
+            "gross_negative": 4.387122166380136,
+            "avg_winner_bps": 137.2098,
+            "avg_loser_bps": -99.4812,
+            "weekly_block_avg_bps_ci95": [
+              -21.9678,
+              -9.8986
+            ],
+            "avg_holding_minutes": 33.59,
+            "cost_sensitivity_avg_bps": {
+              "10": -10.2913,
+              "16": -16.2913,
+              "20": -20.2913
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 1667,
+            "wins": 605,
+            "wr": 36.293,
+            "wr_wilson95": [
+              34.018,
+              38.63
+            ],
+            "pf": 0.8433,
+            "avg_net_bps": -10.1316,
+            "sum_net_pct": -168.8935,
+            "gross_positive": 9.090880303754076,
+            "gross_negative": 10.77981505000923,
+            "avg_winner_bps": 150.2625,
+            "avg_loser_bps": -101.5048,
+            "weekly_block_avg_bps_ci95": [
+              -17.6623,
+              -2.9769
+            ],
+            "avg_holding_minutes": 36.68,
+            "cost_sensitivity_avg_bps": {
+              "10": -4.1316,
+              "16": -10.1316,
+              "20": -14.1316
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 2347,
+            "wins": 844,
+            "wr": 35.961,
+            "wr_wilson95": [
+              34.044,
+              37.924
+            ],
+            "pf": 0.8156,
+            "avg_net_bps": -11.9162,
+            "sum_net_pct": -279.6742,
+            "gross_positive": 12.370195022600111,
+            "gross_negative": 15.166937216389368,
+            "avg_winner_bps": 146.5663,
+            "avg_loser_bps": -100.9111,
+            "weekly_block_avg_bps_ci95": [
+              -16.2509,
+              -7.4339
+            ],
+            "avg_holding_minutes": 35.79,
+            "cost_sensitivity_avg_bps": {
+              "10": -5.9162,
+              "16": -11.9162,
+              "20": -15.9162
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "relative_btc": {
+          "train": {
+            "n": 99,
+            "wins": 49,
+            "wr": 49.495,
+            "wr_wilson95": [
+              39.851,
+              59.177
+            ],
+            "pf": 0.7097,
+            "avg_net_bps": -17.0101,
+            "sum_net_pct": -16.84,
+            "gross_positive": 0.41160000000000035,
+            "gross_negative": 0.5800000000000014,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116,
+            "weekly_block_avg_bps_ci95": [
+              -37.1016,
+              0.8317
+            ],
+            "avg_holding_minutes": 38.13,
+            "cost_sensitivity_avg_bps": {
+              "10": -11.0101,
+              "16": -17.0101,
+              "20": -21.0101
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 311,
+            "wins": 175,
+            "wr": 56.27,
+            "wr_wilson95": [
+              50.714,
+              61.674
+            ],
+            "pf": 0.9316,
+            "avg_net_bps": -3.47,
+            "sum_net_pct": -10.7917,
+            "gross_positive": 1.4700000000000006,
+            "gross_negative": 1.5779168754605761,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0233,
+            "weekly_block_avg_bps_ci95": [
+              -15.3657,
+              8.3428
+            ],
+            "avg_holding_minutes": 51.84,
+            "cost_sensitivity_avg_bps": {
+              "10": 2.53,
+              "16": -3.47,
+              "20": -7.47
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 410,
+            "wins": 224,
+            "wr": 54.634,
+            "wr_wilson95": [
+              49.794,
+              59.388
+            ],
+            "pf": 0.872,
+            "avg_net_bps": -6.7394,
+            "sum_net_pct": -27.6317,
+            "gross_positive": 1.881600000000001,
+            "gross_negative": 2.1579168754605775,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.017,
+            "weekly_block_avg_bps_ci95": [
+              -16.9021,
+              2.9865
+            ],
+            "avg_holding_minutes": 48.53,
+            "cost_sensitivity_avg_bps": {
+              "10": -0.7394,
+              "16": -6.7394,
+              "20": -10.7394
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "failed_short": {
+          "train": {
+            "n": 174,
+            "wins": 85,
+            "wr": 48.851,
+            "wr_wilson95": [
+              41.529,
+              56.222
+            ],
+            "pf": 0.6916,
+            "avg_net_bps": -18.2989,
+            "sum_net_pct": -31.84,
+            "gross_positive": 0.7140000000000002,
+            "gross_negative": 1.032400000000001,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116,
+            "weekly_block_avg_bps_ci95": [
+              -32.8957,
+              -5.3316
+            ],
+            "avg_holding_minutes": 33.13,
+            "cost_sensitivity_avg_bps": {
+              "10": -12.2989,
+              "16": -18.2989,
+              "20": -22.2989
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 484,
+            "wins": 212,
+            "wr": 43.802,
+            "wr_wilson95": [
+              39.447,
+              48.253
+            ],
+            "pf": 0.5642,
+            "avg_net_bps": -28.4245,
+            "sum_net_pct": -137.5747,
+            "gross_positive": 1.7808000000000015,
+            "gross_negative": 3.1565467546972332,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0495,
+            "weekly_block_avg_bps_ci95": [
+              -38.7223,
+              -18.9478
+            ],
+            "avg_holding_minutes": 43.04,
+            "cost_sensitivity_avg_bps": {
+              "10": -22.4245,
+              "16": -28.4245,
+              "20": -32.4245
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 658,
+            "wins": 297,
+            "wr": 45.137,
+            "wr_wilson95": [
+              41.374,
+              48.956
+            ],
+            "pf": 0.5956,
+            "avg_net_bps": -25.7469,
+            "sum_net_pct": -169.4147,
+            "gross_positive": 2.494800000000002,
+            "gross_negative": 4.188946754697234,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0373,
+            "weekly_block_avg_bps_ci95": [
+              -33.6198,
+              -18.6972
+            ],
+            "avg_holding_minutes": 40.42,
+            "cost_sensitivity_avg_bps": {
+              "10": -19.7469,
+              "16": -25.7469,
+              "20": -29.7469
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        }
+      }
+    },
+    {
+      "symbol": "1000000MOGUSDT",
+      "audit": {
+        "signals": 4350,
+        "btc_alignment_rejected": 1,
+        "no_price_bounce": 1237,
+        "no_failure": 1842
+      },
+      "variants": {
+        "baseline": {
+          "train": {
+            "n": 1734,
+            "wins": 840,
+            "wr": 48.443,
+            "wr_wilson95": [
+              46.097,
+              50.796
+            ],
+            "pf": 0.6803,
+            "avg_net_bps": -19.1221,
+            "sum_net_pct": -331.5766,
+            "gross_positive": 7.0560000000000045,
+            "gross_negative": 10.371766389779548,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0153,
+            "weekly_block_avg_bps_ci95": [
+              -23.4777,
+              -14.5261
+            ],
+            "avg_holding_minutes": 35.37,
+            "cost_sensitivity_avg_bps": {
+              "10": -13.1221,
+              "16": -19.1221,
+              "20": -23.1221
+            },
+            "open_at_boundary": 1,
+            "open_net_pct": -0.10292
+          },
+          "validation": {
+            "n": 942,
+            "wins": 496,
+            "wr": 52.654,
+            "wr_wilson95": [
+              49.461,
+              55.825
+            ],
+            "pf": 0.8044,
+            "avg_net_bps": -10.7521,
+            "sum_net_pct": -101.2846,
+            "gross_positive": 4.166400000000003,
+            "gross_negative": 5.179246387772373,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.1266,
+            "weekly_block_avg_bps_ci95": [
+              -17.0147,
+              -5.0203
+            ],
+            "avg_holding_minutes": 72.25,
+            "cost_sensitivity_avg_bps": {
+              "10": -4.7521,
+              "16": -10.7521,
+              "20": -14.7521
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 2677,
+            "wins": 1337,
+            "wr": 49.944,
+            "wr_wilson95": [
+              48.051,
+              51.837
+            ],
+            "pf": 0.7222,
+            "avg_net_bps": -16.1383,
+            "sum_net_pct": -432.0213,
+            "gross_positive": 11.230800000000007,
+            "gross_negative": 15.551012777551925,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0523,
+            "weekly_block_avg_bps_ci95": [
+              -19.5644,
+              -12.321
+            ],
+            "avg_holding_minutes": 48.36,
+            "cost_sensitivity_avg_bps": {
+              "10": -10.1383,
+              "16": -16.1383,
+              "20": -20.1383
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "fixed_rr2_control": {
+          "train": {
+            "n": 2140,
+            "wins": 737,
+            "wr": 34.439,
+            "wr_wilson95": [
+              32.455,
+              36.479
+            ],
+            "pf": 0.6685,
+            "avg_net_bps": -14.345,
+            "sum_net_pct": -306.982,
+            "gross_positive": 6.190800000000005,
+            "gross_negative": 9.260619530715047,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.0058,
+            "weekly_block_avg_bps_ci95": [
+              -17.3703,
+              -11.5277
+            ],
+            "avg_holding_minutes": 18.93,
+            "cost_sensitivity_avg_bps": {
+              "10": -8.345,
+              "16": -14.345,
+              "20": -18.345
+            },
+            "open_at_boundary": 1,
+            "open_net_pct": -0.10292
+          },
+          "validation": {
+            "n": 1138,
+            "wins": 406,
+            "wr": 35.677,
+            "wr_wilson95": [
+              32.946,
+              38.504
+            ],
+            "pf": 0.7037,
+            "avg_net_bps": -12.619,
+            "sum_net_pct": -143.6046,
+            "gross_positive": 3.410400000000002,
+            "gross_negative": 4.84644561328415,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.2083,
+            "weekly_block_avg_bps_ci95": [
+              -16.5924,
+              -8.5597
+            ],
+            "avg_holding_minutes": 37.31,
+            "cost_sensitivity_avg_bps": {
+              "10": -6.619,
+              "16": -12.619,
+              "20": -16.619
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 3279,
+            "wins": 1144,
+            "wr": 34.889,
+            "wr_wilson95": [
+              33.276,
+              36.537
+            ],
+            "pf": 0.6812,
+            "avg_net_bps": -13.716,
+            "sum_net_pct": -449.7465,
+            "gross_positive": 9.609600000000007,
+            "gross_negative": 14.107065143999199,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.0752,
+            "weekly_block_avg_bps_ci95": [
+              -15.8828,
+              -11.3889
+            ],
+            "avg_holding_minutes": 25.32,
+            "cost_sensitivity_avg_bps": {
+              "10": -7.716,
+              "16": -13.716,
+              "20": -17.716
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "atr_exits": {
+          "train": {
+            "n": 1945,
+            "wins": 643,
+            "wr": 33.059,
+            "wr_wilson95": [
+              31.004,
+              35.181
+            ],
+            "pf": 0.7031,
+            "avg_net_bps": -17.4457,
+            "sum_net_pct": -339.319,
+            "gross_positive": 8.034137726256695,
+            "gross_negative": 11.427327294310365,
+            "avg_winner_bps": 124.9477,
+            "avg_loser_bps": -87.7675,
+            "weekly_block_avg_bps_ci95": [
+              -22.3932,
+              -12.591
+            ],
+            "avg_holding_minutes": 27.21,
+            "cost_sensitivity_avg_bps": {
+              "10": -11.4457,
+              "16": -17.4457,
+              "20": -21.4457
+            },
+            "open_at_boundary": 1,
+            "open_net_pct": -0.10292
+          },
+          "validation": {
+            "n": 1142,
+            "wins": 416,
+            "wr": 36.427,
+            "wr_wilson95": [
+              33.686,
+              39.26
+            ],
+            "pf": 0.7226,
+            "avg_net_bps": -12.0691,
+            "sum_net_pct": -137.8294,
+            "gross_positive": 3.589645214488638,
+            "gross_negative": 4.967939472396049,
+            "avg_winner_bps": 86.2895,
+            "avg_loser_bps": -68.4289,
+            "weekly_block_avg_bps_ci95": [
+              -16.576,
+              -7.4065
+            ],
+            "avg_holding_minutes": 28.88,
+            "cost_sensitivity_avg_bps": {
+              "10": -6.0691,
+              "16": -12.0691,
+              "20": -16.0691
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 3088,
+            "wins": 1060,
+            "wr": 34.326,
+            "wr_wilson95": [
+              32.672,
+              36.02
+            ],
+            "pf": 0.7093,
+            "avg_net_bps": -15.4322,
+            "sum_net_pct": -476.5451,
+            "gross_positive": 11.62981576822057,
+            "gross_negative": 16.395266766706413,
+            "avg_winner_bps": 109.7152,
+            "avg_loser_bps": -80.8445,
+            "weekly_block_avg_bps_ci95": [
+              -18.7477,
+              -11.7293
+            ],
+            "avg_holding_minutes": 27.82,
+            "cost_sensitivity_avg_bps": {
+              "10": -9.4322,
+              "16": -15.4322,
+              "20": -19.4322
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "relative_btc": {
+          "train": {
+            "n": 234,
+            "wins": 116,
+            "wr": 49.573,
+            "wr_wilson95": [
+              43.225,
+              55.934
+            ],
+            "pf": 0.7119,
+            "avg_net_bps": -16.8547,
+            "sum_net_pct": -39.44,
+            "gross_positive": 0.9744000000000005,
+            "gross_negative": 1.368800000000003,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116,
+            "weekly_block_avg_bps_ci95": [
+              -29.0453,
+              -4.7847
+            ],
+            "avg_holding_minutes": 36.18,
+            "cost_sensitivity_avg_bps": {
+              "10": -10.8547,
+              "16": -16.8547,
+              "20": -20.8547
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 155,
+            "wins": 83,
+            "wr": 53.548,
+            "wr_wilson95": [
+              45.706,
+              61.219
+            ],
+            "pf": 0.8342,
+            "avg_net_bps": -8.9393,
+            "sum_net_pct": -13.8559,
+            "gross_positive": 0.6972000000000004,
+            "gross_negative": 0.8357590062111812,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0776,
+            "weekly_block_avg_bps_ci95": [
+              -24.4731,
+              6.797
+            ],
+            "avg_holding_minutes": 71.02,
+            "cost_sensitivity_avg_bps": {
+              "10": -2.9393,
+              "16": -8.9393,
+              "20": -12.9393
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 389,
+            "wins": 199,
+            "wr": 51.157,
+            "wr_wilson95": [
+              46.202,
+              56.089
+            ],
+            "pf": 0.7582,
+            "avg_net_bps": -13.7007,
+            "sum_net_pct": -53.2959,
+            "gross_positive": 1.6716000000000009,
+            "gross_negative": 2.204559006211184,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0294,
+            "weekly_block_avg_bps_ci95": [
+              -22.8756,
+              -4.3045
+            ],
+            "avg_holding_minutes": 50.06,
+            "cost_sensitivity_avg_bps": {
+              "10": -7.7007,
+              "16": -13.7007,
+              "20": -17.7007
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "failed_short": {
+          "train": {
+            "n": 665,
+            "wins": 324,
+            "wr": 48.722,
+            "wr_wilson95": [
+              44.941,
+              52.517
+            ],
+            "pf": 0.6869,
+            "avg_net_bps": -18.656,
+            "sum_net_pct": -124.0624,
+            "gross_positive": 2.721600000000004,
+            "gross_negative": 3.962223989443029,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.1943,
+            "weekly_block_avg_bps_ci95": [
+              -25.3456,
+              -12.174
+            ],
+            "avg_holding_minutes": 38.08,
+            "cost_sensitivity_avg_bps": {
+              "10": -12.656,
+              "16": -18.656,
+              "20": -22.656
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 332,
+            "wins": 171,
+            "wr": 51.506,
+            "wr_wilson95": [
+              46.144,
+              56.834
+            ],
+            "pf": 0.7661,
+            "avg_net_bps": -13.2114,
+            "sum_net_pct": -43.862,
+            "gross_positive": 1.4364000000000001,
+            "gross_negative": 1.8750197981327439,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.4609,
+            "weekly_block_avg_bps_ci95": [
+              -23.5295,
+              -1.8298
+            ],
+            "avg_holding_minutes": 70.62,
+            "cost_sensitivity_avg_bps": {
+              "10": -7.2114,
+              "16": -13.2114,
+              "20": -17.2114
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 997,
+            "wins": 495,
+            "wr": 49.649,
+            "wr_wilson95": [
+              46.553,
+              52.748
+            ],
+            "pf": 0.7123,
+            "avg_net_bps": -16.843,
+            "sum_net_pct": -167.9244,
+            "gross_positive": 4.158000000000005,
+            "gross_negative": 5.837243787575772,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.2798,
+            "weekly_block_avg_bps_ci95": [
+              -22.5051,
+              -11.4506
+            ],
+            "avg_holding_minutes": 48.92,
+            "cost_sensitivity_avg_bps": {
+              "10": -10.843,
+              "16": -16.843,
+              "20": -20.843
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        }
+      }
+    },
+    {
+      "symbol": "ANKRUSDT",
+      "audit": {
+        "signals": 5874,
+        "btc_alignment_rejected": 0,
+        "no_price_bounce": 1718,
+        "no_failure": 2515
+      },
+      "variants": {
+        "baseline": {
+          "train": {
+            "n": 2162,
+            "wins": 1069,
+            "wr": 49.445,
+            "wr_wilson95": [
+              47.34,
+              51.552
+            ],
+            "pf": 0.7079,
+            "avg_net_bps": -17.1395,
+            "sum_net_pct": -370.5555,
+            "gross_positive": 8.979600000000007,
+            "gross_negative": 12.68515532959644,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0581,
+            "weekly_block_avg_bps_ci95": [
+              -21.0898,
+              -13.2266
+            ],
+            "avg_holding_minutes": 83.88,
+            "cost_sensitivity_avg_bps": {
+              "10": -11.1395,
+              "16": -17.1395,
+              "20": -21.1395
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 1024,
+            "wins": 515,
+            "wr": 50.293,
+            "wr_wilson95": [
+              47.235,
+              53.349
+            ],
+            "pf": 0.7325,
+            "avg_net_bps": -15.4239,
+            "sum_net_pct": -157.9409,
+            "gross_positive": 4.326000000000003,
+            "gross_negative": 5.905408627872952,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0198,
+            "weekly_block_avg_bps_ci95": [
+              -21.7732,
+              -9.2699
+            ],
+            "avg_holding_minutes": 145.15,
+            "cost_sensitivity_avg_bps": {
+              "10": -9.4239,
+              "16": -15.4239,
+              "20": -19.4239
+            },
+            "open_at_boundary": 1,
+            "open_net_pct": 0.06541
+          },
+          "all3y": {
+            "n": 3186,
+            "wins": 1584,
+            "wr": 49.718,
+            "wr_wilson95": [
+              47.983,
+              51.453
+            ],
+            "pf": 0.7157,
+            "avg_net_bps": -16.5881,
+            "sum_net_pct": -528.4964,
+            "gross_positive": 13.305600000000009,
+            "gross_negative": 18.590563957469392,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.046,
+            "weekly_block_avg_bps_ci95": [
+              -19.9053,
+              -13.1455
+            ],
+            "avg_holding_minutes": 103.57,
+            "cost_sensitivity_avg_bps": {
+              "10": -10.5881,
+              "16": -16.5881,
+              "20": -20.5881
+            },
+            "open_at_boundary": 1,
+            "open_net_pct": 0.06541
+          }
+        },
+        "fixed_rr2_control": {
+          "train": {
+            "n": 2637,
+            "wins": 929,
+            "wr": 35.229,
+            "wr_wilson95": [
+              33.429,
+              37.073
+            ],
+            "pf": 0.6915,
+            "avg_net_bps": -13.2005,
+            "sum_net_pct": -348.0977,
+            "gross_positive": 7.803600000000005,
+            "gross_negative": 11.284576558476886,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.0689,
+            "weekly_block_avg_bps_ci95": [
+              -15.8118,
+              -10.5333
+            ],
+            "avg_holding_minutes": 45.83,
+            "cost_sensitivity_avg_bps": {
+              "10": -7.2005,
+              "16": -13.2005,
+              "20": -17.2005
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 1294,
+            "wins": 443,
+            "wr": 34.235,
+            "wr_wilson95": [
+              31.7,
+              36.864
+            ],
+            "pf": 0.6622,
+            "avg_net_bps": -14.6706,
+            "sum_net_pct": -189.8373,
+            "gross_positive": 3.7212000000000023,
+            "gross_negative": 5.6195729975153546,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.0349,
+            "weekly_block_avg_bps_ci95": [
+              -18.7045,
+              -10.4708
+            ],
+            "avg_holding_minutes": 71.84,
+            "cost_sensitivity_avg_bps": {
+              "10": -8.6706,
+              "16": -14.6706,
+              "20": -18.6706
+            },
+            "open_at_boundary": 1,
+            "open_net_pct": 0.06541
+          },
+          "all3y": {
+            "n": 3931,
+            "wins": 1372,
+            "wr": 34.902,
+            "wr_wilson95": [
+              33.427,
+              36.406
+            ],
+            "pf": 0.6818,
+            "avg_net_bps": -13.6844,
+            "sum_net_pct": -537.935,
+            "gross_positive": 11.524800000000006,
+            "gross_negative": 16.904149555992234,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.0576,
+            "weekly_block_avg_bps_ci95": [
+              -15.9428,
+              -11.4968
+            ],
+            "avg_holding_minutes": 54.39,
+            "cost_sensitivity_avg_bps": {
+              "10": -7.6844,
+              "16": -13.6844,
+              "20": -17.6844
+            },
+            "open_at_boundary": 1,
+            "open_net_pct": 0.06541
+          }
+        },
+        "atr_exits": {
+          "train": {
+            "n": 2871,
+            "wins": 986,
+            "wr": 34.343,
+            "wr_wilson95": [
+              32.628,
+              36.1
+            ],
+            "pf": 0.6386,
+            "avg_net_bps": -14.0266,
+            "sum_net_pct": -402.7027,
+            "gross_positive": 7.114950409012894,
+            "gross_negative": 11.141977807230523,
+            "avg_winner_bps": 72.1597,
+            "avg_loser_bps": -59.1086,
+            "weekly_block_avg_bps_ci95": [
+              -16.5022,
+              -11.4377
+            ],
+            "avg_holding_minutes": 23.87,
+            "cost_sensitivity_avg_bps": {
+              "10": -8.0266,
+              "16": -14.0266,
+              "20": -18.0266
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 1498,
+            "wins": 497,
+            "wr": 33.178,
+            "wr_wilson95": [
+              30.839,
+              35.602
+            ],
+            "pf": 0.537,
+            "avg_net_bps": -15.8526,
+            "sum_net_pct": -237.4726,
+            "gross_positive": 2.7541038368563737,
+            "gross_negative": 5.128829688531459,
+            "avg_winner_bps": 55.4146,
+            "avg_loser_bps": -51.2371,
+            "weekly_block_avg_bps_ci95": [
+              -18.4639,
+              -13.001
+            ],
+            "avg_holding_minutes": 26.65,
+            "cost_sensitivity_avg_bps": {
+              "10": -9.8526,
+              "16": -15.8526,
+              "20": -19.8526
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 4369,
+            "wins": 1483,
+            "wr": 33.944,
+            "wr_wilson95": [
+              32.554,
+              35.361
+            ],
+            "pf": 0.6065,
+            "avg_net_bps": -14.6527,
+            "sum_net_pct": -640.1753,
+            "gross_positive": 9.869054245869268,
+            "gross_negative": 16.270807495761982,
+            "avg_winner_bps": 66.5479,
+            "avg_loser_bps": -56.3784,
+            "weekly_block_avg_bps_ci95": [
+              -16.6407,
+              -12.5828
+            ],
+            "avg_holding_minutes": 24.82,
+            "cost_sensitivity_avg_bps": {
+              "10": -8.6527,
+              "16": -14.6527,
+              "20": -18.6527
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "relative_btc": {
+          "train": {
+            "n": 355,
+            "wins": 190,
+            "wr": 53.521,
+            "wr_wilson95": [
+              48.323,
+              58.644
+            ],
+            "pf": 0.8332,
+            "avg_net_bps": -8.9972,
+            "sum_net_pct": -31.9401,
+            "gross_positive": 1.596000000000001,
+            "gross_negative": 1.9154011384123986,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0849,
+            "weekly_block_avg_bps_ci95": [
+              -19.9384,
+              2.2327
+            ],
+            "avg_holding_minutes": 104.86,
+            "cost_sensitivity_avg_bps": {
+              "10": -2.9972,
+              "16": -8.9972,
+              "20": -12.9972
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 238,
+            "wins": 115,
+            "wr": 48.319,
+            "wr_wilson95": [
+              42.048,
+              54.644
+            ],
+            "pf": 0.6768,
+            "avg_net_bps": -19.3811,
+            "sum_net_pct": -46.1271,
+            "gross_positive": 0.9660000000000005,
+            "gross_negative": 1.4272706676705376,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0383,
+            "weekly_block_avg_bps_ci95": [
+              -34.0092,
+              -4.7913
+            ],
+            "avg_holding_minutes": 162.45,
+            "cost_sensitivity_avg_bps": {
+              "10": -13.3811,
+              "16": -19.3811,
+              "20": -23.3811
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 593,
+            "wins": 305,
+            "wr": 51.433,
+            "wr_wilson95": [
+              47.414,
+              55.434
+            ],
+            "pf": 0.7665,
+            "avg_net_bps": -13.1648,
+            "sum_net_pct": -78.0672,
+            "gross_positive": 2.562000000000002,
+            "gross_negative": 3.342671806082936,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.065,
+            "weekly_block_avg_bps_ci95": [
+              -21.9802,
+              -4.5924
+            ],
+            "avg_holding_minutes": 127.98,
+            "cost_sensitivity_avg_bps": {
+              "10": -7.1648,
+              "16": -13.1648,
+              "20": -17.1648
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "failed_short": {
+          "train": {
+            "n": 796,
+            "wins": 417,
+            "wr": 52.387,
+            "wr_wilson95": [
+              48.914,
+              55.837
+            ],
+            "pf": 0.7962,
+            "avg_net_bps": -11.2656,
+            "sum_net_pct": -89.674,
+            "gross_positive": 3.502800000000002,
+            "gross_negative": 4.399539765312145,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0828,
+            "weekly_block_avg_bps_ci95": [
+              -18.1062,
+              -4.0614
+            ],
+            "avg_holding_minutes": 86.46,
+            "cost_sensitivity_avg_bps": {
+              "10": -5.2656,
+              "16": -11.2656,
+              "20": -15.2656
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 430,
+            "wins": 216,
+            "wr": 50.233,
+            "wr_wilson95": [
+              45.526,
+              54.935
+            ],
+            "pf": 0.7306,
+            "avg_net_bps": -15.5627,
+            "sum_net_pct": -66.9198,
+            "gross_positive": 1.8144000000000013,
+            "gross_negative": 2.4835979759156377,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.056,
+            "weekly_block_avg_bps_ci95": [
+              -25.8805,
+              -5.4403
+            ],
+            "avg_holding_minutes": 149.03,
+            "cost_sensitivity_avg_bps": {
+              "10": -9.5627,
+              "16": -15.5627,
+              "20": -19.5627
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 1226,
+            "wins": 633,
+            "wr": 51.631,
+            "wr_wilson95": [
+              48.833,
+              54.419
+            ],
+            "pf": 0.7725,
+            "avg_net_bps": -12.7727,
+            "sum_net_pct": -156.5938,
+            "gross_positive": 5.317200000000003,
+            "gross_negative": 6.883137741227783,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0731,
+            "weekly_block_avg_bps_ci95": [
+              -18.5563,
+              -6.8517
+            ],
+            "avg_holding_minutes": 108.4,
+            "cost_sensitivity_avg_bps": {
+              "10": -6.7727,
+              "16": -12.7727,
+              "20": -16.7727
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        }
+      }
+    },
+    {
+      "symbol": "ARKUSDT",
+      "audit": {
+        "signals": 6074,
+        "btc_alignment_rejected": 0,
+        "no_price_bounce": 1702,
+        "no_failure": 2703
+      },
+      "variants": {
+        "baseline": {
+          "train": {
+            "n": 2639,
+            "wins": 1326,
+            "wr": 50.246,
+            "wr_wilson95": [
+              48.34,
+              52.152
+            ],
+            "pf": 0.7312,
+            "avg_net_bps": -15.5141,
+            "sum_net_pct": -409.4165,
+            "gross_positive": 11.138400000000008,
+            "gross_negative": 15.232564531632043,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0134,
+            "weekly_block_avg_bps_ci95": [
+              -19.4522,
+              -11.4876
+            ],
+            "avg_holding_minutes": 79.71,
+            "cost_sensitivity_avg_bps": {
+              "10": -9.5141,
+              "16": -15.5141,
+              "20": -19.5141
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 724,
+            "wins": 375,
+            "wr": 51.796,
+            "wr_wilson95": [
+              48.156,
+              55.416
+            ],
+            "pf": 0.7777,
+            "avg_net_bps": -12.4346,
+            "sum_net_pct": -90.0263,
+            "gross_positive": 3.150000000000002,
+            "gross_negative": 4.05026288789394,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0534,
+            "weekly_block_avg_bps_ci95": [
+              -20.7843,
+              -4.1098
+            ],
+            "avg_holding_minutes": 125.72,
+            "cost_sensitivity_avg_bps": {
+              "10": -6.4346,
+              "16": -12.4346,
+              "20": -16.4346
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 3363,
+            "wins": 1701,
+            "wr": 50.58,
+            "wr_wilson95": [
+              48.89,
+              52.268
+            ],
+            "pf": 0.741,
+            "avg_net_bps": -14.8511,
+            "sum_net_pct": -499.4427,
+            "gross_positive": 14.28840000000001,
+            "gross_negative": 19.282827419525983,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0218,
+            "weekly_block_avg_bps_ci95": [
+              -18.0323,
+              -11.3194
+            ],
+            "avg_holding_minutes": 89.62,
+            "cost_sensitivity_avg_bps": {
+              "10": -8.8511,
+              "16": -14.8511,
+              "20": -18.8511
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "fixed_rr2_control": {
+          "train": {
+            "n": 3262,
+            "wins": 1123,
+            "wr": 34.427,
+            "wr_wilson95": [
+              32.815,
+              36.075
+            ],
+            "pf": 0.668,
+            "avg_net_bps": -14.3727,
+            "sum_net_pct": -468.8379,
+            "gross_positive": 9.433200000000006,
+            "gross_negative": 14.121578560792006,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.0195,
+            "weekly_block_avg_bps_ci95": [
+              -16.7827,
+              -11.8987
+            ],
+            "avg_holding_minutes": 43.74,
+            "cost_sensitivity_avg_bps": {
+              "10": -8.3727,
+              "16": -14.3727,
+              "20": -18.3727
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 863,
+            "wins": 320,
+            "wr": 37.08,
+            "wr_wilson95": [
+              33.921,
+              40.353
+            ],
+            "pf": 0.7489,
+            "avg_net_bps": -10.4443,
+            "sum_net_pct": -90.134,
+            "gross_positive": 2.688000000000002,
+            "gross_negative": 3.589340308849446,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.102,
+            "weekly_block_avg_bps_ci95": [
+              -15.1782,
+              -5.3347
+            ],
+            "avg_holding_minutes": 66.33,
+            "cost_sensitivity_avg_bps": {
+              "10": -4.4443,
+              "16": -10.4443,
+              "20": -14.4443
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 4125,
+            "wins": 1443,
+            "wr": 34.982,
+            "wr_wilson95": [
+              33.541,
+              36.451
+            ],
+            "pf": 0.6844,
+            "avg_net_bps": -13.5508,
+            "sum_net_pct": -558.9719,
+            "gross_positive": 12.121200000000009,
+            "gross_negative": 17.710918869641453,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.0362,
+            "weekly_block_avg_bps_ci95": [
+              -15.6506,
+              -11.2705
+            ],
+            "avg_holding_minutes": 48.47,
+            "cost_sensitivity_avg_bps": {
+              "10": -7.5508,
+              "16": -13.5508,
+              "20": -17.5508
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "atr_exits": {
+          "train": {
+            "n": 3462,
+            "wins": 1156,
+            "wr": 33.391,
+            "wr_wilson95": [
+              31.839,
+              34.98
+            ],
+            "pf": 0.6277,
+            "avg_net_bps": -15.9897,
+            "sum_net_pct": -553.563,
+            "gross_positive": 9.331427364735264,
+            "gross_negative": 14.86705713031493,
+            "avg_winner_bps": 80.7217,
+            "avg_loser_bps": -64.4712,
+            "weekly_block_avg_bps_ci95": [
+              -18.451,
+              -13.4669
+            ],
+            "avg_holding_minutes": 27.51,
+            "cost_sensitivity_avg_bps": {
+              "10": -9.9897,
+              "16": -15.9897,
+              "20": -19.9897
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 925,
+            "wins": 332,
+            "wr": 35.892,
+            "wr_wilson95": [
+              32.865,
+              39.036
+            ],
+            "pf": 0.6884,
+            "avg_net_bps": -11.8875,
+            "sum_net_pct": -109.9593,
+            "gross_positive": 2.429022408719696,
+            "gross_negative": 3.5286156273459772,
+            "avg_winner_bps": 73.1633,
+            "avg_loser_bps": -59.5045,
+            "weekly_block_avg_bps_ci95": [
+              -17.3029,
+              -5.7444
+            ],
+            "avg_holding_minutes": 29.18,
+            "cost_sensitivity_avg_bps": {
+              "10": -5.8875,
+              "16": -11.8875,
+              "20": -15.8875
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 4387,
+            "wins": 1488,
+            "wr": 33.918,
+            "wr_wilson95": [
+              32.532,
+              35.333
+            ],
+            "pf": 0.6393,
+            "avg_net_bps": -15.1247,
+            "sum_net_pct": -663.5223,
+            "gross_positive": 11.760449773454962,
+            "gross_negative": 18.39567275766091,
+            "avg_winner_bps": 79.0353,
+            "avg_loser_bps": -63.4552,
+            "weekly_block_avg_bps_ci95": [
+              -17.3686,
+              -12.7936
+            ],
+            "avg_holding_minutes": 27.86,
+            "cost_sensitivity_avg_bps": {
+              "10": -9.1247,
+              "16": -15.1247,
+              "20": -19.1247
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "relative_btc": {
+          "train": {
+            "n": 495,
+            "wins": 253,
+            "wr": 51.111,
+            "wr_wilson95": [
+              46.716,
+              55.489
+            ],
+            "pf": 0.757,
+            "avg_net_bps": -13.7848,
+            "sum_net_pct": -68.2345,
+            "gross_positive": 2.1252000000000013,
+            "gross_negative": 2.8075453522592957,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0143,
+            "weekly_block_avg_bps_ci95": [
+              -23.941,
+              -3.9861
+            ],
+            "avg_holding_minutes": 97.35,
+            "cost_sensitivity_avg_bps": {
+              "10": -7.7848,
+              "16": -13.7848,
+              "20": -17.7848
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 155,
+            "wins": 74,
+            "wr": 47.742,
+            "wr_wilson95": [
+              40.029,
+              55.565
+            ],
+            "pf": 0.6613,
+            "avg_net_bps": -20.5391,
+            "sum_net_pct": -31.8355,
+            "gross_positive": 0.6216000000000004,
+            "gross_negative": 0.9399553649940047,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0439,
+            "weekly_block_avg_bps_ci95": [
+              -36.0007,
+              -5.3869
+            ],
+            "avg_holding_minutes": 134.18,
+            "cost_sensitivity_avg_bps": {
+              "10": -14.5391,
+              "16": -20.5391,
+              "20": -24.5391
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 650,
+            "wins": 327,
+            "wr": 50.308,
+            "wr_wilson95": [
+              46.473,
+              54.138
+            ],
+            "pf": 0.733,
+            "avg_net_bps": -15.3954,
+            "sum_net_pct": -100.0701,
+            "gross_positive": 2.7468000000000017,
+            "gross_negative": 3.7475007172533017,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0217,
+            "weekly_block_avg_bps_ci95": [
+              -23.8972,
+              -6.4779
+            ],
+            "avg_holding_minutes": 106.13,
+            "cost_sensitivity_avg_bps": {
+              "10": -9.3954,
+              "16": -15.3954,
+              "20": -19.3954
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "failed_short": {
+          "train": {
+            "n": 1032,
+            "wins": 528,
+            "wr": 51.163,
+            "wr_wilson95": [
+              48.114,
+              54.203
+            ],
+            "pf": 0.7585,
+            "avg_net_bps": -13.6822,
+            "sum_net_pct": -141.2,
+            "gross_positive": 4.435200000000002,
+            "gross_negative": 5.847199929981025,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0159,
+            "weekly_block_avg_bps_ci95": [
+              -19.5539,
+              -7.6375
+            ],
+            "avg_holding_minutes": 85.31,
+            "cost_sensitivity_avg_bps": {
+              "10": -7.6822,
+              "16": -13.6822,
+              "20": -17.6822
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 238,
+            "wins": 120,
+            "wr": 50.42,
+            "wr_wilson95": [
+              44.112,
+              56.715
+            ],
+            "pf": 0.7354,
+            "avg_net_bps": -15.2366,
+            "sum_net_pct": -36.2631,
+            "gross_positive": 1.008000000000001,
+            "gross_negative": 1.3706307258437262,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.1551,
+            "weekly_block_avg_bps_ci95": [
+              -31.7903,
+              -0.4194
+            ],
+            "avg_holding_minutes": 115.68,
+            "cost_sensitivity_avg_bps": {
+              "10": -9.2366,
+              "16": -15.2366,
+              "20": -19.2366
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 1270,
+            "wins": 648,
+            "wr": 51.024,
+            "wr_wilson95": [
+              48.275,
+              53.766
+            ],
+            "pf": 0.7541,
+            "avg_net_bps": -13.9735,
+            "sum_net_pct": -177.4631,
+            "gross_positive": 5.443200000000003,
+            "gross_negative": 7.217830655824754,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0423,
+            "weekly_block_avg_bps_ci95": [
+              -19.6401,
+              -8.2715
+            ],
+            "avg_holding_minutes": 91,
+            "cost_sensitivity_avg_bps": {
+              "10": -7.9735,
+              "16": -13.9735,
+              "20": -17.9735
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        }
+      }
+    },
+    {
+      "symbol": "HYPERUSDT",
+      "audit": {
+        "signals": 2902,
+        "btc_alignment_rejected": 0,
+        "no_price_bounce": 866,
+        "no_failure": 1252
+      },
+      "variants": {
+        "baseline": {
+          "train": {
+            "n": 585,
+            "wins": 293,
+            "wr": 50.085,
+            "wr_wilson95": [
+              46.046,
+              54.123
+            ],
+            "pf": 0.7266,
+            "avg_net_bps": -15.8319,
+            "sum_net_pct": -92.6169,
+            "gross_positive": 2.4612000000000016,
+            "gross_negative": 3.387368650793654,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0058,
+            "weekly_block_avg_bps_ci95": [
+              -25.8155,
+              -5.0665
+            ],
+            "avg_holding_minutes": 57.79,
+            "cost_sensitivity_avg_bps": {
+              "10": -9.8319,
+              "16": -15.8319,
+              "20": -19.8319
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 1053,
+            "wins": 535,
+            "wr": 50.807,
+            "wr_wilson95": [
+              47.79,
+              53.818
+            ],
+            "pf": 0.7473,
+            "avg_net_bps": -14.431,
+            "sum_net_pct": -151.9588,
+            "gross_positive": 4.494000000000003,
+            "gross_negative": 6.013587634857843,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0924,
+            "weekly_block_avg_bps_ci95": [
+              -21.1267,
+              -7.506
+            ],
+            "avg_holding_minutes": 91.17,
+            "cost_sensitivity_avg_bps": {
+              "10": -8.431,
+              "16": -14.431,
+              "20": -18.431
+            },
+            "open_at_boundary": 1,
+            "open_net_pct": -0.31293
+          },
+          "all3y": {
+            "n": 1638,
+            "wins": 828,
+            "wr": 50.549,
+            "wr_wilson95": [
+              48.13,
+              52.967
+            ],
+            "pf": 0.7398,
+            "avg_net_bps": -14.9314,
+            "sum_net_pct": -244.5756,
+            "gross_positive": 6.955200000000005,
+            "gross_negative": 9.400956285651496,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0612,
+            "weekly_block_avg_bps_ci95": [
+              -20.9046,
+              -8.7596
+            ],
+            "avg_holding_minutes": 79.25,
+            "cost_sensitivity_avg_bps": {
+              "10": -8.9314,
+              "16": -14.9314,
+              "20": -18.9314
+            },
+            "open_at_boundary": 1,
+            "open_net_pct": -0.31293
+          }
+        },
+        "fixed_rr2_control": {
+          "train": {
+            "n": 712,
+            "wins": 245,
+            "wr": 34.41,
+            "wr_wilson95": [
+              31.013,
+              37.975
+            ],
+            "pf": 0.6676,
+            "avg_net_bps": -14.3904,
+            "sum_net_pct": -102.4597,
+            "gross_positive": 2.058000000000001,
+            "gross_negative": 3.082597479835036,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.0085,
+            "weekly_block_avg_bps_ci95": [
+              -20.0254,
+              -8.2174
+            ],
+            "avg_holding_minutes": 30.53,
+            "cost_sensitivity_avg_bps": {
+              "10": -8.3904,
+              "16": -14.3904,
+              "20": -18.3904
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 1312,
+            "wins": 441,
+            "wr": 33.613,
+            "wr_wilson95": [
+              31.108,
+              36.213
+            ],
+            "pf": 0.6439,
+            "avg_net_bps": -15.6138,
+            "sum_net_pct": -204.8535,
+            "gross_positive": 3.7044000000000024,
+            "gross_negative": 5.752934891276697,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.0498,
+            "weekly_block_avg_bps_ci95": [
+              -20.2023,
+              -11.0073
+            ],
+            "avg_holding_minutes": 46.3,
+            "cost_sensitivity_avg_bps": {
+              "10": -9.6138,
+              "16": -15.6138,
+              "20": -19.6138
+            },
+            "open_at_boundary": 1,
+            "open_net_pct": 0.35784
+          },
+          "all3y": {
+            "n": 2024,
+            "wins": 686,
+            "wr": 33.893,
+            "wr_wilson95": [
+              31.863,
+              35.984
+            ],
+            "pf": 0.6522,
+            "avg_net_bps": -15.1835,
+            "sum_net_pct": -307.3132,
+            "gross_positive": 5.762400000000003,
+            "gross_negative": 8.835532371111732,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.0354,
+            "weekly_block_avg_bps_ci95": [
+              -18.6088,
+              -11.6811
+            ],
+            "avg_holding_minutes": 40.75,
+            "cost_sensitivity_avg_bps": {
+              "10": -9.1835,
+              "16": -15.1835,
+              "20": -19.1835
+            },
+            "open_at_boundary": 1,
+            "open_net_pct": 0.35784
+          }
+        },
+        "atr_exits": {
+          "train": {
+            "n": 712,
+            "wins": 248,
+            "wr": 34.831,
+            "wr_wilson95": [
+              31.422,
+              38.404
+            ],
+            "pf": 0.7428,
+            "avg_net_bps": -13.1697,
+            "sum_net_pct": -93.768,
+            "gross_positive": 2.708332301156124,
+            "gross_negative": 3.646011837123008,
+            "avg_winner_bps": 109.2069,
+            "avg_loser_bps": -78.5778,
+            "weekly_block_avg_bps_ci95": [
+              -22.1582,
+              -3.6443
+            ],
+            "avg_holding_minutes": 30.62,
+            "cost_sensitivity_avg_bps": {
+              "10": -7.1697,
+              "16": -13.1697,
+              "20": -17.1697
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 1392,
+            "wins": 470,
+            "wr": 33.764,
+            "wr_wilson95": [
+              31.328,
+              36.29
+            ],
+            "pf": 0.5515,
+            "avg_net_bps": -19.1622,
+            "sum_net_pct": -266.7379,
+            "gross_positive": 3.2800159237614945,
+            "gross_negative": 5.947394863671596,
+            "avg_winner_bps": 69.7876,
+            "avg_loser_bps": -64.5054,
+            "weekly_block_avg_bps_ci95": [
+              -23.7581,
+              -14.7983
+            ],
+            "avg_holding_minutes": 27.75,
+            "cost_sensitivity_avg_bps": {
+              "10": -13.1622,
+              "16": -19.1622,
+              "20": -23.1622
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 2104,
+            "wins": 718,
+            "wr": 34.125,
+            "wr_wilson95": [
+              32.13,
+              36.179
+            ],
+            "pf": 0.6242,
+            "avg_net_bps": -17.1343,
+            "sum_net_pct": -360.5058,
+            "gross_positive": 5.988348224917618,
+            "gross_negative": 9.593406700794603,
+            "avg_winner_bps": 83.4032,
+            "avg_loser_bps": -69.2165,
+            "weekly_block_avg_bps_ci95": [
+              -21.1782,
+              -12.9495
+            ],
+            "avg_holding_minutes": 28.72,
+            "cost_sensitivity_avg_bps": {
+              "10": -11.1343,
+              "16": -17.1343,
+              "20": -21.1343
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "relative_btc": {
+          "train": {
+            "n": 79,
+            "wins": 37,
+            "wr": 46.835,
+            "wr_wilson95": [
+              36.236,
+              57.729
+            ],
+            "pf": 0.6377,
+            "avg_net_bps": -22.3505,
+            "sum_net_pct": -17.6569,
+            "gross_positive": 0.31080000000000035,
+            "gross_negative": 0.4873686507936509,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0402,
+            "weekly_block_avg_bps_ci95": [
+              -46.1588,
+              4.6082
+            ],
+            "avg_holding_minutes": 64.67,
+            "cost_sensitivity_avg_bps": {
+              "10": -16.3505,
+              "16": -22.3505,
+              "20": -26.3505
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 210,
+            "wins": 109,
+            "wr": 51.905,
+            "wr_wilson95": [
+              45.174,
+              58.567
+            ],
+            "pf": 0.7809,
+            "avg_net_bps": -12.2335,
+            "sum_net_pct": -25.6904,
+            "gross_positive": 0.9156000000000004,
+            "gross_negative": 1.1725037839113954,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0895,
+            "weekly_block_avg_bps_ci95": [
+              -27.1502,
+              1.768
+            ],
+            "avg_holding_minutes": 99.89,
+            "cost_sensitivity_avg_bps": {
+              "10": -6.2335,
+              "16": -12.2335,
+              "20": -16.2335
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 289,
+            "wins": 146,
+            "wr": 50.519,
+            "wr_wilson95": [
+              44.786,
+              56.239
+            ],
+            "pf": 0.7389,
+            "avg_net_bps": -14.999,
+            "sum_net_pct": -43.3472,
+            "gross_positive": 1.2264000000000008,
+            "gross_negative": 1.6598724347050466,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.075,
+            "weekly_block_avg_bps_ci95": [
+              -27.1497,
+              -2.9979
+            ],
+            "avg_holding_minutes": 90.26,
+            "cost_sensitivity_avg_bps": {
+              "10": -8.999,
+              "16": -14.999,
+              "20": -18.999
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "failed_short": {
+          "train": {
+            "n": 178,
+            "wins": 88,
+            "wr": 49.438,
+            "wr_wilson95": [
+              42.183,
+              56.717
+            ],
+            "pf": 0.7074,
+            "avg_net_bps": -17.1763,
+            "sum_net_pct": -30.5739,
+            "gross_positive": 0.7392000000000007,
+            "gross_negative": 1.044939009661837,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.1043,
+            "weekly_block_avg_bps_ci95": [
+              -33.0427,
+              -2.7176
+            ],
+            "avg_holding_minutes": 61.1,
+            "cost_sensitivity_avg_bps": {
+              "10": -11.1763,
+              "16": -17.1763,
+              "20": -21.1763
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 417,
+            "wins": 182,
+            "wr": 43.645,
+            "wr_wilson95": [
+              38.964,
+              48.442
+            ],
+            "pf": 0.5608,
+            "avg_net_bps": -28.7142,
+            "sum_net_pct": -119.7381,
+            "gross_positive": 1.5288000000000002,
+            "gross_negative": 2.72618066649457,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0077,
+            "weekly_block_avg_bps_ci95": [
+              -38.3711,
+              -19.086
+            ],
+            "avg_holding_minutes": 87.58,
+            "cost_sensitivity_avg_bps": {
+              "10": -22.7142,
+              "16": -28.7142,
+              "20": -32.7142
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 595,
+            "wins": 270,
+            "wr": 45.378,
+            "wr_wilson95": [
+              41.42,
+              49.395
+            ],
+            "pf": 0.6014,
+            "avg_net_bps": -25.2625,
+            "sum_net_pct": -150.312,
+            "gross_positive": 2.268000000000001,
+            "gross_negative": 3.771119676156408,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0345,
+            "weekly_block_avg_bps_ci95": [
+              -33.489,
+              -17.2138
+            ],
+            "avg_holding_minutes": 79.66,
+            "cost_sensitivity_avg_bps": {
+              "10": -19.2625,
+              "16": -25.2625,
+              "20": -29.2625
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        }
+      }
+    },
+    {
+      "symbol": "SUSHIUSDT",
+      "audit": {
+        "signals": 7082,
+        "btc_alignment_rejected": 0,
+        "no_price_bounce": 1941,
+        "no_failure": 3016
+      },
+      "variants": {
+        "baseline": {
+          "train": {
+            "n": 2875,
+            "wins": 1444,
+            "wr": 50.226,
+            "wr_wilson95": [
+              48.399,
+              52.052
+            ],
+            "pf": 0.7307,
+            "avg_net_bps": -15.5485,
+            "sum_net_pct": -447.019,
+            "gross_positive": 12.129600000000009,
+            "gross_negative": 16.599790236450783,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0013,
+            "weekly_block_avg_bps_ci95": [
+              -19.073,
+              -11.4921
+            ],
+            "avg_holding_minutes": 76.76,
+            "cost_sensitivity_avg_bps": {
+              "10": -9.5485,
+              "16": -15.5485,
+              "20": -19.5485
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 997,
+            "wins": 498,
+            "wr": 49.95,
+            "wr_wilson95": [
+              46.852,
+              53.048
+            ],
+            "pf": 0.7224,
+            "avg_net_bps": -16.1259,
+            "sum_net_pct": -160.775,
+            "gross_positive": 4.183200000000003,
+            "gross_negative": 5.790949587172685,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0511,
+            "weekly_block_avg_bps_ci95": [
+              -22.2803,
+              -9.4277
+            ],
+            "avg_holding_minutes": 104.39,
+            "cost_sensitivity_avg_bps": {
+              "10": -10.1259,
+              "16": -16.1259,
+              "20": -20.1259
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 3872,
+            "wins": 1942,
+            "wr": 50.155,
+            "wr_wilson95": [
+              48.581,
+              51.729
+            ],
+            "pf": 0.7286,
+            "avg_net_bps": -15.6972,
+            "sum_net_pct": -607.794,
+            "gross_positive": 16.312800000000014,
+            "gross_negative": 22.390739823623463,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0142,
+            "weekly_block_avg_bps_ci95": [
+              -18.6709,
+              -12.446
+            ],
+            "avg_holding_minutes": 83.87,
+            "cost_sensitivity_avg_bps": {
+              "10": -9.6972,
+              "16": -15.6972,
+              "20": -19.6972
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "fixed_rr2_control": {
+          "train": {
+            "n": 3596,
+            "wins": 1231,
+            "wr": 34.232,
+            "wr_wilson95": [
+              32.699,
+              35.799
+            ],
+            "pf": 0.6624,
+            "avg_net_bps": -14.6544,
+            "sum_net_pct": -526.9706,
+            "gross_positive": 10.340400000000008,
+            "gross_negative": 15.610106288625643,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.0047,
+            "weekly_block_avg_bps_ci95": [
+              -16.9008,
+              -12.1106
+            ],
+            "avg_holding_minutes": 40.15,
+            "cost_sensitivity_avg_bps": {
+              "10": -8.6544,
+              "16": -14.6544,
+              "20": -18.6544
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 1248,
+            "wins": 410,
+            "wr": 32.853,
+            "wr_wilson95": [
+              30.303,
+              35.508
+            ],
+            "pf": 0.6223,
+            "avg_net_bps": -16.7518,
+            "sum_net_pct": -209.062,
+            "gross_positive": 3.444000000000002,
+            "gross_negative": 5.534619830181978,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.0456,
+            "weekly_block_avg_bps_ci95": [
+              -20.7324,
+              -12.5329
+            ],
+            "avg_holding_minutes": 48.7,
+            "cost_sensitivity_avg_bps": {
+              "10": -10.7518,
+              "16": -16.7518,
+              "20": -20.7518
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 4844,
+            "wins": 1641,
+            "wr": 33.877,
+            "wr_wilson95": [
+              32.557,
+              35.222
+            ],
+            "pf": 0.6519,
+            "avg_net_bps": -15.1947,
+            "sum_net_pct": -736.0326,
+            "gross_positive": 13.784400000000009,
+            "gross_negative": 21.14472611880762,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.0154,
+            "weekly_block_avg_bps_ci95": [
+              -17.157,
+              -13.1384
+            ],
+            "avg_holding_minutes": 42.35,
+            "cost_sensitivity_avg_bps": {
+              "10": -9.1947,
+              "16": -15.1947,
+              "20": -19.1947
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "atr_exits": {
+          "train": {
+            "n": 3806,
+            "wins": 1296,
+            "wr": 34.051,
+            "wr_wilson95": [
+              32.563,
+              35.572
+            ],
+            "pf": 0.6336,
+            "avg_net_bps": -15.5002,
+            "sum_net_pct": -589.9394,
+            "gross_positive": 10.201838511587482,
+            "gross_negative": 16.101232756567533,
+            "avg_winner_bps": 78.7179,
+            "avg_loser_bps": -64.1483,
+            "weekly_block_avg_bps_ci95": [
+              -17.8031,
+              -13.0024
+            ],
+            "avg_holding_minutes": 25.3,
+            "cost_sensitivity_avg_bps": {
+              "10": -9.5002,
+              "16": -15.5002,
+              "20": -19.5002
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 1334,
+            "wins": 443,
+            "wr": 33.208,
+            "wr_wilson95": [
+              30.732,
+              35.781
+            ],
+            "pf": 0.5582,
+            "avg_net_bps": -17.5315,
+            "sum_net_pct": -233.8703,
+            "gross_positive": 2.95453314751438,
+            "gross_negative": 5.293235845925641,
+            "avg_winner_bps": 66.6938,
+            "avg_loser_bps": -59.4078,
+            "weekly_block_avg_bps_ci95": [
+              -21.5093,
+              -13.4023
+            ],
+            "avg_holding_minutes": 27.72,
+            "cost_sensitivity_avg_bps": {
+              "10": -11.5315,
+              "16": -17.5315,
+              "20": -21.5315
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 5140,
+            "wins": 1739,
+            "wr": 33.833,
+            "wr_wilson95": [
+              32.552,
+              35.138
+            ],
+            "pf": 0.6149,
+            "avg_net_bps": -16.0274,
+            "sum_net_pct": -823.8097,
+            "gross_positive": 13.156371659101863,
+            "gross_negative": 21.394468602493177,
+            "avg_winner_bps": 75.6548,
+            "avg_loser_bps": -62.9064,
+            "weekly_block_avg_bps_ci95": [
+              -17.9379,
+              -14.014
+            ],
+            "avg_holding_minutes": 25.93,
+            "cost_sensitivity_avg_bps": {
+              "10": -10.0274,
+              "16": -16.0274,
+              "20": -20.0274
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "relative_btc": {
+          "train": {
+            "n": 558,
+            "wins": 310,
+            "wr": 55.556,
+            "wr_wilson95": [
+              51.409,
+              59.627
+            ],
+            "pf": 0.9051,
+            "avg_net_bps": -4.8906,
+            "sum_net_pct": -27.2893,
+            "gross_positive": 2.604000000000002,
+            "gross_negative": 2.8768932668966416,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0038,
+            "weekly_block_avg_bps_ci95": [
+              -12.5669,
+              2.7251
+            ],
+            "avg_holding_minutes": 92.62,
+            "cost_sensitivity_avg_bps": {
+              "10": 1.1094,
+              "16": -4.8906,
+              "20": -8.8906
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 183,
+            "wins": 92,
+            "wr": 50.273,
+            "wr_wilson95": [
+              43.098,
+              57.437
+            ],
+            "pf": 0.7317,
+            "avg_net_bps": -15.4813,
+            "sum_net_pct": -28.3307,
+            "gross_positive": 0.7728000000000004,
+            "gross_negative": 1.0561072051158513,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0557,
+            "weekly_block_avg_bps_ci95": [
+              -30.6572,
+              0.203
+            ],
+            "avg_holding_minutes": 123.1,
+            "cost_sensitivity_avg_bps": {
+              "10": -9.4813,
+              "16": -15.4813,
+              "20": -19.4813
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 741,
+            "wins": 402,
+            "wr": 54.251,
+            "wr_wilson95": [
+              50.651,
+              57.807
+            ],
+            "pf": 0.8586,
+            "avg_net_bps": -7.5061,
+            "sum_net_pct": -55.62,
+            "gross_positive": 3.376800000000002,
+            "gross_negative": 3.9330004720124943,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0177,
+            "weekly_block_avg_bps_ci95": [
+              -14.7394,
+              -0.3958
+            ],
+            "avg_holding_minutes": 100.15,
+            "cost_sensitivity_avg_bps": {
+              "10": -1.5061,
+              "16": -7.5061,
+              "20": -11.5061
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "failed_short": {
+          "train": {
+            "n": 1208,
+            "wins": 598,
+            "wr": 49.503,
+            "wr_wilson95": [
+              46.69,
+              52.32
+            ],
+            "pf": 0.7098,
+            "avg_net_bps": -17.0004,
+            "sum_net_pct": -205.3646,
+            "gross_positive": 5.0232000000000046,
+            "gross_negative": 7.076845627110079,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0139,
+            "weekly_block_avg_bps_ci95": [
+              -23.483,
+              -11.0434
+            ],
+            "avg_holding_minutes": 76.93,
+            "cost_sensitivity_avg_bps": {
+              "10": -11.0004,
+              "16": -17.0004,
+              "20": -21.0004
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 373,
+            "wins": 182,
+            "wr": 48.794,
+            "wr_wilson95": [
+              43.759,
+              53.853
+            ],
+            "pf": 0.6895,
+            "avg_net_bps": -18.4605,
+            "sum_net_pct": -68.8575,
+            "gross_positive": 1.5288000000000004,
+            "gross_negative": 2.2173749741381554,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0929,
+            "weekly_block_avg_bps_ci95": [
+              -29.479,
+              -7.8346
+            ],
+            "avg_holding_minutes": 105.47,
+            "cost_sensitivity_avg_bps": {
+              "10": -12.4605,
+              "16": -18.4605,
+              "20": -22.4605
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 1581,
+            "wins": 780,
+            "wr": 49.336,
+            "wr_wilson95": [
+              46.876,
+              51.799
+            ],
+            "pf": 0.705,
+            "avg_net_bps": -17.3448,
+            "sum_net_pct": -274.2221,
+            "gross_positive": 6.552000000000005,
+            "gross_negative": 9.294220601248234,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0327,
+            "weekly_block_avg_bps_ci95": [
+              -22.6848,
+              -12.3667
+            ],
+            "avg_holding_minutes": 83.66,
+            "cost_sensitivity_avg_bps": {
+              "10": -11.3448,
+              "16": -17.3448,
+              "20": -21.3448
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        }
+      }
+    },
+    {
+      "symbol": "LQTYUSDT",
+      "audit": {
+        "signals": 7436,
+        "btc_alignment_rejected": 0,
+        "no_price_bounce": 2035,
+        "no_failure": 3205
+      },
+      "variants": {
+        "baseline": {
+          "train": {
+            "n": 2984,
+            "wins": 1453,
+            "wr": 48.693,
+            "wr_wilson95": [
+              46.902,
+              50.487
+            ],
+            "pf": 0.6872,
+            "avg_net_bps": -18.6171,
+            "sum_net_pct": -555.5331,
+            "gross_positive": 12.205200000000008,
+            "gross_negative": 17.760531457347753,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0061,
+            "weekly_block_avg_bps_ci95": [
+              -21.8763,
+              -15.1564
+            ],
+            "avg_holding_minutes": 65.92,
+            "cost_sensitivity_avg_bps": {
+              "10": -12.6171,
+              "16": -18.6171,
+              "20": -22.6171
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 1049,
+            "wins": 533,
+            "wr": 50.81,
+            "wr_wilson95": [
+              47.787,
+              53.827
+            ],
+            "pf": 0.7474,
+            "avg_net_bps": -14.4238,
+            "sum_net_pct": -151.3061,
+            "gross_positive": 4.477200000000003,
+            "gross_negative": 5.9902606866761285,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0903,
+            "weekly_block_avg_bps_ci95": [
+              -20.4649,
+              -8.47
+            ],
+            "avg_holding_minutes": 96.08,
+            "cost_sensitivity_avg_bps": {
+              "10": -8.4238,
+              "16": -14.4238,
+              "20": -18.4238
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 4033,
+            "wins": 1986,
+            "wr": 49.244,
+            "wr_wilson95": [
+              47.702,
+              50.787
+            ],
+            "pf": 0.7024,
+            "avg_net_bps": -17.5264,
+            "sum_net_pct": -706.8392,
+            "gross_positive": 16.682400000000012,
+            "gross_negative": 23.750792144023876,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0273,
+            "weekly_block_avg_bps_ci95": [
+              -20.4992,
+              -14.4649
+            ],
+            "avg_holding_minutes": 73.76,
+            "cost_sensitivity_avg_bps": {
+              "10": -11.5264,
+              "16": -17.5264,
+              "20": -21.5264
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "fixed_rr2_control": {
+          "train": {
+            "n": 3764,
+            "wins": 1215,
+            "wr": 32.279,
+            "wr_wilson95": [
+              30.805,
+              33.791
+            ],
+            "pf": 0.6065,
+            "avg_net_bps": -17.5894,
+            "sum_net_pct": -662.0653,
+            "gross_positive": 10.206000000000008,
+            "gross_negative": 16.826652904089748,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.0128,
+            "weekly_block_avg_bps_ci95": [
+              -19.7893,
+              -15.3247
+            ],
+            "avg_holding_minutes": 34.06,
+            "cost_sensitivity_avg_bps": {
+              "10": -11.5894,
+              "16": -17.5894,
+              "20": -21.5894
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 1276,
+            "wins": 417,
+            "wr": 32.68,
+            "wr_wilson95": [
+              30.162,
+              35.303
+            ],
+            "pf": 0.6169,
+            "avg_net_bps": -17.0476,
+            "sum_net_pct": -217.5268,
+            "gross_positive": 3.5028000000000024,
+            "gross_negative": 5.678068048809747,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.1009,
+            "weekly_block_avg_bps_ci95": [
+              -21.093,
+              -13.0659
+            ],
+            "avg_holding_minutes": 48.94,
+            "cost_sensitivity_avg_bps": {
+              "10": -11.0476,
+              "16": -17.0476,
+              "20": -21.0476
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 5040,
+            "wins": 1632,
+            "wr": 32.381,
+            "wr_wilson95": [
+              31.103,
+              33.686
+            ],
+            "pf": 0.6092,
+            "avg_net_bps": -17.4522,
+            "sum_net_pct": -879.5921,
+            "gross_positive": 13.708800000000009,
+            "gross_negative": 22.504720952899497,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.035,
+            "weekly_block_avg_bps_ci95": [
+              -19.3567,
+              -15.5957
+            ],
+            "avg_holding_minutes": 37.82,
+            "cost_sensitivity_avg_bps": {
+              "10": -11.4522,
+              "16": -17.4522,
+              "20": -21.4522
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "atr_exits": {
+          "train": {
+            "n": 3944,
+            "wins": 1306,
+            "wr": 33.114,
+            "wr_wilson95": [
+              31.662,
+              34.598
+            ],
+            "pf": 0.6212,
+            "avg_net_bps": -16.7979,
+            "sum_net_pct": -662.5073,
+            "gross_positive": 10.864862639711424,
+            "gross_negative": 17.489935577708174,
+            "avg_winner_bps": 83.1919,
+            "avg_loser_bps": -66.3,
+            "weekly_block_avg_bps_ci95": [
+              -19.185,
+              -14.4235
+            ],
+            "avg_holding_minutes": 25.69,
+            "cost_sensitivity_avg_bps": {
+              "10": -10.7979,
+              "16": -16.7979,
+              "20": -20.7979
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 1395,
+            "wins": 456,
+            "wr": 32.688,
+            "wr_wilson95": [
+              30.277,
+              35.194
+            ],
+            "pf": 0.5682,
+            "avg_net_bps": -17.0117,
+            "sum_net_pct": -237.3128,
+            "gross_positive": 3.1224967657382976,
+            "gross_negative": 5.495624317439569,
+            "avg_winner_bps": 68.4758,
+            "avg_loser_bps": -58.5264,
+            "weekly_block_avg_bps_ci95": [
+              -19.7998,
+              -14.0658
+            ],
+            "avg_holding_minutes": 25.44,
+            "cost_sensitivity_avg_bps": {
+              "10": -11.0117,
+              "16": -17.0117,
+              "20": -21.0117
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 5339,
+            "wins": 1762,
+            "wr": 33.002,
+            "wr_wilson95": [
+              31.754,
+              34.276
+            ],
+            "pf": 0.6085,
+            "avg_net_bps": -16.8537,
+            "sum_net_pct": -899.82,
+            "gross_positive": 13.98735940544972,
+            "gross_negative": 22.985559895147745,
+            "avg_winner_bps": 79.3834,
+            "avg_loser_bps": -64.2593,
+            "weekly_block_avg_bps_ci95": [
+              -18.7239,
+              -14.8251
+            ],
+            "avg_holding_minutes": 25.62,
+            "cost_sensitivity_avg_bps": {
+              "10": -10.8537,
+              "16": -16.8537,
+              "20": -20.8537
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "relative_btc": {
+          "train": {
+            "n": 518,
+            "wins": 254,
+            "wr": 49.035,
+            "wr_wilson95": [
+              44.753,
+              53.331
+            ],
+            "pf": 0.6966,
+            "avg_net_bps": -17.9382,
+            "sum_net_pct": -92.9199,
+            "gross_positive": 2.1336000000000013,
+            "gross_negative": 3.062799171530807,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0151,
+            "weekly_block_avg_bps_ci95": [
+              -26.7102,
+              -9.3912
+            ],
+            "avg_holding_minutes": 82.83,
+            "cost_sensitivity_avg_bps": {
+              "10": -11.9382,
+              "16": -17.9382,
+              "20": -21.9382
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 230,
+            "wins": 116,
+            "wr": 50.435,
+            "wr_wilson95": [
+              44.019,
+              56.836
+            ],
+            "pf": 0.7362,
+            "avg_net_bps": -15.1784,
+            "sum_net_pct": -34.9103,
+            "gross_positive": 0.9744000000000005,
+            "gross_negative": 1.323503497739409,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0968,
+            "weekly_block_avg_bps_ci95": [
+              -29.7937,
+              -1.6205
+            ],
+            "avg_holding_minutes": 107.89,
+            "cost_sensitivity_avg_bps": {
+              "10": -9.1784,
+              "16": -15.1784,
+              "20": -19.1784
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 748,
+            "wins": 370,
+            "wr": 49.465,
+            "wr_wilson95": [
+              45.894,
+              53.042
+            ],
+            "pf": 0.7086,
+            "avg_net_bps": -17.0896,
+            "sum_net_pct": -127.8303,
+            "gross_positive": 3.1080000000000023,
+            "gross_negative": 4.386302669270217,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0398,
+            "weekly_block_avg_bps_ci95": [
+              -24.5319,
+              -10.1861
+            ],
+            "avg_holding_minutes": 90.53,
+            "cost_sensitivity_avg_bps": {
+              "10": -11.0896,
+              "16": -17.0896,
+              "20": -21.0896
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "failed_short": {
+          "train": {
+            "n": 1252,
+            "wins": 635,
+            "wr": 50.719,
+            "wr_wilson95": [
+              47.952,
+              53.482
+            ],
+            "pf": 0.7451,
+            "avg_net_bps": -14.5745,
+            "sum_net_pct": -182.4723,
+            "gross_positive": 5.334000000000003,
+            "gross_negative": 7.158722811101245,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0247,
+            "weekly_block_avg_bps_ci95": [
+              -20.1586,
+              -9.3588
+            ],
+            "avg_holding_minutes": 70.06,
+            "cost_sensitivity_avg_bps": {
+              "10": -8.5745,
+              "16": -14.5745,
+              "20": -18.5745
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 396,
+            "wins": 191,
+            "wr": 48.232,
+            "wr_wilson95": [
+              43.351,
+              53.147
+            ],
+            "pf": 0.674,
+            "avg_net_bps": -19.593,
+            "sum_net_pct": -77.5883,
+            "gross_positive": 1.6044000000000005,
+            "gross_negative": 2.3802833817871853,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.1114,
+            "weekly_block_avg_bps_ci95": [
+              -29.6678,
+              -8.3178
+            ],
+            "avg_holding_minutes": 97.32,
+            "cost_sensitivity_avg_bps": {
+              "10": -13.593,
+              "16": -19.593,
+              "20": -23.593
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 1648,
+            "wins": 826,
+            "wr": 50.121,
+            "wr_wilson95": [
+              47.71,
+              52.532
+            ],
+            "pf": 0.7274,
+            "avg_net_bps": -15.7804,
+            "sum_net_pct": -260.0606,
+            "gross_positive": 6.938400000000004,
+            "gross_negative": 9.53900619288843,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0463,
+            "weekly_block_avg_bps_ci95": [
+              -20.6311,
+              -10.7824
+            ],
+            "avg_holding_minutes": 76.61,
+            "cost_sensitivity_avg_bps": {
+              "10": -9.7804,
+              "16": -15.7804,
+              "20": -19.7804
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        }
+      }
+    },
+    {
+      "symbol": "KAVAUSDT",
+      "audit": {
+        "signals": 5142,
+        "btc_alignment_rejected": 0,
+        "no_price_bounce": 1445,
+        "no_failure": 2276
+      },
+      "variants": {
+        "baseline": {
+          "train": {
+            "n": 2137,
+            "wins": 1130,
+            "wr": 52.878,
+            "wr_wilson95": [
+              50.758,
+              54.987
+            ],
+            "pf": 0.8125,
+            "avg_net_bps": -10.2514,
+            "sum_net_pct": -219.0732,
+            "gross_positive": 9.492000000000008,
+            "gross_negative": 11.682732114909088,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0152,
+            "weekly_block_avg_bps_ci95": [
+              -15.4361,
+              -5.0568
+            ],
+            "avg_holding_minutes": 120.15,
+            "cost_sensitivity_avg_bps": {
+              "10": -4.2514,
+              "16": -10.2514,
+              "20": -14.2514
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 551,
+            "wins": 258,
+            "wr": 46.824,
+            "wr_wilson95": [
+              42.694,
+              50.998
+            ],
+            "pf": 0.637,
+            "avg_net_bps": -22.4111,
+            "sum_net_pct": -123.4854,
+            "gross_positive": 2.1672000000000016,
+            "gross_negative": 3.4020538816486408,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.1111,
+            "weekly_block_avg_bps_ci95": [
+              -32.0057,
+              -13.1381
+            ],
+            "avg_holding_minutes": 160.72,
+            "cost_sensitivity_avg_bps": {
+              "10": -16.4111,
+              "16": -22.4111,
+              "20": -26.4111
+            },
+            "open_at_boundary": 1,
+            "open_net_pct": 0.1767
+          },
+          "all3y": {
+            "n": 2688,
+            "wins": 1388,
+            "wr": 51.637,
+            "wr_wilson95": [
+              49.747,
+              53.522
+            ],
+            "pf": 0.7729,
+            "avg_net_bps": -12.744,
+            "sum_net_pct": -342.5586,
+            "gross_positive": 11.65920000000001,
+            "gross_negative": 15.08478599655773,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0368,
+            "weekly_block_avg_bps_ci95": [
+              -17.2023,
+              -8.4962
+            ],
+            "avg_holding_minutes": 128.46,
+            "cost_sensitivity_avg_bps": {
+              "10": -6.744,
+              "16": -12.744,
+              "20": -16.744
+            },
+            "open_at_boundary": 1,
+            "open_net_pct": 0.1767
+          }
+        },
+        "fixed_rr2_control": {
+          "train": {
+            "n": 2662,
+            "wins": 939,
+            "wr": 35.274,
+            "wr_wilson95": [
+              33.481,
+              37.109
+            ],
+            "pf": 0.6935,
+            "avg_net_bps": -13.096,
+            "sum_net_pct": -348.6166,
+            "gross_positive": 7.887600000000004,
+            "gross_negative": 11.37376568825949,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.0114,
+            "weekly_block_avg_bps_ci95": [
+              -16.1464,
+              -10.0656
+            ],
+            "avg_holding_minutes": 63.17,
+            "cost_sensitivity_avg_bps": {
+              "10": -7.096,
+              "16": -13.096,
+              "20": -17.096
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 683,
+            "wins": 214,
+            "wr": 31.332,
+            "wr_wilson95": [
+              27.966,
+              34.907
+            ],
+            "pf": 0.5799,
+            "avg_net_bps": -19.0628,
+            "sum_net_pct": -130.1988,
+            "gross_positive": 1.797600000000001,
+            "gross_negative": 3.0995878768921816,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.0893,
+            "weekly_block_avg_bps_ci95": [
+              -25.1386,
+              -13.1142
+            ],
+            "avg_holding_minutes": 88.13,
+            "cost_sensitivity_avg_bps": {
+              "10": -13.0628,
+              "16": -19.0628,
+              "20": -23.0628
+            },
+            "open_at_boundary": 1,
+            "open_net_pct": 0.1767
+          },
+          "all3y": {
+            "n": 3345,
+            "wins": 1153,
+            "wr": 34.469,
+            "wr_wilson95": [
+              32.877,
+              36.097
+            ],
+            "pf": 0.6692,
+            "avg_net_bps": -14.3144,
+            "sum_net_pct": -478.8154,
+            "gross_positive": 9.685200000000007,
+            "gross_negative": 14.473353565151669,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.0281,
+            "weekly_block_avg_bps_ci95": [
+              -17.0345,
+              -11.5734
+            ],
+            "avg_holding_minutes": 68.26,
+            "cost_sensitivity_avg_bps": {
+              "10": -8.3144,
+              "16": -14.3144,
+              "20": -18.3144
+            },
+            "open_at_boundary": 1,
+            "open_net_pct": 0.1767
+          }
+        },
+        "atr_exits": {
+          "train": {
+            "n": 3080,
+            "wins": 1084,
+            "wr": 35.195,
+            "wr_wilson95": [
+              33.528,
+              36.899
+            ],
+            "pf": 0.6073,
+            "avg_net_bps": -13.6654,
+            "sum_net_pct": -420.8935,
+            "gross_positive": 6.508600527019993,
+            "gross_negative": 10.717535832641003,
+            "avg_winner_bps": 60.0424,
+            "avg_loser_bps": -53.6951,
+            "weekly_block_avg_bps_ci95": [
+              -16.1265,
+              -10.9497
+            ],
+            "avg_holding_minutes": 25.23,
+            "cost_sensitivity_avg_bps": {
+              "10": -7.6654,
+              "16": -13.6654,
+              "20": -17.6654
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 760,
+            "wins": 245,
+            "wr": 32.237,
+            "wr_wilson95": [
+              29.01,
+              35.642
+            ],
+            "pf": 0.5382,
+            "avg_net_bps": -18.1881,
+            "sum_net_pct": -138.2298,
+            "gross_positive": 1.6108752078756412,
+            "gross_negative": 2.9931733975249473,
+            "avg_winner_bps": 65.75,
+            "avg_loser_bps": -58.1199,
+            "weekly_block_avg_bps_ci95": [
+              -24.7525,
+              -11.8833
+            ],
+            "avg_holding_minutes": 28.44,
+            "cost_sensitivity_avg_bps": {
+              "10": -12.1881,
+              "16": -18.1881,
+              "20": -22.1881
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 3840,
+            "wins": 1329,
+            "wr": 34.609,
+            "wr_wilson95": [
+              33.121,
+              36.129
+            ],
+            "pf": 0.5922,
+            "avg_net_bps": -14.5605,
+            "sum_net_pct": -559.1233,
+            "gross_positive": 8.119475734895634,
+            "gross_negative": 13.710709230165948,
+            "avg_winner_bps": 61.0946,
+            "avg_loser_bps": -54.6026,
+            "weekly_block_avg_bps_ci95": [
+              -16.9255,
+              -12.2268
+            ],
+            "avg_holding_minutes": 25.86,
+            "cost_sensitivity_avg_bps": {
+              "10": -8.5605,
+              "16": -14.5605,
+              "20": -18.5605
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "relative_btc": {
+          "train": {
+            "n": 458,
+            "wins": 241,
+            "wr": 52.62,
+            "wr_wilson95": [
+              48.044,
+              57.152
+            ],
+            "pf": 0.8041,
+            "avg_net_bps": -10.7708,
+            "sum_net_pct": -49.3305,
+            "gross_positive": 2.0244000000000013,
+            "gross_negative": 2.5177046621003574,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0233,
+            "weekly_block_avg_bps_ci95": [
+              -20.5194,
+              -1.3246
+            ],
+            "avg_holding_minutes": 160.05,
+            "cost_sensitivity_avg_bps": {
+              "10": -4.7708,
+              "16": -10.7708,
+              "20": -14.7708
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 135,
+            "wins": 61,
+            "wr": 45.185,
+            "wr_wilson95": [
+              37.039,
+              53.598
+            ],
+            "pf": 0.5969,
+            "avg_net_bps": -25.6296,
+            "sum_net_pct": -34.6,
+            "gross_positive": 0.5124000000000004,
+            "gross_negative": 0.8584000000000013,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116,
+            "weekly_block_avg_bps_ci95": [
+              -46.5785,
+              -4.7341
+            ],
+            "avg_holding_minutes": 237.05,
+            "cost_sensitivity_avg_bps": {
+              "10": -19.6296,
+              "16": -25.6296,
+              "20": -29.6296
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 593,
+            "wins": 302,
+            "wr": 50.927,
+            "wr_wilson95": [
+              46.911,
+              54.932
+            ],
+            "pf": 0.7514,
+            "avg_net_bps": -14.1535,
+            "sum_net_pct": -83.9305,
+            "gross_positive": 2.5368000000000017,
+            "gross_negative": 3.376104662100359,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0173,
+            "weekly_block_avg_bps_ci95": [
+              -22.4235,
+              -5.8484
+            ],
+            "avg_holding_minutes": 177.58,
+            "cost_sensitivity_avg_bps": {
+              "10": -8.1535,
+              "16": -14.1535,
+              "20": -18.1535
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "failed_short": {
+          "train": {
+            "n": 860,
+            "wins": 424,
+            "wr": 49.302,
+            "wr_wilson95": [
+              45.971,
+              52.639
+            ],
+            "pf": 0.704,
+            "avg_net_bps": -17.4126,
+            "sum_net_pct": -149.7484,
+            "gross_positive": 3.561600000000001,
+            "gross_negative": 5.059084064705707,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.034,
+            "weekly_block_avg_bps_ci95": [
+              -24.6667,
+              -10.0008
+            ],
+            "avg_holding_minutes": 117.7,
+            "cost_sensitivity_avg_bps": {
+              "10": -11.4126,
+              "16": -17.4126,
+              "20": -21.4126
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 170,
+            "wins": 80,
+            "wr": 47.059,
+            "wr_wilson95": [
+              39.704,
+              54.544
+            ],
+            "pf": 0.6436,
+            "avg_net_bps": -21.8874,
+            "sum_net_pct": -37.2085,
+            "gross_positive": 0.6720000000000007,
+            "gross_negative": 1.044085337470909,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0095,
+            "weekly_block_avg_bps_ci95": [
+              -35.3346,
+              -7.6667
+            ],
+            "avg_holding_minutes": 199.55,
+            "cost_sensitivity_avg_bps": {
+              "10": -15.8874,
+              "16": -21.8874,
+              "20": -25.8874
+            },
+            "open_at_boundary": 1,
+            "open_net_pct": -0.45265
+          },
+          "all3y": {
+            "n": 1030,
+            "wins": 504,
+            "wr": 48.932,
+            "wr_wilson95": [
+              45.889,
+              51.983
+            ],
+            "pf": 0.6937,
+            "avg_net_bps": -18.1512,
+            "sum_net_pct": -186.9569,
+            "gross_positive": 4.233600000000002,
+            "gross_negative": 6.103169402176616,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0298,
+            "weekly_block_avg_bps_ci95": [
+              -25.1247,
+              -11.6097
+            ],
+            "avg_holding_minutes": 131.21,
+            "cost_sensitivity_avg_bps": {
+              "10": -12.1512,
+              "16": -18.1512,
+              "20": -22.1512
+            },
+            "open_at_boundary": 1,
+            "open_net_pct": -0.45265
+          }
+        }
+      }
+    },
+    {
+      "symbol": "LUMIAUSDT",
+      "audit": {
+        "signals": 3542,
+        "btc_alignment_rejected": 0,
+        "no_price_bounce": 1040,
+        "no_failure": 1590
+      },
+      "variants": {
+        "baseline": {
+          "train": {
+            "n": 890,
+            "wins": 469,
+            "wr": 52.697,
+            "wr_wilson95": [
+              49.412,
+              55.958
+            ],
+            "pf": 0.806,
+            "avg_net_bps": -10.6518,
+            "sum_net_pct": -94.801,
+            "gross_positive": 3.939600000000002,
+            "gross_negative": 4.887609565427297,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0952,
+            "weekly_block_avg_bps_ci95": [
+              -16.6927,
+              -5.067
+            ],
+            "avg_holding_minutes": 48.41,
+            "cost_sensitivity_avg_bps": {
+              "10": -4.6518,
+              "16": -10.6518,
+              "20": -14.6518
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 1148,
+            "wins": 601,
+            "wr": 52.352,
+            "wr_wilson95": [
+              49.46,
+              55.228
+            ],
+            "pf": 0.7954,
+            "avg_net_bps": -11.3142,
+            "sum_net_pct": -129.8865,
+            "gross_positive": 5.048400000000004,
+            "gross_negative": 6.347265282504061,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0378,
+            "weekly_block_avg_bps_ci95": [
+              -16.8167,
+              -5.272
+            ],
+            "avg_holding_minutes": 69.85,
+            "cost_sensitivity_avg_bps": {
+              "10": -5.3142,
+              "16": -11.3142,
+              "20": -15.3142
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 2038,
+            "wins": 1070,
+            "wr": 52.502,
+            "wr_wilson95": [
+              50.332,
+              54.664
+            ],
+            "pf": 0.8,
+            "avg_net_bps": -11.0249,
+            "sum_net_pct": -224.6875,
+            "gross_positive": 8.988000000000007,
+            "gross_negative": 11.234874847931355,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0628,
+            "weekly_block_avg_bps_ci95": [
+              -15.4063,
+              -6.6719
+            ],
+            "avg_holding_minutes": 60.49,
+            "cost_sensitivity_avg_bps": {
+              "10": -5.0249,
+              "16": -11.0249,
+              "20": -15.0249
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "fixed_rr2_control": {
+          "train": {
+            "n": 1096,
+            "wins": 376,
+            "wr": 34.307,
+            "wr_wilson95": [
+              31.555,
+              37.168
+            ],
+            "pf": 0.6642,
+            "avg_net_bps": -14.5717,
+            "sum_net_pct": -159.7055,
+            "gross_positive": 3.158400000000002,
+            "gross_negative": 4.755455452415861,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.048,
+            "weekly_block_avg_bps_ci95": [
+              -18.6453,
+              -10.7126
+            ],
+            "avg_holding_minutes": 25.94,
+            "cost_sensitivity_avg_bps": {
+              "10": -8.5717,
+              "16": -14.5717,
+              "20": -18.5717
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 1414,
+            "wins": 507,
+            "wr": 35.856,
+            "wr_wilson95": [
+              33.397,
+              38.391
+            ],
+            "pf": 0.7108,
+            "avg_net_bps": -12.2519,
+            "sum_net_pct": -173.2415,
+            "gross_positive": 4.258800000000003,
+            "gross_negative": 5.991215416665193,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.0553,
+            "weekly_block_avg_bps_ci95": [
+              -16.0383,
+              -8.3378
+            ],
+            "avg_holding_minutes": 36.81,
+            "cost_sensitivity_avg_bps": {
+              "10": -6.2519,
+              "16": -12.2519,
+              "20": -16.2519
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 2510,
+            "wins": 883,
+            "wr": 35.179,
+            "wr_wilson95": [
+              33.335,
+              37.069
+            ],
+            "pf": 0.6902,
+            "avg_net_bps": -13.2648,
+            "sum_net_pct": -332.9471,
+            "gross_positive": 7.417200000000005,
+            "gross_negative": 10.746670869081054,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.0521,
+            "weekly_block_avg_bps_ci95": [
+              -16.0459,
+              -10.5239
+            ],
+            "avg_holding_minutes": 32.06,
+            "cost_sensitivity_avg_bps": {
+              "10": -7.2648,
+              "16": -13.2648,
+              "20": -17.2648
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "atr_exits": {
+          "train": {
+            "n": 1090,
+            "wins": 377,
+            "wr": 34.587,
+            "wr_wilson95": [
+              31.822,
+              37.461
+            ],
+            "pf": 0.7398,
+            "avg_net_bps": -12.4992,
+            "sum_net_pct": -136.2408,
+            "gross_positive": 3.874168876547331,
+            "gross_negative": 5.2365766560543765,
+            "avg_winner_bps": 102.7631,
+            "avg_loser_bps": -73.4443,
+            "weekly_block_avg_bps_ci95": [
+              -18.6615,
+              -6.1081
+            ],
+            "avg_holding_minutes": 29.13,
+            "cost_sensitivity_avg_bps": {
+              "10": -6.4992,
+              "16": -12.4992,
+              "20": -16.4992
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 1390,
+            "wins": 508,
+            "wr": 36.547,
+            "wr_wilson95": [
+              34.055,
+              39.112
+            ],
+            "pf": 0.7271,
+            "avg_net_bps": -12.2662,
+            "sum_net_pct": -170.4998,
+            "gross_positive": 4.541629930529094,
+            "gross_negative": 6.246628270552648,
+            "avg_winner_bps": 89.4022,
+            "avg_loser_bps": -70.8234,
+            "weekly_block_avg_bps_ci95": [
+              -18.096,
+              -6.4147
+            ],
+            "avg_holding_minutes": 42.42,
+            "cost_sensitivity_avg_bps": {
+              "10": -6.2662,
+              "16": -12.2662,
+              "20": -16.2662
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 2480,
+            "wins": 885,
+            "wr": 35.685,
+            "wr_wilson95": [
+              33.823,
+              37.592
+            ],
+            "pf": 0.7329,
+            "avg_net_bps": -12.3686,
+            "sum_net_pct": -306.7406,
+            "gross_positive": 8.415798807076424,
+            "gross_negative": 11.483204926607026,
+            "avg_winner_bps": 95.0938,
+            "avg_loser_bps": -71.995,
+            "weekly_block_avg_bps_ci95": [
+              -16.5317,
+              -8.1717
+            ],
+            "avg_holding_minutes": 36.58,
+            "cost_sensitivity_avg_bps": {
+              "10": -6.3686,
+              "16": -12.3686,
+              "20": -16.3686
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "relative_btc": {
+          "train": {
+            "n": 131,
+            "wins": 71,
+            "wr": 54.198,
+            "wr_wilson95": [
+              45.668,
+              62.489
+            ],
+            "pf": 0.8568,
+            "avg_net_bps": -7.6091,
+            "sum_net_pct": -9.9679,
+            "gross_positive": 0.5964000000000002,
+            "gross_negative": 0.6960788781770388,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0131,
+            "weekly_block_avg_bps_ci95": [
+              -22.6669,
+              7.994
+            ],
+            "avg_holding_minutes": 64.48,
+            "cost_sensitivity_avg_bps": {
+              "10": -1.6091,
+              "16": -7.6091,
+              "20": -11.6091
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 199,
+            "wins": 112,
+            "wr": 56.281,
+            "wr_wilson95": [
+              49.335,
+              62.99
+            ],
+            "pf": 0.932,
+            "avg_net_bps": -3.4513,
+            "sum_net_pct": -6.8681,
+            "gross_positive": 0.9408000000000006,
+            "gross_negative": 1.0094807433768294,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0323,
+            "weekly_block_avg_bps_ci95": [
+              -17.6004,
+              10.3736
+            ],
+            "avg_holding_minutes": 82.67,
+            "cost_sensitivity_avg_bps": {
+              "10": 2.5487,
+              "16": -3.4513,
+              "20": -7.4513
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 330,
+            "wins": 183,
+            "wr": 55.455,
+            "wr_wilson95": [
+              50.06,
+              60.724
+            ],
+            "pf": 0.9013,
+            "avg_net_bps": -5.1018,
+            "sum_net_pct": -16.836,
+            "gross_positive": 1.5372000000000008,
+            "gross_negative": 1.705559621553868,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0245,
+            "weekly_block_avg_bps_ci95": [
+              -16.3853,
+              6.1217
+            ],
+            "avg_holding_minutes": 75.45,
+            "cost_sensitivity_avg_bps": {
+              "10": 0.8982,
+              "16": -5.1018,
+              "20": -9.1018
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "failed_short": {
+          "train": {
+            "n": 303,
+            "wins": 137,
+            "wr": 45.215,
+            "wr_wilson95": [
+              39.705,
+              50.844
+            ],
+            "pf": 0.5961,
+            "avg_net_bps": -25.7326,
+            "sum_net_pct": -77.9699,
+            "gross_positive": 1.1508000000000007,
+            "gross_negative": 1.9304988523407474,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.2951,
+            "weekly_block_avg_bps_ci95": [
+              -36.2531,
+              -14.885
+            ],
+            "avg_holding_minutes": 54.04,
+            "cost_sensitivity_avg_bps": {
+              "10": -19.7326,
+              "16": -25.7326,
+              "20": -29.7326
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 406,
+            "wins": 199,
+            "wr": 49.015,
+            "wr_wilson95": [
+              44.184,
+              53.864
+            ],
+            "pf": 0.6957,
+            "avg_net_bps": -18.008,
+            "sum_net_pct": -73.1123,
+            "gross_positive": 1.671600000000001,
+            "gross_negative": 2.402723350285818,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0736,
+            "weekly_block_avg_bps_ci95": [
+              -27.5246,
+              -8.2801
+            ],
+            "avg_holding_minutes": 69.8,
+            "cost_sensitivity_avg_bps": {
+              "10": -12.008,
+              "16": -18.008,
+              "20": -22.008
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 709,
+            "wins": 336,
+            "wr": 47.391,
+            "wr_wilson95": [
+              43.739,
+              51.07
+            ],
+            "pf": 0.6513,
+            "avg_net_bps": -21.3092,
+            "sum_net_pct": -151.0822,
+            "gross_positive": 2.822400000000002,
+            "gross_negative": 4.333222202626565,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.1722,
+            "weekly_block_avg_bps_ci95": [
+              -28.5311,
+              -14.2995
+            ],
+            "avg_holding_minutes": 63.06,
+            "cost_sensitivity_avg_bps": {
+              "10": -15.3092,
+              "16": -21.3092,
+              "20": -25.3092
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        }
+      }
+    },
+    {
+      "symbol": "ALPINEUSDT",
+      "audit": {
+        "signals": 3008,
+        "btc_alignment_rejected": 0,
+        "no_price_bounce": 806,
+        "no_failure": 1428
+      },
+      "variants": {
+        "baseline": {
+          "train": {
+            "n": 526,
+            "wins": 303,
+            "wr": 57.605,
+            "wr_wilson95": [
+              53.341,
+              61.758
+            ],
+            "pf": 0.9839,
+            "avg_net_bps": -0.7909,
+            "sum_net_pct": -4.16,
+            "gross_positive": 2.5452000000000017,
+            "gross_negative": 2.586800000000003,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116,
+            "weekly_block_avg_bps_ci95": [
+              -8.9542,
+              7.6753
+            ],
+            "avg_holding_minutes": 92.44,
+            "cost_sensitivity_avg_bps": {
+              "10": 5.2091,
+              "16": -0.7909,
+              "20": -4.7909
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 1000,
+            "wins": 521,
+            "wr": 52.1,
+            "wr_wilson95": [
+              49.002,
+              55.182
+            ],
+            "pf": 0.7871,
+            "avg_net_bps": -11.8359,
+            "sum_net_pct": -118.3592,
+            "gross_positive": 4.376400000000004,
+            "gross_negative": 5.559991858610196,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.075,
+            "weekly_block_avg_bps_ci95": [
+              -18.593,
+              -4.8093
+            ],
+            "avg_holding_minutes": 140.07,
+            "cost_sensitivity_avg_bps": {
+              "10": -5.8359,
+              "16": -11.8359,
+              "20": -15.8359
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 1526,
+            "wins": 824,
+            "wr": 53.997,
+            "wr_wilson95": [
+              51.49,
+              56.485
+            ],
+            "pf": 0.8496,
+            "avg_net_bps": -8.0288,
+            "sum_net_pct": -122.5192,
+            "gross_positive": 6.921600000000005,
+            "gross_negative": 8.146791858610202,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0512,
+            "weekly_block_avg_bps_ci95": [
+              -13.5838,
+              -2.4368
+            ],
+            "avg_holding_minutes": 123.65,
+            "cost_sensitivity_avg_bps": {
+              "10": -2.0288,
+              "16": -8.0288,
+              "20": -12.0288
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "fixed_rr2_control": {
+          "train": {
+            "n": 665,
+            "wins": 259,
+            "wr": 38.947,
+            "wr_wilson95": [
+              35.315,
+              42.707
+            ],
+            "pf": 0.8117,
+            "avg_net_bps": -7.5882,
+            "sum_net_pct": -50.4615,
+            "gross_positive": 2.1756000000000015,
+            "gross_negative": 2.680215327716284,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.0152,
+            "weekly_block_avg_bps_ci95": [
+              -13.02,
+              -2.0986
+            ],
+            "avg_holding_minutes": 49.54,
+            "cost_sensitivity_avg_bps": {
+              "10": -1.5882,
+              "16": -7.5882,
+              "20": -11.5882
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 1260,
+            "wins": 439,
+            "wr": 34.841,
+            "wr_wilson95": [
+              32.26,
+              37.515
+            ],
+            "pf": 0.6799,
+            "avg_net_bps": -13.7764,
+            "sum_net_pct": -173.5821,
+            "gross_positive": 3.6876000000000024,
+            "gross_negative": 5.4234209337950965,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.0587,
+            "weekly_block_avg_bps_ci95": [
+              -17.8997,
+              -9.5468
+            ],
+            "avg_holding_minutes": 76.8,
+            "cost_sensitivity_avg_bps": {
+              "10": -7.7764,
+              "16": -13.7764,
+              "20": -17.7764
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 1925,
+            "wins": 698,
+            "wr": 36.26,
+            "wr_wilson95": [
+              34.141,
+              38.433
+            ],
+            "pf": 0.7235,
+            "avg_net_bps": -11.6386,
+            "sum_net_pct": -224.0436,
+            "gross_positive": 5.863200000000004,
+            "gross_negative": 8.103636261511378,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -66.0443,
+            "weekly_block_avg_bps_ci95": [
+              -14.8156,
+              -8.1327
+            ],
+            "avg_holding_minutes": 67.38,
+            "cost_sensitivity_avg_bps": {
+              "10": -5.6386,
+              "16": -11.6386,
+              "20": -15.6386
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "atr_exits": {
+          "train": {
+            "n": 659,
+            "wins": 263,
+            "wr": 39.909,
+            "wr_wilson95": [
+              36.239,
+              43.696
+            ],
+            "pf": 0.9593,
+            "avg_net_bps": -1.8747,
+            "sum_net_pct": -12.3542,
+            "gross_positive": 2.9109148635204116,
+            "gross_negative": 3.0344570828538346,
+            "avg_winner_bps": 110.6812,
+            "avg_loser_bps": -76.6277,
+            "weekly_block_avg_bps_ci95": [
+              -12.2651,
+              10.865
+            ],
+            "avg_holding_minutes": 34.7,
+            "cost_sensitivity_avg_bps": {
+              "10": 4.1253,
+              "16": -1.8747,
+              "20": -5.8747
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 1462,
+            "wins": 512,
+            "wr": 35.021,
+            "wr_wilson95": [
+              32.617,
+              37.502
+            ],
+            "pf": 0.5653,
+            "avg_net_bps": -14.9849,
+            "sum_net_pct": -219.0786,
+            "gross_positive": 2.8493251692933854,
+            "gross_negative": 5.04011098050548,
+            "avg_winner_bps": 55.6509,
+            "avg_loser_bps": -53.0538,
+            "weekly_block_avg_bps_ci95": [
+              -18.3607,
+              -11.7151
+            ],
+            "avg_holding_minutes": 30.82,
+            "cost_sensitivity_avg_bps": {
+              "10": -8.9849,
+              "16": -14.9849,
+              "20": -18.9849
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 2121,
+            "wins": 775,
+            "wr": 36.539,
+            "wr_wilson95": [
+              34.516,
+              38.611
+            ],
+            "pf": 0.7134,
+            "avg_net_bps": -10.9115,
+            "sum_net_pct": -231.4328,
+            "gross_positive": 5.760240032813798,
+            "gross_negative": 8.074568063359315,
+            "avg_winner_bps": 74.3257,
+            "avg_loser_bps": -59.9894,
+            "weekly_block_avg_bps_ci95": [
+              -14.7528,
+              -6.3757
+            ],
+            "avg_holding_minutes": 32.03,
+            "cost_sensitivity_avg_bps": {
+              "10": -4.9115,
+              "16": -10.9115,
+              "20": -14.9115
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "relative_btc": {
+          "train": {
+            "n": 95,
+            "wins": 63,
+            "wr": 66.316,
+            "wr_wilson95": [
+              56.342,
+              75.021
+            ],
+            "pf": 1.4256,
+            "avg_net_bps": 16.6316,
+            "sum_net_pct": 15.8,
+            "gross_positive": 0.5292000000000003,
+            "gross_negative": 0.37120000000000064,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116,
+            "weekly_block_avg_bps_ci95": [
+              -6.2459,
+              39.7396
+            ],
+            "avg_holding_minutes": 119.15,
+            "cost_sensitivity_avg_bps": {
+              "10": 22.6316,
+              "16": 16.6316,
+              "20": 12.6316
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 293,
+            "wins": 166,
+            "wr": 56.655,
+            "wr_wilson95": [
+              50.931,
+              62.207
+            ],
+            "pf": 0.9464,
+            "avg_net_bps": -2.6948,
+            "sum_net_pct": -7.8958,
+            "gross_positive": 1.3944000000000007,
+            "gross_negative": 1.4733583173232105,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0125,
+            "weekly_block_avg_bps_ci95": [
+              -15.0632,
+              8.9993
+            ],
+            "avg_holding_minutes": 171.47,
+            "cost_sensitivity_avg_bps": {
+              "10": 3.3052,
+              "16": -2.6948,
+              "20": -6.6948
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 388,
+            "wins": 229,
+            "wr": 59.021,
+            "wr_wilson95": [
+              54.062,
+              63.802
+            ],
+            "pf": 1.0429,
+            "avg_net_bps": 2.0372,
+            "sum_net_pct": 7.9042,
+            "gross_positive": 1.923600000000001,
+            "gross_negative": 1.8445583173232118,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.01,
+            "weekly_block_avg_bps_ci95": [
+              -8.885,
+              12.5732
+            ],
+            "avg_holding_minutes": 158.66,
+            "cost_sensitivity_avg_bps": {
+              "10": 8.0372,
+              "16": 2.0372,
+              "20": -1.9628
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        },
+        "failed_short": {
+          "train": {
+            "n": 199,
+            "wins": 83,
+            "wr": 41.709,
+            "wr_wilson95": [
+              35.078,
+              48.653
+            ],
+            "pf": 0.5181,
+            "avg_net_bps": -32.5857,
+            "sum_net_pct": -64.8456,
+            "gross_positive": 0.6971999999999995,
+            "gross_negative": 1.3456561272217038,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0048,
+            "weekly_block_avg_bps_ci95": [
+              -43.9002,
+              -21.6662
+            ],
+            "avg_holding_minutes": 100.92,
+            "cost_sensitivity_avg_bps": {
+              "10": -26.5857,
+              "16": -32.5857,
+              "20": -36.5857
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "validation": {
+            "n": 374,
+            "wins": 193,
+            "wr": 51.604,
+            "wr_wilson95": [
+              46.549,
+              56.627
+            ],
+            "pf": 0.7717,
+            "avg_net_bps": -12.8242,
+            "sum_net_pct": -47.9623,
+            "gross_positive": 1.621200000000001,
+            "gross_negative": 2.100823432164492,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0676,
+            "weekly_block_avg_bps_ci95": [
+              -23.0134,
+              -2.2746
+            ],
+            "avg_holding_minutes": 159.99,
+            "cost_sensitivity_avg_bps": {
+              "10": -6.8242,
+              "16": -12.8242,
+              "20": -16.8242
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          },
+          "all3y": {
+            "n": 573,
+            "wins": 276,
+            "wr": 48.168,
+            "wr_wilson95": [
+              44.102,
+              52.257
+            ],
+            "pf": 0.6727,
+            "avg_net_bps": -19.6873,
+            "sum_net_pct": -112.808,
+            "gross_positive": 2.3184000000000005,
+            "gross_negative": 3.446479559386195,
+            "avg_winner_bps": 84,
+            "avg_loser_bps": -116.0431,
+            "weekly_block_avg_bps_ci95": [
+              -27.7506,
+              -11.5691
+            ],
+            "avg_holding_minutes": 139.47,
+            "cost_sensitivity_avg_bps": {
+              "10": -13.6873,
+              "16": -19.6873,
+              "20": -23.6873
+            },
+            "open_at_boundary": 0,
+            "open_net_pct": 0
+          }
+        }
+      }
+    }
+  ],
+  "eligible_for_shadow": {
+    "baseline": false,
+    "fixed_rr2_control": false,
+    "atr_exits": false,
+    "relative_btc": false,
+    "failed_short": false
+  },
+  "conclusion": "No tested hypothesis passes; all aggregate variants lose net in both periods. Relative strength improves average expectancy but remains negative even at 0.10% assumed total cost."
+}

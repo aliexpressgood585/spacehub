@@ -1,0 +1,1497 @@
+{
+  "rules": {
+    "sweep": "Single 1m low <= prior 20 completed 1m lows minimum minus 1.5*latest pre-sweep completed 5m ATR14; volume >=2*prior20 volume mean. Immediately next 1m close > broken prior20 low; LONG at following minute open. Target entry+1.5*(entry-sweep_low), stop sweep_low*0.997; 45 completed minutes maximum.",
+    "funding": "Settled funding >=+0.0005 -> LONG after first completed 5m close down >=0.4% versus latest 1m close known at publication; <=-0.0005 -> SHORT after up >=0.4%. Confirmation closes within 30m; entry next minute open. TP0.8%, SL0.6%; exit on next observed settlement at first minute open at/after it, or 8h after entry, whichever first. Settlement precedes that timeout exit, so charge/credit is included."
+  },
+  "periods_ms": {
+    "sweep": {
+      "train": [
+        1696723200000,
+        1759795200000
+      ],
+      "validation": [
+        1759795200000,
+        1791331200000
+      ],
+      "all3y": [
+        1696723200000,
+        1791331200000
+      ]
+    },
+    "funding": {
+      "train": [
+        1696723200000,
+        1759795200000
+      ],
+      "validation": [
+        1759795200000,
+        1790812800000
+      ],
+      "all3y": [
+        1696723200000,
+        1790812800000
+      ]
+    }
+  },
+  "cost_roundtrip_pct": 0.16,
+  "aggregate": {
+    "sweep": {
+      "train": {
+        "n": 629,
+        "wins": 276,
+        "wr": 43.879,
+        "wr_wilson95": [
+          40.05,
+          47.783
+        ],
+        "pf": 0.7868,
+        "avg_net_bps": -13.9992,
+        "sum_net_pct": -88.0551,
+        "gross_positive": 3.249784991661105,
+        "gross_negative": 4.130335688882209,
+        "avg_winner_bps": 117.7458,
+        "avg_loser_bps": -117.0067,
+        "weekly_block_avg_bps_ci95": [
+          -37.1659,
+          9.4236
+        ],
+        "trades_per_calendar_day": 0.862,
+        "avg_holding_minutes": 35.083,
+        "cost_sensitivity_avg_bps": {
+          "10": -7.9992,
+          "14": -11.9992,
+          "16": -13.9992,
+          "20": -17.9992
+        }
+      },
+      "validation": {
+        "n": 744,
+        "wins": 327,
+        "wr": 43.952,
+        "wr_wilson95": [
+          40.425,
+          47.54
+        ],
+        "pf": 0.7647,
+        "avg_net_bps": -11.1779,
+        "sum_net_pct": -83.1632,
+        "gross_positive": 2.7023442276589007,
+        "gross_negative": 3.533976432950679,
+        "avg_winner_bps": 82.6405,
+        "avg_loser_bps": -84.7476,
+        "weekly_block_avg_bps_ci95": [
+          -25.0564,
+          1.0841
+        ],
+        "trades_per_calendar_day": 2.038,
+        "avg_holding_minutes": 36.946,
+        "cost_sensitivity_avg_bps": {
+          "10": -5.1779,
+          "14": -9.1779,
+          "16": -11.1779,
+          "20": -15.1779
+        }
+      },
+      "all3y": {
+        "n": 1373,
+        "wins": 603,
+        "wr": 43.918,
+        "wr_wilson95": [
+          41.314,
+          46.557
+        ],
+        "pf": 0.7766,
+        "avg_net_bps": -12.4704,
+        "sum_net_pct": -171.2183,
+        "gross_positive": 5.952129219320006,
+        "gross_negative": 7.664312121832886,
+        "avg_winner_bps": 98.7086,
+        "avg_loser_bps": -99.5365,
+        "weekly_block_avg_bps_ci95": [
+          -26.0375,
+          0.1318
+        ],
+        "trades_per_calendar_day": 1.254,
+        "avg_holding_minutes": 36.092,
+        "cost_sensitivity_avg_bps": {
+          "10": -6.4704,
+          "14": -10.4704,
+          "16": -12.4704,
+          "20": -16.4704
+        }
+      }
+    },
+    "funding": {
+      "train": {
+        "n": 503,
+        "wins": 204,
+        "wr": 40.557,
+        "wr_wilson95": [
+          36.353,
+          44.904
+        ],
+        "pf": 0.5745,
+        "avg_net_bps": -19.2225,
+        "sum_net_pct": -96.6894,
+        "gross_positive": 1.3056000000000019,
+        "gross_negative": 2.272493845216334,
+        "avg_winner_bps": 64,
+        "avg_loser_bps": -76.0031,
+        "weekly_block_avg_bps_ci95": [
+          -25.4734,
+          -12.01
+        ],
+        "trades_per_calendar_day": 0.689,
+        "avg_holding_minutes": 14.968,
+        "cost_sensitivity_avg_bps": {
+          "10": -13.2225,
+          "14": -17.2225,
+          "16": -19.2225,
+          "20": -23.2225
+        }
+      },
+      "validation": {
+        "n": 326,
+        "wins": 138,
+        "wr": 42.331,
+        "wr_wilson95": [
+          37.088,
+          47.754
+        ],
+        "pf": 0.6164,
+        "avg_net_bps": -16.5734,
+        "sum_net_pct": -54.0293,
+        "gross_positive": 0.8680059260740023,
+        "gross_negative": 1.4082989430849122,
+        "avg_winner_bps": 62.899,
+        "avg_loser_bps": -74.9095,
+        "weekly_block_avg_bps_ci95": [
+          -25.8205,
+          -7.5147
+        ],
+        "trades_per_calendar_day": 0.908,
+        "avg_holding_minutes": 17.748,
+        "cost_sensitivity_avg_bps": {
+          "10": -10.5734,
+          "14": -14.5734,
+          "16": -16.5734,
+          "20": -20.5734
+        }
+      },
+      "all3y": {
+        "n": 829,
+        "wins": 342,
+        "wr": 41.255,
+        "wr_wilson95": [
+          37.951,
+          44.639
+        ],
+        "pf": 0.5905,
+        "avg_net_bps": -18.1808,
+        "sum_net_pct": -150.7187,
+        "gross_positive": 2.1736059260740044,
+        "gross_negative": 3.680792788301247,
+        "avg_winner_bps": 63.5557,
+        "avg_loser_bps": -75.581,
+        "weekly_block_avg_bps_ci95": [
+          -23.6801,
+          -12.6917
+        ],
+        "trades_per_calendar_day": 0.761,
+        "avg_holding_minutes": 16.062,
+        "cost_sensitivity_avg_bps": {
+          "10": -12.1808,
+          "14": -16.1808,
+          "16": -18.1808,
+          "20": -22.1808
+        }
+      }
+    }
+  },
+  "results": [
+    {
+      "symbol": "ANKRUSDT",
+      "funding_candidate_audit": {
+        "no_next_funding": 0,
+        "no_price_reference": 0,
+        "no_countermove": 108,
+        "next_event_before_entry": 0
+      },
+      "candidate_counts": {
+        "sweep": 139,
+        "funding": 65
+      },
+      "variants": {
+        "sweep": {
+          "train": {
+            "n": 87,
+            "wins": 47,
+            "wr": 54.023,
+            "pf": 1.1721,
+            "avg_net_bps": 9.0608,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "validation": {
+            "n": 52,
+            "wins": 18,
+            "wr": 34.615,
+            "pf": 0.6474,
+            "avg_net_bps": -11.9084,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "all3y": {
+            "n": 139,
+            "wins": 65,
+            "wr": 46.763,
+            "pf": 1.0267,
+            "avg_net_bps": 1.2162,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          }
+        },
+        "funding": {
+          "train": {
+            "n": 26,
+            "wins": 6,
+            "wr": 23.077,
+            "pf": 0.2526,
+            "avg_net_bps": -43.6923,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "validation": {
+            "n": 39,
+            "wins": 15,
+            "wr": 38.462,
+            "pf": 0.5366,
+            "avg_net_bps": -20.1133,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 3,
+            "funding_cashflow_sum": -0.0018260304990214216,
+            "funding_cashflow_sum_bounds": [
+              -0.0018276446126232158,
+              -0.0018257258102529963
+            ]
+          },
+          "all3y": {
+            "n": 65,
+            "wins": 21,
+            "wr": 32.308,
+            "pf": 0.4022,
+            "avg_net_bps": -29.5449,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 3,
+            "funding_cashflow_sum": -0.0018260304990214216,
+            "funding_cashflow_sum_bounds": [
+              -0.0018276446126232158,
+              -0.0018257258102529963
+            ]
+          }
+        }
+      }
+    },
+    {
+      "symbol": "ARKUSDT",
+      "funding_candidate_audit": {
+        "no_next_funding": 1,
+        "no_price_reference": 0,
+        "no_countermove": 258,
+        "next_event_before_entry": 0
+      },
+      "candidate_counts": {
+        "sweep": 154,
+        "funding": 224
+      },
+      "variants": {
+        "sweep": {
+          "train": {
+            "n": 88,
+            "wins": 43,
+            "wr": 48.864,
+            "pf": 1.1223,
+            "avg_net_bps": 6.7333,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "validation": {
+            "n": 66,
+            "wins": 34,
+            "wr": 51.515,
+            "pf": 0.999,
+            "avg_net_bps": -0.0352,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "all3y": {
+            "n": 154,
+            "wins": 77,
+            "wr": 50,
+            "pf": 1.0811,
+            "avg_net_bps": 3.8325,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          }
+        },
+        "funding": {
+          "train": {
+            "n": 177,
+            "wins": 63,
+            "wr": 35.593,
+            "pf": 0.4653,
+            "avg_net_bps": -26.1748,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "validation": {
+            "n": 47,
+            "wins": 25,
+            "wr": 53.191,
+            "pf": 0.9569,
+            "avg_net_bps": -1.5319,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "all3y": {
+            "n": 224,
+            "wins": 88,
+            "wr": 39.286,
+            "pf": 0.5448,
+            "avg_net_bps": -21.0042,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          }
+        }
+      }
+    },
+    {
+      "symbol": "1000000MOGUSDT",
+      "funding_candidate_audit": {
+        "no_next_funding": 0,
+        "no_price_reference": 0,
+        "no_countermove": 25,
+        "next_event_before_entry": 0
+      },
+      "candidate_counts": {
+        "sweep": 75,
+        "funding": 32
+      },
+      "variants": {
+        "sweep": {
+          "train": {
+            "n": 29,
+            "wins": 9,
+            "wr": 31.034,
+            "pf": 0.5082,
+            "avg_net_bps": -49.1124,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "validation": {
+            "n": 45,
+            "wins": 19,
+            "wr": 42.222,
+            "pf": 0.8512,
+            "avg_net_bps": -8.1787,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "all3y": {
+            "n": 74,
+            "wins": 28,
+            "wr": 37.838,
+            "pf": 0.6662,
+            "avg_net_bps": -24.2203,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          }
+        },
+        "funding": {
+          "train": {
+            "n": 28,
+            "wins": 10,
+            "wr": 35.714,
+            "pf": 0.4678,
+            "avg_net_bps": -26,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "validation": {
+            "n": 4,
+            "wins": 3,
+            "wr": 75,
+            "pf": 2.5263,
+            "avg_net_bps": 29,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "all3y": {
+            "n": 32,
+            "wins": 13,
+            "wr": 40.625,
+            "pf": 0.5762,
+            "avg_net_bps": -19.125,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          }
+        }
+      }
+    },
+    {
+      "symbol": "AGTUSDT",
+      "funding_candidate_audit": {
+        "no_next_funding": 1,
+        "no_price_reference": 0,
+        "no_countermove": 169,
+        "next_event_before_entry": 0
+      },
+      "candidate_counts": {
+        "sweep": 143,
+        "funding": 189
+      },
+      "variants": {
+        "sweep": {
+          "train": {
+            "n": 53,
+            "wins": 16,
+            "wr": 30.189,
+            "pf": 0.354,
+            "avg_net_bps": -61.7848,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "validation": {
+            "n": 87,
+            "wins": 43,
+            "wr": 49.425,
+            "pf": 0.993,
+            "avg_net_bps": -0.4992,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "all3y": {
+            "n": 140,
+            "wins": 59,
+            "wr": 42.143,
+            "pf": 0.7061,
+            "avg_net_bps": -23.7001,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          }
+        },
+        "funding": {
+          "train": {
+            "n": 94,
+            "wins": 38,
+            "wr": 40.426,
+            "pf": 0.5714,
+            "avg_net_bps": -19.4043,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "validation": {
+            "n": 95,
+            "wins": 38,
+            "wr": 40,
+            "pf": 0.5614,
+            "avg_net_bps": -20,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "all3y": {
+            "n": 189,
+            "wins": 76,
+            "wr": 40.212,
+            "pf": 0.5664,
+            "avg_net_bps": -19.7037,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          }
+        }
+      }
+    },
+    {
+      "symbol": "SUSHIUSDT",
+      "funding_candidate_audit": {
+        "no_next_funding": 0,
+        "no_price_reference": 0,
+        "no_countermove": 16,
+        "next_event_before_entry": 0
+      },
+      "candidate_counts": {
+        "sweep": 142,
+        "funding": 18
+      },
+      "variants": {
+        "sweep": {
+          "train": {
+            "n": 78,
+            "wins": 35,
+            "wr": 44.872,
+            "pf": 0.8614,
+            "avg_net_bps": -10.7213,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "validation": {
+            "n": 64,
+            "wins": 27,
+            "wr": 42.188,
+            "pf": 0.8346,
+            "avg_net_bps": -6.1319,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "all3y": {
+            "n": 142,
+            "wins": 62,
+            "wr": 43.662,
+            "pf": 0.8538,
+            "avg_net_bps": -8.6529,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          }
+        },
+        "funding": {
+          "train": {
+            "n": 18,
+            "wins": 11,
+            "wr": 61.111,
+            "pf": 1.3233,
+            "avg_net_bps": 9.5556,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "validation": {
+            "n": 0,
+            "wr": null,
+            "pf": null,
+            "avg_net_bps": null,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "all3y": {
+            "n": 18,
+            "wins": 11,
+            "wr": 61.111,
+            "pf": 1.3233,
+            "avg_net_bps": 9.5556,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          }
+        }
+      }
+    },
+    {
+      "symbol": "LQTYUSDT",
+      "funding_candidate_audit": {
+        "no_next_funding": 0,
+        "no_price_reference": 0,
+        "no_countermove": 54,
+        "next_event_before_entry": 0
+      },
+      "candidate_counts": {
+        "sweep": 177,
+        "funding": 52
+      },
+      "variants": {
+        "sweep": {
+          "train": {
+            "n": 103,
+            "wins": 44,
+            "wr": 42.718,
+            "pf": 0.6984,
+            "avg_net_bps": -23.2187,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "validation": {
+            "n": 73,
+            "wins": 34,
+            "wr": 46.575,
+            "pf": 0.8127,
+            "avg_net_bps": -7.8133,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "all3y": {
+            "n": 176,
+            "wins": 78,
+            "wr": 44.318,
+            "pf": 0.7301,
+            "avg_net_bps": -16.8289,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          }
+        },
+        "funding": {
+          "train": {
+            "n": 45,
+            "wins": 22,
+            "wr": 48.889,
+            "pf": 0.8055,
+            "avg_net_bps": -7.5556,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "validation": {
+            "n": 7,
+            "wins": 2,
+            "wr": 28.571,
+            "pf": 0.3368,
+            "avg_net_bps": -36,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "all3y": {
+            "n": 52,
+            "wins": 24,
+            "wr": 46.154,
+            "pf": 0.7218,
+            "avg_net_bps": -11.3846,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          }
+        }
+      }
+    },
+    {
+      "symbol": "HYPERUSDT",
+      "funding_candidate_audit": {
+        "no_next_funding": 0,
+        "no_price_reference": 0,
+        "no_countermove": 84,
+        "next_event_before_entry": 0
+      },
+      "candidate_counts": {
+        "sweep": 78,
+        "funding": 96
+      },
+      "variants": {
+        "sweep": {
+          "train": {
+            "n": 11,
+            "wins": 6,
+            "wr": 54.545,
+            "pf": 0.8175,
+            "avg_net_bps": -12.4577,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "validation": {
+            "n": 67,
+            "wins": 23,
+            "wr": 34.328,
+            "pf": 0.9333,
+            "avg_net_bps": -2.2259,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "all3y": {
+            "n": 78,
+            "wins": 29,
+            "wr": 37.179,
+            "pf": 0.9042,
+            "avg_net_bps": -3.6688,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          }
+        },
+        "funding": {
+          "train": {
+            "n": 56,
+            "wins": 26,
+            "wr": 46.429,
+            "pf": 0.7298,
+            "avg_net_bps": -11,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "validation": {
+            "n": 40,
+            "wins": 11,
+            "wr": 27.5,
+            "pf": 0.3194,
+            "avg_net_bps": -37.5,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "all3y": {
+            "n": 96,
+            "wins": 37,
+            "wr": 38.542,
+            "pf": 0.5281,
+            "avg_net_bps": -22.0417,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          }
+        }
+      }
+    },
+    {
+      "symbol": "KAVAUSDT",
+      "funding_candidate_audit": {
+        "no_next_funding": 0,
+        "no_price_reference": 0,
+        "no_countermove": 165,
+        "next_event_before_entry": 0
+      },
+      "candidate_counts": {
+        "sweep": 211,
+        "funding": 109
+      },
+      "variants": {
+        "sweep": {
+          "train": {
+            "n": 119,
+            "wins": 55,
+            "wr": 46.218,
+            "pf": 0.9064,
+            "avg_net_bps": -4.5043,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "validation": {
+            "n": 88,
+            "wins": 34,
+            "wr": 38.636,
+            "pf": 0.4944,
+            "avg_net_bps": -26.493,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "all3y": {
+            "n": 207,
+            "wins": 89,
+            "wr": 42.995,
+            "pf": 0.7227,
+            "avg_net_bps": -13.8521,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          }
+        },
+        "funding": {
+          "train": {
+            "n": 32,
+            "wins": 16,
+            "wr": 50,
+            "pf": 0.8421,
+            "avg_net_bps": -6,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "validation": {
+            "n": 77,
+            "wins": 36,
+            "wr": 46.753,
+            "pf": 0.7244,
+            "avg_net_bps": -10.8898,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 4,
+            "funding_cashflow_sum": -0.002342934690228498,
+            "funding_cashflow_sum_bounds": [
+              -0.002349302128772637,
+              -0.002339580662859238
+            ]
+          },
+          "all3y": {
+            "n": 109,
+            "wins": 52,
+            "wr": 47.706,
+            "pf": 0.758,
+            "avg_net_bps": -9.4542,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 4,
+            "funding_cashflow_sum": -0.002342934690228498,
+            "funding_cashflow_sum_bounds": [
+              -0.002349302128772637,
+              -0.002339580662859238
+            ]
+          }
+        }
+      }
+    },
+    {
+      "symbol": "LUMIAUSDT",
+      "funding_candidate_audit": {
+        "no_next_funding": 0,
+        "no_price_reference": 0,
+        "no_countermove": 25,
+        "next_event_before_entry": 0
+      },
+      "candidate_counts": {
+        "sweep": 123,
+        "funding": 10
+      },
+      "variants": {
+        "sweep": {
+          "train": {
+            "n": 28,
+            "wins": 6,
+            "wr": 21.429,
+            "pf": 0.3187,
+            "avg_net_bps": -45.6334,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "validation": {
+            "n": 94,
+            "wins": 47,
+            "wr": 50,
+            "pf": 0.6135,
+            "avg_net_bps": -24.3938,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "all3y": {
+            "n": 122,
+            "wins": 53,
+            "wr": 43.443,
+            "pf": 0.5427,
+            "avg_net_bps": -29.2684,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          }
+        },
+        "funding": {
+          "train": {
+            "n": 2,
+            "wins": 2,
+            "wr": 100,
+            "pf": null,
+            "avg_net_bps": 64,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "validation": {
+            "n": 8,
+            "wins": 3,
+            "wr": 37.5,
+            "pf": 0.5053,
+            "avg_net_bps": -23.5,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "all3y": {
+            "n": 10,
+            "wins": 5,
+            "wr": 50,
+            "pf": 0.8421,
+            "avg_net_bps": -6,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          }
+        }
+      }
+    },
+    {
+      "symbol": "ALPINEUSDT",
+      "funding_candidate_audit": {
+        "no_next_funding": 0,
+        "no_price_reference": 0,
+        "no_countermove": 17,
+        "next_event_before_entry": 0
+      },
+      "candidate_counts": {
+        "sweep": 143,
+        "funding": 34
+      },
+      "variants": {
+        "sweep": {
+          "train": {
+            "n": 33,
+            "wins": 15,
+            "wr": 45.455,
+            "pf": 0.806,
+            "avg_net_bps": -9.361,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "validation": {
+            "n": 108,
+            "wins": 48,
+            "wr": 44.444,
+            "pf": 0.6371,
+            "avg_net_bps": -14.3236,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "all3y": {
+            "n": 141,
+            "wins": 63,
+            "wr": 44.681,
+            "pf": 0.683,
+            "avg_net_bps": -13.1622,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          }
+        },
+        "funding": {
+          "train": {
+            "n": 25,
+            "wins": 10,
+            "wr": 40,
+            "pf": 0.5614,
+            "avg_net_bps": -20,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "validation": {
+            "n": 9,
+            "wins": 5,
+            "wr": 55.556,
+            "pf": 1.0526,
+            "avg_net_bps": 1.7778,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          },
+          "all3y": {
+            "n": 34,
+            "wins": 15,
+            "wr": 44.118,
+            "pf": 0.6648,
+            "avg_net_bps": -14.2353,
+            "censored": 0,
+            "funding_charged_or_credited_trades": 0,
+            "funding_cashflow_sum": 0,
+            "funding_cashflow_sum_bounds": [
+              0,
+              0
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "coverage": [
+    {
+      "ohlcv": {
+        "symbol": "ANKRUSDT",
+        "bars": 1620000,
+        "first_ms": 1694131200000,
+        "last_ms": 1791331140000,
+        "gaps": 0
+      },
+      "funding": {
+        "symbol": "ANKRUSDT",
+        "records": 3978,
+        "first_ms": 1694131200000,
+        "last_ms": 1790798400000,
+        "coverage_end_exclusive": 1790812800000,
+        "interval_hours": [
+          1,
+          4,
+          8
+        ],
+        "extreme_positive": 35,
+        "extreme_negative": 138
+      },
+      "mark_events_count": 3
+    },
+    {
+      "ohlcv": {
+        "symbol": "ARKUSDT",
+        "bars": 1603197,
+        "first_ms": 1695139380000,
+        "last_ms": 1791331140000,
+        "gaps": 0
+      },
+      "funding": {
+        "symbol": "ARKUSDT",
+        "records": 5158,
+        "first_ms": 1695139200000,
+        "last_ms": 1790809200000,
+        "coverage_end_exclusive": 1790812800000,
+        "interval_hours": [
+          1,
+          4,
+          8
+        ],
+        "extreme_positive": 121,
+        "extreme_negative": 380
+      },
+      "mark_events_count": 0
+    },
+    {
+      "ohlcv": {
+        "symbol": "1000000MOGUSDT",
+        "bars": 1005810,
+        "first_ms": 1730982600000,
+        "last_ms": 1791331140000,
+        "gaps": 0
+      },
+      "funding": {
+        "symbol": "1000000MOGUSDT",
+        "records": 4153,
+        "first_ms": 1730995200000,
+        "last_ms": 1790798400000,
+        "coverage_end_exclusive": 1790812800000,
+        "interval_hours": [
+          4
+        ],
+        "extreme_positive": 45,
+        "extreme_negative": 12
+      },
+      "mark_events_count": 0
+    },
+    {
+      "ohlcv": {
+        "symbol": "AGTUSDT",
+        "bars": 726570,
+        "first_ms": 1747737000000,
+        "last_ms": 1791331140000,
+        "gaps": 0
+      },
+      "funding": {
+        "symbol": "AGTUSDT",
+        "records": 2990,
+        "first_ms": 1747742400003,
+        "last_ms": 1790798400000,
+        "coverage_end_exclusive": 1790812800000,
+        "interval_hours": [
+          4
+        ],
+        "extreme_positive": 338,
+        "extreme_negative": 21
+      },
+      "mark_events_count": 0
+    },
+    {
+      "ohlcv": {
+        "symbol": "SUSHIUSDT",
+        "bars": 1620000,
+        "first_ms": 1694131200000,
+        "last_ms": 1791331140000,
+        "gaps": 0
+      },
+      "funding": {
+        "symbol": "SUSHIUSDT",
+        "records": 3357,
+        "first_ms": 1694131200000,
+        "last_ms": 1790784000002,
+        "coverage_end_exclusive": 1790812800000,
+        "interval_hours": [
+          8
+        ],
+        "extreme_positive": 33,
+        "extreme_negative": 1
+      },
+      "mark_events_count": 0
+    },
+    {
+      "ohlcv": {
+        "symbol": "LQTYUSDT",
+        "bars": 1620000,
+        "first_ms": 1694131200000,
+        "last_ms": 1791331140000,
+        "gaps": 0
+      },
+      "funding": {
+        "symbol": "LQTYUSDT",
+        "records": 3357,
+        "first_ms": 1694131200000,
+        "last_ms": 1790784000002,
+        "coverage_end_exclusive": 1790812800000,
+        "interval_hours": [
+          8
+        ],
+        "extreme_positive": 75,
+        "extreme_negative": 31
+      },
+      "mark_events_count": 0
+    },
+    {
+      "ohlcv": {
+        "symbol": "HYPERUSDT",
+        "bars": 766740,
+        "first_ms": 1745326800000,
+        "last_ms": 1791331140000,
+        "gaps": 0
+      },
+      "funding": {
+        "symbol": "HYPERUSDT",
+        "records": 3307,
+        "first_ms": 1745337600000,
+        "last_ms": 1790798400000,
+        "coverage_end_exclusive": 1790812800000,
+        "interval_hours": [
+          1,
+          4
+        ],
+        "extreme_positive": 0,
+        "extreme_negative": 180
+      },
+      "mark_events_count": 0
+    },
+    {
+      "ohlcv": {
+        "symbol": "KAVAUSDT",
+        "bars": 1620000,
+        "first_ms": 1694131200000,
+        "last_ms": 1791331140000,
+        "gaps": 0
+      },
+      "funding": {
+        "symbol": "KAVAUSDT",
+        "records": 5079,
+        "first_ms": 1694131200000,
+        "last_ms": 1790798400000,
+        "coverage_end_exclusive": 1790812800000,
+        "interval_hours": [
+          1,
+          4,
+          8
+        ],
+        "extreme_positive": 54,
+        "extreme_negative": 221
+      },
+      "mark_events_count": 4
+    },
+    {
+      "ohlcv": {
+        "symbol": "LUMIAUSDT",
+        "bars": 946830,
+        "first_ms": 1734521400000,
+        "last_ms": 1791331140000,
+        "gaps": 0
+      },
+      "funding": {
+        "symbol": "LUMIAUSDT",
+        "records": 3908,
+        "first_ms": 1734523200000,
+        "last_ms": 1790798400000,
+        "coverage_end_exclusive": 1790812800000,
+        "interval_hours": [
+          4
+        ],
+        "extreme_positive": 3,
+        "extreme_negative": 32
+      },
+      "mark_events_count": 0
+    },
+    {
+      "ohlcv": {
+        "symbol": "ALPINEUSDT",
+        "bars": 746775,
+        "first_ms": 1746524700000,
+        "last_ms": 1791331140000,
+        "gaps": 0
+      },
+      "funding": {
+        "symbol": "ALPINEUSDT",
+        "records": 3074,
+        "first_ms": 1746532800000,
+        "last_ms": 1790798400000,
+        "coverage_end_exclusive": 1790812800000,
+        "interval_hours": [
+          4
+        ],
+        "extreme_positive": 15,
+        "extreme_negative": 36
+      },
+      "mark_events_count": 0
+    }
+  ],
+  "eligible": {
+    "sweep": false,
+    "funding": false
+  },
+  "method": [
+    "Two new signals independent of DDDDD; exact single-bar sweep interpretation frozen before run, no parameter search.",
+    "OHLCV sweep does not prove stop orders or liquidations occurred; it is a price/volume proxy.",
+    "Funding sign mapping follows requested specification: positive LONG after drop; negative SHORT after rise.",
+    "Use actual archived settlement times and per-settlement thresholds; funding intervals may differ from 8h.",
+    "Archive timestamps treated as rate-known times; first qualifying completed 5m bar thereafter, no predicted funding data.",
+    "Published 5m confirmation reference is latest fully closed 1m close at publication.",
+    "0.16% fixed deduction retained as requested, plus actual historical funding RATE cash flow for funding strategy; 0.14% sensitivity removes duplicate 0.02% reserve.",
+    "Funding cash flow uses settlement-minute MARK OPEN as proxy for exact millisecond mark; report high/low bounds. Not exact account funding ledger.",
+    "Funding exit on next settlement includes cashflow before exit. Intrabar barrier timestamp approximated by minute close, potentially charging same-minute funding conservatively.",
+    "Current-month funding archive unavailable and official API probe returned HTTP451. Do not fabricate absent October funding.",
+    "Nonoverlap per symbol/variant. Train/validation reset independently; no portfolio, leverage or compounding. Previously inspected validation year is not clean holdout.",
+    "Liquidity sweep: last-known pre-sweep 5m ATR, prior20 1m low/volume, next minute reclaim, entry following minute; 45m timeout at close.",
+    "Eligibility: PF>1.15 and >=300 trades in EACH train and validation; any apparent success needs untouched forward Shadow."
+  ],
+  "provenance": {
+    "code_commit": "a51da91cfc0e9cee6b109efe11d55eea58139b1f",
+    "run": "https://github.com/aliexpressgood585/spacehub/actions/runs/37654018809",
+    "artifact_id": 11498027229,
+    "artifact_zip_sha256": "9acbb47f440137fec4c3ec4bd6a321de48af38747f5629237f03a2c4c7823959",
+    "verification": "Synthetic tests passed locally and with numba in Actions. Downloaded trade ledger count/mean/nonoverlap verified. Full input archive hashes and ledger are in the run artifact."
+  }
+}

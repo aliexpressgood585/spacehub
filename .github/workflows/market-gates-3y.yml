@@ -1,0 +1,23 @@
+name: ADX EMA BTC RSI Research 3Y
+on:
+  push:
+    branches: ['research/market-gates-20261007']
+    paths: ['scripts/market-gate-check/**', '.github/workflows/market-gates-3y.yml']
+permissions:
+  contents: read
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -q numpy numba
+      - run: python scripts/market-gate-check/check_method.py
+      - run: python scripts/market-gate-check/market_gate_check.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: market-gates-3y
+          path: research-output/
