@@ -45,5 +45,5 @@ jobs:
               fi
               last=$t0
             fi
-            s=$(( 30 - ($(date +%s) - t0) )); [ $s -gt 0 ] && sleep $s
+            s=$(( 15 - ($(date +%s) - t0) )); [ $s -gt 0 ] && sleep $s
           done

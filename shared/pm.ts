@@ -33,6 +33,7 @@ export const PM = {
   minVolume: 20000,           // market volume floor (USDC)
   stakeFrac: 0.03,            // 3% of current equity per position (wins ~27% of the time: small, many)
   maxOpen: 30,
+  maxPosFrac: 0.15,           // all cash is deployed: each position topped up to equity/open, never above 15% of equity
   maxPerEvent: 1,
   minQty: 5,                  // Polymarket minimum order size (shares)
 } as const
