@@ -55,7 +55,7 @@ Deno.serve(async () => {
     const decisions: any[] = []
     let entered = 0
     if (stillOpen < PM.maxOpen) {
-      const ms: any[] = await j(`${GAMMA}/markets?closed=false&active=true&limit=200&order=volume&ascending=false&volume_num_min=${PM.minVolume}&end_date_min=${new Date(now).toISOString()}&end_date_max=${until}`)
+      const ms: any[] = await j(`${GAMMA}/markets?closed=false&active=true&limit=300&order=volume&ascending=false&volume_num_min=${PM.minVolume}&end_date_min=${new Date(now).toISOString()}&end_date_max=${until}`)
       const held = new Set((open ?? []).filter((t) => t.status === 'OPEN').map((t) => t.token_id))
       const events = new Map<string, number>()
       for (const t of open ?? []) events.set(t.event_slug ?? '', (events.get(t.event_slug ?? '') ?? 0) + 1)

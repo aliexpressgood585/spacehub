@@ -24,11 +24,15 @@ export function walkAsks(asks: { price: number; size: number }[], usd: number, m
 
 // The strategy chosen by the research (backtest/research/pm_research.py -> status/pm-research.txt).
 export const PM = {
-  lo: 0.9, hi: 0.97,          // buy the outcome whose ask sits in this band (a heavy favourite)
-  windowH: 24,                // ... only when the market is due to end within this many hours
+  // status/pm-research.txt (7,486 resolved markets, 2025-09..2026-10, 70/30 time split): favourites 0.70-0.99 LOSE
+  // 2-7% per $ after costs at every horizon; the 15-30c band is positive at EVERY horizon in BOTH halves
+  // (H6 +2.5/+10.6, H24 +9.1/+11.4, H72 +11.0/+7.7 %/$, best t 2.3). Chosen for robustness across the grid, not
+  // the single best in-sample cell (that was 5-15c, which halved out of sample). Not proven: t < 2.5, ~6 months.
+  lo: 0.15, hi: 0.30,         // buy the outcome whose ask sits in this band (an underdog)
+  windowH: 72,                // ... only when the market is due to end within this many hours
   minVolume: 20000,           // market volume floor (USDC)
-  stakeFrac: 0.05,            // 5% of current equity per position
-  maxOpen: 20,
+  stakeFrac: 0.03,            // 3% of current equity per position (wins ~27% of the time: small, many)
+  maxOpen: 30,
   maxPerEvent: 1,
   minQty: 5,                  // Polymarket minimum order size (shares)
 } as const
