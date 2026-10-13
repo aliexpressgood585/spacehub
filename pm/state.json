@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 910.5471710271579,
+ "cash": 794.8131285137857,
  "strategy": {
   "lo": 0.85,
   "hi": 0.92,
@@ -13,13 +13,14 @@
   "minQty": 5,
   "exitPx": 0.99
  },
- "last_scan": "2026-10-13T22:21:20.065Z",
+ "last_scan": "2026-10-13T22:21:36.429Z",
  "last_note": {
-  "at": "2026-10-13T22:21:19.376Z",
-  "scanned": 29,
+  "at": "2026-10-13T22:21:34.337Z",
+  "scanned": 31,
+  "tr_err": "Error: 429 https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&",
   "settled": 0,
-  "entered": 0,
-  "topped": 0,
+  "entered": 1,
+  "topped": 1,
   "recycled": 0
  },
  "trades": [
@@ -1209,7 +1210,7 @@
    "opened_at": "2026-10-13T17:53:36.162Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-13T22:21:19.599Z",
+   "mark_at": "2026-10-13T22:21:34.580Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.04,
@@ -1497,7 +1498,7 @@
    "opened_at": "2026-10-13T21:41:35.548Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-13T22:21:19.745Z",
+   "mark_at": "2026-10-13T22:21:34.721Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -1533,7 +1534,7 @@
    "opened_at": "2026-10-13T21:43:51.358Z",
    "status": "OPEN",
    "mark_px": 0.0005,
-   "mark_at": "2026-10-13T22:21:19.891Z",
+   "mark_at": "2026-10-13T22:21:34.861Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -1592,6 +1593,42 @@
    "pnl": 3.6964798345416625,
    "reason": "RESOLVED_WIN",
    "closed_at": "2026-10-13T22:14:05.448Z"
+  },
+  {
+   "id": 40,
+   "market_id": "5640799",
+   "slug": "cs2-keydst-gls1-2026-10-13-game2",
+   "event_slug": "cs2-keydst-gls1-2026-10-13",
+   "question": "Counter-Strike: ex-Keyd Stars vs Galorys - Map 2 Winner",
+   "outcome": "Galorys",
+   "token_id": "60915761762051966319117437609563075208173095681337126233378265005463308203725",
+   "end_time": "2026-10-14T01:00:00Z",
+   "qty": 131.53741825998364,
+   "entry_px": 0.8743643820011465,
+   "entry_fee": 0.7224090864553204,
+   "cost": 115.73404251337223,
+   "best_ask": 0.86,
+   "opened_at": "2026-10-13T22:21:35.171Z",
+   "status": "OPEN",
+   "mark_px": 0.83,
+   "mark_at": "2026-10-13T22:21:35.171Z",
+   "meta": {
+    "fee_schedule": {
+     "rate": 0.05,
+     "exponent": 1
+    },
+    "volume": 20890.11861100001,
+    "spread": 0.02,
+    "model_p": 0.88,
+    "outcomes": [
+     "ex-Keyd Stars",
+     "Galorys"
+    ],
+    "adds": 1
+   },
+   "outcome_he": "Galorys",
+   "question_he": "Counter-Strike: ex-Keyd Stars vs Galorys - Map 2 Winner",
+   "tr_v": 2
   }
  ],
  "equity": [
@@ -22167,9 +22204,44 @@
    "cash": 910.5471710271579,
    "open_value": 284.00830833583603,
    "open_count": 3
+  },
+  {
+   "ts": "2026-10-13T22:21:36.429Z",
+   "equity": 1187.9974940054083,
+   "cash": 794.8131285137857,
+   "open_value": 393.1843654916225,
+   "open_count": 4
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-13T22:21:35.171Z",
+   "market_id": "5640799",
+   "question": "Counter-Strike: ex-Keyd Stars vs Galorys - Map 2 Winner",
+   "outcome": "Galorys",
+   "outcomes": [
+    "ex-Keyd Stars",
+    "Galorys"
+   ],
+   "price": 0.8694056793592032,
+   "decision": "BUY",
+   "reason": "מחיר 0.86 בטווח, 39.3 מניות, עמלה $0.22",
+   "outcome_he": "Galorys",
+   "question_he": "Counter-Strike: ex-Keyd Stars vs Galorys - Map 2 Winner",
+   "tr_v": 2
+  },
+  {
+   "ts": "2026-10-13T22:21:35.301Z",
+   "market_id": "5640799",
+   "question": "Counter-Strike: ex-Keyd Stars vs Galorys - Map 2 Winner",
+   "outcome": "Galorys",
+   "price": 0.8764738540039733,
+   "decision": "ADD",
+   "reason": "השלמה לחלק שווה: +92.3 מניות, עמלה $0.50",
+   "outcome_he": "Galorys",
+   "question_he": "Counter - Strike: Ex - Keyd Stars vs Galorys - זוכה מפה 2",
+   "tr_v": 2
+  },
   {
    "ts": "2026-10-13T21:51:35.718Z",
    "market_id": "5585230",
@@ -24965,33 +25037,9 @@
    "question_he": "Counter-Strike: 100 Thieves vs JiJieHao - הזוכה במפה 2",
    "outcome_he": "100 Thieves",
    "tr_v": 2
-  },
-  {
-   "ts": "2026-10-13T10:59:32.568Z",
-   "market_id": "5634116",
-   "question": "Dota 2: HULIGANI vs Nemiga Gaming - Game 2 Winner",
-   "outcome": "HULIGANI",
-   "price": 0.95,
-   "decision": "skip",
-   "reason": "מחיר 0.95 מחוץ לטווח 85-92¢",
-   "question_he": "Dota 2: HULIGANI vs Nemiga Gaming - מנצח משחק 2",
-   "outcome_he": "HULIGANI",
-   "tr_v": 2
-  },
-  {
-   "ts": "2026-10-13T10:59:17.647Z",
-   "market_id": "5634116",
-   "question": "Dota 2: HULIGANI vs Nemiga Gaming - Game 2 Winner",
-   "outcome": "HULIGANI",
-   "price": 0.95,
-   "decision": "skip",
-   "reason": "מחיר 0.95 מחוץ לטווח 85-92¢",
-   "question_he": "Dota 2: HULIGANI vs Nemiga Gaming - מנצח משחק 2",
-   "outcome_he": "HULIGANI",
-   "tr_v": 2
   }
  ],
- "next_id": 40,
+ "next_id": 41,
  "he": {
   "Dota 2: Yellow Submarine vs Kalmychata - Game 1 Winner": "Dota 2: Yellow Submarine vs Kalmychata - מנצח משחק 1",
   "Yellow Submarine": "צוללת צהובה",
@@ -25045,6 +25093,7 @@
   "Bitcoin Up or Down - October 13, 3PM ET": "ביטקוין למעלה או למטה - 13 באוקטובר, 15:00 ET",
   "Counter-Strike: Grêmio Esports vs Los Niños (BO3) - CCT South America Series 7 Group Stage": "Counter - Strike: Grêmio Esports vs Los Niños (BO3) - CCT דרום אמריקה סדרה 7 שלב קבוצתי",
   "Counter-Strike: ex-Keyd Stars vs Galorys - Map 1 Winner": "Counter - Strike: Ex - Keyd Stars vs Galorys - מפה 1 זוכה",
-  "Bitcoin Up or Down - October 13, 5PM ET": "ביטקוין למעלה או למטה - 13 באוקטובר, 17:00 שעון החוף המזרחי"
+  "Bitcoin Up or Down - October 13, 5PM ET": "ביטקוין למעלה או למטה - 13 באוקטובר, 17:00 שעון החוף המזרחי",
+  "Counter-Strike: ex-Keyd Stars vs Galorys - Map 2 Winner": "Counter - Strike: Ex - Keyd Stars vs Galorys - זוכה מפה 2"
  }
 }
