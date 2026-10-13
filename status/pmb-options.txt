@@ -1,0 +1,37 @@
+# pmb_options.py — Polymarket 'Bitcoin above $K on <date>' vs Deribit-DVOL lognormal model, 2026-10-13
+# 139 daily events, 1,560 strike markets (2026-05..10); fee 0.07·p(1-p), +1c; 70/30 split by date
+rows 1069 | split at 2026-09-04
+H= 1440m n=  419  Brier market 0.1221  options-model 0.1233  (market better)
+H=  360m n=  264  Brier market 0.1154  options-model 0.1164  (market better)
+H=  120m n=  182  Brier market 0.1204  options-model 0.1203  (model better)
+H=   60m n=  119  Brier market 0.1404  options-model 0.1298  (model better)
+H=   30m n=   85  Brier market 0.1165  options-model 0.0797  (model better)
+
+edge  H(min) | IS n  WR   ret%/$  t   | OOS n  WR   ret%/$  t
+0.03     all | n 387   63% +16.11 +1.56 | n 192   53% -16.43 -1.74
+0.03    1440 | n 115   37% -20.47 -1.44 | n  63   29% -24.62 -0.99
+0.03     360 | n  78   65% +19.07 +0.84 | n  49   53% -34.28 -3.53
+0.03     120 | n  89   75% +19.08 +0.65 | n  40   80% +11.21 +0.90
+0.03      60 | n  57   74% +45.10 +2.31 | n  24   58% -24.78 -1.72
+0.03      30 | n  48   85% +59.01 +2.10 | n  16
+0.05     all | n 228   62% +25.96 +2.06 | n 117   47% -16.53 -1.17
+0.05    1440 | n  57   37%  -3.01 -0.12 | n  35   20% -27.50 -0.68
+0.05     360 | n  41   61% +39.14 +0.97 | n  24   33% -57.69 -4.65
+0.05     120 | n  51   71%  -9.53 -1.06 | n  28   79% +21.93 +1.30
+0.05      60 | n  45   71% +50.76 +2.16 | n  17
+0.05      30 | n  34   82% +79.04 +2.03 | n  13
+0.08     all | n 135   63% +36.10 +2.34 | n  72   44%  -7.68 -0.36
+0.08    1440 | n  29   38% +14.46 +0.38 | n  18
+0.08     360 | n  27   63%  +7.52 +0.34 | n  16
+0.08     120 | n  30   63%  -9.93 -0.73 | n  22   77% +24.75 +1.24
+0.08      60 | n  28   75% +79.16 +2.53 | n   9
+0.08      30 | n  21   81% +111.05 +1.89 | n   7
+0.12     all | n  72   57% +44.85 +1.79 | n  38   50%  -8.22 -0.46
+0.12    1440 | n  10 | n  10
+0.12     360 | n  11 | n   5
+0.12     120 | n  20   55% -18.98 -1.10 | n  12
+0.12      60 | n  15 | n   6
+0.12      30 | n  16 | n   5
+
+VERDICT: REJECTED. In-sample the model's disagreements look profitable (+16..+45%/$, t up to 2.3), out-of-sample every
+'all' row is negative (-8..-17%/$). The 30-60 min rows (model Brier better) are n<25 OOS. Same flip as everything else.
