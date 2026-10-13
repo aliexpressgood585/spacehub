@@ -461,6 +461,13 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
 - 2026-10-13 ~23:00 UTC extra coins re-checked with the full grid: ZEC 5m L30s looked like 98-99% WR, +3.6..+22%/trade in both
   halves — an ARTIFACT of a dead book (live: liquidity $123, no bids, one ask of 30 shares at 96c while the shown price was
   67.5c; HYPE liquidity $369 vs BTC $16k). prices-history is not a tradable price in such books. Not added; owner agreed.
+- 2026-10-13 ~23:15 UTC NEWS-LAG STUDY on the main Poly desk (owner: "news arbitrage?" -> told: free feeds lag minutes,
+  pros react sub-second, paper cannot measure a speed race; owner chose the observation-only test). scripts/pm-news.ts, run
+  once a minute inside the pm-desk.yml loop, state pm/news.json on pm-desk-data; NEVER trades. Free RSS (BBC x3, ESPN, NYT,
+  Guardian, Politico, Sky, Cointelegraph, CoinDesk) headlines <= 30 min old matched to the top-500 active markets by >= 2
+  shared RARE words (in <= 3 market questions); 20 min later CLOB prices-history -> price 1 min before publication, when we saw
+  it, +5/+15 min; study = median lag, share of the move that happened before we saw it, virtual "follow the move" (>= 2c, 1c
+  slip). Panel "מעבדת חדשות" on poly.html. Matching measured on 218 live headlines: 2 precise matches -> few events/day.
 
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
