@@ -458,6 +458,9 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   (research assumed 1c; thin ETH/XRP books, ~$250 tickets walk 1-3c past the ask); shadow maker 0/3 filled (all 3 missed
   were wins). Owner chose to KEEP 25%/position as is and treat the surplus as a buffer. Told: the surplus is the absence of
   a loss so far (P(11 straight) ~57%), not an edge; one loss ~ -$250.
+- 2026-10-13 ~23:00 UTC extra coins re-checked with the full grid: ZEC 5m L30s looked like 98-99% WR, +3.6..+22%/trade in both
+  halves — an ARTIFACT of a dead book (live: liquidity $123, no bids, one ask of 30 shares at 96c while the shown price was
+  67.5c; HYPE liquidity $369 vs BTC $16k). prices-history is not a tradable price in such books. Not added; owner agreed.
 
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
