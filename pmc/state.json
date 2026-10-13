@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 629.0451811067499,
+ "cash": 1301.3182900971942,
  "strategy": {
   "rules": [
    {
@@ -22,11 +22,11 @@
   "minQty": 5,
   "slipCap": 0.01
  },
- "last_scan": "2026-10-13T23:22:40.885Z",
+ "last_scan": "2026-10-13T23:22:49.331Z",
  "last_note": {
-  "at": "2026-10-13T23:22:39.754Z",
-  "windows": 4,
-  "settled": 0,
+  "at": "2026-10-13T23:22:49.094Z",
+  "windows": 0,
+  "settled": 2,
   "entered": 0
  },
  "trades": [
@@ -810,9 +810,9 @@
    "cost": 310.9921407224315,
    "best_ask": 0.9,
    "opened_at": "2026-10-13T23:17:19.644Z",
-   "status": "OPEN",
-   "mark_px": 0.999,
-   "mark_at": "2026-10-13T23:22:19.866Z",
+   "status": "CLOSED",
+   "mark_px": 1,
+   "mark_at": "2026-10-13T23:22:49.331Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -833,7 +833,13 @@
     "wanted": 311.3152278321047,
     "ref_px": 0.83,
     "bid_px": 0.88
-   }
+   },
+   "exit_px": 1,
+   "exit_fee": 0,
+   "proceeds": 337.896096392035,
+   "pnl": 26.903955669603533,
+   "reason": "RESOLVED_WIN",
+   "closed_at": "2026-10-13T23:22:49.331Z"
   },
   {
    "id": 18,
@@ -852,9 +858,9 @@
    "cost": 305.2235894992375,
    "best_ask": 0.9,
    "opened_at": "2026-10-13T23:17:39.519Z",
-   "status": "OPEN",
-   "mark_px": 0.999,
-   "mark_at": "2026-10-13T23:22:20.006Z",
+   "status": "CLOSED",
+   "mark_px": 1,
+   "mark_at": "2026-10-13T23:22:49.331Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -875,7 +881,13 @@
     "wanted": 305.3701131348043,
     "ref_px": 0.89,
     "bid_px": 0.89
-   }
+   },
+   "exit_px": 1,
+   "exit_fee": 0,
+   "proceeds": 334.3770125984093,
+   "pnl": 29.15342309917179,
+   "reason": "RESOLVED_WIN",
+   "closed_at": "2026-10-13T23:22:49.331Z"
   }
  ],
  "equity": [
@@ -1564,6 +1576,13 @@
    "cash": 629.0451811067499,
    "open_value": 671.6008358814538,
    "open_count": 2
+  },
+  {
+   "ts": "2026-10-13T23:22:49.331Z",
+   "equity": 1301.3182900971942,
+   "cash": 1301.3182900971942,
+   "open_value": 0,
+   "open_count": 0
   }
  ],
  "decisions": [
@@ -1894,9 +1913,9 @@
    "missed_losses": 0
   },
   "taker": {
-   "n": 16,
+   "n": 18,
    "wr": 1,
-   "ret": 0.05937185385891939
+   "ret": 0.06288748431120127
   }
  }
 }
