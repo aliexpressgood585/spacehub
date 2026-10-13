@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 1214.3042466098655,
+ "cash": 911.1044948530904,
  "strategy": {
   "rules": [
    {
@@ -22,12 +22,12 @@
   "minQty": 5,
   "slipCap": 0.01
  },
- "last_scan": "2026-10-13T22:51:56.417Z",
+ "last_scan": "2026-10-13T22:52:07.317Z",
  "last_note": {
-  "at": "2026-10-13T22:51:56.417Z",
-  "windows": 0,
+  "at": "2026-10-13T22:52:06.185Z",
+  "windows": 4,
   "settled": 0,
-  "entered": 0
+  "entered": 1
  },
  "trades": [
   {
@@ -695,6 +695,49 @@
    "pnl": 13.191071989454912,
    "reason": "RESOLVED_WIN",
    "closed_at": "2026-10-13T22:47:27.117Z"
+  },
+  {
+   "id": 15,
+   "market_id": "5637510",
+   "slug": "sol-updown-5m-1791931800",
+   "event_slug": "sol-updown-5m-1791931800",
+   "question": "Solana Up or Down - October 13, 6:50PM-6:55PM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 22:50–22:55 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "token_id": "112314024614145831574404526345101287338030166082697391226829143332112266125712",
+   "end_time": "2026-10-13T22:55:00Z",
+   "qty": 318.73530444827264,
+   "entry_px": 0.9477952020196391,
+   "entry_fee": 1.103959486433319,
+   "cost": 303.1997517567751,
+   "best_ask": 0.93,
+   "opened_at": "2026-10-13T22:52:07.317Z",
+   "status": "OPEN",
+   "mark_px": 0.92,
+   "mark_at": "2026-10-13T22:52:07.317Z",
+   "meta": {
+    "fee_schedule": {
+     "rate": 0.07,
+     "exponent": 1
+    },
+    "volume": 5,
+    "coin": "sol",
+    "tf": "5m",
+    "window_s": 300,
+    "left_s": 174,
+    "band": [
+     0.9,
+     0.98
+    ],
+    "outcomes": [
+     "Up",
+     "Down"
+    ],
+    "wanted": 303.57606165246636,
+    "ref_px": 0.94,
+    "bid_px": 0.92
+   }
   }
  ],
  "equity": [
@@ -1145,9 +1188,27 @@
    "cash": 1214.3042466098655,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-10-13T22:52:07.317Z",
+   "equity": 1204.3409749455013,
+   "cash": 911.1044948530904,
+   "open_value": 293.23648009241083,
+   "open_count": 1
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-13T22:52:07.317Z",
+   "market_id": "5637510",
+   "question": "Solana Up or Down - October 13, 6:50PM-6:55PM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 22:50–22:55 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.9477952020196391,
+   "decision": "BUY",
+   "reason": "174 שנ׳ לסיום, מחיר 0.93 בטווח 90-98¢, 318.7 מניות ($303), עמלה $1.10"
+  },
   {
    "ts": "2026-10-13T22:42:08.285Z",
    "market_id": "5637472",
@@ -1303,7 +1364,7 @@
    "reason": "179 שנ׳ לסיום, מחיר 0.93 בטווח 90-98¢, 263.5 מניות ($250), עמלה $0.97"
   }
  ],
- "next_id": 15,
+ "next_id": 16,
  "shadow": [
   {
    "slug": "btc-updown-5m-1791930000",
@@ -1379,17 +1440,30 @@
    "filled": false,
    "won": true,
    "ret": null
+  },
+  {
+   "slug": "sol-updown-5m-1791931800",
+   "market_id": "5637510",
+   "token_id": "112314024614145831574404526345101287338030166082697391226829143332112266125712",
+   "coin": "sol",
+   "outcome": "Up",
+   "end_time": "2026-10-13T22:55:00Z",
+   "placed_at": "2026-10-13T22:52:07.025Z",
+   "limit": 0.92,
+   "taker_ask": 0.93,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
   "fills": {
-   "n": 10,
-   "avg_vs_ref_c": 4.945207212409451,
-   "avg_vs_research_c": 3.9452072124094513,
-   "avg_fee_c": 0.38256086060677086
+   "n": 11,
+   "avg_vs_ref_c": 4.566508393278038,
+   "avg_vs_research_c": 3.566508393278038,
+   "avg_fee_c": 0.3792695277640949
   },
   "maker": {
-   "placed": 5,
+   "placed": 6,
    "resolved": 5,
    "filled": 0,
    "fill_rate": 0,
