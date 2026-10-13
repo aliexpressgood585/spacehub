@@ -438,6 +438,9 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   is significant; 4h favourites negative. Deployed rule = 5m, all 4 coins, favourite at 90-98c 180-140 s before the end,
   hold to the result, 4% stake, <=12 open: IS n376 WR 94.9% +0.65%/$ / OOS n306 WR 94.8% +0.47%/$ (t ~0.5). NOT PROVEN.
   Live check from the sandbox: ETH/SOL/XRP 5m books are thin ($38 walked 1-2c past the ask). tests/pmc.test.ts (15).
+- 2026-10-13 ~22:10 UTC (owner: "use all the portfolio's cash"): pmc stake = free cash split equally between the in-band
+  entries of the cycle, each capped at 25% of equity (PMC.maxPosFrac; 4 coins x 25% = whole account). Told the owner: one
+  loss = -25% of the account (~20 wins at +1.2% each). Thin books may fill less; the decision line says so.
 
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;

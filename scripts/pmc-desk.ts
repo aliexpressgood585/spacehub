@@ -58,27 +58,33 @@ try {
     const ms: any[] = await j(`${GAMMA}/markets?limit=50&${want.map((x) => `slug=${x.slug}`).join('&')}`)
     const bySlug = new Map(ms.map((m) => [m.slug, m]))
     const held = new Set(st.trades.map((t: any) => t.slug))   // one entry per market, ever
+    // ALL CASH (owner 2026-10-13: "use all the portfolio's cash"): find every in-band side this cycle first, then split the
+    // free cash equally between them, each capped at PMC.maxPosFrac of equity (4 coins x 25% = the whole account).
+    const cands: { x: any; m: any; k: number; b: { bids: Lvl[]; asks: Lvl[] }; ask: number }[] = []
     for (const x of want) {
       const m = bySlug.get(x.slug)
       if (!m || held.has(x.slug) || m.closed || !m.acceptingOrders) continue
-      if (st.trades.filter((t: any) => t.status === 'OPEN').length >= PMC.maxOpen) break
-      const toks = arr(m.clobTokenIds), outs = arr(m.outcomes)
+      const toks = arr(m.clobTokenIds)
       for (let k = 0; k < 2; k++) {
         const b = await book(toks[k]); const ask = b?.asks[0]?.price
-        if (!b || !ask || !inBandR(x.r, ask)) continue
-        const D = (decision: string, reason: string, price = ask) => decisions.push({ ts: now(), market_id: m.id, question: m.question, question_he: questionHe(x.coin, x.r.tf, x.start), outcome: outs[k], outcome_he: heOutcome(outs[k]), price, decision, reason })
-        const stake = Math.min(equity0 * PMC.stakeFrac, st.cash - 1)
-        if (stake < PMC.minQty * ask) { D('skip', 'אין מספיק מזומן'); break }
-        const fs_ = feeOf(m)
-        const fill = walkAsks(b.asks, stake / (1 + (fs_ ? fs_.rate * (1 - ask) : 0)), x.r.hi + PMC.slipCap)   // fee / notional = rate x (1 - p)
-        if (fill.qty < PMC.minQty) { D('skip', 'ספר הזמנות דל מדי'); break }
-        const fee = takerFee(fill.qty, fill.vwap, fs_), cost = fill.spent + fee, mk = b.bids[0]?.price ?? fill.vwap
-        const left = x.start + TF_SEC[x.r.tf as keyof typeof TF_SEC] - nowS
-        st.trades.push({ id: st.next_id++, market_id: m.id, slug: m.slug, event_slug: m.slug, question: m.question, question_he: questionHe(x.coin, x.r.tf, x.start), outcome: outs[k], outcome_he: heOutcome(outs[k]), token_id: toks[k], end_time: m.endDate, qty: fill.qty, entry_px: fill.vwap, entry_fee: fee, cost, best_ask: ask, opened_at: now(), status: 'OPEN', mark_px: mk, mark_at: now(), meta: { fee_schedule: fs_, volume: m.volumeNum, coin: x.coin, tf: x.r.tf, window_s: TF_SEC[x.r.tf as keyof typeof TF_SEC], left_s: left, band: [x.r.lo, x.r.hi], outcomes: outs } })
-        st.cash -= cost; openValue += fill.qty * mk; entered++; held.add(x.slug)
-        D('BUY', `${left} שנ׳ לסיום, מחיר ${ask} בטווח ${Math.round(x.r.lo * 100)}-${Math.round(x.r.hi * 100)}¢, ${fill.qty.toFixed(1)} מניות, עמלה $${fee.toFixed(2)}`, fill.vwap)
-        break
+        if (b && ask && inBandR(x.r, ask)) { cands.push({ x, m, k, b, ask }); break }
       }
+    }
+    let left_ = cands.length
+    for (const { x, m, k, b, ask } of cands) {
+      const toks = arr(m.clobTokenIds), outs = arr(m.outcomes)
+      const D = (decision: string, reason: string, price = ask) => decisions.push({ ts: now(), market_id: m.id, question: m.question, question_he: questionHe(x.coin, x.r.tf, x.start), outcome: outs[k], outcome_he: heOutcome(outs[k]), price, decision, reason })
+      if (st.trades.filter((t: any) => t.status === 'OPEN').length >= PMC.maxOpen) { D('skip', 'מקסימום פוזיציות פתוחות'); break }
+      const stake = Math.min(equity0 * PMC.maxPosFrac, (st.cash - 1) / Math.max(1, left_--))
+      if (stake < PMC.minQty * ask) { D('skip', 'אין מספיק מזומן'); continue }
+      const fs_ = feeOf(m)
+      const fill = walkAsks(b.asks, stake / (1 + (fs_ ? fs_.rate * (1 - ask) : 0)), x.r.hi + PMC.slipCap)   // fee / notional = rate x (1 - p)
+      if (fill.qty < PMC.minQty) { D('skip', 'ספר הזמנות דל מדי'); continue }
+      const fee = takerFee(fill.qty, fill.vwap, fs_), cost = fill.spent + fee, mk = b.bids[0]?.price ?? fill.vwap
+      const left = x.start + TF_SEC[x.r.tf as keyof typeof TF_SEC] - nowS
+      st.trades.push({ id: st.next_id++, market_id: m.id, slug: m.slug, event_slug: m.slug, question: m.question, question_he: questionHe(x.coin, x.r.tf, x.start), outcome: outs[k], outcome_he: heOutcome(outs[k]), token_id: toks[k], end_time: m.endDate, qty: fill.qty, entry_px: fill.vwap, entry_fee: fee, cost, best_ask: ask, opened_at: now(), status: 'OPEN', mark_px: mk, mark_at: now(), meta: { fee_schedule: fs_, volume: m.volumeNum, coin: x.coin, tf: x.r.tf, window_s: TF_SEC[x.r.tf as keyof typeof TF_SEC], left_s: left, band: [x.r.lo, x.r.hi], outcomes: outs, wanted: stake } })
+      st.cash -= cost; openValue += fill.qty * mk; entered++; held.add(x.slug)
+      D('BUY', `${left} שנ׳ לסיום, מחיר ${ask} בטווח ${Math.round(x.r.lo * 100)}-${Math.round(x.r.hi * 100)}¢, ${fill.qty.toFixed(1)} מניות ($${cost.toFixed(0)}${cost < stake * 0.9 ? `, הספר הספיק רק ל־$${cost.toFixed(0)} מתוך $${stake.toFixed(0)}` : ''}), עמלה $${fee.toFixed(2)}`, fill.vwap)
     }
   }
 } catch (e) { note.error = String(e).slice(0, 200) }
