@@ -1,12 +1,12 @@
 // Polymarket PAPER desk — CLASSIC view (owner 2026-10-09). Read-only viewer of scripts/pm-desk.ts. All numbers come from
 // the shared live feed in ../polyLive.ts (the same one the 3D arena uses), so both views always agree.
-import { useMemo } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { type PolyLive, type J, n, usd as $, cents as c, when, left, ago, col, useNow } from '../polyLive'
 
 const box: React.CSSProperties = { background: '#0b1220', border: '1px solid #1c2738', borderRadius: 10, padding: 14 }
 const lab: React.CSSProperties = { fontSize: 12, color: '#8a97a8' }
 
-export default function PolyDesk({ d, title = 'שולחן Polymarket · דמו', about }: { d: PolyLive; title?: string; about?: string }) {
+export default function PolyDesk({ d, title = 'שולחן Polymarket · דמו', about, extra }: { d: PolyLive; title?: string; about?: string; extra?: ReactNode }) {
   const now = useNow()
   const { st, trades: tr, open, closed, equityHist: eq, decisions: dec, live, ask, res, wsOn, tickAt, mark, cash, start, equity, realized, unreal, fees, wins } = d
   const strat = st?.strategy ?? {}
@@ -27,6 +27,7 @@ export default function PolyDesk({ d, title = 'שולחן Polymarket · דמו',
           <div key={String(k)} style={box}><div style={lab}>{k}</div><div style={{ fontSize: 19, fontWeight: 600, color: col(Number(s)), direction: 'ltr', textAlign: 'right' }}>{v}</div></div>
         ))}
       </div>
+      {extra}
       <div style={box}>
         <div style={{ ...lab, marginBottom: 6 }}>{about ?? <>האסטרטגיה: קונה את התוצאה שהשוק מעריך בין {c(n(strat.lo))} ל־{c(n(strat.hi))}, בשווקים שנגמרים בתוך {n(strat.windowH)} שעות, מחזיק עד ההכרעה (משלם $1 או $0 למניה), ומוכר מוקדם רק פוזיציה שכבר במחיר {c(n(strat.exitPx) || 0.99)} ומעלה, וגם זה רק כשחסר מזומן לכניסה חדשה. {Math.round(n(strat.stakeFrac) * 100)}% מהחשבון לפוזיציה, עד {n(strat.maxOpen)} פתוחות. העמלה לפי לוח העמלות של כל שוק ב־Polymarket.</>}</div>
         {curve ? (

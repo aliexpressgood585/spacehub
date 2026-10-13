@@ -446,6 +446,11 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   NOT help: on the live rule (5m L180 90-98c) stops at 85/80/75c turn +0.65/+0.47%/$ into -1.3..-0.5%/$ (they cut 2-3
   would-be winners per real loser saved); 70-40c are ~flat vs none. Worst trade stays ~-99%: near the end the price GAPS
   from ~90c to ~0 between minute points, so no stop can fill. Only position size limits the damage. Not deployed.
+- 2026-10-13 live study on the pmc desk (owner "yes"): (1) every entry stores meta.ref_px (CLOB last-trade-price) and bid_px;
+  st.study.fills = avg entry vs last trade and vs the research assumption (last + 1c); (2) SHADOW MAKER: with every entry a
+  virtual post-only bid at the real best bid (st.shadow), filled once the real best ask reaches it before the end, no fee
+  (takerOnly), settled at the official result; st.study.maker vs st.study.taker. Observation only, never touches cash.
+  Page: "מעבדה חיה" panel on polycoins.html. Judge only after ~300 resolved shadows.
 
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
