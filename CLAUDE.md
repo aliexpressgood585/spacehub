@@ -422,6 +422,11 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   over the first tubes for a visual check (no number changes). Verified headless (Chromium/swiftshader) on 412px and
   1280px: real data renders, selection sheet, help, effects, 0 page errors. NB drei Html is its own React root: label
   clicks must stopPropagation or R3F reads them as a miss and clears the selection (caught in that test).
+- 2026-10-13 ~13:20 UTC (owner: "fix the translation of the team names"): machine translation had renamed outcomes
+  (BBL -> "חבית", Liquid -> "נוזל", 100 Thieves -> "100 גנבים", Yellow Submarine -> "צוללת צהובה"). shared/pm.ts `heOutcome`:
+  generic answers (Yes/No/Up/Down/Over/Under/Draw…) from a fixed list, every other outcome = a NAME shown exactly as listed;
+  `namesKept`: a translated question is kept only if every non-generic outcome name in it survived, else the English
+  question is shown. Rows now store the market's `outcomes`; existing state re-derived on the next cycle (tr_v 2). Tests +5.
 
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
