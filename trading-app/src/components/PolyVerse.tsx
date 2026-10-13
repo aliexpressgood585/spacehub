@@ -393,8 +393,6 @@ export default function PolyVerse({ d, onClassic, title = 'זירת ההסתבר
             <div key={String(k)} style={{ ...glass, padding: '5px 10px', borderRadius: 10 }}><span style={lab}>{k} </span><b style={{ fontSize: 13, color: col(Number(s)), direction: 'ltr', display: 'inline-block' }}>{v}</b></div>
           ))}
         </div>
-        {extra && <div style={{ pointerEvents: 'auto' }}>{extra}</div>}
-        {st && open.length === 0 && <div style={{ ...glass, padding: '8px 12px', fontSize: 13, justifySelf: 'center' }}>{empty ?? <>אין פוזיציות פתוחות כרגע. הבוט סורק כל 15 שניות שווקים שנגמרים תוך {n(strat.windowH) || 4} שעות במחיר {cents(n(strat.lo))}–{cents(n(strat.hi))}.</>}</div>}
       </div>
 
       {/* live events */}
@@ -446,6 +444,14 @@ export default function PolyVerse({ d, onClassic, title = 'זירת ההסתבר
           <div>💠 <b>הליבה במרכז</b> = שווי החשבון (גדל/קטן לפי ההון, ירוק/אדום לפי רווח). <b>הגבישים בהיקף</b> = עסקאות שנסגרו (זהב = ניצחון). <b>ההילה החיצונית</b> = היסטוריית ההון, הקו המקווקו = $1,000.</div>
           <div>📡 <b>הסורק על הרצפה</b> משלים סיבוב בכל מחזור של הבוט (~15 שנ׳).</div>
           <div style={lab}>הכול תצוגה בלבד: המספרים מהבוט ומ־Polymarket. אין כסף אמיתי.</div>
+        </div>
+      )}
+
+      {/* lower stack: the empty-book note and the page's extra panel sit above the controls, never over the scene's top */}
+      {!selT && !help && (st && open.length === 0 || extra) && (
+        <div style={{ position: 'absolute', insetInline: 10, bottom: 64, display: 'grid', gap: 6, pointerEvents: 'none' }}>
+        {st && open.length === 0 && <div style={{ ...glass, padding: '8px 12px', fontSize: 13, justifySelf: 'center', pointerEvents: 'auto' }}>{empty ?? <>אין פוזיציות פתוחות כרגע. הבוט סורק כל 15 שניות שווקים שנגמרים תוך {n(strat.windowH) || 4} שעות במחיר {cents(n(strat.lo))}–{cents(n(strat.hi))}.</>}</div>}
+          {extra && <div style={{ pointerEvents: 'auto' }}>{extra}</div>}
         </div>
       )}
 
