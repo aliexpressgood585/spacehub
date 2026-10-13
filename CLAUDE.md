@@ -410,6 +410,18 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   cash and sells open positions whose bid >= 0.99 (highest first, taker fee, reason EARLY_EXIT, decision SELL); otherwise every
   position is held to resolution for $1 (waiting earns ~0.1c/share, worth it while cash is idle). tests/pm.test.ts (15,
   incl. a mocked-Polymarket replay of the runner). Page shows "מימוש מוקדם" / "מכירה".
+- 2026-10-13 ~13:05 UTC (owner: "turn the whole display into 3D, all live, creative, surprise me") — DISPLAY ONLY, the desk
+  is untouched. poly.html now opens "זירת ההסתברות" (`trading-app/src/components/PolyVerse.tsx`, three.js via R3F/drei):
+  each open position = a glass tube (floor 0¢, gold ring $1, white ring = entry, blue band = 85-92¢ buy zone) with an orb
+  at the live best bid and a thermometer fill; every socket price change fires a spark into the core; base ring = time
+  left (violet = waiting for the official result); official result -> coins shower into the core (win) / shards + floor
+  crack (loss), entry beam, early-sale ring, plus a toast; core = equity vs $1,000; crystals = closed trades; outer halo =
+  equity history; floor radar = one turn per bot cycle. Tap a tube/label/crystal for the full numbers + Polymarket link.
+  ONE feed for both views: `src/polyLive.ts` (state 5 s, WS + REST fallback flushed 4x/s, Gamma 3 s); the classic tables
+  (PolyDesk, now prop-driven) stay one tap away ("תצוגה מפורטת", choice remembered). `?fxtest=1` replays the four effects
+  over the first tubes for a visual check (no number changes). Verified headless (Chromium/swiftshader) on 412px and
+  1280px: real data renders, selection sheet, help, effects, 0 page errors. NB drei Html is its own React root: label
+  clicks must stopPropagation or R3F reads them as a miss and clears the selection (caught in that test).
 
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
