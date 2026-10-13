@@ -6,7 +6,7 @@ import { type PolyLive, type J, n, usd as $, cents as c, when, left, ago, col, u
 const box: React.CSSProperties = { background: '#0b1220', border: '1px solid #1c2738', borderRadius: 10, padding: 14 }
 const lab: React.CSSProperties = { fontSize: 12, color: '#8a97a8' }
 
-export default function PolyDesk({ d }: { d: PolyLive }) {
+export default function PolyDesk({ d, title = 'שולחן Polymarket · דמו', about }: { d: PolyLive; title?: string; about?: string }) {
   const now = useNow()
   const { st, trades: tr, open, closed, equityHist: eq, decisions: dec, live, ask, res, wsOn, tickAt, mark, cash, start, equity, realized, unreal, fees, wins } = d
   const strat = st?.strategy ?? {}
@@ -19,7 +19,7 @@ export default function PolyDesk({ d }: { d: PolyLive }) {
   return (
     <div dir="rtl" style={{ color: '#e6edf5', fontFamily: 'system-ui, sans-serif', display: 'grid', gap: 12 }}>
       <div>
-        <h1 style={{ fontSize: 24, margin: 0 }}>שולחן Polymarket · דמו</h1>
+        <h1 style={{ fontSize: 24, margin: 0 }}>{title}</h1>
         <div style={lab}>חשבון נייר של $1,000 על מחירים אמיתיים מ־Polymarket. אין כסף אמיתי ואין הוראות אמיתיות. מחזור הבוט האחרון: {st?.last_scan ? ago(now - Date.parse(st.last_scan)) : '—'} · מחירים: <b style={{ color: wsOn ? '#3ddc97' : '#f0b84a' }}>{wsOn ? '● חי מ־Polymarket' : '● REST כל 3 שנ׳'}</b>{tickAt ? ` · שינוי אחרון ${ago(now - tickAt)}` : ''}</div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 8 }}>
@@ -28,7 +28,7 @@ export default function PolyDesk({ d }: { d: PolyLive }) {
         ))}
       </div>
       <div style={box}>
-        <div style={{ ...lab, marginBottom: 6 }}>האסטרטגיה: קונה את התוצאה שהשוק מעריך בין {c(n(strat.lo))} ל־{c(n(strat.hi))}, בשווקים שנגמרים בתוך {n(strat.windowH)} שעות, מחזיק עד ההכרעה (משלם $1 או $0 למניה), ומוכר מוקדם רק פוזיציה שכבר במחיר {c(n(strat.exitPx) || 0.99)} ומעלה, וגם זה רק כשחסר מזומן לכניסה חדשה. {Math.round(n(strat.stakeFrac) * 100)}% מהחשבון לפוזיציה, עד {n(strat.maxOpen)} פתוחות. העמלה לפי לוח העמלות של כל שוק ב־Polymarket.</div>
+        <div style={{ ...lab, marginBottom: 6 }}>{about ?? <>האסטרטגיה: קונה את התוצאה שהשוק מעריך בין {c(n(strat.lo))} ל־{c(n(strat.hi))}, בשווקים שנגמרים בתוך {n(strat.windowH)} שעות, מחזיק עד ההכרעה (משלם $1 או $0 למניה), ומוכר מוקדם רק פוזיציה שכבר במחיר {c(n(strat.exitPx) || 0.99)} ומעלה, וגם זה רק כשחסר מזומן לכניסה חדשה. {Math.round(n(strat.stakeFrac) * 100)}% מהחשבון לפוזיציה, עד {n(strat.maxOpen)} פתוחות. העמלה לפי לוח העמלות של כל שוק ב־Polymarket.</>}</div>
         {curve ? (
           <svg viewBox={`0 0 ${curve.W} ${curve.Hh}`} style={{ width: '100%', height: 140 }} preserveAspectRatio="none">
             <line x1="0" x2={curve.W} y1={curve.base} y2={curve.base} stroke="#3a4658" strokeDasharray="4 4" />
