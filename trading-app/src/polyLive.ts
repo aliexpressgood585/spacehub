@@ -53,11 +53,10 @@ export function usePolyLive(stateUrl: string = STATE_URL): PolyLive {
     load(); const id = setInterval(load, 2000); return () => clearInterval(id)
   }, [stateUrl])
 
-  const trades = useMemo(() => [...(st?.trades ?? [])].reverse() as J[], [st])
-  const open = useMemo(() => trades.filter((t) => t.status === 'OPEN'), [trades])
-  const closed = useMemo(() => trades.filter((t) => t.status === 'CLOSED'), [trades])
-  const ids = open.map((t) => t.token_id).join(',')
-  const mids = open.map((t) => t.market_id).join(',')
+  const booked = useMemo(() => [...(st?.trades ?? [])].reverse() as J[], [st])
+  const bookedOpen = useMemo(() => booked.filter((t) => t.status === 'OPEN'), [booked])
+  const ids = bookedOpen.map((t) => t.token_id).join(',')
+  const mids = bookedOpen.map((t) => t.market_id).join(',')
 
   useEffect(() => {
     if (!ids) return
@@ -111,9 +110,21 @@ export function usePolyLive(stateUrl: string = STATE_URL): PolyLive {
     chk(); const id = setInterval(chk, 3000); return () => clearInterval(id)
   }, [mids])
 
+  // The page closes a position the moment Polymarket publishes the official result (Gamma, polled every 3 s), without
+  // waiting for the bot's next booking; the bot books the identical close (qty x $1/$0 - cost) on its next cycle.
+  const seenRes = useRef<Record<string, string>>({})
+  const trades = useMemo(() => booked.map((t) => {
+    const r = t.status === 'OPEN' ? res[t.token_id] : undefined
+    if (r == null) return t
+    const at = (seenRes.current[t.token_id] ??= new Date().toISOString())
+    return { ...t, status: 'CLOSED', exit_px: r, exit_fee: 0, proceeds: n(t.qty) * r, pnl: n(t.qty) * r - n(t.cost), reason: r === 1 ? 'RESOLVED_WIN' : 'RESOLVED_LOSS', closed_at: at, mark_px: r, pending_book: true }
+  }), [booked, res])
+  const open = useMemo(() => trades.filter((t) => t.status === 'OPEN'), [trades])
+  const closed = useMemo(() => trades.filter((t) => t.status === 'CLOSED'), [trades])
+  const pendingCash = trades.reduce((s, t) => s + (t.pending_book ? n(t.proceeds) : 0), 0)
   const mark = (t: J) => res[t.token_id] ?? live[t.token_id] ?? n(t.mark_px ?? t.entry_px)
   const openValue = open.reduce((s, t) => s + n(t.qty) * mark(t), 0)
-  const cash = n(st?.cash), start = n(st?.start_cash) || 1000
+  const cash = n(st?.cash) + pendingCash, start = n(st?.start_cash) || 1000
   return {
     st, trades, open, closed, equityHist: st?.equity ?? [], decisions: (st?.decisions ?? []).map((d: J, i: number) => ({ id: i, ...d })),
     live, ask, res, wsOn, tickAt, mark,
