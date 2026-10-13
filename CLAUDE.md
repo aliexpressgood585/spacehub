@@ -428,6 +428,17 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   `namesKept`: a translated question is kept only if every non-generic outcome name in it survived, else the English
   question is shown. Rows now store the market's `outcomes`; existing state re-derived on the next cycle (tr_v 2). Tests +5.
 
+- 2026-10-13 ~22:30 UTC "פולי מטבעות" (owner: "a separate dashboard + separate account that trades only short-term crypto,
+  highest win rate that is profitable"). SEPARATE paper account ($1,000, pmc/state.json on pm-desk-data), runner
+  scripts/pmc-desk.ts (~10 s loop, .github/workflows/pmc-desk.yml, cron :37, own concurrency group), rules shared/pmc.ts,
+  page https://aliexpressgood585.github.io/spacehub/polycoins.html (same 3D/classic views; usePolyLive(stateUrl)).
+  Research backtest/research/pmc_fetch.py / pmc_research.py / pmc_pooled.py -> status/pmc-research.txt: 21,739 resolved
+  {btc,eth,sol,xrp}-updown-{5m,15m,4h} markets, fee 0.07·p(1-p), +1c slip, 70/30 split. Markets are priced ~exactly right:
+  38/520 rows positive in both halves (≈ luck); the 100%-WR rows are coin-picked n~100 subsets; pooled over coins nothing
+  is significant; 4h favourites negative. Deployed rule = 5m, all 4 coins, favourite at 90-98c 180-140 s before the end,
+  hold to the result, 4% stake, <=12 open: IS n376 WR 94.9% +0.65%/$ / OOS n306 WR 94.8% +0.47%/$ (t ~0.5). NOT PROVEN.
+  Live check from the sandbox: ETH/SOL/XRP 5m books are thin ($38 walked 1-2c past the ask). tests/pmc.test.ts (15).
+
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the
