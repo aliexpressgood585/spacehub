@@ -1,6 +1,6 @@
 name: pm-desk
 # Polymarket PAPER desk ($1,000 demo on real Polymarket prices). LIVE LOOP: one job runs for ~5h45m, running
-# scripts/pm-desk.ts every ~30 s and publishing pm/state.json to the `pm-desk-data` branch every ~60 s. The hourly
+# scripts/pm-desk.ts every ~15 s and publishing pm/state.json to the `pm-desk-data` branch every cycle (~15 s). The hourly
 # cron only restarts the loop when the previous job has ended (concurrency queue), so it is always on.
 # Never places a real order.
 on:
@@ -38,7 +38,7 @@ jobs:
           while [ $(date +%s) -lt $end ]; do
             t0=$(date +%s)
             timeout 240 node --experimental-strip-types /tmp/desk/scripts/pm-desk.ts pm/state.json || echo "cycle failed"
-            if [ $(( t0 - last )) -ge 60 ]; then
+            if [ $(( t0 - last )) -ge 10 ]; then
               git add pm/state.json
               if git commit -q -m "pm desk state $(date -u +%FT%TZ)"; then
                 git push -q origin pm-desk-data || { git pull -q --rebase -X ours origin pm-desk-data && git push -q origin pm-desk-data; } || true

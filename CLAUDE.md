@@ -400,6 +400,11 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   realised -$337, equity $631 -> archived as pm/state-v1.json on pm-desk-data. v2 = buy the FAVOURITE at 85-92c in the last
   4h (backtest/research/pm_favourites.py -> status/pm-favourites.txt): IS n197 WR 91.4% +2.5%/$, OOS n117 WR 92.3% +3.3%/$,
   t ~1.2 (not proven; 19 of 224 grid rows positive in both halves). 3% stake, top-ups capped at 10% of equity.
+- 2026-10-13 12:10 UTC (owner: "update every second like real Polymarket"): poly.html streams open-position prices from the
+  public market WebSocket (wss://ws-subscriptions-clob.polymarket.com/ws/market; book + price_change best_bid/best_ask; REST
+  POST /books every 3 s only while the socket is down), polls Gamma `markets?closed=true&id=..` every 3 s and shows an official
+  resolution at once (bot books it next cycle), seconds countdown, state re-read every 5 s. pm-desk.yml pushes state every
+  cycle (~15 s, was 60 s). First 3 v2 closes 11:21-11:46: all wins, +$34.17, settle price = Gamma outcomePrices (verified).
 
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
