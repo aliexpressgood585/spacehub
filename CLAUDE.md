@@ -441,6 +441,11 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
 - 2026-10-13 ~22:10 UTC (owner: "use all the portfolio's cash"): pmc stake = free cash split equally between the in-band
   entries of the cycle, each capped at 25% of equity (PMC.maxPosFrac; 4 coins x 25% = whole account). Told the owner: one
   loss = -25% of the account (~20 wins at +1.2% each). Thin books may fill less; the decision line says so.
+- 2026-10-13 stop-loss study (owner: "one loser should not cost 20 winners"): backtest/research/pmc_stoploss.py ->
+  status/pmc-stoploss.txt, same 21,739 markets, exit at the first 1-minute point <= stop, 2c exit slip + fee. A stop does
+  NOT help: on the live rule (5m L180 90-98c) stops at 85/80/75c turn +0.65/+0.47%/$ into -1.3..-0.5%/$ (they cut 2-3
+  would-be winners per real loser saved); 70-40c are ~flat vs none. Worst trade stays ~-99%: near the end the price GAPS
+  from ~90c to ~0 between minute points, so no stop can fill. Only position size limits the damage. Not deployed.
 
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
