@@ -272,7 +272,7 @@ class GlBoundary extends Component<{ fallback: ReactNode; children: ReactNode },
 const glass: React.CSSProperties = { background: 'rgba(8,14,26,.72)', border: '1px solid rgba(120,170,230,.18)', borderRadius: 14, backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', color: '#e6edf5' }
 const lab: React.CSSProperties = { fontSize: 11, color: '#8a97a8' }
 
-export default function PolyVerse({ d, onClassic, title = 'זירת ההסתברות', sub = 'Polymarket · חשבון דמו', empty, other }: { d: PolyLive; onClassic: () => void; title?: string; sub?: string; empty?: string; other?: { href: string; label: string } }) {
+export default function PolyVerse({ d, onClassic, title = 'זירת ההסתברות', sub = 'Polymarket · חשבון דמו', empty, other, extra }: { d: PolyLive; onClassic: () => void; title?: string; sub?: string; empty?: string; other?: { href: string; label: string }; extra?: ReactNode }) {
   const now = useNow()
   const { st, open, closed, res, wsOn, tickAt, mark, cash, start, equity, realized, unreal, fees, wins } = d
   const [sel, setSel] = useState<string | null>(null)
@@ -393,6 +393,7 @@ export default function PolyVerse({ d, onClassic, title = 'זירת ההסתבר
             <div key={String(k)} style={{ ...glass, padding: '5px 10px', borderRadius: 10 }}><span style={lab}>{k} </span><b style={{ fontSize: 13, color: col(Number(s)), direction: 'ltr', display: 'inline-block' }}>{v}</b></div>
           ))}
         </div>
+        {extra && <div style={{ pointerEvents: 'auto' }}>{extra}</div>}
         {st && open.length === 0 && <div style={{ ...glass, padding: '8px 12px', fontSize: 13, justifySelf: 'center' }}>{empty ?? <>אין פוזיציות פתוחות כרגע. הבוט סורק כל 15 שניות שווקים שנגמרים תוך {n(strat.windowH) || 4} שעות במחיר {cents(n(strat.lo))}–{cents(n(strat.hi))}.</>}</div>}
       </div>
 

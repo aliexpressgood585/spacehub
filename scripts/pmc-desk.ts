@@ -29,8 +29,25 @@ const decisions: any[] = []
 try {
   // 1. settle resolved markets (Gamma outcomePrices 1/0), mark the rest at the real best bid
   const open0 = st.trades.filter((t: any) => t.status === 'OPEN')
+  st.shadow ??= []
+  const sh0 = st.shadow.filter((x: any) => x.status !== 'DONE' && Date.parse(x.end_time) <= Date.now())
   const res: Record<string, any> = {}
-  if (open0.length) for (const m of await j(`${GAMMA}/markets?closed=true&limit=50&${open0.map((t: any) => `id=${t.market_id}`).join('&')}`)) res[m.id] = m
+  const ids = [...new Set([...open0.map((t: any) => t.market_id), ...sh0.map((x: any) => x.market_id)])]
+  if (ids.length) for (const m of await j(`${GAMMA}/markets?closed=true&limit=50&${ids.map((id) => `id=${id}`).join('&')}`)) res[m.id] = m
+  // 1b. SHADOW MAKER (observation only, never touches cash): a virtual post-only BID at the real best bid, placed at the same
+  // moment the live rule buys at the ask. It counts as filled once the real best ask comes down to our price before the end
+  // (someone sold through it); maker pays no fee on these markets (takerOnly). Settled at the official result per $1 staked.
+  for (const x of sh0) {
+    const m = res[x.market_id]; if (!m) continue
+    const toks = arr(m.clobTokenIds), px = arr(m.outcomePrices).map(Number), k = toks.indexOf(x.token_id)
+    if (k < 0 || !(px[k] === 1 || px[k] === 0)) continue
+    x.won = px[k] === 1; x.status = 'DONE'
+    x.ret = x.filled ? (px[k] - x.limit) / x.limit : null
+  }
+  for (const x of st.shadow.filter((x: any) => x.status === 'WORKING' && !x.filled && Date.parse(x.end_time) > Date.now())) {
+    const b = await book(x.token_id); const a = b?.asks[0]?.price
+    if (a != null && a <= x.limit) { x.filled = true; x.filled_at = now(); x.left_at_fill = Math.round((Date.parse(x.end_time) - Date.now()) / 1000) }
+  }
   for (const t of open0) {
     const m = res[t.market_id]
     if (m) {
@@ -67,7 +84,13 @@ try {
       const toks = arr(m.clobTokenIds)
       for (let k = 0; k < 2; k++) {
         const b = await book(toks[k]); const ask = b?.asks[0]?.price
-        if (b && ask && inBandR(x.r, ask)) { cands.push({ x, m, k, b, ask }); break }
+        if (b && ask && inBandR(x.r, ask)) {
+          cands.push({ x, m, k, b, ask })
+          const bid = b.bids[0]?.price
+          if (bid && bid >= x.r.lo && !st.shadow.some((y: any) => y.slug === x.slug))
+            st.shadow.push({ slug: x.slug, market_id: m.id, token_id: toks[k], coin: x.coin, outcome: arr(m.outcomes)[k], end_time: m.endDate, placed_at: now(), limit: bid, taker_ask: ask, status: 'WORKING', filled: false })
+          break
+        }
       }
     }
     let left_ = cands.length
@@ -81,8 +104,10 @@ try {
       const fill = walkAsks(b.asks, stake / (1 + (fs_ ? fs_.rate * (1 - ask) : 0)), x.r.hi + PMC.slipCap)   // fee / notional = rate x (1 - p)
       if (fill.qty < PMC.minQty) { D('skip', 'ספר הזמנות דל מדי'); continue }
       const fee = takerFee(fill.qty, fill.vwap, fs_), cost = fill.spent + fee, mk = b.bids[0]?.price ?? fill.vwap
+      let ref: number | null = null   // the research assumed: last traded price + 1c. Stored to measure the real fill against it.
+      try { ref = +(await j(`${CLOB}/last-trade-price?token_id=${toks[k]}`)).price || null } catch { /* unknown */ }
       const left = x.start + TF_SEC[x.r.tf as keyof typeof TF_SEC] - nowS
-      st.trades.push({ id: st.next_id++, market_id: m.id, slug: m.slug, event_slug: m.slug, question: m.question, question_he: questionHe(x.coin, x.r.tf, x.start), outcome: outs[k], outcome_he: heOutcome(outs[k]), token_id: toks[k], end_time: m.endDate, qty: fill.qty, entry_px: fill.vwap, entry_fee: fee, cost, best_ask: ask, opened_at: now(), status: 'OPEN', mark_px: mk, mark_at: now(), meta: { fee_schedule: fs_, volume: m.volumeNum, coin: x.coin, tf: x.r.tf, window_s: TF_SEC[x.r.tf as keyof typeof TF_SEC], left_s: left, band: [x.r.lo, x.r.hi], outcomes: outs, wanted: stake } })
+      st.trades.push({ id: st.next_id++, market_id: m.id, slug: m.slug, event_slug: m.slug, question: m.question, question_he: questionHe(x.coin, x.r.tf, x.start), outcome: outs[k], outcome_he: heOutcome(outs[k]), token_id: toks[k], end_time: m.endDate, qty: fill.qty, entry_px: fill.vwap, entry_fee: fee, cost, best_ask: ask, opened_at: now(), status: 'OPEN', mark_px: mk, mark_at: now(), meta: { fee_schedule: fs_, volume: m.volumeNum, coin: x.coin, tf: x.r.tf, window_s: TF_SEC[x.r.tf as keyof typeof TF_SEC], left_s: left, band: [x.r.lo, x.r.hi], outcomes: outs, wanted: stake, ref_px: ref, bid_px: b.bids[0]?.price ?? null } })
       st.cash -= cost; openValue += fill.qty * mk; entered++; held.add(x.slug)
       D('BUY', `${left} שנ׳ לסיום, מחיר ${ask} בטווח ${Math.round(x.r.lo * 100)}-${Math.round(x.r.hi * 100)}¢, ${fill.qty.toFixed(1)} מניות ($${cost.toFixed(0)}${cost < stake * 0.9 ? `, הספר הספיק רק ל־$${cost.toFixed(0)} מתוך $${stake.toFixed(0)}` : ''}), עמלה $${fee.toFixed(2)}`, fill.vwap)
     }
@@ -96,6 +121,24 @@ if (!last || Date.now() - Date.parse(last.ts) > 55_000 || settled || entered)
 if (st.equity.length > 5000) st.equity = st.equity.slice(-5000)
 if (st.trades.length > 3000) st.trades = [...st.trades.filter((t: any) => t.status === 'OPEN'), ...st.trades.filter((t: any) => t.status !== 'OPEN').slice(-2500)].sort((a: any, b: any) => a.id - b.id)
 st.decisions = [...decisions, ...st.decisions].slice(0, 200)
+if (st.shadow.length > 3000) st.shadow = st.shadow.slice(-3000)
+{
+  // fill quality: what the live desk actually paid vs what the research assumed (last trade + 1c)
+  const f = st.trades.filter((t: any) => t.meta?.ref_px > 0)
+  const done = st.shadow.filter((x: any) => x.status === 'DONE'), filled = done.filter((x: any) => x.filled)
+  const tk = st.trades.filter((t: any) => t.status === 'CLOSED')
+  st.study = {
+    fills: { n: f.length, avg_vs_ref_c: f.length ? 100 * f.reduce((a: number, t: any) => a + t.entry_px - t.meta.ref_px, 0) / f.length : null,
+      avg_vs_research_c: f.length ? 100 * f.reduce((a: number, t: any) => a + t.entry_px - (t.meta.ref_px + 0.01), 0) / f.length : null,
+      avg_fee_c: f.length ? 100 * f.reduce((a: number, t: any) => a + t.entry_fee / t.qty, 0) / f.length : null },
+    maker: { placed: st.shadow.length, resolved: done.length, filled: filled.length,
+      fill_rate: done.length ? filled.length / done.length : null,
+      wr: filled.length ? filled.filter((x: any) => x.won).length / filled.length : null,
+      ret: filled.length ? filled.reduce((a: number, x: any) => a + x.ret, 0) / filled.length : null,
+      missed_wins: done.filter((x: any) => !x.filled && x.won).length, missed_losses: done.filter((x: any) => !x.filled && !x.won).length },
+    taker: { n: tk.length, wr: tk.length ? tk.filter((t: any) => t.pnl > 0).length / tk.length : null, ret: tk.length ? tk.reduce((a: number, t: any) => a + t.pnl / t.cost, 0) / tk.length : null },
+  }
+}
 fs.mkdirSync(FILE.replace(/\/[^/]*$/, '') || '.', { recursive: true })
 fs.writeFileSync(FILE, JSON.stringify(st, null, 1))
 console.log(JSON.stringify({ cash: st.cash, equity: st.cash + openValue, open: openCount, settled, entered, note }))
