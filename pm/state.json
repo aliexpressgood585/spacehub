@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 1079.034180242513,
+ "cash": 964.9334227186523,
  "strategy": {
   "lo": 0.85,
   "hi": 0.92,
@@ -13,13 +13,14 @@
   "minQty": 5,
   "exitPx": 0.99
  },
- "last_scan": "2026-10-13T23:05:22.660Z",
+ "last_scan": "2026-10-13T23:05:40.194Z",
  "last_note": {
-  "at": "2026-10-13T23:05:21.978Z",
+  "at": "2026-10-13T23:05:36.795Z",
   "scanned": 26,
+  "tr_err": "Error: 429 https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&",
   "settled": 0,
-  "entered": 0,
-  "topped": 0,
+  "entered": 1,
+  "topped": 1,
   "recycled": 0
  },
  "trades": [
@@ -1545,7 +1546,7 @@
    "opened_at": "2026-10-13T21:43:51.358Z",
    "status": "OPEN",
    "mark_px": 0.0005,
-   "mark_at": "2026-10-13T23:05:22.203Z",
+   "mark_at": "2026-10-13T23:05:37.127Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -1621,8 +1622,8 @@
    "best_ask": 0.86,
    "opened_at": "2026-10-13T22:21:35.171Z",
    "status": "OPEN",
-   "mark_px": 0.76,
-   "mark_at": "2026-10-13T23:05:22.359Z",
+   "mark_px": 0.75,
+   "mark_at": "2026-10-13T23:05:37.291Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -1639,6 +1640,42 @@
    },
    "outcome_he": "Galorys",
    "question_he": "Counter-Strike: ex-Keyd Stars vs Galorys - Map 2 Winner",
+   "tr_v": 2
+  },
+  {
+   "id": 41,
+   "market_id": "5640800",
+   "slug": "cs2-keydst-gls1-2026-10-13",
+   "event_slug": "cs2-keydst-gls1-2026-10-13",
+   "question": "Counter-Strike: ex-Keyd Stars vs Galorys (BO3) - ESL Challenger League South America Cup #3 Playoffs",
+   "outcome": "Galorys",
+   "token_id": "8219198874821036004494071542879786698735853559352610933333076422479007008242",
+   "end_time": "2026-10-14T03:00:00Z",
+   "qty": 126.14788007060334,
+   "entry_px": 0.9,
+   "entry_fee": 0.5676654603177149,
+   "cost": 114.10075752386072,
+   "best_ask": 0.9,
+   "opened_at": "2026-10-13T23:05:37.722Z",
+   "status": "OPEN",
+   "mark_px": 0.883,
+   "mark_at": "2026-10-13T23:05:37.722Z",
+   "meta": {
+    "fee_schedule": {
+     "rate": 0.05,
+     "exponent": 1
+    },
+    "volume": 157614.0758370001,
+    "spread": 0.004,
+    "model_p": 0.874,
+    "outcomes": [
+     "ex-Keyd Stars",
+     "Galorys"
+    ],
+    "adds": 1
+   },
+   "outcome_he": "Galorys",
+   "question_he": "Counter-Strike: ex-Keyd Stars vs Galorys (BO3) - ESL Challenger League South America Cup #3 Playoffs",
    "tr_v": 2
   }
  ],
@@ -23447,9 +23484,60 @@
    "cash": 1079.034180242513,
    "open_value": 100.0399155364251,
    "open_count": 2
+  },
+  {
+   "ts": "2026-10-13T23:05:40.194Z",
+   "equity": 1175.0465421748204,
+   "cash": 964.9334227186523,
+   "open_value": 210.11311945616802,
+   "open_count": 3
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-13T23:05:37.591Z",
+   "market_id": "5637326",
+   "question": "Dota 2: Amaru Gaming vs Rottweilas Latam - Game 2 Winner",
+   "outcome": "Rottweilas Latam",
+   "outcomes": [
+    "Amaru Gaming",
+    "Rottweilas Latam"
+   ],
+   "price": 0.94,
+   "decision": "skip",
+   "reason": "מחיר 0.94 מחוץ לטווח 85-92¢",
+   "outcome_he": "Rottweilas Latam",
+   "question_he": "Dota 2: Amaru Gaming vs Rottweilas Latam - מנצח במשחק 2",
+   "tr_v": 2
+  },
+  {
+   "ts": "2026-10-13T23:05:37.722Z",
+   "market_id": "5640800",
+   "question": "Counter-Strike: ex-Keyd Stars vs Galorys (BO3) - ESL Challenger League South America Cup #3 Playoffs",
+   "outcome": "Galorys",
+   "outcomes": [
+    "ex-Keyd Stars",
+    "Galorys"
+   ],
+   "price": 0.9,
+   "decision": "BUY",
+   "reason": "מחיר 0.9 בטווח, 37.4 מניות, עמלה $0.17",
+   "outcome_he": "Galorys",
+   "question_he": "Counter-Strike: ex-Keyd Stars vs Galorys (BO3) - ESL Challenger League South America Cup #3 Playoffs",
+   "tr_v": 2
+  },
+  {
+   "ts": "2026-10-13T23:05:37.860Z",
+   "market_id": "5640800",
+   "question": "Counter-Strike: ex-Keyd Stars vs Galorys (BO3) - ESL Challenger League South America Cup #3 Playoffs",
+   "outcome": "Galorys",
+   "price": 0.9,
+   "decision": "ADD",
+   "reason": "השלמה לחלק שווה: +88.8 מניות, עמלה $0.40",
+   "outcome_he": "Galorys",
+   "question_he": "Counter - Strike: ex - Keyd Stars vs Galorys (BO3) - פלייאוף מס '3 של ליגת הצ'לנג'ר ESL",
+   "tr_v": 2
+  },
   {
    "ts": "2026-10-13T22:21:35.171Z",
    "market_id": "5640799",
@@ -26237,45 +26325,9 @@
    "question_he": "Dota 2: Yellow Submarine vs Kalmychata - מנצח משחק 2",
    "outcome_he": "Yellow Submarine",
    "tr_v": 2
-  },
-  {
-   "ts": "2026-10-13T11:25:47.668Z",
-   "market_id": "5606330",
-   "question": "Dota 2: Yellow Submarine vs Kalmychata - Game 2 Winner",
-   "outcome": "Yellow Submarine",
-   "price": 0.81,
-   "decision": "skip",
-   "reason": "מחיר 0.81 מחוץ לטווח 85-92¢",
-   "question_he": "Dota 2: Yellow Submarine vs Kalmychata - מנצח משחק 2",
-   "outcome_he": "Yellow Submarine",
-   "tr_v": 2
-  },
-  {
-   "ts": "2026-10-13T11:11:47.311Z",
-   "market_id": "5347724",
-   "question": "Counter-Strike: 100 Thieves vs JiJieHao - Map 2 Winner",
-   "outcome": "100 Thieves",
-   "price": 0.9,
-   "decision": "BUY",
-   "reason": "מחיר 0.9 בטווח, 32.8 מניות, עמלה $0.15",
-   "question_he": "Counter-Strike: 100 Thieves vs JiJieHao - הזוכה במפה 2",
-   "outcome_he": "100 Thieves",
-   "tr_v": 2
-  },
-  {
-   "ts": "2026-10-13T11:11:47.425Z",
-   "market_id": "5347724",
-   "question": "Counter-Strike: 100 Thieves vs JiJieHao - Map 2 Winner",
-   "outcome": "100 Thieves",
-   "price": 0.8999999999999999,
-   "decision": "ADD",
-   "reason": "השלמה לחלק שווה: +77.9 מניות, עמלה $0.35",
-   "question_he": "Counter-Strike: 100 Thieves vs JiJieHao - הזוכה במפה 2",
-   "outcome_he": "100 Thieves",
-   "tr_v": 2
   }
  ],
- "next_id": 41,
+ "next_id": 42,
  "he": {
   "Dota 2: Yellow Submarine vs Kalmychata - Game 1 Winner": "Dota 2: Yellow Submarine vs Kalmychata - מנצח משחק 1",
   "Yellow Submarine": "צוללת צהובה",
@@ -26330,6 +26382,8 @@
   "Counter-Strike: Grêmio Esports vs Los Niños (BO3) - CCT South America Series 7 Group Stage": "Counter - Strike: Grêmio Esports vs Los Niños (BO3) - CCT דרום אמריקה סדרה 7 שלב קבוצתי",
   "Counter-Strike: ex-Keyd Stars vs Galorys - Map 1 Winner": "Counter - Strike: Ex - Keyd Stars vs Galorys - מפה 1 זוכה",
   "Bitcoin Up or Down - October 13, 5PM ET": "ביטקוין למעלה או למטה - 13 באוקטובר, 17:00 שעון החוף המזרחי",
-  "Counter-Strike: ex-Keyd Stars vs Galorys - Map 2 Winner": "Counter - Strike: Ex - Keyd Stars vs Galorys - זוכה מפה 2"
+  "Counter-Strike: ex-Keyd Stars vs Galorys - Map 2 Winner": "Counter - Strike: Ex - Keyd Stars vs Galorys - זוכה מפה 2",
+  "Counter-Strike: ex-Keyd Stars vs Galorys (BO3) - ESL Challenger League South America Cup #3 Playoffs": "Counter - Strike: ex - Keyd Stars vs Galorys (BO3) - פלייאוף מס '3 של ליגת הצ'לנג'ר ESL",
+  "Dota 2: Amaru Gaming vs Rottweilas Latam - Game 2 Winner": "Dota 2: Amaru Gaming vs Rottweilas Latam - מנצח במשחק 2"
  }
 }
