@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 689.4997110050272,
+ "cash": 587.0553071090935,
  "strategy": {
   "lo": 0.85,
   "hi": 0.92,
@@ -12,13 +12,13 @@
   "maxPerEvent": 2,
   "minQty": 5
  },
- "last_scan": "2026-10-13T11:59:04.619Z",
+ "last_scan": "2026-10-13T12:00:08.966Z",
  "last_note": {
-  "at": "2026-10-13T11:59:03.127Z",
-  "scanned": 13,
+  "at": "2026-10-13T12:00:03.767Z",
+  "scanned": 37,
   "settled": 0,
-  "entered": 0,
-  "topped": 0
+  "entered": 1,
+  "topped": 1
  },
  "trades": [
   {
@@ -149,7 +149,7 @@
    "opened_at": "2026-10-13T11:11:47.311Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-13T11:59:03.345Z",
+   "mark_at": "2026-10-13T12:00:04.365Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -180,7 +180,7 @@
    "opened_at": "2026-10-13T11:27:46.879Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-13T11:59:03.484Z",
+   "mark_at": "2026-10-13T12:00:04.576Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -210,8 +210,8 @@
    "best_ask": 0.88,
    "opened_at": "2026-10-13T11:39:49.383Z",
    "status": "OPEN",
-   "mark_px": 0.56,
-   "mark_at": "2026-10-13T11:59:03.612Z",
+   "mark_px": 0.99,
+   "mark_at": "2026-10-13T12:00:05.115Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -241,8 +241,8 @@
    "best_ask": 0.87,
    "opened_at": "2026-10-13T11:45:50.022Z",
    "status": "OPEN",
-   "mark_px": 0.913,
-   "mark_at": "2026-10-13T11:59:03.750Z",
+   "mark_px": 0.908,
+   "mark_at": "2026-10-13T12:00:05.636Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -255,6 +255,37 @@
    },
    "question_he": "האם הטמפרטורה הגבוהה ביותר בלאקנאו תהיה 32 מעלות צלזיוס ב-13 באוקטובר?",
    "outcome_he": "כן"
+  },
+  {
+   "id": 8,
+   "market_id": "5566089",
+   "slug": "ethereum-up-or-down-on-october-13-2026",
+   "event_slug": "ethereum-up-or-down-on-october-13-2026",
+   "question": "Ethereum Up or Down on October 13?",
+   "outcome": "Down",
+   "token_id": "29600443034474396969527993976425792921324186937781696475243905017453958819097",
+   "end_time": "2026-10-13T16:00:00Z",
+   "qty": 117.11212015334272,
+   "entry_px": 0.8666660805080071,
+   "entry_fee": 0.9473017426532588,
+   "cost": 102.44440389593359,
+   "best_ask": 0.867,
+   "opened_at": "2026-10-13T12:00:06.850Z",
+   "status": "OPEN",
+   "mark_px": 0.858,
+   "mark_at": "2026-10-13T12:00:06.850Z",
+   "meta": {
+    "fee_schedule": {
+     "rate": 0.07,
+     "exponent": 1
+    },
+    "volume": 56780.861109000005,
+    "spread": 0.006,
+    "model_p": 0.856,
+    "adds": 1
+   },
+   "question_he": "Ethereum עולה או יורד ב-13 באוקטובר?",
+   "outcome_he": "למטה"
   }
  ],
  "equity": [
@@ -3456,9 +3487,59 @@
    "cash": 689.4997110050272,
    "open_value": 330.2004423606086,
    "open_count": 4
+  },
+  {
+   "ts": "2026-10-13T11:59:20.867Z",
+   "equity": 1050.2154329255459,
+   "cash": 689.4997110050272,
+   "open_value": 360.7157219205187,
+   "open_count": 4
+  },
+  {
+   "ts": "2026-10-13T11:59:35.732Z",
+   "equity": 1036.5452642322525,
+   "cash": 689.4997110050272,
+   "open_value": 347.04555322722535,
+   "open_count": 4
+  },
+  {
+   "ts": "2026-10-13T11:59:50.674Z",
+   "equity": 1058.1896979966336,
+   "cash": 689.4997110050272,
+   "open_value": 368.6899869916066,
+   "open_count": 4
+  },
+  {
+   "ts": "2026-10-13T12:00:08.966Z",
+   "equity": 1066.5627303072702,
+   "cash": 587.0553071090935,
+   "open_value": 479.50742319817664,
+   "open_count": 5
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-13T12:00:06.850Z",
+   "market_id": "5566089",
+   "question": "Ethereum Up or Down on October 13?",
+   "outcome": "Down",
+   "price": 0.868260946442544,
+   "decision": "BUY",
+   "reason": "מחיר 0.867 בטווח, 34.5 מניות, עמלה $0.28",
+   "question_he": "Ethereum עולה או יורד ב-13 באוקטובר?",
+   "outcome_he": "למטה"
+  },
+  {
+   "ts": "2026-10-13T12:00:07.175Z",
+   "market_id": "5566089",
+   "question": "Ethereum Up or Down on October 13?",
+   "outcome": "Down",
+   "price": 0.866,
+   "decision": "ADD",
+   "reason": "השלמה לחלק שווה: +82.6 מניות, עמלה $0.67",
+   "question_he": "Ethereum עולה או יורד ב-13 באוקטובר?",
+   "outcome_he": "למטה"
+  },
   {
    "ts": "2026-10-13T11:46:19.863Z",
    "market_id": "5536315",
@@ -3823,7 +3904,7 @@
    "outcome_he": "צוללת צהובה"
   }
  ],
- "next_id": 8,
+ "next_id": 9,
  "he": {
   "Dota 2: Yellow Submarine vs Kalmychata - Game 1 Winner": "Dota 2: Yellow Submarine vs Kalmychata - מנצח משחק 1",
   "Yellow Submarine": "צוללת צהובה",
@@ -3839,6 +3920,8 @@
   "Up": "למעלה",
   "Will the highest temperature in Lucknow be 32°C on October 13?": "האם הטמפרטורה הגבוהה ביותר בלאקנאו תהיה 32 מעלות צלזיוס ב-13 באוקטובר?",
   "Yes": "כן",
+  "Ethereum Up or Down on October 13?": "Ethereum עולה או יורד ב-13 באוקטובר?",
+  "Down": "למטה",
   "HULIGANI": "HULIGANI"
  }
 }
