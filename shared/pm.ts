@@ -22,19 +22,20 @@ export function walkAsks(asks: { price: number; size: number }[], usd: number, m
   return { qty, vwap: qty > 0 ? spent / qty : 0, spent }
 }
 
-// The strategy chosen by the research (backtest/research/pm_research.py -> status/pm-research.txt).
+// v2 (2026-10-13, owner: "reset and build a strategy with >= 75% win rate"). v1 (buy 15-30c underdogs <=144h) went
+// live 2026-10-09..13: 76 closes, WR 26%, -$337 on $1,000 — archived in pm/state-v1.json on pm-desk-data.
+// backtest/research/pm_favourites.py -> status/pm-favourites.txt (7,486 resolved markets, 70/30 time split, +0.5-1c slip,
+// real fee flag): buy the FAVOURITE priced 85-92c in the last 4h before resolution — IS n197 WR 91.4% +2.5%/$ (t 1.1),
+// OOS n117 WR 92.3% +3.3%/$ (t 1.2); 3h: IS +4.1 / OOS +5.8%; 6h already negative. NOT proven (t < 2): the win rate is
+// real, the profit per $ is thin and one loss (-100%) costs ~10 wins.
 export const PM = {
-  // status/pm-research.txt (7,486 resolved markets, 2025-09..2026-10, 70/30 time split): favourites 0.70-0.99 LOSE
-  // 2-7% per $ after costs at every horizon; the 15-30c band is positive at EVERY horizon in BOTH halves
-  // (H6 +2.5/+10.6, H24 +9.1/+11.4, H72 +11.0/+7.7 %/$, best t 2.3). Chosen for robustness across the grid, not
-  // the single best in-sample cell (that was 5-15c, which halved out of sample). Not proven: t < 2.5, ~6 months.
-  lo: 0.15, hi: 0.30,         // buy the outcome whose ask sits in this band (an underdog)
-  windowH: 144,               // ... ending within this many hours (v2: 72 -> 144; same rule at H96/120/144: IS +11.9/+11.6/+10.7%, OOS +7.9/+7.2/+7.1% per $)
-  minVolume: 20000,           // market volume floor (USDC)
-  stakeFrac: 0.03,            // 3% of current equity per position (wins ~27% of the time: small, many)
+  lo: 0.85, hi: 0.92,         // buy the outcome whose ask sits in this band (a favourite)
+  windowH: 4,                 // ... only when the market is due to end within this many hours
+  minVolume: 20000,           // market volume floor (USDC); the research history covers >= $20k only
+  stakeFrac: 0.03,            // 3% of equity per position at entry
   maxOpen: 30,
-  maxPosFrac: 0.15,           // all cash is deployed: each position topped up to equity/open, never above 15% of equity
-  maxPerEvent: 2,             // v2: 1 -> 2 (a risk cap, not a research parameter)
+  maxPosFrac: 0.10,           // top-ups never take one position above 10% of equity (a loss is -100% of it)
+  maxPerEvent: 2,
   minQty: 5,                  // Polymarket minimum order size (shares)
 } as const
 

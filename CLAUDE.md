@@ -396,6 +396,10 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
 - 2026-10-09 06:50 (owner: "add more markets so all cash is invested"): windowH 72 -> 144 (research re-run, same 15-30c rule:
   H96/120/144 IS +11.9/+11.6/+10.7%, OOS +7.9/+7.2/+7.1% per $, t ~2.5 / ~1.1); maxPerEvent 1 -> 2; Gamma paging to 2,000.
   Volume floor kept at $20k: the research history only covers markets >= $20k, lower is untested. Test: 19 open, cash $1.
+- 2026-10-13 v2 RESET (owner: "reset the Poly account, strategy with >= 75% win rate"). v1 live 10-09..13: 76 closes, WR 26%,
+  realised -$337, equity $631 -> archived as pm/state-v1.json on pm-desk-data. v2 = buy the FAVOURITE at 85-92c in the last
+  4h (backtest/research/pm_favourites.py -> status/pm-favourites.txt): IS n197 WR 91.4% +2.5%/$, OOS n117 WR 92.3% +3.3%/$,
+  t ~1.2 (not proven; 19 of 224 grid rows positive in both halves). 3% stake, top-ups capped at 10% of equity.
 
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;

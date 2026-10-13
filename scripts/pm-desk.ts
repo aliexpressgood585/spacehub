@@ -88,7 +88,7 @@ try {
         if (held.has(toks[k]) || !inBand(px[k])) continue
         const b = await book(toks[k]); const ask = b?.asks[0]?.price
         const D = (decision: string, reason: string, price = ask ?? px[k]) => decisions.push({ ts: now(), market_id: m.id, question: m.question, outcome: outs[k], price, decision, reason })
-        if (!b || !ask || !inBand(ask)) { D('skip', `מחיר ${ask ?? '—'} מחוץ לטווח 15-30¢`); continue }
+        if (!b || !ask || !inBand(ask)) { D('skip', `מחיר ${ask ?? '—'} מחוץ לטווח ${Math.round(PM.lo*100)}-${Math.round(PM.hi*100)}¢`); continue }
         const stake = Math.min(equity0 * PM.stakeFrac, st.cash - 1)
         if (stake < PM.minQty * ask) { D('skip', 'אין מספיק מזומן'); continue }
         const fs_ = feeOf(m)
