@@ -41,7 +41,7 @@ const t = out.trades[0]
 ok(out.trades.length === 1 && t.outcome === 'Up' && t.slug.startsWith('btc-'), 'buys only the in-band side, skips the out-of-band market')
 const fee = 0.07 * t.qty * 0.9 * 0.1
 ok(near(t.entry_px, 0.9) && near(t.entry_fee, fee, 1e-6) && near(t.cost, t.qty * 0.9 + fee, 1e-6), 'fill at the real ask + 0.07·p(1-p) fee')
-ok(near(t.cost, 1000 * PMC.stakeFrac, 1e-6) && near(out.cash, 1000 - t.cost, 1e-6), `stake = ${PMC.stakeFrac * 100}% of equity`)
+ok(near(t.cost, 1000 * PMC.maxPosFrac, 1e-6) && near(out.cash, 1000 - t.cost, 1e-6), `a lone entry takes ${PMC.maxPosFrac * 100}% of equity (the cap)`)
 ok(t.question_he.startsWith('ביטקוין · עולה או יורד · 15 דקות') && t.outcome_he === 'עולה' && t.meta.window_s === 900, 'Hebrew title, outcome and window stored')
 await run(2)
 out = JSON.parse(fs.readFileSync(file, 'utf8'))

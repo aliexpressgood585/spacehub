@@ -18,7 +18,7 @@ export const TF_HE: Record<Tf, string> = { '5m': '5 דקות', '15m': '15 דקו
 export interface Rule { tf: Tf; coins: string[]; enterFrom: number; enterTo: number; lo: number; hi: number }
 export const PMC = {
   rules: [{ tf: '5m', coins: ['btc', 'eth', 'sol', 'xrp'], enterFrom: 180, enterTo: 140, lo: 0.90, hi: 0.98 }] as Rule[],
-  stakeFrac: 0.04,            // fraction of equity per position
+  maxPosFrac: 0.25,           // ALL CASH (owner 2026-10-13): free cash split equally between this cycle's entries, each <= 25% of equity
   maxOpen: 12,
   minQty: 5,                  // Polymarket minimum order size (shares)
   slipCap: 0.01,              // never pay more than hi + this when walking the book
