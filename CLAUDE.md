@@ -405,6 +405,11 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   POST /books every 3 s only while the socket is down), polls Gamma `markets?closed=true&id=..` every 3 s and shows an official
   resolution at once (bot books it next cycle), seconds countdown, state re-read every 5 s. pm-desk.yml pushes state every
   cycle (~15 s, was 60 s). First 3 v2 closes 11:21-11:46: all wins, +$34.17, settle price = Gamma outcomePrices (verified).
+- 2026-10-13 ~12:20 UTC (owner: "yes" to on-demand early exit): `PM.exitPx 0.99` + `walkBids` (all-or-nothing into the real
+  bid book, never below 0.99) in shared/pm.ts; scripts/pm-desk.ts `freeCash()` runs ONLY when a new in-band entry is short of
+  cash and sells open positions whose bid >= 0.99 (highest first, taker fee, reason EARLY_EXIT, decision SELL); otherwise every
+  position is held to resolution for $1 (waiting earns ~0.1c/share, worth it while cash is idle). tests/pm.test.ts (15,
+  incl. a mocked-Polymarket replay of the runner). Page shows "מימוש מוקדם" / "מכירה".
 
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;

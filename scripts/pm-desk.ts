@@ -4,7 +4,7 @@
 // Polymarket Gamma / CLOB, never an order.
 // Run: node --experimental-strip-types scripts/pm-desk.ts <state.json>
 import fs from 'node:fs'
-import { PM, takerFee, walkAsks, inBand, type FeeSchedule } from '../shared/pm.ts'
+import { PM, takerFee, walkAsks, walkBids, inBand, type FeeSchedule } from '../shared/pm.ts'
 
 const FILE = process.argv[2] ?? 'pm/state.json'
 const GAMMA = 'https://gamma-api.polymarket.com', CLOB = 'https://clob.polymarket.com'
@@ -46,7 +46,7 @@ const st: State = fs.existsSync(FILE) ? JSON.parse(fs.readFileSync(FILE, 'utf8')
 for (const [k, v] of Object.entries((st as any).he ?? {})) if (typeof v === 'string' && /[\u05D0-\u05EA]/.test(v)) heCache[k] = v
 const now = () => new Date().toISOString()
 const note: any = { at: now() }
-let settled = 0, entered = 0, topped = 0, openValue = 0
+let settled = 0, entered = 0, topped = 0, recycled = 0, openValue = 0
 const decisions: any[] = []
 try {
   // 1-2. settle resolved markets, mark the rest at the real best bid
@@ -62,6 +62,25 @@ try {
       t.mark_px = b?.bids[0]?.price ?? (k >= 0 ? px[k] : t.mark_px); t.mark_at = now()
     } catch { /* keep the last mark */ }
     openValue += t.qty * t.mark_px
+  }
+  // 2b. EARLY EXIT, only on demand (owner 2026-10-13): when a new in-band entry is short of cash, sell positions whose
+  // real best bid is already >= PM.exitPx (outcome all but decided), highest bid first, walking the real bid book and
+  // paying the taker fee, until the entry is funded. Otherwise every position is held to resolution for the full $1.
+  async function freeCash(need: number, forWhat: string) {
+    const cands: { t: Trade; b: { bids: Lvl[] } }[] = []
+    for (const t of st.trades) {
+      if (t.status !== 'OPEN' || t.mark_px < PM.exitPx) continue   // bought this cycle = in band, never >= exitPx
+      const b = await book(t.token_id); if (b && (b.bids[0]?.price ?? 0) >= PM.exitPx) cands.push({ t, b })
+    }
+    cands.sort((a, c) => c.b.bids[0].price - a.b.bids[0].price)
+    for (const { t, b } of cands) {
+      if (need <= 0) break
+      const fill = walkBids(b.bids, t.qty, PM.exitPx); if (!fill) continue
+      const fee = takerFee(fill.qty, fill.vwap, t.meta?.fee_schedule ?? null), net = fill.got - fee, was = t.qty * t.mark_px
+      Object.assign(t, { status: 'CLOSED', exit_px: fill.vwap, exit_fee: fee, proceeds: fill.got, pnl: net - t.cost, reason: 'EARLY_EXIT', closed_at: now(), mark_px: fill.vwap, mark_at: now() })
+      st.cash += net; openValue -= was; need -= net; recycled++
+      decisions.push({ ts: now(), market_id: t.market_id, question: t.question, outcome: t.outcome, price: fill.vwap, decision: 'SELL', reason: `מימוש מוקדם ב־${(fill.vwap * 100).toFixed(1)}¢ כדי לממן כניסה חדשה (${forWhat.slice(0, 60)}), עמלה $${fee.toFixed(2)}` })
+    }
   }
   // 3. entries
   const open = st.trades.filter((x) => x.status === 'OPEN')
@@ -89,7 +108,9 @@ try {
         const b = await book(toks[k]); const ask = b?.asks[0]?.price
         const D = (decision: string, reason: string, price = ask ?? px[k]) => decisions.push({ ts: now(), market_id: m.id, question: m.question, outcome: outs[k], price, decision, reason })
         if (!b || !ask || !inBand(ask)) { D('skip', `מחיר ${ask ?? '—'} מחוץ לטווח ${Math.round(PM.lo*100)}-${Math.round(PM.hi*100)}¢`); continue }
-        const stake = Math.min(equity0 * PM.stakeFrac, st.cash - 1)
+        const want = equity0 * PM.stakeFrac
+        if (st.cash - 1 < want) await freeCash(want - (st.cash - 1), `${m.question} · ${outs[k]}`)
+        const stake = Math.min(want, st.cash - 1)
         if (stake < PM.minQty * ask) { D('skip', 'אין מספיק מזומן'); continue }
         const fs_ = feeOf(m)
         const fill = walkAsks(b.asks, stake / (1 + (fs_ ? fs_.rate : 0)), PM.hi)
@@ -134,7 +155,7 @@ for (const d of decisions) { d.question_he = await he(d.question); d.outcome_he 
 for (const d of st.decisions) { if (!d.question_he || d.question_he === d.question) d.question_he = await he(d.question); if (!d.outcome_he || d.outcome_he === d.outcome) d.outcome_he = await he(d.outcome) }
 ;(st as any).he = Object.fromEntries(Object.entries(heCache).slice(-3000))
 const openCount = st.trades.filter((x) => x.status === 'OPEN').length
-st.strategy = PM; st.last_scan = now(); st.last_note = { ...note, settled, entered, topped }
+st.strategy = PM; st.last_scan = now(); st.last_note = { ...note, settled, entered, topped, recycled }
 st.equity.push({ ts: now(), equity: st.cash + openValue, cash: st.cash, open_value: openValue, open_count: openCount })
 if (st.equity.length > 5000) st.equity = st.equity.slice(-5000)
 st.decisions = [...decisions.slice(0, 50), ...st.decisions].slice(0, 200)
