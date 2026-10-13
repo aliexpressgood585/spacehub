@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 844.8358245270986,
+ "cash": 725.3020904804234,
  "strategy": {
   "lo": 0.85,
   "hi": 0.92,
@@ -13,13 +13,14 @@
   "minQty": 5,
   "exitPx": 0.99
  },
- "last_scan": "2026-10-13T23:37:28.838Z",
+ "last_scan": "2026-10-13T23:37:45.582Z",
  "last_note": {
-  "at": "2026-10-13T23:37:27.138Z",
-  "scanned": 24,
+  "at": "2026-10-13T23:37:42.139Z",
+  "scanned": 25,
+  "tr_err": "Error: 429 https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&",
   "settled": 0,
-  "entered": 0,
-  "topped": 0,
+  "entered": 1,
+  "topped": 1,
   "recycled": 0
  },
  "trades": [
@@ -1545,7 +1546,7 @@
    "opened_at": "2026-10-13T21:43:51.358Z",
    "status": "OPEN",
    "mark_px": 0.0005,
-   "mark_at": "2026-10-13T23:37:27.425Z",
+   "mark_at": "2026-10-13T23:37:42.573Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -1622,7 +1623,7 @@
    "opened_at": "2026-10-13T22:21:35.171Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-13T23:37:27.743Z",
+   "mark_at": "2026-10-13T23:37:42.755Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -1658,7 +1659,7 @@
    "opened_at": "2026-10-13T23:05:37.722Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-13T23:37:27.912Z",
+   "mark_at": "2026-10-13T23:37:42.939Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -1694,7 +1695,7 @@
    "opened_at": "2026-10-13T23:06:22.826Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-13T23:37:28.092Z",
+   "mark_at": "2026-10-13T23:37:43.111Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -1711,6 +1712,42 @@
    },
    "outcome_he": "Rottweilas Latam",
    "question_he": "Dota 2: Amaru Gaming vs Rottweilas Latam - מנצח במשחק 2",
+   "tr_v": 2
+  },
+  {
+   "id": 43,
+   "market_id": "5178344",
+   "slug": "sud-boc-vas-2026-10-13-total-0pt5",
+   "event_slug": "sud-boc-vas-2026-10-13-more-markets",
+   "question": "CA Boca Juniors vs. CR Vasco da Gama: O/U 0.5",
+   "outcome": "Over",
+   "token_id": "38954966131919216020478376525165309903877300584686017686966391780144476573229",
+   "end_time": "2026-10-14T00:30:00Z",
+   "qty": 136.5077959318169,
+   "entry_px": 0.87,
+   "entry_fee": 0.7719515859944245,
+   "cost": 119.53373404667512,
+   "best_ask": 0.87,
+   "opened_at": "2026-10-13T23:37:43.635Z",
+   "status": "OPEN",
+   "mark_px": 0.86,
+   "mark_at": "2026-10-13T23:37:43.635Z",
+   "meta": {
+    "fee_schedule": {
+     "rate": 0.05,
+     "exponent": 1
+    },
+    "volume": 21142.475343,
+    "spread": 0.01,
+    "model_p": 0.865,
+    "outcomes": [
+     "Over",
+     "Under"
+    ],
+    "adds": 1
+   },
+   "outcome_he": "מעל",
+   "question_he": "CA בוקה ג'וניורס לעומת CR ואסקו דה גאמה: O/U 0.5",
    "tr_v": 2
   }
  ],
@@ -24408,9 +24445,44 @@
    "cash": 844.8358245270986,
    "open_value": 387.4805199408778,
    "open_count": 4
+  },
+  {
+   "ts": "2026-10-13T23:37:45.582Z",
+   "equity": 1230.1793149226637,
+   "cash": 725.3020904804234,
+   "open_value": 504.8772244422403,
+   "open_count": 5
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-13T23:37:43.635Z",
+   "market_id": "5178344",
+   "question": "CA Boca Juniors vs. CR Vasco da Gama: O/U 0.5",
+   "outcome": "Over",
+   "outcomes": [
+    "Over",
+    "Under"
+   ],
+   "price": 0.8699999999999999,
+   "decision": "BUY",
+   "reason": "מחיר 0.87 בטווח, 40.5 מניות, עמלה $0.23",
+   "outcome_he": "מעל",
+   "question_he": "CA בוקה ג'וניורס לעומת CR ואסקו דה גאמה: O/U 0.5",
+   "tr_v": 2
+  },
+  {
+   "ts": "2026-10-13T23:37:43.780Z",
+   "market_id": "5178344",
+   "question": "CA Boca Juniors vs. CR Vasco da Gama: O/U 0.5",
+   "outcome": "Over",
+   "price": 0.8700000000000001,
+   "decision": "ADD",
+   "reason": "השלמה לחלק שווה: +96.0 מניות, עמלה $0.54",
+   "outcome_he": "מעל",
+   "question_he": "CA בוקה ג'וניורס לעומת CR ואסקו דה גאמה: O/U 0.5",
+   "tr_v": 2
+  },
   {
    "ts": "2026-10-13T23:11:37.632Z",
    "market_id": "5640799",
@@ -27230,33 +27302,9 @@
    "question_he": "Dota 2: Yellow Submarine vs Kalmychata - מנצח משחק 2",
    "outcome_he": "Yellow Submarine",
    "tr_v": 2
-  },
-  {
-   "ts": "2026-10-13T11:27:46.996Z",
-   "market_id": "5606330",
-   "question": "Dota 2: Yellow Submarine vs Kalmychata - Game 2 Winner",
-   "outcome": "Yellow Submarine",
-   "price": 0.9,
-   "decision": "ADD",
-   "reason": "השלמה לחלק שווה: +78.5 מניות, עמלה $0.35",
-   "question_he": "Dota 2: Yellow Submarine vs Kalmychata - מנצח משחק 2",
-   "outcome_he": "Yellow Submarine",
-   "tr_v": 2
-  },
-  {
-   "ts": "2026-10-13T11:27:31.958Z",
-   "market_id": "5606330",
-   "question": "Dota 2: Yellow Submarine vs Kalmychata - Game 2 Winner",
-   "outcome": "Yellow Submarine",
-   "price": 0.94,
-   "decision": "skip",
-   "reason": "מחיר 0.94 מחוץ לטווח 85-92¢",
-   "question_he": "Dota 2: Yellow Submarine vs Kalmychata - מנצח משחק 2",
-   "outcome_he": "Yellow Submarine",
-   "tr_v": 2
   }
  ],
- "next_id": 43,
+ "next_id": 44,
  "he": {
   "Dota 2: Yellow Submarine vs Kalmychata - Game 1 Winner": "Dota 2: Yellow Submarine vs Kalmychata - מנצח משחק 1",
   "Yellow Submarine": "צוללת צהובה",
@@ -27313,6 +27361,7 @@
   "Bitcoin Up or Down - October 13, 5PM ET": "ביטקוין למעלה או למטה - 13 באוקטובר, 17:00 שעון החוף המזרחי",
   "Counter-Strike: ex-Keyd Stars vs Galorys - Map 2 Winner": "Counter - Strike: Ex - Keyd Stars vs Galorys - זוכה מפה 2",
   "Counter-Strike: ex-Keyd Stars vs Galorys (BO3) - ESL Challenger League South America Cup #3 Playoffs": "Counter - Strike: ex - Keyd Stars vs Galorys (BO3) - פלייאוף מס '3 של ליגת הצ'לנג'ר ESL",
-  "Dota 2: Amaru Gaming vs Rottweilas Latam - Game 2 Winner": "Dota 2: Amaru Gaming vs Rottweilas Latam - מנצח במשחק 2"
+  "Dota 2: Amaru Gaming vs Rottweilas Latam - Game 2 Winner": "Dota 2: Amaru Gaming vs Rottweilas Latam - מנצח במשחק 2",
+  "CA Boca Juniors vs. CR Vasco da Gama: O/U 0.5": "CA בוקה ג'וניורס לעומת CR ואסקו דה גאמה: O/U 0.5"
  }
 }
