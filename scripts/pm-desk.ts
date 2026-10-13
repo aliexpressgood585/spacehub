@@ -4,7 +4,7 @@
 // Polymarket Gamma / CLOB, never an order.
 // Run: node --experimental-strip-types scripts/pm-desk.ts <state.json>
 import fs from 'node:fs'
-import { PM, takerFee, walkAsks, walkBids, inBand, type FeeSchedule } from '../shared/pm.ts'
+import { PM, takerFee, walkAsks, walkBids, inBand, heOutcome, namesKept, type FeeSchedule } from '../shared/pm.ts'
 
 const FILE = process.argv[2] ?? 'pm/state.json'
 const GAMMA = 'https://gamma-api.polymarket.com', CLOB = 'https://clob.polymarket.com'
@@ -106,7 +106,7 @@ try {
       for (let k = 0; k < 2; k++) {
         if (held.has(toks[k]) || !inBand(px[k])) continue
         const b = await book(toks[k]); const ask = b?.asks[0]?.price
-        const D = (decision: string, reason: string, price = ask ?? px[k]) => decisions.push({ ts: now(), market_id: m.id, question: m.question, outcome: outs[k], price, decision, reason })
+        const D = (decision: string, reason: string, price = ask ?? px[k]) => decisions.push({ ts: now(), market_id: m.id, question: m.question, outcome: outs[k], outcomes: outs, price, decision, reason })
         if (!b || !ask || !inBand(ask)) { D('skip', `מחיר ${ask ?? '—'} מחוץ לטווח ${Math.round(PM.lo*100)}-${Math.round(PM.hi*100)}¢`); continue }
         const want = equity0 * PM.stakeFrac
         if (st.cash - 1 < want) await freeCash(want - (st.cash - 1), `${m.question} · ${outs[k]}`)
@@ -116,7 +116,7 @@ try {
         const fill = walkAsks(b.asks, stake / (1 + (fs_ ? fs_.rate : 0)), PM.hi)
         if (fill.qty < PM.minQty) { D('skip', 'ספר הזמנות דל מדי'); continue }
         const fee = takerFee(fill.qty, fill.vwap, fs_), cost = fill.spent + fee, mk = b.bids[0]?.price ?? fill.vwap
-        st.trades.push({ id: st.next_id++, market_id: m.id, slug: m.slug, event_slug: ev, question: m.question, outcome: outs[k], token_id: toks[k], end_time: m.endDate, qty: fill.qty, entry_px: fill.vwap, entry_fee: fee, cost, best_ask: ask, opened_at: now(), status: 'OPEN', mark_px: mk, mark_at: now(), meta: { fee_schedule: fs_, volume: m.volumeNum, spread: m.spread, model_p: px[k] } })
+        st.trades.push({ id: st.next_id++, market_id: m.id, slug: m.slug, event_slug: ev, question: m.question, outcome: outs[k], token_id: toks[k], end_time: m.endDate, qty: fill.qty, entry_px: fill.vwap, entry_fee: fee, cost, best_ask: ask, opened_at: now(), status: 'OPEN', mark_px: mk, mark_at: now(), meta: { fee_schedule: fs_, volume: m.volumeNum, spread: m.spread, model_p: px[k], outcomes: outs } })
         st.cash -= cost; openValue += fill.qty * mk; slots--; entered++
         events.set(ev, (events.get(ev) ?? 0) + 1); held.add(toks[k])
         D('BUY', `מחיר ${ask} בטווח, ${fill.qty.toFixed(1)} מניות, עמלה $${fee.toFixed(2)}`, fill.vwap)
@@ -150,9 +150,17 @@ try {
     }
   }
 } catch (e) { note.error = String(e) }
-for (const t of st.trades as any[]) { if (!t.question_he || t.question_he === t.question) t.question_he = await he(t.question); if (!t.outcome_he || t.outcome_he === t.outcome) t.outcome_he = await he(t.outcome) }
-for (const d of decisions) { d.question_he = await he(d.question); d.outcome_he = await he(d.outcome) }
-for (const d of st.decisions) { if (!d.question_he || d.question_he === d.question) d.question_he = await he(d.question); if (!d.outcome_he || d.outcome_he === d.outcome) d.outcome_he = await he(d.outcome) }
+// Hebrew display text. Outcomes: generic answers from a fixed list, names (teams, players) exactly as listed.
+// Questions: machine-translated, but kept only if every name in them survived (else the English question is shown).
+const heRow = async (x: any, retry: boolean) => {
+  x.outcome_he = heOutcome(x.outcome)
+  const names = [x.outcome, ...((x.outcomes ?? x.meta?.outcomes ?? []) as string[])]
+  if (retry && (!x.question_he || x.question_he === x.question || x.tr_v !== 2)) { const q = await he(x.question); x.question_he = q; x.tr_v = 2 }
+  if (x.question_he && !namesKept(x.question, x.question_he, names)) x.question_he = x.question
+}
+for (const t of st.trades as any[]) await heRow(t, true)
+for (const d of decisions) await heRow(d, true)
+for (const d of st.decisions) await heRow(d, d.tr_v !== 2 || !d.question_he || d.question_he === d.question)
 ;(st as any).he = Object.fromEntries(Object.entries(heCache).slice(-3000))
 const openCount = st.trades.filter((x) => x.status === 'OPEN').length
 st.strategy = PM; st.last_scan = now(); st.last_note = { ...note, settled, entered, topped, recycled }

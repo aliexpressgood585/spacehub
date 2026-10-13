@@ -56,3 +56,25 @@ export function walkBids(bids: { price: number; size: number }[], qty: number, m
   }
   return left > 1e-9 || !(qty > 0) ? null : { qty, vwap: got / qty, got }
 }
+
+// Hebrew display of an outcome (owner 2026-10-13: "fix the translation of the team names"). Machine translation turned
+// proper names into words ("Liquid" -> "נוזל", "BBL" -> "חבית", "100 Thieves" -> "100 גנבים"). Only generic answers are
+// translated, from this fixed list; any other outcome is a team / player / option NAME and is shown exactly as listed.
+const OUTCOME_HE: Record<string, string> = {
+  yes: 'כן', no: 'לא', up: 'עולה', down: 'יורד', over: 'מעל', under: 'מתחת', draw: 'תיקו', tie: 'תיקו',
+  higher: 'גבוה יותר', lower: 'נמוך יותר', above: 'מעל', below: 'מתחת', even: 'זוגי', odd: 'אי־זוגי', other: 'אחר', none: 'אף אחד',
+}
+export function heOutcome(outcome: string): string {
+  return OUTCOME_HE[String(outcome ?? '').trim().toLowerCase()] ?? outcome
+}
+export const isGenericOutcome = (o: string) => String(o ?? '').trim().toLowerCase() in OUTCOME_HE
+
+// A translated question is kept only if every NAME it mentions survived. `names` = the market's non-generic outcomes;
+// if one of them appears in the English question but not in the Hebrew one, the translator renamed it, so the English
+// question is shown instead (a correct English title beats a wrong Hebrew one).
+export function namesKept(question: string, translated: string | undefined, names: string[]): boolean {
+  if (!translated) return false
+  const low = (x: string) => x.toLowerCase().replace(/\s+/g, ' ')
+  const q = low(question), t = low(translated)
+  return names.filter((x) => x && !isGenericOutcome(x) && q.includes(low(x))).every((x) => t.includes(low(x)))
+}

@@ -1,6 +1,6 @@
 // Polymarket paper desk rules (shared/pm.ts): fills, fees and the on-demand early exit.
 import fs from 'node:fs'
-import { PM, takerFee, walkAsks, walkBids, inBand } from '../shared/pm.ts'
+import { PM, takerFee, walkAsks, walkBids, inBand, heOutcome, namesKept } from '../shared/pm.ts'
 let n = 0, bad = 0
 const ok = (c: boolean, m: string) => { n++; if (!c) { bad++; console.log('FAIL', m) } }
 const near = (a: number, b: number, e = 1e-9) => Math.abs(a - b) < e
@@ -17,6 +17,12 @@ ok(!!b && near(b.got, 60 * 0.999 + 50 * 0.99) && near(b.vwap, b.got / 110), 'wal
 ok(walkBids([{ price: 0.999, size: 60 }, { price: 0.98, size: 1000 }], 110, PM.exitPx) === null, 'walkBids refuses a partial exit above minPx')
 ok(walkBids([], 10, PM.exitPx) === null && walkBids([{ price: 1, size: 5 }], 0, PM.exitPx) === null, 'walkBids: empty book or zero qty -> null')
 ok(PM.exitPx > PM.hi && !inBand(PM.exitPx), 'exitPx sits above the entry band, so a position bought this cycle is never sold')
+// Hebrew outcomes: generic answers translated, team / player names untouched
+ok(heOutcome('Yes') === 'כן' && heOutcome('no') === 'לא' && heOutcome('Up') === 'עולה' && heOutcome('Down') === 'יורד', 'generic outcomes are translated from the fixed list')
+ok(heOutcome('Liquid') === 'Liquid' && heOutcome('BBL') === 'BBL' && heOutcome('100 Thieves') === '100 Thieves' && heOutcome('Yellow Submarine') === 'Yellow Submarine', 'team names are never translated')
+ok(namesKept('Counter-Strike: Liquid vs BBL - Map 1 Winner', 'Counter-Strike: Liquid vs BBL - מנצח מפה 1', ['Liquid', 'BBL']), 'a translation that keeps the names is kept')
+ok(!namesKept('Counter-Strike: Liquid vs BBL - Map 1 Winner', 'Counter-Strike: נוזל נגד BBL - מנצח מפה 1', ['Liquid', 'BBL']), 'a translation that renamed a team is rejected')
+ok(namesKept('Will Elon Musk post 360-379 tweets?', 'האם אילון מאסק יפרסם 360-379 ציוצים?', ['Yes', 'No']), 'generic outcomes impose nothing on the question')
 // runner wiring: early exit only from the entry path when cash is short
 const src = fs.readFileSync(new URL('../scripts/pm-desk.ts', import.meta.url), 'utf8')
 ok(/if \(st\.cash - 1 < want\) await freeCash\(/.test(src), 'freeCash is called only when cash cannot cover a new entry')
