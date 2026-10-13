@@ -451,6 +451,9 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   virtual post-only bid at the real best bid (st.shadow), filled once the real best ask reaches it before the end, no fee
   (takerOnly), settled at the official result; st.study.maker vs st.study.taker. Observation only, never touches cash.
   Page: "מעבדה חיה" panel on polycoins.html. Judge only after ~300 resolved shadows.
+- 2026-10-13 extra coins (owner asked): BNB / DOGE / HYPE / ZEC 5m, 10 days (11,517 markets, backtest/research/pmc_coins.py ->
+  status/pmc-coins.txt). Live rule on them: IS n466 WR 93.1% -1.34%/$ / OOS n287 WR 92.7% -1.81%/$ (DOGE -4..-6%, HYPE -2..-3%);
+  median market volume ~$0 (no traded size). NOT added; the desk stays on BTC/ETH/SOL/XRP.
 
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
