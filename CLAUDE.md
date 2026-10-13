@@ -454,6 +454,10 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
 - 2026-10-13 extra coins (owner asked): BNB / DOGE / HYPE / ZEC 5m, 10 days (11,517 markets, backtest/research/pmc_coins.py ->
   status/pmc-coins.txt). Live rule on them: IS n466 WR 93.1% -1.34%/$ / OOS n287 WR 92.7% -1.81%/$ (DOGE -4..-6%, HYPE -2..-3%);
   median market volume ~$0 (no traded size). NOT added; the desk stays on BTC/ETH/SOL/XRP.
+- 2026-10-13 22:45 UTC first live read (pmc): 11 closed / 11 wins, +$184.84; entries pay median 1.7c over the last trade
+  (research assumed 1c; thin ETH/XRP books, ~$250 tickets walk 1-3c past the ask); shadow maker 0/3 filled (all 3 missed
+  were wins). Owner chose to KEEP 25%/position as is and treat the surplus as a buffer. Told: the surplus is the absence of
+  a loss so far (P(11 straight) ~57%), not an edge; one loss ~ -$250.
 
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
