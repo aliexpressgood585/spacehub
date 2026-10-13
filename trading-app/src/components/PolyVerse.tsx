@@ -80,7 +80,9 @@ function Tube({ t, px, pos, resolved, selected, onSelect, ticks, windowH, big }:
   const entry = n(t.entry_px), pnl = n(t.qty) * px - n(t.cost)
   const color = resolved === 1 ? GOLD : resolved === 0 ? RED : px >= entry ? GREEN : RED
   const remain = (Date.parse(t.end_time) - now) / 1000, late = remain <= 0
-  const frac = late ? 1 : Math.max(0.02, Math.min(1, remain / (Math.max(1, windowH) * 3600)))
+  const [bLo, bHi] = (t.meta?.band as number[] | undefined) ?? [0.85, 0.92]
+  const win = n(t.meta?.window_s) || Math.max(1, windowH) * 3600
+  const frac = late ? 1 : Math.max(0.02, Math.min(1, remain / win))
   const clockGeo = useMemo(() => new THREE.RingGeometry(0.5, 0.62, 64, 1, Math.PI / 2, Math.PI * 2 * Math.round(frac * 120) / 120), [Math.round(frac * 120)])
   useEffect(() => () => clockGeo.dispose(), [clockGeo])
   useFrame((s, dt) => {
@@ -103,11 +105,11 @@ function Tube({ t, px, pos, resolved, selected, onSelect, ticks, windowH, big }:
     if (fill.current) { fill.current.scale.y = Math.max(0.001, y.current); fill.current.position.y = y.current / 2 }
     if (clock.current) { const m = clock.current.material as THREE.MeshBasicMaterial; m.opacity = late ? 0.45 + Math.sin(s.clock.elapsedTime * 4) * 0.35 : 0.85 }
   })
-  const clockCol = late ? VIOLET : remain < 1800 ? '#f0b84a' : CYAN
+  const clockCol = late ? VIOLET : remain < Math.min(1800, win / 8) ? '#f0b84a' : CYAN
   return (
     <group ref={g} position={[pos[0], 0, pos[1]]} onClick={(e) => { e.stopPropagation(); onSelect() }}>
       <mesh position={[0, H / 2, 0]}><cylinderGeometry args={[0.34, 0.34, H, 32, 1, true]} /><meshStandardMaterial color="#9fd8ff" transparent opacity={selected ? 0.2 : 0.1} side={THREE.DoubleSide} depthWrite={false} /></mesh>
-      <mesh position={[0, ((0.85 + 0.92) / 2) * H, 0]}><cylinderGeometry args={[0.36, 0.36, 0.07 * H, 32, 1, true]} /><meshBasicMaterial color={CYAN} transparent opacity={0.12} side={THREE.DoubleSide} depthWrite={false} /></mesh>
+      <mesh position={[0, ((bLo + bHi) / 2) * H, 0]}><cylinderGeometry args={[0.36, 0.36, (bHi - bLo) * H, 32, 1, true]} /><meshBasicMaterial color={CYAN} transparent opacity={0.12} side={THREE.DoubleSide} depthWrite={false} /></mesh>
       <mesh ref={fill}><cylinderGeometry args={[0.24, 0.24, 1, 24]} /><meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.6} transparent opacity={0.32} depthWrite={false} /></mesh>
       <mesh position={[0, entry * H, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.4, 0.018, 8, 48]} /><meshBasicMaterial color="#ffffff" /></mesh>
       <mesh position={[0, H, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.44, 0.035, 10, 64]} /><meshBasicMaterial color={GOLD} /></mesh>
@@ -270,7 +272,7 @@ class GlBoundary extends Component<{ fallback: ReactNode; children: ReactNode },
 const glass: React.CSSProperties = { background: 'rgba(8,14,26,.72)', border: '1px solid rgba(120,170,230,.18)', borderRadius: 14, backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', color: '#e6edf5' }
 const lab: React.CSSProperties = { fontSize: 11, color: '#8a97a8' }
 
-export default function PolyVerse({ d, onClassic }: { d: PolyLive; onClassic: () => void }) {
+export default function PolyVerse({ d, onClassic, title = 'זירת ההסתברות', sub = 'Polymarket · חשבון דמו', empty, other }: { d: PolyLive; onClassic: () => void; title?: string; sub?: string; empty?: string; other?: { href: string; label: string } }) {
   const now = useNow()
   const { st, open, closed, res, wsOn, tickAt, mark, cash, start, equity, realized, unreal, fees, wins } = d
   const [sel, setSel] = useState<string | null>(null)
@@ -378,8 +380,8 @@ export default function PolyVerse({ d, onClassic }: { d: PolyLive; onClassic: ()
       <div style={{ position: 'absolute', top: 10, insetInline: 10, display: 'grid', gap: 8, pointerEvents: 'none' }}>
         <div style={{ ...glass, padding: '10px 14px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10, pointerEvents: 'auto' }}>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: 0.3 }}>זירת ההסתברות</div>
-            <div style={lab}>Polymarket · חשבון דמו · <b style={{ color: wsOn ? GREEN : '#f0b84a' }}>{wsOn ? '● חי' : '● REST'}</b> · בוט {st?.last_scan ? ago(now - Date.parse(st.last_scan)) : '—'}{tickAt ? ` · מחיר ${ago(now - tickAt)}` : ''}</div>
+            <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: 0.3 }}>{title}</div>
+            <div style={lab}>{sub} · <b style={{ color: wsOn ? GREEN : '#f0b84a' }}>{wsOn ? '● חי' : '● REST'}</b> · בוט {st?.last_scan ? ago(now - Date.parse(st.last_scan)) : '—'}{tickAt ? ` · מחיר ${ago(now - tickAt)}` : ''}</div>
           </div>
           <div style={{ textAlign: 'left', direction: 'ltr' }}>
             <div style={{ fontSize: 26, fontWeight: 800, color: eqFlash ?? '#fff', transition: 'color .6s', textShadow: eqFlash ? `0 0 16px ${eqFlash}` : 'none' }}>{st ? usd(equity) : 'טוען…'}</div>
@@ -391,7 +393,7 @@ export default function PolyVerse({ d, onClassic }: { d: PolyLive; onClassic: ()
             <div key={String(k)} style={{ ...glass, padding: '5px 10px', borderRadius: 10 }}><span style={lab}>{k} </span><b style={{ fontSize: 13, color: col(Number(s)), direction: 'ltr', display: 'inline-block' }}>{v}</b></div>
           ))}
         </div>
-        {st && open.length === 0 && <div style={{ ...glass, padding: '8px 12px', fontSize: 13, justifySelf: 'center' }}>אין פוזיציות פתוחות כרגע. הבוט סורק כל 15 שניות שווקים שנגמרים תוך {n(strat.windowH) || 4} שעות במחיר {cents(n(strat.lo))}–{cents(n(strat.hi))}.</div>}
+        {st && open.length === 0 && <div style={{ ...glass, padding: '8px 12px', fontSize: 13, justifySelf: 'center' }}>{empty ?? <>אין פוזיציות פתוחות כרגע. הבוט סורק כל 15 שניות שווקים שנגמרים תוך {n(strat.windowH) || 4} שעות במחיר {cents(n(strat.lo))}–{cents(n(strat.hi))}.</>}</div>}
       </div>
 
       {/* live events */}
@@ -451,6 +453,7 @@ export default function PolyVerse({ d, onClassic }: { d: PolyLive; onClassic: ()
         <button onClick={() => { setHelp((h) => !h); setSel(null) }} style={btn}>?</button>
         <button onClick={() => setSpin((s) => !s)} style={btn}>{spin ? '⏸' : '⟳'}</button>
         <button onClick={onClassic} style={btn}>תצוגה מפורטת</button>
+        {other && <a href={other.href} style={{ ...btn, textDecoration: 'none' }}>{other.label}</a>}
         <div dir="ltr" style={{ ...glass, flex: 1, overflow: 'hidden', borderRadius: 10, padding: '6px 0', whiteSpace: 'nowrap', maskImage: 'linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)' }}>
           <div style={{ display: 'inline-block', paddingLeft: '100%', animation: reduced ? 'none' : 'pv-marquee 70s linear infinite', fontSize: 12 }}>
             {d.decisions.slice(0, 14).map((x: J) => (

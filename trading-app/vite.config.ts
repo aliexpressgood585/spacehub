@@ -15,6 +15,7 @@ export default defineConfig({
         trade: 'trade.html',
         history: 'history.html',
         poly: 'poly.html',
+        polycoins: 'polycoins.html',
       },
     },
   },

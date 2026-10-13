@@ -10,7 +10,7 @@ function PolyApp() {
   const d = usePolyLive()
   const [view, setView] = useState<'3d' | 'classic'>(() => { try { return localStorage.getItem('poly-view') === 'classic' ? 'classic' : '3d' } catch { return '3d' } })
   const go = (v: '3d' | 'classic') => { setView(v); try { localStorage.setItem('poly-view', v) } catch { /* private mode */ } ; window.scrollTo(0, 0) }
-  if (view === '3d') return <PolyVerse d={d} onClassic={() => go('classic')} />
+  if (view === '3d') return <PolyVerse d={d} onClassic={() => go('classic')} other={{ href: 'polycoins.html', label: 'פולי מטבעות' }} />
   return (
     <div style={{ minHeight: '100vh', background: '#04070E', display: 'flex', justifyContent: 'center', padding: '12px 10px' }}>
       <div style={{ width: '100%', maxWidth: 1100, display: 'grid', gap: 10 }}>

@@ -8,7 +8,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 export type J = Record<string, any>
-const STATE_URL = 'https://raw.githubusercontent.com/aliexpressgood585/spacehub/pm-desk-data/pm/state.json'
+export const STATE_URL = 'https://raw.githubusercontent.com/aliexpressgood585/spacehub/pm-desk-data/pm/state.json'
+export const COINS_STATE_URL = 'https://raw.githubusercontent.com/aliexpressgood585/spacehub/pm-desk-data/pmc/state.json'
 
 export const n = (v: any) => (Number.isFinite(Number(v)) ? Number(v) : 0)
 export const usd = (v: number) => `${v < 0 ? '−' : ''}$${Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -33,7 +34,7 @@ export function useNow(ms = 1000) {
   return now
 }
 
-export function usePolyLive(): PolyLive {
+export function usePolyLive(stateUrl: string = STATE_URL): PolyLive {
   const [st, setSt] = useState<J | null>(null)
   const [live, setLive] = useState<Record<string, number>>({})
   const [ask, setAsk] = useState<Record<string, number>>({})
@@ -45,12 +46,12 @@ export function usePolyLive(): PolyLive {
   useEffect(() => {
     const load = async () => {
       try {
-        const r = await fetch(`${STATE_URL}?t=${Math.floor(Date.now() / 5000)}`, { cache: 'no-store' })
+        const r = await fetch(`${stateUrl}?t=${Math.floor(Date.now() / 5000)}`, { cache: 'no-store' })
         if (r.ok) setSt(await r.json())
       } catch { /* keep the last state */ }
     }
     load(); const id = setInterval(load, 5000); return () => clearInterval(id)
-  }, [])
+  }, [stateUrl])
 
   const trades = useMemo(() => [...(st?.trades ?? [])].reverse() as J[], [st])
   const open = useMemo(() => trades.filter((t) => t.status === 'OPEN'), [trades])
