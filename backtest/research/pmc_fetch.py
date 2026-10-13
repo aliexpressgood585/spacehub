@@ -7,7 +7,8 @@ import json, sys, time, urllib.request, concurrent.futures as cf
 
 OUT = sys.argv[1]
 D5, D15, D4H = (int(x) for x in (sys.argv[2:5] + ['5', '14', '60'])[:3])
-COINS = ['btc', 'eth', 'sol', 'xrp']
+import os
+COINS = os.environ.get('PMC_COINS', 'btc,eth,sol,xrp').split(',')
 G, C = 'https://gamma-api.polymarket.com', 'https://clob.polymarket.com'
 
 def get(u, tries=4):
