@@ -473,6 +473,11 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   12-24% vs ~17-21% breakeven + fee 0.07*p(1-p) which is ~5x larger per $ at 15c than at 95c). Same as the main desk v1 live
   (15-30c, WR 26%, -$337). Not built.
 
+- 2026-10-13 "Bitcoin above $K on <date>" vs options (owner "כן"): backtest/research/pmb_options.py -> status/pmb-options.txt.
+  139 daily events / 1,560 strike markets, model P = lognormal N(d2) with sigma = Deribit DVOL, spot = Binance 1m, entry 24h..30m
+  before the 12:00 ET close, fee 0.07·p(1-p) +1c, 70/30 by date. Brier: market better at 24h/6h, model better at 30-60 min (n 85-119).
+  Trading the disagreement (>= 3-12c): IS +16..+45%/$ (t up to 2.3) -> OOS -8..-17%/$ on every pooled row. A flip. REJECTED.
+
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the
