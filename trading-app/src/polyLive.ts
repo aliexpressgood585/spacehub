@@ -1,6 +1,6 @@
 // ONE live feed for the Polymarket paper desk page (poly.html), shared by the classic view and the 3D arena so both show
 // the same numbers. Display only:
-//  - booked state: pm/state.json on the pm-desk-data branch (written by scripts/pm-desk.ts every ~15 s), re-read every 5 s;
+//  - booked state: pm/state.json / pmc/state.json on the pm-desk-data branch (written every ~10-15 s), re-read every 2 s;
 //  - live prices of the open positions: the public Polymarket market WebSocket (book + price_change best_bid/best_ask),
 //    REST POST /books every 3 s only while the socket is down; flushed to React at most 4x a second;
 //  - official resolutions: Gamma `markets?closed=true&id=..` every 3 s.
@@ -46,11 +46,11 @@ export function usePolyLive(stateUrl: string = STATE_URL): PolyLive {
   useEffect(() => {
     const load = async () => {
       try {
-        const r = await fetch(`${stateUrl}?t=${Math.floor(Date.now() / 5000)}`, { cache: 'no-store' })
+        const r = await fetch(`${stateUrl}?t=${Math.floor(Date.now() / 2000)}`, { cache: 'no-store' })
         if (r.ok) setSt(await r.json())
       } catch { /* keep the last state */ }
     }
-    load(); const id = setInterval(load, 5000); return () => clearInterval(id)
+    load(); const id = setInterval(load, 2000); return () => clearInterval(id)
   }, [stateUrl])
 
   const trades = useMemo(() => [...(st?.trades ?? [])].reverse() as J[], [st])
