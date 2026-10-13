@@ -76,6 +76,7 @@ run "portfolio simulator"   tests/portfolio.test.ts
 run "execution costs + validation" tests/execution-costs.test.ts
 run "RSI2 net PnL / fees display" tests/rsi2-fee-display.test.ts
 run "RSI2 existing-account metrics" tests/rsi2-existing-metrics.test.ts
+run "polymarket desk"     tests/pm.test.ts
 
 # ── typecheck: the shared module and both of its consumers ──────────────────
 # The bot and the backtest are Deno programs, so `npm:` specifiers and the Deno

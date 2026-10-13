@@ -111,7 +111,7 @@ export default function PolyDesk() {
         ))}
       </div>
       <div style={box}>
-        <div style={{ ...lab, marginBottom: 6 }}>האסטרטגיה: קונה את התוצאה שהשוק מעריך בין {c(n(strat.lo))} ל־{c(n(strat.hi))}, בשווקים שנגמרים בתוך {n(strat.windowH)} שעות, מחזיק עד ההכרעה (משלם $1 או $0 למניה). {Math.round(n(strat.stakeFrac) * 100)}% מהחשבון לפוזיציה, עד {n(strat.maxOpen)} פתוחות. העמלה לפי לוח העמלות של כל שוק ב־Polymarket.</div>
+        <div style={{ ...lab, marginBottom: 6 }}>האסטרטגיה: קונה את התוצאה שהשוק מעריך בין {c(n(strat.lo))} ל־{c(n(strat.hi))}, בשווקים שנגמרים בתוך {n(strat.windowH)} שעות, מחזיק עד ההכרעה (משלם $1 או $0 למניה), ומוכר מוקדם רק פוזיציה שכבר במחיר {c(n(strat.exitPx) || 0.99)} ומעלה, וגם זה רק כשחסר מזומן לכניסה חדשה. {Math.round(n(strat.stakeFrac) * 100)}% מהחשבון לפוזיציה, עד {n(strat.maxOpen)} פתוחות. העמלה לפי לוח העמלות של כל שוק ב־Polymarket.</div>
         {curve ? (
           <svg viewBox={`0 0 ${curve.W} ${curve.Hh}`} style={{ width: '100%', height: 140 }} preserveAspectRatio="none">
             <line x1="0" x2={curve.W} y1={curve.base} y2={curve.base} stroke="#3a4658" strokeDasharray="4 4" />
@@ -140,7 +140,7 @@ export default function PolyDesk() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead><tr style={lab}>{['שוק', 'תוצאה שקנינו', 'כניסה', 'מניות', 'עלות', 'עמלה', 'קיבלנו', 'רווח/הפסד', 'נסגר'].map((h) => <th key={h} style={{ textAlign: 'right', padding: 6, borderBottom: '1px solid #1c2738' }}>{h}</th>)}</tr></thead>
             <tbody>{closed.map((t) => (
-              <tr key={t.id}><td style={{ padding: 6 }} title={t.question}>{t.question_he ?? t.question}</td><td>{t.outcome_he ?? t.outcome} {t.reason === 'RESOLVED_WIN' ? '✓' : '✗'}</td><td>{c(n(t.entry_px))}</td><td>{n(t.qty).toFixed(1)}</td><td>{$(n(t.cost))}</td><td>{$(n(t.entry_fee))}</td><td>{$(n(t.proceeds))}</td><td style={{ color: col(n(t.pnl)) }}>{$(n(t.pnl))}</td><td>{when(t.closed_at)}</td></tr>
+              <tr key={t.id}><td style={{ padding: 6 }} title={t.question}>{t.question_he ?? t.question}</td><td>{t.outcome_he ?? t.outcome} {t.reason === 'EARLY_EXIT' ? `· מימוש מוקדם ב־${c(n(t.exit_px))}` : t.reason === 'RESOLVED_WIN' ? '✓' : '✗'}</td><td>{c(n(t.entry_px))}</td><td>{n(t.qty).toFixed(1)}</td><td>{$(n(t.cost))}</td><td>{$(n(t.entry_fee) + n(t.exit_fee))}</td><td>{$(n(t.proceeds) - n(t.exit_fee))}</td><td style={{ color: col(n(t.pnl)) }}>{$(n(t.pnl))}</td><td>{when(t.closed_at)}</td></tr>
             ))}</tbody>
           </table>
           {closed.length === 0 && <div style={lab}>עוד לא נסגרו עסקאות. שווי פוזיציה נקבע רק כשהשוק מוכרע.</div>}
@@ -148,7 +148,7 @@ export default function PolyDesk() {
       </div>
       <div style={box}>
         <h2 style={{ fontSize: 17, margin: '0 0 8px' }}>החלטות אחרונות של הבוט</h2>
-        {dec.map((d) => <div key={d.id} style={{ fontSize: 13, padding: '3px 0', borderBottom: '1px solid #142033' }}><span style={lab}>{when(d.ts)}</span> · <b style={{ color: d.decision === 'BUY' || d.decision === 'ADD' ? '#3ddc97' : '#8a97a8' }}>{d.decision === 'BUY' ? 'קנייה' : d.decision === 'ADD' ? 'הגדלה' : 'דילוג'}</b> · <span title={d.question}>{d.question_he ?? d.question}</span> · {d.outcome_he ?? d.outcome} @ {c(n(d.price))} · {d.reason}</div>)}
+        {dec.map((d) => <div key={d.id} style={{ fontSize: 13, padding: '3px 0', borderBottom: '1px solid #142033' }}><span style={lab}>{when(d.ts)}</span> · <b style={{ color: d.decision === 'BUY' || d.decision === 'ADD' ? '#3ddc97' : d.decision === 'SELL' ? '#f0b84a' : '#8a97a8' }}>{d.decision === 'BUY' ? 'קנייה' : d.decision === 'ADD' ? 'הגדלה' : d.decision === 'SELL' ? 'מכירה' : 'דילוג'}</b> · <span title={d.question}>{d.question_he ?? d.question}</span> · {d.outcome_he ?? d.outcome} @ {c(n(d.price))} · {d.reason}</div>)}
         {dec.length === 0 && <div style={lab}>אין עדיין החלטות.</div>}
       </div>
     </div>

@@ -37,8 +37,22 @@ export const PM = {
   maxPosFrac: 0.10,           // top-ups never take one position above 10% of equity (a loss is -100% of it)
   maxPerEvent: 2,
   minQty: 5,                  // Polymarket minimum order size (shares)
+  exitPx: 0.99,               // early exit (2026-10-13): a position whose bid is >= this may be SOLD before resolution,
+                              // ONLY to fund a new in-band entry that cash cannot cover (otherwise hold for $1)
 } as const
 
 export function inBand(p: number, lo: number = PM.lo, hi: number = PM.hi): boolean {
   return p >= lo && p <= hi
+}
+
+// Sell `qty` into the real bid book (price descending), never below `minPx`. All-or-nothing: if the book above minPx
+// cannot absorb the whole position, returns null (a partial early exit would leave a stub and is not worth it).
+export function walkBids(bids: { price: number; size: number }[], qty: number, minPx: number): { qty: number; vwap: number; got: number } | null {
+  let left = qty, got = 0
+  for (const b of [...bids].sort((x, y) => y.price - x.price)) {
+    if (left <= 1e-9 || !(b.price >= minPx)) break
+    const take = Math.min(b.size, left)
+    got += take * b.price; left -= take
+  }
+  return left > 1e-9 || !(qty > 0) ? null : { qty, vwap: got / qty, got }
 }
