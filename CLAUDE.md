@@ -468,6 +468,10 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   shared RARE words (in <= 3 market questions); 20 min later CLOB prices-history -> price 1 min before publication, when we saw
   it, +5/+15 min; study = median lag, share of the move that happened before we saw it, virtual "follow the move" (>= 2c, 1c
   slip). Panel "מעבדת חדשות" on poly.html. Matching measured on 218 live headlines: 2 precise matches -> few events/day.
+- 2026-10-13 owner asked for 1:5 risk:reward. Tested on the pmc data (backtest/research/pmc_underdogs.py -> status/pmc-underdogs.txt):
+  buy the 10-25c underdog in 5m/15m/4h crypto Up/Down markets — every pooled row negative in both halves (-3..-38%/$; WR
+  12-24% vs ~17-21% breakeven + fee 0.07*p(1-p) which is ~5x larger per $ at 15c than at 95c). Same as the main desk v1 live
+  (15-30c, WR 26%, -$337). Not built.
 
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
