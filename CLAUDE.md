@@ -510,6 +510,17 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   shares = $0) plus spot z (meta.x30 / meta.x15). st.study.late_exit compares, per rule (always / bid<0.90/0.80/0.70/0.50 /
   z<0 / z<0.5), the actual P&L of the trades it would have sold vs selling. Observation only, never touches cash. Page:
   section 3 of "מעבדה חיה"; the ABOUT/EMPTY texts were also updated to the v3 rules (they still described 25%/trade). Tests 29/29.
+- 2026-10-14 "מסלול" (owner: "something special that feels like 2030, fun to watch"; picked from mockups in status/mockups/).
+  trading-app/src/components/PolyOrbit.tsx, now the DEFAULT view of polycoins.html (arena ✦ and tables ☰ one tap away;
+  ?view=orbit|3d|classic). DISPLAY ONLY. Four 3D discs, one per coin; one turn = one 5m window; the comet's distance from the
+  centre = the bot's own z (shared/pmc.ts pmcZ + sigmaOf, spot from data-api.binance.vision 1 s klines, open at the window
+  start, sigma over the last hour, price every 1 s); gold ring = open, green rings = |z| = PMC.zMin, cyan arc = the entry gate
+  (PMC.rules[0] enterFrom..enterTo); Polymarket Up/Down asks via Gamma slug + POST /books every 2 s. The bot's real entry for
+  the window (state file) lights the disc; new entries / results fire a beam / gold coins / red shock ring + toast, optional
+  WebAudio chime + vibration (🔈 toggle, off by default). Second view "כור": core = equity, 36 cells = room above pmcFloor
+  (100% = 10% of equity), orbs = last 14 closes. Story card explains in Hebrew why the bot waits / enters. ?orbitdemo=1 =
+  synthetic comets for a visual check (verified headless at 500px: focus, overview, reactor). The sandbox browser cannot reach
+  Binance/Polymarket (TLS), so the LIVE feeds were not exercised here.
 
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
