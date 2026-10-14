@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 1025.394259304417,
+ "cash": 1020.7684993044169,
  "peak": 1072.1210886213057,
  "floor": 936.0605443106529,
  "strategy": {
@@ -44,12 +44,12 @@
   "zMin": 1,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-14T18:01:56.875Z",
+ "last_scan": "2026-10-14T18:02:09.380Z",
  "last_note": {
-  "at": "2026-10-14T18:01:56.558Z",
-  "windows": 0,
+  "at": "2026-10-14T18:02:06.488Z",
+  "windows": 4,
   "settled": 0,
-  "entered": 0
+  "entered": 1
  },
  "trades": [
   {
@@ -3452,7 +3452,7 @@
    "opened_at": "2026-10-14T17:57:09.253Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-14T18:01:56.875Z",
+   "mark_at": "2026-10-14T18:02:06.823Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -3496,6 +3496,54 @@
      "unfilled": 0,
      "z": -1.9020361499511291
     }
+   }
+  },
+  {
+   "id": 52,
+   "market_id": "5664641",
+   "slug": "sol-updown-5m-1792000800",
+   "event_slug": "sol-updown-5m-1792000800",
+   "question": "Solana Up or Down - October 14, 2:00PM-2:05PM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 18:00–18:05 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "token_id": "94974869955031792059568452851610552134286558369269073058395898309565246540752",
+   "end_time": "2026-10-14T18:05:00Z",
+   "qty": 5,
+   "entry_px": 0.9200000000000002,
+   "entry_fee": 0.02575999999999996,
+   "cost": 4.6257600000000005,
+   "best_ask": 0.92,
+   "opened_at": "2026-10-14T18:02:09.379Z",
+   "status": "OPEN",
+   "mark_px": 0.9,
+   "mark_at": "2026-10-14T18:02:09.379Z",
+   "meta": {
+    "fee_schedule": {
+     "rate": 0.07,
+     "exponent": 1
+    },
+    "coin": "sol",
+    "tf": "5m",
+    "window_s": 300,
+    "left_s": 174,
+    "band": [
+     0.9,
+     0.98
+    ],
+    "z_min": 1,
+    "look": 1,
+    "outcomes": [
+     "Up",
+     "Down"
+    ],
+    "wanted": 31.768678623259515,
+    "ref_px": 0.91,
+    "bid_px": 0.9,
+    "z": 1.692132529090394,
+    "spot_open": 104.41,
+    "spot": 104.18,
+    "sigma1s": 0.00009879967708220186
    }
   }
  ],
@@ -7517,9 +7565,27 @@
    "cash": 1025.394259304417,
    "open_value": 33.561694804233746,
    "open_count": 1
+  },
+  {
+   "ts": "2026-10-14T18:02:09.380Z",
+   "equity": 1058.8301941086506,
+   "cash": 1020.7684993044169,
+   "open_value": 38.061694804233746,
+   "open_count": 2
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-14T18:02:09.380Z",
+   "market_id": "5664641",
+   "question": "Solana Up or Down - October 14, 2:00PM-2:05PM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 18:00–18:05 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.9200000000000002,
+   "decision": "BUY",
+   "reason": "174 שנ׳ לסיום, מחיר 0.92 בטווח 90-98¢, 5.0 מניות ($5, הספר הספיק רק ל־$5 מתוך $32), עמלה $0.03"
+  },
   {
    "ts": "2026-10-14T17:59:07.694Z",
    "market_id": "5663889",
@@ -9708,20 +9774,9 @@
    "price": 0.926336236303154,
    "decision": "BUY",
    "reason": "180 שנ׳ לסיום, מחיר 0.92 בטווח 90-98¢, 34.3 מניות ($32), עמלה $0.16"
-  },
-  {
-   "ts": "2026-10-14T16:12:03.100Z",
-   "market_id": "5658755",
-   "question": "Solana Up or Down - October 14, 12:10PM-12:15PM ET",
-   "question_he": "סולנה · עולה או יורד · 5 דקות · 16:10–16:15 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.95,
-   "decision": "skip",
-   "reason": "מקסימום פוזיציות פתוחות"
   }
  ],
- "next_id": 52,
+ "next_id": 53,
  "shadow": [
   {
    "slug": "btc-updown-5m-1791969600",
@@ -14311,17 +14366,30 @@
    "filled": true,
    "filled_at": "2026-10-14T17:57:17.592Z",
    "left_at_fill": 162
+  },
+  {
+   "slug": "sol-updown-5m-1792000800",
+   "market_id": "5664641",
+   "token_id": "94974869955031792059568452851610552134286558369269073058395898309565246540752",
+   "coin": "sol",
+   "outcome": "Down",
+   "end_time": "2026-10-14T18:05:00Z",
+   "placed_at": "2026-10-14T18:02:08.102Z",
+   "limit": 0.9,
+   "taker_ask": 0.92,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
   "fills": {
-   "n": 51,
-   "avg_vs_ref_c": -0.26371996187591484,
-   "avg_vs_research_c": -1.2637199618759156,
-   "avg_fee_c": 0.41085851077526714
+   "n": 52,
+   "avg_vs_ref_c": -0.2394176549167624,
+   "avg_vs_research_c": -1.2394176549167635,
+   "avg_fee_c": 0.4128650778757427
   },
   "maker": {
-   "placed": 289,
+   "placed": 290,
    "resolved": 287,
    "filled": 128,
    "fill_rate": 0.445993031358885,
