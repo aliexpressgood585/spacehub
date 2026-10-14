@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 0.9999999999999432,
+ "cash": 1940.4967119635944,
  "strategy": {
   "rules": [
    {
@@ -22,11 +22,11 @@
   "minQty": 5,
   "slipCap": 0.01
  },
- "last_scan": "2026-10-14T01:37:35.595Z",
+ "last_scan": "2026-10-14T01:37:44.342Z",
  "last_note": {
-  "at": "2026-10-14T01:37:33.829Z",
-  "windows": 4,
-  "settled": 0,
+  "at": "2026-10-14T01:37:43.800Z",
+  "windows": 0,
+  "settled": 4,
   "entered": 0
  },
  "trades": [
@@ -2405,9 +2405,9 @@
    "cost": 451.90356512648333,
    "best_ask": 0.9,
    "opened_at": "2026-10-14T01:32:14.162Z",
-   "status": "OPEN",
-   "mark_px": 0.999,
-   "mark_at": "2026-10-14T01:36:54.109Z",
+   "status": "CLOSED",
+   "mark_px": 1,
+   "mark_at": "2026-10-14T01:37:44.342Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -2428,7 +2428,13 @@
     "wanted": 452.2985698813406,
     "ref_px": 0.89,
     "bid_px": 0.89
-   }
+   },
+   "exit_px": 1,
+   "exit_fee": 0,
+   "proceeds": 492.18987876315856,
+   "pnl": 40.28631363667523,
+   "reason": "RESOLVED_WIN",
+   "closed_at": "2026-10-14T01:37:44.342Z"
   },
   {
    "id": 51,
@@ -2447,9 +2453,9 @@
    "cost": 451.0670717687959,
    "best_ask": 0.9,
    "opened_at": "2026-10-14T01:32:14.288Z",
-   "status": "OPEN",
-   "mark_px": 0.999,
-   "mark_at": "2026-10-14T01:36:54.234Z",
+   "status": "CLOSED",
+   "mark_px": 1,
+   "mark_at": "2026-10-14T01:37:44.342Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -2470,7 +2476,13 @@
     "wanted": 452.2985698813406,
     "ref_px": 0.9,
     "bid_px": 0.89
-   }
+   },
+   "exit_px": 1,
+   "exit_fee": 0,
+   "proceeds": 478.2468299601115,
+   "pnl": 27.179758191315557,
+   "reason": "RESOLVED_WIN",
+   "closed_at": "2026-10-14T01:37:44.342Z"
   },
   {
    "id": 52,
@@ -2489,9 +2501,9 @@
    "cost": 444.86931249824903,
    "best_ask": 0.9,
    "opened_at": "2026-10-14T01:32:24.484Z",
-   "status": "OPEN",
-   "mark_px": 0.999,
-   "mark_at": "2026-10-14T01:36:54.338Z",
+   "status": "CLOSED",
+   "mark_px": 1,
+   "mark_at": "2026-10-14T01:37:44.342Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -2512,7 +2524,13 @@
     "wanted": 444.869312498249,
     "ref_px": 0.9,
     "bid_px": 0.89
-   }
+   },
+   "exit_px": 1,
+   "exit_fee": 0,
+   "proceeds": 490.8631937528953,
+   "pnl": 45.99388125464628,
+   "reason": "RESOLVED_WIN",
+   "closed_at": "2026-10-14T01:37:44.342Z"
   },
   {
    "id": 53,
@@ -2531,9 +2549,9 @@
    "cost": 460.3543301318342,
    "best_ask": 0.96,
    "opened_at": "2026-10-14T01:32:34.335Z",
-   "status": "OPEN",
-   "mark_px": 0.999,
-   "mark_at": "2026-10-14T01:36:54.436Z",
+   "status": "CLOSED",
+   "mark_px": 1,
+   "mark_at": "2026-10-14T01:37:44.342Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -2554,7 +2572,13 @@
     "wanted": 460.35433013183416,
     "ref_px": 0.89,
     "bid_px": 0.94
-   }
+   },
+   "exit_px": 1,
+   "exit_fee": 0,
+   "proceeds": 478.1968094874292,
+   "pnl": 17.842479355595003,
+   "reason": "RESOLVED_WIN",
+   "closed_at": "2026-10-14T01:37:44.342Z"
   }
  ],
  "equity": [
@@ -4335,6 +4359,13 @@
    "cash": 0.9999999999999432,
    "open_value": 1937.557215251631,
    "open_count": 4
+  },
+  {
+   "ts": "2026-10-14T01:37:44.342Z",
+   "equity": 1940.4967119635944,
+   "cash": 1940.4967119635944,
+   "open_value": 0,
+   "open_count": 0
   }
  ],
  "decisions": [
@@ -5505,8 +5536,10 @@
    "placed_at": "2026-10-14T01:32:34.237Z",
    "limit": 0.94,
    "taker_ask": 0.96,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "eth-updown-5m-1791941700",
@@ -5557,18 +5590,18 @@
   },
   "maker": {
    "placed": 34,
-   "resolved": 30,
+   "resolved": 31,
    "filled": 11,
-   "fill_rate": 0.36666666666666664,
+   "fill_rate": 0.3548387096774194,
    "wr": 1,
    "ret": 0.08404267152513993,
-   "missed_wins": 19,
+   "missed_wins": 20,
    "missed_losses": 0
   },
   "taker": {
-   "n": 49,
+   "n": 53,
    "wr": 1,
-   "ret": 0.058083672620890404
+   "ret": 0.05920094550820955
   }
  }
 }
