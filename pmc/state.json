@@ -30,11 +30,11 @@
   "zMin": 1,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-14T11:07:24.979Z",
+ "last_scan": "2026-10-14T11:07:35.661Z",
  "last_note": {
-  "at": "2026-10-14T11:07:23.456Z",
+  "at": "2026-10-14T11:07:34.035Z",
   "windows": 4,
-  "settled": 1,
+  "settled": 0,
   "entered": 0
  },
  "trades": [
@@ -487,8 +487,8 @@
    "best_ask": 0.9,
    "opened_at": "2026-10-14T11:07:16.018Z",
    "status": "OPEN",
-   "mark_px": 0.93,
-   "mark_at": "2026-10-14T11:07:24.273Z",
+   "mark_px": 0.92,
+   "mark_at": "2026-10-14T11:07:34.856Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -1437,6 +1437,17 @@
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-14T11:07:35.661Z",
+   "market_id": "5646881",
+   "question": "Solana Up or Down - October 14, 7:05AM-7:10AM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 11:05–11:10 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.91,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
   {
    "ts": "2026-10-14T11:07:24.979Z",
    "market_id": "5646881",
@@ -2541,7 +2552,9 @@
    "limit": 0.91,
    "taker_ask": 0.92,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-14T11:07:34.551Z",
+   "left_at_fill": 145
   },
   {
    "slug": "xrp-updown-5m-1791975900",
@@ -2554,7 +2567,9 @@
    "limit": 0.91,
    "taker_ask": 0.92,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-14T11:07:34.711Z",
+   "left_at_fill": 145
   }
  ],
  "study": {
