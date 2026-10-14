@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 373.031203338143,
+ "cash": 7.424485350229531,
  "strategy": {
   "rules": [
    {
@@ -22,9 +22,9 @@
   "minQty": 5,
   "slipCap": 0.01
  },
- "last_scan": "2026-10-14T00:17:01.876Z",
+ "last_scan": "2026-10-14T00:17:11.889Z",
  "last_note": {
-  "at": "2026-10-14T00:17:00.569Z",
+  "at": "2026-10-14T00:17:10.711Z",
   "windows": 4,
   "settled": 0,
   "entered": 1
@@ -1294,7 +1294,7 @@
    "opened_at": "2026-10-14T00:12:02.287Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-14T00:17:00.763Z",
+   "mark_at": "2026-10-14T00:17:11.035Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -1336,7 +1336,7 @@
    "opened_at": "2026-10-14T00:12:02.384Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-14T00:17:00.866Z",
+   "mark_at": "2026-10-14T00:17:11.138Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -1377,8 +1377,8 @@
    "best_ask": 0.9,
    "opened_at": "2026-10-14T00:17:01.876Z",
    "status": "OPEN",
-   "mark_px": 0.89,
-   "mark_at": "2026-10-14T00:17:01.876Z",
+   "mark_px": 0.95,
+   "mark_at": "2026-10-14T00:17:11.244Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -1399,6 +1399,48 @@
     "wanted": 363.1953773058916,
     "ref_px": 0.83,
     "bid_px": 0.89
+   }
+  },
+  {
+   "id": 30,
+   "market_id": "5638525",
+   "slug": "btc-updown-5m-1791936900",
+   "event_slug": "btc-updown-5m-1791936900",
+   "question": "Bitcoin Up or Down - October 13, 8:15PM-8:20PM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 00:15–00:20 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "token_id": "74868689380782510779173653923540848996880887641738352166026579490923276474885",
+   "end_time": "2026-10-14T00:20:00Z",
+   "qty": 384.11911181732387,
+   "entry_px": 0.9483786279285781,
+   "entry_fee": 1.3163617614557765,
+   "cost": 365.60671798791344,
+   "best_ask": 0.94,
+   "opened_at": "2026-10-14T00:17:11.889Z",
+   "status": "OPEN",
+   "mark_px": 0.93,
+   "mark_at": "2026-10-14T00:17:11.889Z",
+   "meta": {
+    "fee_schedule": {
+     "rate": 0.07,
+     "exponent": 1
+    },
+    "coin": "btc",
+    "tf": "5m",
+    "window_s": 300,
+    "left_s": 169,
+    "band": [
+     0.9,
+     0.98
+    ],
+    "outcomes": [
+     "Up",
+     "Down"
+    ],
+    "wanted": 365.8203757226088,
+    "ref_px": 0.93,
+    "bid_px": 0.93
    }
   }
  ],
@@ -2515,9 +2557,27 @@
    "cash": 373.031203338143,
    "open_value": 1066.677197453699,
    "open_count": 3
+  },
+  {
+   "ts": "2026-10-14T00:17:11.889Z",
+   "equity": 1454.9055588926328,
+   "cash": 7.424485350229531,
+   "open_value": 1447.4810735424032,
+   "open_count": 4
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-14T00:17:11.889Z",
+   "market_id": "5638525",
+   "question": "Bitcoin Up or Down - October 13, 8:15PM-8:20PM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 00:15–00:20 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.9483786279285781,
+   "decision": "BUY",
+   "reason": "169 שנ׳ לסיום, מחיר 0.94 בטווח 90-98¢, 384.1 מניות ($366), עמלה $1.32"
+  },
   {
    "ts": "2026-10-14T00:17:01.876Z",
    "market_id": "5638530",
@@ -2838,7 +2898,7 @@
    "reason": "179 שנ׳ לסיום, מחיר 0.93 בטווח 90-98¢, 263.5 מניות ($250), עמלה $0.97"
   }
  ],
- "next_id": 30,
+ "next_id": 31,
  "shadow": [
   {
    "slug": "btc-updown-5m-1791930000",
@@ -3068,17 +3128,30 @@
    "taker_ask": 0.94,
    "status": "WORKING",
    "filled": false
+  },
+  {
+   "slug": "btc-updown-5m-1791936900",
+   "market_id": "5638525",
+   "token_id": "74868689380782510779173653923540848996880887641738352166026579490923276474885",
+   "coin": "btc",
+   "outcome": "Up",
+   "end_time": "2026-10-14T00:20:00Z",
+   "placed_at": "2026-10-14T00:17:11.387Z",
+   "limit": 0.93,
+   "taker_ask": 0.94,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
   "fills": {
-   "n": 25,
-   "avg_vs_ref_c": 4.342269425883021,
-   "avg_vs_research_c": 3.342269425883023,
-   "avg_fee_c": 0.3670227002221897
+   "n": 26,
+   "avg_vs_ref_c": 4.245946093843589,
+   "avg_vs_research_c": 3.2459460938435907,
+   "avg_fee_c": 0.36608706721819007
   },
   "maker": {
-   "placed": 15,
+   "placed": 16,
    "resolved": 13,
    "filled": 4,
    "fill_rate": 0.3076923076923077,
