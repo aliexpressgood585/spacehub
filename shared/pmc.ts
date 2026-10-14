@@ -35,7 +35,11 @@ export const PMC = {
   //   90-98c, 180 s, +1c:  ALL IS n439 WR 95.2% +0.91%/$ | OOS n243 94.2% -0.04%/$
   //                        z>=1.5 IS n171 WR 98.2% +3.25%/$ | OOS n111 100% +5.23%/$   (same sign at 120 s / 60 s, every band)
   // NOT PROVEN live: the CLOB history is one point a minute; the live ask may already price the move. The live desk is the test.
-  zMin: 1.5,
+  //   z>=1.0 IS n315 WR 97.1% +2.68%/$ t2.68 | OOS n187 97.3% +2.86%/$ t2.28 (~2x the trades of 1.5)
+  // 2026-10-14 owner chose 1.0 (recommended): about the same expected profit per day at twice the trades, so the live check
+  // of the edge (the history price may lag the real book) reaches ~100 trades in ~2 days instead of ~4. Every entry stores
+  // meta.z; after ~100 closes compare the 1.0-1.5 bucket with >= 1.5 and go back to 1.5 if the lower bucket loses live.
+  zMin: 1.0,
   maxOverRef: 0.01,           // never pay more than the LAST TRADED price + 1c (the research's cost assumption). v1 live
                               // (158 fills): BTC paid +0.29c over the last trade -> +1.13%/$; ETH +1.63c -> +0.51%; SOL +2.75c ->
                               // -3.40%; XRP +6.92c -> -4.66%. Thin books, not the rule, were the loss.
