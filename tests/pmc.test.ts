@@ -63,15 +63,22 @@ ok(near(t.cost, 1000 * PMC.maxPosFrac, 1e-6) && near(out.cash, 1000 - t.cost, 1e
 ok(t.question_he.startsWith('ביטקוין · עולה או יורד · 15 דקות') && t.outcome_he === 'עולה' && t.meta.window_s === 900, 'Hebrew title, outcome and window stored')
 ok(out.shadow?.length === 1 && out.shadow[0].limit === 0.89 && !out.shadow[0].filled && out.shadow[0].taker_ask === 0.9, 'shadow maker bid placed at the real best bid, not filled while the ask sits above it')
 ok(!!out.study && out.study.maker.placed === 1, 'study summary written to the state')
+{ const s0 = JSON.parse(fs.readFileSync(file, 'utf8')); s0.trades[0].end_time = new Date(Date.now() + 20e3).toISOString(); fs.writeFileSync(file, JSON.stringify(s0)) }
 await run(2)
 out = JSON.parse(fs.readFileSync(file, 'utf8'))
 ok(out.trades.length === 1, 'never enters the same market twice')
+{ const x = out.trades[0].meta.x30, q = out.trades[0].qty
+  ok(!!x && x.bid === 0.89 && x.unfilled === 0 && near(x.proceeds, q * 0.89 - 0.07 * q * 0.89 * 0.11, 1e-6) && x.z > 0 && !out.trades[0].meta.x15,
+    'shadow late exit at <= 30 s: whole position priced into the real bid book less the taker fee, with spot z; 15 s not yet') }
 resolved = true
 await run(3)
 out = JSON.parse(fs.readFileSync(file, 'utf8'))
 const c = out.trades[0]
 ok(c.status === 'CLOSED' && c.reason === 'RESOLVED_WIN' && near(c.pnl, c.qty - c.cost, 1e-6), 'settles at the official $1 result')
 ok(near(out.cash, 1000 - c.cost + c.qty, 1e-6), 'cash = start - cost + payout')
+{ const le = out.study.late_exit.x30, a = le.rules.find((r: any) => r.rule === 'always')
+  ok(le.n === 1 && a.sold === 1 && a.wins_cut === 1 && near(a.gain_usd, c.meta.x30.proceeds - c.qty, 1e-6) && a.gain_usd < 0,
+    'late-exit study: selling a winner at 30 s would have cost (proceeds - $1 payout), never touches cash') }
 console.log = log
 PMC.rules.splice(0, PMC.rules.length, ...saved)
 // the runner never signs or posts anything

@@ -77,6 +77,22 @@ try {
     const b = await book(t.token_id)
     if (b?.bids[0]) { t.mark_px = b.bids[0].price; t.mark_at = now() }
     openValue += t.qty * t.mark_px
+    // SHADOW LATE EXIT (owner 2026-10-14: "cut the loss in the last 15-30 s?"). Observation only, never touches cash: once at
+    // <= 30 s and once at <= 15 s before the end, what would selling the WHOLE position into the real bid book have paid
+    // (book walk, taker fee; shares the book cannot absorb count as $0), and where was spot vs the window's open (z)?
+    // Settled trades compare the actual result with each exit rule in st.study.late_exit.
+    const leftS = Math.round((Date.parse(t.end_time) - Date.now()) / 1000)
+    for (const [key, lim] of [['x30', 30], ['x15', 15]] as const) {
+      if (leftS > lim || leftS <= 0 || t.meta?.[key] || !b) continue
+      let need = t.qty, got = 0
+      for (const l of b.bids) { if (need <= 1e-9) break; const q = Math.min(l.size, need); got += q * l.price; need -= q }
+      const sold = t.qty - need, vw = sold > 0 ? got / sold : 0
+      const fee = takerFee(sold, vw, t.meta?.fee_schedule ?? null)
+      const start = Date.parse(t.end_time) / 1000 - (t.meta?.window_s ?? 300)
+      const sz = t.meta?.coin ? await spotZ(t.meta.coin, start, Math.floor(Date.now() / 1000), leftS) : null
+      t.meta = { ...t.meta, [key]: { at: now(), left_s: leftS, bid: b.bids[0]?.price ?? 0, proceeds: got - fee, unfilled: need,
+        z: sz ? (t.outcome === 'Up' ? 1 : -1) * sz.z : null } }
+    }
   }
   // 2. entries: for every rule, the current window of each coin; inside the entry window, buy the side whose real ask is in band
   const equity0 = st.cash + openValue
@@ -164,8 +180,26 @@ if (st.shadow.length > 3000) st.shadow = st.shadow.slice(-3000)
       wr: filled.length ? filled.filter((x: any) => x.won).length / filled.length : null,
       ret: filled.length ? filled.reduce((a: number, x: any) => a + x.ret, 0) / filled.length : null,
       missed_wins: done.filter((x: any) => !x.filled && x.won).length, missed_losses: done.filter((x: any) => !x.filled && !x.won).length },
+    late_exit: lateExit(tk),
     taker: { n: tk.length, wr: tk.length ? tk.filter((t: any) => t.pnl > 0).length / tk.length : null, ret: tk.length ? tk.reduce((a: number, t: any) => a + t.pnl / t.cost, 0) / tk.length : null },
   }
+}
+// SHADOW LATE EXIT summary: for each rule, the actual result of the trades it would have sold vs what selling would have paid.
+function lateExit(tk: any[]) {
+  const rules: [string, (x: any) => boolean][] = [
+    ['always', () => true], ['bid<0.90', (x) => x.bid < 0.9], ['bid<0.80', (x) => x.bid < 0.8], ['bid<0.70', (x) => x.bid < 0.7],
+    ['bid<0.50', (x) => x.bid < 0.5], ['z<0', (x) => x.z != null && x.z < 0], ['z<0.5', (x) => x.z != null && x.z < 0.5]]
+  const out: any = {}
+  for (const key of ['x30', 'x15']) {
+    const ts = tk.filter((t) => t.meta?.[key])
+    out[key] = { n: ts.length, rules: rules.map(([name, f]) => {
+      const sel = ts.filter((t) => f(t.meta[key]))
+      const actual = sel.reduce((a, t) => a + t.pnl, 0), shadow = sel.reduce((a, t) => a + t.meta[key].proceeds - t.cost, 0)
+      return { rule: name, sold: sel.length, wins_cut: sel.filter((t) => t.pnl > 0).length, losses_cut: sel.filter((t) => t.pnl <= 0).length,
+        actual_usd: actual, if_sold_usd: shadow, gain_usd: shadow - actual }
+    }) }
+  }
+  return out
 }
 fs.mkdirSync(FILE.replace(/\/[^/]*$/, '') || '.', { recursive: true })
 fs.writeFileSync(FILE, JSON.stringify(st, null, 1))

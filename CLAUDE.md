@@ -503,6 +503,13 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   180 s +1c: ALL IS n439 95.2% +0.91%/$ | OOS n243 94.2% -0.04%; z>=1.5 IS n171 98.2% +3.25%/$ | OOS n111 100% +5.23%/$; same
   sign at 120 s / 60 s and every band. Deployed PMC.zMin 1.5 (spot via data-api.binance.vision 1s klines, no spot = no entry;
   meta.z / spot_open / sigma1s stored). CAVEAT: the history price may still lag the real book; the live asks are the test.
+- 2026-10-14 SHADOW LATE EXIT (owner: "cut the loss in the last 15-30 s instead of waiting for the result?"). Answered with the
+  pmc_stoploss result (stops cut 2-3 winners per loser saved, the price gaps, an early sale pays the fee + spread at a price
+  that already reflects the risk), then built the measurement the owner accepted: once at <= 30 s and once at <= 15 s before the
+  end, every OPEN trade records what selling the whole position into the real bid book would have paid (taker fee, unabsorbed
+  shares = $0) plus spot z (meta.x30 / meta.x15). st.study.late_exit compares, per rule (always / bid<0.90/0.80/0.70/0.50 /
+  z<0 / z<0.5), the actual P&L of the trades it would have sold vs selling. Observation only, never touches cash. Page:
+  section 3 of "מעבדה חיה"; the ABOUT/EMPTY texts were also updated to the v3 rules (they still described 25%/trade). Tests 29/29.
 
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
