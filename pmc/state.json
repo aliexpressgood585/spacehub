@@ -1,8 +1,8 @@
 {
  "start_cash": 1000,
  "cash": 1002.7969651607541,
- "peak": 1070.7017780603285,
- "floor": 935.3508890301642,
+ "peak": 1071.041672754647,
+ "floor": 935.5208363773235,
  "strategy": {
   "rules": [
    {
@@ -44,9 +44,9 @@
   "zMin": 1,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-14T16:28:44.041Z",
+ "last_scan": "2026-10-14T16:28:54.551Z",
  "last_note": {
-  "at": "2026-10-14T16:28:42.330Z",
+  "at": "2026-10-14T16:28:52.623Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -2600,8 +2600,8 @@
    "best_ask": 0.94,
    "opened_at": "2026-10-14T16:27:05.347Z",
    "status": "OPEN",
-   "mark_px": 0.98,
-   "mark_at": "2026-10-14T16:28:43.326Z",
+   "mark_px": 0.99,
+   "mark_at": "2026-10-14T16:28:53.653Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -5940,6 +5940,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-14T16:28:54.551Z",
+   "market_id": "5660067",
+   "question": "Solana Up or Down - October 14, 12:25PM-12:30PM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 16:25–16:30 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.91,
+   "decision": "skip",
+   "reason": "מקסימום פוזיציות פתוחות"
+  },
+  {
    "ts": "2026-10-14T16:28:44.041Z",
    "market_id": "5660081",
    "question": "Ethereum Up or Down - October 14, 12:25PM-12:30PM ET",
@@ -8125,17 +8136,6 @@
    "outcome": "Up",
    "outcome_he": "עולה",
    "price": 0.94,
-   "decision": "skip",
-   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
-  },
-  {
-   "ts": "2026-10-14T14:48:54.695Z",
-   "market_id": "5650304",
-   "question": "Solana Up or Down - October 14, 10:45AM-10:50AM ET",
-   "question_he": "סולנה · עולה או יורד · 5 דקות · 14:45–14:50 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.96,
    "decision": "skip",
    "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
   }
@@ -11721,6 +11721,19 @@
    "taker_ask": 0.91,
    "status": "WORKING",
    "filled": false
+  },
+  {
+   "slug": "sol-updown-5m-1791995100",
+   "market_id": "5660067",
+   "token_id": "114274883067263127113916013698993427273338147271127102397744953422150436417093",
+   "coin": "sol",
+   "outcome": "Down",
+   "end_time": "2026-10-14T16:30:00Z",
+   "placed_at": "2026-10-14T16:28:54.386Z",
+   "limit": 0.9,
+   "taker_ask": 0.91,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
@@ -11731,7 +11744,7 @@
    "avg_fee_c": 0.4184638596904083
   },
   "maker": {
-   "placed": 226,
+   "placed": 227,
    "resolved": 221,
    "filled": 98,
    "fill_rate": 0.4434389140271493,
