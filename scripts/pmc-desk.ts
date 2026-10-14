@@ -4,7 +4,7 @@
 // Run: node --experimental-strip-types scripts/pmc-desk.ts <state.json>
 import fs from 'node:fs'
 import { takerFee, walkAsks, heOutcome, type FeeSchedule } from '../shared/pm.ts'
-import { PMC, TF_SEC, windowOf, slugOf, inWindow, inBandR, questionHe } from '../shared/pmc.ts'
+import { PMC, pmcStake, TF_SEC, windowOf, slugOf, inWindow, inBandR, questionHe } from '../shared/pmc.ts'
 
 const FILE = process.argv[2] ?? 'pmc/state.json'
 const GAMMA = 'https://gamma-api.polymarket.com', CLOB = 'https://clob.polymarket.com'
@@ -75,8 +75,7 @@ try {
     const ms: any[] = await j(`${GAMMA}/markets?limit=50&${want.map((x) => `slug=${x.slug}`).join('&')}`)
     const bySlug = new Map(ms.map((m) => [m.slug, m]))
     const held = new Set(st.trades.map((t: any) => t.slug))   // one entry per market, ever
-    // ALL CASH (owner 2026-10-13: "use all the portfolio's cash"): find every in-band side this cycle first, then split the
-    // free cash equally between them, each capped at PMC.maxPosFrac of equity (4 coins x 25% = the whole account).
+    // find every in-band side this cycle first (rule order = coin priority), then apply the v2 protection below.
     const cands: { x: any; m: any; k: number; b: { bids: Lvl[]; asks: Lvl[] }; ask: number }[] = []
     for (const x of want) {
       const m = bySlug.get(x.slug)
@@ -93,13 +92,18 @@ try {
         }
       }
     }
-    let left_ = cands.length
+    // v2 PROTECTION: one position per window (the coins move together), stake = min(3% equity, (equity - floor) / 3).
+    st.peak = Math.max(st.peak ?? st.start_cash, equity0)
+    const { stake: stake0, floor } = pmcStake(equity0, st.peak, st.start_cash)
+    st.floor = floor
     for (const { x, m, k, b, ask } of cands) {
       const toks = arr(m.clobTokenIds), outs = arr(m.outcomes)
       const D = (decision: string, reason: string, price = ask) => decisions.push({ ts: now(), market_id: m.id, question: m.question, question_he: questionHe(x.coin, x.r.tf, x.start), outcome: outs[k], outcome_he: heOutcome(outs[k]), price, decision, reason })
       if (st.trades.filter((t: any) => t.status === 'OPEN').length >= PMC.maxOpen) { D('skip', 'מקסימום פוזיציות פתוחות'); break }
-      const stake = Math.min(equity0 * PMC.maxPosFrac, (st.cash - 1) / Math.max(1, left_--))
-      if (stake < PMC.minQty * ask) { D('skip', 'אין מספיק מזומן'); continue }
+      const inWin = st.trades.filter((t: any) => t.end_time === m.endDate).length
+      if (inWin >= PMC.maxPerWindow) { D('skip', 'הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)'); continue }
+      const stake = Math.min(stake0, st.cash - 1)
+      if (stake < PMC.minQty * ask) { D('skip', stake0 < PMC.minQty * ask ? `הגנה: החשבון ברצפה המוגנת ($${floor.toFixed(0)})` : 'אין מספיק מזומן'); continue }
       const fs_ = feeOf(m)
       const fill = walkAsks(b.asks, stake / (1 + (fs_ ? fs_.rate * (1 - ask) : 0)), x.r.hi + PMC.slipCap)   // fee / notional = rate x (1 - p)
       if (fill.qty < PMC.minQty) { D('skip', 'ספר הזמנות דל מדי'); continue }

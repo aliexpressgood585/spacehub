@@ -483,6 +483,14 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   itself. pmc desk: 147 closed, 136 wins / 11 losses, net -$798.27, equity $1,000 -> $201.73 (-80%). Losses come in CLUSTERS:
   03:42 BTC+SOL+ETH lost together (-$1,303), 06:07 SOL+XRP, 06:47 SOL+XRP, 07:07 BTC+XRP — the 4 coins move together, so 4 x 25%
   is one bet of 100%. Reported to the owner; 25% sizing left as the owner set it, options put to them.
+- 2026-10-14 ~08:20 UTC pmc v2 RESET + LOSS PROTECTION (owner: "reset to $1,000, a mechanism so one, two or three losses do not
+  wipe the profits and we stay positive"). v1 era archived as pmc/state-v1.json on pm-desk-data: 162 closed, 151 wins / 11 losses,
+  realised -$745.32, cash $254.68 (clustered losses: the 4 coins move together, 4 x 25% = one 100% bet). shared/pmc.ts v2:
+  stake = min(3% of equity, (equity - floor) / 3); floor = 90% of start + 50% of every profit peak (high-water mark, never falls);
+  ONE position per 5m window (first in-band coin in rule order, BTC first); maxOpen 2. On the floor the desk takes no entries
+  (decision 'הגנה: החשבון ברצפה המוגנת'). Three straight full losses from any equity cannot cross the floor; from $1,200 they leave
+  ~$1,095. HONEST: it caps damage, it does not create edge (measured ~0 at real fills); a slow bleed of many small losses still
+  walks the account down to the $900 floor, where it stops. Commit e3fccafd; tests/pmc.test.ts 23/23.
 
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
