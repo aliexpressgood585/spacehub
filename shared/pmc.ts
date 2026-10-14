@@ -28,6 +28,14 @@ export const PMC = {
   maxOpen: 2,
   minQty: 5,                  // Polymarket minimum order size (shares)
   slipCap: 0.01,              // never pay more than hi + this when walking the book
+  // v3 DISTANCE FILTER (owner 2026-10-14: "a filter for a higher win rate"). z = ln(spot now / spot at the window's open) /
+  // (sigma of 1 s log returns over the last hour x sqrt(seconds left)); buy the favourite only when z sits on its side and
+  // |z| >= zMin. backtest/research/pmc_distance.py -> status/pmc-distance.txt, 11,511 5m markets, Binance 1s spot read at the
+  // SAME second as the CLOB price point (the first run read spot 41 s after the price = look-ahead, 100% WR; fixed):
+  //   90-98c, 180 s, +1c:  ALL IS n439 WR 95.2% +0.91%/$ | OOS n243 94.2% -0.04%/$
+  //                        z>=1.5 IS n171 WR 98.2% +3.25%/$ | OOS n111 100% +5.23%/$   (same sign at 120 s / 60 s, every band)
+  // NOT PROVEN live: the CLOB history is one point a minute; the live ask may already price the move. The live desk is the test.
+  zMin: 1.5,
   maxOverRef: 0.01,           // never pay more than the LAST TRADED price + 1c (the research's cost assumption). v1 live
                               // (158 fills): BTC paid +0.29c over the last trade -> +1.13%/$; ETH +1.63c -> +0.51%; SOL +2.75c ->
                               // -3.40%; XRP +6.92c -> -4.66%. Thin books, not the rule, were the loss.
@@ -59,4 +67,18 @@ export const inBandR = (r: Rule, p: number) => p >= r.lo && p < r.hi
 export function questionHe(coin: string, tf: Tf, start: number) {
   const hm = (s: number) => new Date(s * 1000).toISOString().slice(11, 16)
   return `${COIN_HE[coin] ?? coin.toUpperCase()} · עולה או יורד · ${TF_HE[tf]} · ${hm(start)}–${hm(start + TF_SEC[tf])} UTC`
+}
+
+// Distance from the window's opening price in units of the expected move for the time left (see PMC.zMin). sigma1s = stdev of
+// 1-second log returns. Positive = above the open (Up is favoured).
+export function pmcZ(open: number, now: number, sigma1s: number, leftS: number) {
+  if (!(open > 0 && now > 0 && sigma1s > 0 && leftS > 0)) return NaN
+  return Math.log(now / open) / (sigma1s * Math.sqrt(leftS))
+}
+export function sigmaOf(closes: number[]) {
+  const r: number[] = []
+  for (let i = 1; i < closes.length; i++) if (closes[i] > 0 && closes[i - 1] > 0) r.push(Math.log(closes[i] / closes[i - 1]))
+  if (r.length < 600) return NaN
+  const m = r.reduce((a, b) => a + b, 0) / r.length
+  return Math.sqrt(r.reduce((a, b) => a + (b - m) ** 2, 0) / r.length)
 }

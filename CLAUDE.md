@@ -496,6 +496,13 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   positive only at <= 1c. Added PMC.maxOverRef 0.01 / pmcPxCap: never pay more than last trade + 1c (skip 'יקר מדי'). Shadow
   maker study REJECTS maker entries: fill rate 44%, filled WR 83.6%, -9.8%/$ (adverse selection; all 70 misses were wins).
   Commit 84aadfce, 24/24 tests. Still NOT proven (BTC +1.13% on n41 is within noise).
+- 2026-10-14 v3 DISTANCE FILTER (owner: "a filter for a higher win rate"). backtest/research/pmc_distance.py ->
+  status/pmc-distance.txt: z = ln(spot now / spot at window open) / (sigma 1s x sqrt(seconds left)), Binance spot 1s archive.
+  FIRST RUN WAS LOOK-AHEAD (100% WR on hundreds): CLOB prices-history has one point a minute, median 41 s older than the entry
+  time, while spot was read at the entry second. Fixed by reading spot at the price point's own second. After the fix, 5m 90-98c
+  180 s +1c: ALL IS n439 95.2% +0.91%/$ | OOS n243 94.2% -0.04%; z>=1.5 IS n171 98.2% +3.25%/$ | OOS n111 100% +5.23%/$; same
+  sign at 120 s / 60 s and every band. Deployed PMC.zMin 1.5 (spot via data-api.binance.vision 1s klines, no spot = no entry;
+  meta.z / spot_open / sigma1s stored). CAVEAT: the history price may still lag the real book; the live asks are the test.
 
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;

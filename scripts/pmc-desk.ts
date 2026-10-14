@@ -4,7 +4,7 @@
 // Run: node --experimental-strip-types scripts/pmc-desk.ts <state.json>
 import fs from 'node:fs'
 import { takerFee, walkAsks, heOutcome, type FeeSchedule } from '../shared/pm.ts'
-import { PMC, pmcStake, pmcPxCap, TF_SEC, windowOf, slugOf, inWindow, inBandR, questionHe } from '../shared/pmc.ts'
+import { PMC, pmcStake, pmcPxCap, pmcZ, sigmaOf, TF_SEC, windowOf, slugOf, inWindow, inBandR, questionHe } from '../shared/pmc.ts'
 
 const FILE = process.argv[2] ?? 'pmc/state.json'
 const GAMMA = 'https://gamma-api.polymarket.com', CLOB = 'https://clob.polymarket.com'
@@ -16,6 +16,23 @@ async function book(token: string): Promise<{ bids: Lvl[]; asks: Lvl[] } | null>
     const b = await j(`${CLOB}/book?token_id=${token}`)
     const m = (l: any[]) => (l ?? []).map((x) => ({ price: +x.price, size: +x.size })).filter((x) => x.price > 0 && x.size > 0)
     return { bids: m(b.bids).sort((a, c) => c.price - a.price), asks: m(b.asks).sort((a, c) => a.price - c.price) }
+  } catch { return null }
+}
+// Binance spot 1 s klines (public market-data host, reachable from the runners). Open at the window start, last close, and
+// the last hour of closes for sigma -> z (PMC.zMin). Any failure -> null -> no entry (never trade blind).
+const BIN = 'https://data-api.binance.vision/api/v3/klines'
+async function spotZ(coin: string, start: number, nowS: number, leftS: number) {
+  try {
+    const sym = coin.toUpperCase() + 'USDT', end = nowS * 1000
+    const pages = await Promise.all([3, 2, 1, 0].map((k) => j(`${BIN}?symbol=${sym}&interval=1s&endTime=${end - k * 1000_000}&limit=1000`)))
+    const ks = new Map<number, number>()
+    for (const pg of pages) for (const k of pg as any[]) ks.set(Math.floor(k[0] / 1000), +k[4])
+    const ts = [...ks.keys()].sort((a, b) => a - b).filter((t) => t > nowS - 3601)
+    const closes = ts.map((t) => ks.get(t)!)
+    const o = await j(`${BIN}?symbol=${sym}&interval=1s&startTime=${start * 1000}&limit=1`)
+    const open = +(o?.[0]?.[1] ?? 0), last = closes[closes.length - 1], sigma = sigmaOf(closes)
+    const z = pmcZ(open, last, sigma, leftS)
+    return Number.isFinite(z) ? { z, open, last, sigma } : null
   } catch { return null }
 }
 const feeOf = (m: any): FeeSchedule | null => (m.feesEnabled && m.feeSchedule ? { rate: +m.feeSchedule.rate || 0, exponent: +m.feeSchedule.exponent || 1 } : null)
@@ -102,6 +119,11 @@ try {
       if (st.trades.filter((t: any) => t.status === 'OPEN').length >= PMC.maxOpen) { D('skip', 'מקסימום פוזיציות פתוחות'); break }
       const inWin = st.trades.filter((t: any) => t.end_time === m.endDate).length
       if (inWin >= PMC.maxPerWindow) { D('skip', 'הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)'); continue }
+      const leftNow = x.start + TF_SEC[x.r.tf as keyof typeof TF_SEC] - nowS
+      const sz = await spotZ(x.coin, x.start, nowS, leftNow)
+      if (!sz) { D('skip', 'אין נתוני מחיר מבינאנס — לא נכנסים בעיוורון'); continue }
+      const zFav = (outs[k] === 'Up' ? 1 : -1) * sz.z
+      if (zFav < PMC.zMin) { D('skip', `מסנן מרחק: ${zFav.toFixed(2)} < ${PMC.zMin} (המחיר קרוב מדי לקו הפתיחה)`); continue }
       const stake = Math.min(stake0, st.cash - 1)
       if (stake < PMC.minQty * ask) { D('skip', stake0 < PMC.minQty * ask ? `הגנה: החשבון ברצפה המוגנת ($${floor.toFixed(0)})` : 'אין מספיק מזומן'); continue }
       const fs_ = feeOf(m)
@@ -113,7 +135,7 @@ try {
       if (fill.qty < PMC.minQty) { D('skip', 'ספר הזמנות דל מדי'); continue }
       const fee = takerFee(fill.qty, fill.vwap, fs_), cost = fill.spent + fee, mk = b.bids[0]?.price ?? fill.vwap
       const left = x.start + TF_SEC[x.r.tf as keyof typeof TF_SEC] - nowS
-      st.trades.push({ id: st.next_id++, market_id: m.id, slug: m.slug, event_slug: m.slug, question: m.question, question_he: questionHe(x.coin, x.r.tf, x.start), outcome: outs[k], outcome_he: heOutcome(outs[k]), token_id: toks[k], end_time: m.endDate, qty: fill.qty, entry_px: fill.vwap, entry_fee: fee, cost, best_ask: ask, opened_at: now(), status: 'OPEN', mark_px: mk, mark_at: now(), meta: { fee_schedule: fs_, volume: m.volumeNum, coin: x.coin, tf: x.r.tf, window_s: TF_SEC[x.r.tf as keyof typeof TF_SEC], left_s: left, band: [x.r.lo, x.r.hi], outcomes: outs, wanted: stake, ref_px: ref, bid_px: b.bids[0]?.price ?? null } })
+      st.trades.push({ id: st.next_id++, market_id: m.id, slug: m.slug, event_slug: m.slug, question: m.question, question_he: questionHe(x.coin, x.r.tf, x.start), outcome: outs[k], outcome_he: heOutcome(outs[k]), token_id: toks[k], end_time: m.endDate, qty: fill.qty, entry_px: fill.vwap, entry_fee: fee, cost, best_ask: ask, opened_at: now(), status: 'OPEN', mark_px: mk, mark_at: now(), meta: { fee_schedule: fs_, volume: m.volumeNum, coin: x.coin, tf: x.r.tf, window_s: TF_SEC[x.r.tf as keyof typeof TF_SEC], left_s: left, band: [x.r.lo, x.r.hi], outcomes: outs, wanted: stake, ref_px: ref, bid_px: b.bids[0]?.price ?? null, z: zFav, spot_open: sz.open, spot: sz.last, sigma1s: sz.sigma } })
       st.cash -= cost; openValue += fill.qty * mk; entered++; held.add(x.slug)
       D('BUY', `${left} שנ׳ לסיום, מחיר ${ask} בטווח ${Math.round(x.r.lo * 100)}-${Math.round(x.r.hi * 100)}¢, ${fill.qty.toFixed(1)} מניות ($${cost.toFixed(0)}${cost < stake * 0.9 ? `, הספר הספיק רק ל־$${cost.toFixed(0)} מתוך $${stake.toFixed(0)}` : ''}), עמלה $${fee.toFixed(2)}`, fill.vwap)
     }
