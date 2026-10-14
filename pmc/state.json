@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 0.9999999999999929,
+ "cash": 159.86821299207077,
  "strategy": {
   "rules": [
    {
@@ -22,12 +22,12 @@
   "minQty": 5,
   "slipCap": 0.01
  },
- "last_scan": "2026-10-14T08:02:10.472Z",
+ "last_scan": "2026-10-14T08:02:20.850Z",
  "last_note": {
-  "at": "2026-10-14T08:02:09.113Z",
+  "at": "2026-10-14T08:02:19.737Z",
   "windows": 4,
-  "settled": 0,
-  "entered": 1
+  "settled": 3,
+  "entered": 0
  },
  "trades": [
   {
@@ -7134,9 +7134,9 @@
    "cost": 50.43357870803028,
    "best_ask": 0.97,
    "opened_at": "2026-10-14T07:57:10.230Z",
-   "status": "OPEN",
-   "mark_px": 0.999,
-   "mark_at": "2026-10-14T08:01:59.321Z",
+   "status": "CLOSED",
+   "mark_px": 1,
+   "mark_at": "2026-10-14T08:02:20.099Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -7158,7 +7158,13 @@
     "wanted": 50.43357870803028,
     "ref_px": 0.97,
     "bid_px": 0.96
-   }
+   },
+   "exit_px": 1,
+   "exit_fee": 0,
+   "proceeds": 51.8844228234422,
+   "pnl": 1.4508441154119183,
+   "reason": "RESOLVED_WIN",
+   "closed_at": "2026-10-14T08:02:20.099Z"
   },
   {
    "id": 149,
@@ -7177,9 +7183,9 @@
    "cost": 50.41843870849311,
    "best_ask": 0.95,
    "opened_at": "2026-10-14T07:57:10.328Z",
-   "status": "OPEN",
-   "mark_px": 0.999,
-   "mark_at": "2026-10-14T08:01:59.415Z",
+   "status": "CLOSED",
+   "mark_px": 1,
+   "mark_at": "2026-10-14T08:02:20.099Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -7200,7 +7206,13 @@
     "wanted": 50.43357870803028,
     "ref_px": 0.96,
     "bid_px": 0.94
-   }
+   },
+   "exit_px": 1,
+   "exit_fee": 0,
+   "proceeds": 52.66424670738901,
+   "pnl": 2.2458079988958985,
+   "reason": "RESOLVED_WIN",
+   "closed_at": "2026-10-14T08:02:20.099Z"
   },
   {
    "id": 150,
@@ -7219,9 +7231,9 @@
    "cost": 50.308509345944046,
    "best_ask": 0.92,
    "opened_at": "2026-10-14T07:57:30.499Z",
-   "status": "OPEN",
-   "mark_px": 0.999,
-   "mark_at": "2026-10-14T08:02:09.513Z",
+   "status": "CLOSED",
+   "mark_px": 1,
+   "mark_at": "2026-10-14T08:02:20.099Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -7242,7 +7254,13 @@
     "wanted": 50.312255041298926,
     "ref_px": 0.88,
     "bid_px": 0.89
-   }
+   },
+   "exit_px": 1,
+   "exit_fee": 0,
+   "proceeds": 54.319543461239554,
+   "pnl": 4.011034115295509,
+   "reason": "RESOLVED_WIN",
+   "closed_at": "2026-10-14T08:02:20.099Z"
   },
   {
    "id": 151,
@@ -7263,7 +7281,7 @@
    "opened_at": "2026-10-14T08:02:10.471Z",
    "status": "OPEN",
    "mark_px": 0.95,
-   "mark_at": "2026-10-14T08:02:10.471Z",
+   "mark_at": "2026-10-14T08:02:20.200Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -12194,6 +12212,13 @@
    "cash": 0.9999999999999929,
    "open_value": 207.62976205463528,
    "open_count": 4
+  },
+  {
+   "ts": "2026-10-14T08:02:20.850Z",
+   "equity": 208.78863026762735,
+   "cash": 159.86821299207077,
+   "open_value": 48.92041727555659,
+   "open_count": 1
   }
  ],
  "decisions": [
@@ -15907,8 +15932,10 @@
    "placed_at": "2026-10-14T07:57:09.656Z",
    "limit": 0.96,
    "taker_ask": 0.97,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "eth-updown-5m-1791964500",
@@ -15920,8 +15947,10 @@
    "placed_at": "2026-10-14T07:57:09.749Z",
    "limit": 0.94,
    "taker_ask": 0.95,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "eth-updown-5m-1791964800",
@@ -15946,18 +15975,18 @@
   },
   "maker": {
    "placed": 117,
-   "resolved": 114,
+   "resolved": 116,
    "filled": 53,
-   "fill_rate": 0.4649122807017544,
+   "fill_rate": 0.45689655172413796,
    "wr": 0.8301886792452831,
    "ret": -0.10525775013364368,
-   "missed_wins": 61,
+   "missed_wins": 63,
    "missed_losses": 0
   },
   "taker": {
-   "n": 147,
-   "wr": 0.9251700680272109,
-   "ret": -0.02209927690517722
+   "n": 150,
+   "wr": 0.9266666666666666,
+   "ret": -0.0206370276939467
   }
  }
 }
