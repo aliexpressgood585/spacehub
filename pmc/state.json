@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 1046.7011080883583,
+ "cash": 1015.3000748457075,
  "peak": 1072.1210886213057,
  "floor": 936.0605443106529,
  "strategy": {
@@ -44,12 +44,12 @@
   "zMin": 1,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-14T17:21:56.531Z",
+ "last_scan": "2026-10-14T17:22:08.966Z",
  "last_note": {
-  "at": "2026-10-14T17:21:56.438Z",
-  "windows": 0,
+  "at": "2026-10-14T17:22:06.316Z",
+  "windows": 4,
   "settled": 0,
-  "entered": 0
+  "entered": 1
  },
  "trades": [
   {
@@ -3011,6 +3011,54 @@
    "pnl": 2.340078711312213,
    "reason": "RESOLVED_WIN",
    "closed_at": "2026-10-14T17:15:07.310Z"
+  },
+  {
+   "id": 45,
+   "market_id": "5662644",
+   "slug": "xrp-updown-5m-1791998400",
+   "event_slug": "xrp-updown-5m-1791998400",
+   "question": "XRP Up or Down - October 14, 1:20PM-1:25PM ET",
+   "question_he": "XRP · עולה או יורד · 5 דקות · 17:20–17:25 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "token_id": "41236259099387906825762972298816165387949740002839431080331333574794508008247",
+   "end_time": "2026-10-14T17:25:00Z",
+   "qty": 32.93843468140534,
+   "entry_px": 0.95,
+   "entry_fee": 0.10952029531567285,
+   "cost": 31.401033242650744,
+   "best_ask": 0.95,
+   "opened_at": "2026-10-14T17:22:08.966Z",
+   "status": "OPEN",
+   "mark_px": 0.93,
+   "mark_at": "2026-10-14T17:22:08.966Z",
+   "meta": {
+    "fee_schedule": {
+     "rate": 0.07,
+     "exponent": 1
+    },
+    "coin": "xrp",
+    "tf": "5m",
+    "window_s": 300,
+    "left_s": 174,
+    "band": [
+     0.9,
+     0.98
+    ],
+    "z_min": 1,
+    "look": 1,
+    "outcomes": [
+     "Up",
+     "Down"
+    ],
+    "wanted": 31.401033242650747,
+    "ref_px": 0.95,
+    "bid_px": 0.93,
+    "z": 1.5797514935098107,
+    "spot_open": 1.338,
+    "spot": 1.3354,
+    "sigma1s": 0.00009334179280666362
+   }
   }
  ],
  "equity": [
@@ -6716,9 +6764,27 @@
    "cash": 1046.7011080883583,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-10-14T17:22:08.966Z",
+   "equity": 1045.9328190994145,
+   "cash": 1015.3000748457075,
+   "open_value": 30.632744253706967,
+   "open_count": 1
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-14T17:22:08.966Z",
+   "market_id": "5662644",
+   "question": "XRP Up or Down - October 14, 1:20PM-1:25PM ET",
+   "question_he": "XRP · עולה או יורד · 5 דקות · 17:20–17:25 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.95,
+   "decision": "BUY",
+   "reason": "174 שנ׳ לסיום, מחיר 0.95 בטווח 90-98¢, 32.9 מניות ($31), עמלה $0.11"
+  },
   {
    "ts": "2026-10-14T17:18:50.444Z",
    "market_id": "5662630",
@@ -8907,20 +8973,9 @@
    "price": 0.97,
    "decision": "skip",
    "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
-  },
-  {
-   "ts": "2026-10-14T15:42:31.830Z",
-   "market_id": "5651622",
-   "question": "Ethereum Up or Down - October 14, 11:40AM-11:45AM ET",
-   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 15:40–15:45 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.94,
-   "decision": "skip",
-   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
   }
  ],
- "next_id": 45,
+ "next_id": 46,
  "shadow": [
   {
    "slug": "btc-updown-5m-1791969600",
@@ -13107,17 +13162,30 @@
    "filled": true,
    "filled_at": "2026-10-14T17:18:46.997Z",
    "left_at_fill": 73
+  },
+  {
+   "slug": "xrp-updown-5m-1791998400",
+   "market_id": "5662644",
+   "token_id": "41236259099387906825762972298816165387949740002839431080331333574794508008247",
+   "coin": "xrp",
+   "outcome": "Down",
+   "end_time": "2026-10-14T17:25:00Z",
+   "placed_at": "2026-10-14T17:22:08.124Z",
+   "limit": 0.93,
+   "taker_ask": 0.95,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
   "fills": {
-   "n": 44,
-   "avg_vs_ref_c": -0.2108952191141908,
-   "avg_vs_research_c": -1.2108952191141915,
-   "avg_fee_c": 0.41788963443230737
+   "n": 45,
+   "avg_vs_ref_c": -0.206208658689431,
+   "avg_vs_research_c": -1.2062086586894318,
+   "avg_fee_c": 0.41599208700047835
   },
   "maker": {
-   "placed": 264,
+   "placed": 265,
    "resolved": 260,
    "filled": 116,
    "fill_rate": 0.4461538461538462,
