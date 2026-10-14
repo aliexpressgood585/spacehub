@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 258.6099160441405,
+ "cash": 453.64134298215475,
  "strategy": {
   "rules": [
    {
@@ -22,12 +22,12 @@
   "minQty": 5,
   "slipCap": 0.01
  },
- "last_scan": "2026-10-14T06:12:07.727Z",
+ "last_scan": "2026-10-14T06:12:17.634Z",
  "last_note": {
-  "at": "2026-10-14T06:12:06.595Z",
+  "at": "2026-10-14T06:12:16.552Z",
   "windows": 4,
-  "settled": 0,
-  "entered": 1
+  "settled": 1,
+  "entered": 0
  },
  "trades": [
   {
@@ -6169,9 +6169,9 @@
    "cost": 185.6605111687929,
    "best_ask": 0.93,
    "opened_at": "2026-10-14T06:07:07.109Z",
-   "status": "OPEN",
-   "mark_px": 0.999,
-   "mark_at": "2026-10-14T06:11:56.327Z",
+   "status": "CLOSED",
+   "mark_px": 1,
+   "mark_at": "2026-10-14T06:12:16.921Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -6192,7 +6192,13 @@
     "wanted": 185.90052646350998,
     "ref_px": 0.8,
     "bid_px": 0.92
-   }
+   },
+   "exit_px": 1,
+   "exit_fee": 0,
+   "proceeds": 195.03142693801425,
+   "pnl": 9.370915769221341,
+   "reason": "RESOLVED_WIN",
+   "closed_at": "2026-10-14T06:12:16.921Z"
   },
   {
    "id": 129,
@@ -6212,8 +6218,8 @@
    "best_ask": 0.91,
    "opened_at": "2026-10-14T06:12:07.727Z",
    "status": "OPEN",
-   "mark_px": 0.9,
-   "mark_at": "2026-10-14T06:12:07.727Z",
+   "mark_px": 0.94,
+   "mark_at": "2026-10-14T06:12:17.038Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -10256,6 +10262,13 @@
    "cash": 258.6099160441405,
    "open_value": 342.40189798676823,
    "open_count": 2
+  },
+  {
+   "ts": "2026-10-14T06:12:17.634Z",
+   "equity": 607.7653122345441,
+   "cash": 453.64134298215475,
+   "open_value": 154.12396925238943,
+   "open_count": 1
   }
  ],
  "decisions": [
@@ -13467,8 +13480,10 @@
    "placed_at": "2026-10-14T06:07:07.016Z",
    "limit": 0.92,
    "taker_ask": 0.93,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "eth-updown-5m-1791958200",
@@ -13493,18 +13508,18 @@
   },
   "maker": {
    "placed": 100,
-   "resolved": 98,
+   "resolved": 99,
    "filled": 43,
-   "fill_rate": 0.4387755102040816,
+   "fill_rate": 0.43434343434343436,
    "wr": 0.8837209302325582,
    "ret": -0.04997595206718598,
-   "missed_wins": 55,
+   "missed_wins": 56,
    "missed_losses": 0
   },
   "taker": {
-   "n": 127,
-   "wr": 0.9448818897637795,
-   "ret": -0.0035773405589501943
+   "n": 128,
+   "wr": 0.9453125,
+   "ret": -0.0031550692104092984
   }
  }
 }
