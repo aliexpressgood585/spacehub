@@ -533,6 +533,13 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   second look at z>=1 (IS -0.35%/$), 15m markets (pmc-distance.txt: z filter negative in-sample at every 15m entry).
   DEPLOYED: PMC.rules[1] = {enterFrom 139, enterTo 45, zMin 2.5}, Rule.zMin + zMinOf(); entries store meta.look / z_min.
   CAVEAT: minute-resolution price history; near the end the live ask often sits >= 98c (no entry). Tests 32/32.
+- 2026-10-14 ~19:40 UTC main Poly desk RISK CAPS (owner "כרגע" after the desk analysis). v2 since 10-13 10:05: 88 closed, 84 W / 4 L
+  (95.5%), realised +$565, equity $1,428 (peak $1,520); avg win +$13 vs avg loss -$131 (~10 wins per loss; breakeven WR ~90-91%,
+  research OOS 92.3%). At 19:20: cash $132, 13 open = $1,433 (~100% of equity); three positions on ONE match (Man City v PSG:
+  spread, O/U, exact score) sat in three Polymarket events so maxPerEvent never saw them. CHANGED: PM.maxPosFrac 0.10 -> 0.05;
+  new PM.maxMatchFrac 0.10 + pmMatch(eventSlug) = slug up to its date ('ucl-mnc-psg-2026-10-14-more-markets' ->
+  'ucl-mnc-psg-2026-10-14'); maxPerEvent 2 now counts per match; entry stake and top-ups bounded by the match room (skip
+  'הגנה: כבר 10% מההון על המשחק הזה'). Open positions above 5% are left as they are (no forced sale). tests/pm.test.ts 25/25.
 
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;

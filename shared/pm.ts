@@ -34,12 +34,19 @@ export const PM = {
   minVolume: 20000,           // market volume floor (USDC); the research history covers >= $20k only
   stakeFrac: 0.03,            // 3% of equity per position at entry
   maxOpen: 30,
-  maxPosFrac: 0.10,           // top-ups never take one position above 10% of equity (a loss is -100% of it)
-  maxPerEvent: 2,
+  maxPosFrac: 0.05,           // top-ups never take one position above 5% of equity (a loss is -100% of it). Was 10% until
+                              // 2026-10-14: one loss (~-$131) cost ~10 wins (owner: "now", after the desk analysis).
+  maxPerEvent: 2,             // positions per MATCH (pmMatch: all of a game's market groups count as one)
+  maxMatchFrac: 0.10,         // all positions on one match together <= 10% of equity (2026-10-14: three Man City v PSG
+                              // markets — spread, O/U, exact score — sat in three Polymarket events and were one bet)
   minQty: 5,                  // Polymarket minimum order size (shares)
   exitPx: 0.99,               // early exit (2026-10-13): a position whose bid is >= this may be SOLD before resolution,
                               // ONLY to fund a new in-band entry that cash cannot cover (otherwise hold for $1)
 } as const
+
+// One key per real-world match: Polymarket splits a game into several events (e.g. 'ucl-mnc-psg-2026-10-14',
+// '...-more-markets', '...-exact-score'); everything up to the date is the match.
+export const pmMatch = (eventSlug: string) => eventSlug.match(/^(.*?\d{4}-\d{2}-\d{2})/)?.[1] ?? eventSlug
 
 export function inBand(p: number, lo: number = PM.lo, hi: number = PM.hi): boolean {
   return p >= lo && p <= hi

@@ -4,7 +4,7 @@
 // Polymarket Gamma / CLOB, never an order.
 // Run: node --experimental-strip-types scripts/pm-desk.ts <state.json>
 import fs from 'node:fs'
-import { PM, takerFee, walkAsks, walkBids, inBand, heOutcome, namesKept, type FeeSchedule } from '../shared/pm.ts'
+import { PM, takerFee, walkAsks, walkBids, inBand, heOutcome, namesKept, pmMatch, type FeeSchedule } from '../shared/pm.ts'
 
 const FILE = process.argv[2] ?? 'pm/state.json'
 const GAMMA = 'https://gamma-api.polymarket.com', CLOB = 'https://clob.polymarket.com'
@@ -93,16 +93,20 @@ try {
       ms.push(...pg); if (pg.length < 100) break
     }
     note.scanned = ms.length
-    const held = new Set(open.map((t) => t.token_id)), events = new Map<string, number>()
-    for (const t of open) events.set(t.event_slug, (events.get(t.event_slug) ?? 0) + 1)
+    const held = new Set(open.map((t) => t.token_id)), events = new Map<string, number>(), matchCost = new Map<string, number>()
+    for (const t of open) {
+      const mk = pmMatch(t.event_slug)
+      events.set(mk, (events.get(mk) ?? 0) + 1); matchCost.set(mk, (matchCost.get(mk) ?? 0) + t.cost)
+    }
     let slots = PM.maxOpen - open.length
     for (const m of ms) {
       if (slots <= 0) break
       if (!m.acceptingOrders || !m.enableOrderBook) continue
       const toks = arr(m.clobTokenIds), outs = arr(m.outcomes), px = arr(m.outcomePrices).map(Number)
       if (toks.length !== 2) continue
-      const ev = m.events?.[0]?.slug ?? m.slug
-      if ((events.get(ev) ?? 0) >= PM.maxPerEvent) continue
+      const ev = m.events?.[0]?.slug ?? m.slug, mkey = pmMatch(ev)
+      if ((events.get(mkey) ?? 0) >= PM.maxPerEvent) continue
+      const matchRoom = equity0 * PM.maxMatchFrac - (matchCost.get(mkey) ?? 0)
       for (let k = 0; k < 2; k++) {
         if (held.has(toks[k]) || !inBand(px[k])) continue
         const b = await book(toks[k]); const ask = b?.asks[0]?.price
@@ -110,7 +114,8 @@ try {
         if (!b || !ask || !inBand(ask)) { D('skip', `מחיר ${ask ?? '—'} מחוץ לטווח ${Math.round(PM.lo*100)}-${Math.round(PM.hi*100)}¢`); continue }
         const want = equity0 * PM.stakeFrac
         if (st.cash - 1 < want) await freeCash(want - (st.cash - 1), `${m.question} · ${outs[k]}`)
-        const stake = Math.min(want, st.cash - 1)
+        if (matchRoom < PM.minQty * ask) { D('skip', `הגנה: כבר ${Math.round(100 * PM.maxMatchFrac)}% מההון על המשחק הזה`); break }
+        const stake = Math.min(want, st.cash - 1, matchRoom)
         if (stake < PM.minQty * ask) { D('skip', 'אין מספיק מזומן'); continue }
         const fs_ = feeOf(m)
         const fill = walkAsks(b.asks, stake / (1 + (fs_ ? fs_.rate : 0)), PM.hi)
@@ -118,7 +123,7 @@ try {
         const fee = takerFee(fill.qty, fill.vwap, fs_), cost = fill.spent + fee, mk = b.bids[0]?.price ?? fill.vwap
         st.trades.push({ id: st.next_id++, market_id: m.id, slug: m.slug, event_slug: ev, question: m.question, outcome: outs[k], token_id: toks[k], end_time: m.endDate, qty: fill.qty, entry_px: fill.vwap, entry_fee: fee, cost, best_ask: ask, opened_at: now(), status: 'OPEN', mark_px: mk, mark_at: now(), meta: { fee_schedule: fs_, volume: m.volumeNum, spread: m.spread, model_p: px[k], outcomes: outs } })
         st.cash -= cost; openValue += fill.qty * mk; slots--; entered++
-        events.set(ev, (events.get(ev) ?? 0) + 1); held.add(toks[k])
+        events.set(mkey, (events.get(mkey) ?? 0) + 1); matchCost.set(mkey, (matchCost.get(mkey) ?? 0) + cost); held.add(toks[k])
         D('BUY', `מחיר ${ask} בטווח, ${fill.qty.toFixed(1)} מניות, עמלה $${fee.toFixed(2)}`, fill.vwap)
         break
       }
@@ -131,7 +136,10 @@ try {
     const openNow = st.trades.filter((x) => x.status === 'OPEN')
     const eq = st.cash + openValue
     const target = Math.min(eq * PM.maxPosFrac, eq / Math.max(1, openNow.length))
-    const need = openNow.map((t) => ({ t, gap: target - t.cost })).filter((x) => x.gap > 2).sort((a, b) => b.gap - a.gap)
+    const mc = new Map<string, number>()
+    for (const t of openNow) mc.set(pmMatch(t.event_slug), (mc.get(pmMatch(t.event_slug)) ?? 0) + t.cost)
+    const need = openNow.map((t) => ({ t, gap: Math.min(target - t.cost, eq * PM.maxMatchFrac - (mc.get(pmMatch(t.event_slug)) ?? 0)) }))
+      .filter((x) => x.gap > 2).sort((a, b) => b.gap - a.gap)
     for (const { t, gap } of need) {
       if (st.cash < 2) break
       if (t.end_time && Date.parse(t.end_time) - Date.now() < 10 * 60_000) continue
@@ -146,6 +154,7 @@ try {
       t.qty = q0 + fill.qty; t.entry_fee += fee; t.cost += cost
       t.meta = { ...(t.meta ?? {}), adds: (t.meta?.adds ?? 0) + 1 }
       st.cash -= cost; openValue += fill.qty * (b.bids[0]?.price ?? fill.vwap); topped++
+      mc.set(pmMatch(t.event_slug), (mc.get(pmMatch(t.event_slug)) ?? 0) + cost)
       decisions.push({ ts: now(), market_id: t.market_id, question: t.question, outcome: t.outcome, price: fill.vwap, decision: 'ADD', reason: `השלמה לחלק שווה: +${fill.qty.toFixed(1)} מניות, עמלה $${fee.toFixed(2)}` })
     }
   }

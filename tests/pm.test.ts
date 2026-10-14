@@ -1,6 +1,6 @@
 // Polymarket paper desk rules (shared/pm.ts): fills, fees and the on-demand early exit.
 import fs from 'node:fs'
-import { PM, takerFee, walkAsks, walkBids, inBand, heOutcome, namesKept } from '../shared/pm.ts'
+import { PM, takerFee, walkAsks, walkBids, inBand, heOutcome, namesKept, pmMatch } from '../shared/pm.ts'
 let n = 0, bad = 0
 const ok = (c: boolean, m: string) => { n++; if (!c) { bad++; console.log('FAIL', m) } }
 const near = (a: number, b: number, e = 1e-9) => Math.abs(a - b) < e
@@ -51,5 +51,13 @@ ok(h.status === 'CLOSED' && h.reason === 'EARLY_EXIT' && near(h.exit_px, 0.995),
 ok(near(h.pnl, 1000 * 0.995 - h.exit_fee - 903) && h.exit_fee > 0 && h.exit_fee < 0.2, 'early-exit P&L = proceeds - fee - cost, fee tiny near 1')
 ok(!!nw && nw.status === 'OPEN' && near(nw.entry_px, 0.88), 'the freed cash funds the new in-band entry')
 ok(out.last_note.recycled === 1 && out.decisions.some((d: any) => d.decision === 'SELL'), 'the sale is journalled as SELL and counted')
+// per-match cap (2026-10-14): a game's split events are one match; positions <= 5% each, one match <= 10% of equity
+ok(pmMatch('ucl-mnc-psg-2026-10-14') === 'ucl-mnc-psg-2026-10-14' && pmMatch('ucl-mnc-psg-2026-10-14-more-markets') === 'ucl-mnc-psg-2026-10-14'
+  && pmMatch('ucl-mnc-psg-2026-10-14-exact-score') === 'ucl-mnc-psg-2026-10-14', 'the split events of one game map to one match key')
+ok(pmMatch('dota2-nemiga-salami-2026-10-14') !== pmMatch('ucl-mnc-psg-2026-10-14') && pmMatch('no-date-slug') === 'no-date-slug', 'different games stay apart; a slug without a date is its own key')
+ok(PM.maxPosFrac === 0.05 && PM.maxMatchFrac === 0.10 && PM.maxMatchFrac >= PM.maxPosFrac, 'position cap 5%, match cap 10%')
+{ const src = fs.readFileSync(new URL('../scripts/pm-desk.ts', import.meta.url), 'utf8')
+  ok(/events\.get\(mkey\)/.test(src) && /Math\.min\(want, st\.cash - 1, matchRoom\)/.test(src), 'entries count positions and cost per match, stake bounded by the match room')
+  ok(/eq \* PM\.maxMatchFrac/.test(src), 'top-ups also respect the match cap') }
 console.log(`pm desk: ${n - bad}/${n} passed`)
 if (bad) process.exit(1)
