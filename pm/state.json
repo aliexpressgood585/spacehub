@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 755.9387329452429,
+ "cash": 797.4858874974055,
  "strategy": {
   "lo": 0.85,
   "hi": 0.92,
@@ -14,12 +14,12 @@
   "minQty": 5,
   "exitPx": 0.99
  },
- "last_scan": "2026-10-14T23:12:04.497Z",
+ "last_scan": "2026-10-14T23:12:19.775Z",
  "last_note": {
-  "at": "2026-10-14T23:12:00.593Z",
+  "at": "2026-10-14T23:12:15.953Z",
   "scanned": 40,
   "tr_err": "Error: 429 https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&",
-  "settled": 0,
+  "settled": 1,
   "entered": 0,
   "topped": 0,
   "recycled": 0
@@ -3771,8 +3771,8 @@
    "best_ask": 0.91,
    "opened_at": "2026-10-14T17:30:07.105Z",
    "status": "OPEN",
-   "mark_px": 0.907,
-   "mark_at": "2026-10-14T23:12:00.862Z",
+   "mark_px": 0.912,
+   "mark_at": "2026-10-14T23:12:16.246Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -4270,7 +4270,7 @@
    "opened_at": "2026-10-14T19:59:14.004Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-14T23:12:01.065Z",
+   "mark_at": "2026-10-14T23:12:16.425Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -4348,7 +4348,7 @@
    "opened_at": "2026-10-14T20:21:15.146Z",
    "status": "OPEN",
    "mark_px": 0.9995,
-   "mark_at": "2026-10-14T23:12:01.242Z",
+   "mark_at": "2026-10-14T23:12:16.611Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -4384,7 +4384,7 @@
    "opened_at": "2026-10-14T20:33:01.733Z",
    "status": "OPEN",
    "mark_px": 0.0005,
-   "mark_at": "2026-10-14T23:12:01.422Z",
+   "mark_at": "2026-10-14T23:12:16.806Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -4420,7 +4420,7 @@
    "opened_at": "2026-10-14T20:50:59.347Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-14T23:12:01.606Z",
+   "mark_at": "2026-10-14T23:12:17.007Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -4456,7 +4456,7 @@
    "opened_at": "2026-10-14T21:51:31.083Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-14T23:12:01.793Z",
+   "mark_at": "2026-10-14T23:12:17.191Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -4492,7 +4492,7 @@
    "opened_at": "2026-10-14T22:53:02.024Z",
    "status": "OPEN",
    "mark_px": 0.87,
-   "mark_at": "2026-10-14T23:12:01.980Z",
+   "mark_at": "2026-10-14T23:12:17.557Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -4526,9 +4526,9 @@
    "cost": 38.046100479515545,
    "best_ask": 0.91,
    "opened_at": "2026-10-14T22:53:17.680Z",
-   "status": "OPEN",
-   "mark_px": 0.9995,
-   "mark_at": "2026-10-14T23:12:02.179Z",
+   "status": "CLOSED",
+   "mark_px": 1,
+   "mark_at": "2026-10-14T23:12:17.774Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -4544,7 +4544,13 @@
    },
    "outcome_he": "יורד",
    "question_he": "ביטקוין למעלה או למטה - 14 באוקטובר, 18:00 שעון החוף המזרחי",
-   "tr_v": 2
+   "tr_v": 2,
+   "exit_px": 1,
+   "exit_fee": 0,
+   "proceeds": 41.54715455216263,
+   "pnl": 3.5010540726470865,
+   "reason": "RESOLVED_WIN",
+   "closed_at": "2026-10-14T23:12:17.774Z"
   },
   {
    "id": 111,
@@ -4563,7 +4569,7 @@
    "opened_at": "2026-10-14T22:57:18.310Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-14T23:12:02.412Z",
+   "mark_at": "2026-10-14T23:12:17.956Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -4584,13 +4590,6 @@
   }
  ],
  "equity": [
-  {
-   "ts": "2026-10-14T02:19:30.926Z",
-   "equity": 1300.3192234556345,
-   "cash": 1163.9479353197494,
-   "open_value": 136.3712881358851,
-   "open_count": 1
-  },
   {
    "ts": "2026-10-14T02:19:45.800Z",
    "equity": 1300.3192234556345,
@@ -39583,6 +39582,13 @@
    "cash": 755.9387329452429,
    "open_value": 613.3877641511118,
    "open_count": 9
+  },
+  {
+   "ts": "2026-10-14T23:12:19.775Z",
+   "equity": 1370.0703866616184,
+   "cash": 797.4858874974055,
+   "open_value": 572.5844991642128,
+   "open_count": 8
   }
  ],
  "decisions": [
