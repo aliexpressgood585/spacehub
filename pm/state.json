@@ -13,11 +13,11 @@
   "minQty": 5,
   "exitPx": 0.99
  },
- "last_scan": "2026-10-14T13:07:40.232Z",
+ "last_scan": "2026-10-14T13:07:55.031Z",
  "last_note": {
-  "at": "2026-10-14T13:07:37.631Z",
+  "at": "2026-10-14T13:07:52.604Z",
   "scanned": 43,
-  "settled": 0,
+  "settled": 1,
   "entered": 0,
   "topped": 0,
   "recycled": 0
@@ -2130,9 +2130,9 @@
    "cost": 133.3365411032219,
    "best_ask": 0.85,
    "opened_at": "2026-10-14T10:00:59.913Z",
-   "status": "OPEN",
-   "mark_px": 0.0005,
-   "mark_at": "2026-10-14T13:07:37.823Z",
+   "status": "CLOSED",
+   "mark_px": 0,
+   "mark_at": "2026-10-14T13:07:52.853Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -2149,7 +2149,13 @@
    },
    "outcome_he": "GenOne",
    "question_he": "Counter-Strike: GenOne נגד 6666 (BO3) - NODWIN Clutch Series שלב הקבוצה",
-   "tr_v": 2
+   "tr_v": 2,
+   "exit_px": 0,
+   "exit_fee": 0,
+   "proceeds": 0,
+   "pnl": -133.3365411032219,
+   "reason": "RESOLVED_LOSS",
+   "closed_at": "2026-10-14T13:07:52.853Z"
   },
   {
    "id": 53,
@@ -2378,7 +2384,7 @@
    "opened_at": "2026-10-14T11:10:54.587Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-14T13:07:37.949Z",
+   "mark_at": "2026-10-14T13:07:52.996Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -2456,7 +2462,7 @@
    "opened_at": "2026-10-14T11:55:09.344Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-14T13:07:38.072Z",
+   "mark_at": "2026-10-14T13:07:53.115Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -2492,7 +2498,7 @@
    "opened_at": "2026-10-14T12:31:24.563Z",
    "status": "OPEN",
    "mark_px": 0.802,
-   "mark_at": "2026-10-14T13:07:38.192Z",
+   "mark_at": "2026-10-14T13:07:53.241Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -2528,7 +2534,7 @@
    "opened_at": "2026-10-14T12:35:09.295Z",
    "status": "OPEN",
    "mark_px": 0.93,
-   "mark_at": "2026-10-14T13:07:38.372Z",
+   "mark_at": "2026-10-14T13:07:53.360Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -2564,7 +2570,7 @@
    "opened_at": "2026-10-14T12:36:55.276Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-14T13:07:38.501Z",
+   "mark_at": "2026-10-14T13:07:53.501Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -2600,7 +2606,7 @@
    "opened_at": "2026-10-14T12:36:56.242Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-14T13:07:38.617Z",
+   "mark_at": "2026-10-14T13:07:53.622Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -2635,8 +2641,8 @@
    "best_ask": 0.86,
    "opened_at": "2026-10-14T12:41:10.374Z",
    "status": "OPEN",
-   "mark_px": 0.92,
-   "mark_at": "2026-10-14T13:07:38.762Z",
+   "mark_px": 0.9,
+   "mark_at": "2026-10-14T13:07:53.744Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -2672,7 +2678,7 @@
    "opened_at": "2026-10-14T12:45:10.241Z",
    "status": "OPEN",
    "mark_px": 0.88,
-   "mark_at": "2026-10-14T13:07:39.033Z",
+   "mark_at": "2026-10-14T13:07:53.914Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -2708,7 +2714,7 @@
    "opened_at": "2026-10-14T12:54:55.333Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-14T13:07:39.167Z",
+   "mark_at": "2026-10-14T13:07:54.037Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -2729,13 +2735,6 @@
   }
  ],
  "equity": [
-  {
-   "ts": "2026-10-13T16:16:06.508Z",
-   "equity": 1249.8649258158946,
-   "cash": 96.68633150408772,
-   "open_value": 1153.1785943118068,
-   "open_count": 11
-  },
   {
    "ts": "2026-10-13T16:16:21.510Z",
    "equity": 1249.2346063628377,
@@ -37728,6 +37727,13 @@
    "cash": 143.31239619491149,
    "open_value": 1225.6069548586368,
    "open_count": 10
+  },
+  {
+   "ts": "2026-10-14T13:07:55.031Z",
+   "equity": 1365.7803917168264,
+   "cash": 143.31239619491149,
+   "open_value": 1222.4679955219149,
+   "open_count": 9
   }
  ],
  "decisions": [
