@@ -5,6 +5,7 @@ import type { J } from './polyLive'
 import { createRoot } from 'react-dom/client'
 import PolyDesk from './components/PolyDesk'
 import PolyVerse from './components/PolyVerse'
+import PolyOrbit from './components/PolyOrbit'
 import { usePolyLive, COINS_STATE_URL } from './polyLive'
 
 const EMPTY = 'אין פוזיציה פתוחה כרגע. הבוט בודק כל 10 שניות את שווקי "עולה או יורד" של 5 דקות (ביטקוין, את׳ריום, סולנה, XRP) ונכנס רק 3 דקות לפני הסיום, כשהצד המוביל במחיר 90–98¢ והמחיר רחוק מספיק מקו הפתיחה.'
@@ -53,12 +54,15 @@ function LateExit({ x, lab }: { x?: J; lab: any }) {
 
 function PolyApp() {
   const d = usePolyLive(COINS_STATE_URL)
-  const [view, setView] = useState<'3d' | 'classic'>(() => { try { return localStorage.getItem('polycoins-view') === 'classic' ? 'classic' : '3d' } catch { return '3d' } })
-  const go = (v: '3d' | 'classic') => { setView(v); try { localStorage.setItem('polycoins-view', v) } catch { /* private mode */ } ; window.scrollTo(0, 0) }
-  if (view === '3d') return <PolyVerse d={d} onClassic={() => go('classic')} title="פולי מטבעות" sub="Polymarket · מטבעות בטווח קצר · חשבון דמו" empty={EMPTY} extra={<Study s={d.st?.study} compact />} other={{ href: 'poly.html', label: 'Polymarket ראשי' }} />
+  // default = the orbit (owner 2026-10-14: "something special, 2030"); the arena and the tables stay one tap away
+  const [view, setView] = useState<'orbit' | '3d' | 'classic'>(() => { try { const q = new URLSearchParams(location.search).get('view'); if (q === 'orbit' || q === '3d' || q === 'classic') return q; const v = localStorage.getItem('polycoins-view2'); return v === 'classic' || v === '3d' ? v : 'orbit' } catch { return 'orbit' } })
+  const go = (v: 'orbit' | '3d' | 'classic') => { setView(v); try { localStorage.setItem('polycoins-view2', v) } catch { /* private mode */ } ; window.scrollTo(0, 0) }
+  if (view === 'orbit') return <PolyOrbit d={d} onClassic={() => go('classic')} onArena={() => go('3d')} />
+  if (view === '3d') return <PolyVerse d={d} onClassic={() => go('classic')} title="פולי מטבעות" sub="Polymarket · מטבעות בטווח קצר · חשבון דמו" empty={EMPTY} extra={<Study s={d.st?.study} compact />} other={{ href: 'polycoins.html?view=orbit', label: '◎ למסלול' }} />
   return (
     <div style={{ minHeight: '100vh', background: '#04070E', display: 'flex', justifyContent: 'center', padding: '12px 10px' }}>
       <div style={{ width: '100%', maxWidth: 1100, display: 'grid', gap: 10 }}>
+        <button onClick={() => go('orbit')} style={{ justifySelf: 'start', background: 'rgba(61,220,151,.12)', border: '1px solid rgba(61,220,151,.4)', color: '#d6ffe9', borderRadius: 10, padding: '7px 12px', fontSize: 13, cursor: 'pointer' }}>◎ למסלול</button>
         <button onClick={() => go('3d')} style={{ justifySelf: 'start', background: 'rgba(76,201,240,.12)', border: '1px solid rgba(76,201,240,.4)', color: '#cfe8ff', borderRadius: 10, padding: '7px 12px', fontSize: 13, cursor: 'pointer' }}>✦ לזירת התלת־ממד</button>
         <a href="poly.html" style={{ justifySelf: 'start', color: '#9fb3c8', fontSize: 12 }}>← לשולחן Polymarket הראשי</a>
         <PolyDesk d={d} title="פולי מטבעות · דמו" about={ABOUT} extra={<Study s={d.st?.study} />} />
