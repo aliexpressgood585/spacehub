@@ -541,6 +541,9 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   'ucl-mnc-psg-2026-10-14'); maxPerEvent 2 now counts per match; entry stake and top-ups bounded by the match room (skip
   'הגנה: כבר 10% מההון על המשחק הזה'). Open positions above 5% are left as they are (no forced sale). tests/pm.test.ts 25/25.
 
+- 2026-10-15 EARLY LOOK (Grok: second look 90-120 s after the window opens, z >= 1.5; pmc_volgate.py GATE=looks ->
+  status/pmc-earlylook.txt): +1 trade IS, +0 OOS — it only takes the same trades ~30 s earlier. Diagnostic: later looks at
+  z>=1.5 instead of 2.5 add +823 IS / +273 OOS trades at ~+0.2%/$ IS (33 extra losses) / ~+1.1%/$ OOS. NOT DEPLOYED.
 - 2026-10-15 60-SECOND MOMENTUM GATE (Grok; pmc_volgate.py GATE=mom -> status/pmc-momgate.txt): enter only if Binance moved with the
   favourite over the 60 s before entry by >= 0.08% (or >= IS median |r60| 0.03%). Backtest OOS: base n188 0 losses +$249 | 0.08%
   n73 +$97 | median n135 +$184. Live z>=1.5 (47 trades, 1 loss, +$42.82): 0.08% keeps n11 +$16.65; median keeps n34 +$55.16 and

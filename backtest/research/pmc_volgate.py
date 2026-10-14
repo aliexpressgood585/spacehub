@@ -84,11 +84,11 @@ iso = [x for e in ends if e < cut for r in wins[e].values() for L, _ in LOOKS if
 MED = {k: float(np.median([x[k] for x in iso])) for k in ('v5', 'pw')}
 MED['ar60'] = float(np.median([abs(x['r60']) for x in iso]))
 
-def run(gate):
+def run(gate, looks=None):
     out = []
     for e in ends:
         w = wins[e]; hit = None
-        for L, k in LOOKS:
+        for L, k in (looks or LOOKS):
             for c in ORDER:
                 r = w.get(c)
                 if not r: continue
@@ -125,6 +125,38 @@ print(f'IS medians: v5 (1 s stdev, 300 s before entry) = {MED["v5"]:.2e}; pw (pr
 print(f'P&L at a fixed ${STAKE} stake; Sharpe on daily P&L x sqrt(365). IS = first 70% of windows, OOS = last 30%.\n')
 base = run(lambda x: True)
 MODE = os.environ.get('GATE', 'vol')
+if MODE == 'looks':
+    # Grok 2026-10-15: an extra look 90-120 s after the window opens (= 210-180 s before the end), z >= 1.5, everything else as live.
+    # Looks run in time order; the first that fires takes the window (one position per window, as the desk trades).
+    base = run(lambda x: True)
+    def show(name, looks):
+        v = run(lambda x: True, looks)
+        i = [x for x in v if x[0] < cut]; o = [x for x in v if x[0] >= cut]
+        bi = len([x for x in base if x[0] < cut]); bo = len([x for x in base if x[0] >= cut])
+        print(f'{name:46} IS  {stat(i, 0)}  ({len(i) - bi:+d} vs base)')
+        print(f'{"":46} OOS {stat(o, 0)}  ({len(o) - bo:+d} vs base)')
+    print('EXTRA LOOKS (Grok, pre-registered = the L210 row). Columns as above; "cut" is n/a here.')
+    show('BASE  live v4: L180 z1.5, L120/L60 z2.5', LOOKS)
+    show('+EARLY L210 (start+90 s) z1.5  [pre-registered]', ((210, 1.5),) + LOOKS)
+    show('diag  +L240 (start+60 s) z1.5', ((240, 1.5),) + LOOKS)
+    show('diag  +L240 +L210 z1.5', ((240, 1.5), (210, 1.5)) + LOOKS)
+    show('diag  later looks at z1.5 instead of 2.5', ((180, 1.5), (120, 1.5), (60, 1.5)))
+    # the trades the early look ADDS or REPLACES, on their own
+    def per(looks):
+        d = {}
+        for e in ends:
+            w = wins[e]
+            for L, k in looks:
+                hit = next((w[c] for c in ORDER if w.get(c) and (x := L_(w[c], L)) and .90 <= x['q'] < .98 and x['z'] >= k), None)
+                if hit: d[e] = (L, hit, L_(hit, L)); break
+        return d
+    A, B = per(LOOKS), per(((210, 1.5),) + LOOKS)
+    ch = [(e, ret(B[e][2]['q'], B[e][2]['won'], B[e][1]['fee']), B[e][2]['won']) for e in B if B[e][0] == 210]
+    lost = [(e, ret(A[e][2]['q'], A[e][2]['won'], A[e][1]['fee']), A[e][2]['won']) for e in A if e in B and B[e][0] == 210]
+    for lab, v in (('trades taken by the early look', ch), ('base trades those windows would have had', lost)):
+        i = [x for x in v if x[0] < cut]; o = [x for x in v if x[0] >= cut]
+        print(f'  {lab:44} IS {stat(i, 0)} | OOS {stat(o, 0)}')
+    sys.exit(0)
 if MODE == 'mom':
     print(f'MOMENTUM GATE (Grok, pre-registered): Binance return over the 60 s before entry, signed to the favourite; IS median |r60| = {100 * MED["ar60"]:.4f}%.')
     rules = [('BASE  z only (live v4 at 1.5)', lambda x: True),

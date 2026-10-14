@@ -1,0 +1,23 @@
+Polymarket 5m Up/Down: volatility gate on top of z (Grok, pre-registered). 16121 markets, 4032 windows, 14.0 days (2026-09-30 .. 2026-10-14).
+The live desk: one position per window, first look z >= 1.5 (end-180 s), then z >= 2.5 (end-120 s, end-60 s).
+IS medians: v5 (1 s stdev, 300 s before entry) = 5.05e-05; pw (previous 5 m range / open) = 0.123%.
+P&L at a fixed $30 stake; Sharpe on daily P&L x sqrt(365). IS = first 70% of windows, OOS = last 30%.
+
+EXTRA LOOKS (Grok, pre-registered = the L210 row). Columns as above; "cut" is n/a here.
+BASE  live v4: L180 z1.5, L120/L60 z2.5        IS  n 478 cut    - WR  98.3% losses  8  +2.21%/$ $ +316.37 Sharpe  +20.6 t +3.58  (+0 vs base)
+                                               OOS n 188 cut    - WR 100.0% losses  0  +4.41%/$ $ +248.55 Sharpe  +89.7 t +9.39  (+0 vs base)
++EARLY L210 (start+90 s) z1.5  [pre-registered] IS  n 479 cut    - WR  98.3% losses  8  +2.22%/$ $ +318.96 Sharpe  +20.6 t +3.57  (+1 vs base)
+                                               OOS n 188 cut    - WR 100.0% losses  0  +4.41%/$ $ +248.55 Sharpe  +89.7 t +9.39  (+0 vs base)
+diag  +L240 (start+60 s) z1.5                  IS  n 479 cut    - WR  98.3% losses  8  +2.22%/$ $ +318.96 Sharpe  +20.6 t +3.57  (+1 vs base)
+                                               OOS n 188 cut    - WR 100.0% losses  0  +4.39%/$ $ +247.66 Sharpe  +91.0 t +9.52  (+0 vs base)
+diag  +L240 +L210 z1.5                         IS  n 479 cut    - WR  98.3% losses  8  +2.22%/$ $ +318.96 Sharpe  +20.6 t +3.57  (+1 vs base)
+                                               OOS n 188 cut    - WR 100.0% losses  0  +4.39%/$ $ +247.66 Sharpe  +91.0 t +9.52  (+0 vs base)
+diag  later looks at z1.5 instead of 2.5       IS  n1301 cut    - WR  96.8% losses 41  +0.93%/$ $ +363.59 Sharpe  +16.9 t +2.94  (+823 vs base)
+                                               OOS n 461 cut    - WR  98.0% losses  9  +2.47%/$ $ +341.70 Sharpe  +25.9 t +2.71  (+273 vs base)
+  trades taken by the early look               IS n 155 cut    - WR  97.4% losses  4  +2.59%/$ $ +120.27 Sharpe   +9.9 t +1.72 | OOS n  70 cut    - WR 100.0% losses  0  +5.70%/$ $ +119.72 Sharpe  +61.3 t +6.41
+  base trades those windows would have had     IS n 154 cut    - WR  97.4% losses  4  +2.55%/$ $ +117.68 Sharpe   +9.8 t +1.70 | OOS n  70 cut    - WR 100.0% losses  0  +5.70%/$ $ +119.72 Sharpe  +61.3 t +6.41
+
+Reading: the early look (start+90 s, z >= 1.5) adds 1 trade in IS and 0 in OOS. In 155 IS / 70 OOS windows it only takes the
+SAME trade ~30 s earlier (identical outcomes): at start+90 s the favourite is rarely in 90-98c with z >= 1.5 when it is not also
+there at end-180 s. Lowering the later looks to z >= 1.5 adds +823 IS / +273 OOS trades, but the ADDED trades earn ~+0.2%/$ in IS
+(+$47 on 823 trades, 33 extra losses) and ~+1.1%/$ in OOS — the same result as status/pmc-more.txt. NOT DEPLOYED.
