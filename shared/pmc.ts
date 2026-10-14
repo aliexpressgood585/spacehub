@@ -28,7 +28,13 @@ export const PMC = {
   maxOpen: 2,
   minQty: 5,                  // Polymarket minimum order size (shares)
   slipCap: 0.01,              // never pay more than hi + this when walking the book
+  maxOverRef: 0.01,           // never pay more than the LAST TRADED price + 1c (the research's cost assumption). v1 live
+                              // (158 fills): BTC paid +0.29c over the last trade -> +1.13%/$; ETH +1.63c -> +0.51%; SOL +2.75c ->
+                              // -3.40%; XRP +6.92c -> -4.66%. Thin books, not the rule, were the loss.
 }
+
+// Highest price we will pay: the band's cap, and (when the last trade is known) last trade + maxOverRef.
+export const pmcPxCap = (hi: number, ref: number | null) => Math.min(hi + PMC.slipCap, ref != null && ref > 0 ? ref + PMC.maxOverRef : Infinity)
 
 // Protected floor: 90% of the start, raised by half of every profit peak (the high-water mark). Never falls.
 export const pmcFloor = (start: number, peak: number) => start * PMC.floorFrac + PMC.lockFrac * Math.max(0, peak - start)

@@ -1,7 +1,7 @@
 // "פולי מטבעות" desk (shared/pmc.ts + scripts/pmc-desk.ts): window maths, Hebrew titles, and a paper replay of the runner
 // on a mocked Polymarket (entry in band, out-of-band skip, one entry per market, settlement at the official result).
 import fs from 'node:fs'
-import { PMC, pmcStake, pmcFloor, TF_SEC, windowOf, slugOf, inWindow, inBandR, questionHe, type Rule } from '../shared/pmc.ts'
+import { PMC, pmcStake, pmcPxCap, pmcFloor, TF_SEC, windowOf, slugOf, inWindow, inBandR, questionHe, type Rule } from '../shared/pmc.ts'
 let n = 0, bad = 0
 const ok = (c: boolean, m: string) => { n++; if (!c) { bad++; console.error('FAIL', m) } }
 const near = (a: number, b: number, e = 1e-9) => Math.abs(a - b) < e
@@ -23,6 +23,7 @@ ok(near(pmcStake(1000, 1000, 1000).stake, 30) && near(pmcStake(1200, 1200, 1000)
 { let eq = 1200, peak = 1200; for (let i = 0; i < 3; i++) eq -= pmcStake(eq, peak, 1000).stake
   ok(eq > pmcFloor(1000, peak) && eq > 1000, `three straight full losses from $1,200 leave $${eq.toFixed(0)}: above the floor and still in profit`) }
 ok(pmcStake(900, 1000, 1000).stake === 0 && pmcStake(880, 1000, 1000).stake === 0, 'on or below the floor: no stake')
+ok(near(pmcPxCap(0.98, 0.93), 0.94) && near(pmcPxCap(0.98, 0.985), 0.99) && near(pmcPxCap(0.98, null), 0.99), 'price cap = min(band + 1c, last trade + 1c)')
 ok(PMC.maxPerWindow === 1, 'one position per window (the coins move together)')
 
 // replay: one always-open rule, two coins; BTC Up asks 0.90 (in band), ETH both sides out of band.

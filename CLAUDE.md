@@ -491,6 +491,11 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   (decision 'הגנה: החשבון ברצפה המוגנת'). Three straight full losses from any equity cannot cross the floor; from $1,200 they leave
   ~$1,095. HONEST: it caps damage, it does not create edge (measured ~0 at real fills); a slow bleed of many small losses still
   walks the account down to the $900 floor, where it stops. Commit e3fccafd; tests/pmc.test.ts 23/23.
+- 2026-10-14 v2.1 (owner: "think it through yourself, high level and profitable"). v1 live fills by coin vs the last traded
+  price: BTC +0.29c -> +1.13%/$ (n41, WR 95%), ETH +1.63c -> +0.51%, SOL +2.75c -> -3.40%, XRP +6.92c -> -4.66%; the research was
+  positive only at <= 1c. Added PMC.maxOverRef 0.01 / pmcPxCap: never pay more than last trade + 1c (skip 'יקר מדי'). Shadow
+  maker study REJECTS maker entries: fill rate 44%, filled WR 83.6%, -9.8%/$ (adverse selection; all 70 misses were wins).
+  Commit 84aadfce, 24/24 tests. Still NOT proven (BTC +1.13% on n41 is within noise).
 
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
