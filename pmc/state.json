@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 1016.2675959872388,
+ "cash": 1050.9470045881478,
  "peak": 1072.1210886213057,
  "floor": 936.0605443106529,
  "strategy": {
@@ -44,11 +44,11 @@
   "zMin": 1,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-14T19:24:55.111Z",
+ "last_scan": "2026-10-14T19:25:05.048Z",
  "last_note": {
-  "at": "2026-10-14T19:24:54.591Z",
+  "at": "2026-10-14T19:25:04.722Z",
   "windows": 0,
-  "settled": 0,
+  "settled": 1,
   "entered": 0
  },
  "trades": [
@@ -4365,9 +4365,9 @@
    "cost": 31.42994801500394,
    "best_ask": 0.9,
    "opened_at": "2026-10-14T19:17:27.381Z",
-   "status": "OPEN",
-   "mark_px": 0.999,
-   "mark_at": "2026-10-14T19:21:45.402Z",
+   "status": "CLOSED",
+   "mark_px": 1,
+   "mark_at": "2026-10-14T19:25:05.048Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -4411,7 +4411,13 @@
      "unfilled": 0,
      "z": 7.2018423019557565
     }
-   }
+   },
+   "exit_px": 1,
+   "exit_fee": 0,
+   "proceeds": 34.67940860090913,
+   "pnl": 3.2494605859051866,
+   "reason": "RESOLVED_WIN",
+   "closed_at": "2026-10-14T19:25:05.048Z"
   }
  ],
  "equity": [
@@ -9090,6 +9096,13 @@
    "cash": 1016.2675959872388,
    "open_value": 34.64472919230822,
    "open_count": 1
+  },
+  {
+   "ts": "2026-10-14T19:25:05.048Z",
+   "equity": 1050.9470045881478,
+   "cash": 1050.9470045881478,
+   "open_value": 0,
+   "open_count": 0
   }
  ],
  "decisions": [
@@ -16672,10 +16685,12 @@
    "placed_at": "2026-10-14T19:17:25.808Z",
    "limit": 0.92,
    "taker_ask": 0.93,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-14T19:17:35.081Z",
-   "left_at_fill": 145
+   "left_at_fill": 145,
+   "won": true,
+   "ret": 0.08695652173913039
   },
   {
    "slug": "xrp-updown-5m-1792005300",
@@ -16687,10 +16702,12 @@
    "placed_at": "2026-10-14T19:18:45.811Z",
    "limit": 0.92,
    "taker_ask": 0.93,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-14T19:19:04.888Z",
-   "left_at_fill": 55
+   "left_at_fill": 55,
+   "won": false,
+   "ret": -1
   },
   {
    "slug": "sol-updown-5m-1792005300",
@@ -16702,8 +16719,10 @@
    "placed_at": "2026-10-14T19:19:05.588Z",
    "limit": 0.94,
    "taker_ask": 0.96,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "eth-updown-5m-1792005600",
@@ -16773,26 +16792,26 @@
   },
   "maker": {
    "placed": 345,
-   "resolved": 338,
-   "filled": 148,
-   "fill_rate": 0.4378698224852071,
-   "wr": 0.8918918918918919,
-   "ret": -0.03324966813374588,
-   "missed_wins": 190,
+   "resolved": 341,
+   "filled": 150,
+   "fill_rate": 0.4398826979472141,
+   "wr": 0.8866666666666667,
+   "ret": -0.03889329574703506,
+   "missed_wins": 191,
    "missed_losses": 0
   },
   "late_exit": {
    "x30": {
-    "n": 57,
+    "n": 58,
     "rules": [
      {
       "rule": "always",
-      "sold": 57,
-      "wins_cut": 55,
+      "sold": 58,
+      "wins_cut": 56,
       "losses_cut": 2,
-      "actual_usd": 36.023400417047796,
-      "if_sold_usd": 8.17364119005937,
-      "gain_usd": -27.849759226988425
+      "actual_usd": 39.27286100295298,
+      "if_sold_usd": 11.052274859795038,
+      "gain_usd": -28.22058614315794
      },
      {
       "rule": "bid<0.90",
@@ -16851,16 +16870,16 @@
     ]
    },
    "x15": {
-    "n": 57,
+    "n": 58,
     "rules": [
      {
       "rule": "always",
-      "sold": 57,
-      "wins_cut": 55,
+      "sold": 58,
+      "wins_cut": 56,
       "losses_cut": 2,
-      "actual_usd": 36.023400417047796,
-      "if_sold_usd": 25.82391671710522,
-      "gain_usd": -10.199483699942576
+      "actual_usd": 39.27286100295298,
+      "if_sold_usd": 28.702550386840887,
+      "gain_usd": -10.570310616112092
      },
      {
       "rule": "bid<0.90",
@@ -16920,9 +16939,9 @@
    }
   },
   "taker": {
-   "n": 63,
-   "wr": 0.9682539682539683,
-   "ret": 0.02984665262292876
+   "n": 64,
+   "wr": 0.96875,
+   "ret": 0.03099572679000643
   }
  },
  "reset_at": "2026-10-14T09:06:54.912393+00:00",
