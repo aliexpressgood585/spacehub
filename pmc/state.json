@@ -44,12 +44,12 @@
   "zMin": 1,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-14T12:42:42.816Z",
+ "last_scan": "2026-10-14T12:42:52.314Z",
  "last_note": {
-  "at": "2026-10-14T12:42:40.382Z",
+  "at": "2026-10-14T12:42:50.601Z",
   "windows": 4,
   "settled": 0,
-  "entered": 1
+  "entered": 0
  },
  "trades": [
   {
@@ -1269,8 +1269,8 @@
    "best_ask": 0.93,
    "opened_at": "2026-10-14T12:42:42.816Z",
    "status": "OPEN",
-   "mark_px": 0.92,
-   "mark_at": "2026-10-14T12:42:42.816Z",
+   "mark_px": 0.9,
+   "mark_at": "2026-10-14T12:42:51.267Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -5841,10 +5841,12 @@
    "placed_at": "2026-10-14T12:39:01.378Z",
    "limit": 0.95,
    "taker_ask": 0.96,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-14T12:39:10.896Z",
-   "left_at_fill": 49
+   "left_at_fill": 49,
+   "won": true,
+   "ret": 0.052631578947368474
   },
   {
    "slug": "eth-updown-5m-1791981600",
@@ -5857,7 +5859,9 @@
    "limit": 0.92,
    "taker_ask": 0.93,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-14T12:42:51.102Z",
+   "left_at_fill": 129
   }
  ],
  "study": {
@@ -5869,11 +5873,11 @@
   },
   "maker": {
    "placed": 76,
-   "resolved": 74,
-   "filled": 36,
-   "fill_rate": 0.4864864864864865,
-   "wr": 0.9722222222222222,
-   "ret": 0.055258026251152614,
+   "resolved": 75,
+   "filled": 37,
+   "fill_rate": 0.49333333333333335,
+   "wr": 0.972972972972973,
+   "ret": 0.05518704118888818,
    "missed_wins": 38,
    "missed_losses": 0
   },
