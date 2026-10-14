@@ -541,6 +541,17 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   'ucl-mnc-psg-2026-10-14'); maxPerEvent 2 now counts per match; entry stake and top-ups bounded by the match room (skip
   'הגנה: כבר 10% מההון על המשחק הזה'). Open positions above 5% are left as they are (no forced sale). tests/pm.test.ts 25/25.
 
+- 2026-10-14 ~21:30 UTC two "riskless" Polymarket ideas tested (owner "כן", research only, no bot change) -> status/pm-arb.txt.
+  A. NEG-RISK BASKETS (backtest/research/pm_arb_scan.py: all ~22,700 active events via /events/keyset — the offset form 422s past
+  ~2,000 — 7,300 non-augmented neg-risk events, real asks walked + taker fee): buy one YES of every outcome < $1, or one NO of
+  every outcome < n-1. 3 live rounds: 4-5 positive baskets, all dead markets (Guinea-Bissau elections, vol24h $0-5), total
+  locked < $1. No real edge: market makers keep the sums at/above $1.
+  B. DECIDED-NOT-SETTLED (umaResolutionStatus 'proposed', endDate passed): a naive scan showed 5-10% returns — ARTIFACT, stale
+  0.95 asks on the LOSING side. With a consensus filter (bid >= 0.90 on the side, or the other side offered <= 0.10) only 2-4
+  markets, all at ask 0.999 (+0.10%), depth $45-$1,674. History (backtest/research/pm_settle.py, 6,000 resolved markets, 3
+  days, mid/last series): buying the >= 0.90 side 15-30 min before close = +0.1..+0.25%/$, 2-3 h before = negative (sports
+  favourites at 0.90 still lose 1.6-4.7%). REJECTED both: a few dollars a day at most.
+
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the
