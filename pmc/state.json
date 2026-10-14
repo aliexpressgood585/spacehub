@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 1003.0417936633467,
+ "cash": 1036.2360355814183,
  "peak": 1036.2028413395,
  "floor": 918.10142066975,
  "strategy": {
@@ -44,11 +44,11 @@
   "zMin": 1,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-14T12:49:51.454Z",
+ "last_scan": "2026-10-14T12:50:01.195Z",
  "last_note": {
-  "at": "2026-10-14T12:49:51.003Z",
+  "at": "2026-10-14T12:50:00.916Z",
   "windows": 0,
-  "settled": 0,
+  "settled": 1,
   "entered": 0
  },
  "trades": [
@@ -1268,9 +1268,9 @@
    "cost": 31.021911144227218,
    "best_ask": 0.93,
    "opened_at": "2026-10-14T12:42:42.816Z",
-   "status": "OPEN",
-   "mark_px": 0.999,
-   "mark_at": "2026-10-14T12:47:00.885Z",
+   "status": "CLOSED",
+   "mark_px": 1,
+   "mark_at": "2026-10-14T12:50:01.195Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -1313,7 +1313,13 @@
      "unfilled": 0,
      "z": 3.1240370555856942
     }
-   }
+   },
+   "exit_px": 1,
+   "exit_fee": 0,
+   "proceeds": 33.194241918071576,
+   "pnl": 2.172330773844358,
+   "reason": "RESOLVED_WIN",
+   "closed_at": "2026-10-14T12:50:01.195Z"
   }
  ],
  "equity": [
@@ -3003,6 +3009,13 @@
    "cash": 1003.0417936633467,
    "open_value": 33.1610476761535,
    "open_count": 1
+  },
+  {
+   "ts": "2026-10-14T12:50:01.195Z",
+   "equity": 1036.2360355814183,
+   "cash": 1036.2360355814183,
+   "open_value": 0,
+   "open_count": 0
   }
  ],
  "decisions": [
@@ -6055,10 +6068,12 @@
    "placed_at": "2026-10-14T12:42:41.247Z",
    "limit": 0.92,
    "taker_ask": 0.93,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-14T12:42:51.102Z",
-   "left_at_fill": 129
+   "left_at_fill": 129,
+   "won": true,
+   "ret": 0.08695652173913039
   },
   {
    "slug": "sol-updown-5m-1791981600",
@@ -6070,8 +6085,10 @@
    "placed_at": "2026-10-14T12:43:11.514Z",
    "limit": 0.93,
    "taker_ask": 0.94,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "xrp-updown-5m-1791981600",
@@ -6083,10 +6100,12 @@
    "placed_at": "2026-10-14T12:43:32.310Z",
    "limit": 0.91,
    "taker_ask": 0.95,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-14T12:43:41.398Z",
-   "left_at_fill": 79
+   "left_at_fill": 79,
+   "won": true,
+   "ret": 0.09890109890109887
   },
   {
    "slug": "btc-updown-5m-1791981600",
@@ -6098,8 +6117,10 @@
    "placed_at": "2026-10-14T12:43:41.952Z",
    "limit": 0.95,
    "taker_ask": 0.96,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "btc-updown-5m-1791981900",
@@ -6139,26 +6160,26 @@
   },
   "maker": {
    "placed": 81,
-   "resolved": 75,
-   "filled": 37,
-   "fill_rate": 0.49333333333333335,
-   "wr": 0.972972972972973,
-   "ret": 0.05518704118888818,
-   "missed_wins": 38,
+   "resolved": 79,
+   "filled": 39,
+   "fill_rate": 0.4936708860759494,
+   "wr": 0.9743589743589743,
+   "ret": 0.057122516528951076,
+   "missed_wins": 40,
    "missed_losses": 0
   },
   "late_exit": {
    "x30": {
-    "n": 13,
+    "n": 14,
     "rules": [
      {
       "rule": "always",
-      "sold": 13,
-      "wins_cut": 13,
+      "sold": 14,
+      "wins_cut": 14,
       "losses_cut": 0,
-      "actual_usd": 22.38956122237991,
-      "if_sold_usd": 20.10157404268563,
-      "gain_usd": -2.28798717969428
+      "actual_usd": 24.56189199622427,
+      "if_sold_usd": 21.91895878770005,
+      "gain_usd": -2.6429332085242194
      },
      {
       "rule": "bid<0.90",
@@ -6217,16 +6238,16 @@
     ]
    },
    "x15": {
-    "n": 13,
+    "n": 14,
     "rules": [
      {
       "rule": "always",
-      "sold": 13,
-      "wins_cut": 13,
+      "sold": 14,
+      "wins_cut": 14,
       "losses_cut": 0,
-      "actual_usd": 22.38956122237991,
-      "if_sold_usd": 20.10157404268563,
-      "gain_usd": -2.28798717969428
+      "actual_usd": 24.56189199622427,
+      "if_sold_usd": 21.91895878770005,
+      "gain_usd": -2.6429332085242194
      },
      {
       "rule": "bid<0.90",
@@ -6286,9 +6307,9 @@
    }
   },
   "taker": {
-   "n": 19,
+   "n": 20,
    "wr": 1,
-   "ret": 0.0687081394123874
+   "ret": 0.06877401700761046
   }
  },
  "reset_at": "2026-10-14T09:06:54.912393+00:00",
