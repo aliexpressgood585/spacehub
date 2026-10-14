@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 1669.4390703819422,
+ "cash": 1252.6009488071682,
  "strategy": {
   "rules": [
    {
@@ -22,12 +22,12 @@
   "minQty": 5,
   "slipCap": 0.01
  },
- "last_scan": "2026-10-14T04:31:52.723Z",
+ "last_scan": "2026-10-14T04:32:03.513Z",
  "last_note": {
-  "at": "2026-10-14T04:31:52.723Z",
-  "windows": 0,
+  "at": "2026-10-14T04:32:02.412Z",
+  "windows": 4,
   "settled": 0,
-  "entered": 0
+  "entered": 1
  },
  "trades": [
   {
@@ -5040,6 +5040,48 @@
    "pnl": 9.322341799819753,
    "reason": "RESOLVED_WIN",
    "closed_at": "2026-10-14T04:22:12.583Z"
+  },
+  {
+   "id": 105,
+   "market_id": "5641665",
+   "slug": "xrp-updown-5m-1791952200",
+   "event_slug": "xrp-updown-5m-1791952200",
+   "question": "XRP Up or Down - October 14, 12:30AM-12:35AM ET",
+   "question_he": "XRP · עולה או יורד · 5 דקות · 04:30–04:35 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "token_id": "106179573729399528493561426337663810498555900273651885471707825128526482797134",
+   "end_time": "2026-10-14T04:35:00Z",
+   "qty": 429.6894878702742,
+   "entry_px": 0.9679177987238308,
+   "entry_fee": 0.9340183406080226,
+   "cost": 416.838121574774,
+   "best_ask": 0.95,
+   "opened_at": "2026-10-14T04:32:03.513Z",
+   "status": "OPEN",
+   "mark_px": 0.94,
+   "mark_at": "2026-10-14T04:32:03.513Z",
+   "meta": {
+    "fee_schedule": {
+     "rate": 0.07,
+     "exponent": 1
+    },
+    "coin": "xrp",
+    "tf": "5m",
+    "window_s": 300,
+    "left_s": 178,
+    "band": [
+     0.9,
+     0.98
+    ],
+    "outcomes": [
+     "Up",
+     "Down"
+    ],
+    "wanted": 417.35976759548555,
+    "ref_px": 0.95,
+    "bid_px": 0.94
+   }
   }
  ],
  "equity": [
@@ -8220,9 +8262,27 @@
    "cash": 1669.4390703819422,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-10-14T04:32:03.513Z",
+   "equity": 1656.5090674052258,
+   "cash": 1252.6009488071682,
+   "open_value": 403.90811859805774,
+   "open_count": 1
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-14T04:32:03.513Z",
+   "market_id": "5641665",
+   "question": "XRP Up or Down - October 14, 12:30AM-12:35AM ET",
+   "question_he": "XRP · עולה או יורד · 5 דקות · 04:30–04:35 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.9679177987238308,
+   "decision": "BUY",
+   "reason": "178 שנ׳ לסיום, מחיר 0.95 בטווח 90-98¢, 429.7 מניות ($417), עמלה $0.93"
+  },
   {
    "ts": "2026-10-14T04:22:02.887Z",
    "market_id": "5641201",
@@ -9588,7 +9648,7 @@
    "reason": "179 שנ׳ לסיום, מחיר 0.93 בטווח 90-98¢, 263.5 מניות ($250), עמלה $0.97"
   }
  ],
- "next_id": 105,
+ "next_id": 106,
  "shadow": [
   {
    "slug": "btc-updown-5m-1791930000",
@@ -10823,17 +10883,30 @@
    "filled": false,
    "won": true,
    "ret": null
+  },
+  {
+   "slug": "xrp-updown-5m-1791952200",
+   "market_id": "5641665",
+   "token_id": "106179573729399528493561426337663810498555900273651885471707825128526482797134",
+   "coin": "xrp",
+   "outcome": "Up",
+   "end_time": "2026-10-14T04:35:00Z",
+   "placed_at": "2026-10-14T04:32:03.421Z",
+   "limit": 0.94,
+   "taker_ask": 0.95,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
   "fills": {
-   "n": 100,
-   "avg_vs_ref_c": 3.421220461032648,
-   "avg_vs_research_c": 2.42122046103265,
-   "avg_fee_c": 0.36546284441907234
+   "n": 101,
+   "avg_vs_ref_c": 3.4050873858975037,
+   "avg_vs_research_c": 2.4050873858975064,
+   "avg_fee_c": 0.36399658393434997
   },
   "maker": {
-   "placed": 78,
+   "placed": 79,
    "resolved": 78,
    "filled": 32,
    "fill_rate": 0.41025641025641024,
