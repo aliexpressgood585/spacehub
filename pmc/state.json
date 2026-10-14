@@ -44,12 +44,12 @@
   "zMin": 1,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-14T17:22:08.966Z",
+ "last_scan": "2026-10-14T17:22:18.538Z",
  "last_note": {
-  "at": "2026-10-14T17:22:06.316Z",
+  "at": "2026-10-14T17:22:16.806Z",
   "windows": 4,
   "settled": 0,
-  "entered": 1
+  "entered": 0
  },
  "trades": [
   {
@@ -3030,8 +3030,8 @@
    "best_ask": 0.95,
    "opened_at": "2026-10-14T17:22:08.966Z",
    "status": "OPEN",
-   "mark_px": 0.93,
-   "mark_at": "2026-10-14T17:22:08.966Z",
+   "mark_px": 0.92,
+   "mark_at": "2026-10-14T17:22:17.460Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -13119,8 +13119,10 @@
    "placed_at": "2026-10-14T17:18:06.625Z",
    "limit": 0.92,
    "taker_ask": 0.94,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "eth-updown-5m-1791998100",
@@ -13132,8 +13134,10 @@
    "placed_at": "2026-10-14T17:18:06.803Z",
    "limit": 0.92,
    "taker_ask": 0.93,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "xrp-updown-5m-1791998100",
@@ -13145,8 +13149,10 @@
    "placed_at": "2026-10-14T17:18:07.327Z",
    "limit": 0.93,
    "taker_ask": 0.95,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "sol-updown-5m-1791998100",
@@ -13158,10 +13164,12 @@
    "placed_at": "2026-10-14T17:18:37.707Z",
    "limit": 0.96,
    "taker_ask": 0.97,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-14T17:18:46.997Z",
-   "left_at_fill": 73
+   "left_at_fill": 73,
+   "won": true,
+   "ret": 0.041666666666666706
   },
   {
    "slug": "xrp-updown-5m-1791998400",
@@ -13174,7 +13182,9 @@
    "limit": 0.93,
    "taker_ask": 0.95,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-14T17:22:17.294Z",
+   "left_at_fill": 163
   }
  ],
  "study": {
@@ -13186,12 +13196,12 @@
   },
   "maker": {
    "placed": 265,
-   "resolved": 260,
-   "filled": 116,
-   "fill_rate": 0.4461538461538462,
-   "wr": 0.9137931034482759,
-   "ret": -0.009786910375223522,
-   "missed_wins": 144,
+   "resolved": 264,
+   "filled": 117,
+   "fill_rate": 0.4431818181818182,
+   "wr": 0.9145299145299145,
+   "ret": -0.009347136212472323,
+   "missed_wins": 147,
    "missed_losses": 0
   },
   "late_exit": {
