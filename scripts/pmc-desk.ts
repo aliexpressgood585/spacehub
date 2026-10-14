@@ -4,7 +4,7 @@
 // Run: node --experimental-strip-types scripts/pmc-desk.ts <state.json>
 import fs from 'node:fs'
 import { takerFee, walkAsks, heOutcome, type FeeSchedule } from '../shared/pm.ts'
-import { PMC, pmcStake, TF_SEC, windowOf, slugOf, inWindow, inBandR, questionHe } from '../shared/pmc.ts'
+import { PMC, pmcStake, pmcPxCap, TF_SEC, windowOf, slugOf, inWindow, inBandR, questionHe } from '../shared/pmc.ts'
 
 const FILE = process.argv[2] ?? 'pmc/state.json'
 const GAMMA = 'https://gamma-api.polymarket.com', CLOB = 'https://clob.polymarket.com'
@@ -105,11 +105,13 @@ try {
       const stake = Math.min(stake0, st.cash - 1)
       if (stake < PMC.minQty * ask) { D('skip', stake0 < PMC.minQty * ask ? `הגנה: החשבון ברצפה המוגנת ($${floor.toFixed(0)})` : 'אין מספיק מזומן'); continue }
       const fs_ = feeOf(m)
-      const fill = walkAsks(b.asks, stake / (1 + (fs_ ? fs_.rate * (1 - ask) : 0)), x.r.hi + PMC.slipCap)   // fee / notional = rate x (1 - p)
+      let ref: number | null = null   // the research assumed: last traded price + 1c. Enforced as a price cap (pmcPxCap).
+      try { ref = +(await j(`${CLOB}/last-trade-price?token_id=${toks[k]}`)).price || null } catch { /* unknown */ }
+      const cap = pmcPxCap(x.r.hi, ref)
+      if (ask > cap) { D('skip', `יקר מדי: המחיר ${ask} מעל העסקה האחרונה ${ref} + 1¢ (ספר דל)`); continue }
+      const fill = walkAsks(b.asks, stake / (1 + (fs_ ? fs_.rate * (1 - ask) : 0)), cap)   // fee / notional = rate x (1 - p)
       if (fill.qty < PMC.minQty) { D('skip', 'ספר הזמנות דל מדי'); continue }
       const fee = takerFee(fill.qty, fill.vwap, fs_), cost = fill.spent + fee, mk = b.bids[0]?.price ?? fill.vwap
-      let ref: number | null = null   // the research assumed: last traded price + 1c. Stored to measure the real fill against it.
-      try { ref = +(await j(`${CLOB}/last-trade-price?token_id=${toks[k]}`)).price || null } catch { /* unknown */ }
       const left = x.start + TF_SEC[x.r.tf as keyof typeof TF_SEC] - nowS
       st.trades.push({ id: st.next_id++, market_id: m.id, slug: m.slug, event_slug: m.slug, question: m.question, question_he: questionHe(x.coin, x.r.tf, x.start), outcome: outs[k], outcome_he: heOutcome(outs[k]), token_id: toks[k], end_time: m.endDate, qty: fill.qty, entry_px: fill.vwap, entry_fee: fee, cost, best_ask: ask, opened_at: now(), status: 'OPEN', mark_px: mk, mark_at: now(), meta: { fee_schedule: fs_, volume: m.volumeNum, coin: x.coin, tf: x.r.tf, window_s: TF_SEC[x.r.tf as keyof typeof TF_SEC], left_s: left, band: [x.r.lo, x.r.hi], outcomes: outs, wanted: stake, ref_px: ref, bid_px: b.bids[0]?.price ?? null } })
       st.cash -= cost; openValue += fill.qty * mk; entered++; held.add(x.slug)
