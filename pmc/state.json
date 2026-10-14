@@ -44,9 +44,9 @@
   "zMin": 1,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-14T14:02:36.034Z",
+ "last_scan": "2026-10-14T14:02:46.100Z",
  "last_note": {
-  "at": "2026-10-14T14:02:33.410Z",
+  "at": "2026-10-14T14:02:43.464Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -1480,7 +1480,7 @@
    "opened_at": "2026-10-14T13:57:06.665Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-14T14:02:33.897Z",
+   "mark_at": "2026-10-14T14:02:43.929Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -3742,6 +3742,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-14T14:02:46.100Z",
+   "market_id": "5649425",
+   "question": "XRP Up or Down - October 14, 10:00AM-10:05AM ET",
+   "question_he": "XRP · עולה או יורד · 5 דקות · 14:00–14:05 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.93,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 0.95 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
+  },
+  {
    "ts": "2026-10-14T14:02:36.034Z",
    "market_id": "5649425",
    "question": "XRP Up or Down - October 14, 10:00AM-10:05AM ET",
@@ -5929,17 +5940,6 @@
    "price": 0.96,
    "decision": "skip",
    "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
-  },
-  {
-   "ts": "2026-10-14T12:09:00.604Z",
-   "market_id": "5647547",
-   "question": "XRP Up or Down - October 14, 8:05AM-8:10AM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 12:05–12:10 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.97,
-   "decision": "skip",
-   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
   }
  ],
  "next_id": 24,
@@ -8036,7 +8036,9 @@
    "limit": 0.92,
    "taker_ask": 0.93,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-14T14:02:43.759Z",
+   "left_at_fill": 136
   }
  ],
  "study": {
