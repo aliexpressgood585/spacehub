@@ -44,12 +44,12 @@
   "zMin": 1,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-14T21:08:47.075Z",
+ "last_scan": "2026-10-14T21:08:56.384Z",
  "last_note": {
-  "at": "2026-10-14T21:08:44.544Z",
+  "at": "2026-10-14T21:08:54.316Z",
   "windows": 4,
   "settled": 0,
-  "entered": 1
+  "entered": 0
  },
  "trades": [
   {
@@ -5351,8 +5351,8 @@
    "best_ask": 0.95,
    "opened_at": "2026-10-14T21:08:47.075Z",
    "status": "OPEN",
-   "mark_px": 0.94,
-   "mark_at": "2026-10-14T21:08:47.075Z",
+   "mark_px": 0.91,
+   "mark_at": "2026-10-14T21:08:55.340Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -19575,8 +19575,10 @@
    "placed_at": "2026-10-14T21:02:56.077Z",
    "limit": 0.9,
    "taker_ask": 0.91,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "eth-updown-5m-1792011600",
@@ -19588,8 +19590,10 @@
    "placed_at": "2026-10-14T21:03:06.112Z",
    "limit": 0.96,
    "taker_ask": 0.97,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "sol-updown-5m-1792011600",
@@ -19601,8 +19605,10 @@
    "placed_at": "2026-10-14T21:03:06.454Z",
    "limit": 0.95,
    "taker_ask": 0.97,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "xrp-updown-5m-1792011900",
@@ -19630,7 +19636,9 @@
    "limit": 0.94,
    "taker_ask": 0.95,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-14T21:08:54.813Z",
+   "left_at_fill": 65
   },
   {
    "slug": "eth-updown-5m-1792011900",
@@ -19643,7 +19651,9 @@
    "limit": 0.9,
    "taker_ask": 0.91,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-14T21:08:54.989Z",
+   "left_at_fill": 65
   },
   {
    "slug": "sol-updown-5m-1792011900",
@@ -19656,7 +19666,9 @@
    "limit": 0.94,
    "taker_ask": 0.95,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-14T21:08:55.165Z",
+   "left_at_fill": 65
   }
  ],
  "study": {
@@ -19668,12 +19680,12 @@
   },
   "maker": {
    "placed": 417,
-   "resolved": 410,
+   "resolved": 413,
    "filled": 183,
-   "fill_rate": 0.44634146341463415,
+   "fill_rate": 0.4430992736077482,
    "wr": 0.8743169398907104,
    "ret": -0.05324469766952294,
-   "missed_wins": 227,
+   "missed_wins": 230,
    "missed_losses": 0
   },
   "late_exit": {
