@@ -15,9 +15,18 @@ export const TF_SEC: Record<Tf, number> = { '5m': 300, '15m': 900, '4h': 14400 }
 export const COIN_HE: Record<string, string> = { btc: 'ביטקוין', eth: 'את׳ריום', sol: 'סולנה', xrp: 'XRP', bnb: 'BNB', doge: 'דוג׳קוין', hype: 'HYPE', zec: 'זיקאש' }
 export const TF_HE: Record<Tf, string> = { '5m': '5 דקות', '15m': '15 דקות', '4h': '4 שעות' }
 
-export interface Rule { tf: Tf; coins: string[]; enterFrom: number; enterTo: number; lo: number; hi: number }
+export interface Rule { tf: Tf; coins: string[]; enterFrom: number; enterTo: number; lo: number; hi: number; zMin?: number }   // zMin overrides PMC.zMin
 export const PMC = {
-  rules: [{ tf: '5m', coins: ['btc', 'eth', 'sol', 'xrp'], enterFrom: 180, enterTo: 140, lo: 0.90, hi: 0.98 }] as Rule[],
+  rules: [{ tf: '5m', coins: ['btc', 'eth', 'sol', 'xrp'], enterFrom: 180, enterTo: 140, lo: 0.90, hi: 0.98 },
+          // v4 SECOND LOOK (owner 2026-10-14: "more quick trades"). Windows the first look did not enter get a second chance
+          // 139-45 s before the end with a STRICTER distance (z >= 2.5). backtest/research/pmc_more.py -> status/pmc-more.txt,
+          // 16,121 5m markets / 4,032 windows / 14 days, one position per window, coins in order:
+          //   first look only            IS n277 WR 96.4% +2.10%/$ | OOS n115 97.4% +3.51%/$   ~28/day
+          //   + second look z>=2.5       IS n561 WR 97.5% +1.96%/$ | OOS n222 98.6% +3.53%/$   ~56/day (t 2.8 / 4.3)
+          //   added trades alone L120    IS n117 98.3% +2.05%/$ | OOS n44 100% +4.15%/$; L60 IS n201 99.0% +1.73%/$ | OOS n74 100% +3.17%/$
+          // Rejected in the same run: band 85-90c (z>=1 flips to -3.3%/$ OOS), second look at z>=1 (IS -0.35%/$ at L120).
+          // CAVEAT: the CLOB history has one price a minute; near the end the live ask may already sit above 98c (then no entry).
+          { tf: '5m', coins: ['btc', 'eth', 'sol', 'xrp'], enterFrom: 139, enterTo: 45, lo: 0.90, hi: 0.98, zMin: 2.5 }] as Rule[],
   // v2 PROTECTION (owner 2026-10-14, after v1 went $1,000 -> $202 in clustered losses: "one, two or three losses must not
   // wipe the profits"). The four coins move together, so 4 x 25% was one 100% bet. Now:
   maxPosFrac: 0.03,           // a stake is at most 3% of equity
@@ -64,6 +73,7 @@ export function windowOf(tf: Tf, nowSec: number) {
 export const slugOf = (coin: string, tf: Tf, start: number) => `${coin}-updown-${tf}-${start}`
 
 // Inside a rule's entry window? (seconds left before the end, inclusive bounds)
+export const zMinOf = (r: Rule) => r.zMin ?? PMC.zMin
 export const inWindow = (r: Rule, left: number) => left <= r.enterFrom && left >= r.enterTo
 export const inBandR = (r: Rule, p: number) => p >= r.lo && p < r.hi
 

@@ -525,6 +525,14 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   rate at 1.5; offered 1.0 with the numbers, recommended it, owner "כן"). Research z>=1.0 90-98c 180 s: IS n315 97.1% +2.68%/$,
   OOS n187 97.3% +2.86%/$ (~50 entries/day vs ~25). PLAN: after ~100 live closes compare meta.z 1.0-1.5 vs >= 1.5; revert to
   1.5 if the lower bucket loses live.
+- 2026-10-14 ~11:40 UTC v4 SECOND LOOK (owner: "more quick trades for Poly Coins", then "כן" to the test). backtest/research/
+  pmc_more.py -> status/pmc-more.txt: 16,121 5m markets / 4,032 windows / 14 days, simulated as the desk trades (one position
+  per window, btc/eth/sol/xrp order). First look only (L180, 90-98c, z>=1): IS n277 96.4% +2.10%/$ | OOS n115 97.4% +3.51%/$,
+  ~28/day. Adding a second look 139-45 s before the end at z>=2.5 for windows the first did not enter: IS n561 97.5% +1.96%/$
+  t2.8 | OOS n222 98.6% +3.53%/$ t4.3, ~56/day (z>=2: ~85/day, +1.49/+2.64%/$). REJECTED: band 85-90c (z>=1 OOS -3.3%/$),
+  second look at z>=1 (IS -0.35%/$), 15m markets (pmc-distance.txt: z filter negative in-sample at every 15m entry).
+  DEPLOYED: PMC.rules[1] = {enterFrom 139, enterTo 45, zMin 2.5}, Rule.zMin + zMinOf(); entries store meta.look / z_min.
+  CAVEAT: minute-resolution price history; near the end the live ask often sits >= 98c (no entry). Tests 32/32.
 
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
