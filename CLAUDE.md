@@ -521,6 +521,10 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   (100% = 10% of equity), orbs = last 14 closes. Story card explains in Hebrew why the bot waits / enters. ?orbitdemo=1 =
   synthetic comets for a visual check (verified headless at 500px: focus, overview, reactor). The sandbox browser cannot reach
   Binance/Polymarket (TLS), so the LIVE feeds were not exercised here.
+- 2026-10-14 ~10:50 UTC PMC.zMin 1.5 -> 1.0 (owner asked why no trade for ~35 min; told: ~1 entry per 10 windows = the expected
+  rate at 1.5; offered 1.0 with the numbers, recommended it, owner "כן"). Research z>=1.0 90-98c 180 s: IS n315 97.1% +2.68%/$,
+  OOS n187 97.3% +2.86%/$ (~50 entries/day vs ~25). PLAN: after ~100 live closes compare meta.z 1.0-1.5 vs >= 1.5; revert to
+  1.5 if the lower bucket loses live.
 
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
