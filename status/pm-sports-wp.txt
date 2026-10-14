@@ -1,0 +1,33 @@
+Polymarket moneylines vs ESPN live win probability: 801 games (nfl 110, mlb 691, nhl 0), 2026-08-01 .. 2026-10-14
+Entry = first live minute the rule fires (one per game), +1c slip, taker fee from the market, held to the result.
+IS = first 70% of games by start, OOS = last 30%.
+
+Brier per live minute ALL : market 0.1559 | ESPN model 0.1563  (133987 minutes)
+Brier per live minute nfl : market 0.1746 | ESPN model 0.1712  (20160 minutes)
+Brier per live minute mlb : market 0.1526 | ESPN model 0.1536  (113827 minutes)
+
+rule                                        IS                                            | OOS
+  FAV 90-98c (market only)                  n 522 WR  91.0%  -2.15%/$ t-1.59              | n 226 WR  93.4%  +0.40%/$ t+0.22
+  FAV 90-98c and model >= price + 0.02      n 164 WR  90.9%  -3.35%/$ t-1.40              | n  94 WR  96.8%  +3.05%/$ t+1.57
+  FAV 90-98c and model >= price + 0.05      n  13                                         | n  13                               
+  FAV 90-98c and model >= price + 0.08      n   1                                         | n   3                               
+  FAV 85-92c (market only)                  n 529 WR  87.5%  -1.21%/$ t-0.75              | n 227 WR  89.0%  +0.52%/$ t+0.22
+  FAV 85-92c and model >= price + 0.02      n 216 WR  86.1%  -3.46%/$ t-1.31              | n 110 WR  90.9%  +2.11%/$ t+0.68
+  FAV 85-92c and model >= price + 0.05      n  46 WR  67.4% -24.21%/$ t-3.11              | n  36 WR  94.4%  +5.99%/$ t+1.39
+  FAV 85-92c and model >= price + 0.08      n   7                                         | n   9                               
+  FAV 75-90c (market only)                  n 547 WR  81.2%  +0.73%/$ t+0.35              | n 234 WR  79.5%  -0.61%/$ t-0.19
+  FAV 75-90c and model >= price + 0.02      n 355 WR  82.3%  +0.34%/$ t+0.14              | n 156 WR  82.1%  +0.59%/$ t+0.15
+  FAV 75-90c and model >= price + 0.05      n 194 WR  80.9%  -0.24%/$ t-0.07              | n  87 WR  81.6%  -0.06%/$ t-0.01
+  FAV 75-90c and model >= price + 0.08      n  64 WR  78.1%  -3.12%/$ t-0.49              | n  32 WR  93.8% +15.85%/$ t+2.94
+  ANY side 20-80c, model >= price + 0.05    n 539 WR  51.0%  +1.94%/$ t+0.43              | n 228 WR  48.2%  +2.20%/$ t+0.29
+  ANY side 5-95c, model >= price + 0.05     n 554 WR  49.3%  +0.16%/$ t+0.03              | n 235 WR  47.2%  +2.00%/$ t+0.25
+  ANY side 20-80c, model >= price + 0.10    n 421 WR  48.7%  +3.40%/$ t+0.61              | n 176 WR  47.2%  +1.49%/$ t+0.17
+  ANY side 5-95c, model >= price + 0.10     n 457 WR  44.6%  -0.33%/$ t-0.05              | n 191 WR  42.9%  -8.31%/$ t-1.00
+  ANY side 20-80c, model >= price + 0.15    n 260 WR  43.8%  -5.43%/$ t-0.76              | n 107 WR  47.7% +19.37%/$ t+1.46
+  ANY side 5-95c, model >= price + 0.15     n 306 WR  39.5%  +0.94%/$ t+0.11              | n 125 WR  40.8%  +5.96%/$ t+0.46
+  ANY side 20-80c, model >= price + 0.20    n 145 WR  45.5%  -1.52%/$ t-0.16              | n  60 WR  41.7%  -2.15%/$ t-0.13
+  ANY side 5-95c, model >= price + 0.20     n 175 WR  40.0%  -2.49%/$ t-0.22              | n  78 WR  33.3%  -5.62%/$ t-0.31
+  [nfl] ANY side 20-80c, model >= price + 0.10n  42 WR  54.8% +39.69%/$ t+1.88              | n  44 WR  47.7% -12.23%/$ t-0.83
+  [nfl] FAV 90-98c and model >= price + 0.02n  21 WR  90.5%  -3.69%/$ t-0.54              | n  31 WR  93.5%  -0.62%/$ t-0.13
+  [mlb] ANY side 20-80c, model >= price + 0.10n 379 WR  48.0%  -0.62%/$ t-0.11              | n 132 WR  47.0%  +6.06%/$ t+0.57
+  [mlb] FAV 90-98c and model >= price + 0.02n 143 WR  90.9%  -3.31%/$ t-1.29              | n  63 WR  98.4%  +4.86%/$ t+2.87

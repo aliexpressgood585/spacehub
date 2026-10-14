@@ -541,6 +541,12 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   'ucl-mnc-psg-2026-10-14'); maxPerEvent 2 now counts per match; entry stake and top-ups bounded by the match room (skip
   'הגנה: כבר 10% מההון על המשחק הזה'). Open positions above 5% are left as they are (no forced sale). tests/pm.test.ts 25/25.
 
+- 2026-10-14 ~23:45 UTC HOURLY / DAILY crypto Up/Down with the distance filter (backtest/research/pmc_hourly.py ->
+  status/pmc-hourly.txt; 5,755 hourly markets 08-15..10-14, 714 daily 04-17..10-13; Binance 1m spot at the price point's
+  minute, fee 0.07, +1c). DAILY: no rule positive in both halves -> REJECTED. HOURLY: z >= 2.5 is positive in both halves at
+  15/20 min before the end — L15 90-98c z>=2.5 IS n190 WR 99.5% +1.81%/$ t3.3 | OOS n101 100% +2.17%/$; L20 +0.56/+2.50;
+  z>=2.0 L3/L5 +0.86/+2.91, +0.62/+1.11; L10 mixed. ~5 trades/day over 4 coins. CAVEAT: median hourly market volume $2,058
+  (XRP ~$300) — thin books, the live ask will be the test. Offered to the owner as a small addition; NOT built.
 - 2026-10-14 ~23:30 UTC PMC.zMin 1.0 -> 1.5 (owner approved; the planned check at ~100 closes, done at 92). Live since 10:50:
   z 1.0-1.5 n47, 4 losses, -$39.16 | z >= 1.5 n45, 1 loss, +$40.19; equity back to $1,001 (peak $1,072, floor $936). Grok's
   ideas checked on the same 92 fills: entries average -0.2c vs the last trade and +0.1c vs the best ask (the v1 price problem
