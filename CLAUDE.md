@@ -478,6 +478,12 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   before the 12:00 ET close, fee 0.07·p(1-p) +1c, 70/30 by date. Brier: market better at 24h/6h, model better at 30-60 min (n 85-119).
   Trading the disagreement (>= 3-12c): IS +16..+45%/$ (t up to 2.3) -> OOS -8..-17%/$ on every pooled row. A flip. REJECTED.
 
+- 2026-10-14 07:55 UTC check (owner: "why did the desk stop"): BOTH desks running (state pushed every cycle). Main Poly desk
+  idle since 01:19 only because Gamma has 0 markets >= $20k volume ending within 4h at this hour (52 within 12h) -> resumes by
+  itself. pmc desk: 147 closed, 136 wins / 11 losses, net -$798.27, equity $1,000 -> $201.73 (-80%). Losses come in CLUSTERS:
+  03:42 BTC+SOL+ETH lost together (-$1,303), 06:07 SOL+XRP, 06:47 SOL+XRP, 07:07 BTC+XRP — the 4 coins move together, so 4 x 25%
+  is one bet of 100%. Reported to the owner; 25% sizing left as the owner set it, options put to them.
+
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the
