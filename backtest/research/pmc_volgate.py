@@ -125,6 +125,34 @@ print(f'IS medians: v5 (1 s stdev, 300 s before entry) = {MED["v5"]:.2e}; pw (pr
 print(f'P&L at a fixed ${STAKE} stake; Sharpe on daily P&L x sqrt(365). IS = first 70% of windows, OOS = last 30%.\n')
 base = run(lambda x: True)
 MODE = os.environ.get('GATE', 'vol')
+if MODE == 'hours':
+    # Grok 2026-10-15: hour of day (UTC). Rules fixed before reading: on the live desk trades (base), per hour in IS ->
+    # STRONG = no IS loss AND %/$ above the IS mean; WEAK = any IS loss. OOS: (a) trade STRONG hours only,
+    # (b) size x1.5 in STRONG, x0.5 in WEAK, x1 otherwise (same total budget scale shown per $30 base stake).
+    base = run(lambda x: True)
+    H = lambda e: dt.datetime.utcfromtimestamp(e - 300).hour      # hour the window started
+    isv = [x for x in base if x[0] < cut]; oos = [x for x in base if x[0] >= cut]
+    mean_is = sum(a for _, a, _ in isv) / len(isv)
+    print(f'HOUR OF DAY (UTC), live desk rule, $30/trade. IS mean {100 * mean_is:+.2f}%/$. STRONG = 0 IS losses and %/$ > IS mean.')
+    print(f'{"hour":>4} | {"IS n":>4} {"loss":>4} {"%/$":>7} {"$":>8} | {"OOS n":>5} {"loss":>4} {"%/$":>7} {"$":>8} | class')
+    cls = {}
+    for h in range(24):
+        a = [x for x in isv if H(x[0]) == h]; b = [x for x in oos if H(x[0]) == h]
+        la = sum(1 for *_, w in a if not w); ma = sum(r for _, r, _ in a) / len(a) if a else 0
+        cls[h] = 'WEAK' if la else ('STRONG' if a and ma > mean_is else '-')
+        mb = sum(r for _, r, _ in b) / len(b) if b else 0
+        print(f'{h:>4} | {len(a):>4} {la:>4} {100 * ma:+7.2f} {sum(r for _, r, _ in a) * STAKE:+8.2f} | {len(b):>5} '
+              f'{sum(1 for *_, w in b if not w):>4} {100 * mb:+7.2f} {sum(r for _, r, _ in b) * STAKE:+8.2f} | {cls[h]}')
+    print(f'\nSTRONG hours: {[h for h in range(24) if cls[h] == "STRONG"]}   WEAK hours: {[h for h in range(24) if cls[h] == "WEAK"]}')
+    for name, sel, wt in (('BASE all hours', lambda h: True, lambda h: 1),
+                          ('(a) STRONG hours only', lambda h: cls[h] == 'STRONG', lambda h: 1),
+                          ('(b) size x1.5 STRONG / x0.5 WEAK', lambda h: True, lambda h: 1.5 if cls[h] == 'STRONG' else .5 if cls[h] == 'WEAK' else 1)):
+        for lab, v in (('IS ', isv), ('OOS', oos)):
+            vv = [(e, r * wt(H(e)), w, wt(H(e))) for e, r, w in v if sel(H(e))]
+            usd = sum(r for _, r, _, _ in vv) * STAKE; cap = sum(k for *_, k in vv) * STAKE
+            print(f'  {name:34} {lab} n{len(vv):4} losses {sum(1 for _, _, w, _ in vv if not w):2}  ${usd:+8.2f}  '
+                  f'%/$ deployed {100 * usd / cap if cap else 0:+6.2f}')
+    sys.exit(0)
 if MODE == 'looks':
     # Grok 2026-10-15: an extra look 90-120 s after the window opens (= 210-180 s before the end), z >= 1.5, everything else as live.
     # Looks run in time order; the first that fires takes the window (one position per window, as the desk trades).
