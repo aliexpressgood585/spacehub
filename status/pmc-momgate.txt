@@ -1,0 +1,26 @@
+Polymarket 5m Up/Down: volatility gate on top of z (Grok, pre-registered). 16121 markets, 4032 windows, 14.0 days (2026-09-30 .. 2026-10-14).
+The live desk: one position per window, first look z >= 1.5 (end-180 s), then z >= 2.5 (end-120 s, end-60 s).
+IS medians: v5 (1 s stdev, 300 s before entry) = 5.05e-05; pw (previous 5 m range / open) = 0.123%.
+P&L at a fixed $30 stake; Sharpe on daily P&L x sqrt(365). IS = first 70% of windows, OOS = last 30%.
+
+MOMENTUM GATE (Grok, pre-registered): Binance return over the 60 s before entry, signed to the favourite; IS median |r60| = 0.0303%.
+BASE  z only (live v4 at 1.5)            IS  n 478 cut    0% WR  98.3% losses  8  +2.21%/$ $ +316.37 Sharpe  +20.6 t +3.58
+                                         OOS n 188 cut    0% WR 100.0% losses  0  +4.41%/$ $ +248.55 Sharpe  +89.7 t +9.39
+GATE  r60 same side and >= 0.08%         IS  n 201 cut   58% WR  99.0% losses  2  +3.22%/$ $ +193.94 Sharpe  +25.2 t +4.38
+                                         OOS n  73 cut   61% WR 100.0% losses  0  +4.41%/$ $  +96.52 Sharpe  +31.9 t +3.34
+GATE  r60 same side and >= IS median |r60| IS  n 360 cut   25% WR  98.6% losses  5  +2.66%/$ $ +287.13 Sharpe  +22.2 t +3.85
+                                         OOS n 135 cut   28% WR 100.0% losses  0  +4.54%/$ $ +183.68 Sharpe  +69.0 t +7.22
+diag  r60 same side (> 0)                IS  n 456 cut    5% WR  98.2% losses  8  +2.11%/$ $ +288.72 Sharpe  +18.9 t +3.28
+                                         OOS n 179 cut    5% WR 100.0% losses  0  +4.46%/$ $ +239.39 Sharpe  +83.2 t +8.71
+diag  r60 against (<= 0)                 IS  n  58 cut   88% WR 100.0% losses  0  +3.07%/$ $  +53.49 Sharpe  +41.5 t +7.20
+                                         OOS n  28 cut   85% WR 100.0% losses  0  +3.54%/$ $  +29.77 Sharpe  +52.0 t +5.45
+
+LIVE CHECK (47 closed desk trades with z >= 1.5, 2026-10-14/15; r60 from Binance 1 s REST over the 60 s before entry, signed to the side bought):
+live closed trades with z>=1.5: 47 measured 47
+ALL z>=1.5                 n 47 losses 1 pnl $+42.82
+r60 >= 0.08% (kept)        n 11 losses 0 pnl $+16.65
+r60 < 0.08% (cut)          n 36 losses 1 pnl $+26.17
+r60 >= IS median (kept)    n 34 losses 0 pnl $+55.16
+r60 < IS median (cut)      n 13 losses 1 pnl $-12.34
+losers r60: [('btc', -0.001)]
+Reading: 0.08% cuts ~60% of trades and halves profit (backtest OOS +$249 -> +$97, live +$43 -> +$17). The IS-median gate (0.03%) costs $65 in backtest OOS (no losses there to remove) and saves $12 live by dodging the single z>=1.5 loser (n=1, luck-sized). NOT DEPLOYED.

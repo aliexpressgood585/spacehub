@@ -57,11 +57,12 @@ def look(r, L):
     if pt is None or pt[0] < r['start']: return None
     t, p = pt
     s0, s1, sg = S(r['coin'], r['start']), S(r['coin'], t), sd(r['coin'], t, 3600)
-    v5, pw = sd(r['coin'], t, 300), prevRange(r['coin'], r['start'])
-    if s0 is None or s1 is None or sg is None or v5 is None or pw is None: return None
+    v5, pw, s60 = sd(r['coin'], t, 300), prevRange(r['coin'], r['start']), S(r['coin'], t - 60)
+    if s0 is None or s1 is None or sg is None or v5 is None or pw is None or s60 is None: return None
+    r60 = math.log(s1 / s60)
     z = math.log(s1 / s0) / (sg * math.sqrt(r['end'] - t))
-    q, zf, won = (p, z, r['up_won']) if p >= .5 else (1 - p, -z, not r['up_won'])
-    return {'q': q, 'z': zf, 'won': won, 'v5': v5, 'pw': pw}
+    q, zf, won, m60 = (p, z, r['up_won'], r60) if p >= .5 else (1 - p, -z, not r['up_won'], -r60)
+    return {'q': q, 'z': zf, 'won': won, 'v5': v5, 'pw': pw, 'r60': m60}   # r60 signed: > 0 = the last 60 s moved WITH the favourite
 
 def ret(q, won, fee, slip=.01):
     b = min(.999, q + slip); c = b + fee * b * (1 - b)
@@ -81,6 +82,7 @@ def L_(r, L):
 # IS medians of each measure, over every in-band candidate the plain rule would see in IS windows
 iso = [x for e in ends if e < cut for r in wins[e].values() for L, _ in LOOKS if (x := L_(r, L)) and .90 <= x['q'] < .98]
 MED = {k: float(np.median([x[k] for x in iso])) for k in ('v5', 'pw')}
+MED['ar60'] = float(np.median([abs(x['r60']) for x in iso]))
 
 def run(gate):
     out = []
@@ -122,7 +124,15 @@ print(f'The live desk: one position per window, first look z >= 1.5 (end-180 s),
 print(f'IS medians: v5 (1 s stdev, 300 s before entry) = {MED["v5"]:.2e}; pw (previous 5 m range / open) = {100 * MED["pw"]:.3f}%.')
 print(f'P&L at a fixed ${STAKE} stake; Sharpe on daily P&L x sqrt(365). IS = first 70% of windows, OOS = last 30%.\n')
 base = run(lambda x: True)
-rules = [('BASE  z only (live v4 at 1.5)', lambda x: True),
+MODE = os.environ.get('GATE', 'vol')
+if MODE == 'mom':
+    print(f'MOMENTUM GATE (Grok, pre-registered): Binance return over the 60 s before entry, signed to the favourite; IS median |r60| = {100 * MED["ar60"]:.4f}%.')
+    rules = [('BASE  z only (live v4 at 1.5)', lambda x: True),
+             ('GATE  r60 same side and >= 0.08%', lambda x: x['r60'] >= 0.0008),
+             ('GATE  r60 same side and >= IS median |r60|', lambda x: x['r60'] >= MED['ar60']),
+             ('diag  r60 same side (> 0)', lambda x: x['r60'] > 0),
+             ('diag  r60 against (<= 0)', lambda x: x['r60'] <= 0)]
+else: rules = [('BASE  z only (live v4 at 1.5)', lambda x: True),
          ('GATE  v5 > IS median  [pre-registered]', lambda x: x['v5'] > MED['v5']),
          ('GATE  pw > IS median  [pre-registered]', lambda x: x['pw'] > MED['pw']),
          ('diag  v5 < IS median (inverse)', lambda x: x['v5'] <= MED['v5']),
