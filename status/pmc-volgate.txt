@@ -1,0 +1,22 @@
+Polymarket 5m Up/Down: volatility gate on top of z (Grok, pre-registered). 16121 markets, 4032 windows, 14.0 days (2026-09-30 .. 2026-10-14).
+The live desk: one position per window, first look z >= 1.5 (end-180 s), then z >= 2.5 (end-120 s, end-60 s).
+IS medians: v5 (1 s stdev, 300 s before entry) = 5.05e-05; pw (previous 5 m range / open) = 0.123%.
+P&L at a fixed $30 stake; Sharpe on daily P&L x sqrt(365). IS = first 70% of windows, OOS = last 30%.
+
+BASE  z only (live v4 at 1.5)            IS  n 478 cut    0% WR  98.3% losses  8  +2.21%/$ $ +316.37 Sharpe  +20.6 t +3.58
+                                         OOS n 188 cut    0% WR 100.0% losses  0  +4.41%/$ $ +248.55 Sharpe  +89.7 t +9.39
+GATE  v5 > IS median  [pre-registered]   IS  n 239 cut   50% WR 100.0% losses  0  +3.94%/$ $ +282.41 Sharpe  +49.5 t +8.59
+                                         OOS n  82 cut   56% WR 100.0% losses  0  +4.50%/$ $ +110.69 Sharpe  +32.6 t +3.41
+GATE  pw > IS median  [pre-registered]   IS  n 223 cut   53% WR  99.1% losses  2  +2.93%/$ $ +195.84 Sharpe  +24.4 t +4.24
+                                         OOS n  91 cut   52% WR 100.0% losses  0  +4.40%/$ $ +120.04 Sharpe  +31.9 t +3.33
+diag  v5 < IS median (inverse)           IS  n 305 cut   36% WR  97.4% losses  8  +1.19%/$ $ +108.54 Sharpe   +8.3 t +1.44
+                                         OOS n 137 cut   27% WR 100.0% losses  0  +4.33%/$ $ +177.80 Sharpe  +96.9 t +10.15
+diag  pw < IS median (inverse)           IS  n 307 cut   36% WR  97.7% losses  7  +1.52%/$ $ +140.27 Sharpe  +14.2 t +2.46
+                                         OOS n 120 cut   36% WR 100.0% losses  0  +4.31%/$ $ +155.04 Sharpe  +47.6 t +4.98
+
+LIVE CHECK (94 closed desk trades 2026-10-14, v5 from Binance 1 s REST for the 300 s before each entry, same IS median 5.05e-05):
+  all trades            n94 losses 5 pnl $+3.66   | gate keeps n54 losses 2 $+30.45 | gate cuts n40 losses 3 $-26.79
+  z >= 1.5 (live rule)  gate keeps n18 losses 0 $+27.85 | gate cuts n29 losses 1 $+14.98  -> the gate would have cost $14.98
+Reading: in the backtest OOS the plain z >= 1.5 rule had no losses, so the gate only halves the trades (+$248 -> +$111).
+On the live z >= 1.5 trades it removes 1 loser and 28 winners worth more. Most of the gate's apparent live value comes from
+the z 1.0-1.5 bucket, which the desk already dropped (2026-10-14 23:10). NOT DEPLOYED.

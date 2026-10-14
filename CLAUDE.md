@@ -541,6 +541,11 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   'ucl-mnc-psg-2026-10-14'); maxPerEvent 2 now counts per match; entry stake and top-ups bounded by the match room (skip
   'הגנה: כבר 10% מההון על המשחק הזה'). Open positions above 5% are left as they are (no forced sale). tests/pm.test.ts 25/25.
 
+- 2026-10-15 VOLATILITY GATE on top of z (Grok's proposal; backtest/research/pmc_volgate.py -> status/pmc-volgate.txt). Enter only
+  when the 1 s stdev over the 300 s before entry (or the previous window's range) is above its IS median. Backtest (16,121 5m
+  markets, 14 days, desk simulation z>=1.5 / 2.5): BASE IS n478 8 losses +$316 | OOS n188 0 losses +$249; v5 gate IS n239
+  0 losses +$282 | OOS n82 0 losses +$111 (halves OOS profit; OOS had no losses to remove). Live, 94 closed trades: on the z>=1.5
+  trades the gate keeps n18 (+$27.85) and cuts n29 (1 loss, +$14.98) -> costs $15. NOT DEPLOYED.
 - 2026-10-14 ~23:45 UTC HOURLY / DAILY crypto Up/Down with the distance filter (backtest/research/pmc_hourly.py ->
   status/pmc-hourly.txt; 5,755 hourly markets 08-15..10-14, 714 daily 04-17..10-13; Binance 1m spot at the price point's
   minute, fee 0.07, +1c). DAILY: no rule positive in both halves -> REJECTED. HOURLY: z >= 2.5 is positive in both halves at
