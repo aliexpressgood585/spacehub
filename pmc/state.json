@@ -1,8 +1,8 @@
 {
  "start_cash": 1000,
  "cash": 974.9644005663365,
- "peak": 1005.117938728182,
- "floor": 902.558969364091,
+ "peak": 1005.2584438179151,
+ "floor": 902.6292219089576,
  "strategy": {
   "rules": [
    {
@@ -29,12 +29,12 @@
   "slipCap": 0.01,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-14T09:42:29.864Z",
+ "last_scan": "2026-10-14T09:42:39.852Z",
  "last_note": {
-  "at": "2026-10-14T09:42:28.595Z",
+  "at": "2026-10-14T09:42:38.210Z",
   "windows": 4,
   "settled": 0,
-  "entered": 1
+  "entered": 0
  },
  "trades": [
   {
@@ -200,8 +200,8 @@
    "best_ask": 0.91,
    "opened_at": "2026-10-14T09:42:29.864Z",
    "status": "OPEN",
-   "mark_px": 0.9,
-   "mark_at": "2026-10-14T09:42:29.864Z",
+   "mark_px": 0.92,
+   "mark_at": "2026-10-14T09:42:38.855Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -510,6 +510,28 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-14T09:42:39.852Z",
+   "market_id": "5645754",
+   "question": "Solana Up or Down - October 14, 5:40AM-5:45AM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 09:40–09:45 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.92,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
+   "ts": "2026-10-14T09:42:39.852Z",
+   "market_id": "5645751",
+   "question": "XRP Up or Down - October 14, 5:40AM-5:45AM ET",
+   "question_he": "XRP · עולה או יורד · 5 דקות · 09:40–09:45 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.97,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
    "ts": "2026-10-14T09:42:29.864Z",
    "market_id": "5645753",
    "question": "Bitcoin Up or Down - October 14, 5:40AM-5:45AM ET",
@@ -696,6 +718,19 @@
    "taker_ask": 0.95,
    "status": "WORKING",
    "filled": false
+  },
+  {
+   "slug": "sol-updown-5m-1791970800",
+   "market_id": "5645754",
+   "token_id": "62121667470483207152069282119887055159162775513167536467308696184774360488449",
+   "coin": "sol",
+   "outcome": "Down",
+   "end_time": "2026-10-14T09:45:00Z",
+   "placed_at": "2026-10-14T09:42:39.483Z",
+   "limit": 0.9,
+   "taker_ask": 0.92,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
@@ -706,7 +741,7 @@
    "avg_fee_c": 0.5471948717535073
   },
   "maker": {
-   "placed": 5,
+   "placed": 6,
    "resolved": 2,
    "filled": 2,
    "fill_rate": 1,
