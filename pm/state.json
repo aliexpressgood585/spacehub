@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 747.4175868448401,
+ "cash": 625.9311428196285,
  "strategy": {
   "lo": 0.85,
   "hi": 0.92,
@@ -13,13 +13,13 @@
   "minQty": 5,
   "exitPx": 0.99
  },
- "last_scan": "2026-10-14T01:19:30.031Z",
+ "last_scan": "2026-10-14T01:19:45.948Z",
  "last_note": {
-  "at": "2026-10-14T01:19:28.634Z",
+  "at": "2026-10-14T01:19:43.458Z",
   "scanned": 20,
   "settled": 0,
-  "entered": 0,
-  "topped": 0,
+  "entered": 1,
+  "topped": 1,
   "recycled": 0
  },
  "trades": [
@@ -1754,7 +1754,7 @@
    "opened_at": "2026-10-13T23:37:43.635Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-14T01:19:28.928Z",
+   "mark_at": "2026-10-14T01:19:43.768Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -1790,7 +1790,7 @@
    "opened_at": "2026-10-14T00:17:43.572Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-14T01:19:29.104Z",
+   "mark_at": "2026-10-14T01:19:43.958Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -1826,7 +1826,7 @@
    "opened_at": "2026-10-14T00:59:44.732Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-14T01:19:29.283Z",
+   "mark_at": "2026-10-14T01:19:44.139Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -1862,7 +1862,7 @@
    "opened_at": "2026-10-14T01:01:30.226Z",
    "status": "OPEN",
    "mark_px": 0.78,
-   "mark_at": "2026-10-14T01:19:29.475Z",
+   "mark_at": "2026-10-14T01:19:44.316Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -1879,6 +1879,42 @@
    },
    "outcome_he": "לא",
    "question_he": "האם אריק ויסקונדה ינצח ב-KO או TKO?",
+   "tr_v": 2
+  },
+  {
+   "id": 47,
+   "market_id": "4893623",
+   "slug": "ufc-ilibul-erivis-2026-09-29-win-by-submission",
+   "event_slug": "ufc-ilibul-erivis-2026-09-29",
+   "question": "Will the fight be won by submission?",
+   "outcome": "No",
+   "token_id": "61372883396930495392158137792430480700531679126722697442645090783101218385939",
+   "end_time": "2026-10-14T03:59:59.999Z",
+   "qty": 132.04308540345056,
+   "entry_px": 0.9162133571896455,
+   "entry_fee": 0.5068054540371242,
+   "cost": 121.48644402521163,
+   "best_ask": 0.91,
+   "opened_at": "2026-10-14T01:19:44.623Z",
+   "status": "OPEN",
+   "mark_px": 0.79,
+   "mark_at": "2026-10-14T01:19:44.623Z",
+   "meta": {
+    "fee_schedule": {
+     "rate": 0.05,
+     "exponent": 1
+    },
+    "volume": 60921.66052800001,
+    "spread": 0.12,
+    "model_p": 0.85,
+    "outcomes": [
+     "Yes",
+     "No"
+    ],
+    "adds": 1
+   },
+   "outcome_he": "לא",
+   "question_he": "האם הקרב ינצח בהכנעה?",
    "tr_v": 2
   }
  ],
@@ -27432,9 +27468,44 @@
    "cash": 747.4175868448401,
    "open_value": 511.4606140128495,
    "open_count": 4
+  },
+  {
+   "ts": "2026-10-14T01:19:45.948Z",
+   "equity": 1241.705794301204,
+   "cash": 625.9311428196285,
+   "open_value": 615.7746514815755,
+   "open_count": 5
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-14T01:19:44.623Z",
+   "market_id": "4893623",
+   "question": "Will the fight be won by submission?",
+   "outcome": "No",
+   "outcomes": [
+    "Yes",
+    "No"
+   ],
+   "price": 0.9136495575007298,
+   "decision": "BUY",
+   "reason": "מחיר 0.91 בטווח, 39.4 מניות, עמלה $0.16",
+   "outcome_he": "לא",
+   "question_he": "האם הקרב ינצח בהכנעה?",
+   "tr_v": 2
+  },
+  {
+   "ts": "2026-10-14T01:19:44.783Z",
+   "market_id": "4893623",
+   "question": "Will the fight be won by submission?",
+   "outcome": "No",
+   "price": 0.9173024226933951,
+   "decision": "ADD",
+   "reason": "השלמה לחלק שווה: +92.7 מניות, עמלה $0.35",
+   "outcome_he": "לא",
+   "question_he": "האם הקרב ינצח בהכנעה?",
+   "tr_v": 2
+  },
   {
    "ts": "2026-10-14T01:02:44.795Z",
    "market_id": "4893622",
@@ -30342,41 +30413,9 @@
    "outcome_he": "כן",
    "question_he": "האם המחיר של Ethereum יהיה מעל $2,500 ב-13 באוקטובר?",
    "tr_v": 2
-  },
-  {
-   "ts": "2026-10-13T14:13:52.000Z",
-   "market_id": "5377253",
-   "question": "Will the price of Ethereum be above $2,500 on October 13?",
-   "outcome": "Yes",
-   "outcomes": [
-    "Yes",
-    "No"
-   ],
-   "price": 0.82,
-   "decision": "skip",
-   "reason": "מחיר 0.82 מחוץ לטווח 85-92¢",
-   "outcome_he": "כן",
-   "question_he": "האם המחיר של Ethereum יהיה מעל $2,500 ב-13 באוקטובר?",
-   "tr_v": 2
-  },
-  {
-   "ts": "2026-10-13T14:13:37.353Z",
-   "market_id": "5377253",
-   "question": "Will the price of Ethereum be above $2,500 on October 13?",
-   "outcome": "Yes",
-   "outcomes": [
-    "Yes",
-    "No"
-   ],
-   "price": 0.83,
-   "decision": "skip",
-   "reason": "מחיר 0.83 מחוץ לטווח 85-92¢",
-   "outcome_he": "כן",
-   "question_he": "האם המחיר של Ethereum יהיה מעל $2,500 ב-13 באוקטובר?",
-   "tr_v": 2
   }
  ],
- "next_id": 47,
+ "next_id": 48,
  "he": {
   "Dota 2: Yellow Submarine vs Kalmychata - Game 1 Winner": "Dota 2: Yellow Submarine vs Kalmychata - מנצח משחק 1",
   "Yellow Submarine": "צוללת צהובה",
@@ -30437,6 +30476,7 @@
   "CA Boca Juniors vs. CR Vasco da Gama: O/U 0.5": "CA בוקה ג'וניורס לעומת CR ואסקו דה גאמה: O/U 0.5",
   "Dota 2: Amaru Gaming vs Rottweilas Latam (BO3) - DreamLeague South America Closed Qualifier Playoffs": "דוטה 2: Amaru Gaming vs Rottweilas Latam (BO3) - DreamLeague South America סגור במוקדמות פלייאוף",
   "Will Erick Visconde win by KO or TKO?": "האם אריק ויסקונדה ינצח ב-KO או TKO?",
-  "Dana White's Contender Series: Aline Pereira vs. Smilla Sundell (Women's Bantamweight, Main Card)": "סדרת המתמודדים של דנה ווייט: אלין פריירה נגד סמילה סנדל (משקל דנטלי לנשים, קלף ראשי)"
+  "Dana White's Contender Series: Aline Pereira vs. Smilla Sundell (Women's Bantamweight, Main Card)": "סדרת המתמודדים של דנה ווייט: אלין פריירה נגד סמילה סנדל (משקל דנטלי לנשים, קלף ראשי)",
+  "Will the fight be won by submission?": "האם הקרב ינצח בהכנעה?"
  }
 }
