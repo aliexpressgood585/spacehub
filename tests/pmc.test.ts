@@ -1,7 +1,7 @@
 // "פולי מטבעות" desk (shared/pmc.ts + scripts/pmc-desk.ts): window maths, Hebrew titles, and a paper replay of the runner
 // on a mocked Polymarket (entry in band, out-of-band skip, one entry per market, settlement at the official result).
 import fs from 'node:fs'
-import { PMC, pmcStake, pmcPxCap, pmcFloor, TF_SEC, windowOf, slugOf, inWindow, inBandR, questionHe, type Rule } from '../shared/pmc.ts'
+import { PMC, pmcStake, pmcPxCap, pmcZ, sigmaOf, pmcFloor, TF_SEC, windowOf, slugOf, inWindow, inBandR, questionHe, type Rule } from '../shared/pmc.ts'
 let n = 0, bad = 0
 const ok = (c: boolean, m: string) => { n++; if (!c) { bad++; console.error('FAIL', m) } }
 const near = (a: number, b: number, e = 1e-9) => Math.abs(a - b) < e
@@ -24,6 +24,8 @@ ok(near(pmcStake(1000, 1000, 1000).stake, 30) && near(pmcStake(1200, 1200, 1000)
   ok(eq > pmcFloor(1000, peak) && eq > 1000, `three straight full losses from $1,200 leave $${eq.toFixed(0)}: above the floor and still in profit`) }
 ok(pmcStake(900, 1000, 1000).stake === 0 && pmcStake(880, 1000, 1000).stake === 0, 'on or below the floor: no stake')
 ok(near(pmcPxCap(0.98, 0.93), 0.94) && near(pmcPxCap(0.98, 0.985), 0.99) && near(pmcPxCap(0.98, null), 0.99), 'price cap = min(band + 1c, last trade + 1c)')
+ok(near(pmcZ(100, 101, 0.001, 100), Math.log(1.01) / 0.01) && Number.isNaN(pmcZ(0, 1, 1, 1)), 'z = ln(now/open) / (sigma x sqrt(seconds left))')
+ok(Number.isNaN(sigmaOf([1, 2, 3])) && near(sigmaOf(Array.from({ length: 1001 }, (_, i) => (i % 2 ? 101 : 100))), Math.log(101 / 100)), 'sigma of 1 s log returns, needs >= 600 returns')
 ok(PMC.maxPerWindow === 1, 'one position per window (the coins move together)')
 
 // replay: one always-open rule, two coins; BTC Up asks 0.90 (in band), ETH both sides out of band.
@@ -36,6 +38,11 @@ const mk = (slug: string, id: string, a: string, b: string) => ({ id, slug, ques
 ;(globalThis as any).fetch = async (u: string) => {
   if (u.includes('closed=true')) return J(resolved ? [{ id: 'B1', closed: true, clobTokenIds: '["BU","BD"]', outcomePrices: '["1","0"]' }] : [])
   if (u.includes('/markets?')) { const s = [...u.matchAll(/slug=([^&]+)/g)].map((x) => x[1]); return J(s.map((x) => x.startsWith('btc') ? mk(x, 'B1', 'BU', 'BD') : mk(x, 'E1', 'EU', 'ED'))) }
+  if (u.includes('data-api.binance.vision')) {   // spot 1 s klines: opened at 100, now ~101 with tiny noise -> z far above zMin (Up)
+    if (u.includes('startTime=')) return J([[0, '100', '100', '100', '100']])
+    const end = +(u.match(/endTime=(\d+)/)?.[1] ?? 0)
+    return J(Array.from({ length: 1000 }, (_, i) => [end - (999 - i) * 1000, '101', '101', '101', String(101 + (i % 2 ? 0.001 : -0.001))]))
+  }
   if (u.includes('token_id=BU')) return J({ bids: [{ price: '0.89', size: '500' }], asks: [{ price: '0.90', size: '1000' }] })
   if (u.includes('token_id=BD')) return J({ bids: [], asks: [{ price: '0.11', size: '1000' }] })
   if (u.includes('token_id=EU')) return J({ bids: [], asks: [{ price: '0.60', size: '1000' }] })
@@ -50,6 +57,7 @@ let out = JSON.parse(fs.readFileSync(file, 'utf8'))
 const t = out.trades[0]
 ok(out.trades.length === 1 && t.outcome === 'Up' && t.slug.startsWith('btc-'), 'buys only the in-band side, skips the out-of-band market')
 const fee = 0.07 * t.qty * 0.9 * 0.1
+ok(t.meta.z >= PMC.zMin && t.meta.spot_open === 100, 'entry records the distance z and the spot open it was measured from')
 ok(near(t.entry_px, 0.9) && near(t.entry_fee, fee, 1e-6) && near(t.cost, t.qty * 0.9 + fee, 1e-6), 'fill at the real ask + 0.07·p(1-p) fee')
 ok(near(t.cost, 1000 * PMC.maxPosFrac, 1e-6) && near(out.cash, 1000 - t.cost, 1e-6), `a lone entry takes ${PMC.maxPosFrac * 100}% of equity (the cap)`)
 ok(t.question_he.startsWith('ביטקוין · עולה או יורד · 15 דקות') && t.outcome_he === 'עולה' && t.meta.window_s === 900, 'Hebrew title, outcome and window stored')
