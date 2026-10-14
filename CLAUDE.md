@@ -541,6 +541,13 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   'ucl-mnc-psg-2026-10-14'); maxPerEvent 2 now counts per match; entry stake and top-ups bounded by the match room (skip
   'הגנה: כבר 10% מההון על המשחק הזה'). Open positions above 5% are left as they are (no forced sale). tests/pm.test.ts 25/25.
 
+- 2026-10-14 ~23:30 UTC PMC.zMin 1.0 -> 1.5 (owner approved; the planned check at ~100 closes, done at 92). Live since 10:50:
+  z 1.0-1.5 n47, 4 losses, -$39.16 | z >= 1.5 n45, 1 loss, +$40.19; equity back to $1,001 (peak $1,072, floor $936). Grok's
+  ideas checked on the same 92 fills: entries average -0.2c vs the last trade and +0.1c vs the best ask (the v1 price problem
+  is gone); a 0.5c cap would drop 23 trades (22 wins, -$13.7); maker shadow 480 resolved: fill 45%, WR 87%, -5.8%/$ vs taker
+  +0.55%/$ (all 264 misses were wins) -> rejected. Late-exit shadow, 86 trades: sell at 15 s when bid < 0.90 = 5 sales, all
+  losers, +$4 — keep measuring to ~300. Sports vs ESPN live win probability (backtest/research/pm_sports_wp.py, 801 NFL/MLB
+  games 08-01..10-13): Brier market 0.1559 vs ESPN 0.1563; every rule flips sign between IS and OOS -> REJECTED.
 - 2026-10-14 ~21:30 UTC two "riskless" Polymarket ideas tested (owner "כן", research only, no bot change) -> status/pm-arb.txt.
   A. NEG-RISK BASKETS (backtest/research/pm_arb_scan.py: all ~22,700 active events via /events/keyset — the offset form 422s past
   ~2,000 — 7,300 non-augmented neg-risk events, real asks walked + taker fee): buy one YES of every outcome < $1, or one NO of

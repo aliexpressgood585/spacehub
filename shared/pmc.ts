@@ -48,7 +48,9 @@ export const PMC = {
   // 2026-10-14 owner chose 1.0 (recommended): about the same expected profit per day at twice the trades, so the live check
   // of the edge (the history price may lag the real book) reaches ~100 trades in ~2 days instead of ~4. Every entry stores
   // meta.z; after ~100 closes compare the 1.0-1.5 bucket with >= 1.5 and go back to 1.5 if the lower bucket loses live.
-  zMin: 1.0,
+  // 2026-10-14 ~23:30 UTC BACK TO 1.5 (owner approved). Live, 92 closes: z 1.0-1.5 n47, 4 losses, -$39.16;
+  // z >= 1.5 n45, 1 loss, +$40.19 (1.5-2.5 n37 +$28.39, 2.5+ n8 +$11.80). The lower bucket took the account back to $1,001.
+  zMin: 1.5,
   maxOverRef: 0.01,           // never pay more than the LAST TRADED price + 1c (the research's cost assumption). v1 live
                               // (158 fills): BTC paid +0.29c over the last trade -> +1.13%/$; ETH +1.63c -> +0.51%; SOL +2.75c ->
                               // -3.40%; XRP +6.92c -> -4.66%. Thin books, not the rule, were the loss.
