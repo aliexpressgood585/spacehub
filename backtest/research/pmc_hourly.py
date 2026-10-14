@@ -34,10 +34,11 @@ def slugs():
     end = now // 3600 * 3600 - 3600
     for t in range(end - HD * 86400, end, 3600):        # t = hourly window start (UTC)
         e = dt.datetime.fromtimestamp(t, ET)
-        if e.year != 2026: continue
+        if e.year < 2025: continue
         h = e.hour % 12 or 12
+        yr = '-2026' if e.year == 2026 else ''      # 2025 hourly slugs carry no year
         for c, (name, _) in COINS.items():
-            out.append((f'{name}-up-or-down-{MON[e.month - 1]}-{e.day}-2026-{h}{"am" if e.hour < 12 else "pm"}-et', 'h', c, t, t + 3600))
+            out.append((f'{name}-up-or-down-{MON[e.month - 1]}-{e.day}{yr}-{h}{"am" if e.hour < 12 else "pm"}-et', 'h', c, t, t + 3600))
     d0 = dt.datetime.fromtimestamp(now, ET).date()
     for k in range(1, DD + 1):
         d = d0 - dt.timedelta(days=k)
@@ -119,7 +120,9 @@ def look(r, L):
     z = math.log(s1 / s0) / (sg * math.sqrt(max(left, 1)))
     return (p, z, r['up_won']) if p >= .5 else (1 - p, -z, not r['up_won'])
 
+FEE_FLOOR = float(os.environ.get('FEE_FLOOR', '0'))   # 2025 markets had no fee; FEE_FLOOR=0.07 charges today's fee on every row
 def ret(q, won, fee, slip=.01):
+    fee = max(fee, FEE_FLOOR)
     b = min(.999, q + slip); c = b + fee * b * (1 - b)
     return ((1 if won else 0) - c) / c
 
@@ -145,3 +148,16 @@ for tf, Ls, name in (('h', (30, 20, 15, 10, 5, 3), 'HOURLY'), ('d', (360, 240, 1
                 oos = [(ret(x[0], x[2], r['fee']), x[2]) for r, x in sel if r['end'] >= cut]
                 lab = f'L{L}m {int(lo * 100)}-{int(hi * 100)}c ' + ('base' if k is None else f'z>={k}')
                 print(f'  {lab:28}{stat(isv):45}| {stat(oos)}')
+
+# stability: the candidate rules month by month (hourly)
+rs = sorted([r for r in rows if r['tf'] == 'h' and len(r['h']) >= 3], key=lambda r: r['end'])
+for L, k in ((15, 2.5), (20, 2.5), (15, 2.0), (3, 2.0)):
+    print(f'\nHOURLY L{L}m 90-98c z>={k} by month (one entry per market):')
+    by = {}
+    for r in rs:
+        x = look(r, L)
+        if x and .90 <= x[0] < .98 and x[1] >= k:
+            by.setdefault(dt.datetime.utcfromtimestamp(r['end']).strftime('%Y-%m'), []).append((ret(x[0], x[2], r['fee']), x[2]))
+    for mth in sorted(by):
+        v = by[mth]; mu = sum(a for a, _ in v) / len(v)
+        print(f'  {mth}  n{len(v):4}  losses {sum(1 for _, w in v if not w):2}  {100 * mu:+6.2f}%/$')
