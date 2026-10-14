@@ -18,10 +18,24 @@ export const TF_HE: Record<Tf, string> = { '5m': '5 דקות', '15m': '15 דקו
 export interface Rule { tf: Tf; coins: string[]; enterFrom: number; enterTo: number; lo: number; hi: number }
 export const PMC = {
   rules: [{ tf: '5m', coins: ['btc', 'eth', 'sol', 'xrp'], enterFrom: 180, enterTo: 140, lo: 0.90, hi: 0.98 }] as Rule[],
-  maxPosFrac: 0.25,           // ALL CASH (owner 2026-10-13): free cash split equally between this cycle's entries, each <= 25% of equity
-  maxOpen: 12,
+  // v2 PROTECTION (owner 2026-10-14, after v1 went $1,000 -> $202 in clustered losses: "one, two or three losses must not
+  // wipe the profits"). The four coins move together, so 4 x 25% was one 100% bet. Now:
+  maxPosFrac: 0.03,           // a stake is at most 3% of equity
+  maxPerWindow: 1,            // ONE position per 5m window (coins are correlated): the first in-band coin in rule order, BTC first (deepest book)
+  floorFrac: 0.9,             // base floor = 90% of the starting cash
+  lockFrac: 0.5,              // half of every new profit peak is locked into the floor
+  lossesToFloor: 3,           // a stake is also <= (equity - floor) / 3, so three straight losses cannot cross the floor
+  maxOpen: 2,
   minQty: 5,                  // Polymarket minimum order size (shares)
   slipCap: 0.01,              // never pay more than hi + this when walking the book
+}
+
+// Protected floor: 90% of the start, raised by half of every profit peak (the high-water mark). Never falls.
+export const pmcFloor = (start: number, peak: number) => start * PMC.floorFrac + PMC.lockFrac * Math.max(0, peak - start)
+// Stake for the next entry: min(3% of equity, room above the floor / 3). 0 when the account sits on its floor.
+export function pmcStake(equity: number, peak: number, start: number) {
+  const floor = pmcFloor(start, peak)
+  return { floor, stake: Math.max(0, Math.min(equity * PMC.maxPosFrac, (equity - floor) / PMC.lossesToFloor)) }
 }
 
 // The market window that contains `nowSec` for a timeframe, and its slug.

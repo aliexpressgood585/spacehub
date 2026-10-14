@@ -1,7 +1,7 @@
 // "פולי מטבעות" desk (shared/pmc.ts + scripts/pmc-desk.ts): window maths, Hebrew titles, and a paper replay of the runner
 // on a mocked Polymarket (entry in band, out-of-band skip, one entry per market, settlement at the official result).
 import fs from 'node:fs'
-import { PMC, TF_SEC, windowOf, slugOf, inWindow, inBandR, questionHe, type Rule } from '../shared/pmc.ts'
+import { PMC, pmcStake, pmcFloor, TF_SEC, windowOf, slugOf, inWindow, inBandR, questionHe, type Rule } from '../shared/pmc.ts'
 let n = 0, bad = 0
 const ok = (c: boolean, m: string) => { n++; if (!c) { bad++; console.error('FAIL', m) } }
 const near = (a: number, b: number, e = 1e-9) => Math.abs(a - b) < e
@@ -15,6 +15,15 @@ ok(inWindow(r, 90) && inWindow(r, 30) && !inWindow(r, 91) && !inWindow(r, 29), '
 ok(inBandR(r, 0.85) && !inBandR(r, 0.95) && !inBandR(r, 0.5), 'price band [lo, hi)')
 ok(questionHe('btc', '15m', 1791927000) === 'ביטקוין · עולה או יורד · 15 דקות · 21:30–21:45 UTC', 'Hebrew title is deterministic')
 ok(PMC.rules.every((x) => x.lo < x.hi && x.hi < 1 && x.enterTo >= 0 && x.enterFrom <= TF_SEC[x.tf]), 'every deployed rule is well-formed')
+
+// v2 protection: floor 90% of start + half of every profit peak; stake <= 3% equity and <= (equity - floor) / 3
+ok(pmcFloor(1000, 1000) === 900 && pmcFloor(1000, 1200) === 1000, 'floor = 90% of start, raised by half of the profit peak')
+ok(near(pmcStake(1000, 1000, 1000).stake, 30) && near(pmcStake(1200, 1200, 1000).stake, 36), 'stake = 3% of equity while far from the floor')
+{ const a = pmcStake(950, 1000, 1000); ok(near(a.stake, 50 / 3) && near(a.floor, 900), 'near the floor the stake shrinks to (equity - floor) / 3') }
+{ let eq = 1200, peak = 1200; for (let i = 0; i < 3; i++) eq -= pmcStake(eq, peak, 1000).stake
+  ok(eq > pmcFloor(1000, peak) && eq > 1000, `three straight full losses from $1,200 leave $${eq.toFixed(0)}: above the floor and still in profit`) }
+ok(pmcStake(900, 1000, 1000).stake === 0 && pmcStake(880, 1000, 1000).stake === 0, 'on or below the floor: no stake')
+ok(PMC.maxPerWindow === 1, 'one position per window (the coins move together)')
 
 // replay: one always-open rule, two coins; BTC Up asks 0.90 (in band), ETH both sides out of band.
 const saved = PMC.rules.splice(0)
