@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 158.522541803703,
+ "cash": 213.41140223190092,
  "strategy": {
   "rules": [
    {
@@ -22,11 +22,11 @@
   "minQty": 5,
   "slipCap": 0.01
  },
- "last_scan": "2026-10-14T08:12:31.722Z",
+ "last_scan": "2026-10-14T08:12:41.153Z",
  "last_note": {
-  "at": "2026-10-14T08:12:30.713Z",
-  "windows": 4,
-  "settled": 0,
+  "at": "2026-10-14T08:12:40.954Z",
+  "windows": 0,
+  "settled": 1,
   "entered": 0
  },
  "trades": [
@@ -7327,9 +7327,9 @@
    "cost": 52.84084726790101,
    "best_ask": 0.96,
    "opened_at": "2026-10-14T08:07:30.991Z",
-   "status": "OPEN",
-   "mark_px": 0.999,
-   "mark_at": "2026-10-14T08:12:00.521Z",
+   "status": "CLOSED",
+   "mark_px": 1,
+   "mark_at": "2026-10-14T08:12:41.153Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -7351,7 +7351,13 @@
     "wanted": 52.840847267901005,
     "ref_px": 0.95,
     "bid_px": 0.95
-   }
+   },
+   "exit_px": 1,
+   "exit_fee": 0,
+   "proceeds": 54.88886042819793,
+   "pnl": 2.048013160296918,
+   "reason": "RESOLVED_WIN",
+   "closed_at": "2026-10-14T08:12:41.153Z"
   }
  ],
  "equity": [
@@ -12345,6 +12351,13 @@
    "cash": 158.522541803703,
    "open_value": 54.83397156776973,
    "open_count": 1
+  },
+  {
+   "ts": "2026-10-14T08:12:41.154Z",
+   "equity": 213.41140223190092,
+   "cash": 213.41140223190092,
+   "open_value": 0,
+   "open_count": 0
   }
  ],
  "decisions": [
@@ -16114,8 +16127,10 @@
    "placed_at": "2026-10-14T08:07:30.511Z",
    "limit": 0.95,
    "taker_ask": 0.96,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   }
  ],
  "study": {
@@ -16127,18 +16142,18 @@
   },
   "maker": {
    "placed": 118,
-   "resolved": 117,
+   "resolved": 118,
    "filled": 53,
-   "fill_rate": 0.452991452991453,
+   "fill_rate": 0.4491525423728814,
    "wr": 0.8301886792452831,
    "ret": -0.10525775013364368,
-   "missed_wins": 64,
+   "missed_wins": 65,
    "missed_losses": 0
   },
   "taker": {
-   "n": 151,
-   "wr": 0.9271523178807947,
-   "ret": -0.02024368218694144
+   "n": 152,
+   "wr": 0.9276315789473685,
+   "ret": -0.019855512278712562
   }
  }
 }
