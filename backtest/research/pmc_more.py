@@ -113,6 +113,8 @@ for name, f in cands:
 print('\nCOMBINED (LIVE + additions, every trade):')
 for name, f in (('LIVE + L120 z>=1.5', lambda w: first(w, 120, .90, .98, 1.5)),
                 ('LIVE + L120 z>=1.5 + L60 z>=1.5', lambda w: first(w, 120, .90, .98, 1.5) or first(w, 60, .90, .98, 1.5)),
+                ('LIVE + L120 z>=2 + L60 z>=2', lambda w: first(w, 120, .90, .98, 2) or first(w, 60, .90, .98, 2)),
+                ('LIVE + L120 z>=2.5 + L60 z>=2.5', lambda w: first(w, 120, .90, .98, 2.5) or first(w, 60, .90, .98, 2.5)),
                 ('LIVE + band85 z>=1.5 + L120 + L60 z>=1.5', lambda w: first(w, 180, .85, .90, 1.5) or first(w, 120, .90, .98, 1.5) or first(w, 60, .90, .98, 1.5))):
     l, a = run(f)
     print(f'  {name:42} {both(l + a)}   ~{len(l + a) / days:.0f}/day')

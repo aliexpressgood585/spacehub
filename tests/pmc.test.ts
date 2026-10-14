@@ -1,7 +1,7 @@
 // "פולי מטבעות" desk (shared/pmc.ts + scripts/pmc-desk.ts): window maths, Hebrew titles, and a paper replay of the runner
 // on a mocked Polymarket (entry in band, out-of-band skip, one entry per market, settlement at the official result).
 import fs from 'node:fs'
-import { PMC, pmcStake, pmcPxCap, pmcZ, sigmaOf, pmcFloor, TF_SEC, windowOf, slugOf, inWindow, inBandR, questionHe, type Rule } from '../shared/pmc.ts'
+import { PMC, pmcStake, pmcPxCap, pmcZ, sigmaOf, pmcFloor, TF_SEC, windowOf, slugOf, inWindow, inBandR, questionHe, zMinOf, type Rule } from '../shared/pmc.ts'
 let n = 0, bad = 0
 const ok = (c: boolean, m: string) => { n++; if (!c) { bad++; console.error('FAIL', m) } }
 const near = (a: number, b: number, e = 1e-9) => Math.abs(a - b) < e
@@ -27,6 +27,10 @@ ok(near(pmcPxCap(0.98, 0.93), 0.94) && near(pmcPxCap(0.98, 0.985), 0.99) && near
 ok(near(pmcZ(100, 101, 0.001, 100), Math.log(1.01) / 0.01) && Number.isNaN(pmcZ(0, 1, 1, 1)), 'z = ln(now/open) / (sigma x sqrt(seconds left))')
 ok(Number.isNaN(sigmaOf([1, 2, 3])) && near(sigmaOf(Array.from({ length: 1001 }, (_, i) => (i % 2 ? 101 : 100))), Math.log(101 / 100)), 'sigma of 1 s log returns, needs >= 600 returns')
 ok(PMC.maxPerWindow === 1, 'one position per window (the coins move together)')
+{ const [a, b] = PMC.rules
+  ok(PMC.rules.length === 2 && b.enterFrom < a.enterTo && b.enterTo > 0, 'second look: a later, non-overlapping entry window in the same 5m windows')
+  ok(zMinOf(a) === PMC.zMin && zMinOf(b) === 2.5 && zMinOf(b) > zMinOf(a), 'second look needs a larger distance (z >= 2.5) than the first')
+  ok(b.lo === a.lo && b.hi === a.hi && b.tf === a.tf && b.coins.join() === a.coins.join(), 'second look: same band, timeframe and coins') }
 
 // replay: one always-open rule, two coins; BTC Up asks 0.90 (in band), ETH both sides out of band.
 const saved = PMC.rules.splice(0)
