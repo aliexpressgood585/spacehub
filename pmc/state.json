@@ -44,12 +44,12 @@
   "zMin": 1.5,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-15T03:52:42.410Z",
+ "last_scan": "2026-10-15T03:52:51.405Z",
  "last_note": {
-  "at": "2026-10-15T03:52:39.573Z",
+  "at": "2026-10-15T03:52:49.808Z",
   "windows": 4,
   "settled": 0,
-  "entered": 1
+  "entered": 0
  },
  "trades": [
   {
@@ -7680,8 +7680,8 @@
    "best_ask": 0.95,
    "opened_at": "2026-10-15T03:52:42.410Z",
    "status": "OPEN",
-   "mark_px": 0.94,
-   "mark_at": "2026-10-15T03:52:42.410Z",
+   "mark_px": 0.91,
+   "mark_at": "2026-10-15T03:52:50.743Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -16164,6 +16164,28 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-15T03:52:51.405Z",
+   "market_id": "5677866",
+   "question": "Bitcoin Up or Down - October 14, 11:50PM-11:55PM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 03:50–03:55 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.95,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
+   "ts": "2026-10-15T03:52:51.405Z",
+   "market_id": "5677861",
+   "question": "Solana Up or Down - October 14, 11:50PM-11:55PM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 03:50–03:55 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.96,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
    "ts": "2026-10-15T03:52:41.599Z",
    "market_id": "5677866",
    "question": "Bitcoin Up or Down - October 14, 11:50PM-11:55PM ET",
@@ -18340,28 +18362,6 @@
    "price": 0.92,
    "decision": "skip",
    "reason": "מסנן מרחק: 2.01 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-15T02:14:06.660Z",
-   "market_id": "5676974",
-   "question": "Bitcoin Up or Down - October 14, 10:10PM-10:15PM ET",
-   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 02:10–02:15 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.96,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.31 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-15T02:13:47.019Z",
-   "market_id": "5676973",
-   "question": "Solana Up or Down - October 14, 10:10PM-10:15PM ET",
-   "question_he": "סולנה · עולה או יורד · 5 דקות · 02:10–02:15 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.93,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.00 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 112,
@@ -29047,10 +29047,12 @@
    "placed_at": "2026-10-15T03:48:30.620Z",
    "limit": 0.95,
    "taker_ask": 0.96,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-15T03:49:00.293Z",
-   "left_at_fill": 60
+   "left_at_fill": 60,
+   "won": false,
+   "ret": -1
   },
   {
    "slug": "eth-updown-5m-1792035900",
@@ -29062,10 +29064,12 @@
    "placed_at": "2026-10-15T03:48:50.760Z",
    "limit": 0.92,
    "taker_ask": 0.93,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-15T03:49:00.441Z",
-   "left_at_fill": 60
+   "left_at_fill": 60,
+   "won": true,
+   "ret": 0.08695652173913039
   },
   {
    "slug": "sol-updown-5m-1792035900",
@@ -29077,10 +29081,12 @@
    "placed_at": "2026-10-15T03:48:51.053Z",
    "limit": 0.92,
    "taker_ask": 0.93,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-15T03:49:00.589Z",
-   "left_at_fill": 59
+   "left_at_fill": 59,
+   "won": true,
+   "ret": 0.08695652173913039
   },
   {
    "slug": "sol-updown-5m-1792036200",
@@ -29106,7 +29112,9 @@
    "limit": 0.95,
    "taker_ask": 0.96,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-15T03:52:50.430Z",
+   "left_at_fill": 130
   },
   {
    "slug": "eth-updown-5m-1792036200",
@@ -29119,7 +29127,9 @@
    "limit": 0.94,
    "taker_ask": 0.95,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-15T03:52:50.584Z",
+   "left_at_fill": 129
   }
  ],
  "study": {
@@ -29131,11 +29141,11 @@
   },
   "maker": {
    "placed": 677,
-   "resolved": 671,
-   "filled": 303,
-   "fill_rate": 0.45156482861400893,
-   "wr": 0.8646864686468647,
-   "ret": -0.06372336677849787,
+   "resolved": 674,
+   "filled": 306,
+   "fill_rate": 0.4540059347181009,
+   "wr": 0.8627450980392157,
+   "ret": -0.06579825846538104,
    "missed_wins": 368,
    "missed_losses": 0
   },
