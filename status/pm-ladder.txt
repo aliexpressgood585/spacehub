@@ -1,0 +1,14 @@
+Polymarket RULES / LOGIC scan, 2026-10-15 ~17:00 UTC (owner: "find an edge nobody has" -> "yes" to the rule scanner). Read only.
+A. Manual reading of the resolution rules of the top 40 events by volume (Fed, midterms, Israel, Iran ceasefires/blockade,
+   Hormuz, BTC/WTI ladders, AI leaderboard, ...): no market where the wording and the price disagree; the rules are detailed and
+   every edge case I could see (interim PMs, runoffs, caucusing independents, intercepted munitions, fee-only blockades) is
+   written out. Judging the rest needs news after the model's knowledge cutoff (June 2026) -> it would be guessing, not reading.
+B. Logical-consistency scan (backtest/research/pm_ladder_scan.py): every active event (22,670), markets that differ only by a
+   date or a number = nested ladders ("by <date>", "continues through", "reach/above $N", "or lower/below"); for A subset of B,
+   buy YES B + NO A at the real best asks pays >= $1 in every world. Fees rate*p(1-p) per leg, walked depth.
+   629 ladders / 2,706 markets / 5,230 books: 41 pairs priced below $1 at the top of book, 22 still positive after fees,
+   TOTAL locked profit at the best size across all of them $7.75 (largest: US unemployment >=7% vs >=6% in 2026, 1.2c x 1,000
+   shares = $3.39, locked until January 2027). Everything else 0.05-0.7c on 10-250 shares.
+   (First two runs were wrong and are not counted: keyset paging repeated one page; dates without a year parsed as year 0 and
+   "reach 2.75% or lower" read as upward — they showed $1,143 of fake profit.)
+VERDICT: no edge. The ladders are kept consistent to within fees, like the neg-risk baskets (pm-arb.txt). Nothing built.

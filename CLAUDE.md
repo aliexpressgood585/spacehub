@@ -679,6 +679,12 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   with PMN.newsTrade false: every decision journalled as SHADOW and measured, no money. First local cycle on the live state: 332
   geopolitics markets, 41 in band, 19 entered ($377 locked, 4 themes at the cap). NOT PROVEN (12 h history points, not asks;
   category chosen from 5 x 5 rows); capital locked ~1-2 months; expect ~1 new entry/day after the backlog. tests/pmn.test.ts 38/38.
+- 2026-10-15 ~17:00 UTC RULES / LOGIC scan (owner: "an edge nobody has" -> "yes" to a resolution-rules scanner) -> status/pm-ladder.txt.
+  A. Read the resolution rules of the top 40 events myself: no wording-vs-price gap; the rest needs post-cutoff news (guessing).
+  B. backtest/research/pm_ladder_scan.py: 22,670 active events, 629 nested ladders (by-date / through-date / price thresholds),
+  real books + fees: 22 pairs positive after fees, TOTAL $7.75 locked at the best size (best: unemployment >=7% vs >=6% 2026,
+  $3.39 locked to Jan 2027). Two earlier runs showed $1,143 of fake profit from parser bugs (paging; year-less dates; "or lower").
+  No edge, nothing built — same as the neg-risk baskets.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the
