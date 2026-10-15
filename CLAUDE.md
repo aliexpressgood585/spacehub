@@ -709,6 +709,14 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   (measured live record says no stake; zMin 2.0 has 0 judged closes yet); Poly News SQ 21 open $420, median 77 days left,
   annualised ~17% at the research WR 90.8% (86% only if all win), 2% stake well under research 1/4 Kelly (~8%), theme cap = the
   correlated-position rule. No rule or stake changed.
+- 2026-10-15 ~22:10 UTC owner's "statistical trading coach" prompt (S1-S6) -> "I want everything". Built: shared/clv.ts (closing line =
+  last mid before the scheduled end, CLV per trade = close/entry - 1, Brier at entry vs at close; observation only), wired into
+  pm / pmc / pmn desks (st.clv: pm + pmc all + judged, pmn sq + news), tests/clv.test.ts 15/15. S1 Pinnacle: guest API is live-only
+  (no history) -> backtest/research/pm_pinnacle_live.py -> status/pm-pinnacle.txt: 50 Polymarket game moneylines matched (NFL/NCAA/
+  NBA/NHL/esports), median |Pinnacle de-vig fair - Polymarket mid| 0.66c, 0 sides with fair - ask >= 3c, 6 with >= 1c (longshots,
+  where proportional de-vig overstates the fair price). No S1 edge on this snapshot. S2 Fed vs FedWatch: no free FedWatch history,
+  not tested. Others already measured (weather, options, Kalshi, harvest, maker, news) -> see entries above.
+  Main Poly since the crypto exclusion (18:30): 2 closed, 2 W, +$13.79; equity $1,099 incl. 10 open marks (was $985).
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the
