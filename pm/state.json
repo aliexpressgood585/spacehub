@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 889.5185557147242,
+ "cash": 961.7715963494344,
  "strategy": {
   "lo": 0.85,
   "hi": 0.92,
@@ -14,11 +14,12 @@
   "minQty": 5,
   "exitPx": 0.99
  },
- "last_scan": "2026-10-15T11:12:49.333Z",
+ "last_scan": "2026-10-15T11:13:06.070Z",
  "last_note": {
-  "at": "2026-10-15T11:12:46.708Z",
+  "at": "2026-10-15T11:13:01.910Z",
   "scanned": 27,
-  "settled": 0,
+  "tr_err": "Error: 429 https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&",
+  "settled": 1,
   "entered": 0,
   "topped": 0,
   "recycled": 0
@@ -4862,7 +4863,7 @@
    "opened_at": "2026-10-15T10:00:58.090Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-15T11:12:46.992Z",
+   "mark_at": "2026-10-15T11:13:02.195Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -4898,7 +4899,7 @@
    "opened_at": "2026-10-15T10:34:42.876Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-15T11:12:47.178Z",
+   "mark_at": "2026-10-15T11:13:02.384Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -4934,7 +4935,7 @@
    "opened_at": "2026-10-15T10:36:58.744Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-15T11:12:47.359Z",
+   "mark_at": "2026-10-15T11:13:02.602Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -4969,8 +4970,8 @@
    "best_ask": 0.89,
    "opened_at": "2026-10-15T10:43:02.375Z",
    "status": "OPEN",
-   "mark_px": 0.923,
-   "mark_at": "2026-10-15T11:12:47.554Z",
+   "mark_px": 0.999,
+   "mark_at": "2026-10-15T11:13:02.792Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -5004,9 +5005,9 @@
    "cost": 66.84504504928336,
    "best_ask": 0.92,
    "opened_at": "2026-10-15T10:43:02.529Z",
-   "status": "OPEN",
-   "mark_px": 0.9995,
-   "mark_at": "2026-10-15T11:12:47.732Z",
+   "status": "CLOSED",
+   "mark_px": 1,
+   "mark_at": "2026-10-15T11:13:02.849Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -5023,7 +5024,13 @@
    },
    "outcome_he": "יורד",
    "question_he": "ביטקוין למעלה או למטה - 15 באוקטובר, 06:00 ET",
-   "tr_v": 2
+   "tr_v": 2,
+   "exit_px": 1,
+   "exit_fee": 0,
+   "proceeds": 72.25304063471013,
+   "pnl": 5.407995585426775,
+   "reason": "RESOLVED_WIN",
+   "closed_at": "2026-10-15T11:13:02.849Z"
   },
   {
    "id": 122,
@@ -5042,7 +5049,7 @@
    "opened_at": "2026-10-15T11:01:03.203Z",
    "status": "OPEN",
    "mark_px": 0.92,
-   "mark_at": "2026-10-15T11:12:47.940Z",
+   "mark_at": "2026-10-15T11:13:03.033Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -5077,8 +5084,8 @@
    "best_ask": 0.9,
    "opened_at": "2026-10-15T11:05:03.003Z",
    "status": "OPEN",
-   "mark_px": 0.88,
-   "mark_at": "2026-10-15T11:12:48.122Z",
+   "mark_px": 0.9,
+   "mark_at": "2026-10-15T11:13:03.236Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -5099,13 +5106,6 @@
   }
  ],
  "equity": [
-  {
-   "ts": "2026-10-14T14:19:40.248Z",
-   "equity": 1394.7542689299012,
-   "cash": 428.62376408308944,
-   "open_value": 966.1305048468118,
-   "open_count": 7
-  },
   {
    "ts": "2026-10-14T14:19:55.282Z",
    "equity": 1396.1247701330294,
@@ -40098,9 +40098,32 @@
    "cash": 889.5185557147242,
    "open_value": 499.8664387098886,
    "open_count": 7
+  },
+  {
+   "ts": "2026-10-15T11:13:06.070Z",
+   "equity": 1396.622969590354,
+   "cash": 961.7715963494344,
+   "open_value": 434.85137324091954,
+   "open_count": 6
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-15T11:13:03.628Z",
+   "market_id": "5649742",
+   "question": "Game Handicap: WE (-1.5) vs HANJIN BRION (+1.5)",
+   "outcome": "Team WE",
+   "outcomes": [
+    "Team WE",
+    "HANJIN BRION"
+   ],
+   "price": 0.93,
+   "decision": "skip",
+   "reason": "מחיר 0.93 מחוץ לטווח 85-92¢",
+   "outcome_he": "Team WE",
+   "question_he": "מכשול במשחק: WE (-1.5) לעומת HANJIN BRION (+1.5)",
+   "tr_v": 2
+  },
   {
    "ts": "2026-10-15T11:05:03.003Z",
    "market_id": "5634423",
@@ -43068,18 +43091,6 @@
    "outcome_he": "לא",
    "question_he": "האם סק סלובן ברטיסלבה תנצח ב-2026-10-14?",
    "tr_v": 2
-  },
-  {
-   "ts": "2026-10-14T16:16:13.091Z",
-   "market_id": "5186772",
-   "question": "Spread: Fenerbahçe SK (-1.5)",
-   "outcome": "Aston Villa FC",
-   "price": 0.92,
-   "decision": "ADD",
-   "reason": "השלמה לחלק שווה: +14.1 מניות, עמלה $0.05",
-   "outcome_he": "Aston Villa FC",
-   "question_he": "פריסה: Fenerbahçe SK (-1.5)",
-   "tr_v": 2
   }
  ],
  "next_id": 124,
@@ -43225,6 +43236,7 @@
   "Counter-Strike: MIBR vs BC.Game Esports - Map 1 Winner": "Counter-Strike: MIBR vs BC.Game Esports - מנצח מפה 1",
   "Bitcoin Up or Down - October 15, 6AM ET": "ביטקוין למעלה או למטה - 15 באוקטובר, 06:00 ET",
   "LoL: Team WE vs HANJIN BRION (BO5) - Demacia Cup Global Invitational Playoffs": "LoL: Team WE vs HANJIN BRION (BO5) - פלייאוף הזמנות גלובלי של גביע דמאסיה",
-  "Dota 2: Team Lynx vs Dawn Bulls - Game 1 Winner": "Dota 2: Team Lynx vs Dawn Bulls - המנצח במשחק הראשון"
+  "Dota 2: Team Lynx vs Dawn Bulls - Game 1 Winner": "Dota 2: Team Lynx vs Dawn Bulls - המנצח במשחק הראשון",
+  "Game Handicap: WE (-1.5) vs HANJIN BRION (+1.5)": "מכשול במשחק: WE (-1.5) לעומת HANJIN BRION (+1.5)"
  }
 }
