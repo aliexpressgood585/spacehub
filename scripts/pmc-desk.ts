@@ -4,6 +4,7 @@
 // Run: node --experimental-strip-types scripts/pmc-desk.ts <state.json>
 import fs from 'node:fs'
 import { takerFee, walkAsks, heOutcome, type FeeSchedule } from '../shared/pm.ts'
+import { clvMark, clvStudy } from '../shared/clv.ts'
 import { PMC, pmcStake, pmcPxCap, pmcZ, sigmaOf, TF_SEC, windowOf, slugOf, inWindow, inBandR, questionHe, zMinOf } from '../shared/pmc.ts'
 
 const FILE = process.argv[2] ?? 'pmc/state.json'
@@ -76,6 +77,7 @@ try {
     }
     const b = await book(t.token_id)
     if (b?.bids[0]) { t.mark_px = b.bids[0].price; t.mark_at = now() }
+    clvMark(t, b?.bids[0]?.price, b?.asks[0]?.price, Date.now())
     openValue += t.qty * t.mark_px
     // SHADOW LATE EXIT (owner 2026-10-14: "cut the loss in the last 15-30 s?"). Observation only, never touches cash: once at
     // <= 30 s and once at <= 15 s before the end, what would selling the WHOLE position into the real bid book have paid
@@ -203,5 +205,7 @@ function lateExit(tk: any[]) {
   return out
 }
 fs.mkdirSync(FILE.replace(/\/[^/]*$/, '') || '.', { recursive: true })
+// CLV / Brier (docs/POLY_PLAYBOOK.md): all history and since first look zMin 2.0 (docs/POLY_SUPERVISOR.md)
+st.clv = { all: clvStudy(st.trades), judged: clvStudy(st.trades, '2026-10-15T19:00') }
 fs.writeFileSync(FILE, JSON.stringify(st, null, 1))
 console.log(JSON.stringify({ cash: st.cash, equity: st.cash + openValue, open: openCount, settled, entered, note }))

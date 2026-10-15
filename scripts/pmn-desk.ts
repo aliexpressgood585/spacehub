@@ -10,6 +10,7 @@
 // Run: node --experimental-strip-types scripts/pmn-desk.ts <state.json> [cache dir]
 import fs from 'node:fs'
 import { takerFee, walkAsks, heOutcome, type FeeSchedule } from '../shared/pm.ts'
+import { clvMark, clvStudy } from '../shared/clv.ts'
 import { PMN, docFreq, matchPost, pmnDecide, pmnExit, pmnStake, parseTelegram, parseRss, parseWhale, sqTheme, sqDecide, type PmnMarket, type PmnPost } from '../shared/pmn.ts'
 
 const FILE = process.argv[2] ?? 'pmn/state.json'
@@ -76,11 +77,12 @@ try {
       }
     }
     if (t.rule === 'SQ') {                               // status quo: held to the official result, only marked
-      if (st.cycle % 8 === 0 || t.mark_px == null) { const b = await book(t.token_id), bid = b?.bids[0]?.price ?? 0; if (bid > 0) { t.mark_px = bid; t.mark_at = iso() } }
+      if (st.cycle % 8 === 0 || t.mark_px == null) { const b = await book(t.token_id), bid = b?.bids[0]?.price ?? 0; if (bid > 0) { t.mark_px = bid; t.mark_at = iso() }; clvMark(t, bid, b?.asks[0]?.price, Date.now()) }
       openValue += t.qty * (t.mark_px ?? t.entry_px); continue
     }
     const b = await book(t.token_id), bid = b?.bids[0]?.price ?? 0
     if (bid > 0) { t.mark_px = bid; t.mark_at = iso() }
+    clvMark(t, bid, b?.asks[0]?.price, Date.now())
     const why = pmnExit(t.entry_px, bid, nowS - Math.floor(Date.parse(t.opened_at) / 1000))
     if (why && b?.bids.length) {
       let left = t.qty, got = 0
@@ -330,5 +332,7 @@ st.events = st.events.slice(-400)
   }
 }
 fs.mkdirSync(FILE.replace(/\/[^/]*$/, '') || '.', { recursive: true })
+// CLV / Brier (docs/POLY_PLAYBOOK.md): status-quo positions resolve in weeks, so open_clv_c (running) is the early read
+st.clv = { sq: clvStudy(st.trades.filter((t: any) => t.rule === 'SQ')), news: clvStudy(st.trades.filter((t: any) => t.rule !== 'SQ')) }
 fs.writeFileSync(FILE, JSON.stringify(st))
 console.log(JSON.stringify({ cash: +st.cash.toFixed(2), equity: +(st.cash + openValue).toFixed(2), open: openCount, entered, exited, note }))

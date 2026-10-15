@@ -4,6 +4,7 @@
 // Polymarket Gamma / CLOB, never an order.
 // Run: node --experimental-strip-types scripts/pm-desk.ts <state.json>
 import fs from 'node:fs'
+import { clvMark, clvStudy } from '../shared/clv.ts'
 import { PM, takerFee, walkAsks, walkBids, inBand, heOutcome, namesKept, pmMatch, isCryptoPrice, type FeeSchedule } from '../shared/pm.ts'
 
 const FILE = process.argv[2] ?? 'pm/state.json'
@@ -60,6 +61,7 @@ try {
       }
       const b = await book(t.token_id)
       t.mark_px = b?.bids[0]?.price ?? (k >= 0 ? px[k] : t.mark_px); t.mark_at = now()
+      clvMark(t, b?.bids[0]?.price, b?.asks[0]?.price, Date.now())
     } catch { /* keep the last mark */ }
     openValue += t.qty * t.mark_px
   }
@@ -178,5 +180,7 @@ st.equity.push({ ts: now(), equity: st.cash + openValue, cash: st.cash, open_val
 if (st.equity.length > 5000) st.equity = st.equity.slice(-5000)
 st.decisions = [...decisions.slice(0, 50), ...st.decisions].slice(0, 200)
 fs.mkdirSync(FILE.replace(/\/[^/]*$/, '') || '.', { recursive: true })
+// CLV / Brier (docs/POLY_PLAYBOOK.md): all history and since the crypto exclusion (the judged rule, docs/POLY_SUPERVISOR.md)
+;(st as any).clv = { all: clvStudy(st.trades), judged: clvStudy(st.trades, '2026-10-15T18:30') }
 fs.writeFileSync(FILE, JSON.stringify(st, null, 1))
 console.log(JSON.stringify({ cash: st.cash, equity: st.cash + openValue, open: openCount, settled, entered, note }))
