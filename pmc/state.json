@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 982.6342966234604,
+ "cash": 967.1097125191912,
  "peak": 1072.1210886213057,
  "floor": 936.0605443106529,
  "strategy": {
@@ -44,12 +44,12 @@
   "zMin": 1.5,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-15T06:46:53.837Z",
+ "last_scan": "2026-10-15T06:47:06.213Z",
  "last_note": {
-  "at": "2026-10-15T06:46:53.736Z",
-  "windows": 0,
+  "at": "2026-10-15T06:47:04.087Z",
+  "windows": 4,
   "settled": 0,
-  "entered": 0
+  "entered": 1
  },
  "trades": [
   {
@@ -8578,6 +8578,54 @@
    "pnl": 0.442360428414176,
    "reason": "RESOLVED_WIN",
    "closed_at": "2026-10-15T06:35:04.151Z"
+  },
+  {
+   "id": 124,
+   "market_id": "5680512",
+   "slug": "btc-updown-5m-1792046700",
+   "event_slug": "btc-updown-5m-1792046700",
+   "question": "Bitcoin Up or Down - October 15, 2:45AM-2:50AM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 06:45–06:50 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "token_id": "47353540771209286869150058946278899859023756043281650946818770027199692377314",
+   "end_time": "2026-10-15T06:50:00Z",
+   "qty": 15.9711863892724,
+   "entry_px": 0.97,
+   "entry_fee": 0.032533306674947915,
+   "cost": 15.524584104269175,
+   "best_ask": 0.97,
+   "opened_at": "2026-10-15T06:47:06.213Z",
+   "status": "OPEN",
+   "mark_px": 0.96,
+   "mark_at": "2026-10-15T06:47:06.213Z",
+   "meta": {
+    "fee_schedule": {
+     "rate": 0.07,
+     "exponent": 1
+    },
+    "coin": "btc",
+    "tf": "5m",
+    "window_s": 300,
+    "left_s": 176,
+    "band": [
+     0.9,
+     0.98
+    ],
+    "z_min": 1.5,
+    "look": 1,
+    "outcomes": [
+     "Up",
+     "Down"
+    ],
+    "wanted": 15.524584104269175,
+    "ref_px": 0.96,
+    "bid_px": 0.96,
+    "z": 1.9404368903714444,
+    "spot_open": 80950,
+    "spot": 80818.96,
+    "sigma1s": 0.0000629336506706994
+   }
   }
  ],
  "equity": [
@@ -18331,9 +18379,27 @@
    "cash": 982.6342966234604,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-10-15T06:47:06.213Z",
+   "equity": 982.4420514528928,
+   "cash": 967.1097125191912,
+   "open_value": 15.332338933701504,
+   "open_count": 1
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-15T06:47:06.213Z",
+   "market_id": "5680512",
+   "question": "Bitcoin Up or Down - October 15, 2:45AM-2:50AM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 06:45–06:50 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.97,
+   "decision": "BUY",
+   "reason": "176 שנ׳ לסיום, מחיר 0.97 בטווח 90-98¢, 16.0 מניות ($16), עמלה $0.03"
+  },
   {
    "ts": "2026-10-15T06:43:55.736Z",
    "market_id": "5680504",
@@ -20522,20 +20588,9 @@
    "price": 0.96,
    "decision": "BUY",
    "reason": "178 שנ׳ לסיום, מחיר 0.96 בטווח 90-98¢, 14.8 מניות ($14), עמלה $0.04"
-  },
-  {
-   "ts": "2026-10-15T05:12:05.331Z",
-   "market_id": "5679485",
-   "question": "Solana Up or Down - October 15, 1:10AM-1:15AM ET",
-   "question_he": "סולנה · עולה או יורד · 5 דקות · 05:10–05:15 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.9,
-   "decision": "skip",
-   "reason": "מקסימום פוזיציות פתוחות"
   }
  ],
- "next_id": 124,
+ "next_id": 125,
  "shadow": [
   {
    "slug": "btc-updown-5m-1791969600",
@@ -33201,17 +33256,30 @@
    "taker_ask": 0.97,
    "status": "WORKING",
    "filled": false
+  },
+  {
+   "slug": "btc-updown-5m-1792046700",
+   "market_id": "5680512",
+   "token_id": "47353540771209286869150058946278899859023756043281650946818770027199692377314",
+   "coin": "btc",
+   "outcome": "Down",
+   "end_time": "2026-10-15T06:50:00Z",
+   "placed_at": "2026-10-15T06:47:04.532Z",
+   "limit": 0.96,
+   "taker_ask": 0.97,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
   "fills": {
-   "n": 123,
-   "avg_vs_ref_c": -0.1823857308251664,
-   "avg_vs_research_c": -1.182385730825167,
-   "avg_fee_c": 0.3953694822405181
+   "n": 124,
+   "avg_vs_ref_c": -0.17285036202818926,
+   "avg_vs_research_c": -1.17285036202819,
+   "avg_fee_c": 0.39382376060954616
   },
   "maker": {
-   "placed": 797,
+   "placed": 798,
    "resolved": 793,
    "filled": 359,
    "fill_rate": 0.4527112232030265,
