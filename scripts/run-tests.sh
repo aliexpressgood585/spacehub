@@ -81,6 +81,7 @@ run "poly coins desk"     tests/pmc.test.ts
 run "poly news study"     tests/pmnews.test.ts
 run "poly news desk"      tests/pmn.test.ts
 run "poly CLV / Brier"     tests/clv.test.ts
+run "quant coach desk"    tests/coach.test.ts
 
 # ── typecheck: the shared module and both of its consumers ──────────────────
 # The bot and the backtest are Deno programs, so `npm:` specifiers and the Deno

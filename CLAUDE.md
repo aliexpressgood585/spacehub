@@ -717,6 +717,17 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   where proportional de-vig overstates the fair price). No S1 edge on this snapshot. S2 Fed vs FedWatch: no free FedWatch history,
   not tested. Others already measured (weather, options, Kalshi, harvest, maker, news) -> see entries above.
   Main Poly since the crypto exclusion (18:30): 2 closed, 2 W, +$13.79; equity $1,099 incl. 10 open marks (was $985).
+- 2026-10-15 ~22:45 UTC "מאמן המסחר הכמותי" — owner: "activate it in the bot house" (a futures-coach prompt: 1% risk, lev <= 5x,
+  liq >= 2x stop, day -3% / week -6%, DD 15% half size, <= 3 open, F1-F8 filters, 11-point checklist, rule 4 "no 100+ trade
+  backtest pass -> demo only"). Supabase project still 402 exceed_egress_quota, so it runs like the Poly desks: shared/coach.ts
+  (rules, pure), scripts/coach-desk.ts (OKX USDT swaps — Binance fapi 451 from runners; 29 coins = the backtest list minus RUNE),
+  .github/workflows/coach-desk.yml (cron :22, ~15 s loop, coach/state.json on pm-desk-data), house.html -> CoachHouse.tsx (ChanHouse
+  kept, unrouted), tests/coach.test.ts 23/23. Entry = 4h close breaks Donchian-20 in the daily-EMA200 direction with 4h ADX > 25,
+  BTC aligned, ATR 0.5-8%, vol >= $100M, funding not crowded, not 13:00-14:30 UTC weekdays; stop 1.5 ATR, target 2R, 30-bar
+  time stop; entry at the live ask/bid +3 bps, taker 5 bps, funding at each 8h settlement. NOT implemented: F6 OI, an event calendar,
+  SMC/liquidity concepts. BACKTEST FIRST (backtest/research/coach_bt.ts -> status/coach-bt.txt; 30 Binance perps, 4h+1d archives,
+  real funding, 2023-12..2026-09): n589 WR 37.9% +0.034R t0.6 PF 0.94 Sharpe -0.23, $5,000 -> $4,251, maxDD 21%, loss streak 23;
+  OOS 30% PF 1.01. FAILS the prompt's own bar (PF > 1.3, Sharpe > 1) -> runs as DEMO, verdict shown on the house page.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the
