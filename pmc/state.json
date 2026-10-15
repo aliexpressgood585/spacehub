@@ -44,12 +44,12 @@
   "zMin": 1.5,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-15T11:32:09.687Z",
+ "last_scan": "2026-10-15T11:32:18.913Z",
  "last_note": {
-  "at": "2026-10-15T11:32:07.434Z",
+  "at": "2026-10-15T11:32:17.231Z",
   "windows": 4,
   "settled": 0,
-  "entered": 1
+  "entered": 0
  },
  "trades": [
   {
@@ -10006,7 +10006,7 @@
    "opened_at": "2026-10-15T11:27:41.031Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-15T11:32:07.705Z",
+   "mark_at": "2026-10-15T11:32:18.195Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -10069,8 +10069,8 @@
    "best_ask": 0.91,
    "opened_at": "2026-10-15T11:32:09.687Z",
    "status": "OPEN",
-   "mark_px": 0.9,
-   "mark_at": "2026-10-15T11:32:09.687Z",
+   "mark_px": 0.88,
+   "mark_at": "2026-10-15T11:32:18.350Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -21976,6 +21976,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-15T11:32:18.913Z",
+   "market_id": "5683589",
+   "question": "Solana Up or Down - October 15, 7:30AM-7:35AM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 11:30–11:35 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.92,
+   "decision": "skip",
+   "reason": "מקסימום פוזיציות פתוחות"
+  },
+  {
    "ts": "2026-10-15T11:32:09.687Z",
    "market_id": "5683587",
    "question": "Ethereum Up or Down - October 15, 7:30AM-7:35AM ET",
@@ -24161,17 +24172,6 @@
    "outcome": "Down",
    "outcome_he": "יורד",
    "price": 0.95,
-   "decision": "skip",
-   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
-  },
-  {
-   "ts": "2026-10-15T09:38:39.702Z",
-   "market_id": "5682245",
-   "question": "XRP Up or Down - October 15, 5:35AM-5:40AM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 09:35–09:40 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.91,
    "decision": "skip",
    "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
   }
@@ -39663,7 +39663,9 @@
    "limit": 0.9,
    "taker_ask": 0.91,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-15T11:32:17.797Z",
+   "left_at_fill": 162
   },
   {
    "slug": "sol-updown-5m-1792063800",
@@ -39676,7 +39678,9 @@
    "limit": 0.91,
    "taker_ask": 0.92,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-15T11:32:17.932Z",
+   "left_at_fill": 162
   },
   {
    "slug": "xrp-updown-5m-1792063800",
