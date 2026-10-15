@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 1348.4755070012775,
+ "cash": 1282.3059416318142,
  "strategy": {
   "lo": 0.85,
   "hi": 0.92,
@@ -14,13 +14,14 @@
   "minQty": 5,
   "exitPx": 0.99
  },
- "last_scan": "2026-10-15T06:16:57.292Z",
+ "last_scan": "2026-10-15T06:17:13.611Z",
  "last_note": {
-  "at": "2026-10-15T06:16:56.947Z",
+  "at": "2026-10-15T06:17:11.616Z",
   "scanned": 4,
+  "tr_err": "Error: 429 https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&",
   "settled": 0,
-  "entered": 0,
-  "topped": 0,
+  "entered": 1,
+  "topped": 1,
   "recycled": 0
  },
  "trades": [
@@ -4802,16 +4803,45 @@
    "pnl": 9.336003671672614,
    "reason": "RESOLVED_WIN",
    "closed_at": "2026-10-15T06:03:25.744Z"
+  },
+  {
+   "id": 116,
+   "market_id": "5634655",
+   "slug": "dota2-xctn-rb1-2026-10-15-game2",
+   "event_slug": "dota2-xctn-rb1-2026-10-15",
+   "question": "Dota 2: Execration vs Royal Bear - Game 2 Winner",
+   "outcome": "Royal Bear",
+   "token_id": "70899066480799780506386880190093507920903965461812612008707071661792006850217",
+   "end_time": "2026-10-15T10:10:00Z",
+   "qty": 74.74422258433853,
+   "entry_px": 0.8799999999999999,
+   "entry_fee": 0.3946494952453074,
+   "cost": 66.16956536946321,
+   "best_ask": 0.88,
+   "opened_at": "2026-10-15T06:17:12.043Z",
+   "status": "OPEN",
+   "mark_px": 0.86,
+   "mark_at": "2026-10-15T06:17:12.043Z",
+   "meta": {
+    "fee_schedule": {
+     "rate": 0.05,
+     "exponent": 1
+    },
+    "volume": 111486.53139400006,
+    "spread": 0.03,
+    "model_p": 0.905,
+    "outcomes": [
+     "Execration",
+     "Royal Bear"
+    ],
+    "adds": 1
+   },
+   "outcome_he": "Royal Bear",
+   "question_he": "Dota 2: Execration vs Royal Bear - מנצח משחק 2",
+   "tr_v": 2
   }
  ],
  "equity": [
-  {
-   "ts": "2026-10-14T09:24:43.662Z",
-   "equity": 1328.7822559641247,
-   "cash": 1161.0269975256012,
-   "open_value": 167.75525843852353,
-   "open_count": 2
-  },
   {
    "ts": "2026-10-14T09:24:58.738Z",
    "equity": 1328.7822559641247,
@@ -39804,9 +39834,44 @@
    "cash": 1348.4755070012775,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-10-15T06:17:13.611Z",
+   "equity": 1346.5859730543452,
+   "cash": 1282.3059416318142,
+   "open_value": 64.28003142253112,
+   "open_count": 1
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-15T06:17:12.043Z",
+   "market_id": "5634655",
+   "question": "Dota 2: Execration vs Royal Bear - Game 2 Winner",
+   "outcome": "Royal Bear",
+   "outcomes": [
+    "Execration",
+    "Royal Bear"
+   ],
+   "price": 0.88,
+   "decision": "BUY",
+   "reason": "מחיר 0.88 בטווח, 43.8 מניות, עמלה $0.23",
+   "outcome_he": "Royal Bear",
+   "question_he": "Dota 2: Execration vs Royal Bear - מנצח משחק 2",
+   "tr_v": 2
+  },
+  {
+   "ts": "2026-10-15T06:17:12.167Z",
+   "market_id": "5634655",
+   "question": "Dota 2: Execration vs Royal Bear - Game 2 Winner",
+   "outcome": "Royal Bear",
+   "price": 0.88,
+   "decision": "ADD",
+   "reason": "השלמה לחלק שווה: +31.0 מניות, עמלה $0.16",
+   "outcome_he": "Royal Bear",
+   "question_he": "Dota 2: Execration vs Royal Bear - מנצח משחק 2",
+   "tr_v": 2
+  },
   {
    "ts": "2026-10-15T04:51:25.679Z",
    "market_id": "5677299",
@@ -42638,41 +42703,9 @@
    "outcome_he": "כן",
    "question_he": "האם המחיר של Ethereum יהיה מעל $2,400 ב-14 באוקטובר?",
    "tr_v": 2
-  },
-  {
-   "ts": "2026-10-14T14:18:24.953Z",
-   "market_id": "5407319",
-   "question": "Will the price of Ethereum be above $2,400 on October 14?",
-   "outcome": "Yes",
-   "outcomes": [
-    "Yes",
-    "No"
-   ],
-   "price": 0.945,
-   "decision": "skip",
-   "reason": "מחיר 0.945 מחוץ לטווח 85-92¢",
-   "outcome_he": "כן",
-   "question_he": "האם המחיר של Ethereum יהיה מעל $2,400 ב-14 באוקטובר?",
-   "tr_v": 2
-  },
-  {
-   "ts": "2026-10-14T14:18:10.085Z",
-   "market_id": "5407319",
-   "question": "Will the price of Ethereum be above $2,400 on October 14?",
-   "outcome": "Yes",
-   "outcomes": [
-    "Yes",
-    "No"
-   ],
-   "price": 0.946,
-   "decision": "skip",
-   "reason": "מחיר 0.946 מחוץ לטווח 85-92¢",
-   "outcome_he": "כן",
-   "question_he": "האם המחיר של Ethereum יהיה מעל $2,400 ב-14 באוקטובר?",
-   "tr_v": 2
   }
  ],
- "next_id": 116,
+ "next_id": 117,
  "he": {
   "Dota 2: Yellow Submarine vs Kalmychata - Game 1 Winner": "Dota 2: Yellow Submarine vs Kalmychata - מנצח משחק 1",
   "Yellow Submarine": "צוללת צהובה",
@@ -42804,6 +42837,7 @@
   "Bitcoin Up or Down - October 14, 10:30PM-10:45PM ET": "ביטקוין למעלה או למטה - 14 באוקטובר, 22:30 - 22:45 שעון החוף המזרחי",
   "Will Bitcoin dip to $80,000 on October 14?": "האם הביטקוין יירד ל -80,000 $ ב -14 באוקטובר?",
   "Bitcoin Up or Down - October 14, 10PM ET": "ביטקוין למעלה או למטה - 14 באוקטובר, 22:00 שעון החוף המזרחי",
-  "Counter-Strike: Chicken Coop Esports vs Overtake (BO3) - ESL Challenger League North America Cup #3 Playoffs": "Counter - Strike: Chicken Coop Esports vs Overtake (BO3) - גביע צ'לנג'ר ESL צפון אמריקה #3 פלייאוף"
+  "Counter-Strike: Chicken Coop Esports vs Overtake (BO3) - ESL Challenger League North America Cup #3 Playoffs": "Counter - Strike: Chicken Coop Esports vs Overtake (BO3) - גביע צ'לנג'ר ESL צפון אמריקה #3 פלייאוף",
+  "Dota 2: Execration vs Royal Bear - Game 2 Winner": "Dota 2: Execration vs Royal Bear - מנצח משחק 2"
  }
 }
