@@ -10,6 +10,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 export type J = Record<string, any>
 export const STATE_URL = 'https://raw.githubusercontent.com/aliexpressgood585/spacehub/pm-desk-data/pm/state.json'
 export const COINS_STATE_URL = 'https://raw.githubusercontent.com/aliexpressgood585/spacehub/pm-desk-data/pmc/state.json'
+export const NEWS_DESK_URL = 'https://raw.githubusercontent.com/aliexpressgood585/spacehub/pm-desk-data/pmn/state.json'
 
 export const n = (v: any) => (Number.isFinite(Number(v)) ? Number(v) : 0)
 export const usd = (v: number) => `${v < 0 ? '−' : ''}$${Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`

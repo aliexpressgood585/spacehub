@@ -16,6 +16,7 @@ export default defineConfig({
         history: 'history.html',
         poly: 'poly.html',
         polycoins: 'polycoins.html',
+        polynews: 'polynews.html',
       },
     },
   },
