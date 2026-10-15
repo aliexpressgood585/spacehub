@@ -648,6 +648,18 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   in every row. Existing RSS news lab, 2 days: 15 matches, median lag 10 min, none moved >= 2c. FabrizioRomano dropped (126 matches,
   0 moved), Polymarket_Whales added (21 of 53 moved). NOT PROVEN; the desk is the live measurement.
 
+- 2026-10-15 Poly News v2 (owner: "the probability arena too, and connect every option to reliable news and whales").
+  polynews.html now opens in the 3D arena (PolyVerse, news-room chip on top; ✦/tables toggle, ?view=3d|classic, remembered).
+  Sources: 16 Telegram channels + 31 RSS / official feeds (added Google News top stories = Reuters/AP/NBC/CNN aggregator, Federal
+  Reserve press releases, White House, NYT politics/world, BBC business, Guardian politics, DW (RDF/dc:date parser), WSJ markets,
+  ESPN NFL/NBA). WHALES: Polymarket data-api /trades (takerOnly, CASH >= $10k) every cycle + all-time PnL top-500 wallets
+  (/v1/leaderboard, hourly) = "smart"; a whale on a market under news watch is attached to it; panel "🐋 לווייתנים" with the tape,
+  smart filter and live measurement (price 30/60 min after each whale BUY -> st.study.whales). OBSERVATION ONLY (PMN.whale.trade
+  false) because backtest/research/pmw_study.py -> status/pmw-study.txt: 10,500 taker trades >= $10k (~18 days, offset paging),
+  482 whale buys at 5-92c deduped per market x outcome x hour: FOLLOW OOS -2.5..-5.8%/$ at 30 m / 1 h / 4 h (IS -4.5..-5.5, t -12..-21);
+  $25-100k OOS -1.4..+1.6 (n 25); top-500 PnL wallets (LOOK-AHEAD) OOS -2.2..+0.8 (n 33); FADE -14..-16%/$. Whale prints carry
+  no edge after the ~2c round trip. tests/pmn.test.ts 29/29.
+
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the

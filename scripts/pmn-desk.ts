@@ -8,11 +8,11 @@
 // Run: node --experimental-strip-types scripts/pmn-desk.ts <state.json> [cache dir]
 import fs from 'node:fs'
 import { takerFee, walkAsks, heOutcome, type FeeSchedule } from '../shared/pm.ts'
-import { PMN, docFreq, matchPost, pmnDecide, pmnExit, pmnStake, parseTelegram, parseRss, type PmnMarket, type PmnPost } from '../shared/pmn.ts'
+import { PMN, docFreq, matchPost, pmnDecide, pmnExit, pmnStake, parseTelegram, parseRss, parseWhale, type PmnMarket, type PmnPost } from '../shared/pmn.ts'
 
 const FILE = process.argv[2] ?? 'pmn/state.json'
 const CACHE = process.argv[3] ?? '/tmp/pmn-cache'
-const GAMMA = 'https://gamma-api.polymarket.com', CLOB = 'https://clob.polymarket.com'
+const GAMMA = 'https://gamma-api.polymarket.com', CLOB = 'https://clob.polymarket.com', DATA = 'https://data-api.polymarket.com'
 const UA = { 'User-Agent': 'Mozilla/5.0 (spacehub-paper research)' }
 const get = async (u: string, ms = 10000) => { const r = await fetch(u, { headers: UA, signal: AbortSignal.timeout(ms) }); if (!r.ok) throw new Error(`${r.status} ${u.slice(0, 80)}`); return r.text() }
 const j = async (u: string, ms = 10000) => JSON.parse(await get(u, ms))
@@ -187,6 +187,41 @@ try {
     st.cash -= cost; openValue += fill.qty * (bk.bids[0]?.price ?? fill.vwap); entered++
     D('BUY', `${why} → קנינו ${fill.qty.toFixed(1)} מניות ב־${(fill.vwap * 100).toFixed(1)}¢ ($${cost.toFixed(0)}), עמלה $${fee.toFixed(2)}`, k, fill.vwap)
   }
+  // ---- 4b. whales (observation only, PMN.whale.trade = false): every taker trade >= $10k, flagged when the wallet is in the
+  // all-time PnL top 500; a whale on a market the news desk is watching is attached to that watch. Whale BUYS at 5-92c are
+  // measured 30 / 60 min later (did the price keep going the whale's way?) into st.study.whales.
+  try {
+    const lf = `${CACHE}/leaders.json`
+    let smart = new Set<string>()
+    if (fs.existsSync(lf) && now - JSON.parse(fs.readFileSync(lf, 'utf8')).at < 3600_000) smart = new Set(JSON.parse(fs.readFileSync(lf, 'utf8')).w)
+    else {
+      const w: string[] = []
+      for (let off = 0; off < PMN.whale.smartTop; off += 50) { try { for (const x of await j(`${DATA}/v1/leaderboard?timePeriod=ALL&orderBy=PNL&limit=50&offset=${off}`)) w.push(x.proxyWallet) } catch { break } }
+      if (w.length) { fs.writeFileSync(lf, JSON.stringify({ at: now, w })); smart = new Set(w) }
+    }
+    st.whales ??= []
+    const have = new Set(st.whales.map((x: any) => x.id))
+    const rows: any[] = await j(`${DATA}/trades?limit=100&takerOnly=true&filterType=CASH&filterAmount=${PMN.whale.minUsd}`)
+    let nw = 0
+    for (const t of rows.reverse()) {
+      const w = parseWhale(t, smart)
+      if (!w || have.has(w.id) || nowS - w.ts > 3600 || /updown|-up-or-down-/.test(w.slug ?? '')) continue
+      have.add(w.id); nw++
+      const ev = st.events.find((e: any) => e.status === 'WATCH' && e.toks?.includes(w.asset))
+      if (ev) (ev.whales ??= []).push({ side: w.side, outcome: w.outcome, usd: Math.round(w.usd), price: w.price, smart: w.smart })
+      st.whales.unshift({ ...w, watched: !!ev })
+    }
+    st.whales = st.whales.slice(0, 300)
+    note.whales = nw
+    for (const w of st.whales.filter((w: any) => w.side === 'BUY' && w.price >= 0.05 && w.price <= 0.92 && (w.m30 == null || w.m60 == null) && nowS - w.ts >= 1800 && nowS - w.ts < 7200)) {
+      const b = await book(w.asset); const bb = b?.bids[0]?.price, aa = b?.asks[0]?.price
+      if (!(bb && aa)) continue
+      const mid = +((bb + aa) / 2).toFixed(4)
+      if (w.m30 == null) w.m30 = mid
+      if (nowS - w.ts >= 3600 && w.m60 == null) w.m60 = mid
+    }
+  } catch (err) { note.whale_error = String(err).slice(0, 120) }
+
   // measurement for every watched event, traded or not: where was the first outcome 15 / 60 min after the post?
   for (const e of st.events.filter((e: any) => e.status !== 'WATCH' && (e.m15 == null || e.m60 == null) && nowS - e.post_ts >= 900)) {
     for (const [key, dt] of [['m15', 900], ['m60', 3600]] as const) {
@@ -220,6 +255,13 @@ st.events = st.events.slice(-400)
     closed: tk.length, wins: tk.filter((t: any) => t.pnl > 0).length, pnl: tk.reduce((a: number, t: any) => a + t.pnl, 0),
     ret: tk.length ? tk.reduce((a: number, t: any) => a + t.pnl / t.cost, 0) / tk.length : null,
     by_src: bySrc,
+    whales: (() => {
+      const w = (st.whales ?? []).filter((x: any) => x.m60 != null)
+      const mv = (x: any) => 100 * (x.m60 - x.price)
+      return { seen: (st.whales ?? []).length, smart: (st.whales ?? []).filter((x: any) => x.smart).length, measured: w.length,
+        follow_60m_c: w.length ? w.reduce((a: number, x: any) => a + mv(x), 0) / w.length : null,
+        smart_follow_60m_c: w.filter((x: any) => x.smart).length ? w.filter((x: any) => x.smart).reduce((a: number, x: any) => a + mv(x), 0) / w.filter((x: any) => x.smart).length : null }
+    })(),
   }
 }
 fs.mkdirSync(FILE.replace(/\/[^/]*$/, '') || '.', { recursive: true })

@@ -5,9 +5,10 @@
 import { StrictMode, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import PolyDesk from './components/PolyDesk'
+import PolyVerse from './components/PolyVerse'
 import { usePolyLive, NEWS_DESK_URL, useNow, ago, type J } from './polyLive'
 
-const ABOUT = 'האסטרטגיה: הבוט קורא כל 15–30 שניות 16 ערוצי טלגרם ציבוריים (חדשות שוק, עולם ומלחמות, קריפטו, פולימרקט ועסקאות לווייתנים) ו־20 אתרי חדשות. כל פוסט טרי (עד 10 דק׳) שמזכיר בשם שוק פעיל בפולימרקט נכנס למעקב של 15 דקות. הוא קונה רק אם המחיר כבר התחיל לזוז מאז הפרסום (לפחות 3¢, עד 20¢) — המחיר מגלה מה החדשה אומרת — וקונה את הצד שעולה, במחיר 5–92¢ ובספר הדוק (פער ≤ 3¢). יציאה: +10¢ רווח, −7¢ סטופ, או אחרי שעה. 3% מהחשבון לעסקה, עד 10 פתוחות, אחת לאירוע. ניסוי: בבדיקה על 45 ימי היסטוריה (31,718 פוסטים) רק 12% מהשווקים שהוזכרו זזו ≥ 2¢, אבל כשזזו — דקה אחרי הפוסט רק 17% מהתנועה כבר קרתה (יש זמן). ברכיבה על התנועה המדגם קטן (~25 מקרים) ובחלק הבודק הפסיד — זה לא מוכח.'
+const ABOUT = 'האסטרטגיה: הבוט קורא כל 15–30 שניות 16 ערוצי טלגרם ציבוריים (חדשות שוק, עולם ומלחמות, קריפטו, פולימרקט ועסקאות לווייתנים) ו־31 אתרי חדשות ומקורות רשמיים (Google News שמרכז Reuters/AP/NBC, הפדרל ריזרב, הבית הלבן, NYT, BBC, WSJ, Guardian, ESPN ועוד), ועוקב אחרי כל עסקת לווייתן של $10,000+ בפולימרקט. כל פוסט טרי (עד 10 דק׳) שמזכיר בשם שוק פעיל בפולימרקט נכנס למעקב של 15 דקות. הוא קונה רק אם המחיר כבר התחיל לזוז מאז הפרסום (לפחות 3¢, עד 20¢) — המחיר מגלה מה החדשה אומרת — וקונה את הצד שעולה, במחיר 5–92¢ ובספר הדוק (פער ≤ 3¢). יציאה: +10¢ רווח, −7¢ סטופ, או אחרי שעה. 3% מהחשבון לעסקה, עד 10 פתוחות, אחת לאירוע. ניסוי: בבדיקה על 45 ימי היסטוריה (31,718 פוסטים) רק 12% מהשווקים שהוזכרו זזו ≥ 2¢, אבל כשזזו — דקה אחרי הפוסט רק 17% מהתנועה כבר קרתה (יש זמן). ברכיבה על התנועה המדגם קטן (~25 מקרים) ובחלק הבודק הפסיד — זה לא מוכח.'
 
 const box: React.CSSProperties = { background: '#0b1220', border: '1px solid #1c2738', borderRadius: 10, padding: 14 }
 const lab: React.CSSProperties = { fontSize: 12, color: '#8a97a8' }
@@ -93,6 +94,8 @@ function NewsRoom({ st }: { st: J | null }) {
         </div>
       </div>
 
+      <Whales st={st} />
+
       <div style={box}>
         <h2 style={{ fontSize: 17, margin: '0 0 8px' }}>מקורות</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))', gap: 4, fontSize: 12.5 }}>
@@ -104,8 +107,59 @@ function NewsRoom({ st }: { st: J | null }) {
   )
 }
 
+// 🐋 whale tape: every Polymarket taker trade >= $10k (data-api), smart = all-time PnL top 500. Shown and measured, never traded.
+function Whales({ st }: { st: J | null }) {
+  const now = useNow()
+  const [smartOnly, setSmart] = useState(false)
+  const all: J[] = st?.whales ?? [], w = (smartOnly ? all.filter((x) => x.smart) : all).slice(0, 30), y = st?.study?.whales ?? {}
+  const usd0 = (v: number) => `$${Math.round(v).toLocaleString('en-US')}`
+  return (
+    <div style={box}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, gap: 8, flexWrap: 'wrap' }}>
+        <h2 style={{ fontSize: 17, margin: 0 }}>🐋 לווייתנים בפולימרקט</h2>
+        <label style={{ ...lab, cursor: 'pointer' }}><input type="checkbox" checked={smartOnly} onChange={(e) => setSmart(e.target.checked)} /> רק ארנקים רווחיים (500 המובילים)</label>
+      </div>
+      <div style={{ ...lab, marginBottom: 6 }}>כל עסקה של $10,000 ומעלה, ישר מ־Polymarket. מוצג ונמדד בלבד: בבדיקה על ~18 ימים, קנייה אחרי לווייתן הפסידה 2.5–5.8% לדולר (גם אחרי הארנקים הרווחיים — בערך אפס), ולכן הבוט לא נכנס בעקבותיהם.
+        {' '}נמדדו {y.measured ?? 0} · תזוזה ממוצעת שעה אחרי קניית לווייתן: <b>{y.follow_60m_c == null ? '—' : `${y.follow_60m_c >= 0 ? '+' : ''}${y.follow_60m_c.toFixed(2)}¢`}</b>{y.smart_follow_60m_c != null ? <> · ארנקים רווחיים: <b>{`${y.smart_follow_60m_c >= 0 ? '+' : ''}${y.smart_follow_60m_c.toFixed(2)}¢`}</b></> : null}</div>
+      {!w.length && <div style={lab}>עוד אין עסקאות לווייתנים{smartOnly ? ' מארנקים רווחיים' : ''}.</div>}
+      <div style={{ display: 'grid', gap: 2, maxHeight: 420, overflowY: 'auto' }}>
+        {w.map((x) => (
+          <div key={x.id} style={{ fontSize: 12.5, padding: '4px 0', borderBottom: '1px solid #142033' }}>
+            <span style={{ ...lab, display: 'inline-block', minWidth: 74 }}>{ago(now - x.ts * 1000)}</span>
+            <b style={{ color: x.side === 'BUY' ? '#3ddc97' : '#ff6b6b' }}>{x.side === 'BUY' ? 'קנה' : 'מכר'}</b> {usd0(x.usd)} · <b dir="ltr">{x.outcome}</b> @ {(x.price * 100).toFixed(1)}¢
+            {x.smart && <b style={{ color: '#f0b84a' }}> · ⭐ רווחי</b>}{x.watched && <b style={{ color: '#4cc9f0' }}> · על שוק במעקב חדשות</b>}
+            {' '}· <a href={`https://polymarket.com/event/${x.eslug}`} target="_blank" rel="noreferrer" style={{ color: '#cfe0f5' }} dir="ltr">{x.title}</a>
+            <span style={lab}> · {x.name || x.wallet?.slice(0, 8)}{x.m60 != null ? ` · אחרי שעה ${(x.m60 * 100).toFixed(1)}¢` : ''}</span>
+          </div>))}
+      </div>
+    </div>
+  )
+}
+
+const EMPTY = 'אין פוזיציה פתוחה כרגע. הבוט קורא כל 15–30 שניות 16 ערוצי טלגרם ועשרות אתרי חדשות, ונכנס רק כשחדשה טרייה מזכירה שוק פעיל והמחיר כבר מתחיל לזוז בעקבותיה.'
+
+// compact news card for the 3D arena (tap to open the full news room under the arena)
+function NewsChip({ st, onOpen }: { st: J | null; onOpen: () => void }) {
+  const y = st?.study ?? {}, watching = (st?.events ?? []).filter((e: J) => e.status === 'WATCH').length, last = (st?.feed ?? []).find((f: J) => f.question), wl = (st?.whales ?? [])[0]
+  return (
+    <div onClick={onOpen} style={{ background: 'rgba(10,16,28,.72)', border: '1px solid rgba(120,160,220,.25)', borderRadius: 12, padding: '8px 12px', color: '#e6edf5', fontSize: 12.5, cursor: 'pointer', backdropFilter: 'blur(6px)', display: 'grid', gap: 3 }}>
+      <div><b>📡 חדר החדשות</b> · במעקב עכשיו <b>{watching}</b> · נבדקו {y.watched ?? 0} · זזו {y.moved ?? 0} · נכנסנו {y.traded ?? 0} ▾</div>
+      {last && <div style={{ color: '#9fb3c8' }}>אחרונה: {String(last.text).slice(0, 70)} → <span dir="ltr">{String(last.question).slice(0, 40)}</span></div>}
+      {wl && <div style={{ color: '#9fb3c8' }}>🐋 {wl.side === 'BUY' ? 'קנה' : 'מכר'} ${Math.round(wl.usd).toLocaleString('en-US')} · <span dir="ltr">{String(wl.title).slice(0, 44)}</span>{wl.smart ? ' ⭐' : ''}</div>}
+    </div>
+  )
+}
+
 function App() {
   const d = usePolyLive(NEWS_DESK_URL)
+  const [view, setView] = useState<'3d' | 'classic'>(() => { try { const q = new URLSearchParams(location.search).get('view'); if (q === '3d' || q === 'classic') return q; return localStorage.getItem('polynews-view') === 'classic' ? 'classic' : '3d' } catch { return '3d' } })
+  const go = (v: '3d' | 'classic') => { setView(v); try { localStorage.setItem('polynews-view', v) } catch { /* private mode */ } ; window.scrollTo(0, 0) }
+  if (view === '3d') return (
+    <>
+      <PolyVerse d={d} onClassic={() => go('classic')} title="פולי חדשות" sub="Polymarket · חדשות ולווייתנים · חשבון דמו" empty={EMPTY}
+        extra={<NewsChip st={d.st} onOpen={() => go('classic')} />} other={{ href: 'polycoins.html', label: '◎ פולי מטבעות' }} />
+    </>
+  )
   return (
     <div style={{ minHeight: '100vh', background: '#04070E', display: 'flex', justifyContent: 'center', padding: '12px 10px' }}>
       <div style={{ width: '100%', maxWidth: 1100, display: 'grid', gap: 10 }}>
@@ -113,6 +167,7 @@ function App() {
           <a href="poly.html" style={{ color: '#9fb3c8', fontSize: 12 }}>← שולחן Polymarket הראשי</a>
           <a href="polycoins.html" style={{ color: '#9fb3c8', fontSize: 12 }}>← פולי מטבעות</a>
         </div>
+        <button onClick={() => go('3d')} style={{ justifySelf: 'start', background: 'rgba(76,201,240,.12)', border: '1px solid rgba(76,201,240,.4)', color: '#cfe8ff', borderRadius: 10, padding: '7px 12px', fontSize: 13, cursor: 'pointer' }}>✦ לזירת ההסתברות</button>
         <PolyDesk d={d} title="פולי חדשות · דמו" about={ABOUT} extra={<NewsRoom st={d.st} />} />
       </div>
     </div>

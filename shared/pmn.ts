@@ -24,7 +24,14 @@ export const PMN = {
     'https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml', 'https://www.theguardian.com/world/rss', 'https://rss.politico.com/politics-news.xml',
     'https://feeds.skynews.com/feeds/rss/world.xml', 'https://www.aljazeera.com/xml/rss/all.xml', 'https://www.cbsnews.com/latest/rss/main',
     'https://feeds.a.dj.com/rss/RSSWorldNews.xml', 'https://www.france24.com/en/rss', 'https://feeds.content.dowjones.io/public/rss/mw_topstories',
-    'https://thehill.com/homenews/feed/', 'https://decrypt.co/feed', 'https://www.theblock.co/rss.xml', 'https://www.skysports.com/rss/12040'],
+    'https://thehill.com/homenews/feed/', 'https://decrypt.co/feed', 'https://www.theblock.co/rss.xml', 'https://www.skysports.com/rss/12040',
+    // 2026-10-15 (owner: "connect every reliable source"): Google News top stories (aggregates Reuters / AP / NBC / CNN …),
+    // official sources (Federal Reserve press releases, White House), and the big desks' politics / world / business / sport.
+    'https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en', 'https://www.federalreserve.gov/feeds/press_all.xml',
+    'https://www.whitehouse.gov/news/feed/', 'https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml',
+    'https://rss.nytimes.com/services/xml/rss/nyt/World.xml', 'https://feeds.bbci.co.uk/news/business/rss.xml',
+    'https://www.theguardian.com/politics/rss', 'https://rss.dw.com/rdf/rss-en-all', 'https://feeds.a.dj.com/rss/RSSMarketsMain.xml',
+    'https://www.espn.com/espn/rss/nfl/news', 'https://www.espn.com/espn/rss/nba/news'],
   maxPostAgeS: 600,      // a post older than this when first seen is recorded but never traded
   minScore: 2,           // shared RARE words (in <= rareDf market questions) incl. at least one Capitalised name
   rareDf: 3,
@@ -41,7 +48,23 @@ export const PMN = {
   maxOpen: 10,
   maxPerEvent: 1,
   minQty: 5,
+  // WHALES (Polymarket data-api: every taker trade >= minUsd with wallet / side / outcome / price) — SHOWN and MEASURED, not
+  // traded. backtest/research/pmw_study.py -> status/pmw-study.txt (10,500 trades >= $10k, ~18 days, 482 whale buys at 5-92c):
+  // buying the same outcome when we see it lost -2.5..-5.8%/$ out of sample at every exit (30 m / 1 h / 4 h), $25-100k and
+  // today's top-500 PnL wallets (look-ahead) ~-1..+1.6%/$ on n 25-33. No edge after costs, so whales never open a trade here.
+  whale: { minUsd: 10000, trade: false, smartTop: 500 },
 } as const
+
+export interface PmnWhale { id: string; ts: number; wallet: string; name: string; smart: boolean; side: 'BUY' | 'SELL'; outcome: string; outcomeIndex: number;
+  price: number; usd: number; title: string; slug: string; eslug: string; asset: string; conditionId: string }
+// data-api /trades row -> whale record (null if under the size floor or malformed)
+export function parseWhale(t: any, smart: Set<string>): PmnWhale | null {
+  const usd = +t?.size * +t?.price
+  if (!(usd >= PMN.whale.minUsd) || !t?.asset || !t?.timestamp) return null
+  return { id: `${t.transactionHash ?? ''}:${t.asset}`, ts: +t.timestamp, wallet: t.proxyWallet, name: t.name || t.pseudonym || '', smart: smart.has(t.proxyWallet),
+    side: t.side === 'SELL' ? 'SELL' : 'BUY', outcome: t.outcome, outcomeIndex: +t.outcomeIndex, price: +t.price, usd, title: t.title, slug: t.slug,
+    eslug: t.eventSlug ?? t.slug, asset: t.asset, conditionId: t.conditionId }
+}
 
 const STOP = new Set(('will the a an of in on to for by and or with at from as is be this that who what when which after before over under than more ' +
   'less into about against vs win wins game match first next new says said report reports year years day today week market price ' +
@@ -114,7 +137,7 @@ export function parseRss(xml: string, host: string): PmnPost[] {
   const out: PmnPost[] = []
   for (const it of xml.split(/<item[ >]/).slice(1)) {
     const title = decode((it.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/)?.[1] ?? '').trim())
-    const pub = Date.parse(it.match(/<pubDate>([^<]+)/)?.[1] ?? '')
+    const pub = Date.parse(it.match(/<pubDate>([^<]+)/)?.[1] ?? it.match(/<dc:date>([^<]+)/)?.[1] ?? '')
     const link = (it.match(/<link>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/link>/)?.[1] ?? '').trim()
     if (title && pub) out.push({ src: `rss:${host}`, id: `${host}|${title}`, ts: Math.floor(pub / 1000), text: title, url: link || undefined })
   }
