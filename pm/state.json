@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 1262.0355918566245,
+ "cash": 1197.488589499214,
  "strategy": {
   "lo": 0.85,
   "hi": 0.92,
@@ -14,13 +14,14 @@
   "minQty": 5,
   "exitPx": 0.99
  },
- "last_scan": "2026-10-15T02:40:55.175Z",
+ "last_scan": "2026-10-15T02:41:11.629Z",
  "last_note": {
-  "at": "2026-10-15T02:40:54.594Z",
+  "at": "2026-10-15T02:41:09.361Z",
   "scanned": 14,
+  "tr_err": "Error: 429 https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&",
   "settled": 0,
-  "entered": 0,
-  "topped": 0,
+  "entered": 1,
+  "topped": 1,
   "recycled": 0
  },
  "trades": [
@@ -4652,7 +4653,7 @@
    "opened_at": "2026-10-15T01:41:10.369Z",
    "status": "OPEN",
    "mark_px": 0.0005,
-   "mark_at": "2026-10-15T02:40:54.836Z",
+   "mark_at": "2026-10-15T02:41:09.579Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -4687,8 +4688,8 @@
    "best_ask": 0.888,
    "opened_at": "2026-10-15T02:39:09.841Z",
    "status": "OPEN",
-   "mark_px": 0.906,
-   "mark_at": "2026-10-15T02:40:55.002Z",
+   "mark_px": 0.905,
+   "mark_at": "2026-10-15T02:41:09.758Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -4706,16 +4707,45 @@
    "outcome_he": "לא",
    "question_he": "האם הביטקוין יירד ל -80,000 $ ב -14 באוקטובר?",
    "tr_v": 2
+  },
+  {
+   "id": 114,
+   "market_id": "5639409",
+   "slug": "bitcoin-up-or-down-october-14-2026-10pm-et",
+   "event_slug": "bitcoin-up-or-down-october-14-2026-10pm-et",
+   "question": "Bitcoin Up or Down - October 14, 10PM ET",
+   "outcome": "Down",
+   "token_id": "101685911615998120711563587792402967634644563317094297442082855316089996823190",
+   "end_time": "2026-10-15T03:00:00Z",
+   "qty": 72.09927695433711,
+   "entry_px": 0.8883065117694361,
+   "entry_fee": 0.5007451450049099,
+   "cost": 64.54700235741059,
+   "best_ask": 0.889,
+   "opened_at": "2026-10-15T02:41:10.092Z",
+   "status": "OPEN",
+   "mark_px": 0.88,
+   "mark_at": "2026-10-15T02:41:10.092Z",
+   "meta": {
+    "fee_schedule": {
+     "rate": 0.07,
+     "exponent": 1
+    },
+    "volume": 24256.51042,
+    "spread": 0.011,
+    "model_p": 0.8935,
+    "outcomes": [
+     "Up",
+     "Down"
+    ],
+    "adds": 1
+   },
+   "outcome_he": "יורד",
+   "question_he": "ביטקוין למעלה או למטה - 14 באוקטובר, 22:00 שעון החוף המזרחי",
+   "tr_v": 2
   }
  ],
  "equity": [
-  {
-   "ts": "2026-10-14T05:48:26.801Z",
-   "equity": 1300.4557312515662,
-   "cash": 1300.4557312515662,
-   "open_value": 0,
-   "open_count": 0
-  },
   {
    "ts": "2026-10-14T05:48:41.497Z",
    "equity": 1300.4557312515662,
@@ -39708,9 +39738,44 @@
    "cash": 1262.0355918566245,
    "open_value": 63.051689791361696,
    "open_count": 2
+  },
+  {
+   "ts": "2026-10-15T02:41:11.629Z",
+   "equity": 1323.6149842036737,
+   "cash": 1197.488589499214,
+   "open_value": 126.12639470445967,
+   "open_count": 3
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-15T02:41:10.092Z",
+   "market_id": "5639409",
+   "question": "Bitcoin Up or Down - October 14, 10PM ET",
+   "outcome": "Down",
+   "outcomes": [
+    "Up",
+    "Down"
+   ],
+   "price": 0.889,
+   "decision": "BUY",
+   "reason": "מחיר 0.889 בטווח, 41.8 מניות, עמלה $0.29",
+   "outcome_he": "יורד",
+   "question_he": "ביטקוין למעלה או למטה - 14 באוקטובר, 22:00 שעון החוף המזרחי",
+   "tr_v": 2
+  },
+  {
+   "ts": "2026-10-15T02:41:10.232Z",
+   "market_id": "5639409",
+   "question": "Bitcoin Up or Down - October 14, 10PM ET",
+   "outcome": "Down",
+   "price": 0.8873504184336531,
+   "decision": "ADD",
+   "reason": "השלמה לחלק שווה: +30.3 מניות, עמלה $0.21",
+   "outcome_he": "יורד",
+   "question_he": "ביטקוין למעלה או למטה - 14 באוקטובר, 22:00 שעון החוף המזרחי",
+   "tr_v": 2
+  },
   {
    "ts": "2026-10-15T02:39:09.841Z",
    "market_id": "5677951",
@@ -42550,41 +42615,9 @@
    "outcome_he": "כן",
    "question_he": "האם המחיר של Ethereum יהיה מעל $2,400 ב-14 באוקטובר?",
    "tr_v": 2
-  },
-  {
-   "ts": "2026-10-14T14:17:09.539Z",
-   "market_id": "5407319",
-   "question": "Will the price of Ethereum be above $2,400 on October 14?",
-   "outcome": "Yes",
-   "outcomes": [
-    "Yes",
-    "No"
-   ],
-   "price": 0.926,
-   "decision": "skip",
-   "reason": "מחיר 0.926 מחוץ לטווח 85-92¢",
-   "outcome_he": "כן",
-   "question_he": "האם המחיר של Ethereum יהיה מעל $2,400 ב-14 באוקטובר?",
-   "tr_v": 2
-  },
-  {
-   "ts": "2026-10-14T14:14:54.661Z",
-   "market_id": "5407319",
-   "question": "Will the price of Ethereum be above $2,400 on October 14?",
-   "outcome": "Yes",
-   "outcomes": [
-    "Yes",
-    "No"
-   ],
-   "price": 0.938,
-   "decision": "skip",
-   "reason": "מחיר 0.938 מחוץ לטווח 85-92¢",
-   "outcome_he": "כן",
-   "question_he": "האם המחיר של Ethereum יהיה מעל $2,400 ב-14 באוקטובר?",
-   "tr_v": 2
   }
  ],
- "next_id": 114,
+ "next_id": 115,
  "he": {
   "Dota 2: Yellow Submarine vs Kalmychata - Game 1 Winner": "Dota 2: Yellow Submarine vs Kalmychata - מנצח משחק 1",
   "Yellow Submarine": "צוללת צהובה",
@@ -42714,6 +42747,7 @@
   "Will Bitcoin dip to $81,000 on October 14?": "האם הביטקוין יירד ל -81,000 $ ב -14 באוקטובר?",
   "Will Bitcoin dip to $79,000 on October 14?": "האם הביטקוין יירד ל -79,000 $ ב -14 באוקטובר?",
   "Bitcoin Up or Down - October 14, 10:30PM-10:45PM ET": "ביטקוין למעלה או למטה - 14 באוקטובר, 22:30 - 22:45 שעון החוף המזרחי",
-  "Will Bitcoin dip to $80,000 on October 14?": "האם הביטקוין יירד ל -80,000 $ ב -14 באוקטובר?"
+  "Will Bitcoin dip to $80,000 on October 14?": "האם הביטקוין יירד ל -80,000 $ ב -14 באוקטובר?",
+  "Bitcoin Up or Down - October 14, 10PM ET": "ביטקוין למעלה או למטה - 14 באוקטובר, 22:00 שעון החוף המזרחי"
  }
 }
