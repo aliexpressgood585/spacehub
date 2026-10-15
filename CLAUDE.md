@@ -670,6 +670,15 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   t 0.6). VERDICT: no news-reaction rule on these public channels makes money, at any trade frequency. Desk left running as a
   paper measurement; recommended to the owner: switch it to observe-only.
 
+- 2026-10-15 ~16:10 UTC Poly News SWITCHED (owner: "find a way and activate it", after the full-year search found no news rule).
+  The money now trades the only news-domain rule positive in BOTH halves: GEOPOLITICS STATUS QUO (status/pm-statusquo.txt, first
+  entry IS n559 +6.78%/$ t4.3 | OOS n307 +6.27%/$ t2.9). PMN.sq: Gamma scan every 10 min (>= $50k volume, >= 14 days to the end,
+  lived >= 30 days, Yes/No, geopolitics by the research's keyword classes, sports/crypto first), buy NO when its real best ask is
+  81-91c, hold to the official result (no exits), 2% of equity, <= 30 open, 1 per event, <= 4 per theme (iran / russia-ukraine /
+  israel-gaza / china-taiwan / venezuela-cuba / korea / other-geo — losses clustered on Iran in 2026). The news rule keeps running
+  with PMN.newsTrade false: every decision journalled as SHADOW and measured, no money. First local cycle on the live state: 332
+  geopolitics markets, 41 in band, 19 entered ($377 locked, 4 themes at the cap). NOT PROVEN (12 h history points, not asks;
+  category chosen from 5 x 5 rows); capital locked ~1-2 months; expect ~1 new entry/day after the backlog. tests/pmn.test.ts 38/38.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the

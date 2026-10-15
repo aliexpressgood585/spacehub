@@ -8,7 +8,7 @@ import PolyDesk from './components/PolyDesk'
 import PolyVerse from './components/PolyVerse'
 import { usePolyLive, NEWS_DESK_URL, useNow, ago, type J } from './polyLive'
 
-const ABOUT = 'האסטרטגיה: הבוט קורא כל 15–30 שניות 16 ערוצי טלגרם ציבוריים (חדשות שוק, עולם ומלחמות, קריפטו, פולימרקט ועסקאות לווייתנים) ו־31 אתרי חדשות ומקורות רשמיים (Google News שמרכז Reuters/AP/NBC, הפדרל ריזרב, הבית הלבן, NYT, BBC, WSJ, Guardian, ESPN ועוד), ועוקב אחרי כל עסקת לווייתן של $10,000+ בפולימרקט. כל פוסט טרי (עד 10 דק׳) שמזכיר בשם שוק פעיל בפולימרקט נכנס למעקב של 15 דקות. הוא קונה רק אם המחיר כבר התחיל לזוז מאז הפרסום (לפחות 3¢, עד 20¢) — המחיר מגלה מה החדשה אומרת — וקונה את הצד שעולה, במחיר 5–92¢ ובספר הדוק (פער ≤ 3¢). יציאה: +10¢ רווח, −7¢ סטופ, או אחרי שעה. 3% מהחשבון לעסקה, עד 10 פתוחות, אחת לאירוע. ניסוי: בבדיקה על 45 ימי היסטוריה (31,718 פוסטים) רק 12% מהשווקים שהוזכרו זזו ≥ 2¢, אבל כשזזו — דקה אחרי הפוסט רק 17% מהתנועה כבר קרתה (יש זמן). ברכיבה על התנועה המדגם קטן (~25 מקרים) ובחלק הבודק הפסיד — זה לא מוכח.'
+const ABOUT = 'האסטרטגיה (מ־15.10): הכסף נסחר רק בכלל "סטטוס־קוו גיאופוליטי" — קונים "לא" ב־81–91¢ על שוק גיאופוליטי (מלחמה, הפסקת אש, איראן, רוסיה־אוקראינה, ישראל־עזה, סין־טייוואן…) שנשארו לו לפחות 14 יום לסיום, ומחזיקים עד ההכרעה הרשמית. 2% מהחשבון לעסקה, עד 30 פתוחות, אחת לאירוע, ועד 4 לכל נושא (ההפסדים מתקבצים — איראן 2026). בהיסטוריה 2024–2026: חצי ראשון 559 כניסות, 90.7% הצלחה, +6.8% לדולר; חצי בודק 307 כניסות, 90.9%, +6.3% — הכלל היחיד בתחום החדשות שהיה חיובי בשני החלקים. לא מוכח: מחירי היסטוריה כל 12 שעות (לא ספר פקודות), והכסף נעול בממוצע 1–2 חודשים. כלל תגובת החדשות (טלגרם + 31 אתרים + לווייתנים) ממשיך לרוץ בצל בלבד — בבדיקת שנה שלמה (222 אלף פוסטים, 6,300 כללים) אף כלל לא עבר, והכלל הזה הפסיד בכל תקופה — אז הוא נמדד בלי כסף.'
 
 const box: React.CSSProperties = { background: '#0b1220', border: '1px solid #1c2738', borderRadius: 10, padding: 14 }
 const lab: React.CSSProperties = { fontSize: 12, color: '#8a97a8' }
@@ -47,8 +47,9 @@ function NewsRoom({ st }: { st: J | null }) {
   return (
     <div style={{ display: 'grid', gap: 10 }}>
       <div style={{ ...box, display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 8 }}>
-        {[['פוסטים שנקראו', String(src.reduce((a, s) => a + (s.posts ?? 0), 0))], ['חדשות שנכנסו למעקב', String(y.watched ?? 0)],
-          ['השוק זז ≥ 3¢', `${y.moved ?? 0}${y.watched ? ` (${Math.round((100 * (y.moved ?? 0)) / y.watched)}%)` : ''}`], ['נכנסנו', String(y.traded ?? 0)],
+        {[['סטטוס־קוו: פתוחות', `${y.sq?.open ?? 0} ($${Math.round(y.sq?.locked ?? 0)})`], ['סטטוס־קוו: נסגרו', `${y.sq?.closed ?? 0}${y.sq?.closed ? ` · ${y.sq.wins} הצליחו · ${y.sq.pnl >= 0 ? '+' : ''}$${y.sq.pnl.toFixed(2)}` : ''}`],
+          ['פוסטים שנקראו', String(src.reduce((a, s) => a + (s.posts ?? 0), 0))], ['חדשות שנכנסו למעקב', String(y.watched ?? 0)],
+          ['השוק זז ≥ 3¢', `${y.moved ?? 0}${y.watched ? ` (${Math.round((100 * (y.moved ?? 0)) / y.watched)}%)` : ''}`], ['החלטות צל (בלי כסף)', String(y.traded ?? 0)],
           ['תזוזת השוק שעה אחרי הכניסה', y.follow_60m_c == null ? '—' : `${y.follow_60m_c >= 0 ? '+' : ''}${y.follow_60m_c.toFixed(2)}¢`],
           ['איחור חציוני מהפרסום', y.median_lag_s == null ? '—' : `${Math.round(y.median_lag_s)} שנ׳`]].map(([k, v]) => (
           <div key={k}><div style={lab}>{k}</div><div style={{ fontSize: 18, fontWeight: 600 }}>{v}</div></div>))}
@@ -136,14 +137,15 @@ function Whales({ st }: { st: J | null }) {
   )
 }
 
-const EMPTY = 'אין פוזיציה פתוחה כרגע. הבוט קורא כל 15–30 שניות 16 ערוצי טלגרם ועשרות אתרי חדשות, ונכנס רק כשחדשה טרייה מזכירה שוק פעיל והמחיר כבר מתחיל לזוז בעקבותיה.'
+const EMPTY = 'אין פוזיציה פתוחה כרגע. כל 10 דקות הבוט סורק את השווקים הגיאופוליטיים וקונה "לא" ב־81–91¢ כשנשארו לפחות 14 יום לסיום; החדשות נמדדות בצל.'
 
 // compact news card for the 3D arena (tap to open the full news room under the arena)
 function NewsChip({ st, onOpen }: { st: J | null; onOpen: () => void }) {
   const y = st?.study ?? {}, watching = (st?.events ?? []).filter((e: J) => e.status === 'WATCH').length, last = (st?.feed ?? []).find((f: J) => f.question), wl = (st?.whales ?? [])[0]
   return (
     <div onClick={onOpen} style={{ background: 'rgba(10,16,28,.72)', border: '1px solid rgba(120,160,220,.25)', borderRadius: 12, padding: '8px 12px', color: '#e6edf5', fontSize: 12.5, cursor: 'pointer', backdropFilter: 'blur(6px)', display: 'grid', gap: 3 }}>
-      <div><b>📡 חדר החדשות</b> · במעקב עכשיו <b>{watching}</b> · נבדקו {y.watched ?? 0} · זזו {y.moved ?? 0} · נכנסנו {y.traded ?? 0} ▾</div>
+      <div><b>🌍 סטטוס־קוו גיאופוליטי</b> · פתוחות <b>{y.sq?.open ?? 0}</b>{y.sq?.closed ? ` · נסגרו ${y.sq.closed} (${y.sq.wins} הצליחו)` : ''} · חדשות = צל בלבד</div>
+      <div><b>📡 חדר החדשות</b> · במעקב עכשיו <b>{watching}</b> · נבדקו {y.watched ?? 0} · זזו {y.moved ?? 0} · החלטות צל {y.traded ?? 0} ▾</div>
       {last && <div style={{ color: '#9fb3c8' }}>אחרונה: {String(last.text).slice(0, 70)} → <span dir="ltr">{String(last.question).slice(0, 40)}</span></div>}
       {wl && <div style={{ color: '#9fb3c8' }}>🐋 {wl.side === 'BUY' ? 'קנה' : 'מכר'} ${Math.round(wl.usd).toLocaleString('en-US')} · <span dir="ltr">{String(wl.title).slice(0, 44)}</span>{wl.smart ? ' ⭐' : ''}</div>}
     </div>

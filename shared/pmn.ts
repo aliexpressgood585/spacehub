@@ -2,7 +2,10 @@
 // "a separate dashboard and account, Telegram + general channels, highest level"). Pure rules shared by scripts/pmn-desk.ts,
 // the research (backtest/research/pmn_study.py) and tests/pmn.test.ts. Nothing here talks to the network.
 //
-// The rule, in one line: a fresh post (Telegram public channel or RSS) that names a live Polymarket market is a reason to
+// SINCE 2026-10-15 the money is traded by the geopolitics status-quo rule (PMN.sq, sqTheme, sqDecide); the news rule below
+// runs in shadow (PMN.newsTrade false) because a full year of history showed it loses.
+//
+// The news rule, in one line: a fresh post (Telegram public channel or RSS) that names a live Polymarket market is a reason to
 // LOOK, never a reason to buy by itself. The desk buys only once the market has started to move in some direction since the
 // post (the price is the vote on what the news means), the move is not already exhausted, the book is tight, and it exits on
 // a clock / target / stop. Every matched post is measured whether or not it trades (st.study).
@@ -53,7 +56,42 @@ export const PMN = {
   // buying the same outcome when we see it lost -2.5..-5.8%/$ out of sample at every exit (30 m / 1 h / 4 h), $25-100k and
   // today's top-500 PnL wallets (look-ahead) ~-1..+1.6%/$ on n 25-33. No edge after costs, so whales never open a trade here.
   whale: { minUsd: 10000, trade: false, smartTop: 500 },
+  // 2026-10-15 the news-reaction rule above is SHADOW ONLY (newsTrade false): the full-year search (status/pmn-grid-365.txt,
+  // 222k posts x 6,300 rules) found 0 passing rules and this exact rule negative in every period. Matched posts are still
+  // watched, decided and measured (st.study) — only no money moves.
+  newsTrade: false,
+  // THE TRADED RULE since 2026-10-15 — geopolitics STATUS QUO (status/pm-statusquo.txt): buy NO at 80-90c (+1c) on a
+  // geopolitics market (war / ceasefire / Iran / Russia …) with >= 14 days to its scheduled end, hold to the official result.
+  // History 2024-07..2026-10, first entry per market: IS n559 WR 90.7% +6.78%/$ (t4.3) | OOS n307 WR 90.9% +6.27%/$ (t2.9),
+  // median lock 39-73 days. NOT PROVEN beyond that: 12 h history points (not asks), the category was picked from 5 x 5 rows,
+  // and losses cluster on one theme (Iran 2026-02..06) -> at most `perTheme` open per theme. Entries at <= 7 days were
+  // -10.9%/$ (so minDays 14). Politics, sports, crypto excluded (politics negative OOS).
+  sq: { lo: 0.81, hi: 0.91, minDays: 14, minLifeDays: 30, minVol: 50000, stakeFrac: 0.02, maxOpen: 30, perTheme: 4, scanS: 600 },
 } as const
+
+// keyword classes in the research's order (backtest/research/pm_statusquo.py CAT): a sports / crypto match wins first
+const SQ_SPORTS = /\b(nba|nfl|mlb|nhl|uefa|premier league|champions league|la liga|serie a|bundesliga|world cup|super bowl|finals?|champion(ship)?|stanley cup|world series|mvp|grand slam|wimbledon|open|f1|grand prix|ufc|fight|win the \d{4}|playoffs?|heisman|ballon|tour de)\b/
+const SQ_CRYPTO = /\b(bitcoin|btc|ethereum|eth|solana|sol|xrp|doge|crypto|token|fdv|airdrop|coin|stablecoin|microstrategy|etf)\b/
+const SQ_GEO = /\b(war|ceasefire|invade|invasion|russia|ukraine|putin|zelensky|israel|gaza|hamas|iran|china|taiwan|nato|missile|strike|nuclear|north korea|military|troops|peace|sanction|houthi|syria|venezuela|maduro)\b/
+const THEMES: [string, RegExp][] = [['iran', /\b(iran|iranian|khamenei|hormuz|pezeshkian)\b/], ['russia-ukraine', /\b(russia|ukraine|putin|zelensky|kyiv|crimea)\b/],
+  ['israel-gaza', /\b(israel|gaza|hamas|hezbollah|houthi|lebanon|netanyahu)\b/], ['china-taiwan', /\b(china|chinese|taiwan|xi)\b/],
+  ['venezuela-cuba', /\b(venezuela|maduro|cuba)\b/], ['korea', /\bnorth korea|kim jong\b/]]
+// geopolitics theme of a market (question + event title), or null when it is not a geopolitics market by the research's classes
+export function sqTheme(q: string, event = ''): string | null {
+  const s = `${q} ${event}`.toLowerCase()
+  if (SQ_SPORTS.test(s) || SQ_CRYPTO.test(s) || !SQ_GEO.test(s)) return null
+  for (const [k, rx] of THEMES) if (rx.test(s)) return k
+  return 'other-geo'
+}
+// status-quo entry check for the NO side (ask = best ask of NO)
+export function sqDecide(askNo: number, daysLeft: number, lifeDays: number, vol: number): string | null {
+  if (vol < PMN.sq.minVol) return 'low_volume'
+  if (lifeDays < PMN.sq.minLifeDays) return 'short_life'
+  if (daysLeft < PMN.sq.minDays) return 'too_close'
+  if (!(askNo > 0)) return 'no_ask'
+  if (askNo < PMN.sq.lo || askNo > PMN.sq.hi) return 'out_of_band'
+  return null
+}
 
 export interface PmnWhale { id: string; ts: number; wallet: string; name: string; smart: boolean; side: 'BUY' | 'SELL'; outcome: string; outcomeIndex: number;
   price: number; usd: number; title: string; slug: string; eslug: string; asset: string; conditionId: string }

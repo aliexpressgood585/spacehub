@@ -5,10 +5,12 @@
 // Cycle: 1) settle / exit open trades; 2) read sources (Telegram channels in rotation, RSS every ~60 s); 3) match fresh posts
 // to live markets and start watching them (price before the post from CLOB history); 4) watched markets: buy the side the
 // market moved to once the move is real and not exhausted; 5) bookkeeping + study.
+// SINCE 2026-10-15: money is traded only by the geopolitics status-quo rule (step 6, PMN.sq: NO at 81-91c, >= 14 days left,
+// hold to the official result); the news rule of steps 3-4 runs in SHADOW (PMN.newsTrade false) and is still measured.
 // Run: node --experimental-strip-types scripts/pmn-desk.ts <state.json> [cache dir]
 import fs from 'node:fs'
 import { takerFee, walkAsks, heOutcome, type FeeSchedule } from '../shared/pm.ts'
-import { PMN, docFreq, matchPost, pmnDecide, pmnExit, pmnStake, parseTelegram, parseRss, parseWhale, type PmnMarket, type PmnPost } from '../shared/pmn.ts'
+import { PMN, docFreq, matchPost, pmnDecide, pmnExit, pmnStake, parseTelegram, parseRss, parseWhale, sqTheme, sqDecide, type PmnMarket, type PmnPost } from '../shared/pmn.ts'
 
 const FILE = process.argv[2] ?? 'pmn/state.json'
 const CACHE = process.argv[3] ?? '/tmp/pmn-cache'
@@ -72,6 +74,10 @@ try {
         Object.assign(t, { status: 'CLOSED', exit_px: px[k], exit_fee: 0, proceeds: t.qty * px[k], pnl: t.qty * px[k] - t.cost, reason: px[k] === 1 ? 'RESOLVED_WIN' : 'RESOLVED_LOSS', closed_at: iso(), mark_px: px[k], mark_at: iso() })
         st.cash += t.qty * px[k]; exited++; continue
       }
+    }
+    if (t.rule === 'SQ') {                               // status quo: held to the official result, only marked
+      if (st.cycle % 8 === 0 || t.mark_px == null) { const b = await book(t.token_id), bid = b?.bids[0]?.price ?? 0; if (bid > 0) { t.mark_px = bid; t.mark_at = iso() } }
+      openValue += t.qty * (t.mark_px ?? t.entry_px); continue
     }
     const b = await book(t.token_id), bid = b?.bids[0]?.price ?? 0
     if (bid > 0) { t.mark_px = bid; t.mark_at = iso() }
@@ -172,6 +178,7 @@ try {
     const k = d.side, bk = k === 0 ? b0! : b1!, ask = k === 0 ? ask0 : ask1
     const why = `${e.src.replace(/^tg:/, 'טלגרם ').replace(/^rss:/, '')} לפני ${Math.round(ageS / 60)} דק׳: "${e.text.slice(0, 80)}" · השוק זז ${((mid - e.pre) * 100).toFixed(1)}¢ מאז הפרסום`
     e.status = 'DONE'; e.closed_ts = nowS; e.decision = { side: k, ask, mid }
+    if (!PMN.newsTrade) { e.shadow = true; D('SHADOW', `${why} → צל בלבד: הכלל הזה הפסיד בבדיקת שנה, נמדד בלי כסף`, k, ask); continue }
     if (st.trades.some((t: any) => t.market_id === e.market_id)) { D('skip', 'כבר נסחר השוק הזה', k, ask); continue }
     if (st.trades.filter((t: any) => t.status === 'OPEN').length >= PMN.maxOpen) { D('skip', 'מקסימום פוזיציות פתוחות', k, ask); continue }
     if (st.trades.filter((t: any) => t.status === 'OPEN' && t.event_slug === e.eslug).length >= PMN.maxPerEvent) { D('skip', 'כבר יש פוזיציה על האירוע הזה', k, ask); continue }
@@ -230,6 +237,57 @@ try {
       if (bb && aa) e[key] = +((bb + aa) / 2).toFixed(4)
     }
   }
+
+  // ---- 6. THE TRADED RULE: geopolitics status quo (PMN.sq). Every scanS: Gamma markets with >= 14 days left and >= $50k
+  // volume, geopolitics by the research's keyword classes; buy NO when its real best ask is 81-91c; hold to the result.
+  // One entry per market ever, 1 per event, <= perTheme open per theme (Iran / Russia-Ukraine / ...), <= maxOpen.
+  try {
+    if (!st.sq_scan_at || now - Date.parse(st.sq_scan_at) >= PMN.sq.scanS * 1000) {
+      st.sq_scan_at = iso()
+      const endMin = iso(now + PMN.sq.minDays * 86400_000)
+      let seenGeo = 0, inBand = 0, sqIn = 0
+      const open = () => st.trades.filter((t: any) => t.status === 'OPEN')
+      const eq = st.cash + openValue
+      for (let off = 0; off < 3000; off += 100) {
+        let pg: any[] = []
+        try { pg = await j(`${GAMMA}/markets?closed=false&active=true&limit=100&offset=${off}&volume_num_min=${PMN.sq.minVol}&end_date_min=${endMin}&order=volumeNum&ascending=false`, 20000) } catch { break }
+        for (const m of pg) {
+          const toks = arr(m.clobTokenIds), outs = arr(m.outcomes), px = arr(m.outcomePrices).map(Number)
+          if (!m.enableOrderBook || toks.length !== 2 || outs[0] !== 'Yes' || outs[1] !== 'No') continue
+          const evt = m.events?.[0] ?? {}, theme = sqTheme(m.question, evt.title ?? '')
+          if (!theme) continue
+          seenGeo++
+          if (!(px[1] >= PMN.sq.lo - 0.03 && px[1] <= PMN.sq.hi + 0.02)) continue          // pre-filter on Gamma's price before reading a book
+          const end = Date.parse(m.endDate), start = Date.parse(m.startDate ?? m.createdAt ?? m.endDate)
+          const daysLeft = (end - now) / 86400_000, lifeDays = (end - start) / 86400_000
+          const eslug = evt.slug ?? m.slug
+          const D = (decision: string, reason: string, price = 0) => decisions.push({ ts: iso(), market_id: m.id, question: m.question, outcome: 'No', outcome_he: heOutcome('No'), price, decision, reason, rule: 'SQ' })
+          if (st.trades.some((t: any) => t.market_id === m.id)) continue
+          const b = await book(toks[1]); const ask = b?.asks[0]?.price ?? 0
+          const why = sqDecide(ask, daysLeft, lifeDays, +m.volumeNum || 0)
+          if (why) continue
+          inBand++
+          if (open().filter((t: any) => t.rule === 'SQ').length >= PMN.sq.maxOpen) { D('skip', 'מקסימום פוזיציות סטטוס־קוו פתוחות', ask); continue }
+          if (open().some((t: any) => t.event_slug === eslug)) { D('skip', 'כבר יש פוזיציה על האירוע הזה', ask); continue }
+          if (open().filter((t: any) => t.rule === 'SQ' && t.meta?.theme === theme).length >= PMN.sq.perTheme) { D('skip', `כבר ${PMN.sq.perTheme} פוזיציות על הנושא (${theme}) — הפסדים מתקבצים`, ask); continue }
+          const stake = Math.min(eq * PMN.sq.stakeFrac, st.cash - 1)
+          if (stake < PMN.minQty * ask) { D('skip', 'אין מספיק מזומן', ask); continue }
+          const fee = m.feesEnabled && m.feeSchedule ? +m.feeSchedule.rate || 0 : 0, fs_ = fsOf(fee)
+          const fill = walkAsks(b!.asks, stake / (1 + (fs_ ? fs_.rate * (1 - ask) : 0)), PMN.sq.hi)
+          if (fill.qty < PMN.minQty) { D('skip', 'ספר הזמנות דל מדי', ask); continue }
+          const tf = takerFee(fill.qty, fill.vwap, fs_), cost = fill.spent + tf
+          st.trades.push({ id: st.next_id++, rule: 'SQ', market_id: m.id, slug: m.slug, event_slug: eslug, question: m.question, outcome: 'No', outcome_he: heOutcome('No'),
+            token_id: toks[1], end_time: m.endDate, qty: fill.qty, entry_px: fill.vwap, entry_fee: tf, cost, best_ask: ask, opened_at: iso(), status: 'OPEN',
+            mark_px: b!.bids[0]?.price ?? fill.vwap, mark_at: iso(),
+            meta: { fee_schedule: fs_, theme, days_left: +daysLeft.toFixed(1), life_days: +lifeDays.toFixed(0), volume: Math.round(+m.volumeNum || 0), event_title: evt.title ?? null, wanted: stake } })
+          st.cash -= cost; openValue += fill.qty * (b!.bids[0]?.price ?? fill.vwap); entered++; sqIn++
+          D('BUY', `סטטוס־קוו גיאופוליטי (${theme}): "לא" ב־${(fill.vwap * 100).toFixed(1)}¢, עוד ${Math.round(daysLeft)} ימים לסיום — מחזיקים עד ההכרעה הרשמית ($${cost.toFixed(0)})`, fill.vwap)
+        }
+        if (pg.length < 100) break
+      }
+      note.sq = { geo: seenGeo, in_band: inBand, entered: sqIn }
+    }
+  } catch (err) { note.sq_error = String(err).slice(0, 160) }
 } catch (err) { note.error = String(err).slice(0, 200) }
 
 // ---- 5. bookkeeping ----
@@ -242,7 +300,7 @@ st.decisions = [...decisions, ...st.decisions].slice(0, 200)
 st.events = st.events.slice(-400)
 {
   const ev = st.events.filter((e: any) => e.status !== 'WATCH'), mv = ev.filter((e: any) => (e.max_move ?? 0) >= PMN.moveMin)
-  const tk = st.trades.filter((t: any) => t.status === 'CLOSED')
+  const tk = st.trades.filter((t: any) => t.status === 'CLOSED' && t.rule !== 'SQ')
   const fol = ev.filter((e: any) => e.m60 != null && e.decision)
   const bySrc: Record<string, any> = {}
   for (const e of ev) { const s = (bySrc[e.src] ??= { events: 0, moved: 0, traded: 0 }); s.events++; if ((e.max_move ?? 0) >= PMN.moveMin) s.moved++; if (e.decision) s.traded++ }
@@ -255,6 +313,13 @@ st.events = st.events.slice(-400)
     closed: tk.length, wins: tk.filter((t: any) => t.pnl > 0).length, pnl: tk.reduce((a: number, t: any) => a + t.pnl, 0),
     ret: tk.length ? tk.reduce((a: number, t: any) => a + t.pnl / t.cost, 0) / tk.length : null,
     by_src: bySrc,
+    news_rule: PMN.newsTrade ? 'traded' : 'shadow',
+    sq: (() => {
+      const all = st.trades.filter((t: any) => t.rule === 'SQ'), c = all.filter((t: any) => t.status === 'CLOSED'), o = all.filter((t: any) => t.status === 'OPEN')
+      const th: Record<string, number> = {}; for (const t of o) th[t.meta?.theme ?? '?'] = (th[t.meta?.theme ?? '?'] ?? 0) + 1
+      return { open: o.length, closed: c.length, wins: c.filter((t: any) => t.pnl > 0).length, pnl: c.reduce((a: number, t: any) => a + t.pnl, 0),
+        locked: o.reduce((a: number, t: any) => a + t.cost, 0), unreal: o.reduce((a: number, t: any) => a + t.qty * (t.mark_px ?? t.entry_px) - t.cost, 0), by_theme: th }
+    })(),
     whales: (() => {
       const w = (st.whales ?? []).filter((x: any) => x.m60 != null)
       const mv = (x: any) => 100 * (x.m60 - x.price)

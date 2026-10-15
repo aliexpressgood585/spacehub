@@ -1,6 +1,6 @@
 // Poly News desk (shared/pmn.ts): matching, entry decision, exits, feed parsers, and the runner's wiring (paper only).
 import fs from 'node:fs'
-import { PMN, words, docFreq, matchPost, pmnDecide, pmnExit, pmnStake, parseTelegram, parseRss, parseWhale } from '../shared/pmn.ts'
+import { PMN, words, docFreq, matchPost, pmnDecide, pmnExit, pmnStake, parseTelegram, parseRss, parseWhale, sqTheme, sqDecide } from '../shared/pmn.ts'
 let n = 0, bad = 0
 const ok = (c: boolean, m: string) => { n++; if (!c) { bad++; console.error('FAIL', m) } }
 
@@ -57,5 +57,16 @@ const src = fs.readFileSync('scripts/pmn-desk.ts', 'utf8'), wf = fs.readFileSync
 ok(!/method:\s*'POST'|\/order\b|privateKey|API_KEY|signOrder/i.test(src), 'runner never places or signs an order')
 ok(src.includes("'pmn/state.json'") && !/pmc\/state|pm\/state\.json/.test(src), 'runner uses its own state file only')
 ok(wf.includes('git add pmn/state.json') && !/git add pm\/|git add pmc\//.test(wf) && wf.includes('group: pmn-desk'), 'workflow publishes pmn/ only, own concurrency group')
+
+// geopolitics status quo (the traded rule since 2026-10-15) + news rule in shadow
+ok(PMN.newsTrade === false && src.includes("if (!PMN.newsTrade)"), 'news rule is shadow only (full-year search: loses)')
+ok(sqTheme('Will the U.S. invade Iran before 2027?') === 'iran' && sqTheme('Russia x Ukraine ceasefire by December 31?') === 'russia-ukraine', 'geopolitics themes')
+ok(sqTheme('Will Trump win the 2028 presidential election?') === null && sqTheme('Will Israel win Eurovision?', 'Eurovision') === 'israel-gaza', 'non-geo -> null; keyword class as in the research')
+ok(sqTheme('Will Spain win the 2026 FIFA World Cup?') === null && sqTheme('Will China approve a Bitcoin ETF?') === null, 'sports / crypto classes win first')
+ok(sqDecide(0.85, 60, 200, 1e6) === null, 'NO at 85c, 60 days left -> enter')
+ok(sqDecide(0.95, 60, 200, 1e6) === 'out_of_band' && sqDecide(0.78, 60, 200, 1e6) === 'out_of_band', 'outside 81-91c -> skip')
+ok(sqDecide(0.85, 10, 200, 1e6) === 'too_close' && sqDecide(0.85, 60, 20, 1e6) === 'short_life' && sqDecide(0.85, 60, 200, 1e4) === 'low_volume', 'days / life / volume floors')
+ok(src.includes("t.rule === 'SQ'") && /rule: 'SQ'[^\n]*outcome: 'No'/.test(src), 'SQ trades buy NO and are held to the result (no pmnExit)')
+ok(src.includes('PMN.sq.perTheme') && src.includes('PMN.sq.maxOpen'), 'theme and open caps enforced')
 console.log(`poly news desk: ${n - bad}/${n} passed`)
 if (bad) process.exit(1)
