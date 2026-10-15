@@ -551,6 +551,14 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   Weak spot: first-look z 1.5-2.0 n330 94.2% +0.44%/$ (t0.3) vs z>=2.5 +3.67%/$ — same shape as live (lower z = weaker).
   Live sizing on the sampled third: $1,000 -> $3,795, max DD 11.1%. CAVEATS: 1-minute history prices, median volume $2.8k
   (thin books; live fills are the check). No bot change.
+- 2026-10-15 06:20 UTC pmc STATUS + first-look zMin variants (owner: "check Poly Coins, what can be done"). Live v2 era: 121 closed,
+  114 W / 7 L, -$18.25 (-0.04%/$), equity $982, floor $936; the z<1.5 period alone n47 -$39.16, the rest n74 3 losses +$20.9
+  (~+1.1%/$). Since the 23:11 revert to 1.5: n28, 26 W, -$21.27 (two losses -$28.55 / -$19.36 vs wins ~+$1 each; breakeven WR ~96%).
+  Fills fine (-0.18c vs last trade). Late-exit shadow n115: only "bid<0.70 at 30 s" helps (+$7, 7 losers sold) — keep measuring.
+  180-day variants (status/pmc-long-zmin.txt): live 1.5/2.5 +$1,370 IS +1.74 OOS +1.79 DD 11.1% | first look 2.0: +$1,326,
+  57->42 losses, IS +1.72 OOS +2.13, DD 9.0% | first look 2.5: +$1,260, 37 losses, IS +1.56 OOS +2.43, DD 7.1% | all looks 2.0:
+  +$847, IS +0.28 (rejected). Raising the first look trades a little money for fewer losses; IS does not favour it. Live by
+  z bucket points the other way (n tiny). Nothing changed; offered to the owner.
 - 2026-10-15 HOUR OF DAY (Grok; pmc_volgate.py GATE=hours -> status/pmc-hours.txt): IS losses (8) fell in 7 hours -> labelled
   WEAK; OOS those hours earned +4.4%/$ with 0 losses like the rest. STRONG-only: OOS n137 +$183 vs base n188 +$249; sizing
   x1.5/x0.5: +$307 but per $ deployed +4.43% vs +4.41% (just more capital). Live: the one z>=1.5 loser was in a STRONG hour. NOT DEPLOYED.

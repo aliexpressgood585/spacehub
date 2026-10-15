@@ -55,7 +55,7 @@ wins = {}
 for r in rows: wins.setdefault(r['end'], {})[r['coin']] = r
 ends = sorted(wins)
 ORDER = ('btc', 'eth', 'sol', 'xrp')
-LOOKS = ((180, 1.5), (120, 2.5), (60, 2.5))
+LOOKS = tuple(tuple(float(x) for x in l.split(':')) for l in os.environ.get('LOOKS', '180:1.5,120:2.5,60:2.5').split(','))   # env LOOKS='L:zmin,...' for variants
 
 def run(feeFloor):
     out = []
