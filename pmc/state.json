@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 962.8052399570392,
+ "cash": 953.8903414082438,
  "peak": 1072.1210886213057,
  "floor": 936.0605443106529,
  "strategy": {
@@ -44,12 +44,12 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-15T21:02:10.858Z",
+ "last_scan": "2026-10-15T21:02:21.199Z",
  "last_note": {
-  "at": "2026-10-15T21:02:08.536Z",
+  "at": "2026-10-15T21:02:19.035Z",
   "windows": 4,
   "settled": 0,
-  "entered": 0
+  "entered": 1
  },
  "trades": [
   {
@@ -11887,6 +11887,54 @@
    "pnl": 0.7959464348270604,
    "reason": "RESOLVED_WIN",
    "closed_at": "2026-10-15T20:15:06.424Z"
+  },
+  {
+   "id": 171,
+   "market_id": "5708176",
+   "slug": "xrp-updown-5m-1792098000",
+   "event_slug": "xrp-updown-5m-1792098000",
+   "question": "XRP Up or Down - October 15, 5:00PM-5:05PM ET",
+   "question_he": "XRP · עולה או יורד · 5 דקות · 21:00–21:05 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "token_id": "28668183063683206959497648390838324257148397990107786296315206508672942061543",
+   "end_time": "2026-10-15T21:05:00Z",
+   "qty": 9.444268697847194,
+   "entry_px": 0.94,
+   "entry_fee": 0.03728597281910076,
+   "cost": 8.914898548795463,
+   "best_ask": 0.94,
+   "opened_at": "2026-10-15T21:02:21.198Z",
+   "status": "OPEN",
+   "mark_px": 0.91,
+   "mark_at": "2026-10-15T21:02:21.198Z",
+   "meta": {
+    "fee_schedule": {
+     "rate": 0.07,
+     "exponent": 1
+    },
+    "coin": "xrp",
+    "tf": "5m",
+    "window_s": 300,
+    "left_s": 161,
+    "band": [
+     0.9,
+     0.98
+    ],
+    "z_min": 2,
+    "look": 1,
+    "outcomes": [
+     "Up",
+     "Down"
+    ],
+    "wanted": 8.914898548795463,
+    "ref_px": 0.94,
+    "bid_px": 0.91,
+    "z": 2.263609001893474,
+    "spot_open": 1.3395,
+    "spot": 1.3371,
+    "sigma1s": 0.000062437215943256
+   }
   }
  ],
  "equity": [
@@ -27863,9 +27911,27 @@
    "cash": 962.8052399570392,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-10-15T21:02:21.199Z",
+   "equity": 962.4846259232847,
+   "cash": 953.8903414082438,
+   "open_value": 8.594284515040947,
+   "open_count": 1
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-15T21:02:21.198Z",
+   "market_id": "5708176",
+   "question": "XRP Up or Down - October 15, 5:00PM-5:05PM ET",
+   "question_he": "XRP · עולה או יורד · 5 דקות · 21:00–21:05 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.94,
+   "decision": "BUY",
+   "reason": "161 שנ׳ לסיום, מחיר 0.94 בטווח 90-98¢, 9.4 מניות ($9), עמלה $0.04"
+  },
   {
    "ts": "2026-10-15T21:02:10.858Z",
    "market_id": "5708176",
@@ -30054,20 +30120,9 @@
    "price": 0.9,
    "decision": "skip",
    "reason": "מסנן מרחק: 0.62 < 2 (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-15T19:32:28.146Z",
-   "market_id": "5699977",
-   "question": "XRP Up or Down - October 15, 3:30PM-3:35PM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 19:30–19:35 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.97,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.87 < 2 (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
- "next_id": 171,
+ "next_id": 172,
  "shadow": [
   {
    "slug": "btc-updown-5m-1791969600",
@@ -51190,17 +51245,30 @@
    "taker_ask": 0.97,
    "status": "WORKING",
    "filled": false
+  },
+  {
+   "slug": "xrp-updown-5m-1792098000",
+   "market_id": "5708176",
+   "token_id": "28668183063683206959497648390838324257148397990107786296315206508672942061543",
+   "coin": "xrp",
+   "outcome": "Down",
+   "end_time": "2026-10-15T21:05:00Z",
+   "placed_at": "2026-10-15T21:02:20.249Z",
+   "limit": 0.91,
+   "taker_ask": 0.94,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
   "fills": {
-   "n": 170,
-   "avg_vs_ref_c": -0.13518491627826498,
-   "avg_vs_research_c": -1.135184916278266,
-   "avg_fee_c": 0.3720523895334694
+   "n": 171,
+   "avg_vs_ref_c": -0.13439436121231021,
+   "avg_vs_research_c": -1.134394361212311,
+   "avg_fee_c": 0.372185416495262
   },
   "maker": {
-   "placed": 1326,
+   "placed": 1327,
    "resolved": 1324,
    "filled": 618,
    "fill_rate": 0.46676737160120846,
