@@ -12,10 +12,13 @@ export interface PmnPost { src: string; id: string; ts: number; text: string; ur
 
 export const PMN = {
   // Telegram public channels (read via the open web preview t.me/s/<name>, no account, no key). Checked live 2026-10-15:
-  // all post in English within the last hours. Macro / markets, world news & conflicts, crypto, football transfers, Polymarket.
+  // all post in English within the last hours. Macro / markets, world news & conflicts, crypto, Polymarket.
+  // status/pmn-study.txt (45 days of history): FabrizioRomano matched 126 posts to live markets and moved none of them
+  // (transfer news vs Ballon d'Or markets = word noise) -> dropped; Polymarket_Whales (large trades on a named market) moved
+  // 21 of its 53 -> added. Channels that matched nothing yet stay: they are cheap and the study is only 45 days.
   channels: ['WalterBloomberg', 'financialjuice', 'insiderpaper', 'disclosetv', 'worldnews', 'clashreport', 'geopolitics_prime',
     'warmonitors', 'OSINTdefender', 'nexta_live', 'IntelSlava', 'WatcherGuru', 'cointelegraph', 'WuBlockchainEnglish',
-    'FabrizioRomano', 'PolymarketIntel'],
+    'PolymarketIntel', 'Polymarket_Whales'],
   feeds: ['https://feeds.bbci.co.uk/news/world/rss.xml', 'https://feeds.bbci.co.uk/news/rss.xml', 'https://feeds.bbci.co.uk/sport/rss.xml',
     'https://www.espn.com/espn/rss/news', 'https://cointelegraph.com/rss', 'https://www.coindesk.com/arc/outboundfeeds/rss/',
     'https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml', 'https://www.theguardian.com/world/rss', 'https://rss.politico.com/politics-news.xml',

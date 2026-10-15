@@ -633,6 +633,21 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   category picked from 5 x 5 rows (multiple looks). NOT PROVEN, nothing built; geopolitics status-quo offered to the owner as a
   possible small paper desk.
 
+- 2026-10-15 "פולי חדשות" (Poly News) — owner: "separate dashboard + $1,000 account, Telegram + general channels, highest level".
+  BUILT + LIVE (paper): shared/pmn.ts (rules, Telegram/RSS parsers, matching), scripts/pmn-desk.ts (cycle ~15 s), .github/workflows/
+  pmn-desk.yml (cron :52, own concurrency group, state pmn/state.json on pm-desk-data; first run 11:37 UTC, all sources answer from
+  the runner), page trading-app/polynews.html (news room: live wire, markets under watch with sparkline since the post, per-source
+  stats; then the classic PolyDesk tables), tests/pmn.test.ts 24/24. Sources: 16 public Telegram channels via the open web preview
+  t.me/s/<name> (no account, no key) + 20 RSS feeds. Rule: a post <= 10 min old that names a live market (>= 2 rare shared words
+  incl. a Capitalised name) starts a 15-min watch; buy the side the market moved to once |move since the post| is 3-20c, side 5-92c,
+  spread <= 3c; exit +10c / -7c / 60 min / resolution; 3% stake, <= 10 open, 1 per event.
+  STUDY BEFORE IT (backtest/research/pmn_tg_fetch.py / pmn_markets.py / pmn_study.py -> status/pmn-study.txt): 31,718 posts from 18
+  channels over 45 days vs 18,370 markets. 747 posts matched a live market (2.4%), 512 with 1-min prices; only 12.3% of those moved
+  >= 2c within 30 min. When a market moved, the move was NOT instant: done at post +30 s 2%, +60 s 17%, +120 s 32%, +300 s 40%
+  (median) — Telegram is early enough. But the FOLLOW trade on that tiny sample (n ~25) is whipsaw: IS mixed, OOS (n 7) negative
+  in every row. Existing RSS news lab, 2 days: 15 matches, median lag 10 min, none moved >= 2c. FabrizioRomano dropped (126 matches,
+  0 moved), Polymarket_Whales added (21 of 53 moved). NOT PROVEN; the desk is the live measurement.
+
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the
