@@ -44,12 +44,12 @@
   "zMin": 1.5,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-15T09:17:29.446Z",
+ "last_scan": "2026-10-15T09:17:38.272Z",
  "last_note": {
-  "at": "2026-10-15T09:17:27.444Z",
+  "at": "2026-10-15T09:17:37.192Z",
   "windows": 4,
   "settled": 0,
-  "entered": 1
+  "entered": 0
  },
  "trades": [
   {
@@ -9020,7 +9020,7 @@
    "opened_at": "2026-10-15T09:17:29.445Z",
    "status": "OPEN",
    "mark_px": 0.94,
-   "mark_at": "2026-10-15T09:17:29.445Z",
+   "mark_at": "2026-10-15T09:17:37.684Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -19884,6 +19884,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-15T09:17:38.272Z",
+   "market_id": "5682108",
+   "question": "Solana Up or Down - October 15, 5:15AM-5:20AM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 09:15–09:20 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.97,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
    "ts": "2026-10-15T09:17:29.445Z",
    "market_id": "5682101",
    "question": "Bitcoin Up or Down - October 15, 5:15AM-5:20AM ET",
@@ -22071,17 +22082,6 @@
    "price": 0.97,
    "decision": "BUY",
    "reason": "145 שנ׳ לסיום, מחיר 0.97 בטווח 90-98¢, 16.3 מניות ($16), עמלה $0.03"
-  },
-  {
-   "ts": "2026-10-15T07:42:36.948Z",
-   "market_id": "5680983",
-   "question": "Solana Up or Down - October 15, 3:40AM-3:45AM ET",
-   "question_he": "סולנה · עולה או יורד · 5 דקות · 07:40–07:45 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.97,
-   "decision": "skip",
-   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
   }
  ],
  "next_id": 131,
@@ -36271,8 +36271,10 @@
    "placed_at": "2026-10-15T09:13:27.818Z",
    "limit": 0.94,
    "taker_ask": 0.95,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "eth-updown-5m-1792055400",
@@ -36284,8 +36286,10 @@
    "placed_at": "2026-10-15T09:13:58.437Z",
    "limit": 0.93,
    "taker_ask": 0.94,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "btc-updown-5m-1792055700",
@@ -36323,12 +36327,12 @@
   },
   "maker": {
    "placed": 895,
-   "resolved": 891,
+   "resolved": 893,
    "filled": 405,
-   "fill_rate": 0.45454545454545453,
+   "fill_rate": 0.45352743561030234,
    "wr": 0.8790123456790123,
    "ret": -0.04826345173417762,
-   "missed_wins": 486,
+   "missed_wins": 488,
    "missed_losses": 0
   },
   "late_exit": {
