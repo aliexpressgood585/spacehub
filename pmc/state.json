@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 951.7734210858572,
+ "cash": 943.7936791072069,
  "peak": 1072.1210886213057,
  "floor": 936.0605443106529,
  "strategy": {
@@ -44,12 +44,12 @@
   "zMin": 1.5,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-15T10:21:51.133Z",
+ "last_scan": "2026-10-15T10:22:02.357Z",
  "last_note": {
-  "at": "2026-10-15T10:21:50.943Z",
-  "windows": 0,
+  "at": "2026-10-15T10:22:00.127Z",
+  "windows": 4,
   "settled": 0,
-  "entered": 0
+  "entered": 1
  },
  "trades": [
   {
@@ -9443,7 +9443,7 @@
    "opened_at": "2026-10-15T10:17:32.486Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-15T10:21:51.133Z",
+   "mark_at": "2026-10-15T10:22:00.320Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -9486,6 +9486,54 @@
      "unfilled": 0,
      "z": 8.628134750471295
     }
+   }
+  },
+  {
+   "id": 137,
+   "market_id": "5682505",
+   "slug": "xrp-updown-5m-1792059600",
+   "event_slug": "xrp-updown-5m-1792059600",
+   "question": "XRP Up or Down - October 15, 6:20AM-6:25AM ET",
+   "question_he": "XRP · עולה או יורד · 5 דקות · 10:20–10:25 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "token_id": "112536746473396466923894328304078259404683894239185107867930124415053620225655",
+   "end_time": "2026-10-15T10:25:00Z",
+   "qty": 8.178757265893093,
+   "entry_px": 0.9738866017935868,
+   "entry_fee": 0.014559858075082881,
+   "cost": 7.979741978650314,
+   "best_ask": 0.97,
+   "opened_at": "2026-10-15T10:22:02.357Z",
+   "status": "OPEN",
+   "mark_px": 0.96,
+   "mark_at": "2026-10-15T10:22:02.357Z",
+   "meta": {
+    "fee_schedule": {
+     "rate": 0.07,
+     "exponent": 1
+    },
+    "coin": "xrp",
+    "tf": "5m",
+    "window_s": 300,
+    "left_s": 180,
+    "band": [
+     0.9,
+     0.98
+    ],
+    "z_min": 1.5,
+    "look": 1,
+    "outcomes": [
+     "Up",
+     "Down"
+    ],
+    "wanted": 7.981909003028439,
+    "ref_px": 0.97,
+    "bid_px": 0.96,
+    "z": 1.650202108534866,
+    "spot_open": 1.3129,
+    "spot": 1.3105,
+    "sigma1s": 0.00008264250145047943
    }
   }
  ],
@@ -20808,9 +20856,27 @@
    "cash": 951.7734210858572,
    "open_value": 8.232850233880939,
    "open_count": 1
+  },
+  {
+   "ts": "2026-10-15T10:22:02.357Z",
+   "equity": 959.8781363163453,
+   "cash": 943.7936791072069,
+   "open_value": 16.084457209138307,
+   "open_count": 2
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-15T10:22:02.357Z",
+   "market_id": "5682505",
+   "question": "XRP Up or Down - October 15, 6:20AM-6:25AM ET",
+   "question_he": "XRP · עולה או יורד · 5 דקות · 10:20–10:25 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.9738866017935868,
+   "decision": "BUY",
+   "reason": "180 שנ׳ לסיום, מחיר 0.97 בטווח 90-98¢, 8.2 מניות ($8), עמלה $0.01"
+  },
   {
    "ts": "2026-10-15T10:17:41.504Z",
    "market_id": "5682483",
@@ -22999,20 +23065,9 @@
    "price": 0.97,
    "decision": "skip",
    "reason": "מסנן מרחק: 0.74 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-15T08:27:58.176Z",
-   "market_id": "5681810",
-   "question": "Ethereum Up or Down - October 15, 4:25AM-4:30AM ET",
-   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 08:25–08:30 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.94,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.62 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
- "next_id": 137,
+ "next_id": 138,
  "shadow": [
   {
    "slug": "btc-updown-5m-1791969600",
@@ -37809,17 +37864,30 @@
    "taker_ask": 0.91,
    "status": "WORKING",
    "filled": false
+  },
+  {
+   "slug": "xrp-updown-5m-1792059600",
+   "market_id": "5682505",
+   "token_id": "112536746473396466923894328304078259404683894239185107867930124415053620225655",
+   "coin": "xrp",
+   "outcome": "Down",
+   "end_time": "2026-10-15T10:25:00Z",
+   "placed_at": "2026-10-15T10:22:01.258Z",
+   "limit": 0.96,
+   "taker_ask": 0.97,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
   "fills": {
-   "n": 136,
-   "avg_vs_ref_c": -0.1502459183198195,
-   "avg_vs_research_c": -1.1502459183198201,
-   "avg_fee_c": 0.385324605261645
+   "n": 137,
+   "avg_vs_ref_c": -0.14631229716888156,
+   "avg_vs_research_c": -1.1463122971688824,
+   "avg_fee_c": 0.3838114360296891
   },
   "maker": {
-   "placed": 930,
+   "placed": 931,
    "resolved": 927,
    "filled": 426,
    "fill_rate": 0.459546925566343,
