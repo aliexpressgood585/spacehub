@@ -541,6 +541,9 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   'ucl-mnc-psg-2026-10-14'); maxPerEvent 2 now counts per match; entry stake and top-ups bounded by the match room (skip
   'הגנה: כבר 10% מההון על המשחק הזה'). Open positions above 5% are left as they are (no forced sale). tests/pm.test.ts 25/25.
 
+- 2026-10-15 HOURLY markets over a longer span (pmc_hourly.py, 2025 slugs, FEE_FLOOR 0.07 -> status/pmc-hourly-1y.txt; 11,225
+  markets 2025-10-01..2026-04-11, Jan-Feb missing): L15 90-98c z>=2.5 IS -0.08%/$ (n341) | OOS +2.37%/$ (n95); by month +1.06,
+  +1.01, -1.58 (Dec, 5 losses), +1.47, +2.46. Weaker than the 60-day study (+1.8/+2.2) — positive in most months, not all. Not built.
 - 2026-10-15 HOUR OF DAY (Grok; pmc_volgate.py GATE=hours -> status/pmc-hours.txt): IS losses (8) fell in 7 hours -> labelled
   WEAK; OOS those hours earned +4.4%/$ with 0 losses like the rest. STRONG-only: OOS n137 +$183 vs base n188 +$249; sizing
   x1.5/x0.5: +$307 but per $ deployed +4.43% vs +4.41% (just more capital). Live: the one z>=1.5 loser was in a STRONG hour. NOT DEPLOYED.
