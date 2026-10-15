@@ -38,6 +38,6 @@ def chan(ch):
     print(ch, len(rows), file=sys.stderr, flush=True)
     return rows
 
-with open(OUT, 'w') as f, cf.ThreadPoolExecutor(4) as ex:
+with open(OUT, 'w') as f, cf.ThreadPoolExecutor(int(__import__("os").environ.get("TG_THREADS", "4"))) as ex:
     for rows in ex.map(chan, CHS):
         for r in sorted(rows, key=lambda r: r['ts']): f.write(json.dumps(r, ensure_ascii=False) + '\n')
