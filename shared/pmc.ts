@@ -50,7 +50,11 @@ export const PMC = {
   // meta.z; after ~100 closes compare the 1.0-1.5 bucket with >= 1.5 and go back to 1.5 if the lower bucket loses live.
   // 2026-10-14 ~23:30 UTC BACK TO 1.5 (owner approved). Live, 92 closes: z 1.0-1.5 n47, 4 losses, -$39.16;
   // z >= 1.5 n45, 1 loss, +$40.19 (1.5-2.5 n37 +$28.39, 2.5+ n8 +$11.80). The lower bucket took the account back to $1,001.
-  zMin: 1.5,
+  // 2026-10-15 ~19:00 UTC 1.5 -> 2.0 (owner: "do what you think, bring profitability"). The 1.5-2.0 bucket is the weak one in
+  // BOTH data sets: 180-day sample (status/pmc-long.txt) z 1.5-2.0 n330 WR 94.2% +0.44%/$ t0.3; first look 2.0 instead of 1.5
+  // (status/pmc-long-zmin.txt): IS +1.72 vs +1.74%/$, OOS +2.13 vs +1.79%/$, losses 57 -> 42, maxDD 11.1% -> 9.0%. Live since
+  // the 1.5 revert: z 1.5-2.0 n50, 4 losses, -$27.44 (-3.3%/$) = 50 of the 69 live trades. Fewer trades, the weakest cut.
+  zMin: 2.0,
   maxOverRef: 0.01,           // never pay more than the LAST TRADED price + 1c (the research's cost assumption). v1 live
                               // (158 fills): BTC paid +0.29c over the last trade -> +1.13%/$; ETH +1.63c -> +0.51%; SOL +2.75c ->
                               // -3.40%; XRP +6.92c -> -4.66%. Thin books, not the rule, were the loss.

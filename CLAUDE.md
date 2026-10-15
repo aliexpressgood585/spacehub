@@ -695,6 +695,12 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   at n>=200 & t<=-2.5; restore only after 150 positive closes t>=1; never loosen rules or raise risk; report only on events +
   daily status). Runs every 6 h: persistent session session_01RB8S1FMAV18GwKqJC3BGgJ ("Poly supervisor", repo attached)
   woken by scheduled task trig_01Vjp6cAr2SiufLUJeD21tgz (cron 3 */6 * * * UTC); first run at creation 18:04 UTC.
+- 2026-10-15 ~19:00 UTC Poly Coins first-look PMC.zMin 1.5 -> 2.0 (owner: "do what you think, bring profitability"). Live since
+  the 1.5 revert: 69 closed, 64 W, -$43.17 (-2.8%/$), 5 losses vs ~1.5 expected by the 180-day backtest (P ~2%: live runs
+  below the backtest). 50 of the 69 were z 1.5-2.0: 4 losses, -$27.44 (-3.3%/$); the backtest's same bucket was the weakest
+  (n330 +0.44%/$ t0.3), and first look 2.0 tested IS +1.72 / OOS +2.13%/$ vs 1.5's +1.74 / +1.79 with fewer losses and DD.
+  Late-exit shadow n156: best rule (bid<0.70 at 30 s) +$13 total -> not worth a rule. Expect ~1/3 of the trades. The
+  supervisor's gates still apply. tests/pmc.test.ts 32/32.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the
