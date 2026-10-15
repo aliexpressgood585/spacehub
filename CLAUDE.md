@@ -693,7 +693,8 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   evidence: pmc-research, favourites ~0/negative without the z filter). tests/pm.test.ts 28/28.
   POLY SUPERVISOR: fixed rules in docs/POLY_SUPERVISOR.md (health re-dispatch; halve stake at n>=100 & t<=-1.5; stop entries
   at n>=200 & t<=-2.5; restore only after 150 positive closes t>=1; never loosen rules or raise risk; report only on events +
-  daily status). Runs every 6 h in a persistent session (see below for ids).
+  daily status). Runs every 6 h: persistent session session_01RB8S1FMAV18GwKqJC3BGgJ ("Poly supervisor", repo attached)
+  woken by scheduled task trig_01Vjp6cAr2SiufLUJeD21tgz (cron 3 */6 * * * UTC); first run at creation 18:04 UTC.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the
