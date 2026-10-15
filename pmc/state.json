@@ -44,12 +44,12 @@
   "zMin": 1.5,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-15T17:17:27.026Z",
+ "last_scan": "2026-10-15T17:17:35.268Z",
  "last_note": {
-  "at": "2026-10-15T17:17:24.950Z",
+  "at": "2026-10-15T17:17:34.252Z",
   "windows": 4,
   "settled": 0,
-  "entered": 1
+  "entered": 0
  },
  "trades": [
   {
@@ -11131,8 +11131,8 @@
    "best_ask": 0.97,
    "opened_at": "2026-10-15T17:17:27.025Z",
    "status": "OPEN",
-   "mark_px": 0.96,
-   "mark_at": "2026-10-15T17:17:27.025Z",
+   "mark_px": 0.9,
+   "mark_at": "2026-10-15T17:17:34.718Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -25516,6 +25516,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-15T17:17:35.268Z",
+   "market_id": "5693652",
+   "question": "XRP Up or Down - October 15, 1:15PM-1:20PM ET",
+   "question_he": "XRP · עולה או יורד · 5 דקות · 17:15–17:20 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.97,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
    "ts": "2026-10-15T17:17:27.026Z",
    "market_id": "5693658",
    "question": "Solana Up or Down - October 15, 1:15PM-1:20PM ET",
@@ -27703,17 +27714,6 @@
    "price": 0.95,
    "decision": "skip",
    "reason": "מסנן מרחק: 0.71 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-15T16:03:33.343Z",
-   "market_id": "5690238",
-   "question": "Bitcoin Up or Down - October 15, 12:00PM-12:05PM ET",
-   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 16:00–16:05 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.96,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.59 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 161,
@@ -46519,10 +46519,12 @@
    "placed_at": "2026-10-15T17:12:24.809Z",
    "limit": 0.92,
    "taker_ask": 0.93,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-15T17:12:34.424Z",
-   "left_at_fill": 146
+   "left_at_fill": 146,
+   "won": true,
+   "ret": 0.08695652173913039
   },
   {
    "slug": "eth-updown-5m-1792084200",
@@ -46534,8 +46536,10 @@
    "placed_at": "2026-10-15T17:13:25.422Z",
    "limit": 0.91,
    "taker_ask": 0.92,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "btc-updown-5m-1792084200",
@@ -46547,8 +46551,10 @@
    "placed_at": "2026-10-15T17:13:35.224Z",
    "limit": 0.94,
    "taker_ask": 0.95,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "xrp-updown-5m-1792084200",
@@ -46560,8 +46566,10 @@
    "placed_at": "2026-10-15T17:13:45.472Z",
    "limit": 0.96,
    "taker_ask": 0.97,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "sol-updown-5m-1792084500",
@@ -46572,6 +46580,21 @@
    "end_time": "2026-10-15T17:20:00Z",
    "placed_at": "2026-10-15T17:17:25.666Z",
    "limit": 0.96,
+   "taker_ask": 0.97,
+   "status": "WORKING",
+   "filled": true,
+   "filled_at": "2026-10-15T17:17:34.617Z",
+   "left_at_fill": 145
+  },
+  {
+   "slug": "xrp-updown-5m-1792084500",
+   "market_id": "5693652",
+   "token_id": "100113884314313190522976612668068551985761225594950602941414237390628783322363",
+   "coin": "xrp",
+   "outcome": "Up",
+   "end_time": "2026-10-15T17:20:00Z",
+   "placed_at": "2026-10-15T17:17:35.268Z",
+   "limit": 0.95,
    "taker_ask": 0.97,
    "status": "WORKING",
    "filled": false
@@ -46585,13 +46608,13 @@
    "avg_fee_c": 0.37703355348938145
   },
   "maker": {
-   "placed": 1184,
-   "resolved": 1179,
-   "filled": 553,
-   "fill_rate": 0.46904156064461405,
-   "wr": 0.864376130198915,
-   "ret": -0.0642987627701363,
-   "missed_wins": 626,
+   "placed": 1185,
+   "resolved": 1183,
+   "filled": 554,
+   "fill_rate": 0.46830092983939137,
+   "wr": 0.8646209386281588,
+   "ret": -0.06402573879087768,
+   "missed_wins": 629,
    "missed_losses": 0
   },
   "late_exit": {
