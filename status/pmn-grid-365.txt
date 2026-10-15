@@ -1,0 +1,29 @@
+Poly News rule search: 222,294 Telegram posts from 18 channels over 365 days, 109,287 markets (>= $50k).
+Matched (one per market per hour, usable 1-minute path): M2 3,695 events (10.1/day), M1 28,803 (78.9/day). Slip 1c each side + market fee.
+  M2: moved >= 2c within 30 min 16.1%, >= 5c 8.5%
+  M1: moved >= 2c within 30 min 9.0%, >= 5c 3.9%
+
+Rules evaluated: 6,300; with n >= 40 in SELECT: 3,540; SELECT pass (mean > 0, t >= 2): 0 (luck alone ~81).
+VALIDATE pass (of SELECT passers): 0
+
+Top 25 by SELECT t, with VALIDATE (HOLDOUT shown only for VALIDATE passers):
+
+HOLDOUT pass (SELECT -> VALIDATE -> HOLDOUT): 0
+
+The live desk rule (M2, +60..900 s, move >= 3c, follow, exit 60 m, tp/sl 10/7, vol >= $50k) — nearest grid rows:
+  M2 + 60s move>=3c follow exit  60m   tp/sl 10/7 vol>=$50k  SEL n   48   -5.86%/$ t-1.66 | VAL n   27  -12.61%/$ t-2.72 | HOLD n   12   -5.21%/$ t-0.72 | 0.2/day
+  M2 +300s move>=3c follow exit  60m   tp/sl 10/7 vol>=$50k  SEL n   98   -4.07%/$ t-1.81 | VAL n   39  -10.47%/$ t-3.10 | HOLD n   19  -13.27%/$ t-3.13 | 0.4/day
+
+By channel (M2, follow, +120 s, move >= 2c, exit 60 m, no tp/sl), all periods:
+  financialjuice       n   11  -10.91%/$ t-1.93
+  clashreport          n   27   -5.39%/$ t-0.95
+  WalterBloomberg      n   12   +7.15%/$ t+0.63
+  Polymarket_Whales    n   94   -7.70%/$ t-1.93
+  IntelSlava           n    4   -9.87%/$ t-1.22
+  geopolitics_prime    n    3  -15.64%/$ t-5.62
+  whale_alert_io       n    1   +0.00%/$ t+0.00
+  worldnews            n    2   +3.48%/$ t+0.14
+  insiderpaper         n    6  -27.47%/$ t-1.96
+  WuBlockchainEnglish  n    3  -26.24%/$ t-2.62
+  OSINTdefender        n    2  -10.04%/$ t-2.20
+  WatcherGuru          n    5   -2.61%/$ t-0.27

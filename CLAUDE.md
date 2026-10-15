@@ -660,6 +660,16 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   $25-100k OOS -1.4..+1.6 (n 25); top-500 PnL wallets (LOOK-AHEAD) OOS -2.2..+0.8 (n 33); FADE -14..-16%/$. Whale prints carry
   no edge after the ~2c round trip. tests/pmn.test.ts 29/29.
 
+- 2026-10-15 Poly News FULL-YEAR RULE SEARCH (owner: "reach the best, most profitable formula with many trades a day").
+  backtest/research/pmn_grid.py -> status/pmn-grid-365.txt: 222,294 Telegram posts (18 channels, 365 days) x 109,287 markets
+  (>= $50k), 59,094 one-minute price paths. Matched events: M2 (live matching) 3,695 = 10.1/day, M1 (looser) 28,803 = 78.9/day;
+  only 16% / 9% of them moved >= 2c within 30 min. Grid of 6,300 rules (D 30-600 s x move 1-8c x follow/fade x exit 5 m..4 h /
+  resolution x TP/SL x volume floor), split SELECT 60% / VALIDATE 20% / HOLDOUT 20%: 3,540 rules with n >= 40, SELECT pass
+  (t >= 2) 0 where luck alone gives ~81; positive in all three periods 26 of 3,540 (0.7%, far below chance). The live desk rule:
+  SELECT -4..-6%/$, VALIDATE -10..-13%, HOLDOUT -5..-13% (0.2-0.4 trades/day). By channel only WalterBloomberg is positive (n 12,
+  t 0.6). VERDICT: no news-reaction rule on these public channels makes money, at any trade frequency. Desk left running as a
+  paper measurement; recommended to the owner: switch it to observe-only.
+
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the
