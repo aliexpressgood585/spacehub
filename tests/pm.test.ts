@@ -1,6 +1,6 @@
 // Polymarket paper desk rules (shared/pm.ts): fills, fees and the on-demand early exit.
 import fs from 'node:fs'
-import { PM, takerFee, walkAsks, walkBids, inBand, heOutcome, namesKept, pmMatch } from '../shared/pm.ts'
+import { PM, takerFee, walkAsks, walkBids, inBand, heOutcome, namesKept, pmMatch, isCryptoPrice } from '../shared/pm.ts'
 let n = 0, bad = 0
 const ok = (c: boolean, m: string) => { n++; if (!c) { bad++; console.log('FAIL', m) } }
 const near = (a: number, b: number, e = 1e-9) => Math.abs(a - b) < e
@@ -59,5 +59,9 @@ ok(PM.maxPosFrac === 0.05 && PM.maxMatchFrac === 0.10 && PM.maxMatchFrac >= PM.m
 { const src = fs.readFileSync(new URL('../scripts/pm-desk.ts', import.meta.url), 'utf8')
   ok(/events\.get\(mkey\)/.test(src) && /Math\.min\(want, st\.cash - 1, matchRoom\)/.test(src), 'entries count positions and cost per match, stake bounded by the match room')
   ok(/eq \* PM\.maxMatchFrac/.test(src), 'top-ups also respect the match cap') }
+// crypto price markets are Poly Coins' domain, never traded by the main desk (2026-10-15)
+ok(['bitcoin-above-on-october-15-2026', 'ethereum-up-or-down-on-october-15-2026', 'btc-updown-15m-1792067400', 'what-price-will-bitcoin-hit-on-october-14-2026'].every((x) => isCryptoPrice(x)), 'crypto price markets detected')
+ok(!isCryptoPrice('ucl-mnc-psg-2026-10-14') && !isCryptoPrice('x', 'Will Solana Esports win?') && !isCryptoPrice('dota2-sol-vs-xyz'), 'sports / esports not caught')
+ok(fs.readFileSync('scripts/pm-desk.ts', 'utf8').includes('if (isCryptoPrice(ev, m.question)) continue'), 'desk skips crypto price markets')
 console.log(`pm desk: ${n - bad}/${n} passed`)
 if (bad) process.exit(1)

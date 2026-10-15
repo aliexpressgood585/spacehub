@@ -685,6 +685,15 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   real books + fees: 22 pairs positive after fees, TOTAL $7.75 locked at the best size (best: unemployment >=7% vs >=6% 2026,
   $3.39 locked to Jan 2027). Two earlier runs showed $1,143 of fake profit from parser bugs (paging; year-less dates; "or lower").
   No edge, nothing built — same as the neg-risk baskets.
+- 2026-10-15 ~18:30 UTC owner: "all three bots show bad results — take the reins, an agent per desk, results without me".
+  Live state: main Poly 149 closed, 133 W / 16 L (89.3%; breakeven 89.2% at avg win $11.2 vs avg loss $92.2), realised
+  +$13.83, equity $985 (peak $1,398), last 24h -$474; Poly Coins 162 closed, 152 W, -$40.15 (24h -$97); Poly News status quo
+  21 open, 0 resolved. Main desk split: CRYPTO price markets 37 closes 84% -4.4%/$ (4 lost together 10-15 16:14-16:18) vs the
+  rest 112 closes +1.4%/$ -> crypto price markets EXCLUDED from the main desk (shared/pm.ts isCryptoPrice; independent
+  evidence: pmc-research, favourites ~0/negative without the z filter). tests/pm.test.ts 28/28.
+  POLY SUPERVISOR: fixed rules in docs/POLY_SUPERVISOR.md (health re-dispatch; halve stake at n>=100 & t<=-1.5; stop entries
+  at n>=200 & t<=-2.5; restore only after 150 positive closes t>=1; never loosen rules or raise risk; report only on events +
+  daily status). Runs every 6 h in a persistent session (see below for ids).
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the

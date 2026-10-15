@@ -46,6 +46,14 @@ export const PM = {
 
 // One key per real-world match: Polymarket splits a game into several events (e.g. 'ucl-mnc-psg-2026-10-14',
 // '...-more-markets', '...-exact-score'); everything up to the date is the match.
+// Crypto price markets (Bitcoin/Ethereum/Solana/XRP above / between / up-or-down / hit ...) are NOT traded by this desk
+// since 2026-10-15: live 37 closes WR 84% -4.4%/$ (4 of them lost together within 4 minutes on 10-15) while the rest of the
+// book earned +1.4%/$ on 112; and the 21,739-market crypto study (status/pmc-research.txt) found favourites there ~0 or
+// negative without a distance filter. Those markets belong to Poly Coins, which has the filter.
+export const isCryptoPrice = (slug: string, question = '') =>
+  /\b(bitcoin|ethereum|solana|xrp|dogecoin|btc|eth|sol|bnb|hype)\b|(^|-)(btc|eth|sol|xrp)-updown/i.test(`${slug.replace(/-/g, ' ')} ${question}`) &&
+  /price|above|below|between|up or down|updown|hit|dip|reach/i.test(`${slug.replace(/-/g, ' ')} ${question}`)
+
 export const pmMatch = (eventSlug: string) => eventSlug.match(/^(.*?\d{4}-\d{2}-\d{2})/)?.[1] ?? eventSlug
 
 export function inBand(p: number, lo: number = PM.lo, hi: number = PM.hi): boolean {

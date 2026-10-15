@@ -4,7 +4,7 @@
 // Polymarket Gamma / CLOB, never an order.
 // Run: node --experimental-strip-types scripts/pm-desk.ts <state.json>
 import fs from 'node:fs'
-import { PM, takerFee, walkAsks, walkBids, inBand, heOutcome, namesKept, pmMatch, type FeeSchedule } from '../shared/pm.ts'
+import { PM, takerFee, walkAsks, walkBids, inBand, heOutcome, namesKept, pmMatch, isCryptoPrice, type FeeSchedule } from '../shared/pm.ts'
 
 const FILE = process.argv[2] ?? 'pm/state.json'
 const GAMMA = 'https://gamma-api.polymarket.com', CLOB = 'https://clob.polymarket.com'
@@ -105,6 +105,7 @@ try {
       const toks = arr(m.clobTokenIds), outs = arr(m.outcomes), px = arr(m.outcomePrices).map(Number)
       if (toks.length !== 2) continue
       const ev = m.events?.[0]?.slug ?? m.slug, mkey = pmMatch(ev)
+      if (isCryptoPrice(ev, m.question)) continue           // crypto price markets: Poly Coins' domain (see shared/pm.ts)
       if ((events.get(mkey) ?? 0) >= PM.maxPerEvent) continue
       const matchRoom = equity0 * PM.maxMatchFrac - (matchCost.get(mkey) ?? 0)
       for (let k = 0; k < 2; k++) {
