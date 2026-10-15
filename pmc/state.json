@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 945.1873846029861,
+ "cash": 954.6578698250512,
  "peak": 1072.1210886213057,
  "floor": 936.0605443106529,
  "strategy": {
@@ -44,12 +44,12 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-15T22:07:12.556Z",
+ "last_scan": "2026-10-15T22:07:21.769Z",
  "last_note": {
-  "at": "2026-10-15T22:07:09.826Z",
+  "at": "2026-10-15T22:07:20.100Z",
   "windows": 4,
-  "settled": 0,
-  "entered": 1
+  "settled": 1,
+  "entered": 0
  },
  "trades": [
   {
@@ -12046,9 +12046,9 @@
    "cost": 9.205662043800507,
    "best_ask": 0.97,
    "opened_at": "2026-10-15T22:02:11.784Z",
-   "status": "OPEN",
-   "mark_px": 0.999,
-   "mark_at": "2026-10-15T22:06:49.741Z",
+   "status": "CLOSED",
+   "mark_px": 1,
+   "mark_at": "2026-10-15T22:07:20.856Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -12091,7 +12091,13 @@
      "unfilled": 0,
      "z": 6.49243200655179
     }
-   }
+   },
+   "exit_px": 1,
+   "exit_fee": 0,
+   "proceeds": 9.470485222065115,
+   "pnl": 0.2648231782646082,
+   "reason": "RESOLVED_WIN",
+   "closed_at": "2026-10-15T22:07:20.856Z"
   },
   {
    "id": 174,
@@ -12112,7 +12118,7 @@
    "opened_at": "2026-10-15T22:07:12.556Z",
    "status": "OPEN",
    "mark_px": 0.93,
-   "mark_at": "2026-10-15T22:07:12.556Z",
+   "mark_at": "2026-10-15T22:07:20.979Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -28593,9 +28599,49 @@
    "cash": 945.1873846029861,
    "open_value": 18.617612969549693,
    "open_count": 2
+  },
+  {
+   "ts": "2026-10-15T22:07:21.769Z",
+   "equity": 963.8144680577578,
+   "cash": 954.6578698250512,
+   "open_value": 9.156598232706644,
+   "open_count": 1
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-15T22:07:21.769Z",
+   "market_id": "5710174",
+   "question": "Ethereum Up or Down - October 15, 6:05PM-6:10PM ET",
+   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 22:05–22:10 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.93,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
+   "ts": "2026-10-15T22:07:21.769Z",
+   "market_id": "5710156",
+   "question": "Solana Up or Down - October 15, 6:05PM-6:10PM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 22:05–22:10 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.93,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
+   "ts": "2026-10-15T22:07:21.769Z",
+   "market_id": "5710175",
+   "question": "XRP Up or Down - October 15, 6:05PM-6:10PM ET",
+   "question_he": "XRP · עולה או יורד · 5 דקות · 22:05–22:10 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.97,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
   {
    "ts": "2026-10-15T22:07:12.556Z",
    "market_id": "5710172",
@@ -30762,39 +30808,6 @@
    "price": 0.95,
    "decision": "skip",
    "reason": "מסנן מרחק: 0.83 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-15T20:33:28.429Z",
-   "market_id": "5707216",
-   "question": "XRP Up or Down - October 15, 4:30PM-4:35PM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 20:30–20:35 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.92,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.77 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-15T20:33:18.627Z",
-   "market_id": "5707216",
-   "question": "XRP Up or Down - October 15, 4:30PM-4:35PM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 20:30–20:35 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.92,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.74 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-15T20:29:08.925Z",
-   "market_id": "5707165",
-   "question": "Solana Up or Down - October 15, 4:25PM-4:30PM ET",
-   "question_he": "סולנה · עולה או יורד · 5 דקות · 20:25–20:30 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.9,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.19 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 175,
@@ -52494,10 +52507,12 @@
    "placed_at": "2026-10-15T22:02:10.358Z",
    "limit": 0.96,
    "taker_ask": 0.97,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-15T22:02:30.444Z",
-   "left_at_fill": 150
+   "left_at_fill": 150,
+   "won": true,
+   "ret": 0.041666666666666706
   },
   {
    "slug": "eth-updown-5m-1792101600",
@@ -52509,10 +52524,12 @@
    "placed_at": "2026-10-15T22:02:31.127Z",
    "limit": 0.96,
    "taker_ask": 0.97,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-15T22:02:40.334Z",
-   "left_at_fill": 140
+   "left_at_fill": 140,
+   "won": true,
+   "ret": 0.041666666666666706
   },
   {
    "slug": "btc-updown-5m-1792101600",
@@ -52524,10 +52541,12 @@
    "placed_at": "2026-10-15T22:02:40.621Z",
    "limit": 0.96,
    "taker_ask": 0.97,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-15T22:03:00.169Z",
-   "left_at_fill": 120
+   "left_at_fill": 120,
+   "won": true,
+   "ret": 0.041666666666666706
   },
   {
    "slug": "xrp-updown-5m-1792101600",
@@ -52539,10 +52558,12 @@
    "placed_at": "2026-10-15T22:02:40.894Z",
    "limit": 0.92,
    "taker_ask": 0.94,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-15T22:02:49.889Z",
-   "left_at_fill": 130
+   "left_at_fill": 130,
+   "won": true,
+   "ret": 0.08695652173913039
   },
   {
    "slug": "btc-updown-5m-1792101900",
@@ -52606,26 +52627,26 @@
   },
   "maker": {
    "placed": 1369,
-   "resolved": 1361,
-   "filled": 635,
-   "fill_rate": 0.4665686994856723,
-   "wr": 0.8582677165354331,
-   "ret": -0.07133775646699214,
+   "resolved": 1365,
+   "filled": 639,
+   "fill_rate": 0.46813186813186813,
+   "wr": 0.8591549295774648,
+   "ret": -0.0705594973940546,
    "missed_wins": 726,
    "missed_losses": 0
   },
   "late_exit": {
    "x30": {
-    "n": 166,
+    "n": 167,
     "rules": [
      {
       "rule": "always",
-      "sold": 166,
-      "wins_cut": 156,
+      "sold": 167,
+      "wins_cut": 157,
       "losses_cut": 10,
-      "actual_usd": -47.987169423819324,
-      "if_sold_usd": -78.30619518651365,
-      "gain_usd": -30.319025762694324
+      "actual_usd": -47.72234624555472,
+      "if_sold_usd": -78.14263990672858,
+      "gain_usd": -30.420293661173858
      },
      {
       "rule": "bid<0.90",
@@ -52684,16 +52705,16 @@
     ]
    },
    "x15": {
-    "n": 166,
+    "n": 167,
     "rules": [
      {
       "rule": "always",
-      "sold": 166,
-      "wins_cut": 156,
+      "sold": 167,
+      "wins_cut": 157,
       "losses_cut": 10,
-      "actual_usd": -47.987169423819324,
-      "if_sold_usd": -63.033372743357184,
-      "gain_usd": -15.04620331953786
+      "actual_usd": -47.72234624555472,
+      "if_sold_usd": -62.86981746357212,
+      "gain_usd": -15.147471218017401
      },
      {
       "rule": "bid<0.90",
@@ -52753,9 +52774,9 @@
    }
   },
   "taker": {
-   "n": 172,
-   "wr": 0.9418604651162791,
-   "ret": -0.005071621692273099
+   "n": 173,
+   "wr": 0.9421965317919075,
+   "ret": -0.004876020275194783
   }
  },
  "reset_at": "2026-10-14T09:06:54.912393+00:00",
