@@ -14,10 +14,11 @@
   "minQty": 5,
   "exitPx": 0.99
  },
- "last_scan": "2026-10-15T07:36:41.909Z",
+ "last_scan": "2026-10-15T07:36:58.449Z",
  "last_note": {
-  "at": "2026-10-15T07:36:41.438Z",
-  "scanned": 1,
+  "at": "2026-10-15T07:36:56.498Z",
+  "scanned": 2,
+  "tr_err": "Error: 429 https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&",
   "settled": 0,
   "entered": 0,
   "topped": 0,
@@ -4820,7 +4821,7 @@
    "opened_at": "2026-10-15T06:17:12.043Z",
    "status": "OPEN",
    "mark_px": 0.9995,
-   "mark_at": "2026-10-15T07:36:41.712Z",
+   "mark_at": "2026-10-15T07:36:56.841Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -4841,13 +4842,6 @@
   }
  ],
  "equity": [
-  {
-   "ts": "2026-10-14T10:44:22.883Z",
-   "equity": 1272.591505186614,
-   "cash": 898.8419005693357,
-   "open_value": 373.7496046172783,
-   "open_count": 4
-  },
   {
    "ts": "2026-10-14T10:44:37.889Z",
    "equity": 1271.0447906805498,
@@ -39840,9 +39834,32 @@
    "cash": 1282.3059416318142,
    "open_value": 74.70685047304636,
    "open_count": 1
+  },
+  {
+   "ts": "2026-10-15T07:36:58.449Z",
+   "equity": 1357.0127921048606,
+   "cash": 1282.3059416318142,
+   "open_value": 74.70685047304636,
+   "open_count": 1
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-15T07:36:57.204Z",
+   "market_id": "5678151",
+   "question": "Bitcoin Up or Down - October 15, 12:00AM-4:00AM ET",
+   "outcome": "Up",
+   "outcomes": [
+    "Up",
+    "Down"
+   ],
+   "price": 0.97,
+   "decision": "skip",
+   "reason": "מחיר 0.97 מחוץ לטווח 85-92¢",
+   "outcome_he": "עולה",
+   "question_he": "ביטקוין למעלה או למטה - 15 באוקטובר, 00:00-04:00 ET",
+   "tr_v": 2
+  },
   {
    "ts": "2026-10-15T06:28:56.827Z",
    "market_id": "5634656",
@@ -42702,22 +42719,6 @@
    "outcome_he": "כן",
    "question_he": "האם המחיר של Ethereum יהיה מעל $2,400 ב-14 באוקטובר?",
    "tr_v": 2
-  },
-  {
-   "ts": "2026-10-14T14:21:10.096Z",
-   "market_id": "5407319",
-   "question": "Will the price of Ethereum be above $2,400 on October 14?",
-   "outcome": "Yes",
-   "outcomes": [
-    "Yes",
-    "No"
-   ],
-   "price": 0.917528808876376,
-   "decision": "BUY",
-   "reason": "מחיר 0.917 בטווח, 42.4 מניות, עמלה $0.22",
-   "outcome_he": "כן",
-   "question_he": "האם המחיר של Ethereum יהיה מעל $2,400 ב-14 באוקטובר?",
-   "tr_v": 2
   }
  ],
  "next_id": 117,
@@ -42854,6 +42855,7 @@
   "Bitcoin Up or Down - October 14, 10PM ET": "ביטקוין למעלה או למטה - 14 באוקטובר, 22:00 שעון החוף המזרחי",
   "Counter-Strike: Chicken Coop Esports vs Overtake (BO3) - ESL Challenger League North America Cup #3 Playoffs": "Counter - Strike: Chicken Coop Esports vs Overtake (BO3) - גביע צ'לנג'ר ESL צפון אמריקה #3 פלייאוף",
   "Dota 2: Execration vs Royal Bear - Game 2 Winner": "Dota 2: Execration vs Royal Bear - מנצח משחק 2",
-  "Dota 2: Execration vs Royal Bear (BO3) - DreamLeague Southeast Asia Closed Qualifier Playoffs": "DOTA 2: Execration vs Royal Bear (BO3) - פלייאוף במוקדמות סגור של DreamLeague דרום מזרח אסיה"
+  "Dota 2: Execration vs Royal Bear (BO3) - DreamLeague Southeast Asia Closed Qualifier Playoffs": "DOTA 2: Execration vs Royal Bear (BO3) - פלייאוף במוקדמות סגור של DreamLeague דרום מזרח אסיה",
+  "Bitcoin Up or Down - October 15, 12:00AM-4:00AM ET": "ביטקוין למעלה או למטה - 15 באוקטובר, 00:00-04:00 ET"
  }
 }
