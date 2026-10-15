@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 983.0808989084636,
+ "cash": 967.40744737586,
  "peak": 1072.1210886213057,
  "floor": 936.0605443106529,
  "strategy": {
@@ -44,12 +44,12 @@
   "zMin": 1.5,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-15T07:16:53.508Z",
+ "last_scan": "2026-10-15T07:17:06.004Z",
  "last_note": {
-  "at": "2026-10-15T07:16:53.434Z",
-  "windows": 0,
+  "at": "2026-10-15T07:17:03.914Z",
+  "windows": 4,
   "settled": 0,
-  "entered": 0
+  "entered": 1
  },
  "trades": [
   {
@@ -8648,6 +8648,55 @@
    "pnl": 0.44660228500322496,
    "reason": "RESOLVED_WIN",
    "closed_at": "2026-10-15T06:55:03.854Z"
+  },
+  {
+   "id": 125,
+   "market_id": "5680810",
+   "slug": "eth-updown-5m-1792048500",
+   "event_slug": "eth-updown-5m-1792048500",
+   "question": "Ethereum Up or Down - October 15, 3:15AM-3:20AM ET",
+   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 07:15–07:20 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "token_id": "109504079036527088437255308311382305249065369441726800265035477934328297422175",
+   "end_time": "2026-10-15T07:20:00Z",
+   "qty": 16.124336349957446,
+   "entry_px": 0.97,
+   "entry_fee": 0.032845273144863345,
+   "cost": 15.673451532603584,
+   "best_ask": 0.97,
+   "opened_at": "2026-10-15T07:17:06.004Z",
+   "status": "OPEN",
+   "mark_px": 0.96,
+   "mark_at": "2026-10-15T07:17:06.004Z",
+   "meta": {
+    "fee_schedule": {
+     "rate": 0.07,
+     "exponent": 1
+    },
+    "volume": 9.803922,
+    "coin": "eth",
+    "tf": "5m",
+    "window_s": 300,
+    "left_s": 177,
+    "band": [
+     0.9,
+     0.98
+    ],
+    "z_min": 1.5,
+    "look": 1,
+    "outcomes": [
+     "Up",
+     "Down"
+    ],
+    "wanted": 15.673451532603584,
+    "ref_px": 0.98,
+    "bid_px": 0.96,
+    "z": 1.927993350514923,
+    "spot_open": 2360.52,
+    "spot": 2365.6,
+    "sigma1s": 0.00008381021712535974
+   }
   }
  ],
  "equity": [
@@ -18611,9 +18660,27 @@
    "cash": 983.0808989084636,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-10-15T07:17:06.004Z",
+   "equity": 982.8868102718192,
+   "cash": 967.40744737586,
+   "open_value": 15.479362895959147,
+   "open_count": 1
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-15T07:17:06.004Z",
+   "market_id": "5680810",
+   "question": "Ethereum Up or Down - October 15, 3:15AM-3:20AM ET",
+   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 07:15–07:20 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.97,
+   "decision": "BUY",
+   "reason": "177 שנ׳ לסיום, מחיר 0.97 בטווח 90-98¢, 16.1 מניות ($16), עמלה $0.03"
+  },
   {
    "ts": "2026-10-15T07:14:06.114Z",
    "market_id": "5680665",
@@ -20802,20 +20869,9 @@
    "price": 0.97,
    "decision": "skip",
    "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
-  },
-  {
-   "ts": "2026-10-15T05:32:33.537Z",
-   "market_id": "5679573",
-   "question": "Bitcoin Up or Down - October 15, 1:30AM-1:35AM ET",
-   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 05:30–05:35 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.97,
-   "decision": "skip",
-   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
   }
  ],
- "next_id": 125,
+ "next_id": 126,
  "shadow": [
   {
    "slug": "btc-updown-5m-1791969600",
@@ -33764,17 +33820,30 @@
    "taker_ask": 0.92,
    "status": "WORKING",
    "filled": false
+  },
+  {
+   "slug": "eth-updown-5m-1792048500",
+   "market_id": "5680810",
+   "token_id": "109504079036527088437255308311382305249065369441726800265035477934328297422175",
+   "coin": "eth",
+   "outcome": "Up",
+   "end_time": "2026-10-15T07:20:00Z",
+   "placed_at": "2026-10-15T07:17:04.445Z",
+   "limit": 0.96,
+   "taker_ask": 0.97,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
   "fills": {
-   "n": 124,
-   "avg_vs_ref_c": -0.17285036202818926,
-   "avg_vs_research_c": -1.17285036202819,
-   "avg_fee_c": 0.39382376060954616
+   "n": 125,
+   "avg_vs_ref_c": -0.17946755913196374,
+   "avg_vs_research_c": -1.1794675591319648,
+   "avg_fee_c": 0.39230277052466983
   },
   "maker": {
-   "placed": 814,
+   "placed": 815,
    "resolved": 812,
    "filled": 371,
    "fill_rate": 0.45689655172413796,
