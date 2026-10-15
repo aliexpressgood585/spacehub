@@ -21,6 +21,16 @@ async function candles(sym: string, bar: string, limit: number): Promise<Bar[]> 
   return d.filter((r) => r[8] === '1').map((r) => ({ t: +r[0], o: +r[1], h: +r[2], l: +r[3], c: +r[4], v: +r[7] })).sort((a, b) => a.t - b.t)
 }
 
+// 24h volume for F4: Binance SPOT quote volume (data-api.binance.vision answers from the runners; futures fapi does not).
+// Shown for information only: spot volume understates futures volume (BNB ~$110M spot vs several times that on futures),
+// so F4 is enforced by the fixed liquid list itself, not by this number.
+async function binanceVol(syms: string[]): Promise<Record<string, number>> {
+  try {
+    const q = encodeURIComponent(JSON.stringify(syms.map((s) => `${s}USDT`)))
+    const r = await fetch(`https://data-api.binance.vision/api/v3/ticker/24hr?symbols=${q}`); if (!r.ok) return {}
+    return Object.fromEntries((await r.json() as any[]).map((x) => [x.symbol.replace(/USDT$/, ''), +x.quoteVolume]))
+  } catch { return {} }
+}
 const st: any = fs.existsSync(FILE) ? JSON.parse(fs.readFileSync(FILE, 'utf8')) : {
   version: 'coach-v1', start_cash: COACH.start, cash: COACH.start, peak: COACH.start, next_id: 1, trades: [], equity: [], decisions: [],
   risk: { dayStart: COACH.start, weekStart: COACH.start, day: -1, week: -1, streak: 0, lastLossAt: null }, scan: null, last_bar: 0,
@@ -35,6 +45,8 @@ try {
     marks[m[1]] = { last: +t.last, bid: +t.bidPx, ask: +t.askPx, vol: +t.volCcy24h * +t.last }
   }
 } catch (e) { st.last_error = { at: iso(), msg: String(e) } }
+const bvol = await binanceVol(COINS)
+for (const k of Object.keys(marks)) if (bvol[k] > 0) marks[k].vol = bvol[k]
 
 const openT = () => st.trades.filter((t: any) => t.status === 'OPEN')
 const equity = () => st.cash + openT().reduce((a: number, t: any) => { const px = marks[t.sym]?.last ?? t.mark_px ?? t.entry_px; return a + t.margin + sgn(t.side) * (px - t.entry_px) * t.qty - (t.funding ?? 0) }, 0)
@@ -87,7 +99,7 @@ if (bar > st.last_bar && (now - bar < 20 * 60_000 || process.env.COACH_FORCE_SCA
       if (b4.length < 40 || b4[b4.length - 1].t !== bar - H4) { rows.push({ sym, err: 'אין נר 4h סגור עדכני' }); continue }
       let fr: number | null = null
       try { fr = +(await j(`${OKX}/public/funding-rate?instId=${sym}-USDT-SWAP`))[0].fundingRate } catch { /* unknown */ }
-      const sig = coachSignal({ bars: b4.slice(-61), daily: d1, btcDaily: sym === 'BTC' ? undefined : btcD, funding: fr, vol24Usd: marks[sym]?.vol ?? null, nowMs: now })
+      const sig = coachSignal({ bars: b4.slice(-61), daily: d1, btcDaily: sym === 'BTC' ? undefined : btcD, funding: fr, vol24Usd: null /* F4 = the fixed liquid list; live volume shown for info */, nowMs: now })
       rows.push({ sym, side: sig.side, checks: sig.checks, adx: +sig.adx.toFixed(1), atr_pct: +(100 * sig.atrPct).toFixed(2), entry: sig.entry, stop: sig.stop })
     } catch (e) { rows.push({ sym, err: String(e).slice(0, 80) }) }
   }
@@ -124,6 +136,7 @@ st.stats = { closed: c.length, wins: w.length, pnl: +c.reduce((a: number, t: any
   expectancy_R: c.length ? +(c.reduce((a: number, t: any) => a + t.R, 0) / c.length).toFixed(3) : null,
   pf: c.length ? +(w.reduce((a: number, t: any) => a + t.pnl, 0) / Math.max(1e-9, -c.filter((t: any) => t.pnl <= 0).reduce((a: number, t: any) => a + t.pnl, 0))).toFixed(2) : null }
 st.marks = Object.fromEntries(Object.entries(marks).map(([k, v]) => [k, v.last]))
+st.vol24 = Object.fromEntries(Object.entries(marks).map(([k, v]) => [k, Math.round(v.vol)]))
 st.last_cycle = iso()
 fs.mkdirSync(FILE.split('/').slice(0, -1).join('/') || '.', { recursive: true })
 fs.writeFileSync(FILE, JSON.stringify(st))

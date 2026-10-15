@@ -728,6 +728,17 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   SMC/liquidity concepts. BACKTEST FIRST (backtest/research/coach_bt.ts -> status/coach-bt.txt; 30 Binance perps, 4h+1d archives,
   real funding, 2023-12..2026-09): n589 WR 37.9% +0.034R t0.6 PF 0.94 Sharpe -0.23, $5,000 -> $4,251, maxDD 21%, loss streak 23;
   OOS 30% PF 1.01. FAILS the prompt's own bar (PF > 1.3, Sharpe > 1) -> runs as DEMO, verdict shown on the house page.
+- 2026-10-15 ~23:00 UTC DAY-TRADING COACH desk (owner: "תפעיל בבוט" with the day-trading prompt S1-S6, F1-F7, cost law,
+  0.5% risk, <= 5x isolated, liq >= 2x stop, BE at 1R, 8-bar no-move exit, 4 trades / 3 losses / -2% per day). Rules
+  shared/daytrade.ts (15m only; 1h direction = EMA50 of 15m aggregated; VWAP daily; value area = previous UTC day profile;
+  stop < 0.8% widened to 0.8% so cost <= 0.2R; target >= 1.5R net), tests/daytrade.test.ts 22/22. BACKTEST FIRST
+  (backtest/research/daytrade_bt.ts -> status/daytrade-bt.txt; 7 perps BTC ETH SOL XRP DOGE BNB SUI, Binance 15m 2024-09..
+  2026-09, taker 5 + slip 3 bps/side + funding): n860 WR 32.2% -0.069R t -2.0 PF 0.84, $5,000 -> $3,655, DD 30.2%; IS -0.044R,
+  OOS -0.130R t -2.26 PF 0.69; S6 (opening range) 598 trades -$945, only S2 positive on n9. FAILS -> runs as the PAPER demo the
+  prompt itself requires (rule 6): scripts/daytrade-desk.ts (OKX 15m + tickers, exits on the live touch, scan in the first 5 min
+  after each 15m close), .github/workflows/daytrade-desk.yml (cron :47, daytrade/state.json on pm-desk-data). house.html now has
+  tabs "דיי טריידינג · 15m" (DayHouse.tsx, default) and "מאמן כמותי · 4h" (CoachHouse). F4 in both desks = fixed liquid list
+  (OKX/Binance-spot volume understates Binance futures; shown for info only).
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the
