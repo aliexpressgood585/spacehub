@@ -44,9 +44,9 @@
   "zMin": 1.5,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-15T00:52:54.269Z",
+ "last_scan": "2026-10-15T00:53:03.832Z",
  "last_note": {
-  "at": "2026-10-15T00:52:51.610Z",
+  "at": "2026-10-15T00:53:01.518Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -14111,9 +14111,27 @@
    "cash": 1011.5219290116589,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-10-15T00:53:03.832Z",
+   "equity": 1011.5219290116589,
+   "cash": 1011.5219290116589,
+   "open_value": 0,
+   "open_count": 0
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-15T00:53:03.832Z",
+   "market_id": "5676089",
+   "question": "Bitcoin Up or Down - October 14, 8:50PM-8:55PM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 00:50–00:55 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.96,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 1.82 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
+  },
   {
    "ts": "2026-10-15T00:52:53.374Z",
    "market_id": "5676089",
@@ -16302,17 +16320,6 @@
    "price": 0.94,
    "decision": "skip",
    "reason": "מסנן מרחק: 0.41 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-14T23:38:44.287Z",
-   "market_id": "5674871",
-   "question": "XRP Up or Down - October 14, 7:35PM-7:40PM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 23:35–23:40 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.91,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.51 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 101,
@@ -25306,6 +25313,19 @@
    "taker_ask": 0.91,
    "status": "WORKING",
    "filled": false
+  },
+  {
+   "slug": "btc-updown-5m-1792025400",
+   "market_id": "5676089",
+   "token_id": "112102091611356974549357767322853879742890934988567869073293742568336509999532",
+   "coin": "btc",
+   "outcome": "Up",
+   "end_time": "2026-10-15T00:55:00Z",
+   "placed_at": "2026-10-15T00:53:02.132Z",
+   "limit": 0.95,
+   "taker_ask": 0.96,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
@@ -25316,7 +25336,7 @@
    "avg_fee_c": 0.41409321503545543
   },
   "maker": {
-   "placed": 566,
+   "placed": 567,
    "resolved": 560,
    "filled": 256,
    "fill_rate": 0.45714285714285713,
