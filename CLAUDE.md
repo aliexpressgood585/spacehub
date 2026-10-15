@@ -701,6 +701,14 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   (n330 +0.44%/$ t0.3), and first look 2.0 tested IS +1.72 / OOS +2.13%/$ vs 1.5's +1.74 / +1.79 with fewer losses and DD.
   Late-exit shadow n156: best rule (bid<0.70 at 30 s) +$13 total -> not worth a rule. Expect ~1/3 of the trades. The
   supervisor's gates still apply. tests/pmc.test.ts 32/32.
+- 2026-10-15 ~19:30 UTC POLY PLAYBOOK (owner's "living book" framework: Kelly, EV after costs, Tetlock/Bayes, Brier/CLV,
+  favourite-longshot, resolution risk, 7-point answer, "לא לגעת" without edge) -> docs/POLY_PLAYBOOK.md; supervisor's daily status
+  now includes scripts/pm-kelly-report.py (read only) -> status/pm-kelly.txt. First read, ALL history (mostly older rules):
+  Poly n149 WR 89.3% vs avg price 89.1c = edge +0.1pp, EV -0.55%/$ t-0.2, 1/4 Kelly +0.3% (85-90c bucket won 85% vs 88c paid,
+  90-95c won 95% vs 91c — neither significant); Poly Coins n164 WR 93.9% vs 94.3c = edge -0.4pp, EV -0.77%/$, Kelly NEGATIVE
+  (measured live record says no stake; zMin 2.0 has 0 judged closes yet); Poly News SQ 21 open $420, median 77 days left,
+  annualised ~17% at the research WR 90.8% (86% only if all win), 2% stake well under research 1/4 Kelly (~8%), theme cap = the
+  correlated-position rule. No rule or stake changed.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the

@@ -40,4 +40,5 @@ Poly News status quo resolves slowly: its gates use n >= 30 / 60 instead of 100 
 - Code changes (stake halving / stop) go through a commit on `claude/hebrew-greeting-dynjyk`, tests, merge to main,
   then a workflow re-dispatch, and a line in CLAUDE.md (PM DESK section).
 - Reports to the owner in Hebrew only when something happened (an action, a fault, a clustered loss). Once a day
-  (the first run after 06:00 UTC) a 5-line status: equity and judged P&L per desk.
+  (the first run after 06:00 UTC) a 5-line status: equity and judged P&L per desk, plus the Kelly line of
+  `scripts/pm-kelly-report.py` (edge, EV/$, ¼ Kelly per desk) as defined in docs/POLY_PLAYBOOK.md.
