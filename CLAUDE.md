@@ -559,6 +559,13 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   57->42 losses, IS +1.72 OOS +2.13, DD 9.0% | first look 2.5: +$1,260, 37 losses, IS +1.56 OOS +2.43, DD 7.1% | all looks 2.0:
   +$847, IS +0.28 (rejected). Raising the first look trades a little money for fewer losses; IS does not favour it. Live by
   z bucket points the other way (n tiny). Nothing changed; offered to the owner.
+- 2026-10-15 owner's external research prompt (8 Polymarket strategies A-H). Most already measured here: merge/neg-risk arb
+  (pm-arb.txt, nothing), favourites >= 0.94 without a filter (~breakeven, pmc-research), underdogs (pmc-underdogs, negative),
+  maker resting (shadow: -5.8..-9.8%/$, adverse selection). New test C "Dekos value bands" (backtest/research/pmc_dekos.py ->
+  status/pmc-dekos.txt, 180-day 5m sample, both sides, hold to result, fee 0.07 + 1c/2c): EVERY band 13-74c at L240/180/120/60 is
+  negative in IS and OOS (-1.6..-17.8%/$; 45-53c -5%/$ on n 61k). A single trader's profit is not a reproducible price-band
+  rule. Not yet tested from the prompt: status quo NO 80-90c on long markets, Kalshi cross-venue, weather buckets, token mean
+  reversion. Nothing deployed.
 - 2026-10-15 HOUR OF DAY (Grok; pmc_volgate.py GATE=hours -> status/pmc-hours.txt): IS losses (8) fell in 7 hours -> labelled
   WEAK; OOS those hours earned +4.4%/$ with 0 losses like the rest. STRONG-only: OOS n137 +$183 vs base n188 +$249; sizing
   x1.5/x0.5: +$307 but per $ deployed +4.43% vs +4.41% (just more capital). Live: the one z>=1.5 loser was in a STRONG hour. NOT DEPLOYED.
