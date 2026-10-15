@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 1324.933376182994,
+ "cash": 1262.0355918566245,
  "strategy": {
   "lo": 0.85,
   "hi": 0.92,
@@ -14,13 +14,14 @@
   "minQty": 5,
   "exitPx": 0.99
  },
- "last_scan": "2026-10-15T02:38:54.951Z",
+ "last_scan": "2026-10-15T02:39:11.262Z",
  "last_note": {
-  "at": "2026-10-15T02:38:54.545Z",
+  "at": "2026-10-15T02:39:09.283Z",
   "scanned": 14,
+  "tr_err": "Error: 429 https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&",
   "settled": 0,
-  "entered": 0,
-  "topped": 0,
+  "entered": 1,
+  "topped": 1,
   "recycled": 0
  },
  "trades": [
@@ -4652,7 +4653,7 @@
    "opened_at": "2026-10-15T01:41:10.369Z",
    "status": "OPEN",
    "mark_px": 0.0005,
-   "mark_at": "2026-10-15T02:38:54.768Z",
+   "mark_at": "2026-10-15T02:39:09.530Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -4670,16 +4671,45 @@
    "outcome_he": "לא",
    "question_he": "האם הביטקוין יירד ל -81,000 $ ב -14 באוקטובר?",
    "tr_v": 2
+  },
+  {
+   "id": 113,
+   "market_id": "5677951",
+   "slug": "will-bitcoin-dip-to-80k-on-october-14-2026",
+   "event_slug": "what-price-will-bitcoin-hit-on-october-14-2026",
+   "question": "Will Bitcoin dip to $80,000 on October 14?",
+   "outcome": "No",
+   "token_id": "85828729514363510255537835511707140877181159395866358241405436826927070136464",
+   "end_time": "2026-10-15T04:00:00Z",
+   "qty": 69.55163687605412,
+   "entry_px": 0.8979157931213275,
+   "entry_fee": 0.4462711379207226,
+   "cost": 62.89778432636943,
+   "best_ask": 0.888,
+   "opened_at": "2026-10-15T02:39:09.841Z",
+   "status": "OPEN",
+   "mark_px": 0.855,
+   "mark_at": "2026-10-15T02:39:09.841Z",
+   "meta": {
+    "fee_schedule": {
+     "rate": 0.07,
+     "exponent": 1
+    },
+    "volume": 91095.44017900003,
+    "spread": 0.032,
+    "model_p": 0.872,
+    "outcomes": [
+     "Yes",
+     "No"
+    ],
+    "adds": 1
+   },
+   "outcome_he": "לא",
+   "question_he": "האם הביטקוין יירד ל -80,000 $ ב -14 באוקטובר?",
+   "tr_v": 2
   }
  ],
  "equity": [
-  {
-   "ts": "2026-10-14T05:46:26.640Z",
-   "equity": 1300.4557312515662,
-   "cash": 1300.4557312515662,
-   "open_value": 0,
-   "open_count": 0
-  },
   {
    "ts": "2026-10-14T05:46:41.531Z",
    "equity": 1300.4557312515662,
@@ -39672,9 +39702,44 @@
    "cash": 1324.933376182994,
    "open_value": 0.0379067816566625,
    "open_count": 1
+  },
+  {
+   "ts": "2026-10-15T02:39:11.262Z",
+   "equity": 1321.6247323860698,
+   "cash": 1262.0355918566245,
+   "open_value": 59.589140529445245,
+   "open_count": 2
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-15T02:39:09.841Z",
+   "market_id": "5677951",
+   "question": "Will Bitcoin dip to $80,000 on October 14?",
+   "outcome": "No",
+   "outcomes": [
+    "Yes",
+    "No"
+   ],
+   "price": 0.8982474507336906,
+   "decision": "BUY",
+   "reason": "מחיר 0.888 בטווח, 41.4 מניות, עמלה $0.26",
+   "outcome_he": "לא",
+   "question_he": "האם הביטקוין יירד ל -80,000 $ ב -14 באוקטובר?",
+   "tr_v": 2
+  },
+  {
+   "ts": "2026-10-15T02:39:09.978Z",
+   "market_id": "5677951",
+   "question": "Will Bitcoin dip to $80,000 on October 14?",
+   "outcome": "No",
+   "price": 0.8974293076985078,
+   "decision": "ADD",
+   "reason": "השלמה לחלק שווה: +28.2 מניות, עמלה $0.18",
+   "outcome_he": "לא",
+   "question_he": "האם הביטקוין יירד ל -80,000 $ ב -14 באוקטובר?",
+   "tr_v": 2
+  },
   {
    "ts": "2026-10-15T02:37:10.139Z",
    "market_id": "5677089",
@@ -42518,41 +42583,9 @@
    "outcome_he": "כן",
    "question_he": "האם המחיר של Ethereum יהיה מעל $2,400 ב-14 באוקטובר?",
    "tr_v": 2
-  },
-  {
-   "ts": "2026-10-14T14:14:40.347Z",
-   "market_id": "5407319",
-   "question": "Will the price of Ethereum be above $2,400 on October 14?",
-   "outcome": "Yes",
-   "outcomes": [
-    "Yes",
-    "No"
-   ],
-   "price": 0.942,
-   "decision": "skip",
-   "reason": "מחיר 0.942 מחוץ לטווח 85-92¢",
-   "outcome_he": "כן",
-   "question_he": "האם המחיר של Ethereum יהיה מעל $2,400 ב-14 באוקטובר?",
-   "tr_v": 2
-  },
-  {
-   "ts": "2026-10-14T14:14:24.824Z",
-   "market_id": "5407319",
-   "question": "Will the price of Ethereum be above $2,400 on October 14?",
-   "outcome": "Yes",
-   "outcomes": [
-    "Yes",
-    "No"
-   ],
-   "price": 0.933,
-   "decision": "skip",
-   "reason": "מחיר 0.933 מחוץ לטווח 85-92¢",
-   "outcome_he": "כן",
-   "question_he": "האם המחיר של Ethereum יהיה מעל $2,400 ב-14 באוקטובר?",
-   "tr_v": 2
   }
  ],
- "next_id": 113,
+ "next_id": 114,
  "he": {
   "Dota 2: Yellow Submarine vs Kalmychata - Game 1 Winner": "Dota 2: Yellow Submarine vs Kalmychata - מנצח משחק 1",
   "Yellow Submarine": "צוללת צהובה",
@@ -42681,6 +42714,7 @@
   "Dota 2: Chandogs vs Hokori - Game 2 Winner": "Dota 2: Chandogs vs Hokori - מנצח משחק 2",
   "Will Bitcoin dip to $81,000 on October 14?": "האם הביטקוין יירד ל -81,000 $ ב -14 באוקטובר?",
   "Will Bitcoin dip to $79,000 on October 14?": "האם הביטקוין יירד ל -79,000 $ ב -14 באוקטובר?",
-  "Bitcoin Up or Down - October 14, 10:30PM-10:45PM ET": "ביטקוין למעלה או למטה - 14 באוקטובר, 22:30 - 22:45 שעון החוף המזרחי"
+  "Bitcoin Up or Down - October 14, 10:30PM-10:45PM ET": "ביטקוין למעלה או למטה - 14 באוקטובר, 22:30 - 22:45 שעון החוף המזרחי",
+  "Will Bitcoin dip to $80,000 on October 14?": "האם הביטקוין יירד ל -80,000 $ ב -14 באוקטובר?"
  }
 }
