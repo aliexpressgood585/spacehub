@@ -612,6 +612,27 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   days, mid/last series): buying the >= 0.90 side 15-30 min before close = +0.1..+0.25%/$, 2-3 h before = negative (sports
   favourites at 0.90 still lose 1.6-4.7%). REJECTED both: a few dollars a day at most.
 
+- 2026-10-15 KALSHI vs POLYMARKET cross-venue arb (prompt item F; backtest/research/kalshi_pm_fetch.py / kalshi_pm_research.py /
+  kalshi_pm_live.py -> status/kalshi-pm.txt). Kalshi public API reachable (api.elections.kalshi.com/trade-api/v2: settled markets,
+  hourly candlesticks with real yes_bid/yes_ask, orderbooks). Same games matched by ticker -> slug ({league}-{away}-{home}-{date};
+  NFL tickers have no time part); 703 games (MLB 622, NFL 81) 08-07..10-15, both venues agree on every winner (2 mismatches dropped).
+  Gap |Kalshi mid - PM price|: median 0.5pp, >= 6pp in 0.68% of hours, 0.00% inside the last 24 h. Locked arb after both fees
+  (Kalshi ask + PM price + 1c): > 1c in 147 games, but 226 of 244 such hours are the FIRST hours of listing (> 66 h before start,
+  median 1 Kalshi contract traded that hour, 8c spread) — a mirage of empty books; <= 48 h: 4 hours, 1c each. LIVE with real books on
+  both venues, 86 games x 3 rounds: best top-of-book locked profit -0.70c, median -4.95c, never positive. REJECTED. (Also: Kalshi is
+  US-only and Polymarket's international venue excludes US users — one account holder cannot legally hold both legs.)
+- 2026-10-15 STATUS QUO NO 80-90c (prompt item E; backtest/research/pm_statusquo_fetch.py / pm_statusquo.py -> status/pm-statusquo.txt):
+  13,887 binary markets resolved 0/1, lived >= 30 days, volume >= $50k, closed 2024-07..2026-10; NO price history at 12 h (interval=max;
+  an explicit startTs/endTs range > ~2 weeks is refused). Buy NO at 80-90c + 1c + fee, hold to result, t clustered by event.
+  By days before the scheduled end: 60 d -0.48%/$, 30 d +2.97%/$ (IS +3.80 / OOS +1.06), 14 d +0.04%, 7 d -1.97% -> no stable edge
+  overall. FIRST time NO is 80-90c with >= 14 d left: n7,798 (3,058 events) WR 87.6% +1.86%/$ t3.9, IS +2.12 / OOS +1.25 (t1.6),
+  median lock 67 d (~10%/yr on locked $). POLITICS (the prompt's headline case) is NEGATIVE: first-entry IS -0.90 / OOS -7.13%/$.
+  GEOPOLITICS (keyword class, crude) positive in both halves: first-entry IS +6.78 (t4.3) / OOS +6.27%/$ (t2.9), median lock 39-73 d,
+  13 of 22 months positive, max DD 12.6 $ on 866 $1 entries — BUT -10.9%/$ when entered 7 d before the end, and losses cluster on one
+  theme (Iran/Israel 2026-02..06). Crypto NO first-entry IS +7.71 / OOS +0.02 (flip). Prices are 12 h history points, not asks;
+  category picked from 5 x 5 rows (multiple looks). NOT PROVEN, nothing built; geopolitics status-quo offered to the owner as a
+  possible small paper desk.
+
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the

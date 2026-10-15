@@ -1,0 +1,75 @@
+Kalshi vs Polymarket, same games: 703 matched games (MLB 622, NFL 81), 2026-08-07 .. 2026-10-15; 53,172 hourly paired observations in the 7 days before the start.
+Median volume per game: Kalshi 1,729,511 contracts | Polymarket $404,243. Median Kalshi spread 1.0c; median PM yes+yes sum 1.000.
+
+GAP |Kalshi mid - Polymarket price|, same team (pp):
+  all                  n 53172  median  0.5  p90  2.0  p99   4.5  >= 3pp   2.8%  >= 6pp  0.68%
+  <= 1 h before start  n   786  median  0.0  p90  1.0  p99   1.0  >= 3pp   0.0%  >= 6pp  0.00%
+  1-6 h                n  3500  median  0.0  p90  1.0  p99   1.0  >= 3pp   0.0%  >= 6pp  0.00%
+  6-24 h               n 12547  median  0.0  p90  1.0  p99   2.0  >= 3pp   0.1%  >= 6pp  0.00%
+  1-7 days             n 36339  median  0.5  p90  2.0  p99   6.0  >= 3pp   4.0%  >= 6pp  0.99%
+
+By league:
+  MLB   n 39940  median  0.5pp  >= 6pp  0.82%
+  NFL   n 13232  median  0.5pp  >= 6pp  0.24%
+
+LOCKED ARB after fees (Kalshi ask + Polymarket price + 1c, both fees), best pairing per observation:
+  profit >   0c per $1:   350 observations ( 0.66%) in  200 games of 703
+  profit >   1c per $1:   244 observations ( 0.46%) in  147 games of 703
+  profit >   2c per $1:   195 observations ( 0.37%) in  118 games of 703
+  profit >   3c per $1:   151 observations ( 0.28%) in   95 games of 703
+  profit >   5c per $1:    88 observations ( 0.17%) in   58 games of 703
+
+Largest locked-arb observations (check them by hand: these are where mirages live):
+  KXMLBGAME-26SEP261605LADSF           71.1 h before  K ask SF 0.32 + PM other 0.365 -> +28.8c  K spread 18c, K vol that hour 185
+  KXMLBGAME-26SEP261910COLCWS          71.2 h before  K ask COL 0.37 + PM other 0.370 -> +23.2c  K spread 3c, K vol that hour 7
+  KXMLBGAME-26SEP252215LADSF           71.2 h before  K ask SF 0.28 + PM other 0.465 -> +22.8c  K spread 8c, K vol that hour 21
+  KXMLBGAME-26SEP262140LAASEA          71.7 h before  K ask LAA 0.39 + PM other 0.355 -> +22.7c  K spread 2c, K vol that hour 251
+  KXMLBGAME-26SEP262140LAASEA          70.7 h before  K ask LAA 0.39 + PM other 0.355 -> +22.7c  K spread 1c, K vol that hour 0
+  KXMLBGAME-26AUG171840MIAPHI          71.7 h before  K ask MIA 0.38 + PM other 0.435 -> +15.6c  K spread 10c, K vol that hour 2
+  KXMLBGAME-26AUG171840MIAPHI          70.7 h before  K ask MIA 0.38 + PM other 0.440 -> +15.1c  K spread 8c, K vol that hour 13
+  KXMLBGAME-26AUG212040CLECOL          66.7 h before  K ask COL 0.44 + PM other 0.385 -> +14.6c  K spread 2c, K vol that hour 8
+  KXMLBGAME-26AUG221915PITLAD          71.2 h before  K ask PIT 0.35 + PM other 0.485 -> +13.7c  K spread 10c, K vol that hour 0
+  KXMLBGAME-26AUG121415PHISTL          70.2 h before  K ask STL 0.44 + PM other 0.395 -> +13.6c  K spread 9c, K vol that hour 146
+  KXMLBGAME-26SEP261915TBPHI           71.2 h before  K ask PHI 0.58 + PM other 0.265 -> +12.8c  K spread 1c, K vol that hour 6
+  KXMLBGAME-26AUG221915PITLAD          70.2 h before  K ask PIT 0.35 + PM other 0.495 -> +12.7c  K spread 2c, K vol that hour 1
+  KXMLBGAME-26SEP171235MILPIT          70.6 h before  K ask MIL 0.60 + PM other 0.255 -> +11.9c  K spread 5c, K vol that hour 44
+  KXMLBGAME-26AUG211840STLPHI          71.7 h before  K ask STL 0.35 + PM other 0.505 -> +11.7c  K spread 9c, K vol that hour 111
+  KXMLBGAME-26AUG211910SFBOS           71.2 h before  K ask SF 0.43 + PM other 0.425 -> +11.6c  K spread 10c, K vol that hour 23
+
+First >1c opportunity per game: 147 games, median 3.2c, median 71.2 h before start.
+
+Where the >1c locked observations sit (hours before start) and how much traded on Kalshi in that hour:
+  <= 24 h                          n   1 in   1 games, median profit  1.0c, median Kalshi contracts traded that hour 5,309, median Kalshi spread 1c
+  24-48 h                          n   3 in   3 games, median profit  1.0c, median Kalshi contracts traded that hour 1,058, median Kalshi spread 3c
+  48-66 h                          n  14 in  11 games, median profit  2.8c, median Kalshi contracts traded that hour 0, median Kalshi spread 2c
+  > 66 h (first hours of listing)  n 226 in 140 games, median profit  3.6c, median Kalshi contracts traded that hour 1, median Kalshi spread 8c
+Upper bound on capacity: if we had taken ALL Kalshi volume traded in the first >1c hour of each game, the Kalshi leg would total $17,318 over 147 games (68 days).
+
+=== LIVE executable check (real order books on both venues, kalshi_pm_live.py, 3 rounds 10 min apart)
+--- round 1 2026-10-15 10:48 UTC: 86 games on both venues, 172 pairings; top-of-book locked profit: best -0.70c, median -4.95c
+  KXNBAGAME-26OCT16MIAORL            K ORL ask [(0.65, 23.0)] + PM MIA ask [(0.33, 5.4)]: top -0.70c | no size at a profit
+  KXNHLGAME-26OCT20CARVAN            K VAN ask [(0.27, 3.33)] + PM CAR ask [(0.72, 5.09)]: top -1.39c | no size at a profit
+  KXNBAGAME-26OCT20PHINYK            K NYK ask [(0.63, 497.99)] + PM PHI ask [(0.36, 12.28)]: top -1.78c | no size at a profit
+  KXNHLGAME-26OCT21FLAOTT            K OTT ask [(0.53, 111.39)] + PM FLA ask [(0.46, 5.43)]: top -1.99c | no size at a profit
+  KXNBAGAME-26OCT16SACSAS            K SAC ask [(0.25, 23.0)] + PM SAS ask [(0.75, 5.05)]: top -2.25c | no size at a profit
+  KXNHLGAME-26OCT15VANFLA            K VAN ask [(0.27, 25.6)] + PM FLA ask [(0.73, 3900.97)]: top -2.37c | no size at a profit
+  KXNFLGAME-26OCT18PITTB             K TB ask [(0.44, 535173.78)] + PM PIT ask [(0.56, 35614.3)]: top -2.46c | no size at a profit
+  KXNFLGAME-26OCT18NONYG             K NO ask [(0.51, 2208.87)] + PM NYG ask [(0.49, 67508.78)]: top -2.50c | no size at a profit
+--- round 2 2026-10-15 11:00 UTC: 86 games on both venues, 172 pairings; top-of-book locked profit: best -1.39c, median -4.94c
+  KXNHLGAME-26OCT20CARVAN            K VAN ask [(0.27, 3.33)] + PM CAR ask [(0.72, 5.09)]: top -1.39c | no size at a profit
+  KXNBAGAME-26OCT16MIAORL            K ORL ask [(0.67, 1.85)] + PM MIA ask [(0.32, 3718.25)]: top -1.64c | no size at a profit
+  KXNBAGAME-26OCT20PHINYK            K NYK ask [(0.63, 497.99)] + PM PHI ask [(0.36, 12.28)]: top -1.78c | no size at a profit
+  KXNHLGAME-26OCT21FLAOTT            K OTT ask [(0.53, 111.39)] + PM FLA ask [(0.46, 5.43)]: top -1.99c | no size at a profit
+  KXNBAGAME-26OCT16SACSAS            K SAC ask [(0.25, 23.0)] + PM SAS ask [(0.75, 5.05)]: top -2.25c | no size at a profit
+  KXNHLGAME-26OCT15VANFLA            K VAN ask [(0.27, 25.5)] + PM FLA ask [(0.73, 3899.58)]: top -2.37c | no size at a profit
+  KXNFLGAME-26OCT18PITTB             K TB ask [(0.44, 535171.6)] + PM PIT ask [(0.56, 35614.3)]: top -2.46c | no size at a profit
+  KXNFLGAME-26OCT18NONYG             K NO ask [(0.51, 2208.87)] + PM NYG ask [(0.49, 67508.78)]: top -2.50c | no size at a profit
+--- round 3 2026-10-15 11:12 UTC: 86 games on both venues, 172 pairings; top-of-book locked profit: best -1.64c, median -4.96c
+  KXNBAGAME-26OCT16MIAORL            K ORL ask [(0.67, 1.85)] + PM MIA ask [(0.32, 3954.05)]: top -1.64c | no size at a profit
+  KXNBAGAME-26OCT20PHINYK            K NYK ask [(0.63, 497.99)] + PM PHI ask [(0.36, 12.28)]: top -1.78c | no size at a profit
+  KXNHLGAME-26OCT21FLAOTT            K OTT ask [(0.53, 111.39)] + PM FLA ask [(0.46, 5.43)]: top -1.99c | no size at a profit
+  KXNBAGAME-26OCT16SACSAS            K SAC ask [(0.25, 23.0)] + PM SAS ask [(0.75, 5.05)]: top -2.25c | no size at a profit
+  KXNHLGAME-26OCT15VANFLA            K VAN ask [(0.27, 13.48)] + PM FLA ask [(0.73, 16446.76)]: top -2.37c | no size at a profit
+  KXNFLGAME-26OCT18PITTB             K TB ask [(0.44, 535106.0)] + PM PIT ask [(0.56, 35614.3)]: top -2.46c | no size at a profit
+  KXNFLGAME-26OCT18NONYG             K NO ask [(0.51, 2208.87)] + PM NYG ask [(0.49, 67508.78)]: top -2.50c | no size at a profit
+  KXNFLGAME-26OCT18CARPHI            K CAR ask [(0.5, 1512.13)] + PM PHI ask [(0.5, 83378.79)]: top -2.50c | no size at a profit
