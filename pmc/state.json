@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-15T22:32:02.022Z",
+ "last_scan": "2026-10-15T22:32:12.751Z",
  "last_note": {
-  "at": "2026-10-15T22:32:00.692Z",
+  "at": "2026-10-15T22:32:10.377Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -28885,6 +28885,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-15T22:32:12.751Z",
+   "market_id": "5710578",
+   "question": "Bitcoin Up or Down - October 15, 6:30PM-6:35PM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 22:30–22:35 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.91,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 1.45 < 2 (המחיר קרוב מדי לקו הפתיחה)"
+  },
+  {
    "ts": "2026-10-15T22:28:23.057Z",
    "market_id": "5710543",
    "question": "Bitcoin Up or Down - October 15, 6:25PM-6:30PM ET",
@@ -31072,17 +31083,6 @@
    "price": 0.95,
    "decision": "skip",
    "reason": "מסנן מרחק: 1.68 < 2 (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-15T21:08:50.235Z",
-   "market_id": "5709159",
-   "question": "Ethereum Up or Down - October 15, 5:05PM-5:10PM ET",
-   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 21:05–21:10 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.95,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.74 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 176,
@@ -53128,6 +53128,19 @@
    "taker_ask": 0.97,
    "status": "WORKING",
    "filled": false
+  },
+  {
+   "slug": "btc-updown-5m-1792103400",
+   "market_id": "5710578",
+   "token_id": "95684230121200877158843442290493354565693308586922804236777833925371090408895",
+   "coin": "btc",
+   "outcome": "Down",
+   "end_time": "2026-10-15T22:35:00Z",
+   "placed_at": "2026-10-15T22:32:10.813Z",
+   "limit": 0.9,
+   "taker_ask": 0.91,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
@@ -53138,7 +53151,7 @@
    "avg_fee_c": 0.36979832126108453
   },
   "maker": {
-   "placed": 1384,
+   "placed": 1385,
    "resolved": 1380,
    "filled": 645,
    "fill_rate": 0.4673913043478261,
