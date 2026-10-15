@@ -1,0 +1,89 @@
+# daybot — Binance USDⓈ-M Futures intraday bot. Every setting lives here; API keys live ONLY in .env.
+# Safety first: anything ambiguous resolves to "do not trade". Values past the hard caps in daybot/config.py
+# (risk 1%, leverage 5x, 2 positions, 6 trades/24h, day -2%, week -5%, drawdown 10% ...) make the bot REFUSE to start.
+
+mode: testnet            # testnet | demo | live. live also needs DAYBOT_LIVE_CONFIRM in .env (see README)
+
+universe: [BTC, ETH, SOL, XRP, DOGE, BNB, SUI]   # USDT perpetuals; F4 still checks volume + spread live
+timezone: Asia/Jerusalem                         # every "Israel time" rule below uses this zone (DST handled)
+
+costs:
+  taker_fee: 0.0005        # 0.05% per side (stop / take-profit / time exit are market orders)
+  maker_fee: 0.0002        # 0.02% per side (post-only limit entry)
+  slippage: 0.0003         # 0.03% per market fill
+  round_trip: 0.0016       # part A: 2 x (fee + slippage), used by the cost rule
+  max_cost_r: 0.20         # cost in R above this -> no trade
+  min_target_r: 1.5        # expected reward after costs, in R
+  default_target_r: 2.0    # setups without a structural target (S3, S4, S6)
+
+entry:
+  post_only: true          # GTX limit; never chases with a market order
+  limit_timeout_1m: 3      # not filled within 3 closed 1m bars -> cancel
+
+risk:
+  risk_per_trade: 0.005    # 0.5% of equity (hard cap 1%)
+  max_leverage: 5          # hard cap 5x, isolated margin only
+  liq_vs_stop: 2.0         # liquidation price at least 2x the stop distance away
+  max_open: 2              # open positions + working entry orders
+  max_trades_24h: 6
+  loss_streak: 3           # 3 losses in a row ...
+  loss_streak_pause_h: 4   # ... -> 4 hour pause
+  daily_stop: 0.02         # -2% in the Israel day -> no entries until midnight
+  weekly_stop: 0.05        # -5% in the week (Mon 00:00 Israel) -> halt until /approve
+  kill_drawdown: 0.10      # -10% from the equity peak -> close everything, halt, alert
+  correlation_threshold: 0.7   # 1h-return correlation over 100 bars; same side + correlated -> blocked
+  be_at_r: 1.0             # at +1R the stop moves to the entry price
+  time_exit_bars: 8        # no +1R within 8 setup-timeframe bars -> exit
+  max_hold_bars: 32        # hard cap even after break-even
+
+filters:
+  min_volume_24h_usd: 200000000   # F4
+  max_spread: 0.0002              # F4: 0.02%
+  atr_vs_avg: 0.8                 # F5: ATR(14) 15m >= 80% of its 100-bar average
+  funding_max: 0.0005             # F6: above +0.05% no new long, below -0.05% no new short
+  news_window_min: 30             # F2
+  data_max_age_s: 120             # stale market data -> no new entries
+
+night:                            # F1: 00:00-10:00 Israel and the weekend
+  start: "00:00"
+  end: "10:00"
+  weekend_days: [5, 6]            # Python weekday: 5 = Saturday, 6 = Sunday (crypto weekend = TradFi closed)
+  coins: [BTC, ETH]
+  setups: [S1, S2]
+  size_mult: 0.5
+  max_cost_r: 0.15
+  atr_vs_avg: 1.0                 # ATR must be ABOVE its average at night
+
+# F2 — high-impact US events. Keep this list current (federalreserve.gov, bls.gov). The bot warns at start-up and every
+# day when no future event is listed: an empty calendar is treated as a stale calendar, not as "no news".
+news_events:
+  - {name: "FOMC decision", time: "2026-10-28T14:00:00-04:00"}
+  - {name: "FOMC decision", time: "2026-12-09T14:00:00-05:00"}
+  # - {name: "US CPI", time: "YYYY-MM-DDT08:30:00-05:00"}
+  # - {name: "US NFP", time: "YYYY-MM-DDT08:30:00-05:00"}
+
+setups:                           # a setup also needs a PASS in the backtest gate file to trade (part F)
+  S1: {enabled: false, tf: 15m}    # Holy Grail
+  S2: {enabled: false, tf: 15m}    # Turtle Soup
+  S3: {enabled: false, tf: 5m}     # Second Entry
+  S4: {enabled: false, tf: 15m}    # VWAP Reclaim
+  S5: {enabled: false, tf: 30m}    # 80% rule
+  S6: {enabled: false, tf: 15m}    # Opening Range Breakout
+  orb_start: "16:30"              # S6 range, Israel time (US cash open)
+  orb_end: "17:30"
+  orb_last_entry: "20:00"
+
+gate:
+  file: reports/setup_gate.json   # written by backtest.py; missing file = every setup OFF
+  min_pf: 1.3
+  min_trades: 300
+  allow_failed_on_testnet: false  # true lets a failed setup trade on TESTNET ONLY (to collect a forward sample)
+
+telegram:
+  heartbeat_minutes: 60
+  daily_summary_time: "23:59"
+
+paths:
+  db: state/journal.sqlite
+  log: logs/daybot.log
+  data: data

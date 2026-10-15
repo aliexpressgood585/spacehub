@@ -1,0 +1,14 @@
+services:
+  daybot:
+    build: .
+    container_name: daybot
+    restart: always                 # comes back after a crash or a reboot
+    env_file: .env
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./state:/app/state          # journal.sqlite (trades, risk state) survives restarts
+      - ./logs:/app/logs
+      - ./reports:/app/reports:ro   # setup_gate.json from the backtest
+    logging:
+      driver: json-file
+      options: {max-size: "20m", max-file: "5"}

@@ -739,6 +739,20 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   after each 15m close), .github/workflows/daytrade-desk.yml (cron :47, daytrade/state.json on pm-desk-data). house.html now has
   tabs "דיי טריידינג · 15m" (DayHouse.tsx, default) and "מאמן כמותי · 4h" (CoachHouse). F4 in both desks = fixed liquid list
   (OKX/Binance-spot volume understates Binance futures; shown for info only).
+- 2026-10-15 ~23:30 UTC "daybot" — owner's full Python spec for a 24/7 VPS bot on Binance USDⓈ-M (1m-1h, S1-S6, F1-F7, cost law,
+  hard risk caps, exchange-side stops, Telegram /stop /status, Docker/systemd, backtest gate). BUILT as a standalone package in daybot/
+  (config.yaml + .env; config.py refuses any value past the hard caps; data.py / filters.py / setups.py / risk.py / engine.py (ONE
+  decision core for live AND backtest) / executor.py (ccxt 4.5.84; STOP_MARKET/TAKE_PROFIT_MARKET go to Binance's algo endpoint;
+  every fill read back; stop not confirmed -> close; start-up reconcile closes positions without a stop) / journal.py (SQLite) /
+  telegram.py / backtest.py / main.py; Dockerfile, docker-compose (restart: always), deploy/daybot.service, Hebrew README,
+  tests/test_daybot.py 34/34 incl. a fake exchange). Default mode testnet; live needs mode: live AND DAYBOT_LIVE_CONFIRM.
+  Verified against the REAL Binance testnet (no keys): REST bars/funding/volume/spread + websocket bookTicker and 1m closes; order
+  placement NOT exercised live (no keys) — first testnet run must confirm the stop/TP appear under Open Orders.
+  BACKTEST (scripts/fetch_history.py 24m 1m archives, 7 coins BTC ETH SOL XRP DOGE BNB SUI, 2024-10..2026-09, maker entry only on a
+  trade-through, taker+3bp exits, real funding, deterministic) -> daybot/reports/backtest_report.md: OOS (from 2026-02-25) S1 n18
+  PF 1.74 (IS 0.92) | S2 n4 | S3 n489 -0.095R PF 0.62 | S4 n153 -0.13R | S5 n0 (3 in 2y) | S6 n88 -0.08R | ALL n511 -0.094R PF 0.67.
+  Gate (OOS PF > 1.3 and >= 300 OOS trades): 0 of 6 -> config.yaml ships with every setup enabled: false; reports/setup_gate.json
+  committed; the bot runs, monitors and alerts but opens nothing. Testnet sample possible only via gate.allow_failed_on_testnet.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the

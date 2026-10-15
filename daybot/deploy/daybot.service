@@ -1,0 +1,18 @@
+# systemd alternative to Docker. Install: sudo cp deploy/daybot.service /etc/systemd/system/ && sudo systemctl enable --now daybot
+[Unit]
+Description=daybot - Binance USDM futures intraday bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=bot
+WorkingDirectory=/opt/daybot
+EnvironmentFile=/opt/daybot/.env
+ExecStart=/opt/daybot/.venv/bin/python -m daybot.main --config /opt/daybot/config.yaml
+Restart=always
+RestartSec=10
+TimeoutStopSec=30
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
