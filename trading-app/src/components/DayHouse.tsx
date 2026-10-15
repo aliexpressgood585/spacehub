@@ -38,7 +38,7 @@ export default function DayHouse() {
   const unreal = open.reduce((a, t) => a + sg(t.side) * (mark(t) - t.entry_px) * t.qty - (t.funding ?? 0), 0)
   const equity = st.cash + open.reduce((a, t) => a + t.margin, 0) + unreal, start = st.start_cash
   const realized = closed.reduce((a, t) => a + t.pnl, 0), stats = st.stats ?? {}, rk = st.risk ?? {}
-  const lastCycle = st.last_cycle ? now - Date.parse(st.last_cycle) : null, alive = lastCycle != null && lastCycle < 120_000
+  const lastCycle = st.last_cycle ? now - Date.parse(st.last_cycle) : null, alive = lastCycle != null && lastCycle < 7 * 60_000 // raw.githubusercontent max-age=300
   const nextBar = 15 * 60_000 - (now % (15 * 60_000))
   return (
     <div dir="rtl" style={{ color: '#e6edf5', fontFamily: 'system-ui, sans-serif', display: 'grid', gap: 12 }}>
@@ -46,7 +46,7 @@ export default function DayHouse() {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <h1 style={{ fontSize: 24, margin: 0 }}>מאמן הדיי טריידינג · 15m</h1>
           <span style={{ ...lab, border: '1px solid #2a3a52', borderRadius: 20, padding: '3px 10px' }}>נייר בלבד</span>
-          <span style={{ ...lab, border: `1px solid ${alive ? '#2f7a55' : '#7a2f2f'}`, borderRadius: 20, padding: '3px 10px', color: alive ? '#3ddc97' : '#ff6b6b' }}>{alive ? `● פעיל · מחזור ${ago(lastCycle!)}` : '● לא פעיל'}</span>
+          <span title="הבוט שומר מצב כל ~15 שנ׳; השרת של GitHub מגיש את הקובץ עם השהיה של עד 5 דק׳" style={{ ...lab, border: `1px solid ${alive ? '#2f7a55' : '#7a2f2f'}`, borderRadius: 20, padding: '3px 10px', color: alive ? '#3ddc97' : '#ff6b6b' }}>{alive ? `● פעיל · עדכון שהגיע ${ago(lastCycle!)}` : `● לא פעיל${lastCycle != null ? ` · מחזור אחרון ${ago(lastCycle)}` : ''}`}</span>
         </div>
         <div style={{ ...lab, marginTop: 4 }}>חשבון דמו $5,000 · 7 מטבעות נזילים · סריקה בכל סגירת נר 15 דק׳ (הבאה בעוד {Math.ceil(nextBar / 60_000)} דק׳) · מחירים OKX · אין פקודות אמיתיות.</div>
       </div>

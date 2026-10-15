@@ -55,14 +55,16 @@ export default function CoachHouse() {
     return { d: v.map((x, i) => `${(i / (v.length - 1)) * W},${H - ((x - lo) / (hi - lo || 1)) * H}`).join(' '), base: H - ((start - lo) / (hi - lo || 1)) * H, W, H }
   })()
   const lastCycle = st.last_cycle ? now - Date.parse(st.last_cycle) : null
+  // raw.githubusercontent serves the state with max-age=300, so a healthy desk can look up to ~5 min old here
+  const alive = lastCycle != null && lastCycle < 7 * 60_000
   return (
     <div dir="rtl" style={{ color: '#e6edf5', fontFamily: 'system-ui, sans-serif', display: 'grid', gap: 12 }}>
       <div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <h1 style={{ fontSize: 24, margin: 0 }}>בית הבוט · מאמן המסחר הכמותי</h1>
           <span style={{ ...lab, border: '1px solid #2a3a52', borderRadius: 20, padding: '3px 10px' }}>נייר בלבד</span>
-          <span style={{ ...lab, border: `1px solid ${lastCycle != null && lastCycle < 120_000 ? '#2f7a55' : '#7a2f2f'}`, borderRadius: 20, padding: '3px 10px', color: lastCycle != null && lastCycle < 120_000 ? '#3ddc97' : '#ff6b6b' }}>
-            {lastCycle != null && lastCycle < 120_000 ? `● פעיל · מחזור ${ago(lastCycle)}` : `● לא פעיל${lastCycle != null ? ` · מחזור אחרון ${ago(lastCycle)}` : ''}`}</span>
+          <span title="הבוט שומר מצב כל ~15 שנ׳; השרת של GitHub מגיש את הקובץ עם השהיה של עד 5 דק׳" style={{ ...lab, border: `1px solid ${alive ? '#2f7a55' : '#7a2f2f'}`, borderRadius: 20, padding: '3px 10px', color: alive ? '#3ddc97' : '#ff6b6b' }}>
+            {alive ? `● פעיל · עדכון שהגיע ${ago(lastCycle!)}` : `● לא פעיל${lastCycle != null ? ` · מחזור אחרון ${ago(lastCycle)}` : ''}`}</span>
         </div>
         <div style={{ ...lab, marginTop: 4 }}>חשבון דמו של $5,000 על חוזים עתידיים צמודי USDT. מחירים: OKX (Binance Futures חסום משרתי GitHub). אין כסף אמיתי ואין פקודות אמיתיות. רץ ב-GitHub Actions כל ~15 שנ׳ (פרויקט Supabase של הבוט הישן חסום).</div>
       </div>
