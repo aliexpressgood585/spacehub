@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 955.7496641862296,
+ "cash": 945.7813273305956,
  "peak": 1072.1210886213057,
  "floor": 936.0605443106529,
  "strategy": {
@@ -44,12 +44,12 @@
   "zMin": 1.5,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-15T13:51:53.334Z",
+ "last_scan": "2026-10-15T13:52:05.742Z",
  "last_note": {
-  "at": "2026-10-15T13:51:53.063Z",
-  "windows": 0,
+  "at": "2026-10-15T13:52:02.994Z",
+  "windows": 4,
   "settled": 0,
-  "entered": 0
+  "entered": 1
  },
  "trades": [
   {
@@ -10472,6 +10472,54 @@
      "unfilled": 0,
      "z": 9.994401859609162
     }
+   }
+  },
+  {
+   "id": 151,
+   "market_id": "5687476",
+   "slug": "btc-updown-5m-1792072200",
+   "event_slug": "btc-updown-5m-1792072200",
+   "question": "Bitcoin Up or Down - October 15, 9:50AM-9:55AM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 13:50–13:55 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "token_id": "112699442106476995318901529215584540597890124100805020701752394058226445813400",
+   "end_time": "2026-10-15T13:55:00Z",
+   "qty": 10.255100223174624,
+   "entry_px": 0.9700000000000001,
+   "entry_fee": 0.020889639154606655,
+   "cost": 9.968336855633993,
+   "best_ask": 0.97,
+   "opened_at": "2026-10-15T13:52:05.742Z",
+   "status": "OPEN",
+   "mark_px": 0.96,
+   "mark_at": "2026-10-15T13:52:05.742Z",
+   "meta": {
+    "fee_schedule": {
+     "rate": 0.07,
+     "exponent": 1
+    },
+    "coin": "btc",
+    "tf": "5m",
+    "window_s": 300,
+    "left_s": 177,
+    "band": [
+     0.9,
+     0.98
+    ],
+    "z_min": 1.5,
+    "look": 1,
+    "outcomes": [
+     "Up",
+     "Down"
+    ],
+    "wanted": 9.968336855633993,
+    "ref_px": 0.97,
+    "bid_px": 0.96,
+    "z": 2.097711393031409,
+    "spot_open": 80390,
+    "spot": 80188.01,
+    "sigma1s": 0.0000901450019116428
    }
   }
  ],
@@ -23341,9 +23389,38 @@
    "cash": 955.7496641862296,
    "open_value": 10.215890691325308,
    "open_count": 1
+  },
+  {
+   "ts": "2026-10-15T13:52:05.742Z",
+   "equity": 965.8421142361685,
+   "cash": 945.7813273305956,
+   "open_value": 20.060786905572947,
+   "open_count": 2
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-15T13:52:05.742Z",
+   "market_id": "5687476",
+   "question": "Bitcoin Up or Down - October 15, 9:50AM-9:55AM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 13:50–13:55 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.9700000000000001,
+   "decision": "BUY",
+   "reason": "177 שנ׳ לסיום, מחיר 0.97 בטווח 90-98¢, 10.3 מניות ($10), עמלה $0.02"
+  },
+  {
+   "ts": "2026-10-15T13:52:05.742Z",
+   "market_id": "5687471",
+   "question": "Ethereum Up or Down - October 15, 9:50AM-9:55AM ET",
+   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 13:50–13:55 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.97,
+   "decision": "skip",
+   "reason": "מקסימום פוזיציות פתוחות"
+  },
   {
    "ts": "2026-10-15T13:48:34.099Z",
    "market_id": "5687160",
@@ -25521,31 +25598,9 @@
    "price": 0.97,
    "decision": "skip",
    "reason": "מסנן מרחק: 0.92 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-15T11:53:00.086Z",
-   "market_id": "5684202",
-   "question": "Ethereum Up or Down - October 15, 7:50AM-7:55AM ET",
-   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 11:50–11:55 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.93,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.73 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-15T11:53:00.883Z",
-   "market_id": "5684205",
-   "question": "XRP Up or Down - October 15, 7:50AM-7:55AM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 11:50–11:55 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.97,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.21 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
- "next_id": 151,
+ "next_id": 152,
  "shadow": [
   {
    "slug": "btc-updown-5m-1791969600",
@@ -42319,17 +42374,69 @@
    "taker_ask": 0.93,
    "status": "WORKING",
    "filled": false
+  },
+  {
+   "slug": "btc-updown-5m-1792072200",
+   "market_id": "5687476",
+   "token_id": "112699442106476995318901529215584540597890124100805020701752394058226445813400",
+   "coin": "btc",
+   "outcome": "Down",
+   "end_time": "2026-10-15T13:55:00Z",
+   "placed_at": "2026-10-15T13:52:03.724Z",
+   "limit": 0.96,
+   "taker_ask": 0.97,
+   "status": "WORKING",
+   "filled": false
+  },
+  {
+   "slug": "eth-updown-5m-1792072200",
+   "market_id": "5687471",
+   "token_id": "7635400744328494480643241110624157190921954361987375506442371183977419438417",
+   "coin": "eth",
+   "outcome": "Down",
+   "end_time": "2026-10-15T13:55:00Z",
+   "placed_at": "2026-10-15T13:52:04.002Z",
+   "limit": 0.96,
+   "taker_ask": 0.97,
+   "status": "WORKING",
+   "filled": false
+  },
+  {
+   "slug": "sol-updown-5m-1792072200",
+   "market_id": "5687472",
+   "token_id": "50551222238746780984631435180651205495555857494141633860781948130198225877129",
+   "coin": "sol",
+   "outcome": "Down",
+   "end_time": "2026-10-15T13:55:00Z",
+   "placed_at": "2026-10-15T13:52:04.278Z",
+   "limit": 0.9,
+   "taker_ask": 0.91,
+   "status": "WORKING",
+   "filled": false
+  },
+  {
+   "slug": "xrp-updown-5m-1792072200",
+   "market_id": "5687470",
+   "token_id": "53983072926233961002963155914009555066217400760715641788562196186298932435801",
+   "coin": "xrp",
+   "outcome": "Down",
+   "end_time": "2026-10-15T13:55:00Z",
+   "placed_at": "2026-10-15T13:52:04.560Z",
+   "limit": 0.93,
+   "taker_ask": 0.94,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
   "fills": {
-   "n": 150,
-   "avg_vs_ref_c": -0.13967459680814254,
-   "avg_vs_research_c": -1.1396745968081432,
-   "avg_fee_c": 0.3798017903886735
+   "n": 151,
+   "avg_vs_ref_c": -0.13874959947828722,
+   "avg_vs_research_c": -1.1387495994782881,
+   "avg_fee_c": 0.37863555336623195
   },
   "maker": {
-   "placed": 1053,
+   "placed": 1057,
    "resolved": 1050,
    "filled": 492,
    "fill_rate": 0.4685714285714286,
