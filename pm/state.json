@@ -14,10 +14,11 @@
   "minQty": 5,
   "exitPx": 0.99
  },
- "last_scan": "2026-10-15T20:03:13.872Z",
+ "last_scan": "2026-10-15T20:03:30.697Z",
  "last_note": {
-  "at": "2026-10-15T20:03:12.505Z",
+  "at": "2026-10-15T20:03:28.059Z",
   "scanned": 31,
+  "tr_err": "Error: 429 https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&",
   "settled": 0,
   "entered": 0,
   "topped": 0,
@@ -5240,7 +5241,7 @@
    "opened_at": "2026-10-15T11:39:04.296Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-15T20:03:12.695Z",
+   "mark_at": "2026-10-15T20:03:28.274Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -6281,7 +6282,7 @@
    "opened_at": "2026-10-15T16:06:28.276Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-15T20:03:12.819Z",
+   "mark_at": "2026-10-15T20:03:28.402Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -6317,7 +6318,7 @@
    "opened_at": "2026-10-15T17:43:19.760Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-15T20:03:12.948Z",
+   "mark_at": "2026-10-15T20:03:28.546Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.04,
@@ -6353,7 +6354,7 @@
    "opened_at": "2026-10-15T17:43:19.862Z",
    "status": "OPEN",
    "mark_px": 0.979,
-   "mark_at": "2026-10-15T20:03:13.072Z",
+   "mark_at": "2026-10-15T20:03:28.676Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.04,
@@ -6473,7 +6474,7 @@
    "opened_at": "2026-10-15T18:45:16.370Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-15T20:03:13.221Z",
+   "mark_at": "2026-10-15T20:03:28.802Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -6509,7 +6510,7 @@
    "opened_at": "2026-10-15T18:51:28.397Z",
    "status": "OPEN",
    "mark_px": 0.83,
-   "mark_at": "2026-10-15T20:03:13.343Z",
+   "mark_at": "2026-10-15T20:03:28.930Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -6544,7 +6545,7 @@
    "opened_at": "2026-10-15T19:13:28.553Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-15T20:03:13.475Z",
+   "mark_at": "2026-10-15T20:03:29.063Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -6580,7 +6581,7 @@
    "opened_at": "2026-10-15T19:13:28.663Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-15T20:03:13.607Z",
+   "mark_at": "2026-10-15T20:03:29.185Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -6601,13 +6602,6 @@
   }
  ],
  "equity": [
-  {
-   "ts": "2026-10-14T23:09:04.357Z",
-   "equity": 1367.5702451479083,
-   "cash": 755.9387329452429,
-   "open_value": 611.6315122026654,
-   "open_count": 9
-  },
   {
    "ts": "2026-10-14T23:09:19.272Z",
    "equity": 1367.5702451479083,
@@ -41600,9 +41594,32 @@
    "cash": 633.1060671748259,
    "open_value": 435.06135705284566,
    "open_count": 8
+  },
+  {
+   "ts": "2026-10-15T20:03:30.697Z",
+   "equity": 1068.1674242276715,
+   "cash": 633.1060671748259,
+   "open_value": 435.06135705284566,
+   "open_count": 8
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-15T20:03:29.513Z",
+   "market_id": "5745723",
+   "question": "Dota 2: OG vs Team Synapse - Game 2 Winner",
+   "outcome": "OG",
+   "outcomes": [
+    "OG",
+    "Team Synapse"
+   ],
+   "price": 0.96,
+   "decision": "skip",
+   "reason": "מחיר 0.96 מחוץ לטווח 85-92¢",
+   "outcome_he": "OG",
+   "question_he": "Dota 2: OG vs Team Synapse - מנצח משחק 2",
+   "tr_v": 2
+  },
   {
    "ts": "2026-10-15T19:13:28.553Z",
    "market_id": "5721953",
@@ -44590,22 +44607,6 @@
    "outcome_he": "מעל",
    "question_he": "אינטר מיאמי CF נגד ניו יורק סיטי FC: O/U 1.5",
    "tr_v": 2
-  },
-  {
-   "ts": "2026-10-14T21:51:31.083Z",
-   "market_id": "5650481",
-   "question": "Dota 2: Dawn Bulls vs salamit (BO3) - EPL Masters Play-In Group B",
-   "outcome": "Dawn Bulls",
-   "outcomes": [
-    "Dawn Bulls",
-    "salamit"
-   ],
-   "price": 0.9100895198789887,
-   "decision": "BUY",
-   "reason": "מחיר 0.91 בטווח, 42.7 מניות, עמלה $0.17",
-   "outcome_he": "Dawn Bulls",
-   "question_he": "Dota 2: Dawn Bulls vs salamit (BO3) - EPL Masters Play - In Group B",
-   "tr_v": 2
   }
  ],
  "next_id": 160,
@@ -44782,6 +44783,7 @@
   "Counter-Strike: Alianza Lima Esports vs SUKEBAN (BO3) - CCT South America Series 7 Group Stage": "Counter - Strike: Alianza Lima Esports vs SUKEBAN (BO3) - CCT דרום אמריקה סדרה 7 שלב קבוצתי",
   "AFC Bournemouth vs. SK Puntigamer Sturm Graz: O/U 1.5": "AFC בורנמות 'לעומת SK Puntigamer Sturm Graz: O/U 1.5",
   "Dota 2: PlayTime vs Skyreavers (BO3) - DreamLeague South America Closed Qualifier Playoffs": "דוטה 2: PlayTime vs Skyreavers (BO3) - DreamLeague דרום אמריקה סגור במוקדמות פלייאוף",
-  "Dota 2: PlayTime vs Skyreavers - Game 2 Winner": "Dota 2: PlayTime vs Skyreavers - מנצח משחק 2"
+  "Dota 2: PlayTime vs Skyreavers - Game 2 Winner": "Dota 2: PlayTime vs Skyreavers - מנצח משחק 2",
+  "Dota 2: OG vs Team Synapse - Game 2 Winner": "Dota 2: OG vs Team Synapse - מנצח משחק 2"
  }
 }
