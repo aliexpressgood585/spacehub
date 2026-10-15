@@ -44,9 +44,9 @@
   "zMin": 1.5,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-15T09:33:39.220Z",
+ "last_scan": "2026-10-15T09:33:49.308Z",
  "last_note": {
-  "at": "2026-10-15T09:33:38.400Z",
+  "at": "2026-10-15T09:33:48.616Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -9160,8 +9160,8 @@
    "best_ask": 0.91,
    "opened_at": "2026-10-15T09:32:10.561Z",
    "status": "OPEN",
-   "mark_px": 0.63,
-   "mark_at": "2026-10-15T09:33:38.597Z",
+   "mark_px": 0.49,
+   "mark_at": "2026-10-15T09:33:48.800Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -20143,6 +20143,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-15T09:33:49.308Z",
+   "market_id": "5682163",
+   "question": "Ethereum Up or Down - October 15, 5:30AM-5:35AM ET",
+   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 09:30–09:35 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.92,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
    "ts": "2026-10-15T09:32:19.543Z",
    "market_id": "5682157",
    "question": "XRP Up or Down - October 15, 5:30AM-5:35AM ET",
@@ -22330,17 +22341,6 @@
    "price": 0.97,
    "decision": "skip",
    "reason": "מסנן מרחק: 1.60 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-15T07:52:36.318Z",
-   "market_id": "5681216",
-   "question": "Solana Up or Down - October 15, 3:50AM-3:55AM ET",
-   "question_he": "סולנה · עולה או יורד · 5 דקות · 07:50–07:55 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.97,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.33 < 1.5 (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 133,
@@ -36703,6 +36703,19 @@
    "filled": true,
    "filled_at": "2026-10-15T09:32:18.837Z",
    "left_at_fill": 161
+  },
+  {
+   "slug": "eth-updown-5m-1792056600",
+   "market_id": "5682163",
+   "token_id": "37263503024593137443905526813401757413871379757047878780121528023871569860686",
+   "coin": "eth",
+   "outcome": "Up",
+   "end_time": "2026-10-15T09:35:00Z",
+   "placed_at": "2026-10-15T09:33:48.913Z",
+   "limit": 0.91,
+   "taker_ask": 0.92,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
@@ -36713,7 +36726,7 @@
    "avg_fee_c": 0.38985262360290707
   },
   "maker": {
-   "placed": 903,
+   "placed": 904,
    "resolved": 900,
    "filled": 407,
    "fill_rate": 0.45222222222222225,
