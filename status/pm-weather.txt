@@ -1,0 +1,68 @@
+Polymarket daily max-temperature markets: 3192 events, 18 cities, 2026-04-18 .. 2026-10-14; IS < 2026-08-21 <= OOS. Median event volume $65,217.
+Forecast = Open-Meteo archived run issued >= 24 h (E0) / 48 h (E1) before each hour; calibration on IS only.
+  ankara        bias +0.71 sd 1.00 (n123)
+  atlanta       bias -0.12 sd 2.97 (n121)
+  buenos-aires  bias +0.79 sd 1.34 (n120)
+  chicago       bias -3.13 sd 6.91 (n122)
+  dallas        bias -1.38 sd 4.47 (n122)
+  london        bias -0.11 sd 1.25 (n125)
+  los-angeles   bias +0.39 sd 2.49 (n122)
+  miami         bias +1.43 sd 1.99 (n122)
+  munich        bias +0.34 sd 1.13 (n123)
+  nyc           bias -1.22 sd 2.88 (n125)
+  paris         bias +0.63 sd 1.12 (n123)
+  sao-paulo     bias +0.58 sd 1.25 (n120)
+  seattle       bias -0.41 sd 4.04 (n105)
+  seoul         bias +4.52 sd 2.18 (n123)
+  tel-aviv      bias +0.13 sd 0.80 (n123)
+  tokyo         bias +1.35 sd 1.41 (n123)
+  toronto       bias +0.01 sd 1.58 (n122)
+  wellington    bias +0.84 sd 0.80 (n123)
+
+=== E0: local 00:00 of the day, forecast issued >= 24 h earlier; 3155 events priced. OOS Brier per bucket: market 0.0556 | model 0.0728
+  -- slip 1c
+  VALUE yes  P - cost >= 0.05          IS n 2355 WR   9.8%  -22.01%/$ t -3.6 | OOS n 1222 WR   6.2%  -50.63%/$ t -7.6
+  VALUE no   (1-P) - cost >= 0.05      IS n 3797 WR  64.0%   -3.44%/$ t -2.7 | OOS n 1829 WR  59.9%   -6.31%/$ t -3.3
+  VALUE yes  P - cost >= 0.10          IS n 1287 WR  10.4%   -9.25%/$ t -1.0 | OOS n  727 WR   6.3%  -47.69%/$ t -5.4
+  VALUE no   (1-P) - cost >= 0.10      IS n 2732 WR  60.5%   -3.44%/$ t -2.1 | OOS n 1442 WR  55.2%   -7.72%/$ t -3.3
+  VALUE yes  P - cost >= 0.15          IS n  597 WR  11.1%   +6.94%/$ t +0.5 | OOS n  378 WR   6.3%  -44.49%/$ t -3.5
+  VALUE no   (1-P) - cost >= 0.15      IS n 1764 WR  57.1%   -3.23%/$ t -1.5 | OOS n 1118 WR  51.8%   -8.41%/$ t -3.0
+  TAILNO  P < 2%, NO price <= 97c      IS n  390 WR  94.4%   +6.18%/$ t +3.4 | OOS n  271 WR  86.3%   -5.22%/$ t -2.1
+  CLUSTER top-2 model buckets          IS n 4332 WR  32.2%   +0.65%/$ t +0.2 | OOS n 1978 WR  26.5%  -27.40%/$ t -7.0
+  CLUSTER top-2, sum P - cost >= 0.10  IS n  946 WR  15.9%  +20.44%/$ t +1.3 | OOS n  610 WR   6.7%  -62.50%/$ t -7.2
+  CONTROL market favourite bucket      IS n 2166 WR  49.4%   +0.89%/$ t +0.4 | OOS n  989 WR  50.6%   -2.36%/$ t -0.7
+  -- slip 2c
+  VALUE yes  P - cost >= 0.05          IS n 2128 WR   9.8%  -30.46%/$ t -5.5 | OOS n 1111 WR   5.9%  -56.02%/$ t -9.2
+  VALUE no   (1-P) - cost >= 0.05      IS n 3567 WR  63.2%   -5.06%/$ t -3.8 | OOS n 1740 WR  58.8%   -8.10%/$ t -4.1
+  VALUE yes  P - cost >= 0.10          IS n 1082 WR  10.3%  -17.00%/$ t -1.9 | OOS n  648 WR   5.9%  -58.17%/$ t -7.7
+  VALUE no   (1-P) - cost >= 0.10      IS n 2505 WR  59.7%   -5.22%/$ t -3.1 | OOS n 1365 WR  53.9%  -10.10%/$ t -4.2
+  VALUE yes  P - cost >= 0.15          IS n  511 WR  10.8%   -8.11%/$ t -0.6 | OOS n  334 WR   6.9%  -45.33%/$ t -3.7
+  VALUE no   (1-P) - cost >= 0.15      IS n 1602 WR  56.5%   -5.29%/$ t -2.4 | OOS n 1053 WR  51.0%  -10.60%/$ t -3.7
+  TAILNO  P < 2%, NO price <= 97c      IS n  390 WR  94.4%   +4.98%/$ t +2.8 | OOS n  271 WR  86.3%   -6.22%/$ t -2.6
+  CLUSTER top-2 model buckets          IS n 4332 WR  32.2%   -5.93%/$ t -1.9 | OOS n 1978 WR  26.5%  -30.64%/$ t -8.9
+  CLUSTER top-2, sum P - cost >= 0.10  IS n  870 WR  15.2%   +0.53%/$ t +0.0 | OOS n  582 WR   6.0%  -71.71%/$ t-12.8
+  CONTROL market favourite bucket      IS n 2166 WR  49.4%   -1.29%/$ t -0.6 | OOS n  989 WR  50.6%   -4.30%/$ t -1.4
+
+=== E1: local 12:00 the day before, forecast >= 48 h earlier; 3138 events priced. OOS Brier per bucket: market 0.0587 | model 0.0753
+  -- slip 1c
+  VALUE yes  P - cost >= 0.05          IS n 2399 WR   8.5%  -28.46%/$ t -4.6 | OOS n 1276 WR   5.3%  -52.36%/$ t -7.8
+  VALUE no   (1-P) - cost >= 0.05      IS n 4041 WR  65.8%   -4.95%/$ t -4.2 | OOS n 1951 WR  62.8%   -4.75%/$ t -2.7
+  VALUE yes  P - cost >= 0.10          IS n 1238 WR   8.8%  -15.97%/$ t -1.6 | OOS n  707 WR   5.5%  -47.96%/$ t -4.9
+  VALUE no   (1-P) - cost >= 0.10      IS n 2857 WR  62.9%   -4.71%/$ t -3.2 | OOS n 1529 WR  59.2%   -5.09%/$ t -2.4
+  VALUE yes  P - cost >= 0.15          IS n  508 WR  10.6%   +1.68%/$ t +0.1 | OOS n  302 WR   6.0%  -46.28%/$ t -3.1
+  VALUE no   (1-P) - cost >= 0.15      IS n 1751 WR  60.7%   -3.67%/$ t -1.8 | OOS n 1157 WR  56.1%   -5.15%/$ t -2.0
+  TAILNO  P < 2%, NO price <= 97c      IS n  501 WR  92.8%   +2.82%/$ t +1.6 | OOS n  295 WR  86.4%   -4.53%/$ t -2.0
+  CLUSTER top-2 model buckets          IS n 4298 WR  29.3%   -4.91%/$ t -1.3 | OOS n 1978 WR  24.3%  -29.52%/$ t -8.3
+  CLUSTER top-2, sum P - cost >= 0.10  IS n 1074 WR  13.6%   -5.93%/$ t -0.5 | OOS n  670 WR   5.7%  -68.35%/$ t-11.2
+  CONTROL market favourite bucket      IS n 2149 WR  46.1%   +2.46%/$ t +1.0 | OOS n  989 WR  48.0%   -1.09%/$ t -0.3
+  -- slip 2c
+  VALUE yes  P - cost >= 0.05          IS n 2136 WR   8.3%  -35.65%/$ t -6.3 | OOS n 1138 WR   5.0%  -59.49%/$ t -9.9
+  VALUE no   (1-P) - cost >= 0.05      IS n 3782 WR  65.2%   -6.40%/$ t -5.4 | OOS n 1850 WR  61.4%   -6.96%/$ t -3.8
+  VALUE yes  P - cost >= 0.10          IS n 1057 WR   9.0%  -24.34%/$ t -2.7 | OOS n  618 WR   5.0%  -57.90%/$ t -6.8
+  VALUE no   (1-P) - cost >= 0.10      IS n 2603 WR  62.7%   -5.52%/$ t -3.6 | OOS n 1447 WR  58.3%   -6.81%/$ t -3.1
+  VALUE yes  P - cost >= 0.15          IS n  433 WR  10.9%   -7.03%/$ t -0.4 | OOS n  260 WR   6.2%  -56.39%/$ t -4.8
+  VALUE no   (1-P) - cost >= 0.15      IS n 1569 WR  60.3%   -4.89%/$ t -2.3 | OOS n 1083 WR  55.3%   -7.06%/$ t -2.6
+  TAILNO  P < 2%, NO price <= 97c      IS n  501 WR  92.8%   +1.66%/$ t +1.0 | OOS n  295 WR  86.4%   -5.54%/$ t -2.4
+  CLUSTER top-2 model buckets          IS n 4298 WR  29.3%  -10.66%/$ t -3.5 | OOS n 1978 WR  24.3%  -32.41%/$ t -9.8
+  CLUSTER top-2, sum P - cost >= 0.10  IS n  966 WR  12.5%  -19.78%/$ t -2.0 | OOS n  652 WR   5.5%  -70.73%/$ t-12.6
+  CONTROL market favourite bucket      IS n 2149 WR  46.1%   +0.05%/$ t +0.0 | OOS n  989 WR  48.0%   -3.19%/$ t -1.0

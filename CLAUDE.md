@@ -566,6 +566,13 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   negative in IS and OOS (-1.6..-17.8%/$; 45-53c -5%/$ on n 61k). A single trader's profit is not a reproducible price-band
   rule. Not yet tested from the prompt: status quo NO 80-90c on long markets, Kalshi cross-venue, weather buckets, token mean
   reversion. Nothing deployed.
+- 2026-10-15 WEATHER markets (owner "כן"): backtest/research/wx_fetch.py + wx_research.py -> status/pm-weather.txt. 3,192 daily
+  "Highest temperature in <city>" events, 18 cities, 2026-04-18..10-14, median volume $65k, fee 0.05 p(1-p). Forecast = Open-Meteo
+  previous-runs archive (run issued >= 24 h / 48 h before each hour = no look-ahead) at the resolution station, bias/sd per city
+  fitted on IS only. MARKET IS BETTER CALIBRATED than the free forecast: OOS Brier per bucket market 0.0556 vs model 0.0728.
+  Every rule is negative OOS: VALUE yes -44..-58%/$, VALUE no -5..-11%/$, TAILNO (NO on buckets with model P < 2%) IS +6.2%/$
+  t3.4 -> OOS -5.2%/$ (a flip), CLUSTER top-2 buckets OOS -27..-32%/$, market favourite bucket ~-1..-4%/$. REJECTED: the market
+  already prices the public forecasts. (Bug caught on the way: '76-77°F' parsed as 76/-77; fixed with a digit lookbehind.)
 - 2026-10-15 HOUR OF DAY (Grok; pmc_volgate.py GATE=hours -> status/pmc-hours.txt): IS losses (8) fell in 7 hours -> labelled
   WEAK; OOS those hours earned +4.4%/$ with 0 losses like the rest. STRONG-only: OOS n137 +$183 vs base n188 +$249; sizing
   x1.5/x0.5: +$307 but per $ deployed +4.43% vs +4.41% (just more capital). Live: the one z>=1.5 loser was in a STRONG hour. NOT DEPLOYED.
