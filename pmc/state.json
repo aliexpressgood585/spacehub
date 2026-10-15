@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 969.1759243232215,
+ "cash": 958.1374643190319,
  "peak": 1072.1210886213057,
  "floor": 936.0605443106529,
  "strategy": {
@@ -44,12 +44,12 @@
   "zMin": 1.5,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-15T16:32:16.020Z",
+ "last_scan": "2026-10-15T16:32:25.277Z",
  "last_note": {
-  "at": "2026-10-15T16:32:14.065Z",
+  "at": "2026-10-15T16:32:23.113Z",
   "windows": 4,
   "settled": 0,
-  "entered": 0
+  "entered": 1
  },
  "trades": [
   {
@@ -10902,6 +10902,54 @@
    "pnl": 0.9855437881009728,
    "reason": "RESOLVED_WIN",
    "closed_at": "2026-10-15T16:15:02.462Z"
+  },
+  {
+   "id": 157,
+   "market_id": "5691588",
+   "slug": "btc-updown-5m-1792081800",
+   "event_slug": "btc-updown-5m-1792081800",
+   "question": "Bitcoin Up or Down - October 15, 12:30PM-12:35PM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 16:30–16:35 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "token_id": "58847252006806730728323528805160907801337931724261724849569598906790318089823",
+   "end_time": "2026-10-15T16:35:00Z",
+   "qty": 11.811435797056292,
+   "entry_px": 0.93,
+   "entry_fee": 0.053824712927185506,
+   "cost": 11.038460004189538,
+   "best_ask": 0.93,
+   "opened_at": "2026-10-15T16:32:25.277Z",
+   "status": "OPEN",
+   "mark_px": 0.92,
+   "mark_at": "2026-10-15T16:32:25.277Z",
+   "meta": {
+    "fee_schedule": {
+     "rate": 0.07,
+     "exponent": 1
+    },
+    "coin": "btc",
+    "tf": "5m",
+    "window_s": 300,
+    "left_s": 157,
+    "band": [
+     0.9,
+     0.98
+    ],
+    "z_min": 1.5,
+    "look": 1,
+    "outcomes": [
+     "Up",
+     "Down"
+    ],
+    "wanted": 11.038460004189536,
+    "ref_px": 0.92,
+    "bid_px": 0.92,
+    "z": 1.731182589185241,
+    "spot_open": 82074,
+    "spot": 81950,
+    "sigma1s": 0.00006970303090700449
+   }
   }
  ],
  "equity": [
@@ -24911,9 +24959,49 @@
    "cash": 969.1759243232215,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-10-15T16:32:25.277Z",
+   "equity": 969.0039852523237,
+   "cash": 958.1374643190319,
+   "open_value": 10.86652093329179,
+   "open_count": 1
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-15T16:32:25.277Z",
+   "market_id": "5691588",
+   "question": "Bitcoin Up or Down - October 15, 12:30PM-12:35PM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 16:30–16:35 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.93,
+   "decision": "BUY",
+   "reason": "157 שנ׳ לסיום, מחיר 0.93 בטווח 90-98¢, 11.8 מניות ($11), עמלה $0.05"
+  },
+  {
+   "ts": "2026-10-15T16:32:25.277Z",
+   "market_id": "5691586",
+   "question": "Ethereum Up or Down - October 15, 12:30PM-12:35PM ET",
+   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 16:30–16:35 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.91,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
+   "ts": "2026-10-15T16:32:25.277Z",
+   "market_id": "5691598",
+   "question": "XRP Up or Down - October 15, 12:30PM-12:35PM ET",
+   "question_he": "XRP · עולה או יורד · 5 דקות · 16:30–16:35 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.97,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
   {
    "ts": "2026-10-15T16:32:16.020Z",
    "market_id": "5691598",
@@ -27080,42 +27168,9 @@
    "price": 0.96,
    "decision": "skip",
    "reason": "מסנן מרחק: 1.04 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-15T14:42:55.383Z",
-   "market_id": "5688445",
-   "question": "Bitcoin Up or Down - October 15, 10:40AM-10:45AM ET",
-   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 14:40–14:45 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.92,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.72 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-15T14:43:01.953Z",
-   "market_id": "5688438",
-   "question": "Solana Up or Down - October 15, 10:40AM-10:45AM ET",
-   "question_he": "סולנה · עולה או יורד · 5 דקות · 14:40–14:45 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.96,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.82 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-15T14:43:10.506Z",
-   "market_id": "5688443",
-   "question": "XRP Up or Down - October 15, 10:40AM-10:45AM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 14:40–14:45 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.94,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.51 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
- "next_id": 157,
+ "next_id": 158,
  "shadow": [
   {
    "slug": "btc-updown-5m-1791969600",
@@ -45406,17 +45461,43 @@
    "taker_ask": 0.92,
    "status": "WORKING",
    "filled": false
+  },
+  {
+   "slug": "btc-updown-5m-1792081800",
+   "market_id": "5691588",
+   "token_id": "58847252006806730728323528805160907801337931724261724849569598906790318089823",
+   "coin": "btc",
+   "outcome": "Down",
+   "end_time": "2026-10-15T16:35:00Z",
+   "placed_at": "2026-10-15T16:32:23.559Z",
+   "limit": 0.92,
+   "taker_ask": 0.93,
+   "status": "WORKING",
+   "filled": false
+  },
+  {
+   "slug": "eth-updown-5m-1792081800",
+   "market_id": "5691586",
+   "token_id": "56553550185366391591047601078168875085634153071206854706738347190365085199821",
+   "coin": "eth",
+   "outcome": "Down",
+   "end_time": "2026-10-15T16:35:00Z",
+   "placed_at": "2026-10-15T16:32:23.773Z",
+   "limit": 0.9,
+   "taker_ask": 0.91,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
   "fills": {
-   "n": 156,
-   "avg_vs_ref_c": -0.1599435225719318,
-   "avg_vs_research_c": -1.1599435225719326,
-   "avg_fee_c": 0.3782203112711604
+   "n": 157,
+   "avg_vs_ref_c": -0.15255534726892586,
+   "avg_vs_research_c": -1.1525553472689267,
+   "avg_fee_c": 0.3787138124732549
   },
   "maker": {
-   "placed": 1148,
+   "placed": 1150,
    "resolved": 1144,
    "filled": 537,
    "fill_rate": 0.46940559440559443,
