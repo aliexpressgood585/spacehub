@@ -5,7 +5,7 @@ One autonomous supervisor looks after the three Polymarket PAPER desks every 6 h
 | desk | state file (branch `pm-desk-data`) | workflow | judged since |
 |---|---|---|---|
 | Poly (favourites 85-92c, last 4h, no crypto) | `pm/state.json` | `pm-desk.yml` | 2026-10-15 18:30 UTC (crypto exclusion) |
-| Poly Coins (5m crypto, z filter) | `pmc/state.json` | `pmc-desk.yml` | 2026-10-14 23:11 UTC (zMin 1.5 / 2.5) |
+| Poly Coins (5m crypto, z filter) | `pmc/state.json` | `pmc-desk.yml` | 2026-10-15 19:00 UTC (first look zMin 2.0, second 2.5) |
 | Poly News (geopolitics status quo; news in shadow) | `pmn/state.json` | `pmn-desk.yml` | 2026-10-15 16:10 UTC |
 
 It reads the state files from `https://raw.githubusercontent.com/aliexpressgood585/spacehub/pm-desk-data/<desk>/state.json`.
