@@ -14,10 +14,11 @@
   "minQty": 5,
   "exitPx": 0.99
  },
- "last_scan": "2026-10-15T21:25:00.280Z",
+ "last_scan": "2026-10-15T21:25:17.033Z",
  "last_note": {
-  "at": "2026-10-15T21:24:58.623Z",
+  "at": "2026-10-15T21:25:13.353Z",
   "scanned": 44,
+  "tr_err": "Error: 429 https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&",
   "settled": 0,
   "entered": 0,
   "topped": 0,
@@ -5240,7 +5241,7 @@
    "opened_at": "2026-10-15T11:39:04.296Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-15T21:24:58.823Z",
+   "mark_at": "2026-10-15T21:25:13.549Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -6365,7 +6366,7 @@
    "opened_at": "2026-10-15T17:43:19.862Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-15T21:24:58.946Z",
+   "mark_at": "2026-10-15T21:25:13.710Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.04,
@@ -6527,7 +6528,7 @@
    "opened_at": "2026-10-15T18:51:28.397Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-15T21:24:59.756Z",
+   "mark_at": "2026-10-15T21:25:13.841Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -6562,7 +6563,7 @@
    "opened_at": "2026-10-15T19:13:28.553Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-15T21:24:59.881Z",
+   "mark_at": "2026-10-15T21:25:14.122Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -6598,7 +6599,7 @@
    "opened_at": "2026-10-15T19:13:28.663Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-15T21:25:00.000Z",
+   "mark_at": "2026-10-15T21:25:14.291Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -6633,8 +6634,8 @@
    "best_ask": 0.9,
    "opened_at": "2026-10-15T21:21:14.719Z",
    "status": "OPEN",
-   "mark_px": 0.8,
-   "mark_at": "2026-10-15T21:25:00.121Z",
+   "mark_px": 0.79,
+   "mark_at": "2026-10-15T21:25:14.428Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -6655,13 +6656,6 @@
   }
  ],
  "equity": [
-  {
-   "ts": "2026-10-15T00:30:48.303Z",
-   "equity": 1391.776627017096,
-   "cash": 1099.0086461734795,
-   "open_value": 292.76798084361656,
-   "open_count": 3
-  },
   {
    "ts": "2026-10-15T00:31:03.520Z",
    "equity": 1391.776627017096,
@@ -41654,9 +41648,32 @@
    "cash": 742.9343306190724,
    "open_value": 325.8320187600461,
    "open_count": 6
+  },
+  {
+   "ts": "2026-10-15T21:25:17.033Z",
+   "equity": 1068.1849423574786,
+   "cash": 742.9343306190724,
+   "open_value": 325.2506117384062,
+   "open_count": 6
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-15T21:25:15.652Z",
+   "market_id": "5694344",
+   "question": "Dota 2: Stariy bog Team vs Korb3n Team - Game 2 Winner",
+   "outcome": "Korb3n Team",
+   "outcomes": [
+    "Stariy bog Team",
+    "Korb3n Team"
+   ],
+   "price": 0.82,
+   "decision": "skip",
+   "reason": "מחיר 0.82 מחוץ לטווח 85-92¢",
+   "outcome_he": "Korb3n Team",
+   "question_he": "Dota 2: Stariy bog Team vs Korb3n Team - מנצחת משחק 2",
+   "tr_v": 2
+  },
   {
    "ts": "2026-10-15T21:21:14.719Z",
    "market_id": "5698997",
@@ -44652,22 +44669,6 @@
    "outcome_he": "לא",
    "question_he": "האם הביטקוין יירד ל -79,000 $ ב -14 באוקטובר?",
    "tr_v": 2
-  },
-  {
-   "ts": "2026-10-15T02:31:40.394Z",
-   "market_id": "5677952",
-   "question": "Will Bitcoin dip to $79,000 on October 14?",
-   "outcome": "No",
-   "outcomes": [
-    "Yes",
-    "No"
-   ],
-   "price": 0.973,
-   "decision": "skip",
-   "reason": "מחיר 0.973 מחוץ לטווח 85-92¢",
-   "outcome_he": "לא",
-   "question_he": "האם הביטקוין יירד ל -79,000 $ ב -14 באוקטובר?",
-   "tr_v": 2
   }
  ],
  "next_id": 161,
@@ -44848,6 +44849,7 @@
   "Dota 2: OG vs Team Synapse - Game 2 Winner": "Dota 2: OG vs Team Synapse - מנצח משחק 2",
   "Game Handicap: KC (-1.5) vs Cloud9 (+1.5)": "מכשול במשחק: KC (-1.5) לעומת Cloud9 (+1.5)",
   "LoL: Cloud9 vs Karmine Corp - Game 3 Winner": "LoL: Cloud9 vs Karmine Corp - מנצחת במשחק השלישי",
-  "Dota 2: PuckChamp vs Mena Warriors - Game 2 Winner": "Dota 2: PuckChamp לעומת Mena Warriors - מנצח משחק 2"
+  "Dota 2: PuckChamp vs Mena Warriors - Game 2 Winner": "Dota 2: PuckChamp לעומת Mena Warriors - מנצח משחק 2",
+  "Dota 2: Stariy bog Team vs Korb3n Team - Game 2 Winner": "Dota 2: Stariy bog Team vs Korb3n Team - מנצחת משחק 2"
  }
 }
