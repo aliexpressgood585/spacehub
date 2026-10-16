@@ -695,6 +695,10 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   at n>=200 & t<=-2.5; restore only after 150 positive closes t>=1; never loosen rules or raise risk; report only on events +
   daily status). Runs every 6 h: persistent session session_01RB8S1FMAV18GwKqJC3BGgJ ("Poly supervisor", repo attached)
   woken by scheduled task trig_01Vjp6cAr2SiufLUJeD21tgz (cron 3 */6 * * * UTC); first run at creation 18:04 UTC.
+- 2026-10-16 00:10 UTC SUPERVISOR (health): main Poly desk had pushed no state since 23:48 — every cycle crashed with
+  ERR_MODULE_NOT_FOUND /tmp/desk/shared/clv.ts (the CLV commit 05335ce added the import to pm/pmc/pmn desk scripts but the
+  workflows copied only pm.ts/pmc.ts/pmn.ts). Fixed all three workflows (commit f03670c), cancelled the stuck run, re-dispatched;
+  state pushing again 00:18. pmc/pmn were still on their pre-CLV loops and would have hit it at their next restart. No rule change.
 - 2026-10-15 ~19:00 UTC Poly Coins first-look PMC.zMin 1.5 -> 2.0 (owner: "do what you think, bring profitability"). Live since
   the 1.5 revert: 69 closed, 64 W, -$43.17 (-2.8%/$), 5 losses vs ~1.5 expected by the 180-day backtest (P ~2%: live runs
   below the backtest). 50 of the 69 were z 1.5-2.0: 4 losses, -$27.44 (-3.3%/$); the backtest's same bucket was the weakest
