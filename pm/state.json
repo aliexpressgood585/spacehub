@@ -14,15 +14,15 @@
   "minQty": 5,
   "exitPx": 0.99
  },
- "last_scan": "2026-10-16T08:54:18.811Z",
+ "last_scan": "2026-10-16T08:54:56.539Z",
  "last_note": {
-  "at": "2026-10-16T08:53:44.048Z",
+  "at": "2026-10-16T08:54:21.578Z",
   "scanned": 17,
   "tr_err": "Error: 429 https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&",
   "tr_err2": "Error: 429 https://api.mymemory.translated.net/get?q=Dota%202%3A%20Amaru%20Gamin",
   "settled": 0,
-  "entered": 1,
-  "topped": 1,
+  "entered": 0,
+  "topped": 0,
   "recycled": 0
  },
  "trades": [
@@ -7223,7 +7223,7 @@
    "opened_at": "2026-10-16T01:24:30.422Z",
    "status": "OPEN",
    "mark_px": 0.953,
-   "mark_at": "2026-10-16T08:53:44.435Z",
+   "mark_at": "2026-10-16T08:54:21.910Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -7436,7 +7436,7 @@
    "opened_at": "2026-10-16T07:07:16.593Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-16T08:53:44.609Z",
+   "mark_at": "2026-10-16T08:54:22.084Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -7451,7 +7451,7 @@
     ],
     "adds": 1,
     "close_px": 0.999,
-    "close_at": "2026-10-16T08:53:44.609Z"
+    "close_at": "2026-10-16T08:54:22.084Z"
    },
    "outcome_he": "Execration",
    "tr_v": 2
@@ -7473,7 +7473,7 @@
    "opened_at": "2026-10-16T08:32:00.012Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-16T08:53:44.788Z",
+   "mark_at": "2026-10-16T08:54:22.249Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -7488,7 +7488,7 @@
     ],
     "adds": 1,
     "close_px": 0.999,
-    "close_at": "2026-10-16T08:53:44.788Z"
+    "close_at": "2026-10-16T08:54:22.249Z"
    },
    "outcome_he": "LOUD",
    "tr_v": 2
@@ -7510,7 +7510,7 @@
    "opened_at": "2026-10-16T08:38:15.937Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-16T08:53:44.977Z",
+   "mark_at": "2026-10-16T08:54:22.494Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -7525,7 +7525,7 @@
     ],
     "adds": 1,
     "close_px": 0.999,
-    "close_at": "2026-10-16T08:53:44.977Z"
+    "close_at": "2026-10-16T08:54:22.494Z"
    },
    "outcome_he": "Liquid",
    "tr_v": 2
@@ -7546,8 +7546,8 @@
    "best_ask": 0.91,
    "opened_at": "2026-10-16T08:53:45.318Z",
    "status": "OPEN",
-   "mark_px": 0.82,
-   "mark_at": "2026-10-16T08:53:45.318Z",
+   "mark_px": 0.75,
+   "mark_at": "2026-10-16T08:54:22.781Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -7560,20 +7560,15 @@
      "Yangon Galacticos",
      "Execration"
     ],
-    "adds": 1
+    "adds": 1,
+    "close_px": 0.755,
+    "close_at": "2026-10-16T08:54:22.781Z"
    },
    "outcome_he": "Yangon Galacticos",
    "tr_v": 2
   }
  ],
  "equity": [
-  {
-   "ts": "2026-10-15T09:27:12.757Z",
-   "equity": 1357.0501642161528,
-   "cash": 1357.0501642161528,
-   "open_value": 0,
-   "open_count": 0
-  },
   {
    "ts": "2026-10-15T09:27:27.781Z",
    "equity": 1357.0501642161528,
@@ -42566,9 +42561,31 @@
    "cash": 799.2968251766046,
    "open_value": 277.99504551662477,
    "open_count": 5
+  },
+  {
+   "ts": "2026-10-16T08:54:56.539Z",
+   "equity": 1073.2343664904215,
+   "cash": 799.2968251766046,
+   "open_value": 273.93754131381684,
+   "open_count": 5
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-16T08:54:23.108Z",
+   "market_id": "5680557",
+   "question": "Will the highest temperature in Chicago be between 56-57°F on October 16?",
+   "outcome": "Yes",
+   "outcomes": [
+    "Yes",
+    "No"
+   ],
+   "price": 0.948,
+   "decision": "skip",
+   "reason": "מחיר 0.948 מחוץ לטווח 85-92¢",
+   "outcome_he": "כן",
+   "tr_v": 2
+  },
   {
    "ts": "2026-10-16T08:53:45.319Z",
    "market_id": "5769635",
@@ -45525,18 +45542,6 @@
    "outcome_he": "Heroic",
    "question_he": "Counter - Strike: Heroic vs Envy (BO3) - Stake Pulse Beat III Group D",
    "tr_v": 2
-  },
-  {
-   "ts": "2026-10-15T12:54:42.186Z",
-   "market_id": "5347756",
-   "question": "Counter-Strike: Heroic vs Envy (BO3) - Stake Pulse Beat III Group D",
-   "outcome": "Heroic",
-   "price": 0.88,
-   "decision": "ADD",
-   "reason": "השלמה לחלק שווה: +30.8 מניות, עמלה $0.16",
-   "outcome_he": "Heroic",
-   "question_he": "Counter - Strike: Heroic vs Envy (BO3) - Stake Pulse Beat III Group D",
-   "tr_v": 2
   }
  ],
  "next_id": 182,
@@ -45740,8 +45745,8 @@
    "beat_close": 0.8,
    "brier_entry": 0.15789443626855035,
    "brier_close": 0.002252025,
-   "open_n": 4,
-   "open_clv_c": 7.377243553998042
+   "open_n": 5,
+   "open_clv_c": 2.8017948431984308
   },
   "judged": {
    "n": 10,
@@ -45752,8 +45757,8 @@
    "beat_close": 0.8,
    "brier_entry": 0.15789443626855035,
    "brier_close": 0.002252025,
-   "open_n": 4,
-   "open_clv_c": 7.377243553998042
+   "open_n": 5,
+   "open_clv_c": 2.8017948431984308
   }
  }
 }
