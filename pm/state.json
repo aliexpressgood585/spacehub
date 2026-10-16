@@ -14,13 +14,13 @@
   "minQty": 5,
   "exitPx": 0.99
  },
- "last_scan": "2026-10-16T18:06:59.229Z",
+ "last_scan": "2026-10-16T18:07:14.131Z",
  "last_note": {
-  "at": "2026-10-16T18:06:57.828Z",
-  "scanned": 26,
+  "at": "2026-10-16T18:07:12.687Z",
+  "scanned": 29,
   "settled": 0,
-  "entered": 1,
-  "topped": 1,
+  "entered": 0,
+  "topped": 0,
   "recycled": 0
  },
  "trades": [
@@ -7222,7 +7222,7 @@
    "opened_at": "2026-10-16T01:24:30.422Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-16T18:06:58.105Z",
+   "mark_at": "2026-10-16T18:07:13.129Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -7700,7 +7700,7 @@
    "opened_at": "2026-10-16T09:19:19.066Z",
    "status": "OPEN",
    "mark_px": 0.87,
-   "mark_at": "2026-10-16T18:06:58.268Z",
+   "mark_at": "2026-10-16T18:07:13.307Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -8486,7 +8486,7 @@
    "opened_at": "2026-10-16T17:00:11.529Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-16T18:06:58.433Z",
+   "mark_at": "2026-10-16T18:07:13.466Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -8501,7 +8501,7 @@
     ],
     "adds": 1,
     "close_px": 0.999,
-    "close_at": "2026-10-16T18:06:58.433Z"
+    "close_at": "2026-10-16T18:07:13.466Z"
    },
    "outcome_he": "BBL",
    "question_he": "Counter-Strike: BBL נגד EYEBALLERS (BO3) - פלייאוף מוקדמות סגור PGL בוקרשט",
@@ -8568,7 +8568,7 @@
    "opened_at": "2026-10-16T17:29:11.619Z",
    "status": "OPEN",
    "mark_px": 0.09,
-   "mark_at": "2026-10-16T18:06:58.590Z",
+   "mark_at": "2026-10-16T18:07:13.634Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -8583,7 +8583,7 @@
     ],
     "adds": 1,
     "close_px": 0.095,
-    "close_at": "2026-10-16T18:06:58.590Z"
+    "close_at": "2026-10-16T18:07:13.634Z"
    },
    "outcome_he": "Legacy",
    "question_he": "Counter-Strike: Legacy vs BetBoom Team - הזוכה במפה 1",
@@ -8606,7 +8606,7 @@
    "opened_at": "2026-10-16T18:06:58.933Z",
    "status": "OPEN",
    "mark_px": 0.9,
-   "mark_at": "2026-10-16T18:06:58.933Z",
+   "mark_at": "2026-10-16T18:07:13.799Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -8619,7 +8619,9 @@
      "Legacy",
      "BetBoom Team"
     ],
-    "adds": 1
+    "adds": 1,
+    "close_px": 0.905,
+    "close_at": "2026-10-16T18:07:13.799Z"
    },
    "outcome_he": "BetBoom Team",
    "question_he": "Counter-Strike: Legacy vs BetBoom Team - הזוכה במפה 1",
@@ -8627,13 +8629,6 @@
   }
  ],
  "equity": [
-  {
-   "ts": "2026-10-15T18:37:42.916Z",
-   "equity": 979.9607299278069,
-   "cash": 752.1785890045415,
-   "open_value": 227.78214092326536,
-   "open_count": 5
-  },
   {
    "ts": "2026-10-15T18:37:57.137Z",
    "equity": 982.8858245850654,
@@ -43626,9 +43621,32 @@
    "cash": 736.2028728309363,
    "open_value": 208.27542642745482,
    "open_count": 5
+  },
+  {
+   "ts": "2026-10-16T18:07:14.131Z",
+   "equity": 944.4782992583911,
+   "cash": 736.2028728309363,
+   "open_value": 208.27542642745482,
+   "open_count": 5
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-16T18:07:14.127Z",
+   "market_id": "5475914",
+   "question": "Will WTI Crude Oil (WTI) hit (HIGH) $100 Week of October 12 2026?",
+   "outcome": "No",
+   "outcomes": [
+    "Yes",
+    "No"
+   ],
+   "price": 0.947,
+   "decision": "skip",
+   "reason": "מחיר 0.947 מחוץ לטווח 85-92¢",
+   "outcome_he": "לא",
+   "question_he": "האם נפט גולמי WTI (WTI) יגיע ל-(HIGH) $100 בשבוע של 12 באוקטובר 2026?",
+   "tr_v": 2
+  },
   {
    "ts": "2026-10-16T18:06:58.933Z",
    "market_id": "5763245",
@@ -46716,22 +46734,6 @@
    "outcome_he": "כן",
    "tr_v": 2,
    "question_he": "האם הטמפרטורה הגבוהה ביותר בשיקגו תהיה בין 56 -57 מעלות צלזיוס ב -16 באוקטובר?"
-  },
-  {
-   "ts": "2026-10-16T08:59:07.923Z",
-   "market_id": "5680557",
-   "question": "Will the highest temperature in Chicago be between 56-57°F on October 16?",
-   "outcome": "Yes",
-   "outcomes": [
-    "Yes",
-    "No"
-   ],
-   "price": 0.948,
-   "decision": "skip",
-   "reason": "מחיר 0.948 מחוץ לטווח 85-92¢",
-   "outcome_he": "כן",
-   "tr_v": 2,
-   "question_he": "האם הטמפרטורה הגבוהה ביותר בשיקגו תהיה בין 56 -57 מעלות צלזיוס ב -16 באוקטובר?"
   }
  ],
  "next_id": 206,
@@ -46969,8 +46971,8 @@
    "beat_close": 0.8235294117647058,
    "brier_entry": 0.14739964072405007,
    "brier_close": 0.0015189852941176478,
-   "open_n": 4,
-   "open_clv_c": -18.579800031010365
+   "open_n": 5,
+   "open_clv_c": -14.963840024808292
   },
   "judged": {
    "n": 34,
@@ -46981,8 +46983,8 @@
    "beat_close": 0.8235294117647058,
    "brier_entry": 0.14739964072405007,
    "brier_close": 0.0015189852941176478,
-   "open_n": 4,
-   "open_clv_c": -18.579800031010365
+   "open_n": 5,
+   "open_clv_c": -14.963840024808292
   }
  }
 }
