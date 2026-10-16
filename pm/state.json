@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 729.1533277299892,
+ "cash": 781.329587693104,
  "strategy": {
   "lo": 0.85,
   "hi": 0.92,
@@ -14,11 +14,11 @@
   "minQty": 5,
   "exitPx": 0.99
  },
- "last_scan": "2026-10-16T18:04:28.789Z",
+ "last_scan": "2026-10-16T18:04:43.701Z",
  "last_note": {
-  "at": "2026-10-16T18:04:27.356Z",
+  "at": "2026-10-16T18:04:42.487Z",
   "scanned": 25,
-  "settled": 0,
+  "settled": 1,
   "entered": 0,
   "topped": 0,
   "recycled": 0
@@ -7222,7 +7222,7 @@
    "opened_at": "2026-10-16T01:24:30.422Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-16T18:04:27.623Z",
+   "mark_at": "2026-10-16T18:04:42.741Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -7700,7 +7700,7 @@
    "opened_at": "2026-10-16T09:19:19.066Z",
    "status": "OPEN",
    "mark_px": 0.87,
-   "mark_at": "2026-10-16T18:04:27.790Z",
+   "mark_at": "2026-10-16T18:04:42.909Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -8176,9 +8176,9 @@
    "cost": 45.88934413037125,
    "best_ask": 0.874,
    "opened_at": "2026-10-16T13:57:39.121Z",
-   "status": "OPEN",
-   "mark_px": 0.9995,
-   "mark_at": "2026-10-16T18:04:27.948Z",
+   "status": "CLOSED",
+   "mark_px": 1,
+   "mark_at": "2026-10-16T18:04:42.973Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -8197,7 +8197,13 @@
    },
    "outcome_he": "לא",
    "question_he": "האם אילון מאסק יפרסם 360-379 ציוצים מ-9 באוקטובר עד 16 באוקטובר 2026?",
-   "tr_v": 2
+   "tr_v": 2,
+   "exit_px": 1,
+   "exit_fee": 0,
+   "proceeds": 52.176259963114816,
+   "pnl": 6.286915832743567,
+   "reason": "RESOLVED_WIN",
+   "closed_at": "2026-10-16T18:04:42.973Z"
   },
   {
    "id": 196,
@@ -8480,7 +8486,7 @@
    "opened_at": "2026-10-16T17:00:11.529Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-16T18:04:28.109Z",
+   "mark_at": "2026-10-16T18:04:43.143Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -8495,7 +8501,7 @@
     ],
     "adds": 1,
     "close_px": 0.999,
-    "close_at": "2026-10-16T18:04:28.109Z"
+    "close_at": "2026-10-16T18:04:43.143Z"
    },
    "outcome_he": "BBL",
    "question_he": "Counter-Strike: BBL נגד EYEBALLERS (BO3) - פלייאוף מוקדמות סגור PGL בוקרשט",
@@ -8561,8 +8567,8 @@
    "best_ask": 0.86,
    "opened_at": "2026-10-16T17:29:11.619Z",
    "status": "OPEN",
-   "mark_px": 0.21,
-   "mark_at": "2026-10-16T18:04:28.372Z",
+   "mark_px": 0.2,
+   "mark_at": "2026-10-16T18:04:43.313Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -8576,8 +8582,8 @@
      "BetBoom Team"
     ],
     "adds": 1,
-    "close_px": 0.215,
-    "close_at": "2026-10-16T18:04:28.372Z"
+    "close_px": 0.20500000000000002,
+    "close_at": "2026-10-16T18:04:43.313Z"
    },
    "outcome_he": "Legacy",
    "question_he": "Counter-Strike: Legacy vs BetBoom Team - הזוכה במפה 1",
@@ -8585,13 +8591,6 @@
   }
  ],
  "equity": [
-  {
-   "ts": "2026-10-15T18:35:12.044Z",
-   "equity": 971.0239283545241,
-   "cash": 752.1785890045415,
-   "open_value": 218.84533934998248,
-   "open_count": 5
-  },
   {
    "ts": "2026-10-15T18:35:27.817Z",
    "equity": 971.5062701846116,
@@ -43584,9 +43583,32 @@
    "cash": 729.1533277299892,
    "open_value": 222.69672764698342,
    "open_count": 5
+  },
+  {
+   "ts": "2026-10-16T18:04:43.701Z",
+   "equity": 951.3176428959301,
+   "cash": 781.329587693104,
+   "open_value": 169.9880552028261,
+   "open_count": 4
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-16T18:04:43.697Z",
+   "market_id": "5475914",
+   "question": "Will WTI Crude Oil (WTI) hit (HIGH) $100 Week of October 12 2026?",
+   "outcome": "No",
+   "outcomes": [
+    "Yes",
+    "No"
+   ],
+   "price": 0.939,
+   "decision": "skip",
+   "reason": "מחיר 0.939 מחוץ לטווח 85-92¢",
+   "outcome_he": "לא",
+   "question_he": "האם נפט גולמי WTI (WTI) יגיע ל-(HIGH) $100 בשבוע של 12 באוקטובר 2026?",
+   "tr_v": 2
+  },
   {
    "ts": "2026-10-16T18:04:28.785Z",
    "market_id": "5475914",
@@ -46674,18 +46696,6 @@
    "outcome_he": "כן",
    "tr_v": 2,
    "question_he": "האם הטמפרטורה הגבוהה ביותר בשיקגו תהיה בין 56 -57 מעלות צלזיוס ב -16 באוקטובר?"
-  },
-  {
-   "ts": "2026-10-16T08:53:45.603Z",
-   "market_id": "5769635",
-   "question": "Dota 2: Yangon Galacticos vs Execration - Game 1 Winner",
-   "outcome": "Yangon Galacticos",
-   "price": 0.9100000000000001,
-   "decision": "ADD",
-   "reason": "השלמה לחלק שווה: +24.0 מניות, עמלה $0.10",
-   "outcome_he": "Yangon Galacticos",
-   "tr_v": 2,
-   "question_he": "Dota 2: Yangon Galacticos vs Execration - מנצח במשחק הראשון"
   }
  ],
  "next_id": 205,
@@ -46915,28 +46925,28 @@
  },
  "clv": {
   "all": {
-   "n": 33,
+   "n": 34,
    "since": null,
-   "clv_c": -5.737914406068364,
-   "clv_pct": -6.58431677320613,
-   "clv_t": -0.9124930090039084,
-   "beat_close": 0.8181818181818182,
-   "brier_entry": 0.1513852055944758,
-   "brier_close": 0.0015649848484848492,
-   "open_n": 5,
-   "open_clv_c": -9.963840024808288
+   "clv_c": -5.2015051588310595,
+   "clv_pct": -5.970011588801023,
+   "clv_t": -0.8495572967497513,
+   "beat_close": 0.8235294117647058,
+   "brier_entry": 0.14739964072405007,
+   "brier_close": 0.0015189852941176478,
+   "open_n": 4,
+   "open_clv_c": -15.82980003101036
   },
   "judged": {
-   "n": 33,
+   "n": 34,
    "since": "2026-10-15T18:30",
-   "clv_c": -5.737914406068364,
-   "clv_pct": -6.58431677320613,
-   "clv_t": -0.9124930090039084,
-   "beat_close": 0.8181818181818182,
-   "brier_entry": 0.1513852055944758,
-   "brier_close": 0.0015649848484848492,
-   "open_n": 5,
-   "open_clv_c": -9.963840024808288
+   "clv_c": -5.2015051588310595,
+   "clv_pct": -5.970011588801023,
+   "clv_t": -0.8495572967497513,
+   "beat_close": 0.8235294117647058,
+   "brier_entry": 0.14739964072405007,
+   "brier_close": 0.0015189852941176478,
+   "open_n": 4,
+   "open_clv_c": -15.82980003101036
   }
  }
 }
