@@ -24,7 +24,7 @@ jobs:
       - name: live loop
         run: |
           mkdir -p /tmp/desk/scripts /tmp/desk/shared /tmp/pmn-cache
-          cp scripts/pmn-desk.ts /tmp/desk/scripts/; cp shared/pm.ts shared/pmn.ts /tmp/desk/shared/
+          cp scripts/pmn-desk.ts /tmp/desk/scripts/; cp shared/pm.ts shared/pmn.ts shared/clv.ts /tmp/desk/shared/
           git config user.name pm-desk-bot
           git config user.email actions@github.com
           git fetch -q origin pm-desk-data || true
