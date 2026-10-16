@@ -44,5 +44,7 @@ ok(Array.isArray(dtSetups(pr, i)), 'setups scan runs on prepared bars')
 const src = fs.readFileSync(new URL('../scripts/daytrade-desk.ts', import.meta.url), 'utf8')
 ok(/from '\.\.\/shared\/daytrade\.ts'/.test(src) && !/(apiKey|secret|signature|privateKey)/i.test(src), 'desk imports the shared rules and holds no keys')
 ok(!/\/trade\/order|\/api\/v5\/trade/.test(src), 'desk never calls an order endpoint')
+// owner 2026-10-16: the live desk passes allHours -> F1 never blocks
+{ const b2 = b; ok(dtCheck(pr, j, c, b2[j].c, { btcDir: 1, funding: 0, vol24Usd: null, allHours: true }).checks.find((x) => x.k.startsWith('F1'))!.ok, 'allHours: 20:00 UTC passes F1') }
 console.log(`daytrade desk: ${n - bad}/${n} passed`)
 if (bad) process.exit(1)

@@ -6,6 +6,8 @@
 //             5m confirmation and 1m timing are NOT modelled (entry = next 15m open, taker — the prompt's maker entry is not
 //             assumed: the live shadow-maker study here showed adverse selection).
 //   F1 hours  : weekdays only, 07:00-10:00 UTC (London ~10:00 Israel) and 13:30-17:00 UTC (NY ~16:30 Israel).
+//               The LIVE desk passes allHours (owner 2026-10-16: "תפעיל אותו") -> F1 off, it trades 24/7 incl. weekends;
+//               the backtest keeps F1 (its FAIL verdict was measured WITH it, so the 24/7 desk is even less tested).
 //   F2 news   : fixed blackout 12:00-13:00 UTC (08:30 ET US releases). No event calendar (FOMC not covered).
 //   F3 BTC    : BTC's 15m close on the same side of its 15m EMA50 as the trade (BTC itself: skipped).
 //   F4        : fixed liquid list (BTC ETH SOL XRP DOGE BNB SUI) + 24h volume >= $200M live.
@@ -138,9 +140,10 @@ export function dtSetups(p: Prep, i: number): Cand[] {
 
 export type Check = { k: string; ok: boolean; v?: string }
 // The checklist (prompt part ז) + the cost rule for one candidate. entry = expected fill (next open / live touch).
-export function dtCheck(p: Prep, i: number, c: Cand, entry: number, o: { btcDir: number | null; funding: number | null; vol24Usd: number | null }) {
+export function dtCheck(p: Prep, i: number, c: Cand, entry: number, o: { btcDir: number | null; funding: number | null; vol24Usd: number | null; allHours?: boolean }) {
   const tClose = p.b[i].t + M15, d = new Date(tClose), wd = d.getUTCDay(), mins = d.getUTCHours() * 60 + d.getUTCMinutes()
-  const hours = wd >= 1 && wd <= 5 && ((mins >= 7 * 60 && mins < 10 * 60) || (mins >= 13 * 60 + 30 && mins < 17 * 60))
+  const inHours = wd >= 1 && wd <= 5 && ((mins >= 7 * 60 && mins < 10 * 60) || (mins >= 13 * 60 + 30 && mins < 17 * 60))
+  const hours = o.allHours || inHours
   const news = mins >= 12 * 60 && mins < 13 * 60
   const s = c.side === 'LONG' ? 1 : -1
   let stop = c.stop, raw = Math.abs(entry - stop) / entry
@@ -150,7 +153,7 @@ export function dtCheck(p: Prep, i: number, c: Cand, entry: number, o: { btcDir:
   const rNet = dist > 0 ? (s * (target - entry) - DT.rt * entry) / dist : -1
   const f = o.funding
   const checks: Check[] = [
-    { k: 'F1 שעת נזילות (לונדון / ניו יורק, ימי חול)', ok: hours, v: `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')} UTC` },
+    { k: 'F1 שעת נזילות (לונדון / ניו יורק, ימי חול)', ok: hours, v: `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')} UTC${o.allHours && !inHours ? ' · בוטל (24/7)' : ''}` },
     { k: 'F2 לא בחלון נתוני ארה״ב 12:00-13:00 UTC', ok: !news },
     { k: 'כיוון 1h (EMA50) תואם', ok: p.h1Dir[i] === s, v: p.h1Dir[i] > 0 ? 'למעלה' : p.h1Dir[i] < 0 ? 'למטה' : 'אין נתון' },
     { k: 'F3 BTC ב-15m תואם', ok: o.btcDir == null || o.btcDir === s, v: o.btcDir == null ? 'זה BTC' : o.btcDir > 0 ? 'למעלה' : 'למטה' },

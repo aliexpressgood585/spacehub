@@ -74,7 +74,7 @@ if (bar > st.last_bar && (now - bar < 5 * 60_000 || process.env.DT_FORCE_SCAN) &
     let fr: number | null = null
     const cs = dtSetups(p, i)
     if (cs.length) try { fr = +(await j(`${OKX}/public/funding-rate?instId=${s}-USDT-SWAP`))[0].fundingRate } catch { /* unknown */ }
-    const evals = cs.map((c) => { const entry = (c.side === 'LONG' ? m.ask : m.bid) * (1 + sg(c.side) * DT.slip); return { c, entry, chk: dtCheck(p, i, c, entry, { btcDir: s === 'BTC' ? null : btcDir, funding: fr, vol24Usd: null /* F4 = the fixed liquid list; live volume shown for info */ }) } })
+    const evals = cs.map((c) => { const entry = (c.side === 'LONG' ? m.ask : m.bid) * (1 + sg(c.side) * DT.slip); return { c, entry, chk: dtCheck(p, i, c, entry, { btcDir: s === 'BTC' ? null : btcDir, funding: fr, allHours: true, vol24Usd: null /* F4 = the fixed liquid list; live volume shown for info */ }) } })
     rows.push({ sym: s, setups: evals.map((e) => ({ setup: e.c.setup, note: e.c.note, side: e.c.side, ok: e.chk.ok, checks: e.chk.checks, rNet: +e.chk.rNet.toFixed(2), costR: e.chk.costR && +e.chk.costR.toFixed(2) })),
       h1: p.h1Dir[i], adx: +p.adx[i].toFixed(1), vwap: p.vwap[i], close: p.b[i].c })
     for (const e of evals) {

@@ -753,6 +753,11 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   PF 1.74 (IS 0.92) | S2 n4 | S3 n489 -0.095R PF 0.62 | S4 n153 -0.13R | S5 n0 (3 in 2y) | S6 n88 -0.08R | ALL n511 -0.094R PF 0.67.
   Gate (OOS PF > 1.3 and >= 300 OOS trades): 0 of 6 -> config.yaml ships with every setup enabled: false; reports/setup_gate.json
   committed; the bot runs, monitors and alerts but opens nothing. Testnet sample possible only via gate.allow_failed_on_testnet.
+- 2026-10-16 ~07:00 UTC day-trade desk: F1 HOURS FILTER OFF (owner: "not even one trade all night" -> "תפעיל אותו"). Night 10-15/16:
+  0 trades on both desks — day-trade by F1 (entries only 07-10 / 13:30-17 UTC weekdays) + F5 (ATR below average) + 1h direction;
+  coach: no Donchian-20 breakout with ADX>25. dtCheck gained `allHours`; scripts/daytrade-desk.ts passes it, so the paper desk
+  scans 24/7 incl. weekends. The backtest keeps F1 (its FAIL verdict -0.069R/trade was measured WITH the filter; 24/7 is LESS
+  tested, expect more trades, not more profit). All other checks unchanged. tests/daytrade.test.ts 23/23.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the

@@ -63,7 +63,7 @@ export default function DayHouse() {
       </div>
       <div style={box}>
         <div style={{ fontWeight: 600, marginBottom: 8 }}>פוזיציות פתוחות ({open.length}/2)</div>
-        {!open.length && <div style={lab}>אין פוזיציות. רוב הזמן התשובה היא "אין עסקה" — במיוחד מחוץ לשעות לונדון (07:00-10:00 UTC) וניו יורק (13:30-17:00 UTC).</div>}
+        {!open.length && <div style={lab}>אין פוזיציות. רוב הזמן התשובה היא "אין עסקה". מגבלת השעות (F1) בוטלה לבקשתך — הבוט סורק 24/7, כולל לילה וסופ״ש.</div>}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 8 }}>
           {open.map((t) => { const m = mark(t), pnl = sg(t.side) * (m - t.entry_px) * t.qty - (t.funding ?? 0), R = pnl / t.risk_usd
             const bars = Math.floor((now - Date.parse(t.opened_at)) / 900_000)
