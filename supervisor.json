@@ -1,9 +1,9 @@
 {
-  "ts": "2026-10-15T18:06:00Z",
+  "ts": "2026-10-16T00:19:00Z",
   "desks": {
-    "pm":  {"equity": 966.79, "judged_n": 0,  "mean_r": null,    "t": null,  "stake": 0.03, "action": "none (judged since 2026-10-15 18:30 UTC, not started)"},
-    "pmc": {"equity": 960.03, "judged_n": 69, "mean_r": -0.0278, "t": -0.84, "stake": 0.03, "action": "none (gate needs n>=100)"},
-    "pmn": {"equity": 989.24, "judged_n": 0,  "mean_r": null,    "t": null,  "stake": 0.02, "action": "none (21 status-quo positions open, 0 resolved)"}
+    "pm":  {"equity": 1117.39, "judged_n": 7,  "mean_r": 0.1259,  "t": 12.78, "stake": 0.03, "action": "health: workflow crash fixed (missing shared/clv.ts copy), run re-dispatched"},
+    "pmc": {"equity": 967.16,  "judged_n": 85, "mean_r": -0.013,  "t": -0.48, "stake": 0.03, "action": "none (gate needs n>=100); workflow fixed pre-emptively"},
+    "pmn": {"equity": 992.54,  "judged_n": 0,  "mean_r": null,    "t": null,  "stake": 0.02, "action": "none (21 open, 0 resolved); workflow fixed pre-emptively"}
   },
-  "notes": "First supervisor run. All three desks scanning (last_scan < 1 min). No clustered-loss hour (>=3 losses). PAPER ONLY."
+  "notes": "pm desk crashed every cycle 23:48-00:18 UTC (ERR_MODULE_NOT_FOUND shared/clv.ts); fixed in f03670c. No clustered-loss hour. PAPER ONLY."
 }
