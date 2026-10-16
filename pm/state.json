@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 806.8610425487547,
+ "cash": 866.2469946557509,
  "strategy": {
   "lo": 0.85,
   "hi": 0.92,
@@ -14,12 +14,12 @@
   "minQty": 5,
   "exitPx": 0.99
  },
- "last_scan": "2026-10-16T09:02:07.098Z",
+ "last_scan": "2026-10-16T09:02:22.272Z",
  "last_note": {
-  "at": "2026-10-16T09:02:02.838Z",
+  "at": "2026-10-16T09:02:17.700Z",
   "scanned": 12,
   "tr_err": "Error: 429 https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&",
-  "settled": 0,
+  "settled": 1,
   "entered": 0,
   "topped": 0,
   "recycled": 0
@@ -7223,7 +7223,7 @@
    "opened_at": "2026-10-16T01:24:30.422Z",
    "status": "OPEN",
    "mark_px": 0.945,
-   "mark_at": "2026-10-16T09:02:03.180Z",
+   "mark_at": "2026-10-16T09:02:18.005Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -7479,9 +7479,9 @@
    "cost": 52.573195681281575,
    "best_ask": 0.88,
    "opened_at": "2026-10-16T08:32:00.012Z",
-   "status": "OPEN",
-   "mark_px": 0.9995,
-   "mark_at": "2026-10-16T09:02:03.364Z",
+   "status": "CLOSED",
+   "mark_px": 1,
+   "mark_at": "2026-10-16T09:02:18.232Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -7500,7 +7500,13 @@
    },
    "outcome_he": "LOUD",
    "tr_v": 2,
-   "question_he": "Valorant: Team Vitality vs LOUD - Map 2 Winner"
+   "question_he": "Valorant: Team Vitality vs LOUD - Map 2 Winner",
+   "exit_px": 1,
+   "exit_fee": 0,
+   "proceeds": 59.38595210699618,
+   "pnl": 6.812756425714603,
+   "reason": "RESOLVED_WIN",
+   "closed_at": "2026-10-16T09:02:18.232Z"
   },
   {
    "id": 180,
@@ -7519,7 +7525,7 @@
    "opened_at": "2026-10-16T08:38:15.937Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-16T09:02:03.540Z",
+   "mark_at": "2026-10-16T09:02:18.398Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -7534,7 +7540,7 @@
     ],
     "adds": 1,
     "close_px": 0.999,
-    "close_at": "2026-10-16T09:02:03.540Z"
+    "close_at": "2026-10-16T09:02:18.398Z"
    },
    "outcome_he": "Liquid",
    "tr_v": 2,
@@ -7556,8 +7562,8 @@
    "best_ask": 0.91,
    "opened_at": "2026-10-16T08:53:45.318Z",
    "status": "OPEN",
-   "mark_px": 0.16,
-   "mark_at": "2026-10-16T09:02:03.756Z",
+   "mark_px": 0.48,
+   "mark_at": "2026-10-16T09:02:18.572Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -7571,8 +7577,8 @@
      "Execration"
     ],
     "adds": 1,
-    "close_px": 0.21500000000000002,
-    "close_at": "2026-10-16T09:02:03.756Z"
+    "close_px": 0.515,
+    "close_at": "2026-10-16T09:02:18.572Z"
    },
    "outcome_he": "Yangon Galacticos",
    "tr_v": 2,
@@ -7594,8 +7600,8 @@
    "best_ask": 0.88,
    "opened_at": "2026-10-16T08:57:42.764Z",
    "status": "OPEN",
-   "mark_px": 0.73,
-   "mark_at": "2026-10-16T09:02:03.929Z",
+   "mark_px": 0.47,
+   "mark_at": "2026-10-16T09:02:18.741Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -7609,8 +7615,8 @@
      "Execration"
     ],
     "adds": 1,
-    "close_px": 0.7849999999999999,
-    "close_at": "2026-10-16T09:02:03.929Z"
+    "close_px": 0.495,
+    "close_at": "2026-10-16T09:02:18.741Z"
    },
    "outcome_he": "Execration",
    "tr_v": 2,
@@ -7618,13 +7624,6 @@
   }
  ],
  "equity": [
-  {
-   "ts": "2026-10-15T09:31:13.351Z",
-   "equity": 1357.0501642161528,
-   "cash": 1357.0501642161528,
-   "open_value": 0,
-   "open_count": 0
-  },
   {
    "ts": "2026-10-15T09:31:28.085Z",
    "equity": 1357.0501642161528,
@@ -42617,9 +42616,32 @@
    "cash": 806.8610425487547,
    "open_value": 222.3622627072939,
    "open_count": 5
+  },
+  {
+   "ts": "2026-10-16T09:02:22.272Z",
+   "equity": 1033.47138994806,
+   "cash": 866.2469946557509,
+   "open_value": 167.22439529230914,
+   "open_count": 4
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-16T09:02:19.117Z",
+   "market_id": "5680557",
+   "question": "Will the highest temperature in Chicago be between 56-57°F on October 16?",
+   "outcome": "Yes",
+   "outcomes": [
+    "Yes",
+    "No"
+   ],
+   "price": 0.948,
+   "decision": "skip",
+   "reason": "מחיר 0.948 מחוץ לטווח 85-92¢",
+   "outcome_he": "כן",
+   "question_he": "האם הטמפרטורה הגבוהה ביותר בשיקגו תהיה בין 56 -57 מעלות צלזיוס ב -16 באוקטובר?",
+   "tr_v": 2
+  },
   {
    "ts": "2026-10-16T09:02:04.312Z",
    "market_id": "5680557",
@@ -45655,18 +45677,6 @@
    "outcome_he": "Team Falcons",
    "question_he": "Counter - Strike: 9z vs Team Falcons (BO3) - קבוצת אליפות העולם A של Thunderpick",
    "tr_v": 2
-  },
-  {
-   "ts": "2026-10-15T13:46:42.564Z",
-   "market_id": "5688704",
-   "question": "Counter-Strike: 9z vs Team Falcons (BO3) - Thunderpick World Championship Group A",
-   "outcome": "Team Falcons",
-   "price": 0.88,
-   "decision": "ADD",
-   "reason": "השלמה לחלק שווה: +30.0 מניות, עמלה $0.16",
-   "outcome_he": "Team Falcons",
-   "question_he": "Counter - Strike: 9z vs Team Falcons (BO3) - קבוצת אליפות העולם A של Thunderpick",
-   "tr_v": 2
   }
  ],
  "next_id": 183,
@@ -45870,28 +45880,28 @@
  },
  "clv": {
   "all": {
-   "n": 11,
+   "n": 12,
    "since": null,
-   "clv_c": -5.371812412312128,
-   "clv_pct": -6.570709143394036,
-   "clv_t": -0.5185598930797766,
-   "beat_close": 0.8181818181818182,
-   "brier_entry": 0.14431974754897675,
-   "brier_close": 0.0020473863636363636,
-   "open_n": 5,
-   "open_clv_c": -12.057425990008209
+   "clv_c": -3.932494711286117,
+   "clv_pct": -4.896256108717259,
+   "clv_t": -0.4189266586669855,
+   "beat_close": 0.8333333333333334,
+   "brier_entry": 0.13349310191989536,
+   "brier_close": 0.0018768541666666666,
+   "open_n": 4,
+   "open_clv_c": -17.796782487510264
   },
   "judged": {
-   "n": 11,
+   "n": 12,
    "since": "2026-10-15T18:30",
-   "clv_c": -5.371812412312128,
-   "clv_pct": -6.570709143394036,
-   "clv_t": -0.5185598930797766,
-   "beat_close": 0.8181818181818182,
-   "brier_entry": 0.14431974754897675,
-   "brier_close": 0.0020473863636363636,
-   "open_n": 5,
-   "open_clv_c": -12.057425990008209
+   "clv_c": -3.932494711286117,
+   "clv_pct": -4.896256108717259,
+   "clv_t": -0.4189266586669855,
+   "beat_close": 0.8333333333333334,
+   "brier_entry": 0.13349310191989536,
+   "brier_close": 0.0018768541666666666,
+   "open_n": 4,
+   "open_clv_c": -17.796782487510264
   }
  }
 }
