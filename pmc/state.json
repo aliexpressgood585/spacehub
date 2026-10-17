@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-17T02:57:10.320Z",
+ "last_scan": "2026-10-17T02:57:21.065Z",
  "last_note": {
-  "at": "2026-10-17T02:57:08.606Z",
+  "at": "2026-10-17T02:57:19.031Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -42437,6 +42437,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-17T02:57:21.065Z",
+   "market_id": "5765920",
+   "question": "Bitcoin Up or Down - October 16, 10:55PM-11:00PM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 02:55–03:00 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.92,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 0.82 < 2 (המחיר קרוב מדי לקו הפתיחה)"
+  },
+  {
    "ts": "2026-10-17T02:54:01.349Z",
    "market_id": "5765904",
    "question": "Ethereum Up or Down - October 16, 10:50PM-10:55PM ET",
@@ -44624,17 +44635,6 @@
    "price": 0.92,
    "decision": "skip",
    "reason": "מסנן מרחק: 1.21 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-17T01:42:42.519Z",
-   "market_id": "5765343",
-   "question": "Bitcoin Up or Down - October 16, 9:40PM-9:45PM ET",
-   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 01:40–01:45 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.93,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.16 < 2 (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 229,
@@ -80678,6 +80678,19 @@
    "filled": true,
    "filled_at": "2026-10-17T02:53:38.923Z",
    "left_at_fill": 81
+  },
+  {
+   "slug": "btc-updown-5m-1792205700",
+   "market_id": "5765920",
+   "token_id": "7006388128448835145203184876255851709794409289451685517452320799494479673716",
+   "coin": "btc",
+   "outcome": "Up",
+   "end_time": "2026-10-17T03:00:00Z",
+   "placed_at": "2026-10-17T02:57:19.362Z",
+   "limit": 0.91,
+   "taker_ask": 0.92,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
@@ -80688,7 +80701,7 @@
    "avg_fee_c": 0.36584393339996796
   },
   "maker": {
-   "placed": 2264,
+   "placed": 2265,
    "resolved": 2260,
    "filled": 1043,
    "fill_rate": 0.4615044247787611,
