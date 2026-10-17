@@ -44,12 +44,12 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-17T04:18:44.396Z",
+ "last_scan": "2026-10-17T04:18:52.815Z",
  "last_note": {
-  "at": "2026-10-17T04:18:41.755Z",
+  "at": "2026-10-17T04:18:51.087Z",
   "windows": 4,
   "settled": 0,
-  "entered": 1
+  "entered": 0
  },
  "trades": [
   {
@@ -16226,8 +16226,8 @@
    "best_ask": 0.96,
    "opened_at": "2026-10-17T04:18:44.396Z",
    "status": "OPEN",
-   "mark_px": 0.95,
-   "mark_at": "2026-10-17T04:18:44.396Z",
+   "mark_px": 0.99,
+   "mark_at": "2026-10-17T04:18:51.843Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -16254,7 +16254,9 @@
     "z": 3.204278602664467,
     "spot_open": 81566.35,
     "spot": 81531.86,
-    "sigma1s": 0.000014945017598444329
+    "sigma1s": 0.000014945017598444329,
+    "close_px": 0.99,
+    "close_at": "2026-10-17T04:18:51.843Z"
    }
   }
  ],
@@ -82149,8 +82151,10 @@
    "placed_at": "2026-10-17T04:12:11.447Z",
    "limit": 0.9,
    "taker_ask": 0.91,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "xrp-updown-5m-1792210200",
@@ -82162,10 +82166,12 @@
    "placed_at": "2026-10-17T04:12:12.256Z",
    "limit": 0.92,
    "taker_ask": 0.93,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-17T04:14:01.720Z",
-   "left_at_fill": 58
+   "left_at_fill": 58,
+   "won": true,
+   "ret": 0.08695652173913039
   },
   {
    "slug": "eth-updown-5m-1792210200",
@@ -82177,8 +82183,10 @@
    "placed_at": "2026-10-17T04:12:42.765Z",
    "limit": 0.91,
    "taker_ask": 0.92,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "sol-updown-5m-1792210200",
@@ -82190,10 +82198,12 @@
    "placed_at": "2026-10-17T04:12:42.924Z",
    "limit": 0.9,
    "taker_ask": 0.92,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-17T04:13:51.897Z",
-   "left_at_fill": 68
+   "left_at_fill": 68,
+   "won": true,
+   "ret": 0.11111111111111108
   },
   {
    "slug": "sol-updown-5m-1792210500",
@@ -82246,12 +82256,12 @@
   },
   "maker": {
    "placed": 2314,
-   "resolved": 2307,
-   "filled": 1060,
-   "fill_rate": 0.45947117468573906,
-   "wr": 0.8584905660377359,
-   "ret": -0.07104642873215876,
-   "missed_wins": 1247,
+   "resolved": 2311,
+   "filled": 1062,
+   "fill_rate": 0.4595413241021203,
+   "wr": 0.8587570621468926,
+   "ret": -0.07072612695220155,
+   "missed_wins": 1249,
    "missed_losses": 0
   },
   "late_exit": {
@@ -82410,8 +82420,8 @@
    "beat_close": 0.9807692307692307,
    "brier_entry": 0.020342639503478206,
    "brier_close": 0.0005411730769230771,
-   "open_n": 0,
-   "open_clv_c": null
+   "open_n": 1,
+   "open_clv_c": 3.0000000000000138
   },
   "judged": {
    "n": 52,
@@ -82422,8 +82432,8 @@
    "beat_close": 0.9807692307692307,
    "brier_entry": 0.020342639503478206,
    "brier_close": 0.0005411730769230771,
-   "open_n": 0,
-   "open_clv_c": null
+   "open_n": 1,
+   "open_clv_c": 3.0000000000000138
   }
  }
 }
