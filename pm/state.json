@@ -14,11 +14,11 @@
   "minQty": 5,
   "exitPx": 0.99
  },
- "last_scan": "2026-10-17T23:18:29.977Z",
+ "last_scan": "2026-10-17T23:18:44.345Z",
  "last_note": {
-  "at": "2026-10-17T23:18:28.699Z",
+  "at": "2026-10-17T23:18:43.175Z",
   "scanned": 31,
-  "settled": 0,
+  "settled": 1,
   "entered": 0,
   "topped": 0,
   "recycled": 0
@@ -7222,7 +7222,7 @@
    "opened_at": "2026-10-16T01:24:30.422Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-17T23:18:28.894Z",
+   "mark_at": "2026-10-17T23:18:43.383Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -10735,7 +10735,7 @@
    "opened_at": "2026-10-17T19:00:00.512Z",
    "status": "OPEN",
    "mark_px": 0.91,
-   "mark_at": "2026-10-17T23:18:29.013Z",
+   "mark_at": "2026-10-17T23:18:43.501Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.03,
@@ -10859,9 +10859,9 @@
    "cost": 28.162848634050583,
    "best_ask": 0.92,
    "opened_at": "2026-10-17T19:21:31.532Z",
-   "status": "OPEN",
-   "mark_px": 0.0005,
-   "mark_at": "2026-10-17T23:18:29.125Z",
+   "status": "CLOSED",
+   "mark_px": 0,
+   "mark_at": "2026-10-17T23:18:43.601Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.03,
@@ -10879,7 +10879,13 @@
    },
    "outcome_he": "Georgia",
    "question_he": "Auburn vs. Georgia",
-   "tr_v": 2
+   "tr_v": 2,
+   "exit_px": 0,
+   "exit_fee": 0,
+   "proceeds": 0,
+   "pnl": -28.162848634050583,
+   "reason": "RESOLVED_LOSS",
+   "closed_at": "2026-10-17T23:18:43.601Z"
   },
   {
    "id": 257,
@@ -11030,7 +11036,7 @@
    "opened_at": "2026-10-17T21:07:27.502Z",
    "status": "OPEN",
    "mark_px": 0.9995,
-   "mark_at": "2026-10-17T23:18:29.243Z",
+   "mark_at": "2026-10-17T23:18:43.715Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -11068,7 +11074,7 @@
    "opened_at": "2026-10-17T21:45:28.660Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-17T23:18:29.365Z",
+   "mark_at": "2026-10-17T23:18:43.836Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -11083,7 +11089,7 @@
     ],
     "adds": 1,
     "close_px": 0.999,
-    "close_at": "2026-10-17T23:18:29.365Z"
+    "close_at": "2026-10-17T23:18:43.836Z"
    },
    "outcome_he": "Inner Circle",
    "question_he": "Dota 2: CyberHero vs Inner Circle - מנצח משחק 2",
@@ -11106,7 +11112,7 @@
    "opened_at": "2026-10-17T22:07:30.026Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-17T23:18:29.476Z",
+   "mark_at": "2026-10-17T23:18:43.952Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -11121,7 +11127,7 @@
     ],
     "adds": 1,
     "close_px": 0.999,
-    "close_at": "2026-10-17T23:18:29.476Z"
+    "close_at": "2026-10-17T23:18:43.952Z"
    },
    "outcome_he": "Stariy bog Team",
    "question_he": "דוטה 2: Nix Team vs Stariy bog Team (BO3) - ניצחון 1 בפלייאוף ליגת סטרימרים מס' 3",
@@ -11144,7 +11150,7 @@
    "opened_at": "2026-10-17T22:21:29.924Z",
    "status": "OPEN",
    "mark_px": 0.94,
-   "mark_at": "2026-10-17T23:18:29.591Z",
+   "mark_at": "2026-10-17T23:18:44.070Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.03,
@@ -11182,7 +11188,7 @@
    "opened_at": "2026-10-17T22:37:29.577Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-17T23:18:29.736Z",
+   "mark_at": "2026-10-17T23:18:44.185Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -11197,7 +11203,7 @@
     ],
     "adds": 1,
     "close_px": 0.999,
-    "close_at": "2026-10-17T23:18:29.736Z"
+    "close_at": "2026-10-17T23:18:44.185Z"
    },
    "outcome_he": "Inner Circle",
    "question_he": "דוטה 2: CyberHero נגד Inner Circle (BO3) - EPL Masters Play-In Group A",
@@ -11205,13 +11211,6 @@
   }
  ],
  "equity": [
-  {
-   "ts": "2026-10-17T01:35:22.964Z",
-   "equity": 953.0586269497852,
-   "cash": 683.406878162275,
-   "open_value": 269.6517487875102,
-   "open_count": 6
-  },
   {
    "ts": "2026-10-17T01:35:37.658Z",
    "equity": 953.0586269497852,
@@ -46204,6 +46203,13 @@
    "cash": 594.729536931622,
    "open_value": 365.6248448096027,
    "open_count": 8
+  },
+  {
+   "ts": "2026-10-17T23:18:44.345Z",
+   "equity": 960.3391124914274,
+   "cash": 594.729536931622,
+   "open_value": 365.6095755598054,
+   "open_count": 7
   }
  ],
  "decisions": [
@@ -49436,28 +49442,28 @@
  },
  "clv": {
   "all": {
-   "n": 90,
+   "n": 91,
    "since": null,
-   "clv_c": -2.96370407118631,
-   "clv_pct": -3.3052682021148345,
-   "clv_t": -0.8820895615764033,
-   "beat_close": 0.7888888888888889,
-   "brier_entry": 0.11627357772304041,
-   "brier_close": 0.003109616666666664,
-   "open_n": 8,
-   "open_clv_c": 4.646767614008102
+   "clv_c": -2.9476194110633838,
+   "clv_pct": -3.286863439263119,
+   "clv_t": -0.8869680462237463,
+   "beat_close": 0.7802197802197802,
+   "brier_entry": 0.12429694500080919,
+   "brier_close": 0.012075719780219775,
+   "open_n": 7,
+   "open_clv_c": 5.524877273152116
   },
   "judged": {
-   "n": 90,
+   "n": 91,
    "since": "2026-10-15T18:30",
-   "clv_c": -2.96370407118631,
-   "clv_pct": -3.3052682021148345,
-   "clv_t": -0.8820895615764033,
-   "beat_close": 0.7888888888888889,
-   "brier_entry": 0.11627357772304041,
-   "brier_close": 0.003109616666666664,
-   "open_n": 8,
-   "open_clv_c": 4.646767614008102
+   "clv_c": -2.9476194110633838,
+   "clv_pct": -3.286863439263119,
+   "clv_t": -0.8869680462237463,
+   "beat_close": 0.7802197802197802,
+   "brier_entry": 0.12429694500080919,
+   "brier_close": 0.012075719780219775,
+   "open_n": 7,
+   "open_clv_c": 5.524877273152116
   }
  }
 }
