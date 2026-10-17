@@ -14,13 +14,13 @@
   "minQty": 5,
   "exitPx": 0.99
  },
- "last_scan": "2026-10-17T09:39:30.806Z",
+ "last_scan": "2026-10-17T09:39:44.756Z",
  "last_note": {
-  "at": "2026-10-17T09:39:28.456Z",
+  "at": "2026-10-17T09:39:44.037Z",
   "scanned": 23,
   "settled": 0,
-  "entered": 1,
-  "topped": 1,
+  "entered": 0,
+  "topped": 0,
   "recycled": 0
  },
  "trades": [
@@ -7222,7 +7222,7 @@
    "opened_at": "2026-10-16T01:24:30.422Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-17T09:39:28.653Z",
+   "mark_at": "2026-10-17T09:39:44.240Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -9284,7 +9284,7 @@
    "opened_at": "2026-10-17T09:00:28.122Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-17T09:39:28.773Z",
+   "mark_at": "2026-10-17T09:39:44.372Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -9299,7 +9299,7 @@
     ],
     "adds": 1,
     "close_px": 0.999,
-    "close_at": "2026-10-17T09:39:28.773Z"
+    "close_at": "2026-10-17T09:39:44.372Z"
    },
    "outcome_he": "מעל",
    "question_he": "סה\"כ משחקים: O/U 3.5",
@@ -9322,7 +9322,7 @@
    "opened_at": "2026-10-17T09:39:29.140Z",
    "status": "OPEN",
    "mark_px": 0.88,
-   "mark_at": "2026-10-17T09:39:29.140Z",
+   "mark_at": "2026-10-17T09:39:44.491Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -9335,7 +9335,9 @@
      "100 Thieves",
      "Team Vitality"
     ],
-    "adds": 1
+    "adds": 1,
+    "close_px": 0.885,
+    "close_at": "2026-10-17T09:39:44.491Z"
    },
    "outcome_he": "Team Vitality",
    "question_he": "נכות מפה: 100T (-1.5) מול Team Vitality (+1.5)",
@@ -9343,13 +9345,6 @@
   }
  ],
  "equity": [
-  {
-   "ts": "2026-10-16T12:46:23.859Z",
-   "equity": 921.2185673692834,
-   "cash": 622.5071851052353,
-   "open_value": 298.71138226404804,
-   "open_count": 7
-  },
   {
    "ts": "2026-10-16T12:46:38.833Z",
    "equity": 917.2968244627795,
@@ -44342,9 +44337,32 @@
    "cash": 820.1653178997229,
    "open_value": 159.82749364470223,
    "open_count": 3
+  },
+  {
+   "ts": "2026-10-17T09:39:44.756Z",
+   "equity": 979.9928115444252,
+   "cash": 820.1653178997229,
+   "open_value": 159.82749364470223,
+   "open_count": 3
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-17T09:39:44.750Z",
+   "market_id": "5775104",
+   "question": "Dota 2: Team Tidebound vs Team Resilience (BO3) - BLAST Slam China Closed Qualifier Playoffs",
+   "outcome": "Team Resilience",
+   "outcomes": [
+    "Team Tidebound",
+    "Team Resilience"
+   ],
+   "price": 0.93,
+   "decision": "skip",
+   "reason": "מחיר 0.93 מחוץ לטווח 85-92¢",
+   "outcome_he": "Team Resilience",
+   "question_he": "דוטה 2: Team Tidebound vs Team Resilience (BO3) - פלייאוף מוקדמות BLAST Slam China Closed",
+   "tr_v": 2
+  },
   {
    "ts": "2026-10-17T09:39:29.038Z",
    "market_id": "5775104",
@@ -47368,22 +47386,6 @@
    "outcome_he": "LOUD",
    "question_he": "Valorant: Team Vitality vs LOUD (BO3) - פלייאוף אלופות VCT",
    "tr_v": 2
-  },
-  {
-   "ts": "2026-10-16T09:19:19.066Z",
-   "market_id": "5680557",
-   "question": "Will the highest temperature in Chicago be between 56-57°F on October 16?",
-   "outcome": "Yes",
-   "outcomes": [
-    "Yes",
-    "No"
-   ],
-   "price": 0.9026611959060754,
-   "decision": "BUY",
-   "reason": "מחיר 0.902 בטווח, 32.2 מניות, עמלה $0.14",
-   "outcome_he": "כן",
-   "question_he": "האם הטמפרטורה הגבוהה ביותר בשיקגו תהיה בין 56 -57 מעלות צלזיוס ב -16 באוקטובר?",
-   "tr_v": 2
   }
  ],
  "next_id": 222,
@@ -47636,8 +47638,8 @@
    "beat_close": 0.8076923076923077,
    "brier_entry": 0.1288515218187639,
    "brier_close": 0.0025337403846153856,
-   "open_n": 2,
-   "open_clv_c": 5.225000000000007
+   "open_n": 3,
+   "open_clv_c": 3.3166666666666713
   },
   "judged": {
    "n": 52,
@@ -47648,8 +47650,8 @@
    "beat_close": 0.8076923076923077,
    "brier_entry": 0.1288515218187639,
    "brier_close": 0.0025337403846153856,
-   "open_n": 2,
-   "open_clv_c": 5.225000000000007
+   "open_n": 3,
+   "open_clv_c": 3.3166666666666713
   }
  }
 }
