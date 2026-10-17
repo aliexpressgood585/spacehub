@@ -2,18 +2,19 @@
 // Runs on GitHub Actions (.github/workflows/coach-desk.yml) because the Supabase project is blocked (exceed_egress_quota).
 // Prices: OKX USDT perpetual swaps (public, no key). Binance fapi answers HTTP 451 from GitHub runners, so the live feed is
 // OKX and every row says so. NEVER places a real order. One cycle per call: manage exits on the live last price every
-// cycle, scan for entries once per closed 4h bar (first cycle after the close), charge funding at each 8h settlement.
+// cycle, scan for entries once per closed 4h bar over every USDT perpetual Binance Futures trades today that has a crypto
+// OKX swap (shared/binperps.ts, owner 2026-10-17; entries also need a liquid OKX book) (first cycle after the close), charge funding at each 8h settlement.
 // Usage: node --experimental-strip-types scripts/coach-desk.ts coach/state.json
 import fs from 'node:fs'
 import { COACH, coachSignal, coachSize, coachRisk, type Bar, type Side } from '../shared/coach.ts'
+import { refreshUniverse, universeDue, liqCheck, limiter, pool } from '../shared/binperps.ts'
 
 const FILE = process.argv[2] ?? 'coach/state.json'
 const OKX = 'https://www.okx.com/api/v5'
 // The backtested 30 (backtest/research/coach_bt.ts) minus RUNE (no OKX swap); OKX names (PEPE = Binance 1000PEPE, priced per ONE coin here).
-export const COINS = 'BTC ETH SOL BNB XRP DOGE ADA AVAX LINK DOT LTC BCH TRX NEAR APT ARB OP SUI INJ FIL ATOM ETC UNI AAVE WIF PEPE TIA SEI LDO'.split(' ')
+export const FIXED_COINS = 'BTC ETH SOL BNB XRP DOGE ADA AVAX LINK DOT LTC BCH TRX NEAR APT ARB OP SUI INJ FIL ATOM ETC UNI AAVE WIF PEPE TIA SEI LDO'.split(' ')
 const H4 = 4 * 3600_000, D1 = 86400_000
 const j = async (u: string) => { const r = await fetch(u, { headers: { 'User-Agent': 'spacehub-paper/1.0' } }); if (!r.ok) throw new Error(`${r.status} ${u.slice(0, 80)}`); const x: any = await r.json(); if (x.code !== '0') throw new Error(`okx ${x.code} ${x.msg}`); return x.data }
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const iso = (ms = Date.now()) => new Date(ms).toISOString()
 const sgn = (s: Side) => (s === 'LONG' ? 1 : -1)
 async function candles(sym: string, bar: string, limit: number): Promise<Bar[]> {
@@ -21,16 +22,6 @@ async function candles(sym: string, bar: string, limit: number): Promise<Bar[]> 
   return d.filter((r) => r[8] === '1').map((r) => ({ t: +r[0], o: +r[1], h: +r[2], l: +r[3], c: +r[4], v: +r[7] })).sort((a, b) => a.t - b.t)
 }
 
-// 24h volume for F4: Binance SPOT quote volume (data-api.binance.vision answers from the runners; futures fapi does not).
-// Shown for information only: spot volume understates futures volume (BNB ~$110M spot vs several times that on futures),
-// so F4 is enforced by the fixed liquid list itself, not by this number.
-async function binanceVol(syms: string[]): Promise<Record<string, number>> {
-  try {
-    const q = encodeURIComponent(JSON.stringify(syms.map((s) => `${s}USDT`)))
-    const r = await fetch(`https://data-api.binance.vision/api/v3/ticker/24hr?symbols=${q}`); if (!r.ok) return {}
-    return Object.fromEntries((await r.json() as any[]).map((x) => [x.symbol.replace(/USDT$/, ''), +x.quoteVolume]))
-  } catch { return {} }
-}
 const st: any = fs.existsSync(FILE) ? JSON.parse(fs.readFileSync(FILE, 'utf8')) : {
   version: 'coach-v1', start_cash: COACH.start, cash: COACH.start, peak: COACH.start, next_id: 1, trades: [], equity: [], decisions: [],
   risk: { dayStart: COACH.start, weekStart: COACH.start, day: -1, week: -1, streak: 0, lastLossAt: null }, scan: null, last_bar: 0,
@@ -38,15 +29,16 @@ const st: any = fs.existsSync(FILE) ? JSON.parse(fs.readFileSync(FILE, 'utf8')) 
 }
 const now = Date.now(), decisions: any[] = []
 let marks: Record<string, { last: number; bid: number; ask: number; vol: number }> = {}
+if (universeDue(st.universe, now)) { const r = await refreshUniverse(st.universe, now); st.universe = r.u; st.universe_error = r.error ?? null }
+const COINS: string[] = st.universe?.coins?.map((c: any) => c.sym) ?? FIXED_COINS
+const want = new Set([...COINS, ...st.trades.filter((t: any) => t.status === 'OPEN').map((t: any) => t.sym)])
 try {
   const tk: any[] = await j(`${OKX}/market/tickers?instType=SWAP`)
   for (const t of tk) {
-    const m = /^([A-Z0-9]+)-USDT-SWAP$/.exec(t.instId); if (!m || !COINS.includes(m[1])) continue
+    const m = /^([A-Z0-9]+)-USDT-SWAP$/.exec(t.instId); if (!m || !want.has(m[1])) continue
     marks[m[1]] = { last: +t.last, bid: +t.bidPx, ask: +t.askPx, vol: +t.volCcy24h * +t.last }
   }
 } catch (e) { st.last_error = { at: iso(), msg: String(e) } }
-const bvol = await binanceVol(COINS)
-for (const k of Object.keys(marks)) if (bvol[k] > 0) marks[k].vol = bvol[k]
 
 const openT = () => st.trades.filter((t: any) => t.status === 'OPEN')
 const equity = () => st.cash + openT().reduce((a: number, t: any) => { const px = marks[t.sym]?.last ?? t.mark_px ?? t.entry_px; return a + t.margin + sgn(t.side) * (px - t.entry_px) * t.qty - (t.funding ?? 0) }, 0)
@@ -90,19 +82,19 @@ const bar = Math.floor(now / H4) * H4
 if (bar > st.last_bar && (now - bar < 20 * 60_000 || process.env.COACH_FORCE_SCAN) && Object.keys(marks).length) {
   st.last_bar = bar
   const rk = coachRisk({ equity: eq, peak: st.peak, dayStart: st.risk.dayStart, weekStart: st.risk.weekStart, streak: st.risk.streak, lastLossAt: st.risk.lastLossAt }, now)
-  const btcD = await candles('BTC', '1Dutc', 260).catch(() => [] as Bar[])
-  const rows: any[] = []
-  for (const sym of COINS) {
+  const lim = limiter(15)
+  const btcD = await lim(() => candles('BTC', '1Dutc', 260)).catch(() => [] as Bar[])
+  const rows: any[] = (await pool(COINS.filter((s) => marks[s]), 6, async (sym) => {
     try {
-      await sleep(120)
-      const b4 = await candles(sym, '4H', 80), d1 = sym === 'BTC' ? btcD : await candles(sym, '1Dutc', 260)
-      if (b4.length < 40 || b4[b4.length - 1].t !== bar - H4) { rows.push({ sym, err: 'אין נר 4h סגור עדכני' }); continue }
-      let fr: number | null = null
-      try { fr = +(await j(`${OKX}/public/funding-rate?instId=${sym}-USDT-SWAP`))[0].fundingRate } catch { /* unknown */ }
-      const sig = coachSignal({ bars: b4.slice(-61), daily: d1, btcDaily: sym === 'BTC' ? undefined : btcD, funding: fr, vol24Usd: null /* F4 = the fixed liquid list; live volume shown for info */, nowMs: now })
-      rows.push({ sym, side: sig.side, checks: sig.checks, adx: +sig.adx.toFixed(1), atr_pct: +(100 * sig.atrPct).toFixed(2), entry: sig.entry, stop: sig.stop })
-    } catch (e) { rows.push({ sym, err: String(e).slice(0, 80) }) }
-  }
+      const b4 = await lim(() => candles(sym, '4H', 80)), d1 = sym === 'BTC' ? btcD : await lim(() => candles(sym, '1Dutc', 260))
+      if (b4.length < 40 || b4[b4.length - 1].t !== bar - H4) return { sym, err: 'אין נר 4h סגור עדכני' }
+      const sigOf = (fr: number | null) => coachSignal({ bars: b4.slice(-61), daily: d1, btcDaily: sym === 'BTC' ? undefined : btcD, funding: fr, vol24Usd: null /* F4 = OKX book liquidity below */, nowMs: now })
+      let fr: number | null = null, sig = sigOf(null)
+      if (sig.side) { try { fr = +(await lim(() => j(`${OKX}/public/funding-rate?instId=${sym}-USDT-SWAP`)))[0].fundingRate } catch { /* unknown */ } sig = sigOf(fr) }
+      const lc = liqCheck(marks[sym]), side = lc.ok ? sig.side : null
+      return { sym, side, checks: [...sig.checks, lc], adx: +sig.adx.toFixed(1), atr_pct: +(100 * sig.atrPct).toFixed(2), entry: sig.entry, stop: sig.stop }
+    } catch (e) { return { sym, err: String(e).slice(0, 80) } }
+  }))
   for (const r of rows.filter((x) => x.side)) {
     const side: Side = r.side, m = marks[r.sym]
     const skip = (why: string) => decisions.push({ at: iso(), sym: r.sym, side, decision: 'SKIP', why })
