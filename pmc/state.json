@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-17T08:39:56.084Z",
+ "last_scan": "2026-10-17T08:40:05.607Z",
  "last_note": {
-  "at": "2026-10-17T08:39:55.339Z",
+  "at": "2026-10-17T08:40:05.316Z",
   "windows": 0,
   "settled": 0,
   "entered": 0
@@ -45900,6 +45900,13 @@
    "cash": 961.20060438324,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-10-17T08:40:05.607Z",
+   "equity": 961.20060438324,
+   "cash": 961.20060438324,
+   "open_value": 0,
+   "open_count": 0
   }
  ],
  "decisions": [
@@ -87416,8 +87423,10 @@
    "placed_at": "2026-10-17T08:32:06.692Z",
    "limit": 0.9,
    "taker_ask": 0.91,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "eth-updown-5m-1792225800",
@@ -87429,10 +87438,12 @@
    "placed_at": "2026-10-17T08:32:26.598Z",
    "limit": 0.9,
    "taker_ask": 0.91,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-17T08:33:15.744Z",
-   "left_at_fill": 104
+   "left_at_fill": 104,
+   "won": true,
+   "ret": 0.11111111111111108
   },
   {
    "slug": "sol-updown-5m-1792225800",
@@ -87444,10 +87455,12 @@
    "placed_at": "2026-10-17T08:32:36.952Z",
    "limit": 0.92,
    "taker_ask": 0.95,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-17T08:34:16.285Z",
-   "left_at_fill": 44
+   "left_at_fill": 44,
+   "won": true,
+   "ret": 0.08695652173913039
   },
   {
    "slug": "xrp-updown-5m-1792225800",
@@ -87459,8 +87472,10 @@
    "placed_at": "2026-10-17T08:32:37.260Z",
    "limit": 0.92,
    "taker_ask": 0.97,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "xrp-updown-5m-1792226100",
@@ -87524,12 +87539,12 @@
   },
   "maker": {
    "placed": 2478,
-   "resolved": 2470,
-   "filled": 1125,
-   "fill_rate": 0.45546558704453444,
-   "wr": 0.856,
-   "ret": -0.07359194822229656,
-   "missed_wins": 1345,
+   "resolved": 2474,
+   "filled": 1127,
+   "fill_rate": 0.4555375909458367,
+   "wr": 0.8562555456965395,
+   "ret": -0.07328560258849458,
+   "missed_wins": 1347,
    "missed_losses": 0
   },
   "late_exit": {
