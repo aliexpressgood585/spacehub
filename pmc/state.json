@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-17T21:08:05.504Z",
+ "last_scan": "2026-10-17T21:08:15.287Z",
  "last_note": {
-  "at": "2026-10-17T21:08:04.019Z",
+  "at": "2026-10-17T21:08:13.873Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -18978,8 +18978,8 @@
    "best_ask": 0.96,
    "opened_at": "2026-10-17T21:07:39.531Z",
    "status": "OPEN",
-   "mark_px": 0.98,
-   "mark_at": "2026-10-17T21:08:04.619Z",
+   "mark_px": 0.99,
+   "mark_at": "2026-10-17T21:08:14.422Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -19006,8 +19006,8 @@
     "spot_open": 2424.09,
     "spot": 2422.52,
     "sigma1s": 0.000023759991168452232,
-    "close_px": 0.985,
-    "close_at": "2026-10-17T21:08:04.619Z"
+    "close_px": 0.99,
+    "close_at": "2026-10-17T21:08:14.422Z"
    }
   }
  ],
@@ -53182,6 +53182,28 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-17T21:08:15.287Z",
+   "market_id": "5787987",
+   "question": "Bitcoin Up or Down - October 17, 5:05PM-5:10PM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 21:05–21:10 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.91,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
+   "ts": "2026-10-17T21:08:15.287Z",
+   "market_id": "5787983",
+   "question": "XRP Up or Down - October 17, 5:05PM-5:10PM ET",
+   "question_he": "XRP · עולה או יורד · 5 דקות · 21:05–21:10 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.97,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
    "ts": "2026-10-17T21:08:05.504Z",
    "market_id": "5787983",
    "question": "XRP Up or Down - October 17, 5:05PM-5:10PM ET",
@@ -55358,28 +55380,6 @@
    "price": 0.95,
    "decision": "skip",
    "reason": "מסנן מרחק: 1.66 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-17T20:02:40.125Z",
-   "market_id": "5786486",
-   "question": "Bitcoin Up or Down - October 17, 4:00PM-4:05PM ET",
-   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 20:00–20:05 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.91,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.80 < 2 (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-17T20:02:40.907Z",
-   "market_id": "5786470",
-   "question": "Ethereum Up or Down - October 17, 4:00PM-4:05PM ET",
-   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 20:00–20:05 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.93,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.60 < 2 (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 270,
@@ -102461,6 +102461,19 @@
    "taker_ask": 0.95,
    "status": "WORKING",
    "filled": false
+  },
+  {
+   "slug": "btc-updown-5m-1792271100",
+   "market_id": "5787987",
+   "token_id": "102828836202893922667442429887143113427571904554397269456102858639188235119908",
+   "coin": "btc",
+   "outcome": "Down",
+   "end_time": "2026-10-17T21:10:00Z",
+   "placed_at": "2026-10-17T21:08:14.712Z",
+   "limit": 0.9,
+   "taker_ask": 0.91,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
@@ -102471,7 +102484,7 @@
    "avg_fee_c": 0.35860362403580975
   },
   "maker": {
-   "placed": 2962,
+   "placed": 2963,
    "resolved": 2959,
    "filled": 1326,
    "fill_rate": 0.4481243663399797,
@@ -102637,7 +102650,7 @@
    "brier_entry": 0.042429470546594295,
    "brier_close": 0.003130144444444437,
    "open_n": 1,
-   "open_clv_c": 2.500000000000002
+   "open_clv_c": 3.0000000000000027
   },
   "judged": {
    "n": 90,
@@ -102649,7 +102662,7 @@
    "brier_entry": 0.042429470546594295,
    "brier_close": 0.003130144444444437,
    "open_n": 1,
-   "open_clv_c": 2.500000000000002
+   "open_clv_c": 3.0000000000000027
   }
  }
 }
