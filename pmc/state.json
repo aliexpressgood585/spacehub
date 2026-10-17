@@ -44,12 +44,12 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-17T06:52:03.726Z",
+ "last_scan": "2026-10-17T06:52:12.587Z",
  "last_note": {
-  "at": "2026-10-17T06:52:00.546Z",
+  "at": "2026-10-17T06:52:10.971Z",
   "windows": 4,
   "settled": 0,
-  "entered": 1
+  "entered": 0
  },
  "trades": [
   {
@@ -16952,8 +16952,8 @@
    "best_ask": 0.97,
    "opened_at": "2026-10-17T06:52:03.726Z",
    "status": "OPEN",
-   "mark_px": 0.96,
-   "mark_at": "2026-10-17T06:52:03.726Z",
+   "mark_px": 0.97,
+   "mark_at": "2026-10-17T06:52:11.941Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -16980,7 +16980,9 @@
     "z": 2.3322510115463584,
     "spot_open": 2432.23,
     "spot": 2434.29,
-    "sigma1s": 0.000027056224059353532
+    "sigma1s": 0.000027056224059353532,
+    "close_px": 0.975,
+    "close_at": "2026-10-17T06:52:11.941Z"
    }
   }
  ],
@@ -45058,6 +45060,28 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-17T06:52:12.587Z",
+   "market_id": "5769327",
+   "question": "Bitcoin Up or Down - October 17, 2:50AM-2:55AM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 06:50–06:55 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.95,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
+   "ts": "2026-10-17T06:52:12.587Z",
+   "market_id": "5769324",
+   "question": "Solana Up or Down - October 17, 2:50AM-2:55AM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 06:50–06:55 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.91,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
    "ts": "2026-10-17T06:52:03.045Z",
    "market_id": "5769327",
    "question": "Bitcoin Up or Down - October 17, 2:50AM-2:55AM ET",
@@ -47234,28 +47258,6 @@
    "price": 0.9,
    "decision": "skip",
    "reason": "מסנן מרחק: 0.46 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-17T05:33:50.936Z",
-   "market_id": "5767477",
-   "question": "XRP Up or Down - October 17, 1:30AM-1:35AM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 05:30–05:35 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.93,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.48 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-17T05:33:30.131Z",
-   "market_id": "5767477",
-   "question": "XRP Up or Down - October 17, 1:30AM-1:35AM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 05:30–05:35 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.9,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.84 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 242,
@@ -85589,10 +85591,12 @@
    "placed_at": "2026-10-17T06:47:32.225Z",
    "limit": 0.95,
    "taker_ask": 0.97,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-17T06:47:41.240Z",
-   "left_at_fill": 139
+   "left_at_fill": 139,
+   "won": true,
+   "ret": 0.052631578947368474
   },
   {
    "slug": "btc-updown-5m-1792219500",
@@ -85604,8 +85608,10 @@
    "placed_at": "2026-10-17T06:49:00.699Z",
    "limit": 0.95,
    "taker_ask": 0.96,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "sol-updown-5m-1792219500",
@@ -85617,8 +85623,10 @@
    "placed_at": "2026-10-17T06:49:01.354Z",
    "limit": 0.95,
    "taker_ask": 0.96,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "btc-updown-5m-1792219800",
@@ -85669,12 +85677,12 @@
   },
   "maker": {
    "placed": 2413,
-   "resolved": 2407,
-   "filled": 1107,
-   "fill_rate": 0.459908599916909,
-   "wr": 0.8590785907859079,
-   "ret": -0.07018983473530288,
-   "missed_wins": 1300,
+   "resolved": 2410,
+   "filled": 1108,
+   "fill_rate": 0.4597510373443983,
+   "wr": 0.8592057761732852,
+   "ret": -0.07007898508396473,
+   "missed_wins": 1302,
    "missed_losses": 0
   },
   "late_exit": {
@@ -85833,8 +85841,8 @@
    "beat_close": 0.9516129032258065,
    "brier_entry": 0.04526802022872366,
    "brier_close": 0.004494693548387095,
-   "open_n": 0,
-   "open_clv_c": null
+   "open_n": 1,
+   "open_clv_c": 0.5000000000000004
   },
   "judged": {
    "n": 62,
@@ -85845,8 +85853,8 @@
    "beat_close": 0.9516129032258065,
    "brier_entry": 0.04526802022872366,
    "brier_close": 0.004494693548387095,
-   "open_n": 0,
-   "open_clv_c": null
+   "open_n": 1,
+   "open_clv_c": 0.5000000000000004
   }
  }
 }
