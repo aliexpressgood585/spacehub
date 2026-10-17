@@ -14,7 +14,7 @@ const ago = (ms: number) => (ms < 60_000 ? `לפני ${Math.max(0, Math.round(ms
 const sg = (s: string) => (s === 'LONG' ? 1 : -1)
 
 export default function CoachHouse() {
-  const [st, setSt] = useState<J>(null), [err, setErr] = useState<string | null>(null)
+  const [st, setSt] = useState<J>(null), [err, setErr] = useState<string | null>(null), [showAll, setShowAll] = useState(false)
   const [live, setLive] = useState<Record<string, number>>({}), [now, setNow] = useState(Date.now())
   useEffect(() => {
     let dead = false
@@ -117,14 +117,15 @@ export default function CoachHouse() {
         <div style={{ overflowX: 'auto', marginTop: 8 }}>
           <table style={{ borderCollapse: 'collapse', fontSize: 12, width: '100%' }}>
             <thead><tr style={{ color: '#8a97a8' }}><th style={{ textAlign: 'right', padding: 4 }}>מטבע</th>{(st.scan?.rows?.find((r: J) => r.checks)?.checks ?? []).map((c: J, i: number) => <th key={i} title={c.k} style={{ padding: 4, fontWeight: 400 }}>{c.k.split(' ')[0]}</th>)}<th style={{ padding: 4 }}>החלטה</th></tr></thead>
-            <tbody>{(st.scan?.rows ?? []).map((r: J) => (
+            <tbody>{[...(st.scan?.rows ?? [])].sort((x: J, y: J) => (y.checks ?? []).filter((c: J) => c.ok).length - (x.checks ?? []).filter((c: J) => c.ok).length).slice(0, showAll ? undefined : 40).map((r: J) => (
               <tr key={r.sym} style={{ borderTop: '1px solid #1c2738' }}>
                 <td style={{ padding: 4 }}>{r.sym}</td>
-                {r.checks ? r.checks.map((c: J, i: number) => <td key={i} title={`${c.k}: ${c.v ?? ''}`} style={{ textAlign: 'center', padding: 4, color: c.ok ? '#3ddc97' : '#ff6b6b' }}>{c.ok ? '✓' : '✗'}</td>) : <td colSpan={8} style={{ ...lab, padding: 4 }}>{r.err}</td>}
+                {r.checks ? r.checks.map((c: J, i: number) => <td key={i} title={`${c.k}: ${c.v ?? ''}`} style={{ textAlign: 'center', padding: 4, color: c.ok ? '#3ddc97' : '#ff6b6b' }}>{c.ok ? '✓' : '✗'}</td>) : <td colSpan={9} style={{ ...lab, padding: 4 }}>{r.err}</td>}
                 <td style={{ padding: 4, color: r.side ? '#3ddc97' : '#8a97a8' }}>{r.side ? (r.side === 'LONG' ? 'לונג' : 'שורט') : 'אין עסקה'}</td>
               </tr>))}</tbody>
           </table>
         </div>
+        <div style={{ ...lab, marginTop: 6 }}>נסרקו {(st.scan?.rows ?? []).length} מטבעות (כל חוזי USDT בביננס פיוצ׳רס עם מחיר חי ב-OKX), ממוינים לפי מספר הבדיקות שעברו.{(st.scan?.rows ?? []).length > 40 && <> <a href="#" onClick={(e) => { e.preventDefault(); setShowAll(!showAll) }} style={{ color: '#7fb2ff' }}>{showAll ? 'הצג 40 הראשונים' : 'הצג הכל'}</a></>} העמודה האחרונה = נזילות ספר OKX (≥ $10M ביום, מרווח ≤ 10bps).</div>
         <div style={{ ...lab, marginTop: 6 }}>F1 משטר+ADX · כניסה=פריצת Donchian-20 · F2 BTC · F3 ATR · F4 מחזור · F5 Funding · F7 חלון אירועים. ריחוף מעל ✓/✗ מראה את הערך.</div>
       </div>
 

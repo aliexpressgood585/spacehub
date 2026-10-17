@@ -764,6 +764,15 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   coach: no Donchian-20 breakout with ADX>25. dtCheck gained `allHours`; scripts/daytrade-desk.ts passes it, so the paper desk
   scans 24/7 incl. weekends. The backtest keeps F1 (its FAIL verdict -0.069R/trade was measured WITH the filter; 24/7 is LESS
   tested, expect more trades, not more profit). All other checks unchanged. tests/daytrade.test.ts 23/23.
+- 2026-10-17 ~16:30 UTC COIN DESKS ON EVERY BINANCE PERP (owner: "the bots that trade coins should work on all coins traded on
+  Binance Futures"). shared/binperps.ts: Binance USDT perps = data.binance.vision S3 listing + a daily 1h kline file in the last 3 days
+  (fapi 451 from runners) -> 848 symbols; crypto only (STABLE/NON_CRYPTO sets + OKX instCategory '1'; OKX lists ~200 stock and
+  commodity swaps); matched to OKX USDT swaps (1000PEPE -> PEPE) = 266 coins, 582 Binance perps have no OKX swap (no live feed,
+  listed in st.universe.no_okx). Cached in state, refreshed daily (~31 s). daytrade-desk + coach-desk scan all 266 per bar (rate
+  limited 15 req/s, ~40 s, under the 120 s cycle timeout); entries additionally need a liquid OKX book (24h >= $10M, spread <=
+  10 bps; ~46-67 coins pass) shown as an extra check; F4's old fixed lists stay only as the fallback if the universe is missing.
+  Rules, risk, max open (2 / 3) unchanged. NOT backtested on the wider universe (both rules already FAIL their backtests on the
+  liquid lists). Houses: rows sorted, "show all". tests/binperps.test.ts 15/15; workflows copy binperps/universe/strategy.ts.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the

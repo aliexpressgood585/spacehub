@@ -1,9 +1,11 @@
 // "מאמן הדיי טריידינג" — intraday crypto futures PAPER desk ($5,000 demo), rules in shared/daytrade.ts (S1-S6 on 15m).
 // GitHub Actions loop (.github/workflows/daytrade-desk.yml), prices from OKX USDT swaps (Binance fapi is 451 from runners).
 // Every cycle: stops / targets / break-even on the live bid-ask; once per closed 15m bar: setups + checklist + entries at the
-// live touch. NEVER places a real order. Usage: node --experimental-strip-types scripts/daytrade-desk.ts daytrade/state.json
+// live touch. Universe (owner 2026-10-17): every USDT perpetual Binance Futures trades today that has a crypto OKX swap
+// (shared/binperps.ts); entries also need a liquid OKX book. NEVER places a real order. Usage: node --experimental-strip-types scripts/daytrade-desk.ts daytrade/state.json
 import fs from 'node:fs'
 import { DT, dtPrep, dtSetups, dtCheck, dtSize, dtGate, type Bar, type Side } from '../shared/daytrade.ts'
+import { refreshUniverse, universeDue, liqCheck, limiter, pool } from '../shared/binperps.ts'
 
 const FILE = process.argv[2] ?? 'daytrade/state.json', OKX = 'https://www.okx.com/api/v5'
 const M15 = 15 * 60_000, D1 = 86400_000
@@ -13,26 +15,17 @@ const sg = (s: Side) => (s === 'LONG' ? 1 : -1)
 const candles = async (sym: string): Promise<Bar[]> => (await j(`${OKX}/market/candles?instId=${sym}-USDT-SWAP&bar=15m&limit=300`) as string[][])
   .filter((r) => r[8] === '1').map((r) => ({ t: +r[0], o: +r[1], h: +r[2], l: +r[3], c: +r[4], v: +r[7] })).sort((a, b) => a.t - b.t)
 
-// 24h volume for F4: Binance SPOT quote volume (data-api.binance.vision answers from the runners; futures fapi does not).
-// Shown for information only: spot volume understates futures volume (BNB ~$110M spot vs several times that on futures),
-// so F4 is enforced by the fixed liquid list itself, not by this number.
-async function binanceVol(syms: string[]): Promise<Record<string, number>> {
-  try {
-    const q = encodeURIComponent(JSON.stringify(syms.map((s) => `${s}USDT`)))
-    const r = await fetch(`https://data-api.binance.vision/api/v3/ticker/24hr?symbols=${q}`); if (!r.ok) return {}
-    return Object.fromEntries((await r.json() as any[]).map((x) => [x.symbol.replace(/USDT$/, ''), +x.quoteVolume]))
-  } catch { return {} }
-}
 const st: any = fs.existsSync(FILE) ? JSON.parse(fs.readFileSync(FILE, 'utf8')) : {
   version: 'daytrade-v1', start_cash: DT.start, cash: DT.start, peak: DT.start, next_id: 1, trades: [], equity: [], decisions: [],
   risk: { day: -1, dayStart: DT.start, dayEntries: 0, dayLosses: 0, streak: 0, lastLossAt: null }, scan: null, last_bar: 0, seen: [],
   feed: 'OKX USDT swaps (Binance fapi blocked from the runner, HTTP 451)', strategy: DT,
 }
 const now = Date.now(), decisions: any[] = [], marks: Record<string, { last: number; bid: number; ask: number; vol: number }> = {}
-try { for (const t of await j(`${OKX}/market/tickers?instType=SWAP`)) { const m = /^([A-Z0-9]+)-USDT-SWAP$/.exec(t.instId); if (m && (DT.coins as readonly string[]).includes(m[1])) marks[m[1]] = { last: +t.last, bid: +t.bidPx, ask: +t.askPx, vol: +t.volCcy24h * +t.last } } }
+if (universeDue(st.universe, now)) { const r = await refreshUniverse(st.universe, now); st.universe = r.u; st.universe_error = r.error ?? null }
+const COINS: string[] = st.universe?.coins?.map((c: any) => c.sym) ?? [...DT.coins]
+const want = new Set([...COINS, ...st.trades.filter((t: any) => t.status === 'OPEN').map((t: any) => t.sym)])
+try { for (const t of await j(`${OKX}/market/tickers?instType=SWAP`)) { const m = /^([A-Z0-9]+)-USDT-SWAP$/.exec(t.instId); if (m && want.has(m[1])) marks[m[1]] = { last: +t.last, bid: +t.bidPx, ask: +t.askPx, vol: +t.volCcy24h * +t.last } } }
 catch (e) { st.last_error = { at: iso(), msg: String(e) } }
-const bvol = await binanceVol([...DT.coins])
-for (const k of Object.keys(marks)) if (bvol[k] > 0) marks[k].vol = bvol[k]
 const openT = () => st.trades.filter((t: any) => t.status === 'OPEN')
 const equity = () => st.cash + openT().reduce((a: number, t: any) => a + t.margin + sg(t.side) * ((marks[t.sym]?.last ?? t.mark_px) - t.entry_px) * t.qty - (t.funding ?? 0), 0)
 const day = Math.floor(now / D1)
@@ -67,14 +60,19 @@ const bar = Math.floor(now / M15) * M15
 if (bar > st.last_bar && (now - bar < 5 * 60_000 || process.env.DT_FORCE_SCAN) && Object.keys(marks).length) {
   st.last_bar = bar
   const preps: Record<string, any> = {}, rows: any[] = []
-  for (const s of DT.coins) { try { const b = await candles(s); if (b.length && b[b.length - 1].t === bar - M15) preps[s] = dtPrep(b); else rows.push({ sym: s, err: 'אין נר 15m סגור עדכני' }) } catch (e) { rows.push({ sym: s, err: String(e).slice(0, 60) }) } }
+  const lim = limiter(15)
+  await pool(COINS, 8, async (s) => { try { const b = await lim(() => candles(s)); if (b.length > 120 && b[b.length - 1].t === bar - M15) preps[s] = dtPrep(b); else rows.push({ sym: s, err: 'אין נר 15m סגור עדכני' }) } catch (e) { rows.push({ sym: s, err: String(e).slice(0, 60) }) } })
   const bp = preps.BTC, btcDir = bp ? (bp.b[bp.b.length - 1].c > bp.e50[bp.b.length - 1] ? 1 : -1) : null
-  for (const s of Object.keys(preps)) {
+  for (const s of Object.keys(preps).sort()) {
+    if (!marks[s]) continue
     const p = preps[s], i = p.b.length - 1, m = marks[s]
     let fr: number | null = null
     const cs = dtSetups(p, i)
     if (cs.length) try { fr = +(await j(`${OKX}/public/funding-rate?instId=${s}-USDT-SWAP`))[0].fundingRate } catch { /* unknown */ }
-    const evals = cs.map((c) => { const entry = (c.side === 'LONG' ? m.ask : m.bid) * (1 + sg(c.side) * DT.slip); return { c, entry, chk: dtCheck(p, i, c, entry, { btcDir: s === 'BTC' ? null : btcDir, funding: fr, allHours: true, vol24Usd: null /* F4 = the fixed liquid list; live volume shown for info */ }) } })
+    const lc = liqCheck(m)
+    const evals = cs.map((c) => { const entry = (c.side === 'LONG' ? m.ask : m.bid) * (1 + sg(c.side) * DT.slip)
+      const chk = dtCheck(p, i, c, entry, { btcDir: s === 'BTC' ? null : btcDir, funding: fr, allHours: true, vol24Usd: null /* F4 = OKX book liquidity below */ })
+      chk.checks.push(lc); chk.ok = chk.ok && lc.ok; return { c, entry, chk } })
     rows.push({ sym: s, setups: evals.map((e) => ({ setup: e.c.setup, note: e.c.note, side: e.c.side, ok: e.chk.ok, checks: e.chk.checks, rNet: +e.chk.rNet.toFixed(2), costR: e.chk.costR && +e.chk.costR.toFixed(2) })),
       h1: p.h1Dir[i], adx: +p.adx[i].toFixed(1), vwap: p.vwap[i], close: p.b[i].c })
     for (const e of evals) {

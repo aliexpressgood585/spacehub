@@ -17,7 +17,7 @@ const SETUPS: [string, string][] = [['S1', 'Holy Grail — ADX>30, חזרה ל-E
 
 export default function DayHouse() {
   const [st, setSt] = useState<J>(null), [err, setErr] = useState<string | null>(null)
-  const [live, setLive] = useState<Record<string, number>>({}), [now, setNow] = useState(Date.now())
+  const [live, setLive] = useState<Record<string, number>>({}), [now, setNow] = useState(Date.now()), [all, setAll] = useState(false)
   useEffect(() => {
     let dead = false
     const load = async () => { try { const r = await fetch(`${STATE}?t=${Math.floor(Date.now() / 4000)}`, { cache: 'no-store' }); if (!r.ok) throw new Error(String(r.status)); const j = await r.json(); if (!dead) { setSt(j); setErr(null) } } catch (e) { if (!dead) setErr(String(e)) } }
@@ -48,7 +48,7 @@ export default function DayHouse() {
           <span style={{ ...lab, border: '1px solid #2a3a52', borderRadius: 20, padding: '3px 10px' }}>נייר בלבד</span>
           <span title="הבוט שומר מצב כל ~15 שנ׳; השרת של GitHub מגיש את הקובץ עם השהיה של עד 5 דק׳" style={{ ...lab, border: `1px solid ${alive ? '#2f7a55' : '#7a2f2f'}`, borderRadius: 20, padding: '3px 10px', color: alive ? '#3ddc97' : '#ff6b6b' }}>{alive ? `● פעיל · עדכון שהגיע ${ago(lastCycle!)}` : `● לא פעיל${lastCycle != null ? ` · מחזור אחרון ${ago(lastCycle)}` : ''}`}</span>
         </div>
-        <div style={{ ...lab, marginTop: 4 }}>חשבון דמו $5,000 · 7 מטבעות נזילים · סריקה בכל סגירת נר 15 דק׳ (הבאה בעוד {Math.ceil(nextBar / 60_000)} דק׳) · מחירים OKX · אין פקודות אמיתיות.</div>
+        <div style={{ ...lab, marginTop: 4 }}>חשבון דמו $5,000 · {st.universe?.coins?.length ?? 7} מטבעות (כל חוזי USDT בביננס פיוצ׳רס שיש להם מחיר חי ב-OKX) · סריקה בכל סגירת נר 15 דק׳ (הבאה בעוד {Math.ceil(nextBar / 60_000)} דק׳) · מחירים OKX · אין פקודות אמיתיות.</div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 8 }}>
         {([['שווי חשבון', usd(equity), equity - start], ['רווח/הפסד כולל', usd(equity - start), equity - start], ['ממומש', usd(realized), realized], ['פתוח', usd(unreal), unreal],
@@ -78,7 +78,9 @@ export default function DayHouse() {
         <div style={{ fontWeight: 600 }}>סורק — סטאפים בנר האחרון</div>
         <div style={lab}>נר 15m אחרון: {st.scan?.bar ? new Date(st.scan.bar).toISOString().slice(11, 16) + ' UTC' : '—'} · סריקה {st.scan?.at ? ago(now - Date.parse(st.scan.at)) : '—'}</div>
         <div style={{ display: 'grid', gap: 6, marginTop: 8 }}>
-          {(st.scan?.rows ?? []).map((r: J) => (
+          {(() => { const rs = st.scan?.rows ?? [], withS = rs.filter((r: J) => (r.setups ?? []).length).sort((a: J, b: J) => +b.setups.some((x: J) => x.ok) - +a.setups.some((x: J) => x.ok)), rest = rs.length - withS.length
+            return <div style={lab}>נסרקו {rs.length} מטבעות · {withS.length} עם סטאפ · {rest} בלי סטאפ או בלי נר עדכני{rest ? <> · <a href="#" onClick={(e) => { e.preventDefault(); setAll(!all) }} style={{ color: '#7fb2ff' }}>{all ? 'הסתר' : 'הצג הכל'}</a></> : null}</div> })()}
+          {[...(st.scan?.rows ?? [])].filter((r: J) => all || (r.setups ?? []).length).sort((a: J, b: J) => (b.setups ?? []).length - (a.setups ?? []).length).map((r: J) => (
             <div key={r.sym} style={{ fontSize: 13, borderTop: '1px solid #1c2738', paddingTop: 6 }}>
               <b>{r.sym}</b> <span style={lab}>{r.err ?? `כיוון 1h ${r.h1 > 0 ? '↑' : r.h1 < 0 ? '↓' : '—'} · ADX ${r.adx} · נפח 24h ${st.vol24?.[r.sym] ? '$' + Math.round(st.vol24[r.sym] / 1e6) + 'M' : '—'}`}</span>
               {!r.err && !(r.setups ?? []).length && <span style={lab}> · אין סטאפ</span>}
@@ -109,7 +111,7 @@ export default function DayHouse() {
         <div style={{ fontSize: 13, lineHeight: 1.7, marginTop: 6 }}>אותם כללים על 7 חוזים של Binance Futures, נרות 15m, 09/2024–09/2026, עמלות + החלקה + Funding:
           860 עסקאות · הצלחה 32% · <b>−0.07R לעסקה</b> · PF 0.84 · Sharpe −1.13 · $5,000→$3,655 · ירידה מקסימלית 30%. מחוץ למדגם: <b>−0.13R (t −2.3), PF 0.69</b> — הפסד מובהק.
           S6 (פריצת פתיחה) הוא 598 מהעסקאות ו-−$945. רק S2 חיובי, על 9 עסקאות בלבד (רעש). <b>לכן רץ בדמו בלבד</b>, כמו שהפרומפט עצמו דורש.</div>
-        <div style={{ ...lab, marginTop: 6 }}>קירובים: אישור 5m ותזמון 1m לא ממודלים · כניסה Taker (לא Maker — בדיקת צל הראתה ש-Maker גרוע יותר) · אין לוח אירועים (חלון קבוע 12:00-13:00 UTC) · F4 = רשימה קבועה של 7 מטבעות נזילים · F7 מצב רוח = הפסקה אחרי 2 הפסדים.</div>
+        <div style={{ ...lab, marginTop: 6 }}>קירובים: אישור 5m ותזמון 1m לא ממודלים · כניסה Taker (לא Maker — בדיקת צל הראתה ש-Maker גרוע יותר) · אין לוח אירועים (חלון קבוע 12:00-13:00 UTC) · F4 = נזילות ספר OKX (מחזור 24h ≥ $10M, מרווח ≤ 10bps) — מטבע דליל נסרק אבל לא נכנסים בו · F7 מצב רוח = הפסקה אחרי 2 הפסדים.</div>
       </div>
     </div>
   )

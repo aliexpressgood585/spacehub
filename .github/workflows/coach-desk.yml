@@ -23,7 +23,7 @@ jobs:
       - name: live loop
         run: |
           mkdir -p /tmp/desk/scripts /tmp/desk/shared
-          cp scripts/coach-desk.ts /tmp/desk/scripts/; cp shared/coach.ts /tmp/desk/shared/
+          cp scripts/coach-desk.ts /tmp/desk/scripts/; cp shared/coach.ts shared/binperps.ts shared/universe.ts shared/strategy.ts /tmp/desk/shared/
           git config user.name pm-desk-bot
           git config user.email actions@github.com
           git fetch -q origin pm-desk-data || true
