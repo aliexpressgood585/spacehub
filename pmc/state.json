@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-17T02:44:58.689Z",
+ "last_scan": "2026-10-17T02:45:08.996Z",
  "last_note": {
-  "at": "2026-10-17T02:44:58.080Z",
+  "at": "2026-10-17T02:45:08.664Z",
   "windows": 0,
   "settled": 0,
   "entered": 0
@@ -42342,6 +42342,13 @@
    "cash": 984.008023116239,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-10-17T02:45:08.996Z",
+   "equity": 984.008023116239,
+   "cash": 984.008023116239,
+   "open_value": 0,
+   "open_count": 0
   }
  ],
  "decisions": [
@@ -80350,10 +80357,12 @@
    "placed_at": "2026-10-17T02:37:29.524Z",
    "limit": 0.91,
    "taker_ask": 0.92,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-17T02:37:38.521Z",
-   "left_at_fill": 141
+   "left_at_fill": 141,
+   "won": true,
+   "ret": 0.09890109890109887
   },
   {
    "slug": "xrp-updown-5m-1792204500",
@@ -80365,10 +80374,12 @@
    "placed_at": "2026-10-17T02:38:29.704Z",
    "limit": 0.94,
    "taker_ask": 0.96,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-17T02:38:39.227Z",
-   "left_at_fill": 81
+   "left_at_fill": 81,
+   "won": true,
+   "ret": 0.06382978723404262
   },
   {
    "slug": "btc-updown-5m-1792204500",
@@ -80380,10 +80391,12 @@
    "placed_at": "2026-10-17T02:38:59.161Z",
    "limit": 0.91,
    "taker_ask": 0.92,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-17T02:39:08.349Z",
-   "left_at_fill": 52
+   "left_at_fill": 52,
+   "won": true,
+   "ret": 0.09890109890109887
   },
   {
    "slug": "eth-updown-5m-1792204500",
@@ -80395,10 +80408,12 @@
    "placed_at": "2026-10-17T02:38:59.490Z",
    "limit": 0.91,
    "taker_ask": 0.92,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-17T02:39:08.514Z",
-   "left_at_fill": 51
+   "left_at_fill": 51,
+   "won": false,
+   "ret": -1
   },
   {
    "slug": "sol-updown-5m-1792204800",
@@ -80464,11 +80479,11 @@
   },
   "maker": {
    "placed": 2256,
-   "resolved": 2248,
-   "filled": 1036,
-   "fill_rate": 0.4608540925266904,
-   "wr": 0.8561776061776062,
-   "ret": -0.07372037536244713,
+   "resolved": 2252,
+   "filled": 1040,
+   "fill_rate": 0.46181172291296624,
+   "wr": 0.8557692307692307,
+   "ret": -0.07414680470236443,
    "missed_wins": 1212,
    "missed_losses": 0
   },
