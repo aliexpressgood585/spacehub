@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-17T00:28:37.074Z",
+ "last_scan": "2026-10-17T00:28:48.211Z",
  "last_note": {
-  "at": "2026-10-17T00:28:34.417Z",
+  "at": "2026-10-17T00:28:44.797Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -40996,6 +40996,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-17T00:28:48.211Z",
+   "market_id": "5764965",
+   "question": "Solana Up or Down - October 16, 8:25PM-8:30PM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 00:25–00:30 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.91,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 0.45 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
+  },
+  {
    "ts": "2026-10-17T00:28:37.074Z",
    "market_id": "5764964",
    "question": "Bitcoin Up or Down - October 16, 8:25PM-8:30PM ET",
@@ -43183,17 +43194,6 @@
    "price": 0.94,
    "decision": "skip",
    "reason": "מסנן מרחק: 1.61 < 2 (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-16T23:07:04.354Z",
-   "market_id": "5763837",
-   "question": "XRP Up or Down - October 16, 7:05PM-7:10PM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 23:05–23:10 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.94,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.81 < 2 (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 224,
@@ -77657,6 +77657,21 @@
    "limit": 0.9,
    "taker_ask": 0.91,
    "status": "WORKING",
+   "filled": true,
+   "filled_at": "2026-10-17T00:28:45.433Z",
+   "left_at_fill": 75
+  },
+  {
+   "slug": "sol-updown-5m-1792196700",
+   "market_id": "5764965",
+   "token_id": "17005890410959388676583230631266475417691352796387749398475926597201147288575",
+   "coin": "sol",
+   "outcome": "Up",
+   "end_time": "2026-10-17T00:30:00Z",
+   "placed_at": "2026-10-17T00:28:47.119Z",
+   "limit": 0.9,
+   "taker_ask": 0.91,
+   "status": "WORKING",
    "filled": false
   }
  ],
@@ -77668,7 +77683,7 @@
    "avg_fee_c": 0.36569025003914013
   },
   "maker": {
-   "placed": 2165,
+   "placed": 2166,
    "resolved": 2160,
    "filled": 997,
    "fill_rate": 0.4615740740740741,
