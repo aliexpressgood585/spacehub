@@ -6,6 +6,13 @@ name: binance-paper-desk
 # event. The hourly cron, a push to main, and workflow_dispatch only start a loop;
 # if one is already running the new job exits without chaining. At the end the job
 # dispatches its own successor, so the desk stays up when the schedule does not fire.
+# A tick that runs past 90s is killed and the loop continues. Git and gh calls
+# die after 30s; the state push itself dies after 20s. pm/pmc/pmn commit to
+# the same branch every few seconds, so a rejected push resets to origin,
+# reapplies only binance-paper/, and retries with jitter. If no push has
+# landed for 10 minutes the loop alerts and exits non-zero and the chain
+# step (if: always()) starts a successor. The loop step itself is capped
+# so a stuck shell still reaches that step.
 # The existing binance-paper/state.json is loaded and updated. An existing account
 # is never replaced. Never places a real order and needs no API keys.
 on:
@@ -36,6 +43,7 @@ jobs:
         run: python -m pip install --disable-pip-version-check -q numpy pyyaml requests
       - name: loop
         id: loop
+        timeout-minutes: 350
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -43,11 +51,22 @@ jobs:
           mkdir -p /tmp/desk
           rm -rf /tmp/desk/binance-paper-bot
           cp -a binance-paper-bot /tmp/desk/binance-paper-bot
+          # shellcheck disable=SC1091
+          source /tmp/desk/binance-paper-bot/scripts/desk_loop.sh
           # Captured before the state branch checkout. HEAD here is the ref this job started from.
           START_SHA=$(git rev-parse HEAD)
           git config user.name pm-desk-bot
           git config user.email actions@github.com
-          git fetch -q origin pm-desk-data || true
+          # A failed fetch must not look like a missing branch: the orphan
+          # path would start a second book and then fail to push it.
+          set +e
+          git_t fetch -q origin pm-desk-data
+          fetch_rc=$?
+          set -e
+          if [ "$fetch_rc" -ne 0 ]; then
+            echo "fetch pm-desk-data failed rc=$fetch_rc; not creating an empty book"
+            exit 1
+          fi
           if git rev-parse --verify origin/pm-desk-data >/dev/null 2>&1; then
             git checkout -q -B pm-desk-data origin/pm-desk-data
           else
@@ -57,15 +76,11 @@ jobs:
           export PYTHONPATH=/tmp/desk/binance-paper-bot
           export DESK_RUN_ID="${GITHUB_RUN_ID}"
 
-          push_state() {
-            git push -q origin pm-desk-data || { git pull -q --rebase -X ours origin pm-desk-data && git push -q origin pm-desk-data; }
-          }
-
           # Concurrency already allows one running job and one pending. This exits
           # a second in-progress run without writing and without chaining.
           others=0
           set +e
-          ids=$(gh run list --workflow binance-paper-desk.yml --status in_progress --limit 20 --json databaseId 2>/tmp/gh-runs.err)
+          ids=$(gh_t run list --workflow binance-paper-desk.yml --status in_progress --limit 20 --json databaseId 2>/tmp/gh-runs.err)
           gh_rc=$?
           set -e
           if [ "$gh_rc" -ne 0 ]; then
@@ -95,14 +110,14 @@ jobs:
             push_state
           }
           handoff() {
-            python -m bot.desk --handoff binance-paper/state.json || true
+            timeout --kill-after=10s 30s python -m bot.desk --handoff binance-paper/state.json || true
             if [ -f binance-paper/state.json ]; then
               git add binance-paper/state.json || true
               if ! git diff --cached --quiet; then
                 git commit -q -m "binance paper desk handoff $(date -u +%FT%TZ) [skip ci]" || true
               fi
               n=0
-              while [ "$n" -lt 4 ]; do
+              while [ "$n" -lt 2 ]; do
                 publish_if_ahead && return 0
                 n=$((n + 1))
                 sleep $((n * 2))
@@ -110,13 +125,22 @@ jobs:
             fi
             return 0
           }
-          trap 'handoff; exit 0' TERM INT
-          trap handoff EXIT
+          handoff_once() {
+            [ "${HANDOFF_DONE:-0}" = 1 ] && return 0
+            HANDOFF_DONE=1
+            handoff
+          }
+          trap 'handoff_once; exit 0' TERM INT
+          trap handoff_once EXIT
 
           end=$(( $(date +%s) + 345*60 ))
           last_commit=0
+          last_publish=$(date +%s)
           while [ "$(date +%s)" -lt "$end" ]; do
-            remote=$(git ls-remote origin refs/heads/main 2>/dev/null | awk 'NR==1{print $1}')
+            remote=""
+            set +e
+            remote=$(git_t ls-remote origin refs/heads/main 2>/dev/null | awk 'NR==1{print $1}')
+            set -e
             if [ -n "${remote}" ] && [ "$remote" != "$START_SHA" ]; then
               echo "main moved ${START_SHA} -> ${remote}; handing off so the successor loads it"
               exit 0
@@ -134,35 +158,55 @@ jobs:
               break
             fi
             set +e
-            out=$(timeout 240 python -u -m bot.desk --tick binance-paper/state.json 2>&1)
+            out=$(timeout --kill-after=15s 90s python -u -m bot.desk --tick binance-paper/state.json 2>&1)
             rc=$?
             set -e
             printf '%s\n' "$out"
             if [ "$rc" -ne 0 ]; then
-              echo "tick failed rc=$rc"
-              continue
-            fi
-            commit_now=0
-            if printf '%s\n' "$out" | grep -q 'commit=yes'; then
-              commit_now=1
-            fi
-            now_s=$(date +%s)
-            if [ "$commit_now" -eq 1 ] || [ $((now_s - last_commit)) -ge 300 ]; then
-              python -c 'import json; st=json.load(open("binance-paper/state.json")); assert st["paper"] is True and st["live_trading"] is False; loop=st.get("loop") or {}; print("equity=%.2f mode=%s wallet=%.2f positions=%d" % (st["equity"], loop.get("mode"), st["wallet"], len(st["positions"])))'
-              git add binance-paper/state.json
-              if git diff --cached --quiet; then
-                echo "no state change"
-              else
-                git commit -q -m "binance paper desk state $(date -u +%FT%TZ) [skip ci]"
+              echo "tick failed rc=$rc; aborting this tick and continuing"
+            else
+              commit_now=0
+              if printf '%s\n' "$out" | grep -q 'commit=yes'; then
+                commit_now=1
               fi
-              last_commit=$now_s
+              now_s=$(date +%s)
+              if [ "$commit_now" -eq 1 ] || [ $((now_s - last_commit)) -ge 300 ]; then
+                python -c 'import json; st=json.load(open("binance-paper/state.json")); assert st["paper"] is True and st["live_trading"] is False; loop=st.get("loop") or {}; print("equity=%.2f mode=%s wallet=%.2f positions=%d" % (st["equity"], loop.get("mode"), st["wallet"], len(st["positions"])))'
+                git add binance-paper/state.json
+                if git diff --cached --quiet; then
+                  echo "no state change"
+                else
+                  git commit -q -m "binance paper desk state $(date -u +%FT%TZ) [skip ci]"
+                fi
+                last_commit=$now_s
+              fi
             fi
-            # Retry a commit that was made but not pushed. A price-only minute does not
-            # create a new commit, and an unchanged HEAD matches origin.
-            publish_if_ahead || echo "push failed; will retry"
+            # A price-only minute does not create a new commit. Reset the
+            # watchdog only when origin actually has our HEAD. Ten minutes
+            # without a landed push alerts and exits so the chain step runs.
+            now_s=$(date +%s)
+            if publish_if_ahead; then
+              last_publish=$now_s
+            else
+              echo "push failed; will retry"
+              if publish_stale "$now_s" "$last_publish"; then
+                echo "::error::no successful binance-paper push for ${PUBLISH_STALE_S}s; the loop was still ticking but pm-desk-data did not take the state. Exiting so the successor starts."
+                exit 1
+              fi
+            fi
           done
       - name: chain successor
-        if: always() && steps.loop.outputs.chain == 'yes'
+        if: always()
+        timeout-minutes: 5
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run binance-paper-desk.yml --ref main
+        run: |
+          set -euo pipefail
+          # chain=no means this job already saw another live loop and stepped
+          # aside. Dispatching again would queue a successor on every overlap.
+          # Any other outcome (yes, empty, killed before the guard) starts one.
+          if [ "${{ steps.loop.outputs.chain }}" = "no" ]; then
+            echo "not chaining; another loop is alive"
+            exit 0
+          fi
+          timeout --kill-after=10s 30s gh workflow run binance-paper-desk.yml --ref main
