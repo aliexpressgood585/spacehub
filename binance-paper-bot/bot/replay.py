@@ -77,7 +77,7 @@ STRATEGY_LAG_MS = 120_000
 def replay_minutes(ex, eng, symbols, minutes, bars_1m, marks_1m, bars_15m, bars_1h,
                    funding, funding_done, last_15m_open, bars_4h=None, bars_1d=None,
                    strategy_tf="15m", last_signal_open=None, strategy_ready_at=None,
-                   strategy_lag_ms=STRATEGY_LAG_MS):
+                   strategy_lag_ms=STRATEGY_LAG_MS, on_minute=None):
     """Replay fully closed 1-minute opens in `minutes` (oldest first).
 
     bars_*: symbol -> {open_time: (open_time, o, h, l, c, v, close_time)}
@@ -94,6 +94,8 @@ def replay_minutes(ex, eng, symbols, minutes, bars_1m, marks_1m, bars_15m, bars_
     `last_signal_open` is the last 1h open already signaled. When
     `strategy_ready_at` is set, a 1h close is not signaled until that timestamp
     is at least `strategy_lag_ms` past the close (the minute is still walked).
+    `on_minute(open_ts)`, when set, runs after that minute's stops and marks
+    and before the strategy bar. The manual basket uses it.
     """
     prev_traverse = ex.traverse_fill
     ex.traverse_fill = True
@@ -145,6 +147,8 @@ def replay_minutes(ex, eng, symbols, minutes, bars_1m, marks_1m, bars_15m, bars_
                     funded += 1
                     i += 1
                 fi[s] = i
+            if on_minute is not None:
+                on_minute(int(t))
             if strategy_tf == "stops":
                 if _has_tf(eng, "15m") or _has_tf(eng, "1h") or _has_tf(eng, "4h") or _has_tf(eng, "1d"):
                     if boundary % 86_400_000 == 0:

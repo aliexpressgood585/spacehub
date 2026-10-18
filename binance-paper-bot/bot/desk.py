@@ -10,6 +10,9 @@ completed 4h bars. orb_ny_15m decides after each closed 15m bar. Stops stay on
 1m highs/lows. The coin list is a monthly top-20 by trailing 90-day median
 quote volume. An existing account is never replaced.
 
+config/manual_trades.json, when present, is a separate one-shot paper basket
+(manual_aggr_1..5). It does not go through the strategy risk sizer.
+
     python -m bot.desk binance-paper/state.json          # one full cycle
     python -m bot.desk --tick binance-paper/state.json   # stops, or full if an hour is due
     python -m bot.desk --stops binance-paper/state.json  # 1m stops only
@@ -35,7 +38,11 @@ from .risk import RiskManager
 from .clock import closed_bar_open, opens_after
 from .storage import MemoryRecorder
 from .strategies import REGISTRY, make_strategy
-from .symbols import load_symbol_infos
+from .symbols import SymbolInfo, load_symbol_infos
+from .manual import (attach_symbol, config_path, contract_symbols, ensure_blob, execute_plans,
+                     load_manual_config, maintain, merge_contracts, plan_opens, prune_contracts,
+                     score_directions, ticker_to_rows, usdt_perp_symbols, volume_priority,
+                     window_open)
 from .universe import (is_current, month_key, rank_live, slippage_bps, stored_rows)
 
 log = logging.getLogger("desk")
@@ -185,6 +192,173 @@ def _bind_engine(eng, cfg, state):
     raw = ((state or {}).get("engine") or {}).get("universe_period") or {}
     eng.universe_period = {str(k): int(v) for k, v in raw.items() if v is not None}
     return eng
+
+
+def _stored_manual(state):
+    raw = ((state or {}).get("engine") or {}).get("manual")
+    return raw if isinstance(raw, dict) else None
+
+
+def _with_manual_symbols(symbols, state):
+    out = list(symbols)
+    for s in contract_symbols(state):
+        if s not in out:
+            out.append(s)
+    return out
+
+
+def _load_manual_spec(cfg):
+    path = config_path(cfg)
+    if not os.path.exists(path):
+        return None
+    try:
+        return load_manual_config(path)
+    except Exception:
+        log.exception("manual trades config rejected; basket left as stored")
+        return None
+
+
+def begin_manual(cfg, ex, rec, state, now):
+    """Start the one-shot clock. Returns (spec, blob, on_minute).
+
+    The hook closes the basket and arms breakeven on every replayed minute.
+    It does not open. Opens happen once, after the replay, in finish_manual.
+    """
+    spec = _load_manual_spec(cfg)
+    if spec is None:
+        return None, _stored_manual(state), None
+    blob = ensure_blob(spec, _stored_manual(state), now)
+    wt = (cfg.get("execution") or {}).get("sl_tp_working_type") or "CONTRACT_PRICE"
+
+    def on_minute(ts, _ex=ex, _rec=rec, _spec=spec, _blob=blob, _wt=wt):
+        maintain(_ex, _rec, _spec, _blob, ts, working_type=_wt)
+
+    return spec, blob, on_minute
+
+
+def _fetch_manual_ticker(feed, cfg):
+    if getattr(feed, "kind", "") == "binance" and getattr(feed, "rest", None) is not None:
+        try:
+            rows = feed.rest.get("/fapi/v1/ticker/24hr")
+            if isinstance(rows, list):
+                return rows
+        except Exception:
+            log.exception("manual 24h ticker via the price feed failed")
+    try:
+        from .rest import PublicRest
+        from .feed import probe_binance
+        rest = PublicRest(cfg["data"]["rest_bases"], cfg["data"].get("brackets_url"), timeout=12)
+        base, _probes = probe_binance(rest.s, list(rest.bases), rest.timeout)
+        if not base:
+            return None
+        rest.base = base
+        rows = rest.get("/fapi/v1/ticker/24hr")
+        return rows if isinstance(rows, list) else None
+    except Exception:
+        log.exception("manual 24h ticker via Binance failed")
+        return None
+
+
+def _manual_exchange_info(feed, exchange_info):
+    if usdt_perp_symbols(exchange_info):
+        return exchange_info
+    if getattr(feed, "kind", "") == "binance":
+        try:
+            live = feed.exchange_info()
+        except Exception:
+            log.exception("manual exchangeInfo failed")
+            return exchange_info
+        if usdt_perp_symbols(live):
+            return live
+    return exchange_info
+
+
+def _closes_4h(feed, symbol, now):
+    start = int(now) - 260 * INTERVAL_MS["4h"]
+    try:
+        raw = feed.klines(symbol, "4h", start, int(now))
+    except Exception:
+        log.warning("manual 4h klines failed for %s", symbol, exc_info=True)
+        return None
+    closes = []
+    for k in raw or []:
+        try:
+            if int(k[6]) >= int(now):
+                continue
+            closes.append(float(k[4]))
+        except (TypeError, ValueError, IndexError):
+            continue
+    return closes
+
+
+def _quote_manual_symbol(ex, feed, info_by, symbol, now):
+    if symbol not in ex.si:
+        raw = info_by.get(symbol)
+        if not raw:
+            return False
+        try:
+            attach_symbol(ex, SymbolInfo.from_exchange_info(raw))
+        except Exception:
+            log.warning("manual contract filters missing for %s", symbol, exc_info=True)
+            return False
+    try:
+        bt = feed.book_ticker(symbol)
+        pi = feed.premium_index(symbol)
+        bid, ask = float(bt["bidPrice"]), float(bt["askPrice"])
+        mark = float(pi["markPrice"])
+        last = float(bt["lastPrice"]) if bt.get("lastPrice") else (bid + ask) / 2.0
+    except Exception:
+        log.warning("manual book failed for %s", symbol, exc_info=True)
+        return False
+    if bid <= 0 or ask <= 0:
+        return False
+    ex.update_market(symbol, int(now), bid=bid, ask=ask, last=last, mark=mark)
+    return True
+
+
+def _score_manual(cfg, spec, ex, feed, exchange_info, now, need):
+    """(rows, directions) for one selection. (None, None) means try again next tick."""
+    ei = _manual_exchange_info(feed, exchange_info)
+    perps = usdt_perp_symbols(ei)
+    if not perps:
+        return None, None, ei
+    rows = ticker_to_rows(_fetch_manual_ticker(feed, cfg), perps)
+    if rows is None:
+        return None, None, ei
+    priority = volume_priority(
+        rows, min_quote_volume=spec["min_quote_volume"], exclude=spec["exclude"],
+        open_symbols=set(ex.pos), prefer=spec["prefer"])
+    if not priority:
+        return rows, {}, ei
+    directions = score_directions(priority, lambda sym: _closes_4h(feed, sym, now), need)
+    if directions is None:
+        return None, None, ei
+    return rows, directions, ei
+
+
+def finish_manual(cfg, spec, blob, ex, rec, feed, exchange_info, now, symbols):
+    """One selection tick for every still-pending id, then the basket check on the live mark."""
+    if spec is None or blob is None:
+        return blob
+    wt = (cfg.get("execution") or {}).get("sl_tp_working_type") or "CONTRACT_PRICE"
+    maintain(ex, rec, spec, blob, now, working_type=wt)
+    if not blob.get("resolved"):
+        if not window_open(blob, now):
+            blob, _plans = plan_opens(spec, blob, now, None, None, set(ex.pos))
+        else:
+            need = sum(1 for t in spec["trades"] if blob["ids"].get(t["id"], {}).get("status") == "pending")
+            rows, directions, ei = _score_manual(cfg, spec, ex, feed, exchange_info, now, need)
+            blob, plans = plan_opens(spec, blob, now, rows, directions, set(ex.pos))
+            if plans:
+                info_by = {s.get("symbol"): s for s in (ei or {}).get("symbols") or [] if s.get("symbol")}
+                for plan in plans:
+                    _quote_manual_symbol(ex, feed, info_by, plan["symbol"], now)
+                execute_plans(ex, rec, plans, now, blob, working_type=wt)
+    prune_contracts(ex, blob)
+    for s in list(ex.pos):
+        if s not in symbols:
+            symbols.append(s)
+    return blob
 
 
 def rebalance_still_due(strat, now, last_1h_open):
@@ -552,6 +726,8 @@ def _positions(ex):
                      "strategy": p.strategy,
                      "entry": p.entry_price, "mark": mark, "leverage": p.leverage,
                      "upnl": p.upnl(mark), "liq": ex.liq_price(s), "sl": sl, "tp": tp,
+                     "breakeven": (p.meta or {}).get("breakeven"),
+                     "manual_id": (p.meta or {}).get("manual_id"),
                      "isolated_margin": p.isolated_margin, "notional": p.qty * px,
                      "funding": p.funding, "fees": p.fees, "opened_ts": p.opened_ts,
                      "mmr": br.mmr, "cum": br.cum})
@@ -723,7 +899,7 @@ def expire_time_stops(ex, now_ms):
 
 
 def run_htf(eng, ex, infos, feed, symbols, state, fresh, switched, now, rec, funding_done,
-            wants_15=False):
+            wants_15=False, on_minute=None):
     """1h signal clock. On a strategy switch only the latest closed 1h is judged.
 
     When a 15m strategy is active, the same replay also evaluates each closed
@@ -810,7 +986,8 @@ def run_htf(eng, ex, infos, feed, symbols, state, fresh, switched, now, rec, fun
         stats = replay_minutes(ex, eng, symbols, minutes, bars_1m, marks, bars_15, bars_1h,
                                funds, funding_done, last_15m, bars_4h=bars_4h, bars_1d=bars_1d,
                                strategy_tf="1h", last_signal_open=last_1h,
-                               strategy_ready_at=None if fresh or switched else now)
+                               strategy_ready_at=None if fresh or switched else now,
+                               on_minute=on_minute)
         if stats.get("last_signal_open") is not None:
             last_1h = stats["last_signal_open"]
         if wants_15 and stats.get("last_15m_open") is not None:
@@ -854,10 +1031,12 @@ def run(path, now=None):
         symbols = _symbol_list(universe_rows, state, cfg["symbols"])
     else:
         symbols = list(cfg["symbols"])
+    symbols = _with_manual_symbols(symbols, state)
     cfg = dict(cfg)
     cfg["symbols"] = list(symbols)
     infos, brackets, filters_src = load_meta(cfg, feed, exchange_info=ei, brackets_raw=br,
                                               allow_missing=htf)
+    infos = merge_contracts(infos, _stored_manual(state))
     symbols = [s for s in symbols if s in infos]
     if not symbols:
         raise RuntimeError("no tradable symbols; state left untouched")
@@ -881,9 +1060,10 @@ def run(path, now=None):
     prev_name = ((state or {}).get("strategy") or {}).get("name")
     switched = htf and not fresh and (prev_name != strat.name or state.get("last_1h_open") is None)
     last_1h = None if fresh else (state or {}).get("last_1h_open")
+    manual_spec, manual_blob, on_minute = begin_manual(cfg, ex, rec, state, now)
     if htf:
         last_1h, last_15m, catch = run_htf(eng, ex, infos, feed, symbols, state, fresh, switched,
-                                           now, rec, funding_done, wants_15=wants_15)
+                                           now, rec, funding_done, wants_15=wants_15, on_minute=on_minute)
     else:
         hist = int(cfg["data"]["history_bars"])
         prev_1m = None if fresh else state.get("last_1m_open")
@@ -926,7 +1106,7 @@ def run(path, now=None):
             marks = fetch_marks(feed, symbols, m0, m1 + 1, now)
             funds = fetch_funding(feed, symbols, m0, now)
             stats = replay_minutes(ex, eng, symbols, minutes, bars_1m, marks, bars_15, bars_1h,
-                                   funds, funding_done, last_15m)
+                                   funds, funding_done, last_15m, on_minute=on_minute)
             last_15m = stats["last_15m_open"]
             catch.update(minutes=stats["minutes"],
                          evaluated_15m=catch["evaluated_15m"] + stats["evaluated_15m"],
@@ -939,16 +1119,18 @@ def run(path, now=None):
     if wants_15:
         expire_time_stops(ex, now)
     bootstrap_flat(eng, now, last_1h)
+    manual_blob = finish_manual(cfg, manual_spec, manual_blob, ex, rec, feed, ei, now, symbols)
     return _publish(path, state, cfg, ex, risk, rec, feed, filters_src, probes, symbols, now,
                     strat, last_15m, last_1h, catch, funding_done,
                     universe_rows, ranked_at, universe_month, universe_reused,
-                    fresh, switched, prev_name, eng)
+                    fresh, switched, prev_name, eng, manual=manual_blob)
 
 
 def _publish(path, state, cfg, ex, risk, rec, feed, filters_src, probes, symbols, now,
              strat, last_15m, last_1h, catch, funding_done,
              universe_rows, ranked_at, universe_month, universe_reused,
-             fresh, switched, prev_name, eng, keep_strategy=False, brackets_view=None):
+             fresh, switched, prev_name, eng, keep_strategy=False, brackets_view=None,
+             manual=None):
     """Write one snapshot. Starts from the previous dict so unknown keys survive."""
     last_1m = closed_bar_open(now, 60_000)
     risk._daily(ex, now)
@@ -1027,7 +1209,8 @@ def _publish(path, state, cfg, ex, risk, rec, feed, filters_src, probes, symbols
         "universe_reused": universe_reused,
         "exchange": ex.to_dict(),
         "engine": {"risk": risk.to_dict(), "funding_done": funding_done,
-                   "universe_period": _universe_period(state, eng)},
+                   "universe_period": _universe_period(state, eng),
+                   "manual": manual if manual is not None else _stored_manual(state)},
     })
     write_state(path, snap)
     log.info("cycle source=%s filters=%s equity=%.2f positions=%d trades=%d",
@@ -1085,11 +1268,12 @@ def run_stops(path, now=None):
     if state is None or "exchange" not in state:
         return run(path, now)
     feed, probes = connect(cfg)
-    symbols = _working_symbols(state, cfg)
+    symbols = _with_manual_symbols(_working_symbols(state, cfg), state)
     cfg = dict(cfg)
     cfg["symbols"] = list(symbols)
     ei, br = fetch_exchange_info(cfg, feed)
     infos, brackets, filters_src = load_meta(cfg, feed, exchange_info=ei, brackets_raw=br, allow_missing=True)
+    infos = merge_contracts(infos, _stored_manual(state))
     protected = _protected_symbols(state)
     missing = sorted(s for s in protected if s not in infos)
     if missing:
@@ -1110,6 +1294,7 @@ def run_stops(path, now=None):
     lost = sorted(s for s in protected if s not in still_pos and s not in still_ord)
     if lost:
         raise RuntimeError(f"stop cycle would drop {lost}; state left untouched")
+    manual_spec, manual_blob, on_minute = begin_manual(cfg, ex, rec, state, now)
     funding_done = {k: int(v) for k, v in (state.get("engine") or {}).get("funding_done", {}).items()}
     risk = RiskManager(cfg, fees["taker"], cfg["execution"]["slippage_bps"])
     risk.load_dict((state.get("engine") or {}).get("risk") or {})
@@ -1161,7 +1346,7 @@ def run_stops(path, now=None):
         funds = fetch_funding(feed, tradable, m0, now)
         stats = replay_minutes(ex, eng, tradable, minutes, bars_1m, marks, bars_15, bars_1h,
                                funds, funding_done, last_15m, bars_4h=bars_4h, bars_1d=bars_1d,
-                               strategy_tf="stops")
+                               strategy_tf="stops", on_minute=on_minute)
         if stats.get("last_15m_open") is not None:
             last_15m = stats["last_15m_open"]
         catch.update(minutes=stats["minutes"], evaluated_15m=stats["evaluated_15m"],
@@ -1186,12 +1371,13 @@ def run_stops(path, now=None):
                 add_closed(eng, s, "1d", bars_1d.get(s, {}), now)
         bootstrap_flat(eng, now, state.get("last_1h_open"))
     strat = specs[0]
+    manual_blob = finish_manual(cfg, manual_spec, manual_blob, ex, rec, feed, ei, now, symbols)
     return _publish(path, state, cfg, ex, risk, rec, feed, filters_src, probes, symbols, now,
                     strat, last_15m, state.get("last_1h_open"), catch, funding_done,
                     state.get("universe") or [], state.get("universe_ranked_at"),
                     state.get("universe_month"), state.get("universe_reused"),
                     False, False, None, None, keep_strategy=True,
-                    brackets_view=state.get("brackets"))
+                    brackets_view=state.get("brackets"), manual=manual_blob)
 
 
 def tick(path, now=None, run_id=None):
