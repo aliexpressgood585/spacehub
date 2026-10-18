@@ -41,19 +41,20 @@ def test_aggr_1_is_fixed_eth_short_1000_and_the_rest_are_auto():
     assert fixed["margin"] == 1000
     assert fixed["leverage"] == 5
     assert fixed["tag"] == "manual_aggr_1"
-    assert fixed["breakeven_at_pct"] == pytest.approx(4.5)
-    assert fixed["breakeven_pct"] == pytest.approx(0.045)
-    assert breakeven_fraction(fixed) == pytest.approx(0.045)
+    assert fixed["breakeven_at_pct"] == pytest.approx(3)
+    assert fixed["breakeven_pct"] == pytest.approx(0.03)
+    assert breakeven_fraction(fixed) == pytest.approx(0.03)
     for t in cfg["trades"]:
         assert t["leverage"] == 5
         assert t["stop_pct"] == pytest.approx(0.06)
         assert t["tp_pct"] == pytest.approx(0.09)
-        assert t["breakeven_pct"] == pytest.approx(0.045)
+        assert t["breakeven_pct"] == pytest.approx(0.03)
+        assert t["partial_pct"] == pytest.approx(0.06)
+        assert t["partial_fraction"] == pytest.approx(0.5)
         assert t["max_hold_h"] == 24
     for t in cfg["trades"][1:]:
         assert t["symbol"] == "auto"
         assert t["margin"] == 600
-        assert "breakeven_at_pct" not in t
 
 
 def test_ema_align_direction_long_short_and_mixed():
@@ -186,7 +187,7 @@ def test_opens_fewer_than_four_and_does_not_retry():
     assert [p["symbol"] for p in plans] == ["ETHUSDT", "XRPUSDT", "SOLUSDT"]
     assert plans[0]["side"] == "SHORT" and plans[0]["margin"] == 1000
     assert plans[0]["tag"] == "manual_aggr_1"
-    assert plans[0]["breakeven_pct"] == pytest.approx(0.045)
+    assert plans[0]["breakeven_pct"] == pytest.approx(0.03)
     assert plans[1]["tag"] == "manual_aggr"
     assert blob["resolved"] is True
     assert blob["resolved_ms"] == now + 60_000
@@ -342,7 +343,7 @@ def test_open_logs_symbol_side_entry_stop_tp_and_breakeven():
     eth = ex.get_position("ETHUSDT")
     assert eth.strategy == "manual_aggr_1"
     assert eth.meta["manual_id"] == "manual_aggr_1"
-    assert eth.meta["breakeven_pct"] == pytest.approx(0.045)
+    assert eth.meta["breakeven_pct"] == pytest.approx(0.03)
     assert eth.meta["basket"] == "manual_aggr"
     assert eth.side == -1
     assert eth.leverage == 5
@@ -440,18 +441,18 @@ def test_time_exit_does_not_touch_other_strategies():
     assert ex.get_position("ADAUSDT") is not None
 
 
-def test_breakeven_at_pct_arms_the_eth_short_at_4_5_percent():
+def test_breakeven_at_pct_arms_the_eth_short_at_3_percent():
     cfg, ex, rec, blob, now = _opened_pair()
     eth = ex.get_position("ETHUSDT")
     assert eth.strategy == "manual_aggr_1"
-    assert eth.meta["breakeven_pct"] == pytest.approx(0.045)
+    assert eth.meta["breakeven_pct"] == pytest.approx(0.03)
     entry = eth.entry_price
     first = [o.stop_price for o in ex.open_orders("ETHUSDT") if o.type == "STOP_MARKET"]
     assert first == [pytest.approx(eth.meta["sl"])]
-    _book(ex, "ETHUSDT", entry * 0.956, now + 60_000)   # -4.4%: not yet
+    _book(ex, "ETHUSDT", entry * 0.971, now + 60_000)   # -2.9%: not yet
     arm_breakeven(ex, now + 60_000, basket_id_set(cfg))
     assert [o.stop_price for o in ex.open_orders("ETHUSDT") if o.type == "STOP_MARKET"] == first
-    _book(ex, "ETHUSDT", entry * 0.955, now + 120_000)  # breakeven_at_pct 4.5
+    _book(ex, "ETHUSDT", entry * 0.97, now + 120_000)  # breakeven_at_pct 3
     arm_breakeven(ex, now + 120_000, basket_id_set(cfg))
     stops = [o.stop_price for o in ex.open_orders("ETHUSDT") if o.type == "STOP_MARKET"]
     assert stops == [pytest.approx(entry, abs=0.01)]
@@ -476,17 +477,17 @@ def test_omitted_breakeven_at_pct_leaves_the_stop():
     assert eth.meta.get("breakeven_done") is not True
 
 
-def test_breakeven_on_a_short_moves_the_stop_down_to_entry_at_minus_4_5pct():
+def test_breakeven_on_a_short_moves_the_stop_down_to_entry_at_minus_3pct():
     cfg, ex, rec, blob, now = _opened_pair()
     sol = ex.get_position("SOLUSDT")
     assert sol.side == -1
     entry = sol.entry_price
     first = [o.stop_price for o in ex.open_orders("SOLUSDT") if o.type == "STOP_MARKET"]
     assert first == [pytest.approx(sol.meta["sl"])]
-    _book(ex, "SOLUSDT", entry * 0.956, now + 60_000)   # -4.4%: not yet
+    _book(ex, "SOLUSDT", entry * 0.971, now + 60_000)   # -2.9%: not yet
     arm_breakeven(ex, now + 60_000, basket_id_set(cfg))
     assert [o.stop_price for o in ex.open_orders("SOLUSDT") if o.type == "STOP_MARKET"] == first
-    _book(ex, "SOLUSDT", entry * 0.955, now + 120_000)  # -4.5%: armed
+    _book(ex, "SOLUSDT", entry * 0.97, now + 120_000)  # -3%: armed
     arm_breakeven(ex, now + 120_000, basket_id_set(cfg))
     stops = [o.stop_price for o in ex.open_orders("SOLUSDT") if o.type == "STOP_MARKET"]
     assert stops == [pytest.approx(entry, abs=0.01)]
@@ -550,3 +551,254 @@ def test_basket_stop_waits_when_a_leg_has_no_mark():
     blob = ensure_blob(cfg, None, 1)
     assert apply_basket_stop(ex, rec, blob, cfg, 4) is False
     assert ex.get_position("SOLUSDT") is not None
+
+
+# ── stop to entry at +3%, half off at +6% (applies to legs that are already open) ──
+
+from bot.manual import apply_rules, in_basket, take_partial
+
+
+def _stops(ex, sym):
+    return [o for o in ex.open_orders(sym) if o.type == "STOP_MARKET"]
+
+
+def _tps(ex, sym):
+    return [o for o in ex.open_orders(sym) if o.type == "TAKE_PROFIT_MARKET"]
+
+
+def _legacy(ex):
+    """Make the open legs look like the live ones opened under the 4.5% rule."""
+    for p in ex.pos.values():
+        p.meta["breakeven_pct"] = 0.045
+        for k in ("partial_pct", "partial_fraction", "partial_done", "orig_qty"):
+            p.meta.pop(k, None)
+
+
+def test_rules_reach_legs_already_open_under_the_old_4_5pct_rule():
+    cfg, ex, rec, blob, now = _opened_pair()
+    _legacy(ex)
+    maintain(ex, rec, cfg, blob, now + 60_000)
+    for sym in ("ETHUSDT", "XRPUSDT", "SOLUSDT"):
+        p = ex.get_position(sym)
+        assert p.meta["breakeven_pct"] == pytest.approx(0.03)
+        assert p.meta["partial_pct"] == pytest.approx(0.06)
+        assert p.meta["partial_fraction"] == pytest.approx(0.5)
+        assert p.meta["orig_qty"] == pytest.approx(p.qty)
+
+
+def test_stop_moves_to_entry_exactly_once_at_plus_3pct():
+    cfg, ex, rec, blob, now = _opened_pair()
+    _legacy(ex)
+    xrp = ex.get_position("XRPUSDT")      # LONG
+    entry, qty, tp = xrp.entry_price, xrp.qty, xrp.meta["tp"]
+    first = _stops(ex, "XRPUSDT")
+    _book(ex, "XRPUSDT", entry * 1.029, now + 60_000)
+    maintain(ex, rec, cfg, blob, now + 60_000)
+    assert [o.id for o in _stops(ex, "XRPUSDT")] == [o.id for o in first]
+    assert xrp.meta["breakeven_done"] is False
+    _book(ex, "XRPUSDT", entry * 1.03, now + 120_000)
+    maintain(ex, rec, cfg, blob, now + 120_000)
+    moved = _stops(ex, "XRPUSDT")
+    assert len(moved) == 1 and moved[0].stop_price == pytest.approx(entry, abs=1e-9)
+    assert xrp.meta["breakeven_done"] is True
+    assert blob["ids"]["manual_aggr_2"]["be_moved"] is True
+    # Further ticks (up, then a pullback above entry) do not move it again.
+    for i, px in enumerate((entry * 1.04, entry * 1.01, entry * 1.035)):
+        _book(ex, "XRPUSDT", px, now + 180_000 + i * 60_000)
+        maintain(ex, rec, cfg, blob, now + 180_000 + i * 60_000)
+    assert [o.id for o in _stops(ex, "XRPUSDT")] == [moved[0].id]
+    assert sum(1 for e in rec.events if e["type"] == "MANUAL_BREAKEVEN" and e["symbol"] == "XRPUSDT") == 1
+    # Quantity, side and take-profit unchanged.
+    assert xrp.qty == qty and xrp.side == 1
+    assert [o.stop_price for o in _tps(ex, "XRPUSDT")] == [pytest.approx(tp)]
+
+
+def test_short_stop_moves_once_at_minus_3pct():
+    cfg, ex, rec, blob, now = _opened_pair()
+    _legacy(ex)
+    eth = ex.get_position("ETHUSDT")      # SHORT
+    entry = eth.entry_price
+    _book(ex, "ETHUSDT", entry * 0.971, now + 60_000)
+    maintain(ex, rec, cfg, blob, now + 60_000)
+    assert eth.meta["breakeven_done"] is False
+    _book(ex, "ETHUSDT", entry * 0.97, now + 120_000)
+    maintain(ex, rec, cfg, blob, now + 120_000)
+    assert [o.stop_price for o in _stops(ex, "ETHUSDT")] == [pytest.approx(entry, abs=0.01)]
+    assert eth.meta["breakeven_done"] is True
+
+
+def test_partial_close_half_exactly_once_at_plus_6pct_then_sl_at_entry_and_tp_remain():
+    cfg, ex, rec, blob, now = _opened_pair()
+    _legacy(ex)
+    xrp = ex.get_position("XRPUSDT")      # LONG
+    entry, qty, tp = xrp.entry_price, xrp.qty, xrp.meta["tp"]
+    _book(ex, "XRPUSDT", entry * 1.03, now + 60_000)
+    maintain(ex, rec, cfg, blob, now + 60_000)
+    _book(ex, "XRPUSDT", entry * 1.059, now + 120_000)
+    maintain(ex, rec, cfg, blob, now + 120_000)
+    assert xrp.qty == qty and not xrp.meta["partial_done"]
+    _book(ex, "XRPUSDT", entry * 1.06, now + 180_000)
+    maintain(ex, rec, cfg, blob, now + 180_000)
+    left = ex.get_position("XRPUSDT")
+    half = qty / 2
+    assert left is not None
+    assert left.qty == pytest.approx(qty - half)
+    assert left.meta["partial_done"] is True
+    assert left.meta["partial_qty"] == pytest.approx(half)
+    partial_fills = [f for f in rec.fills if f["tag"] == "partial"]
+    assert len(partial_fills) == 1 and partial_fills[0]["qty"] == pytest.approx(half)
+    assert partial_fills[0]["side"] == "SELL"
+    # The rest: one stop at entry, one take-profit at the original +9%.
+    assert [o.stop_price for o in _stops(ex, "XRPUSDT")] == [pytest.approx(entry, abs=1e-9)]
+    assert [o.stop_price for o in _tps(ex, "XRPUSDT")] == [pytest.approx(tp)]
+    assert all(o.close_position for o in ex.open_orders("XRPUSDT"))
+    assert blob["ids"]["manual_aggr_2"]["partial_done"] is True
+    assert blob["ids"]["manual_aggr_2"]["remaining_qty"] == pytest.approx(qty - half)
+    # More ticks beyond +6% do not take a second partial.
+    for i, px in enumerate((entry * 1.07, entry * 1.061, entry * 1.08)):
+        _book(ex, "XRPUSDT", px, now + 240_000 + i * 60_000)
+        maintain(ex, rec, cfg, blob, now + 240_000 + i * 60_000)
+    assert len([f for f in rec.fills if f["tag"] == "partial"]) == 1
+    assert ex.get_position("XRPUSDT").qty == pytest.approx(qty - half)
+    # The rest goes at the original take-profit.
+    _book(ex, "XRPUSDT", tp, now + 600_000)
+    assert ex.get_position("XRPUSDT") is None
+    assert rec.trades[-1]["reason"] == "TAKE_PROFIT"
+
+
+def test_partial_rest_stops_out_at_entry():
+    cfg, ex, rec, blob, now = _opened_pair()
+    sol = ex.get_position("SOLUSDT")      # SHORT
+    entry, qty = sol.entry_price, sol.qty
+    _book(ex, "SOLUSDT", entry * 0.94, now + 60_000)   # jumps straight past -3% and -6%
+    maintain(ex, rec, cfg, blob, now + 60_000)
+    left = ex.get_position("SOLUSDT")
+    assert left.meta["breakeven_done"] is True and left.meta["partial_done"] is True
+    assert left.qty == pytest.approx(qty / 2)
+    assert [o.stop_price for o in _stops(ex, "SOLUSDT")] == [pytest.approx(entry, abs=0.01)]
+    assert len(_tps(ex, "SOLUSDT")) == 1
+    _book(ex, "SOLUSDT", entry + 0.01, now + 120_000)
+    assert ex.get_position("SOLUSDT") is None
+    assert rec.trades[-1]["reason"] == "STOP_LOSS"
+
+
+def test_flags_survive_a_restart_and_nothing_repeats():
+    cfg, ex, rec, blob, now = _opened_pair()
+    xrp = ex.get_position("XRPUSDT")
+    entry, qty = xrp.entry_price, xrp.qty
+    _book(ex, "XRPUSDT", entry * 1.065, now + 60_000)
+    maintain(ex, rec, cfg, blob, now + 60_000)
+    assert ex.get_position("XRPUSDT").qty == pytest.approx(qty / 2)
+    saved = ex.to_dict()
+    si = {s: _si(s) for s in ("ETHUSDT", "XRPUSDT", "SOLUSDT")}
+    rec2 = MemoryRecorder()
+    ex2 = PaperExchange(si, LeverageBrackets([]), 50_000, 0.0002, 0.0005, 0.0, 3, listener=rec2)
+    ex2.load_dict(saved)
+    blob2 = ensure_blob(cfg, blob, now + 120_000)
+    _book(ex2, "XRPUSDT", entry * 1.07, now + 120_000)
+    maintain(ex2, rec2, cfg, blob2, now + 120_000)
+    p = ex2.get_position("XRPUSDT")
+    assert p.qty == pytest.approx(qty / 2)
+    assert p.meta["partial_done"] is True and p.meta["breakeven_done"] is True
+    assert not [f for f in rec2.fills if f["tag"] == "partial"]
+    assert not [e for e in rec2.events if e["type"] in ("MANUAL_BREAKEVEN", "MANUAL_PARTIAL")]
+    assert len(_stops(ex2, "XRPUSDT")) == 1 and len(_tps(ex2, "XRPUSDT")) == 1
+
+
+def test_closed_leg_is_not_touched():
+    cfg, ex, rec, blob, now = _opened_pair()
+    xrp = ex.get_position("XRPUSDT")
+    entry = xrp.entry_price
+    _book(ex, "XRPUSDT", xrp.meta["sl"], now + 60_000)   # stopped out
+    assert ex.get_position("XRPUSDT") is None
+    n_fills = len(rec.fills)
+    _book(ex, "XRPUSDT", entry * 1.10, now + 120_000)
+    maintain(ex, rec, cfg, blob, now + 120_000)
+    assert ex.get_position("XRPUSDT") is None
+    assert ex.open_orders("XRPUSDT") == []
+    assert len(rec.fills) == n_fills
+    assert blob["ids"]["manual_aggr_2"]["status"] == "closed"
+
+
+def test_other_strategies_are_not_touched():
+    cfg, ex, rec, blob, now = _opened_pair(extra=("ADAUSDT",))
+    ada = _open(ex, "ADAUSDT", 10, "xs_mom_1d", now + 1)
+    _book(ex, "ADAUSDT", ada.entry_price * 1.10, now + 60_000)
+    maintain(ex, rec, cfg, blob, now + 60_000)
+    ada = ex.get_position("ADAUSDT")
+    assert ada.qty == 10 and "partial_done" not in ada.meta and "breakeven_done" not in ada.meta
+
+
+def test_basket_stop_minus_800_still_applies_after_the_change():
+    cfg, ex, rec, blob, now = _opened_pair()
+    xrp = ex.get_position("XRPUSDT")
+    _book(ex, "XRPUSDT", xrp.entry_price * 1.06, now + 60_000)
+    maintain(ex, rec, cfg, blob, now + 60_000)
+    assert ex.get_position("XRPUSDT").meta["partial_done"] is True
+    eth, sol = ex.get_position("ETHUSDT"), ex.get_position("SOLUSDT")
+    # Open legs (with fees already paid) a little above -800: nothing closes.
+    pnl = lambda: sum(leg_pnl(p.side, p.qty, p.entry_price, ex.mark(s), p.fees)
+                      for s, p in ex.pos.items() if in_basket(p, basket_id_set(cfg)))
+    eth.fees += pnl() + 799.0   # open legs now -799
+    maintain(ex, rec, cfg, blob, now + 120_000)
+    assert len([s for s, p in ex.pos.items() if in_basket(p, basket_id_set(cfg))]) == 3
+    eth.fees += 1.5          # now -800.5, through the -800 basket stop
+    maintain(ex, rec, cfg, blob, now + 180_000)
+    assert ex.get_position("ETHUSDT") is None
+    assert ex.get_position("XRPUSDT") is None     # the half left after the partial goes too
+    assert ex.get_position("SOLUSDT") is None
+    assert all(ex.open_orders(s) == [] for s in ("ETHUSDT", "XRPUSDT", "SOLUSDT"))
+    assert any(e["type"] == "basket_stop" for e in rec.events)
+    reasons = [t["reason"] for t in rec.trades]
+    assert reasons.count("basket_stop") == 3
+
+
+def test_live_shaped_legs_from_state_get_the_new_rules():
+    """The five live legs as stored (old 4.5% meta, no partial flags) pick up 3% / 6% on the next tick."""
+    cfg = _cfg()
+    legs = {
+        "ETHUSDT": ("manual_aggr_1", -1, 2.114, 2364.56, 2506.43, 2151.75, 0.01, 0.001),
+        "XRPUSDT": ("manual_aggr_2", -1, 2363.5, 1.2691, 1.3452, 1.1549, 0.0001, 0.1),
+        "QUSDT": ("manual_aggr_3", 1, 24767.0, 0.121141, 0.113873, 0.132044, 1e-6, 1.0),
+        "AGTUSDT": ("manual_aggr_4", 1, 45096.0, 0.066531, 0.062539, 0.072519, 1e-6, 1.0),
+        "HYPEUSDT": ("manual_aggr_5", -1, 38.9, 77.11, 81.737, 70.17, 0.001, 0.01),
+    }
+    si = {s: SymbolInfo(s, t, st, st, 1e9, st, st, 1e9, 5.0) for s, (_, _, _, _, _, _, t, st) in legs.items()}
+    rec = MemoryRecorder()
+    ex = PaperExchange(si, LeverageBrackets([]), 10_000, 0.0002, 0.0005, 0.0, 5, listener=rec)
+    now = 1_792_350_000_000
+    blob = ensure_blob(cfg, None, now - 3 * HOUR_MS)
+    for sym, (tid, side, qty, entry, sl, tp, _t, _st) in legs.items():
+        _book(ex, sym, entry, now - 1)
+        ex.set_leverage(sym, 5)
+        o = ex.place_order(Order(sym, "BUY" if side > 0 else "SELL", "MARKET", qty,
+                                 tag="manual_aggr_1" if tid == "manual_aggr_1" else "manual_aggr"), now - 1)
+        assert o.status == "FILLED"
+        p = ex.get_position(sym)
+        p.entry_price = entry
+        p.meta.update({"sl": sl, "tp": tp, "breakeven": entry, "breakeven_pct": 0.045,
+                       "breakeven_done": False, "manual_id": tid, "basket": "manual_aggr",
+                       "exit_ts": now + 20 * HOUR_MS, "reason": tid})
+        x = "SELL" if side > 0 else "BUY"
+        ex.place_order(Order(sym, x, "STOP_MARKET", stop_price=sl, close_position=True, tag="SL"), now - 1)
+        ex.place_order(Order(sym, x, "TAKE_PROFIT_MARKET", stop_price=tp, close_position=True, tag="TP"), now - 1)
+        blob["ids"][tid] = {"id": tid, "symbol": sym, "status": "open"}
+    # ETH +2% (nothing), XRP +3.5% (BE), Q +6.5% (BE + half), AGT +3% (BE), HYPE flat.
+    marks = {"ETHUSDT": 2364.56 * 0.98, "XRPUSDT": 1.2691 * 0.965, "QUSDT": 0.121141 * 1.065,
+             "AGTUSDT": 0.066531 * 1.0301, "HYPEUSDT": 77.11}
+    for sym, px in marks.items():
+        _book(ex, sym, px, now)
+    maintain(ex, rec, cfg, blob, now)
+    be = {s: ex.get_position(s).meta["breakeven_done"] for s in legs}
+    assert be == {"ETHUSDT": False, "XRPUSDT": True, "QUSDT": True, "AGTUSDT": True, "HYPEUSDT": False}
+    q = ex.get_position("QUSDT")
+    assert q.meta["partial_done"] is True
+    assert q.qty == pytest.approx(24767.0 - 12383.0)
+    assert [o.stop_price for o in _stops(ex, "QUSDT")] == [pytest.approx(0.121141)]
+    assert [o.stop_price for o in _tps(ex, "QUSDT")] == [pytest.approx(0.132044)]
+    for sym in ("ETHUSDT", "XRPUSDT", "AGTUSDT", "HYPEUSDT"):
+        assert ex.get_position(sym).qty == pytest.approx(legs[sym][2])
+        assert ex.get_position(sym).meta["partial_done"] is False
+        assert [o.stop_price for o in _tps(ex, sym)] == [pytest.approx(legs[sym][5])]
+    assert [o.stop_price for o in _stops(ex, "ETHUSDT")] == [pytest.approx(2506.43)]
+    assert [o.stop_price for o in _stops(ex, "AGTUSDT")] == [pytest.approx(0.066531)]

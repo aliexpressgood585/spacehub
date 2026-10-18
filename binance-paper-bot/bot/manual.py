@@ -20,9 +20,19 @@ The basket tag is `manual_aggr`. If the open legs' unrealized PnL including
 fees already paid is at or below `stop_pnl`, every open leg is closed with
 reason `basket_stop`.
 
-`breakeven_at_pct` is optional and is a percent (4.5 means +4.5% in favour).
+`breakeven_at_pct` is optional and is a percent (3 means +3% in favour).
 When the mark reaches it, the stop moves to the entry. `breakeven_pct` is the
-same threshold as a fraction (0.045). If neither is set, the stop stays put.
+same threshold as a fraction (0.03). If neither is set, the stop stays put.
+
+`partial_at_pct` is optional and is a percent (6 means +6% in favour). When the
+mark reaches it, `partial_fraction` (default 0.5) of the opening quantity is
+closed with one reduce-only market order, once. The rest keeps its original
+take-profit and a stop at the entry.
+
+The thresholds are read from the config on every tick and copied onto the open
+positions (`apply_rules`), so a config change reaches legs that are already
+open. `breakeven_done` and `partial_done` live in the position meta (and are
+mirrored on the basket ids), so each step happens once and survives restarts.
 """
 import json
 import math
@@ -73,6 +83,11 @@ def load_manual_config(path):
                 raise ValueError(f"{t['id']} fixed symbol needs side LONG or SHORT")
             t["side"] = side
         t["breakeven_pct"] = breakeven_fraction(t)
+        t["partial_pct"] = partial_fraction_at(t)
+        frac = float(t.get("partial_fraction", 0.5) or 0.5)
+        if not (0 < frac < 1):
+            raise ValueError(f"{t['id']} partial_fraction must be between 0 and 1")
+        t["partial_fraction"] = frac
         if t.get("tag"):
             t["tag"] = str(t["tag"])
     cfg["window_h"] = float(cfg.get("window_h", 6))
@@ -111,6 +126,20 @@ def breakeven_fraction(trade):
     if not math.isfinite(pct):
         raise ValueError(f"{trade.get('id')} breakeven_pct must be a fraction")
     return pct
+
+
+def partial_fraction_at(trade):
+    """Favorable move (fraction) that takes the one partial close. 0 = never.
+
+    `partial_at_pct` is percent points (6 = 6%).
+    """
+    raw = trade.get("partial_at_pct", None)
+    if raw is None or raw == "":
+        return 0.0
+    pct = float(raw)
+    if not math.isfinite(pct) or pct < 0:
+        raise ValueError(f"{trade.get('id')} partial_at_pct must be a percent")
+    return pct / 100.0
 
 
 def ema_align_direction(closes):
@@ -488,8 +517,87 @@ def sync_closed(ex, blob, id_set):
         blob["ids"][tid] = closed
 
 
-def arm_breakeven(ex, now, id_set, working_type="CONTRACT_PRICE"):
-    """Move the stop to the entry once the mark is `breakeven_pct` through the trade."""
+def _trade_by_id(cfg):
+    return {t["id"]: t for t in (cfg or {}).get("trades") or []}
+
+
+def _leg_id(p, id_set):
+    if getattr(p, "strategy", "") in id_set:
+        return p.strategy
+    return (p.meta or {}).get("manual_id")
+
+
+def apply_rules(ex, cfg):
+    """Copy the config thresholds onto every open basket leg (already open ones too).
+
+    Only thresholds change. Side, quantity, entry, stop and take-profit are
+    not touched here. A leg that already armed breakeven or took its partial
+    keeps those flags.
+    """
+    trades = _trade_by_id(cfg)
+    id_set = set(trades)
+    for sym, p in list(ex.pos.items()):
+        if not in_basket(p, id_set):
+            continue
+        t = trades.get(_leg_id(p, id_set))
+        if t is None:
+            continue
+        p.meta["breakeven_pct"] = float(t.get("breakeven_pct") or 0)
+        p.meta["partial_pct"] = float(t.get("partial_pct") or 0)
+        p.meta["partial_fraction"] = float(t.get("partial_fraction") or 0.5)
+        p.meta.setdefault("breakeven_done", False)
+        p.meta.setdefault("partial_done", False)
+        if not p.meta.get("orig_qty"):
+            p.meta["orig_qty"] = float(p.max_qty or p.qty)
+
+
+def _favorable(p, mark, pct):
+    entry = float(p.entry_price)
+    if p.side > 0:
+        return mark >= entry * (1 + pct)
+    return mark <= entry * (1 - pct)
+
+
+def _place_stop(ex, sym, p, stop, now, working_type):
+    """Replace the leg's STOP_MARKET with one at `stop`. Puts the old one back on a reject."""
+    old = [o for o in ex.open_orders(sym) if o.type == "STOP_MARKET"]
+    for o in old:
+        ex.cancel_order(o.id, int(now))
+    exit_side = "SELL" if p.side > 0 else "BUY"
+    placed = ex.place_order(Order(sym, exit_side, "STOP_MARKET", stop_price=stop, close_position=True,
+                                  working_type=working_type, tag="SL"), int(now))
+    if placed.status == "REJECTED":
+        for prev in old:
+            ex.place_order(Order(sym, prev.side, "STOP_MARKET", stop_price=prev.stop_price,
+                                 close_position=True, working_type=prev.working_type,
+                                 tag=prev.tag or "SL"), int(now))
+        return False
+    return True
+
+
+def _ensure_tp(ex, sym, p, now, working_type):
+    if any(o.type == "TAKE_PROFIT_MARKET" for o in ex.open_orders(sym)):
+        return True
+    tp = (p.meta or {}).get("tp")
+    if not tp:
+        return False
+    exit_side = "SELL" if p.side > 0 else "BUY"
+    placed = ex.place_order(Order(sym, exit_side, "TAKE_PROFIT_MARKET", stop_price=float(tp),
+                                  close_position=True, working_type=working_type, tag="TP"), int(now))
+    return placed.status != "REJECTED"
+
+
+def _mirror(blob, p, id_set, **flags):
+    if blob is None:
+        return
+    tid = _leg_id(p, id_set)
+    row = (blob.get("ids") or {}).get(tid)
+    if isinstance(row, dict):
+        row.update(flags)
+
+
+def arm_breakeven(ex, now, id_set, working_type="CONTRACT_PRICE", rec=None, blob=None):
+    """Move the stop to the entry once the mark is `breakeven_pct` through the trade. Once."""
     for sym, p in list(ex.pos.items()):
         if not in_basket(p, id_set):
             continue
@@ -504,27 +612,84 @@ def arm_breakeven(ex, now, id_set, working_type="CONTRACT_PRICE"):
         mark = ex.mark(sym)
         if not mark or not math.isfinite(mark):
             continue
+        if not _favorable(p, mark, pct):
+            continue
         entry = float(p.entry_price)
-        if p.side > 0 and mark < entry * (1 + pct):
-            continue
-        if p.side < 0 and mark > entry * (1 - pct):
-            continue
-        old = [o for o in ex.open_orders(sym) if o.type == "STOP_MARKET"]
-        for o in old:
-            ex.cancel_order(o.id, int(now))
-        exit_side = "SELL" if p.side > 0 else "BUY"
         stop = ex.si[sym].round_price(entry)
-        placed = ex.place_order(Order(sym, exit_side, "STOP_MARKET", stop_price=stop, close_position=True,
-                                      working_type=working_type, tag="SL"), int(now))
-        if placed.status == "REJECTED":
-            for prev in old:
-                ex.place_order(Order(sym, prev.side, "STOP_MARKET", stop_price=prev.stop_price,
-                                     close_position=True, working_type=prev.working_type,
-                                     tag=prev.tag or "SL"), int(now))
+        if not _place_stop(ex, sym, p, stop, now, working_type):
             continue
         p.meta["sl"] = stop
         p.meta["breakeven"] = stop
         p.meta["breakeven_done"] = True
+        p.meta["breakeven_ts"] = int(now)
+        _mirror(blob, p, id_set, be_moved=True, stop=stop)
+        if rec is not None:
+            rec.on_event({"ts": int(now), "type": "MANUAL_BREAKEVEN", "symbol": sym,
+                          "id": _leg_id(p, id_set),
+                          "msg": f"{_leg_id(p, id_set)} {sym} stop to entry {stop} at mark {mark} (+{pct*100:g}%)"})
+
+
+def take_partial(ex, now, id_set, working_type="CONTRACT_PRICE", rec=None, blob=None):
+    """Close `partial_fraction` of the opening qty once the mark is `partial_pct` through.
+
+    One reduce-only market order, once per leg. Afterwards the rest has a stop
+    at the entry and its original take-profit (both closePosition, so they
+    cover whatever is left).
+    """
+    for sym, p in list(ex.pos.items()):
+        if not in_basket(p, id_set):
+            continue
+        if p.meta.get("partial_done"):
+            continue
+        try:
+            pct = float(p.meta.get("partial_pct") or 0)
+            frac = float(p.meta.get("partial_fraction") or 0.5)
+        except (TypeError, ValueError):
+            continue
+        if pct <= 0:
+            continue
+        mark = ex.mark(sym)
+        if not mark or not math.isfinite(mark):
+            continue
+        if not _favorable(p, mark, pct):
+            continue
+        si = ex.si[sym]
+        base = float(p.meta.get("orig_qty") or p.max_qty or p.qty)
+        qty = si.round_qty(base * frac, market=True)
+        qty = min(qty, si.round_qty(p.qty, market=True))
+        if qty <= 0 or qty >= p.qty:
+            p.meta["partial_done"] = True
+            p.meta["partial_skip"] = "qty"
+            continue
+        exit_side = "SELL" if p.side > 0 else "BUY"
+        before = p.qty
+        o = ex.place_order(Order(sym, exit_side, "MARKET", qty, reduce_only=True, tag="partial"), int(now))
+        if o.status != "FILLED":
+            continue
+        left = ex.get_position(sym)
+        if left is None:
+            _mirror(blob, p, id_set, partial_done=True, partial_qty=qty)
+            continue
+        left.meta["partial_done"] = True
+        left.meta["partial_ts"] = int(now)
+        left.meta["partial_qty"] = float(qty)
+        left.meta["partial_px"] = float(mark)
+        entry = float(left.entry_price)
+        stop = si.round_price(entry)
+        stops = [x for x in ex.open_orders(sym) if x.type == "STOP_MARKET"]
+        if len(stops) != 1 or abs(stops[0].stop_price - stop) > 1e-12:
+            if _place_stop(ex, sym, left, stop, now, working_type):
+                left.meta["sl"] = stop
+                left.meta["breakeven"] = stop
+                left.meta["breakeven_done"] = True
+        _ensure_tp(ex, sym, left, now, working_type)
+        _mirror(blob, left, id_set, partial_done=True, partial_qty=float(qty),
+                remaining_qty=float(left.qty), be_moved=bool(left.meta.get("breakeven_done")))
+        if rec is not None:
+            rec.on_event({"ts": int(now), "type": "MANUAL_PARTIAL", "symbol": sym,
+                          "id": _leg_id(left, id_set),
+                          "msg": (f"{_leg_id(left, id_set)} {sym} closed {qty} of {before} at mark {mark} "
+                                  f"(+{pct*100:g}%), left {left.qty}, stop {stop}, tp {left.meta.get('tp')}")})
 
 
 def apply_basket_stop(ex, rec, blob, cfg, now):
@@ -555,11 +720,13 @@ def apply_basket_stop(ex, rec, blob, cfg, now):
 
 
 def maintain(ex, rec, cfg, blob, now, working_type="CONTRACT_PRICE"):
-    """Sync closes, then the basket stop, then breakeven. No new entries."""
+    """Sync closes, rules, basket stop, breakeven, then the one partial. No new entries."""
     id_set = basket_id_set(cfg)
     sync_closed(ex, blob, id_set)
+    apply_rules(ex, cfg)
     apply_basket_stop(ex, rec, blob, cfg, now)
-    arm_breakeven(ex, now, id_set, working_type=working_type)
+    arm_breakeven(ex, now, id_set, working_type=working_type, rec=rec, blob=blob)
+    take_partial(ex, now, id_set, working_type=working_type, rec=rec, blob=blob)
     return blob
 
 
