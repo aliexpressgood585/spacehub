@@ -701,6 +701,18 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   state pushing again 00:18. pmc/pmn were still on their pre-CLV loops and would have hit it at their next restart. No rule change.
 - 2026-10-17 16:16 UTC POLY SUPERVISOR STOPPED (owner: "תעצור את הסוכן"): scheduled task trig_01Vjp6cAr2SiufLUJeD21tgz
   disabled (not deleted; re-enable to restore). The three paper desks keep running unsupervised.
+- 2026-10-18 POLY CLV / DISPUTES / SUPERVISOR (desk handed to the agents; measurement + safety only, no rule change).
+  CLV: the old closing line (close_px = last mid before the SCHEDULED end) is post-result on this desk (Brier close 0.0106 vs
+  entry 0.109, n105). New pre-resolution line in shared/clv.ts `markout` / `markoutStudy` (main desk only; pmc/pmn untouched):
+  mid 30 min after entry while the market is still open; resolved earlier / marked > 30 min late -> missing (null), trades
+  opened before tracking excluded. Published as st.clv.m30 next to the old fields (kept). Recomputed on the live trades from
+  CLOB history: n229 (19 resolved < 30 min) CLV -0.72c t -0.46 beat 70%, Brier entry 0.110 -> m30 0.051 (judged n109 -1.94c
+  t -0.74) -> no sign of edge. #173 (Tesla 0-60 < 1s, Gamma 5710779): endDate 10-16 03:59, closed=false, acceptingOrders,
+  UMA 'disputed' (9 disputes in 18 statuses), prices 0.9995/0.0005 -> correctly NOT settled (officialPx needs closed + 1/0);
+  runner now flags open positions past their end in meta.pending {past_end_h, uma, disputes} (display: "במחלוקת UMA" in the
+  arena sheet). SUPERVISOR: an external scheduled Claude session (trig_01Vjp6cAr2SiufLUJeD21tgz), stopped by the owner
+  10-17; it can halve stake / stop entries -> NOT re-enabled. Replacement = read-out only st.gates (shared/pm.ts gateStudy;
+  now judged n117 mean r -0.66% t -0.20, no gate hit). tests: pm 46/46, clv 24/24.
 - 2026-10-18 POLY AUDIT + HYPOTHESES + RELIABILITY (owner: "act without questions"). Live v2 (10-13..10-18, pm/state.json):
   269 closes WR 89.2% (95% 84.9-92.4) P&L -$5.23 on $20.2k staked (-0.03%/$, t -0.2); ex-crypto 232 +0.81%/$ t 0.25; judged
   (>= 10-15 18:30) 115 -0.92%/$ t -0.26; realised max DD 41.6% ($1,565 -> $915); 29 losses = 18 esports / 6 crypto / 2 soccer /

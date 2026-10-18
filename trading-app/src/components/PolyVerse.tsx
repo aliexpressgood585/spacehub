@@ -417,7 +417,7 @@ export default function PolyVerse({ d, onClassic, title = 'זירת ההסתבר
               [isOpen ? 'עכשיו (הצעת קנייה)' : 'יציאה', cents(px)], ...(isOpen && n(d.ask[t.token_id]) > 0 ? [['הצעת מכירה', cents(n(d.ask[t.token_id]))] as [string, string]] : []),
               ['עלות כולל עמלה', usd(n(t.cost))], ['עמלות', usd(n(t.entry_fee) + n(t.exit_fee))], ...(isOpen ? [['אם מנצח', usd(n(t.qty))] as [string, string]] : [['קיבלנו', usd(n(t.proceeds) - n(t.exit_fee))] as [string, string]]),
               [isOpen ? 'רווח/הפסד עכשיו' : 'רווח/הפסד', usd(pnl), pnl],
-              [isOpen ? 'מצב' : 'נסגר', isOpen ? (r === 1 ? 'הוכרע: ניצחון ✓ — הבוט ירשום במחזור הבא' : r === 0 ? 'הוכרע: הפסד ✗ — הבוט ירשום במחזור הבא' : Date.parse(t.end_time) <= now ? 'ממתין להכרעה רשמית' : `נגמר בעוד ${left(t.end_time, now)}`) : `${when(t.closed_at)} · ${t.reason === 'EARLY_EXIT' ? 'מימוש מוקדם' : t.reason === 'RESOLVED_WIN' ? 'ניצחון ✓' : t.reason === 'RESOLVED_SPLIT' ? 'הוכרע 50-50 ½' : 'הפסד ✗'}`],
+              [isOpen ? 'מצב' : 'נסגר', isOpen ? (r === 1 ? 'הוכרע: ניצחון ✓ — הבוט ירשום במחזור הבא' : r === 0 ? 'הוכרע: הפסד ✗ — הבוט ירשום במחזור הבא' : Date.parse(t.end_time) <= now ? (t.meta?.pending?.uma === 'disputed' ? `במחלוקת UMA (${t.meta.pending.disputes ?? '—'} ערעורים) · ממתין להכרעה רשמית` : 'ממתין להכרעה רשמית') : `נגמר בעוד ${left(t.end_time, now)}`) : `${when(t.closed_at)} · ${t.reason === 'EARLY_EXIT' ? 'מימוש מוקדם' : t.reason === 'RESOLVED_WIN' ? 'ניצחון ✓' : t.reason === 'RESOLVED_SPLIT' ? 'הוכרע 50-50 ½' : 'הפסד ✗'}`],
               ['נפתח', when(t.opened_at)],
             ]
             return (
