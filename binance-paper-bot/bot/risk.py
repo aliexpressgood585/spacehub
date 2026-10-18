@@ -12,6 +12,7 @@ class RiskManager:
         self.max_margin_frac = r["max_margin_per_position"]
         self.max_daily_loss = r.get("max_daily_loss", 1.0)
         self.taker, self.slip = taker_fee, slippage_bps / 1e4
+        self.slip_by_symbol = {}          # symbol -> fraction; missing keys use self.slip
         self.day, self.day_start_equity = None, None
 
     def to_dict(self):
@@ -40,8 +41,9 @@ class RiskManager:
         if not px or sig.sl_distance <= 0:
             return 0, "no price / invalid stop"
         eq = ex.equity()
+        slip = self.slip_by_symbol.get(sig.symbol, self.slip)
         # loss per unit if stopped: stop distance + entry & exit taker fee + slippage on exit
-        per_unit = sig.sl_distance + px * (2 * self.taker + 2 * self.slip)
+        per_unit = sig.sl_distance + px * (2 * self.taker + 2 * slip)
         qty = eq * self.risk / per_unit
         lev = sig.leverage
         cap_notional = min(eq * self.max_margin_frac * lev, ex.available_balance() * 0.98 * lev)

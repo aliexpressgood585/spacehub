@@ -105,12 +105,13 @@ class TradingEngine:
         d = 1 if side == "BUY" else -1
         si = self.si[sym]
         sl = si.round_price(fill - d * sig.sl_distance)
-        tp = si.round_price(fill + d * sig.tp_distance)
+        tp = si.round_price(fill + d * sig.tp_distance) if sig.tp_distance > 0 else None
         exit_side = "SELL" if side == "BUY" else "BUY"
         slo = self.ex.place_order(Order(sym, exit_side, "STOP_MARKET", stop_price=sl, close_position=True,
                                         working_type=self.wt, tag="SL"), ts)
-        tpo = self.ex.place_order(Order(sym, exit_side, "TAKE_PROFIT_MARKET", stop_price=tp, close_position=True,
-                                        working_type=self.wt, tag="TP"), ts)
+        if tp is not None:
+            self.ex.place_order(Order(sym, exit_side, "TAKE_PROFIT_MARKET", stop_price=tp, close_position=True,
+                                      working_type=self.wt, tag="TP"), ts)
         p.meta.update({"sl": sl, "tp": tp, "reason": sig.reason})
         if slo.status == "REJECTED":       # stop would trigger immediately -> flatten
             self.ex.place_order(Order(sym, exit_side, "MARKET", p.qty, reduce_only=True, tag="SL_REJECT"), ts)

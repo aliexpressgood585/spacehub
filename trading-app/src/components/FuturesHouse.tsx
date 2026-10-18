@@ -60,7 +60,10 @@ function Mini({ pts }: { pts: number[] }) {
 
 export default function FuturesHouse() {
   const { st, err } = useDeskState()
-  const symbols: string[] = st?.symbols?.length ? st.symbols : SYMBOLS
+  const symbols: string[] = (st?.universe?.length
+    ? st.universe.map((u: J) => String(u.symbol || u))
+    : st?.symbols?.length ? st.symbols
+      : st?.prices ? Object.keys(st.prices) : SYMBOLS)
   const tape = useFuturesTape(symbols)
   const [now, setNow] = useState(Date.now())
   const [sel, setSel] = useState('BTCUSDT')
