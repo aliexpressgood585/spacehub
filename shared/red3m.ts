@@ -37,7 +37,7 @@ export function aggregate10m(b5:LBar[]):LBar[]{
   for(let i=0;i+1<sorted.length;i++){
     const a=sorted[i],b=sorted[i+1],bucket=Math.floor(a.t/L10.barMs)*L10.barMs
     if(a.t!==bucket||b.t!==a.t+300_000)continue
-    out.push({t:a.t,open:a.open,high:Math.max(a.high,b.high),low:Math.min(a.low,b.low),close:b.close,vol:a.vol+b.vol,tb:Number.isFinite(a.tb)&&Number.isFinite(b.tb)?a.tb+b.tb:NaN})
+    out.push({t:a.t,open:a.open,high:Math.max(a.high,b.high),low:Math.min(a.low,b.low),close:b.close,vol:a.vol+b.vol,tb:(a.tb??NaN)+(b.tb??NaN)})
     i++
   }
   return out
