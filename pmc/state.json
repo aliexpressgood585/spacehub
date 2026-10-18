@@ -44,12 +44,12 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-18T03:47:11.345Z",
+ "last_scan": "2026-10-18T03:47:20.258Z",
  "last_note": {
-  "at": "2026-10-18T03:47:08.801Z",
+  "at": "2026-10-18T03:47:18.570Z",
   "windows": 4,
   "settled": 0,
-  "entered": 1
+  "entered": 0
  },
  "trades": [
   {
@@ -20720,8 +20720,8 @@
    "best_ask": 0.94,
    "opened_at": "2026-10-18T03:47:11.345Z",
    "status": "OPEN",
-   "mark_px": 0.93,
-   "mark_at": "2026-10-18T03:47:11.345Z",
+   "mark_px": 0.95,
+   "mark_at": "2026-10-18T03:47:19.326Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -20747,7 +20747,9 @@
     "z": 2.0407820927649065,
     "spot_open": 81975.64,
     "spot": 82037,
-    "sigma1s": 0.00002795613888624419
+    "sigma1s": 0.00002795613888624419,
+    "close_px": 0.955,
+    "close_at": "2026-10-18T03:47:19.326Z"
    }
   }
  ],
@@ -105610,8 +105612,10 @@
    "placed_at": "2026-10-18T03:42:09.863Z",
    "limit": 0.93,
    "taker_ask": 0.95,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "btc-updown-5m-1792295100",
@@ -105649,12 +105653,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2997,
+   "resolved": 2998,
    "filled": 1344,
-   "fill_rate": 0.44844844844844844,
+   "fill_rate": 0.4482988659106071,
    "wr": 0.8519345238095238,
    "ret": -0.07743306097423766,
-   "missed_wins": 1653,
+   "missed_wins": 1654,
    "missed_losses": 0
   },
   "late_exit": {
@@ -105813,8 +105817,8 @@
    "beat_close": 0.9649122807017544,
    "brier_entry": 0.03393028376485514,
    "brier_close": 0.00247919298245613,
-   "open_n": 0,
-   "open_clv_c": null
+   "open_n": 1,
+   "open_clv_c": 1.5000000000000013
   },
   "judged": {
    "n": 114,
@@ -105825,8 +105829,8 @@
    "beat_close": 0.9649122807017544,
    "brier_entry": 0.03393028376485514,
    "brier_close": 0.00247919298245613,
-   "open_n": 0,
-   "open_clv_c": null
+   "open_n": 1,
+   "open_clv_c": 1.5000000000000013
   }
  }
 }
