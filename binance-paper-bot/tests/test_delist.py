@@ -15,8 +15,8 @@ from bot.storage import MemoryRecorder
 from bot.strategies import REGISTRY
 from bot.strategies.delist_short import (
     HOUR_MS, NAME, article_symbols, body_text, entry_open_ms, exit_ms, futures_symbols,
-    is_futures_delist, is_spot_delist, plan_entry, settlement_ms, spot_tokens, stop_distance,
-    trading_perps)
+    is_futures_delist, is_spot_delist, is_tag_notice, plan_entry, settlement_ms, spot_tokens,
+    stop_distance, trading_perps)
 from bot.symbols import SymbolInfo
 from tests.test_math import BTC_BRACKETS
 
@@ -113,6 +113,53 @@ def test_futures_title_and_body_symbols_and_spot_title_mapping():
     assert not is_spot_delist("Binance Will Delist UTK and Support Rebranding and Airdrop Plan on Binance Alpha")
 
 
+def test_both_title_styles_monitoring_tag_cap_and_cross_type_dedupe():
+    fut = "Binance Futures Will Delist USDⓈ-M MYROUSDT and 1000XUSDT Perpetual Contracts (2025-11-14)"
+    assert is_futures_delist(fut) and not is_spot_delist(fut) and not is_tag_notice(fut)
+    assert futures_symbols(fut, "") == ["1000XUSDT", "MYROUSDT"]
+    syms, kind = article_symbols(fut, "", {"1000XUSDT", "MYROUSDT"})
+    assert kind == "fut" and syms == ["1000XUSDT", "MYROUSDT"]
+
+    spot = "Binance Will Delist EPIC, QUICK on 2026-10-28"
+    assert is_spot_delist(spot) and not is_futures_delist(spot)
+    # EPIC has no EPICUSDT; the 1000-prefixed perp is the contract. QUICK maps to QUICKUSDT.
+    syms, kind = article_symbols(spot, "", {"1000EPICUSDT", "QUICKUSDT", "EPICUSDT"})
+    assert kind == "spot" and syms == ["EPICUSDT", "QUICKUSDT"]
+    syms, kind = article_symbols(spot, "", {"1000EPICUSDT", "QUICKUSDT"})
+    assert syms == ["1000EPICUSDT", "QUICKUSDT"]
+
+    monitor = "Binance Will Extend the Monitoring Tag to Include ACT, BLUR, PIVX & QKC on 2026-06-18"
+    seed = "Binance Will Extend the Seed Tag to Include FOO & BAR on 2026-03-01"
+    mixed = "Binance Will Delist FOO on 2026-06-18 and Extend the Monitoring Tag"
+    for title in (monitor, seed, mixed):
+        assert is_tag_notice(title)
+        assert not is_futures_delist(title) and not is_spot_delist(title)
+        assert article_symbols(title, "FOOUSDT ACTUSDT", {"FOOUSDT", "ACTUSDT", "BLURUSDT"}) == ([], None)
+
+    names = ["ZZZ", "AAA", "MMM", "BBB"]
+    trading = {f"{s}USDT" for s in names}
+    long_fut = "Binance Futures Will Delist Multiple USDⓈ-M Perpetual Contracts (2026-01-01)"
+    text = " ".join(f"{s}USDT" for s in names)
+    assert article_symbols(long_fut, text, trading) == (["AAAUSDT", "BBBUSDT", "MMMUSDT"], "fut")
+    volumes = {"ZZZUSDT": 9, "AAAUSDT": 1, "MMMUSDT": 8, "BBBUSDT": 7}
+    assert article_symbols(long_fut, text, trading, volumes=volumes)[0] == [
+        "ZZZUSDT", "MMMUSDT", "BBBUSDT"]
+    long_spot = "Binance Will Delist ZZZ, AAA, MMM, BBB on 2026-01-01"
+    assert article_symbols(long_spot, "", trading) == (["ZZZUSDT", "AAAUSDT", "MMMUSDT"], "spot")
+
+    # SHARED is selected by the futures notice, so the spot notice does not take it again.
+    shared_fut = "Binance Futures Will Delist USDⓈ-M SHAREDUSDT Perpetual Contract"
+    spot_both = "Binance Will Delist SHARED, ZED, YEN, WON on 2026-06-01"
+    book = {"SHAREDUSDT", "ZEDUSDT", "YENUSDT", "WONUSDT", "EXTRAUSDT"}
+    taken = set()
+    first, k1 = article_symbols(shared_fut, "SHAREDUSDT", book, taken=taken)
+    assert k1 == "fut" and first == ["SHAREDUSDT"]
+    taken.update(first)
+    second, k2 = article_symbols(spot_both, "", book, taken=taken)
+    assert k2 == "spot" and second == ["ZEDUSDT", "YENUSDT", "WONUSDT"]
+    assert "SHAREDUSDT" not in second
+
+
 def test_settlement_clock_is_the_automatic_settlement_stamp():
     text = (
         "Binance Futures will close all positions and conduct an automatic settlement "
@@ -163,6 +210,35 @@ def test_entry_is_the_first_full_hour_and_exit_is_72h_or_settlement():
 # ---------------------------------------------------------------- poll
 def _release_entering_at(entry, minute=15):
     return entry - HOUR_MS + minute * MIN
+
+
+def test_poll_caps_one_notice_at_three_and_does_not_double_a_shared_symbol():
+    eng, ex, rec = _engine()
+    entry = 100 * HOUR_MS
+    release = _release_entering_at(entry)
+    names = ["S1", "S2", "S3", "S4"]
+    fut = "Binance Futures Will Delist Multiple USDⓈ-M Perpetual Contracts (2099-01-01)"
+    body = " ".join(f"{s}USDT" for s in names)
+    spot = "Binance Will Delist S1, S2 on 2099-01-01"
+    monitor = "Binance Will Extend the Monitoring Tag to Include S1, S4 on 2099-01-01"
+    info = {"symbols": [_perp(f"{s}USDT") for s in names]}
+    articles = [
+        _art("fut", fut, release),
+        _art("spot", spot, release),
+        _art("tag", monitor, release),
+    ]
+    details = {
+        "fut": _detail(fut, body),
+        "spot": _detail(spot, ""),
+        "tag": _detail(monitor, "S1USDT S4USDT"),
+    }
+    poll_delist(eng, entry + 5_000, info, None, Feed(),
+                list_fn=lambda: articles, detail_fn=lambda code: details[code])
+    held = sorted(s for s, p in ex.positions().items() if p.strategy == NAME)
+    # S1..S4 sort to S1 S2 S3. The spot notice does not open S1 again, and the tag opens nothing.
+    assert held == ["S1USDT", "S2USDT", "S3USDT"]
+    assert ex.get_position("S4USDT") is None
+    assert all(p.side == -1 for p in ex.positions().values())
 
 
 def test_poll_enters_on_the_entry_minute_and_is_idempotent():

@@ -238,6 +238,8 @@ def _discover(st, strat, articles, detail_fn, trading, now):
         return
     seen = set(st["seen"])
     done = _done_keys(st)
+    taken = {ev.get("symbol") for ev in st["armed"].values() if ev.get("symbol")}
+    limit = int(strat.p.get("max_per_announcement", 3))
     for art in articles or []:
         if not isinstance(art, dict):
             continue
@@ -273,7 +275,7 @@ def _discover(st, strat, articles, detail_fn, trading, now):
         text = body_text(detail.get("body"))
         title = detail.get("title") or title
         settle = settlement_ms(text, release)
-        syms, kind = article_symbols(title, text, trading)
+        syms, kind = article_symbols(title, text, trading, limit=limit, taken=taken)
         st["seen"].append(code)
         seen.add(code)
         if not syms:
@@ -281,6 +283,7 @@ def _discover(st, strat, articles, detail_fn, trading, now):
         for sym in syms:
             key = f"{code}:{sym}"
             if key in done or key in st["armed"]:
+                taken.add(sym)
                 continue
             plan = plan_entry(
                 release, now, settle, since_ms=st["since_ms"], hold_h=strat.p["hold_h"],
@@ -295,6 +298,7 @@ def _discover(st, strat, articles, detail_fn, trading, now):
                 "entry_open": plan["entry_open"], "exit_ts": plan["exit_ts"],
                 "settlement": plan["settlement"],
             }
+            taken.add(sym)
 
 
 def _enter_due(eng, strat, st, trading, brackets_raw, feed, now):

@@ -9,8 +9,12 @@ Research rule E2 (streamE/delist.py, events(0, 72, -1, 0.2)):
 
 The live desk adds the settlement exit the research simulator did not have:
 leave at least 30 minutes before the announced futures settlement when that
-is earlier than the 72h close. Catalog 161 also carries margin and loan
-notices; only the two title families below are trades.
+is earlier than the 72h close. Catalog 161 also carries margin, loan, and
+monitoring/seed-tag notices. Only two title families are trades:
+"Binance Futures Will Delist ..." (USDT-M names in the title and body) and
+"Binance Will Delist X, Y, ... on <date>" (each spot token mapped to its
+TRADING USDT perp, including a 1000-prefixed contract). At most three perps
+per announcement. A symbol named by both families is taken once.
 
 on_bar stays empty. The desk polls the announcement feed once a minute and
 hands entries to the engine, so a 1h strategy cycle cannot open these late.
@@ -37,15 +41,27 @@ SETTLE_RE = re.compile(
     r"conduct an automatic settlement.{0,500}?(\d{4}-\d{2}-\d{2})[ T](\d{1,2}):(\d{2})\s*\(UTC\)",
     re.IGNORECASE | re.DOTALL)
 TOKEN_SPLIT_RE = re.compile(r",\s*|\s+and\s+|\s*&amp;\s*|\s*&\s*", re.IGNORECASE)
+# Adding or extending a monitoring/seed tag is a catalog neighbor, not a delist.
+TAG_NOTICE_RE = re.compile(r"\b(?:monitoring|seed)\s+tag\b", re.IGNORECASE)
+MAX_PER_ANNOUNCEMENT = 3
+
+
+def is_tag_notice(title):
+    """True for a monitoring-tag or seed-tag announcement. Those are not delistings."""
+    return bool(TAG_NOTICE_RE.search(title or ""))
 
 
 def is_futures_delist(title):
     """'Binance Futures Will Delist ...' (research: both words in the title)."""
     text = title or ""
+    if is_tag_notice(text):
+        return False
     return "Futures" in text and "Delist" in text
 
 
 def is_spot_delist(title):
+    if is_tag_notice(title):
+        return False
     return bool(SPOT_TITLE_RE.match(title or ""))
 
 
@@ -121,21 +137,61 @@ def trading_perps(exchange_info):
     return out
 
 
-def article_symbols(title, text, trading):
-    """Perp symbols this article may short. `trading` is a set or dict of TRADING perps."""
+def cap_symbols(symbols, limit=MAX_PER_ANNOUNCEMENT, volumes=None):
+    """At most `limit` names. With 24h quote volume, the largest three win.
+
+    Without volume the announcement order is kept (futures names are already
+    sorted, spot names follow the title).
+    """
+    rows = []
+    seen = set()
+    for sym in symbols or []:
+        if not sym or sym in seen:
+            continue
+        seen.add(sym)
+        rows.append(sym)
+    if volumes:
+        def rank(sym):
+            raw = volumes.get(sym) if isinstance(volumes, dict) else None
+            try:
+                vol = float(raw)
+            except (TypeError, ValueError):
+                vol = float("-inf")
+            if vol != vol:
+                vol = float("-inf")
+            return (-vol, sym)
+        rows.sort(key=rank)
+    if limit is None:
+        return rows
+    return rows[:max(0, int(limit))]
+
+
+def article_symbols(title, text, trading, *, limit=MAX_PER_ANNOUNCEMENT, volumes=None, taken=None):
+    """Perp symbols this article may short. `trading` is a set or dict of TRADING perps.
+
+    `taken` drops symbols already claimed by another announcement, so a coin
+    named in both a spot notice and a futures notice is one position.
+    """
+    if is_tag_notice(title):
+        return [], None
     if is_futures_delist(title):
         found = futures_symbols(title, text)
         kind = "fut"
     elif is_spot_delist(title):
         found = []
         for tok in spot_tokens(title):
+            # One perp per spot token: the plain USDT contract when it trades,
+            # otherwise the 1000-prefixed contract (1000XUSDT).
             for sym in candidate_perps(tok):
-                if sym not in found:
+                if sym in trading and sym not in found:
                     found.append(sym)
+                    break
         kind = "spot"
     else:
         return [], None
-    return [s for s in found if s in trading], kind
+    claimed = set(taken or ())
+    kept = [s for s in found if s in trading and s not in claimed]
+    return cap_symbols(kept, limit, volumes), kind
 
 
 def entry_open_ms(release_ms):
@@ -224,6 +280,7 @@ class DelistShort(Strategy):
             "max_age_h": float(params.get("max_age_h", 2)),
             "entry_grace_min": float(params.get("entry_grace_min", 3)),
             "leverage": float(params.get("leverage", 3)),
+            "max_per_announcement": int(params.get("max_per_announcement", MAX_PER_ANNOUNCEMENT)),
         }
 
     def on_bar(self, ctx):

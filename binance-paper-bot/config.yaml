@@ -96,6 +96,7 @@ strategy:
       max_age_h: 2           # first start ignores notices older than this (no backfill)
       entry_grace_min: 3     # enter on the tick at the entry hour, not an hour later
       leverage: 3
+      max_per_announcement: 3 # at most 3 perps per notice; a symbol in both families counts once
     trend_ema:
       timeframe: 15m
       trend_timeframe: 1h
