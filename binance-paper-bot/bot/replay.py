@@ -25,9 +25,15 @@ def _fnum(v):
     return float(v)
 
 
+# A 1h close is acted on only after this lag, so the minute loop can watch stops
+# first and the strategy cycle runs a couple of minutes after the hour.
+STRATEGY_LAG_MS = 120_000
+
+
 def replay_minutes(ex, eng, symbols, minutes, bars_1m, marks_1m, bars_15m, bars_1h,
                    funding, funding_done, last_15m_open, bars_4h=None, bars_1d=None,
-                   strategy_tf="15m", last_signal_open=None):
+                   strategy_tf="15m", last_signal_open=None, strategy_ready_at=None,
+                   strategy_lag_ms=STRATEGY_LAG_MS):
     """Replay fully closed 1-minute opens in `minutes` (oldest first).
 
     bars_*: symbol -> {open_time: (open_time, o, h, l, c, v, close_time)}
@@ -38,7 +44,10 @@ def replay_minutes(ex, eng, symbols, minutes, bars_1m, marks_1m, bars_15m, bars_
     strategy_tf "15m" (default) keeps the original clock: 1h bars are stored and
     the strategy runs on each closed 15m bar. "1h" runs the strategy on each
     closed 1h bar, after that boundary's 1d and 4h bars are stored, and does not
-    evaluate 15m. `last_signal_open` is the last 1h open already signaled.
+    evaluate 15m. "stops" walks 1m highs/lows, funding and liquidation only.
+    `last_signal_open` is the last 1h open already signaled. When
+    `strategy_ready_at` is set, a 1h close is not signaled until that timestamp
+    is at least `strategy_lag_ms` past the close (the minute is still walked).
     """
     prev_traverse = ex.traverse_fill
     ex.traverse_fill = True
@@ -78,6 +87,8 @@ def replay_minutes(ex, eng, symbols, minutes, bars_1m, marks_1m, bars_15m, bars_
                     funded += 1
                     i += 1
                 fi[s] = i
+            if strategy_tf == "stops":
+                continue
             if strategy_tf == "1h":
                 if boundary % 86_400_000 == 0 and eng is not None:
                     dopen = boundary - 86_400_000
@@ -97,7 +108,8 @@ def replay_minutes(ex, eng, symbols, minutes, bars_1m, marks_1m, bars_15m, bars_
                             degraded.add(s)
                 if boundary % 3_600_000 == 0:
                     hopen = boundary - 3_600_000
-                    if last_signal_open is None or hopen > last_signal_open:
+                    ready = strategy_ready_at is None or int(strategy_ready_at) >= boundary + int(strategy_lag_ms)
+                    if ready and (last_signal_open is None or hopen > last_signal_open):
                         for s in symbols:
                             row = bars_1h.get(s, {}).get(hopen)
                             if not row:

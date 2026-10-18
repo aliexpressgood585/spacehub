@@ -1,15 +1,19 @@
-"""Scheduled paper desk: one cycle, then exit.
+"""Scheduled paper desk.
 
-Loads the JSON state, catches up closed candles since the last cycle (1m bars for
-SL/TP/liquidation, real funding history, strategy on each closed signal bar), writes
-the same file back. The GitHub Actions workflow commits that file. Paper only —
+The Actions job loops for hours. Each wall-clock minute replays closed 1m bars
+(stops, liquidation, funding) and a full strategy cycle runs a couple of minutes
+after each 1h close. Existing wallet, trades and events are kept. Paper only —
 there is no order endpoint and no API key.
 
 The active strategy is ema_trend_4h: decisions from completed 4h bars, evaluated on
 1h closes, stops still on 1m highs/lows. The coin list is a monthly top-20 by
-trailing 90-day median quote volume. Existing wallet, trades and events are kept.
+trailing 90-day median quote volume.
 
-    python -m bot.desk binance-paper/state.json
+    python -m bot.desk binance-paper/state.json          # one full cycle
+    python -m bot.desk --tick binance-paper/state.json   # stops, or full if an hour is due
+    python -m bot.desk --stops binance-paper/state.json  # 1m stops only
+    python -m bot.desk --check-loop binance-paper/state.json
+    python -m bot.desk --handoff binance-paper/state.json
 """
 import json
 import logging
@@ -23,7 +27,7 @@ from .engine import TradingEngine, kline_row
 from .execution.paper import PaperExchange
 from .feed import connect, describe
 from .margin import LeverageBrackets
-from .replay import replay_minutes
+from .replay import STRATEGY_LAG_MS, replay_minutes
 from .rest import INTERVAL_MS
 from .risk import RiskManager
 from .clock import closed_bar_open, opens_after
@@ -38,6 +42,8 @@ log = logging.getLogger("desk")
 # window is walked so a single Actions job cannot run away.
 MAX_1M_BARS = 21 * 24 * 60
 EQUITY_CAP = 8000
+# Another run's heartbeat older than this is not a live loop.
+HEARTBEAT_STALE_MS = 180_000
 
 
 def _iso(ms):
@@ -408,6 +414,112 @@ def _symbol_list(rows, state, fallback):
     return symbols or list(fallback)
 
 
+def due_full(now_ms, state, lag_ms=STRATEGY_LAG_MS):
+    """True when a full strategy cycle should run.
+
+    The latest closed 1h bar is acted on only after `lag_ms`. An older hour that
+    was never signaled is due immediately, including while the newest hour is
+    still inside the lag. A missing account or a missing 1h/1m cursor is due.
+    """
+    if not state or state.get("last_1h_open") is None or state.get("last_1m_open") is None:
+        return True
+    h1 = INTERVAL_MS["1h"]
+    now_ms = int(now_ms)
+    latest = closed_bar_open(now_ms, h1)
+    close = latest + h1
+    last = int(state["last_1h_open"])
+    if now_ms < close + int(lag_ms):
+        return last < latest - h1
+    return last < latest
+
+
+def pending_signal_hours(last_open, now_ms, minute_opens, lag_ms=STRATEGY_LAG_MS):
+    """1h opens that are lag-ready, newer than `last_open`, and whose closing
+    minute is not in `minute_opens` (replay will not signal those itself)."""
+    if last_open is None:
+        return []
+    h1 = INTERVAL_MS["1h"]
+    now_ms = int(now_ms)
+    latest = closed_bar_open(now_ms, h1)
+    minute_opens = set(minute_opens or [])
+    out = []
+    hopen = int(last_open) + h1
+    while hopen <= latest:
+        boundary = hopen + h1
+        if now_ms >= boundary + int(lag_ms) and (boundary - 60_000) not in minute_opens:
+            out.append(hopen)
+        hopen += h1
+    return out
+
+
+def extend_replay_minutes(last_open, now_ms, minutes):
+    """Prepend closing minutes of lag-ready hours that `minutes` no longer contains.
+
+    Returns (minutes, pending_hours). The caller still caps the length.
+    """
+    minutes = list(minutes or [])
+    pending = pending_signal_hours(last_open, now_ms, minutes)
+    if not pending:
+        return minutes, []
+    h1 = INTERVAL_MS["1h"]
+    first = pending[0] + h1 - 60_000
+    tail = minutes[0] if minutes else closed_bar_open(int(now_ms), 60_000) + 60_000
+    extra = list(range(first, tail, 60_000))
+    return extra + minutes, pending
+
+
+def current_run_id(explicit=None):
+    return str(explicit or os.environ.get("GITHUB_RUN_ID") or os.environ.get("DESK_RUN_ID") or "local")
+
+
+def other_loop_alive(state, run_id, now_ms=None):
+    """True only when a different run is status=running and its heartbeat is fresh.
+
+    `handoff` and a stale heartbeat are not alive, so the successor of a finished
+    loop does not treat the job that just exited as still holding the desk.
+    """
+    loop = (state or {}).get("loop") or {}
+    if loop.get("status") != "running":
+        return False
+    if str(loop.get("run_id")) == str(run_id):
+        return False
+    hb = loop.get("heartbeat_ms")
+    if hb is None:
+        return False
+    now_ms = _now() if now_ms is None else int(now_ms)
+    return now_ms - int(hb) < HEARTBEAT_STALE_MS
+
+
+def loop_view(run_id, status, mode, now_ms):
+    now_ms = int(now_ms)
+    return {"run_id": str(run_id), "status": status, "mode": mode,
+            "heartbeat": _iso(now_ms), "heartbeat_ms": now_ms}
+
+
+def account_sig(state):
+    """Wallet, fills and position size. Mark-to-market alone does not change it."""
+    if not state:
+        return None
+    poss = tuple(sorted(
+        (p.get("symbol"), p.get("side"), round(float(p.get("qty") or 0), 8))
+        for p in (state.get("positions") or [])
+    ))
+    return (
+        round(float(state.get("wallet") or 0), 4),
+        int(state.get("liquidations") or 0),
+        int(state.get("trades_closed") or 0),
+        len(state.get("events") or []),
+        poss,
+    )
+
+
+def should_commit(mode, before, after):
+    """Full cycles and any account event publish immediately. Price ticks can wait."""
+    if mode == "full":
+        return True
+    return account_sig(before) != account_sig(after)
+
+
 def run_htf(eng, ex, infos, feed, symbols, state, fresh, switched, now, rec, funding_done):
     """1h signal clock. On a strategy switch only the latest closed 1h is judged."""
     h1, h4, d1 = INTERVAL_MS["1h"], INTERVAL_MS["4h"], INTERVAL_MS["1d"]
@@ -416,10 +528,17 @@ def run_htf(eng, ex, infos, feed, symbols, state, fresh, switched, now, rec, fun
     last_15m = None if fresh else state.get("last_15m_open")
     if fresh or switched:
         all_minutes, minutes, capped = [], [], False
+        pending = []
     else:
-        all_minutes = opens_after(prev_1m, now, 60_000)
+        opened = opens_after(prev_1m, now, 60_000)
+        # A stops tick may already have walked an hour's closing minute. Pull that
+        # minute back into this replay so the decision runs after that minute's
+        # high/low and before any later bar, instead of on a book that has moved on.
+        all_minutes, pending = extend_replay_minutes(last_1h, now, opened)
         capped = len(all_minutes) > MAX_1M_BARS
         minutes = all_minutes[-MAX_1M_BARS:] if capped else all_minutes
+        if capped:
+            pending = [h for h in pending if (h + h1 - 60_000) >= minutes[0]]
     replay_start = minutes[0] if minutes else now
     start_4h = now - (H4_BARS + 8) * h4
     start_1d = now - (D1_BARS + 8) * d1
@@ -433,7 +552,8 @@ def run_htf(eng, ex, infos, feed, symbols, state, fresh, switched, now, rec, fun
     catch = {"fresh": fresh, "switched": switched, "minutes": 0, "capped": capped,
              "evaluated_15m": 0, "evaluated_1h": 0, "degraded": [], "funding_applied": 0,
              "skipped_1m": 0 if fresh or switched else max(0, len(all_minutes) - len(minutes)),
-             "missing_4h": miss_4h, "missing_1d": miss_1d, "missing_1h": miss_1h}
+             "missing_4h": miss_4h, "missing_1d": miss_1d, "missing_1h": miss_1h,
+             "pending_1h": pending}
     if fresh or switched:
         latest = closed_bar_open(now, h1)
         cut = latest + h1
@@ -451,6 +571,9 @@ def run_htf(eng, ex, infos, feed, symbols, state, fresh, switched, now, rec, fun
         minutes = opens_after(latest + h1 - 60_000, now, 60_000)
         catch["fresh_bar"] = latest
     else:
+        # Seed only bars closed before the first replayed minute. Later 4h/1d/1h
+        # bars are added as their own boundary is reached, so an earlier hour
+        # cannot see a 4h close that had not happened yet.
         for s in symbols:
             add_closed(eng, s, "4h", bars_4h.get(s, {}), replay_start)
             add_closed(eng, s, "1d", bars_1d.get(s, {}), replay_start)
@@ -468,7 +591,8 @@ def run_htf(eng, ex, infos, feed, symbols, state, fresh, switched, now, rec, fun
         funds = fetch_funding(feed, symbols, m0, now)
         stats = replay_minutes(ex, eng, symbols, minutes, bars_1m, marks, {}, bars_1h,
                                funds, funding_done, last_15m, bars_4h=bars_4h, bars_1d=bars_1d,
-                               strategy_tf="1h", last_signal_open=last_1h)
+                               strategy_tf="1h", last_signal_open=last_1h,
+                               strategy_ready_at=None if fresh or switched else now)
         if stats.get("last_signal_open") is not None:
             last_1h = stats["last_signal_open"]
         catch.update(minutes=stats["minutes"],
@@ -585,6 +709,17 @@ def run(path, now=None):
                               "msg": f"gap longer than {MAX_1M_BARS} 1m bars; replayed the newest {len(minutes)} only"})
 
     refresh_live(ex, feed, symbols, now)
+    return _publish(path, state, cfg, ex, risk, rec, feed, filters_src, probes, symbols, now,
+                    strat, last_15m, last_1h, catch, funding_done,
+                    universe_rows, ranked_at, universe_month, universe_reused,
+                    fresh, switched, prev_name, eng)
+
+
+def _publish(path, state, cfg, ex, risk, rec, feed, filters_src, probes, symbols, now,
+             strat, last_15m, last_1h, catch, funding_done,
+             universe_rows, ranked_at, universe_month, universe_reused,
+             fresh, switched, prev_name, eng, keep_strategy=False, brackets_view=None):
+    """Write one snapshot. Starts from the previous dict so unknown keys survive."""
     last_1m = closed_bar_open(now, 60_000)
     risk._daily(ex, now)
     started = (state or {}).get("started") or now
@@ -614,18 +749,22 @@ def run(path, now=None):
     day_start = risk.day_start_equity or eq
     day_pnl = (eq - day_start) / day_start if day_start else 0.0
     old_sigs = {s.get("symbol"): s for s in (state or {}).get("signals") or []}
-    for s, sig in eng.last_signal.items():
-        old_sigs[s] = {"symbol": s, **sig}
+    if eng is not None:
+        for s, sig in eng.last_signal.items():
+            old_sigs[s] = {"symbol": s, **sig}
     prev_prices = (state or {}).get("prices") or {}
     prices = {}
     for s in symbols:
-        m = ex.mkt[s]
-        if m.bid or m.ask or m.mark or m.last:
+        m = ex.mkt.get(s)
+        if m and (m.bid or m.ask or m.mark or m.last):
             prices[s] = {"bid": m.bid, "ask": m.ask, "last": m.last, "mark": m.mark or m.last,
                          "funding_rate": m.funding_rate,
                          "next_funding_time": m.next_funding_time or None}
         elif s in prev_prices:
             prices[s] = prev_prices[s]
+    strategy = (state or {}).get("strategy") if keep_strategy and (state or {}).get("strategy") else strategy_view(strat, cfg)
+    if brackets_view is None:
+        brackets_view = _bracket_view(ex, [s for s in symbols if s in ex.mkt])
     snap = dict(state or {})
     snap.update({
         "version": "binance-paper-v1", "schema": 1, "paper": True, "live_trading": False,
@@ -637,7 +776,7 @@ def run(path, now=None):
         "available": ex.available_balance(), "used_margin": ex.used_margin(),
         "win_rate_pct": (100.0 * wins / len(trades)) if trades else 0.0,
         "trades_closed": len(trades), "wins": wins,
-        "strategy": strategy_view(strat, cfg),
+        "strategy": strategy,
         "price_source": describe(feed, filters_src, probes),
         "last_cycle": _iso(now), "last_ts": now, "started": started,
         "last_15m_open": last_15m, "last_1h_open": last_1h, "last_1m_open": last_1m,
@@ -646,7 +785,7 @@ def run(path, now=None):
                  "day_pnl_pct": day_pnl * 100, "halted": day_pnl <= -risk.max_daily_loss,
                  "max_daily_loss_pct": risk.max_daily_loss * 100,
                  "max_positions": risk.max_pos},
-        "positions": _positions(ex), "prices": prices, "brackets": _bracket_view(ex, symbols),
+        "positions": _positions(ex), "prices": prices, "brackets": brackets_view,
         "trades": trades, "events": events,
         "signals": list(old_sigs.values()), "equity_curve": curve, "catchup": catch,
         "symbols": symbols,
@@ -663,17 +802,189 @@ def run(path, now=None):
     return snap
 
 
-def main():
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
-    path = sys.argv[1] if len(sys.argv) > 1 else "binance-paper/state.json"
-    snap = run(path)
+def _working_symbols(state, cfg):
+    symbols, seen = [], set()
+    for s in (state or {}).get("symbols") or []:
+        if s and s not in seen:
+            symbols.append(s)
+            seen.add(s)
+    ex = (state or {}).get("exchange") or {}
+    for s in (ex.get("positions") or {}):
+        if s not in seen:
+            symbols.append(s)
+            seen.add(s)
+    for od in ex.get("orders") or []:
+        s = od.get("symbol")
+        if s and s not in seen:
+            symbols.append(s)
+            seen.add(s)
+    return symbols or list(cfg["symbols"])
+
+
+def _protected_symbols(state):
+    """Symbols whose filters must exist or a stop tick would drop a live book entry."""
+    ex = (state or {}).get("exchange") or {}
+    out = set((ex.get("positions") or {}))
+    for od in ex.get("orders") or []:
+        if od.get("symbol"):
+            out.add(od["symbol"])
+    return out
+
+
+def run_stops(path, now=None):
+    """Replay new 1m bars only. Does not rank, does not run the strategy, does not reset the account.
+
+    If an open position or resting order has no contract filters, the tick raises
+    before writing so a 5-coin cache cannot drop the rest of the book.
+    """
+    cfg = load_config()
+    now = _now() if now is None else int(now)
+    state = read_state(path)
+    if state is None or "exchange" not in state:
+        return run(path, now)
+    feed, probes = connect(cfg)
+    symbols = _working_symbols(state, cfg)
+    cfg = dict(cfg)
+    cfg["symbols"] = list(symbols)
+    ei, br = fetch_exchange_info(cfg, feed)
+    infos, brackets, filters_src = load_meta(cfg, feed, exchange_info=ei, brackets_raw=br, allow_missing=True)
+    protected = _protected_symbols(state)
+    missing = sorted(s for s in protected if s not in infos)
+    if missing:
+        raise RuntimeError(f"stop cycle missing filters for {missing}; state left untouched")
+    tradable = [s for s in symbols if s in infos]
+    if protected and not tradable:
+        raise RuntimeError("stop cycle has no contract filters; state left untouched")
+    fees = cfg["fees"]
+    rec = MemoryRecorder()
+    ex = PaperExchange(infos, brackets, cfg["account"]["starting_balance"], fees["maker"], fees["taker"],
+                       cfg["execution"]["slippage_bps"], cfg["account"]["default_leverage"],
+                       traverse_fill=False, listener=rec)
+    ex.load_dict(state["exchange"])
+    # A protected symbol that was a position must still be a position. An order-only
+    # symbol must still have its order. load_dict drops anything missing from infos.
+    still_pos = set(ex.pos)
+    still_ord = {o.symbol for o in ex.orders.values()}
+    lost = sorted(s for s in protected if s not in still_pos and s not in still_ord)
+    if lost:
+        raise RuntimeError(f"stop cycle would drop {lost}; state left untouched")
+    funding_done = {k: int(v) for k, v in (state.get("engine") or {}).get("funding_done", {}).items()}
+    risk = RiskManager(cfg, fees["taker"], cfg["execution"]["slippage_bps"])
+    risk.load_dict((state.get("engine") or {}).get("risk") or {})
+    apply_slip(ex, risk, state.get("universe") or [])
+    prev_1m = state.get("last_1m_open")
+    all_minutes = [] if prev_1m is None else opens_after(prev_1m, now, 60_000)
+    capped = len(all_minutes) > MAX_1M_BARS
+    minutes = all_minutes[-MAX_1M_BARS:] if capped else all_minutes
+    catch = {"mode": "stops", "fresh": False, "minutes": 0, "capped": capped,
+             "evaluated_15m": 0, "evaluated_1h": 0, "degraded": [], "funding_applied": 0,
+             "skipped_1m": max(0, len(all_minutes) - len(minutes))}
+    if minutes and tradable:
+        m0, m1 = minutes[0], minutes[-1] + 60_000
+        bars_1m = {}
+        for s in tradable:
+            try:
+                bars_1m[s] = _rows(feed.klines(s, "1m", m0, m1 + 1), now)
+            except Exception:
+                log.warning("1m klines failed for %s", s, exc_info=True)
+                bars_1m[s] = {}
+        gap = []
+        for s in protected:
+            have = bars_1m.get(s) or {}
+            if any(t not in have for t in minutes):
+                gap.append(s)
+        if gap:
+            raise RuntimeError(f"1m bars missing for open book {gap}; state left untouched")
+        marks = fetch_marks(feed, tradable, m0, m1 + 1, now)
+        funds = fetch_funding(feed, tradable, m0, now)
+        stats = replay_minutes(ex, None, tradable, minutes, bars_1m, marks, {}, {},
+                               funds, funding_done, state.get("last_15m_open"),
+                               strategy_tf="stops")
+        catch.update(minutes=stats["minutes"], degraded=stats["degraded"],
+                     funding_applied=stats["funding_applied"])
+        if capped:
+            rec.on_event({"ts": now, "type": "CATCH_UP", "symbol": "",
+                          "msg": f"gap longer than {MAX_1M_BARS} 1m bars; replayed the newest {len(minutes)} only"})
+    if tradable:
+        refresh_live(ex, feed, tradable, now)
+    strat = make_strategy(cfg)
+    return _publish(path, state, cfg, ex, risk, rec, feed, filters_src, probes, symbols, now,
+                    strat, state.get("last_15m_open"), state.get("last_1h_open"), catch, funding_done,
+                    state.get("universe") or [], state.get("universe_ranked_at"),
+                    state.get("universe_month"), state.get("universe_reused"),
+                    False, False, None, None, keep_strategy=True,
+                    brackets_view=state.get("brackets"))
+
+
+def tick(path, now=None, run_id=None):
+    """One wall-clock step: full strategy cycle when an hour is due, otherwise stops."""
+    now = _now() if now is None else int(now)
+    run_id = current_run_id(run_id)
+    state = read_state(path)
+    mode = "full" if due_full(now, state) else "stops"
+    snap = run(path, now) if mode == "full" else run_stops(path, now)
+    snap["loop"] = loop_view(run_id, "running", mode, now)
+    write_state(path, snap)
+    return snap
+
+
+def handoff(path, run_id=None, now=None):
+    """Mark the loop idle. Does not create an account and does not touch the wallet."""
+    state = read_state(path)
+    if not state:
+        print("handoff: no state")
+        return None
+    now = _now() if now is None else int(now)
+    state["loop"] = loop_view(current_run_id(run_id), "handoff", "handoff", now)
+    write_state(path, state)
+    print("handoff")
+    return state
+
+
+def _print_cycle(snap, commit=None):
     ps = snap["price_source"]
     names = ",".join(r["symbol"] for r in snap.get("universe") or [])
     cu = snap.get("catchup") or {}
+    loop = snap.get("loop") or {}
+    extra = f" commit={'yes' if commit else 'no'}" if commit is not None else ""
     print(f"source={ps['id']} endpoint={ps['endpoint']} filters={ps['filters']} "
           f"equity={snap['equity']:.2f} positions={len(snap['positions'])} trades={snap['trades_closed']} "
           f"evaluated_1h={cu.get('evaluated_1h')} warmup_4h_min={cu.get('warmup_4h_min')} "
-          f"universe={names}")
+          f"mode={loop.get('mode') or cu.get('mode') or 'full'} "
+          f"universe={names}{extra}")
+
+
+def main():
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    flags, path = set(), "binance-paper/state.json"
+    for a in sys.argv[1:]:
+        if a.startswith("--"):
+            flags.add(a)
+        else:
+            path = a
+    run_id = current_run_id()
+    if "--check-loop" in flags:
+        st = read_state(path)
+        if other_loop_alive(st, run_id):
+            print("other loop alive")
+            sys.exit(10)
+        print("loop free")
+        return
+    if "--handoff" in flags:
+        handoff(path, run_id)
+        return
+    if "--tick" in flags:
+        before = read_state(path)
+        snap = tick(path, run_id=run_id)
+        mode = (snap.get("loop") or {}).get("mode") or "full"
+        _print_cycle(snap, commit=should_commit(mode, before, snap))
+        return
+    if "--stops" in flags:
+        snap = run_stops(path)
+        _print_cycle(snap)
+        return
+    snap = run(path)
+    _print_cycle(snap)
 
 
 if __name__ == "__main__":
