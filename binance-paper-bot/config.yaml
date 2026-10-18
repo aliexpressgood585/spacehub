@@ -31,6 +31,9 @@ strategies:
   - name: ema_trend_4h
     risk_per_trade: 0.01
     max_concurrent_positions: 3
+    # New entries only. The monthly top-20 book stays for the other rules.
+    # An open ema_trend_4h position on any other coin is still managed to its own exit.
+    symbols: [BTCUSDT, ETHUSDT, SOLUSDT, BNBUSDT, XRPUSDT]
   - name: orb_ny_15m
     risk_per_trade: 0.005
     max_concurrent_positions: 2
