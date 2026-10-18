@@ -1,13 +1,19 @@
 name: binance-paper-desk
 # Binance USDT-M futures PAPER desk (binance-paper-bot/). One cycle a few minutes after each 15m
-# close, plus workflow_dispatch. Loads binance-paper/state.json on `pm-desk-data`, replays closed
-# candles since the last cycle, and commits the snapshot the house tab reads.
+# close, workflow_dispatch, and a push to main that touches this file or binance-paper-bot/
+# (so a merge starts a cycle when cron has not fired). Loads binance-paper/state.json on
+# `pm-desk-data`, replays closed candles since the last cycle, and commits the snapshot the house tab reads.
 # Price source: fapi.binance.com, then www.binance.com/fapi, then OKX USDT-SWAP. Fees stay Binance VIP0.
 # Never places a real order and needs no API keys.
 on:
   schedule:
     - cron: '3,18,33,48 * * * *'
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/binance-paper-desk.yml'
+      - 'binance-paper-bot/**'
 concurrency:
   group: binance-paper-desk
   cancel-in-progress: false
