@@ -1,8 +1,9 @@
 """Publish recovery and the desk-loop watchdog.
 
-The live loop hung after the xs bootstrap because every minute rewrote
-state.json and left it unstaged, so `git pull --rebase` refused to start
-and the push never landed. These cover that recovery and the 10-minute exit.
+Run 39137494470 kept ticking. The state push sat for about 20 minutes because
+pm/pmc/pmn commit to the same branch every few seconds, and a dirty
+state.json made `git pull --rebase` refuse. Publishing resets to origin and
+reapplies only binance-paper/.
 """
 import subprocess
 from pathlib import Path
@@ -37,18 +38,6 @@ def _init_pair(tmp_path):
     return origin, desk
 
 
-def _other_commit(tmp_path, origin, text, message):
-    other = tmp_path / "other"
-    subprocess.check_call(["git", "clone", "-q", str(origin), str(other)])
-    _git(other, "config", "user.email", "other@test")
-    _git(other, "config", "user.name", "other")
-    path = other / "binance-paper" / "state.json"
-    path.write_text(text)
-    _git(other, "add", "binance-paper/state.json")
-    _git(other, "commit", "-q", "-m", message)
-    _git(other, "push", "-q", "origin", "pm-desk-data")
-
-
 def _push_state(desk: Path) -> subprocess.CompletedProcess:
     return subprocess.run(
         ["bash", "-c", f'source "{SCRIPT}"; push_state'],
@@ -56,13 +45,23 @@ def _push_state(desk: Path) -> subprocess.CompletedProcess:
     )
 
 
-def test_dirty_tree_rebases_and_keeps_the_newest_state(tmp_path):
+def test_rejected_push_reapplies_only_binance_paper(tmp_path):
     origin, desk = _init_pair(tmp_path)
     state = desk / "binance-paper" / "state.json"
     state.write_text('{"wallet": 10000, "n": 2}\n')
     _git(desk, "add", "binance-paper/state.json")
     _git(desk, "commit", "-q", "-m", "local tick")
-    _other_commit(tmp_path, origin, '{"wallet": 10000, "n": 9}\n', "remote moved")
+    other = tmp_path / "other"
+    subprocess.check_call(["git", "clone", "-q", str(origin), str(other)])
+    _git(other, "config", "user.email", "other@test")
+    _git(other, "config", "user.name", "other")
+    pm = other / "pm" / "state.json"
+    pm.parent.mkdir(parents=True)
+    pm.write_text('{"desk": "pm"}\n')
+    (other / "binance-paper" / "state.json").write_text('{"wallet": 10000, "n": 9}\n')
+    _git(other, "add", "pm/state.json", "binance-paper/state.json")
+    _git(other, "commit", "-q", "-m", "pm desk")
+    _git(other, "push", "-q", "origin", "pm-desk-data")
     newest = '{"wallet": 9998.53, "n": 3, "positions": 8}\n'
     state.write_text(newest)
     # The failure this replaces: rebase will not start on a dirty tree.
@@ -74,19 +73,15 @@ def test_dirty_tree_rebases_and_keeps_the_newest_state(tmp_path):
     assert "unstaged" in (bare.stderr + bare.stdout).lower()
 
     got = _push_state(desk)
-    assert got.returncode == 0, got.stderr
+    assert got.returncode == 0, got.stderr + got.stdout
     assert state.read_text() == newest
-    remote = subprocess.check_output(
-        ["git", "log", "-1", "--format=%s", "pm-desk-data"], cwd=origin, text=True,
-    ).strip()
-    assert remote == "local tick"
-    committed = subprocess.check_output(
-        ["git", "show", "HEAD:binance-paper/state.json"], cwd=desk, text=True,
-    )
-    assert '"n": 2' in committed
-    # The parked tick is unstaged, not silently committed or dropped.
-    porcelain = subprocess.check_output(["git", "status", "--porcelain"], cwd=desk, text=True)
-    assert "binance-paper/state.json" in porcelain
+    assert subprocess.check_output(
+        ["git", "show", "HEAD:binance-paper/state.json"], cwd=origin, text=True,
+    ) == newest
+    assert subprocess.check_output(
+        ["git", "show", "HEAD:pm/state.json"], cwd=origin, text=True,
+    ) == '{"desk": "pm"}\n'
+    assert subprocess.check_output(["git", "status", "--porcelain"], cwd=desk, text=True) == ""
 
 
 def test_publish_stale_at_ten_minutes():
@@ -125,6 +120,7 @@ def test_workflow_watchdog_contract():
     assert "timeout-minutes: 350" in text
     assert "timeout --kill-after=15s 90s python" in text
     assert "publish_stale" in text
+    assert "::error::no successful binance-paper push" in text
     assert "source /tmp/desk/binance-paper-bot/scripts/desk_loop.sh" in text
     # The chain step runs even when the loop step is killed. It still
     # refuses to dispatch when this job proved another loop is alive.

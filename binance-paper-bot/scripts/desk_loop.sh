@@ -4,10 +4,18 @@
 
 : "${GIT_TIMEOUT:=30}"
 : "${GIT_KILL_AFTER:=10}"
+: "${PUSH_TIMEOUT:=20}"
 : "${PUBLISH_STALE_S:=600}"
+: "${PUSH_ATTEMPTS:=4}"
 
 git_t() {
   timeout --kill-after="${GIT_KILL_AFTER}s" "${GIT_TIMEOUT}s" git "$@"
+}
+
+# Push has its own ceiling. A blocked credential helper or a stalled HTTP
+# POST must not sit until the job timeout.
+git_push() {
+  timeout --kill-after="${GIT_KILL_AFTER}s" "${PUSH_TIMEOUT}s" git push "$@"
 }
 
 gh_t() {
@@ -20,49 +28,70 @@ publish_stale() {
   [ $((now - last)) -ge "$PUBLISH_STALE_S" ]
 }
 
-# Push pm-desk-data. A minute tick rewrites state.json and leaves it unstaged
-# when nothing filled; `git pull --rebase` then refuses ("unstaged changes")
-# and every later push is rejected. Park that file, rebase, push, put the
-# newest bytes back unstaged.
-# During a rebase, `ours` is the upstream and `theirs` is the commit being
-# replayed. `-X theirs` keeps this loop's account when state.json conflicts.
-# `-X ours` would silently drop it.
+# Sleep before retry n (1-based). pm/pmc/pmn push this same branch every few
+# seconds; a fixed delay locks step with them.
+push_backoff() {
+  local n=${1:-1}
+  local ms=$(( (RANDOM % 800) + 200 + n * 400 ))
+  sleep "$(awk -v ms="$ms" 'BEGIN { printf "%.3f", ms / 1000 }')"
+}
+
+# Publish binance-paper/ onto pm-desk-data.
+#
+# Other desks commit pm/, pmc/, and pmn/ to this branch every few seconds, so
+# a plain push is rejected and a rebase of our commit replays onto a tree we
+# do not own (and refuses to start when state.json is still dirty). Instead:
+# snapshot binance-paper/, fetch, reset to origin, put only that snapshot
+# back, commit, push. A rejected push waits a jittered moment and retries.
+# The newest account file wins. Other desks' files are not part of the commit.
 push_state() {
-  local saved="" stashed=0 rc=0
-  if [ -f binance-paper/state.json ]; then
-    if ! git diff --quiet -- binance-paper/state.json || ! git diff --cached --quiet -- binance-paper/state.json; then
-      saved=$(mktemp)
-      cp binance-paper/state.json "$saved"
-      if ! git checkout -q HEAD -- binance-paper/state.json; then
-        cp "$saved" binance-paper/state.json
-        rm -f "$saved"
-        return 1
-      fi
-    fi
+  local snap attempt=1 rc=1
+  snap=$(mktemp -d)
+  if [ -d binance-paper ]; then
+    mkdir -p "$snap/binance-paper"
+    cp -a binance-paper/. "$snap/binance-paper/"
   fi
-  if ! git diff --quiet || ! git diff --cached --quiet; then
-    if ! git_t stash push -q -m desk-publish; then
-      if [ -n "$saved" ]; then
-        cp "$saved" binance-paper/state.json
-        rm -f "$saved"
-      fi
-      return 1
-    fi
-    stashed=1
-  fi
-  if ! git_t push -q origin pm-desk-data; then
-    if git_t pull -q --rebase -X theirs origin pm-desk-data && git_t push -q origin pm-desk-data; then
-      rc=0
+  while [ "$attempt" -le "$PUSH_ATTEMPTS" ]; do
+    if ! git_t fetch -q origin pm-desk-data; then
+      echo "fetch pm-desk-data failed (attempt ${attempt})"
+    elif ! git_t reset -q --hard origin/pm-desk-data; then
+      echo "reset to origin/pm-desk-data failed (attempt ${attempt})"
     else
-      rc=1
+      rm -rf binance-paper
+      mkdir -p binance-paper
+      if [ -d "$snap/binance-paper" ]; then
+        cp -a "$snap/binance-paper/." binance-paper/
+      fi
+      git add -A -- binance-paper
+      if git diff --cached --quiet -- binance-paper; then
+        rm -rf "$snap"
+        return 0
+      fi
+      if git commit -q -m "binance paper desk state $(date -u +%FT%TZ) [skip ci]"; then
+        if git_push -q origin pm-desk-data; then
+          rm -rf "$snap"
+          return 0
+        fi
+        echo "push rejected (attempt ${attempt}); pm-desk-data moved"
+      else
+        echo "binance-paper commit failed (attempt ${attempt})"
+      fi
     fi
+    if [ "$attempt" -lt "$PUSH_ATTEMPTS" ]; then
+      push_backoff "$attempt"
+    fi
+    attempt=$((attempt + 1))
+  done
+  # Keep the account file. Leave the branch ahead of the last fetch when a
+  # commit exists so the next minute retries instead of looking in sync.
+  if [ -d "$snap/binance-paper" ]; then
+    rm -rf binance-paper
+    mkdir -p binance-paper
+    cp -a "$snap/binance-paper/." binance-paper/
+    git add -A -- binance-paper || true
+    git diff --cached --quiet -- binance-paper || git commit -q -m "binance paper desk state $(date -u +%FT%TZ) [skip ci]" || true
   fi
-  if [ "$stashed" -eq 1 ]; then
-    git_t stash pop -q || true
-  fi
-  if [ -n "$saved" ]; then
-    cp "$saved" binance-paper/state.json
-    rm -f "$saved"
-  fi
+  rm -rf "$snap"
+  echo "::warning::binance-paper push failed after ${PUSH_ATTEMPTS} attempts"
   return "$rc"
 }

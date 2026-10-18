@@ -7,9 +7,12 @@ name: binance-paper-desk
 # if one is already running the new job exits without chaining. At the end the job
 # dispatches its own successor, so the desk stays up when the schedule does not fire.
 # A tick that runs past 90s is killed and the loop continues. Git and gh calls
-# die after 30s. If no push has landed for 10 minutes the loop exits non-zero
-# and the chain step (if: always()) starts a successor. The loop step itself
-# is capped so a stuck shell still reaches that step.
+# die after 30s; the state push itself dies after 20s. pm/pmc/pmn commit to
+# the same branch every few seconds, so a rejected push resets to origin,
+# reapplies only binance-paper/, and retries with jitter. If no push has
+# landed for 10 minutes the loop alerts and exits non-zero and the chain
+# step (if: always()) starts a successor. The loop step itself is capped
+# so a stuck shell still reaches that step.
 # The existing binance-paper/state.json is loaded and updated. An existing account
 # is never replaced. Never places a real order and needs no API keys.
 on:
@@ -180,14 +183,14 @@ jobs:
             fi
             # A price-only minute does not create a new commit. Reset the
             # watchdog only when origin actually has our HEAD. Ten minutes
-            # without that exits non-zero so the chain step starts a successor.
+            # without a landed push alerts and exits so the chain step runs.
             now_s=$(date +%s)
             if publish_if_ahead; then
               last_publish=$now_s
             else
               echo "push failed; will retry"
               if publish_stale "$now_s" "$last_publish"; then
-                echo "no successful publish for ${PUBLISH_STALE_S}s; exiting so the successor starts"
+                echo "::error::no successful binance-paper push for ${PUBLISH_STALE_S}s; the loop was still ticking but pm-desk-data did not take the state. Exiting so the successor starts."
                 exit 1
               fi
             fi
