@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 810.6449086386784,
+ "cash": 796.9622566386785,
  "strategy": {
   "lo": 0.85,
   "hi": 0.92,
@@ -14,13 +14,13 @@
   "minQty": 5,
   "exitPx": 0.99
  },
- "last_scan": "2026-10-18T11:09:27.796Z",
+ "last_scan": "2026-10-18T11:09:40.066Z",
  "last_note": {
-  "at": "2026-10-18T11:09:24.056Z",
+  "at": "2026-10-18T11:09:38.633Z",
   "scanned": 32,
   "settled": 0,
-  "entered": 2,
-  "topped": 2,
+  "entered": 0,
+  "topped": 1,
   "recycled": 0
  },
  "trades": [
@@ -7222,7 +7222,7 @@
    "opened_at": "2026-10-16T01:24:30.422Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-18T11:09:24.322Z",
+   "mark_at": "2026-10-18T11:09:38.903Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -11262,7 +11262,7 @@
    "opened_at": "2026-10-18T00:15:30.193Z",
    "status": "OPEN",
    "mark_px": 0.925,
-   "mark_at": "2026-10-18T11:09:24.495Z",
+   "mark_at": "2026-10-18T11:09:39.094Z",
    "meta": {
     "fee_schedule": null,
     "volume": 67723.26426800001,
@@ -11509,15 +11509,15 @@
    "outcome": "No",
    "token_id": "2518534159302712579536148258990886495038573121942848328152080070514140195049",
    "end_time": "2026-10-18T12:00:00Z",
-   "qty": 30,
+   "qty": 45,
    "entry_px": 0.908,
-   "entry_fee": 0.12530399999999997,
-   "cost": 27.365304000000002,
+   "entry_fee": 0.18795599999999996,
+   "cost": 41.047956,
    "best_ask": 0.908,
    "opened_at": "2026-10-18T11:09:24.877Z",
    "status": "OPEN",
    "mark_px": 0.9,
-   "mark_at": "2026-10-18T11:09:24.877Z",
+   "mark_at": "2026-10-18T11:09:39.428Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -11530,7 +11530,9 @@
      "Yes",
      "No"
     ],
-    "adds": 1
+    "adds": 2,
+    "close_px": 0.904,
+    "close_at": "2026-10-18T11:09:39.428Z"
    },
    "outcome_he": "לא",
    "question_he": "האם קופת פתיחת סוף השבוע של \"Street Fighter\" תהיה בין 25 מ' ל-30 מ'?",
@@ -11553,7 +11555,7 @@
    "opened_at": "2026-10-18T11:09:25.028Z",
    "status": "OPEN",
    "mark_px": 0.89,
-   "mark_at": "2026-10-18T11:09:25.028Z",
+   "mark_at": "2026-10-18T11:09:39.617Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.05,
@@ -11566,7 +11568,9 @@
      "Butterfly",
      "ex-RUSTEC"
     ],
-    "adds": 1
+    "adds": 1,
+    "close_px": 0.895,
+    "close_at": "2026-10-18T11:09:39.617Z"
    },
    "outcome_he": "Butterfly",
    "question_he": "Counter-Strike: Butterfly vs ex-RUSTEC (BO3) - NODWIN Clutch Series שלב הקבוצה",
@@ -11574,13 +11578,6 @@
   }
  ],
  "equity": [
-  {
-   "ts": "2026-10-17T14:12:54.774Z",
-   "equity": 956.7689869937477,
-   "cash": 535.5149270741247,
-   "open_value": 421.25405991962305,
-   "open_count": 9
-  },
   {
    "ts": "2026-10-17T14:13:10.308Z",
    "equity": 956.7689869937477,
@@ -46573,9 +46570,28 @@
    "cash": 810.6449086386784,
    "open_value": 181.7972225025952,
    "open_count": 4
+  },
+  {
+   "ts": "2026-10-18T11:09:40.066Z",
+   "equity": 992.2594791412737,
+   "cash": 796.9622566386785,
+   "open_value": 195.2972225025952,
+   "open_count": 4
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-18T11:09:40.059Z",
+   "market_id": "5394325",
+   "question": "Will \"Street Fighter\" Opening Weekend Box Office be between 25m and 30m?",
+   "outcome": "No",
+   "price": 0.908,
+   "decision": "ADD",
+   "reason": "השלמה לחלק שווה: +15.0 מניות, עמלה $0.06",
+   "outcome_he": "לא",
+   "question_he": "האם קופת פתיחת סוף השבוע של \"Street Fighter\" תהיה בין 25 מ' ל-30 מ'?",
+   "tr_v": 2
+  },
   {
    "ts": "2026-10-18T11:09:24.877Z",
    "market_id": "5394325",
@@ -49731,22 +49747,6 @@
    "outcome_he": "Sebastian Fundora",
    "question_he": "Sebastian Fundora vs. Ermal Hadribeaj",
    "tr_v": 2
-  },
-  {
-   "ts": "2026-10-18T01:10:59.787Z",
-   "market_id": "5524596",
-   "question": "Sebastian Fundora vs. Ermal Hadribeaj",
-   "outcome": "Sebastian Fundora",
-   "outcomes": [
-    "Sebastian Fundora",
-    "Ermal Hadribeaj"
-   ],
-   "price": 0.929,
-   "decision": "skip",
-   "reason": "מחיר 0.929 מחוץ לטווח 85-92¢",
-   "outcome_he": "Sebastian Fundora",
-   "question_he": "Sebastian Fundora vs. Ermal Hadribeaj",
-   "tr_v": 2
   }
  ],
  "next_id": 273,
@@ -50051,8 +50051,8 @@
    "beat_close": 0.7941176470588235,
    "brier_entry": 0.11192430771848338,
    "brier_close": 0.010915477941176461,
-   "open_n": 2,
-   "open_clv_c": -1.0249999999999981
+   "open_n": 4,
+   "open_clv_c": -0.9874999999999995
   },
   "judged": {
    "n": 102,
@@ -50063,8 +50063,8 @@
    "beat_close": 0.7941176470588235,
    "brier_entry": 0.11192430771848338,
    "brier_close": 0.010915477941176461,
-   "open_n": 2,
-   "open_clv_c": -1.0249999999999981
+   "open_n": 4,
+   "open_clv_c": -0.9874999999999995
   }
  }
 }
