@@ -5,10 +5,11 @@ The Actions job loops for hours. Each wall-clock minute replays closed 1m bars
 after each 1h close. Existing wallet, trades and events are kept. Paper only —
 there is no order endpoint and no API key.
 
-Two paper rules share one account. ema_trend_4h still decides on 1h closes from
-completed 4h bars. orb_ny_15m decides after each closed 15m bar. Stops stay on
-1m highs/lows. The coin list is a monthly top-20 by trailing 90-day median
-quote volume. An existing account is never replaced.
+Four paper rules share one account. ema_trend_4h still decides on 1h closes from
+completed 4h bars. orb_ny_15m decides after each closed 15m bar. xs_mom_1d
+decides on the daily rebalance. delist_short polls Binance delisting notices
+every minute and is not limited to the monthly top-20. Stops stay on 1m
+highs/lows. An existing account is never replaced.
 
     python -m bot.desk binance-paper/state.json          # one full cycle
     python -m bot.desk --tick binance-paper/state.json   # stops, or full if an hour is due
@@ -37,6 +38,7 @@ from .storage import MemoryRecorder
 from .strategies import REGISTRY, make_strategy
 from .symbols import load_symbol_infos
 from .universe import (is_current, month_key, rank_live, slippage_bps, stored_rows)
+from .delist import install_saved_filters, normalize as delist_normalize, poll_delist
 
 log = logging.getLogger("desk")
 
@@ -127,6 +129,19 @@ XS_BACKTEST = {
              "Correlation with ema_trend_4h is about 0.05. Not a proven live edge."),
 }
 
+# Stream E rule E2. Entry at the first full 1h bar; a one-hour delay nearly removes it.
+DELIST_BACKTEST = {
+    "oos": {"window": "2026-01..2026-10", "return_pct": 24.5, "pf": 2.08,
+            "max_dd_pct": -7.8, "trades": 62, "trades_per_month": 7},
+    "is": {"window": "2024-01..2025-12", "return_pct": 26.6, "pf": 3.06,
+           "max_dd_pct": -2.1, "trades": 53, "trades_per_month": 6},
+    "note": ("Paper measurement. About 6-7 trades a month. Short the first full 1h bar "
+             "after a Binance delisting notice, stop 20% above entry, out after 72h or "
+             "30 minutes before settlement. Delaying one hour leaves OOS about +1.6% "
+             "PF 1.06; four hours is negative. Small sample, and the top three trades "
+             "are about 30% of the OOS result. Not a proven live edge."),
+}
+
 
 def strategy_view(strat, cfg):
     view = {"name": strat.name, "timeframe": strat.timeframe,
@@ -137,6 +152,8 @@ def strategy_view(strat, cfg):
         view["backtest"] = ORB_BACKTEST
     elif strat.name == "xs_mom_1d":
         view["backtest"] = XS_BACKTEST
+    elif strat.name == "delist_short":
+        view["backtest"] = DELIST_BACKTEST
     return view
 
 
@@ -184,6 +201,7 @@ def _bind_engine(eng, cfg, state):
     eng.closed_trades = list((state or {}).get("trades") or [])
     raw = ((state or {}).get("engine") or {}).get("universe_period") or {}
     eng.universe_period = {str(k): int(v) for k, v in raw.items() if v is not None}
+    eng.delist = delist_normalize(((state or {}).get("engine") or {}).get("delist"))
     return eng
 
 
@@ -346,6 +364,10 @@ def apply_slip(ex, risk, rows):
         try:
             mp[sym] = float(r.get("slippage_bps", slippage_bps(0))) / 1e4
         except (TypeError, ValueError):
+            mp[sym] = slippage_bps(0) / 1e4
+    # A delist name is not in the monthly volume ranking. Unknown volume is the 5bp tier.
+    for sym in getattr(ex, "pos", {}) or {}:
+        if sym not in mp:
             mp[sym] = slippage_bps(0) / 1e4
     ex.slip_by_symbol = mp
     risk.slip_by_symbol = mp
@@ -858,6 +880,10 @@ def run(path, now=None):
     cfg["symbols"] = list(symbols)
     infos, brackets, filters_src = load_meta(cfg, feed, exchange_info=ei, brackets_raw=br,
                                               allow_missing=htf)
+    install_saved_filters(infos, brackets, state)
+    missing = sorted(s for s in _protected_symbols(state) if s not in infos)
+    if missing:
+        raise RuntimeError(f"cycle missing filters for {missing}; state left untouched")
     symbols = [s for s in symbols if s in infos]
     if not symbols:
         raise RuntimeError("no tradable symbols; state left untouched")
@@ -939,6 +965,10 @@ def run(path, now=None):
     if wants_15:
         expire_time_stops(ex, now)
     bootstrap_flat(eng, now, last_1h)
+    _poll_delist(eng, feed, ei, br, now)
+    for s in ex.pos:
+        if s not in symbols:
+            symbols.append(s)
     return _publish(path, state, cfg, ex, risk, rec, feed, filters_src, probes, symbols, now,
                     strat, last_15m, last_1h, catch, funding_done,
                     universe_rows, ranked_at, universe_month, universe_reused,
@@ -1027,7 +1057,8 @@ def _publish(path, state, cfg, ex, risk, rec, feed, filters_src, probes, symbols
         "universe_reused": universe_reused,
         "exchange": ex.to_dict(),
         "engine": {"risk": risk.to_dict(), "funding_done": funding_done,
-                   "universe_period": _universe_period(state, eng)},
+                   "universe_period": _universe_period(state, eng),
+                   "delist": _delist_blob(state, eng)},
     })
     write_state(path, snap)
     log.info("cycle source=%s filters=%s equity=%.2f positions=%d trades=%d",
@@ -1040,6 +1071,24 @@ def _universe_period(state, eng):
         return {str(k): int(v) for k, v in eng.universe_period.items()}
     raw = ((state or {}).get("engine") or {}).get("universe_period") or {}
     return {str(k): int(v) for k, v in raw.items() if v is not None}
+
+
+def _delist_blob(state, eng):
+    """Keep the announcement cursor when this tick did not rebuild the engine."""
+    if eng is not None and getattr(eng, "delist", None) is not None:
+        return eng.delist
+    raw = ((state or {}).get("engine") or {}).get("delist")
+    return raw if isinstance(raw, dict) else {}
+
+
+def _poll_delist(eng, feed, exchange_info, brackets_raw, now):
+    """Announcement pass. A CMS failure must not abort the tick."""
+    if eng is None:
+        return
+    try:
+        poll_delist(eng, now, exchange_info, brackets_raw, feed)
+    except Exception:
+        log.exception("delist poll failed")
 
 
 def _working_symbols(state, cfg):
@@ -1090,6 +1139,7 @@ def run_stops(path, now=None):
     cfg["symbols"] = list(symbols)
     ei, br = fetch_exchange_info(cfg, feed)
     infos, brackets, filters_src = load_meta(cfg, feed, exchange_info=ei, brackets_raw=br, allow_missing=True)
+    install_saved_filters(infos, brackets, state)
     protected = _protected_symbols(state)
     missing = sorted(s for s in protected if s not in infos)
     if missing:
@@ -1185,6 +1235,13 @@ def run_stops(path, now=None):
             for s in tradable:
                 add_closed(eng, s, "1d", bars_1d.get(s, {}), now)
         bootstrap_flat(eng, now, state.get("last_1h_open"))
+    if eng is None and tradable:
+        eng = TradingEngine(cfg, ex, specs[0], risk, infos, brackets, recorder=rec, strategies=specs)
+        _bind_engine(eng, cfg, state)
+    _poll_delist(eng, feed, ei, br, now)
+    for s in ex.pos:
+        if s not in symbols:
+            symbols.append(s)
     strat = specs[0]
     return _publish(path, state, cfg, ex, risk, rec, feed, filters_src, probes, symbols, now,
                     strat, last_15m, state.get("last_1h_open"), catch, funding_done,

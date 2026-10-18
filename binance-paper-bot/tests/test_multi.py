@@ -67,7 +67,7 @@ def _engine(ex, rec, names):
 def test_config_keeps_ema_and_lists_orb_and_xs():
     cfg = load_config()
     names = [s.name for s in strategy_specs(cfg)]
-    assert names == ["ema_trend_4h", "orb_ny_15m", "xs_mom_1d"]
+    assert names == ["ema_trend_4h", "orb_ny_15m", "xs_mom_1d", "delist_short"]
     assert cfg["strategy"]["name"] == "ema_trend_4h"
     assert cfg["risk"]["max_margin_per_position"] == 0.30
     assert cfg["risk"]["max_daily_loss"] == 0.05
@@ -80,6 +80,9 @@ def test_config_keeps_ema_and_lists_orb_and_xs():
     assert ov["orb_ny_15m"]["max_daily_loss"] == 0.02
     assert ov["xs_mom_1d"]["max_concurrent_positions"] == 8
     assert ov["xs_mom_1d"]["max_daily_loss"] == 0.02
+    assert ov["delist_short"]["max_concurrent_positions"] == 10
+    assert ov["delist_short"]["max_daily_loss"] == 0.02
+    assert "risk_per_trade" not in ov["delist_short"]
     orb = strategy_view(REGISTRY["orb_ny_15m"]({}), cfg)
     xs = strategy_view(REGISTRY["xs_mom_1d"](cfg["strategy"]["params"]["xs_mom_1d"]), cfg)
     assert orb["backtest"]["oos"]["return_pct"] == 11.1
