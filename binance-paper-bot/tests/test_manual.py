@@ -7,8 +7,8 @@ from bot.execution.base import Order
 from bot.execution.paper import PaperExchange
 from bot.indicators import ema
 from bot.config import ROOT
-from bot.manual import (apply_basket_stop, arm_breakeven, basket_id_set, config_path,
-                        ema_align_direction, ensure_blob, execute_plans, leg_pnl,
+from bot.manual import (apply_basket_stop, arm_breakeven, basket_id_set, breakeven_fraction,
+                        config_path, ema_align_direction, ensure_blob, execute_plans, leg_pnl,
                         load_manual_config, plan_opens, rank_candidates, score_directions)
 from bot.margin import LeverageBrackets
 from bot.storage import MemoryRecorder
@@ -40,6 +40,10 @@ def test_aggr_1_is_fixed_eth_short_1000_and_the_rest_are_auto():
     assert fixed["side"] == "SHORT"
     assert fixed["margin"] == 1000
     assert fixed["leverage"] == 5
+    assert fixed["tag"] == "manual_aggr_1"
+    assert fixed["breakeven_at_pct"] == pytest.approx(4.5)
+    assert fixed["breakeven_pct"] == pytest.approx(0.045)
+    assert breakeven_fraction(fixed) == pytest.approx(0.045)
     for t in cfg["trades"]:
         assert t["leverage"] == 5
         assert t["stop_pct"] == pytest.approx(0.06)
@@ -49,6 +53,7 @@ def test_aggr_1_is_fixed_eth_short_1000_and_the_rest_are_auto():
     for t in cfg["trades"][1:]:
         assert t["symbol"] == "auto"
         assert t["margin"] == 600
+        assert "breakeven_at_pct" not in t
 
 
 def test_ema_align_direction_long_short_and_mixed():
@@ -180,7 +185,9 @@ def test_opens_fewer_than_four_and_does_not_retry():
     assert [p["id"] for p in plans] == ["manual_aggr_1", "manual_aggr_2", "manual_aggr_3"]
     assert [p["symbol"] for p in plans] == ["ETHUSDT", "XRPUSDT", "SOLUSDT"]
     assert plans[0]["side"] == "SHORT" and plans[0]["margin"] == 1000
-    assert plans[0]["tag"] == "manual_aggr"
+    assert plans[0]["tag"] == "manual_aggr_1"
+    assert plans[0]["breakeven_pct"] == pytest.approx(0.045)
+    assert plans[1]["tag"] == "manual_aggr"
     assert blob["resolved"] is True
     assert blob["resolved_ms"] == now + 60_000
     for tid in ("manual_aggr_4", "manual_aggr_5"):
@@ -333,8 +340,9 @@ def test_open_logs_symbol_side_entry_stop_tp_and_breakeven():
     _book(ex, "SOLUSDT", 100.0, now)
     execute_plans(ex, rec, plans, now, blob)
     eth = ex.get_position("ETHUSDT")
-    assert eth.strategy == "manual_aggr"
+    assert eth.strategy == "manual_aggr_1"
     assert eth.meta["manual_id"] == "manual_aggr_1"
+    assert eth.meta["breakeven_pct"] == pytest.approx(0.045)
     assert eth.meta["basket"] == "manual_aggr"
     assert eth.side == -1
     assert eth.leverage == 5
@@ -430,6 +438,42 @@ def test_time_exit_does_not_touch_other_strategies():
     _open(ex, "ADAUSDT", 10, "ema_trend_4h", now + 1)
     expire_time_stops(ex, ets + 60_000)
     assert ex.get_position("ADAUSDT") is not None
+
+
+def test_breakeven_at_pct_arms_the_eth_short_at_4_5_percent():
+    cfg, ex, rec, blob, now = _opened_pair()
+    eth = ex.get_position("ETHUSDT")
+    assert eth.strategy == "manual_aggr_1"
+    assert eth.meta["breakeven_pct"] == pytest.approx(0.045)
+    entry = eth.entry_price
+    first = [o.stop_price for o in ex.open_orders("ETHUSDT") if o.type == "STOP_MARKET"]
+    assert first == [pytest.approx(eth.meta["sl"])]
+    _book(ex, "ETHUSDT", entry * 0.956, now + 60_000)   # -4.4%: not yet
+    arm_breakeven(ex, now + 60_000, basket_id_set(cfg))
+    assert [o.stop_price for o in ex.open_orders("ETHUSDT") if o.type == "STOP_MARKET"] == first
+    _book(ex, "ETHUSDT", entry * 0.955, now + 120_000)  # breakeven_at_pct 4.5
+    arm_breakeven(ex, now + 120_000, basket_id_set(cfg))
+    stops = [o.stop_price for o in ex.open_orders("ETHUSDT") if o.type == "STOP_MARKET"]
+    assert stops == [pytest.approx(entry, abs=0.01)]
+    assert eth.meta["breakeven_done"] is True
+
+
+def test_omitted_breakeven_at_pct_leaves_the_stop():
+    bare = {"id": "manual_aggr_9", "symbol": "auto", "margin": 600, "leverage": 5,
+            "stop_pct": 0.06, "tp_pct": 0.09, "max_hold_h": 24}
+    assert breakeven_fraction(bare) == 0
+    both = dict(bare, breakeven_pct=0.02, breakeven_at_pct=4.5)
+    assert breakeven_fraction(both) == pytest.approx(0.045)
+    cfg, ex, rec, blob, now = _opened_pair()
+    eth = ex.get_position("ETHUSDT")
+    eth.meta["breakeven_pct"] = 0
+    eth.meta["breakeven_done"] = False
+    entry = eth.entry_price
+    first = [o.stop_price for o in ex.open_orders("ETHUSDT") if o.type == "STOP_MARKET"]
+    _book(ex, "ETHUSDT", entry * 0.94, now + 60_000)
+    arm_breakeven(ex, now + 60_000, basket_id_set(cfg))
+    assert [o.stop_price for o in ex.open_orders("ETHUSDT") if o.type == "STOP_MARKET"] == first
+    assert eth.meta.get("breakeven_done") is not True
 
 
 def test_breakeven_on_a_short_moves_the_stop_down_to_entry_at_minus_4_5pct():

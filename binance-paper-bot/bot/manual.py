@@ -13,11 +13,16 @@ perpetuals with 24h quote volume at or above the floor, minus BTCUSDT,
 ETHUSDT, anything already open, and anything another id already took (so ETH
 is out of the auto book because aggr_1 holds it). `prefer` (XRPUSDT) is placed
 first when it is eligible; the rest follow 24h quote volume descending.
-Every leg is tagged `manual_aggr` and shares the basket.
+Autos are tagged `manual_aggr`. A trade may set its own `tag`; `manual_aggr_1`
+uses `manual_aggr_1`. Every leg still shares the basket.
 
 The basket tag is `manual_aggr`. If the open legs' unrealized PnL including
 fees already paid is at or below `stop_pnl`, every open leg is closed with
 reason `basket_stop`.
+
+`breakeven_at_pct` is optional and is a percent (4.5 means +4.5% in favour).
+When the mark reaches it, the stop moves to the entry. `breakeven_pct` is the
+same threshold as a fraction (0.045). If neither is set, the stop stays put.
 """
 import json
 import math
@@ -30,7 +35,7 @@ from .symbols import SymbolInfo
 
 HOUR_MS = 3_600_000
 MINUTE_MS = 60_000
-_FIELDS = ("id", "symbol", "margin", "leverage", "stop_pct", "tp_pct", "breakeven_pct", "max_hold_h")
+_FIELDS = ("id", "symbol", "margin", "leverage", "stop_pct", "tp_pct", "max_hold_h")
 
 
 def config_path(cfg):
@@ -67,6 +72,9 @@ def load_manual_config(path):
             if side not in ("LONG", "SHORT"):
                 raise ValueError(f"{t['id']} fixed symbol needs side LONG or SHORT")
             t["side"] = side
+        t["breakeven_pct"] = breakeven_fraction(t)
+        if t.get("tag"):
+            t["tag"] = str(t["tag"])
     cfg["window_h"] = float(cfg.get("window_h", 6))
     cfg["selector"] = cfg.get("selector") or "ema_align_4h"
     cfg["prefer"] = list(cfg.get("prefer") or [])
@@ -81,6 +89,28 @@ def load_manual_config(path):
 
 def trade_ids(cfg):
     return [t["id"] for t in cfg["trades"]]
+
+
+def breakeven_fraction(trade):
+    """Favorable move that arms a stop at the entry.
+
+    `breakeven_at_pct` is optional and is percent points (4.5 = 4.5%).
+    `breakeven_pct` is the same threshold as a fraction (0.045). When both
+    are set, the percent field wins. Missing both leaves the stop where it is.
+    """
+    raw = trade.get("breakeven_at_pct", None)
+    if raw is not None and raw != "":
+        pct = float(raw)
+        if not math.isfinite(pct):
+            raise ValueError(f"{trade.get('id')} breakeven_at_pct must be a percent")
+        return pct / 100.0
+    raw = trade.get("breakeven_pct", None)
+    if raw is None or raw == "":
+        return 0.0
+    pct = float(raw)
+    if not math.isfinite(pct):
+        raise ValueError(f"{trade.get('id')} breakeven_pct must be a fraction")
+    return pct
 
 
 def ema_align_direction(closes):
@@ -262,7 +292,7 @@ def plan_opens(cfg, prev, now, rows, directions, open_symbols):
     pool = list(ranked)
     used = set(open_symbols) | chosen
     plans = []
-    tag = (cfg.get("basket") or {}).get("tag") or "manual_aggr"
+    basket_tag = (cfg.get("basket") or {}).get("tag") or "manual_aggr"
     for trade in pending:
         spec_sym = str(trade.get("symbol") or "auto")
         # A named symbol is a fixed ticket. It does not consult the EMA selector
@@ -293,8 +323,8 @@ def plan_opens(cfg, prev, now, rows, directions, open_symbols):
             "id": trade["id"], "symbol": pick["symbol"], "side": pick["side"],
             "margin": float(trade["margin"]), "leverage": float(trade["leverage"]),
             "stop_pct": float(trade["stop_pct"]), "tp_pct": float(trade["tp_pct"]),
-            "breakeven_pct": float(trade["breakeven_pct"]), "max_hold_h": float(trade["max_hold_h"]),
-            "tag": tag,
+            "breakeven_pct": breakeven_fraction(trade), "max_hold_h": float(trade["max_hold_h"]),
+            "tag": str(trade.get("tag") or basket_tag),
         })
     blob["resolved"] = True
     blob["resolved_ms"] = int(now)
