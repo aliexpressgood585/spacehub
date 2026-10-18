@@ -1,0 +1,86 @@
+# Poly v2 hypotheses (2026-10-18). python3 backtest/research/pm_v2_hypotheses.py hist.jsonl <slip> <out>; data from pm_v2_fetch_markets.py + pm_v2_fetch_hist.py (not committed, ~70k markets)
+
+### slip 1c
+markets with history: 53619; baseline entries 9374; slip 0.01; IS/OOS cut 2026-09-05T15:00:15
+categories: Counter({'soccer/other-sport': 4501, 'esports': 4160, 'other': 403, 'us-sports': 248, 'combat': 59, 'tweets': 2, 'weather': 1})
+fee rates: Counter({0.05: 6243, 0.03: 2537, 0.04: 431, 0.0: 163})
+
+== BASELINE (live rule, every market independent, no portfolio caps)
+baseline 85-92 / 4h                          IS n  6561 WR  85.8% px  89.4  -4.45%/$ t -9.25 | OOS n  2813 WR  83.9% px  89.4  -6.59%/$ t -8.51  
+  cat combat                                 IS n    40 WR  90.0% px  89.7  -0.12%/$ t -0.02 | OOS n    19 WR  84.2% px  88.9  -5.72%/$ t -0.59  
+  cat esports                                IS n  2740 WR  88.3% px  89.3  -1.60%/$ t -2.34 | OOS n  1420 WR  88.0% px  89.3  -1.94%/$ t -2.02  
+  cat other                                  IS n   306 WR  85.0% px  89.4  -5.28%/$ t -2.31 | OOS n    97 WR  95.9% px  89.3  +7.09%/$ t +3.11  
+  cat soccer/other-sport                     IS n  3394 WR  84.0% px  89.5  -6.49%/$ t -9.24 | OOS n  1107 WR  79.5% px  89.5 -11.57%/$ t -8.56  
+  cat tweets                                 IS n     0 WR   nan% px   nan   +nan%/$ t  +nan | OOS n     2 WR 100.0% px  87.8 +13.41%/$ t +42.99  
+  cat us-sports                              IS n    80 WR  76.2% px  89.0 -14.85%/$ t -2.77 | OOS n   168 WR  70.2% px  89.1 -21.25%/$ t -5.35  
+  cat weather                                IS n     1 WR   nan% px   nan   +nan%/$ t  +nan | OOS n     0 WR   nan% px   nan   +nan%/$ t  +nan  
+  bucket 0.85-0.88                           IS n  2920 WR  83.5% px  87.2  -4.77%/$ t -6.08 | OOS n  1262 WR  83.5% px  87.2  -4.82%/$ t -4.05  
+  bucket 0.88-0.9                            IS n  1604 WR  86.9% px  89.9  -3.72%/$ t -3.98 | OOS n   692 WR  83.2% px  89.9  -7.83%/$ t -4.98  
+  bucket 0.9-0.92                            IS n  2037 WR  88.2% px  92.1  -4.58%/$ t -5.92 | OOS n   859 WR  84.9% px  92.1  -8.18%/$ t -6.18  
+  hours 0-0.5                                IS n   175 WR  84.6% px  88.9  -5.34%/$ t -1.74 | OOS n    76 WR  77.6% px  88.4 -12.81%/$ t -2.36  
+  hours 0.5-1                                IS n   168 WR  82.7% px  88.7  -7.26%/$ t -2.21 | OOS n    59 WR  84.7% px  89.2  -5.52%/$ t -1.05  
+  hours 1-2                                  IS n   405 WR  85.9% px  89.3  -4.16%/$ t -2.15 | OOS n   153 WR  84.3% px  89.2  -5.84%/$ t -1.77  
+  hours 2-4.01                               IS n  5813 WR  85.9% px  89.4  -4.37%/$ t -8.57 | OOS n  2525 WR  84.0% px  89.4  -6.47%/$ t -7.95  
+  in-play=True                               IS n  3737 WR  87.2% px  89.3  -2.86%/$ t -4.68 | OOS n  1612 WR  87.2% px  89.3  -2.87%/$ t -3.09  
+  in-play=False                              IS n  2514 WR  83.8% px  89.5  -6.74%/$ t -8.23 | OOS n  1103 WR  78.0% px  89.5 -13.24%/$ t -9.51  
+  in-play=None                               IS n   310 WR  85.2% px  89.4  -5.09%/$ t -2.25 | OOS n    98 WR  95.9% px  89.3  +7.14%/$ t +3.16  
+  type moneyline                             IS n  1763 WR  87.0% px  89.2  -2.96%/$ t -3.30 | OOS n  1026 WR  88.4% px  89.2  -1.39%/$ t -1.24  
+  type child_moneyline                       IS n  1388 WR  87.9% px  89.2  -1.93%/$ t -1.97 | OOS n   730 WR  86.7% px  89.4  -3.50%/$ t -2.49  
+  type none                                  IS n  1250 WR  83.5% px  89.3  -6.93%/$ t -5.91 | OOS n   253 WR  87.0% px  89.2  -2.94%/$ t -1.24  
+  type totals                                IS n   720 WR  79.2% px  89.6 -11.95%/$ t -7.08 | OOS n   502 WR  74.1% px  89.6 -17.63%/$ t -8.10  
+  type soccer_exact_score                    IS n   610 WR  88.4% px  90.1  -2.32%/$ t -1.61 | OOS n    71 WR  80.3% px  91.0 -12.48%/$ t -2.40  
+  type spreads                               IS n   188 WR  83.5% px  89.8  -7.35%/$ t -2.44 | OOS n   110 WR  66.4% px  88.8 -25.35%/$ t -4.98  
+  type soccer_team_totals                    IS n   121 WR  90.1% px  89.5  +0.36%/$ t +0.12 | OOS n    16 WR  68.8% px  89.8 -23.68%/$ t -1.78  
+  type map_handicap                          IS n    78 WR  94.9% px  89.8  +5.35%/$ t +1.91 | OOS n    58 WR  87.9% px  89.3  -1.85%/$ t -0.38  
+  disputed at some point (descriptive, not point-in-time) IS n    33 WR  78.8% px  89.5 -12.34%/$ t -1.53 | OOS n    11 WR  54.5% px  89.6 -39.49%/$ t -2.26  
+
+== HYPOTHESES (each counted; PASS = positive IS and OOS, OOS n>=100, and better than baseline in BOTH halves)
+V01 H1 esports only                          IS n  2740 WR  88.3% px  89.3  -1.60%/$ t -2.34 | OOS n  1420 WR  88.0% px  89.3  -1.94%/$ t -2.02  
+V02 H1 exclude esports                       IS n  3821 WR  84.0% px  89.4  -6.50%/$ t -9.81 | OOS n  1393 WR  79.6% px  89.4 -11.33%/$ t -9.40  
+V03 H1 exclude tennis                        IS n  6561 WR  85.8% px  89.4  -4.45%/$ t -9.25 | OOS n  2813 WR  83.9% px  89.4  -6.59%/$ t -8.51  
+V04 H1 exclude us-sports                     IS n  6481 WR  85.9% px  89.4  -4.32%/$ t -8.96 | OOS n  2645 WR  84.7% px  89.4  -5.66%/$ t -7.25  
+   H2 IS-chosen bands per category (dropped if IS best <= 0): [('combat', 0.86, 0.92), ('us-sports', 0.88, 0.92)]
+V05 H2 band per category (IS-chosen)         IS n    70 WR  91.4% px  90.6  +0.52%/$ t +0.14 | OOS n    97 WR  73.2% px  90.9 -19.51%/$ t -3.92  
+V06 H3 fee-aware: IS WR(cat,1c) > px+fee (n>=30) IS n   541 WR  91.1% px  89.6  +1.27%/$ t +0.93 | OOS n   242 WR  86.4% px  89.6  -4.10%/$ t -1.67  
+V07 H3b skip fee rate >= 0.05                IS n  2893 WR  87.8% px  89.5  -2.22%/$ t -3.27 | OOS n   238 WR  79.0% px  89.1 -11.51%/$ t -3.88  
+V08 H4 first entry per match only (lifetime) IS n  3662 WR  84.1% px  89.3  -6.28%/$ t -9.31 | OOS n  1833 WR  83.6% px  89.4  -6.83%/$ t -7.08  
+V09 H4b at most 2 entries per match (lifetime) IS n  4968 WR  84.8% px  89.3  -5.47%/$ t -9.63 | OOS n  2484 WR  83.6% px  89.3  -6.87%/$ t -8.28  
+V10 H5 in-play only (entry after gameStartTime) IS n  3737 WR  87.2% px  89.3  -2.86%/$ t -4.68 | OOS n  1612 WR  87.2% px  89.3  -2.87%/$ t -3.09  
+V11 H5 pre-start only                        IS n  2514 WR  83.8% px  89.5  -6.74%/$ t -8.23 | OOS n  1103 WR  78.0% px  89.5 -13.24%/$ t -9.51  
+V12 H6 moneyline + child_moneyline only      IS n  3151 WR  87.4% px  89.2  -2.50%/$ t -3.78 | OOS n  1756 WR  87.7% px  89.3  -2.27%/$ t -2.59  
+V13 H6 exclude spreads/totals/handicaps      IS n  5325 WR  86.5% px  89.3  -3.60%/$ t -6.88 | OOS n  2099 WR  87.3% px  89.3  -2.78%/$ t -3.42  
+V14 H7 require gameStartTime (no rules-wording markets) IS n  6251 WR  85.8% px  89.4  -4.42%/$ t -8.98 | OOS n  2715 WR  83.4% px  89.4  -7.08%/$ t -8.90  
+V15 H8 window 2h                             IS n  3549 WR  84.5% px  89.5  -6.02%/$ t -8.89 | OOS n  1395 WR  80.4% px  89.5 -10.56%/$ t -8.91  
+V16 H8 window 3h                             IS n  4687 WR  84.9% px  89.4  -5.44%/$ t -9.34 | OOS n  1960 WR  82.7% px  89.4  -7.94%/$ t -8.32  
+
+worst days by losses (baseline): [('2026-09-20', 28, 106), ('2026-08-22', 21, 86), ('2026-09-19', 20, 89), ('2026-09-28', 19, 63), ('2026-08-16', 18, 74)]
+variants counted: 16  (at 5% per look, ~0.8 false 'both positive' would not be surprising if baseline ~0)
+### slip 0.5c (baseline/esports rows)
+baseline 85-92 / 4h                          IS n  6561 WR  85.8% px  88.9  -3.93%/$ t -8.13 | OOS n  2813 WR  83.9% px  88.9  -6.08%/$ t -7.82  
+  cat esports                                IS n  2740 WR  88.3% px  88.8  -1.07%/$ t -1.55 | OOS n  1420 WR  88.0% px  88.8  -1.41%/$ t -1.46  
+  in-play=True                               IS n  3737 WR  87.2% px  88.8  -2.33%/$ t -3.80 | OOS n  1612 WR  87.2% px  88.8  -2.35%/$ t -2.51  
+V12 H6 moneyline + child_moneyline only      IS n  3151 WR  87.4% px  88.7  -1.98%/$ t -2.97 | OOS n  1756 WR  87.7% px  88.8  -1.74%/$ t -1.98  
+
+### slip 0c
+baseline 85-92 / 4h                          IS n  6561 WR  85.8% px  88.4  -3.41%/$ t -7.01 | OOS n  2813 WR  83.9% px  88.4  -5.58%/$ t -7.12  
+  cat esports                                IS n  2740 WR  88.3% px  88.3  -0.53%/$ t -0.77 | OOS n  1420 WR  88.0% px  88.3  -0.88%/$ t -0.90  
+  in-play=True                               IS n  3737 WR  87.2% px  88.3  -1.80%/$ t -2.92 | OOS n  1612 WR  87.2% px  88.3  -1.82%/$ t -1.94  
+V12 H6 moneyline + child_moneyline only      IS n  3151 WR  87.4% px  88.2  -1.44%/$ t -2.15 | OOS n  1756 WR  87.7% px  88.3  -1.21%/$ t -1.36  
+
+### fidelity vs live fills
+live non-crypto closes 232; also a backtest entry 186
+  live:     WR 88.7%  mean entry 89.1c  mean r -0.97%
+  backtest: WR 87.6%  mean px 89.5c  mean r -2.64%
+  same side won/lost agreement: 172/186; mean |entry time diff| 28 min
+backtest entries since live v2 start (10-13 10:00): n 401 WR 85.8% mean r -4.59%  (live same period ex-crypto: n 232 WR 90.1%)
+  2026-05: n 5 WR 100.0% px 89.2 +11.87%/$ t +7.07
+  2026-06: n 2252 WR 87.7% px 89.5 -2.39%/$ t -3.08
+  2026-07: n 1909 WR 84.7% px 89.4 -5.70%/$ t -6.20
+  2026-08: n 2095 WR 84.4% px 89.2 -5.85%/$ t -6.62
+  2026-09: n 1972 WR 84.1% px 89.4 -6.33%/$ t -6.89
+  2026-10: n 1141 WR 84.4% px 89.4 -5.97%/$ t -4.98
+  esports 2026-06: n 669 WR 87.9% -1.88%/$
+  esports 2026-07: n 818 WR 86.9% -3.15%/$
+  esports 2026-08: n 1065 WR 88.9% -0.97%/$
+  esports 2026-09: n 1065 WR 88.1% -1.85%/$
+  esports 2026-10: n 540 WR 89.3% -0.64%/$

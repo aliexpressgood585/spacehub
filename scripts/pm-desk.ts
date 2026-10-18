@@ -37,6 +37,16 @@ async function he(text: string): Promise<string | undefined> {
   } catch (e) { note.tr_err2 = String(e).slice(0, 80) }
   return undefined   // not cached: retried next cycle
 }
+// Official settlement price of outcome k, or null while the market is not finally resolved. 1 / 0 = normal result;
+// 0.5 = the rules' 50-50 (cancelled / unfinished game), accepted only when every outcome is 0.5 and UMA reports 'resolved'
+// (before 2026-10-18 such a market was never settled and stayed OPEN forever, holding a slot and its match room).
+export function officialPx(m: any, k: number): number | null {
+  if (!m?.closed || !(k >= 0)) return null
+  const px = arr(m.outcomePrices).map(Number), p = px[k]
+  if (p === 1 || p === 0) return p
+  if (p === 0.5 && px.length > 0 && px.every((x) => x === 0.5) && m.umaResolutionStatus === 'resolved') return 0.5
+  return null
+}
 const feeOf = (m: any): FeeSchedule | null => (m.feesEnabled && m.feeSchedule ? { rate: +m.feeSchedule.rate || 0, exponent: +m.feeSchedule.exponent || 1 } : null)
 
 interface Trade { id: number; market_id: string; slug: string; event_slug: string; question: string; outcome: string; token_id: string; end_time: string; qty: number; entry_px: number; entry_fee: number; cost: number; best_ask: number; opened_at: string; status: 'OPEN' | 'CLOSED'; mark_px: number; mark_at: string; exit_px?: number; exit_fee?: number; proceeds?: number; pnl?: number; reason?: string; closed_at?: string; meta?: any }
@@ -55,8 +65,9 @@ try {
     try {
       const m = await j(`${GAMMA}/markets/${t.market_id}`)
       const toks = arr(m.clobTokenIds), px = arr(m.outcomePrices).map(Number), k = toks.indexOf(t.token_id)
-      if (m.closed && k >= 0 && (px[k] === 1 || px[k] === 0)) {
-        Object.assign(t, { status: 'CLOSED', exit_px: px[k], exit_fee: 0, proceeds: t.qty * px[k], pnl: t.qty * px[k] - t.cost, reason: px[k] === 1 ? 'RESOLVED_WIN' : 'RESOLVED_LOSS', closed_at: now(), mark_px: px[k], mark_at: now() })
+      if (officialPx(m, k) != null) {
+        // settle at the official Gamma outcomePrices only (1 / 0, or a 50-50 split once UMA says resolved)
+        Object.assign(t, { status: 'CLOSED', exit_px: px[k], exit_fee: 0, proceeds: t.qty * px[k], pnl: t.qty * px[k] - t.cost, reason: px[k] === 1 ? 'RESOLVED_WIN' : px[k] === 0 ? 'RESOLVED_LOSS' : 'RESOLVED_SPLIT', closed_at: now(), mark_px: px[k], mark_at: now() })
         st.cash += t.qty * px[k]; settled++; continue
       }
       const b = await book(t.token_id)
@@ -177,10 +188,18 @@ for (const d of st.decisions) await heRow(d, d.tr_v !== 2 || !d.question_he || d
 const openCount = st.trades.filter((x) => x.status === 'OPEN').length
 st.strategy = PM; st.last_scan = now(); st.last_note = { ...note, settled, entered, topped, recycled }
 st.equity.push({ ts: now(), equity: st.cash + openValue, cash: st.cash, open_value: openValue, open_count: openCount })
-if (st.equity.length > 5000) st.equity = st.equity.slice(-5000)
+if (st.equity.length > 5000) {
+  // keep the long curve (max drawdown needs it): points falling off the 5,000-point window survive one per hour in equity_h
+  const eh: any[] = ((st as any).equity_h ??= [])
+  for (const e of st.equity.slice(0, st.equity.length - 5000)) if (!eh.length || eh[eh.length - 1].ts.slice(0, 13) !== e.ts.slice(0, 13)) eh.push(e)
+  if (eh.length > 4000) (st as any).equity_h = eh.slice(-4000)
+  st.equity = st.equity.slice(-5000)
+}
 st.decisions = [...decisions.slice(0, 50), ...st.decisions].slice(0, 200)
 fs.mkdirSync(FILE.replace(/\/[^/]*$/, '') || '.', { recursive: true })
 // CLV / Brier (docs/POLY_PLAYBOOK.md): all history and since the crypto exclusion (the judged rule, docs/POLY_SUPERVISOR.md)
 ;(st as any).clv = { all: clvStudy(st.trades), judged: clvStudy(st.trades, '2026-10-15T18:30') }
-fs.writeFileSync(FILE, JSON.stringify(st, null, 1))
+// atomic write: a cycle killed mid-write (workflow `timeout 240`) must not leave a truncated state that every later cycle
+// fails to parse (and that the loop would commit). Write a temp file next to it, then rename over the old one.
+fs.writeFileSync(`${FILE}.tmp`, JSON.stringify(st, null, 1)); fs.renameSync(`${FILE}.tmp`, FILE)
 console.log(JSON.stringify({ cash: st.cash, equity: st.cash + openValue, open: openCount, settled, entered, note }))
