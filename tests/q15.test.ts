@@ -103,5 +103,5 @@ try{
  tape=Array.from({length:1000},(_,i)=>({p:'100',T:NOW-2000+i,a:i}));t=position();t.scalp_meta.q15.hold_ms=5000;assert.equal((await exitRow(t,NOW)).close,null,'incomplete tape cannot invent timeout')
  tape=[{p:'103',T:NOW-1,a:1}];open=[position()];const cycle=await run();assert.equal(commits[0].p_closes.length,1);assert.equal(cycle.closed,1);assert.equal(commits.at(-1).p_entries.length,1,'close frees coin and capital for next entry')
 }finally{globalThis.fetch=realFetch;Date.now=realNow}
-for(const f of ['deploy-edge-function','enforce-no-loss-trading']){const s=readFileSync(`.github/workflows/${f}.yml`,'utf8');for(const kv of ["__ENABLED_SLEEVES = 'Q15'","__Q15_LEV = '15'","__Q15_PER_TRADE = '0.15'","__Q15_MAX_OPEN = '8'","__Q15_SHARE = '0.90'"])assert.ok(s.includes(kv));assert.ok(!s.includes('ALLOW_LIVE_EXECUTION'))}
+for(const f of ['deploy-edge-function','enforce-no-loss-trading']){const s=readFileSync(`.github/workflows/${f}.yml`,'utf8');for(const kv of ["__ENABLED_SLEEVES = 'Q15'","__Q15_LEV = '25'","__Q15_PER_TRADE = '0.15'","__Q15_MAX_OPEN = '8'","__Q15_SHARE = '0.90'"])assert.ok(s.includes(kv));assert.ok(!s.includes('ALLOW_LIVE_EXECUTION'))}
 console.log('q15: autonomy, entries, exits, learning and aggression — all assertions passed')
