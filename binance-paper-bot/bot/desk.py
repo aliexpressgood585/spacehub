@@ -220,12 +220,25 @@ def _positions(ex):
                 sl = o.stop_price
             elif o.type == "TAKE_PROFIT_MARKET":
                 tp = o.stop_price
+        px = mark or p.entry_price
+        br = ex.brackets.for_notional(s, p.qty * px)
         view.append({"symbol": s, "side": "LONG" if p.side > 0 else "SHORT", "qty": p.qty,
                      "entry": p.entry_price, "mark": mark, "leverage": p.leverage,
                      "upnl": p.upnl(mark), "liq": ex.liq_price(s), "sl": sl, "tp": tp,
-                     "isolated_margin": p.isolated_margin, "notional": p.qty * (mark or p.entry_price),
-                     "funding": p.funding, "fees": p.fees, "opened_ts": p.opened_ts})
+                     "isolated_margin": p.isolated_margin, "notional": p.qty * px,
+                     "funding": p.funding, "fees": p.fees, "opened_ts": p.opened_ts,
+                     "mmr": br.mmr, "cum": br.cum})
     return view
+
+
+def _bracket_view(ex, symbols):
+    """Compact leverage brackets so the tab can recompute margin ratio on a live mark."""
+    out = []
+    for s in symbols:
+        out.append({"symbol": s, "brackets": [
+            {"floor": b.floor, "cap": b.cap, "mmr": b.mmr, "cum": b.cum}
+            for b in ex.brackets.get(s)]})
+    return out
 
 
 def _curve_dd(curve, start):
@@ -343,7 +356,8 @@ def run(path, now=None):
     for s in symbols:
         m = ex.mkt[s]
         prices[s] = {"bid": m.bid, "ask": m.ask, "last": m.last, "mark": m.mark or m.last,
-                     "funding_rate": m.funding_rate}
+                     "funding_rate": m.funding_rate,
+                     "next_funding_time": m.next_funding_time or None}
     snap = {
         "version": "binance-paper-v1", "schema": 1, "paper": True, "live_trading": False,
         "starting_balance": start_bal, "wallet": ex.wallet, "equity": eq, "unrealized": ex.unrealized(),
@@ -364,7 +378,8 @@ def run(path, now=None):
                  "day_pnl_pct": day_pnl * 100, "halted": day_pnl <= -risk.max_daily_loss,
                  "max_daily_loss_pct": risk.max_daily_loss * 100,
                  "max_positions": risk.max_pos},
-        "positions": _positions(ex), "prices": prices, "trades": trades, "events": events,
+        "positions": _positions(ex), "prices": prices, "brackets": _bracket_view(ex, symbols),
+        "trades": trades, "events": events,
         "signals": list(old_sigs.values()), "equity_curve": curve, "catchup": catch,
         "symbols": symbols,
         "exchange": ex.to_dict(),
