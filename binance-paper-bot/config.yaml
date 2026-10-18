@@ -1,0 +1,86 @@
+# ===== Binance USDT-M Futures paper-trading bot configuration =====
+mode: paper                  # paper only (live adapter intentionally not implemented)
+
+symbols: [BTCUSDT, ETHUSDT, SOLUSDT, BNBUSDT, XRPUSDT]
+
+account:
+  starting_balance: 10000.0   # USDT
+  margin_type: ISOLATED
+  default_leverage: 3
+
+fees:                         # Binance VIP0 USDT-M (no BNB discount)
+  maker: 0.0002               # 0.02%
+  taker: 0.0005               # 0.05%
+
+execution:
+  slippage_bps: 1.0           # extra adverse slippage on market/stop fills (1 bp = 0.01%)
+  sl_tp_working_type: CONTRACT_PRICE   # CONTRACT_PRICE (last) or MARK_PRICE
+  limit_fill_requires_trade_through: true
+
+risk:
+  risk_per_trade: 0.01        # 1% of equity at risk per trade (incl. est. round-trip fees)
+  max_concurrent_positions: 3
+  max_margin_per_position: 0.30   # a single position may use at most 30% of equity as margin
+  max_daily_loss: 0.05        # stop opening new trades after -5% equity in a UTC day
+  one_position_per_symbol: true
+
+strategy:
+  name: trend_ema             # trend_ema | bollinger_mr
+  params:
+    trend_ema:
+      timeframe: 15m
+      trend_timeframe: 1h
+      ema_fast: 20
+      ema_slow: 50
+      trend_ema: 200
+      rsi_period: 14
+      rsi_long_max: 70        # don't buy when RSI >= 70
+      rsi_short_min: 30       # don't sell when RSI <= 30
+      atr_period: 14
+      sl_atr_mult: 2.0
+      tp_atr_mult: 3.0
+      leverage: 3
+      exit_on_opposite_cross: false
+    bollinger_mr:
+      timeframe: 15m
+      bb_period: 20
+      bb_std: 2.0
+      rsi_period: 14
+      rsi_oversold: 30
+      rsi_overbought: 70
+      atr_period: 14
+      sl_atr_mult: 1.5
+      leverage: 3
+
+data:
+  history_bars: 600           # rolling window of closed candles kept per timeframe
+  # Endpoints are tried in order. fapi.binance.com returns HTTP 451 from GitHub-hosted
+  # runners and from many other hosts; www.binance.com/fapi serves the same production
+  # public market data. If both fail, bot/feed.py uses OKX USDT-SWAP candles and funding
+  # and the dashboard says so. Fees and leverage brackets stay on the Binance schedule
+  # (data/market_meta.json is the committed fallback for exchangeInfo + brackets).
+  rest_bases: ["https://fapi.binance.com", "https://www.binance.com"]
+  okx_base: "https://www.okx.com"
+  brackets_url: "https://www.binance.com/bapi/futures/v1/friendly/future/common/brackets"
+  ws_public: "wss://fstream.binance.com/public/stream"   # bookTicker
+  ws_market: "wss://fstream.binance.com/market/stream"   # markPrice@1s, klines
+  ws_legacy: "wss://fstream.binance.com/stream"
+
+backtest:
+  days: 90
+  warmup_days: 12
+  spread_bps: 1.0             # assumed full bid/ask spread in backtest (no historical book)
+  out_dir: results
+
+live:
+  db_path: data/paper.db
+  trades_csv: data/trades.csv
+  status_file: data/status.json
+  snapshot_file: data/live_snapshot.json
+  log_file: logs/live.log
+  status_interval_sec: 60
+  equity_interval_sec: 60
+
+dashboard:
+  host: 0.0.0.0
+  port: 8787

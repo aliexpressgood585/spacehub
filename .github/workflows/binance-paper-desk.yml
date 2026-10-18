@@ -1,0 +1,58 @@
+name: binance-paper-desk
+# Binance USDT-M futures PAPER desk (binance-paper-bot/). One cycle a few minutes after each 15m
+# close, plus workflow_dispatch. Loads binance-paper/state.json on `pm-desk-data`, replays closed
+# candles since the last cycle, and commits the snapshot the house tab reads.
+# Price source: fapi.binance.com, then www.binance.com/fapi, then OKX USDT-SWAP. Fees stay Binance VIP0.
+# Never places a real order and needs no API keys.
+on:
+  schedule:
+    - cron: '3,18,33,48 * * * *'
+  workflow_dispatch:
+concurrency:
+  group: binance-paper-desk
+  cancel-in-progress: false
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: install
+        run: python -m pip install --disable-pip-version-check -q numpy pyyaml requests
+      - name: cycle
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/desk
+          rm -rf /tmp/desk/binance-paper-bot
+          cp -a binance-paper-bot /tmp/desk/binance-paper-bot
+          git config user.name pm-desk-bot
+          git config user.email actions@github.com
+          git fetch -q origin pm-desk-data || true
+          if git rev-parse --verify origin/pm-desk-data >/dev/null 2>&1; then
+            git checkout -q -B pm-desk-data origin/pm-desk-data
+          else
+            git checkout -q --orphan pm-desk-data && git rm -rf -q . && git clean -fdq
+          fi
+          mkdir -p binance-paper
+          PYTHONPATH=/tmp/desk/binance-paper-bot python -m bot.desk binance-paper/state.json
+          python - <<'PY'
+          import json
+          st = json.load(open("binance-paper/state.json"))
+          ps = st["price_source"]
+          print(f"price_source id={ps['id']} endpoint={ps['endpoint']} filters={ps['filters']}")
+          print("probes:", ps.get("probes"))
+          print(f"equity={st['equity']:.2f} positions={len(st['positions'])} trades={st['trades_closed']}")
+          assert st["paper"] is True and st["live_trading"] is False
+          PY
+          git add binance-paper/state.json
+          if git diff --cached --quiet; then
+            echo "no state change"
+          else
+            git commit -q -m "binance paper desk state $(date -u +%FT%TZ) [skip ci]"
+            git push -q origin pm-desk-data || { git pull -q --rebase -X ours origin pm-desk-data && git push -q origin pm-desk-data; }
+          fi

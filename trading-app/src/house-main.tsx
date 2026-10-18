@@ -1,17 +1,19 @@
 // Standalone page: only the bot's house (house.html), no dashboard around it.
-// 2026-10-15: the house shows two GitHub-Actions PAPER desks as tabs — the quant-coach 4h futures desk (CoachHouse) and the
-// day-trading coach 15m desk (DayHouse). The Supabase project that ran CHAN is blocked (exceed_egress_quota), so ChanHouse
-// (kept in git) has nothing to read. ?tab=day|coach picks a tab; the choice is remembered.
+// The house shows GitHub-Actions PAPER desks as tabs — the day-trading coach 15m desk (DayHouse), the quant-coach 4h
+// futures desk (CoachHouse), and the Binance USDT-M paper futures desk (FuturesHouse). The Supabase project that ran
+// CHAN is blocked (exceed_egress_quota), so ChanHouse (kept in git) has nothing to read.
+// ?tab=day|coach|futures picks a tab; the choice is remembered.
 import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import CoachHouse from './components/CoachHouse'
 import DayHouse from './components/DayHouse'
+import FuturesHouse from './components/FuturesHouse'
 
-type Tab = 'coach' | 'day'
+type Tab = 'coach' | 'day' | 'futures'
 function initial(): Tab {
   const q = new URLSearchParams(location.search).get('tab')
-  if (q === 'day' || q === 'coach') return q
-  try { const s = localStorage.getItem('house_tab'); if (s === 'day' || s === 'coach') return s } catch { /* no storage */ }
+  if (q === 'day' || q === 'coach' || q === 'futures') return q
+  try { const s = localStorage.getItem('house_tab'); if (s === 'day' || s === 'coach' || s === 'futures') return s } catch { /* no storage */ }
   return 'day'
 }
 
@@ -26,8 +28,9 @@ function House() {
       <div dir="rtl" style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
         {chip('day', 'דיי טריידינג · 15m')}
         {chip('coach', 'מאמן כמותי · 4h')}
+        {chip('futures', 'בוט פיוצ\'רס · Binance דמו')}
       </div>
-      {tab === 'day' ? <DayHouse /> : <CoachHouse />}
+      {tab === 'day' ? <DayHouse /> : tab === 'coach' ? <CoachHouse /> : <FuturesHouse />}
     </>
   )
 }
