@@ -62,6 +62,30 @@ def test_universe_bar_closes_leavers_and_keeps_holders():
     assert closes == ["C05USDT"] and longs[0] not in opens and len(opens) == 3
 
 
+def test_bootstrap_uses_the_last_closed_bar_between_rebalances():
+    from datetime import datetime, timezone
+    oct18 = int(datetime(2026, 10, 18, 14, 30, tzinfo=timezone.utc).timestamp() * 1000)
+    oct19 = int(datetime(2026, 10, 19, tzinfo=timezone.utc).timestamp() * 1000)
+    assert oct19 // DAY == 20745 and 20745 % 3 == 0
+    s = REGISTRY[NAME]({"k": 2, "reb_days": 3})
+    assert s.is_rebalance_day(oct19) and not s.is_rebalance_day(oct18)
+    assert s.period_id(oct19) == s.period_id(oct18) + 1
+    assert s.needs_bootstrap(oct18, {}, None)
+    assert not s.needs_bootstrap(oct18, {"C11USDT": object()}, None)
+    assert not s.needs_bootstrap(oct18, {}, s.period_id(oct18))
+    u = {k: daily(v) for k, v in universe().items()}
+    assert s.on_universe_bar(4 * DAY, u, {}) == []
+    boot = s.bootstrap_signals(u)
+    sched = s.on_universe_bar(3 * DAY, u, {})
+    assert s._bootstrap_status == "signals"
+    assert {x.symbol for x in boot} == {x.symbol for x in sched if x.action.startswith("OPEN")}
+    assert len(boot) == 4
+    assert all(x.info.get("bootstrap") is True and x.info["target_weight"] == 0.25 and x.sl_distance > 0 for x in boot)
+    thin = REGISTRY[NAME]({"k": 4, "reb_days": 3})
+    assert thin.bootstrap_signals({k: daily(v) for k, v in universe(n=3).items()}) == []
+    assert thin._bootstrap_status == "empty_book"
+
+
 def test_live_gross_is_one_eighth_of_the_allocation_per_leg():
     """Desk config uses gross 0.30, so eight legs are 3.75% of equity notional each."""
     sc = {f"S{i}": float(i) for i in range(20)}

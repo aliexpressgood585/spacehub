@@ -182,7 +182,105 @@ def _wants_15m(specs):
 def _bind_engine(eng, cfg, state):
     eng.overrides = risk_overrides(cfg)
     eng.closed_trades = list((state or {}).get("trades") or [])
+    raw = ((state or {}).get("engine") or {}).get("universe_period") or {}
+    eng.universe_period = {str(k): int(v) for k, v in raw.items() if v is not None}
     return eng
+
+
+def rebalance_still_due(strat, now, last_1h_open):
+    """True when today's 00:00 UTC rebalance is still waiting for the hourly cycle.
+
+    The full cycle runs about two minutes after midnight and calls
+    on_universe_bar. A minute tick in that window must not open the same book first.
+    """
+    if last_1h_open is None or not strat.is_rebalance_day(now):
+        return False
+    day_start = (int(now) // 86_400_000) * 86_400_000
+    midnight_hour = day_start - INTERVAL_MS["1h"]
+    return int(last_1h_open) < midnight_hour
+
+
+def closed_daily_candles(eng, now):
+    """Daily buffers, dropping a bar that has not closed yet."""
+    out = {}
+    now = int(now)
+    for sym, bufs in (getattr(eng, "candles", None) or {}).items():
+        buf = (bufs or {}).get("1d")
+        if not buf or not getattr(buf, "rows", None):
+            continue
+        arrays = buf.arrays()
+        if len(arrays["close_time"]) == 0:
+            continue
+        if int(arrays["close_time"][-1]) + 1 > now:
+            if len(arrays["close_time"]) < 2:
+                continue
+            arrays = {k: v[:-1] for k, v in arrays.items()}
+            if int(arrays["close_time"][-1]) + 1 > now:
+                continue
+        out[sym] = arrays
+    return out
+
+
+def bootstrap_due(specs, ex, now, period, last_1h_open):
+    """'latch' to record a book already open, 'enter' to open a flat one, else ''."""
+    period = period or {}
+    for st in specs:
+        if not hasattr(st, "needs_bootstrap"):
+            continue
+        positions = {s: p for s, p in ex.positions().items() if getattr(p, "strategy", "") == st.name}
+        pid = int(st.period_id(now))
+        if positions:
+            if period.get(st.name) != pid:
+                return "latch"
+            continue
+        if st.needs_bootstrap(now, positions, period.get(st.name)) and not rebalance_still_due(st, now, last_1h_open):
+            return "enter"
+    return ""
+
+
+def bootstrap_flat(eng, now, last_1h_open=None):
+    """Open a flat cross-sectional book from the last closed daily bars.
+
+    One entry per rebalance period. An open book, or a period already recorded,
+    is left alone. Returns how many entry signals were handed to the engine.
+    """
+    if eng is None:
+        return 0
+    period = eng.universe_period
+    n = 0
+    now = int(now)
+    for st in eng.strats:
+        needs = getattr(st, "needs_bootstrap", None)
+        fn = getattr(st, "bootstrap_signals", None)
+        if needs is None or fn is None:
+            continue
+        name = st.name
+        positions = {s: p for s, p in eng.ex.positions().items() if getattr(p, "strategy", "") == name}
+        pid = int(st.period_id(now))
+        if positions:
+            period[name] = pid
+            continue
+        if not needs(now, positions, period.get(name)):
+            continue
+        if rebalance_still_due(st, now, last_1h_open):
+            continue
+        candles = closed_daily_candles(eng, now)
+        try:
+            sigs = fn(candles) or []
+        except Exception:
+            log.exception("bootstrap failed for %s", name)
+            continue
+        if getattr(st, "_bootstrap_status", "") == "empty_book":
+            period[name] = pid
+            continue
+        for sig in sigs:
+            n += 1
+            eng.last_signal[sig.symbol] = {"ts": now, "action": sig.action, "reason": sig.reason,
+                                            "info": sig.info, "strategy": name}
+            eng.handle(sig, now, st)
+        if any(getattr(p, "strategy", "") == name for p in eng.ex.positions().values()):
+            period[name] = pid
+    return n
 
 
 def fetch_exchange_info(cfg, feed):
@@ -840,6 +938,7 @@ def run(path, now=None):
     refresh_live(ex, feed, symbols, now)
     if wants_15:
         expire_time_stops(ex, now)
+    bootstrap_flat(eng, now, last_1h)
     return _publish(path, state, cfg, ex, risk, rec, feed, filters_src, probes, symbols, now,
                     strat, last_15m, last_1h, catch, funding_done,
                     universe_rows, ranked_at, universe_month, universe_reused,
@@ -927,12 +1026,20 @@ def _publish(path, state, cfg, ex, risk, rec, feed, filters_src, probes, symbols
         "universe_month": universe_month,
         "universe_reused": universe_reused,
         "exchange": ex.to_dict(),
-        "engine": {"risk": risk.to_dict(), "funding_done": funding_done},
+        "engine": {"risk": risk.to_dict(), "funding_done": funding_done,
+                   "universe_period": _universe_period(state, eng)},
     })
     write_state(path, snap)
     log.info("cycle source=%s filters=%s equity=%.2f positions=%d trades=%d",
              snap["price_source"]["id"], filters_src, eq, len(snap["positions"]), len(trades))
     return snap
+
+
+def _universe_period(state, eng):
+    if eng is not None and getattr(eng, "universe_period", None) is not None:
+        return {str(k): int(v) for k, v in eng.universe_period.items()}
+    raw = ((state or {}).get("engine") or {}).get("universe_period") or {}
+    return {str(k): int(v) for k, v in raw.items() if v is not None}
 
 
 def _working_symbols(state, cfg):
@@ -1066,6 +1173,18 @@ def run_stops(path, now=None):
         refresh_live(ex, feed, tradable, now)
     if _wants_15m(specs):
         expire_time_stops(ex, now)
+    stored_period = ((state.get("engine") or {}).get("universe_period") or {})
+    kind = bootstrap_due(specs, ex, now, stored_period, state.get("last_1h_open")) if tradable else ""
+    if kind:
+        if eng is None:
+            eng = TradingEngine(cfg, ex, specs[0], risk, infos, brackets, recorder=rec, strategies=specs)
+            _bind_engine(eng, cfg, state)
+        if kind == "enter" and not closed_daily_candles(eng, now):
+            d1 = INTERVAL_MS["1d"]
+            bars_1d, _md = fetch_lenient(feed, tradable, "1d", now - 300 * d1, now, now)
+            for s in tradable:
+                add_closed(eng, s, "1d", bars_1d.get(s, {}), now)
+        bootstrap_flat(eng, now, state.get("last_1h_open"))
     strat = specs[0]
     return _publish(path, state, cfg, ex, risk, rec, feed, filters_src, probes, symbols, now,
                     strat, last_15m, state.get("last_1h_open"), catch, funding_done,
