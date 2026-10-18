@@ -1,0 +1,65 @@
+{
+  "window_h": 6,
+  "selector": "ema_align_4h",
+  "prefer": ["XRPUSDT"],
+  "min_quote_volume": 200000000,
+  "exclude": ["BTCUSDT", "ETHUSDT"],
+  "basket": {
+    "tag": "manual_aggr",
+    "stop_pnl": -800
+  },
+  "trades": [
+    {
+      "id": "manual_aggr_1",
+      "symbol": "ETHUSDT",
+      "side": "SHORT",
+      "margin": 1000,
+      "leverage": 5,
+      "stop_pct": 0.06,
+      "tp_pct": 0.09,
+      "breakeven_at_pct": 4.5,
+      "max_hold_h": 24,
+      "tag": "manual_aggr_1"
+    },
+    {
+      "id": "manual_aggr_2",
+      "symbol": "auto",
+      "margin": 600,
+      "leverage": 5,
+      "stop_pct": 0.06,
+      "tp_pct": 0.09,
+      "breakeven_pct": 0.045,
+      "max_hold_h": 24
+    },
+    {
+      "id": "manual_aggr_3",
+      "symbol": "auto",
+      "margin": 600,
+      "leverage": 5,
+      "stop_pct": 0.06,
+      "tp_pct": 0.09,
+      "breakeven_pct": 0.045,
+      "max_hold_h": 24
+    },
+    {
+      "id": "manual_aggr_4",
+      "symbol": "auto",
+      "margin": 600,
+      "leverage": 5,
+      "stop_pct": 0.06,
+      "tp_pct": 0.09,
+      "breakeven_pct": 0.045,
+      "max_hold_h": 24
+    },
+    {
+      "id": "manual_aggr_5",
+      "symbol": "auto",
+      "margin": 600,
+      "leverage": 5,
+      "stop_pct": 0.06,
+      "tp_pct": 0.09,
+      "breakeven_pct": 0.045,
+      "max_hold_h": 24
+    }
+  ]
+}
