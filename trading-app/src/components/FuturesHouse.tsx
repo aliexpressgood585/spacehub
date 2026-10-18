@@ -558,7 +558,7 @@ export default function FuturesHouse() {
       )}
 
       <section className="fx-panel">
-        <h2>חוזים בשידור <span>{Object.keys(tape).length ? 'מחיר מארק חי' : 'מתחבר לבורסה…'}</span></h2>
+        <h2>חוזים בשידור <span>{chartSymbols.length}{Object.keys(tape).length ? ' · מחיר מארק חי' : ' · מתחבר לבורסה…'}</span></h2>
         {!chartSymbols.length && <div className="fx-empty">הבוט עוד לא פרסם רשימת חוזים.</div>}
         <div className="fx-tape">
           {chartSymbols.map((s) => {
@@ -645,6 +645,11 @@ export default function FuturesHouse() {
             {strat.rows.map((r) => <span key={r.k}>{r.label}<b className="fx-num">{r.v}</b></span>)}
             {!strat.rows.length && <span>אין פרמטרים בקובץ</span>}
           </div>
+          {!!strat.backtest.length && (
+            <div className="fx-params" style={{ marginTop: 8 }}>
+              {strat.backtest.map((r) => <span key={r.k}>{r.label}<b className="fx-num">{r.v}</b></span>)}
+            </div>
+          )}
           <div className="fx-empty" style={{ marginTop: 8 }}>
             {st.risk?.halted ? 'כניסות חדשות חסומות להיום.' : `כניסות מותרות. תקרת הפסד יומי ${st.risk?.max_daily_loss_pct ?? '—'}%.`}
             {st.last_bar_close ? ` נר אחרון שנסגר: ${st.last_bar_close}.` : ''}

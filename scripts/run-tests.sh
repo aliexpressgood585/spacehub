@@ -78,6 +78,7 @@ run "intraday retest"       tests/intraday-retest.test.ts
 run "fast fresh entry"       tests/fast-entry.test.ts
 run "gym"                   tests/gym.test.ts
 run "costs + profit gate"   tests/costs.test.ts
+run "futures live tape"    tests/futures-live.test.ts
 run "opportunity v87 (aggressive demo)" tests/opportunity.test.ts
 run "universe v88 (dynamic)" tests/universe.test.ts
 run "strategy rules"        tests/strategy.test.ts

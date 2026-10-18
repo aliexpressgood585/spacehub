@@ -45,6 +45,31 @@ assert(act.some((e) => e.type === 'TAKE_PROFIT' && e.symbol === 'XRPUSDT' && e.p
 const rows = strategyRows({ strategy: { name: 'trend_ema', timeframe: '4h', params: { leverage: 3, exit_on_opposite_cross: false, custom_gate: 'x' } } })
 assert(rows.timeframe === '4h' && rows.rows.some((r) => r.label === 'מינוף' && r.v === '3'), 'known param translated')
 assert(rows.rows.some((r) => r.k === 'custom_gate' && r.label === 'custom_gate'), 'unknown param kept')
+assert(rows.backtest.length === 0, 'no backtest block')
 assert(contractSymbol('sol') === 'SOLUSDT', 'bare coin')
+
+const ema = strategyRows({
+  strategy: {
+    name: 'ema_trend_4h',
+    timeframe: '1h',
+    params: { signal_timeframe: '4h', sl_atr: 3, tp_atr: 0, regime: 'self50', leverage: 3, gate: { min_t: 2, on: true } },
+    backtest: {
+      oos: { window: '2026-01..2026-10', return_pct: 43.4, win_rate_pct: 36.7, pf: 3.57, max_dd_pct: -11.6, trades: 30 },
+      is: { window: '2024-09..2025-12', return_pct: 107.2, win_rate_pct: 27.9, pf: 3.07, max_dd_pct: -17.8, trades: 61 },
+    },
+  },
+})
+assert(ema.rows.some((r) => r.label === 'נר האות' && r.v === '4h'), 'signal timeframe')
+assert(ema.rows.some((r) => r.k === 'tp_atr' && r.v === '0'), 'zero target stays numeric')
+assert(ema.rows.some((r) => r.k === 'gate' && r.v === 'min_t 2 · on כן' && !r.v.includes('{')), 'nested param is not json: ' + ema.rows.find((r) => r.k === 'gate')?.v)
+assert(ema.backtest[0]?.label === 'מחוץ למדגם' && ema.backtest[0].v.includes('+43.4%') && ema.backtest[0].v.includes('30 עסקאות'), ema.backtest[0]?.v)
+assert(ema.backtest[1]?.v.startsWith('2024-09..2025-12'), ema.backtest[1]?.v)
+assert(!JSON.stringify(ema).includes('return_pct'), 'backtest keys stay off the page')
+
+const ranked = liveSymbols({
+  universe: [{ symbol: 'BTCUSDT', rank: 1 }, { symbol: '1000PEPEUSDT', rank: 12, median_volume: 1 }],
+  prices: { ETHUSDT: {} },
+})
+assert(ranked.join() === 'BTCUSDT,1000PEPEUSDT', 'universe objects, prices ignored: ' + ranked.join())
 
 console.log('model.spec ok', act.length)

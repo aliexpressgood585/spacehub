@@ -19,6 +19,10 @@ const PARAM_HE: Record<string, string> = {
   atr_period: 'ATR',
   sl_atr_mult: 'סטופ × ATR',
   tp_atr_mult: 'יעד × ATR',
+  sl_atr: 'סטופ × ATR',
+  tp_atr: 'יעד × ATR',
+  signal_timeframe: 'נר האות',
+  regime: 'משטר',
   leverage: 'מינוף',
   exit_on_opposite_cross: 'יציאה בחצייה הפוכה',
   bb_period: 'בולינגר',
@@ -152,7 +156,18 @@ export function buildActivity(st: any): Act[] {
   return items
 }
 
-export function strategyRows(st: any): { name: string; timeframe: string; rows: { k: string; label: string; v: string }[] } {
+const SPLIT_HE: Record<string, string> = {
+  oos: 'מחוץ למדגם',
+  is: 'בתוך המדגם',
+  holdout: 'מדגם שמור',
+}
+
+export function strategyRows(st: any): {
+  name: string
+  timeframe: string
+  rows: { k: string; label: string; v: string }[]
+  backtest: { k: string; label: string; v: string }[]
+} {
   const s = st?.strategy ?? {}
   const name = String(s.name || '—')
   const timeframe = String(s.timeframe || s.params?.timeframe || '—')
@@ -162,15 +177,47 @@ export function strategyRows(st: any): { name: string; timeframe: string; rows: 
     label: PARAM_HE[k] || k,
     v: fmtParam(params[k]),
   }))
-  return { name, timeframe, rows }
+  const bt = s.backtest && typeof s.backtest === 'object' ? s.backtest as Record<string, unknown> : {}
+  const backtest = Object.keys(bt).map((k) => ({
+    k,
+    label: SPLIT_HE[k] || k,
+    v: fmtSplit(bt[k]),
+  }))
+  return { name, timeframe, rows, backtest }
 }
 
-function fmtParam(v: unknown): string {
+function fmtScalar(v: unknown): string {
   if (typeof v === 'boolean') return v ? 'כן' : 'לא'
   if (typeof v === 'number') return Number.isInteger(v) ? String(v) : String(Math.round(v * 10000) / 10000)
   if (typeof v === 'string') return v
   if (v == null) return '—'
-  try { return JSON.stringify(v) } catch { return String(v) }
+  return ''
+}
+
+function fmtParam(v: unknown): string {
+  if (typeof v === 'boolean' || typeof v === 'number' || typeof v === 'string' || v == null) return fmtScalar(v) || '—'
+  if (Array.isArray(v)) {
+    const parts = v.slice(0, 6).map((x) => fmtScalar(x) || '…')
+    return parts.join(', ') + (v.length > 6 ? '…' : '')
+  }
+  if (typeof v === 'object') {
+    const parts = Object.entries(v as Record<string, unknown>).slice(0, 6).map(([k, x]) => `${PARAM_HE[k] || k} ${fmtScalar(x) || '…'}`)
+    return parts.join(' · ') || '—'
+  }
+  return String(v)
+}
+
+function fmtSplit(v: unknown): string {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return fmtParam(v)
+  const o = v as Record<string, unknown>
+  const bits: string[] = []
+  if (o.window != null) bits.push(String(o.window))
+  if (typeof o.return_pct === 'number') bits.push(`${o.return_pct > 0 ? '+' : ''}${fmtScalar(o.return_pct)}%`)
+  if (typeof o.win_rate_pct === 'number') bits.push(`הצלחה ${fmtScalar(o.win_rate_pct)}%`)
+  if (typeof o.pf === 'number') bits.push(`PF ${fmtScalar(o.pf)}`)
+  if (typeof o.max_dd_pct === 'number') bits.push(`ירידה ${fmtScalar(o.max_dd_pct)}%`)
+  if (o.trades != null) bits.push(`${fmtScalar(o.trades)} עסקאות`)
+  return bits.join(' · ') || fmtParam(v)
 }
 
 export function whyLabel(type: string): string {
