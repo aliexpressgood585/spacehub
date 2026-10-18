@@ -1,0 +1,116 @@
+POLY ROUND 5 — new strategy families (2026-10-18). Paper research only. Scripts: backtest/research/pm_r5_new_strategies.py,
+pm_r5_jf_robustness.py, pm_r5_fetch_hist_long.py. Implemented: idea C as the PAPER sub-strategy 'fade' (shared/pm.ts FADE).
+
+== 1. PRE-REGISTRATION (verbatim, written before any result)
+# Round 5 pre-registration (written 2026-10-18 ~15:20 UTC, BEFORE any result of these rules was computed)
+Data: resolved binary non-crypto Polymarket markets, volume >= $20k, endDate 2026-06-01..10-17 (Gamma), HOURLY CLOB
+prices-history over [endDate-14d, close]. Entry = the price at the first hourly point at/after the entry time, + 1c slippage,
+taker fee = market feeSchedule.rate x px x (1-px) if feesEnabled (else 0). Market must still be open at entry
+(closedTime > entry time; knowable in real time). Hold to the official result. r = (won - px - fee)/(px + fee).
+Per idea: time split by entry time, first 70% IS / last 30% OOS, OOS read once. PASS = mean r > 0 in IS and OOS, OOS n >= 100.
+Also reported: mean days held, r per $-day (= sum r / sum days), annualised simple = r_per_day x 365.
+"Sports" = has gameStartTime or sportsMarketType, or slug prefix of a known league/esport. "Non-sports" = everything else
+except weather (rejected), crypto price (other desk).
+One entry per market. Cumulative OOS count starts at 28.
+
+A  LONGSHOT-NO (idea 1). Non-sports Yes/No markets. At T before endDate, if YES in [0.03, 0.15], buy NO.
+   Variants (3 OOS reads): T = 7d, 3d, 1d.
+B  LONG-HORIZON FAVOURITE (idea 2). All non-crypto markets. At T before endDate, buy the side priced [0.93, 0.98].
+   Variants (2 OOS reads): T = 7d, 3d.
+C  JUMP FADE/FOLLOW (idea 3). Non-sports. Hourly move >= 15c between consecutive points, new price in [0.15, 0.85], endDate
+   >= 24h away. Direction (fade = buy the side that just fell; follow = buy the side that just rose) chosen on IS only.
+   1 OOS read.
+D  MENTION / COUNT NO (idea 4). Question matches say|says|said|mention|tweet|tweets|post|posts. At T = 1d before endDate,
+   if YES in [0.05, 0.40], buy NO. 1 OOS read.
+E  PRE-GAME FAVOURITE BY LEAGUE (idea 5). Sports moneyline markets with gameStartTime. At gameStart - 3h (before start),
+   buy the side in [0.60, 0.85]. Leagues (slug prefix) kept if IS mean r > 0 with IS n >= 50; pooled kept leagues read OOS
+   once. 1 OOS read.
+Stop rule: an idea whose IS mean r <= 0 for every variant is stopped before OOS (no OOS look counted).
+
+== 2. RESULTS (pm_r5_new_strategies.py; 'IS-only' rows were never read OOS)
+markets 68488 (sports 63582); slip 0.01; mode IS+OOS
+
+== A longshot NO (non-sports Yes/No, YES 3-15c at T before end)
+IS-only  A T=7d                                               IS n   494 WR  89.9%  -3.95%/$ t -2.71 days  8.57 -0.461%/$-day (ann -168%)
+IS-only  A T=3d                                               IS n   406 WR  86.9%  -7.26%/$ t -4.04 days  5.59 -1.297%/$-day (ann -473%)
+IS-only  A T=1d                                               IS n   318 WR  88.7%  -5.25%/$ t -2.74 days  4.42 -1.186%/$-day (ann -433%)
+   A stopped: IS <= 0 for every variant
+
+== B long-horizon favourite 93-98c
+IS-only  B T=7d                                               IS n  1555 WR  96.7%  -0.01%/$ t -0.02 days  6.68 -0.002%/$-day (ann -1%)
+IS-only  B T=3d                                               IS n  2094 WR  94.7%  -2.19%/$ t -4.32 days  3.61 -0.607%/$-day (ann -222%)
+   B stopped: IS <= 0 for every variant
+
+== C jump >= 15c in <= 1.5h (non-sports), fade vs follow chosen IS
+IS-only  C fade                                               IS n   934 WR  50.3% +10.16%/$ t +2.38 days  7.82 +1.300%/$-day (ann +475%)
+IS-only  C follow                                             IS n   934 WR  49.7% -15.06%/$ t -4.74 days  7.82 -1.927%/$-day (ann -703%)
+OOS#29  C fade (IS-chosen)                                   IS n   934 WR  50.3% +10.16%/$ t +2.38 days  7.82 +1.300%/$-day (ann +475%) | OOS n   401 WR  50.6%  +8.01%/$ t +1.28 days  7.63 +1.050%/$-day (ann +383%)  PASS
+
+== D mention/count NO at T=1d, YES 5-40c
+IS-only  D                                                    IS n    14 WR  71.4% -12.27%/$ t -0.78 days  2.59 -4.738%/$-day (ann -1729%)
+   D stopped: IS <= 0
+
+== E pre-game favourite 60-85c at start-3h, leagues chosen IS
+IS-only  E league atp                                         IS n  2160 WR  67.5%  -5.93%/$ t -4.16 days  0.24 -24.437%/$-day (ann -8919%)
+IS-only  E league cs2                                         IS n  1513 WR  66.4%  -5.41%/$ t -3.09 days  0.28 -19.208%/$-day (ann -7011%)
+IS-only  E league lol                                         IS n  1303 WR  68.6%  -5.36%/$ t -2.98 days  0.32 -16.586%/$-day (ann -6054%)
+IS-only  E league wta                                         IS n  1078 WR  69.6%  -4.44%/$ t -2.27 days  0.23 -19.400%/$-day (ann -7081%)
+IS-only  E league dota2                                       IS n   698 WR  70.6%  -1.06%/$ t -0.43 days  0.30 -3.515%/$-day (ann -1283%)
+IS-only  E league itf                                         IS n   530 WR  55.7% -24.08%/$ t -8.08 days  0.32 -75.334%/$-day (ann -27497%)
+IS-only  E league val                                         IS n   510 WR  63.7%  -9.50%/$ t -3.11 days  0.28 -33.664%/$-day (ann -12287%)
+IS-only  E league mlb                                         IS n   306 WR  66.7%  +0.64%/$ t +0.16 days  0.24 +2.710%/$-day (ann +989%)
+IS-only  E league mls                                         IS n   205 WR  69.3%  -6.62%/$ t -1.50 days  0.25 -26.945%/$-day (ann -9835%)
+IS-only  E league fifwc                                       IS n   196 WR  76.0%  +0.72%/$ t +0.18 days  0.24 +3.034%/$-day (ann +1107%)
+IS-only  E league col                                         IS n   186 WR  61.3% -17.03%/$ t -3.48 days  0.29 -58.069%/$-day (ann -21195%)
+IS-only  E league arg                                         IS n   174 WR  66.1%  -8.72%/$ t -1.74 days  0.22 -39.020%/$-day (ann -14242%)
+IS-only  E league ucl                                         IS n   162 WR  71.0%  -6.54%/$ t -1.37 days  0.23 -28.479%/$-day (ann -10395%)
+IS-only  E league fif                                         IS n   151 WR  73.5%  -3.04%/$ t -0.63 days  0.29 -10.617%/$-day (ann -3875%)
+IS-only  E league wnba                                        IS n   140 WR  80.0%  +7.92%/$ t +1.70 days  0.24 +32.865%/$-day (ann +11996%)
+IS-only  E league bra                                         IS n   122 WR  59.8% -20.18%/$ t -3.37 days  0.32 -63.061%/$-day (ann -23017%)
+IS-only  E league mex                                         IS n   120 WR  69.2%  -7.97%/$ t -1.40 days  0.30 -26.783%/$-day (ann -9776%)
+IS-only  E league chi                                         IS n   118 WR  64.4% -12.56%/$ t -2.07 days  0.29 -43.532%/$-day (ann -15889%)
+IS-only  E league ufc                                         IS n   114 WR  76.3%  +3.22%/$ t +0.58 days  0.30 +10.786%/$-day (ann +3937%)
+IS-only  E league uel                                         IS n   107 WR  63.6% -14.17%/$ t -2.22 days  0.31 -46.264%/$-day (ann -16886%)
+IS-only  E league lec                                         IS n   106 WR  70.8%  -5.16%/$ t -0.85 days  0.30 -16.945%/$-day (ann -6185%)
+IS-only  E league crint                                       IS n    99 WR  74.7%  +2.56%/$ t +0.42 days  1.13 +2.269%/$-day (ann +828%)
+IS-only  E league lal                                         IS n    83 WR  73.5%  -0.91%/$ t -0.14 days  0.22 -4.164%/$-day (ann -1520%)
+IS-only  E league clf                                         IS n    82 WR  59.8% -20.84%/$ t -2.86 days  0.31 -66.734%/$-day (ann -24358%)
+IS-only  E league kor                                         IS n    76 WR  63.2% -12.86%/$ t -1.65 days  0.28 -45.517%/$-day (ann -16614%)
+IS-only  E league swe                                         IS n    71 WR  52.1% -28.81%/$ t -3.50 days  0.29 -98.698%/$-day (ann -36025%)
+IS-only  E league elc                                         IS n    68 WR  63.2% -12.64%/$ t -1.54 days  0.29 -43.742%/$-day (ann -15966%)
+IS-only  E league epl                                         IS n    63 WR  71.4%  -4.97%/$ t -0.64 days  0.24 -21.104%/$-day (ann -7703%)
+IS-only  E league sea                                         IS n    63 WR  79.4%  +6.12%/$ t +0.88 days  0.22 +28.335%/$-day (ann +10342%)
+IS-only  E league bra2                                        IS n    61 WR  62.3% -13.37%/$ t -1.52 days  0.30 -44.988%/$-day (ann -16420%)
+IS-only  E league nor                                         IS n    59 WR  66.1% -11.19%/$ t -1.32 days  0.30 -37.353%/$-day (ann -13634%)
+IS-only  E league fl1                                         IS n    55 WR  69.1%  -8.08%/$ t -0.96 days  0.23 -34.934%/$-day (ann -12751%)
+IS-only  E league col1                                        IS n    50 WR  64.0% -10.67%/$ t -1.10 days  0.37 -28.730%/$-day (ann -10486%)
+   E kept leagues: ['mlb', 'fifwc', 'wnba', 'ufc', 'crint', 'sea']
+OOS#30  E pooled kept leagues (IS cut of all E)              IS n   918 WR  73.6%  +2.67%/$ t +1.29 days  0.34 +7.854%/$-day (ann +2867%) | OOS n   268 WR  68.3%  -4.77%/$ t -1.18 days  0.32 -14.848%/$-day (ann -5420%)  FAIL
+
+cumulative OOS looks: 30 (28 before this round); IS looks this round: 42
+== 3. ROBUSTNESS of C-fade (pm_r5_jf_robustness.py). Sensitivity reads of the SAME variant on IS+OOS, disclosed; not new
+   variants and not used to pick parameters, except one-per-event, which the live rule adopts (owner/agent decision after
+   seeing it: treat its numbers as in-sample).
+C fade as registered (slip 1c)               IS n   934 WR  50.3% +10.16%/$ t +2.38 days  7.82 +1.300%/$-day (ann +475%) | OOS n   401 WR  50.6%  +8.01%/$ t +1.28 days  7.63 +1.050%/$-day (ann +383%)
+  slip 0.02                                  IS n   934 WR  50.3%  +7.32%/$ t +1.78 days  7.82 +0.936%/$-day (ann +342%) | OOS n   401 WR  50.6%  +5.35%/$ t +0.89 days  7.63 +0.701%/$-day (ann +256%)
+  slip 0.03                                  IS n   934 WR  50.3%  +4.65%/$ t +1.17 days  7.82 +0.594%/$-day (ann +217%) | OOS n   401 WR  50.6%  +2.84%/$ t +0.49 days  7.63 +0.372%/$-day (ann +136%)
+  slip 0.05                                  IS n   934 WR  50.3%  -0.24%/$ t -0.06 days  7.82 -0.031%/$-day (ann -11%) | OOS n   401 WR  50.6%  -1.78%/$ t -0.32 days  7.63 -0.233%/$-day (ann -85%)
+  delayed entry: next hourly point (+1h)     IS n   900 WR  50.3%  +5.45%/$ t +1.20 days  8.07 +0.675%/$-day (ann +246%) | OOS n   386 WR  51.6%  +2.38%/$ t +0.39 days  7.55 +0.315%/$-day (ann +115%)
+  delayed entry +1h, slip 2c                 IS n   900 WR  50.3%  +2.58%/$ t +0.60 days  8.07 +0.320%/$-day (ann +117%) | OOS n   386 WR  51.6%  -0.06%/$ t -0.01 days  7.55 -0.009%/$-day (ann -3%)
+  one per event (first jump)                 IS n   543 WR  51.0% +14.33%/$ t +2.48 days  8.68 +1.650%/$-day (ann +602%) | OOS n   233 WR  51.1% +13.76%/$ t +1.59 days  8.10 +1.699%/$-day (ann +620%)
+  volume >= $100k                            IS n   270 WR  47.4%  +4.20%/$ t +0.55 days  7.33 +0.573%/$-day (ann +209%) | OOS n   117 WR  53.0% +13.31%/$ t +1.17 days  7.33 +1.816%/$-day (ann +663%)
+  negRisk markets only                       IS n   513 WR  50.9% +12.96%/$ t +2.21 days  8.28 +1.565%/$-day (ann +571%) | OOS n   221 WR  48.0%  -0.18%/$ t -0.02 days  7.62 -0.024%/$-day (ann -9%)
+  non-negRisk only                           IS n   420 WR  49.5%  +4.98%/$ t +0.81 days  7.22 +0.690%/$-day (ann +252%) | OOS n   181 WR  54.1% +22.13%/$ t +2.28 days  7.71 +2.870%/$-day (ann +1047%)
+events 776 markets 1335 top events [('world-cup-team-to-advance-to-knockout-stages', 18), ('claude-fable-5-restored-for-us-customers-by-20260613193753196', 11), ('world-cup-nation-to-reach-round-of-16', 11), ('iran-successfully-targets-shipping-onptptpt-20260625225210236', 10), ('us-x-iran-diplomatic-meeting-by-329', 7), ('gpt-5pt6-released-by', 7), ('iem-cologne-major-2026-reach-the-grand-final', 7), ('spider-man-brand-new-day-opening-weekend-box-office-even-higher-strikes-20260731203418', 7)]
+mean reversion of the jump in the next hour (c, + = reverts): 3.2 share reverting >=5c 0.31
+event slug stems [('of-views-of-next-mrbeast-video', 41), ('how-many-ships-transit-the-str', 25), ('iran-successfully-targets-ship', 19), ('world-cup-team-to-advance-to-k', 18), ('what-will-be-the-top-us-netfli', 17), ('israel-military-action-against', 13), ('spider-man-brand-new-day', 12), ('claude-fable', 11), ('world-cup-nation-to-reach-roun', 11), ('fl', 11), ('sachsen-anhalt-parliamentary-e', 11), ('of-views-of-mrbeast-video-day', 10), ('of-views-of-mrbeast-video-week', 10), ('spider-man-brand-new-day-openi', 10), ('of-views-of-mrbeast-gaming-vid', 9)]
+sum r 127.0 top-20 trades sum r 86.9
+entry price dist Counter({0.3: 250, 0.2: 213, 0.4: 213, 0.5: 211, 0.6: 203, 0.7: 159, 0.8: 86})
+
+== 4. VERDICT
+C-fade formally passes (IS +10.16%/$ n934 t 2.38, OOS +8.01%/$ n401 t 1.28) but is WEAK and possibly luck: 30th OOS look
+overall (42 IS looks this round), OOS t 1.28 (p ~0.10 one-sided before any correction), negative at 5c slippage, ~0 with a
++1h delay plus 2c slippage, top-20 trades = 68% of the summed return, negRisk/non-negRisk halves disagree.
+Live trial: strategy 'fade', 3% per entry, no top-ups, one entry per event, all fade <= 20% of equity, ask <= observed + 2c.
+Pre-committed kill: after >= 60 fade closes, mean r per $ <= 0 or t <= -2 -> no new fade entries (fav rule untouched).
+A, B, D stopped at IS (<= 0); E failed OOS (IS +2.67 / OOS -4.77).

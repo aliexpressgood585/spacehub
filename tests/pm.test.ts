@@ -1,6 +1,6 @@
 // Polymarket paper desk rules (shared/pm.ts): fills, fees and the on-demand early exit.
 import fs from 'node:fs'
-import { PM, takerFee, walkAsks, walkBids, inBand, heOutcome, namesKept, pmMatch, isCryptoPrice, gateStudy } from '../shared/pm.ts'
+import { PM, takerFee, walkAsks, walkBids, inBand, heOutcome, namesKept, pmMatch, isCryptoPrice, gateStudy, FADE, fadeEligible, fadeSnap, fadeDue, fadeSignal, isFade, strategyOf, stratStats, fadeKill } from '../shared/pm.ts'
 let n = 0, bad = 0
 const ok = (c: boolean, m: string) => { n++; if (!c) { bad++; console.log('FAIL', m) } }
 const near = (a: number, b: number, e = 1e-9) => Math.abs(a - b) < e
@@ -107,5 +107,82 @@ ok(fs.readFileSync('scripts/pm-desk.ts', 'utf8').includes('if (isCryptoPrice(ev,
   const e = gateStudy([C(4, '2026-10-14')], '2026-10-15T18:30'); ok(e.n === 0 && e.mean_r === null && e.t === null && !e.stop_hit, 'gateStudy: no judged closes -> nulls, no flags')
   const src2 = fs.readFileSync('scripts/pm-desk.ts', 'utf8')
   ok(/\.gates = gateStudy\(/.test(src2) && (src2.match(/\bgates\b/g) ?? []).length === 1, 'runner only publishes st.gates and never reads it') }
+ok(nw.strategy === 'fav' && strategyOf(h) === 'fav' && out.by_strategy?.fav?.n >= 1 && out.by_strategy?.fade?.n === 0 && out.by_strategy.fade.wr === null && out.by_strategy.fade.pct_per_usd === null,
+  "favourites entries are tagged 'fav' (untagged history counts as 'fav'); per-strategy stats published, missing = null")
+ok(!out.trades.some(isFade), 'the 2h favourites market is never a fade candidate (fade needs >= 24h to the end)')
+// FADE jump-fade (second PAPER sub-strategy): pure parts
+{ const T = Date.parse('2026-10-18T12:00:00Z'), M = 60_000
+  ok(fadeSignal([[T - 60 * M, 0.30]], T, 0.50)?.k === 1 && near(fadeSignal([[T - 60 * M, 0.30]], T, 0.50)!.px, 0.5), 'fade: outcome 0 jumped up 20c -> buy outcome 1 (the side that fell) at its price')
+  ok(fadeSignal([[T - 60 * M, 0.70]], T, 0.50)?.k === 0, 'fade: outcome 0 fell 20c -> buy outcome 0')
+  ok(fadeSignal([[T - 60 * M, 0.35]], T, 0.50)?.k === 1 && fadeSignal([[T - 60 * M, 0.36]], T, 0.50) === null, 'fade: threshold is 15c (as backtested), 14c is no signal')
+  ok(fadeSignal([[T - 30 * M, 0.30]], T, 0.50) === null && fadeSignal([[T - 100 * M, 0.30]], T, 0.50) === null, 'fade: the earlier price must be 45-90 min old (hourly points <= 90 min apart)')
+  ok(fadeSignal([[T - 60 * M, 0.70]], T, 0.90) === null && fadeSignal([[T - 60 * M, 0.30]], T, 0.10) === null && fadeSignal([[T - 60 * M, 1.0]], T, 0.85)?.k === 0, 'fade: price after the move must be 15-85c')
+  ok(fadeSignal(undefined, T, 0.5) === null, 'fade: no history -> no signal')
+  ok(fadeSignal([[T - 80 * M, 0.49], [T - 60 * M, 0.30], [T - 50 * M, 0.45]], T, 0.50)?.then === 0.30, 'fade: uses the snapshot closest to 60 min old')
+  // no lookahead: a point stamped in the future is never used and never stored
+  ok(fadeSignal([[T + 60 * M, 0.30]], T, 0.50) === null && fadeSnap([[T + 60 * M, 0.3]], T, 0.5).every(([t]) => t <= T), 'fade: no lookahead (future-stamped points ignored and dropped)')
+  let r = fadeSnap(undefined, T, 0.4); r = fadeSnap(r, T + 5 * M, 0.41); ok(r.length === 1, 'fade snapshots: at most one point per 20 min')
+  ok(!fadeDue(r, T + 5 * M) && fadeDue(r, T + 20 * M) && fadeDue(undefined, T), 'fade: signal checked only when a new point is due')
+  r = fadeSnap(r, T + 25 * M, 0.42); ok(r.length === 2, 'fade snapshots: a new point after 20 min')
+  r = fadeSnap(r, T + 3 * 3600_000, 0.5); ok(r.length === 1 && r[0][1] === 0.5, 'fade snapshots: points older than 2h are dropped')
+  let big: [number, number][] | undefined; for (let i = 0; i < 500; i++) big = fadeSnap(big, T + i * 20 * M, 0.5); ok(big!.length <= 7, 'fade snapshot ring stays bounded (<= 7 points)')
+  ok(!fadeEligible({ gameStartTime: '2026-10-18' }, 'x') && !fadeEligible({}, 'cs2-a-b-2026-10-18') && !fadeEligible({ sportsMarketType: 'moneyline' }, 'y')
+    && !fadeEligible({}, 'highest-temperature-in-nyc') && !fadeEligible({ question: 'Will the price of Bitcoin be above $90,000?' }, 'bitcoin-above-on-october-20-2026')
+    && fadeEligible({ question: 'Will X happen by Friday?' }, 'will-x-happen-by-friday'), 'fade universe: non-sports, non-weather, non-crypto only')
+  ok(FADE.move === 0.15 && FADE.lo === 0.15 && FADE.hi === 0.85 && FADE.minEndH === 24 && FADE.minVolume === 20000, 'fade parameters = the backtested ones')
+  ok(FADE.stakeFrac === PM.stakeFrac && PM.stakeFrac <= 0.03 && PM.maxPosFrac <= 0.05 && PM.maxMatchFrac <= 0.10 && FADE.maxTotalFrac <= 0.2 && FADE.maxPremium <= 0.02, 'fade: 3% stake, <= 5% position, <= 10% event, fade total <= 20%, fill guard <= 2c')
+  ok(isFade({ strategy: 'fade' }) && !isFade({}) && strategyOf({ strategy: 'fade' }) === 'fade' && strategyOf({ strategy: 'fav' }) === 'fav', 'strategy tags')
+  // kill criterion
+  const C = (pnl: number) => ({ strategy: 'fade', status: 'CLOSED', cost: 30, pnl })
+  const mix = (w: number, l: number) => [...Array(w).fill(0).map(() => C(30)), ...Array(l).fill(0).map(() => C(-30))]
+  ok(!fadeKill(mix(20, 39)).killed && fadeKill(mix(20, 40)).killed, 'fade kill: only after >= 60 closes; losing record at 60 -> killed')
+  ok(fadeKill(mix(30, 30)).killed && !fadeKill(mix(31, 29)).killed, 'fade kill: mean r <= 0 kills, mean r > 0 does not')
+  ok(!fadeKill([...mix(41, 39), { strategy: 'fav', status: 'CLOSED', cost: 30, pnl: -30 }, ...Array(500).fill(0).map(() => ({ status: 'CLOSED', cost: 30, pnl: -30 }))]).killed && fadeKill([...mix(40, 40), ...Array(500).fill(0).map(() => ({ status: 'CLOSED', cost: 30, pnl: 30 }))]).killed, "fade kill counts fade closes only ('fav' results never rescue or kill it)")
+  const sS = stratStats(mix(3, 1)); ok(sS.n === 4 && sS.wins === 3 && near(sS.wr!, 0.75) && near(sS.pnl!, 60) && near(sS.pct_per_usd!, 0.5) && sS.t != null, 'stratStats: n, WR, P&L, %/$, t')
+  const src3 = fs.readFileSync('scripts/pm-desk.ts', 'utf8')
+  ok(/if \(kill\.killed\)/.test(src3) && !/kill\.killed[^\n]*(stakeFrac|PM\.|freeCash)/.test(src3) && (src3.match(/kill\.killed/g) ?? []).length === 2, 'kill only gates new fade entries (read in the fade block, nowhere else)') }
+// fade paper replay on a mocked Polymarket. Markets (all non-sports, ending in 5 days, volume $50k):
+// J jumped 30c -> 50c (buy J1 at the 0.51 ask); K jumped but its ask is 0.60 (> observed 0.50 + 2c, skip);
+// S is sports (ignored); L jumped and is in J's event (one fade entry per event -> skipped);
+// P jumped and its event already holds a $90 'fav' position (10% event cap -> only $10 room).
+const runDesk = async (tag: string, f: string, st: any, fetchFn: any) => {
+  fs.writeFileSync(f, JSON.stringify(st)); (globalThis as any).fetch = fetchFn
+  process.argv[2] = f; console.log = () => {}
+  try { await import(`../scripts/pm-desk.ts?${tag}`) } finally { console.log = log }
+  return JSON.parse(fs.readFileSync(f, 'utf8'))
+}
+{ const T0 = Date.now(), f2 = `${dir}/fade.json`, H = (p: number) => [[T0 - 60 * 60_000, p]]
+  const end = new Date(T0 + 5 * 86400e3).toISOString()
+  const mk = (id: string, extra: any = {}) => ({ id, slug: `will-${id}-happen`, question: `Will ${id} happen?`, acceptingOrders: true, enableOrderBook: true, clobTokenIds: `["${id}0","${id}1"]`, outcomes: '["Yes","No"]', outcomePrices: '["0.50","0.50"]', endDate: end, events: [{ slug: `will-${id}-happen` }], volumeNum: 50000, ...extra })
+  const favP = { id: 1, strategy: 'fav', market_id: 'PF', slug: 'pf', event_slug: 'will-P-happen', question: 'P fav?', outcome: 'Yes', token_id: 'PF0', end_time: end, qty: 100, entry_px: 0.9, entry_fee: 0, cost: 90, best_ask: 0.9, opened_at: '2026-10-18T00:00:00Z', status: 'OPEN', mark_px: 0.9, mark_at: '', meta: {} }
+  const base = () => ({ start_cash: 1000, cash: 910, strategy: PM, last_scan: null, last_note: null, trades: [{ ...favP }], equity: [], decisions: [], next_id: 2,
+    fade_snaps: { J: H(0.30), K: H(0.30), S: H(0.30), L: H(0.30), P: H(0.30) } })
+  const fetchA = async (u: string) => {
+    if (u.includes('/markets?')) return J(u.includes('end_date_max') || !u.includes('offset=0') ? [] : [mk('J'), mk('K'), mk('S', { gameStartTime: '2026-10-20 18:00:00+00', sportsMarketType: 'moneyline' }), mk('L', { events: [{ slug: 'will-J-happen' }] }), mk('P')])
+    if (/token_id=[JLP]1/.test(u)) return J({ bids: [{ price: '0.49', size: '500' }], asks: [{ price: '0.51', size: '1000' }] })
+    if (u.includes('token_id=K1')) return J({ bids: [{ price: '0.40', size: '500' }], asks: [{ price: '0.60', size: '1000' }] })
+    if (u.includes('token_id=PF0')) return J({ bids: [{ price: '0.9', size: '500' }], asks: [{ price: '0.91', size: '500' }] })
+    if (/\/markets\/(J|PF|P)\b/.test(u)) return J({ closed: false, clobTokenIds: u.includes('PF') ? '["PF0","PF1"]' : '["J0","J1"]', outcomePrices: '["0.5","0.5"]' })
+    return new Response('no', { status: 500 })
+  }
+  const o1 = await runDesk('fade1', f2, base(), fetchA), ft = o1.trades.filter(isFade)
+  const tj = ft.find((t: any) => t.market_id === 'J'), tp = ft.find((t: any) => t.market_id === 'P')
+  ok(!!tj && tj.token_id === 'J1' && near(tj.entry_px, 0.51) && tj.cost <= 30 + 1e-9 && tj.cost > 29 && tj.strategy === 'fade', "fade buys the side that fell at the real ask, 3% of equity, tagged 'fade'")
+  ok(o1.decisions.some((d: any) => d.strategy === 'fade' && d.decision === 'skip' && String(d.reason).includes('0.6')), 'fade skips a book whose ask is > 2c above the observed price (entry at the ask)')
+  ok(!o1.trades.some((t: any) => t.market_id === 'S') && !(o1.fade_snaps.S?.length > 1), 'fade ignores sports markets')
+  ok(!ft.some((t: any) => t.market_id === 'L') && o1.decisions.some((d: any) => d.market_id === 'L' && /לאירוע הזה/.test(d.reason)), 'one fade entry per event: L (same event as J) is skipped')
+  ok(!!tp && tp.cost <= 10 + 1e-6 && tp.cost > 9, "10% event cap counts the 'fav' position already on the event ($90 -> fade gets <= $10)")
+  ok(near(o1.cash, 910 - ft.reduce((a: number, t: any) => a + t.cost, 0)) && ft.every((t: any) => !t.meta.adds), 'shared cash: cash = before - fade costs; no fade top-ups')
+  ok(o1.by_strategy?.fade?.open === 2 && o1.by_strategy.fade.n === 0 && o1.by_strategy.fade.kill?.killed === false && o1.last_note.fade?.entered === 2, 'per-strategy read-out and cycle note published')
+  ok(o1.trades.find((t: any) => t.id === 1).strategy === 'fav' && o1.trades.find((t: any) => t.id === 1).status === 'OPEN', "the 'fav' position is untouched")
+  const o2 = await runDesk('fade2', f2, { ...o1, fade_snaps: { ...o1.fade_snaps, J: H(0.30), L: H(0.30) } }, fetchA)
+  ok(o2.trades.filter(isFade).length === 2, 'fade never re-enters a market / event it already traded')
+  // kill: 60 closed fade losses -> no new fade entry, the 'fav' rule still runs (same mocked favourites market as above)
+  const dead = Array.from({ length: 60 }, (_, i) => ({ ...favP, id: 100 + i, strategy: 'fade', market_id: `X${i}`, event_slug: `x${i}`, token_id: `X${i}`, status: 'CLOSED', pnl: -30, cost: 30 }))
+  const fetchK = async (u: string) => (u.includes('/markets?') && u.includes('end_date_max') && u.includes('offset=0') ? J([{ id: 'N', slug: 'n', question: 'New?', acceptingOrders: true, enableOrderBook: true, clobTokenIds: '["A","B"]', outcomes: '["Yes","No"]', outcomePrices: '["0.88","0.12"]', endDate: new Date(Date.now() + 7200e3).toISOString(), events: [{ slug: 'en' }] }])
+    : u.includes('token_id=A') ? J({ bids: [{ price: '0.87', size: '500' }], asks: [{ price: '0.88', size: '1000' }] }) : u.includes('token_id=B') ? J({ bids: [], asks: [{ price: '0.13', size: '1000' }] }) : fetchA(u))
+  const o3 = await runDesk('fade3', f2, { ...base(), trades: [{ ...favP }, ...dead], next_id: 200 }, fetchK)
+  ok(!o3.trades.some((t: any) => isFade(t) && t.status === 'OPEN') && o3.last_note.fade?.killed === true && o3.by_strategy.fade.kill.killed && o3.decisions.some((d: any) => d.strategy === 'fade' && /עצירה/.test(d.reason)), 'kill switch: no new fade entries after 60 losing closes')
+  const fv = o3.trades.find((t: any) => t.token_id === 'A'); ok(!!fv && fv.strategy === 'fav' && near(o3.decisions.find((d: any) => d.market_id === 'N' && d.decision === 'BUY').price, 0.88) && o3.decisions.some((d: any) => d.market_id === 'N' && d.decision === 'ADD') && fv.cost <= PM.maxPosFrac * (910 + 90) + 1e-6, "kill switch never stops the 'fav' rule (it still enters at 0.88 and tops up, <= 5%)") }
 console.log(`pm desk: ${n - bad}/${n} passed`)
 if (bad) process.exit(1)
