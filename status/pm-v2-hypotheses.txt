@@ -84,3 +84,72 @@ backtest entries since live v2 start (10-13 10:00): n 401 WR 85.8% mean r -4.59%
   esports 2026-08: n 1065 WR 88.9% -0.97%/$
   esports 2026-09: n 1065 WR 88.1% -1.85%/$
   esports 2026-10: n 540 WR 89.3% -0.64%/$
+
+## ROUND 2 (2026-10-18) - backtest/research/pm_v2_round2.py, same data / split / costs; RESULT: 0 of 12 passed, no rule change
+NB the closedTime-keyed diagnostic only sees closes inside the fetched window [endDate-4h05m, endDate].
+markets 53619; baseline (live rule) entries 9374; cut 2026-09-05T15:00:15+00:00; slip 0.01
+BASELINE live rule                                              IS n  6561 WR  85.8%  -4.45%/$ t -9.25 | OOS n  2813 WR  83.9%  -6.59%/$ t -8.51
+
+-- DIAGNOSTIC (lookahead, NOT tradable, not counted): keyed on the actual closedTime like the original pm_favourites research
+    closedTime-keyed 3h 85-92 (uses the future close time)     IS n  3718 WR  88.5%  -1.46%/$ t -2.50 | OOS n  1743 WR  87.4%  -2.68%/$ t -3.02
+    closedTime-keyed 4h 85-92 (uses the future close time)     IS n  4476 WR  87.6%  -2.50%/$ t -4.54 | OOS n  2048 WR  85.4%  -4.90%/$ t -5.63
+
+-- A1 ENTRY TIMING without lookahead: in play (now >= gameStartTime, known in advance) and >= X min since start
+      IS-only look A1 minutes-in X=0                  n  3746 WR  87.2%  -2.85%/$ t -4.67
+      IS-only look A1 minutes-in X=30                 n  3637 WR  87.3%  -2.74%/$ t -4.45
+      IS-only look A1 minutes-in X=60                 n  3314 WR  87.1%  -2.99%/$ t -4.60
+      IS-only look A1 minutes-in X=90                 n  3076 WR  87.1%  -2.97%/$ t -4.40
+      IS-only look A1 minutes-in X=120                n  2765 WR  87.0%  -3.09%/$ t -4.33
+      IS-only look A1 minutes-in X=150                n  1950 WR  87.2%  -2.91%/$ t -3.45
+V17 A1 in play and >= X=30 min since start (IS-chosen)         IS n  3637 WR  87.3%  -2.74%/$ t -4.45 | OOS n  1574 WR  87.7%  -2.33%/$ t -2.52  FAIL (IS<=0, OOS<=0)
+      IS-only look A1b esports minutes-in X=0                  n  2714 WR  88.4%  -1.44%/$ t -2.11
+      IS-only look A1b esports minutes-in X=30                 n  2614 WR  88.7%  -1.22%/$ t -1.77
+      IS-only look A1b esports minutes-in X=60                 n  2306 WR  88.6%  -1.29%/$ t -1.74
+      IS-only look A1b esports minutes-in X=90                 n  2071 WR  88.9%  -1.03%/$ t -1.34
+      IS-only look A1b esports minutes-in X=120                n  1780 WR  89.1%  -0.80%/$ t -0.97
+V18 A1b esports, in play X=120 min (IS-chosen)                 IS n  1780 WR  89.1%  -0.80%/$ t -0.97 | OOS n   995 WR  88.1%  -1.80%/$ t -1.57  FAIL (IS<=0, OOS<=0)
+
+-- A2 esports in play, band per game chosen IS
+      IS-only look A2 cs2 0.85-0.88            n   647 WR  85.9%  -2.30%/$ t -1.48
+      IS-only look A2 cs2 0.88-0.9             n   470 WR  88.1%  -2.54%/$ t -1.54
+      IS-only look A2 cs2 0.9-0.92             n   478 WR  89.5%  -3.03%/$ t -1.99
+      IS-only look A2 cs2 0.85-0.9             n   884 WR  86.8%  -2.31%/$ t -1.79
+      IS-only look A2 cs2 0.88-0.92            n   754 WR  89.1%  -2.44%/$ t -1.96
+      IS-only look A2 cs2 0.85-0.92            n  1067 WR  87.4%  -2.52%/$ t -2.22
+      IS-only look A2 lol 0.85-0.88            n   439 WR  87.9%  -0.01%/$ t -0.00
+      IS-only look A2 lol 0.88-0.9             n   354 WR  91.0%  +0.65%/$ t +0.39
+      IS-only look A2 lol 0.9-0.92             n   410 WR  90.5%  -2.07%/$ t -1.32
+      IS-only look A2 lol 0.85-0.9             n   631 WR  88.7%  -0.17%/$ t -0.12
+      IS-only look A2 lol 0.88-0.92            n   610 WR  91.8%  +0.41%/$ t +0.34
+      IS-only look A2 lol 0.85-0.92            n   809 WR  89.7%  -0.18%/$ t -0.15
+      IS-only look A2 dota2 0.85-0.88            n   327 WR  85.6%  -2.60%/$ t -1.18
+      IS-only look A2 dota2 0.88-0.9             n   232 WR  92.7%  +2.63%/$ t +1.38
+      IS-only look A2 dota2 0.9-0.92             n   237 WR  90.7%  -1.84%/$ t -0.90
+      IS-only look A2 dota2 0.85-0.9             n   433 WR  88.5%  -0.40%/$ t -0.23
+      IS-only look A2 dota2 0.88-0.92            n   365 WR  91.2%  -0.02%/$ t -0.01
+      IS-only look A2 dota2 0.85-0.92            n   516 WR  88.8%  -0.94%/$ t -0.60
+      IS-only look A2 val 0.85-0.88            n   208 WR  88.0%  +0.01%/$ t +0.00
+      IS-only look A2 val 0.88-0.9             n   147 WR  89.8%  -0.49%/$ t -0.18
+      IS-only look A2 val 0.9-0.92             n   143 WR  90.9%  -1.57%/$ t -0.60
+      IS-only look A2 val 0.85-0.9             n   276 WR  87.7%  -1.27%/$ t -0.57
+      IS-only look A2 val 0.88-0.92            n   225 WR  90.2%  -1.09%/$ t -0.50
+      IS-only look A2 val 0.85-0.92            n   322 WR  87.9%  -1.88%/$ t -0.92
+      A2 picks (IS best > 0 only): [('lol', '0.88-0.9'), ('dota2', '0.88-0.9'), ('val', '0.85-0.88')]
+V19 A2 esports in play, IS-chosen band per game                IS n   794 WR  90.7%  +1.06%/$ t +0.92 | OOS n   376 WR  85.6%  -5.12%/$ t -2.55  FAIL (OOS<=0)
+
+-- A3 momentum / stability (favourite price path over the last 30-60 min, points at or before entry)
+V20 A3 rise over 30 min (rise >=+2c / |d|<=2c / not fallen >2c) IS n  3199 WR  87.3%  -2.71%/$ t -4.12 | OOS n  1384 WR  87.7%  -2.18%/$ t -2.21  FAIL (IS<=0, OOS<=0)
+V21 A3 stable over 30 min (rise >=+2c / |d|<=2c / not fallen >2c) IS n  3311 WR  84.2%  -6.37%/$ t -9.01 | OOS n  1291 WR  79.4% -11.69%/$ t -9.32  FAIL (IS<=0, OOS<=0, not > baseline both)
+V22 A3 notfall over 30 min (rise >=+2c / |d|<=2c / not fallen >2c) IS n  5655 WR  85.7%  -4.62%/$ t -8.88 | OOS n  2410 WR  83.4%  -7.04%/$ t -8.33  FAIL (IS<=0, OOS<=0, not > baseline both)
+V23 A3 rise over 60 min (rise >=+2c / |d|<=2c / not fallen >2c) IS n  2324 WR  86.5%  -3.53%/$ t -4.45 | OOS n   977 WR  87.3%  -2.61%/$ t -2.19  FAIL (IS<=0, OOS<=0)
+V24 A3 stable over 60 min (rise >=+2c / |d|<=2c / not fallen >2c) IS n  3038 WR  84.1%  -6.50%/$ t -8.80 | OOS n  1201 WR  79.6% -11.46%/$ t -8.85  FAIL (IS<=0, OOS<=0, not > baseline both)
+V25 A3 notfall over 60 min (rise >=+2c / |d|<=2c / not fallen >2c) IS n  4661 WR  85.2%  -5.19%/$ t -8.93 | OOS n  1975 WR  82.6%  -8.02%/$ t -8.42  FAIL (IS<=0, OOS<=0, not > baseline both)
+V26 A5 calm: favourite range over last 30 min <= 3c            IS n  3161 WR  84.5%  -6.07%/$ t -8.46 | OOS n  1250 WR  79.1% -11.99%/$ t -9.36  FAIL (IS<=0, OOS<=0, not > baseline both)
+
+-- A4 spread / depth: NOT TESTABLE - CLOB prices-history has no order book (no bid/ask/size history); skipped
+
+-- A5 combos of the least-bad pieces (esports, in play, not falling)
+V27 A5 esports + in play + not fallen >2c over 30 min          IS n  2034 WR  89.1%  -0.76%/$ t -0.99 | OOS n  1073 WR  88.6%  -1.27%/$ t -1.18  FAIL (IS<=0, OOS<=0)
+V28 A5 esports + in play + rise >=2c over 30 min               IS n  2006 WR  89.1%  -0.83%/$ t -1.07 | OOS n  1063 WR  88.8%  -1.10%/$ t -1.01  FAIL (IS<=0, OOS<=0)
+
+cumulative variants read OOS: 28 (16 in round 1 + 12 now); extra IS-only looks for parameter choice: 35

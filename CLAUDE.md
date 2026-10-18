@@ -717,6 +717,15 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   STEP 4 fixes (scripts/pm-desk.ts): official 50-50 results settle at 0.5 (RESOLVED_SPLIT; were open forever), atomic state
   write (temp + rename), equity points past 5,000 kept hourly in equity_h; pages show RESOLVED_SPLIT as 50-50 (display only);
   tests/pm.test.ts 38/38 incl. a check that pm-desk.yml copies every shared module the runner imports.
+- 2026-10-18 POLY ROUND 2 research (owner: "merge only if something passes"). backtest/research/pm_v2_round2.py ->
+  status/pm-v2-hypotheses.txt, same 53,619 markets / 70-30 cut 2026-09-05 / +1c slip / market fee. Live rule IS -4.45 / OOS
+  -6.59%/$. 12 new variants, 0 passed (cumulative 28 read OOS + 35 IS-only parameter looks): in play >= X min since
+  gameStartTime (X=30 IS-chosen) -2.74 / -2.33; esports in play X=120 -0.80 / -1.80; esports per-game band IS-chosen (LoL
+  88-90, Dota 88-90, Val 85-88) +1.06 / -5.12 (OOS n376 fails); momentum rise/stable/not-falling over 30 and 60 min all
+  negative (rise least bad -2.71 / -2.18; stable -6.4 / -11.7); calm range <= 3c -6.1 / -12.0; esports+in play+not falling
+  -0.76 / -1.27, +rising -0.83 / -1.10. Diagnostic WITH lookahead (keyed on the real closedTime like pm_favourites) is also
+  negative here (3h -1.46 / -2.68), so the original +2.5 / +3.3 does not replicate on 5-min 2026-06..10 data. Spread/depth
+  filter NOT testable (prices-history has no book). NO RULE CHANGE; docs/research only.
 - 2026-10-15 ~19:00 UTC Poly Coins first-look PMC.zMin 1.5 -> 2.0 (owner: "do what you think, bring profitability"). Live since
   the 1.5 revert: 69 closed, 64 W, -$43.17 (-2.8%/$), 5 losses vs ~1.5 expected by the 180-day backtest (P ~2%: live runs
   below the backtest). 50 of the 69 were z 1.5-2.0: 4 losses, -$27.44 (-3.3%/$); the backtest's same bucket was the weakest
