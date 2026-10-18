@@ -44,12 +44,12 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-18T01:52:20.432Z",
+ "last_scan": "2026-10-18T01:52:29.869Z",
  "last_note": {
-  "at": "2026-10-18T01:52:17.418Z",
+  "at": "2026-10-18T01:52:27.637Z",
   "windows": 4,
   "settled": 0,
-  "entered": 1
+  "entered": 0
  },
  "trades": [
   {
@@ -20284,7 +20284,7 @@
    "opened_at": "2026-10-18T01:47:29.940Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-18T01:52:18.298Z",
+   "mark_at": "2026-10-18T01:52:28.735Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -20350,8 +20350,8 @@
    "best_ask": 0.97,
    "opened_at": "2026-10-18T01:52:20.432Z",
    "status": "OPEN",
-   "mark_px": 0.96,
-   "mark_at": "2026-10-18T01:52:20.432Z",
+   "mark_px": 0.98,
+   "mark_at": "2026-10-18T01:52:28.888Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -20378,7 +20378,9 @@
     "z": 2.2928544954249124,
     "spot_open": 81790.5,
     "spot": 81716.53,
-    "sigma1s": 0.000031003820335308154
+    "sigma1s": 0.000031003820335308154,
+    "close_px": 0.985,
+    "close_at": "2026-10-18T01:52:28.888Z"
    }
   }
  ],
@@ -55386,6 +55388,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-18T01:52:29.869Z",
+   "market_id": "5792389",
+   "question": "Solana Up or Down - October 17, 9:50PM-9:55PM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 01:50–01:55 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.95,
+   "decision": "skip",
+   "reason": "מקסימום פוזיציות פתוחות"
+  },
+  {
    "ts": "2026-10-18T01:52:20.432Z",
    "market_id": "5792391",
    "question": "Bitcoin Up or Down - October 17, 9:50PM-9:55PM ET",
@@ -57573,17 +57586,6 @@
    "price": 0.96,
    "decision": "skip",
    "reason": "מסנן מרחק: 1.28 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-18T00:47:56.708Z",
-   "market_id": "5792086",
-   "question": "Solana Up or Down - October 17, 8:45PM-8:50PM ET",
-   "question_he": "סולנה · עולה או יורד · 5 דקות · 00:45–00:50 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.97,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.31 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 289,
@@ -105416,8 +105418,8 @@
    "beat_close": 0.9629629629629629,
    "brier_entry": 0.03574029952956931,
    "brier_close": 0.002615953703703694,
-   "open_n": 1,
-   "open_clv_c": 5.900000000000006
+   "open_n": 2,
+   "open_clv_c": 3.7000000000000037
   },
   "judged": {
    "n": 108,
@@ -105428,8 +105430,8 @@
    "beat_close": 0.9629629629629629,
    "brier_entry": 0.03574029952956931,
    "brier_close": 0.002615953703703694,
-   "open_n": 1,
-   "open_clv_c": 5.900000000000006
+   "open_n": 2,
+   "open_clv_c": 3.7000000000000037
   }
  }
 }
