@@ -18,6 +18,7 @@ on:
       - 'scripts/run-tests.sh'
       - 'scripts/acceptance-check.sh'
       - '.github/workflows/tests.yml'
+      - 'binance-paper-bot/**'
   pull_request:
     paths:
       - 'shared/**'
@@ -28,6 +29,7 @@ on:
       - 'scripts/run-tests.sh'
       - 'scripts/acceptance-check.sh'
       - '.github/workflows/tests.yml'
+      - 'binance-paper-bot/**'
   workflow_dispatch:
 
 jobs:

@@ -25,6 +25,16 @@ fi
 
 fail=0
 python3 tests/smoke-paper-bot.test.py || fail=1
+
+# Binance USDT-M paper desk (binance-paper-bot/). numpy + PyYAML + pytest; no network.
+echo ""
+echo "── binance paper bot ───────────────────────────────"
+if ! python3 -c "import numpy, yaml, pytest" >/dev/null 2>&1; then
+  python3 -m pip install --user --break-system-packages -q numpy pyyaml pytest \
+    || python3 -m pip install --user -q numpy pyyaml pytest \
+    || { echo "FAIL: cannot install numpy/pyyaml/pytest"; fail=1; }
+fi
+if ! ( cd binance-paper-bot && python3 -m pytest -q tests ); then fail=1; fi
 node tests/council-review.test.mjs || fail=1
 node --experimental-strip-types tests/flow-shadow.test.ts || fail=1
 run() {
