@@ -1,16 +1,19 @@
 """One-shot manual basket. Paper only: orders go to the paper exchange, never to Binance.
 
 `config/manual_trades.json` lists `manual_aggr_1` .. `manual_aggr_5`. Each id opens
-at most once. Symbol and side are chosen together, on the first tick inside
-`window_h` that can score the book. Ids that do not get a symbol on that tick
-are skipped. A later tick does not loosen the volume floor, the EMA rule, or
-the exclude list. After the window, anything still pending is skipped.
+at most once, on the first tick inside `window_h` that can score the book.
+Ids that do not get a symbol on that tick are skipped. A later tick does not
+loosen the volume floor, the EMA rule, or the exclude list. After the window,
+anything still pending is skipped.
 
-Direction is the 4h close against EMA20, EMA50 and EMA200 (all three must
-agree). The universe is USDT-M perpetuals with 24h quote volume at or above
-the configured floor, minus BTCUSDT, ETHUSDT, anything already open, and
-anything another id in this basket already took. `prefer` (XRPUSDT) is placed
+`manual_aggr_1` is fixed: ETHUSDT SHORT, isolated margin 1000, leverage 5.
+It does not use the EMA selector. `manual_aggr_2` .. `manual_aggr_5` are auto:
+4h close against EMA20, EMA50 and EMA200 (all three must agree), USDT-M
+perpetuals with 24h quote volume at or above the floor, minus BTCUSDT,
+ETHUSDT, anything already open, and anything another id already took (so ETH
+is out of the auto book because aggr_1 holds it). `prefer` (XRPUSDT) is placed
 first when it is eligible; the rest follow 24h quote volume descending.
+Every leg is tagged `manual_aggr` and shares the basket.
 
 The basket tag is `manual_aggr`. If the open legs' unrealized PnL including
 fees already paid is at or below `stop_pnl`, every open leg is closed with
@@ -53,8 +56,17 @@ def load_manual_config(path):
         if t["id"] in seen:
             raise ValueError(f"duplicate manual trade id {t['id']}")
         seen.add(t["id"])
-        if str(t.get("symbol") or "auto") not in ("auto",) and not str(t["symbol"]).endswith("USDT"):
-            raise ValueError(f"{t['id']} symbol must be auto or a USDT perpetual")
+        symbol = str(t.get("symbol") or "auto")
+        if symbol.lower() == "auto":
+            t["symbol"] = "auto"
+        else:
+            t["symbol"] = symbol.upper()
+            if not t["symbol"].endswith("USDT"):
+                raise ValueError(f"{t['id']} symbol must be auto or a USDT perpetual")
+            side = str(t.get("side") or "").upper()
+            if side not in ("LONG", "SHORT"):
+                raise ValueError(f"{t['id']} fixed symbol needs side LONG or SHORT")
+            t["side"] = side
     cfg["window_h"] = float(cfg.get("window_h", 6))
     cfg["selector"] = cfg.get("selector") or "ema_align_4h"
     cfg["prefer"] = list(cfg.get("prefer") or [])
@@ -250,15 +262,22 @@ def plan_opens(cfg, prev, now, rows, directions, open_symbols):
     pool = list(ranked)
     used = set(open_symbols) | chosen
     plans = []
+    tag = (cfg.get("basket") or {}).get("tag") or "manual_aggr"
     for trade in pending:
         spec_sym = str(trade.get("symbol") or "auto")
-        pick = None
+        # A named symbol is a fixed ticket. It does not consult the EMA selector
+        # or the volume floor. Auto ids never see that symbol afterwards.
         if spec_sym != "auto":
-            pick = next((r for r in pool if r["symbol"] == spec_sym and r["symbol"] not in used), None)
-            if pick is None:
-                _skip(blob, trade["id"], "ineligible", symbol=spec_sym)
+            side = str(trade.get("side") or "").upper()
+            if side not in ("LONG", "SHORT"):
+                _skip(blob, trade["id"], "bad_side", symbol=spec_sym)
                 continue
+            if spec_sym in used:
+                _skip(blob, trade["id"], "position_open", symbol=spec_sym)
+                continue
+            pick = {"symbol": spec_sym, "side": side}
         else:
+            pick = None
             while pool:
                 cand = pool.pop(0)
                 if cand["symbol"] in used:
@@ -275,6 +294,7 @@ def plan_opens(cfg, prev, now, rows, directions, open_symbols):
             "margin": float(trade["margin"]), "leverage": float(trade["leverage"]),
             "stop_pct": float(trade["stop_pct"]), "tp_pct": float(trade["tp_pct"]),
             "breakeven_pct": float(trade["breakeven_pct"]), "max_hold_h": float(trade["max_hold_h"]),
+            "tag": tag,
         })
     blob["resolved"] = True
     blob["resolved_ms"] = int(now)
@@ -348,7 +368,7 @@ def open_manual_position(ex, rec, plan, now, working_type="CONTRACT_PRICE"):
     qty = notional / ref
     ex.set_leverage(symbol, plan["leverage"])
     order_side = "BUY" if side == "LONG" else "SELL"
-    opened = ex.place_order(Order(symbol, order_side, "MARKET", qty, tag=plan["id"]), int(now))
+    opened = ex.place_order(Order(symbol, order_side, "MARKET", qty, tag=plan.get("tag") or "manual_aggr"), int(now))
     if opened.status != "FILLED":
         return None
     p = ex.get_position(symbol)
