@@ -3,6 +3,29 @@ import logging
 
 log = logging.getLogger("risk")
 
+DELIST_NAME = "delist_short"
+
+
+def delist_margin_reserve(cfg, ex):
+    """USDT of free margin experimental entries must leave for delist_short.
+
+    Each still-open slot is `notional_frac` of equity at that rule's leverage.
+    Slots already filled have their margin inside `used_margin` and are not
+    reserved again. ema_trend_4h does not pay this reserve.
+    """
+    row = next((r for r in (cfg.get("strategies") or []) if (r or {}).get("name") == DELIST_NAME), None)
+    if not row:
+        return 0.0
+    params = ((cfg.get("strategy") or {}).get("params") or {}).get(DELIST_NAME) or {}
+    frac = float(params.get("notional_frac") or 0.0)
+    lev = float(params.get("leverage") or (cfg.get("account") or {}).get("default_leverage") or 0.0)
+    cap = int(row.get("max_concurrent_positions") or 0)
+    if frac <= 0 or lev <= 0 or cap <= 0:
+        return 0.0
+    open_n = sum(1 for p in ex.positions().values() if getattr(p, "strategy", "") == DELIST_NAME)
+    slots = max(0, cap - open_n)
+    return slots * float(ex.equity()) * frac / lev
+
 
 class RiskManager:
     def __init__(self, cfg, taker_fee, slippage_bps):
@@ -34,7 +57,8 @@ class RiskManager:
         self.owner_halt = {str(k): int(v) for k, v in raw.items() if v is not None}
 
     def size(self, sig, ex, si, brackets, ts, owner=None, owner_max_pos=None,
-             owner_risk=None, owner_day_return=None, owner_max_daily_loss=None):
+             owner_risk=None, owner_day_return=None, owner_max_daily_loss=None,
+             margin_reserve=0.0):
         """Return (qty, reason). qty == 0 means rejected.
 
         `owner` counts only that strategy's positions and, when given, uses its
@@ -77,18 +101,28 @@ class RiskManager:
         else:
             qty = eq * risk / per_unit
         lev = sig.leverage
+        reserved = max(0.0, float(margin_reserve or 0.0))
+        avail = max(0.0, ex.available_balance() - reserved)
         # Per-position margin cap, and notional cannot exceed equity times leverage.
-        cap_notional = min(eq * self.max_margin_frac * lev, ex.available_balance() * 0.98 * lev, eq * lev)
+        # Experimental books pass `reserved` so delist_short can still open a slot.
+        cap_notional = min(eq * self.max_margin_frac * lev, avail * 0.98 * lev, eq * lev)
+        if reserved and cap_notional <= 0:
+            return 0, "margin reserved for delist_short"
         capped = qty * px > cap_notional
         qty = min(qty, cap_notional / px)
+        held_back = reserved and avail * 0.98 * lev <= min(eq * self.max_margin_frac * lev, eq * lev)
         max_lev = brackets.max_leverage(sig.symbol, qty * px)
         if lev > max_lev:
             return 0, f"leverage {lev} > bracket max {max_lev}"
         qty = si.round_qty(qty, market=True)
         if qty < si.market_min_qty:
+            if reserved and capped:
+                return 0, "margin reserved for delist_short"
             return 0, "qty below minQty"
         if qty * px < si.min_notional:
             return 0, f"notional {qty*px:.2f} below minNotional {si.min_notional}"
         if qty > si.market_max_qty:
             qty = si.round_qty(si.market_max_qty, market=True)
+        if capped and held_back:
+            return qty, "margin reserved for delist_short"
         return qty, ("size capped by margin limit" if capped else "ok")

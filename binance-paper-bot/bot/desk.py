@@ -113,7 +113,9 @@ ORB_BACKTEST = {
             "trades": 111, "avg_bps": 30.5},
     "is": {"window": "2024-01..2025-12", "return_pct": 19.0, "maker_tp_return_pct": 22.3,
            "win_rate_pct": 43.8, "pf": 1.13, "max_dd_pct": -20.1, "trades": 313},
-    "note": "Paper measurement. Walk-forward of this family was mixed to negative; not a proven edge.",
+    "note": ("Paper measurement. Walk-forward of this family was mixed to negative; not a proven edge. "
+             "An independent check of this family failed out of sample in 2026. "
+             "Live risk is a forward test at 0.25% per trade."),
 }
 
 # port_family_best.csv xs row, plus the reference note on an as-of-2024 universe.
@@ -126,7 +128,10 @@ XS_BACKTEST = {
     "note": ("Paper measurement. Base-universe OOS is about +38% with max drawdown about -11% "
              "and about 70% of months positive. An as-of-2024 universe is about +13%. "
              "Reported span +13% to +38%, max drawdown -11% to -23%. "
-             "Correlation with ema_trend_4h is about 0.05. Not a proven live edge."),
+             "Correlation with ema_trend_4h is about 0.05. Not a proven live edge. "
+             "An independent check of this family failed out of sample in 2026. "
+             "Live gross is a forward test at 15% of equity on new rebalances; "
+             "open legs are not force-closed."),
 }
 
 # Stream E rule E2. Entry at the first full 1h bar; a one-hour delay nearly removes it.
@@ -146,6 +151,9 @@ DELIST_BACKTEST = {
 def strategy_view(strat, cfg):
     view = {"name": strat.name, "timeframe": strat.timeframe,
             "params": cfg["strategy"]["params"].get(strat.name, {})}
+    for row in cfg.get("strategies") or []:
+        if (row or {}).get("name") == strat.name and (row or {}).get("experimental"):
+            view["experimental"] = True
     if strat.name == "ema_trend_4h":
         view["backtest"] = EMA_BACKTEST
     elif strat.name == "orb_ny_15m":
@@ -187,6 +195,8 @@ def risk_overrides(cfg):
             ov["max_concurrent_positions"] = int(row["max_concurrent_positions"])
         if "max_daily_loss" in row:
             ov["max_daily_loss"] = float(row["max_daily_loss"])
+        if row.get("experimental"):
+            ov["experimental"] = True
         if ov:
             out[name] = ov
     return out
@@ -964,8 +974,10 @@ def run(path, now=None):
     refresh_live(ex, feed, symbols, now)
     if wants_15:
         expire_time_stops(ex, now)
-    bootstrap_flat(eng, now, last_1h)
+    # After the minute replay, before a new xs book. A delist fill on this
+    # cycle takes the symbol and the margin the experimental rules left free.
     _poll_delist(eng, feed, ei, br, now)
+    bootstrap_flat(eng, now, last_1h)
     for s in ex.pos:
         if s not in symbols:
             symbols.append(s)
@@ -1223,6 +1235,12 @@ def run_stops(path, now=None):
         refresh_live(ex, feed, tradable, now)
     if _wants_15m(specs):
         expire_time_stops(ex, now)
+    if eng is None and tradable:
+        eng = TradingEngine(cfg, ex, specs[0], risk, infos, brackets, recorder=rec, strategies=specs)
+        _bind_engine(eng, cfg, state)
+    # Before bootstrap, so a new xs leg cannot take a coin or the margin a
+    # delist entry on this same tick is about to use.
+    _poll_delist(eng, feed, ei, br, now)
     stored_period = ((state.get("engine") or {}).get("universe_period") or {})
     kind = bootstrap_due(specs, ex, now, stored_period, state.get("last_1h_open")) if tradable else ""
     if kind:
@@ -1235,10 +1253,6 @@ def run_stops(path, now=None):
             for s in tradable:
                 add_closed(eng, s, "1d", bars_1d.get(s, {}), now)
         bootstrap_flat(eng, now, state.get("last_1h_open"))
-    if eng is None and tradable:
-        eng = TradingEngine(cfg, ex, specs[0], risk, infos, brackets, recorder=rec, strategies=specs)
-        _bind_engine(eng, cfg, state)
-    _poll_delist(eng, feed, ei, br, now)
     for s in ex.pos:
         if s not in symbols:
             symbols.append(s)

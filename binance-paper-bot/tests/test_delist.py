@@ -344,7 +344,8 @@ def test_on_bar_does_not_trade_and_backtest_summary_is_the_research_row():
     assert st.on_bar(None) == []
     assert st.p["notional_frac"] == 0.05 and st.p["stop_frac"] == 0.20 and st.p["hold_h"] == 72
     names = [s.name for s in strategy_specs(cfg)]
-    assert names[-1] == NAME
+    assert names.index(NAME) < names.index("orb_ny_15m")
+    assert names.index(NAME) < names.index("xs_mom_1d")
     view = strategy_view(st, cfg)
     assert view["backtest"]["is"]["return_pct"] == 26.6
     assert view["backtest"]["is"]["pf"] == 3.06

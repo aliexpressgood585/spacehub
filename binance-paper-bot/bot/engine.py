@@ -5,6 +5,7 @@ Used unchanged by both the backtester and the live paper runner.
 import logging
 import numpy as np
 from .execution.base import Order
+from .risk import delist_margin_reserve
 from .strategies import Context
 
 log = logging.getLogger("engine")
@@ -198,13 +199,15 @@ class TradingEngine:
         if ov.get("max_daily_loss") is not None:
             self.risk._daily(self.ex, ts)
             day_ret = self._owner_day(strat.name, ts)
+        reserve = delist_margin_reserve(self.cfg, self.ex) if ov.get("experimental") else 0.0
         qty, why = self.risk.size(
             sig, self.ex, self.si[sym], self.brackets, ts,
             owner=strat.name if self.overrides else None,
             owner_max_pos=ov.get("max_concurrent_positions"),
             owner_risk=ov.get("risk_per_trade"),
             owner_day_return=day_ret,
-            owner_max_daily_loss=ov.get("max_daily_loss"))
+            owner_max_daily_loss=ov.get("max_daily_loss"),
+            margin_reserve=reserve)
         if qty <= 0:
             self.event(ts, "RISK_REJECT", sym, why, strat.name)
             return
