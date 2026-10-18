@@ -24,23 +24,32 @@ risk:
   max_daily_loss: 0.05        # stop opening new trades after -5% equity in a UTC day
   one_position_per_symbol: true
 
-# Both rules share one paper account. Caps here are per strategy. The account
+# Four rules share one paper account. Caps here are per strategy. The account
 # daily stop above still blocks every new entry. max_margin_per_position stays
-# per position. orb's max_daily_loss pauses only that rule until the next UTC day.
+# per position. A rule's own max_daily_loss pauses only that rule until the next UTC day.
+# orb_ny_15m and xs_mom_1d failed an independent 2026 OOS check. They stay on as a
+# forward test at half size (experimental). Open xs legs are not closed or resized
+# by that cut; only a new rebalance uses the smaller gross. delist_short is listed
+# ahead of them, and experimental entries leave its unused slots' margin free.
 strategies:
   - name: ema_trend_4h
     risk_per_trade: 0.01
     max_concurrent_positions: 3
+  - name: delist_short
+    max_concurrent_positions: 10
+    max_daily_loss: 0.02
   - name: orb_ny_15m
-    risk_per_trade: 0.005
+    experimental: true
+    risk_per_trade: 0.0025      # was 0.5%; forward test only
     max_concurrent_positions: 2
     max_daily_loss: 0.02
   - name: xs_mom_1d
+    experimental: true
     max_concurrent_positions: 8
     max_daily_loss: 0.02
 
 strategy:
-  name: ema_trend_4h          # ema_trend_4h | trend_ema | bollinger_mr | orb_ny_15m
+  name: ema_trend_4h          # ema_trend_4h | trend_ema | bollinger_mr | orb_ny_15m | xs_mom_1d | delist_short
   params:
     ema_trend_4h:
       timeframe: 1h          # strategy runs on each closed 1h bar
@@ -74,9 +83,20 @@ strategy:
       reb_days: 3            # rebalance at 00:00 UTC when the Unix day index is divisible by 3.
                              # A flat book that has not entered the current period opens once from the last closed daily bar.
       k: 4                   # long the top 4, short the bottom 4
-      gross: 0.30            # 30% of equity notional across all 8 legs (~3.75% each)
+      gross: 0.15            # 15% of equity notional on a NEW rebalance (~1.875% x 8).
+                             # A leg already open on the same side is left at its old size.
       disaster_sl_atr: 5.0   # wide stop; the research book had none
       leverage: 3
+    delist_short:
+      timeframe: 1h          # on_bar is empty; the desk polls announcements every minute
+      hold_h: 72             # exit at the close 72h after the entry open
+      stop_frac: 0.20        # stop-market 20% above the entry
+      notional_frac: 0.05    # 5% of equity notional, not 1% at the stop
+      settle_buffer_min: 30  # out at least this long before the announced settlement
+      max_age_h: 2           # first start ignores notices older than this (no backfill)
+      entry_grace_min: 3     # enter on the tick at the entry hour, not an hour later
+      leverage: 3
+      max_per_announcement: 3 # at most 3 perps per notice; a symbol in both families counts once
     trend_ema:
       timeframe: 15m
       trend_timeframe: 1h

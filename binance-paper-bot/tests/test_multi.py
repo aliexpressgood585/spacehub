@@ -7,7 +7,7 @@ from bot.desk import (bootstrap_flat, other_loop_alive, rebalance_still_due,
 from bot.engine import TradingEngine
 from bot.execution.base import Order, Position
 from bot.replay import replay_minutes
-from bot.risk import RiskManager
+from bot.risk import RiskManager, delist_margin_reserve
 from bot.strategies import REGISTRY
 from bot.strategies.base import Strategy, Signal
 from bot.strategies.xs_momentum import NAME, target_book, xs_scores
@@ -67,23 +67,33 @@ def _engine(ex, rec, names):
 def test_config_keeps_ema_and_lists_orb_and_xs():
     cfg = load_config()
     names = [s.name for s in strategy_specs(cfg)]
-    assert names == ["ema_trend_4h", "orb_ny_15m", "xs_mom_1d"]
+    assert names == ["ema_trend_4h", "delist_short", "orb_ny_15m", "xs_mom_1d"]
     assert cfg["strategy"]["name"] == "ema_trend_4h"
     assert cfg["risk"]["max_margin_per_position"] == 0.30
     assert cfg["risk"]["max_daily_loss"] == 0.05
     assert cfg["strategy"]["params"]["orb_ny_15m"]["win"] == 3
-    assert cfg["strategy"]["params"]["xs_mom_1d"]["gross"] == 0.30
+    assert cfg["strategy"]["params"]["xs_mom_1d"]["gross"] == 0.15
     ov = risk_overrides(cfg)
     assert ov["ema_trend_4h"]["max_concurrent_positions"] == 3
-    assert ov["orb_ny_15m"]["risk_per_trade"] == 0.005
+    assert "experimental" not in ov["ema_trend_4h"]
+    assert ov["orb_ny_15m"]["risk_per_trade"] == 0.0025
+    assert ov["orb_ny_15m"]["experimental"] is True
     assert ov["orb_ny_15m"]["max_concurrent_positions"] == 2
     assert ov["orb_ny_15m"]["max_daily_loss"] == 0.02
+    assert ov["xs_mom_1d"]["experimental"] is True
     assert ov["xs_mom_1d"]["max_concurrent_positions"] == 8
     assert ov["xs_mom_1d"]["max_daily_loss"] == 0.02
+    assert ov["delist_short"]["max_concurrent_positions"] == 10
+    assert ov["delist_short"]["max_daily_loss"] == 0.02
+    assert "experimental" not in ov["delist_short"]
+    assert "risk_per_trade" not in ov["delist_short"]
     orb = strategy_view(REGISTRY["orb_ny_15m"]({}), cfg)
     xs = strategy_view(REGISTRY["xs_mom_1d"](cfg["strategy"]["params"]["xs_mom_1d"]), cfg)
     assert orb["backtest"]["oos"]["return_pct"] == 11.1
+    assert orb["experimental"] is True
     assert "not a proven edge" in orb["backtest"]["note"]
+    assert "forward test" in orb["backtest"]["note"]
+    assert xs["experimental"] is True
     assert xs["backtest"]["oos"]["return_pct"] == 37.8
     assert xs["backtest"]["oos"]["return_pct_conservative"] == 13.0
     assert xs["backtest"]["oos"]["max_dd_pct"] == -11.2
@@ -180,6 +190,26 @@ def test_target_weight_sizes_notional_not_stop_risk():
     q_risk, _ = risk.size(plain, ex, ex.si["BTCUSDT"], ex.brackets, DAY,
                           owner="ema_trend_4h", owner_max_pos=3, owner_risk=0.01)
     assert q_risk > qty * 2
+
+
+def test_experimental_entries_leave_margin_for_delist():
+    ex, rec = _book(["BTCUSDT", "ETHUSDT"])
+    cfg = load_config()
+    assert ex.place_order(Order("BTCUSDT", "BUY", "MARKET", 270, tag="ema_trend_4h"), 2).status == "FILLED"
+    assert delist_margin_reserve(cfg, ex) > ex.available_balance()
+    eng, by = _engine(ex, rec, ["ema_trend_4h", "delist_short", "orb_ny_15m", "xs_mom_1d"])
+    ts = 5 * DAY
+    eng.handle(Signal("ETHUSDT", "OPEN_LONG", 5.0, 0.0, 3, "xs", {"target_weight": 0.15}),
+               ts, by["xs_mom_1d"])
+    assert ex.get_position("ETHUSDT") is None
+    assert any(e["type"] == "RISK_REJECT" and "margin reserved for delist_short" in e["msg"]
+               and e.get("strategy") == "xs_mom_1d" for e in rec.events)
+    eng.handle(Signal("ETHUSDT", "OPEN_SHORT", 20.0, 0.0, 3, "delist", {"target_weight": 0.05}),
+               ts, by["delist_short"])
+    opened = ex.get_position("ETHUSDT")
+    assert opened is not None and opened.strategy == "delist_short"
+    # One filled slot is no longer reserved. Nine remain.
+    assert delist_margin_reserve(cfg, ex) == pytest.approx(9 * ex.equity() * 0.05 / 3)
 
 
 def test_half_percent_risk_is_half_the_ema_size_when_uncapped():

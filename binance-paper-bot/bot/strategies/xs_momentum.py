@@ -4,7 +4,8 @@ Every `reb_days` UTC days, at the 00:00 UTC daily close:
   score = log(close_t / close_{t-lb}) / (std of daily log returns * sqrt(lb))
   long the top k, short the bottom k.
 The research book used gross=1 (each leg 1/8 of equity notional). This desk sets
-gross=0.30 in config, so the eight legs are about 3.75% of equity notional each.
+gross=0.15 in config, so a new book is about 1.875% of equity notional per leg.
+A leg that stays on the same side is not closed and not resized.
 A wide disaster stop is 5x daily ATR. Research ran without a stop; the stop is
 only there because the paper risk path requires one.
 
@@ -117,8 +118,9 @@ class XsMomentum1d(Strategy):
         """candles: sym -> daily arrays. positions: this strategy's positions only.
 
         CLOSE names that leave the book or flip, then OPEN the new legs.
-        A coin already on the same side is left in place. Off-schedule days
-        do nothing; a flat book between rebalances uses bootstrap_signals.
+        A coin already on the same side is left in place, including its size,
+        so a lower gross applies only to new opens. Off-schedule days do
+        nothing; a flat book between rebalances uses bootstrap_signals.
         """
         if not self.is_rebalance_day(ts):
             return []

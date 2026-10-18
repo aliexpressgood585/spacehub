@@ -1,5 +1,6 @@
 """Tests for xs_mom_1d (cross-sectional daily momentum)."""
 import numpy as np
+import pytest
 from bot.strategies import REGISTRY
 from bot.strategies.xs_momentum import xs_scores, target_book, NAME
 from bot.execution.base import Position
@@ -87,9 +88,19 @@ def test_bootstrap_uses_the_last_closed_bar_between_rebalances():
 
 
 def test_live_gross_is_one_eighth_of_the_allocation_per_leg():
-    """Desk config uses gross 0.30, so eight legs are 3.75% of equity notional each."""
+    """Desk config uses gross 0.15, so eight new legs are 1.875% of equity notional each."""
     sc = {f"S{i}": float(i) for i in range(20)}
-    b = target_book(sc, k=4, gross=0.30)
+    b = target_book(sc, k=4, gross=0.15)
     assert len(b) == 8
-    assert b["S0"] == -0.0375 and b["S19"] == 0.0375
-    assert sum(abs(v) for v in b.values()) == 0.30
+    assert b["S0"] == -0.01875 and b["S19"] == 0.01875
+    assert sum(abs(v) for v in b.values()) == pytest.approx(0.15)
+
+
+def test_smaller_gross_does_not_close_or_resize_a_same_side_leg():
+    s = REGISTRY[NAME]({"k": 2, "reb_days": 1, "gross": 0.15})
+    u = {k: daily(v) for k, v in universe().items()}
+    first = s.on_universe_bar(DAY, u, {})
+    kept = next(x.symbol for x in first if x.action == "OPEN_LONG")
+    pos = {kept: Position(kept, 1, 1.0, 100.0, 3, 33.0, 0, strategy=NAME)}
+    sig = s.on_universe_bar(2 * DAY, u, pos)
+    assert kept not in {x.symbol for x in sig}
