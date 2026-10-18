@@ -27,12 +27,23 @@ jobs:
           cp scripts/pm-desk.ts scripts/pm-news.ts /tmp/desk/scripts/; cp shared/pm.ts shared/clv.ts /tmp/desk/shared/
           git config user.name pm-desk-bot
           git config user.email actions@github.com
-          git fetch -q origin pm-desk-data || true
-          if git rev-parse --verify origin/pm-desk-data >/dev/null 2>&1; then
-            git checkout -q -B pm-desk-data origin/pm-desk-data
-          else
-            git checkout -q --orphan pm-desk-data && git rm -rf -q . && git clean -fdq
+          # Depth 1: a full fetch of pm-desk-data walks every desk's history
+          # and hangs a depth-1 checkout of main. A failed fetch must not
+          # fall through into an empty orphan book.
+          fetch_ok=0
+          for attempt in 1 2 3; do
+            if timeout --kill-after=10s 120s git fetch -q --depth=1 origin pm-desk-data; then
+              fetch_ok=1
+              break
+            fi
+            echo "fetch pm-desk-data attempt ${attempt}/3 failed"
+            [ "$attempt" -lt 3 ] && sleep $((attempt * 5))
+          done
+          if [ "$fetch_ok" -ne 1 ] || ! git rev-parse --verify origin/pm-desk-data >/dev/null 2>&1; then
+            echo "::error::pm desk: fetch pm-desk-data failed; not creating an empty book"
+            exit 1
           fi
+          git checkout -q -B pm-desk-data origin/pm-desk-data
           mkdir -p pm
           end=$(( $(date +%s) + 345*60 )); last=0
           while [ $(date +%s) -lt $end ]; do
@@ -43,7 +54,24 @@ jobs:
             if [ $(( t0 - last )) -ge 10 ]; then
               git add pm/state.json pm/news.json 2>/dev/null; git add pm/state.json
               if git commit -q -m "pm desk state $(date -u +%FT%TZ)"; then
-                git push -q origin pm-desk-data || { git pull -q --rebase -X ours origin pm-desk-data && git push -q origin pm-desk-data; } || true
+                # pull --rebase on this shallow branch drops our commit when
+                # pm/state.json also moved on origin. Fetch the tip and put
+                # back only pm/.
+                ok=0
+                for n in 1 2 3 4 5 6; do
+                  if timeout --kill-after=10s 60s git push -q origin pm-desk-data; then ok=1; break; fi
+                  sleep $(( (RANDOM % 4) + n ))
+                  ours=$(git rev-parse HEAD)
+                  if timeout --kill-after=10s 90s git fetch -q --depth=1 origin pm-desk-data; then
+                    git reset -q --hard origin/pm-desk-data
+                    if git checkout "$ours" -- pm; then
+                      git diff --cached --quiet || git commit -q -m "pm desk state $(date -u +%FT%TZ)"
+                    else
+                      git reset -q --hard "$ours"
+                    fi
+                  fi
+                done
+                [ "$ok" -eq 1 ] || echo "::error::pm desk: state push to pm-desk-data failed after 6 attempts"
               fi
               last=$t0
             fi
