@@ -77,10 +77,10 @@ try{
  d5Mock=true;await run({paper_strategy:'DDDDD'});const d5Entries=commits.at(-1).p_entries
  assert.equal(d5Entries.length,6);assert.equal(d5Entries[0].q15.pattern,'DDDDD');assert.equal(d5Entries[0].side,'LONG')
  assert.equal(d5Entries[0].q15.stop,d5Entries[0].price*.99);assert.equal(d5Entries[0].q15.target,d5Entries[0].price*1.01)
- assert.equal(d5Entries[0].q15.hold_ms,0);assert.equal(commits.at(-1).p_note.d5_scan.cursor,56)
+ assert.equal(d5Entries[0].q15.hold_ms,0);assert.equal(commits.at(-1).p_note.d5_scan.cursor,allowed.length)
  assert.equal(commits.at(-1).p_note.d5_scan.done,true)
  assert.equal(d5Entries[0].q15.execution_version,2);assert.ok(d5Entries[0].q15.protection.stop>d5Entries[0].price*1.001)
- await run({paper_strategy:'DDDDD',d5_scan:{bar:BAR,cursor:56,done:true}});assert.equal(commits.length,1,'finished 5m scan only manages exits')
+ {const pn=commits.at(-1).p_note;await run({paper_strategy:'DDDDD',r3_scan_bar:pn.r3_scan_bar,l10_scan_bar:pn.l10_scan_bar,l30_scan_bar:pn.l30_scan_bar,m1_scan_bar:pn.m1_scan_bar,d5_scan:{bar:BAR,cursor:allowed.length,done:true}})};assert.equal(commits.length,1,'finished 5m scan only manages exits')
  d5Mock=false
  hot=true;closed=[outcome(1)];await run();let e=commits.at(-1).p_entries[0]
  assert.equal(e.lev,15);assert.equal(e.notional,11250);assert.equal(journal.find(x=>x.sym==='SOL').reason,'taken')
