@@ -312,7 +312,9 @@ class PaperExchange(ExecutionAdapter):
             px = self._market_px(symbol, o.side, ref)
             self.orders.pop(o.id, None)
             reason = "STOP_LOSS" if o.type == "STOP_MARKET" else "TAKE_PROFIT"
+            held = self.pos.get(symbol)
             self._emit("on_event", {"ts": ts, "type": reason, "symbol": symbol,
+                                    "strategy": held.strategy if held else "",
                                     "msg": f"{o.side} triggered @ {o.stop_price} ({o.working_type}) fill {px}"})
             self._execute(o, o.qty, px, "TAKER", ts, reason=reason)
         # 2) resting limit orders (maker) - only when price trades through
@@ -324,7 +326,13 @@ class PaperExchange(ExecutionAdapter):
                 hit = (m.last and m.last > o.price) or (m.bid and m.bid > o.price) \
                     if self.trade_through else (m.last and m.last >= o.price)
             if hit:
-                self._execute(o, o.qty, o.price, "MAKER", ts)
+                reason = "TAKE_PROFIT" if (o.reduce_only or o.tag == "TP") else None
+                held = self.pos.get(symbol)
+                if reason:
+                    self._emit("on_event", {"ts": ts, "type": reason, "symbol": symbol,
+                                            "strategy": held.strategy if held else "",
+                                            "msg": f"{o.side} limit {o.price} filled as maker"})
+                self._execute(o, o.qty, o.price, "MAKER", ts, reason=reason)
         # 3) liquidation on mark price
         self._check_liquidation(symbol, ts)
 
@@ -354,6 +362,7 @@ class PaperExchange(ExecutionAdapter):
         del self.pos[symbol]
         self.cancel_all(symbol, ts)
         self._emit("on_event", {"ts": ts, "type": "LIQUIDATION", "symbol": symbol,
+                                "strategy": p.strategy,
                                 "msg": f"liquidated at mark {m.mark} (liq px {lp:.6g}), lost margin {loss:.2f}"})
         self._emit("on_fill", {"ts": ts, "order_id": 0, "symbol": symbol,
                                "side": "SELL" if p.side > 0 else "BUY", "type": "LIQUIDATION",
@@ -372,6 +381,7 @@ class PaperExchange(ExecutionAdapter):
         p.funding += pay
         self.totals["funding"] += pay
         self._emit("on_event", {"ts": funding_ts, "type": "FUNDING", "symbol": symbol,
+                                "strategy": p.strategy,
                                 "msg": f"rate {rate*100:.4f}% mark {mark_price:.6g} -> {pay:+.4f} USDT",
                                 "amount": pay})
         if self.listener is not None and hasattr(self.listener, "on_funding"):
