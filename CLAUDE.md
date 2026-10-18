@@ -701,6 +701,22 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   state pushing again 00:18. pmc/pmn were still on their pre-CLV loops and would have hit it at their next restart. No rule change.
 - 2026-10-17 16:16 UTC POLY SUPERVISOR STOPPED (owner: "תעצור את הסוכן"): scheduled task trig_01Vjp6cAr2SiufLUJeD21tgz
   disabled (not deleted; re-enable to restore). The three paper desks keep running unsupervised.
+- 2026-10-18 POLY AUDIT + HYPOTHESES + RELIABILITY (owner: "act without questions"). Live v2 (10-13..10-18, pm/state.json):
+  269 closes WR 89.2% (95% 84.9-92.4) P&L -$5.23 on $20.2k staked (-0.03%/$, t -0.2); ex-crypto 232 +0.81%/$ t 0.25; judged
+  (>= 10-15 18:30) 115 -0.92%/$ t -0.26; realised max DD 41.6% ($1,565 -> $915); 29 losses = 18 esports / 6 crypto / 2 soccer /
+  2 rules-markets / 1 CFB, all clean auto-resolved upsets (0 settlement mismatches vs Gamma outcomePrices, 0 disputes). Gaps
+  found: maxPerEvent counts OPEN positions, so 17 matches got 3-5 entries over time; st.equity keeps only ~21 h; CLV close =
+  last mid before endDate, usually after the result (Brier close 0.011) -> CLV is outcome-contaminated, not an edge read.
+  STEP 3 backtest (backtest/research/pm_v2_*.py -> status/pm-v2-hypotheses.txt): 53,619 resolved non-crypto markets >= $20k,
+  endDate 2026-06-01..10-17, 5-min CLOB history, live rule keyed on endDate (as the desk), +1c slip, market fee rate:
+  baseline IS n6561 WR 85.8% -4.45%/$ t -9.3 | OOS n2813 83.9% -6.59%/$ t -8.5 (0c slip: -3.4 / -5.6). Fidelity on the 186 live
+  markets it also enters: WR 87.6% vs live 88.7%, r -2.6% vs -1.0%. Least bad: esports -1.6 / -1.9%/$, in-play -2.9 / -2.9.
+  16 variants (category filters, IS-chosen band per category, fee-aware IS-calibrated skip, lifetime 1 or 2 per match, in-play
+  / pre-start, moneyline-only, no-spreads/totals, require game start, 2h/3h window): 0 passed (positive both halves, OOS n>=100,
+  better than baseline). NO RULE CHANGE. The earlier pm_favourites result (+2.5 / +3.3%/$) used closedTime and hourly prices.
+  STEP 4 fixes (scripts/pm-desk.ts): official 50-50 results settle at 0.5 (RESOLVED_SPLIT; were open forever), atomic state
+  write (temp + rename), equity points past 5,000 kept hourly in equity_h; pages show RESOLVED_SPLIT as 50-50 (display only);
+  tests/pm.test.ts 38/38 incl. a check that pm-desk.yml copies every shared module the runner imports.
 - 2026-10-15 ~19:00 UTC Poly Coins first-look PMC.zMin 1.5 -> 2.0 (owner: "do what you think, bring profitability"). Live since
   the 1.5 revert: 69 closed, 64 W, -$43.17 (-2.8%/$), 5 losses vs ~1.5 expected by the 180-day backtest (P ~2%: live runs
   below the backtest). 50 of the 69 were z 1.5-2.0: 4 losses, -$27.44 (-3.3%/$); the backtest's same bucket was the weakest

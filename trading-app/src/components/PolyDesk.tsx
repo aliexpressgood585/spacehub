@@ -58,7 +58,7 @@ export default function PolyDesk({ d, title = 'שולחן Polymarket · דמו',
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead><tr style={lab}>{['שוק', 'תוצאה שקנינו', 'כניסה', 'מניות', 'עלות', 'עמלה', 'קיבלנו', 'רווח/הפסד', 'נסגר'].map((h) => <th key={h} style={{ textAlign: 'right', padding: 6, borderBottom: '1px solid #1c2738' }}>{h}</th>)}</tr></thead>
             <tbody>{closed.map((t) => (
-              <tr key={t.id}><td style={{ padding: 6 }} title={t.question}>{t.question_he ?? t.question}</td><td>{t.outcome_he ?? t.outcome} {t.reason === 'EARLY_EXIT' ? `· מימוש מוקדם ב־${c(n(t.exit_px))}` : t.reason === 'RESOLVED_WIN' ? '✓' : '✗'}</td><td>{c(n(t.entry_px))}</td><td>{n(t.qty).toFixed(1)}</td><td>{$(n(t.cost))}</td><td>{$(n(t.entry_fee) + n(t.exit_fee))}</td><td>{$(n(t.proceeds) - n(t.exit_fee))}</td><td style={{ color: col(n(t.pnl)) }}>{$(n(t.pnl))}</td><td>{when(t.closed_at)}</td></tr>
+              <tr key={t.id}><td style={{ padding: 6 }} title={t.question}>{t.question_he ?? t.question}</td><td>{t.outcome_he ?? t.outcome} {t.reason === 'EARLY_EXIT' ? `· מימוש מוקדם ב־${c(n(t.exit_px))}` : t.reason === 'RESOLVED_WIN' ? '✓' : t.reason === 'RESOLVED_SPLIT' ? '½ (50-50)' : '✗'}</td><td>{c(n(t.entry_px))}</td><td>{n(t.qty).toFixed(1)}</td><td>{$(n(t.cost))}</td><td>{$(n(t.entry_fee) + n(t.exit_fee))}</td><td>{$(n(t.proceeds) - n(t.exit_fee))}</td><td style={{ color: col(n(t.pnl)) }}>{$(n(t.pnl))}</td><td>{when(t.closed_at)}</td></tr>
             ))}</tbody>
           </table>
           {closed.length === 0 && <div style={lab}>עוד לא נסגרו עסקאות. שווי פוזיציה נקבע רק כשהשוק מוכרע.</div>}
