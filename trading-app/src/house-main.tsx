@@ -17,30 +17,43 @@ function initial(): Tab {
   return 'day'
 }
 
-function House() {
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <Shell />
+  </StrictMode>,
+)
+
+function Shell() {
   const [tab, setTab] = useState<Tab>(initial)
+  return (
+    <div style={{ minHeight: '100vh', background: tab === 'futures' ? '#07080c' : '#04070E', display: 'flex', justifyContent: 'center', padding: tab === 'futures' ? '10px 12px 28px' : '12px 8px' }}>
+      <div style={{ width: '100%', maxWidth: tab === 'futures' ? 1360 : 1100 }}>
+        <HouseBridge tab={tab} setTab={setTab} />
+      </div>
+    </div>
+  )
+}
+
+function HouseBridge({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   const pick = (t: Tab) => { setTab(t); try { localStorage.setItem('house_tab', t) } catch { /* no storage */ } }
-  const chip = (t: Tab, label: string) => (
-    <button onClick={() => pick(t)} style={{ padding: '6px 14px', borderRadius: 20, border: '1px solid ' + (tab === t ? '#3d7bd9' : '#1c2738'),
-      background: tab === t ? '#13284a' : '#0b1220', color: '#e6edf5', cursor: 'pointer', fontSize: 14 }}>{label}</button>)
+  const futures = tab === 'futures'
+  const chip = (t: Tab, label: string) => {
+    const on = tab === t
+    const edge = futures && on ? '#d6ff4a' : on ? '#3d7bd9' : '#1c2738'
+    const bg = futures && on ? '#171d0c' : on ? '#13284a' : '#0b1220'
+    return (
+      <button onClick={() => pick(t)} style={{ padding: '6px 14px', borderRadius: 20, border: '1px solid ' + edge,
+        background: bg, color: futures && on ? '#d6ff4a' : '#e6edf5', cursor: 'pointer', fontSize: 14 }}>{label}</button>
+    )
+  }
   return (
     <>
       <div dir="rtl" style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
         {chip('day', 'דיי טריידינג · 15m')}
         {chip('coach', 'מאמן כמותי · 4h')}
-        {chip('futures', 'בוט פיוצ\'רס · Binance דמו')}
+        {chip('futures', 'מסוף פיוצ\'רס · Binance דמו')}
       </div>
       {tab === 'day' ? <DayHouse /> : tab === 'coach' ? <CoachHouse /> : <FuturesHouse />}
     </>
   )
 }
-
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <div style={{ minHeight: '100vh', background: '#04070E', display: 'flex', justifyContent: 'center', padding: '12px 8px' }}>
-      <div style={{ width: '100%', maxWidth: 1100 }}>
-        <House />
-      </div>
-    </div>
-  </StrictMode>,
-)
