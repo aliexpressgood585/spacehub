@@ -12,6 +12,15 @@ git_t() {
   timeout --kill-after="${GIT_KILL_AFTER}s" "${GIT_TIMEOUT}s" git "$@"
 }
 
+# Tip of pm-desk-data only. The runner checks out main at depth 1; a fetch
+# without --depth walks the whole state branch (pm/pmc/pmn history) and the
+# 30s git ceiling kills it before the desk starts.
+fetch_pm_desk() {
+  local timeout_s=${1:-$GIT_TIMEOUT}
+  timeout --kill-after="${GIT_KILL_AFTER}s" "${timeout_s}s" \
+    git fetch -q --depth=1 origin pm-desk-data
+}
+
 # Push has its own ceiling. A blocked credential helper or a stalled HTTP
 # POST must not sit until the job timeout.
 git_push() {
@@ -52,7 +61,7 @@ push_state() {
     cp -a binance-paper/. "$snap/binance-paper/"
   fi
   while [ "$attempt" -le "$PUSH_ATTEMPTS" ]; do
-    if ! git_t fetch -q origin pm-desk-data; then
+    if ! fetch_pm_desk; then
       echo "fetch pm-desk-data failed (attempt ${attempt})"
     elif ! git_t reset -q --hard origin/pm-desk-data; then
       echo "reset to origin/pm-desk-data failed (attempt ${attempt})"

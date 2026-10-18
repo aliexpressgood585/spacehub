@@ -7,12 +7,15 @@ name: binance-paper-desk
 # if one is already running the new job exits without chaining. At the end the job
 # dispatches its own successor, so the desk stays up when the schedule does not fire.
 # A tick that runs past 90s is killed and the loop continues. Git and gh calls
-# die after 30s; the state push itself dies after 20s. pm/pmc/pmn commit to
-# the same branch every few seconds, so a rejected push resets to origin,
-# reapplies only binance-paper/, and retries with jitter. If no push has
-# landed for 10 minutes the loop alerts and exits non-zero and the chain
-# step (if: always()) starts a successor. The loop step itself is capped
-# so a stuck shell still reaches that step.
+# die after 30s; the state push itself dies after 20s. The startup fetch of
+# pm-desk-data is --depth=1, 120s, three tries: a depth-1 checkout of main
+# otherwise downloads that branch's whole history and the 30s cap kills it.
+# pm/pmc/pmn commit to the same branch every few seconds, so a rejected push
+# fetches the tip, resets to origin, reapplies only binance-paper/, and
+# retries with jitter. If no push has landed for 10 minutes the loop alerts
+# and exits non-zero and the chain step (if: always()) starts a successor.
+# A startup failure waits 60s before that dispatch. The loop step itself is
+# capped so a stuck shell still reaches that step.
 # The existing binance-paper/state.json is loaded and updated. An existing account
 # is never replaced. Never places a real order and needs no API keys.
 on:
@@ -59,10 +62,24 @@ jobs:
           git config user.email actions@github.com
           # A failed fetch must not look like a missing branch: the orphan
           # path would start a second book and then fail to push it.
-          set +e
-          git_t fetch -q origin pm-desk-data
-          fetch_rc=$?
-          set -e
+          # --depth=1: this job's checkout of main is already shallow, and a
+          # full fetch of pm-desk-data is the history of every desk on it.
+          fetch_rc=1
+          attempt=1
+          while [ "$attempt" -le 3 ]; do
+            set +e
+            fetch_pm_desk 120
+            fetch_rc=$?
+            set -e
+            if [ "$fetch_rc" -eq 0 ]; then
+              break
+            fi
+            echo "fetch pm-desk-data attempt ${attempt}/3 failed rc=$fetch_rc"
+            if [ "$attempt" -lt 3 ]; then
+              sleep $((attempt * 5))
+            fi
+            attempt=$((attempt + 1))
+          done
           if [ "$fetch_rc" -ne 0 ]; then
             echo "fetch pm-desk-data failed rc=$fetch_rc; not creating an empty book"
             exit 1
@@ -208,5 +225,11 @@ jobs:
           if [ "${{ steps.loop.outputs.chain }}" = "no" ]; then
             echo "not chaining; another loop is alive"
             exit 0
+          fi
+          # Startup exits before chain=yes (the shallow fetch died). Dispatching
+          # immediately relaunched a new run every ~45s.
+          if [ "${{ steps.loop.outputs.chain }}" != "yes" ]; then
+            echo "loop failed before the desk was running; waiting 60s before the successor"
+            sleep 60
           fi
           timeout --kill-after=10s 30s gh workflow run binance-paper-desk.yml --ref main
