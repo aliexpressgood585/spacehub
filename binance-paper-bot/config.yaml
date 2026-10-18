@@ -71,7 +71,8 @@ strategy:
       timeframe: 1d
       lb: 14                 # volatility-normalised return, days
       vol_win: 70
-      reb_days: 3            # rebalance at 00:00 UTC when the Unix day index is divisible by 3
+      reb_days: 3            # rebalance at 00:00 UTC when the Unix day index is divisible by 3.
+                             # A flat book that has not entered the current period opens once from the last closed daily bar.
       k: 4                   # long the top 4, short the bottom 4
       gross: 0.30            # 30% of equity notional across all 8 legs (~3.75% each)
       disaster_sl_atr: 5.0   # wide stop; the research book had none

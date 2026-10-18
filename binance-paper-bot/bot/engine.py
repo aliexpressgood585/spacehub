@@ -57,6 +57,9 @@ class TradingEngine:
         self.last_signal = {}
         self.overrides = {}
         self.closed_trades = []
+        # strategy name -> rebalance period already entered. Stops a flat book
+        # from opening again before the next scheduled rebalance.
+        self.universe_period = {}
 
     def event(self, ts, typ, symbol, msg, strategy=""):
         log.info("[%s] %s %s", typ, symbol, msg)
@@ -166,6 +169,8 @@ class TradingEngine:
                 self.last_signal[sig.symbol] = {"ts": boundary, "action": sig.action, "reason": sig.reason,
                                                 "info": sig.info, "strategy": st.name}
                 self.handle(sig, boundary, st)
+            if getattr(st, "is_rebalance_day", None) and st.is_rebalance_day(boundary):
+                self.universe_period[st.name] = int(st.period_id(boundary))
         return n
 
     def handle(self, sig, ts, strat=None):

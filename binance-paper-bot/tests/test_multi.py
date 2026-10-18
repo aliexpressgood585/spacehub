@@ -2,7 +2,8 @@
 import pytest
 
 from bot.config import load_config
-from bot.desk import other_loop_alive, risk_overrides, strategy_specs, strategy_view
+from bot.desk import (bootstrap_flat, other_loop_alive, rebalance_still_due,
+                      risk_overrides, strategy_specs, strategy_view)
 from bot.engine import TradingEngine
 from bot.execution.base import Order, Position
 from bot.replay import replay_minutes
@@ -309,6 +310,97 @@ def test_live_runs_ignore_a_heartbeat_from_a_finished_job(monkeypatch):
     assert other_loop_alive(state, "2", now) is False
     monkeypatch.setenv("DESK_LIVE_RUNS", "1,2")
     assert other_loop_alive(state, "2", now) is True
+
+
+def _seed_daily(eng, ex, closes, now):
+    for sym, series in closes.items():
+        rows = []
+        for i, c in enumerate(series):
+            ot = i * DAY
+            px = float(c)
+            rows.append((ot, px, px * 1.01, px * 0.99, px, 1.0, ot + DAY - 1))
+        eng.add_history(sym, "1d", rows)
+        last = float(series[-1])
+        ex.update_market(sym, now, bid=last, ask=last, last=last, mark=last)
+
+
+def test_bootstrap_enters_a_flat_book_once_and_skips_a_held_coin():
+    closes = universe()
+    symbols = list(closes)
+    ex, rec = _book(symbols, balance=80_000)
+    cfg = load_config()
+    ema = Named("ema_trend_4h", "1h")
+    xs = REGISTRY[NAME]({"k": 2, "reb_days": 3, "gross": 0.30, "timeframe": "1d"})
+    eng = TradingEngine(cfg, ex, ema, RiskManager(cfg, 0.0005, 0.0), ex.si, ex.brackets,
+                        recorder=rec, strategies=[ema, xs])
+    eng.overrides = risk_overrides(cfg)
+    # Day index 100 is not a rebalance day, and it is after the seeded daily bars have closed.
+    now = 100 * DAY + 3 * 3_600_000
+    _seed_daily(eng, ex, closes, now)
+    book = target_book(xs_scores(closes), k=2, gross=0.30)
+    held = max(book, key=book.get)
+    ex.place_order(Order(held, "BUY", "MARKET", 0.05, tag="ema_trend_4h"), 2)
+    n = bootstrap_flat(eng, now, last_1h_open=now)
+    xs_pos = [s for s, p in ex.positions().items() if p.strategy == NAME]
+    assert n == 4 and held not in xs_pos and len(xs_pos) == 3
+    assert eng.universe_period[NAME] == xs.period_id(now)
+    assert any(e["type"] == "RISK_REJECT" and e["symbol"] == held and e.get("strategy") == NAME for e in rec.events)
+    for s in xs_pos:
+        p = ex.get_position(s)
+        side = "SELL" if p.side > 0 else "BUY"
+        ex.place_order(Order(s, side, "MARKET", p.qty, reduce_only=True), now + 1)
+    assert not any(getattr(p, "strategy", "") == NAME for p in ex.positions().values())
+    assert bootstrap_flat(eng, now, last_1h_open=now) == 0
+    assert not any(getattr(p, "strategy", "") == NAME for p in ex.positions().values())
+
+
+def test_bootstrap_waits_out_the_midnight_rebalance_window():
+    from datetime import datetime, timezone
+    xs = REGISTRY[NAME]({"k": 2, "reb_days": 3, "timeframe": "1d"})
+    # Day 102 is a rebalance day after the seeded history has closed.
+    now = 102 * DAY + 60_000
+    assert xs.is_rebalance_day(now)
+    midnight_hour = 102 * DAY - 3_600_000
+    assert rebalance_still_due(xs, now, midnight_hour - 3_600_000)
+    assert not rebalance_still_due(xs, now, midnight_hour)
+    oct19 = int(datetime(2026, 10, 19, 0, 1, tzinfo=timezone.utc).timestamp() * 1000)
+    assert oct19 // DAY == 20745
+    hour = (oct19 // DAY) * DAY - 3_600_000
+    assert rebalance_still_due(xs, oct19, hour - 3_600_000)
+    assert not rebalance_still_due(xs, oct19, hour)
+    closes = universe()
+    ex, rec = _book(list(closes), balance=80_000)
+    cfg = load_config()
+    eng = TradingEngine(cfg, ex, xs, RiskManager(cfg, 0.0005, 0.0), ex.si, ex.brackets,
+                        recorder=rec, strategies=[xs])
+    eng.overrides = risk_overrides(cfg)
+    _seed_daily(eng, ex, closes, now)
+    assert bootstrap_flat(eng, now, last_1h_open=midnight_hour - 3_600_000) == 0
+    assert NAME not in eng.universe_period
+    assert not ex.positions()
+    assert bootstrap_flat(eng, now, last_1h_open=midnight_hour) == 4
+    assert eng.universe_period[NAME] == xs.period_id(now)
+    assert len(ex.positions()) == 4
+
+
+def test_scheduled_rebalance_records_the_period_so_bootstrap_does_not_repeat():
+    closes = universe()
+    ex, rec = _book(list(closes), balance=80_000)
+    cfg = load_config()
+    xs = REGISTRY[NAME]({"k": 2, "reb_days": 3, "gross": 0.30, "timeframe": "1d"})
+    eng = TradingEngine(cfg, ex, xs, RiskManager(cfg, 0.0005, 0.0), ex.si, ex.brackets,
+                        recorder=rec, strategies=[xs])
+    eng.overrides = risk_overrides(cfg)
+    boundary = 3 * DAY
+    _seed_daily(eng, ex, closes, boundary)
+    eng.on_timeframe_done("1d", boundary)
+    assert eng.universe_period[NAME] == xs.period_id(boundary)
+    opened = [s for s, p in ex.positions().items() if p.strategy == NAME]
+    assert opened
+    for s in opened:
+        p = ex.get_position(s)
+        ex.place_order(Order(s, "SELL" if p.side > 0 else "BUY", "MARKET", p.qty, reduce_only=True), boundary + 1)
+    assert bootstrap_flat(eng, boundary + 3_600_000, last_1h_open=boundary) == 0
 
 
 def test_same_side_xs_holder_is_not_resized():
