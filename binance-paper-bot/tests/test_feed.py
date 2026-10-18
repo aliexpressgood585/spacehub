@@ -1,5 +1,6 @@
 """Price-source selection and OKX row conversion. No network."""
-from bot.feed import (OkxFeed, funding_from_okx, inst_id, kline_from_okx, okx_bar, probe_binance)
+from bot.feed import (OkxFeed, funding_from_okx, inst_id, kline_from_okx, okx_bar, okx_contract,
+                       probe_binance)
 
 
 class _Resp:
@@ -35,6 +36,14 @@ def test_symbol_and_bar_mapping():
     assert inst_id("BTCUSDT") == "BTC-USDT-SWAP"
     assert inst_id("XRPUSDT") == "XRP-USDT-SWAP"
     assert okx_bar("1h") == "1H" and okx_bar("15m") == "15m"
+    assert okx_contract("BTCUSDT") == [("BTC", 1.0)]
+    assert okx_contract("1000PEPEUSDT") == [("1000PEPE", 1.0), ("PEPE", 1000.0)]
+    feed = OkxFeed(session=object(), timeout=1)
+    feed._swap_bases = {"PEPE", "BTC"}
+    assert feed.resolve("1000PEPEUSDT") == ("PEPE-USDT-SWAP", 1000.0)
+    assert feed.supports("1000PEPEUSDT") and not feed.supports("NOSUCHUSDT")
+    row = feed._kline(["1700000000000", "0.01", "0.02", "0.009", "0.011", "3000", "1", "50", "1"], 60_000, 1000)
+    assert float(row[4]) == 11.0 and float(row[5]) == 3.0 and row[7] == "50"
 
 
 def test_kline_and_funding_conversion():

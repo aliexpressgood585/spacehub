@@ -40,6 +40,7 @@ class PaperExchange(ExecutionAdapter):
         self.wallet = float(balance)          # Binance "wallet balance" (incl. isolated margins)
         self.maker_fee, self.taker_fee = maker_fee, taker_fee
         self.slip = slippage_bps / 1e4
+        self.slip_by_symbol = {}          # symbol -> fraction; missing keys use self.slip
         self.leverage = {s: default_leverage for s in symbol_infos}
         self.pos = {}                         # symbol -> Position
         self.orders = {}                      # id -> Order
@@ -168,6 +169,9 @@ class PaperExchange(ExecutionAdapter):
         for oid in [i for i, o in self.orders.items() if o.symbol == symbol]:
             self.cancel_order(oid, ts)
 
+    def slip_for(self, symbol):
+        return self.slip_by_symbol.get(symbol, self.slip)
+
     def _market_px(self, symbol, side, ref=None):
         m, si = self.mkt[symbol], self.si[symbol]
         if ref is None:
@@ -177,9 +181,10 @@ class PaperExchange(ExecutionAdapter):
             base = ref + hs if side == "BUY" else ref - hs
         if base <= 0:
             return 0.0
+        slip = self.slip_for(symbol)
         if side == "BUY":
-            return si.round_price(base * (1 + self.slip), "up")
-        return si.round_price(base * (1 - self.slip), "down")
+            return si.round_price(base * (1 + slip), "up")
+        return si.round_price(base * (1 - slip), "down")
 
     def _margin_ok(self, symbol, qty, px, side, maker=False):
         p = self.pos.get(symbol)

@@ -9,18 +9,43 @@ Fees and contract filters are NOT taken from OKX. The runner keeps the Binance V
 fee schedule and the cached (or live) Binance exchangeInfo / leverage brackets.
 """
 import logging
+import re
 import time
 
 log = logging.getLogger("feed")
+
+# Binance lists some coins as 1000PEPEUSDT (price per 1000). OKX lists PEPE-USDT-SWAP
+# (price per 1). The multiplier puts OKX prices back into the Binance contract's units.
+_PREFIX_K = {"1M": 1_000_000}
+_PREFIX_RE = re.compile(r"^(1000000|100000|10000|1000|100|1M)([A-Z][A-Z0-9]*)$")
 
 OKX_BAR = {"1m": "1m", "3m": "3m", "5m": "5m", "15m": "15m", "30m": "30m",
            "1h": "1H", "2h": "2H", "4h": "4H", "1d": "1D"}
 
 
 def inst_id(symbol: str) -> str:
+    """Literal OKX id. 1000PEPEUSDT -> 1000PEPE-USDT-SWAP (tests and the exact contract)."""
     if not symbol.endswith("USDT"):
         raise ValueError(f"unsupported symbol {symbol}")
     return symbol[:-4] + "-USDT-SWAP"
+
+
+def okx_contract(symbol: str):
+    """Candidate (base, price_multiplier) pairs. Exact contract first, then the per-coin alias.
+
+    price_multiplier converts an OKX per-coin price into the Binance contract price
+    (PEPE * 1000 = 1000PEPE). Quote volume is already in USDT and is not scaled.
+    """
+    if not symbol.endswith("USDT"):
+        raise ValueError(f"unsupported symbol {symbol}")
+    base = symbol[:-4]
+    out = [(base, 1.0)]
+    m = _PREFIX_RE.match(base)
+    if m and m.group(2):
+        k = float(_PREFIX_K.get(m.group(1), m.group(1)))
+        if k != 1 and m.group(2) != base:
+            out.append((m.group(2), k))
+    return out
 
 
 def okx_bar(interval: str) -> str:
@@ -31,10 +56,13 @@ def okx_bar(interval: str) -> str:
 
 
 def kline_from_okx(row, interval_ms: int) -> list:
-    """OKX candle row -> Binance kline shape [openTime, o, h, l, c, volume, closeTime]."""
+    """OKX candle row -> Binance kline shape [openTime, o, h, l, c, volume, closeTime, quoteVolume]."""
     ot = int(row[0])
     vol = row[5] if len(row) > 5 else "0"
-    return [ot, row[1], row[2], row[3], row[4], vol, ot + interval_ms - 1]
+    out = [ot, row[1], row[2], row[3], row[4], vol, ot + interval_ms - 1]
+    if len(row) > 7 and row[7] not in (None, ""):
+        out.append(row[7])  # volCcyQuote, same slot as Binance quote volume
+    return out
 
 
 def funding_from_okx(symbol: str, row: dict) -> dict:
@@ -121,7 +149,7 @@ class OkxFeed:
                 time.sleep(0.4 + i)
         raise RuntimeError(f"OKX {path} failed: {last}")
 
-    def _convert(self, data, step, start_ms, end_ms, confirm_idx):
+    def _convert(self, data, step, start_ms, end_ms, confirm_idx, k=1.0):
         rows, seen = [], set()
         for r in data or []:
             ts = int(r[0])
@@ -130,7 +158,7 @@ class OkxFeed:
             if len(r) > confirm_idx and str(r[confirm_idx]) == "0":
                 continue
             seen.add(ts)
-            rows.append(kline_from_okx(r, step))
+            rows.append(self._kline(r, step, k))
         rows.sort(key=lambda x: x[0])
         return rows
 
@@ -160,27 +188,68 @@ class OkxFeed:
         from .rest import INTERVAL_MS
         return INTERVAL_MS[interval]
 
+    def swap_bases(self):
+        if not hasattr(self, "_swap_bases"):
+            try:
+                self._swap_bases = {s[:-4] for s in self.usdt_swap_symbols()
+                                    if isinstance(s, str) and s.endswith("USDT")}
+            except Exception:
+                log.warning("OKX instrument list unavailable; using literal swap ids")
+                self._swap_bases = set()
+        return self._swap_bases
+
+    def supports(self, symbol):
+        bases = self.swap_bases()
+        if not bases:
+            return True
+        try:
+            return any(b in bases for b, _k in okx_contract(symbol))
+        except ValueError:
+            return False
+
+    def resolve(self, symbol):
+        """Return (instId, price_multiplier). Literal id when the instrument list is unknown."""
+        bases = self.swap_bases()
+        if not bases:
+            return inst_id(symbol), 1.0
+        for base, k in okx_contract(symbol):
+            if base in bases:
+                return base + "-USDT-SWAP", k
+        raise RuntimeError(f"no OKX USDT swap for {symbol}")
+
+    def _kline(self, raw, step, k):
+        row = kline_from_okx(raw, step)
+        if k != 1:
+            for i in (1, 2, 3, 4):
+                row[i] = float(row[i]) * k
+            if len(row) > 5 and row[5] not in (None, ""):
+                row[5] = float(row[5]) / k
+        return row
+
     def klines(self, symbol, interval, start_ms, end_ms):
-        step, bar, inst = self._step(interval), okx_bar(interval), inst_id(symbol)
+        step, bar = self._step(interval), okx_bar(interval)
+        inst, k = self.resolve(symbol)
         now = int(time.time() * 1000)
         if end_ms >= now - step and (end_ms - start_ms) <= 300 * step:
             data = self._get("/api/v5/market/candles", {"instId": inst, "bar": bar, "limit": "300"})
             if data and min(int(r[0]) for r in data) <= start_ms:
-                return self._convert(data, step, start_ms, end_ms, 8)
+                return self._convert(data, step, start_ms, end_ms, 8, k)
         data = self._page("/api/v5/market/history-candles", inst, bar, start_ms, end_ms, 100)
-        return self._convert(data, step, start_ms, end_ms, 8)
+        return self._convert(data, step, start_ms, end_ms, 8, k)
 
     def mark_klines(self, symbol, interval, start_ms, end_ms):
-        step, bar, inst = self._step(interval), okx_bar(interval), inst_id(symbol)
+        step, bar = self._step(interval), okx_bar(interval)
+        inst, k = self.resolve(symbol)
         if (end_ms - start_ms) <= 100 * step:
             data = self._get("/api/v5/market/mark-price-candles", {"instId": inst, "bar": bar, "limit": "100"})
             if data and min(int(r[0]) for r in data) <= start_ms:
-                return self._convert(data, step, start_ms, end_ms, 5)
+                return self._convert(data, step, start_ms, end_ms, 5, k)
         data = self._page("/api/v5/market/history-mark-price-candles", inst, bar, start_ms, end_ms, 100)
-        return self._convert(data, step, start_ms, end_ms, 5)
+        return self._convert(data, step, start_ms, end_ms, 5, k)
 
     def funding_history(self, symbol, start_ms, end_ms):
-        inst, out, after, seen = inst_id(symbol), [], str(end_ms + 1), set()
+        inst, k = self.resolve(symbol)
+        out, after, seen = [], str(end_ms + 1), set()
         for _ in range(40):
             data = self._get("/api/v5/public/funding-rate-history",
                              {"instId": inst, "after": after, "limit": "100"})
@@ -193,7 +262,10 @@ class OkxFeed:
                 if ft not in seen:
                     seen.add(ft)
                     if start_ms < ft <= end_ms:
-                        out.append(funding_from_okx(symbol, r))
+                        ev = funding_from_okx(symbol, r)
+                        if k != 1 and ev.get("markPrice") not in (None, ""):
+                            ev["markPrice"] = str(float(ev["markPrice"]) * k)
+                        out.append(ev)
             if oldest is None or oldest <= start_ms or len(data) < 100:
                 break
             nxt = str(oldest)
@@ -204,14 +276,18 @@ class OkxFeed:
         return out
 
     def book_ticker(self, symbol):
-        d = self._get("/api/v5/market/ticker", {"instId": inst_id(symbol)})[0]
-        return {"bidPrice": d["bidPx"], "askPrice": d["askPx"], "lastPrice": d.get("last") or ""}
+        inst, k = self.resolve(symbol)
+        d = self._get("/api/v5/market/ticker", {"instId": inst})[0]
+        def px(v):
+            return str(float(v) * k) if v not in (None, "") else ""
+        return {"bidPrice": px(d["bidPx"]), "askPrice": px(d["askPx"]), "lastPrice": px(d.get("last") or "")}
 
     def premium_index(self, symbol):
-        inst = inst_id(symbol)
+        inst, k = self.resolve(symbol)
         fr = self._get("/api/v5/public/funding-rate", {"instId": inst})[0]
         mk = self._get("/api/v5/public/mark-price", {"instType": "SWAP", "instId": inst})[0]
-        return {"symbol": symbol, "markPrice": mk["markPx"],
+        mark = float(mk["markPx"]) * k
+        return {"symbol": symbol, "markPrice": str(mark),
                 "lastFundingRate": fr.get("fundingRate") or "0",
                 "nextFundingTime": fr.get("fundingTime") or fr.get("nextFundingTime") or 0}
 
@@ -220,6 +296,19 @@ class OkxFeed:
 
     def leverage_brackets(self):
         return None
+
+    def usdt_swap_symbols(self):
+        """OKX live USDT swaps as Binance-style names (BTC-USDT-SWAP -> BTCUSDT)."""
+        data = self._get("/api/v5/public/instruments", {"instType": "SWAP"})
+        out = set()
+        for r in data or []:
+            inst = str(r.get("instId") or "")
+            if not inst.endswith("-USDT-SWAP"):
+                continue
+            if r.get("state") not in (None, "live"):
+                continue
+            out.add(inst[: -len("-USDT-SWAP")] + "USDT")
+        return out
 
 
 def connect(cfg):

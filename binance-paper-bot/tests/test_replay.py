@@ -55,6 +55,31 @@ def test_fifteen_minute_boundary_is_handed_to_the_engine():
     assert stats["last_15m_open"] == 0 and stats["evaluated_15m"] == 1
 
 
+def test_hourly_strategy_sees_daily_then_4h_then_runs():
+    ex, _ = make_ex()
+    calls = []
+
+    class Eng:
+        def on_bar_closed(self, sym, tf, row, run_strategy=True):
+            calls.append((tf, row[0], run_strategy))
+
+    boundary = 86_400_000
+    t = boundary - 60_000
+    row_1d = (0, 1, 1, 1, 1, 1, boundary - 1)
+    row_4h = (boundary - 14_400_000, 1, 1, 1, 1, 1, boundary - 1)
+    row_1h = (boundary - 3_600_000, 1, 1, 1, 1, 1, boundary - 1)
+    stats = replay_minutes(
+        ex, Eng(), ["BTCUSDT"], [t], {"BTCUSDT": {t: _flat(t)}}, {}, {},
+        {"BTCUSDT": {row_1h[0]: row_1h}}, {}, {}, None,
+        bars_4h={"BTCUSDT": {row_4h[0]: row_4h}},
+        bars_1d={"BTCUSDT": {0: row_1d}},
+        strategy_tf="1h", last_signal_open=None)
+    assert [c[0] for c in calls] == ["1d", "4h", "1h"]
+    assert [c[2] for c in calls] == [False, False, True]
+    assert stats["evaluated_1h"] == 1 and stats["evaluated_15m"] == 0
+    assert stats["last_signal_open"] == row_1h[0]
+
+
 def pytest_approx(v):
     import pytest
     return pytest.approx(v)

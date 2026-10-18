@@ -13,7 +13,11 @@ def test_config_is_paper_10k_with_binance_vip0_fees():
     assert cfg["account"]["starting_balance"] == 10_000
     assert cfg["fees"]["maker"] == 0.0002 and cfg["fees"]["taker"] == 0.0005
     assert cfg["symbols"] == ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"]
-    assert cfg["strategy"]["name"] == "trend_ema"
+    assert cfg["strategy"]["name"] == "ema_trend_4h"
+    p = cfg["strategy"]["params"]["ema_trend_4h"]
+    assert p["timeframe"] == "1h" and p["signal_timeframe"] == "4h"
+    assert p["ema_fast"] == 20 and p["ema_slow"] == 150 and p["tp_atr"] == 0
+    assert p["regime"] == "self50" and p["leverage"] == 3 and p["sl_atr"] == 3.0
     assert cfg["data"]["rest_bases"][0] == "https://fapi.binance.com"
     assert "www.binance.com" in cfg["data"]["rest_bases"][1]
 

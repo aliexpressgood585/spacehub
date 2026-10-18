@@ -25,8 +25,18 @@ risk:
   one_position_per_symbol: true
 
 strategy:
-  name: trend_ema             # trend_ema | bollinger_mr
+  name: ema_trend_4h          # ema_trend_4h | trend_ema | bollinger_mr
   params:
+    ema_trend_4h:
+      timeframe: 1h          # strategy runs on each closed 1h bar
+      signal_timeframe: 4h   # the cross itself is read from completed 4h bars
+      ema_fast: 20
+      ema_slow: 150
+      atr_period: 20
+      sl_atr: 3.0
+      tp_atr: 0               # no take-profit; exit is the stop, the trail, or the opposite cross
+      regime: self50          # longs only above the coin's daily EMA50, shorts only below
+      leverage: 3
     trend_ema:
       timeframe: 15m
       trend_timeframe: 1h
@@ -53,7 +63,7 @@ strategy:
       leverage: 3
 
 data:
-  history_bars: 600           # rolling window of closed candles kept per timeframe
+  history_bars: 600           # rolling window kept per timeframe; ema_trend_4h needs >= ~400 closed 4h bars
   # Endpoints are tried in order. fapi.binance.com returns HTTP 451 from GitHub-hosted
   # runners and from many other hosts; www.binance.com/fapi serves the same production
   # public market data. If both fail, bot/feed.py uses OKX USDT-SWAP candles and funding
