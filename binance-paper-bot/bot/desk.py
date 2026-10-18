@@ -175,12 +175,34 @@ def risk_overrides(cfg):
     return out
 
 
+def strategy_symbols(cfg):
+    """Entry universes declared on a strategy row.
+
+    A missing `symbols` key means the shared book. An explicit list is the only
+    set that strategy may open. It does not drop the monthly universe, and it
+    does not close a position that is already open outside the list.
+    """
+    out = {}
+    for row in cfg.get("strategies") or []:
+        if not row or "symbols" not in row or not row.get("name"):
+            continue
+        syms, seen = [], set()
+        for s in row.get("symbols") or []:
+            s = str(s or "").upper()
+            if s and s not in seen:
+                syms.append(s)
+                seen.add(s)
+        out[row["name"]] = syms
+    return out
+
+
 def _wants_15m(specs):
     return any(s.timeframe == "15m" for s in specs)
 
 
 def _bind_engine(eng, cfg, state):
     eng.overrides = risk_overrides(cfg)
+    eng.entry_symbols = {name: set(syms) for name, syms in strategy_symbols(cfg).items()}
     eng.closed_trades = list((state or {}).get("trades") or [])
     raw = ((state or {}).get("engine") or {}).get("universe_period") or {}
     eng.universe_period = {str(k): int(v) for k, v in raw.items() if v is not None}
@@ -577,7 +599,12 @@ def _curve_dd(curve, start):
     return max_dd
 
 
-def _symbol_list(rows, state, fallback):
+def _symbol_list(rows, state, fallback, extra=()):
+    """Monthly universe, then open positions, then any per-strategy entry coins.
+
+    Open positions stay on the book so a coin ema_trend_4h may no longer enter
+    is still marked and stopped. `extra` only adds; it never replaces the universe.
+    """
     symbols, seen = [], set()
     for r in rows:
         s = r.get("symbol")
@@ -586,6 +613,10 @@ def _symbol_list(rows, state, fallback):
             seen.add(s)
     for s in ((state or {}).get("exchange") or {}).get("positions") or {}:
         if s not in seen:
+            symbols.append(s)
+            seen.add(s)
+    for s in extra:
+        if s and s not in seen:
             symbols.append(s)
             seen.add(s)
     return symbols or list(fallback)
@@ -851,7 +882,8 @@ def run(path, now=None):
         ei, br = fetch_exchange_info(cfg, feed)
         universe_rows, ranked_at, universe_month, universe_reused = choose_universe(
             cfg, feed, state, now, ei)
-        symbols = _symbol_list(universe_rows, state, cfg["symbols"])
+        extra = [s for syms in strategy_symbols(cfg).values() for s in syms]
+        symbols = _symbol_list(universe_rows, state, cfg["symbols"], extra)
     else:
         symbols = list(cfg["symbols"])
     cfg = dict(cfg)

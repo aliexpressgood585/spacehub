@@ -3,7 +3,8 @@ import pytest
 
 from bot.config import load_config
 from bot.desk import (bootstrap_flat, other_loop_alive, rebalance_still_due,
-                      risk_overrides, strategy_specs, strategy_view)
+                      risk_overrides, strategy_specs, strategy_symbols, strategy_view,
+                      _bind_engine, _symbol_list)
 from bot.engine import TradingEngine
 from bot.execution.base import Order, Position
 from bot.replay import replay_minutes
@@ -74,7 +75,10 @@ def test_config_keeps_ema_and_lists_orb_and_xs():
     assert cfg["strategy"]["params"]["orb_ny_15m"]["win"] == 3
     assert cfg["strategy"]["params"]["xs_mom_1d"]["gross"] == 0.30
     ov = risk_overrides(cfg)
+    assert ov["ema_trend_4h"]["risk_per_trade"] == 0.01
     assert ov["ema_trend_4h"]["max_concurrent_positions"] == 3
+    assert strategy_symbols(cfg) == {
+        "ema_trend_4h": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"]}
     assert ov["orb_ny_15m"]["risk_per_trade"] == 0.005
     assert ov["orb_ny_15m"]["max_concurrent_positions"] == 2
     assert ov["orb_ny_15m"]["max_daily_loss"] == 0.02
@@ -89,6 +93,53 @@ def test_config_keeps_ema_and_lists_orb_and_xs():
     assert xs["backtest"]["oos"]["max_dd_pct"] == -11.2
     assert xs["backtest"]["oos"]["corr_ema_trend_4h"] == 0.05
     assert "Not a proven live edge" in xs["backtest"]["note"]
+
+
+class _Flip(Strategy):
+    def __init__(self, name):
+        super().__init__({"timeframe": "1h"})
+        self.name = name
+        self.calls = 0
+
+    def on_bar(self, ctx):
+        self.calls += 1
+        out = []
+        if ctx.position is not None:
+            out.append(Signal(ctx.symbol, "CLOSE", reason="flip"))
+        out.append(Signal(ctx.symbol, "OPEN_LONG", 5.0, 0.0, 3, "cross"))
+        return out
+
+
+def test_ema_entries_stay_on_five_coins_and_an_outside_position_still_exits():
+    five = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"]
+    rows = [{"symbol": f"C{i}USDT"} for i in range(20)]
+    state = {"exchange": {"positions": {"DOGEUSDT": {"strategy": "ema_trend_4h"}}}}
+    booked = _symbol_list(rows, state, five, five)
+    assert [r["symbol"] for r in rows] == booked[:20]
+    assert "DOGEUSDT" in booked
+    for s in five:
+        assert s in booked
+
+    ex, rec = _book(five + ["DOGEUSDT"])
+    eng, _ = _engine(ex, rec, ["ema_trend_4h", "xs_mom_1d"])
+    _bind_engine(eng, load_config(), None)
+    assert eng.entry_symbols["ema_trend_4h"] == set(five)
+    assert "xs_mom_1d" not in eng.entry_symbols
+    ema, xs = _Flip("ema_trend_4h"), _Flip("xs_mom_1d")
+
+    eng.run_strategy("DOGEUSDT", 3, ema)
+    assert ema.calls == 0 and ex.get_position("DOGEUSDT") is None
+
+    ex.place_order(Order("DOGEUSDT", "BUY", "MARKET", 0.2, tag="ema_trend_4h"), 4)
+    assert ex.get_position("DOGEUSDT").strategy == "ema_trend_4h"
+    eng.run_strategy("DOGEUSDT", 5, ema)
+    assert ema.calls == 1 and ex.get_position("DOGEUSDT") is None
+
+    eng.run_strategy("BTCUSDT", 6, ema)
+    assert ex.get_position("BTCUSDT").strategy == "ema_trend_4h"
+
+    eng.run_strategy("DOGEUSDT", 7, xs)
+    assert xs.calls == 1 and ex.get_position("DOGEUSDT").strategy == "xs_mom_1d"
 
 
 def test_one_strategy_cannot_close_or_open_the_others_symbol():

@@ -56,6 +56,9 @@ class TradingEngine:
         self.wt = cfg["execution"]["sl_tp_working_type"]
         self.last_signal = {}
         self.overrides = {}
+        # strategy name -> symbols it may open. Absent means the shared book.
+        # A held symbol outside the set is still evaluated so its own exit can fire.
+        self.entry_symbols = {}
         self.closed_trades = []
         # strategy name -> rebalance period already entered. Stops a flat book
         # from opening again before the next scheduled rebalance.
@@ -122,13 +125,18 @@ class TradingEngine:
 
     def run_strategy(self, symbol, ts, strat=None):
         strat = strat or self.strat
-        ctx = Context(symbol, ts, {tf: b.arrays() for tf, b in self.candles[symbol].items()},
-                      self._visible_position(symbol, strat))
+        allow = self.entry_symbols.get(strat.name)
+        pos = self._visible_position(symbol, strat)
+        if allow is not None and symbol not in allow and pos is None:
+            return
+        ctx = Context(symbol, ts, {tf: b.arrays() for tf, b in self.candles[symbol].items()}, pos)
         try:
             sigs = strat.on_bar(ctx)
         except Exception:
             log.exception("strategy error on %s", symbol)
             return
+        if allow is not None and symbol not in allow:
+            sigs = [s for s in sigs if s.action not in ("OPEN_LONG", "OPEN_SHORT")]
         for s in sigs:
             self.last_signal[symbol] = {"ts": ts, "action": s.action, "reason": s.reason,
                                         "info": s.info, "strategy": strat.name}
