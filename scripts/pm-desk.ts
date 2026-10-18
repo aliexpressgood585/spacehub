@@ -5,7 +5,7 @@
 // Run: node --experimental-strip-types scripts/pm-desk.ts <state.json>
 import fs from 'node:fs'
 import { clvMark, clvStudy, markout, markoutStudy } from '../shared/clv.ts'
-import { PM, takerFee, walkAsks, walkBids, inBand, heOutcome, namesKept, pmMatch, isCryptoPrice, gateStudy, type FeeSchedule } from '../shared/pm.ts'
+import { PM, takerFee, walkAsks, walkBids, inBand, heOutcome, namesKept, pmMatch, isCryptoPrice, gateStudy, FADE, fadeEligible, fadeSnap, fadeDue, fadeSignal, isFade, stratStats, fadeKill, type FeeSchedule } from '../shared/pm.ts'
 
 const FILE = process.argv[2] ?? 'pm/state.json'
 const GAMMA = 'https://gamma-api.polymarket.com', CLOB = 'https://clob.polymarket.com'
@@ -59,7 +59,7 @@ export function pendingFlag(t: { end_time?: string; meta?: any }, m: any, nowMs:
 }
 const feeOf = (m: any): FeeSchedule | null => (m.feesEnabled && m.feeSchedule ? { rate: +m.feeSchedule.rate || 0, exponent: +m.feeSchedule.exponent || 1 } : null)
 
-interface Trade { id: number; market_id: string; slug: string; event_slug: string; question: string; outcome: string; token_id: string; end_time: string; qty: number; entry_px: number; entry_fee: number; cost: number; best_ask: number; opened_at: string; status: 'OPEN' | 'CLOSED'; mark_px: number; mark_at: string; exit_px?: number; exit_fee?: number; proceeds?: number; pnl?: number; reason?: string; closed_at?: string; meta?: any }
+interface Trade { id: number; strategy?: 'fav' | 'fade'; market_id: string; slug: string; event_slug: string; question: string; outcome: string; token_id: string; end_time: string; qty: number; entry_px: number; entry_fee: number; cost: number; best_ask: number; opened_at: string; status: 'OPEN' | 'CLOSED'; mark_px: number; mark_at: string; exit_px?: number; exit_fee?: number; proceeds?: number; pnl?: number; reason?: string; closed_at?: string; meta?: any }
 interface State { start_cash: number; cash: number; strategy: any; last_scan: string | null; last_note: any; trades: Trade[]; equity: { ts: string; equity: number; cash: number; open_value: number; open_count: number }[]; decisions: any[]; next_id: number }
 
 const st: State = fs.existsSync(FILE) ? JSON.parse(fs.readFileSync(FILE, 'utf8'))
@@ -97,6 +97,7 @@ try {
     const cands: { t: Trade; b: { bids: Lvl[] } }[] = []
     for (const t of st.trades) {
       if (t.status !== 'OPEN' || t.mark_px < PM.exitPx) continue   // bought this cycle = in band, never >= exitPx
+      if (isFade(t)) continue   // fade positions are held to the official result, as backtested
       const b = await book(t.token_id); if (b && (b.bids[0]?.price ?? 0) >= PM.exitPx) cands.push({ t, b })
     }
     cands.sort((a, c) => c.b.bids[0].price - a.b.bids[0].price)
@@ -149,7 +150,7 @@ try {
         const fill = walkAsks(b.asks, stake / (1 + (fs_ ? fs_.rate : 0)), PM.hi)
         if (fill.qty < PM.minQty) { D('skip', 'ספר הזמנות דל מדי'); continue }
         const fee = takerFee(fill.qty, fill.vwap, fs_), cost = fill.spent + fee, mk = b.bids[0]?.price ?? fill.vwap
-        st.trades.push({ id: st.next_id++, market_id: m.id, slug: m.slug, event_slug: ev, question: m.question, outcome: outs[k], token_id: toks[k], end_time: m.endDate, qty: fill.qty, entry_px: fill.vwap, entry_fee: fee, cost, best_ask: ask, opened_at: now(), status: 'OPEN', mark_px: mk, mark_at: now(), meta: { fee_schedule: fs_, volume: m.volumeNum, spread: m.spread, model_p: px[k], outcomes: outs } })
+        st.trades.push({ id: st.next_id++, strategy: 'fav', market_id: m.id, slug: m.slug, event_slug: ev, question: m.question, outcome: outs[k], token_id: toks[k], end_time: m.endDate, qty: fill.qty, entry_px: fill.vwap, entry_fee: fee, cost, best_ask: ask, opened_at: now(), status: 'OPEN', mark_px: mk, mark_at: now(), meta: { fee_schedule: fs_, volume: m.volumeNum, spread: m.spread, model_p: px[k], outcomes: outs } })
         st.cash -= cost; openValue += fill.qty * mk; slots--; entered++
         events.set(mkey, (events.get(mkey) ?? 0) + 1); matchCost.set(mkey, (matchCost.get(mkey) ?? 0) + cost); held.add(toks[k])
         D('BUY', `מחיר ${ask} בטווח, ${fill.qty.toFixed(1)} מניות, עמלה $${fee.toFixed(2)}`, fill.vwap)
@@ -157,11 +158,63 @@ try {
       }
     }
   }
+  // 3b. FADE jump-fade (second PAPER sub-strategy, shared/pm.ts FADE; trades tagged strategy 'fade'). Non-sports markets
+  // ending >= 24h later: the top FADE.pages x 100 by volume get a price snapshot every 20 min (bounded ring in st.fade_snaps);
+  // a >= 15c move vs the ~60-min-old snapshot buys the side that fell at the real ask, only if the walked fill stays within
+  // FADE.maxPremium of the observed price. One entry per event ever, no top-ups, held to the result. Kill: fadeKill().
+  try {
+    const t0 = Date.now(), snaps: Record<string, [number, number][]> = ((st as any).fade_snaps ??= {})
+    const kill = fadeKill(st.trades)
+    const openAll = st.trades.filter((x) => x.status === 'OPEN')
+    const eqF = st.cash + openValue
+    let fCost = openAll.filter(isFade).reduce((a, t) => a + t.cost, 0), fn = 0, fScanned = 0
+    const fadeEv = new Set(st.trades.filter(isFade).flatMap((t) => [t.event_slug, pmMatch(t.event_slug)]))   // one fade entry per event, ever
+    const fadeMk = new Set(st.trades.filter(isFade).map((t) => String(t.market_id)))
+    const held = new Set(openAll.map((t) => t.token_id)), matchCost = new Map<string, number>()
+    for (const t of openAll) { const k = pmMatch(t.event_slug); matchCost.set(k, (matchCost.get(k) ?? 0) + t.cost) }
+    const seen = new Set<string>()
+    for (let off = 0; off < FADE.pages * 100; off += 100) {
+      const pg: any[] = await j(`${GAMMA}/markets?closed=false&active=true&limit=100&offset=${off}&order=volume&ascending=false&volume_num_min=${FADE.minVolume}&end_date_min=${new Date(t0 + FADE.minEndH * 3600_000).toISOString()}`)
+      for (const m of pg) {
+        const ev = m.events?.[0]?.slug ?? m.slug, toks = arr(m.clobTokenIds), outs = arr(m.outcomes), px = arr(m.outcomePrices).map(Number)
+        if (toks.length !== 2 || !fadeEligible(m, ev) || !m.acceptingOrders || !m.enableOrderBook || !(px[0] >= 0 && px[0] <= 1)) continue
+        if (!(Number(m.volumeNum) >= FADE.minVolume) || !(Date.parse(m.endDate) >= t0 + FADE.minEndH * 3600_000)) continue
+        fScanned++; seen.add(String(m.id))
+        // the signal is checked only when the ring takes a new point (every 20 min), closer to the hourly-point research
+        // than firing on the first 15-second cycle in the middle of a move; then the new point is stored
+        const ring = snaps[m.id], sig = fadeDue(ring, t0) ? fadeSignal(ring, t0, px[0]) : null
+        snaps[m.id] = fadeSnap(ring, t0, px[0])
+        if (!sig || fadeMk.has(String(m.id)) || held.has(toks[sig.k])) continue
+        const mkey = pmMatch(ev)
+        const D = (decision: string, reason: string, price = sig.px) => decisions.push({ ts: now(), market_id: m.id, question: m.question, outcome: outs[sig.k], outcomes: outs, price, decision, reason, strategy: 'fade' })
+        if (kill.killed) { D('skip', `fade: עצירה מוסכמת מראש (n ${kill.n}, ממוצע ${((kill.mean_r ?? 0) * 100).toFixed(1)}%, t ${kill.t?.toFixed(2) ?? '—'})`); continue }
+        if (fadeEv.has(ev) || fadeEv.has(mkey)) { D('skip', 'fade: כבר נכנסנו לאירוע הזה'); continue }
+        if (fn >= FADE.maxPerCycle || openAll.length + fn >= PM.maxOpen) continue
+        const room = Math.min(eqF * PM.maxMatchFrac - (matchCost.get(mkey) ?? 0), eqF * FADE.maxTotalFrac - fCost)
+        if (room < PM.minQty * sig.px) { D('skip', 'fade: מגבלת 10% לאירוע / 20% להון של fade'); continue }
+        const b = await book(toks[sig.k]); const ask = b?.asks[0]?.price
+        if (!b || !ask || ask > sig.px + FADE.maxPremium) { D('skip', `fade: ההיצע ${ask ?? '—'} רחוק מהמחיר ${sig.px.toFixed(3)}`); continue }
+        const stake = Math.min(eqF * FADE.stakeFrac, eqF * PM.maxPosFrac, st.cash - 1, room)
+        if (stake < PM.minQty * ask) { D('skip', 'fade: אין מספיק מזומן'); continue }
+        const fs_ = feeOf(m), fill = walkAsks(b.asks, stake / (1 + (fs_ ? fs_.rate : 0)), sig.px + FADE.maxPremium)
+        if (fill.qty < PM.minQty) { D('skip', 'fade: ספר הזמנות דל מדי'); continue }
+        const fee = takerFee(fill.qty, fill.vwap, fs_), cost = fill.spent + fee, mk = b.bids[0]?.price ?? fill.vwap
+        st.trades.push({ id: st.next_id++, strategy: 'fade', market_id: m.id, slug: m.slug, event_slug: ev, question: m.question, outcome: outs[sig.k], token_id: toks[sig.k], end_time: m.endDate, qty: fill.qty, entry_px: fill.vwap, entry_fee: fee, cost, best_ask: ask, opened_at: now(), status: 'OPEN', mark_px: mk, mark_at: now(),
+          meta: { fade: { p0_then: sig.then, then_at: new Date(sig.thenAt).toISOString(), p0_now: px[0], seen_px: sig.px }, fee_schedule: fs_, volume: m.volumeNum, spread: m.spread, outcomes: outs } })
+        st.cash -= cost; openValue += fill.qty * mk; fCost += cost; fn++; entered++
+        matchCost.set(mkey, (matchCost.get(mkey) ?? 0) + cost); held.add(toks[sig.k]); fadeMk.add(String(m.id)); fadeEv.add(ev); fadeEv.add(mkey)
+        D('BUY', `fade: קפיצה ${(100 * (px[0] - sig.then)).toFixed(0)}¢ בשעה, קונים את הצד שירד ב־${fill.vwap.toFixed(3)}, ${fill.qty.toFixed(1)} מניות, עמלה $${fee.toFixed(2)}`, fill.vwap)
+      }
+      if (pg.length < 100) break
+    }
+    for (const id of Object.keys(snaps)) if (!seen.has(id) && !(snaps[id] ?? []).some(([t]) => t0 - t <= 2 * 3600_000)) delete snaps[id]
+    note.fade = { scanned: fScanned, entered: fn, open_cost: Math.round(fCost * 100) / 100, killed: kill.killed }
+  } catch (e) { note.fade_error = String(e).slice(0, 120) }
   // 4. deploy ALL cash (owner 2026-10-09: "use all cash, always"): every open position is topped up to an equal
   // share of equity (capped at PM.maxPosFrac) while its live ask is still inside the band and the market is open.
   // Same fill model as an entry: walk the real ask book now, pay the market's taker fee.
   {
-    const openNow = st.trades.filter((x) => x.status === 'OPEN')
+    const openNow = st.trades.filter((x) => x.status === 'OPEN' && !isFade(x))   // fade positions are never topped up
     const eq = st.cash + openValue
     const target = Math.min(eq * PM.maxPosFrac, eq / Math.max(1, openNow.length))
     const mc = new Map<string, number>()
@@ -214,7 +267,8 @@ fs.mkdirSync(FILE.replace(/\/[^/]*$/, '') || '.', { recursive: true })
 // CLV / Brier (docs/POLY_PLAYBOOK.md): all history and since the crypto exclusion (the judged rule, docs/POLY_SUPERVISOR.md)
 ;(st as any).clv = { all: clvStudy(st.trades), judged: clvStudy(st.trades, '2026-10-15T18:30'), m30: markoutStudy(st.trades),
   note: 'all/judged close_px = last mid before the scheduled end (usually after the result); m30 = pre-resolution markout' }
-;(st as any).gates = gateStudy(st.trades, '2026-10-15T18:30')   // read-out only, never acted on (docs/POLY_SUPERVISOR.md)
+;(st as any).gates = gateStudy(st.trades.filter((t) => !isFade(t)), '2026-10-15T18:30')   // read-out only, never acted on (docs/POLY_SUPERVISOR.md)
+;(st as any).by_strategy = { fav: stratStats(st.trades.filter((t) => !isFade(t))), fade: { ...stratStats(st.trades.filter(isFade)), kill: fadeKill(st.trades) } }   // read-out for display
 // atomic write: a cycle killed mid-write (workflow `timeout 240`) must not leave a truncated state that every later cycle
 // fails to parse (and that the loop would commit). Write a temp file next to it, then rename over the old one.
 fs.writeFileSync(`${FILE}.tmp`, JSON.stringify(st, null, 1)); fs.renameSync(`${FILE}.tmp`, FILE)

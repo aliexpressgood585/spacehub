@@ -701,6 +701,18 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   state pushing again 00:18. pmc/pmn were still on their pre-CLV loops and would have hit it at their next restart. No rule change.
 - 2026-10-17 16:16 UTC POLY SUPERVISOR STOPPED (owner: "תעצור את הסוכן"): scheduled task trig_01Vjp6cAr2SiufLUJeD21tgz
   disabled (not deleted; re-enable to restore). The three paper desks keep running unsupervised.
+- 2026-10-18 POLY ROUND 5 + 'fade' PAPER SUB-STRATEGY (owner: implement a passing strategy without review). Pre-registered
+  5 new families (status/pm-r5-new-strategies.txt; backtest/research/pm_r5_*.py; hourly CLOB history, 68,488 resolved
+  markets >= $20k, 70/30 time split, mid + 1c, real fee): A longshot-NO, B 93-98c favourite at 7d/3d, D mention-NO all IS <= 0
+  (stopped); E pre-game favourite by IS-chosen league IS +2.67 / OOS -4.77 FAIL; C jump fade (>= 15c move between hourly
+  points, lands 15-85c, non-sports, ends >= 24h later, buy the side that fell, hold to result) IS n934 +10.16%/$ t 2.38 |
+  OOS n401 +8.01%/$ t 1.28, ~7.7 days held, +1.05%/$-day OOS -> formal PASS, but WEAK / possibly luck (30th OOS look;
+  +5c slip negative, +1h delay & 2c slip ~0, top-20 trades 68% of the sum). Implemented in shared/pm.ts FADE / fadeSignal
+  and scripts/pm-desk.ts step 3b as a SEPARATE tagged sub-strategy: trades strategy 'fade' (favourites now 'fav'; untagged
+  history = 'fav'); same cash; 3% per entry, no top-ups (never in freeCash early exits), one entry per event, match cost incl.
+  fav <= 10%, all fade <= 20% of equity, ask <= observed + 2c; snapshot ring st.fade_snaps (top 500 by volume, a point per
+  20 min, <= 2h). Read-out st.by_strategy {fav, fade: n, wr, pnl, pct_per_usd, t, open, kill}; st.gates now fav-only.
+  KILL (pre-committed, fadeKill): >= 60 fade closes and mean r <= 0 or t <= -2 -> no NEW fade entries; fav rule untouched.
 - 2026-10-18 POLY CLV / DISPUTES / SUPERVISOR (desk handed to the agents; measurement + safety only, no rule change).
   CLV: the old closing line (close_px = last mid before the SCHEDULED end) is post-result on this desk (Brier close 0.0106 vs
   entry 0.109, n105). New pre-resolution line in shared/clv.ts `markout` / `markoutStudy` (main desk only; pmc/pmn untouched):
