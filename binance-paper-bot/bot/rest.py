@@ -13,13 +13,26 @@ INTERVAL_MS = {"1m": 60_000, "3m": 180_000, "5m": 300_000, "15m": 900_000, "30m"
                "1h": 3_600_000, "2h": 7_200_000, "4h": 14_400_000, "1d": 86_400_000}
 
 
+class HardTimeoutSession(requests.Session):
+    """Every request dies if the caller forgot `timeout`. A missing read timeout
+    is how a desk tick blocks until the job limit."""
+
+    def __init__(self, timeout):
+        super().__init__()
+        self.timeout = timeout
+
+    def request(self, method, url, **kwargs):
+        kwargs.setdefault("timeout", self.timeout)
+        return super().request(method, url, **kwargs)
+
+
 class PublicRest:
     def __init__(self, bases, brackets_url=None, timeout=10):
         self.bases = list(bases)
         self.base = None
         self.brackets_url = brackets_url
         self.timeout = timeout
-        self.s = requests.Session()
+        self.s = HardTimeoutSession(timeout)
         self.s.headers["User-Agent"] = "paper-bot/1.0"
 
     def _pick_base(self):

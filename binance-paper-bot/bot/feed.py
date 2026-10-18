@@ -124,8 +124,8 @@ class OkxFeed:
         self.endpoint = base.rstrip("/")
         self.timeout = timeout
         if session is None:
-            import requests
-            session = requests.Session()
+            from .rest import HardTimeoutSession
+            session = HardTimeoutSession(timeout)
             session.headers["User-Agent"] = "spacehub-paper/1.0"
         self.s = session
 
