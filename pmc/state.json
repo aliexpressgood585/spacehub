@@ -44,10 +44,10 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-18T12:01:59.472Z",
+ "last_scan": "2026-10-18T12:02:13.519Z",
  "last_note": {
-  "at": "2026-10-18T12:01:59.396Z",
-  "windows": 0,
+  "at": "2026-10-18T12:02:09.827Z",
+  "windows": 4,
   "settled": 0,
   "entered": 0
  },
@@ -21718,13 +21718,6 @@
   }
  ],
  "equity": [
-  {
-   "ts": "2026-10-14T21:27:06.510Z",
-   "equity": 1044.6871880377482,
-   "cash": 1044.6871880377482,
-   "open_value": 0,
-   "open_count": 0
-  },
   {
    "ts": "2026-10-14T21:28:06.866Z",
    "equity": 1044.6871880377482,
@@ -56717,9 +56710,38 @@
    "cash": 977.4117917099977,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-10-18T12:02:13.519Z",
+   "equity": 977.4117917099977,
+   "cash": 977.4117917099977,
+   "open_value": 0,
+   "open_count": 0
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-18T12:02:12.354Z",
+   "market_id": "5805520",
+   "question": "Ethereum Up or Down - October 18, 8:00AM-8:05AM ET",
+   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 12:00–12:05 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.9,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 1.09 < 2 (המחיר קרוב מדי לקו הפתיחה)"
+  },
+  {
+   "ts": "2026-10-18T12:02:13.519Z",
+   "market_id": "5805526",
+   "question": "Solana Up or Down - October 18, 8:00AM-8:05AM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 12:00–12:05 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.96,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 1.09 < 2 (המחיר קרוב מדי לקו הפתיחה)"
+  },
   {
    "ts": "2026-10-18T11:58:41.968Z",
    "market_id": "5805514",
@@ -58897,49 +58919,10 @@
    "price": 0.96,
    "decision": "skip",
    "reason": "מסנן מרחק: 0.37 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-18T10:23:59.664Z",
-   "market_id": "5801455",
-   "question": "Solana Up or Down - October 18, 6:20AM-6:25AM ET",
-   "question_he": "סולנה · עולה או יורד · 5 דקות · 10:20–10:25 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.92,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.85 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-18T10:23:49.455Z",
-   "market_id": "5801456",
-   "question": "XRP Up or Down - October 18, 6:20AM-6:25AM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 10:20–10:25 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.97,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.16 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 307,
  "shadow": [
-  {
-   "slug": "xrp-updown-5m-1792023600",
-   "market_id": "5675738",
-   "token_id": "71426294620311938212319942036470580027478195492559735327146091221219221595513",
-   "coin": "xrp",
-   "outcome": "Up",
-   "end_time": "2026-10-15T00:25:00Z",
-   "placed_at": "2026-10-15T00:22:02.896Z",
-   "limit": 0.95,
-   "taker_ask": 0.96,
-   "status": "DONE",
-   "filled": true,
-   "filled_at": "2026-10-15T00:22:13.030Z",
-   "left_at_fill": 167,
-   "won": true,
-   "ret": 0.052631578947368474
-  },
   {
    "slug": "btc-updown-5m-1792023900",
    "market_id": "5675760",
@@ -106560,6 +106543,19 @@
    "taker_ask": 0.94,
    "status": "WORKING",
    "filled": false
+  },
+  {
+   "slug": "sol-updown-5m-1792324800",
+   "market_id": "5805526",
+   "token_id": "50022453762360852916966097590567232639899749849421973800843270621590066041116",
+   "coin": "sol",
+   "outcome": "Up",
+   "end_time": "2026-10-18T12:05:00Z",
+   "placed_at": "2026-10-18T12:02:10.491Z",
+   "limit": 0.94,
+   "taker_ask": 0.96,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
@@ -106571,11 +106567,11 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2997,
-   "filled": 1322,
-   "fill_rate": 0.44110777444110777,
-   "wr": 0.8494704992435703,
-   "ret": -0.08003454206643815,
+   "resolved": 2996,
+   "filled": 1321,
+   "fill_rate": 0.4409212283044059,
+   "wr": 0.8493565480696442,
+   "ret": -0.08013497062133126,
    "missed_wins": 1675,
    "missed_losses": 0
   },
