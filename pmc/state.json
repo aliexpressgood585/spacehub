@@ -44,11 +44,11 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-18T13:09:01.397Z",
+ "last_scan": "2026-10-18T13:09:12.201Z",
  "last_note": {
-  "at": "2026-10-18T13:09:00.183Z",
+  "at": "2026-10-18T13:09:10.974Z",
   "windows": 4,
-  "settled": 1,
+  "settled": 0,
   "entered": 0
  },
  "trades": [
@@ -22023,8 +22023,8 @@
    "best_ask": 0.97,
    "opened_at": "2026-10-18T13:08:52.495Z",
    "status": "OPEN",
-   "mark_px": 0.99,
-   "mark_at": "2026-10-18T13:09:00.744Z",
+   "mark_px": 0.89,
+   "mark_at": "2026-10-18T13:09:11.534Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -22051,8 +22051,8 @@
     "spot_open": 81982.65,
     "spot": 81939.82,
     "sigma1s": 0.000018934006798532595,
-    "close_px": 0.99,
-    "close_at": "2026-10-18T13:09:00.744Z"
+    "close_px": 0.895,
+    "close_at": "2026-10-18T13:09:11.534Z"
    }
   }
  ],
@@ -57060,6 +57060,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-18T13:09:12.201Z",
+   "market_id": "5813173",
+   "question": "Ethereum Up or Down - October 18, 9:05AM-9:10AM ET",
+   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 13:05–13:10 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.92,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
    "ts": "2026-10-18T13:08:52.496Z",
    "market_id": "5813170",
    "question": "Bitcoin Up or Down - October 18, 9:05AM-9:10AM ET",
@@ -59247,17 +59258,6 @@
    "price": 0.92,
    "decision": "skip",
    "reason": "מסנן מרחק: 1.15 < 2 (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-18T11:32:41.200Z",
-   "market_id": "5805300",
-   "question": "Ethereum Up or Down - October 18, 7:30AM-7:35AM ET",
-   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 11:30–11:35 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.92,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.33 < 2 (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 312,
@@ -106881,7 +106881,9 @@
    "limit": 0.92,
    "taker_ask": 0.93,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-18T13:09:11.311Z",
+   "left_at_fill": 49
   },
   {
    "slug": "eth-updown-5m-1792328700",
@@ -106894,7 +106896,9 @@
    "limit": 0.92,
    "taker_ask": 0.93,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-18T13:09:11.424Z",
+   "left_at_fill": 49
   }
  ],
  "study": {
@@ -107071,7 +107075,7 @@
    "brier_entry": 0.0295260762577217,
    "brier_close": 0.0031845928030302915,
    "open_n": 1,
-   "open_clv_c": 2.0000000000000018
+   "open_clv_c": -7.499999999999996
   },
   "judged": {
    "n": 132,
@@ -107083,7 +107087,7 @@
    "brier_entry": 0.0295260762577217,
    "brier_close": 0.0031845928030302915,
    "open_n": 1,
-   "open_clv_c": 2.0000000000000018
+   "open_clv_c": -7.499999999999996
   }
  }
 }
