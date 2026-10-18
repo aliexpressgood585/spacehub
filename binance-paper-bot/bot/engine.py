@@ -39,65 +39,174 @@ def kline_row(k):
 
 
 class TradingEngine:
-    def __init__(self, cfg, exchange, strategy, risk, symbol_infos, brackets, recorder=None):
+    def __init__(self, cfg, exchange, strategy, risk, symbol_infos, brackets, recorder=None,
+                 strategies=None):
         self.cfg, self.ex, self.strat, self.risk = cfg, exchange, strategy, risk
+        self.strats = list(strategies) if strategies else [strategy]
         self.si, self.brackets = symbol_infos, brackets
         self.rec = recorder
         self.symbols = list(symbol_infos)
         n = cfg["data"]["history_bars"]
-        self.candles = {s: {tf: CandleBuffer(n) for tf in strategy.timeframes()} for s in self.symbols}
+        tfs = []
+        for st in self.strats:
+            for tf in st.timeframes():
+                if tf not in tfs:
+                    tfs.append(tf)
+        self.candles = {s: {tf: CandleBuffer(n) for tf in tfs} for s in self.symbols}
         self.wt = cfg["execution"]["sl_tp_working_type"]
         self.last_signal = {}
+        self.overrides = {}
+        self.closed_trades = []
 
-    def event(self, ts, typ, symbol, msg):
+    def event(self, ts, typ, symbol, msg, strategy=""):
         log.info("[%s] %s %s", typ, symbol, msg)
         if self.rec:
-            self.rec.on_event({"ts": ts, "type": typ, "symbol": symbol, "msg": msg})
+            ev = {"ts": ts, "type": typ, "symbol": symbol, "msg": msg}
+            if strategy:
+                ev["strategy"] = strategy
+            self.rec.on_event(ev)
 
     def add_history(self, symbol, tf, rows):
+        bufs = self.candles.get(symbol)
+        if not bufs or tf not in bufs:
+            return
         for r in rows:
-            self.candles[symbol][tf].add(r)
+            bufs[tf].add(r)
 
     def on_bar_closed(self, symbol, tf, row, run_strategy=True):
-        if tf not in self.candles[symbol]:
+        bufs = self.candles.get(symbol)
+        if not bufs or tf not in bufs:
             return
-        self.candles[symbol][tf].add(row)
-        if tf == self.strat.timeframe and run_strategy:
-            self.run_strategy(symbol, row[6] + 1)
+        bufs[tf].add(row)
+        if not run_strategy:
+            return
+        for st in self.strats:
+            if tf == st.timeframe:
+                self.run_strategy(symbol, row[6] + 1, st)
 
-    def run_strategy(self, symbol, ts):
+    def _visible_position(self, symbol, strat):
+        """Position this strategy may manage. Another strategy's position is hidden.
+
+        An untagged position belongs to whoever is asking, so single-strategy
+        tests still close it.
+        """
+        p = self.ex.get_position(symbol)
+        if p is None or not p.strategy or p.strategy == strat.name:
+            return p
+        return None
+
+    def _owner_day(self, name, ts):
+        start = self.risk.day_start_equity
+        if not start:
+            return 0.0
+        day = int(ts) // 86_400_000
+        pnl = 0.0
+        seen = set()
+        rows = list(self.closed_trades or []) + list(getattr(self.rec, "trades", []) or [])
+        for t in rows:
+            if t.get("strategy") != name:
+                continue
+            key = (t.get("symbol"), t.get("open_ts"), t.get("close_ts"))
+            if key in seen:
+                continue
+            seen.add(key)
+            if int(t.get("close_ts") or 0) // 86_400_000 == day:
+                pnl += float(t.get("net_pnl") or 0)
+        for s, p in self.ex.positions().items():
+            if getattr(p, "strategy", "") == name:
+                pnl += p.upnl(self.ex.mark(s))
+        return pnl / start
+
+    def run_strategy(self, symbol, ts, strat=None):
+        strat = strat or self.strat
         ctx = Context(symbol, ts, {tf: b.arrays() for tf, b in self.candles[symbol].items()},
-                      self.ex.get_position(symbol))
+                      self._visible_position(symbol, strat))
         try:
-            sigs = self.strat.on_bar(ctx)
+            sigs = strat.on_bar(ctx)
         except Exception:
             log.exception("strategy error on %s", symbol)
             return
         for s in sigs:
-            self.last_signal[symbol] = {"ts": ts, "action": s.action, "reason": s.reason, "info": s.info}
-            self.handle(s, ts)
+            self.last_signal[symbol] = {"ts": ts, "action": s.action, "reason": s.reason,
+                                        "info": s.info, "strategy": strat.name}
+            self.handle(s, ts, strat)
 
-    def handle(self, sig, ts):
+    def on_timeframe_done(self, tf, ts):
+        """One cross-sectional pass after every symbol's bar for `tf` is stored.
+
+        Called once per daily close, after the 1h and 15m strategies on that
+        same timestamp, so a coin they just took is skipped.
+        """
+        if tf != "1d":
+            return 0
+        n = 0
+        boundary = int(ts)
+        for st in self.strats:
+            fn = getattr(st, "on_universe_bar", None)
+            if fn is None or getattr(st, "timeframe", None) != tf:
+                continue
+            candles = {}
+            for sym, bufs in self.candles.items():
+                buf = bufs.get(tf)
+                if not buf or not buf.rows:
+                    continue
+                arrays = buf.arrays()
+                if int(arrays["close_time"][-1]) + 1 < boundary:
+                    continue
+                candles[sym] = arrays
+            positions = {s: p for s, p in self.ex.positions().items()
+                         if getattr(p, "strategy", "") == st.name}
+            try:
+                sigs = fn(boundary, candles, positions) or []
+            except Exception:
+                log.exception("universe strategy error on %s", st.name)
+                continue
+            for sig in sigs:
+                n += 1
+                self.last_signal[sig.symbol] = {"ts": boundary, "action": sig.action, "reason": sig.reason,
+                                                "info": sig.info, "strategy": st.name}
+                self.handle(sig, boundary, st)
+        return n
+
+    def handle(self, sig, ts, strat=None):
+        strat = strat or self.strat
         sym = sig.symbol
         if sig.action == "INFO":
-            self.event(ts, "SIGNAL_FILTERED", sym, sig.reason)
+            self.event(ts, "SIGNAL_FILTERED", sym, sig.reason, strat.name)
             return
         if sig.action == "CLOSE":
             p = self.ex.get_position(sym)
+            if p and p.strategy and p.strategy != strat.name:
+                return
             if p:
-                self.event(ts, "SIGNAL", sym, f"CLOSE: {sig.reason}")
+                self.event(ts, "SIGNAL", sym, f"CLOSE: {sig.reason}", strat.name)
                 self.ex.place_order(Order(sym, "SELL" if p.side > 0 else "BUY", "MARKET", p.qty,
                                           reduce_only=True, tag="SIGNAL_CLOSE"), ts)
             return
-        self.event(ts, "SIGNAL", sym, f"{sig.action}: {sig.reason}")
-        qty, why = self.risk.size(sig, self.ex, self.si[sym], self.brackets, ts)
+        held = self.ex.get_position(sym)
+        if held is not None and held.strategy and held.strategy != strat.name:
+            self.event(ts, "RISK_REJECT", sym, f"held by {held.strategy}", strat.name)
+            return
+        self.event(ts, "SIGNAL", sym, f"{sig.action}: {sig.reason}", strat.name)
+        ov = self.overrides.get(strat.name) or {}
+        day_ret = None
+        if ov.get("max_daily_loss") is not None:
+            self.risk._daily(self.ex, ts)
+            day_ret = self._owner_day(strat.name, ts)
+        qty, why = self.risk.size(
+            sig, self.ex, self.si[sym], self.brackets, ts,
+            owner=strat.name if self.overrides else None,
+            owner_max_pos=ov.get("max_concurrent_positions"),
+            owner_risk=ov.get("risk_per_trade"),
+            owner_day_return=day_ret,
+            owner_max_daily_loss=ov.get("max_daily_loss"))
         if qty <= 0:
-            self.event(ts, "RISK_REJECT", sym, why)
+            self.event(ts, "RISK_REJECT", sym, why, strat.name)
             return
         if self.ex.get_position(sym) is None and self.ex.leverage.get(sym) != sig.leverage:
             self.ex.set_leverage(sym, sig.leverage)
         side = "BUY" if sig.action == "OPEN_LONG" else "SELL"
-        o = self.ex.place_order(Order(sym, side, "MARKET", qty, tag=self.strat.name), ts)
+        o = self.ex.place_order(Order(sym, side, "MARKET", qty, tag=strat.name), ts)
         if o.status != "FILLED":
             return
         p = self.ex.get_position(sym)
@@ -109,14 +218,19 @@ class TradingEngine:
         exit_side = "SELL" if side == "BUY" else "BUY"
         slo = self.ex.place_order(Order(sym, exit_side, "STOP_MARKET", stop_price=sl, close_position=True,
                                         working_type=self.wt, tag="SL"), ts)
-        if tp is not None:
+        if tp is not None and sig.info.get("tp_order") == "limit":
+            self.ex.place_order(Order(sym, exit_side, "LIMIT", qty=p.qty, price=tp, reduce_only=True,
+                                      tag="TP"), ts)
+        elif tp is not None:
             self.ex.place_order(Order(sym, exit_side, "TAKE_PROFIT_MARKET", stop_price=tp, close_position=True,
                                       working_type=self.wt, tag="TP"), ts)
         p.meta.update({"sl": sl, "tp": tp, "reason": sig.reason})
+        if sig.info.get("exit_ts") is not None:
+            p.meta["exit_ts"] = int(sig.info["exit_ts"])
         if slo.status == "REJECTED":       # stop would trigger immediately -> flatten
             self.ex.place_order(Order(sym, exit_side, "MARKET", p.qty, reduce_only=True, tag="SL_REJECT"), ts)
         self.event(ts, "OPEN", sym, f"{side} {qty} @ {fill} lev {sig.leverage}x SL {sl} TP {tp} "
-                                    f"liq {self.ex.liq_price(sym) or 0:.6g} ({why})")
+                                    f"liq {self.ex.liq_price(sym) or 0:.6g} ({why})", strat.name)
 
     def to_dict(self):
         return {"risk": self.risk.to_dict()}

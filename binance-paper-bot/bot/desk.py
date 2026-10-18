@@ -5,9 +5,10 @@ The Actions job loops for hours. Each wall-clock minute replays closed 1m bars
 after each 1h close. Existing wallet, trades and events are kept. Paper only —
 there is no order endpoint and no API key.
 
-The active strategy is ema_trend_4h: decisions from completed 4h bars, evaluated on
-1h closes, stops still on 1m highs/lows. The coin list is a monthly top-20 by
-trailing 90-day median quote volume.
+Two paper rules share one account. ema_trend_4h still decides on 1h closes from
+completed 4h bars. orb_ny_15m decides after each closed 15m bar. Stops stay on
+1m highs/lows. The coin list is a monthly top-20 by trailing 90-day median
+quote volume. An existing account is never replaced.
 
     python -m bot.desk binance-paper/state.json          # one full cycle
     python -m bot.desk --tick binance-paper/state.json   # stops, or full if an hour is due
@@ -24,6 +25,7 @@ from datetime import datetime, timezone
 
 from .config import load_config, rpath
 from .engine import TradingEngine, kline_row
+from .execution.base import Order
 from .execution.paper import PaperExchange
 from .feed import connect, describe
 from .margin import LeverageBrackets
@@ -32,7 +34,7 @@ from .rest import INTERVAL_MS
 from .risk import RiskManager
 from .clock import closed_bar_open, opens_after
 from .storage import MemoryRecorder
-from .strategies import make_strategy
+from .strategies import REGISTRY, make_strategy
 from .symbols import load_symbol_infos
 from .universe import (is_current, month_key, rank_live, slippage_bps, stored_rows)
 
@@ -101,12 +103,86 @@ EMA_BACKTEST = {
 }
 
 
+# summary_intraday.csv row 1, the 15m NY ORB parameter row. Maker-TP is the
+# order type this desk sends. The walk-forward of the family was not a stable edge.
+ORB_BACKTEST = {
+    "oos": {"window": "2026-01..2026-10", "return_pct": 11.1, "maker_tp_return_pct": 12.4,
+            "win_rate_pct": 45.9, "pf": 1.19, "maker_tp_pf": 1.21, "max_dd_pct": -14.1,
+            "trades": 111, "avg_bps": 30.5},
+    "is": {"window": "2024-01..2025-12", "return_pct": 19.0, "maker_tp_return_pct": 22.3,
+           "win_rate_pct": 43.8, "pf": 1.13, "max_dd_pct": -20.1, "trades": 313},
+    "note": "Paper measurement. Walk-forward of this family was mixed to negative; not a proven edge.",
+}
+
+# port_family_best.csv xs row, plus the reference note on an as-of-2024 universe.
+XS_BACKTEST = {
+    "oos": {"window": "2026-01..2026-10", "return_pct": 37.8, "return_pct_conservative": 13.0,
+            "max_dd_pct": -11.2, "max_dd_pct_low": -23.0, "max_dd_pct_high": -11.0,
+            "positive_months_pct": 70.0, "sharpe": 1.64, "corr_ema_trend_4h": 0.05},
+    "is": {"window": "2024-01..2025-12", "return_pct": 378.9, "sharpe": 2.66, "max_dd_pct": -17.1,
+           "positive_months_pct": 79.2},
+    "note": ("Paper measurement. Base-universe OOS is about +38% with max drawdown about -11% "
+             "and about 70% of months positive. An as-of-2024 universe is about +13%. "
+             "Reported span +13% to +38%, max drawdown -11% to -23%. "
+             "Correlation with ema_trend_4h is about 0.05. Not a proven live edge."),
+}
+
+
 def strategy_view(strat, cfg):
     view = {"name": strat.name, "timeframe": strat.timeframe,
             "params": cfg["strategy"]["params"].get(strat.name, {})}
     if strat.name == "ema_trend_4h":
         view["backtest"] = EMA_BACKTEST
+    elif strat.name == "orb_ny_15m":
+        view["backtest"] = ORB_BACKTEST
+    elif strat.name == "xs_mom_1d":
+        view["backtest"] = XS_BACKTEST
     return view
+
+
+def strategy_specs(cfg):
+    """Primary strategy, then any other names listed under cfg['strategies']."""
+    primary = make_strategy(cfg)
+    specs = [primary]
+    seen = {primary.name}
+    for row in cfg.get("strategies") or []:
+        name = (row or {}).get("name")
+        if not name or name in seen:
+            continue
+        if name not in REGISTRY:
+            raise ValueError(f"unknown strategy {name}")
+        params = (cfg.get("strategy") or {}).get("params", {}).get(name, {})
+        specs.append(REGISTRY[name](params))
+        seen.add(name)
+    return specs
+
+
+def risk_overrides(cfg):
+    out = {}
+    for row in cfg.get("strategies") or []:
+        name = (row or {}).get("name")
+        if not name:
+            continue
+        ov = {}
+        if "risk_per_trade" in row:
+            ov["risk_per_trade"] = float(row["risk_per_trade"])
+        if "max_concurrent_positions" in row:
+            ov["max_concurrent_positions"] = int(row["max_concurrent_positions"])
+        if "max_daily_loss" in row:
+            ov["max_daily_loss"] = float(row["max_daily_loss"])
+        if ov:
+            out[name] = ov
+    return out
+
+
+def _wants_15m(specs):
+    return any(s.timeframe == "15m" for s in specs)
+
+
+def _bind_engine(eng, cfg, state):
+    eng.overrides = risk_overrides(cfg)
+    eng.closed_trades = list((state or {}).get("trades") or [])
+    return eng
 
 
 def fetch_exchange_info(cfg, feed):
@@ -370,9 +446,12 @@ def _positions(ex):
                 sl = o.stop_price
             elif o.type == "TAKE_PROFIT_MARKET":
                 tp = o.stop_price
+            elif o.type == "LIMIT" and o.reduce_only:
+                tp = o.price
         px = mark or p.entry_price
         br = ex.brackets.for_notional(s, p.qty * px)
         view.append({"symbol": s, "side": "LONG" if p.side > 0 else "SHORT", "qty": p.qty,
+                     "strategy": p.strategy,
                      "entry": p.entry_price, "mark": mark, "leverage": p.leverage,
                      "upnl": p.upnl(mark), "liq": ex.liq_price(s), "sl": sl, "tp": tp,
                      "isolated_margin": p.isolated_margin, "notional": p.qty * px,
@@ -487,7 +566,16 @@ def other_loop_alive(state, run_id, now_ms=None):
     if hb is None:
         return False
     now_ms = _now() if now_ms is None else int(now_ms)
-    return now_ms - int(hb) < HEARTBEAT_STALE_MS
+    if now_ms - int(hb) >= HEARTBEAT_STALE_MS:
+        return False
+    # When the workflow lists the runs that are actually in progress, a heartbeat
+    # left behind by a job that has already exited does not block the successor.
+    raw = os.environ.get("DESK_LIVE_RUNS")
+    if raw is not None and raw.strip():
+        live = {x.strip() for x in raw.split(",") if x.strip()}
+        if str(loop.get("run_id")) not in live:
+            return False
+    return True
 
 
 def loop_view(run_id, status, mode, now_ms):
@@ -520,8 +608,29 @@ def should_commit(mode, before, after):
     return account_sig(before) != account_sig(after)
 
 
-def run_htf(eng, ex, infos, feed, symbols, state, fresh, switched, now, rec, funding_done):
-    """1h signal clock. On a strategy switch only the latest closed 1h is judged."""
+def _boundary_minutes(minutes, step_ms):
+    return [int(t) for t in minutes if (int(t) + 60_000) % int(step_ms) == 0]
+
+
+def expire_time_stops(ex, now_ms):
+    """Close a position whose time-exit minute has already closed and was not replayed."""
+    closed = closed_bar_open(int(now_ms), 60_000)
+    for s, p in list(ex.pos.items()):
+        ets = (p.meta or {}).get("exit_ts")
+        if ets is None or int(p.opened_ts) >= int(ets):
+            continue
+        if int(ets) <= closed:
+            side = "SELL" if p.side > 0 else "BUY"
+            ex.place_order(Order(s, side, "MARKET", p.qty, reduce_only=True, tag="TIME"), int(now_ms))
+
+
+def run_htf(eng, ex, infos, feed, symbols, state, fresh, switched, now, rec, funding_done,
+            wants_15=False):
+    """1h signal clock. On a strategy switch only the latest closed 1h is judged.
+
+    When a 15m strategy is active, the same replay also evaluates each closed
+    15m bar after the higher-timeframe bars it is allowed to see are stored.
+    """
     h1, h4, d1 = INTERVAL_MS["1h"], INTERVAL_MS["4h"], INTERVAL_MS["1d"]
     prev_1m = None if fresh else state.get("last_1m_open")
     last_1h = None if fresh or switched else state.get("last_1h_open")
@@ -541,19 +650,22 @@ def run_htf(eng, ex, infos, feed, symbols, state, fresh, switched, now, rec, fun
             pending = [h for h in pending if (h + h1 - 60_000) >= minutes[0]]
     replay_start = minutes[0] if minutes else now
     start_4h = now - (H4_BARS + 8) * h4
-    start_1d = now - (D1_BARS + 8) * d1
+    start_1d = now - ((300 if wants_15 else D1_BARS) + 8) * d1
     if fresh or switched:
-        start_1h = now - 48 * h1
+        start_1h = now - (600 if wants_15 else 48) * h1
     else:
-        start_1h = min(now - 48 * h1, replay_start - 6 * h1)
+        start_1h = min(now - (600 if wants_15 else 48) * h1, replay_start - 6 * h1)
     bars_4h, miss_4h = fetch_lenient(feed, symbols, "4h", start_4h, now, now)
     bars_1d, miss_1d = fetch_lenient(feed, symbols, "1d", start_1d, now, now)
     bars_1h, miss_1h = fetch_lenient(feed, symbols, "1h", start_1h, now, now)
+    bars_15, miss_15 = {}, []
+    if wants_15:
+        bars_15, miss_15 = fetch_lenient(feed, symbols, "15m", now - 3 * d1, now, now)
     catch = {"fresh": fresh, "switched": switched, "minutes": 0, "capped": capped,
              "evaluated_15m": 0, "evaluated_1h": 0, "degraded": [], "funding_applied": 0,
              "skipped_1m": 0 if fresh or switched else max(0, len(all_minutes) - len(minutes)),
              "missing_4h": miss_4h, "missing_1d": miss_1d, "missing_1h": miss_1h,
-             "pending_1h": pending}
+             "missing_15m": miss_15, "pending_1h": pending}
     if fresh or switched:
         latest = closed_bar_open(now, h1)
         cut = latest + h1
@@ -561,6 +673,8 @@ def run_htf(eng, ex, infos, feed, symbols, state, fresh, switched, now, rec, fun
             add_closed(eng, s, "4h", bars_4h.get(s, {}), cut)
             add_closed(eng, s, "1d", bars_1d.get(s, {}), cut)
             add_closed(eng, s, "1h", bars_1h.get(s, {}), cut)
+            if wants_15:
+                add_closed(eng, s, "15m", bars_15.get(s, {}), cut)
             row = bars_1h.get(s, {}).get(latest)
             if not row:
                 continue
@@ -578,30 +692,42 @@ def run_htf(eng, ex, infos, feed, symbols, state, fresh, switched, now, rec, fun
             add_closed(eng, s, "4h", bars_4h.get(s, {}), replay_start)
             add_closed(eng, s, "1d", bars_1d.get(s, {}), replay_start)
             add_closed(eng, s, "1h", bars_1h.get(s, {}), replay_start)
+            if wants_15:
+                add_closed(eng, s, "15m", bars_15.get(s, {}), replay_start)
+                add_closed(eng, s, "1m", {}, replay_start)
     if minutes:
         m0, m1 = minutes[0], minutes[-1] + 60_000
         bars_1m = {}
+        pre = m0 - (8 * h1 if wants_15 else 0)
         for s in symbols:
             try:
-                bars_1m[s] = _rows(feed.klines(s, "1m", m0, m1 + 1), now)
+                bars_1m[s] = _rows(feed.klines(s, "1m", pre, m1 + 1), now)
             except Exception:
                 log.warning("1m klines failed for %s", s, exc_info=True)
                 bars_1m[s] = {}
+            if wants_15:
+                add_closed(eng, s, "1m", bars_1m.get(s, {}), m0)
         marks = fetch_marks(feed, symbols, m0, m1 + 1, now)
         funds = fetch_funding(feed, symbols, m0, now)
-        stats = replay_minutes(ex, eng, symbols, minutes, bars_1m, marks, {}, bars_1h,
+        stats = replay_minutes(ex, eng, symbols, minutes, bars_1m, marks, bars_15, bars_1h,
                                funds, funding_done, last_15m, bars_4h=bars_4h, bars_1d=bars_1d,
                                strategy_tf="1h", last_signal_open=last_1h,
                                strategy_ready_at=None if fresh or switched else now)
         if stats.get("last_signal_open") is not None:
             last_1h = stats["last_signal_open"]
+        if wants_15 and stats.get("last_15m_open") is not None:
+            last_15m = stats["last_15m_open"]
         catch.update(minutes=stats["minutes"],
                      evaluated_1h=catch["evaluated_1h"] + stats["evaluated_1h"],
+                     evaluated_15m=catch["evaluated_15m"] + stats["evaluated_15m"],
                      degraded=stats["degraded"], funding_applied=stats["funding_applied"])
         if capped:
             rec.on_event({"ts": now, "type": "CATCH_UP", "symbol": "",
                           "msg": f"gap longer than {MAX_1M_BARS} 1m bars; replayed the newest {len(minutes)} only"})
-    last_15m = closed_bar_open(now, INTERVAL_MS["15m"])
+    if not wants_15:
+        last_15m = closed_bar_open(now, INTERVAL_MS["15m"])
+    elif last_15m is None:
+        last_15m = closed_bar_open(now, INTERVAL_MS["15m"]) if fresh or switched else state.get("last_15m_open")
     warmup = {}
     for s in symbols:
         buf = eng.candles.get(s, {}).get("4h")
@@ -617,8 +743,10 @@ def run(path, now=None):
     feed, probes = connect(cfg)
     state = read_state(path)
     fresh = state is None
-    strat = make_strategy(cfg)
-    htf = strat.timeframe == "1h"
+    specs = strategy_specs(cfg)
+    strat = specs[0]
+    htf = strat.timeframe == "1h" or any(s.timeframe == "1h" for s in specs)
+    wants_15 = _wants_15m(specs)
     universe_rows, ranked_at, universe_month, universe_reused = [], None, None, False
     ei, br = None, None
     if htf:
@@ -649,14 +777,15 @@ def run(path, now=None):
         risk.load_dict((state.get("engine") or {}).get("risk") or {})
     if htf:
         apply_slip(ex, risk, universe_rows)
-    eng = TradingEngine(cfg, ex, strat, risk, infos, brackets, recorder=rec)
+    eng = TradingEngine(cfg, ex, strat, risk, infos, brackets, recorder=rec, strategies=specs)
+    _bind_engine(eng, cfg, state)
 
     prev_name = ((state or {}).get("strategy") or {}).get("name")
     switched = htf and not fresh and (prev_name != strat.name or state.get("last_1h_open") is None)
     last_1h = None if fresh else (state or {}).get("last_1h_open")
     if htf:
         last_1h, last_15m, catch = run_htf(eng, ex, infos, feed, symbols, state, fresh, switched,
-                                           now, rec, funding_done)
+                                           now, rec, funding_done, wants_15=wants_15)
     else:
         hist = int(cfg["data"]["history_bars"])
         prev_1m = None if fresh else state.get("last_1m_open")
@@ -709,6 +838,8 @@ def run(path, now=None):
                               "msg": f"gap longer than {MAX_1M_BARS} 1m bars; replayed the newest {len(minutes)} only"})
 
     refresh_live(ex, feed, symbols, now)
+    if wants_15:
+        expire_time_stops(ex, now)
     return _publish(path, state, cfg, ex, risk, rec, feed, filters_src, probes, symbols, now,
                     strat, last_15m, last_1h, catch, funding_done,
                     universe_rows, ranked_at, universe_month, universe_reused,
@@ -763,6 +894,7 @@ def _publish(path, state, cfg, ex, risk, rec, feed, filters_src, probes, symbols
         elif s in prev_prices:
             prices[s] = prev_prices[s]
     strategy = (state or {}).get("strategy") if keep_strategy and (state or {}).get("strategy") else strategy_view(strat, cfg)
+    strategies = [strategy_view(s, cfg) for s in strategy_specs(cfg)]
     if brackets_view is None:
         brackets_view = _bracket_view(ex, [s for s in symbols if s in ex.mkt])
     snap = dict(state or {})
@@ -777,6 +909,7 @@ def _publish(path, state, cfg, ex, risk, rec, feed, filters_src, probes, symbols
         "win_rate_pct": (100.0 * wins / len(trades)) if trades else 0.0,
         "trades_closed": len(trades), "wins": wins,
         "strategy": strategy,
+        "strategies": strategies,
         "price_source": describe(feed, filters_src, probes),
         "last_cycle": _iso(now), "last_ts": now, "started": started,
         "last_15m_open": last_15m, "last_1h_open": last_1h, "last_1m_open": last_1m,
@@ -832,10 +965,12 @@ def _protected_symbols(state):
 
 
 def run_stops(path, now=None):
-    """Replay new 1m bars only. Does not rank, does not run the strategy, does not reset the account.
+    """Replay new 1m bars. Does not rank and does not reset the account.
 
-    If an open position or resting order has no contract filters, the tick raises
-    before writing so a 5-coin cache cannot drop the rest of the book.
+    ema_trend_4h stays on the hourly cycle. When one of the new minutes closes a
+    15m bar, orb_ny_15m is evaluated on that bar. If an open position or resting
+    order has no contract filters, the tick raises before writing so a 5-coin
+    cache cannot drop the rest of the book.
     """
     cfg = load_config()
     now = _now() if now is None else int(now)
@@ -879,12 +1014,17 @@ def run_stops(path, now=None):
     catch = {"mode": "stops", "fresh": False, "minutes": 0, "capped": capped,
              "evaluated_15m": 0, "evaluated_1h": 0, "degraded": [], "funding_applied": 0,
              "skipped_1m": max(0, len(all_minutes) - len(minutes))}
+    last_15m = state.get("last_15m_open")
+    specs = strategy_specs(cfg)
+    hit15 = _boundary_minutes(minutes, INTERVAL_MS["15m"]) if _wants_15m(specs) else []
+    eng = None
     if minutes and tradable:
         m0, m1 = minutes[0], minutes[-1] + 60_000
+        pre = m0 - (8 * INTERVAL_MS["1h"] if hit15 else 0)
         bars_1m = {}
         for s in tradable:
             try:
-                bars_1m[s] = _rows(feed.klines(s, "1m", m0, m1 + 1), now)
+                bars_1m[s] = _rows(feed.klines(s, "1m", pre, m1 + 1), now)
             except Exception:
                 log.warning("1m klines failed for %s", s, exc_info=True)
                 bars_1m[s] = {}
@@ -895,21 +1035,40 @@ def run_stops(path, now=None):
                 gap.append(s)
         if gap:
             raise RuntimeError(f"1m bars missing for open book {gap}; state left untouched")
+        bars_15, bars_1h, bars_4h, bars_1d = {}, {}, {}, {}
+        if hit15:
+            eng = TradingEngine(cfg, ex, specs[0], risk, infos, brackets, recorder=rec, strategies=specs)
+            _bind_engine(eng, cfg, state)
+            h1, h4, d1 = INTERVAL_MS["1h"], INTERVAL_MS["4h"], INTERVAL_MS["1d"]
+            bars_1h, _m1h = fetch_lenient(feed, tradable, "1h", now - 600 * h1, now, now)
+            bars_4h, _m4 = fetch_lenient(feed, tradable, "4h", now - (H4_BARS + 8) * h4, now, now)
+            bars_1d, _md = fetch_lenient(feed, tradable, "1d", now - 300 * d1, now, now)
+            bars_15, _m15 = fetch_lenient(feed, tradable, "15m", now - 3 * d1, now, now)
+            for s in tradable:
+                add_closed(eng, s, "1h", bars_1h.get(s, {}), m0)
+                add_closed(eng, s, "4h", bars_4h.get(s, {}), m0)
+                add_closed(eng, s, "1d", bars_1d.get(s, {}), m0)
+                add_closed(eng, s, "15m", bars_15.get(s, {}), m0)
+                add_closed(eng, s, "1m", bars_1m.get(s, {}), m0)
         marks = fetch_marks(feed, tradable, m0, m1 + 1, now)
         funds = fetch_funding(feed, tradable, m0, now)
-        stats = replay_minutes(ex, None, tradable, minutes, bars_1m, marks, {}, {},
-                               funds, funding_done, state.get("last_15m_open"),
+        stats = replay_minutes(ex, eng, tradable, minutes, bars_1m, marks, bars_15, bars_1h,
+                               funds, funding_done, last_15m, bars_4h=bars_4h, bars_1d=bars_1d,
                                strategy_tf="stops")
-        catch.update(minutes=stats["minutes"], degraded=stats["degraded"],
-                     funding_applied=stats["funding_applied"])
+        if stats.get("last_15m_open") is not None:
+            last_15m = stats["last_15m_open"]
+        catch.update(minutes=stats["minutes"], evaluated_15m=stats["evaluated_15m"],
+                     degraded=stats["degraded"], funding_applied=stats["funding_applied"])
         if capped:
             rec.on_event({"ts": now, "type": "CATCH_UP", "symbol": "",
                           "msg": f"gap longer than {MAX_1M_BARS} 1m bars; replayed the newest {len(minutes)} only"})
     if tradable:
         refresh_live(ex, feed, tradable, now)
-    strat = make_strategy(cfg)
+    if _wants_15m(specs):
+        expire_time_stops(ex, now)
+    strat = specs[0]
     return _publish(path, state, cfg, ex, risk, rec, feed, filters_src, probes, symbols, now,
-                    strat, state.get("last_15m_open"), state.get("last_1h_open"), catch, funding_done,
+                    strat, last_15m, state.get("last_1h_open"), catch, funding_done,
                     state.get("universe") or [], state.get("universe_ranked_at"),
                     state.get("universe_month"), state.get("universe_reused"),
                     False, False, None, None, keep_strategy=True,

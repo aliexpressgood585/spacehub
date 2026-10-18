@@ -43,6 +43,8 @@ jobs:
           mkdir -p /tmp/desk
           rm -rf /tmp/desk/binance-paper-bot
           cp -a binance-paper-bot /tmp/desk/binance-paper-bot
+          # Captured before the state branch checkout. HEAD here is the ref this job started from.
+          START_SHA=$(git rev-parse HEAD)
           git config user.name pm-desk-bot
           git config user.email actions@github.com
           git fetch -q origin pm-desk-data || true
@@ -71,6 +73,7 @@ jobs:
             cat /tmp/gh-runs.err || true
           else
             others=$(printf '%s' "$ids" | python -c 'import json,os,sys; raw=sys.stdin.read().strip(); rows=json.loads(raw) if raw else []; me=int(os.environ["GITHUB_RUN_ID"]); print(sum(1 for r in rows if int(r["databaseId"]) != me))')
+            export DESK_LIVE_RUNS=$(printf '%s' "$ids" | python -c 'import json,sys; raw=sys.stdin.read().strip(); rows=json.loads(raw) if raw else []; print(",".join(str(int(r["databaseId"])) for r in rows))')
           fi
           if [ "${others:-0}" != "0" ]; then
             echo "another loop is in progress (${others}); exiting"
@@ -107,11 +110,17 @@ jobs:
             fi
             return 0
           }
+          trap 'handoff; exit 0' TERM INT
           trap handoff EXIT
 
           end=$(( $(date +%s) + 345*60 ))
           last_commit=0
           while [ "$(date +%s)" -lt "$end" ]; do
+            remote=$(git ls-remote origin refs/heads/main 2>/dev/null | awk 'NR==1{print $1}')
+            if [ -n "${remote}" ] && [ "$remote" != "$START_SHA" ]; then
+              echo "main moved ${START_SHA} -> ${remote}; handing off so the successor loads it"
+              exit 0
+            fi
             now=$(date +%s)
             next=$(( (now / 60 + 1) * 60 ))
             if [ "$next" -ge "$end" ]; then

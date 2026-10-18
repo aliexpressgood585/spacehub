@@ -24,8 +24,23 @@ risk:
   max_daily_loss: 0.05        # stop opening new trades after -5% equity in a UTC day
   one_position_per_symbol: true
 
+# Both rules share one paper account. Caps here are per strategy. The account
+# daily stop above still blocks every new entry. max_margin_per_position stays
+# per position. orb's max_daily_loss pauses only that rule until the next UTC day.
+strategies:
+  - name: ema_trend_4h
+    risk_per_trade: 0.01
+    max_concurrent_positions: 3
+  - name: orb_ny_15m
+    risk_per_trade: 0.005
+    max_concurrent_positions: 2
+    max_daily_loss: 0.02
+  - name: xs_mom_1d
+    max_concurrent_positions: 8
+    max_daily_loss: 0.02
+
 strategy:
-  name: ema_trend_4h          # ema_trend_4h | trend_ema | bollinger_mr
+  name: ema_trend_4h          # ema_trend_4h | trend_ema | bollinger_mr | orb_ny_15m
   params:
     ema_trend_4h:
       timeframe: 1h          # strategy runs on each closed 1h bar
@@ -36,6 +51,30 @@ strategy:
       sl_atr: 3.0
       tp_atr: 0               # no take-profit; exit is the stop, the trail, or the opposite cross
       regime: self50          # longs only above the coin's daily EMA50, shorts only below
+      leverage: 3
+    orb_ny_15m:
+      session: ny            # 09:30 America/New_York, DST via the zone database
+      rng: 60                # opening range, minutes
+      filt: both             # 1h EMA20/50 agrees with 4h EMA20/100
+      slm: half              # stop at the range midpoint
+      tpR: 2.0               # take-profit distance, in R
+      win: 3                 # hours after the open in which a breakout may trigger (not bars)
+      hold: 8                # time exit, hours after the session open (17:30 New York)
+      maxw: 0                # 0 disables the range/ATR cap
+      dow: wk                # weekdays only
+      vreg: high             # daily ATR% above its 60-day median
+      volf: 1.0              # last closed day's volume at least its 20-day median
+      tstr: 0                # 0 disables the 4h trend-strength filter (falsy in the research code)
+      timeframe: 15m
+      leverage: 3
+    xs_mom_1d:
+      timeframe: 1d
+      lb: 14                 # volatility-normalised return, days
+      vol_win: 70
+      reb_days: 3            # rebalance at 00:00 UTC when the Unix day index is divisible by 3
+      k: 4                   # long the top 4, short the bottom 4
+      gross: 0.30            # 30% of equity notional across all 8 legs (~3.75% each)
+      disaster_sl_atr: 5.0   # wide stop; the research book had none
       leverage: 3
     trend_ema:
       timeframe: 15m
