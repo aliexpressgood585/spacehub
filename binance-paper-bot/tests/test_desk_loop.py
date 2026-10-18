@@ -115,16 +115,71 @@ def test_public_rest_uses_the_hard_timeout_session():
     assert rest.s.timeout == 7
 
 
+def test_shallow_fetch_takes_only_the_pm_desk_tip(tmp_path):
+    """actions/checkout is depth 1 with a wildcard refspec. A later fetch of
+    pm-desk-data without --depth walks every commit on that branch."""
+    origin = tmp_path / "origin.git"
+    subprocess.check_call(["git", "init", "--bare", "-b", "main", str(origin)])
+    full = tmp_path / "full"
+    subprocess.check_call(["git", "clone", "-q", str(origin), str(full)])
+    _git(full, "config", "user.email", "desk@test")
+    _git(full, "config", "user.name", "desk")
+    (full / "README").write_text("main\n")
+    _git(full, "add", "README")
+    _git(full, "commit", "-q", "-m", "main")
+    _git(full, "push", "-q", "origin", "main")
+    _git(full, "checkout", "-q", "--orphan", "pm-desk-data")
+    _git(full, "rm", "-rf", ".")
+    state = full / "binance-paper" / "state.json"
+    state.parent.mkdir(parents=True)
+    for n in range(1, 7):
+        state.write_text('{"n": %d}\n' % n)
+        _git(full, "add", "binance-paper/state.json")
+        _git(full, "commit", "-q", "-m", "state %d" % n)
+    _git(full, "push", "-q", "origin", "pm-desk-data")
+    shallow = tmp_path / "shallow"
+    shallow.mkdir()
+    _git(shallow, "init", "-q", "-b", "main")
+    # file:// so --depth is honored. A local path ignores it.
+    _git(shallow, "remote", "add", "origin", origin.as_uri())
+    _git(shallow, "fetch", "-q", "--depth=1", "origin", "main")
+    _git(shallow, "checkout", "-q", "main")
+    got = subprocess.run(
+        ["bash", "-c", f'source "{SCRIPT}"; fetch_pm_desk 30'],
+        cwd=shallow, capture_output=True, text=True,
+    )
+    assert got.returncode == 0, got.stderr + got.stdout
+    _git(shallow, "checkout", "-q", "-B", "pm-desk-data", "origin/pm-desk-data")
+    _git(shallow, "config", "user.email", "desk@test")
+    _git(shallow, "config", "user.name", "desk")
+    assert (shallow / "binance-paper" / "state.json").read_text() == '{"n": 6}\n'
+    assert subprocess.check_output(
+        ["git", "rev-list", "--count", "HEAD"], cwd=shallow, text=True,
+    ).strip() == "1"
+    (shallow / "binance-paper" / "state.json").write_text('{"n": 7}\n')
+    pushed = _push_state(shallow)
+    assert pushed.returncode == 0, pushed.stderr + pushed.stdout
+    assert subprocess.check_output(
+        ["git", "show", "pm-desk-data:binance-paper/state.json"], cwd=origin, text=True,
+    ) == '{"n": 7}\n'
+
+
 def test_workflow_watchdog_contract():
     text = WORKFLOW.read_text()
+    script = SCRIPT.read_text()
     assert "timeout-minutes: 350" in text
     assert "timeout --kill-after=15s 90s python" in text
     assert "publish_stale" in text
     assert "::error::no successful binance-paper push" in text
     assert "source /tmp/desk/binance-paper-bot/scripts/desk_loop.sh" in text
+    assert "fetch_pm_desk 120" in text
+    assert "not creating an empty book" in text
+    assert "git fetch -q --depth=1 origin pm-desk-data" in script
+    assert "fetch_pm_desk" in script
     # The chain step runs even when the loop step is killed. It still
     # refuses to dispatch when this job proved another loop is alive.
     chain = text.split("- name: chain successor", 1)[1]
     assert "if: always()" in chain
     assert "steps.loop.outputs.chain == 'yes'" not in chain
     assert 'steps.loop.outputs.chain }}" = "no"' in chain
+    assert "sleep 60" in chain
