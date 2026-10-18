@@ -90,7 +90,7 @@ await reset();await db.exec("truncate bot_equity,d5_confirmation_shadow;update b
 const v2={...de,sym:'V2',lev:15,notional:1000,q15:{...de.q15,pair:{sym:'V2',s:'V2USDT',k:1},execution_version:2,gate:{costBps:25},protection:{version:2,stop:100.15,trigger:100.4,enabled:true}}};
 await assert.rejects(()=>q([{...v2,q15:{...v2.q15,execution_version:1}}]),/v2/);
 await assert.rejects(()=>q([{...v2,q15:{...v2.q15,gate:{costBps:51}}}]),/v2/);
-await assert.rejects(()=>q([{...v2,lev:25}]),/v2/);
+await assert.rejects(()=>q([{...v2,lev:26}]),/v2/);
 r=await q([v2],[],{marks_fresh:true,execution_version:2},bar,{V2:100});assert.equal(r.opened,1);
 let samples=(await db.query('select * from bot_equity')).rows;
 assert.equal(samples.length,1);assert.equal(Number(samples[0].equity),4999.5);assert.equal(Number(samples[0].exposure),1000,'exposure remains gross notional dollars');

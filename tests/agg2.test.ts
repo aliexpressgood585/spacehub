@@ -94,7 +94,7 @@ try {
 const src = (f: string) => readFileSync(f, 'utf8').replaceAll('\r\n', '\n')
 for (const wf of ['.github/workflows/deploy-edge-function.yml', '.github/workflows/enforce-no-loss-trading.yml']) {
   const w = src(wf)
-  for (const kv of ["g.__ENABLED_SLEEVES = 'Q15'", "g.__SLEEVES_OFF = 'EVT,DONCH4H,FAST,ROTA,BLADE,PRO,LIST,FUND,CHAN,SCALP'", "g.__LEVERAGE = '1'", "g.__Q15_LEV = '15'", "g.__Q15_SHARE = '0.90'",
+  for (const kv of ["g.__ENABLED_SLEEVES = 'Q15'", "g.__SLEEVES_OFF = 'EVT,DONCH4H,FAST,ROTA,BLADE,PRO,LIST,FUND,CHAN,SCALP'", "g.__LEVERAGE = '1'", "g.__Q15_LEV = '25'", "g.__Q15_SHARE = '0.90'",
     "g.__Q15_PER_TRADE = '0.15'", "g.__Q15_MAX_OPEN = '8'", "g.__EVT_PER_TRADE = '0.15'", "g.__EVT_MAX_OPEN = '8'", "Deno.env.set('ENABLED_SLEEVES', 'Q15')", "Deno.env.set('LEVERAGE', '1')"])
     assert.ok(w.includes(kv), `${wf}: ${kv}`)
   assert.ok(!/__ENABLED_SLEEVES = '[^']*PRO/.test(w), `${wf}: PRO not enabled`)
