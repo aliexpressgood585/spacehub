@@ -4,8 +4,8 @@
 // Polymarket Gamma / CLOB, never an order.
 // Run: node --experimental-strip-types scripts/pm-desk.ts <state.json>
 import fs from 'node:fs'
-import { clvMark, clvStudy } from '../shared/clv.ts'
-import { PM, takerFee, walkAsks, walkBids, inBand, heOutcome, namesKept, pmMatch, isCryptoPrice, type FeeSchedule } from '../shared/pm.ts'
+import { clvMark, clvStudy, markout, markoutStudy } from '../shared/clv.ts'
+import { PM, takerFee, walkAsks, walkBids, inBand, heOutcome, namesKept, pmMatch, isCryptoPrice, gateStudy, type FeeSchedule } from '../shared/pm.ts'
 
 const FILE = process.argv[2] ?? 'pm/state.json'
 const GAMMA = 'https://gamma-api.polymarket.com', CLOB = 'https://clob.polymarket.com'
@@ -47,6 +47,16 @@ export function officialPx(m: any, k: number): number | null {
   if (p === 0.5 && px.length > 0 && px.every((x) => x === 0.5) && m.umaResolutionStatus === 'resolved') return 0.5
   return null
 }
+// Display / measurement flag for a position still open after its scheduled end: hours past the end and the UMA status
+// from Gamma ('proposed' / 'disputed' / ...). Cleared when the position is no longer past its end. Never read by a rule.
+export function pendingFlag(t: { end_time?: string; meta?: any }, m: any, nowMs: number) {
+  const end = Date.parse(t.end_time ?? '')
+  t.meta = t.meta ?? {}
+  if (!Number.isFinite(end) || nowMs < end) { delete t.meta.pending; return }
+  const uma = typeof m?.umaResolutionStatus === 'string' ? m.umaResolutionStatus : null
+  const disputes = arr(m?.umaResolutionStatuses).filter((x) => x === 'disputed').length
+  t.meta.pending = { past_end_h: Math.round(((nowMs - end) / 3600_000) * 10) / 10, uma, disputes, at: new Date(nowMs).toISOString() }
+}
 const feeOf = (m: any): FeeSchedule | null => (m.feesEnabled && m.feeSchedule ? { rate: +m.feeSchedule.rate || 0, exponent: +m.feeSchedule.exponent || 1 } : null)
 
 interface Trade { id: number; market_id: string; slug: string; event_slug: string; question: string; outcome: string; token_id: string; end_time: string; qty: number; entry_px: number; entry_fee: number; cost: number; best_ask: number; opened_at: string; status: 'OPEN' | 'CLOSED'; mark_px: number; mark_at: string; exit_px?: number; exit_fee?: number; proceeds?: number; pnl?: number; reason?: string; closed_at?: string; meta?: any }
@@ -73,6 +83,10 @@ try {
       const b = await book(t.token_id)
       t.mark_px = b?.bids[0]?.price ?? (k >= 0 ? px[k] : t.mark_px); t.mark_at = now()
       clvMark(t, b?.bids[0]?.price, b?.asks[0]?.price, Date.now())
+      markout(t, b?.bids[0]?.price, b?.asks[0]?.price, Date.now())   // pre-resolution closing line (shared/clv.ts), measurement only
+      // long disputes / late resolutions (2026-10-18, #173 Tesla 0-60: UMA disputed 9x, still open 2.5 days after its end):
+      // never settled until Gamma is final (officialPx); flagged for display only, no trading effect
+      pendingFlag(t, m, Date.now())
     } catch { /* keep the last mark */ }
     openValue += t.qty * t.mark_px
   }
@@ -198,7 +212,9 @@ if (st.equity.length > 5000) {
 st.decisions = [...decisions.slice(0, 50), ...st.decisions].slice(0, 200)
 fs.mkdirSync(FILE.replace(/\/[^/]*$/, '') || '.', { recursive: true })
 // CLV / Brier (docs/POLY_PLAYBOOK.md): all history and since the crypto exclusion (the judged rule, docs/POLY_SUPERVISOR.md)
-;(st as any).clv = { all: clvStudy(st.trades), judged: clvStudy(st.trades, '2026-10-15T18:30') }
+;(st as any).clv = { all: clvStudy(st.trades), judged: clvStudy(st.trades, '2026-10-15T18:30'), m30: markoutStudy(st.trades),
+  note: 'all/judged close_px = last mid before the scheduled end (usually after the result); m30 = pre-resolution markout' }
+;(st as any).gates = gateStudy(st.trades, '2026-10-15T18:30')   // read-out only, never acted on (docs/POLY_SUPERVISOR.md)
 // atomic write: a cycle killed mid-write (workflow `timeout 240`) must not leave a truncated state that every later cycle
 // fails to parse (and that the loop would commit). Write a temp file next to it, then rename over the old one.
 fs.writeFileSync(`${FILE}.tmp`, JSON.stringify(st, null, 1)); fs.renameSync(`${FILE}.tmp`, FILE)

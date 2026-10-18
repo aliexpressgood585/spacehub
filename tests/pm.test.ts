@@ -1,6 +1,6 @@
 // Polymarket paper desk rules (shared/pm.ts): fills, fees and the on-demand early exit.
 import fs from 'node:fs'
-import { PM, takerFee, walkAsks, walkBids, inBand, heOutcome, namesKept, pmMatch, isCryptoPrice } from '../shared/pm.ts'
+import { PM, takerFee, walkAsks, walkBids, inBand, heOutcome, namesKept, pmMatch, isCryptoPrice, gateStudy } from '../shared/pm.ts'
 let n = 0, bad = 0
 const ok = (c: boolean, m: string) => { n++; if (!c) { bad++; console.log('FAIL', m) } }
 const near = (a: number, b: number, e = 1e-9) => Math.abs(a - b) < e
@@ -36,12 +36,14 @@ const held = { id: 1, market_id: 'H', slug: 'h', event_slug: 'eh', question: 'He
 // 5,003 equity points (one per hour) -> the 5,000 window + the dropped points kept hourly in equity_h.
 const split = { ...held, id: 2, market_id: 'S', slug: 's', event_slug: 'es', token_id: 'TS', qty: 2, cost: 1.8, entry_fee: 0, mark_px: 0.5, meta: {} }
 const pend = { ...held, id: 3, market_id: 'Q', slug: 'q', event_slug: 'eq', token_id: 'TQ', qty: 2, cost: 1.8, entry_fee: 0, mark_px: 0.9, meta: {} }
+const disp = { ...held, id: 4, market_id: 'D', slug: 'd', event_slug: 'ed', token_id: 'TD', qty: 2, cost: 1.8, entry_fee: 0, mark_px: 0.9, end_time: new Date(Date.now() - 60 * 3600e3).toISOString(), meta: {} }
 const eq0 = Array.from({ length: 5003 }, (_, i) => ({ ts: new Date(Date.UTC(2026, 0, 1) + i * 3600e3).toISOString(), equity: 1000 + i, cash: 5, open_value: 0, open_count: 1 }))
-fs.writeFileSync(file, JSON.stringify({ start_cash: 1000, cash: 5, strategy: PM, last_scan: null, last_note: null, trades: [held, split, pend], equity: eq0, decisions: [], next_id: 4 }))
+fs.writeFileSync(file, JSON.stringify({ start_cash: 1000, cash: 5, strategy: PM, last_scan: null, last_note: null, trades: [held, split, pend, disp], equity: eq0, decisions: [], next_id: 5 }))
 const J = (x: unknown) => new Response(JSON.stringify(x), { status: 200 })
 ;(globalThis as any).fetch = async (u: string) => {
   if (u.includes('/markets/S')) return J({ closed: true, umaResolutionStatus: 'resolved', clobTokenIds: '["TS","TS2"]', outcomePrices: '["0.5","0.5"]' })
   if (u.includes('/markets/Q')) return J({ closed: true, umaResolutionStatus: 'proposed', clobTokenIds: '["TQ","TQ2"]', outcomePrices: '["0.9995","0.0005"]' })
+  if (u.includes('/markets/D')) return J({ closed: false, umaResolutionStatus: 'disputed', umaResolutionStatuses: '["proposed","disputed","proposed","disputed"]', clobTokenIds: '["TD","TD2"]', outcomePrices: '["0.9995","0.0005"]' })
   if (u.includes('/markets/H')) return J({ closed: false, clobTokenIds: '["TH","TN"]', outcomePrices: '["0.995","0.005"]' })
   if (u.includes('/markets?')) return J(u.includes('offset=0') ? [{ id: 'N', slug: 'n', question: 'New?', acceptingOrders: true, enableOrderBook: true, clobTokenIds: '["A","B"]', outcomes: '["Yes","No"]', outcomePrices: '["0.88","0.12"]', endDate: new Date(Date.now() + 7200e3).toISOString(), events: [{ slug: 'en' }] }] : [])
   if (u.includes('token_id=TH')) return J({ bids: [{ price: '0.995', size: '2000' }], asks: [] })
@@ -62,6 +64,14 @@ ok(!!nw && nw.status === 'OPEN' && near(nw.entry_px, 0.88), 'the freed cash fund
   ok(pq.status === 'OPEN', 'a closed market whose prices are not 1/0 yet (and not a resolved 50-50) is not settled')
   ok(out.equity.length === 5000 && Array.isArray(out.equity_h) && out.equity_h.length === 4 && out.equity_h[0].equity === 1000, 'equity points beyond 5,000 survive hourly in equity_h')
   ok(!fs.existsSync(`${file}.tmp`) && /renameSync\(`\$\{FILE\}\.tmp`, FILE\)/.test(src), 'state is written atomically (temp file + rename)') }
+{ const dp = out.trades.find((t: any) => t.id === 4)
+  ok(dp.status === 'OPEN' && dp.pnl == null && dp.meta.pending?.uma === 'disputed' && dp.meta.pending.disputes === 2 && dp.meta.pending.past_end_h >= 59.9, 'a long UMA dispute past its end stays OPEN (no settle on 99.95c), flagged pending/disputed')
+  ok(out.trades.filter((t: any) => t.id === 4).length === 1, 'no duplicate row for the disputed position')
+  const f: any = { end_time: new Date(Date.now() + 3600e3).toISOString(), meta: { pending: { uma: 'x' } } }
+  desk.pendingFlag(f, { umaResolutionStatus: 'proposed' }, Date.now()); ok(f.meta.pending === undefined, 'pendingFlag: before the end -> no flag (stale flag cleared)')
+  const g: any = { end_time: new Date(Date.now() - 7200e3).toISOString() }
+  desk.pendingFlag(g, {}, Date.now()); ok(g.meta.pending.uma === null && g.meta.pending.disputes === 0 && Math.abs(g.meta.pending.past_end_h - 2) < 0.11, 'pendingFlag: unknown UMA status stays null, not invented')
+  ok(/markout\(t, /.test(src) && /m30: markoutStudy\(st\.trades\)/.test(src), 'runner records the pre-resolution markout and publishes st.clv.m30') }
 { const o = (m: any, k = 0) => desk.officialPx(m, k)
   ok(o({ closed: true, outcomePrices: '["1","0"]' }) === 1 && o({ closed: true, outcomePrices: '["1","0"]' }, 1) === 0, 'officialPx: 1 / 0 from Gamma outcomePrices')
   ok(o({ closed: false, outcomePrices: '["1","0"]' }) === null && o({ closed: true, outcomePrices: '["0.999","0.001"]' }) === null, 'officialPx: not closed or not final -> null')
@@ -90,5 +100,12 @@ ok(PM.maxPosFrac === 0.05 && PM.maxMatchFrac === 0.10 && PM.maxMatchFrac >= PM.m
 ok(['bitcoin-above-on-october-15-2026', 'ethereum-up-or-down-on-october-15-2026', 'btc-updown-15m-1792067400', 'what-price-will-bitcoin-hit-on-october-14-2026'].every((x) => isCryptoPrice(x)), 'crypto price markets detected')
 ok(!isCryptoPrice('ucl-mnc-psg-2026-10-14') && !isCryptoPrice('x', 'Will Solana Esports win?') && !isCryptoPrice('dota2-sol-vs-xyz'), 'sports / esports not caught')
 ok(fs.readFileSync('scripts/pm-desk.ts', 'utf8').includes('if (isCryptoPrice(ev, m.question)) continue'), 'desk skips crypto price markets')
+// supervisor gates: read-out only
+{ const C = (pnl: number, at = '2026-10-16') => ({ status: 'CLOSED', opened_at: at, cost: 50, pnl })
+  const lose = [...Array(150).fill(0).map(() => C(4)), ...Array(60).fill(0).map(() => C(-50))]
+  const g = gateStudy(lose, '2026-10-15T18:30'); ok(g.n === 210 && g.mean_r! < 0 && g.t! <= -2.5 && g.step_down_hit && g.stop_hit, 'gateStudy flags step-down / stop on a clearly losing record')
+  const e = gateStudy([C(4, '2026-10-14')], '2026-10-15T18:30'); ok(e.n === 0 && e.mean_r === null && e.t === null && !e.stop_hit, 'gateStudy: no judged closes -> nulls, no flags')
+  const src2 = fs.readFileSync('scripts/pm-desk.ts', 'utf8')
+  ok(/\.gates = gateStudy\(/.test(src2) && (src2.match(/\bgates\b/g) ?? []).length === 1, 'runner only publishes st.gates and never reads it') }
 console.log(`pm desk: ${n - bad}/${n} passed`)
 if (bad) process.exit(1)

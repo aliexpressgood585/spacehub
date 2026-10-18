@@ -1,5 +1,10 @@
 # Poly supervisor — fixed rules (written 2026-10-15, before any run)
 
+> **Status 2026-10-18:** the supervisor session (scheduled task `trig_01Vjp6cAr2SiufLUJeD21tgz`, outside this repo) has
+> been OFF since 2026-10-17 16:16 UTC by the owner's order and is NOT re-enabled: its gates could halve the stake or stop
+> entries, and the desks must not be paused automatically. The main desk now only PUBLISHES the gate read-out in
+> `pm/state.json` -> `gates` (shared/pm.ts `gateStudy`: n, mean r, t, step_down_hit, stop_hit). Nothing acts on it.
+
 One autonomous supervisor looks after the three Polymarket PAPER desks every 6 hours:
 
 | desk | state file (branch `pm-desk-data`) | workflow | judged since |

@@ -93,3 +93,16 @@ export function namesKept(question: string, translated: string | undefined, name
   const q = low(question), t = low(translated)
   return names.filter((x) => x && !isGenericOutcome(x) && q.includes(low(x))).every((x) => t.includes(low(x)))
 }
+
+// Supervisor gates as a READ-OUT only (2026-10-18). docs/POLY_SUPERVISOR.md defines step-down (n >= 100, mean r < 0,
+// t <= -1.5) and stop (n >= 200, mean r < 0, t <= -2.5) on judged closes, r = pnl / cost. The supervisor session that
+// acted on them was switched off by the owner on 2026-10-17 and the desk must not be paused automatically, so the runner
+// only PUBLISHES where the gates stand (st.gates); nothing in the desk reads it. Missing values stay null.
+export function gateStudy(trades: any[], since: string) {
+  const r = trades.filter((t) => t.status === 'CLOSED' && (t.opened_at ?? '') >= since && t.cost > 0 && Number.isFinite(t.pnl)).map((t) => t.pnl / t.cost)
+  const n = r.length, m = n ? r.reduce((a, x) => a + x, 0) / n : null
+  const sd = n > 1 && m != null ? Math.sqrt(r.reduce((a, x) => a + (x - m) ** 2, 0) / (n - 1)) : null
+  const t = m != null && sd ? (m / sd) * Math.sqrt(n) : null
+  return { since, n, mean_r: m, t, step_down_hit: n >= 100 && m != null && m < 0 && t != null && t <= -1.5,
+    stop_hit: n >= 200 && m != null && m < 0 && t != null && t <= -2.5, action: 'none (read-out only; supervisor off since 2026-10-17)' }
+}
