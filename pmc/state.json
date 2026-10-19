@@ -44,12 +44,12 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-19T20:12:37.615Z",
+ "last_scan": "2026-10-19T20:12:46.555Z",
  "last_note": {
-  "at": "2026-10-19T20:12:35.744Z",
+  "at": "2026-10-19T20:12:45.288Z",
   "windows": 4,
   "settled": 0,
-  "entered": 1
+  "entered": 0
  },
  "trades": [
   {
@@ -27097,8 +27097,8 @@
    "best_ask": 0.95,
    "opened_at": "2026-10-19T20:12:37.615Z",
    "status": "OPEN",
-   "mark_px": 0.94,
-   "mark_at": "2026-10-19T20:12:37.615Z",
+   "mark_px": 0.95,
+   "mark_at": "2026-10-19T20:12:46.028Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -27125,7 +27125,9 @@
     "z": 2.0527757107615776,
     "spot_open": 81944.64,
     "spot": 82004.37,
-    "sigma1s": 0.0000294773358533167
+    "sigma1s": 0.0000294773358533167,
+    "close_px": 0.955,
+    "close_at": "2026-10-19T20:12:46.028Z"
    }
   }
  ],
@@ -62133,6 +62135,28 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-19T20:12:46.555Z",
+   "market_id": "5905407",
+   "question": "Solana Up or Down - October 19, 4:10PM-4:15PM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 20:10–20:15 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.94,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
+   "ts": "2026-10-19T20:12:46.555Z",
+   "market_id": "5905410",
+   "question": "XRP Up or Down - October 19, 4:10PM-4:15PM ET",
+   "question_he": "XRP · עולה או יורד · 5 דקות · 20:10–20:15 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.96,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
    "ts": "2026-10-19T20:12:37.615Z",
    "market_id": "5905414",
    "question": "Bitcoin Up or Down - October 19, 4:10PM-4:15PM ET",
@@ -64309,47 +64333,10 @@
    "price": 0.91,
    "decision": "skip",
    "reason": "מסנן מרחק: 0.76 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-19T18:57:47.058Z",
-   "market_id": "5902343",
-   "question": "XRP Up or Down - October 19, 2:55PM-3:00PM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 18:55–19:00 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.94,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.91 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-19T18:53:55.945Z",
-   "market_id": "5900839",
-   "question": "Solana Up or Down - October 19, 2:50PM-2:55PM ET",
-   "question_he": "סולנה · עולה או יורד · 5 דקות · 18:50–18:55 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.91,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.31 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 382,
  "shadow": [
-  {
-   "slug": "sol-updown-5m-1792157100",
-   "market_id": "5730989",
-   "token_id": "18250420152809768157621781082069121774702119206218342947680890914011495121041",
-   "coin": "sol",
-   "outcome": "Down",
-   "end_time": "2026-10-16T13:30:00Z",
-   "placed_at": "2026-10-16T13:28:21.785Z",
-   "limit": 0.94,
-   "taker_ask": 0.95,
-   "status": "DONE",
-   "filled": false,
-   "won": true,
-   "ret": null
-  },
   {
    "slug": "btc-updown-5m-1792157100",
    "market_id": "5730992",
@@ -111764,8 +111751,10 @@
    "placed_at": "2026-10-19T20:07:06.913Z",
    "limit": 0.91,
    "taker_ask": 0.92,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "xrp-updown-5m-1792440300",
@@ -111777,8 +111766,10 @@
    "placed_at": "2026-10-19T20:07:07.425Z",
    "limit": 0.93,
    "taker_ask": 0.95,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "btc-updown-5m-1792440300",
@@ -111790,10 +111781,12 @@
    "placed_at": "2026-10-19T20:07:16.034Z",
    "limit": 0.91,
    "taker_ask": 0.92,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-19T20:07:25.842Z",
-   "left_at_fill": 154
+   "left_at_fill": 154,
+   "won": true,
+   "ret": 0.09890109890109887
   },
   {
    "slug": "sol-updown-5m-1792440300",
@@ -111805,10 +111798,12 @@
    "placed_at": "2026-10-19T20:07:36.730Z",
    "limit": 0.93,
    "taker_ask": 0.94,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-19T20:08:06.387Z",
-   "left_at_fill": 114
+   "left_at_fill": 114,
+   "won": true,
+   "ret": 0.07526881720430102
   },
   {
    "slug": "eth-updown-5m-1792440600",
@@ -111821,7 +111816,9 @@
    "limit": 0.9,
    "taker_ask": 0.91,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-19T20:12:45.652Z",
+   "left_at_fill": 134
   },
   {
    "slug": "btc-updown-5m-1792440600",
@@ -111848,6 +111845,19 @@
    "taker_ask": 0.94,
    "status": "WORKING",
    "filled": false
+  },
+  {
+   "slug": "sol-updown-5m-1792440600",
+   "market_id": "5905407",
+   "token_id": "9910044356920283200057207867418610994303743774325172465519384513140770718584",
+   "coin": "sol",
+   "outcome": "Up",
+   "end_time": "2026-10-19T20:15:00Z",
+   "placed_at": "2026-10-19T20:12:46.416Z",
+   "limit": 0.92,
+   "taker_ask": 0.94,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
@@ -111859,12 +111869,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2993,
-   "filled": 1262,
-   "fill_rate": 0.42165051787504176,
-   "wr": 0.8589540412044374,
-   "ret": -0.0688855800880319,
-   "missed_wins": 1731,
+   "resolved": 2996,
+   "filled": 1264,
+   "fill_rate": 0.4218958611481976,
+   "wr": 0.8591772151898734,
+   "ret": -0.06863879126185986,
+   "missed_wins": 1732,
    "missed_losses": 0
   },
   "late_exit": {
@@ -112023,8 +112033,8 @@
    "beat_close": 0.9653465346534653,
    "brier_entry": 0.029499585566856012,
    "brier_close": 0.0020920074257425596,
-   "open_n": 0,
-   "open_clv_c": null
+   "open_n": 1,
+   "open_clv_c": 0.49999999999998934
   },
   "judged": {
    "n": 202,
@@ -112035,8 +112045,8 @@
    "beat_close": 0.9653465346534653,
    "brier_entry": 0.029499585566856012,
    "brier_close": 0.0020920074257425596,
-   "open_n": 0,
-   "open_clv_c": null
+   "open_n": 1,
+   "open_clv_c": 0.49999999999998934
   }
  }
 }
