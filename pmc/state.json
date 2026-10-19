@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-19T21:27:59.371Z",
+ "last_scan": "2026-10-19T21:28:09.578Z",
  "last_note": {
-  "at": "2026-10-19T21:27:57.677Z",
+  "at": "2026-10-19T21:28:08.011Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -27533,8 +27533,8 @@
    "best_ask": 0.97,
    "opened_at": "2026-10-19T21:27:20.692Z",
    "status": "OPEN",
-   "mark_px": 0.96,
-   "mark_at": "2026-10-19T21:27:58.452Z",
+   "mark_px": 0.97,
+   "mark_at": "2026-10-19T21:28:08.638Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -27562,8 +27562,8 @@
     "spot_open": 82120.34,
     "spot": 82078.01,
     "sigma1s": 0.000019945322576509337,
-    "close_px": 0.965,
-    "close_at": "2026-10-19T21:27:58.452Z"
+    "close_px": 0.975,
+    "close_at": "2026-10-19T21:28:08.638Z"
    }
   }
  ],
@@ -62571,6 +62571,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-19T21:28:09.578Z",
+   "market_id": "5907646",
+   "question": "Solana Up or Down - October 19, 5:25PM-5:30PM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 21:25–21:30 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.9,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
    "ts": "2026-10-19T21:27:59.371Z",
    "market_id": "5907640",
    "question": "Ethereum Up or Down - October 19, 5:25PM-5:30PM ET",
@@ -64758,17 +64769,6 @@
    "price": 0.91,
    "decision": "skip",
    "reason": "מסנן מרחק: 1.38 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-19T19:57:57.893Z",
-   "market_id": "5904691",
-   "question": "Bitcoin Up or Down - October 19, 3:55PM-4:00PM ET",
-   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 19:55–20:00 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.94,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.87 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 388,
@@ -112292,7 +112292,9 @@
    "limit": 0.9,
    "taker_ask": 0.91,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-19T21:28:08.488Z",
+   "left_at_fill": 112
   },
   {
    "slug": "sol-updown-5m-1792445100",
@@ -112484,7 +112486,7 @@
    "brier_entry": 0.028740462906273627,
    "brier_close": 0.002032641826923062,
    "open_n": 1,
-   "open_clv_c": -0.5000000000000004
+   "open_clv_c": 0.5000000000000004
   },
   "judged": {
    "n": 208,
@@ -112496,7 +112498,7 @@
    "brier_entry": 0.028740462906273627,
    "brier_close": 0.002032641826923062,
    "open_n": 1,
-   "open_clv_c": -0.5000000000000004
+   "open_clv_c": 0.5000000000000004
   }
  }
 }
