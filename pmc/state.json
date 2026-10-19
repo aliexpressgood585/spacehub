@@ -44,12 +44,12 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-19T00:42:21.695Z",
+ "last_scan": "2026-10-19T00:42:30.719Z",
  "last_note": {
-  "at": "2026-10-19T00:42:19.849Z",
+  "at": "2026-10-19T00:42:29.258Z",
   "windows": 4,
   "settled": 0,
-  "entered": 1
+  "entered": 0
  },
  "trades": [
   {
@@ -23978,8 +23978,8 @@
    "best_ask": 0.97,
    "opened_at": "2026-10-19T00:42:21.694Z",
    "status": "OPEN",
-   "mark_px": 0.96,
-   "mark_at": "2026-10-19T00:42:21.694Z",
+   "mark_px": 0.95,
+   "mark_at": "2026-10-19T00:42:30.024Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -24005,7 +24005,9 @@
     "z": 2.1542226832987175,
     "spot_open": 2410.02,
     "spot": 2414.6,
-    "sigma1s": 0.00006945906912798757
+    "sigma1s": 0.00006945906912798757,
+    "close_px": 0.955,
+    "close_at": "2026-10-19T00:42:30.024Z"
    }
   }
  ],
@@ -59013,6 +59015,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-19T00:42:30.719Z",
+   "market_id": "5847741",
+   "question": "XRP Up or Down - October 18, 8:40PM-8:45PM ET",
+   "question_he": "XRP · עולה או יורד · 5 דקות · 00:40–00:45 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.96,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
    "ts": "2026-10-19T00:42:21.695Z",
    "market_id": "5847742",
    "question": "Ethereum Up or Down - October 18, 8:40PM-8:45PM ET",
@@ -61200,17 +61213,6 @@
    "price": 0.96,
    "decision": "skip",
    "reason": "מסנן מרחק: 1.42 < 2 (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-18T23:02:20.434Z",
-   "market_id": "5843366",
-   "question": "XRP Up or Down - October 18, 7:00PM-7:05PM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 23:00–23:05 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.92,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.99 < 2 (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 339,
@@ -108720,10 +108722,12 @@
    "placed_at": "2026-10-19T00:37:09.690Z",
    "limit": 0.9,
    "taker_ask": 0.91,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-19T00:37:20.094Z",
-   "left_at_fill": 160
+   "left_at_fill": 160,
+   "won": true,
+   "ret": 0.11111111111111108
   },
   {
    "slug": "eth-updown-5m-1792370100",
@@ -108735,10 +108739,12 @@
    "placed_at": "2026-10-19T00:37:09.818Z",
    "limit": 0.92,
    "taker_ask": 0.93,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-19T00:37:20.225Z",
-   "left_at_fill": 160
+   "left_at_fill": 160,
+   "won": true,
+   "ret": 0.08695652173913039
   },
   {
    "slug": "sol-updown-5m-1792370100",
@@ -108750,10 +108756,12 @@
    "placed_at": "2026-10-19T00:37:09.945Z",
    "limit": 0.94,
    "taker_ask": 0.96,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-19T00:37:20.345Z",
-   "left_at_fill": 160
+   "left_at_fill": 160,
+   "won": true,
+   "ret": 0.06382978723404262
   },
   {
    "slug": "xrp-updown-5m-1792370100",
@@ -108765,8 +108773,10 @@
    "placed_at": "2026-10-19T00:38:10.811Z",
    "limit": 0.9,
    "taker_ask": 0.91,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "eth-updown-5m-1792370400",
@@ -108779,7 +108789,9 @@
    "limit": 0.96,
    "taker_ask": 0.97,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-19T00:42:29.630Z",
+   "left_at_fill": 150
   },
   {
    "slug": "sol-updown-5m-1792370400",
@@ -108817,12 +108829,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2993,
-   "filled": 1300,
-   "fill_rate": 0.43434680922151686,
-   "wr": 0.8546153846153847,
-   "ret": -0.07431787256774863,
-   "missed_wins": 1693,
+   "resolved": 2997,
+   "filled": 1303,
+   "fill_rate": 0.43476810143476813,
+   "wr": 0.8549501151189562,
+   "ret": -0.0739457689316876,
+   "missed_wins": 1694,
    "missed_losses": 0
   },
   "late_exit": {
@@ -108981,8 +108993,8 @@
    "beat_close": 0.9685534591194969,
    "brier_entry": 0.025079346300722696,
    "brier_close": 0.0026489638364779744,
-   "open_n": 0,
-   "open_clv_c": null
+   "open_n": 1,
+   "open_clv_c": -1.5000000000000013
   },
   "judged": {
    "n": 159,
@@ -108993,8 +109005,8 @@
    "beat_close": 0.9685534591194969,
    "brier_entry": 0.025079346300722696,
    "brier_close": 0.0026489638364779744,
-   "open_n": 0,
-   "open_clv_c": null
+   "open_n": 1,
+   "open_clv_c": -1.5000000000000013
   }
  }
 }
