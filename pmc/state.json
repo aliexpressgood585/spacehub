@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 1011.7000134254038,
+ "cash": 986.4868570538201,
  "peak": 1072.1210886213057,
  "floor": 936.0605443106529,
  "strategy": {
@@ -44,12 +44,12 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-20T03:32:29.059Z",
+ "last_scan": "2026-10-20T03:32:38.854Z",
  "last_note": {
-  "at": "2026-10-20T03:32:26.158Z",
+  "at": "2026-10-20T03:32:36.784Z",
   "windows": 4,
   "settled": 0,
-  "entered": 0
+  "entered": 1
  },
  "trades": [
   {
@@ -28222,16 +28222,58 @@
    "pnl": 0.9647511539062315,
    "reason": "RESOLVED_WIN",
    "closed_at": "2026-10-20T02:23:24.415Z"
+  },
+  {
+   "id": 397,
+   "market_id": "5912531",
+   "slug": "btc-updown-5m-1792467000",
+   "event_slug": "btc-updown-5m-1792467000",
+   "question": "Bitcoin Up or Down - October 19, 11:30PM-11:35PM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 03:30–03:35 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "token_id": "44853045623349294117267809985325007052963599247998670731311150152977308250906",
+   "end_time": "2026-10-20T03:35:00Z",
+   "qty": 26.190371513495172,
+   "entry_px": 0.9599999999999999,
+   "entry_fee": 0.07039971862827528,
+   "cost": 25.21315637158364,
+   "best_ask": 0.96,
+   "opened_at": "2026-10-20T03:32:38.853Z",
+   "status": "OPEN",
+   "mark_px": 0.95,
+   "mark_at": "2026-10-20T03:32:38.853Z",
+   "meta": {
+    "fee_schedule": {
+     "rate": 0.07,
+     "exponent": 1
+    },
+    "volume": 40,
+    "coin": "btc",
+    "tf": "5m",
+    "window_s": 300,
+    "left_s": 143,
+    "band": [
+     0.9,
+     0.98
+    ],
+    "z_min": 2,
+    "look": 1,
+    "outcomes": [
+     "Up",
+     "Down"
+    ],
+    "wanted": 25.213156371583636,
+    "ref_px": 0.95,
+    "bid_px": 0.95,
+    "z": 2.1898632633171,
+    "spot_open": 81877.41,
+    "spot": 81947.88,
+    "sigma1s": 0.00003285249302704115
+   }
   }
  ],
  "equity": [
-  {
-   "ts": "2026-10-16T18:05:05.462Z",
-   "equity": 989.232351431402,
-   "cash": 989.232351431402,
-   "open_value": 0,
-   "open_count": 0
-  },
   {
    "ts": "2026-10-16T18:06:05.286Z",
    "equity": 989.232351431402,
@@ -63224,9 +63266,60 @@
    "cash": 1011.7000134254038,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-10-20T03:32:38.854Z",
+   "equity": 1011.3677099916406,
+   "cash": 986.4868570538201,
+   "open_value": 24.880852937820414,
+   "open_count": 1
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-20T03:32:38.853Z",
+   "market_id": "5912531",
+   "question": "Bitcoin Up or Down - October 19, 11:30PM-11:35PM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 03:30–03:35 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.9599999999999999,
+   "decision": "BUY",
+   "reason": "143 שנ׳ לסיום, מחיר 0.96 בטווח 90-98¢, 26.2 מניות ($25), עמלה $0.07"
+  },
+  {
+   "ts": "2026-10-20T03:32:38.853Z",
+   "market_id": "5912523",
+   "question": "Ethereum Up or Down - October 19, 11:30PM-11:35PM ET",
+   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 03:30–03:35 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.96,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
+   "ts": "2026-10-20T03:32:38.854Z",
+   "market_id": "5912527",
+   "question": "Solana Up or Down - October 19, 11:30PM-11:35PM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 03:30–03:35 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.96,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
+   "ts": "2026-10-20T03:32:38.854Z",
+   "market_id": "5912524",
+   "question": "XRP Up or Down - October 19, 11:30PM-11:35PM ET",
+   "question_he": "XRP · עולה או יורד · 5 דקות · 03:30–03:35 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.95,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
   {
    "ts": "2026-10-20T03:32:27.970Z",
    "market_id": "5912531",
@@ -65382,53 +65475,9 @@
    "price": 0.91,
    "decision": "skip",
    "reason": "מסנן מרחק: 1.44 < 2 (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-20T02:02:18.395Z",
-   "market_id": "5912059",
-   "question": "Bitcoin Up or Down - October 19, 10:00PM-10:05PM ET",
-   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 02:00–02:05 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.9,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.72 < 2 (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-20T02:02:19.530Z",
-   "market_id": "5912061",
-   "question": "Ethereum Up or Down - October 19, 10:00PM-10:05PM ET",
-   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 02:00–02:05 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.9,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.36 < 2 (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-20T02:02:08.802Z",
-   "market_id": "5912059",
-   "question": "Bitcoin Up or Down - October 19, 10:00PM-10:05PM ET",
-   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 02:00–02:05 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.93,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.76 < 2 (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-20T02:02:09.762Z",
-   "market_id": "5912061",
-   "question": "Ethereum Up or Down - October 19, 10:00PM-10:05PM ET",
-   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 02:00–02:05 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.92,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.38 < 2 (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
- "next_id": 397,
+ "next_id": 398,
  "shadow": [
   {
    "slug": "btc-updown-5m-1792183200",
@@ -112973,10 +113022,10 @@
  ],
  "study": {
   "fills": {
-   "n": 396,
-   "avg_vs_ref_c": -0.14957337420363093,
-   "avg_vs_research_c": -1.1495733742036294,
-   "avg_fee_c": 0.3415441897543514
+   "n": 397,
+   "avg_vs_ref_c": -0.1466777233869971,
+   "avg_vs_research_c": -1.1466777233869956,
+   "avg_fee_c": 0.3413609550194538
   },
   "maker": {
    "placed": 3000,
