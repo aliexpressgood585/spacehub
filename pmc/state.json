@@ -44,12 +44,12 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-20T23:17:08.046Z",
+ "last_scan": "2026-10-20T23:17:16.619Z",
  "last_note": {
-  "at": "2026-10-20T23:17:05.044Z",
+  "at": "2026-10-20T23:17:14.951Z",
   "windows": 4,
   "settled": 0,
-  "entered": 1
+  "entered": 0
  },
  "trades": [
   {
@@ -31722,8 +31722,8 @@
    "best_ask": 0.91,
    "opened_at": "2026-10-20T23:17:08.045Z",
    "status": "OPEN",
-   "mark_px": 0.9,
-   "mark_at": "2026-10-20T23:17:08.045Z",
+   "mark_px": 0.89,
+   "mark_at": "2026-10-20T23:17:15.677Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -31749,7 +31749,9 @@
     "z": 2.5056502335760373,
     "spot_open": 2451.8,
     "spot": 2448.6,
-    "sigma1s": 0.00003940116226391457
+    "sigma1s": 0.00003940116226391457,
+    "close_px": 0.895,
+    "close_at": "2026-10-20T23:17:15.677Z"
    }
   }
  ],
@@ -66757,6 +66759,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-20T23:17:16.619Z",
+   "market_id": "5950978",
+   "question": "Bitcoin Up or Down - October 20, 7:15PM-7:20PM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 23:15–23:20 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.94,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
    "ts": "2026-10-20T23:17:07.236Z",
    "market_id": "5950978",
    "question": "Bitcoin Up or Down - October 20, 7:15PM-7:20PM ET",
@@ -68944,17 +68957,6 @@
    "price": 0.9,
    "decision": "skip",
    "reason": "מסנן מרחק: 1.27 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-20T21:28:47.007Z",
-   "market_id": "5940389",
-   "question": "XRP Up or Down - October 20, 5:25PM-5:30PM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 21:25–21:30 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.94,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.88 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 446,
@@ -116609,7 +116611,9 @@
    "limit": 0.9,
    "taker_ask": 0.91,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-20T23:17:15.527Z",
+   "left_at_fill": 164
   }
  ],
  "study": {
@@ -116785,8 +116789,8 @@
    "beat_close": 0.9661654135338346,
    "brier_entry": 0.02925752819253039,
    "brier_close": 0.001599911654135322,
-   "open_n": 0,
-   "open_clv_c": null
+   "open_n": 1,
+   "open_clv_c": -1.5000000000000013
   },
   "judged": {
    "n": 266,
@@ -116797,8 +116801,8 @@
    "beat_close": 0.9661654135338346,
    "brier_entry": 0.02925752819253039,
    "brier_close": 0.001599911654135322,
-   "open_n": 0,
-   "open_clv_c": null
+   "open_n": 1,
+   "open_clv_c": -1.5000000000000013
   }
  }
 }
