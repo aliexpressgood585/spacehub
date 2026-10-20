@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 994.247798586921,
+ "cash": 1024.8698726544244,
  "peak": 1072.1210886213057,
  "floor": 936.0605443106529,
  "strategy": {
@@ -44,11 +44,11 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-20T07:39:59.818Z",
+ "last_scan": "2026-10-20T07:40:09.695Z",
  "last_note": {
-  "at": "2026-10-20T07:39:59.211Z",
+  "at": "2026-10-20T07:40:09.434Z",
   "windows": 0,
-  "settled": 0,
+  "settled": 1,
   "entered": 0
  },
  "trades": [
@@ -28968,9 +28968,9 @@
    "cost": 29.075628042704444,
    "best_ask": 0.94,
    "opened_at": "2026-10-20T07:32:11.987Z",
-   "status": "OPEN",
-   "mark_px": 0.999,
-   "mark_at": "2026-10-20T07:37:19.782Z",
+   "status": "CLOSED",
+   "mark_px": 1,
+   "mark_at": "2026-10-20T07:40:09.695Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -29015,17 +29015,16 @@
      "unfilled": 0,
      "z": 4.517766266735742
     }
-   }
+   },
+   "exit_px": 1,
+   "exit_fee": 0,
+   "proceeds": 30.622074067503373,
+   "pnl": 1.5464460247989287,
+   "reason": "RESOLVED_WIN",
+   "closed_at": "2026-10-20T07:40:09.695Z"
   }
  ],
  "equity": [
-  {
-   "ts": "2026-10-16T22:16:08.551Z",
-   "equity": 992.2825036882812,
-   "cash": 992.2825036882812,
-   "open_value": 0,
-   "open_count": 0
-  },
   {
    "ts": "2026-10-16T22:17:09.642Z",
    "equity": 992.2825036882812,
@@ -64018,6 +64017,13 @@
    "cash": 994.247798586921,
    "open_value": 30.591451993435868,
    "open_count": 1
+  },
+  {
+   "ts": "2026-10-20T07:40:09.695Z",
+   "equity": 1024.8698726544244,
+   "cash": 1024.8698726544244,
+   "open_value": 0,
+   "open_count": 0
   }
  ],
  "decisions": [
@@ -113693,10 +113699,12 @@
    "placed_at": "2026-10-20T07:32:10.442Z",
    "limit": 0.93,
    "taker_ask": 0.94,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-20T07:32:29.546Z",
-   "left_at_fill": 150
+   "left_at_fill": 150,
+   "won": true,
+   "ret": 0.07526881720430102
   },
   {
    "slug": "sol-updown-5m-1792481400",
@@ -113708,8 +113716,10 @@
    "placed_at": "2026-10-20T07:32:10.820Z",
    "limit": 0.91,
    "taker_ask": 0.93,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "xrp-updown-5m-1792481400",
@@ -113721,10 +113731,12 @@
    "placed_at": "2026-10-20T07:32:11.129Z",
    "limit": 0.92,
    "taker_ask": 0.94,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-20T07:32:29.900Z",
-   "left_at_fill": 150
+   "left_at_fill": 150,
+   "won": true,
+   "ret": 0.08695652173913039
   },
   {
    "slug": "btc-updown-5m-1792481400",
@@ -113736,8 +113748,10 @@
    "placed_at": "2026-10-20T07:32:30.396Z",
    "limit": 0.96,
    "taker_ask": 0.97,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "eth-updown-5m-1792481700",
@@ -113790,26 +113804,26 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2993,
-   "filled": 1282,
-   "fill_rate": 0.4283327764784497,
-   "wr": 0.8658346333853354,
-   "ret": -0.061484755098081344,
-   "missed_wins": 1711,
+   "resolved": 2997,
+   "filled": 1284,
+   "fill_rate": 0.42842842842842843,
+   "wr": 0.8660436137071651,
+   "ret": -0.06126264072959256,
+   "missed_wins": 1713,
    "missed_losses": 0
   },
   "late_exit": {
    "x30": {
-    "n": 399,
+    "n": 400,
     "rules": [
      {
       "rule": "always",
-      "sold": 399,
-      "wins_cut": 383,
+      "sold": 400,
+      "wins_cut": 384,
       "losses_cut": 16,
-      "actual_usd": 10.684531890525134,
-      "if_sold_usd": -36.404175783190894,
-      "gain_usd": -47.08870767371603
+      "actual_usd": 12.230977915324063,
+      "if_sold_usd": -35.185171596395776,
+      "gain_usd": -47.41614951171984
      },
      {
       "rule": "bid<0.90",
@@ -113868,16 +113882,16 @@
     ]
    },
    "x15": {
-    "n": 398,
+    "n": 399,
     "rules": [
      {
       "rule": "always",
-      "sold": 398,
-      "wins_cut": 382,
+      "sold": 399,
+      "wins_cut": 383,
       "losses_cut": 16,
-      "actual_usd": 9.291597631845816,
-      "if_sold_usd": -16.19361678543484,
-      "gain_usd": -25.48521441728066
+      "actual_usd": 10.838043656644745,
+      "if_sold_usd": -14.974612598639727,
+      "gain_usd": -25.812656255284473
      },
      {
       "rule": "bid<0.90",
@@ -113937,37 +113951,37 @@
    }
   },
   "taker": {
-   "n": 406,
-   "wr": 0.9605911330049262,
-   "ret": 0.009725690951706617
+   "n": 407,
+   "wr": 0.9606879606879607,
+   "ret": 0.00983247554519485
   }
  },
  "reset_at": "2026-10-14T09:06:54.912393+00:00",
  "prev_era": "pmc/state-v1.json",
  "clv": {
   "all": {
-   "n": 228,
+   "n": 229,
    "since": null,
-   "clv_c": 1.8769720193742645,
-   "clv_pct": 2.02712584805408,
-   "clv_t": 1.994643855151062,
-   "beat_close": 0.9692982456140351,
-   "brier_entry": 0.026396103074674323,
-   "brier_close": 0.0018570328947368265,
-   "open_n": 1,
-   "open_clv_c": 4.408202265217076
+   "clv_c": 1.888025426561351,
+   "clv_pct": 2.038624151450515,
+   "clv_t": 2.0146452763085763,
+   "beat_close": 0.9694323144104804,
+   "brier_entry": 0.02629360858602575,
+   "brier_close": 0.001849360262008718,
+   "open_n": 0,
+   "open_clv_c": null
   },
   "judged": {
-   "n": 228,
+   "n": 229,
    "since": "2026-10-15T19:00",
-   "clv_c": 1.8769720193742645,
-   "clv_pct": 2.02712584805408,
-   "clv_t": 1.994643855151062,
-   "beat_close": 0.9692982456140351,
-   "brier_entry": 0.026396103074674323,
-   "brier_close": 0.0018570328947368265,
-   "open_n": 1,
-   "open_clv_c": 4.408202265217076
+   "clv_c": 1.888025426561351,
+   "clv_pct": 2.038624151450515,
+   "clv_t": 2.0146452763085763,
+   "beat_close": 0.9694323144104804,
+   "brier_entry": 0.02629360858602575,
+   "brier_close": 0.001849360262008718,
+   "open_n": 0,
+   "open_clv_c": null
   }
  }
 }
