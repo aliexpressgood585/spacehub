@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-20T01:02:58.305Z",
+ "last_scan": "2026-10-20T01:03:07.191Z",
  "last_note": {
-  "at": "2026-10-20T01:02:54.827Z",
+  "at": "2026-10-20T01:03:04.239Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -28169,13 +28169,6 @@
   }
  ],
  "equity": [
-  {
-   "ts": "2026-10-16T15:39:08.525Z",
-   "equity": 985.7199549583936,
-   "cash": 985.7199549583936,
-   "open_value": 0,
-   "open_count": 0
-  },
   {
    "ts": "2026-10-16T15:40:06.402Z",
    "equity": 985.7199549583936,
@@ -63168,9 +63161,27 @@
    "cash": 1010.7352622714975,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-10-20T01:03:07.191Z",
+   "equity": 1010.7352622714975,
+   "cash": 1010.7352622714975,
+   "open_value": 0,
+   "open_count": 0
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-20T01:03:07.191Z",
+   "market_id": "5911772",
+   "question": "Ethereum Up or Down - October 19, 9:00PM-9:05PM ET",
+   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 01:00–01:05 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.9,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 1.42 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
+  },
   {
    "ts": "2026-10-20T01:02:57.254Z",
    "market_id": "5911777",
@@ -65359,17 +65370,6 @@
    "price": 0.94,
    "decision": "skip",
    "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
-  },
-  {
-   "ts": "2026-10-19T23:17:11.968Z",
-   "market_id": "5909838",
-   "question": "Bitcoin Up or Down - October 19, 7:15PM-7:20PM ET",
-   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 23:15–23:20 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.94,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.54 < 2 (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 396,
@@ -112889,7 +112889,9 @@
    "limit": 0.93,
    "taker_ask": 0.94,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-20T01:03:04.657Z",
+   "left_at_fill": 115
   },
   {
    "slug": "sol-updown-5m-1792458000",
@@ -112902,7 +112904,9 @@
    "limit": 0.93,
    "taker_ask": 0.95,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-20T01:03:04.838Z",
+   "left_at_fill": 115
   }
  ],
  "study": {
