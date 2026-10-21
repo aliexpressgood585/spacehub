@@ -44,12 +44,12 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-21T14:52:29.013Z",
+ "last_scan": "2026-10-21T14:52:37.613Z",
  "last_note": {
-  "at": "2026-10-21T14:52:26.856Z",
+  "at": "2026-10-21T14:52:36.317Z",
   "windows": 4,
   "settled": 0,
-  "entered": 1
+  "entered": 0
  },
  "trades": [
   {
@@ -34317,8 +34317,8 @@
    "best_ask": 0.97,
    "opened_at": "2026-10-21T14:52:29.013Z",
    "status": "OPEN",
-   "mark_px": 0.96,
-   "mark_at": "2026-10-21T14:52:29.013Z",
+   "mark_px": 0.94,
+   "mark_at": "2026-10-21T14:52:36.813Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -34344,7 +34344,9 @@
     "z": 3.1977113315756798,
     "spot_open": 2487.83,
     "spot": 2499.48,
-    "sigma1s": 0.00011811508743806546
+    "sigma1s": 0.00011811508743806546,
+    "close_px": 0.945,
+    "close_at": "2026-10-21T14:52:36.813Z"
    }
   }
  ],
@@ -119224,8 +119226,10 @@
    "placed_at": "2026-10-21T14:47:57.470Z",
    "limit": 0.93,
    "taker_ask": 0.94,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "xrp-updown-5m-1792593900",
@@ -119237,8 +119241,10 @@
    "placed_at": "2026-10-21T14:48:17.953Z",
    "limit": 0.94,
    "taker_ask": 0.97,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "sol-updown-5m-1792594200",
@@ -119266,7 +119272,9 @@
    "limit": 0.96,
    "taker_ask": 0.97,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-21T14:52:36.681Z",
+   "left_at_fill": 143
   }
  ],
  "study": {
@@ -119278,12 +119286,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2996,
+   "resolved": 2998,
    "filled": 1360,
-   "fill_rate": 0.4539385847797063,
+   "fill_rate": 0.4536357571714476,
    "wr": 0.8779411764705882,
    "ret": -0.05010982854108001,
-   "missed_wins": 1636,
+   "missed_wins": 1638,
    "missed_losses": 0
   },
   "late_exit": {
@@ -119442,8 +119450,8 @@
    "beat_close": 0.9700996677740864,
    "brier_entry": 0.02617087105271779,
    "brier_close": 0.0014186137873753984,
-   "open_n": 0,
-   "open_clv_c": null
+   "open_n": 1,
+   "open_clv_c": -2.499999999999991
   },
   "judged": {
    "n": 301,
@@ -119454,8 +119462,8 @@
    "beat_close": 0.9700996677740864,
    "brier_entry": 0.02617087105271779,
    "brier_close": 0.0014186137873753984,
-   "open_n": 0,
-   "open_clv_c": null
+   "open_n": 1,
+   "open_clv_c": -2.499999999999991
   }
  }
 }
