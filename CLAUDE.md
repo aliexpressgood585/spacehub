@@ -822,6 +822,10 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   10 bps; ~46-67 coins pass) shown as an extra check; F4's old fixed lists stay only as the fallback if the universe is missing.
   Rules, risk, max open (2 / 3) unchanged. NOT backtested on the wider universe (both rules already FAIL their backtests on the
   liquid lists). Houses: rows sorted, "show all". tests/binperps.test.ts 15/15; workflows copy binperps/universe/strategy.ts.
+- 2026-10-22 Poly Coins PMC.lockFrac 0.5 -> 0.7 (owner chose option A). Floor = 90% of start + 70% of every profit peak:
+  at peak $1,108 the floor moves $954 -> $976; stake unchanged ($33 = 3% of equity, room/3 = $44). A true 70% lock of the
+  profit (floor = start + 0.7 x gain = $1,076) was offered and declined: it would cut the stake to ~$11. Live since z 2.0:
+  330 closes, 322 W, +$147, +2.16%/$, CLV +1.9c t 2.4. tests/pmc.test.ts 32/32.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the
