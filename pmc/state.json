@@ -1,8 +1,8 @@
 {
  "start_cash": 1000,
  "cash": 1041.1658602557516,
- "peak": 1073.3668662430428,
- "floor": 936.6834331215214,
+ "peak": 1073.6306592989417,
+ "floor": 936.8153296494709,
  "strategy": {
   "rules": [
    {
@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-21T12:03:41.907Z",
+ "last_scan": "2026-10-21T12:03:51.922Z",
  "last_note": {
-  "at": "2026-10-21T12:03:40.362Z",
+  "at": "2026-10-21T12:03:50.812Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -33737,8 +33737,8 @@
    "best_ask": 0.97,
    "opened_at": "2026-10-21T12:03:22.889Z",
    "status": "OPEN",
-   "mark_px": 0.97,
-   "mark_at": "2026-10-21T12:03:41.111Z",
+   "mark_px": 0.98,
+   "mark_at": "2026-10-21T12:03:51.264Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -33765,8 +33765,8 @@
     "spot_open": 83500.01,
     "spot": 83566.42,
     "sigma1s": 0.00003044746400459863,
-    "close_px": 0.975,
-    "close_at": "2026-10-21T12:03:41.111Z"
+    "close_px": 0.985,
+    "close_at": "2026-10-21T12:03:51.264Z"
    }
   }
  ],
@@ -68774,6 +68774,28 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-21T12:03:51.922Z",
+   "market_id": "5968236",
+   "question": "Solana Up or Down - October 21, 8:00AM-8:05AM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 12:00–12:05 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.95,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
+   "ts": "2026-10-21T12:03:51.922Z",
+   "market_id": "5968258",
+   "question": "XRP Up or Down - October 21, 8:00AM-8:05AM ET",
+   "question_he": "XRP · עולה או יורד · 5 דקות · 12:00–12:05 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.97,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
    "ts": "2026-10-21T12:03:41.907Z",
    "market_id": "5968258",
    "question": "XRP Up or Down - October 21, 8:00AM-8:05AM ET",
@@ -70950,28 +70972,6 @@
    "price": 0.91,
    "decision": "skip",
    "reason": "מסנן מרחק: 0.82 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-21T10:38:12.099Z",
-   "market_id": "5967105",
-   "question": "XRP Up or Down - October 21, 6:35AM-6:40AM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 10:35–10:40 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.91,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.88 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-21T10:37:51.662Z",
-   "market_id": "5967105",
-   "question": "XRP Up or Down - October 21, 6:35AM-6:40AM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 10:35–10:40 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.93,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.21 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 474,
@@ -118847,7 +118847,7 @@
    "brier_entry": 0.026792756421387377,
    "brier_close": 0.0014556305460750685,
    "open_n": 1,
-   "open_clv_c": 0.49999999999998934
+   "open_clv_c": 1.4999999999999902
   },
   "judged": {
    "n": 293,
@@ -118859,7 +118859,7 @@
    "brier_entry": 0.026792756421387377,
    "brier_close": 0.0014556305460750685,
    "open_n": 1,
-   "open_clv_c": 0.49999999999998934
+   "open_clv_c": 1.4999999999999902
   }
  }
 }
