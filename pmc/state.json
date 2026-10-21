@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-21T15:02:58.783Z",
+ "last_scan": "2026-10-21T15:03:08.808Z",
  "last_note": {
-  "at": "2026-10-21T15:02:56.739Z",
+  "at": "2026-10-21T15:03:06.615Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -34373,13 +34373,6 @@
   }
  ],
  "equity": [
-  {
-   "ts": "2026-10-18T05:16:09.988Z",
-   "equity": 972.3185637391019,
-   "cash": 959.771606242531,
-   "open_value": 12.5469574965709,
-   "open_count": 1
-  },
   {
    "ts": "2026-10-18T05:17:10.953Z",
    "equity": 972.3185637391019,
@@ -69372,9 +69365,27 @@
    "cash": 1087.5785487668904,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-10-21T15:03:08.808Z",
+   "equity": 1087.5785487668904,
+   "cash": 1087.5785487668904,
+   "open_value": 0,
+   "open_count": 0
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-21T15:03:08.808Z",
+   "market_id": "5971537",
+   "question": "XRP Up or Down - October 21, 11:00AM-11:05AM ET",
+   "question_he": "XRP · עולה או יורד · 5 דקות · 15:00–15:05 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.94,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 1.16 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
+  },
   {
    "ts": "2026-10-21T15:02:58.782Z",
    "market_id": "5971537",
@@ -71563,17 +71574,6 @@
    "price": 0.97,
    "decision": "skip",
    "reason": "מסנן מרחק: 1.19 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-21T12:58:13.126Z",
-   "market_id": "5969253",
-   "question": "XRP Up or Down - October 21, 8:55AM-9:00AM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 12:55–13:00 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.97,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.93 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 482,
@@ -119292,7 +119292,9 @@
    "limit": 0.94,
    "taker_ask": 0.96,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-21T15:03:06.909Z",
+   "left_at_fill": 113
   }
  ],
  "study": {
