@@ -1,0 +1,30 @@
+name: fly-meme
+# Deploys the always-on "ממים חיים" PAPER desk (server/meme-live) to Fly.io. Needs the repo secret FLY_API_TOKEN
+# (Fly dashboard -> Account -> Access Tokens). Creates the app and its volume on the first run. Never trades for real.
+on:
+  push:
+    branches: [main]
+    paths: ['server/meme-live/**', 'scripts/meme-core.ts', 'shared/meme.ts', '.github/workflows/fly-meme.yml']
+  workflow_dispatch:
+concurrency:
+  group: fly-meme
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: check token
+        id: tok
+        run: if [ -n "$FLY_API_TOKEN" ]; then echo "ok=1" >> "$GITHUB_OUTPUT"; else echo "FLY_API_TOKEN is not set - skipping"; fi
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+        if: steps.tok.outputs.ok == '1'
+      - name: deploy
+        if: steps.tok.outputs.ok == '1'
+        run: |
+          flyctl apps list --json | grep -q '"spacehub-meme"' || flyctl apps create spacehub-meme
+          flyctl volumes list -a spacehub-meme --json | grep -q '"meme_data"' || flyctl volumes create meme_data -a spacehub-meme -r fra -s 1 -y
+          flyctl deploy -c server/meme-live/fly.toml --dockerfile server/meme-live/Dockerfile --remote-only --ha=false .
+          sleep 20; curl -fsS https://spacehub-meme.fly.dev/health

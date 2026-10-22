@@ -843,6 +843,12 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   misses moved -8..+11%. Weaker signal, more trades; still untested.
 - 2026-10-22 meme desk: page shows Israel time (Asia/Jerusalem), state poll 2 s, live curve 1 s; runner cycle floor 10 s -> 3 s
   (each cycle still pays ~2 s fill re-read + git push, so ~5-7 s real; sub-second is not possible on Actions + git).
+- 2026-10-22 meme desk ALWAYS-ON SERVER (owner: "build a server that runs all the time", chose Fly.io). Cycle moved to
+  scripts/meme-core.ts (shared by the Actions runner scripts/meme-desk.ts and the server). server/meme-live/server.ts runs it back
+  to back (min 1 s, 10 s back-off on 429; 2 s fill re-read kept), state + research paths on a Fly volume (/data), seeded once
+  from the GitHub state; GET /events (SSE every cycle), /state, /health, /paths/<day>. Deploy: .github/workflows/fly-meme.yml
+  (needs repo secret FLY_API_TOKEN; creates app spacehub-meme + volume meme_data in fra). Handover: the Actions loop stands down
+  while https://spacehub-meme.fly.dev/health answers. memes.html streams from the server, falls back to the GitHub file.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the

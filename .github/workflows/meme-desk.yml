@@ -22,7 +22,7 @@ jobs:
       - name: live loop
         run: |
           mkdir -p /tmp/desk/scripts /tmp/desk/shared
-          cp scripts/meme-desk.ts /tmp/desk/scripts/; cp shared/meme.ts /tmp/desk/shared/
+          cp scripts/meme-desk.ts scripts/meme-core.ts /tmp/desk/scripts/; cp shared/meme.ts /tmp/desk/shared/
           git config user.name pm-desk-bot
           git config user.email actions@github.com
           git fetch -q origin pm-desk-data || true
@@ -35,6 +35,8 @@ jobs:
           end=$(( $(date +%s) + 345*60 )); last=0
           while [ $(date +%s) -lt $end ]; do
             t0=$(date +%s)
+            # the always-on Fly server owns the desk once it answers; this runner then stands down
+            if curl -fsS -m 5 https://spacehub-meme.fly.dev/health >/dev/null 2>&1; then echo "fly server is live - standing down"; break; fi
             timeout 120 node --experimental-strip-types /tmp/desk/scripts/meme-desk.ts meme/state.json || echo "cycle failed"
             if [ $(( t0 - last )) -ge 10 ]; then
               git add meme/

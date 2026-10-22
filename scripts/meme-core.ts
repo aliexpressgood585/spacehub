@@ -1,0 +1,136 @@
+// meme-core — one cycle of the "ממים חיים" PAPER desk, shared by the GitHub-Actions runner (scripts/meme-desk.ts) and the
+// always-on server (server/meme-live/server.ts). PAPER ONLY: unsigned public GETs (pump.fun frontend API, DexScreener).
+// Fill realism: every fill re-reads the coin `fillDelayMs` after the decision and fills against those reserves.
+import { MEME, buyTokens, sellSol, dexSellSol, entryCheck, exitReason, progressOf, type Coin, type Curve } from '../shared/meme.ts'
+
+const PF = 'https://frontend-api-v3.pump.fun'
+const j = async (u: string) => { const r = await fetch(u, { headers: { 'User-Agent': 'spacehub-paper/1.0', Accept: 'application/json' } }); if (!r.ok) throw new Error(`${r.status} ${u.slice(0, 80)}`); return r.json() }
+export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+const now = () => new Date().toISOString()
+const SOLMINT = '11111111111111111111111111111111'
+
+const valid = (x: any) => x && x.program === 'pump' && (x.quote_mint ?? SOLMINT) === SOLMINT && !x.is_banned && !x.nsfw && (x.transfer_fee_bps ?? 0) === 0
+const toCoin = (x: any): Coin => ({ mint: x.mint, symbol: x.symbol, created: x.created_timestamp, lastTrade: x.last_trade_timestamp ?? 0,
+  mc: +x.market_cap, realSol: (+x.real_sol_reserves || 0) / 1e9, social: !!(x.twitter || x.telegram || x.website), ok: valid(x) && !x.complete })
+const curveOf = (x: any): Curve => ({ vS: +x.virtual_sol_reserves, vT: +x.virtual_token_reserves, rT: +x.real_token_reserves })
+const solUsdOf = (x: any) => (+x.usd_market_cap > 0 && +x.market_cap > 0 ? +x.usd_market_cap / +x.market_cap : NaN)
+const one = async (mint: string) => { try { return await j(`${PF}/coins-v2/${mint}`) } catch { return null } }
+async function dex(mint: string) {
+  try {
+    const d: any = await j(`https://api.dexscreener.com/latest/dex/tokens/${mint}`)
+    const p = (d.pairs ?? []).filter((p: any) => p.chainId === 'solana' && p.quoteToken?.symbol === 'SOL').sort((a: any, b: any) => (b.liquidity?.usd ?? 0) - (a.liquidity?.usd ?? 0))[0]
+    return p ? { px: +p.priceNative / 10 ** 6, quote: +p.liquidity?.quote || 0, dexId: p.dexId } : null   // per RAW token (6 decimals)
+  } catch { return null }
+}
+
+
+export function freshState(): any {
+  return { start_cash: MEME.startCash, cash: MEME.startCash, rules: MEME, trades: [], equity: [], decisions: [], snaps: {}, next_id: 1, sol_usd: null }
+}
+
+// one cycle; `appendPaths(day, lines)` receives finished research paths
+export async function cycle(st: any, appendPaths: (day: string, lines: string[]) => void, fillDelayMs = 2000) {
+st.rules = MEME
+const decisions: any[] = []
+const note: any = { at: now() }
+
+// value of an open position now (SOL), from the curve or, once graduated, from the DEX pool
+async function markSol(t: any): Promise<{ sol: number; px: number; src: string; x?: any } | null> {
+  const x = await one(t.mint); if (!x) return null
+  if (+x.usd_market_cap > 0) st.sol_usd = solUsdOf(x) || st.sol_usd
+  if (!x.complete) { const c = curveOf(x); return { sol: Math.max(0, sellSol(c, t.tokens) - MEME.txFeeSol), px: c.vS / c.vT, src: 'curve', x } }
+  const d = await dex(t.mint); if (!d) return { sol: 0, px: 0, src: 'graduated-no-pool', x }
+  return { sol: Math.max(0, dexSellSol(d.px, d.quote, t.tokens) - MEME.txFeeSol), px: d.px, src: d.dexId, x }
+}
+
+try {
+  // 1. manage open positions: decide on the current read, fill on a read ~2 s later
+  const open = st.trades.filter((t: any) => t.status === 'OPEN')
+  let openUsd = 0
+  for (const t of open) {
+    const m = await markSol(t); if (!m) { openUsd += (t.last_sol ?? 0) * (st.sol_usd ?? 0); continue }
+    const pnl = m.sol / t.cost_sol - 1, held = (Date.now() - Date.parse(t.opened_at)) / 60_000
+    t.last_sol = m.sol; t.last_px = m.px; t.src = m.src; t.pnl_pct = pnl; t.marked_at = now()
+    if (m.x) t.progress = m.x.complete ? 1 : progressOf((+m.x.real_sol_reserves || 0) / 1e9)
+    const why = exitReason(pnl, held)
+    if (!why) { openUsd += m.sol * (st.sol_usd ?? 0); continue }
+    await sleep(fillDelayMs)
+    const f = (await markSol(t)) ?? m
+    const usd = f.sol * (st.sol_usd ?? 0)
+    Object.assign(t, { status: 'CLOSED', closed_at: now(), exit_sol: f.sol, exit_px: f.px, exit_src: f.src, exit_reason: why,
+      exit_usd: usd, pnl: usd - t.cost_usd, pnl_pct: f.sol / t.cost_sol - 1, decided_pnl_pct: pnl })
+    st.cash += usd
+    decisions.push({ ts: now(), mint: t.mint, symbol: t.symbol, decision: 'SELL', reason: why, pnl: t.pnl })
+  }
+
+  // 2. scan: coins traded in the last minutes (both new and active), keep a market-cap snapshot ring per mint
+  const [a, b] = await Promise.all([
+    j(`${PF}/coins?offset=0&limit=100&sort=last_trade_timestamp&order=DESC&includeNsfw=false`).catch(() => []),
+    j(`${PF}/coins?offset=0&limit=50&sort=created_timestamp&order=DESC&includeNsfw=false`).catch(() => []),
+  ])
+  const seen = new Map<string, any>(); for (const x of [...a, ...b]) if (x?.mint) seen.set(x.mint, x)
+  const T = Date.now()
+  for (const x of seen.values()) { const s = (st.snaps[x.mint] ??= []); s.push([T, +x.market_cap]); if (+x.usd_market_cap > 0) st.sol_usd = solUsdOf(x) || st.sol_usd }
+  for (const [k, s] of Object.entries<any>(st.snaps)) { const f = s.filter((p: any) => T - p[0] <= MEME.snapMaxS * 1000); if (f.length) st.snaps[k] = f.slice(-30); else delete st.snaps[k] }
+  note.scanned = seen.size
+
+  // 2b. RESEARCH RECORDER (observation only): the market-cap path of every coin in its first PATH_MIN minutes, one point per
+  // change (seconds since creation, mc in SOL, real SOL in the curve, graduated flag). Finished paths (coin older than
+  // PATH_MIN) are appended to meme/paths-YYYY-MM-DD.jsonl for offline rule research. Coins absent from the listings had no
+  // trade, so their price did not move.
+  const PATH_MIN = 65, rec = (st.paths ??= {})
+  for (const x of seen.values()) {
+    if (!x?.created_timestamp || x.program !== 'pump') continue
+    const age = (T - x.created_timestamp) / 1000; if (age > PATH_MIN * 60) continue
+    const r = (rec[x.mint] ??= { m: x.mint, s: x.symbol, c: x.created_timestamp, cr: x.creator, so: !!(x.twitter || x.telegram || x.website), p: [] })
+    const pt = [Math.round(age), +(+x.market_cap).toFixed(2), +((+x.real_sol_reserves || 0) / 1e9).toFixed(2), x.complete ? 1 : 0]
+    const last = r.p[r.p.length - 1]
+    if (r.p.length < 400 && (!last || last[1] !== pt[1] || last[3] !== pt[3])) r.p.push(pt)
+  }
+  const done: string[] = []
+  for (const [k, r] of Object.entries<any>(rec)) if (T - r.c > PATH_MIN * 60_000) { done.push(JSON.stringify(r)); delete rec[k] }
+  if (done.length) appendPaths(new Date(T).toISOString().slice(0, 10), done)
+  note.recording = Object.keys(rec).length; note.paths_done = done.length
+
+  // 3. entries
+  const held = new Set(st.trades.filter((t: any) => t.status === 'OPEN' || Date.now() - Date.parse(t.opened_at) < 6 * 3600_000).map((t: any) => t.mint))
+  const equity0 = st.cash + openUsd
+  const cands: any[] = []
+  for (const x of seen.values()) {
+    const c = toCoin(x)
+    const past = (st.snaps[c.mint] ?? []).find((p: any) => T - p[0] >= MEME.snapMinS * 1000)?.[1]
+    const chk = entryCheck(c, past, T)
+    if (chk.ok && !held.has(c.mint)) cands.push({ c, chk })
+    else if (chk.checks.filter((k) => k.ok).length >= 5 && !held.has(c.mint)) decisions.push({ ts: now(), mint: c.mint, symbol: c.symbol, decision: 'skip', reason: chk.checks.find((k) => !k.ok)!.k, checks: chk.checks })
+  }
+  cands.sort((p, q) => q.chk.rise - p.chk.rise)
+  let room = MEME.maxOpen - st.trades.filter((t: any) => t.status === 'OPEN').length
+  for (const { c, chk } of cands.slice(0, MEME.maxEntriesPerCycle)) {
+    if (room <= 0) { decisions.push({ ts: now(), mint: c.mint, symbol: c.symbol, decision: 'skip', reason: `כבר ${MEME.maxOpen} פתוחות` }); continue }
+    const usd = Math.min(equity0 * MEME.stakeFrac, st.cash); const solUsd = st.sol_usd
+    if (!(solUsd > 0) || usd < 5) { decisions.push({ ts: now(), mint: c.mint, symbol: c.symbol, decision: 'skip', reason: 'אין מזומן / מחיר SOL' }); continue }
+    await sleep(fillDelayMs)
+    const x = await one(c.mint)
+    if (!x || x.complete || !valid(x)) { decisions.push({ ts: now(), mint: c.mint, symbol: c.symbol, decision: 'skip', reason: 'השתנה לפני המילוי' }); continue }
+    const sol = usd / solUsd, curve = curveOf(x), tokens = buyTokens(curve, sol - MEME.txFeeSol)
+    if (!(tokens > 0)) continue
+    const seenPx = c.mc, fillMc = +x.market_cap
+    const t = { id: st.next_id++, mint: c.mint, symbol: c.symbol, name: x.name, image: x.image_uri, status: 'OPEN', opened_at: now(),
+      cost_usd: usd, cost_sol: sol, tokens, entry_px: (sol - MEME.txFeeSol) * 1e9 * (1 - MEME.curveFee) / tokens, entry_mc: fillMc, seen_mc: seenPx,
+      delay_cost: fillMc / seenPx - 1, progress: progressOf((+x.real_sol_reserves || 0) / 1e9), checks: chk.checks, sol_usd: solUsd }
+    st.cash -= usd; st.trades.push(t); room--
+    decisions.push({ ts: now(), mint: c.mint, symbol: c.symbol, decision: 'BUY', reason: `עלייה ${(chk.rise * 100).toFixed(0)}%`, usd })
+  }
+
+  // 4. equity
+  const openNow = st.trades.filter((t: any) => t.status === 'OPEN')
+  const ov = openNow.reduce((s: number, t: any) => s + (t.last_sol ?? t.cost_sol) * (st.sol_usd ?? t.sol_usd), 0)
+  st.equity.push({ ts: now(), equity: st.cash + ov, cash: st.cash, open_value: ov, open_count: openNow.length })
+  if (st.equity.length > 5000) st.equity = st.equity.filter((_: any, i: number) => i % 2 === 0)
+  note.entries = decisions.filter((d) => d.decision === 'BUY').length; note.exits = decisions.filter((d) => d.decision === 'SELL').length
+  st.last_error = null
+} catch (e) { st.last_error = String(e).slice(0, 200) }
+st.decisions = [...decisions, ...st.decisions].slice(0, 300)
+st.last_note = note; st.cycle = now()
+return note
+}

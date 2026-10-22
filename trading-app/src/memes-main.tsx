@@ -4,6 +4,7 @@
 import { StrictMode, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 
+const LIVE = 'https://spacehub-meme.fly.dev'
 const URL_ = 'https://raw.githubusercontent.com/aliexpressgood585/spacehub/pm-desk-data/meme/state.json'
 type J = any
 const FEE = 0.0125, TX = 0.001
@@ -18,9 +19,12 @@ const REASON: Record<string, string> = { TP: 'יעד רווח', SL: 'סטופ', 
 function App() {
   const [st, setSt] = useState<J>(null), [live, setLive] = useState<Record<string, J>>({}), [, tick] = useState(0)
   useEffect(() => {
-    const load = () => fetch(URL_ + '?t=' + Date.now()).then((r) => r.json()).then(setSt).catch(() => {})
+    // the always-on server streams every cycle (~1 s); the GitHub file is the fallback while it is down
+    let es: EventSource | null = null, liveAt = 0
+    try { es = new EventSource(LIVE + '/events'); es.onmessage = (e) => { liveAt = Date.now(); try { setSt(JSON.parse(e.data)) } catch {} } } catch {}
+    const load = () => { if (Date.now() - liveAt > 10_000) fetch(URL_ + '?t=' + Date.now()).then((r) => r.json()).then(setSt).catch(() => {}) }
     load(); const a = setInterval(load, 2000), b = setInterval(() => tick((x) => x + 1), 250)
-    return () => { clearInterval(a); clearInterval(b) }
+    return () => { clearInterval(a); clearInterval(b); es?.close() }
   }, [])
   const open = (st?.trades ?? []).filter((t: J) => t.status === 'OPEN')
   useEffect(() => {
@@ -43,7 +47,7 @@ function App() {
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto', padding: 16, display: 'grid', gap: 12 }}>
       <div><h1 style={{ fontSize: 22 }}>ממים חיים 🐸</h1>
-        <div style={{ color: '#8fa3b8', fontSize: 13 }}>דמו בכסף וירטואלי על מטבעות pump.fun חדשים, במחירים חיים מהעקומה · מחזור אחרון לפני {ago(st.cycle)} (שעון ישראל {il(st.cycle)}){st.last_error ? ` · שגיאה: ${st.last_error}` : ''}</div></div>
+        <div style={{ color: '#8fa3b8', fontSize: 13 }}>דמו בכסף וירטואלי על מטבעות pump.fun חדשים, במחירים חיים מהעקומה · {st.host === 'fly' ? `שרת חי · מחזור ${((st.cycle_ms ?? 0) / 1000).toFixed(1)} שנ׳ · ` : 'גיבוי GitHub · '}מחזור אחרון לפני {ago(st.cycle)} (שעון ישראל {il(st.cycle)}){st.last_error ? ` · שגיאה: ${st.last_error}` : ''}</div></div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 8 }}>
         {[['הון', usd(eq), col(eq - st.start_cash)], ['שינוי', pct(eq / st.start_cash - 1), col(eq - st.start_cash)], ['מזומן', usd(st.cash), '#c9d4e0'],
           ['פתוחות', `${open.length}/${R.maxOpen ?? 10}`, '#c9d4e0'], ['נסגרו', `${closed.length} · ${wins} רווח`, '#c9d4e0'], ['רווח ממומש', usd(real), col(real)]]
