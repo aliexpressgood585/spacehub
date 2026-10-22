@@ -79,10 +79,15 @@ try {
   }
 
   // 2. scan: coins traded in the last minutes (both new and active), keep a market-cap snapshot ring per mint
+  // a failed listing is never silent: both down -> last_error says why (from 19:43 UTC 10-22 the runner got 0 coins
+  // for hours while every cycle looked healthy, and open positions could not be marked either)
+  const feedErr: string[] = []
+  const list = (u: string) => j(u).catch((e) => { feedErr.push(String(e).slice(0, 90)); return [] })
   const [a, b] = await Promise.all([
-    j(`${PF}/coins?offset=0&limit=100&sort=last_trade_timestamp&order=DESC&includeNsfw=false`).catch(() => []),
-    j(`${PF}/coins?offset=0&limit=50&sort=created_timestamp&order=DESC&includeNsfw=false`).catch(() => []),
+    list(`${PF}/coins?offset=0&limit=100&sort=last_trade_timestamp&order=DESC&includeNsfw=false`),
+    list(`${PF}/coins?offset=0&limit=50&sort=created_timestamp&order=DESC&includeNsfw=false`),
   ])
+  if (feedErr.length) note.feed_error = feedErr
   const seen = new Map<string, any>(); for (const x of [...a, ...b]) if (x?.mint) seen.set(x.mint, x)
   const T = Date.now()
   for (const x of seen.values()) { const s = (st.snaps[x.mint] ??= []); s.push([T, +x.market_cap]); if (+x.usd_market_cap > 0) st.sol_usd = solUsdOf(x) || st.sol_usd }
@@ -149,7 +154,7 @@ try {
   st.equity.push({ ts: now(), equity: st.cash + ov, cash: st.cash, open_value: ov, open_count: openNow.length })
   if (st.equity.length > 5000) st.equity = st.equity.filter((_: any, i: number) => i % 2 === 0)
   note.entries = decisions.filter((d) => d.decision === 'BUY').length; note.exits = decisions.filter((d) => d.decision === 'SELL').length
-  st.last_error = null
+  st.last_error = feedErr.length === 2 ? `pump.fun feed down: ${feedErr[0]}` : null
 } catch (e) { st.last_error = String(e).slice(0, 200) }
 st.decisions = [...decisions, ...st.decisions].slice(0, 300)
 st.last_note = note; st.cycle = now()

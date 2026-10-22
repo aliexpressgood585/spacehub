@@ -860,6 +860,11 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   either. Fix: k = vS*vT and rtOff = vT-rT from the listing read, reserves rebuilt from the re-read market cap (constant product,
   verified exact on a live coin); trades store k / rt_off / fill_src; silent skips now journalled; memes.html rebuilds the same way.
   First local cycle after the fix: 1 entry.
+- 2026-10-22 ~22:20 UTC meme desk SILENT FEED STALL: from ~19:43 UTC the Actions runner got 0 coins every cycle (both listing
+  calls failed into `.catch(() => [])`), so no entries, no marks, the 4 open positions frozen — while every cycle looked healthy.
+  Same cycle run from the sandbox at 22:20: 109 coins, the 4 positions closed on TIME -> the runner's IP is refused, not the API.
+  Fix: listing failures go to note.feed_error, both down -> last_error 'pump.fun feed down: <status>'. Live first 71 closes
+  (18:52-19:43 UTC): 16 TP / 49 SL / 6 TIME, WR 22.5%, -$280 (equity $725); SL fills avg -46% vs the -30% stop (gaps).
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the
