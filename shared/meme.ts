@@ -15,7 +15,7 @@ export const MEME = {
   txFeeSol: 0.001,           // network + priority fee per transaction
   gradSol: 85,               // real SOL in the curve at graduation (progress = real_sol / gradSol)
   // entry (momentum on the curve)
-  minAgeMin: 1, maxAgeMin: 120,
+  minAgeMin: 0.5, maxAgeMin: 120,
   minProgress: 0.05, maxProgress: 0.80,
   minRise: 0.05,             // market cap +5% vs a snapshot 30-180 s old
   snapMinS: 30, snapMaxS: 180,
