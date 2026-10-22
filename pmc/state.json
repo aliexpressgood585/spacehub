@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-22T00:59:06.542Z",
+ "last_scan": "2026-10-22T00:59:15.775Z",
  "last_note": {
-  "at": "2026-10-22T00:59:04.062Z",
+  "at": "2026-10-22T00:59:13.262Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -70611,6 +70611,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-22T00:59:15.774Z",
+   "market_id": "6000561",
+   "question": "XRP Up or Down - October 21, 8:55PM-9:00PM ET",
+   "question_he": "XRP · עולה או יורד · 5 דקות · 00:55–01:00 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.96,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 0.35 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
+  },
+  {
    "ts": "2026-10-22T00:59:06.542Z",
    "market_id": "6000561",
    "question": "XRP Up or Down - October 21, 8:55PM-9:00PM ET",
@@ -72798,36 +72809,10 @@
    "price": 0.97,
    "decision": "skip",
    "reason": "מסנן מרחק: 1.55 < 2 (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-21T23:17:09.770Z",
-   "market_id": "5998053",
-   "question": "Ethereum Up or Down - October 21, 7:15PM-7:20PM ET",
-   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 23:15–23:20 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.94,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.71 < 2 (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 499,
  "shadow": [
-  {
-   "slug": "eth-updown-5m-1792336500",
-   "market_id": "5821148",
-   "token_id": "20593584545740573482042577125169082755148203833096509861840335400377523672031",
-   "coin": "eth",
-   "outcome": "Up",
-   "end_time": "2026-10-18T15:20:00Z",
-   "placed_at": "2026-10-18T15:19:04.476Z",
-   "limit": 0.96,
-   "taker_ask": 0.97,
-   "status": "DONE",
-   "filled": false,
-   "won": true,
-   "ret": null
-  },
   {
    "slug": "xrp-updown-5m-1792336800",
    "market_id": "5821164",
@@ -120540,6 +120525,19 @@
    "taker_ask": 0.92,
    "status": "WORKING",
    "filled": false
+  },
+  {
+   "slug": "xrp-updown-5m-1792630500",
+   "market_id": "6000561",
+   "token_id": "34314070981478330938556555664291424609092704400832716129425576193786324679068",
+   "coin": "xrp",
+   "outcome": "Down",
+   "end_time": "2026-10-22T01:00:00Z",
+   "placed_at": "2026-10-22T00:59:15.108Z",
+   "limit": 0.93,
+   "taker_ask": 0.96,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
@@ -120551,12 +120549,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2993,
+   "resolved": 2992,
    "filled": 1371,
-   "fill_rate": 0.4580688272636151,
+   "fill_rate": 0.45822192513368987,
    "wr": 0.8840262582056893,
    "ret": -0.04311706698635674,
-   "missed_wins": 1622,
+   "missed_wins": 1621,
    "missed_losses": 0
   },
   "late_exit": {
