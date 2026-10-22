@@ -1,0 +1,28 @@
+name: Residual Pairs 3Y Research
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/market-gate-check/residual_pairs.py'
+      - 'scripts/market-gate-check/check_residual_pairs.py'
+      - 'quant/PREREGISTRATION_RESIDUAL_PAIRS.md'
+      - '.github/workflows/residual-pairs-3y.yml'
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: pip install numpy==2.1.3
+      - working-directory: scripts/market-gate-check
+        run: python check_residual_pairs.py
+      - working-directory: scripts/market-gate-check
+        run: python residual_pairs.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: residual-pairs-3y
+          path: scripts/market-gate-check/research-output/residual-pairs-3y.json
+          retention-days: 30
