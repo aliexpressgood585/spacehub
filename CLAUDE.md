@@ -841,6 +841,8 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   below 15% of the curve. Younger coins = riskier. Rest unchanged.
 - 2026-10-22 ~15:15 UTC meme desk MEME.minRise 0.12 -> 0.08 (owner "תוריד"): 0 entries after the 5% progress change; near
   misses moved -8..+11%. Weaker signal, more trades; still untested.
+- 2026-10-22 meme desk: page shows Israel time (Asia/Jerusalem), state poll 2 s, live curve 1 s; runner cycle floor 10 s -> 3 s
+  (each cycle still pays ~2 s fill re-read + git push, so ~5-7 s real; sub-second is not possible on Actions + git).
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the
