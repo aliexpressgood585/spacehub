@@ -73,6 +73,27 @@ try {
   for (const [k, s] of Object.entries<any>(st.snaps)) { const f = s.filter((p: any) => T - p[0] <= MEME.snapMaxS * 1000); if (f.length) st.snaps[k] = f.slice(-30); else delete st.snaps[k] }
   note.scanned = seen.size
 
+  // 2b. RESEARCH RECORDER (observation only): the market-cap path of every coin in its first PATH_MIN minutes, one point per
+  // change (seconds since creation, mc in SOL, real SOL in the curve, graduated flag). Finished paths (coin older than
+  // PATH_MIN) are appended to meme/paths-YYYY-MM-DD.jsonl for offline rule research. Coins absent from the listings had no
+  // trade, so their price did not move.
+  const PATH_MIN = 65, rec = (st.paths ??= {})
+  for (const x of seen.values()) {
+    if (!x?.created_timestamp || x.program !== 'pump') continue
+    const age = (T - x.created_timestamp) / 1000; if (age > PATH_MIN * 60) continue
+    const r = (rec[x.mint] ??= { m: x.mint, s: x.symbol, c: x.created_timestamp, cr: x.creator, so: !!(x.twitter || x.telegram || x.website), p: [] })
+    const pt = [Math.round(age), +(+x.market_cap).toFixed(2), +((+x.real_sol_reserves || 0) / 1e9).toFixed(2), x.complete ? 1 : 0]
+    const last = r.p[r.p.length - 1]
+    if (r.p.length < 400 && (!last || last[1] !== pt[1] || last[3] !== pt[3])) r.p.push(pt)
+  }
+  const done: string[] = []
+  for (const [k, r] of Object.entries<any>(rec)) if (T - r.c > PATH_MIN * 60_000) { done.push(JSON.stringify(r)); delete rec[k] }
+  if (done.length) {
+    const f = (FILE.replace(/[^/]*$/, '') || './') + `paths-${new Date(T).toISOString().slice(0, 10)}.jsonl`
+    fs.appendFileSync(f, done.join('\n') + '\n')
+  }
+  note.recording = Object.keys(rec).length; note.paths_done = done.length
+
   // 3. entries
   const held = new Set(st.trades.filter((t: any) => t.status === 'OPEN' || Date.now() - Date.parse(t.opened_at) < 6 * 3600_000).map((t: any) => t.mint))
   const equity0 = st.cash + openUsd
