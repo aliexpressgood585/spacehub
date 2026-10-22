@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-22T19:58:23.073Z",
+ "last_scan": "2026-10-22T19:58:34.058Z",
  "last_note": {
-  "at": "2026-10-22T19:58:21.949Z",
+  "at": "2026-10-22T19:58:32.031Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -73410,6 +73410,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-22T19:58:34.058Z",
+   "market_id": "6025408",
+   "question": "Bitcoin Up or Down - October 22, 3:55PM-4:00PM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 19:55–20:00 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.95,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 1.08 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
+  },
+  {
    "ts": "2026-10-22T19:58:14.019Z",
    "market_id": "6025410",
    "question": "XRP Up or Down - October 22, 3:55PM-4:00PM ET",
@@ -75597,36 +75608,10 @@
    "price": 0.94,
    "decision": "skip",
    "reason": "מסנן מרחק: 1.14 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-22T18:27:42.846Z",
-   "market_id": "6022530",
-   "question": "Bitcoin Up or Down - October 22, 2:25PM-2:30PM ET",
-   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 18:25–18:30 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.95,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.69 < 2 (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 538,
  "shadow": [
-  {
-   "slug": "xrp-updown-5m-1792404900",
-   "market_id": "5868638",
-   "token_id": "64186134187606918070998546482561409147078120227331544604352226560616812733334",
-   "coin": "xrp",
-   "outcome": "Down",
-   "end_time": "2026-10-19T10:20:00Z",
-   "placed_at": "2026-10-19T10:17:27.552Z",
-   "limit": 0.92,
-   "taker_ask": 0.95,
-   "status": "DONE",
-   "filled": false,
-   "won": true,
-   "ret": null
-  },
   {
    "slug": "btc-updown-5m-1792404900",
    "market_id": "5868630",
@@ -123379,6 +123364,19 @@
    "filled": true,
    "filled_at": "2026-10-22T19:57:31.490Z",
    "left_at_fill": 149
+  },
+  {
+   "slug": "btc-updown-5m-1792698900",
+   "market_id": "6025408",
+   "token_id": "63924694816419614512939098276916100536638442858946580339517491555777127149448",
+   "coin": "btc",
+   "outcome": "Down",
+   "end_time": "2026-10-22T20:00:00Z",
+   "placed_at": "2026-10-22T19:58:32.398Z",
+   "limit": 0.94,
+   "taker_ask": 0.95,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
@@ -123390,12 +123388,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2999,
+   "resolved": 2998,
    "filled": 1384,
-   "fill_rate": 0.4614871623874625,
+   "fill_rate": 0.4616410940627085,
    "wr": 0.8684971098265896,
    "ret": -0.06031893664693454,
-   "missed_wins": 1614,
+   "missed_wins": 1613,
    "missed_losses": 1
   },
   "late_exit": {
