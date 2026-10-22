@@ -10,6 +10,10 @@ const now = () => new Date().toISOString()
 const SOLMINT = '11111111111111111111111111111111'
 
 const valid = (x: any) => x && x.program === 'pump' && (x.quote_mint ?? SOLMINT) === SOLMINT && !x.is_banned && !x.nsfw && (x.transfer_fee_bps ?? 0) === 0
+// the per-coin endpoint (coins-v2) omits `program` / `quote_mint`, so at fill time a missing field is not a failure:
+// the coin already passed `valid` on the listing; only a field that is present and wrong rejects the fill
+const validFill = (x: any) => !x.is_banned && !x.nsfw && (x.program == null || x.program === 'pump')
+  && (x.quote_mint == null || x.quote_mint === SOLMINT) && (x.transfer_fee_bps ?? 0) === 0
 const toCoin = (x: any): Coin => ({ mint: x.mint, symbol: x.symbol, created: x.created_timestamp, lastTrade: x.last_trade_timestamp ?? 0,
   mc: +x.market_cap, realSol: (+x.real_sol_reserves || 0) / 1e9, social: !!(x.twitter || x.telegram || x.website), ok: valid(x) && !x.complete })
 const curveOf = (x: any): Curve => ({ vS: +x.virtual_sol_reserves, vT: +x.virtual_token_reserves, rT: +x.real_token_reserves })
@@ -111,7 +115,7 @@ try {
     if (!(solUsd > 0) || usd < 5) { decisions.push({ ts: now(), mint: c.mint, symbol: c.symbol, decision: 'skip', reason: 'אין מזומן / מחיר SOL' }); continue }
     await sleep(fillDelayMs)
     const x = await one(c.mint)
-    if (!x || x.complete || !valid(x)) { decisions.push({ ts: now(), mint: c.mint, symbol: c.symbol, decision: 'skip', reason: 'השתנה לפני המילוי' }); continue }
+    if (!x || x.complete || !validFill(x)) { decisions.push({ ts: now(), mint: c.mint, symbol: c.symbol, decision: 'skip', reason: 'השתנה לפני המילוי' }); continue }
     const sol = usd / solUsd, curve = curveOf(x), tokens = buyTokens(curve, sol - MEME.txFeeSol)
     if (!(tokens > 0)) continue
     const seenPx = c.mc, fillMc = +x.market_cap
