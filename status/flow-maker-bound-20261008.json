@@ -1,0 +1,103 @@
+{
+  "title": "FLOW v1 maker execution optimistic-bound audit",
+  "generated_at_utc": "2026-10-08T00:51:12Z",
+  "mode": "PAPER_SHADOW_ONLY",
+  "source": {
+    "project": "adxgadwghgkwmntsnrar",
+    "tables": [
+      "flow_shadow",
+      "flow_sessions",
+      "bot_state",
+      "bot_equity",
+      "bot_errors"
+    ],
+    "collector_doc": "docs/FLOW_SHADOW.md",
+    "collector_code": [
+      "supabase/functions/flow-shadow/index.ts",
+      "shared/flow-shadow.ts",
+      "shared/costs.ts"
+    ],
+    "period_utc": [
+      "2026-10-05T09:12:11.184Z",
+      "2026-10-08T00:51:00Z"
+    ],
+    "note": "Forward shadow telemetry; only about 3 UTC days, not an independent long holdout."
+  },
+  "account_health": {
+    "balance": 5000,
+    "equity": 5000,
+    "active": false,
+    "paper_mode": true,
+    "open_trades": 0,
+    "errors_24h": 0,
+    "reset_repeated": false
+  },
+  "coverage": {
+    "flow_sessions": 3790,
+    "sessions_24h": 1432,
+    "session_errors_total": 2,
+    "session_errors_24h": 1,
+    "flow_rows_at_first_snapshot": 8401,
+    "resolved_at_first_snapshot": 7962,
+    "expired_at_first_snapshot": 439,
+    "resolved_used_for_bound": 7965,
+    "note": "Counts increased during live collection between read-only queries."
+  },
+  "observed_taker_result": {
+    "n": 7965,
+    "avg_net_bps": -15.6733341958357,
+    "approximate_pf_at_earlier_snapshot": 0.00443149142608709,
+    "positive_rate_at_earlier_snapshot": 0.004395880432052249
+  },
+  "optimistic_bounds": {
+    "description": "Exploratory upper-bound arithmetic only; it does not model queue position, fill probability, latency or adverse selection and therefore is more favorable than executable maker trading.",
+    "one_maker_formula_bps": "observed_net_bps + 6 + entry_spread_bps",
+    "one_maker_assumptions": [
+      "replace one 5 bps taker fee with 2 bps maker fee",
+      "remove one 3 bps minimum adverse slippage",
+      "credit the recorded entry spread",
+      "assume guaranteed fill"
+    ],
+    "one_maker": {
+      "n": 7965,
+      "avg_net_bps": -9.4537760564945,
+      "pf": 0.0133080663829226
+    },
+    "two_maker_formula_bps": "observed_net_bps + 12 + 2*entry_spread_bps",
+    "two_maker_assumptions": [
+      "apply the one-maker improvement on both legs",
+      "use entry spread as a favorable proxy for both legs",
+      "assume both passive orders fill with no queue loss or adverse selection"
+    ],
+    "two_maker": {
+      "n": 7965,
+      "avg_net_bps": -3.23421791715332,
+      "pf": 0.127591186753202
+    },
+    "daily_two_maker_pf": {
+      "2026-10-05": 0.119449913561568,
+      "2026-10-06": 0.0806353850300168,
+      "2026-10-07": 0.170697320276324,
+      "2026-10-08_partial": 0.0274268647365703
+    },
+    "best_symbol_two_maker": {
+      "symbol": "DOGEUSDT",
+      "n": 589,
+      "avg_net_bps": -1.61959394129675,
+      "pf": 0.52622927044277
+    }
+  },
+  "decision": {
+    "result": "REJECT",
+    "reason": "FLOW v1 does not approach PF>1.15 or positive net expectancy even under an impossible guaranteed two-sided maker-fill upper bound. A real post-only implementation would add missed fills, queue uncertainty and adverse selection.",
+    "deployment": "NONE",
+    "bot_change": "NONE",
+    "next_research_rule": "Do not spend a new forward shadow on maker execution for this unchanged signal. A future microstructure experiment must change the alpha hypothesis itself and preregister actual fill rules."
+  },
+  "limitations": [
+    "The maker calculations are deliberately optimistic bounds, not backtests or fill simulations.",
+    "The sample spans only about three UTC days and was observed after FLOW v1 was designed.",
+    "No historical best-bid/ask archive was used.",
+    "No claim of profitability is made."
+  ]
+}
