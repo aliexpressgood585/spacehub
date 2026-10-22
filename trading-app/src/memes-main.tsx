@@ -36,7 +36,11 @@ function App() {
   const solUsd = st.sol_usd ?? 0
   const val = (t: J) => {
     const x = live[t.mint]
-    if (x && !x.complete && Date.now() - x.at < 15000) return { sol: sellSol(+x.virtual_sol_reserves, +x.virtual_token_reserves, t.tokens), src: 'חי' }
+    // coins-v2 has no reserves: rebuild them from its market cap and the trade's stored curve constant (as the bot does)
+    if (x && !x.complete && Date.now() - x.at < 15000) {
+      if (+x.virtual_sol_reserves > 0) return { sol: sellSol(+x.virtual_sol_reserves, +x.virtual_token_reserves, t.tokens), src: 'חי' }
+      if (t.k > 0 && +x.market_cap > 0) return { sol: sellSol(Math.sqrt(t.k * x.market_cap / 1e6), Math.sqrt(t.k * 1e6 / x.market_cap), t.tokens), src: 'חי' }
+    }
     return { sol: t.last_sol ?? t.cost_sol, src: 'בוט' }
   }
   const ov = open.reduce((s: number, t: J) => s + val(t).sol * solUsd, 0), eq = st.cash + ov

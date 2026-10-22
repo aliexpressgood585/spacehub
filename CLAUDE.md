@@ -855,6 +855,11 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
 - 2026-10-22 ~16:30 UTC meme desk MEME.minRise 0.08 -> 0.05 (owner). Still 0 trades after the fill fix; near misses -46..+4%.
 - 2026-10-22 ~17:15 UTC meme desk MEME.minAgeMin 1 -> 0.5 (owner "כן"): coins rising >= 5% were mostly 0.6-0.9 min old and
   blocked by age (others: curve 84-86% > 80%, no social). Youngest coins = highest rug risk; told the owner.
+- 2026-10-22 ~18:50 UTC meme desk SECOND FILL BUG (0 trades in 1.5 h after the first fix): coins-v2 has NO curve reserves, only
+  market_cap (SOL), so buyTokens got NaN and the entry was dropped by a silent `continue`; open positions could not be marked
+  either. Fix: k = vS*vT and rtOff = vT-rT from the listing read, reserves rebuilt from the re-read market cap (constant product,
+  verified exact on a live coin); trades store k / rt_off / fill_src; silent skips now journalled; memes.html rebuilds the same way.
+  First local cycle after the fix: 1 entry.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the

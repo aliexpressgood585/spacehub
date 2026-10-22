@@ -17,6 +17,17 @@ const validFill = (x: any) => !x.is_banned && !x.nsfw && (x.program == null || x
 const toCoin = (x: any): Coin => ({ mint: x.mint, symbol: x.symbol, created: x.created_timestamp, lastTrade: x.last_trade_timestamp ?? 0,
   mc: +x.market_cap, realSol: (+x.real_sol_reserves || 0) / 1e9, social: !!(x.twitter || x.telegram || x.website), ok: valid(x) && !x.complete })
 const curveOf = (x: any): Curve => ({ vS: +x.virtual_sol_reserves, vT: +x.virtual_token_reserves, rT: +x.real_token_reserves })
+const hasCurve = (x: any) => { const c = curveOf(x); return c.vS > 0 && c.vT > 0 && c.rT > 0 }
+// coins-v2 (the per-coin read) carries no reserves, only market_cap in SOL (= vS * 1e6 / vT for 6-decimal tokens).
+// The curve is constant product, so with k = vS * vT and rtOff = vT - rT taken from a full read (the listing) the
+// reserves at any later market cap are exact: vS = sqrt(k * mc / 1e6), vT = sqrt(k * 1e6 / mc), rT = vT - rtOff.
+const curveFromMc = (mc: number, k: number, rtOff: number): Curve | null => {
+  if (!(mc > 0) || !(k > 0)) return null
+  const vS = Math.sqrt(k * mc / 1e6), vT = Math.sqrt(k * 1e6 / mc)
+  return { vS, vT, rT: Math.max(0, vT - rtOff) }
+}
+const readCurve = (x: any, k?: number, rtOff?: number): Curve | null =>
+  hasCurve(x) ? curveOf(x) : (k && rtOff != null ? curveFromMc(+x.market_cap, k, rtOff) : null)
 const solUsdOf = (x: any) => (+x.usd_market_cap > 0 && +x.market_cap > 0 ? +x.usd_market_cap / +x.market_cap : NaN)
 const one = async (mint: string) => { try { return await j(`${PF}/coins-v2/${mint}`) } catch { return null } }
 async function dex(mint: string) {
@@ -42,7 +53,7 @@ const note: any = { at: now() }
 async function markSol(t: any): Promise<{ sol: number; px: number; src: string; x?: any } | null> {
   const x = await one(t.mint); if (!x) return null
   if (+x.usd_market_cap > 0) st.sol_usd = solUsdOf(x) || st.sol_usd
-  if (!x.complete) { const c = curveOf(x); return { sol: Math.max(0, sellSol(c, t.tokens) - MEME.txFeeSol), px: c.vS / c.vT, src: 'curve', x } }
+  if (!x.complete) { const c = readCurve(x, t.k, t.rt_off); if (!c) return null; return { sol: Math.max(0, sellSol(c, t.tokens) - MEME.txFeeSol), px: c.vS / c.vT, src: 'curve', x } }
   const d = await dex(t.mint); if (!d) return { sol: 0, px: 0, src: 'graduated-no-pool', x }
   return { sol: Math.max(0, dexSellSol(d.px, d.quote, t.tokens) - MEME.txFeeSol), px: d.px, src: d.dexId, x }
 }
@@ -116,12 +127,18 @@ try {
     await sleep(fillDelayMs)
     const x = await one(c.mint)
     if (!x || x.complete || !validFill(x)) { decisions.push({ ts: now(), mint: c.mint, symbol: c.symbol, decision: 'skip', reason: 'השתנה לפני המילוי' }); continue }
-    const sol = usd / solUsd, curve = curveOf(x), tokens = buyTokens(curve, sol - MEME.txFeeSol)
-    if (!(tokens > 0)) continue
-    const seenPx = c.mc, fillMc = +x.market_cap
+    // fill on the curve as it is AFTER the delay: the re-read's market cap applied to the listing's k (see curveFromMc)
+    const ref = seen.get(c.mint), rc = ref && hasCurve(ref) ? curveOf(ref) : null
+    const k = rc ? rc.vS * rc.vT : 0, rtOff = rc ? rc.vT - rc.rT : 0
+    const curve = readCurve(x, k, rtOff)
+    if (!curve) { decisions.push({ ts: now(), mint: c.mint, symbol: c.symbol, decision: 'skip', reason: 'אין נתוני עקומה למילוי' }); continue }
+    const fillSrc = hasCurve(x) ? 'reread' : 'reread-mc'
+    const sol = usd / solUsd, tokens = buyTokens(curve, sol - MEME.txFeeSol)
+    if (!(tokens > 0)) { decisions.push({ ts: now(), mint: c.mint, symbol: c.symbol, decision: 'skip', reason: 'מילוי לא אפשרי בעקומה' }); continue }
+    const seenPx = c.mc, fillMc = +x.market_cap > 0 ? +x.market_cap : c.mc
     const t = { id: st.next_id++, mint: c.mint, symbol: c.symbol, name: x.name, image: x.image_uri, status: 'OPEN', opened_at: now(),
       cost_usd: usd, cost_sol: sol, tokens, entry_px: (sol - MEME.txFeeSol) * 1e9 * (1 - MEME.curveFee) / tokens, entry_mc: fillMc, seen_mc: seenPx,
-      delay_cost: fillMc / seenPx - 1, progress: progressOf((+x.real_sol_reserves || 0) / 1e9), checks: chk.checks, sol_usd: solUsd }
+      delay_cost: fillMc / seenPx - 1, fill_src: fillSrc, k, rt_off: rtOff, progress: progressOf((+x.real_sol_reserves || 0) / 1e9), checks: chk.checks, sol_usd: solUsd }
     st.cash -= usd; st.trades.push(t); room--
     decisions.push({ ts: now(), mint: c.mint, symbol: c.symbol, decision: 'BUY', reason: `עלייה ${(chk.rise * 100).toFixed(0)}%`, usd })
   }
