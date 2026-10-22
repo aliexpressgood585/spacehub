@@ -1,0 +1,29 @@
+name: Funding Data Probe
+on:
+  push:
+    branches: ['research/sweep-funding-20261007']
+    paths: ['.github/workflows/funding-data-probe.yml']
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - run: |
+          python - <<'PY'
+          import urllib.request,zipfile,io,json
+          urls=[
+          'https://data.binance.vision/data/futures/um/monthly/fundingRate/ANKRUSDT/ANKRUSDT-fundingRate-2026-09.zip',
+          'https://data.binance.vision/data/futures/um/monthly/fundingRate/ANKRUSDT/ANKRUSDT-fundingRate-2026-10.zip',
+          'https://fapi.binance.com/fapi/v1/fundingRate?symbol=ANKRUSDT&startTime=1790812800000&endTime=1791417600000&limit=1000']
+          for u in urls:
+           try:
+            with urllib.request.urlopen(u,timeout=20) as r:b=r.read()
+            if u.endswith('.zip'):
+             with zipfile.ZipFile(io.BytesIO(b)) as z:s=z.read(z.namelist()[0]).decode()
+             lines=s.splitlines();print('PROBE',u,'lines',len(lines),'head',lines[:3],'tail',lines[-2:],flush=True)
+            else:
+             data=json.loads(b);print('PROBE',u,'count',len(data),'head',data[:2],'tail',data[-1:],flush=True)
+           except Exception as e:print('PROBE_ERROR',u,str(e),flush=True)
+          PY

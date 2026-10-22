@@ -1,0 +1,23 @@
+name: Sweep and Extreme Funding Research
+on:
+  push:
+    branches: ['research/sweep-funding-20261007']
+    paths: ['scripts/market-gate-check/sweep_funding.py', 'scripts/market-gate-check/check_sweep_funding.py', '.github/workflows/sweep-funding-3y.yml']
+permissions:
+  contents: read
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -q numpy numba
+      - run: python scripts/market-gate-check/check_sweep_funding.py
+      - run: python scripts/market-gate-check/sweep_funding.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sweep-funding-3y
+          path: research-output/
