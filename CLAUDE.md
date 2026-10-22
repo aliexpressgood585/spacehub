@@ -875,6 +875,13 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   feedSource = feed file + direct RPC reads for marks and the 2 s fill re-read, which now uses exact on-chain reserves).
   meme-desk.yml runs the feed (MEME_FEED, restarted if it dies); Fly server/Dockerfile keep pumpSource. tests/meme-feed.test.ts 12/12.
   Local run: 107 coins scanned, the 4 positions frozen since 19:43 marked and closed. Rule unchanged.
+- 2026-10-22 ~23:40 UTC meme desk RULE SEARCH (owner "כן"): backtest/research/meme_paths.py -> status/meme-paths.txt on the recorded
+  paths (meme/paths-2026-10-22.jsonl; 11,314 coins, usable 7,389 created 13:37-18:35 UTC with >= 2 points; later coins were cut by
+  the 19:43 feed outage). Desk costs (1.25%/side fee, 0.001 SOL/side tx on a 0.14 SOL stake = 1.4%, 2 s fill delay, curve impact),
+  one trade per coin, IS = first 60% by creation time / OOS = rest. 15,936 configs (momentum / dip / curve-progress cross x age x
+  progress x lookback x TP/SL/time): best IS t 0.9 (none significant even in-sample), median IS -10.9%/trade, 49 positive in both
+  halves (0.3%, small n), PASS 0. Live-like rule: IS -8.3% / OOS -12.3% per trade (live was -22.5%, so the backtest is optimistic).
+  Caveats: one afternoon, pump.fun-listing coverage (top 150 by recent trade). Nothing deployed; recommended observe-only.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the
