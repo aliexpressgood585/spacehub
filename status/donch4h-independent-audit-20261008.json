@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "report_id": "DONCH4H-AUDIT-20261008",
+  "generated_at_utc": "2026-10-08T03:41:09Z",
+  "mode": "PAPER_ONLY",
+  "base_commit": "60c322815d90836a7d4da7f8fd7f509119948357",
+  "scope": {
+    "question": "Can DONCH4H be treated as a validated standalone profitable sleeve or promoted into PAPER shadow?",
+    "actions": [
+      "Audited the exact shared strategy and capital-constrained portfolio simulator",
+      "Compared repository headline claims with simulator provenance comments",
+      "Queried the preserved MANAGER-RESET-20261007 PAPER archive read-only",
+      "Did not rerun exposed validation or change trading state"
+    ]
+  },
+  "findings": [
+    {
+      "severity": "critical",
+      "id": "conditional_portfolio_artifact",
+      "evidence": "backtest/portfolio.ts states v80bt measured DONCH4H alone at -46.9% and ROTA+DONCH4H at +70.1%; DONCH4H was profitable only on capital left after ROTA.",
+      "implication": "The combined result is not evidence of positive standalone expectancy. If ROTA exits or its health switch unwinds, DONCH4H can inherit the losing full-book configuration."
+    },
+    {
+      "severity": "high",
+      "id": "reproduction_failure",
+      "evidence": "shared/strategy.ts and backtest/portfolio.ts state v79bt reproduced approximately the signal count (11,412 vs 11,218) but not the documented window profile.",
+      "implication": "The older 36-month headline cannot be treated as reproduced by the exact live-rule, capital-constrained engine."
+    },
+    {
+      "severity": "high",
+      "id": "execution_optimism",
+      "evidence": "The simulator default makerFillRate is 1.0; its own comment says all prior backtests silently assumed every resting ladder leg filled as maker. Funding is a fixed 0.0001 per 8h model, not symbol/time historical funding.",
+      "implication": "Execution costs and fill probability are optimistic or approximated; they cannot rescue a negative standalone result."
+    },
+    {
+      "severity": "high",
+      "id": "validation_selection",
+      "evidence": "DONCH window, ADX gate, ATR stop, ladder and trailing constants are annotated as selected/re-tuned across many batches, including thresholds chosen because alternatives made a window negative.",
+      "implication": "The published validation windows are exposed and heavily selected; they are not a clean holdout."
+    },
+    {
+      "severity": "medium",
+      "id": "simulator_parity_history",
+      "evidence": "backtest/portfolio.ts says all runs before v83bt omitted the live health kill-switch.",
+      "implication": "Pre-v83 portfolio headlines do not have full live-rule parity."
+    },
+    {
+      "severity": "medium",
+      "id": "missing_durable_artifact",
+      "evidence": "No durable raw v80bt result artifact was found on main; the -46.9% and +70.1% figures survive as source-code provenance comments.",
+      "implication": "The figures are sufficient to reject activation, but not sufficient to certify any alternative configuration."
+    },
+    {
+      "severity": "info",
+      "id": "paper_archive_coverage",
+      "evidence": "The preserved reset archive contains 52 Q15 rows with aggregate stored PnL -1444.1334 and zero DONCH4H rows.",
+      "implication": "There is no preserved forward PAPER sample for DONCH4H. The Q15 loss is unrelated and must not be presented as DONCH4H evidence."
+    }
+  ],
+  "gate": {
+    "required": {
+      "train_profit_factor_gt": 1.15,
+      "validation_profit_factor_gt": 1.15,
+      "train_trades_gte": 300,
+      "validation_trades_gte": 300,
+      "avg_net_positive": true
+    },
+    "observed": {
+      "train_profit_factor": null,
+      "validation_profit_factor": null,
+      "train_trades": null,
+      "validation_trades": null,
+      "avg_net": null
+    },
+    "result": "FAIL_NOT_DEMONSTRATED"
+  },
+  "decision": {
+    "standalone_donch4h": "REJECT",
+    "paper_activation": "DO_NOT_ACTIVATE",
+    "live_activation": "PROHIBITED",
+    "strategy_changes": "NONE",
+    "account_reset": "NOT_PERFORMED",
+    "rationale": "A negative standalone result plus unreproduced window profile, optimistic fill assumptions and exposed tuning cannot meet the research gate."
+  },
+  "next_valid_test_if_revisited": [
+    "Pre-register before observing results",
+    "Use a genuinely new time period and preferably a point-in-time universe",
+    "Run LONG and SHORT contributions separately and combined",
+    "Use observed maker fill sensitivity, taker fallback and actual historical funding",
+    "Run exact portfolio interaction with ROTA health-switch behavior",
+    "Require PF > 1.15, positive average net and at least 300 trades separately in train and untouched validation",
+    "Require a new forward Shadow and portfolio analysis before PAPER activation"
+  ],
+  "account_snapshot": {
+    "observed_at_utc": "2026-10-08T03:41:09Z",
+    "balance_usd": 5000,
+    "equity_usd": 5000,
+    "active": false,
+    "paper_mode": true,
+    "open_trades": 0,
+    "bot_errors_24h": 0,
+    "reset_repeated": false
+  },
+  "evidence_files": [
+    "backtest/portfolio.ts",
+    "shared/strategy.ts",
+    "tests/portfolio.test.ts",
+    "AUDIT_PROMPT.md",
+    "supabase:paper_reset_archive/MANAGER-RESET-20261007"
+  ],
+  "limitations": [
+    "No new backtest was run.",
+    "The exposed historical validation was not retuned or reused to manufacture a passing variant.",
+    "No durable raw v80bt artifact was available on main for independent metric recomputation.",
+    "The preserved PAPER archive has no DONCH4H observations."
+  ]
+}
