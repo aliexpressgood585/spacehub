@@ -66,7 +66,7 @@ try {
     const m = await markSol(t); if (!m) { openUsd += (t.last_sol ?? 0) * (st.sol_usd ?? 0); continue }
     const pnl = m.sol / t.cost_sol - 1, held = (Date.now() - Date.parse(t.opened_at)) / 60_000
     t.last_sol = m.sol; t.last_px = m.px; t.src = m.src; t.pnl_pct = pnl; t.marked_at = now()
-    if (m.x) t.progress = m.x.complete ? 1 : progressOf((+m.x.real_sol_reserves || 0) / 1e9)
+    if (m.x && (m.x.complete || +m.x.real_sol_reserves > 0)) t.progress = m.x.complete ? 1 : progressOf(+m.x.real_sol_reserves / 1e9)
     const why = exitReason(pnl, held)
     if (!why) { openUsd += m.sol * (st.sol_usd ?? 0); continue }
     await sleep(fillDelayMs)
@@ -138,7 +138,7 @@ try {
     const seenPx = c.mc, fillMc = +x.market_cap > 0 ? +x.market_cap : c.mc
     const t = { id: st.next_id++, mint: c.mint, symbol: c.symbol, name: x.name, image: x.image_uri, status: 'OPEN', opened_at: now(),
       cost_usd: usd, cost_sol: sol, tokens, entry_px: (sol - MEME.txFeeSol) * 1e9 * (1 - MEME.curveFee) / tokens, entry_mc: fillMc, seen_mc: seenPx,
-      delay_cost: fillMc / seenPx - 1, fill_src: fillSrc, k, rt_off: rtOff, progress: progressOf((+x.real_sol_reserves || 0) / 1e9), checks: chk.checks, sol_usd: solUsd }
+      delay_cost: fillMc / seenPx - 1, fill_src: fillSrc, k, rt_off: rtOff, progress: progressOf((+x.real_sol_reserves || +ref?.real_sol_reserves || 0) / 1e9), checks: chk.checks, sol_usd: solUsd }
     st.cash -= usd; st.trades.push(t); room--
     decisions.push({ ts: now(), mint: c.mint, symbol: c.symbol, decision: 'BUY', reason: `עלייה ${(chk.rise * 100).toFixed(0)}%`, usd })
   }
