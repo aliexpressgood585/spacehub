@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 1004.23208949805,
+ "cash": 992.05670014999,
  "peak": 1114.4348581269899,
  "floor": 980.1044006888928,
  "strategy": {
@@ -44,12 +44,12 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-22T21:33:05.050Z",
+ "last_scan": "2026-10-22T21:33:15.637Z",
  "last_note": {
-  "at": "2026-10-22T21:33:02.450Z",
+  "at": "2026-10-22T21:33:12.918Z",
   "windows": 4,
   "settled": 0,
-  "entered": 0
+  "entered": 1
  },
  "trades": [
   {
@@ -38761,16 +38761,58 @@
      "z": 12.659378378481629
     }
    }
+  },
+  {
+   "id": 543,
+   "market_id": "6027106",
+   "slug": "btc-updown-5m-1792704600",
+   "event_slug": "btc-updown-5m-1792704600",
+   "question": "Bitcoin Up or Down - October 22, 5:30PM-5:35PM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 21:30–21:35 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "token_id": "92654569238277750950120245224793501194818031711982710349085267766944770835231",
+   "end_time": "2026-10-22T21:35:00Z",
+   "qty": 13.434171188414453,
+   "entry_px": 0.9,
+   "entry_fee": 0.08463527848701105,
+   "cost": 12.175389348060019,
+   "best_ask": 0.9,
+   "opened_at": "2026-10-22T21:33:15.637Z",
+   "status": "OPEN",
+   "mark_px": 0.89,
+   "mark_at": "2026-10-22T21:33:15.637Z",
+   "meta": {
+    "fee_schedule": {
+     "rate": 0.07,
+     "exponent": 1
+    },
+    "volume": 2,
+    "coin": "btc",
+    "tf": "5m",
+    "window_s": 300,
+    "left_s": 107,
+    "band": [
+     0.9,
+     0.98
+    ],
+    "z_min": 2.5,
+    "look": 2,
+    "outcomes": [
+     "Up",
+     "Down"
+    ],
+    "wanted": 12.175389348060017,
+    "ref_px": 0.94,
+    "bid_px": 0.89,
+    "z": 3.256004289142482,
+    "spot_open": 81540.22,
+    "spot": 81469.64,
+    "sigma1s": 0.00002571111703513144
+   }
   }
  ],
  "equity": [
-  {
-   "ts": "2026-10-19T11:12:07.926Z",
-   "equity": 1035.9045868173955,
-   "cash": 1003.991967577243,
-   "open_value": 31.912619240152566,
-   "open_count": 1
-  },
   {
    "ts": "2026-10-19T11:13:08.864Z",
    "equity": 1035.9045868173955,
@@ -73763,9 +73805,27 @@
    "cash": 1004.23208949805,
    "open_value": 12.398479235022949,
    "open_count": 1
+  },
+  {
+   "ts": "2026-10-22T21:33:15.637Z",
+   "equity": 1016.4115917427018,
+   "cash": 992.05670014999,
+   "open_value": 24.354891592711812,
+   "open_count": 2
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-22T21:33:15.637Z",
+   "market_id": "6027106",
+   "question": "Bitcoin Up or Down - October 22, 5:30PM-5:35PM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 21:30–21:35 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.9,
+   "decision": "BUY",
+   "reason": "107 שנ׳ לסיום, מחיר 0.9 בטווח 90-98¢, 13.4 מניות ($12), עמלה $0.08"
+  },
   {
    "ts": "2026-10-22T21:33:05.050Z",
    "market_id": "6027106",
@@ -75954,20 +76014,9 @@
    "price": 0.96,
    "decision": "skip",
    "reason": "מסנן מרחק: 0.91 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-22T19:58:03.423Z",
-   "market_id": "6025410",
-   "question": "XRP Up or Down - October 22, 3:55PM-4:00PM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 19:55–20:00 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.95,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.58 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
- "next_id": 543,
+ "next_id": 544,
  "shadow": [
   {
    "slug": "btc-updown-5m-1792411500",
@@ -123729,15 +123778,17 @@
    "limit": 0.92,
    "taker_ask": 0.93,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-22T21:33:13.436Z",
+   "left_at_fill": 107
   }
  ],
  "study": {
   "fills": {
-   "n": 542,
-   "avg_vs_ref_c": -0.17860712399425235,
-   "avg_vs_research_c": -1.1786071239942513,
-   "avg_fee_c": 0.3329701908647215
+   "n": 543,
+   "avg_vs_ref_c": -0.18564467993533107,
+   "avg_vs_research_c": -1.18564467993533,
+   "avg_fee_c": 0.33351720708780674
   },
   "maker": {
    "placed": 3000,
