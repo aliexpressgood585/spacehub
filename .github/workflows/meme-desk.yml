@@ -22,7 +22,7 @@ jobs:
       - name: live loop
         run: |
           mkdir -p /tmp/desk/scripts /tmp/desk/shared
-          cp scripts/meme-desk.ts scripts/meme-core.ts /tmp/desk/scripts/; cp shared/meme.ts /tmp/desk/shared/
+          cp scripts/meme-desk.ts scripts/meme-core.ts scripts/meme-feed.ts /tmp/desk/scripts/; cp shared/meme.ts shared/solana.ts /tmp/desk/shared/
           git config user.name pm-desk-bot
           git config user.email actions@github.com
           git fetch -q origin pm-desk-data || true
@@ -32,11 +32,17 @@ jobs:
             git checkout -q --orphan pm-desk-data && git rm -rf -q . && git clean -fdq
           fi
           mkdir -p meme
+          # pump.fun's API refuses GitHub runners (403): coins come from the free PumpPortal websocket + Solana RPC feed,
+          # a background process that writes /tmp/meme-feed.json every second (restarted if it dies)
+          export MEME_FEED=/tmp/meme-feed.json
+          feed() { node --experimental-strip-types /tmp/desk/scripts/meme-feed.ts /tmp/meme-feed.json meme/state.json > /tmp/meme-feed.log 2>&1 & echo $! > /tmp/meme-feed.pid; }
+          feed; sleep 20
           end=$(( $(date +%s) + 345*60 )); last=0
           while [ $(date +%s) -lt $end ]; do
             t0=$(date +%s)
             # the always-on Fly server owns the desk once it answers; this runner then stands down
             if curl -fsS -m 5 https://spacehub-meme.fly.dev/health >/dev/null 2>&1; then echo "fly server is live - standing down"; break; fi
+            kill -0 $(cat /tmp/meme-feed.pid) 2>/dev/null || { echo "feed died - restarting"; tail -5 /tmp/meme-feed.log; feed; sleep 10; }
             timeout 120 node --experimental-strip-types /tmp/desk/scripts/meme-desk.ts meme/state.json || echo "cycle failed"
             if [ $(( t0 - last )) -ge 10 ]; then
               git add meme/

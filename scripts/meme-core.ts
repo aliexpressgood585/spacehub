@@ -1,7 +1,11 @@
 // meme-core — one cycle of the "ממים חיים" PAPER desk, shared by the GitHub-Actions runner (scripts/meme-desk.ts) and the
 // always-on server (server/meme-live/server.ts). PAPER ONLY: unsigned public GETs (pump.fun frontend API, DexScreener).
 // Fill realism: every fill re-reads the coin `fillDelayMs` after the decision and fills against those reserves.
+// Two data sources with one shape (pump.fun's coin object): `pumpSource` (pump.fun REST) and `feedSource` (the free
+// PumpPortal + Solana RPC feed written by scripts/meme-feed.ts — used where pump.fun answers 403, e.g. GitHub runners).
+import fs from 'node:fs'
 import { MEME, buyTokens, sellSol, dexSellSol, entryCheck, exitReason, progressOf, type Coin, type Curve } from '../shared/meme.ts'
+import { bondingCurveOf, getCurves } from '../shared/solana.ts'
 
 const PF = 'https://frontend-api-v3.pump.fun'
 const j = async (u: string) => { const r = await fetch(u, { headers: { 'User-Agent': 'spacehub-paper/1.0', Accept: 'application/json' }, signal: AbortSignal.timeout(10_000) }); if (!r.ok) throw new Error(`${r.status} ${u.slice(0, 80)}`); return r.json() }
@@ -29,7 +33,57 @@ const curveFromMc = (mc: number, k: number, rtOff: number): Curve | null => {
 const readCurve = (x: any, k?: number, rtOff?: number): Curve | null =>
   hasCurve(x) ? curveOf(x) : (k && rtOff != null ? curveFromMc(+x.market_cap, k, rtOff) : null)
 const solUsdOf = (x: any) => (+x.usd_market_cap > 0 && +x.market_cap > 0 ? +x.usd_market_cap / +x.market_cap : NaN)
-const one = async (mint: string) => { try { return await j(`${PF}/coins-v2/${mint}`) } catch { return null } }
+
+export type Source = { name: string; list: () => Promise<{ coins: any[]; err: string[] }>; one: (mint: string) => Promise<any | null>; prefetch?: (mints: string[]) => Promise<void> }
+
+export const pumpSource: Source = {
+  name: 'pump.fun',
+  async list() {
+    const err: string[] = []
+    const get = (u: string) => j(u).catch((e) => { err.push(String(e).slice(0, 90)); return [] })
+    const [a, b] = await Promise.all([
+      get(`${PF}/coins?offset=0&limit=100&sort=last_trade_timestamp&order=DESC&includeNsfw=false`),
+      get(`${PF}/coins?offset=0&limit=50&sort=created_timestamp&order=DESC&includeNsfw=false`),
+    ])
+    return { coins: [...a, ...b], err: err.length === 2 ? err : [] }
+  },
+  async one(mint) { try { return await j(`${PF}/coins-v2/${mint}`) } catch { return null } },
+}
+
+// the feed's coin -> pump.fun's coin shape (reserves in raw units, market cap in SOL = vS * 1e6 / vT)
+function pumpShape(c: any, solUsd: number) {
+  const mc = c.vT > 0 ? c.vS * 1e6 / c.vT : 0
+  return { mint: c.mint, symbol: c.symbol, name: c.name, image_uri: c.image, created_timestamp: c.created, last_trade_timestamp: c.lastTrade,
+    market_cap: mc, usd_market_cap: solUsd > 0 ? mc * solUsd : 0, virtual_sol_reserves: c.vS, virtual_token_reserves: c.vT,
+    real_token_reserves: c.rT, real_sol_reserves: c.rS, program: c.pool === 'pump' ? 'pump' : c.pool, complete: !!c.complete,
+    twitter: c.social ? 'yes' : null, creator: c.creator }
+}
+export function feedSource(file: string, maxAgeMs = 20_000): Source {
+  let last: any = null
+  const cache = new Map<string, { at: number; x: any }>()
+  const read = () => { try { last = JSON.parse(fs.readFileSync(file, 'utf8')) } catch { last = null } return last }
+  const meta = (mint: string) => last?.coins?.find((c: any) => c.mint === mint)
+  async function curves(mints: string[]) {
+    const res = await getCurves(mints.map(bondingCurveOf)), T = Date.now(), sol = last?.sol_usd ?? 0
+    mints.forEach((m, i) => { const a = res[i]; if (!a) return; const f = meta(m) ?? {}
+      cache.set(m, { at: T, x: pumpShape({ ...f, mint: m, pool: f.pool ?? 'pump', vS: a.vS, vT: a.vT, rT: a.rT, rS: a.rS, complete: a.complete }, sol) }) })
+  }
+  return {
+    name: 'pumpportal+rpc',
+    async list() {
+      const f = read()
+      if (!f) return { coins: [], err: ['feed file missing'] }
+      if (Date.now() - f.at > maxAgeMs) return { coins: [], err: [`feed stale ${Math.round((Date.now() - f.at) / 1000)} s`] }
+      const T = Date.now()
+      return { coins: f.coins.filter((c: any) => T - c.lastTrade <= MEME.snapMaxS * 1000).map((c: any) => pumpShape(c, f.sol_usd)), err: [] }
+    },
+    async prefetch(mints) { if (mints.length) { read(); try { await curves(mints) } catch {} } },
+    async one(mint) {
+      const c = cache.get(mint); if (c && Date.now() - c.at < 1000) return c.x       // the decision read; fills re-read fresh
+      try { read(); await curves([mint]); return cache.get(mint)?.x ?? null } catch { return null }
+    },
+  }
+}
 async function dex(mint: string) {
   try {
     const d: any = await j(`https://api.dexscreener.com/latest/dex/tokens/${mint}`)
@@ -44,7 +98,8 @@ export function freshState(): any {
 }
 
 // one cycle; `appendPaths(day, lines)` receives finished research paths
-export async function cycle(st: any, appendPaths: (day: string, lines: string[]) => void, fillDelayMs = 2000) {
+export async function cycle(st: any, appendPaths: (day: string, lines: string[]) => void, fillDelayMs = 2000, src: Source = pumpSource) {
+const one = src.one
 st.rules = MEME
 const decisions: any[] = []
 const note: any = { at: now() }
@@ -61,6 +116,7 @@ async function markSol(t: any): Promise<{ sol: number; px: number; src: string; 
 try {
   // 1. manage open positions: decide on the current read, fill on a read ~2 s later
   const open = st.trades.filter((t: any) => t.status === 'OPEN')
+  await src.prefetch?.(open.map((t: any) => t.mint))
   let openUsd = 0
   for (const t of open) {
     const m = await markSol(t); if (!m) { openUsd += (t.last_sol ?? 0) * (st.sol_usd ?? 0); continue }
@@ -81,14 +137,10 @@ try {
   // 2. scan: coins traded in the last minutes (both new and active), keep a market-cap snapshot ring per mint
   // a failed listing is never silent: both down -> last_error says why (from 19:43 UTC 10-22 the runner got 0 coins
   // for hours while every cycle looked healthy, and open positions could not be marked either)
-  const feedErr: string[] = []
-  const list = (u: string) => j(u).catch((e) => { feedErr.push(String(e).slice(0, 90)); return [] })
-  const [a, b] = await Promise.all([
-    list(`${PF}/coins?offset=0&limit=100&sort=last_trade_timestamp&order=DESC&includeNsfw=false`),
-    list(`${PF}/coins?offset=0&limit=50&sort=created_timestamp&order=DESC&includeNsfw=false`),
-  ])
+  const { coins: listed, err: feedErr } = await src.list()
+  note.source = src.name
   if (feedErr.length) note.feed_error = feedErr
-  const seen = new Map<string, any>(); for (const x of [...a, ...b]) if (x?.mint) seen.set(x.mint, x)
+  const seen = new Map<string, any>(); for (const x of listed) if (x?.mint) seen.set(x.mint, x)
   const T = Date.now()
   for (const x of seen.values()) { const s = (st.snaps[x.mint] ??= []); s.push([T, +x.market_cap]); if (+x.usd_market_cap > 0) st.sol_usd = solUsdOf(x) || st.sol_usd }
   for (const [k, s] of Object.entries<any>(st.snaps)) { const f = s.filter((p: any) => T - p[0] <= MEME.snapMaxS * 1000); if (f.length) st.snaps[k] = f.slice(-30); else delete st.snaps[k] }
@@ -154,7 +206,7 @@ try {
   st.equity.push({ ts: now(), equity: st.cash + ov, cash: st.cash, open_value: ov, open_count: openNow.length })
   if (st.equity.length > 5000) st.equity = st.equity.filter((_: any, i: number) => i % 2 === 0)
   note.entries = decisions.filter((d) => d.decision === 'BUY').length; note.exits = decisions.filter((d) => d.decision === 'SELL').length
-  st.last_error = feedErr.length === 2 ? `pump.fun feed down: ${feedErr[0]}` : null
+  st.last_error = feedErr.length ? `${src.name} feed down: ${feedErr[0]}` : null
 } catch (e) { st.last_error = String(e).slice(0, 200) }
 st.decisions = [...decisions, ...st.decisions].slice(0, 300)
 st.last_note = note; st.cycle = now()

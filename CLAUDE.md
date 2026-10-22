@@ -865,6 +865,16 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   Same cycle run from the sandbox at 22:20: 109 coins, the 4 positions closed on TIME -> the runner's IP is refused, not the API.
   Fix: listing failures go to note.feed_error, both down -> last_error 'pump.fun feed down: <status>'. Live first 71 closes
   (18:52-19:43 UTC): 16 TP / 49 SL / 6 TIME, WR 22.5%, -$280 (equity $725); SL fills avg -46% vs the -30% stop (gaps).
+- 2026-10-22 ~23:10 UTC meme desk FREE FEED (owner: "חינמי", no paid server). Probed from a GitHub runner: pump.fun REST 403;
+  PumpPortal websocket OK but trade streams need a funded key (0.02 SOL) -> only subscribeNewToken / subscribeMigration are free;
+  public Solana RPC (api.mainnet-beta + publicnode) OK 20/20 burst; data-api.binance.vision + Coinbase SOL price OK; DexScreener OK.
+  Built: shared/solana.ts (base58, pump.fun bonding-curve PDA — verified 12/12 vs pump.fun's bonding_curve field, curve account
+  parse, getMultipleAccounts 100/call with endpoint fallback); scripts/meme-feed.ts (background process: new coins from PumpPortal,
+  curves polled from RPC every 2 s while hot / 60 s cold, a trade = any reserve change, socials from the metadata uri, SOL price,
+  writes /tmp/meme-feed.json every 1 s, seeds from state.paths on restart); meme-core.ts Source abstraction (pumpSource = old REST,
+  feedSource = feed file + direct RPC reads for marks and the 2 s fill re-read, which now uses exact on-chain reserves).
+  meme-desk.yml runs the feed (MEME_FEED, restarted if it dies); Fly server/Dockerfile keep pumpSource. tests/meme-feed.test.ts 12/12.
+  Local run: 107 coins scanned, the 4 positions frozen since 19:43 marked and closed. Rule unchanged.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the

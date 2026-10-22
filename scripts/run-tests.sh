@@ -37,6 +37,7 @@ fi
 if ! ( cd binance-paper-bot && python3 -m pytest -q tests ); then fail=1; fi
 node tests/council-review.test.mjs || fail=1
 node --experimental-strip-types tests/flow-shadow.test.ts || fail=1
+node --experimental-strip-types tests/meme-feed.test.ts || fail=1
 run() {
   echo ""
   echo "── $1 ──────────────────────────────────────────────"
