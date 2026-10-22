@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-22T21:19:53.938Z",
+ "last_scan": "2026-10-22T21:20:03.414Z",
  "last_note": {
-  "at": "2026-10-22T21:19:52.345Z",
+  "at": "2026-10-22T21:20:03.053Z",
   "windows": 0,
   "settled": 0,
   "entered": 0
@@ -38641,7 +38641,7 @@
    "opened_at": "2026-10-22T21:17:04.746Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-22T21:19:53.046Z",
+   "mark_at": "2026-10-22T21:20:03.414Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -38691,13 +38691,6 @@
   }
  ],
  "equity": [
-  {
-   "ts": "2026-10-19T10:58:08.195Z",
-   "equity": 1035.0432655435495,
-   "cash": 1035.0432655435495,
-   "open_value": 0,
-   "open_count": 0
-  },
   {
    "ts": "2026-10-19T10:59:07.940Z",
    "equity": 1035.0432655435495,
@@ -73686,6 +73679,13 @@
   },
   {
    "ts": "2026-10-22T21:19:04.460Z",
+   "equity": 1016.2834826156784,
+   "cash": 1003.8446469524503,
+   "open_value": 12.438835663228126,
+   "open_count": 1
+  },
+  {
+   "ts": "2026-10-22T21:20:03.414Z",
    "equity": 1016.2834826156784,
    "cash": 1003.8446469524503,
    "open_value": 12.438835663228126,
@@ -123556,10 +123556,12 @@
    "placed_at": "2026-10-22T21:12:43.733Z",
    "limit": 0.91,
    "taker_ask": 0.92,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-22T21:12:52.885Z",
-   "left_at_fill": 127
+   "left_at_fill": 127,
+   "won": true,
+   "ret": 0.09890109890109887
   },
   {
    "slug": "btc-updown-5m-1792703400",
@@ -123571,10 +123573,12 @@
    "placed_at": "2026-10-22T21:13:12.720Z",
    "limit": 0.92,
    "taker_ask": 0.93,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-22T21:13:53.338Z",
-   "left_at_fill": 67
+   "left_at_fill": 67,
+   "won": true,
+   "ret": 0.08695652173913039
   },
   {
    "slug": "sol-updown-5m-1792703400",
@@ -123586,10 +123590,12 @@
    "placed_at": "2026-10-22T21:13:13.131Z",
    "limit": 0.95,
    "taker_ask": 0.97,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-22T21:13:33.454Z",
-   "left_at_fill": 87
+   "left_at_fill": 87,
+   "won": true,
+   "ret": 0.052631578947368474
   },
   {
    "slug": "xrp-updown-5m-1792703400",
@@ -123601,8 +123607,10 @@
    "placed_at": "2026-10-22T21:13:13.256Z",
    "limit": 0.95,
    "taker_ask": 0.97,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "btc-updown-5m-1792703700",
@@ -123666,12 +123674,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2992,
-   "filled": 1385,
-   "fill_rate": 0.46290106951871657,
-   "wr": 0.8693140794223827,
-   "ret": -0.05938611601083889,
-   "missed_wins": 1606,
+   "resolved": 2996,
+   "filled": 1388,
+   "fill_rate": 0.46328437917222964,
+   "wr": 0.8695965417867435,
+   "ret": -0.05908593766240942,
+   "missed_wins": 1607,
    "missed_losses": 1
   },
   "late_exit": {
