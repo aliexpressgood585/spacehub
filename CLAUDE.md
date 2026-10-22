@@ -837,6 +837,8 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
 - 2026-10-22 meme desk RESEARCH RECORDER (owner "כן"): every cycle records the market-cap path of each pump.fun coin in its
   first 65 min (point on change: seconds since creation, mc SOL, real SOL, graduated), finished paths appended to
   meme/paths-YYYY-MM-DD.jsonl on pm-desk-data. Purpose: offline rule search with a held-out split after a few days. Observation only.
+- 2026-10-22 ~14:55 UTC meme desk MEME.minProgress 0.15 -> 0.05 (owner "כן"): 0 entries in the first ~40 min; jumps happen mostly
+  below 15% of the curve. Younger coins = riskier. Rest unchanged.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the

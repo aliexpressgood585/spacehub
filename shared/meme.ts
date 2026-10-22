@@ -16,7 +16,7 @@ export const MEME = {
   gradSol: 85,               // real SOL in the curve at graduation (progress = real_sol / gradSol)
   // entry (momentum on the curve)
   minAgeMin: 1, maxAgeMin: 120,
-  minProgress: 0.15, maxProgress: 0.80,
+  minProgress: 0.05, maxProgress: 0.80,
   minRise: 0.12,             // market cap +12% vs a snapshot 30-180 s old
   snapMinS: 30, snapMaxS: 180,
   maxIdleS: 60,              // last trade at most 60 s ago
