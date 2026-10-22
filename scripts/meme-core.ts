@@ -4,7 +4,7 @@
 import { MEME, buyTokens, sellSol, dexSellSol, entryCheck, exitReason, progressOf, type Coin, type Curve } from '../shared/meme.ts'
 
 const PF = 'https://frontend-api-v3.pump.fun'
-const j = async (u: string) => { const r = await fetch(u, { headers: { 'User-Agent': 'spacehub-paper/1.0', Accept: 'application/json' } }); if (!r.ok) throw new Error(`${r.status} ${u.slice(0, 80)}`); return r.json() }
+const j = async (u: string) => { const r = await fetch(u, { headers: { 'User-Agent': 'spacehub-paper/1.0', Accept: 'application/json' }, signal: AbortSignal.timeout(10_000) }); if (!r.ok) throw new Error(`${r.status} ${u.slice(0, 80)}`); return r.json() }
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const now = () => new Date().toISOString()
 const SOLMINT = '11111111111111111111111111111111'
