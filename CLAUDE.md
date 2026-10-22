@@ -852,6 +852,7 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
 - 2026-10-22 ~16:05 UTC meme desk BUG FIX (owner: "no trade found yet"): every entry that passed all checks was rejected at fill
   ('השתנה לפני המילוי', 14 in 6 min) because the fill re-read (coins-v2) has no `program` field and valid() required 'pump'.
   validFill() accepts a missing field (the listing already proved it), rejects only a present wrong one. 0 trades before this.
+- 2026-10-22 ~16:30 UTC meme desk MEME.minRise 0.08 -> 0.05 (owner). Still 0 trades after the fill fix; near misses -46..+4%.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the
