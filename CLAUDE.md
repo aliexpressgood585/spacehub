@@ -826,6 +826,14 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   at peak $1,108 the floor moves $954 -> $976; stake unchanged ($33 = 3% of equity, room/3 = $44). A true 70% lock of the
   profit (floor = start + 0.7 x gain = $1,076) was offered and declined: it would cut the stake to ~$11. Live since z 2.0:
   330 closes, 322 W, +$147, +2.16%/$, CLV +1.9c t 2.4. tests/pmc.test.ts 32/32.
+- 2026-10-22 "ממים חיים" (owner: a realistic live demo desk for new Solana meme coins, "enjoy it from the first moment"). PAPER
+  $1,000: shared/meme.ts (rules + constant-product fill maths), scripts/meme-desk.ts (~10 s loop), .github/workflows/meme-desk.yml
+  (cron :12, own concurrency group, meme/state.json on pm-desk-data), page trading-app/memes.html (live curve marks every 3 s).
+  Data: pump.fun frontend API (coins list + coins-v2/<mint>), DexScreener after graduation; no account, no key. Rule (DEMO, NOT
+  tested): pump.fun-program SOL-quoted coins, age 1-120 min, curve progress 15-80%, market cap +12% vs a 30-180 s old snapshot,
+  traded in the last 60 s, has a social link; 2% of equity, <= 10 open, exit +50% / -30% / 30 min. Realism: every fill re-reads
+  the coin ~2 s after the decision (delay cost stored per trade), pump fee 1.25%/side, 0.001 SOL tx fee, own size moves the curve;
+  not modelled: front-running bots. Owner was told plainly it is unproven and the first weeks are a measurement.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the
