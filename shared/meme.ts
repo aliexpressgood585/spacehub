@@ -6,8 +6,9 @@
 // coins (fixed supply, no freeze authority). NOT a proven strategy: the entry rule is a momentum demo, measured live.
 
 export const MEME = {
+  era: 2,                    // v2 reset 2026-10-23 (owner): $1,000 again, runner exits; v1 archived as meme/state-v1.json
   startCash: 1000,
-  stakeFrac: 0.02,           // 2% of equity per entry
+  stakeFrac: 0.01,           // 1% of equity per entry (v1: 2%) — a lottery-ticket stake: most entries lose
   maxOpen: 10,
   maxEntriesPerCycle: 2,
   curveFee: 0.0125,          // pump.fun bonding-curve fee per side (protocol + creator), conservative
@@ -21,8 +22,12 @@ export const MEME = {
   snapMinS: 30, snapMaxS: 180,
   maxIdleS: 60,              // last trade at most 60 s ago
   needSocial: true,          // twitter / telegram / website present
-  // exits
-  tp: 0.5, sl: -0.3, maxHoldMin: 30,
+  // exits — RUNNER (v2): sell half at +100% so the stake is back, let the other half ride with a trailing stop
+  halfAt: 1.0,               // +100% on the position -> sell half
+  sl: -0.3,                  // stop before the half is sold (fills where the price lands: gaps measured at ~-46% in v1)
+  trail: 0.3,                // the riding half exits 30% below its best value
+  maxHoldMin: 30,            // no +100% within 30 min -> out
+  runnerMaxHoldMin: 1440,    // the riding half is closed after 24 h at the latest
 } as const
 
 export type Curve = { vS: number; vT: number; rT: number }      // virtual SOL / token reserves (raw units), real tokens left
@@ -61,9 +66,14 @@ export function entryCheck(c: Coin, past: number | undefined, now: number) {
   ]
   return { ok: checks.every((x) => x.ok), checks, rise, prog }
 }
-export function exitReason(pnlPct: number, heldMin: number): string | null {
-  if (pnlPct >= MEME.tp) return 'TP'
-  if (pnlPct <= MEME.sl) return 'SL'
-  if (heldMin >= MEME.maxHoldMin) return 'TIME'
-  return null
+// v2 runner. rem = return of the tokens still held vs their share of the cost; peak = best rem seen; half = half already sold.
+// Returns 'HALF' (sell half), 'SL' / 'TIME' (close all before the half), 'TRAIL' / 'TIME' (close the riding half) or null.
+export function runnerExit(rem: number, peak: number, heldMin: number, half: boolean): 'HALF' | 'SL' | 'TRAIL' | 'TIME' | null {
+  if (!half) {
+    if (rem >= MEME.halfAt) return 'HALF'
+    if (rem <= MEME.sl) return 'SL'
+    return heldMin >= MEME.maxHoldMin ? 'TIME' : null
+  }
+  if (1 + rem <= (1 + peak) * (1 - MEME.trail)) return 'TRAIL'
+  return heldMin >= MEME.runnerMaxHoldMin ? 'TIME' : null
 }

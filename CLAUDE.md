@@ -900,6 +900,19 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   180 min: IS +9.0% t1.8 / OOS +10.6% t1.8 — but ONLY if the stop fills exactly at -20% inside a crash minute. Stop filled at that
   minute's close: -12.5%/trade; at its low: -15.3%; entry 3 min late instead of 1: +1.9% (IS -0.8). Live desk stops filled at -46%
   vs a -30% stop, so the level-fill assumption is the optimistic one. REJECTED; nothing built.
+- 2026-10-23 meme desk v2 RESET + RUNNER EXITS (owner: "reset to $1,000, review every mistake, 97% wins, catch the coins that jump
+  100-1000% and be in them, profits always beat losses"). v1 (10-22 13:40 -> 10-23): 114 closed, 26 TP / 73 SL / 15 TIME, realised
+  -$358, cash $577 + 5 open -> archived ONCE as meme/state-v1.json on pm-desk-data by scripts/meme-desk.ts on the first cycle of era 2
+  (MEME.era; paths in progress + snapshots carry over). Mistakes found over v1: no tested edge before trading; entry rule loosened 4
+  times on zero-trade complaints (progress 15->5%, rise 12->8->5%, age 1->0.5 min); stops gap (-46% fills vs -30%); two silent fill
+  bugs + a silent feed stall; 2% stakes on a negative rule. MEASURED before building (backtest/research/meme_runner.py ->
+  status/meme-runner.txt, same recorded paths/costs): after an entry signal only 14-18% of coins ever reach +100%, 7-9% +200%,
+  4-6% +300%, ~1.2% +1000% within 65 min; a 97% win rate does not exist here (target +3% / stop -90% wins 45%, every target/stop
+  pair -8..-13%/trade). Runner (half at +100%, rest trails 30%) IS -13..-16% / OOS -16..+1%: NOT profitable either. Built anyway as
+  the owner's demo, at HALF the old stake: MEME.stakeFrac 0.02 -> 0.01, runnerExit() (HALF at +100% = stake back, SL -30% / 30 min
+  before that, the riding half trails 30% below its peak, 24 h cap), meme-core sells half via markSol(t, tokens/2) (banked_sol /
+  banked_usd / part on the trade; pnl includes the banked half). memes.html shows the half sale, the trail and the measured odds.
+  tests/meme.test.ts 15/15. Entry rule unchanged. Recommended to the owner again: observe-only until a rule passes.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the

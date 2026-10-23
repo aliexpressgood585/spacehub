@@ -1,0 +1,31 @@
+coins 5885; IS before 1792689003000 (60/40 by creation time)
+
+A. after the entry signal, share of coins whose price later reaches (within the recorded 65 min):
+  mom      n  526  x1 100.0%  x2  16.5%  x3   8.7%  x4   5.5%  x11   1.3%   (x2 = +100%, x11 = +1000%)
+  cross30  n  692  x1 100.0%  x2  17.8%  x3   8.2%  x4   5.5%  x11   1.2%   (x2 = +100%, x11 = +1000%)
+  early    n 1128  x1 100.0%  x2  13.9%  x3   7.2%  x4   4.2%  x11   1.2%   (x2 = +100%, x11 = +1000%)
+
+B. target / stop grid on the 'early' entry (all coins, both halves): can the win rate reach 97%?
+  target +    3% stop -90%: n1128 WR 45% mean  -8.2% t -7.7
+  target +    5% stop -90%: n1128 WR 52% mean  -8.2% t -7.5
+  target +    5% stop -50%: n1128 WR 51% mean  -8.2% t -8.0
+  target +   10% stop -50%: n1128 WR 46% mean  -8.5% t -7.8
+  target +   20% stop -30%: n1128 WR 37% mean  -8.8% t -7.7
+  target +   50% stop -30%: n1128 WR 25% mean -10.1% t -7.0
+  target +  100% stop -30%: n1128 WR 17% mean -12.6% t -7.5
+  target +  200% stop -30%: n1128 WR 13% mean -13.1% t -5.7
+  target + 1000% stop -30%: n1128 WR 12% mean -13.4% t -3.5
+
+C. RUNNER: half off at +100% (stake back), rest trails from its peak; stop before that. IS | OOS
+  mom      stop -30% trail 30%:  IS n 342 WR 22% mean -13.1% t -4.2 | OOS n 184 WR 16% mean -15.2% t -2.3
+  mom      stop -30% trail 50%:  IS n 342 WR 22% mean -14.3% t -4.8 | OOS n 184 WR 16% mean -15.8% t -2.5
+  mom      stop -50% trail 30%:  IS n 342 WR 24% mean -13.0% t -3.7 | OOS n 184 WR 18% mean -13.8% t -1.9
+  mom      stop -50% trail 50%:  IS n 342 WR 24% mean -14.1% t -4.2 | OOS n 184 WR 18% mean -15.0% t -2.1
+  cross30  stop -30% trail 30%:  IS n 445 WR 17% mean -14.0% t -4.7 | OOS n 247 WR 27% mean  +1.1% t +0.2
+  cross30  stop -30% trail 50%:  IS n 445 WR 17% mean -14.9% t -5.0 | OOS n 247 WR 27% mean  -0.9% t -0.2
+  cross30  stop -50% trail 30%:  IS n 445 WR 19% mean -14.2% t -4.4 | OOS n 247 WR 28% mean  -0.9% t -0.2
+  cross30  stop -50% trail 50%:  IS n 445 WR 19% mean -15.0% t -4.7 | OOS n 247 WR 28% mean  -3.2% t -0.6
+  early    stop -30% trail 30%:  IS n 722 WR 16% mean -14.8% t -6.7 | OOS n 406 WR 19% mean  -8.8% t -1.9
+  early    stop -30% trail 50%:  IS n 722 WR 16% mean -15.5% t -7.1 | OOS n 406 WR 19% mean -10.5% t -2.3
+  early    stop -50% trail 30%:  IS n 722 WR 18% mean -14.7% t -6.2 | OOS n 406 WR 19% mean -10.9% t -2.3
+  early    stop -50% trail 50%:  IS n 722 WR 18% mean -15.6% t -6.6 | OOS n 406 WR 19% mean -12.8% t -2.7

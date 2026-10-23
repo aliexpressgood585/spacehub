@@ -4,7 +4,7 @@
 // Two data sources with one shape (pump.fun's coin object): `pumpSource` (pump.fun REST) and `feedSource` (the free
 // PumpPortal + Solana RPC feed written by scripts/meme-feed.ts — used where pump.fun answers 403, e.g. GitHub runners).
 import fs from 'node:fs'
-import { MEME, buyTokens, sellSol, dexSellSol, entryCheck, exitReason, progressOf, type Coin, type Curve } from '../shared/meme.ts'
+import { MEME, buyTokens, sellSol, dexSellSol, entryCheck, runnerExit, progressOf, type Coin, type Curve } from '../shared/meme.ts'
 import { bondingCurveOf, getCurves } from '../shared/solana.ts'
 
 const PF = 'https://frontend-api-v3.pump.fun'
@@ -94,7 +94,7 @@ async function dex(mint: string) {
 
 
 export function freshState(): any {
-  return { start_cash: MEME.startCash, cash: MEME.startCash, rules: MEME, trades: [], equity: [], decisions: [], snaps: {}, next_id: 1, sol_usd: null }
+  return { era: MEME.era, era_started: now(), start_cash: MEME.startCash, cash: MEME.startCash, rules: MEME, trades: [], equity: [], decisions: [], snaps: {}, next_id: 1, sol_usd: null }
 }
 
 // one cycle; `appendPaths(day, lines)` receives finished research paths
@@ -105,12 +105,12 @@ const decisions: any[] = []
 const note: any = { at: now() }
 
 // value of an open position now (SOL), from the curve or, once graduated, from the DEX pool
-async function markSol(t: any): Promise<{ sol: number; px: number; src: string; x?: any } | null> {
+async function markSol(t: any, tokens = t.tokens): Promise<{ sol: number; px: number; src: string; x?: any } | null> {
   const x = await one(t.mint); if (!x) return null
   if (+x.usd_market_cap > 0) st.sol_usd = solUsdOf(x) || st.sol_usd
-  if (!x.complete) { const c = readCurve(x, t.k, t.rt_off); if (!c) return null; return { sol: Math.max(0, sellSol(c, t.tokens) - MEME.txFeeSol), px: c.vS / c.vT, src: 'curve', x } }
+  if (!x.complete) { const c = readCurve(x, t.k, t.rt_off); if (!c) return null; return { sol: Math.max(0, sellSol(c, tokens) - MEME.txFeeSol), px: c.vS / c.vT, src: 'curve', x } }
   const d = await dex(t.mint); if (!d) return { sol: 0, px: 0, src: 'graduated-no-pool', x }
-  return { sol: Math.max(0, dexSellSol(d.px, d.quote, t.tokens) - MEME.txFeeSol), px: d.px, src: d.dexId, x }
+  return { sol: Math.max(0, dexSellSol(d.px, d.quote, tokens) - MEME.txFeeSol), px: d.px, src: d.dexId, x }
 }
 
 try {
@@ -120,16 +120,30 @@ try {
   let openUsd = 0
   for (const t of open) {
     const m = await markSol(t); if (!m) { openUsd += (t.last_sol ?? 0) * (st.sol_usd ?? 0); continue }
-    const pnl = m.sol / t.cost_sol - 1, held = (Date.now() - Date.parse(t.opened_at)) / 60_000
-    t.last_sol = m.sol; t.last_px = m.px; t.src = m.src; t.pnl_pct = pnl; t.marked_at = now()
+    // v2 runner: rem = return of the tokens still held vs their share of the cost (part = 1, or 0.5 after the half sale)
+    const part = t.part ?? 1, banked = t.banked_sol ?? 0, held = (Date.now() - Date.parse(t.opened_at)) / 60_000
+    const rem = m.sol / (t.cost_sol * part) - 1
+    t.peak = Math.max(t.peak ?? rem, rem)
+    t.last_sol = m.sol; t.last_px = m.px; t.src = m.src; t.pnl_pct = (m.sol + banked) / t.cost_sol - 1; t.marked_at = now()
     if (m.x && (m.x.complete || +m.x.real_sol_reserves > 0)) t.progress = m.x.complete ? 1 : progressOf(+m.x.real_sol_reserves / 1e9)
-    const why = exitReason(pnl, held)
+    const why = runnerExit(rem, t.peak, held, part < 1)
     if (!why) { openUsd += m.sol * (st.sol_usd ?? 0); continue }
     await sleep(fillDelayMs)
+    if (why === 'HALF') {                       // sell half into the curve/pool as it is now; the stake comes back
+      const h = (await markSol(t, t.tokens / 2)) ?? null
+      if (!h) { openUsd += m.sol * (st.sol_usd ?? 0); continue }
+      const usd = h.sol * (st.sol_usd ?? 0)
+      Object.assign(t, { tokens: t.tokens / 2, part: part / 2, banked_sol: banked + h.sol, banked_usd: (t.banked_usd ?? 0) + usd,
+        half_at: now(), half_px: h.px, half_rem: h.sol / (t.cost_sol * part / 2) - 1, peak: 0 })
+      st.cash += usd
+      decisions.push({ ts: now(), mint: t.mint, symbol: t.symbol, decision: 'SELL', reason: 'HALF', usd })
+      openUsd += Math.max(0, m.sol - h.sol) * (st.sol_usd ?? 0)
+      continue
+    }
     const f = (await markSol(t)) ?? m
     const usd = f.sol * (st.sol_usd ?? 0)
     Object.assign(t, { status: 'CLOSED', closed_at: now(), exit_sol: f.sol, exit_px: f.px, exit_src: f.src, exit_reason: why,
-      exit_usd: usd, pnl: usd - t.cost_usd, pnl_pct: f.sol / t.cost_sol - 1, decided_pnl_pct: pnl })
+      exit_usd: usd, pnl: usd + (t.banked_usd ?? 0) - t.cost_usd, pnl_pct: (f.sol + banked) / t.cost_sol - 1, decided_pnl_pct: t.pnl_pct })
     st.cash += usd
     decisions.push({ ts: now(), mint: t.mint, symbol: t.symbol, decision: 'SELL', reason: why, pnl: t.pnl })
   }

@@ -14,7 +14,7 @@ const pct = (v: number | null | undefined) => (v == null || !isFinite(v) ? '—'
 const col = (v: number) => (v > 0 ? '#3ddc97' : v < 0 ? '#ff6b6b' : '#c9d4e0')
 const il = (ts: string) => new Date(ts).toLocaleTimeString('he-IL', { timeZone: 'Asia/Jerusalem', hour12: false })
 const ago = (ts?: string) => (ts ? `${Math.max(0, Math.round((Date.now() - Date.parse(ts)) / 1000))} שנ׳` : '—')
-const REASON: Record<string, string> = { TP: 'יעד רווח', SL: 'סטופ', TIME: 'זמן' }
+const REASON: Record<string, string> = { TP: 'יעד רווח', SL: 'סטופ', TIME: 'זמן', TRAIL: 'סטופ נגרר', HALF: 'מכירת חצי (+100%)' }
 
 function App() {
   const [st, setSt] = useState<J>(null), [live, setLive] = useState<Record<string, J>>({}), [, tick] = useState(0)
@@ -59,12 +59,12 @@ function App() {
       </div>
       <div style={card}><b>פוזיציות פתוחות</b>
         {!open.length && <div style={{ color: '#8fa3b8', marginTop: 6 }}>אין כרגע. הבוט סורק כל כמה שניות וקונה רק מטבע שעולה חזק עכשיו.</div>}
-        {open.map((t: J) => { const v = val(t), p = v.sol / t.cost_sol - 1, held = (Date.now() - Date.parse(t.opened_at)) / 60000
+        {open.map((t: J) => { const v = val(t), p = (v.sol + (t.banked_sol ?? 0)) / t.cost_sol - 1, held = (Date.now() - Date.parse(t.opened_at)) / 60000
           return <a key={t.id} href={`https://pump.fun/coin/${t.mint}`} target="_blank" style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '8px 0', borderTop: '1px solid #1d2a40', color: 'inherit', textDecoration: 'none' }}>
             {t.image && <img src={t.image} width={36} height={36} style={{ borderRadius: 8, objectFit: 'cover' }} />}
-            <div style={{ flex: 1 }}><b>{t.symbol}</b> <span style={{ color: '#8fa3b8', fontSize: 12 }}>{t.name} · עקומה {Math.round((t.progress ?? 0) * 100)}% · {held.toFixed(0)}/{R.maxHoldMin} דק׳ · מחיר {v.src}</span>
-              <div style={{ fontSize: 12, color: '#8fa3b8' }}>השקעה {usd(t.cost_usd)} · יעד {pct(R.tp)} · סטופ {pct(R.sl)} · עלות השהיה בכניסה {pct(t.delay_cost)}</div></div>
-            <div style={{ textAlign: 'left' }}><div style={{ fontWeight: 700, color: col(p) }}>{pct(p)}</div><div style={{ fontSize: 12 }}>{usd(v.sol * solUsd)}</div></div></a> })}
+            <div style={{ flex: 1 }}><b>{t.symbol}</b> <span style={{ color: '#8fa3b8', fontSize: 12 }}>{t.name} · עקומה {Math.round((t.progress ?? 0) * 100)}% · {held.toFixed(0)}/{t.part < 1 ? R.runnerMaxHoldMin : R.maxHoldMin} דק׳ · מחיר {v.src}</span>
+              <div style={{ fontSize: 12, color: '#8fa3b8' }}>השקעה {usd(t.cost_usd)} · {t.part < 1 ? `חצי נמכר (${usd(t.banked_usd)}) · החצי השני רוכב עם סטופ נגרר ${pct(-(R.trail ?? 0))} מהשיא` : `מכירת חצי ב־${pct(R.halfAt)} · סטופ ${pct(R.sl)}`} · עלות השהיה בכניסה {pct(t.delay_cost)}</div></div>
+            <div style={{ textAlign: 'left' }}><div style={{ fontWeight: 700, color: col(p) }}>{pct(p)}</div><div style={{ fontSize: 12 }}>{usd((v.sol + (t.banked_sol ?? 0)) * solUsd)}</div></div></a> })}
       </div>
       <div style={card}><b>עסקאות שנסגרו</b>
         {closed.slice(0, 50).map((t: J) => <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderTop: '1px solid #1d2a40', fontSize: 13 }}>
@@ -73,11 +73,12 @@ function App() {
       </div>
       <div style={card}><b>החלטות אחרונות</b>
         {(st.decisions ?? []).slice(0, 25).map((d: J, i: number) => <div key={i} style={{ fontSize: 12.5, padding: '4px 0', borderTop: '1px solid #1d2a40', color: d.decision === 'skip' ? '#8fa3b8' : '#e6edf5' }}>
-          {il(d.ts)} · <b>{d.symbol}</b> · {d.decision === 'BUY' ? 'קנייה' : d.decision === 'SELL' ? 'מכירה' : 'דילוג'} · {d.reason}{d.pnl != null ? ` · ${usd(d.pnl)}` : ''}</div>)}
+          {il(d.ts)} · <b>{d.symbol}</b> · {d.decision === 'BUY' ? 'קנייה' : d.decision === 'SELL' ? 'מכירה' : 'דילוג'} · {REASON[d.reason] ?? d.reason}{d.pnl != null ? ` · ${usd(d.pnl)}` : ''}</div>)}
       </div>
       <div style={{ ...card, fontSize: 12.5, color: '#8fa3b8', lineHeight: 1.6 }}>
         <b style={{ color: '#e6edf5' }}>איך זה עובד:</b> מטבעות pump.fun חדשים (גיל {R.minAgeMin}–{R.maxAgeMin} דק׳, {(R.minProgress ?? 0) * 100}–{(R.maxProgress ?? 0) * 100}% בדרך לבורסה, עם רשת חברתית) שעלו ≥ {(R.minRise ?? 0) * 100}% בשתי הדקות האחרונות.
-        קנייה ב־{(R.stakeFrac ?? 0) * 100}% מההון. יציאה: {pct(R.tp)} / {pct(R.sl)} / {R.maxHoldMin} דק׳.
+        קנייה ב־{(R.stakeFrac ?? 0) * 100}% מההון. יציאה ("רץ"): ב־{pct(R.halfAt)} נמכר חצי וההשקעה חוזרת, החצי השני רוכב עד שהוא נופל {pct(-(R.trail ?? 0))} מהשיא (עד {Math.round((R.runnerMaxHoldMin ?? 0) / 60)} שעות); לפני כן סטופ {pct(R.sl)} או {R.maxHoldMin} דק׳ בלי +100%.
+        <b style={{ color: '#e6edf5' }}> מה הנתונים אומרים:</b> במחקר על 5,885 מטבעות רק ~14-18% הגיעו ל־+100% אחרי הכניסה ו־~1.2% ל־+1,000%; אחוז הצלחה של 97% לא קיים כאן (גם יעד +3% מנצח רק ב־45%), והכלל הזה הפסיד בממוצע. החשבון הקודם ($1,000 → ~$577) נשמר בארכיון.
         <b style={{ color: '#e6edf5' }}> התאמה למציאות:</b> כל קנייה ומכירה מתבצעת לפי מצב העקומה 2 שניות אחרי ההחלטה (כמו השהיה אמיתית), עם עמלת pump.fun 1.25% לכל צד, עמלת רשת, והשפעת הגודל שלנו על המחיר. אחרי מעבר לבורסה – מחיר הבריכה מ־DexScreener.
         לא מדומה: בוטים שמקדימים אותנו. זו אסטרטגיה לא מוכחת – הדמו מודד אותה.
       </div>
