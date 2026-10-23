@@ -6,20 +6,22 @@
 //                per call) — exact reserves, so a "trade" is any change in the curve between two reads
 //   socials    : the coin's metadata JSON (uri from the create event)
 //   SOL / USD  : data-api.binance.vision, Coinbase fallback
+//   creator    : the creator's own token account (getMultipleAccounts, every 10 s): % of supply still held — research data,
+//                did the creator sell? (top-holder lists need getTokenLargestAccounts, which the free RPC refuses: 429)
 // Run: node --experimental-strip-types scripts/meme-feed.ts <out.json> [state.json to seed recent coins from]
 import fs from 'node:fs'
-import { bondingCurveOf, getCurves } from '../shared/solana.ts'
+import { bondingCurveOf, getCurves, getAccounts, ataOf, tokenAmount } from '../shared/solana.ts'
 
 const OUT = process.argv[2] ?? '/tmp/meme-feed.json'
 const SEED = process.argv[3]
-const TRACK_MIN = 125, HOT_MS = 5 * 60_000, COLD_POLL_MS = 60_000, POLL_MS = 2000
+const TRACK_MIN = 125, HOT_MS = 5 * 60_000, COLD_POLL_MS = 60_000, POLL_MS = 2000, DEV_POLL_MS = 10_000, SUPPLY = 1e15
 const now = () => Date.now()
 
 type C = { mint: string; symbol: string; name: string; uri?: string; image?: string; curve: string; created: number; creator?: string
   pool: string; vS: number; vT: number; rT: number; rS: number; complete: boolean; lastTrade: number; lastPoll: number
-  social?: boolean; meta?: 'ok' | 'fail'; metaTries: number; metaAt?: number }
+  social?: boolean; meta?: 'ok' | 'fail'; metaTries: number; metaAt?: number; devInit?: number; dev?: number; devAt?: number; devAta?: string }
 const coins = new Map<string, C>()
-const stat = { ws_open: false, ws_msgs: 0, creates: 0, rpc_ok: 0, rpc_err: 0, last_rpc_error: '', sol_usd: 0, sol_at: 0, started: now() }
+const stat = { ws_open: false, ws_msgs: 0, creates: 0, rpc_ok: 0, rpc_err: 0, dev_ok: 0, dev_err: 0, last_rpc_error: '', sol_usd: 0, sol_at: 0, started: now() }
 
 // seed: coins the recorder was following when the previous runner stopped (age <= 65 min), so a restart keeps context
 try {
@@ -44,7 +46,7 @@ function connect() {
       coins.set(d.mint, { mint: d.mint, symbol: d.symbol, name: d.name, uri: d.uri, curve: d.bondingCurveKey || bondingCurveOf(d.mint),
         created: T, creator: d.traderPublicKey, pool: d.pool ?? 'pump',
         vS: (+d.vSolInBondingCurve || 0) * 1e9, vT: (+d.vTokensInBondingCurve || 0) * 1e6, rT: 0, rS: 0, complete: false,
-        lastTrade: T, lastPoll: 0, metaTries: 0 })
+        lastTrade: T, lastPoll: 0, metaTries: 0, devInit: +d.initialBuy > 0 ? +d.initialBuy * 1e6 / SUPPLY * 100 : 0 })
     } else if (d.mint && (d.txType === 'migrate' || d.txType === 'migration')) {
       const c = coins.get(d.mint); if (c) c.complete = true
     }
@@ -69,6 +71,18 @@ async function poll() {
     })
     stat.rpc_ok++
   } catch (e) { stat.rpc_err++; stat.last_rpc_error = String(e).slice(0, 120) }
+}
+
+// creator holdings: one batched read of the creators' token accounts for live coins, every DEV_POLL_MS
+let devLast = 0
+async function devPoll() {
+  const T = now(); if (T - devLast < DEV_POLL_MS) return; devLast = T
+  const due = [...coins.values()].filter((c) => c.creator && !c.complete && (T - c.created < HOT_MS || T - c.lastTrade < HOT_MS))
+  try {
+    const raw = await getAccounts(due.map((c) => (c.devAta ??= ataOf(c.creator!, c.mint))))
+    due.forEach((c, i) => { c.dev = +(tokenAmount(raw[i]) / SUPPLY * 100).toFixed(2); c.devAt = T })
+    stat.dev_ok++
+  } catch (e) { stat.dev_err++ }
 }
 
 let metaBusy = 0
@@ -96,13 +110,13 @@ function write() {
   const T = now(), list: any[] = []
   for (const c of coins.values()) if (c.vT > 0 || c.complete) list.push({ mint: c.mint, symbol: c.symbol, name: c.name, image: c.image,
     created: c.created, creator: c.creator, pool: c.pool, vS: c.vS, vT: c.vT, rT: c.rT, rS: c.rS, complete: c.complete,
-    lastTrade: c.lastTrade, social: c.social ?? false, meta: c.meta ?? null })
+    lastTrade: c.lastTrade, social: c.social ?? false, meta: c.meta ?? null, devInit: c.devInit ?? null, dev: c.dev ?? null })
   const body = JSON.stringify({ at: T, sol_usd: stat.sol_usd, sol_at: stat.sol_at, stat: { ...stat, tracked: coins.size }, coins: list })
   fs.writeFileSync(OUT + '.tmp', body); fs.renameSync(OUT + '.tmp', OUT)
 }
 
 await solPrice(); setInterval(solPrice, 30_000)
 let busy = false
-setInterval(async () => { if (busy) return; busy = true; try { await poll(); metadata() } finally { busy = false } }, POLL_MS)
+setInterval(async () => { if (busy) return; busy = true; try { await poll(); metadata(); await devPoll() } finally { busy = false } }, POLL_MS)
 setInterval(write, 1000)
 setInterval(() => console.log(JSON.stringify({ t: new Date().toISOString(), tracked: coins.size, ...stat })), 60_000)

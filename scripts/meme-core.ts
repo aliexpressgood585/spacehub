@@ -56,7 +56,7 @@ function pumpShape(c: any, solUsd: number) {
   return { mint: c.mint, symbol: c.symbol, name: c.name, image_uri: c.image, created_timestamp: c.created, last_trade_timestamp: c.lastTrade,
     market_cap: mc, usd_market_cap: solUsd > 0 ? mc * solUsd : 0, virtual_sol_reserves: c.vS, virtual_token_reserves: c.vT,
     real_token_reserves: c.rT, real_sol_reserves: c.rS, program: c.pool === 'pump' ? 'pump' : c.pool, complete: !!c.complete,
-    twitter: c.social ? 'yes' : null, creator: c.creator }
+    twitter: c.social ? 'yes' : null, creator: c.creator, dev_pct: c.dev ?? null, dev_init_pct: c.devInit ?? null }
 }
 export function feedSource(file: string, maxAgeMs = 20_000): Source {
   let last: any = null
@@ -147,17 +147,19 @@ try {
   note.scanned = seen.size
 
   // 2b. RESEARCH RECORDER (observation only): the market-cap path of every coin in its first PATH_MIN minutes, one point per
-  // change (seconds since creation, mc in SOL, real SOL in the curve, graduated flag). Finished paths (coin older than
+  // change (seconds since creation, mc in SOL, real SOL in the curve, graduated flag, creator's % of supply when the feed
+  // knows it). Finished paths (coin older than
   // PATH_MIN) are appended to meme/paths-YYYY-MM-DD.jsonl for offline rule research. Coins absent from the listings had no
   // trade, so their price did not move.
   const PATH_MIN = 65, rec = (st.paths ??= {})
   for (const x of seen.values()) {
     if (!x?.created_timestamp || x.program !== 'pump') continue
     const age = (T - x.created_timestamp) / 1000; if (age > PATH_MIN * 60) continue
-    const r = (rec[x.mint] ??= { m: x.mint, s: x.symbol, c: x.created_timestamp, cr: x.creator, so: !!(x.twitter || x.telegram || x.website), p: [] })
-    const pt = [Math.round(age), +(+x.market_cap).toFixed(2), +((+x.real_sol_reserves || 0) / 1e9).toFixed(2), x.complete ? 1 : 0]
+    const r = (rec[x.mint] ??= { m: x.mint, s: x.symbol, c: x.created_timestamp, cr: x.creator, so: !!(x.twitter || x.telegram || x.website), di: x.dev_init_pct ?? null, p: [] })
+    const pt: any[] = [Math.round(age), +(+x.market_cap).toFixed(2), +((+x.real_sol_reserves || 0) / 1e9).toFixed(2), x.complete ? 1 : 0]
+    if (x.dev_pct != null) pt.push(+(+x.dev_pct).toFixed(1))
     const last = r.p[r.p.length - 1]
-    if (r.p.length < 400 && (!last || last[1] !== pt[1] || last[3] !== pt[3])) r.p.push(pt)
+    if (r.p.length < 400 && (!last || last[1] !== pt[1] || last[3] !== pt[3] || last[4] !== pt[4])) r.p.push(pt)
   }
   const done: string[] = []
   for (const [k, r] of Object.entries<any>(rec)) if (T - r.c > PATH_MIN * 60_000) { done.push(JSON.stringify(r)); delete rec[k] }

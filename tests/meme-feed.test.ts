@@ -1,7 +1,7 @@
 // "ממים חיים" free feed: base58, the pump.fun bonding-curve PDA, curve account parsing, and the feed -> pump.fun shape that
 // scripts/meme-core.ts trades on (offline; the PDA pairs were checked against pump.fun's own `bonding_curve` field).
 import fs from 'node:fs'
-import { b58decode, b58encode, bondingCurveOf, parseCurve, onCurve } from '../shared/solana.ts'
+import { b58decode, b58encode, bondingCurveOf, parseCurve, onCurve, ataOf, tokenAmount } from '../shared/solana.ts'
 import { feedSource } from '../scripts/meme-core.ts'
 let n = 0, bad = 0
 const ok = (c: boolean, m: string) => { n++; if (!c) { bad++; console.error('FAIL', m) } }
@@ -18,6 +18,11 @@ const c = parseCurve(buf.toString('base64'))!
 ok(c.vT === 1031577837841393 && c.vS === 31e9 && c.rT === 751677837841393 && c.rS === 1e9 && !c.complete, 'curve account layout')
 buf[48] = 1; ok(parseCurve(buf.toString('base64'))!.complete, 'complete flag')
 ok(parseCurve(Buffer.alloc(10).toString('base64')) === null, 'short account rejected')
+
+// creator token account: Token-2022 ATA, checked live 2026-10-23 (getTokenAccountsByOwner returned this pubkey)
+ok(ataOf('CxxcsDAobcZPeYgWUGfuXb4Via5QNm9xhdU96dUTKsfR', 'J7RUTWrCPSBRBpWstySowPZKMMKfybqgbcr5X9iQpump') === '7psQA8HDtLmmNpQKEq7UQkfMDJb2K1dh318Ee9Qvfj4S', 'creator ATA (Token-2022)')
+const acct = Buffer.alloc(170); acct.writeBigUInt64LE(17_376_518_166_910n, 64)
+ok(tokenAmount(acct.toString('base64')) === 17376518166910 && tokenAmount(null) === 0, 'token account amount; missing account = 0')
 
 const dir = fs.mkdtempSync('/tmp/memefeed-'), file = dir + '/feed.json', T = Date.now()
 fs.writeFileSync(file, JSON.stringify({ at: T, sol_usd: 100, coins: [

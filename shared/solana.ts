@@ -60,9 +60,9 @@ export function parseCurve(b64: string): CurveAcct | null {
 
 export const RPCS = ['https://api.mainnet-beta.solana.com', 'https://solana-rpc.publicnode.com']
 let rpcIx = 0
-// up to 100 accounts per call; rotates public endpoints on failure; null entries = account missing
-export async function getCurves(keys: string[]): Promise<(CurveAcct | null)[]> {
-  const out: (CurveAcct | null)[] = []
+// raw account data (base64) for up to 100 accounts per call; rotates public endpoints on failure; null = account missing
+export async function getAccounts(keys: string[]): Promise<(string | null)[]> {
+  const out: (string | null)[] = []
   for (let i = 0; i < keys.length; i += 100) {
     const chunk = keys.slice(i, i + 100); let err: any
     for (let a = 0; a < RPCS.length; a++) {
@@ -72,11 +72,23 @@ export async function getCurves(keys: string[]): Promise<(CurveAcct | null)[]> {
           body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getMultipleAccounts', params: [chunk, { encoding: 'base64' }] }) })
         if (!r.ok) throw new Error(`rpc ${r.status}`)
         const d: any = await r.json(); if (!d.result) throw new Error('rpc ' + JSON.stringify(d.error ?? d).slice(0, 80))
-        for (const v of d.result.value) out.push(v ? parseCurve(v.data[0]) : null)
+        for (const v of d.result.value) out.push(v ? v.data[0] : null)
         rpcIx = (rpcIx + a) % RPCS.length; err = null; break
       } catch (e) { err = e }
     }
     if (err) throw err
   }
   return out
+}
+export async function getCurves(keys: string[]): Promise<(CurveAcct | null)[]> {
+  return (await getAccounts(keys)).map((b) => (b ? parseCurve(b) : null))
+}
+
+// the creator's token account for a pump.fun coin (pump.fun mints with Token-2022; verified on a live coin 2026-10-23).
+// Its balance shows whether the creator still holds the coin or has sold. Missing account = holds nothing.
+export const ATA_PROGRAM = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL', TOKEN_2022 = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'
+export const ataOf = (owner: string, mint: string, program = TOKEN_2022) => findPda([b58decode(owner), b58decode(program), b58decode(mint)], ATA_PROGRAM)
+export function tokenAmount(b64: string | null): number {       // raw units; SPL and Token-2022 share the base layout
+  if (!b64) return 0
+  const b = Buffer.from(b64, 'base64'); return b.length >= 72 ? Number(b.readBigUInt64LE(64)) : 0
 }

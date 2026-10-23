@@ -882,6 +882,17 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   progress x lookback x TP/SL/time): best IS t 0.9 (none significant even in-sample), median IS -10.9%/trade, 49 positive in both
   halves (0.3%, small n), PASS 0. Live-like rule: IS -8.3% / OOS -12.3% per trade (live was -22.5%, so the backtest is optimistic).
   Caveats: one afternoon, pump.fun-listing coverage (top 150 by recent trade). Nothing deployed; recommended observe-only.
+- 2026-10-23 meme desk CREATOR HISTORY (owner "כן" to the three ideas): backtest/research/meme_creators.py -> status/meme-creators.txt,
+  same recorded paths (5,890 usable coins with complete mc, created <= 18:35 UTC 10-22), creator's PRIOR launches counted in time order
+  (no look-ahead; "first launch" = first seen in the recording, not ever). 3,571 wallets; 19 "factories" launched 2,775 coins (one 459).
+  Graduation rate: first launch 6.3% vs 0.7-1.1% for repeat creators (~6-9x) — a real descriptive difference. But the live
+  momentum rule stays negative in every bucket and both halves (first launch only IS -7.3% / OOS -10.8%/trade; skip 50+ prior
+  IS -8.3 / OOS -11.8 vs all -8.4 / -12.2). Creator history marks better coins, not a profitable entry. Not deployed.
+- 2026-10-23 meme feed CREATOR HOLDINGS (research data): scripts/meme-feed.ts reads each live coin's creator token account
+  (Token-2022 ATA, shared/solana.ts ataOf/tokenAmount/getAccounts, batched getMultipleAccounts every 10 s) -> dev % of supply,
+  plus the creator's initial buy from the PumpPortal create event. Recorded in paths: point[4] = creator % (when known), path.di =
+  initial %. Verified live: initial buy 1.74% / 9.75% == on-chain balance. Top-10 holder share is NOT possible on free RPC
+  (getTokenLargestAccounts -> 429 on every try). tests/meme-feed.test.ts 14/14. Observation only; no rule uses it yet.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the
