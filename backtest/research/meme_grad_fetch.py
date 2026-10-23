@@ -1,5 +1,5 @@
 # Fetch post-graduation price history for pump.fun coins that reached the end of the curve (recorded paths with the
-# graduated flag). GeckoTerminal public API (no key, ~30 calls/min): the coin's PumpSwap pool, then 1-minute OHLCV in USD
+# graduated flag). GeckoTerminal public API (no key; throttles hard — one call per 6 s avoids 429): the coin's PumpSwap pool, then 1-minute OHLCV in USD
 # for the coin (empty minutes are omitted by the API = no trade). Output: one JSON line per coin.
 # Usage: python3 meme_grad_fetch.py paths.jsonl out.jsonl
 import json, sys, time, urllib.request, os
@@ -23,7 +23,7 @@ if os.path.exists(sys.argv[2]): done = {json.loads(l)['m'] for l in open(sys.arg
 out = open(sys.argv[2], 'a')
 for i, p in enumerate(grad):
     if p['m'] in done: continue
-    d = get(f"{GT}/tokens/{p['m']}/pools"); time.sleep(2.1)
+    d = get(f"{GT}/tokens/{p['m']}/pools"); time.sleep(6)
     pools = [x for x in (d or {}).get('data', []) if x['relationships']['dex']['data']['id'] == 'pumpswap']
     rec = {'m': p['m'], 's': p['s'], 'c': p['c'], 'grad_age_s': next(q[0] for q in p['p'] if q[3]), 'bars': []}
     if pools:
@@ -31,7 +31,7 @@ for i, p in enumerate(grad):
         bars = []; before = None
         for _ in range(3):                                        # up to 3000 traded minutes
             u = f"{GT}/pools/{a['address']}/ohlcv/minute?aggregate=1&limit=1000&currency=usd&token={p['m']}" + (f"&before_timestamp={before}" if before else '')
-            o = get(u); time.sleep(2.1)
+            o = get(u); time.sleep(6)
             l = (o or {}).get('data', {}).get('attributes', {}).get('ohlcv_list', [])
             if not l: break
             bars += l; before = min(b[0] for b in l)
