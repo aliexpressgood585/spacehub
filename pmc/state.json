@@ -44,12 +44,12 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-23T00:02:12.285Z",
+ "last_scan": "2026-10-23T00:02:21.966Z",
  "last_note": {
-  "at": "2026-10-23T00:02:10.202Z",
+  "at": "2026-10-23T00:02:20.889Z",
   "windows": 4,
   "settled": 0,
-  "entered": 1
+  "entered": 0
  },
  "trades": [
   {
@@ -39150,8 +39150,8 @@
    "best_ask": 0.96,
    "opened_at": "2026-10-23T00:02:12.285Z",
    "status": "OPEN",
-   "mark_px": 0.95,
-   "mark_at": "2026-10-23T00:02:12.285Z",
+   "mark_px": 0.94,
+   "mark_at": "2026-10-23T00:02:21.311Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -39177,7 +39177,9 @@
     "z": 2.1956210547645774,
     "spot_open": 81416.09,
     "spot": 81364.64,
-    "sigma1s": 0.00002208160058299372
+    "sigma1s": 0.00002208160058299372,
+    "close_px": 0.945,
+    "close_at": "2026-10-23T00:02:21.311Z"
    }
   }
  ],
@@ -124131,8 +124133,10 @@
    "placed_at": "2026-10-22T23:58:31.240Z",
    "limit": 0.9,
    "taker_ask": 0.91,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "btc-updown-5m-1792713600",
@@ -124157,12 +124161,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2996,
+   "resolved": 2997,
    "filled": 1383,
-   "fill_rate": 0.4616154873164219,
+   "fill_rate": 0.46146146146146144,
    "wr": 0.8705712219812003,
    "ret": -0.057836778566161394,
-   "missed_wins": 1612,
+   "missed_wins": 1613,
    "missed_losses": 1
   },
   "late_exit": {
@@ -124321,8 +124325,8 @@
    "beat_close": 0.9592391304347826,
    "brier_entry": 0.033786993939214326,
    "brier_close": 0.002582654891304333,
-   "open_n": 0,
-   "open_clv_c": null
+   "open_n": 1,
+   "open_clv_c": -1.5000000000000013
   },
   "judged": {
    "n": 368,
@@ -124333,8 +124337,8 @@
    "beat_close": 0.9592391304347826,
    "brier_entry": 0.033786993939214326,
    "brier_close": 0.002582654891304333,
-   "open_n": 0,
-   "open_clv_c": null
+   "open_n": 1,
+   "open_clv_c": -1.5000000000000013
   }
  }
 }
