@@ -929,6 +929,12 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   so the projected share is 70-100% and the projected rate ~$700/day on $1,000. TREAT AS A FORECAST, NOT A RESULT: our quotes are
   virtual (real makers do not react to them), and the cost is adverse selection on fills (maker shadow without rewards lost
   5.8-9.8%/$). Judge only on the measured equity line (rewards minus trading P&L) over weeks.
+  REAL-MONEY GATE, pre-registered 2026-10-23 (owner asked "when can we go real"), all must hold on the paper desk:
+  (1) >= 14 days running; (2) total equity up AND trading P&L (equity - start - rewards) eats < 50% of rewards;
+  (3) >= 100 fills (adverse selection measured, not assumed); (4) no single day worse than -5%; (5) rewards spread over
+  >= 5 different markets (not one lucky pool). Then step 2 = a SMALL real test ($100-200, owner's own account, only where
+  Polymarket is legal for the owner) comparing ACTUAL paid rewards (daily at 00:00 UTC) with the paper estimate for the same
+  days; scale only if real >= ~50% of paper. The agent never connects keys or places real orders.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the
