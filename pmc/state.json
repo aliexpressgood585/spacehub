@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-23T00:02:31.607Z",
+ "last_scan": "2026-10-23T00:02:41.651Z",
  "last_note": {
-  "at": "2026-10-23T00:02:30.540Z",
+  "at": "2026-10-23T00:02:40.461Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -39151,7 +39151,7 @@
    "opened_at": "2026-10-23T00:02:12.285Z",
    "status": "OPEN",
    "mark_px": 0.98,
-   "mark_at": "2026-10-23T00:02:30.943Z",
+   "mark_at": "2026-10-23T00:02:40.967Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -39179,7 +39179,7 @@
     "spot": 81364.64,
     "sigma1s": 0.00002208160058299372,
     "close_px": 0.985,
-    "close_at": "2026-10-23T00:02:30.944Z"
+    "close_at": "2026-10-23T00:02:40.967Z"
    }
   }
  ],
@@ -74187,6 +74187,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-23T00:02:41.651Z",
+   "market_id": "6031448",
+   "question": "Ethereum Up or Down - October 22, 8:00PM-8:05PM ET",
+   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 00:00–00:05 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.91,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
    "ts": "2026-10-23T00:02:31.607Z",
    "market_id": "6031448",
    "question": "Ethereum Up or Down - October 22, 8:00PM-8:05PM ET",
@@ -76374,17 +76385,6 @@
    "price": 0.91,
    "decision": "BUY",
    "reason": "171 שנ׳ לסיום, מחיר 0.91 בטווח 90-98¢, 14.1 מניות ($13), עמלה $0.08"
-  },
-  {
-   "ts": "2026-10-22T22:34:01.631Z",
-   "market_id": "6028171",
-   "question": "Solana Up or Down - October 22, 6:30PM-6:35PM ET",
-   "question_he": "סולנה · עולה או יורד · 5 דקות · 22:30–22:35 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.96,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.34 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 549,
@@ -124151,7 +124151,9 @@
    "limit": 0.91,
    "taker_ask": 0.92,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-23T00:02:40.855Z",
+   "left_at_fill": 139
   }
  ],
  "study": {
