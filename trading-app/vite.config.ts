@@ -18,6 +18,7 @@ export default defineConfig({
         polycoins: 'polycoins.html',
         polynews: 'polynews.html',
         memes: 'memes.html',
+        polyrewards: 'polyrewards.html',
       },
     },
   },

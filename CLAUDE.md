@@ -913,6 +913,22 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   before that, the riding half trails 30% below its peak, 24 h cap), meme-core sells half via markSol(t, tokens/2) (banked_sol /
   banked_usd / part on the trade; pnl includes the banked half). memes.html shows the half sale, the trail and the measured odds.
   tests/meme.test.ts 15/15. Entry rule unchanged. LIVE 10:10 UTC: run 39936431802 (sha 18f079c5), era 2, cash $1,000, state-v1.json written. Recommended to the owner again: observe-only until a rule passes.
+- 2026-10-23 "פולי תגמולים" (owner: "find the way to make money and build a dashboard, Poly or coins, but truly profitable") —
+  Polymarket LIQUIDITY-REWARDS PAPER desk, $1,000. Polymarket pays makers a daily pool per market for resting orders near the
+  midpoint: clob.polymarket.com/rewards/markets/current = $156k/day over ~14,000 markets on 10-23 (top pools $500-2,000/day).
+  Score (docs market-makers/liquidity-rewards, verified): S = ((v-s)/v)^2 x size, s = cents from the size-cutoff-adjusted mid,
+  v = max spread, size >= min size; Q_min = max(min(Q1,Q2), max/3) for mid 0.10-0.90 else two-sided only; sampled each minute,
+  paid by share. YES and NO books mirror each other, so the YES book holds all competition. shared/pmr.ts (scoring, adjusted
+  mid, quote placement = join best bid/ask or half the band from mid, tape fills with queue ahead eaten first, YES/NO inventory
+  merged to $1), scripts/pmr-desk.ts (~15 s: fills from data-api trades since the quote went up, rewards = pool x our share of
+  the REAL book x elapsed time, re-quote with inventory cap 2x size and cash check, exit 36 h before the end / taker unwind;
+  markets re-selected every 20 min by expected reward per $ of capital, mid 0.15-0.85, >= 3 days to end, no games),
+  .github/workflows/pmr-desk.yml (cron :27, own concurrency group, pmr/state.json on pm-desk-data), page
+  trading-app/polyrewards.html (equity split into rewards vs trading P&L), tests/pmr.test.ts 28/28.
+  FIRST READ: many $100-250/day pools have NO qualifying competition (thin books, top levels 5-40 shares vs min size 100-200),
+  so the projected share is 70-100% and the projected rate ~$700/day on $1,000. TREAT AS A FORECAST, NOT A RESULT: our quotes are
+  virtual (real makers do not react to them), and the cost is adverse selection on fills (maker shadow without rewards lost
+  5.8-9.8%/$). Judge only on the measured equity line (rewards minus trading P&L) over weeks.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the

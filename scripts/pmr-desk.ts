@@ -1,0 +1,159 @@
+// pmr-desk — "פולי תגמולים": Polymarket LIQUIDITY-REWARDS PAPER desk ($1,000 demo on real books, rewards and trades).
+// Every cycle (~15 s, .github/workflows/pmr-desk.yml): for each selected market, (1) fill our virtual resting quotes from the real
+// trade tape since they went up (queue ahead of us at our price is eaten first), (2) credit rewards = the market's daily pool x
+// our share of the reward score in the REAL book x elapsed time, (3) re-quote at the best bid / best ask with inventory limits.
+// Markets are re-selected every PMR.rescanMin minutes by expected reward per $ of capital. State: pmr/state.json on the
+// pm-desk-data branch, read by trading-app polyrewards.html. PAPER ONLY: public GETs, never an order.
+// Run: node --experimental-strip-types scripts/pmr-desk.ts <state.json>
+import fs from 'node:fs'
+import { PMR, midOf, midAdj, share, quotePx, sizeAt, yesTrade, fillQuote, onBidFill, onAskFill, eligible, sizeFor, daysTo, type Book, type Quote } from '../shared/pmr.ts'
+
+const FILE = process.argv[2] ?? 'pmr/state.json'
+const GAMMA = 'https://gamma-api.polymarket.com', CLOB = 'https://clob.polymarket.com', DATA = 'https://data-api.polymarket.com'
+const H = { 'User-Agent': 'spacehub-paper/1.0' }
+const j = async (u: string, body?: unknown) => {
+  const r = await fetch(u, body ? { method: 'POST', headers: { ...H, 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : { headers: H })
+  if (!r.ok) throw new Error(`${r.status} ${u.slice(0, 80)}`); return r.json()
+}
+const arr = (x: unknown): any[] => { try { return Array.isArray(x) ? x : JSON.parse(String(x)) } catch { return [] } }
+async function books(tokens: string[]): Promise<Record<string, Book>> {
+  const out: Record<string, Book> = {}
+  for (let i = 0; i < tokens.length; i += 100) {
+    for (const b of await j(`${CLOB}/books`, tokens.slice(i, i + 100).map((t) => ({ token_id: t })))) {
+      const m = (l: any[]) => (l ?? []).map((x) => ({ price: +x.price, size: +x.size })).filter((x) => x.price > 0 && x.size > 0)
+      out[b.asset_id] = { bids: m(b.bids).sort((a, c) => c.price - a.price), asks: m(b.asks).sort((a, c) => a.price - c.price), tick: +b.tick_size || 0.01 }
+    }
+  }
+  return out
+}
+
+const NOW = Date.now(), iso = () => new Date().toISOString()
+const st: any = fs.existsSync(FILE) ? JSON.parse(fs.readFileSync(FILE, 'utf8'))
+  : { start_cash: PMR.startCash, cash: PMR.startCash, rules: PMR, markets: {}, closed: [], fills: [], decisions: [], equity: [], rewards: 0, started: iso(), last_scan: null, candidates: [] }
+st.rules = PMR
+const dec = (d: any) => st.decisions.unshift({ ts: iso(), ...d })
+const note: any = { at: iso() }
+
+// ---- 1. market selection (every PMR.rescanMin minutes) ----
+async function scan() {
+  const all: any[] = []; let cur = ''
+  for (let k = 0; k < 40; k++) {
+    const d = await j(`${CLOB}/rewards/markets/current${cur ? `?next_cursor=${cur}` : ''}`)
+    all.push(...d.data); cur = d.next_cursor
+    if (!cur || cur === 'LTE=' || !d.data.length) break
+  }
+  st.pool_total = Math.round(all.reduce((s, m) => s + (+m.total_daily_rate || 0), 0)); st.pool_markets = all.length
+  const top = all.sort((a, b) => (+b.total_daily_rate || 0) - (+a.total_daily_rate || 0)).slice(0, 400)
+  const meta: any[] = []
+  for (let i = 0; i < top.length; i += 40) meta.push(...await j(`${GAMMA}/markets?limit=100&${top.slice(i, i + 40).map((m) => `condition_ids=${m.condition_id}`).join('&')}`))
+  const rw = new Map(top.map((m) => [m.condition_id, m]))
+  const live = meta.filter((g) => !g.closed && g.active && g.acceptingOrders !== false && arr(g.clobTokenIds).length === 2 && !g.gameStartTime)
+  const bk = await books(live.map((g) => arr(g.clobTokenIds)[0]))
+  const budget = (equity() / PMR.maxMarkets)
+  const cands: any[] = []
+  for (const g of live) {
+    const r = rw.get(g.conditionId), b = bk[arr(g.clobTokenIds)[0]]
+    if (!r || !b?.bids[0] || !b.asks[0]) continue
+    const v = +r.rewards_max_spread, min = +r.rewards_min_size, rate = +r.total_daily_rate, mid = midAdj(b, min)
+    const why = eligible({ mid, end: g.endDate, spreadC: (b.asks[0].price - b.bids[0].price) * 100, v }, NOW)
+    if (why) continue
+    const q = quotePx(b, v, min), size = sizeFor(budget, q.bid, q.ask)
+    if (size < min) continue
+    const bidQ = { px: q.bid, size, queue: 0, at: 0 }, askQ = { px: q.ask, size, queue: 0, at: 0 }
+    const sh = share(b, v, min, bidQ, askQ), cap = size * (q.bid + 1 - q.ask)
+    cands.push({ cid: g.conditionId, id: g.id, q: g.question, slug: g.events?.[0]?.slug ?? g.slug, end: g.endDate, yes: arr(g.clobTokenIds)[0], no: arr(g.clobTokenIds)[1],
+      rate, v, min, mid: +mid.toFixed(4), share: +sh.toFixed(4), exp_day: +(rate * sh).toFixed(2), yld: +(rate * sh / cap).toFixed(4), vol24: Math.round(+g.volume24hr || 0) })
+  }
+  cands.sort((a, b) => b.yld - a.yld)
+  st.candidates = cands.slice(0, 30); st.last_scan = iso()
+  const want = cands.filter((c) => c.yld >= PMR.minYieldPerDay).slice(0, PMR.maxMarkets)
+  for (const c of want) if (!st.markets[c.cid] && Object.values(st.markets).filter((m: any) => m.state === 'ON').length < PMR.maxMarkets) {
+    st.markets[c.cid] = { ...c, state: 'ON', yesSh: 0, noSh: 0, cashFlow: 0, rewards: 0, fills: 0, bid: null, ask: null, last_ts: 0, seen: [], opened: iso() }
+    dec({ action: 'SELECT', q: c.q, why: `צפי ${(c.yld * 100).toFixed(2)}% ליום (${c.exp_day}$ מתוך מאגר ${c.rate}$)` })
+  }
+  const keep = new Set(want.map((c) => c.cid))
+  for (const [cid, m] of Object.entries<any>(st.markets)) if (m.state === 'ON' && !keep.has(cid) && !cands.slice(0, PMR.maxMarkets * 2).some((c) => c.cid === cid)) {
+    m.state = 'EXIT'; dec({ action: 'DESELECT', q: m.q, why: 'יצא מהרשימה המובילה' })
+  }
+}
+function markOf(m: any, b?: Book) { const mid = b ? midOf(b) : m.mid; return Number.isFinite(mid) ? m.yesSh * mid + m.noSh * (1 - mid) : 0 }
+function equity() { return st.cash + Object.values<any>(st.markets).reduce((s, m) => s + markOf(m), 0) }
+
+try {
+  if (!st.last_scan || NOW - Date.parse(st.last_scan) > PMR.rescanMin * 60_000) { await scan(); note.scan = true }
+  const act = Object.entries<any>(st.markets)
+  // resolution check (Gamma closed + outcome 1/0)
+  if (act.length && (!st.last_res || NOW - Date.parse(st.last_res) > 5 * 60_000)) {
+    const ids = act.map(([, m]) => m.id)
+    for (const g of await j(`${GAMMA}/markets?closed=true&limit=50&${ids.map((id) => `id=${id}`).join('&')}`)) {
+      const e = act.find(([, m]) => m.id === g.id); if (!e) continue
+      const px = arr(g.outcomePrices).map(Number); if (!(px[0] === 0 || px[0] === 1 || px[0] === 0.5)) continue
+      const m = e[1]; const pay = m.yesSh * px[0] + m.noSh * px[1]
+      st.cash += pay; m.cashFlow += pay; m.yesSh = 0; m.noSh = 0; m.state = 'DONE'; m.resolved = px[0]
+    }
+    st.last_res = iso()
+  }
+  const live = Object.entries<any>(st.markets).filter(([, m]) => m.state === 'ON' || m.state === 'EXIT')
+  const bk = live.length ? await books(live.map(([, m]) => m.yes)) : {}
+  const dt = Math.min(PMR.cycleCapS, st.last_cycle ? (NOW - Date.parse(st.last_cycle)) / 1000 : 0)
+  const budget = equity() / PMR.maxMarkets
+  let rewardNow = 0
+  for (const [cid, m] of live) {
+    const b = bk[m.yes]; if (!b?.bids[0] || !b.asks[0]) { m.note = 'אין ספר'; continue }
+    // (1) fills from the real tape since our quotes went up
+    const raw = await j(`${DATA}/trades?market=${cid}&limit=200&takerOnly=true`).catch(() => [])
+    const fresh = (raw as any[]).filter((t) => t.timestamp >= m.last_ts && !m.seen.includes(t.transactionHash + t.asset + t.size))
+    const trs = fresh.map(yesTrade).sort((a, c) => a.ts - c.ts)
+    const inv = { yes: m.yesSh, no: m.noSh, cash: 0 }
+    for (const side of ['bid', 'ask'] as const) {
+      const q = m[side]; if (!q) continue
+      const f = fillQuote({ ...q, at: q.at }, side, trs)
+      if (f.filled > 0) {
+        side === 'bid' ? onBidFill(inv, q.px, f.filled) : onAskFill(inv, q.px, f.filled)
+        st.fills.unshift({ ts: iso(), q: m.q, side, px: q.px, size: f.filled, mid: +midOf(b).toFixed(4) }); m.fills++
+        q.size = +(q.size - f.filled).toFixed(4)
+      }
+      q.queue = f.queue
+    }
+    m.yesSh = +inv.yes.toFixed(4); m.noSh = +inv.no.toFixed(4); st.cash += inv.cash; m.cashFlow += inv.cash
+    if (raw.length) { m.last_ts = Math.max(m.last_ts, ...raw.map((t: any) => t.timestamp)); m.seen = raw.filter((t: any) => t.timestamp === m.last_ts).map((t: any) => t.transactionHash + t.asset + t.size) }
+    // (2) rewards for the time our quotes rested (scored against the real book now)
+    const mid = midAdj(b, m.min); m.mid = +mid.toFixed(4)
+    const sh = m.state === 'ON' ? share(b, m.v, m.min, m.bid, m.ask) : 0
+    const earn = m.rate * sh * dt / 86400
+    m.rewards += earn; st.rewards += earn; st.cash += earn; m.share = +sh.toFixed(4); rewardNow += m.rate * sh
+    // (3) re-quote, or unwind
+    const exitNow = m.state === 'EXIT' || daysTo(m.end, NOW) * 24 < PMR.exitHours || mid < 0.05 || mid > 0.95
+    if (exitNow) {
+      // taker unwind at the real touch: sell YES into the best bid, sell NO into 1 - best ask
+      const got = m.yesSh * b.bids[0].price + m.noSh * (1 - b.asks[0].price)
+      if (m.yesSh || m.noSh) dec({ action: 'UNWIND', q: m.q, why: `יציאה ${got.toFixed(2)}$` })
+      st.cash += got; m.cashFlow += got; m.yesSh = 0; m.noSh = 0; m.bid = m.ask = null; m.state = 'DONE'; m.closed_at = iso()
+      continue
+    }
+    const px = quotePx(b, m.v, m.min), size = sizeFor(budget, px.bid, px.ask), net = m.yesSh - m.noSh
+    const put = (old: Quote, p: number, lv: typeof b.bids, allow: boolean): Quote => {
+      if (!allow || size < m.min) return null
+      if (old && Math.abs(old.px - p) < 1e-9 && old.size >= m.min) return old            // keep our queue place
+      return { px: p, size, queue: sizeAt(lv, p), at: Math.floor(NOW / 1000) }
+    }
+    // a resting order must be payable if it fills: a YES bid needs px x size in cash; an ask sells held YES or needs (1-px) x size
+    m.bid = put(m.bid, px.bid, b.bids, net < PMR.invCap * size && st.cash >= px.bid * size)
+    m.ask = put(m.ask, px.ask, b.asks, -net < PMR.invCap * size && (m.yesSh >= size || st.cash >= (1 - px.ask) * size))
+    m.note = size < m.min ? 'גודל קטן מהמינימום' : null
+  }
+  // drop finished markets into the closed list
+  for (const [cid, m] of Object.entries<any>(st.markets)) if (m.state === 'DONE') {
+    st.closed.unshift({ q: m.q, slug: m.slug, opened: m.opened, closed_at: m.closed_at ?? iso(), rewards: +m.rewards.toFixed(2), trading: +m.cashFlow.toFixed(2) - 0, fills: m.fills, resolved: m.resolved ?? null })
+    delete st.markets[cid]
+  }
+  st.reward_rate_now = +rewardNow.toFixed(2)
+} catch (e: any) { note.error = String(e?.message ?? e) }
+
+const eq = equity()
+st.last_cycle = iso(); st.note = note
+st.equity.push({ t: iso(), eq: +eq.toFixed(2), rw: +st.rewards.toFixed(2) })
+if (st.equity.length > 6000) st.equity = st.equity.filter((_: any, i: number) => i % 2 === 0)
+st.fills = st.fills.slice(0, 300); st.decisions = st.decisions.slice(0, 200); st.closed = st.closed.slice(0, 200)
+fs.writeFileSync(`${FILE}.tmp`, JSON.stringify(st)); fs.renameSync(`${FILE}.tmp`, FILE)
+console.log(`eq ${eq.toFixed(2)} rewards ${st.rewards.toFixed(2)} rate/day ${st.reward_rate_now} markets ${Object.keys(st.markets).length}${note.error ? ' ERR ' + note.error : ''}`)

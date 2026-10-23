@@ -39,6 +39,7 @@ node tests/council-review.test.mjs || fail=1
 node --experimental-strip-types tests/flow-shadow.test.ts || fail=1
 node --experimental-strip-types tests/meme-feed.test.ts || fail=1
 node --experimental-strip-types tests/meme.test.ts || fail=1
+node --experimental-strip-types tests/pmr.test.ts || fail=1
 run() {
   echo ""
   echo "── $1 ──────────────────────────────────────────────"
