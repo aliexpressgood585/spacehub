@@ -893,6 +893,13 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   plus the creator's initial buy from the PumpPortal create event. Recorded in paths: point[4] = creator % (when known), path.di =
   initial %. Verified live: initial buy 1.74% / 9.75% == on-chain balance. Top-10 holder share is NOT possible on free RPC
   (getTokenLargestAccounts -> 429 on every try). tests/meme-feed.test.ts 14/14. Observation only; no rule uses it yet.
+- 2026-10-23 meme POST-GRADUATION study: backtest/research/meme_grad_fetch.py (GeckoTerminal 1-min OHLCV of the PumpSwap pool, 208
+  coins that graduated 10-22, 184 with >= 10 traded minutes; GT throttles, 1 call / 6 s) + meme_grad.py + meme_grad_stress.py ->
+  status/meme-grad.txt. Pool costs 0.3% fee + 0.5% impact per side + 1.4% tx round trip. Buy-and-hold from graduation +1 min:
+  median -24% at 15 min, -94% at 60 min (23% of coins up). 828 configs, PASS 0. Best: buy 1 min after graduation, tp +100%, sl -20%,
+  180 min: IS +9.0% t1.8 / OOS +10.6% t1.8 — but ONLY if the stop fills exactly at -20% inside a crash minute. Stop filled at that
+  minute's close: -12.5%/trade; at its low: -15.3%; entry 3 min late instead of 1: +1.9% (IS -0.8). Live desk stops filled at -46%
+  vs a -30% stop, so the level-fill assumption is the optimistic one. REJECTED; nothing built.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the

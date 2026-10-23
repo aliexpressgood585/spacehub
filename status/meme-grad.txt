@@ -1,0 +1,68 @@
+graduated coins with >=10 traded minutes: 184; IS 110 / OOS 74
+costs: fee 0.3% + impact 0.5% per side, tx 1.4% round trip
+
+BUY-AND-HOLD from graduation (+1 min fill), gross price change, median / mean, coins with data that far:
+    15 min: n183 median -23.8% mean -12.0% share up 43%
+    60 min: n166 median -93.8% mean -33.5% share up 23%
+   180 min: n132 median -95.3% mean -57.7% share up 14%
+   360 min: n92 median -94.8% mean -25.6% share up 18%
+
+configs 828; IS mean>0 (n>=40): 92; also OOS mean>0 (n>=25): 47
+median IS mean: -7.7%/trade
+
+TOP 12 by IS t (n>=40) -> OOS read once:
+  delay {'k': 1} | tp 1.0 sl -0.2 H360m
+     IS n 110   +9.4% WR 28% t +1.9 | OOS n  74  +10.7% WR 32% t +1.8
+  delay {'k': 1} | tp 1.0 sl -0.2 H180m
+     IS n 110   +9.0% WR 29% t +1.8 | OOS n  74  +10.6% WR 30% t +1.8
+  delay {'k': 1} | tp 0.3 sl -0.2 H360m
+     IS n 110   +3.7% WR 54% t +1.6 | OOS n  74   +3.4% WR 55% t +1.2
+  delay {'k': 1} | tp 0.3 sl -0.2 H180m
+     IS n 110   +3.7% WR 55% t +1.6 | OOS n  74   +3.3% WR 53% t +1.2
+  delay {'k': 1} | tp 1.0 sl -0.2 H60m
+     IS n 110   +7.3% WR 27% t +1.5 | OOS n  74  +10.6% WR 28% t +1.8
+  delay {'k': 1} | tp 1.0 sl -0.2 H15m
+     IS n 110   +5.7% WR 29% t +1.4 | OOS n  74   +4.1% WR 32% t +0.9
+  delay {'k': 1} | tp 1.0 sl -0.4 H360m
+     IS n 110   +8.4% WR 37% t +1.4 | OOS n  74   +5.4% WR 38% t +0.7
+  delay {'k': 1} | tp 0.3 sl -0.2 H60m
+     IS n 110   +3.0% WR 52% t +1.3 | OOS n  74   +3.6% WR 51% t +1.3
+  delay {'k': 1} | tp 0.3 sl -0.2 H15m
+     IS n 110   +2.8% WR 48% t +1.2 | OOS n  74   +3.4% WR 50% t +1.3
+  delay {'k': 1} | tp None sl -0.2 H15m
+     IS n 110  +10.4% WR 24% t +1.1 | OOS n  74   +8.4% WR 30% t +0.9
+  delay {'k': 1} | tp 1.0 sl -0.4 H180m
+     IS n 110   +6.9% WR 37% t +1.1 | OOS n  74   +5.4% WR 35% t +0.7
+  delay {'k': 1} | tp 0.3 sl -0.4 H360m
+     IS n 110   +3.4% WR 65% t +1.1 | OOS n  74   +0.7% WR 64% t +0.2
+
+PASS (IS t>=2 and OOS t>=2): 0
+
+STRESS (meme_grad_stress.py) — best rule: buy 1 min after graduation, tp +100%, sl -20%, 180 min
+stop@level imp0.5% delay1m  IS n110 +9.0% t+1.8 | OOS n74 +10.6% t+1.8 | ALL +9.6% t+2.5
+stop@level imp0.5% delay2m  IS n110 +4.6% t+1.0 | OOS n74 +10.7% t+1.8 | ALL +7.0% t+1.9
+stop@level imp0.5% delay3m  IS n110 -0.8% t-0.2 | OOS n74 +5.9% t+1.0 | ALL +1.9% t+0.6
+stop@level imp1.0% delay1m  IS n110 +7.9% t+1.6 | OOS n74 +9.5% t+1.6 | ALL +8.5% t+2.3
+stop@level imp1.0% delay2m  IS n110 +3.5% t+0.8 | OOS n74 +9.6% t+1.6 | ALL +6.0% t+1.6
+stop@level imp1.0% delay3m  IS n110 -1.8% t-0.4 | OOS n74 +4.8% t+0.8 | ALL +0.9% t+0.3
+stop@level imp2.0% delay1m  IS n110 +5.7% t+1.2 | OOS n74 +7.3% t+1.2 | ALL +6.3% t+1.7
+stop@level imp2.0% delay2m  IS n110 +1.4% t+0.3 | OOS n74 +7.4% t+1.3 | ALL +3.8% t+1.1
+stop@level imp2.0% delay3m  IS n110 -3.8% t-0.9 | OOS n74 +2.7% t+0.5 | ALL -1.2% t-0.4
+stop@close imp0.5% delay1m  IS n110 -11.9% t-1.8 | OOS n74 -13.5% t-1.6 | ALL -12.5% t-2.4
+stop@close imp0.5% delay2m  IS n110 -18.4% t-2.9 | OOS n74 -15.1% t-1.8 | ALL -17.0% t-3.3
+stop@close imp0.5% delay3m  IS n110 -26.7% t-4.4 | OOS n74 -20.3% t-2.5 | ALL -24.1% t-4.9
+stop@close imp1.0% delay1m  IS n110 -12.8% t-1.9 | OOS n74 -14.4% t-1.7 | ALL -13.4% t-2.6
+stop@close imp1.0% delay2m  IS n110 -19.2% t-3.0 | OOS n74 -15.9% t-1.9 | ALL -17.9% t-3.5
+stop@close imp1.0% delay3m  IS n110 -27.5% t-4.5 | OOS n74 -21.2% t-2.6 | ALL -24.9% t-5.1
+stop@close imp2.0% delay1m  IS n110 -14.5% t-2.3 | OOS n74 -16.1% t-2.0 | ALL -15.2% t-3.0
+stop@close imp2.0% delay2m  IS n110 -20.9% t-3.3 | OOS n74 -17.7% t-2.1 | ALL -19.6% t-3.9
+stop@close imp2.0% delay3m  IS n110 -29.0% t-4.9 | OOS n74 -22.8% t-2.9 | ALL -26.5% t-5.5
+stop@low   imp0.5% delay1m  IS n110 -14.4% t-2.1 | OOS n74 -16.6% t-1.9 | ALL -15.3% t-2.9
+stop@low   imp0.5% delay2m  IS n110 -20.7% t-3.2 | OOS n74 -17.1% t-2.0 | ALL -19.2% t-3.7
+stop@low   imp0.5% delay3m  IS n110 -29.4% t-4.8 | OOS n74 -23.0% t-2.8 | ALL -26.8% t-5.4
+stop@low   imp1.0% delay1m  IS n110 -15.3% t-2.3 | OOS n74 -17.5% t-2.1 | ALL -16.2% t-3.1
+stop@low   imp1.0% delay2m  IS n110 -21.5% t-3.3 | OOS n74 -17.9% t-2.1 | ALL -20.1% t-3.9
+stop@low   imp1.0% delay3m  IS n110 -30.2% t-4.9 | OOS n74 -23.8% t-2.9 | ALL -27.6% t-5.6
+stop@low   imp2.0% delay1m  IS n110 -17.0% t-2.6 | OOS n74 -19.2% t-2.3 | ALL -17.9% t-3.5
+stop@low   imp2.0% delay2m  IS n110 -23.1% t-3.7 | OOS n74 -19.6% t-2.3 | ALL -21.7% t-4.3
+stop@low   imp2.0% delay3m  IS n110 -31.6% t-5.3 | OOS n74 -25.3% t-3.2 | ALL -29.1% t-6.0
