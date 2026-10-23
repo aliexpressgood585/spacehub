@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-23T20:37:59.262Z",
+ "last_scan": "2026-10-23T20:38:10.359Z",
  "last_note": {
-  "at": "2026-10-23T20:37:56.147Z",
+  "at": "2026-10-23T20:38:07.120Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -42254,13 +42254,6 @@
  ],
  "equity": [
   {
-   "ts": "2026-10-20T10:08:01.144Z",
-   "equity": 1030.1399790773748,
-   "cash": 1030.1399790773748,
-   "open_value": 0,
-   "open_count": 0
-  },
-  {
    "ts": "2026-10-20T10:09:02.734Z",
    "equity": 1030.1399790773748,
    "cash": 1030.1399790773748,
@@ -77252,9 +77245,38 @@
    "cash": 1033.026852293919,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-10-23T20:38:10.359Z",
+   "equity": 1033.026852293919,
+   "cash": 1033.026852293919,
+   "open_value": 0,
+   "open_count": 0
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-23T20:38:09.541Z",
+   "market_id": "6066103",
+   "question": "Ethereum Up or Down - October 23, 4:35PM-4:40PM ET",
+   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 20:35–20:40 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.93,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 1.72 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
+  },
+  {
+   "ts": "2026-10-23T20:38:10.359Z",
+   "market_id": "6066107",
+   "question": "Solana Up or Down - October 23, 4:35PM-4:40PM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 20:35–20:40 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.96,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 0.27 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
+  },
   {
    "ts": "2026-10-23T20:37:58.486Z",
    "market_id": "6066107",
@@ -79432,47 +79454,10 @@
    "price": 0.9,
    "decision": "skip",
    "reason": "מסנן מרחק: 0.74 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-23T19:17:55.382Z",
-   "market_id": "6065096",
-   "question": "XRP Up or Down - October 23, 3:15PM-3:20PM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 19:15–19:20 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.92,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.59 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-23T19:13:15.605Z",
-   "market_id": "6065006",
-   "question": "Bitcoin Up or Down - October 23, 3:10PM-3:15PM ET",
-   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 19:10–19:15 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.93,
-   "decision": "BUY",
-   "reason": "107 שנ׳ לסיום, מחיר 0.93 בטווח 90-98¢, 18.0 מניות ($17), עמלה $0.08"
   }
  ],
  "next_id": 591,
  "shadow": [
-  {
-   "slug": "xrp-updown-5m-1792494600",
-   "market_id": "5920040",
-   "token_id": "45139674484981692992812036442480606716188520247571868542160145555498035266615",
-   "coin": "xrp",
-   "outcome": "Down",
-   "end_time": "2026-10-20T11:15:00Z",
-   "placed_at": "2026-10-20T11:13:26.222Z",
-   "limit": 0.93,
-   "taker_ask": 0.95,
-   "status": "DONE",
-   "filled": false,
-   "won": true,
-   "ret": null
-  },
   {
    "slug": "btc-updown-5m-1792494600",
    "market_id": "5920041",
@@ -127164,6 +127149,21 @@
    "limit": 0.91,
    "taker_ask": 0.92,
    "status": "WORKING",
+   "filled": true,
+   "filled_at": "2026-10-23T20:38:07.502Z",
+   "left_at_fill": 112
+  },
+  {
+   "slug": "eth-updown-5m-1792787700",
+   "market_id": "6066103",
+   "token_id": "93020014348599336371970073305375249009681857200234106695666249487189001829107",
+   "coin": "eth",
+   "outcome": "Up",
+   "end_time": "2026-10-23T20:40:00Z",
+   "placed_at": "2026-10-23T20:38:07.924Z",
+   "limit": 0.92,
+   "taker_ask": 0.93,
+   "status": "WORKING",
    "filled": false
   }
  ],
@@ -127176,12 +127176,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2995,
+   "resolved": 2994,
    "filled": 1356,
-   "fill_rate": 0.45275459098497495,
+   "fill_rate": 0.4529058116232465,
    "wr": 0.8650442477876106,
    "ret": -0.0634557769147588,
-   "missed_wins": 1638,
+   "missed_wins": 1637,
    "missed_losses": 1
   },
   "late_exit": {
