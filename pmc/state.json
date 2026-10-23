@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-23T00:23:33.525Z",
+ "last_scan": "2026-10-23T00:23:43.997Z",
  "last_note": {
-  "at": "2026-10-23T00:23:32.887Z",
+  "at": "2026-10-23T00:23:43.041Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -39294,8 +39294,8 @@
    "best_ask": 0.96,
    "opened_at": "2026-10-23T00:22:33.220Z",
    "status": "OPEN",
-   "mark_px": 0.88,
-   "mark_at": "2026-10-23T00:23:33.077Z",
+   "mark_px": 0.96,
+   "mark_at": "2026-10-23T00:23:43.441Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -39322,8 +39322,8 @@
     "spot_open": 2387.34,
     "spot": 2384.68,
     "sigma1s": 0.00004373603937206331,
-    "close_px": 0.885,
-    "close_at": "2026-10-23T00:23:33.077Z"
+    "close_px": 0.965,
+    "close_at": "2026-10-23T00:23:43.441Z"
    }
   }
  ],
@@ -74331,6 +74331,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-23T00:23:43.997Z",
+   "market_id": "6032562",
+   "question": "XRP Up or Down - October 22, 8:20PM-8:25PM ET",
+   "question_he": "XRP · עולה או יורד · 5 דקות · 00:20–00:25 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.9,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
    "ts": "2026-10-23T00:23:33.525Z",
    "market_id": "6032556",
    "question": "Solana Up or Down - October 22, 8:20PM-8:25PM ET",
@@ -76518,17 +76529,6 @@
    "price": 0.92,
    "decision": "skip",
    "reason": "מסנן מרחק: 0.44 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-22T22:53:42.072Z",
-   "market_id": "6028821",
-   "question": "XRP Up or Down - October 22, 6:50PM-6:55PM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 22:50–22:55 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.96,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.76 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 551,
@@ -124280,7 +124280,9 @@
    "limit": 0.9,
    "taker_ask": 0.93,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-23T00:23:43.226Z",
+   "left_at_fill": 77
   },
   {
    "slug": "xrp-updown-5m-1792714800",
@@ -124293,7 +124295,9 @@
    "limit": 0.9,
    "taker_ask": 0.91,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-23T00:23:43.335Z",
+   "left_at_fill": 77
   }
  ],
  "study": {
@@ -124470,7 +124474,7 @@
    "brier_entry": 0.033635712890894245,
    "brier_close": 0.0025686999999999854,
    "open_n": 1,
-   "open_clv_c": -7.499999999999996
+   "open_clv_c": 0.5000000000000004
   },
   "judged": {
    "n": 370,
@@ -124482,7 +124486,7 @@
    "brier_entry": 0.033635712890894245,
    "brier_close": 0.0025686999999999854,
    "open_n": 1,
-   "open_clv_c": -7.499999999999996
+   "open_clv_c": 0.5000000000000004
   }
  }
 }
