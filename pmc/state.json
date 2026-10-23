@@ -1,6 +1,6 @@
 {
  "start_cash": 1000,
- "cash": 1027.6673676729383,
+ "cash": 1011.8130453449231,
  "peak": 1114.4348581269899,
  "floor": 980.1044006888928,
  "strategy": {
@@ -44,12 +44,12 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-23T17:08:30.009Z",
+ "last_scan": "2026-10-23T17:08:41.071Z",
  "last_note": {
-  "at": "2026-10-23T17:08:28.764Z",
+  "at": "2026-10-23T17:08:38.861Z",
   "windows": 4,
   "settled": 0,
-  "entered": 0
+  "entered": 1
  },
  "trades": [
   {
@@ -41743,16 +41743,58 @@
    "pnl": -23.781483492022744,
    "reason": "RESOLVED_LOSS",
    "closed_at": "2026-10-23T16:55:06.561Z"
+  },
+  {
+   "id": 584,
+   "market_id": "6052377",
+   "slug": "btc-updown-5m-1792775100",
+   "event_slug": "btc-updown-5m-1792775100",
+   "question": "Bitcoin Up or Down - October 23, 1:05PM-1:10PM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 17:05–17:10 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "token_id": "93863532278284388071468896162353083486749101264137429263927970865741830635948",
+   "end_time": "2026-10-23T17:10:00Z",
+   "qty": 16.310410332132587,
+   "entry_px": 0.97,
+   "entry_fee": 0.033224305846554114,
+   "cost": 15.854322328015163,
+   "best_ask": 0.97,
+   "opened_at": "2026-10-23T17:08:41.071Z",
+   "status": "OPEN",
+   "mark_px": 0.96,
+   "mark_at": "2026-10-23T17:08:41.071Z",
+   "meta": {
+    "fee_schedule": {
+     "rate": 0.07,
+     "exponent": 1
+    },
+    "volume": 4274.901375,
+    "coin": "btc",
+    "tf": "5m",
+    "window_s": 300,
+    "left_s": 82,
+    "band": [
+     0.9,
+     0.98
+    ],
+    "z_min": 2.5,
+    "look": 2,
+    "outcomes": [
+     "Up",
+     "Down"
+    ],
+    "wanted": 15.854322328015163,
+    "ref_px": 0.98,
+    "bid_px": 0.96,
+    "z": 2.5097212188121376,
+    "spot_open": 81775.15,
+    "spot": 81710.83,
+    "sigma1s": 0.0000346228751867841
+   }
   }
  ],
  "equity": [
-  {
-   "ts": "2026-10-20T06:34:05.599Z",
-   "equity": 1023.3234266296255,
-   "cash": 1023.3234266296255,
-   "open_value": 0,
-   "open_count": 0
-  },
   {
    "ts": "2026-10-20T06:35:04.520Z",
    "equity": 1023.3234266296255,
@@ -76745,9 +76787,49 @@
    "cash": 1027.6673676729383,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-10-23T17:08:41.072Z",
+   "equity": 1027.4710392637703,
+   "cash": 1011.8130453449231,
+   "open_value": 15.657993918847284,
+   "open_count": 1
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-23T17:08:41.071Z",
+   "market_id": "6052377",
+   "question": "Bitcoin Up or Down - October 23, 1:05PM-1:10PM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 17:05–17:10 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.97,
+   "decision": "BUY",
+   "reason": "82 שנ׳ לסיום, מחיר 0.97 בטווח 90-98¢, 16.3 מניות ($16), עמלה $0.03"
+  },
+  {
+   "ts": "2026-10-23T17:08:41.071Z",
+   "market_id": "6052375",
+   "question": "Ethereum Up or Down - October 23, 1:05PM-1:10PM ET",
+   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 17:05–17:10 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.97,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
+   "ts": "2026-10-23T17:08:41.071Z",
+   "market_id": "6052367",
+   "question": "Solana Up or Down - October 23, 1:05PM-1:10PM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 17:05–17:10 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.93,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
   {
    "ts": "2026-10-23T17:03:58.492Z",
    "market_id": "6051924",
@@ -78914,94 +78996,10 @@
    "price": 0.93,
    "decision": "skip",
    "reason": "מסנן מרחק: 0.34 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-23T15:13:02.174Z",
-   "market_id": "6044113",
-   "question": "Solana Up or Down - October 23, 11:10AM-11:15AM ET",
-   "question_he": "סולנה · עולה או יורד · 5 דקות · 15:10–15:15 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.97,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.44 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-23T15:12:51.380Z",
-   "market_id": "6044117",
-   "question": "Bitcoin Up or Down - October 23, 11:10AM-11:15AM ET",
-   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 15:10–15:15 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.92,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.12 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-23T15:12:42.020Z",
-   "market_id": "6044112",
-   "question": "XRP Up or Down - October 23, 11:10AM-11:15AM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 15:10–15:15 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.92,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.34 < 2 (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
- "next_id": 584,
+ "next_id": 585,
  "shadow": [
-  {
-   "slug": "btc-updown-5m-1792481100",
-   "market_id": "5917378",
-   "token_id": "20876876995310659279941586269087030530930762255080577342011487044133901422016",
-   "coin": "btc",
-   "outcome": "Down",
-   "end_time": "2026-10-20T07:30:00Z",
-   "placed_at": "2026-10-20T07:27:09.259Z",
-   "limit": 0.9,
-   "taker_ask": 0.91,
-   "status": "DONE",
-   "filled": true,
-   "filled_at": "2026-10-20T07:27:19.236Z",
-   "left_at_fill": 161,
-   "won": true,
-   "ret": 0.11111111111111108
-  },
-  {
-   "slug": "eth-updown-5m-1792481100",
-   "market_id": "5917379",
-   "token_id": "51512678361331811640994759730452601248903955358283625308813451257332127599343",
-   "coin": "eth",
-   "outcome": "Down",
-   "end_time": "2026-10-20T07:30:00Z",
-   "placed_at": "2026-10-20T07:27:09.578Z",
-   "limit": 0.94,
-   "taker_ask": 0.95,
-   "status": "DONE",
-   "filled": true,
-   "filled_at": "2026-10-20T07:27:19.397Z",
-   "left_at_fill": 161,
-   "won": true,
-   "ret": 0.06382978723404262
-  },
-  {
-   "slug": "sol-updown-5m-1792481100",
-   "market_id": "5917381",
-   "token_id": "33203398856040024842681041770149224751777395051495166315823924528190215767390",
-   "coin": "sol",
-   "outcome": "Down",
-   "end_time": "2026-10-20T07:30:00Z",
-   "placed_at": "2026-10-20T07:27:09.885Z",
-   "limit": 0.9,
-   "taker_ask": 0.92,
-   "status": "DONE",
-   "filled": true,
-   "filled_at": "2026-10-20T07:27:28.947Z",
-   "left_at_fill": 151,
-   "won": true,
-   "ret": 0.11111111111111108
-  },
   {
    "slug": "xrp-updown-5m-1792481100",
    "market_id": "5917380",
@@ -126690,22 +126688,61 @@
    "filled": true,
    "filled_at": "2026-10-23T17:03:36.653Z",
    "left_at_fill": 83
+  },
+  {
+   "slug": "btc-updown-5m-1792775100",
+   "market_id": "6052377",
+   "token_id": "93863532278284388071468896162353083486749101264137429263927970865741830635948",
+   "coin": "btc",
+   "outcome": "Down",
+   "end_time": "2026-10-23T17:10:00Z",
+   "placed_at": "2026-10-23T17:08:39.307Z",
+   "limit": 0.96,
+   "taker_ask": 0.97,
+   "status": "WORKING",
+   "filled": false
+  },
+  {
+   "slug": "eth-updown-5m-1792775100",
+   "market_id": "6052375",
+   "token_id": "85552850770536931743602760562003394193008258333086936160145250242325334472952",
+   "coin": "eth",
+   "outcome": "Down",
+   "end_time": "2026-10-23T17:10:00Z",
+   "placed_at": "2026-10-23T17:08:39.579Z",
+   "limit": 0.96,
+   "taker_ask": 0.97,
+   "status": "WORKING",
+   "filled": false
+  },
+  {
+   "slug": "sol-updown-5m-1792775100",
+   "market_id": "6052367",
+   "token_id": "26737240991421954436015680119945464018400605365357389824994108991158108888287",
+   "coin": "sol",
+   "outcome": "Down",
+   "end_time": "2026-10-23T17:10:00Z",
+   "placed_at": "2026-10-23T17:08:39.848Z",
+   "limit": 0.91,
+   "taker_ask": 0.93,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
   "fills": {
-   "n": 583,
-   "avg_vs_ref_c": -0.17529399311932742,
-   "avg_vs_research_c": -1.175293993119326,
-   "avg_fee_c": 0.3332625934839182
+   "n": 584,
+   "avg_vs_ref_c": -0.17670616093932856,
+   "avg_vs_research_c": -1.1767061609393275,
+   "avg_fee_c": 0.33304073972795256
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2996,
-   "filled": 1371,
-   "fill_rate": 0.4576101468624833,
-   "wr": 0.8687089715536105,
-   "ret": -0.05975706660959615,
+   "resolved": 2993,
+   "filled": 1368,
+   "fill_rate": 0.4570664884731039,
+   "wr": 0.868421052631579,
+   "ret": -0.06009721515439515,
    "missed_wins": 1624,
    "missed_losses": 1
   },
