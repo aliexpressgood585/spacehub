@@ -44,12 +44,12 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-23T19:02:13.821Z",
+ "last_scan": "2026-10-23T19:02:22.507Z",
  "last_note": {
-  "at": "2026-10-23T19:02:10.991Z",
+  "at": "2026-10-23T19:02:20.652Z",
   "windows": 4,
   "settled": 0,
-  "entered": 1
+  "entered": 0
  },
  "trades": [
   {
@@ -41979,8 +41979,8 @@
    "best_ask": 0.95,
    "opened_at": "2026-10-23T19:02:13.821Z",
    "status": "OPEN",
-   "mark_px": 0.94,
-   "mark_at": "2026-10-23T19:02:13.821Z",
+   "mark_px": 0.9,
+   "mark_at": "2026-10-23T19:02:21.581Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -42006,7 +42006,9 @@
     "z": 2.0741813812552135,
     "spot_open": 2402.23,
     "spot": 2399.56,
-    "sigma1s": 0.00004124279173555591
+    "sigma1s": 0.00004124279173555591,
+    "close_px": 0.91,
+    "close_at": "2026-10-23T19:02:21.581Z"
    }
   }
  ],
@@ -77014,6 +77016,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-23T19:02:22.507Z",
+   "market_id": "6064043",
+   "question": "XRP Up or Down - October 23, 3:00PM-3:05PM ET",
+   "question_he": "XRP · עולה או יורד · 5 דקות · 19:00–19:05 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.91,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
    "ts": "2026-10-23T19:02:13.821Z",
    "market_id": "6064073",
    "question": "Ethereum Up or Down - October 23, 3:00PM-3:05PM ET",
@@ -79201,17 +79214,6 @@
    "price": 0.92,
    "decision": "skip",
    "reason": "מסנן מרחק: 1.21 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-23T17:37:43.950Z",
-   "market_id": "6053036",
-   "question": "Ethereum Up or Down - October 23, 1:35PM-1:40PM ET",
-   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 17:35–17:40 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.97,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.54 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 588,
@@ -126905,7 +126907,9 @@
    "limit": 0.9,
    "taker_ask": 0.91,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-23T19:02:21.304Z",
+   "left_at_fill": 159
   },
   {
    "slug": "xrp-updown-5m-1792782000",
@@ -126918,7 +126922,9 @@
    "limit": 0.92,
    "taker_ask": 0.93,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-23T19:02:21.444Z",
+   "left_at_fill": 159
   }
  ],
  "study": {
@@ -127094,8 +127100,8 @@
    "beat_close": 0.9606879606879607,
    "brier_entry": 0.0329878727015695,
    "brier_close": 0.0023409557739557624,
-   "open_n": 0,
-   "open_clv_c": null
+   "open_n": 1,
+   "open_clv_c": -4.0000000000000036
   },
   "judged": {
    "n": 407,
@@ -127106,8 +127112,8 @@
    "beat_close": 0.9606879606879607,
    "brier_entry": 0.0329878727015695,
    "brier_close": 0.0023409557739557624,
-   "open_n": 0,
-   "open_clv_c": null
+   "open_n": 1,
+   "open_clv_c": -4.0000000000000036
   }
  }
 }
