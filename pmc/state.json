@@ -44,10 +44,10 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-23T09:41:50.575Z",
+ "last_scan": "2026-10-23T09:42:03.174Z",
  "last_note": {
-  "at": "2026-10-23T09:41:50.503Z",
-  "windows": 0,
+  "at": "2026-10-23T09:42:00.287Z",
+  "windows": 4,
   "settled": 0,
   "entered": 0
  },
@@ -40514,13 +40514,6 @@
  ],
  "equity": [
   {
-   "ts": "2026-10-19T23:16:09.780Z",
-   "equity": 1005.6216229595098,
-   "cash": 1005.6216229595098,
-   "open_value": 0,
-   "open_count": 0
-  },
-  {
    "ts": "2026-10-19T23:17:12.709Z",
    "equity": 1005.6216229595098,
    "cash": 1005.6216229595098,
@@ -75512,9 +75505,38 @@
    "cash": 1033.3538225593968,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-10-23T09:42:03.174Z",
+   "equity": 1033.3538225593968,
+   "cash": 1033.3538225593968,
+   "open_value": 0,
+   "open_count": 0
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-23T09:42:02.199Z",
+   "market_id": "6038447",
+   "question": "Ethereum Up or Down - October 23, 5:40AM-5:45AM ET",
+   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 09:40–09:45 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.92,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 1.34 < 2 (המחיר קרוב מדי לקו הפתיחה)"
+  },
+  {
+   "ts": "2026-10-23T09:42:03.174Z",
+   "market_id": "6038444",
+   "question": "Solana Up or Down - October 23, 5:40AM-5:45AM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 09:40–09:45 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.9,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 0.85 < 2 (המחיר קרוב מדי לקו הפתיחה)"
+  },
   {
    "ts": "2026-10-23T09:38:52.632Z",
    "market_id": "6038432",
@@ -77692,49 +77714,10 @@
    "price": 0.96,
    "decision": "skip",
    "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
-  },
-  {
-   "ts": "2026-10-23T08:07:58.394Z",
-   "market_id": "6037980",
-   "question": "Solana Up or Down - October 23, 4:05AM-4:10AM ET",
-   "question_he": "סולנה · עולה או יורד · 5 דקות · 08:05–08:10 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.94,
-   "decision": "skip",
-   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
-  },
-  {
-   "ts": "2026-10-23T08:07:48.091Z",
-   "market_id": "6037979",
-   "question": "Ethereum Up or Down - October 23, 4:05AM-4:10AM ET",
-   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 08:05–08:10 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.91,
-   "decision": "skip",
-   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
   }
  ],
  "next_id": 567,
  "shadow": [
-  {
-   "slug": "eth-updown-5m-1792456200",
-   "market_id": "5911589",
-   "token_id": "35759554801462880194926907302245185440050538064251999376387726356197222249556",
-   "coin": "eth",
-   "outcome": "Up",
-   "end_time": "2026-10-20T00:35:00Z",
-   "placed_at": "2026-10-20T00:33:33.486Z",
-   "limit": 0.93,
-   "taker_ask": 0.94,
-   "status": "DONE",
-   "filled": true,
-   "filled_at": "2026-10-20T00:33:43.012Z",
-   "left_at_fill": 77,
-   "won": true,
-   "ret": 0.07526881720430102
-  },
   {
    "slug": "sol-updown-5m-1792456200",
    "market_id": "5911588",
@@ -125457,6 +125440,19 @@
    "taker_ask": 0.92,
    "status": "WORKING",
    "filled": false
+  },
+  {
+   "slug": "eth-updown-5m-1792748400",
+   "market_id": "6038447",
+   "token_id": "109298962420757453630184080963110870339564795943081160129506867138441438349111",
+   "coin": "eth",
+   "outcome": "Up",
+   "end_time": "2026-10-23T09:45:00Z",
+   "placed_at": "2026-10-23T09:42:00.795Z",
+   "limit": 0.91,
+   "taker_ask": 0.92,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
@@ -125468,11 +125464,11 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2997,
-   "filled": 1372,
-   "fill_rate": 0.45779112445779113,
-   "wr": 0.8724489795918368,
-   "ret": -0.055577339588906705,
+   "resolved": 2996,
+   "filled": 1371,
+   "fill_rate": 0.4576101468624833,
+   "wr": 0.8723559445660102,
+   "ret": -0.05567277806942693,
    "missed_wins": 1624,
    "missed_losses": 1
   },
