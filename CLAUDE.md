@@ -923,7 +923,7 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   merged to $1), scripts/pmr-desk.ts (~15 s: fills from data-api trades since the quote went up, rewards = pool x our share of
   the REAL book x elapsed time, re-quote with inventory cap 2x size and cash check, exit 36 h before the end / taker unwind;
   markets re-selected every 20 min by expected reward per $ of capital, mid 0.15-0.85, >= 3 days to end, no games),
-  .github/workflows/pmr-desk.yml (cron :27, own concurrency group, pmr/state.json on pm-desk-data), page
+  .github/workflows/pmr-desk.yml (cron :27, own concurrency group, pmr/state.json on its own branch pmr-data (pm-desk-data is too big: a fresh fetch hung > 6 min)), page
   trading-app/polyrewards.html (equity split into rewards vs trading P&L), tests/pmr.test.ts 28/28.
   FIRST READ: many $100-250/day pools have NO qualifying competition (thin books, top levels 5-40 shares vs min size 100-200),
   so the projected share is 70-100% and the projected rate ~$700/day on $1,000. TREAT AS A FORECAST, NOT A RESULT: our quotes are

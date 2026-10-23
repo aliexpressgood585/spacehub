@@ -1,10 +1,10 @@
 // Standalone page: "פולי תגמולים" — the Polymarket liquidity-rewards PAPER desk (polyrewards.html). Read-only: reads
-// pmr/state.json from the pm-desk-data branch every 5 s. Splits the result honestly into rewards earned and trading P&L
+// pmr/state.json from the pmr-data branch every 5 s. Splits the result honestly into rewards earned and trading P&L
 // (fills + inventory marked at the midpoint), because the rewards only count if the fills do not eat them.
 import { StrictMode, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 
-const URL_ = 'https://raw.githubusercontent.com/aliexpressgood585/spacehub/pm-desk-data/pmr/state.json'
+const URL_ = 'https://raw.githubusercontent.com/aliexpressgood585/spacehub/pmr-data/pmr/state.json'
 type J = any
 const usd = (v: number | null | undefined, d = 2) => (v == null || !isFinite(v) ? '—' : `${v < 0 ? '−' : ''}$${Math.abs(v).toFixed(d)}`)
 const pct = (v: number | null | undefined, d = 1) => (v == null || !isFinite(v) ? '—' : `${v >= 0 ? '+' : ''}${(v * 100).toFixed(d)}%`)

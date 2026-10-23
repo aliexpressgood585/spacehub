@@ -3,7 +3,7 @@
 // trade tape since they went up (queue ahead of us at our price is eaten first), (2) credit rewards = the market's daily pool x
 // our share of the reward score in the REAL book x elapsed time, (3) re-quote at the best bid / best ask with inventory limits.
 // Markets are re-selected every PMR.rescanMin minutes by expected reward per $ of capital. State: pmr/state.json on the
-// pm-desk-data branch, read by trading-app polyrewards.html. PAPER ONLY: public GETs, never an order.
+// pmr-data branch, read by trading-app polyrewards.html. PAPER ONLY: public GETs, never an order.
 // Run: node --experimental-strip-types scripts/pmr-desk.ts <state.json>
 import fs from 'node:fs'
 import { PMR, midOf, midAdj, share, quotePx, sizeAt, yesTrade, fillQuote, onBidFill, onAskFill, eligible, sizeFor, daysTo, type Book, type Quote } from '../shared/pmr.ts'
