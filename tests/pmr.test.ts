@@ -1,6 +1,7 @@
 // "פולי תגמולים": reward scoring, quote placement, tape fills and inventory accounting of the liquidity-rewards paper desk.
 import fs from 'node:fs'
-import { PMR, S, qMin, midAdj, bookQ, share, quotePx, yesTrade, fillQuote, onBidFill, onAskFill, eligible, sizeFor, type Book } from '../shared/pmr.ts'
+import { PMR, S, qMin, midAdj, bookQ, share, quotePx, yesTrade, fillQuote, onBidFill, onAskFill, eligible, sizeFor, lockOf, clampQueue, walkSell, noBids,
+  samplesBetween, payout, takerFee, type Book } from '../shared/pmr.ts'
 let n = 0, bad = 0
 const ok = (c: boolean, m: string) => { n++; if (!c) { bad++; console.error('FAIL', m) } }
 const near = (a: number, b: number, e = 1e-9) => Math.abs(a - b) < e
@@ -51,6 +52,23 @@ ok(eligible({ mid: 0.9, end: '2026-11-01', spreadC: 2, v: 3 }, now) === 'mid', '
 ok(eligible({ mid: 0.5, end: '2026-10-24', spreadC: 2, v: 3 }, now) === 'end', 'too close to the end excluded')
 ok(sizeFor(200, 0.49, 0.51) === 204, 'size per side fits the budget (YES bid + NO bid ~ $0.98 a pair)')
 ok(PMR.startCash === 1000 && PMR.maxMarkets === 5, '$1,000 paper account, 5 markets')
+
+
+// realism: collateral, queue, exits through the book, minute samples, daily payout with the $1 floor
+ok(near(lockOf('bid', 0.4, 100, 0), 40) && near(lockOf('ask', 0.6, 100, 0), 40) && lockOf('ask', 0.6, 100, 100) === 0 && near(lockOf('ask', 0.6, 100, 30), 28), 'order collateral: YES bid px, ask = held YES or NO bid 1-px')
+ok(clampQueue(80, 50) === 50 && clampQueue(30, 50) === 30, 'queue ahead shrinks with cancels, never grows')
+const ws = walkSell([{ price: 0.5, size: 60 }, { price: 0.45, size: 100 }], 100, null)
+ok(near(ws.proceeds, 30 + 18) && ws.unfilled === 0, 'exit walks the bid ladder')
+ok(walkSell([{ price: 0.5, size: 10 }], 30, null).unfilled === 20, 'shares the book cannot absorb are unfilled ($0)')
+ok(near(walkSell([{ price: 0.5, size: 100 }], 100, { rate: 0.02, exponent: 1 }).fee, takerFee(100, 0.5, { rate: 0.02, exponent: 1 })) && takerFee(100, 0.5, { rate: 0.02, exponent: 1 }) > 0, 'taker fee on fee markets')
+ok(near(noBids(b)[0].price, 0.49), 'NO bids mirror YES asks')
+const m0 = Date.parse('2026-10-23T10:00:30Z')
+ok(samplesBetween(m0, m0 + 15000) === 0 && samplesBetween(m0, m0 + 45000) === 1 && samplesBetween(m0, m0 + 3600000) === 3 && samplesBetween(0, m0) === 0, 'one reward sample per minute boundary, stalls capped')
+const po = payout({ a: 5.2, b: 0.7, c: 1 })
+ok(near(po.paid, 6.2) && near(po.dropped, 0.7), 'daily payout: a market-day below $1 is not paid')
+const dsrc = fs.readFileSync(new URL('../scripts/pmr-desk.ts', import.meta.url), 'utf8')
+ok(/st\.pending\[cid\]/.test(dsrc) && !/st\.cash \+= earn/.test(dsrc), 'rewards wait for the 00:00 UTC payout (not credited to cash at once)')
+ok(/free >= lockOf\('bid'/.test(dsrc) && /free >= lockOf\('ask'/.test(dsrc), 'quotes across markets cannot lock more than the free cash')
 
 const wf = fs.readFileSync(new URL('../.github/workflows/pmr-desk.yml', import.meta.url), 'utf8')
 ok(/cp shared\/pmr\.ts/.test(wf) && /concurrency:\s*\n\s*group: pmr-desk/.test(wf), 'workflow copies its module and has its own concurrency group')

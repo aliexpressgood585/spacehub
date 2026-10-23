@@ -103,6 +103,39 @@ export function merge(x: Inv) { const m = Math.min(x.yes, x.no); x.yes -= m; x.n
 export function onBidFill(x: Inv, px: number, sz: number) { x.cash -= px * sz; x.yes += sz; return merge(x) }
 export function onAskFill(x: Inv, px: number, sz: number) { x.cash -= (1 - px) * sz; x.no += sz; return merge(x) }
 
+// ---- realism (2026-10-23, owner: "it must match real trading") ----
+// Collateral an open order locks on Polymarket: a YES bid locks px x size USDC; an ask sells held YES shares (locks shares, no
+// cash) or, without them, is a NO bid that locks (1-px) x size USDC. Open orders across ALL markets cannot lock more than cash.
+export function lockOf(side: 'bid' | 'ask', px: number, size: number, yesHeld: number) {
+  if (side === 'bid') return px * size
+  return Math.max(0, size - yesHeld) * (1 - px)
+}
+// Queue ahead of us can only shrink: cancels ahead move us up. It can never exceed what is visible at our price now.
+export const clampQueue = (queue: number, levelNow: number) => Math.max(0, Math.min(queue, levelNow))
+// Taker fee on fee-enabled markets (same formula as shared/pm.ts takerFee); makers pay none.
+export type Fee = { rate: number; exponent: number } | null
+export const takerFee = (shares: number, p: number, f: Fee) =>
+  !f || !(f.rate > 0) || !(shares > 0) ? 0 : shares * f.rate * Math.pow(Math.max(0, p * (1 - p)), f.exponent > 0 ? f.exponent : 1)
+// Market sell of `shares` into a bid ladder (price descending), level by level; shares the book cannot absorb get $0.
+export function walkSell(bids: Lvl[], shares: number, f: Fee) {
+  let left = shares, got = 0, fee = 0
+  for (const l of bids) { if (left <= 0) break; const q = Math.min(left, l.size); got += q * l.price; fee += takerFee(q, l.price, f); left -= q }
+  return { proceeds: got - fee, fee, unfilled: left }
+}
+// NO bids are YES asks mirrored at 1 - price (the books mirror each other).
+export const noBids = (b: Book): Lvl[] => b.asks.map((l) => ({ price: +(1 - l.price).toFixed(4), size: l.size }))
+// Reward samples: the exchange samples once a minute; we score one sample per minute boundary crossed since the last cycle
+// (a stalled loop is capped). Earned rewards are PENDING until the daily payout at 00:00 UTC, where a market's day below $1
+// is not paid (docs: payouts below $1 are not paid).
+export const samplesBetween = (prevMs: number, nowMs: number, cap = 3) =>
+  !prevMs ? 0 : Math.max(0, Math.min(cap, Math.floor(nowMs / 60000) - Math.floor(prevMs / 60000)))
+export const dayOf = (ms: number) => new Date(ms).toISOString().slice(0, 10)
+export function payout(pending: Record<string, number>, minPay = 1) {
+  let paid = 0, dropped = 0
+  for (const v of Object.values(pending)) (v >= minPay ? (paid += v) : (dropped += v))
+  return { paid, dropped }
+}
+
 export const daysTo = (end: string, now: number) => (Date.parse(end) - now) / 86400_000
 export function eligible(m: { mid: number; end: string; spreadC: number; v: number }, now: number) {
   if (!(m.mid >= PMR.midLo && m.mid <= PMR.midHi)) return 'mid'

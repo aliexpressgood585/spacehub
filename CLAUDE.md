@@ -929,6 +929,11 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   so the projected share is 70-100% and the projected rate ~$700/day on $1,000. TREAT AS A FORECAST, NOT A RESULT: our quotes are
   virtual (real makers do not react to them), and the cost is adverse selection on fills (maker shadow without rewards lost
   5.8-9.8%/$). Judge only on the measured equity line (rewards minus trading P&L) over weeks.
+  REALISM UPDATE same day (owner: "it must be identical to real trading"): rewards scored as one sample per minute boundary,
+  held PENDING and paid at 00:00 UTC with the $1-per-market-day floor (state written before was migrated: credited rewards moved
+  back to pending); open orders lock collateral across ALL markets (YES bid px*size, ask = held YES or NO bid (1-px)*size);
+  queue ahead clamped to the visible level (cancels move us up); exits walk the real bid ladder with the taker fee (unabsorbed
+  shares = $0). Page lists what matches and what does not (our quotes invisible to others; 15 s reaction; merge gas). 38/38 tests.
   REAL-MONEY GATE, pre-registered 2026-10-23 (owner asked "when can we go real"), all must hold on the paper desk:
   (1) >= 14 days running; (2) total equity up AND trading P&L (equity - start - rewards) eats < 50% of rewards;
   (3) >= 100 fills (adverse selection measured, not assumed); (4) no single day worse than -5%; (5) rewards spread over

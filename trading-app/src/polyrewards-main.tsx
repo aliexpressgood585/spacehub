@@ -11,7 +11,7 @@ const pct = (v: number | null | undefined, d = 1) => (v == null || !isFinite(v) 
 const col = (v: number) => (v > 0 ? '#3ddc97' : v < 0 ? '#ff6b6b' : '#c9d4e0')
 const il = (ts: string) => new Date(ts).toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem', hour12: false, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 const ago = (ts?: string) => (ts ? `${Math.max(0, Math.round((Date.now() - Date.parse(ts)) / 1000))} שנ׳` : '—')
-const ACT: Record<string, string> = { SELECT: 'נכנס לשוק', DESELECT: 'יוצא מהשוק', UNWIND: 'פירוק מלאי' }
+const ACT: Record<string, string> = { SELECT: 'נכנס לשוק', DESELECT: 'יוצא מהשוק', UNWIND: 'פירוק מלאי', PAYOUT: 'תשלום תגמולים' }
 
 function Chart({ pts }: { pts: J[] }) {
   if (pts.length < 2) return <div style={{ color: '#8fa3b8', fontSize: 13 }}>הגרף יתמלא אחרי כמה מחזורים.</div>
@@ -38,6 +38,7 @@ function App() {
   if (!st) return <div style={{ padding: 24 }}>טוען… (אם זה נמשך, הדסק עוד לא פרסם מצב ראשון)</div>
   const last = st.equity?.[st.equity.length - 1] ?? { eq: st.cash, rw: st.rewards }
   const eq = last.eq, rw = st.rewards, trade = eq - st.start_cash - rw
+  const pend = Object.values<number>(st.pending ?? {}).reduce((a, v) => a + v, 0)
   const days = Math.max(1 / 24, (Date.now() - Date.parse(st.started)) / 86400_000)
   const mk = Object.values<J>(st.markets ?? {})
   const card = { background: '#0b1322', border: '1px solid #1d2a40', borderRadius: 12, padding: 12 } as const
@@ -48,7 +49,8 @@ function App() {
         <div style={{ color: '#8fa3b8', fontSize: 13 }}>חשבון דמו $1,000 שמספק נזילות בפולימרקט ומקבל את תגמולי הנזילות שהבורסה משלמת · ספרי פקודות, מאגרי תגמולים ועסקאות אמיתיים · מחזור אחרון לפני {ago(st.last_cycle)}{st.note?.error ? ` · שגיאה: ${st.note.error}` : ''}</div></div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 8 }}>
         {[['הון', usd(eq), col(eq - st.start_cash)], ['שינוי', pct(eq / st.start_cash - 1, 2), col(eq - st.start_cash)],
-          ['תגמולים שהורווחו', usd(rw), col(rw)], ['רווח/הפסד מסחר', usd(trade), col(trade)],
+          ['תגמולים שהורווחו', usd(rw), col(rw)], ['שולמו בפועל', usd(st.paid ?? 0), '#c9d4e0'], ['ממתינים לתשלום ב-00:00 UTC', usd(pend), '#f5c84c'],
+          ['רווח/הפסד מסחר', usd(trade), col(trade)], ['נעול בהצעות פתוחות', usd(st.locked), '#c9d4e0'],
           ['קצב תגמולים עכשיו', `${usd(st.reward_rate_now, 0)}/יום`, '#f5c84c'], ['ממוצע בפועל', `${usd((eq - st.start_cash) / days, 1)}/יום`, col(eq - st.start_cash)]]
           .map(([k, v, c]) => <div key={k} style={card}><div style={{ color: '#8fa3b8', fontSize: 12 }}>{k}</div><div style={{ fontSize: 20, fontWeight: 700, color: c }}>{v}</div></div>)}
       </div>
@@ -75,6 +77,19 @@ function App() {
         {!(st.closed ?? []).length && <div style={{ color: '#8fa3b8', marginTop: 6 }}>עוד אין.</div>}
         {(st.closed ?? []).slice(0, 30).map((c: J, i: number) => <div key={i} style={{ fontSize: 12.5, padding: '4px 0', borderTop: '1px solid #1d2a40' }}>
           {il(c.closed_at)} · {c.q.slice(0, 60)} · תגמולים {usd(c.rewards)} · מסחר <span style={{ color: col(c.trading) }}>{usd(c.trading)}</span> · {c.fills} מילויים</div>)}
+      </div>
+      <div style={card}><b>התאמה למסחר אמיתי</b>
+        <div style={{ fontSize: 12.5, lineHeight: 1.7, marginTop: 6 }}>
+          <div>✅ ספרי ההצעות, מאגרי התגמולים והעסקאות — אמיתיים, נקראים כל 15 שניות.</div>
+          <div>✅ נוסחת התגמול הרשמית, אמצע מותאם לגודל מינימלי, דגימה אחת לדקה.</div>
+          <div>✅ תגמולים משולמים רק ב-00:00 UTC, ויום של שוק מתחת ל-$1 לא משולם (כמו בבורסה).</div>
+          <div>✅ מילוי רק כשעסקה אמיתית עברה במחיר שלנו, אחרי התור שלפנינו; ביטולים לפנינו מקדמים אותנו.</div>
+          <div>✅ כסף שנעול בהצעות פתוחות לא זמין להצעות אחרות, בכל השווקים יחד.</div>
+          <div>✅ יציאה מוכרת לתוך ספר ההצעות האמיתי, רמה אחרי רמה, עם עמלת לוקח.</div>
+          <div>⚠️ ההצעות שלנו לא נראות לאחרים — בכסף אמיתי שחקנים יגיבו והחלק שלנו יקטן.</div>
+          <div>⚠️ הבוט מגיב כל 15 שניות; בוט אמיתי מהיר יותר — כאן הצעה ישנה נתפסת יותר (שמרני).</div>
+          <div>⚠️ עמלות רשת על איחוד YES+NO (סנטים בודדים) ותגמולי מחזיקים — לא נספרים.</div>
+        </div>
       </div>
       <div style={card}><b>החלטות</b>
         {(st.decisions ?? []).slice(0, 20).map((d: J, i: number) => <div key={i} style={{ fontSize: 12.5, padding: '4px 0', borderTop: '1px solid #1d2a40' }}>{il(d.ts)} · {ACT[d.action] ?? d.action} · {d.q?.slice(0, 60)} · {d.why}</div>)}
