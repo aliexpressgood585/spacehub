@@ -1,6 +1,6 @@
 // "פולי תגמולים": reward scoring, quote placement, tape fills and inventory accounting of the liquidity-rewards paper desk.
 import fs from 'node:fs'
-import { PMR, S, qMin, midAdj, bookQ, share, quotePx, yesTrade, fillQuote, onBidFill, onAskFill, eligible, sizeFor, lockOf, clampQueue, walkSell, noBids,
+import { PMR, S, qMin, midAdj, bookQ, share, quotePx, yesTrade, fillQuote, onBidFill, onAskFill, eligible, sizeFor, pickMarkets, lockOf, clampQueue, walkSell, noBids,
   samplesBetween, payout, takerFee, type Book } from '../shared/pmr.ts'
 let n = 0, bad = 0
 const ok = (c: boolean, m: string) => { n++; if (!c) { bad++; console.error('FAIL', m) } }
@@ -70,6 +70,13 @@ const dsrc = fs.readFileSync(new URL('../scripts/pmr-desk.ts', import.meta.url),
 ok(/st\.pending\[cid\]/.test(dsrc) && !/st\.cash \+= earn/.test(dsrc), 'rewards wait for the 00:00 UTC payout (not credited to cash at once)')
 ok(/free >= lockOf\('bid'/.test(dsrc) && /free >= lockOf\('ask'/.test(dsrc), 'quotes across markets cannot lock more than the free cash')
 
+// selection with hysteresis: drop first, refill freed slots in the same scan, keep a market through a noisy dip
+const cs = (ys: number[]) => ys.map((y, i) => ({ cid: 'm' + i, yld: y }))
+const p1 = pickMarkets(cs([0.3, 0.29, 0.28, 0.27, 0.26, 0.25, 0.2, 0.1]), ['m7', 'm6', 'x'])
+ok(p1.keep.join() === 'm6' && p1.drop.sort().join() === 'm7,x' && p1.select.length === 4 && p1.select[0] === 'm0', 'weak and vanished markets dropped, freed slots refilled at once')
+ok(pickMarkets(cs([0.3, 0.29, 0.28, 0.27, 0.26, 0.14]), ['m5']).keep.join() === 'm5', 'a market at >= half the 5th-best yield is kept (no switch on one snapshot)')
+ok(pickMarkets(cs([0.3, 0.29, 0.28, 0.27, 0.26]), ['m0', 'm1', 'm2', 'm3', 'm4']).select.length === 0, 'no selection beyond the market cap')
+ok(pickMarkets(cs([0.002]), []).select.length === 0, 'below the minimum yield nothing is selected')
 const wf = fs.readFileSync(new URL('../.github/workflows/pmr-desk.yml', import.meta.url), 'utf8')
 ok(/cp shared\/pmr\.ts/.test(wf) && /concurrency:\s*\n\s*group: pmr-desk/.test(wf), 'workflow copies its module and has its own concurrency group')
 const src = fs.readFileSync(new URL('../scripts/pmr-desk.ts', import.meta.url), 'utf8')

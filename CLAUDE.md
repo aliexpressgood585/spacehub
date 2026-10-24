@@ -940,6 +940,13 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   >= 5 different markets (not one lucky pool). Then step 2 = a SMALL real test ($100-200, owner's own account, only where
   Polymarket is legal for the owner) comparing ACTUAL paid rewards (daily at 00:00 UTC) with the paper estimate for the same
   days; scale only if real >= ~50% of paper. The agent never connects keys or places real orders.
+- 2026-10-24 pmr SELECTION FIX (owner asked why only one market was active). First 27.5 h: equity $1,487.6, rewards $482.4 (first
+  payout 10-23: paid $256.85, dropped $0.40), trading P&L ~+$5 on 34 fills, 77 markets cycled. Defects: (1) scan() SELECTED before it
+  DESELECTED, so slots freed by a deselect stayed empty until the next scan 20 min later (at 15:29 four were dropped, 1 left, $298 of
+  $1,488 locked); (2) an ON market was dropped as soon as it fell out of the top 10 on ONE book snapshot -> constant switching, each
+  exit unwinding inventory at the taker side (e.g. Vivek ad: rewards $4.15, trading -$15.38). shared/pmr.ts pickMarkets(): drop first,
+  refill in the same scan, keep an ON market while its yield >= max(min yield, half the 5th-best). Local cycle on the live state: 5
+  markets, $1,189 locked. tests/pmr.test.ts 42/42. Rules otherwise unchanged; the gate clock is not reset (selection only).
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the

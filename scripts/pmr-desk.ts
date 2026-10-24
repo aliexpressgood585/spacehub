@@ -8,7 +8,7 @@
 // pmr-data branch, read by trading-app polyrewards.html. PAPER ONLY: public GETs, never an order.
 // Run: node --experimental-strip-types scripts/pmr-desk.ts <state.json>
 import fs from 'node:fs'
-import { PMR, midOf, midAdj, share, quotePx, sizeAt, yesTrade, fillQuote, onBidFill, onAskFill, eligible, sizeFor, daysTo, lockOf, clampQueue,
+import { PMR, midOf, midAdj, share, quotePx, sizeAt, yesTrade, fillQuote, onBidFill, onAskFill, eligible, sizeFor, pickMarkets, daysTo, lockOf, clampQueue,
   walkSell, noBids, samplesBetween, dayOf, payout, type Book, type Quote, type Fee } from '../shared/pmr.ts'
 
 const FILE = process.argv[2] ?? 'pmr/state.json'
@@ -79,15 +79,15 @@ async function scan() {
   }
   cands.sort((a, b) => b.yld - a.yld)
   st.candidates = cands.slice(0, 30); st.last_scan = iso()
-  const want = cands.filter((c) => c.yld >= PMR.minYieldPerDay).slice(0, PMR.maxMarkets)
-  for (const c of want) if (!st.markets[c.cid] && Object.values(st.markets).filter((m: any) => m.state === 'ON').length < PMR.maxMarkets) {
-    st.markets[c.cid] = { ...c, state: 'ON', yesSh: 0, noSh: 0, cashFlow: 0, rewards: 0, fills: 0, bid: null, ask: null, last_ts: 0, seen: [], opened: iso() }
-    dec({ action: 'SELECT', q: c.q, why: `צפי ${(c.yld * 100).toFixed(2)}% ליום (${c.exp_day}$ מתוך מאגר ${c.rate}$)` })
-  }
   for (const c of cands) if (st.markets[c.cid]) Object.assign(st.markets[c.cid], { fee_rate: c.fee_rate, fee_exp: c.fee_exp })
-  const keep = new Set(want.map((c) => c.cid))
-  for (const [cid, m] of Object.entries<any>(st.markets)) if (m.state === 'ON' && !keep.has(cid) && !cands.slice(0, PMR.maxMarkets * 2).some((c) => c.cid === cid)) {
-    m.state = 'EXIT'; dec({ action: 'DESELECT', q: m.q, why: 'יצא מהרשימה המובילה' })
+  const on = Object.entries<any>(st.markets).filter(([, m]) => m.state === 'ON').map(([cid]) => cid)
+  const pick = pickMarkets(cands, on), byId = new Map(cands.map((c) => [c.cid, c]))
+  for (const cid of pick.drop) { const m = st.markets[cid]; m.state = 'EXIT'; dec({ action: 'DESELECT', q: m.q, why: byId.has(cid) ? `תשואה ירדה ל-${(byId.get(cid).yld * 100).toFixed(2)}% ליום` : 'לא עבר את תנאי הסריקה' }) }
+  for (const cid of pick.select) {
+    if (st.markets[cid]) continue                                          // still unwinding from an earlier exit
+    const c = byId.get(cid)
+    st.markets[cid] = { ...c, state: 'ON', yesSh: 0, noSh: 0, cashFlow: 0, rewards: 0, fills: 0, bid: null, ask: null, last_ts: 0, seen: [], opened: iso() }
+    dec({ action: 'SELECT', q: c.q, why: `צפי ${(c.yld * 100).toFixed(2)}% ליום (${c.exp_day}$ מתוך מאגר ${c.rate}$)` })
   }
 }
 function markOf(m: any, b?: Book) { const mid = b ? midOf(b) : m.mid; return Number.isFinite(mid) ? m.yesSh * mid + m.noSh * (1 - mid) : 0 }

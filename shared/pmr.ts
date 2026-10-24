@@ -136,6 +136,19 @@ export function payout(pending: Record<string, number>, minPay = 1) {
   return { paid, dropped }
 }
 
+// Market selection with hysteresis (2026-10-24): an ON market is kept while its fresh yield is >= half the yield of the weakest
+// market we would otherwise pick, so one noisy book snapshot does not force a switch (each switch unwinds inventory at the taker
+// side). Deselection runs BEFORE selection, so freed slots are refilled in the same scan instead of 20 minutes later.
+export function pickMarkets(cands: { cid: string; yld: number }[], on: string[]) {
+  const want = cands.filter((c) => c.yld >= PMR.minYieldPerDay).slice(0, PMR.maxMarkets)
+  const bar = want.length ? want[want.length - 1].yld / 2 : Infinity
+  const y = new Map(cands.map((c) => [c.cid, c.yld]))
+  const keep = on.filter((cid) => (y.get(cid) ?? -1) >= Math.max(PMR.minYieldPerDay, bar))
+  const drop = on.filter((cid) => !keep.includes(cid))
+  const select = want.filter((c) => !on.includes(c.cid)).slice(0, Math.max(0, PMR.maxMarkets - keep.length)).map((c) => c.cid)
+  return { keep, drop, select }
+}
+
 export const daysTo = (end: string, now: number) => (Date.parse(end) - now) / 86400_000
 export function eligible(m: { mid: number; end: string; spreadC: number; v: number }, now: number) {
   if (!(m.mid >= PMR.midLo && m.mid <= PMR.midHi)) return 'mid'
