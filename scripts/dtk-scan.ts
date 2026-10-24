@@ -130,14 +130,17 @@ for (const t of openP()) {
     // funding: at each real settlement the published rate x notional moves cash (positive rate: longs pay)
     if (t.fund_next && now >= t.fund_next) { const cost = sg(t.side) * t.fund_rate * t.qty * (board[t.sym]?.last ?? t.mark); P.cash -= cost; t.funding += cost; P.funding += cost; t.fund_next = null }
     if (!t.fund_next) { const f = (await j(`${OKX}/public/funding-rate?instId=${t.sym}-USDT-SWAP`))[0]; t.fund_rate = +f.fundingRate; t.fund_next = +f.fundingTime }
-    const m1 = toBars(await j(`${OKX}/market/candles?instId=${t.sym}-USDT-SWAP&bar=1m&limit=10`), true)
-    const trig = exitTrigger(m1, t.side, t.stop, t.target, t.checked)
+    // every minute since the last check (up to 5 h back), so a pause of the loop never skips a stop, a target or the time exit
+    const lim1 = Math.min(300, Math.ceil((now - t.checked) / 60_000) + 3)
+    const m1 = toBars(await j(`${OKX}/market/candles?instId=${t.sym}-USDT-SWAP&bar=1m&limit=${lim1}`), true)
+    const trig = exitTrigger(m1.filter((b) => b.t < t.flat_at), t.side, t.stop, t.target, t.checked)
     const why = trig?.why ?? (now >= t.flat_at ? 'TIME' : null)
+    const timeBar = !trig && why === 'TIME' ? m1.filter((b) => b.t + 60_000 <= t.flat_at).pop() : null   // close of the minute the 4 h ended
     t.checked = now; t.mark = board[t.sym]?.last ?? t.mark
     if (!why) continue
     const bk = await book(t.sym), lv = t.side === 'LONG' ? bk.bids : bk.asks, w = walkBook(lv, t.qty)
     const impact = lv.length ? Math.max(DTK.slip, Math.abs(w.vwap / lv[0][0] - 1)) * (w.filled < t.qty ? 2 : 1) : 0.01
-    const px = trig ? trig.px * (1 - sg(t.side) * impact) : w.vwap * (1 - sg(t.side) * DTK.slip)
+    const px = trig ? trig.px * (1 - sg(t.side) * impact) : timeBar && now - t.flat_at > 120_000 ? timeBar.c * (1 - sg(t.side) * impact) : w.vwap * (1 - sg(t.side) * DTK.slip)
     const fee = px * t.qty * DTK.taker, gross = sg(t.side) * (px - t.entry) * t.qty
     P.cash += t.margin + gross - fee; P.fees += fee
     const pnl = gross - t.fee_in - fee - t.funding

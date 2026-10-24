@@ -971,7 +971,13 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   open), fill = trigger x (1 - max(3 bps, book-walk impact)); TIME after 4 h at the book VWAP; funding charged at each real OKX
   settlement (fundingTime/fundingRate). Decisions journal incl. every skip reason. Page: first tab "תיק דמו $1,000" (live equity at
   bid/ask, open positions, closed trades with gross / fees / funding / net / R, equity line). tests 38/38. Local first scan opened 3
-  (FLAG longs/short), most liquid setups skipped for costs > 25% of R.
+  (FLAG longs/short), most liquid setups skipped for costs > 25% of R. First live scan 19:11 UTC: ZEC SHORT, CAP LONG, PEPE LONG.
+  NO-GAPS (owner: "work at every moment, no breaks"): the loop dispatches its own successor 3 min before its 348-min end (actions:
+  write + gh workflow run; GITHUB_TOKEN may trigger workflow_dispatch), it waits in the concurrency queue and starts as the old one
+  ends; hourly cron is the backup. Cycle 30 s. Exits read EVERY 1m bar since the last check (limit up to 300 = 5 h), so a pause
+  never skips a stop/target, and a late TIME exit fills at the close of the minute the 4 h ended. Page reads the newest dtk-data
+  commit via api.github.com (sha, ~1/min) and the file at that sha (raw branch URLs are cached ~5 min); header turns red when the
+  server has not written for > 3 min.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the

@@ -101,8 +101,21 @@ function App() {
   const [tm, setTm] = useState<J>(null), [tmBusy, setTmBusy] = useState(false), [confirm, setConfirm] = useState(''), [log, setLog] = useState<string[]>([])
   useEffect(() => { SV('tab2', tab) }, [tab]); useEffect(() => { SV('cfg', cfg) }, [cfg]); useEffect(() => { SV('pos', pos) }, [pos]); useEffect(() => { SV('alerts', alerts) }, [alerts])
   useEffect(() => {
-    const load = () => fetch(STATE + '?t=' + Date.now()).then((r) => r.json()).then(setSt).catch(() => {})
-    load(); const a = setInterval(load, 15000), b = setInterval(() => tick((x) => x + 1), 1000)
+    // raw.githubusercontent caches a branch file for ~5 min. Ask the GitHub API for the newest commit of dtk-data (cheap, ~1/min to
+    // stay inside the 60 requests/hour a browser gets) and read the file AT THAT COMMIT, which is never stale. Falls back to the branch URL.
+    let sha = '', last = 0
+    const load = async () => {
+      try {
+        if (Date.now() - last > 55_000 || !sha) {
+          last = Date.now()
+          const r = await fetch('https://api.github.com/repos/aliexpressgood585/spacehub/commits/dtk-data', { headers: { Accept: 'application/vnd.github.sha' } })
+          if (r.ok) sha = (await r.text()).trim()
+        }
+        const u = sha ? `https://raw.githubusercontent.com/aliexpressgood585/spacehub/${sha}/dtk/state.json` : STATE + '?t=' + Date.now()
+        setSt(await (await fetch(u)).json())
+      } catch { /* keep the last state */ }
+    }
+    load(); const a = setInterval(load, 20000), b = setInterval(() => tick((x) => x + 1), 1000)
     return () => { clearInterval(a); clearInterval(b) }
   }, [])
   // live prices for the selected coin + every open paper position + custom alerts, every 3 s
@@ -175,7 +188,7 @@ function App() {
   return <div style={{ maxWidth: 1180, margin: '0 auto', padding: '14px 12px 60px' }}>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
       <h1 style={{ fontSize: 22 }}>ערכת הדיי טריידר <span style={{ color: '#8fa3b8', fontSize: 14, fontWeight: 400 }}>· כל מטבעות Binance Futures</span></h1>
-      <div style={{ color: '#8fa3b8', fontSize: 12.5 }}>סריקה אחרונה {ago(st.scan?.at)} · {st.scan?.coins ?? '—'} מטבעות · עדכון לוח {ago(st.last_cycle)}</div>
+      <div style={{ color: Date.now() - Date.parse(st.last_cycle) > 180_000 ? '#ff6b6b' : '#8fa3b8', fontSize: 12.5 }}>{Date.now() - Date.parse(st.last_cycle) > 180_000 ? '⚠️ השרת לא עדכן מעל 3 דקות · ' : '🟢 חי · '}עדכון אחרון לפני {ago(st.last_cycle)} · סריקה {ago(st.scan?.at)} · {st.scan?.coins ?? '—'} מטבעות</div>
     </div>
     <div style={{ ...box, borderColor: '#5a4a1a', background: '#171207', fontSize: 13, lineHeight: 1.6 }}>
       ⚠️ כלי עזר להחלטה, לא מכונת כסף. נייר בלבד: אין חיבור לבורסה, וכל פקודה נרשמת רק ביומן בדפדפן הזה ורק אחרי שתקליד "כן". מכל אסטרטגיות הדיי טריידינג שבדקנו על מטבעות, אף אחת לא הרוויחה אחרי עמלות (~0.16% הלוך-חזור). לכן "מכונת הזמן" מחשבת את אותן עלויות, כדי שתראה את הסיכוי האמיתי לפני כל עסקה.
