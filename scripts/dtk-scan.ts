@@ -4,7 +4,7 @@
 // that opens and closes positions by itself on live OKX books (taker fees, book-walk slippage, real funding). Writes dtk/state.json.
 // READ-ONLY toward any exchange: it never places a real order. Usage: node --experimental-strip-types scripts/dtk-scan.ts dtk/state.json
 import fs from 'node:fs'
-import { DTK, PAPER, KIND_HE, setupsAt, replay, monteCarlo, atr, coinsIn, parseRss, budget, riskChecks, walkBook, exitTrigger, type Bar } from '../shared/dtk.ts'
+import { DTK, PAPER, KIND_HE, tmGate, setupsAt, replay, monteCarlo, atr, coinsIn, parseRss, budget, riskChecks, walkBook, exitTrigger, type Bar } from '../shared/dtk.ts'
 import { refreshUniverse, universeDue, liquid, limiter, pool } from '../shared/binperps.ts'
 
 const FILE = process.argv[2] ?? 'dtk/state.json', OKX = 'https://www.okx.com/api/v5'
@@ -20,6 +20,21 @@ async function history(sym: string, pages: number): Promise<Bar[]> {
     after = rows[rows.length - 1][0]
   }
   return [...out.values()].sort((a, b) => a.t - b.t)
+}
+
+// History cache on the runner's disk (not pushed): a coin is fetched in full once per runner job, then only the new bars.
+const HDIR = '/tmp/dtk-hist'
+async function histCached(sym: string, days: number): Promise<Bar[]> {
+  const f = `${HDIR}/${sym}.json`, want = days * 288
+  let h: Bar[] = []
+  try { h = JSON.parse(fs.readFileSync(f, 'utf8')) } catch { /* cold */ }
+  const lastT = h.length ? h[h.length - 1].t : 0
+  const pages = h.length >= want * 0.95 && now - lastT < 3 * 86400_000 ? Math.ceil((now - lastT) / DTK.bar / 100) + 1 : Math.ceil(want / 100)
+  const m = new Map<number, Bar>(h.map((b) => [b.t, b]))
+  for (const b of await history(sym, pages)) m.set(b.t, b)
+  h = [...m.values()].sort((a, b) => a.t - b.t).filter((b) => b.t + DTK.bar <= now).slice(-want)
+  try { fs.mkdirSync(HDIR, { recursive: true }); fs.writeFileSync(f, JSON.stringify(h)) } catch { /* cache is optional */ }
+  return h
 }
 
 const st: any = fs.existsSync(FILE) ? JSON.parse(fs.readFileSync(FILE, 'utf8')) : { version: 'dtk-v1', setups: [], news: [], oi_hist: {}, last_bar: 0 }
@@ -70,12 +85,16 @@ if (barT > st.last_bar && Object.keys(board).length) {
       for (const s of setupsAt(b, last)) found.push({ sym, ...s, liquid: liquid(board[sym]), atr_pct: a / b[last].c })
     } catch (e) { if (errs.length < 20) errs.push(`${sym}: ${e}`) }
   })
-  // time machine for the strongest liquid setups: 5 days of 5m history (replay of the same rule + Monte Carlo of the session)
+  // time machine for EVERY liquid setup (it gates the demo account) and the strongest others: last PAPER.tmDays days of 5m history,
+  // replay of the same rule + Monte Carlo of the session. Bounded by time; a setup left without a replay cannot be entered.
   found.sort((x, y) => Number(y.liquid) - Number(x.liquid) || y.strength - x.strength)
-  for (const s of found.slice(0, 12)) {
+  const tmList = [...found.filter((s) => s.liquid), ...found.filter((s) => !s.liquid).slice(0, 4)], hcache = new Map<string, Bar[]>()
+  for (const s of tmList) {
+    if (Date.now() - t0 > 80_000) { errs.push(`time machine: time budget, ${tmList.length - tmList.indexOf(s)} setups left`); break }
     try {
-      const h = await history(s.sym, 15)
+      const h = hcache.get(s.sym) ?? await histCached(s.sym, PAPER.tmDays); hcache.set(s.sym, h)
       s.replay = replay(h, s.kind, s.side); s.mc = monteCarlo(h, s, 2000, s.t % 100000); s.hist_days = +(h.length * 5 / 1440).toFixed(1)
+      s.tm = tmGate(s.replay)
     } catch (e) { errs.push(`history ${s.sym}: ${e}`) }
   }
   // funding (OKX's rate, labelled as such) for the setups and the 20 largest coins
@@ -155,6 +174,8 @@ if (scanned) {
   for (const s of found) {
     if (openP().length >= PAPER.maxOpen) { pdec({ act: 'SKIP', sym: s.sym, side: s.side, why: `כבר ${PAPER.maxOpen} פוזיציות פתוחות` }); break }
     if (!s.liquid) continue
+    const tg = tmGate(s.replay)
+    if (!tg.ok) { pdec({ act: 'SKIP', sym: s.sym, side: s.side, why: tg.why }); continue }
     const b = board[s.sym], side = s.side as 'LONG' | 'SHORT', g = sg(side)
     if (openP().some((t: any) => t.sym === s.sym)) { pdec({ act: 'SKIP', sym: s.sym, side, why: 'כבר פתוחה פוזיציה במטבע' }); continue }
     const live = side === 'LONG' ? b.ask : b.bid, r = Math.abs(s.entry - s.stop), drift = g * (live - s.entry) / r
@@ -175,7 +196,7 @@ if (scanned) {
         fee_in: fee, risk_usd: maxLoss, opened_at: iso(), flat_at: now + DTK.holdBars * DTK.bar, checked: now, funding: 0, mark: fill, status: 'OPEN',
         replay: s.replay ? { n: s.replay.n, avgR: s.replay.avgR } : null, mc: s.mc ? { target: s.mc.target, stop: s.mc.stop, evR: s.mc.evR } : null }
       P.trades.unshift(t); P.dayEntries++
-      pdec({ act: 'OPEN', sym: s.sym, side, why: `${s.kind_he} · ${qty.toPrecision(4)} @ ${fill.toPrecision(6)} · סיכון $${maxLoss.toFixed(2)}` })
+      pdec({ act: 'OPEN', sym: s.sym, side, why: `${s.kind_he} · ${tg.why} · ${qty.toPrecision(4)} @ ${fill.toPrecision(6)} · סיכון $${maxLoss.toFixed(2)}` })
     } catch (e) { errs.push(`paper open ${s.sym}: ${e}`) }
   }
 }

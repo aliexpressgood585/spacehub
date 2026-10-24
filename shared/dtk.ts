@@ -180,7 +180,16 @@ export function parseRss(xml: string): { title: string; link: string; at: number
 // The scanner opens and closes positions by itself from the toolkit's setups, on live OKX books, with taker fees, slippage from
 // walking the real order book, exits triggered exchange-side style (1-minute bars since the last check, stop first, gaps fill at the
 // open) and funding charged at each real settlement. Sizing: 1% of equity lost at the stop (fees included), isolated 5x.
-export const PAPER = { start: 1000, riskPct: 0.01, lev: 5, maxOpen: 4, dayLossPct: 0.03, perDay: 20, chaseR: 0.3 }
+export const PAPER = { start: 1000, riskPct: 0.01, lev: 5, maxOpen: 4, dayLossPct: 0.03, perDay: 20, chaseR: 0.3, tmMinN: 30, tmMinR: 0, tmDays: 20 }
+// Time-machine gate: the demo account enters only a setup whose SAME rule on the SAME coin and side, replayed over the last
+// PAPER.tmDays days with full costs, fired >= tmMinN times and averaged > tmMinR R. No replay = no entry (unknown is not a pass).
+// NB a positive replay is a filter on past luck as much as on edge; the demo account is the out-of-sample check.
+export function tmGate(r: Pick<Replay, 'n' | 'avgR'> | null | undefined): { ok: boolean; why: string } {
+  if (!r) return { ok: false, why: 'אין נתוני מכונת זמן' }
+  if (r.n < PAPER.tmMinN) return { ok: false, why: `מכונת הזמן: רק ${r.n} פעמים בעבר (צריך ${PAPER.tmMinN})` }
+  if (!(r.avgR > PAPER.tmMinR)) return { ok: false, why: `מכונת הזמן שלילית: ${r.n} פעמים, ממוצע ${r.avgR.toFixed(2)}R` }
+  return { ok: true, why: `מכונת הזמן: ${r.n} פעמים, ממוצע +${r.avgR.toFixed(2)}R` }
+}
 // Market order of `qty` coins into one side of the book ([price, coins] best first): VWAP of what the visible book absorbs.
 export function walkBook(levels: [number, number][], qty: number): { vwap: number; filled: number } {
   let left = qty, cost = 0

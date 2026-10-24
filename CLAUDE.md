@@ -978,6 +978,15 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   never skips a stop/target, and a late TIME exit fills at the close of the minute the 4 h ended. Page reads the newest dtk-data
   commit via api.github.com (sha, ~1/min) and the file at that sha (raw branch URLs are cached ~5 min); header turns red when the
   server has not written for > 3 min.
+- 2026-10-24 dtk TIME-MACHINE GATE (owner: "I want the time machine to work"). It was display-only: the demo account entered setups
+  whose own replay was negative (232 past firings of the 12 live setups averaged -0.56R). Now shared/dtk.ts tmGate(): the demo enters
+  only if the SAME rule on the SAME coin and side, replayed over the last PAPER.tmDays=20 days of 5m bars with full costs, fired
+  >= tmMinN=30 times and averaged > 0R; no replay = no entry (journalled SKIP 'מכונת הזמן ...'). Checked BEFORE the risk manager.
+  scripts/dtk-scan.ts: time machine for EVERY liquid setup (+4 others), 80 s budget per scan, history cached per coin on the runner's
+  disk (/tmp/dtk-hist, full fetch once per runner job ~15 s/coin, then only new bars). First local run: AI/ETHW/COMP/PIPPIN flags
+  n 39-53, all negative (-0.12..-0.86R) -> skipped. Expect FAR fewer demo trades. HONEST: a positive 20-day replay can be luck
+  (selection on the same coin's recent past); the live demo is the out-of-sample check. Page: scanner shows '✓ מאושר לדמו'.
+  Also seen: the day-loss limit (3% = $30) was blocking entries on 10-24 (equity $988 vs day start $1,000). tests/dtk 40/40.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the

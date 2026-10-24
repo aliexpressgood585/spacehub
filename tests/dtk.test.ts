@@ -1,6 +1,6 @@
 // "ערכת הדיי טריידר" rules (shared/dtk.ts): setups, the exit walk with costs, the replay, the Monte Carlo, budget and risk checks.
 import fs from 'node:fs'
-import { DTK, PAPER, walkBook, exitTrigger, setupsAt, walk, replay, monteCarlo, budget, riskChecks, coinsIn, parseRss, mulberry32, type Bar } from '../shared/dtk.ts'
+import { DTK, PAPER, tmGate, walkBook, exitTrigger, setupsAt, walk, replay, monteCarlo, budget, riskChecks, coinsIn, parseRss, mulberry32, type Bar } from '../shared/dtk.ts'
 let n = 0, bad = 0
 const ok = (c: boolean, m: string) => { n++; if (!c) { bad++; console.log('FAIL', m) } }
 const D0 = Date.UTC(2026, 9, 20), B = DTK.bar
@@ -66,6 +66,9 @@ ok(exitTrigger([m1b(0, 98, 98.5, 97)], 'LONG', 99, 101, 0)?.px === 98, 'a gap th
 ok(exitTrigger([m1b(0, 100, 100.4, 99.5), m1b(60000, 100.3, 101.2, 100.1)], 'LONG', 99, 101, 0)?.px === 101, 'take-profit at the level')
 ok(exitTrigger([m1b(0, 100, 100.4, 98)], 'LONG', 99, 101, 120000) === null, 'minutes before the last check are ignored')
 ok(exitTrigger([m1b(0, 100, 101.5, 99.5)], 'SHORT', 101, 99, 0)?.why === 'STOP', 'short stop above')
+ok(!tmGate(null).ok && !tmGate({ n: 29, avgR: 0.5 }).ok && !tmGate({ n: 40, avgR: -0.01 }).ok && !tmGate({ n: 40, avgR: 0 }).ok && tmGate({ n: 30, avgR: 0.01 }).ok, 'time-machine gate: >= 30 firings and positive average R, unknown is not a pass')
+{ const src = fs.readFileSync('scripts/dtk-scan.ts', 'utf8'), a = src.indexOf('tmGate(s.replay)\n    if (!tg.ok)'), b = src.indexOf('riskChecks(plan')
+  ok(a > 0 && a < b, 'demo entries pass the time-machine gate before the risk manager') }
 ok(PAPER.start === 1000 && PAPER.riskPct === 0.01, '$1,000 demo account, 1% risk per trade')
 
 const src = fs.readFileSync(new URL('../scripts/dtk-scan.ts', import.meta.url), 'utf8'), wf = fs.readFileSync(new URL('../.github/workflows/dtk-scan.yml', import.meta.url), 'utf8')
