@@ -44,12 +44,12 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-24T12:47:07.932Z",
+ "last_scan": "2026-10-24T12:47:17.726Z",
  "last_note": {
-  "at": "2026-10-24T12:47:05.867Z",
+  "at": "2026-10-24T12:47:15.573Z",
   "windows": 4,
   "settled": 0,
-  "entered": 1
+  "entered": 0
  },
  "trades": [
   {
@@ -45036,7 +45036,7 @@
    "opened_at": "2026-10-24T12:42:08.223Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-24T12:47:06.080Z",
+   "mark_at": "2026-10-24T12:47:16.757Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -45102,8 +45102,8 @@
    "best_ask": 0.95,
    "opened_at": "2026-10-24T12:47:07.932Z",
    "status": "OPEN",
-   "mark_px": 0.94,
-   "mark_at": "2026-10-24T12:47:07.932Z",
+   "mark_px": 0.96,
+   "mark_at": "2026-10-24T12:47:16.914Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -45130,7 +45130,9 @@
     "z": 2.0970790450887993,
     "spot_open": 80776.44,
     "spot": 80820,
-    "sigma1s": 0.000019489318972489764
+    "sigma1s": 0.000019489318972489764,
+    "close_px": 0.965,
+    "close_at": "2026-10-24T12:47:16.914Z"
    }
   }
  ],
@@ -80138,6 +80140,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-24T12:47:17.726Z",
+   "market_id": "6080800",
+   "question": "Solana Up or Down - October 24, 8:45AM-8:50AM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 12:45–12:50 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.97,
+   "decision": "skip",
+   "reason": "מקסימום פוזיציות פתוחות"
+  },
+  {
    "ts": "2026-10-24T12:47:07.932Z",
    "market_id": "6080772",
    "question": "Bitcoin Up or Down - October 24, 8:45AM-8:50AM ET",
@@ -82323,17 +82336,6 @@
    "outcome": "Down",
    "outcome_he": "יורד",
    "price": 0.92,
-   "decision": "skip",
-   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
-  },
-  {
-   "ts": "2026-10-24T11:22:55.604Z",
-   "market_id": "6079429",
-   "question": "Ethereum Up or Down - October 24, 7:20AM-7:25AM ET",
-   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 11:20–11:25 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.97,
    "decision": "skip",
    "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
   }
@@ -130196,8 +130198,8 @@
    "beat_close": 0.955456570155902,
    "brier_entry": 0.03828035719604349,
    "brier_close": 0.0021535300668151357,
-   "open_n": 1,
-   "open_clv_c": 8.899999999999997
+   "open_n": 2,
+   "open_clv_c": 5.199999999999999
   },
   "judged": {
    "n": 449,
@@ -130208,8 +130210,8 @@
    "beat_close": 0.955456570155902,
    "brier_entry": 0.03828035719604349,
    "brier_close": 0.0021535300668151357,
-   "open_n": 1,
-   "open_clv_c": 8.899999999999997
+   "open_n": 2,
+   "open_clv_c": 5.199999999999999
   }
  }
 }
