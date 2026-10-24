@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-24T05:24:53.249Z",
+ "last_scan": "2026-10-24T05:25:01.569Z",
  "last_note": {
-  "at": "2026-10-24T05:24:51.986Z",
+  "at": "2026-10-24T05:25:01.237Z",
   "windows": 0,
   "settled": 0,
   "entered": 0
@@ -43435,7 +43435,7 @@
    "opened_at": "2026-10-24T05:22:03.553Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-24T05:24:52.337Z",
+   "mark_at": "2026-10-24T05:25:01.568Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -43484,13 +43484,6 @@
   }
  ],
  "equity": [
-  {
-   "ts": "2026-10-20T18:45:03.842Z",
-   "equity": 1047.3157446942223,
-   "cash": 1047.3157446942223,
-   "open_value": 0,
-   "open_count": 0
-  },
   {
    "ts": "2026-10-20T18:46:04.177Z",
    "equity": 1047.3157446942223,
@@ -78479,6 +78472,13 @@
   },
   {
    "ts": "2026-10-24T05:24:02.749Z",
+   "equity": 1049.585241335667,
+   "cash": 1026.0005948720961,
+   "open_value": 23.584646463570923,
+   "open_count": 1
+  },
+  {
+   "ts": "2026-10-24T05:25:01.569Z",
    "equity": 1049.585241335667,
    "cash": 1026.0005948720961,
    "open_value": 23.584646463570923,
@@ -128300,8 +128300,10 @@
    "placed_at": "2026-10-24T05:17:52.122Z",
    "limit": 0.91,
    "taker_ask": 0.92,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "xrp-updown-5m-1792818900",
@@ -128313,8 +128315,10 @@
    "placed_at": "2026-10-24T05:18:22.839Z",
    "limit": 0.91,
    "taker_ask": 0.93,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "btc-updown-5m-1792819200",
@@ -128369,12 +128373,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2995,
+   "resolved": 2997,
    "filled": 1338,
-   "fill_rate": 0.44674457429048414,
+   "fill_rate": 0.44644644644644643,
    "wr": 0.8647234678624813,
    "ret": -0.06363813954769032,
-   "missed_wins": 1656,
+   "missed_wins": 1658,
    "missed_losses": 1
   },
   "late_exit": {
