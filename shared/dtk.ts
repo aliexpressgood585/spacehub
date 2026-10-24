@@ -175,3 +175,29 @@ export function parseRss(xml: string): { title: string; link: string; at: number
   const tag = (s: string, t: string) => (new RegExp(`<${t}[^>]*>([\\s\\S]*?)</${t}>`).exec(s)?.[1] ?? '').replace(/<!\[CDATA\[|\]\]>/g, '').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"').trim()
   return items.map((s) => ({ title: tag(s, 'title'), link: tag(s, 'link'), at: Date.parse(tag(s, 'pubDate')) })).filter((x) => x.title && Number.isFinite(x.at))
 }
+
+// ---- the $1,000 demo account (owner 2026-10-24: "like real money, only demo") ----
+// The scanner opens and closes positions by itself from the toolkit's setups, on live OKX books, with taker fees, slippage from
+// walking the real order book, exits triggered exchange-side style (1-minute bars since the last check, stop first, gaps fill at the
+// open) and funding charged at each real settlement. Sizing: 1% of equity lost at the stop (fees included), isolated 5x.
+export const PAPER = { start: 1000, riskPct: 0.01, lev: 5, maxOpen: 4, dayLossPct: 0.03, perDay: 20, chaseR: 0.3 }
+// Market order of `qty` coins into one side of the book ([price, coins] best first): VWAP of what the visible book absorbs.
+export function walkBook(levels: [number, number][], qty: number): { vwap: number; filled: number } {
+  let left = qty, cost = 0
+  for (const [p, q] of levels) { if (left <= 0) break; const x = Math.min(left, q); cost += x * p; left -= x }
+  const filled = qty - left
+  return { vwap: filled > 0 ? cost / filled : NaN, filled }
+}
+// Which exit an exchange-side stop / take-profit would have hit since the last check. bars = 1m bars (the forming one included),
+// since = time of the last check. Stop first when one minute touches both; a minute that OPENS beyond a level fills at that open.
+export function exitTrigger(bars: Bar[], side: Side, stop: number, target: number, since: number): { why: 'STOP' | 'TARGET'; px: number; t: number } | null {
+  const sg = sgn(side)
+  for (const b of bars) {
+    if (b.t + 60_000 <= since) continue
+    if (sg * (b.o - stop) <= 0) return { why: 'STOP', px: b.o, t: b.t }
+    if (sg * (b.o - target) >= 0) return { why: 'TARGET', px: b.o, t: b.t }
+    if (sg > 0 ? b.l <= stop : b.h >= stop) return { why: 'STOP', px: stop, t: b.t }
+    if (sg > 0 ? b.h >= target : b.l <= target) return { why: 'TARGET', px: target, t: b.t }
+  }
+  return null
+}

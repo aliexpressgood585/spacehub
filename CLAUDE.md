@@ -963,6 +963,15 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   browser, risk, budget, PAPER order only after typing "כן" -> localStorage journal managed on live OKX bid/ask while the page is
   open, alerts with sound/notification, funding+OI board, liquidations). First live scan: 267 coins in ~52 s, 16 setups; time
   machine on them mostly negative after costs (e.g. ASTER bounce n34 -0.60R, MC 45/55). tests/dtk.test.ts 30/30. No real orders.
+  SAME DAY, $1,000 DEMO ACCOUNT (owner: "like real money, live prices, fees, opens and closes by itself"): st.paper in dtk-scan.ts.
+  Entries right after each scan from liquid setups that pass riskChecks (max loss 1% of equity, day loss 3%, <= 20/day, costs <= 25%
+  of R, spread, volume, OKX funding known and not crowded, liq >= 2x stop), skip if the live touch drifted > 0.3R or beyond stop/target;
+  qty from budget(), filled by walking the live OKX book (contracts x ctVal) + 3 bps, isolated 5x margin, taker 5 bps; <= 4 open, one
+  per coin. Exits every ~60 s cycle: exitTrigger() on OKX 1m bars since the last check (exchange-side bracket: stop first, gap ->
+  open), fill = trigger x (1 - max(3 bps, book-walk impact)); TIME after 4 h at the book VWAP; funding charged at each real OKX
+  settlement (fundingTime/fundingRate). Decisions journal incl. every skip reason. Page: first tab "תיק דמו $1,000" (live equity at
+  bid/ask, open positions, closed trades with gross / fees / funding / net / R, equity line). tests 38/38. Local first scan opened 3
+  (FLAG longs/short), most liquid setups skipped for costs > 25% of R.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the

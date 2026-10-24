@@ -1,9 +1,10 @@
 // "ערכת הדיי טריידר" scanner (shared/dtk.ts): one cycle = market board + (once per closed 5m bar) a scan of every USDT perpetual
 // Binance Futures trades that has an OKX swap (shared/binperps.ts; Binance fapi is 451 from the runners, prices come from OKX),
-// the time machine for the strongest setups, funding / open interest / liquidations and crypto news. Writes dtk/state.json.
-// READ-ONLY toward any exchange: it never places an order. Usage: node --experimental-strip-types scripts/dtk-scan.ts dtk/state.json
+// the time machine for the strongest setups, funding / open interest / liquidations and crypto news, and the $1,000 DEMO account
+// that opens and closes positions by itself on live OKX books (taker fees, book-walk slippage, real funding). Writes dtk/state.json.
+// READ-ONLY toward any exchange: it never places a real order. Usage: node --experimental-strip-types scripts/dtk-scan.ts dtk/state.json
 import fs from 'node:fs'
-import { DTK, KIND_HE, setupsAt, replay, monteCarlo, atr, coinsIn, parseRss, type Bar } from '../shared/dtk.ts'
+import { DTK, PAPER, KIND_HE, setupsAt, replay, monteCarlo, atr, coinsIn, parseRss, budget, riskChecks, walkBook, exitTrigger, type Bar } from '../shared/dtk.ts'
 import { refreshUniverse, universeDue, liquid, limiter, pool } from '../shared/binperps.ts'
 
 const FILE = process.argv[2] ?? 'dtk/state.json', OKX = 'https://www.okx.com/api/v5'
@@ -24,6 +25,7 @@ async function history(sym: string, pages: number): Promise<Bar[]> {
 const st: any = fs.existsSync(FILE) ? JSON.parse(fs.readFileSync(FILE, 'utf8')) : { version: 'dtk-v1', setups: [], news: [], oi_hist: {}, last_bar: 0 }
 st.rules = DTK; st.feed = 'OKX USDT swaps (Binance fapi 451 from the runner); universe = Binance USDT perps with an OKX swap'
 const errs: string[] = []
+if (!st.ctval && st.universe) try { st.ctval = Object.fromEntries((await j(`${OKX}/public/instruments?instType=SWAP`)).filter((x: any) => /-USDT-SWAP$/.test(x.instId)).map((x: any) => [x.instId.slice(0, -10), +x.ctVal])) } catch (e) { errs.push(`instruments: ${e}`) }
 if (universeDue(st.universe, now)) {
   const r = await refreshUniverse(st.universe, now); st.universe = r.u; if (r.error) errs.push(`universe: ${r.error}`)
   try { st.ctval = Object.fromEntries((await j(`${OKX}/public/instruments?instType=SWAP`)).filter((x: any) => /-USDT-SWAP$/.test(x.instId)).map((x: any) => [x.instId.slice(0, -10), +x.ctVal])) } catch (e) { errs.push(`instruments: ${e}`) }
@@ -57,8 +59,9 @@ for (const s of Object.keys(st.oi_hist)) if (!board[s]) delete st.oi_hist[s]
 
 // 2. scan once per closed 5m bar (first cycle after the close)
 const barT = Math.floor(now / DTK.bar) * DTK.bar
+let found: any[] = [], scanned = false
 if (barT > st.last_bar && Object.keys(board).length) {
-  const t0 = Date.now(), found: any[] = []
+  const t0 = Date.now(); scanned = true
   await pool(COINS.filter((c) => board[c]), 8, async (sym) => {
     try {
       const b = toBars(await j(`${OKX}/market/candles?instId=${sym}-USDT-SWAP&bar=5m&limit=300`)); if (b.length < 60) return
@@ -110,6 +113,73 @@ if (!st.news_at || now - Date.parse(st.news_at) > 5 * 60_000) {
   st.news_at = iso()
 }
 for (const n of st.news ?? []) n.move = Object.fromEntries(n.coins.map((c: string) => [c, n.px0?.[c] && board[c] ? board[c].last / n.px0[c] - 1 : null]))
+
+// 4. the $1,000 DEMO account: exits every cycle, entries right after a scan. Prices, books and funding are OKX's live ones.
+const sg = (x: string) => (x === 'LONG' ? 1 : -1)
+const P = (st.paper ??= { start: PAPER.start, cash: PAPER.start, next_id: 1, trades: [], equity: [], decisions: [], day: -1, dayStart: PAPER.start, dayEntries: 0, fees: 0, funding: 0, rules: PAPER })
+const pdec = (d: any) => P.decisions.unshift({ at: iso(), ...d })
+const book = async (sym: string) => {
+  const cv = st.ctval?.[sym]; if (!(cv > 0)) throw new Error('no contract size')
+  const d = (await j(`${OKX}/market/books?instId=${sym}-USDT-SWAP&sz=50`))[0], m = (l: string[][]) => l.map((x) => [+x[0], +x[1] * cv] as [number, number])
+  return { asks: m(d.asks), bids: m(d.bids) }
+}
+const openP = () => P.trades.filter((t: any) => t.status === 'OPEN')
+const equityP = () => P.cash + openP().reduce((a: number, t: any) => a + t.margin + sg(t.side) * ((board[t.sym]?.last ?? t.mark) - t.entry) * t.qty, 0)
+for (const t of openP()) {
+  try {
+    // funding: at each real settlement the published rate x notional moves cash (positive rate: longs pay)
+    if (t.fund_next && now >= t.fund_next) { const cost = sg(t.side) * t.fund_rate * t.qty * (board[t.sym]?.last ?? t.mark); P.cash -= cost; t.funding += cost; P.funding += cost; t.fund_next = null }
+    if (!t.fund_next) { const f = (await j(`${OKX}/public/funding-rate?instId=${t.sym}-USDT-SWAP`))[0]; t.fund_rate = +f.fundingRate; t.fund_next = +f.fundingTime }
+    const m1 = toBars(await j(`${OKX}/market/candles?instId=${t.sym}-USDT-SWAP&bar=1m&limit=10`), true)
+    const trig = exitTrigger(m1, t.side, t.stop, t.target, t.checked)
+    const why = trig?.why ?? (now >= t.flat_at ? 'TIME' : null)
+    t.checked = now; t.mark = board[t.sym]?.last ?? t.mark
+    if (!why) continue
+    const bk = await book(t.sym), lv = t.side === 'LONG' ? bk.bids : bk.asks, w = walkBook(lv, t.qty)
+    const impact = lv.length ? Math.max(DTK.slip, Math.abs(w.vwap / lv[0][0] - 1)) * (w.filled < t.qty ? 2 : 1) : 0.01
+    const px = trig ? trig.px * (1 - sg(t.side) * impact) : w.vwap * (1 - sg(t.side) * DTK.slip)
+    const fee = px * t.qty * DTK.taker, gross = sg(t.side) * (px - t.entry) * t.qty
+    P.cash += t.margin + gross - fee; P.fees += fee
+    const pnl = gross - t.fee_in - fee - t.funding
+    Object.assign(t, { status: 'CLOSED', exit: px, exit_fee: fee, trigger_px: trig?.px ?? null, impact_bps: +(impact * 1e4).toFixed(1), gross, pnl, R: pnl / t.risk_usd, reason: why, closed_at: iso() })
+    pdec({ act: 'EXIT', sym: t.sym, side: t.side, why, pnl: +pnl.toFixed(2), R: +t.R.toFixed(2) })
+  } catch (e) { errs.push(`paper ${t.sym}: ${e}`) }
+}
+const dayN = Math.floor(now / 86400_000)
+if (P.day !== dayN) Object.assign(P, { day: dayN, dayStart: equityP(), dayEntries: 0 })
+if (scanned) {
+  const eq = equityP(), maxLoss = eq * PAPER.riskPct
+  for (const s of found) {
+    if (openP().length >= PAPER.maxOpen) { pdec({ act: 'SKIP', sym: s.sym, side: s.side, why: `כבר ${PAPER.maxOpen} פוזיציות פתוחות` }); break }
+    if (!s.liquid) continue
+    const b = board[s.sym], side = s.side as 'LONG' | 'SHORT', g = sg(side)
+    if (openP().some((t: any) => t.sym === s.sym)) { pdec({ act: 'SKIP', sym: s.sym, side, why: 'כבר פתוחה פוזיציה במטבע' }); continue }
+    const live = side === 'LONG' ? b.ask : b.bid, r = Math.abs(s.entry - s.stop), drift = g * (live - s.entry) / r
+    if (!(live > 0) || g * (live - s.stop) <= 0 || g * (live - s.target) >= 0 || drift > PAPER.chaseR) { pdec({ act: 'SKIP', sym: s.sym, side, why: `המחיר ברח מהכניסה (${drift.toFixed(2)}R)` }); continue }
+    const plan = { side, entry: live, stop: s.stop, target: s.target }, bu = budget(plan, maxLoss, eq, PAPER.lev)
+    const rc = riskChecks(plan, bu, { spreadBps: b.spread ?? undefined, volUsd: b.vol, funding: b.funding ?? null, dayPnl: eq - P.dayStart, tradesToday: P.dayEntries },
+      { ...DTK.limits, maxLossUsd: maxLoss * 1.0001, dayLossUsd: P.dayStart * PAPER.dayLossPct, tradesPerDay: PAPER.perDay })
+    if (!rc.pass) { pdec({ act: 'SKIP', sym: s.sym, side, why: 'מנהל הסיכונים: ' + rc.checks.filter((c) => c.ok !== true).map((c) => c.k).join(' · ') }); continue }
+    try {
+      const bk = await book(s.sym), w = walkBook(side === 'LONG' ? bk.asks : bk.bids, bu.qty)
+      if (w.filled < bu.qty * 0.999) { pdec({ act: 'SKIP', sym: s.sym, side, why: 'הספר דליל מדי לגודל הזה' }); continue }
+      const fill = w.vwap * (1 + g * DTK.slip)
+      if (g * (fill - s.stop) <= 0) continue
+      const qty = bu.qty, notional = fill * qty, margin = notional / PAPER.lev, fee = notional * DTK.taker
+      if (margin + fee > P.cash) { pdec({ act: 'SKIP', sym: s.sym, side, why: 'אין מספיק מזומן פנוי לביטחון' }); continue }
+      P.cash -= margin + fee; P.fees += fee
+      const t = { id: P.next_id++, sym: s.sym, side, kind: s.kind, kind_he: s.kind_he, why: s.why, signal_px: s.entry, touch: live, entry: fill, stop: s.stop, target: s.target, qty, notional, margin, lev: PAPER.lev,
+        fee_in: fee, risk_usd: maxLoss, opened_at: iso(), flat_at: now + DTK.holdBars * DTK.bar, checked: now, funding: 0, mark: fill, status: 'OPEN',
+        replay: s.replay ? { n: s.replay.n, avgR: s.replay.avgR } : null, mc: s.mc ? { target: s.mc.target, stop: s.mc.stop, evR: s.mc.evR } : null }
+      P.trades.unshift(t); P.dayEntries++
+      pdec({ act: 'OPEN', sym: s.sym, side, why: `${s.kind_he} · ${qty.toPrecision(4)} @ ${fill.toPrecision(6)} · סיכון $${maxLoss.toFixed(2)}` })
+    } catch (e) { errs.push(`paper open ${s.sym}: ${e}`) }
+  }
+}
+const eqNow = equityP(), lastPt = P.equity[P.equity.length - 1]
+if (!lastPt || now - Date.parse(lastPt.t) >= 5 * 60_000) P.equity.push({ t: iso(), eq: +eqNow.toFixed(2) })
+if (P.equity.length > 4000) P.equity = P.equity.filter((_: any, i: number) => i % 2 === 0)
+P.equity_now = +eqNow.toFixed(2); P.decisions = P.decisions.slice(0, 200); P.trades = P.trades.slice(0, 500)
 
 st.board = board; st.last_cycle = iso(); st.errors = errs.slice(0, 20)
 fs.mkdirSync(FILE.replace(/[^/]+$/, '') || '.', { recursive: true })

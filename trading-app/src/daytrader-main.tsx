@@ -53,21 +53,61 @@ function Spark({ bars, s, live }: { bars: Bar[]; s: Setup; live?: number }) {
   </svg>
 }
 
-const TABS = ['סורק גרפים', 'מעקב חדשות', 'תזמון כניסה', 'תכנון יציאה', 'מכונת הזמן', 'ניהול סיכונים', 'ניהול תקציב', 'ביצוע (נייר)', 'התראות מחיר', 'מימון ו-OI', 'חיסולים'] as const
+
+function EqChart({ pts, start }: { pts: J[]; start: number }) {
+  if (!pts || pts.length < 2) return <Note>הגרף יתמלא אחרי כמה דקות של ריצה.</Note>
+  const W = 900, H = 160, t0 = Date.parse(pts[0].t), t1 = Date.parse(pts[pts.length - 1].t), ys = pts.map((p) => p.eq), lo = Math.min(start, ...ys), hi = Math.max(start, ...ys)
+  const x = (p: J) => ((Date.parse(p.t) - t0) / Math.max(1, t1 - t0)) * W, y = (v: number) => H - ((v - lo) / (hi - lo || 1)) * H
+  return <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 160 }} preserveAspectRatio="none">
+    <line x1={0} x2={W} y1={y(start)} y2={y(start)} stroke="#2a3a55" strokeDasharray="4 4" />
+    <path d={pts.map((p, i) => `${i ? 'L' : 'M'}${x(p).toFixed(1)},${y(p.eq).toFixed(1)}`).join('')} fill="none" stroke={ys[ys.length - 1] >= start ? '#3ddc97' : '#ff6b6b'} strokeWidth={2} vectorEffect="non-scaling-stroke" /></svg>
+}
+const WHY: Record<string, string> = { STOP: 'סטופ', TARGET: 'יעד', TIME: 'סוף זמן (4 ש׳)' }
+function Demo({ P, live }: { P: J; live: Record<string, { last: number; bid: number; ask: number }> }) {
+  if (!P) return <div style={box}><Note>החשבון ייפתח בסריקה הראשונה של הסורק (כל נר 5 דקות).</Note></div>
+  const open = P.trades.filter((t: J) => t.status === 'OPEN'), closed = P.trades.filter((t: J) => t.status === 'CLOSED')
+  const exitPx = (t: J) => { const m = live[t.sym]; return m ? (t.side === 'LONG' ? m.bid : m.ask) : t.mark }
+  const upnl = (t: J) => (t.side === 'LONG' ? 1 : -1) * (exitPx(t) - t.entry) * t.qty - t.qty * exitPx(t) * DTK.taker
+  const eq = P.cash + open.reduce((a: number, t: J) => a + t.margin + upnl(t), 0), real = closed.reduce((a: number, t: J) => a + t.pnl, 0)
+  const wins = closed.filter((t: J) => t.pnl > 0).length, margin = open.reduce((a: number, t: J) => a + t.margin, 0)
+  return <>
+    <div style={box}>
+      <Row><Stat k="שווי החשבון (חי)" v={usd(eq)} c={col(eq - P.start)} /><Stat k="שינוי" v={pct(eq / P.start - 1)} c={col(eq - P.start)} /><Stat k="מזומן פנוי" v={usd(P.cash)} /><Stat k="ביטחון נעול" v={usd(margin)} />
+        <Stat k="רווח/הפסד ממומש" v={usd(real)} c={col(real)} /><Stat k="עמלות ששולמו" v={usd(-P.fees)} c="#ff6b6b" /><Stat k="מימון" v={usd(-P.funding)} c={col(-P.funding)} /><Stat k="עסקאות" v={`${closed.length} · ${closed.length ? Math.round(wins / closed.length * 100) : 0}% הצלחה`} /></Row>
+      <div style={{ marginTop: 10 }}><EqChart pts={[...(P.equity ?? []), { t: new Date().toISOString(), eq }]} start={P.start} /></div>
+      <Note>חשבון דמו של $1,000 שנסחר לבד, על מחירים חיים של אותם מטבעות שנסחרים ב-Binance Futures. כל נר 5 דקות הסורק מוצא סטאפים, ומנהל הסיכונים מסנן אותם: עלויות עד 25% מהסיכון, מרווח, נזילות, מימון, הפסד יומי עד 3% ועד 20 עסקאות ביום. העסקה נפתחת במחיר הספר החי (כולל עומק הספר), בגודל שמפסיד 1% מהחשבון בסטופ, במינוף 5x מבודד. היציאה בסטופ, ביעד או אחרי 4 שעות, לפי נרות של דקה, כמו פקודה שיושבת בבורסה. עמלת taker 0.05% לכל צד, ומימון אמיתי בכל סליקה. עד 4 פוזיציות במקביל. שום כסף אמיתי.</Note>
+    </div>
+    <div style={box}><h3 style={{ fontSize: 15, marginBottom: 6 }}>פוזיציות פתוחות ({open.length}/{P.rules?.maxOpen ?? 4})</h3>
+      {open.length ? <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse' }}><thead><tr>{['מטבע', 'כיוון', 'סטאפ', 'כניסה', 'עכשיו', 'סטופ', 'יעד', 'שווי', 'ביטחון', 'רווח/הפסד', 'R', 'זמן', 'נסגר עד'].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
+        <tbody>{open.map((t: J) => { const u = upnl(t) - t.fee_in - t.funding; return <tr key={t.id}><td style={td}><b>{t.sym}</b></td><td style={{ ...td, color: t.side === 'LONG' ? '#3ddc97' : '#ff6b6b' }}>{SIDE_HE[t.side as 'LONG']}</td><td style={td} title={t.why}>{t.kind_he}</td>
+          <td style={td}>{px(t.entry)}</td><td style={{ ...td, color: '#f5c84c' }}>{px(live[t.sym]?.last ?? t.mark)}</td><td style={td}>{px(t.stop)}</td><td style={td}>{px(t.target)}</td><td style={td}>{usd(t.notional)}</td><td style={td}>{usd(t.margin)}</td>
+          <td style={{ ...td, color: col(u) }}>{usd(u)}</td><td style={{ ...td, color: col(u) }}>{fx(u / t.risk_usd)}</td><td style={td}>{ago(t.opened_at)}</td><td style={td}>{il(t.flat_at)}</td></tr> })}</tbody></table></div> : <Note>אין פוזיציות פתוחות. הבוט מחכה לסטאפ שעובר את מנהל הסיכונים.</Note>}
+      <Note>הרווח/הפסד הפתוח מחושב לפי מחיר היציאה בפועל (bid ללונג, ask לשורט), אחרי עמלת כניסה, עמלת יציאה משוערת ומימון ששולם.</Note></div>
+    <div style={box}><h3 style={{ fontSize: 15, marginBottom: 6 }}>עסקאות שנסגרו</h3>
+      {closed.length ? <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse' }}><thead><tr>{['מטבע', 'כיוון', 'סטאפ', 'כניסה', 'יציאה', 'סיבה', 'ברוטו', 'עמלות', 'מימון', 'נטו', 'R', 'נפתח', 'נסגר'].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
+        <tbody>{closed.slice(0, 100).map((t: J) => <tr key={t.id}><td style={td}><b>{t.sym}</b></td><td style={{ ...td, color: t.side === 'LONG' ? '#3ddc97' : '#ff6b6b' }}>{SIDE_HE[t.side as 'LONG']}</td><td style={td}>{t.kind_he}</td><td style={td}>{px(t.entry)}</td><td style={td}>{px(t.exit)}</td><td style={td}>{WHY[t.reason] ?? t.reason}</td>
+          <td style={{ ...td, color: col(t.gross) }}>{usd(t.gross)}</td><td style={td}>{usd(-(t.fee_in + t.exit_fee))}</td><td style={td}>{usd(-t.funding)}</td><td style={{ ...td, color: col(t.pnl), fontWeight: 600 }}>{usd(t.pnl)}</td><td style={{ ...td, color: col(t.R) }}>{fx(t.R)}</td><td style={td}>{il(t.opened_at)}</td><td style={td}>{il(t.closed_at)}</td></tr>)}</tbody></table></div> : <Note>עוד אין עסקאות סגורות.</Note>}</div>
+    <div style={box}><h3 style={{ fontSize: 15, marginBottom: 6 }}>יומן החלטות</h3>
+      {(P.decisions ?? []).slice(0, 40).map((d: J, i: number) => <div key={i} style={{ fontSize: 12.5, padding: '3px 0', borderBottom: '1px solid #122036' }}><span style={{ color: '#8fa3b8' }}>{il(d.at)}</span> <b style={{ color: d.act === 'OPEN' ? '#3ddc97' : d.act === 'EXIT' ? (d.pnl >= 0 ? '#3ddc97' : '#ff6b6b') : '#8fa3b8' }}>{d.act === 'OPEN' ? 'נפתח' : d.act === 'EXIT' ? 'נסגר' : 'דילג'}</b> {d.sym} {SIDE_HE[d.side as 'LONG'] ?? ''} · {d.act === 'EXIT' ? `${WHY[d.why] ?? d.why} · ${usd(d.pnl)} (${fx(d.R)}R)` : d.why}</div>)}</div>
+  </>
+}
+
+const TABS = ['תיק דמו $1,000', 'סורק גרפים', 'מעקב חדשות', 'תזמון כניסה', 'תכנון יציאה', 'מכונת הזמן', 'ניהול סיכונים', 'ניהול תקציב', 'ביצוע (נייר)', 'התראות מחיר', 'מימון ו-OI', 'חיסולים'] as const
 
 function App() {
-  const [st, setSt] = useState<J>(null), [tab, setTab] = useState<string>(LS('tab', TABS[0])), [sel, setSel] = useState<J>(null), [, tick] = useState(0)
+  const [st, setSt] = useState<J>(null), [tab, setTab] = useState<string>(LS('tab2', TABS[0])), [sel, setSel] = useState<J>(null), [, tick] = useState(0)
   const [cfg, setCfg] = useState<Settings>({ ...DEF, ...LS('cfg', {}) }), [pos, setPos] = useState<Pos[]>(LS('pos', [])), [alerts, setAlerts] = useState<J[]>(LS('alerts', []))
   const [live, setLive] = useState<Record<string, { last: number; bid: number; ask: number; at: number }>>({}), [bars, setBars] = useState<Bar[]>([]), [liqOnly, setLiqOnly] = useState(true), [q, setQ] = useState('')
   const [tm, setTm] = useState<J>(null), [tmBusy, setTmBusy] = useState(false), [confirm, setConfirm] = useState(''), [log, setLog] = useState<string[]>([])
-  useEffect(() => { SV('tab', tab) }, [tab]); useEffect(() => { SV('cfg', cfg) }, [cfg]); useEffect(() => { SV('pos', pos) }, [pos]); useEffect(() => { SV('alerts', alerts) }, [alerts])
+  useEffect(() => { SV('tab2', tab) }, [tab]); useEffect(() => { SV('cfg', cfg) }, [cfg]); useEffect(() => { SV('pos', pos) }, [pos]); useEffect(() => { SV('alerts', alerts) }, [alerts])
   useEffect(() => {
     const load = () => fetch(STATE + '?t=' + Date.now()).then((r) => r.json()).then(setSt).catch(() => {})
     load(); const a = setInterval(load, 15000), b = setInterval(() => tick((x) => x + 1), 1000)
     return () => { clearInterval(a); clearInterval(b) }
   }, [])
   // live prices for the selected coin + every open paper position + custom alerts, every 3 s
-  const syms = useMemo(() => [...new Set([sel?.sym, ...pos.filter((p) => p.status === 'OPEN').map((p) => p.sym), ...alerts.map((a) => a.sym)].filter(Boolean))], [sel, pos, alerts])
+  const demoOpen: string[] = (st?.paper?.trades ?? []).filter((t: J) => t.status === 'OPEN').map((t: J) => t.sym)
+  const syms = useMemo(() => [...new Set([sel?.sym, ...pos.filter((p) => p.status === 'OPEN').map((p) => p.sym), ...alerts.map((a) => a.sym), ...demoOpen])].filter(Boolean), [sel, pos, alerts, demoOpen.join()])
   useEffect(() => {
     if (!syms.length) return
     const go = () => Promise.all(syms.map((s) => okxJ(`${OKX}/market/ticker?instId=${s}-USDT-SWAP`).then((d) => [s, { last: +d[0].last, bid: +d[0].bidPx, ask: +d[0].askPx, at: Date.now() }] as const).catch(() => null)))
@@ -140,16 +180,18 @@ function App() {
     <div style={{ ...box, borderColor: '#5a4a1a', background: '#171207', fontSize: 13, lineHeight: 1.6 }}>
       ⚠️ כלי עזר להחלטה, לא מכונת כסף. נייר בלבד: אין חיבור לבורסה, וכל פקודה נרשמת רק ביומן בדפדפן הזה ורק אחרי שתקליד "כן". מכל אסטרטגיות הדיי טריידינג שבדקנו על מטבעות, אף אחת לא הרוויחה אחרי עמלות (~0.16% הלוך-חזור). לכן "מכונת הזמן" מחשבת את אותן עלויות, כדי שתראה את הסיכוי האמיתי לפני כל עסקה.
     </div>
-    <div style={{ ...box, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', fontSize: 13 }}>
+    {tab !== 'תיק דמו $1,000' && <div style={{ ...box, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', fontSize: 13 }}>
       {([['account', 'חשבון $'], ['maxLoss', 'הפסד מקס׳ לעסקה $'], ['dayLoss', 'הפסד יומי מקס׳ $'], ['perDay', 'עסקאות ביום'], ['lev', 'מינוף']] as const).map(([k, l]) =>
         <label key={k} style={{ display: 'flex', gap: 4, alignItems: 'center' }}>{l}<input type="number" value={cfg[k]} onChange={(e) => setCfg({ ...cfg, [k]: Math.max(0, +e.target.value) })} style={{ width: 70, background: '#08101d', color: '#fff', border: '1px solid #2a3a55', borderRadius: 6, padding: '3px 6px' }} /></label>)}
-    </div>
+    </div>}
     {sel && <div style={{ ...box, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', borderColor: '#1f6feb' }}>
       <b style={{ fontSize: 16 }}>{sel.sym}</b><span style={{ color: sel.side === 'LONG' ? '#3ddc97' : '#ff6b6b' }}>{SIDE_HE[sel.side as 'LONG']}</span><span>{KIND_HE[sel.kind as keyof typeof KIND_HE]}</span>
       <span>כניסה {px(sel.entry)} · סטופ <span style={{ color: '#ff6b6b' }}>{px(sel.stop)}</span> · יעד <span style={{ color: '#3ddc97' }}>{px(sel.target)}</span></span>
       <span>עכשיו <b style={{ color: '#f5c84c' }}>{px(L?.last)}</b></span>{stale && <span style={{ color: stale.c }}>{stale.t}</span>}
     </div>}
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>{TABS.map((t) => <button key={t} style={btn(tab === t)} onClick={() => setTab(t)}>{t}</button>)}</div>
+
+    {tab === 'תיק דמו $1,000' && <Demo P={st.paper} live={live} />}
 
     {tab === 'סורק גרפים' && <div style={box}>
       <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>

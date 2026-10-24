@@ -1,6 +1,6 @@
 // "ערכת הדיי טריידר" rules (shared/dtk.ts): setups, the exit walk with costs, the replay, the Monte Carlo, budget and risk checks.
 import fs from 'node:fs'
-import { DTK, setupsAt, walk, replay, monteCarlo, budget, riskChecks, coinsIn, parseRss, mulberry32, type Bar } from '../shared/dtk.ts'
+import { DTK, PAPER, walkBook, exitTrigger, setupsAt, walk, replay, monteCarlo, budget, riskChecks, coinsIn, parseRss, mulberry32, type Bar } from '../shared/dtk.ts'
 let n = 0, bad = 0
 const ok = (c: boolean, m: string) => { n++; if (!c) { bad++; console.log('FAIL', m) } }
 const D0 = Date.UTC(2026, 9, 20), B = DTK.bar
@@ -55,6 +55,18 @@ ok(coinsIn('Bitcoin slides below $80,000 as SOL and $PEPE fall', ['BTC', 'SOL', 
 ok(coinsIn('One more thing about the market', ['ONE']).length === 0, 'common words are not coins')
 const rss = parseRss('<rss><item><title><![CDATA[ETH &amp; BTC rally]]></title><link>https://x/1</link><pubDate>Sat, 24 Oct 2026 18:00:00 GMT</pubDate></item></rss>')
 ok(rss.length === 1 && rss[0].title === 'ETH & BTC rally' && rss[0].at === Date.UTC(2026, 9, 24, 18), 'RSS parse')
+
+// demo account helpers
+const wb = walkBook([[100, 1], [100.5, 2], [101, 10]], 2)
+ok(Math.abs(wb.vwap - 100.25) < 1e-9 && wb.filled === 2, 'market order walks the book (VWAP)')
+ok(walkBook([[100, 1]], 3).filled === 1, 'a thin book fills only what it shows')
+const m1b = (t: number, o: number, h: number, l: number): Bar => ({ t, o, h, l, c: o, v: 1 })
+ok(exitTrigger([m1b(0, 100, 101.5, 98.5)], 'LONG', 99, 101, 0)?.why === 'STOP', 'one minute touching both = stop')
+ok(exitTrigger([m1b(0, 98, 98.5, 97)], 'LONG', 99, 101, 0)?.px === 98, 'a gap through the stop fills at the open')
+ok(exitTrigger([m1b(0, 100, 100.4, 99.5), m1b(60000, 100.3, 101.2, 100.1)], 'LONG', 99, 101, 0)?.px === 101, 'take-profit at the level')
+ok(exitTrigger([m1b(0, 100, 100.4, 98)], 'LONG', 99, 101, 120000) === null, 'minutes before the last check are ignored')
+ok(exitTrigger([m1b(0, 100, 101.5, 99.5)], 'SHORT', 101, 99, 0)?.why === 'STOP', 'short stop above')
+ok(PAPER.start === 1000 && PAPER.riskPct === 0.01, '$1,000 demo account, 1% risk per trade')
 
 const src = fs.readFileSync(new URL('../scripts/dtk-scan.ts', import.meta.url), 'utf8'), wf = fs.readFileSync(new URL('../.github/workflows/dtk-scan.yml', import.meta.url), 'utf8')
 ok(!/\/trade\/order|privateKey|apiKey|OK-ACCESS/i.test(src), 'scanner is read-only: no order endpoint, no keys')
