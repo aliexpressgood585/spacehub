@@ -1,6 +1,6 @@
 // "ערכת הדיי טריידר" rules (shared/dtk.ts): setups, the exit walk with costs, the replay, the Monte Carlo, budget and risk checks.
 import fs from 'node:fs'
-import { DTK, PAPER, tmGate, walkBook, exitTrigger, setupsAt, walk, replay, monteCarlo, budget, riskChecks, coinsIn, parseRss, mulberry32, type Bar } from '../shared/dtk.ts'
+import { DTK, PAPER, tmGate, budgetMargin, walkBook, exitTrigger, setupsAt, walk, replay, monteCarlo, budget, riskChecks, coinsIn, parseRss, mulberry32, type Bar } from '../shared/dtk.ts'
 let n = 0, bad = 0
 const ok = (c: boolean, m: string) => { n++; if (!c) { bad++; console.log('FAIL', m) } }
 const D0 = Date.UTC(2026, 9, 20), B = DTK.bar
@@ -69,7 +69,11 @@ ok(exitTrigger([m1b(0, 100, 101.5, 99.5)], 'SHORT', 101, 99, 0)?.why === 'STOP',
 ok(!tmGate(null).ok && !tmGate({ n: 29, avgR: 0.5 }).ok && !tmGate({ n: 40, avgR: -0.01 }).ok && !tmGate({ n: 40, avgR: 0 }).ok && tmGate({ n: 30, avgR: 0.01 }).ok, 'time-machine gate: >= 30 firings and positive average R, unknown is not a pass')
 { const src = fs.readFileSync('scripts/dtk-scan.ts', 'utf8'), a = src.indexOf('tmGate(s.replay)\n    if (!tg.ok)'), b = src.indexOf('riskChecks(plan')
   ok(a > 0 && a < b, 'demo entries pass the time-machine gate before the risk manager') }
-ok(PAPER.start === 1000 && PAPER.riskPct === 0.01, '$1,000 demo account, 1% risk per trade')
+ok(PAPER.start === 1000 && PAPER.sizing === 'all' && PAPER.lev === 5, '$1,000 demo account, whole account as margin at 5x')
+{ const m = budgetMargin({ side: 'LONG', entry: 100, stop: 98, target: 103 }, 250, 5)
+  ok(Math.abs(m.notional - 1250) < 1e-9 && Math.abs(m.margin - 250) < 1e-9 && Math.abs(m.lossAtStop - (25 + 1250 * 0.0016)) < 1e-9 && Math.abs(m.liq - 100 * (1 - 0.195)) < 1e-9, 'budgetMargin: notional = margin x lev, loss at stop incl. costs, isolated liquidation') }
+{ const src = fs.readFileSync('scripts/dtk-scan.ts', 'utf8')
+  ok(/P\.cash \* 0\.995 \/ slots/.test(src) && src.includes("!c.k.startsWith('הפסד')"), 'demo splits free cash between approved setups; no per-trade / daily loss cap') }
 
 const src = fs.readFileSync(new URL('../scripts/dtk-scan.ts', import.meta.url), 'utf8'), wf = fs.readFileSync(new URL('../.github/workflows/dtk-scan.yml', import.meta.url), 'utf8')
 ok(!/\/trade\/order|privateKey|apiKey|OK-ACCESS/i.test(src), 'scanner is read-only: no order endpoint, no keys')

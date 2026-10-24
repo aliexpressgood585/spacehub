@@ -987,6 +987,12 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   n 39-53, all negative (-0.12..-0.86R) -> skipped. Expect FAR fewer demo trades. HONEST: a positive 20-day replay can be luck
   (selection on the same coin's recent past); the live demo is the out-of-sample check. Page: scanner shows '✓ מאושר לדמו'.
   Also seen: the day-loss limit (3% = $30) was blocking entries on 10-24 (equity $988 vs day start $1,000). tests/dtk 40/40.
+- 2026-10-24 dtk WHOLE-ACCOUNT SIZING (owner: "use the whole account"; AskUserQuestion: 5x, daily stop removed). PAPER.sizing 'all':
+  free cash x 0.995 split as MARGIN between the setups still able to enter in the scan (time-machine approved, liquid, coin not held,
+  <= maxOpen 4), notional = margin x 5 (shared/dtk.ts budgetMargin). Per-trade 1% loss cap and the 3%/day stop REMOVED from the demo
+  (risk checks starting 'הפסד' dropped); kept: costs <= 25% of R, spread, volume, funding, isolated liq >= 2x stop, 20/day, cash.
+  One approved trade = ~5x the account; a stop costs ~5-15% of equity. Told the owner. risk_usd = real loss at stop (R stays honest).
+  Positions opened before this keep their old size. tests/dtk 42/42.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the

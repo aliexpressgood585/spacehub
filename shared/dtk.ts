@@ -141,6 +141,13 @@ export function budget(s: Pick<Setup, 'side' | 'entry' | 'stop' | 'target'>, max
     liq: s.entry * (1 - sg * (1 / lev - 0.005)), costUsd: cost }
 }
 
+// Budget for a given margin (whole-account sizing): qty = margin x lev / entry, same fields as budget().
+export function budgetMargin(s: Pick<Setup, 'side' | 'entry' | 'stop' | 'target'>, margin: number, lev: number): Budget {
+  const qty = margin > 0 && s.entry > 0 ? (margin * lev) / s.entry : 0, notional = qty * s.entry, cost = (DTK.taker + DTK.slip) * 2 * notional, sg = sgn(s.side)
+  return { qty, notional, margin: notional / lev, lossAtStop: qty * Math.abs(s.entry - s.stop) + cost, profitAtTarget: qty * Math.abs(s.target - s.entry) - cost,
+    liq: s.entry * (1 - sg * (1 / lev - 0.005)), costUsd: cost }
+}
+
 // Risk manager: every check that applies, PASS only if all pass. Inputs the scanner/page actually have; missing = shown, not passed.
 export type Check = { k: string; ok: boolean | null; v: string }
 export function riskChecks(s: Pick<Setup, 'side' | 'entry' | 'stop' | 'target'>, bu: Budget, ctx: { spreadBps?: number; volUsd?: number; funding?: number | null; dayPnl: number; tradesToday: number }, L = DTK.limits): { pass: boolean; checks: Check[] } {
@@ -180,7 +187,10 @@ export function parseRss(xml: string): { title: string; link: string; at: number
 // The scanner opens and closes positions by itself from the toolkit's setups, on live OKX books, with taker fees, slippage from
 // walking the real order book, exits triggered exchange-side style (1-minute bars since the last check, stop first, gaps fill at the
 // open) and funding charged at each real settlement. Sizing: 1% of equity lost at the stop (fees included), isolated 5x.
-export const PAPER = { start: 1000, riskPct: 0.01, lev: 5, maxOpen: 4, dayLossPct: 0.03, perDay: 20, chaseR: 0.3, tmMinN: 30, tmMinR: 0, tmDays: 20 }
+// Sizing (owner, 2026-10-24: "use the whole account", 5x, no daily stop): free cash is split as MARGIN between the entries the
+// time machine approved in this scan (<= maxOpen open), notional = margin x lev. No per-trade loss cap and no daily loss stop;
+// what still bounds a trade: the stop, isolated liquidation >= 2x the stop distance away, costs <= 25% of R, cash.
+export const PAPER = { start: 1000, sizing: 'all' as const, lev: 5, maxOpen: 4, perDay: 20, chaseR: 0.3, tmMinN: 30, tmMinR: 0, tmDays: 20 }
 // Time-machine gate: the demo account enters only a setup whose SAME rule on the SAME coin and side, replayed over the last
 // PAPER.tmDays days with full costs, fired >= tmMinN times and averaged > tmMinR R. No replay = no entry (unknown is not a pass).
 // NB a positive replay is a filter on past luck as much as on edge; the demo account is the out-of-sample check.
