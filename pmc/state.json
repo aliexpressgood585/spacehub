@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-24T12:17:17.396Z",
+ "last_scan": "2026-10-24T12:17:27.030Z",
  "last_note": {
-  "at": "2026-10-24T12:17:15.565Z",
+  "at": "2026-10-24T12:17:25.380Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -44890,7 +44890,7 @@
    "opened_at": "2026-10-24T12:12:37.775Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-24T12:17:16.440Z",
+   "mark_at": "2026-10-24T12:17:26.247Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -44956,8 +44956,8 @@
    "best_ask": 0.93,
    "opened_at": "2026-10-24T12:17:07.445Z",
    "status": "OPEN",
-   "mark_px": 0.98,
-   "mark_at": "2026-10-24T12:17:16.587Z",
+   "mark_px": 0.97,
+   "mark_at": "2026-10-24T12:17:26.397Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -44985,8 +44985,8 @@
     "spot_open": 80640.43,
     "spot": 80677.63,
     "sigma1s": 0.00001726644418783426,
-    "close_px": 0.985,
-    "close_at": "2026-10-24T12:17:16.587Z"
+    "close_px": 0.975,
+    "close_at": "2026-10-24T12:17:26.397Z"
    }
   }
  ],
@@ -79994,6 +79994,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-24T12:17:27.030Z",
+   "market_id": "6080223",
+   "question": "Ethereum Up or Down - October 24, 8:15AM-8:20AM ET",
+   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 12:15–12:20 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.93,
+   "decision": "skip",
+   "reason": "מקסימום פוזיציות פתוחות"
+  },
+  {
    "ts": "2026-10-24T12:17:17.396Z",
    "market_id": "6080223",
    "question": "Ethereum Up or Down - October 24, 8:15AM-8:20AM ET",
@@ -82181,17 +82192,6 @@
    "price": 0.95,
    "decision": "skip",
    "reason": "מסנן מרחק: 0.61 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-24T11:03:36.142Z",
-   "market_id": "6079181",
-   "question": "Ethereum Up or Down - October 24, 7:00AM-7:05AM ET",
-   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 11:00–11:05 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.95,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.74 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 629,
@@ -129886,7 +129886,9 @@
    "limit": 0.94,
    "taker_ask": 0.95,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-24T12:17:26.063Z",
+   "left_at_fill": 154
   }
  ],
  "study": {
@@ -130063,7 +130065,7 @@
    "brier_entry": 0.03843865857052243,
    "brier_close": 0.002162939597315427,
    "open_n": 2,
-   "open_clv_c": 3.749999999999998
+   "open_clv_c": 3.2499999999999973
   },
   "judged": {
    "n": 447,
@@ -130075,7 +130077,7 @@
    "brier_entry": 0.03843865857052243,
    "brier_close": 0.002162939597315427,
    "open_n": 2,
-   "open_clv_c": 3.749999999999998
+   "open_clv_c": 3.2499999999999973
   }
  }
 }
