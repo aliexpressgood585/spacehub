@@ -23,7 +23,7 @@ jobs:
       - name: live loop
         run: |
           mkdir -p /tmp/desk/scripts /tmp/desk/shared
-          cp scripts/dtk-scan.ts /tmp/desk/scripts/; cp shared/dtk.ts shared/binperps.ts /tmp/desk/shared/
+          cp scripts/dtk-scan.ts /tmp/desk/scripts/; cp shared/dtk.ts shared/binperps.ts shared/universe.ts shared/strategy.ts /tmp/desk/shared/
           git config user.name dtk-bot
           git config user.email actions@github.com
           git fetch -q --depth=1 origin dtk-data || true
@@ -37,7 +37,7 @@ jobs:
           while [ $(date +%s) -lt $end ]; do
             t0=$(date +%s)
             timeout 170 node --experimental-strip-types /tmp/desk/scripts/dtk-scan.ts dtk/state.json || echo "cycle failed"
-            git add dtk/state.json
+            [ -f dtk/state.json ] && git add dtk/state.json
             if git commit -q -m "dtk state $(date -u +%FT%TZ)"; then
               git push -q origin dtk-data || true
             fi

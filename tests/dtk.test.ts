@@ -58,6 +58,9 @@ ok(rss.length === 1 && rss[0].title === 'ETH & BTC rally' && rss[0].at === Date.
 
 const src = fs.readFileSync(new URL('../scripts/dtk-scan.ts', import.meta.url), 'utf8'), wf = fs.readFileSync(new URL('../.github/workflows/dtk-scan.yml', import.meta.url), 'utf8')
 ok(!/\/trade\/order|privateKey|apiKey|OK-ACCESS/i.test(src), 'scanner is read-only: no order endpoint, no keys')
-ok(['dtk.ts', 'binperps.ts'].every((m) => wf.includes(`shared/${m}`)), 'workflow copies every shared module the scanner imports')
+// every shared module reachable from the scanner (transitively) must be copied by the workflow (the first run died on universe.ts)
+const need = new Set<string>(), todo = [...src.matchAll(/from '\.\.\/shared\/([\w-]+\.ts)'/g)].map((m) => m[1])
+while (todo.length) { const m = todo.pop()!; if (need.has(m)) continue; need.add(m); const t = fs.readFileSync(new URL(`../shared/${m}`, import.meta.url), 'utf8'); for (const x of t.matchAll(/from '\.\/([\w-]+\.ts)'/g)) todo.push(x[1]) }
+ok(need.size >= 4 && [...need].every((m) => wf.includes(`shared/${m}`)), `workflow copies every shared module the scanner imports (${[...need].join(', ')})`)
 console.log(`dtk: ${n - bad}/${n} passed`)
 if (bad) process.exit(1)
