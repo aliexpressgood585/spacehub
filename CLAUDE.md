@@ -947,6 +947,22 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   exit unwinding inventory at the taker side (e.g. Vivek ad: rewards $4.15, trading -$15.38). shared/pmr.ts pickMarkets(): drop first,
   refill in the same scan, keep an ON market while its yield >= max(min yield, half the 5th-best). Local cycle on the live state: 5
   markets, $1,189 locked. tests/pmr.test.ts 42/42. Rules otherwise unchanged; the gate clock is not reset (selection only).
+- 2026-10-24 "ערכת הדיי טריידר" (owner: "build me one like the 11-skill day-trader pack, for Binance Futures coins, new dashboard").
+  The pack (github Jakeschincariol/day-trader-skill) is US stocks (Yahoo/SEC/Pelosi/Alpaca); rebuilt for crypto as a TOOLKIT, not
+  an auto-trader. shared/dtk.ts (one module for scanner + page): 4 setups on closed 5m bars (ORB = first close beyond the UTC-day
+  15-min opening range, stop at its midpoint, 1R; FLAG = pole >= 3 ATR + 3-8 bar flag break, 1.5R; BOUNCE = RSI14 < 30 / > 70 then
+  close beyond the previous bar, 1.5R; BURST = volume >= 3x + body > 1 ATR, stop 1 ATR, 1.5R), walk() (stop first, flat after 4 h,
+  16 bps round trip in R), replay() = every past firing of the same rule on the coin, monteCarlo() = 10,000 paths bootstrapping real
+  5m bars from the same UTC hour, DE-MEANED per hour (without it ~5 days of drift showed as a 57/39 edge on a random walk), budget()
+  (qty so a stop-out incl. fees = max loss; isolated liq), riskChecks() (max loss, day loss, trades/day, R:R, costs <= 25% of R,
+  spread, volume, funding not crowded, liq >= 2x stop; unknown = not a pass), news tagging. scripts/dtk-scan.ts +
+  .github/workflows/dtk-scan.yml (cron :17, ~60 s loop, dtk/state.json on its own branch dtk-data): OKX tickers + OI for all 267
+  Binance perps with an OKX swap every cycle; once per closed 5m bar candles for all, setups, time machine (5 days history) for the
+  12 strongest liquid ones, OKX funding for setups + top 20, OKX liquidations (last hour, top 15, max 100 orders each), RSS news.
+  Page trading-app/daytrader.html: 11 tabs (scanner, news, entry timer, exit plan, time machine incl. "run 10,000 now" in the
+  browser, risk, budget, PAPER order only after typing "כן" -> localStorage journal managed on live OKX bid/ask while the page is
+  open, alerts with sound/notification, funding+OI board, liquidations). First live scan: 267 coins in ~52 s, 16 setups; time
+  machine on them mostly negative after costs (e.g. ASTER bounce n34 -0.60R, MC 45/55). tests/dtk.test.ts 30/30. No real orders.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the

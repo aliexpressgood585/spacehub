@@ -19,6 +19,7 @@ export default defineConfig({
         polynews: 'polynews.html',
         memes: 'memes.html',
         polyrewards: 'polyrewards.html',
+        daytrader: 'daytrader.html',
       },
     },
   },
