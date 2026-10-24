@@ -37,7 +37,8 @@ try {
   for (const t of await j(`${OKX}/market/tickers?instType=SWAP`)) {
     const m = /^([A-Z0-9]+)-USDT-SWAP$/.exec(t.instId); if (!m || !set.has(m[1])) continue
     const last = +t.last, bid = +t.bidPx, ask = +t.askPx
-    board[m[1]] = { last, bid, ask, chg: +t.open24h > 0 ? last / +t.open24h - 1 : null, vol: +t.volCcy24h * last, spread: bid > 0 ? (ask - bid) / ((ask + bid) / 2) * 1e4 : null }
+    const pb = st.board?.[m[1]] ?? {}
+    board[m[1]] = { funding: pb.funding ?? null, funding_at: pb.funding_at ?? null, atr: pb.atr ?? null, last, bid, ask, chg: +t.open24h > 0 ? last / +t.open24h - 1 : null, vol: +t.volCcy24h * last, spread: bid > 0 ? (ask - bid) / ((ask + bid) / 2) * 1e4 : null }
   }
 } catch (e) { errs.push(`tickers: ${e}`) }
 try {
@@ -76,7 +77,7 @@ if (barT > st.last_bar && Object.keys(board).length) {
   }
   // funding (OKX's rate, labelled as such) for the setups and the 20 largest coins
   const fsyms = [...new Set([...found.slice(0, 30).map((s) => s.sym), ...Object.entries(board).sort((a: any, b: any) => b[1].vol - a[1].vol).slice(0, 20).map(([s]) => s)])]
-  await pool(fsyms, 4, async (sym) => { try { const f = (await j(`${OKX}/public/funding-rate?instId=${sym}-USDT-SWAP`))[0]; board[sym].funding = +f.fundingRate; board[sym].funding_at = +f.fundingTime } catch { /* shown as unknown */ } })
+  await pool(fsyms, 4, async (sym) => { try { const f = (await j(`${OKX}/public/funding-rate?instId=${sym}-USDT-SWAP`))[0]; board[sym].funding = +f.fundingRate; board[sym].funding_at = +f.fundingTime } catch (e) { if (!errs.some((x) => x.startsWith('funding'))) errs.push(`funding ${sym}: ${e}`) } })
   for (const s of found) { s.funding = board[s.sym]?.funding ?? null; s.spread = board[s.sym]?.spread ?? null; s.vol = board[s.sym]?.vol ?? null; s.kind_he = KIND_HE[s.kind as keyof typeof KIND_HE] }
   st.setups = found.slice(0, 80); st.last_bar = barT; st.scan = { at: iso(), bar: iso(barT), coins: COINS.length, scanned: Object.values(board).filter((x: any) => x.scanned).length, found: found.length, ms: Date.now() - t0 }
   // liquidations on the 15 largest coins (OKX liquidation orders, last hour; contracts x ctVal x bankruptcy price)
