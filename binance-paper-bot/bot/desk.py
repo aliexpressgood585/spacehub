@@ -9,7 +9,9 @@ ema_trend_4h decides on 1h closes from completed 4h bars. Disabled rules stay
 in the code and are not asked. Stops stay on 1m highs/lows. The coin list is a
 monthly top-20 by trailing 90-day median quote volume. An account is replaced
 only when its era is missing or older than config account.era: the old file is
-archived once and the book starts over at the configured balance.
+archived once and the book starts over at the configured balance. That reset
+tick writes the new book and returns without ranking or fetching klines, so it
+finishes inside the workflow's 90s kill and the archive can be committed.
 
 config/manual_trades.json, when present, is a separate one-shot paper basket
 (manual_aggr_1..5). It does not go through the strategy risk sizer.
@@ -146,11 +148,46 @@ def archive_era_state(state_path, state):
     return dest
 
 
-def blank_era_state(cfg, now):
-    """Empty $starting_balance book. Cursors are unset so nothing is back-filled."""
+def _era_price_source(prev):
+    """Last published source, or a labelled placeholder when the file has none.
+
+    The reset tick does not probe the exchange. `_print_cycle` still needs
+    id, endpoint and filters.
+    """
+    ps = dict((prev or {}).get("price_source") or {})
+    if ps.get("id") and ps.get("endpoint") and ps.get("filters"):
+        return ps
+    return {
+        "id": "binance",
+        "endpoint": "https://www.binance.com",
+        "filters": "era-reset",
+        "label_he": "איפוס עידן — בלי משיכת מחיר במחזור הזה",
+        "filters_he": "היקום החודשי נשמר; מחזור האיפוס לא מושך נרות",
+        "fees_he": "עמלות Binance VIP0: מייקר 0.02% · טייקר 0.05%",
+    }
+
+
+def blank_era_state(cfg, now, prev=None):
+    """Empty starting-balance book the next minute can mark without a re-rank.
+
+    Cursors sit on the bars already closed at `now`, so nothing older is
+    replayed and the following tick is a stop cycle. The stored monthly
+    universe is copied: dropping it makes `choose_universe` call `rank_live`
+    on every eligible perpetual, which the 90s tick kill cuts off before
+    `state.json` is written.
+    """
     start = float(cfg["account"]["starting_balance"])
     era = account_era(cfg)
     now = int(now)
+    prev = prev or {}
+    rows = stored_rows(prev)
+    m1 = closed_bar_open(now, INTERVAL_MS["1m"])
+    h1 = closed_bar_open(now, INTERVAL_MS["1h"])
+    m15 = closed_bar_open(now, INTERVAL_MS["15m"])
+    specs = strategy_specs(cfg)
+    symbols = [r["symbol"] for r in rows] or list(prev.get("symbols") or []) or list(cfg.get("symbols") or [])
+    rcfg = cfg.get("risk") or {}
+    day = now // 86_400_000
     return {
         "era": era,
         "version": "binance-paper-v1",
@@ -162,6 +199,18 @@ def blank_era_state(cfg, now):
         "equity": start,
         "peak_equity": start,
         "unrealized": 0.0,
+        "available": start,
+        "used_margin": 0.0,
+        "return_pct": 0.0,
+        "drawdown_pct": 0.0,
+        "max_drawdown_pct": 0.0,
+        "fees_total": 0.0,
+        "funding_total": 0.0,
+        "realized_total": 0.0,
+        "liquidations": 0,
+        "wins": 0,
+        "win_rate_pct": 0.0,
+        "trades_closed": 0,
         "positions": [],
         "trades": [],
         "events": [{
@@ -175,13 +224,45 @@ def blank_era_state(cfg, now):
         "signals": [],
         "equity_curve": [],
         "brackets": {},
-        "catchup": {"era_reset": True, "replay": False, "minutes": 0, "skipped_1m": 0},
-        "last_1m_open": None,
-        "last_1h_open": None,
-        "last_15m_open": None,
-        "last_ts": None,
+        "prices": {},
+        "catchup": {
+            "mode": "era", "era_reset": True, "replay": False, "fresh": True,
+            "minutes": 0, "skipped_1m": 0, "evaluated_1h": 0, "evaluated_15m": 0,
+        },
+        "last_1m_open": m1,
+        "last_1h_open": h1,
+        "last_15m_open": m15,
+        "last_ts": now,
+        "last_cycle": _iso(now),
+        "last_bar_close": _iso(m15 + INTERVAL_MS["15m"]),
+        "started": now,
+        "symbols": symbols,
+        "universe": rows,
+        "universe_ranked_at": prev.get("universe_ranked_at"),
+        "universe_month": prev.get("universe_month"),
+        "universe_reused": bool(prev.get("universe_reused")),
+        "strategy": strategy_view(specs[0], cfg),
+        "strategies": [strategy_view(s, cfg) for s in specs],
+        "price_source": _era_price_source(prev),
+        "risk": {
+            "day": day,
+            "day_start_equity": start,
+            "day_pnl_pct": 0.0,
+            "halted": False,
+            "drawdown_halted": False,
+            "max_daily_loss_pct": float(rcfg.get("max_daily_loss", 0.05)) * 100,
+            "max_positions": rcfg.get("max_concurrent_positions"),
+        },
+        "exchange": {
+            "wallet": start,
+            "leverage": {},
+            "totals": {"fees": 0.0, "funding": 0.0, "realized": 0.0, "liquidations": 0},
+            "positions": {},
+            "orders": [],
+            "markets": {},
+        },
         "engine": {
-            "risk": {"day": None, "day_start_equity": None, "owner_halt": {},
+            "risk": {"day": day, "day_start_equity": start, "owner_halt": {},
                      "peak_equity": start, "drawdown_halt": False},
             "funding_done": {},
             "universe_period": {},
@@ -193,13 +274,29 @@ def blank_era_state(cfg, now):
 def consume_era(state_path, state, cfg, now):
     """Archive a stale book once and return a fresh in-memory account.
 
-    Does not write state.json. The cycle publishes the new book at the end, so a
-    failed cycle leaves the live file in place and the next tick tries again.
+    Does not write state.json. `publish_era_reset` is what the tick writes,
+    before any market call, so a killed cycle leaves the live file in place
+    and the next tick tries again without having ranked.
     """
     if not era_is_stale(state, cfg):
         return state, False
     archive_era_state(state_path, state)
-    return blank_era_state(cfg, now), True
+    return blank_era_state(cfg, now, state), True
+
+
+def publish_era_reset(path, state, cfg, now):
+    """Archive and write the new book. None when the file is already this era.
+
+    No `connect`, no `rank_live`, no klines. The workflow kills a tick at 90s
+    and skips the commit on any non-zero status, so this has to finish first.
+    """
+    if not era_is_stale(state, cfg):
+        return None
+    archive_era_state(path, state)
+    snap = blank_era_state(cfg, now, state)
+    write_state(path, snap)
+    log.info("era %s reset written; archive %s; no kline fetch", snap["era"], archive_path_for(path))
+    return snap
 
 
 # Closed 4h bars kept for EMA150 warmup. The buffer itself is data.history_bars.
@@ -1166,6 +1263,10 @@ def run_htf(eng, ex, infos, feed, symbols, state, fresh, switched, now, rec, fun
 def run(path, now=None):
     cfg = load_config()
     now = _now() if now is None else int(now)
+    state = read_state(path)
+    reset = publish_era_reset(path, state, cfg, now)
+    if reset is not None:
+        return reset
     feed, probes = connect(cfg)
     state = read_state(path)
     state, era_reset = consume_era(path, state, cfg, now)
@@ -1437,6 +1538,9 @@ def run_stops(path, now=None):
     cfg = load_config()
     now = _now() if now is None else int(now)
     state = read_state(path)
+    reset = publish_era_reset(path, state, cfg, now)
+    if reset is not None:
+        return reset
     state, era_reset = consume_era(path, state, cfg, now)
     if era_reset or state is None or "exchange" not in state:
         return run(path, now)
@@ -1554,12 +1658,22 @@ def run_stops(path, now=None):
 
 
 def tick(path, now=None, run_id=None):
-    """One wall-clock step: full strategy cycle when an hour is due, otherwise stops."""
+    """One wall-clock step: full strategy cycle when an hour is due, otherwise stops.
+
+    A stale era is archived and replaced here, before `due_full` can choose a
+    full cycle. The live book often has an hour cursor older than the latest
+    closed hour, so the reset would otherwise enter `run` and re-rank.
+    """
     now = _now() if now is None else int(now)
     run_id = current_run_id(run_id)
+    cfg = load_config()
     state = read_state(path)
-    mode = "full" if due_full(now, state) else "stops"
-    snap = run(path, now) if mode == "full" else run_stops(path, now)
+    snap = publish_era_reset(path, state, cfg, now)
+    if snap is not None:
+        mode = "era"
+    else:
+        mode = "full" if due_full(now, state) else "stops"
+        snap = run(path, now) if mode == "full" else run_stops(path, now)
     snap["loop"] = loop_view(run_id, "running", mode, now)
     write_state(path, snap)
     return snap
