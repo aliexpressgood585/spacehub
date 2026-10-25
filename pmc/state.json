@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-25T00:44:57.207Z",
+ "last_scan": "2026-10-25T00:45:07.019Z",
  "last_note": {
-  "at": "2026-10-25T00:44:56.910Z",
+  "at": "2026-10-25T00:45:06.804Z",
   "windows": 0,
   "settled": 0,
   "entered": 0
@@ -130144,8 +130144,10 @@
    "placed_at": "2026-10-25T00:37:18.022Z",
    "limit": 0.92,
    "taker_ask": 0.93,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "sol-updown-5m-1792888500",
@@ -130157,10 +130159,12 @@
    "placed_at": "2026-10-25T00:37:46.996Z",
    "limit": 0.9,
    "taker_ask": 0.93,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-25T00:38:06.697Z",
-   "left_at_fill": 113
+   "left_at_fill": 113,
+   "won": true,
+   "ret": 0.11111111111111108
   },
   {
    "slug": "btc-updown-5m-1792888500",
@@ -130172,10 +130176,12 @@
    "placed_at": "2026-10-25T00:37:57.164Z",
    "limit": 0.91,
    "taker_ask": 0.92,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-25T00:38:06.794Z",
-   "left_at_fill": 113
+   "left_at_fill": 113,
+   "won": false,
+   "ret": -1
   },
   {
    "slug": "eth-updown-5m-1792888500",
@@ -130187,10 +130193,12 @@
    "placed_at": "2026-10-25T00:38:07.116Z",
    "limit": 0.96,
    "taker_ask": 0.97,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-25T00:38:16.837Z",
-   "left_at_fill": 103
+   "left_at_fill": 103,
+   "won": true,
+   "ret": 0.041666666666666706
   },
   {
    "slug": "xrp-updown-5m-1792888800",
@@ -130258,12 +130266,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2992,
-   "filled": 1297,
-   "fill_rate": 0.4334893048128342,
-   "wr": 0.8589051657671549,
-   "ret": -0.06968317779978843,
-   "missed_wins": 1694,
+   "resolved": 2996,
+   "filled": 1300,
+   "fill_rate": 0.43391188251001334,
+   "wr": 0.8584615384615385,
+   "ret": -0.07017407986811369,
+   "missed_wins": 1695,
    "missed_losses": 1
   },
   "late_exit": {
