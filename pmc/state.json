@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-25T08:12:32.270Z",
+ "last_scan": "2026-10-25T08:12:41.993Z",
  "last_note": {
-  "at": "2026-10-25T08:12:29.642Z",
+  "at": "2026-10-25T08:12:40.111Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -45456,13 +45456,6 @@
  ],
  "equity": [
   {
-   "ts": "2026-10-21T20:55:06.415Z",
-   "equity": 1101.375030514962,
-   "cash": 1101.375030514962,
-   "open_value": 0,
-   "open_count": 0
-  },
-  {
    "ts": "2026-10-21T20:56:06.439Z",
    "equity": 1101.375030514962,
    "cash": 1101.375030514962,
@@ -80454,9 +80447,27 @@
    "cash": 993.3104095670752,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-10-25T08:12:41.994Z",
+   "equity": 993.3104095670752,
+   "cash": 993.3104095670752,
+   "open_value": 0,
+   "open_count": 0
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-25T08:12:41.993Z",
+   "market_id": "6113044",
+   "question": "Solana Up or Down - October 25, 4:10AM-4:15AM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 08:10–08:15 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.94,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 0.92 < 2 (המחיר קרוב מדי לקו הפתיחה)"
+  },
   {
    "ts": "2026-10-25T08:12:31.564Z",
    "market_id": "6113040",
@@ -82645,17 +82656,6 @@
    "price": 0.97,
    "decision": "skip",
    "reason": "מסנן מרחק: 0.98 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-25T06:32:59.317Z",
-   "market_id": "6109962",
-   "question": "Solana Up or Down - October 25, 2:30AM-2:35AM ET",
-   "question_he": "סולנה · עולה או יורד · 5 דקות · 06:30–06:35 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.95,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.93 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 635,
@@ -130226,7 +130226,9 @@
    "limit": 0.94,
    "taker_ask": 0.95,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-25T08:12:40.322Z",
+   "left_at_fill": 140
   }
  ],
  "study": {
