@@ -66,14 +66,14 @@ ok(exitTrigger([m1b(0, 98, 98.5, 97)], 'LONG', 99, 101, 0)?.px === 98, 'a gap th
 ok(exitTrigger([m1b(0, 100, 100.4, 99.5), m1b(60000, 100.3, 101.2, 100.1)], 'LONG', 99, 101, 0)?.px === 101, 'take-profit at the level')
 ok(exitTrigger([m1b(0, 100, 100.4, 98)], 'LONG', 99, 101, 120000) === null, 'minutes before the last check are ignored')
 ok(exitTrigger([m1b(0, 100, 101.5, 99.5)], 'SHORT', 101, 99, 0)?.why === 'STOP', 'short stop above')
-ok(!tmGate(null).ok && !tmGate({ n: 29, avgR: 0.5 }).ok && !tmGate({ n: 40, avgR: -0.01 }).ok && !tmGate({ n: 40, avgR: 0 }).ok && tmGate({ n: 30, avgR: 0.01 }).ok, 'time-machine gate: >= 30 firings and positive average R, unknown is not a pass')
+ok(!tmGate(null).ok && !tmGate({ n: 29, avgR: 0.5, t: 3 }).ok && !tmGate({ n: 40, avgR: 0.05, t: 3 }).ok && !tmGate({ n: 40, avgR: 0.3, t: 0.8 }).ok && tmGate({ n: 30, avgR: 0.1, t: 1 }).ok, 'time-machine gate: >= 30 firings, avg >= +0.10R and t >= 1; unknown is not a pass')
 { const src = fs.readFileSync('scripts/dtk-scan.ts', 'utf8'), a = src.indexOf('tmGate(s.replay)\n    if (!tg.ok)'), b = src.indexOf('riskChecks(plan')
   ok(a > 0 && a < b, 'demo entries pass the time-machine gate before the risk manager') }
-ok(PAPER.start === 1000 && PAPER.sizing === 'all' && PAPER.lev === 5, '$1,000 demo account, whole account as margin at 5x')
+ok(PAPER.start === 1000 && PAPER.era === 2 && PAPER.sizing === 'risk' && PAPER.riskPct === 0.01 && PAPER.dayLossPct === 0.03, 'era 2: $1,000 demo account, 1% risk per trade, 3% day stop')
 { const m = budgetMargin({ side: 'LONG', entry: 100, stop: 98, target: 103 }, 250, 5)
   ok(Math.abs(m.notional - 1250) < 1e-9 && Math.abs(m.margin - 250) < 1e-9 && Math.abs(m.lossAtStop - (25 + 1250 * 0.0016)) < 1e-9 && Math.abs(m.liq - 100 * (1 - 0.195)) < 1e-9, 'budgetMargin: notional = margin x lev, loss at stop incl. costs, isolated liquidation') }
 { const src = fs.readFileSync('scripts/dtk-scan.ts', 'utf8')
-  ok(/P\.cash \* 0\.995 \/ slots/.test(src) && src.includes("!c.k.startsWith('הפסד')"), 'demo splits free cash between approved setups; no per-trade / daily loss cap') }
+  ok(src.includes('budget(plan, maxLoss, eq, PAPER.lev)') && src.includes('PAPER.dayLossPct') && /state-v\$\{old\}\.json/.test(src), 'demo sizes by risk, keeps the day stop, archives the old era once') }
 
 const src = fs.readFileSync(new URL('../scripts/dtk-scan.ts', import.meta.url), 'utf8'), wf = fs.readFileSync(new URL('../.github/workflows/dtk-scan.yml', import.meta.url), 'utf8')
 ok(!/\/trade\/order|privateKey|apiKey|OK-ACCESS/i.test(src), 'scanner is read-only: no order endpoint, no keys')

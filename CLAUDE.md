@@ -993,6 +993,14 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   (risk checks starting 'הפסד' dropped); kept: costs <= 25% of R, spread, volume, funding, isolated liq >= 2x stop, 20/day, cash.
   One approved trade = ~5x the account; a stop costs ~5-15% of equity. Told the owner. risk_usd = real loss at stop (R stays honest).
   Positions opened before this keep their old size. tests/dtk 42/42.
+- 2026-10-25 dtk ERA 2 RESET (owner: "reset, restart, bring good results"). Era 1 (10-24 19:11 -> 10-25 08:36 UTC): 13 closed,
+  WR 46%, realised -$372.17, fees $22.02, equity $627.83. The first 10 trades at $10 risk netted ~-$23 (rule ~0R); the whole-account
+  5x sizing then lost -$357 in 3 trades, ONE stop (APR SHORT, wide stop at full size, -1.02R) = -$335. The loss was sizing, not the rule.
+  Era 2 (PAPER.era 2): runner archives the old account ONCE to dtk/state-v1.json on dtk-data and opens a fresh $1,000; sizing back
+  to risk-based (1% of equity at the stop incl. fees, budget()), 3% day stop restored; time-machine gate stricter: n >= 30, avg >=
+  +0.10R AND replay t >= 1 (USELESS at +0.01R passed era 1's gate). Local cycle on the live state: archive written, $1,000, LIGHT
+  (-0.35R n110) / ANIME (-0.61R n100) skipped. Expect few trades. Told the owner: no rule here has proven edge; good results cannot
+  be promised, only small losses per trade. tests/dtk 42/42.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the

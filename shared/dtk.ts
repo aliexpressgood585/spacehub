@@ -187,18 +187,20 @@ export function parseRss(xml: string): { title: string; link: string; at: number
 // The scanner opens and closes positions by itself from the toolkit's setups, on live OKX books, with taker fees, slippage from
 // walking the real order book, exits triggered exchange-side style (1-minute bars since the last check, stop first, gaps fill at the
 // open) and funding charged at each real settlement. Sizing: 1% of equity lost at the stop (fees included), isolated 5x.
-// Sizing (owner, 2026-10-24: "use the whole account", 5x, no daily stop): free cash is split as MARGIN between the entries the
-// time machine approved in this scan (<= maxOpen open), notional = margin x lev. No per-trade loss cap and no daily loss stop;
-// what still bounds a trade: the stop, isolated liquidation >= 2x the stop distance away, costs <= 25% of R, cash.
-export const PAPER = { start: 1000, sizing: 'all' as const, lev: 5, maxOpen: 4, perDay: 20, chaseR: 0.3, tmMinN: 30, tmMinR: 0, tmDays: 20 }
+// Era 2 (owner, 2026-10-25: "reset and bring good results"). Era 1 ran whole-account 5x sizing: 13 trades, -$372, and ONE stop
+// (APR, a wide stop at full size) cost -$335 = a third of the account while the rule itself netted about 0R. Back to risk-based
+// sizing: a stop-out incl. fees costs riskPct of equity, day stop 3%. The time-machine gate is stricter: >= 30 firings, avg >= +0.10R
+// AND t >= 1 (a +0.01R average is noise). era bump = the runner archives the old account and opens a fresh $1,000 one.
+export const PAPER = { start: 1000, era: 2, sizing: 'risk' as const, riskPct: 0.01, dayLossPct: 0.03, lev: 5, maxOpen: 4, perDay: 20, chaseR: 0.3, tmMinN: 30, tmMinR: 0.1, tmMinT: 1, tmDays: 20 }
 // Time-machine gate: the demo account enters only a setup whose SAME rule on the SAME coin and side, replayed over the last
-// PAPER.tmDays days with full costs, fired >= tmMinN times and averaged > tmMinR R. No replay = no entry (unknown is not a pass).
+// PAPER.tmDays days with full costs, fired >= tmMinN times, averaged >= tmMinR R with t >= tmMinT. No replay = no entry.
 // NB a positive replay is a filter on past luck as much as on edge; the demo account is the out-of-sample check.
-export function tmGate(r: Pick<Replay, 'n' | 'avgR'> | null | undefined): { ok: boolean; why: string } {
+export function tmGate(r: Pick<Replay, 'n' | 'avgR'> & { t?: number } | null | undefined): { ok: boolean; why: string } {
   if (!r) return { ok: false, why: 'אין נתוני מכונת זמן' }
   if (r.n < PAPER.tmMinN) return { ok: false, why: `מכונת הזמן: רק ${r.n} פעמים בעבר (צריך ${PAPER.tmMinN})` }
-  if (!(r.avgR > PAPER.tmMinR)) return { ok: false, why: `מכונת הזמן שלילית: ${r.n} פעמים, ממוצע ${r.avgR.toFixed(2)}R` }
-  return { ok: true, why: `מכונת הזמן: ${r.n} פעמים, ממוצע +${r.avgR.toFixed(2)}R` }
+  if (!(r.avgR >= PAPER.tmMinR)) return { ok: false, why: `מכונת הזמן חלשה: ${r.n} פעמים, ממוצע ${r.avgR.toFixed(2)}R (צריך ${PAPER.tmMinR}+)` }
+  if (!((r.t ?? 0) >= PAPER.tmMinT)) return { ok: false, why: `מכונת הזמן לא מובהקת: ${r.n} פעמים, ממוצע +${r.avgR.toFixed(2)}R, t ${(r.t ?? 0).toFixed(1)}` }
+  return { ok: true, why: `מכונת הזמן: ${r.n} פעמים, ממוצע +${r.avgR.toFixed(2)}R, t ${(r.t ?? 0).toFixed(1)}` }
 }
 // Market order of `qty` coins into one side of the book ([price, coins] best first): VWAP of what the visible book absorbs.
 export function walkBook(levels: [number, number][], qty: number): { vwap: number; filled: number } {
