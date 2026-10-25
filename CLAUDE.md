@@ -1037,6 +1037,12 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   liquid coins only, mover gate (|24h| >= 20% skipped, v124), one position per coin, <= 10 open; each headline x coin used once. Setup entries
   and the time machine still run for the page but no longer trade. st.news_scorer shows which scorer is live. Simulated score-9 BTC headline
   opened $50 @ live ask with stop/target as specified. NOT PROVEN: pmn-grid-365 and the RSS lab found no news rule that pays. tests/dtk 49/49.
+- 2026-10-25 dtk news, MORE TRADES (owner: "everything so it opens more trades"): entry at score >= 8 (was > 8, a rule change the owner
+  chose), headlines up to 60 min old (was 30; RSS lags), 10 crypto Telegram channels via t.me/s preview (NEWS.tg: WatcherGuru, cointelegraph,
+  WuBlockchainEnglish, whale_alert_io, binance_announcements, CoinDeskGlobal, BWEnews, unfolded, coinbureau, lookonchainchannel; parseTg),
+  coin names for ~85 coins (Hedera, Bittensor, Stellar, ...), HTML entities decoded in RSS titles. Claude scorer: retries without the
+  server-side-fallback beta on a 400; any error now lands in state.errors (the first live call failed silently into the keyword scorer).
+  Local cycle: 83 -> 126 headlines / 24 h, 45 -> 55 naming a coin. tests/dtk 52/52.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the

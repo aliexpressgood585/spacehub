@@ -4,7 +4,7 @@
 // that opens and closes positions by itself on live OKX books (taker fees, book-walk slippage, real funding). Writes dtk/state.json.
 // READ-ONLY toward any exchange: it never places a real order. Usage: node --experimental-strip-types scripts/dtk-scan.ts dtk/state.json
 import fs from 'node:fs'
-import { DTK, PAPER, NEWS, lexScore, KIND_HE, tmGate, moverGate, budget, setupsAt, replay, monteCarlo, atr, coinsIn, parseRss, riskChecks, walkBook, exitTrigger, type Bar } from '../shared/dtk.ts'
+import { DTK, PAPER, NEWS, lexScore, KIND_HE, tmGate, moverGate, budget, setupsAt, replay, monteCarlo, atr, coinsIn, parseRss, parseTg, riskChecks, walkBook, exitTrigger, type Bar } from '../shared/dtk.ts'
 import { refreshUniverse, universeDue, liquid, limiter, pool } from '../shared/binperps.ts'
 
 const FILE = process.argv[2] ?? 'dtk/state.json', OKX = 'https://www.okx.com/api/v5'
@@ -132,6 +132,16 @@ if (!st.news_at || now - Date.parse(st.news_at) > 5 * 60_000) {
       }
     } catch (e) { errs.push(`news ${src}: ${e}`) }
   }
+  for (const ch of NEWS.tg) {
+    try {
+      const r = await fetch(`https://t.me/s/${ch}`, { headers: { 'User-Agent': 'Mozilla/5.0' } }); if (!r.ok) throw new Error(`${r.status}`)
+      for (const it of parseTg(await r.text(), ch)) {
+        if (now - it.at > 24 * 3600_000 || seen.has(it.link)) continue
+        const coins = coinsIn(it.title, COINS).slice(0, 4)
+        seen.set(it.link, { src: `TG ${ch}`, title: it.title, link: it.link, at: iso(it.at), coins, px0: Object.fromEntries(coins.map((c) => [c, board[c]?.last ?? null])) })
+      }
+    } catch (e) { errs.push(`telegram ${ch}: ${e}`) }
+  }
   st.news = [...seen.values()].filter((n) => now - Date.parse(n.at) < 24 * 3600_000).sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 300)
   st.news_at = iso()
   // sentiment 1-10 for every headline that names a coin and has no score yet: Claude when the runner has a key, else keywords
@@ -188,10 +198,10 @@ for (const t of openP()) {
 const dayN = Math.floor(now / 86400_000)
 if (P.day !== dayN) Object.assign(P, { day: dayN, dayStart: equityP(), dayEntries: 0 })
 if (PAPER.mode === 'news') {
-  // era 3: buy a coin named in a fresh headline scored above NEWS.minScore; NEWS.stakePct of equity, 1x; stop -3% / target +6% / 24 h
+  // era 3: buy a coin named in a fresh headline scored NEWS.minScore or more; NEWS.stakePct of equity, 1x; stop -3% / target +6% / 24 h
   const eq = equityP(), done = new Set<string>(P.news_done ?? [])
   for (const n of st.news ?? []) {
-    if (!(n.score > NEWS.minScore) || now - Date.parse(n.at) > NEWS.maxAgeMin * 60_000) continue
+    if (!(n.score >= NEWS.minScore) || now - Date.parse(n.at) > NEWS.maxAgeMin * 60_000) continue
     for (const sym of n.coins) {
       const key = `${n.link}|${sym}`; if (done.has(key)) continue
       done.add(key)

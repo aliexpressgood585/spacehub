@@ -16,11 +16,9 @@ export async function claudeScores(items: { id: number; title: string; coins: st
   if (!items.length) return out
   try {
     const client = new Anthropic()
-    const res: any = await (client.beta.messages.create as any)({
+    const body: any = {
       model: MODEL,
       max_tokens: 4000,
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
       output_config: {
         effort: 'low',
         format: {
@@ -33,7 +31,11 @@ export async function claudeScores(items: { id: number; title: string; coins: st
       },
       system: SYSTEM,
       messages: [{ role: 'user', content: items.map((x) => `${x.id}. [${x.coins.join(', ')}] ${x.title}`).join('\n') }],
-    })
+    }
+    // server-side refusal fallback first; if this SDK/account rejects the beta, the plain request
+    let res: any
+    try { res = await (client.beta.messages.create as any)({ ...body, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' }) }
+    catch (e) { if (e instanceof Anthropic.BadRequestError) res = await client.messages.create(body); else throw e }
     if (res.stop_reason === 'refusal') { lastError = 'refusal'; return out }
     const text = (res.content ?? []).filter((b: any) => b.type === 'text').map((b: any) => b.text).join('')
     for (const s of JSON.parse(text).scores ?? []) if (Number.isFinite(s.score)) out.set(s.id, { score: Math.max(1, Math.min(10, s.score)), why: String(s.why ?? '').slice(0, 120) })

@@ -168,7 +168,14 @@ export function riskChecks(s: Pick<Setup, 'side' | 'entry' | 'stop' | 'target'>,
 }
 
 // News: which coins a headline names (a $TICKER or the base as a whole upper-case word, >= 3 letters; or a known name).
-const NAMES: Record<string, string> = { BTC: 'bitcoin', ETH: 'ethereum|ether', SOL: 'solana', XRP: 'ripple|xrp', DOGE: 'dogecoin', ADA: 'cardano', BNB: 'binance coin|bnb', AVAX: 'avalanche', LINK: 'chainlink', DOT: 'polkadot', LTC: 'litecoin', TON: 'toncoin', SUI: 'sui network', TRX: 'tron', SHIB: 'shiba inu', PEPE: 'pepe', HYPE: 'hyperliquid', NEAR: 'near protocol', APT: 'aptos', ARB: 'arbitrum', OP: 'optimism', UNI: 'uniswap', AAVE: 'aave' }
+const NAMES: Record<string, string> = { BTC: 'bitcoin', ETH: 'ethereum|ether', SOL: 'solana', XRP: 'ripple|xrp', DOGE: 'dogecoin', ADA: 'cardano', BNB: 'binance coin|bnb', AVAX: 'avalanche', LINK: 'chainlink', DOT: 'polkadot', LTC: 'litecoin', TON: 'toncoin', SUI: 'sui network', TRX: 'tron', SHIB: 'shiba inu', PEPE: 'pepe', HYPE: 'hyperliquid', NEAR: 'near protocol', APT: 'aptos', ARB: 'arbitrum', OP: 'optimism', UNI: 'uniswap', AAVE: 'aave',
+  TAO: 'bittensor', HBAR: 'hedera', XLM: 'stellar', POL: 'polygon', FIL: 'filecoin', ICP: 'internet computer', ETC: 'ethereum classic', BCH: 'bitcoin cash',
+  ATOM: 'cosmos', ALGO: 'algorand', RENDER: 'render network', FET: 'fetch\\.ai|artificial superintelligence alliance', INJ: 'injective', TIA: 'celestia', SEI: 'sei network',
+  STX: 'stacks', IMX: 'immutable', GRT: 'the graph', LDO: 'lido', ONDO: 'ondo', ENA: 'ethena', JUP: 'jupiter', PYTH: 'pyth', WLD: 'worldcoin', FLOKI: 'floki', BONK: 'bonk',
+  WIF: 'dogwifhat', PENGU: 'pudgy penguins', VIRTUAL: 'virtuals protocol', CRV: 'curve finance', COMP: 'compound finance', SNX: 'synthetix', DYDX: 'dydx', EIGEN: 'eigenlayer',
+  ZRO: 'layerzero', STRK: 'starknet', ZK: 'zksync', MANA: 'decentraland', SAND: 'the sandbox', AXS: 'axie infinity', GALA: 'gala games', CHZ: 'chiliz', EGLD: 'multiversx',
+  KSM: 'kusama', XTZ: 'tezos', ZEC: 'zcash', KAITO: 'kaito', PUMP: 'pump\\.fun', WLFI: 'world liberty financial', MORPHO: 'morpho', PENDLE: 'pendle', ETHFI: 'ether\\.fi',
+  ARKM: 'arkham', AR: 'arweave', MINA: 'mina protocol', ENS: 'ethereum name service', RAY: 'raydium', JTO: 'jito', W: 'wormhole', TRUMP: 'official trump', THETA: 'theta network' }
 export function coinsIn(text: string, bases: string[]): string[] {
   const out = new Set<string>()
   for (const b of bases) {
@@ -177,9 +184,22 @@ export function coinsIn(text: string, bases: string[]): string[] {
   }
   return [...out]
 }
+const ent = (x: string) => x.replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(+n)).replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
+  .replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
+// Telegram public channel web preview (t.me/s/<channel>, no account, no key) -> the latest posts as headlines (first 280 chars)
+export function parseTg(html: string, ch: string): { title: string; link: string; at: number }[] {
+  const out: { title: string; link: string; at: number }[] = []
+  for (const part of html.split('<div class="tgme_widget_message_wrap').slice(1)) {
+    const id = /data-post="[^"/]+\/(\d+)"/.exec(part)?.[1], t = /<time datetime="([^"]+)"/.exec(part)?.[1], x = /tgme_widget_message_text[^>]*>([\s\S]*?)<\/div>/.exec(part)?.[1]
+    if (!id || !t || !x) continue
+    const title = ent(x.replace(/<br\s*\/?>/g, ' ').replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim().slice(0, 280)
+    if (title && Number.isFinite(Date.parse(t))) out.push({ title, link: `https://t.me/${ch}/${id}`, at: Date.parse(t) })
+  }
+  return out
+}
 export function parseRss(xml: string): { title: string; link: string; at: number }[] {
   const items = xml.split(/<item[\s>]/).slice(1)
-  const tag = (s: string, t: string) => (new RegExp(`<${t}[^>]*>([\\s\\S]*?)</${t}>`).exec(s)?.[1] ?? '').replace(/<!\[CDATA\[|\]\]>/g, '').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"').trim()
+  const tag = (s: string, t: string) => ent((new RegExp(`<${t}[^>]*>([\\s\\S]*?)</${t}>`).exec(s)?.[1] ?? '').replace(/<!\[CDATA\[|\]\]>/g, '').replace(/<[^>]+>/g, '')).trim()
   return items.map((s) => ({ title: tag(s, 'title'), link: tag(s, 'link'), at: Date.parse(tag(s, 'pubDate')) })).filter((x) => x.title && Number.isFinite(x.at))
 }
 
@@ -193,10 +213,13 @@ export function parseRss(xml: string): { title: string; link: string; at: number
 // AND t >= 1 (a +0.01R average is noise). era bump = the runner archives the old account and opens a fresh $1,000 one.
 // Era 3 (owner, 2026-10-25, from an Instagram reel): the demo trades crypto NEWS instead of the chart setups. Every new headline
 // that names a coin gets a sentiment score 1-10 (10 = euphoric, 1 = panic): Claude when ANTHROPIC_API_KEY is set on the runner,
-// else a fixed keyword list (scorer stored per headline). Buy only above NEWS.minScore, NEWS.stakePct of equity per trade (1x),
+// else a fixed keyword list (scorer stored per headline). Buy at NEWS.minScore or higher, NEWS.stakePct of equity per trade (1x),
 // sell on a NEWS.stopPct drop. The reel gave no other exit, so take-profit +6% (2:1) and 24 h are ours, stated on the page.
 // NOT PROVEN: the full-year Telegram grid (status/pmn-grid-365.txt) and the RSS news lab found no news-reaction rule that pays.
-export const NEWS = { minScore: 8, stakePct: 0.05, stopPct: 0.03, targetPct: 0.06, holdMs: 24 * 3600_000, maxAgeMin: 30, maxOpen: 10, lev: 1 }
+// Owner 2026-10-25 ("everything, so it opens more trades"): score >= 8 counts (was > 8), headlines up to 60 min old (RSS lags),
+// 10 crypto Telegram channels next to the RSS feeds, coin names for ~85 coins.
+export const NEWS = { minScore: 8, stakePct: 0.05, stopPct: 0.03, targetPct: 0.06, holdMs: 24 * 3600_000, maxAgeMin: 60, maxOpen: 10, lev: 1,
+  tg: ['WatcherGuru', 'cointelegraph', 'WuBlockchainEnglish', 'whale_alert_io', 'binance_announcements', 'CoinDeskGlobal', 'BWEnews', 'unfolded', 'coinbureau', 'lookonchainchannel'] }
 const POS = ['surg*', 'soar*', 'skyrocket*', 'rally', 'rallies', 'record high', 'all-time high', 'ath', 'breakout', 'bullish', 'approv*', 'etf', 'partnership', 'partners with', 'listing', 'lists', 'adopt', 'launch', 'upgrade', 'inflows', 'buyback', 'jumps', 'gains', 'pumps', 'spikes', 'wins', 'integrat*', 'acquir*', 'treasury', 'accumulat*']
 const NEG = ['hack', 'exploit', 'plunge', 'crash', 'lawsuit', 'sues', 'charges', 'ban', 'delist', 'outflows', 'liquidat*', 'bearish', 'falls', 'drops', 'slump', 'tumble', 'fraud', 'bankrupt', 'scam', 'dump', 'sell-off', 'selloff', 'warning', 'probe', 'investigat*', 'stolen', 'drained', 'rug']
 // Keyword fallback (a word = whole word with -s/-ed/-ing; 'x*' = prefix): 5.5 + 1.5 x (positive words - negative words), clamped 1..10. Two more positive than negative words = 8.5 (> 8).
