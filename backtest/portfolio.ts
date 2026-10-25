@@ -194,6 +194,12 @@ export interface SimConfig {
    * capital across both sides). The sleeve-split question, made measurable.
    */
   rotaBook: number | null
+  /**
+   * v125bt: market-state allocation. Called at every step with the step time; returns multipliers on
+   * DONCH4H's per-trade risk and on ROTA's book fraction (applied at the next rebalance). null/undefined
+   * = fixed allocation (the deployed behaviour).
+   */
+  regime?: ((t: number) => { donch: number; rota: number }) | null
   /** v95bt: names per side for ROTA (default S.ROTA_K). */
   rotaK?: number
   /** v96bt: ROTA slot target is MARGIN; notional = margin x leverage. */
@@ -421,6 +427,8 @@ export function runPortfolio(
   const canEnter = (t: number) => ddHaltAt === null && t >= dayHaltUntil && t >= streakPauseUntil
   const syms = Object.keys(data).filter(s => (S.CRYPTO_40 as readonly string[]).includes(s))
 
+  let RM = { donch: 1, rota: 1 }
+  const rotaBookNow = () => RM.rota === 1 ? (cfg.rotaBook ?? undefined) : (cfg.rotaBook ?? S.ROTA_BOOK) * RM.rota
   let cash = cfg.startCash
   let nextId = 1
   const open: Position[] = []
@@ -720,13 +728,13 @@ export function runPortfolio(
       portfolio: port, balance: cash, openExposure: exp, heatCommitted: 0,
       longExposure: se.l, shortExposure: se.s, symExposure: symExposure(c.sym),
       adx: c.adx, slPct: c.slPct, side: c.side, quoteVol24h: c.quoteVol24h,
-      riskMult: wyckMult(c.wyck, cfg.wyckoff) * cfg.donchRiskMult,
+      riskMult: wyckMult(c.wyck, cfg.wyckoff) * cfg.donchRiskMult * RM.donch,
       heatCap: cfg.heatCap ?? undefined,
     })
 
     if (!sized.ok) {
       const want = (port * S.BASE_RISK_PCT * S.adxTierMult(c.adx) *
-        wyckMult(c.wyck, cfg.wyckoff) * cfg.donchRiskMult) / c.slPct
+        wyckMult(c.wyck, cfg.wyckoff) * cfg.donchRiskMult * RM.donch) / c.slPct
       const reason: Rejection['reason'] =
         sized.reason === 'heat_limit' ? 'heat'
         : sized.reason === 'net_exposure_cap' ? 'net_exposure'
@@ -853,7 +861,7 @@ export function runPortfolio(
       if (wantSide === p.side && RP) { want.delete(p.sym); continue }   // v98bt: stop/target own the exit
       if (wantSide === p.side) {
         const cur = p.entry * p.sizeLeft
-        if (S.rotaSizeOk(cur, S.rotaSlotTarget(port, tgt!.weight, cfg.rotaBook ?? undefined) * (cfg.rotaMarginSizing ? cfg.leverage : 1))) { want.delete(p.sym); continue }
+        if (S.rotaSizeOk(cur, S.rotaSlotTarget(port, tgt!.weight, rotaBookNow()) * (cfg.rotaMarginSizing ? cfg.leverage : 1))) { want.delete(p.sym); continue }
       }
       const mk = markOf(p.sym, t)
       if (mk !== null) closePosition(p, mk, t, 'rota_exit', S.FEE_TAKER, true)
@@ -868,7 +876,7 @@ export function runPortfolio(
       if (BK && !canEnter(t)) { rejections.push({ t, sym, sleeve: 'ROTA', side: tgt.dir === 1 ? 'LONG' : 'SHORT', reason: 'breaker', adx: 0, wantedNotional: 0 }); continue }
       let SC = (cfg.rotaMarginSizing ? cfg.leverage : 1) * (cfg.rotaSlotScale ?? 1)
       if (cfg.volTarget && basketVol > 0) SC *= Math.max(0.2, Math.min(1, cfg.volTarget.target / basketVol))
-      let slot = S.rotaSlotTarget(port2, tgt.weight, cfg.rotaBook ?? undefined) * SC
+      let slot = S.rotaSlotTarget(port2, tgt.weight, rotaBookNow()) * SC
       slot = Math.min(slot, Math.max(0, port2 * S.PER_COIN_CAP * SC - symExposure(sym)))
       const side: S.Side = tgt.dir === 1 ? 'LONG' : 'SHORT'
       if (slot < port2 * 0.01) {
@@ -927,6 +935,7 @@ export function runPortfolio(
   let seq = 0
 
   for (let t = Math.ceil(tFrom / step) * step; t <= tTo; t += step) {
+    if (cfg.regime) RM = cfg.regime(t)
     // 1. MANAGE — exits before entries, always.
     // At 4h resolution the management bar must be the 4h bar, not whichever 1h
     // bar happens to sit at t-4h. Getting that wrong would silently drop three
