@@ -139,7 +139,7 @@ if (!st.news_at || now - Date.parse(st.news_at) > 5 * 60_000) {
   const todo = st.news.filter((n: any) => n.coins.length && n.score == null)
   let cs = new Map<number, { score: number; why: string }>()
   if (todo.length && process.env.ANTHROPIC_API_KEY) {
-    try { const m = await import('./dtk-news-claude.ts'); cs = await m.claudeScores(todo.map((n: any, i: number) => ({ id: i, title: n.title, coins: n.coins }))) } catch (e) { errs.push(`claude: ${e}`) }
+    try { const m = await import('./dtk-news-claude.ts'); cs = await m.claudeScores(todo.map((n: any, i: number) => ({ id: i, title: n.title, coins: n.coins }))); if (m.lastError) errs.push(`claude: ${m.lastError}`) } catch (e) { errs.push(`claude: ${e}`) }
   }
   todo.forEach((n: any, i: number) => { const c = cs.get(i); Object.assign(n, c ? { score: c.score, why: c.why, scorer: 'claude' } : { ...lexScore(n.title), scorer: 'keywords' }) })
 }
