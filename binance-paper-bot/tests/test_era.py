@@ -208,15 +208,26 @@ def _size(balance, sl, leverage, symbol="BTCUSDT", min_notional=100.0, step=0.00
 
 
 def test_min_notional_rounds_up_only_inside_risk_and_margin():
+    # 5% risk on a $100 book. A 1000 USDT stop rounds down inside BTC's 100 floor.
     qty, why = _size(100, sl=1000, leverage=5)
     assert why == "ok"
-    assert qty == 0.002
+    assert qty == 0.004
     assert qty * 50_000.1 >= 100
 
+    # Raw size already equals the 100 floor, so no round-up is required.
     qty, why = _size(100, sl=2000, leverage=5)
-    assert qty == 0 and why == "below min notional"
+    assert why == "ok" and qty == 0.002
 
+    # Margin cap (60% of equity at 2x) still clears the floor.
     qty, why = _size(100, sl=800, leverage=2)
+    assert why == "size capped by margin limit" and qty == 0.002
+
+    # Round-up to 0.002 stays inside the 7% risk allowance.
+    qty, why = _size(100, sl=3400, leverage=10)
+    assert why == "ok" and qty == 0.002
+
+    # The same round-up would risk more than 7%. Leave the order unsent.
+    qty, why = _size(100, sl=3450, leverage=10)
     assert qty == 0 and why == "below min notional"
 
     risk = RiskManager(load_config(), 0.0005, 0.0)
@@ -229,7 +240,8 @@ def test_min_notional_rounds_up_only_inside_risk_and_margin():
 def test_disabled_strategies_emit_no_entries():
     cfg = load_config()
     specs = strategy_specs(cfg)
-    assert [s.name for s in specs] == ["ema_trend_4h"]
+    assert specs[0].name == "ema_trend_4h"
+    assert all(s.name not in ("orb_ny_15m", "xs_mom_1d") for s in specs)
     ex, rec = make_ex(balance=100)
     risk = RiskManager(cfg, 0.0005, 0.0)
     eng = TradingEngine(cfg, ex, specs[0], risk, ex.si, ex.brackets, recorder=rec, strategies=specs)
@@ -244,7 +256,7 @@ def test_drawdown_halt_blocks_new_entries():
     ex, rec = make_ex(balance=10_000)
     risk = RiskManager(cfg, 0.0005, 0.0)
     risk.peak_equity = 10_000
-    ex.wallet = 7_000
+    ex.wallet = 5_000
     eng = TradingEngine(cfg, ex, AlwaysLong({}), risk, ex.si, ex.brackets, recorder=rec)
     eng.handle(Signal("BTCUSDT", "OPEN_LONG", 500.0, 0.0, 3, "test"), 1_000, eng.strat)
     assert ex.get_position("BTCUSDT") is None
@@ -259,7 +271,7 @@ def test_drawdown_halt_blocks_new_entries():
     assert ex.get_position("BTCUSDT") is not None
 
 
-def test_open_risk_to_stop_stays_within_6_percent():
+def test_open_risk_to_stop_stays_within_15_percent():
     ex, _ = make_ex(balance=10_000)
     ex.place_order(Order("BTCUSDT", "BUY", "MARKET", 0.5), 2)
     pos = ex.get_position("BTCUSDT")
@@ -275,4 +287,4 @@ def test_open_risk_to_stop_stays_within_6_percent():
     qty, why = risk.size(sig, ex, eth, ex.brackets, 4_000)
     assert qty > 0 and why
     new_risk = qty * (30.0 + 3_000.1 * 0.001)
-    assert 0.5 * 1_000 + new_risk <= 10_000 * 0.06 + 1.0
+    assert 0.5 * 1_000 + new_risk <= 10_000 * 0.15 + 1.0

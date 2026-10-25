@@ -1,5 +1,5 @@
 from .base import REGISTRY, Strategy, Signal, Context, register  # noqa
-from . import trend_ema, bollinger_mr, htf_trend, orb_ny, xs_momentum  # noqa  (registers plugins)
+from . import trend_ema, bollinger_mr, htf_trend, orb_ny, xs_momentum, bb_rsi_4h  # noqa  (registers plugins)
 
 
 def make_strategy(cfg):

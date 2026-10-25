@@ -1,0 +1,930 @@
+{
+  "generated": "2026-10-25T13:02:35Z",
+  "oos_start": "2026-01-01",
+  "symbols_5": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "BNBUSDT",
+    "XRPUSDT"
+  ],
+  "symbols_10": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "ZECUSDT",
+    "XRPUSDT",
+    "HYPEUSDT",
+    "DOGEUSDT",
+    "BNBUSDT",
+    "SUIUSDT",
+    "NEARUSDT"
+  ],
+  "window_bars": 420,
+  "dd_margin_pp": 2.0,
+  "costs": {
+    "taker_per_side": 0.0005,
+    "slippage_bps": 1.0,
+    "spread_bps": 1.0,
+    "funding_rate_per_8h": 0.0001,
+    "note": "funding is a flat 0.01%/8h, longs pay; not the historical funding file"
+  },
+  "profiles": {
+    "conservative": {
+      "risk_per_trade": 0.015,
+      "max_concurrent_positions": 3,
+      "max_margin_per_position": 0.4,
+      "max_daily_loss": 0.05,
+      "max_drawdown": 0.3,
+      "max_open_risk": 0.06,
+      "min_notional_roundup_risk": 0.025,
+      "leverage": 5
+    },
+    "aggressive": {
+      "risk_per_trade": 0.05,
+      "max_concurrent_positions": 4,
+      "max_margin_per_position": 0.6,
+      "max_daily_loss": 0.15,
+      "max_drawdown": 0.5,
+      "max_open_risk": 0.15,
+      "min_notional_roundup_risk": 0.07,
+      "leverage": 10
+    }
+  },
+  "btc_regime_bars_oos": {
+    "TREND": 970,
+    "RANGE": 502,
+    "CHAOS": 311
+  },
+  "decision": {
+    "enabled": false,
+    "trend_strategy": "ema_trend_4h",
+    "range_strategy": null,
+    "book": null,
+    "reason": "OOS: no regime-switched book matched or beat ema_trend_4h on return; selector stays off",
+    "profile": "aggressive",
+    "symbols": [
+      "BTCUSDT",
+      "ETHUSDT",
+      "SOLUSDT",
+      "BNBUSDT",
+      "XRPUSDT"
+    ],
+    "symbol_note": "5-coin book"
+  },
+  "oos": {
+    "aggressive": {
+      "ema_trend_4h": {
+        "start_balance": 100.0,
+        "final_equity": 246.92,
+        "net_pnl": 146.92,
+        "return_pct": 146.924,
+        "trades": 26,
+        "win_rate_pct": 38.46,
+        "profit_factor": 2.551,
+        "avg_win": 24.17,
+        "avg_loss": -5.92,
+        "gross_pnl": 133.33,
+        "fees_paid": 4.7,
+        "funding_net": 18.3,
+        "max_drawdown_pct": -27.164,
+        "max_drawdown_usdt": -68.98,
+        "sharpe_daily_ann": 1.806,
+        "days": 297.2,
+        "by_symbol": {
+          "SOLUSDT": {
+            "trades": 8,
+            "net_pnl": 78.85,
+            "win_rate_pct": 37.5
+          },
+          "BNBUSDT": {
+            "trades": 3,
+            "net_pnl": 29.4,
+            "win_rate_pct": 66.7
+          },
+          "ETHUSDT": {
+            "trades": 2,
+            "net_pnl": 12.42,
+            "win_rate_pct": 50.0
+          },
+          "XRPUSDT": {
+            "trades": 6,
+            "net_pnl": 57.66,
+            "win_rate_pct": 50.0
+          },
+          "BTCUSDT": {
+            "trades": 7,
+            "net_pnl": -31.4,
+            "win_rate_pct": 14.3
+          }
+        },
+        "exit_reasons": {
+          "SIGNAL_CLOSE": 14,
+          "STOP_LOSS": 12
+        },
+        "long_trades": 4,
+        "short_trades": 22,
+        "liquidations": 0,
+        "runtime_sec": 26.3,
+        "demotions": 0,
+        "ruin": {
+          "paths": 4000,
+          "horizon_trades": 26,
+          "p_ruin": 0.0,
+          "p_halt": 0.0,
+          "terminal_p05": 103.5,
+          "terminal_p50": 234.84
+        },
+        "name": "ema_trend_4h",
+        "trend_strategy": "ema_trend_4h",
+        "range_strategy": null,
+        "profile": "aggressive",
+        "symbols": [
+          "BTCUSDT",
+          "ETHUSDT",
+          "SOLUSDT",
+          "BNBUSDT",
+          "XRPUSDT"
+        ],
+        "period_start": "2026-01-01",
+        "period_end": "2026-10-25"
+      },
+      "regime_flat": {
+        "start_balance": 100.0,
+        "final_equity": 155.96,
+        "net_pnl": 55.96,
+        "return_pct": 55.958,
+        "trades": 13,
+        "win_rate_pct": 46.15,
+        "profit_factor": 2.248,
+        "avg_win": 16.8,
+        "avg_loss": -6.41,
+        "gross_pnl": 26.66,
+        "fees_paid": 2.26,
+        "funding_net": 31.56,
+        "max_drawdown_pct": -25.833,
+        "max_drawdown_usdt": -54.32,
+        "sharpe_daily_ann": 1.317,
+        "days": 297.2,
+        "by_symbol": {
+          "SOLUSDT": {
+            "trades": 4,
+            "net_pnl": 42.6,
+            "win_rate_pct": 50.0
+          },
+          "ETHUSDT": {
+            "trades": 1,
+            "net_pnl": 32.48,
+            "win_rate_pct": 100.0
+          },
+          "XRPUSDT": {
+            "trades": 3,
+            "net_pnl": -12.88,
+            "win_rate_pct": 33.3
+          },
+          "BTCUSDT": {
+            "trades": 4,
+            "net_pnl": -17.46,
+            "win_rate_pct": 25.0
+          },
+          "BNBUSDT": {
+            "trades": 1,
+            "net_pnl": 11.21,
+            "win_rate_pct": 100.0
+          }
+        },
+        "exit_reasons": {
+          "SIGNAL_CLOSE": 7,
+          "STOP_LOSS": 6
+        },
+        "long_trades": 2,
+        "short_trades": 11,
+        "liquidations": 0,
+        "runtime_sec": 26.4,
+        "demotions": 7,
+        "ruin": {
+          "paths": 4000,
+          "horizon_trades": 13,
+          "p_ruin": 0.0,
+          "p_halt": 0.0,
+          "terminal_p05": 87.48,
+          "terminal_p50": 152.73
+        },
+        "name": "regime_flat",
+        "trend_strategy": "ema_trend_4h",
+        "range_strategy": null,
+        "profile": "aggressive",
+        "symbols": [
+          "BTCUSDT",
+          "ETHUSDT",
+          "SOLUSDT",
+          "BNBUSDT",
+          "XRPUSDT"
+        ],
+        "period_start": "2026-01-01",
+        "period_end": "2026-10-25",
+        "old_rule_beats_ema": false
+      },
+      "regime_mr": {
+        "start_balance": 100.0,
+        "final_equity": 206.77,
+        "net_pnl": 106.77,
+        "return_pct": 106.766,
+        "trades": 23,
+        "win_rate_pct": 52.17,
+        "profit_factor": 2.847,
+        "avg_win": 13.71,
+        "avg_loss": -5.25,
+        "gross_pnl": 85.21,
+        "fees_paid": 4.82,
+        "funding_net": 26.38,
+        "max_drawdown_pct": -21.522,
+        "max_drawdown_usdt": -38.93,
+        "sharpe_daily_ann": 1.632,
+        "days": 297.2,
+        "by_symbol": {
+          "SOLUSDT": {
+            "trades": 5,
+            "net_pnl": 30.66,
+            "win_rate_pct": 40.0
+          },
+          "ETHUSDT": {
+            "trades": 2,
+            "net_pnl": 26.17,
+            "win_rate_pct": 50.0
+          },
+          "XRPUSDT": {
+            "trades": 5,
+            "net_pnl": -3.42,
+            "win_rate_pct": 40.0
+          },
+          "BTCUSDT": {
+            "trades": 10,
+            "net_pnl": 42.51,
+            "win_rate_pct": 60.0
+          },
+          "BNBUSDT": {
+            "trades": 1,
+            "net_pnl": 10.84,
+            "win_rate_pct": 100.0
+          }
+        },
+        "exit_reasons": {
+          "STOP_LOSS": 9,
+          "SIGNAL_CLOSE": 10,
+          "TAKE_PROFIT": 4
+        },
+        "long_trades": 3,
+        "short_trades": 20,
+        "liquidations": 0,
+        "runtime_sec": 59.0,
+        "demotions": 3,
+        "ruin": {
+          "paths": 4000,
+          "horizon_trades": 23,
+          "p_ruin": 0.0,
+          "p_halt": 0.0,
+          "terminal_p05": 108.07,
+          "terminal_p50": 204.8
+        },
+        "name": "regime_mr",
+        "trend_strategy": "ema_trend_4h",
+        "range_strategy": "bb_rsi_4h",
+        "profile": "aggressive",
+        "symbols": [
+          "BTCUSDT",
+          "ETHUSDT",
+          "SOLUSDT",
+          "BNBUSDT",
+          "XRPUSDT"
+        ],
+        "period_start": "2026-01-01",
+        "period_end": "2026-10-25",
+        "old_rule_beats_ema": false
+      },
+      "regime_fast": {
+        "start_balance": 100.0,
+        "final_equity": 99.11,
+        "net_pnl": -0.89,
+        "return_pct": -0.892,
+        "trades": 28,
+        "win_rate_pct": 32.14,
+        "profit_factor": 0.986,
+        "avg_win": 6.98,
+        "avg_loss": -3.35,
+        "gross_pnl": -9.45,
+        "fees_paid": 3.3,
+        "funding_net": 11.85,
+        "max_drawdown_pct": -29.342,
+        "max_drawdown_usdt": -38.53,
+        "sharpe_daily_ann": 0.152,
+        "days": 297.2,
+        "by_symbol": {
+          "BNBUSDT": {
+            "trades": 4,
+            "net_pnl": -11.0,
+            "win_rate_pct": 25.0
+          },
+          "ETHUSDT": {
+            "trades": 3,
+            "net_pnl": 21.13,
+            "win_rate_pct": 33.3
+          },
+          "BTCUSDT": {
+            "trades": 9,
+            "net_pnl": -18.8,
+            "win_rate_pct": 22.2
+          },
+          "XRPUSDT": {
+            "trades": 7,
+            "net_pnl": 14.96,
+            "win_rate_pct": 57.1
+          },
+          "SOLUSDT": {
+            "trades": 5,
+            "net_pnl": -7.19,
+            "win_rate_pct": 20.0
+          }
+        },
+        "exit_reasons": {
+          "STOP_LOSS": 7,
+          "SIGNAL_CLOSE": 20,
+          "END_OF_TEST": 1
+        },
+        "long_trades": 7,
+        "short_trades": 21,
+        "liquidations": 0,
+        "runtime_sec": 54.0,
+        "demotions": 4,
+        "ruin": {
+          "paths": 4000,
+          "horizon_trades": 28,
+          "p_ruin": 0.0,
+          "p_halt": 0.0187,
+          "terminal_p05": 57.98,
+          "terminal_p50": 95.8
+        },
+        "name": "regime_fast",
+        "trend_strategy": "ema_fast_4h",
+        "range_strategy": null,
+        "profile": "aggressive",
+        "symbols": [
+          "BTCUSDT",
+          "ETHUSDT",
+          "SOLUSDT",
+          "BNBUSDT",
+          "XRPUSDT"
+        ],
+        "period_start": "2026-01-01",
+        "period_end": "2026-10-25",
+        "old_rule_beats_ema": false
+      },
+      "regime_fast_mr": {
+        "start_balance": 100.0,
+        "final_equity": 168.05,
+        "net_pnl": 68.05,
+        "return_pct": 68.053,
+        "trades": 49,
+        "win_rate_pct": 44.9,
+        "profit_factor": 1.566,
+        "avg_win": 8.56,
+        "avg_loss": -4.45,
+        "gross_pnl": 67.06,
+        "fees_paid": 8.95,
+        "funding_net": 9.95,
+        "max_drawdown_pct": -40.92,
+        "max_drawdown_usdt": -74.61,
+        "sharpe_daily_ann": 1.228,
+        "days": 297.2,
+        "by_symbol": {
+          "SOLUSDT": {
+            "trades": 7,
+            "net_pnl": -3.73,
+            "win_rate_pct": 28.6
+          },
+          "BNBUSDT": {
+            "trades": 6,
+            "net_pnl": -19.11,
+            "win_rate_pct": 33.3
+          },
+          "ETHUSDT": {
+            "trades": 7,
+            "net_pnl": 6.6,
+            "win_rate_pct": 28.6
+          },
+          "BTCUSDT": {
+            "trades": 20,
+            "net_pnl": 62.67,
+            "win_rate_pct": 55.0
+          },
+          "XRPUSDT": {
+            "trades": 9,
+            "net_pnl": 21.63,
+            "win_rate_pct": 55.6
+          }
+        },
+        "exit_reasons": {
+          "STOP_LOSS": 15,
+          "SIGNAL_CLOSE": 25,
+          "TAKE_PROFIT": 8,
+          "END_OF_TEST": 1
+        },
+        "long_trades": 19,
+        "short_trades": 30,
+        "liquidations": 0,
+        "runtime_sec": 86.5,
+        "demotions": 5,
+        "ruin": {
+          "paths": 4000,
+          "horizon_trades": 49,
+          "p_ruin": 0.0,
+          "p_halt": 0.006,
+          "terminal_p05": 84.16,
+          "terminal_p50": 168.36
+        },
+        "name": "regime_fast_mr",
+        "trend_strategy": "ema_fast_4h",
+        "range_strategy": "bb_rsi_4h",
+        "profile": "aggressive",
+        "symbols": [
+          "BTCUSDT",
+          "ETHUSDT",
+          "SOLUSDT",
+          "BNBUSDT",
+          "XRPUSDT"
+        ],
+        "period_start": "2026-01-01",
+        "period_end": "2026-10-25",
+        "old_rule_beats_ema": false
+      }
+    },
+    "conservative": {
+      "ema_trend_4h": {
+        "start_balance": 100.0,
+        "final_equity": 153.14,
+        "net_pnl": 53.14,
+        "return_pct": 53.14,
+        "trades": 24,
+        "win_rate_pct": 41.67,
+        "profit_factor": 3.582,
+        "avg_win": 7.37,
+        "avg_loss": -1.47,
+        "gross_pnl": 42.85,
+        "fees_paid": 1.01,
+        "funding_net": 11.31,
+        "max_drawdown_pct": -11.951,
+        "max_drawdown_usdt": -18.27,
+        "sharpe_daily_ann": 1.82,
+        "days": 297.2,
+        "by_symbol": {
+          "SOLUSDT": {
+            "trades": 12,
+            "net_pnl": 23.03,
+            "win_rate_pct": 33.3
+          },
+          "ETHUSDT": {
+            "trades": 3,
+            "net_pnl": 20.74,
+            "win_rate_pct": 66.7
+          },
+          "XRPUSDT": {
+            "trades": 6,
+            "net_pnl": 8.84,
+            "win_rate_pct": 50.0
+          },
+          "BNBUSDT": {
+            "trades": 3,
+            "net_pnl": 0.52,
+            "win_rate_pct": 33.3
+          }
+        },
+        "exit_reasons": {
+          "SIGNAL_CLOSE": 13,
+          "STOP_LOSS": 11
+        },
+        "long_trades": 3,
+        "short_trades": 21,
+        "liquidations": 0,
+        "runtime_sec": 26.7,
+        "demotions": 0,
+        "ruin": {
+          "paths": 4000,
+          "horizon_trades": 24,
+          "p_ruin": 0.0,
+          "p_halt": 0.0,
+          "terminal_p05": 110.45,
+          "terminal_p50": 152.46
+        },
+        "name": "ema_trend_4h",
+        "trend_strategy": "ema_trend_4h",
+        "range_strategy": null,
+        "profile": "conservative",
+        "symbols": [
+          "BTCUSDT",
+          "ETHUSDT",
+          "SOLUSDT",
+          "BNBUSDT",
+          "XRPUSDT"
+        ],
+        "period_start": "2026-01-01",
+        "period_end": "2026-10-25"
+      },
+      "regime_flat": {
+        "start_balance": 100.0,
+        "final_equity": 118.95,
+        "net_pnl": 18.95,
+        "return_pct": 18.95,
+        "trades": 11,
+        "win_rate_pct": 45.45,
+        "profit_factor": 3.245,
+        "avg_win": 5.48,
+        "avg_loss": -1.41,
+        "gross_pnl": 10.27,
+        "fees_paid": 0.38,
+        "funding_net": 9.06,
+        "max_drawdown_pct": -7.508,
+        "max_drawdown_usdt": -9.59,
+        "sharpe_daily_ann": 1.314,
+        "days": 297.2,
+        "by_symbol": {
+          "SOLUSDT": {
+            "trades": 6,
+            "net_pnl": 10.17,
+            "win_rate_pct": 33.3
+          },
+          "ETHUSDT": {
+            "trades": 1,
+            "net_pnl": 9.43,
+            "win_rate_pct": 100.0
+          },
+          "XRPUSDT": {
+            "trades": 3,
+            "net_pnl": -2.89,
+            "win_rate_pct": 33.3
+          },
+          "BNBUSDT": {
+            "trades": 1,
+            "net_pnl": 2.24,
+            "win_rate_pct": 100.0
+          }
+        },
+        "exit_reasons": {
+          "SIGNAL_CLOSE": 6,
+          "STOP_LOSS": 5
+        },
+        "long_trades": 0,
+        "short_trades": 11,
+        "liquidations": 0,
+        "runtime_sec": 26.6,
+        "demotions": 0,
+        "ruin": {
+          "paths": 4000,
+          "horizon_trades": 11,
+          "p_ruin": 0.0,
+          "p_halt": 0.0,
+          "terminal_p05": 98.06,
+          "terminal_p50": 118.35
+        },
+        "name": "regime_flat",
+        "trend_strategy": "ema_trend_4h",
+        "range_strategy": null,
+        "profile": "conservative",
+        "symbols": [
+          "BTCUSDT",
+          "ETHUSDT",
+          "SOLUSDT",
+          "BNBUSDT",
+          "XRPUSDT"
+        ],
+        "period_start": "2026-01-01",
+        "period_end": "2026-10-25",
+        "old_rule_beats_ema": false
+      },
+      "regime_mr": {
+        "start_balance": 100.0,
+        "final_equity": 120.15,
+        "net_pnl": 20.15,
+        "return_pct": 20.154,
+        "trades": 14,
+        "win_rate_pct": 50.0,
+        "profit_factor": 3.081,
+        "avg_win": 4.26,
+        "avg_loss": -1.38,
+        "gross_pnl": 11.57,
+        "fees_paid": 0.54,
+        "funding_net": 9.13,
+        "max_drawdown_pct": -7.547,
+        "max_drawdown_usdt": -9.58,
+        "sharpe_daily_ann": 1.372,
+        "days": 297.2,
+        "by_symbol": {
+          "SOLUSDT": {
+            "trades": 7,
+            "net_pnl": 8.44,
+            "win_rate_pct": 28.6
+          },
+          "ETHUSDT": {
+            "trades": 2,
+            "net_pnl": 10.28,
+            "win_rate_pct": 100.0
+          },
+          "XRPUSDT": {
+            "trades": 4,
+            "net_pnl": -0.81,
+            "win_rate_pct": 50.0
+          },
+          "BNBUSDT": {
+            "trades": 1,
+            "net_pnl": 2.24,
+            "win_rate_pct": 100.0
+          }
+        },
+        "exit_reasons": {
+          "STOP_LOSS": 6,
+          "SIGNAL_CLOSE": 8
+        },
+        "long_trades": 1,
+        "short_trades": 13,
+        "liquidations": 0,
+        "runtime_sec": 59.2,
+        "demotions": 0,
+        "ruin": {
+          "paths": 4000,
+          "horizon_trades": 14,
+          "p_ruin": 0.0,
+          "p_halt": 0.0,
+          "terminal_p05": 98.33,
+          "terminal_p50": 119.03
+        },
+        "name": "regime_mr",
+        "trend_strategy": "ema_trend_4h",
+        "range_strategy": "bb_rsi_4h",
+        "profile": "conservative",
+        "symbols": [
+          "BTCUSDT",
+          "ETHUSDT",
+          "SOLUSDT",
+          "BNBUSDT",
+          "XRPUSDT"
+        ],
+        "period_start": "2026-01-01",
+        "period_end": "2026-10-25",
+        "old_rule_beats_ema": false
+      },
+      "regime_fast": {
+        "start_balance": 100.0,
+        "final_equity": 100.8,
+        "net_pnl": 0.8,
+        "return_pct": 0.804,
+        "trades": 22,
+        "win_rate_pct": 27.27,
+        "profit_factor": 1.05,
+        "avg_win": 2.79,
+        "avg_loss": -1.0,
+        "gross_pnl": -1.74,
+        "fees_paid": 0.67,
+        "funding_net": 3.22,
+        "max_drawdown_pct": -11.272,
+        "max_drawdown_usdt": -12.25,
+        "sharpe_daily_ann": 0.146,
+        "days": 297.2,
+        "by_symbol": {
+          "BNBUSDT": {
+            "trades": 6,
+            "net_pnl": -5.14,
+            "win_rate_pct": 16.7
+          },
+          "ETHUSDT": {
+            "trades": 4,
+            "net_pnl": 5.93,
+            "win_rate_pct": 25.0
+          },
+          "SOLUSDT": {
+            "trades": 6,
+            "net_pnl": -4.3,
+            "win_rate_pct": 16.7
+          },
+          "XRPUSDT": {
+            "trades": 6,
+            "net_pnl": 4.32,
+            "win_rate_pct": 50.0
+          }
+        },
+        "exit_reasons": {
+          "STOP_LOSS": 7,
+          "SIGNAL_CLOSE": 14,
+          "END_OF_TEST": 1
+        },
+        "long_trades": 4,
+        "short_trades": 18,
+        "liquidations": 0,
+        "runtime_sec": 53.1,
+        "demotions": 0,
+        "ruin": {
+          "paths": 4000,
+          "horizon_trades": 22,
+          "p_ruin": 0.0,
+          "p_halt": 0.0,
+          "terminal_p05": 86.52,
+          "terminal_p50": 100.48
+        },
+        "name": "regime_fast",
+        "trend_strategy": "ema_fast_4h",
+        "range_strategy": null,
+        "profile": "conservative",
+        "symbols": [
+          "BTCUSDT",
+          "ETHUSDT",
+          "SOLUSDT",
+          "BNBUSDT",
+          "XRPUSDT"
+        ],
+        "period_start": "2026-01-01",
+        "period_end": "2026-10-25",
+        "old_rule_beats_ema": false
+      },
+      "regime_fast_mr": {
+        "start_balance": 100.0,
+        "final_equity": 95.98,
+        "net_pnl": -4.02,
+        "return_pct": -4.015,
+        "trades": 35,
+        "win_rate_pct": 31.43,
+        "profit_factor": 0.855,
+        "avg_win": 2.16,
+        "avg_loss": -1.16,
+        "gross_pnl": -5.0,
+        "fees_paid": 1.38,
+        "funding_net": 2.36,
+        "max_drawdown_pct": -16.787,
+        "max_drawdown_usdt": -18.4,
+        "sharpe_daily_ann": -0.327,
+        "days": 297.2,
+        "by_symbol": {
+          "SOLUSDT": {
+            "trades": 8,
+            "net_pnl": -3.54,
+            "win_rate_pct": 25.0
+          },
+          "BNBUSDT": {
+            "trades": 9,
+            "net_pnl": -7.0,
+            "win_rate_pct": 22.2
+          },
+          "ETHUSDT": {
+            "trades": 8,
+            "net_pnl": 2.25,
+            "win_rate_pct": 25.0
+          },
+          "XRPUSDT": {
+            "trades": 10,
+            "net_pnl": 4.28,
+            "win_rate_pct": 50.0
+          }
+        },
+        "exit_reasons": {
+          "STOP_LOSS": 15,
+          "SIGNAL_CLOSE": 19,
+          "END_OF_TEST": 1
+        },
+        "long_trades": 13,
+        "short_trades": 22,
+        "liquidations": 0,
+        "runtime_sec": 86.6,
+        "demotions": 1,
+        "ruin": {
+          "paths": 4000,
+          "horizon_trades": 35,
+          "p_ruin": 0.0,
+          "p_halt": 0.0008,
+          "terminal_p05": 79.95,
+          "terminal_p50": 95.38
+        },
+        "name": "regime_fast_mr",
+        "trend_strategy": "ema_fast_4h",
+        "range_strategy": "bb_rsi_4h",
+        "profile": "conservative",
+        "symbols": [
+          "BTCUSDT",
+          "ETHUSDT",
+          "SOLUSDT",
+          "BNBUSDT",
+          "XRPUSDT"
+        ],
+        "period_start": "2026-01-01",
+        "period_end": "2026-10-25",
+        "old_rule_beats_ema": false
+      }
+    }
+  },
+  "wider_universe": {
+    "ran": true,
+    "adopted": false,
+    "compared_to": "ema_trend_4h",
+    "reason": "top-10 OOS return was lower, or the book was too thin",
+    "book": {
+      "start_balance": 100.0,
+      "final_equity": 214.52,
+      "net_pnl": 114.52,
+      "return_pct": 114.525,
+      "trades": 34,
+      "win_rate_pct": 35.29,
+      "profit_factor": 2.147,
+      "avg_win": 17.87,
+      "avg_loss": -4.54,
+      "gross_pnl": 172.21,
+      "fees_paid": 5.75,
+      "funding_net": -51.93,
+      "max_drawdown_pct": -38.347,
+      "max_drawdown_usdt": -133.43,
+      "sharpe_daily_ann": 1.452,
+      "days": 297.2,
+      "by_symbol": {
+        "HYPEUSDT": {
+          "trades": 1,
+          "net_pnl": -2.02,
+          "win_rate_pct": 0.0
+        },
+        "DOGEUSDT": {
+          "trades": 3,
+          "net_pnl": 36.87,
+          "win_rate_pct": 66.7
+        },
+        "ZECUSDT": {
+          "trades": 5,
+          "net_pnl": -34.76,
+          "win_rate_pct": 0.0
+        },
+        "NEARUSDT": {
+          "trades": 2,
+          "net_pnl": -7.28,
+          "win_rate_pct": 0.0
+        },
+        "SUIUSDT": {
+          "trades": 4,
+          "net_pnl": 6.83,
+          "win_rate_pct": 75.0
+        },
+        "SOLUSDT": {
+          "trades": 6,
+          "net_pnl": 62.55,
+          "win_rate_pct": 33.3
+        },
+        "BNBUSDT": {
+          "trades": 3,
+          "net_pnl": 15.39,
+          "win_rate_pct": 66.7
+        },
+        "XRPUSDT": {
+          "trades": 3,
+          "net_pnl": 1.0,
+          "win_rate_pct": 33.3
+        },
+        "ETHUSDT": {
+          "trades": 1,
+          "net_pnl": 46.4,
+          "win_rate_pct": 100.0
+        },
+        "BTCUSDT": {
+          "trades": 6,
+          "net_pnl": -10.45,
+          "win_rate_pct": 16.7
+        }
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 15,
+        "SIGNAL_CLOSE": 18,
+        "LIQUIDATION": 1
+      },
+      "long_trades": 8,
+      "short_trades": 26,
+      "liquidations": 1,
+      "runtime_sec": 106.5,
+      "demotions": 0,
+      "ruin": {
+        "paths": 4000,
+        "horizon_trades": 34,
+        "p_ruin": 0.0,
+        "p_halt": 0.0018,
+        "terminal_p05": 90.64,
+        "terminal_p50": 208.24
+      },
+      "name": "ema_trend_4h_top10",
+      "trend_strategy": "ema_trend_4h",
+      "range_strategy": null,
+      "symbols": [
+        "BTCUSDT",
+        "ETHUSDT",
+        "SOLUSDT",
+        "ZECUSDT",
+        "XRPUSDT",
+        "HYPEUSDT",
+        "DOGEUSDT",
+        "BNBUSDT",
+        "SUIUSDT",
+        "NEARUSDT"
+      ]
+    }
+  },
+  "rule": "Enable the selector when the best precommitted regime-switched book (flat RANGE, Bollinger/RSI RANGE, short-EMA trend, or both) has OOS return >= ema_trend_4h-only on the aggressive profile, with at least 5 trades. Drawdown is not a gate. An equal return keeps the simpler book. The old return-and-2pp-drawdown rule is recorded as old_rule_beats_ema and is not the switch. The top-10 universe replaces the 5 only when its OOS return on the chosen book is at least as high. IS is not used. Ruin probabilities resample closed-trade returns with replacement."
+}

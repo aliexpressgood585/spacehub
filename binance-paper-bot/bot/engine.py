@@ -63,14 +63,65 @@ class TradingEngine:
         # strategy name -> rebalance period already entered. Stops a flat book
         # from opening again before the next scheduled rebalance.
         self.universe_period = {}
+        # Optional. None keeps the single-strategy path exactly as it was.
+        self.selector = None
+        self._regime_touch_ts = None
 
-    def event(self, ts, typ, symbol, msg, strategy=""):
+    def event(self, ts, typ, symbol, msg, strategy="", extra=None):
         log.info("[%s] %s %s", typ, symbol, msg)
         if self.rec:
             ev = {"ts": ts, "type": typ, "symbol": symbol, "msg": msg}
             if strategy:
                 ev["strategy"] = strategy
+            if extra:
+                for k, v in extra.items():
+                    if k not in ev:
+                        ev[k] = v
             self.rec.on_event(ev)
+
+    def _emit_selector(self, ev):
+        extra = {k: v for k, v in ev.items() if k not in ("ts", "type", "symbol", "msg", "strategy")}
+        self.event(ev.get("ts"), ev.get("type"), ev.get("symbol") or "", ev.get("msg") or "",
+                   ev.get("strategy") or "", extra=extra)
+
+    def _closed_books(self, tf, ts):
+        books = {}
+        ts = int(ts)
+        for sym, bufs in self.candles.items():
+            buf = bufs.get(tf)
+            if not buf or not buf.rows:
+                continue
+            rows = [r for r in buf.rows if int(r[6]) + 1 <= ts]
+            if len(rows) < 2:
+                continue
+            a = np.array(rows, dtype=float)
+            books[sym] = {f: a[:, i] for i, f in enumerate(FIELDS)}
+        return books
+
+    def sync_regime(self, ts):
+        """Fold the regime from 4h bars already stored. No fetch, no old trades."""
+        sel = self.selector
+        if sel is None:
+            return []
+        ts = int(ts)
+        if sel.bar_ts is not None and sel.bar_ts <= ts < sel.bar_ts + 14_400_000:
+            return []
+        events = sel.sync(self._closed_books(sel.timeframe, ts), ts)
+        for ev in events:
+            self._emit_selector(ev)
+        return events
+
+    def _selector_touch(self, ts):
+        sel = self.selector
+        if sel is None or self._regime_touch_ts == ts:
+            return
+        self._regime_touch_ts = ts
+        self.sync_regime(ts)
+        if not sel.enabled:
+            return
+        trades = list(self.closed_trades or []) + list(getattr(self.rec, "trades", []) or [])
+        for ev in sel.review(trades, ts, self.ex.equity()):
+            self._emit_selector(ev)
 
     def add_history(self, symbol, tf, rows):
         bufs = self.candles.get(symbol)
@@ -125,6 +176,7 @@ class TradingEngine:
 
     def run_strategy(self, symbol, ts, strat=None):
         strat = strat or self.strat
+        self._selector_touch(ts)
         allow = self.entry_symbols.get(strat.name)
         pos = self._visible_position(symbol, strat)
         if allow is not None and symbol not in allow and pos is None:
@@ -137,6 +189,8 @@ class TradingEngine:
             return
         if allow is not None and symbol not in allow:
             sigs = [s for s in sigs if s.action not in ("OPEN_LONG", "OPEN_SHORT")]
+        if self.selector is not None and self.selector.enabled:
+            sigs = self.selector.gate(strat.name, symbol, sigs, len(self.ex.positions()))
         for s in sigs:
             self.last_signal[symbol] = {"ts": ts, "action": s.action, "reason": s.reason,
                                         "info": s.info, "strategy": strat.name}

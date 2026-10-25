@@ -41,6 +41,7 @@ from .risk import RiskManager
 from .clock import closed_bar_open, opens_after
 from .storage import MemoryRecorder
 from .strategies import REGISTRY, make_strategy
+from .selector import StrategySelector, initial_regime_view
 from .symbols import SymbolInfo, load_symbol_infos
 from .manual import (attach_symbol, config_path, contract_symbols, ensure_blob, execute_plans,
                      load_manual_config, maintain, merge_contracts, plan_opens, prune_contracts,
@@ -268,6 +269,7 @@ def blank_era_state(cfg, now, prev=None):
             "universe_period": {},
             "manual": None,
         },
+        "regime": initial_regime_view(cfg, now, active=specs[0].name),
     }
 
 
@@ -1191,6 +1193,7 @@ def run_htf(eng, ex, infos, feed, symbols, state, fresh, switched, now, rec, fun
     if fresh or switched:
         latest = closed_bar_open(now, h1)
         cut = latest + h1
+        ready = []
         for s in symbols:
             add_closed(eng, s, "4h", bars_4h.get(s, {}), cut)
             add_closed(eng, s, "1d", bars_1d.get(s, {}), cut)
@@ -1198,8 +1201,13 @@ def run_htf(eng, ex, infos, feed, symbols, state, fresh, switched, now, rec, fun
             if wants_15:
                 add_closed(eng, s, "15m", bars_15.get(s, {}), cut)
             row = bars_1h.get(s, {}).get(latest)
-            if not row:
-                continue
+            if row:
+                ready.append((s, row))
+        # Every symbol's closed 4h bar is in the buffer before the first decision,
+        # so the anchor regime is not folded off a partial book. No extra fetch.
+        if eng.selector is not None:
+            eng.sync_regime(cut)
+        for s, row in ready:
             _book(ex, infos[s], s, row[4], int(row[6]) + 1)
             eng.run_strategy(s, int(row[6]) + 1)
             catch["evaluated_1h"] += 1
@@ -1310,6 +1318,8 @@ def run(path, now=None):
         apply_slip(ex, risk, universe_rows)
     eng = TradingEngine(cfg, ex, strat, risk, infos, brackets, recorder=rec, strategies=specs)
     _bind_engine(eng, cfg, state)
+    if cfg.get("regime_selector") is not None:
+        eng.selector = StrategySelector(cfg, (state or {}).get("regime"))
 
     prev_name = ((state or {}).get("strategy") or {}).get("name")
     switched = htf and not fresh and (prev_name != strat.name or state.get("last_1h_open") is None)
@@ -1384,6 +1394,31 @@ def run(path, now=None):
                     fresh, switched, prev_name, eng, manual=manual_blob)
 
 
+def resolve_regime(cfg, state, eng, trades, now, equity):
+    """Publish state['regime'] without a new market fetch.
+
+    A full cycle has already folded from the bars in the engine. A stop tick
+    keeps that classification and only re-checks demotion against closes that
+    just happened. The era-reset placeholder is replaced on the first real fold.
+    """
+    sel = getattr(eng, "selector", None) if eng is not None else None
+    if sel is None and cfg.get("regime_selector") is not None:
+        sel = StrategySelector(cfg, (state or {}).get("regime"))
+        folded = False
+    else:
+        folded = sel is not None and eng is not None
+    if sel is None:
+        return (state or {}).get("regime"), []
+    extra = sel.review(trades, now, equity) if sel.enabled else []
+    if not folded and not sel.classified:
+        view = initial_regime_view(cfg, now)
+        view["demoted"] = sel.demoted
+        view["demotions"] = {k: dict(v) for k, v in sel.demotions.items()}
+        view["enabled"] = sel.enabled
+        return view, extra
+    return sel.view(now), extra
+
+
 def _publish(path, state, cfg, ex, risk, rec, feed, filters_src, probes, symbols, now,
              strat, last_15m, last_1h, catch, funding_done,
              universe_rows, ranked_at, universe_month, universe_reused,
@@ -1428,6 +1463,10 @@ def _publish(path, state, cfg, ex, risk, rec, feed, filters_src, probes, symbols
                      5000)
     events = _dedupe(list((state or {}).get("events") or []) + rec.events,
                      lambda e: (e.get("ts"), e.get("type"), e.get("symbol"), e.get("msg")), 300)
+    regime, regime_events = resolve_regime(cfg, state, eng, trades, now, eq)
+    if regime_events:
+        events = _dedupe(events + regime_events,
+                         lambda e: (e.get("ts"), e.get("type"), e.get("symbol"), e.get("msg")), 300)
     wins = sum(1 for t in trades if float(t.get("net_pnl") or 0) > 0)
     day_start = risk.day_start_equity or eq
     day_pnl = (eq - day_start) / day_start if day_start else 0.0
@@ -1463,6 +1502,7 @@ def _publish(path, state, cfg, ex, risk, rec, feed, filters_src, probes, symbols
         "trades_closed": len(trades), "wins": wins,
         "strategy": strategy,
         "strategies": strategies,
+        "regime": regime,
         "price_source": describe(feed, filters_src, probes),
         "last_cycle": _iso(now), "last_ts": now, "started": started,
         "last_15m_open": last_15m, "last_1h_open": last_1h, "last_1m_open": last_1m,

@@ -24,9 +24,9 @@ def test_engine_entry_sizing_and_bracket_orders():
     eng.on_bar_closed("BTCUSDT", "15m", (0, 50_000, 50_010, 49_990, 50_000, 1, 899_999))
     p = ex.get_position("BTCUSDT")
     assert p is not None and p.leverage == 3
-    # 1.5% of 10k / (500 + fees) is about 0.273 BTC. Margin cap 40% * 3x = 12000 notional -> 0.239.
-    assert p.qty * p.entry_price <= 10_000 * 0.40 * 3 + 1
-    assert p.qty == pytest.approx(0.239, abs=0.001)
+    # 5% of 10k at a 500 stop is about 0.91 BTC. Margin cap 60% * 3x = 18000 notional.
+    assert p.qty * p.entry_price <= 10_000 * 0.60 * 3 + 1
+    assert p.qty == pytest.approx(0.359, abs=0.001)
     types = sorted(o.type for o in ex.open_orders())
     assert types == ["STOP_MARKET", "TAKE_PROFIT_MARKET"]
     sl = [o for o in ex.open_orders() if o.type == "STOP_MARKET"][0]
