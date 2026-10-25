@@ -16,8 +16,10 @@ name: binance-paper-desk
 # and exits non-zero and the chain step (if: always()) starts a successor.
 # A startup failure waits 60s before that dispatch. The loop step itself is
 # capped so a stuck shell still reaches that step.
-# The existing binance-paper/state.json is loaded and updated. An existing account
-# is never replaced. Never places a real order and needs no API keys.
+# The existing binance-paper/state.json is loaded and updated. It is replaced
+# only when config account.era is higher than the state's era: the old file is
+# copied once to binance-paper/archive/era1_state.json and a new book starts.
+# Never places a real order and needs no API keys.
 on:
   schedule:
     - cron: '7 * * * *'

@@ -39,6 +39,9 @@ class SymbolInfo:
     def round_qty(self, q, market=False):
         return _q(q, self.market_step_size if market else self.step_size, ROUND_DOWN)
 
+    def round_qty_up(self, q, market=False):
+        return _q(q, self.market_step_size if market else self.step_size, ROUND_UP)
+
     def to_dict(self):
         return asdict(self)
 

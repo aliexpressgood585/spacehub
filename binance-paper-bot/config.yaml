@@ -4,9 +4,10 @@ mode: paper                  # paper only (live adapter intentionally not implem
 symbols: [BTCUSDT, ETHUSDT, SOLUSDT, BNBUSDT, XRPUSDT]
 
 account:
-  starting_balance: 10000.0   # USDT
+  era: 2                      # higher than state.era archives the book once and starts over
+  starting_balance: 100.0     # USDT
   margin_type: ISOLATED
-  default_leverage: 3
+  default_leverage: 5
 
 fees:                         # Binance VIP0 USDT-M (no BNB discount)
   maker: 0.0002               # 0.02%
@@ -18,27 +19,34 @@ execution:
   limit_fill_requires_trade_through: true
 
 risk:
-  risk_per_trade: 0.01        # 1% of equity at risk per trade (incl. est. round-trip fees)
+  risk_per_trade: 0.015       # 1.5% of equity at risk per trade (incl. est. round-trip fees)
   max_concurrent_positions: 3
-  max_margin_per_position: 0.30   # a single position may use at most 30% of equity as margin
+  max_margin_per_position: 0.40   # a single position may use at most 40% of equity as margin
   max_daily_loss: 0.05        # stop opening new trades after -5% equity in a UTC day
+  max_drawdown: 0.30          # hard halt of every new entry at 30% below peak equity
+  max_open_risk: 0.06         # open risk-to-stop across positions, fraction of equity
+  # Round a sub-minimum order up to min notional only inside this risk fraction.
+  min_notional_roundup_risk: 0.025
   one_position_per_symbol: true
 
-# Both rules share one paper account. Caps here are per strategy. The account
-# daily stop above still blocks every new entry. max_margin_per_position stays
-# per position. orb's max_daily_loss pauses only that rule until the next UTC day.
+# ema_trend_4h is the only enabled rule. orb_ny_15m and xs_mom_1d stay in the
+# code and are off (xs failed its independent check; eight legs do not fit a
+# $100 book above Binance min notional). Caps on a disabled row are unused.
+# Manual baskets are off in config/manual_trades.json.
 strategies:
   - name: ema_trend_4h
-    risk_per_trade: 0.01
+    enabled: true
+    risk_per_trade: 0.015
     max_concurrent_positions: 3
-    # New entries only. The monthly top-20 book stays for the other rules.
-    # An open ema_trend_4h position on any other coin is still managed to its own exit.
+    # New entries only. An open position on any other coin is still managed to its own exit.
     symbols: [BTCUSDT, ETHUSDT, SOLUSDT, BNBUSDT, XRPUSDT]
   - name: orb_ny_15m
+    enabled: false
     risk_per_trade: 0.005
     max_concurrent_positions: 2
     max_daily_loss: 0.02
   - name: xs_mom_1d
+    enabled: false
     max_concurrent_positions: 8
     max_daily_loss: 0.02
 
@@ -54,7 +62,7 @@ strategy:
       sl_atr: 3.0
       tp_atr: 0               # no take-profit; exit is the stop, the trail, or the opposite cross
       regime: self50          # longs only above the coin's daily EMA50, shorts only below
-      leverage: 3
+      leverage: 5
     orb_ny_15m:
       session: ny            # 09:30 America/New_York, DST via the zone database
       rng: 60                # opening range, minutes

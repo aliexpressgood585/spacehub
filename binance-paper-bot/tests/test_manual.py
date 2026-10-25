@@ -1,5 +1,6 @@
 """manual_aggr_1..5: 4h EMA direction, volume filter, one-shot fill, basket stop."""
 import math
+import os
 
 import pytest
 
@@ -16,7 +17,14 @@ from bot.symbols import SymbolInfo
 
 
 def _cfg():
-    return load_manual_config(config_path({"_root": ROOT}))
+    legacy = os.path.join(os.path.dirname(__file__), "fixtures", "manual_trades_legacy.json")
+    return load_manual_config(legacy)
+
+
+def test_shipped_manual_basket_cannot_fire():
+    cfg = load_manual_config(config_path({"_root": ROOT}))
+    assert cfg["enabled"] is False
+    assert cfg["trades"] == []
 
 
 def _bands(closes):

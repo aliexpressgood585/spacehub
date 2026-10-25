@@ -139,6 +139,7 @@ def test_handoff_keeps_the_wallet_and_does_not_create_an_account(tmp_path):
 def test_stop_cycle_does_not_write_when_an_open_symbol_has_no_filters(tmp_path, monkeypatch):
     path = tmp_path / "state.json"
     original = {
+        "era": 2,
         "wallet": 10000.0, "equity": 10000.0, "paper": True, "live_trading": False,
         "symbols": ["BTCUSDT", "ZECUSDT"],
         "last_1h_open": _at(11), "last_1m_open": _at(12, 1),

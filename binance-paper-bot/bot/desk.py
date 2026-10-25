@@ -5,10 +5,11 @@ The Actions job loops for hours. Each wall-clock minute replays closed 1m bars
 after each 1h close. Existing wallet, trades and events are kept. Paper only —
 there is no order endpoint and no API key.
 
-Two paper rules share one account. ema_trend_4h still decides on 1h closes from
-completed 4h bars. orb_ny_15m decides after each closed 15m bar. Stops stay on
-1m highs/lows. The coin list is a monthly top-20 by trailing 90-day median
-quote volume. An existing account is never replaced.
+ema_trend_4h decides on 1h closes from completed 4h bars. Disabled rules stay
+in the code and are not asked. Stops stay on 1m highs/lows. The coin list is a
+monthly top-20 by trailing 90-day median quote volume. An account is replaced
+only when its era is missing or older than config account.era: the old file is
+archived once and the book starts over at the configured balance.
 
 config/manual_trades.json, when present, is a separate one-shot paper basket
 (manual_aggr_1..5). It does not go through the strategy risk sizer.
@@ -98,6 +99,109 @@ def _clean(o):
     return str(o)
 
 
+def account_era(cfg):
+    try:
+        return int((cfg.get("account") or {}).get("era") or 1)
+    except (TypeError, ValueError):
+        return 1
+
+
+def state_era(state):
+    if not state or state.get("era") is None:
+        return 0
+    try:
+        return int(state.get("era"))
+    except (TypeError, ValueError):
+        return 0
+
+
+def era_is_stale(state, cfg):
+    """True when a saved book must be archived and replaced."""
+    if state is None:
+        return False
+    return state_era(state) < account_era(cfg)
+
+
+def account_is_fresh(state, era_reset):
+    """A missing file or an era reset starts from now and does not replay old bars."""
+    return state is None or bool(era_reset)
+
+
+def archive_path_for(state_path):
+    folder = os.path.dirname(os.path.abspath(state_path)) or "."
+    return os.path.join(folder, "archive", "era1_state.json")
+
+
+def archive_era_state(state_path, state):
+    """Copy the old book once. A second reset must not overwrite the archive."""
+    dest = archive_path_for(state_path)
+    if os.path.exists(dest):
+        return dest
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    tmp = dest + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(_clean(state), f, ensure_ascii=False, separators=(",", ":"))
+        f.write("\n")
+    os.replace(tmp, dest)
+    return dest
+
+
+def blank_era_state(cfg, now):
+    """Empty $starting_balance book. Cursors are unset so nothing is back-filled."""
+    start = float(cfg["account"]["starting_balance"])
+    era = account_era(cfg)
+    now = int(now)
+    return {
+        "era": era,
+        "version": "binance-paper-v1",
+        "schema": 1,
+        "paper": True,
+        "live_trading": False,
+        "starting_balance": start,
+        "wallet": start,
+        "equity": start,
+        "peak_equity": start,
+        "unrealized": 0.0,
+        "positions": [],
+        "trades": [],
+        "events": [{
+            "ts": now,
+            "time": _iso(now),
+            "type": "ERA_RESET",
+            "symbol": "",
+            "msg": (f"era {era}: previous account archived, "
+                    f"demo restarted at {start:.2f} USDT"),
+        }],
+        "signals": [],
+        "equity_curve": [],
+        "brackets": {},
+        "catchup": {"era_reset": True, "replay": False, "minutes": 0, "skipped_1m": 0},
+        "last_1m_open": None,
+        "last_1h_open": None,
+        "last_15m_open": None,
+        "last_ts": None,
+        "engine": {
+            "risk": {"day": None, "day_start_equity": None, "owner_halt": {},
+                     "peak_equity": start, "drawdown_halt": False},
+            "funding_done": {},
+            "universe_period": {},
+            "manual": None,
+        },
+    }
+
+
+def consume_era(state_path, state, cfg, now):
+    """Archive a stale book once and return a fresh in-memory account.
+
+    Does not write state.json. The cycle publishes the new book at the end, so a
+    failed cycle leaves the live file in place and the next tick tries again.
+    """
+    if not era_is_stale(state, cfg):
+        return state, False
+    archive_era_state(state_path, state)
+    return blank_era_state(cfg, now), True
+
+
 # Closed 4h bars kept for EMA150 warmup. The buffer itself is data.history_bars.
 H4_BARS = 420
 D1_BARS = 120
@@ -147,20 +251,36 @@ def strategy_view(strat, cfg):
     return view
 
 
+def _row_enabled(row):
+    if not row:
+        return True
+    return row.get("enabled", True) is not False
+
+
 def strategy_specs(cfg):
-    """Primary strategy, then any other names listed under cfg['strategies']."""
+    """Enabled strategies. The primary name is first when its row is enabled.
+
+    A row with enabled: false stays in the config and is not constructed, so it
+    cannot emit entries. Omitting the key leaves the row enabled.
+    """
     primary = make_strategy(cfg)
-    specs = [primary]
-    seen = {primary.name}
-    for row in cfg.get("strategies") or []:
-        name = (row or {}).get("name")
-        if not name or name in seen:
+    rows = [r for r in (cfg.get("strategies") or []) if r and r.get("name")]
+    by = {r["name"]: r for r in rows}
+    specs, seen = [], set()
+    if _row_enabled(by.get(primary.name)):
+        specs.append(primary)
+        seen.add(primary.name)
+    for row in rows:
+        name = row["name"]
+        if name in seen or not _row_enabled(row):
             continue
         if name not in REGISTRY:
             raise ValueError(f"unknown strategy {name}")
         params = (cfg.get("strategy") or {}).get("params", {}).get(name, {})
         specs.append(REGISTRY[name](params))
         seen.add(name)
+    if not specs:
+        raise ValueError("no enabled strategy")
     return specs
 
 
@@ -247,8 +367,8 @@ def begin_manual(cfg, ex, rec, state, now):
     It does not open. Opens happen once, after the replay, in finish_manual.
     """
     spec = _load_manual_spec(cfg)
-    if spec is None:
-        return None, _stored_manual(state), None
+    if spec is None or spec.get("enabled") is False or not spec.get("trades"):
+        return None, {"enabled": False, "ids": {}, "resolved": True}, None
     blob = ensure_blob(spec, _stored_manual(state), now)
     wt = (cfg.get("execution") or {}).get("sl_tp_working_type") or "CONTRACT_PRICE"
 
@@ -1048,7 +1168,8 @@ def run(path, now=None):
     now = _now() if now is None else int(now)
     feed, probes = connect(cfg)
     state = read_state(path)
-    fresh = state is None
+    state, era_reset = consume_era(path, state, cfg, now)
+    fresh = account_is_fresh(state, era_reset)
     specs = strategy_specs(cfg)
     strat = specs[0]
     htf = strat.timeframe == "1h" or any(s.timeframe == "1h" for s in specs)
@@ -1146,6 +1267,10 @@ def run(path, now=None):
             if capped:
                 rec.on_event({"ts": now, "type": "CATCH_UP", "symbol": "",
                               "msg": f"gap longer than {MAX_1M_BARS} 1m bars; replayed the newest {len(minutes)} only"})
+    if era_reset:
+        catch = dict(catch or {})
+        catch["era_reset"] = True
+        catch["replay"] = False
 
     refresh_live(ex, feed, symbols, now)
     if wants_15:
@@ -1179,6 +1304,19 @@ def _publish(path, state, cfg, ex, risk, rec, feed, filters_src, probes, symbols
     eq = ex.equity()
     start_bal = float(cfg["account"]["starting_balance"])
     peak = max(float((state or {}).get("peak_equity") or start_bal), eq)
+    if risk.peak_equity is not None:
+        peak = max(peak, float(risk.peak_equity))
+    was_dd = bool(risk.drawdown_halt)
+    risk.peak_equity = peak
+    dd_from_peak = (eq - peak) / peak if peak else 0.0
+    if dd_from_peak <= -float(risk.max_drawdown):
+        risk.drawdown_halt = True
+        if not was_dd:
+            rec.on_event({"ts": now, "type": "HALT_DRAWDOWN", "symbol": "", "time": _iso(now),
+                          "msg": (f"equity drawdown from peak reached {risk.max_drawdown * 100:.0f}%; "
+                                  "new entries halted")})
+    else:
+        risk.drawdown_halt = False
     curve = list((state or {}).get("equity_curve") or [])
     curve.append({"ts": now, "equity": round(eq, 2), "wallet": round(ex.wallet, 2)})
     if len(curve) > EQUITY_CAP:
@@ -1213,6 +1351,7 @@ def _publish(path, state, cfg, ex, risk, rec, feed, filters_src, probes, symbols
     snap = dict(state or {})
     snap.update({
         "version": "binance-paper-v1", "schema": 1, "paper": True, "live_trading": False,
+        "era": account_era(cfg),
         "starting_balance": start_bal, "wallet": ex.wallet, "equity": eq, "unrealized": ex.unrealized(),
         "peak_equity": peak, "drawdown_pct": (eq - peak) / peak * 100 if peak else 0.0,
         "max_drawdown_pct": max_dd * 100, "return_pct": (eq / start_bal - 1) * 100 if start_bal else 0.0,
@@ -1229,6 +1368,7 @@ def _publish(path, state, cfg, ex, risk, rec, feed, filters_src, probes, symbols
         "last_bar_close": _iso(last_15m + INTERVAL_MS["15m"]) if last_15m else None,
         "risk": {"day": risk.day, "day_start_equity": risk.day_start_equity,
                  "day_pnl_pct": day_pnl * 100, "halted": day_pnl <= -risk.max_daily_loss,
+                 "drawdown_halted": bool(risk.drawdown_halt),
                  "max_daily_loss_pct": risk.max_daily_loss * 100,
                  "max_positions": risk.max_pos},
         "positions": _positions(ex), "prices": prices, "brackets": brackets_view,
@@ -1297,7 +1437,8 @@ def run_stops(path, now=None):
     cfg = load_config()
     now = _now() if now is None else int(now)
     state = read_state(path)
-    if state is None or "exchange" not in state:
+    state, era_reset = consume_era(path, state, cfg, now)
+    if era_reset or state is None or "exchange" not in state:
         return run(path, now)
     feed, probes = connect(cfg)
     symbols = _with_manual_symbols(_working_symbols(state, cfg), state)
