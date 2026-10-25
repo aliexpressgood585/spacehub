@@ -1009,6 +1009,16 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   4h (-1.35%, t -2.5 / -4.9). Fading either way wins 55-66% of the time but averages ~0 with tails of -200..-1,500% (squeezed
   shorts) and +16% IS -> +0.3% OOS on dump bounces (outlier-driven, daily t ~0). No direction pays. dtk demo: PAPER.maxMove24 0.2 +
   moverGate(board.chg, OKX rolling 24h) before the risk manager -> SKIP 'זז ...% ב-24ש'. tests/dtk 44/44.
+- 2026-10-25 v125bt MARKET-STATE ALLOCATION: REJECTED (owner: "many strategies that the bot switches by market state, crypto only").
+  backtest/portfolio.ts gained cfg.regime(t) -> {donch, rota} multipliers (default off = deployed behaviour); backtest/research/
+  v125_regime.ts -> status/regime-v125.txt: DONCH4H + ROTA, 40 coins, 2023-10..2026-09, 6 windows, kill-switch on, BTC 4h state from
+  closed bars (UP/DOWN = ADX>=22 above/below SMA50, RANGE, HIGHVOL top third). 8 pre-written policies, choice on windows 1-4, read
+  once on 5-6. FIXED IS +57.5% / OOS +7.9%. IS winner P4 (breakouts x1.5 + ROTA x1.3 in trend, x0.5/x0.6 in range) IS +117.6% ->
+  OOS -36.2%. CONTROL: P1 (breakouts up in trend) total +91.1% vs its INVERSE +85.7% -> the IS gain is exposure, not state reading.
+  All trend-keyed policies lose OOS (P2 -8.9, P3 -28.6). Only "halve both in high vol" (P6 IS +59.6 / OOS +15.1, same DD) and P7
+  look better OOS, but neither won IS; picking them now = selecting on OOS. NB the 0.1% noise probe moved only 0.1pp this time
+  (v87bt: 10.6pp) — path dependence is real but run-specific; the 3->6 bps move (FIXED OOS +7.9 -> -16.8) is the larger fragility.
+  Nothing deployed.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the
