@@ -145,7 +145,7 @@ if (!st.news_at || now - Date.parse(st.news_at) > 5 * 60_000) {
   st.news = [...seen.values()].filter((n) => now - Date.parse(n.at) < 24 * 3600_000).sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 300)
   st.news_at = iso()
   // sentiment 1-10 for every headline that names a coin and has no score yet: Claude when the runner has a key, else keywords
-  const todo = st.news.filter((n: any) => n.coins.length && n.score == null)
+  const todo = st.news.filter((n: any) => n.coins.length && (n.score == null || n.scorer === 'keywords'))   // rule-only scores get another try with a model
   let cs = new Map<number, { score: number; why: string }>()
   if (todo.length && process.env.ANTHROPIC_API_KEY) {
     try { const m = await import('./dtk-news-claude.ts'); cs = await m.claudeScores(todo.map((n: any, i: number) => ({ id: i, title: n.title, coins: n.coins }))); if (m.lastError) errs.push(`claude: ${m.lastError}`) } catch (e) { errs.push(`claude: ${e}`) }
