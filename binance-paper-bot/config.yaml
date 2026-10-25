@@ -32,9 +32,13 @@ risk:
   min_notional_roundup_risk: 0.07
   one_position_per_symbol: true
 
-# ema_trend_4h is the only enabled rule. orb_ny_15m and xs_mom_1d stay in the
-# code and are off (xs failed its independent check; eight legs do not fit a
-# $100 book above Binance min notional). Caps on a disabled row are unused.
+# Live book is the owner-selected short EMA + fade variant (regime_fast_mr in
+# reports/regime_oos.json): ema_fast_4h on trending coins, bb_rsi_4h on ranging
+# coins. ema_trend_4h stays the primary name so a deploy is not a history
+# replay; the selector blocks its new entries. orb_ny_15m and xs_mom_1d stay
+# off. Caps on a disabled row are unused. The five symbols below are the
+# fallback when the monthly cache is missing. The scanner, when on, widens
+# entries to the cached rank and does not edit this list.
 # Manual baskets are off in config/manual_trades.json.
 strategies:
   - name: ema_trend_4h
@@ -52,33 +56,29 @@ strategies:
     enabled: false
     max_concurrent_positions: 8
     max_daily_loss: 0.02
-  # 4h Bollinger/RSI fade. The regime selector is the only thing that may
-  # enable it, and only for RANGE. Off unless the OOS menu says so.
+  # 4h Bollinger/RSI fade. RANGE sleeve of the short-EMA book.
   # Same 5% risk and 4-position cap as the account. It does not add a cap.
   - name: bb_rsi_4h
-    enabled: false
+    enabled: true
     risk_per_trade: 0.05
     max_concurrent_positions: 4
     symbols: [BTCUSDT, ETHUSDT, SOLUSDT, BNBUSDT, XRPUSDT]
-  # Shorter 4h EMA cross. Same rule as ema_trend_4h. Off unless the OOS menu
-  # selects it as the TREND sleeve. It does not add a tighter risk cap.
+  # Shorter 4h EMA cross (10/40). TREND sleeve. Same stop and daily EMA50
+  # filter as ema_trend_4h. It does not add a tighter risk cap.
   - name: ema_fast_4h
-    enabled: false
+    enabled: true
     risk_per_trade: 0.05
     max_concurrent_positions: 4
     symbols: [BTCUSDT, ETHUSDT, SOLUSDT, BNBUSDT, XRPUSDT]
 
-# Closed-bar regime (BTC anchor + each traded coin). enabled is the live
-# switch. It is left false unless a precommitted regime-switched OOS book
-# matches or beats ema_trend_4h on return. Drawdown may be worse. Turning
-# this on does not change risk.*, leverage, or the era-2 balance.
-# 2026-10-25 report reports/regime_oos.json: on the aggressive profile every
-# switched book returned less than ema_trend_4h (best was Bollinger/RSI at
-# +106.8% vs +146.9%), and the top-10 book returned +114.5%. Selector stays
-# off. Symbols stay the original five. The aggressive risk block above does
-# not depend on this flag.
+# Closed-bar regime (BTC anchor + each traded coin). The OOS menu in
+# reports/regime_oos.json leaves this off, because no switched book beat
+# ema_trend_4h on return (short EMA + fade was +68.1% / -40.9% DD vs
+# ema_trend_4h +146.9% / -27.2% DD, Jan-Oct 2026, $100, aggressive).
+# The owner overrode that menu on 2026-10-25 and asked for the faster book.
+# Turning this on does not change risk.*, leverage, or the era-2 balance.
 regime_selector:
-  enabled: false
+  enabled: true
   anchor: BTCUSDT
   timeframe: 4h
   min_dwell_bars: 6          # the committed label stays for 6 closed bars (24h)
@@ -95,8 +95,8 @@ regime_selector:
   ema_period: 20
   slope_bars: 3
   slope_min: 0.0015          # |EMA change| / price over slope_bars, trend confirmation
-  trend_strategy: ema_trend_4h
-  range_strategy: null       # null = RANGE stands aside. bb_rsi_4h only if OOS earns it
+  trend_strategy: ema_fast_4h
+  range_strategy: bb_rsi_4h  # fade on RANGE. null would stand aside.
   dd_margin_pp: 2.0
   oos_start: "2026-01-01"
   demote:
@@ -105,6 +105,22 @@ regime_selector:
     min_trades: 4
     loss_frac: 0.04          # mean <= 0 and lost 4% of equity
     hard_loss_frac: 0.08     # or lost 8% of equity over at least 2 closes
+
+# Ranks the desk's cached monthly universe. It does not call rank_live.
+# enabled is the ship switch. reports/scanner_oos.json is the OOS gate:
+# a liquidation or a drawdown deeper than 60% turns this off and the live
+# book is the plain 5-coin short EMA + fade variant.
+# 2026-10-25 one-pass OOS: scanner return -50.1%, max DD -50.6%, 2 liquidations,
+# 0.20 trades/day. Gate failed. Plain 5-coin book ships. Do not flip this on
+# without a new OOS file that passes the gate.
+scanner:
+  enabled: false
+  top_n: 18
+  cap: 20
+  max_new_per_bar: 2
+  per_coin: true             # TREND coins take ema_fast_4h, RANGE coins take bb_rsi_4h
+  pullback: true             # fresh tag of EMA10 while 10/40 is already aligned
+  pullback_hold_bars: 12     # 48h on pullback entries only; crosses keep the flip exit
 
 strategy:
   name: ema_trend_4h          # ema_trend_4h | trend_ema | bollinger_mr | bb_rsi_4h | orb_ny_15m

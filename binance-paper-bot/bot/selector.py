@@ -29,6 +29,9 @@ class StrategySelector:
         self.range_strategy = str(rng) if rng else None
         self.primary = ((cfg or {}).get("strategy") or {}).get("name") or self.trend_strategy
         self.max_positions = int(((cfg or {}).get("risk") or {}).get("max_concurrent_positions") or 3)
+        sc = (cfg or {}).get("scanner") or {}
+        # Per-coin routing is part of the scanner. The plain book keeps the anchor gate.
+        self.per_coin = bool(sc.get("enabled") and sc.get("per_coin"))
         self.demote_cfg = block.get("demote") or {}
         self.watch = {self.anchor}
         for row in (cfg or {}).get("strategies") or []:
@@ -38,6 +41,9 @@ class StrategySelector:
                 for s in row.get("symbols") or []:
                     if s:
                         self.watch.add(str(s))
+        for s in sc.get("symbols") or []:
+            if s:
+                self.watch.add(str(s))
         saved = saved or {}
         self.market = saved.get("market") or None
         self.bar_ts = int(saved["bar_ts"]) if saved.get("bar_ts") else None
@@ -86,12 +92,22 @@ class StrategySelector:
         sym = self.symbols.get(symbol)
         if sym == "CHAOS":
             return False, f"{symbol} CHAOS: stand aside"
-        want = self.menu_strategy()
+        if self.per_coin:
+            if sym == "TREND":
+                want, label = self.trend_strategy, sym
+            elif sym == "RANGE":
+                want, label = self.range_strategy, sym
+            else:
+                want, label = None, sym
+        else:
+            want, label = self.menu_strategy(), self.market
         if not want:
+            if self.per_coin:
+                return False, f"{symbol} regime {sym or 'UNKNOWN'}"
             return False, f"regime {self.market or 'UNKNOWN'}: stand aside"
         if strategy != want:
-            return False, f"regime {self.market} uses {want}"
-        if sym != self.market:
+            return False, f"regime {label} uses {want}"
+        if not self.per_coin and sym != self.market:
             return False, f"{symbol} regime {sym or 'UNKNOWN'}"
         if int(n_positions) >= self.max_positions:
             return False, "max concurrent positions"

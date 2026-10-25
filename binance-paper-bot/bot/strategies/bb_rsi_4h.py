@@ -48,8 +48,11 @@ class BbRsi4h(Strategy):
             return []
         px = float(c[-1])
         prev = float(c[-2])
+        # |RSI-50|/50. Fixed rank key for the scanner. Does not change the entry.
+        score = abs(float(r[-1]) - 50.0) / 50.0
         info = {"bb_mid": float(mid[-1]), "bb_up": float(up[-1]), "bb_lo": float(lo[-1]),
-                "rsi": float(r[-1]), "atr4h": float(a[-1])}
+                "rsi": float(r[-1]), "atr4h": float(a[-1]), "scan_score": round(score, 6),
+                "setup": "fade"}
         pos = ctx.position
         if pos is not None:
             if (pos.side > 0 and px >= float(mid[-1])) or (pos.side < 0 and px <= float(mid[-1])):

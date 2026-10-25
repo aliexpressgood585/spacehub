@@ -11,6 +11,14 @@ log = logging.getLogger("engine")
 FIELDS = ("open_time", "open", "high", "low", "close", "volume", "close_time")
 
 
+def _scan_score(sig):
+    info = getattr(sig, "info", None) or {}
+    try:
+        return float(info.get("scan_score") or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
 class CandleBuffer:
     def __init__(self, maxlen):
         self.maxlen = maxlen
@@ -65,6 +73,9 @@ class TradingEngine:
         self.universe_period = {}
         # Optional. None keeps the single-strategy path exactly as it was.
         self.selector = None
+        self.scanner = None
+        self._batch = False
+        self._pending = []
         self._regime_touch_ts = None
 
     def event(self, ts, typ, symbol, msg, strategy="", extra=None):
@@ -194,7 +205,55 @@ class TradingEngine:
         for s in sigs:
             self.last_signal[symbol] = {"ts": ts, "action": s.action, "reason": s.reason,
                                         "info": s.info, "strategy": strat.name}
+            if (self._batch and self.scanner is not None and self.scanner.enabled
+                    and s.action in ("OPEN_LONG", "OPEN_SHORT")):
+                self._pending.append((s, ts, strat, _scan_score(s)))
+                continue
             self.handle(s, ts, strat)
+
+    def begin_entries(self):
+        """Hold new entries until end_entries so one bar can be ranked."""
+        if self._pending:
+            self.flush_opens()
+        self._batch = True
+
+    def end_entries(self):
+        try:
+            return self.flush_opens()
+        finally:
+            self._batch = False
+
+    def flush_opens(self):
+        """Open the highest-scoring queued entries, up to the scanner cap.
+
+        A risk rejection does not consume the cap: the next score is tried.
+        Outside a batch, or with the scanner off, nothing is queued.
+        """
+        pending = self._pending
+        self._pending = []
+        if not pending:
+            return 0
+        pending.sort(key=lambda item: (-item[3], item[0].symbol))
+        cap = int(self.scanner.max_new) if self.scanner is not None else len(pending)
+        opened = 0
+        for sig, ts, strat, score in pending:
+            if opened >= cap:
+                self.event(ts, "SIGNAL_FILTERED", sig.symbol,
+                           f"scanner kept the top {cap} (score {score:.3f})", strat.name)
+                continue
+            # The selector saw the book before this bar's fills. Re-check so a
+            # batch cannot open past the account position cap.
+            if self.selector is not None and self.selector.enabled:
+                ok, why = self.selector.allow(strat.name, sig.symbol, len(self.ex.positions()))
+                if not ok:
+                    self.event(ts, "SIGNAL_FILTERED", sig.symbol, why, strat.name)
+                    continue
+            before = self.ex.get_position(sig.symbol)
+            self.handle(sig, ts, strat)
+            after = self.ex.get_position(sig.symbol)
+            if before is None and after is not None:
+                opened += 1
+        return opened
 
     def on_timeframe_done(self, tf, ts):
         """One cross-sectional pass after every symbol's bar for `tf` is stored.
@@ -298,6 +357,10 @@ class TradingEngine:
             self.ex.place_order(Order(sym, exit_side, "TAKE_PROFIT_MARKET", stop_price=tp, close_position=True,
                                       working_type=self.wt, tag="TP"), ts)
         p.meta.update({"sl": sl, "tp": tp, "reason": sig.reason})
+        if sig.info.get("setup"):
+            p.meta["setup"] = sig.info["setup"]
+        if sig.info.get("scan_score") is not None:
+            p.meta["scan_score"] = sig.info["scan_score"]
         if sig.info.get("exit_ts") is not None:
             p.meta["exit_ts"] = int(sig.info["exit_ts"])
         if slo.status == "REJECTED":       # stop would trigger immediately -> flatten
