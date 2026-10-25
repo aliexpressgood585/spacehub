@@ -68,29 +68,50 @@ def _engine(ex, rec, names):
 def test_config_enables_only_ema_and_keeps_orb_and_xs_disabled():
     cfg = load_config()
     names = [s.name for s in strategy_specs(cfg)]
-    assert names == ["ema_trend_4h"]
+    sel = cfg.get("regime_selector") or {}
+    assert names[0] == "ema_trend_4h"
+    assert "orb_ny_15m" not in names and "xs_mom_1d" not in names
+    extras = []
+    if sel.get("enabled") and sel.get("range_strategy"):
+        extras.append(sel["range_strategy"])
+    if sel.get("enabled") and sel.get("trend_strategy") not in (None, "ema_trend_4h"):
+        extras.append(sel["trend_strategy"])
+    if extras:
+        for name in extras:
+            assert name in names
+    else:
+        assert names == ["ema_trend_4h"]
     rows = {r["name"]: r for r in cfg["strategies"]}
     assert rows["ema_trend_4h"]["enabled"] is True
     assert rows["orb_ny_15m"]["enabled"] is False
     assert rows["xs_mom_1d"]["enabled"] is False
+    assert rows["bb_rsi_4h"]["enabled"] is bool(sel.get("enabled") and sel.get("range_strategy") == "bb_rsi_4h")
+    assert rows["ema_fast_4h"]["enabled"] is bool(
+        sel.get("enabled") and sel.get("trend_strategy") == "ema_fast_4h")
     assert cfg["strategy"]["name"] == "ema_trend_4h"
+    assert cfg["account"]["risk_profile"] == "aggressive"
     assert cfg["account"]["starting_balance"] == 100.0
-    assert cfg["risk"]["risk_per_trade"] == 0.015
-    assert cfg["risk"]["max_concurrent_positions"] == 3
-    assert cfg["risk"]["max_margin_per_position"] == 0.40
-    assert cfg["risk"]["max_daily_loss"] == 0.05
-    assert cfg["risk"]["max_drawdown"] == 0.30
-    assert cfg["risk"]["max_open_risk"] == 0.06
-    assert cfg["risk"]["min_notional_roundup_risk"] == 0.025
-    assert cfg["strategy"]["params"]["ema_trend_4h"]["leverage"] == 5
+    assert cfg["risk"]["risk_per_trade"] == 0.05
+    assert cfg["risk"]["max_concurrent_positions"] == 4
+    assert cfg["risk"]["max_margin_per_position"] == 0.60
+    assert cfg["risk"]["max_daily_loss"] == 0.15
+    assert cfg["risk"]["max_drawdown"] == 0.50
+    assert cfg["risk"]["max_open_risk"] == 0.15
+    assert cfg["risk"]["min_notional_roundup_risk"] == 0.07
+    assert cfg["strategy"]["params"]["ema_trend_4h"]["leverage"] == 10
+    assert cfg["strategy"]["params"]["ema_fast_4h"]["ema_fast"] == 10
+    assert cfg["strategy"]["params"]["ema_fast_4h"]["ema_slow"] == 40
     assert cfg["strategy"]["params"]["ema_trend_4h"]["sl_atr"] == 3.0
     assert cfg["strategy"]["params"]["orb_ny_15m"]["win"] == 3
     assert cfg["strategy"]["params"]["xs_mom_1d"]["gross"] == 0.30
     ov = risk_overrides(cfg)
-    assert ov["ema_trend_4h"]["risk_per_trade"] == 0.015
-    assert ov["ema_trend_4h"]["max_concurrent_positions"] == 3
-    assert strategy_symbols(cfg) == {
-        "ema_trend_4h": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"]}
+    assert ov["ema_trend_4h"]["risk_per_trade"] == 0.05
+    assert ov["ema_trend_4h"]["max_concurrent_positions"] == 4
+    five = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"]
+    book = strategy_symbols(cfg)["ema_trend_4h"]
+    assert book == five or (len(book) == 10 and book[:3] == ["BTCUSDT", "ETHUSDT", "SOLUSDT"])
+    assert strategy_symbols(cfg).get("bb_rsi_4h") == book
+    assert strategy_symbols(cfg).get("ema_fast_4h") == book
     assert ov["orb_ny_15m"]["risk_per_trade"] == 0.005
     assert ov["orb_ny_15m"]["max_concurrent_positions"] == 2
     assert ov["orb_ny_15m"]["max_daily_loss"] == 0.02
@@ -192,7 +213,7 @@ def test_caps_are_counted_per_strategy():
     q_orb, why_orb = risk.size(orb_sig, ex, ex.si["BTCUSDT"], ex.brackets, ts,
                                owner="orb_ny_15m", owner_max_pos=2, owner_risk=0.005)
     assert q_ema > 0 and q_orb == 0 and "max concurrent" in why_orb
-    assert cfg["risk"]["max_concurrent_positions"] == 3
+    assert cfg["risk"]["max_concurrent_positions"] == 4
 
 
 def test_owner_daily_loss_latches_until_the_next_utc_day():
@@ -221,7 +242,7 @@ def test_account_daily_stop_blocks_every_strategy():
     eng, by = _engine(ex, rec, ["ema_trend_4h", "orb_ny_15m", "xs_mom_1d"])
     ts = 5 * DAY
     eng.risk._daily(ex, ts)
-    ex.wallet = 9_400
+    ex.wallet = 8_500
     eng.handle(Signal("BTCUSDT", "OPEN_LONG", 2_000.0, 0.0, 3, "ema"), ts, by["ema_trend_4h"])
     eng.handle(Signal("BTCUSDT", "OPEN_LONG", 2_000.0, 0.0, 3, "orb"), ts, by["orb_ny_15m"])
     assert ex.get_position("BTCUSDT") is None

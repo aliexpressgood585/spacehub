@@ -78,6 +78,15 @@ class EmaTrend4h(_HTFBase):
         return out
 
 
+@register("ema_fast_4h")
+class EmaFast4h(EmaTrend4h):
+    """Same 4h EMA cross as ema_trend_4h, with shorter averages.
+
+    It is the faster trend sleeve. It still waits for a closed 4h bar and the
+    daily EMA50 filter, and it does not fetch another timeframe.
+    """
+
+
 @register("tsmom_4h")
 class TsMom4h(_HTFBase):
     def warmup_bars(self):

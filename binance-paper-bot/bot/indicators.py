@@ -35,18 +35,58 @@ def rsi(close, n=14):
     return np.concatenate([[np.nan], r])
 
 
-def atr(high, low, close, n=14):
+def true_range(high, low, close):
     h, l, c = (np.asarray(v, float) for v in (high, low, close))
     pc = np.concatenate([[c[0]], c[:-1]])
-    tr = np.maximum(h - l, np.maximum(abs(h - pc), abs(l - pc)))
-    return rma(tr, n)
+    return np.maximum(h - l, np.maximum(abs(h - pc), abs(l - pc)))
+
+
+def atr(high, low, close, n=14):
+    return rma(true_range(high, low, close), n)
+
+
+def adx(high, low, close, n=14):
+    """Wilder ADX. Values before 2*n-1 bars are NaN. Uses only data up to each index."""
+    h, l, c = (np.asarray(v, float) for v in (high, low, close))
+    up = np.diff(h, prepend=h[0])
+    dn = -np.diff(l, prepend=l[0])
+    up[0] = 0.0
+    dn[0] = 0.0
+    plus_dm = np.where((up > dn) & (up > 0), up, 0.0)
+    minus_dm = np.where((dn > up) & (dn > 0), dn, 0.0)
+    tr = true_range(h, l, c)
+    atr_ = rma(tr, n)
+    pdi = np.divide(100.0 * rma(plus_dm, n), atr_, out=np.full(len(c), np.nan), where=atr_ > 0)
+    mdi = np.divide(100.0 * rma(minus_dm, n), atr_, out=np.full(len(c), np.nan), where=atr_ > 0)
+    den = pdi + mdi
+    dx = np.divide(100.0 * np.abs(pdi - mdi), den, out=np.full(len(c), np.nan), where=den > 0)
+    out = np.full(len(c), np.nan)
+    start = n - 1
+    seed_at = start + n - 1
+    if len(c) <= seed_at:
+        return out
+    seed = dx[start:seed_at + 1]
+    if not np.all(np.isfinite(seed)):
+        return out
+    out[seed_at] = seed.mean()
+    for i in range(seed_at + 1, len(c)):
+        if not np.isfinite(dx[i]) or not np.isfinite(out[i - 1]):
+            continue
+        out[i] = (out[i - 1] * (n - 1) + dx[i]) / n
+    return out
 
 
 def bollinger(close, n=20, k=2.0):
     c = np.asarray(close, float)
-    mid = np.full_like(c, np.nan); up = mid.copy(); lo = mid.copy()
-    for i in range(n - 1, len(c)):
-        w = c[i - n + 1:i + 1]
-        m, s = w.mean(), w.std(ddof=0)
-        mid[i], up[i], lo[i] = m, m + k * s, m - k * s
+    mid = np.full_like(c, np.nan)
+    up = np.full_like(c, np.nan)
+    lo = np.full_like(c, np.nan)
+    if len(c) < n:
+        return mid, up, lo
+    win = np.lib.stride_tricks.sliding_window_view(c, n)
+    m = win.mean(axis=1)
+    s = win.std(axis=1, ddof=0)
+    mid[n - 1:] = m
+    up[n - 1:] = m + k * s
+    lo[n - 1:] = m - k * s
     return mid, up, lo

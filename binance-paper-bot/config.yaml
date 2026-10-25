@@ -5,9 +5,10 @@ symbols: [BTCUSDT, ETHUSDT, SOLUSDT, BNBUSDT, XRPUSDT]
 
 account:
   era: 2                      # higher than state.era archives the book once and starts over
-  starting_balance: 100.0     # USDT
+  starting_balance: 100.0     # USDT. Do not raise this to reset a live book.
   margin_type: ISOLATED
-  default_leverage: 5
+  default_leverage: 10        # cap; size() still refuses a leverage the bracket does not allow
+  risk_profile: aggressive    # the selector does not edit risk or leverage
 
 fees:                         # Binance VIP0 USDT-M (no BNB discount)
   maker: 0.0002               # 0.02%
@@ -19,14 +20,16 @@ execution:
   limit_fill_requires_trade_through: true
 
 risk:
-  risk_per_trade: 0.015       # 1.5% of equity at risk per trade (incl. est. round-trip fees)
-  max_concurrent_positions: 3
-  max_margin_per_position: 0.40   # a single position may use at most 40% of equity as margin
-  max_daily_loss: 0.05        # stop opening new trades after -5% equity in a UTC day
-  max_drawdown: 0.30          # hard halt of every new entry at 30% below peak equity
-  max_open_risk: 0.06         # open risk-to-stop across positions, fraction of equity
+  # Aggressive paper profile. High chance of ruin is accepted. The regime
+  # selector reads these numbers and does not rewrite them.
+  risk_per_trade: 0.05        # 5% of equity at risk per trade (incl. est. round-trip fees)
+  max_concurrent_positions: 4
+  max_margin_per_position: 0.60   # a single position may use at most 60% of equity as margin
+  max_daily_loss: 0.15        # stop opening new trades after -15% equity in a UTC day
+  max_drawdown: 0.50          # hard halt of every new entry at 50% below peak equity
+  max_open_risk: 0.15         # open risk-to-stop across positions, fraction of equity
   # Round a sub-minimum order up to min notional only inside this risk fraction.
-  min_notional_roundup_risk: 0.025
+  min_notional_roundup_risk: 0.07
   one_position_per_symbol: true
 
 # ema_trend_4h is the only enabled rule. orb_ny_15m and xs_mom_1d stay in the
@@ -36,8 +39,8 @@ risk:
 strategies:
   - name: ema_trend_4h
     enabled: true
-    risk_per_trade: 0.015
-    max_concurrent_positions: 3
+    risk_per_trade: 0.05
+    max_concurrent_positions: 4
     # New entries only. An open position on any other coin is still managed to its own exit.
     symbols: [BTCUSDT, ETHUSDT, SOLUSDT, BNBUSDT, XRPUSDT]
   - name: orb_ny_15m
@@ -49,9 +52,62 @@ strategies:
     enabled: false
     max_concurrent_positions: 8
     max_daily_loss: 0.02
+  # 4h Bollinger/RSI fade. The regime selector is the only thing that may
+  # enable it, and only for RANGE. Off unless the OOS menu says so.
+  # Same 5% risk and 4-position cap as the account. It does not add a cap.
+  - name: bb_rsi_4h
+    enabled: false
+    risk_per_trade: 0.05
+    max_concurrent_positions: 4
+    symbols: [BTCUSDT, ETHUSDT, SOLUSDT, BNBUSDT, XRPUSDT]
+  # Shorter 4h EMA cross. Same rule as ema_trend_4h. Off unless the OOS menu
+  # selects it as the TREND sleeve. It does not add a tighter risk cap.
+  - name: ema_fast_4h
+    enabled: false
+    risk_per_trade: 0.05
+    max_concurrent_positions: 4
+    symbols: [BTCUSDT, ETHUSDT, SOLUSDT, BNBUSDT, XRPUSDT]
+
+# Closed-bar regime (BTC anchor + each traded coin). enabled is the live
+# switch. It is left false unless a precommitted regime-switched OOS book
+# matches or beats ema_trend_4h on return. Drawdown may be worse. Turning
+# this on does not change risk.*, leverage, or the era-2 balance.
+# 2026-10-25 report reports/regime_oos.json: on the aggressive profile every
+# switched book returned less than ema_trend_4h (best was Bollinger/RSI at
+# +106.8% vs +146.9%), and the top-10 book returned +114.5%. Selector stays
+# off. Symbols stay the original five. The aggressive risk block above does
+# not depend on this flag.
+regime_selector:
+  enabled: false
+  anchor: BTCUSDT
+  timeframe: 4h
+  min_dwell_bars: 6          # the committed label stays for 6 closed bars (24h)
+  confirm_bars: 2            # the new label must then repeat twice; one spike does not flip
+  adx_period: 14
+  atr_period: 14
+  atr_lookback: 90
+  chaos_percentile: 0.90     # ATR% above 90% of the previous window (bar itself excluded)
+  chaos_exit: 0.70           # leave CHAOS once ATR% falls out of the top 30%
+  adx_trend_on: 25
+  adx_trend_off: 20
+  adx_range_on: 18
+  adx_range_off: 23
+  ema_period: 20
+  slope_bars: 3
+  slope_min: 0.0015          # |EMA change| / price over slope_bars, trend confirmation
+  trend_strategy: ema_trend_4h
+  range_strategy: null       # null = RANGE stands aside. bb_rsi_4h only if OOS earns it
+  dd_margin_pp: 2.0
+  oos_start: "2026-01-01"
+  demote:
+    window_trades: 8
+    window_days: 14
+    min_trades: 4
+    loss_frac: 0.04          # mean <= 0 and lost 4% of equity
+    hard_loss_frac: 0.08     # or lost 8% of equity over at least 2 closes
 
 strategy:
-  name: ema_trend_4h          # ema_trend_4h | trend_ema | bollinger_mr | orb_ny_15m
+  name: ema_trend_4h          # ema_trend_4h | trend_ema | bollinger_mr | bb_rsi_4h | orb_ny_15m
   params:
     ema_trend_4h:
       timeframe: 1h          # strategy runs on each closed 1h bar
@@ -62,7 +118,17 @@ strategy:
       sl_atr: 3.0
       tp_atr: 0               # no take-profit; exit is the stop, the trail, or the opposite cross
       regime: self50          # longs only above the coin's daily EMA50, shorts only below
-      leverage: 5
+      leverage: 10
+    ema_fast_4h:
+      timeframe: 1h
+      signal_timeframe: 4h
+      ema_fast: 10           # shorter pair, precommitted, not fit on the OOS window
+      ema_slow: 40
+      atr_period: 20
+      sl_atr: 3.0
+      tp_atr: 0
+      regime: self50
+      leverage: 10
     orb_ny_15m:
       session: ny            # 09:30 America/New_York, DST via the zone database
       rng: 60                # opening range, minutes
@@ -112,6 +178,17 @@ strategy:
       atr_period: 14
       sl_atr_mult: 1.5
       leverage: 3
+    bb_rsi_4h:
+      timeframe: 1h
+      signal_timeframe: 4h
+      bb_period: 20
+      bb_std: 2.0
+      rsi_period: 14
+      rsi_oversold: 30
+      rsi_overbought: 70
+      atr_period: 14
+      sl_atr: 1.5
+      leverage: 10
 
 data:
   history_bars: 600           # rolling window kept per timeframe; ema_trend_4h needs >= ~400 closed 4h bars
