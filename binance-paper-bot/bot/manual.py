@@ -58,6 +58,11 @@ def load_manual_config(path):
         cfg = json.load(f)
     if not isinstance(cfg, dict):
         raise ValueError("manual trades config must be an object")
+    if cfg.get("enabled", True) is False:
+        cfg["enabled"] = False
+        cfg["trades"] = []
+        return cfg
+    cfg["enabled"] = True
     trades = cfg.get("trades")
     if not isinstance(trades, list) or not trades:
         raise ValueError("manual trades config has no trades")

@@ -65,17 +65,29 @@ def _engine(ex, rec, names):
     return eng, {s.name: s for s in strats}
 
 
-def test_config_keeps_ema_and_lists_orb_and_xs():
+def test_config_enables_only_ema_and_keeps_orb_and_xs_disabled():
     cfg = load_config()
     names = [s.name for s in strategy_specs(cfg)]
-    assert names == ["ema_trend_4h", "orb_ny_15m", "xs_mom_1d"]
+    assert names == ["ema_trend_4h"]
+    rows = {r["name"]: r for r in cfg["strategies"]}
+    assert rows["ema_trend_4h"]["enabled"] is True
+    assert rows["orb_ny_15m"]["enabled"] is False
+    assert rows["xs_mom_1d"]["enabled"] is False
     assert cfg["strategy"]["name"] == "ema_trend_4h"
-    assert cfg["risk"]["max_margin_per_position"] == 0.30
+    assert cfg["account"]["starting_balance"] == 100.0
+    assert cfg["risk"]["risk_per_trade"] == 0.015
+    assert cfg["risk"]["max_concurrent_positions"] == 3
+    assert cfg["risk"]["max_margin_per_position"] == 0.40
     assert cfg["risk"]["max_daily_loss"] == 0.05
+    assert cfg["risk"]["max_drawdown"] == 0.30
+    assert cfg["risk"]["max_open_risk"] == 0.06
+    assert cfg["risk"]["min_notional_roundup_risk"] == 0.025
+    assert cfg["strategy"]["params"]["ema_trend_4h"]["leverage"] == 5
+    assert cfg["strategy"]["params"]["ema_trend_4h"]["sl_atr"] == 3.0
     assert cfg["strategy"]["params"]["orb_ny_15m"]["win"] == 3
     assert cfg["strategy"]["params"]["xs_mom_1d"]["gross"] == 0.30
     ov = risk_overrides(cfg)
-    assert ov["ema_trend_4h"]["risk_per_trade"] == 0.01
+    assert ov["ema_trend_4h"]["risk_per_trade"] == 0.015
     assert ov["ema_trend_4h"]["max_concurrent_positions"] == 3
     assert strategy_symbols(cfg) == {
         "ema_trend_4h": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"]}
@@ -431,7 +443,10 @@ def test_bootstrap_waits_out_the_midnight_rebalance_window():
     assert not ex.positions()
     assert bootstrap_flat(eng, now, last_1h_open=midnight_hour) == 4
     assert eng.universe_period[NAME] == xs.period_id(now)
-    assert len(ex.positions()) == 4
+    # The account open-risk cap can refuse a wide disaster stop. The window
+    # still opens the book; it does not have to fill every leg.
+    assert ex.positions()
+    assert len(ex.positions()) <= 4
 
 
 def test_scheduled_rebalance_records_the_period_so_bootstrap_does_not_repeat():

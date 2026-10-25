@@ -214,6 +214,12 @@ class TradingEngine:
             owner_day_return=day_ret,
             owner_max_daily_loss=ov.get("max_daily_loss"))
         if qty <= 0:
+            if why == "HALT_DRAWDOWN":
+                pct = self.risk.max_drawdown * 100
+                self.event(ts, "HALT_DRAWDOWN", sym,
+                           f"equity drawdown from peak reached {pct:.0f}%; new entries halted",
+                           strat.name)
+                why = "drawdown halt"
             self.event(ts, "RISK_REJECT", sym, why, strat.name)
             return
         if self.ex.get_position(sym) is None and self.ex.leverage.get(sym) != sig.leverage:
