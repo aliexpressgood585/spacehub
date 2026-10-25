@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-25T16:33:21.233Z",
+ "last_scan": "2026-10-25T16:33:32.356Z",
  "last_note": {
-  "at": "2026-10-25T16:33:18.638Z",
+  "at": "2026-10-25T16:33:28.570Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -45456,13 +45456,6 @@
  ],
  "equity": [
   {
-   "ts": "2026-10-22T04:58:54.159Z",
-   "equity": 1081.9040897504808,
-   "cash": 1081.9040897504808,
-   "open_value": 0,
-   "open_count": 0
-  },
-  {
    "ts": "2026-10-22T04:59:52.225Z",
    "equity": 1081.9040897504808,
    "cash": 1081.9040897504808,
@@ -80454,9 +80447,49 @@
    "cash": 993.3104095670752,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-10-25T16:33:32.356Z",
+   "equity": 993.3104095670752,
+   "cash": 993.3104095670752,
+   "open_value": 0,
+   "open_count": 0
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-25T16:33:30.749Z",
+   "market_id": "6139719",
+   "question": "Bitcoin Up or Down - October 25, 12:30PM-12:35PM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 16:30–16:35 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.93,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 2.07 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
+  },
+  {
+   "ts": "2026-10-25T16:33:32.029Z",
+   "market_id": "6139722",
+   "question": "Ethereum Up or Down - October 25, 12:30PM-12:35PM ET",
+   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 16:30–16:35 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.921,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 0.78 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
+  },
+  {
+   "ts": "2026-10-25T16:33:32.356Z",
+   "market_id": "6139711",
+   "question": "Solana Up or Down - October 25, 12:30PM-12:35PM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 16:30–16:35 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.93,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 0.94 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
+  },
   {
    "ts": "2026-10-25T16:33:21.233Z",
    "market_id": "6139719",
@@ -82621,39 +82654,6 @@
    "outcome": "Up",
    "outcome_he": "עולה",
    "price": 0.94,
-   "decision": "skip",
-   "reason": "הגנה: החשבון ברצפה המוגנת ($980)"
-  },
-  {
-   "ts": "2026-10-25T14:58:07.622Z",
-   "market_id": "6134087",
-   "question": "XRP Up or Down - October 25, 10:55AM-11:00AM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 14:55–15:00 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.93,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.00 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-25T14:57:56.281Z",
-   "market_id": "6134083",
-   "question": "Bitcoin Up or Down - October 25, 10:55AM-11:00AM ET",
-   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 14:55–15:00 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.94,
-   "decision": "skip",
-   "reason": "הגנה: החשבון ברצפה המוגנת ($980)"
-  },
-  {
-   "ts": "2026-10-25T14:57:17.236Z",
-   "market_id": "6134083",
-   "question": "Bitcoin Up or Down - October 25, 10:55AM-11:00AM ET",
-   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 14:55–15:00 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.91,
    "decision": "skip",
    "reason": "הגנה: החשבון ברצפה המוגנת ($980)"
   }
@@ -130176,7 +130176,9 @@
    "limit": 0.96,
    "taker_ask": 0.97,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-25T16:33:28.805Z",
+   "left_at_fill": 91
   },
   {
    "slug": "eth-updown-5m-1792945800",
@@ -130189,7 +130191,9 @@
    "limit": 0.95,
    "taker_ask": 0.96,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-25T16:33:28.906Z",
+   "left_at_fill": 91
   },
   {
    "slug": "sol-updown-5m-1792945800",
@@ -130202,7 +130206,9 @@
    "limit": 0.96,
    "taker_ask": 0.97,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-25T16:33:29.008Z",
+   "left_at_fill": 91
   }
  ],
  "study": {
