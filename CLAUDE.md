@@ -1051,6 +1051,14 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   positive minus strongest negative, never a sum) are added; forecasts / questions capped at 7 (newsScore). FinBERT alone rated "exploit",
   "ETF approval" and "delist" neutral — the rules fix exactly those. Order: Claude -> FinBERT+rules -> rules alone; scorer per headline and
   st.news_scorer. Local cycle on the last 24 h: 10 of 55 coin headlines >= 8 (was 0 with the keyword list). tests/dtk 55/55.
+- 2026-10-25 pmr SCALE WHAT-IF (owner: "does more money earn more, how much is risked per trade?" -> "yes" to a calculation).
+  backtest/research/pmr_scale.ts -> status/pmr-scale.txt: live reward markets (13,991, pool $247k/day, 96 eligible with books), the
+  desk's own rules (eligible / quotePx / sizeFor / share, capital split equally), competitors frozen at today's book. Expected $/day:
+  $1k 5 mkts $832 (83%/day) | $2k 10 mkts $1,081 (54%) | $5k 10 $1,650 (33%) | $10k 10-20 ~$2,170 (22%) | $25k 20 $3,047 (12%).
+  Rewards grow far slower than capital (thin pools already ~100% share; extra money only buys share in the $2,002/day Iran-ceasefire
+  pool and room for more markets). Exposure: one market can hold invCap x quote size against us = ~32% of capital at 5 markets, ~16% at
+  10, ~8% at 20. Live paper so far: 165 closed markets, trading -$59 vs $829 rewards, worst market -$22.60. FORECAST, not result:
+  real makers react to a large quote; 60 fills is too few to measure adverse selection. No desk change.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the
