@@ -45,7 +45,7 @@ jobs:
             fi
             t0=$(date +%s)
             timeout 170 node --experimental-strip-types /tmp/desk/scripts/dtk-scan.ts dtk/state.json || echo "cycle failed"
-            [ -f dtk/state.json ] && git add dtk/state.json
+            [ -f dtk/state.json ] && git add dtk/state.json; ls dtk/state-v*.json >/dev/null 2>&1 && git add dtk/state-v*.json
             if git commit -q -m "dtk state $(date -u +%FT%TZ)"; then
               git push -q origin dtk-data || true
             fi

@@ -4,7 +4,7 @@
 // that opens and closes positions by itself on live OKX books (taker fees, book-walk slippage, real funding). Writes dtk/state.json.
 // READ-ONLY toward any exchange: it never places a real order. Usage: node --experimental-strip-types scripts/dtk-scan.ts dtk/state.json
 import fs from 'node:fs'
-import { DTK, PAPER, KIND_HE, tmGate, budgetMargin, setupsAt, replay, monteCarlo, atr, coinsIn, parseRss, riskChecks, walkBook, exitTrigger, type Bar } from '../shared/dtk.ts'
+import { DTK, PAPER, KIND_HE, tmGate, budget, setupsAt, replay, monteCarlo, atr, coinsIn, parseRss, riskChecks, walkBook, exitTrigger, type Bar } from '../shared/dtk.ts'
 import { refreshUniverse, universeDue, liquid, limiter, pool } from '../shared/binperps.ts'
 
 const FILE = process.argv[2] ?? 'dtk/state.json', OKX = 'https://www.okx.com/api/v5'
@@ -135,7 +135,13 @@ for (const n of st.news ?? []) n.move = Object.fromEntries(n.coins.map((c: strin
 
 // 4. the $1,000 DEMO account: exits every cycle, entries right after a scan. Prices, books and funding are OKX's live ones.
 const sg = (x: string) => (x === 'LONG' ? 1 : -1)
-const P = (st.paper ??= { start: PAPER.start, cash: PAPER.start, next_id: 1, trades: [], equity: [], decisions: [], day: -1, dayStart: PAPER.start, dayEntries: 0, fees: 0, funding: 0, rules: PAPER })
+// new era = archive the old account once (dtk/state-v<era>.json on the same branch) and open a fresh one
+if (st.paper && (st.paper.era ?? 1) !== PAPER.era) {
+  const old = st.paper.era ?? 1, f = FILE.replace(/state\.json$/, `state-v${old}.json`)
+  if (!fs.existsSync(f)) fs.writeFileSync(f, JSON.stringify({ archived_at: iso(), era: old, paper: st.paper }))
+  delete st.paper
+}
+const P = (st.paper ??= { era: PAPER.era, start: PAPER.start, cash: PAPER.start, next_id: 1, trades: [], equity: [], decisions: [], day: -1, dayStart: PAPER.start, dayEntries: 0, fees: 0, funding: 0, rules: PAPER })
 const pdec = (d: any) => P.decisions.unshift({ at: iso(), ...d })
 const book = async (sym: string) => {
   const cv = st.ctval?.[sym]; if (!(cv > 0)) throw new Error('no contract size')
@@ -170,27 +176,20 @@ for (const t of openP()) {
 const dayN = Math.floor(now / 86400_000)
 if (P.day !== dayN) Object.assign(P, { day: dayN, dayStart: equityP(), dayEntries: 0 })
 if (scanned) {
-  const eq = equityP()
-  // whole-account sizing: free cash is split between the setups still able to enter in this scan
-  const able = (s: any) => s.liquid && tmGate(s.replay).ok && !openP().some((t: any) => t.sym === s.sym)
-  let approvedLeft = found.filter(able).length
+  const eq = equityP(), maxLoss = eq * PAPER.riskPct
   for (const s of found) {
     if (openP().length >= PAPER.maxOpen) { pdec({ act: 'SKIP', sym: s.sym, side: s.side, why: `כבר ${PAPER.maxOpen} פוזיציות פתוחות` }); break }
     if (!s.liquid) continue
     const tg = tmGate(s.replay)
     if (!tg.ok) { pdec({ act: 'SKIP', sym: s.sym, side: s.side, why: tg.why }); continue }
-    const slots = Math.max(1, Math.min(approvedLeft--, PAPER.maxOpen - openP().length))
     const b = board[s.sym], side = s.side as 'LONG' | 'SHORT', g = sg(side)
     if (openP().some((t: any) => t.sym === s.sym)) { pdec({ act: 'SKIP', sym: s.sym, side, why: 'כבר פתוחה פוזיציה במטבע' }); continue }
     const live = side === 'LONG' ? b.ask : b.bid, r = Math.abs(s.entry - s.stop), drift = g * (live - s.entry) / r
     if (!(live > 0) || g * (live - s.stop) <= 0 || g * (live - s.target) >= 0 || drift > PAPER.chaseR) { pdec({ act: 'SKIP', sym: s.sym, side, why: `המחיר ברח מהכניסה (${drift.toFixed(2)}R)` }); continue }
-    const marginWant = P.cash * 0.995 / slots / (1 + PAPER.lev * DTK.taker * 1.01)   // leave room for the entry fee
-    const plan = { side, entry: live, stop: s.stop, target: s.target }, bu = budgetMargin(plan, marginWant, PAPER.lev)
-    // no per-trade loss cap and no daily loss stop (owner's choice); every other check still applies
-    const rc0 = riskChecks(plan, bu, { spreadBps: b.spread ?? undefined, volUsd: b.vol, funding: b.funding ?? null, dayPnl: 0, tradesToday: P.dayEntries },
-      { ...DTK.limits, tradesPerDay: PAPER.perDay })
-    const keep = rc0.checks.filter((c) => !c.k.startsWith('הפסד')), rc = { pass: keep.every((c) => c.ok === true), checks: keep }
-    if (!(bu.margin >= 5)) { pdec({ act: 'SKIP', sym: s.sym, side, why: 'אין מספיק מזומן פנוי' }); continue }
+    // risk-based sizing: a stop-out incl. fees costs PAPER.riskPct of equity
+    const plan = { side, entry: live, stop: s.stop, target: s.target }, bu = budget(plan, maxLoss, eq, PAPER.lev)
+    const rc = riskChecks(plan, bu, { spreadBps: b.spread ?? undefined, volUsd: b.vol, funding: b.funding ?? null, dayPnl: eq - P.dayStart, tradesToday: P.dayEntries },
+      { ...DTK.limits, maxLossUsd: maxLoss * 1.0001, dayLossUsd: P.dayStart * PAPER.dayLossPct, tradesPerDay: PAPER.perDay })
     if (!rc.pass) { pdec({ act: 'SKIP', sym: s.sym, side, why: 'מנהל הסיכונים: ' + rc.checks.filter((c) => c.ok !== true).map((c) => c.k).join(' · ') }); continue }
     try {
       const bk = await book(s.sym), w = walkBook(side === 'LONG' ? bk.asks : bk.bids, bu.qty)
@@ -202,9 +201,9 @@ if (scanned) {
       P.cash -= margin + fee; P.fees += fee
       const t = { id: P.next_id++, sym: s.sym, side, kind: s.kind, kind_he: s.kind_he, why: s.why, signal_px: s.entry, touch: live, entry: fill, stop: s.stop, target: s.target, qty, notional, margin, lev: PAPER.lev,
         fee_in: fee, risk_usd: qty * Math.abs(fill - s.stop) + notional * (DTK.taker + DTK.slip) * 2, opened_at: iso(), flat_at: now + DTK.holdBars * DTK.bar, checked: now, funding: 0, mark: fill, status: 'OPEN',
-        replay: s.replay ? { n: s.replay.n, avgR: s.replay.avgR } : null, mc: s.mc ? { target: s.mc.target, stop: s.mc.stop, evR: s.mc.evR } : null }
+        replay: s.replay ? { n: s.replay.n, avgR: s.replay.avgR, t: s.replay.t } : null, mc: s.mc ? { target: s.mc.target, stop: s.mc.stop, evR: s.mc.evR } : null }
       P.trades.unshift(t); P.dayEntries++
-      pdec({ act: 'OPEN', sym: s.sym, side, why: `${s.kind_he} · ${tg.why} · ${qty.toPrecision(4)} @ ${fill.toPrecision(6)} · ביטחון $${margin.toFixed(0)} · בסטופ −$${(qty * Math.abs(fill - s.stop)).toFixed(2)}` })
+      pdec({ act: 'OPEN', sym: s.sym, side, why: `${s.kind_he} · ${tg.why} · ${qty.toPrecision(4)} @ ${fill.toPrecision(6)} · סיכון $${maxLoss.toFixed(2)}` })
     } catch (e) { errs.push(`paper open ${s.sym}: ${e}`) }
   }
 }
