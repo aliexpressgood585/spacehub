@@ -191,7 +191,7 @@ export function parseRss(xml: string): { title: string; link: string; at: number
 // (APR, a wide stop at full size) cost -$335 = a third of the account while the rule itself netted about 0R. Back to risk-based
 // sizing: a stop-out incl. fees costs riskPct of equity, day stop 3%. The time-machine gate is stricter: >= 30 firings, avg >= +0.10R
 // AND t >= 1 (a +0.01R average is noise). era bump = the runner archives the old account and opens a fresh $1,000 one.
-export const PAPER = { start: 1000, era: 2, sizing: 'risk' as const, riskPct: 0.01, dayLossPct: 0.03, lev: 5, maxOpen: 4, perDay: 20, chaseR: 0.3, tmMinN: 30, tmMinR: 0.1, tmMinT: 1, tmDays: 20 }
+export const PAPER = { start: 1000, era: 2, sizing: 'risk' as const, riskPct: 0.01, dayLossPct: 0.03, lev: 5, maxOpen: 4, perDay: 20, chaseR: 0.3, tmMinN: 30, tmMinR: 0.1, tmMinT: 1, tmDays: 20, maxMove24: 0.2 }
 // Time-machine gate: the demo account enters only a setup whose SAME rule on the SAME coin and side, replayed over the last
 // PAPER.tmDays days with full costs, fired >= tmMinN times, averaged >= tmMinR R with t >= tmMinT. No replay = no entry.
 // NB a positive replay is a filter on past luck as much as on edge; the demo account is the out-of-sample check.
@@ -201,6 +201,14 @@ export function tmGate(r: Pick<Replay, 'n' | 'avgR'> & { t?: number } | null | u
   if (!(r.avgR >= PAPER.tmMinR)) return { ok: false, why: `מכונת הזמן חלשה: ${r.n} פעמים, ממוצע ${r.avgR.toFixed(2)}R (צריך ${PAPER.tmMinR}+)` }
   if (!((r.t ?? 0) >= PAPER.tmMinT)) return { ok: false, why: `מכונת הזמן לא מובהקת: ${r.n} פעמים, ממוצע +${r.avgR.toFixed(2)}R, t ${(r.t ?? 0).toFixed(1)}` }
   return { ok: true, why: `מכונת הזמן: ${r.n} פעמים, ממוצע +${r.avgR.toFixed(2)}R, t ${(r.t ?? 0).toFixed(1)}` }
+}
+// v124 (status/movers-v124.txt): 18,796 moves of >= 20% in 24h on 884 Binance perps incl. delisted, 2023-10..2026-09.
+// No direction pays after costs: buying a pump loses at 4h in both halves (t -4.4 / -3.9), shorting a dump loses (t -2.5 / -4.9),
+// fading either way is ~0 on average with tails to -200..-700% (a short squeezed 3-8x). So the demo stays out of such coins.
+export function moverGate(chg24: number | null | undefined): { ok: boolean; why: string } {
+  if (chg24 == null || !Number.isFinite(chg24)) return { ok: true, why: 'שינוי 24ש לא ידוע' }
+  if (Math.abs(chg24) >= PAPER.maxMove24) return { ok: false, why: `זז ${chg24 >= 0 ? '+' : '−'}${(Math.abs(chg24) * 100).toFixed(0)}% ב-24ש (מעל ${PAPER.maxMove24 * 100}%): אין יתרון באף כיוון` }
+  return { ok: true, why: '' }
 }
 // Market order of `qty` coins into one side of the book ([price, coins] best first): VWAP of what the visible book absorbs.
 export function walkBook(levels: [number, number][], qty: number): { vwap: number; filled: number } {

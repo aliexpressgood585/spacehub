@@ -1001,6 +1001,14 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   +0.10R AND replay t >= 1 (USELESS at +0.01R passed era 1's gate). Local cycle on the live state: archive written, $1,000, LIGHT
   (-0.35R n110) / ANIME (-0.61R n100) skipped. Expect few trades. Told the owner: no rule here has proven edge; good results cannot
   be promised, only small losses per trade. tests/dtk 42/42.
+- 2026-10-25 v124 MOVERS STUDY + dtk MOVER GATE (owner asked what happens after the day's top gainers / losers). backtest/research/
+  v124_movers.py -> status/movers-v124.txt: every Binance USDT perp in the archive incl. delisted (884), 1h + real funding,
+  2023-10..2026-09; event = |24h move| >= 20/30/50% (first 72h of listing skipped, one event per coin per 24h), entry next open,
+  exit 4/24/72h, both directions, taker 5 + slip 10/25 bps/side. 18,796 events (12,211 pumps, 6,585 dumps). Buying a >= 20% pump
+  LOSES at 4h in both halves (-0.56%/trade, t -4.4 IS / -3.9 OOS; liquid -0.54%, t -4.2 / -3.3); shorting a >= 20% dump loses at
+  4h (-1.35%, t -2.5 / -4.9). Fading either way wins 55-66% of the time but averages ~0 with tails of -200..-1,500% (squeezed
+  shorts) and +16% IS -> +0.3% OOS on dump bounces (outlier-driven, daily t ~0). No direction pays. dtk demo: PAPER.maxMove24 0.2 +
+  moverGate(board.chg, OKX rolling 24h) before the risk manager -> SKIP 'זז ...% ב-24ש'. tests/dtk 44/44.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the
