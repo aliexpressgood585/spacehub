@@ -1019,6 +1019,14 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   look better OOS, but neither won IS; picking them now = selecting on OOS. NB the 0.1% noise probe moved only 0.1pp this time
   (v87bt: 10.6pp) — path dependence is real but run-specific; the 3->6 bps move (FIXED OOS +7.9 -> -16.8) is the larger fragility.
   Nothing deployed.
+- 2026-10-25 v126 THREE NEW DATA SOURCES: 0 PASS, nothing deployed (owner: "find a new source, deploy and merge on your own").
+  Pre-registered first (quant/PREREGISTRATION_V126.md): Deribit DVOL (BTC/ETH, public API, from 2021-03), DefiLlama total
+  stablecoin supply, DefiLlama DeFi TVL — all reachable, none tested here before. backtest/research/v126_sources.py ->
+  status/sources-v126.txt: daily signals (VRP = DVOL - realised 30d vol, DVOL 7d change, stablecoin 7d/30d growth, TVL 7d), IS
+  terciles, direction chosen on IS, staggered H=1/3/7 days, BTC / ETH / CRYPTO_40 basket (Binance 1d), 8 bps/side + 0.03%/day
+  funding, 2021-03..2026-09, IS to 2025-02-02. 51 rows, PASS 0. Strongest IS = DVOL 7d rise -> follow (IS t +2.0..+2.8 on ETH and
+  the basket) FLIPPED OOS (t -1.3..-2.1): the IS winner was a regime artefact. VRP follow IS t ~1.5 -> OOS ~0. Only stablecoin 7d
+  growth -> long ETH is positive in both halves (IS +10 bps/day t 1.2, OOS +14..+15 t 1.1-1.5), below the bar; noted, not deployed.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the
