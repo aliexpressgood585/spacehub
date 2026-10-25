@@ -1043,6 +1043,14 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   coin names for ~85 coins (Hedera, Bittensor, Stellar, ...), HTML entities decoded in RSS titles. Claude scorer: retries without the
   server-side-fallback beta on a 400; any error now lands in state.errors (the first live call failed silently into the keyword scorer).
   Local cycle: 83 -> 126 headlines / 24 h, 45 -> 55 naming a coin. tests/dtk 52/52.
+- 2026-10-25 dtk news, FREE SCORER (owner: "can it run without the API?" -> "yes"). Claude was failing: the repo secret exists but the
+  Anthropic account has NO CREDIT ("credit balance is too low", 400) — owner told; Claude takes over by itself once credit is added.
+  Now, without Claude: FinBERT (Xenova/finbert int8 ONNX via @huggingface/transformers@4.3.1, scripts/dtk-news-finbert.ts, cache
+  /tmp/hf-cache, ~2 s load, ~10 ms/headline, no key, no cost) gives a tone 5.5 + 4.5 x (P_pos - P_neg); event rules (shared/dtk.ts newsAdj:
+  STRONG +-3 exchange listing / ETF approval / treasury buy vs hack / delisting / regulator action, MEDIUM +-1.5 tone words, strongest
+  positive minus strongest negative, never a sum) are added; forecasts / questions capped at 7 (newsScore). FinBERT alone rated "exploit",
+  "ETF approval" and "delist" neutral — the rules fix exactly those. Order: Claude -> FinBERT+rules -> rules alone; scorer per headline and
+  st.news_scorer. Local cycle on the last 24 h: 10 of 55 coin headlines >= 8 (was 0 with the keyword list). tests/dtk 55/55.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the

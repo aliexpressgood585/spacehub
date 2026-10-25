@@ -4,7 +4,7 @@
 // that opens and closes positions by itself on live OKX books (taker fees, book-walk slippage, real funding). Writes dtk/state.json.
 // READ-ONLY toward any exchange: it never places a real order. Usage: node --experimental-strip-types scripts/dtk-scan.ts dtk/state.json
 import fs from 'node:fs'
-import { DTK, PAPER, NEWS, lexScore, KIND_HE, tmGate, moverGate, budget, setupsAt, replay, monteCarlo, atr, coinsIn, parseRss, parseTg, riskChecks, walkBook, exitTrigger, type Bar } from '../shared/dtk.ts'
+import { DTK, PAPER, NEWS, newsScore, KIND_HE, tmGate, moverGate, budget, setupsAt, replay, monteCarlo, atr, coinsIn, parseRss, parseTg, riskChecks, walkBook, exitTrigger, type Bar } from '../shared/dtk.ts'
 import { refreshUniverse, universeDue, liquid, limiter, pool } from '../shared/binperps.ts'
 
 const FILE = process.argv[2] ?? 'dtk/state.json', OKX = 'https://www.okx.com/api/v5'
@@ -145,13 +145,21 @@ if (!st.news_at || now - Date.parse(st.news_at) > 5 * 60_000) {
   st.news = [...seen.values()].filter((n) => now - Date.parse(n.at) < 24 * 3600_000).sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 300)
   st.news_at = iso()
   // sentiment 1-10 for every headline that names a coin and has no score yet: Claude when the runner has a key, else keywords
-  st.news_scorer = process.env.ANTHROPIC_API_KEY ? 'claude' : 'keywords'
   const todo = st.news.filter((n: any) => n.coins.length && n.score == null)
   let cs = new Map<number, { score: number; why: string }>()
   if (todo.length && process.env.ANTHROPIC_API_KEY) {
     try { const m = await import('./dtk-news-claude.ts'); cs = await m.claudeScores(todo.map((n: any, i: number) => ({ id: i, title: n.title, coins: n.coins }))); if (m.lastError) errs.push(`claude: ${m.lastError}`) } catch (e) { errs.push(`claude: ${e}`) }
   }
-  todo.forEach((n: any, i: number) => { const c = cs.get(i); Object.assign(n, c ? { score: c.score, why: c.why, scorer: 'claude' } : { ...lexScore(n.title), scorer: 'keywords' }) })
+  // no Claude: the free FinBERT model on the runner + event rules; if the model cannot load, the event rules alone
+  let fb = new Map<number, { pos: number; neg: number }>()
+  const rest = todo.filter((_: any, i: number) => !cs.has(i))
+  if (rest.length) { try { const m = await import('./dtk-news-finbert.ts'); fb = await m.finbertProbs(rest.map((n: any) => n.title)); if (m.lastError) errs.push(`finbert: ${m.lastError}`) } catch (e) { errs.push(`finbert: ${e}`) } }
+  let k = 0
+  todo.forEach((n: any, i: number) => {
+    const c = cs.get(i); if (c) { Object.assign(n, { score: c.score, why: c.why, scorer: 'claude' }); return }
+    const p = fb.get(k++); Object.assign(n, { ...newsScore(n.title, p ?? null), scorer: p ? 'finbert' : 'keywords' })
+  })
+  if (todo.length) st.news_scorer = cs.size ? 'claude' : fb.size ? 'finbert' : 'keywords'
 }
 for (const n of st.news ?? []) n.move = Object.fromEntries(n.coins.map((c: string) => [c, n.px0?.[c] && board[c] ? board[c].last / n.px0[c] - 1 : null]))
 
@@ -205,7 +213,7 @@ if (PAPER.mode === 'news') {
     for (const sym of n.coins) {
       const key = `${n.link}|${sym}`; if (done.has(key)) continue
       done.add(key)
-      const tag = `${n.score}/10 (${n.scorer === 'claude' ? 'Claude' : 'מילות מפתח'}) · ${n.title.slice(0, 80)}`
+      const tag = `${n.score}/10 (${n.scorer === 'claude' ? 'Claude' : n.scorer === 'finbert' ? 'FinBERT' : 'כללי אירוע'}) · ${n.title.slice(0, 80)}`
       if (openP().length >= NEWS.maxOpen) { pdec({ act: 'SKIP', sym, side: 'LONG', why: `כבר ${NEWS.maxOpen} פוזיציות פתוחות · ${tag}` }); continue }
       const b = board[sym]
       if (!b || !liquid(b)) { pdec({ act: 'SKIP', sym, side: 'LONG', why: `לא נזיל מספיק · ${tag}` }); continue }

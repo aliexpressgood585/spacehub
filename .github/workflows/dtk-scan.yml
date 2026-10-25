@@ -30,8 +30,10 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           mkdir -p /tmp/desk/scripts /tmp/desk/shared
-          if [ -n "$ANTHROPIC_API_KEY" ]; then (cd /tmp/desk && npm i -s --no-save --no-audit --no-fund @anthropic-ai/sdk@0.133.0) || echo "sdk install failed: keyword scorer"; fi
-          cp scripts/dtk-scan.ts scripts/dtk-news-claude.ts /tmp/desk/scripts/; cp shared/dtk.ts shared/binperps.ts shared/universe.ts shared/strategy.ts /tmp/desk/shared/
+          # news scorers: FinBERT (free, local, transformers.js) always; the Anthropic SDK only when the secret exists
+          pk="@huggingface/transformers@4.3.1"; [ -n "$ANTHROPIC_API_KEY" ] && pk="$pk @anthropic-ai/sdk@0.133.0"
+          (cd /tmp/desk && npm i -s --no-save --no-audit --no-fund $pk) || echo "npm install failed: event-rule scorer only"
+          cp scripts/dtk-scan.ts scripts/dtk-news-claude.ts scripts/dtk-news-finbert.ts /tmp/desk/scripts/; cp shared/dtk.ts shared/binperps.ts shared/universe.ts shared/strategy.ts /tmp/desk/shared/
           git config user.name dtk-bot
           git config user.email actions@github.com
           git fetch -q --depth=1 origin dtk-data || true

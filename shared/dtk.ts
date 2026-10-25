@@ -213,22 +213,44 @@ export function parseRss(xml: string): { title: string; link: string; at: number
 // AND t >= 1 (a +0.01R average is noise). era bump = the runner archives the old account and opens a fresh $1,000 one.
 // Era 3 (owner, 2026-10-25, from an Instagram reel): the demo trades crypto NEWS instead of the chart setups. Every new headline
 // that names a coin gets a sentiment score 1-10 (10 = euphoric, 1 = panic): Claude when ANTHROPIC_API_KEY is set on the runner,
-// else a fixed keyword list (scorer stored per headline). Buy at NEWS.minScore or higher, NEWS.stakePct of equity per trade (1x),
+// else the free FinBERT model on the runner + event rules, else the event rules alone (scorer stored per headline). Buy at NEWS.minScore or higher, NEWS.stakePct of equity per trade (1x),
 // sell on a NEWS.stopPct drop. The reel gave no other exit, so take-profit +6% (2:1) and 24 h are ours, stated on the page.
 // NOT PROVEN: the full-year Telegram grid (status/pmn-grid-365.txt) and the RSS news lab found no news-reaction rule that pays.
 // Owner 2026-10-25 ("everything, so it opens more trades"): score >= 8 counts (was > 8), headlines up to 60 min old (RSS lags),
 // 10 crypto Telegram channels next to the RSS feeds, coin names for ~85 coins.
 export const NEWS = { minScore: 8, stakePct: 0.05, stopPct: 0.03, targetPct: 0.06, holdMs: 24 * 3600_000, maxAgeMin: 60, maxOpen: 10, lev: 1,
   tg: ['WatcherGuru', 'cointelegraph', 'WuBlockchainEnglish', 'whale_alert_io', 'binance_announcements', 'CoinDeskGlobal', 'BWEnews', 'unfolded', 'coinbureau', 'lookonchainchannel'] }
-const POS = ['surg*', 'soar*', 'skyrocket*', 'rally', 'rallies', 'record high', 'all-time high', 'ath', 'breakout', 'bullish', 'approv*', 'etf', 'partnership', 'partners with', 'listing', 'lists', 'adopt', 'launch', 'upgrade', 'inflows', 'buyback', 'jumps', 'gains', 'pumps', 'spikes', 'wins', 'integrat*', 'acquir*', 'treasury', 'accumulat*']
-const NEG = ['hack', 'exploit', 'plunge', 'crash', 'lawsuit', 'sues', 'charges', 'ban', 'delist', 'outflows', 'liquidat*', 'bearish', 'falls', 'drops', 'slump', 'tumble', 'fraud', 'bankrupt', 'scam', 'dump', 'sell-off', 'selloff', 'warning', 'probe', 'investigat*', 'stolen', 'drained', 'rug']
-// Keyword fallback (a word = whole word with -s/-ed/-ing; 'x*' = prefix): 5.5 + 1.5 x (positive words - negative words), clamped 1..10. Two more positive than negative words = 8.5 (> 8).
-export function lexScore(title: string): { score: number; why: string } {
-  const t = ` ${title.toLowerCase()} `, hit = (w: string) => new RegExp(w.endsWith('*') ? `\\b${w.slice(0, -1)}` : `\\b${w}(s|es|ed|d|ing)?\\b`).test(t)
-  const p = POS.filter(hit), n = NEG.filter(hit)
-  const score = Math.max(1, Math.min(10, 5.5 + 1.5 * (p.length - n.length)))
-  return { score, why: `מילים: +${p.join(',').replace(/\*/g, '') || '0'} / −${n.join(',').replace(/\*/g, '') || '0'}` }
+// Event rules for crypto headlines: the strongest positive event minus the strongest negative one (not a sum, so piling up words
+// does not inflate a score). STRONG = a concrete event that moves a coin (exchange listing, ETF approval, hack, delisting);
+// MEDIUM = tone words. Forecasts and questions ("Bitcoin to $75K?", "analysts see") are capped at 7: they are opinions, not events.
+const EX = '(coinbase|binance|robinhood|upbit|bithumb|okx|bybit|kraken)'
+const RULES: [RegExp, number, string][] = [
+  [new RegExp(`\\b${EX}\\b.{0,40}\\b(lists|will list|to list|listing|adds)\\b|\\b(listed|listing) on ${EX}\\b`, 'i'), 3, 'רישום בבורסה'],
+  [/\betf\b.{0,30}\bapprov|\bapprov\w*\b.{0,30}\betf\b/i, 3, 'אישור ETF'],
+  [/\b(buys|bought|acquires|adds)\b.{0,40}\b(btc|bitcoin|eth|ether|sol|tokens?)\b.{0,30}\b(treasury|reserve)\b|\b(strategic|national) (bitcoin|crypto) reserve\b/i, 3, 'קנייה לרזרבה'],
+  [/\brecord (inflows|high)\b|\ball-time high\b|\bath\b/i, 1.5, 'שיא'],
+  [/\b(surg|soar|skyrocket|ralli|rally|jumps?|spikes?|pumps?|breaks? out|breakout)/i, 1.5, 'עלייה'],
+  [/\b(partner\w*|integrat\w*|launch\w*|upgrade\w*|inflows?|buyback|adopt\w*|approv\w*|wins?)\b/i, 1.5, 'חיובי'],
+  [/\b(hack\w*|exploit\w*|drain\w*|stolen|breach\w*|rug ?pull)\b/i, -3, 'פריצה'],
+  [/\b(delist\w*|bankrupt\w*|insolven\w*|fraud|ponzi)\b/i, -3, 'הסרה/פשיטת רגל'],
+  [/\b(sec|doj|cftc)\b.{0,20}\b(sues|charges|lawsuit)\b|\bbans?\b/i, -3, 'רגולטור נגד'],
+  [/\b(crash\w*|plung\w*|tumbl\w*|slump\w*|dump\w*|sell-?off|outflows?|liquidat\w*|falls?|drops?|halts?|lawsuit|probe|investigat\w*|scam\w*|warns?|warning)\b/i, -1.5, 'שלילי'],
+]
+const FORECAST = /\?|\bprice prediction\b|\bcould\b|\bmight\b|\bmay\b|\banalysts?\b|\bforecast\w*\b|\bpredict\w*\b|\bto \$\d|\bwhat comes next\b/i
+export function newsAdj(title: string): { adj: number; forecast: boolean; why: string } {
+  let pos = 0, neg = 0; const tags: string[] = []
+  for (const [re, w, tag] of RULES) if (re.test(title)) { tags.push(tag); if (w > 0) pos = Math.max(pos, w); else neg = Math.max(neg, -w) }
+  return { adj: pos - neg, forecast: FORECAST.test(title), why: tags.join(', ') || 'אין אירוע' }
 }
+// One score 1..10 from an optional model (positive / negative probabilities, FinBERT) plus the event rules. Without a model the base is 5.5.
+export function newsScore(title: string, probs?: { pos: number; neg: number } | null): { score: number; why: string } {
+  const a = newsAdj(title), base = probs ? 5.5 + 4.5 * (probs.pos - probs.neg) : 5.5
+  let score = Math.max(1, Math.min(10, base + a.adj))
+  if (a.forecast) score = Math.min(score, 7)
+  score = Math.round(score * 10) / 10
+  return { score, why: `${probs ? `טון ${probs.pos >= probs.neg ? '+' : '−'}${Math.round(Math.abs(probs.pos - probs.neg) * 100)}% · ` : ''}${a.why}${a.forecast ? ' · תחזית/שאלה (עד 7)' : ''}` }
+}
+export const lexScore = (title: string) => newsScore(title, null)
 export const PAPER = { start: 1000, era: 3, mode: 'news' as const, sizing: 'risk' as const, riskPct: 0.01, dayLossPct: 0.03, lev: 5, maxOpen: 4, perDay: 20, chaseR: 0.3, tmMinN: 30, tmMinR: 0.1, tmMinT: 1, tmDays: 20, maxMove24: 0.2 }
 // Time-machine gate: the demo account enters only a setup whose SAME rule on the SAME coin and side, replayed over the last
 // PAPER.tmDays days with full costs, fired >= tmMinN times, averaged >= tmMinR R with t >= tmMinT. No replay = no entry.

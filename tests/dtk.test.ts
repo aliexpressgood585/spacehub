@@ -1,6 +1,6 @@
 // "ערכת הדיי טריידר" rules (shared/dtk.ts): setups, the exit walk with costs, the replay, the Monte Carlo, budget and risk checks.
 import fs from 'node:fs'
-import { DTK, PAPER, NEWS, lexScore, tmGate, moverGate, budgetMargin, walkBook, exitTrigger, setupsAt, walk, replay, monteCarlo, budget, riskChecks, coinsIn, parseRss, parseTg, mulberry32, type Bar } from '../shared/dtk.ts'
+import { DTK, PAPER, NEWS, lexScore, newsScore, tmGate, moverGate, budgetMargin, walkBook, exitTrigger, setupsAt, walk, replay, monteCarlo, budget, riskChecks, coinsIn, parseRss, parseTg, mulberry32, type Bar } from '../shared/dtk.ts'
 let n = 0, bad = 0
 const ok = (c: boolean, m: string) => { n++; if (!c) { bad++; console.log('FAIL', m) } }
 const D0 = Date.UTC(2026, 9, 20), B = DTK.bar
@@ -78,8 +78,11 @@ ok(NEWS.maxAgeMin === 60 && NEWS.tg.length >= 8, 'news: headlines up to 60 min, 
 ok(coinsIn('Hedera and Bittensor rally', ['HBAR', 'TAO', 'BTC']).join() === 'HBAR,TAO' && coinsIn('Near the lows', ['NEAR']).length === 0, 'coin names: Hedera/Bittensor tagged, the word Near is not NEAR')
 { const tg = parseTg('<div class="tgme_widget_message_wrap x"><div data-post="WatcherGuru/123"><div class="tgme_widget_message_text js">JUST IN: Coinbase lists &#036;PEPE<br/>now</div><time datetime="2026-10-25T10:00:00+00:00"></time>', 'WatcherGuru')
   ok(tg.length === 1 && tg[0].title === 'JUST IN: Coinbase lists $PEPE now' && tg[0].link === 'https://t.me/WatcherGuru/123', 'Telegram preview parsed, entities decoded') }
-ok(lexScore('Bitcoin surges to record high as ETF inflows jump').score > 8 && lexScore('Solana exploit drains $10M').score < 5 && lexScore('XRP price analysis today').score === 5.5, 'keyword scorer: euphoric > 8, hack < 5, neutral 5.5')
-ok(lexScore('Bank of America report').score === 5.5 && lexScore('Exchange bans BTC').score < 5, 'keyword scorer matches whole words (bank is not ban)')
+ok(newsScore('Coinbase lists PEPE', { pos: 0.1, neg: 0.06 }).score >= 8 && newsScore('SEC approves spot Solana ETF', { pos: 0.17, neg: 0.01 }).score >= 8, 'listing / ETF approval: buy even when FinBERT says neutral')
+ok(newsScore('Solana exploit drains $10M', { pos: 0.15, neg: 0.03 }).score < 4 && newsScore('Binance will delist ZEC', { pos: 0.06, neg: 0.04 }).score < 4, 'hack / delisting: low score even when FinBERT says neutral')
+ok(newsScore('Bitcoin to $75K Before a Massive Rally? Analysts See a Familiar Setup', { pos: 0.9, neg: 0 }).score <= 7, 'forecasts and questions capped at 7')
+ok(lexScore('XRP price analysis today').score === 5.5 && lexScore('Bank of America report').score === 5.5 && lexScore('Exchange bans BTC').score < 4, 'rules alone: neutral 5.5, whole words (bank is not ban)')
+ok(newsScore('Bitcoin surges, rallies, jumps, soars', null).score === 7, 'stacked tone words do not add up (strongest event only)')
 { const s = fs.readFileSync('scripts/dtk-scan.ts', 'utf8'), a = s.indexOf("PAPER.mode === 'news'"), b = s.indexOf('n.score >= NEWS.minScore'), c = s.indexOf('moverGate(b.chg)', b), d = s.indexOf('await book(sym)', b)
   ok(a > 0 && b > a && c > b && d > c && s.includes('NEWS.stakePct') && s.includes('NEWS.stopPct'), 'news entries: score gate, then mover gate, then the real book; 5% stake, -3% stop')
   ok(s.includes("import('./dtk-news-claude.ts')") && s.includes('process.env.ANTHROPIC_API_KEY') && !/sk-ant-/.test(s + fs.readFileSync('scripts/dtk-news-claude.ts', 'utf8')), 'Claude scorer only with a runner secret, no key in code') }
