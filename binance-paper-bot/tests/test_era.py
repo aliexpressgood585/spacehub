@@ -1,14 +1,19 @@
 """Era-2 reset, $100 min-notional sizing, disabled rules, and the drawdown halt."""
+import io
 import json
+from contextlib import redirect_stdout
+from datetime import datetime, timezone
 
-from bot.clock import opens_after
+from bot.clock import closed_bar_open, opens_after
 from bot.config import load_config
-from bot.desk import account_is_fresh, archive_path_for, consume_era, strategy_specs
+from bot.desk import (account_is_fresh, archive_path_for, consume_era, due_full,
+                      run, run_stops, should_commit, strategy_specs, tick, _print_cycle)
 from bot.engine import TradingEngine
 from bot.execution.base import Order
 from bot.risk import RiskManager
 from bot.strategies.base import Signal
 from bot.symbols import SymbolInfo
+from bot.universe import is_current
 from tests.test_engine import AlwaysLong
 from tests.test_math import make_ex
 
@@ -25,6 +30,9 @@ def test_era_reset_archives_once_and_the_next_cycle_keeps_the_book(tmp_path):
         "signals": [{"symbol": "ETHUSDT"}],
         "equity_curve": [{"equity": 9800}],
         "last_1m_open": 1, "last_1h_open": 1,
+        "universe": [{"symbol": "BTCUSDT", "rank": 1, "median_volume": 1.0, "slippage_bps": 3}],
+        "universe_ranked_at": "2026-10-18T12:47:27Z",
+        "universe_month": "2026-10",
         "catchup": {"minutes": 99999, "replay": True},
         "brackets": {"BTCUSDT": [{"max_lev": 20}]},
         "engine": {
@@ -50,12 +58,18 @@ def test_era_reset_archives_once_and_the_next_cycle_keeps_the_book(tmp_path):
     assert state["positions"] == [] and state["trades"] == []
     assert state["signals"] == [] and state["equity_curve"] == []
     assert state["brackets"] == {}
-    assert state["last_1m_open"] is None and state["last_1h_open"] is None
+    assert state["last_1m_open"] == closed_bar_open(now, 60_000)
+    assert state["last_1h_open"] == closed_bar_open(now, 3_600_000)
+    assert state["last_15m_open"] == closed_bar_open(now, 900_000)
+    assert due_full(now, state) is False
+    assert state["universe"][0]["symbol"] == "BTCUSDT"
+    assert state["universe_month"] == "2026-10"
     assert state["catchup"]["replay"] is False and state["catchup"]["minutes"] == 0
     assert state["engine"]["risk"]["owner_halt"] == {}
     assert state["engine"]["manual"] is None
     assert state["engine"]["funding_done"] == {}
-    assert "exchange" not in state or not (state.get("exchange") or {}).get("orders")
+    assert state["exchange"]["wallet"] == 100.0
+    assert state["exchange"]["positions"] == {} and state["exchange"]["orders"] == []
     ev = [e for e in state["events"] if e["type"] == "ERA_RESET"]
     assert len(ev) == 1 and ev[0]["time"] and ev[0]["ts"] == now
     assert opens_after(state["last_1m_open"], now, 60_000) == []
@@ -73,6 +87,112 @@ def test_era_reset_archives_once_and_the_next_cycle_keeps_the_book(tmp_path):
     assert reset2 is False
     assert kept["wallet"] == 101.0 and kept["positions"][0]["symbol"] == "ETHUSDT"
     assert open(arch, "rb").read() == raw
+
+
+def _stale_book(now):
+    """Shape of the live era-less book: hour cursor behind, October universe."""
+    latest_h = closed_bar_open(now, 3_600_000)
+    return {
+        "wallet": 9368.66, "equity": 9468.23, "peak_equity": 10164.55,
+        "paper": True, "live_trading": False,
+        "starting_balance": 10000.0,
+        "positions": [{"symbol": "BTCUSDT", "side": "LONG", "qty": 0.01}],
+        "trades": [{"net_pnl": 1.0}],
+        "trades_closed": 16,
+        "events": [{"type": "OPEN", "ts": 1, "symbol": "", "msg": "old"}],
+        "last_1m_open": closed_bar_open(now, 60_000) - 60_000,
+        "last_1h_open": latest_h - 2 * 3_600_000,
+        "last_15m_open": closed_bar_open(now, 900_000) - 900_000,
+        "universe": [
+            {"symbol": "BTCUSDT", "rank": 1, "median_volume": 1.0e9, "slippage_bps": 1.5},
+            {"symbol": "ETHUSDT", "rank": 2, "median_volume": 1.0e8, "slippage_bps": 2.0},
+        ],
+        "universe_ranked_at": "2026-10-18T12:47:27Z",
+        "universe_month": "2026-10",
+        "universe_reused": True,
+        "symbols": ["BTCUSDT", "ETHUSDT"],
+        "price_source": {"id": "binance", "endpoint": "https://www.binance.com",
+                         "filters": "cache"},
+        "exchange": {
+            "wallet": 9368.66,
+            "positions": {"BTCUSDT": {"qty": 0.01}},
+            "orders": [{"id": 1, "symbol": "BTCUSDT", "type": "STOP_MARKET"}],
+        },
+    }
+
+
+def test_era_tick_writes_the_book_without_ranking(tmp_path, monkeypatch):
+    """The first era-2 tick must not call connect or rank_live.
+
+    On the live file, dropping the universe made choose_universe rank every
+    eligible USDT-M perpetual. That fetch outlives the 90s tick kill, the
+    workflow skips the commit, and the next minute starts the rank over.
+    """
+    def refuse(*_a, **_k):
+        raise AssertionError("era reset must not touch the network")
+
+    monkeypatch.setattr("bot.desk.connect", refuse)
+    monkeypatch.setattr("bot.desk.rank_live", refuse)
+    monkeypatch.setattr("bot.desk.fetch_exchange_info", refuse)
+
+    now = int(datetime(2026, 10, 25, 11, 5, tzinfo=timezone.utc).timestamp() * 1000)
+    old = _stale_book(now)
+    assert due_full(now, old) is True
+    cfg = load_config()
+
+    for fn in (tick, run, run_stops):
+        path = tmp_path / fn.__name__ / "state.json"
+        path.parent.mkdir(parents=True)
+        path.write_text(json.dumps(old))
+        if fn is tick:
+            snap = fn(str(path), now=now, run_id="test-run")
+        else:
+            snap = fn(str(path), now)
+        assert snap["era"] == 2
+        assert snap["paper"] is True and snap["live_trading"] is False
+        assert snap["wallet"] == snap["equity"] == snap["peak_equity"] == 100.0
+        assert snap["positions"] == [] and snap["trades_closed"] == 0
+        assert snap["exchange"]["orders"] == [] and snap["exchange"]["positions"] == {}
+        assert [r["symbol"] for r in snap["universe"]] == ["BTCUSDT", "ETHUSDT"]
+        assert is_current(snap, now) is True
+        assert due_full(now, snap) is False
+        assert opens_after(snap["last_1m_open"], now, 60_000) == []
+        assert any(e["type"] == "ERA_RESET" and e["ts"] == now for e in snap["events"])
+        arch = archive_path_for(str(path))
+        saved = json.loads(open(arch).read())
+        assert saved["wallet"] == 9368.66
+        assert saved["positions"][0]["symbol"] == "BTCUSDT"
+        on_disk = json.loads(path.read_text())
+        assert on_disk["era"] == 2 and on_disk["equity"] == 100.0
+        kept, reset2 = consume_era(str(path), on_disk, cfg, now + 60_000)
+        assert reset2 is False and kept["equity"] == 100.0
+
+    path = tmp_path / "tick" / "state.json"
+    snap = json.loads(path.read_text())
+    assert snap["loop"]["mode"] == "era" and snap["loop"]["status"] == "running"
+    assert due_full(now + 60_000, snap) is False
+    assert should_commit("era", old, snap) is True
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        _print_cycle(snap, commit=should_commit(snap["loop"]["mode"], old, snap))
+    printed = buf.getvalue()
+    assert "commit=yes" in printed
+    assert "equity=100.00" in printed and "positions=0" in printed
+
+    raw = open(archive_path_for(str(path)), "rb").read()
+
+    def network(*_a, **_k):
+        raise RuntimeError("network")
+
+    monkeypatch.setattr("bot.desk.connect", network)
+    try:
+        tick(str(path), now=now + 60_000, run_id="test-run")
+        raised = False
+    except RuntimeError as e:
+        raised = str(e) == "network"
+    assert raised is True
+    assert json.loads(path.read_text())["era"] == 2
+    assert open(archive_path_for(str(path)), "rb").read() == raw
 
 
 def _size(balance, sl, leverage, symbol="BTCUSDT", min_notional=100.0, step=0.001):
