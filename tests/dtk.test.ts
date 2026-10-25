@@ -1,6 +1,6 @@
 // "ערכת הדיי טריידר" rules (shared/dtk.ts): setups, the exit walk with costs, the replay, the Monte Carlo, budget and risk checks.
 import fs from 'node:fs'
-import { DTK, PAPER, tmGate, budgetMargin, walkBook, exitTrigger, setupsAt, walk, replay, monteCarlo, budget, riskChecks, coinsIn, parseRss, mulberry32, type Bar } from '../shared/dtk.ts'
+import { DTK, PAPER, tmGate, moverGate, budgetMargin, walkBook, exitTrigger, setupsAt, walk, replay, monteCarlo, budget, riskChecks, coinsIn, parseRss, mulberry32, type Bar } from '../shared/dtk.ts'
 let n = 0, bad = 0
 const ok = (c: boolean, m: string) => { n++; if (!c) { bad++; console.log('FAIL', m) } }
 const D0 = Date.UTC(2026, 9, 20), B = DTK.bar
@@ -69,6 +69,9 @@ ok(exitTrigger([m1b(0, 100, 101.5, 99.5)], 'SHORT', 101, 99, 0)?.why === 'STOP',
 ok(!tmGate(null).ok && !tmGate({ n: 29, avgR: 0.5, t: 3 }).ok && !tmGate({ n: 40, avgR: 0.05, t: 3 }).ok && !tmGate({ n: 40, avgR: 0.3, t: 0.8 }).ok && tmGate({ n: 30, avgR: 0.1, t: 1 }).ok, 'time-machine gate: >= 30 firings, avg >= +0.10R and t >= 1; unknown is not a pass')
 { const src = fs.readFileSync('scripts/dtk-scan.ts', 'utf8'), a = src.indexOf('tmGate(s.replay)\n    if (!tg.ok)'), b = src.indexOf('riskChecks(plan')
   ok(a > 0 && a < b, 'demo entries pass the time-machine gate before the risk manager') }
+ok(!moverGate(0.6).ok && !moverGate(-0.45).ok && !moverGate(0.2).ok && moverGate(0.19).ok && moverGate(-0.1).ok && moverGate(null).ok, 'mover gate: |24h move| >= 20% is skipped (v124), unknown passes')
+{ const src = fs.readFileSync('scripts/dtk-scan.ts', 'utf8'), a = src.indexOf('moverGate(b?.chg)'), b = src.indexOf('riskChecks(plan')
+  ok(a > 0 && a < b, 'demo entries pass the mover gate before the risk manager') }
 ok(PAPER.start === 1000 && PAPER.era === 2 && PAPER.sizing === 'risk' && PAPER.riskPct === 0.01 && PAPER.dayLossPct === 0.03, 'era 2: $1,000 demo account, 1% risk per trade, 3% day stop')
 { const m = budgetMargin({ side: 'LONG', entry: 100, stop: 98, target: 103 }, 250, 5)
   ok(Math.abs(m.notional - 1250) < 1e-9 && Math.abs(m.margin - 250) < 1e-9 && Math.abs(m.lossAtStop - (25 + 1250 * 0.0016)) < 1e-9 && Math.abs(m.liq - 100 * (1 - 0.195)) < 1e-9, 'budgetMargin: notional = margin x lev, loss at stop incl. costs, isolated liquidation') }

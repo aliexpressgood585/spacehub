@@ -4,7 +4,7 @@
 // that opens and closes positions by itself on live OKX books (taker fees, book-walk slippage, real funding). Writes dtk/state.json.
 // READ-ONLY toward any exchange: it never places a real order. Usage: node --experimental-strip-types scripts/dtk-scan.ts dtk/state.json
 import fs from 'node:fs'
-import { DTK, PAPER, KIND_HE, tmGate, budget, setupsAt, replay, monteCarlo, atr, coinsIn, parseRss, riskChecks, walkBook, exitTrigger, type Bar } from '../shared/dtk.ts'
+import { DTK, PAPER, KIND_HE, tmGate, moverGate, budget, setupsAt, replay, monteCarlo, atr, coinsIn, parseRss, riskChecks, walkBook, exitTrigger, type Bar } from '../shared/dtk.ts'
 import { refreshUniverse, universeDue, liquid, limiter, pool } from '../shared/binperps.ts'
 
 const FILE = process.argv[2] ?? 'dtk/state.json', OKX = 'https://www.okx.com/api/v5'
@@ -183,6 +183,8 @@ if (scanned) {
     const tg = tmGate(s.replay)
     if (!tg.ok) { pdec({ act: 'SKIP', sym: s.sym, side: s.side, why: tg.why }); continue }
     const b = board[s.sym], side = s.side as 'LONG' | 'SHORT', g = sg(side)
+    const mg = moverGate(b?.chg)
+    if (!mg.ok) { pdec({ act: 'SKIP', sym: s.sym, side, why: mg.why }); continue }
     if (openP().some((t: any) => t.sym === s.sym)) { pdec({ act: 'SKIP', sym: s.sym, side, why: 'כבר פתוחה פוזיציה במטבע' }); continue }
     const live = side === 'LONG' ? b.ask : b.bid, r = Math.abs(s.entry - s.stop), drift = g * (live - s.entry) / r
     if (!(live > 0) || g * (live - s.stop) <= 0 || g * (live - s.target) >= 0 || drift > PAPER.chaseR) { pdec({ act: 'SKIP', sym: s.sym, side, why: `המחיר ברח מהכניסה (${drift.toFixed(2)}R)` }); continue }
