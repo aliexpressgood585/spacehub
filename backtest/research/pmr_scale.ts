@@ -60,12 +60,13 @@ console.log(`pmr scale what-if — ${new Date(NOW).toISOString()} — ${all.leng
 console.log('expected reward per day = pool x our share of the qualifying book (competitors frozen at today\'s book, our quotes invisible to them)\n')
 console.log('  capital  markets  used   $/day   %/day   worst market inventory   all markets inventory')
 const res: any[] = []
-for (const C of [1000, 2000, 5000, 10000, 25000]) for (const M of [5, 10, 20]) {
+const CS = (process.env.SCALE_C ?? '1000,2000,5000,10000,25000').split(',').map(Number), MS = (process.env.SCALE_M ?? '5,10,20').split(',').map(Number)
+for (const C of CS) for (const M of MS) {
   const r = scenario(C, M); res.push(r)
   console.log(`  ${('$' + C.toLocaleString()).padStart(7)}  ${String(M).padStart(5)}  ${String(r.n).padStart(5)}  ${r.day.toFixed(0).padStart(6)}  ${r.pct.toFixed(1).padStart(6)}%   $${r.maxInv.toFixed(0).padStart(6)} (${(100 * r.maxInv / C).toFixed(0)}%)          $${r.sumInv.toFixed(0)} (${(100 * r.sumInv / C).toFixed(0)}%)`)
 }
 for (const C of [1000, 5000, 25000]) {
-  const r = res.find((x) => x.capital === C && x.M === 10)!
+  const r = res.find((x) => x.capital === C && x.M === 10); if (!r) continue
   console.log(`\n-- $${C.toLocaleString()}, 10 markets: top picks --`)
   for (const p of r.pick.slice(0, 10)) console.log(`  pool $${String(Math.round(p.rate)).padStart(5)}/d  share ${(100 * p.share).toFixed(0).padStart(3)}%  exp $${p.exp.toFixed(0).padStart(4)}/d  lock $${p.lock.toFixed(0).padStart(5)}  ${p.q.slice(0, 70)}`)
 }
