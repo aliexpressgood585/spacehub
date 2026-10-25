@@ -62,7 +62,7 @@ function EqChart({ pts, start }: { pts: J[]; start: number }) {
     <line x1={0} x2={W} y1={y(start)} y2={y(start)} stroke="#2a3a55" strokeDasharray="4 4" />
     <path d={pts.map((p, i) => `${i ? 'L' : 'M'}${x(p).toFixed(1)},${y(p.eq).toFixed(1)}`).join('')} fill="none" stroke={ys[ys.length - 1] >= start ? '#3ddc97' : '#ff6b6b'} strokeWidth={2} vectorEffect="non-scaling-stroke" /></svg>
 }
-const WHY: Record<string, string> = { STOP: 'סטופ', TARGET: 'יעד', TIME: 'סוף זמן (4 ש׳)' }
+const WHY: Record<string, string> = { STOP: 'סטופ', TARGET: 'יעד', TIME: 'סוף זמן' }
 function Demo({ P, live }: { P: J; live: Record<string, { last: number; bid: number; ask: number }> }) {
   if (!P) return <div style={box}><Note>החשבון ייפתח בסריקה הראשונה של הסורק (כל נר 5 דקות).</Note></div>
   const open = P.trades.filter((t: J) => t.status === 'OPEN'), closed = P.trades.filter((t: J) => t.status === 'CLOSED')
@@ -75,7 +75,7 @@ function Demo({ P, live }: { P: J; live: Record<string, { last: number; bid: num
       <Row><Stat k="שווי החשבון (חי)" v={usd(eq)} c={col(eq - P.start)} /><Stat k="שינוי" v={pct(eq / P.start - 1)} c={col(eq - P.start)} /><Stat k="מזומן פנוי" v={usd(P.cash)} /><Stat k="ביטחון נעול" v={usd(margin)} />
         <Stat k="רווח/הפסד ממומש" v={usd(real)} c={col(real)} /><Stat k="עמלות ששולמו" v={usd(-P.fees)} c="#ff6b6b" /><Stat k="מימון" v={usd(-P.funding)} c={col(-P.funding)} /><Stat k="עסקאות" v={`${closed.length} · ${closed.length ? Math.round(wins / closed.length * 100) : 0}% הצלחה`} /></Row>
       <div style={{ marginTop: 10 }}><EqChart pts={[...(P.equity ?? []), { t: new Date().toISOString(), eq }]} start={P.start} /></div>
-      <Note>חשבון דמו של $1,000 שנסחר לבד, על מחירים חיים של אותם מטבעות שנסחרים ב-Binance Futures. כל נר 5 דקות הסורק מוצא סטאפים. קודם מכונת הזמן: נכנסים רק אם אותו כלל, על אותו מטבע ובאותו כיוון, נדלק לפחות 30 פעמים ב-20 הימים האחרונים, הרוויח בממוצע לפחות 0.1R אחרי עמלות, ובאופן מובהק (t ≥ 1). מטבע שזז 20% ומעלה ב-24 שעות (למעלה או למטה) לא נסחר: בדיקה של 18,796 מקרים כאלה בשלוש שנים לא מצאה כיוון שמרוויח אחרי עמלות. אחר כך מנהל הסיכונים מסנן: עלויות עד 25% מהסיכון, מרווח, נזילות, מימון, חיסול רחוק לפחות פי 2 מהסטופ, הפסד יומי עד 3% ועד 20 עסקאות ביום. הגודל: סטופ שנפגע מפסיד 1% מהחשבון כולל עמלות, במינוף 5x מבודד. (חשבון קודם, שסחר בכל החשבון פי 5, ירד ל-$627 אחרי 13 עסקאות ונשמר בארכיון.) העסקה נפתחת במחיר הספר החי (כולל עומק הספר). היציאה בסטופ, ביעד או אחרי 4 שעות, לפי נרות של דקה, כמו פקודה שיושבת בבורסה. עמלת taker 0.05% לכל צד, ומימון אמיתי בכל סליקה. עד 4 פוזיציות במקביל. שום כסף אמיתי.</Note>
+      <Note>חשבון דמו של $1,000 שנסחר לפי חדשות (תקופה 3, האסטרטגיה מהסרטון): כל כותרת קריפטו חדשה מ-12 אתרי חדשות שמזכירה מטבע מקבלת ציון 1-10 (10 = אופוריה, 1 = פאניקה), {P.scorer === 'claude' ? 'על ידי Claude' : 'כרגע לפי רשימת מילות מפתח (Claude ייכנס אם יוגדר מפתח API כסוד ב-GitHub)'}. קונים רק ציון מעל 8, רק כותרת בת עד 30 דקות, 5% מהחשבון לעסקה, בלי מינוף. יציאה: ירידה של 3% (סטופ), עלייה של 6% (יעד, שלנו, הסרטון לא נתן יעד) או אחרי 24 שעות. מטבע שזז 20% ומעלה ב-24 שעות לא נקנה (בדיקה של 18,796 מקרים). מחיר הספר החי, עמלת taker 0.05% לכל צד, עד 10 פוזיציות. לא מוכח: המחקר שלנו על חדשות (שנה של טלגרם, מעבדת RSS) לא מצא כלל רווחי. התקופה הקודמת (סטאפים מהגרף) נשמרה בארכיון. שום כסף אמיתי.</Note>
     </div>
     <div style={box}><h3 style={{ fontSize: 15, marginBottom: 6 }}>פוזיציות פתוחות ({open.length}/{P.rules?.maxOpen ?? 4})</h3>
       {open.length ? <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse' }}><thead><tr>{['מטבע', 'כיוון', 'סטאפ', 'כניסה', 'עכשיו', 'סטופ', 'יעד', 'שווי', 'ביטחון', 'רווח/הפסד', 'R', 'זמן', 'נסגר עד'].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
@@ -204,7 +204,7 @@ function App() {
     </div>}
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>{TABS.map((t) => <button key={t} style={btn(tab === t)} onClick={() => setTab(t)}>{t}</button>)}</div>
 
-    {tab === 'תיק דמו $1,000' && <Demo P={st.paper} live={live} />}
+    {tab === 'תיק דמו $1,000' && <Demo P={st.paper && { ...st.paper, scorer: st.news_scorer }} live={live} />}
 
     {tab === 'סורק גרפים' && <div style={box}>
       <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
@@ -227,9 +227,10 @@ function App() {
       {(st.news ?? []).map((n: J) => <div key={n.link} style={{ padding: '8px 0', borderBottom: '1px solid #122036' }}>
         <div style={{ color: '#8fa3b8', fontSize: 12 }}>{n.src} · {il(n.at)} · לפני {ago(n.at)}</div>
         <a href={n.link} target="_blank" rel="noreferrer" style={{ color: '#dfe8f5', textDecoration: 'none' }}>{n.title}</a>
-        {n.coins?.length ? <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>{n.coins.map((c: string) => <span key={c} style={{ background: '#13203a', borderRadius: 6, padding: '1px 6px', fontSize: 12 }}>{c} <span style={{ color: col(n.move?.[c]) }}>{pct(n.move?.[c])}</span> מאז</span>)}</div> : null}
+        {n.coins?.length ? <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>{n.coins.map((c: string) => <span key={c} style={{ background: '#13203a', borderRadius: 6, padding: '1px 6px', fontSize: 12 }}>{c} <span style={{ color: col(n.move?.[c]) }}>{pct(n.move?.[c])}</span> מאז</span>)}
+          {n.score != null ? <span title={n.why} style={{ background: n.score > 8 ? '#123a2a' : n.score < 4 ? '#3a1520' : '#13203a', borderRadius: 6, padding: '1px 6px', fontSize: 12 }}>ציון {n.score}/10 · {n.scorer === 'claude' ? 'Claude' : 'מילים'}</span> : null}</div> : null}
       </div>)}
-      <Note>Cointelegraph, Decrypt, CoinDesk, כל 5 דקות. מטבע מסומן כשהכותרת מזכירה אותו ($TICKER או שם). "מאז" = שינוי המחיר מאז שהסורק ראה את הידיעה. מחקר שלנו על חדשות (פולי חדשות, שנה של טלגרם) לא מצא כלל רווחי לרכוב על חדשות: זה מידע, לא אות.</Note>
+      <Note>12 אתרי חדשות קריפטו, כל 5 דקות. כל כותרת שמזכירה מטבע מקבלת ציון 1-10; מעל 8 = תיק הדמו קונה. מטבע מסומן כשהכותרת מזכירה אותו ($TICKER או שם). "מאז" = שינוי המחיר מאז שהסורק ראה את הידיעה. מחקר שלנו על חדשות (פולי חדשות, שנה של טלגרם) לא מצא כלל רווחי לרכוב על חדשות: זה מידע, לא אות.</Note>
     </div>}
 
     {tab === 'תזמון כניסה' && <div style={box}>{!sel ? <Note>בחר סטאפ בסורק.</Note> : <>

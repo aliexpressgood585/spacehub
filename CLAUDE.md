@@ -1027,6 +1027,16 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   funding, 2021-03..2026-09, IS to 2025-02-02. 51 rows, PASS 0. Strongest IS = DVOL 7d rise -> follow (IS t +2.0..+2.8 on ETH and
   the basket) FLIPPED OOS (t -1.3..-2.1): the IS winner was a regime artefact. VRP follow IS t ~1.5 -> OOS ~0. Only stablecoin 7d
   growth -> long ETH is positive in both halves (IS +10 bps/day t 1.2, OOS +14..+15 t 1.1-1.5), below the bar; noted, not deployed.
+- 2026-10-25 dtk ERA 3 = NEWS SENTIMENT (owner, from an Instagram reel: "turn the coin bot into this strategy and reset to $1,000").
+  Era 2 archived to dtk/state-v2.json by the runner; fresh $1,000. Rule (shared/dtk.ts NEWS, scripts/dtk-scan.ts): 12 crypto RSS feeds
+  (Cointelegraph, Decrypt, CoinDesk, The Block, CryptoSlate, CryptoPotato, NewsBTC, U.Today, crypto.news, Cryptonews, Daily Hodl, BeInCrypto;
+  Bitcoinist 403) every 5 min; each headline naming a coin gets a score 1-10 (10 euphoric / 1 panic): Claude (scripts/dtk-news-claude.ts,
+  claude-opus-5-5, effort low, structured JSON, server-side fallbacks) ONLY if the repo secret ANTHROPIC_API_KEY exists (workflow installs
+  @anthropic-ai/sdk@0.133.0), else a keyword scorer lexScore (5.5 + 1.5 x (pos - neg)). BUY (long only) when score > 8 and the headline is
+  <= 30 min old: 5% of equity, 1x, live OKX book walk + 3 bps + taker; stop -3% (reel), target +6% and 24 h (ours, the reel gave no exit);
+  liquid coins only, mover gate (|24h| >= 20% skipped, v124), one position per coin, <= 10 open; each headline x coin used once. Setup entries
+  and the time machine still run for the page but no longer trade. st.news_scorer shows which scorer is live. Simulated score-9 BTC headline
+  opened $50 @ live ask with stop/target as specified. NOT PROVEN: pmn-grid-365 and the RSS lab found no news rule that pays. tests/dtk 49/49.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the

@@ -191,7 +191,22 @@ export function parseRss(xml: string): { title: string; link: string; at: number
 // (APR, a wide stop at full size) cost -$335 = a third of the account while the rule itself netted about 0R. Back to risk-based
 // sizing: a stop-out incl. fees costs riskPct of equity, day stop 3%. The time-machine gate is stricter: >= 30 firings, avg >= +0.10R
 // AND t >= 1 (a +0.01R average is noise). era bump = the runner archives the old account and opens a fresh $1,000 one.
-export const PAPER = { start: 1000, era: 2, sizing: 'risk' as const, riskPct: 0.01, dayLossPct: 0.03, lev: 5, maxOpen: 4, perDay: 20, chaseR: 0.3, tmMinN: 30, tmMinR: 0.1, tmMinT: 1, tmDays: 20, maxMove24: 0.2 }
+// Era 3 (owner, 2026-10-25, from an Instagram reel): the demo trades crypto NEWS instead of the chart setups. Every new headline
+// that names a coin gets a sentiment score 1-10 (10 = euphoric, 1 = panic): Claude when ANTHROPIC_API_KEY is set on the runner,
+// else a fixed keyword list (scorer stored per headline). Buy only above NEWS.minScore, NEWS.stakePct of equity per trade (1x),
+// sell on a NEWS.stopPct drop. The reel gave no other exit, so take-profit +6% (2:1) and 24 h are ours, stated on the page.
+// NOT PROVEN: the full-year Telegram grid (status/pmn-grid-365.txt) and the RSS news lab found no news-reaction rule that pays.
+export const NEWS = { minScore: 8, stakePct: 0.05, stopPct: 0.03, targetPct: 0.06, holdMs: 24 * 3600_000, maxAgeMin: 30, maxOpen: 10, lev: 1 }
+const POS = ['surg*', 'soar*', 'skyrocket*', 'rally', 'rallies', 'record high', 'all-time high', 'ath', 'breakout', 'bullish', 'approv*', 'etf', 'partnership', 'partners with', 'listing', 'lists', 'adopt', 'launch', 'upgrade', 'inflows', 'buyback', 'jumps', 'gains', 'pumps', 'spikes', 'wins', 'integrat*', 'acquir*', 'treasury', 'accumulat*']
+const NEG = ['hack', 'exploit', 'plunge', 'crash', 'lawsuit', 'sues', 'charges', 'ban', 'delist', 'outflows', 'liquidat*', 'bearish', 'falls', 'drops', 'slump', 'tumble', 'fraud', 'bankrupt', 'scam', 'dump', 'sell-off', 'selloff', 'warning', 'probe', 'investigat*', 'stolen', 'drained', 'rug']
+// Keyword fallback (a word = whole word with -s/-ed/-ing; 'x*' = prefix): 5.5 + 1.5 x (positive words - negative words), clamped 1..10. Two more positive than negative words = 8.5 (> 8).
+export function lexScore(title: string): { score: number; why: string } {
+  const t = ` ${title.toLowerCase()} `, hit = (w: string) => new RegExp(w.endsWith('*') ? `\\b${w.slice(0, -1)}` : `\\b${w}(s|es|ed|d|ing)?\\b`).test(t)
+  const p = POS.filter(hit), n = NEG.filter(hit)
+  const score = Math.max(1, Math.min(10, 5.5 + 1.5 * (p.length - n.length)))
+  return { score, why: `מילים: +${p.join(',').replace(/\*/g, '') || '0'} / −${n.join(',').replace(/\*/g, '') || '0'}` }
+}
+export const PAPER = { start: 1000, era: 3, mode: 'news' as const, sizing: 'risk' as const, riskPct: 0.01, dayLossPct: 0.03, lev: 5, maxOpen: 4, perDay: 20, chaseR: 0.3, tmMinN: 30, tmMinR: 0.1, tmMinT: 1, tmDays: 20, maxMove24: 0.2 }
 // Time-machine gate: the demo account enters only a setup whose SAME rule on the SAME coin and side, replayed over the last
 // PAPER.tmDays days with full costs, fired >= tmMinN times, averaged >= tmMinR R with t >= tmMinT. No replay = no entry.
 // NB a positive replay is a filter on past luck as much as on edge; the demo account is the out-of-sample check.

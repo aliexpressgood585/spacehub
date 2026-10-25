@@ -1,6 +1,6 @@
 // "ערכת הדיי טריידר" rules (shared/dtk.ts): setups, the exit walk with costs, the replay, the Monte Carlo, budget and risk checks.
 import fs from 'node:fs'
-import { DTK, PAPER, tmGate, moverGate, budgetMargin, walkBook, exitTrigger, setupsAt, walk, replay, monteCarlo, budget, riskChecks, coinsIn, parseRss, mulberry32, type Bar } from '../shared/dtk.ts'
+import { DTK, PAPER, NEWS, lexScore, tmGate, moverGate, budgetMargin, walkBook, exitTrigger, setupsAt, walk, replay, monteCarlo, budget, riskChecks, coinsIn, parseRss, mulberry32, type Bar } from '../shared/dtk.ts'
 let n = 0, bad = 0
 const ok = (c: boolean, m: string) => { n++; if (!c) { bad++; console.log('FAIL', m) } }
 const D0 = Date.UTC(2026, 9, 20), B = DTK.bar
@@ -72,7 +72,13 @@ ok(!tmGate(null).ok && !tmGate({ n: 29, avgR: 0.5, t: 3 }).ok && !tmGate({ n: 40
 ok(!moverGate(0.6).ok && !moverGate(-0.45).ok && !moverGate(0.2).ok && moverGate(0.19).ok && moverGate(-0.1).ok && moverGate(null).ok, 'mover gate: |24h move| >= 20% is skipped (v124), unknown passes')
 { const src = fs.readFileSync('scripts/dtk-scan.ts', 'utf8'), a = src.indexOf('moverGate(b?.chg)'), b = src.indexOf('riskChecks(plan')
   ok(a > 0 && a < b, 'demo entries pass the mover gate before the risk manager') }
-ok(PAPER.start === 1000 && PAPER.era === 2 && PAPER.sizing === 'risk' && PAPER.riskPct === 0.01 && PAPER.dayLossPct === 0.03, 'era 2: $1,000 demo account, 1% risk per trade, 3% day stop')
+ok(PAPER.start === 1000 && PAPER.era === 3 && PAPER.mode === 'news', 'era 3: fresh $1,000 demo account trading the news')
+ok(NEWS.minScore === 8 && NEWS.stakePct === 0.05 && NEWS.stopPct === 0.03 && NEWS.lev === 1, 'news rule: buy above 8/10, 5% of equity, stop -3%, no leverage')
+ok(lexScore('Bitcoin surges to record high as ETF inflows jump').score > 8 && lexScore('Solana exploit drains $10M').score < 5 && lexScore('XRP price analysis today').score === 5.5, 'keyword scorer: euphoric > 8, hack < 5, neutral 5.5')
+ok(lexScore('Bank of America report').score === 5.5 && lexScore('Exchange bans BTC').score < 5, 'keyword scorer matches whole words (bank is not ban)')
+{ const s = fs.readFileSync('scripts/dtk-scan.ts', 'utf8'), a = s.indexOf("PAPER.mode === 'news'"), b = s.indexOf('n.score > NEWS.minScore'), c = s.indexOf('moverGate(b.chg)', b), d = s.indexOf('await book(sym)', b)
+  ok(a > 0 && b > a && c > b && d > c && s.includes('NEWS.stakePct') && s.includes('NEWS.stopPct'), 'news entries: score gate, then mover gate, then the real book; 5% stake, -3% stop')
+  ok(s.includes("import('./dtk-news-claude.ts')") && s.includes('process.env.ANTHROPIC_API_KEY') && !/sk-ant-/.test(s + fs.readFileSync('scripts/dtk-news-claude.ts', 'utf8')), 'Claude scorer only with a runner secret, no key in code') }
 { const m = budgetMargin({ side: 'LONG', entry: 100, stop: 98, target: 103 }, 250, 5)
   ok(Math.abs(m.notional - 1250) < 1e-9 && Math.abs(m.margin - 250) < 1e-9 && Math.abs(m.lossAtStop - (25 + 1250 * 0.0016)) < 1e-9 && Math.abs(m.liq - 100 * (1 - 0.195)) < 1e-9, 'budgetMargin: notional = margin x lev, loss at stop incl. costs, isolated liquidation') }
 { const src = fs.readFileSync('scripts/dtk-scan.ts', 'utf8')

@@ -4,7 +4,7 @@
 // that opens and closes positions by itself on live OKX books (taker fees, book-walk slippage, real funding). Writes dtk/state.json.
 // READ-ONLY toward any exchange: it never places a real order. Usage: node --experimental-strip-types scripts/dtk-scan.ts dtk/state.json
 import fs from 'node:fs'
-import { DTK, PAPER, KIND_HE, tmGate, moverGate, budget, setupsAt, replay, monteCarlo, atr, coinsIn, parseRss, riskChecks, walkBook, exitTrigger, type Bar } from '../shared/dtk.ts'
+import { DTK, PAPER, NEWS, lexScore, KIND_HE, tmGate, moverGate, budget, setupsAt, replay, monteCarlo, atr, coinsIn, parseRss, riskChecks, walkBook, exitTrigger, type Bar } from '../shared/dtk.ts'
 import { refreshUniverse, universeDue, liquid, limiter, pool } from '../shared/binperps.ts'
 
 const FILE = process.argv[2] ?? 'dtk/state.json', OKX = 'https://www.okx.com/api/v5'
@@ -118,7 +118,11 @@ if (barT > st.last_bar && Object.keys(board).length) {
 // 3. crypto news every ~5 minutes, tagged with the coins it names and the price move since it was published
 if (!st.news_at || now - Date.parse(st.news_at) > 5 * 60_000) {
   const seen = new Map<string, any>((st.news ?? []).map((n: any) => [n.link, n]))
-  for (const [src, u] of [['Cointelegraph', 'https://cointelegraph.com/rss'], ['Decrypt', 'https://decrypt.co/feed'], ['CoinDesk', 'https://www.coindesk.com/arc/outboundfeeds/rss/']]) {
+  const FEEDS = [['Cointelegraph', 'https://cointelegraph.com/rss'], ['Decrypt', 'https://decrypt.co/feed'], ['CoinDesk', 'https://www.coindesk.com/arc/outboundfeeds/rss/'],
+    ['The Block', 'https://www.theblock.co/rss.xml'], ['CryptoSlate', 'https://cryptoslate.com/feed/'], ['CryptoPotato', 'https://cryptopotato.com/feed/'], ['NewsBTC', 'https://www.newsbtc.com/feed/'],
+    ['U.Today', 'https://u.today/rss'], ['crypto.news', 'https://crypto.news/feed/'], ['Cryptonews', 'https://cryptonews.com/news/feed/'],
+    ['The Daily Hodl', 'https://dailyhodl.com/feed/'], ['BeInCrypto', 'https://beincrypto.com/feed/']]
+  for (const [src, u] of FEEDS) {
     try {
       const r = await fetch(u, { headers: { 'User-Agent': 'Mozilla/5.0' }, redirect: 'follow' }); if (!r.ok) throw new Error(`${r.status}`)
       for (const it of parseRss(await r.text())) {
@@ -128,8 +132,16 @@ if (!st.news_at || now - Date.parse(st.news_at) > 5 * 60_000) {
       }
     } catch (e) { errs.push(`news ${src}: ${e}`) }
   }
-  st.news = [...seen.values()].filter((n) => now - Date.parse(n.at) < 24 * 3600_000).sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 80)
+  st.news = [...seen.values()].filter((n) => now - Date.parse(n.at) < 24 * 3600_000).sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 300)
   st.news_at = iso()
+  // sentiment 1-10 for every headline that names a coin and has no score yet: Claude when the runner has a key, else keywords
+  st.news_scorer = process.env.ANTHROPIC_API_KEY ? 'claude' : 'keywords'
+  const todo = st.news.filter((n: any) => n.coins.length && n.score == null)
+  let cs = new Map<number, { score: number; why: string }>()
+  if (todo.length && process.env.ANTHROPIC_API_KEY) {
+    try { const m = await import('./dtk-news-claude.ts'); cs = await m.claudeScores(todo.map((n: any, i: number) => ({ id: i, title: n.title, coins: n.coins }))) } catch (e) { errs.push(`claude: ${e}`) }
+  }
+  todo.forEach((n: any, i: number) => { const c = cs.get(i); Object.assign(n, c ? { score: c.score, why: c.why, scorer: 'claude' } : { ...lexScore(n.title), scorer: 'keywords' }) })
 }
 for (const n of st.news ?? []) n.move = Object.fromEntries(n.coins.map((c: string) => [c, n.px0?.[c] && board[c] ? board[c].last / n.px0[c] - 1 : null]))
 
@@ -141,7 +153,7 @@ if (st.paper && (st.paper.era ?? 1) !== PAPER.era) {
   if (!fs.existsSync(f)) fs.writeFileSync(f, JSON.stringify({ archived_at: iso(), era: old, paper: st.paper }))
   delete st.paper
 }
-const P = (st.paper ??= { era: PAPER.era, start: PAPER.start, cash: PAPER.start, next_id: 1, trades: [], equity: [], decisions: [], day: -1, dayStart: PAPER.start, dayEntries: 0, fees: 0, funding: 0, rules: PAPER })
+const P = (st.paper ??= { era: PAPER.era, start: PAPER.start, cash: PAPER.start, next_id: 1, trades: [], equity: [], decisions: [], day: -1, dayStart: PAPER.start, dayEntries: 0, fees: 0, funding: 0, rules: PAPER.mode === 'news' ? { ...PAPER, maxOpen: NEWS.maxOpen, news: NEWS } : PAPER })
 const pdec = (d: any) => P.decisions.unshift({ at: iso(), ...d })
 const book = async (sym: string) => {
   const cv = st.ctval?.[sym]; if (!(cv > 0)) throw new Error('no contract size')
@@ -175,7 +187,38 @@ for (const t of openP()) {
 }
 const dayN = Math.floor(now / 86400_000)
 if (P.day !== dayN) Object.assign(P, { day: dayN, dayStart: equityP(), dayEntries: 0 })
-if (scanned) {
+if (PAPER.mode === 'news') {
+  // era 3: buy a coin named in a fresh headline scored above NEWS.minScore; NEWS.stakePct of equity, 1x; stop -3% / target +6% / 24 h
+  const eq = equityP(), done = new Set<string>(P.news_done ?? [])
+  for (const n of st.news ?? []) {
+    if (!(n.score > NEWS.minScore) || now - Date.parse(n.at) > NEWS.maxAgeMin * 60_000) continue
+    for (const sym of n.coins) {
+      const key = `${n.link}|${sym}`; if (done.has(key)) continue
+      done.add(key)
+      const tag = `${n.score}/10 (${n.scorer === 'claude' ? 'Claude' : 'מילות מפתח'}) · ${n.title.slice(0, 80)}`
+      if (openP().length >= NEWS.maxOpen) { pdec({ act: 'SKIP', sym, side: 'LONG', why: `כבר ${NEWS.maxOpen} פוזיציות פתוחות · ${tag}` }); continue }
+      const b = board[sym]
+      if (!b || !liquid(b)) { pdec({ act: 'SKIP', sym, side: 'LONG', why: `לא נזיל מספיק · ${tag}` }); continue }
+      const mg = moverGate(b.chg)
+      if (!mg.ok) { pdec({ act: 'SKIP', sym, side: 'LONG', why: `${mg.why} · ${tag}` }); continue }
+      if (openP().some((t: any) => t.sym === sym)) { pdec({ act: 'SKIP', sym, side: 'LONG', why: `כבר פתוחה פוזיציה במטבע · ${tag}` }); continue }
+      try {
+        const want = eq * NEWS.stakePct / b.ask, bk = await book(sym), w = walkBook(bk.asks, want)
+        if (!(want > 0) || w.filled < want * 0.999) { pdec({ act: 'SKIP', sym, side: 'LONG', why: `הספר דליל מדי · ${tag}` }); continue }
+        const fill = w.vwap * (1 + DTK.slip), qty = want, notional = fill * qty, margin = notional / NEWS.lev, fee = notional * DTK.taker
+        if (margin + fee > P.cash) { pdec({ act: 'SKIP', sym, side: 'LONG', why: `אין מספיק מזומן · ${tag}` }); continue }
+        const stop = fill * (1 - NEWS.stopPct), target = fill * (1 + NEWS.targetPct)
+        P.cash -= margin + fee; P.fees += fee
+        P.trades.unshift({ id: P.next_id++, sym, side: 'LONG', kind: 'NEWS', kind_he: 'חדשות', why: tag, news: { title: n.title, link: n.link, src: n.src, at: n.at, score: n.score, scorer: n.scorer, reason: n.why },
+          signal_px: n.px0?.[sym] ?? null, touch: b.ask, entry: fill, stop, target, qty, notional, margin, lev: NEWS.lev, fee_in: fee, risk_usd: qty * (fill - stop) + notional * (DTK.taker + DTK.slip) * 2,
+          opened_at: iso(), flat_at: now + NEWS.holdMs, checked: now, funding: 0, mark: fill, status: 'OPEN' })
+        P.dayEntries++
+        pdec({ act: 'OPEN', sym, side: 'LONG', why: `${tag} · $${notional.toFixed(0)} @ ${fill.toPrecision(6)}` })
+      } catch (e) { errs.push(`paper open ${sym}: ${e}`) }
+    }
+  }
+  P.news_done = [...done].slice(-500)
+} else if (scanned) {
   const eq = equityP(), maxLoss = eq * PAPER.riskPct
   for (const s of found) {
     if (openP().length >= PAPER.maxOpen) { pdec({ act: 'SKIP', sym: s.sym, side: s.side, why: `כבר ${PAPER.maxOpen} פוזיציות פתוחות` }); break }
