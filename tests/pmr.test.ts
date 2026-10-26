@@ -1,7 +1,7 @@
 // "פולי תגמולים": reward scoring, quote placement, tape fills and inventory accounting of the liquidity-rewards paper desk.
 import fs from 'node:fs'
 import { PMR, S, qMin, midAdj, bookQ, share, quotePx, yesTrade, fillQuote, onBidFill, onAskFill, eligible, sizeFor, pickMarkets, lockOf, clampQueue, walkSell, noBids,
-  samplesBetween, payout, takerFee, type Book } from '../shared/pmr.ts'
+  samplesBetween, payout, takerFee, SHADOW, legsOf, diffQuote, dayBrake, gapBrake, type Book } from '../shared/pmr.ts'
 let n = 0, bad = 0
 const ok = (c: boolean, m: string) => { n++; if (!c) { bad++; console.error('FAIL', m) } }
 const near = (a: number, b: number, e = 1e-9) => Math.abs(a - b) < e
@@ -82,5 +82,20 @@ ok(/cp shared\/pmr\.ts/.test(wf) && /concurrency:\s*\n\s*group: pmr-desk/.test(w
 const src = fs.readFileSync(new URL('../scripts/pmr-desk.ts', import.meta.url), 'utf8')
 ok(!/\/order\b|POST[^\n]*order|privateKey|apiKey/i.test(src), 'paper only: no order endpoint, no keys')
 
+// shadow account: intents in Polymarket's own terms, brakes
+const bidL = legsOf('bid', 0.49, 30, 0)
+ok(bidL.length === 1 && bidL[0].token === 'YES' && bidL[0].side === 'BUY' && bidL[0].px === 0.49 && bidL[0].size === 30, 'a YES bid = BUY YES at px')
+const askL = legsOf('ask', 0.51, 30, 10)
+ok(askL.length === 2 && askL[0].side === 'SELL' && askL[0].token === 'YES' && askL[0].size === 10 && askL[1].token === 'NO' && askL[1].side === 'BUY' && near(askL[1].px, 0.49) && askL[1].size === 20,
+  'a YES ask = SELL the held YES, the rest as BUY NO at 1 - px')
+const rest = { px: 0.49, size: 30, queue: 5, at: 1 }
+ok(diffQuote(rest, rest, 'bid', 0).length === 0, 'unchanged quote -> no intent (keeps the queue place)')
+const mv = diffQuote(rest, { ...rest, px: 0.48 }, 'bid', 0)
+ok(mv.length === 2 && mv[0].action === 'CANCEL' && mv[0].px === 0.49 && mv[1].action === 'PLACE' && mv[1].px === 0.48, 'moved quote -> cancel old, place new')
+ok(diffQuote(rest, null, 'bid', 0).map((x) => x.action).join() === 'CANCEL' && diffQuote(null, rest, 'bid', 0).map((x) => x.action).join() === 'PLACE', 'pull / new quote')
+ok(dayBrake(94.9, 100) && !dayBrake(95.1, 100) && !dayBrake(50, 0), 'day brake at -5% from the UTC-day start')
+ok(gapBrake(1000, 1000 + 91_000) && !gapBrake(1000, 1000 + 60_000) && !gapBrake(0, 5e12), 'disconnect brake after > 90 s')
+ok(SHADOW.startCash === 100 && SHADOW.maxMarkets * 20 * 1.02 < SHADOW.startCash, 'the $100 account can meet the common 20-share minimum in every market')
+ok(/PMR_SHADOW=1[^\n]*shadow\.json/.test(wf), 'workflow runs the shadow account into its own state file')
 console.log(`pmr: ${n - bad}/${n} passed`)
 if (bad) process.exit(1)

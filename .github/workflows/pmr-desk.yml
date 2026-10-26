@@ -1,6 +1,7 @@
 name: pmr-desk
 # "פולי תגמולים": Polymarket LIQUIDITY-REWARDS PAPER desk ($1,000 demo on real books, real reward pools, real trade tape). LIVE
 # LOOP: one job runs ~5h45m, running scripts/pmr-desk.ts every ~15 s and publishing pmr/state.json to its own `pmr-data` branch (pm-desk-data is too big to fetch quickly).
+# Second account: PMR_SHADOW=1 -> pmr/shadow.json, the $100 shadow (journals the exact intents a real account would send).
 # The hourly cron only restarts the loop when the previous job has ended (concurrency queue). Never places a real order.
 on:
   schedule:
@@ -37,8 +38,9 @@ jobs:
           while [ $(date +%s) -lt $end ]; do
             t0=$(date +%s)
             timeout 120 node --experimental-strip-types /tmp/desk/scripts/pmr-desk.ts pmr/state.json || echo "cycle failed"
+            PMR_SHADOW=1 timeout 120 node --experimental-strip-types /tmp/desk/scripts/pmr-desk.ts pmr/shadow.json || echo "shadow cycle failed"
             if [ $(( t0 - last )) -ge 15 ]; then
-              git add pmr/state.json
+              git add pmr/state.json pmr/shadow.json 2>/dev/null || git add pmr/state.json
               if git commit -q -m "pmr desk state $(date -u +%FT%TZ)"; then
                 git push -q origin pmr-data || true
               fi

@@ -158,3 +158,35 @@ export function eligible(m: { mid: number; end: string; spreadC: number; v: numb
 }
 // Shares per side so that bid notional + NO-side notional fits the market budget (bid YES costs px, an ask = NO bid costs 1-px).
 export const sizeFor = (budget: number, bid: number, ask: number) => Math.floor(budget / (bid + (1 - ask)))
+
+// ---- SHADOW account (2026-10-26, owner: prepare a $100 real test) ----
+// A second paper account run by the same engine, sized like the real test, that journals EXACTLY what a real account would send:
+// one intent per change (place / cancel / taker sell) in Polymarket's own terms (outcome token, BUY/SELL, price, size). It never
+// sends anything: there is no key and no order endpoint in this repo. Plus the hard brakes a real account must have.
+export const SHADOW = {
+  startCash: 100,
+  maxMarkets: 3,      // $100 / 3 ~ $33 per market: enough for the common 20-share minimum, not for 100-200-share pools
+  dayLossPct: 0.05,   // equity below the UTC-day start by 5% -> cancel everything, no new quotes until the next UTC day
+  maxGapS: 90,        // a cycle that ran > 90 s after the previous one assumes the venue cancelled our quotes (cancel-on-disconnect)
+}
+export type Intent = { action: 'PLACE' | 'CANCEL' | 'TAKER_SELL'; token: 'YES' | 'NO'; side: 'BUY' | 'SELL'; px: number; size: number }
+// Polymarket has one book per outcome. Our YES bid = BUY YES at px. Our YES ask = SELL the YES shares we hold at px, and for the
+// rest BUY NO at 1 - px (the NO book mirrors the YES book) — the same split lockOf() charges collateral for.
+export function legsOf(side: 'bid' | 'ask', px: number, size: number, yesHeld: number): Intent[] {
+  if (!(size > 0)) return []
+  if (side === 'bid') return [{ action: 'PLACE', token: 'YES', side: 'BUY', px, size }]
+  const sell = Math.min(size, Math.max(0, yesHeld)), buyNo = +(size - sell).toFixed(4), out: Intent[] = []
+  if (sell > 0) out.push({ action: 'PLACE', token: 'YES', side: 'SELL', px, size: +sell.toFixed(4) })
+  if (buyNo > 0) out.push({ action: 'PLACE', token: 'NO', side: 'BUY', px: +(1 - px).toFixed(4), size: buyNo })
+  return out
+}
+// What changes between the quote that rests and the one we want: nothing (keep the queue place), or cancel and/or place.
+export function diffQuote(old: Quote, neu: Quote, side: 'bid' | 'ask', yesHeld: number): Intent[] {
+  if (old && neu && old === neu) return []
+  const out: Intent[] = []
+  if (old) for (const l of legsOf(side, old.px, old.size, yesHeld)) out.push({ ...l, action: 'CANCEL' })
+  if (neu) out.push(...legsOf(side, neu.px, neu.size, yesHeld))
+  return out
+}
+export const dayBrake = (eq: number, dayStartEq: number, pct = SHADOW.dayLossPct) => dayStartEq > 0 && eq < dayStartEq * (1 - pct)
+export const gapBrake = (prevMs: number, nowMs: number, maxS = SHADOW.maxGapS) => prevMs > 0 && nowMs - prevMs > maxS * 1000

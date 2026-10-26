@@ -9,9 +9,13 @@
 // Run: node --experimental-strip-types scripts/pmr-desk.ts <state.json>
 import fs from 'node:fs'
 import { PMR, midOf, midAdj, share, quotePx, sizeAt, yesTrade, fillQuote, onBidFill, onAskFill, eligible, sizeFor, pickMarkets, daysTo, lockOf, clampQueue,
-  walkSell, noBids, samplesBetween, dayOf, payout, type Book, type Quote, type Fee } from '../shared/pmr.ts'
+  walkSell, noBids, samplesBetween, dayOf, payout, SHADOW, diffQuote, dayBrake, gapBrake, type Book, type Quote, type Fee, type Intent } from '../shared/pmr.ts'
 
 const FILE = process.argv[2] ?? 'pmr/state.json'
+// PMR_SHADOW=1: the $100 shadow account (SHADOW in shared/pmr.ts) — same engine, sized like the real test, journals every intent
+// a real account would send (st.intents) and applies the day-loss and disconnect brakes. Still sends nothing.
+const SH = process.env.PMR_SHADOW === '1'
+if (SH) Object.assign(PMR, { startCash: SHADOW.startCash, maxMarkets: SHADOW.maxMarkets })
 const GAMMA = 'https://gamma-api.polymarket.com', CLOB = 'https://clob.polymarket.com', DATA = 'https://data-api.polymarket.com'
 const H = { 'User-Agent': 'spacehub-paper/1.0' }
 const j = async (u: string, body?: unknown) => {
@@ -34,6 +38,7 @@ const NOW = Date.now(), iso = () => new Date().toISOString()
 const st: any = fs.existsSync(FILE) ? JSON.parse(fs.readFileSync(FILE, 'utf8'))
   : { start_cash: PMR.startCash, cash: PMR.startCash, rules: PMR, markets: {}, closed: [], fills: [], decisions: [], equity: [], rewards: 0, started: iso(), last_scan: null, candidates: [] }
 st.rules = PMR
+if (SH) { st.shadow = SHADOW; st.intents ??= []; st.brake ??= {} }
 if (!st.pending) {
   // state written before the realism update credited rewards straight to cash; today's are not paid until 00:00 UTC
   st.pending = {}; let k = 0
@@ -45,6 +50,9 @@ st.pending_day ??= dayOf(NOW); st.paid ??= 0; st.dropped ??= 0; st.payouts ??= [
 const feeOf = (m: any): Fee => (m.fee_rate > 0 ? { rate: m.fee_rate, exponent: m.fee_exp || 1 } : null)
 const dec = (d: any) => st.decisions.unshift({ ts: iso(), ...d })
 const note: any = { at: iso() }
+const say = (m: any, why: string, l: Intent[]) => {
+  if (SH) for (const x of l) st.intents.unshift({ ts: iso(), q: m.q, cid: m.cid, token_id: x.token === 'YES' ? m.yes : m.no, ...x, why })
+}
 
 // ---- 1. market selection (every PMR.rescanMin minutes) ----
 async function scan() {
@@ -118,6 +126,19 @@ try {
     st.last_res = iso()
   }
   const live = Object.entries<any>(st.markets).filter(([, m]) => m.state === 'ON' || m.state === 'EXIT')
+  if (SH) {
+    // disconnect: a long gap means a real venue would have cancelled our quotes (cancel-on-disconnect); nothing rested meanwhile
+    if (gapBrake(st.last_cycle ? Date.parse(st.last_cycle) : 0, NOW)) {
+      for (const [, m] of live) for (const side of ['bid', 'ask'] as const) if (m[side]) { say(m, 'ניתוק: הפקודות בוטלו', diffQuote(m[side], null, side, m.yesSh)); m[side] = null }
+      note.gap_s = Math.round((NOW - Date.parse(st.last_cycle)) / 1000)
+    }
+    const e0 = equity()
+    if (st.brake.day !== dayOf(NOW)) st.brake = { day: dayOf(NOW), start_eq: +e0.toFixed(2), halted: false }
+    if (!st.brake.halted && dayBrake(e0, st.brake.start_eq)) {
+      st.brake.halted = true; st.brake.at = iso(); st.brake.eq = +e0.toFixed(2)
+      dec({ action: 'BRAKE', q: 'בלם הפסד יומי', why: `הון ${e0.toFixed(2)}$ < ${(st.brake.start_eq * (1 - SHADOW.dayLossPct)).toFixed(2)}$ — כל הפקודות בוטלו עד היום הבא (UTC)` })
+    }
+  }
   const bk = live.length ? await books(live.map(([, m]) => m.yes)) : {}
   const samples = samplesBetween(st.last_cycle ? Date.parse(st.last_cycle) : 0, NOW)
   // cash not locked by open orders; every quote placed below takes its collateral out of this, across all markets
@@ -153,21 +174,28 @@ try {
     if (exitNow) {
       // taker unwind through the real book with the taker fee: YES into the YES bids, NO into the NO bids (= 1 - YES asks)
       const y = walkSell(b.bids, m.yesSh, feeOf(m)), n = walkSell(noBids(b), m.noSh, feeOf(m)), got = y.proceeds + n.proceeds
+      for (const side of ['bid', 'ask'] as const) if (m[side]) say(m, 'יציאה מהשוק', diffQuote(m[side], null, side, m.yesSh))
+      if (m.yesSh > 0) say(m, 'יציאה: מכירה לקונים', [{ action: 'TAKER_SELL', token: 'YES', side: 'SELL', px: b.bids[0]?.price ?? 0, size: m.yesSh }])
+      if (m.noSh > 0) say(m, 'יציאה: מכירה לקונים', [{ action: 'TAKER_SELL', token: 'NO', side: 'SELL', px: noBids(b)[0]?.price ?? 0, size: m.noSh }])
       if (m.yesSh || m.noSh) dec({ action: 'UNWIND', q: m.q, why: `יציאה ${got.toFixed(2)}$ (עמלה ${(y.fee + n.fee).toFixed(2)}$${y.unfilled + n.unfilled > 0 ? `, ${(y.unfilled + n.unfilled).toFixed(0)} מניות בלי קונה = $0` : ''})` })
       st.cash += got; m.cashFlow += got; m.yesSh = 0; m.noSh = 0; m.bid = m.ask = null; m.state = 'DONE'; m.closed_at = iso()
       continue
     }
     const px = quotePx(b, m.v, m.min), size = sizeFor(budget, px.bid, px.ask), net = m.yesSh - m.noSh
+    const halted = SH && st.brake.halted
     const put = (old: Quote, p: number, lv: typeof b.bids, allow: boolean): Quote => {
-      if (!allow || size < m.min) return null
+      if (!allow || halted || size < m.min) return null
       if (old && Math.abs(old.px - p) < 1e-9 && old.size >= m.min) return old            // keep our queue place
       return { px: p, size, queue: sizeAt(lv, p), at: Math.floor(NOW / 1000) }
     }
     // a resting order locks its collateral (lockOf) out of the cash left free by the orders already placed in this cycle
+    const oldBid = m.bid, oldAsk = m.ask
     m.bid = put(m.bid, px.bid, b.bids, net < PMR.invCap * size && free >= lockOf('bid', px.bid, size, m.yesSh))
     if (m.bid) free -= lockOf('bid', m.bid.px, m.bid.size, m.yesSh)
     m.ask = put(m.ask, px.ask, b.asks, -net < PMR.invCap * size && free >= lockOf('ask', px.ask, size, m.yesSh))
     if (m.ask) free -= lockOf('ask', m.ask.px, m.ask.size, m.yesSh)
+    const why = halted ? 'בלם הפסד יומי' : 'עדכון ציטוט'
+    say(m, why, diffQuote(oldBid, m.bid, 'bid', m.yesSh)); say(m, why, diffQuote(oldAsk, m.ask, 'ask', m.yesSh))
     m.note = size < m.min ? 'גודל קטן מהמינימום' : (!m.bid || !m.ask) && free < size ? 'אין מספיק מזומן פנוי לשני הצדדים' : null
   }
   // drop finished markets into the closed list
@@ -182,6 +210,7 @@ const eq = equity()
 st.last_cycle = iso(); st.note = note
 st.equity.push({ t: iso(), eq: +eq.toFixed(2), rw: +st.rewards.toFixed(2), pend: +pendingSum().toFixed(2) })
 if (st.equity.length > 6000) st.equity = st.equity.filter((_: any, i: number) => i % 2 === 0)
+if (SH) st.intents = st.intents.slice(0, 1000)
 st.fills = st.fills.slice(0, 300); st.decisions = st.decisions.slice(0, 200); st.closed = st.closed.slice(0, 200)
 fs.writeFileSync(`${FILE}.tmp`, JSON.stringify(st)); fs.renameSync(`${FILE}.tmp`, FILE)
 console.log(`eq ${eq.toFixed(2)} rewards ${st.rewards.toFixed(2)} rate/day ${st.reward_rate_now} markets ${Object.keys(st.markets).length}${note.error ? ' ERR ' + note.error : ''}`)

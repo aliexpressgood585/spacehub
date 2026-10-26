@@ -1059,6 +1059,14 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   pool and room for more markets). Exposure: one market can hold invCap x quote size against us = ~32% of capital at 5 markets, ~16% at
   10, ~8% at 20. Live paper so far: 165 closed markets, trading -$59 vs $829 rewards, worst market -$22.60. FORECAST, not result:
   real makers react to a large quote; 60 fills is too few to measure adverse selection. No desk change.
+- 2026-10-26 pmr SHADOW ACCOUNT $100 (owner: prepare a $100 real test, fully automatic; agreed that the agent never connects keys or
+  sends real orders). PMR_SHADOW=1 runs the same engine into pmr/shadow.json on pmr-data (second call in the same pmr-desk.yml loop):
+  SHADOW {startCash 100, maxMarkets 3 (~$33/market: fits the common 20-share minimum), dayLossPct 0.05 (equity < UTC-day start -5% ->
+  cancel all, no quotes until the next UTC day), maxGapS 90 (a gap = venue cancel-on-disconnect, quotes dropped)}. st.intents journals
+  every change in Polymarket's own terms (legsOf / diffQuote in shared/pmr.ts): YES bid = BUY YES px; YES ask = SELL held YES, rest BUY
+  NO at 1-px; CANCEL+PLACE on a move, nothing while the quote keeps its queue place; TAKER_SELL on unwind. Page polyrewards.html?acct=shadow.
+  Still nothing is sent: no key, no order endpoint (test asserts it). Real step = the owner wires a key on their own server.
+  Status 2026-10-26 12:23 UTC main desk: equity $1,933.60, rewards $1,028.86 (paid $860.71), trading ~-$95, 76 fills, rate $440/day.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the
