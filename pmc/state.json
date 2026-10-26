@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-26T07:12:45.284Z",
+ "last_scan": "2026-10-26T07:12:55.548Z",
  "last_note": {
-  "at": "2026-10-26T07:12:43.408Z",
+  "at": "2026-10-26T07:12:53.714Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -80458,6 +80458,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-26T07:12:55.548Z",
+   "market_id": "6181114",
+   "question": "Solana Up or Down - October 26, 3:10AM-3:15AM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 07:10–07:15 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.94,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 0.49 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
+  },
+  {
    "ts": "2026-10-26T07:12:45.284Z",
    "market_id": "6181114",
    "question": "Solana Up or Down - October 26, 3:10AM-3:15AM ET",
@@ -82645,36 +82656,10 @@
    "price": 0.97,
    "decision": "skip",
    "reason": "מסנן מרחק: 0.54 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-26T05:33:51.802Z",
-   "market_id": "6176941",
-   "question": "Solana Up or Down - October 26, 1:30AM-1:35AM ET",
-   "question_he": "סולנה · עולה או יורד · 5 דקות · 05:30–05:35 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.94,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.61 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 635,
  "shadow": [
-  {
-   "slug": "xrp-updown-5m-1792704300",
-   "market_id": "6027081",
-   "token_id": "56167559891441945126036202156291886373383703270841330918531196171416861198458",
-   "coin": "xrp",
-   "outcome": "Down",
-   "end_time": "2026-10-22T21:30:00Z",
-   "placed_at": "2026-10-22T21:27:03.510Z",
-   "limit": 0.9,
-   "taker_ask": 0.91,
-   "status": "DONE",
-   "filled": false,
-   "won": true,
-   "ret": null
-  },
   {
    "slug": "sol-updown-5m-1792704300",
    "market_id": "6027080",
@@ -130197,6 +130182,19 @@
    "filled": true,
    "filled_at": "2026-10-26T07:08:33.663Z",
    "left_at_fill": 86
+  },
+  {
+   "slug": "sol-updown-5m-1792998600",
+   "market_id": "6181114",
+   "token_id": "9326879319108670073369490926150003565461902378524090776289508228211163672595",
+   "coin": "sol",
+   "outcome": "Down",
+   "end_time": "2026-10-26T07:15:00Z",
+   "placed_at": "2026-10-26T07:12:54.388Z",
+   "limit": 0.93,
+   "taker_ask": 0.94,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
@@ -130208,12 +130206,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2997,
+   "resolved": 2996,
    "filled": 1269,
-   "fill_rate": 0.42342342342342343,
+   "fill_rate": 0.42356475300400537,
    "wr": 0.8620961386918834,
    "ret": -0.0662707220887296,
-   "missed_wins": 1728,
+   "missed_wins": 1727,
    "missed_losses": 0
   },
   "late_exit": {
