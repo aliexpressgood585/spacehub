@@ -198,11 +198,12 @@ def test_switch_uses_the_regime_strategy_and_records_the_change():
     assert sel.allow("bb_rsi_4h", "ETHUSDT", 0)[0] is True
     sel.market = "TREND"
     sel.symbols = {"ETHUSDT": "TREND"}
-    assert sel.allow("ema_trend_4h", "ETHUSDT", 0)[0] is True
+    trend = sel.trend_strategy
+    assert sel.allow(trend, "ETHUSDT", 0)[0] is True
     assert sel.allow("bb_rsi_4h", "ETHUSDT", 0)[0] is False
     # Account-wide cap still holds when two sleeves exist.
-    assert sel.allow("ema_trend_4h", "ETHUSDT", 3)[0] is True
-    assert sel.allow("ema_trend_4h", "ETHUSDT", 4)[0] is False
+    assert sel.allow(trend, "ETHUSDT", sel.max_positions - 1)[0] is True
+    assert sel.allow(trend, "ETHUSDT", sel.max_positions)[0] is False
 
     n = 220
     c = 100 * np.exp(np.linspace(0, 0.9, n))
@@ -214,10 +215,10 @@ def test_switch_uses_the_regime_strategy_and_records_the_change():
     fresh.enabled = True
     events = fresh.sync({"BTCUSDT": book, "ETHUSDT": book}, int(ts[-1]) + H4)
     assert fresh.market == "TREND"
-    assert fresh.active_strategy() == "ema_trend_4h"
+    assert fresh.active_strategy() == fresh.trend_strategy
     assert events and events[0]["type"] == "REGIME_CHANGE"
     assert events[0]["regime_old"] is None and events[0]["regime_new"] == "TREND"
-    assert events[0]["active_strategy"] == "ema_trend_4h"
+    assert events[0]["active_strategy"] == fresh.trend_strategy
     again = fresh.sync({"BTCUSDT": book, "ETHUSDT": book}, int(ts[-1]) + H4)
     assert again == []
 
@@ -229,15 +230,16 @@ def test_demote_and_promote_from_the_rolling_window():
     sel.enabled = True
     sel.market = "TREND"
     sel.symbols = {"BTCUSDT": "TREND"}
+    name = sel.trend_strategy
     now = 1_700_000_000_000
     trades = []
     for i in range(4):
-        trades.append({"strategy": "ema_trend_4h", "net_pnl": -1.5, "symbol": "ETHUSDT",
+        trades.append({"strategy": name, "net_pnl": -1.5, "symbol": "ETHUSDT",
                        "close_ts": now - (4 - i) * 3_600_000, "open_ts": now - DAY})
     events = sel.review(trades, now, 100)
     assert events and events[0]["type"] == "STRATEGY_DEMOTED"
-    assert events[0]["strategy"] == "ema_trend_4h"
-    assert sel.allow("ema_trend_4h", "BTCUSDT", 0)[0] is False
+    assert events[0]["strategy"] == name
+    assert sel.allow(name, "BTCUSDT", 0)[0] is False
     assert sel.active_strategy() is None
     # Calling it again does not emit a second demotion.
     assert sel.review(trades, now, 100) == []
@@ -245,12 +247,12 @@ def test_demote_and_promote_from_the_rolling_window():
     later = now + 15 * DAY
     back = sel.review(trades, later, 100)
     assert back and back[0]["type"] == "STRATEGY_PROMOTED"
-    assert sel.allow("ema_trend_4h", "BTCUSDT", 0)[0] is True
+    assert sel.allow(name, "BTCUSDT", 0)[0] is True
     # A disabled selector never demotes the live book.
     off = StrategySelector(cfg, None)
     off.enabled = False
     assert off.review(trades, now, 100) == []
-    assert window_breach(trades, "ema_trend_4h", now, 100, cfg["regime_selector"]["demote"])["breach"] is True
+    assert window_breach(trades, name, now, 100, cfg["regime_selector"]["demote"])["breach"] is True
 
 
 def test_bb_rsi_4h_fades_a_fresh_band_break_and_ignores_a_stale_bar():
@@ -391,7 +393,12 @@ def test_era2_book_is_not_reset_and_regime_loads(tmp_path):
     assert cfg["account"]["margin_type"] == "ISOLATED"
 
 
-def test_committed_config_matches_the_oos_decision():
+def test_oos_menu_stays_off_and_the_live_book_is_the_owner_override():
+    """The report's menu still prefers ema_trend_4h. The live book does not.
+
+    The owner asked for regime_fast_mr (short EMA 10/40 + Bollinger/RSI fade)
+    on purpose. Risk, era and the five-coin fallback stay the aggressive book.
+    """
     path = ROOT + "/reports/regime_oos.json"
     report = json.loads(open(path).read())
     decision = report["decision"]
@@ -400,21 +407,36 @@ def test_committed_config_matches_the_oos_decision():
     aggressive = report["oos"]["aggressive"]
     menu = [aggressive[k] for k in aggressive if k != "ema_trend_4h"]
     again = choose_menu(aggressive["ema_trend_4h"], menu)
-    assert again["enabled"] is decision["enabled"]
-    assert again["trend_strategy"] == decision["trend_strategy"]
-    assert again["range_strategy"] == decision["range_strategy"]
-    assert bool(sel["enabled"]) is bool(decision["enabled"])
-    assert (sel.get("trend_strategy") or "ema_trend_4h") == decision["trend_strategy"]
-    assert (sel.get("range_strategy") or None) == (decision.get("range_strategy") or None)
+    assert again["enabled"] is decision["enabled"] is False
+    assert again["trend_strategy"] == decision["trend_strategy"] == "ema_trend_4h"
+    assert again["range_strategy"] == decision["range_strategy"] is None
+    fast = aggressive["regime_fast_mr"]
+    assert fast["trend_strategy"] == "ema_fast_4h"
+    assert fast["range_strategy"] == "bb_rsi_4h"
+    assert fast["return_pct"] == 68.053
+    assert fast["max_drawdown_pct"] == -40.92
+    assert fast["trades"] == 49
+    assert fast["liquidations"] == 0
+    # Owner override. Not the menu.
+    assert sel["enabled"] is True
+    assert sel["trend_strategy"] == "ema_fast_4h"
+    assert sel["range_strategy"] == "bb_rsi_4h"
     rows = {r["name"]: r for r in cfg["strategies"]}
-    assert rows["bb_rsi_4h"]["enabled"] is bool(
-        decision["enabled"] and decision.get("range_strategy") == "bb_rsi_4h")
-    assert rows["ema_fast_4h"]["enabled"] is bool(
-        decision["enabled"] and decision.get("trend_strategy") == "ema_fast_4h")
-    assert rows["ema_trend_4h"]["symbols"] == decision["symbols"]
-    # Aggressive risk stays the config. The selector does not rewrite it.
+    five = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"]
+    assert rows["bb_rsi_4h"]["enabled"] is True
+    assert rows["ema_fast_4h"]["enabled"] is True
+    assert rows["ema_trend_4h"]["enabled"] is True
+    assert rows["ema_trend_4h"]["symbols"] == five
+    assert rows["ema_fast_4h"]["symbols"] == five
+    assert cfg["strategy"]["params"]["ema_fast_4h"]["ema_fast"] == 10
+    assert cfg["strategy"]["params"]["ema_fast_4h"]["ema_slow"] == 40
     assert cfg["account"]["risk_profile"] == "aggressive"
     assert cfg["risk"]["risk_per_trade"] == 0.05
+    assert cfg["risk"]["max_concurrent_positions"] == 4
+    assert cfg["risk"]["max_margin_per_position"] == 0.60
+    assert cfg["risk"]["max_daily_loss"] == 0.15
     assert cfg["risk"]["max_drawdown"] == 0.50
+    assert cfg["risk"]["max_open_risk"] == 0.15
     assert cfg["account"]["starting_balance"] == 100.0
     assert cfg["account"]["era"] == 2
+    assert cfg["account"]["default_leverage"] == 10

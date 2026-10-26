@@ -42,6 +42,8 @@ from .clock import closed_bar_open, opens_after
 from .storage import MemoryRecorder
 from .strategies import REGISTRY, make_strategy
 from .selector import StrategySelector, initial_regime_view
+from .scanner import apply_cached_universe, arm
+from .strategy_set import needs_fast_path, strategy_change_event, strategy_set_view
 from .symbols import SymbolInfo, load_symbol_infos
 from .manual import (attach_symbol, config_path, contract_symbols, ensure_blob, execute_plans,
                      load_manual_config, maintain, merge_contracts, plan_opens, prune_contracts,
@@ -270,6 +272,7 @@ def blank_era_state(cfg, now, prev=None):
             "manual": None,
         },
         "regime": initial_regime_view(cfg, now, active=specs[0].name),
+        "strategy_set": strategy_set_view(cfg),
     }
 
 
@@ -432,6 +435,7 @@ def _bind_engine(eng, cfg, state):
     eng.closed_trades = list((state or {}).get("trades") or [])
     raw = ((state or {}).get("engine") or {}).get("universe_period") or {}
     eng.universe_period = {str(k): int(v) for k, v in raw.items() if v is not None}
+    arm(eng, cfg)
     return eng
 
 
@@ -1207,10 +1211,14 @@ def run_htf(eng, ex, infos, feed, symbols, state, fresh, switched, now, rec, fun
         # so the anchor regime is not folded off a partial book. No extra fetch.
         if eng.selector is not None:
             eng.sync_regime(cut)
-        for s, row in ready:
-            _book(ex, infos[s], s, row[4], int(row[6]) + 1)
-            eng.run_strategy(s, int(row[6]) + 1)
-            catch["evaluated_1h"] += 1
+        eng.begin_entries()
+        try:
+            for s, row in ready:
+                _book(ex, infos[s], s, row[4], int(row[6]) + 1)
+                eng.run_strategy(s, int(row[6]) + 1)
+                catch["evaluated_1h"] += 1
+        finally:
+            eng.end_entries()
         last_1h = latest
         minutes = opens_after(latest + h1 - 60_000, now, 60_000)
         catch["fresh_bar"] = latest
@@ -1320,9 +1328,14 @@ def run(path, now=None):
     _bind_engine(eng, cfg, state)
     if cfg.get("regime_selector") is not None:
         eng.selector = StrategySelector(cfg, (state or {}).get("regime"))
+    if htf and eng.scanner is not None:
+        # Rows already chosen above. No second pass over every perpetual.
+        apply_cached_universe(eng, cfg, universe_rows)
 
     prev_name = ((state or {}).get("strategy") or {}).get("name")
-    switched = htf and not fresh and (prev_name != strat.name or state.get("last_1h_open") is None)
+    # Latest closed hour only, so the first tick after a book change does not
+    # replay the gap or re-rank the universe.
+    switched = htf and not fresh and needs_fast_path(state, cfg, prev_name, strat.name)
     last_1h = None if fresh else (state or {}).get("last_1h_open")
     manual_spec, manual_blob, on_minute = begin_manual(cfg, ex, rec, state, now)
     if htf:
@@ -1431,11 +1444,15 @@ def _publish(path, state, cfg, ex, risk, rec, feed, filters_src, probes, symbols
     if fresh:
         rec.on_event({"ts": now, "type": "START", "symbol": "",
                       "msg": f"חשבון דמו חדש {cfg['account']['starting_balance']:.0f} USDT, אסטרטגיה {strat.name}, נייר בלבד"})
-    elif switched:
+    elif switched and (prev_name != strat.name or (state or {}).get("last_1h_open") is None):
         rec.on_event({"ts": now, "type": "STRATEGY", "symbol": "",
                       "msg": (f"מעבר אסטרטגיה: {prev_name or '?'} → {strat.name}. "
                               "נר 1h, אות EMA20/150 על 4h, סטופ 3×ATR, בלי יעד, סינון EMA50 יומי, מינוף 3. "
                               f"יקום חודשי של {len(universe_rows)} מטבעות לפי נפח. החשבון לא אופס — נייר בלבד.")})
+    change = None if fresh else strategy_change_event(state, cfg, now)
+    if change is not None:
+        change["time"] = _iso(now)
+        rec.on_event(change)
 
     eq = ex.equity()
     start_bal = float(cfg["account"]["starting_balance"])
@@ -1516,6 +1533,7 @@ def _publish(path, state, cfg, ex, risk, rec, feed, filters_src, probes, symbols
         "trades": trades, "events": events,
         "signals": list(old_sigs.values()), "equity_curve": curve, "catchup": catch,
         "symbols": symbols,
+        "strategy_set": strategy_set_view(cfg),
         "universe": universe_rows,
         "universe_ranked_at": ranked_at,
         "universe_month": universe_month,

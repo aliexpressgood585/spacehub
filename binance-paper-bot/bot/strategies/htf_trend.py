@@ -15,6 +15,7 @@ tsmom_4h     : 4h time-series momentum. Enter when the volatility-normalised L-b
 import numpy as np
 from .base import Strategy, Signal, register
 from ..indicators import ema, atr
+from ..scanner import pullback_side, trend_strength
 
 H4 = 14_400_000
 
@@ -52,6 +53,15 @@ class EmaTrend4h(_HTFBase):
     def warmup_bars(self):
         return {self.timeframe: 2, self.htf: self.p["ema_slow"] + 30}
 
+    def _pullback_expired(self, pos, ts):
+        """Close a pullback entry after N closed 4h bars. Crosses are not timed."""
+        bars = int(self.p.get("pullback_hold_bars") or 0)
+        if bars <= 0 or not self.p.get("pullback") or pos is None:
+            return False
+        if (pos.meta or {}).get("setup") != "pullback":
+            return False
+        return int(ts) - int(pos.opened_ts) >= bars * H4
+
     def on_bar(self, ctx):
         h4 = ctx.candles.get(self.htf)
         if h4 is None or len(h4["close"]) < self.p["ema_slow"] + 2 or not self._fresh(h4, ctx.ts):
@@ -60,21 +70,40 @@ class EmaTrend4h(_HTFBase):
         f, s = ema(c, self.p["ema_fast"]), ema(c, self.p["ema_slow"])
         st, st_prev = (1 if f[-1] > s[-1] else -1), (1 if f[-2] > s[-2] else -1)
         a = atr(h4["high"], h4["low"], c, self.p.get("atr_period", 20))[-1]
-        info = {"ema_fast": round(float(f[-1]), 6), "ema_slow": round(float(s[-1]), 6), "atr4h": float(a)}
+        strength = trend_strength(f[-1], s[-1], a)
+        info = {"ema_fast": round(float(f[-1]), 6), "ema_slow": round(float(s[-1]), 6), "atr4h": float(a),
+                "scan_score": round(strength, 6)}
         out, pos = [], ctx.position
+        if pos is not None and self._pullback_expired(pos, ctx.ts):
+            return [Signal(ctx.symbol, "CLOSE", reason=f"4h EMA{self.p['ema_fast']} pullback hold elapsed", info=info)]
         if pos is not None:
             if pos.side == st:
                 return []
             out.append(Signal(ctx.symbol, "CLOSE", reason=f"4h EMA{self.p['ema_fast']}/{self.p['ema_slow']} flipped", info=info))
-        if st == st_prev or not np.isfinite(a) or a <= 0:        # only enter on the cross bar
+        finite = np.isfinite(a) and a > 0 and np.isfinite(f[-1]) and np.isfinite(s[-1])
+        if st == st_prev or not finite:        # only enter on the cross bar, unless pullback is armed
+            if not out and finite and self.p.get("pullback"):
+                side = pullback_side(h4["high"], h4["low"], c, f, s)
+                if side and _regime_ok(self.p, ctx.candles.get("1d"), side):
+                    pb = dict(info)
+                    pb["setup"] = "pullback"
+                    pb["scan_score"] = round(strength, 6)
+                    word = "above" if side > 0 else "below"
+                    out.append(Signal(ctx.symbol, "OPEN_LONG" if side > 0 else "OPEN_SHORT",
+                                      self.p["sl_atr"] * a, self.p.get("tp_atr", 0) * a,
+                                      self.p.get("leverage", 3),
+                                      f"4h EMA{self.p['ema_fast']} pullback, close back {word} the fast average", pb))
             return out
         if not _regime_ok(self.p, ctx.candles.get("1d"), st):
             out.append(Signal(ctx.symbol, "INFO", reason="cross blocked by daily EMA50 regime", info=info))
             return out
         tp = self.p.get("tp_atr", 0) * a
+        cross = dict(info)
+        cross["setup"] = "cross"
+        cross["scan_score"] = round(strength + 1.0, 6)
         out.append(Signal(ctx.symbol, "OPEN_LONG" if st > 0 else "OPEN_SHORT", self.p["sl_atr"] * a, tp,
                           self.p.get("leverage", 3), f"4h EMA{self.p['ema_fast']} crossed {'above' if st > 0 else 'below'} "
-                          f"EMA{self.p['ema_slow']}", info))
+                          f"EMA{self.p['ema_slow']}", cross))
         return out
 
 

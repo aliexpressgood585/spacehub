@@ -211,14 +211,20 @@ def replay_minutes(ex, eng, symbols, minutes, bars_1m, marks_1m, bars_15m, bars_
                     hopen = boundary - 3_600_000
                     ready = strategy_ready_at is None or int(strategy_ready_at) >= boundary + int(strategy_lag_ms)
                     if ready and (last_signal_open is None or hopen > last_signal_open):
-                        for s in symbols:
-                            row = bars_1h.get(s, {}).get(hopen)
-                            if not row:
-                                degraded.add(s)
-                                continue
-                            if eng is not None:
-                                eng.on_bar_closed(s, "1h", row, run_strategy=True)
-                                evaluated_1h += 1
+                        if eng is not None and hasattr(eng, "begin_entries"):
+                            eng.begin_entries()
+                        try:
+                            for s in symbols:
+                                row = bars_1h.get(s, {}).get(hopen)
+                                if not row:
+                                    degraded.add(s)
+                                    continue
+                                if eng is not None:
+                                    eng.on_bar_closed(s, "1h", row, run_strategy=True)
+                                    evaluated_1h += 1
+                        finally:
+                            if eng is not None and hasattr(eng, "end_entries"):
+                                eng.end_entries()
                         last_signal_open = hopen
                     elif eng is not None and hasattr(eng, "add_history"):
                         for s in symbols:

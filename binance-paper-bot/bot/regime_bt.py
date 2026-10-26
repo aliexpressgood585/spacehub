@@ -173,6 +173,10 @@ def _book_cfg(base, mode, symbols, profile_name):
             row["risk_per_trade"] = profile["risk_per_trade"]
             row["max_concurrent_positions"] = profile["max_concurrent_positions"]
             row["symbols"] = list(symbols)
+    # The published menu replay is the plain book. A live scanner flag must
+    # not leak into those rows, or the OOS numbers would move.
+    if isinstance(cfg.get("scanner"), dict):
+        cfg["scanner"]["enabled"] = False
     sel = cfg["regime_selector"]
     sel["enabled"] = enabled
     sel["trend_strategy"] = trend
@@ -303,7 +307,10 @@ def run_book(cfg, mode, series, dailies, labels, trade_start, trade_end, check_l
     by_close = []
     for sym in symbols:
         by_close.append({int(r[6]) + 1: r for r in series[sym]})
-    times = sorted(t for book in by_close for t in book)
+    # One pass per close. The same timestamp is on every symbol; replaying it
+    # once per name walked that bar again after the entry and could stop the
+    # position on prices from before the fill.
+    times = sorted({t for book in by_close for t in book})
     # 120 daily bars is what the live runner keeps for the EMA50 filter.
     # The 4h buffer still truncates to WINDOW, matching the live 4h fetch.
     warm_from = trade_start - 120 * DAY
@@ -338,11 +345,15 @@ def run_book(cfg, mode, series, dailies, labels, trade_start, trade_end, check_l
             if direct["regime"] != want:
                 raise RuntimeError(f"label mismatch at {close_t}: buffer {direct['regime']} precompute {want}")
             checked = True
-        for strat in specs:
-            for sym, book in zip(symbols, by_close):
-                if close_t not in book:
-                    continue
-                eng.run_strategy(sym, close_t, strat)
+        eng.begin_entries()
+        try:
+            for strat in specs:
+                for sym, book in zip(symbols, by_close):
+                    if close_t not in book:
+                        continue
+                    eng.run_strategy(sym, close_t, strat)
+        finally:
+            eng.end_entries()
         equity.append((close_t, ex.equity()))
     end_ts = trade_end - 1
     for sym, pos in list(ex.positions().items()):
