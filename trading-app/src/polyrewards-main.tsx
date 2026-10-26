@@ -4,7 +4,10 @@
 import { StrictMode, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 
-const URL_ = 'https://raw.githubusercontent.com/aliexpressgood585/spacehub/pmr-data/pmr/state.json'
+// ?acct=shadow shows the $100 SHADOW account (pmr/shadow.json): same engine, plus the exact intents a real account would send.
+const SHADOW = new URLSearchParams(location.search).get('acct') === 'shadow'
+const URL_ = `https://raw.githubusercontent.com/aliexpressgood585/spacehub/pmr-data/pmr/${SHADOW ? 'shadow' : 'state'}.json`
+const TOK: Record<string, string> = { PLACE: 'הצבה', CANCEL: 'ביטול', TAKER_SELL: 'מכירה לקונים' }
 type J = any
 const usd = (v: number | null | undefined, d = 2) => (v == null || !isFinite(v) ? '—' : `${v < 0 ? '−' : ''}$${Math.abs(v).toFixed(d)}`)
 const pct = (v: number | null | undefined, d = 1) => (v == null || !isFinite(v) ? '—' : `${v >= 0 ? '+' : ''}${(v * 100).toFixed(d)}%`)
@@ -13,10 +16,10 @@ const il = (ts: string) => new Date(ts).toLocaleString('he-IL', { timeZone: 'Asi
 const ago = (ts?: string) => (ts ? `${Math.max(0, Math.round((Date.now() - Date.parse(ts)) / 1000))} שנ׳` : '—')
 const ACT: Record<string, string> = { SELECT: 'נכנס לשוק', DESELECT: 'יוצא מהשוק', UNWIND: 'פירוק מלאי', PAYOUT: 'תשלום תגמולים' }
 
-function Chart({ pts }: { pts: J[] }) {
+function Chart({ pts, base }: { pts: J[]; base: number }) {
   if (pts.length < 2) return <div style={{ color: '#8fa3b8', fontSize: 13 }}>הגרף יתמלא אחרי כמה מחזורים.</div>
   const W = 900, Hh = 180, t0 = Date.parse(pts[0].t), t1 = Date.parse(pts[pts.length - 1].t)
-  const base = 1000, ys = pts.flatMap((p) => [p.eq - base, p.rw, p.eq - base - p.rw])
+  const ys = pts.flatMap((p) => [p.eq - base, p.rw, p.eq - base - p.rw])
   const lo = Math.min(0, ...ys), hi = Math.max(1, ...ys)
   const x = (p: J) => ((Date.parse(p.t) - t0) / Math.max(1, t1 - t0)) * W, y = (v: number) => Hh - ((v - lo) / (hi - lo)) * Hh
   const line = (f: (p: J) => number) => pts.map((p, i) => `${i ? 'L' : 'M'}${x(p).toFixed(1)},${y(f(p)).toFixed(1)}`).join('')
@@ -45,8 +48,9 @@ function App() {
   const R = st.rules ?? {}
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto', padding: 16, display: 'grid', gap: 12 }}>
-      <div><h1 style={{ fontSize: 22 }}>פולי תגמולים 🏦</h1>
-        <div style={{ color: '#8fa3b8', fontSize: 13 }}>חשבון דמו $1,000 שמספק נזילות בפולימרקט ומקבל את תגמולי הנזילות שהבורסה משלמת · ספרי פקודות, מאגרי תגמולים ועסקאות אמיתיים · מחזור אחרון לפני {ago(st.last_cycle)}{st.note?.error ? ` · שגיאה: ${st.note.error}` : ''}</div></div>
+      <div><h1 style={{ fontSize: 22 }}>פולי תגמולים 🏦{SHADOW ? ' · חשבון צל $100' : ''}</h1>
+        <div style={{ fontSize: 13, margin: '4px 0' }}>{SHADOW ? <a href="?" style={{ color: '#7aa7ff' }}>← לחשבון הדמו $1,000</a> : <a href="?acct=shadow" style={{ color: '#7aa7ff' }}>חשבון צל $100 (הכנה לניסוי אמיתי) →</a>}</div>
+        <div style={{ color: '#8fa3b8', fontSize: 13 }}>חשבון דמו {usd(st.start_cash, 0)} שמספק נזילות בפולימרקט ומקבל את תגמולי הנזילות שהבורסה משלמת · ספרי פקודות, מאגרי תגמולים ועסקאות אמיתיים · מחזור אחרון לפני {ago(st.last_cycle)}{st.note?.error ? ` · שגיאה: ${st.note.error}` : ''}</div></div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 8 }}>
         {[['הון', usd(eq), col(eq - st.start_cash)], ['שינוי', pct(eq / st.start_cash - 1, 2), col(eq - st.start_cash)],
           ['תגמולים שהורווחו', usd(rw), col(rw)], ['שולמו בפועל', usd(st.paid ?? 0), '#c9d4e0'], ['ממתינים לתשלום ב-00:00 UTC', usd(pend), '#f5c84c'],
@@ -55,7 +59,7 @@ function App() {
           .map(([k, v, c]) => <div key={k} style={card}><div style={{ color: '#8fa3b8', fontSize: 12 }}>{k}</div><div style={{ fontSize: 20, fontWeight: 700, color: c }}>{v}</div></div>)}
       </div>
       <div style={card}><b>מאיפה הכסף</b> <span style={{ fontSize: 12, color: '#8fa3b8' }}>· <span style={{ color: '#3ddc97' }}>■</span> סה״כ · <span style={{ color: '#f5c84c' }}>■</span> תגמולים · <span style={{ color: '#7aa7ff' }}>■</span> מסחר (מילויים + מלאי לפי אמצע)</span>
-        <Chart pts={st.equity ?? []} />
+        <Chart pts={st.equity ?? []} base={st.start_cash} />
         <div style={{ fontSize: 12.5, color: '#8fa3b8' }}>השיטה רווחית רק אם הקו הכחול לא אוכל את הצהוב. פועל מאז {il(st.started)} ({days.toFixed(1)} ימים).</div>
       </div>
       <div style={card}><b>שווקים פעילים ({mk.length}/{R.maxMarkets})</b>
@@ -68,6 +72,13 @@ function App() {
             <div style={{ fontSize: 12.5, marginTop: 2 }}>מלאי {inv > 0 ? `${inv.toFixed(0)} YES` : inv < 0 ? `${(-inv).toFixed(0)} NO` : 'אפס'} · מילויים {m.fills} · תגמולים <span style={{ color: '#f5c84c' }}>{usd(m.rewards)}</span> · מסחר <span style={{ color: col(tp) }}>{usd(tp)}</span></div>
           </div> })}
       </div>
+      {SHADOW && <div style={card}><b>מה חשבון אמיתי היה שולח עכשיו</b> <span style={{ fontSize: 12, color: '#8fa3b8' }}>(יומן בלבד — שום דבר לא נשלח; אין מפתח ואין חיבור לבורסה)</span>
+        <div style={{ fontSize: 12.5, margin: '6px 0', color: st.brake?.halted ? '#ff6b6b' : '#3ddc97' }}>
+          {st.brake?.halted ? `🛑 בלם הפסד יומי פעיל מאז ${il(st.brake.at)} — כל ההצעות בוטלו עד היום הבא (UTC)` : `✅ בלמים: הפסד יומי ${(st.shadow?.dayLossPct * 100).toFixed(0)}% מתחילת היום (${usd(st.brake?.start_eq)}) · ניתוק מעל ${st.shadow?.maxGapS} שנ׳ = ביטול הכול`}</div>
+        {!(st.intents ?? []).length && <div style={{ color: '#8fa3b8' }}>עוד אין.</div>}
+        {(st.intents ?? []).slice(0, 40).map((x: J, i: number) => <div key={i} style={{ fontSize: 12.5, padding: '4px 0', borderTop: '1px solid #1d2a40' }}>
+          {il(x.ts)} · <b style={{ color: x.action === 'CANCEL' ? '#ff9f6b' : x.action === 'PLACE' ? '#3ddc97' : '#f5c84c' }}>{TOK[x.action] ?? x.action}</b> {x.side === 'BUY' ? 'קנייה' : 'מכירה'} {x.token} {x.size} @ {(x.px * 100).toFixed(1)}¢ · {x.why} · {x.q?.slice(0, 50)}</div>)}
+      </div>}
       <div style={card}><b>מילויים אחרונים</b> <span style={{ fontSize: 12, color: '#8fa3b8' }}>(מישהו אמיתי סחר דרך המחיר שלנו)</span>
         {!(st.fills ?? []).length && <div style={{ color: '#8fa3b8', marginTop: 6 }}>עוד אין.</div>}
         {(st.fills ?? []).slice(0, 30).map((f: J, i: number) => <div key={i} style={{ fontSize: 12.5, padding: '4px 0', borderTop: '1px solid #1d2a40' }}>
