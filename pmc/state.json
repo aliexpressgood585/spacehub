@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-26T17:24:52.878Z",
+ "last_scan": "2026-10-26T17:25:03.093Z",
  "last_note": {
-  "at": "2026-10-26T17:24:52.388Z",
+  "at": "2026-10-26T17:25:02.881Z",
   "windows": 0,
   "settled": 0,
   "entered": 0
@@ -130150,10 +130150,12 @@
    "placed_at": "2026-10-26T17:18:02.714Z",
    "limit": 0.9,
    "taker_ask": 0.92,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-26T17:18:11.348Z",
-   "left_at_fill": 109
+   "left_at_fill": 109,
+   "won": false,
+   "ret": -1
   },
   {
    "slug": "xrp-updown-5m-1793034900",
@@ -130165,10 +130167,12 @@
    "placed_at": "2026-10-26T17:18:32.586Z",
    "limit": 0.94,
    "taker_ask": 0.96,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-26T17:18:41.525Z",
-   "left_at_fill": 78
+   "left_at_fill": 78,
+   "won": false,
+   "ret": -1
   },
   {
    "slug": "eth-updown-5m-1793034900",
@@ -130180,8 +130184,10 @@
    "placed_at": "2026-10-26T17:18:51.796Z",
    "limit": 0.95,
    "taker_ask": 0.96,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "btc-updown-5m-1793034900",
@@ -130193,10 +130199,12 @@
    "placed_at": "2026-10-26T17:19:01.693Z",
    "limit": 0.9,
    "taker_ask": 0.91,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-26T17:19:11.892Z",
-   "left_at_fill": 48
+   "left_at_fill": 48,
+   "won": true,
+   "ret": 0.11111111111111108
   },
   {
    "slug": "btc-updown-5m-1793035200",
@@ -130262,12 +130270,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2992,
-   "filled": 1300,
-   "fill_rate": 0.4344919786096257,
-   "wr": 0.8523076923076923,
-   "ret": -0.07669475337885122,
-   "missed_wins": 1692,
+   "resolved": 2996,
+   "filled": 1303,
+   "fill_rate": 0.434913217623498,
+   "wr": 0.8511128165771297,
+   "ret": -0.07796781909546852,
+   "missed_wins": 1693,
    "missed_losses": 0
   },
   "late_exit": {
