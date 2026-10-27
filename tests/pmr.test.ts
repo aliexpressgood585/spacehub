@@ -1,7 +1,7 @@
 // "פולי תגמולים": reward scoring, quote placement, tape fills and inventory accounting of the liquidity-rewards paper desk.
 import fs from 'node:fs'
 import { PMR, S, qMin, midAdj, bookQ, share, quotePx, yesTrade, fillQuote, onBidFill, onAskFill, eligible, sizeFor, pickMarkets, lockOf, clampQueue, walkSell, noBids,
-  samplesBetween, payout, takerFee, SHADOW, legsOf, diffQuote, dayBrake, gapBrake, type Book } from '../shared/pmr.ts'
+  samplesBetween, payout, takerFee, SHADOW, CONS, shareCons, markout, legsOf, diffQuote, dayBrake, gapBrake, type Book } from '../shared/pmr.ts'
 let n = 0, bad = 0
 const ok = (c: boolean, m: string) => { n++; if (!c) { bad++; console.error('FAIL', m) } }
 const near = (a: number, b: number, e = 1e-9) => Math.abs(a - b) < e
@@ -82,6 +82,12 @@ ok(/cp shared\/pmr\.ts/.test(wf) && /concurrency:\s*\n\s*group: pmr-desk/.test(w
 const src = fs.readFileSync(new URL('../scripts/pmr-desk.ts', import.meta.url), 'utf8')
 ok(!/\/order\b|POST[^\n]*order|privateKey|apiKey/i.test(src), 'paper only: no order endpoint, no keys')
 
+// conservative line
+const qq = { px: 0.49, size: 300, queue: 0, at: 0 }, aq = { ...qq, px: 0.51 }
+ok(shareCons(b, 3, 200, qq, aq) < share(b, 3, 200, qq, aq) && shareCons(b, 3, 200, qq, aq) > 0, 'conservative share is below the paper share')
+const empty: Book = { bids: [{ price: 0.49, size: 5 }], asks: [{ price: 0.51, size: 5 }], tick: 0.01 }
+ok(near(share(empty, 3, 200, qq, aq), 1) && near(shareCons(empty, 3, 200, qq, aq), 1 / (1 + CONS.competitors)), 'an empty pool: paper 100%, conservative 50% with one competitor')
+ok(near(markout('bid', 0.49, 100, 0.45), -4) && near(markout('ask', 0.51, 100, 0.55), -4) && near(markout('bid', 0.49, 100, 0.52), 3), 'markout sign: price moving against the fill loses')
 // shadow account: intents in Polymarket's own terms, brakes
 const bidL = legsOf('bid', 0.49, 30, 0)
 ok(bidL.length === 1 && bidL[0].token === 'YES' && bidL[0].side === 'BUY' && bidL[0].px === 0.49 && bidL[0].size === 30, 'a YES bid = BUY YES at px')

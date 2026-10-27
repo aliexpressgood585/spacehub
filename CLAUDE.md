@@ -1067,6 +1067,12 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   NO at 1-px; CANCEL+PLACE on a move, nothing while the quote keeps its queue place; TAKER_SELL on unwind. Page polyrewards.html?acct=shadow.
   Still nothing is sent: no key, no order endpoint (test asserts it). Real step = the owner wires a key on their own server.
   Status 2026-10-26 12:23 UTC main desk: equity $1,933.60, rewards $1,028.86 (paid $860.71), trading ~-$95, 76 fills, rate $440/day.
+- 2026-10-27 pmr CONSERVATIVE LINE (owner "כן"; both accounts, main + shadow). shared/pmr.ts CONS {competitors 1, tradeMult 2,
+  markoutMin 5}: shareCons = our Q / (our Q x 2 + others) = one maker of our size joins at our prices; conservative equity since
+  st.cons.since = eq0 + haircut rewards + (trading P&L change) x 2 (informed flow picks real quotes more). Every fill now carries cid
+  and, 5 min later, its markout (mid then vs our fill, $; st.markout {n, usd, c_per_share}) = observed adverse selection. Equity points
+  carry ec; page draws it as a dashed orange line + cards. The haircuts are stated assumptions, not measurements; only a real test
+  measures the gap. tests/pmr.test.ts 54/54.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the

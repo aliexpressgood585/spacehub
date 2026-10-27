@@ -9,7 +9,7 @@
 // Run: node --experimental-strip-types scripts/pmr-desk.ts <state.json>
 import fs from 'node:fs'
 import { PMR, midOf, midAdj, share, quotePx, sizeAt, yesTrade, fillQuote, onBidFill, onAskFill, eligible, sizeFor, pickMarkets, daysTo, lockOf, clampQueue,
-  walkSell, noBids, samplesBetween, dayOf, payout, SHADOW, diffQuote, dayBrake, gapBrake, type Book, type Quote, type Fee, type Intent } from '../shared/pmr.ts'
+  walkSell, noBids, samplesBetween, dayOf, payout, SHADOW, CONS, shareCons, markout, diffQuote, dayBrake, gapBrake, type Book, type Quote, type Fee, type Intent } from '../shared/pmr.ts'
 
 const FILE = process.argv[2] ?? 'pmr/state.json'
 // PMR_SHADOW=1: the $100 shadow account (SHADOW in shared/pmr.ts) — same engine, sized like the real test, journals every intent
@@ -46,6 +46,7 @@ if (!st.pending) {
   if (st.rewards - k > 0) st.pending.closed_markets = st.rewards - k
   st.cash -= st.rewards
 }
+st.cons ??= { since: iso(), eq0: null, trade0: null, rewards: 0 }
 st.pending_day ??= dayOf(NOW); st.paid ??= 0; st.dropped ??= 0; st.payouts ??= []
 const feeOf = (m: any): Fee => (m.fee_rate > 0 ? { rate: m.fee_rate, exponent: m.fee_exp || 1 } : null)
 const dec = (d: any) => st.decisions.unshift({ ts: iso(), ...d })
@@ -157,7 +158,7 @@ try {
       const f = fillQuote({ ...q, at: q.at }, side, trs)
       if (f.filled > 0) {
         side === 'bid' ? onBidFill(inv, q.px, f.filled) : onAskFill(inv, q.px, f.filled)
-        st.fills.unshift({ ts: iso(), q: m.q, side, px: q.px, size: f.filled, mid: +midOf(b).toFixed(4) }); m.fills++
+        st.fills.unshift({ ts: iso(), q: m.q, cid, side, px: q.px, size: f.filled, mid: +midOf(b).toFixed(4) }); m.fills++
         q.size = +(q.size - f.filled).toFixed(4)
       }
       q.queue = clampQueue(f.queue, sizeAt(side === 'bid' ? b.bids : b.asks, q.px))
@@ -168,6 +169,7 @@ try {
     const mid = midAdj(b, m.min); m.mid = +mid.toFixed(4)
     const sh = m.state === 'ON' ? share(b, m.v, m.min, m.bid, m.ask) : 0
     const earn = m.rate * sh * samples / 1440
+    st.cons.rewards += m.state === 'ON' ? m.rate * shareCons(b, m.v, m.min, m.bid, m.ask) * samples / 1440 : 0
     m.rewards += earn; st.rewards += earn; st.pending[cid] = (st.pending[cid] ?? 0) + earn; m.share = +sh.toFixed(4); rewardNow += m.rate * sh
     // (3) re-quote, or unwind
     const exitNow = m.state === 'EXIT' || daysTo(m.end, NOW) * 24 < PMR.exitHours || mid < 0.05 || mid > 0.95
@@ -198,6 +200,14 @@ try {
     say(m, why, diffQuote(oldBid, m.bid, 'bid', m.yesSh)); say(m, why, diffQuote(oldAsk, m.ask, 'ask', m.yesSh))
     m.note = size < m.min ? 'גודל קטן מהמינימום' : (!m.bid || !m.ask) && free < size ? 'אין מספיק מזומן פנוי לשני הצדדים' : null
   }
+  // 5-minute markout of each fill against the real midpoint (fills of markets no longer quoted get none)
+  for (const f of st.fills) {
+    if (f.mo !== undefined || !f.cid) continue
+    const age = NOW - Date.parse(f.ts), m = st.markets[f.cid], b = m && bk[m.yes]
+    if (age < CONS.markoutMin * 60_000) continue
+    const mid = b ? midOf(b) : NaN
+    f.mo = Number.isFinite(mid) && age < 30 * 60_000 ? +markout(f.side, f.px, f.size, mid).toFixed(4) : null
+  }
   // drop finished markets into the closed list
   for (const [cid, m] of Object.entries<any>(st.markets)) if (m.state === 'DONE') {
     st.closed.unshift({ q: m.q, slug: m.slug, opened: m.opened, closed_at: m.closed_at ?? iso(), rewards: +m.rewards.toFixed(2), trading: +m.cashFlow.toFixed(2) - 0, fills: m.fills, resolved: m.resolved ?? null })
@@ -208,7 +218,15 @@ try {
 
 const eq = equity()
 st.last_cycle = iso(); st.note = note
-st.equity.push({ t: iso(), eq: +eq.toFixed(2), rw: +st.rewards.toFixed(2), pend: +pendingSum().toFixed(2) })
+// conservative equity since st.cons.since: start equity + haircut rewards + trading P&L x CONS.tradeMult
+const trade = eq - st.start_cash - st.rewards
+if (st.cons.eq0 == null) { st.cons.eq0 = +eq.toFixed(2); st.cons.trade0 = +trade.toFixed(2) }
+const eqCons = st.cons.eq0 + st.cons.rewards + (trade - st.cons.trade0) * CONS.tradeMult
+const mo = st.fills.filter((f: any) => typeof f.mo === 'number')
+st.markout = { n: mo.length, usd: +mo.reduce((a: number, f: any) => a + f.mo, 0).toFixed(2),
+  c_per_share: mo.length ? +(100 * mo.reduce((a: number, f: any) => a + f.mo, 0) / mo.reduce((a: number, f: any) => a + f.size, 0)).toFixed(3) : null }
+st.cons.eq = +eqCons.toFixed(2); st.cons.rules = CONS
+st.equity.push({ t: iso(), eq: +eq.toFixed(2), rw: +st.rewards.toFixed(2), pend: +pendingSum().toFixed(2), ec: +eqCons.toFixed(2) })
 if (st.equity.length > 6000) st.equity = st.equity.filter((_: any, i: number) => i % 2 === 0)
 if (SH) st.intents = st.intents.slice(0, 1000)
 st.fills = st.fills.slice(0, 300); st.decisions = st.decisions.slice(0, 200); st.closed = st.closed.slice(0, 200)

@@ -19,7 +19,7 @@ const ACT: Record<string, string> = { SELECT: 'נכנס לשוק', DESELECT: 'י
 function Chart({ pts, base }: { pts: J[]; base: number }) {
   if (pts.length < 2) return <div style={{ color: '#8fa3b8', fontSize: 13 }}>הגרף יתמלא אחרי כמה מחזורים.</div>
   const W = 900, Hh = 180, t0 = Date.parse(pts[0].t), t1 = Date.parse(pts[pts.length - 1].t)
-  const ys = pts.flatMap((p) => [p.eq - base, p.rw, p.eq - base - p.rw])
+  const ys = pts.flatMap((p) => [p.eq - base, p.rw, p.eq - base - p.rw, ...(p.ec != null ? [p.ec - base] : [])])
   const lo = Math.min(0, ...ys), hi = Math.max(1, ...ys)
   const x = (p: J) => ((Date.parse(p.t) - t0) / Math.max(1, t1 - t0)) * W, y = (v: number) => Hh - ((v - lo) / (hi - lo)) * Hh
   const line = (f: (p: J) => number) => pts.map((p, i) => `${i ? 'L' : 'M'}${x(p).toFixed(1)},${y(f(p)).toFixed(1)}`).join('')
@@ -28,6 +28,7 @@ function Chart({ pts, base }: { pts: J[]; base: number }) {
     <path d={line((p) => p.rw)} fill="none" stroke="#f5c84c" strokeWidth={2} vectorEffect="non-scaling-stroke" />
     <path d={line((p) => p.eq - base - p.rw)} fill="none" stroke="#7aa7ff" strokeWidth={2} vectorEffect="non-scaling-stroke" />
     <path d={line((p) => p.eq - base)} fill="none" stroke="#3ddc97" strokeWidth={2.5} vectorEffect="non-scaling-stroke" />
+    {pts.some((p) => p.ec != null) && <path d={pts.filter((p) => p.ec != null).map((p, i) => `${i ? 'L' : 'M'}${x(p).toFixed(1)},${y(p.ec - base).toFixed(1)}`).join('')} fill="none" stroke="#ff9f6b" strokeWidth={2} strokeDasharray="6 4" vectorEffect="non-scaling-stroke" />}
   </svg>
 }
 
@@ -55,11 +56,14 @@ function App() {
         {[['הון', usd(eq), col(eq - st.start_cash)], ['שינוי', pct(eq / st.start_cash - 1, 2), col(eq - st.start_cash)],
           ['תגמולים שהורווחו', usd(rw), col(rw)], ['שולמו בפועל', usd(st.paid ?? 0), '#c9d4e0'], ['ממתינים לתשלום ב-00:00 UTC', usd(pend), '#f5c84c'],
           ['רווח/הפסד מסחר', usd(trade), col(trade)], ['נעול בהצעות פתוחות', usd(st.locked), '#c9d4e0'],
+          ['הערכה שמרנית', usd(st.cons?.eq), '#ff9f6b'],
+          ['מילויים רעים (5 דק׳ אחרי)', st.markout?.n ? `${usd(st.markout.usd)} · ${st.markout.c_per_share}¢/מניה` : 'עוד אין', col(st.markout?.usd ?? 0)],
           ['קצב תגמולים עכשיו', `${usd(st.reward_rate_now, 0)}/יום`, '#f5c84c'], ['ממוצע בפועל', `${usd((eq - st.start_cash) / days, 1)}/יום`, col(eq - st.start_cash)]]
           .map(([k, v, c]) => <div key={k} style={card}><div style={{ color: '#8fa3b8', fontSize: 12 }}>{k}</div><div style={{ fontSize: 20, fontWeight: 700, color: c }}>{v}</div></div>)}
       </div>
-      <div style={card}><b>מאיפה הכסף</b> <span style={{ fontSize: 12, color: '#8fa3b8' }}>· <span style={{ color: '#3ddc97' }}>■</span> סה״כ · <span style={{ color: '#f5c84c' }}>■</span> תגמולים · <span style={{ color: '#7aa7ff' }}>■</span> מסחר (מילויים + מלאי לפי אמצע)</span>
+      <div style={card}><b>מאיפה הכסף</b> <span style={{ fontSize: 12, color: '#8fa3b8' }}>· <span style={{ color: '#3ddc97' }}>■</span> סה״כ · <span style={{ color: '#f5c84c' }}>■</span> תגמולים · <span style={{ color: '#7aa7ff' }}>■</span> מסחר (מילויים + מלאי לפי אמצע) · <span style={{ color: '#ff9f6b' }}>- -</span> הערכה שמרנית</span>
         <Chart pts={st.equity ?? []} base={st.start_cash} />
+        <div style={{ fontSize: 12.5, color: '#ff9f6b', marginBottom: 4 }}>הערכה שמרנית (מאז {st.cons?.since ? il(st.cons.since) : '—'}): מניחה שעושה שוק אחד בגודל שלנו מצטרף לכל מחיר שלנו (החלק בתגמול קטן), ושהפסדי המסחר כפולים ×{st.cons?.rules?.tradeMult ?? 2} — כי בכסף אמיתי מי שיודע משהו בוחר דווקא בנו. המציאות כנראה בין הקו הירוק לכתום.</div>
         <div style={{ fontSize: 12.5, color: '#8fa3b8' }}>השיטה רווחית רק אם הקו הכחול לא אוכל את הצהוב. פועל מאז {il(st.started)} ({days.toFixed(1)} ימים).</div>
       </div>
       <div style={card}><b>שווקים פעילים ({mk.length}/{R.maxMarkets})</b>

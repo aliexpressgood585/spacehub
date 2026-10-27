@@ -56,6 +56,17 @@ export function share(b: Book, v: number, minSize: number, bid: Quote, ask: Quot
   const o = ourQ(b, v, minSize, bid, ask)
   return o > 0 ? o / (o + bookQ(b, v, minSize)) : 0
 }
+// CONSERVATIVE line (2026-10-27, owner "כן"): paper quotes are invisible, real ones are answered. Two haircuts, both stated:
+// (1) one competitor of OUR size joins at our prices -> share = o / (o x (1 + competitors) + others);
+// (2) informed traders pick real quotes more often -> trading P&L counted CONS.tradeMult times.
+// Plus a measurement: the 5-minute markout of every fill (mid 5 min later vs our fill price) = adverse selection, observed.
+export const CONS = { competitors: 1, tradeMult: 2, markoutMin: 5 }
+export function shareCons(b: Book, v: number, minSize: number, bid: Quote, ask: Quote) {
+  const o = ourQ(b, v, minSize, bid, ask)
+  return o > 0 ? o / (o * (1 + CONS.competitors) + bookQ(b, v, minSize)) : 0
+}
+// $ gained (+) or lost (-) on a fill when the midpoint later is midLater: a bid bought YES, an ask sold YES (= bought NO).
+export const markout = (side: 'bid' | 'ask', px: number, size: number, midLater: number) => (side === 'bid' ? midLater - px : px - midLater) * size
 
 const round = (x: number, t: number) => Math.round(x / t) * t
 // Quote prices: join the best bid / best ask (back of the queue, the least adverse spot) unless the best level sits outside the
