@@ -44,10 +44,10 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-27T15:36:56.937Z",
+ "last_scan": "2026-10-27T15:37:08.353Z",
  "last_note": {
-  "at": "2026-10-27T15:36:56.890Z",
-  "windows": 0,
+  "at": "2026-10-27T15:37:06.205Z",
+  "windows": 4,
   "settled": 0,
   "entered": 0
  },
@@ -80458,6 +80458,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-27T15:37:08.353Z",
+   "market_id": "6254986",
+   "question": "Bitcoin Up or Down - October 27, 11:35AM-11:40AM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 15:35–15:40 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.96,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 1.67 < 2 (המחיר קרוב מדי לקו הפתיחה)"
+  },
+  {
    "ts": "2026-10-27T15:32:39.234Z",
    "market_id": "6254943",
    "question": "Bitcoin Up or Down - October 27, 11:30AM-11:35AM ET",
@@ -82645,38 +82656,10 @@
    "price": 0.92,
    "decision": "skip",
    "reason": "מסנן מרחק: 1.72 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-27T14:07:50.802Z",
-   "market_id": "6252453",
-   "question": "Solana Up or Down - October 27, 10:05AM-10:10AM ET",
-   "question_he": "סולנה · עולה או יורד · 5 דקות · 14:05–14:10 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.95,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.36 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 635,
  "shadow": [
-  {
-   "slug": "sol-updown-5m-1792819200",
-   "market_id": "6074816",
-   "token_id": "101275691666014262668420040522480551722711761678412365089117453239898926948136",
-   "coin": "sol",
-   "outcome": "Down",
-   "end_time": "2026-10-24T05:25:00Z",
-   "placed_at": "2026-10-24T05:22:02.280Z",
-   "limit": 0.94,
-   "taker_ask": 0.95,
-   "status": "DONE",
-   "filled": true,
-   "filled_at": "2026-10-24T05:22:11.541Z",
-   "left_at_fill": 168,
-   "won": true,
-   "ret": 0.06382978723404262
-  },
   {
    "slug": "eth-updown-5m-1792819200",
    "market_id": "6074813",
@@ -130261,6 +130244,19 @@
    "taker_ask": 0.96,
    "status": "WORKING",
    "filled": false
+  },
+  {
+   "slug": "btc-updown-5m-1793115300",
+   "market_id": "6254986",
+   "token_id": "53946979763631017214591841895703191436159568828186785313503988021102733692206",
+   "coin": "btc",
+   "outcome": "Up",
+   "end_time": "2026-10-27T15:40:00Z",
+   "placed_at": "2026-10-27T15:37:06.637Z",
+   "limit": 0.95,
+   "taker_ask": 0.96,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
@@ -130272,11 +130268,11 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2996,
-   "filled": 1303,
-   "fill_rate": 0.434913217623498,
-   "wr": 0.851880276285495,
-   "ret": -0.0774701186154003,
+   "resolved": 2995,
+   "filled": 1302,
+   "fill_rate": 0.43472454090150253,
+   "wr": 0.8517665130568356,
+   "ret": -0.07757864388871016,
    "missed_wins": 1693,
    "missed_losses": 0
   },
