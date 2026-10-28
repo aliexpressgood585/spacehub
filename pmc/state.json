@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-28T17:23:01.965Z",
+ "last_scan": "2026-10-28T17:23:13.296Z",
  "last_note": {
-  "at": "2026-10-28T17:23:00.053Z",
+  "at": "2026-10-28T17:23:11.675Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -46329,7 +46329,7 @@
    "opened_at": "2026-10-28T17:22:21.833Z",
    "status": "OPEN",
    "mark_px": 0.97,
-   "mark_at": "2026-10-28T17:23:00.663Z",
+   "mark_at": "2026-10-28T17:23:12.413Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -46357,7 +46357,7 @@
     "spot": 80594.97,
     "sigma1s": 0.0000398764421259453,
     "close_px": 0.975,
-    "close_at": "2026-10-28T17:23:00.663Z"
+    "close_at": "2026-10-28T17:23:12.413Z"
    }
   }
  ],
@@ -81365,6 +81365,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-28T17:23:13.296Z",
+   "market_id": "6313331",
+   "question": "Ethereum Up or Down - October 28, 1:20PM-1:25PM ET",
+   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 17:20–17:25 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.95,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
    "ts": "2026-10-28T17:23:01.965Z",
    "market_id": "6313331",
    "question": "Ethereum Up or Down - October 28, 1:20PM-1:25PM ET",
@@ -83552,17 +83563,6 @@
    "price": 0.97,
    "decision": "skip",
    "reason": "מסנן מרחק: 0.94 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-28T15:43:44.527Z",
-   "market_id": "6301110",
-   "question": "XRP Up or Down - October 28, 11:40AM-11:45AM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 15:40–15:45 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.93,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.62 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 648,
@@ -131148,7 +131148,9 @@
    "limit": 0.96,
    "taker_ask": 0.97,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-28T17:23:12.245Z",
+   "left_at_fill": 108
   },
   {
    "slug": "xrp-updown-5m-1793208000",
