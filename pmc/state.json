@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-28T20:44:53.881Z",
+ "last_scan": "2026-10-28T20:45:25.885Z",
  "last_note": {
-  "at": "2026-10-28T20:44:53.721Z",
+  "at": "2026-10-28T20:45:25.689Z",
   "windows": 0,
   "settled": 0,
   "entered": 0
@@ -131285,10 +131285,12 @@
    "placed_at": "2026-10-28T20:37:48.857Z",
    "limit": 0.92,
    "taker_ask": 0.94,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-28T20:38:07.532Z",
-   "left_at_fill": 112
+   "left_at_fill": 112,
+   "won": true,
+   "ret": 0.08695652173913039
   },
   {
    "slug": "xrp-updown-5m-1793219700",
@@ -131300,10 +131302,12 @@
    "placed_at": "2026-10-28T20:37:48.997Z",
    "limit": 0.9,
    "taker_ask": 0.93,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-28T20:38:57.822Z",
-   "left_at_fill": 62
+   "left_at_fill": 62,
+   "won": false,
+   "ret": -1
   },
   {
    "slug": "eth-updown-5m-1793219700",
@@ -131315,10 +131319,12 @@
    "placed_at": "2026-10-28T20:38:38.719Z",
    "limit": 0.9,
    "taker_ask": 0.91,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-28T20:38:48.032Z",
-   "left_at_fill": 72
+   "left_at_fill": 72,
+   "won": false,
+   "ret": -1
   },
   {
    "slug": "btc-updown-5m-1793219700",
@@ -131330,8 +131336,10 @@
    "placed_at": "2026-10-28T20:38:58.129Z",
    "limit": 0.96,
    "taker_ask": 0.97,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   }
  ],
  "study": {
@@ -131343,12 +131351,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2996,
-   "filled": 1300,
-   "fill_rate": 0.43391188251001334,
-   "wr": 0.8592307692307692,
-   "ret": -0.06833665862465779,
-   "missed_wins": 1696,
+   "resolved": 3000,
+   "filled": 1303,
+   "fill_rate": 0.43433333333333335,
+   "wr": 0.8580199539524175,
+   "ret": -0.06964750551827784,
+   "missed_wins": 1697,
    "missed_losses": 0
   },
   "late_exit": {
