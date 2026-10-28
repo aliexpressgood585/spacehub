@@ -17,7 +17,7 @@ ok(questionHe('btc', '15m', 1791927000) === 'ביטקוין · עולה או י�
 ok(PMC.rules.every((x) => x.lo < x.hi && x.hi < 1 && x.enterTo >= 0 && x.enterFrom <= TF_SEC[x.tf]), 'every deployed rule is well-formed')
 
 // v2 protection: floor 90% of start + half of every profit peak; stake <= 3% equity and <= (equity - floor) / 3
-ok(pmcFloor(1000, 1000) === 900 && Math.abs(pmcFloor(1000, 1200) - 1040) < 1e-9, 'floor = 90% of start, raised by 70% of the profit peak')
+ok(pmcFloor(1000, 1000) === 900 && Math.abs(pmcFloor(1000, 1200) - 1000) < 1e-9, 'floor = 90% of start, raised by 50% of the profit peak')
 ok(near(pmcStake(1000, 1000, 1000).stake, 30) && near(pmcStake(1200, 1200, 1000).stake, 36), 'stake = 3% of equity while far from the floor')
 { const a = pmcStake(950, 1000, 1000); ok(near(a.stake, 50 / 3) && near(a.floor, 900), 'near the floor the stake shrinks to (equity - floor) / 3') }
 { let eq = 1200, peak = 1200; for (let i = 0; i < 3; i++) eq -= pmcStake(eq, peak, 1000).stake

@@ -1073,6 +1073,10 @@ The gym re-runs whenever `.run-request` is pushed (~2 min). Next honest use: wid
   and, 5 min later, its markout (mid then vs our fill, $; st.markout {n, usd, c_per_share}) = observed adverse selection. Equity points
   carry ec; page draws it as a dashed orange line + cards. The haircuts are stated assumptions, not measurements; only a real test
   measures the gap. tests/pmr.test.ts 54/54.
+- 2026-10-28 Poly Coins PMC.lockFrac 0.7 -> 0.5 (owner chose option 2). The desk had taken NO entry since 10-24 14:35 UTC: peak $1,114 ->
+  floor 900 + 0.7 x 114 = $980, equity $993 -> stake (equity - floor)/3 = $4.40 < the minimum order (PMC.minQty x ask ~ $4.6-4.9), skipped
+  as 'הגנה: החשבון ברצפה המוגנת' forever (no trades = no new peak = no room: a deadlock, same shape as the v56.6 kill-switch freeze).
+  New floor $957, stake ~$12. Record at the switch: 634 closes, 605 W, net -$6.69 vs $1,000 (no measured edge). tests/pmc.test.ts 32/32.
 ## v123 (2026-10-08) — every strategy the bot has run, one 3-year window, one cost model (owner: "scan the whole history of the strategies, including the current one, over three years; how many % success")
 Research only, nothing deployed. `backtest/research/v123_all_strategies.ts` -> `status/all-strategies-v123.txt`;
 `backtest/research/v123b_rsi2_ddddd.ts <archive dir>` -> `status/rsi2-ddddd-v123b.txt`. Each rule is imported from the

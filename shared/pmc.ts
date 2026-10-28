@@ -32,7 +32,7 @@ export const PMC = {
   maxPosFrac: 0.03,           // a stake is at most 3% of equity
   maxPerWindow: 1,            // ONE position per 5m window (coins are correlated): the first in-band coin in rule order, BTC first (deepest book)
   floorFrac: 0.9,             // base floor = 90% of the starting cash
-  lockFrac: 0.7,              // 70% of every new profit peak is locked into the floor (owner 2026-10-22; was 0.5)
+  lockFrac: 0.5,              // 50% of every new profit peak is locked into the floor (owner 2026-10-28: back from 0.7, which left $13 of room = below the min order, desk frozen since 10-24)
   lossesToFloor: 3,           // a stake is also <= (equity - floor) / 3, so three straight losses cannot cross the floor
   maxOpen: 2,
   minQty: 5,                  // Polymarket minimum order size (shares)
@@ -63,7 +63,7 @@ export const PMC = {
 // Highest price we will pay: the band's cap, and (when the last trade is known) last trade + maxOverRef.
 export const pmcPxCap = (hi: number, ref: number | null) => Math.min(hi + PMC.slipCap, ref != null && ref > 0 ? ref + PMC.maxOverRef : Infinity)
 
-// Protected floor: 90% of the start, raised by 70% of every profit peak (the high-water mark). Never falls.
+// Protected floor: 90% of the start, raised by 50% of every profit peak (the high-water mark). Never falls.
 export const pmcFloor = (start: number, peak: number) => start * PMC.floorFrac + PMC.lockFrac * Math.max(0, peak - start)
 // Stake for the next entry: min(3% of equity, room above the floor / 3). 0 when the account sits on its floor.
 export function pmcStake(equity: number, peak: number, start: number) {
