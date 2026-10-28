@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-28T23:04:03.583Z",
+ "last_scan": "2026-10-28T23:04:13.535Z",
  "last_note": {
-  "at": "2026-10-28T23:04:01.434Z",
+  "at": "2026-10-28T23:04:11.366Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -46677,13 +46677,6 @@
  ],
  "equity": [
   {
-   "ts": "2026-10-25T08:10:38.532Z",
-   "equity": 993.3104095670752,
-   "cash": 993.3104095670752,
-   "open_value": 0,
-   "open_count": 0
-  },
-  {
    "ts": "2026-10-25T08:11:38.237Z",
    "equity": 993.3104095670752,
    "cash": 993.3104095670752,
@@ -81675,9 +81668,27 @@
    "cash": 988.4357178991836,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-10-28T23:04:13.535Z",
+   "equity": 988.4357178991836,
+   "cash": 988.4357178991836,
+   "open_value": 0,
+   "open_count": 0
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-28T23:04:13.534Z",
+   "market_id": "6326993",
+   "question": "Bitcoin Up or Down - October 28, 7:00PM-7:05PM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 23:00–23:05 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.9,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 0.93 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
+  },
   {
    "ts": "2026-10-28T23:04:03.582Z",
    "market_id": "6326993",
@@ -83866,17 +83877,6 @@
    "price": 0.91,
    "decision": "skip",
    "reason": "מסנן מרחק: 1.20 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-28T21:07:57.596Z",
-   "market_id": "6325632",
-   "question": "XRP Up or Down - October 28, 5:05PM-5:10PM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 21:05–21:10 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.9,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.64 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 652,
@@ -131475,7 +131475,9 @@
    "limit": 0.93,
    "taker_ask": 0.94,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-28T23:04:11.615Z",
+   "left_at_fill": 48
   }
  ],
  "study": {
