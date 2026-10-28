@@ -44,12 +44,12 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-28T16:37:50.875Z",
+ "last_scan": "2026-10-28T16:38:00.263Z",
  "last_note": {
-  "at": "2026-10-28T16:37:47.837Z",
+  "at": "2026-10-28T16:37:58.008Z",
   "windows": 4,
   "settled": 0,
-  "entered": 1
+  "entered": 0
  },
  "trades": [
   {
@@ -46256,7 +46256,7 @@
    "opened_at": "2026-10-28T16:37:50.875Z",
    "status": "OPEN",
    "mark_px": 0.96,
-   "mark_at": "2026-10-28T16:37:50.875Z",
+   "mark_at": "2026-10-28T16:37:59.195Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -46283,7 +46283,9 @@
     "z": 2.7343881393132587,
     "spot_open": 80578.54,
     "spot": 80520,
-    "sigma1s": 0.00002313364150488829
+    "sigma1s": 0.00002313364150488829,
+    "close_px": 0.965,
+    "close_at": "2026-10-28T16:37:59.195Z"
    }
   }
  ],
@@ -131018,8 +131020,10 @@
    "placed_at": "2026-10-28T16:33:38.680Z",
    "limit": 0.91,
    "taker_ask": 0.92,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "sol-updown-5m-1793205000",
@@ -131031,8 +131035,10 @@
    "placed_at": "2026-10-28T16:33:39.201Z",
    "limit": 0.93,
    "taker_ask": 0.95,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "eth-updown-5m-1793205000",
@@ -131044,8 +131050,10 @@
    "placed_at": "2026-10-28T16:33:48.437Z",
    "limit": 0.93,
    "taker_ask": 0.95,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "xrp-updown-5m-1793205300",
@@ -131109,12 +131117,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2993,
+   "resolved": 2996,
    "filled": 1310,
-   "fill_rate": 0.43768793852322085,
+   "fill_rate": 0.43724966622162886,
    "wr": 0.8587786259541985,
    "ret": -0.0690264690061732,
-   "missed_wins": 1683,
+   "missed_wins": 1686,
    "missed_losses": 0
   },
   "late_exit": {
@@ -131273,8 +131281,8 @@
    "beat_close": 0.9527896995708155,
    "brier_entry": 0.038873201901774346,
    "brier_close": 0.002105103004291837,
-   "open_n": 0,
-   "open_clv_c": null
+   "open_n": 1,
+   "open_clv_c": -0.5000000000000004
   },
   "judged": {
    "n": 466,
@@ -131285,8 +131293,8 @@
    "beat_close": 0.9527896995708155,
    "brier_entry": 0.038873201901774346,
    "brier_close": 0.002105103004291837,
-   "open_n": 0,
-   "open_clv_c": null
+   "open_n": 1,
+   "open_clv_c": -0.5000000000000004
   }
  }
 }
