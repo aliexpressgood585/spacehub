@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-29T10:38:05.853Z",
+ "last_scan": "2026-10-29T10:38:15.497Z",
  "last_note": {
-  "at": "2026-10-29T10:38:03.464Z",
+  "at": "2026-10-29T10:38:13.175Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -48489,13 +48489,6 @@
  ],
  "equity": [
   {
-   "ts": "2026-10-25T19:54:44.582Z",
-   "equity": 993.3104095670752,
-   "cash": 993.3104095670752,
-   "open_value": 0,
-   "open_count": 0
-  },
-  {
    "ts": "2026-10-25T19:55:44.986Z",
    "equity": 993.3104095670752,
    "cash": 993.3104095670752,
@@ -83487,9 +83480,27 @@
    "cash": 977.2964536300117,
    "open_value": 10.726291699171297,
    "open_count": 1
+  },
+  {
+   "ts": "2026-10-29T10:38:15.497Z",
+   "equity": 988.022745329183,
+   "cash": 977.2964536300117,
+   "open_value": 10.726291699171297,
+   "open_count": 1
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-29T10:38:15.496Z",
+   "market_id": "6338340",
+   "question": "Ethereum Up or Down - October 29, 6:35AM-6:40AM ET",
+   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 10:35–10:40 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.9,
+   "decision": "skip",
+   "reason": "מסנן מרחק: -0.38 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
+  },
   {
    "ts": "2026-10-29T10:37:56.242Z",
    "market_id": "6338340",
@@ -85676,17 +85687,6 @@
    "outcome": "Down",
    "outcome_he": "יורד",
    "price": 0.94,
-   "decision": "skip",
-   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
-  },
-  {
-   "ts": "2026-10-29T09:13:38.529Z",
-   "market_id": "6337439",
-   "question": "Solana Up or Down - October 29, 5:10AM-5:15AM ET",
-   "question_he": "סולנה · עולה או יורד · 5 דקות · 09:10–09:15 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.96,
    "decision": "skip",
    "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
   }
@@ -133279,7 +133279,9 @@
    "limit": 0.9,
    "taker_ask": 0.91,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-29T10:38:13.485Z",
+   "left_at_fill": 107
   },
   {
    "slug": "sol-updown-5m-1793270100",
