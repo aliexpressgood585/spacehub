@@ -44,12 +44,12 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-29T23:42:21.969Z",
+ "last_scan": "2026-10-29T23:42:31.705Z",
  "last_note": {
-  "at": "2026-10-29T23:42:19.584Z",
+  "at": "2026-10-29T23:42:30.056Z",
   "windows": 4,
   "settled": 0,
-  "entered": 1
+  "entered": 0
  },
  "trades": [
   {
@@ -50234,8 +50234,8 @@
    "best_ask": 0.95,
    "opened_at": "2026-10-29T23:42:21.969Z",
    "status": "OPEN",
-   "mark_px": 0.94,
-   "mark_at": "2026-10-29T23:42:21.969Z",
+   "mark_px": 0.9,
+   "mark_at": "2026-10-29T23:42:30.661Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -50262,7 +50262,9 @@
     "z": 2.0673850019056164,
     "spot_open": 78578.22,
     "spot": 78432.5,
-    "sigma1s": 0.00007075965038884305
+    "sigma1s": 0.00007075965038884305,
+    "close_px": 0.905,
+    "close_at": "2026-10-29T23:42:30.661Z"
    }
   }
  ],
@@ -135063,8 +135065,10 @@
    "placed_at": "2026-10-29T23:37:10.629Z",
    "limit": 0.96,
    "taker_ask": 0.97,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "eth-updown-5m-1793316900",
@@ -135076,8 +135080,10 @@
    "placed_at": "2026-10-29T23:37:10.970Z",
    "limit": 0.94,
    "taker_ask": 0.95,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "xrp-updown-5m-1793316900",
@@ -135089,8 +135095,10 @@
    "placed_at": "2026-10-29T23:37:21.621Z",
    "limit": 0.9,
    "taker_ask": 0.93,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "sol-updown-5m-1793316900",
@@ -135102,8 +135110,10 @@
    "placed_at": "2026-10-29T23:37:30.968Z",
    "limit": 0.95,
    "taker_ask": 0.97,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "btc-updown-5m-1793317200",
@@ -135116,7 +135126,9 @@
    "limit": 0.94,
    "taker_ask": 0.95,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-29T23:42:30.490Z",
+   "left_at_fill": 150
   }
  ],
  "study": {
@@ -135128,12 +135140,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2995,
+   "resolved": 2999,
    "filled": 1328,
-   "fill_rate": 0.44340567612687815,
+   "fill_rate": 0.4428142714238079,
    "wr": 0.8433734939759037,
    "ret": -0.08618251577822408,
-   "missed_wins": 1667,
+   "missed_wins": 1671,
    "missed_losses": 0
   },
   "late_exit": {
@@ -135292,8 +135304,8 @@
    "beat_close": 0.9520153550863724,
    "brier_entry": 0.040184054465701155,
    "brier_close": 0.0019107159309021049,
-   "open_n": 0,
-   "open_clv_c": null
+   "open_n": 1,
+   "open_clv_c": -4.499999999999993
   },
   "judged": {
    "n": 521,
@@ -135304,8 +135316,8 @@
    "beat_close": 0.9520153550863724,
    "brier_entry": 0.040184054465701155,
    "brier_close": 0.0019107159309021049,
-   "open_n": 0,
-   "open_clv_c": null
+   "open_n": 1,
+   "open_clv_c": -4.499999999999993
   }
  }
 }
