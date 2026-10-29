@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-29T13:48:51.232Z",
+ "last_scan": "2026-10-29T13:49:00.992Z",
  "last_note": {
-  "at": "2026-10-29T13:48:49.968Z",
+  "at": "2026-10-29T13:48:59.568Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -49381,7 +49381,7 @@
    "opened_at": "2026-10-29T13:47:31.658Z",
    "status": "OPEN",
    "mark_px": 0.99,
-   "mark_at": "2026-10-29T13:48:50.556Z",
+   "mark_at": "2026-10-29T13:49:00.219Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -49410,7 +49410,7 @@
     "spot": 80099.15,
     "sigma1s": 0.000055958053929336625,
     "close_px": 0.99,
-    "close_at": "2026-10-29T13:48:50.556Z"
+    "close_at": "2026-10-29T13:49:00.219Z"
    }
   }
  ],
@@ -84418,6 +84418,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-29T13:49:00.992Z",
+   "market_id": "6343179",
+   "question": "Ethereum Up or Down - October 29, 9:45AM-9:50AM ET",
+   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 13:45–13:50 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.96,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
    "ts": "2026-10-29T13:48:51.232Z",
    "market_id": "6343206",
    "question": "Solana Up or Down - October 29, 9:45AM-9:50AM ET",
@@ -86605,17 +86616,6 @@
    "price": 0.91,
    "decision": "skip",
    "reason": "מסנן מרחק: 0.67 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-29T12:12:44.858Z",
-   "market_id": "6339850",
-   "question": "Bitcoin Up or Down - October 29, 8:10AM-8:15AM ET",
-   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 12:10–12:15 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.93,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.67 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 690,
@@ -134217,7 +134217,9 @@
    "limit": 0.92,
    "taker_ask": 0.94,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-29T13:48:59.928Z",
+   "left_at_fill": 60
   },
   {
    "slug": "sol-updown-5m-1793281500",
@@ -134230,7 +134232,9 @@
    "limit": 0.9,
    "taker_ask": 0.91,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-29T13:49:00.074Z",
+   "left_at_fill": 60
   }
  ],
  "study": {
