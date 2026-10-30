@@ -44,11 +44,11 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-30T21:23:44.328Z",
+ "last_scan": "2026-10-30T21:23:53.440Z",
  "last_note": {
-  "at": "2026-10-30T21:23:42.735Z",
+  "at": "2026-10-30T21:23:52.272Z",
   "windows": 4,
-  "settled": 1,
+  "settled": 0,
   "entered": 0
  },
  "trades": [
@@ -53423,8 +53423,8 @@
    "best_ask": 0.95,
    "opened_at": "2026-10-30T21:23:34.541Z",
    "status": "OPEN",
-   "mark_px": 0.96,
-   "mark_at": "2026-10-30T21:23:43.459Z",
+   "mark_px": 0.76,
+   "mark_at": "2026-10-30T21:23:52.987Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -53451,8 +53451,8 @@
     "spot_open": 2242.71,
     "spot": 2245.41,
     "sigma1s": 0.00005083186633210201,
-    "close_px": 0.965,
-    "close_at": "2026-10-30T21:23:43.459Z"
+    "close_px": 0.77,
+    "close_at": "2026-10-30T21:23:52.987Z"
    }
   }
  ],
@@ -88460,6 +88460,39 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-30T21:23:53.440Z",
+   "market_id": "6401294",
+   "question": "Bitcoin Up or Down - October 30, 5:20PM-5:25PM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 21:20–21:25 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.97,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
+   "ts": "2026-10-30T21:23:53.440Z",
+   "market_id": "6401288",
+   "question": "Solana Up or Down - October 30, 5:20PM-5:25PM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 21:20–21:25 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.95,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
+   "ts": "2026-10-30T21:23:53.440Z",
+   "market_id": "6401293",
+   "question": "XRP Up or Down - October 30, 5:20PM-5:25PM ET",
+   "question_he": "XRP · עולה או יורד · 5 דקות · 21:20–21:25 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.97,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
    "ts": "2026-10-30T21:23:34.541Z",
    "market_id": "6401295",
    "question": "Ethereum Up or Down - October 30, 5:20PM-5:25PM ET",
@@ -90625,39 +90658,6 @@
    "price": 0.92,
    "decision": "skip",
    "reason": "מסנן מרחק: 0.47 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-30T19:28:52.320Z",
-   "market_id": "6397732",
-   "question": "XRP Up or Down - October 30, 3:25PM-3:30PM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 19:25–19:30 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.94,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.70 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-30T19:28:41.798Z",
-   "market_id": "6397732",
-   "question": "XRP Up or Down - October 30, 3:25PM-3:30PM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 19:25–19:30 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.95,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.73 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-30T19:28:32.031Z",
-   "market_id": "6397732",
-   "question": "XRP Up or Down - October 30, 3:25PM-3:30PM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 19:25–19:30 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.94,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.93 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 746,
@@ -138266,7 +138266,9 @@
    "limit": 0.94,
    "taker_ask": 0.95,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-30T21:23:52.818Z",
+   "left_at_fill": 67
   }
  ],
  "study": {
@@ -138443,7 +138445,7 @@
    "brier_entry": 0.03887319380596507,
    "brier_close": 0.0024898637168141494,
    "open_n": 1,
-   "open_clv_c": 1.5000000000000124
+   "open_clv_c": -17.999999999999982
   },
   "judged": {
    "n": 565,
@@ -138455,7 +138457,7 @@
    "brier_entry": 0.03887319380596507,
    "brier_close": 0.0024898637168141494,
    "open_n": 1,
-   "open_clv_c": 1.5000000000000124
+   "open_clv_c": -17.999999999999982
   }
  }
 }
