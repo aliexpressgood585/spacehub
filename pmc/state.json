@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-30T10:02:21.515Z",
+ "last_scan": "2026-10-30T10:02:32.054Z",
  "last_note": {
-  "at": "2026-10-30T10:02:18.447Z",
+  "at": "2026-10-30T10:02:29.010Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -86745,6 +86745,28 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-30T10:02:31.069Z",
+   "market_id": "6382914",
+   "question": "Bitcoin Up or Down - October 30, 6:00AM-6:05AM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 10:00–10:05 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.92,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 1.43 < 2 (המחיר קרוב מדי לקו הפתיחה)"
+  },
+  {
+   "ts": "2026-10-30T10:02:32.053Z",
+   "market_id": "6382915",
+   "question": "Ethereum Up or Down - October 30, 6:00AM-6:05AM ET",
+   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 10:00–10:05 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.95,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 1.81 < 2 (המחיר קרוב מדי לקו הפתיחה)"
+  },
+  {
    "ts": "2026-10-30T10:02:20.548Z",
    "market_id": "6382914",
    "question": "Bitcoin Up or Down - October 30, 6:00AM-6:05AM ET",
@@ -88921,28 +88943,6 @@
    "price": 0.94,
    "decision": "skip",
    "reason": "מסנן מרחק: 1.43 < 2 (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-30T08:12:32.488Z",
-   "market_id": "6381954",
-   "question": "Ethereum Up or Down - October 30, 4:10AM-4:15AM ET",
-   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 08:10–08:15 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.96,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.02 < 2 (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-30T08:12:32.830Z",
-   "market_id": "6381955",
-   "question": "Solana Up or Down - October 30, 4:10AM-4:15AM ET",
-   "question_he": "סולנה · עולה או יורד · 5 דקות · 08:10–08:15 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.97,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.61 < 2 (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 722,
@@ -136530,7 +136530,9 @@
    "limit": 0.92,
    "taker_ask": 0.93,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-30T10:02:29.185Z",
+   "left_at_fill": 151
   },
   {
    "slug": "eth-updown-5m-1793354400",
