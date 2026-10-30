@@ -44,12 +44,12 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-30T09:07:26.515Z",
+ "last_scan": "2026-10-30T09:07:35.269Z",
  "last_note": {
-  "at": "2026-10-30T09:07:24.533Z",
+  "at": "2026-10-30T09:07:34.256Z",
   "windows": 4,
   "settled": 0,
-  "entered": 1
+  "entered": 0
  },
  "trades": [
   {
@@ -51468,8 +51468,8 @@
    "best_ask": 0.96,
    "opened_at": "2026-10-30T09:07:26.515Z",
    "status": "OPEN",
-   "mark_px": 0.92,
-   "mark_at": "2026-10-30T09:07:26.515Z",
+   "mark_px": 0.96,
+   "mark_at": "2026-10-30T09:07:34.684Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -51495,7 +51495,9 @@
     "z": 2.7855163643479215,
     "spot_open": 1.2626,
     "spot": 1.2585,
-    "sigma1s": 0.00009348806038327723
+    "sigma1s": 0.00009348806038327723,
+    "close_px": 0.965,
+    "close_at": "2026-10-30T09:07:34.684Z"
    }
   }
  ],
@@ -136257,10 +136259,12 @@
    "placed_at": "2026-10-30T09:02:15.423Z",
    "limit": 0.92,
    "taker_ask": 0.94,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-30T09:02:34.760Z",
-   "left_at_fill": 145
+   "left_at_fill": 145,
+   "won": true,
+   "ret": 0.08695652173913039
   },
   {
    "slug": "eth-updown-5m-1793350800",
@@ -136272,10 +136276,12 @@
    "placed_at": "2026-10-30T09:03:25.215Z",
    "limit": 0.94,
    "taker_ask": 0.95,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-30T09:03:35.225Z",
-   "left_at_fill": 85
+   "left_at_fill": 85,
+   "won": true,
+   "ret": 0.06382978723404262
   },
   {
    "slug": "sol-updown-5m-1793350800",
@@ -136287,10 +136293,12 @@
    "placed_at": "2026-10-30T09:03:35.709Z",
    "limit": 0.93,
    "taker_ask": 0.95,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-10-30T09:03:44.530Z",
-   "left_at_fill": 75
+   "left_at_fill": 75,
+   "won": true,
+   "ret": 0.07526881720430102
   },
   {
    "slug": "xrp-updown-5m-1793351100",
@@ -136315,11 +136323,11 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2996,
-   "filled": 1301,
-   "fill_rate": 0.4342456608811749,
-   "wr": 0.8531898539584934,
-   "ret": -0.0756957604839204,
+   "resolved": 2999,
+   "filled": 1304,
+   "fill_rate": 0.434811603867956,
+   "wr": 0.8535276073619632,
+   "ret": -0.07534825863757896,
    "missed_wins": 1695,
    "missed_losses": 0
   },
@@ -136479,8 +136487,8 @@
    "beat_close": 0.9516728624535316,
    "brier_entry": 0.0406988001865618,
    "brier_close": 0.0026129962825278733,
-   "open_n": 0,
-   "open_clv_c": null
+   "open_n": 1,
+   "open_clv_c": 0.5000000000000004
   },
   "judged": {
    "n": 538,
@@ -136491,8 +136499,8 @@
    "beat_close": 0.9516728624535316,
    "brier_entry": 0.0406988001865618,
    "brier_close": 0.0026129962825278733,
-   "open_n": 0,
-   "open_clv_c": null
+   "open_n": 1,
+   "open_clv_c": 0.5000000000000004
   }
  }
 }
