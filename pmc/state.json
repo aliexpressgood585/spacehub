@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-30T15:38:55.716Z",
+ "last_scan": "2026-10-30T15:39:06.463Z",
  "last_note": {
-  "at": "2026-10-30T15:38:53.657Z",
+  "at": "2026-10-30T15:39:03.768Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -52685,13 +52685,6 @@
  ],
  "equity": [
   {
-   "ts": "2026-10-27T01:08:24.828Z",
-   "equity": 993.3104095670752,
-   "cash": 993.3104095670752,
-   "open_value": 0,
-   "open_count": 0
-  },
-  {
    "ts": "2026-10-27T01:09:21.633Z",
    "equity": 993.3104095670752,
    "cash": 993.3104095670752,
@@ -87683,9 +87676,38 @@
    "cash": 991.4994382830472,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-10-30T15:39:06.463Z",
+   "equity": 991.4994382830472,
+   "cash": 991.4994382830472,
+   "open_value": 0,
+   "open_count": 0
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-30T15:39:05.763Z",
+   "market_id": "6389688",
+   "question": "Solana Up or Down - October 30, 11:35AM-11:40AM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 15:35–15:40 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.94,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 1.93 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
+  },
+  {
+   "ts": "2026-10-30T15:39:06.463Z",
+   "market_id": "6389689",
+   "question": "XRP Up or Down - October 30, 11:35AM-11:40AM ET",
+   "question_he": "XRP · עולה או יורד · 5 דקות · 15:35–15:40 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.91,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 1.23 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
+  },
   {
    "ts": "2026-10-30T15:38:55.716Z",
    "market_id": "6389693",
@@ -89863,49 +89885,10 @@
    "price": 0.95,
    "decision": "skip",
    "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
-  },
-  {
-   "ts": "2026-10-30T13:32:14.105Z",
-   "market_id": "6386047",
-   "question": "Bitcoin Up or Down - October 30, 9:30AM-9:35AM ET",
-   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 13:30–13:35 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.93,
-   "decision": "BUY",
-   "reason": "168 שנ׳ לסיום, מחיר 0.93 בטווח 90-98¢, 11.5 מניות ($11), עמלה $0.05"
-  },
-  {
-   "ts": "2026-10-30T13:32:14.105Z",
-   "market_id": "6386051",
-   "question": "Solana Up or Down - October 30, 9:30AM-9:35AM ET",
-   "question_he": "סולנה · עולה או יורד · 5 דקות · 13:30–13:35 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.92,
-   "decision": "skip",
-   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
   }
  ],
  "next_id": 735,
  "shadow": [
-  {
-   "slug": "xrp-updown-5m-1793068200",
-   "market_id": "6234547",
-   "token_id": "98521444827500875366525684968381454843285638601676006628673980100190504739276",
-   "coin": "xrp",
-   "outcome": "Up",
-   "end_time": "2026-10-27T02:35:00Z",
-   "placed_at": "2026-10-27T02:32:27.563Z",
-   "limit": 0.92,
-   "taker_ask": 0.97,
-   "status": "DONE",
-   "filled": true,
-   "filled_at": "2026-10-27T02:32:36.712Z",
-   "left_at_fill": 143,
-   "won": false,
-   "ret": -1
-  },
   {
    "slug": "btc-updown-5m-1793069100",
    "market_id": "6235403",
@@ -137520,6 +137503,19 @@
    "taker_ask": 0.91,
    "status": "WORKING",
    "filled": false
+  },
+  {
+   "slug": "sol-updown-5m-1793374500",
+   "market_id": "6389688",
+   "token_id": "98318917115222631877261903610640059410731394181032948929891357155368926031055",
+   "coin": "sol",
+   "outcome": "Up",
+   "end_time": "2026-10-30T15:40:00Z",
+   "placed_at": "2026-10-30T15:39:04.887Z",
+   "limit": 0.93,
+   "taker_ask": 0.94,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
@@ -137531,11 +137527,11 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2996,
-   "filled": 1317,
-   "fill_rate": 0.4395861148197597,
-   "wr": 0.85041761579347,
-   "ret": -0.07888911958095321,
+   "resolved": 2995,
+   "filled": 1316,
+   "fill_rate": 0.4393989983305509,
+   "wr": 0.851063829787234,
+   "ret": -0.07818918730099951,
    "missed_wins": 1679,
    "missed_losses": 0
   },
