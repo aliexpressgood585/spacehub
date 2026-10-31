@@ -44,10 +44,10 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-31T02:21:58.911Z",
+ "last_scan": "2026-10-31T02:22:10.765Z",
  "last_note": {
-  "at": "2026-10-31T02:21:58.865Z",
-  "windows": 0,
+  "at": "2026-10-31T02:22:08.137Z",
+  "windows": 4,
   "settled": 0,
   "entered": 0
  },
@@ -54280,13 +54280,6 @@
  ],
  "equity": [
   {
-   "ts": "2026-10-27T11:55:09.619Z",
-   "equity": 993.3104095670752,
-   "cash": 993.3104095670752,
-   "open_value": 0,
-   "open_count": 0
-  },
-  {
    "ts": "2026-10-27T11:56:09.173Z",
    "equity": 993.3104095670752,
    "cash": 993.3104095670752,
@@ -89278,9 +89271,38 @@
    "cash": 986.8590732553437,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-10-31T02:22:10.765Z",
+   "equity": 986.8590732553437,
+   "cash": 986.8590732553437,
+   "open_value": 0,
+   "open_count": 0
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-31T02:22:10.088Z",
+   "market_id": "6405712",
+   "question": "Ethereum Up or Down - October 30, 10:20PM-10:25PM ET",
+   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 02:20–02:25 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.9,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 1.47 < 2 (המחיר קרוב מדי לקו הפתיחה)"
+  },
+  {
+   "ts": "2026-10-31T02:22:10.765Z",
+   "market_id": "6405715",
+   "question": "Solana Up or Down - October 30, 10:20PM-10:25PM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 02:20–02:25 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.94,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 0.97 < 2 (המחיר קרוב מדי לקו הפתיחה)"
+  },
   {
    "ts": "2026-10-31T02:19:10.582Z",
    "market_id": "6405701",
@@ -91458,49 +91480,10 @@
    "price": 0.9,
    "decision": "skip",
    "reason": "מסנן מרחק: 1.30 < 2 (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-31T00:32:36.654Z",
-   "market_id": "6404428",
-   "question": "Solana Up or Down - October 30, 8:30PM-8:35PM ET",
-   "question_he": "סולנה · עולה או יורד · 5 דקות · 00:30–00:35 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.91,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.72 < 2 (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-31T00:32:36.929Z",
-   "market_id": "6404424",
-   "question": "XRP Up or Down - October 30, 8:30PM-8:35PM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 00:30–00:35 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.95,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.31 < 2 (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 757,
  "shadow": [
-  {
-   "slug": "btc-updown-5m-1793109600",
-   "market_id": "6252433",
-   "token_id": "102870867151199417864422263519134912295495539552771496002476988227006561925162",
-   "coin": "btc",
-   "outcome": "Down",
-   "end_time": "2026-10-27T14:05:00Z",
-   "placed_at": "2026-10-27T14:02:17.978Z",
-   "limit": 0.96,
-   "taker_ask": 0.97,
-   "status": "DONE",
-   "filled": true,
-   "filled_at": "2026-10-27T14:02:28.298Z",
-   "left_at_fill": 152,
-   "won": true,
-   "ret": 0.041666666666666706
-  },
   {
    "slug": "eth-updown-5m-1793109600",
    "market_id": "6252428",
@@ -139085,6 +139068,19 @@
    "taker_ask": 0.91,
    "status": "WORKING",
    "filled": false
+  },
+  {
+   "slug": "sol-updown-5m-1793413200",
+   "market_id": "6405715",
+   "token_id": "77848246709228922544320140321824804419712607718796308957336458314772009153452",
+   "coin": "sol",
+   "outcome": "Up",
+   "end_time": "2026-10-31T02:25:00Z",
+   "placed_at": "2026-10-31T02:22:09.074Z",
+   "limit": 0.92,
+   "taker_ask": 0.94,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
@@ -139096,11 +139092,11 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2997,
-   "filled": 1302,
-   "fill_rate": 0.4344344344344344,
-   "wr": 0.858678955453149,
-   "ret": -0.06987521825305458,
+   "resolved": 2996,
+   "filled": 1301,
+   "fill_rate": 0.4342456608811749,
+   "wr": 0.8585703305149884,
+   "ret": -0.06996095375260857,
    "missed_wins": 1695,
    "missed_losses": 0
   },
