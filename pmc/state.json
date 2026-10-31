@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-31T05:47:25.312Z",
+ "last_scan": "2026-10-31T05:47:34.794Z",
  "last_note": {
-  "at": "2026-10-31T05:47:23.670Z",
+  "at": "2026-10-31T05:47:33.255Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -54950,8 +54950,8 @@
    "best_ask": 0.92,
    "opened_at": "2026-10-31T05:47:15.665Z",
    "status": "OPEN",
-   "mark_px": 0.92,
-   "mark_at": "2026-10-31T05:47:24.384Z",
+   "mark_px": 0.86,
+   "mark_at": "2026-10-31T05:47:33.820Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -54979,8 +54979,8 @@
     "spot_open": 77328.5,
     "spot": 77277.47,
     "sigma1s": 0.000023421689189741567,
-    "close_px": 0.925,
-    "close_at": "2026-10-31T05:47:24.384Z"
+    "close_px": 0.865,
+    "close_at": "2026-10-31T05:47:33.820Z"
    }
   }
  ],
@@ -89988,6 +89988,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-31T05:47:34.793Z",
+   "market_id": "6408404",
+   "question": "Solana Up or Down - October 31, 1:45AM-1:50AM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 05:45–05:50 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.94,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
    "ts": "2026-10-31T05:47:25.312Z",
    "market_id": "6408404",
    "question": "Solana Up or Down - October 31, 1:45AM-1:50AM ET",
@@ -92175,17 +92186,6 @@
    "price": 0.97,
    "decision": "skip",
    "reason": "מסנן מרחק: 1.69 < 2 (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-31T04:22:30.390Z",
-   "market_id": "6406478",
-   "question": "Solana Up or Down - October 31, 12:20AM-12:25AM ET",
-   "question_he": "סולנה · עולה או יורד · 5 דקות · 04:20–04:25 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.9,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.99 < 2 (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 767,
@@ -139777,7 +139777,9 @@
    "limit": 0.91,
    "taker_ask": 0.92,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-31T05:47:33.504Z",
+   "left_at_fill": 146
   },
   {
    "slug": "sol-updown-5m-1793425500",
@@ -139790,7 +139792,9 @@
    "limit": 0.95,
    "taker_ask": 0.97,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-31T05:47:33.663Z",
+   "left_at_fill": 146
   }
  ],
  "study": {
@@ -139967,7 +139971,7 @@
    "brier_entry": 0.03911480137490414,
    "brier_close": 0.00240360580204777,
    "open_n": 1,
-   "open_clv_c": 0.5000000000000004
+   "open_clv_c": -5.500000000000005
   },
   "judged": {
    "n": 586,
@@ -139979,7 +139983,7 @@
    "brier_entry": 0.03911480137490414,
    "brier_close": 0.00240360580204777,
    "open_n": 1,
-   "open_clv_c": 0.5000000000000004
+   "open_clv_c": -5.500000000000005
   }
  }
 }
