@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-31T04:03:56.689Z",
+ "last_scan": "2026-10-31T04:04:06.511Z",
  "last_note": {
-  "at": "2026-10-31T04:03:55.230Z",
+  "at": "2026-10-31T04:04:05.160Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -54513,8 +54513,8 @@
    "best_ask": 0.96,
    "opened_at": "2026-10-31T04:02:37.265Z",
    "status": "OPEN",
-   "mark_px": 0.969,
-   "mark_at": "2026-10-31T04:03:55.650Z",
+   "mark_px": 0.926,
+   "mark_at": "2026-10-31T04:04:05.549Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -54542,8 +54542,8 @@
     "spot_open": 77170.74,
     "spot": 77237.78,
     "sigma1s": 0.00002709100118933932,
-    "close_px": 0.9695,
-    "close_at": "2026-10-31T04:03:55.650Z"
+    "close_px": 0.928,
+    "close_at": "2026-10-31T04:04:05.549Z"
    }
   }
  ],
@@ -89551,6 +89551,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-31T04:04:06.511Z",
+   "market_id": "6406413",
+   "question": "Ethereum Up or Down - October 31, 12:00AM-12:05AM ET",
+   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 04:00–04:05 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.97,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
    "ts": "2026-10-31T04:03:56.689Z",
    "market_id": "6406401",
    "question": "XRP Up or Down - October 31, 12:00AM-12:05AM ET",
@@ -91738,17 +91749,6 @@
    "price": 0.9751181728253718,
    "decision": "BUY",
    "reason": "159 שנ׳ לסיום, מחיר 0.97 בטווח 90-98¢, 10.2 מניות ($10), עמלה $0.02"
-  },
-  {
-   "ts": "2026-10-31T02:37:22.918Z",
-   "market_id": "6405827",
-   "question": "XRP Up or Down - October 30, 10:35PM-10:40PM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 02:35–02:40 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.97,
-   "decision": "skip",
-   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
   }
  ],
  "next_id": 761,
@@ -139338,7 +139338,9 @@
    "limit": 0.95,
    "taker_ask": 0.96,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-31T04:04:05.393Z",
+   "left_at_fill": 55
   },
   {
    "slug": "xrp-updown-5m-1793419200",
@@ -139530,7 +139532,7 @@
    "brier_entry": 0.039505299320161766,
    "brier_close": 0.002428289655172403,
    "open_n": 1,
-   "open_clv_c": 0.9500000000000064
+   "open_clv_c": -3.1999999999999917
   },
   "judged": {
    "n": 580,
@@ -139542,7 +139544,7 @@
    "brier_entry": 0.039505299320161766,
    "brier_close": 0.002428289655172403,
    "open_n": 1,
-   "open_clv_c": 0.9500000000000064
+   "open_clv_c": -3.1999999999999917
   }
  }
 }
