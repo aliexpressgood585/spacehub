@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-31T18:22:58.361Z",
+ "last_scan": "2026-10-31T18:23:08.390Z",
  "last_note": {
-  "at": "2026-10-31T18:22:56.124Z",
+  "at": "2026-10-31T18:23:05.533Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -57331,13 +57331,6 @@
  ],
  "equity": [
   {
-   "ts": "2026-10-28T04:20:26.565Z",
-   "equity": 993.3104095670752,
-   "cash": 993.3104095670752,
-   "open_value": 0,
-   "open_count": 0
-  },
-  {
    "ts": "2026-10-28T04:21:26.788Z",
    "equity": 993.3104095670752,
    "cash": 993.3104095670752,
@@ -92329,9 +92322,38 @@
    "cash": 981.6954651652883,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-10-31T18:23:08.390Z",
+   "equity": 981.6954651652883,
+   "cash": 981.6954651652883,
+   "open_value": 0,
+   "open_count": 0
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-10-31T18:23:07.773Z",
+   "market_id": "6429512",
+   "question": "Bitcoin Up or Down - October 31, 2:20PM-2:25PM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 18:20–18:25 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.93,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 0.49 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
+  },
+  {
+   "ts": "2026-10-31T18:23:08.390Z",
+   "market_id": "6429487",
+   "question": "XRP Up or Down - October 31, 2:20PM-2:25PM ET",
+   "question_he": "XRP · עולה או יורד · 5 דקות · 18:20–18:25 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.91,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 1.07 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
+  },
   {
    "ts": "2026-10-31T18:22:58.361Z",
    "market_id": "6429487",
@@ -94509,47 +94531,10 @@
    "price": 0.93,
    "decision": "skip",
    "reason": "מסנן מרחק: 1.39 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-31T16:44:00.841Z",
-   "market_id": "6426172",
-   "question": "XRP Up or Down - October 31, 12:40PM-12:45PM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 16:40–16:45 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.95,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.41 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-31T16:43:50.425Z",
-   "market_id": "6426168",
-   "question": "Bitcoin Up or Down - October 31, 12:40PM-12:45PM ET",
-   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 16:40–16:45 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.95,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.41 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 799,
  "shadow": [
-  {
-   "slug": "sol-updown-5m-1793167500",
-   "market_id": "6292857",
-   "token_id": "86506003667509138856718008194770504700333399263552255902994776764056072476598",
-   "coin": "sol",
-   "outcome": "Up",
-   "end_time": "2026-10-28T06:10:00Z",
-   "placed_at": "2026-10-28T06:07:09.729Z",
-   "limit": 0.93,
-   "taker_ask": 0.95,
-   "status": "DONE",
-   "filled": false,
-   "won": true,
-   "ret": null
-  },
   {
    "slug": "eth-updown-5m-1793167500",
    "market_id": "6292858",
@@ -142151,6 +142136,21 @@
    "limit": 0.92,
    "taker_ask": 0.96,
    "status": "WORKING",
+   "filled": true,
+   "filled_at": "2026-10-31T18:23:05.852Z",
+   "left_at_fill": 114
+  },
+  {
+   "slug": "btc-updown-5m-1793470800",
+   "market_id": "6429512",
+   "token_id": "89939715314911987365536141171286300054044344682701248481607585457015758899305",
+   "coin": "btc",
+   "outcome": "Up",
+   "end_time": "2026-10-31T18:25:00Z",
+   "placed_at": "2026-10-31T18:23:06.036Z",
+   "limit": 0.92,
+   "taker_ask": 0.93,
+   "status": "WORKING",
    "filled": false
   }
  ],
@@ -142163,12 +142163,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2995,
+   "resolved": 2994,
    "filled": 1312,
-   "fill_rate": 0.43806343906510853,
+   "fill_rate": 0.43820975283901137,
    "wr": 0.8559451219512195,
    "ret": -0.07281480894443647,
-   "missed_wins": 1683,
+   "missed_wins": 1682,
    "missed_losses": 0
   },
   "late_exit": {
