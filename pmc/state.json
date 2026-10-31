@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-31T12:39:51.727Z",
+ "last_scan": "2026-10-31T12:40:01.259Z",
  "last_note": {
-  "at": "2026-10-31T12:39:50.635Z",
+  "at": "2026-10-31T12:40:00.765Z",
   "windows": 0,
   "settled": 0,
   "entered": 0
@@ -56330,7 +56330,7 @@
    "opened_at": "2026-10-31T12:37:02.689Z",
    "status": "OPEN",
    "mark_px": 0.999,
-   "mark_at": "2026-10-31T12:39:51.040Z",
+   "mark_at": "2026-10-31T12:40:01.259Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -56380,13 +56380,6 @@
   }
  ],
  "equity": [
-  {
-   "ts": "2026-10-27T22:39:04.259Z",
-   "equity": 993.3104095670752,
-   "cash": 993.3104095670752,
-   "open_value": 0,
-   "open_count": 0
-  },
   {
    "ts": "2026-10-27T22:40:04.079Z",
    "equity": 993.3104095670752,
@@ -91378,6 +91371,13 @@
    "equity": 1001.6837582508031,
    "cash": 986.6801605585039,
    "open_value": 15.003597692299188,
+   "open_count": 1
+  },
+  {
+   "ts": "2026-10-31T12:40:01.259Z",
+   "equity": 1001.8201545934603,
+   "cash": 986.6801605585039,
+   "open_value": 15.139994034956453,
    "open_count": 1
   }
  ],
@@ -141187,8 +141187,10 @@
    "placed_at": "2026-10-31T12:33:21.183Z",
    "limit": 0.91,
    "taker_ask": 0.92,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "eth-updown-5m-1793449800",
@@ -141200,8 +141202,10 @@
    "placed_at": "2026-10-31T12:33:21.347Z",
    "limit": 0.93,
    "taker_ask": 0.94,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "btc-updown-5m-1793450100",
@@ -141241,12 +141245,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2996,
+   "resolved": 2998,
    "filled": 1326,
-   "fill_rate": 0.4425901201602136,
+   "fill_rate": 0.44229486324216144,
    "wr": 0.8536953242835595,
    "ret": -0.07534435544588347,
-   "missed_wins": 1670,
+   "missed_wins": 1672,
    "missed_losses": 0
   },
   "late_exit": {
