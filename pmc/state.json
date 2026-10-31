@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-10-31T09:08:47.632Z",
+ "last_scan": "2026-10-31T09:08:58.163Z",
  "last_note": {
-  "at": "2026-10-31T09:08:46.243Z",
+  "at": "2026-10-31T09:08:56.637Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -55676,7 +55676,7 @@
    "opened_at": "2026-10-31T09:07:39.134Z",
    "status": "OPEN",
    "mark_px": 0.88,
-   "mark_at": "2026-10-31T09:08:46.785Z",
+   "mark_at": "2026-10-31T09:08:57.366Z",
    "meta": {
     "fee_schedule": {
      "rate": 0.07,
@@ -55705,7 +55705,7 @@
     "spot": 77448.01,
     "sigma1s": 0.000024542596577349285,
     "close_px": 0.885,
-    "close_at": "2026-10-31T09:08:46.785Z"
+    "close_at": "2026-10-31T09:08:57.366Z"
    }
   }
  ],
@@ -90713,6 +90713,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-10-31T09:08:58.163Z",
+   "market_id": "6413781",
+   "question": "Ethereum Up or Down - October 31, 5:05AM-5:10AM ET",
+   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 09:05–09:10 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.9,
+   "decision": "skip",
+   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
+  },
+  {
    "ts": "2026-10-31T09:08:47.632Z",
    "market_id": "6413781",
    "question": "Ethereum Up or Down - October 31, 5:05AM-5:10AM ET",
@@ -92900,17 +92911,6 @@
    "price": 0.97,
    "decision": "skip",
    "reason": "מסנן מרחק: 1.55 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-10-31T07:18:00.598Z",
-   "market_id": "6410526",
-   "question": "Bitcoin Up or Down - October 31, 3:15AM-3:20AM ET",
-   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 07:15–07:20 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.97,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.68 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 777,
@@ -140523,7 +140523,9 @@
    "limit": 0.9,
    "taker_ask": 0.91,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-10-31T09:08:57.204Z",
+   "left_at_fill": 63
   }
  ],
  "study": {
