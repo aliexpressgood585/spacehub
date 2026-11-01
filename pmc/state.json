@@ -44,10 +44,10 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-11-01T07:21:49.991Z",
+ "last_scan": "2026-11-01T07:42:50.114Z",
  "last_note": {
-  "at": "2026-11-01T07:21:49.857Z",
-  "windows": 0,
+  "at": "2026-11-01T07:42:47.912Z",
+  "windows": 4,
   "settled": 0,
   "entered": 0
  },
@@ -58785,13 +58785,6 @@
  ],
  "equity": [
   {
-   "ts": "2026-10-28T18:10:01.401Z",
-   "equity": 1002.5503025847719,
-   "cash": 1002.5503025847719,
-   "open_value": 0,
-   "open_count": 0
-  },
-  {
    "ts": "2026-10-28T18:11:01.968Z",
    "equity": 1002.5503025847719,
    "cash": 1002.5503025847719,
@@ -93783,9 +93776,27 @@
    "cash": 991.1848153510441,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-11-01T07:42:50.114Z",
+   "equity": 991.1848153510441,
+   "cash": 991.1848153510441,
+   "open_value": 0,
+   "open_count": 0
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-11-01T07:42:50.114Z",
+   "market_id": "6448249",
+   "question": "Solana Up or Down - November 1, 2:40AM-2:45AM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 07:40–07:45 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.9,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 0.63 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
+  },
   {
    "ts": "2026-11-01T07:17:21.919Z",
    "market_id": "6447661",
@@ -95974,17 +95985,6 @@
    "price": 0.96,
    "decision": "skip",
    "reason": "מסנן מרחק: 1.48 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-11-01T04:08:58.439Z",
-   "market_id": "6444035",
-   "question": "XRP Up or Down - November 1, 12:05AM-12:10AM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 04:05–04:10 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.94,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.51 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 819,
@@ -143558,8 +143558,10 @@
    "placed_at": "2026-11-01T07:17:10.825Z",
    "limit": 0.95,
    "taker_ask": 0.96,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   }
  ],
  "study": {
@@ -143571,12 +143573,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2999,
+   "resolved": 3000,
    "filled": 1287,
-   "fill_rate": 0.42914304768256084,
+   "fill_rate": 0.429,
    "wr": 0.8523698523698524,
    "ret": -0.07661065556468911,
-   "missed_wins": 1712,
+   "missed_wins": 1713,
    "missed_losses": 0
   },
   "late_exit": {
