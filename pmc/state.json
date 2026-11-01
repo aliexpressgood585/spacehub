@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-11-01T19:47:58.230Z",
+ "last_scan": "2026-11-01T19:48:07.356Z",
  "last_note": {
-  "at": "2026-11-01T19:47:54.684Z",
+  "at": "2026-11-01T19:48:05.094Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -60020,13 +60020,6 @@
  ],
  "equity": [
   {
-   "ts": "2026-10-29T05:16:02.614Z",
-   "equity": 982.6707645580049,
-   "cash": 982.6707645580049,
-   "open_value": 0,
-   "open_count": 0
-  },
-  {
    "ts": "2026-10-29T05:17:03.666Z",
    "equity": 982.6707645580049,
    "cash": 982.6707645580049,
@@ -95018,9 +95011,27 @@
    "cash": 975.7897532467878,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-11-01T19:48:07.356Z",
+   "equity": 975.7897532467878,
+   "cash": 975.7897532467878,
+   "open_value": 0,
+   "open_count": 0
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-11-01T19:48:07.356Z",
+   "market_id": "6491386",
+   "question": "Bitcoin Up or Down - November 1, 2:45PM-2:50PM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 19:45–19:50 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.96,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 1.24 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
+  },
   {
    "ts": "2026-11-01T19:47:57.040Z",
    "market_id": "6491386",
@@ -97207,17 +97218,6 @@
    "outcome": "Up",
    "outcome_he": "עולה",
    "price": 0.95,
-   "decision": "skip",
-   "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
-  },
-  {
-   "ts": "2026-11-01T18:07:39.225Z",
-   "market_id": "6485497",
-   "question": "Solana Up or Down - November 1, 1:05PM-1:10PM ET",
-   "question_he": "סולנה · עולה או יורד · 5 דקות · 18:05–18:10 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.96,
    "decision": "skip",
    "reason": "הגנה: כבר יש פוזיציה בחלון הזה (המטבעות זזים יחד)"
   }
@@ -144777,7 +144777,9 @@
    "limit": 0.91,
    "taker_ask": 0.93,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-11-01T19:48:05.485Z",
+   "left_at_fill": 115
   },
   {
    "slug": "xrp-updown-5m-1793562300",
