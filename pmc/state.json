@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-11-03T06:17:18.304Z",
+ "last_scan": "2026-11-03T06:17:28.461Z",
  "last_note": {
-  "at": "2026-11-03T06:17:16.908Z",
+  "at": "2026-11-03T06:17:26.175Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -95312,6 +95312,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-11-03T06:17:28.460Z",
+   "market_id": "6566551",
+   "question": "Solana Up or Down - November 3, 1:15AM-1:20AM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 06:15–06:20 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.9,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 1.27 < 2 (המחיר קרוב מדי לקו הפתיחה)"
+  },
+  {
    "ts": "2026-11-03T06:13:18.409Z",
    "market_id": "6566539",
    "question": "Ethereum Up or Down - November 3, 1:10AM-1:15AM ET",
@@ -97499,17 +97510,6 @@
    "price": 0.94,
    "decision": "skip",
    "reason": "מסנן מרחק: 1.13 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-11-03T04:48:09.683Z",
-   "market_id": "6563645",
-   "question": "Solana Up or Down - November 2, 11:45PM-11:50PM ET",
-   "question_he": "סולנה · עולה או יורד · 5 דקות · 04:45–04:50 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.91,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.81 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 840,
@@ -145062,8 +145062,10 @@
    "placed_at": "2026-11-03T06:12:35.972Z",
    "limit": 0.9,
    "taker_ask": 0.91,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "sol-updown-5m-1793686200",
@@ -145075,8 +145077,10 @@
    "placed_at": "2026-11-03T06:12:36.597Z",
    "limit": 0.9,
    "taker_ask": 0.91,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "xrp-updown-5m-1793686200",
@@ -145088,8 +145092,10 @@
    "placed_at": "2026-11-03T06:12:36.923Z",
    "limit": 0.93,
    "taker_ask": 0.95,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "eth-updown-5m-1793686200",
@@ -145101,10 +145107,12 @@
    "placed_at": "2026-11-03T06:13:17.100Z",
    "limit": 0.94,
    "taker_ask": 0.95,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-11-03T06:13:26.178Z",
-   "left_at_fill": 94
+   "left_at_fill": 94,
+   "won": false,
+   "ret": -1
   }
  ],
  "study": {
@@ -145116,12 +145124,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2996,
-   "filled": 1299,
-   "fill_rate": 0.4335781041388518,
-   "wr": 0.8483448806774442,
-   "ret": -0.08056118575049089,
-   "missed_wins": 1697,
+   "resolved": 3000,
+   "filled": 1300,
+   "fill_rate": 0.43333333333333335,
+   "wr": 0.8476923076923077,
+   "ret": -0.08126844637683667,
+   "missed_wins": 1700,
    "missed_losses": 0
   },
   "late_exit": {
