@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-11-04T03:37:06.524Z",
+ "last_scan": "2026-11-04T03:37:16.659Z",
  "last_note": {
-  "at": "2026-11-04T03:37:03.488Z",
+  "at": "2026-11-04T03:37:13.904Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -60310,13 +60310,6 @@
  ],
  "equity": [
   {
-   "ts": "2026-10-30T23:22:52.986Z",
-   "equity": 984.4679157044071,
-   "cash": 975.4597199162572,
-   "open_value": 9.008195788149905,
-   "open_count": 1
-  },
-  {
    "ts": "2026-10-30T23:23:52.394Z",
    "equity": 984.7494218227868,
    "cash": 975.4597199162572,
@@ -95308,9 +95301,38 @@
    "cash": 970.0899932354548,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-11-04T03:37:16.659Z",
+   "equity": 970.0899932354548,
+   "cash": 970.0899932354548,
+   "open_value": 0,
+   "open_count": 0
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-11-04T03:37:15.910Z",
+   "market_id": "6619403",
+   "question": "Bitcoin Up or Down - November 3, 10:35PM-10:40PM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 03:35–03:40 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.91,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 0.85 < 2 (המחיר קרוב מדי לקו הפתיחה)"
+  },
+  {
+   "ts": "2026-11-04T03:37:16.658Z",
+   "market_id": "6619404",
+   "question": "Solana Up or Down - November 3, 10:35PM-10:40PM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 03:35–03:40 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.9,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 0.51 < 2 (המחיר קרוב מדי לקו הפתיחה)"
+  },
   {
    "ts": "2026-11-04T03:37:05.571Z",
    "market_id": "6619403",
@@ -97488,47 +97510,10 @@
    "price": 0.9,
    "decision": "skip",
    "reason": "מסנן מרחק: 0.58 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-11-04T01:18:17.238Z",
-   "market_id": "6615724",
-   "question": "Bitcoin Up or Down - November 3, 8:15PM-8:20PM ET",
-   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 01:15–01:20 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.92,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.74 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-11-04T01:13:46.058Z",
-   "market_id": "6614956",
-   "question": "Solana Up or Down - November 3, 8:10PM-8:15PM ET",
-   "question_he": "סולנה · עולה או יורד · 5 דקות · 01:10–01:15 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.94,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.08 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 840,
  "shadow": [
-  {
-   "slug": "sol-updown-5m-1793403600",
-   "market_id": "6403954",
-   "token_id": "38800992844599329105567335915686688569769105619460661439873622712605525998336",
-   "coin": "sol",
-   "outcome": "Down",
-   "end_time": "2026-10-30T23:45:00Z",
-   "placed_at": "2026-10-30T23:42:01.496Z",
-   "limit": 0.96,
-   "taker_ask": 0.97,
-   "status": "DONE",
-   "filled": false,
-   "won": true,
-   "ret": null
-  },
   {
    "slug": "eth-updown-5m-1793403600",
    "market_id": "6403950",
@@ -145068,6 +145053,21 @@
    "limit": 0.9,
    "taker_ask": 0.91,
    "status": "WORKING",
+   "filled": true,
+   "filled_at": "2026-11-04T03:37:14.071Z",
+   "left_at_fill": 166
+  },
+  {
+   "slug": "btc-updown-5m-1793763300",
+   "market_id": "6619403",
+   "token_id": "107278691331066944242130141565045210463267997566584273165965072907582374495163",
+   "coin": "btc",
+   "outcome": "Down",
+   "end_time": "2026-11-04T03:40:00Z",
+   "placed_at": "2026-11-04T03:37:14.347Z",
+   "limit": 0.9,
+   "taker_ask": 0.91,
+   "status": "WORKING",
    "filled": false
   }
  ],
@@ -145080,12 +145080,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2997,
+   "resolved": 2996,
    "filled": 1280,
-   "fill_rate": 0.42709376042709374,
+   "fill_rate": 0.4272363150867824,
    "wr": 0.8375,
    "ret": -0.09179099931334937,
-   "missed_wins": 1717,
+   "missed_wins": 1716,
    "missed_losses": 0
   },
   "late_exit": {
