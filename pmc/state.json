@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-11-04T12:39:56.012Z",
+ "last_scan": "2026-11-04T12:40:06.148Z",
  "last_note": {
-  "at": "2026-11-04T12:39:55.839Z",
+  "at": "2026-11-04T12:40:05.907Z",
   "windows": 0,
   "settled": 0,
   "entered": 0
@@ -144994,10 +144994,12 @@
    "placed_at": "2026-11-04T12:32:35.665Z",
    "limit": 0.91,
    "taker_ask": 0.93,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-11-04T12:32:44.934Z",
-   "left_at_fill": 135
+   "left_at_fill": 135,
+   "won": false,
+   "ret": -1
   },
   {
    "slug": "eth-updown-5m-1793795400",
@@ -145009,10 +145011,12 @@
    "placed_at": "2026-11-04T12:33:04.756Z",
    "limit": 0.91,
    "taker_ask": 0.93,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-11-04T12:33:24.395Z",
-   "left_at_fill": 96
+   "left_at_fill": 96,
+   "won": true,
+   "ret": 0.09890109890109887
   },
   {
    "slug": "xrp-updown-5m-1793795400",
@@ -145024,8 +145028,10 @@
    "placed_at": "2026-11-04T12:34:04.985Z",
    "limit": 0.91,
    "taker_ask": 0.93,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "sol-updown-5m-1793795700",
@@ -145080,12 +145086,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2994,
-   "filled": 1280,
-   "fill_rate": 0.42752171008684037,
-   "wr": 0.834375,
-   "ret": -0.09506584308155785,
-   "missed_wins": 1714,
+   "resolved": 2997,
+   "filled": 1282,
+   "fill_rate": 0.4277610944277611,
+   "wr": 0.8338533541341654,
+   "ret": -0.0956204196922722,
+   "missed_wins": 1715,
    "missed_losses": 0
   },
   "late_exit": {
