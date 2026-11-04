@@ -44,10 +44,10 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-11-04T04:31:57.024Z",
+ "last_scan": "2026-11-04T04:32:09.920Z",
  "last_note": {
-  "at": "2026-11-04T04:31:56.979Z",
-  "windows": 0,
+  "at": "2026-11-04T04:32:06.702Z",
+  "windows": 4,
   "settled": 0,
   "entered": 0
  },
@@ -95312,6 +95312,28 @@
  ],
  "decisions": [
   {
+   "ts": "2026-11-04T04:32:08.685Z",
+   "market_id": "6624925",
+   "question": "Bitcoin Up or Down - November 3, 11:30PM-11:35PM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 04:30–04:35 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.9,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 1.11 < 2 (המחיר קרוב מדי לקו הפתיחה)"
+  },
+  {
+   "ts": "2026-11-04T04:32:09.919Z",
+   "market_id": "6624915",
+   "question": "Solana Up or Down - November 3, 11:30PM-11:35PM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 04:30–04:35 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.94,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 1.02 < 2 (המחיר קרוב מדי לקו הפתיחה)"
+  },
+  {
    "ts": "2026-11-04T04:28:59.168Z",
    "market_id": "6624908",
    "question": "Solana Up or Down - November 3, 11:25PM-11:30PM ET",
@@ -97488,47 +97510,10 @@
    "price": 0.91,
    "decision": "skip",
    "reason": "מסנן מרחק: 1.17 < 2 (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-11-04T02:34:09.747Z",
-   "market_id": "6618118",
-   "question": "Solana Up or Down - November 3, 9:30PM-9:35PM ET",
-   "question_he": "סולנה · עולה או יורד · 5 דקות · 02:30–02:35 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.94,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.26 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-11-04T02:33:39.656Z",
-   "market_id": "6618116",
-   "question": "Ethereum Up or Down - November 3, 9:30PM-9:35PM ET",
-   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 02:30–02:35 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.96,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.00 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 840,
  "shadow": [
-  {
-   "slug": "btc-updown-5m-1793407200",
-   "market_id": "6404494",
-   "token_id": "26378244660596623575733901610768820032573221979091572663947242123327362318645",
-   "coin": "btc",
-   "outcome": "Up",
-   "end_time": "2026-10-31T00:45:00Z",
-   "placed_at": "2026-10-31T00:44:14.808Z",
-   "limit": 0.9,
-   "taker_ask": 0.91,
-   "status": "DONE",
-   "filled": false,
-   "won": true,
-   "ret": null
-  },
   {
    "slug": "btc-updown-5m-1793407500",
    "market_id": "6404525",
@@ -145069,6 +145054,19 @@
    "taker_ask": 0.97,
    "status": "WORKING",
    "filled": false
+  },
+  {
+   "slug": "sol-updown-5m-1793766600",
+   "market_id": "6624915",
+   "token_id": "44839207480820230369788670704196080028467805263116454851799432247425132114792",
+   "coin": "sol",
+   "outcome": "Down",
+   "end_time": "2026-11-04T04:35:00Z",
+   "placed_at": "2026-11-04T04:32:07.547Z",
+   "limit": 0.92,
+   "taker_ask": 0.94,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
@@ -145080,12 +145078,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2997,
+   "resolved": 2996,
    "filled": 1281,
-   "fill_rate": 0.42742742742742745,
+   "fill_rate": 0.42757009345794394,
    "wr": 0.8337236533957846,
    "ret": -0.09587623007394563,
-   "missed_wins": 1716,
+   "missed_wins": 1715,
    "missed_losses": 0
   },
   "late_exit": {
