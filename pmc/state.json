@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-11-05T08:32:50.338Z",
+ "last_scan": "2026-11-05T08:32:59.723Z",
  "last_note": {
-  "at": "2026-11-05T08:32:47.821Z",
+  "at": "2026-11-05T08:32:57.788Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -60310,13 +60310,6 @@
  ],
  "equity": [
   {
-   "ts": "2026-11-01T00:06:34.003Z",
-   "equity": 986.3604477601527,
-   "cash": 976.1425574690637,
-   "open_value": 10.21789029108904,
-   "open_count": 1
-  },
-  {
    "ts": "2026-11-01T00:07:34.624Z",
    "equity": 986.3604477601527,
    "cash": 976.1425574690637,
@@ -95308,9 +95301,27 @@
    "cash": 970.0899932354548,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-11-05T08:32:59.723Z",
+   "equity": 970.0899932354548,
+   "cash": 970.0899932354548,
+   "open_value": 0,
+   "open_count": 0
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-11-05T08:32:59.722Z",
+   "market_id": "6670352",
+   "question": "Solana Up or Down - November 5, 3:30AM-3:35AM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 08:30–08:35 UTC",
+   "outcome": "Up",
+   "outcome_he": "עולה",
+   "price": 0.97,
+   "decision": "skip",
+   "reason": "הגנה: החשבון ברצפה המוגנת ($957)"
+  },
   {
    "ts": "2026-11-05T08:32:49.445Z",
    "market_id": "6670353",
@@ -97499,17 +97510,6 @@
    "price": 0.97,
    "decision": "skip",
    "reason": "מסנן מרחק: 1.33 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-11-05T06:58:04.358Z",
-   "market_id": "6668833",
-   "question": "XRP Up or Down - November 5, 1:55AM-2:00AM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 06:55–07:00 UTC",
-   "outcome": "Down",
-   "outcome_he": "יורד",
-   "price": 0.96,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.55 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 840,
@@ -145163,7 +145163,9 @@
    "limit": 0.9,
    "taker_ask": 0.92,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-11-05T08:32:57.966Z",
+   "left_at_fill": 122
   },
   {
    "slug": "sol-updown-5m-1793867400",
