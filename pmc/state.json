@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-11-06T16:58:09.355Z",
+ "last_scan": "2026-11-06T16:58:19.893Z",
  "last_note": {
-  "at": "2026-11-06T16:58:07.847Z",
+  "at": "2026-11-06T16:58:17.667Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -95312,6 +95312,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-11-06T16:58:19.893Z",
+   "market_id": "6717646",
+   "question": "XRP Up or Down - November 6, 11:55AM-12:00PM ET",
+   "question_he": "XRP · עולה או יורד · 5 דקות · 16:55–17:00 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.91,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 0.43 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
+  },
+  {
    "ts": "2026-11-06T16:57:39.911Z",
    "market_id": "6717650",
    "question": "Solana Up or Down - November 6, 11:55AM-12:00PM ET",
@@ -97499,36 +97510,10 @@
    "price": 0.96,
    "decision": "skip",
    "reason": "מסנן מרחק: 1.23 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-11-06T12:28:00.999Z",
-   "market_id": "6709705",
-   "question": "Solana Up or Down - November 6, 7:25AM-7:30AM ET",
-   "question_he": "סולנה · עולה או יורד · 5 דקות · 12:25–12:30 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.91,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.06 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 840,
  "shadow": [
-  {
-   "slug": "sol-updown-5m-1793610600",
-   "market_id": "6513050",
-   "token_id": "3848839470089795824080023113192643980504209857231977195507894890784704257103",
-   "coin": "sol",
-   "outcome": "Down",
-   "end_time": "2026-11-02T09:15:00Z",
-   "placed_at": "2026-11-02T09:14:14.393Z",
-   "limit": 0.9,
-   "taker_ask": 0.92,
-   "status": "DONE",
-   "filled": false,
-   "won": true,
-   "ret": null
-  },
   {
    "slug": "btc-updown-5m-1793610900",
    "market_id": "6513069",
@@ -145333,6 +145318,19 @@
    "filled": true,
    "filled_at": "2026-11-06T16:53:08.149Z",
    "left_at_fill": 112
+  },
+  {
+   "slug": "xrp-updown-5m-1793984100",
+   "market_id": "6717646",
+   "token_id": "74243861970085427279699433565036997145668772210826278728459380461912441197583",
+   "coin": "xrp",
+   "outcome": "Down",
+   "end_time": "2026-11-06T17:00:00Z",
+   "placed_at": "2026-11-06T16:58:19.205Z",
+   "limit": 0.9,
+   "taker_ask": 0.91,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
@@ -145344,12 +145342,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2996,
+   "resolved": 2995,
    "filled": 1413,
-   "fill_rate": 0.47162883845126835,
+   "fill_rate": 0.47178631051752923,
    "wr": 0.8577494692144374,
    "ret": -0.07081869233559461,
-   "missed_wins": 1583,
+   "missed_wins": 1582,
    "missed_losses": 0
   },
   "late_exit": {
