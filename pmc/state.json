@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-11-07T10:18:35.876Z",
+ "last_scan": "2026-11-07T10:18:46.060Z",
  "last_note": {
-  "at": "2026-11-07T10:18:33.297Z",
+  "at": "2026-11-07T10:18:43.794Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -95312,6 +95312,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-11-07T10:18:46.060Z",
+   "market_id": "6745805",
+   "question": "Ethereum Up or Down - November 7, 5:15AM-5:20AM ET",
+   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 10:15–10:20 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.94,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 1.32 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
+  },
+  {
    "ts": "2026-11-07T10:18:35.192Z",
    "market_id": "6745806",
    "question": "Bitcoin Up or Down - November 7, 5:15AM-5:20AM ET",
@@ -97499,38 +97510,10 @@
    "price": 0.91,
    "decision": "skip",
    "reason": "מסנן מרחק: 0.42 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-11-07T08:18:12.351Z",
-   "market_id": "6743588",
-   "question": "Bitcoin Up or Down - November 7, 3:15AM-3:20AM ET",
-   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 08:15–08:20 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.96,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.35 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 840,
  "shadow": [
-  {
-   "slug": "sol-updown-5m-1793691900",
-   "market_id": "6569046",
-   "token_id": "79049532766573215018454322361618722185857831617874671564668826158787246522237",
-   "coin": "sol",
-   "outcome": "Up",
-   "end_time": "2026-11-03T07:50:00Z",
-   "placed_at": "2026-11-03T07:47:10.433Z",
-   "limit": 0.95,
-   "taker_ask": 0.97,
-   "status": "DONE",
-   "filled": true,
-   "filled_at": "2026-11-03T07:47:49.928Z",
-   "left_at_fill": 130,
-   "won": true,
-   "ret": 0.052631578947368474
-  },
   {
    "slug": "xrp-updown-5m-1793691900",
    "market_id": "6569053",
@@ -145255,7 +145238,9 @@
    "limit": 0.9,
    "taker_ask": 0.92,
    "status": "WORKING",
-   "filled": false
+   "filled": true,
+   "filled_at": "2026-11-07T10:18:44.035Z",
+   "left_at_fill": 76
   },
   {
    "slug": "btc-updown-5m-1794046500",
@@ -145271,6 +145256,19 @@
    "filled": true,
    "filled_at": "2026-11-07T10:18:13.701Z",
    "left_at_fill": 106
+  },
+  {
+   "slug": "eth-updown-5m-1794046500",
+   "market_id": "6745805",
+   "token_id": "15393857303907292047052912490663646595876433945230161899255077324971115568730",
+   "coin": "eth",
+   "outcome": "Down",
+   "end_time": "2026-11-07T10:20:00Z",
+   "placed_at": "2026-11-07T10:18:44.661Z",
+   "limit": 0.93,
+   "taker_ask": 0.94,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
@@ -145282,11 +145280,11 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2994,
-   "filled": 1383,
-   "fill_rate": 0.4619238476953908,
-   "wr": 0.8467100506146059,
-   "ret": -0.08246051589092283,
+   "resolved": 2993,
+   "filled": 1382,
+   "fill_rate": 0.46174406949548946,
+   "wr": 0.8465991316931982,
+   "ret": -0.08255826704493029,
    "missed_wins": 1611,
    "missed_losses": 0
   },
