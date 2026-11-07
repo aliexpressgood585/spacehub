@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-11-07T04:34:51.473Z",
+ "last_scan": "2026-11-07T04:35:01.387Z",
  "last_note": {
-  "at": "2026-11-07T04:34:51.253Z",
+  "at": "2026-11-07T04:35:01.165Z",
   "windows": 0,
   "settled": 0,
   "entered": 0
@@ -60310,13 +60310,6 @@
  ],
  "equity": [
   {
-   "ts": "2026-11-02T22:19:15.832Z",
-   "equity": 970.0899932354548,
-   "cash": 970.0899932354548,
-   "open_value": 0,
-   "open_count": 0
-  },
-  {
    "ts": "2026-11-02T22:20:13.547Z",
    "equity": 970.0899932354548,
    "cash": 970.0899932354548,
@@ -95304,6 +95297,13 @@
   },
   {
    "ts": "2026-11-07T04:34:03.638Z",
+   "equity": 970.0899932354548,
+   "cash": 970.0899932354548,
+   "open_value": 0,
+   "open_count": 0
+  },
+  {
+   "ts": "2026-11-07T04:35:01.387Z",
    "equity": 970.0899932354548,
    "cash": 970.0899932354548,
    "open_value": 0,
@@ -145187,8 +145187,10 @@
    "placed_at": "2026-11-07T04:27:09.830Z",
    "limit": 0.94,
    "taker_ask": 0.95,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "eth-updown-5m-1794025500",
@@ -145200,10 +145202,12 @@
    "placed_at": "2026-11-07T04:27:10.138Z",
    "limit": 0.91,
    "taker_ask": 0.92,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-11-07T04:27:19.814Z",
-   "left_at_fill": 160
+   "left_at_fill": 160,
+   "won": true,
+   "ret": 0.09890109890109887
   },
   {
    "slug": "sol-updown-5m-1794025500",
@@ -145215,10 +145219,12 @@
    "placed_at": "2026-11-07T04:27:10.436Z",
    "limit": 0.92,
    "taker_ask": 0.93,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-11-07T04:28:29.634Z",
-   "left_at_fill": 90
+   "left_at_fill": 90,
+   "won": true,
+   "ret": 0.08695652173913039
   },
   {
    "slug": "xrp-updown-5m-1794025500",
@@ -145230,8 +145236,10 @@
    "placed_at": "2026-11-07T04:27:10.734Z",
    "limit": 0.9,
    "taker_ask": 0.91,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "sol-updown-5m-1794025800",
@@ -145286,12 +145294,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2993,
-   "filled": 1384,
-   "fill_rate": 0.4624122953558303,
-   "wr": 0.851878612716763,
-   "ret": -0.07720263153985898,
-   "missed_wins": 1609,
+   "resolved": 2997,
+   "filled": 1386,
+   "fill_rate": 0.4624624624624625,
+   "wr": 0.8520923520923521,
+   "ret": -0.07695713162375513,
+   "missed_wins": 1611,
    "missed_losses": 0
   },
   "late_exit": {
