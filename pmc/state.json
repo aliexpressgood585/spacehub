@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-11-07T19:29:05.453Z",
+ "last_scan": "2026-11-07T19:29:15.759Z",
  "last_note": {
-  "at": "2026-11-07T19:29:03.496Z",
+  "at": "2026-11-07T19:29:13.795Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -95312,6 +95312,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-11-07T19:29:15.759Z",
+   "market_id": "6759637",
+   "question": "Ethereum Up or Down - November 7, 2:25PM-2:30PM ET",
+   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 19:25–19:30 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.91,
+   "decision": "skip",
+   "reason": "מסנן מרחק: -0.07 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
+  },
+  {
    "ts": "2026-11-07T19:29:05.452Z",
    "market_id": "6759637",
    "question": "Ethereum Up or Down - November 7, 2:25PM-2:30PM ET",
@@ -97499,38 +97510,10 @@
    "price": 0.9,
    "decision": "skip",
    "reason": "מסנן מרחק: -0.00 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-11-07T17:58:40.550Z",
-   "market_id": "6754149",
-   "question": "XRP Up or Down - November 7, 12:55PM-1:00PM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 17:55–18:00 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.96,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.09 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 840,
  "shadow": [
-  {
-   "slug": "xrp-updown-5m-1793740800",
-   "market_id": "6598909",
-   "token_id": "42419577750715115076170224775265617026174949527569823650961287361088942618593",
-   "coin": "xrp",
-   "outcome": "Up",
-   "end_time": "2026-11-03T21:25:00Z",
-   "placed_at": "2026-11-03T21:22:07.110Z",
-   "limit": 0.95,
-   "taker_ask": 0.96,
-   "status": "DONE",
-   "filled": true,
-   "filled_at": "2026-11-03T21:22:29.023Z",
-   "left_at_fill": 151,
-   "won": false,
-   "ret": -1
-  },
   {
    "slug": "eth-updown-5m-1793740800",
    "market_id": "6598908",
@@ -145279,6 +145262,19 @@
    "taker_ask": 0.94,
    "status": "WORKING",
    "filled": false
+  },
+  {
+   "slug": "eth-updown-5m-1794079500",
+   "market_id": "6759637",
+   "token_id": "47973900645643039523916564403905114291568013852273302990276839241667364870141",
+   "coin": "eth",
+   "outcome": "Down",
+   "end_time": "2026-11-07T19:30:00Z",
+   "placed_at": "2026-11-07T19:29:14.413Z",
+   "limit": 0.9,
+   "taker_ask": 0.91,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
@@ -145290,11 +145286,11 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2995,
-   "filled": 1387,
-   "fill_rate": 0.4631051752921536,
-   "wr": 0.8471521268925739,
-   "ret": -0.08188172452084405,
+   "resolved": 2994,
+   "filled": 1386,
+   "fill_rate": 0.46292585170340683,
+   "wr": 0.8477633477633477,
+   "ret": -0.08121930152266284,
    "missed_wins": 1608,
    "missed_losses": 0
   },
