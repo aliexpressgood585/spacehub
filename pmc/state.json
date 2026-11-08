@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-11-08T15:39:50.937Z",
+ "last_scan": "2026-11-08T15:40:01.025Z",
  "last_note": {
-  "at": "2026-11-08T15:39:50.547Z",
+  "at": "2026-11-08T15:40:00.771Z",
   "windows": 0,
   "settled": 0,
   "entered": 0
@@ -145180,10 +145180,12 @@
    "placed_at": "2026-11-08T15:32:00.960Z",
    "limit": 0.92,
    "taker_ask": 0.93,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-11-08T15:32:10.638Z",
-   "left_at_fill": 169
+   "left_at_fill": 169,
+   "won": false,
+   "ret": -1
   },
   {
    "slug": "eth-updown-5m-1794151800",
@@ -145195,10 +145197,12 @@
    "placed_at": "2026-11-08T15:32:01.120Z",
    "limit": 0.9,
    "taker_ask": 0.91,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-11-08T15:32:40.834Z",
-   "left_at_fill": 139
+   "left_at_fill": 139,
+   "won": false,
+   "ret": -1
   },
   {
    "slug": "sol-updown-5m-1794151800",
@@ -145210,10 +145214,12 @@
    "placed_at": "2026-11-08T15:33:01.197Z",
    "limit": 0.9,
    "taker_ask": 0.91,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-11-08T15:33:10.365Z",
-   "left_at_fill": 110
+   "left_at_fill": 110,
+   "won": true,
+   "ret": 0.11111111111111108
   },
   {
    "slug": "xrp-updown-5m-1794151800",
@@ -145225,8 +145231,10 @@
    "placed_at": "2026-11-08T15:33:41.973Z",
    "limit": 0.93,
    "taker_ask": 0.96,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "eth-updown-5m-1794152100",
@@ -145264,12 +145272,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2994,
-   "filled": 1373,
-   "fill_rate": 0.45858383433533734,
-   "wr": 0.85360524399126,
-   "ret": -0.0755808079549498,
-   "missed_wins": 1621,
+   "resolved": 2998,
+   "filled": 1376,
+   "fill_rate": 0.4589726484322882,
+   "wr": 0.8524709302325582,
+   "ret": -0.07678876323476377,
+   "missed_wins": 1622,
    "missed_losses": 0
   },
   "late_exit": {
