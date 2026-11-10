@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-11-10T17:36:17.368Z",
+ "last_scan": "2026-11-10T20:31:18.093Z",
  "last_note": {
-  "at": "2026-11-10T17:36:17.310Z",
+  "at": "2026-11-10T20:31:17.767Z",
   "windows": 0,
   "settled": 0,
   "entered": 0
@@ -60310,13 +60310,6 @@
  ],
  "equity": [
   {
-   "ts": "2026-11-06T11:49:44.600Z",
-   "equity": 970.0899932354548,
-   "cash": 970.0899932354548,
-   "open_value": 0,
-   "open_count": 0
-  },
-  {
    "ts": "2026-11-06T11:50:45.285Z",
    "equity": 970.0899932354548,
    "cash": 970.0899932354548,
@@ -95304,6 +95297,13 @@
   },
   {
    "ts": "2026-11-10T17:35:57.642Z",
+   "equity": 970.0899932354548,
+   "cash": 970.0899932354548,
+   "open_value": 0,
+   "open_count": 0
+  },
+  {
+   "ts": "2026-11-10T20:31:18.093Z",
    "equity": 970.0899932354548,
    "cash": 970.0899932354548,
    "open_value": 0,
@@ -145066,10 +145066,12 @@
    "placed_at": "2026-11-10T17:32:06.760Z",
    "limit": 0.96,
    "taker_ask": 0.97,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-11-10T17:32:16.567Z",
-   "left_at_fill": 163
+   "left_at_fill": 163,
+   "won": true,
+   "ret": 0.041666666666666706
   },
   {
    "slug": "eth-updown-5m-1794331800",
@@ -145081,10 +145083,12 @@
    "placed_at": "2026-11-10T17:32:06.915Z",
    "limit": 0.92,
    "taker_ask": 0.93,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-11-10T17:32:16.717Z",
-   "left_at_fill": 163
+   "left_at_fill": 163,
+   "won": true,
+   "ret": 0.08695652173913039
   },
   {
    "slug": "sol-updown-5m-1794331800",
@@ -145096,10 +145100,12 @@
    "placed_at": "2026-11-10T17:32:07.091Z",
    "limit": 0.92,
    "taker_ask": 0.93,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-11-10T17:32:16.870Z",
-   "left_at_fill": 163
+   "left_at_fill": 163,
+   "won": true,
+   "ret": 0.08695652173913039
   },
   {
    "slug": "xrp-updown-5m-1794331800",
@@ -145111,8 +145117,10 @@
    "placed_at": "2026-11-10T17:32:07.250Z",
    "limit": 0.92,
    "taker_ask": 0.94,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   }
  ],
  "study": {
@@ -145124,12 +145132,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2996,
-   "filled": 1301,
-   "fill_rate": 0.4342456608811749,
-   "wr": 0.8416602613374328,
-   "ret": -0.08851746307043543,
-   "missed_wins": 1695,
+   "resolved": 3000,
+   "filled": 1304,
+   "fill_rate": 0.43466666666666665,
+   "wr": 0.8420245398773006,
+   "ret": -0.08814849673657328,
+   "missed_wins": 1696,
    "missed_losses": 0
   },
   "late_exit": {
