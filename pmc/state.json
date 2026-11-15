@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-11-15T13:44:57.600Z",
+ "last_scan": "2026-11-15T13:45:07.534Z",
  "last_note": {
-  "at": "2026-11-15T13:44:57.371Z",
+  "at": "2026-11-15T13:45:07.277Z",
   "windows": 0,
   "settled": 0,
   "entered": 0
@@ -145184,10 +145184,12 @@
    "placed_at": "2026-11-15T13:37:37.796Z",
    "limit": 0.92,
    "taker_ask": 0.93,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-11-15T13:37:57.592Z",
-   "left_at_fill": 122
+   "left_at_fill": 122,
+   "won": false,
+   "ret": -1
   },
   {
    "slug": "sol-updown-5m-1794749700",
@@ -145199,8 +145201,10 @@
    "placed_at": "2026-11-15T13:38:28.696Z",
    "limit": 0.9,
    "taker_ask": 0.92,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "eth-updown-5m-1794749700",
@@ -145212,10 +145216,12 @@
    "placed_at": "2026-11-15T13:38:38.227Z",
    "limit": 0.95,
    "taker_ask": 0.96,
-   "status": "WORKING",
+   "status": "DONE",
    "filled": true,
    "filled_at": "2026-11-15T13:38:47.919Z",
-   "left_at_fill": 72
+   "left_at_fill": 72,
+   "won": true,
+   "ret": 0.052631578947368474
   },
   {
    "slug": "xrp-updown-5m-1794749700",
@@ -145227,8 +145233,10 @@
    "placed_at": "2026-11-15T13:38:38.745Z",
    "limit": 0.91,
    "taker_ask": 0.92,
-   "status": "WORKING",
-   "filled": false
+   "status": "DONE",
+   "filled": false,
+   "won": true,
+   "ret": null
   },
   {
    "slug": "eth-updown-5m-1794750000",
@@ -145298,12 +145306,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2992,
-   "filled": 1390,
-   "fill_rate": 0.464572192513369,
-   "wr": 0.8633093525179856,
-   "ret": -0.06593893145949431,
-   "missed_wins": 1602,
+   "resolved": 2996,
+   "filled": 1392,
+   "fill_rate": 0.46461949265687585,
+   "wr": 0.8627873563218391,
+   "ret": -0.06652477237769376,
+   "missed_wins": 1604,
    "missed_losses": 0
   },
   "late_exit": {
