@@ -44,10 +44,10 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-11-17T15:51:58.485Z",
+ "last_scan": "2026-11-17T15:52:10.694Z",
  "last_note": {
-  "at": "2026-11-17T15:51:58.420Z",
-  "windows": 0,
+  "at": "2026-11-17T15:52:08.525Z",
+  "windows": 4,
   "settled": 0,
   "entered": 0
  },
@@ -95312,6 +95312,17 @@
  ],
  "decisions": [
   {
+   "ts": "2026-11-17T15:52:10.694Z",
+   "market_id": "7096124",
+   "question": "Bitcoin Up or Down - November 17, 10:50AM-10:55AM ET",
+   "question_he": "ביטקוין · עולה או יורד · 5 דקות · 15:50–15:55 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.93,
+   "decision": "skip",
+   "reason": "הגנה: החשבון ברצפה המוגנת ($957)"
+  },
+  {
    "ts": "2026-11-17T15:48:00.584Z",
    "market_id": "7096098",
    "question": "Bitcoin Up or Down - November 17, 10:45AM-10:50AM ET",
@@ -97499,36 +97510,10 @@
    "price": 0.93,
    "decision": "skip",
    "reason": "מסנן מרחק: 1.14 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-11-17T09:23:54.332Z",
-   "market_id": "7090426",
-   "question": "Solana Up or Down - November 17, 4:20AM-4:25AM ET",
-   "question_he": "סולנה · עולה או יורד · 5 דקות · 09:20–09:25 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.95,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.34 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 840,
  "shadow": [
-  {
-   "slug": "xrp-updown-5m-1794568200",
-   "market_id": "6985352",
-   "token_id": "56004650568550754039602496096925611510917167274543884771674969662343267790299",
-   "coin": "xrp",
-   "outcome": "Down",
-   "end_time": "2026-11-13T11:15:00Z",
-   "placed_at": "2026-11-13T11:12:02.444Z",
-   "limit": 0.9,
-   "taker_ask": 0.91,
-   "status": "DONE",
-   "filled": false,
-   "won": true,
-   "ret": null
-  },
   {
    "slug": "btc-updown-5m-1794568500",
    "market_id": "6985366",
@@ -145385,6 +145370,19 @@
    "taker_ask": 0.96,
    "status": "WORKING",
    "filled": false
+  },
+  {
+   "slug": "btc-updown-5m-1794930600",
+   "market_id": "7096124",
+   "token_id": "8753390044929083749025507498401666139491323806298555884976313797678358247787",
+   "coin": "btc",
+   "outcome": "Down",
+   "end_time": "2026-11-17T15:55:00Z",
+   "placed_at": "2026-11-17T15:52:09.037Z",
+   "limit": 0.92,
+   "taker_ask": 0.93,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
@@ -145396,12 +145394,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2997,
+   "resolved": 2996,
    "filled": 1438,
-   "fill_rate": 0.47981314647981316,
+   "fill_rate": 0.47997329773030706,
    "wr": 0.8720445062586927,
    "ret": -0.056657409223280046,
-   "missed_wins": 1559,
+   "missed_wins": 1558,
    "missed_losses": 0
   },
   "late_exit": {
