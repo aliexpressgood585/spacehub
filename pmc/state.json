@@ -44,9 +44,9 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-11-20T18:12:06.261Z",
+ "last_scan": "2026-11-20T18:12:16.325Z",
  "last_note": {
-  "at": "2026-11-20T18:12:03.978Z",
+  "at": "2026-11-20T18:12:13.136Z",
   "windows": 4,
   "settled": 0,
   "entered": 0
@@ -60310,13 +60310,6 @@
  ],
  "equity": [
   {
-   "ts": "2026-11-15T20:53:57.048Z",
-   "equity": 970.0899932354548,
-   "cash": 970.0899932354548,
-   "open_value": 0,
-   "open_count": 0
-  },
-  {
    "ts": "2026-11-15T20:54:56.203Z",
    "equity": 970.0899932354548,
    "cash": 970.0899932354548,
@@ -95308,9 +95301,38 @@
    "cash": 970.0899932354548,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-11-20T18:12:16.325Z",
+   "equity": 970.0899932354548,
+   "cash": 970.0899932354548,
+   "open_value": 0,
+   "open_count": 0
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-11-20T18:12:15.629Z",
+   "market_id": "7177598",
+   "question": "Ethereum Up or Down - November 20, 1:10PM-1:15PM ET",
+   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 18:10–18:15 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.94,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 1.24 < 2 (המחיר קרוב מדי לקו הפתיחה)"
+  },
+  {
+   "ts": "2026-11-20T18:12:16.325Z",
+   "market_id": "7177596",
+   "question": "Solana Up or Down - November 20, 1:10PM-1:15PM ET",
+   "question_he": "סולנה · עולה או יורד · 5 דקות · 18:10–18:15 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.97,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 1.18 < 2 (המחיר קרוב מדי לקו הפתיחה)"
+  },
   {
    "ts": "2026-11-20T18:12:06.261Z",
    "market_id": "7177598",
@@ -97488,47 +97510,10 @@
    "price": 0.94,
    "decision": "skip",
    "reason": "מסנן מרחק: 0.26 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-11-20T16:24:05.862Z",
-   "market_id": "7176133",
-   "question": "XRP Up or Down - November 20, 11:20AM-11:25AM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 16:20–16:25 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.96,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.63 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-11-20T16:23:34.699Z",
-   "market_id": "7176136",
-   "question": "Solana Up or Down - November 20, 11:20AM-11:25AM ET",
-   "question_he": "סולנה · עולה או יורד · 5 דקות · 16:20–16:25 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.95,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.10 < 2.5 (הסתכלות שנייה) (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 840,
  "shadow": [
-  {
-   "slug": "sol-updown-5m-1794787500",
-   "market_id": "7053662",
-   "token_id": "100847923484781789280681955312384107483470772852339878670413348228308920269342",
-   "coin": "sol",
-   "outcome": "Down",
-   "end_time": "2026-11-16T00:10:00Z",
-   "placed_at": "2026-11-16T00:07:28.977Z",
-   "limit": 0.94,
-   "taker_ask": 0.95,
-   "status": "DONE",
-   "filled": false,
-   "won": true,
-   "ret": null
-  },
   {
    "slug": "xrp-updown-5m-1794787500",
    "market_id": "7053658",
@@ -145442,6 +145427,21 @@
    "limit": 0.94,
    "taker_ask": 0.95,
    "status": "WORKING",
+   "filled": true,
+   "filled_at": "2026-11-20T18:12:13.375Z",
+   "left_at_fill": 167
+  },
+  {
+   "slug": "sol-updown-5m-1795198200",
+   "market_id": "7177596",
+   "token_id": "24930470044937915027847065411438286374341213183003757696596092350488115550506",
+   "coin": "sol",
+   "outcome": "Down",
+   "end_time": "2026-11-20T18:15:00Z",
+   "placed_at": "2026-11-20T18:12:14.357Z",
+   "limit": 0.96,
+   "taker_ask": 0.97,
+   "status": "WORKING",
    "filled": false
   }
  ],
@@ -145454,12 +145454,12 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2996,
+   "resolved": 2995,
    "filled": 1468,
-   "fill_rate": 0.48998664886515353,
+   "fill_rate": 0.49015025041736227,
    "wr": 0.8610354223433242,
    "ret": -0.068241440791248,
-   "missed_wins": 1528,
+   "missed_wins": 1527,
    "missed_losses": 0
   },
   "late_exit": {
