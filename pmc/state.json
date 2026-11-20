@@ -44,10 +44,10 @@
   "zMin": 2,
   "maxOverRef": 0.01
  },
- "last_scan": "2026-11-20T23:06:58.685Z",
+ "last_scan": "2026-11-20T23:07:11.615Z",
  "last_note": {
-  "at": "2026-11-20T23:06:58.580Z",
-  "windows": 0,
+  "at": "2026-11-20T23:07:08.667Z",
+  "windows": 4,
   "settled": 0,
   "entered": 0
  },
@@ -60310,13 +60310,6 @@
  ],
  "equity": [
   {
-   "ts": "2026-11-15T22:59:05.887Z",
-   "equity": 970.0899932354548,
-   "cash": 970.0899932354548,
-   "open_value": 0,
-   "open_count": 0
-  },
-  {
    "ts": "2026-11-15T23:00:05.059Z",
    "equity": 970.0899932354548,
    "cash": 970.0899932354548,
@@ -95308,9 +95301,38 @@
    "cash": 970.0899932354548,
    "open_value": 0,
    "open_count": 0
+  },
+  {
+   "ts": "2026-11-20T23:07:11.615Z",
+   "equity": 970.0899932354548,
+   "cash": 970.0899932354548,
+   "open_value": 0,
+   "open_count": 0
   }
  ],
  "decisions": [
+  {
+   "ts": "2026-11-20T23:07:10.973Z",
+   "market_id": "7183629",
+   "question": "Ethereum Up or Down - November 20, 6:05PM-6:10PM ET",
+   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 23:05–23:10 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.96,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 1.53 < 2 (המחיר קרוב מדי לקו הפתיחה)"
+  },
+  {
+   "ts": "2026-11-20T23:07:11.615Z",
+   "market_id": "7183635",
+   "question": "XRP Up or Down - November 20, 6:05PM-6:10PM ET",
+   "question_he": "XRP · עולה או יורד · 5 דקות · 23:05–23:10 UTC",
+   "outcome": "Down",
+   "outcome_he": "יורד",
+   "price": 0.9,
+   "decision": "skip",
+   "reason": "מסנן מרחק: 0.85 < 2 (המחיר קרוב מדי לקו הפתיחה)"
+  },
   {
    "ts": "2026-11-20T23:03:51.205Z",
    "market_id": "7183379",
@@ -97488,49 +97510,10 @@
    "price": 0.93,
    "decision": "skip",
    "reason": "מסנן מרחק: 0.79 < 2 (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-11-20T18:52:07.570Z",
-   "market_id": "7177798",
-   "question": "Ethereum Up or Down - November 20, 1:50PM-1:55PM ET",
-   "question_he": "את׳ריום · עולה או יורד · 5 דקות · 18:50–18:55 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.95,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 1.04 < 2 (המחיר קרוב מדי לקו הפתיחה)"
-  },
-  {
-   "ts": "2026-11-20T18:52:08.145Z",
-   "market_id": "7177803",
-   "question": "XRP Up or Down - November 20, 1:50PM-1:55PM ET",
-   "question_he": "XRP · עולה או יורד · 5 דקות · 18:50–18:55 UTC",
-   "outcome": "Up",
-   "outcome_he": "עולה",
-   "price": 0.91,
-   "decision": "skip",
-   "reason": "מסנן מרחק: 0.56 < 2 (המחיר קרוב מדי לקו הפתיחה)"
   }
  ],
  "next_id": 840,
  "shadow": [
-  {
-   "slug": "xrp-updown-5m-1794797100",
-   "market_id": "7056201",
-   "token_id": "8878891565358986552455858368844147300013708152205963018254158156056295231305",
-   "coin": "xrp",
-   "outcome": "Up",
-   "end_time": "2026-11-16T02:50:00Z",
-   "placed_at": "2026-11-16T02:47:20.720Z",
-   "limit": 0.9,
-   "taker_ask": 0.91,
-   "status": "DONE",
-   "filled": true,
-   "filled_at": "2026-11-16T02:47:49.652Z",
-   "left_at_fill": 130,
-   "won": true,
-   "ret": 0.11111111111111108
-  },
   {
    "slug": "sol-updown-5m-1794797400",
    "market_id": "7056228",
@@ -145439,6 +145422,19 @@
    "taker_ask": 0.94,
    "status": "WORKING",
    "filled": false
+  },
+  {
+   "slug": "eth-updown-5m-1795215900",
+   "market_id": "7183629",
+   "token_id": "91889547919288483457321624528784890767376014892186482321542504602504935754973",
+   "coin": "eth",
+   "outcome": "Down",
+   "end_time": "2026-11-20T23:10:00Z",
+   "placed_at": "2026-11-20T23:07:09.594Z",
+   "limit": 0.95,
+   "taker_ask": 0.96,
+   "status": "WORKING",
+   "filled": false
   }
  ],
  "study": {
@@ -145450,11 +145446,11 @@
   },
   "maker": {
    "placed": 3000,
-   "resolved": 2996,
-   "filled": 1467,
-   "fill_rate": 0.489652870493992,
-   "wr": 0.8602590320381731,
-   "ret": -0.06907506277613874,
+   "resolved": 2995,
+   "filled": 1466,
+   "fill_rate": 0.4894824707846411,
+   "wr": 0.8601637107776262,
+   "ret": -0.06919797285382447,
    "missed_wins": 1529,
    "missed_losses": 0
   },
